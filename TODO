@@ -8,7 +8,7 @@ UNSORTED
     can get real cursor control and use the IME.  But I'd need to either switch
     to Text or make sure ParseBs works on UTF8.
   - Do profiles again with Data.Text instead of ByteString.
-  - calls should be able to accept symbols as substitutes for strings, at
+  * calls should be able to accept symbols as substitutes for strings, at
     least if I'm sure I don't want to do variable substitution.  Even if I
     do, maybe it's uncommon enough to be worth a $?
   * shift-backspace in raw edit can delete `symbols` as well

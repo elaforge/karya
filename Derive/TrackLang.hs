@@ -317,6 +317,7 @@ instance Typecheck DefaultScore where
 
 instance Typecheck String where
     from_val (VString s) = Just s
+    from_val (VSymbol (Symbol s)) = Just s
     from_val _ = Nothing
     to_val = VString
     to_type _ = TString
