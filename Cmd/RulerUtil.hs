@@ -23,9 +23,9 @@ ruler marklists = Ruler.Ruler
     }
 
 -- | Create a ruler with a meter of the given duration.
-meter_ruler :: ScoreTime -> Meter.AbstractMeter -> Ruler.Ruler
-meter_ruler dur meter =
-    ruler [(Meter.meter, Meter.meter_marklist (Meter.fit_meter dur meter))]
+meter_ruler :: ScoreTime -> [Meter.AbstractMeter] -> Ruler.Ruler
+meter_ruler dur meters =
+    ruler [(Meter.meter, Meter.meter_marklist (Meter.fit_meter dur meters))]
 
 -- | Replace or add a marklist with the given name.
 set_marklist :: (State.M m) => RulerId -> Ruler.Name -> Ruler.Marklist -> m ()

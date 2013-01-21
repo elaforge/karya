@@ -145,7 +145,7 @@ m68 = regular_subdivision [4, 4, 6, 2, 4]
 -- *** AbstractMeter utils
 
 -- | It's easier to visualize a meter as a list of its ranks.
-mshow :: AbstractMeter -> [Ruler.Rank]
+mshow :: [AbstractMeter] -> [Ruler.Rank]
 mshow = map fst . make_meter 1
 
 -- | Map the given function over all @T@s in the given AbstractMeter.
@@ -160,11 +160,12 @@ meter_length (T d) = d
 
 -- ** meter implementation
 
--- | Convert an AbstractMeter into a Meter.
-make_meter :: Double -> AbstractMeter -> Meter
-make_meter stretch meter = group0 marks
+-- | Convert AbstractMeters into a Meter.  The AbstractMeters are concatenated,
+-- and each one defines a rank 0.
+make_meter :: Double -> [AbstractMeter] -> Meter
+make_meter stretch meters = group0 marks
     where
-    marks = convert 0 (map_t (* realToFrac stretch) meter)
+    marks = concatMap (convert 0 . map_t (* realToFrac stretch)) meters
     -- Convert returns an intermediate format where all the ranks coexist at
     -- the same time, by giving them 0 dur.
     group0 dur_rank = case span ((==0) . snd) dur_rank of
@@ -172,16 +173,18 @@ make_meter stretch meter = group0 marks
             (minimum (rank : map fst zeros), dur) : group0 rest
         (_, []) -> []
     convert rank (T v) = [(rank, realToFrac v)]
-    convert rank (D meter) = (rank, 0) : concatMap (convert (rank+1)) meter
+    convert rank (D m) = (rank, 0) : concatMap (convert (rank+1)) m
     map_t :: (Ratio Integer -> Ratio Integer) -> AbstractMeter -> AbstractMeter
     map_t f = replace_t (T . f)
 
 -- | Like 'make_meter', but stretch the meter to fit in the given duration.
-fit_meter :: ScoreTime -> AbstractMeter -> Meter
-fit_meter dur meter = make_meter stretch meter
-    where stretch = ScoreTime.to_double dur / realToFrac (meter_length meter)
+fit_meter :: ScoreTime -> [AbstractMeter] -> Meter
+fit_meter dur meters = make_meter stretch meters
+    where
+    stretch = ScoreTime.to_double dur
+        / realToFrac (sum (map meter_length meters))
 
-make_marklist :: Double -> AbstractMeter -> Ruler.Marklist
+make_marklist :: Double -> [AbstractMeter] -> Ruler.Marklist
 make_marklist stretch = meter_marklist . make_meter stretch
 
 meter_marklist :: Meter -> Ruler.Marklist

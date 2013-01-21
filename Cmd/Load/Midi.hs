@@ -62,7 +62,7 @@ create :: (State.M m) => Id.Namespace -> [(String, Track)]
     -> Skeleton.Skeleton -> m ()
 create name tracks skel = do
     State.set_namespace name
-    ruler_id <- Create.ruler "meter44" (RulerUtil.meter_ruler 16 Meter.m44)
+    ruler_id <- Create.ruler "meter44" (RulerUtil.meter_ruler 16 [Meter.m44])
     block_id <- Create.block ruler_id
     mapM_ (add_track block_id) tracks
     State.set_skeleton block_id skel

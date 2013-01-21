@@ -135,19 +135,19 @@ delete = do
 fit_to_end :: (Cmd.M m) => Meter.AbstractMeter -> BlockId -> m Modify
 fit_to_end meter block_id = do
     end <- State.block_event_end block_id
-    fit_to_pos end meter
+    fit_to_pos end [meter]
 
 fit_to_selection :: (Cmd.M m) => Meter.AbstractMeter -> m Modify
 fit_to_selection meter = do
     (_, _, _, pos) <- Selection.get_insert
-    fit_to_pos pos meter
+    fit_to_pos pos [meter]
 
-fit_to_pos :: (Cmd.M m) => ScoreTime -> Meter.AbstractMeter -> m Modify
-fit_to_pos pos meter = do
+fit_to_pos :: (Cmd.M m) => ScoreTime -> [Meter.AbstractMeter] -> m Modify
+fit_to_pos pos meters = do
     when (pos <= 0) $
         Cmd.throw "can't set ruler for block with 0 duration"
     block_id <- Cmd.get_focused_block
-    return (block_id, const $ Meter.fit_meter pos meter)
+    return (block_id, const $ Meter.fit_meter pos meters)
 
 get_meter :: (State.M m) => BlockId -> m Meter.Meter
 get_meter block_id =

@@ -8,7 +8,7 @@ import qualified Cmd.Meter as Meter
 
 
 test_make_meter = do
-    let meter = Meter.make_meter 1 (Meter.regular_subdivision [4, 4])
+    let meter = Meter.make_meter 1 [Meter.regular_subdivision [4, 4]]
     equal meter (Meter.marklist_meter (Meter.meter_marklist meter))
 
     let marks = Map.toList $ Ruler.marklist_map (Meter.meter_marklist meter)
