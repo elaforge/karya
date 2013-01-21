@@ -24,7 +24,7 @@ import qualified Derive.Stack as Stack
 import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.Lilypond.Meter as Meter
-import Perform.Lilypond.Meter (TimeSignature)
+import Perform.Lilypond.Meter (Meter)
 import Perform.Lilypond.Types
 import qualified Perform.Pitch as Pitch
 
@@ -41,10 +41,10 @@ v_hand = TrackLang.Symbol "hand"
 v_clef :: TrackLang.ValName
 v_clef = TrackLang.Symbol "clef"
 
--- | String: should be parseable by 'Meter.parse_signature',
+-- | String: should be parseable by 'Meter.parse_meter',
 -- e.g. @\'3/4\'@.
-v_time_signature :: TrackLang.ValName
-v_time_signature = TrackLang.Symbol "time-sig"
+v_meter :: TrackLang.ValName
+v_meter = TrackLang.Symbol "meter"
 
 -- | String: in place of the note, include this lilypond code directly.
 v_ly_code :: TrackLang.ValName
@@ -107,7 +107,7 @@ data Note = Note {
     }
     | ClefChange String
     | KeyChange Key
-    | TimeChange TimeSignature
+    | MeterChange Meter
     | Code !String
     deriving (Show)
 
@@ -138,7 +138,7 @@ instance ToLily Note where
         where ly_dur = to_lily dur ++ if tie then "~" else ""
     to_lily (ClefChange clef) = "\\clef " ++ clef
     to_lily (KeyChange (tonic, mode)) = "\\key " ++ tonic ++ " \\" ++ mode
-    to_lily (TimeChange tsig) = "\\time " ++ to_lily tsig
+    to_lily (MeterChange meter) = "\\time " ++ to_lily meter
     to_lily (Code code) = code
 
 note_time :: Note -> Time
@@ -149,23 +149,21 @@ note_stack :: Note -> Maybe Stack.UiFrame
 note_stack note@(Note {}) = _note_stack note
 note_stack _ = Nothing
 
--- * time signature
+-- * meter
 
--- | Get a time signature map for the events.  There is one TimeSignature for
--- each measure.
-extract_time_signatures :: [Event] -> Either String [TimeSignature]
-extract_time_signatures events = go 0 Meter.default_signature events
+-- | Get a meter map for the events.  There is one Meter for each measure.
+extract_meters :: [Event] -> Either String [Meter]
+extract_meters events = go 0 Meter.default_meter events
     where
     go _ _ [] = Right []
-    go at prev_tsig events = do
-        tsig <- maybe (return prev_tsig) lookup_time_signature (Seq.head events)
-        let end = at + Meter.measure_time tsig
-        rest <- go end tsig (dropWhile ((<=end) . event_end) events)
-        return $ tsig : rest
+    go at prev_meter events = do
+        meter <- maybe (return prev_meter) lookup_meter $ Seq.head events
+        let end = at + Meter.measure_time meter
+        rest <- go end meter (dropWhile ((<=end) . event_end) events)
+        return $ meter : rest
 
-    lookup_time_signature = do
-        lookup_val v_time_signature Meter.parse_signature
-            Meter.default_signature
+    lookup_meter = do
+        lookup_val v_meter Meter.parse_meter Meter.default_meter
     lookup_val :: TrackLang.ValName -> (String -> Either String a) -> a -> Event
         -> Either String a
     lookup_val key parse deflt event = prefix $ do
@@ -183,7 +181,7 @@ data State = State {
     -- constant
     state_config :: Config
     -- change on each measure
-    , state_times :: [TimeSignature]
+    , state_meters :: [Meter]
     , state_measure_start :: Time
     , state_measure_end :: Time
 
@@ -196,86 +194,86 @@ data State = State {
     } deriving (Show)
 
 -- | Turn Events, which are in absolute Time, into Notes, which are divided up
--- into tied Durations depending on the time signature.  The Notes are divided
--- up by measure.
-convert_measures :: Config -> [TimeSignature] -> [Event]
+-- into tied Durations depending on the meter.  The Notes are divided up by
+-- measure.
+convert_measures :: Config -> [Meter] -> [Event]
     -> Either String [[Note]]
-convert_measures config time_sigs events =
+convert_measures config meters events =
     run_convert initial $ add_time_changes <$> go events
     where
-    initial = State config time_sigs 0 0 0 Nothing Nothing Nothing
+    initial = State config meters 0 0 0 Nothing Nothing Nothing
     go [] = return []
     go events = do
         (measure, events) <- convert_measure events
         measures <- go events
         return (measure : measures)
 
-    -- Add TimeChanges when the time signature changes, and pad with empty
-    -- measures until I run out of time signatures.
-    add_time_changes = map add_time . Seq.zip_padded2 (Seq.zip_prev time_sigs)
-    add_time ((prev_tsig, tsig), maybe_measure) = time_change
-        ++ fromMaybe (make_rests config tsig 0 (Meter.measure_time tsig))
+    -- Add TimeChanges when the meter changes, and pad with empty measures
+    -- until I run out of meter.
+    add_time_changes = map add_time . Seq.zip_padded2 (Seq.zip_prev meters)
+    add_time ((prev_meter, meter), maybe_measure) = meter_change
+        ++ fromMaybe (make_rests config meter 0 (Meter.measure_time meter))
             maybe_measure
-        where time_change = [TimeChange tsig | maybe True (/=tsig) prev_tsig]
+        where
+        meter_change = [MeterChange meter | maybe True (/=meter) prev_meter]
 
 -- | This is a simplified version of 'convert_measures', designed for
 -- converting little chunks of lilypond that occur in other expressions.
--- So it doesn't handle clef changes, time signature changes, or even barlines.
-simple_convert :: Config -> TimeSignature -> Time -> [Event] -> [Note]
-simple_convert config_ time_sig = go
+-- So it doesn't handle clef changes, meter changes, or even barlines.
+simple_convert :: Config -> Meter -> Time -> [Event] -> [Note]
+simple_convert config_ meter = go
     where
     config = config_ { config_dynamics = [] }
     go _ [] = []
     go start (event : events) = leading_rests ++ [note] ++ go end rest_events
         where
-        leading_rests = make_rests config time_sig start (event_start event)
+        leading_rests = make_rests config meter start (event_start event)
         (note, end, rest_events) =
-            convert_note config Nothing time_sig event events
+            convert_note config Nothing meter event events
 
--- TODO The time signatures are still not correct.  Since time sig is only on
--- notes, I can't represent a time sig change during silence.  I would need to
--- generate something other than notes, or create a silent note for each time
--- sig change.
+-- TODO The meters are still not correct.  Since meter is only on notes,
+-- I can't represent a meter change during silence.  I would need to generate
+-- something other than notes, or create a silent note for each meter change.
 convert_measure :: [Event] -> ConvertM ([Note], [Event])
 convert_measure events = case events of
     [] -> return ([], []) -- Out of events at the beginning of a measure.
     first_event : _ -> do
-        tsig <- State.gets state_times >>= \x -> case x of
+        meter <- State.gets state_meters >>= \x -> case x of
             [] -> Error.throwError $
-                "out of time signatures but not out of events: "
+                "out of meters but not out of events: "
                 ++ show first_event
-            tsig : tsigs -> do
-                State.modify $ \state -> state { state_times = tsigs }
-                return tsig
-        event_tsig <- lookup_time_signature first_event
-        when (event_tsig /= tsig) $
+            meter : meters -> do
+                State.modify $ \state -> state { state_meters = meters }
+                return meter
+        event_meter <- lookup_meter first_event
+        when (event_meter /= meter) $
             Error.throwError $
-                "inconsistent time signatures, analysis says it should be "
-                ++ show tsig ++ " but the event has " ++ show event_tsig
+                "inconsistent meters, analysis says it should be "
+                ++ show meter ++ " but the event has " ++ show event_meter
         State.modify $ \state -> state
             { state_measure_start = state_measure_end state
             , state_measure_end =
-                state_measure_end state + Meter.measure_time tsig
+                state_measure_end state + Meter.measure_time meter
             }
-        measure1 tsig events
+        measure1 meter events
     where
-    measure1 tsig [] = trailing_rests tsig []
-    measure1 tsig (event : events) = do
+    measure1 meter [] = trailing_rests meter []
+    measure1 meter (event : events) = do
         state <- State.get
         -- This assumes that events that happen at the same time all have the
         -- same clef and key.
         measure_end <- State.gets state_measure_end
         if event_start event >= measure_end
-            then trailing_rests tsig (event : events)
-            else note_column state tsig event events
-    note_column state tsig event events = do
+            then trailing_rests meter (event : events)
+            else note_column state meter event events
+    note_column state meter event events = do
         clef <- lookup_clef event
         let clef_change = [ClefChange clef | Just clef /= state_clef state]
         key <- lookup_key event
         let key_change = [KeyChange key | Just key /= state_key state]
         let (note, end, rest_events) = convert_note (state_config state)
-                (state_dynamic state) tsig event events
-            leading_rests = make_rests (state_config state) tsig
+                (state_dynamic state) meter event events
+            leading_rests = make_rests (state_config state) meter
                 (state_note_end state) (event_start event)
             notes = leading_rests ++ clef_change ++ key_change ++ [note]
         State.modify $ \state -> state
@@ -285,19 +283,19 @@ convert_measure events = case events of
                 get_dynamic (config_dynamics (state_config state)) event
             , state_note_end = end
             }
-        (rest_notes, rest_events) <- measure1 tsig rest_events
+        (rest_notes, rest_events) <- measure1 meter rest_events
         return (notes ++ rest_notes, rest_events)
-    trailing_rests tsig events = do
+    trailing_rests meter events = do
         state <- State.get
-        let end = state_measure_start state + Meter.measure_time tsig
-        let rests = make_rests (state_config state) tsig
+        let end = state_measure_start state + Meter.measure_time meter
+        let rests = make_rests (state_config state) meter
                 (state_note_end state) end
         State.modify $ \state -> state { state_note_end = end }
         return (rests, events)
 
-convert_note :: Config -> Maybe String -> TimeSignature -> Event -> [Event]
+convert_note :: Config -> Maybe String -> Meter -> Event -> [Event]
     -> (Note, Time, [Event]) -- ^ (note, note end time, remaining events)
-convert_note config prev_dynamic tsig event events
+convert_note config prev_dynamic meter event events
     | Just code <- TrackLang.maybe_val v_ly_code env =
         (Code code, start + event_duration event, events)
     | otherwise = (note, end, clipped ++ rest)
@@ -314,7 +312,7 @@ convert_note config prev_dynamic tsig event events
         , _note_stack = Seq.last (Stack.to_ui (event_stack event))
         }
     (here, rest) = break ((> start) . event_start) (event : events)
-    allowed = min (max_end - start) (allowed_time_dotted tsig False start)
+    allowed = min (max_end - start) (allowed_time_dotted meter False start)
     allowed_dur = time_to_note_dur allowed
     allowed_time = note_dur_to_time allowed_dur
     -- Maximum end, the actual end may be shorter since it has to conform to
@@ -326,9 +324,9 @@ convert_note config prev_dynamic tsig event events
     end = start + allowed_time
     next = maybe [] ((:[]) . event_start) (Seq.head rest)
 
-make_rests :: Config -> TimeSignature -> Time -> Time -> [Note]
-make_rests config tsig start end
-    | start < end = map rest $ convert_duration tsig
+make_rests :: Config -> Meter -> Time -> Time -> [Note]
+make_rests config meter start end
+    | start < end = map rest $ convert_duration meter
         (config_dotted_rests config) True start (end - start)
     | otherwise = []
 
@@ -339,9 +337,8 @@ run_convert :: State -> ConvertM a -> Either String a
 run_convert state = fmap fst . Identity.runIdentity . Error.runErrorT
     . flip State.runStateT state
 
-lookup_time_signature :: Event -> ConvertM TimeSignature
-lookup_time_signature = lookup_val v_time_signature Meter.parse_signature
-    Meter.default_signature
+lookup_meter :: Event -> ConvertM Meter
+lookup_meter = lookup_val v_meter Meter.parse_meter Meter.default_meter
 
 lookup_clef :: Event -> ConvertM Clef
 lookup_clef = lookup_val v_clef Right default_clef
@@ -389,38 +386,33 @@ clip_event end e
 
 -- | Given a starting point and a duration, emit the list of Durations
 -- needed to express that duration.
-convert_duration :: TimeSignature -> Bool -> Bool -> Time -> Time
+convert_duration :: Meter -> Bool -> Bool -> Time -> Time
     -> [NoteDuration]
-convert_duration sig use_dot is_rest pos time_dur
+convert_duration meter use_dot is_rest pos time_dur
     | time_dur <= 0 = []
     | allowed >= time_dur = to_durs time_dur
     | otherwise = dur
-        : convert_duration sig use_dot is_rest
+        : convert_duration meter use_dot is_rest
             (pos + allowed) (time_dur - allowed)
     where
     dur = time_to_note_dur allowed
     allowed = (if use_dot
-        then allowed_time_dotted else allowed_time_plain) sig is_rest pos
+        then allowed_time_dotted else allowed_time_plain) meter is_rest pos
     to_durs = if use_dot then time_to_note_durs
         else map (flip NoteDuration False) . time_to_durs
 
 -- | Figure out how much time a note at the given position should be allowed
 -- before it must tie.
---
--- TODO return Duration
-allowed_time_plain :: TimeSignature -> Bool -> Time -> Time
-allowed_time_plain sig is_rest = dur_to_time . fst . time_to_dur
-    . allowed_time sig is_rest
+allowed_time_plain :: Meter -> Bool -> Time -> Time
+allowed_time_plain meter is_rest = dur_to_time . fst . time_to_dur
+    . allowed_time meter is_rest
 
 -- | This is like 'allowed_time_plain', but will return dotted rhythms.
---
--- TODO return a NoteDuration
-allowed_time_dotted :: TimeSignature -> Bool
-    -> Time -> Time
-allowed_time_dotted sig is_rest pos = note_dur_to_time $ time_to_note_dur $
-    allowed_time sig is_rest pos
+allowed_time_dotted :: Meter -> Bool -> Time -> Time
+allowed_time_dotted meter is_rest = note_dur_to_time . time_to_note_dur
+    . allowed_time meter is_rest
 
-allowed_time :: TimeSignature -> Bool
+allowed_time :: Meter -> Bool
     -- ^ True if this is a rest.  The algorithm for note durations is greedy,
     -- in that it will seek to find the longest note that doesn't span a
     -- beat whose rank is too low.  But that results in rests being spelled
@@ -430,22 +422,22 @@ allowed_time :: TimeSignature -> Bool
     -- TODO this uses only undotted rhythms, which is ok since I don't like
     -- dotted rests.
     -> Time -> Time
-allowed_time sig is_rest start_ = subtract start $
+allowed_time meter is_rest start_ = subtract start $
     (if is_rest then best_duration else id) $ fromMaybe measure $
-        Meter.find_rank start (rank - if is_duple then 2 else 1) sig
+        Meter.find_rank start (rank - if is_duple then 2 else 1) meter
     where
     -- Try notes up to the end, select the one that lands on the lowest rank.
     best_duration end = fromMaybe (start + 1) $
-        Seq.minimum_on (Meter.rank_at sig) candidates
+        Seq.minimum_on (Meter.rank_at meter) candidates
         where
         candidates = takeWhile (<=end) $ map ((+start) . dur_to_time) durs
     durs = reverse [D1 .. D128]
     start = start_ `mod` measure
-    rank = Meter.rank_at sig start
-    is_duple = case Meter.time_nums sig of
+    rank = Meter.rank_at meter start
+    is_duple = case Meter.meter_nums meter of
         [num] -> (==0) $ snd $ properFraction $ logBase 2 (fromIntegral num)
         _ -> False
-    measure = Meter.measure_time sig
+    measure = Meter.measure_time meter
 
 -- * types
 
@@ -485,26 +477,25 @@ data Staff = Staff [[Note]] deriving (Show)
 convert_staff_groups :: Config -> [Event] -> Either String [StaffGroup]
 convert_staff_groups config events = do
     let staff_groups = split_events events
-    time_sigs <- get_time_signatures staff_groups
+    meters <- get_meters staff_groups
     forM staff_groups $ \(inst, staves) ->
-        staff_group config time_sigs inst staves
+        staff_group config meters inst staves
 
--- | Get the per-measure time signatures from the longest staff and verify it
--- against the time signatures from the other staves.
-get_time_signatures :: [(Score.Instrument, [[Event]])]
-    -> Either String [TimeSignature]
-get_time_signatures staff_groups = do
+-- | Get the per-measure meters from the longest staff and verify it
+-- against the meters from the other staves.
+get_meters :: [(Score.Instrument, [[Event]])] -> Either String [Meter]
+get_meters staff_groups = do
     let with_inst inst = error_context ("staff for " ++ Pretty.pretty inst)
-    with_tsigs <- forM staff_groups $ \(inst, staves) -> with_inst inst $ do
-        time_sigs <- mapM extract_time_signatures staves
-        return (inst, zip time_sigs staves)
+    with_meters <- forM staff_groups $ \(inst, staves) -> with_inst inst $ do
+        meters <- mapM extract_meters staves
+        return (inst, zip meters staves)
     let flatten (_inst, measures) = map fst measures
-        maybe_longest = Seq.maximum_on length (concatMap flatten with_tsigs)
-    when_just maybe_longest $ \longest -> forM_ with_tsigs $ \(inst, staves) ->
-        with_inst inst $ forM_ staves $ \(time_sigs, _measures) ->
-            unless (time_sigs `List.isPrefixOf` longest) $
-                Left $ "inconsistent time signatures: "
-                    ++ Pretty.pretty time_sigs ++ " is not a prefix of "
+        maybe_longest = Seq.maximum_on length (concatMap flatten with_meters)
+    when_just maybe_longest $ \longest -> forM_ with_meters $ \(inst, staves) ->
+        with_inst inst $ forM_ staves $ \(meters, _measures) ->
+            unless (meters `List.isPrefixOf` longest) $
+                Left $ "inconsistent meters: "
+                    ++ Pretty.pretty meters ++ " is not a prefix of "
                     ++ Pretty.pretty longest
     return $ fromMaybe [] maybe_longest
 
@@ -527,10 +518,10 @@ split_events events =
 -- | Right hand goes at the top, left hand goes at the bottom.  Any other hands
 -- goe below that.  Events that are don't have a hand are assumed to be in the
 -- right hand.
-staff_group :: Config -> [TimeSignature] -> Score.Instrument -> [[Event]]
+staff_group :: Config -> [Meter] -> Score.Instrument -> [[Event]]
     -> Either String StaffGroup
-staff_group config time_sigs inst staves = do
-    staff_measures <- mapM (convert_measures config time_sigs) staves
+staff_group config meters inst staves = do
+    staff_measures <- mapM (convert_measures config meters) staves
     return $ StaffGroup inst $ map (Staff . promote_annotations) staff_measures
 
 -- | Normally clef or key changes go right before the note with the changed
@@ -554,7 +545,7 @@ promote_annotations measures = case empty ++ stripped of
     is_annot (Note {}) = False
     is_annot (Code {}) = False
     is_annot _ = True
-    is_time (TimeChange {}) = True
+    is_time (MeterChange {}) = True
     is_time _ = False
 
 -- * make_ly

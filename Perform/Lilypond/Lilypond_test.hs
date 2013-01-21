@@ -39,32 +39,32 @@ test_convert_measures = do
     equal (f [(0, 0, "a"), (0, 0, "b"), (1, 1, "c")]) $ Right
         [["<a b>128", "r128", "r64", "r32", "r16", "r8", "c4", "r2"]]
 
-test_change_time_signature = do
-    let f = convert_staves ["time"] . map time_sig_event
+test_change_meter = do
+    let f = convert_staves ["time"] . map meter_event
     equal (f [(0, 5, "a", "4/4"), (6, 2, "b", "4/4")]) $ Right
         [["\\time 4/4", "a1~"], ["a4", "r4", "b2"]]
-    -- Change signature on the measure boundary.
+    -- Change meter on the measure boundary.
     equal (f [(0, 2, "a", "2/4"), (2, 2, "b", "4/4")]) $ Right
         [["\\time 2/4", "a2"], ["\\time 4/4", "b2", "r2"]]
 
-    -- Time signature changes during a note.
+    -- Meter changes during a note.
     equal (f [(0, 3, "a", "2/4"), (3, 4, "b", "4/4")]) $ Right
         [["\\time 2/4", "a2~"], ["a4", "b4~"], ["\\time 4/4", "b2.", "r4"]]
     equal (f [(0, 3, "a", "2/4"), (4, 4, "b", "4/4")]) $ Right
         [["\\time 2/4", "a2~"], ["a4", "r4"], ["\\time 4/4", "b1"]]
 
-    -- Inconsistent time signatures cause an error.
+    -- Inconsistent meters cause an error.
     let run = convert_staves [] . fst . derive . concatMap UiTest.note_spec
     left_like (run
-            [ ("s/i1 | time-sig = '2/4'", [(0, 4, "4a")], [])
-            , ("s/i2 | time-sig = '4/4'", [(0, 4, "4b")], [])
+            [ ("s/i1 | meter = '2/4'", [(0, 4, "4a")], [])
+            , ("s/i2 | meter = '4/4'", [(0, 4, "4b")], [])
             ])
-        "staff for >s/i2: inconsistent time signatures"
+        "staff for >s/i2: inconsistent meters"
 
 test_parse_error = do
     let f = convert_staves [] . map environ_event
     left_like (f [(0, 1, "a", [(TrackLang.v_key, "oot-greet")])]) "unknown key"
-    left_like (f [(0, 1, "a", [(Lilypond.v_time_signature, "oot-greet")])])
+    left_like (f [(0, 1, "a", [(Lilypond.v_meter, "oot-greet")])])
         "can't parse"
 
 test_chords = do
@@ -81,9 +81,9 @@ test_chords = do
     equal (f [(0, 2, "a"), (1, 2, "c"), (2, 2, "e")]) $ Right
         [["a4~", "<a c>4~", "<c e>4~", "e4"]]
 
-test_extract_time_signatures = do
-    let f = fmap (map Pretty.pretty) . Lilypond.extract_time_signatures
-            . map (\(s, d, tsig) -> time_sig_event (s, d, "a", tsig))
+test_extract_meters = do
+    let f = fmap (map Pretty.pretty) . Lilypond.extract_meters
+            . map (\(s, d, meter) -> meter_event (s, d, "a", meter))
     equal (f [(0, 1, "4/4")]) $ Right ["4/4"]
     equal (f [(0, 5, "4/4")]) $ Right ["4/4", "4/4"]
     equal (f [(5, 5, "4/4")]) $ Right ["4/4", "4/4", "4/4"]
@@ -92,14 +92,14 @@ test_extract_time_signatures = do
     equal (f [(0, 2, "4/4"), (1, 2, "4/4"), (2, 2, "4/4")]) $ Right ["4/4"]
 
 test_convert_duration = do
-    let f sig pos = Lilypond.to_lily $ head $
-            Lilypond.convert_duration sig True False pos (whole - pos)
-    equal (map (f (sig "4/4")) [0, 8 .. 127])
+    let f meter pos = Lilypond.to_lily $ head $
+            Lilypond.convert_duration meter True False pos (whole - pos)
+    equal (map (f (mkmeter "4/4")) [0, 8 .. 127])
         [ "1", "8.", "4.", "16", "2.", "8.", "8", "16"
         -- mid-measure
         , "2", "8.", "4.", "16", "4", "8.", "8", "16"
         ]
-    equal (map (f (sig "2/4")) [0, 8 .. 127]) $
+    equal (map (f (mkmeter "2/4")) [0, 8 .. 127]) $
         concat $ replicate 2 ["2", "8.", "4.", "16", "4", "8.", "8", "16"]
 
 test_make_ly = do
@@ -194,8 +194,8 @@ test_tempo = do
     equal (map extract events) [(0, whole), (whole, whole)]
 
 test_allowed_time_dotted = do
-    let f tsig = extract_rhythms
-            . map (Lilypond.allowed_time_dotted (sig tsig) False)
+    let f meter = extract_rhythms
+            . map (Lilypond.allowed_time_dotted (mkmeter meter) False)
         t = Lilypond.dur_to_time
 
     -- 4/4, being duple, is liberal about spanning beats, since it uses rank-2.
@@ -216,7 +216,8 @@ test_allowed_time_dotted = do
         -- I guess that's probably ok.
 
 test_allowed_time_rest = do
-    let f tsig = extract_rhythms . map (Lilypond.allowed_time (sig tsig) True)
+    let f meter = extract_rhythms
+            . map (Lilypond.allowed_time (mkmeter meter) True)
         t = Lilypond.dur_to_time
     equal (f "4/4" [0, t D4 .. 4 * t D4])
         "1 4 2 4 1"
@@ -262,9 +263,9 @@ environ_event :: (RealTime, RealTime, String, [(TrackLang.ValName, String)])
     -> Lilypond.Event
 environ_event (start, dur, pitch, env) = make_event start dur pitch "" env
 
-time_sig_event :: (RealTime, RealTime, String, String) -> Lilypond.Event
-time_sig_event (s, d, p, tsig) =
-    environ_event (s, d, p, [(Lilypond.v_time_signature, tsig)])
+meter_event :: (RealTime, RealTime, String, String) -> Lilypond.Event
+meter_event (s, d, p, meter) =
+    environ_event (s, d, p, [(Lilypond.v_meter, meter)])
 
 make_event :: RealTime -> RealTime -> String -> String
     -> [(TrackLang.ValName, String)] -> Lilypond.Event
@@ -279,8 +280,8 @@ make_event start dur pitch inst env = Lilypond.Event
     , Lilypond.event_stack = UiTest.mkstack (1, 0, 1)
     }
 
-sig :: String -> Meter.TimeSignature
-sig s = case Meter.parse_signature s of
+mkmeter :: String -> Meter.Meter
+mkmeter s = case Meter.parse_meter s of
     Left err -> error $ "can't parse " ++ show s ++ ": " ++ err
     Right val -> val
 

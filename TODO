@@ -503,8 +503,8 @@ integrate / integration:
     calls)
 
 lilypond:
-  - allowed_time* should return Durations, not Times
-  - rename TimeSignature to Meter, it's shorter
+  / allowed_time* should return Durations, not Times
+  * rename TimeSignature to Meter, it's shorter
   - If I can figure out the meter from just the name, then I can get rid
     of the awkward map with hardcoded meters.
     I could have parse generate the TimeSignature and memoize it.
