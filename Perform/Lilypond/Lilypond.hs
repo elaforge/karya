@@ -11,11 +11,9 @@ import qualified Control.Monad.State.Strict as State
 
 import qualified Data.List as List
 import qualified Data.Map as Map
-import qualified Data.Maybe as Maybe
 import qualified Data.Text as Text
 
 import Util.Control
-import qualified Util.ParseBs as ParseBs
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 
@@ -25,9 +23,11 @@ import qualified Derive.Score as Score
 import qualified Derive.Stack as Stack
 import qualified Derive.TrackLang as TrackLang
 
-import qualified Perform.Pitch as Pitch
-import qualified Perform.RealTime as RealTime
+import qualified Perform.Lilypond.Meter as Meter
+import Perform.Lilypond.Meter (TimeSignature)
 import Perform.Lilypond.Types
+import qualified Perform.Pitch as Pitch
+
 import Types
 
 
@@ -41,7 +41,8 @@ v_hand = TrackLang.Symbol "hand"
 v_clef :: TrackLang.ValName
 v_clef = TrackLang.Symbol "clef"
 
--- | String: should be parseable by parse_time_signature, e.g. @\'3/4\'@.
+-- | String: should be parseable by 'Meter.parse_signature',
+-- e.g. @\'3/4\'@.
 v_time_signature :: TrackLang.ValName
 v_time_signature = TrackLang.Symbol "time-sig"
 
@@ -65,43 +66,7 @@ default_config quarter = Config
         map (first (/0xff)) [(0x40, "p"), (0x80, "mf"), (0xff, "f")]
     }
 
--- | Convert a value to its lilypond representation.
-class ToLily a where
-    to_lily :: a -> String
-
--- ** Time
-
--- | Time in score units.  The maximum resolution is a 128th note, so one unit
--- is 128th of a whole note.
-newtype Time = Time Int deriving (Eq, Ord, Show, Num, Enum, Real, Integral)
-
-instance Pretty.Pretty Time where
-    pretty t = Pretty.show_float 10
-        (fromIntegral t / fromIntegral time_per_whole) ++ "t"
-
-time_per_whole :: Time
-time_per_whole = Time 128
-
-real_to_time :: RealTime -> RealTime -> Time
-real_to_time quarter = Time . floor . adjust . RealTime.to_seconds
-    where
-    adjust n = n * (1 / RealTime.to_seconds quarter * qtime)
-    qtime = fromIntegral (dur_to_time D4)
-
--- ** Duration
-
-instance ToLily Duration where to_lily = drop 1 . show
-
-instance ToLily NoteDuration where
-    to_lily (NoteDuration dur dot) = to_lily dur ++ if dot then "." else ""
-
-data TimeSignature = TimeSignature
-    { time_num :: !Int, time_denom :: !Duration }
-    deriving (Eq, Show)
-
-instance Pretty.Pretty TimeSignature where pretty = to_lily
-instance ToLily TimeSignature where
-    to_lily (TimeSignature num denom) = show num ++ "/" ++ to_lily denom
+-- ** Event
 
 data Event = Event {
     event_start :: !Time
@@ -189,17 +154,18 @@ note_stack _ = Nothing
 -- | Get a time signature map for the events.  There is one TimeSignature for
 -- each measure.
 extract_time_signatures :: [Event] -> Either String [TimeSignature]
-extract_time_signatures events = go 0 default_time_signature events
+extract_time_signatures events = go 0 Meter.default_signature events
     where
     go _ _ [] = Right []
     go at prev_tsig events = do
         tsig <- maybe (return prev_tsig) lookup_time_signature (Seq.head events)
-        let end = at + measure_time tsig
+        let end = at + Meter.measure_time tsig
         rest <- go end tsig (dropWhile ((<=end) . event_end) events)
         return $ tsig : rest
 
-    lookup_time_signature = lookup_val v_time_signature parse_time_signature
-        default_time_signature
+    lookup_time_signature = do
+        lookup_val v_time_signature Meter.parse_signature
+            Meter.default_signature
     lookup_val :: TrackLang.ValName -> (String -> Either String a) -> a -> Event
         -> Either String a
     lookup_val key parse deflt event = prefix $ do
@@ -248,7 +214,7 @@ convert_measures config time_sigs events =
     -- measures until I run out of time signatures.
     add_time_changes = map add_time . Seq.zip_padded2 (Seq.zip_prev time_sigs)
     add_time ((prev_tsig, tsig), maybe_measure) = time_change
-        ++ fromMaybe (make_rests config tsig 0 (measure_time tsig))
+        ++ fromMaybe (make_rests config tsig 0 (Meter.measure_time tsig))
             maybe_measure
         where time_change = [TimeChange tsig | maybe True (/=tsig) prev_tsig]
 
@@ -288,7 +254,8 @@ convert_measure events = case events of
                 ++ show tsig ++ " but the event has " ++ show event_tsig
         State.modify $ \state -> state
             { state_measure_start = state_measure_end state
-            , state_measure_end = state_measure_end state + measure_time tsig
+            , state_measure_end =
+                state_measure_end state + Meter.measure_time tsig
             }
         measure1 tsig events
     where
@@ -322,7 +289,7 @@ convert_measure events = case events of
         return (notes ++ rest_notes, rest_events)
     trailing_rests tsig events = do
         state <- State.get
-        let end = state_measure_start state + measure_time tsig
+        let end = state_measure_start state + Meter.measure_time tsig
         let rests = make_rests (state_config state) tsig
                 (state_note_end state) end
         State.modify $ \state -> state { state_note_end = end }
@@ -347,7 +314,7 @@ convert_note config prev_dynamic tsig event events
         , _note_stack = Seq.last (Stack.to_ui (event_stack event))
         }
     (here, rest) = break ((> start) . event_start) (event : events)
-    allowed = min (max_end - start) (allowed_dotted_time tsig start)
+    allowed = min (max_end - start) (allowed_time_dotted tsig False start)
     allowed_dur = time_to_note_dur allowed
     allowed_time = note_dur_to_time allowed_dur
     -- Maximum end, the actual end may be shorter since it has to conform to
@@ -362,7 +329,7 @@ convert_note config prev_dynamic tsig event events
 make_rests :: Config -> TimeSignature -> Time -> Time -> [Note]
 make_rests config tsig start end
     | start < end = map rest $ convert_duration tsig
-        (config_dotted_rests config) start (end - start)
+        (config_dotted_rests config) True start (end - start)
     | otherwise = []
 
 
@@ -373,11 +340,8 @@ run_convert state = fmap fst . Identity.runIdentity . Error.runErrorT
     . flip State.runStateT state
 
 lookup_time_signature :: Event -> ConvertM TimeSignature
-lookup_time_signature =
-    lookup_val v_time_signature parse_time_signature default_time_signature
-
-default_time_signature :: TimeSignature
-default_time_signature = TimeSignature 4 D4
+lookup_time_signature = lookup_val v_time_signature Meter.parse_signature
+    Meter.default_signature
 
 lookup_clef :: Event -> ConvertM Clef
 lookup_clef = lookup_val v_clef Right default_clef
@@ -425,106 +389,63 @@ clip_event end e
 
 -- | Given a starting point and a duration, emit the list of Durations
 -- needed to express that duration.
-convert_duration :: TimeSignature -> Bool -> Time -> Time -> [NoteDuration]
-convert_duration sig use_dot pos time_dur
+convert_duration :: TimeSignature -> Bool -> Bool -> Time -> Time
+    -> [NoteDuration]
+convert_duration sig use_dot is_rest pos time_dur
     | time_dur <= 0 = []
     | allowed >= time_dur = to_durs time_dur
     | otherwise = dur
-        : convert_duration sig use_dot (pos + allowed) (time_dur - allowed)
+        : convert_duration sig use_dot is_rest
+            (pos + allowed) (time_dur - allowed)
     where
     dur = time_to_note_dur allowed
-    allowed = (if use_dot then allowed_dotted_time else allowed_time) sig pos
+    allowed = (if use_dot
+        then allowed_time_dotted else allowed_time_plain) sig is_rest pos
     to_durs = if use_dot then time_to_note_durs
         else map (flip NoteDuration False) . time_to_durs
 
 -- | Figure out how much time a note at the given position should be allowed
 -- before it must tie.
--- TODO Only supports duple time signatures.
-allowed_dotted_time :: TimeSignature -> Time -> Time
-allowed_dotted_time sig measure_pos
-    | pos == 0 = measure
-    | otherwise = min measure next - pos
+--
+-- TODO return Duration
+allowed_time_plain :: TimeSignature -> Bool -> Time -> Time
+allowed_time_plain sig is_rest = dur_to_time . fst . time_to_dur
+    . allowed_time sig is_rest
+
+-- | This is like 'allowed_time_plain', but will return dotted rhythms.
+--
+-- TODO return a NoteDuration
+allowed_time_dotted :: TimeSignature -> Bool
+    -> Time -> Time
+allowed_time_dotted sig is_rest pos = note_dur_to_time $ time_to_note_dur $
+    allowed_time sig is_rest pos
+
+allowed_time :: TimeSignature -> Bool
+    -- ^ True if this is a rest.  The algorithm for note durations is greedy,
+    -- in that it will seek to find the longest note that doesn't span a
+    -- beat whose rank is too low.  But that results in rests being spelled
+    -- @c4 r2 r4@ instead of @c4 r4 r2@.  Unlike notes, all rests are the same.
+    -- So rests will pick the duration that ends on the lowest rank.
+    --
+    -- TODO this uses only undotted rhythms, which is ok since I don't like
+    -- dotted rests.
+    -> Time -> Time
+allowed_time sig is_rest start_ = subtract start $
+    (if is_rest then best_duration else id) $ fromMaybe measure $
+        Meter.find_rank start (rank - if is_duple then 2 else 1) sig
     where
-    pos = measure_pos `mod` measure
-    measure = measure_time sig
-    level = log2 pos + 2
-    -- TODO inefficient way to find the next power of 2 greater than pos.
-    -- There must be a direct way.
-    next = Maybe.fromJust (List.find (>pos) [0, 2^level ..])
-
--- | Like 'allowed_dotted_time', but only emit powers of two.
-allowed_time :: TimeSignature -> Time -> Time
-allowed_time sig pos = 2 ^ log2 (allowed_dotted_time sig pos)
-
--- * duration / time conversion
-
-note_dur_to_time :: NoteDuration -> Time
-note_dur_to_time (NoteDuration dur dotted) =
-    dur_to_time dur + if dotted && dur /= D128 then dur_to_time (succ dur)
-        else 0
-
-dur_to_time :: Duration -> Time
-dur_to_time dur = Time $ whole `div` case dur of
-    D1 -> 1; D2 -> 2; D4 -> 4; D8 -> 8
-    D16 -> 16; D32 -> 32; D64 -> 64; D128 -> 128
-    where Time whole = time_per_whole
-
--- | Time 0 becomes D128 since there's no 0 duration.  This puts a bottom bound
--- on the duration of a note, which is good since 0 duration notes aren't
--- notateable, but can happen after quantization.
-time_to_note_dur :: Time -> NoteDuration
-time_to_note_dur t = case time_to_durs t of
-    [d1, d2] | d2 == succ d1 -> NoteDuration d1 True
-    d : _ -> NoteDuration d False
-    -- I have no 0 duration, so pick the smallest available duration.
-    [] -> NoteDuration D128 False
-
--- | Only Just if the Time fits into a NoteDuration.
-is_note_dur :: Time -> Maybe NoteDuration
-is_note_dur t = case time_to_durs t of
-    [d1, d2] | d2 == succ d1 -> Just $ NoteDuration d1 True
-    [d] -> Just $ NoteDuration d False
-    _ -> Nothing
-
--- | This rounds up to the next Duration, so any Time over a half note will
--- wind up as a whole note.
-time_to_dur :: Time -> Duration
-time_to_dur (Time time) =
-    toEnum $ min (fromEnum D128) (log2 (whole `div` time))
-    where Time whole = time_per_whole
-
-time_to_note_durs :: Time -> [NoteDuration]
-time_to_note_durs t
-    | t > 0 = dur : time_to_note_durs (t - note_dur_to_time dur)
-    | otherwise = []
-    where dur = time_to_note_dur t
-
-time_to_durs :: Time -> [Duration]
-time_to_durs (Time time) =
-    map fst $ filter ((/=0) . snd) $ reverse $ zip durs (binary time)
-    where
-    durs = [D128, D64 ..]
-    binary rest
-        | rest > 0 = m : binary d
-        | otherwise = []
-        where (d, m) = rest `divMod` 2
-
--- | Integral log2.  So 63 is 0, because it divides by 2 zero times.
-log2 :: (Integral a) => a -> Int
-log2 = go 0
-    where
-    go n val
-        | div > 0 && mod == 0 = go (n+1) div
-        | otherwise = n
-        where (div, mod) = val `divMod` 2
-
--- | Duration of a measure, in Time.
-measure_time :: TimeSignature -> Time
-measure_time sig = Time (time_num sig) * dur_to_time (time_denom sig)
-
-measure_duration :: TimeSignature -> Duration
-measure_duration (TimeSignature num denom) =
-    time_to_dur $ Time num * dur_to_time denom
+    -- Try notes up to the end, select the one that lands on the lowest rank.
+    best_duration end = fromMaybe (start + 1) $
+        Seq.minimum_on (Meter.rank_at sig) candidates
+        where
+        candidates = takeWhile (<=end) $ map ((+start) . dur_to_time) durs
+    durs = reverse [D1 .. D128]
+    start = start_ `mod` measure
+    rank = Meter.rank_at sig start
+    is_duple = case Meter.time_nums sig of
+        [num] -> (==0) $ snd $ properFraction $ logBase 2 (fromIntegral num)
+        _ -> False
+    measure = Meter.measure_time sig
 
 -- * types
 
@@ -548,16 +469,6 @@ parse_key key_name = do
         , ("dorian", "dorian"), ("phrygian", "phrygian"), ("lydian", "lydian")
         , ("mixo", "mixolydian")
         ]
-
-parse_time_signature :: String -> Either String TimeSignature
-parse_time_signature sig = do
-    let (num, post) = break (=='/') sig
-        unparseable = Left $ "signature must be ##/##: " ++ show sig
-    denom <- case post of
-        '/' : d -> return d
-        _ -> unparseable
-    TimeSignature <$> maybe unparseable return (ParseBs.int num)
-        <*> maybe unparseable return (read_duration denom)
 
 -- * split staves
 

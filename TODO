@@ -3,6 +3,16 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
+  - It seems like it would be simpler to have meter rank divisions at every
+    note, e.g. w, h, q, e, s, 32, 64, etc. rather than every other.  That way
+    I can get rid of the weird 'q*2' TimeSteps.  I can avoid having to come up
+    with too many mark colors by just making them the same color.
+  - giving Meter.T an argument seems like overkill, do I have a use for
+    beats of unequal lengths?
+  - window titles should be just the end of the view, clip off the
+    (bid "long-name/") stuff
+  - just plain >kkt/kendang should default to kendang-wadon
+    Or, what about making score-specific instrument aliases?
   - make a .cabal file with packages and versions to make install easier
   - bring back the idea of opening up a text entry in raw edit mode?  Then I
     can get real cursor control and use the IME.  But I'd need to either switch
@@ -493,6 +503,12 @@ integrate / integration:
     calls)
 
 lilypond:
+  - allowed_time* should return Durations, not Times
+  - rename TimeSignature to Meter, it's shorter
+  - If I can figure out the meter from just the name, then I can get rid
+    of the awkward map with hardcoded meters.
+    I could have parse generate the TimeSignature and memoize it.
+  - optionally emit the lilypond to display a compound meter
   - why not implement clefs as a code-emitting note transformer rather than
     env var?  There's '8va 1' and then there's staff = treble,
     time-sig = '3/4'.
@@ -508,6 +524,8 @@ lilypond:
   - If I mark a track '| when-lily' I could make it be omitted entirely when
     not in lilypond mode.  That way lilypond markup won't slow down normal
     derivation.
+    Wait, I think that doesn't work because it still wants to slice out
+    orphans.
   - cross-staff notes: \new Staff = "up" ...
     \change Staff = "up ... \change Staff = "down"
     use a note transformer: "staff up"
@@ -539,10 +557,9 @@ lilypond:
   + add hand annotations to score
   - possibly support voices, should be able to do it the same as hand
     splitting
-  - make rhythm spelling work properly for non-duple meters
+  * make rhythm spelling work properly for non-duple meters
     Lilypond has to have a similar algorithm for automatic beaming.
-  - support compound meters, e.g. 5/4 as 3+2 or 2+3
-    TimeSignature needs to get fancier
+  * support compound meters, e.g. 5/4 as 3+2 or 2+3
   * get pitches right, and keep the enharmonics
   * manually add ly tweaks, could be done with special ly environ val
   - is there a way to turn pitch signal calls e.g. 'tr' into an attr on the

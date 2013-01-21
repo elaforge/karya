@@ -18,6 +18,7 @@ import Derive.Sig (defaulted)
 
 import qualified Perform.Lilypond.Convert as Convert
 import qualified Perform.Lilypond.Lilypond as Lilypond
+import qualified Perform.Lilypond.Meter as Meter
 import qualified Perform.Pitch as Pitch
 
 import Types
@@ -153,17 +154,17 @@ eval config args notes = do
 eval_events :: Derive.Lilypond -> RealTime -> Derive.Events
     -> Derive.Deriver [Note]
 eval_events config start events = do
-    time_sig <- maybe (return Lilypond.default_time_signature) parse_time_sig
+    time_sig <- maybe (return Meter.default_signature) parse_time_sig
         =<< Derive.lookup_val Lilypond.v_time_signature
     let (notes, logs) = eval_notes config time_sig start events
     mapM_ Log.write logs
     return notes
     where
-    parse_time_sig = either err return . Lilypond.parse_time_signature
+    parse_time_sig = either err return . Meter.parse_signature
     err = Derive.throw
         . ("parse " <> Pretty.pretty Lilypond.v_time_signature <>)
 
-eval_notes :: Derive.Lilypond -> Lilypond.TimeSignature
+eval_notes :: Derive.Lilypond -> Meter.TimeSignature
     -> RealTime -> Derive.Events -> ([Note], [Log.Msg])
 eval_notes (Derive.Lilypond time_config config) time_sig start score_events =
     (map Lilypond.to_lily notes, logs)

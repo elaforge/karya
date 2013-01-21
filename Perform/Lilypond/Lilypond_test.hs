@@ -14,20 +14,21 @@ import qualified Derive.Score as Score
 import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.Lilypond.Lilypond as Lilypond
-import Perform.Lilypond.Lilypond (Duration(..))
 import qualified Perform.Lilypond.LilypondTest as LilypondTest
 import Perform.Lilypond.LilypondTest (convert_staves, derive)
+import qualified Perform.Lilypond.Meter as Meter
+import Perform.Lilypond.Types (Duration(..))
 
 import Types
 
 
 test_convert_measures = do
     let f = convert_staves [] . map simple_event
-
     equal (f [(0, 1, "a"), (1, 1, "b")]) $ Right [["a4", "b4", "r2"]]
     equal (f [(1, 1, "a"), (2, 8, "b")]) $ Right
         [["r4", "a4", "b2~"], ["b1~"], ["b2", "r2"]]
     -- Rests are not dotted, even when they could be.
+    -- I also get r8 r4, instead of r4 r8, see comment on 'allowed_time'.
     equal (f [(0, 1, "a"), (1.5, 1, "b")]) $ Right
         [["a4", "r8", "b8~", "b8", "r8", "r4"]]
     equal (f [(0, 2, "a"), (3.5, 0.25, "b"), (3.75, 0.25, "c")]) $ Right
@@ -64,7 +65,7 @@ test_parse_error = do
     let f = convert_staves [] . map environ_event
     left_like (f [(0, 1, "a", [(TrackLang.v_key, "oot-greet")])]) "unknown key"
     left_like (f [(0, 1, "a", [(Lilypond.v_time_signature, "oot-greet")])])
-        "signature must be"
+        "can't parse"
 
 test_chords = do
     let f = convert_staves [] . map simple_event
@@ -86,19 +87,19 @@ test_extract_time_signatures = do
     equal (f [(0, 1, "4/4")]) $ Right ["4/4"]
     equal (f [(0, 5, "4/4")]) $ Right ["4/4", "4/4"]
     equal (f [(5, 5, "4/4")]) $ Right ["4/4", "4/4", "4/4"]
-    equal (f [(5, 5, "6/4")]) $ Right ["6/4", "6/4"]
-    equal (f [(0, 2, "4/4"), (2, 4, "6/4")]) $ Right ["4/4", "6/4"]
+    equal (f [(5, 5, "3/4")]) $ Right ["3/4", "3/4", "3/4", "3/4"]
+    equal (f [(0, 2, "4/4"), (2, 4, "3/4")]) $ Right ["4/4", "3/4"]
     equal (f [(0, 2, "4/4"), (1, 2, "4/4"), (2, 2, "4/4")]) $ Right ["4/4"]
 
 test_convert_duration = do
     let f sig pos = Lilypond.to_lily $ head $
-            Lilypond.convert_duration sig True pos (whole - pos)
-    equal (map (f (sig 4 4)) [0, 8 .. 127])
+            Lilypond.convert_duration sig True False pos (whole - pos)
+    equal (map (f (sig "4/4")) [0, 8 .. 127])
         [ "1", "8.", "4.", "16", "2.", "8.", "8", "16"
         -- mid-measure
         , "2", "8.", "4.", "16", "4", "8.", "8", "16"
         ]
-    equal (map (f (sig 2 4)) [0, 8 .. 127]) $
+    equal (map (f (sig "2/4")) [0, 8 .. 127]) $
         concat $ replicate 2 ["2", "8.", "4.", "16", "4", "8.", "8", "16"]
 
 test_make_ly = do
@@ -192,6 +193,43 @@ test_tempo = do
     equal logs []
     equal (map extract events) [(0, whole), (whole, whole)]
 
+test_allowed_time_dotted = do
+    let f tsig = extract_rhythms
+            . map (Lilypond.allowed_time_dotted (sig tsig) False)
+        t = Lilypond.dur_to_time
+
+    -- 4/4, being duple, is liberal about spanning beats, since it uses rank-2.
+    equal (f "4/4" [0, t D4 .. 4 * t D4]) "1 2. 2 4 1"
+    equal (f "4/4" [0, t D8 .. 8 * t D8])
+        "1 4. 2. 8 2 4. 4 8 1"
+
+    -- 6/8 is more conservative.
+    equal (f "3+3/8" [0, t D8 .. 6 * t D8])
+        "2. 4 8 4. 4 8 2."
+
+    -- Irregular meters don't let you break the middle dividing line no matter
+    -- what, because 'Meter.find_rank' always stops at rank 0.
+    equal (f "3+2/4" [0, t D8 .. 10 * t D8])
+        "2. 8 2 8 4 8 2 8 4 8 2."
+        -- This has 8 after the middle 2 instead of 4. like 4/4 would have.
+        -- That's because it's not duple, so it's more conservative.
+        -- I guess that's probably ok.
+
+test_allowed_time_rest = do
+    let f tsig = extract_rhythms . map (Lilypond.allowed_time (sig tsig) True)
+        t = Lilypond.dur_to_time
+    equal (f "4/4" [0, t D4 .. 4 * t D4])
+        "1 4 2 4 1"
+    equal (f "4/4" [0, t D8 .. 8 * t D8])
+        "1 8 4 8 2 8 4 8 1"
+
+extract_rhythms :: [Lilypond.Time] -> String
+extract_rhythms = unwords
+        . map (Lilypond.to_lily . expect1 . Lilypond.time_to_note_durs)
+    where
+    expect1 [x] = x
+    expect1 xs = error $ "expected only one element: " ++ show xs
+
 -- * util
 
 compile_ly :: [Lilypond.Event] -> IO ()
@@ -241,9 +279,10 @@ make_event start dur pitch inst env = Lilypond.Event
     , Lilypond.event_stack = UiTest.mkstack (1, 0, 1)
     }
 
-sig :: Int -> Int -> Lilypond.TimeSignature
-sig num denom = Lilypond.TimeSignature num dur
-    where Just dur = Lilypond.read_duration (show denom)
+sig :: String -> Meter.TimeSignature
+sig s = case Meter.parse_signature s of
+    Left err -> error $ "can't parse " ++ show s ++ ": " ++ err
+    Right val -> val
 
 whole :: Lilypond.Time
 whole = Lilypond.time_per_whole

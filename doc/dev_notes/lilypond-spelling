@@ -1,0 +1,315 @@
+2013-01-20
+
+    4/4
+  0 w                               | 32
+  1 h               h               | 16
+  2 q       q       q       q       | 8
+  3 e   e   e   e   e   e   e   e   | 4
+  4 s s s s s s s s s s s s s s s s | 2
+  5 33333333333333333333333333333333| 1
+0 0 w-------------------------------| 32
+5 3  s.-|                             3
+4 2   e.----|                         6
+5 3    3|                             1
+3 1     q.----------|                 12
+5 3      s.-|                         3
+4 2       s-|                         2
+5 3        3|                         1
+2 0         h.----------------------| 24
+5 3          s.-|                     3
+4 2           e.----|                 6
+5 3            3|                     1
+3 1             e---|                 4
+5 3              s.-|                 3
+4 2               s-|                 2
+5 3                3|                 1
+2 0                 h---------------| 16
+5 3                  s.-|             3
+4 2                   e.----|         6
+5 3                    3|             1
+3 1                     q.----------| 12
+5 3                      s.-|         3
+4 2                       s-|         2
+5 3                        3|         1
+2 0                         q-------| 8
+
+    3+3/8
+  0 h.                      h.
+  1 q.          q.          |
+  2 e   e   e   e   e   e   |
+  3 s s s s s s s s s s s s |
+0 0 h.----------------------|
+4 3  s.-|
+3 2   s-|
+4 3    3|
+2 1     q-------|
+4 3      s.-|
+3         s-|
+4          3|
+2           e---|
+4            s.-|
+3             s-|
+4              3|
+1               q.----------|
+4                s.-|
+3                 s-|
+4                  3|
+2                   q-------|
+4                    s.-|
+3                     s-|
+4                      3|
+2                       e---|
+4                        s.-|
+3                         s-|
+4                          3|
+
+    2+2+2/8
+  0 h.
+  1 q       q       q       |
+  2 e   e   e   e   e   e   |
+  3 s s s s s s s s s s s s |
+  4 333333333333333333333333|
+  0 h.----------------------|
+4 2 3s.-|
+3 2 2 s-|
+4 2 3  3|
+2 1     e---|
+4 2      s.-|
+3 2       s-|
+4 2        3|
+1 0         h---------------|
+4 2          s.-|
+3 2           s-|
+4 2            3|
+2 1             e---|
+4 2              s.-|
+3 2               s-|
+4 2                3|
+1 0                 q-------|
+4 2                  s.-|
+3 2                   s-|
+4 2                    3|
+2 1                     e---|
+4 2                      s.-|
+3 2                       s-|
+4 2                        3|
+
+  0 h.
+  1 q               q               q               |
+  2 e       e       e       e       e       e       |
+  3 s   s   s   s   s   s   s   s   s   s   s   s   |
+  4 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 |
+  5 666666666666666666666666666666666666666666666666|
+0 0 h.----------------------------------------------|
+5 3  3.-|
+4 2   s.----|
+5 3    6|
+3 2     s---|
+5 2 3    3.-|
+4 2 2     3-|
+5 2 3      6|
+2 1         e-------|
+
+I spent the weekend drawing diagrams like those.  A musician might recognize
+them as the "optimal" way to spell a note beginning at each point in a
+measure.  Since my score uses a low level start time + duration concept, I
+need to figure out how to spell rhythms automatically when I convert to
+lilypond.  Previously I used a quick and simple technique that worked
+surprisingly well, but only for duple.  Since it made a 6/8 piece totally ugly
+I decided it was time to solve the problem for real.  That turns out to be
+either way more complicated than I thought it would be, or I'm doing it
+totally wrong!
+
+In any case, it was an exercise in design-by-diagram, since I'm definitely not
+smart enough to visualize rhythmic notation in my head.
+
+First strategy: try to end up on a major division which isn't over the
+barline.  So define a "rank" for each possible position in the measure (I only
+go to 128th notes, so there are 128 per whole note), and pick the duration
+(possibly including dotted durations) which ends on the lowest rank.
+Exploring this with diagrams, it seemed to line up with my expectations:
+
+  0 w                               | 32
+  1 h               h               | 16
+  2 q       q       q       q       | 8
+  3 e   e   e   e   e   e   e   e   | 4
+  4 s s s s s s s s s s s s s s s s | 2
+  5 33333333333333333333333333333333| 1
+5 3  s.-|                             3
+  5  w-------------------------------|
+  5  h.----------------------|
+  5  h---------------|
+  5  q.----------|
+  5  q-------|
+  5  e.----|
+  5  e---|
+* 3  s.-|
+  5  s-|
+  4  3|
+
+4 2   e.----|
+  >   w-------------------------------|
+  4   h.----------------------|
+  4   h---------------|
+  4   q.----------|
+  4   q-------|
+* 2   e.----|
+  5   e---|
+  4   s.-|
+  3   s-|
+  4   3|
+
+  0 w                               | 32
+  1 h               h               | 16
+  2 q       q       q       q       | 8
+  3 e   e   e   e   e   e   e   e   | 4
+  4 s s s s s s s s s s s s s s s s | 2
+  5 33333333333333333333333333333333| 1
+5 3    3|                             1
+  >    w-------------------------------|
+  5    h.----------------------|
+  5    h---------------|
+  5    q.----------|
+  5    q-------|
+  5    e.----|
+  5    e---|
+  4    s.-|
+  4    s-|
+* 3    3|
+
+  0 w                               | 32
+  1 h               h               | 16
+  2 q       q       q       q       | 8
+  3 e   e   e   e   e   e   e   e   | 4
+  4 s s s s s s s s s s s s s s s s | 2
+  5 33333333333333333333333333333333| 1
+3 1     q.----------|                 12
+  >     w-------------------------------|
+  4     h.----------------------|
+  3     h---------------|
+* 1     q.----------|
+  3     q-------|
+  4     e.----|
+  2     e---|
+  5     s.-|
+  4     s-|
+  5     3|
+
+  0 h.
+  1 q.          q.
+  2 e   e   e   e   e   e   |
+  3 s s s s s s s s s s s s |
+4 3  s.-|
+  >  w-------------------------------|
+  >  h.----------------------|
+  4  h---------------|
+  4  q.----------|
+  4  q-------|
+  4  e.----|
+  4  e---|
+* 2  s.-|
+  4  s-|
+  3  3|
+
+Unfortunately this doesn't quite work, but of course I had to implement it and
+run tests to find out.  Given 6/8, interpreted as 3+3/8, it wil happily put a
+half-note at the 3rd eighth note, because that ends at the end of the measure,
+rank 0 by definition.  But that obscures the middle of the measure, which is
+forbidden:
+
+  0 h.
+  1 q.          q.
+  2 e   e   e   e   e   e   |
+  3 s s s s s s s s s s s s |
+0 0 h.----------------------|
+            h---------------|
+            q.----------|
+            q-------|
+            e.----|
+            e---|
+
+Or rather, it's forbidden, but only for notes which start on rank 2!  The
+dotted half-note at the beginning of the measure can span it, because it
+starts at rank 0.  So I switched strategies: a note can extend until it
+reaches a division it's not allowed to span.  "Not allowed" means one rank
+lower for complex meters, and two ranks lower for duple ones.  Duple meters
+fit better with the log2 nature of note durations, so they can be more liberal
+in their spelling.
+
+Unfortunately, this also has a problem: a 5/4 measure can start off with a
+whole note.  That means a measure-long note would be spelled c1~c4, which is
+super ugly.  If I were spelling 5/4, I would need to know whether it is mostly
+3+2/4 or 2+3/4 and tie accordingly.  The underlying problem is that first time
+in the measure is rank 0, so it will happily span the center of the measure.
+Normally that's fine, but for irregularly divided measures the spelling needs
+to be more conservative to make the irregular division clear (and because a
+single note won't fit).  So I tweaked the definition of irregular measures to
+give the toplevel major divisions rank 0 instead of just the barline, and
+never cross rank 0 no matter what.  It winds up doing a few things I wouldn't
+do, e.g. I would use liberal duple spelling in the duple portion of a compound
+meter while it doesn't, but tolerance for complex spelling is individual and
+it doesn't hurt to be a little more conservative.
+
+There remains yet another problem: this spells rests incorrectly.  Since it
+always tries to find the longest duration that will fit, if I have dotted
+rests disabled, I wind up with "c4 c2 c4".  Rests are different from notes in
+that they are all interchangeable, so if there are two rests in a row they
+should be arranged to align with major beats: "c4 r4 r2".  The solution to
+this was to bring back the sort-by-rank idea, but only for rests.  If I'm
+trying to spell a rest, find the maximum duration as above, but then try all
+of the durations that fit within it, and pick the one that ends on the lowest
+rank.
+
+But wait!  There's one last wrinkle.  At least it's the last one I'm going to
+worry about today.  While I normally avoid dotted rests, they look better for
+the major divisions of a triple meter.  E.g. 3+3/8 should be spelled "r4. r4."
+rather than "r4 r8 r4 r8".  I wound up allowing dotted rests for triple
+meters.  I should probably only allow them at the rank that involves the
+triple division (the denominator's rank), and actually technically in a
+complex meter like 2+3/4, I should only allow them in the triple fraction of
+the meter, but it seems like too much bother, so I'm just enabling them
+universally.
+
+One other practical problem that I'll have to look into is that I have to
+define where the ranks fall for various meters, which means I have to define
+each meter before using it.  It seems like it should be possible to figure out
+everything from just looking at the name of the meter, though I'd have to
+write it explicitly, e.g. 3+2/4 rather than 5/4.
+
+
+This is one of those problems where it seems like there might be some simple
+"best" solution.  But it also might just be a set of heuristics and a notion
+of prettiness, which is something people are good at but machines aren't.
+When I tried to analyze my own process in deciding how to spell a note, I came
+up with a small set of heuristics, but discovered more and more as the meters
+become more complicated.
+
+I still feel like if I were smarter I would have been able to identify some
+optimal heuristic from the beginning, or at least forsee the various problems
+without bumbling into a problem, patching it up, and then bumbling into
+another.
+
+
+This is hopefully the last of the major lilypond changes.  My goal is to
+typeset a simple piano piece acceptably, and it's getting close.  Recent
+other lilypond improvements:
+
+- Preserve enharmonics.  That meant extending pitches so they generate not
+just frequencies, but a symbolic note name, applying whatever diatonic and
+chromatic transpositions.
+
+- Tuplets - This was a whole other involved saga.  Since tuplets involve
+nested chunks of lilypond code, whose composite has a different duration than
+the sum of its parts I wound up needing to interleave score derivation with
+lilypond "performance".  I tried to just generate pitches, but when I would up
+with grace notes nested in a tuplet I realized it had to be more general.
+
+- Grace notes.  Easy once the work was done for tuplets.
+
+- A bunch of simppler things, like various articulations, ottava notation and
+the like.  I switched from having the lilypond interpret note attributes to
+having the call directly emit lilypond code if it's being derived for
+lilypond.  It means lilypond knowledge is scattered throughout the calls
+instead of consolidated in the lilypond performer, but it makes it really
+trivial to add a lilypond interpretation to a call, and generally simplifies
+things, since the call has score context.
