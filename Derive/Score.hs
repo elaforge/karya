@@ -57,7 +57,7 @@ data Event = Event {
     deriving (Show)
 
 empty_event :: Event
-empty_event = Event 0 0 mempty mempty mempty Stack.empty default_inst mempty
+empty_event = Event 0 0 mempty mempty mempty Stack.empty empty_inst mempty
 
 event_attributes :: Event -> Attributes
 event_attributes = environ_attributes . event_environ
@@ -312,8 +312,8 @@ inst_valid_chars = '-' : ['0'..'9'] ++ ['a'..'z']
 inst_name :: Instrument -> String
 inst_name (Instrument s) = s
 
-default_inst :: Instrument
-default_inst = Instrument ""
+empty_inst :: Instrument
+empty_inst = Instrument ""
 
 instrument :: String -> String -> Instrument
 instrument synth inst = Instrument $ synth ++ "/" ++ inst

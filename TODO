@@ -3,6 +3,10 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
+  - think of some way to make sure randomness is stable
+  * why does the inst in the block title not carry over to the tracks?
+  - why does the left hand intervening track make the left hand disappear?
+  - different color for note transformer events?
   - It seems like it would be simpler to have meter rank divisions at every
     note, e.g. w, h, q, e, s, 32, 64, etc. rather than every other.  That way
     I can get rid of the weird 'q*2' TimeSteps.  I can avoid having to come up
@@ -520,7 +524,6 @@ lilypond:
 
     Then I could possibly do everything with code, just have to deal with key.
     I guess the '=' call could have some when_lily magic.
-  - different color for note transformer events?
   - If I mark a track '| when-lily' I could make it be omitted entirely when
     not in lilypond mode.  That way lilypond markup won't slow down normal
     derivation.

@@ -135,12 +135,12 @@ lookup_instrument_of block_id tracknum = do
         Nothing -> Perf.lookup_instrument block_id (Just track_id)
         Just inst -> Just <$> get_default_instrument block_id track_id inst
 
--- | If the instrument is 'Score.default_inst', look up what it really is in
+-- | If the instrument is 'Score.empty_inst', look up what it really is in
 -- the performance.
 get_default_instrument :: (Cmd.M m) => BlockId -> TrackId
     -> Score.Instrument -> m Score.Instrument
 get_default_instrument block_id track_id inst
-    | inst == Score.default_inst =
+    | inst == Score.empty_inst =
         fromMaybe inst <$> Perf.lookup_instrument block_id (Just track_id)
     | otherwise = return inst
 

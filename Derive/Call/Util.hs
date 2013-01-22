@@ -27,12 +27,12 @@ import qualified Util.Seq as Seq
 import qualified Ui.ScoreTime as ScoreTime
 import qualified Derive.Args as Args
 import qualified Derive.Call as Call
-import qualified Derive.Sig as Sig
 import qualified Derive.Derive as Derive
 import qualified Derive.LEvent as LEvent
 import qualified Derive.PitchSignal as PitchSignal
 import qualified Derive.Scale as Scale
 import qualified Derive.Score as Score
+import qualified Derive.Sig as Sig
 import qualified Derive.Stack as Stack
 import qualified Derive.TrackLang as TrackLang
 

@@ -120,7 +120,7 @@ generate_note event next_start = do
     -- Note that due to negative durations, the end could be before the start.
     -- What this really means is that the sounding duration of the note depends
     -- on the next one, which should be sorted out later by post processing.
-    inst <- fromMaybe Score.default_inst <$>
+    inst <- fromMaybe Score.empty_inst <$>
         Derive.lookup_val TrackLang.v_instrument
     environ <- Internal.get_dynamic Derive.state_environ
     let attrs = either (const Score.no_attrs) id $
@@ -202,7 +202,8 @@ transform_note :: [Either Score.Instrument TrackLang.RelativeAttr]
 transform_note vals deriver = with_inst (with_attrs deriver)
     where
     (insts, rel_attrs) = Seq.partition_either vals
-    with_inst = maybe id Derive.with_instrument (Seq.last insts)
+    with_inst = maybe id Derive.with_instrument $
+        Seq.last $ filter (/=Score.empty_inst) insts
     with_attrs
         | null rel_attrs = id
         | otherwise = Util.with_attrs (TrackLang.apply_attrs rel_attrs)

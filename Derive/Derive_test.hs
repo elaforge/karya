@@ -68,7 +68,7 @@ test_basic = do
         , Stack.Track (UiTest.mk_tid 3)
         -- t1 shows up again inverted
         , Stack.Track (UiTest.mk_tid 1)
-        -- inverted note track has no note-track Call for ">"
+        , Stack.Call "note-track" -- inverted note track is >
         , Stack.Region s e, Stack.Call "note"
         ]
     block_call bid = Stack.Call $ "block " ++ show bid
@@ -131,7 +131,7 @@ test_stack = do
     let b0 s e = [block_call "b0", block "b0", track "b0" 1, call "note-track",
             Stack.Region s e]
         sub s e = [block_call "sub", block "sub", track "sub" 1,
-            Stack.Region s e, call "note"]
+            call "note-track", Stack.Region s e, call "note"]
     equal stacks $ map Stack.from_outermost
         [ b0 0 1 ++ [Stack.Call "note"]
         , b0 1 2 ++ sub 0 1

@@ -126,7 +126,7 @@ instance Pretty.Pretty Instrument where
     --     -- This is the most accurate since it's been mangled to fit the inst
     --     -- naming conventions, but won't be set if the Instrument is still
     --     -- in the Patch.
-    --     | inst_score inst /= Score.default_inst =
+    --     | inst_score inst /= Score.empty_inst =
     --         Pretty.format (inst_score inst)
     --     | not (null (inst_name inst)) = Pretty.format (inst_name inst)
     --     -- Otherwise it's a wildcard in the Patch, so it has no name.

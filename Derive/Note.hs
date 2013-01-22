@@ -84,7 +84,6 @@ module Derive.Note where
 import qualified Data.List.NonEmpty as NonEmpty
 import qualified Data.Tree as Tree
 
-import Util.Control
 import qualified Ui.Event as Event
 import qualified Ui.Events as Events
 import qualified Ui.TrackTree as TrackTree
@@ -93,9 +92,7 @@ import qualified Derive.Call as Call
 import qualified Derive.Control as Control
 import qualified Derive.Derive as Derive
 import qualified Derive.Deriver.Internal as Internal
-import qualified Derive.Score as Score
 import qualified Derive.TrackInfo as TrackInfo
-import qualified Derive.TrackLang as TrackLang
 
 import Types
 
@@ -113,20 +110,12 @@ d_note_track (Tree.Node track subs) = do
 
 with_title :: String -> Derive.EventDeriver -> Derive.EventDeriver
 with_title title deriver
-    | null title = return mempty
+    | null title = deriver
     | otherwise = do
         track_expr <- either (Derive.throw . ("track title: "++)) return
             (TrackInfo.parse_note title)
-        let transform = if is_empty_title track_expr then id
-                else Call.apply_transformer info (NonEmpty.toList track_expr)
-        transform deriver
+        Call.apply_transformer info (NonEmpty.toList track_expr) deriver
     where info = Derive.dummy_call_info 0 1 "note track"
-
-is_empty_title :: TrackLang.Expr -> Bool
-is_empty_title (TrackLang.Call sym
-        [TrackLang.Literal (TrackLang.VInstrument inst)] :| []) =
-    inst == Score.Instrument "" && sym == TrackLang.Symbol "note-track"
-is_empty_title _ = False
 
 stash_sub_signals :: TrackTree.EventsTree -> Derive.Deriver ()
 stash_sub_signals subs = do
