@@ -1,5 +1,5 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving, OverloadedStrings #-}
-{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE ScopedTypeVariables, TupleSections #-}
 -- | Convert from Score events to a lilypond score.
 module Perform.Lilypond.Lilypond (
     module Perform.Lilypond.Lilypond
@@ -257,14 +257,14 @@ convert_measure events = case events of
             }
         measure1 meter events
     where
-    measure1 meter [] = trailing_rests meter []
+    measure1 meter [] = (, []) <$> trailing_rests meter
     measure1 meter (event : events) = do
         state <- State.get
         -- This assumes that events that happen at the same time all have the
         -- same clef and key.
         measure_end <- State.gets state_measure_end
         if event_start event >= measure_end
-            then trailing_rests meter (event : events)
+            then (, event:events) <$> trailing_rests meter
             else note_column state meter event events
     note_column state meter event events = do
         clef <- lookup_clef event
@@ -285,13 +285,13 @@ convert_measure events = case events of
             }
         (rest_notes, rest_events) <- measure1 meter rest_events
         return (notes ++ rest_notes, rest_events)
-    trailing_rests meter events = do
+    trailing_rests meter = do
         state <- State.get
         let end = state_measure_start state + Meter.measure_time meter
         let rests = make_rests (state_config state) meter
                 (state_note_end state) end
         State.modify $ \state -> state { state_note_end = end }
-        return (rests, events)
+        return rests
 
 convert_note :: Config -> Maybe String -> Meter -> Event -> [Event]
     -> (Note, Time, [Event]) -- ^ (note, note end time, remaining events)
@@ -312,7 +312,7 @@ convert_note config prev_dynamic meter event events
         , _note_stack = Seq.last (Stack.to_ui (event_stack event))
         }
     (here, rest) = break ((> start) . event_start) (event : events)
-    allowed = min (max_end - start) (allowed_time_dotted meter False start)
+    allowed = min (max_end - start) (allowed_time_greedy True meter start)
     allowed_dur = time_to_note_dur allowed
     allowed_time = note_dur_to_time allowed_dur
     -- Maximum end, the actual end may be shorter since it has to conform to
@@ -386,57 +386,58 @@ clip_event end e
 
 -- | Given a starting point and a duration, emit the list of Durations
 -- needed to express that duration.
-convert_duration :: Meter -> Bool -> Bool -> Time -> Time
-    -> [NoteDuration]
-convert_duration meter use_dot is_rest pos time_dur
-    | time_dur <= 0 = []
-    | allowed >= time_dur = to_durs time_dur
-    | otherwise = dur
-        : convert_duration meter use_dot is_rest
-            (pos + allowed) (time_dur - allowed)
+convert_duration :: Meter -> Bool -> Bool -> Time -> Time -> [NoteDuration]
+convert_duration meter use_dot_ is_rest = go
     where
-    dur = time_to_note_dur allowed
-    allowed = (if use_dot
-        then allowed_time_dotted else allowed_time_plain) meter is_rest pos
-    to_durs = if use_dot then time_to_note_durs
-        else map (flip NoteDuration False) . time_to_durs
+    -- Dotted rests are allowed for triple meters.
+    use_dot = use_dot_ || (is_rest && not (Meter.is_duple meter))
+    go pos time_dur
+        | time_dur <= 0 = []
+        | allowed >= time_dur = to_durs time_dur
+        | otherwise = dur : go (pos + allowed) (time_dur - allowed)
+        where
+        dur = time_to_note_dur allowed
+        allowed = (if is_rest then allowed_time_best else allowed_time_greedy)
+            use_dot meter pos
+        to_durs = if use_dot then time_to_note_durs
+            else map (flip NoteDuration False) . time_to_durs
 
 -- | Figure out how much time a note at the given position should be allowed
 -- before it must tie.
-allowed_time_plain :: Meter -> Bool -> Time -> Time
-allowed_time_plain meter is_rest = dur_to_time . fst . time_to_dur
-    . allowed_time meter is_rest
+allowed_time_greedy :: Bool -> Meter -> Time -> Time
+allowed_time_greedy use_dot meter start_ =
+    convert $ subtract start $ allowed_time meter start
+    where
+    start = start_ `mod` Meter.measure_time meter
+    convert = if use_dot then note_dur_to_time . time_to_note_dur
+        else dur_to_time . fst . time_to_dur
 
--- | This is like 'allowed_time_plain', but will return dotted rhythms.
-allowed_time_dotted :: Meter -> Bool -> Time -> Time
-allowed_time_dotted meter is_rest = note_dur_to_time . time_to_note_dur
-    . allowed_time meter is_rest
-
-allowed_time :: Meter -> Bool
-    -- ^ True if this is a rest.  The algorithm for note durations is greedy,
-    -- in that it will seek to find the longest note that doesn't span a
-    -- beat whose rank is too low.  But that results in rests being spelled
-    -- @c4 r2 r4@ instead of @c4 r4 r2@.  Unlike notes, all rests are the same.
-    -- So rests will pick the duration that ends on the lowest rank.
-    --
-    -- TODO this uses only undotted rhythms, which is ok since I don't like
-    -- dotted rests.
-    -> Time -> Time
-allowed_time meter is_rest start_ = subtract start $
-    (if is_rest then best_duration else id) $ fromMaybe measure $
-        Meter.find_rank start (rank - if is_duple then 2 else 1) meter
+-- | The algorithm for note durations is greedy, in that it will seek to find
+-- the longest note that doesn't span a beat whose rank is too low.  But that
+-- results in rests being spelled @c4 r2 r4@ instead of @c4 r4 r2@.  Unlike
+-- notes, all rests are the same.  So rests will pick the duration that ends on
+-- the lowest rank.
+allowed_time_best :: Bool -> Meter -> Time -> Time
+allowed_time_best use_dot meter start_ =
+    subtract start $ best_duration $ allowed_time meter start
     where
     -- Try notes up to the end, select the one that lands on the lowest rank.
     best_duration end = fromMaybe (start + 1) $
         Seq.minimum_on (Meter.rank_at meter) candidates
         where
-        candidates = takeWhile (<=end) $ map ((+start) . dur_to_time) durs
-    durs = reverse [D1 .. D128]
-    start = start_ `mod` measure
+        candidates = takeWhile (<=end) $ map ((+start) . note_dur_to_time) $
+            if use_dot then dot_durs else durs
+    durs = reverse $ map (flip NoteDuration False) [D1 .. D128]
+    dot_durs = reverse
+        [NoteDuration d dot | d <- [D1 .. D64], dot <- [True, False]]
+    start = start_ `mod` Meter.measure_time meter
+
+allowed_time :: Meter -> Time -> Time
+allowed_time meter start =
+    fromMaybe measure $ Meter.find_rank start
+        (rank - if Meter.is_duple meter then 2 else 1) meter
+    where
     rank = Meter.rank_at meter start
-    is_duple = case Meter.meter_nums meter of
-        [num] -> (==0) $ snd $ properFraction $ logBase 2 (fromIntegral num)
-        _ -> False
     measure = Meter.measure_time meter
 
 -- * types

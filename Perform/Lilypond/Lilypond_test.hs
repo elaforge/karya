@@ -39,6 +39,14 @@ test_convert_measures = do
     equal (f [(0, 0, "a"), (0, 0, "b"), (1, 1, "c")]) $ Right
         [["<a b>128", "r128", "r64", "r32", "r16", "r8", "c4", "r2"]]
 
+test_dotted_rests = do
+    let f = convert_staves [] . map meter_event
+    -- Rests are allowed to be dotted when the meter isn't duple.
+    equal (f [(1.5, 0.5, "a", "3+3/8")]) $
+        Right [["r4.", "a8", "r4"]]
+    equal (f [(3, 1, "a", "4/4")]) $
+        Right [["r2", "r4", "a4"]]
+
 test_change_meter = do
     let f = convert_staves ["time"] . map meter_event
     equal (f [(0, 5, "a", "4/4"), (6, 2, "b", "4/4")]) $ Right
@@ -170,6 +178,46 @@ test_ly_code = do
     c_code = CallTest.generator $ \args ->
         Lily.code (Args.extent args) "magic-lilypond-code"
 
+test_allowed_time_greedy = do
+    let f meter = extract_rhythms
+            . map (Lilypond.allowed_time_greedy True (mkmeter meter))
+        t = Lilypond.dur_to_time
+
+    -- 4/4, being duple, is liberal about spanning beats, since it uses rank-2.
+    equal (f "4/4" [0, t D4 .. 4 * t D4]) "1 2. 2 4 1"
+    equal (f "4/4" [0, t D8 .. 8 * t D8])
+        "1 4. 2. 8 2 4. 4 8 1"
+
+    -- 6/8 is more conservative.
+    equal (f "3+3/8" [0, t D8 .. 6 * t D8])
+        "2. 4 8 4. 4 8 2."
+
+    -- Irregular meters don't let you break the middle dividing line no matter
+    -- what, because 'Meter.find_rank' always stops at rank 0.
+    equal (f "3+2/4" [0, t D8 .. 10 * t D8])
+        "2. 8 2 8 4 8 2 8 4 8 2."
+        -- This has 8 after the middle 2 instead of 4. like 4/4 would have.
+        -- That's because it's not duple, so it's more conservative.
+        -- I guess that's probably ok.
+
+test_allowed_time_best = do
+    let f use_dot meter = extract_rhythms
+            . map (Lilypond.allowed_time_best use_dot (mkmeter meter))
+        t = Lilypond.dur_to_time
+    equal (f False "4/4" [0, t D4 .. 4 * t D4])
+        "1 4 2 4 1"
+    equal (f False "4/4" [0, t D8 .. 8 * t D8])
+        "1 8 4 8 2 8 4 8 1"
+    equal (f True "3+3/8" [0, t D8 .. 6 * t D8])
+        "2. 4 8 4. 4 8 2."
+
+extract_rhythms :: [Lilypond.Time] -> String
+extract_rhythms = unwords
+        . map (Lilypond.to_lily . expect1 . Lilypond.time_to_note_durs)
+    where
+    expect1 [x] = x
+    expect1 xs = error $ "expected only one element: " ++ show xs
+
 -- * test lilypond derivation
 
 -- These actually test derivation in lilypond mode.  So maybe they should go
@@ -192,44 +240,6 @@ test_tempo = do
         extract e = (Lilypond.event_start e, Lilypond.event_duration e)
     equal logs []
     equal (map extract events) [(0, whole), (whole, whole)]
-
-test_allowed_time_dotted = do
-    let f meter = extract_rhythms
-            . map (Lilypond.allowed_time_dotted (mkmeter meter) False)
-        t = Lilypond.dur_to_time
-
-    -- 4/4, being duple, is liberal about spanning beats, since it uses rank-2.
-    equal (f "4/4" [0, t D4 .. 4 * t D4]) "1 2. 2 4 1"
-    equal (f "4/4" [0, t D8 .. 8 * t D8])
-        "1 4. 2. 8 2 4. 4 8 1"
-
-    -- 6/8 is more conservative.
-    equal (f "3+3/8" [0, t D8 .. 6 * t D8])
-        "2. 4 8 4. 4 8 2."
-
-    -- Irregular meters don't let you break the middle dividing line no matter
-    -- what, because 'Meter.find_rank' always stops at rank 0.
-    equal (f "3+2/4" [0, t D8 .. 10 * t D8])
-        "2. 8 2 8 4 8 2 8 4 8 2."
-        -- This has 8 after the middle 2 instead of 4. like 4/4 would have.
-        -- That's because it's not duple, so it's more conservative.
-        -- I guess that's probably ok.
-
-test_allowed_time_rest = do
-    let f meter = extract_rhythms
-            . map (Lilypond.allowed_time (mkmeter meter) True)
-        t = Lilypond.dur_to_time
-    equal (f "4/4" [0, t D4 .. 4 * t D4])
-        "1 4 2 4 1"
-    equal (f "4/4" [0, t D8 .. 8 * t D8])
-        "1 8 4 8 2 8 4 8 1"
-
-extract_rhythms :: [Lilypond.Time] -> String
-extract_rhythms = unwords
-        . map (Lilypond.to_lily . expect1 . Lilypond.time_to_note_durs)
-    where
-    expect1 [x] = x
-    expect1 xs = error $ "expected only one element: " ++ show xs
 
 -- * util
 

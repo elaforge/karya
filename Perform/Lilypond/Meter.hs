@@ -1,3 +1,4 @@
+-- | Support for rhythmic spelling in different meters.
 module Perform.Lilypond.Meter where
 import qualified Data.Map as Map
 import qualified Data.Vector.Unboxed as Vector
@@ -36,6 +37,11 @@ instance Pretty.Pretty Meter where pretty = Types.to_lily
 instance Types.ToLily Meter where
     to_lily (Meter nums denom _) =
         show (sum nums) ++ "/" ++ Types.to_lily denom
+
+is_duple :: Meter -> Bool
+is_duple meter = case meter_nums meter of
+    [num] -> (==0) $ snd $ properFraction $ logBase 2 (fromIntegral num)
+    _ -> False
 
 -- | Duration of a measure, in Time.
 measure_time :: Meter -> Types.Time
