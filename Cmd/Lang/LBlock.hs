@@ -76,10 +76,10 @@ block_for_event :: Maybe BlockId -> Cmd.CmdL ()
 block_for_event template = mapM_ make =<< Selection.events
     where
     make (_, _, events) = mapM_
-        (make_named template . Event.event_string) events
+        (create_named template . Event.event_string) events
 
-make_named :: Maybe BlockId -> String -> Cmd.CmdL ()
-make_named template name = whenM (can_create name) $
+create_named :: Maybe BlockId -> String -> Cmd.CmdL ()
+create_named template name = whenM (can_create name) $
     Create.view =<< case template of
         Nothing -> do
             template_id <- Cmd.get_focused_block
