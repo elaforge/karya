@@ -102,7 +102,7 @@ file_bindings = concat
         -- gitting.
         Save.cmd_save_state =<< Save.get_state_save
         Cmd.gets Cmd.state_save_file >>= \x -> case x of
-            Just (Cmd.SaveGit _) -> Save.cmd_save_git
+            Just (Cmd.SaveGit repo) -> Save.cmd_save_git (Just repo)
             _ -> return ()
     ]
 

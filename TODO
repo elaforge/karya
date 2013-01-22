@@ -3,6 +3,7 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
+  * load repo, then save_state, it still wants to write to .git
   - think of some way to make sure randomness is stable
   * why does the inst in the block title not carry over to the tracks?
   - why does the left hand intervening track make the left hand disappear?

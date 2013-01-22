@@ -220,7 +220,8 @@ record_suppressed = do
 save_history :: State.State -> Cmd.State -> Cmd.History -> Cmd.HistoryCollect
     -> [SaveGit.SaveHistory] -> IO Cmd.State
 save_history ui_state cmd_state hist collect uncommitted = do
-    entries <- if has_saved then commit_entries repo prev_commit uncommitted
+    entries <- if checkpointing
+        then commit_entries repo prev_commit uncommitted
         else return $ map (history_entry Nothing) uncommitted
     let (present, past) = bump_updates (Cmd.hist_present hist) entries
     return $ cmd_state
@@ -238,7 +239,7 @@ save_history ui_state cmd_state hist collect uncommitted = do
     where
     keep = Cmd.hist_keep (Cmd.state_history_config cmd_state)
     prev_commit = Cmd.hist_last_commit $ Cmd.state_history_config cmd_state
-    has_saved = Maybe.isJust $ Cmd.hist_last_save $
+    checkpointing = Maybe.isJust $ Cmd.hist_last_save $
         Cmd.state_history_config cmd_state
     repo = Save.git_save_file (State.config#State.namespace #$ ui_state)
         cmd_state

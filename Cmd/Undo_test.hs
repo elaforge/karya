@@ -207,12 +207,12 @@ test_branching_history = do
     res <- save_git $ ResponderTest.mkstates [(">", [(0, 1, "1")])]
     res <- next res $ Cmd.name "+x" $ insert_event 0 "x"
     res <- next res $ Cmd.name "+y" $ insert_event 1 "y"
-    res <- next res $ Cmd.name "save" Save.cmd_save_git
+    res <- next res $ Cmd.name "save" (Save.cmd_save_git Nothing)
     res <- next res $ Cmd.name "revert" $ Save.cmd_revert (Just "0")
     equal (extract_ui res) "1"
     res <- next res $ Cmd.name "+a" $ insert_event 0 "a"
     res <- next res $ Cmd.name "+b" $ insert_event 1 "b"
-    res <- next res $ Cmd.name "save" Save.cmd_save_git
+    res <- next res $ Cmd.name "save" (Save.cmd_save_git Nothing)
 
     -- The second branch got 1.0 because 1 was taken.
     refs <- Git.read_ref_map repo
@@ -238,7 +238,8 @@ read_log commits = do
 save_git :: ResponderTest.States -> IO ResponderTest.Result
 save_git states = do
     File.recursive_rm_dir repo
-    ResponderTest.respond_cmd (second set_dir states) Save.cmd_save_git
+    ResponderTest.respond_cmd (second set_dir states)
+        (Save.cmd_save_git Nothing)
     where
     set_dir state = state { Cmd.state_save_file = Just $ Cmd.SaveGit repo }
 

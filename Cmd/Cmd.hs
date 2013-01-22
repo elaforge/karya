@@ -305,7 +305,7 @@ data State = State {
     , state_repl_status :: !Status
     } deriving (Show, Generics.Typeable)
 
-data SaveFile = SaveState !FilePath | SaveGit !FilePath
+data SaveFile = SaveState !FilePath | SaveGit !SaveGit.Repo
     deriving (Show, Generics.Typeable)
 
 -- | Directory of the save file.

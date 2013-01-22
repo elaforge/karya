@@ -163,15 +163,11 @@ save = Save.cmd_save
 
 -- | Save to the given filename and switch to saving plain states.
 save_state :: FilePath -> Cmd.CmdL ()
-save_state fn = do
-    Cmd.modify $ \st -> st { Cmd.state_save_file = Just (Cmd.SaveState fn) }
-    Save.cmd_save_state fn
+save_state fn = Save.cmd_save_state fn
 
 -- | Save to the given git repo and switch to saving incrementally.
 save_git :: FilePath -> Cmd.CmdL ()
-save_git fn = do
-    Cmd.modify $ \st -> st { Cmd.state_save_file = Just (Cmd.SaveGit fn) }
-    Save.cmd_save_git
+save_git fn = Save.cmd_save_git (Just fn)
 
 load :: FilePath -> Cmd.CmdL ()
 load = Save.cmd_load

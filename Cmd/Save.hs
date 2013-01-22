@@ -29,8 +29,8 @@ import qualified App.Config as Config
 -- there is none.
 cmd_save :: Cmd.CmdT IO ()
 cmd_save = Cmd.gets Cmd.state_save_file >>= \x -> case x of
-    Nothing -> cmd_save_git
-    Just (Cmd.SaveGit _) -> cmd_save_git
+    Nothing -> cmd_save_git Nothing
+    Just (Cmd.SaveGit repo) -> cmd_save_git (Just repo)
     Just (Cmd.SaveState fn) -> cmd_save_state fn
 
 -- | Try to guess whether the given path is a git save or state save.  If it's
@@ -69,10 +69,14 @@ state_save_file ns state = case Cmd.state_save_file state of
 default_state :: FilePath
 default_state = "save.state"
 
--- | Save the state to the given file.  Unlike 'cmd_save_git', this doesn't
--- set 'Cmd.state_save_file'.
+-- | Save the state to the given file and set 'Cmd.state_save_file'.
 cmd_save_state :: FilePath -> Cmd.CmdT IO ()
 cmd_save_state fname = do
+    write_state fname
+    Cmd.modify $ set_save_file $ Right fname
+
+write_state :: FilePath -> Cmd.CmdT IO ()
+write_state fname = do
     ui_state <- State.get
     save <- liftIO $ Serialize.save_state (State.clear ui_state)
     Log.notice $ "write state to " ++ show fname
@@ -109,37 +113,22 @@ default_git = "save.git"
 -- | Save a SavePoint to the git repo in 'Cmd.state_save_file', or start a new
 -- one.  Set the 'Cmd.state_save_file' to the repo, so I'll keep saving to
 -- that repo.
---
--- This doesn't take a FilePath.  This is because 'Cmd.Undo.maintain_history'
--- will be saving to the repo set by 'Cmd.state_save_file'.
-cmd_save_git :: Cmd.CmdT IO ()
-cmd_save_git = do
+cmd_save_git :: Maybe SaveGit.Repo
+    -- ^ If not given, use the current repo from 'Cmd.state_save_file', or
+    -- make up a default if it's not a 'Cmd.SaveGit'.  Remember that
+    -- 'Cmd.Undo.maintain_history' will be writing checkpoints to this file.
+    -> Cmd.CmdT IO ()
+cmd_save_git maybe_repo = do
     state <- State.get
     cmd_state <- Cmd.get
-    let repo = git_save_file (State.config#State.namespace #$ state) cmd_state
+    let repo = fromMaybe
+            (git_save_file (State.config#State.namespace #$ state) cmd_state)
+            maybe_repo
     let prev_commit = Cmd.hist_last_commit $ Cmd.state_history_config cmd_state
     (commit, save) <- Cmd.require_right (("save git " ++ repo ++ ": ") ++)
         =<< liftIO (SaveGit.save repo state prev_commit)
     Log.notice $ "wrote save " ++ show save ++ " to " ++ show repo
-    Cmd.modify $ \st -> st
-        { Cmd.state_save_file = Just $ Cmd.SaveGit repo
-        , Cmd.state_history = reset_history commit (Cmd.state_history st)
-        , Cmd.state_history_config = (Cmd.state_history_config st)
-            { Cmd.hist_last_save = Just save
-            , Cmd.hist_last_commit = Just commit
-            }
-        }
-
--- | If I am starting a new repo, I have to clear out all the remains of the
--- old repo, since its Commits are no longer valid.
-reset_history :: SaveGit.Commit -> Cmd.History -> Cmd.History
-reset_history commit hist = hist
-    { Cmd.hist_past = map clear (Cmd.hist_past hist)
-    , Cmd.hist_present = (Cmd.hist_present hist)
-        { Cmd.hist_commit = Just commit }
-    , Cmd.hist_future = []
-    }
-    where clear entry = entry { Cmd.hist_commit = Nothing }
+    Cmd.modify $ set_save_file $ Left (save, commit, repo)
 
 cmd_load_git :: FilePath -> Maybe SaveGit.Commit -> Cmd.CmdT IO ()
 cmd_load_git repo maybe_commit = do
@@ -186,6 +175,34 @@ rethrow caller io =
     Cmd.require_right id =<< liftIO (SaveGit.try caller io)
 
 -- * misc
+
+-- | If I switch away from a repo (either to another repo or to a plain state),
+-- I have to clear out all the remains of the old repo, since its Commits are
+-- no longer valid.
+--
+-- It's really important to call this whenever you change
+-- 'Cmd.state_save_file'!
+set_save_file ::
+    Either (SaveGit.SavePoint, SaveGit.Commit, SaveGit.Repo) FilePath
+    -> Cmd.State -> Cmd.State
+set_save_file git_or_state state = state
+    { Cmd.state_save_file = Just file
+    , Cmd.state_history = let hist = Cmd.state_history state in hist
+        { Cmd.hist_past = map clear (Cmd.hist_past hist)
+        , Cmd.hist_present = (Cmd.hist_present hist)
+            { Cmd.hist_commit = commit }
+        , Cmd.hist_future = []
+        }
+    , Cmd.state_history_config = (Cmd.state_history_config state)
+        { Cmd.hist_last_save = save
+        , Cmd.hist_last_commit = commit
+        }
+    }
+    where
+    (save, commit, file) = case git_or_state of
+        Left (save, commit, repo) -> (Just save, Just commit, Cmd.SaveGit repo)
+        Right fname -> (Nothing, Nothing, Cmd.SaveState fname)
+    clear entry = entry { Cmd.hist_commit = Nothing }
 
 set_state :: State.State -> Cmd.CmdT IO ()
 set_state state = do
