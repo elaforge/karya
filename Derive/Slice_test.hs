@@ -15,7 +15,8 @@ import Types
 
 test_extract_orphans = do
     let f events subs = extract_tree $
-            Slice.extract_orphans (uncurry make_track events) (make_tree subs)
+            Slice.extract_orphans False Nothing (uncurry make_track events)
+                (make_tree subs)
     equal (f (make_notes 1 "a") [Node (make_notes 1 "b") []]) []
     equal (f (make_notes 1 "x") [Node (make_notes 0 "abc") []])
         [ Node (make_notes 0 "a") []
@@ -57,8 +58,8 @@ test_slice = do
         [Node (make_controls "c" [0, 2, 4]) []]
 
 test_slice_notes = do
-    let extract = map (map (\(s, e, t) -> (s, e, extract_tree t)))
     let f s e = extract . Slice.slice_notes s e . make_tree
+        extract = map (map (\(s, e, t) -> (s, e, extract_tree t)))
     let notes ns = Node (make_notes 0 ns)
         control cs = Node (make_controls "c" cs)
         control2 cs = Node (make_controls2 "c" cs)
@@ -113,6 +114,42 @@ test_slice_notes = do
             notes "cd" [control2 [(0, "2"), (1, "3")] []]])
         [ [(0, 1, [notes "a" [control [0, 1] []]])]
         , [(0, 1, [notes "c" [control2 [(0, "2"), (1, "3")] []]])]
+        ]
+
+test_slice_notes_orphans = do
+    -- Ensure that an intervening empty note track doesn't hide the notes
+    -- on the track below it.  This is analogous to orphan extraction in the
+    -- top level.
+    let f s e = extract . Slice.slice_notes s e . make_tree
+        extract = map (map (\(s, e, t) -> (s, e, extract_tree t)))
+    let notes offset ns = Node (make_notes offset ns)
+
+    -- Intervening track is empty.
+    equal (f 0 2 [notes 0 "" [notes 0 "a" []]])
+        [[(0, 1, [notes 0 "a" []])]]
+    equal (f 0 2 [notes 0 "" [notes 0 "" [notes 0 "a" []]]])
+        [[(0, 1, [notes 0 "a" []])]]
+
+    -- One note is orphaned.
+    equal (f 0 2 [notes 1 "z" [notes 0 "ab" []]])
+        [ [(1, 1, [notes 0 "z" [notes 0 "b" []]])]
+        , [(0, 1, [notes 0 "a" []])]
+        ]
+
+    -- Two levels of orphanage.
+    equal (f 0 3 [notes 0 "a" [notes 1 "b" [notes 2 "c" []]]])
+        [ [(0, 1, [notes 0 "a" []])]
+        , [(1, 1, [notes 0 "b" []])]
+        , [(2, 1, [notes 0 "c" []])]
+        ]
+    -- The 'b' doesn't lie in the range, so it's omitted.  BlockUtil's extract
+    -- orphans should get that one.
+    equal (f 0 1 [notes 0 "a" [notes 1 "b" []]])
+        [[(0, 1, [notes 0 "a" []])]]
+
+    equal (f 0 2 [notes 0 "" [notes 0 "a" [], notes 0 "b" []]])
+        [ [(0, 1, [notes 0 "a" []])]
+        , [(0, 1, [notes 0 "b" []])]
         ]
 
 -- * util

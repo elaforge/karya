@@ -85,9 +85,24 @@ test_extract_orphans = do
         -- Log.warn $ show (Slice_test.extract_tree subs)
         return []
 
+test_two_level_orphans = do
+    -- Orphan extraction should be recursive, in case there are multiple
+    -- intervening empty tracks.
+    let run = DeriveTest.extract extract . DeriveTest.linear_derive_tracks id
+        extract e = (DeriveTest.e_note2 e, DeriveTest.e_attributes e)
+    equal (run
+        [ (">inst", [(0, 1, "+a")])
+        , (">", [(1, 1, "+b")])
+        , (">", [(2, 1, "+c")])
+        , (">", [(0, 1, ""), (1, 1, ""), (2, 1, "")])
+        , ("*", [(0, 0, "4c"), (1, 0, "4d"), (2, 0, "4e")])
+        ])
+        ([((0, 1, "4c"), "+a"), ((1, 1, "4d"), "+b"), ((2, 1, "4e"), "+c")],
+            [])
+
 test_empty_parent_track = do
     -- Ensure orphan tracks pick the instrument up from the parent.
-    -- Well, the absentee parent, they're orphans.
+    -- Well, the absentee parent, since they're orphans.
     let run = DeriveTest.extract extract . DeriveTest.linear_derive_tracks id
         extract e = (Score.event_start e, DeriveTest.e_inst e)
     equal (run [(">i1", [(0, 1, "t")]), (">", [(0, 1, "")])]) ([(0, "i1")], [])

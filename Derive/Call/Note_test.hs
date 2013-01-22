@@ -5,6 +5,7 @@ import Util.Test
 import qualified Ui.Event as Event
 import qualified Ui.ScoreTime as ScoreTime
 import qualified Ui.State as State
+import qualified Ui.UiTest as UiTest
 
 import qualified Derive.Call.CallTest as CallTest
 import qualified Derive.Call.Note as Note
@@ -52,6 +53,28 @@ test_invert_call = do
             [ Node (control [0]) [Node (note "y") []]
             , Node (control [0..4]) [Node (note "y") []]
             ]
+
+test_orphan_notes = do
+    -- Slice out orphans that aren't covered by a parent event.
+    -- Also tested in 'Derive.Slice_test.test_slice_notes_orphans'.
+    -- This is analogous to track level orphans, which are tested in
+    -- "Ui.Call.BlockUtil_test".
+    let run = DeriveTest.extract extract . DeriveTest.linear_derive_tracks id
+        extract e = (DeriveTest.e_note2 e, DeriveTest.e_attributes e)
+    equal (run
+        [ (">inst", [(0, 2, "a = b")])
+        , (">", [])
+        , (">", [(0, 1, ""), (1, 1, "")])
+        , ("*", [(0, 0, "4c"), (1, 0, "4d")])
+        ])
+        ([((0, 1, "4c"), "-"), ((1, 1, "4d"), "-")], [])
+    equal (run
+        [ (">inst", [(0, 2, "a = b")])
+        , (">", [(0, 1, "+a")])
+        , (">", [(0, 1, ""), (1, 1, "")])
+        , ("*", [(0, 0, "4c"), (1, 0, "4d")])
+        ])
+        ([((0, 1, "4c"), "+a"), ((1, 1, "4d"), "-")], [])
 
 make_tree = Slice_test.make_tree
 make_controls :: String -> [Int] -> (String, [Slice_test.Event])

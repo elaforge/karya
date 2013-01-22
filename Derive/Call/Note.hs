@@ -30,12 +30,12 @@ import qualified Ui.TrackTree as TrackTree
 import qualified Derive.Args as Args
 import qualified Derive.Call.BlockUtil as BlockUtil
 import qualified Derive.Call.Util as Util
-import qualified Derive.Sig as Sig
 import qualified Derive.Derive as Derive
 import qualified Derive.Deriver.Internal as Internal
 import qualified Derive.LEvent as LEvent
 import qualified Derive.PitchSignal as PitchSignal
 import qualified Derive.Score as Score
+import qualified Derive.Sig as Sig
 import qualified Derive.Slice as Slice
 import qualified Derive.Stack as Stack
 import qualified Derive.TrackInfo as TrackInfo

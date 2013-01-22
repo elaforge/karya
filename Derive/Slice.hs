@@ -50,14 +50,28 @@ import Types
 --
 -- Since there's no point to a control track with no note track underneath,
 -- control track orphans are stripped out.
-extract_orphans :: TrackTree.TrackEvents -> TrackTree.EventsTree
-    -> TrackTree.EventsTree
-extract_orphans _ [] = []
-extract_orphans track subs = filter has_note $
-    concatMap (\(exclusive, s, e) -> slice exclusive (1, 1) s e Nothing subs) $
-        event_gaps (Events.ascending (TrackTree.tevents_events track))
-            (TrackTree.tevents_end track)
+extract_orphans :: Bool -- ^ If true, if the extracted orphan ranges themselves
+    -- have orphans, extract those too.  This must be False for BlockUtil
+    -- because it evaluates the returned tracks recursively, at which point
+    -- extract_orphans will be called again.  But even though I tried, I can't
+    -- figure out how to get 'slice_notes' to have the same recursive
+    -- structure, so magic flag it is.
+    -> Maybe (ScoreTime, ScoreTime)
+    -> TrackTree.TrackEvents -> TrackTree.EventsTree -> TrackTree.EventsTree
+extract_orphans _ _ _ [] = []
+extract_orphans recursive maybe_range track subs = filter has_note $
+    concatMap slice_gap $
+        event_gaps (track_events track) (TrackTree.tevents_end track)
     where
+    slice_gap (exclusive, start, end) = concat $
+        tree : if recursive
+            then [extract_orphans True maybe_range track subs
+                | Tree.Node track subs <- tree]
+            else []
+        where tree = slice exclusive (1, 1) start end Nothing subs
+    track_events = Events.ascending
+        . maybe id (uncurry Events.in_range_point) maybe_range
+        . TrackTree.tevents_events
     has_note = Monoid.getAny . Foldable.foldMap
         (Monoid.Any . TrackInfo.is_note_track . TrackTree.tevents_title)
 
@@ -202,8 +216,6 @@ events_around is_pitch_track (before, after) start end events =
 -- that there will be control events at negative ScoreTime if they lie before
 -- the note.
 --
--- If there are no note tracks, return [].
---
 -- Technically the children of the note track don't need to be sliced, since
 -- if it is inverting it will do that anyway.  But slicing lets me shift fewer
 -- events, so it's probably a good idea anyway.
@@ -215,25 +227,38 @@ events_around is_pitch_track (before, after) start end events =
 -- If the parent track is empty then nothing can be done because this point
 -- will never even be reached.  However, this situation is handled by the
 -- track deriver, which should have called 'extract_orphans' already.
+--
+-- But if a sliced note track has yet another a note track underneath it, and
+-- that note track has orphan notes, then the track deriver's extract_orphans
+-- will miss it because it's hidden under an event.  So this function will also
+-- extract orphans in the same way.
+--
+-- Ick.
 slice_notes :: ScoreTime -> ScoreTime -> TrackTree.EventsTree
     -> [[(ScoreTime, ScoreTime, TrackTree.EventsTree)]]
     -- ^ One list per note track, in right to left order.  Each track is
-    -- @[(shift, stretch, tree)]@, in no guaranteed order.
-slice_notes start end = map (map shift . slice_track) . concatMap note_tracks
+    -- @[(shift, stretch, tree)]@, in no guaranteed order.  Null if there
+    -- were no note tracks.
+slice_notes start end =
+    filter (not . null) . map (map shift . slice_track) . concatMap note_tracks
     where
+    -- Find the first note tracks.
     note_tracks (Tree.Node track subs)
         | TrackInfo.is_note_track (TrackTree.tevents_title track) =
-            [([], track, subs)]
+            ([], track, subs)
+            : [([], otrack, osubs) | Tree.Node otrack osubs
+                <- extract_orphans True (Just (start, end)) track subs]
         | otherwise = [(track : parents, ntrack, nsubs)
             | (parents, ntrack, nsubs) <- concatMap note_tracks subs]
+    -- For each note track, slice out each event.
+    slice_track ::
+        ([TrackTree.TrackEvents], TrackTree.TrackEvents, TrackTree.EventsTree)
+        -> [(ScoreTime, ScoreTime, TrackTree.EventsTree)]
     slice_track (parents, track, subs) =
         map (slice_event (make_tree parents)) (Events.ascending events)
         where
-        tevents = TrackTree.tevents_events track
-        events
-            | start == end =
-                maybe Events.empty Events.singleton (Events.at start tevents)
-            | otherwise = Events.in_range start end tevents
+        events = Events.in_range_point start end
+            (TrackTree.tevents_events track)
         make_tree [] = [Tree.Node track subs]
         make_tree (p:ps) = [Tree.Node p (make_tree ps)]
     slice_event tree event = (s, e - s, slice False (1, 1) s e Nothing tree)

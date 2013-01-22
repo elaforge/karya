@@ -142,7 +142,7 @@ derive_track :: TrackTree.EventsNode -> Derive.EventDeriver
 derive_track node@(Tree.Node track subs)
     | TrackInfo.is_note_track (TrackTree.tevents_title track) =
         with_stack $ cached $ derive_orphans (TrackTree.tevents_title track)
-            (Slice.extract_orphans track subs)
+            (Slice.extract_orphans False Nothing track subs)
             (Internal.track_setup track (Note.d_note_track node))
     -- I'd like track_setup up here, but tempo tracks are treated differently,
     -- so it goes inside d_control_track.
