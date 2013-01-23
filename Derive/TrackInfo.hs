@@ -24,6 +24,8 @@ import qualified Perform.Pitch as Pitch
 data Type = TempoTrack | ControlTrack | PitchTrack | NoteTrack
     deriving (Eq, Show)
 
+instance Pretty.Pretty Type where pretty = show
+
 track_type :: String -> Type
 track_type title
     | is_note_track title = NoteTrack

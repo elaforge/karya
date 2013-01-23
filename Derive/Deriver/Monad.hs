@@ -2,6 +2,7 @@
 {-# LANGUAGE TypeSynonymInstances, FlexibleInstances #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE FlexibleContexts #-} -- for super-classes of Derived
+{-# LANGUAGE UndecidableInstances #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE Rank2Types #-}
 {- | Implementation for the Deriver monad.
@@ -299,7 +300,8 @@ throw_error_srcpos srcpos err = do
 -- | Cachable might be a better name.  The Elem type is only used for
 -- 'info_prev_val', that could go in a separate type family, especially
 -- since it also applies to TrackLang.Val calls, which are not cacheable.
-class (Show (Elem derived), Show derived) => Derived derived where
+class (Pretty.Pretty (Elem derived), Show (Elem derived), Show derived) =>
+        Derived derived where
     type Elem derived :: *
     -- | I would prefer to have a function to a generic reified type and then
     -- use that value to index the CacheEntry, but I can't think of how to do
@@ -788,6 +790,13 @@ data PassedArgs derived = PassedArgs {
     , passed_info :: !(CallInfo derived)
     }
 
+instance (Pretty.Pretty (Elem d)) => Pretty.Pretty (PassedArgs d) where
+    format (PassedArgs vals call_name info) = Pretty.record_title "PassedArgs"
+        [ ("vals", Pretty.format vals)
+        , ("call_name", Pretty.format call_name)
+        , ("info", Pretty.format info)
+        ]
+
 -- | Additional data for a call.  This part is invariant for all calls on
 -- an event.
 --
@@ -830,6 +839,21 @@ data CallInfo derived = CallInfo {
     , info_sub_tracks :: !TrackTree.EventsTree
     , info_track_type :: !(Maybe TrackInfo.Type)
     }
+
+instance (Pretty.Pretty (Elem d)) => Pretty.Pretty (CallInfo d) where
+    format (CallInfo expr prev_val event prev_events next_events event_end
+            track_range sub_tracks track_type) =
+        Pretty.record_title "CallInfo"
+            [ ("expr", Pretty.format expr)
+            , ("prev_val", Pretty.format prev_val)
+            , ("event", Pretty.format event)
+            , ("prev_events", Pretty.format prev_events)
+            , ("next_events", Pretty.format next_events)
+            , ("event_end", Pretty.format event_end)
+            , ("track_range", Pretty.format track_range)
+            , ("sub_tracks", Pretty.format sub_tracks)
+            , ("track_type", Pretty.format track_type)
+            ]
 
 -- | Transformer calls don't necessarily apply to any particular event, and
 -- neither to generators for that matter.

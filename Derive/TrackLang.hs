@@ -491,6 +491,9 @@ instance ShowVal Term where
     show_val (ValCall call) = "(" ++ show_val call ++ ")"
     show_val (Literal val) = show_val val
 
+instance Pretty.Pretty Call where
+    pretty = show_val
+
 instance DeepSeq.NFData Call where
     rnf (Call call_id terms) = call_id `seq` DeepSeq.rnf terms
 instance DeepSeq.NFData Term where
