@@ -5,7 +5,6 @@ import Util.Test
 import qualified Ui.Event as Event
 import qualified Ui.ScoreTime as ScoreTime
 import qualified Ui.State as State
-import qualified Ui.UiTest as UiTest
 
 import qualified Derive.Call.CallTest as CallTest
 import qualified Derive.Call.Note as Note

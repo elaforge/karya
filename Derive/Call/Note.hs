@@ -28,6 +28,7 @@ import qualified Util.Seq as Seq
 import qualified Ui.Event as Event
 import qualified Ui.TrackTree as TrackTree
 import qualified Derive.Args as Args
+import qualified Derive.Attrs as Attrs
 import qualified Derive.Call.BlockUtil as BlockUtil
 import qualified Derive.Call.Util as Util
 import qualified Derive.Derive as Derive
@@ -128,10 +129,8 @@ generate_note event next_start = do
     st <- Derive.gets Derive.state_dynamic
     let controls = trimmed_controls start real_next (Derive.state_controls st)
         pitch_sig = trimmed_pitch start real_next (Derive.state_pitch st)
-    let sustain = maybe 1
-            (RealTime.seconds . Signal.at start . Score.typed_val)
-            (Map.lookup Score.c_sustain controls)
-    (start, end) <- randomized controls start ((end - start) * sustain + start)
+    (start, end) <- randomized controls start $
+        duration_attributes controls attrs start end real_next
     return $! LEvent.one $! LEvent.Event $! Score.Event
         { Score.event_start = start
         , Score.event_duration = end - start
@@ -143,6 +142,21 @@ generate_note event next_start = do
         , Score.event_environ = TrackLang.insert_val TrackLang.v_attributes
             (TrackLang.VAttributes attrs) environ
         }
+
+-- | Interpret attributes and controls that effect the note's duration.
+duration_attributes :: Score.ControlMap -> Score.Attributes -> RealTime
+    -> RealTime -> RealTime -> RealTime
+duration_attributes controls attrs start end next
+    | has Attrs.legato = next + lookup_time 0.1 Score.c_legato_overlap
+    | otherwise = start + dur * sustain
+    where
+    has = Score.attrs_contain attrs
+    dur = end - start
+    sustain = if has Attrs.staccato then sustain_ * 0.5 else sustain_
+    sustain_ = lookup_time 1 Score.c_sustain
+    lookup_time deflt control = maybe deflt
+        (RealTime.seconds . Signal.at start . Score.typed_val)
+        (Map.lookup control controls)
 
 -- | Interpret the c_start_rnd and c_dur_rnd controls.
 --

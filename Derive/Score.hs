@@ -340,7 +340,7 @@ attr = Attributes . Set.singleton
 attrs_contain :: Attributes -> Attributes -> Bool
 attrs_contain (Attributes super) (Attributes sub) = sub `Set.isSubsetOf` super
 
--- ** controls
+-- * controls
 
 control_name :: Control -> String
 control_name (Control name) = name
@@ -355,9 +355,15 @@ c_null = Control ""
 c_dynamic :: Control
 c_dynamic = Control "dyn"
 
+-- ** generally understood by the note deriver
+
 -- | Scale note duration.
 c_sustain :: Control
 c_sustain = Control "sustain"
+
+-- | Amount of note overlap that @+legato@ implies.
+c_legato_overlap :: Control
+c_legato_overlap = Control "legato-overlap"
 
 c_start_rnd, c_dur_rnd, c_vel_rnd :: Control
 c_start_rnd = Control "start-rnd"
@@ -369,7 +375,7 @@ c_velocity, c_breath :: Control
 c_velocity = Control "vel"
 c_breath = Control "breath"
 
--- *** transposition
+-- ** transposition
 
 c_chromatic :: Control
 c_chromatic = Control "t-chromatic"

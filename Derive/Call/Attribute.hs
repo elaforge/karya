@@ -7,18 +7,17 @@
 -- in inconsistent ways.
 module Derive.Call.Attribute where
 import Util.Control
-import qualified Derive.Args as Args
+import qualified Util.Seq as Seq
 import qualified Derive.Attrs as Attrs
 import qualified Derive.Call as Call
 import qualified Derive.Call.Lily as Lily
 import qualified Derive.Call.Note as Note
 import qualified Derive.Call.Util as Util
-import qualified Derive.Sig as Sig
-import Derive.Sig (defaulted, typed_control)
 import qualified Derive.Derive as Derive
 import qualified Derive.ParseBs as ParseBs
 import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
+import qualified Derive.Sig as Sig
 import qualified Derive.TrackLang as TrackLang
 
 import Types
@@ -42,53 +41,61 @@ note_calls = Derive.make_calls
     [ ("o", attributed_note (Just "-\\flageolet") Attrs.harmonic)
     , ("m", attributed_note (Just "-+") Attrs.mute)
     , ("marc", attributed_note (Just "-^") Attrs.marcato)
-    -- TODO also set sustain to .5, overridable in the environ
     , (".", attributed_note (Just "-.") Attrs.staccato)
     , ("(", c_legato)
     , ("{", c_portamento)
     ]
 
 attributed_note :: Maybe String -> Attrs.Attributes -> Derive.NoteCall
-attributed_note maybe_code attrs = Derive.Call
-    { Derive.call_name = "note with " ++ ShowVal.show_val attrs
-    , Derive.call_generator = Just $ Derive.generator_call
+attributed_note maybe_ly attrs =
+    transform_notes ("note with " ++ ShowVal.show_val attrs)
+        maybe_ly (Util.add_attrs attrs)
         ("Apply attributes to notes. When applied as a note transformer\
         \ (i.e. it has notes in child tracks) it applies its attributes to\
         \ those notes. Otherwise, it applies its attributes to the null note\
-        \ call."
-        ) generator
-    , Derive.call_transformer = Just $ Derive.transformer_call
-        "Apply attributes to the transformed deriver." transformer
+        \ call.")
+        "Apply attributes to the transformed deriver."
+
+transform_notes :: String -> Maybe String
+    -> (Derive.EventDeriver -> Derive.EventDeriver)
+    -> String -> String -> Derive.NoteCall
+transform_notes name maybe_ly transform generator_doc transform_doc =
+    Derive.Call
+    { Derive.call_name = name
+    , Derive.call_generator = Just $
+        Derive.generator_call generator_doc generator
+    , Derive.call_transformer = Just $
+        Derive.transformer_call transform_doc transformer
     }
     where
     generator = Sig.call0 $ generate_ly $ \args -> case Note.sub_events args of
-        [] -> add_attrs $ Call.reapply_call args (TrackLang.call "" [])
-        subs -> Note.place (Note.map_events add_attrs (concat subs))
-    transformer = Sig.call0t $ \_args deriver ->
-        Lily.when_lilypond (const $ append_code (add_attrs deriver))
-            (add_attrs deriver)
-    add_attrs = Util.add_attrs attrs
-    append_code = maybe id Lily.append_code maybe_code
+        [] -> transform $ Call.reapply_call args (TrackLang.call "" [])
+        subs -> Note.place (Note.map_events transform (concat subs))
     generate_ly f args = maybe (f args)
-        (\c -> Lily.notes_append c args (f args)) maybe_code
+        (\c -> Lily.notes_append c args (f args)) maybe_ly
+    transformer = Sig.call0t $ \_args deriver ->
+        Lily.when_lilypond (const $ append_ly (transform deriver))
+            (transform deriver)
+    append_ly = maybe id Lily.append_code maybe_ly
 
 c_legato :: Derive.NoteCall
 c_legato = Derive.stream_generator "legato"
-    ("Play the transformed notes legato.  This extends their duration and\
-     \ applies `+legato`."
-    ) $ Sig.call
-    (defaulted "overlap" (typed_control "legato" 0.1 Score.Real)
-        "All notes except the last one overlap with the next note by this\
-        \ amount."
-    ) $ \overlap args ->
-    Lily.notes_around (Lily.Suffix "(") (Lily.Suffix ")") args $ do
-        overlap <- Util.real_duration Util.Real (Args.start args)
-            =<< Util.typed_control_at overlap =<< Args.real_start args
-        mconcat $ map (legato overlap Attrs.legato) (Note.sub_events args)
+    ("Play the transformed notes legato.  This sets `+legato` on all notes\
+    \ except the last one. The default note deriver will respond to `+legato`\
+    \ and " <> ShowVal.doc_val Score.c_legato_overlap <> "."
+    ) $ Sig.call0 $ \args ->
+    Lily.notes_around (Lily.Suffix "(") (Lily.Suffix ")") args $
+        init_attr Attrs.legato args
 
-legato :: RealTime -> Score.Attributes -> [Note.Event] -> Derive.EventDeriver
-legato overlap attr = fmap (Util.map_around_asc (extend_duration overlap))
-    . Note.place . Note.map_events (Util.add_attrs attr)
+-- | Apply the attributes to the init of the sub-events, i.e. every one but the
+-- last.
+init_attr :: Score.Attributes -> Derive.PassedArgs d -> Derive.EventDeriver
+init_attr attr = Note.place . concatMap add . Note.sub_events
+    where
+    add notes = case Seq.viewr notes of
+        (notes, Just last) ->
+            Note.map_events (Util.add_attrs attr) notes ++ [last]
+        _ -> []
 
 extend_duration :: RealTime -> [Score.Event] -> Score.Event -> [Score.Event]
     -> Score.Event
@@ -98,7 +105,7 @@ extend_duration overlap _prev cur (next:_) = Score.set_duration dur cur
 
 c_portamento :: Derive.NoteCall
 c_portamento = Derive.stream_generator "portamento"
-    "Make the notes overlap and apply `+legato`." $
+    "Add `+porta` to all notes except the last one." $
     Sig.call0 $ \args ->
-    Lily.notes_around (Lily.Suffix "(") (Lily.Suffix ")") args $ do
-        mconcat $ map (legato 0.1 Attrs.porta) (Note.sub_events args)
+    Lily.notes_around (Lily.Suffix "(") (Lily.Suffix ")") args $
+        init_attr Attrs.porta args

@@ -23,6 +23,10 @@ show_hex_val :: Double -> String
 show_hex_val n = hex_prefix ++ if length h == 1 then '0' : h else h
     where h = Numeric.showHex (round (n * 0xff)) ""
 
+-- | Show a val for inclusion into CallDoc.
+doc_val :: (ShowVal a) => a -> String
+doc_val a = '`' : show_val a ++ "`"
+
 -- Really these instances should go in Derive.ParseBs, but it imports
 -- Derive.TrackLang, which needs them.
 

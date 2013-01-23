@@ -3,12 +3,15 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
+  * staccato should make notes shorter
+    - but not for vsl
   * load repo, then save_state, it still wants to write to .git
   - think of some way to make sure randomness is stable
   * why does the inst in the block title not carry over to the tracks?
   * why does the left hand intervening track make the left hand disappear?
     I need the analog of slice orphan tracks for 'slice_notes'
 
+  - There's a focus bug, but I'm not sure how to reproduce it.
   - save files without a project dir, e.g. 'save_state "dir/name"', will
     wind up putting 'ly' and 'repl' directly into 'dir'
   - perhaps Derive.Call.Attributes should have a attr->ly map, so even
