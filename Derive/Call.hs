@@ -84,13 +84,13 @@ import qualified Util.Seq as Seq
 
 import qualified Ui.Event as Event
 import qualified Ui.TrackTree as TrackTree
-import qualified Derive.Sig as Sig
 import qualified Derive.Derive as Derive
 import qualified Derive.Deriver.Internal as Internal
 import qualified Derive.LEvent as LEvent
 import qualified Derive.ParseBs as ParseBs
 import qualified Derive.PitchSignal as PitchSignal
 import qualified Derive.Score as Score
+import qualified Derive.Sig as Sig
 import qualified Derive.Stack as Stack
 import qualified Derive.TrackInfo as TrackInfo
 import qualified Derive.TrackLang as TrackLang
@@ -174,7 +174,7 @@ data TrackInfo = TrackInfo {
     , tinfo_sub_tracks :: !TrackTree.EventsTree
     , tinfo_events_around :: !([Event.Event], [Event.Event])
     , tinfo_type :: !TrackInfo.Type
-    }
+    } deriving (Show)
 
 -- | Given the previous sample and derivation results, get the last sample from
 -- the results.
@@ -277,7 +277,7 @@ derive_event st tinfo prev_sample repeat_call prev event next
         -- 'State.tevents_around'.
         , Derive.info_prev_events = fst around ++ prev
         , Derive.info_next_events = next ++ snd around
-        , Derive.info_event_end = case next of
+        , Derive.info_event_end = case next ++ snd around of
             [] -> events_end
             event : _ -> Event.start event
         , Derive.info_track_range = track_range

@@ -57,9 +57,24 @@ test_slice = do
     equal (f False 2 1 2 Nothing [Node (make_controls "c" [0, 2..10]) []])
         [Node (make_controls "c" [0, 2, 4]) []]
 
+test_slice_neighbors = do
+    let f exclusive around s e =
+            extract . Slice.slice exclusive around s e Nothing
+            . make_tree
+        extract = map $ fmap $ \track ->
+            extract_around (TrackTree.tevents_around track)
+        extract_around (before, after) = (concatMap Event.event_string before,
+            concatMap Event.event_string after)
+    let notes offset ns = Node (make_notes offset ns)
+        controls cs = Node (make_controls "c" cs)
+    equal (f False (1, 1) 1 2 [controls [0..4] [notes 0 "xyz" []]])
+        [Node ("0", "34") [Node ("x", "z") []]]
+    equal (f False (1, 2) 1 2 [controls [0..4] [notes 0 "xyz" []]])
+        [Node ("0", "4") [Node ("x", "z") []]]
+
+
 test_slice_notes = do
-    let f s e = extract . Slice.slice_notes s e . make_tree
-        extract = map (map (\(s, e, t) -> (s, e, extract_tree t)))
+    let f = slice_notes
     let notes ns = Node (make_notes 0 ns)
         control cs = Node (make_controls "c" cs)
         control2 cs = Node (make_controls2 "c" cs)
@@ -120,8 +135,7 @@ test_slice_notes_orphans = do
     -- Ensure that an intervening empty note track doesn't hide the notes
     -- on the track below it.  This is analogous to orphan extraction in the
     -- top level.
-    let f s e = extract . Slice.slice_notes s e . make_tree
-        extract = map (map (\(s, e, t) -> (s, e, extract_tree t)))
+    let f = slice_notes
     let notes offset ns = Node (make_notes offset ns)
 
     -- Intervening track is empty.
@@ -151,6 +165,16 @@ test_slice_notes_orphans = do
         [ [(0, 1, [notes 0 "a" []])]
         , [(0, 1, [notes 0 "b" []])]
         ]
+
+slice_notes :: ScoreTime -> ScoreTime -> EventsTree
+    -> [[(ScoreTime, ScoreTime, EventsTree)]]
+slice_notes s e = extract . Slice.slice_notes s e . make_tree
+    where extract = extract_notes extract_tree
+
+extract_notes :: (TrackTree.EventsTree -> a)
+    -> [[(ScoreTime, ScoreTime, TrackTree.EventsTree)]]
+    -> [[(ScoreTime, ScoreTime, a)]]
+extract_notes f = map $ map $ \(s, e, t) -> (s, e, f t)
 
 -- * util
 

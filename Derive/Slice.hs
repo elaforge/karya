@@ -144,7 +144,7 @@ slice exclusive around start end insert_event = concatMap strip . map do_slice
         Nothing -> []
         Just insert_event -> [Tree.Node (make insert_event) []]
     -- The synthesized bottom track.
-    make (InsertEvent text dur trange events_around track_id) =
+    make (InsertEvent text dur trange around track_id) =
         TrackTree.TrackEvents
             { TrackTree.tevents_title = ">"
             , TrackTree.tevents_events =
@@ -153,25 +153,27 @@ slice exclusive around start end insert_event = concatMap strip . map do_slice
             , TrackTree.tevents_end = end
             , TrackTree.tevents_range = trange
             , TrackTree.tevents_sliced = True
-            , TrackTree.tevents_around = events_around
+            , TrackTree.tevents_around = around
             , TrackTree.tevents_shifted = 0
             }
     slice_t track = track
-        { TrackTree.tevents_events = events track
+        { TrackTree.tevents_events = within
         , TrackTree.tevents_end = sliced_start + end
         , TrackTree.tevents_range = (sliced_start + start, sliced_start + end)
         , TrackTree.tevents_sliced = True
+        , TrackTree.tevents_around = (before, after)
         } -- If the track has already been sliced then (start, end) are
         -- relative to that previous slicing.  But since cache is based on
         -- the stack, which is absolute, tevents_range must retain the true
         -- absolute range.
-        where sliced_start = fst (TrackTree.tevents_range track)
-    -- Note tracks don't include pre and post events like control tracks.
-    events track
+        where
+        (before, within, after) = extract_events track
+        sliced_start = fst (TrackTree.tevents_range track)
+    -- Extract events from an intermediate track.
+    extract_events track
         | TrackInfo.is_note_track title =
-            (if exclusive then Events.remove_event start else id)
-                (Events.in_range start end es)
-        | otherwise = events_around (TrackInfo.is_pitch_track title)
+            extract_note_events exclusive start end es
+        | otherwise = extract_control_events (TrackInfo.is_pitch_track title)
             around start end es
         where
         es = TrackTree.tevents_events track
@@ -182,16 +184,32 @@ slice exclusive around start end insert_event = concatMap strip . map do_slice
             concatMap strip subs
         | otherwise = [Tree.Node track (concatMap strip subs)]
 
-events_around :: Bool -> (Int, Int) -> ScoreTime -> ScoreTime -> Events.Events
-    -> Events.Events
-events_around is_pitch_track (before, after) start end events =
-    Events.from_list $ List.reverse (take_prev before pre)
-        ++ Then.takeWhile ((<end) . Event.start) (take after) post
+-- | Note tracks don't include pre and post events like control tracks.
+extract_note_events :: Bool -> ScoreTime -> ScoreTime
+    -> Events.Events -> ([Event.Event], Events.Events, [Event.Event])
+extract_note_events exclusive start end events =
+    case (exclusive, Events.at start within) of
+        (True, Just event) ->
+            (event : pre, Events.remove_event start within, post)
+        _ -> (pre, within, post)
+    where
+    (pre, within, post) = case Events.split_range start end events of
+        (pre, within, post) ->
+            (Events.descending pre, within, Events.ascending post)
+
+extract_control_events :: Bool -> (Int, Int) -> ScoreTime -> ScoreTime
+    -> Events.Events -> ([Event.Event], Events.Events, [Event.Event])
+    -- ^ (descending_pre, within, ascending_post)
+extract_control_events is_pitch_track (before, after) start end events =
+    (pre2, Events.from_list $ reverse pre_within ++ within, post2)
     where
     -- Implements the "before is at+before" as documented in 'slice'.
-    (pre, post) = case Events.split start events of
+    (pre1, post1) = case Events.split start events of
         (pre, at : post) | Event.start at == start -> (at : pre, post)
         a -> a
+    (pre_within, pre2) = take_pre before pre1
+    (within, post2) = Then.span ((<end) . Event.start) (splitAt after) post1
+
     -- This is an icky hack.  The problem is that some calls rely on the
     -- previous value.  So slicing back to them doesn't do any good, I need the
     -- event before.  The problem is that this low level machinery isn't
@@ -201,9 +219,8 @@ events_around is_pitch_track (before, after) start end events =
     -- evaluated, and at that point I could get rid of slicing entirely.  But
     -- I can't think of how to do that at the moment.
     call_of = Maybe.fromMaybe "" . ParseBs.parse_call . Event.event_bytestring
-    take_prev before =
-        Then.takeWhile ((`Set.member` require_previous) . call_of)
-        (take before)
+    take_pre before = Then.span ((`Set.member` require_previous) . call_of)
+        (splitAt before)
     require_previous = if is_pitch_track then Pitch.require_previous
         else Control.require_previous
 
@@ -266,8 +283,12 @@ slice_notes start end =
     shift (shift, stretch, tree) =
         (shift, stretch, map (fmap (shift_tree shift)) tree)
     shift_tree shift track = track
-        { TrackTree.tevents_end = TrackTree.tevents_end track - shift
-        , TrackTree.tevents_events = Events.map_events
-            (Event.move (subtract shift)) (TrackTree.tevents_events track)
+        { TrackTree.tevents_events =
+            Events.map_events move (TrackTree.tevents_events track)
+        , TrackTree.tevents_end = TrackTree.tevents_end track - shift
+        , TrackTree.tevents_around =
+            let (prev, next) = TrackTree.tevents_around track
+            in (map move prev, map move next)
         , TrackTree.tevents_shifted = TrackTree.tevents_shifted track + shift
         }
+        where move = Event.move (subtract shift)
