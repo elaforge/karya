@@ -13,7 +13,6 @@ module Derive.Call.Note (
     , sub_events
     , place, place_at
 #ifdef TESTING
-    , generate_note
     , invert_call, trimmed_controls
 #endif
 ) where

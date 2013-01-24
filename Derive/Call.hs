@@ -138,18 +138,18 @@ reapply_call :: (Derive.Derived d) => Derive.PassedArgs d -> TrackLang.Call
     -> Derive.LogsDeriver d
 reapply_call args call = reapply args (call :| [])
 
--- | A version of 'eval' specialized to evaluate note calls.
-eval_note :: ScoreTime -> TrackLang.Note -> Derive.Deriver PitchSignal.Pitch
-eval_note pos note = Sig.cast ("eval note " ++ show note)
-    =<< eval (Derive.dummy_call_info pos 0 "<eval_note>")
+-- | A version of 'eval' specialized to evaluate pitch calls.
+eval_pitch :: ScoreTime -> TrackLang.Note -> Derive.Deriver PitchSignal.Pitch
+eval_pitch pos note = Sig.cast ("eval note " ++ show note)
+    =<< eval (Derive.dummy_call_info pos 0 "<eval_pitch>")
         (TrackLang.note_call note)
     -- Note calls shouldn't care about their pos.
 
--- | This is like 'eval_note' when you already know the call, presumably
+-- | This is like 'eval_pitch' when you already know the call, presumably
 -- because you asked 'Derive.scale_note_to_call'.
-apply_note :: ScoreTime -> Derive.ValCall -> Derive.Deriver TrackLang.Val
-apply_note pos call = apply cinfo call []
-    where cinfo = Derive.dummy_call_info pos 0 "<apply_note>"
+apply_pitch :: ScoreTime -> Derive.ValCall -> Derive.Deriver TrackLang.Val
+apply_pitch pos call = apply cinfo call []
+    where cinfo = Derive.dummy_call_info pos 0 "<apply_pitch>"
 
 -- | Evaluate a single expression.
 eval_expr :: (Derive.Derived d) => Derive.CallInfo d -> TrackLang.Expr

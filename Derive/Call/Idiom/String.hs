@@ -53,7 +53,7 @@ c_guzheng strings = Derive.transformer "guzheng"
         \ released after this delay."
     ) $ \(attack, release, delay) _args deriver -> do
         -- TODO if I care about retuning notes I should pass a time
-        string_pitches <- mapM (Call.eval_note 0) strings
+        string_pitches <- mapM (Call.eval_pitch 0) strings
         srate <- Util.get_srate
         events <- deriver
         scale <- Util.get_scale
@@ -68,7 +68,7 @@ c_violin strings = Derive.transformer "violin"
     Sig.callt
     ( defaulted "delay" (control "string-delay" 0) "String release delay time."
     ) $ \delay _args deriver -> do
-        string_pitches <- mapM (Call.eval_note 0) strings
+        string_pitches <- mapM (Call.eval_pitch 0) strings
         srate <- Util.get_srate
         events <- deriver
         scale <- Util.get_scale

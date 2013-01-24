@@ -3,7 +3,7 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
-  - I think Derive.Call.eval_note should be pitch
+  * I think Derive.Call.eval_note should be pitch
   * staccato should make notes shorter
     * but not for vsl
   * load repo, then save_state, it still wants to write to .git
