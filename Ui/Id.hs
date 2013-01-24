@@ -13,7 +13,7 @@ module Ui.Id (
     , un_id, id_name, set_name, id_namespace, set_namespace
 
     -- * read / show
-    , read_id, show_id
+    , read_id, show_id, show_short
 
     -- * Ident
     , Ident(..)
@@ -194,6 +194,11 @@ read_id s = unsafe_id (unsafe_namespace pre) (drop 1 post)
 show_id :: Id -> String
 show_id (Id ns ident) = Pretty.pretty ns ++ "/" ++ B.unpack ident
 
+-- | The inverse of 'make'.  TODO rename them
+show_short :: Namespace -> Id -> String
+show_short default_ns ident@(Id ns name)
+    | default_ns == ns = B.unpack name
+    | otherwise = show_id ident
 
 -- * Ident
 

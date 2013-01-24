@@ -42,6 +42,7 @@ import qualified Ui.Block as Block
 import qualified Ui.BlockC as BlockC
 import qualified Ui.Event as Event
 import qualified Ui.Events as Events
+import qualified Ui.Id as Id
 import qualified Ui.State as State
 import qualified Ui.Track as Track
 import qualified Ui.Types as Types
@@ -194,7 +195,9 @@ run_update track_signals set_style
     -- empty view, but this way seems less complicated if more error-prone.
     -- Sync: title, tracks, selection, skeleton
     return $ do
-        let title = block_window_title view_id (Block.view_block view)
+        let title = block_window_title
+                (State.config_namespace (State.state_config ustate))
+                view_id (Block.view_block view)
         BlockC.create_view view_id title (Block.view_rect view)
             (Block.block_config block)
         mapM_ (create_track ustate)
@@ -376,8 +379,10 @@ track_title (Block.TId track_id _) =
 track_title _ = return ""
 
 -- | Generate the title for block windows.
-block_window_title :: ViewId -> BlockId -> String
-block_window_title view_id block_id = show block_id ++ " -- " ++ show view_id
+block_window_title :: Id.Namespace -> ViewId -> BlockId -> String
+block_window_title ns view_id block_id =
+    Id.show_short ns (Id.unpack_id block_id) ++ " - "
+    ++ Id.show_short ns (Id.unpack_id view_id)
 
 events_of_track_ids :: State.State -> [TrackId] -> [Events.Events]
 events_of_track_ids ustate track_ids = mapMaybe events_of track_ids

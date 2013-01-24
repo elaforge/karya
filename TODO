@@ -3,6 +3,7 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
+  - I think Derive.Call.eval_note should be pitch
   * staccato should make notes shorter
     - but not for vsl
   * load repo, then save_state, it still wants to write to .git
@@ -26,7 +27,7 @@ UNSORTED
     with too many mark colors by just making them the same color.
   - giving Meter.T an argument seems like overkill, do I have a use for
     beats of unequal lengths?
-  - window titles should be just the end of the view, clip off the
+  * window titles should be just the end of the view, clip off the
     (bid "long-name/") stuff
   - just plain >kkt/kendang should default to kendang-wadon
     Or, what about making score-specific instrument aliases?
