@@ -34,6 +34,9 @@ real_start = Derive.real . start
 end :: PassedArgs d -> ScoreTime
 end = Event.end . event
 
+real_end :: PassedArgs d -> Derive.Deriver RealTime
+real_end = Derive.real . end
+
 -- | The start of the next event, or the end of the block if there is no next
 -- event.
 --

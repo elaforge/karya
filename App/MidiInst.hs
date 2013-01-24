@@ -88,7 +88,7 @@ instance Monoid.Monoid Code where
         Code (a1<>a2) (b1<>b2) (c1<>c2) (d1<>d2)
 
 empty_code :: Code
-empty_code = Code [] [] mempty []
+empty_code = mempty
 
 with_code :: Code -> [Instrument.Patch] -> [Patch]
 with_code code = map (\p -> (p, code))

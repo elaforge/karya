@@ -2,7 +2,8 @@
 -- | Basic calls for note tracks.
 module Derive.Call.Note (
     note_calls
-    , c_note, transformed_note
+    , c_note, transformed_note, note_call
+    , default_note
     -- * inversion
     , when_under_inversion
     , inverting, inverting_around
@@ -60,23 +61,30 @@ note_calls = Derive.make_calls
 -- * note
 
 c_note :: Derive.NoteCall
-c_note = transformed_note "" id
+c_note = note_call "" (default_note True)
 
--- | Create a note call, but wrap the given transformer around the generator.
 transformed_note :: String -> (Derive.EventDeriver -> Derive.EventDeriver)
     -> Derive.NoteCall
-transformed_note doc transform = Derive.Call
+transformed_note prepend_doc transform =
+    note_call prepend_doc (transform . default_note True)
+
+-- | Create a note call, configuring it with the actual note generating
+-- function.  The generator is called with the usual note arguments, and
+-- receives the usual instrument and attribute transform.
+note_call :: String -> GenerateNote -> Derive.NoteCall
+note_call prepend_doc generate = Derive.Call
     { Derive.call_name = "note"
     , Derive.call_generator = Just $ Derive.generator_call prepended
-        (Sig.call parser (note_generate transform))
+        (Sig.call parser (note_generate generate))
     , Derive.call_transformer = Just $ Derive.transformer_call transformer_doc
         (Sig.callt parser note_transform)
     }
     where
     parser = Sig.many "attribute" "Change the instrument or attributes."
     prepended
-        | null doc = generator_doc
-        | otherwise = "Modified note call: " ++ doc ++ "\n" ++ generator_doc
+        | null prepend_doc = generator_doc
+        | otherwise = "Modified note call: " ++ prepend_doc ++ "\n"
+            ++ generator_doc
     generator_doc =
         "The note call is the main note generator, and will emit a single"
         <> " score event. It interprets `>inst` and `+attr` args by"
@@ -87,18 +95,8 @@ transformed_note doc transform = Derive.Call
         "This takes the same arguments as the generator and instead sets"
         <> " those values in the transformed score, similar to the `=`"
         <> " call."
-
-note_generate :: (Derive.EventDeriver -> Derive.EventDeriver)
-    -> [Either Score.Instrument TrackLang.RelativeAttr] -> Derive.PassedArgs d
-    -> Derive.EventDeriver
-note_generate transform vals = inverting generate
-    where
-    generate args = transform_note vals $
-        transform $ generate_note (Args.event args) (Args.next args)
-
-note_transform :: [Either Score.Instrument TrackLang.RelativeAttr]
-    -> Derive.PassedArgs d -> Derive.EventDeriver -> Derive.EventDeriver
-note_transform vals _ deriver = transform_note vals deriver
+    note_generate generate_note vals = inverting generate
+        where generate args = transform_note vals $ generate_note args
 
 -- | This is implicitly the call for note track titles---the \">...\" will be
 -- the first argument.
@@ -111,13 +109,23 @@ c_note_track =
     where
     parser = Sig.many "attribute" "Change the instrument or attributes."
 
+note_transform :: [Either Score.Instrument TrackLang.RelativeAttr]
+    -> Derive.PassedArgs d -> Derive.EventDeriver -> Derive.EventDeriver
+note_transform vals _ deriver = transform_note vals deriver
+
 -- ** generate
 
-generate_note :: Event.Event -> ScoreTime -> Derive.EventDeriver
-generate_note event next_start = do
-    start <- Derive.real (Event.start event)
-    end <- Derive.real (Event.end event)
-    real_next <- Derive.real next_start
+-- | Generate a single note.  This is intended to be used as the lowest level
+-- null call for some instrument.
+type GenerateNote = Derive.PassedArgs Score.Event -> Derive.EventDeriver
+
+-- | TODO I need a better way than ad-hoc flags to customize the note call,
+-- but wait until I have some more uses to see how it will be customized.
+default_note :: Bool -> GenerateNote
+default_note use_staccato args = do
+    start <- Args.real_start args
+    end <- Args.real_end args
+    real_next <- Derive.real (Args.next args)
     -- Note that due to negative durations, the end could be before the start.
     -- What this really means is that the sounding duration of the note depends
     -- on the next one, which should be sorted out later by post processing.
@@ -130,29 +138,29 @@ generate_note event next_start = do
     let controls = trimmed_controls start real_next (Derive.state_controls st)
         pitch_sig = trimmed_pitch start real_next (Derive.state_pitch st)
     (start, end) <- randomized controls start $
-        duration_attributes controls attrs start end real_next
+        duration_attributes use_staccato controls attrs start end real_next
     return $! LEvent.one $! LEvent.Event $! Score.Event
         { Score.event_start = start
         , Score.event_duration = end - start
-        , Score.event_bs = Event.event_bytestring event
+        , Score.event_bs = Event.event_bytestring (Args.event args)
         , Score.event_controls = controls
         , Score.event_pitch = pitch_sig
         , Score.event_stack = Derive.state_stack st
         , Score.event_instrument = inst
-        , Score.event_environ = TrackLang.insert_val TrackLang.v_attributes
-            (TrackLang.VAttributes attrs) environ
+        , Score.event_environ = environ
         }
 
 -- | Interpret attributes and controls that effect the note's duration.
-duration_attributes :: Score.ControlMap -> Score.Attributes -> RealTime
+duration_attributes :: Bool -> Score.ControlMap -> Score.Attributes -> RealTime
     -> RealTime -> RealTime -> RealTime
-duration_attributes controls attrs start end next
+duration_attributes use_staccato controls attrs start end next
     | has Attrs.legato = next + lookup_time 0.1 Score.c_legato_overlap
     | otherwise = start + dur * sustain
     where
     has = Score.attrs_contain attrs
     dur = end - start
-    sustain = if has Attrs.staccato then sustain_ * 0.5 else sustain_
+    sustain = if use_staccato && has Attrs.staccato
+        then sustain_ * 0.5 else sustain_
     sustain_ = lookup_time 1 Score.c_sustain
     lookup_time deflt control = maybe deflt
         (RealTime.seconds . Signal.at start . Score.typed_val)

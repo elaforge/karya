@@ -10,17 +10,14 @@ import qualified Util.Seq as Seq
 import Util.Test
 import qualified Util.Thread as Thread
 
-import qualified Ui.Event as Event
 import qualified Ui.State as State
 import qualified Ui.UiTest as UiTest
-
 import qualified Derive.Args as Args
 import qualified Derive.Call.Block as Call.Block
 import qualified Derive.Call.Block as Block
 import qualified Derive.Call.BlockUtil as BlockUtil
 import qualified Derive.Call.CallTest as CallTest
 import qualified Derive.Call.Note as Call.Note
-import qualified Derive.Sig as Sig
 import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Deriver.Internal as Internal
@@ -28,6 +25,7 @@ import qualified Derive.LEvent as LEvent
 import qualified Derive.Note as Note
 import qualified Derive.ParseBs as ParseBs
 import qualified Derive.Score as Score
+import qualified Derive.Sig as Sig
 import qualified Derive.Stack as Stack
 import qualified Derive.TrackLang as TrackLang
 
@@ -279,15 +277,10 @@ with_calls mvar = CallTest.with_note_call "" (mk_logging_call mvar)
     . CallTest.with_control_lookup (c_set mvar)
 
 mk_logging_call :: Log -> Derive.NoteCall
-mk_logging_call log_var  = Derive.stream_generator "logging-note" "doc" $
-    Sig.call0 $ Call.Note.inverting $ \args ->
-        c_note log_var (Args.event args) (Args.next args)
-
-c_note :: Log -> Event.Event -> ScoreTime -> Derive.EventDeriver
-c_note log_mvar event next_start = do
+mk_logging_call log_mvar = Call.Note.note_call "logging-note" $ \args -> do
     -- Call the real one to make sure I'm getting it's laziness
     -- characteristics.
-    [LEvent.Event sevent] <- Call.Note.generate_note event next_start
+    [LEvent.Event sevent] <- Call.Note.default_note True args
     st <- Derive.get_stack
     let write_log = Unsafe.unsafePerformIO $ put_log log_mvar $
             stack ++ " note at: " ++ Pretty.pretty (Score.event_start sevent)

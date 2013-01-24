@@ -6,13 +6,15 @@ import qualified Data.Set as Set
 import Util.Control
 -- import Util.Pretty (pprint)
 import qualified Util.Seq as Seq
-
 import qualified Midi.CC as CC
 import qualified Midi.Key as Key
 import qualified Midi.Midi as Midi
 
 import Derive.Attrs
+import qualified Derive.Call.Note as Note
+import qualified Derive.Call.Trill as Trill
 import qualified Derive.Score as Score
+
 import qualified Perform.Midi.Instrument as Instrument
 import qualified App.MidiInst as MidiInst
 
@@ -28,7 +30,7 @@ synth :: Instrument.SynthName
 synth = "vsl"
 
 patches :: [MidiInst.Patch]
-patches = MidiInst.with_empty_code $ concat
+patches = map add_code $ concat
     [ insts solo_strings, insts string_sections
     , insts woodwinds1, insts woodwinds2, insts special_woodwinds
     , insts brass1, insts brass2, insts special_brass
@@ -38,6 +40,33 @@ patches = MidiInst.with_empty_code $ concat
     insts = map (uncurry inst)
     inst name ks = (Instrument.keyswitches #= keyswitch_map ks) $
         MidiInst.patch (-2, 2) name []
+    add_code patch = (patch, code)
+        where code = mconcat [staccato_code patch, trill_code patch]
+
+staccato_code :: Instrument.Patch -> MidiInst.Code
+staccato_code patch
+    | has_attr staccato patch = MidiInst.null_call staccato_keyswitch
+    | otherwise = mempty
+    where
+    -- Like the standard note call, but ignore +staccato, because it has its
+    -- own sample.
+    staccato_keyswitch = Note.note_call
+        "Staccato doesn't change note duration, since the sample already has\
+        \ that built-in."
+        (Note.default_note False)
+
+-- | Replace trill with one that sets attrs.
+trill_code :: Instrument.Patch -> MidiInst.Code
+trill_code patch
+    | has_attr trill patch = MidiInst.note_calls
+        [("tr", Trill.c_attr_trill), ("`tr`", Trill.c_attr_trill)]
+    | otherwise = mempty
+
+has_attr :: Attributes -> Instrument.Patch -> Bool
+has_attr attr = any (`Score.attrs_contain` attr)
+    .  Instrument.keyswitch_attributes . Instrument.patch_keyswitches
+
+-- * keyswitches
 
 type Keyswitch = (Attributes, [Instrument.Keyswitch])
 type Instrument = (Instrument.InstrumentName, [Keyswitch])

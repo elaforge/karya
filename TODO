@@ -5,15 +5,14 @@ LEGEND
 UNSORTED
   - I think Derive.Call.eval_note should be pitch
   * staccato should make notes shorter
-    - but not for vsl
+    * but not for vsl
   * load repo, then save_state, it still wants to write to .git
   - think of some way to make sure randomness is stable
   * why does the inst in the block title not carry over to the tracks?
   * why does the left hand intervening track make the left hand disappear?
     I need the analog of slice orphan tracks for 'slice_notes'
-
   - There's a focus bug, but I'm not sure how to reproduce it.
-  - save files without a project dir, e.g. 'save_state "dir/name"', will
+  * save files without a project dir, e.g. 'save_state "dir/name"', will
     wind up putting 'ly' and 'repl' directly into 'dir'
   - perhaps Derive.Call.Attributes should have a attr->ly map, so even
     +staccato will generate the right lilypond.
@@ -44,7 +43,7 @@ UNSORTED
     least if I'm sure I don't want to do variable substitution.  Even if I
     do, maybe it's uncommon enough to be worth a $?
   * shift-backspace in raw edit can delete `symbols` as well
-  - there should be a trill that just applies the trill <> half / whole attr
+  * there should be a trill that just applies the trill <> half / whole attr
     Either vsl insts set environ that causes the normal trill to do that, or
     they could bind their own "tr".
   - why does legato vsl always have too-loud connecting samples?

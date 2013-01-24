@@ -400,6 +400,9 @@ get_keyswitch (KeyswitchMap attr_ks) attrs =
     is_subset (inst_attrs, _) = Score.attrs_set inst_attrs
         `Set.isSubsetOf` Score.attrs_set attrs
 
+keyswitch_attributes :: KeyswitchMap -> [Score.Attributes]
+keyswitch_attributes (KeyswitchMap attrs) = map fst attrs
+
 -- ** misc
 
 -- | Map attributes to the names of the calls they should map to.  This

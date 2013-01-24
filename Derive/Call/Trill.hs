@@ -39,12 +39,14 @@ module Derive.Call.Trill where
 import Util.Control
 import qualified Util.Seq as Seq
 import qualified Derive.Args as Args
+import qualified Derive.Attrs as Attrs
 import qualified Derive.Call.Lily as Lily
 import qualified Derive.Call.Note as Note
 import qualified Derive.Call.Util as Util
 import qualified Derive.Derive as Derive
 import qualified Derive.PitchSignal as PitchSignal
 import qualified Derive.Score as Score
+import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Sig as Sig
 import Derive.Sig (defaulted, required, typed_control, control)
 import qualified Derive.TrackLang as TrackLang
@@ -85,6 +87,24 @@ c_note_trill = Derive.stream_generator "trill"
                 return $ Note.Event x (next-x) Util.note
         Derive.with_added_control control (Score.untyped transpose) $
             Note.place notes
+
+c_attr_trill :: Derive.NoteCall
+c_attr_trill = Derive.stream_generator "attr-trill"
+    "Generate a trill by adding a `+trill` attribute. Presumably this is a\
+    \ sampled instrument that has a trill keyswitch."
+    $ Sig.call
+    (defaulted "neighbor" (typed_control "trill-neighbor" 1 Score.Chromatic)
+        "Alternate with a pitch at this interval.  Only 1c and 2c are allowed."
+    ) $ \neighbor args -> do
+        (width, typ) <- Util.transpose_control_at Util.Chromatic neighbor
+            =<< Args.real_start args
+        width_attr <- case (width, typ) of
+            (1, Util.Chromatic) -> return Attrs.half
+            (2, Util.Chromatic) -> return Attrs.whole
+            _ -> Derive.throw $
+                "attribute trill only supports 1c and 2c trills: "
+                <> ShowVal.show_val neighbor
+        Util.add_attrs (Attrs.trill <> width_attr) (Util.placed_note args)
 
 -- | TODO randomize dyn, randomize starts
 c_tremolo :: Derive.NoteCall

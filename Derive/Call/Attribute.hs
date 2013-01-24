@@ -9,7 +9,6 @@ module Derive.Call.Attribute where
 import Util.Control
 import qualified Util.Seq as Seq
 import qualified Derive.Attrs as Attrs
-import qualified Derive.Call as Call
 import qualified Derive.Call.Lily as Lily
 import qualified Derive.Call.Note as Note
 import qualified Derive.Call.Util as Util
@@ -61,15 +60,15 @@ transform_notes :: String -> Maybe String
     -> String -> String -> Derive.NoteCall
 transform_notes name maybe_ly transform generator_doc transform_doc =
     Derive.Call
-    { Derive.call_name = name
-    , Derive.call_generator = Just $
-        Derive.generator_call generator_doc generator
-    , Derive.call_transformer = Just $
-        Derive.transformer_call transform_doc transformer
-    }
+        { Derive.call_name = name
+        , Derive.call_generator = Just $
+            Derive.generator_call generator_doc generator
+        , Derive.call_transformer = Just $
+            Derive.transformer_call transform_doc transformer
+        }
     where
     generator = Sig.call0 $ generate_ly $ \args -> case Note.sub_events args of
-        [] -> transform $ Call.reapply_call args (TrackLang.call "" [])
+        [] -> transform $ Util.placed_note args
         subs -> Note.place (Note.map_events transform (concat subs))
     generate_ly f args = maybe (f args)
         (\c -> Lily.notes_append c args (f args)) maybe_ly

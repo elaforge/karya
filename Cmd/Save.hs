@@ -70,6 +70,9 @@ default_state :: FilePath
 default_state = "save.state"
 
 -- | Save the state to the given file and set 'Cmd.state_save_file'.
+--
+-- The directory of the filename will become the project directory, so things
+-- like the saved REPL history and the ly subdirectory will go there.
 cmd_save_state :: FilePath -> Cmd.CmdT IO ()
 cmd_save_state fname = do
     write_state fname
