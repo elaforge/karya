@@ -32,11 +32,11 @@ traces =  Trace.trace . (prefix++)
 
 -- | Pretty print an arbitrary value.
 traceps :: (Pretty.Pretty b) => String -> b -> a -> a
-traceps msg traced = traces (with_msg msg (Pretty.formatted traced))
+traceps msg traced = Trace.trace (with_msg msg (Pretty.formatted traced))
 
 -- | Print a value after applying a function to it.
-tracef :: (Show b) => (a -> b) -> a -> a
-tracef f val = traces (pshow (f val)) val
+tracef :: (Show b) => String -> (a -> b) -> a -> a
+tracef msg f val = Trace.trace (with_msg msg (pshow (f val))) val
 
 -- | Trace input and output of a function.
 trace_ret :: (Show a, Show b) => String -> a -> b -> b
