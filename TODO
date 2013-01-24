@@ -29,7 +29,11 @@ UNSORTED
     beats of unequal lengths?
   * window titles should be just the end of the view, clip off the
     (bid "long-name/") stuff
-  - just plain >kkt/kendang should default to kendang-wadon
+  + can I get fltk to omit the jellybutton buttons on the window?
+    Completely disables resizing, ack.
+    Yes, but requires hacking the library.  Mail the list about a better
+    solution.
+  * just plain >kkt/kendang should default to kendang-wadon
     Or, what about making score-specific instrument aliases?
   - make a .cabal file with packages and versions to make install easier
   - bring back the idea of opening up a text entry in raw edit mode?  Then I

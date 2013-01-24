@@ -183,7 +183,7 @@ revert_to = Save.cmd_revert . Just
 show_state :: Cmd.CmdL String
 show_state = do
     (State.State views blocks tracks rulers
-        (State.Config ns _meta root _midi transform
+        (State.Config ns _meta root _midi transform _insts
             (State.Default scale key inst tempo))) <- State.get
     -- midi config showed by show_midi_config
     let f fm = PPrint.list (map show (Map.keys fm))

@@ -1,6 +1,7 @@
 {-# LANGUAGE NoMonomorphismRestriction #-}
 -- | Lang cmds providing general UI state operations.
 module Cmd.Lang.LState where
+import qualified Data.Map as Map
 import qualified Data.Time as Time
 import qualified System.FilePath as FilePath
 import System.FilePath ((</>))
@@ -49,6 +50,18 @@ set_global_transform = State.modify . (State.config#State.global_transform #=)
 
 get_global_transform :: Cmd.CmdL String
 get_global_transform = State.config#State.global_transform <#> State.get
+
+instruments :: Cmd.CmdL (Map.Map Score.Instrument Score.Instrument)
+instruments = State.config#State.instruments <#> State.get
+
+add_instrument :: String -> String -> Cmd.CmdL ()
+add_instrument from to = State.modify $
+    State.config#State.instruments
+        %= Map.insert (Score.Instrument from) (Score.Instrument to)
+
+remove_instrument :: String -> Cmd.CmdL ()
+remove_instrument inst = State.modify $
+    State.config#State.instruments %= Map.delete (Score.Instrument inst)
 
 -- ** meta
 

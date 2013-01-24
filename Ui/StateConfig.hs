@@ -6,6 +6,7 @@
 module Ui.StateConfig where
 import qualified Control.DeepSeq as DeepSeq
 import qualified Data.Generics as Generics
+import qualified Data.Map as Map
 import qualified Data.Time as Time
 
 import qualified Util.Lens as Lens
@@ -43,6 +44,9 @@ data Config = Config {
     -- if you put it in sub-blocks then you repeat yourself and possibly apply
     -- it multiple times.
     , config_global_transform :: !String
+    -- | Local instrument aliases.  Map instruments through this map before
+    -- setting them.
+    , config_instruments :: !(Map.Map Score.Instrument Score.Instrument)
     , config_default :: !Default
     } deriving (Eq, Read, Show, Generics.Typeable)
 
@@ -52,6 +56,8 @@ root = Lens.lens config_root (\v r -> r { config_root = v })
 midi = Lens.lens config_midi (\v r -> r { config_midi = v })
 global_transform = Lens.lens config_global_transform
     (\v r -> r { config_global_transform = v })
+instruments =
+    Lens.lens config_instruments (\v r -> r { config_instruments = v })
 default_ = Lens.lens config_default (\v r -> r { config_default = v })
 
 -- | Extra data that doesn't have any effect on the score.
@@ -84,13 +90,14 @@ instrument = Lens.lens default_instrument (\v r -> r { default_instrument = v })
 tempo = Lens.lens default_tempo (\v r -> r { default_tempo = v })
 
 instance Pretty.Pretty Config where
-    format (Config namespace meta root midi global_transform default_) =
+    format (Config namespace meta root midi global_transform insts default_) =
         Pretty.record_title "Config"
             [ ("namespace", Pretty.format namespace)
             , ("meta", Pretty.format meta)
             , ("root", Pretty.format root)
             , ("midi", Pretty.format midi)
             , ("global_transform", Pretty.format global_transform)
+            , ("instruments", Pretty.format insts)
             , ("default", Pretty.format default_)
             ]
 

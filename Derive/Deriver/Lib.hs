@@ -40,6 +40,7 @@ import qualified Util.Log as Log
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 
+import qualified Ui.State as State
 import qualified Ui.Track as Track
 import qualified Derive.Deriver.Internal as Internal
 import Derive.Deriver.Monad
@@ -202,7 +203,9 @@ scale_to_lookup scale =
     to_note (TrackLang.Symbol sym) = Pitch.Note sym
 
 with_instrument :: Score.Instrument -> Deriver d -> Deriver d
-with_instrument inst deriver = do
+with_instrument inst_ deriver = do
+    instruments <- Internal.get_ui_config State.config_instruments
+    let inst = Map.findWithDefault inst_ inst_ instruments
     lookup_inst <- gets (state_lookup_instrument . state_constant)
     let maybe_inst = lookup_inst inst
         calls = maybe (InstrumentCalls [] []) inst_calls maybe_inst
