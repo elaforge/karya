@@ -3,6 +3,25 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
+  - tremolo for chords
+  - measure 49 is messed up
+  - I can fix rhythm spelling by changing the meter.  But it's a pain because
+    the meter has to be over the entire block, and that means a whole new
+    track, which also destroys track caching.
+    It seems like track caching is too fragile, and also like there should be
+    some easier way to change something globally for a period of time.
+    Alternately, I could make lilypond less strict about meters, and
+    let each track set its own meter, assuming it will only be switching to
+    ones with the same rhythm.  I can switch to synonyms, but does lilypond
+    even support measures with different meters?
+  - make a control track, make an event, change track to note track,
+    the event color doesn't change to note track color
+  - play from root on viola or piano parts plays ahead, presumably the "find
+    root time" thing is messed up
+  - Duplicate notes of the same pitch make vsl unhappy.  Non-overlapping notes
+    should have a tiny gap.
+  * +pizz on a single note complained about no pitch signal
+  - There should be a postproc to arpeggiate pizz slightly.
   * I think Derive.Call.eval_note should be pitch
   * staccato should make notes shorter
     * but not for vsl
@@ -524,6 +543,9 @@ integrate / integration:
     calls)
 
 lilypond:
+  - way to order staves
+  - pizz attribute
+  - should be a space after ly-code events, blank line between staves
   / allowed_time* should return Durations, not Times
   * rename TimeSignature to Meter, it's shorter
   - If I can figure out the meter from just the name, then I can get rid

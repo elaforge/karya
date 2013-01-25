@@ -68,7 +68,7 @@ transform_notes name maybe_ly transform generator_doc transform_doc =
         }
     where
     generator = Sig.call0 $ generate_ly $ \args -> case Note.sub_events args of
-        [] -> transform $ Util.placed_note args
+        [] -> transform $ Note.inverting Util.placed_note args
         subs -> Note.place (Note.map_events transform (concat subs))
     generate_ly f args = maybe (f args)
         (\c -> Lily.notes_append c args (f args)) maybe_ly
