@@ -3,8 +3,18 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
+  - Range for errors always starts at 0, I think it's Note.Events that have
+    been normalized to zero.  I really need some reliable way to get track
+    time.
   - tremolo for chords
+  - adding an intervening note track seems to mess up the signal render
+  - the cache got messed up after changing the tempo
   * measure 49 is messed up
+  - 8va causes no pitch signal
+  - also there's a stack too deep
+  - don't need to put pizz on every single note
+    "modal" instructions need one articulation when they start, and another
+    (arco) when they stop.
   - I can fix rhythm spelling by changing the meter.  But it's a pain because
     the meter has to be over the entire block, and that means a whole new
     track, which also destroys track caching.
@@ -18,7 +28,7 @@ UNSORTED
     the event color doesn't change to note track color
   - play from root on viola or piano parts plays ahead, presumably the "find
     root time" thing is messed up
-  - Duplicate notes of the same pitch make vsl unhappy.  Non-overlapping notes
+  * Duplicate notes of the same pitch make vsl unhappy.  Non-overlapping notes
     should have a tiny gap.
   * +pizz on a single note complained about no pitch signal
   - There should be a postproc to arpeggiate pizz slightly.
@@ -27,6 +37,10 @@ UNSORTED
     * but not for vsl
   * load repo, then save_state, it still wants to write to .git
   - think of some way to make sure randomness is stable
+    I can use only the seed for randomness, and hash in each block and track
+    as I enter it.  That way you can always get a consistent result by
+    manually setting the seed.  It might be faster too, since it doesn't have
+    to continually rehash the stack.
   * why does the inst in the block title not carry over to the tracks?
   * why does the left hand intervening track make the left hand disappear?
     I need the analog of slice orphan tracks for 'slice_notes'

@@ -52,14 +52,21 @@ default_velocity = 0.79
 
 -- | A keyswitch gets this much lead time before the note it is meant to
 -- apply to.
-keyswitch_interval :: RealTime
-keyswitch_interval = RealTime.milliseconds 4
+keyswitch_gap :: RealTime
+keyswitch_gap = RealTime.milliseconds 4
 
 -- | Most synths don't respond to pitch bend instantly, but smooth it out, so
 -- if you set pitch bend immediately before playing the note you will get
 -- a little sproing.  Put pitch bends before their notes by this amount.
 control_lead_time :: RealTime
 control_lead_time = RealTime.milliseconds 100
+
+-- | Subtract this much from every NoteOff.  Some synthesizers don't handle
+-- simultaneous note on and note off of the same pitch well.  I actually only
+-- need the gap for a NoteOff followed by NoteOn of the same pitch, but it's
+-- simpler to just subtract it from all notes.
+adjacent_note_gap :: RealTime
+adjacent_note_gap = RealTime.milliseconds 10
 
 
 -- * perform
@@ -417,12 +424,15 @@ keyswitch_messages maybe_old_inst new_inst wdev chan start =
     prev_ks_off = Maybe.fromMaybe [] $ do
         old <- maybe_old_inst
         guard (Instrument.inst_hold_keyswitch old)
-        return $ concatMap (ks_off start) (Instrument.inst_keyswitch old)
+        -- I apply the adjacent_note_gap to the ks note off too.  It's probably
+        -- unnecessary, but this way the note and the ks go off at the same
+        -- time.
+        return $ concatMap (ks_off (start-adjacent_note_gap))
+            (Instrument.inst_keyswitch old)
 
     new_ks = Instrument.inst_keyswitch new_inst
     is_hold = Instrument.inst_hold_keyswitch new_inst
-    ks_start =
-        start - keyswitch_interval - delta * fromIntegral (length new_ks - 1)
+    ks_start = start - keyswitch_gap - delta * fromIntegral (length new_ks - 1)
     ks_starts = iterate (+delta) ks_start
     delta = RealTime.milliseconds 2
 
@@ -475,7 +485,8 @@ perform_note_msgs event (dev, chan) midi_nn = (events, note_off)
     where
     events = map LEvent.Event
         [ chan_msg note_on (Midi.NoteOn midi_nn on_vel)
-        , chan_msg note_off (Midi.NoteOff midi_nn off_vel)
+        , chan_msg (note_off - adjacent_note_gap)
+            (Midi.NoteOff midi_nn off_vel)
         ]
         ++ map LEvent.Log warns
     note_on = event_start event

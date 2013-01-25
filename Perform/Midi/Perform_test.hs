@@ -28,6 +28,9 @@ import qualified Perform.Signal as Signal
 import Types
 
 
+gap :: RealTime
+gap = Perform.adjacent_note_gap
+
 -- * perform
 
 test_perform = do
@@ -47,16 +50,16 @@ test_perform = do
         ]
     equal msgs
         [ ("dev1", 0.0, 0, NoteOn 60 100)
-        , ("dev1", 1.0, 0, NoteOff 60 100)
+        , ("dev1", 1.0 - gap, 0, NoteOff 60 100)
 
         , ("dev1", 1.0, 1, NoteOn 60 100)
-        , ("dev1", 2.0, 1, NoteOff 60 100)
+        , ("dev1", 2.0 - gap, 1, NoteOff 60 100)
 
         , ("dev1", 2.0, 0, NoteOn 61 100)
-        , ("dev1", 3.0, 0, NoteOff 61 100)
+        , ("dev1", 3.0 - gap, 0, NoteOff 61 100)
 
         , ("dev1", 3.0, 1, NoteOn 61 100)
-        , ("dev1", 4.0, 1, NoteOff 61 100)
+        , ("dev1", 4.0 - gap, 1, NoteOff 61 100)
         ]
 
     -- channel 0 reused for inst1, inst2 gets its own channel
@@ -69,9 +72,9 @@ test_perform = do
         [ ("dev1", 0.0, 0, NoteOn 60 100)
         , ("dev1", 0.0, 0, NoteOn 61 100)
         , ("dev2", 0.0, 2, NoteOn 62 100)
-        , ("dev1", 1.0, 0, NoteOff 60 100)
-        , ("dev1", 1.0, 0, NoteOff 61 100)
-        , ("dev2", 1.0, 2, NoteOff 62 100)
+        , ("dev1", 1.0 - gap, 0, NoteOff 60 100)
+        , ("dev1", 1.0 - gap, 0, NoteOff 61 100)
+        , ("dev2", 1.0 - gap, 2, NoteOff 62 100)
         ]
 
     -- identical notes get split across channels 0 and 1
@@ -83,8 +86,8 @@ test_perform = do
         [ ("dev1", 0.0, 0, NoteOn 60 100)
         , ("dev1", 1.0, 1, NoteOn 60 100)
 
-        , ("dev1", 2.0, 0, NoteOff 60 100)
-        , ("dev1", 3.0, 1, NoteOff 60 100)
+        , ("dev1", 2.0 - gap, 0, NoteOff 60 100)
+        , ("dev1", 3.0 - gap, 1, NoteOff 60 100)
         ]
 
     -- velocity curve shows up in NoteOns and NoteOffs
@@ -95,9 +98,9 @@ test_perform = do
         ]
     equal msgs
         [ ("dev1", 0, 0, NoteOn 60 127)
-        , ("dev1", 2, 0, NoteOff 60 64)
+        , ("dev1", 2 - gap, 0, NoteOff 60 64)
         , ("dev1", 2, 0, NoteOn 61 64)
-        , ("dev1", 4, 0, NoteOff 61 0)
+        , ("dev1", 4 - gap, 0, NoteOff 61 0)
         ]
 
     -- Consecutive notes with the same pitch have NoteOff / NoteOn in the right
@@ -108,9 +111,9 @@ test_perform = do
         ]
     equal msgs
         [ ("dev1", 0.0, 0, NoteOn 60 100)
-        , ("dev1", 1.0, 0, NoteOff 60 100)
+        , ("dev1", 1.0 - gap, 0, NoteOff 60 100)
         , ("dev1", 1.0, 0, NoteOn 60 100)
-        , ("dev1", 2.0, 0, NoteOff 60 100)
+        , ("dev1", 2.0 - gap, 0, NoteOff 60 100)
         ]
 
 test_aftertouch = do
@@ -125,8 +128,8 @@ test_aftertouch = do
         , (0, 0, NoteOn Key.c4 100)
         , (0, 0, Aftertouch Key.cs4 0)
         , (0, 0, NoteOn Key.cs4 100)
-        , (1, 0, NoteOff Key.c4 100)
-        , (1, 0, NoteOff Key.cs4 100)
+        , (1 - gap, 0, NoteOff Key.c4 100)
+        , (1 - gap, 0, NoteOff Key.cs4 100)
         ]
 
 test_controls_after_note_off = do
@@ -143,8 +146,8 @@ test_controls_after_note_off = do
     -- Signal at 1.95 dropped because of the next note on.
     equal msgs
         [ (0, PitchBend 0), (0, ControlChange 7 127), (0, NoteOn 60 100)
-        , (1, NoteOff 60 100)
-        , (2, NoteOn 61 100), (3, NoteOff 61 100)
+        , (1 - gap, NoteOff 60 100)
+        , (2, NoteOn 61 100), (3 - gap, NoteOff 61 100)
         ]
 
     let msgs = f
@@ -155,8 +158,9 @@ test_controls_after_note_off = do
     equal msgs
         [ (0, PitchBend 0), (0, ControlChange 7 127), (0, NoteOn 60 100)
         , (1.95, ControlChange 7 64)
-        , (2, NoteOff 60 100)
-        , (2, ControlChange 7 127), (2, NoteOn 61 100), (3, NoteOff 61 100)
+        , (2 - gap, NoteOff 60 100)
+        , (2, ControlChange 7 127), (2, NoteOn 61 100)
+        , (3 - gap, NoteOff 61 100)
         ]
 
     let msgs = f
@@ -166,29 +170,27 @@ test_controls_after_note_off = do
     -- Room enough for both.
     equal msgs
         [ (0, PitchBend 0), (0, ControlChange 7 127), (0, NoteOn 60 100)
-        , (1, NoteOff 60 100)
+        , (1 - gap, NoteOff 60 100)
         , (1.5, ControlChange 7 64)
         , (1.9, ControlChange 7 127)
-        , (2, NoteOn 61 100), (3, NoteOff 61 100)
+        , (2, NoteOn 61 100), (3 - gap, NoteOff 61 100)
         ]
 
 test_control_lead_time = do
     -- verify that controls are given lead time if they are on their own
     -- channels, and not if they aren't
-    let lead = RealTime.to_milliseconds Perform.control_lead_time
-    let extract_msgs wmsgs = [(RealTime.to_milliseconds ts, chan, msg)
-            | Midi.WriteMessage _ ts (Midi.ChannelMessage chan msg) <- wmsgs]
-        extract (msgs, warns) = (extract_msgs msgs, warns)
+    let lead = Perform.control_lead_time
+        extract (msgs, warns) = (map extract_msg msgs, warns)
     let f = extract . perform midi_config2 . mkevents_inst
 
     equal (f [("a", 0, 4, []), ("b2", 4, 4, [])])
         ([ (0, 0, PitchBend 0)
         , (0, 0, NoteOn 60 100)
 
-        , (4000 - lead, 1, PitchBend 0.5)
-        , (4000, 0, NoteOff 60 100)
-        , (4000, 1, NoteOn 61 100)
-        , (8000, 1, NoteOff 61 100)
+        , (4 - lead, 1, PitchBend 0.5)
+        , (4 - gap, 0, NoteOff 60 100)
+        , (4, 1, NoteOn 61 100)
+        , (8 - gap, 1, NoteOff 61 100)
         ], [])
 
     let vol start = (vol_cc, linear_interp [(start, 0), (start + 2, 1)])
@@ -196,26 +198,26 @@ test_control_lead_time = do
         ([(0, 0, PitchBend 0)
         , (0, 0, NoteOn 60 100)
 
-        , (2000 - lead, 1, PitchBend 0)
-        , (2000 - lead, 1, ControlChange 7 0)
+        , (2 - lead, 1, PitchBend 0)
+        , (2 - lead, 1, ControlChange 7 0)
 
-        , (2000, 1, NoteOn 61 100)
-        , (3000, 1, ControlChange 7 64)
-        , (4000, 0, NoteOff 60 100)
-        , (4000, 1, ControlChange 7 127)
-        , (6000, 1, NoteOff 61 100)
+        , (2, 1, NoteOn 61 100)
+        , (3, 1, ControlChange 7 64)
+        , (4 - gap, 0, NoteOff 60 100)
+        , (4, 1, ControlChange 7 127)
+        , (6 - gap, 1, NoteOff 61 100)
         ], [])
     -- Non-overlapping notes means they go on the same channel, but there's no
     -- room for control lead.
     equal (f [("a", 0, 4, []), ("b", 4, 4, [vol 4])])
         ([(0, 0, PitchBend 0)
         , (0, 0, NoteOn 60 100)
-        , (4000, 0, NoteOff 60 100)
-        , (4000, 0, ControlChange 7 0)
-        , (4000, 0, NoteOn 61 100)
-        , (5000, 0, ControlChange 7 64)
-        , (6000, 0, ControlChange 7 127)
-        , (8000, 0, NoteOff 61 100)
+        , (4 - gap, 0, NoteOff 60 100)
+        , (4, 0, ControlChange 7 0)
+        , (4, 0, NoteOn 61 100)
+        , (5, 0, ControlChange 7 64)
+        , (6, 0, ControlChange 7 127)
+        , (8 - gap, 0, NoteOff 61 100)
         ], [])
 
     -- Force them to be on the same channel, so there shouldn't be any
@@ -224,21 +226,21 @@ test_control_lead_time = do
     equal (f2 [(inst2, "a", 0, 4, []), (inst2, "b2", 4, 4, [])])
         ([ (0, 2, PitchBend 0)
         , (0, 2, NoteOn 60 100)
-        , (4000, 2, NoteOff 60 100)
-        , (4000, 2, PitchBend 0.5)
-        , (4000, 2, NoteOn 61 100)
-        , (8000, 2, NoteOff 61 100)
+        , (4 - gap, 2, NoteOff 60 100)
+        , (4, 2, PitchBend 0.5)
+        , (4, 2, NoteOn 61 100)
+        , (8 - gap, 2, NoteOff 61 100)
         ], [])
 
     equal (f2 [(inst2, "a", 0, 4, []), (inst2, "b", 4, 4, [vol 4])])
         ([ (0, 2, PitchBend 0)
         , (0, 2, NoteOn 60 100)
-        , (4000, 2, NoteOff 60 100)
-        , (4000, 2, ControlChange 7 0)
-        , (4000, 2, NoteOn 61 100)
-        , (5000, 2, ControlChange 7 64)
-        , (6000, 2, ControlChange 7 127)
-        , (8000, 2, NoteOff 61 100)
+        , (4 - gap, 2, NoteOff 60 100)
+        , (4, 2, ControlChange 7 0)
+        , (4, 2, NoteOn 61 100)
+        , (5, 2, ControlChange 7 64)
+        , (6, 2, ControlChange 7 127)
+        , (8 - gap, 2, NoteOff 61 100)
         ], [])
 
 -- Bad signal that goes over 1 at 1 and 3.
@@ -270,14 +272,15 @@ all_msgs_valid wmsgs = all Midi.valid_msg (map Midi.wmsg_msg wmsgs)
 midi_cc_of (Midi.ChannelMessage _ (Midi.ControlChange cc val)) = Just (cc, val)
 midi_cc_of _ = Nothing
 
-extract_msg :: Midi.WriteMessage -> (Double, Midi.Channel, Midi.ChannelMessage)
+extract_msg :: Midi.WriteMessage
+    -> (RealTime, Midi.Channel, Midi.ChannelMessage)
 extract_msg wmsg = (time, chan, msg)
     where (_, time, chan, msg) = extract_dev_msg wmsg
 
-extract_dev_msg :: Midi.WriteMessage -> (String, Double, Midi.Channel,
-    Midi.ChannelMessage)
+extract_dev_msg :: Midi.WriteMessage
+    -> (String, RealTime, Midi.Channel, Midi.ChannelMessage)
 extract_dev_msg (Midi.WriteMessage dev ts (Midi.ChannelMessage chan msg)) =
-    (Pretty.pretty dev, RealTime.to_seconds ts, chan, msg)
+    (Pretty.pretty dev, ts, chan, msg)
 extract_dev_msg (Midi.WriteMessage _ _ msg) =
     error $ "unknown msg: " ++ show msg
 
@@ -317,8 +320,8 @@ test_pitch_curve = do
     equal (f (event [(1, 42), (1.5, 42.5), (1.75, 43), (1.9, 43.5), (2, 44)]))
         (chan
             [ Midi.PitchBend 0, Midi.NoteOn 42 100
-            , Midi.PitchBend 0.5
             , Midi.NoteOff 42 100
+            , Midi.PitchBend 0.5
             , Midi.PitchBend 1
             ])
 
@@ -341,9 +344,9 @@ test_no_pitch = do
 
 test_keyswitch = do
     let e_note_on = mapMaybe $ \wmsg ->
-            ((,) (wmsg_ts wmsg)) <$> note_on_key (Midi.wmsg_msg wmsg)
+            ((,) (Midi.wmsg_ts wmsg)) <$> note_on_key (Midi.wmsg_msg wmsg)
         e_note = mapMaybe $ \wmsg ->
-            ((,) (wmsg_ts wmsg)) <$> note_key (Midi.wmsg_msg wmsg)
+            ((,) (Midi.wmsg_ts wmsg)) <$> note_key (Midi.wmsg_msg wmsg)
         ks_inst ks hold = inst1
             { Instrument.inst_keyswitch = ks
             , Instrument.inst_hold_keyswitch = hold
@@ -352,63 +355,65 @@ test_keyswitch = do
             (mkevent (ks_inst ks hold, note, start, dur, []), (dev1, 0))
         ks1 = [Instrument.Keyswitch Key.c1]
         ks2 = [Instrument.Keyswitch Key.d1]
+    let ks_gap = Perform.keyswitch_gap
+        delta = RealTime.milliseconds 2
     let f extract evts = extract $ expect_no_logs $
             perform_notes (map with_addr evts)
 
     -- Redundant ks not emitted.
     equal (f e_note_on [(ks1, False, "a", 0, 1), (ks1, False, "b", 10, 10)])
-        [ (-4, Key.c1)
+        [ (0 - ks_gap, Key.c1)
         , (0, Key.c4)
-        , (10000, Key.cs4)
+        , (10, Key.cs4)
         ]
     -- Keyswitch changed.
     equal (f e_note_on [(ks1, False, "a", 0, 1), (ks2, False, "b", 10, 10)])
-        [ (-4, Key.c1), (0, Key.c4)
-        , (9996, Key.d1), (10000, Key.cs4)
+        [ (0 - ks_gap, Key.c1), (0, Key.c4)
+        , (10 - ks_gap, Key.d1), (10, Key.cs4)
         ]
 
     -- No keyswitch to keyswitch.
     equal (f e_note_on [([], False, "a", 0, 1), (ks1, False, "b", 10, 10)])
         [ (0, Key.c4)
-        , (9996, Key.c1), (10000, Key.cs4)
+        , (10 - ks_gap, Key.c1), (10, Key.cs4)
         ]
 
     -- Multiple keyswitches.
     equal (f e_note [(ks1 ++ ks2, False, "a", 0, 1)])
-        [ (-6, (True, Key.c1)), (-4, (False, Key.c1))
-        , (-4, (True, Key.d1)), (-2, (False, Key.d1))
-        , (0, (True, Key.c4)), (1000, (False, Key.c4))
+        [ (0 - ks_gap - delta, (True, Key.c1)), (0 - ks_gap, (False, Key.c1))
+        , (0 - ks_gap, (True, Key.d1)), (0 - ks_gap + delta, (False, Key.d1))
+        , (0, (True, Key.c4)), (1 - gap, (False, Key.c4))
         ]
     -- If one keyswitch is emitted, they all are.
     equal (f e_note [(ks1 ++ ks2, False, "a", 0, 1), (ks1, False, "b", 1, 1)])
-        [ (-6, (True, Key.c1)), (-4, (False, Key.c1))
-        , (-4, (True, Key.d1)), (-2, (False, Key.d1))
-        , (0, (True, Key.c4))
-        , (996, (True, Key.c1)), (998, (False, Key.c1))
-        , (1000, (False, Key.c4))
-        , (1000, (True, Key.cs4)), (2000, (False, Key.cs4))
+        [ (0 - ks_gap - delta, (True, Key.c1)), (0 - ks_gap, (False, Key.c1))
+        , (0 - ks_gap, (True, Key.d1)), (0 - ks_gap + delta, (False, Key.d1))
+        , (0, (True, Key.c4)), (1 - gap, (False, Key.c4))
+        , (1 - ks_gap, (True, Key.c1))
+        , (1 - ks_gap + delta, (False, Key.c1))
+        , (1, (True, Key.cs4)), (2 - gap, (False, Key.cs4))
         ]
 
     -- Hold keyswitch.
     equal (f e_note [(ks1, True, "a", 0, 1), (ks1, True, "b", 1, 1),
             ([], False, "c", 2, 1)])
-        [ (-4, (True, Key.c1))
+        [ (0 - ks_gap, (True, Key.c1))
         , (0, (True, Key.c4))
-        , (1000, (False, Key.c4)), (1000, (True, Key.cs4))
-        , (2000, (False, Key.cs4)), (2000, (False, Key.c1))
-        , (2000, (True, Key.d4)), (3000, (False, Key.d4))
+        , (1 - gap, (False, Key.c4)), (1, (True, Key.cs4))
+        , (2 - gap, (False, Key.cs4)), (2 - gap, (False, Key.c1))
+        , (2, (True, Key.d4)), (3 - gap, (False, Key.d4))
         ]
 
     -- control switches
     let cs1 = [Instrument.ControlSwitch 1 10]
         cs2 = [Instrument.ControlSwitch 1 20]
         e_msg = mapMaybe $ \wmsg ->
-            ((,) (wmsg_ts wmsg) <$> note_on_cc (Midi.wmsg_msg wmsg))
+            ((,) (Midi.wmsg_ts wmsg) <$> note_on_cc (Midi.wmsg_msg wmsg))
     equal (f e_msg [(cs1, False, "a", 0, 1), (cs2, False, "b", 1, 1)])
-        [ (-4, Midi.ChannelMessage 0 (Midi.ControlChange 1 10))
+        [ (0 - ks_gap, Midi.ChannelMessage 0 (Midi.ControlChange 1 10))
         , (0, Midi.ChannelMessage 0 (Midi.NoteOn Key.c4 100))
-        , (996, Midi.ChannelMessage 0 (Midi.ControlChange 1 20))
-        , (1000, Midi.ChannelMessage 0 (Midi.NoteOn Key.cs4 100))
+        , (1 - ks_gap, Midi.ChannelMessage 0 (Midi.ControlChange 1 20))
+        , (1, Midi.ChannelMessage 0 (Midi.NoteOn Key.cs4 100))
         ]
 
 note_on_key :: Midi.Message -> Maybe Midi.Key
@@ -447,18 +452,16 @@ expect_no_logs (_, logs) = error $ "expected no logs: " ++ Seq.join "\n" logs
 test_drop_dup_controls = do
     let mkcc chan cc val = Midi.ChannelMessage chan (Midi.ControlChange cc val)
         mkpb chan val = Midi.ChannelMessage chan (Midi.PitchBend val)
-        mkwmsgs msgs =
-            [Midi.WriteMessage dev1 (RealTime.milliseconds ts) msg
-                | (ts, msg) <- zip [0..] msgs]
-        extract wmsg = (wmsg_ts wmsg, Midi.wmsg_msg wmsg)
+        mkwmsgs msgs = [Midi.WriteMessage dev1 ts msg
+                | (ts, msg) <- zip (Seq.range_ 0 1) msgs]
+        extract wmsg = (Midi.wmsg_ts wmsg, Midi.wmsg_msg wmsg)
     let f = map extract . LEvent.events_of . fst
             . Perform.drop_dup_controls Map.empty . map LEvent.Event
     let msgs = [mkcc 0 1 10, mkcc 1 1 10, mkcc 0 1 11, mkcc 0 2 10]
     -- no drops
-    equal (f (mkwmsgs msgs)) (zip [0..] msgs)
-    let with_dev dmsgs =
-            [Midi.WriteMessage dev (RealTime.milliseconds ts) msg
-                | (ts, (dev, msg)) <- zip [0..] dmsgs]
+    equal (f (mkwmsgs msgs)) (zip (Seq.range_ 0 1) msgs)
+    let with_dev dmsgs = [Midi.WriteMessage dev ts msg
+                | (ts, (dev, msg)) <- zip (Seq.range_ 0 1) dmsgs]
     equal (f (with_dev [(dev1, mkcc 0 1 10), (dev2, mkcc 0 1 10)]))
         [(0, mkcc 0 1 10), (1, mkcc 0 1 10)]
     -- dup is dropped
@@ -656,9 +659,6 @@ allot inst_addrs events = fst $
     Perform.allot Perform.empty_allot_state inst_addrs (map LEvent.Event events)
 
 -- * setup
-
-wmsg_ts :: Midi.WriteMessage -> Integer
-wmsg_ts = RealTime.to_milliseconds . Midi.wmsg_ts
 
 secs :: Double -> RealTime
 secs = RealTime.seconds
