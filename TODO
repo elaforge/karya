@@ -33,7 +33,7 @@ UNSORTED
   - There's a focus bug, but I'm not sure how to reproduce it.
   * save files without a project dir, e.g. 'save_state "dir/name"', will
     wind up putting 'ly' and 'repl' directly into 'dir'
-  - perhaps Derive.Call.Attributes should have a attr->ly map, so even
+  * perhaps Derive.Call.Attributes should have a attr->ly map, so even
     +staccato will generate the right lilypond.
   - Select all, then shift right, it scrolls to the bottom of the block.
   - Deleting a track moves the selection over (e.g. error selection) instead

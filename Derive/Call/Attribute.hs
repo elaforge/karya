@@ -28,37 +28,35 @@ lookup_attr = Derive.pattern_lookup "attribute starting with `+`" doc $
     where
     parse_symbol sym@('+':_) = case ParseBs.parse_val sym of
         Right (TrackLang.VRelativeAttr (TrackLang.RelativeAttr
-            (TrackLang.Add, attr))) -> return $ Just $
-                attributed_note Nothing (Score.attr attr)
+            (TrackLang.Add, attr))) ->
+                return $ Just $ attributed_note (Score.attr attr)
         _ -> return Nothing
     parse_symbol _ = return Nothing
-    doc = Derive.extract_doc $
-        attributed_note Nothing (Score.attr "example-attr")
+    doc = Derive.extract_doc $ attributed_note (Score.attr "example-attr")
 
 note_calls :: Derive.NoteCallMap
 note_calls = Derive.make_calls
-    [ ("o", attributed_note (Just "-\\flageolet") Attrs.harmonic)
-    , ("m", attributed_note (Just "-+") Attrs.mute)
-    , ("marc", attributed_note (Just "-^") Attrs.marcato)
-    , (".", attributed_note (Just "-.") Attrs.staccato)
+    [ ("o", attributed_note Attrs.harmonic)
+    , ("m", attributed_note Attrs.mute)
+    , ("marc", attributed_note Attrs.marcato)
+    , (".", attributed_note Attrs.staccato)
     , ("(", c_legato)
     , ("{", c_portamento)
     ]
 
-attributed_note :: Maybe String -> Attrs.Attributes -> Derive.NoteCall
-attributed_note maybe_ly attrs =
+attributed_note :: Attrs.Attributes -> Derive.NoteCall
+attributed_note attrs =
     transform_notes ("note with " ++ ShowVal.show_val attrs)
-        maybe_ly (Util.add_attrs attrs)
+        (Util.add_attrs attrs)
         ("Apply attributes to notes. When applied as a note transformer\
         \ (i.e. it has notes in child tracks) it applies its attributes to\
         \ those notes. Otherwise, it applies its attributes to the null note\
         \ call.")
         "Apply attributes to the transformed deriver."
 
-transform_notes :: String -> Maybe String
-    -> (Derive.EventDeriver -> Derive.EventDeriver)
+transform_notes :: String -> (Derive.EventDeriver -> Derive.EventDeriver)
     -> String -> String -> Derive.NoteCall
-transform_notes name maybe_ly transform generator_doc transform_doc =
+transform_notes name transform generator_doc transform_doc =
     Derive.Call
         { Derive.call_name = name
         , Derive.call_generator = Just $
@@ -67,15 +65,10 @@ transform_notes name maybe_ly transform generator_doc transform_doc =
             Derive.transformer_call transform_doc transformer
         }
     where
-    generator = Sig.call0 $ generate_ly $ \args -> case Note.sub_events args of
+    generator = Sig.call0 $ \args -> case Note.sub_events args of
         [] -> transform $ Note.inverting Util.placed_note args
         subs -> Note.place (Note.map_events transform (concat subs))
-    generate_ly f args = maybe (f args)
-        (\c -> Lily.notes_append c args (f args)) maybe_ly
-    transformer = Sig.call0t $ \_args deriver ->
-        Lily.when_lilypond (const $ append_ly (transform deriver))
-            (transform deriver)
-    append_ly = maybe id Lily.append_code maybe_ly
+    transformer = Sig.call0t $ \_args deriver -> transform deriver
 
 c_legato :: Derive.NoteCall
 c_legato = Derive.stream_generator "legato"

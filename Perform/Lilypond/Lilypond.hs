@@ -17,6 +17,7 @@ import Util.Control
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 
+import qualified Derive.Attrs as Attrs
 import qualified Derive.Scale.Theory as Theory
 import qualified Derive.Scale.Twelve as Twelve
 import qualified Derive.Score as Score
@@ -55,6 +56,20 @@ v_ly_code_prepend = TrackLang.Symbol "ly-code-prepend"
 
 v_ly_code_append :: TrackLang.ValName
 v_ly_code_append = TrackLang.Symbol "ly-code-append"
+
+-- | Automatically add lilypond code for certain attributes.
+attribute_code :: [(Score.Attributes, Code)]
+attribute_code =
+    [ (Attrs.harmonic, "-\\flageolet")
+    , (Attrs.mute, "-+")
+    , (Attrs.marcato, "-^")
+    , (Attrs.staccato, "-.")
+    , (Attrs.pizz, "^\"pizz.\"")
+    , (Attrs.trill, "\\trill")
+    , (Attrs.portato, "-_")
+    , (Attrs.tenuto, "--")
+    , (Attrs.accent, "->")
+    ]
 
 -- * types
 
@@ -100,16 +115,20 @@ data Note = Note {
     , _note_duration :: !NoteDuration
     , _note_tie :: !Bool
     -- | Additional code to prepend to the note.
-    , _note_prepend :: !String
+    , _note_prepend :: !Code
     -- | Additional code to append to the note.
-    , _note_append :: !String
+    , _note_append :: !Code
     , _note_stack :: !(Maybe Stack.UiFrame)
     }
     | ClefChange String
     | KeyChange Key
     | MeterChange Meter
-    | Code !String
+    | Code !Code
     deriving (Show)
+
+-- | Arbitrary bit of lilypond code.  This type isn't used for non-arbitrary
+-- chunks, like '_note_pitch'.
+type Code = String
 
 rest :: NoteDuration -> Note
 rest dur = Note
@@ -316,6 +335,7 @@ convert_note config prev_dynamic meter event events
         , _note_prepend =
             fromMaybe "" (TrackLang.maybe_val v_ly_code_prepend env)
         , _note_append = fromMaybe "" (TrackLang.maybe_val v_ly_code_append env)
+            ++ attrs_to_code (Score.environ_attributes env)
             ++ dynamic_to_code (config_dynamics config) prev_dynamic event
         , _note_stack = Seq.last (Stack.to_ui (event_stack event))
         }
@@ -378,11 +398,15 @@ get_dynamic dynamics event = get dynamics (event_dynamic event)
             | null dynamics || val >= dyn -> dyn_str
             | otherwise -> get dynamics dyn
 
-dynamic_to_code :: DynamicConfig -> Maybe String -> Event -> String
+dynamic_to_code :: DynamicConfig -> Maybe String -> Event -> Code
 dynamic_to_code dynamics prev_dyn event
     | not (null dyn) && prev_dyn /= Just dyn = '\\' : dyn
     | otherwise = ""
     where dyn = get_dynamic dynamics event
+
+attrs_to_code :: Score.Attributes -> Code
+attrs_to_code attrs = concat
+    [code | (attr, code) <- attribute_code, Score.attrs_contain attrs attr]
 
 -- | Clip off the part of the event before the given time, or Nothing if it
 -- was entirely clipped off.

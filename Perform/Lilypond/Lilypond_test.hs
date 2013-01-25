@@ -258,6 +258,15 @@ test_tempo = do
     equal logs []
     equal (map extract events) [(0, whole), (whole, whole)]
 
+test_attributes = do
+    -- Test the attribute-adding calls and 'Lilypond.attrs_to_code'.
+    let f = first (convert_staves2 []) . LilypondTest.derive
+    equal (f
+        [ (">", [(0, 1, "+pizz"), (1, 1, "o"), (2, 1, "")])
+        , ("*", [(0, 0, "4a"), (1, 0, "4b"), (2, 0, "4c")])
+        ])
+        (Right ["a'4^\"pizz.\" b'4-\\flageolet c'4 r4"], [])
+
 -- * util
 
 compile_ly :: [Lilypond.Event] -> IO ()
