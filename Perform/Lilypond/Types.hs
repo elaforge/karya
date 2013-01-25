@@ -1,4 +1,5 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE TypeSynonymInstances, FlexibleInstances #-}
 -- | Basic types used by both "Perform.Lilypond.Lilypond" and module that use
 -- it.  Defined here to avoid circular imports.
 module Perform.Lilypond.Types where
@@ -10,6 +11,10 @@ import Types
 -- | Convert a value to its lilypond representation.
 class ToLily a where
     to_lily :: a -> String
+
+instance ToLily String where
+    -- lilypond will probably choke on non-ascii chars, but that's ok
+    to_lily = show
 
 -- | Configure how the lilypond score is generated.
 data Config = Config {

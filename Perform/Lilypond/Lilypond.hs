@@ -601,19 +601,24 @@ ly_file title staff_groups = run_output $ do
     mapM_ ly_staff_group staff_groups
     outputs [">> }"]
     where
-    str text = "\"" <> Text.pack text <> "\""
+    str = Text.pack . to_lily
     x <+> y = x <> " " <> y
 
     ly_staff_group (StaffGroup inst staves) = case staves of
         [staff] -> do
             output "\n"
-            ly_staff inst staff
+            ly_staff Nothing inst staff
+        [up, down] -> do
+            outputs ["\n\\new PianoStaff <<"]
+            ly_staff (Just "up") inst up
+            ly_staff (Just "down") inst down
+            output ">>\n"
         _ -> do
             outputs ["\n\\new PianoStaff <<"]
-            mapM_ (ly_staff inst) staves
+            mapM_ (ly_staff Nothing inst) staves
             output ">>\n"
-    ly_staff inst (Staff measures) = do
-        output "\\new Staff {"
+    ly_staff maybe_name inst (Staff measures) = do
+        output $ "\\new Staff" <> maybe "" (("= "<>) . str) maybe_name <> " {"
         output $ "\\set Staff.instrumentName =" <+> str (inst_name inst)
             <> "\n\\set Staff.shortInstrumentName =" <+> str (inst_name inst)
             <> "\n{\n"

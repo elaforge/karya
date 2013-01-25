@@ -568,7 +568,7 @@ lilypond:
     derivation.
     Wait, I think that doesn't work because it still wants to slice out
     orphans.
-  - cross-staff notes: \new Staff = "up" ...
+  * cross-staff notes: \new Staff = "up" ...
     \change Staff = "up ... \change Staff = "down"
     use a note transformer: "staff up"
   * tuplets should just emit lilypond directly: ly-code = '\times x/y { a b c }'

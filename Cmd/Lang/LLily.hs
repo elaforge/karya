@@ -6,6 +6,7 @@
 -- of lilypond score takes quite a while to compile.
 module Cmd.Lang.LLily where
 import qualified Data.Map as Map
+import qualified Data.Text as Text
 import qualified System.FilePath as FilePath
 import qualified System.Process as Process
 
@@ -29,9 +30,9 @@ import Types
 
 
 sonata :: BlockId -> Cmd.CmdL ()
-sonata = block config
-    where
-    config = Lilypond.TimeConfig 1 Lilypond.D32
+sonata = block sonata_config
+
+sonata_config = Lilypond.TimeConfig 1 Lilypond.D32
 
 pipa :: Derive.Events -> Cmd.CmdL ()
 pipa = from_events config . clean
@@ -77,8 +78,7 @@ filter_inst inst_s = filter ((`elem` insts) . Score.event_instrument)
 
 block :: Lilypond.TimeConfig -> BlockId -> Cmd.CmdL ()
 block config block_id = do
-    events <- LEvent.write_logs . Derive.r_events
-        =<< Cmd.Lilypond.derive (make_config config) block_id
+    events <- LEvent.write_logs =<< derive config block_id
     compile_ly block_id config events
 
 from_events :: Lilypond.TimeConfig -> [Score.Event] -> Cmd.CmdL ()
@@ -108,3 +108,16 @@ view_pdf block_id = do
 
 title_of :: BlockId -> Lilypond.Title
 title_of = Id.ident_name
+
+-- * debugging
+
+derive :: Lilypond.TimeConfig -> BlockId -> Cmd.CmdL Derive.Events
+derive config = fmap Derive.r_events . Cmd.Lilypond.derive (make_config config)
+
+make_ly :: Lilypond.TimeConfig
+    -> Cmd.CmdL (Either String [Text.Text], [Log.Msg])
+make_ly config = do
+    block_id <- Cmd.get_focused_block
+    (events, logs) <- LEvent.partition <$> derive config block_id
+    let (result, ly_logs) = Cmd.Lilypond.make_ly config "title" events
+    return (fst <$> result, logs ++ ly_logs)

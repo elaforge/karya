@@ -14,7 +14,7 @@ import qualified Derive.PitchSignal as PitchSignal
 import qualified Derive.Scale.Theory as Theory
 import qualified Derive.Score as Score
 import qualified Derive.Sig as Sig
-import Derive.Sig (defaulted)
+import Derive.Sig (defaulted, required)
 
 import qualified Perform.Lilypond.Convert as Convert
 import qualified Perform.Lilypond.Lilypond as Lilypond
@@ -53,10 +53,12 @@ notes_append = notes_code . Suffix
 notes_around :: Code -> Code -> Derive.PassedArgs d
     -> Derive.EventDeriver -> Derive.EventDeriver
 notes_around start end args = when_lilypond $
-    const $ Note.place $ concat $ map around $
-        Note.sub_events args
+    const $ call_notes_around start end args
+
+call_notes_around :: Code -> Code -> Derive.PassedArgs d -> Derive.EventDeriver
+call_notes_around start end =
+    Note.place . concat . map around . Note.sub_events
     where
-    around :: [Note.Event] -> [Note.Event]
     around = Seq.first_last (Note.map_event (add_code start))
         (Note.map_event (add_code end))
 
@@ -180,6 +182,7 @@ eval_notes (Derive.Lilypond time_config config) meter start score_events =
 note_calls :: Derive.NoteCallMap
 note_calls = Derive.make_calls
     [ ("8va", c_8va)
+    , ("xstaff", c_xstaff)
     ]
 
 c_8va :: Derive.NoteCall
@@ -192,3 +195,19 @@ c_8va = Derive.stream_generator "ottava"
 
 ottava :: Int -> String
 ottava n = "\\ottava #" ++ show n
+
+c_xstaff :: Derive.NoteCall
+c_xstaff = Derive.stream_generator "xstaff"
+    "Emit lilypond to put the notes on a different staff."
+    $ Sig.call (required "staff" "Should be `up` or `down`.") $
+    \staff args -> do
+        dir <- case staff of
+            "up" -> return ("up", "down")
+            "down" -> return ("down", "up")
+            _ -> Derive.throw $ "expected 'up' or 'down', got " <> show staff
+        xstaff dir args
+
+xstaff :: (String, String) -> Derive.PassedArgs d -> Derive.EventDeriver
+xstaff (staff1, staff2) = call_notes_around
+    (Prefix $ "\\change Staff = " <> Lilypond.to_lily staff1)
+    (Suffix $ "\\change Staff = " <> Lilypond.to_lily staff2)
