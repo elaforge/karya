@@ -22,6 +22,8 @@ import qualified Data.List.NonEmpty as NonEmpty
 import qualified Data.Map as Map
 import qualified Data.Ratio as Ratio
 import qualified Data.Set as Set
+import qualified Data.Text as Text
+import qualified Data.Text.Lazy as Text.Lazy
 import qualified Data.Tree as Tree
 import qualified Data.Vector as Vector
 import qualified Data.Vector.Storable as Storable
@@ -118,6 +120,12 @@ instance (Pretty k, Pretty v) => Pretty (Map.Map k v) where
 
 instance Pretty ByteString.ByteString where
     format = PP.doubleQuotes . PP.text . UTF8.toString
+
+instance Pretty Text.Text where
+    format = PP.doubleQuotes . PP.text . Text.unpack
+
+instance Pretty Text.Lazy.Text where
+    format = PP.doubleQuotes . PP.text . Text.Lazy.unpack
 
 instance (Pretty a) => Pretty (Tree.Tree a) where
     format (Tree.Node val children) =
