@@ -10,6 +10,8 @@ import qualified Ui.UiTest as UiTest
 import qualified Derive.Args as Args
 import qualified Derive.Call.CallTest as CallTest
 import qualified Derive.Call.Lily as Lily
+import qualified Derive.Call.Note as Note
+import qualified Derive.Call.Util as Util
 import qualified Derive.Score as Score
 import qualified Derive.TrackLang as TrackLang
 
@@ -167,16 +169,31 @@ test_key = do
         (Right [["\\key a \\mixolydian", "c'2", "\\key c \\major", "c'2"]], [])
 
 test_ly_code = do
-    let f = first (convert_staves [])
+    let f call = first (convert_staves2 [])
             . LilypondTest.derive_linear False
-                (CallTest.with_note_call "code" c_code)
-    equal (f [(">", [(0, 1, "code")])])
-        (Right [["magic-lilypond-code", "r4", "r2"]], [])
-    equal (f [(">", [(0, 0, "code")])])
-        (Right [["magic-lilypond-code", "r1"]], [])
+                (CallTest.with_note_call "code" call)
+    equal (f c_magic [(">", [(0, 1, "code")])])
+        (Right ["magic-lilypond-code r4 r2"], [])
+    equal (f c_magic [(">", [(0, 0, "code")])])
+        (Right ["magic-lilypond-code r1"], [])
+
+    -- Ensure that a 0 dur event in the middle of a chord doesn't mess it up,
+    -- courtesy of 'Lilypond.promote_0dur'.
+    equal (f c_note
+        [ (">", [(0, 1, ""), (1, 1, "")])
+        , ("*", [(0, 0, "4a"), (1, 0, "4b")])
+        , (">", [(0, 1, ""), (1, 1, "code")])
+        , ("*", [(0, 0, "4c"), (1, 0, "4d")])
+        ])
+        (Right ["<a' c'>4 code0 <b' d'>4 r2"], [])
     where
-    c_code = CallTest.generator $ \args ->
+    c_magic = CallTest.generator $ \args ->
         Lily.code (Args.extent args) "magic-lilypond-code"
+    c_note = CallTest.generator $ Note.inverting $ \args ->
+        Lily.code0 (Args.start args) "code0" <> Util.placed_note args
+
+convert_staves2 :: [String] -> [Lilypond.Event] -> Either String [String]
+convert_staves2 wanted = fmap (map unwords) . convert_staves wanted
 
 test_allowed_time_greedy = do
     let f meter = extract_rhythms

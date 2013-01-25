@@ -4,7 +4,7 @@ LEGEND
 
 UNSORTED
   - tremolo for chords
-  - measure 49 is messed up
+  * measure 49 is messed up
   - I can fix rhythm spelling by changing the meter.  But it's a pain because
     the meter has to be over the entire block, and that means a whole new
     track, which also destroys track caching.

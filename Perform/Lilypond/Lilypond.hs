@@ -196,10 +196,9 @@ data State = State {
 -- | Turn Events, which are in absolute Time, into Notes, which are divided up
 -- into tied Durations depending on the meter.  The Notes are divided up by
 -- measure.
-convert_measures :: Config -> [Meter] -> [Event]
-    -> Either String [[Note]]
+convert_measures :: Config -> [Meter] -> [Event] -> Either String [[Note]]
 convert_measures config meters events =
-    run_convert initial $ add_time_changes <$> go events
+    run_convert initial $ add_time_changes <$> go (promote_0dur events)
     where
     initial = State config meters 0 0 0 Nothing Nothing Nothing
     go [] = return []
@@ -216,6 +215,15 @@ convert_measures config meters events =
             maybe_measure
         where
         meter_change = [MeterChange meter | maybe True (/=meter) prev_meter]
+
+-- | Move 0 duration events ahead of ones without 0 duration.  Typically they
+-- contain ly-code and if they're in the middle of a chord they mess things up.
+promote_0dur :: [Event] -> [Event]
+promote_0dur [] = []
+promote_0dur (event : rest) = dur0 ++ normal ++ promote_0dur post
+    where
+    (pre, post) = span ((<= event_start event) . event_start) rest
+    (dur0, normal) = List.partition ((==0) . event_duration) (event : pre)
 
 -- | This is a simplified version of 'convert_measures', designed for
 -- converting little chunks of lilypond that occur in other expressions.
