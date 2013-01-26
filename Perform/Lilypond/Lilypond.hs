@@ -11,6 +11,7 @@ import qualified Control.Monad.State.Strict as State
 
 import qualified Data.List as List
 import qualified Data.Map as Map
+import qualified Data.Maybe as Maybe
 import qualified Data.Text as Text
 
 import Util.Control
@@ -47,19 +48,19 @@ v_clef = TrackLang.Symbol "clef"
 v_meter :: TrackLang.ValName
 v_meter = TrackLang.Symbol "meter"
 
--- | String: in place of the note, include this lilypond code directly.
-v_ly_code :: TrackLang.ValName
-v_ly_code = TrackLang.Symbol "ly-code"
+-- | String: prepend this lilypond code to the note.  If the note has
+-- 0 duration, it's a freestanding expression and should go before notes
+-- starting at the same time.
+v_ly_prepend :: TrackLang.ValName
+v_ly_prepend = TrackLang.Symbol "ly-prepend"
 
-v_ly_code_prepend :: TrackLang.ValName
-v_ly_code_prepend = TrackLang.Symbol "ly-code-prepend"
-
-v_ly_code_append :: TrackLang.ValName
-v_ly_code_append = TrackLang.Symbol "ly-code-append"
+-- | String: same as 'v_ly_prepend' except append the code.
+v_ly_append :: TrackLang.ValName
+v_ly_append = TrackLang.Symbol "ly-append"
 
 -- | Automatically add lilypond code for certain attributes.
-attribute_code :: [(Score.Attributes, Code)]
-attribute_code =
+simple_articulations :: [(Score.Attributes, Code)]
+simple_articulations =
     [ (Attrs.harmonic, "-\\flageolet")
     , (Attrs.mute, "-+")
     , (Attrs.marcato, "-^")
@@ -72,8 +73,8 @@ attribute_code =
 
 -- | Certain attributes are modal, in that they emit one thing when they
 -- start, and another when they stop.
-modal_attributes :: [(Score.Attributes, Code, Code)]
-modal_attributes =
+modal_articulations :: [(Score.Attributes, Code, Code)]
+modal_articulations =
     [ (Attrs.pizz, "^\"pizz.\"", "^\"arco\"")
     , (Attrs.nv, "^\"nv\"", "^\"vib\"")
     ]
@@ -85,8 +86,6 @@ default_config quarter = Config
     { config_quarter_duration = quarter
     , config_quantize = D32
     , config_dotted_rests = False
-    , config_dynamics =
-        map (first (/0xff)) [(0x40, "p"), (0x80, "mf"), (0xff, "f")]
     , config_staves = []
     }
 
@@ -97,7 +96,6 @@ data Event = Event {
     , event_duration :: !Time
     , event_pitch :: !String
     , event_instrument :: !Score.Instrument
-    , event_dynamic :: !Double
     , event_environ :: !TrackLang.Environ
     , event_stack :: !Stack.Stack
     } deriving (Show)
@@ -109,10 +107,9 @@ event_attributes :: Event -> Score.Attributes
 event_attributes = Score.environ_attributes . event_environ
 
 instance Pretty.Pretty Event where
-    format (Event start dur pitch inst dyn attrs _stack) =
+    format (Event start dur pitch inst attrs _stack) =
         Pretty.constructor "Event" [Pretty.format start, Pretty.format dur,
-            Pretty.text pitch, Pretty.format inst, Pretty.format dyn,
-            Pretty.format attrs]
+            Pretty.text pitch, Pretty.format inst, Pretty.format attrs]
 
 -- ** Note
 
@@ -216,9 +213,8 @@ data State = State {
     -- change on each note
     -- | End of the previous note.
     , state_note_end :: Time
-        -- | Used in conjunction with 'modal_attributes'.
+        -- | Used in conjunction with 'modal_articulations'.
     , state_prev_attrs :: Score.Attributes
-    , state_dynamic :: Maybe String
     , state_clef :: Maybe Clef
     , state_key :: Maybe Key
     } deriving (Show)
@@ -228,7 +224,7 @@ data State = State {
 -- measure.
 convert_measures :: Config -> [Meter] -> [Event] -> Either String [[Note]]
 convert_measures config meters events =
-    run_convert initial $ add_time_changes <$> go (promote_0dur events)
+    run_convert initial $ add_time_changes <$> go events
     where
     initial = State
         { state_config = config
@@ -237,7 +233,6 @@ convert_measures config meters events =
         , state_measure_end = 0
         , state_note_end = 0
         , state_prev_attrs = mempty
-        , state_dynamic = Nothing
         , state_clef = Nothing
         , state_key = Nothing
         }
@@ -256,28 +251,19 @@ convert_measures config meters events =
         where
         meter_change = [MeterChange meter | maybe True (/=meter) prev_meter]
 
--- | Move 0 duration events ahead of ones without 0 duration.  Typically they
--- contain ly-code and if they're in the middle of a chord they mess things up.
-promote_0dur :: [Event] -> [Event]
-promote_0dur [] = []
-promote_0dur (event : rest) = dur0 ++ normal ++ promote_0dur post
-    where
-    (pre, post) = span ((<= event_start event) . event_start) rest
-    (dur0, normal) = List.partition ((==0) . event_duration) (event : pre)
-
 -- | This is a simplified version of 'convert_measures', designed for
 -- converting little chunks of lilypond that occur in other expressions.
 -- So it doesn't handle clef changes, meter changes, or even barlines.
+-- It will apply simple articulations from 'simple_articulations', but not
+-- modal ones from 'modal_articulations'.
 simple_convert :: Config -> Meter -> Time -> [Event] -> [Note]
-simple_convert config_ meter = go
+simple_convert config meter = go
     where
-    config = config_ { config_dynamics = [] }
     go _ [] = []
-    go start (event : events) = leading_rests ++ [note] ++ go end rest_events
+    go start (event : events) = leading_rests ++ notes ++ go end rest_events
         where
         leading_rests = make_rests config meter start (event_start event)
-        (note, end, rest_events) =
-            convert_note config Nothing mempty meter event events
+        (notes, end, _, rest_events) = convert_notes mempty meter event events
 
 -- TODO The meters are still not correct.  Since meter is only on notes,
 -- I can't represent a meter change during silence.  I would need to generate
@@ -319,22 +305,15 @@ convert_measure events = case events of
         let clef_change = [ClefChange clef | Just clef /= state_clef state]
         key <- lookup_key event
         let key_change = [KeyChange key | Just key /= state_key state]
-        let (note, end, rest_events) = convert_note (state_config state)
-                (state_dynamic state) (state_prev_attrs state) meter event
-                events
+        let (chord_notes, end, last_attrs, rest_events) = convert_notes
+                (state_prev_attrs state) meter event events
             leading_rests = make_rests (state_config state) meter
                 (state_note_end state) (event_start event)
-            notes = leading_rests ++ clef_change ++ key_change ++ [note]
+            notes = leading_rests ++ clef_change ++ key_change ++ chord_notes
         State.modify $ \state -> state
             { state_clef = Just clef
             , state_key = Just key
-            , state_dynamic = Just $
-                get_dynamic (config_dynamics (state_config state)) event
-            , state_prev_attrs = case note of
-                Note {} -> event_attributes event
-                -- If it's a Code event then it probably doesn't have any attrs
-                -- anyway.
-                _ -> state_prev_attrs state
+            , state_prev_attrs = last_attrs
             , state_note_end = end
             }
         (rest_notes, rest_events) <- measure1 meter rest_events
@@ -347,39 +326,65 @@ convert_measure events = case events of
         State.modify $ \state -> state { state_note_end = end }
         return rests
 
-convert_note :: Config -> Maybe String -> Score.Attributes -> Meter -> Event
-    -> [Event]
-    -> (Note, Time, [Event]) -- ^ (note, note end time, remaining events)
-convert_note config prev_dynamic modes meter event events
-    | Just code <- TrackLang.maybe_val v_ly_code env =
-        (Code code, start + event_duration event, events)
-    | otherwise = (note, end, clipped ++ rest)
+-- | Convert a chunk of events all starting at the same time.  Events
+-- with 0 duration or null pitch are expected to have either 'v_ly_prepend' or
+-- 'v_ly_append', and turn into 'Code' Notes.
+--
+-- The rules are documented in 'Perform.Lilypond.Convert.convert_event'.
+convert_notes :: Score.Attributes -> Meter -> Event -> [Event]
+    -> ([Note], Time, Score.Attributes, [Event])
+    -- ^ (note, note end time, last attrs, remaining events)
+convert_notes prev_attrs meter event events =
+    (notes, end, last_attrs, clipped ++ rest)
     where
+    notes = map (Code . get v_ly_prepend) prepend
+        ++ chord_notes ++ map (Code . get v_ly_append) append
+    (chord_notes, end, last_attrs, clipped) = case has_dur of
+        [] -> ([], event_start event, prev_attrs, [])
+        c : cs ->
+            let next = event_start <$> Seq.head rest
+                (n, end, clipped) = convert_chord prev_attrs meter c cs next
+            in ([n], end, event_attributes (last (c:cs)), clipped)
+
+    (here, rest) = break ((> event_start event) . event_start) (event : events)
+    (dur0, has_dur) = List.partition ((==0) . event_duration) here
+    (prepend, append) = List.partition (has v_ly_prepend) dur0
+    has v = not . null . get v
+    get :: TrackLang.ValName -> Event -> String
+    get v = fromMaybe "" . TrackLang.maybe_val v . event_environ
+
+convert_chord :: Score.Attributes -> Meter -> Event -> [Event]
+    -> Maybe Time -> (Note, Time, [Event]) -- ^ (note, note end time, clipped)
+convert_chord prev_attrs meter event events next =
+    (if null pitches then code else note, end, clipped)
+    where
+    chord = event : events
     env = event_environ event
+    -- If there are no pitches, then this is code with duration.
+    pitches = filter (not . null) (map event_pitch chord)
+    code = Code (prepend ++ append)
     note = Note
-        { _note_pitch = map event_pitch here
+        { _note_pitch = pitches
         , _note_duration = allowed_dur
-        , _note_tie = any (> end) (map event_end here)
-        , _note_prepend =
-            fromMaybe "" (TrackLang.maybe_val v_ly_code_prepend env)
-        , _note_append = fromMaybe "" (TrackLang.maybe_val v_ly_code_append env)
-            ++ attrs_to_code modes (event_attributes event)
-            ++ dynamic_to_code (config_dynamics config) prev_dynamic event
+        , _note_tie = any (> end) (map event_end chord)
+        , _note_prepend = prepend
+        , _note_append = append
+            ++ attrs_to_code prev_attrs (event_attributes event)
         , _note_stack = Seq.last (Stack.to_ui (event_stack event))
         }
+    prepend = fromMaybe "" (TrackLang.maybe_val v_ly_prepend env)
+    append = fromMaybe "" (TrackLang.maybe_val v_ly_append env)
 
-    (here, rest) = break ((> start) . event_start) (event : events)
     allowed = min (max_end - start) (allowed_time_greedy True meter start)
     allowed_dur = time_to_note_dur allowed
     allowed_time = note_dur_to_time allowed_dur
     -- Maximum end, the actual end may be shorter since it has to conform to
     -- a Duration.
     max_end = fromMaybe (event_end event) $
-        Seq.minimum (next ++ map event_end here)
-    clipped = mapMaybe (clip_event end) here
+        Seq.minimum (Maybe.maybeToList next ++ map event_end chord)
+    clipped = mapMaybe (clip_event end) chord
     start = event_start event
     end = start + allowed_time
-    next = maybe [] ((:[]) . event_start) (Seq.head rest)
 
 make_rests :: Config -> Meter -> Time -> Time -> [Note]
 make_rests config meter start end
@@ -418,27 +423,12 @@ lookup_val key parse deflt event = prefix $ do
     prefix = either (Error.throwError . ((Pretty.pretty key ++ ": ") ++))
         return
 
-get_dynamic :: DynamicConfig -> Event -> String
-get_dynamic dynamics event = get dynamics (event_dynamic event)
-    where
-    get dynamics dyn = case dynamics of
-        [] -> ""
-        ((val, dyn_str) : dynamics)
-            | null dynamics || val >= dyn -> dyn_str
-            | otherwise -> get dynamics dyn
-
-dynamic_to_code :: DynamicConfig -> Maybe String -> Event -> Code
-dynamic_to_code dynamics prev_dyn event
-    | not (null dyn) && prev_dyn /= Just dyn = '\\' : dyn
-    | otherwise = ""
-    where dyn = get_dynamic dynamics event
-
 attrs_to_code :: Score.Attributes -> Score.Attributes -> Code
 attrs_to_code prev_attrs attrs = concat $
-    [code | (attr, code) <- attribute_code, has attr]
-    ++ [start | (attr, start, _) <- modal_attributes,
+    [code | (attr, code) <- simple_articulations, has attr]
+    ++ [start | (attr, start, _) <- modal_articulations,
         has attr, not (prev_has attr)]
-    ++ [end | (attr, _, end) <- modal_attributes,
+    ++ [end | (attr, _, end) <- modal_articulations,
         not (has attr), prev_has attr]
     where
     has = Score.attrs_contain attrs
@@ -666,9 +656,7 @@ ly_file config title staff_groups = run_output $ do
 
     ly_staff_group (StaffGroup _ staves, long_inst, short_inst) =
         case staves of
-            [staff] -> do
-                output "\n"
-                ly_staff (Just (long_inst, short_inst)) Nothing staff
+            [staff] -> ly_staff (Just (long_inst, short_inst)) Nothing staff
             [up, down] -> ly_piano_staff long_inst short_inst $ do
                 ly_staff Nothing (Just "up") up
                 ly_staff Nothing (Just "down") down

@@ -4,9 +4,6 @@ LEGEND
 
 UNSORTED
   * Note should ignore +staccato in lilypond mode.
-  - Guessing dynamics from the dyn doesn't really work.  They should be set
-    explicitly.  Should I do it with an attr or by diretly emitting ly?
-    I think the latter, since other performers likely don't care about it.
   * Status bar should show tid of selection.
   / Range for errors always starts at 0, I think it's Note.Events that have
     been normalized to zero.  I really need some reliable way to get track
@@ -563,15 +560,20 @@ integrate / integration:
     calls)
 
 lilypond:
+  * Guessing dynamics from the dyn doesn't really work.  They should be set
+    explicitly.  Should I do it with an attr or by diretly emitting ly?
+    I think the latter, since other performers likely don't care about it.
+    Do dynamics really have to be note suffixes?  If so I'd need the reverse
+    of promote0.
   - I should store Lilypond.Config in the UI state.
   * way to order staves
   * pizz attribute
-  - should be a space after ly-code events, blank line between staves
+  * should be a space after ly-code events, blank line between staves
   / allowed_time* should return Durations, not Times
   * rename TimeSignature to Meter, it's shorter
   - If I can figure out the meter from just the name, then I can get rid
     of the awkward map with hardcoded meters.
-    I could have parse generate the TimeSignature and memoize it.
+    I could have parse generate the Meter and memoize it.
   - optionally emit the lilypond to display a compound meter
   - why not implement clefs as a code-emitting note transformer rather than
     env var?  There's '8va 1' and then there's staff = treble,

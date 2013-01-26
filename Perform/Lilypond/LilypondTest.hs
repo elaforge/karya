@@ -14,11 +14,7 @@ import qualified Perform.Lilypond.Lilypond as Lilypond
 
 
 default_config :: Lilypond.Config
-default_config = Lilypond.Config
-    { Lilypond.config_quarter_duration = 1
-    , Lilypond.config_dotted_rests = False
-    , Lilypond.config_dynamics = []
-    }
+default_config = Lilypond.default_config 1
 
 -- | (title, [Staff]) where Staff = [Measure] where Measure = [String]
 type StaffGroup = (String, [[[String]]])
@@ -62,9 +58,7 @@ derive_ly linear with tracks =
         tracks
     where
     with_linear = if linear then DeriveTest.linear_skel tracks else id
-    set_ly constant = constant { Derive.state_lilypond = Just $
-        Derive.Lilypond time_config default_config }
-    time_config = Lilypond.TimeConfig 1 Lilypond.D128
+    set_ly constant = constant { Derive.state_lilypond = Just default_config }
 
 make_ly :: [Lilypond.Event] -> String
 make_ly events = Text.unpack $ Text.strip $ Text.concat $ fst $

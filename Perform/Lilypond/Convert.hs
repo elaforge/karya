@@ -9,6 +9,7 @@ import qualified Derive.LEvent as LEvent
 import qualified Derive.PitchSignal as PitchSignal
 import qualified Derive.Scale.Theory as Theory
 import qualified Derive.Score as Score
+import qualified Derive.ShowVal as ShowVal
 import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.ConvertUtil as ConvertUtil
@@ -29,18 +30,33 @@ convert :: RealTime -- ^ this length of time becomes a quarter note
     -> Derive.Events -> [LEvent.LEvent Lilypond.Event]
 convert quarter = ConvertUtil.convert () (convert_event quarter)
 
+-- | Normally events have a duration and a pitch, and the lilypond performer
+-- converts this into a normal lilypond note.  However, the deriver can emit
+-- lilypond code directly with either a zero duration event or one without
+-- a pitch:
+--
+-- - If the event has 0 duration, it must have prepend or append code.  The
+-- code will go before or after other events at the same time.  Any pitch is
+-- ignored.
+--
+-- - If it doesn't have a pitch, then it must have prepend or append code.
+-- prepend ++ append will be emitted and considered to have the given amount of
+-- duration.
+--
+-- - If the event has a pitch it will be emitted as a note, with optional
+-- prepended or appended code.
 convert_event :: RealTime -> Score.Event -> ConvertT Lilypond.Event
 convert_event quarter event = do
+    let dur = Lilypond.real_to_time quarter (Score.event_duration event)
     maybe_pitch <- convert_pitch (Score.event_start event)
         (Score.event_controls event) (Score.event_pitch event)
-    let env = Score.event_environ event
-    pitch <- case maybe_pitch of
-        Nothing
-            | Maybe.isNothing $ TrackLang.lookup_val Lilypond.v_ly_code env ->
-                throw $ "event without pitch requires "
-                    <> Pretty.pretty Lilypond.v_ly_code
-            | otherwise -> return "nopitch" -- I trust lilypond won't see this
-        Just pitch -> either (throw . ("show_pitch: "<>)) return
+    pitch <- case (dur, maybe_pitch) of
+        (0, _) -> check_0dur >> return ""
+        (_, Nothing)
+            | not (has_prepend || has_append) ->
+                throw "event with non-zero duration and no code requires pitch"
+            | otherwise -> return ""
+        (_, Just pitch) -> either (throw . ("show_pitch: "<>)) return
             (Lilypond.show_pitch pitch)
     return $ Lilypond.Event
         { Lilypond.event_start =
@@ -49,10 +65,23 @@ convert_event quarter event = do
             Lilypond.real_to_time quarter (Score.event_duration event)
         , Lilypond.event_pitch = pitch
         , Lilypond.event_instrument = Score.event_instrument event
-        , Lilypond.event_dynamic = Score.initial_dynamic event
-        , Lilypond.event_environ = env
+        , Lilypond.event_environ = Score.event_environ event
         , Lilypond.event_stack = Score.event_stack event
         }
+    where
+    check_0dur
+        | not has_prepend && not has_append = throw $
+            "zero duration event must have either "
+            <> ShowVal.show_val Lilypond.v_ly_prepend <> " xor "
+            <> ShowVal.show_val Lilypond.v_ly_append
+            <> " had " <> Pretty.pretty (Score.event_environ event)
+        | has_prepend && has_append = throw $
+            "zero duration event with both prepend and append is ambiguous"
+        | otherwise = return ()
+    has_prepend = has Lilypond.v_ly_prepend
+    has_append = has Lilypond.v_ly_append
+    has v = Maybe.isJust $
+        TrackLang.lookup_val v (Score.event_environ event)
 
 convert_pitch :: RealTime -> Score.ControlMap -> PitchSignal.Signal
     -> ConvertT (Maybe Theory.Pitch)

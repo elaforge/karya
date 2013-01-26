@@ -26,16 +26,10 @@ data Config = Config {
     , config_quantize :: !Duration
     -- | Allow dotted rests?
     , config_dotted_rests :: !Bool
-    , config_dynamics :: !DynamicConfig
     -- | Map each instrument to its long name and short name.  The order is
     -- the order they should appear in the score.
     , config_staves :: ![(Score.Instrument, String, String)]
     } deriving (Show)
-
--- | If non-null, generate dynamics from each event's dynamic control.
--- This has cutoffs for each dynamic level, which should be \"p\", \"mf\",
--- etc.
-type DynamicConfig = [(Double, String)]
 
 -- * Duration
 

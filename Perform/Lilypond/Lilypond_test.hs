@@ -10,8 +10,6 @@ import qualified Ui.UiTest as UiTest
 import qualified Derive.Args as Args
 import qualified Derive.Call.CallTest as CallTest
 import qualified Derive.Call.Lily as Lily
-import qualified Derive.Call.Note as Note
-import qualified Derive.Call.Util as Util
 import qualified Derive.Score as Score
 import qualified Derive.TrackLang as TrackLang
 
@@ -25,21 +23,18 @@ import Types
 
 
 test_convert_measures = do
-    let f = convert_staves [] . map simple_event
-    equal (f [(0, 1, "a"), (1, 1, "b")]) $ Right [["a4", "b4", "r2"]]
+    let f = convert_staves2 [] . map simple_event
+    equal (f [(0, 1, "a"), (1, 1, "b")]) $ Right ["a4 b4 r2"]
     equal (f [(1, 1, "a"), (2, 8, "b")]) $ Right
-        [["r4", "a4", "b2~"], ["b1~"], ["b2", "r2"]]
+        ["r4 a4 b2~", "b1~", "b2 r2"]
     -- Rests are not dotted, even when they could be.
     -- I also get r8 r4, instead of r4 r8, see comment on 'allowed_time'.
     equal (f [(0, 1, "a"), (1.5, 1, "b")]) $ Right
-        [["a4", "r8", "b8~", "b8", "r8", "r4"]]
+        ["a4 r8 b8~ b8 r8 r4"]
     equal (f [(0, 2, "a"), (3.5, 0.25, "b"), (3.75, 0.25, "c")]) $ Right
-        [["a2", "r4", "r8", "b16", "c16"]]
+        ["a2 r4 r8 b16 c16"]
     equal (f [(0, 0.5, "a"), (0.5, 1, "b"), (1.5, 0.5, "c")]) $ Right
-        [["a8", "b4", "c8", "r2"]]
-    -- Zero durations turn into short notes.
-    equal (f [(0, 0, "a"), (0, 0, "b"), (1, 1, "c")]) $ Right
-        [["<a b>128", "r128", "r64", "r32", "r16", "r8", "c4", "r2"]]
+        ["a8 b4 c8 r2"]
 
 test_dotted_rests = do
     let f = convert_staves [] . map meter_event
@@ -169,28 +164,33 @@ test_key = do
         (Right [["\\key a \\mixolydian", "c'2", "\\key c \\major", "c'2"]], [])
 
 test_ly_code = do
-    let f call = first (convert_staves2 [])
-            . LilypondTest.derive_linear False
-                (CallTest.with_note_call "code" call)
-    equal (f c_magic [(">", [(0, 1, "code")])])
-        (Right ["magic-lilypond-code r4 r2"], [])
-    equal (f c_magic [(">", [(0, 0, "code")])])
-        (Right ["magic-lilypond-code r1"], [])
-
-    -- Ensure that a 0 dur event in the middle of a chord doesn't mess it up,
-    -- courtesy of 'Lilypond.promote_0dur'.
-    equal (f c_note
-        [ (">", [(0, 1, ""), (1, 1, "")])
-        , ("*", [(0, 0, "4a"), (1, 0, "4b")])
-        , (">", [(0, 1, ""), (1, 1, "code")])
-        , ("*", [(0, 0, "4c"), (1, 0, "4d")])
-        ])
-        (Right ["<a' c'>4 code0 <b' d'>4 r2"], [])
+    let f = first (convert_staves2 []) . LilypondTest.derive_linear False calls
+    -- prepend
+    equal (f $
+            UiTest.note_track [(0, 1, "4a"), (1, 1, "4b")]
+            ++ [(">", [(1, 0, "pre")])]
+            ++ UiTest.note_track [(0, 1, "4c"), (1, 1, "4d")])
+        (Right ["<a' c'>4 pre <b' d'>4 r2"], [])
+    -- append
+    equal (f $
+            UiTest.note_track [(0, 1, "4a"), (1, 1, "4b")]
+            ++ [(">", [(1, 0, "post")])]
+            ++ UiTest.note_track [(0, 1, "4c"), (1, 1, "4d")])
+        (Right ["<a' c'>4 <b' d'>4 post r2"], [])
+    -- prepend and append alone
+    equal (f $
+            UiTest.note_track [(0, 1, "4a"), (2, 1, "4b")]
+            ++ [(">", [(1, 0, "post")])]
+            ++ [(">", [(1, 0, "pre")])]
+            ++ UiTest.note_track [(0, 1, "4c"), (2, 1, "4d")])
+        (Right ["<a' c'>4 pre post r4 <b' d'>4 r4"], [])
     where
-    c_magic = CallTest.generator $ \args ->
-        Lily.code (Args.extent args) "magic-lilypond-code"
-    c_note = CallTest.generator $ Note.inverting $ \args ->
-        Lily.code0 (Args.start args) "code0" <> Util.placed_note args
+    calls = CallTest.with_note_call "pre" c_pre
+        . CallTest.with_note_call "post" c_post
+    c_pre = CallTest.generator $ \args ->
+        Lily.code0 (Args.start args) (Lily.Prefix "pre")
+    c_post = CallTest.generator $ \args ->
+        Lily.code0 (Args.start args) (Lily.Suffix "post")
 
 convert_staves2 :: [String] -> [Lilypond.Event] -> Either String [String]
 convert_staves2 wanted = fmap (map unwords) . convert_staves wanted
@@ -275,6 +275,13 @@ test_modal_attributes = do
         ])
         (Right ["c'4^\"pizz.\" c'4 c'4^\"arco\" r4"], [])
 
+test_prepend_append = do
+    let f = first (convert_staves2 ["p", "mf"]) . LilypondTest.derive
+    equal (f $
+            (">", [(0, 0, "dyn p"), (2, 0, "dyn mf")]) : UiTest.note_track
+            [(0, 1, "4a"), (1, 1, "4b"), (2, 1, "4c"), (3, 1, "4d")])
+        (Right ["a'4 \\p b'4 c'4 \\mf d'4"], [])
+
 -- * util
 
 compile_ly :: [Lilypond.Event] -> IO ()
@@ -318,7 +325,6 @@ make_event start dur pitch inst env = Lilypond.Event
     , Lilypond.event_duration = Lilypond.real_to_time 1 dur
     , Lilypond.event_pitch = pitch
     , Lilypond.event_instrument = Score.Instrument inst
-    , Lilypond.event_dynamic = 0.5
     , Lilypond.event_environ = TrackLang.make_environ
         [(name, TrackLang.VString val) | (name, val) <- env]
     , Lilypond.event_stack = UiTest.mkstack (1, 0, 1)

@@ -60,19 +60,20 @@ notes_around start end args = when_lilypond $
 
 -- | Like 'notes_around', but when I'm not in lilypond mode just derive the
 -- sub events unchanged.
-code_around :: String -> String -> Derive.PassedArgs d
-    -> Derive.EventDeriver
+code_around :: Code -> Code -> Derive.PassedArgs d -> Derive.EventDeriver
 code_around start end args = when_lilypond
         (const $ code0 (Args.start args) start
-            <> notes <> code0 (Args.end args) end)
-        notes
-    where notes = Note.place (concat (Note.sub_events args))
+            <> place_notes args <> code0 (Args.end args) end)
+        (place_notes args)
 
 notes_with :: (Derive.EventDeriver -> Derive.EventDeriver)
     -> Derive.PassedArgs d
     -> Derive.EventDeriver -> Derive.EventDeriver
 notes_with f args = when_lilypond $
     const $ Note.place $ Note.map_events f $ concat (Note.sub_events args)
+
+place_notes :: Derive.PassedArgs d -> Derive.EventDeriver
+place_notes = Note.place . concat . Note.sub_events
 
 -- * code
 
@@ -86,9 +87,9 @@ append_code :: String -> Derive.EventDeriver -> Derive.EventDeriver
 append_code = add_code . Suffix
 
 add_code :: Code -> Derive.EventDeriver -> Derive.EventDeriver
-add_code (Prefix code) = Derive.modify_val Lilypond.v_ly_code_prepend $
+add_code (Prefix code) = Derive.modify_val Lilypond.v_ly_prepend $
     (code++) . fromMaybe ""
-add_code (Suffix code) = Derive.modify_val Lilypond.v_ly_code_append $
+add_code (Suffix code) = Derive.modify_val Lilypond.v_ly_append $
     (++code) . fromMaybe ""
 
 -- | Emit a note that carries raw lilypond code.  The code is emitted
@@ -96,12 +97,17 @@ add_code (Suffix code) = Derive.modify_val Lilypond.v_ly_code_append $
 -- is ignored.  This can be used to emit lilypond that doesn't fit into
 -- a 'Lilypond.Event'.
 code :: (ScoreTime, ScoreTime) -> String -> Derive.EventDeriver
-code (start, dur) code = Derive.with_val Lilypond.v_ly_code code
+code (start, dur) code = Derive.with_val Lilypond.v_ly_prepend code
     (Derive.d_place start dur Util.note)
 
--- | Like 'code', but for 0 duration code fragments.
-code0 :: ScoreTime -> String -> Derive.EventDeriver
-code0 start = code (start, 0)
+-- | Like 'code', but for 0 duration code fragments, and can either put them
+-- before or after notes that occur at the same time.
+code0 :: ScoreTime -> Code -> Derive.EventDeriver
+code0 start code = with (Derive.d_place start 0 Util.note)
+    where
+    with = case code of
+        Prefix c -> Derive.with_val Lilypond.v_ly_prepend c
+        Suffix c -> Derive.with_val Lilypond.v_ly_append c
 
 -- * convert
 
@@ -189,13 +195,14 @@ note_calls :: Derive.NoteCallMap
 note_calls = Derive.make_calls
     [ ("8va", c_8va)
     , ("xstaff", c_xstaff)
+    , ("dyn", c_dyn)
     ]
 
 c_8va :: Derive.NoteCall
 c_8va = Derive.stream_generator "ottava"
     "Emit `lilypond \\ottava = #n` around the notes in scope."
     $ Sig.call (defaulted "octave" 1 "Transpose this many octaves up or down.")
-    $ \oct args -> code_around (ottava oct) (ottava 0) args
+    $ \oct args -> code_around (Prefix (ottava oct)) (Prefix (ottava 0)) args
 
 ottava :: Int -> String
 ottava n = "\\ottava #" ++ show n
@@ -209,5 +216,11 @@ c_xstaff = Derive.stream_generator "xstaff"
             "up" -> return ("up", "down")
             "down" -> return ("down", "up")
             _ -> Derive.throw $ "expected 'up' or 'down', got " <> show staff
-        code_around (change staff1) (change staff2) args
+        code_around (Prefix (change staff1)) (Suffix (change staff2)) args
     where change staff = "\\change Staff = " <> Lilypond.to_lily staff
+
+c_dyn :: Derive.NoteCall
+c_dyn = Derive.stream_generator "dyn" "Emit a lilypond dynamic."
+    $ Sig.call (required "dynamic" "Should be `p`, `ff`, etc.") $
+    \dyn args -> code0 (Args.start args) (Suffix ('\\' : dyn))
+        <> place_notes args

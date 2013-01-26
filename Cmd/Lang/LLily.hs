@@ -124,3 +124,12 @@ make_ly config = do
     (events, logs) <- LEvent.partition <$> derive config block_id
     let (result, ly_logs) = Cmd.Lilypond.make_ly config "title" events
     return (fst <$> result, logs ++ ly_logs)
+
+convert :: Lilypond.Config -> Cmd.CmdL ([Lilypond.Event], [Log.Msg])
+convert config = do
+    score_events <- derive config =<< Cmd.get_focused_block
+    let (events, logs) = LEvent.partition $
+            Convert.convert (Lilypond.config_quarter_duration config)
+            score_events
+    return (Cmd.Lilypond.postproc (Lilypond.config_quantize config) events,
+        logs)
