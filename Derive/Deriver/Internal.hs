@@ -205,7 +205,7 @@ with_stack frame = localm $ \st -> do
         when (Stack.length stack >= max_depth) $
             throw $ "call stack too deep: " ++ Pretty.pretty frame
         return $ st { state_stack = Stack.add frame (state_stack st) }
-    where max_depth = 30
+    where max_depth = 100
     -- A recursive loop will result in an unfriendly hang.  So limit the total
     -- nesting depth to catch those.  I could disallow all recursion, but this
     -- is more general.
