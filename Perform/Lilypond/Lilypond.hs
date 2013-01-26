@@ -668,22 +668,30 @@ ly_file config title staff_groups = run_output $ do
         case staves of
             [staff] -> do
                 output "\n"
-                mkstaff Nothing staff
-            [up, down] -> do
-                outputs ["\n\\new PianoStaff <<"]
-                mkstaff (Just "up") up
-                mkstaff (Just "down") down
-                output ">>\n"
-            _ -> do
-                outputs ["\n\\new PianoStaff <<"]
-                mapM_ (mkstaff Nothing) staves
-                output ">>\n"
-        where mkstaff = ly_staff long_inst short_inst
-    ly_staff long_inst short_inst maybe_name (Staff measures) = do
-        output $ "\\new Staff" <> maybe "" (("= "<>) . str) maybe_name <> " {"
-        output $ "\\set Staff.instrumentName =" <+> str long_inst
-            <> "\n\\set Staff.shortInstrumentName =" <+> str short_inst
-            <> "\n{\n"
+                ly_staff (Just (long_inst, short_inst)) Nothing staff
+            [up, down] -> ly_piano_staff long_inst short_inst $ do
+                ly_staff Nothing (Just "up") up
+                ly_staff Nothing (Just "down") down
+            _ -> ly_piano_staff long_inst short_inst $
+                mapM_ (ly_staff Nothing Nothing) staves
+    ly_piano_staff long short contents = do
+        outputs
+            [ "\n\\new PianoStaff <<"
+            , ly_set "PianoStaff.instrumentName" long
+            , ly_set "PianoStaff.shortInstrumentName" short
+            ]
+        contents
+        output ">>\n"
+    ly_set name val = "\\set" <+> name <+> "=" <+> str val
+
+    ly_staff inst_names maybe_name (Staff measures) = do
+        output $ "\n\\new Staff" <> maybe "" (("= "<>) . str) maybe_name
+            <+> "{\n"
+        when_just inst_names $ \(long, short) -> outputs
+            [ ly_set "Staff.instrumentName" long
+            , ly_set "Staff.shortInstrumentName" short
+            ]
+        output "{\n"
         mapM_ show_measures (zip [0, 4 ..] (group 4 measures))
         output "} }\n"
     -- Show 4 measures per line and comment with the measure number.

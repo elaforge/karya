@@ -3,7 +3,6 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
-  - I should store Lilypond.Config in the UI state.
   * Note should ignore +staccato in lilypond mode.
   - Guessing dynamics from the dyn doesn't really work.  They should be set
     explicitly.  Should I do it with an attr or by diretly emitting ly?
@@ -564,6 +563,7 @@ integrate / integration:
     calls)
 
 lilypond:
+  - I should store Lilypond.Config in the UI state.
   * way to order staves
   * pizz attribute
   - should be a space after ly-code events, blank line between staves
@@ -616,7 +616,7 @@ lilypond:
   * need 8va marks: \ottava #1 ... \ottava #0
   - movement marker than emits a page break and a title
   - Why does the cmd have to wait until lilypond is done?  Should be async.
-  - staff group should put inst name on the group instead of each staff
+  * staff group should put inst name on the group instead of each staff
   + add hand annotations to score
   - possibly support voices, should be able to do it the same as hand
     splitting
