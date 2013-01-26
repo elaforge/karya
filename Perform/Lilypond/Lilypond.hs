@@ -83,9 +83,11 @@ modal_attributes =
 default_config :: RealTime -> Config
 default_config quarter = Config
     { config_quarter_duration = quarter
+    , config_quantize = D32
     , config_dotted_rests = False
     , config_dynamics =
         map (first (/0xff)) [(0x40, "p"), (0x80, "mf"), (0xff, "f")]
+    , config_staves = []
     }
 
 -- ** Event
@@ -622,7 +624,7 @@ type StackMap = Map.Map Int Stack.UiFrame
 
 make_ly :: Config -> Title -> [Event] -> Either String ([Text.Text], StackMap)
 make_ly config title events =
-    ly_file title <$> convert_staff_groups config events
+    ly_file config title <$> convert_staff_groups config events
 
 inst_name :: Score.Instrument -> String
 inst_name = dropWhile (=='/') . dropWhile (/='/') . Score.inst_name
@@ -648,37 +650,39 @@ show_pitch_note (Theory.Note pc accs) = do
 
 -- * output
 
-ly_file :: Title -> [StaffGroup] -> ([Text.Text], StackMap)
-ly_file title staff_groups = run_output $ do
+ly_file :: Config -> Title -> [StaffGroup] -> ([Text.Text], StackMap)
+ly_file config title staff_groups = run_output $ do
     outputs
         [ "\\version" <+> str "2.14.2"
         , "\\language" <+> str "english"
         , "\\header { title =" <+> str title <+> "tagline = \"\" }"
         , "\\score { <<"
         ]
-    mapM_ ly_staff_group staff_groups
+    mapM_ ly_staff_group (sort_staves (config_staves config) staff_groups)
     outputs [">> }"]
     where
     str = Text.pack . to_lily
     x <+> y = x <> " " <> y
 
-    ly_staff_group (StaffGroup inst staves) = case staves of
-        [staff] -> do
-            output "\n"
-            ly_staff Nothing inst staff
-        [up, down] -> do
-            outputs ["\n\\new PianoStaff <<"]
-            ly_staff (Just "up") inst up
-            ly_staff (Just "down") inst down
-            output ">>\n"
-        _ -> do
-            outputs ["\n\\new PianoStaff <<"]
-            mapM_ (ly_staff Nothing inst) staves
-            output ">>\n"
-    ly_staff maybe_name inst (Staff measures) = do
+    ly_staff_group (StaffGroup _ staves, long_inst, short_inst) =
+        case staves of
+            [staff] -> do
+                output "\n"
+                mkstaff Nothing staff
+            [up, down] -> do
+                outputs ["\n\\new PianoStaff <<"]
+                mkstaff (Just "up") up
+                mkstaff (Just "down") down
+                output ">>\n"
+            _ -> do
+                outputs ["\n\\new PianoStaff <<"]
+                mapM_ (mkstaff Nothing) staves
+                output ">>\n"
+        where mkstaff = ly_staff long_inst short_inst
+    ly_staff long_inst short_inst maybe_name (Staff measures) = do
         output $ "\\new Staff" <> maybe "" (("= "<>) . str) maybe_name <> " {"
-        output $ "\\set Staff.instrumentName =" <+> str (inst_name inst)
-            <> "\n\\set Staff.shortInstrumentName =" <+> str (inst_name inst)
+        output $ "\\set Staff.instrumentName =" <+> str long_inst
+            <> "\n\\set Staff.shortInstrumentName =" <+> str short_inst
             <> "\n{\n"
         mapM_ show_measures (zip [0, 4 ..] (group 4 measures))
         output "} }\n"
@@ -695,6 +699,20 @@ ly_file title staff_groups = run_output $ do
         output $ Text.pack (to_lily note) <> " "
     group _ [] = []
     group n ms = let (pre, post) = splitAt n ms in pre : group n post
+
+sort_staves :: [(Score.Instrument, String, String)] -> [StaffGroup]
+    -> [(StaffGroup, String, String)]
+sort_staves staff_config = map lookup_name . Seq.sort_on inst_key
+    where
+    lookup_name staff =
+        case List.find (\(i, _, _) -> i == inst) staff_config of
+            Nothing -> (staff, inst_name inst, inst_name inst)
+            Just (_, long, short) -> (staff, long, short)
+        where inst = inst_of staff
+    inst_key staff =
+        maybe (1, 0) ((,) 0) $ List.elemIndex (inst_of staff) order
+    order = [inst | (inst, _, _) <- staff_config]
+    inst_of (StaffGroup inst _) = inst
 
 type Output a = State.State OutputState a
 

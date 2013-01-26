@@ -52,8 +52,10 @@ import qualified Derive.Stack as Stack
 import qualified Derive.TrackLang as TrackLang
 import qualified Derive.TrackWarp as TrackWarp
 
+import qualified Perform.Lilypond.Types as Lilypond.Types
 import qualified Perform.Pitch as Pitch
 import qualified Perform.Signal as Signal
+
 import Types
 
 
@@ -165,7 +167,7 @@ get_val name = do
 is_lilypond_derive :: Deriver Bool
 is_lilypond_derive = Maybe.isJust <$> lookup_lilypond_config
 
-lookup_lilypond_config :: Deriver (Maybe Lilypond)
+lookup_lilypond_config :: Deriver (Maybe Lilypond.Types.Config)
 lookup_lilypond_config = gets (state_lilypond . state_constant)
 
 -- | Set the given val dynamically within the given computation.  This is

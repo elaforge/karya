@@ -59,7 +59,6 @@ module Derive.Deriver.Monad (
 
     -- ** constant
     , Constant(..), initial_constant
-    , Lilypond(..)
     , op_add, op_sub, op_mul
 
     -- ** instrument
@@ -603,7 +602,10 @@ data Constant = Constant {
     -- | Cache from the last derivation.
     , state_cache :: !Cache
     , state_score_damage :: !ScoreDamage
-    , state_lilypond :: !(Maybe Lilypond)
+    -- | Config for lilypond derivation.  Set only when deriving for the
+    -- lilypond backend.  Various calls can check for its presence and derive
+    -- differently (e.g. trill should emit trill ly code instead of notes).
+    , state_lilypond :: !(Maybe Lilypond.Types.Config)
     }
 
 initial_constant :: State.State -> LookupScale
@@ -618,14 +620,6 @@ initial_constant ui_state lookup_scale lookup_inst cache score_damage = Constant
     , state_score_damage = score_damage
     , state_lilypond = Nothing
     }
-
--- | Config for lilypond derivation.  Set only when deriving for the lilypond
--- backend.  Various calls can check for its presence and derive differently
--- (e.g. trill should emit trill ly code instead of notes).
-data Lilypond = Lilypond {
-    ly_time_config :: !Lilypond.Types.TimeConfig
-    , ly_config :: !Lilypond.Types.Config
-    } deriving (Show)
 
 -- ** instrument
 

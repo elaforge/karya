@@ -32,18 +32,24 @@ import Types
 sonata :: BlockId -> Cmd.CmdL ()
 sonata = block sonata_config
 
-sonata_config = Lilypond.TimeConfig 1 Lilypond.D32
+sonata_config :: Lilypond.Config
+sonata_config = (make_config 1 Lilypond.D32)
+    { Lilypond.config_staves =
+        [ (Score.Instrument "vsl/viola", "viola", "")
+        , (Score.Instrument "ptq/c", "piano", "")
+        ]
+    }
 
 pipa :: Derive.Events -> Cmd.CmdL ()
 pipa = from_events config . clean
     where
-    config = Lilypond.TimeConfig 0.125 Lilypond.D16
+    config = make_config 0.125 Lilypond.D16
     clean = filter_inst ["fm8/pipa", "fm8/dizi", "ptq/yangqin"]
         . LEvent.events_of
         -- . filter_inst ["ptq/yangqin"]
 
 bloom :: BlockId -> Cmd.CmdL ()
-bloom = block (Lilypond.TimeConfig 0.5 Lilypond.D16)
+bloom = block (make_config 0.5 Lilypond.D16)
 
 bloom_until :: RealTime -> Cmd.CmdL ()
 bloom_until end = do
@@ -51,23 +57,21 @@ bloom_until end = do
     -- Selection.realtime is not accurate since lilypond derive ignores tempo
     let block_id = Global.bid "bloom/order"
     -- block_id <- Cmd.get_focused_block
-    result <- Cmd.Lilypond.derive (make_config config) block_id
+    result <- Cmd.Lilypond.derive config block_id
     events <- LEvent.write_logs $
         LPerf.in_range Score.event_start 0 end (Derive.r_events result)
     compile_ly block_id config events
     where
-    config = Lilypond.TimeConfig (measure / 5) Lilypond.D16
+    config = make_config (measure / 5) Lilypond.D16
     measure = 10.166666666666666
 
--- | For now I always use the same hardcoded Lilypond.Config, but maybe I'll
--- want to be fancier later.
-make_config :: Lilypond.TimeConfig -> Derive.Lilypond
-make_config config = Derive.Lilypond config
-    (Lilypond.default_config (Lilypond.time_quarter config))
+make_config :: RealTime -> Lilypond.Duration -> Lilypond.Config
+make_config quarter quantize = (Lilypond.default_config quarter)
+    { Lilypond.config_quantize = quantize }
 
-events :: Lilypond.TimeConfig -> BlockId -> Cmd.CmdL Derive.Events
-events config block_id = Derive.r_events <$>
-    Cmd.Lilypond.derive (make_config config) block_id
+events :: Lilypond.Config -> BlockId -> Cmd.CmdL Derive.Events
+events config block_id =
+    Derive.r_events <$> Cmd.Lilypond.derive config block_id
 
 ly_events :: RealTime -> Derive.Events -> ([Lilypond.Event], [Log.Msg])
 ly_events quarter = LEvent.partition . Convert.convert quarter
@@ -76,18 +80,17 @@ filter_inst :: [String] -> [Score.Event] -> [Score.Event]
 filter_inst inst_s = filter ((`elem` insts) . Score.event_instrument)
     where insts = map Score.Instrument inst_s
 
-block :: Lilypond.TimeConfig -> BlockId -> Cmd.CmdL ()
+block :: Lilypond.Config -> BlockId -> Cmd.CmdL ()
 block config block_id = do
     events <- LEvent.write_logs =<< derive config block_id
     compile_ly block_id config events
 
-from_events :: Lilypond.TimeConfig -> [Score.Event] -> Cmd.CmdL ()
+from_events :: Lilypond.Config -> [Score.Event] -> Cmd.CmdL ()
 from_events config events = do
     block_id <- Cmd.get_focused_block
     compile_ly block_id config events
 
-compile_ly :: BlockId -> Lilypond.TimeConfig -> [Score.Event]
-    -> Cmd.CmdL ()
+compile_ly :: BlockId -> Lilypond.Config -> [Score.Event] -> Cmd.CmdL ()
 compile_ly block_id config events = do
     filename <- Cmd.Lilypond.ly_filename block_id
     (result, logs) <- liftIO $
@@ -111,10 +114,10 @@ title_of = Id.ident_name
 
 -- * debugging
 
-derive :: Lilypond.TimeConfig -> BlockId -> Cmd.CmdL Derive.Events
-derive config = fmap Derive.r_events . Cmd.Lilypond.derive (make_config config)
+derive :: Lilypond.Config -> BlockId -> Cmd.CmdL Derive.Events
+derive config = fmap Derive.r_events . Cmd.Lilypond.derive config
 
-make_ly :: Lilypond.TimeConfig
+make_ly :: Lilypond.Config
     -> Cmd.CmdL (Either String [Text.Text], [Log.Msg])
 make_ly config = do
     block_id <- Cmd.get_focused_block

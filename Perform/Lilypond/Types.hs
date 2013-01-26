@@ -4,6 +4,7 @@
 -- it.  Defined here to avoid circular imports.
 module Perform.Lilypond.Types where
 import qualified Util.Pretty as Pretty
+import qualified Derive.Score as Score
 import qualified Perform.RealTime as RealTime
 import Types
 
@@ -21,22 +22,20 @@ data Config = Config {
     -- | Amount of RealTime per quarter note.  This is the same value used by
     -- 'Perform.Lilypond.Convert'.
     config_quarter_duration :: !RealTime
+    -- | Round everything to this duration.
+    , config_quantize :: !Duration
     -- | Allow dotted rests?
     , config_dotted_rests :: !Bool
     , config_dynamics :: !DynamicConfig
+    -- | Map each instrument to its long name and short name.  The order is
+    -- the order they should appear in the score.
+    , config_staves :: ![(Score.Instrument, String, String)]
     } deriving (Show)
 
 -- | If non-null, generate dynamics from each event's dynamic control.
 -- This has cutoffs for each dynamic level, which should be \"p\", \"mf\",
 -- etc.
 type DynamicConfig = [(Double, String)]
-
-data TimeConfig = TimeConfig {
-    -- | Amount of RealTime for one quarter note.
-    time_quarter :: RealTime
-    -- | Round everything to this duration.
-    , time_quantize :: Duration
-    } deriving (Show)
 
 -- * Duration
 

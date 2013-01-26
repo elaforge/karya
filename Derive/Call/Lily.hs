@@ -24,7 +24,7 @@ import qualified Perform.Pitch as Pitch
 import Types
 
 
-when_lilypond :: (Derive.Lilypond -> Derive.Deriver a)
+when_lilypond :: (Lilypond.Config -> Derive.Deriver a)
     -- ^ Run if this is a lilypond derive.
     -> Derive.Deriver a -- ^ Run if this is a normal derive.
     -> Derive.Deriver a
@@ -106,16 +106,16 @@ code0 start = code (start, 0)
 -- * convert
 
 -- | Round the RealTime to the nearest NoteDuration.
-note_duration :: Derive.Lilypond -> RealTime -> Lilypond.NoteDuration
+note_duration :: Lilypond.Config -> RealTime -> Lilypond.NoteDuration
 note_duration config = Lilypond.time_to_note_dur . to_time config
 
 -- | Like 'note_duration', but only succeeds if the RealTime is exactly
 -- a NoteDuration.
-is_note_duration :: Derive.Lilypond -> RealTime
+is_note_duration :: Lilypond.Config -> RealTime
     -> Maybe Lilypond.NoteDuration
 is_note_duration config = Lilypond.is_note_dur . to_time config
 
-is_duration :: Derive.Lilypond -> RealTime -> Maybe Lilypond.Duration
+is_duration :: Lilypond.Config -> RealTime -> Maybe Lilypond.Duration
 is_duration config t = case is_note_duration config t of
     Just (Lilypond.NoteDuration dur False) -> Just dur
     _ -> Nothing
@@ -144,8 +144,8 @@ pitch_to_lily pitch = do
     right = Derive.require_right ((prefix <>) . Pretty.pretty)
     prefix = "Lily.pitch_to_lily: "
 
-to_time :: Derive.Lilypond -> RealTime -> Lilypond.Time
-to_time = Lilypond.real_to_time . Lilypond.time_quarter . Derive.ly_time_config
+to_time :: Lilypond.Config -> RealTime -> Lilypond.Time
+to_time = Lilypond.real_to_time . Lilypond.config_quarter_duration
 
 
 -- * eval
@@ -153,13 +153,13 @@ to_time = Lilypond.real_to_time . Lilypond.time_quarter . Derive.ly_time_config
 -- | A lilypond \"note\", which is just a chunk of text.
 type Note = String
 
-eval :: Derive.Lilypond -> Derive.PassedArgs d -> [Note.Event]
+eval :: Lilypond.Config -> Derive.PassedArgs d -> [Note.Event]
     -> Derive.Deriver [Note]
 eval config args notes = do
     start <- Args.real_start args
     eval_events config start =<< Note.place notes
 
-eval_events :: Derive.Lilypond -> RealTime -> Derive.Events
+eval_events :: Lilypond.Config -> RealTime -> Derive.Events
     -> Derive.Deriver [Note]
 eval_events config start events = do
     meter <- maybe (return Meter.default_meter) parse_meter
@@ -171,16 +171,16 @@ eval_events config start events = do
     parse_meter = either err return . Meter.parse_meter
     err = Derive.throw . ("parse " <> Pretty.pretty Lilypond.v_meter <>)
 
-eval_notes :: Derive.Lilypond -> Meter.Meter -> RealTime -> Derive.Events
+eval_notes :: Lilypond.Config -> Meter.Meter -> RealTime -> Derive.Events
     -> ([Note], [Log.Msg])
-eval_notes (Derive.Lilypond time_config config) meter start score_events =
+eval_notes config meter start score_events =
     (map Lilypond.to_lily notes, logs)
     where
     (events, logs) = LEvent.partition $ Convert.convert quarter score_events
     notes = Lilypond.simple_convert config meter
         (Lilypond.real_to_time quarter start)
-        (Convert.quantize quantize_dur events)
-    Lilypond.TimeConfig quarter quantize_dur = time_config
+        (Convert.quantize (Lilypond.config_quantize config) events)
+    quarter = Lilypond.config_quarter_duration config
 
 
 -- * calls

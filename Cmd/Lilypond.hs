@@ -53,7 +53,7 @@ lookup_key perf =
 
 -- | Run a derivation in lilypond context, which will cause certain calls to
 -- behave differently.
-derive :: (Cmd.M m) => Derive.Lilypond -> BlockId -> m Derive.Result
+derive :: (Cmd.M m) => Lilypond.Config -> BlockId -> m Derive.Result
 derive config block_id = do
     state <- (State.config#State.default_#State.tempo #= 1) <$> State.get
     global_transform <- State.config#State.global_transform <#> State.get
@@ -73,7 +73,7 @@ lilypond_scope = Scope.add_note_lookup lookup
     -- already implicit when you see the dot.
     note = Note.note_call "" (Note.default_note False)
 
-compile_ly :: FilePath -> Lilypond.TimeConfig -> Lilypond.Title
+compile_ly :: FilePath -> Lilypond.Config -> Lilypond.Title
     -> [Score.Event] -> IO (Either String Cmd.StackMap, [Log.Msg])
 compile_ly ly_filename config title events = do
     let (result, logs) = make_ly config title events
@@ -88,14 +88,15 @@ compile_ly ly_filename config title events = do
                 ["-o", FilePath.dropExtension ly_filename, ly_filename]
             return $ Right stack_map
 
-make_ly :: Lilypond.TimeConfig -> Lilypond.Title -> [Score.Event]
+make_ly :: Lilypond.Config -> Lilypond.Title -> [Score.Event]
     -> (Either String ([Text.Text], Cmd.StackMap), [Log.Msg])
-make_ly (Lilypond.TimeConfig quarter quantize_dur) title score_events =
-    (Lilypond.make_ly (Lilypond.default_config quarter) title
-        (postproc quantize_dur events), logs)
+make_ly config title score_events =
+    (Lilypond.make_ly config title (postproc (Lilypond.config_quantize config)
+        events), logs)
     where
     (events, logs) = LEvent.partition $
-        Convert.convert quarter (map LEvent.Event score_events)
+        Convert.convert (Lilypond.config_quarter_duration config)
+            (map LEvent.Event score_events)
 
 -- * postproc
 
