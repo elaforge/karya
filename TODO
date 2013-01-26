@@ -72,7 +72,7 @@ UNSORTED
     solution.
   * just plain >kkt/kendang should default to kendang-wadon
     Or, what about making score-specific instrument aliases?
-  - make a .cabal file with packages and versions to make install easier
+  * make a .cabal file with packages and versions to make install easier
     Generate the .cabal from shake.
   - bring back the idea of opening up a text entry in raw edit mode?  Then I
     can get real cursor control and use the IME.  But I'd need to either switch

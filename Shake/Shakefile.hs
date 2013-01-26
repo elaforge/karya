@@ -215,17 +215,38 @@ hsc2hsNeedsC = ["Util/Git/LibGit2.hsc"]
 -- just union all the packages.  TODO can I ask ghc to infer packages
 -- automatically like --make?
 packages :: [String]
-packages = words $ "fixed-list deepseq data-ordlist cereal either"
-    ++ " semigroups dlist parsec text stm network haskell-src regex-pcre"
-    ++ " bytestring attoparsec utf8-string"
-    ++ " mersenne-random-pure64 hashable random-shuffle"
-    ++ " containers filepath transformers vector"
-    ++ " QuickCheck fclabels syb"
-    ++ " zmidi-core" -- midi file loading
-    ++ " Diff" -- Util.Test
-    ++ " ghc ghc-paths haskeline" -- repl
-    ++ " shake" -- shakefile
-    ++ if useEkg then " ekg" else ""
+packages = (if not useEkg then List.delete "ekg" else id) $
+    map fst libraryDependencies
+
+libraryDependencies :: [(String, String)]
+libraryDependencies = concat $
+    -- basic deps
+    [ w "transformers mtl deepseq data-ordlist cereal text stm network"
+    , w "vector either utf8-string semigroups"
+    , w "attoparsec" -- Derive: tracklang parsing
+    , [("fixed-list", ">=0.1.5")] -- Derive.Call.Util: for typesafe mapping
+    -- Derive: score randomization
+    , w "mersenne-random-pure64 hashable random-shuffle"
+    , w "dlist" -- Util.TimeVector
+    , w "bindings-DSL" -- Util.Git.LibGit2
+    , w "fclabels" -- Util.Lens
+    , [("ghc", ">=7.6.1")] -- REPL
+    , w "ghc-paths haskeline" -- REPL
+    -- Instrument.Parse, could use attoparsec, but parsec errors are better
+    , w "parsec"
+    , w "haskell-src" -- Util.PPrint
+    , w "regex-pcre Diff" -- Util.Test
+    , w "QuickCheck" -- Derive.DeriveQuickCheck
+    , [("shake", ">=0.6")] -- build system
+    , w "ekg" -- if useEkg == True
+    , [("zmidi-core", ">=0.6")] -- for Cmd.Load.Midi
+    ]
+    where w = map (\p -> (p, "")) . words
+
+-- | Dependencies only needed for their binaries, not to be included as
+-- packages.
+binaryDependencies :: [(String, String)]
+binaryDependencies = [("pandoc", "")] -- generate documentation
 
 -- ** cc
 
@@ -411,6 +432,7 @@ main = do
                 _ -> return ()
         forM_ extractableDocs $ \fn ->
             fn *> extractDoc (modeConfig Debug)
+        "karya.cabal" *> makeCabal
         configHeaderRule
         testRules (modeConfig Test)
         profileRules (modeConfig Profile)
@@ -640,6 +662,21 @@ haddock hs = not $ hs `elem` map hsMain hsBinaries
     -- This will crash haddock on OS X since jack.h is likely not present.
     -- TODO sorta hacky
     || hs == "Midi/JackMidi.hsc"
+
+-- * cabal
+
+makeCabal :: FilePath -> Shake.Action ()
+makeCabal fn = do
+    template <- Shake.readFile' "doc/karya.cabal.template"
+    Shake.writeFile' fn $ (template ++ buildDepends)
+    where
+    indent = replicate 8 ' '
+    buildDepends = (indent++) $ List.intercalate (",\n" ++ indent) $
+        map mkline (libraryDependencies ++ binaryDependencies)
+    mkline (package, constraint) =
+        package ++ if null constraint then "" else " " ++ constraint
+
+-- * hs
 
 makeHs :: FilePath -> FilePath -> FilePath -> Util.Cmdline
 makeHs dir out main = ("GHC-MAKE", out, cmdline)

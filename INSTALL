@@ -1,36 +1,25 @@
-    HASKELL DEPS
+    HASKELL DEPENDENCIES
 
-# basic deps
-transformers mtl deepseq data-ordlist cereal text stm network vector either
-utf8-string # Ui.Event
+To install the needed haskell dependencies, type:
 
-attoparsec # Derive: tracklang parsing
-fixed-list-0.1.5 # Derive.Call.Util: for typesafe mapping
-mersenne-random-pure64 hashable random-shuffle # Derive: score randomization
-dlist # Util.TimeVector
-bindings-dsl # Util.Git.LibGit2
-fclabels # Util.Lens
-semigroups # Data.List.NonEmpty
+cabal install --only-dependencies
 
-ghc-paths haskeline # repl
+The actual build is with shake, but there's a dummy cabal file with just
+dependencies to make install easier.
 
-parsec # Instrument.Parse, could use attoparsec, but parsec errors are better
-haskell-src # Util.PPrint
-regex-pcre Diff # Util.Test
-
-QuickCheck # Derive.DeriveQuickCheck
-shake-0.6 # build system
-pandoc # documentation
-
-ekg # if Shakefile useEkg is True
-zmidi-core >= 0.6 # for Cmd.Load.Midi
+pandoc is optional, if you don't want to deal with its zillion dependencies.
+Just delete it out of the cabal file.
 
     INSTALLED SEPARATELY
 
 libpcre library from http://www.pcre.org
+OS X ports puts headers in /opt where configure may not find them.
 
 libgit2 - It has no official releases, but I synced to:
 https://github.com/libgit2/libgit2 be5869fce0ab9c61a294020e9baa9755c58ee8a3
+
+Make sure you sync to excatly that commit, because they break the API
+frequently.
 
 lilypond, for some fonts
 
@@ -42,12 +31,12 @@ lilypond, for some fonts
     # or
     cp /usr/share/lilypond/<version>/fonts/otf/ /usr/share/fonts/
 
-    non haskell deps
+fltk-1.3, from http://fltk.org/
 
-fltk-1.3
+    LINUX
 
-libpcre, for regex-pcre.  OS X port puts headers in /opt where configure may
-not find them.
+Either jack1 or jack2.  JACK support is mostly untested and probably doesn't
+work.
 
     MISC
 
