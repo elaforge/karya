@@ -53,14 +53,20 @@ notes_append = notes_code . Suffix
 notes_around :: Code -> Code -> Derive.PassedArgs d
     -> Derive.EventDeriver -> Derive.EventDeriver
 notes_around start end args = when_lilypond $
-    const $ call_notes_around start end args
-
-call_notes_around :: Code -> Code -> Derive.PassedArgs d -> Derive.EventDeriver
-call_notes_around start end =
-    Note.place . concat . map around . Note.sub_events
+    const $ Note.place $ concat $ map around $ Note.sub_events args
     where
     around = Seq.first_last (Note.map_event (add_code start))
         (Note.map_event (add_code end))
+
+-- | Like 'notes_around', but when I'm not in lilypond mode just derive the
+-- sub events unchanged.
+code_around :: String -> String -> Derive.PassedArgs d
+    -> Derive.EventDeriver
+code_around start end args = when_lilypond
+        (const $ code0 (Args.start args) start
+            <> notes <> code0 (Args.end args) end)
+        notes
+    where notes = Note.place (concat (Note.sub_events args))
 
 notes_with :: (Derive.EventDeriver -> Derive.EventDeriver)
     -> Derive.PassedArgs d
@@ -189,9 +195,7 @@ c_8va :: Derive.NoteCall
 c_8va = Derive.stream_generator "ottava"
     "Emit `lilypond \\ottava = #n` around the notes in scope."
     $ Sig.call (defaulted "octave" 1 "Transpose this many octaves up or down.")
-    $ \oct args -> code0 (Args.start args) (ottava oct)
-        <> Note.place (concat (Note.sub_events args))
-        <> code0 (Args.end args) (ottava 0)
+    $ \oct args -> code_around (ottava oct) (ottava 0) args
 
 ottava :: Int -> String
 ottava n = "\\ottava #" ++ show n
@@ -201,13 +205,9 @@ c_xstaff = Derive.stream_generator "xstaff"
     "Emit lilypond to put the notes on a different staff."
     $ Sig.call (required "staff" "Should be `up` or `down`.") $
     \staff args -> do
-        dir <- case staff of
+        (staff1, staff2) <- case staff of
             "up" -> return ("up", "down")
             "down" -> return ("down", "up")
             _ -> Derive.throw $ "expected 'up' or 'down', got " <> show staff
-        xstaff dir args
-
-xstaff :: (String, String) -> Derive.PassedArgs d -> Derive.EventDeriver
-xstaff (staff1, staff2) = call_notes_around
-    (Prefix $ "\\change Staff = " <> Lilypond.to_lily staff1)
-    (Suffix $ "\\change Staff = " <> Lilypond.to_lily staff2)
+        code_around (change staff1) (change staff2) args
+    where change staff = "\\change Staff = " <> Lilypond.to_lily staff

@@ -56,14 +56,13 @@ attributed_note attrs =
 
 transform_notes :: String -> (Derive.EventDeriver -> Derive.EventDeriver)
     -> String -> String -> Derive.NoteCall
-transform_notes name transform generator_doc transform_doc =
-    Derive.Call
-        { Derive.call_name = name
-        , Derive.call_generator = Just $
-            Derive.generator_call generator_doc generator
-        , Derive.call_transformer = Just $
-            Derive.transformer_call transform_doc transformer
-        }
+transform_notes name transform generator_doc transform_doc = Derive.Call
+    { Derive.call_name = name
+    , Derive.call_generator = Just $
+        Derive.generator_call generator_doc generator
+    , Derive.call_transformer = Just $
+        Derive.transformer_call transform_doc transformer
+    }
     where
     generator = Sig.call0 $ \args -> case Note.sub_events args of
         [] -> transform $ Note.inverting Util.placed_note args
