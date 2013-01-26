@@ -262,10 +262,18 @@ test_attributes = do
     -- Test the attribute-adding calls and 'Lilypond.attrs_to_code'.
     let f = first (convert_staves2 []) . LilypondTest.derive
     equal (f
-        [ (">", [(0, 1, "+pizz"), (1, 1, "o"), (2, 1, "")])
+        [ (">", [(0, 1, "+mute"), (1, 1, "o"), (2, 1, "")])
         , ("*", [(0, 0, "4a"), (1, 0, "4b"), (2, 0, "4c")])
         ])
-        (Right ["a'4^\"pizz.\" b'4-\\flageolet c'4 r4"], [])
+        (Right ["a'4-+ b'4-\\flageolet c'4 r4"], [])
+
+test_modal_attributes = do
+    let f = first (convert_staves2 []) . LilypondTest.derive
+    equal (f
+        [ (">", [(0, 1, "+pizz"), (1, 1, "+pizz"), (2, 1, "")])
+        , ("*", [(0, 0, "4c")])
+        ])
+        (Right ["c'4^\"pizz.\" c'4 c'4^\"arco\" r4"], [])
 
 -- * util
 

@@ -17,7 +17,7 @@ UNSORTED
   * measure 49 is messed up
   * 8va causes no pitch signal
   * also there's a stack too deep
-  - don't need to put pizz on every single note
+  * don't need to put pizz on every single note
     "modal" instructions need one articulation when they start, and another
     (arco) when they stop.
   - I can fix rhythm spelling by changing the meter.  But it's a pain because

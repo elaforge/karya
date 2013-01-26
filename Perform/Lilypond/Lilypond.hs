@@ -64,11 +64,18 @@ attribute_code =
     , (Attrs.mute, "-+")
     , (Attrs.marcato, "-^")
     , (Attrs.staccato, "-.")
-    , (Attrs.pizz, "^\"pizz.\"")
     , (Attrs.trill, "\\trill")
     , (Attrs.portato, "-_")
     , (Attrs.tenuto, "--")
     , (Attrs.accent, "->")
+    ]
+
+-- | Certain attributes are modal, in that they emit one thing when they
+-- start, and another when they stop.
+modal_attributes :: [(Score.Attributes, Code, Code)]
+modal_attributes =
+    [ (Attrs.pizz, "^\"pizz.\"", "^\"arco\"")
+    , (Attrs.nv, "^\"nv\"", "^\"vib\"")
     ]
 
 -- * types
@@ -207,6 +214,8 @@ data State = State {
     -- change on each note
     -- | End of the previous note.
     , state_note_end :: Time
+        -- | Used in conjunction with 'modal_attributes'.
+    , state_prev_attrs :: Score.Attributes
     , state_dynamic :: Maybe String
     , state_clef :: Maybe Clef
     , state_key :: Maybe Key
@@ -219,7 +228,17 @@ convert_measures :: Config -> [Meter] -> [Event] -> Either String [[Note]]
 convert_measures config meters events =
     run_convert initial $ add_time_changes <$> go (promote_0dur events)
     where
-    initial = State config meters 0 0 0 Nothing Nothing Nothing
+    initial = State
+        { state_config = config
+        , state_meters = meters
+        , state_measure_start = 0
+        , state_measure_end = 0
+        , state_note_end = 0
+        , state_prev_attrs = mempty
+        , state_dynamic = Nothing
+        , state_clef = Nothing
+        , state_key = Nothing
+        }
     go [] = return []
     go events = do
         (measure, events) <- convert_measure events
@@ -256,7 +275,7 @@ simple_convert config_ meter = go
         where
         leading_rests = make_rests config meter start (event_start event)
         (note, end, rest_events) =
-            convert_note config Nothing meter event events
+            convert_note config Nothing mempty meter event events
 
 -- TODO The meters are still not correct.  Since meter is only on notes,
 -- I can't represent a meter change during silence.  I would need to generate
@@ -299,7 +318,8 @@ convert_measure events = case events of
         key <- lookup_key event
         let key_change = [KeyChange key | Just key /= state_key state]
         let (note, end, rest_events) = convert_note (state_config state)
-                (state_dynamic state) meter event events
+                (state_dynamic state) (state_prev_attrs state) meter event
+                events
             leading_rests = make_rests (state_config state) meter
                 (state_note_end state) (event_start event)
             notes = leading_rests ++ clef_change ++ key_change ++ [note]
@@ -308,6 +328,11 @@ convert_measure events = case events of
             , state_key = Just key
             , state_dynamic = Just $
                 get_dynamic (config_dynamics (state_config state)) event
+            , state_prev_attrs = case note of
+                Note {} -> event_attributes event
+                -- If it's a Code event then it probably doesn't have any attrs
+                -- anyway.
+                _ -> state_prev_attrs state
             , state_note_end = end
             }
         (rest_notes, rest_events) <- measure1 meter rest_events
@@ -320,9 +345,10 @@ convert_measure events = case events of
         State.modify $ \state -> state { state_note_end = end }
         return rests
 
-convert_note :: Config -> Maybe String -> Meter -> Event -> [Event]
+convert_note :: Config -> Maybe String -> Score.Attributes -> Meter -> Event
+    -> [Event]
     -> (Note, Time, [Event]) -- ^ (note, note end time, remaining events)
-convert_note config prev_dynamic meter event events
+convert_note config prev_dynamic modes meter event events
     | Just code <- TrackLang.maybe_val v_ly_code env =
         (Code code, start + event_duration event, events)
     | otherwise = (note, end, clipped ++ rest)
@@ -335,10 +361,11 @@ convert_note config prev_dynamic meter event events
         , _note_prepend =
             fromMaybe "" (TrackLang.maybe_val v_ly_code_prepend env)
         , _note_append = fromMaybe "" (TrackLang.maybe_val v_ly_code_append env)
-            ++ attrs_to_code (Score.environ_attributes env)
+            ++ attrs_to_code modes (event_attributes event)
             ++ dynamic_to_code (config_dynamics config) prev_dynamic event
         , _note_stack = Seq.last (Stack.to_ui (event_stack event))
         }
+
     (here, rest) = break ((> start) . event_start) (event : events)
     allowed = min (max_end - start) (allowed_time_greedy True meter start)
     allowed_dur = time_to_note_dur allowed
@@ -404,9 +431,16 @@ dynamic_to_code dynamics prev_dyn event
     | otherwise = ""
     where dyn = get_dynamic dynamics event
 
-attrs_to_code :: Score.Attributes -> Code
-attrs_to_code attrs = concat
-    [code | (attr, code) <- attribute_code, Score.attrs_contain attrs attr]
+attrs_to_code :: Score.Attributes -> Score.Attributes -> Code
+attrs_to_code prev_attrs attrs = concat $
+    [code | (attr, code) <- attribute_code, has attr]
+    ++ [start | (attr, start, _) <- modal_attributes,
+        has attr, not (prev_has attr)]
+    ++ [end | (attr, _, end) <- modal_attributes,
+        not (has attr), prev_has attr]
+    where
+    has = Score.attrs_contain attrs
+    prev_has = Score.attrs_contain prev_attrs
 
 -- | Clip off the part of the event before the given time, or Nothing if it
 -- was entirely clipped off.
