@@ -72,22 +72,24 @@ run :: (Cmd.M m) => Derive.Cache -> Derive.ScoreDamage
     -> Derive.Deriver a -> m (Derive.RunResult a)
 run cache damage deriver = do
     ui_state <- State.get
-    run_ui ui_state id cache damage deriver
+    scope <- Cmd.gets (Cmd.state_global_scope . Cmd.state_config)
+    constant <- make_constant ui_state cache damage
+    env <- make_environ
+    return $ Derive.derive constant scope env deriver
 
-run_ui :: (Cmd.M m) => State.State -> (Derive.Constant -> Derive.Constant)
-    -> Derive.Cache -> Derive.ScoreDamage -> Derive.Deriver a
-    -> m (Derive.RunResult a)
-run_ui ui_state modify_constant cache damage deriver = do
+make_environ :: (State.M m) => m TrackLang.Environ
+make_environ = do
+    deflt <- State.get_default id
+    return $ initial_environ (State.default_scale deflt)
+        (State.default_instrument deflt)
+
+make_constant :: (Cmd.M m) => State.State -> Derive.Cache -> Derive.ScoreDamage
+    -> m Derive.Constant
+make_constant ui_state cache damage = do
     lookup_scale <- Cmd.get_lookup_scale
     lookup_inst <- get_lookup_inst
-    let constant = modify_constant $
-            Derive.initial_constant ui_state lookup_scale lookup_inst cache
-                damage
-    scope <- Cmd.gets (Cmd.state_global_scope . Cmd.state_config)
-    let deflt = State.config_default (State.state_config ui_state)
-        env = initial_environ (State.default_scale deflt)
-            (State.default_instrument deflt)
-    return $ Derive.derive constant scope env deriver
+    return $ Derive.initial_constant
+        ui_state lookup_scale lookup_inst cache damage
 
 -- | Run a derivation when you already know the Dynamic.  This is the case when
 -- deriving at a certain point in the score via the TrackDynamic.

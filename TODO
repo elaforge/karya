@@ -3,7 +3,7 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
-  - Note should ignore +staccato in lilypond mode.
+  * Note should ignore +staccato in lilypond mode.
   - Guessing dynamics from the dyn doesn't really work.  They should be set
     explicitly.  Should I do it with an attr or by diretly emitting ly?
     I think the latter, since other performers likely don't care about it.

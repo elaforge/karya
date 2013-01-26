@@ -21,7 +21,9 @@ import qualified Cmd.Msg as Msg
 import qualified Cmd.PlayUtil as PlayUtil
 
 import qualified Derive.Call.Block as Call.Block
+import qualified Derive.Call.Note as Note
 import qualified Derive.Derive as Derive
+import qualified Derive.Deriver.Scope as Scope
 import qualified Derive.LEvent as LEvent
 import qualified Derive.Scale.Twelve as Twelve
 import qualified Derive.Score as Score
@@ -55,9 +57,21 @@ derive :: (Cmd.M m) => Derive.Lilypond -> BlockId -> m Derive.Result
 derive config block_id = do
     state <- (State.config#State.default_#State.tempo #= 1) <$> State.get
     global_transform <- State.config#State.global_transform <#> State.get
-    Derive.extract_result <$> PlayUtil.run_ui state with_ly mempty mempty
-        (Call.Block.eval_root_block global_transform block_id)
-    where with_ly constant = constant { Derive.state_lilypond = Just config }
+    scope <- Cmd.gets (Cmd.state_global_scope . Cmd.state_config)
+    constant <- PlayUtil.make_constant state mempty mempty
+    env <- PlayUtil.make_environ
+    let deriver = Call.Block.eval_root_block global_transform block_id
+    return $ Derive.extract_result $ Derive.derive
+        (constant { Derive.state_lilypond = Just config })
+        (lilypond_scope scope) env deriver
+
+lilypond_scope :: Derive.Scope -> Derive.Scope
+lilypond_scope = Scope.add_note_lookup lookup
+    where
+    lookup = Derive.map_lookup $ Derive.make_calls [("", note), ("n", note)]
+    -- Turn off the behaviour where staccato shortens the note, since that's
+    -- already implicit when you see the dot.
+    note = Note.note_call "" (Note.default_note False)
 
 compile_ly :: FilePath -> Lilypond.TimeConfig -> Lilypond.Title
     -> [Score.Event] -> IO (Either String Cmd.StackMap, [Log.Msg])

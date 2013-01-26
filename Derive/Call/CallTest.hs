@@ -6,6 +6,7 @@ import qualified Util.Seq as Seq
 import qualified Ui.State as State
 import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
+import qualified Derive.Deriver.Scope as Scope
 import qualified Derive.ParseBs as ParseBs
 import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
@@ -50,9 +51,8 @@ run_control events = extract $ DeriveTest.derive_tracks
 
 with_note_call :: String -> Derive.NoteCall
     -> Derive.Deriver a -> Derive.Deriver a
-with_note_call name call = Derive.with_scope $ \scope -> scope
-    { Derive.scope_note =
-        add_builtin (single_lookup name call) (Derive.scope_note scope) }
+with_note_call name call =
+    Derive.with_scope $ Scope.add_note_lookup (single_lookup name call)
 
 with_control_call :: String -> Derive.ControlCall
     -> Derive.Deriver a -> Derive.Deriver a
@@ -60,19 +60,12 @@ with_control_call name call = with_control_lookup (single_lookup name call)
 
 with_control_lookup :: Derive.LookupCall Derive.ControlCall
     -> Derive.Deriver a -> Derive.Deriver a
-with_control_lookup lookup = Derive.with_scope $ \scope -> scope
-    { Derive.scope_control = add_builtin lookup (Derive.scope_control scope) }
+with_control_lookup = Derive.with_scope . Scope.add_control_lookup
 
 with_val_call :: String -> Derive.ValCall
     -> Derive.Deriver a -> Derive.Deriver a
-with_val_call name call = Derive.with_scope $ \scope -> scope
-    { Derive.scope_val =
-        add_builtin (single_val_lookup name call) (Derive.scope_val scope) }
-
-add_builtin :: Derive.LookupCall call -> Derive.ScopeType call
-    -> Derive.ScopeType call
-add_builtin lookup stype =
-    stype { Derive.stype_builtin = lookup : Derive.stype_builtin stype }
+with_val_call name call =
+    Derive.with_scope $ Scope.add_val_lookup (single_val_lookup name call)
 
 single_lookup :: String -> Derive.Call d -> Derive.LookupCall (Derive.Call d)
 single_lookup name call =
