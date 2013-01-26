@@ -3,6 +3,11 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
+  - Note should ignore +staccato in lilypond mode.
+  - Guessing dynamics from the dyn doesn't really work.  They should be set
+    explicitly.  Should I do it with an attr or by diretly emitting ly?
+    I think the latter, since other performers likely don't care about it.
+  * Status bar should show tid of selection.
   - Range for errors always starts at 0, I think it's Note.Events that have
     been normalized to zero.  I really need some reliable way to get track
     time.
@@ -68,6 +73,7 @@ UNSORTED
   * just plain >kkt/kendang should default to kendang-wadon
     Or, what about making score-specific instrument aliases?
   - make a .cabal file with packages and versions to make install easier
+    Generate the .cabal from shake.
   - bring back the idea of opening up a text entry in raw edit mode?  Then I
     can get real cursor control and use the IME.  But I'd need to either switch
     to Text or make sure ParseBs works on UTF8.

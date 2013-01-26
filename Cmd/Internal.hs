@@ -17,6 +17,7 @@ import qualified Ui.Block as Block
 import qualified Ui.Color as Color
 import qualified Ui.Diff as Diff
 import qualified Ui.Event as Event
+import qualified Ui.Id as Id
 import qualified Ui.Key as Key
 import qualified Ui.State as State
 import qualified Ui.Types as Types
@@ -353,18 +354,23 @@ sync_zoom_status _view_id = return ()
 
 sync_selection :: (Cmd.M m) => ViewId -> Maybe Types.Selection -> m ()
 sync_selection view_id maybe_sel = do
-    Cmd.set_view_status view_id Config.status_selection
-        (fmap selection_status maybe_sel)
-    block_id <- State.block_id_of view_id
-    when_just maybe_sel $
-        Info.set_inst_status block_id . Types.sel_cur_track
+    let set = Cmd.set_view_status view_id Config.status_selection
+    case maybe_sel of
+        Nothing -> set Nothing
+        Just sel -> do
+            block_id <- State.block_id_of view_id
+            ns <- State.get_namespace
+            tid <- State.event_track_at block_id (Types.sel_cur_track sel)
+            set $ Just (selection_status ns sel tid)
+            Info.set_inst_status block_id (Types.sel_cur_track sel)
 
-selection_status :: Types.Selection -> String
-selection_status sel =
+selection_status :: Id.Namespace -> Types.Selection -> Maybe TrackId -> String
+selection_status ns sel maybe_track_id =
     Pretty.pretty start
         ++ (if start == end then "" else '-' : Pretty.pretty end)
     ++ " " ++ show tstart
         ++ (if tstart == tend then "" else '-' : show tend)
+    ++ maybe "" ((' ':) . Id.show_short ns . Id.unpack_id) maybe_track_id
     where
     (start, end) = Types.sel_range sel
     (tstart, tend) = Types.sel_track_range sel
