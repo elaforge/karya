@@ -51,6 +51,13 @@ import Types
 
 -- * general purpose
 
+rename :: RulerId -> RulerId -> Cmd.CmdL ()
+rename = Create.rename_ruler
+
+-- | List all rulers.
+list :: Cmd.CmdL [RulerId]
+list = State.gets (Map.keys . State.state_rulers)
+
 -- | Destroy all unrefereced rulers, and return their now-invalid RulerIds.
 gc :: (State.M m) => m [RulerId]
 gc = do

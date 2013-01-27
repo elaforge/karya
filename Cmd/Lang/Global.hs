@@ -90,6 +90,13 @@ view = Cmd.get_focused_view
 root :: Cmd.CmdL BlockId
 root = State.get_root_id
 
+-- | Create a namespace, and throw an IO exception if it has bad characters.
+-- Intended to be used from the REPL, where throwing an IO exception is ok.
+ns :: String -> Id.Namespace
+ns s = case Id.namespace s of
+    Nothing -> error $ "bad namespace: " ++ show s
+    Just ns -> ns
+
 -- | Some oprators to more conveniently string together monadic and non-monadic
 -- functions in the REPL.
 --
