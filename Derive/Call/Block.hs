@@ -114,7 +114,7 @@ symbol_to_block_id sym
 
 make_block_id :: Id.Namespace -> TrackLang.Symbol -> Maybe BlockId
 make_block_id namespace (TrackLang.Symbol call) =
-    Types.BlockId <$> Id.make namespace call
+    Types.BlockId <$> Id.read_short namespace call
 
 -- ** clip
 

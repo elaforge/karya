@@ -90,7 +90,7 @@ can_create :: (State.M m) => String -> m Bool
 can_create "" = return False
 can_create name = do
     ns <- State.get_namespace
-    case Types.BlockId <$> Id.make ns name of
+    case Types.BlockId <$> Id.read_short ns name of
         Just block_id -> not . Map.member block_id
             <$> State.gets State.state_blocks
         Nothing -> return False

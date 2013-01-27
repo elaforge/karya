@@ -72,7 +72,7 @@ instance AutoId TrackId where auto_id = make_id Types.TrackId "TrackId"
 make_id :: (Id.Id -> a) -> String -> String -> String -> a
 make_id make msg ns name = case Id.namespace ns of
     Nothing -> error $ msg ++ ": illegal characters in namespace: " ++ show ns
-    Just ns -> case Id.make ns name of
+    Just ns -> case Id.read_short ns name of
         Nothing -> error $ msg ++ ": illegal characters in ID: " ++ show name
         Just ident -> make ident
 

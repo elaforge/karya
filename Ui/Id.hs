@@ -3,7 +3,7 @@ module Ui.Id (
     Namespace, namespace, unsafe_namespace, un_namespace, Id
 
     -- * construction
-    , id, unsafe_id, make
+    , id, unsafe_id
 
     -- * naming enforcement
     , is_id, is_id_char, is_strict_id, is_strict_id_char, ascii_lower
@@ -13,7 +13,7 @@ module Ui.Id (
     , un_id, id_name, set_name, id_namespace, set_namespace
 
     -- * read / show
-    , read_id, show_id, show_short
+    , read_id, show_id, read_short, show_short
 
     -- * Ident
     , Ident(..)
@@ -89,15 +89,6 @@ id ns ident
 -- | Like 'id', but will strip and log invalid characters.
 unsafe_id :: Namespace -> String -> Id
 unsafe_id ns ident = Id ns (B.pack (enforce_id ident))
-
--- | A smarter constructor that only applies the namespace if the string
--- doesn't already have one.
-make :: Namespace -> String -> Maybe Id
-make default_ns text = case break (=='/') text of
-    (ident, "") -> id default_ns ident
-    (ns, ident) -> do
-        ns <- namespace ns
-        id ns (drop 1 ident)
 
 -- | To make naming them in events easier, IDs have a restricted character set.
 -- @.@ is allowed so there is a "phrase separator" and @`@ is allowed for
@@ -194,7 +185,16 @@ read_id s = unsafe_id (unsafe_namespace pre) (drop 1 post)
 show_id :: Id -> String
 show_id (Id ns ident) = Pretty.pretty ns ++ "/" ++ B.unpack ident
 
--- | The inverse of 'make'.  TODO rename them
+-- | A smarter constructor that only applies the namespace if the string
+-- doesn't already have one.
+read_short :: Namespace -> String -> Maybe Id
+read_short default_ns text = case break (=='/') text of
+    (ident, "") -> id default_ns ident
+    (ns, ident) -> do
+        ns <- namespace ns
+        id ns (drop 1 ident)
+
+-- | The inverse of 'read_short'.
 show_short :: Namespace -> Id -> String
 show_short default_ns ident@(Id ns name)
     | default_ns == ns = B.unpack name

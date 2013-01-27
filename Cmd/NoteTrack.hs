@@ -278,7 +278,7 @@ cmd_method_edit msg = Cmd.suppress_history Cmd.MethodEdit
 -- This doesn't use the full Derive.Parse machinery, but is simple and doesn't
 -- require the text to be fully parseable.
 block_call :: Id.Namespace -> String -> Maybe BlockId
-block_call ns expr = Types.BlockId <$> Id.make ns call
+block_call ns expr = Types.BlockId <$> Id.read_short ns call
     where call = generator_of expr
 
 generator_of :: String -> String

@@ -50,7 +50,7 @@ default_divider = Block.Divider Color.blue
 
 test_ns = Id.unsafe_namespace "test"
 mkid name = fromMaybe (error $ "invalid characters in " ++ show name) $
-    Id.make test_ns name
+    Id.read_short test_ns name
 bid = Types.BlockId . mkid
 vid = Types.ViewId . mkid
 tid = Types.TrackId . mkid

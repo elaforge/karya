@@ -159,7 +159,7 @@ block ruler_id = do
 named_block :: (State.M m) => String -> RulerId -> m BlockId
 named_block name ruler_id = do
     ns <- State.get_namespace
-    case Id.make ns name of
+    case Id.read_short ns name of
         Nothing -> State.throw $ "invalid block name: " ++ show name
         Just ident -> State.create_block ident ""
             [Block.track (Block.RId ruler_id) Config.ruler_width]
