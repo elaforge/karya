@@ -17,6 +17,8 @@ UNSORTED
     been normalized to zero.  I really need some reliable way to get track
     time.
   - tremolo for chords
+  - Tremolo should be like trill: modify the notes normally, but in vsl swap
+    out the attribute one.
   - adding an intervening note track seems to mess up the signal render
   - the cache got messed up after changing the tempo
   * measure 49 is messed up
@@ -36,7 +38,7 @@ UNSORTED
     even support measures with different meters?
   - make a control track, make an event, change track to note track,
     the event color doesn't change to note track color
-  - play from root on viola or piano parts plays ahead, presumably the "find
+  * play from root on viola or piano parts plays ahead, presumably the "find
     root time" thing is messed up
   * Duplicate notes of the same pitch make vsl unhappy.  Non-overlapping notes
     should have a tiny gap.

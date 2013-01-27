@@ -139,8 +139,8 @@ root_from_root_selection = do
 root_from_local_selection :: (Cmd.M m) => m Cmd.PlayMidiArgs
 root_from_local_selection = do
     (block_id, _, track_id, pos) <- Selection.get_insert
-    start <- get_realtime block_id (Just track_id) pos
     root_id <- State.get_root_id
+    start <- get_realtime root_id block_id (Just track_id) pos
     from_realtime root_id start Nothing
 
 -- | Find the previous step on the focused block, get its RealTime, and play
@@ -150,8 +150,8 @@ root_previous = do
     (block_id, tracknum, track_id, pos) <- Selection.get_insert
     step <- gets Cmd.state_play_step
     prev <- fromMaybe pos <$> TimeStep.rewind step block_id tracknum pos
-    start <- get_realtime block_id (Just track_id) prev
     root_id <- State.get_root_id
+    start <- get_realtime root_id block_id (Just track_id) prev
     from_realtime root_id start Nothing
 
 from_score :: (Cmd.M m) => BlockId
@@ -162,22 +162,27 @@ from_score :: (Cmd.M m) => BlockId
     -> Maybe ScoreTime
     -> m Cmd.PlayMidiArgs
 from_score block_id start_track start_pos repeat_at = do
-    start <- get_realtime block_id start_track start_pos
+    start <- get_realtime block_id block_id start_track start_pos
     repeat_at <- maybe (return Nothing)
-        (fmap Just . get_realtime block_id start_track) repeat_at
+        (fmap Just . get_realtime block_id block_id start_track) repeat_at
     from_realtime block_id start repeat_at
 
-get_realtime :: (Cmd.M m) => BlockId -> Maybe TrackId -> ScoreTime
+get_realtime :: (Cmd.M m) => BlockId
+    -- ^ Lookup realtime according to the performance of this block.
+    -> BlockId
+    -- ^ Lookup realtime at the position (TrackId, ScoreTime) within this block.
+    -> Maybe TrackId -> ScoreTime
     -> m RealTime
-get_realtime block_id maybe_track_id pos = do
-    perf <- Cmd.require_msg ("no performance for block " ++ show block_id)
-        =<< lookup_current_performance block_id
-    maybe_start <- Perf.lookup_realtime perf block_id maybe_track_id pos
+get_realtime perf_block play_block maybe_track_id pos = do
+    perf <- Cmd.require_msg ("no performance for block " ++ show perf_block)
+        =<< lookup_current_performance perf_block
+    maybe_start <- Perf.lookup_realtime perf play_block maybe_track_id pos
     case maybe_start of
         Nothing -> do
             -- Otherwise we don't get to see why it failed.
             mapM_ Log.write $ LEvent.logs_of (Cmd.perf_events perf)
-            Cmd.throw $ "play " ++ show block_id ++ " has no tempo information"
+            Cmd.throw $ "play " ++ show perf_block
+                ++ " has no tempo information"
         Just start -> return start
 
 -- | Play the performance of the given block starting from the given time.
