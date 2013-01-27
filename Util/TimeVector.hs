@@ -204,12 +204,10 @@ take = V.take
 {-# SPECIALIZE drop_before :: X -> Unboxed -> Unboxed #-}
 drop_before :: (V.Vector v (Sample y)) => X -> v (Sample y) -> v (Sample y)
 drop_before x vec
-    -- | x <= 0 = V.takeWhile ((<=0) . sx) vec
     | i < V.length vec && sx (V.unsafeIndex vec i) == x =
         snd $ V.splitAt i vec
     | otherwise = snd $ V.splitAt (i-1) vec
-    where
-    i = lowest_index x vec
+    where i = lowest_index x vec
 
 -- | Return samples within a range.  This is a combination of 'drop_before'
 -- and 'truncate'.

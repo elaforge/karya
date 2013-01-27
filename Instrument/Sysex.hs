@@ -114,8 +114,8 @@ type EnumName = String
 data RecordType = TMap | TUnion | TNum | TStr | TUnparsed
     deriving (Eq, Show)
 
--- | Create a Record from a Spec, defaulting everything to 0, "", or the first
--- enum val.
+-- | Create a Record from a Spec, defaulting everything to 0, \"\", or the
+-- first enum val.
 spec_to_rmap :: Specs -> RMap
 spec_to_rmap = List.foldl' add Map.empty
     where

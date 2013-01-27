@@ -24,10 +24,10 @@ type Parser st a = Parsec.Parsec String st a
 
 type Annotation = Instrument.Tag
 
--- | Format is @synth/inst-name tag1=x tag2=y@.
+-- | Format is @synth\/inst-name tag1=x tag2=y@.
 --
 -- TODO other attributes are not supported, but if there were, they could look
--- like @*pb-range=12 *flag=pressure@@
+-- like @*pb-range=12 *flag=pressure@
 parse_annotations :: FilePath
     -> IO (Either String (Map.Map Score.Instrument [Annotation]))
 parse_annotations fn = do
