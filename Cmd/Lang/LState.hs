@@ -13,9 +13,12 @@ import qualified Ui.Id as Id
 import qualified Ui.State as State
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Create as Create
+import qualified Cmd.Load.Midi as Load.Midi
+
 import qualified Derive.Score as Score
 import qualified Perform.Pitch as Pitch
 import qualified Perform.Signal as Signal
+import Types
 
 
 -- * configure
@@ -104,3 +107,8 @@ rename ns = do
         where
         new_dir = FilePath.replaceFileName (FilePath.takeDirectory path)
             (Id.un_namespace ns)
+
+-- * load
+
+load_midi :: FilePath -> Cmd.CmdL BlockId
+load_midi = Load.Midi.load

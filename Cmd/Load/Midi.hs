@@ -12,7 +12,6 @@ import qualified Data.Maybe as Maybe
 import qualified Data.Monoid as Monoid
 import qualified Data.Word as Word
 
-import qualified System.FilePath as FilePath
 import qualified ZMidi.Core as Z
 
 import Util.Control
@@ -24,14 +23,11 @@ import qualified Util.Seq as Seq
 import qualified Midi.Midi as Midi
 import qualified Ui.Event as Event
 import qualified Ui.Events as Events
-import qualified Ui.Id as Id
 import qualified Ui.Skeleton as Skeleton
 import qualified Ui.State as State
 
+import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Create as Create
-import qualified Cmd.Meter as Meter
-import qualified Cmd.RulerUtil as RulerUtil
-
 import qualified Derive.Scale as Scale
 import qualified Derive.Scale.Twelve as Twelve
 import qualified Derive.Score as Score
@@ -45,29 +41,20 @@ import qualified Perform.RealTime as RealTime
 import Types
 
 
-load :: FilePath -> IO (Either String State.State)
-load fn = either (return . Left ) (load_midi fn) =<< parse fn
-    where
-    load_midi fn midi_file = do
+load :: FilePath -> Cmd.CmdT IO BlockId
+load fn = liftIO (parse fn) >>= \x -> case x of
+    Left err -> Cmd.throw $ "parsing " ++ show fn ++ ": " ++ err
+    Right midi_file -> do
         let (tracks, skel, warns) = convert midi_file
         mapM_ (Log.warn . ((fn ++ ": ") ++)) warns
-        let name = fst $ Id.clean_id False $ FilePath.takeBaseName fn
-        return $ case Id.namespace name of
-            Nothing -> Left $
-                "couldn't get a valid namespace from filename"
-            Just ns -> either (Left . Pretty.pretty) Right $
-                State.exec State.empty $ create ns tracks skel
+        create tracks skel
 
-create :: (State.M m) => Id.Namespace -> [(String, Track)]
-    -> Skeleton.Skeleton -> m ()
-create name tracks skel = do
-    State.set_namespace name
-    ruler_id <- Create.ruler "meter44" (RulerUtil.meter_ruler 16 [Meter.m44])
-    block_id <- Create.block ruler_id
+create :: (State.M m) => [(String, Track)] -> Skeleton.Skeleton -> m BlockId
+create tracks skel = do
+    block_id <- Create.block State.no_ruler
     mapM_ (add_track block_id) tracks
     State.set_skeleton block_id skel
-    Create.unfitted_view block_id
-    return ()
+    return block_id
     where
     add_track block_id (title, track) =
         Create.track block_id 9999 title $

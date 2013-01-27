@@ -3,7 +3,6 @@
 module Local.Setup where
 import qualified Control.Monad.Trans as Trans
 
-import qualified Util.Log as Log
 import qualified Util.Seq as Seq
 import qualified Midi.Midi as Midi
 import qualified Ui.Event as Event
@@ -73,10 +72,8 @@ load_mod fn = do
 
 load_midi :: FilePath -> Cmd.CmdIO
 load_midi fn = do
-    result <- Trans.liftIO $ Load.Midi.load fn
-    case result of
-        Left err -> Log.error $ "loading " ++ fn ++ ": " ++ err
-        Right state -> State.unsafe_put state
+    block_id <- Load.Midi.load fn
+    Create.unfitted_view block_id
     return Cmd.Done
 
 setup_small :: (Cmd.M m) => m Cmd.Status
