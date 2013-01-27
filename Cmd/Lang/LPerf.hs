@@ -56,6 +56,12 @@ sel_to_real = do
     tempo <- Cmd.perf_tempo <$> get block_id
     return $ tempo block_id track_id pos
 
+get_realtime :: Bool -> Cmd.CmdL RealTime
+get_realtime root = do
+    (block_id, _, track_id, pos) <- Selection.get_insert
+    perf <- if root then get_root else get block_id
+    Perf.get_realtime perf block_id (Just track_id) pos
+
 -- * derive
 
 -- These are mostly for testing, to find problems in performer output.

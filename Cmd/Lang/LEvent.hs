@@ -27,6 +27,9 @@ stretch n = do
 
 data Mode = Start | End | Both
 
+quantize_sel :: (Cmd.M m) => String -> m ()
+quantize_sel = ModifyEvents.selection . quantize_timestep Both
+
 -- | Quantize to a TimeStep's duration.  Actually it just takes the timestep at
 -- time 0, so it won't be correct if the timestep changes.
 quantize_timestep :: (Cmd.M m) => Mode -> String -> ModifyEvents.Track m

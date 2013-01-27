@@ -170,7 +170,11 @@ save = Save.cmd_save
 
 -- | Save to the given filename and switch to saving plain states.
 save_state :: FilePath -> Cmd.CmdL ()
-save_state fn = Save.cmd_save_state fn
+save_state = Save.cmd_save_state
+
+-- | Like 'save_state', but don't change 'Cmd.state_save_file'.
+write_state :: FilePath -> Cmd.CmdL ()
+write_state = Save.write_state
 
 -- | Save to the given git repo and switch to saving incrementally.
 save_git :: FilePath -> Cmd.CmdL ()

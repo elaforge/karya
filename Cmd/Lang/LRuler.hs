@@ -69,6 +69,7 @@ gc = do
 blocks_of :: (State.M m) => RulerId -> m [BlockId]
 blocks_of = fmap (map fst) . State.tracks_with_ruler_id
 
+-- | Replace one RulerId with another on the given block.
 set_ruler_id :: (State.M m) => RulerId -> BlockId -> m ()
 set_ruler_id ruler_id block_id = do
     old <- State.block_ruler block_id
