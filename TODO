@@ -3,6 +3,8 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
+  - Arpeggio should be a bit randomized?  Or closer notes should be faster?
+    Then I have to look at the pitches.
   * Note should ignore +staccato in lilypond mode.
   * Status bar should show tid of selection.
   / Range for errors always starts at 0, I think it's Note.Events that have
@@ -560,6 +562,9 @@ integrate / integration:
     calls)
 
 lilypond:
+  - Can I have a solution for custom note durations that don't affect lilypond?
+  - cross staff inside tuplet didn't work
+  - hairpin crescendo / decrescendo
   * Guessing dynamics from the dyn doesn't really work.  They should be set
     explicitly.  Should I do it with an attr or by diretly emitting ly?
     I think the latter, since other performers likely don't care about it.
@@ -586,11 +591,13 @@ lilypond:
 
     Then I could possibly do everything with code, just have to deal with key.
     I guess the '=' call could have some when_lily magic.
-  - If I mark a track '| when-lily' I could make it be omitted entirely when
+  * If I mark a track '| when-ly' I could make it be omitted entirely when
     not in lilypond mode.  That way lilypond markup won't slow down normal
     derivation.
     Wait, I think that doesn't work because it still wants to slice out
     orphans.
+    But now that I have pure ly directives that don't need to evaluate notes
+    beneath them, this should be possible.
   * cross-staff notes: \new Staff = "up" ...
     \change Staff = "up ... \change Staff = "down"
     use a note transformer: "staff up"

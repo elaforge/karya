@@ -193,10 +193,17 @@ eval_notes config meter start score_events =
 
 note_calls :: Derive.NoteCallMap
 note_calls = Derive.make_calls
-    [ ("8va", c_8va)
+    [ ("when-ly", c_when_ly)
+    , ("8va", c_8va)
     , ("xstaff", c_xstaff)
     , ("dyn", c_dyn)
     ]
+
+c_when_ly :: Derive.NoteCall
+c_when_ly = Derive.transformer "when-ly"
+    "Evaluate the deriver only when in lilypond mode. Apply this to a track\
+    \ to make non-lilypond derivation a bit more efficient."
+    $ Sig.call0t $ \_args deriver -> when_lilypond (const deriver) mempty
 
 c_8va :: Derive.NoteCall
 c_8va = Derive.stream_generator "ottava"
@@ -216,11 +223,13 @@ c_xstaff = Derive.stream_generator "xstaff"
             "up" -> return ("up", "down")
             "down" -> return ("down", "up")
             _ -> Derive.throw $ "expected 'up' or 'down', got " <> show staff
-        code_around (Prefix (change staff1)) (Suffix (change staff2)) args
+        code_around (Prefix (change staff1)) (Prefix (change staff2)) args
     where change staff = "\\change Staff = " <> Lilypond.to_lily staff
 
 c_dyn :: Derive.NoteCall
-c_dyn = Derive.stream_generator "dyn" "Emit a lilypond dynamic."
+c_dyn = Derive.stream_generator "dyn"
+    "Emit a lilypond dynamic. If there are notes below, they are derived\
+    \ unchanged."
     $ Sig.call (required "dynamic" "Should be `p`, `ff`, etc.") $
     \dyn args -> code0 (Args.start args) (Suffix ('\\' : dyn))
         <> place_notes args

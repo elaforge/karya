@@ -69,6 +69,7 @@ simple_articulations =
     , (Attrs.portato, "-_")
     , (Attrs.tenuto, "--")
     , (Attrs.accent, "->")
+    , (Attrs.trem, ":32")
     ]
 
 -- | Certain attributes are modal, in that they emit one thing when they
