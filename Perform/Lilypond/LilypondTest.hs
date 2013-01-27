@@ -16,12 +16,12 @@ import qualified Perform.Lilypond.Lilypond as Lilypond
 default_config :: Lilypond.Config
 default_config = Lilypond.default_config 1
 
--- | (title, [Staff]) where Staff = [Measure] where Measure = [String]
-type StaffGroup = (String, [[[String]]])
+-- | (title, [Staff]) where Staff = [Measure] where Measure = String
+type StaffGroup = (String, [[String]])
 
 -- | Like 'convert_events', but extract the converted staves to lists of
 -- measures.
-convert_staves :: [String] -> [Lilypond.Event] -> Either String [[String]]
+convert_staves :: [String] -> [Lilypond.Event] -> Either String [String]
 convert_staves wanted = fmap (concatMap (concat . snd)) . convert_events wanted
 
 -- | Convert events to lilypond score.
@@ -34,7 +34,7 @@ convert_events wanted events =
     extract_staves (Lilypond.StaffGroup inst staves) =
         (Lilypond.inst_name inst, map extract_staff staves)
     extract_staff (Lilypond.Staff measures) =
-        map (filter is_wanted . map Lilypond.to_lily) measures
+        map (unwords . filter is_wanted . map Lilypond.to_lily) measures
     is_wanted ('\\':note) = takeWhile (/=' ') note `elem` wanted
     is_wanted _ = True
 

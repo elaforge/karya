@@ -6,8 +6,8 @@ import Util.Test
 import qualified Ui.UiTest as UiTest
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Score as Score
-import qualified Perform.Lilypond.Lilypond as Lilypond
 import qualified Perform.Lilypond.LilypondTest as LilypondTest
+import Perform.Lilypond.LilypondTest (convert_staves)
 
 
 test_tuplet = do
@@ -70,7 +70,7 @@ test_tuplet_multiple_tracks = do
     equal (run tracks) [(i1, 0, 6), (i2, 0, 6), (i1, 6, 6)]
 
 test_tuplet_ly = do
-    let run = first (to_measures ["times", "acciaccatura"])
+    let run = first (convert_staves ["times", "acciaccatura"])
             . LilypondTest.derive_linear True id
         pitches = map ('4':) (map (:"") "abcdefg")
     equal (run $
@@ -109,9 +109,6 @@ test_tuplet_ly = do
         ])
         (Right ["\\times 1/2 { \\acciaccatura { c'8[ b'8] } a'2 b'2 } r2"], [])
 
-to_measures :: [String] -> [Lilypond.Event] -> Either String [String]
-to_measures wanted = fmap (map unwords) . LilypondTest.convert_staves wanted
-
 test_arpeggio = do
     let run = DeriveTest.extract_events DeriveTest.e_note2
             . DeriveTest.derive_tracks_with_ui id
@@ -131,4 +128,4 @@ test_slur_ly = do
             . LilypondTest.derive_linear True id
     equal (run $ (">", [(0, 4, "(")]) : UiTest.note_track
         [(0, 1, "4a"), (1, 1, "4b"), (2, 1, "4c")])
-        (Right [["a'4(", "b'4", "c'4)", "r4"]], [])
+        (Right ["a'4( b'4 c'4) r4"], [])

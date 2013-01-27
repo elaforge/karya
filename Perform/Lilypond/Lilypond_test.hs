@@ -23,7 +23,7 @@ import Types
 
 
 test_convert_measures = do
-    let f = convert_staves2 [] . map simple_event
+    let f = convert_staves [] . map simple_event
     equal (f [(0, 1, "a"), (1, 1, "b")]) $ Right ["a4 b4 r2"]
     equal (f [(1, 1, "a"), (2, 8, "b")]) $ Right
         ["r4 a4 b2~", "b1~", "b2 r2"]
@@ -40,23 +40,23 @@ test_dotted_rests = do
     let f = convert_staves [] . map meter_event
     -- Rests are allowed to be dotted when the meter isn't duple.
     equal (f [(1.5, 0.5, "a", "3+3/8")]) $
-        Right [["r4.", "a8", "r4"]]
+        Right ["r4. a8 r4"]
     equal (f [(3, 1, "a", "4/4")]) $
-        Right [["r2", "r4", "a4"]]
+        Right ["r2 r4 a4"]
 
 test_change_meter = do
     let f = convert_staves ["time"] . map meter_event
     equal (f [(0, 5, "a", "4/4"), (6, 2, "b", "4/4")]) $ Right
-        [["\\time 4/4", "a1~"], ["a4", "r4", "b2"]]
+        ["\\time 4/4 a1~", "a4 r4 b2"]
     -- Change meter on the measure boundary.
     equal (f [(0, 2, "a", "2/4"), (2, 2, "b", "4/4")]) $ Right
-        [["\\time 2/4", "a2"], ["\\time 4/4", "b2", "r2"]]
+        ["\\time 2/4 a2", "\\time 4/4 b2 r2"]
 
     -- Meter changes during a note.
     equal (f [(0, 3, "a", "2/4"), (3, 4, "b", "4/4")]) $ Right
-        [["\\time 2/4", "a2~"], ["a4", "b4~"], ["\\time 4/4", "b2.", "r4"]]
+        ["\\time 2/4 a2~", "a4 b4~", "\\time 4/4 b2. r4"]
     equal (f [(0, 3, "a", "2/4"), (4, 4, "b", "4/4")]) $ Right
-        [["\\time 2/4", "a2~"], ["a4", "r4"], ["\\time 4/4", "b1"]]
+        ["\\time 2/4 a2~", "a4 r4", "\\time 4/4 b1"]
 
     -- Inconsistent meters cause an error.
     let run = convert_staves [] . fst . derive . concatMap UiTest.note_spec
@@ -75,16 +75,13 @@ test_parse_error = do
 test_chords = do
     let f = convert_staves [] . map simple_event
     -- Homogenous durations.
-    equal (f [(0, 1, "a"), (0, 1, "c")]) $ Right
-        [["<a c>4", "r4", "r2"]]
+    equal (f [(0, 1, "a"), (0, 1, "c")]) $ Right ["<a c>4 r4 r2"]
     -- Starting at the same time.
-    equal (f [(0, 2, "a"), (0, 1, "c")]) $ Right
-        [["<a c>4~", "a4", "r2"]]
+    equal (f [(0, 2, "a"), (0, 1, "c")]) $ Right ["<a c>4~ a4 r2"]
     -- Starting at different times.
-    equal (f [(0, 2, "a"), (1, 1, "c")]) $ Right
-        [["a4~", "<a c>4", "r2"]]
+    equal (f [(0, 2, "a"), (1, 1, "c")]) $ Right ["a4~ <a c>4 r2"]
     equal (f [(0, 2, "a"), (1, 2, "c"), (2, 2, "e")]) $ Right
-        [["a4~", "<a c>4~", "<c e>4~", "e4"]]
+        ["a4~ <a c>4~ <c e>4~ e4"]
 
 test_extract_meters = do
     let f = fmap (map Pretty.pretty) . Lilypond.extract_meters
@@ -117,10 +114,8 @@ test_make_ly = do
     equal logs []
     -- Shorter staff is padded out to the length of the longer one.
     equal (LilypondTest.convert_events [] events) $ Right
-        [ ("i1",
-            [[["c'4", "r8", "ds'8~", "ds'4.", "r8"], ["r1"], ["r1"], ["r1"]]])
-        , ("i2",
-            [[["r4", "g'4", "a2~"], ["a1~"], ["a1~"], ["a2", "r2"]]])
+        [ ("i1", [["c'4 r8 ds'8~ ds'4. r8", "r1", "r1", "r1"]])
+        , ("i2", [["r4 g'4 a2~", "a1~", "a1~", "a2 r2"]])
         ]
     -- putStrLn $ LilypondTest.make_ly events
     -- compile_ly events
@@ -134,8 +129,8 @@ test_hands = do
     equal logs []
     -- Right hand goes in first.
     equal (LilypondTest.convert_events [] events) $ Right
-        [ ("1", [[["c'1"]], [["d'1"]]])
-        , ("2", [[["e'1"]]])
+        [ ("1", [["c'1"], ["d'1"]])
+        , ("2", [["e'1"]])
         ]
 
 test_clefs = do
@@ -144,16 +139,16 @@ test_clefs = do
             [ (">s/1 | clef = 'bass'", [(0, 2, ""), (2, 6, "clef = 'alto' |")])
             , ("*", [(0, 0, "4c")])
             ])
-        (Right [["\\clef bass", "c'2", "\\clef alto", "c'2~"], ["c'1"]], [])
+        (Right ["\\clef bass c'2 \\clef alto c'2~", "c'1"], [])
 
     -- test annotation promote
     -- The first clef and key are moved ahead of rests.
     equal (f $ UiTest.note_spec ("s/1", [(1, 3, "4c")], []))
-        (Right [["\\clef treble", "r4", "c'2."]], [])
+        (Right ["\\clef treble r4 c'2."], [])
 
     -- Even if there are measures of rests.
     equal (f $ UiTest.note_spec ("s/1", [(5, 3, "4c")], []))
-        (Right [["\\clef treble", "r1"], ["r4", "c'2."]], [])
+        (Right ["\\clef treble r1", "r4 c'2."], [])
 
 test_key = do
     let f = first (convert_staves ["key"]) . derive
@@ -161,10 +156,10 @@ test_key = do
             [ (">s/1 | key = 'a-mixo'", [(0, 2, ""), (2, 2, "key = 'c-maj' |")])
             , ("*", [(0, 0, "4c")])
             ])
-        (Right [["\\key a \\mixolydian", "c'2", "\\key c \\major", "c'2"]], [])
+        (Right ["\\key a \\mixolydian c'2 \\key c \\major c'2"], [])
 
 test_ly_code = do
-    let f = first (convert_staves2 []) . LilypondTest.derive_linear False calls
+    let f = first (convert_staves []) . LilypondTest.derive_linear False calls
     -- prepend
     equal (f $
             UiTest.note_track [(0, 1, "4a"), (1, 1, "4b")]
@@ -191,9 +186,6 @@ test_ly_code = do
         Lily.code0 (Args.start args) (Lily.Prefix "pre")
     c_post = CallTest.generator $ \args ->
         Lily.code0 (Args.start args) (Lily.Suffix "post")
-
-convert_staves2 :: [String] -> [Lilypond.Event] -> Either String [String]
-convert_staves2 wanted = fmap (map unwords) . convert_staves wanted
 
 test_allowed_time_greedy = do
     let f meter = extract_rhythms
@@ -244,8 +236,7 @@ test_enharmonics = do
     let (events, logs) = derive $ UiTest.note_track
             [(0, 1, "4c#"), (1, 1, "4db"), (2, 1, "4cx")]
     equal logs []
-    equal (convert_staves [] events) $
-        Right [["cs'4", "df'4", "css'4", "r4"]]
+    equal (convert_staves [] events) $ Right ["cs'4 df'4 css'4 r4"]
 
 test_tempo = do
     -- Lilypond derivation is unaffected by the tempo.
@@ -260,7 +251,7 @@ test_tempo = do
 
 test_attributes = do
     -- Test the attribute-adding calls and 'Lilypond.attrs_to_code'.
-    let f = first (convert_staves2 []) . LilypondTest.derive
+    let f = first (convert_staves []) . LilypondTest.derive
     equal (f
         [ (">", [(0, 1, "+mute"), (1, 1, "o"), (2, 1, "")])
         , ("*", [(0, 0, "4a"), (1, 0, "4b"), (2, 0, "4c")])
@@ -268,7 +259,7 @@ test_attributes = do
         (Right ["a'4-+ b'4-\\flageolet c'4 r4"], [])
 
 test_modal_attributes = do
-    let f = first (convert_staves2 []) . LilypondTest.derive
+    let f = first (convert_staves []) . LilypondTest.derive
     equal (f
         [ (">", [(0, 1, "+pizz"), (1, 1, "+pizz"), (2, 1, "")])
         , ("*", [(0, 0, "4c")])
@@ -276,7 +267,7 @@ test_modal_attributes = do
         (Right ["c'4^\"pizz.\" c'4 c'4^\"arco\" r4"], [])
 
 test_prepend_append = do
-    let f = first (convert_staves2 ["p", "mf"]) . LilypondTest.derive
+    let f = first (convert_staves ["p", "mf"]) . LilypondTest.derive
     equal (f $
             (">", [(0, 0, "dyn p"), (2, 0, "dyn mf")]) : UiTest.note_track
             [(0, 1, "4a"), (1, 1, "4b"), (2, 1, "4c"), (3, 1, "4d")])

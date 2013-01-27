@@ -46,7 +46,7 @@ test_legato_ly = do
     equal (run $
         (">", [(1, 2, "(")]) : UiTest.note_track
             [(0, 1, "4a"), (1, 1, "4b"), (2, 1, "4c"), (3, 1, "4d")])
-        (Right [["a'4", "b'4(", "c'4)", "d'4"]], [])
+        (Right ["a'4 b'4( c'4) d'4"], [])
 
 test_attributed_note_ly = do
     let run = first (LilypondTest.convert_staves [])
@@ -55,10 +55,10 @@ test_attributed_note_ly = do
     equal (run $
         (">", [(0, 2, "m")]) : UiTest.note_track
             [(0, 1, "4a"), (1, 1, "4b"), (2, 1, "4c")])
-        (Right [["a'4-+", "b'4-+", "c'4", "r4"]], [])
+        (Right ["a'4-+ b'4-+ c'4 r4"], [])
     -- Works as both a transformer and a generator.
     equal (run $
         [ (">", [(0, 1, "m |"), (1, 1, ""), (2, 1, "m")])
         , ("*", [(0, 0, "4a"), (1, 0, "4b"), (2, 0, "4c")])
         ])
-        (Right [["a'4-+", "b'4", "c'4-+", "r4"]], [])
+        (Right ["a'4-+ b'4 c'4-+ r4"], [])
