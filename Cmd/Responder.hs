@@ -200,7 +200,7 @@ read_until hdl boundary = go ""
 respond_loop :: State -> MsgReader -> IO ()
 respond_loop rstate msg_reader = do
     msg <- msg_reader
-    -- putStrLn $ "msg: " ++ Pretty.pretty msg
+    -- Debug.putp "msg" msg
     result <- Exception.try $ respond rstate msg
     case result of
         Left (exc :: Exception.SomeException) -> do

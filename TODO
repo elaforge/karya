@@ -3,6 +3,12 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
+  - Let play run off the end of a block where the ruler runs out but the notes
+    keep going, I can't stop the player.  save/bug-play-off-end
+  - Track caching is too fragile, if I add a track with scope over everything
+    then I get no caching.  Instead I should cache the bottom note track, or
+    perhaps every note track.  That doesn't work because they're all sliced
+    up.
   - Arpeggio should be a bit randomized?  Or closer notes should be faster?
     Then I have to look at the pitches.
   * Note should ignore +staccato in lilypond mode.
@@ -85,7 +91,7 @@ UNSORTED
     Either vsl insts set environ that causes the normal trill to do that, or
     they could bind their own "tr".
   - why does legato vsl always have too-loud connecting samples?
-  - viola-sonata: second staccato note at 7.3.5 vla part missing
+  * viola-sonata: second staccato note at 7.3.5 vla part missing
   - network midi doesn't seem to handle abort?
     playing the second time doesn't happen
   logview

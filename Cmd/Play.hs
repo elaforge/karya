@@ -130,10 +130,18 @@ root_block = do
 
 -- | Play the root performance from the selection on the root block.  This
 -- is useful to manually set a point to start playing.
-root_selection :: (Cmd.M m) => m Cmd.PlayMidiArgs
-root_selection = do
+root_from_root_selection :: (Cmd.M m) => m Cmd.PlayMidiArgs
+root_from_root_selection = do
     (block_id, _, track_id, pos) <- Selection.get_root_insert
     from_score block_id (Just track_id) pos Nothing
+
+-- | Play the root performance from the selection on the current block.
+root_from_local_selection :: (Cmd.M m) => m Cmd.PlayMidiArgs
+root_from_local_selection = do
+    (block_id, _, track_id, pos) <- Selection.get_insert
+    start <- get_realtime block_id (Just track_id) pos
+    root_id <- State.get_root_id
+    from_realtime root_id start Nothing
 
 -- | Find the previous step on the focused block, get its RealTime, and play
 -- from the root at that RealTime.
@@ -161,10 +169,10 @@ from_score block_id start_track start_pos repeat_at = do
 
 get_realtime :: (Cmd.M m) => BlockId -> Maybe TrackId -> ScoreTime
     -> m RealTime
-get_realtime block_id track pos = do
+get_realtime block_id maybe_track_id pos = do
     perf <- Cmd.require_msg ("no performance for block " ++ show block_id)
         =<< lookup_current_performance block_id
-    maybe_start <- Perf.lookup_realtime perf block_id track pos
+    maybe_start <- Perf.lookup_realtime perf block_id maybe_track_id pos
     case maybe_start of
         Nothing -> do
             -- Otherwise we don't get to see why it failed.

@@ -205,17 +205,17 @@ set_event(UiMsg::Event &e, int evt)
     e.is_click = Fl::event_is_click();
     e.x = Fl::event_x();
     e.y = Fl::event_y();
-    // I originally called tolower() since haskell already knows shift is down,
-    // but it's less error-prone to send characters in their correct form.
-    // Arguably this is incorrect since it's keycaps that go up and down, not
-    // text, but it seems easier to talk about ~ than SHIFT+`, especially since
-    // shifted symbols may vary by keymap.  Maybe the proper solution is to
-    // send both key and text.
-    e.key = Fl::event_text()[0];
-    if (!isprint(e.key)) {
-        // shift or backspace or some such
-        e.key = Fl::event_key();
-    }
+    // I originally used Fl::event_text()[0] since e.key would have bogus
+    // values on keyup (and sometimes even on keydown!).  I think those were
+    // fltk bugs that have been fixed, though, because they don't seem
+    // to happen anymore.  One thing is that shifted symbols emit the
+    // alternate symbol + shift, rather than the main symbol + shift, which is
+    // inconsistent with letters and digits.  But it seems reasonable for the
+    // moment and in any case I can't think of how to get to the unshifted
+    // symbol from the shifted one.
+    //
+    // Further notes in "Cmd.Keymap".
+    e.key = Fl::event_key();
     e.modifier_state = Fl::event_state();
     e.is_repeat = false; // this may be set to true by push()
 }

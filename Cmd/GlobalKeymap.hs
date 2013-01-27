@@ -50,9 +50,9 @@ import qualified Cmd.Create as Create
 import qualified Cmd.Edit as Edit
 import qualified Cmd.Keymap as Keymap
 import Cmd.Keymap
-       (plain_key, plain_char, bind_key, bind_key_status, bind_repeatable,
-        bind_click, bind_drag, plain_command_char, command_char,
-        SimpleMod(..))
+       (plain_key, plain_char, shift_char, bind_key, bind_key_status,
+        bind_repeatable, bind_click, bind_drag, plain_command_char,
+        command_char, SimpleMod(..))
 import qualified Cmd.Meter as Meter
 import qualified Cmd.Msg as Msg
 import qualified Cmd.PitchTrack as PitchTrack
@@ -139,9 +139,13 @@ player_bindings = concat
     , bind sel local "play or loop local selection" Play.local_selection
     , bind prev local "play local previous step" Play.local_previous
     , bind block root "play root block" Play.root_block
-    -- It plays from the selection on the root, instead of the local one, which
-    -- is a little irregular.
-    , bind [] (Key.Char '?') "play root selection" Play.root_selection
+    , bind sel (Key.Char '?') "play root from local selection"
+        Play.root_from_local_selection
+    -- It plays from the selection on the root, instead of the local one.
+    -- This breaks the modifier+key pattern, but it's useful to manually set
+    -- a play starting point on the root.
+    , bind (block ++ sel) (Key.Char '?') "play root from root selection"
+        Play.root_from_root_selection
     , bind prev root "play root previous step" Play.root_previous
     ]
     where
@@ -284,8 +288,10 @@ edit_state_bindings = concat
     , uncurry (command_char '8') (step_rank Meter.r_64 0)
     , plain_char '+' "toggle duration" Edit.toggle_note_duration
 
-    , command_char '`' "toggle step mode" Edit.toggle_mark_step
-    , command_char '~' "invert step" Edit.cmd_invert_step_direction
+    , bind_key [PrimaryCommand] (Key.Char '`') "toggle step mode"
+        Edit.toggle_mark_step
+    , bind_key [PrimaryCommand, Shift] (Key.Char '~') "invert step"
+        Edit.cmd_invert_step_direction
     , plain_char '`' "toggle advance" Edit.toggle_advance
     , plain_char '~' "toggle chord" Edit.toggle_chord
 
@@ -320,11 +326,11 @@ event_bindings = concat
     , plain_command_char 'z' "toggle zero-dur" Edit.cmd_toggle_zero_duration
     , plain_command_char 'g' "set beginning" Edit.cmd_set_beginning
 
-    , plain_char '!' "insert recent 1" (Edit.cmd_insert_recent 1)
-    , plain_char '@' "insert recent 2" (Edit.cmd_insert_recent 2)
-    , plain_char '#' "insert recent 3" (Edit.cmd_insert_recent 3)
-    , plain_char '$' "insert recent 4" (Edit.cmd_insert_recent 4)
-    , plain_char '%' "cycle enharmonic"
+    , shift_char '1' "insert recent 1" (Edit.cmd_insert_recent 1)
+    , shift_char '2' "insert recent 2" (Edit.cmd_insert_recent 2)
+    , shift_char '3' "insert recent 3" (Edit.cmd_insert_recent 3)
+    , shift_char '4' "insert recent 4" (Edit.cmd_insert_recent 4)
+    , shift_char '5' "cycle enharmonic"
         (PitchTrack.pitches PitchTrack.cycle_enharmonics)
     ]
 

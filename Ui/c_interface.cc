@@ -35,9 +35,6 @@ ui_awake()
 int
 get_ui_msgs(UiMsg **msgs)
 {
-    // Turn vector into c-array.  C++ standard says vector is supposed to
-    // use a contiguous array:
-    // http://www.open-std.org/jtc1/sc22/wg21/docs/lwg-defects.html#69
     MsgCollector *m = MsgCollector::get();
     *msgs = m->msgs_ptr();
     return m->msgs_size();

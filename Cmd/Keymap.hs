@@ -17,11 +17,42 @@
     the shift is already reflected in the character itself.  So while Shift
     may be included binding e.g. Key.Enter, it must not be included when
     binding letter keys.
+
+    There are multiple ways to treat keys and shift.  I've tried out several
+    variants, and for now I'm using the following, which is also what fltk
+    uses:
+
+    - Hitting a unshifted key should emit the letter it normally emits.  This
+    might seem obvious, but when they keyboard is remapp
+
+    - Hitting a shifted letter still emits a lowercase letter, but includes the
+    Shift modifier.  So technically you can never bind a capital letter,
+    because it never happens.  But as a convenience, if you bind a capital
+    letter, the bind functions will lowercase it and add Shift to the
+    modifiers.
+
+    - Hitting a shifted digit is like letters: the digit and Shift are
+    emitted, not @!@ or @#@ or whatever.  This is probably for the best because
+    different keyboards put different things up there.
+
+    - Unlike letters and digits, symbols emit the shifted symbol, along with
+    shift.  So if @shift+[@ is mapped to @{@ then @shift+{@ will be emitted.
+    If you bind something to Shift-[ then the cmd will never happen.
+    This might be a bad idea or it might not, but it's what fltk does.
+
+    - Special keys like return and backspace of course have no shifted variant,
+    so there's nothing to worry about there.
+
+    Previously I got capital letters !\@#$% symbols from fltk, and then did
+    some processing to strip Shift when it was already implicit in the key.
+    But I ran into trouble when I tried to bind shift-cmd-\/ because shift-\/
+    was '?' but shift-cmd-\/ went back to being '\/' again.  It seemed simpler
+    and more consistent to not handle Shift any differently from other
+    modifiers.
 -}
 module Cmd.Keymap where
 import qualified Data.Char as Char
 import qualified Data.Map as Map
-import qualified Data.Maybe as Maybe
 import qualified Data.Set as Set
 
 import qualified System.Info
@@ -49,6 +80,9 @@ plain_key = bind_key []
 -- | Bind a Char with no modifiers.
 plain_char :: (Cmd.M m) => Char -> String -> m a -> [Binding m]
 plain_char = plain_key . Key.Char
+
+shift_char :: (Cmd.M m) => Char -> String -> m a -> [Binding m]
+shift_char = bind_key [Shift] . Key.Char
 
 -- | Some cmds are mapped to both a plain keystroke and command key version.
 -- This is a little unusual, but it means the command can still be invoked when
@@ -102,13 +136,20 @@ bind smods bindable desc cmd =
 
 -- | This is the most general Binding constructor: bind any Bindable with any
 -- modifiers, and don't assume the cmd returns Done.
+--
+-- A capital letter is shorthand for Shift + Char.toLower c.
 bind_status :: (Cmd.M m) => [SimpleMod] -> Bindable -> String
     -> (Msg.Msg -> m Cmd.Status) -> [Binding m]
-bind_status smods bindable desc cmd =
+bind_status smods_ bindable_ desc cmd =
     [ (key_spec mods bind, cspec desc cmd)
     | bind <- expand_bindable bindable
     , mods <- expand_mods bindable smods
     ]
+    where
+    (smods, bindable) = case bindable_ of
+        Key repeat (Key.Char c) | Char.isUpper c ->
+            (Shift : smods_, Key repeat (Key.Char (Char.toLower c)))
+        _ -> (smods_, bindable_)
 
 -- ** util
 
@@ -148,7 +189,7 @@ make_cmd_map bindings = (Map.fromList bindings, warns)
 make_cmd :: (Cmd.M m) => CmdMap m -> Msg.Msg -> m Cmd.Status
 make_cmd cmd_map msg = do
     bindable <- Cmd.require (msg_to_bindable msg)
-    mods <- mods_down (Maybe.isJust (Msg.char msg))
+    mods <- mods_down
     case Map.lookup (KeySpec mods bindable) cmd_map of
         Nothing -> return Cmd.Continue
         Just (CmdSpec name cmd) -> do
@@ -165,14 +206,14 @@ make_cmd cmd_map msg = do
 --
 -- - differentiate ShiftL and ShiftR
 --
--- - use option on the mac
+-- - use option on the Mac
 data SimpleMod =
     Shift
-    -- | Primary command key: command on mac, control on linux and windows
+    -- | Primary command key: command on Mac, control on Linux and Windows.
     -- This should be used for core and global commands.
     | PrimaryCommand
-    -- | Secondary comamnd key: control or option on mac, alt on linux and
-    -- windows.  I'm not sure what this should be used for, but it should be
+    -- | Secondary comamnd key: control or option on Mac, alt on Linux and
+    -- Windows.  I'm not sure what this should be used for, but it should be
     -- different than Mod1 stuff.  Maybe static config user-added commands.
     | SecondaryCommand
     -- | Having mouse here allows for mouse button chording.
@@ -181,14 +222,14 @@ data SimpleMod =
 
 -- * implementation
 
--- | TODO This is a hardcoded mac layout, when I support other platforms
+-- | TODO This is a hardcoded Mac layout, when I support other platforms
 -- it'll have to be configurable.
 simple_mod_map :: [(SimpleMod, [Key.Modifier])]
 simple_mod_map = case System.Info.os of
     "darwin" ->
         [ (Shift, [Key.Shift])
         , (PrimaryCommand, [Key.Meta])
-        -- Alt is the mac's option key.
+        -- Alt is the Mac's option key.
         , (SecondaryCommand, [Key.Control, Key.Alt])
         ]
     _ ->
@@ -235,17 +276,12 @@ overlaps bindings =
 -- | Return the mods currently down, stripping out non-modifier keys and notes,
 -- so that overlapping keys will still match.  Mouse mods are not filtered, so
 -- each mouse chord can be bound individually.
---
--- Shift is excluded for Key.Char, since the shifted state is represented in
--- the Char itself.
-mods_down :: (Cmd.M m) => Bool -> m (Set.Set Cmd.Modifier)
-mods_down is_char = do
-    mods <- fmap (filter is_mod . Map.keys) Cmd.keys_down
-    return $ Set.fromList mods
+mods_down :: (Cmd.M m) => m (Set.Set Cmd.Modifier)
+mods_down = Set.fromList <$> fmap (filter is_mod . Map.keys) Cmd.keys_down
     where
-    is_mod (Cmd.KeyMod mod) = not (is_char && mod == Key.Shift)
-    is_mod (Cmd.MidiMod _ _) = False
-    is_mod (Cmd.MouseMod _ _) = True
+    is_mod (Cmd.KeyMod {}) = True
+    is_mod (Cmd.MidiMod {}) = False
+    is_mod (Cmd.MouseMod {}) = True
 
 msg_to_bindable :: Msg.Msg -> Maybe Bindable
 msg_to_bindable msg = case msg of

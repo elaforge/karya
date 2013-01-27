@@ -6,6 +6,9 @@ import Foreign.C
 
 import qualified Util.Pretty as Pretty
 
+-- Actually just need FL/Fl_Enumerations.H
+#include "Ui/c_interface.h"
+
 
 -- | A keystroke, which is not just a character but also back
 data Key = Char Char.Char
@@ -25,18 +28,8 @@ instance Pretty.Pretty Key where
     pretty (Char c) = c : ""
     pretty key = map Char.toLower (show key)
 
--- Actually just need FL/Fl_Enumerations.H
-#include "Ui/c_interface.h"
-
--- | The cmd binding assumes that shifted chars will also be uppercase, but
--- fltk can't be trusted to do that consistently.
 decode :: CInt -> CInt -> ([Modifier], Key)
-decode mcode kcode = (mods, if Shift `elem` mods then toupper key else key)
-    where
-    mods = decode_modifiers mcode
-    key = decode_key kcode
-    toupper (Char c) = Char (Char.toUpper c)
-    toupper k = k
+decode mcode kcode = (decode_modifiers mcode, decode_key kcode)
 
 decode_key :: CInt -> Key
 decode_key code

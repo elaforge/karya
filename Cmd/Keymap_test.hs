@@ -34,12 +34,11 @@ test_make_cmd = do
     equal (run_char [] '2') (did_run "2" "cmd2")
     equal (run_char [] '3') no_run
 
-    equal (run_char [Key.Shift] '!') no_run
-    equal (run_char [Key.Shift] '#') (did_run "s-3" "cmd1")
+    equal (run_char [Key.Shift] '3') (did_run "s-3" "cmd1")
     -- The control key varies by platform.
     let Just (control:_) = lookup Keymap.PrimaryCommand Keymap.simple_mod_map
     equal (run_char [control] '1') (did_run "c-1" "cmd1")
-    equal (run_char [control, Key.Shift] '!') (did_run "cs-1" "cmd1")
+    equal (run_char [control, Key.Shift] '1') (did_run "cs-1" "cmd1")
 
     -- key up aborts
     equal (CmdTest.extract id (run_cmd cmd [] (CmdTest.key_up '1'))) aborted
@@ -97,9 +96,10 @@ binds = concat
     [ Keymap.plain_char '1' "1" cmd1
     , Keymap.plain_char '1' "12" cmd1
     , Keymap.plain_char '2' "2" cmd2
-    , Keymap.bind_key [] (Key.Char '#') "s-3" cmd1
+    , Keymap.bind_key [Keymap.Shift] (Key.Char '3') "s-3" cmd1
     , Keymap.bind_key [Keymap.PrimaryCommand] (Key.Char '1') "c-1" cmd1
-    , Keymap.bind_key [Keymap.PrimaryCommand] (Key.Char '!') "cs-1" cmd1
+    , Keymap.bind_key [Keymap.Shift, Keymap.PrimaryCommand] (Key.Char '1')
+        "cs-1" cmd1
     , Keymap.bind_click [Keymap.Mouse 1] 2 Keymap.OnTrack 1 "chord-12"
         (const cmd1)
     , Keymap.bind_drag [] 3 Keymap.OnTrack "drag-3" (const cmd1)
