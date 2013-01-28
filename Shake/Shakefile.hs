@@ -243,11 +243,6 @@ libraryDependencies = concat $
     ]
     where w = map (\p -> (p, "")) . words
 
--- | Dependencies only needed for their binaries, not to be included as
--- packages.
-binaryDependencies :: [(String, String)]
-binaryDependencies = [("pandoc", "")] -- generate documentation
-
 -- ** cc
 
 data CcBinary = CcBinary {
@@ -672,7 +667,7 @@ makeCabal fn = do
     where
     indent = replicate 8 ' '
     buildDepends = (indent++) $ List.intercalate (",\n" ++ indent) $
-        map mkline (libraryDependencies ++ binaryDependencies)
+        map mkline libraryDependencies
     mkline (package, constraint) =
         package ++ if null constraint then "" else " " ++ constraint
 

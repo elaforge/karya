@@ -7,8 +7,10 @@ cabal install --only-dependencies
 The actual build is with shake, but there's a dummy cabal file with just
 dependencies to make install easier.
 
-pandoc is optional, if you don't want to deal with its zillion dependencies.
-Just delete it out of the cabal file.
+pandoc builds the documentation, but isn't in the cabal file because it ha a
+zillion dependencies and I just need the binary.  Or just read the markdown
+directly, that's what it's for.  So many dependencies just to convert text to
+HTML.
 
     INSTALLED SEPARATELY
 

@@ -53,5 +53,4 @@ library
         QuickCheck,
         shake >=0.6,
         ekg,
-        zmidi-core >=0.6,
-        pandoc
+        zmidi-core >=0.6
