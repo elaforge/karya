@@ -197,6 +197,8 @@ note_calls = Derive.make_calls
     , ("8va", c_8va)
     , ("xstaff", c_xstaff)
     , ("dyn", c_dyn)
+    , ("clef", c_clef)
+    , ("meter", c_meter)
     ]
 
 c_when_ly :: Derive.NoteCall
@@ -226,10 +228,24 @@ c_xstaff = Derive.stream_generator "xstaff"
         code_around (Prefix (change staff1)) (Prefix (change staff2)) args
     where change staff = "\\change Staff = " <> Lilypond.to_lily staff
 
+ly_call :: String -> String -> Sig.Parser a -> (a -> Code) -> Derive.NoteCall
+ly_call name doc arg code = Derive.stream_generator name doc $ Sig.call arg $
+    \val args -> code0 (Args.start args) (code val) <> place_notes args
+
 c_dyn :: Derive.NoteCall
-c_dyn = Derive.stream_generator "dyn"
+c_dyn = ly_call "dyn"
     "Emit a lilypond dynamic. If there are notes below, they are derived\
     \ unchanged."
-    $ Sig.call (required "dynamic" "Should be `p`, `ff`, etc.") $
-    \dyn args -> code0 (Args.start args) (Suffix ('\\' : dyn))
-        <> place_notes args
+    (required "dynamic" "Should be `p`, `ff`, etc.") (Suffix . ('\\':))
+
+c_clef :: Derive.NoteCall
+c_clef = ly_call "clef" "Emit lilypond clef change."
+    (required "clef" "Should be `bass`, `treble`, etc.")
+    (Prefix . ("\\clef "++))
+
+c_meter :: Derive.NoteCall
+c_meter = ly_call "meter"
+    "Emit lilypond meter change. It will be interpreted as global no matter\
+    \ where it is. Simultaneous different meters aren't supported yet."
+    (required "meter" "Should be `4/4`, `3+3/8`, etc.")
+    (Prefix . ("\\time "++))
