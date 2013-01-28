@@ -163,6 +163,18 @@ monitor_loop state = do
 
     stopped <- Transport.poll_player_stopped (monitor_ctl state)
     if stopped || null block_pos
-        then mapM_ (Sync.clear_play_position . fst) $
-            Set.toList (monitor_active_sels state)
+        then do
+            mapM_ (Sync.clear_play_position . fst) $
+                Set.toList (monitor_active_sels state)
+            unless stopped $ wait_for_stop (Transport.poll_player_stopped
+                (monitor_ctl state))
         else Thread.delay 0.05 >> monitor_loop state
+    where
+    -- For some reason I've run out of inverse tempo map, but the player is
+    -- still going.  That shouldn't happen, but if it does and I quit now and
+    -- send Stopped on the transport, it'll clear out the player ctl and the
+    -- player will become unstoppable.
+    wait_for_stop ctl = do
+        Thread.delay 0.1
+        stopped <- ctl
+        if stopped then return () else wait_for_stop ctl

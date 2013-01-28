@@ -3,7 +3,7 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
-  - Let play run off the end of a block where the ruler runs out but the notes
+  * Let play run off the end of a block where the ruler runs out but the notes
     keep going, I can't stop the player.  save/bug-play-off-end
   - Track caching is too fragile, if I add a track with scope over everything
     then I get no caching.  Instead I should cache the bottom note track, or

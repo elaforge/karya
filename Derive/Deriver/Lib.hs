@@ -71,7 +71,7 @@ import Types
 data Result = Result {
     r_events :: Events
     , r_cache :: Cache
-    , r_track_warps :: TrackWarp.Collections
+    , r_track_warps :: [TrackWarp.Collection]
     , r_track_signals :: Track.TrackSignals
     , r_track_dynamic :: TrackDynamic
     , r_integrated :: [Integrated]

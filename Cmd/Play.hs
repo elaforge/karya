@@ -97,7 +97,27 @@ import qualified Perform.Transport as Transport
 import Types
 
 
--- * cmds
+-- * stop
+
+-- | Context sensitive stop that stops whatever is going on.  First it stops
+-- realtime play, then step play, and then it just sends all notes off.
+cmd_context_stop :: Cmd.CmdIO
+cmd_context_stop = do
+    maybe_ctl <- gets Cmd.state_play_control
+    if_just maybe_ctl (done . liftIO . Transport.stop_player) $ do
+    step_playing <- Cmd.gets (Maybe.isJust . Cmd.state_step . Cmd.state_play)
+    if step_playing then done StepPlay.cmd_clear
+        else done Cmd.all_notes_off
+    where
+    done = (>> return Cmd.Done)
+
+cmd_stop :: Cmd.CmdIO
+cmd_stop = do
+    maybe_ctl <- gets Cmd.state_play_control
+    when_just maybe_ctl (void . liftIO . Transport.stop_player)
+    return Cmd.Done
+
+-- * play
 
 local_block :: (Cmd.M m) => m Cmd.PlayMidiArgs
 local_block = do
@@ -212,24 +232,6 @@ from_realtime block_id start repeat_at = do
 lookup_current_performance :: (Cmd.M m) => BlockId -> m (Maybe Cmd.Performance)
 lookup_current_performance block_id = Map.lookup block_id <$>
     gets Cmd.state_current_performance
-
--- | Context sensitive stop that stops whatever is going on.  First it stops
--- realtime play, then step play, and then it just sends all notes off.
-cmd_context_stop :: Cmd.CmdIO
-cmd_context_stop = do
-    maybe_ctl <- gets Cmd.state_play_control
-    if_just maybe_ctl (done . liftIO . Transport.stop_player) $ do
-    step_playing <- Cmd.gets (Maybe.isJust . Cmd.state_step . Cmd.state_play)
-    if step_playing then done StepPlay.cmd_clear
-        else done Cmd.all_notes_off
-    where
-    done = (>> return Cmd.Done)
-
-cmd_stop :: Cmd.CmdIO
-cmd_stop = do
-    maybe_ctl <- gets Cmd.state_play_control
-    when_just maybe_ctl (void . liftIO . Transport.stop_player)
-    return Cmd.Done
 
 -- * implementation
 

@@ -340,7 +340,10 @@ add_new_track_warp track_id = do
     stack <- get_stack
     block_id <- get_current_block_id
     start <- real 0
-    end <- real =<< get_block_dur block_id
+    -- Use get_total_block_dur instead get_block_dur.  Otherwise, the play
+    -- monitor can't go past the end of the ruler, while the player is
+    -- perfectly happy to do so.
+    end <- real =<< get_total_block_dur block_id
     warp <- get_dynamic state_warp
     let tw = Left $ TrackWarp.TrackWarp (start, end, warp, block_id, track_id)
     merge_collect $ mempty { collect_warp_map = Map.singleton stack tw }
@@ -353,6 +356,13 @@ get_block_dur block_id = do
     ui_state <- gets (state_ui . state_constant)
     either (throw . ("get_block_dur: "++) . show) return
         (State.eval ui_state (State.block_ruler_end block_id))
+
+-- | Get the duration of the block according to the last event.
+get_total_block_dur :: BlockId -> Deriver ScoreTime
+get_total_block_dur block_id = do
+    ui_state <- gets (state_ui . state_constant)
+    either (throw . ("get_total_block_dur: "++) . show) return
+        (State.eval ui_state (State.block_event_end block_id))
 
 
 -- * track

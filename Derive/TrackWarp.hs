@@ -4,7 +4,12 @@
     to RealTime and back again, and can be used to create a TempoFunction and
     InverseTempoFunction, among other things.
 -}
-module Derive.TrackWarp where
+module Derive.TrackWarp (
+    TrackWarp(..), WarpMap, Collection
+    , collections
+    -- * functions on Collection
+    , tempo_func, closest_warp, inverse_tempo_func
+) where
 import qualified Control.DeepSeq as DeepSeq
 import qualified Data.List as List
 import qualified Data.Map as Map
@@ -37,7 +42,6 @@ newtype TrackWarp =
 -- don't want to directly compare warp signals because they may be large or
 -- lazy.
 type WarpMap = Map.Map Stack.Stack (Either TrackWarp TrackId)
-type Frames = [Stack.Frame]
 
 -- | Each track warp is a warp indexed by the block and tracks it covers.
 -- These are used by the play monitor to figure out where the play position
@@ -63,14 +67,18 @@ instance Pretty.Pretty Collection where
 instance DeepSeq.NFData Collection where
     rnf tw = DeepSeq.rnf (tw_tracks tw) `seq` DeepSeq.rnf (tw_warp tw)
 
-type Collections = [Collection]
-
-collections :: WarpMap -> Collections
+collections :: WarpMap -> [Collection]
 collections = map convert . collect_warps
 
 convert :: (TrackWarp, [TrackId]) -> Collection
 convert (TrackWarp (start, end, warp, block_id, maybe_track_id), tracks) =
-    Collection start end block_id (Set.fromList track_ids) warp
+    Collection
+        { tw_start = start
+        , tw_end = end
+        , tw_block = block_id
+        , tw_tracks = Set.fromList track_ids
+        , tw_warp = warp
+        }
     where track_ids = maybe tracks (:tracks) maybe_track_id
 
 collect_warps :: WarpMap -> [(TrackWarp, [TrackId])]
@@ -82,6 +90,8 @@ collect_warps wmap = drop 1 $ map drop_stack $ collect [] dummy_tw assocs
     drop_stack (_, tw, tracks) = (tw, tracks)
     dummy_tw = TrackWarp (0, 0, Score.id_warp, no_block, Nothing)
     no_block = Types.BlockId (Id.global "_no_block_")
+
+type Frames = [Stack.Frame]
 
 -- | Group a list of stacks into a @(stack, parent, children)@ triples.
 -- A Left is a parent, and will collect the Rights prefixed by its stack.
@@ -98,7 +108,7 @@ collect prefix a stacks = (prefix, a, bs)
 
 -- * functions on Collection
 
-tempo_func :: Collections -> Transport.TempoFunction
+tempo_func :: [Collection] -> Transport.TempoFunction
 tempo_func track_warps block_id track_id pos = map (Score.warp_pos pos) warps
     where
     warps = [tw_warp tw | tw <- track_warps, tw_block tw == block_id,
@@ -116,7 +126,7 @@ tempo_func track_warps block_id track_id pos = map (Score.warp_pos pos) warps
 --
 -- This can't use Transport.TempoFunction because I need to pick the
 -- appropriate Warp and then look up multiple ScoreTimes in it.
-closest_warp :: Collections -> Transport.ClosestWarpFunction
+closest_warp :: [Collection] -> Transport.ClosestWarpFunction
 closest_warp track_warps block_id track_id pos =
     maybe Score.id_warp (tw_warp . snd) $
         Seq.minimum_on (abs . subtract pos . fst) annotated
@@ -125,7 +135,7 @@ closest_warp track_warps block_id track_id pos =
     warps = [tw | tw <- track_warps, tw_block tw == block_id,
         Set.member track_id (tw_tracks tw)]
 
-inverse_tempo_func :: Collections -> Transport.InverseTempoFunction
+inverse_tempo_func :: [Collection] -> Transport.InverseTempoFunction
 inverse_tempo_func track_warps time = do
     (block_id, track_ids, Just pos) <- track_pos
     return (block_id, [(track_id, pos) | track_id <- Set.toList track_ids])
