@@ -3,6 +3,15 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
+  - crash:
+    **** App/Main.hs:187 [main] - ui died from exception: FltkException:
+    0x00007fd4e381a800 not in displayed view list:
+    [ ((vid "viola-sonata/order1.v1"), 0x00007fd4e281e800)
+    , ((vid "viola-sonata/pno1.v1"), 0x00007fd4e3019200)
+    ]
+
+    I did save_state, click on window, ^W, this was the window I closed.
+    Maybe an update got scheduled after the window close?
   * Let play run off the end of a block where the ruler runs out but the notes
     keep going, I can't stop the player.  save/bug-play-off-end
   - Track caching is too fragile, if I add a track with scope over everything
@@ -93,6 +102,8 @@ UNSORTED
     Either vsl insts set environ that causes the normal trill to do that, or
     they could bind their own "tr".
   - why does legato vsl always have too-loud connecting samples?
+    I probably need to separate articulations for performance from slur
+    staccato etc. for lilypond.
   * viola-sonata: second staccato note at 7.3.5 vla part missing
   - network midi doesn't seem to handle abort?
     playing the second time doesn't happen

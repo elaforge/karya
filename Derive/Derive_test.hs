@@ -253,7 +253,7 @@ test_multiple_subderive = do
         sub pos = (UiTest.bid "sub", [(UiTest.mk_tid_name "sub" 1, pos)])
     equal (map List.sort pos)
         [ [b0 0, sub 0], [b0 1, sub 0.5], [b0 2, sub 0], [b0 3, sub 0.5]
-        , [b0 4, sub 0], [b0 5, sub 0.5], [b0 6]
+        , [b0 4, sub 0], [b0 5, sub 0.5], []
         ]
 
 test_tempo_compose = do

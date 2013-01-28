@@ -5,7 +5,7 @@
     InverseTempoFunction, among other things.
 -}
 module Derive.TrackWarp (
-    TrackWarp(..), WarpMap, Collection
+    TrackWarp(..), WarpMap, Collection(..)
     , collections
     -- * functions on Collection
     , tempo_func, closest_warp, inverse_tempo_func
