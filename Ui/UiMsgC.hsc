@@ -54,9 +54,9 @@ peek_msg msgp = do
 peek_context :: Ptr UiMsg.UiMsg -> IO (UiMsg.Context, Maybe ViewId)
 peek_context msgp = do
     focusp <- (#peek UiMsg, context.focus) msgp :: IO (Ptr BlockC.CView)
-    focus <- get_id focusp
+    focus <- lookup_id focusp
     viewp <- (#peek UiMsg, context.view) msgp :: IO (Ptr BlockC.CView)
-    view <- get_id viewp
+    view <- lookup_id viewp
 
     track_type <- (#peek UiMsg, context.track_type) msgp :: IO CChar
     tracknum <- int <$> (#peek UiMsg, context.tracknum) msgp :: IO Int
@@ -65,9 +65,9 @@ peek_context msgp = do
     let track = decode_track track_type tracknum has_pos cpos
     return (UiMsg.Context focus track, view)
     where
-    get_id p
+    lookup_id p
         | p == nullPtr = return Nothing
-        | otherwise = Just <$> BlockC.get_id p
+        | otherwise = BlockC.lookup_id p
 
 decode_track :: CChar -> Int -> Bool -> ScoreTime
     -> Maybe (TrackNum, UiMsg.Track)

@@ -29,9 +29,9 @@
     worth it.
 -}
 module Ui.BlockC (
-    -- | get_id and CView are only exported for Ui.UiMsgC which is a slight
+    -- | lookup_id and CView are only exported for Ui.UiMsgC which is a slight
     -- abstraction breakage.
-    get_id, CView
+    lookup_id, CView
 
     -- * view creation
     , create_view, destroy_view
@@ -115,15 +115,12 @@ lookup_ptr view_id = do
     ptr_map <- MVar.readMVar view_id_to_ptr
     return $ Map.lookup view_id ptr_map
 
-get_id :: Ptr CView -> IO ViewId
-get_id viewp = do
+-- | Nothing indicates that the UI returned a view ptr I didn't know I had.
+-- It's rare, but it can happen if I close a window but a msg about it is still in the queue.
+lookup_id :: Ptr CView -> IO (Maybe ViewId)
+lookup_id viewp = do
     ptr_map <- MVar.readMVar view_id_to_ptr
-    case List.find ((==viewp) . snd) (Map.assocs ptr_map) of
-        -- If it's Nothing, the UI returned a view ptr I didn't know I had.
-        -- That really should not happen.
-        Nothing -> throw $ show viewp ++ " not in displayed view list: "
-            ++ show (Map.assocs ptr_map)
-        Just (view_id, _) -> return view_id
+    return $ fst <$> List.find ((==viewp) . snd) (Map.assocs ptr_map)
 
 -- * view creation
 

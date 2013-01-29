@@ -996,7 +996,7 @@ insert_into_view block tracknum view = view
 remove_from_view :: Block.Block -> TrackNum -> Block.View -> Block.View
 remove_from_view block tracknum view = view
     { Block.view_selections =
-        Map.mapMaybe (remove_from_selection block tracknum)
+        Map.mapMaybeWithKey (remove_from_selection block tracknum)
             (Block.view_selections view)
     }
 

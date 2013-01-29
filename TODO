@@ -3,7 +3,9 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
-  - crash:
+  - Delete leftmost track, the selection moves to the new track 1, but isn't
+    drawn there.
+  * crash:
     **** App/Main.hs:187 [main] - ui died from exception: FltkException:
     0x00007fd4e381a800 not in displayed view list:
     [ ((vid "viola-sonata/order1.v1"), 0x00007fd4e281e800)
