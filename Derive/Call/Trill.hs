@@ -40,6 +40,7 @@ import Util.Control
 import qualified Util.Seq as Seq
 import qualified Derive.Args as Args
 import qualified Derive.Attrs as Attrs
+import qualified Derive.Call.Attribute as Attribute
 import qualified Derive.Call.Lily as Lily
 import qualified Derive.Call.Note as Note
 import qualified Derive.Call.Util as Util
@@ -143,6 +144,11 @@ c_tremolo = Derive.Call
                 return $ take_full_notes end notes
         Note.place $ [Note.Event start (end - start) note
             | (start, end) <- zip notes (drop 1 notes)]
+
+-- | Only over here instead of in "Derive.Call.Attribute" so it can be next to
+-- 'c_tremolo'.
+c_attr_tremolo :: Derive.NoteCall
+c_attr_tremolo = Attribute.attributed_note Attrs.trem
 
 take_full_notes :: (Ord a) => a -> [a] -> [a]
 take_full_notes _ [] = []

@@ -92,7 +92,8 @@ hang_ks = [(attrs, key) | (attrs, key, _, _) <- hang_strokes]
 -- * gender wayang
 
 wayang_code :: MidiInst.Code
-wayang_code = MidiInst.null_call (DUtil.note0_attrs muted)
+wayang_code =
+    MidiInst.note_calls $ MidiInst.null_call (DUtil.note0_attrs muted)
 
 wayang_ks :: [(Score.Attributes, Midi.Key)]
 wayang_ks = [(muted, Key.gs2), (open, Key.g2), (mempty, Key.g2)]

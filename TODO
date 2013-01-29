@@ -28,7 +28,7 @@ UNSORTED
     been normalized to zero.  I really need some reliable way to get track
     time.
   - tremolo for chords
-  - Tremolo should be like trill: modify the notes normally, but in vsl swap
+  * Tremolo should be like trill: modify the notes normally, but in vsl swap
     out the attribute one.
   - adding an intervening note track seems to mess up the signal render
   - the cache got messed up after changing the tempo
@@ -655,7 +655,7 @@ lilypond:
   * support compound meters, e.g. 5/4 as 3+2 or 2+3
   * get pitches right, and keep the enharmonics
   * manually add ly tweaks, could be done with special ly environ val
-  - is there a way to turn pitch signal calls e.g. 'tr' into an attr on the
+  / is there a way to turn pitch signal calls e.g. 'tr' into an attr on the
     note? I can't totally override the pitch track because I still need the
     pitches, it needs to return attrs in addition to signal.  The only way
     I can think is another return val, e.g. collect [(RealTime, Attributes)]

@@ -109,8 +109,8 @@ note_calls calls = mempty
 
 -- | Add the given call as the null note call to the note track.  This also
 -- binds @n@, since @n@ is supposed to be the \"named\" way to call \"\".
-null_call :: Derive.NoteCall -> Code
-null_call call = note_calls [("", call), ("n", call)]
+null_call :: Derive.NoteCall -> [(String, Derive.NoteCall)]
+null_call call = [("", call), ("n", call)]
 
 cmd :: Cmd.Cmd -> Code
 cmd c = mempty { code_cmds = [c] }

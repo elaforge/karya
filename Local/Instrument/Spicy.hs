@@ -20,7 +20,7 @@ load _dir = return $ MidiInst.make $
         { MidiInst.modify_wildcard =
             (Instrument.instrument_#Instrument.hold_keyswitch #= True)
             . Instrument.set_keyswitches keyswitches
-        , MidiInst.code = MidiInst.null_call note_call
+        , MidiInst.code = MidiInst.note_calls (MidiInst.null_call note_call)
         }
 
 synth_name :: String
