@@ -1010,13 +1010,19 @@ insert_into_selection block tracknum sel
     | otherwise = sel
     where (low, high) = Types.sel_track_range sel
 
--- | Remove the given track from the selection.  The selection will be moved
--- or shrunk as per 'insert_into_selection'.
-remove_from_selection :: Block.Block -> TrackNum -> Types.Selection
-    -> Maybe Types.Selection
-remove_from_selection block tracknum sel
-    | tracknum <= low = Just $ shift_selection block (-1) sel
-        -- Just $ Types.sel_modify_tracks (subtract 1) sel
+-- | Remove the given track from the selection.  The selection will be moved or
+-- shrunk as per 'insert_into_selection', possibly to nothing if the selection
+-- was only on the deleted track.  Config.insert_selnum is an exception, it
+-- moves one track to the left, if possible.  That's because it's convenient to
+-- delete consecutive tracks.
+remove_from_selection :: Block.Block -> TrackNum
+    -> Types.SelNum -> Types.Selection -> Maybe Types.Selection
+remove_from_selection block tracknum selnum sel
+    | tracknum < low = Just $ shift_selection block (-1) sel
+    | tracknum == high && high == low =
+        if selnum == Config.insert_selnum
+        then Just $ shift_selection block (-1) sel
+        else Nothing
     | tracknum <= high = Just $ Types.sel_expand_tracks (-1) sel
     | otherwise = Just sel
     where (low, high) = Types.sel_track_range sel
