@@ -154,8 +154,10 @@ select_track_all dur tracks sel
     | sel == select_rest = select_tracks
     | otherwise = select_rest
     where
-    select_rest = sel { Types.sel_cur_pos = dur }
-    select_tracks = sel { Types.sel_start_pos = 0, Types.sel_cur_pos = dur }
+    -- Keep sel_cur_pos at the current position, or set it to the top.
+    -- This is so 'auto_scroll' won't jump to the bottom of the block.
+    select_rest = sel { Types.sel_start_pos = dur }
+    select_tracks = sel { Types.sel_start_pos = dur, Types.sel_cur_pos = 0 }
     select_all = Types.selection 1 0 tracks dur
 
 merge_sel :: Types.Selection -> Types.Selection -> Types.Selection
