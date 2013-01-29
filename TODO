@@ -59,7 +59,7 @@ UNSORTED
   * staccato should make notes shorter
     * but not for vsl
   * load repo, then save_state, it still wants to write to .git
-  - think of some way to make sure randomness is stable
+  * think of some way to make sure randomness is stable
     I can use only the seed for randomness, and hash in each block and track
     as I enter it.  That way you can always get a consistent result by
     manually setting the seed.  It might be faster too, since it doesn't have

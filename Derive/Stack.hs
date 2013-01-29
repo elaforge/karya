@@ -143,10 +143,11 @@ instance Serialize.Serialize Frame where
             _ -> Serialize.bad_tag "Stack.Frame" tag
 
 instance Hashable.Hashable Frame where
-    hash (Block block_id) = Hashable.hash block_id
-    hash (Track track_id) = Hashable.hash track_id
-    hash (Region s e) = Hashable.hash s `Hashable.hashWithSalt` e
-    hash (Call call) = Hashable.hash call
+    hashWithSalt n (Block block_id) = Hashable.hashWithSalt n block_id
+    hashWithSalt n (Track track_id) = Hashable.hashWithSalt n track_id
+    hashWithSalt n (Region s e) =
+        Hashable.hashWithSalt n s `Hashable.hashWithSalt` e
+    hashWithSalt n (Call call) = Hashable.hashWithSalt n call
 
 format_ui :: Stack -> Pretty.Doc
 format_ui = Pretty.text_list . map unparse_ui_frame . to_ui

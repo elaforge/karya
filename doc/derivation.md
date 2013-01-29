@@ -426,3 +426,21 @@ caveat about how you can't write `%t-chromatic = 1 | 4c`
 [Scale docs](scales.html)
 
 ## Logging
+
+## Randomness
+
+"Randomness" in a music language is a bit interesting.  You want it to be
+random, but if you get something you like, you want to fix it to that version.
+
+Calls that want randomness can use the various calls in 'Derive.Call.Util' to
+get a pseudo-random number.  The number depends soley on the random seed, so if
+the seed is the same, the number will always be the same.  The seed is hashed
+with each stack frame as it is added, so that each event should get a unique
+stream of random numbers.  However, the seed is an environ value, and if you
+manually set it to a constant the derivation underneath should always derive
+the same way, provided you don't change the stack underneath the point where it
+gets set.  So you can freeze a derivation by inspecting the seed and hardcoding
+it manually, or you can ask for a different variation by setting a new seed.
+
+Because the seed depends on the stack, two calls on the same event will get the
+same random sequence.  Hopefully that's not a problem.

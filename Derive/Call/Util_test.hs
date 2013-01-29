@@ -1,25 +1,30 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 module Derive.Call.Util_test where
 import Util.Test
-import qualified Ui.State as State
-import qualified Derive.Call.Util as Util
-import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
-import qualified Derive.Deriver.Internal as Internal
 import qualified Derive.Score as Score
-import qualified Derive.TrackLang as TrackLang
 import Types
 
 
 test_random = do
-    let run (seed :: Double) = DeriveTest.eval State.empty
-            . Derive.with_val TrackLang.v_seed seed
-        rand = Util.random :: Derive.Deriver Int
-    equal (run 0 rand) (run 0 rand)
-    check (run 0 rand /= run 1 rand)
-    check $ run 2 (Internal.with_stack_region 0 1 rand)
-        /= run 2 (Internal.with_stack_region 1 1 rand)
-    equal (run 0 (Util.shuffle ['a'..'f'])) (Right "ebdfca") -- ya ya ya :)
+    let f seed = DeriveTest.extract extract $ DeriveTest.derive_blocks
+            [ ("top", [(">", [(0, 1, seed ++ "b"), (1, 1, seed ++ "b")])])
+            , ("b", [(">", [(0, 1, "")]),
+                ("c", [(0, 0, "range")])])
+            ]
+        -- extract e = (Score.event_environ e, DeriveTest.e_control "c" e)
+        extract = DeriveTest.e_control "c"
+
+    -- Different calls to the same block are differently random.
+    let ([[(_, v1)], [(_, v2)]], logs) = f ""
+    equal logs []
+    check $ v1 /= v2
+
+    -- Unless overridden.  Note that the seed is set after the difference in
+    -- position, so these calls should be the same.
+    let ([[(_, v1)], [(_, v2)]], logs) = f "seed = 1 | "
+    equal logs []
+    equal v1 v2
 
 test_c_equal = do
     -- Test the '=' call, but also test the special parsing Derive.Note deriver

@@ -263,12 +263,11 @@ derive_event st tinfo prev_sample repeat_call prev event next
         Just (Stack.to_strings (Derive.state_stack (Derive.state_dynamic st)))
     run_call expr = apply_toplevel state (cinfo expr) expr
     state = st
-        { Derive.state_dynamic = (Derive.state_dynamic st)
-            { Derive.state_stack = Stack.add
-                (region (Event.min event) (Event.max event))
-                (Derive.state_stack (Derive.state_dynamic st))
-            }
+        { Derive.state_dynamic = Internal.add_stack_frame
+            region (Derive.state_dynamic st)
         }
+    region = Stack.Region (shifted + Event.min event)
+        (shifted + Event.max event)
     cinfo expr = Derive.CallInfo
         { Derive.info_expr = expr
         , Derive.info_prev_val = prev_sample
@@ -284,7 +283,6 @@ derive_event st tinfo prev_sample repeat_call prev event next
         , Derive.info_sub_tracks = subs
         , Derive.info_track_type = Just ttype
         }
-    region s e = Stack.Region (shifted + s) (shifted + e)
     TrackInfo events_end track_range shifted subs around ttype = tinfo
 
 -- | Replace @\"@ with the previous non-@\"@ call, if there was one.

@@ -3,6 +3,7 @@
     scheme, and are not so useful when writing calls.
 -}
 module Derive.Deriver.Internal where
+import qualified Data.Hashable as Hashable
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 
@@ -201,14 +202,33 @@ with_stack_call name = with_stack (Stack.Call name)
 
 with_stack :: Stack.Frame -> Deriver a -> Deriver a
 with_stack frame = localm $ \st -> do
-        stack <- get_stack
-        when (Stack.length stack >= max_depth) $
-            throw $ "call stack too deep: " ++ Pretty.pretty frame
-        return $ st { state_stack = Stack.add frame (state_stack st) }
-    where max_depth = 100
+    stack <- get_stack
+    when (Stack.length stack >= max_depth) $
+        throw $ "call stack too deep: " ++ Pretty.pretty frame
+    return $ add_stack_frame frame st
+    where
     -- A recursive loop will result in an unfriendly hang.  So limit the total
     -- nesting depth to catch those.  I could disallow all recursion, but this
     -- is more general.
+    max_depth = 100
+
+-- | Add a new stack frame and hash it with the random seed.
+add_stack_frame :: Stack.Frame -> Dynamic -> Dynamic
+add_stack_frame frame st = st
+    { state_stack = Stack.add frame (state_stack st)
+    , state_environ = update_seed (state_environ st)
+    }
+    where
+    update_seed env = TrackLang.insert_val
+        TrackLang.v_seed (TrackLang.num (seed old)) env
+        where old = fromMaybe 0 (TrackLang.maybe_val TrackLang.v_seed env)
+    seed n = i2d (Hashable.hashWithSalt n frame)
+    -- If I just round off I lose the lower bits.  It turns out hashing similar
+    -- numbers differs only in the low bits.  A Double should be able to hold
+    -- up to 2^52, but that's still an annoyingly large number to write in
+    -- a score, so restrict it further.
+    i2d :: Int -> Double
+    i2d i = fromIntegral (i `mod` 999)
 
 get_stack :: Deriver Stack.Stack
 get_stack = get_dynamic state_stack

@@ -11,7 +11,6 @@
 module Derive.Call.Util where
 import qualified Data.FixedList as FixedList
 import Data.FixedList (Nil(..))
-import qualified Data.Hashable as Hashable
 import qualified Data.List as List
 import qualified Data.List.NonEmpty as NonEmpty
 import qualified Data.Traversable as Traversable
@@ -22,7 +21,6 @@ import Util.Control
 import qualified Util.Num as Num
 import qualified Util.Pretty as Pretty
 import qualified Util.Random as Random
-import qualified Util.Seq as Seq
 
 import qualified Ui.ScoreTime as ScoreTime
 import qualified Derive.Args as Args
@@ -296,6 +294,13 @@ get_attrs = fromMaybe mempty <$> Derive.lookup_val TrackLang.v_attributes
 
 -- ** random
 
+-- | Get an infinite list of random numbers.  These are deterministic in that
+-- they depend only on the random seed, but the random seed is hashed with
+-- each stack entry.  So if you fix the random seed at a certain point, you
+-- should get consistent results below it.
+--
+-- It's a class because both Doubles and Ints are useful and I'd like to use
+-- the same function name for both.
 class Random a where
     -- | Infinite list of random numbers.  These are deterministic in that
     -- they depend on the current track, current call position, and the random
@@ -333,20 +338,12 @@ pick xs = shuffle (NonEmpty.toList xs) >>= \x -> case x of
     x : _ -> return x
 
 _make_randoms :: (Pure64.PureMT -> (a, Pure64.PureMT)) -> Derive.Deriver [a]
-_make_randoms f = do
-    pos <- maybe 0 fst . Seq.head . mapMaybe Stack.region_of
-        . Stack.innermost <$> Derive.get_stack
-    gen <- _random_generator pos
-    return $ List.unfoldr (Just . f) gen
+_make_randoms f = List.unfoldr (Just . f) <$> _random_generator
 
-_random_generator :: ScoreTime -> Derive.Deriver Pure64.PureMT
-_random_generator pos = do
-    seed <- Derive.lookup_val TrackLang.v_seed :: Derive.Deriver (Maybe Double)
-    stack <- Derive.get_stack
-    let cseed = Hashable.hash stack
-            `Hashable.hashWithSalt` fromMaybe 0 seed
-            `Hashable.hashWithSalt` pos
-    return $ Pure64.pureMT (fromIntegral cseed)
+_random_generator :: Derive.Deriver Pure64.PureMT
+_random_generator = do
+    seed <- fromMaybe 0 <$> Derive.lookup_val TrackLang.v_seed
+    return $ Pure64.pureMT (floor (seed :: Double))
 
 -- * time
 

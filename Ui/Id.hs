@@ -57,7 +57,8 @@ instance Serialize.Serialize Namespace where
     get = Serialize.get >>= \a -> return (unsafe_namespace a)
 
 instance Hashable.Hashable Id where
-    hash (Id ns name) = Hashable.hash ns `Hashable.hashWithSalt` name
+    hashWithSalt salt (Id ns name) =
+        Hashable.hashWithSalt salt ns `Hashable.hashWithSalt` name
 
 -- | Create a namespace, if the characters are valid.
 namespace :: String -> Maybe Namespace
