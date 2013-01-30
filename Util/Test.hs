@@ -127,15 +127,16 @@ diff :: String -> String -> ([Int], [Int], String)
 diff xs ys = (concatMap fnums diffs, concatMap snums diffs,
         unlines $ filter (not.null) $ map to_lines diffs)
     where
-    fnums (Diff.F, nlines) = map num_of nlines
+    fnums (Diff.First nlines) = map num_of nlines
     fnums _ = []
-    snums (Diff.S, nlines) = map num_of nlines
+    snums (Diff.Second nlines) = map num_of nlines
     snums _ = []
-    to_lines (d, nlines) = case d of
-        Diff.B -> ""
-        Diff.F -> "\t---- " ++ show (num_of (head nlines)) ++ "\n"
+    to_lines (Diff.Both {}) = ""
+    to_lines (Diff.First nlines) =
+        "\t---- " ++ show (num_of (head nlines)) ++ "\n"
             ++ unlines (map (('<':) . text_of) nlines)
-        Diff.S -> "\t---- " ++ show (num_of (head nlines)) ++ "\n"
+    to_lines (Diff.Second nlines) =
+        "\t---- " ++ show (num_of (head nlines)) ++ "\n"
             ++ unlines (map (('>':) . text_of) nlines)
     num_of (NumberedLine (i, _)) = i
     text_of (NumberedLine (_, s)) = s

@@ -247,7 +247,7 @@ libraryDependencies = concat $
     -- Instrument.Parse, could use attoparsec, but parsec errors are better
     , w "parsec"
     , w "haskell-src" -- Util.PPrint
-    , w "regex-pcre Diff" -- Util.Test
+    , [("regex-pcre", ""), ("Diff", ">=0.2")] -- Util.Test
     , w "QuickCheck" -- Derive.DeriveQuickCheck
     , [("shake", ">=0.6"), ("binary", ""), ("syb", "")] -- build system
     , w "ekg" -- if useEkg == True
