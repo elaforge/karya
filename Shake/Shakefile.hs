@@ -218,10 +218,22 @@ packages :: [String]
 packages = (if not useEkg then List.delete "ekg" else id) $
     map fst libraryDependencies
 
+-- | When I pass the -package lines I do so without version numbers, so if
+-- multiple versions are installed I may wind up with the wrong ones.
+-- If for whatever reason I need to use some older version than the one
+-- installed, this will probably pick the wrong version.
+--
+-- To fix that I'd have to do cabal's version search thing.  The cabal
+-- code is in Distribution.PackageDescription.Configuration, but unfortunately
+-- the interesting functions are all private.
 libraryDependencies :: [(String, String)]
 libraryDependencies = concat $
-    -- basic deps
-    [ w "transformers mtl deepseq data-ordlist cereal text stm network"
+    -- really basic deps
+    [ [("base", ">=4.6"), ("containers", ">=0.5")]
+    , w "directory filepath process bytestring time unix array pretty"
+    , w "ghc-prim"
+    --  basic
+    , w "transformers mtl deepseq data-ordlist cereal text stm network"
     , w "vector either utf8-string semigroups"
     , w "attoparsec" -- Derive: tracklang parsing
     , [("fixed-list", ">=0.1.5")] -- Derive.Call.Util: for typesafe mapping
@@ -237,7 +249,7 @@ libraryDependencies = concat $
     , w "haskell-src" -- Util.PPrint
     , w "regex-pcre Diff" -- Util.Test
     , w "QuickCheck" -- Derive.DeriveQuickCheck
-    , [("shake", ">=0.6")] -- build system
+    , [("shake", ">=0.6"), ("binary", ""), ("syb", "")] -- build system
     , w "ekg" -- if useEkg == True
     , [("zmidi-core", ">=0.6")] -- for Cmd.Load.Midi
     ]
@@ -774,8 +786,9 @@ hsORule infer = matchObj "//*.hs.o" ?> \obj -> do
 compileHs :: Config -> FilePath -> Util.Cmdline
 compileHs config hs = ("GHC", hs,
     [ghcBinary, "-c"] ++ ghcFlags config ++ hcFlags (configFlags config)
-        ++ main_is ++ [hs, "-o", srcToObj config hs])
+        ++ main_is ++ packageFlags ++ [hs, "-o", srcToObj config hs])
     where
+    packageFlags = ["-hide-all-packages"] ++ map ("-package="++) packages
     main_is = if hs `elem` Map.elems nameToMain
         then ["-main-is", pathToModule hs]
         else []
