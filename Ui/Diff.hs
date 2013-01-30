@@ -49,7 +49,7 @@ run = Seq.partition_either . Identity.runIdentity . Logger.exec
 -- | Emit a list of the necessary 'Update's to turn @st1@ into @st2@.
 diff :: [Update.CmdUpdate] -> State.State -> State.State
     -> ([Update.UiUpdate], [Update.DisplayUpdate])
-diff cmd_updates st1 st2 = postproc $ run $ do
+diff cmd_updates st1 st2 = postproc cmd_updates st2 $ run $ do
     -- View diff needs to happen first, because other updates may want to
     -- update the new view (technically these updates are redundant, but they
     -- don't hurt and filtering them would be complicated).
@@ -62,15 +62,43 @@ diff cmd_updates st1 st2 = postproc $ run $ do
     -- change.  But that means I need the CmdUpdate hack, and modifications
     -- must be done through State.modify_ruler.
     diff_state st1 st2
+
+-- | Here's where the three different kinds of updates come together.
+-- CmdUpdates are converted into UiUpdates, and then all of them converted
+-- to DisplayUpdates.
+postproc :: [Update.CmdUpdate] -> State.State
+    -> ([Update.UiUpdate], [Update.DisplayUpdate])
+    -> ([Update.UiUpdate], [Update.DisplayUpdate])
+postproc cmd_updates to_state (ui_updates, display_updates) =
+    (cancel_updates ui, display ++ refresh_selections to_state display)
     where
-    -- Here's where the three different kinds of updates come together.
-    -- CmdUpdates are converted into UiUpdates, and then all of them converted
-    -- to DisplayUpdates.
-    postproc (ui_updates, display_updates) = (cancel_updates ui_updates2,
-        display_updates ++ to_display (merge_updates st2 ui_updates2))
-        where
-        ui_updates2 = map Update.to_ui cmd_updates ++ ui_updates
-        to_display = mapMaybe Update.to_display
+    ui = map Update.to_ui cmd_updates ++ ui_updates
+    display = display_updates ++ to_display (merge_updates to_state ui)
+    to_display = mapMaybe Update.to_display
+
+-- | If the updates have InsertTrack or RemoveTrack the selections may have
+-- been moved or deleted.  Emit updates for all selections for all views of
+-- blocks with added or removed tracks.
+refresh_selections :: State.State -> [Update.DisplayUpdate]
+    -> [Update.DisplayUpdate]
+refresh_selections state updates = concatMap selections view_ids
+    where
+    view_ids =
+        [ view_id | (view_id, view) <- Map.toList (State.state_views state)
+        , Set.member (Block.view_block view) block_ids
+        ]
+    block_ids = Set.fromList [block_id |
+        Update.BlockUpdate block_id update <-updates, is_track update]
+    is_track (Update.RemoveTrack {}) = True
+    is_track (Update.InsertTrack {}) = True
+    is_track _ = False
+
+    selections view_id = fromMaybe [] $ do
+        view <- Map.lookup view_id (State.state_views state)
+        let update selnum = Update.ViewUpdate view_id $
+                Update.Selection selnum
+                    (Map.lookup selnum (Block.view_selections view))
+        return $ map update [0 .. Config.max_selections - 1]
 
 -- | DestroyView, DestroyBlock, DestroyTrack, and DestroyRuler cancel out
 -- previous updates.

@@ -78,8 +78,7 @@ do_updates :: Track.TrackSignals -> Event.SetStyle -> [Update.DisplayUpdate]
     -> State.StateT IO ()
 do_updates track_signals set_style updates = do
     actions <- mapM (run_update track_signals set_style) updates
-    -- when (not (null updates)) $
-    --     Debug.putp "sync updates" updates
+    -- Debug.putp_full "sync updates" updates
     liftIO (Ui.send_action (sequence_ actions))
 
 set_track_signals :: BlockId -> State.State -> Track.TrackSignals -> IO ()

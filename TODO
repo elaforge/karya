@@ -3,7 +3,8 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
-  - Delete leftmost track, the selection moves to the new track 1, but isn't
+  - constructors in Ui.Update don't need "Update" in their names
+  * Delete leftmost track, the selection moves to the new track 1, but isn't
     drawn there.
   * crash:
     **** App/Main.hs:187 [main] - ui died from exception: FltkException:
@@ -483,7 +484,7 @@ UNSORTED
       with the music, e.g. when I play by itself.  On the other hand, if the
       block repeats do I want the tempo to repeat as well?  Sometimes yes,
       sometimes no...
-  - after an uncollapse, it doesn't redraw the selection that was underneath
+  * after an uncollapse, it doesn't redraw the selection that was underneath
     Not a big deal since a selection shouldn't be underneath but still...
   - randomize any control by having the 'set' call look for the -rnd control
   * some way to get symbol feedback instantly to make it easier to compose them
