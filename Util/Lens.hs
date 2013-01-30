@@ -9,9 +9,6 @@ module Util.Lens (
     -- * data
     , map, set, list
     , mapf
-
-    -- * derive
-    , derive_with, derive, derive_except, derive_avoid, mklabel
 ) where
 import Prelude hiding ((.), map)
 import Control.Category ((.))
@@ -20,8 +17,6 @@ import qualified Data.Label.Maybe as Maybe
 import qualified Data.Label.Pure as Pure
 import qualified Data.Map as Map
 import qualified Data.Set as Set
-
-import qualified Language.Haskell.TH.Syntax as Syntax
 
 import qualified Util.Seq as Seq
 
@@ -76,36 +71,3 @@ list i
 
 mapf :: (Ord k) => k -> Map.Map k a Maybe.:~> a
 mapf k = Maybe.lens (Map.lookup k) (\a -> Just . Map.insert k a)
-
-
--- * derivation
-
-type Deriver = [Syntax.Name] -> Syntax.Q [Syntax.Dec]
-
-derive_with :: (String -> String) -> Deriver
-derive_with = mkLabelsWith
-
-derive :: Deriver
-derive = derive_with mklabel
-
-derive_except :: [String] -> Deriver
-derive_except avoid = mkLabelsWith $ \name ->
-    if name `elem` avoid then name ++ "_" else mklabel name
-
-derive_avoid :: [String] -> Deriver
-derive_avoid avoid = derive_with $ \name ->
-    let label = mklabel name
-    in if label `elem` avoid then label ++ "_" else label
-
-mklabel :: String -> String
-mklabel name
-    | label `elem` keywords = label ++ "_"
-    | otherwise = label
-    where
-    label = drop 1 $ dropWhile (/='_') name
-    keywords =
-        ["module", "infix", "infixl", "infixr"
-        , "class", "data", "deriving", "instance", "default", "where"
-        , "type", "newtype" , "do", "case", "of", "let", "in"
-        , "if", "then", "else"
-        ]
