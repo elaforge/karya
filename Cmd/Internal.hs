@@ -253,12 +253,12 @@ cmd_sync_status ui_from cmd_from = do
     forM_ (new_views ++ mapMaybe zoom_update updates) sync_zoom_status
     return Cmd.Continue
     where
-    create_view (Update.ViewUpdate view_id Update.CreateView) = Just view_id
+    create_view (Update.View view_id Update.CreateView) = Just view_id
     create_view _ = Nothing
-    selection_update (Update.ViewUpdate view_id (Update.Selection selnum sel))
+    selection_update (Update.View view_id (Update.Selection selnum sel))
         | selnum == Config.insert_selnum = Just (view_id, sel)
     selection_update _ = Nothing
-    zoom_update (Update.ViewUpdate view_id (Update.Zoom {})) = Just view_id
+    zoom_update (Update.View view_id (Update.Zoom {})) = Just view_id
     zoom_update _ = Nothing
 
 view_updates :: State.State -> State.State -> [Update.UiUpdate]

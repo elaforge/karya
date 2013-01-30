@@ -88,14 +88,14 @@ refresh_selections state updates = concatMap selections view_ids
         , Set.member (Block.view_block view) block_ids
         ]
     block_ids = Set.fromList [block_id |
-        Update.BlockUpdate block_id update <-updates, is_track update]
+        Update.Block block_id update <-updates, is_track update]
     is_track (Update.RemoveTrack {}) = True
     is_track (Update.InsertTrack {}) = True
     is_track _ = False
 
     selections view_id = fromMaybe [] $ do
         view <- Map.lookup view_id (State.state_views state)
-        let update selnum = Update.ViewUpdate view_id $
+        let update selnum = Update.View view_id $
                 Update.Selection selnum
                     (Map.lookup selnum (Block.view_selections view))
         return $ map update [0 .. Config.max_selections - 1]
@@ -111,18 +111,18 @@ cancel_updates updates = map fst $ filter (not . destroyed) $
     zip updates (drop 1 (List.tails updates))
     where
     destroyed (update, future) = case update of
-        Update.ViewUpdate vid view -> case view of
+        Update.View vid view -> case view of
             Update.DestroyView -> False
-            _ -> any (== Update.ViewUpdate vid Update.DestroyView) future
-        Update.BlockUpdate bid _ -> future_has (Update.DestroyBlock bid)
-        Update.TrackUpdate tid _ -> future_has (Update.DestroyTrack tid)
-        Update.RulerUpdate rid -> future_has (Update.DestroyRuler rid)
-        Update.StateUpdate update -> case update of
+            _ -> any (== Update.View vid Update.DestroyView) future
+        Update.Block bid _ -> future_has (Update.DestroyBlock bid)
+        Update.Track tid _ -> future_has (Update.DestroyTrack tid)
+        Update.Ruler rid -> future_has (Update.DestroyRuler rid)
+        Update.State update -> case update of
             Update.CreateBlock bid _ -> future_has (Update.DestroyBlock bid)
             Update.CreateTrack tid _ -> future_has (Update.DestroyTrack tid)
             Update.CreateRuler rid _ -> future_has (Update.DestroyRuler rid)
             _ -> False
-        where future_has destroy = any (== Update.StateUpdate destroy) future
+        where future_has destroy = any (== Update.State destroy) future
 
 -- | Given the track updates, figure out which other tracks have those tracks
 -- merged and should also be updated.
@@ -133,9 +133,9 @@ cancel_updates updates = map fst $ filter (not . destroyed) $
 merge_updates :: State.State -> [Update.UiUpdate] -> [Update.UiUpdate]
 merge_updates state updates = updates ++ concatMap propagate updates
     where
-    propagate (Update.TrackUpdate track_id update)
+    propagate (Update.Track track_id update)
         | is_event_update update =
-            map (\tid -> Update.TrackUpdate tid update) merges_this
+            map (\tid -> Update.Track tid update) merges_this
         | otherwise = []
         where merges_this = Map.get [] track_id merged_to_track
     propagate _ = []
@@ -158,18 +158,18 @@ diff_views :: State.State -> State.State -> Map.Map ViewId Block.View
     -> Map.Map ViewId Block.View -> DiffM ()
 diff_views st1 st2 views1 views2 =
     forM_ (Map.pairs views1 views2) $ \(view_id, paired) -> case paired of
-        Seq.Second _ -> change $ Update.ViewUpdate view_id Update.CreateView
-        Seq.First _ -> change $ Update.ViewUpdate view_id Update.DestroyView
+        Seq.Second _ -> change $ Update.View view_id Update.CreateView
+        Seq.First _ -> change $ Update.View view_id Update.DestroyView
         Seq.Both view1 view2
             | Block.view_block view1 /= Block.view_block view2 -> do
-                change $ Update.ViewUpdate view_id Update.DestroyView
-                change $ Update.ViewUpdate view_id Update.CreateView
+                change $ Update.View view_id Update.DestroyView
+                change $ Update.View view_id Update.CreateView
             | otherwise -> diff_view st1 st2 view_id view1 view2
 
 diff_view :: State.State -> State.State -> ViewId -> Block.View -> Block.View
     -> DiffM ()
 diff_view st1 st2 view_id view1 view2 = do
-    let emit = change . Update.ViewUpdate view_id
+    let emit = change . Update.View view_id
     let unequal f = unequal_on f view1 view2
     when (unequal Block.view_rect) $
         emit $ Update.ViewSize (Block.view_rect view2)
@@ -193,7 +193,7 @@ status_color state view =
         Nothing -> Config.status_default
     where block_id = Block.view_block view
 
-diff_selection :: (Update.ViewUpdate -> DiffM ())
+diff_selection :: (Update.View -> DiffM ())
     -> Types.SelNum -> Seq.Paired Types.Selection Types.Selection -> DiffM ()
 diff_selection _ _ (Seq.Both sel1 sel2) | sel1 == sel2 = return ()
 diff_selection emit selnum paired = case paired of
@@ -207,7 +207,7 @@ diff_selection emit selnum paired = case paired of
 
 diff_block :: BlockId -> Block.Block -> Block.Block -> DiffM ()
 diff_block block_id block1 block2 = do
-    let emit = change . Update.BlockUpdate block_id
+    let emit = change . Update.Block block_id
     let unequal f = unequal_on f block1 block2
     when (unequal Block.block_title) $
         emit $ Update.BlockTitle (Block.block_title block2)
@@ -235,18 +235,18 @@ diff_block block_id block1 block2 = do
         -- Insert and remove are emitted for cmd updates above, but
         -- the Update.to_display conversion filters them out.
         Seq.First _ -> change_display $
-            Update.BlockUpdate block_id (Update.RemoveTrack i2)
+            Update.Block block_id (Update.RemoveTrack i2)
         Seq.Second dtrack -> change_display $
-            Update.BlockUpdate block_id (Update.InsertTrack i2 dtrack)
+            Update.Block block_id (Update.InsertTrack i2 dtrack)
         Seq.Both dtrack1 dtrack2 | dtrack1 /= dtrack2 -> change_display $
-            Update.BlockUpdate block_id (Update.BlockTrack i2 dtrack2)
+            Update.Block block_id (Update.BlockTrack i2 dtrack2)
         _ -> return ()
 
 diff_track :: TrackId -> Track.Track -> Track.Track -> DiffM ()
 diff_track track_id track1 track2 = do
     -- Track events updates are collected directly by the State.State functions
     -- as they happen.
-    let emit = change . Update.TrackUpdate track_id
+    let emit = change . Update.Track track_id
     let unequal f = unequal_on f track1 track2
     when (unequal Track.track_title) $
         emit $ Update.TrackTitle (Track.track_title track2)
@@ -259,7 +259,7 @@ diff_track track_id track1 track2 = do
 
 diff_state :: State.State -> State.State -> DiffM ()
 diff_state st1 st2 = do
-    let emit = change . Update.StateUpdate
+    let emit = change . Update.State
     let pairs f = Map.pairs (f st1) (f st2)
     when (State.state_config st1 /= State.state_config st2) $
         emit $ Update.Config (State.state_config st2)

@@ -131,7 +131,7 @@ test_undo_merge = do
         (Rect.xywh 40 40 100 100)
 
 track_update :: TrackNum -> ScoreTime -> ScoreTime -> Update.DisplayUpdate
-track_update tracknum from to = Update.TrackUpdate (UiTest.mk_tid tracknum)
+track_update tracknum from to = Update.Track (UiTest.mk_tid tracknum)
     (Update.TrackEvents from to)
 
 test_load_previous_history = do

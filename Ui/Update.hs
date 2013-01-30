@@ -32,7 +32,7 @@ type DisplayUpdate = Update Block.DisplayTrack ()
 
 -- | 'UiUpdate's reflect all changes to the underlying UI state.  They're
 -- used for incremental save, and by the deriver to determine ScoreDamage.
-type UiUpdate = Update Block.Track StateUpdate
+type UiUpdate = Update Block.Track State
 
 -- | For efficiency, TrackEvents updates are collected directly in "Ui.State"
 -- as the changes are made.  This is because I'm afraid a complete diff against
@@ -48,16 +48,16 @@ data CmdUpdate =
     deriving (Eq, Show)
 
 data Update t u
-    = ViewUpdate ViewId ViewUpdate
-    | BlockUpdate BlockId (BlockUpdate t)
-    | TrackUpdate TrackId TrackUpdate
+    = View ViewId View
+    | Block BlockId (Block t)
+    | Track TrackId Track
     -- | Since I expect rulers to be changed infrequently, the only kind of
     -- ruler update is a full update.
-    | RulerUpdate RulerId
-    | StateUpdate u
+    | Ruler RulerId
+    | State u
     deriving (Eq, Show, Generics.Typeable)
 
-data ViewUpdate =
+data View =
     CreateView
     | DestroyView
     | ViewSize Rect.Rect
@@ -70,7 +70,7 @@ data ViewUpdate =
     | BringToFront
     deriving (Eq, Show)
 
-data BlockUpdate t
+data Block t
     = BlockTitle String
     | BlockConfig Block.Config
     -- | The second is the \"integrate skeleton\", which is drawn in the same
@@ -78,12 +78,12 @@ data BlockUpdate t
     | BlockSkeleton Skeleton.Skeleton [(TrackNum, TrackNum)]
     | RemoveTrack TrackNum
     | InsertTrack TrackNum t
-    -- | Unlike a TrackUpdate, these settings are local to the block, not
+    -- | Unlike 'Track', these settings are local to the block, not
     -- global to this track in all its blocks.
     | BlockTrack TrackNum t
     deriving (Eq, Show)
 
-data TrackUpdate =
+data Track =
     -- | Low pos, high pos.
     TrackEvents ScoreTime ScoreTime
     -- | Update the entire track.
@@ -94,7 +94,7 @@ data TrackUpdate =
     deriving (Eq, Show)
 
 -- | These are updates to 'Ui.State.State' that have no UI presence.
-data StateUpdate =
+data State =
     Config StateConfig.Config
     | CreateBlock BlockId Block.Block
     | DestroyBlock BlockId
@@ -106,28 +106,24 @@ data StateUpdate =
 
 instance DeepSeq.NFData (Update t u) where
     rnf update = case update of
-        ViewUpdate view_id update -> view_id `seq` update `seq` ()
-        BlockUpdate block_id update -> block_id `seq` update `seq` ()
-        TrackUpdate track_id update -> track_id `seq` update `seq` ()
-        RulerUpdate ruler_id -> ruler_id `seq` ()
-        StateUpdate u -> u `seq` ()
+        View view_id update -> view_id `seq` update `seq` ()
+        Block block_id update -> block_id `seq` update `seq` ()
+        Track track_id update -> track_id `seq` update `seq` ()
+        Ruler ruler_id -> ruler_id `seq` ()
+        State u -> u `seq` ()
 
 instance (Pretty.Pretty t, Pretty.Pretty u) => Pretty.Pretty (Update t u) where
     format upd = case upd of
-        ViewUpdate view_id update -> Pretty.constructor "ViewUpdate"
+        View view_id update -> Pretty.constructor "View"
             [Pretty.format view_id, Pretty.format update]
-        BlockUpdate block_id update ->
-            Pretty.constructor "BlockUpdate"
-                [Pretty.format block_id, Pretty.format update]
-        TrackUpdate track_id update ->
-            Pretty.constructor "TrackUpdate"
-                [Pretty.format track_id, Pretty.format update]
-        RulerUpdate ruler_id ->
-            Pretty.constructor "RulerUpdate" [Pretty.format ruler_id]
-        StateUpdate update ->
-            Pretty.constructor "StateUpdate" [Pretty.format update]
+        Block block_id update -> Pretty.constructor "Block"
+            [Pretty.format block_id, Pretty.format update]
+        Track track_id update -> Pretty.constructor "Track"
+            [Pretty.format track_id, Pretty.format update]
+        Ruler ruler_id -> Pretty.constructor "Ruler" [Pretty.format ruler_id]
+        State update -> Pretty.constructor "State" [Pretty.format update]
 
-instance Pretty.Pretty ViewUpdate where
+instance Pretty.Pretty View where
     format update = case update of
         CreateView -> Pretty.text "CreateView"
         DestroyView -> Pretty.text "DestroyView"
@@ -141,7 +137,7 @@ instance Pretty.Pretty ViewUpdate where
             [Pretty.format selnum, Pretty.format sel]
         BringToFront -> Pretty.text "BringToFront"
 
-instance (Pretty.Pretty t) => Pretty.Pretty (BlockUpdate t) where
+instance (Pretty.Pretty t) => Pretty.Pretty (Block t) where
     format update = case update of
         BlockTitle s -> Pretty.constructor "BlockTitle"
             [Pretty.format s]
@@ -156,7 +152,7 @@ instance (Pretty.Pretty t) => Pretty.Pretty (BlockUpdate t) where
         BlockTrack n _ -> Pretty.constructor "BlockTrack"
             [Pretty.format n]
 
-instance Pretty.Pretty TrackUpdate where
+instance Pretty.Pretty Track where
     format update = case update of
         TrackEvents s e -> Pretty.constructor "TrackEvents"
             [Pretty.format s, Pretty.format e]
@@ -166,7 +162,7 @@ instance Pretty.Pretty TrackUpdate where
         TrackRender config -> Pretty.constructor "TrackTitle"
             [Pretty.format config]
 
-instance Pretty.Pretty StateUpdate where
+instance Pretty.Pretty State where
     format update = case update of
         Config config -> Pretty.constructor "Config" [Pretty.format config]
         CreateBlock block_id _ -> Pretty.constructor "CreateBlock"
@@ -188,32 +184,30 @@ instance Pretty.Pretty CmdUpdate where
 -- | Convert a UiUpdate to a DisplayUpdate by stripping out all the UiUpdate
 -- parts.
 to_display :: UiUpdate -> Maybe DisplayUpdate
-to_display (ViewUpdate vid update) = Just $ ViewUpdate vid update
-to_display (BlockUpdate bid update) = BlockUpdate bid <$> case update of
+to_display (View vid update) = Just $ View vid update
+to_display (Block bid update) = Block bid <$> case update of
     BlockTitle a -> Just $ BlockTitle a
     BlockConfig a -> Just $ BlockConfig a
     BlockSkeleton a b -> Just $ BlockSkeleton a b
     RemoveTrack {} -> Nothing
     InsertTrack {} -> Nothing
     BlockTrack {} -> Nothing
-to_display (TrackUpdate tid update) = Just $ TrackUpdate tid update
-to_display (RulerUpdate rid) = Just $ RulerUpdate rid
-to_display (StateUpdate {}) = Nothing
+to_display (Track tid update) = Just $ Track tid update
+to_display (Ruler rid) = Just $ Ruler rid
+to_display (State {}) = Nothing
 
 to_ui :: CmdUpdate -> UiUpdate
-to_ui (CmdTrackEvents track_id s e) = TrackUpdate track_id (TrackEvents s e)
-to_ui (CmdTrackAllEvents track_id) = TrackUpdate track_id TrackAllEvents
-to_ui (CmdRuler ruler_id) = RulerUpdate ruler_id
-to_ui (CmdBringToFront view_id) = ViewUpdate view_id BringToFront
+to_ui (CmdTrackEvents track_id s e) = Track track_id (TrackEvents s e)
+to_ui (CmdTrackAllEvents track_id) = Track track_id TrackAllEvents
+to_ui (CmdRuler ruler_id) = Ruler ruler_id
+to_ui (CmdBringToFront view_id) = View view_id BringToFront
 
 -- | Pull the CmdUpdate out of a UiUpdate, if any.  Discard BringToFront since
 -- that's just an instruction to Sync and I don't need to remember it.
 to_cmd :: UiUpdate -> Maybe CmdUpdate
-to_cmd (TrackUpdate track_id (TrackEvents s e)) =
-    Just $ CmdTrackEvents track_id s e
-to_cmd (TrackUpdate track_id TrackAllEvents) =
-    Just $ CmdTrackAllEvents track_id
-to_cmd (RulerUpdate ruler_id) = Just $ CmdRuler ruler_id
+to_cmd (Track track_id (TrackEvents s e)) = Just $ CmdTrackEvents track_id s e
+to_cmd (Track track_id TrackAllEvents) = Just $ CmdTrackAllEvents track_id
+to_cmd (Ruler ruler_id) = Just $ CmdRuler ruler_id
 to_cmd  _ = Nothing
 
 -- * functions
@@ -221,14 +215,14 @@ to_cmd  _ = Nothing
 -- | Updates which purely manipulate the view are not recorded by undo.
 is_view_update :: UiUpdate -> Bool
 is_view_update update = case update of
-    ViewUpdate _ view_update -> case view_update of
+    View _ view_update -> case view_update of
         CreateView {} -> False
         DestroyView -> False
         _ -> True
-    BlockUpdate _ block_update -> case block_update of
+    Block _ block_update -> case block_update of
         BlockConfig _ -> True
         _ -> False
-    TrackUpdate _ track_update -> case track_update of
+    Track _ track_update -> case track_update of
         TrackBg {} -> True
         TrackRender {} -> True
         _ -> False
@@ -236,7 +230,7 @@ is_view_update update = case update of
 
 -- | Does an update imply a change which would require rederiving?
 track_changed :: UiUpdate -> Maybe (TrackId, Ranges.Ranges ScoreTime)
-track_changed (TrackUpdate tid update) = case update of
+track_changed (Track tid update) = case update of
     TrackEvents start end -> Just (tid, Ranges.range start end)
     TrackAllEvents -> Just (tid, Ranges.everything)
     TrackTitle _ -> Just (tid, Ranges.everything)
@@ -250,13 +244,13 @@ sort = Seq.sort_on sort_key
 sort_key :: DisplayUpdate -> Int
 sort_key update = case update of
     -- Other updates may refer to the created view.
-    ViewUpdate _ (CreateView {}) -> 0
+    View _ (CreateView {}) -> 0
     -- No sense syncing updates to a view that's going to go away, so destroy
     -- it right away.
-    ViewUpdate _ DestroyView -> 0
+    View _ DestroyView -> 0
     -- These may change the meaning of TrackNums.  Update TrackNums refer to
     -- the TrackNums of the destination state, except the ones for InsertTrack
     -- and RemoveTrack, of course.
-    BlockUpdate _ (InsertTrack {}) -> 1
-    BlockUpdate _ (RemoveTrack {}) -> 1
+    Block _ (InsertTrack {}) -> 1
+    Block _ (RemoveTrack {}) -> 1
     _ -> 2

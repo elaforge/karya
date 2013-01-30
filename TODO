@@ -3,7 +3,7 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
-  - constructors in Ui.Update don't need "Update" in their names
+  * constructors in Ui.Update don't need "Update" in their names
   * Delete leftmost track, the selection moves to the new track 1, but isn't
     drawn there.
   * crash:

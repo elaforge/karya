@@ -24,19 +24,19 @@ test_display_track = do
         st2 = UiTest.exec st1 (State.merge_track bid 1 2)
     let (ui_updates, display_updates) = diff st1 st2
     equal ui_updates
-        [ Update.BlockUpdate bid $ Update.BlockTrack 1 $
+        [ Update.Block bid $ Update.BlockTrack 1 $
             Block.Track (Block.TId tid1 rid) 40 mempty [tid2]
-        , Update.BlockUpdate bid $ Update.BlockTrack 2 $
+        , Update.Block bid $ Update.BlockTrack 2 $
             Block.Track (Block.TId tid2 rid) 40
                 (Set.singleton Block.Collapse) []
         ]
 
     let div = Block.DId (Block.Divider Config.abbreviation_color)
     equal display_updates
-        [ Update.BlockUpdate bid $ Update.BlockTrack 1 $
+        [ Update.Block bid $ Update.BlockTrack 1 $
             Block.DisplayTrack (Block.TId tid1 rid) 40 [tid2] Nothing 1
-        , Update.BlockUpdate bid (Update.RemoveTrack 2)
-        , Update.BlockUpdate bid $ Update.InsertTrack 2 $
+        , Update.Block bid (Update.RemoveTrack 2)
+        , Update.Block bid $ Update.InsertTrack 2 $
             Block.DisplayTrack div 3 [] Nothing 1
         ]
     -- TODO add more tests if I modify Diff
@@ -48,9 +48,9 @@ test_merge_updates = do
             State.merge_track bid 1 2
             return tids
     equal (Diff.diff [Update.CmdTrackAllEvents tid2] st st) $
-        ([Update.TrackUpdate tid2 Update.TrackAllEvents],
-        [ Update.TrackUpdate tid2 Update.TrackAllEvents
-        , Update.TrackUpdate tid1 Update.TrackAllEvents
+        ([Update.Track tid2 Update.TrackAllEvents],
+        [ Update.Track tid2 Update.TrackAllEvents
+        , Update.Track tid1 Update.TrackAllEvents
         ])
 
 diff :: State.State -> State.State
@@ -83,7 +83,7 @@ test_derive_diff_updates = do
             , (">i", [(0, 1, ""), (1, 1, "")])
             ]
     let f = Diff.derive_diff ustate ustate
-    equal (f [Update.TrackUpdate tid2 (Update.TrackEvents 1 2)])
+    equal (f [Update.Track tid2 (Update.TrackEvents 1 2)])
         (mkdamage [(tid2, Ranges.range 1 2)] [bid] [])
 
 bid = UiTest.default_block_id

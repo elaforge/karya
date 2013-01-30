@@ -74,7 +74,7 @@ verify_state state = when_just (State.quick_verify state) $ \err ->
     Log.error $ "state error while verifying: " ++ Pretty.pretty err
 
 modified_view :: Update.UiUpdate -> Bool
-modified_view (Update.ViewUpdate _ update) = case update of
+modified_view (Update.View _ update) = case update of
     Update.CreateView {} -> True
     Update.DestroyView {} -> True
     _ -> False

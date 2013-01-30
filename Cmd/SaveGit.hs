@@ -156,9 +156,9 @@ checkpoint repo hist@(SaveHistory state prev_commit updates names) =
     where
     checkpoint_update update = case update of
         -- BlockConfig changes are only box colors, which I never need to save.
-        Update.BlockUpdate _ (Update.BlockConfig {}) -> False
-        Update.ViewUpdate _ (Update.Status {}) -> False
-        Update.ViewUpdate _ Update.BringToFront -> False
+        Update.Block _ (Update.BlockConfig {}) -> False
+        Update.View _ (Update.Status {}) -> False
+        Update.View _ Update.BringToFront -> False
         _ -> True
 
 commit_tree :: Git.Repo -> Git.Tree -> Maybe Git.Commit -> String
@@ -308,17 +308,17 @@ dump_diff track_dir state =
     -- I use Left "" as a nop, so filter those out.
     first (filter (not . null)) . Seq.partition_either . map mk
     where
-    mk u@(Update.ViewUpdate view_id update) = case update of
+    mk u@(Update.View view_id update) = case update of
         Update.DestroyView -> Right $ Git.Remove (id_to_path view_id)
         Update.BringToFront -> Left ""
         _ | Just view <- Map.lookup view_id (State.state_views state) ->
             Right $ Git.Add (id_to_path view_id) (Serialize.encode view)
         _ -> Left $ "view_id: " ++ Pretty.pretty u
-    mk u@(Update.BlockUpdate block_id _)
+    mk u@(Update.Block block_id _)
         | Just block <- Map.lookup block_id (State.state_blocks state) =
             Right $ Git.Add (id_to_path block_id) (Serialize.encode block)
         | otherwise = Left $ "block_id: " ++ Pretty.pretty u
-    mk u@(Update.TrackUpdate track_id update)
+    mk u@(Update.Track track_id update)
         | Just track <- Map.lookup track_id (State.state_tracks state) =
             case update of
                 Update.TrackEvents start end | track_dir ->
@@ -326,11 +326,11 @@ dump_diff track_dir state =
                 _ -> Right $
                     Git.Add (id_to_path track_id) (Serialize.encode track)
         | otherwise = Left $ "track_id: " ++ Pretty.pretty u
-    mk (Update.RulerUpdate ruler_id)
+    mk (Update.Ruler ruler_id)
         | Just ruler <- Map.lookup ruler_id (State.state_rulers state) =
             Right $ Git.Add (id_to_path ruler_id) (Serialize.encode ruler)
         | otherwise = Left $ "ruler_id: " ++ Pretty.pretty ruler_id
-    mk (Update.StateUpdate update) = case update of
+    mk (Update.State update) = case update of
         Update.Config config ->
             Right $ Git.Add "config" (Serialize.encode config)
         Update.CreateBlock block_id block ->
