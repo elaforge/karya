@@ -3,7 +3,6 @@ module Cmd.Instrument.Util where
 import qualified Data.Map as Map
 
 import Util.Control
-import qualified Util.Pretty as Pretty
 import qualified Midi.Midi as Midi
 import qualified Ui.UiMsg as UiMsg
 import qualified Cmd.Cmd as Cmd
@@ -16,10 +15,11 @@ import qualified Cmd.NoteEntry as NoteEntry
 import qualified Cmd.NoteTrack as NoteTrack
 import qualified Cmd.Selection as Selection
 
-import qualified Derive.Derive as Derive
-import qualified Derive.Instrument.Util as DUtil
-import qualified Derive.Score as Score
+import qualified Derive.Call.Note as Note
 import qualified Derive.Call.Util as Call.Util
+import qualified Derive.Derive as Derive
+import qualified Derive.Score as Score
+import qualified Derive.ShowVal as ShowVal
 
 import qualified Perform.Midi.Instrument as Instrument
 import qualified App.MidiInst as MidiInst
@@ -133,9 +133,9 @@ drum_calls notes =
     [(Drums.note_name n, note_call (Drums.note_dynamic n) (Drums.note_attrs n))
         | n <- notes]
     where
-    note_call dyn attrs =
-        DUtil.note_call ("drum_call: " ++ Pretty.pretty attrs)
-            (with_dyn dyn . Call.Util.add_attrs attrs)
+    note_call dyn attrs = Note.note_call
+        ("drum call: " <> ShowVal.show_val attrs)
+        (with_dyn dyn . Call.Util.add_attrs attrs . Note.default_note False)
     with_dyn = Derive.multiply_control Score.c_dynamic
 
 -- | Create keymap Cmd for the given Notes.  This should be paired with

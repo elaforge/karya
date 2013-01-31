@@ -20,6 +20,9 @@ attrs_note attrs =
     Sig.call0 $ \args ->
     Util.add_attrs attrs $ Call.reapply_call args (TrackLang.call "" [])
 
+-- | This re-applies the default note call and wraps it in a transformer.
+-- However, it's more direct and probably clearer to directly create
+-- a transformed note call via 'Note.transformed_note' or 'Note.note_call'.
 note_call :: String -> (Derive.EventDeriver -> Derive.EventDeriver)
     -> Derive.NoteCall
 note_call name transform = Derive.stream_generator name
@@ -38,10 +41,7 @@ note0_attrs attrs = postproc_note ("note0 " ++ ShowVal.show_val attrs)
 postproc_note :: String -> String -> (Score.Event -> Score.Event)
     -> Derive.NoteCall
 postproc_note name doc f = postproc_generator name doc Note.c_note apply
-    where
-    apply d = do
-        events <- d
-        return $ map (fmap f) events
+    where apply d = map (fmap f) <$> d
 
 -- | Transform the generator of an existing call by applying a function to it.
 -- It gets a new name and the documentation is prepended to the documentation
