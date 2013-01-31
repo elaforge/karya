@@ -58,7 +58,7 @@ rename = Create.rename_ruler
 list :: Cmd.CmdL [(RulerId, Int)]
 list = do
     ruler_ids <- State.all_ruler_ids
-    counts <- map length <$> mapM State.tracks_with_ruler_id ruler_ids
+    counts <- map length <$> mapM State.blocks_with_ruler_id ruler_ids
     return $ zip ruler_ids counts
 
 -- | Destroy all unrefereced rulers, and return their now-invalid RulerIds.
@@ -70,7 +70,7 @@ gc = do
 
 -- | Blocks that contain the given ruler.
 blocks_of :: (State.M m) => RulerId -> m [BlockId]
-blocks_of = fmap (map fst) . State.tracks_with_ruler_id
+blocks_of = fmap (map fst) . State.blocks_with_ruler_id
 
 -- | Set the rulers on a block to the given RulerId.
 set_ruler_id :: (State.M m) => RulerId -> BlockId -> m ()
@@ -95,7 +95,7 @@ unify_rulers = do
 -- | Replace all occurrences of one RulerId with another.
 replace_ruler_id :: (State.M m) => RulerId -> RulerId -> m ()
 replace_ruler_id old new = do
-    blocks <- State.tracks_with_ruler_id old
+    blocks <- State.blocks_with_ruler_id old
     forM_ (map fst blocks) $ \block_id ->
         State.replace_ruler_id block_id old new
 

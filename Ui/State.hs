@@ -95,7 +95,7 @@ module Ui.State (
     , get_track_title, set_track_title, modify_track_title
     , set_track_bg
     , modify_track_render, set_render_style
-    , tracks_with_track_id
+    , blocks_with_track_id
     -- ** events
     , insert_events, insert_block_events, insert_event
     , get_events, get_event, get_all_events
@@ -107,7 +107,7 @@ module Ui.State (
     , get_ruler, lookup_ruler, all_ruler_ids
     , create_ruler, destroy_ruler, modify_ruler
     , ruler_of, rulers_of
-    , tracks_with_ruler_id
+    , blocks_with_ruler_id
     , no_ruler
 
     -- * util
@@ -1101,7 +1101,7 @@ create_track id track = do
 -- the TrackId doesn't exist.
 destroy_track :: (M m) => TrackId -> m ()
 destroy_track track_id = do
-    blocks <- tracks_with_track_id track_id
+    blocks <- blocks_with_track_id track_id
     forM_ blocks $ \(block_id, tracks) -> forM_ tracks $ \(tracknum, _) ->
         remove_track block_id tracknum
     unsafe_modify $ \st ->
@@ -1133,9 +1133,9 @@ set_render_style style track_id = modify_track_render track_id $
 -- | Find @track_id@ in all the blocks it exists in, and return the track info
 -- for each tracknum at which @track_id@ lives.  Blocks with no matching tracks
 -- won't be returned, so the return track lists will always be non-null.
-tracks_with_track_id :: (M m) =>
+blocks_with_track_id :: (M m) =>
     TrackId -> m [(BlockId, [(TrackNum, Block.TracklikeId)])]
-tracks_with_track_id track_id =
+blocks_with_track_id track_id =
     find_tracks ((== Just track_id) . Block.track_id_of) <$> gets state_blocks
 
 -- ** events
@@ -1299,7 +1299,7 @@ create_ruler id ruler
 -- | Destroy the ruler and remove it from all the blocks it's in.
 destroy_ruler :: (M m) => RulerId -> m ()
 destroy_ruler ruler_id = do
-    blocks <- tracks_with_ruler_id ruler_id
+    blocks <- blocks_with_ruler_id ruler_id
     forM_ blocks $ \(block_id, tracks) -> do
         let tracknums = map fst tracks
             setr i = if i `elem` tracknums
@@ -1324,10 +1324,10 @@ ruler_of block_id = require ("no ruler in " ++ show block_id)
 rulers_of :: (M m) => BlockId -> m [RulerId]
 rulers_of block_id = Seq.unique . Block.block_ruler_ids <$> get_block block_id
 
--- | Just like 'tracks_with_track_id' except for ruler_id.
-tracks_with_ruler_id :: (M m) =>
+-- | Just like 'blocks_with_track_id' except for ruler_id.
+blocks_with_ruler_id :: (M m) =>
     RulerId -> m [(BlockId, [(TrackNum, Block.TracklikeId)])]
-tracks_with_ruler_id ruler_id =
+blocks_with_ruler_id ruler_id =
     find_tracks ((== Just ruler_id) . Block.ruler_id_of) <$> gets state_blocks
 
 -- | Since all TracklikeIds must have a ruler, all States have a special empty

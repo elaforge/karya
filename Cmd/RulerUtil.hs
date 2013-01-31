@@ -66,7 +66,7 @@ modify_block block_id f = mapM_ (\ruler_id -> local_modify block_id ruler_id f)
 local_modify :: (State.M m) => BlockId -> RulerId
     -> (Ruler.Ruler -> Ruler.Ruler) -> m RulerId
 local_modify block_id ruler_id f = do
-    blocks <- State.tracks_with_ruler_id ruler_id
+    blocks <- State.blocks_with_ruler_id ruler_id
     case blocks of
         [(rblock_id, _)] | block_id == rblock_id -> do
             State.modify_ruler ruler_id f
