@@ -32,6 +32,13 @@ import qualified Perform.Signal as Signal
 import Types
 
 
+-- | List all tracks, along with the number of blocks each one appears in.
+list :: Cmd.CmdL [(TrackId, Int)]
+list = do
+    track_ids <- State.all_track_ids
+    counts <- map length <$> mapM State.tracks_with_track_id track_ids
+    return $ zip track_ids counts
+
 gc :: Cmd.CmdL ()
 gc = mapM_ State.destroy_track . Set.elems =<< Create.orphan_tracks
 

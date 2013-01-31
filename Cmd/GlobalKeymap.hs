@@ -286,14 +286,14 @@ edit_state_bindings = concat
     , uncurry (command_char '6') (step_rank Meter.r_16 0)
     , uncurry (command_char '7') (step_rank Meter.r_64 1) -- 32nd
     , uncurry (command_char '8') (step_rank Meter.r_64 0)
-    , plain_char '+' "toggle duration" Edit.toggle_note_duration
+    , shift_char '+' "toggle duration" Edit.toggle_note_duration
 
     , bind_key [PrimaryCommand] (Key.Char '`') "toggle step mode"
         Edit.toggle_mark_step
     , bind_key [PrimaryCommand, Shift] (Key.Char '~') "invert step"
         Edit.cmd_invert_step_direction
     , plain_char '`' "toggle advance" Edit.toggle_advance
-    , plain_char '~' "toggle chord" Edit.toggle_chord
+    , shift_char '~' "toggle chord" Edit.toggle_chord
 
     , plain_char '-' "octave -1" (Edit.cmd_modify_octave (subtract 1))
     , plain_char '=' "octave +1" (Edit.cmd_modify_octave (+1))

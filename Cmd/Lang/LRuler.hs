@@ -54,9 +54,12 @@ import Types
 rename :: RulerId -> RulerId -> Cmd.CmdL ()
 rename = Create.rename_ruler
 
--- | List all rulers.
-list :: Cmd.CmdL [RulerId]
-list = State.gets (Map.keys . State.state_rulers)
+-- | List all rulers, along with the number of blocks each one appears in.
+list :: Cmd.CmdL [(RulerId, Int)]
+list = do
+    ruler_ids <- State.all_ruler_ids
+    counts <- map length <$> mapM State.tracks_with_ruler_id ruler_ids
+    return $ zip ruler_ids counts
 
 -- | Destroy all unrefereced rulers, and return their now-invalid RulerIds.
 gc :: (State.M m) => m [RulerId]
@@ -69,7 +72,7 @@ gc = do
 blocks_of :: (State.M m) => RulerId -> m [BlockId]
 blocks_of = fmap (map fst) . State.tracks_with_ruler_id
 
--- | Replace one RulerId with another on the given block.
+-- | Set the rulers on a block to the given RulerId.
 set_ruler_id :: (State.M m) => RulerId -> BlockId -> m ()
 set_ruler_id ruler_id block_id = do
     old <- State.block_ruler block_id

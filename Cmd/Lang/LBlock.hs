@@ -7,6 +7,7 @@ import qualified Data.Text as Text
 import qualified Data.Text.IO as Text.IO
 
 import Util.Control
+import qualified Util.Seq as Seq
 import qualified Ui.Block as Block
 import qualified Ui.Event as Event
 import qualified Ui.Id as Id
@@ -27,6 +28,14 @@ import qualified Derive.Scale.Twelve as Twelve
 
 import Types
 
+
+-- | All BlockIds, along with the count of views for each one.
+list :: Cmd.CmdL [(BlockId, Int)]
+list = do
+    block_ids <- State.all_block_ids
+    view_blocks <- State.gets $
+        map Block.view_block . Map.elems . State.state_views
+    return [(block_id, Seq.count block_id view_blocks) | block_id <- block_ids]
 
 -- * doc
 
