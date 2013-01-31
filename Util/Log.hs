@@ -23,10 +23,6 @@ module Util.Log (
     -- * LogT monad
     , LogMonad(..)
     , LogT, run
-    -- * LazyLogT monad
-    , Msgs, empty_msgs
-    , LazyLogT, run_lazy
-    -- * serialization
     , format_msg
     , serialize_msg, deserialize_msg
 
@@ -58,7 +54,6 @@ import qualified System.IO.Unsafe as Unsafe
 
 import Text.Printf (printf)
 
-import qualified Util.AppendList as AppendList
 import Util.Control
 import qualified Util.Logger as Logger
 import qualified Util.Pretty as Pretty
@@ -302,25 +297,6 @@ instance (LogMonad m) => LogMonad (Reader.ReaderT r m) where
 
 instance (Monoid.Monoid w, LogMonad m) => LogMonad (Writer.WriterT w m) where
     write = Trans.lift . write
-
--- * LazyLogT
-
-type Msgs = AppendList.AppendList Msg
-
-empty_msgs :: Msgs
-empty_msgs = AppendList.empty
-
-newtype LazyLogT m a = LazyLogT (Writer.WriterT Msgs m a)
-    deriving (Functor, Monad, Trans.MonadIO, Trans.MonadTrans,
-        Error.MonadError e)
-
-instance (Monad m) => LogMonad (LazyLogT m) where
-    write = LazyLogT . Writer.tell . AppendList.singleton
-
-run_lazy :: (Monad m) => LazyLogT m a -> m (a, [Msg])
-run_lazy (LazyLogT m) = do
-    (a, msgs) <- Writer.runWriterT m
-    return (a, AppendList.to_list msgs)
 
 -- * serialize
 
