@@ -6,145 +6,37 @@ UNSORTED
   - play_at is messed up in the presence of play multiplier
   - Type into track text on the right side, then expand the window so it can
     be visible.  It doesn't redraw the newly-revealed bit correctly.
-  * constructors in Ui.Update don't need "Update" in their names
-  * Delete leftmost track, the selection moves to the new track 1, but isn't
-    drawn there.
-  * crash:
-    **** App/Main.hs:187 [main] - ui died from exception: FltkException:
-    0x00007fd4e381a800 not in displayed view list:
-    [ ((vid "viola-sonata/order1.v1"), 0x00007fd4e281e800)
-    , ((vid "viola-sonata/pno1.v1"), 0x00007fd4e3019200)
-    ]
-
-    I did save_state, click on window, ^W, this was the window I closed.
-    Maybe an update got scheduled after the window close?
-  * Let play run off the end of a block where the ruler runs out but the notes
-    keep going, I can't stop the player.  save/bug-play-off-end
   - Track caching is too fragile, if I add a track with scope over everything
     then I get no caching.  Instead I should cache the bottom note track, or
     perhaps every note track.  That doesn't work because they're all sliced
     up.
   - Arpeggio should be a bit randomized?  Or closer notes should be faster?
     Then I have to look at the pitches.
-  * Note should ignore +staccato in lilypond mode.
-  * Status bar should show tid of selection.
-  / Range for errors always starts at 0, I think it's Note.Events that have
-    been normalized to zero.  I really need some reliable way to get track
-    time.
-  * tremolo for chords
-  * Tremolo should be like trill: modify the notes normally, but in vsl swap
-    out the attribute one.
   - adding an intervening note track seems to mess up the signal render
   - the cache got messed up after changing the tempo
     Change tempo at 20t telek1.t1
-  * measure 49 is messed up
-  * 8va causes no pitch signal
-  * also there's a stack too deep
-  * don't need to put pizz on every single note
-    "modal" instructions need one articulation when they start, and another
-    (arco) when they stop.
-  - I can fix rhythm spelling by changing the meter.  But it's a pain because
-    the meter has to be over the entire block, and that means a whole new
-    track, which also destroys track caching.
-    It seems like track caching is too fragile, and also like there should be
-    some easier way to change something globally for a period of time.
-    Alternately, I could make lilypond less strict about meters, and
-    let each track set its own meter, assuming it will only be switching to
-    ones with the same rhythm.  I can switch to synonyms, but does lilypond
-    even support measures with different meters?
   - make a control track, make an event, change track to note track,
     the event color doesn't change to note track color
-  * play from root on viola or piano parts plays ahead, presumably the "find
-    root time" thing is messed up
-  * Duplicate notes of the same pitch make vsl unhappy.  Non-overlapping notes
-    should have a tiny gap.
-  * +pizz on a single note complained about no pitch signal
   - There should be a postproc to arpeggiate pizz slightly.
-  * I think Derive.Call.eval_note should be pitch
-  * staccato should make notes shorter
-    * but not for vsl
-  * load repo, then save_state, it still wants to write to .git
-  * think of some way to make sure randomness is stable
-    I can use only the seed for randomness, and hash in each block and track
-    as I enter it.  That way you can always get a consistent result by
-    manually setting the seed.  It might be faster too, since it doesn't have
-    to continually rehash the stack.
-  * why does the inst in the block title not carry over to the tracks?
-  * why does the left hand intervening track make the left hand disappear?
-    I need the analog of slice orphan tracks for 'slice_notes'
   - There's a focus bug, but I'm not sure how to reproduce it.
-  * save files without a project dir, e.g. 'save_state "dir/name"', will
-    wind up putting 'ly' and 'repl' directly into 'dir'
-  * perhaps Derive.Call.Attributes should have a attr->ly map, so even
-    +staccato will generate the right lilypond.
-  * Select all, then shift right, it scrolls to the bottom of the block.
-  * Deleting a track moves the selection over (e.g. error selection) instead
-    of removing it.
   - different color for note transformer events?
-  - It seems like it would be simpler to have meter rank divisions at every
-    note, e.g. w, h, q, e, s, 32, 64, etc. rather than every other.  That way
-    I can get rid of the weird 'q*2' TimeSteps.  I can avoid having to come up
-    with too many mark colors by just making them the same color.
-  - giving Meter.T an argument seems like overkill, do I have a use for
-    beats of unequal lengths?
-  * window titles should be just the end of the view, clip off the
-    (bid "long-name/") stuff
   + can I get fltk to omit the jellybutton buttons on the window?
     Completely disables resizing, ack.
     Yes, but requires hacking the library.  Mail the list about a better
     solution.
-  * just plain >kkt/kendang should default to kendang-wadon
-    Or, what about making score-specific instrument aliases?
-  * make a .cabal file with packages and versions to make install easier
-    Generate the .cabal from shake.
   - bring back the idea of opening up a text entry in raw edit mode?  Then I
     can get real cursor control and use the IME.  But I'd need to either switch
     to Text or make sure ParseBs works on UTF8.
   - Do profiles again with Data.Text instead of ByteString.
-  * calls should be able to accept symbols as substitutes for strings, at
-    least if I'm sure I don't want to do variable substitution.  Even if I
-    do, maybe it's uncommon enough to be worth a $?
-  * shift-backspace in raw edit can delete `symbols` as well
-  * there should be a trill that just applies the trill <> half / whole attr
-    Either vsl insts set environ that causes the normal trill to do that, or
-    they could bind their own "tr".
   - why does legato vsl always have too-loud connecting samples?
     I probably need to separate articulations for performance from slur
     staccato etc. for lilypond.
-  * viola-sonata: second staccato note at 7.3.5 vla part missing
   - network midi doesn't seem to handle abort?
     playing the second time doesn't happen
-  logview
-    * print logs to stdout
-    * rotate the log
-  * grace-dyn=1 apparently not working in viola-sonata?
   - StepPlay gets messed up by tuplets and the like.  Maybe it should step
     along the performance (with some eta to account for randomization)
     instead of the score.
-  * rename Cmd.lookup_instrument_info to just lookup_instrument
-  * make paths in Config a RelativePath to make sure they get app_dir</>
 
-  git is buggy
-    * can't undo after loading a .git
-    * The namespace should only be the default save dir, if I loaded from
-      a file somplace else, remember that.
-      So this means the Ui.state_project_dir is the parent of the .state or
-      .git.
-    * If you copy .state or .git to another name, then load that, it'll start
-      saving to save.git, which is dangerous.  I should remember the name of
-      the file I loaded from and keep using that.
-      Keeping the project_dir and save name inside the State seems dumb
-      actually, should it be in Cmd.State?
-    * Also, .git checkpoints are forking unnecessarily, probably related.
-    / messed up undo / redo, and then:
-      . undo [delete time] 7fc8a66084dd385c61d4eaf2b57808eddd3b2fc4
-        -> [set dur] 62a9918ee95e0807da2c397efb29da4f5dd236dc
-      . running command "cut selection"
-      . error committing history: checkpoint: repo:
-        "save/viola-sonata/viola-sonata.git": git_treebuilder_remove:
-        "clip.t6": error
-    / get libgit2 to stop copying over junk like description and hooks/*
-      apparently not possible
   / per-instrument binds e.g. kendang, should work without kbd entry
     However, that means I take over NoEdit for audition, and that means that
     un-modified keys are unreliable even in NoEdit mode.
@@ -169,52 +61,6 @@ UNSORTED
     But filtering the midi shows dyn controls mixed into both channels.
   - the signal doesn't update if I change the default environ assignment on
     another track
-  cache tracks
-    - put the "cached" log msg at the end of the cache results?
-      Otherwise it immediately forces all of them.
-      Wait, why should it?  Just cons on the front.
-      . But it breaks lots of tests.  Is it really worth it?
-  parallelism?
-    . why does priming take so long?
-      It needs the tempo.  Since signals are eager, that means evaluating
-      the tempo track at least.  But not just tempo obviously, or it would be
-      fast.
-      What else?  Well, I need signals if they are being rendered.
-    - Can I fork a spark for each note track being merged?
-      Perhaps I should abandon the idea fo lazy derivation, it's likely not
-      happening anyway.  I still want the evaluation incremental, but I could
-      parallel force each track.
-    - Try Util.AppendList again, but just at the track and block call level.
-      At the block level it's to reduce copying, at the track level I can
-      run a strategy on a multi-way merge to eval them in parallel.
-      . Does this offer an advantage over embedding the parallel in BlockUtil?
-        Well, parallelism depends on evaluation, and the track derivation is
-        lazy.  So I think I'd have to put some bangs in track derivation.
-      . Maybe I should try that anyway?
-  strict derivation
-    - If I'm forcing entirely, I can put in a merge at the cache level, so
-      tracks and blocks would become merges, but all other calls are just (++)
-      as before.  Then I can apply a parallel strategy at the merge level.
-    - Also, consecutive signals should be mconcated.
-  - try giving a big heap to speed startup? +RTS -H512m
-  control memory leaks
-    . Lots of lag and drag.
-    . How big is each event?  Maybe the caches aren't so expensive because they
-      share events?
-    . Alternately, I could try doing the strict/parallel thing, and see if
-      that clears it up.  Or at least strictifying.
-    * use strict pair for cache entry (collect, events)
-    * force the events when priming a perf
-    * try lifecycle profiling, lots of void and drag
-    * try retainer profiling
-      - it's buggy and crashes, go mention it on the ghc bug
-    - The drag is Map, and is eliminated when I clear the performances
-      Narrow it down.
-      . Forcing does nothing, but clearing the cache gets rid of a big
-        portion.
-    - If each event or unevaluated event has future and past it will keep
-      the UI alive.  Maybe forcing the result of each event will clean that
-      up.
 
   make TrackLang.Symbol into ByteString?
     . means fewer conversions
@@ -246,17 +92,6 @@ UNSORTED
     It's awkward to have to go back and forth from kbd entry.
   - trill or trem with negative duration lines the integral number up to the
     end.
-  timestep
-    - timestep 64*2 skips two 's', because 's' is the minimum match
-      skip should be ignored when the match is a larger rank than exists, or
-      maybe step should fail.
-    - use NE list for TimeStep
-    - TimeStep should support negative skip as a fractional skip
-    - points use vector instead of list
-      But then I lose laziness.  Maybe only worth it if I cache.
-    - cache points by returning CachedTimeStep = Points
-    - TimeStep.snap should optimize steps that don't do any snapping when
-      prev_val is Nothing, e.g. RelativeMark and Absolute
   - NoteTransformers apply a transformer to notes.  So why can't I apply
     any transformer as a note transformer?  NoteTransformers are actually more
     powerful because they can treat multiple args differently, but any
@@ -395,17 +230,6 @@ UNSORTED
     - make sure things are ok if it fails at any step
     - I don't think Ui.State needs to emit CmdTrackAllEvents for cases where
       diff will catch it.
-    * Make sure that when a project changes name all the history comes with
-      it.  I guess I'd have to copy the dir, or do a git clone.  If I copied
-      the dir that wouldn't work with 'untitled' because I don't want all
-      those other heads.  I want to copy over the current history.
-      So I want to clone everything from the current commit.
-      Is there a git cmd to do that?
-      git clone --bare ...?
-      Get all commits, then copy all commits along with referents.
-      Much simpler to just copy the whole dir and then optionally trim the
-      other refs and gc as a separate operation.
-      - So I need the rename cmd to also mv or cp the underlying repo, if any.
     - Why should I ever do a complete save?  Why not always just do partial?
       The repo should only contain one copy of something that never changes.
       One reason is to trim history, but maybe for that I should have a option
@@ -488,8 +312,6 @@ UNSORTED
       with the music, e.g. when I play by itself.  On the other hand, if the
       block repeats do I want the tempo to repeat as well?  Sometimes yes,
       sometimes no...
-  * after an uncollapse, it doesn't redraw the selection that was underneath
-    Not a big deal since a selection shouldn't be underneath but still...
   - randomize any control by having the 'set' call look for the -rnd control
   * some way to get symbol feedback instantly to make it easier to compose them
     - But it calls SymbolC and I ran into a problem where linux ghci can't
@@ -562,6 +384,54 @@ documentation
       that have someone listening to them in a certain scope.
     - linkify single quotes
 
+strict derivation / parallelization / memory leaks
+  cache tracks
+    - put the "cached" log msg at the end of the cache results?
+      Otherwise it immediately forces all of them.
+      Wait, why should it?  Just cons on the front.
+      . But it breaks lots of tests.  Is it really worth it?
+  parallelism?
+    . why does priming take so long?
+      It needs the tempo.  Since signals are eager, that means evaluating
+      the tempo track at least.  But not just tempo obviously, or it would be
+      fast.
+      What else?  Well, I need signals if they are being rendered.
+    - Can I fork a spark for each note track being merged?
+      Perhaps I should abandon the idea fo lazy derivation, it's likely not
+      happening anyway.  I still want the evaluation incremental, but I could
+      parallel force each track.
+    - Try Util.AppendList again, but just at the track and block call level.
+      At the block level it's to reduce copying, at the track level I can
+      run a strategy on a multi-way merge to eval them in parallel.
+      . Does this offer an advantage over embedding the parallel in BlockUtil?
+        Well, parallelism depends on evaluation, and the track derivation is
+        lazy.  So I think I'd have to put some bangs in track derivation.
+      . Maybe I should try that anyway?
+  strict derivation
+    - If I'm forcing entirely, I can put in a merge at the cache level, so
+      tracks and blocks would become merges, but all other calls are just (++)
+      as before.  Then I can apply a parallel strategy at the merge level.
+    - Also, consecutive signals should be mconcated.
+  - try giving a big heap to speed startup? +RTS -H512m
+  control memory leaks
+    . Lots of lag and drag.
+    . How big is each event?  Maybe the caches aren't so expensive because they
+      share events?
+    . Alternately, I could try doing the strict/parallel thing, and see if
+      that clears it up.  Or at least strictifying.
+    * use strict pair for cache entry (collect, events)
+    * force the events when priming a perf
+    * try lifecycle profiling, lots of void and drag
+    * try retainer profiling
+      - it's buggy and crashes, go mention it on the ghc bug
+    - The drag is Map, and is eliminated when I clear the performances
+      Narrow it down.
+      . Forcing does nothing, but clearing the cache gets rid of a big
+        portion.
+    - If each event or unevaluated event has future and past it will keep
+      the UI alive.  Maybe forcing the result of each event will clean that
+      up.
+
 integrate / integration:
   - adding a {soft} stroke appears to apply the soft again the the dyn track
   - bug: can't delete a derived track, it just gets regenerated
@@ -588,20 +458,19 @@ integrate / integration:
     calls)
 
 lilypond:
+  - I can fix rhythm spelling by changing the meter.  But it's a pain because
+    the meter has to be over the entire block, and that means a whole new
+    track, which also destroys track caching.
+    It seems like track caching is too fragile, and also like there should be
+    some easier way to change something globally for a period of time.
+    Alternately, I could make lilypond less strict about meters, and
+    let each track set its own meter, assuming it will only be switching to
+    ones with the same rhythm.  I can switch to synonyms, but does lilypond
+    even support measures with different meters?
   - Can I have a solution for custom note durations that don't affect lilypond?
   - cross staff inside tuplet didn't work
   - hairpin crescendo / decrescendo
-  * Guessing dynamics from the dyn doesn't really work.  They should be set
-    explicitly.  Should I do it with an attr or by diretly emitting ly?
-    I think the latter, since other performers likely don't care about it.
-    Do dynamics really have to be note suffixes?  If so I'd need the reverse
-    of promote0.
   - I should store Lilypond.Config in the UI state.
-  * way to order staves
-  * pizz attribute
-  * should be a space after ly-code events, blank line between staves
-  / allowed_time* should return Durations, not Times
-  * rename TimeSignature to Meter, it's shorter
   - If I can figure out the meter from just the name, then I can get rid
     of the awkward map with hardcoded meters.
     I could have parse generate the Meter and memoize it.
@@ -617,53 +486,16 @@ lilypond:
 
     Then I could possibly do everything with code, just have to deal with key.
     I guess the '=' call could have some when_lily magic.
-  * If I mark a track '| when-ly' I could make it be omitted entirely when
-    not in lilypond mode.  That way lilypond markup won't slow down normal
-    derivation.
-    Wait, I think that doesn't work because it still wants to slice out
-    orphans.
-    But now that I have pure ly directives that don't need to evaluate notes
-    beneath them, this should be possible.
-  * cross-staff notes: \new Staff = "up" ...
-    \change Staff = "up ... \change Staff = "down"
-    use a note transformer: "staff up"
-  * tuplets should just emit lilypond directly: ly-code = '\times x/y { a b c }'
-  * same with \grace
-  * tuplet should be ok with multiple children if the rest are empty
-  * Get rid of Lilypond.attributes_to_code and use a ly-code-append environ
-    instead.
-  * Slur can also do this.
-  * staccato, marcato, accent, harmonic ^\flageolet
-  * grace under a tuplet doesn't work because the tuplet directly interprets
-    its notes itself.  For grace to work, it would have to convert the notes
-    to ly, with a mini-convert.
-    Or emit a 0 dur "\times x/y {", then emit the notes, then "}"
-    * Why does a \time 4/4 get emitted after the grace?
-    * Why are the notes 32nd notes?  Dur is correct, starts are too soon.
-  * 32nd notes becoming whole note chords on measure 30
-  * instead of just TimePerQuarter I also need the quantization, so include
-    the TimeConfig.
   - convert lily code to Text instead of String.  Maybe VString has to become
     Text then.
   - pedal should emit pedal sign
     I can't use the pedal call for that, since it emits control.  But I can
     look at the pedal signal directly.
-  * need 8va marks: \ottava #1 ... \ottava #0
   - movement marker than emits a page break and a title
   - Why does the cmd have to wait until lilypond is done?  Should be async.
-  * staff group should put inst name on the group instead of each staff
   + add hand annotations to score
   - possibly support voices, should be able to do it the same as hand
     splitting
-  * make rhythm spelling work properly for non-duple meters
-    Lilypond has to have a similar algorithm for automatic beaming.
-  * support compound meters, e.g. 5/4 as 3+2 or 2+3
-  * get pitches right, and keep the enharmonics
-  * manually add ly tweaks, could be done with special ly environ val
-  / is there a way to turn pitch signal calls e.g. 'tr' into an attr on the
-    note? I can't totally override the pitch track because I still need the
-    pitches, it needs to return attrs in addition to signal.  The only way
-    I can think is another return val, e.g. collect [(RealTime, Attributes)]
   + can I make a click on a note in the pdf highlight in the sequencer?
     Hung up on getting preview to send clicks to a program, notes in
     App/LilypondClick.hs
@@ -1065,6 +897,23 @@ REPL: repl:
     could also get rid of the need for Cmd.Lang.Environ to import everything.
 
 Cmd:
+  meter / timestep
+    - giving Meter.T an argument seems like overkill, do I have a use for
+      beats of unequal lengths?
+    - It seems like it would be simpler to have meter rank divisions at every
+      note, e.g. w, h, q, e, s, 32, 64, etc. rather than every other.  That
+      way I can get rid of the weird 'q*2' TimeSteps.  I can avoid having to
+      come up with too many mark colors by just making them the same color.
+    - timestep 64*2 skips two 's', because 's' is the minimum match
+      skip should be ignored when the match is a larger rank than exists, or
+      maybe step should fail.
+    - use NE list for TimeStep
+    - TimeStep should support negative skip as a fractional skip
+    - points use vector instead of list
+      But then I lose laziness.  Maybe only worth it if I cache.
+    - cache points by returning CachedTimeStep = Points
+    - TimeStep.snap should optimize steps that don't do any snapping when
+      prev_val is Nothing, e.g. RelativeMark and Absolute
   * Can I have a general in-place derive cmd for note transformers?
     integrate basically does this
   - step play StepPlay could work even when notes were moved by annotating
@@ -1114,7 +963,6 @@ Cmd:
       (merge will clip them to the next event)
     - controller edit mode accepts two numbers and moves on, no spaces
     - a legato command that always goes to the next note would still be useful
-   - stretch events in selection to another length (need two selections?)
 
   Cmd.Language
     - lang cmd stuff to load string serialized tracks for event cut and paste
