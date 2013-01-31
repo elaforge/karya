@@ -31,9 +31,9 @@ when_lilypond :: (Lilypond.Config -> Derive.Deriver a)
 when_lilypond lily not_lily =
     maybe not_lily lily =<< Derive.lookup_lilypond_config
 
-append :: Derive.PassedArgs d -> String -> Derive.EventDeriver
+append :: String -> Derive.PassedArgs d -> Derive.EventDeriver
     -> Derive.EventDeriver
-append args code = when_lilypond $
+append code args = when_lilypond $
     const $ append_code code $ Util.place args Util.note
 
 -- * note transformer

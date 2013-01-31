@@ -36,6 +36,8 @@
     piece.
 -}
 module Derive.Call.Trill where
+import qualified Data.List as List
+
 import Util.Control
 import qualified Util.Seq as Seq
 import qualified Derive.Args as Args
@@ -76,7 +78,7 @@ c_note_trill = Derive.stream_generator "trill"
         "Alternate with a pitch at this interval."
     <*> speed_arg
     ) $ \(neighbor, speed) -> Note.inverting $ \args ->
-    Lily.append args "\\trill" $ do
+    Lily.append "\\trill" args $ do
         mode <- get_mode
         (transpose, control) <- trill_from_controls
             (Args.start args, Args.end args) mode neighbor speed
@@ -119,31 +121,64 @@ c_tremolo = Derive.Call
         \ them to fit." transformer
     }
     where
-    transformer = Sig.callt
-        (defaulted "speed" (typed_control "tremolo-speed" 10 Score.Real)
-            "Tremolo at this speed. Its meaning is the same as the trill speed."
-        ) $ \speed args deriver ->
-            tremolo speed args (Args.normalized args deriver)
-    generator = Sig.call
-        (defaulted "speed" (typed_control "tremolo-speed" 10 Score.Real)
-            "Tremolo at this speed. Its meaning is the same as the trill speed."
-        ) $ \speed -> Note.inverting $ \args -> Lily.append args ":32" $
-            tremolo speed args Util.note
-    tremolo speed args note = do
-        (speed_sig, time_type) <- Util.to_time_signal Util.Real speed
-        notes <- case time_type of
-            Util.Real -> do
-                (start, end) <-
-                    (\(s, e) -> (,) <$> Derive.real s <*> Derive.real e) $
-                        Args.range_or_next args
-                mapM Derive.score $ take_full_notes end $
-                    real_pos_at_speed speed_sig start
-            Util.Score -> do
-                let (start, end) = Args.range_or_next args
-                notes <- score_pos_at_speed speed_sig start end
-                return $ take_full_notes end notes
-        Note.place $ [Note.Event start (end - start) note
-            | (start, end) <- zip notes (drop 1 notes)]
+    speed_arg = defaulted "speed" (typed_control "tremolo-speed" 10 Score.Real)
+        "Tremolo at this speed. Its meaning is the same as the trill speed."
+    transformer = Sig.callt speed_arg $ \speed args deriver -> do
+        starts <- tremolo_starts speed (Args.range_or_next args)
+        simple_tremolo starts [Args.normalized args deriver]
+    generator = Sig.call speed_arg $ \speed args -> do
+        starts <- tremolo_starts speed (Args.range_or_next args)
+        case filter (not . null) (Note.sub_events args) of
+            [] -> Note.inverting_args args $ Lily.append ":32" args $
+                simple_tremolo starts [Util.note]
+            notes -> Lily.notes_append ":32" args $ chord_tremolo starts notes
+
+tremolo_starts :: TrackLang.ValControl -> (ScoreTime, ScoreTime)
+    -> Derive.Deriver [ScoreTime]
+tremolo_starts speed range = do
+    (speed_sig, time_type) <- Util.to_time_signal Util.Real speed
+    case time_type of
+        Util.Real -> do
+            (start, end) <-
+                (\(s, e) -> (,) <$> Derive.real s <*> Derive.real e) range
+            mapM Derive.score $ take_full_notes end $
+                real_pos_at_speed speed_sig start
+        Util.Score -> do
+            let (start, end) = range
+            starts <- score_pos_at_speed speed_sig start end
+            return $ take_full_notes end starts
+
+-- | Alternate each note with the other notes within its range, in order from
+-- the lowest track to the highest.
+--
+-- This doesn't restart the tremolo when a new note enters, if you want that
+-- you can have multiple tremolo events.
+--
+-- TODO Optionally, extend each note to the next time that note occurs.
+chord_tremolo :: [ScoreTime] -> [[Note.Event]] -> Derive.EventDeriver
+chord_tremolo starts note_tracks =
+    Note.place $ concat $ snd $
+        List.mapAccumL emit (-1, by_track) $ zip starts (drop 1 starts)
+    where
+    emit (tracknum, notes_) (pos, next_pos) = case chosen of
+            Nothing -> ((tracknum, notes), [])
+            Just (tracknum, note) -> ((tracknum, notes),
+                [Note.Event pos (next_pos-pos) (Note.event_deriver note)])
+        where
+        chosen = Seq.minimum_on fst (filter ((>tracknum) . fst) overlapping)
+            `mplus` Seq.minimum_on fst overlapping
+        overlapping = filter (Note.event_overlaps pos . snd) notes
+        notes = dropWhile ((<=pos) . Note.event_end . snd)  notes_
+    by_track = Seq.sort_on (Note.event_end . snd)
+        [(tracknum, note) | (tracknum, track) <- zip [0..] note_tracks,
+            note <- track]
+
+-- | Just cycle the given notes.
+simple_tremolo :: [ScoreTime] -> [Derive.EventDeriver] -> Derive.EventDeriver
+simple_tremolo starts notes =
+    Note.place [Note.Event start (end - start) note
+        | (start, end, note) <- zip3 starts (drop 1 starts)
+            (if null notes then [] else cycle notes)]
 
 -- | Only over here instead of in "Derive.Call.Attribute" so it can be next to
 -- 'c_tremolo'.

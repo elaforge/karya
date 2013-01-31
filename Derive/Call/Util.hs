@@ -56,6 +56,9 @@ import Types
 data TransposeType = Diatonic | Chromatic deriving (Show)
 data TimeType = Real | Score deriving (Eq, Show)
 
+instance Pretty.Pretty TransposeType where pretty = show
+instance Pretty.Pretty TimeType where pretty = show
+
 split_transpose :: Pitch.Transpose -> (Double, TransposeType)
 split_transpose (Pitch.Chromatic c) = (c, Chromatic)
 split_transpose (Pitch.Diatonic c) = (c, Diatonic)
@@ -267,7 +270,9 @@ with_attrs f deriver = do
     Derive.with_val TrackLang.v_attributes (f attrs) deriver
 
 add_attrs :: Score.Attributes -> Derive.Deriver d -> Derive.Deriver d
-add_attrs = with_attrs . Score.attrs_union
+add_attrs attrs
+    | attrs == mempty = id
+    | otherwise = with_attrs (Score.attrs_union attrs)
 
 -- * environ
 

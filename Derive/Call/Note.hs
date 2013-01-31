@@ -6,9 +6,9 @@ module Derive.Call.Note (
     , default_note
     -- * inversion
     , when_under_inversion
-    , inverting, inverting_around
+    , inverting, inverting_args, inverting_around
     -- ** events
-    , Event(..), event_end, map_event, map_events
+    , Event(..), event_end, event_overlaps, map_event, map_events
     , stretch
     , sub_events
     , place, place_at
@@ -283,6 +283,10 @@ inverting :: (Derive.PassedArgs d -> Derive.EventDeriver)
     -> (Derive.PassedArgs d -> Derive.EventDeriver)
 inverting = inverting_around (1, 1)
 
+inverting_args :: Derive.PassedArgs d -> Derive.EventDeriver
+    -> Derive.EventDeriver
+inverting_args args f = inverting (const f) args
+
 inverting_around :: (Int, Int) -- ^ Capture this many control points at+before
     -- and after the slice boundary.  Also documented in 'Slice.slice'.
     -> (Derive.PassedArgs d -> Derive.EventDeriver)
@@ -367,6 +371,11 @@ data Event = Event {
 
 event_end :: Event -> ScoreTime
 event_end event = event_start event + event_duration event
+
+event_overlaps :: ScoreTime -> Event -> Bool
+event_overlaps pos (Event start dur _)
+    | dur == 0 = pos == start
+    | otherwise = start <= pos && pos < start+dur
 
 map_event :: (Derive.EventDeriver -> Derive.EventDeriver) -> Event -> Event
 map_event f event = event { event_deriver = f (event_deriver event) }
