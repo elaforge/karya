@@ -343,8 +343,8 @@ set_face set face (Style.StyleId style) = Style.StyleId $ n * 4 + case face of
     set_bit = if set then Bits.setBit else Bits.clearBit
     (n, c) = style `divMod` 4
 
-set_style :: Style -> Style.StyleId -> Style.StyleId
-set_style style (Style.StyleId code) =
+event_style :: Style -> Style.StyleId -> Style.StyleId
+event_style style (Style.StyleId code) =
     Style.StyleId $ fromIntegral (fromEnum style) * 4 + code `mod` 4
 
 data Style = Default | Control | Pitch | Declaration | Error
@@ -355,17 +355,32 @@ default_style = Style.StyleId 0
 
 plain_styles :: [Style.Style]
 plain_styles =
-    [ plain 0.9 0.9 0.7 -- default_style
-    , plain 0.8 0.9 0.8 -- style for events on tracks
-    , plain 0.9 0.8 0.9 -- style for events on pitch tracks
-    -- Declaration style: events that affect further derivation and don't
-    -- output any notes themselves, e.g. @x = y@.
-    , plain 1.0 1.0 0.65
-    , plain 1.0 0.8 0.8 -- parse error
+    [ plain note_color, plain control_color, plain pitch_color
+    , plain declaration_color, plain parse_error_color
     ]
-    where
-    plain r g b = Style.Style Style.Helvetica [] 12 Color.black
-        (Color.rgb r g b)
+    where plain = Style.Style Style.Helvetica [] 12 Color.black
+
+-- | Events on note tracks.
+note_color :: Color.Color
+note_color = Color.rgb 0.9 0.9 0.7
+
+-- | Events on control tracks.
+control_color :: Color.Color
+control_color = Color.rgb 0.8 0.9 0.8
+
+-- | Events on pitch tracks
+pitch_color :: Color.Color
+pitch_color = Color.rgb 0.7 0.8 0.9
+
+-- | Declaration style: events that affect further derivation and don't
+-- output any notes themselves, e.g. @x = y@.
+declaration_color :: Color.Color
+declaration_color = Color.rgb 1.0 1.0 0.65
+
+-- | Parse errors.
+parse_error_color :: Color.Color
+parse_error_color = Color.rgb 1.0 0.8 0.8
+
 
 -- | Indicates that this event was integrated from somewhere else.
 integrated_style :: Style.StyleId -> Style.StyleId

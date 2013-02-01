@@ -9,7 +9,6 @@ import qualified Util.Log as Log
 import qualified Util.Pretty as Pretty
 
 import qualified Ui.Diff as Diff
-import qualified Ui.Event as Event
 import qualified Ui.State as State
 import qualified Ui.Track as Track
 import qualified Ui.Update as Update
@@ -21,7 +20,7 @@ import qualified Cmd.Performance as Performance
 import Types
 
 
-type Sync = Track.TrackSignals -> Event.SetStyle -> State.State
+type Sync = Track.TrackSignals -> Track.SetStyle -> State.State
     -> [Update.DisplayUpdate] -> IO (Maybe State.Error)
 
 -- | Sync @ui_to@ to the UI.

@@ -40,7 +40,6 @@ import qualified Util.Seq as Seq
 
 import qualified Ui.Block as Block
 import qualified Ui.BlockC as BlockC
-import qualified Ui.Event as Event
 import qualified Ui.Events as Events
 import qualified Ui.Id as Id
 import qualified Ui.State as State
@@ -58,7 +57,7 @@ import Types
 -- TrackSignals are passed separately instead of going through diff because
 -- they're special: they exist in Cmd.State and not in Ui.State.  It's rather
 -- unpleasant, but as long as it's only TrackSignals then I can deal with it.
-sync :: Track.TrackSignals -> Event.SetStyle -> State.State
+sync :: Track.TrackSignals -> Track.SetStyle -> State.State
     -> [Update.DisplayUpdate] -> IO (Maybe State.Error)
 sync track_signals set_style state updates = do
     -- TODO: TrackUpdates can overlap.  Merge them together here.
@@ -74,7 +73,7 @@ sync track_signals set_style state updates = do
         -- express this in the type?
         Right _ -> Nothing
 
-do_updates :: Track.TrackSignals -> Event.SetStyle -> [Update.DisplayUpdate]
+do_updates :: Track.TrackSignals -> Track.SetStyle -> [Update.DisplayUpdate]
     -> State.StateT IO ()
 do_updates track_signals set_style updates = do
     actions <- mapM (run_update track_signals set_style) updates
@@ -169,7 +168,7 @@ clear_play_position view_id = Ui.send_action $
 -- the StateT is needed only for some logging.
 --
 -- This has to be the longest haskell function ever.
-run_update :: Track.TrackSignals -> Event.SetStyle -> Update.DisplayUpdate
+run_update :: Track.TrackSignals -> Track.SetStyle -> Update.DisplayUpdate
     -> State.StateT IO (IO ())
 run_update track_signals set_style
         (Update.View view_id Update.CreateView) = do

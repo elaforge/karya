@@ -28,15 +28,15 @@ import Types
 -- | Since converting a Track requires both a track and merged events, poke
 -- needs two args.  So keep it out of Storable to prevent accidental use of
 -- 'with'.
-with_track :: Track.Track -> Event.SetStyle -> [Events.Events]
+with_track :: Track.Track -> Track.SetStyle -> [Events.Events]
     -> (Ptr Track.Track -> IO a) -> IO a
-with_track track set_style event_lists f =
+with_track track (track_bg, event_style) event_lists f =
     allocaBytesAligned size align $ \trackp -> do
         -- Wrap style is customizable per track, but I'll hardcode it for now.
         (#poke EventTrackConfig, text_wrap) trackp
             ((#const EventTrackConfig::wrap) :: CInt)
-        (#poke EventTrackConfig, bg_color) trackp (Track.track_bg track)
-        poke_find_events trackp (set_style (Track.track_title track))
+        (#poke EventTrackConfig, bg_color) trackp (track_bg track)
+        poke_find_events trackp (event_style (Track.track_title track))
             (Track.track_events track : event_lists)
         (#poke EventTrackConfig, render) trackp (Track.track_render track)
         initialize_track_signal ((#ptr EventTrackConfig, track_signal) trackp)

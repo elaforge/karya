@@ -76,7 +76,6 @@ import Ui.Util (Fltk)
 
 import qualified Ui.Block as Block
 import qualified Ui.Events as Events
-import qualified Ui.Event as Event
 import qualified Ui.Skeleton as Skeleton
 import qualified Ui.Ruler as Ruler
 import qualified Ui.RulerC as RulerC
@@ -258,7 +257,7 @@ foreign import ccall "set_display_track"
 -- * Track operations
 
 insert_track :: ViewId -> TrackNum -> Block.Tracklike -> [Events.Events]
-    -> Event.SetStyle -> Types.Width -> Fltk ()
+    -> Track.SetStyle -> Types.Width -> Fltk ()
 insert_track view_id tracknum tracklike merged set_style width = do
     viewp <- get_ptr view_id
     with_tracklike True merged set_style tracklike $ \tp mlistp len ->
@@ -274,7 +273,7 @@ update_track :: Bool -- ^ True if the ruler has changed and should be copied
     -- over.  It's a bit of a hack to be a separate flag, but rulers are
     -- updated rarely and copied over entirely for efficiency.
     -> ViewId -> TrackNum -> Block.Tracklike
-    -> [Events.Events] -> Event.SetStyle -> ScoreTime -> ScoreTime -> Fltk ()
+    -> [Events.Events] -> Track.SetStyle -> ScoreTime -> ScoreTime -> Fltk ()
 update_track update_ruler view_id tracknum tracklike merged set_style start
         end = do
     viewp <- get_ptr view_id
@@ -285,7 +284,7 @@ update_track update_ruler view_id tracknum tracklike merged set_style start
 
 -- | Like 'update_track' except update everywhere.
 update_entire_track :: Bool -> ViewId -> TrackNum -> Block.Tracklike
-    -> [Events.Events] -> Event.SetStyle -> Fltk ()
+    -> [Events.Events] -> Track.SetStyle -> Fltk ()
 update_entire_track update_ruler view_id tracknum tracklike merged set_style =
     -- -1 is special cased in c++.
     update_track update_ruler view_id tracknum tracklike merged set_style
@@ -314,7 +313,7 @@ foreign import ccall "set_track_signal"
 
 -- | Convert a Tracklike into the set of pointers that c++ knows it as.
 -- A set of event lists can be merged into event tracks.
-with_tracklike :: Bool -> [Events.Events] -> Event.SetStyle -> Block.Tracklike
+with_tracklike :: Bool -> [Events.Events] -> Track.SetStyle -> Block.Tracklike
     -> (Ptr TracklikePtr -> Ptr (Ptr Ruler.Marklist) -> CInt -> IO ()) -> IO ()
 with_tracklike update_ruler merged_events set_style tracklike f =
     case tracklike of

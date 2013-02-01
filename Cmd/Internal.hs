@@ -20,6 +20,7 @@ import qualified Ui.Event as Event
 import qualified Ui.Id as Id
 import qualified Ui.Key as Key
 import qualified Ui.State as State
+import qualified Ui.Track as Track
 import qualified Ui.Types as Types
 import qualified Ui.UiMsg as UiMsg
 import qualified Ui.Update as Update
@@ -215,11 +216,14 @@ update_of _ = Nothing
 
 -- * set style
 
+set_style :: Track.SetStyle
+set_style = (track_bg, event_style)
+
 -- | Set the style of an event based on its contents.  This is hardcoded
 -- for now but it's easy to put in StaticConfig if needed.
-set_style :: Event.SetStyle
-set_style title _pos event =
-    integrated $ Config.set_style
+event_style :: Event.SetStyle
+event_style title _pos event =
+    integrated $ Config.event_style
         (syntax (ParseBs.parse_expr (Event.event_bytestring event)))
         (Event.style event)
     where
@@ -235,6 +239,15 @@ set_style title _pos event =
         | TrackInfo.is_pitch_track title = Config.Pitch
         | otherwise = Config.Control
 
+-- | Set the track background color.
+track_bg :: Track.Track -> Color.Color
+track_bg track
+    | TrackInfo.is_pitch_track title = Color.brightness 1.6 Config.pitch_color
+    | TrackInfo.is_control_track title =
+        Color.brightness 1.6 Config.control_color
+    -- | TrackInfo.is_note_track title = Color.gray9
+    | otherwise = Track.track_bg track
+    where title = Track.track_title track
 
 -- * sync
 

@@ -7,7 +7,9 @@ import qualified Data.Map as Map
 import qualified Util.Log as Log
 import qualified Util.Pretty as Pretty
 import qualified Ui.Color as Color
+import qualified Ui.Event as Event
 import qualified Ui.Events as Events
+
 import qualified Perform.Signal as Signal
 import qualified App.Config as Config
 import Types
@@ -50,6 +52,9 @@ modify_events f track@(Track { track_events = events }) =
 
 set_events :: Events.Events -> Track -> Track
 set_events events = modify_events (const events)
+
+type SetStyle = (TrackBg, Event.SetStyle)
+type TrackBg = Track -> Color.Color
 
 -- * track signal
 

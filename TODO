@@ -25,11 +25,12 @@ UNSORTED
     the event color doesn't change to note track color
   * There should be a postproc to arpeggiate pizz slightly.
   colors to make note tracks stand out better
-    - Different track bg for note tracks.  I'll have to pass track_style down to
-      BlockC.with_tracklike in the same way as Event.SetStyle.
+    * Different track bg for note tracks.  I'll have to pass track_style down
+      to BlockC.with_tracklike in the same way as Event.SetStyle.
       . But, it's on all note tracks, do I want just the bottom ones?
       . Also, it's only visible where there are no events.
     - different color for note transformer events?
+      SetStyle needs to know if there's a note track below.
   - There should be a postproc to arpeggiate pizz slightly.
   - There's a focus bug, but I'm not sure how to reproduce it.
   + can I get fltk to omit the jellybutton buttons on the window?
