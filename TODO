@@ -22,7 +22,7 @@ UNSORTED
   - adding an intervening note track seems to mess up the signal render
   - the cache got messed up after changing the tempo
     Change tempo at 20t telek1.t1
-  - make a control track, make an event, change track to note track,
+  * make a control track, make an event, change track to note track,
     the event color doesn't change to note track color
   - There should be a postproc to arpeggiate pizz slightly.
   colors to make note tracks stand out better

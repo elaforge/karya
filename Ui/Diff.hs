@@ -248,8 +248,11 @@ diff_track track_id track1 track2 = do
     -- as they happen.
     let emit = change . Update.Track track_id
     let unequal f = unequal_on f track1 track2
-    when (unequal Track.track_title) $
+    when (unequal Track.track_title) $ do
         emit $ Update.TrackTitle (Track.track_title track2)
+        -- Changing the title may change the type of the track, which may
+        -- change event styles.
+        emit Update.TrackAllEvents
     when (unequal Track.track_bg) $
         emit $ Update.TrackBg (Track.track_bg track2)
     when (unequal Track.track_render) $
