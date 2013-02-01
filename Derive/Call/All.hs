@@ -15,8 +15,9 @@ import qualified Derive.Call.Note as Note
 import qualified Derive.Call.NoteTransformer as NoteTransformer
 import qualified Derive.Call.Ornament as Ornament
 import qualified Derive.Call.Pitch as Pitch
-import qualified Derive.Call.Post.NegativeDur as NegativeDur
-import qualified Derive.Call.Post.Reverse as Reverse
+import qualified Derive.Call.Post.Idiom as Post.Idiom
+import qualified Derive.Call.Post.NegativeDur as Post.NegativeDur
+import qualified Derive.Call.Post.Reverse as Post.Reverse
 import qualified Derive.Call.Random as Random
 import qualified Derive.Call.Sekar as Sekar
 import qualified Derive.Call.Trill as Trill
@@ -64,8 +65,11 @@ note_calls :: Derive.NoteCallMap
     [ Attribute.note_calls, Block.note_calls, Echo.note_calls
     , Gender.note_calls, Integrate.note_calls
     , Lily.note_calls
-    , NegativeDur.note_calls, Note.note_calls, NoteTransformer.note_calls
-    , Ornament.note_calls , Random.note_calls, Reverse.note_calls
+    , Note.note_calls, NoteTransformer.note_calls
+    , Ornament.note_calls
+    , Post.Idiom.note_calls, Post.NegativeDur.note_calls
+    , Post.Reverse.note_calls
+    , Random.note_calls
     , Sekar.note_calls, String.note_calls, Trill.note_calls
     ]
 

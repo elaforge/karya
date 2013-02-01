@@ -177,7 +177,9 @@ derive_block = derive_block_with id
 derive_block_with :: Transform Derive.Events -> State.State
     -> BlockId -> Derive.Result
 derive_block_with with ui_state block_id = derive ui_state deriver
-    where deriver = with (Call.Block.eval_root_block "" block_id)
+    where
+    global = State.config#State.global_transform #$ ui_state
+    deriver = with (Call.Block.eval_root_block global block_id)
 
 derive :: State.State -> Derive.EventDeriver -> Derive.Result
 derive ui_state deriver = Derive.extract_result $

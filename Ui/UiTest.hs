@@ -243,11 +243,20 @@ note_spec (inst, pitches, controls) =
     pitch_track = ("*", [(t, 0, pitch) | (t, _, pitch) <- pitches])
     control_track (title, events) = (title, [(t, 0, val) | (t, val) <- events])
 
+-- | Take a track like @[(start, dur, pitch)]@ and emit a note and pitch track.
+-- If the pitch looks like \"a -- b\" then \"a\" is the note track's event and
+-- \"b\" is the pitch track's event.
 note_track :: [EventSpec] -> [TrackSpec]
-note_track pitches =
-    [ (">", [(t, dur, "") | (t, dur, _) <- pitches])
-    , ("*", [(t, 0, pitch) | (t, _, pitch) <- pitches])
+note_track track =
+    [ (">", [(t, dur, s) | (t, dur, (s, _)) <- track2])
+    , ("*", [(t, 0, s) | (t, _, (_, s)) <- track2])
     ]
+    where
+    track2 = [(t, d, split s) | (t, d, s) <- track]
+    split s
+        | null post = ("", pre)
+        | otherwise = (pre, post)
+        where (pre, post) = Seq.split1 " -- " s
 
 -- * state to spec
 

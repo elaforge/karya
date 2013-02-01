@@ -24,7 +24,7 @@ UNSORTED
     Change tempo at 20t telek1.t1
   * make a control track, make an event, change track to note track,
     the event color doesn't change to note track color
-  - There should be a postproc to arpeggiate pizz slightly.
+  * There should be a postproc to arpeggiate pizz slightly.
   colors to make note tracks stand out better
     - Different track bg for note tracks.  I'll have to pass track_style down to
       BlockC.with_tracklike in the same way as Event.SetStyle.

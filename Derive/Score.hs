@@ -140,11 +140,13 @@ control :: ControlMap -> Control -> RealTime -> TypedVal
 control controls c t = maybe (untyped 0) (control_at t) (Map.lookup c controls)
 
 move_controls :: RealTime -> Event -> Event
-move_controls shift event = event
-    { event_controls =
-        Map.map (fmap (Signal.shift shift)) (event_controls event)
-    , event_pitch = PitchSignal.shift shift (event_pitch event)
-    }
+move_controls shift event
+    | shift == 0 = event
+    | otherwise = event
+        { event_controls =
+            Map.map (fmap (Signal.shift shift)) (event_controls event)
+        , event_pitch = PitchSignal.shift shift (event_pitch event)
+        }
 
 event_control_at :: RealTime -> Control -> Maybe TypedVal -> Event
     -> Maybe TypedVal
