@@ -227,7 +227,7 @@ from_realtime block_id start repeat_at = do
     -- See doc for "Cmd.PlayC".
     return $ Cmd.PlayMidiArgs (Pretty.pretty block_id) msgs
         (Just (Cmd.perf_inv_tempo perf . (+start) . (/multiplier)))
-        (subtract start <$> repeat_at)
+        ((*multiplier) . subtract start <$> repeat_at)
 
 lookup_current_performance :: (Cmd.M m) => BlockId -> m (Maybe Cmd.Performance)
 lookup_current_performance block_id = Map.lookup block_id <$>

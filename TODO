@@ -3,7 +3,14 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
+  * play_at is messed up in the presence of play multiplier
+  - double click isn't creating a fitted view? Create.view should also
+    look harder for an empty space.
+  - ViewConfig.resize_to_fit shrinks the window when it starts at -x.
   - play_at is messed up in the presence of play multiplier
+  - X11 doesn't turn shift-/ into ? like OS X does.  I need a way to make
+    those consistent.
+    - try the fltk patches
   - Type into track text on the right side, then expand the window so it can
     be visible.  It doesn't redraw the newly-revealed bit correctly.
   - Track caching is too fragile, if I add a track with scope over everything
@@ -18,8 +25,14 @@ UNSORTED
   - make a control track, make an event, change track to note track,
     the event color doesn't change to note track color
   - There should be a postproc to arpeggiate pizz slightly.
+  colors to make note tracks stand out better
+    - Different track bg for note tracks.  I'll have to pass track_style down to
+      BlockC.with_tracklike in the same way as Event.SetStyle.
+      . But, it's on all note tracks, do I want just the bottom ones?
+      . Also, it's only visible where there are no events.
+    - different color for note transformer events?
+  - There should be a postproc to arpeggiate pizz slightly.
   - There's a focus bug, but I'm not sure how to reproduce it.
-  - different color for note transformer events?
   + can I get fltk to omit the jellybutton buttons on the window?
     Completely disables resizing, ack.
     Yes, but requires hacking the library.  Mail the list about a better
@@ -117,18 +130,6 @@ UNSORTED
     I got an update on wrong kind of track assertion error.
   - Sometimes tick makes more sense as at attribute of the previous note, or
     perhaps a freestanding ornament, since it can happen or not on a repeat.
-  - I do a lot of appending a block along with its ruler, I could have
-    a single cmd to do that.
-  - A more radical approach would be a block mode where the block calls are
-    simply additive, and their duration doesn't matter.  This would mean I'd
-    have to edit the tempo on the subblocks though, which in turn means it
-    couldn't vary independently.
-    . Could do this with a block call that acts as a note transformer, which
-      simply pastes together sub-blocks.  I'd still want to cache the
-      sub-blocks if possible, unless I do the block-range caching thing.
-      Another bonus is I could probably get next/prev events working across
-      block boundaries this way.  Maybe this could be used as an integrator
-      input.
 
   / parsing "1r" instead of "1s" gives a "unexpected eof" error msg, it should
     say 'r' was an unknown suffix
@@ -159,61 +160,6 @@ UNSORTED
     tracks.
 
   - Derive.Call.Note.randomized should randomize start for 0 dur notes
-  Space usage.  On startup it balloons up to 450mb, what is it doing?  After
-    a bit of editing it's up to 750mb, who is leaking?  Undo history?
-    * Write size profile that loads a big score and reports the size increase.
-    - Write function to sum up State, Cache, and Performance sizes.
-      Return stats about event size, etc.
-    / Try interning strings on load.
-      Savings are negligable, provided I'm calculating them correctly.
-    - Flatten pointers out of data structures.
-      Which ones? Cached Events, performed MIDI.
-    * Discard old undo states.
-    - Link libraries into seq as shared, also link with ghc api as shared.
-      Ask on ghc-users first if anyone has done this.
-    Compact cached signals and rendered MIDI.
-      - First write tests that demonstrate where the space is going.
-      - UNPACK Derive.Score.Event
-      - Midi.Midi.WriteMessages compact as a lazy storablevector
-    - Compact control tracks when I have that in, maybe compact only on
-      checkpoints?
-      But savings are likely to be very small for handwritten scores, would
-      only make a difference for recorded control tracks.
-    The ghc api uses tons of space when it starts linking in everything.
-      - How much space does ghci take loading the same stuff?  Why so much
-        less?
-      - I probably have the whole app twice.  Can I use dynamic libraries to
-        improve this?
-      - dynamic libraries: www.well-typed.com/blog/30
-    Check size on linux.
-      stripped or not makes no difference
-      bloom is 110m in memory
-      repl is 200m in memory
-      plus 50m for normal app
-      so 360 for everything + bloom
-      - calculate size of a score
-      - calculate size of cache
-    resident memory size:
-    debug, no repl: 31m / 19m -- ? / ?
-      darwin: 76 / 150
-      linux: 32m / 129m
-    debug, repl: unstripped / stripped -- 78m / ? -- 60m / 40m
-      darwin: 193m -> 248m -- 323m -> 376m
-      linux: 182m -> 230m -- 320m -> 367m
-    opt, no repl: 35m / 20m -- ? / ?
-      darwin: 39 / 116
-      linux: 31m / 90m
-    opt, repl: 81m / 48m -- 62m / 41m
-      darwin: 194 -> 246 / ?
-      linux: 131m -> 178m / 243m -> 321m
-
-    loading bloom, debug: 74, 97
-    loading bloom, opt: 77 / 59
-
-    linux:
-      bloom: 59 without the repl, but 231 with (huh?)
-      repl: 100m + 47 to load seq libs
-    darwin:
 
   - There's a lot of duplication between State.TrackEvents, Call.TrackInfo,
     and Derive.CallInfo.  Can I factor out the common bits?
@@ -222,62 +168,11 @@ UNSORTED
     error msg when an exception is caught.
   - There are still some cmds without names, who are they?
     Do some logging to track them down.
-  incremental save
-    + try saving individual events for incremental save
-      Seems to be just as slow as full save, probably most of the time is in
-      the call to git.  Test again with larger tracks.
-    - wrap operations in a lock file
-    - make sure things are ok if it fails at any step
-    - I don't think Ui.State needs to emit CmdTrackAllEvents for cases where
-      diff will catch it.
-    - Why should I ever do a complete save?  Why not always just do partial?
-      The repo should only contain one copy of something that never changes.
-      One reason is to trim history, but maybe for that I should have a option
-      to rename and save without bringing the history.
-      So save is just a tag operation, it doesn't actually dump state.  This
-      will remove the irregularity where a save state corresponds to no
-      history entry.
-      But then how do I start the saving?  I would need a special value to say
-      it should start saving.  Binding to ^S is logical, but then the first
-      save doesn't add a tag.  Unless the first save always tags.
-      - Initially save_checkpoints is false, so no checkpointing
-      - cmd_save makes it true, then Undo does a checkpoint
-        But it has to notice the false -> true transition, otherwise it will
-        consider the cmd not worth saving.  So hist_save_checkpoints is just
-        True for the cmd that turns it on, and goes off after that.
-    - Ability to give names to SavePoints.
-    - See if git's delta compression understands binary and can compress
-      tracks.  Otherwise, would it be worth helping it by e.g. separating
-      each event with a newline?  But then it makes serializing events more of
-      a hassle.
-    Git docs: http://progit.org/book/ch9-2.html
 
   / I could have a Cmd state flag that does things relative to the current
     block vs. root block
   - key not applied in inner blocks, local play should take the root play's
     env as a starting point
-  complete quickcheck derive testing
-    I switched back to Double for RealTime, but this means the roundoff errors
-    are back.  Use quickcheck to repro them.
-    * make Arbitrary for BlockSpecs
-    + make a simple deriver that creates event and midi output skeletons
-    - integrate quickcheck with generate_run_tests.py
-    - assert that the reduced deriver output equals the simple deriver output
-    - basic pitches: If the score was created with notes aligned to note
-      starts, then every NoteOn should have the appropriate key, there should
-      be no pitch bends, and "same note" should be the only reason for
-      a channel split
-    - basic controls: Given randomly placed control events, notes have the
-      correct control curves.  Don't worry about times or midi.
-    - slicing: Given some simple note transformers (tuple, place, ...),
-      pitches and controls are still associated with the right notes as above.
-      Don't worry about times, just that the right notes and the right
-      controls.
-    - block call property: a couple levels of nesting for block calls, notes
-      still have the expected pitches and controls as above
-    - inversion: as 'basic pitches' and 'basic controls', but controls are
-      below the note tracks, results should be the same
-    - stack: generate nested events, check that stack is as expected
 
   - it's annoying how a track with nothing in it won't play, and has no
     play monitor.
@@ -286,32 +181,6 @@ UNSORTED
     replaces samples.  Is still no good if the samples don't line up, but I'll
     need an event-level merge anyway for notes.
 
-  - tempo composition is problematic because it means you can't change the
-    length of a block from within the block.  So slowing down one part will
-    speed up another.  How can I get local tempo like I want?  Or just edit
-    the global tempo?  Unfortunately it's much more convenient to edit local
-    tempo.  Maybe I could do a non-compositional tempo that simply overrides
-    the caller, or rather multiplies with the caller.
-    This means the call event is now longer than its duration would imply,
-    and to fix that I need to have the child tempo modify the parent.  So
-    effectively I am just modifying the global tempo, only providing a nicer
-    syntax.
-
-    This technique really is non-compositional: you can't have more than
-    one call at once.
-    Actually, I could: tempo track looks at calls in note tracks, gets
-    sub-blocks, strips out the tempo tracks.  Then multiplies those signals
-    with its own.
-
-    Or I could just make it easier to edit the global tempo:
-      * when you click on the parent, show selection pos on the child too
-      - show derivation of child inside caller, I think I want to do this
-        anyway, but it's hard, how do I fit all that stuff in?
-      * merge child rulers with parent?
-      But it still seems a bit awkward because I do want the tempo associated
-      with the music, e.g. when I play by itself.  On the other hand, if the
-      block repeats do I want the tempo to repeat as well?  Sometimes yes,
-      sometimes no...
   - randomize any control by having the 'set' call look for the -rnd control
   * some way to get symbol feedback instantly to make it easier to compose them
     - But it calls SymbolC and I ran into a problem where linux ghci can't
@@ -431,6 +300,133 @@ strict derivation / parallelization / memory leaks
     - If each event or unevaluated event has future and past it will keep
       the UI alive.  Maybe forcing the result of each event will clean that
       up.
+  Space usage.  On startup it balloons up to 450mb, what is it doing?  After
+    a bit of editing it's up to 750mb, who is leaking?  Undo history?
+    * Write size profile that loads a big score and reports the size increase.
+    - Write function to sum up State, Cache, and Performance sizes.
+      Return stats about event size, etc.
+    / Try interning strings on load.
+      Savings are negligable, provided I'm calculating them correctly.
+    - Flatten pointers out of data structures.
+      Which ones? Cached Events, performed MIDI.
+    * Discard old undo states.
+    - Link libraries into seq as shared, also link with ghc api as shared.
+      Ask on ghc-users first if anyone has done this.
+    Compact cached signals and rendered MIDI.
+      - First write tests that demonstrate where the space is going.
+      - UNPACK Derive.Score.Event
+      - Midi.Midi.WriteMessages compact as a lazy storablevector
+    - Compact control tracks when I have that in, maybe compact only on
+      checkpoints?
+      But savings are likely to be very small for handwritten scores, would
+      only make a difference for recorded control tracks.
+    The ghc api uses tons of space when it starts linking in everything.
+      - How much space does ghci take loading the same stuff?  Why so much
+        less?
+      - I probably have the whole app twice.  Can I use dynamic libraries to
+        improve this?
+      - dynamic libraries: www.well-typed.com/blog/30
+    Check size on linux.
+      stripped or not makes no difference
+      bloom is 110m in memory
+      repl is 200m in memory
+      plus 50m for normal app
+      so 360 for everything + bloom
+      - calculate size of a score
+      - calculate size of cache
+    resident memory size:
+    debug, no repl: 31m / 19m -- ? / ?
+      darwin: 76 / 150
+      linux: 32m / 129m
+    debug, repl: unstripped / stripped -- 78m / ? -- 60m / 40m
+      darwin: 193m -> 248m -- 323m -> 376m
+      linux: 182m -> 230m -- 320m -> 367m
+    opt, no repl: 35m / 20m -- ? / ?
+      darwin: 39 / 116
+      linux: 31m / 90m
+    opt, repl: 81m / 48m -- 62m / 41m
+      darwin: 194 -> 246 / ?
+      linux: 131m -> 178m / 243m -> 321m
+
+    loading bloom, debug: 74, 97
+    loading bloom, opt: 77 / 59
+
+    linux:
+      bloom: 59 without the repl, but 231 with (huh?)
+      repl: 100m + 47 to load seq libs
+    darwin:
+
+block composition
+  - I do a lot of appending a block along with its ruler, I could have
+    a single cmd to do that.
+  - A more radical approach would be a block mode where the block calls are
+    simply additive, and their duration doesn't matter.  This would mean I'd
+    have to edit the tempo on the subblocks though, which in turn means it
+    couldn't vary independently.
+    . Could do this with a block call that acts as a note transformer, which
+      simply pastes together sub-blocks.  I'd still want to cache the
+      sub-blocks if possible, unless I do the block-range caching thing.
+      Another bonus is I could probably get next/prev events working across
+      block boundaries this way.  Maybe this could be used as an integrator
+      input.
+  - tempo composition is problematic because it means you can't change the
+    length of a block from within the block.  So slowing down one part will
+    speed up another.  How can I get local tempo like I want?  Or just edit
+    the global tempo?  Unfortunately it's much more convenient to edit local
+    tempo.  Maybe I could do a non-compositional tempo that simply overrides
+    the caller, or rather multiplies with the caller.
+    This means the call event is now longer than its duration would imply,
+    and to fix that I need to have the child tempo modify the parent.  So
+    effectively I am just modifying the global tempo, only providing a nicer
+    syntax.
+
+    This technique really is non-compositional: you can't have more than
+    one call at once.
+    Actually, I could: tempo track looks at calls in note tracks, gets
+    sub-blocks, strips out the tempo tracks.  Then multiplies those signals
+    with its own.
+
+    Or I could just make it easier to edit the global tempo:
+      * when you click on the parent, show selection pos on the child too
+      - show derivation of child inside caller, I think I want to do this
+        anyway, but it's hard, how do I fit all that stuff in?
+      * merge child rulers with parent?
+      But it still seems a bit awkward because I do want the tempo associated
+      with the music, e.g. when I play by itself.  On the other hand, if the
+      block repeats do I want the tempo to repeat as well?  Sometimes yes,
+      sometimes no...
+
+incremental save / git
+  - Verify the supposed previous commit against the real previous commit, to
+    prevent incremental saving on the wrong base.
+  + try saving individual events for incremental save
+    Seems to be just as slow as full save, probably most of the time is in
+    the call to git.  Test again with larger tracks.
+  - wrap operations in a lock file
+  - make sure things are ok if it fails at any step
+  - I don't think Ui.State needs to emit CmdTrackAllEvents for cases where
+    diff will catch it.
+  - Why should I ever do a complete save?  Why not always just do partial?
+    The repo should only contain one copy of something that never changes.
+    One reason is to trim history, but maybe for that I should have a option
+    to rename and save without bringing the history.
+    So save is just a tag operation, it doesn't actually dump state.  This
+    will remove the irregularity where a save state corresponds to no
+    history entry.
+    But then how do I start the saving?  I would need a special value to say
+    it should start saving.  Binding to ^S is logical, but then the first
+    save doesn't add a tag.  Unless the first save always tags.
+    - Initially save_checkpoints is false, so no checkpointing
+    - cmd_save makes it true, then Undo does a checkpoint
+      But it has to notice the false -> true transition, otherwise it will
+      consider the cmd not worth saving.  So hist_save_checkpoints is just
+      True for the cmd that turns it on, and goes off after that.
+  - Ability to give names to SavePoints.
+  - See if git's delta compression understands binary and can compress
+    tracks.  Otherwise, would it be worth helping it by e.g. separating
+    each event with a newline?  But then it makes serializing events more of
+    a hassle.
+  Git docs: http://progit.org/book/ch9-2.html
 
 integrate / integration:
   - adding a {soft} stroke appears to apply the soft again the the dyn track
@@ -868,6 +864,28 @@ plugin host freeze audio
     - in any case, I can't do daw stuff, so I think I don't want this
 
 test:
+  complete quickcheck derive testing
+    I switched back to Double for RealTime, but this means the roundoff errors
+    are back.  Use quickcheck to repro them.
+    * make Arbitrary for BlockSpecs
+    + make a simple deriver that creates event and midi output skeletons
+    - integrate quickcheck with generate_run_tests.py
+    - assert that the reduced deriver output equals the simple deriver output
+    - basic pitches: If the score was created with notes aligned to note
+      starts, then every NoteOn should have the appropriate key, there should
+      be no pitch bends, and "same note" should be the only reason for
+      a channel split
+    - basic controls: Given randomly placed control events, notes have the
+      correct control curves.  Don't worry about times or midi.
+    - slicing: Given some simple note transformers (tuple, place, ...),
+      pitches and controls are still associated with the right notes as above.
+      Don't worry about times, just that the right notes and the right
+      controls.
+    - block call property: a couple levels of nesting for block calls, notes
+      still have the expected pitches and controls as above
+    - inversion: as 'basic pitches' and 'basic controls', but controls are
+      below the note tracks, results should be the same
+    - stack: generate nested events, check that stack is as expected
   - tests count number of tests in addition to checks within each test
   - use generics or Foldable or something to write a generic StructEqual
 
