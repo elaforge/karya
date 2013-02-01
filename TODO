@@ -4,13 +4,12 @@ LEGEND
 
 UNSORTED
   * play_at is messed up in the presence of play multiplier
-  - double click isn't creating a fitted view? Create.view should also
-    look harder for an empty space.
+  - double click isn't creating a fitted view?
+  * Create.view should look harder for an empty space.
   - ViewConfig.resize_to_fit shrinks the window when it starts at -x.
-  - play_at is messed up in the presence of play multiplier
   - X11 doesn't turn shift-/ into ? like OS X does.  I need a way to make
     those consistent.
-    - try the fltk patches
+    * try the fltk patches, doesn't help
   - Type into track text on the right side, then expand the window so it can
     be visible.  It doesn't redraw the newly-revealed bit correctly.
   - Track caching is too fragile, if I add a track with scope over everything

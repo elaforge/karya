@@ -2,7 +2,7 @@
 module Util.Ranges (
     Ranges, fmap, extract
     , ranges, sorted_ranges, merge_sorted, range, point, everything, nothing
-    , overlapping, intersection
+    , overlapping, intersection, invert
 ) where
 import Prelude hiding (fmap)
 import qualified Control.DeepSeq as DeepSeq
@@ -105,3 +105,13 @@ intersection (Ranges r1) (Ranges r2) = Ranges (go r1 r2)
 
 merge :: (Ord n) => [(n, n)] -> [(n, n)] -> [(n, n)]
 merge r1 r2 = merge_sorted (Seq.merge_on fst r1 r2)
+
+-- | Given a complete range, invert the ranges.
+invert :: (Ord n) => (n, n) -> Ranges n -> Ranges n
+invert _ Everything = Monoid.mempty
+invert (start, end) (Ranges pairs) = Ranges $ go start pairs
+    where
+    go p ((s, e) : rs)
+        | s > p = (p, s) : go e rs
+        | otherwise = go e rs
+    go p [] = if p < end then [(p, end)] else []

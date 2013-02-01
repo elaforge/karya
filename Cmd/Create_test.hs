@@ -2,6 +2,7 @@ module Cmd.Create_test where
 import qualified Data.Tree as Tree
 
 import Util.Control
+import qualified Util.Rect as Rect
 import qualified Util.Seq as Seq
 import Util.Test
 
@@ -120,3 +121,15 @@ run_skel m ntracks skel (start_track, end_track) =
         tid <- State.get_event_track_at UiTest.default_block_id n
         title <- Track.track_title <$> State.get_track tid
         return $ head $ if null (Seq.strip title) then "x" else title
+
+test_find_rect = do
+    let f w = Create.find_rect (Just (Rect.xywh 0 0 10 10)) (w, 0) . map rect
+        rect (x1, x2) = Rect.xywh x1 0 (x2-x1) 10
+    equal (f 2 []) (0, 0)
+    equal (f 2 [(0, 2)]) (2, 0)
+    -- 2--4 is a better fit.
+    equal (f 2 [(0, 2), (4, 6)]) (2, 0)
+    -- Now 6--8 is.
+    equal (f 2 [(0, 2), (3, 6)]) (6, 0)
+    -- But if it's stopped up, we'll take 2--3.
+    equal (f 2 [(0, 2), (3, 10)]) (2, 0)

@@ -23,3 +23,10 @@ test_merge = do
     equal (f [(0, 1)] [(1, 2)]) (Just [(0, 2)])
     equal (f [(0, 2)] [(1, 3)]) (Just [(0, 3)])
     equal (f [(0, 1), (2, 3)] [(1, 2)]) (Just [(0, 3)])
+
+test_invert = do
+    let f extent = Ranges.extract . Ranges.invert extent . Ranges.ranges
+    equal (f (0, 5) [(1, 3)]) $ Just [(0, 1), (3, 5)]
+    equal (f (0, 5) [(0, 3)]) $ Just [(3, 5)]
+    equal (f (0, 5) [(0, 5)]) $ Just []
+    equal (f (0, 5) [(1, 2), (2, 3)]) $ Just [(0, 1), (3, 5)]

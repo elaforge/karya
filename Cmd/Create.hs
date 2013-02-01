@@ -20,6 +20,7 @@ import qualified Data.Set as Set
 import qualified Data.Tree as Tree
 
 import Util.Control
+import qualified Util.Ranges as Ranges
 import qualified Util.Rect as Rect
 import qualified Util.Seq as Seq
 import qualified Util.Tree as Tree
@@ -186,10 +187,12 @@ generate_block_id ns blocks = generate_id ns no_parent "b" Types.BlockId blocks
 unfitted_view :: (State.M m) => BlockId -> m ViewId
 unfitted_view block_id = do
     block <- State.get_block block_id
-    view_id <- require "view id"
-        . generate_view_id block_id =<< State.gets State.state_views
-    rect <- State.gets $ find_rect Config.view_size . map Block.view_rect
-        . Map.elems . State.state_views
+    view_id <- require "view id" . generate_view_id block_id
+        =<< State.gets State.state_views
+    (x, y) <- State.gets $ find_rect Nothing Config.view_size
+        . map Block.view_rect . Map.elems . State.state_views
+    let (w, h) = Config.view_size
+    let rect = Rect.xywh x y w h
     State.create_view view_id $ Block.view block block_id rect Config.zoom
 
 -- | This is like 'unfitted_view', but tries to fit the view size to its
@@ -204,7 +207,20 @@ view :: (Cmd.M m) => BlockId -> m ViewId
 view block_id = do
     view_id <- unfitted_view block_id
     ViewConfig.resize_to_fit False view_id
+
+    screen <- maybe (Cmd.get_screen (0, 0)) view_screen
+        =<< Cmd.lookup_focused_view
+    rect <- Block.view_rect <$> State.get_view view_id
+    others <- State.gets $ filter (\r -> r /= rect && Rect.overlapping r screen)
+        . map Block.view_rect . Map.elems . State.state_views
+    let (x, y) = find_rect (Just screen) (Rect.rw rect, Rect.rh rect) others
+    State.set_view_rect view_id (Rect.place x y rect)
     return view_id
+
+view_screen :: (Cmd.M m) => ViewId -> m Rect.Rect
+view_screen view_id =
+    Cmd.get_screen . Rect.upper_left . Block.view_rect
+        =<< State.get_view view_id
 
 block_view :: (Cmd.M m) => RulerId -> m ViewId
 block_view ruler_id = block ruler_id >>= view
@@ -535,12 +551,25 @@ ids_for ns parent code =
 require :: (State.M m) => String -> Maybe a -> m a
 require msg = maybe (State.throw $ "somehow can't find ID for " ++ msg) return
 
-find_rect :: (Int, Int) -> [Rect.Rect] -> Rect.Rect
-find_rect (w, h) rects = Rect.xywh right bottom w h
+-- | Find a place to fit the given rect.  This is like a tiny window manager.
+find_rect :: Maybe Rect.Rect -> (Int, Int) -> [Rect.Rect] -> (Int, Int)
+find_rect maybe_screen (w, _h) rects =
+    maybe (0, 0) Rect.upper_left $ Seq.minimum_on delta holes
     where
+    -- First pick holes that fit, by increasing size, then pick the ones
+    -- that don't fit, by decreasing size.
+    delta rect = (if diff == 0 then -1 else negate (signum diff), abs diff)
+        where diff = Rect.rw rect - w
+    holes = case maybe_screen of
+        Nothing -> [Rect.xywh right 0 1 1]
+        Just screen -> find_holes rects screen
     right = maximum $ 0 : map Rect.rr rects
-    -- TODO This is an OSX specific hack: the main screen has a title bar and
-    -- prevents you from creating a window on it.  If the view rect doesn't
-    -- have the right y value then it can think its height is bigger than it
-    -- will actually be, and winds up being too short.
-    bottom = 44
+
+find_holes :: [Rect.Rect] -> Rect.Rect -> [Rect.Rect]
+find_holes rects screen = case Ranges.extract ranges of
+    Nothing -> [screen]
+    Just rs -> [Rect.xywh x1 (Rect.ry screen) (x2-x1) (Rect.rh screen)
+        | (x1, x2) <- rs]
+    where
+    extent r = (Rect.rx r, Rect.rr r)
+    ranges = Ranges.invert (extent screen) $ Ranges.ranges $ map extent rects
