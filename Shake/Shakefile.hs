@@ -243,7 +243,7 @@ libraryDependencies = concat $
     , w "bindings-DSL" -- Util.Git.LibGit2
     , w "fclabels" -- Util.Lens
     , [("ghc", ">=7.6.1")] -- REPL
-    , w "ghc-paths haskeline" -- REPL
+    , w "ghc-paths haskeline terminfo" -- REPL
     -- Instrument.Parse, could use attoparsec, but parsec errors are better
     , w "parsec"
     , w "haskell-src" -- Util.PPrint
