@@ -37,7 +37,7 @@ module Ui.Event (
     -- * stack
     , set_stack, strip_stack
     -- * style
-    , modify_style, modified, SetStyle
+    , modify_style, modified, EventStyle
 ) where
 import Prelude hiding (min, max)
 import qualified Prelude
@@ -65,6 +65,10 @@ data Event = Event {
     , duration :: !ScoreTime
     -- | UTF8 encoded.
     , event_bytestring :: !Text
+    -- | Each event can have its own style.  However, in practice, because I
+    -- want events to use styles consistently I set them automatically via
+    -- 'EventStyle'.  This way is less flexible, but it's one less bit of state
+    -- to get out of sync.
     , style :: !Style.StyleId
     -- | If this event was integrated from another event as by
     -- "Derive.Call.Integrate", this will have the stack of the source event.
@@ -215,7 +219,8 @@ modified event = event { style = Config.modified_style (style event) }
 -- | This is called on events before they go to the UI, to be used for "syntax
 -- highlighting", i.e. it can set the style depending on the event, but the
 -- change in style won't be saved in the event itself.
-type SetStyle = String -> ScoreTime -> Event -> Style.StyleId
+type EventStyle = String -- ^ track title
+    -> Event -> Style.StyleId
 
 -- * serialize
 

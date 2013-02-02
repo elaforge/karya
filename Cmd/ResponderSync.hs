@@ -20,7 +20,7 @@ import qualified Cmd.Performance as Performance
 import Types
 
 
-type Sync = Track.TrackSignals -> Track.SetStyle -> State.State
+type Sync = Track.TrackSignals -> Track.SetStyleHigh -> State.State
     -> [Update.DisplayUpdate] -> IO (Maybe State.Error)
 
 -- | Sync @ui_to@ to the UI.

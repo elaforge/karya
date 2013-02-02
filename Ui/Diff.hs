@@ -40,6 +40,9 @@ type DiffM a = Logger.LoggerT (Either Update.UiUpdate Update.DisplayUpdate)
 change :: Update.UiUpdate -> DiffM ()
 change = Logger.logs . (:[]) . Left
 
+changes :: [Update.UiUpdate] -> DiffM ()
+changes = Logger.logs . map Left
+
 change_display :: Update.DisplayUpdate -> DiffM ()
 change_display = Logger.logs . (:[]) . Right
 
@@ -215,8 +218,11 @@ diff_block block_id block1 block2 = do
         emit $ Update.BlockConfig (Block.block_config block2)
     let int_skel1 = Block.integrate_skeleton block1
         int_skel2 = Block.integrate_skeleton block2
-    when (unequal Block.block_skeleton || int_skel1 /= int_skel2) $
+    when (unequal Block.block_skeleton || int_skel1 /= int_skel2) $ do
         emit $ Update.BlockSkeleton (Block.block_skeleton block2) int_skel2
+        -- Changing the skeleton may change event styles.
+        changes [Update.Track track_id Update.TrackAllEvents
+            | track_id <- Block.block_track_ids block2]
 
     let btracks1 = Block.block_tracks block1
         btracks2 = Block.block_tracks block2

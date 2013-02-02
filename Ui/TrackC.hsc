@@ -1,9 +1,5 @@
 {- | A Track is a container for Events.  A track goes from ScoreTime 0 until
     the end of the last Event.
-
-    TODO
-    cached derivation and realization (depending on deriver scope)
-    modified event map, for derivation (old trackpos -> new trackpos)
 -}
 module Ui.TrackC (with_track) where
 import Util.Control
@@ -45,19 +41,18 @@ with_track track (track_bg, event_style) event_lists f =
     size = #size EventTrackConfig
     align = #{alignment EventTrackConfig}
 
-type SetStyle = ScoreTime -> Event.Event -> Style.StyleId
+type EventStyle = Event.Event -> Style.StyleId
 
-poke_find_events :: Ptr Track.Track -> SetStyle -> [Events.Events]
-    -> IO ()
-poke_find_events trackp set_style event_lists = do
+poke_find_events :: Ptr Track.Track -> EventStyle -> [Events.Events] -> IO ()
+poke_find_events trackp event_style event_lists = do
     let time_end = maximum (0 : map Events.time_end event_lists)
-    find_events <- make_find_events set_style event_lists
+    find_events <- make_find_events event_style event_lists
     (#poke EventTrackConfig, find_events) trackp find_events
     (#poke EventTrackConfig, time_end) trackp time_end
 
-make_find_events :: SetStyle -> [Events.Events] -> IO (FunPtr FindEvents)
-make_find_events set_style events = Util.make_fun_ptr "find_events" $
-    c_make_find_events (cb_find_events set_style events)
+make_find_events :: EventStyle -> [Events.Events] -> IO (FunPtr FindEvents)
+make_find_events event_style events = Util.make_fun_ptr "find_events" $
+    c_make_find_events (cb_find_events event_style events)
 
 instance CStorable Track.RenderConfig where
     sizeOf _ = #size RenderConfig
@@ -128,18 +123,17 @@ encode_style style = case style of
 type FindEvents = Ptr ScoreTime -> Ptr ScoreTime
     -> Ptr (Ptr Event.Event) -> Ptr (Ptr CInt) -> IO Int
 
-cb_find_events :: SetStyle -> [Events.Events] -> FindEvents
-cb_find_events set_style event_lists startp endp ret_events ret_ranks = do
+cb_find_events :: EventStyle -> [Events.Events] -> FindEvents
+cb_find_events event_style event_lists startp endp ret_events ret_ranks = do
     start <- peek startp
     end <- peek endp
     let (events, ranks) = unzip $ Seq.sort_on key
-            [ (style (Event.start event) event, rank)
+            [ (style event, rank)
             | (rank, events) <- zip [0..] event_lists
             , event <- in_range start end events
             ]
         key (event, rank) = (Event.start event, rank)
-        style pos event =
-            Event.modify_style (const (set_style pos event)) event
+        style event = Event.modify_style (const (event_style event)) event
     unless (null events) $ do
         -- Calling c++ is responsible for freeing these.
         poke ret_events =<< newArray events

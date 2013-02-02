@@ -20,6 +20,9 @@ import Types
 data Track = Track {
     track_title :: !String
     , track_events :: !Events.Events
+    -- | Similar to 'Event.Event.style', you can individually configure track
+    -- bg color, but in practice I do it automatically at the low level with
+    -- 'TrackBg'.
     , track_bg :: !Color.Color
     , track_render :: !RenderConfig
     } deriving (Eq, Show, Read)
@@ -53,7 +56,14 @@ modify_events f track@(Track { track_events = events }) =
 set_events :: Events.Events -> Track -> Track
 set_events events = modify_events (const events)
 
-type SetStyle = (TrackBg, Event.SetStyle)
+type SetStyle = (TrackBg, Event.EventStyle)
+
+-- | High level SetStyle, with information provided automatically.
+-- Bool is true if the track has note track children.
+--
+-- It's a bit awkward to have two SetStyles, but some information can only be
+-- supplied by "Ui.Sync".
+type SetStyleHigh = (TrackBg, Bool -> Event.EventStyle)
 type TrackBg = Track -> Color.Color
 
 -- * track signal

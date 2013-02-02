@@ -178,7 +178,7 @@ test_set_ruler_width = do
 -- * setup
 
 set_style :: Track.SetStyle
-set_style = (Track.track_bg, \_ _ -> Event.style)
+set_style = (Track.track_bg, \_ event -> Event.style event)
 
 insert_track :: ViewId -> TrackNum -> Block.Tracklike -> Types.Width -> IO ()
 insert_track view tracknum tracklike width = send $

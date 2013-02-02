@@ -84,9 +84,7 @@ test_track_integrate = do
             , ("*twelve", [(0, 0, "4d"), (1, 0, "4c")])
             ])]
     equal (e_damage res) $ Just
-        [ (UiTest.mk_tid 3, Ranges.everything)
-        , (UiTest.mk_tid 4, Ranges.everything)
-        ]
+        [(UiTest.mk_tid n, Ranges.everything) | n <- [1..4]]
     -- Not derived yet.
     equal (e_events res) ([], [])
     res <- last <$> continue res

@@ -1,7 +1,6 @@
 -- | Internal Cmds, that keep bits of Cmd.State up to date that everyone else
 -- relies on.
 module Cmd.Internal where
-import qualified Data.List.NonEmpty as NonEmpty
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 
@@ -32,8 +31,6 @@ import qualified Cmd.TimeStep as TimeStep
 
 import qualified Derive.ParseBs as ParseBs
 import qualified Derive.TrackInfo as TrackInfo
-import qualified Derive.TrackLang as TrackLang
-
 import qualified Perform.Pitch as Pitch
 import qualified App.Config as Config
 import Types
@@ -216,13 +213,13 @@ update_of _ = Nothing
 
 -- * set style
 
-set_style :: Track.SetStyle
+set_style :: Track.SetStyleHigh
 set_style = (track_bg, event_style)
 
 -- | Set the style of an event based on its contents.  This is hardcoded
 -- for now but it's easy to put in StaticConfig if needed.
-event_style :: Event.SetStyle
-event_style title _pos event =
+event_style :: Bool -> Event.EventStyle
+event_style has_note_children title event =
     integrated $ Config.event_style
         (syntax (ParseBs.parse_expr (Event.event_bytestring event)))
         (Event.style event)
@@ -232,20 +229,17 @@ event_style title _pos event =
         | otherwise = Config.integrated_style
     syntax (Left _) = Config.Error
     syntax (Right expr)
-        | TrackInfo.is_note_track title = case NonEmpty.head expr of
-            TrackLang.Call call _ | call == TrackLang.c_equal ->
-                Config.Declaration
-            _ -> Config.Default
+        | TrackInfo.is_note_track title = if has_note_children
+            then Config.NoteTransformer else Config.Default
         | TrackInfo.is_pitch_track title = Config.Pitch
         | otherwise = Config.Control
 
 -- | Set the track background color.
 track_bg :: Track.Track -> Color.Color
 track_bg track
-    | TrackInfo.is_pitch_track title = Color.brightness 1.6 Config.pitch_color
+    | TrackInfo.is_pitch_track title = Color.brightness 1.55 Config.pitch_color
     | TrackInfo.is_control_track title =
-        Color.brightness 1.6 Config.control_color
-    -- | TrackInfo.is_note_track title = Color.gray9
+        Color.brightness 1.4 Config.control_color
     | otherwise = Track.track_bg track
     where title = Track.track_title track
 
