@@ -23,6 +23,17 @@ source-repository head
 -- build-depends are appended by the shake rule.
 library
     build-depends:
+        base >=4.6,
+        containers >=0.5,
+        directory,
+        filepath,
+        process,
+        bytestring,
+        time,
+        unix,
+        array,
+        pretty,
+        ghc-prim,
         transformers,
         mtl,
         deepseq,
@@ -46,11 +57,14 @@ library
         ghc >=7.6.1,
         ghc-paths,
         haskeline,
+        terminfo,
         parsec,
         haskell-src,
         regex-pcre,
-        Diff,
+        Diff >=0.2,
         QuickCheck,
         shake >=0.6,
+        binary,
+        syb,
         ekg,
         zmidi-core >=0.6

@@ -675,7 +675,7 @@ haddock hs = not $ hs `elem` map hsMain hsBinaries
 makeCabal :: FilePath -> Shake.Action ()
 makeCabal fn = do
     template <- Shake.readFile' "doc/karya.cabal.template"
-    Shake.writeFile' fn $ (template ++ buildDepends)
+    Shake.writeFile' fn $ (template ++ buildDepends ++ "\n")
     where
     indent = replicate 8 ' '
     buildDepends = (indent++) $ List.intercalate (",\n" ++ indent) $
