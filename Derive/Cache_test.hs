@@ -112,9 +112,9 @@ test_block_damage = do
                 ])
             , ("sub", [(">", [(0, 1, "")])])
             ]
-    -- A track mute should emit event damage for that block's range.
+    -- A track disable should emit event damage for that block's range.
     let (_, cached, uncached) = compare_cached create $
-            State.add_track_flag (UiTest.bid "sub") 1 Block.Mute
+            State.add_track_flag (UiTest.bid "sub") 1 Block.Disable
     equal (diff_events cached uncached) []
 
     -- Plain old event modification works too.
@@ -435,6 +435,39 @@ test_inverted_control_damage = do
         [ "top.t1 0-1: * using cache"
         , "top top.t1 1-2: sub * control damage"
         , toplevel_rederived True
+        ]
+
+test_control_damage_subblock = do
+    -- Ensure that control damage that touches a block call gets expanded to
+    -- cover the entire block.
+    let create = mkblocks
+            [ ("top=ruler",
+                [ ("tempo", [(0, 0, "1"), (2, 0, "1")])
+                , (">", [(0, 2, "b1"), (2, 2, "b1")])
+                ])
+            , ("b1=ruler", [(">", [(0, 2, "b2"), (2, 2, "b3")])])
+            , ("b2=ruler", UiTest.note_track [(0, 1, "4a"), (1, 1, "4b")])
+            , ("b3=ruler", UiTest.note_track [(0, 1, "4c"), (1, 1, "4d")])
+            ]
+    let (_, cached, uncached) = compare_cached create $
+            insert_event "top.t1" 0 0 "2"
+    equal (diff_events cached uncached) []
+    -- Everything has control damage.
+    strings_like (r_block_logs cached)
+        [ "0-2: b1 * control", "0-2: b2 * control", "2-4: b3 * control"
+        , "2-4: b1 * control", "0-2: b2 * control", "2-4: b3 * control"
+        , "top"
+        ]
+
+    -- Only the second b1 is rederived.
+    let (_, cached, uncached) = compare_cached create $
+            insert_event "top.t1" 3 0 "2"
+    equal (diff_events cached uncached) []
+
+    strings_like (r_block_logs cached)
+        [ "0-2: b1 * using cache"
+        , "2-4: b1 * control", "0-2: b2 * control", "2-4: b3 * control"
+        , "top"
         ]
 
 test_tempo_damage = do

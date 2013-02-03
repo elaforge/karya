@@ -422,6 +422,11 @@ extract_midi :: Perform.MidiEvents -> [(Integer, Midi.Message)]
 extract_midi events = [(RealTime.to_milliseconds ts, msg)
     | Midi.WriteMessage _ ts msg <- LEvent.events_of events]
 
+-- ** ui state
+
+e_state :: Derive.Result -> State.State
+e_state = Derive.state_ui . Derive.state_constant . Derive.r_state
+
 -- * call
 
 passed_args :: String -> [TrackLang.Val] -> Derive.PassedArgs derived

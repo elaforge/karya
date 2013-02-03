@@ -228,7 +228,7 @@ event_style has_note_children title event =
         | Maybe.isNothing (Event.stack event) = id
         | otherwise = Config.integrated_style
     syntax (Left _) = Config.Error
-    syntax (Right expr)
+    syntax (Right _)
         | TrackInfo.is_note_track title = if has_note_children
             then Config.NoteTransformer else Config.Default
         | TrackInfo.is_pitch_track title = Config.Pitch

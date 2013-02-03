@@ -43,7 +43,7 @@ data Type = Block
     -- has children, it's assumed to be inverting, so that it depends on all of
     -- its children.
     | Track (Set.Set TrackId)
-    deriving (Show)
+    deriving (Eq, Show)
 
 -- | If the given generator has a cache entry, relevant derivation context is
 -- the same as the cache entry's, and there is no damage under the generator,
@@ -75,8 +75,8 @@ caching_deriver typ range call = do
         -- had been actually derived.
         Internal.merge_collect collect
         return cached
-    generate stack (Left reason) = do
-        (result, collect) <- with_collect call
+    generate stack (Left (was_control_damage, reason)) = do
+        (result, collect) <- with_collect was_control_damage call
         Log.debug $ rederived_msg reason
         Internal.merge_collect $
             mempty { Derive.collect_cache = make_cache stack collect result }
@@ -85,41 +85,69 @@ caching_deriver typ range call = do
     -- To get the deps of just the deriver below me, I have to clear out
     -- the local deps.  But this call is itself collecting deps for another
     -- call, so I have to merge the sub-deps back in before returning.
-    with_collect deriver = do
+    with_collect was_control_damage deriver = do
         -- TODO Do I want to run deriver a sub derivation so I can put an
         -- empty cache if it failed?  Otherwise I think maybe a failed
         -- event will continue to produce its old value.
-        (result, collect) <- Internal.with_empty_collect deriver
+        (result, collect) <- with_empty_collect
+            (typ == Block && was_control_damage) deriver
         Derive.modify $ \st ->
             st { Derive.state_collect = collect <> Derive.state_collect st }
         return (result, collect)
 
+-- | Both track warps and local deps are used as dynamic return values (aka
+-- modifying a variable to \"return\" something).  When evaluating a cached
+-- generator, the caller wants to know the callee's track warps and local
+-- deps, without getting them mixed up with its own warps and deps.  So run
+-- a deriver in an empty environment, and restore it afterwards.
+with_empty_collect :: Bool
+    -- ^ If True, expand the ControlDamage to Ranges.everything.  If
+    -- ControlDamage touches a block call then it likely invalidates everything
+    -- within that block.
+    -> Derive.Deriver a -> Derive.Deriver (a, Derive.Collect)
+with_empty_collect expand_control_damage deriver = do
+    old <- Derive.get
+    Derive.modify $ \st -> st
+        { Derive.state_collect = mempty
+        , Derive.state_dynamic = if expand_control_damage
+            then (Derive.state_dynamic st)
+                { Derive.state_control_damage =
+                    Derive.ControlDamage Ranges.everything
+                }
+            else Derive.state_dynamic st
+        }
+    result <- deriver
+    collect <- Derive.gets Derive.state_collect
+    Derive.put old
+    return (result, collect)
+
 find_generator_cache :: (Derive.Derived derived) => Type
     -> Stack.Stack -> Ranges.Ranges ScoreTime -> ScoreDamage -> ControlDamage
-    -> Cache -> Either String (Derive.Collect, LEvent.LEvents derived)
+    -> Cache -> Either (Bool, String) (Derive.Collect, LEvent.LEvents derived)
 find_generator_cache typ stack event_range score (ControlDamage control)
         (Cache cache) = do
-    cached <- maybe (Left "not in cache") Right (Map.lookup stack cache)
+    cached <- maybe (Left (False, "not in cache")) Right $
+        Map.lookup stack cache
     Derive.CallType collect stream <- case cached of
-        Invalid -> Left "cache invalidated by score damage"
-        Cached entry -> maybe (Left "cache has wrong type") Right
-            (Derive.from_cache_entry entry)
+        Invalid -> Left (False, "cache invalidated by score damage")
+        Cached entry -> maybe (Left (False, "cache has wrong type")) Right $
+            Derive.from_cache_entry entry
     let Derive.GeneratorDep block_deps = Derive.collect_local_dep collect
     let damaged_blocks = Set.union
             (sdamage_track_blocks score) (sdamage_blocks score)
     case typ of
         Block -> case msum (map Stack.block_of (Stack.innermost stack)) of
             Just this_block | this_block `Set.member` damaged_blocks ->
-                Left "block damage"
+                Left (False, "block damage")
             _ -> return ()
         Track children
             | any (`Set.member` children) (Map.keys (sdamage_tracks score)) ->
-                Left "track damage"
+                Left (False, "track damage")
             | otherwise -> return ()
     unless (Set.null (Set.intersection damaged_blocks block_deps)) $
-        Left "sub-block damage"
+        Left (False, "sub-block damage")
     when (Ranges.overlapping control event_range) $
-        Left "control damage"
+        Left (True, "control damage")
     return (collect, stream)
 
 make_cache :: (Derive.Derived d) => Stack.Stack -> Derive.Collect
@@ -163,19 +191,30 @@ is_cache_log msg = prefix "using cache, " || prefix "rederived generator "
 
 -- | ControlDamage works in this manner:
 --
--- ScoreDamage on a control track is expanded to include the previous to the
--- next event, since control calls generally generate samples based on their
--- previous event, and possibly the next one.  Since control tracks may depend
--- on other control tracks, controls beneath the damaged one will also expand
--- the damage to include previous and next events in the same way.
---
 -- The way the damage is calculated is complicated.  Firstly, a track with
 -- no ControlDamage in scope has its ControlDamage calculated from the
 -- ScoreDamage (this is guaranteed to be a control track simply because this
 -- function is only called by control tracks).  Secondly, given some
 -- ControlDamage, the range must be expanded to the neighbor events.  This is
 -- because controls can depend on other controls, so a certain range of
--- ControlDamage may cause other controls to rederived.
+-- ControlDamage may cause other controls to rederived.  Controls generally
+-- generate samples based on their previous and next events.
+--
+-- TODO of course this isn't guaranteed, a control that depends on several
+-- previous ones, of which there are many, will fail to expand the control
+-- damage enough.  But so far no control calls depend on other controls, so
+-- this doesn't come up in practice.  This area needs some thought.  One option
+-- is to skip this sketchy expansion stuff, and just say control damage is just
+-- a flag that causes everything underneath to rederive.  But that means that
+-- editing any control track will be like tempo, i.e. the entire score derives.
+-- The cache doesn't actually have to be 100% accurate, it can be mostly
+-- accurate and still save lots of time.  But if a control is going to affect
+-- another it's mostly likely that it's a parameter, e.g. vibrato speed, in
+-- which case I think expansion is the right thing.
+--
+-- If a block call is touched by control damage, the the control damage expands
+-- to cover the entire block.
+--
 get_control_damage :: TrackId
     -> (ScoreTime, ScoreTime) -- ^ track_range must be passed explicitly
     -- because the event may have been sliced and shifted, but ControlDamage

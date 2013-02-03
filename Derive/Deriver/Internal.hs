@@ -119,22 +119,6 @@ add_block_dep :: BlockId -> Deriver ()
 add_block_dep block_id = merge_collect $ mempty
     { collect_local_dep = GeneratorDep (Set.singleton block_id) }
 
--- | Both track warps and local deps are used as dynamic return values (aka
--- modifying a variable to \"return\" something).  When evaluating a cached
--- generator, the caller wants to know the callee's track warps and local
--- deps, without getting them mixed up with its own warps and deps.  So run
--- a deriver in an empty environment, and restore it afterwards.
-with_empty_collect :: Deriver a -> Deriver (a, Collect)
-with_empty_collect deriver = do
-    old <- gets state_collect
-    new <- (\st -> return $ st { state_collect = mempty }) =<< get
-    put new
-    result <- deriver
-    collect <- gets state_collect
-    modify (\st -> st { state_collect = old })
-    return (result, collect)
-
-
 -- * ui state
 
 get_ui_state :: (State.State -> a) -> Deriver a

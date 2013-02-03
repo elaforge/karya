@@ -3,6 +3,10 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
+  - logview: two lines for the status bar at the top
+    Or as many as necessary?
+    Remove proj, step, 8ve
+    Add play mult, default tempo
   * play_at is messed up in the presence of play multiplier
   - double click isn't creating a fitted view?
   * Create.view should look harder for an empty space.
@@ -19,7 +23,7 @@ UNSORTED
   - Arpeggio should be a bit randomized?  Or closer notes should be faster?
     Then I have to look at the pitches.
   - adding an intervening note track seems to mess up the signal render
-  - the cache got messed up after changing the tempo
+  * the cache got messed up after changing the tempo
     Change tempo at 20t telek1.t1
   * make a control track, make an event, change track to note track,
     the event color doesn't change to note track color
