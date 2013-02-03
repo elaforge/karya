@@ -164,8 +164,7 @@ clear_play_position view_id = Ui.send_action $
 -- same way every time.  The problem is that each case has a large and
 -- overlapping set of required data, and it comes from different places.  Also
 -- work is expressed in multiple places, e.g. CreateView contains all the stuff
--- from modifying views and creating tracks.  TODO maybe at the least I could
--- factor create_track together.
+-- from modifying views and creating tracks.
 --
 -- It's also a little confusing in that this function runs in StateT, but
 -- returns an IO action to be run in the UI thread, so there are two monads
@@ -177,7 +176,20 @@ clear_play_position view_id = Ui.send_action $
 -- the StateT is needed only for some logging.
 run_update :: Track.TrackSignals -> Track.SetStyleHigh -> Update.DisplayUpdate
     -> State.StateT IO (IO ())
-run_update track_signals set_style (Update.View view_id Update.CreateView) = do
+run_update track_signals set_style update = case update of
+    Update.View view_id update ->
+        update_view track_signals set_style view_id update
+    Update.Block block_id update ->
+        update_block track_signals set_style block_id update
+    Update.Track track_id update ->
+        update_track track_signals set_style track_id update
+    Update.Ruler ruler_id ->
+        update_ruler track_signals set_style ruler_id
+    Update.State () -> return (return ())
+
+update_view :: Track.TrackSignals -> Track.SetStyleHigh -> ViewId
+    -> Update.View -> State.StateT IO (IO ())
+update_view track_signals set_style view_id Update.CreateView = do
     view <- State.get_view view_id
     block <- State.get_block (Block.view_block view)
 
@@ -238,8 +250,7 @@ run_update track_signals set_style (Update.View view_id Update.CreateView) = do
                             BlockC.set_track_signal view_id tracknum tsig
                     _ -> return ()
             _ -> return ()
-
-run_update _ _ (Update.View view_id update) = case update of
+update_view _ _ view_id update = case update of
     -- The previous equation matches CreateView, but ghc warning doesn't
     -- figure that out.
     Update.CreateView -> error "run_update: notreached"
@@ -255,8 +266,10 @@ run_update _ _ (Update.View view_id update) = case update of
             (to_csel selnum maybe_sel)
     Update.BringToFront -> return $ BlockC.bring_to_front view_id
 
--- Block ops apply to every view with that block.
-run_update track_signals set_style (Update.Block block_id update) = do
+-- | Block ops apply to every view with that block.
+update_block :: Track.TrackSignals -> Track.SetStyleHigh
+    -> BlockId -> Update.Block Block.DisplayTrack -> State.StateT IO (IO ())
+update_block track_signals set_style block_id update = do
     view_ids <- fmap Map.keys (State.views_of block_id)
     case update of
         Update.BlockTitle title -> return $
@@ -319,7 +332,9 @@ run_update track_signals set_style (Update.Block block_id update) = do
                         _ -> return ()
                 _ -> return ()
 
-run_update _ set_style (Update.Track track_id update) = do
+update_track :: Track.TrackSignals -> Track.SetStyleHigh
+    -> TrackId -> Update.Track -> State.StateT IO (IO ())
+update_track _ set_style track_id update = do
     block_ids <- map fst <$> dtracks_with_track_id track_id
     state <- State.get
     acts <- forM block_ids $ \block_id -> do
@@ -359,7 +374,9 @@ run_update _ set_style (Update.Track track_id update) = do
                 BlockC.update_entire_track False view_id tracknum tracklike
                     merged set_style
 
-run_update _ set_style (Update.Ruler ruler_id) = do
+update_ruler :: Track.TrackSignals -> Track.SetStyleHigh
+    -> RulerId -> State.StateT IO (IO ())
+update_ruler _ set_style ruler_id = do
     blocks <- dtracks_with_ruler_id ruler_id
     state <- State.get
     let tinfo = [(block_id, tracknum, tid)
@@ -372,8 +389,6 @@ run_update _ set_style (Update.Ruler ruler_id) = do
         return $ sequence_ $ flip map view_ids $ \view_id ->
             BlockC.update_entire_track True view_id tracknum tracklike merged
                 (update_set_style state block_id tracklike_id set_style)
-
-run_update _ _ (Update.State ()) = return (return ())
 
 -- | Convert SetStyleHigh to lower level SetStyle by giving it information not
 -- available at lowel levels.  For the moment that's just an ad-hoc
