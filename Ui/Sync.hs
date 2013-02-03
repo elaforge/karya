@@ -200,7 +200,6 @@ update_view track_signals set_style view_id Update.CreateView = do
     -- tlike_ids.  That's because the dtracks will have already turned
     -- Collapsed tracks into Dividers.
     tracklikes <- mapM (State.get_tracklike . Block.dtracklike_id) dtracks
-    titles <- mapM track_title (Block.block_tracklike_ids block)
 
     let sels = Block.view_selections view
     let csels = map (\(selnum, sel) -> to_csel selnum (Just sel))
@@ -216,8 +215,11 @@ update_view track_signals set_style view_id Update.CreateView = do
                 view_id (Block.view_block view)
         BlockC.create_view view_id title (Block.view_rect view)
             (Block.block_config block)
-        mapM_ (create_track state (Block.view_block view))
-            (List.zip6 [0..] dtracks btracks tlike_ids tracklikes titles)
+        forM_ (List.zip5 [0..] dtracks btracks tlike_ids tracklikes) $
+            \(tracknum, dtrack, btrack, tlike_id, tlike) ->
+                insert_track state set_style (Block.view_block view) view_id
+                    tracknum dtrack tlike_id tlike track_signals
+                    (Block.track_flags btrack)
         unless (null (Block.block_title block)) $
             BlockC.set_title view_id (Block.block_title block)
         BlockC.set_skeleton view_id (Block.block_skeleton block)
@@ -229,27 +231,7 @@ update_view track_signals set_style view_id Update.CreateView = do
                 (State.config_root (State.state_config state)))
         BlockC.set_zoom view_id (Block.view_zoom view)
         BlockC.set_track_scroll view_id (Block.view_track_scroll view)
-    where
-    -- It's kind of dumb how scattered the track info is.  But this is about
-    -- the only place where it's needed all together.
-    create_track state block_id
-            (tracknum, dtrack, btrack, tlike_id, tlike, title) = do
-        let merged = events_of_track_ids state
-                (Block.dtrack_merged dtrack)
-        let set_style_low = update_set_style state block_id tlike_id set_style
-        BlockC.insert_track view_id tracknum tlike merged set_style_low
-            (Block.dtrack_width dtrack)
-        unless (null title) $
-            BlockC.set_track_title view_id tracknum title
-        BlockC.set_display_track view_id tracknum dtrack
-        case (tlike, tlike_id) of
-            (Block.T t _, Block.TId tid _) ->
-                case Map.lookup tid track_signals of
-                    Just (Right tsig)
-                        | wants_tsig (Block.track_flags btrack) t ->
-                            BlockC.set_track_signal view_id tracknum tsig
-                    _ -> return ()
-            _ -> return ()
+
 update_view _ _ view_id update = case update of
     -- The previous equation matches CreateView, but ghc warning doesn't
     -- figure that out.
@@ -301,7 +283,6 @@ update_block track_signals set_style block_id update = do
         let tlike_id = Block.dtracklike_id dtrack
         tlike <- State.get_tracklike tlike_id
         state <- State.get
-
         -- I need to get this for wants_tsig.
         mb_btrack <- fmap (\b -> Seq.at (Block.block_tracks b) tracknum)
             (State.get_block block_id)
@@ -312,25 +293,9 @@ update_block track_signals set_style block_id update = do
                     ++ "tracks: " ++ show update
                 return mempty
             Just btrack -> return (Block.track_flags btrack)
-        let set_style_low = update_set_style state block_id tlike_id set_style
         return $ forM_ view_ids $ \view_id -> do
-            let merged = events_of_track_ids state
-                    (Block.dtrack_merged dtrack)
-            BlockC.insert_track view_id tracknum tlike merged
-                set_style_low (Block.dtrack_width dtrack)
-            case (tlike_id, tlike) of
-                -- Configure new track.  This is analogous to the initial
-                -- config in CreateView.
-                (Block.TId tid _, Block.T t _) -> do
-                    unless (null (Track.track_title t)) $
-                        BlockC.set_track_title view_id tracknum
-                            (Track.track_title t)
-                    BlockC.set_display_track view_id tracknum dtrack
-                    case Map.lookup tid track_signals of
-                        Just (Right tsig) | wants_tsig flags t ->
-                            BlockC.set_track_signal view_id tracknum tsig
-                        _ -> return ()
-                _ -> return ()
+            insert_track state set_style block_id view_id tracknum dtrack
+                tlike_id tlike track_signals flags
 
 update_track :: Track.TrackSignals -> Track.SetStyleHigh
     -> TrackId -> Update.Track -> State.StateT IO (IO ())
@@ -390,6 +355,30 @@ update_ruler _ set_style ruler_id = do
             BlockC.update_entire_track True view_id tracknum tracklike merged
                 (update_set_style state block_id tracklike_id set_style)
 
+-- ** util
+
+-- | Insert a track.  Tracks require a crazy amount of configuration.
+insert_track :: State.State -> Track.SetStyleHigh -> BlockId -> ViewId
+    -> TrackNum -> Block.DisplayTrack -> Block.TracklikeId -> Block.Tracklike
+    -> Track.TrackSignals -> Set.Set Block.TrackFlag -> IO ()
+insert_track state set_style block_id view_id tracknum dtrack tlike_id tlike
+        track_signals flags = do
+    BlockC.insert_track view_id tracknum tlike merged set_style_low
+        (Block.dtrack_width dtrack)
+    BlockC.set_display_track view_id tracknum dtrack
+    case (tlike, tlike_id) of
+        (Block.T t _, Block.TId tid _) -> do
+            unless (null (Track.track_title t)) $
+                BlockC.set_track_title view_id tracknum (Track.track_title t)
+            case Map.lookup tid track_signals of
+                Just (Right tsig) | wants_tsig flags t ->
+                    BlockC.set_track_signal view_id tracknum tsig
+                _ -> return ()
+        _ -> return ()
+    where
+    set_style_low = update_set_style state block_id tlike_id set_style
+    merged = events_of_track_ids state (Block.dtrack_merged dtrack)
+
 -- | Convert SetStyleHigh to lower level SetStyle by giving it information not
 -- available at lowel levels.  For the moment that's just an ad-hoc
 -- 'has_note_children' flag.  This is a bit awkward and ad-hoc, but the
@@ -420,11 +409,6 @@ wants_tsig :: Set.Set Block.TrackFlag -> Track.Track -> Bool
 wants_tsig flags track =
     Track.render_style (Track.track_render track) /= Track.NoRender
     && Block.Collapse `Set.notMember` flags
-
-track_title :: (State.M m) => Block.TracklikeId -> m String
-track_title (Block.TId track_id _) =
-    fmap Track.track_title (State.get_track track_id)
-track_title _ = return ""
 
 -- | Generate the title for block windows.
 block_window_title :: Id.Namespace -> ViewId -> BlockId -> String
