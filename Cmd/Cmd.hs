@@ -429,8 +429,9 @@ data PlayState = PlayState {
     -- | Contain a StepState if step play is active.  Managed in
     -- "Cmd.StepPlay".
     , state_step :: !(Maybe StepState)
-    -- | Multiply performance timestamps by this amount.  This will globally
-    -- speed up or slow down performance.
+    -- | Globally speed up or slow down performance.  It mutiplies the
+    -- timestamps by the reciprocal of this amount, so 2 will play double
+    -- speed, and 0.5 will play half speed.
     , state_play_multiplier :: RealTime
     } deriving (Show, Generics.Typeable)
 

@@ -214,7 +214,7 @@ from_realtime block_id start repeat_at = do
 
     perf <- Cmd.require_msg ("no performance for block " ++ show block_id)
         =<< lookup_current_performance block_id
-    multiplier <- gets Cmd.state_play_multiplier
+    multiplier <- gets (recip . Cmd.state_play_multiplier)
 
     -- Events can wind up before 0, say if there's a grace note on a note at 0.
     -- To have them play correctly, perform_from will give me negative events
