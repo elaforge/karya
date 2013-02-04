@@ -66,8 +66,6 @@ data UiUpdate =
 
 -- | MsgType.msg_event, which is a fltk event.
 data MsgEvent =
-    -- | (state, modifiers, coords, clicks, is_click)
-    -- As per fltk, 0 is the first click, 1 is a double click, etc.
     Mouse
         { mouse_state :: MouseState
         , mouse_modifiers :: [Key.Modifier]
@@ -76,7 +74,9 @@ data MsgEvent =
         , mouse_clicks :: Int
         , mouse_is_click :: Bool
         }
-    | Kbd KbdState [Key.Modifier] Key.Key
+    -- | The Char is the text that this key wants to enter, if any.  They Key
+    -- is just the keycap, without taking shift into account.
+    | Kbd KbdState [Key.Modifier] Key.Key (Maybe Char)
     | AuxMsg AuxMsg
     | Unhandled Int
     deriving (Eq, Ord, Show)
@@ -102,8 +102,10 @@ instance Pretty.Pretty UiMsg where
                 printf "Mouse: %s %s %s %s click: %s %d" (show mstate)
                     (show mods) (show coords) (Pretty.pretty ctx)
                     (show is_click) clicks
-            Kbd kstate mods key -> printf "Kbd: %s %s %s %s" (show kstate)
-                (show mods) (show key) (Pretty.pretty ctx)
+            Kbd kstate mods key text -> printf "Kbd: %s %s %s %s%s"
+                (show kstate) (show mods)
+                (show key) (maybe "" (\c -> '(':c:") ") text)
+                (Pretty.pretty ctx)
             AuxMsg msg -> printf "Aux: %s %s" (show msg) (Pretty.pretty ctx)
             Unhandled x -> printf "Unhandled: %d" x
         UiMsg ctx msg ->

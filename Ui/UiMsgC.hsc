@@ -88,11 +88,14 @@ peek_event msgp = do
     x <- int <$> (#peek UiMsg, event.x) msgp :: IO Int
     y <- int <$> (#peek UiMsg, event.y) msgp :: IO Int
     key_code <- (#peek UiMsg, event.key) msgp :: IO CInt
+    text <- (#peek UiMsg, event.text) msgp :: IO CChar
     modifier_state <- (#peek UiMsg, event.modifier_state) msgp :: IO CInt
     is_repeat <- toBool <$> ((#peek UiMsg, event.is_repeat) msgp :: IO CChar)
     let mouse state = UiMsg.Mouse state mods (x, y) clicks is_click
-        (mods, key) = Key.decode modifier_state key_code
-        kbd state = UiMsg.Kbd state mods key
+        mods = Key.decode_modifiers modifier_state
+        key = Key.decode_key key_code
+        kbd state = UiMsg.Kbd state mods key $ if text == 0 then Nothing
+            else Just (toEnum (fromIntegral text))
         aux = UiMsg.AuxMsg
     return $ case event of
         (#const FL_PUSH) -> mouse (UiMsg.MouseDown button)

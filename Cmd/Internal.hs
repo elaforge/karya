@@ -92,7 +92,7 @@ modifier_key _ = Nothing
 msg_to_key_mods :: Msg.Msg -> Maybe [Key.Modifier]
 msg_to_key_mods msg = case msg of
     Msg.Ui (UiMsg.UiMsg _ (UiMsg.MsgEvent evt)) -> case evt of
-        UiMsg.Kbd _ mods _ -> Just mods
+        UiMsg.Kbd _ mods _ _ -> Just mods
         UiMsg.Mouse { UiMsg.mouse_modifiers = mods } -> Just mods
         _ -> Nothing
     _ -> Nothing
@@ -101,7 +101,7 @@ msg_to_key_mods msg = case msg of
 msg_to_mod :: Msg.Msg -> Maybe (Bool, Maybe Cmd.Modifier)
 msg_to_mod msg = case msg of
     Msg.Ui (UiMsg.UiMsg context (UiMsg.MsgEvent evt)) -> case evt of
-        UiMsg.Kbd state _ _ -> case state of
+        UiMsg.Kbd state _ _ _ -> case state of
             UiMsg.KeyDown -> Just (True, Nothing)
             UiMsg.KeyUp -> Just (False, Nothing)
             _ -> Nothing

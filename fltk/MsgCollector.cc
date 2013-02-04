@@ -84,6 +84,9 @@ operator<<(std::ostream &os, const UiMsg::Event &e)
     if (FL_KEYDOWN == e.event || FL_KEYUP == e.event) {
         os << " key=" << show_key(e.key)
             << (e.is_repeat ? "[r]" : "");
+        if (e.text) {
+            os << " text=" << e.text;
+        }
     }
     os << " mods=" << show_event_state(e.modifier_state);
     if (FL_PUSH == e.event || FL_DRAG == e.event || FL_RELEASE == e.event) {
@@ -205,17 +208,19 @@ set_event(UiMsg::Event &e, int evt)
     e.is_click = Fl::event_is_click();
     e.x = Fl::event_x();
     e.y = Fl::event_y();
-    // I originally used Fl::event_text()[0] since e.key would have bogus
-    // values on keyup (and sometimes even on keydown!).  I think those were
-    // fltk bugs that have been fixed, though, because they don't seem
-    // to happen anymore.  One thing is that shifted symbols emit the
-    // alternate symbol + shift, rather than the main symbol + shift, which is
-    // inconsistent with letters and digits.  But it seems reasonable for the
-    // moment and in any case I can't think of how to get to the unshifted
-    // symbol from the shifted one.
+    // On OS X, shifted symbols emit the alternate symbol + shift, rather
+    // than the unshifted symbol + shift, which is inconsistent with letters
+    // and digits.  It's also inconsistent with X, which always emits the main
+    // symbol.  I have to map the symbols back to their keycaps in Ui.UiMsg for
+    // keyboard mapping to be consistent across platforms.
     //
     // Further notes in "Cmd.Keymap".
     e.key = Fl::event_key();
+    if (evt == FL_KEYDOWN && isprint(Fl::event_text()[0])) {
+        e.text = Fl::event_text()[0];
+    } else {
+        e.text = 0;
+    }
     e.modifier_state = Fl::event_state();
     e.is_repeat = false; // this may be set to true by push()
 }
@@ -421,5 +426,5 @@ MsgCollector::push(UiMsg &m)
     }
     this->msgs.push_back(m);
     if (this->log_collected)
-        DEBUG("collected " << m);
+        std::cout << m << '\n';
 }

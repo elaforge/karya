@@ -56,7 +56,7 @@ cmd_tempo_val_edit msg = suppress "tempo track val edit" $ do
     return Cmd.Done
     where suppress = Cmd.suppress_history Cmd.ValEdit
 
-modify_num :: Key.Key -> Modify
+modify_num :: EditUtil.Key -> Modify
 modify_num key event =
     case EditUtil.modify_text_key [] key (event_val event) of
         Nothing -> (Nothing, null (event_val event))
@@ -75,7 +75,7 @@ modify_num key event =
 -- editing mode, it would be even worse if it also depended on text of the
 -- event being editing.  TODO perhaps I should go further and catch alphanum
 -- for the tempo track too, for consistency.
-modify_hex :: Key.Key -> Modify
+modify_hex :: EditUtil.Key -> Modify
 modify_hex key event
     | Just new_val <- update_hex (event_val event) key = case new_val of
         Nothing -> (Nothing, True)
@@ -85,17 +85,19 @@ modify_hex key event
 
 -- | Nothing if the val is not a hex number, Just Nothing if it was but the key
 -- was Backspace, and Just Just if it should get a new value.
-update_hex :: String -> Key.Key -> Maybe (Maybe String)
+update_hex :: String -> EditUtil.Key -> Maybe (Maybe String)
 update_hex val key
     | null val = case key of
-        Key.Backspace -> Just Nothing
-        Key.Char c | higit c -> Just $ Just $ ShowVal.hex_prefix ++ ['0', c]
-        _ -> Nothing
+        EditUtil.Backspace -> Just Nothing
+        EditUtil.Key c
+            | higit c -> Just $ Just $ ShowVal.hex_prefix ++ ['0', c]
+            | otherwise -> Nothing
     | Just c2 <- parse_val val = case key of
-        Key.Backspace -> Just Nothing
-        Key.Char c | higit c -> Just $ Just $ ShowVal.hex_prefix ++ [c2, c]
-        -- The field is hex, but this wasn't a higit, so ignore it.
-        _ -> Just $ Just val
+        EditUtil.Backspace -> Just Nothing
+        EditUtil.Key c
+            | higit c -> Just $ Just $ ShowVal.hex_prefix ++ [c2, c]
+            -- The field is hex, but this wasn't a higit, so ignore it.
+            | otherwise -> Just (Just val)
     | otherwise = Nothing -- not hex at all
     where
     higit c = '0' <= c && c <= '9' || 'a' <= c && c <= 'f'

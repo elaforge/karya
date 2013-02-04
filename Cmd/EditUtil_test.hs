@@ -1,19 +1,14 @@
 module Cmd.EditUtil_test where
-
 import Util.Test
-
-import qualified Ui.Key as Key
 import qualified Ui.UiTest as UiTest
-import qualified Perform.Pitch as Pitch
-
 import qualified Cmd.CmdTest as CmdTest
 import qualified Cmd.EditUtil as EditUtil
-
 import qualified Derive.Scale.Legong as Legong
+import qualified Perform.Pitch as Pitch
 
 
 test_modify_text_key = do
-    let f c = EditUtil.modify_text_key [] (Key.Char c)
+    let f c = EditUtil.modify_text_key [] (EditUtil.Key c)
     equal (f 'c' "a") (Just "ac")
     equal (f ' ' "a") (Just "a ")
     equal (f ' ' "") (Just "")

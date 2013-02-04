@@ -11,9 +11,35 @@ UNSORTED
   - double click isn't creating a fitted view?
   * Create.view should look harder for an empty space.
   - ViewConfig.resize_to_fit shrinks the window when it starts at -x.
-  - X11 doesn't turn shift-/ into ? like OS X does.  I need a way to make
+  * X11 doesn't turn shift-/ into ? like OS X does.  I need a way to make
     those consistent.
-    * try the fltk patches, doesn't help
+    . Always using unshifted chars for keys is no good, I can't enter text
+      with raw text entry.  I'm using keys both for binding keycaps and for
+      entering text.
+    . Regardless, I need it to be consistent.
+    . Can I just always use shifted versions?  Bind to Shift-?, Shift-! etc.
+      I can omit mentioning Shift for letters, but not for the others.
+      Problems: just binding '?' won't work, it needs shift.  Always have to
+      add Shift.  Doesn't work for non-us layout, e.g. other symbols above
+      digits.  But it doesn't work anyway.
+      Raw key is inconsistent between X and OS X.  Shifted one should be, but
+      maybe not shift+cmd?
+      If linux is consistent, then use cooked key.
+      event_key()   darwin  linux
+        shift-/     ?       /
+        shift-cmd-/ ?       /
+        shift-ctl-/ ?       /
+      event_text()
+        shift-/     ?       ?
+        shift-cmd-/ /       ?
+        shift-ctl-/ -       ?
+
+      If I use text, darwin is inconsistent because shift-cmd-/ is different.
+      If I use key, it's consistent within the OS, but inconsistent across
+      OSes.
+  - Why doesn't option-key put the symbol into event.text?  It seems to work
+    for Fl_Input.
+
   - Type into track text on the right side, then expand the window so it can
     be visible.  It doesn't redraw the newly-revealed bit correctly.
   - Track caching is too fragile, if I add a track with scope over everything
@@ -33,7 +59,7 @@ UNSORTED
       to BlockC.with_tracklike in the same way as Event.SetStyle.
       . But, it's on all note tracks, do I want just the bottom ones?
       . Also, it's only visible where there are no events.
-    - different color for note transformer events?
+    * different color for note transformer events?
       SetStyle needs to know if there's a note track below.
   - There's a focus bug, but I'm not sure how to reproduce it.
   + can I get fltk to omit the jellybutton buttons on the window?
@@ -47,6 +73,8 @@ UNSORTED
   - why does legato vsl always have too-loud connecting samples?
     I probably need to separate articulations for performance from slur
     staccato etc. for lilypond.
+    It's the auto switch on speed.  Make some custom matrices, inst should
+    provide functions to construct a matrix for a certain score.
   - network midi doesn't seem to handle abort?
     playing the second time doesn't happen
   - StepPlay gets messed up by tuplets and the like.  Maybe it should step

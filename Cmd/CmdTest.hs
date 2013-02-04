@@ -331,7 +331,11 @@ empty_context = UiMsg.Context Nothing Nothing
 
 make_key_mods :: [Key.Modifier] -> UiMsg.KbdState -> Key.Key -> Msg.Msg
 make_key_mods mods state k = Msg.Ui
-    (UiMsg.UiMsg empty_context (UiMsg.MsgEvent (UiMsg.Kbd state mods k)))
+    (UiMsg.UiMsg empty_context (UiMsg.MsgEvent (UiMsg.Kbd state mods k text)))
+    where
+    text = case (k, state) of
+        (Key.Char c, UiMsg.KeyDown) -> Just c
+        _ -> Nothing
 
 make_key :: UiMsg.KbdState -> Key.Key -> Msg.Msg
 make_key = make_key_mods []

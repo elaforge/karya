@@ -66,7 +66,7 @@ cmd_raw_edit msg = Cmd.suppress_history Cmd.RawEdit "note track raw edit" $ do
             -- Create a zero length event on a space.  'modify_text_key' will
             -- eat a lone space, so this is an easy way to create
             -- a zero-length note.
-            modify_event_at pos (key == Key.Char ' ') False $ \txt ->
+            modify_event_at pos (key == EditUtil.Key ' ') False $ \txt ->
                 (EditUtil.modify_text_key mods key (fromMaybe "" txt), False)
         _ -> Cmd.abort
     return Cmd.Done

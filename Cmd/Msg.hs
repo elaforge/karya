@@ -123,7 +123,7 @@ mouse_down msg = case mouse msg of
     _ -> False
 
 key :: Msg -> Maybe (UiMsg.KbdState, Key.Key)
-key (Ui (UiMsg.UiMsg _ (UiMsg.MsgEvent (UiMsg.Kbd state _ key)))) =
+key (Ui (UiMsg.UiMsg _ (UiMsg.MsgEvent (UiMsg.Kbd state _ key _)))) =
     Just (state, key)
 key _ = Nothing
 
@@ -132,10 +132,19 @@ key_down msg = case key msg of
     Just (UiMsg.KeyDown, k) -> Just k
     _ -> Nothing
 
+-- | The text that this keydown wants to enter, if any.
+text :: Msg -> Maybe (Key.Key, Maybe Char)
+text (Ui (UiMsg.UiMsg _ (UiMsg.MsgEvent (UiMsg.Kbd UiMsg.KeyDown _ key text))))
+    = Just (key, text)
+text _ = Nothing
+
 key_mods :: Msg -> Maybe [Key.Modifier]
-key_mods (Ui (UiMsg.UiMsg _ (UiMsg.MsgEvent (UiMsg.Kbd _ mods _)))) = Just mods
+key_mods (Ui (UiMsg.UiMsg _ (UiMsg.MsgEvent (UiMsg.Kbd _ mods _ _)))) =
+    Just mods
 key_mods _ = Nothing
 
+-- | Printable keycap down.  This is different from 'text' because it should be
+-- just the keycap, not taking shift or alt or anything into account.
 char :: Msg -> Maybe (UiMsg.KbdState, Char)
 char msg = case key msg of
     Just (state, Key.Char c) -> Just (state, c)

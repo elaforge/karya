@@ -1,8 +1,10 @@
-module Ui.Key where
+module Ui.Key (Key(..), Modifier(..), decode_key, decode_modifiers) where
 import Prelude hiding (Char, Left, Right)
 import Data.Bits ((.&.))
+import qualified Data.Map as Map
 import qualified Data.Char as Char
 import Foreign.C
+import qualified System.Info
 
 import qualified Util.Pretty as Pretty
 
@@ -28,15 +30,12 @@ instance Pretty.Pretty Key where
     pretty (Char c) = c : ""
     pretty key = map Char.toLower (show key)
 
-decode :: CInt -> CInt -> ([Modifier], Key)
-decode mcode kcode = (decode_modifiers mcode, decode_key kcode)
-
 decode_key :: CInt -> Key
 decode_key code
     | code /= (#const FL_KP_Enter)
         && (#const FL_KP) < code && code <= (#const FL_KP_Last)
             = Keypad (toEnum (fromIntegral (code - (#const FL_KP))))
-    | code <= 127 = Char (toEnum (fromIntegral code))
+    | code <= 127 = Char (unshift (toEnum (fromIntegral code)))
     | otherwise = case code of
         (#const FL_Escape) -> Escape
         (#const FL_BackSpace) -> Backspace
@@ -84,3 +83,19 @@ decode_modifiers code = foldr f [] pairs
         , ((#const FL_META), Meta)
         , ((#const FL_SCROLL_LOCK), ScrollLock)
         ]
+
+unshift :: Char.Char -> Char.Char
+unshift = case System.Info.os of
+    "darwin" -> \c -> Map.findWithDefault c c unshifted_osx_usa
+    _ -> id
+
+-- | Map a shifted symbol back to its unshifted variant for a US key layout.
+-- This is because fltk has a bug on OS X that makes shifted symbols emit the
+-- key text, rather than the keycap.
+unshifted_osx_usa :: Map.Map Char.Char Char.Char
+unshifted_osx_usa = Map.fromList
+    [ ('_', '-'), ('+', '=')
+    , ('{', '['), ('}', ']'), ('|', '\\')
+    , (':', ';'), ('"', '\'')
+    , ('<', ','), ('>', '.'), ('?', '/')
+    ]

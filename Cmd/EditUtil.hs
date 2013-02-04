@@ -122,35 +122,37 @@ get_key = do
 
 -- * msgs
 
+data Key = Backspace | Key Char
+    deriving (Eq, Show)
+
 -- | Extract a key for method input.  [a-z0-9._-]
-method_key :: Msg.Msg -> Maybe Key.Key
+method_key :: Msg.Msg -> Maybe Key
 method_key = extract_key (not . Char.isSpace)
 
 -- | Extract a key for control value input.  [0-9._-]
-num_key :: Msg.Msg -> Maybe Key.Key
+num_key :: Msg.Msg -> Maybe Key
 num_key = extract_key $ \c -> Char.isDigit c || c `elem` "_.-"
 
 -- | Is the key appropriate for editing decimal numbers?
-is_num_key Key.Backspace = True
-is_num_key (Key.Char c) = Char.isDigit c || c `elem` "_.-"
-is_num_key _ = False
+is_num_key :: Key -> Bool
+is_num_key Backspace = True
+is_num_key (Key c) = Char.isDigit c || c `elem` "_.-"
 
-alphanum_key :: Msg.Msg -> Maybe Key.Key
+alphanum_key :: Msg.Msg -> Maybe Key
 alphanum_key = extract_key $ \c -> Char.isAlphaNum c || c `elem` "_.-"
 
--- | Extract a key for raw input.  Any printable character plus backspace.
-raw_key :: Msg.Msg -> Maybe ([Key.Modifier], Key.Key)
+-- | Extract a key for raw input.
+raw_key :: Msg.Msg -> Maybe ([Key.Modifier], Key)
 raw_key msg = case extract_key Char.isPrint msg of
     Just key -> Just (fromMaybe [] (Msg.key_mods msg), key)
     Nothing -> Nothing
 
-extract_key :: (Char -> Bool) -> Msg.Msg -> Maybe Key.Key
-extract_key f (Msg.key_down -> Just key) = if ok then Just key else Nothing
-    where
-    ok = case key of
-        Key.Backspace -> True
-        Key.Char c | f c -> True
-        _ -> False
+extract_key :: (Char -> Bool) -> Msg.Msg -> Maybe Key
+extract_key f (Msg.text -> Just (key, text)) = case key of
+    Key.Backspace -> Just Backspace
+    _ -> case text of
+        Just c | f c -> Just (Key c)
+        _ -> Nothing
 extract_key _ _ = Nothing
 
 
@@ -196,14 +198,16 @@ parse_key input = do
 -- | Since there's no use for leading spaces, just a space makes an empty
 -- event.  Backspacing an empty event returns Nothing, which should delete the
 -- event itself.
-modify_text_key :: [Key.Modifier] -> Key.Key -> String -> Maybe String
+modify_text_key :: [Key.Modifier] -> Key -> String -> Maybe String
 modify_text_key mods key s = case key of
-    Key.Backspace
+    Backspace
         | Key.Shift `elem` mods -> backspace_expr s
         | otherwise -> backspace s
-    Key.Char ' ' | null s -> Just ""
-    Key.Char c | Char.isPrint c -> Just (s ++ [c])
-    _ -> Just s
+    Key ' ' | null s -> Just ""
+    Key c
+        -- It really shouldn't be non-printable, but check just in case.
+        | Char.isPrint c -> Just (s ++ [c])
+        | otherwise -> Just s
 
 backspace :: String -> Maybe String
 backspace s

@@ -114,7 +114,11 @@ struct UiMsg {
         int event;
         int button, clicks, x, y;
         char is_click;
+        // The keycap that went down, including return, delete, etc.
         int key;
+        // The text that this keycap represents, if any.  ASCII only, so this
+        // doesn't support unicode input.
+        char text;
         int modifier_state;
         char is_repeat;
     };

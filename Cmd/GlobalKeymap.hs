@@ -139,12 +139,12 @@ player_bindings = concat
     , bind sel local "play or loop local selection" Play.local_selection
     , bind prev local "play local previous step" Play.local_previous
     , bind block root "play root block" Play.root_block
-    , bind sel (Key.Char '?') "play root from local selection"
+    , bind sel root "play root from local selection"
         Play.root_from_local_selection
     -- It plays from the selection on the root, instead of the local one.
     -- This breaks the modifier+key pattern, but it's useful to manually set
     -- a play starting point on the root.
-    , bind (block ++ sel) (Key.Char '?') "play root from root selection"
+    , bind (block ++ sel) root "play root from root selection"
         Play.root_from_root_selection
     , bind prev root "play root previous step" Play.root_previous
     ]
@@ -286,14 +286,14 @@ edit_state_bindings = concat
     , uncurry (command_char '6') (step_rank Meter.r_16 0)
     , uncurry (command_char '7') (step_rank Meter.r_64 1) -- 32nd
     , uncurry (command_char '8') (step_rank Meter.r_64 0)
-    , shift_char '+' "toggle duration" Edit.toggle_note_duration
+    , shift_char '=' "toggle duration" Edit.toggle_note_duration
 
     , bind_key [PrimaryCommand] (Key.Char '`') "toggle step mode"
         Edit.toggle_mark_step
-    , bind_key [PrimaryCommand, Shift] (Key.Char '~') "invert step"
+    , bind_key [PrimaryCommand, Shift] (Key.Char '`') "invert step"
         Edit.cmd_invert_step_direction
     , plain_char '`' "toggle advance" Edit.toggle_advance
-    , shift_char '~' "toggle chord" Edit.toggle_chord
+    , shift_char '`' "toggle chord" Edit.toggle_chord
 
     , plain_char '-' "octave -1" (Edit.cmd_modify_octave (subtract 1))
     , plain_char '=' "octave +1" (Edit.cmd_modify_octave (+1))
