@@ -30,8 +30,9 @@ import qualified Cmd.Msg as Msg
 import qualified Cmd.TimeStep as TimeStep
 
 import qualified Derive.ParseBs as ParseBs
+import qualified Derive.ShowVal as ShowVal
 import qualified Derive.TrackInfo as TrackInfo
-import qualified Perform.Pitch as Pitch
+
 import qualified App.Config as Config
 import Types
 
@@ -251,8 +252,10 @@ cmd_sync_status ui_from cmd_from = do
     ui_to <- State.get
     let updates = view_updates ui_from ui_to
         new_views = mapMaybe create_view updates
-    when (not (null new_views) || Cmd.state_edit cmd_from /= edit_state)
-        sync_edit_state
+    when (not (null new_views) || Cmd.state_edit cmd_from /= edit_state) $
+        sync_edit_state edit_state
+    sync_play_state =<< Cmd.gets Cmd.state_play
+    sync_save_file =<< Cmd.gets Cmd.state_save_file
 
     when (State.state_config ui_from /= State.state_config ui_to) $
         sync_ui_config (State.state_config ui_to)
@@ -276,16 +279,15 @@ view_updates ui_from ui_to = fst $ Diff.run $
 
 -- ** sync
 
-sync_edit_state :: (Cmd.M m) => m ()
-sync_edit_state = do
-    sync_edit_box_status
-    sync_step_status
-    sync_octave_status
-    sync_recent
+sync_edit_state :: (Cmd.M m) => Cmd.EditState -> m ()
+sync_edit_state st = do
+    sync_edit_box_status st
+    sync_step_status st
+    sync_octave_status st
+    sync_recent st
 
-sync_edit_box_status :: (Cmd.M m) => m ()
-sync_edit_box_status = do
-    st <- Cmd.gets Cmd.state_edit
+sync_edit_box_status :: (Cmd.M m) => Cmd.EditState -> m ()
+sync_edit_box_status st = do
     let mode = Cmd.state_edit_mode st
     let skel = Block.Box (skel_color mode (Cmd.state_advance st))
             (if Cmd.state_chord st then 'c' else ' ')
@@ -309,29 +311,26 @@ edit_color mode = case mode of
     Cmd.ValEdit -> Config.val_edit_color
     Cmd.MethodEdit -> Config.method_edit_color
 
-sync_step_status :: (Cmd.M m) => m ()
-sync_step_status = do
-    st <- Cmd.gets Cmd.state_edit
+sync_step_status :: (Cmd.M m) => Cmd.EditState -> m ()
+sync_step_status st = do
     let step_status = TimeStep.show_time_step (Cmd.state_time_step st)
         dur_status = TimeStep.show_direction (Cmd.state_note_direction st)
             ++ TimeStep.show_time_step (Cmd.state_note_duration st)
     Cmd.set_status Config.status_step (Just step_status)
-    Cmd.set_global_status "step" step_status
     Cmd.set_status Config.status_note_duration (Just dur_status)
     Cmd.set_global_status "note dur" dur_status
 
-sync_octave_status :: (Cmd.M m) => m ()
-sync_octave_status = do
-    octave <- Cmd.gets (Cmd.state_kbd_entry_octave . Cmd.state_edit)
+sync_octave_status :: (Cmd.M m) => Cmd.EditState -> m ()
+sync_octave_status st = do
+    let octave = Cmd.state_kbd_entry_octave st
     -- This is technically global state and doesn't belong in the block's
     -- status line, but I'm used to looking for it there, so put it in both
     -- places.
     Cmd.set_status Config.status_octave (Just (show octave))
-    Cmd.set_global_status "8ve" (show octave)
 
-sync_recent :: (Cmd.M m) => m ()
-sync_recent = do
-    recent <- Cmd.gets (Cmd.state_recent_notes . Cmd.state_edit)
+sync_recent :: (Cmd.M m) => Cmd.EditState -> m ()
+sync_recent st = do
+    let recent = Cmd.state_recent_notes st
     Cmd.set_global_status "recent" $
         Seq.join ", " (map show_recent (Seq.sort_on fst recent))
     where
@@ -341,14 +340,27 @@ sync_recent = do
     zero True = " (0 dur)"
     zero False = ""
 
+sync_play_state :: (Cmd.M m) => Cmd.PlayState -> m ()
+sync_play_state st = do
+    Cmd.set_global_status "play-step" $
+        TimeStep.show_time_step (Cmd.state_play_step st)
+    Cmd.set_global_status "play-mult" $
+        ShowVal.show_val (Cmd.state_play_multiplier st)
+
+sync_save_file :: (Cmd.M m) => Maybe Cmd.SaveFile -> m ()
+sync_save_file maybe_save =
+    Cmd.set_global_status "save" $ maybe "" path maybe_save
+    where
+    path (Cmd.SaveState fn) = fn
+    path (Cmd.SaveGit repo) = repo
+
 -- | Sync State.Config changes.
 sync_ui_config :: (Cmd.M m) => State.Config -> m ()
 sync_ui_config config = do
-    Cmd.set_global_status "proj" $
-        Pretty.pretty (State.config_namespace config)
-    let (Pitch.ScaleId scale) =
-            State.default_scale (State.config_default config)
-    Cmd.set_global_status "scale" scale
+    Cmd.set_global_status "scale" $ ShowVal.show_val $
+        State.default_#State.scale #$ config
+    Cmd.set_global_status "tempo" $ ShowVal.show_val $
+        State.default_#State.tempo #$ config
 
 -- Zoom is actually not very useful.
 sync_zoom_status :: (Cmd.M m) => ViewId -> m ()

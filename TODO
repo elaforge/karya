@@ -4,9 +4,9 @@ LEGEND
 
 UNSORTED
   - logview: two lines for the status bar at the top
-    Or as many as necessary?
-    Remove proj, step, 8ve
-    Add play mult, default tempo
+    Or as many as necessary?  Wrap on |, and justify by inserting spaces?
+    * Remove proj, step, 8ve
+    * Add play mult, default tempo
   * play_at is messed up in the presence of play multiplier
   - double click isn't creating a fitted view?
   * Create.view should look harder for an empty space.
