@@ -59,7 +59,7 @@ diff cmd_updates st1 st2 = postproc cmd_updates st2 $ run $ do
     diff_views st1 st2 (State.state_views st1) (State.state_views st2)
     mapM_ (uncurry3 diff_block) $
         Map.zip_intersection (State.state_blocks st1) (State.state_blocks st2)
-    mapM_ (uncurry3 diff_track) $
+    mapM_ (uncurry3 (diff_track st2)) $
         Map.zip_intersection (State.state_tracks st1) (State.state_tracks st2)
     -- I don't diff rulers, since they have lots of things in them and rarely
     -- change.  But that means I need the CmdUpdate hack, and modifications
@@ -248,8 +248,8 @@ diff_block block_id block1 block2 = do
             Update.Block block_id (Update.BlockTrack i2 dtrack2)
         _ -> return ()
 
-diff_track :: TrackId -> Track.Track -> Track.Track -> DiffM ()
-diff_track track_id track1 track2 = do
+diff_track :: State.State -> TrackId -> Track.Track -> Track.Track -> DiffM ()
+diff_track state track_id track1 track2 = do
     -- Track events updates are collected directly by the State.State functions
     -- as they happen.
     let emit = change . Update.Track track_id
@@ -257,12 +257,21 @@ diff_track track_id track1 track2 = do
     when (unequal Track.track_title) $ do
         emit $ Update.TrackTitle (Track.track_title track2)
         -- Changing the title may change the type of the track, which may
-        -- change event styles.
-        emit Update.TrackAllEvents
+        -- change event styles.  If it's going from non-note to note track, it
+        -- can also change style of siblings since has_note_children becomes
+        -- true.
+        changes [Update.Track tid Update.TrackAllEvents
+            | tid <- sibling_tracks state track_id]
+
     when (unequal Track.track_bg) $
         emit $ Update.TrackBg (Track.track_bg track2)
     when (unequal Track.track_render) $
         emit $ Update.TrackRender (Track.track_render track2)
+
+sibling_tracks :: State.State -> TrackId -> [TrackId]
+sibling_tracks state track_id = either (const []) id $ State.eval state $ do
+    blocks <- State.blocks_with_track_id track_id
+    return [tid | (_, tracks) <- blocks, (_, Block.TId tid _) <- tracks]
 
 -- ** state
 
