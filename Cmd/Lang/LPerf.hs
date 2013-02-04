@@ -50,6 +50,18 @@ environ = do
     (block_id, _, track_id, _) <- Selection.get_insert
     Perf.lookup_environ block_id (Just track_id)
 
+-- | Controls in scope at the insert point.
+controls :: Cmd.CmdL Score.ControlMap
+controls = maybe mempty Derive.state_controls <$> dynamic
+
+warp :: Cmd.CmdL Score.Warp
+warp = maybe Score.id_warp Derive.state_warp <$> dynamic
+
+dynamic :: Cmd.CmdL (Maybe Derive.Dynamic)
+dynamic = do
+    (block_id, _, track_id, _) <- Selection.get_insert
+    Perf.lookup_dynamic block_id (Just track_id)
+
 sel_to_real :: Cmd.CmdL [RealTime]
 sel_to_real = do
     (block_id, _, track_id, pos) <- Selection.get_insert
