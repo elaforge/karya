@@ -637,7 +637,7 @@ extractDoc config fn = do
     Util.shell $ unwords [bin, name, ">", fn]
 
 getMarkdown :: Shake.Action [FilePath]
-getMarkdown = map ("doc"</>) <$> Shake.getDirectoryFiles "doc" "*.md"
+getMarkdown = map ("doc"</>) <$> Shake.getDirectoryFiles "doc" ["*.md"]
 
 makeHaddock :: Config -> Shake.Action ()
 makeHaddock config = do
@@ -741,8 +741,9 @@ hasPrefix prefix fn =
 
 generateTestHs :: FilePath -> FilePath -> Shake.Action ()
 generateTestHs hsSuffix fn = do
-    let contains = drop 1 (dropWhile (/='-') (FilePath.dropExtension fn))
-        pattern = "*" ++ contains ++ "*" ++ hsSuffix ++ ".hs"
+    let contains = drop 1 $ dropWhile (/='-') $ FilePath.dropExtension fn
+        pattern = (if null contains then "" else '*' : contains)
+            ++ "*" ++ hsSuffix ++ ".hs"
     tests <- Util.findHs pattern "."
     when (null tests) $
         errorIO $ "no tests match pattern: " ++ show pattern

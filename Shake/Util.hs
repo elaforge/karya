@@ -8,7 +8,7 @@ module Shake.Util (
 ) where
 import Control.Applicative ((<$>))
 import Control.Monad
-import qualified Control.Monad.Trans as Trans
+import Control.Monad.Trans (liftIO)
 
 import qualified Data.Char as Char
 import qualified Development.Shake as Shake
@@ -76,7 +76,7 @@ findFiles :: (FilePath -> Bool) -> Shake.FilePattern -> FilePath
     -> Shake.Action [FilePath]
 findFiles acceptDir filePattern dir = do
     fns <- map (System.FilePath.normalise . (dir </>)) <$>
-        Shake.getDirectoryFiles dir filePattern
+        Shake.getDirectoryFiles (if dir == "." then "" else dir) [filePattern]
     dirs <- map (dir </>) . filter acceptDir <$> Shake.getDirectoryDirs dir
     rest <- mapM (findFiles acceptDir filePattern) dirs
     return $ concat (fns:rest)
@@ -84,10 +84,11 @@ findFiles acceptDir filePattern dir = do
 findHs :: Shake.FilePattern -> FilePath -> Shake.Action [FilePath]
 findHs = findFiles $ all Char.isUpper . take 1
 
+-- | Run an Action, useful for interactive testing.
 runIO :: (Show a) => Shake.Action a -> IO ()
 runIO action = Shake.shake Shake.shakeOptions $ Shake.action $ do
     result <- action
-    Trans.liftIO $ print result
+    liftIO $ print result
 
 -- * general
 
