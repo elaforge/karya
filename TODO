@@ -7,34 +7,14 @@ UNSORTED
     using more vertical space.
   * Rename Score.attributes to attrs?
   * +multiple+attrs
-  - I need separate articulation tracks for lily and not-lily.  I can use
+  - consider track calls and block calls:
+    note_track :: TrackTree.EventsNode -> Derive.EventDeriver
+    derive_tree :: ScoreTime -> TrackTree.EventsTree -> Derive.EventDeriver
+    I could use this to implement is-ly and no-ly, and also totally custom
+    track types and block types.
+  * I need separate articulation tracks for lily and not-lily.  I can use
     lily and no-lily transformers, but they have to work with slicing.
     not-lily can say, if lily isn't set, then just immediately place subnotes.
-
-    But it's a transformer.  How does it get called?  Parent slices, then calls
-    d_note_track.  What I want is for that slice to just evaluate the next
-    track down.
-
-    By the time the transformer gets it, it's an opaque deriver, which already
-    wants to eval the events of this track.
-    . But if transformers have sub_events still set, it could ignore the
-      deriver and return 'Note.place subs' instead.
-      . What about orphan slices?  I just eval the subtracks verbatim, so it
-        should be handled by BlockUtil.derive_tracks.
-      . If I'm an event, I want to slice and eval notes, otherwise just
-        derive_subtracks.  To tell the difference, look in CallInfo?  What is
-        the call info given to track transformers anyway?  dummy call info,
-        with no subs.  So it needs subs, and a way to tell it's the title.
-      . Or always slice, but the track transformer runs under 0--end, so the
-        slice covers the entire track.  It's probably less efficient though,
-        since I'm slicing up the track unnecessarily.
-
-    . Otherwise, I could make is-ly or not-ly into special track titles that
-      are a new kind of "track call", which is
-      TrackTree.EventsNode -> EventDeriver.  Then it can just eval the subs.
-      This requires a whole new style of call, and some way to indicate it,
-      perhaps '<track-call', but gives the power to add custom score formats
-      within a track.
 
   - how can I have per-score instruments?  In general I need a plan for
     per-score code.

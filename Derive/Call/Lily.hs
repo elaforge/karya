@@ -6,6 +6,7 @@ import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 
 import qualified Derive.Args as Args
+import qualified Derive.Call.BlockUtil as BlockUtil
 import qualified Derive.Call.Note as Note
 import qualified Derive.Call.Util as Util
 import qualified Derive.Derive as Derive
@@ -193,7 +194,8 @@ eval_notes config meter start score_events =
 
 note_calls :: Derive.NoteCallMap
 note_calls = Derive.make_calls
-    [ ("when-ly", c_when_ly)
+    [ ("is-ly", c_is_ly)
+    , ("not-ly", c_not_ly)
     , ("8va", c_8va)
     , ("xstaff", c_xstaff)
     , ("dyn", c_dyn)
@@ -201,11 +203,42 @@ note_calls = Derive.make_calls
     , ("meter", c_meter)
     ]
 
-c_when_ly :: Derive.NoteCall
-c_when_ly = Derive.transformer "when-ly"
-    "Evaluate the deriver only when in lilypond mode. Apply this to a track\
-    \ to make non-lilypond derivation a bit more efficient."
-    $ Sig.call0t $ \_args deriver -> when_lilypond (const deriver) mempty
+-- | TODO it's ugly how this only works in the track title.  If applied to
+-- an event, it will emit a duplicate copy of the tracks below it, which is
+-- definitely not useful.  Ways around this would be:
+--
+-- - Always slice the subtracks, but the track title call gives the range of
+-- the whole track.  This would work but would cause lots of unnecessary
+-- slicing.
+--
+-- - Add a in_track_title flag to CallInfo, so this can switch on it.  Hacky
+-- and ad-hoc.
+--
+-- - Provide a way for custom track-level calls, e.g. EventNode ->
+-- EventDeriver.  I might want to do this eventually anyway for tracks with
+-- their own little custom language.  But if I do, I also have to support
+-- documentation, lookup in some namespace, and will probably want to add block
+-- calls (presumably derive_tree :: ScoreTime -> TrackTree.EventsTree ->
+-- Derive.EventDeriver) too, so it's a bit of work.
+c_is_ly :: Derive.NoteCall
+c_is_ly = Derive.transformer "is-ly"
+    "Evaluate the deriver only when in lilypond mode, otherwise ignore the\
+    \ track and evaluate its subtracks. Apply this to a track \
+    \ to omit lilypond-only articulations, or to apply different articulations\
+    \ to lilypond and non-lilypond output. Only use it in the track title!"
+    $ Sig.call0t $ \args deriver ->
+        when_lilypond (const deriver) (derive_subtracks args)
+
+c_not_ly :: Derive.NoteCall
+c_not_ly = Derive.transformer "not-ly"
+    "The inverse of `is-ly`, evaluate the track or event only when not in\
+    \ lilypond mode. Only use it in the track title!"
+    $ Sig.call0t $ \args deriver ->
+        when_lilypond (const $ derive_subtracks args) deriver
+
+derive_subtracks :: Derive.PassedArgs d -> Derive.EventDeriver
+derive_subtracks =
+    BlockUtil.derive_tracks . Derive.info_sub_tracks . Derive.passed_info
 
 c_8va :: Derive.NoteCall
 c_8va = Derive.stream_generator "ottava"

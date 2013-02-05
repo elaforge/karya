@@ -48,6 +48,11 @@ import Types
 -- will otherwise never be evaluated since it's the responsibility of the
 -- supernote to evaluate its subs.
 --
+-- The toplevel parent track is omitted entirely, so you want the transformers
+-- in the titles of the skipped tracks to apply you have to apply them
+-- yourself.  TODO but that's complicated if there are multiple skipped tracks,
+-- why not return the intervening track titles?
+--
 -- Since there's no point to a control track with no note track underneath,
 -- control track orphans are stripped out.
 extract_orphans :: Bool -- ^ If true, if the extracted orphan ranges themselves

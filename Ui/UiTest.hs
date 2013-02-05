@@ -258,6 +258,11 @@ note_track track =
         | otherwise = (pre, post)
         where (pre, post) = Seq.split1 " -- " s
 
+regular_notes :: Int -> [TrackSpec]
+regular_notes n = note_track $ take n
+    [(t, 1, p) | (t, p) <- zip (Seq.range_ 0 1) (cycle pitches)]
+    where pitches = [o:p:"" | o <- "4567", p <- "abcdefg"]
+
 -- * state to spec
 
 -- | These can be used from 'Cmd.Lang.LDebug.dump_blocks' to dump state in
