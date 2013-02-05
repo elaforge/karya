@@ -11,8 +11,8 @@ import qualified Derive.Score as Score
 import Derive.TestInstances ()
 import qualified Derive.TrackLang as TrackLang
 import Derive.TrackLang
-       (AttrMode(..), ControlRef(..), Symbol(..), Val(..), Call(..),
-        Term(..))
+       (ControlRef(..), Symbol(..), Val(..), Call(..), Term(..),
+        RelativeAttrs(..))
 
 import qualified Perform.Pitch as Pitch
 
@@ -62,15 +62,20 @@ test_parse_expr = do
         [Call (Symbol "a") [Literal (VString "b -- c")]]
 
 test_parse_val = do
-    let mkattr = Just . VRelativeAttr . TrackLang.RelativeAttr
+    let rel mode = Just . VRelativeAttrs . mode . Score.attrs
     let invertible =
             [ (">", Just $ VInstrument (Score.Instrument ""))
             , (">fu/nny^*", Just $ VInstrument (Score.Instrument "fu/nny^*"))
 
-            , ("+a", mkattr (Add, "a"))
-            , ("-b", mkattr (Remove, "b"))
-            , ("=c", mkattr (Set, "c"))
-            , ("=-", mkattr (Clear, ""))
+            , ("+-", rel Add [])
+            , ("+a", rel Add ["a"])
+            , ("+a+b", rel Add ["a", "b"])
+            , ("--", rel Remove [])
+            , ("-a", rel Remove ["a"])
+            , ("-a+b", rel Remove ["a", "b"])
+            , ("=-", rel Set [])
+            , ("=a", rel Set ["a"])
+            , ("=a+b", rel Set ["a", "b"])
             , ("+aB", Nothing)
 
             , ("0", Just (VNum (Score.untyped 0)))
@@ -147,11 +152,11 @@ test_p_equal = do
     equal (f "*a = *b") (eq (VScaleId (Pitch.ScaleId "a"))
         (Literal (VScaleId (Pitch.ScaleId "b"))))
     equal (f "a = =b") (eq (sym "a")
-        (Literal (VRelativeAttr (TrackLang.RelativeAttr (Set, "b")))))
+        (Literal (VRelativeAttrs (Set (Score.attr "b")))))
 
     let parse = fmap NonEmpty.toList . Parse.parse_expr
     equal (parse "a =b") $ Right [Call (Symbol "a")
-        [Literal (VRelativeAttr (TrackLang.RelativeAttr (Set, "b")))]]
+        [Literal (VRelativeAttrs (Set (Score.attr "b")))]]
     equal (parse "a= b") $ Right [Call (Symbol "a=") [Literal (symbol "b")]]
     equal (parse "a=b") $ Right [Call (Symbol "a=b") []]
 

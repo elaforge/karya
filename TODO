@@ -3,10 +3,56 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
+  - If I wrapped track titles I could see the entire thing, but at the cost of
+    using more vertical space.
+  * Rename Score.attributes to attrs?
+  * +multiple+attrs
+  - I need separate articulation tracks for lily and not-lily.  I can use
+    lily and no-lily transformers, but they have to work with slicing.
+    not-lily can say, if lily isn't set, then just immediately place subnotes.
+
+    But it's a transformer.  How does it get called?  Parent slices, then calls
+    d_note_track.  What I want is for that slice to just evaluate the next
+    track down.
+
+    By the time the transformer gets it, it's an opaque deriver, which already
+    wants to eval the events of this track.
+    . But if transformers have sub_events still set, it could ignore the
+      deriver and return 'Note.place subs' instead.
+      . What about orphan slices?  I just eval the subtracks verbatim, so it
+        should be handled by BlockUtil.derive_tracks.
+      . If I'm an event, I want to slice and eval notes, otherwise just
+        derive_subtracks.  To tell the difference, look in CallInfo?  What is
+        the call info given to track transformers anyway?  dummy call info,
+        with no subs.  So it needs subs, and a way to tell it's the title.
+      . Or always slice, but the track transformer runs under 0--end, so the
+        slice covers the entire track.  It's probably less efficient though,
+        since I'm slicing up the track unnecessarily.
+
+    . Otherwise, I could make is-ly or not-ly into special track titles that
+      are a new kind of "track call", which is
+      TrackTree.EventsNode -> EventDeriver.  Then it can just eval the subs.
+      This requires a whole new style of call, and some way to indicate it,
+      perhaps '<track-call', but gives the power to add custom score formats
+      within a track.
+
+  - how can I have per-score instruments?  In general I need a plan for
+    per-score code.
+    Local.Score.ScoreName?  Or just add them to Vsl, but bind them to the
+    simple inst name in the score.  But I can't really make an inst for every
+    combination of keyswitches or for every score.  So I guess the per-score
+    module needs inst definitions too.
+    Or make a giant master patch with all articulations, but all disabled.
+    Then I can load it, and enable the ones I want for the particular piece.
+
+  - move src into src subdir.  Then I don't have to do hacks in the shakefile
+    where I only recurse into [A-Z]* dirs.
   - logview: two lines for the status bar at the top
     Or as many as necessary?  Wrap on |, and justify by inserting spaces?
     * Remove proj, step, 8ve
     * Add play mult, default tempo
+  - hashable is not suitable for consistent hashing, I should use a known
+    algorithm.  Maybe use crc32 from 'digest'?
   * play_at is messed up in the presence of play multiplier
   - double click isn't creating a fitted view?
   * Create.view should look harder for an empty space.
@@ -37,8 +83,6 @@ UNSORTED
       If I use text, darwin is inconsistent because shift-cmd-/ is different.
       If I use key, it's consistent within the OS, but inconsistent across
       OSes.
-  - Why doesn't option-key put the symbol into event.text?  It seems to work
-    for Fl_Input.
 
   - Type into track text on the right side, then expand the window so it can
     be visible.  It doesn't redraw the newly-revealed bit correctly.
@@ -47,7 +91,12 @@ UNSORTED
     perhaps every note track.  That doesn't work because they're all sliced
     up.
   - Arpeggio should be a bit randomized?  Or closer notes should be faster?
-    Then I have to look at the pitches.
+    Then I have to look at the pitches.  Or manually set times, e.g.
+    arp .3 .1 (.3, .1, .1, .1, ...)
+  - Can I bind symbol names with =, e.g. 'arp = arp-manual .3 .2 .1'
+    That's actually two things, one is binding the symbol, the other is
+    partially applying args.  The latter overlaps with setting default in
+    the env, but is more concise.
   - adding an intervening note track seems to mess up the signal render
   * the cache got messed up after changing the tempo
     Change tempo at 20t telek1.t1
@@ -70,11 +119,6 @@ UNSORTED
     can get real cursor control and use the IME.  But I'd need to either switch
     to Text or make sure ParseBs works on UTF8.
   - Do profiles again with Data.Text instead of ByteString.
-  - why does legato vsl always have too-loud connecting samples?
-    I probably need to separate articulations for performance from slur
-    staccato etc. for lilypond.
-    It's the auto switch on speed.  Make some custom matrices, inst should
-    provide functions to construct a matrix for a certain score.
   - network midi doesn't seem to handle abort?
     playing the second time doesn't happen
   - StepPlay gets messed up by tuplets and the like.  Maybe it should step
@@ -184,6 +228,7 @@ UNSORTED
     - how could I omit a transformer?
   - Pretty on a lot of events causes a stack overflow
     Need a reproduction.
+    I should extend Util.Format so I can use it for Util.Pretty.
   - solo on one track in a sub-block causes all other blocks to be filtered out.
     It seems more intuitive that it only apply to that block.  That means solo
     would have to record the block that it's soloed on, and only filter events
@@ -747,6 +792,7 @@ symbolic score
   - find or make a font with gong che pu
 
 fltk:
+  - event.text would have to be utf8 to support option-key symbols
   - some way to scroll that's not the scroll wheel
   - I could set certain Symbols to stretch to the length of their event, this
     would yield a nicer looking score.  But it would mess up the bounds

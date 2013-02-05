@@ -8,8 +8,10 @@ module Instrument.Serialize (serialize, unserialize) where
 import qualified Data.Map as Map
 import qualified Data.Time as Time
 
-import Util.Serialize (Serialize, get, put, get_tag, put_tag, bad_tag)
+import Util.Serialize
+       (Serialize, get, put, get_tag, put_tag, bad_tag)
 import qualified Cmd.Serialize
+import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Score as Score
 import qualified Perform.Midi.Control as Control
 import qualified Perform.Midi.Instrument as Instrument
@@ -131,5 +133,5 @@ instance Serialize Instrument.Keyswitch where
             _ -> bad_tag "Instrument.Keyswitch" tag
 
 instance Serialize Score.Attributes where
-    put (Score.Attributes a) = put a
-    get = get >>= \a -> return (Score.Attributes a)
+    put = put . Score.attrs_set
+    get = fmap BaseTypes.set_to_attrs get

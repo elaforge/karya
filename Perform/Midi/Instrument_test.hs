@@ -11,7 +11,7 @@ ksmap = Instrument.simple_keyswitches
     , (mkattrs "sfz", 2)
     , (mkattrs "trem", 3)
     ]
-mkattrs = Score.attributes . words
+mkattrs = Score.attrs . words
 unattrs = unwords . Score.attrs_list
 
 test_get_keyswitch = do

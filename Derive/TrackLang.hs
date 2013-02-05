@@ -36,7 +36,6 @@ import qualified Control.DeepSeq as DeepSeq
 import qualified Data.List as List
 import qualified Data.List.NonEmpty as NonEmpty
 import qualified Data.Map as Map
-import qualified Data.Set as Set
 
 import Util.Control
 import qualified Util.Pretty as Pretty
@@ -47,8 +46,8 @@ import qualified Derive.BaseTypes as Score
 import qualified Derive.BaseTypes as PitchSignal
 import Derive.BaseTypes
        (Environ, make_environ, insert_val, lookup_val, null_environ,
-        ValName, Val(..), Symbol(..), AttrMode(..), RelativeAttr(..),
-        ControlRef(..), PitchControl, ValControl, Note(..))
+        ValName, Val(..), Symbol(..), RelativeAttrs(..), ControlRef(..),
+        PitchControl, ValControl, Note(..))
 import Derive.ShowVal (ShowVal(..))
 
 import qualified Perform.Pitch as Pitch
@@ -62,14 +61,13 @@ type CallId = Symbol
 symbol_string :: Symbol -> String
 symbol_string (Symbol t) = t
 
-apply_attr :: RelativeAttr -> Score.Attributes -> Score.Attributes
-apply_attr (RelativeAttr (mode, attr)) attrs = Score.Attributes $ case mode of
-    Add -> Set.insert attr (Score.attrs_set attrs)
-    Remove -> Set.delete attr (Score.attrs_set attrs)
-    Set -> Set.singleton attr
-    Clear -> Set.empty
+apply_attr :: RelativeAttrs -> Score.Attributes -> Score.Attributes
+apply_attr rel attrs = case rel of
+    Add as -> attrs <> as
+    Remove as -> Score.attrs_diff attrs as
+    Set as -> as
 
-apply_attrs :: [RelativeAttr] -> Score.Attributes -> Score.Attributes
+apply_attrs :: [RelativeAttrs] -> Score.Attributes -> Score.Attributes
 apply_attrs = List.foldl' (.) id . map apply_attr
 
 -- | An empty instrument literal is a no-op, see 'VInstrument'.
@@ -136,7 +134,7 @@ instance ShowVal RealOrScore where
 -- * types
 
 data Type = TNum NumType
-    | TString | TRelativeAttr | TAttributes
+    | TString | TRelativeAttrs | TAttributes
     | TControl | TPitchControl | TScaleId | TPitch | TInstrument | TSymbol
     | TNotGiven | TMaybe Type | TEither Type Type | TVal
     deriving (Eq, Ord, Show)
@@ -179,7 +177,7 @@ type_of val = case val of
     -- 'to_type' making that promise.
     VNum num -> TNum (to_num_type (Score.type_of num))
     VString {} -> TString
-    VRelativeAttr {} -> TRelativeAttr
+    VRelativeAttrs {} -> TRelativeAttrs
     VAttributes {} -> TAttributes
     VControl {} -> TControl
     VPitchControl {} -> TPitchControl
@@ -322,11 +320,11 @@ instance Typecheck String where
     to_val = VString
     to_type _ = TString
 
-instance Typecheck RelativeAttr where
-    from_val (VRelativeAttr a) = Just a
+instance Typecheck RelativeAttrs where
+    from_val (VRelativeAttrs a) = Just a
     from_val _ = Nothing
-    to_val = VRelativeAttr
-    to_type _ = TRelativeAttr
+    to_val = VRelativeAttrs
+    to_type _ = TRelativeAttrs
 
 instance Typecheck Score.Attributes where
     from_val (VAttributes a) = Just a
@@ -378,7 +376,7 @@ instance Typecheck Symbol where
 -- ever be overwritten by a Val of the same type.  The idea is that being
 -- inconsistent with types will just lead to confusion.
 --
--- 'RelativeAttr's are never inserted, they combine with existing Attributes or
+-- 'RelativeAttrs's are never inserted, they combine with existing Attributes or
 -- create new ones.
 put_val :: (Typecheck val) => ValName -> val -> Environ -> Either Type Environ
 put_val name val environ = case maybe_old of
@@ -392,13 +390,13 @@ put_val name val environ = case maybe_old of
     where
     maybe_old = lookup_val name environ
     new_val = case to_val val of
-        VRelativeAttr rel_attr -> VAttributes $
+        VRelativeAttrs rel_attr -> VAttributes $
             case maybe_old of
                 Just (VAttributes attrs) -> apply_attr rel_attr attrs
                 _ -> apply_attr rel_attr Score.no_attrs
         _ -> to_val val
     environ_val name val environ = case to_val val of
-        VRelativeAttr rel_attr -> VAttributes $
+        VRelativeAttrs rel_attr -> VAttributes $
             case lookup_val name environ of
                 Just (VAttributes attrs) -> apply_attr rel_attr attrs
                 _ -> apply_attr rel_attr Score.no_attrs

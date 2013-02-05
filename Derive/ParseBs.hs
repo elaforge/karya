@@ -170,10 +170,10 @@ p_sub_call = Parse.between (A.char '(') (A.char ')') p_call
 p_val :: A.Parser TrackLang.Val
 p_val =
     TrackLang.VInstrument <$> p_instrument
-    -- RelativeAttr and Num can both start with a '-', but an RelativeAttr has
-    -- to have a letter afterwards, while a Num is a '.' or digit, so they're
-    -- not ambiguous.
-    <|> TrackLang.VRelativeAttr <$> A.try p_rel_attr
+    -- RelativeAttrs and Num can both start with a '-', but an RelativeAttrs
+    -- has to have a letter afterwards, while a Num is a '.' or digit, so
+    -- they're not ambiguous.
+    <|> TrackLang.VRelativeAttrs <$> A.try p_rel_attrs
     <|> TrackLang.VNum . Score.untyped <$> p_hex
     <|> TrackLang.VNum <$> p_num
     <|> (TrackLang.VString . to_string) <$> p_string
@@ -215,17 +215,17 @@ p_string = p_single_string <?> "string"
 
 -- There's no particular reason to restrict attrs to idents, but this will
 -- force some standardization on the names.
-p_rel_attr :: A.Parser TrackLang.RelativeAttr
-p_rel_attr = do
-    mode <- (A.char '+' *> return TrackLang.Add)
-        <|> (A.char '-' *> return TrackLang.Remove)
-        <|> (A.char '=' *> return TrackLang.Set)
-    attr <- case mode of
-        TrackLang.Set -> (A.char '-' >> return "") <|> p_identifier ""
-        _ -> p_identifier ""
-    return $ TrackLang.RelativeAttr
-        (if B.null attr then TrackLang.Clear else mode, to_string attr)
+p_rel_attrs :: A.Parser TrackLang.RelativeAttrs
+p_rel_attrs =
+    TrackLang.Add <$> (A.char '+' *> p_attrs)
+    <|> TrackLang.Remove <$> (A.char '-' *> p_attrs)
+    <|> TrackLang.Set <$> (A.char '=' *> p_attrs)
     <?> "relative attr"
+
+p_attrs :: A.Parser Score.Attributes
+p_attrs =
+    Score.attrs . map to_string <$> A.sepBy1 (p_identifier "+") (A.char '+')
+    <|> A.char '-' *> return mempty
 
 p_control :: A.Parser TrackLang.ValControl
 p_control = do

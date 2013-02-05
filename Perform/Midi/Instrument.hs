@@ -36,6 +36,7 @@ import qualified Util.Vector
 
 import qualified Midi.Midi as Midi
 import qualified Derive.Score as Score
+import qualified Derive.ShowVal as ShowVal
 import qualified Perform.Midi.Control as Control
 import qualified Perform.Pitch as Pitch
 import qualified Perform.Signal as Signal
@@ -383,11 +384,11 @@ overlapping_keyswitches :: KeyswitchMap -> [String]
 overlapping_keyswitches (KeyswitchMap attr_ks) =
     Maybe.catMaybes $ zipWith check (List.inits attrs) attrs
     where
-    attrs = map (Score.attrs_set . fst) attr_ks
-    check prev attr = case List.find (`Set.isSubsetOf` attr) prev of
+    attrs = map fst attr_ks
+    check prevs attr = case List.find (Score.attrs_contain attr) prevs of
         Just other_attr -> Just $ "keyswitch attrs "
-            ++ Pretty.pretty (Score.Attributes attr) ++ " shadowed by "
-            ++ Pretty.pretty (Score.Attributes other_attr)
+            ++ ShowVal.show_val attr ++ " shadowed by "
+            ++ ShowVal.show_val other_attr
         Nothing -> Nothing
 
 -- | Implement attribute priorities as described in 'KeyswitchMap'.  Return

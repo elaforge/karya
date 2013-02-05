@@ -83,7 +83,7 @@ test_attributes = do
         patch = Instrument.set_keymap keymap $
             Instrument.set_keyswitches keyswitches $ Instrument.patch $
                 Instrument.instrument "ks" [] (-1, 1)
-        keyswitches = map (first Score.attributes)
+        keyswitches = map (first Score.attrs)
             [ (["a1", "a2"], 0)
             , (["a0"], 1)
             , (["a1"], 2)

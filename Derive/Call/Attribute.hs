@@ -26,12 +26,14 @@ lookup_attr :: Derive.LookupCall Derive.NoteCall
 lookup_attr = Derive.pattern_lookup "attribute starting with `+`" doc $
     \(TrackLang.Symbol sym) -> parse_symbol sym
     where
-    parse_symbol sym@('+':_) = case ParseBs.parse_val sym of
-        Right (TrackLang.VRelativeAttr (TrackLang.RelativeAttr
-            (TrackLang.Add, attr))) ->
-                return $ Just $ attributed_note (Score.attr attr)
-        _ -> return Nothing
+    parse_symbol sym@(c:_)
+        | c == '+' || c == '=' = case ParseBs.parse_val sym of
+            Right (TrackLang.VRelativeAttrs rel) -> return $ Just $ call rel
+            _ -> return Nothing
     parse_symbol _ = return Nothing
+    call rel = transform_notes ("relative attrs: " ++ ShowVal.show_val rel)
+        "Doc unused." "Doc unused."
+        (Util.with_attrs (TrackLang.apply_attr rel))
     doc = Derive.extract_doc $ attributed_note (Score.attr "example-attr")
 
 note_calls :: Derive.NoteCallMap
@@ -47,16 +49,16 @@ note_calls = Derive.make_calls
 attributed_note :: Attrs.Attributes -> Derive.NoteCall
 attributed_note attrs =
     transform_notes ("note with " ++ ShowVal.show_val attrs)
-        (Util.add_attrs attrs)
         ("Apply attributes to notes. When applied as a note transformer\
         \ (i.e. it has notes in child tracks) it applies its attributes to\
         \ those notes. Otherwise, it applies its attributes to the null note\
         \ call.")
         "Apply attributes to the transformed deriver."
+        (Util.add_attrs attrs)
 
-transform_notes :: String -> (Derive.EventDeriver -> Derive.EventDeriver)
-    -> String -> String -> Derive.NoteCall
-transform_notes name transform generator_doc transform_doc = Derive.Call
+transform_notes :: String -> String -> String
+    -> (Derive.EventDeriver -> Derive.EventDeriver) -> Derive.NoteCall
+transform_notes name generator_doc transform_doc transform = Derive.Call
     { Derive.call_name = name
     , Derive.call_generator = Just $
         Derive.generator_call generator_doc generator

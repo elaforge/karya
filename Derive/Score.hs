@@ -13,7 +13,6 @@ import Control.DeepSeq (rnf)
 import qualified Data.ByteString.Char8 as B
 import qualified Data.ByteString.UTF8 as UTF8
 import qualified Data.Map as Map
-import qualified Data.Set as Set
 
 import Util.Control
 import qualified Util.Pretty as Pretty
@@ -22,8 +21,8 @@ import qualified Derive.BaseTypes as BaseTypes
 import Derive.BaseTypes
        (Instrument(..), Control(..), Type(..), Typed(..), untyped,
         merge_typed, type_to_code, code_to_type, TypedSignal, TypedVal,
-        Attributes(..), Attribute, attrs_set, attrs_remove, attrs_list,
-        no_attrs)
+        Attributes, Attribute, attr, attrs, attrs_diff, attrs_contain,
+        attrs_remove, attrs_set, attrs_list, no_attrs)
 import qualified Derive.PitchSignal as PitchSignal
 import qualified Derive.Stack as Stack
 
@@ -323,24 +322,6 @@ instrument synth inst = Instrument $ synth ++ "/" ++ inst
 split_inst :: Instrument -> (String, String)
 split_inst (Instrument inst) = (synth, drop 1 inst_name)
     where (synth, inst_name) = break (=='/') inst
-
--- * attributes
-
-attrs_diff :: Attributes -> Attributes -> Attributes
-attrs_diff (Attributes x) (Attributes y) = Attributes (Set.difference x y)
-
-attrs_union :: Attributes -> Attributes -> Attributes
-attrs_union (Attributes x) (Attributes y) = Attributes (Set.union x y)
-
-attributes :: [String] -> Attributes
-attributes = Attributes . Set.fromList
-
-attr :: String -> Attributes
-attr = Attributes . Set.singleton
-
--- | True if the first argument contains the attributes in the second.
-attrs_contain :: Attributes -> Attributes -> Bool
-attrs_contain (Attributes super) (Attributes sub) = sub `Set.isSubsetOf` super
 
 -- * controls
 

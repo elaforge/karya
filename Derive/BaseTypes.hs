@@ -132,6 +132,22 @@ instance ShowVal.ShowVal Attributes where
     show_val attrs = if null alist then "-" else '+' : Seq.join "+" alist
         where alist = attrs_list attrs
 
+attr :: String -> Attributes
+attr = Attributes . Set.singleton
+
+attrs :: [String] -> Attributes
+attrs = Attributes . Set.fromList
+
+set_to_attrs :: Set.Set Attribute -> Attributes
+set_to_attrs = Attributes
+
+attrs_diff :: Attributes -> Attributes -> Attributes
+attrs_diff (Attributes x) (Attributes y) = Attributes (Set.difference x y)
+
+-- | True if the first argument contains the attributes in the second.
+attrs_contain :: Attributes -> Attributes -> Bool
+attrs_contain (Attributes super) (Attributes sub) = sub `Set.isSubsetOf` super
+
 attrs_set :: Attributes -> Set.Set Attribute
 attrs_set (Attributes attrs) = attrs
 
@@ -223,9 +239,9 @@ data Val =
     -- or -= operators.
     --
     -- Literal: @+attr@, @-attr@, @=attr@, @=-@ (to clear attributes).
-    | VRelativeAttr !RelativeAttr
+    | VRelativeAttrs !RelativeAttrs
     -- | A set of Attributes for an instrument.  No literal, since you can use
-    -- VRelativeAttr.
+    -- VRelativeAttrs.
     | VAttributes !Attributes
 
     -- | A control name.  An optional value gives a default if the control
@@ -274,7 +290,7 @@ instance ShowVal.ShowVal Val where
     show_val val = case val of
         VNum d -> ShowVal.show_val d
         VString s -> ShowVal.show_val s
-        VRelativeAttr rel -> ShowVal.show_val rel
+        VRelativeAttrs rel -> ShowVal.show_val rel
         VAttributes attrs -> ShowVal.show_val attrs
         VControl control -> ShowVal.show_val control
         VPitchControl control -> ShowVal.show_val control
@@ -302,15 +318,19 @@ newtype Symbol = Symbol String deriving (Eq, Ord, Show, DeepSeq.NFData)
 instance Pretty.Pretty Symbol where pretty = ShowVal.show_val
 instance ShowVal.ShowVal Symbol where show_val (Symbol s) = s
 
-data AttrMode = Add | Remove | Set | Clear deriving (Eq, Show)
-newtype RelativeAttr = RelativeAttr (AttrMode, Attribute) deriving (Eq, Show)
+data RelativeAttrs = Add Attributes | Remove Attributes | Set Attributes
+    deriving (Eq, Show)
 
-instance ShowVal.ShowVal RelativeAttr where
-    show_val (RelativeAttr (mode, attr)) = case mode of
-        Add -> '+' : attr
-        Remove -> '-' : attr
-        Set -> '=' : attr
-        Clear -> "=-"
+instance ShowVal.ShowVal RelativeAttrs where
+    show_val rel = case rel of
+            Add attrs -> '+' : str attrs
+            Remove attrs -> '-' : str attrs
+            Set attrs -> '=' : str attrs
+        where
+        str attrs = case attrs_list attrs of
+            [] -> "-"
+            as -> Seq.join "+" as
+
 
 data ControlRef val =
     -- | A constant signal.  For 'Control', this is coerced from a VNum

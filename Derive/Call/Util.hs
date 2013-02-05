@@ -272,7 +272,7 @@ with_attrs f deriver = do
 add_attrs :: Score.Attributes -> Derive.Deriver d -> Derive.Deriver d
 add_attrs attrs
     | attrs == mempty = id
-    | otherwise = with_attrs (Score.attrs_union attrs)
+    | otherwise = with_attrs (<> attrs)
 
 -- * environ
 

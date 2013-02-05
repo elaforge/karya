@@ -831,6 +831,9 @@ data CallInfo derived = CallInfo {
 
     -- | The track tree below note tracks.  Not given for control tracks.
     , info_sub_tracks :: !TrackTree.EventsTree
+    -- | This is needed by val calls that want to evaluate events around them.
+    -- Since val calls are the same on all track types, they need to know
+    -- explicitly what the track type is to evaluate events on it.
     , info_track_type :: !(Maybe TrackInfo.Type)
     }
 
