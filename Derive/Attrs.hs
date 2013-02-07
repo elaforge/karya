@@ -9,21 +9,9 @@ import Derive.Score (Attributes, attr)
 no_attrs :: Attributes
 no_attrs = Score.no_attrs
 
--- TODO Dunno
-
-auto = attr "auto" -- TODO what's this?
-
 -- * articulations
 
-sustain = attr "sustain"
--- | Modifies another articulation to grow in strength.
-progressive = attr "progressive"
--- Like @progressive@, but fading in strength.
-fading = attr "fading"
-attack = attr "attack" -- hard attack
-harsh = attr "harsh"
-
-flautando = attr "flautando"
+flaut = attr "flaut" -- flautando
 staccato = attr "staccato"
 spiccato = attr "spiccato"
 detache = attr "detache"
@@ -31,7 +19,7 @@ marcato = attr "marcato"
 portato = attr "portato"
 tenuto = attr "tenuto"
 accent = attr "accent"
-espres = attr "espres" -- espressivo
+espr = attr "espr" -- espressivo
 trill = attr "trill"
 trem = attr "trem" -- tremolo
 arpeggio = attr "arpeggio"
@@ -40,15 +28,13 @@ porta = attr "porta" -- portamento
 gliss = attr "gliss" -- glissando
 mute = attr "mute" -- brass mute, string mute, or guitar palm mute
 
-vibrato = attr "vibrato"
+vib = attr "vib" -- vibrato
 nv = attr "nv" -- no vibrato
-
-cluster = attr "cluster" -- cluster of tones
 
 -- * dynamics
 
 cresc = attr "cresc"
-dim = attr "dim"
+dim = attr "dim" -- either diminuendo, or diminished
 sfz = attr "sfz"
 sffz = attr "sffz"
 fp = attr "fp"
@@ -66,14 +52,9 @@ whole = attr "whole"
 pizz = attr "pizz" -- pizzicato
 snap = attr "snap" -- snap pizz, aka Bartok pizz
 harmonic = attr "harmonic"
-one_string = attr "one-string"
-zigane = attr "zigane" -- Apparently a gypsy thing.
 
 pont = attr "pont" -- ponticello
 tasto = attr "tasto" -- sul tasto
-
-natural = attr "natural" -- as in natural harmonics
-artificial = attr "artificial"
 
 bisbig = attr "bisbig" -- bisbigliando
 
@@ -134,7 +115,6 @@ knuckle = attr "knuckle"
 
 open = attr "open"
 closed = attr "closed"
-muted = attr "muted"
 
 low = attr "low"
 middle = attr "middle"
@@ -159,7 +139,9 @@ heavy = attr "heavy"
 
 -- | Generic variations.  E.g. if there are two snares you can have
 -- @snare \<> v1@ and @snare \<> v2@.
-v1 = attr "1"
-v2 = attr "2"
-v3 = attr "3"
-v4 = attr "4"
+v1 = attr "v1"
+v2 = attr "v2"
+v3 = attr "v3"
+v4 = attr "v4"
+v5 = attr "v5"
+v6 = attr "v6"

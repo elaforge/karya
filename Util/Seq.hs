@@ -342,6 +342,13 @@ diff eq xs ys = Maybe.mapMaybe f (equal_pairs eq xs ys)
 
 -- * sublists
 
+-- | Split into groups of a certain size.
+chunked :: Int -> [a] -> [[a]]
+chunked n xs = case splitAt n xs of
+    ([], []) -> []
+    (pre, []) -> [pre]
+    (pre, post) -> pre : chunked n post
+
 -- | Partition a list of Eithers into a pair.  Lazy enough to handle an
 -- infinite input list.
 partition_either :: [Either a b] -> ([a], [b])
@@ -358,7 +365,7 @@ rotate :: [[a]] -> [[a]]
 rotate xs = maybe [] (: rotate (map List.tail xs)) (mapM head xs)
 
 -- | Similar to 'rotate', except that the result is the length of the longest
--- row and missing columns is Nothing.
+-- row and missing columns are Nothing.
 rotate2 :: [[a]] -> [[Maybe a]]
 rotate2 xs
     | all Maybe.isNothing heads = []
@@ -581,3 +588,16 @@ mapAccumLM f state xs = go state xs
         (state, y) <- f state x
         (state, ys) <- go state xs
         return (state, y : ys)
+
+
+-- * text
+
+-- | Format the given rows into columns, aligned vertically.
+format_columns :: Int -> [[String]] -> [String]
+format_columns padding rows = map format_row rows
+    where
+    format_row = concat . map pad . zip widths
+    pad (w, cell) = cell ++ replicate (w - length cell + padding) ' '
+    by_col = map (map (Maybe.fromMaybe "")) (rotate2 rows)
+    widths = replace $ map (List.maximum . (0:) . map length) by_col
+    replace = reverse . (0:) . drop 1 . reverse

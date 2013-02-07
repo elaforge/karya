@@ -93,7 +93,7 @@ kendang_tunggal =
     -- This should be rarely used, but '.' should definitely be soft, but
     -- if it is there is no way to emit a normal 'ka'.
     , (Note ".."  ka             'n' 1.0, Key.g3)
-    , (Note "+/" (de <> muted)   'm' 1.0, Key.c1)
+    , (Note "+/" (de <> mute)    'm' 1.0, Key.c1)
     ] ++ map (flip (,) Kebot)
     [ (Note "T"  pang            'q' 1.0, Key.g4)
     , (Note "P"  pak             'w' 1.0, Key.c5)

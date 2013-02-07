@@ -93,10 +93,10 @@ hang_ks = [(attrs, key) | (attrs, key, _, _) <- hang_strokes]
 
 wayang_code :: MidiInst.Code
 wayang_code =
-    MidiInst.note_calls $ MidiInst.null_call (DUtil.note0_attrs muted)
+    MidiInst.note_calls $ MidiInst.null_call (DUtil.note0_attrs mute)
 
 wayang_ks :: [(Score.Attributes, Midi.Key)]
-wayang_ks = [(muted, Key.gs2), (open, Key.g2), (mempty, Key.g2)]
+wayang_ks = [(mute, Key.gs2), (open, Key.g2), (mempty, Key.g2)]
 
 wayang_umbang :: Instrument.PatchScale
 wayang_umbang = Instrument.make_patch_scale $ zip wayang_keys Wayang.umbang
