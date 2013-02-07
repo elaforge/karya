@@ -166,8 +166,8 @@ monitor_loop state = do
         then do
             mapM_ (Sync.clear_play_position . fst) $
                 Set.toList (monitor_active_sels state)
-            unless stopped $ wait_for_stop (Transport.poll_player_stopped
-                (monitor_ctl state))
+            unless stopped $ wait_for_stop $
+                    Transport.poll_player_stopped (monitor_ctl state)
         else Thread.delay 0.05 >> monitor_loop state
     where
     -- For some reason I've run out of inverse tempo map, but the player is

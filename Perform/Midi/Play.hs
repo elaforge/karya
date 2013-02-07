@@ -5,6 +5,7 @@ module Perform.Midi.Play (play, cycle_messages) where
 import qualified Control.Exception as Exception
 
 import qualified Util.Log as Log
+import qualified Util.Seq as Seq
 import qualified Util.Thread as Thread
 
 import qualified Midi.Interface as Interface
@@ -97,9 +98,13 @@ play_msgs state msgs = do
     -- Log.debug $ "play at " ++ show now ++ " chunk: " ++ show (length chunk)
     mapM_ write_msg chunk
 
-    let timeout = if null rest then RealTime.mul write_ahead 2 else write_ahead
+    -- Don't quit until all events have been played.
+    let timeout = if null rest
+            then maybe now Midi.wmsg_ts (Seq.last (LEvent.events_of chunk))
+                - now
+            else write_ahead
     stop <- Transport.poll_stop_player (RealTime.to_seconds timeout)
-        (state_play_control state)
+            (state_play_control state)
     let reset_midi = mapM_ write_midi
             [Interface.AllNotesOff now, Interface.reset_controls now]
     case (stop, rest) of

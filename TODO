@@ -7,7 +7,6 @@ UNSORTED
     * print out the matrix
     - special woodwinds
     - brass1
-    - special brass
     * Check for discrepancies with solo bass
     * Figure out how the bpm repetitions are supposed to work.
     * Allocate them to rows, 12 per and assign keyswitch pairs based on that
@@ -24,7 +23,7 @@ UNSORTED
     attribute groups:
       I should be able to pick a default and remove that one:
         legato/marcato/staccato, na/ha/fa/sa, vib/nv/progr
-      - bass clarinet has nv without vib
+      . bass clarinet has nv without vib
     - should be able to figure out e.g. +grace+min+third+up frome the 'g' call
     - also should be able to select the most appropriate sec# dyn given
       +cresc or +dim on a note.
@@ -32,7 +31,7 @@ UNSORTED
     - Figure out how to map continuous controls, and crossfade.
     * Assemble into patches, maybe get rid of the old matrix maps.
 
-  - The player takes a second or so to quit after the play monitor stops.
+  * The player takes a second or so to quit after the play monitor stops.
   - If I wrapped track titles I could see the entire thing, but at the cost of
     using more vertical space.
   * Rename Score.attributes to attrs?
@@ -54,7 +53,6 @@ UNSORTED
     module needs inst definitions too.
     Or make a giant master patch with all articulations, but all disabled.
     Then I can load it, and enable the ones I want for the particular piece.
-
   - move src into src subdir.  Then I don't have to do hacks in the shakefile
     where I only recurse into [A-Z]* dirs.
   - logview: two lines for the status bar at the top
