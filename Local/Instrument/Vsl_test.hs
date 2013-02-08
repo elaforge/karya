@@ -5,8 +5,8 @@ import qualified Derive.ShowVal as ShowVal
 import qualified Local.Instrument.Vsl as Vsl
 
 
-test_strip_redundant = do
-    let f = map ShowVal.show_val . Vsl.strip_redundant . map Score.attrs
+test_strip_attrs = do
+    let f = map ShowVal.show_val . Vsl.strip_attrs . map Score.attrs
     -- Strip them.
     equal (f [["sus"], ["vib", "marcato"]]) ["-", "+marcato"]
     -- Can't strip if it would be non-unique.

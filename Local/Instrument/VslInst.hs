@@ -49,23 +49,15 @@ solo_viola = solo_string "cgda"
 solo_cello = solo_string "cgda"
 
 solo_string strings =
-    [ solo_string_short_long
-    , solo_string_dynamics
-    , solo_string_tremolo_trills
-    , solo_string_pizz_legno
-    , solo_string_harmonics
-    , solo_string_ponticello
-    , solo_string_tasto
-    , solo_string_perf_interval
-    , solo_string_perf_interval_fast
-    , solo_string_perf_trill
-    , solo_string_perf_repetition
-    , solo_string_fast_repetition
-    , solo_string_grace_notes
-    , solo_string_glissandi strings
+    [ solo_string_short_long, solo_string_dynamics
+    , solo_string_tremolo_trills, solo_string_pizz_legno
+    , solo_string_harmonics, solo_string_ponticello
+    , solo_string_tasto, solo_string_perf_interval
+    , solo_string_perf_interval_fast, solo_string_perf_trill
+    , solo_string_perf_repetition, solo_string_fast_repetition
+    , solo_string_grace_notes, solo_string_glissandi strings
     , solo_string_scale_runs
     ]
-
 solo_string_short_long =
     [ staccato, detache.short, detache.long.vib, detache.long.nv
     , sus.vib, sus.vib.fa, sus.vib.fa.auto

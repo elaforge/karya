@@ -88,7 +88,7 @@ type Keyswitch = (Score.Attributes, [Instrument.Keyswitch])
 
 make_patch :: VslInst.Instrument -> Instrument.Patch
 make_patch = instrument_patch . second strip . make_instrument
-    where strip = uncurry zip . first strip_redundant . unzip
+    where strip = uncurry zip . first strip_attrs . unzip
 
 instrument_patch :: Instrument -> Instrument.Patch
 instrument_patch (name, keyswitches) =
@@ -141,27 +141,38 @@ write_matrices = writeFile "matrices.txt" $ unlines $
 
 show_matrix :: VslInst.Instrument -> String
 show_matrix (name, _, attrs) =
-    name ++ ":\n" ++ unlines (map (format . strip) matrices)
+    name ++ ":\n" ++ unlines (map format matrices)
     where
-    matrices = Seq.chunked 12 $ concatMap (Seq.chunked 12) attrs
+    matrices = Seq.chunked 12 $ concatMap (Seq.chunked 12)
+        (map_shape strip attrs)
     format = unlines . Seq.format_columns 1
         . zipWith (:) col_header . (header:)
         . map (map (abbr . ShowVal.show_val))
     header = take 12 $ map show [1..]
     col_header = take 13 $ map (:"") "-abcdefghijkl"
     abbr = Seq.replace "staccato" "stac" . Seq.replace "harmonic" "harm"
-    strip = map strip_redundant . map (map (`Score.attrs_diff` strip_attrs))
-    strip_attrs = VslInst.updown <> VslInst.crescdim <> VslInst.highlow
+    strip = strip_attrs . map (`Score.attrs_diff` variants)
+    variants = VslInst.updown <> VslInst.crescdim <> VslInst.highlow
+
+-- | Transform elements but retain the matrix's shape.
+map_shape :: ([a] -> [b]) -> [[a]] -> [[b]]
+map_shape f rows = split (map length rows) $ f (concat rows)
+    where
+    split (len:lens) xs = pre : split lens post
+        where (pre, post) = splitAt len xs
+    split [] _ = []
 
 -- * attrs
 
-strip_redundant :: [Score.Attributes] -> [Score.Attributes]
-strip_redundant attrs = foldr strip_attrs attrs strip
-    where strip = reverse [VslInst.sus, VslInst.vib, VslInst.perf]
+strip_attrs :: [Score.Attributes] -> [Score.Attributes]
+strip_attrs attrs = foldr strip_attr attrs strip
+    where
+    strip = reverse [VslInst.sus, VslInst.vib, VslInst.perf, VslInst.fast,
+        VslInst.norm, VslInst.na, VslInst.legato]
 
 -- | Strip the given attr, but only if it wouldn't cause clashes.
-strip_attrs :: Score.Attributes -> [Score.Attributes] -> [Score.Attributes]
-strip_attrs attr all_attrs = map (strip_redundant attr) all_attrs
+strip_attr :: Score.Attributes -> [Score.Attributes] -> [Score.Attributes]
+strip_attr attr all_attrs = map (strip_redundant attr) all_attrs
     where
     strip = flip Score.attrs_diff
     strip_redundant attr attrs

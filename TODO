@@ -24,8 +24,8 @@ UNSORTED
     attribute groups:
       I should be able to pick a default and remove that one:
         legato/marcato/staccato, na/ha/fa/sa, vib/nv/progr
-        for grace notes, fast should be default
-        - strip norm
+        * for grace notes, fast should be default
+        * strip norm
       . bass clarinet has nv without vib
     * should be able to figure out e.g. +grace+min+third+up frome the 'g' call
     - also should be able to select the most appropriate sec# dyn given
