@@ -1,12 +1,16 @@
 module Derive.Call.Ornament_test where
+import qualified Data.Map as Map
+
 import Util.Control
 import Util.Test
 import qualified Ui.State as State
+import qualified Derive.Call.CallTest as CallTest
 import qualified Derive.Call.Ornament as Ornament
 import qualified Derive.Call.Util as Util
 import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Score as Score
+import qualified Derive.ShowVal as ShowVal
 import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.Lilypond.LilypondTest as LilypondTest
@@ -97,3 +101,24 @@ test_grace_ly = do
         ])
         (Right ["\\acciaccatura { a'8[ b'8] } c'2 \\acciaccatura { a8 } b'2"],
             [])
+
+test_grace_attr = do
+    let run = DeriveTest.extract extract
+            . DeriveTest.derive_tracks_with with_call
+        extract e = (DeriveTest.e_twelve e,
+            ShowVal.show_val $ Score.event_attributes e)
+        with_call = CallTest.with_note_call "g" (Ornament.c_grace_attr graces)
+    -- Attrs when it can.
+    equal (run [(">", [(0, 1, "g (4a)")]), ("*", [(0, 0, "4b")])])
+        ([("4b", "+up+whole")], [])
+    equal (run [(">", [(0, 1, "g _ 1")]), ("*", [(0, 0, "4b")])])
+        ([("4b", "+down+half")], [])
+    -- Notes when it can't.
+    equal (run [(">", [(0, 1, "g (4a)")]), ("*", [(0, 0, "4c")])])
+        ([("4a", "-"), ("4c", "-")], [])
+
+graces :: Map.Map Int Score.Attributes
+graces = Map.fromList
+    [ (-1, Score.attrs ["half", "down"])
+    , (2, Score.attrs ["whole", "up"])
+    ]

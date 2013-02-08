@@ -133,3 +133,30 @@ grace_doc = "This variant of grace note doesn't affect the start time of the\
     \ defaults to " <> Pretty.pretty grace_dur_default <> ", overlap time is\
     \ `grace-overlap` and defaults to " <> Pretty.pretty grace_overlap_default
     <> "."
+
+c_grace_attr :: Map.Map Int Score.Attributes
+    -- ^ Map intervals in semitones (positive or negative) to attrs.
+    -> Derive.NoteCall
+c_grace_attr supported =
+    Derive.stream_generator "grace" (Tags.ornament <> Tags.ly)
+    ("Emit grace notes as attrs, given a set of possible interval attrs.\
+    \ If the grace note can't be expressed by the supported attrs, then emit\
+    \ notes like the normal grace call.") $ Sig.call ((,)
+    <$> optional "dyn" "Scale the dyn of the grace notes."
+    <*> many "pitch" "Grace note pitches."
+    ) $ \(dyn, pitches) -> Note.inverting $ \args -> do
+        (base, pitches) <- resolve_pitches args pitches
+        Lily.when_lilypond (const $ lily_grace args pitches) $ do
+            maybe_attrs <- grace_attrs supported pitches base
+            case maybe_attrs of
+                Just attrs -> Util.add_attrs attrs (Util.placed_note args)
+                -- Fall back on normal grace.  TODO I might want to stick
+                -- a legato attr on that or something.
+                Nothing -> grace (Args.extent args) (fromMaybe 0.5 dyn) pitches
+
+grace_attrs :: Map.Map Int Score.Attributes -> [PitchSignal.Pitch]
+    -> PitchSignal.Pitch -> Derive.Deriver (Maybe Score.Attributes)
+grace_attrs supported [grace] base = do
+    diff <- (-) <$> Pitches.pitch_nn base <*> Pitches.pitch_nn grace
+    return $ Map.lookup (round diff) supported
+grace_attrs _ _ _ = return Nothing

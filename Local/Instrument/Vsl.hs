@@ -1,5 +1,6 @@
 -- | Vienna Symphonic Library.
 module Local.Instrument.Vsl where
+import qualified Data.Map as Map
 import qualified Data.Set as Set
 
 import Util.Control
@@ -8,6 +9,7 @@ import qualified Util.Seq as Seq
 import qualified Midi.Midi as Midi
 import qualified Derive.Attrs as Attrs
 import qualified Derive.Call.Note as Note
+import qualified Derive.Call.Ornament as Ornament
 import qualified Derive.Call.Trill as Trill
 import qualified Derive.Derive as Derive
 import qualified Derive.Score as Score
@@ -52,6 +54,7 @@ note_calls patch =
         [("tr", Trill.c_attr_trill), ("`tr`", Trill.c_attr_trill)]
     <> with_attr Attrs.trem [("trem", Trill.c_attr_tremolo)]
     <> with_attr Attrs.staccato (MidiInst.null_call staccato_keyswitch)
+    <> with_attr VslInst.grace [("g", grace_call (patch_attrs patch))]
     where
     with_attr attr calls = if has_attr attr patch then calls else []
 
@@ -62,9 +65,21 @@ note_calls patch =
         \ that built-in."
         (Note.default_note False)
 
+patch_attrs :: Instrument.Patch -> [Score.Attributes]
+patch_attrs = Instrument.keyswitch_attributes . Instrument.patch_keyswitches
+
 has_attr :: Score.Attributes -> Instrument.Patch -> Bool
-has_attr attr = any (`Score.attrs_contain` attr)
-    .  Instrument.keyswitch_attributes . Instrument.patch_keyswitches
+has_attr attr = any (`Score.attrs_contain` attr) . patch_attrs
+
+grace_call :: [Score.Attributes] -> Derive.NoteCall
+grace_call attrs =
+    Ornament.c_grace_attr (Map.filter (`elem` attrs) grace_intervals)
+
+grace_intervals :: Map.Map Int Score.Attributes
+grace_intervals = Map.fromList $
+    [(n, VslInst.grace <> VslInst.up <> attrs) | (n, attrs) <- ints]
+    ++ [(-n, VslInst.grace <> VslInst.down <> attrs) | (n, attrs) <- ints]
+    where ints = zip [1..] VslInst.intervals_to_oct
 
 -- * keyswitches
 

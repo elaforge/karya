@@ -27,7 +27,7 @@ UNSORTED
         for grace notes, fast should be default
         - strip norm
       . bass clarinet has nv without vib
-    - should be able to figure out e.g. +grace+min+third+up frome the 'g' call
+    * should be able to figure out e.g. +grace+min+third+up frome the 'g' call
     - also should be able to select the most appropriate sec# dyn given
       +cresc or +dim on a note.
 
