@@ -294,7 +294,7 @@ c_set log_mvar = Derive.pattern_lookup "numbers and hex" doc $
         Right num -> return $ Just $ set num
     where
     set :: Signal.Y -> Derive.ControlCall
-    set num = Derive.generator1 "self-eval" "This does blah blah." $
+    set num = Derive.generator1 "self-eval" mempty "This does blah blah." $
         Sig.call0 $ \args -> do
             pos <- Args.real_start args
             st <- Derive.gets Derive.state_dynamic

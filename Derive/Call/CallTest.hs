@@ -1,8 +1,10 @@
 module Derive.Call.CallTest where
 import qualified Data.Map as Map
 
+import Util.Control
 import qualified Util.Log as Log
 import qualified Util.Seq as Seq
+
 import qualified Ui.State as State
 import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
@@ -79,7 +81,7 @@ single_val_lookup name call =
 -- * calls
 
 c_show_args :: (Derive.Derived d) => Derive.Call d
-c_show_args = Derive.generator "show-args" "doc" $
+c_show_args = Derive.generator "show-args" mempty "doc" $
     Sig.parsed_manually "doc" $ \args -> do
         Log.warn $ Seq.join ", " $
             map ShowVal.show_val (Derive.passed_vals args)
@@ -87,7 +89,7 @@ c_show_args = Derive.generator "show-args" "doc" $
 
 generator :: (Derive.Derived d) =>
     (Derive.PassedArgs d -> Derive.LogsDeriver d) -> Derive.Call d
-generator = Derive.stream_generator "test" "test doc" . Sig.call0
+generator = Derive.stream_generator "test" mempty "test doc" . Sig.call0
 
 -- * PassedArgs
 

@@ -4,13 +4,14 @@ module Derive.Call.Gender where
 import Util.Control
 import qualified Derive.Args as Args
 import qualified Derive.Call.Note as Note
+import qualified Derive.Call.Tags as Tags
 import qualified Derive.Call.Util as Util
-import qualified Derive.Sig as Sig
-import Derive.Sig (control, defaulted, typed_control)
 import qualified Derive.Derive as Derive
 import qualified Derive.Pitches as Pitches
 import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
+import qualified Derive.Sig as Sig
+import Derive.Sig (control, defaulted, typed_control)
 
 import qualified Perform.Pitch as Pitch
 import Types
@@ -25,7 +26,7 @@ note_calls = Derive.make_calls
     ]
 
 c_tick :: Maybe Pitch.Transpose -> Derive.NoteCall
-c_tick transpose = Derive.stream_generator "tick"
+c_tick transpose = Derive.stream_generator "tick" (Tags.idiom <> Tags.prev)
     ("Insert an intermediate grace note in the \"ngoret\" rambat style.\
     \ The grace note moves up for `'^`, down for `'v`, or is based\
     \ on the previous note's pitch for `'`."
@@ -76,7 +77,7 @@ infer_transpose args start = do
         (return (Pitch.Diatonic (-1))) (return (Pitch.Diatonic 1))
 
 c_realize_damp :: Derive.NoteCall
-c_realize_damp = Derive.transformer "realize-damp"
+c_realize_damp = Derive.transformer "realize-damp" (Tags.idiom <> Tags.postproc)
     ("Extend the duration of events preceding one with a "
     <> ShowVal.show_val damped_tag <> " to the end of the event with the attr.\
     \ This is because the tick call can't modify its previous note.\

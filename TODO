@@ -32,7 +32,7 @@ UNSORTED
 
     - Figure out how to map continuous controls, and crossfade.
     * Assemble into patches, maybe get rid of the old matrix maps.
-  - tags on calls, so I can sort and filter them on the doc page
+  * tags on calls, so I can sort and filter them on the doc page
   - grace call shold take relative transpose args
   * optional doesn't respect VNotGiven
   * The player takes a second or so to quit after the play monitor stops.

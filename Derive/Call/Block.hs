@@ -18,13 +18,14 @@ import qualified Derive.Cache as Cache
 import qualified Derive.Call as Call
 import qualified Derive.Call.BlockUtil as BlockUtil
 import qualified Derive.Call.Note as Note
-import qualified Derive.Sig as Sig
-import Derive.Sig (required)
+import qualified Derive.Call.Tags as Tags
 import qualified Derive.Derive as Derive
 import qualified Derive.Deriver.Internal as Internal
 import qualified Derive.LEvent as LEvent
 import qualified Derive.ParseBs as ParseBs
 import qualified Derive.Score as Score
+import qualified Derive.Sig as Sig
+import Derive.Sig (required)
 import qualified Derive.TrackLang as TrackLang
 
 import Types
@@ -71,7 +72,7 @@ lookup_note_block = Derive.pattern_lookup "block id"
 
 c_block :: BlockId -> Derive.NoteCall
 c_block block_id = Derive.stream_generator ("block " ++ show block_id)
-        "Substitute the named block into the score." $
+        Tags.internal "Substitute the named block into the score." $
     Sig.call0 $ Note.inverting $ \args ->
         -- I have to put the block on the stack before calling 'd_block'
         -- because 'Cache.cache_block' relies on on the block id already being
@@ -119,7 +120,7 @@ make_block_id namespace (TrackLang.Symbol call) =
 -- ** clip
 
 c_clip :: Derive.NoteCall
-c_clip = Derive.stream_generator "clip"
+c_clip = Derive.stream_generator "clip" Tags.internal
     ("Like the normal block call, this will substitute the named block into\
     \ the score. But instead of stretching the block to fit the event\
     \ length, the block will be substituted with no stretching. Any\
@@ -161,7 +162,7 @@ lookup_control_block = Derive.pattern_lookup "block id"
     fake_call = c_control_block (Types.BlockId (Id.read_id "fake/block"))
 
 c_control_block :: BlockId -> Derive.ControlCall
-c_control_block block_id = Derive.stream_generator "control-block"
+c_control_block block_id = Derive.stream_generator "control-block" Tags.internal
     ("Substitute the control signal from the named control block.\
     \ A control block should consist of a single branch ending in\
     \ a track named `%`.  The signal from that track will be\
@@ -185,6 +186,7 @@ d_control_block block_id = Internal.with_stack_block block_id $ do
 
 c_capture_null_control :: Derive.NoteCall
 c_capture_null_control = Derive.generator1 BlockUtil.capture_null_control
+    Tags.internal
     ("This is an internal call used to capture the control signal at the\
     \ bottom of a control block."
     ) $ Sig.call0 $ \_ -> do

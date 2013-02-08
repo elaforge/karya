@@ -80,10 +80,11 @@ test_extract_orphans = do
         [0, 1, 2]
     where
     show_subs :: Derive.NoteCall
-    show_subs = Derive.stream_generator "show" "doc" $ Sig.call0 $ \_ -> do
-        -- let subs = Derive.info_sub_tracks (Derive.passed_info args)
-        -- Log.warn $ show (Slice_test.extract_tree subs)
-        return []
+    show_subs = Derive.stream_generator "show" mempty "doc" $
+        Sig.call0 $ \_ -> do
+            -- let subs = Derive.info_sub_tracks (Derive.passed_info args)
+            -- Log.warn $ show (Slice_test.extract_tree subs)
+            return []
 
 test_two_level_orphans = do
     -- Orphan extraction should be recursive, in case there are multiple

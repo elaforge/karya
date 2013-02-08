@@ -5,14 +5,15 @@ import qualified Ui.Event as Event
 import qualified Cmd.TimeStep as TimeStep
 import qualified Derive.Args as Args
 import qualified Derive.Call as Call
-import qualified Derive.Sig as Sig
-import Derive.Sig (defaulted, required)
+import qualified Derive.Call.Tags as Tags
 import qualified Derive.Derive as Derive
 import qualified Derive.Deriver.Internal as Internal
 import qualified Derive.LEvent as LEvent
 import qualified Derive.PitchSignal as PitchSignal
 import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
+import qualified Derive.Sig as Sig
+import Derive.Sig (defaulted, required)
 import qualified Derive.TrackInfo as TrackInfo
 import qualified Derive.TrackLang as TrackLang
 
@@ -28,7 +29,7 @@ val_calls = Derive.make_calls
     ]
 
 c_next_val :: Derive.ValCall
-c_next_val = Derive.val_call "next-val"
+c_next_val = Derive.val_call "next-val" Tags.next
     "Evaluate the value of the next event. Only works on pitch and control\
     \ tracks." $ Sig.call0 $ \args -> do
         event <- Derive.require "no next event" $
@@ -69,7 +70,7 @@ c_next_val = Derive.val_call "next-val"
 -- sliced tracks, if I'm not evaluating them except when needed that should be
 -- ok.
 c_prev_val :: Derive.ValCall
-c_prev_val = Derive.val_call "prev-val"
+c_prev_val = Derive.val_call "prev-val" Tags.prev
     ("Return the previous value. Only works on pitch and control tracks.\
     \ Unfortunately, this doesn't work when the next value is on a different\
     \ note, because of slicing."
@@ -103,7 +104,7 @@ eval_pitch event =
     return $ PitchSignal.at start $ mconcat $ LEvent.events_of strm
 
 c_timestep :: Derive.ValCall
-c_timestep = Derive.val_call "timestep"
+c_timestep = Derive.val_call "timestep" mempty
     ("Compute the duration of the given RelativeMark timestep at the current\
     \ position. This is for durations, so it only works with RelativeMark, and\
     \ in fact prepends `r:`, so e.g. a quarter note is just `q`."

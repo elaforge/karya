@@ -30,6 +30,7 @@ import qualified Ui.TrackTree as TrackTree
 import qualified Derive.Args as Args
 import qualified Derive.Attrs as Attrs
 import qualified Derive.Call.BlockUtil as BlockUtil
+import qualified Derive.Call.Tags as Tags
 import qualified Derive.Call.Util as Util
 import qualified Derive.Derive as Derive
 import qualified Derive.Deriver.Internal as Internal
@@ -73,10 +74,10 @@ transformed_note prepend_doc transform =
 note_call :: String -> GenerateNote -> Derive.NoteCall
 note_call prepend_doc generate = Derive.Call
     { Derive.call_name = "note"
-    , Derive.call_generator = Just $ Derive.generator_call prepended
+    , Derive.call_generator = Just $ Derive.generator_call mempty prepended
         (Sig.call parser (note_generate generate))
-    , Derive.call_transformer = Just $ Derive.transformer_call transformer_doc
-        (Sig.callt parser note_transform)
+    , Derive.call_transformer = Just $ Derive.transformer_call Tags.subs
+        transformer_doc (Sig.callt parser note_transform)
     }
     where
     parser = Sig.many "attribute" "Change the instrument or attributes."
@@ -101,12 +102,12 @@ note_call prepend_doc generate = Derive.Call
 -- the first argument.
 c_note_track :: Derive.NoteCall
 c_note_track =
-    Derive.transformer "note-track" ("This is used internally as the implicit"
+    Derive.transformer "note-track" Tags.internal
+        ("This is used internally as the implicit"
         <> " call for note track titles. Similar to the note transformer, it"
         <> " takes `>inst` and `+attr` args and sets them in the environment.")
     (Sig.callt parser note_transform)
-    where
-    parser = Sig.many "attribute" "Change the instrument or attributes."
+    where parser = Sig.many "attribute" "Change the instrument or attributes."
 
 note_transform :: [Either Score.Instrument TrackLang.RelativeAttrs]
     -> Derive.PassedArgs d -> Derive.EventDeriver -> Derive.EventDeriver
@@ -235,11 +236,12 @@ transform_note vals deriver = with_inst (with_attrs deriver)
 c_equal :: Derive.NoteCall
 c_equal = Derive.Call
     { Derive.call_name = "equal"
-    , Derive.call_generator = Just $ Derive.generator_call
+    , Derive.call_generator = Just $ Derive.generator_call Tags.internal
         ("Similar to the transformer, this will evaluate the notes below in"
             <> " a transformed environ.")
         (Sig.parsed_manually Util.equal_arg_doc generate)
-    , Derive.call_transformer = Just $ Derive.transformer_call Util.equal_doc
+    , Derive.call_transformer = Just $ Derive.transformer_call
+        (Tags.internal <> Tags.subs) Util.equal_doc
         (Sig.parsed_manually Util.equal_arg_doc Util.equal_transformer)
     }
     where

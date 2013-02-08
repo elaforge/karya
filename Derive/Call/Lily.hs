@@ -8,6 +8,7 @@ import qualified Util.Seq as Seq
 import qualified Derive.Args as Args
 import qualified Derive.Call.BlockUtil as BlockUtil
 import qualified Derive.Call.Note as Note
+import qualified Derive.Call.Tags as Tags
 import qualified Derive.Call.Util as Util
 import qualified Derive.Derive as Derive
 import qualified Derive.LEvent as LEvent
@@ -221,7 +222,7 @@ note_calls = Derive.make_calls
 -- calls (presumably derive_tree :: ScoreTime -> TrackTree.EventsTree ->
 -- Derive.EventDeriver) too, so it's a bit of work.
 c_is_ly :: Derive.NoteCall
-c_is_ly = Derive.transformer "is-ly"
+c_is_ly = Derive.transformer "is-ly" Tags.ly_only
     "Evaluate the deriver only when in lilypond mode, otherwise ignore the\
     \ track and evaluate its subtracks. Apply this to a track \
     \ to omit lilypond-only articulations, or to apply different articulations\
@@ -230,7 +231,7 @@ c_is_ly = Derive.transformer "is-ly"
         when_lilypond (const deriver) (derive_subtracks args)
 
 c_not_ly :: Derive.NoteCall
-c_not_ly = Derive.transformer "not-ly"
+c_not_ly = Derive.transformer "not-ly" Tags.ly
     "The inverse of `is-ly`, evaluate the track or event only when not in\
     \ lilypond mode. Only use it in the track title!"
     $ Sig.call0t $ \args deriver ->
@@ -241,7 +242,7 @@ derive_subtracks =
     BlockUtil.derive_tracks . Derive.info_sub_tracks . Derive.passed_info
 
 c_8va :: Derive.NoteCall
-c_8va = Derive.stream_generator "ottava"
+c_8va = Derive.stream_generator "ottava" Tags.ly_only
     "Emit `lilypond \\ottava = #n` around the notes in scope."
     $ Sig.call (defaulted "octave" 1 "Transpose this many octaves up or down.")
     $ \oct args -> code_around (Prefix (ottava oct)) (Prefix (ottava 0)) args
@@ -250,7 +251,7 @@ ottava :: Int -> String
 ottava n = "\\ottava #" ++ show n
 
 c_xstaff :: Derive.NoteCall
-c_xstaff = Derive.stream_generator "xstaff"
+c_xstaff = Derive.stream_generator "xstaff" Tags.ly_only
     "Emit lilypond to put the notes on a different staff."
     $ Sig.call (required "staff" "Should be `up` or `down`.") $
     \staff args -> do
@@ -262,8 +263,9 @@ c_xstaff = Derive.stream_generator "xstaff"
     where change staff = "\\change Staff = " <> Lilypond.to_lily staff
 
 ly_call :: String -> String -> Sig.Parser a -> (a -> Code) -> Derive.NoteCall
-ly_call name doc arg code = Derive.stream_generator name doc $ Sig.call arg $
-    \val args -> code0 (Args.start args) (code val) <> place_notes args
+ly_call name doc arg code = Derive.stream_generator name Tags.ly_only doc $
+    Sig.call arg $ \val args ->
+        code0 (Args.start args) (code val) <> place_notes args
 
 c_dyn :: Derive.NoteCall
 c_dyn = ly_call "dyn"

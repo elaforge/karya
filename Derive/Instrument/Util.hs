@@ -4,18 +4,19 @@ import Util.Control
 import qualified Util.Pretty as Pretty
 import qualified Derive.Call as Call
 import qualified Derive.Call.Note as Note
+import qualified Derive.Call.Tags as Tags
 import qualified Derive.Call.Util as Util
-import qualified Derive.Sig as Sig
 import qualified Derive.Derive as Derive
 import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
+import qualified Derive.Sig as Sig
 import qualified Derive.TrackLang as TrackLang
 
 
 -- | Make a call that simply calls the default note call with the given attrs.
 attrs_note :: Score.Attributes -> Derive.NoteCall
 attrs_note attrs =
-    Derive.stream_generator ("attrs_note " ++ Pretty.pretty attrs)
+    Derive.stream_generator ("attrs_note " ++ Pretty.pretty attrs) Tags.attr
         "Invoke the default note call with the given attrs." $
     Sig.call0 $ \args ->
     Util.add_attrs attrs $ Call.reapply_call args (TrackLang.call "" [])
@@ -25,7 +26,7 @@ attrs_note attrs =
 -- a transformed note call via 'Note.transformed_note' or 'Note.note_call'.
 note_call :: String -> (Derive.EventDeriver -> Derive.EventDeriver)
     -> Derive.NoteCall
-note_call name transform = Derive.stream_generator name
+note_call name transform = Derive.stream_generator name mempty
     "Invoke the default note call with a certain transform." $
     Sig.call0 $ \args -> Note.when_under_inversion args transform $
         Call.reapply_call args (TrackLang.call "" [])
@@ -55,6 +56,6 @@ postproc_generator name doc call f = Derive.Call
     , Derive.call_transformer = Derive.call_transformer call
     }
     where
-    postproc (Derive.GeneratorCall func (Derive.CallDoc gdoc args_doc)) =
+    postproc (Derive.GeneratorCall func (Derive.CallDoc tags gdoc args_doc)) =
         Derive.GeneratorCall (f . func)
-        (Derive.CallDoc (doc ++ "\n" ++ gdoc) args_doc)
+        (Derive.CallDoc tags (doc ++ "\n" ++ gdoc) args_doc)

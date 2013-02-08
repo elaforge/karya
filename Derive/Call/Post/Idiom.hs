@@ -5,6 +5,7 @@ import qualified Data.List as List
 import Util.Control
 import qualified Util.Seq as Seq
 import qualified Derive.Attrs as Attrs
+import qualified Derive.Call.Tags as Tags
 import qualified Derive.Call.Util as Util
 import qualified Derive.Derive as Derive
 import qualified Derive.LEvent as LEvent
@@ -23,7 +24,7 @@ note_calls = Derive.make_calls
     ]
 
 c_arp_pizz :: Derive.NoteCall
-c_arp_pizz = Derive.transformer "arp-pizz"
+c_arp_pizz = Derive.transformer "arp-pizz" (Tags.postproc <> Tags.idiom)
     "Arpeggiate simultaneous notes with `+pizz`. The order is arbitrary but\
     \ probably in track order.  TODO sort by pitch?" $
     Sig.callt (defaulted "time" (control "arp-pizz-time" 0.02)

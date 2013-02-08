@@ -11,6 +11,7 @@ import qualified Util.Seq as Seq
 import qualified Derive.Attrs as Attrs
 import qualified Derive.Call.Lily as Lily
 import qualified Derive.Call.Note as Note
+import qualified Derive.Call.Tags as Tags
 import qualified Derive.Call.Util as Util
 import qualified Derive.Derive as Derive
 import qualified Derive.ParseBs as ParseBs
@@ -61,9 +62,10 @@ transform_notes :: String -> String -> String
 transform_notes name generator_doc transform_doc transform = Derive.Call
     { Derive.call_name = name
     , Derive.call_generator = Just $
-        Derive.generator_call generator_doc generator
+        Derive.generator_call Tags.attr generator_doc generator
     , Derive.call_transformer = Just $
-        Derive.transformer_call transform_doc transformer
+        Derive.transformer_call (Tags.attr <> Tags.subs) transform_doc
+            transformer
     }
     where
     generator = Sig.call0 $ \args -> case Note.sub_events args of
@@ -72,7 +74,7 @@ transform_notes name generator_doc transform_doc transform = Derive.Call
     transformer = Sig.call0t $ \_args deriver -> transform deriver
 
 c_legato :: Derive.NoteCall
-c_legato = Derive.stream_generator "legato"
+c_legato = Derive.stream_generator "legato" (Tags.attr <> Tags.subs)
     ("Play the transformed notes legato.  This sets `+legato` on all notes\
     \ except the last one. The default note deriver will respond to `+legato`\
     \ and " <> ShowVal.doc_val Score.c_legato_overlap <> "."
@@ -97,7 +99,7 @@ extend_duration overlap _prev cur (next:_) = Score.set_duration dur cur
     where dur = Score.event_start next - Score.event_start cur + overlap
 
 c_portamento :: Derive.NoteCall
-c_portamento = Derive.stream_generator "portamento"
+c_portamento = Derive.stream_generator "portamento" Tags.attr
     "Add `+porta` to all notes except the last one." $
     Sig.call0 $ \args ->
     Lily.notes_around (Lily.Suffix "(") (Lily.Suffix ")") args $

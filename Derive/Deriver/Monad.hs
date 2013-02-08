@@ -133,6 +133,7 @@ import qualified Ui.Symbol as Symbol
 import qualified Ui.Track as Track
 import qualified Ui.TrackTree as TrackTree
 
+import qualified Derive.Call.Tags as Tags
 import qualified Derive.LEvent as LEvent
 import qualified Derive.PitchSignal as PitchSignal
 import qualified Derive.Score as Score
@@ -534,8 +535,7 @@ modify_doc modify doc = case doc of
     DocumentedCall name generator transformer ->
         DocumentedCall name (annotate <$> generator) (annotate <$> transformer)
     DocumentedValCall name cdoc -> DocumentedValCall name (annotate cdoc)
-    where
-    annotate (CallDoc cdoc args) = CallDoc (modify cdoc) args
+    where annotate (CallDoc tags cdoc args) = CallDoc tags (modify cdoc) args
 
 -- | In the common case, a lookup is simply a static map.
 map_lookup :: Map.Map TrackLang.CallId (Call d) -> LookupCall (Call d)
@@ -892,7 +892,8 @@ instance Show (Call derived) where
 -- that a single newline will be replaced with two, so a single \n is enough
 -- to start a new paragraph.
 data CallDoc = CallDoc {
-    cdoc_doc :: String
+    cdoc_tags :: Tags.Tags
+    , cdoc_doc :: String
     , cdoc_args :: ArgDocs
     } deriving (Eq, Ord, Show)
 
@@ -932,33 +933,34 @@ type GeneratorFunc d = PassedArgs d -> LogsDeriver d
 -- | Create a generator that expects a list of derived values (e.g. Score.Event
 -- or Signal.Control), with no logs mixed in.  The result is wrapped in
 -- LEvent.Event.
-generator :: (Derived d) =>
-    String -> String -> WithArgDoc (PassedArgs d -> Deriver (LEvent.Stream d))
-    -> Call d
-generator name doc (func, arg_docs) =
-    stream_generator name doc ((map LEvent.Event <$>) . func, arg_docs)
+generator :: (Derived d) => String -> Tags.Tags -> String
+    -> WithArgDoc (PassedArgs d -> Deriver (LEvent.Stream d)) -> Call d
+generator name tags doc (func, arg_docs) =
+    stream_generator name tags doc ((map LEvent.Event <$>) . func, arg_docs)
 
 -- | Since Signals themselves are collections, there's little reason for a
 -- signal generator to return a Stream of events.  So wrap the generator result
 -- in a Stream singleton.
-generator1 :: (Derived d) =>
-    String -> String -> WithArgDoc (PassedArgs d -> Deriver d) -> Call d
-generator1 name doc (func, arg_docs) =
-    generator name doc ((LEvent.one <$>) . func, arg_docs)
+generator1 :: (Derived d) => String -> Tags.Tags -> String
+    -> WithArgDoc (PassedArgs d -> Deriver d) -> Call d
+generator1 name tags doc (func, arg_docs) =
+    generator name tags doc ((LEvent.one <$>) . func, arg_docs)
 
 -- | Like 'generator', but the deriver returns 'LEvent.LEvents' which already
 -- have logs mixed in.  Useful if the generator calls a sub-deriver which will
 -- already have merged the logs into the output.
-stream_generator :: (Derived d) =>
-    String -> String -> WithArgDoc (PassedArgs d -> LogsDeriver d) -> Call d
-stream_generator name doc with_docs = Call
+stream_generator :: (Derived d) => String -> Tags.Tags -> String
+    -> WithArgDoc (PassedArgs d -> LogsDeriver d) -> Call d
+stream_generator name tags doc with_docs = Call
     { call_name = name
-    , call_generator = Just $ generator_call doc with_docs
+    , call_generator = Just $ generator_call tags doc with_docs
     , call_transformer = Nothing
     }
 
-generator_call :: String -> (GeneratorFunc d, ArgDocs) -> GeneratorCall d
-generator_call doc (func, arg_docs) = GeneratorCall func (CallDoc doc arg_docs)
+generator_call :: Tags.Tags -> String -> WithArgDoc (GeneratorFunc d)
+    -> GeneratorCall d
+generator_call tags doc (func, arg_docs) =
+    GeneratorCall func (CallDoc tags doc arg_docs)
 
 -- ** transformer
 
@@ -969,18 +971,18 @@ data TransformerCall d = TransformerCall
     }
 type TransformerFunc d = PassedArgs d -> LogsDeriver d -> LogsDeriver d
 
-transformer :: (Derived d) =>
-    String -> String
+transformer :: (Derived d) => String -> Tags.Tags -> String
     -> WithArgDoc (PassedArgs d -> LogsDeriver d -> LogsDeriver d) -> Call d
-transformer name doc with_docs = Call
+transformer name tags doc with_docs = Call
     { call_name = name
     , call_generator = Nothing
-    , call_transformer = Just $ transformer_call doc with_docs
+    , call_transformer = Just $ transformer_call tags doc with_docs
     }
 
-transformer_call :: String -> (TransformerFunc d, ArgDocs) -> TransformerCall d
-transformer_call doc (func, arg_docs) =
-    TransformerCall func (CallDoc doc arg_docs)
+transformer_call :: Tags.Tags -> String
+    -> WithArgDoc (TransformerFunc d) -> TransformerCall d
+transformer_call tags doc (func, arg_docs) =
+    TransformerCall func (CallDoc tags doc arg_docs)
 
 -- ** val
 
@@ -993,12 +995,12 @@ data ValCall = ValCall {
 instance Show ValCall where
     show (ValCall name _ _) = "((ValCall " ++ show name ++ "))"
 
-val_call :: String -> String
+val_call :: String -> Tags.Tags -> String
     -> WithArgDoc (PassedArgs () -> Deriver TrackLang.Val) -> ValCall
-val_call name doc (call, arg_docs) = ValCall
+val_call name tags doc (call, arg_docs) = ValCall
     { vcall_name = name
     , vcall_call = call
-    , vcall_doc = CallDoc doc arg_docs
+    , vcall_doc = CallDoc tags doc arg_docs
     }
 
 

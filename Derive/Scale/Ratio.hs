@@ -12,14 +12,15 @@ module Derive.Scale.Ratio where
 import Util.Control
 import qualified Util.ParseBs as Parse
 import qualified Derive.Args as Args
-import qualified Derive.Sig as Sig
-import Derive.Sig (defaulted)
+import qualified Derive.Call.Tags as Tags
 import qualified Derive.Derive as Derive
 import qualified Derive.PitchSignal as PitchSignal
 import qualified Derive.Scale as Scale
 import qualified Derive.Scale.Util as Util
 import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
+import qualified Derive.Sig as Sig
+import Derive.Sig (defaulted)
 import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.Pitch as Pitch
@@ -51,7 +52,7 @@ note_to_call note = note_call note <$>
     Parse.maybe_parse_string p_note (Pitch.note_text note)
 
 note_call :: Pitch.Note -> (Double -> Double) -> Derive.ValCall
-note_call note ratio = Derive.val_call "ratio"
+note_call note ratio = Derive.val_call "ratio" Tags.scale
     ( "Generate a frequency that is the"
     <> " ratio of the frequency of the " <> pitch_control <> " signal."
     <> " A negative ration divides, a positive one multiplies."

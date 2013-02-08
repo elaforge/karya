@@ -351,7 +351,10 @@ modify_vcall :: Derive.ValCall -> String -> String
     -> (TrackLang.Val -> TrackLang.Val) -> Derive.ValCall
 modify_vcall vcall name doc f = vcall
     { Derive.vcall_name = name
-    , Derive.vcall_doc = Derive.CallDoc doc
-        (Derive.cdoc_args (Derive.vcall_doc vcall))
+    , Derive.vcall_doc = Derive.CallDoc
+        { Derive.cdoc_tags = Derive.cdoc_tags (Derive.vcall_doc vcall)
+        , Derive.cdoc_doc = doc
+        , Derive.cdoc_args = Derive.cdoc_args (Derive.vcall_doc vcall)
+        }
     , Derive.vcall_call = fmap f . (Derive.vcall_call vcall)
     }

@@ -1,6 +1,7 @@
 module Derive.Call_test where
 import qualified Data.Map as Map
 
+import Util.Control
 import qualified Util.Log as Log
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
@@ -106,7 +107,7 @@ test_call_errors = do
     equal (run_evt "test-t 2 | test-t 1 |")
         (Right [(0, 1, "test-t 2 | test-t 1 |")])
     where
-    trans = Derive.transformer "trans" "doc" $ Sig.callt
+    trans = Derive.transformer "trans" mempty "doc" $ Sig.callt
         (Sig.defaulted "arg1" (Sig.required_control "test") "doc") $
         \c _args deriver -> do
             Util.control_at c 0
@@ -127,7 +128,7 @@ test_val_call = do
     strings_like logs ["too many arguments"]
     where
     add_one :: Derive.ValCall
-    add_one = Derive.val_call "add" "doc" $ Sig.call
+    add_one = Derive.val_call "add" mempty "doc" $ Sig.call
         (Sig.required "v" "doc") $
         \val _ -> return (TrackLang.num (val + 1))
 
@@ -149,7 +150,7 @@ test_recursive_call = do
     equal result ([], ["Error: call stack too deep: recursive"])
     where
     recursive :: Derive.NoteCall
-    recursive = Derive.stream_generator "recursive" "doc" $ Sig.call0 $
+    recursive = Derive.stream_generator "recursive" mempty "doc" $ Sig.call0 $
         \args -> Call.reapply_call args (TrackLang.call "recur" [])
 
 test_repeat = do
@@ -160,7 +161,7 @@ test_repeat = do
     equal (run [(0, 1, "show 1"), (1, 1, "\""), (2, 1, "\" 2")])
         ["[1]", "[1]", "[2]"]
     where
-    c_show = Derive.stream_generator "show" "doc" $
+    c_show = Derive.stream_generator "show" mempty "doc" $
         Sig.parsed_manually "doc" $ \args -> do
             Log.warn $ Pretty.pretty (Derive.passed_vals args)
             return []
@@ -177,7 +178,7 @@ test_events_around = do
     equal logs ["prev: [0.0t]", "next: [2.0t]"]
 
     where
-    c_around = Derive.stream_generator "around" "doc" $ Sig.call0 $
+    c_around = Derive.stream_generator "around" mempty "doc" $ Sig.call0 $
         Note.inverting $ \args -> do
             Log.warn $ "prev: "
                 ++ show (map Event.start (Args.prev_events args))
@@ -197,7 +198,7 @@ test_inverting_around = do
     equal evts [(0, 1, "4c"), (1, 1, "4d"), (2, 1, "4d")]
     equal logs []
     where
-    c_next = Derive.stream_generator "next" "doc" $ Sig.call0 $
+    c_next = Derive.stream_generator "next" mempty "doc" $ Sig.call0 $
         Note.inverting_around (2, 2) $ \args -> do
             next <- Derive.require "next event" $ Args.next_start args
             next_pitch <- Derive.require "next pitch"

@@ -10,6 +10,7 @@ import qualified Util.Seq as Seq
 import qualified Derive.Args as Args
 import qualified Derive.Call.Lily as Lily
 import qualified Derive.Call.Note as Note
+import qualified Derive.Call.Tags as Tags
 import qualified Derive.Call.Util as Util
 import qualified Derive.Derive as Derive
 import qualified Derive.LEvent as LEvent
@@ -33,7 +34,7 @@ note_calls = Derive.make_calls
 -- * tuplet
 
 c_tuplet :: Derive.NoteCall
-c_tuplet = Derive.stream_generator "tuplet"
+c_tuplet = Derive.stream_generator "tuplet" Tags.subs
     ("A generalized tuplet. The notes within its scope are stretched so that\
     \ their collective duration is the same as the tuplet's duration.\
     \\nIf there are multiple note tracks, they will all be stretched\
@@ -102,6 +103,7 @@ data Arpeggio = ToRight | ToLeft | Random deriving (Show)
 
 c_real_arpeggio :: Arpeggio -> Derive.NoteCall
 c_real_arpeggio arp = Derive.stream_generator "arpeggio"
+    (Tags.subs <> Tags.ornament)
     ("Arpeggiate the transformed notes. This shifts each note's start time\
     \ by a different amount, increasing to the right for `arp-up`,\
     \ to the left for `arp-down`, and randomly for `arp-rnd`.\

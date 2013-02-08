@@ -46,11 +46,12 @@
 module Derive.Call.Post.NegativeDur where
 import Util.Control
 import qualified Util.Seq as Seq
+import qualified Derive.Call.Tags as Tags
 import qualified Derive.Call.Util as Util
-import qualified Derive.Sig as Sig
 import qualified Derive.Derive as Derive
 import qualified Derive.LEvent as LEvent
 import qualified Derive.Score as Score
+import qualified Derive.Sig as Sig
 
 import Types
 
@@ -59,7 +60,7 @@ note_calls :: Derive.NoteCallMap
 note_calls = Derive.make_calls [("negative-duration", c_negative_duration)]
 
 c_negative_duration :: Derive.NoteCall
-c_negative_duration = Derive.transformer "negative-duration"
+c_negative_duration = Derive.transformer "negative-duration" Tags.postproc
     ("Postprocess events to replace negative durations with postive ones."
     ) $ Sig.callt
     ( Sig.defaulted "default-duration" 1

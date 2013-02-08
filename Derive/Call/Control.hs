@@ -7,12 +7,13 @@ import qualified Util.Num as Num
 import qualified Util.Seq as Seq
 
 import qualified Derive.Args as Args
+import qualified Derive.Call.Tags as Tags
 import qualified Derive.Call.Util as Util
-import qualified Derive.Sig as Sig
-import Derive.Sig (required, defaulted)
 import qualified Derive.Derive as Derive
 import qualified Derive.ParseBs as ParseBs
 import qualified Derive.Score as Score
+import qualified Derive.Sig as Sig
+import Derive.Sig (required, defaulted)
 import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.RealTime as RealTime
@@ -34,7 +35,7 @@ lookup_number = Derive.pattern_lookup "numbers and hex" doc $
         Right num -> return $ Just $ set num
     where
     set :: Signal.Y -> Derive.ControlCall
-    set num = Derive.generator1 "self-eval"
+    set num = Derive.generator1 "self-eval" Tags.internal
         "Emit a sample with no interpolation. This accepts either decimal\
         \ numbers or hex numbers that look like `\\`0x\\`xx`.  The hex\
         \ is divided by 255, so they represent a number between 0 and 1." $
@@ -79,7 +80,7 @@ require_previous = Set.fromList
     ["'", "i>", "i>>", "i<<", "e>", "e>>", "e<<", "u", "d"]
 
 c_set :: Derive.ControlCall
-c_set = Derive.generator1 "set" "Emit a sample with no interpolation." $
+c_set = Derive.generator1 "set" mempty "Emit a sample with no interpolation." $
     Sig.call (required "val" "Destination value.") $ \val args -> do
         pos <- Args.real_start args
         return $ Signal.signal [(pos, val)]
@@ -88,7 +89,7 @@ c_set = Derive.generator1 "set" "Emit a sample with no interpolation." $
 -- also automatically set by the control track deriver for the hack described
 -- in 'Perform.Signal.integrate'.
 c_set_prev :: Derive.ControlCall
-c_set_prev = Derive.generator "set-prev"
+c_set_prev = Derive.generator "set-prev" Tags.internal
     ("Re-set the previous value.  This can be used to extend a breakpoint,\
     \ and is also automatically set by the control track deriver for\
     \ the hack described in 'Perform.Signal.integrate'."
@@ -108,7 +109,7 @@ linear_interpolation :: (TrackLang.Typecheck time) =>
         -> Derive.Deriver TrackLang.RealOrScore)
     -> Derive.ControlCall
 linear_interpolation name time_default time_default_doc get_time =
-    Derive.generator1 name doc $ Sig.call ((,)
+    Derive.generator1 name Tags.prev doc $ Sig.call ((,)
     <$> required "val" "Destination value."
     <*> defaulted "time" time_default time_doc
     ) $ \(val, time) args ->
@@ -158,7 +159,7 @@ exponential_interpolation :: (TrackLang.Typecheck time) =>
         -> Derive.Deriver TrackLang.RealOrScore)
     -> Derive.ControlCall
 exponential_interpolation name time_default time_default_doc get_time =
-    Derive.generator1 name doc $ Sig.call ((,,)
+    Derive.generator1 name Tags.prev doc $ Sig.call ((,,)
     <$> required "val" "Destination value."
     <*> defaulted "exp" 2 exp_doc
     <*> defaulted "time" time_default time_doc
@@ -198,7 +199,7 @@ c_exp_next_const =
 -- * misc
 
 c_neighbor :: Derive.ControlCall
-c_neighbor = Derive.generator1 "neighbor"
+c_neighbor = Derive.generator1 "neighbor" mempty
     ("Emit a slide from a value to 0 in absolute time. This is the control\
     \ equivalent of the neighbor pitch call."
     ) $ Sig.call ((,)
@@ -210,7 +211,7 @@ c_neighbor = Derive.generator1 "neighbor"
         return $ interpolator srate id True start neighbor end 0
 
 c_down :: Derive.ControlCall
-c_down = Derive.generator1 "down"
+c_down = Derive.generator1 "down" Tags.prev
     ("Descend at the given speed until the value reaches 0 or the next event."
     ) $
     Sig.call (defaulted "speed" 1 "Descend this amount per second.") $
@@ -221,7 +222,7 @@ c_down = Derive.generator1 "down"
         in (end, max 0 (prev_y - diff))
 
 c_up :: Derive.ControlCall
-c_up = Derive.generator1 "up"
+c_up = Derive.generator1 "up" Tags.prev
     ("Ascend at the given speed until the value reaches 1 or the next event."
     ) $
     Sig.call (defaulted "speed" 1 "Ascend this amount per second.") $
@@ -244,7 +245,7 @@ slope args f = case Args.prev_val args of
         return $ interpolator srate id True start prev_y end dest
 
 c_pedal :: Derive.ControlCall
-c_pedal = Derive.generator1 "pedal"
+c_pedal = Derive.generator1 "pedal" mempty
     ("Unlike most control events, this uses a duration. Set the control to\
     \ the given value for the event's duration, and reset to the old\
     \ value afterwards."

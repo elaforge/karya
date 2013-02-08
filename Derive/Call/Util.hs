@@ -25,6 +25,7 @@ import qualified Util.Random as Random
 import qualified Ui.ScoreTime as ScoreTime
 import qualified Derive.Args as Args
 import qualified Derive.Call as Call
+import qualified Derive.Call.Tags as Tags
 import qualified Derive.Derive as Derive
 import qualified Derive.LEvent as LEvent
 import qualified Derive.PitchSignal as PitchSignal
@@ -410,7 +411,7 @@ duration_from start (TrackLang.Real t) = do
 -- * c_equal
 
 c_equal :: (Derive.Derived derived) => Derive.Call derived
-c_equal = Derive.transformer "equal" equal_doc
+c_equal = Derive.transformer "equal" Tags.internal equal_doc
     (Sig.parsed_manually equal_arg_doc equal_transformer)
 
 equal_arg_doc :: String

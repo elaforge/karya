@@ -12,9 +12,10 @@ import Util.Control
 import qualified Util.Seq as Seq
 import qualified Derive.Args as Args
 import qualified Derive.Call.Note as Note
+import qualified Derive.Call.Tags as Tags
+import qualified Derive.Derive as Derive
 import qualified Derive.Sig as Sig
 import Derive.Sig (required)
-import qualified Derive.Derive as Derive
 
 
 note_calls :: Derive.NoteCallMap
@@ -23,8 +24,8 @@ note_calls = Derive.make_calls
     ]
 
 c_sekar :: Derive.NoteCall
-c_sekar = Derive.stream_generator "sekar" "Plain sekaran derivation." $
-    Sig.call
+c_sekar = Derive.stream_generator "sekar" (Tags.idiom <> Tags.subs)
+    "Plain sekaran derivation." $ Sig.call
     ( required "pattern"
         "Apply this pattern to the encompassed notes. The pattern is\
         \ documented by 'Derive.Call.Sekar.make_pattern'."

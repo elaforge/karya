@@ -17,6 +17,7 @@ import qualified Util.Seq as Seq
 import qualified Ui.State as State
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Perf as Perf
+import qualified Derive.Call.Tags as Tags
 import qualified Derive.Derive as Derive
 import qualified Derive.Scale as Scale
 import qualified Derive.ShowVal as ShowVal
@@ -48,13 +49,15 @@ call_bindings_text (binds, sections) = do
         Format.write $ if shadowed then strikeout sym else sym
         Format.write $ " -- " <> name <> ":\n"
     strikeout sym = "~~" <> sym <> "~~ (shadowed)"
-    show_sections [(ValCall, Derive.CallDoc doc args)] = do
+    show_sections [(ValCall, Derive.CallDoc tags doc args)] = do
         write_doc doc
+        write_tags tags
         Format.indented 2 $ arg_docs args
     show_sections sections = mapM_ call_section sections
-    call_section (call_type, Derive.CallDoc doc args) = do
+    call_section (call_type, Derive.CallDoc tags doc args) = do
         Format.write $ show_call_type call_type <> ": "
         write_doc doc
+        write_tags tags
         Format.indented 2 $ arg_docs args
     arg_docs (Derive.ArgsParsedSpecially doc) = do
         Format.write "Args parsed by call: "
@@ -66,6 +69,10 @@ call_bindings_text (binds, sections) = do
             <> " -- "
         write_doc doc
         where (char, deflt) = show_parser parser
+    write_tags tags
+        | tags == mempty = return ()
+        | otherwise = Format.write $
+            "Tags: " <> Text.pack (Seq.join ", " (Tags.untag tags)) <> "\n"
 
 write_doc :: String -> Format.FormatM ()
 write_doc text = do
@@ -127,13 +134,15 @@ call_bindings_html (binds, sections) =
         <> " &mdash; " <> tag "b" (html name) <> ":\n"
     strikeout sym = tag "strike" (tag "code" (html sym))
         <> tag "em" "(shadowed)"
-    show_sections [(ValCall, Derive.CallDoc doc args)] =
-        "<dd>" <> html_doc doc <> "\n<dd>" <> tag "ul" (arg_docs args)
+    show_sections [(ValCall, Derive.CallDoc tags doc args)] =
+        "<dd>" <> html_doc doc <> write_tags tags <> "\n<dd>"
+        <> tag "ul" (arg_docs args)
     show_sections sections = "<dd> <dl class=compact>\n"
         <> mconcatMap call_section sections <> "</dl>\n"
-    call_section (call_type, Derive.CallDoc doc args) =
+    call_section (call_type, Derive.CallDoc tags doc args) =
         "<dt>" <> tag "em" (html (show_call_type call_type)) <> ": "
-        <> "<dd>" <> html_doc doc <> "\n<dd>" <> tag "ul" (arg_docs args)
+        <> "<dd>" <> html_doc doc <> write_tags tags <> "\n<dd>"
+        <> tag "ul" (arg_docs args)
     arg_docs (Derive.ArgsParsedSpecially doc) =
         "\n<li><b>Args parsed by call:</b> " <> html_doc doc
     arg_docs (Derive.ArgDocs args) = mconcatMap arg_doc args
@@ -144,6 +153,11 @@ call_bindings_html (binds, sections) =
         where (char, deflt) = show_parser parser
     show_default = maybe "" ((" = " <>) . tag "code" . html)
     show_char = maybe "" (tag "sup" . html)
+    write_tags tags
+        | tags == mempty = ""
+        | otherwise = "<br><b>Tags:</b> <em>"
+            <> html (Text.pack (Seq.join ", " (Tags.untag tags)))
+            <> "</em>"
 
 tag :: Html -> Html -> Html
 tag name content = "<" <> name <> ">" <> content <> "</" <> name <> ">"

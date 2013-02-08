@@ -1,4 +1,6 @@
 module Derive.Call.Ornament where
+import qualified Data.Map as Map
+
 import Util.Control
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
@@ -6,10 +8,12 @@ import qualified Util.Seq as Seq
 import qualified Derive.Args as Args
 import qualified Derive.Call.Lily as Lily
 import qualified Derive.Call.Note as Note
+import qualified Derive.Call.Tags as Tags
 import qualified Derive.Call.Util as Util
 import qualified Derive.Derive as Derive
 import qualified Derive.PitchSignal as PitchSignal
 import qualified Derive.Pitches as Pitches
+import qualified Derive.Score as Score
 import qualified Derive.Sig as Sig
 import Derive.Sig (optional, defaulted, many)
 import qualified Derive.TrackLang as TrackLang
@@ -30,7 +34,7 @@ note_calls = Derive.make_calls
     ]
 
 c_mordent :: Pitch.Transpose -> Derive.NoteCall
-c_mordent default_neighbor = Derive.stream_generator "mordent"
+c_mordent default_neighbor = Derive.stream_generator "mordent" Tags.ornament
     ("Generate some grace notes for a mordent, similar to a brief trill.\
     \ The grace notes fall before the onset of the main note, and\
     \ are in absolute RealTime, unaffected by tempo changes.\n" <> grace_doc) $
@@ -55,7 +59,7 @@ mordent (start, dur) dyn_scale neighbor = do
         <> Derive.d_place start dur Util.note
 
 c_grace :: Derive.NoteCall
-c_grace = Derive.stream_generator "grace"
+c_grace = Derive.stream_generator "grace" (Tags.ornament <> Tags.ly)
     ("Emit grace notes.\n" <> grace_doc) $ Sig.call ((,)
     <$> optional "dyn" "Scale the dyn of the grace notes."
     <*> many "pitch" "Grace note pitches."

@@ -45,6 +45,7 @@ import qualified Derive.Attrs as Attrs
 import qualified Derive.Call.Attribute as Attribute
 import qualified Derive.Call.Lily as Lily
 import qualified Derive.Call.Note as Note
+import qualified Derive.Call.Tags as Tags
 import qualified Derive.Call.Util as Util
 import qualified Derive.Derive as Derive
 import qualified Derive.PitchSignal as PitchSignal
@@ -68,7 +69,7 @@ note_calls = Derive.make_calls
     ]
 
 c_note_trill :: Derive.NoteCall
-c_note_trill = Derive.stream_generator "trill"
+c_note_trill = Derive.stream_generator "trill" (Tags.ornament <> Tags.ly)
     ("Generate a note with a trill.\
     \\nUnlike a trill on a pitch track, this generates events for each\
     \ note of the trill. This is more appropriate for fingered trills,\
@@ -92,7 +93,7 @@ c_note_trill = Derive.stream_generator "trill"
             Note.place notes
 
 c_attr_trill :: Derive.NoteCall
-c_attr_trill = Derive.stream_generator "attr-trill"
+c_attr_trill = Derive.stream_generator "attr-trill" (Tags.ornament <> Tags.attr)
     "Generate a trill by adding a `+trill` attribute. Presumably this is a\
     \ sampled instrument that has a trill keyswitch."
     $ Sig.call
@@ -114,8 +115,9 @@ c_tremolo :: Derive.NoteCall
 c_tremolo = Derive.Call
     { Derive.call_name = "tremolo"
     , Derive.call_generator = Just $ Derive.generator_call
-        "Repeat a single note." generator
+        (Tags.ornament <> Tags.ly) "Repeat a single note." generator
     , Derive.call_transformer = Just $ Derive.transformer_call
+        (Tags.ornament <> Tags.subs)
         "Repeat the transformed note. The generator is creating the notes so it\
         \ can set them to the appropriate duration, but this one has to stretch\
         \ them to fit." transformer
@@ -220,7 +222,7 @@ pitch_calls = Derive.make_calls
 -- unaffected by the tempo.  If it's a ScoreTime, the value is the number
 -- of cycles per ScoreTime unit, and will stretch along with tempo changes.
 c_pitch_trill :: Maybe Mode -> Derive.PitchCall
-c_pitch_trill maybe_mode = Derive.generator1 "pitch-trill"
+c_pitch_trill maybe_mode = Derive.generator1 "pitch-trill" Tags.ornament
     ("Generate a pitch signal of alternating pitches. `tr1` will start with\
     \ the unison, while `tr2` will start with the neighbor. `tr` will\
     \ use the `trill-mode` env var, which should be either `'unison'`\
@@ -255,7 +257,7 @@ control_calls = Derive.make_calls
 --
 -- Args are the same as 'c_pitch_trill'.
 c_control_trill :: Maybe Mode -> Derive.ControlCall
-c_control_trill maybe_mode = Derive.generator1 "control_trill"
+c_control_trill maybe_mode = Derive.generator1 "control-trill" Tags.ornament
     ("The control version of the pitch trill.  It generates a signal of values\
     \ alternating with 0, which can be used as a transposition signal."
     ) $ Sig.call ((,)

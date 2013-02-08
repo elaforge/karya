@@ -6,11 +6,12 @@ import Data.FixedList (Cons(..), Nil(..))
 
 import Util.Control
 import qualified Derive.Args as Args
+import qualified Derive.Call.Tags as Tags
 import qualified Derive.Call.Util as Util
-import qualified Derive.Sig as Sig
-import Derive.Sig (defaulted, typed_control, control)
 import qualified Derive.Derive as Derive
 import qualified Derive.Score as Score
+import qualified Derive.Sig as Sig
+import Derive.Sig (defaulted, typed_control, control)
 
 import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
@@ -27,7 +28,7 @@ note_calls = Derive.make_calls
 -- * note calls
 
 c_delay :: Derive.NoteCall
-c_delay = Derive.transformer "delay"
+c_delay = Derive.transformer "delay" mempty
     ("Simple abstract delay. As with `echo`, abstract means it happens in the\
     \ score, so events may not be delayed evenly if the tempo is changing."
     ) $ Sig.callt
@@ -40,7 +41,7 @@ c_delay = Derive.transformer "delay"
 
 -- TODO typed delay time
 c_echo :: Derive.NoteCall
-c_echo = Derive.transformer "echo"
+c_echo = Derive.transformer "echo" mempty
     ("Abstract echo. This means the echoes happen in score time, so they will\
     \ change tempo with the rest of the score, and their derivation may\
     \ change due to different dynamics.\
@@ -74,7 +75,7 @@ scale_dyn = Derive.multiply_control Score.c_dynamic
 -- Args are the same as 'c_echo', except that their signals are sampled at
 -- every event, so parameters can vary over the course of the effect.
 c_event_echo :: Derive.NoteCall
-c_event_echo = Derive.transformer "event echo"
+c_event_echo = Derive.transformer "event echo" Tags.postproc
     ("Concrete echo.  All events are delayed by the same amount.  Also, the\
     \ parameter signals are sampled at every event, so they can vary\
     \ over the course of the echo."
