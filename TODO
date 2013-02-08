@@ -23,6 +23,8 @@ UNSORTED
     attribute groups:
       I should be able to pick a default and remove that one:
         legato/marcato/staccato, na/ha/fa/sa, vib/nv/progr
+        for grace notes, fast should be default
+        - strip norm
       . bass clarinet has nv without vib
     - should be able to figure out e.g. +grace+min+third+up frome the 'g' call
     - also should be able to select the most appropriate sec# dyn given
@@ -30,7 +32,9 @@ UNSORTED
 
     - Figure out how to map continuous controls, and crossfade.
     * Assemble into patches, maybe get rid of the old matrix maps.
-
+  - tags on calls, so I can sort and filter them on the doc page
+  - grace call shold take relative transpose args
+  * optional doesn't respect VNotGiven
   * The player takes a second or so to quit after the play monitor stops.
   - If I wrapped track titles I could see the entire thing, but at the cost of
     using more vertical space.

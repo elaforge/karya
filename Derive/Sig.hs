@@ -80,7 +80,7 @@
     "Derive.Call" but Call is already big so let's leave it separate for now.
 -}
 module Derive.Sig (
-    Parser
+    Parser, Generator, Transformer
     -- * parsers
     , parsed_manually
     , required, defaulted, optional, many, many1
@@ -197,6 +197,7 @@ optional :: forall a. (TrackLang.Typecheck a) => String -> String
     -> Parser (Maybe a)
 optional name doc = parser arg_doc $ \state -> case get_val state name of
     Nothing -> Right (state, Nothing)
+    Just (state2, TrackLang.VNotGiven) -> Right (state2, Nothing)
     Just (state2, val) -> case TrackLang.from_val val of
         Just a -> Right (state2, Just a)
         Nothing -> case lookup_default state name of
