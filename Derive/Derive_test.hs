@@ -102,8 +102,9 @@ test_attributes = do
 
     -- Attribute inheritance thing works.
     equal attrs [["a0", "a1"], ["a1", "a2"], ["km"]]
-    equal (map DeriveTest.show_log logs)
-        ["attrs have no match in keyswitches or keymap of >s/ks: +a1"]
+    -- TODO re-enable when Convert.warn_unused_attributes is configurable
+    -- equal (map DeriveTest.show_log logs)
+    --     ["attrs have no match in keyswitches or keymap of >s/ks: +a1"]
     -- Attrs get the proper keyswitches and keymap keys.
     equal (note_on_keys mmsgs)
         [1, 60, 0, 60, 42]

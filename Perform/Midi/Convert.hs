@@ -18,6 +18,7 @@ import qualified Derive.Derive as Derive
 import qualified Derive.LEvent as LEvent
 import qualified Derive.PitchSignal as PitchSignal
 import qualified Derive.Score as Score
+import qualified Derive.ShowVal as ShowVal
 
 import qualified Perform.ConvertUtil as ConvertUtil
 import Perform.ConvertUtil (require)
@@ -29,6 +30,13 @@ import qualified Perform.Signal as Signal
 
 import qualified Instrument.MidiDb as MidiDb
 
+
+-- | If true, warn if an instrument still has attributes left over after
+-- selecting a keymap or keyswitch.  I'm using attributes rather freely, so
+-- this can happen a lot, but it still seems like a useful check for debugging.
+-- TODO come up with a better way to enable and disable this.
+warn_unused_attributes :: Bool
+warn_unused_attributes = False
 
 type ConvertT a = ConvertUtil.ConvertT State a
 
@@ -82,11 +90,11 @@ convert_inst lookup_inst score_inst attrs = do
         else case Map.lookup kmap_attrs kmap of
             Nothing -> return Nothing
             Just key -> return (Just key)
-    case maybe_key of
-        Nothing | kmap_attrs /= Score.no_attrs ->
+    when warn_unused_attributes $ case maybe_key of
+        Nothing | kmap_attrs /= mempty ->
             Log.warn $ "attrs have no match in keyswitches or keymap of "
-                ++ Pretty.pretty (Instrument.inst_score midi_inst) ++ ": "
-                ++ Pretty.pretty kmap_attrs
+                ++ ShowVal.show_val (Instrument.inst_score midi_inst) ++ ": "
+                ++ ShowVal.show_val kmap_attrs
         -- If there was a keymap and lookup succeeded then all the attributes
         -- are accounted for.
         _ -> return ()
