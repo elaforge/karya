@@ -58,12 +58,15 @@ mordent (start, dur) dyn_scale neighbor = do
         ]
         <> Derive.d_place start dur Util.note
 
+type Pitch = Either PitchSignal.Pitch Pitch.Transpose
+
 c_grace :: Derive.NoteCall
 c_grace = Derive.stream_generator "grace" (Tags.ornament <> Tags.ly)
     ("Emit grace notes.\n" <> grace_doc) $ Sig.call ((,)
     <$> optional "dyn" "Scale the dyn of the grace notes."
     <*> many "pitch" "Grace note pitches."
-    ) $ \(dyn, pitches) -> Note.inverting $ \args ->
+    ) $ \(dyn, pitches) -> Note.inverting $ \args -> do
+        (_, pitches) <- resolve_pitches args pitches
         Lily.when_lilypond (const $ lily_grace args pitches) $
             grace (Args.extent args) (fromMaybe 0.5 dyn) pitches
 
@@ -77,14 +80,23 @@ lily_grace args pitches = do
         code = "\\acciaccatura { " <> unwords beamed <> " }"
     Lily.code (Args.start args, 0) code <> Util.place args Util.note
 
-grace :: (ScoreTime, ScoreTime) -> Signal.Y -> [PitchSignal.Pitch] ->
-    Derive.EventDeriver
+grace :: (ScoreTime, ScoreTime) -> Signal.Y -> [PitchSignal.Pitch]
+    -> Derive.EventDeriver
 grace (start, dur) dyn_scale pitches = do
     pos <- Derive.real start
     dyn <- (*dyn_scale) <$> Util.dynamic pos
     (grace_dur, overlap) <- grace_dur_overlap
-    grace_notes pos grace_dur overlap (map (flip Util.pitched_note dyn) pitches)
+    let notes = map (flip Util.pitched_note dyn) pitches
+    grace_notes pos grace_dur overlap notes
         <> Derive.d_place start dur Util.note
+
+resolve_pitches :: Derive.PassedArgs d
+    -> [Either PitchSignal.Pitch Pitch.Transpose]
+    -> Derive.Deriver (PitchSignal.Pitch, [PitchSignal.Pitch])
+resolve_pitches args pitches = do
+    base <- Derive.require "no pitch" =<< Derive.pitch_at
+        =<< Args.real_start args
+    return (base, map (either id (flip Pitches.transpose base)) pitches)
 
 grace_notes :: RealTime -- ^ note start time, grace notes fall before this
     -> RealTime -- ^ duration of each grace note
