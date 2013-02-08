@@ -61,7 +61,6 @@ bisbig = attr "bisbig" -- bisbigliando
 -- * winds
 
 flutter = attr "flutter"
-blared = attr "blared" -- brass
 
 -- * drums
 

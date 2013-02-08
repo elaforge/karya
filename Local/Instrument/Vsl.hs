@@ -119,10 +119,10 @@ matrix keys = add . Seq.chunked 12 . concatMap (Seq.chunked 12)
 keys_from :: Midi.Key -> [Instrument.Keyswitch]
 keys_from low_key = map Instrument.Keyswitch [low_key ..]
 
+-- | Write matrices to a file for visual reference.
 write_matrices :: IO ()
 write_matrices = writeFile "matrices.txt" $ unlines $
     map show_matrix instruments
-
 
 show_matrix :: VslInst.Instrument -> String
 show_matrix (name, _, attrs) =

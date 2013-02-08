@@ -113,12 +113,10 @@ solo_string_perf_repetition = map (rep.)
     , dyn5.portato.slow, dyn5.portato.med, dyn9.portato.fast, dyn9.staccato
     , dyn9.spiccato, dyn9.harsh
     ]
-solo_string_fast_repetition = concat
-    [ map (fast.rep.) $ map bpm [150, 160, 170, 180, 190, 200]
-    , map (fast.rep.dyn.) $ map bpm [150, 160, 170, 180, 190, 200]
-    , map (ricochet.) $ map bpm [150, 160, 170, 180, 190, 210]
-    , [ricochet.notes 3, ricochet.acc, ricochet.rit]
-    ]
+solo_string_fast_repetition =
+    fast_rep_bpm [(mempty, [15..20]), (dyn, [15..20])]
+    ++ map (ricochet.) (map bpm [150, 160, 170, 180, 190, 210])
+    ++ [ricochet.notes 3, ricochet.acc, ricochet.rit]
 solo_string_grace_notes = map (grace.updown.)
     [ half.slow, whole.slow, half.fast, whole.fast
     , zigane.half, zigane.whole, zigane.min.third, zigane.maj.third
@@ -195,22 +193,14 @@ violas = string_section "cgda"
 cellos = string_section "cgda"
 
 string_section strings =
-    [ strings_short_long_notes
-    , strings_dynamics
-    , strings_tremolo_trills
-    , strings_pizz_legno
-    , strings_harmonics
-    , strings_ponticello
-    , strings_con_sordino_basic
-    , strings_perf_interval
-    , strings_perf_interval_fast
-    , strings_perf_trill
-    , strings_perf_repetition
-    , strings_perf_upbeat_repetition
-    , strings_fast_repetition
-    , strings_grace_notes
-    , strings_glissandi strings
-    , strings_scale_runs
+    [ strings_short_long_notes, strings_dynamics
+    , strings_tremolo_trills, strings_pizz_legno
+    , strings_harmonics, strings_ponticello
+    , strings_con_sordino_basic, strings_perf_interval
+    , strings_perf_interval_fast, strings_perf_trill
+    , strings_perf_repetition, strings_perf_upbeat_repetition
+    , strings_fast_repetition, strings_grace_notes
+    , strings_glissandi strings, strings_scale_runs
     ]
 
 strings_short_long_notes =
@@ -275,10 +265,7 @@ strings_perf_upbeat_repetition = map (rep.upbeat.)
     , dyn4.n1.slow, dyn4.n2.slow
     , dyn4.n1.fast, dyn4.n2.fast
     ]
-strings_fast_repetition = concat
-    [ map (fast.rep.) $ map bpm [150, 160, 170, 180, 190]
-    , map (fast.rep.dyn.) $ map bpm [150, 160, 170, 180, 190]
-    ]
+strings_fast_repetition = fast_rep_bpm [(mempty, [15..19]), (dyn, [15..19])]
 strings_grace_notes = [grace.updown.half, grace.updown.whole]
 strings_glissandi strings =
     [perf.gliss.attr [s] | s <- strings] ++ [gliss.updown.oct]
@@ -338,7 +325,7 @@ harps =
 
 harp1 = [harp1_single_notes, harp1_glissandi, harp1_arpeggios]
 
-harp1_single_notes = [normal, mute, table, harmonic, bisbig, normal.rs.highlow]
+harp1_single_notes = [norm, mute, table, harmonic, bisbig, norm.rs.highlow]
 harp1_glissandi = map (gliss.)
     [ maj.slow, maj.med, maj.fast, min.slow, min.med, min.fast
     , maj.slow.v2, maj.med.v2, maj.fast.v2
@@ -359,8 +346,8 @@ harp1_arpeggios = map (arpup.notes 3 .)
 harp2 = [harp2_basic_articulations]
 
 harp2_basic_articulations =
-    [ normal, mute, damp, table, nail, harmonic, pedal.gliss
-    , bisbig, normal.rs, normal.rs.pedal.gliss
+    [ norm, mute, damp, table, nail, harmonic, pedal.gliss
+    , bisbig, norm.rs, norm.rs.pedal.gliss
     ]
 
 
@@ -423,10 +410,7 @@ flute1_perf_upbeat_repetition = map (rep.upbeat.)
     [ n1.slow, n2.slow, n1.fast, n2.fast
     , dyn4.n1.slow, dyn4.n2.slow, dyn4.n1.fast, dyn4.n2.fast
     ]
-flute1_fast_repetition = concat
-    [ map (rep.fast.) $ map bpm [170, 180, 190, 200, 210]
-    , map (rep.fast.triple.) $ map bpm [140, 150, 160, 170, 180]
-    ]
+flute1_fast_repetition = fast_rep_bpm [(mempty, [17..21]), (triple, [14..18])]
 flute1_grace_notes = grace_intervals
 flute1_scale_runs = scale_runs
     [ legato.maj, legato.maj.fast, legato.min, legato.min.fast
@@ -485,19 +469,12 @@ oboe2_scale_runs = scale_runs
 -- *** clarinet bb
 
 clarinet_bb =
-    [ clarinet_bb_short_long_notes
-    , clarinet_bb_dynamics
-    , clarinet_bb_flutter_trills
-    , clarinet_bb_perf_interval
-    , clarinet_bb_perf_interval_fast
-    , clarinet_bb_perf_trill
-    , clarinet_bb_perf_repitition
-    , clarinet_bb_perf_upbeat_repetition
-    , clarinet_bb_fast_repetition
-    , clarinet_bb_grace_notes
-    , clarinet_bb_glissandi
-    , clarinet_bb_scale_runs
-    , clarinet_bb_arpeggios
+    [ clarinet_bb_short_long_notes, clarinet_bb_dynamics
+    , clarinet_bb_flutter_trills, clarinet_bb_perf_interval
+    , clarinet_bb_perf_interval_fast, clarinet_bb_perf_trill
+    , clarinet_bb_perf_repitition, clarinet_bb_perf_upbeat_repetition
+    , clarinet_bb_fast_repetition, clarinet_bb_grace_notes
+    , clarinet_bb_glissandi, clarinet_bb_scale_runs, clarinet_bb_arpeggios
     ]
 
 clarinet_bb_short_long_notes =
@@ -535,10 +512,8 @@ clarinet_bb_perf_upbeat_repetition = map (rep.upbeat.)
     [ n1.slow, n2.slow, n1.fast, n2.fast
     , dyn4.n1.slow, dyn4.n2.slow, dyn4.n1.fast, dyn4.n2.fast
     ]
-clarinet_bb_fast_repetition = concat
-    [ map (fast.rep.) $ map bpm [140, 150, 160, 170]
-    , map (fast.rep.dyn.) $ map bpm [140, 150, 160, 170]
-    ]
+clarinet_bb_fast_repetition =
+    fast_rep_bpm [(mempty, [14..17]), (dyn, [14..17])]
 clarinet_bb_grace_notes = grace_intervals
 clarinet_bb_glissandi = map (gliss.)
     [ perf.gliss.slow, perf.gliss.fast
@@ -596,10 +571,7 @@ bassoon_perf_upbeat_repetition = map (rep.upbeat.)
     [ n1.slow, n2.slow, n1.fast, n2.fast
     , dyn4.n1.slow, dyn4.n2.slow, dyn4.n1.fast, dyn4.n2.fast
     ]
-bassoon_fast_repetition = concat
-    [ map (fast.rep.) $ map bpm [140, 150, 160, 170, 180]
-    , map (fast.rep.dyn.) $ map bpm [140, 150, 160, 170, 180]
-    ]
+bassoon_fast_repetition = fast_rep_bpm [(mempty, [14..18]), (dyn, [14..18])]
 bassoon_grace_notes = grace_intervals
 bassoon_scale_runs = scale_runs
     [legato.maj, legato.min, legato.chrom, legato.whole]
@@ -700,8 +672,7 @@ piccolo_perf_repetition = map (rep.)
     , portato.slow, portato.med, portato.fast
     , staccato
     ]
-piccolo_fast_repetition =
-    map (fast.rep.) $ map bpm [150, 160, 170, 180, 190, 200, 220]
+piccolo_fast_repetition = fast_rep_bpm [(mempty, [15..20] ++ [22])]
 piccolo_grace_notes = grace_intervals
 piccolo_scale_runs = scale_runs
     [legato.maj, legato.min, legato.chrom, legato.whole]
@@ -745,10 +716,7 @@ flute2_perf_repetition = map (rep.)
     [ legato.slow, legato.fast, portato, staccato
     , dyn5.legato.slow, dyn5.legato.fast
     ]
-flute2_fast_repetition = concat
-    [ map (fast.rep.) $ map bpm [160, 170, 180, 190, 200, 210]
-    , map (fast.rep.triple.) $ map bpm [130, 140, 150, 160]
-    ]
+flute2_fast_repetition = fast_rep_bpm [(mempty, [16..21]), (triple, [13..16])]
 flute2_grace_notes = grace_intervals
 flute2_scale_runs = scale_runs
     [legato.maj, legato.min, legato.chrom, legato.whole]
@@ -952,10 +920,8 @@ clarinet_eb_perf_repetition = map (rep.)
     , dyn5.legato.slow, dyn5.legato.fast, dyn5.portato.slow
     , dyn9.portato.fast, dyn9.staccato.slow, dyn9.staccato.fast
     ]
-clarinet_eb_fast_repetition = concat
-    [ map (fast.rep.) $ map bpm [140, 150, 160, 170, 180]
-    , map (fast.rep.dyn.) $ map bpm [140, 150, 160, 170, 180]
-    ]
+clarinet_eb_fast_repetition =
+    fast_rep_bpm [(mempty, [14..18]), (dyn, [14..18])]
 clarinet_eb_grace_notes = grace_intervals
 
 -- *** bass clarinet
@@ -1034,11 +1000,117 @@ special_woodwinds =
     , ("basset-horn", high_keys, basset_horn)
     ]
 
-bass_flute = []
-oboe_damore = []
-heckelphone = []
-contrabass_clarinet = []
-basset_horn = []
+bass_flute =
+    [ bass_flute_short_long_notes, bass_flute_dynamics
+    , bass_flute_flutter, bass_flute_perf_interval
+    , bass_flute_perf_interval_fast, bass_flute_perf_trill
+    , bass_flute_perf_repetition, bass_flute_fast_repetition
+    ]
+bass_flute_short_long_notes =
+    [staccato, portato.short, portato.med, sus.vib, sus.nv]
+bass_flute_dynamics =
+    [ dyn.med.vib.sec 1, dyn.med.vib.sec 2, dyn.med.vib.sec 4
+    , dyn.med.nv.sec15, dyn.med.nv.sec 2, dyn.med.nv.sec 4
+    , dyn.str.nv.sec15, dyn.str.nv.sec 2, dyn.str.nv.sec 3, dyn.str.nv.sec 4
+    , pfp.vib.sec 3, pfp.vib.sec 6, pfp.vib.sec 8
+    , pfp.nv.sec 2, pfp.nv.sec 3, pfp.nv.sec 4, pfp.nv.sec 6
+    , fp.vib, sfz.vib, sffz.vib, fp.nv, sfz.nv, sffz.nv
+    ]
+bass_flute_flutter = [flutter, flutter.cresc]
+bass_flute_perf_interval = [perf.legato, perf.marcato]
+bass_flute_perf_interval_fast = [perf.legato.fast, perf.marcato.fast]
+bass_flute_perf_trill = [perf.trill]
+bass_flute_perf_repetition = map (rep.)
+    [legato, portato, staccato, dyn5.legato, dyn9.portato, dyn9.staccato]
+bass_flute_fast_repetition = fast_rep_bpm [(mempty, [12..18]), (dyn, [12..18])]
+
+oboe_damore =
+    [ oboe_damore_short_long_notes, oboe_damore_dynamics
+    , oboe_damore_flutter, oboe_damore_perf_interval
+    , oboe_damore_perf_interval_fast, oboe_damore_perf_trill
+    , oboe_damore_perf_repetition, oboe_damore_fast_repetition
+    ]
+oboe_damore_short_long_notes =
+    [ staccato, portato.short, portato.med
+    , portato.long.sa.vib, portato.long.sa.nv, sus.vib, sus.nv
+    ]
+oboe_damore_dynamics =
+    [ dyn.med.vib.sec15, dyn.med.vib.sec 2, dyn.med.vib.sec 3
+    , dyn.med.vib.sec 4
+    , dyn.str.vib.sec 3, dyn.str.vib.sec 4
+    , dyn.med.nv.sec15, dyn.med.nv.sec 2, dyn.med.nv.sec 3, dyn.med.nv.sec 4
+    , dyn.str.nv.sec 2, dyn.str.nv.sec 3, dyn.str.nv.sec 4
+    , pfp.vib.sec 2, pfp.vib.sec 4, pfp.vib.sec 10
+    , pfp.nv.sec 2, pfp.nv.sec 3, pfp.nv.sec 4
+    , fp.vib, sfz.vib, sffz.vib, fp.nv, sfz.nv, sffz.nv
+    ]
+oboe_damore_flutter = [flutter, flutter.cresc]
+oboe_damore_perf_interval = [perf.legato]
+oboe_damore_perf_interval_fast = [perf.legato.fast, perf.marcato.fast]
+oboe_damore_perf_trill = [perf.trill]
+oboe_damore_perf_repetition = map (rep.)
+    [legato, portato, staccato, dyn5.legato, dyn9.portato, dyn9.staccato]
+oboe_damore_fast_repetition =
+    fast_rep_bpm [(mempty, [12..18]), (dyn, [12..18])]
+
+heckelphone =
+    [ heckelphone_short_long_notes, heckelphone_dynamics
+    , heckelphone_flutter, heckelphone_perf_interval
+    , heckelphone_perf_interval_fast, heckelphone_trill
+    , heckelphone_perf_repetition
+    ]
+heckelphone_short_long_notes =
+    [staccato, portato.short, portato.med, sus.vib, sus.nv]
+heckelphone_dynamics = seconds
+    [ (dyn.med.vib, [15, 2, 3, 5])
+    , (dyn.str.nv, [15, 2, 3, 4, 6])
+    , (pfp.vib, [2, 3, 5, 8])
+    ] ++ [fp.vib, sfz.vib, sffz.vib]
+heckelphone_flutter = [flutter]
+heckelphone_perf_interval = [perf.legato, perf.marcato]
+heckelphone_perf_interval_fast = [perf.legato.fast, perf.marcato.fast]
+heckelphone_trill = [perf.trill]
+heckelphone_perf_repetition = map (rep.)
+    [legato, portato, staccato, dyn5.legato, dyn5.portato, dyn9.staccato]
+
+contrabass_clarinet =
+    [ contrabass_clarinet_short_long_notes, contrabass_clarinet_dynamics
+    , contrabass_clarinet_perf_interval, contrabass_clarinet_perf_interval_fast
+    , contrabass_clarinet_perf_trill, contrabass_clarinet_perf_repetition
+    ]
+contrabass_clarinet_short_long_notes = [staccato, portato, sus]
+contrabass_clarinet_dynamics = seconds
+    [ (med, [15, 2, 3, 4, 6]), (pfp, [2, 3, 4, 6, 8]) ]
+    ++ [fp, sfz, sffz]
+contrabass_clarinet_perf_interval = [perf.legato, perf.marcato]
+contrabass_clarinet_perf_interval_fast = [perf.legato.fast, perf.marcato.fast]
+contrabass_clarinet_perf_trill = [perf.trill]
+contrabass_clarinet_perf_repetition = map (rep.)
+    [legato, portato, staccato, dyn5.legato, dyn5.portato, dyn9.staccato]
+
+basset_horn =
+    [ basset_horn_short_long_notes, basset_horn_dynamics
+    , basset_horn_flutter, basset_horn_perf_interval
+    , basset_horn_perf_interval_fast, basset_horn_perf_trill
+    , basset_horn_perf_repetition, basset_horn_fast_repetition
+    ]
+basset_horn_short_long_notes =
+    [ staccato, portato.short, portato.med, portato.long.sa, portato.long.ha
+    , sus
+    ]
+basset_horn_dynamics = seconds
+    [ (med, [15, 2, 3, 4])
+    , (str, [15, 2, 3, 4, 6])
+    , (pfp, [2, 3, 4, 6, 8])
+    ] ++ [fp, sfz, sffz]
+basset_horn_flutter = [flutter, flutter.cresc]
+basset_horn_perf_interval = [perf.legato, perf.marcato]
+basset_horn_perf_interval_fast = [perf.legato.fast, perf.marcato.fast]
+basset_horn_perf_trill = [perf.trill]
+basset_horn_perf_repetition = map (rep.)
+    [legato, portato, staccato, dyn5.legato, dyn9.portato, dyn9.staccato]
+basset_horn_fast_repetition =
+    fast_rep_bpm [(mempty, [12..18]), (dyn, [12..18])]
 
 -- * brass
 
@@ -1061,12 +1133,151 @@ brass1 =
     , ("trombones-a3-mute", low_keys, trombones_a3_mute)
     ]
 
-trumpet_c = []
-trumpet_c_mute = []
-horn_vienna = []
+trumpet_c =
+    [ trumpet_c_short_long_notes, trumpet_c_dynamics
+    , trumpet_c_flutter_trills, trumpet_c_perf_interval
+    , trumpet_c_perf_interval_fast, trumpet_c_perf_trill
+    , trumpet_c_perf_repetition, trumpet_c_fast_repetition
+    , trumpet_c_upbeat_repetition, trumpet_c_grace_notes
+    , trumpet_c_scale_runs, trumpet_c_arpeggios, trumpet_c_mordents
+    ]
+trumpet_c_short_long_notes =
+    [ staccato, portato.short
+    , portato.med, portato.med.marcato, portato.med.soft
+    -- long-norm, long-marc, long-soft
+    , portato.long.norm.vib, portato.long.marcato.vib
+    , portato.long.norm.vib_str, portato.long.marcato.vib_str
+    , portato.long.norm.nv, portato.long.marcato.nv
+    , portato.long.soft.nv
+    , sus.vib, sus.vib_str, sus.progr, sus.nv
+    ]
+trumpet_c_dynamics = seconds
+    [ (dyn.li.nv, [15, 2, 3, 4]), (dyn.med.vib, [2, 3, 4, 6])
+    , (dyn.med.nv, [15, 2, 3, 4, 6]), (dyn.str.vib, [3, 6])
+    , (dyn.str.nv, [2, 3, 4, 6])
+    , (pfp.vib, [4, 8]), (pfp.nv, [4, 6, 8])
+    ] ++ [fp, sfz, sffz]
+trumpet_c_flutter_trills =
+    [ flutter, flutter.cresc, trill.slow.half, trill.slow.whole
+    , trill.fast.half, trill.fast.whole, trill.acc.half, trill.acc.whole
+    ]
+trumpet_c_perf_interval = map (perf.)
+    [ legato.nv, legato.nv.sus -- TODO what's this?
+    , legato.vib, legato.vib.sus, marcato
+    ]
+trumpet_c_perf_interval_fast = [perf.legato.fast, perf.marcato.fast]
+trumpet_c_perf_trill = [perf.trill]
+trumpet_c_perf_repetition = map (perf.rep.)
+    [ legato.slow, legato.fast, portato, staccato.slow, staccato.fast
+    , dyn5.legato.slow, dyn5.legato.fast
+    , dyn9.portato, dyn9.staccato.slow, dyn9.staccato.fast
+    ]
+trumpet_c_fast_repetition = fast_rep_bpm
+    [(mempty, [14, 16, 17, 19, 21]), (dyn, [14, 15, 16, 17, 19, 21])]
+trumpet_c_upbeat_repetition = upbeat_rep_bpm
+    [ (n1, [10, 11, 12, 13, 14, 16, 18])
+    , (n2, [10, 11, 12, 13, 14, 16, 18, 20])
+    , (n3, [10, 11, 12, 13, 14, 16, 18, 20])
+    ]
+trumpet_c_grace_notes = [grace.updown.half, grace.updown.whole]
+trumpet_c_scale_runs = scale_runs [legato.maj]
+trumpet_c_arpeggios = map (arp.)
+    [ staccato.dim, staccato.dim.fast, staccato.maj, staccato.maj.fast
+    , staccato.min, staccato.min.fast
+    ]
+trumpet_c_mordents = map (mord.legato.) [v1, v2, v3, v4, v5, v6]
+
+trumpet_c_mute =
+    [ trumpet_c_mute_short_long_notes, trumpet_c_mute_dynamics
+    , trumpet_c_mute_flutter_trills, trumpet_c_mute_perf_interval
+    , trumpet_c_mute_perf_interval_fast, trumpet_c_mute_perf_trill
+    , trumpet_c_mute_perf_repetition, trumpet_c_mute_fast_repetition
+    , trumpet_c_mute_upbeat_repetition
+    ]
+trumpet_c_mute_short_long_notes =
+    [ staccato, portato.short, portato.med, portato.long.vib
+    , sus.vib, sus.progr, sus.nv
+    ]
+trumpet_c_mute_dynamics = seconds
+    [ (med.vib, [2, 3, 4]), (med.nv, [2, 3, 4, 6]), (str.nv, [2, 3, 4, 6])
+    , (pfp.vib, [2, 5, 9]), (pfp.nv, [2, 3, 4, 5])
+    ] ++ [fp.vib, sfz.vib, sffz.vib, fp.nv, sfz.nv, sffz.nv]
+trumpet_c_mute_flutter_trills =
+    [ flutter, flutter.cresc
+    , trill.half, trill.whole, trill.half.dyn, trill.whole.dyn
+    ]
+trumpet_c_mute_perf_interval =
+    [perf.legato.nv, perf.legato.vib, perf.marcato.nv]
+trumpet_c_mute_perf_interval_fast = [perf.legato.fast, perf.marcato.fast]
+trumpet_c_mute_perf_trill = [perf.trill]
+trumpet_c_mute_perf_repetition = map (perf.rep.)
+    [ legato, portato.slow, portato.fast, staccato.slow, staccato.fast
+    , dyn5.legato, dyn9.portato.slow, dyn9.portato.fast
+    , dyn9.staccato.slow, dyn9.staccato.fast
+    ]
+trumpet_c_mute_fast_repetition = fast_rep_bpm
+    [(mempty, [14, 15, 16, 17, 19]), (dyn, [14, 15, 16, 17, 19])]
+trumpet_c_mute_upbeat_repetition =
+    upbeat_rep_bpm [(n1, bpms), (n2, bpms), (n3, bpms)]
+    where bpms = [9, 10, 11, 12, 13, 14, 16, 18, 20]
+
+horn_vienna =
+    [ horn_vienna_short_long_notes, horn_vienna_dynamics
+    , horn_vienna_flutter_trills, horn_vienna_stopped
+    , horn_vienna_perf_interval, horn_vienna_perf_interval_fast
+    , horn_vienna_perf_trill, horn_vienna_perf_repetition
+    , horn_vienna_fast_repetition, horn_vienna_upbeat_repetition
+    , horn_vienna_grace_notes, horn_vienna_glissandi
+    ]
+horn_vienna_short_long_notes =
+    [ staccato, portato.short, portato.short.soft, portato.med
+    , portato.med.soft, portato.long.vib, portato.long.nv
+    , portato.long.marcato, portato.long.blare
+    , sus.vib, sus.nv, sus.blare
+    ]
+horn_vienna_dynamics = seconds
+    [ (dyn.li.nv, [1, 15, 2, 3, 4, 6]), (dyn.med.vib, [4, 6])
+    , (dyn.med.nv, [1, 15, 2, 3, 4, 6]), (dyn.str.nv, [2, 3, 4, 6])
+    , (pfp.nv.v1, [6]), (pfp.nv.v2, [6]), (pfp.nv, [8])
+    ] ++ [fp, sfz, sffz]
+horn_vienna_flutter_trills =
+    [flutter, flutter.cresc, trill.half, trill.whole, trill.lip]
+horn_vienna_stopped = map (stop.)
+    [ staccato, portato.med, portato.long, sus
+    , dyn.sec 1, dyn.sec15, dyn.sec 2, dyn.sec 3, dyn.sec 4, dyn.sec 6
+    , fp, sfz, sffz
+    ]
+horn_vienna_perf_interval = map (perf.)
+    [legato.nv, legato.nv.sus, legato.vib.sus, marcato]
+horn_vienna_perf_interval_fast = [perf.legato.fast, perf.marcato.fast]
+horn_vienna_perf_trill = [perf.trill]
+horn_vienna_perf_repetition = map (perf.rep.)
+    [ legato.slow, legato.med, legato.fast, portato
+    , staccato.slow, staccato.fast
+    , dyn6.legato.slow, dyn6.legato.med, dyn6.legato.fast
+    , dyn9.portato, dyn9.staccato.slow, dyn9.staccato.fast
+    ]
+horn_vienna_fast_repetition =
+    fast_rep_bpm [(mempty, [15..19]), (dyn, [15..19])]
+horn_vienna_upbeat_repetition = upbeat_rep_bpm
+    [ (n1, [9, 10, 11, 12, 13, 14, 16, 18])
+    , (n2, bpms), (n3, bpms)
+    ]
+    where bpms = [9, 10, 11, 12, 13, 14, 16, 18, 20]
+horn_vienna_grace_notes = [grace.updown.half, grace.updown.whole]
+horn_vienna_glissandi = map (gliss.)
+    [ fast, slow.up, slow.fourth, slow.dim.fifth, slow.fifth, slow.min.sixth
+    , slow.maj.sixth, slow.min.seventh, slow.maj.seventh, slow.oct
+    , fast.up.fourth, fast.up.fifth, fast.up.min.sixth, fast.up.maj.sixth
+    , fast.up.min.seventh, fast.up.maj.seventh, fast.up.oct
+    ]
+
 tenor_trombone = []
+
 tenor_trombone_mute_a = []
+
 tenor_trombone_mute_b = []
+
 tuba = []
 trumpets_a3 = []
 trumpets_a3_mute = []
@@ -1102,10 +1313,30 @@ intervals_to_oct =
     , min.sixth, maj.sixth, min.seventh, maj.seventh, oct
     ]
 
+fast_rep_bpm :: [(Attributes, [Int])] -> [Attributes]
+fast_rep_bpm attrs =
+    concat [map (attr.fast.rep.) (map bpm (map (10*) bpms))
+        | (attr, bpms) <- attrs]
+
+upbeat_rep_bpm :: [(Attributes, [Int])] -> [Attributes]
+upbeat_rep_bpm attrs =
+    concat [map (attr.perf.upbeat.rep.) (map bpm (map (10*) bpms))
+        | (attr, bpms) <- attrs]
+
+seconds :: [(Attributes, [Int])] -> [Attributes]
+seconds attrs_secs = prefix_attrs
+    [(dyn.prefix, map sec secs) | (prefix, secs) <- attrs_secs]
+
+-- | Add a prefix to each list of attributes.
+prefix_attrs :: [(Attributes, [Attributes])] -> [Attributes]
+prefix_attrs attrs = concat [map (prefix.) attrs | (prefix, attrs) <- attrs]
+
 -- * attrs
 
 sec :: Int -> Score.Attributes
-sec n = attr ("sec" ++ show n)
+sec n
+    | n == 15 = sec15
+    | otherwise = attr ("sec" ++ show n)
 
 sec15 :: Score.Attributes
 sec15 = attr "sec1-5"
@@ -1119,12 +1350,13 @@ notes n = attr ("n" ++ show n)
 
 n1 = notes 1
 n2 = notes 2
+n3 = notes 3
 
 -- TODO make sure this is used consistently.  What does it mean really?
 perf = attr "perf" -- interval performances
 
 sus = attr "sus"
-normal = attr "normal"
+norm = attr "norm"
 straight = attr "straight"
 
 acc = attr "acc" -- accelerando
@@ -1142,6 +1374,9 @@ ricochet = attr "ricochet"
 
 table = attr "table" -- pres-de-la-table, TODO aka secco
 nail = attr" nail"
+blare = attr "blare"
+lip = attr "lip"
+stop = attr "stop" -- stopped
 
 fx = attr "fx"
 
@@ -1154,6 +1389,7 @@ na = attr "na" -- normal attack
 sa = attr "sa" -- soft attack
 pa = attr "pa" -- pressed attack
 progr = attr "progr" -- progressive vibrato
+vib_str = attr "vib-str" -- strong vibrato
 
 lyric = attr "lyric"
 
@@ -1190,6 +1426,7 @@ cluster = attr "cluster" -- cluster of tones
 -- repetitions
 dyn4 = attr "dyn4"
 dyn5 = attr "dyn5"
+dyn6 = attr "dyn6"
 dyn9 = attr "dyn9"
 
 -- ** a/b variants
