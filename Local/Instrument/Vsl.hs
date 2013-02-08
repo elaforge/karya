@@ -16,6 +16,7 @@ import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
 
 import qualified Perform.Midi.Instrument as Instrument
+import qualified Instrument.Tag as Tag
 import qualified Local.Instrument.VslInst as VslInst
 import qualified App.MidiInst as MidiInst
 
@@ -36,15 +37,16 @@ patches = map (add_code . make_patch) instruments
     add_code patch = (patch, code)
         where code = MidiInst.note_calls (note_calls patch)
 
-instruments :: [VslInst.Instrument]
+instruments :: [(VslInst.Instrument, String)]
 instruments = concat
-    [ VslInst.solo_strings
-    , VslInst.strings
-    , VslInst.harps
-    , VslInst.woodwinds1
-    , VslInst.woodwinds2
-    , VslInst.brass1
+    [ tag Tag.c_strings VslInst.solo_strings
+    , tag Tag.c_strings VslInst.strings
+    , tag Tag.c_strings VslInst.harps
+    , tag Tag.c_woodwinds VslInst.woodwinds1
+    , tag Tag.c_woodwinds VslInst.woodwinds2
+    , tag Tag.c_brass VslInst.brass1
     ]
+    where tag t = map (flip (,) t)
 
 -- | Add various note calls, depending on the attributes that the patch
 -- understands.
@@ -86,12 +88,14 @@ grace_intervals = Map.fromList $
 type Instrument = (Instrument.InstrumentName, [Keyswitch])
 type Keyswitch = (Score.Attributes, [Instrument.Keyswitch])
 
-make_patch :: VslInst.Instrument -> Instrument.Patch
-make_patch = instrument_patch . second strip . make_instrument
+make_patch :: (VslInst.Instrument, String) -> Instrument.Patch
+make_patch (inst, category) =
+    instrument_patch category (second strip (make_instrument inst))
     where strip = uncurry zip . first strip_attrs . unzip
 
-instrument_patch :: Instrument -> Instrument.Patch
-instrument_patch (name, keyswitches) =
+instrument_patch :: String -> Instrument -> Instrument.Patch
+instrument_patch category (name, keyswitches) =
+    Instrument.add_tag (Tag.category, category) $
     (Instrument.keyswitches #= keyswitch_map keyswitches) $
         MidiInst.patch (-2, 2) name []
 
@@ -137,7 +141,7 @@ keys_from low_key = map Instrument.Keyswitch [low_key ..]
 -- | Write matrices to a file for visual reference.
 write_matrices :: IO ()
 write_matrices = writeFile "matrices.txt" $ unlines $
-    map show_matrix instruments
+    map show_matrix (map fst instruments)
 
 show_matrix :: VslInst.Instrument -> String
 show_matrix (name, _, attrs) =

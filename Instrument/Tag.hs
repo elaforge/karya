@@ -30,3 +30,12 @@ synth = "synth"
 -- initialization, which probably means it's not built in to the synth.
 sysex :: TagKey
 sysex = "sysex"
+
+
+-- * categories
+
+c_strings = "strings"
+c_woodwinds = "woodwinds"
+c_brass = "brass"
+c_percussion = "percussion"
+c_synth = "synth"
