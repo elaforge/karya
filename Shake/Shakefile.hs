@@ -552,6 +552,7 @@ dispatch modeConfig targets = do
                 [ debug "browser", debug "logview", debug "make_db"
                 , debug "seq", debug "update"
                 , modeToDir Profile </> "RunProfile"
+                , "karya.cabal"
                 ] ++ extractableDocs
             dispatch modeConfig ["tests"]
             -- The gui tests tend to wedge.
