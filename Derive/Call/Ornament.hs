@@ -14,6 +14,7 @@ import qualified Derive.Derive as Derive
 import qualified Derive.PitchSignal as PitchSignal
 import qualified Derive.Pitches as Pitches
 import qualified Derive.Score as Score
+import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Sig as Sig
 import Derive.Sig (optional, defaulted, many)
 import qualified Derive.TrackLang as TrackLang
@@ -141,7 +142,9 @@ c_grace_attr supported =
     Derive.stream_generator "grace" (Tags.ornament <> Tags.ly)
     ("Emit grace notes as attrs, given a set of possible interval attrs.\
     \ If the grace note can't be expressed by the supported attrs, then emit\
-    \ notes like the normal grace call.") $ Sig.call ((,)
+    \ notes like the normal grace call.\nSupported: "
+    <> Seq.join ", " (map ShowVal.show_val (Map.elems supported))
+    ) $ Sig.call ((,)
     <$> optional "dyn" "Scale the dyn of the grace notes."
     <*> many "pitch" "Grace note pitches."
     ) $ \(dyn, pitches) -> Note.inverting $ \args -> do

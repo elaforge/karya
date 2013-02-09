@@ -62,7 +62,7 @@ note_calls patch =
 
     -- Like the standard note call, but ignore +staccato, because it has its
     -- own sample.
-    staccato_keyswitch = Note.note_call
+    staccato_keyswitch = Note.note_call ""
         "Staccato doesn't change note duration, since the sample already has\
         \ that built-in."
         (Note.default_note False)

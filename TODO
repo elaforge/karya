@@ -3,7 +3,7 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
-  - kkt/hang is still using "invoke default note call" calls
+  * kkt/hang is still using "invoke default note call" calls
     But the new note call doesn't group properly, because it contains the
     attrs.
   * doc string for synthesizers, since the names are short and cryptic

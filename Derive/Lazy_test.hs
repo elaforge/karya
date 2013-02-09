@@ -277,7 +277,7 @@ with_calls mvar = CallTest.with_note_call "" (mk_logging_call mvar)
     . CallTest.with_control_lookup (c_set mvar)
 
 mk_logging_call :: Log -> Derive.NoteCall
-mk_logging_call log_mvar = Call.Note.note_call "logging-note" $ \args -> do
+mk_logging_call log_mvar = Call.Note.note_call "logging-note" "" $ \args -> do
     -- Call the real one to make sure I'm getting it's laziness
     -- characteristics.
     [LEvent.Event sevent] <- Call.Note.default_note True args

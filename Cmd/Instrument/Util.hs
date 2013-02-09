@@ -134,7 +134,7 @@ drum_calls notes =
         | n <- notes]
     where
     note_call dyn attrs = Note.note_call
-        ("drum call: " <> ShowVal.show_val attrs)
+        ("drum: " <> ShowVal.show_val attrs) ""
         (with_dyn dyn . Call.Util.add_attrs attrs . Note.default_note False)
     with_dyn = Derive.multiply_control Score.c_dynamic
 

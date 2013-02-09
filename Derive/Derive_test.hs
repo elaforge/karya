@@ -97,7 +97,7 @@ test_attributes = do
             ]
         attrs = fst $
             DeriveTest.extract (Score.attrs_list . Score.event_attributes) res
-        (_, mmsgs, logs) = DeriveTest.perform convert_lookup
+        (_, mmsgs, _logs) = DeriveTest.perform convert_lookup
             (UiTest.midi_config [("s/ks", [0])]) (Derive.r_events res)
 
     -- Attribute inheritance thing works.
