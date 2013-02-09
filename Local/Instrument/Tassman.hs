@@ -5,7 +5,7 @@ import qualified App.MidiInst as MidiInst
 
 load :: FilePath -> IO [MidiInst.SynthDesc]
 load _dir = return $ MidiInst.make $
-    MidiInst.softsynth "tass" (-24, 24) controls
+    MidiInst.softsynth "tass" "Applied Accoustics Tassman" (-24, 24) controls
 
 controls =
     [

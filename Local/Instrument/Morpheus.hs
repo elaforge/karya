@@ -24,7 +24,7 @@ make_db dir = do
     MidiInst.save_patches synth patches synth_name dir
 
 synth :: Instrument.Synth
-synth = Instrument.synth synth_name synth_controls
+synth = Instrument.synth synth_name "E-mu Morpheus" synth_controls
 
 synth_controls :: [(Midi.Control, String)]
 synth_controls =

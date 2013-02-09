@@ -7,7 +7,7 @@ import qualified App.MidiInst as MidiInst
 
 load :: FilePath -> IO [MidiInst.SynthDesc]
 load _dir = return $ MidiInst.make $
-    (MidiInst.softsynth "msv" (-24, 24) controls)
+    (MidiInst.softsynth "msv" "Native Instruments Massive" (-24, 24) controls)
         { MidiInst.extra_patches = MidiInst.with_empty_code patches }
 
 controls :: [(Midi.Control, String)]

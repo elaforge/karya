@@ -16,12 +16,13 @@ import qualified App.MidiInst as MidiInst
 
 load :: FilePath -> IO [MidiInst.SynthDesc]
 load _dir = return $ MidiInst.make $
-    (MidiInst.softsynth synth_name pb_range controls)
-        { MidiInst.modify_wildcard =
-            (Instrument.instrument_#Instrument.hold_keyswitch #= True)
-            . Instrument.set_keyswitches keyswitches
-        , MidiInst.code = MidiInst.note_calls (MidiInst.null_call note_call)
-        }
+    (MidiInst.softsynth synth_name "Spicy Guitar, http://www.spicyguitar.com"
+        pb_range controls)
+    { MidiInst.modify_wildcard =
+        (Instrument.instrument_#Instrument.hold_keyswitch #= True)
+        . Instrument.set_keyswitches keyswitches
+    , MidiInst.code = MidiInst.note_calls (MidiInst.null_call note_call)
+    }
 
 synth_name :: String
 synth_name = "spicy"

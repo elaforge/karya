@@ -47,7 +47,7 @@ make_db dir = do
         Instrument.instrument_#Instrument.pitch_bend_range #= (-24, 24)
 
 synth :: Instrument.Synth
-synth = Instrument.synth synth_name synth_controls
+synth = Instrument.synth synth_name "Korg Z1" synth_controls
 
 synth_controls :: [(Midi.Control, String)]
 synth_controls =

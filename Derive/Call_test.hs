@@ -248,7 +248,7 @@ patch = Instrument.set_keymap [(Attrs.snare, 42)] $
 midi_db :: MidiDb.MidiDb Cmd.InstrumentCode
 (midi_db, _) = MidiDb.midi_db sdescs
     where
-    sdescs = MidiInst.make $ (MidiInst.softsynth "s" (-2, 2) [])
+    sdescs = MidiInst.make $ (MidiInst.softsynth "s" "test synth" (-2, 2) [])
         { MidiInst.extra_patches = [(patch, code)] }
     code = MidiInst.note_calls
         [("sn", Instrument.Util.attrs_note Attrs.snare)]

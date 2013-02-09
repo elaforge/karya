@@ -509,7 +509,8 @@ make_db :: [(String, [Instrument.Patch])] -> Cmd.InstrumentDb
 make_db synth_patches = Instrument.Db.db midi_db
     where
     midi_db = fst $ MidiDb.midi_db $ concatMap make synth_patches
-    make (synth, patches) = MidiInst.make (MidiInst.softsynth synth (-2, 2) [])
+    make (synth, patches) = MidiInst.make
+        (MidiInst.softsynth synth "Test Synth" (-2, 2) [])
         { MidiInst.extra_patches =
             map (\p -> (p, MidiInst.empty_code)) patches }
 

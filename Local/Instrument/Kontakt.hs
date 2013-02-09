@@ -15,6 +15,7 @@ import qualified Cmd.Instrument.Util as CUtil
 import qualified Cmd.Keymap as Keymap
 
 import Derive.Attrs
+import qualified Derive.Call.Attribute as Attribute
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Derive as Derive
 import qualified Derive.Instrument.Util as DUtil
@@ -32,7 +33,8 @@ load :: FilePath -> IO [MidiInst.SynthDesc]
 load _dir = return synth_descs
 
 synth_descs :: [MidiInst.SynthDesc]
-synth_descs = MidiInst.make $ (MidiInst.softsynth synth pb_range [])
+synth_descs = MidiInst.make $
+    (MidiInst.softsynth synth "Native Instruments Kontakt" pb_range [])
     { MidiInst.extra_patches = patches }
 
 synth :: Instrument.SynthName
@@ -67,9 +69,11 @@ hang_code = MidiInst.empty_code
 
 hang_calls :: Derive.NoteCallMap
 hang_calls = Derive.make_calls
-    [(text, DUtil.attrs_note attrs) | (attrs, _, Just text, _) <- hang_strokes,
-        -- Make sure to not shadow the default "" call.
-        not (null text)]
+    [ (text, Attribute.attributed_note attrs)
+    | (attrs, _, Just text, _) <- hang_strokes
+    -- Make sure to not shadow the default "" call.
+    , not (null text)
+    ]
 
 hang_cmd :: Cmd.Cmd
 hang_cmd = CUtil.keyswitches [(Keymap.physical_key char, text, key)

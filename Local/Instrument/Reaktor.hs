@@ -5,7 +5,8 @@ import qualified App.MidiInst as MidiInst
 
 
 load :: FilePath -> IO [MidiInst.SynthDesc]
-load _dir = return $ MidiInst.make (MidiInst.softsynth "reak" pb_range [])
+load _dir = return $ MidiInst.make
+    (MidiInst.softsynth "reak" "Native Instruments Reaktor" pb_range [])
     { MidiInst.extra_patches = MidiInst.with_empty_code patches }
 
 pb_range = (-36, 36)

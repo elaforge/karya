@@ -6,7 +6,7 @@ UNSORTED
   - kkt/hang is still using "invoke default note call" calls
     But the new note call doesn't group properly, because it contains the
     attrs.
-  - doc string for synthesizers, since the names are short and cryptic
+  * doc string for synthesizers, since the names are short and cryptic
   vsl
     - dyn# should be 'dyn . crescdim . rep#'
       cre# should be just 'cresc . rep#'

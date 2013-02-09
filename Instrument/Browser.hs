@@ -88,7 +88,7 @@ show_info win db inst = Fltk.send_action $ BrowserC.set_info win info
 
 info_of :: Db -> Score.Instrument -> Cmd.MidiInfo -> String
 info_of db score_inst (MidiDb.Info synth patch code) =
-    printf "%s -- %s\n\n" synth_name name ++ info_sections
+    printf "%s -- %s -- %s\n\n" synth_name name synth_doc ++ info_sections
         -- important properties
         [ ("Flags", Seq.join ", " flags)
         , ("Instrument controls", show_control_map inst_cmap)
@@ -115,7 +115,7 @@ info_of db score_inst (MidiDb.Info synth patch code) =
         , ("Tags", tags)
         ]
     where
-    Instrument.Synth synth_name synth_cmap = synth
+    Instrument.Synth synth_name synth_doc synth_cmap = synth
     Instrument.Patch {
         Instrument.patch_instrument = inst
         , Instrument.patch_scale = scale

@@ -423,13 +423,16 @@ type TagVal = String
 data Synth = Synth {
     -- | Uniquely defines the synth.
     synth_name :: SynthName
+    -- | Full name for the synthesizer.  'synth_name' appears in inst names so
+    -- it's usually abbreviated.
+    , synth_doc :: String
     -- | Often synths have a set of common controls in addition to the
     -- global midi defaults.
     , synth_control_map :: Control.ControlMap
     } deriving (Eq, Show)
 
-synth :: SynthName -> [(Midi.Control, String)] -> Synth
-synth name = Synth name . Control.control_map
+synth :: SynthName -> String -> [(Midi.Control, String)] -> Synth
+synth name doc = Synth name doc . Control.control_map
 
 -- | Synths default to writing to a device with their name.  You'll have to
 -- map it to a real hardware WriteDevice in the 'Cmd.Cmd.write_device_map'.
@@ -463,9 +466,9 @@ add_tag tag = tags %= (tag:)
 
 -- | Constructor for a softsynth with a single wildcard patch.  Used by
 -- 'Instrument.MidiDb.softsynth'.
-make_softsynth :: SynthName -> Control.PbRange -> [(Midi.Control, String)]
-    -> (Synth, Patch)
-make_softsynth name pb_range controls = (synth, template_patch)
+make_softsynth :: SynthName -> String -> Control.PbRange
+    -> [(Midi.Control, String)] -> (Synth, Patch)
+make_softsynth name doc pb_range controls = (synth, template_patch)
     where
-    synth = Synth name (Control.control_map controls)
+    synth = Synth name doc (Control.control_map controls)
     template_patch = patch (wildcard_instrument pb_range)

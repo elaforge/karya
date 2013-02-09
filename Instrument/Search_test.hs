@@ -37,7 +37,7 @@ t_all_insts :: [String]
 t_all_insts = map Score.inst_name (Map.keys (Search.idx_instrument_tags index))
 
 z1_synth :: Instrument.Synth
-z1_synth = Instrument.synth "z1" [(13, "pe 1")]
+z1_synth = Instrument.synth "z1" "Korg Z1" [(13, "pe 1")]
 
 z1_patches :: MidiDb.PatchMap Cmd.InstrumentCode
 z1_patches = fst $ MidiDb.patch_map $ map mkpatch
@@ -51,7 +51,7 @@ z1_patches = fst $ MidiDb.patch_map $ map mkpatch
     ]
 
 fm8_synth :: Instrument.Synth
-fm8_synth = Instrument.synth "fm8" []
+fm8_synth = Instrument.synth "fm8" "NI FM8" []
 
 fm8_patches :: MidiDb.PatchMap Cmd.InstrumentCode
 fm8_patches = MidiDb.wildcard_patch_map (mkpatch ("none", "fm", []))

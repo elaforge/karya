@@ -4,7 +4,6 @@ import qualified Data.Map as Map
 import qualified Data.Set as Set
 
 import Util.Control
--- import Util.Pretty (pprint)
 import qualified Util.Seq as Seq
 import qualified Midi.Midi as Midi
 import qualified Derive.Attrs as Attrs
@@ -25,7 +24,8 @@ load :: FilePath -> IO [MidiInst.SynthDesc]
 load _dir = return synth_descs
 
 synth_descs :: [MidiInst.SynthDesc]
-synth_descs = MidiInst.make $ (MidiInst.softsynth synth (-2, 2) [])
+synth_descs = MidiInst.make $
+    (MidiInst.softsynth synth "Vienna Symphonic Library" (-2, 2) [])
     { MidiInst.extra_patches = patches }
 
 synth :: Instrument.SynthName
@@ -172,7 +172,7 @@ strip_attrs :: [Score.Attributes] -> [Score.Attributes]
 strip_attrs attrs = foldr strip_attr attrs strip
     where
     strip = reverse [VslInst.sus, VslInst.vib, VslInst.perf, VslInst.fast,
-        VslInst.norm, VslInst.na, VslInst.legato]
+        VslInst.norm, VslInst.na, VslInst.legato, VslInst.v1]
 
 -- | Strip the given attr, but only if it wouldn't cause clashes.
 strip_attr :: Score.Attributes -> [Score.Attributes] -> [Score.Attributes]

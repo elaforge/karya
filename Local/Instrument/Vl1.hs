@@ -50,7 +50,7 @@ make_db dir = do
     MidiInst.save_patches synth (builtins ++ patches) synth_name dir
 
 synth :: Instrument.Synth
-synth = Instrument.synth synth_name []
+synth = Instrument.synth synth_name "Yamaha VL1" []
 
 -- * parse
 
