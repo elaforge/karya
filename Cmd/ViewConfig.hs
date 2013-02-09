@@ -5,6 +5,7 @@ import qualified Data.Map as Map
 import qualified Data.Tuple as Tuple
 
 import Util.Control
+import qualified Util.Num as Num
 import qualified Util.Rect as Rect
 import qualified Util.Seq as Seq
 
@@ -78,8 +79,10 @@ resize_to_fit maximize view_id = do
         if maximize then max_height view screen rect else rect
     where
     -- Move the rect over so it fits on the screen.
-    scootch screen r =
-        Rect.place (min (Rect.rx r) (Rect.rr screen - Rect.rw r)) (Rect.ry r) r
+    scootch screen r = Rect.place
+        (Num.clamp (Rect.rx screen) (Rect.rr screen - Rect.rw r) (Rect.rx r))
+        (Num.clamp (Rect.ry screen) (Rect.rb screen - Rect.rh r) (Rect.ry r))
+        r
     max_height view screen r = Rect.xywh (Rect.rx r) (Rect.ry screen)
         (Rect.rw r) (Rect.rh screen - Block.view_time_padding view
             - Config.window_decoration_h)

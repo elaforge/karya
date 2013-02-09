@@ -58,7 +58,7 @@ UNSORTED
     lily and no-lily transformers, but they have to work with slicing.
     not-lily can say, if lily isn't set, then just immediately place subnotes.
 
-  - how can I have per-score instruments?  In general I need a plan for
+  / how can I have per-score instruments?  In general I need a plan for
     per-score code.
     Local.Score.ScoreName?  Or just add them to Vsl, but bind them to the
     simple inst name in the score.  But I can't really make an inst for every
@@ -77,7 +77,7 @@ UNSORTED
   * play_at is messed up in the presence of play multiplier
   - double click isn't creating a fitted view?
   * Create.view should look harder for an empty space.
-  - ViewConfig.resize_to_fit shrinks the window when it starts at -x.
+  * ViewConfig.resize_to_fit shrinks the window when it starts at -x.
   * X11 doesn't turn shift-/ into ? like OS X does.  I need a way to make
     those consistent.
     . Always using unshifted chars for keys is no good, I can't enter text
