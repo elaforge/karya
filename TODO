@@ -3,11 +3,19 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
+  - kkt/hang is still using "invoke default note call" calls
+    But the new note call doesn't group properly, because it contains the
+    attrs.
+  - doc string for synthesizers, since the names are short and cryptic
   vsl
+    - dyn# should be 'dyn . crescdim . rep#'
+      cre# should be just 'cresc . rep#'
+    - can all perf.rep be turned into rep, or is there non-perf rep?
+    - make sure perf_upbeat_repetitions are consistent
     * add category tags to instruments
     * print out the matrix
-    - special woodwinds
-    - brass1
+    * special woodwinds
+    * brass1
     * Check for discrepancies with solo bass
     * Figure out how the bpm repetitions are supposed to work.
     * Allocate them to rows, 12 per and assign keyswitch pairs based on that
