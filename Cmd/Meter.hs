@@ -8,7 +8,6 @@ module Cmd.Meter where
 import Prelude hiding (repeat)
 import qualified Data.List as List
 import qualified Data.Map as Map
-import Data.Ratio
 
 import Util.Control
 import qualified Util.Seq as Seq
@@ -109,16 +108,16 @@ rank_to_pixels = [pixels | (_, _, pixels) <- meter_ranks]
 
 -- | An AbstractMeter is a structured description of how a unit of time is
 -- broken up into hiererchical sections.  A 'T' represents a mark with the
--- given duration, and a 'D' is a group of Meters.  The rank of each mark is
+-- unit duration, and a 'D' is a group of Meters.  The rank of each mark is
 -- determined by its nesting depth.
 --
--- The duration is represented as a Ratio so it remains independent of the
--- eventual block length.  It will be multiplied into an actual ScoreTime
--- by 'make_meter'.
+-- Previously a 'T' could take a duration, but I didn't wind up using that
+-- feature, so I removed it.  So meters have to be built of multiples of a unit
+-- duration multiplied by some stretch factor.
 --
 -- An AbstractMeter can be created either by declaring it outright, or by
--- declaring a simpler AbstractMeter and further subdividing it.
-data AbstractMeter = T (Ratio Integer) | D [AbstractMeter]
+-- declaring a simpler AbstractMeter and subdividing or repeating it.
+data AbstractMeter = T | D [AbstractMeter]
     deriving (Eq, Show)
 
 -- | Subdivide each mark into the given number @D@s.  The duration of each
@@ -126,7 +125,7 @@ data AbstractMeter = T (Ratio Integer) | D [AbstractMeter]
 -- of bars.  This has the effect of putting one layer of subdivision under
 -- the current structure, provided all @T@s are 1.
 subdivide :: Int -> AbstractMeter -> AbstractMeter
-subdivide n = replace_t (const (D (replicate n (T 1))))
+subdivide n = replace_t (D (replicate n T))
 
 subdivides :: [Int] -> AbstractMeter -> AbstractMeter
 subdivides divs meter = foldr subdivide meter (reverse divs)
@@ -143,7 +142,7 @@ repeats ns meter = foldr repeat meter ns
 regular_subdivision :: [Int] -> AbstractMeter
     -- It's most natural to think of the list as big divisions on the left to
     -- small divisions on the right, so reverse the list.
-regular_subdivision ns = foldr subdivide (T 1) (reverse ns)
+regular_subdivision ns = foldr subdivide T (reverse ns)
 
 -- ** predefined meters
 
@@ -155,8 +154,7 @@ m34 = regular_subdivision [4, 4, 3, 2, 2, 2, 2]
 
 m3p3p2_8 :: AbstractMeter
 m3p3p2_8 = repeats [4, 4, 1] $ subdivides [2, 2, 2, 2] $
-    D [D [t, t, t], D [t, t, t], D [t, t]]
-    where t = T 1
+    D [D [T, T, T], D [T, T, T], D [T, T]]
 
 -- | 2+2+2 / 8, 4 quarters per measure
 m2p2p2_8 :: AbstractMeter
@@ -173,42 +171,38 @@ mshow :: [AbstractMeter] -> [Ruler.Rank]
 mshow = map fst . make_meter 1
 
 -- | Map the given function over all @T@s in the given AbstractMeter.
-replace_t :: (Ratio Integer -> AbstractMeter) -> AbstractMeter -> AbstractMeter
-replace_t f (D ts) = D (map (replace_t f) ts)
-replace_t f (T x) = f x
+replace_t :: AbstractMeter -> AbstractMeter -> AbstractMeter
+replace_t val (D ts) = D (map (replace_t val) ts)
+replace_t val T = val
 
-meter_length :: AbstractMeter -> Ratio Integer
+meter_length :: AbstractMeter -> ScoreTime
 meter_length (D ms) = sum (map meter_length ms)
-meter_length (T d) = d
+meter_length T = 1
 
 
 -- ** meter implementation
 
 -- | Convert AbstractMeters into a Meter.  The AbstractMeters are concatenated,
 -- and each one defines a rank 0.
-make_meter :: Double -> [AbstractMeter] -> Meter
+make_meter :: ScoreTime -> [AbstractMeter] -> Meter
 make_meter stretch meters = group0 marks
     where
-    marks = concatMap (convert 0 . map_t (* realToFrac stretch)) meters
+    marks = concatMap (convert 0) meters
     -- Convert returns an intermediate format where all the ranks coexist at
     -- the same time, by giving them 0 dur.
     group0 dur_rank = case span ((==0) . snd) dur_rank of
         (zeros, (rank, dur) : rest) ->
             (minimum (rank : map fst zeros), dur) : group0 rest
         (_, []) -> []
-    convert rank (T v) = [(rank, realToFrac v)]
+    convert rank T = [(rank, stretch)]
     convert rank (D m) = (rank, 0) : concatMap (convert (rank+1)) m
-    map_t :: (Ratio Integer -> Ratio Integer) -> AbstractMeter -> AbstractMeter
-    map_t f = replace_t (T . f)
 
 -- | Like 'make_meter', but stretch the meter to fit in the given duration.
 fit_meter :: ScoreTime -> [AbstractMeter] -> Meter
 fit_meter dur meters = make_meter stretch meters
-    where
-    stretch = ScoreTime.to_double dur
-        / realToFrac (sum (map meter_length meters))
+    where stretch = dur / sum (map meter_length meters)
 
-make_marklist :: Double -> [AbstractMeter] -> Ruler.Marklist
+make_marklist :: ScoreTime -> [AbstractMeter] -> Ruler.Marklist
 make_marklist stretch = meter_marklist . make_meter stretch
 
 meter_marklist :: Meter -> Ruler.Marklist

@@ -22,9 +22,9 @@ test_extract = do
             vid <- Create.unfitted_view top
             Create.new_ruler top "r.top" $ RulerUtil.ruler []
             Create.new_ruler b1 "r.b1" $
-                RulerUtil.meter_ruler 16 [Meter.repeat 4 (Meter.T 1)]
+                RulerUtil.meter_ruler 16 [Meter.repeat 4 Meter.T]
             Create.new_ruler b2 "r.b2" $
-                RulerUtil.meter_ruler 16 [Meter.repeat 3 (Meter.T 1)]
+                RulerUtil.meter_ruler 16 [Meter.repeat 3 Meter.T]
             return (vid, top)
     equal (e_ruler bid ui_state) []
     res <- CmdTest.run_ui_io ui_state $ do

@@ -69,18 +69,17 @@ type Ranks = Vector.Vector Rank
 
 meter_map :: Map.Map String Meter
 meter_map = Map.fromList $ Seq.key_on unparse_meter $ map make
-    [ ([4], D4, [t])
-    , ([2], D4, [t])
-    , ([3], D4, [D [t, t, t]])
-    , ([3, 2], D4, [D [t, t, t], D [t, t]])
-    , ([2, 3], D4, [D [t, t], D [t, t, t]])
+    [ ([4], D4, [T])
+    , ([2], D4, [T])
+    , ([3], D4, [D [T, T, T]])
+    , ([3, 2], D4, [D [T, T, T], D [T, T]])
+    , ([2, 3], D4, [D [T, T], D [T, T, T]])
 
-    , ([3, 3], D8, [D [D [t, t, t], D [t, t, t]]])
-    , ([2, 2, 2], D8, [D [D [t, t], D [t, t], D [t, t]]])
+    , ([3, 3], D8, [D [D [T, T, T], D [T, T, T]]])
+    , ([2, 2, 2], D8, [D [D [T, T], D [T, T], D [T, T]]])
     ]
     where
     make (nums, denom, meters) = make_meter nums denom meters
-    t = T 1
 
 make_meter :: [Int] -> Duration -> [AbstractMeter] -> Meter
 make_meter nums denom meters = Meter nums denom vector
@@ -103,4 +102,4 @@ subdivide n = map (Meter.subdivide n)
 
 abstract_length :: AbstractMeter -> Int
 abstract_length (D ds) = sum $ map abstract_length ds
-abstract_length (T _) = 1
+abstract_length T = 1

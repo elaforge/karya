@@ -1014,7 +1014,7 @@ REPL: repl:
 
 Cmd:
   meter / timestep
-    - giving Meter.T an argument seems like overkill, do I have a use for
+    * giving Meter.T an argument seems like overkill, do I have a use for
       beats of unequal lengths?
     * It seems like it would be simpler to have meter rank divisions at every
       note, e.g. w, h, q, e, s, 32, 64, etc. rather than every other.  That
