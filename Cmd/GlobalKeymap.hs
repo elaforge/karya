@@ -275,10 +275,7 @@ edit_state_bindings = concat
     , bind_key [Shift] Key.Escape "toggle kbd entry mode"
         Edit.cmd_toggle_kbd_entry
 
-    -- The convention from Meter is: 0 = block, 1 = block section,
-    -- 2 = whole, 3 = quarter, 4 = 16th, etc.  Since it goes to /4 after
-    -- rank 2, I use a skip to keep the note divisions binary.
-    , uncurry (command_char '0') (step_rank Meter.r_block 0)
+    , command_char '0' "set event step" $ Edit.set_step TimeStep.event_step
     , uncurry (command_char '1') (step_rank Meter.r_section 0)
     , uncurry (command_char '2') (step_rank Meter.r_1 0)
     , uncurry (command_char '3') (step_rank Meter.r_2 0)

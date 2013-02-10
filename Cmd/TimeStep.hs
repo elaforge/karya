@@ -4,7 +4,7 @@
 -}
 module Cmd.TimeStep (
     -- * TimeStep
-    TimeStep(..), Skip, time_step, step, to_list
+    TimeStep(..), Skip, time_step, step, event_step, to_list
     , Step(..), Tracks(..)
     , MarklistMatch(..)
     , Direction(..)
@@ -58,6 +58,10 @@ type Skip = Int
 
 step :: Step -> TimeStep
 step ts = TimeStep [(ts, 0)]
+
+event_step :: TimeStep
+event_step =
+    TimeStep [(EventStart CurrentTrack, 0), (EventEnd CurrentTrack, 0)]
 
 time_step :: Step -> Ruler.Rank -> TimeStep
 time_step step rank = TimeStep [(step, rank)]
