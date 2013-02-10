@@ -49,9 +49,11 @@ import qualified Cmd.GlobalKeymap as GlobalKeymap
 import qualified Cmd.Integrate as Integrate
 import qualified Cmd.Internal as Internal
 import qualified Cmd.Lang as Lang
+import qualified Cmd.Meter as Meter
 import qualified Cmd.Msg as Msg
 import qualified Cmd.PlayC as PlayC
 import qualified Cmd.ResponderSync as ResponderSync
+import qualified Cmd.TimeStep as TimeStep
 import qualified Cmd.Track as Track
 import qualified Cmd.Undo as Undo
 
@@ -104,7 +106,7 @@ responder config msg_reader midi_interface setup_cmd lang_session loopback = do
     state <- run_setup_cmd setup_cmd $ State
         { state_static_config = config
         , state_ui = ui_state
-        , state_cmd = Cmd.initial_state $
+        , state_cmd = setup_state $ Cmd.initial_state $
             cmd_config app_dir midi_interface config
         , state_session = lang_session
         , state_loopback = loopback
@@ -112,6 +114,21 @@ responder config msg_reader midi_interface setup_cmd lang_session loopback = do
         , state_monitor_state = monitor_state
         }
     respond_loop state msg_reader
+
+-- | TODO This should probably go in StaticConfig, or better StaticConfig could
+-- just directly provide the Cmd.State.  But in needs to take app_dir and
+-- interface as args, so... too much work for now.
+setup_state :: Cmd.State -> Cmd.State
+setup_state state = state
+    { Cmd.state_edit = (Cmd.state_edit state)
+        { Cmd.state_time_step = TimeStep.step $
+            TimeStep.AbsoluteMark TimeStep.AllMarklists Meter.r_4
+        }
+    , Cmd.state_play = (Cmd.state_play state)
+        { Cmd.state_play_step = TimeStep.step $
+            TimeStep.AbsoluteMark TimeStep.AllMarklists Meter.r_1
+        }
+    }
 
 -- | Create a 'Cmd.Config'.  It would be nicer in "Cmd.Cmd", but that would
 -- be a circular import with "App.StaticConfig".
