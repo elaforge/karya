@@ -248,6 +248,7 @@ view_config_bindings = concat
         (ViewConfig.zoom_to_ruler =<< Cmd.get_focused_view)
     , command_char 'R' "resize to fit"
         (ViewConfig.resize_to_fit False =<< Cmd.get_focused_view)
+    , command_char 'L' "horizontal tile" ViewConfig.horizontal_tile
     , command_char '\\' "maximize and zoom"
         (ViewConfig.maximize_and_zoom =<< Cmd.get_focused_view)
     ]
@@ -280,11 +281,11 @@ edit_state_bindings = concat
     , uncurry (command_char '0') (step_rank Meter.r_block 0)
     , uncurry (command_char '1') (step_rank Meter.r_section 0)
     , uncurry (command_char '2') (step_rank Meter.r_1 0)
-    , uncurry (command_char '3') (step_rank Meter.r_4 1) -- half
+    , uncurry (command_char '3') (step_rank Meter.r_2 0)
     , uncurry (command_char '4') (step_rank Meter.r_4 0)
-    , uncurry (command_char '5') (step_rank Meter.r_16 1) -- 8th
+    , uncurry (command_char '5') (step_rank Meter.r_8 0)
     , uncurry (command_char '6') (step_rank Meter.r_16 0)
-    , uncurry (command_char '7') (step_rank Meter.r_64 1) -- 32nd
+    , uncurry (command_char '7') (step_rank Meter.r_32 0)
     , uncurry (command_char '8') (step_rank Meter.r_64 0)
     , shift_char '=' "toggle duration" Edit.toggle_note_duration
 

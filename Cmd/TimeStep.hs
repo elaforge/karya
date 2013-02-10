@@ -35,6 +35,7 @@ import qualified Ui.ScoreTime as ScoreTime
 import qualified Ui.State as State
 import qualified Ui.Track as Track
 
+import qualified Cmd.Meter as Meter
 import Types
 
 
@@ -147,28 +148,12 @@ parse_time_step = Parse.parse p_time_step
     str = P.string
 
 show_rank :: Ruler.Rank -> String
-show_rank rank = case rank of
-    0 -> "block"
-    1 -> "section"
-    2 -> "w"
-    3 -> "q"
-    4 -> "s"
-    5 -> "64"
-    6 -> "256"
-    _ -> 'R' : show rank
+show_rank rank = fromMaybe ('R' : show rank) $ lookup rank Meter.rank_names
 
 parse_rank :: Parse.Parser st Ruler.Rank
 parse_rank = P.choice $ map P.try
-    [ str "block" *> return 0
-    , str "section" *> return 1
-    , str "w" *> return 2
-    , str "q" *> return 3
-    , str "s" *> return 4
-    , str "64" *> return 5
-    , str "256" *> return 6
-    , P.char 'R' *> Parse.p_nat
-    ]
-    where str = P.string
+    [P.string name *> return rank | (rank, name) <- Meter.rank_names]
+    ++ [P.char 'R' *> Parse.p_nat]
 
 show_direction :: Direction -> String
 show_direction Advance = "+"

@@ -448,7 +448,7 @@ initial_play_state = PlayState
     , state_performance_threads = Map.empty
     , state_lilypond_stack_maps = Map.empty
     , state_play_step =
-        TimeStep.step (TimeStep.RelativeMark TimeStep.AllMarklists 2)
+        TimeStep.step (TimeStep.RelativeMark TimeStep.AllMarklists 0)
     , state_step = Nothing
     , state_play_multiplier = RealTime.seconds 1
     }
@@ -526,7 +526,7 @@ initial_edit_state = EditState {
     , state_chord = False
     , state_record_velocity = False
     , state_time_step =
-        TimeStep.step (TimeStep.AbsoluteMark TimeStep.AllMarklists 3)
+        TimeStep.step (TimeStep.AbsoluteMark TimeStep.AllMarklists 0)
     , state_note_duration = TimeStep.step TimeStep.BlockEnd
     , state_note_direction = TimeStep.Advance
     , state_note_text = ""

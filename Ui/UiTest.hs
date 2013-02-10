@@ -378,7 +378,8 @@ step1 :: TimeStep.TimeStep
 step1 = steps 0
 
 steps :: Int -> TimeStep.TimeStep
-steps n = TimeStep.time_step (TimeStep.AbsoluteMark TimeStep.AllMarklists 3) n
+steps n =
+    TimeStep.time_step (TimeStep.AbsoluteMark TimeStep.AllMarklists r_4) n
 
 -- | Create a ruler with a 4/4 "meter" marklist with the given number of marks
 -- at the given distance.  Marks are rank [1, 2, 2, ...].
@@ -403,8 +404,12 @@ marklist n dist = Ruler.marklist $
 m44 :: [Ruler.Mark]
 m44 = concatMap (\n -> [major n, minor, minor, minor]) [0..]
     where
-    major n = Ruler.Mark Meter.r_1 3 (Color.rgba 0.45 0.27 0 0.35) (show n) 0 0
-    minor = Ruler.Mark Meter.r_4 2 (Color.rgba 1 0.39 0.2 0.35) "" 0 0
+    major n = Ruler.Mark r_1 3 (Color.rgba 0.45 0.27 0 0.35) (show n) 0 0
+    minor = Ruler.Mark r_4 2 (Color.rgba 1 0.39 0.2 0.35) "" 0 0
+
+r_1, r_4 :: Ruler.Rank
+r_1 = Meter.r_1
+r_4 = Meter.r_4
 
 mark :: String -> Ruler.Mark
 mark name = Ruler.Mark 0 3 (Color.rgba 0.4 0 0.4 0.4) name 0 0
