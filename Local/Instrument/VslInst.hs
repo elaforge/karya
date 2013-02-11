@@ -38,66 +38,61 @@ high_keys = Keys Key.d7 Key.d8 Key.d9 Key.e9
 
 solo_strings :: [Instrument]
 solo_strings =
-    [ ("violin", low_keys, solo_violin)
-    , ("viola", low_keys, solo_viola)
-    , ("cello", low_keys, solo_cello)
-    , ("bass", high_keys, solo_bass)
+    [ ("violin", low_keys, violin)
+    , ("viola", low_keys, viola)
+    , ("cello", low_keys, cello)
+    , ("bass", high_keys, bass)
     ]
 
-solo_violin = solo_string "gdae"
-solo_viola = solo_string "cgda"
-solo_cello = solo_string "cgda"
-
-solo_string strings =
-    [ solo_string_short_long, solo_string_dynamics
-    , solo_string_tremolo_trills, solo_string_pizz_legno
-    , solo_string_harmonics, solo_string_ponticello
-    , solo_string_tasto, solo_string_perf_interval
-    , solo_string_perf_interval_fast, solo_string_perf_trill
-    , solo_string_perf_repetition, solo_string_fast_repetition
-    , solo_string_grace_notes, solo_string_glissandi strings
-    , solo_string_scale_runs
+violin =
+    [ violin_short_long, violin_dynamics
+    , violin_tremolo_trills, violin_pizz_legno
+    , violin_harmonics, violin_ponticello
+    , violin_tasto, violin_perf_interval
+    , violin_perf_interval_fast, violin_perf_trill
+    , violin_perf_repetition, violin_fast_repetition
+    , violin_grace_notes, violin_glissandi, violin_scale_runs
     ]
-solo_string_short_long =
+violin_short_long =
     [ staccato, detache.short, detache.long.vib, detache.long.nv
     , sus.vib, sus.vib.fa, sus.vib.fa.auto
     , sus.vib.marcato, sus.vib.espr, sus.progr
     , sus.vib.down, sus.nv
     ]
-solo_string_dynamics =
+violin_dynamics =
     [ dyn.med.vib.sec15, dyn.med.vib.sec 3, dyn.med.vib.sec 4
     , dyn.str.vib.sec15, dyn.str.vib.sec 3, dyn.str.vib.sec 4
     , dyn.med.nv.sec15, dyn.med.nv.sec 3
     , pfp.sec 2, pfp.sec 4, fp.vib, sfz.vib, sffz.vib
     ]
-solo_string_tremolo_trills =
+violin_tremolo_trills =
     [ trem.sus, trem.sus.fa, trem.sus.fa.auto
     , trem.dyn.sec15, trem.dyn.sec 3
     , trill.half, trill.whole, trill.half.dyn, trill.whole.dyn
     , trill.acc.half, trill.acc.whole, trill.acc.half.dyn, trill.acc.whole.dyn
     ]
-solo_string_pizz_legno = [pizz, pizz.secco, pizz.snap, legno]
-solo_string_harmonics = map (harmonic.)
-    [ art.staccato, art.sus, art.rep, art.gliss.updown
+violin_pizz_legno = [pizz, pizz.secco, pizz.snap, legno]
+violin_harmonics = map (harmonic.)
+    [ art.staccato, art.sus, art.perf.rep, art.gliss.updown
     , nat.sus, nat.rep, nat.gliss.updown
     ]
-solo_string_ponticello = map (pont.)
+violin_ponticello = map (pont.)
     [ staccato, detache, sus, sus.fa, sus.fa.auto
     , sfz, sffz, trem, trem.fa, trem.fa.auto
     , rep.legato, rep.dyn.legato
     ]
-solo_string_tasto = map (tasto.)
+violin_tasto = map (tasto.)
     [ staccato, detache, sus, sus.fa, sus.fa.auto
-    , sfz, sfz.trem, trem.fa, trem.fa.auto
+    , sfz, trem, trem.fa, trem.fa.auto
     ]
-solo_string_perf_interval = map (perf.)
+violin_perf_interval = map (perf.)
     [ legato, legato.sul, legato.progr, legato.zigane
     , porta, detache, marcato, spiccato
     ]
-solo_string_perf_interval_fast = map (perf.fa.)
+violin_perf_interval_fast = map (perf.fa.)
     [legato, marcato, spiccato, harsh]
-solo_string_perf_trill = [perf.trill.legato]
-solo_string_perf_repetition = map (rep.)
+violin_perf_trill = [perf.trill.legato]
+violin_perf_repetition = map (rep.)
     [ legato.slow, legato.fast, bow.slow, bow.fast
     , portato.slow, portato.med, portato.fast
     , staccato, spiccato, harsh
@@ -105,64 +100,157 @@ solo_string_perf_repetition = map (rep.)
     , dyn5.portato.slow, dyn5.portato.med, dyn9.portato.fast, dyn9.staccato
     , dyn9.spiccato, dyn9.harsh
     ]
-solo_string_fast_repetition =
+violin_fast_repetition =
     fast_rep_bpm [(mempty, [15..20]), (dyn, [15..20])]
     ++ map (ricochet.) (map bpm [150, 160, 170, 180, 190, 210])
     ++ [ricochet.notes 3, ricochet.acc, ricochet.rit]
-solo_string_grace_notes = map (grace.updown.)
+violin_grace_notes = map (grace.updown.)
     [ half.slow, whole.slow, half.fast, whole.fast
     , zigane.half, zigane.whole, zigane.min.third, zigane.maj.third
     ]
-solo_string_glissandi strings =
-    [perf.gliss.attr [s] | s <- strings] ++
-    [ gliss.updown.oct.med, gliss.updown.oct.fast
+violin_glissandi = map (gliss.)
+    [ perf.attr "g", perf.attr "d", perf.attr "a", perf.attr "e"
+    , updown.oct.med, updown.oct.fast
     ]
-solo_string_scale_runs = scale_runs
+violin_scale_runs = scale_runs
     [ legato.maj, legato.min, legato.chrom, legato.whole
     , spiccato.maj, spiccato.min, spiccato.chrom, spiccato.whole
     ]
 
--- *** solo bass
+viola =
+    [ viola_short_long_notes, viola_dynamics
+    , violin_tremolo_trills, viola_pizz_legno
+    , viola_harmonics, violin_ponticello
+    , violin_tasto, viola_perf_interval
+    , violin_perf_interval_fast, violin_perf_trill
+    , viola_perf_repetition, viola_fast_repetition
+    , viola_grace_notes, viola_glissandi
+    ]
+viola_short_long_notes =
+    [ staccato, detache.short, detache.long
+    , sus.vib, sus.vib.fa, sus.vib.fa.auto
+    , sus.vib.marcato, sus.vib.espr
+    , sus.vib.progr, sus.vib.down, sus.nv
+    ]
+viola_dynamics = seconds
+    [ (dyn.med, [15, 3]), (dyn.str, [15, 3, 4]), (dyn.med.nv, [15, 3])
+    , (pfp.vib, [2, 4])
+    ] ++ [fp.vib, sfz.vib, sffz.vib]
+viola_pizz_legno = [pizz, pizz.snap, legno]
+viola_harmonics = map (harmonic.)
+    [ art.staccato, art.sus, art.perf.rep
+    , nat.sus, nat.perf.rep, nat.gliss
+    ]
+viola_perf_interval = map (perf.)
+    [ legato, legato.sul, legato.progr, legato.zigane
+    , porta, marcato, spiccato
+    ]
+viola_perf_repetition = map (rep.)
+    [ legato.slow, legato.fast, portato, staccato, spiccato, harsh
+    , dyn5.legato.slow, dyn5.legato.fast, dyn9.portato, dyn9.staccato
+    , dyn9.spiccato, dyn9.harsh
+    ]
+viola_fast_repetition =
+    fast_rep_bpm [(mempty, [15..19]), (dyn, [15..19])]
+    ++ map (ricochet.) (map bpm [150, 160, 170, 180, 190, 210])
+    ++ [ricochet.notes 3, ricochet.acc, ricochet.rit]
+viola_grace_notes = map (grace.updown.)
+    [ half, whole, zigane.half, zigane.whole
+    , zigane.min.third, zigane.maj.third
+    ]
+viola_glissandi = map (gliss.)
+    [perf.attr "c", perf.attr "g", perf.attr "d", perf.attr "a", oct.updown]
 
-solo_bass =
-    [ solo_bass_short_long
-    , solo_bass_dynamics
-    , solo_bass_tremolo_trills
-    , solo_bass_pizz_legno
-    , solo_bass_harmonics
-    , solo_string_ponticello
-    , solo_string_tasto
-    , solo_bass_perf_interval
-    , solo_string_perf_interval_fast
-    , solo_string_perf_trill
-    , solo_bass_perf_repetition
-    , solo_bass_glissandi
+cello =
+    [ cello_short_long_notes, cello_dynamics, cello_tremolo_trills
+    , cello_pizz_legno, cello_harmonics, cello_ponticello, cello_tasto
+    , cello_perf_interval, cello_perf_interval_fast, cello_trill
+    , cello_perf_repetition, cello_fast_repetition, cello_grace_notes
+    , cello_glissandi
+    ]
+cello_short_long_notes =
+    [ staccato, detache.short, detache.long
+    , sus.vib, sus.vib.fa, sus.vib.fa.auto
+    , sus.vib.marcato, sus.vib.espr, sus.vib.progr, sus.vib.down, sus.nv
+    ]
+cello_dynamics = seconds
+    [ (dyn.med.vib, [15, 3]), (dyn.str.vib, [15, 3, 4]), (dyn.med.nv, [15, 3])
+    , (pfp.vib, [2, 4])
+    ] ++ [fp.vib, sfz.vib, sffz.vib]
+cello_tremolo_trills =
+    [ trem.sus, trem.sus.fa, trem.sus.fa.auto
+    , trem.dyn.sec15, trem.dyn.sec 3
+    , trill.half, trill.whole, trill.half.dyn, trill.whole.dyn
+    , trill.acc.half, trill.acc.whole, trill.acc.half.dyn, trill.acc.whole.dyn
+    ]
+cello_pizz_legno = [pizz, pizz.secco, pizz.snap, pizz.legno]
+cello_harmonics = map (harmonic.)
+    [art.staccato, art.sus, art.rep, nat.sus, nat.rep, nat.gliss]
+cello_ponticello = map (pont.)
+    [ staccato, detache, sus, sus.fa, sus.fa.auto, sfz, sffz
+    , trem, trem.fa, trem.fa.auto, rep.legato, rep.dyn.legato
+    ]
+cello_tasto = map (tasto.)
+    [ staccato, detache, sus, sus.fa, sus.fa.auto, sfz
+    , trem, trem.fa, trem.fa.auto
+    ]
+cello_perf_interval = map (perf.)
+    [ legato, legato.sul, legato.progr, legato.zigane, porta
+    , marcato, spiccato
+    ]
+cello_perf_interval_fast = map (perf.fast.) [legato, marcato, spiccato, harsh]
+cello_trill = [perf.trill.legato]
+cello_perf_repetition = map (rep.)
+    [ legato.slow, legato.fast, bow, portato, staccato, spiccato, harsh
+    , dyn5.legato.slow, dyn5.legato.fast, dyn5.bow
+    , dyn9.portato, dyn9.staccato, dyn9.spiccato, dyn9.harsh
+    ]
+cello_fast_repetition =
+    fast_rep_bpm [(mempty, [14..18]), (dyn, [14..18])]
+    ++ map (ricochet.) (map bpm [150, 160, 170, 180, 190, 210])
+    ++ [ricochet.notes 3, ricochet.acc, ricochet.rit]
+cello_grace_notes = map (grace.updown.)
+    [half, whole, zigane.half, zigane.whole, zigane.min.third, zigane.maj.third]
+cello_glissandi = map (gliss.)
+    [ perf.attr "c", perf.attr "g", perf.attr "d", perf.attr "a"
+    , updown.oct.med, updown.oct.fast
     ]
 
-solo_bass_short_long =
+-- *** solo bass
+
+bass =
+    [ bass_short_long, bass_dynamics
+    , bass_tremolo_trills, bass_pizz_legno
+    , bass_harmonics, violin_ponticello
+    , violin_tasto, bass_perf_interval
+    , violin_perf_interval_fast, violin_perf_trill
+    , bass_perf_repetition, bass_glissandi
+    ]
+
+bass_short_long =
     [ staccato, detache.short, detache.long
     , sus.vib, sus.vib.fa, sus.vib.fa.auto
     , sus.vib.marcato, sus.progr, sus.vib.down, sus.nv
     ]
-solo_bass_dynamics =
+bass_dynamics =
     [ dyn.str.vib.sec15, dyn.str.vib.sec 3, dyn.str.vib.sec 4
     , dyn.med.nv.sec15, dyn.str.nv.sec 3
     , pfp.vib.sec 2, pfp.vib.sec 4, fp.vib, sfz.vib, sffz.vib
     ]
-solo_bass_tremolo_trills =
+bass_tremolo_trills =
     [ trem.sus, trem.sus.fa, trem.sus.fa.auto
     , trill.half, trill.whole, trill.half.dyn, trill.whole.dyn
     ]
-solo_bass_pizz_legno = [pizz, pizz.snap, legno]
-solo_bass_harmonics = map (harmonic.)
+bass_pizz_legno = [pizz, pizz.snap, legno]
+bass_harmonics = map (harmonic.)
     [ art.staccato, art.sus, art.rep, nat.sus, nat.rep, nat.gliss]
-solo_bass_perf_interval = map (perf.) [legato, porta, marcato, spiccato]
-solo_bass_perf_repetition = map (rep.)
+bass_perf_interval = map (perf.) [legato, porta, marcato, spiccato]
+bass_perf_repetition = map (rep.)
     [ legato.slow, legato.fast, portato, staccato, spiccato, harsh
     , dyn5.legato.slow, dyn5.legato.fast
     , dyn9.portato, dyn9.staccato, dyn9.spiccato, dyn9.harsh
     ]
-solo_bass_glissandi = [gliss, oct.gliss.updown.med, oct.gliss.updown.fast]
+bass_glissandi = [gliss, oct.gliss.updown.med, oct.gliss.updown.fast]
 
 -- ** string sections
 
