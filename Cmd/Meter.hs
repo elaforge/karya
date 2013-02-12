@@ -74,8 +74,7 @@ color2 r g b = Color.rgba r g b 0.3
 -- between its neighbors before it appears.
 meter_ranks :: [(Color.Color, Int, Int)]
 meter_ranks =
-    [ (color1 0.3 0.3 0.3, 3, 0)    -- block begin and end
-    , (color1 0.0 0.0 0.0, 3, 8)    -- block section
+    [ (color1 0.0 0.0 0.0, 3, 8)    -- section
     , (color1 0.4 0.3 0.0, 2, 8)    -- measure / whole
 
     , (color1 1.0 0.4 0.2, 2, 8)    -- half
@@ -92,14 +91,13 @@ meter_ranks =
     ]
 
 -- | These are the conventional meanings for the ranks.
-r_block, r_section, r_1, r_2, r_4, r_8, r_16, r_32, r_64, r_128, r_256
-    :: Ruler.Rank
-r_block : r_section : r_1 : r_2 : r_4 : r_8 : r_16 : r_32 : r_64 : r_128
-    : r_256 : _ = [0..]
+r_section, r_1, r_2, r_4, r_8, r_16, r_32, r_64, r_128, r_256 :: Ruler.Rank
+r_section : r_1 : r_2 : r_4 : r_8 : r_16 : r_32 : r_64 : r_128 : r_256 : _ =
+  [0..]
 
 rank_names :: [(Ruler.Rank, String)]
 rank_names = zip [0..]
-    ["block", "section", "w", "h", "q", "e", "s", "32", "64", "128", "256"]
+    ["section", "w", "h", "q", "e", "s", "32", "64", "128", "256"]
 
 rank_to_pixels :: [Int]
 rank_to_pixels = [pixels | (_, _, pixels) <- meter_ranks]
@@ -147,22 +145,22 @@ regular_subdivision ns = foldr subdivide T (reverse ns)
 -- ** predefined meters
 
 -- sections/block, measures/section, half/measure, quarter/half, etc.
-m54, m44, m34 :: AbstractMeter
-m54 = regular_subdivision [4, 4, 5, 2, 2, 2, 2]
-m44 = regular_subdivision [4, 4, 2, 2, 2, 2, 2]
-m34 = regular_subdivision [4, 4, 3, 2, 2, 2, 2]
+m54, m44, m34 :: [AbstractMeter]
+m54 = replicate 4 $ regular_subdivision [4, 5, 2, 2, 2, 2]
+m44 = replicate 4 $ regular_subdivision [4, 2, 2, 2, 2, 2]
+m34 = replicate 4 $ regular_subdivision [4, 3, 2, 2, 2, 2]
 
-m3p3p2_8 :: AbstractMeter
-m3p3p2_8 = repeats [4, 4, 1] $ subdivides [2, 2, 2, 2] $
+m3p3p2_8 :: [AbstractMeter]
+m3p3p2_8 = replicate 4 $ repeats [4, 1] $ subdivides [2, 2, 2, 2] $
     D [D [T, T, T], D [T, T, T], D [T, T]]
 
 -- | 2+2+2 / 8, 4 quarters per measure
-m2p2p2_8 :: AbstractMeter
-m2p2p2_8 = regular_subdivision [4, 4, 1, 3, 2, 2, 2, 2]
+m2p2p2_8 :: [AbstractMeter]
+m2p2p2_8 = replicate 4 $ regular_subdivision [4, 1, 3, 2, 2, 2, 2]
 
 -- | 3+3 / 8, 2 dotted quarters per measure
-m3p3_8 :: AbstractMeter
-m3p3_8 = regular_subdivision [4, 4, 1, 2, 3, 2, 2, 2]
+m3p3_8 :: [AbstractMeter]
+m3p3_8 = replicate 4 $ regular_subdivision [4, 1, 2, 3, 2, 2, 2]
 
 -- *** AbstractMeter utils
 
@@ -213,9 +211,7 @@ meter_marklist meter_ = Ruler.marklist (Map.fromList pos_marks)
             <- List.zip4 meter mark_pos (rank_durs meter)
                 (ranks_to_labels (map fst meter))]
     -- By convention, the block begins and ends with a rank 0 mark.
-    meter = (++ [(0, 0)]) $ case meter_ of
-        (_, d) : rest -> (0, d) : map (first (max 1)) rest
-        [] -> []
+    meter = meter_ ++ [(0, 0)]
     mark_pos = scanl (+) 0 (map snd meter)
     mark rank_dur rank name =
         let (color, width, pixels) = meter_ranks !! min rank ranks_len
@@ -243,8 +239,8 @@ rank_durs = map rank_dur . List.tails
 --
 -- TODO starts at 0, but maybe I should start at 1?
 ranks_to_labels :: [Ruler.Rank] -> [String]
-ranks_to_labels = map (Seq.join "." . map show . drop 1 . reverse)
-    . snd . List.mapAccumL mkname (-1, [])
+ranks_to_labels = map (Seq.join "." . map show . reverse)
+    . snd .  List.mapAccumL mkname (-1, [])
     where
     mkname (prev_rank, prev_path) rank = ((rank, path), path)
         where

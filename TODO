@@ -1014,6 +1014,8 @@ REPL: repl:
 
 Cmd:
   meter / timestep
+    - Putting twice as many ranks makes the meter labels ugly, because they
+      only go up to 1.
     * giving Meter.T an argument seems like overkill, do I have a use for
       beats of unequal lengths?
     * It seems like it would be simpler to have meter rank divisions at every

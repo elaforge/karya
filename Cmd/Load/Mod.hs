@@ -48,7 +48,7 @@ create :: (State.M m) => Id.Namespace -> [UiBlock] -> m ()
 create name ui_blocks = do
     State.set_namespace name
     let mkid = Id.unsafe_id name
-    rid <- Create.ruler "meter44" (RulerUtil.meter_ruler 16 [Meter.m44])
+    rid <- Create.ruler "meter44" (RulerUtil.meter_ruler 16 Meter.m44)
     block_ids <- zipWithM (create_block mkid rid "") [0..] ui_blocks
     root <- create_order_block mkid block_ids
     State.set_root_id root
@@ -83,7 +83,7 @@ create_order_block mkid block_ids = do
 
 order_meter :: [BlockRows] -> Ruler.Marklist
 order_meter = Meter.make_marklist 1 . (:[]) . Meter.D . map mkd
-    where mkd dur = Meter.D (replicate dur (Meter.T 1))
+    where mkd dur = Meter.D (replicate dur Meter.T)
 
 make_block :: (State.M m) => (String -> Id.Id) -> RulerId -> String
     -> [(String, [Event.Event])] -> m BlockId

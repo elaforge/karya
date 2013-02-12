@@ -24,8 +24,7 @@ test_modify_tempo = do
                 , (">i", [(0, 1, ""), (1, 1, "")])
                 ])
             CmdTest.set_point_sel 1 0
-            rid <- Create.ruler "meter44"
-                (RulerUtil.meter_ruler 16 [Meter.m44])
+            rid <- Create.ruler "meter44" (RulerUtil.meter_ruler 16 Meter.m44)
             ruler <- State.get_ruler rid
             State.modify_ruler UiTest.default_ruler_id (const ruler)
     let cstate = ResponderTest.mk_cmd_state ustate (UiTest.default_view_id)
