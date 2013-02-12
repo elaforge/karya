@@ -72,7 +72,7 @@ UNSORTED
     Or as many as necessary?  Wrap on |, and justify by inserting spaces?
     * Remove proj, step, 8ve
     * Add play mult, default tempo
-  - hashable is not suitable for consistent hashing, I should use a known
+  * hashable is not suitable for consistent hashing, I should use a known
     algorithm.  Maybe use crc32 from 'digest'?
   * play_at is messed up in the presence of play multiplier
   - double click isn't creating a fitted view?
@@ -494,8 +494,10 @@ block composition
       sometimes no...
 
 incremental save / git
-  - Verify the supposed previous commit against the real previous commit, to
+  / Verify the supposed previous commit against the real previous commit, to
     prevent incremental saving on the wrong base.
+    The real problem is it's too expensive to know if it's the real
+    prev commit by comparing the states.
   + try saving individual events for incremental save
     Seems to be just as slow as full save, probably most of the time is in
     the call to git.  Test again with larger tracks.

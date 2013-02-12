@@ -17,10 +17,11 @@ import qualified Prelude
 import Prelude hiding (length)
 import qualified Control.DeepSeq as DeepSeq
 import qualified Data.ByteString.Char8 as B
-import qualified Data.Hashable as Hashable
+import qualified Data.Digest.CRC32 as CRC32
 import qualified Text.Read as Read
 
 import Util.Control
+import Util.Crc32Instances ()
 import qualified Util.ParseBs as Parse
 import qualified Util.Pretty as Pretty
 import qualified Util.Ranges as Ranges
@@ -41,7 +42,7 @@ import Types
 -- I originally used "Data.Sequence" but it generates more garbage and
 -- I couldn't figure out how to stop that from happening.
 newtype Stack = Stack [Frame]
-    deriving (Eq, Ord, DeepSeq.NFData, Serialize.Serialize, Hashable.Hashable)
+    deriving (Eq, Ord, DeepSeq.NFData, Serialize.Serialize, CRC32.CRC32)
 
 instance Show Stack where
     show stack = "Stack.from_outermost " ++ show (outermost stack)
@@ -142,12 +143,12 @@ instance Serialize.Serialize Frame where
                 return $ Call s
             _ -> Serialize.bad_tag "Stack.Frame" tag
 
-instance Hashable.Hashable Frame where
-    hashWithSalt n (Block block_id) = Hashable.hashWithSalt n block_id
-    hashWithSalt n (Track track_id) = Hashable.hashWithSalt n track_id
-    hashWithSalt n (Region s e) =
-        Hashable.hashWithSalt n s `Hashable.hashWithSalt` e
-    hashWithSalt n (Call call) = Hashable.hashWithSalt n call
+instance CRC32.CRC32 Frame where
+    crc32Update n (Block block_id) = n `CRC32.crc32Update` block_id
+    crc32Update n (Track track_id) = n + 1 `CRC32.crc32Update` track_id
+    crc32Update n (Region s e) =
+        n + 2 `CRC32.crc32Update` s `CRC32.crc32Update` e
+    crc32Update n (Call call) = n + 3 `CRC32.crc32Update` call
 
 format_ui :: Stack -> Pretty.Doc
 format_ui = Pretty.text_list . map unparse_ui_frame . to_ui

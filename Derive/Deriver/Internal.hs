@@ -3,9 +3,10 @@
     scheme, and are not so useful when writing calls.
 -}
 module Derive.Deriver.Internal where
-import qualified Data.Hashable as Hashable
+import qualified Data.Digest.CRC32 as CRC32
 import qualified Data.Map as Map
 import qualified Data.Set as Set
+import qualified Data.Word as Word
 
 import Util.Control
 import qualified Util.Log as Log
@@ -206,12 +207,11 @@ add_stack_frame frame st = st
     update_seed env = TrackLang.insert_val
         TrackLang.v_seed (TrackLang.num (seed old)) env
         where old = fromMaybe 0 (TrackLang.maybe_val TrackLang.v_seed env)
-    seed n = i2d (Hashable.hashWithSalt n frame)
-    -- If I just round off I lose the lower bits.  It turns out hashing similar
-    -- numbers differs only in the low bits.  A Double should be able to hold
-    -- up to 2^52, but that's still an annoyingly large number to write in
-    -- a score, so restrict it further.
-    i2d :: Int -> Double
+    seed :: Double -> Double
+    seed n = i2d (CRC32.crc32Update (floor n) frame)
+    -- A Double should be able to hold up to 2^52, but that's still an
+    -- annoyingly large number to write in a score, so restrict it further.
+    i2d :: Word.Word32 -> Double
     i2d i = fromIntegral (i `mod` 999)
 
 get_stack :: Deriver Stack.Stack

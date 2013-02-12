@@ -11,7 +11,7 @@ test_omit = do
             [(">", [(p, 1, n) | p <- Seq.range 0 5 1])]
     equal (run "omit 0 |") ([(p, 1) | p <- Seq.range 0 5 1], [])
     equal (run "omit 1 |") ([], [])
-    let present = [1, 2, 4, 5]
+    let present = [1, 2, 3, 5]
     equal (run "omit .5 |") (map (, 1) present, [])
 
     -- Ensure different calls to the same block are differently random.
@@ -19,7 +19,7 @@ test_omit = do
             [ ("top", [(">", [(p, 1, n) | (p, n) <- zip (Seq.range_ 0 1) ns])])
             , ("sub=ruler", [(">", [(0, 1, "omit .5 |")])])
             ]
-    let present = [3, 8]
+    let present = [2, 3, 6, 8, 9]
     equal (blocks (replicate 10 "sub")) ([(n, 1) | n <- present], [])
 
 test_alternate = do
@@ -30,7 +30,7 @@ test_alternate = do
             , ("s2=ruler", [(">", [(0, 1, "")]), ("*", [(0, 0, "4d")])])
             ]
     equal (run "alt 's1' 's2'")
-        (["4d", "4d", "4d", "4c", "4c", "4c"], [])
+        (["4d", "4c", "4d", "4c", "4c", "4c"], [])
     let (ps, logs) = run "alt 'bad (call' 's2'"
-    equal ps $ replicate 3 "4d"
-    strings_like logs $ replicate 3 "parse error"
+    equal ps $ replicate 2 "4d"
+    strings_like logs $ replicate 4 "parse error"

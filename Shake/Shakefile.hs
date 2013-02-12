@@ -238,7 +238,7 @@ libraryDependencies = concat $
     , w "attoparsec" -- Derive: tracklang parsing
     , [("fixed-list", ">=0.1.5")] -- Derive.Call.Util: for typesafe mapping
     -- Derive: score randomization
-    , w "mersenne-random-pure64 hashable random-shuffle"
+    , w "mersenne-random-pure64 digest random-shuffle"
     , w "dlist" -- Util.TimeVector
     , w "bindings-DSL" -- Util.Git.LibGit2
     , w "fclabels" -- Util.Lens
@@ -250,6 +250,7 @@ libraryDependencies = concat $
     , [("regex-pcre", ""), ("Diff", ">=0.2")] -- Util.Test
     , w "QuickCheck" -- Derive.DeriveQuickCheck
     , [("shake", ">=0.6"), ("binary", ""), ("syb", "")] -- build system
+    , w "hashable"
     , w "ekg" -- if useEkg == True
     , [("zmidi-core", ">=0.6")] -- for Cmd.Load.Midi
     ]

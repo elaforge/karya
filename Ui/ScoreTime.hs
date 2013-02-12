@@ -1,11 +1,12 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 module Ui.ScoreTime (ScoreTime, to_double, double, suffix) where
 import qualified Control.DeepSeq as DeepSeq
-import qualified Data.Hashable as Hashable
+import qualified Data.Digest.CRC32 as CRC32
 import qualified Text.ParserCombinators.ReadP as ReadP
 import qualified Text.Read as Read
 
 import qualified Util.ApproxEq as ApproxEq
+import Util.Crc32Instances ()
 import Util.Control
 import qualified Util.ForeignC as C
 import qualified Util.Pretty as Pretty
@@ -19,7 +20,7 @@ import qualified Ui.Util as Util
 -- blocks only display events at >=0 ScoreTime.
 newtype ScoreTime = ScoreTime Double deriving
     ( DeepSeq.NFData, Num, Fractional, Real
-    , RealFrac, Eq, Ord, Serialize.Serialize, Hashable.Hashable
+    , RealFrac, Eq, Ord, Serialize.Serialize, CRC32.CRC32
     , ApproxEq.ApproxEq
     )
 

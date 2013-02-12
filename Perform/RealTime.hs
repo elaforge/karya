@@ -45,12 +45,13 @@ module Perform.RealTime (
 ) where
 import Prelude hiding (div)
 import qualified Control.DeepSeq as DeepSeq
-import qualified Data.Hashable as Hashable
+import qualified Data.Digest.CRC32 as CRC32
 import qualified Foreign
 import qualified Text.ParserCombinators.ReadP as ReadP
 import qualified Text.Read as Read
 
 import qualified Util.ApproxEq as ApproxEq
+import Util.Crc32Instances ()
 import Util.Control
 import qualified Util.ForeignC as C
 import qualified Util.Pretty as Pretty
@@ -68,7 +69,7 @@ import qualified Ui.Util as Util
 -- RealTime.
 newtype RealTime = RealTime Double deriving
     ( DeepSeq.NFData, Num, Fractional, Real, Eq, Ord
-    , Serialize.Serialize, Hashable.Hashable, ApproxEq.ApproxEq
+    , Serialize.Serialize, CRC32.CRC32, ApproxEq.ApproxEq
     )
 
 -- I could derive Storable, but technically speaking Double is not necessarily

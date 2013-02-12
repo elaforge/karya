@@ -28,7 +28,7 @@ import qualified Control.DeepSeq as DeepSeq
 import Control.Monad
 import qualified Data.ByteString.Char8 as B
 import qualified Data.Char as Char
-import qualified Data.Hashable as Hashable
+import qualified Data.Digest.CRC32 as CRC32
 
 import qualified System.IO.Unsafe as Unsafe
 import qualified Text.ParserCombinators.ReadPrec as ReadPrec
@@ -44,7 +44,7 @@ import qualified Util.Serialize as Serialize
 -- It doesn't so much belong in this module, but Ui.Block etc. all use it and
 -- it's easier to put it here than make a whole new module.
 newtype Namespace = Namespace B.ByteString
-    deriving (Eq, Ord, Show, Read, DeepSeq.NFData, Hashable.Hashable)
+    deriving (Eq, Ord, Show, Read, DeepSeq.NFData, CRC32.CRC32)
 data Id = Id !Namespace !B.ByteString
     deriving (Eq, Ord, Show, Read)
 
@@ -56,9 +56,9 @@ instance Serialize.Serialize Namespace where
     put = Serialize.put . un_namespace
     get = Serialize.get >>= \a -> return (unsafe_namespace a)
 
-instance Hashable.Hashable Id where
-    hashWithSalt salt (Id ns name) =
-        Hashable.hashWithSalt salt ns `Hashable.hashWithSalt` name
+instance CRC32.CRC32 Id where
+    crc32Update n (Id ns name) =
+        n `CRC32.crc32Update` ns `CRC32.crc32Update` name
 
 -- | Create a namespace, if the characters are valid.
 namespace :: String -> Maybe Namespace

@@ -468,6 +468,8 @@ v_srate = Symbol "srate"
 
 -- | Random seed used by randomization functions.  Can be explicitly
 -- initialized to capture a certain \"random\" variation.
+--
+-- This is rounded to an integer, so only integral values make sense.
 v_seed :: ValName
 v_seed = Symbol "seed"
 

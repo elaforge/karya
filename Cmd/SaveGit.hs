@@ -147,7 +147,7 @@ checkpoint repo hist@(SaveHistory state prev_commit updates names) =
                 Log.warn $ "ignored updates for nonexistent "
                     ++ Seq.join ", " warns
                     ++ "; this probably means 'Ui.Diff.cancel_updates didn't"
-                    ++ " do it's job"
+                    ++ " do its job"
             last_tree <- Git.commit_tree <$> Git.read_commit repo prev_commit
             tree <- Git.modify_tree repo last_tree mods
             commit <- commit_tree repo tree (Just prev_commit) $
