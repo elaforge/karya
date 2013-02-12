@@ -6,6 +6,7 @@ import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 
 import qualified Derive.Args as Args
+import qualified Derive.Call as Call
 import qualified Derive.Call.BlockUtil as BlockUtil
 import qualified Derive.Call.Note as Note
 import qualified Derive.Call.Tags as Tags
@@ -197,6 +198,7 @@ note_calls :: Derive.NoteCallMap
 note_calls = Derive.make_calls
     [ ("is-ly", c_is_ly)
     , ("not-ly", c_not_ly)
+    , ("if-ly", c_if_ly)
     , ("8va", c_8va)
     , ("xstaff", c_xstaff)
     , ("dyn", c_dyn)
@@ -236,6 +238,15 @@ c_not_ly = Derive.transformer "not-ly" Tags.ly
     \ lilypond mode. Only use it in the track title!"
     $ Sig.call0t $ \args deriver ->
         when_lilypond (const $ derive_subtracks args) deriver
+
+c_if_ly :: Derive.NoteCall
+c_if_ly = Derive.stream_generator "if-ly" Tags.ly_only
+    "Conditional for lilypond." $ Sig.call ((,)
+    <$> required "is-ly" "Evaluated in lilypond mode."
+    <*> required "not-ly" "Evaluated when not in lilypond mode."
+    ) $ \(is_ly, not_ly) args -> when_lilypond
+        (const (Call.reapply_string args is_ly))
+        (Call.reapply_string args not_ly)
 
 derive_subtracks :: Derive.PassedArgs d -> Derive.EventDeriver
 derive_subtracks =

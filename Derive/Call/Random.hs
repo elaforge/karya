@@ -43,11 +43,7 @@ c_alternate = Derive.stream_generator "alternate" Tags.random
     ("Pick one of several expressions and evaluate it.\
     \ They have to be strings since calls themselves are not first class."
     ) $ Sig.call (many1 "expr" "Expression to evaluate.") $
-    \exprs args -> do
-        expr <- Util.pick exprs
-        case ParseBs.parse_expr (ParseBs.from_string expr) of
-            Left err -> Derive.throw $ "alternate: " ++ err
-            Right expr -> Call.reapply args expr
+    \exprs args -> Call.reapply_string args =<< Util.pick exprs
 
 
 -- * val calls

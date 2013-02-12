@@ -245,7 +245,7 @@ UNSORTED
     - various numpuk
     - makilit / kilitan derivations from melody
   calls to define randomized scores:
-    - alternate b1 b2 b3 - calls one of variant calls
+    * alternate b1 b2 b3 - calls one of variant calls
     - how could I omit a transformer?
   - Pretty on a lot of events causes a stack overflow
     Need a reproduction.
