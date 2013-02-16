@@ -14,7 +14,7 @@ import qualified Perform.Signal as Signal
 
 test_compile = do
     let controls = map Score.event_controls
-        pitches = map DeriveTest.e_pitch
+        pitches = map DeriveTest.e_nns
 
     let derive track = DeriveTest.extract id $ DeriveTest.derive_tracks
             [ ("tempo", [(0, 0, "2")])
@@ -90,7 +90,7 @@ test_two_level_orphans = do
     -- Orphan extraction should be recursive, in case there are multiple
     -- intervening empty tracks.
     let run = DeriveTest.extract extract . DeriveTest.linear_derive_tracks id
-        extract e = (DeriveTest.e_note2 e, DeriveTest.e_attributes e)
+        extract e = (DeriveTest.e_note e, DeriveTest.e_attributes e)
     equal (run
         [ (">inst", [(0, 1, "+a")])
         , (">", [(1, 1, "+b")])

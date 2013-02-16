@@ -18,14 +18,14 @@ import qualified Perform.Pitch as Pitch
 
 
 test_track = do
-    equal (DeriveTest.extract DeriveTest.e_twelve $ DeriveTest.derive_tracks
+    equal (DeriveTest.extract DeriveTest.e_pitch $ DeriveTest.derive_tracks
         [ (">", [(1, 1, "`mordent`")])
         , ("*", [(0, 0, "4c")])
         ])
         (["4c", "4d", "4c"], [])
 
 test_mordent = do
-    let run = DeriveTest.extract DeriveTest.e_twelve . DeriveTest.derive_tracks
+    let run = DeriveTest.extract DeriveTest.e_pitch . DeriveTest.derive_tracks
     equal (run
         [ (">", [(1, 1, "`mordent`")])
         , ("*", [(0, 0, "4c")])
@@ -40,11 +40,11 @@ test_mordent = do
     let f = Ornament.mordent
         run = DeriveTest.run_events extract
             . DeriveTest.run State.empty
-            . Util.with_pitch (DeriveTest.mkpitch "a")
+            . Util.with_pitch (DeriveTest.mkpitch2 "4c")
             . Util.with_dynamic 1
             . Derive.with_val (TrackLang.Symbol "grace-dur") (1 :: Double)
             . Derive.with_val (TrackLang.Symbol "grace-overlap") (0.5 :: Double)
-        extract e = (Score.event_start e, DeriveTest.e_twelve e,
+        extract e = (Score.event_start e, DeriveTest.e_pitch e,
             DeriveTest.e_control "dyn" e)
     equal (run (f (4, 1) 0.25 (Pitch.Chromatic 1))) $ Right
         ( [ (2, "4c", [(0, 0.25)])
@@ -65,7 +65,7 @@ test_mordent = do
 
 test_grace = do
     let run = DeriveTest.extract extract . DeriveTest.derive_tracks
-        extract e = (DeriveTest.e_note2 e, Score.initial_dynamic e)
+        extract e = (DeriveTest.e_note e, Score.initial_dynamic e)
         title = "> | grace-dur = 1 | grace-overlap = .5"
         dur = 1
         overlap = 0.5
@@ -105,7 +105,7 @@ test_grace_ly = do
 test_grace_attr = do
     let run = DeriveTest.extract extract
             . DeriveTest.derive_tracks_with with_call
-        extract e = (DeriveTest.e_twelve e,
+        extract e = (DeriveTest.e_pitch e,
             ShowVal.show_val $ Score.event_attributes e)
         with_call = CallTest.with_note_call "g" (Ornament.c_grace_attr graces)
     -- Attrs when it can.

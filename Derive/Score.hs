@@ -198,6 +198,15 @@ nn_at pos event = do
 initial_nn :: Event -> Maybe Pitch.NoteNumber
 initial_nn event = nn_at (event_start event) event
 
+note_at :: RealTime -> Event -> Maybe Pitch.Note
+note_at pos event = do
+    pitch <- pitch_at pos event
+    either (const Nothing) Just $ PitchSignal.pitch_note $
+        PitchSignal.apply (event_controls_at pos event) pitch
+
+initial_note :: Event -> Maybe Pitch.Note
+initial_note event = note_at (event_start event) event
+
 
 -- ** warp
 

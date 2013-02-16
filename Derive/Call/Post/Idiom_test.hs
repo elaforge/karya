@@ -7,7 +7,7 @@ import qualified Derive.DeriveTest as DeriveTest
 
 
 test_arp_pizz = do
-    let f = DeriveTest.extract DeriveTest.e_note2
+    let f = DeriveTest.extract DeriveTest.e_note
             . DeriveTest.derive_tracks_with_ui id (global "arp-pizz .5")
             . concatMap UiTest.note_track
 

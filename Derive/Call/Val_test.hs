@@ -48,7 +48,7 @@ test_prev_next_val = do
     equal (runc [(0, 0, "set (>)"), (1, 0, ".75")])
         ([[(0, 0.75), (1, 0.75)]], [])
 
-    let runp notes pitch = DeriveTest.extract DeriveTest.e_note2 $
+    let runp notes pitch = DeriveTest.extract DeriveTest.e_note $
             DeriveTest.derive_tracks [(">", notes), ("*", pitch)]
     -- TODO doesn't work :(
     -- equal (runp [(0, 1, "4a"), (1, 1, "<")])

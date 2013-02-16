@@ -288,7 +288,7 @@ test_tempo_compose = do
     -- TODO test when the subblock has a tempo too
 
 test_initial_environ = do
-    let extract = DeriveTest.extract DeriveTest.e_pitch
+    let extract = DeriveTest.extract DeriveTest.e_nns
     let run title pitch = extract $ DeriveTest.derive_tracks
             [ (">", [(0, 1, "")])
             , (title, [(0, 0, pitch)])
@@ -575,7 +575,7 @@ test_named_pitch = do
 test_block_end = do
     -- Make sure the pitch for the sub block event is trimmed to the end
     -- of the block, since there's no next event for it.
-    let res = DeriveTest.extract DeriveTest.e_pitch $ DeriveTest.derive_blocks
+    let res = DeriveTest.extract DeriveTest.e_nns $ DeriveTest.derive_blocks
             [ ("p",
                 [ (">i1", [(0, 1, "sub"), (1, 1, "")])
                 , ("*twelve", [(0, 0, "5d"), (1, 0, "5e")])
@@ -614,7 +614,7 @@ test_regress_event_end1 = do
     -- wound up with too much pitch signal.
     let res = derive_blocks blocks
         extract e = (Score.event_start e, Score.event_duration e,
-                DeriveTest.e_pitch e)
+                DeriveTest.e_nns e)
     equal (DeriveTest.extract extract res)
         ([ (0, 2, [(0, 60)])
         , (2, 2, [(2, 62)])
@@ -630,7 +630,7 @@ test_regress_event_end1 = do
 test_regress_event_end2 = do
     let res = derive_blocks blocks
         extract e = (Score.event_start e, Score.event_duration e,
-                DeriveTest.e_pitch e)
+                DeriveTest.e_nns e)
     equal (DeriveTest.extract extract res)
         ([ (5, 2, [(5, 60)])
         , (7, 2, [(7, 62)])
@@ -649,7 +649,7 @@ test_regress_event_end2 = do
 test_roundoff = do
     let res = derive_blocks blocks
     pprint $ first head (DeriveTest.extract id res)
-    pprint (DeriveTest.extract DeriveTest.e_note2 res)
+    pprint (DeriveTest.extract DeriveTest.e_note res)
     let (_perf_events, mmsgs, _logs) =
             DeriveTest.perform_defaults (Derive.r_events res)
     pprint mmsgs

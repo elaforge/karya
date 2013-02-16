@@ -10,7 +10,7 @@ import qualified Perform.Lilypond.LilypondTest as LilypondTest
 
 test_is_ly = do
     let not_ly = DeriveTest.extract ex . DeriveTest.linear_derive_tracks id
-            where ex e = (DeriveTest.e_twelve e, DeriveTest.e_attributes e)
+            where ex e = (DeriveTest.e_pitch e, DeriveTest.e_attributes e)
         is_ly = first (map ex) . LilypondTest.derive_linear True id
             where
             ex e = (Lilypond.event_pitch e,

@@ -36,7 +36,7 @@ test_assign_controls = do
             , (inst_title, [(0, 1, "")])
             ]
         extract = DeriveTest.extract $ \e ->
-            (DeriveTest.e_twelve e, DeriveTest.e_control "cont" e)
+            (DeriveTest.e_pitch e, DeriveTest.e_control "cont" e)
 
     -- normal
     equal (run ">i" "cont" "1") ([("4c", [(0, 1)])], [])
@@ -194,7 +194,7 @@ test_inverting_around = do
             , ("*twelve", [(0, 0, "4c"), (2, 0, "4d")])
             ]
         with_call = CallTest.with_note_call "next" c_next
-        extract = DeriveTest.extract DeriveTest.e_note2
+        extract = DeriveTest.extract DeriveTest.e_note
     equal evts [(0, 1, "4c"), (1, 1, "4d"), (2, 1, "4d")]
     equal logs []
     where

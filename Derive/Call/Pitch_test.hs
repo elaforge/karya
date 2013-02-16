@@ -18,7 +18,7 @@ test_interpolated_transpose = do
             [ (title, [(0, 5, "")])
             , ("*test", [(0, 0, "A"), (4, 0, "i (B)")])
             ]
-        extract = head . DeriveTest.extract_events DeriveTest.e_pitch
+        extract = head . DeriveTest.extract_events DeriveTest.e_nns
     equal (run ">") [(0, 1), (1, 1.5), (2, 2), (3, 2.5), (4, 3)]
     equal (run "> | %t-chromatic = 1")
         [(0, 3), (1, 3.25), (2, 3.5), (3, 3.75), (4, 4)]
@@ -30,7 +30,7 @@ test_transpose_out_of_range = do
         [(0, 70)]
     equal (run_with_title id "> | %t-chromatic = -10" "twelve" [(0, "4c")])
         [(0, 50)]
-    -- It's not actually an IO exception but that's how DeriveTest.e_pitch
+    -- It's not actually an IO exception but that's how DeriveTest.e_nns
     -- extractor treats an error in the pitch signal.
     throws (run_with_title id "> | %t-chromatic = 200" "twelve" [(0, "4c")])
         "note can't be transposed"
@@ -40,7 +40,7 @@ run_with_title with inst_title pitch_title pitches = extract $
         [ (inst_title, [(0, 5, "")])
         , ('*' : pitch_title, [(x, 0, n) | (x, n) <- pitches])
         ]
-    where extract = head . DeriveTest.extract_events DeriveTest.e_pitch
+    where extract = head . DeriveTest.extract_events DeriveTest.e_nns
 
 test_neighbor = do
     equal (CallTest.run_pitch [(0, "n (4c) 1 2")])
@@ -58,7 +58,7 @@ test_approach = do
     equal (CallTest.run_pitch [(0, "4c"), (10, "a 2s"), (20, "4d")])
         [(0, 60), (10, 60), (11, 61), (12, 62), (20, 62)]
 
-    let run = DeriveTest.extract DeriveTest.e_pitch
+    let run = DeriveTest.extract DeriveTest.e_nns
             . DeriveTest.derive_tracks . UiTest.note_spec
     equal (run ("", [(0, 10, "4c"), (10, 10, "a 2s"), (20, 10, "4d")], []))
         ([[(0, 60)], [(10, 60), (11, 61), (12, 62)], [(20, 62)]], [])
@@ -96,7 +96,7 @@ test_linear_next = do
 test_drop = do
     let run pitches = extract . run_ 1 pitches
         extract = head . (DeriveTest.extract_events $ \e ->
-            (DeriveTest.e_pitch e, DeriveTest.e_dyn e))
+            (DeriveTest.e_nns e, DeriveTest.e_dyn e))
     equal (run [(0, "4c"), (1, "drop 2 2")] [("dyn", [(0, 0, "1")])])
         ( [(0, 60), (2, 59), (3, 58)]
         , [(0, 1), (1, 1), (2, 0.5), (3, 0)]
@@ -111,7 +111,7 @@ run = run_tempo 1
 
 run_tempo :: Int -> [(ScoreTime, String)] -> [(RealTime, Pitch.NoteNumber)]
 run_tempo tempo pitches = extract $ run_ tempo pitches []
-    where extract = head . DeriveTest.extract_events DeriveTest.e_pitch
+    where extract = head . DeriveTest.extract_events DeriveTest.e_nns
 
 run_ :: Int -> [(ScoreTime, String)] -> [UiTest.TrackSpec] -> Derive.Result
 run_ tempo pitches tracks = DeriveTest.derive_tracks $

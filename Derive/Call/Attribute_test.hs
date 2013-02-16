@@ -12,7 +12,7 @@ test_legato = do
     let run = DeriveTest.extract extract . DeriveTest.linear_derive_tracks id
         extract e = (s, d, p, a)
             where
-            ((s, d, p), a) = (DeriveTest.e_note2 e, DeriveTest.e_attributes e)
+            ((s, d, p), a) = (DeriveTest.e_note e, DeriveTest.e_attributes e)
     let (evts, logs) = run
             [ ("> | %legato-overlap = .5", [(1, 3, "(")])
             , (">", [(n, 1, "") | n <- Seq.range 0 4 1])

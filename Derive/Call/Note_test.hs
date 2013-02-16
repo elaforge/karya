@@ -60,7 +60,7 @@ test_orphan_notes = do
     -- This is analogous to track level orphans, which are tested in
     -- "Ui.Call.BlockUtil_test".
     let run = DeriveTest.extract extract . DeriveTest.linear_derive_tracks id
-        extract e = (DeriveTest.e_note2 e, DeriveTest.e_attributes e)
+        extract e = (DeriveTest.e_note e, DeriveTest.e_attributes e)
     equal (run
         [ (">inst", [(0, 2, "a = b")])
         , (">", [])

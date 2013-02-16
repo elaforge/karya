@@ -14,16 +14,16 @@ import qualified Perform.Signal as Signal
 test_note_trill = do
     let run notes pitches = extract $ DeriveTest.derive_tracks
             [(">", notes), ("*", pitches)]
-        extract = DeriveTest.extract DeriveTest.e_note2
+        extract = DeriveTest.extract DeriveTest.e_note
     equal (run [(0, 3, "tr 1 1")] [(0, 0, "4c")])
         ([(0, 1, "4c"), (1, 1, "4d"), (2, 1, "4c")], [])
-    equal (run [(0, 3, "tr 1 1")] [(0, 0, "4a"), (2, 0, "i (4b)")])
-        ([(0, 1, "4a"), (1, 1, "4b 50"), (2, 1, "4b")], [])
+    equal (run [(0, 3, "tr 2 1")] [(0, 0, "4a"), (2, 0, "i (4b)")])
+        ([(0, 1, "4a"), (1, 1, "5c"), (2, 1, "4b")], [])
 
 test_tremolo = do
     let run tempo notes = extract $ DeriveTest.derive_tracks
             [("tempo", [(0, 0, tempo)]), (">", notes), ("*", [(0, 0, "4c")])]
-        extract = DeriveTest.extract DeriveTest.e_note2
+        extract = DeriveTest.extract DeriveTest.e_note
     -- RealTime
     equal (run "1" [(0, 2, "trem 1s")]) ([(0, 1, "4c"), (1, 1, "4c")], [])
     equal (run "2" [(0, 4, "trem 1s")]) ([(0, 1, "4c"), (1, 1, "4c")], [])
@@ -40,7 +40,7 @@ test_tremolo_transformer = do
             , ("*", [(s, 0, p) | ((s, _, _), p)
                 <- zip notes (cycle ["4a", "4b", "4c"])])
             ]
-        extract = DeriveTest.extract_events DeriveTest.e_note2
+        extract = DeriveTest.extract_events DeriveTest.e_note
     equal (run [(0, 2, ""), (2, 2, "trem 1 |"), (4, 2, "")])
         [ (0, 2, "4a")
         , (2, 1, "4b"), (3, 1, "4b")
@@ -64,7 +64,7 @@ test_chord_tremolo = do
                 (">", [(0, dur, "trem 1s")])
                 : concatMap UiTest.note_track [notes1, notes2]
         skel = DeriveTest.set_skel [(1, 2), (1, 4), (2, 3), (4, 5)]
-        extract = DeriveTest.extract DeriveTest.e_twelve
+        extract = DeriveTest.extract DeriveTest.e_pitch
     equal (run 2 [(0, 2, "4c")] [(0, 2, "4d")])
         (["4c", "4d"], [])
     equal (run 4 [(0, 4, "4c")] [(0, 2, "4d")])
@@ -79,7 +79,7 @@ test_chord_tremolo = do
 test_trill = do
     let run text = extract $ DeriveTest.derive_tracks
             [(">", [(0, 3, "")]), ("*", [(0, 0, text), (3, 0, "--")])]
-        extract = DeriveTest.extract DeriveTest.e_pitch
+        extract = DeriveTest.extract DeriveTest.e_nns
     -- -- Defaults to diatonic.
     equal (run "tr (4c) 1 1")
         ([[(0, 60), (1, 62), (2, 60)]], [])
@@ -119,7 +119,7 @@ test_moving_trill = do
     -- Ensure a diatonic trill on a moving base note remains correct.
     let run tracks = extract $ DeriveTest.derive_tracks $
             (">", [(0, 6, "")]) : tracks
-        extract = DeriveTest.extract DeriveTest.e_pitch
+        extract = DeriveTest.extract DeriveTest.e_nns
     -- Trill transitions from 2 semitones to 1 semitone.
     equal (run
         [ ("*", [(0, 0, "4a"), (4, 0, "i (4b)")])

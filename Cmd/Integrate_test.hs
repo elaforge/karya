@@ -125,7 +125,7 @@ e_track_ids :: ResponderTest.Result -> [(BlockId, [TrackId])]
 e_track_ids = UiTest.extract_track_ids . ResponderTest.result_ui_state
 
 e_events :: ResponderTest.Result -> ([(RealTime, RealTime, String)], [String])
-e_events = DeriveTest.extract_levents DeriveTest.e_note2
+e_events = DeriveTest.extract_levents DeriveTest.e_note
     . CmdTest.e_events UiTest.default_block_id . ResponderTest.result_cmd
 
 e_perf :: ResponderTest.Result -> Maybe Cmd.Performance

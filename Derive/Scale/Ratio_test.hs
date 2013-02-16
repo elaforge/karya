@@ -4,7 +4,7 @@ import qualified Derive.DeriveTest as DeriveTest
 
 
 test_ratio = do
-    let extract = DeriveTest.extract DeriveTest.e_pitch
+    let extract = DeriveTest.extract DeriveTest.e_nns
     let run ratio base = extract $ DeriveTest.derive_tracks
             [ (">i1", [(0, 1, "")])
             , ("*twelve #ratio-source", [(0, 0, base)])

@@ -9,7 +9,7 @@ test_tick = do
     -- This also tests some error checking and absolute warp functions.
     let extract = DeriveTest.extract $ \e ->
             (Score.event_start e, Score.event_duration e,
-                DeriveTest.e_twelve e, Score.initial_dynamic e)
+                DeriveTest.e_pitch e, Score.initial_dynamic e)
     let run = extract . DeriveTest.linear_derive_tracks id
     let dyn = Derive.default_dynamic
         c_to_e evt1 evt2 =
@@ -71,6 +71,6 @@ test_tick = do
 test_tick_damp = do
     let run notes pitches = extract $ DeriveTest.derive_tracks
             [("> | realize-damp", notes), ("*", pitches)]
-        extract = DeriveTest.extract DeriveTest.e_note2
+        extract = DeriveTest.extract DeriveTest.e_note
     equal (run [(0, 1, ""), (1, 1, "' .1 .5")] [(0, 0, "4c"), (1, 0, "4e")])
         ([(0, 1.5, "4c"), (0.9, 0.6, "4d"), (1, 1, "4e")], [])

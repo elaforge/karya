@@ -19,7 +19,7 @@ test_tuplet = do
             , ("*twelve", [(0, 0, "4c"), (3, 0, "4d"), (6, 0, "4e")])
             , (">", [(0, 3, ""), (3, 3, ""), (6, 3, "")])
             ]
-    equal (run tracks) [(0, 4, 60), (4, 4, 62), (8, 4, 64)]
+    equal (run tracks) [(0, 4, "4c"), (4, 4, "4d"), (8, 4, "4e")]
 
     -- tuplet + inversion
     let tracks =
@@ -27,32 +27,31 @@ test_tuplet = do
             , (">", [(0, 3, ""), (3, 3, ""), (6, 3, "")])
             , ("*twelve", [(0, 0, "4c"), (3, 0, "4d"), (6, 0, "4e")])
             ]
-    equal (run tracks) [(0, 4, 60), (4, 4, 62), (8, 4, 64)]
+    equal (run tracks) [(0, 4, "4c"), (4, 4, "4d"), (8, 4, "4e")]
 
     -- notes of unequal length
-    let none = -1 -- no pitch track
     let tracks =
             [ (">", [(0, 6, "t")])
             , (">", [(0, 1, ""), (1, 2, "")])
             ]
-    equal (run tracks) [(0, 2, none), (2, 4, none)]
+    equal (run tracks) [(0, 2, "?"), (2, 4, "?")]
 
     let tracks =
             [ (">", [(12, 12, "t")])
             , (">", [(12, 3, ""), (15, 3, ""), (18, 3, "")])
             ]
-    equal (run tracks) [(12, 4, none), (16, 4, none), (20, 4, none)]
+    equal (run tracks) [(12, 4, "?"), (16, 4, "?"), (20, 4, "?")]
 
     -- longer than tuplet is shrunk
-    equal (run [(">", [(0, 1, "t")]), (">", [(0, 2, "")])]) [(0, 1, none)]
+    equal (run [(">", [(0, 1, "t")]), (">", [(0, 2, "")])]) [(0, 1, "?")]
 
     -- leading space is ignored (what should it mean?)
     equal (run [(">", [(0, 4, "t")]), (">", [(2, 1, ""), (3, 1, "")])])
-        [(0, 2, none), (2, 2, none)]
+        [(0, 2, "?"), (2, 2, "?")]
 
     -- not really testing tuplet: make sure empty tracks are stripped
     equal (run [(">", [(0, 1, "")]), (">", []), ("*twelve", [(0, 0, "4c")])])
-        [(0, 1, 60)]
+        [(0, 1, "4c")]
 
 test_tuplet_multiple_tracks = do
     let run = DeriveTest.extract_events extract
@@ -110,7 +109,7 @@ test_tuplet_ly = do
         (Right ["\\times 1/2 { \\acciaccatura { c'8[ b'8] } a'2 b'2 } r2"], [])
 
 test_arpeggio = do
-    let run = DeriveTest.extract_events DeriveTest.e_note2
+    let run = DeriveTest.extract_events DeriveTest.e_note
             . DeriveTest.derive_tracks_with_ui id
                 (DeriveTest.set_skel [(1, 2), (2, 3), (1, 4), (4, 5)])
     let tracks arp =

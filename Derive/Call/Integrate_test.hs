@@ -23,8 +23,8 @@ test_integrate_track = do
         extract i = (Derive.integrated_source i, Derive.integrated_events i)
     let [(source, events)] = map extract (Derive.r_integrated res)
     equal source (Right (UiTest.mk_tid 1))
-    equal (map (fmap DeriveTest.e_note2) events) [LEvent.Event (0, 1, "4c")]
-    equal (DeriveTest.extract DeriveTest.e_note2 res) ([(0, 2, "?")], [])
+    equal (map (fmap DeriveTest.e_note) events) [LEvent.Event (0, 1, "4c")]
+    equal (DeriveTest.extract DeriveTest.e_note res) ([(0, 2, "?")], [])
 
 with_damage :: [TrackNum] -> Derive.Deriver a -> Derive.Deriver a
 with_damage tracknums = DeriveTest.modify_constant $ \st ->

@@ -354,8 +354,8 @@ e_control cont event = maybe [] (Signal.unsignal . Score.typed_val) $
 e_dyn :: Score.Event -> [(RealTime, Signal.Y)]
 e_dyn = e_control ((\(Score.Control c) -> c) Score.c_dynamic)
 
-e_pitch :: Score.Event -> [(RealTime, Pitch.NoteNumber)]
-e_pitch e = signal_to_nn $
+e_nns :: Score.Event -> [(RealTime, Pitch.NoteNumber)]
+e_nns e = signal_to_nn $
     PitchSignal.apply_controls (Score.event_controls e) (Score.event_pitch e)
 
 signal_to_nn :: PitchSignal.Signal -> [(RealTime, Pitch.NoteNumber)]
@@ -366,31 +366,15 @@ signal_to_nn psig
     | otherwise = map (second Pitch.NoteNumber) (Signal.unsignal sig)
     where (sig, errs) = PitchSignal.to_nn psig
 
-e_pitch_err :: Score.Event -> ([(RealTime, Pitch.NoteNumber)], [String])
-e_pitch_err e = (map (second Pitch.NoteNumber) (Signal.unsignal sig),
-        map (\(PitchSignal.PitchError err) -> err) errs)
-    where
-    (sig, errs) = PitchSignal.to_nn $ PitchSignal.apply_controls
-        (Score.event_controls e) (Score.event_pitch e)
-
-e_twelve :: Score.Event -> String
-e_twelve e = fromMaybe "?" $ do
-    nn <- Score.initial_nn e
-    note <- Scale.scale_input_to_note Twelve.scale Nothing (to_input nn)
-    return (Pitch.note_text note)
-    where to_input (Pitch.NoteNumber n) = Pitch.InputKey n
+e_pitch :: Score.Event -> String
+e_pitch e = maybe "?" Pitch.note_text (Score.initial_note e)
 
 e_start_dur :: Score.Event -> (RealTime, RealTime)
 e_start_dur e = (Score.event_start e, Score.event_duration e)
 
 -- | (start, dur, pitch), the melodic essentials of a note.
-e_note :: Score.Event -> (RealTime, RealTime, Pitch.NoteNumber)
-e_note e = (Score.event_start e, Score.event_duration e,
-    fromMaybe (-1) (Score.initial_nn e))
-
--- | Like 'e_note', but return a string note name instead of NoteNumber.
-e_note2 :: Score.Event -> (RealTime, RealTime, String)
-e_note2 e = (Score.event_start e, Score.event_duration e, e_twelve e)
+e_note :: Score.Event -> (RealTime, RealTime, String)
+e_note e = (Score.event_start e, Score.event_duration e, e_pitch e)
 
 e_attributes :: Score.Event -> String
 e_attributes = ShowVal.show_val . Score.event_attributes

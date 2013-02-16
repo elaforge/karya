@@ -9,7 +9,7 @@ import qualified Derive.TrackLang as TrackLang
 
 test_string = do
     let extract = DeriveTest.extract e_event
-        e_event e = (Score.event_start e, DeriveTest.e_pitch e)
+        e_event e = (Score.event_start e, DeriveTest.e_nns e)
     let run p1 p2 p3 = extract $ DeriveTest.derive_tracks_with with_call
             [ ("> | guzheng 2 2 1", [(0, 5, ""), (5, 5, ""), (10, 5, "")])
             , ("*twelve", [(0, 0, p1), (5, 0, p2), (10, 0, p3)])

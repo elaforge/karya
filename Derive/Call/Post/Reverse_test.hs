@@ -11,7 +11,7 @@ test_reverse = do
                 ])
             , ("sub=ruler", sub_tracks)
             ]
-        extract = DeriveTest.extract DeriveTest.e_note2
+        extract = DeriveTest.extract DeriveTest.e_note
     equal (run
         [ (">", [(0, 1, "")])
         , ("*", [(0, 0, "4c")])

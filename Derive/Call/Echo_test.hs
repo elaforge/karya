@@ -31,7 +31,7 @@ test_delay_inverted = do
             , (">i", [(2, 2, text)])
             , ("*twelve", [(0, 0, "4c"), (2, 0, "4d")])
             ]
-        extract = DeriveTest.extract_events DeriveTest.e_note2
+        extract = DeriveTest.extract_events DeriveTest.e_note
     equal (run "d 2t |") [(2, 1, "4d")]
     equal (run "d .1s |") [(1.1, 1.0, "4d")]
 

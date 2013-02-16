@@ -23,8 +23,7 @@ test_omit = do
     equal (blocks (replicate 10 "sub")) ([(n, 1) | n <- present], [])
 
 test_alternate = do
-    let run s = DeriveTest.extract DeriveTest.e_twelve $
-            DeriveTest.derive_blocks
+    let run s = DeriveTest.extract DeriveTest.e_pitch $ DeriveTest.derive_blocks
             [ ("top", [(">", [(p, 1, s) | p <- Seq.range 0 5 1])])
             , ("s1=ruler", [(">", [(0, 1, "")]), ("*", [(0, 0, "4c")])])
             , ("s2=ruler", [(">", [(0, 1, "")]), ("*", [(0, 0, "4d")])])

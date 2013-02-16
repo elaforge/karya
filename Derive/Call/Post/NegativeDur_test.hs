@@ -51,7 +51,7 @@ test_negative_duration = do
     equal logs []
 
 -- test_slice = do
---     let extract = DeriveTest.extract DeriveTest.e_note2
+--     let extract = DeriveTest.extract DeriveTest.e_note
 --     let (events, logs) = extract $ DeriveTest.derive_blocks
 --             [ ("root",
 --                 [ ("> | negative-duration", [(2, -2, "sub"), (4, -2, "sub")])

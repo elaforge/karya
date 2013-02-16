@@ -50,7 +50,7 @@ test_track_expression = do
     equal (derive ("cont | srate = 2", [(0, 0, "0"), (4, 0, "i 1")]))
         ([[(0, 0), (2, 0.5), (4, 1)]], [])
 
-    let derive_pitch = do_derive DeriveTest.e_pitch
+    let derive_pitch = do_derive DeriveTest.e_nns
     equal (derive_pitch ("*twelve | srate = 2",
             [(0, 0, "4c"), (4, 0, "i (4d)")]))
         ([[(0, 60), (2, 61), (4, 62)]], [])
@@ -81,7 +81,7 @@ mktrack events_end track_range events =
     where evts = Events.from_list (map UiTest.make_event events)
 
 test_pitch_track = do
-    let derive = do_derive DeriveTest.e_pitch
+    let derive = do_derive DeriveTest.e_nns
 
     let (val, logs) = derive ("*no-scale", [(0, 0, "1"), (1, 0, "2")])
     equal val []

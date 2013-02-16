@@ -3,6 +3,22 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
+  - Maybe I can get rid of named marklists.  If I'm willing to have cues cause
+    a new ruler, then I can just mix them together, and put cues at rank -1
+    or something.  Otherwise I can have them nameless and mixed by TimeStep
+    implicitly, with cues still being -1 so timesteps don't count them
+    unexpectedly.
+  * all the DeriveTest.e_twelve stuff can get the note name directly now
+  reyong kilitan
+    - events to pokok
+    - patterns to events
+    - test
+    - cek, byut, byong
+    - more graceful transitions between pitches
+    - variant patterns
+    - coordination across parts
+    - damping, depending on speed
+    - support kilitan/beat speed more exotic than 4/1
   * kkt/hang is still using "invoke default note call" calls
     But the new note call doesn't group properly, because it contains the
     attrs.
