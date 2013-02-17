@@ -497,7 +497,12 @@ instance Show (ScopeType call) where
         "((ScopeType" ++ n inst ++ n scale ++ n builtin ++ "))"
         where n = (" "++) . show . length
 
-instance Pretty.Pretty (ScopeType call) where pretty = show
+instance Pretty.Pretty (ScopeType call) where
+    format (ScopeType inst scale builtin) = Pretty.record_title "ScopeType"
+        [ ("inst", Pretty.format inst)
+        , ("scale", Pretty.format scale)
+        , ("builtin", Pretty.format builtin)
+        ]
 
 -- | For flexibility, a scope is represented not by a map from symbols to
 -- derivers, but a function.  That way, it can inspect the CallId and return
@@ -519,6 +524,11 @@ data LookupDocs =
     -- to inspect the CallId.  The String should document what kinds of CallIds
     -- this lookup will match.
     | LookupPattern String DocumentedCall
+
+instance Pretty.Pretty (LookupCall call) where
+    format look = "Lookup: " <> case lookup_docs look of
+        LookupMap calls -> Pretty.format (Map.keys calls)
+        LookupPattern doc _ -> Pretty.text doc
 
 -- | This is like 'Call', but with only documentation.
 data DocumentedCall =
