@@ -32,13 +32,13 @@ test_convert = do
             ++ ">noinst (further warnings suppressed)"
         -- emits an event anyway so the previous pitch doesn't continue
         , Left (1, [])
-        , Left (2, [(2, 62)])
+        , Left (2, [(2, 60)])
         ]
     equal (convert [good 2, good 0, good 1])
-        [ Left (2, [(2, 62)])
-        , Left (0, [(0, 62)])
+        [ Left (2, [(2, 60)])
+        , Left (0, [(0, 60)])
         , Right "start time 0s less than previous of 2s"
-        , Left (1, [(1, 62)])
+        , Left (1, [(1, 60)])
         ]
 
 test_convert_controls = do
@@ -59,13 +59,14 @@ test_convert_controls = do
     equal (f False [("vel", []), ("dyn", [(0, 0.5)])])
         ([(Control.c_velocity, Signal.constant 0.5)], Nothing)
 
-noinst n = LEvent.Event $ mkevent n "c" "noinst"
-nopitch n = LEvent.Event $ (mkevent n "c" "s/1") { Score.event_pitch = mempty }
-good n = LEvent.Event $ mkevent n "c" "s/1"
+noinst n = LEvent.Event $ mkevent n "4c" "noinst"
+nopitch n = LEvent.Event $
+    (mkevent n "4c" "s/1") { Score.event_pitch = mempty }
+good n = LEvent.Event $ mkevent n "4c" "s/1"
 
 mklog = LEvent.Log  . Log.msg Log.Warn Nothing
-mkevent start text inst =
-    DeriveTest.mkevent (start, 1, text, [], Score.Instrument inst)
+mkevent start pitch inst =
+    DeriveTest.mkevent (start, 1, pitch, [], Score.Instrument inst)
 convert = show_logs extract_event
     . Convert.convert DeriveTest.default_convert_lookup
 

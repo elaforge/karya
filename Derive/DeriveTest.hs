@@ -528,60 +528,48 @@ default_inst_title = ">s/1"
 
 -- * mkevents
 
--- | Name will determine the pitch.  It can be a-z.
-type EventSpec = (RealTime, RealTime, String,
-    [(String, [(RealTime, Signal.Y)])], Score.Instrument)
+-- | (start, dur, pitch12, controls, inst)
+type EventSpec = (RealTime, RealTime, String, Controls, Score.Instrument)
+type Controls = [(String, [(RealTime, Signal.Y)])]
 
 mkevent :: EventSpec -> Score.Event
-mkevent (start, dur, pitch, controls, inst) = Score.Event
+mkevent (start, dur, pitch, controls, inst) =
+    mkevent_pitch Twelve.scale (start, dur, mkpitch12 pitch, controls, inst)
+
+-- | Make an event with a non-twelve pitch.
+mkevent_pitch :: Scale.Scale
+    -> (RealTime, RealTime, PitchSignal.Pitch, Controls, Score.Instrument)
+    -> Score.Event
+mkevent_pitch scale (start, dur, pitch, controls, inst) = Score.Event
     { Score.event_start = start
     , Score.event_duration = dur
-    , Score.event_bs = B.pack pitch
+    , Score.event_bs = B.pack $ Pretty.pretty (start, dur, pitch)
     , Score.event_controls = mkcontrols controls
-    , Score.event_pitch = pitch_signal [(start, pitch)]
+    , Score.event_pitch = PitchSignal.signal
+        (Derive.pitch_signal_scale scale) [(start, pitch)]
     , Score.event_stack = fake_stack
     , Score.event_instrument = inst
     , Score.event_environ = mempty
     }
 
--- | Like 'mkevent', but the pitch is in the more standard Twelve scale.
-mkevent2 :: EventSpec -> Score.Event
-mkevent2 (start, dur, pitch, controls, inst) =
-    (mkevent (start, dur, "a", controls, inst))
-        { Score.event_pitch = pitch_signal2 [(start, pitch)] }
-    where
-    pitch_signal2 = PitchSignal.signal scale . map (second mkpitch2)
-        where scale = Derive.pitch_signal_scale Twelve.scale
-
 pitch_signal :: [(RealTime, String)] -> PitchSignal.Signal
-pitch_signal = PitchSignal.signal scale . map (second mkpitch)
+pitch_signal = PitchSignal.signal scale . map (second mkpitch12)
     where scale = Derive.pitch_signal_scale Twelve.scale
 
-mkcontrols :: [(String, [(RealTime, Signal.Y)])] -> Score.ControlMap
+mkcontrols :: Controls -> Score.ControlMap
 mkcontrols csigs = Map.fromList
     [(Score.Control c, Score.untyped (Signal.signal sig)) | (c, sig) <- csigs]
 
-mkpitch2 :: String -> PitchSignal.Pitch
-mkpitch2 p = case eval State.empty deriver of
-    Left err -> error $ "mkpitch2 " ++ show p ++ ": " ++ err
+mkpitch12 :: String -> PitchSignal.Pitch
+mkpitch12 = mkpitch Twelve.scale
+
+mkpitch :: Scale.Scale -> String -> PitchSignal.Pitch
+mkpitch scale p = case eval State.empty deriver of
+    Left err -> error $ "mkpitch " ++ show p ++ ": " ++ err
     Right pitch -> pitch
     where
-    deriver = Derive.with_scale Twelve.scale $
+    deriver = Derive.with_scale scale $
         Call.eval_pitch 0 (TrackLang.Note (Pitch.Note p) [])
-
-mkpitch :: String -> PitchSignal.Pitch
-mkpitch p = PitchSignal.pitch pitch_nn (const (Right (Pitch.Note p)))
-    where
-    pitch_nn controls =
-        maybe (Left (PitchSignal.PitchError $ "no pitch " ++ show p))
-            (Right . Pitch.NoteNumber . (+ (chrom + dia*2)))
-            (lookup p pitch_map)
-        where
-        get c = Map.findWithDefault 0 c controls
-        chrom = get Score.c_chromatic
-        dia = get Score.c_diatonic
-    pitch_map = zip (map (:"") ['a'..'z']) [60..]
-        ++ zip (map (:"2") ['a'..'z']) [60.5..]
 
 default_scale :: Scale.Scale
 default_scale = Twelve.scale

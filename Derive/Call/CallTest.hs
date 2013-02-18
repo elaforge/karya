@@ -23,7 +23,7 @@ import Types
 transform :: (Derive.EventDeriver -> Derive.EventDeriver) -> Derive.Result
 transform trans = DeriveTest.derive State.empty $
     Derive.with_constant_pitch Nothing DeriveTest.default_scale
-        (DeriveTest.mkpitch "a") (trans (DeriveTest.c_note 0 1))
+        (DeriveTest.mkpitch12 "4c") (trans (DeriveTest.c_note 0 1))
 
 run_pitch :: [(ScoreTime, String)] -> [(RealTime, Pitch.NoteNumber)]
 run_pitch = run_with_scale "twelve"

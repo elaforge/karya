@@ -381,7 +381,7 @@ test_real_to_score = do
 test_shift_control = do
     let controls = Map.fromList [(Score.Control "cont",
             Score.untyped $ Signal.signal [(0, 1), (2, 2), (4, 0)])]
-        psig = DeriveTest.pitch_signal [(0, "a")]
+        psig = DeriveTest.pitch_signal [(0, "4c")]
     let set_controls = DeriveTest.modify_dynamic $ \st -> st
             { Derive.state_controls = controls
             , Derive.state_pitch = psig
@@ -559,7 +559,7 @@ test_tempo = do
 test_named_pitch = do
     let pname = Score.Control "psig"
         run op = DeriveTest.eval State.empty (op $ Derive.named_nn_at pname 2)
-        pitch = DeriveTest.mkpitch "a"
+        pitch = DeriveTest.mkpitch12 "4c"
         with_const pname = Derive.with_constant_pitch
             (Just (Score.Control pname)) DeriveTest.default_scale pitch
     equal (run (with_const "psig")) (Right (Just 60))
