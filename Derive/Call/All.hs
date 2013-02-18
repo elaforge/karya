@@ -19,6 +19,7 @@ import qualified Derive.Call.Post.Idiom as Post.Idiom
 import qualified Derive.Call.Post.NegativeDur as Post.NegativeDur
 import qualified Derive.Call.Post.Reverse as Post.Reverse
 import qualified Derive.Call.Random as Random
+import qualified Derive.Call.Reyong as Reyong
 import qualified Derive.Call.Sekar as Sekar
 import qualified Derive.Call.Trill as Trill
 import qualified Derive.Call.Val as Val
@@ -69,6 +70,7 @@ note_calls :: Derive.NoteCallMap
     , Ornament.note_calls
     , Post.Idiom.note_calls, Post.NegativeDur.note_calls
     , Post.Reverse.note_calls
+    , Reyong.note_calls
     , Random.note_calls
     , Sekar.note_calls, String.note_calls, Trill.note_calls
     ]

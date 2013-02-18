@@ -533,20 +533,19 @@ type EventSpec = (RealTime, RealTime, String, Controls, Score.Instrument)
 type Controls = [(String, [(RealTime, Signal.Y)])]
 
 mkevent :: EventSpec -> Score.Event
-mkevent (start, dur, pitch, controls, inst) =
-    mkevent_pitch Twelve.scale (start, dur, mkpitch12 pitch, controls, inst)
+mkevent = mkevent_scale Twelve.scale
 
--- | Make an event with a non-twelve pitch.
-mkevent_pitch :: Scale.Scale
-    -> (RealTime, RealTime, PitchSignal.Pitch, Controls, Score.Instrument)
+-- | Make an event with a non-twelve scale.
+mkevent_scale :: Scale.Scale
+    -> (RealTime, RealTime, String, Controls, Score.Instrument)
     -> Score.Event
-mkevent_pitch scale (start, dur, pitch, controls, inst) = Score.Event
+mkevent_scale scale (start, dur, pitch, controls, inst) = Score.Event
     { Score.event_start = start
     , Score.event_duration = dur
-    , Score.event_bs = B.pack $ Pretty.pretty (start, dur, pitch)
+    , Score.event_bs = B.pack pitch
     , Score.event_controls = mkcontrols controls
     , Score.event_pitch = PitchSignal.signal
-        (Derive.pitch_signal_scale scale) [(start, pitch)]
+        (Derive.pitch_signal_scale scale) [(start, mkpitch scale pitch)]
     , Score.event_stack = fake_stack
     , Score.event_instrument = inst
     , Score.event_environ = mempty

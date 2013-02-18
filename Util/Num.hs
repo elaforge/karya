@@ -24,6 +24,14 @@ binary b = map extract [bits-1, bits-2 .. 0]
 hex :: (Integral a, Show a) => a -> String
 hex n = Numeric.showHex n ""
 
+-- * read
+
+read_digit :: Char -> Maybe Int
+read_digit c = case c of
+    '0' -> Just 0; '1' -> Just 1; '2' -> Just 2; '3' -> Just 3; '4' -> Just 4
+    '5' -> Just 5; '6' -> Just 6; '7' -> Just 7; '8' -> Just 8; '9' -> Just 9
+    _ -> Nothing
+
 -- * transform
 
 -- | Clamp a value to be between @low@ and @high@.

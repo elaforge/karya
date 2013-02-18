@@ -12,8 +12,8 @@ symbols = dotted_numbers ++ staff_symbols ++ gongchepu
 
 -- * dotted numbers
 
-dotted_number :: (Int, Int) -> Pitch.Note
-dotted_number (num, oct)
+dotted_number :: Int -> Int -> Pitch.Note
+dotted_number num oct
     | oct == 0 = Pitch.Note nums
     | oct < 0 = Pitch.Note $ "`" ++ nums ++ replicate (abs oct) '.' ++ "`"
     | otherwise = Pitch.Note $ "`" ++ nums ++ replicate oct '^' ++ "`"

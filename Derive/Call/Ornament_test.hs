@@ -40,7 +40,7 @@ test_mordent = do
     let f = Ornament.mordent
         run = DeriveTest.run_events extract
             . DeriveTest.run State.empty
-            . Util.with_pitch (DeriveTest.mkpitch2 "4c")
+            . Util.with_pitch (DeriveTest.mkpitch12 "4c")
             . Util.with_dynamic 1
             . Derive.with_val (TrackLang.Symbol "grace-dur") (1 :: Double)
             . Derive.with_val (TrackLang.Symbol "grace-overlap") (0.5 :: Double)

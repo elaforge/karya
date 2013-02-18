@@ -10,9 +10,12 @@ UNSORTED
     unexpectedly.
   * all the DeriveTest.e_twelve stuff can get the note name directly now
   reyong kilitan
-    - events to pokok
-    - patterns to events
-    - test
+    * events to pokok
+    * patterns to events
+    * test
+    - support voice attrs in integrate
+    - Should I get the scale from the events?  Maybe all transformers should
+      do that.
     - cek, byut, byong
     - more graceful transitions between pitches
     - variant patterns

@@ -459,6 +459,13 @@ d_merge derivers = do
         { state_collect = Monoid.mconcat (state_collect state : collects) }
     return (Seq.merge_lists _event_start streams)
 
+-- | Like 'd_merge', but the derivers are assumed to return events that are
+-- non-decreasing in time, so the merge can be more efficient.  It also assumes
+-- each deriver is small, so it threads collect instead of making them
+-- independent.
+d_merge_asc :: [EventDeriver] -> EventDeriver
+d_merge_asc = fmap merge_asc_events . sequence
+
 type PureResult d = (LEvent.LEvents d, Collect)
 
 -- | Run the given deriver and return the relevant data.

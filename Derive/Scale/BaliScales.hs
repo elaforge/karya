@@ -32,8 +32,8 @@ scale_map align_with_ding umbang isep = ScaleMap
     align = take (length umbang) . drop align_with_ding
 
 all_notes :: [Pitch.Note]
-all_notes = map Symbols.dotted_number
-    [(num, oct) | oct <- [-2..2], num <- [1, 2, 3, 5, 6]]
+all_notes =
+    [Symbols.dotted_number num oct | oct <- [-2..2], num <- [1, 2, 3, 5, 6]]
 
 all_inputs :: [Pitch.InputKey]
 all_inputs =
