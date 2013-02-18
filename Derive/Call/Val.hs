@@ -2,16 +2,14 @@ module Derive.Call.Val where
 import Util.Control
 import qualified Util.Seq as Seq
 import qualified Ui.Event as Event
-import qualified Cmd.TimeStep as TimeStep
 import qualified Derive.Args as Args
 import qualified Derive.Call as Call
 import qualified Derive.Call.Tags as Tags
+import qualified Derive.Call.Util as Util
 import qualified Derive.Derive as Derive
-import qualified Derive.Deriver.Internal as Internal
 import qualified Derive.LEvent as LEvent
 import qualified Derive.PitchSignal as PitchSignal
 import qualified Derive.Score as Score
-import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Sig as Sig
 import Derive.Sig (defaulted, required)
 import qualified Derive.TrackInfo as TrackInfo
@@ -109,19 +107,12 @@ c_timestep = Derive.val_call "timestep" mempty
     \ position. This is for durations, so it only works with RelativeMark, and\
     \ in fact prepends `r:`, so e.g. a quarter note is just `q`."
     ) $ Sig.call ((,)
-    <$> required "timestep"  ("Emit a duration of this timestep.\
-        \This must a relative marklist timestep, and `r:` will be prepended\
-        \ to it.")
+    <$> required "rank" "Emit a duration of this rank, as accepted by\
+        \ `TimeStep.parse_rank`."
     <*> defaulted "steps" 1 "Step this number of times, negative to step back."
-    ) $ \(timestep, steps) args -> do
-        timestep <- Derive.require_right ("parsing timestep: "++) $
-            TimeStep.parse_time_step ("r:" ++ timestep)
-        (block_id, tracknum) <- Internal.get_current_tracknum
-        let start = Args.start args
-        end <- Derive.require ("valid timestep from " ++ ShowVal.show_val start)
-            =<< Derive.eval_ui "c_timestep"
-                (TimeStep.step_from steps timestep block_id tracknum start)
-        return $ TrackLang.score_time (end - start)
+    ) $ \(rank, steps) args ->
+        TrackLang.score_time <$>
+            Util.parsed_meter_duration (Args.start args) rank steps
 
 c_timestep_reciprocal :: Derive.ValCall
 c_timestep_reciprocal = Sig.modify_vcall c_timestep "timestep-reciprocal"

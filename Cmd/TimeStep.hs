@@ -5,10 +5,12 @@
 module Cmd.TimeStep (
     -- * TimeStep
     TimeStep(..), Skip, time_step, step, event_step, to_list
+    , match_meter
     , Step(..), Tracks(..)
     , MarklistMatch(..)
     , Direction(..)
     , show_time_step, parse_time_step, show_direction
+    , parse_rank
 
     -- * step
     , snap
@@ -68,6 +70,10 @@ time_step step rank = TimeStep [(step, rank)]
 
 to_list :: TimeStep -> [(Step, Skip)]
 to_list (TimeStep steps) = steps
+
+-- | Match on the meter marklist, which is the usual thing to do.
+match_meter :: MarklistMatch
+match_meter = NamedMarklists [Meter.meter]
 
 -- | The possible matchers for a TimeStep.
 data Step =

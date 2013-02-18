@@ -19,18 +19,23 @@ import qualified System.Random.Mersenne.Pure64 as Pure64
 
 import Util.Control
 import qualified Util.Num as Num
+import qualified Util.Parse as Parse
 import qualified Util.Pretty as Pretty
 import qualified Util.Random as Random
 
+import qualified Ui.Ruler as Ruler
 import qualified Ui.ScoreTime as ScoreTime
+import qualified Cmd.TimeStep as TimeStep
 import qualified Derive.Args as Args
 import qualified Derive.Call as Call
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Derive as Derive
+import qualified Derive.Deriver.Internal as Internal
 import qualified Derive.LEvent as LEvent
 import qualified Derive.PitchSignal as PitchSignal
 import qualified Derive.Scale as Scale
 import qualified Derive.Score as Score
+import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Sig as Sig
 import qualified Derive.Stack as Stack
 import qualified Derive.TrackLang as TrackLang
@@ -235,6 +240,12 @@ with_pitch pitch deriver = do
     scale <- get_scale
     Derive.with_constant_pitch Nothing scale pitch deriver
 
+with_symbolic_pitch :: TrackLang.Note -> ScoreTime -> Derive.Deriver a
+    -> Derive.Deriver a
+with_symbolic_pitch note pos deriver = do
+    pitch <- Call.eval_pitch pos note
+    with_pitch pitch deriver
+
 with_dynamic :: Signal.Y -> Derive.Deriver a -> Derive.Deriver a
 with_dynamic =
     Derive.with_control Score.c_dynamic . Score.untyped . Signal.constant
@@ -298,7 +309,7 @@ lookup_instrument = Derive.lookup_val TrackLang.v_instrument
 get_attrs :: Derive.Deriver Score.Attributes
 get_attrs = fromMaybe mempty <$> Derive.lookup_val TrackLang.v_attributes
 
--- ** random
+-- * random
 
 -- | Get an infinite list of random numbers.  These are deterministic in that
 -- they depend only on the random seed, but the random seed is hashed with
@@ -407,6 +418,27 @@ duration_from start (TrackLang.Real t) = do
     score_t <- delay start t
     return $ score_t - start
 
+-- ** timestep
+
+-- | Take the given number of steps.  Negative means step back.
+timestep :: ScoreTime -> TimeStep.TimeStep -> Int -> Derive.Deriver ScoreTime
+timestep start ts steps = do
+    (block_id, tracknum) <- Internal.get_current_tracknum
+    Derive.require ("valid timestep from " ++ ShowVal.show_val start)
+        =<< Derive.eval_ui "c_timestep"
+            (TimeStep.step_from steps ts block_id tracknum start)
+
+meter_duration :: ScoreTime -> Ruler.Rank -> Int -> Derive.Deriver ScoreTime
+meter_duration start rank steps = do
+    let ts = TimeStep.step $ TimeStep.RelativeMark TimeStep.match_meter rank
+    end <- timestep start ts steps
+    return $ end - start
+
+parsed_meter_duration :: ScoreTime -> String -> Int -> Derive.Deriver ScoreTime
+parsed_meter_duration start rank steps = do
+    rank <- Derive.require_right ("parsing timestep: "++) $
+        Parse.parse TimeStep.parse_rank rank
+    meter_duration start rank steps
 
 -- * c_equal
 

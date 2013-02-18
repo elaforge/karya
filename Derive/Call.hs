@@ -314,11 +314,11 @@ repeat_call_of prev cur
 apply_toplevel :: (Derive.Derived d) => Derive.State -> Derive.CallInfo d
     -> TrackLang.Expr
     -> (Either Derive.Error (LEvent.LEvents d), [Log.Msg], Derive.Collect)
-apply_toplevel state cinfo expr = case Seq.ne_viewr expr of
-        (transform_calls, generator_call) -> run $
-            apply_transformer cinfo transform_calls $
-                apply_generator cinfo generator_call
+apply_toplevel state cinfo expr =
+    run $ apply_transformer cinfo transform_calls $
+        apply_generator cinfo generator_call
     where
+    (transform_calls, generator_call) = Seq.ne_viewr expr
     run d = case Derive.run state d of
         (result, state, logs) -> (result, logs, Derive.state_collect state)
 
@@ -359,12 +359,12 @@ apply_transformer :: (Derive.Derived d) => Derive.CallInfo d
 apply_transformer _ [] deriver = deriver
 apply_transformer cinfo (TrackLang.Call call_id args : calls) deriver = do
     vals <- mapM (eval cinfo) args
-    let new_deriver = apply_transformer cinfo calls deriver
     call <- get_call call_id
     let args = Derive.PassedArgs vals (Derive.call_name call) cinfo
         with_stack = Internal.with_stack_call (Derive.call_name call)
     with_stack $ case Derive.call_transformer call of
-        Just trans -> Derive.transformer_func trans args new_deriver
+        Just trans -> Derive.transformer_func trans args $
+            apply_transformer cinfo calls deriver
         Nothing -> Derive.throw $ "non-transformer in transformer position: "
             ++ Derive.call_name call
 
