@@ -192,8 +192,9 @@ type TrackResults sig = (sig, [Log.Msg])
 derive_control :: Bool -> TrackTree.TrackEvents -> [TrackLang.Call]
     -> Derive.Deriver (TrackResults Signal.Control)
 derive_control is_tempo track expr = do
+    let (start, end) = TrackTree.tevents_range track
     stream <- Call.apply_transformer
-        (Derive.dummy_call_info 0 1 "control track") expr deriver
+        (Derive.dummy_call_info start (end-start) "control track") expr deriver
     let (signal_chunks, logs) = LEvent.partition stream
         signal = Signal.merge signal_chunks
     return (signal, logs)
@@ -222,8 +223,9 @@ derive_control is_tempo track expr = do
 derive_pitch :: TrackTree.TrackEvents -> [TrackLang.Call]
     -> Derive.Deriver (TrackResults Pitch)
 derive_pitch track expr = do
+    let (start, end) = TrackTree.tevents_range track
     stream <- Call.apply_transformer
-        (Derive.dummy_call_info 0 1 "pitch track") expr deriver
+        (Derive.dummy_call_info start (end-start) "pitch track") expr deriver
     let (signal_chunks, logs) = LEvent.partition stream
         signal = mconcat signal_chunks
     return (signal, logs)

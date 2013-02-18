@@ -55,6 +55,24 @@ import Types
 --
 -- Since there's no point to a control track with no note track underneath,
 -- control track orphans are stripped out.
+--
+-- TODO recursive is wrong, given:
+--
+--  a-
+--    b-
+--      c-
+--  d-
+--    e-
+--    f-
+--      g-
+--
+-- I expect: [[b], [c], [e, f], [g]]
+-- But I get: [[b, c], [e, f, g]]
+--
+-- It's surprisingly tricky to get right.  I should be able to get the
+-- sub-orphans recursively and then re-slice the orphans, omitting the
+-- sub-orphans, but wouldn't it be more efficient to get the right slice ranges
+-- in the first place?
 extract_orphans :: Bool -- ^ If true, if the extracted orphan ranges themselves
     -- have orphans, extract those too.  This must be False for BlockUtil
     -- because it evaluates the returned tracks recursively, at which point
@@ -62,23 +80,39 @@ extract_orphans :: Bool -- ^ If true, if the extracted orphan ranges themselves
     -- figure out how to get 'slice_notes' to have the same recursive
     -- structure, so magic flag it is.
     -> Maybe (ScoreTime, ScoreTime)
-    -> TrackTree.TrackEvents -> TrackTree.EventsTree -> TrackTree.EventsTree
+    -> TrackTree.TrackEvents -> TrackTree.EventsTree
+    -> [((ScoreTime, ScoreTime), TrackTree.EventsNode)]
 extract_orphans _ _ _ [] = []
-extract_orphans recursive maybe_range track subs = filter has_note $
-    concatMap slice_gap $
-        event_gaps (track_events track) (TrackTree.tevents_end track)
+extract_orphans recursive maybe_range track subs =
+    filter (has_note . snd) $ concatMap slice_gap gaps
     where
+    gaps = event_gaps (TrackTree.tevents_end track) (track_events track)
     slice_gap (exclusive, start, end) = concat $
-        tree : if recursive
-            then [extract_orphans True maybe_range track subs
+        [((start, end), t) | t <- tree] : if not recursive then []
+            else [extract_orphans True maybe_range track subs
                 | Tree.Node track subs <- tree]
-            else []
         where tree = slice exclusive (1, 1) start end Nothing subs
-    track_events = Events.ascending
+
+    track_events = map Event.range . Events.ascending
         . maybe id (uncurry Events.in_range_point) maybe_range
         . TrackTree.tevents_events
     has_note = Monoid.getAny . Foldable.foldMap
         (Monoid.Any . TrackInfo.is_note_track . TrackTree.tevents_title)
+
+-- event_ranges :: Bool -> Maybe (ScoreTime, ScoreTime) -> TrackTree.EventsNode
+--     -> [(ScoreTime, ScoreTime)]
+-- event_ranges recursive maybe_range tree = nonoverlapping ranges
+--     where
+--     ranges
+--         | recursive =
+--             Seq.merge_lists fst $ Tree.flatten $ fmap track_events tree
+--         | otherwise = track_events (Tree.rootLabel tree)
+--     track_events = map Event.range . Events.ascending
+--         . maybe id (uncurry Events.in_range_point) maybe_range
+--         . TrackTree.tevents_events
+--     nonoverlapping [] = []
+--     nonoverlapping (r:rs) = r : nonoverlapping (dropWhile (overlaps r) rs)
+--     overlaps (s1, e1) (s2, e2) = not $ e1 <= s2 || e2 <= s1
 
 -- | Given a list of events, return the gaps in between those events as
 -- ranges.  Each range also has an \"exclusive\" flag, which indicates whether
@@ -86,17 +120,17 @@ extract_orphans recursive maybe_range track subs = filter has_note $
 --
 -- This matters because a zero length note event should not be captured in the
 -- orphan slice, since everything under it by definition is not orphaned.
-event_gaps :: [Event.Event] -> ScoreTime -> [(Bool, ScoreTime, ScoreTime)]
-event_gaps events end = reverse $
+event_gaps :: ScoreTime -> [(ScoreTime, ScoreTime)]
+    -> [(Bool, ScoreTime, ScoreTime)]
+event_gaps end ranges = reverse $
         (if last_end >= end then [] else [(last_exclusive, last_end, end)])
             ++ gaps_rev
     where
     (gaps_rev, last_end, last_exclusive) =
-        List.foldl' make_gap ([], 0, False) events
-    make_gap (gaps, prev, exclusive) event
+        List.foldl' make_gap ([], 0, False) ranges
+    make_gap (gaps, prev, exclusive) (cur, next)
         | cur <= prev = (gaps, next, cur == next)
         | otherwise = ((exclusive, prev, cur) : gaps, next, cur == next)
-        where (cur, next) = Event.range event
 
 
 -- | Ask 'slice' to synthesize a note track and insert it at the leaves of
@@ -268,7 +302,7 @@ slice_notes start end =
     note_tracks (Tree.Node track subs)
         | TrackInfo.is_note_track (TrackTree.tevents_title track) =
             ([], track, subs)
-            : [([], otrack, osubs) | Tree.Node otrack osubs
+            : [([], otrack, osubs) | (_, Tree.Node otrack osubs)
                 <- extract_orphans True (Just (start, end)) track subs]
         | otherwise = [(track : parents, ntrack, nsubs)
             | (parents, ntrack, nsubs) <- concatMap note_tracks subs]

@@ -103,21 +103,24 @@ import Types
 d_note_track :: TrackTree.EventsNode -> Derive.EventDeriver
 d_note_track (Tree.Node track subs) = do
     stash_sub_signals subs
-    with_title subs (TrackTree.tevents_title track) $ derive_notes
+    title $ derive_notes
         (TrackTree.tevents_end track) (TrackTree.tevents_range track)
         (TrackTree.tevents_shifted track) subs (TrackTree.tevents_around track)
         (Events.ascending (TrackTree.tevents_events track))
+    where
+    title = with_title subs (TrackTree.tevents_range track)
+        (TrackTree.tevents_title track)
 
-with_title :: TrackTree.EventsTree -> String -> Derive.EventDeriver
-    -> Derive.EventDeriver
-with_title subs title deriver
+with_title :: TrackTree.EventsTree -> (ScoreTime, ScoreTime) -> String
+    -> Derive.EventDeriver -> Derive.EventDeriver
+with_title subs (start, end) title deriver
     | null title = deriver
     | otherwise = do
         track_expr <- either (Derive.throw . ("track title: "++)) return
             (TrackInfo.parse_note title)
         Call.apply_transformer info (NonEmpty.toList track_expr) deriver
     where
-    info = (Derive.dummy_call_info 0 1 "note track")
+    info = (Derive.dummy_call_info start (end - start) "note track")
         { Derive.info_sub_tracks = subs }
 
 stash_sub_signals :: TrackTree.EventsTree -> Derive.Deriver ()

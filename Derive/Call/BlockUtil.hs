@@ -154,7 +154,9 @@ derive_track node@(Tree.Node track subs)
         | null orphans = id
         -- The orphans still get evaluated under the track title, otherwise
         -- they might miss the instrument.
-        | otherwise = (<> Note.with_title [] title (derive_tracks orphans))
+        | otherwise = (<>) $ mconcat
+            [Note.with_title [] range title (derive_track orphan)
+                | (range, orphan) <- orphans]
     with_stack = maybe id Internal.with_stack_track
         (TrackTree.tevents_track_id track)
     cached
