@@ -2,6 +2,7 @@
 module Cmd.Integrate.Convert where
 import qualified Data.List as List
 import qualified Data.Map as Map
+import qualified Data.Set as Set
 import qualified Data.Tuple as Tuple
 
 import Util.Control
@@ -12,10 +13,10 @@ import qualified Util.Seq as Seq
 import qualified Ui.Event as Event
 import qualified Ui.State as State
 import qualified Cmd.Cmd as Cmd
+import qualified Derive.Attrs as Attrs
 import qualified Derive.Derive as Derive
 import qualified Derive.LEvent as LEvent
 import qualified Derive.PitchSignal as PitchSignal
-import qualified Derive.Scale as Scale
 import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Stack as Stack
@@ -40,9 +41,8 @@ data Track = Track {
 -- | (note track, control tracks)
 type Tracks = [(Track, [Track])]
 
-convert :: (Cmd.M m) => BlockId -> Derive.Events -> Maybe Pitch.Key -> m Tracks
-convert source_block levents key = do
-    lookup_scale <- Cmd.get_lookup_scale
+convert :: (Cmd.M m) => BlockId -> Derive.Events -> m Tracks
+convert source_block levents = do
     lookup_inst <- Cmd.get_lookup_instrument
     let lookup_attrs = fromMaybe mempty
             . fmap (Instrument.patch_attribute_map . MidiDb.info_patch)
@@ -51,8 +51,7 @@ convert source_block levents key = do
     let tracknums = Map.fromList
             [(track_id, n) | (n, Just track_id) <- zip [0..] track_ids]
     let (events, logs) = LEvent.partition levents
-        (tracks, errs) =
-            integrate lookup_scale lookup_attrs tracknums key events
+        (tracks, errs) = integrate lookup_attrs tracknums events
     mapM_ Log.write (Log.add_prefix "integrate" logs)
     -- If something failed to derive I shouldn't integrate that into the block.
     when (any ((>=Log.Warn) . Log.msg_prio) logs) $
@@ -65,39 +64,60 @@ type LookupAttrs = Score.Instrument -> Instrument.AttributeMap
 
 -- | Convert derived score events back into UI events.
 --
--- Split into tracks by track id, instrument, and scale.
---
--- TODO and overlapping events should be split, deal with that later
 -- TODO optionally quantize the ui events
-integrate :: Derive.LookupScale -> LookupAttrs -> Map.Map TrackId TrackNum
-    -> Maybe Pitch.Key -> [Score.Event] -> (Tracks, [String]) -- ^ (tracks, errs)
-integrate lookup_scale lookup_attrs tracknums key =
-    Tuple.swap . Seq.partition_either
-    . map (integrate_track lookup_scale lookup_attrs key)
-    . Seq.keyed_group_on group_key
+integrate :: LookupAttrs -> Map.Map TrackId TrackNum
+    -> [Score.Event] -> (Tracks, [String])
+    -- ^ (tracks, errs)
+integrate lookup_attrs tracknums =
+    Tuple.swap . Seq.partition_either . map (integrate_track lookup_attrs)
+    . allocate_tracks tracknums
+
+-- | Allocate the events to separate tracks.
+allocate_tracks :: Map.Map TrackId TrackNum -> [Score.Event]
+    -> [(TrackKey, [Score.Event])]
+allocate_tracks tracknums = concatMap overlap . Seq.keyed_group_on group_key
     where
+    overlap (key, events) = map ((,) key) (split_overlapping events)
     -- Sort by tracknum so an integrated block's tracks come out in the same
     -- order as the original.
     group_key :: Score.Event -> TrackKey
     group_key event =
         (tracknum_of =<< track_of event, Score.event_instrument event,
-            PitchSignal.sig_scale_id (Score.event_pitch event))
+            PitchSignal.sig_scale_id (Score.event_pitch event),
+            event_voice event)
     tracknum_of tid = Map.lookup tid tracknums
+
+-- | Split events into separate lists of non-overlapping events.
+split_overlapping :: [Score.Event] -> [[Score.Event]]
+split_overlapping [] = []
+split_overlapping events = track : split_overlapping rest
+    where
+    -- Go through the track and collect non-overlapping events, then do it
+    -- recursively until there are none left.
+    (track, rest) = Seq.partition_either (strip events)
+    strip [] = []
+    strip (event:events) = Left event : map Right overlapping ++ strip rest
+        where
+        (overlapping, rest) =
+            break ((>= Score.event_end event) . Score.event_start) events
+
+event_voice :: Score.Event -> Score.Attributes
+event_voice = Score.set_to_attrs
+    . Set.intersection (Score.attrs_set Attrs.voices)
+    . Score.attrs_set . Score.event_attributes
 
 track_of :: Score.Event -> Maybe TrackId
 track_of = Seq.head . mapMaybe Stack.track_of . Stack.innermost
     . Score.event_stack
 
-type TrackKey = (Maybe TrackNum, Score.Instrument, Pitch.ScaleId)
+type TrackKey = (Maybe TrackNum, Score.Instrument, Pitch.ScaleId,
+    Score.Attributes)
 
-integrate_track :: Derive.LookupScale -> LookupAttrs -> Maybe Pitch.Key
-    -> (TrackKey, [Score.Event])
-    -> Either String (Track, [Track])
-integrate_track lookup_scale lookup_attrs key ((_, inst, scale_id), events) = do
-    pitch_track <- if no_pitch_signals events then return [] else do
-        scale <- maybe (Left $ "scale not found: " ++ Pretty.pretty scale_id)
-            return (lookup_scale scale_id)
-        case pitch_events scale scale_id key events of
+integrate_track :: LookupAttrs
+    -> (TrackKey, [Score.Event]) -> Either String (Track, [Track])
+integrate_track lookup_attrs ((_, inst, scale_id, _), events) = do
+    pitch_track <- if no_pitch_signals events then return []
+        else case pitch_events scale_id events of
             (track, []) -> return [track]
             (_, errs) -> Left $ Seq.join "; " errs
     return (note_events inst (lookup_attrs inst) events,
@@ -122,33 +142,35 @@ note_event attr_map event = ui_event (Score.event_stack event)
 -- | Unlike 'control_events', this only drops dups that occur within the same
 -- event.  This is because it's more normal to think of each note as
 -- establishing a new pitch, even if it's the same as the last one.
-pitch_events :: Scale.Scale -> Pitch.ScaleId -> Maybe Pitch.Key
-    -> [Score.Event] -> (Track, [String])
-pitch_events scale scale_id key events =
+pitch_events :: Pitch.ScaleId -> [Score.Event] -> (Track, [String])
+pitch_events scale_id events =
     (make_track pitch_title (tidy_pitches ui_events), concat errs)
     where
     pitch_title = TrackInfo.scale_to_title scale_id
-    (ui_events, errs) = unzip $ map (pitch_signal_events scale key) events
+    (ui_events, errs) = unzip $ map pitch_signal_events events
     tidy_pitches = clip_to_zero . clip_concat . map drop_dups
 
 no_pitch_signals :: [Score.Event] -> Bool
 no_pitch_signals = all (PitchSignal.null . Score.event_pitch)
 
-pitch_signal_events :: Scale.Scale -> Maybe Pitch.Key -> Score.Event
-    -> ([Event.Event], [String])
-pitch_signal_events scale key event =
-    (ui_events, map Pretty.pretty pitch_errs ++ note_errs)
+-- | Convert an event's pitch signal to symbolic note names.  This uses
+-- 'PitchSignal.pitch_note', which handles a constant transposition, but not
+-- continuous pitch changes (it's not even clear how to spell those).  I could
+-- try to convert back from NoteNumbers, but I still have the problem of how
+-- to convert the curve back to high level pitches.
+pitch_signal_events :: Score.Event -> ([Event.Event], [String])
+pitch_signal_events event = (ui_events, pitch_errs)
     where
-    sig = PitchSignal.drop_before start $ Score.event_pitch event
+    (xs, ys) = unzip $ align_pitch_signal (Score.event_start event) $
+        Score.event_pitch event
+    pitches = zip3 xs ys (map PitchSignal.pitch_note ys)
+    pitch_errs =
+        [Pretty.pretty x ++ ": converting " ++ Pretty.pretty p ++ " "
+                ++ Pretty.pretty err
+            | (x, p, Left err) <- pitches]
     ui_events = [ui_event (Score.event_stack event) (RealTime.to_score x) 0
             (Pitch.note_text note)
-        | (x, _, Just note) <- notes]
-    notes = [(x, nn, Scale.nn_to_note scale key nn)
-        | (x, nn) <- map (second Pitch.NoteNumber) (align_signal start nns)]
-    note_errs = [Pretty.pretty x ++ ": nn out of range: " ++ Pretty.pretty nn
-        | (x, nn, Nothing) <- notes]
-    (nns, pitch_errs) = PitchSignal.to_nn sig
-    start = Score.event_start event
+        | (x, _, Right note) <- pitches]
 
 -- ** control
 
@@ -169,7 +191,7 @@ control_track events control =
     -- Don't emit a dyn track if it's just the default.
     -- TODO generalize this to everything in in Derive.initial_controls
     drop_dyn [event]
-        | Score.typed_val control == Score.c_dynamic && Event.start event == 0
+        | Score.typed_val control == Score.c_dynamic
             && Event.event_string event == default_dyn = []
     drop_dyn events = events
     default_dyn = ShowVal.show_hex_val Derive.default_dynamic
@@ -180,9 +202,8 @@ signal_events control event = case Map.lookup control controls of
     Nothing -> []
     Just sig -> [ui_event (Score.event_stack event)
             (RealTime.to_score x) 0 (ShowVal.show_hex_val y)
-        | (x, y) <- samples (Score.typed_val sig)]
+        | (x, y) <- align_signal start (Score.typed_val sig)]
     where
-    samples = align_signal start . Signal.drop_before start
     controls = Score.event_controls event
     start = Score.event_start event
 
@@ -192,9 +213,16 @@ signal_events control event = case Map.lookup control controls of
 -- is called after 'Signal.drop_before', which may still emit a sample before
 -- the start time.
 align_signal :: Signal.X -> Signal.Signal y -> [(Signal.X, Signal.Y)]
-align_signal start sig = case Signal.unsignal sig of
+align_signal start sig = case Signal.unsignal (Signal.drop_before start sig) of
     [] -> []
     (_, y) : xs -> (start, y) : xs
+
+align_pitch_signal :: Signal.X -> PitchSignal.Signal
+    -> [(Signal.X, PitchSignal.Pitch)]
+align_pitch_signal start sig =
+    case PitchSignal.unsignal (PitchSignal.drop_before start sig) of
+        [] -> []
+        (_, y) : xs -> (start, y) : xs
 
 event_stack :: Score.Event -> Event.Stack
 event_stack event = Event.Stack (Score.event_stack event)

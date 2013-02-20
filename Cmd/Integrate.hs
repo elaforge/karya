@@ -29,11 +29,14 @@ cmd_integrate (Msg.DeriveStatus block_id (Msg.DeriveComplete perf))
         return Cmd.Continue
 cmd_integrate _ = return Cmd.Continue
 
+-- | Integrate the track information into the current state, and if it
+-- was a track integrate, return the TrackDestinations.  If it was a block
+-- integrate, the TrackDestination has already been put into the
+-- 'Block.block_integrated'.  TODO why the discrepancy?
 integrate :: (Cmd.M m) => BlockId -> Derive.Integrated
     -> m [(TrackId, [Block.TrackDestination])]
 integrate block_id integrated = do
     tracks <- Convert.convert block_id (Derive.integrated_events integrated)
-        (Derive.integrated_key integrated)
     case Derive.integrated_source integrated of
         Left block_id -> do
             integrate_block block_id tracks

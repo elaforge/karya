@@ -8,17 +8,13 @@ import qualified Cmd.Integrate.Convert as Convert
 import qualified Derive.Attrs as Attrs
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Pitches as Pitches
-import qualified Derive.Scale as Scale
-import qualified Derive.Scale.All as Scale.All
 import qualified Derive.Scale.Twelve as Twelve
 import qualified Derive.Score as Score
-
-import qualified Perform.Pitch as Pitch
 
 
 test_integrate = do
     let f = first (map extract . concatMap flatten) . integrate
-        integrate = Convert.integrate lookup_scale lookup_attrs tracknums Nothing
+        integrate = Convert.integrate lookup_attrs tracknums
         lookup_attrs = const $ Map.fromList [(Attrs.plak, "plak")]
         tracknums = Map.fromList [(UiTest.mk_tid n, n) | n <- [1..10]]
         flatten (note, controls) = note : controls
@@ -69,5 +65,9 @@ test_integrate = do
     event = DeriveTest.mkevent
     inst = Score.Instrument "inst"
 
-lookup_scale :: Pitch.ScaleId -> Maybe Scale.Scale
-lookup_scale = flip Map.lookup Scale.All.scales
+test_split_overlapping = do
+    let f = map (map extract) . Convert.split_overlapping . map mkevent
+        mkevent (s, e) = DeriveTest.mkevent (s, e, "4c", [], Score.empty_inst)
+        extract e = (Score.event_start e, Score.event_duration e)
+    equal (f [(0, 1), (1, 1)]) [[(0, 1), (1, 1)]]
+    equal (f [(0, 1), (0.5, 1), (1, 1)]) [[(0, 1), (1, 1)], [(0.5, 1)]]

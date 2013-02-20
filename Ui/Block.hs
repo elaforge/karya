@@ -57,6 +57,7 @@ instance DeepSeq.NFData Block where
 -- be rendered to lilypond and provide arguments for it.
 type Meta = Map.Map String String
 
+-- | This holds the 'EventIndex' for one track or block.
 data TrackDestination = TrackDestination {
     dest_note :: !(TrackId, EventIndex)
     , dest_controls :: !(Map.Map String (TrackId, EventIndex))

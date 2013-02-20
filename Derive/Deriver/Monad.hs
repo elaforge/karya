@@ -743,6 +743,7 @@ data Integrated = Integrated {
     -- event.  Of course, the integrator isn't going to be able to reproduce
     -- the changing keys.  I don't think integrate nedes to get that fancy
     -- anyway.
+    -- TODO no longer used, remove me
     , integrated_key :: !(Maybe Pitch.Key)
     } deriving (Show)
 
@@ -1183,6 +1184,9 @@ data Scale = Scale {
     -- return.
     , scale_call_doc :: !DocumentedCall
     }
+
+instance Pretty.Pretty Scale where
+    pretty = Pretty.pretty . scale_id
 
 type LookupScale = Pitch.ScaleId -> Maybe Scale
 type Transpose = Maybe Pitch.Key -> Pitch.Octave -> Pitch.Transpose

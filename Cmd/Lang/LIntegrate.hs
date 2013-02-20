@@ -13,7 +13,6 @@ import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Create as Create
 import qualified Cmd.Integrate.Convert as Convert
 import qualified Cmd.Integrate.Merge as Merge
-import qualified Cmd.Perf as Perf
 import qualified Cmd.Selection as Selection
 
 import qualified Derive.Call.Integrate as Call.Integrate
@@ -24,8 +23,7 @@ block :: (Cmd.M m) => BlockId -> m ViewId
 block block_id = do
     perf <- Cmd.get_performance block_id
     events <- Call.Integrate.unwarp block_id (Cmd.perf_events perf)
-    key <- Perf.get_key block_id Nothing
-    tracks <- Convert.convert block_id events key
+    tracks <- Convert.convert block_id events
     (new_block_id, dests) <- Merge.create_block block_id tracks
     when_just (NonEmpty.nonEmpty dests) $ \dests ->
         State.set_integrated_block new_block_id $ Just (block_id, dests)

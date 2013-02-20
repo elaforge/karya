@@ -2,6 +2,7 @@
 --
 -- This is meant to be imported unqualified.
 module Derive.Attrs (module Derive.Attrs, Attributes) where
+import Util.Control ((<>))
 import qualified Derive.Score as Score
 import Derive.Score (Attributes, attr)
 
@@ -156,3 +157,5 @@ voice1 = attr "voice1"
 voice2 = attr "voice2"
 voice3 = attr "voice3"
 voice4 = attr "voice4"
+
+voices = voice1 <> voice2 <> voice3 <> voice4
