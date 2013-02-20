@@ -77,6 +77,9 @@ type TrackSpec = (String, [EventSpec])
 -- | (start, dur, text)
 type EventSpec = (ScoreTime, ScoreTime, String)
 
+spec_block_id :: String -> (BlockId, Bool)
+spec_block_id = first bid . Seq.drop_suffix "=ruler"
+
 -- | Often tests work with a single block, or a single view.  To make them
 -- less verbose, there is a default block and view so functions can omit the
 -- parameter if convenient.
@@ -130,23 +133,19 @@ mkviews blocks = mapM mkview =<< mkblocks blocks
 
 mkblock :: (State.M m) => BlockSpec -> m (BlockId, [TrackId])
 mkblock (block_name, tracks) = do
-    maybe_rid <- State.lookup_ruler default_ruler_id
-    (ruler_id, block_name) <- case Seq.drop_suffix "=ruler" block_name of
-        (block_name, True) -> do
+    let (block_id, has_ruler) = spec_block_id block_name
+    ruler_id <- if has_ruler
+        then do
             let len = event_end tracks
                 rid = Id.unsafe_id test_ns ("r" ++ show len)
-            ruler_id <- ifM
-                (Maybe.isJust <$> State.lookup_ruler (Types.RulerId rid))
+            ifM (Maybe.isJust <$> State.lookup_ruler (Types.RulerId rid))
                 (return (Types.RulerId rid))
                 (State.create_ruler rid (mkruler len 1))
-            return (ruler_id, block_name)
-        (block_name, False) -> do
-            ruler_id <- maybe
-                (State.create_ruler (Id.unpack_id default_ruler_id)
-                    default_ruler)
-                (const (return default_ruler_id)) maybe_rid
-            return (ruler_id, block_name)
-    mkblock_ruler ruler_id (block_name, tracks)
+        else maybe
+            (State.create_ruler (Id.unpack_id default_ruler_id) default_ruler)
+            (const (return default_ruler_id))
+                =<< State.lookup_ruler default_ruler_id
+    mkblock_ruler ruler_id (Id.ident_name block_id, tracks)
     where
     event_end :: [TrackSpec] -> Int
     event_end = ceiling . ScoreTime.to_double . maximum . (0:)

@@ -1,4 +1,4 @@
-module Cmd.Integrate (cmd_integrate) where
+module Cmd.Integrate (cmd_integrate, integrate) where
 import qualified Data.List.NonEmpty as NonEmpty
 import qualified Data.Map as Map
 

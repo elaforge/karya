@@ -10,6 +10,7 @@ UNSORTED
     unexpectedly.
   * all the DeriveTest.e_twelve stuff can get the note name directly now
   integrate
+    - when creating pitch tracks,  omit the name if it's the default
     * integrate should use symbolic pitches.  It means I can't do pitch
       curves, but I think those would be ugly anyway since they turn into
       samples, and most will be '4c 23' type stuff.
@@ -19,13 +20,15 @@ UNSORTED
     * don't emit dyn tracks that are just 0xff
     * split overlapping notes
   reyong kilitan
+    - tempo is messed up
+    - when I add +byong etc. integration hangs
     * events to pokok
     * patterns to events
     * test
     - get dynamics from the melody
-    - Should I get the scale from the events?  Maybe all transformers should
+    * Should I get the scale from the events?  Maybe all transformers should
       do that.
-    - cek, byut, byong
+    * cek, byut, byong
       . I want to emit cek, byut, and byong as /, X, and O, but I need to get
         integrate to map attrs->symbol.
         It also makes realize-kilitan dependent on an instrument that

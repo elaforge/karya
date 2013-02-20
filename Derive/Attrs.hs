@@ -65,6 +65,8 @@ flutter = attr "flutter"
 
 -- * bali
 
+byut = attr "byut"
+byong = attr "byong"
 cek = attr "cek"
 
 -- * drums

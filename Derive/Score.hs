@@ -21,8 +21,8 @@ import qualified Derive.BaseTypes as BaseTypes
 import Derive.BaseTypes
        (Instrument(..), Control(..), Type(..), Typed(..), untyped,
         merge_typed, type_to_code, code_to_type, TypedSignal, TypedVal,
-        Attributes, Attribute, attr, attrs, attrs_diff, attrs_contain,
-        attrs_remove, attrs_set, attrs_list, no_attrs)
+        Attributes, Attribute, attr, attrs, set_to_attrs, attrs_diff,
+        attrs_contain, attrs_remove, attrs_set, attrs_list, no_attrs)
 import qualified Derive.PitchSignal as PitchSignal
 import qualified Derive.Stack as Stack
 
@@ -104,6 +104,9 @@ event_string = UTF8.toString . event_bs
 
 event_end :: Event -> RealTime
 event_end event = event_start event + event_duration event
+
+event_scale_id :: Event -> Pitch.ScaleId
+event_scale_id = PitchSignal.sig_scale_id . event_pitch
 
 -- ** modify events
 
