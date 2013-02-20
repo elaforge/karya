@@ -76,7 +76,7 @@ findFiles :: (FilePath -> Bool) -> Shake.FilePattern -> FilePath
     -> Shake.Action [FilePath]
 findFiles acceptDir filePattern dir = do
     fns <- map (System.FilePath.normalise . (dir </>)) <$>
-        Shake.getDirectoryFiles (if dir == "." then "" else dir) [filePattern]
+        Shake.getDirectoryFiles dir [filePattern]
     dirs <- map (dir </>) . filter acceptDir <$> Shake.getDirectoryDirs dir
     rest <- mapM (findFiles acceptDir filePattern) dirs
     return $ concat (fns:rest)
