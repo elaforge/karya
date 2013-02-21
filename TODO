@@ -12,7 +12,7 @@ UNSORTED
     a new ruler, then I can just mix them together, and put cues at rank -1
     or something.  Otherwise I can have them nameless and mixed by TimeStep
     implicitly, with cues still being -1 so timesteps don't count them
-    unexpectedly.
+    unexpectedly.  Or just start at 0 and make meters start at 1.
   vsl
     - dyn# should be 'dyn . crescdim . rep#'
       cre# should be just 'cresc . rep#'
@@ -936,13 +936,11 @@ REPL: repl:
 
 Cmd:
   meter / timestep
-    - Putting twice as many ranks makes the meter labels ugly, because they
-      only go up to 1.
-    + It seems like it would be simpler to have meter rank divisions at every
+    * It seems like it would be simpler to have meter rank divisions at every
       note, e.g. w, h, q, e, s, 32, 64, etc. rather than every other.  That
       way I can get rid of the weird 'q*2' TimeSteps.  I can avoid having to
       come up with too many mark colors by just making them the same color.
-    - Putting twice as many ranks makes the meter labels ugly, because they only
+    * Putting twice as many ranks makes the meter labels ugly, because they only
       go up to 1.  Except the toplevel repeats.
       There are two possibilities: go back to dividing by 4, or add another
       flag to make it squash that rank into the previous for the purposes of

@@ -1,8 +1,19 @@
 {- | Functions to construct meter rulers.
 
-    - a block with 8 measures, each in 4/4
+    A meter ruler divides up a block analogous to a staff notation meter.  It's
+    actually more general, since the meter just says how to divide up a single
+    measure, and only at one level, while the ruler has arbitrary divisions.
+    However, in practice, it's convenient to use a similar organization to
+    staff notation's meter.  So by convention the ranks are for section,
+    measure, half note, etc., and "Cmd.TimeStep" uses these as mnemonics for
+    the various ruler ranks it can snap to.
 
-    > 'make_meter' 1024 [8, 4, 4, 4]
+    However, rank 'r_2', which corresponds to TimeStep's @'h'@, doesn't
+    necessarily correspond to a half note.  It actually corresponds to the
+    division below the measure, which in 3+3/8 is a dotted quarter.  In the
+    case of 2/4 it would be a quarter note, but to keep the mnemonic names from
+    getting too far from their staff notation counterparts I just skip a rank
+    so that 'r_1' and 'r_2' both correspond to the same amount of time.
 -}
 module Cmd.Meter where
 import Prelude hiding (repeat)
@@ -22,8 +33,6 @@ import Types
 
 -- | The meter marklist by convention has marks corresponding to the meter of
 -- the piece.  Other commands may use this to find out where beats are.
--- By convention, this marklist starts at rank 1 and goes up.  This is so that
--- rank 0 can be used for special cues and whatnot.
 meter :: Ruler.Name
 meter = "meter"
 
@@ -95,6 +104,13 @@ r_section, r_1, r_2, r_4, r_8, r_16, r_32, r_64, r_128, r_256 :: Ruler.Rank
 r_section : r_1 : r_2 : r_4 : r_8 : r_16 : r_32 : r_64 : r_128 : r_256 : _ =
   [0..]
 
+-- | By convention, ranks divide up the ruler by dividing it by two for each
+-- rank.  This is convenient because that's how staff notation works.  But then
+-- the labels wind up being all 0s and 1s, which is not that useful.  The ranks
+-- in this list don't receive their own label.
+unlabelled_ranks :: [Ruler.Rank]
+unlabelled_ranks = List.sort [r_2, r_8, r_32, r_64, r_256]
+
 rank_names :: [(Ruler.Rank, String)]
 rank_names = zip [0..]
     ["section", "w", "h", "q", "e", "s", "32", "64", "128", "256"]
@@ -144,11 +160,14 @@ regular_subdivision ns = foldr subdivide T (reverse ns)
 
 -- ** predefined meters
 
--- sections/block, measures/section, half/measure, quarter/half, etc.
+-- replicate sections/block $ measures/section, half/measure, quarter/half, ...
+-- These use 1s to help keep the timestep mnemonics in sync with staff notation
+-- durations, as documented in the module haddock.
 m54, m44, m34 :: [AbstractMeter]
 m54 = replicate 4 $ regular_subdivision [4, 5, 2, 2, 2, 2]
 m44 = replicate 4 $ regular_subdivision [4, 2, 2, 2, 2, 2]
 m34 = replicate 4 $ regular_subdivision [4, 3, 2, 2, 2, 2]
+m24 = replicate 4 $ regular_subdivision [8, 1, 2, 2, 2, 2]
 
 m3p3p2_8 :: [AbstractMeter]
 m3p3p2_8 = replicate 4 $ repeats [4, 1] $ subdivides [2, 2, 2, 2] $
@@ -209,8 +228,8 @@ meter_marklist meter_ = Ruler.marklist (Map.fromList pos_marks)
     pos_marks =
         [(pos, mark rank_dur rank name) | ((rank, _), pos, rank_dur, name)
             <- List.zip4 meter mark_pos (rank_durs meter)
-                (ranks_to_labels (map fst meter))]
-    -- By convention, the block begins and ends with a rank 0 mark.
+                (ranks_to_labels (collapse_ranks_for_labels (map fst meter)))]
+    -- By convention, the block ends with a rank 0 mark.
     meter = meter_ ++ [(0, 0)]
     mark_pos = scanl (+) 0 (map snd meter)
     mark rank_dur rank name =
@@ -234,6 +253,10 @@ rank_durs = map rank_dur . List.tails
     rank_dur [] = 0
     rank_dur ((rank, dur) : meter) = total
         where total = dur + sum (map snd (takeWhile ((>rank) . fst) meter))
+
+collapse_ranks_for_labels :: [Ruler.Rank] -> [Ruler.Rank]
+collapse_ranks_for_labels = map (\r -> r - sub r)
+    where sub r = length (takeWhile (<r) unlabelled_ranks)
 
 -- | Name the MarkRanks in a #.#.# format.
 --
