@@ -81,6 +81,7 @@
     mode.
 -}
 module Derive.Note where
+import qualified Data.Char as Char
 import qualified Data.List.NonEmpty as NonEmpty
 import qualified Data.Tree as Tree
 
@@ -114,7 +115,7 @@ d_note_track (Tree.Node track subs) = do
 with_title :: TrackTree.EventsTree -> (ScoreTime, ScoreTime) -> String
     -> Derive.EventDeriver -> Derive.EventDeriver
 with_title subs (start, end) title deriver
-    | null title = deriver
+    | all Char.isSpace title = deriver
     | otherwise = do
         track_expr <- either (Derive.throw . ("track title: "++)) return
             (TrackInfo.parse_note title)

@@ -17,6 +17,7 @@
     normal controls using transposition signals like 'Score.c_chromatic'.
 -}
 module Derive.Control where
+import qualified Data.Char as Char
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 import qualified Data.Tree as Tree
@@ -56,7 +57,7 @@ d_control_track :: TrackTree.EventsNode
     -> Derive.EventDeriver -> Derive.EventDeriver
 d_control_track (Tree.Node track _) deriver = do
     let title = TrackTree.tevents_title track
-    if null title then deriver else do
+    if all Char.isSpace title then deriver else do
     (ctype, expr) <- either (\err -> Derive.throw $ "track title: " ++ err)
         return (TrackInfo.parse_control_expr title)
     eval_track track expr ctype deriver
