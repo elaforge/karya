@@ -152,11 +152,6 @@ UNSORTED
 
   - Type into track text on the right side, then expand the window so it can
     be visible.  It doesn't redraw the newly-revealed bit correctly.
-    And it can make it crash.  Enter lots of text into a track title, resize
-    horizontally, add a track:
-    assertion: <assertion failed at fltk/TrackTile.cc:277 update_sizes():
-    'title->w() == body->w()'>
-  - I really do want to make a note transformer into a transformer.
 
   - Track caching is too fragile, if I add a track with scope over everything
     then I get no caching.  Instead I should cache the bottom note track, or
@@ -877,7 +872,7 @@ fltk:
   - skeleton display has leveled steps to make it easier to see who is
     below who.  Only if a track has multiple children.
   - rethrow c++ exceptions as FltkError
-  - auto add pitch track when a track title input is expanded crashes with
+  * auto add pitch track when a track title input is expanded crashes with
     assertion error 'title->w() == body->w()'
     solution: text entry is collapsed by track add, remove, or resize
   - factor scroll redrawing into a single class

@@ -274,13 +274,12 @@ TrackTile::update_sizes()
     for (int i = 0; i < tracks(); i++) {
         Fl_Widget *title = child(i*2);
         Fl_Widget *body = child(i*2+1);
-        ASSERT(title->w() == body->w());
-        int width = title->w();
-
-        title->resize(x() + xpos, y(), width, this->title_height);
+        // The title might be expanded if it's being edited.
+        ASSERT(title->w() >= body->w());
+        title->resize(x() + xpos, y(), title->w(), this->title_height);
         body->resize(x() + xpos, y() + this->title_height,
-                width, h() - this->title_height);
-        xpos += width;
+                body->w(), h() - this->title_height);
+        xpos += body->w();
     }
     // track_pad can't be 0 width, see MoveTile.
     track_pad.resize(x() + xpos, y(), std::max(1, w() - xpos), h());
