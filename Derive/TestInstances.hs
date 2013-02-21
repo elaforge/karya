@@ -1,4 +1,4 @@
-{-# LANGUAGE  CPP, StandaloneDeriving  #-}
+{-# LANGUAGE CPP, StandaloneDeriving #-}
 -- | Instances that are not safe but very useful for testing.
 module Derive.TestInstances where
 

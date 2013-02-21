@@ -94,7 +94,7 @@ play_msgs state msgs = do
     now <- Transport.info_get_current_time (state_info state)
     let until = now + RealTime.mul write_ahead 2
     let (chunk, rest) =
-            span (LEvent.either ((<until) . Midi.wmsg_ts) (const True))  msgs
+            span (LEvent.either ((<until) . Midi.wmsg_ts) (const True)) msgs
     -- Log.debug $ "play at " ++ show now ++ " chunk: " ++ show (length chunk)
     mapM_ write_msg chunk
 

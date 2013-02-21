@@ -268,7 +268,7 @@ padded_zip (a:as) (b:bs) = Both a b : padded_zip as bs
 
 -- | Like 'zip', but the second list is padded with Nothings.
 zip_padded2 :: [a] -> [b] -> [(a, Maybe b)]
-zip_padded2 [] _ =  []
+zip_padded2 [] _ = []
 zip_padded2 (x:xs) (y:ys) = (x, Just y) : zip_padded2 xs ys
 zip_padded2 (x:xs) [] = [(x, Nothing) | x <- x : xs]
 

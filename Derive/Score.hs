@@ -82,7 +82,7 @@ remove_attributes attrs = modify_attributes (attrs_remove attrs)
 
 instance DeepSeq.NFData Event where
     rnf (Event start dur text controls pitch _ _ _) =
-        rnf start `seq`  rnf dur `seq` rnf text `seq` rnf controls
+        rnf start `seq` rnf dur `seq` rnf text `seq` rnf controls
             `seq` rnf pitch
 
 instance Pretty.Pretty Event where

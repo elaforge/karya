@@ -78,7 +78,7 @@ io_cmds = [Keymap.make_cmd (fst (Keymap.make_cmd_map io_bindings))]
 -- have been stripped, but it's still useful to find keymap collisions and
 -- print a global keymap.
 all_cmd_map :: Keymap.CmdMap (Cmd.CmdT Identity.Identity)
-cmd_map_errors  :: [String]
+cmd_map_errors :: [String]
 (all_cmd_map, cmd_map_errors) =
     -- Pure cmds bind before IO cmds since they are extendable.
     Keymap.make_cmd_map (pure_bindings ++ map strip io_bindings)

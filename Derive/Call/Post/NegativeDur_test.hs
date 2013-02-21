@@ -21,7 +21,7 @@ test_negative_duration = do
         ([(1, 2, "--1"), (3, deflt, "--2")], [])
 
     let run evts = extract $ DeriveTest.derive_blocks
-            [ ("b1", [(">  | negative-duration", evts)])
+            [ ("b1", [("> | negative-duration", evts)])
             , ("sub=ruler", [(">", [(1, -1, "--1"), (2, -1, "--2")])])
             ]
     -- last event extends up to "rest" at 5

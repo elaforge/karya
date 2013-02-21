@@ -27,7 +27,7 @@ test_make_states = do
     let f ts msgs = map extract $
             StepPlay.make_states (map RealTime.seconds ts) (chan_msgs msgs)
         extract (Midi.State.State chans) = Map.elems $
-            Map.map (Map.toList . Midi.State.chan_notes)  chans
+            Map.map (Map.toList . Midi.State.chan_notes) chans
     let msgs =
             [ (0, Midi.NoteOn 60 127)
             , (1, Midi.NoteOff 60 0)

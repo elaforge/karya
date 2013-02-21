@@ -60,5 +60,5 @@ thread_inputs addrs initial_state inputs = foldl go ([], initial_state) inputs
             Nothing -> (next_msgs, state)
             Just next_state -> (next_msgs, next_state)
         where
-        (msgs, next_state) =  MidiThru.input_to_midi (-2, 2) state addrs input
+        (msgs, next_state) = MidiThru.input_to_midi (-2, 2) state addrs input
         next_msgs = prev_msgs ++ msgs

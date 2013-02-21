@@ -208,7 +208,7 @@ to_cmd :: UiUpdate -> Maybe CmdUpdate
 to_cmd (Track track_id (TrackEvents s e)) = Just $ CmdTrackEvents track_id s e
 to_cmd (Track track_id TrackAllEvents) = Just $ CmdTrackAllEvents track_id
 to_cmd (Ruler ruler_id) = Just $ CmdRuler ruler_id
-to_cmd  _ = Nothing
+to_cmd _ = Nothing
 
 -- * functions
 

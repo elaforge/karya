@@ -151,9 +151,9 @@ performance_thread ui_state cmd_state wait send_status block_id = do
         -- threw before it even got started, which should never happen.
         Left err -> Log.error $
             "derivation for " ++ show block_id ++ " failed: " ++ show err
-        Right  (Nothing, _, _) ->
+        Right (Nothing, _, _) ->
             Log.error $ "derivation for " ++ show block_id ++ " aborted"
-        Right  (Just derive_result, _, _) ->
+        Right (Just derive_result, _, _) ->
             evaluate_performance wait send_status block_id
                 (performance derive_result)
     where

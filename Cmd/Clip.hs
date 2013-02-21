@@ -149,7 +149,7 @@ cmd_paste_overwrite = do
 cmd_paste_merge :: (Cmd.M m) => m ()
 cmd_paste_merge = do
     (_, _, track_events) <- paste_info
-    forM_  track_events $ \(track_id, events) ->
+    forM_ track_events $ \(track_id, events) ->
         State.insert_events track_id events
 
 -- | Like 'cmd_paste_merge', except don't merge events that overlap with
@@ -157,7 +157,7 @@ cmd_paste_merge = do
 cmd_paste_soft_merge :: (Cmd.M m) => m ()
 cmd_paste_soft_merge = do
     (_, _, track_events) <- paste_info
-    forM_  track_events $ \(track_id, events) -> do
+    forM_ track_events $ \(track_id, events) -> do
         track_events <- fmap Track.track_events (State.get_track track_id)
         State.insert_events track_id $
             filter (not . overlaps track_events) events
@@ -175,7 +175,7 @@ cmd_paste_insert = do
     block_end <- State.block_ruler_end =<< Cmd.get_focused_block
     mapM_ (ModifyEvents.move_track_events block_end start (end-start) . fst)
         track_events
-    forM_  track_events $ \(track_id, events) ->
+    forM_ track_events $ \(track_id, events) ->
         State.insert_events track_id events
 
 -- | Paste the clipboard, but stretch or compress it to fit the selection.

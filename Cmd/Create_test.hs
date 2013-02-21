@@ -79,7 +79,7 @@ test_append_tracks_from_template = do
 test_make_tracks = do
     let f tracknum = Create.make_tracks tracknum . make_tree
         make_tree :: [Tree.Tree String] -> TrackTree.TrackTree
-        make_tree  = map $ fmap $ \title ->
+        make_tree = map $ fmap $ \title ->
             State.TrackInfo title (UiTest.mk_tid 0) 0
     equal (f 1
             [ Tree.Node "1" [Tree.Node "11" [], Tree.Node "12" []]

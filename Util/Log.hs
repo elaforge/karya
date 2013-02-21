@@ -71,7 +71,7 @@ data Msg = Msg {
     -- score the msg was emitted.
     , msg_stack :: !(Maybe Stack)
     -- | Free form text for humans.
-    , msg_text  :: !Text.Text
+    , msg_text :: !Text.Text
     } deriving (Eq, Show, Read, Generics.Typeable)
 
 instance DeepSeq.NFData Msg where

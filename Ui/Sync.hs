@@ -265,7 +265,7 @@ update_block track_signals set_style block_id update = do
             mapM_ (flip BlockC.remove_track tracknum) view_ids
         Update.InsertTrack tracknum dtrack ->
             create_track view_ids tracknum dtrack
-        Update.BlockTrack tracknum dtrack  -> do
+        Update.BlockTrack tracknum dtrack -> do
             tracklike <- State.get_tracklike (Block.dtracklike_id dtrack)
             state <- State.get
             let set_style_low = update_set_style state block_id

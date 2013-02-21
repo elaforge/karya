@@ -152,7 +152,7 @@ modify_notes maybe_msg addr f = do
     let notes = Map.findWithDefault [] addr active
     case (maybe_msg, notes) of
         (Just msg, []) -> warn msg
-        _ -> State.modify $ \state  -> state
+        _ -> State.modify $ \state -> state
             { state_active = Map.insert addr (f notes) (state_active state) }
 
 warn :: String -> SynthM ()

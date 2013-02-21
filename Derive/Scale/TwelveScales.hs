@@ -174,7 +174,7 @@ read_env_key smap = Util.read_environ
 read_key :: ScaleMap -> Maybe Pitch.Key -> Either Scale.ScaleError Theory.Key
 read_key smap Nothing = Right (smap_default_key smap)
 read_key smap (Just key) =
-    maybe  (Left err) Right $ Map.lookup key (smap_keys smap)
+    maybe (Left err) Right $ Map.lookup key (smap_keys smap)
     where err = Scale.UnparseableEnviron TrackLang.v_key (Pretty.pretty key)
 
 read_pitch :: Theory.Layout -> Pitch.Note

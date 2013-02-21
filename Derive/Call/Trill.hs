@@ -170,7 +170,7 @@ chord_tremolo starts note_tracks =
         chosen = Seq.minimum_on fst (filter ((>tracknum) . fst) overlapping)
             `mplus` Seq.minimum_on fst overlapping
         overlapping = filter (Note.event_overlaps pos . snd) notes
-        notes = dropWhile ((<=pos) . Note.event_end . snd)  notes_
+        notes = dropWhile ((<=pos) . Note.event_end . snd) notes_
     by_track = Seq.sort_on (Note.event_end . snd)
         [(tracknum, note) | (tracknum, track) <- zip [0..] note_tracks,
             note <- track]

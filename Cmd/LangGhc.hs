@@ -62,12 +62,12 @@ ghci_flags = BUILD_DIR </> "ghci-flags"
 
 interpreter :: Session -> IO ()
 interpreter (Session chan) = do
-    GHC.parseStaticFlags []  -- not sure if this is necessary
+    GHC.parseStaticFlags [] -- not sure if this is necessary
     flags <- Exception.try (readFile ghci_flags)
     -- Ghc moved .o to dyn flags, but I'll have to wait for 7.8, or make a .a
     -- and use -l.
     let is_obj fn = BUILD_DIR `List.isPrefixOf` fn && ".o" `List.isSuffixOf` fn
-    args <- filter (not . is_obj) <$>  case flags of
+    args <- filter (not . is_obj) <$> case flags of
         Left (exc :: Exception.SomeException) -> do
             Log.error $ "error reading ghci flags from "
                 ++ show ghci_flags ++ ": " ++ show exc

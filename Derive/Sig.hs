@@ -267,7 +267,7 @@ typed_control :: String -> Signal.Y -> Score.Type -> TrackLang.ValControl
 typed_control name deflt typ =
     TrackLang.DefaultedControl (Score.Control name) (Score.Typed typ deflt)
 
-required_control :: String  -> TrackLang.ValControl
+required_control :: String -> TrackLang.ValControl
 required_control name = TrackLang.LiteralControl (Score.Control name)
 
 -- ** util

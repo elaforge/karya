@@ -58,4 +58,4 @@ size db = MidiDb.size (db_midi_db db)
 
 -- | All the synths in the db.
 synths :: Db code -> [Instrument.SynthName]
-synths  = Map.keys . MidiDb.midi_db_map . db_midi_db
+synths = Map.keys . MidiDb.midi_db_map . db_midi_db

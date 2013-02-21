@@ -353,7 +353,7 @@ encode_spec config path rmap (name, spec) = case spec of
                     ++ show (Map.size rmap)
             val -> throw $ "expected RMap list, but got "
                 ++ Pretty.pretty val
-        rmaps <- forM records $  \x -> case x of
+        rmaps <- forM records $ \x -> case x of
             RMap rmap -> return rmap
             rec -> throw $ "non-RMap child of an RMap list: "
                 ++ Pretty.pretty rec

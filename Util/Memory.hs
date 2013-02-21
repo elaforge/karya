@@ -35,7 +35,7 @@ newtype Size = Size Int deriving (Eq, Ord, Num, Show)
 
 instance Pretty.Pretty Size where
     pretty (Size n) =
-        Pretty.pretty (fromIntegral n / 1024  / 1024 :: Double) ++ "m"
+        Pretty.pretty (fromIntegral n / 1024 / 1024 :: Double) ++ "m"
 
 tagged_box :: Size
 tagged_box = from_words 3 -- gc overhead, tag, ptr

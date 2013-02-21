@@ -35,7 +35,7 @@ tracep_full msg val
 
 -- | Print a string.
 traces :: String -> a -> a
-traces =  Trace.trace . (prefix++)
+traces = Trace.trace . (prefix++)
 
 -- | Pretty print an arbitrary value.
 traceps :: (Pretty.Pretty b) => String -> b -> a -> a

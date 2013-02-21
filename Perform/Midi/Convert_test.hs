@@ -64,7 +64,7 @@ nopitch n = LEvent.Event $
     (mkevent n "4c" "s/1") { Score.event_pitch = mempty }
 good n = LEvent.Event $ mkevent n "4c" "s/1"
 
-mklog = LEvent.Log  . Log.msg Log.Warn Nothing
+mklog = LEvent.Log . Log.msg Log.Warn Nothing
 mkevent start pitch inst =
     DeriveTest.mkevent (start, 1, pitch, [], Score.Instrument inst)
 convert = show_logs extract_event

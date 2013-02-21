@@ -194,7 +194,7 @@ type ObjType = CInt
 #ccall git_signature_free, Ptr <git_signature> -> IO ()
 
 #ccall git_commit_author, Ptr <git_commit> -> IO (Ptr <git_signature>)
-#ccall git_commit_tree_id, Ptr  <git_commit> -> IO (Ptr OID)
+#ccall git_commit_tree_id, Ptr <git_commit> -> IO (Ptr OID)
 #ccall git_commit_parentcount, Ptr <git_commit> -> IO CUInt
 #ccall git_commit_parent_id, Ptr <git_commit> -> CUInt -> IO (Ptr OID)
 #ccall git_commit_message, Ptr <git_commit> -> IO CString

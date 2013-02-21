@@ -74,7 +74,7 @@ parse format s = case Parser.parseModule ("value = " ++ s) of
     Parser.ParseOk m -> format m
     -- The formatted version appends a newline, so the unformatted one should
     -- too.
-    Parser.ParseFailed _ _   -> s ++ "\n"
+    Parser.ParseFailed _ _  -> s ++ "\n"
 
 format_parsed :: HsModule -> String
 format_parsed = strip_boilerplate . pprint_mode

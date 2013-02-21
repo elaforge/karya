@@ -253,7 +253,7 @@ write_dir repo filemap = do
     write (File bytes) = Left <$> write_blob repo bytes
     write (Dir dir) = Right <$> write_dir repo dir
 
-read_dir  :: Repo -> Tree -> IO Dir
+read_dir :: Repo -> Tree -> IO Dir
 read_dir repo tree = do
     (names, files) <- unzip <$> read_tree repo tree
     files <- mapM read files

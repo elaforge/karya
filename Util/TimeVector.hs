@@ -142,7 +142,7 @@ instance (Pretty.Pretty y) => Pretty.Pretty (Sample y) where
 
 -- | Merge a sorted list of vectors.  Samples are not interspersed, and if
 -- the vectors overlap the later one wins.
-merge  :: (V.Vector v (Sample y)) => [v (Sample y)] -> v (Sample y)
+merge :: (V.Vector v (Sample y)) => [v (Sample y)] -> v (Sample y)
 merge vecs = V.unfoldrN len go vecs
     where
     -- This will be too big if there's lots of overlap.

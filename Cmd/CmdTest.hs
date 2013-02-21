@@ -175,7 +175,7 @@ thread ustate cstate cmds = foldl f (Right (ustate, cstate)) cmds
 
 -- | Make some tracks and call 'thread'.
 thread_tracks :: [UiTest.TrackSpec] -> (Cmd.State -> Cmd.State)
-    -> [Cmd.CmdId a] -> Either String (State.State,  Cmd.State)
+    -> [Cmd.CmdId a] -> Either String (State.State, Cmd.State)
 thread_tracks tracks modify_cmd_state cmds =
     thread ustate (modify_cmd_state default_cmd_state) cmds
     where (_, ustate) = UiTest.run_mkview tracks
