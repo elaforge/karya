@@ -25,8 +25,10 @@ UNSORTED
     * don't emit dyn tracks that are just 0xff
     * split overlapping notes
   reyong kilitan
-    - tempo is messed up
-    - when I add +byong etc. integration hangs
+    - tempo is messed up.  Not supposed to add derived tracks to tempo track!
+      But could I have < run the deriver in flat tempo instead?
+    * when I add +byong etc. integration hangs
+    * +cek is on the middle bunga
     * events to pokok
     * patterns to events
     * test

@@ -39,8 +39,9 @@ data Pitch = Pitch {
     , pitch_degree :: !Degree
     }
     deriving (Eq, Ord, Show)
+type Pitches = Set.Set Pitch
 
-data Note = Note (Set.Set Pitch) Strike
+data Note = Note Pitches Strike
     deriving (Eq, Ord, Show)
 
 data Strike = Open | Cek | Byut | Byong
@@ -79,15 +80,6 @@ read_pitch n = Map.lookup n to_pitch
 
 show_pitch :: Pitch -> Pitch.Note
 show_pitch (Pitch oct d) = Symbols.dotted_number (degree_num d) oct
-
-char_to_note :: Char -> Maybe Note
-char_to_note c = case c of
-    -- TODO pass in the notes
-    '/' -> Just $ Note mempty Cek
-    'X' -> Just $ Note mempty Byut
-    'O' -> Just $ Note mempty Byong
-    '-' -> Just $ note []
-    _ -> Nothing
 
 note_to_string :: Note -> String
 note_to_string (Note _ Cek) = "/"
@@ -162,10 +154,12 @@ realize1 pos start beat all_inputs = go all_inputs
     where
     go [] = []
     go ((start, dur, n) : inputs) = case n of
-        Right strike ->
-            (start, dur, Note (pos_strike pos) strike) : go inputs
+        Right strike -> (start, dur, strike_note strike) : go inputs
         Left degree -> melody ((start, dur, degree) : degrees) ++ go rest
         where (degrees, rest) = span_while degree_of inputs
+    strike_note Cek = Note (pos_cek pos) Cek
+    strike_note strike = Note (pos_byong pos) strike
+
     degree_of (start, dur, Left d) = Just (start, dur, d)
     degree_of _ = Nothing
     melody events = output_melody pos beat $ simplify_melody events beats
@@ -193,7 +187,7 @@ simplify_melody events beats =
         (start, Just d) : events ->
             let (ds, rest) = span_while snd events
             in (start, d:ds) : group rest
-        _ -> group events
+        events -> group events
 
 -- * output, play
 
@@ -201,7 +195,7 @@ output_melody :: Position -> ScoreTime -> [(ScoreTime, [Degree])] -> [Output]
 output_melody pos beat = concatMap play
     where
     play (start, ds) = [(t, beat, pitch) | (t, pitch)
-        <- zip (Seq.range_ start beat) (realize_position pos ds)]
+        <- zip (Seq.range_ start beat) (realize_melody pos ds)]
 
 play_output :: Score.Attributes -> [Output] -> Derive.EventDeriver
 play_output attrs = Derive.d_merge_asc . concatMap go
@@ -233,16 +227,16 @@ attrs_strike =
     , (mempty, Open)
     ]
 
--- * realize position
+-- * realize melody
 
-t1 = realize_position position1 [I, I, I, A, A, O, O, O, O]
-t2 = realize_position position2 [I, I, I, A, A, O, O, O, O]
-t3 = Pretty.pprint $ realize_position position1 [I]
-t4 = Pretty.pprint $ realize_position position2 [I]
-t5 = Pretty.pprint $ realize_position position2 [I, I, O]
+t1 = realize_melody position1 [I, I, I, A, A, O, O, O, O]
+t2 = realize_melody position2 [I, I, I, A, A, O, O, O, O]
+t3 = Pretty.pprint $ realize_melody position1 [I]
+t4 = Pretty.pprint $ realize_melody position2 [I]
+t5 = Pretty.pprint $ realize_melody position2 [I, I, O]
 
-realize_position :: Position -> [Degree] -> [Note]
-realize_position pos = (rest:) . go
+realize_melody :: Position -> [Degree] -> [Note]
+realize_melody pos = (rest:) . go
     -- The positions are notated Indonesian style, with the beat at the end, so
     -- add a leading rest to get the beats to line up.
     where
@@ -255,61 +249,65 @@ realize_position pos = (rest:) . go
     rest = Note mempty Open
 
 data Position = Position {
-    pos_strike :: Set.Set Pitch
-    -- TODO should be [Pitch] not Note
+    pos_cek :: Pitches
+    , pos_byong :: Pitches
     , pos_melody :: Degree -> ([Note], [Note])
     }
 
-make_position :: [Pitch] -> [(Char, Pitch.Octave)] -> [Char -> Maybe Note]
-    -> (Degree -> (String, String)) -> Position
-make_position strike octaves parsers melody = Position
-    { pos_strike = Set.fromList strike
-    , pos_melody = read_both (parse_octaves octaves : parsers) . melody
+make_position :: Pitch -> [Pitch] -> (Degree -> ([Note], [Note])) -> Position
+make_position cek byong melody = Position
+    { pos_cek = Set.singleton cek
+    , pos_byong = Set.fromList byong
+    , pos_melody = melody
     }
 
 -- E U A (I) 3 5 6 (1)
 position1 :: Position
-position1 = make_position [Pitch (-1) E, Pitch (-1) A] octaves [parse] $
-    \d -> case d of
-        I -> ("556-", "656-")
-        O -> ("56:-", ":-:-")
-        E -> ("3353", "5353")
-        U -> ("5565", "6565")
-        A -> ("6636", "3636")
+position1 = make $ \d -> case d of
+        I -> p ("556-", "656-")
+        O -> p ("56:-", ":-:-")
+        E -> p ("3353", "5353")
+        U -> p ("5565", "6565")
+        A -> p ("6636", "3636")
     where
-    octaves = [('3', -1), ('5', -1), ('6', -1), ('1', 0)]
-    parse ':' = Just $ note [Pitch (-1) E, Pitch 0 I]
-    parse _ = Nothing
+    make = make_position (Pitch (-1) U) [Pitch (-1) E, Pitch (-1) A]
+    p = read_both [('3', -1), ('5', -1), ('6', -1), ('1', 0)]
 
 -- I O E -- 1 2 3
 position2 :: Position
-position2 = make_position [Pitch 0 I, Pitch 0 E] octaves [] $ \d -> case d of
-    I -> ("1121", "2121")
-    O -> ("2232", "3232")
-    E -> ("3313", "1313")
-    U -> ("123-", "323-")
-    A -> ("3313", "1313")
-    where octaves = [('1', 0), ('2', 0), ('3', 0)]
+position2 = make $ \d -> case d of
+        I -> p ("1121", "2121")
+        O -> p ("2232", "3232")
+        E -> p ("3313", "1313")
+        U -> p ("123-", "323-")
+        A -> p ("3313", "1313")
+    where
+    make = make_position (Pitch 0 O) [Pitch 0 I, Pitch 0 E]
+    p = read_both [('1', 0), ('2', 0), ('3', 0)]
 
 -- U A -- 5 6
 position3 :: Position
-position3 = make_position [Pitch 0 U, Pitch 1 I] octaves [] $ \d -> case d of
-    I -> ("556-", "656-")
-    O -> ("561-", "161-")
-    E -> ("565-", "5-5-")
-    U -> ("5565", "6565")
-    A -> ("66-6", "-6-6")
-    where octaves = [('3', 0), ('5', 0), ('6', 0), ('1', 1)]
+position3 = make $ \d -> case d of
+        I -> p ("556-", "656-")
+        O -> p ("561-", "161-")
+        E -> p ("565-", "5-5-")
+        U -> p ("5565", "6565")
+        A -> p ("66-6", "-6-6")
+    where
+    make = make_position (Pitch 0 A) [Pitch 0 U, Pitch 1 I]
+    p = read_both [('3', 0), ('5', 0), ('6', 0), ('1', 1)]
 
 -- I O E U -- 1 2 3 5
 position4 :: Position
-position4 = make_position [Pitch 1 O, Pitch 1 E] octaves [] $ \d -> case d of
-    I -> ("1121", "2121")
-    O -> ("2232", "3232") -- 1 2312
-    E -> ("3353", "5353")
-    U -> ("123-", "323-")
-    A -> ("3313", "1313")
-    where octaves = [('6', 0), ('1', 1), ('2', 1), ('3', 1), ('5', 1)]
+position4 = make $ \d -> case d of
+        I -> p ("1121", "2121")
+        O -> p ("2232", "3232") -- 1 2312
+        E -> p ("3353", "5353")
+        U -> p ("123-", "323-")
+        A -> p ("3313", "1313")
+    where
+    make = make_position (Pitch 1 E) [Pitch 1 O, Pitch 1 U]
+    p = read_both [('6', 0), ('1', 1), ('2', 1), ('3', 1), ('5', 1)]
 
 parse_octaves :: [(Char, Pitch.Octave)] -> Char -> Maybe Note
 parse_octaves table c = do
@@ -317,13 +315,20 @@ parse_octaves table c = do
     d <- num_degree =<< Num.read_digit c
     return $ note [Pitch oct d]
 
-read_both :: [Char -> Maybe Note] -> ([Char], [Char]) -> ([Note], [Note])
-read_both parsers (xs, ys) =
-    (map (read_note parsers) xs, map (read_note parsers) ys)
+read_both :: [(Char, Pitch.Octave)] -> ([Char], [Char]) -> ([Note], [Note])
+read_both octaves (xs, ys) = (map f xs, map f ys)
+    where
+    f c = fromMaybe (error $ "no parse for: " ++ show c) $
+        char_to_note octaves c
 
-read_note :: [Char -> Maybe Note] -> Char -> Note
-read_note parsers c = fromMaybe (error $ "no parse for: " ++ show c) $
-    msum (map ($c) parsers) `mplus` char_to_note c
+char_to_note :: [(Char, Pitch.Octave)] -> Char -> Maybe Note
+char_to_note octaves c = case c of
+    '-' -> Just $ note []
+    ':' -> Just $ note [Pitch (-1) E, Pitch 0 I]
+    _ -> case lookup c octaves of
+        Just oct ->
+            note . (:[]) . Pitch oct <$> (num_degree =<< Num.read_digit c)
+        Nothing -> Nothing
 
 -- * util
 
