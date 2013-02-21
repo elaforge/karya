@@ -25,7 +25,7 @@ UNSORTED
     * don't emit dyn tracks that are just 0xff
     * split overlapping notes
   reyong kilitan
-    - tempo is messed up.  Not supposed to add derived tracks to tempo track!
+    * tempo is messed up.  Not supposed to add derived tracks to tempo track!
       But could I have < run the deriver in flat tempo instead?
     * when I add +byong etc. integration hangs
     * +cek is on the middle bunga
@@ -576,7 +576,7 @@ incremental save / git
   Git docs: http://progit.org/book/ch9-2.html
 
 integrate / integration:
-  - adding a {soft} stroke appears to apply the soft again the the dyn track
+  - adding a {soft} stroke appears to apply the soft again the dyn track
   - bug: can't delete a derived track, it just gets regenerated
   - bug: can't undo past a integrate create, it just creates a new one
     Maybe I could not record the integrate step?
@@ -597,7 +597,7 @@ integrate / integration:
   - What if an integrate wants to produce a note transformer track?  I
     think that's currently impossible.
   - quantization
-  - split tracks on overlapping notes since some calls make them (e.g. block
+  * split tracks on overlapping notes since some calls make them (e.g. block
     calls)
 
 lilypond:

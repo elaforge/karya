@@ -76,16 +76,11 @@ c_track_integrate :: Derive.NoteCall
 c_track_integrate = Derive.transformer "track-integrate" Tags.internal
     ("Integrate the output into new tracks. Events will be split into tracks\
     \ based on source track, instrument, and scale, as documented in\
-    \ 'Cmd.Integrate.Convert'. Unlike other tracks, integrated tracks\
-    \ should probably *not* be under the tempo track, since that would\
-    \ apply the tempo twice: once during integration, and again during\
-    \ derivation of the integrated output.\
+    \ 'Cmd.Integrate.Convert'.\
     \\nUnlike block integrate, this doesn't return the events.\
     \ While an integrated block's output is likely to be playable, and\
     \ you can chose whether or not to play it, an integrated track\
-    \ is part of a block, so it plays whether you want it or not.\
-    \ Also, it can't be hooked up to the tempo track so it's unlikely\
-    \ to play normally."
+    \ is part of a block, so it plays whether you want it or not."
     ) $ Sig.call0t $ \_ deriver -> do
         stack <- Internal.get_stack
         case (frame_of Stack.block_of stack, frame_of Stack.track_of stack) of
@@ -98,7 +93,10 @@ c_track_integrate = Derive.transformer "track-integrate" Tags.internal
                 -- lead to it hanging on to lots of garbage, especially since
                 -- it would never drop track dynamics entries for deleted
                 -- tracks.
-                events <- deriver
+                -- Derive in_real_time, otherwise the tempo would be applied
+                -- twice, once during integration and again during derivation
+                -- of the integrated output.
+                events <- Internal.in_real_time deriver
                 unlessM (only_destinations_damaged block_id track_id) $
                     track_integrate block_id track_id events
             _ -> return ()
