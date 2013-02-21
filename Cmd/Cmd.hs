@@ -350,6 +350,7 @@ reinit_state present cstate = cstate
     -- This is essential, otherwise lots of cmds break on the bad reference.
     , state_focused_view = Nothing
     , state_edit = initial_edit_state
+        { state_time_step = state_time_step (state_edit cstate) }
     }
 
 -- ** Config
