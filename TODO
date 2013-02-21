@@ -13,69 +13,11 @@ UNSORTED
     or something.  Otherwise I can have them nameless and mixed by TimeStep
     implicitly, with cues still being -1 so timesteps don't count them
     unexpectedly.
-  * all the DeriveTest.e_twelve stuff can get the note name directly now
-  integrate
-    * when creating pitch tracks,  omit the name if it's the default
-    * integrate should use symbolic pitches.  It means I can't do pitch
-      curves, but I think those would be ugly anyway since they turn into
-      samples, and most will be '4c 23' type stuff.
-    * but meanwhile, why does *legong generate nns it doesn't recognize?
-    * support voice attrs
-    * I think I can remove Deriver.Monad.integrated_key
-    * don't emit dyn tracks that are just 0xff
-    * split overlapping notes
-  reyong kilitan
-    * tempo is messed up.  Not supposed to add derived tracks to tempo track!
-      But could I have < run the deriver in flat tempo instead?
-    * when I add +byong etc. integration hangs
-    * +cek is on the middle bunga
-    * events to pokok
-    * patterns to events
-    * test
-    / get dynamics from the melody.  No, apply a dynamic track separately if
-      I want it.
-    * Should I get the scale from the events?  Maybe all transformers should
-      do that.
-    * cek, byut, byong
-      . I want to emit cek, byut, and byong as /, X, and O, but I need to get
-        integrate to map attrs->symbol.
-        It also makes realize-kilitan dependent on an instrument that
-        understands those calls.  Maybe it should do that only with a flag.
-      - When the flag is set, emit a single note with text set for integrate
-        to reuse.  But if I do that, then the reyong inst needs to know the
-        position.
-      - When the flag isn't set, emit note+attrs as usual.  Integrate still
-        hase to use those attrs though.
-    - more graceful transitions between pitches
-    - variant patterns
-    - coordination across parts
-    - damping, depending on speed
-    - support kilitan/beat speed more exotic than 4/1
-  * kkt/hang is still using "invoke default note call" calls
-    But the new note call doesn't group properly, because it contains the
-    attrs.
-  * doc string for synthesizers, since the names are short and cryptic
   vsl
     - dyn# should be 'dyn . crescdim . rep#'
       cre# should be just 'cresc . rep#'
     - can all perf.rep be turned into rep, or is there non-perf rep?
     - make sure perf_upbeat_repetitions are consistent
-    * add category tags to instruments
-    * print out the matrix
-    * special woodwinds
-    * brass1
-    * Check for discrepancies with solo bass
-    * Figure out how the bpm repetitions are supposed to work.
-    * Allocate them to rows, 12 per and assign keyswitch pairs based on that
-      Decide if I want to do matrix switches or not.  If I do, then I need
-      3 keyswitches per note, but I can arrange them in rows that can all be
-      disabled / enabled at once.
-    a/b
-      Decide if I want to use magic attrs exclusively.  Probably yes.
-      * gliss updown, grace updown, runs updown
-    * I can probably strip sus and vib entirely.
-    * Should be able to strip +perf if it doesn't make an overlap.
-    * progr is always with vib, right?
     - make sure grace vs. grace.updown is correct
     attribute groups:
       I should be able to pick a default and remove that one:
@@ -83,78 +25,17 @@ UNSORTED
         * for grace notes, fast should be default
         * strip norm
       . bass clarinet has nv without vib
-    * should be able to figure out e.g. +grace+min+third+up frome the 'g' call
-    - also should be able to select the most appropriate sec# dyn given
+    - should be able to select the most appropriate sec# dyn given
       +cresc or +dim on a note.
     - Figure out how to map continuous controls, and crossfade.
-    * Assemble into patches, maybe get rid of the old matrix maps.
-  * tags on calls, so I can sort and filter them on the doc page
-  * grace call shold take relative transpose args
-  * optional doesn't respect VNotGiven
-  * The player takes a second or so to quit after the play monitor stops.
   - If I wrapped track titles I could see the entire thing, but at the cost of
     using more vertical space.
-  * Rename Score.attributes to attrs?
-  * +multiple+attrs
   - consider track calls and block calls:
     note_track :: TrackTree.EventsNode -> Derive.EventDeriver
     derive_tree :: ScoreTime -> TrackTree.EventsTree -> Derive.EventDeriver
     I could use this to implement is-ly and no-ly, and also totally custom
     track types and block types.
-  * I need separate articulation tracks for lily and not-lily.  I can use
-    lily and no-lily transformers, but they have to work with slicing.
-    not-lily can say, if lily isn't set, then just immediately place subnotes.
-
-  / how can I have per-score instruments?  In general I need a plan for
-    per-score code.
-    Local.Score.ScoreName?  Or just add them to Vsl, but bind them to the
-    simple inst name in the score.  But I can't really make an inst for every
-    combination of keyswitches or for every score.  So I guess the per-score
-    module needs inst definitions too.
-    Or make a giant master patch with all articulations, but all disabled.
-    Then I can load it, and enable the ones I want for the particular piece.
-  - move src into src subdir.  Then I don't have to do hacks in the shakefile
-    where I only recurse into [A-Z]* dirs.
-  - logview: two lines for the status bar at the top
-    Or as many as necessary?  Wrap on |, and justify by inserting spaces?
-    * Remove proj, step, 8ve
-    * Add play mult, default tempo
-  * hashable is not suitable for consistent hashing, I should use a known
-    algorithm.  Maybe use crc32 from 'digest'?
-  * play_at is messed up in the presence of play multiplier
   - double click isn't creating a fitted view?
-  * Create.view should look harder for an empty space.
-  * ViewConfig.resize_to_fit shrinks the window when it starts at -x.
-  * X11 doesn't turn shift-/ into ? like OS X does.  I need a way to make
-    those consistent.
-    . Always using unshifted chars for keys is no good, I can't enter text
-      with raw text entry.  I'm using keys both for binding keycaps and for
-      entering text.
-    . Regardless, I need it to be consistent.
-    . Can I just always use shifted versions?  Bind to Shift-?, Shift-! etc.
-      I can omit mentioning Shift for letters, but not for the others.
-      Problems: just binding '?' won't work, it needs shift.  Always have to
-      add Shift.  Doesn't work for non-us layout, e.g. other symbols above
-      digits.  But it doesn't work anyway.
-      Raw key is inconsistent between X and OS X.  Shifted one should be, but
-      maybe not shift+cmd?
-      If linux is consistent, then use cooked key.
-      event_key()   darwin  linux
-        shift-/     ?       /
-        shift-cmd-/ ?       /
-        shift-ctl-/ ?       /
-      event_text()
-        shift-/     ?       ?
-        shift-cmd-/ /       ?
-        shift-ctl-/ -       ?
-
-      If I use text, darwin is inconsistent because shift-cmd-/ is different.
-      If I use key, it's consistent within the OS, but inconsistent across
-      OSes.
-
-  - Type into track text on the right side, then expand the window so it can
-    be visible.  It doesn't redraw the newly-revealed bit correctly.
-
   - Track caching is too fragile, if I add a track with scope over everything
     then I get no caching.  Instead I should cache the bottom note track, or
     perhaps every note track.  That doesn't work because they're all sliced
@@ -167,26 +48,6 @@ UNSORTED
     partially applying args.  The latter overlaps with setting default in
     the env, but is more concise.
   - adding an intervening note track seems to mess up the signal render
-  * the cache got messed up after changing the tempo
-    Change tempo at 20t telek1.t1
-  * make a control track, make an event, change track to note track,
-    the event color doesn't change to note track color
-  * There should be a postproc to arpeggiate pizz slightly.
-  colors to make note tracks stand out better
-    * Different track bg for note tracks.  I'll have to pass track_style down
-      to BlockC.with_tracklike in the same way as Event.SetStyle.
-      . But, it's on all note tracks, do I want just the bottom ones?
-      . Also, it's only visible where there are no events.
-    * different color for note transformer events?
-      SetStyle needs to know if there's a note track below.
-  - There's a focus bug, but I'm not sure how to reproduce it.
-  + can I get fltk to omit the jellybutton buttons on the window?
-    Completely disables resizing, ack.
-    Yes, but requires hacking the library.  Mail the list about a better
-    solution.
-  - bring back the idea of opening up a text entry in raw edit mode?  Then I
-    can get real cursor control and use the IME.  But I'd need to either switch
-    to Text or make sure ParseBs works on UTF8.
   - Do profiles again with Data.Text instead of ByteString.
   - network midi doesn't seem to handle abort?
     playing the second time doesn't happen
@@ -291,9 +152,13 @@ UNSORTED
     - split to ngembat, e.g.  λ 人 hmm, is there a reverse lambda?  Can I draw
       symbols reversed? 入 兩
     - various numpuk
-    + makilit / kilitan derivations from melody
+    kilitan
+      - more graceful transitions between pitches
+      - variant patterns
+      - coordination across parts
+      - damping, depending on speed
+      - support kilitan/beat speed more exotic than 4/1
   calls to define randomized scores:
-    * alternate b1 b2 b3 - calls one of variant calls
     - how could I omit a transformer?
   - Pretty on a lot of events causes a stack overflow
     Need a reproduction.
@@ -726,6 +591,8 @@ plugins:
     map.
 
 cleanup:
+  - move src into src subdir.  Then I don't have to do hacks in the shakefile
+    where I only recurse into [A-Z]* dirs.
   - split Ui.State into separate modules for views, blocks, tracks, etc.
     put into Ui.State.* and re-export from Ui.State
   - split up CallInfo depending on type
@@ -863,20 +730,24 @@ symbolic score
   - find or make a font with gong che pu
 
 fltk:
+  - There's a focus bug, but I'm not sure how to reproduce it.
+  + can I get fltk to omit the jellybutton buttons on the window?
+    Completely disables resizing, ack.
+    Yes, but requires hacking the library.  Mail the list about a better
+    solution.
+  - Type into track text on the right side, then expand the window so it can
+    be visible.  It doesn't redraw the newly-revealed bit correctly.
   - event.text would have to be utf8 to support option-key symbols
   - some way to scroll that's not the scroll wheel
   - I could set certain Symbols to stretch to the length of their event, this
     would yield a nicer looking score.  But it would mess up the bounds
     detection.
-    * gmail: subject:(scaling text)
+    + gmail: subject:(scaling text)
       But it's OSX only.
   / implement labels for pitch tracks in fltk/EventTrack.cc
   - skeleton display has leveled steps to make it easier to see who is
     below who.  Only if a track has multiple children.
   - rethrow c++ exceptions as FltkError
-  * auto add pitch track when a track title input is expanded crashes with
-    assertion error 'title->w() == body->w()'
-    solution: text entry is collapsed by track add, remove, or resize
   - factor scroll redrawing into a single class
   / draw arrows in SkeletonDisplay.cc properly meh, they look ok
   - figure out how to have a minimal title bar in os x (win.border(0) removes
@@ -898,6 +769,9 @@ fltk:
     / dividers can have separate color for upper part, for collapsable tracks
   event track
     - visual indication when both solo and mute is on
+    - bring back the idea of opening up a text entry in raw edit mode?  Then I
+      can get real cursor control and use the IME.  But I'd need to either
+      switch to Text or make sure ParseBs works on UTF8.
     - editing event text should use a text entry widget, that way I get
       a cursor, IME, etc.  A side benefit is that I don't have to derive half
       edited data.  This also solves the problem where the currently edited
@@ -937,6 +811,8 @@ fltk:
     - combine multiple signals, e.g. one controls xpos, one controls color
 
 logview:
+  - two lines for the status bar at the top
+    Or as many as necessary?  Wrap on |, and justify by inserting spaces?
   - can I get the standard edit menu and copy/paste?
   - haskell and c++ use the same machine readable format
   - tabs are not lining up properly
@@ -1041,8 +917,6 @@ integrator / midi record:
   - implement
 
 REPL: repl:
-  * on an exception response to the REPL, put in some character or something
-    makes pprint not format it
   - repl should load the history from save/.../repl, and have a history search
     seq will have to tell the REPL what it loaded, so it needs a fancier
     protocol.
@@ -1066,12 +940,16 @@ Cmd:
   meter / timestep
     - Putting twice as many ranks makes the meter labels ugly, because they
       only go up to 1.
-    * giving Meter.T an argument seems like overkill, do I have a use for
-      beats of unequal lengths?
-    * It seems like it would be simpler to have meter rank divisions at every
+    + It seems like it would be simpler to have meter rank divisions at every
       note, e.g. w, h, q, e, s, 32, 64, etc. rather than every other.  That
       way I can get rid of the weird 'q*2' TimeSteps.  I can avoid having to
       come up with too many mark colors by just making them the same color.
+    - Putting twice as many ranks makes the meter labels ugly, because they only
+      go up to 1.  Except the toplevel repeats.
+      There are two possibilities: go back to dividing by 4, or add another
+      flag to make it squash that rank into the previous for the purposes of
+      labelling.  The latter adds a bit of complexity to everyone handling
+      meters.  The former just makes me use the q*2 timesteps.
     - timestep 64*2 skips two 's', because 's' is the minimum match
       skip should be ignored when the match is a larger rank than exists, or
       maybe step should fail.
@@ -1082,8 +960,6 @@ Cmd:
     - cache points by returning CachedTimeStep = Points
     - TimeStep.snap should optimize steps that don't do any snapping when
       prev_val is Nothing, e.g. RelativeMark and Absolute
-  * Can I have a general in-place derive cmd for note transformers?
-    integrate basically does this
   - step play StepPlay could work even when notes were moved by annotating
     the midi output with the UI event that produced it.  This might be useful
     for debugging too.
@@ -1219,7 +1095,7 @@ Derive:
         When a note moves from one to another, start a new note at the
         destination pitch and bend the decay of the old one to the fundamental
         or closer harmonic from the previous mode.
-      - rambat damping emulation: notes ring on by default until they can be
+      * rambat damping emulation: notes ring on by default until they can be
         damped.  Damp at the first opportunity, where opportunity is defined
         as a break with no notes for a certain amount of time.  Can only damp
         two neighboring notes at a time.
