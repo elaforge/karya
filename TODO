@@ -21,7 +21,7 @@ UNSORTED
       samples, and most will be '4c 23' type stuff.
     * but meanwhile, why does *legong generate nns it doesn't recognize?
     * support voice attrs
-    - I think I can remove Deriver.Monad.integrated_key
+    * I think I can remove Deriver.Monad.integrated_key
     * don't emit dyn tracks that are just 0xff
     * split overlapping notes
   reyong kilitan

@@ -12,7 +12,6 @@ import qualified Ui.TrackTree as TrackTree
 
 import qualified Derive.Call.BlockUtil as BlockUtil
 import qualified Derive.Call.Tags as Tags
-import qualified Derive.Call.Util as Util
 import qualified Derive.Derive as Derive
 import qualified Derive.Deriver.Internal as Internal
 import qualified Derive.Score as Score
@@ -48,8 +47,7 @@ block_integrate events = do
     maybe_block_id <- frame_of Stack.block_of <$> Internal.get_stack
     when_just maybe_block_id $ \block_id -> do
         events <- Derive.eval_ui "c_block_integrate" $ unwarp block_id events
-        key <- Util.lookup_key
-        let integrated = Derive.Integrated (Left block_id) events key
+        let integrated = Derive.Integrated (Left block_id) events
         Internal.merge_collect $ mempty
             { Derive.collect_integrated = [integrated] }
 
@@ -134,9 +132,8 @@ only_destinations_damaged block_id track_id = do
 
 track_integrate :: BlockId -> TrackId -> Derive.Events -> Derive.Deriver ()
 track_integrate block_id track_id events = do
-    key <- Util.lookup_key
     events <- Derive.eval_ui "c_track_integrate" $ unwarp block_id events
-    let integrated = Derive.Integrated (Right track_id) events key
+    let integrated = Derive.Integrated (Right track_id) events
     Internal.merge_collect $ mempty
         { Derive.collect_integrated = [integrated] }
 

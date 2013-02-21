@@ -738,24 +738,16 @@ data Integrated = Integrated {
     -- BlockId for a block integration, TrackId for a track integration.
     integrated_source :: !(Either BlockId TrackId)
     , integrated_events :: !Events
-    -- | Needed to convert the event pitches back to symbolic form.
-    -- TODO but to work with changing keys I'd need to collect key on each
-    -- event.  Of course, the integrator isn't going to be able to reproduce
-    -- the changing keys.  I don't think integrate nedes to get that fancy
-    -- anyway.
-    -- TODO no longer used, remove me
-    , integrated_key :: !(Maybe Pitch.Key)
     } deriving (Show)
 
 instance Pretty.Pretty Integrated where
-    format (Integrated source events key) = Pretty.record_title "Integrated"
+    format (Integrated source events) = Pretty.record_title "Integrated"
         [ ("source", Pretty.format source)
         , ("events", Pretty.format events)
-        , ("key", Pretty.format key)
         ]
 
 instance DeepSeq.NFData Integrated where
-    rnf (Integrated source events _key) = rnf source `seq` rnf events
+    rnf (Integrated source events) = rnf source `seq` rnf events
 
 -- | Snapshots of the environ at each track.  This is used by the Cmd layer to
 -- figure out what the scale and instrument are for a given track.
