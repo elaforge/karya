@@ -40,6 +40,8 @@ data Track = Track {
 
 -- | (note track, control tracks)
 type Tracks = [(Track, [Track])]
+type Config = (LookupAttrs, Pitch.ScaleId)
+type LookupAttrs = Score.Instrument -> Instrument.AttributeMap
 
 convert :: (Cmd.M m) => BlockId -> Derive.Events -> m Tracks
 convert source_block levents = do
@@ -47,11 +49,13 @@ convert source_block levents = do
     let lookup_attrs = fromMaybe mempty
             . fmap (Instrument.patch_attribute_map . MidiDb.info_patch)
             . lookup_inst
+    default_scale_id <- State.get_default State.default_scale
     track_ids <- State.all_track_ids_of source_block
     let tracknums = Map.fromList
             [(track_id, n) | (n, Just track_id) <- zip [0..] track_ids]
     let (events, logs) = LEvent.partition levents
-        (tracks, errs) = integrate lookup_attrs tracknums events
+        (tracks, errs) = integrate (lookup_attrs, default_scale_id)
+            tracknums events
     mapM_ Log.write (Log.add_prefix "integrate" logs)
     -- If something failed to derive I shouldn't integrate that into the block.
     when (any ((>=Log.Warn) . Log.msg_prio) logs) $
@@ -60,16 +64,14 @@ convert source_block levents = do
         Cmd.throw $ "integrating events: " ++ Seq.join "; " errs
     return tracks
 
-type LookupAttrs = Score.Instrument -> Instrument.AttributeMap
-
 -- | Convert derived score events back into UI events.
 --
 -- TODO optionally quantize the ui events
-integrate :: LookupAttrs -> Map.Map TrackId TrackNum
-    -> [Score.Event] -> (Tracks, [String])
+integrate :: Config -> Map.Map TrackId TrackNum -> [Score.Event]
+    -> (Tracks, [String])
     -- ^ (tracks, errs)
-integrate lookup_attrs tracknums =
-    Tuple.swap . Seq.partition_either . map (integrate_track lookup_attrs)
+integrate config tracknums =
+    Tuple.swap . Seq.partition_either . map (integrate_track config)
     . allocate_tracks tracknums
 
 -- | Allocate the events to separate tracks.
@@ -113,11 +115,12 @@ track_of = Seq.head . mapMaybe Stack.track_of . Stack.innermost
 type TrackKey = (Maybe TrackNum, Score.Instrument, Pitch.ScaleId,
     Score.Attributes)
 
-integrate_track :: LookupAttrs
-    -> (TrackKey, [Score.Event]) -> Either String (Track, [Track])
-integrate_track lookup_attrs ((_, inst, scale_id, _), events) = do
+integrate_track :: Config -> (TrackKey, [Score.Event])
+    -> Either String (Track, [Track])
+integrate_track (lookup_attrs, default_scale_id)
+        ((_, inst, scale_id, _), events) = do
     pitch_track <- if no_pitch_signals events then return []
-        else case pitch_events scale_id events of
+        else case pitch_events default_scale_id scale_id events of
             (track, []) -> return [track]
             (_, errs) -> Left $ Seq.join "; " errs
     return (note_events inst (lookup_attrs inst) events,
@@ -142,11 +145,13 @@ note_event attr_map event = ui_event (Score.event_stack event)
 -- | Unlike 'control_events', this only drops dups that occur within the same
 -- event.  This is because it's more normal to think of each note as
 -- establishing a new pitch, even if it's the same as the last one.
-pitch_events :: Pitch.ScaleId -> [Score.Event] -> (Track, [String])
-pitch_events scale_id events =
+pitch_events :: Pitch.ScaleId -> Pitch.ScaleId -> [Score.Event]
+    -> (Track, [String])
+pitch_events default_scale_id scale_id events =
     (make_track pitch_title (tidy_pitches ui_events), concat errs)
     where
-    pitch_title = TrackInfo.scale_to_title scale_id
+    pitch_title = TrackInfo.scale_to_title $
+        if scale_id == default_scale_id then Pitch.empty_scale else scale_id
     (ui_events, errs) = unzip $ map pitch_signal_events events
     tidy_pitches = clip_to_zero . clip_concat . map drop_dups
 

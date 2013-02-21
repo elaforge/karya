@@ -28,7 +28,7 @@ test_block_integrate = do
             ])
         , (UiTest.bid "b2",
             [ (">s/i1", [(0, 1, ""), (1, 1, "")])
-            , ("*twelve", [(0, 0, "4d"), (1, 0, "4c")])
+            , ("*", [(0, 0, "4d"), (1, 0, "4c")])
             ])
         ]
     -- merge in changes
@@ -37,7 +37,7 @@ test_block_integrate = do
     equal (last (e_tracks res))
         (UiTest.bid "b2",
             [ (">s/i1", [(0, 1, ""), (1, 1, ""), (2, 1, "")])
-            , ("*twelve", [(0, 0, "4e"), (1, 0, "4d"), (2, 0, "4c")])
+            , ("*", [(0, 0, "4e"), (1, 0, "4d"), (2, 0, "4c")])
             ])
     -- delete an event, then change the source
     -- cde -> edc ;; cdf -> f c
@@ -47,7 +47,7 @@ test_block_integrate = do
     equal (last (e_tracks res))
         (UiTest.bid "b2",
             [ (">s/i1", [(0, 1, ""), (2, 1, "")])
-            , ("*twelve", [(0, 0, "4f"), (2, 0, "4c")])
+            , ("*", [(0, 0, "4f"), (2, 0, "4c")])
             ])
 
 test_block_integrate2 = do
@@ -81,7 +81,7 @@ test_track_integrate = do
             [ (">s/i1 | < | reverse", [(0, 1, ""), (1, 1, "")])
             , ("*", [(0, 0, "4c"), (1, 0, "4d")])
             , (">s/i1", [(0, 1, ""), (1, 1, "")])
-            , ("*twelve", [(0, 0, "4d"), (1, 0, "4c")])
+            , ("*", [(0, 0, "4d"), (1, 0, "4c")])
             ])]
     equal (e_damage res) $ Just
         [(UiTest.mk_tid n, Ranges.everything) | n <- [1..4]]
@@ -96,7 +96,7 @@ test_track_integrate = do
             [ (">s/i1 | < | reverse", [(0, 1, ""), (1, 1, "")])
             , ("*", [(0, 0, "3c"), (1, 0, "4d")])
             , (">s/i1", [(0, 1, ""), (1, 1, "")])
-            , ("*twelve", [(0, 0, "4d"), (1, 0, "3c")])
+            , ("*", [(0, 0, "4d"), (1, 0, "3c")])
             ])]
     equal (e_damage res) $ Just [(UiTest.mk_tid 4, Ranges.range 1 1)]
     equal (e_events res) ([(0, 1, "4d"), (1, 1, "4c")], [])

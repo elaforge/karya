@@ -11,17 +11,19 @@ import qualified Derive.Pitches as Pitches
 import qualified Derive.Scale.Twelve as Twelve
 import qualified Derive.Score as Score
 
+import qualified Perform.Pitch as Pitch
+
 
 test_integrate = do
     let f = first (map extract . concatMap flatten) . integrate
-        integrate = Convert.integrate lookup_attrs tracknums
+        integrate = Convert.integrate (lookup_attrs, Pitch.twelve) tracknums
         lookup_attrs = const $ Map.fromList [(Attrs.plak, "plak")]
         tracknums = Map.fromList [(UiTest.mk_tid n, n) | n <- [1..10]]
         flatten (note, controls) = note : controls
         extract (Convert.Track title events) =
             (title, map UiTest.extract_event events)
     equal (f [event (0, 1, "4c", [], inst)])
-        ([(">inst", [(0, 1, "")]), ("*twelve", [(0, 0, "4c")])], [])
+        ([(">inst", [(0, 1, "")]), ("*", [(0, 0, "4c")])], [])
     -- No pitch track, has a control track.
     equal (f [no_pitch (0, 1, [("dyn", [(0, 0), (2, 1)])])])
         ( [ (">inst", [(0, 1, "")])
@@ -52,7 +54,7 @@ test_integrate = do
             , pitches (3, 1, [(3, "4d")])
             ])
         ( [ (">inst", [(0, 1, ""), (3, 1, "")])
-          , ("*twelve", [(0, 0, "4c"), (2, 0, "4d"), (3, 0, "4d")])
+          , ("*", [(0, 0, "4c"), (2, 0, "4d"), (3, 0, "4d")])
           ]
         , []
         )
