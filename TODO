@@ -184,7 +184,7 @@ UNSORTED
   - key not applied in inner blocks, local play should take the root play's
     env as a starting point
 
-  - it's annoying how a track with nothing in it won't play, and has no
+  * it's annoying how a track with nothing in it won't play, and has no
     play monitor.
   - when I implement control block calls, I might want to override a control
     at certain points.  It should be possible to add a 'merge' operator that

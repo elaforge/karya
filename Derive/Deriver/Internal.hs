@@ -90,7 +90,7 @@ insert_environ name val environ =
         Right environ2 -> return environ2
 
 -- | Figure out the current block and track, and record the current environ
--- in the Collect.  It only need be recorded once per track.
+-- in the Collect.  It only needs to be recorded once per track.
 record_track_dynamic :: State -> Collect
 record_track_dynamic state = case stack of
         Stack.Track tid : Stack.Block bid : _ -> mempty
@@ -108,6 +108,13 @@ record_track_dynamic state = case stack of
     track_or_block _ = False
     is_track (Stack.Track _) = True
     is_track _ = False
+
+-- | 'record_track_dynamic' for when I already know BlockId and TrackId.
+record_track_dynamic_for :: BlockId -> TrackId -> Deriver ()
+record_track_dynamic_for block_id track_id = do
+    dynamic <- gets state_dynamic
+    merge_collect $ mempty
+        { collect_track_dynamic = Map.singleton (block_id, track_id) dynamic }
 
 
 -- * cache
