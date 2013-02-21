@@ -25,21 +25,29 @@ import Types
 
 note_calls :: Derive.NoteCallMap
 note_calls = Derive.make_calls
-    [ ("t", c_tuplet)
+    [ ("ap", c_ap)
+    , ("t", c_tuplet)
     , ("`arp-up`", c_real_arpeggio ToRight)
     , ("`arp-down`", c_real_arpeggio ToLeft)
     , ("`arp-rnd`", c_real_arpeggio Random)
     ]
 
+
+c_ap :: Derive.NoteCall
+c_ap = Derive.stream_generator "ap" Tags.subs
+    "Derive sub events with no changes.  This is used to apply a transformer\
+    \ to sub events."
+    $ Sig.call0 $ \args -> Note.place (concat (Note.sub_events args))
+
 -- * tuplet
 
 c_tuplet :: Derive.NoteCall
 c_tuplet = Derive.stream_generator "tuplet" Tags.subs
-    ("A generalized tuplet. The notes within its scope are stretched so that\
+    "A generalized tuplet. The notes within its scope are stretched so that\
     \ their collective duration is the same as the tuplet's duration.\
     \\nIf there are multiple note tracks, they will all be stretched\
     \ the same amount."
-    ) $ Sig.call0 $ \args -> emit_lily_tuplet args $
+    $ Sig.call0 $ \args -> emit_lily_tuplet args $
         Note.place_at (Args.range args) (concat (Note.sub_events args))
 
 -- | 'c_tuplet' works by lengthening notes to fit in its range, but staff

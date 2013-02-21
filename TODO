@@ -106,11 +106,9 @@ UNSORTED
     . The thing is, it seems like fl_scroll doesn't actually help scrolling
       speed at all.  Maybe all the time is spent elsewhere?
 
-  / should instrument bound keys (i.e. drum strokes) work in ValEdit?
-    It's awkward to have to go back and forth from kbd entry.
   - trill or trem with negative duration lines the integral number up to the
     end.
-  - NoteTransformers apply a transformer to notes.  So why can't I apply
+  * NoteTransformers apply a transformer to notes.  So why can't I apply
     any transformer as a note transformer?  NoteTransformers are actually more
     powerful because they can treat multiple args differently, but any
     transformer should be lifted.
