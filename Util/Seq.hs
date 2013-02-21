@@ -481,6 +481,15 @@ break_tails f lst@(x:xs)
     | f lst = ([], lst)
     | otherwise = let (pre, post) = break_tails f xs in (x:pre, post)
 
+-- | Like 'span', but it can transform the spanned sublist.
+span_while :: (a -> Maybe b) -> [a] -> ([b], [a])
+span_while f = go
+    where
+    go [] = ([], [])
+    go (x:xs) = case f x of
+        Nothing -> ([], x : xs)
+        Just y -> let (ys, rest) = go xs in (y:ys, rest)
+
 -- | List initial and final element, if any.
 viewr :: [a] -> ([a], Maybe a)
 viewr [] = ([], Nothing)

@@ -156,7 +156,7 @@ realize1 pos start beat all_inputs = go all_inputs
     go ((start, dur, n) : inputs) = case n of
         Right strike -> (start, dur, strike_note strike) : go inputs
         Left degree -> melody ((start, dur, degree) : degrees) ++ go rest
-        where (degrees, rest) = span_while degree_of inputs
+        where (degrees, rest) = Seq.span_while degree_of inputs
     strike_note Cek = Note (pos_cek pos) Cek
     strike_note strike = Note (pos_byong pos) strike
 
@@ -185,7 +185,7 @@ simplify_melody events beats =
     group [] = []
     group events = case dropWhile (Maybe.isNothing . snd) events of
         (start, Just d) : events ->
-            let (ds, rest) = span_while snd events
+            let (ds, rest) = Seq.span_while snd events
             in (start, d:ds) : group rest
         events -> group events
 
@@ -329,13 +329,3 @@ char_to_note octaves c = case c of
         Just oct ->
             note . (:[]) . Pitch oct <$> (num_degree =<< Num.read_digit c)
         Nothing -> Nothing
-
--- * util
-
-span_while :: (a -> Maybe b) -> [a] -> ([b], [a])
-span_while f = go
-    where
-    go [] = ([], [])
-    go (x:xs) = case f x of
-        Nothing -> ([], x : xs)
-        Just y -> let (ys, rest) = go xs in (y:ys, rest)
