@@ -36,6 +36,11 @@ test_convert_measures = do
     equal (f [(0, 0.5, "a"), (0.5, 1, "b"), (1.5, 0.5, "c")]) $ Right
         ["a8 b4 c8 r2"]
 
+test_full_measure_rest = do
+    let f = convert_staves [] . map simple_event
+    equal (f [(5, 1, "a")]) $ Right ["R1", "r4 a4 r2"]
+    equal (f [(9, 1, "a")]) $ Right ["R1", "R1", "r4 a4 r2"]
+
 test_dotted_rests = do
     let f = convert_staves [] . map meter_event
     -- Rests are allowed to be dotted when the meter isn't duple.
@@ -114,7 +119,7 @@ test_make_ly = do
     equal logs []
     -- Shorter staff is padded out to the length of the longer one.
     equal (LilypondTest.convert_events [] events) $ Right
-        [ ("i1", [["c'4 r8 ds'8~ ds'4. r8", "r1", "r1", "r1"]])
+        [ ("i1", [["c'4 r8 ds'8~ ds'4. r8", "R1", "R1", "R1"]])
         , ("i2", [["r4 g'4 a2~", "a1~", "a1~", "a2 r2"]])
         ]
     -- putStrLn $ LilypondTest.make_ly events
@@ -148,7 +153,7 @@ test_clefs = do
 
     -- Even if there are measures of rests.
     equal (f $ UiTest.note_spec ("s/1", [(5, 3, "4c")], []))
-        (Right ["\\clef treble r1", "r4 c'2."], [])
+        (Right ["\\clef treble R1", "r4 c'2."], [])
 
 test_key = do
     let f = first (convert_staves ["key"]) . derive
@@ -283,9 +288,10 @@ compile_ly events = do
 
 read_note :: String -> Lilypond.Note
 read_note text
-    | pitch == "r" = Lilypond.rest dur
+    | pitch == "r" = Lilypond.make_rest False dur
     | otherwise = Lilypond.Note
         { Lilypond._note_pitch = [pitch]
+        , Lilypond._note_full_measure = False
         , Lilypond._note_duration = dur
         , Lilypond._note_tie = tie == "~"
         , Lilypond._note_prepend = ""

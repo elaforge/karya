@@ -119,6 +119,8 @@ data Note = Note {
     -- | @[]@ means this is a rest, and greater than one pitch indicates
     -- a chord.
     _note_pitch :: ![String]
+    -- | True if this covers an entire measure.  Used only for rests.
+    , _note_full_measure :: !Bool
     , _note_duration :: !NoteDuration
     , _note_tie :: !Bool
     -- | Additional code to prepend to the note.
@@ -137,9 +139,10 @@ data Note = Note {
 -- chunks, like '_note_pitch'.
 type Code = String
 
-rest :: NoteDuration -> Note
-rest dur = Note
+make_rest :: Bool -> NoteDuration -> Note
+make_rest full_measure dur = Note
     { _note_pitch = []
+    , _note_full_measure = full_measure
     , _note_duration = dur
     , _note_tie = False
     , _note_prepend = ""
@@ -156,11 +159,11 @@ is_note (Note {}) = True
 is_note _ = False
 
 instance ToLily Note where
-    to_lily (Note pitches dur tie prepend append _stack) =
-        (prepend++) . (++append) $ case pitches of
-            [] -> 'r' : ly_dur
-            [pitch] -> pitch ++ ly_dur
-            _ -> '<' : unwords pitches ++ ">" ++ ly_dur
+    to_lily (Note pitches full_measure dur tie prepend append _stack) =
+        (prepend++) . (++ (ly_dur ++ append)) $ case pitches of
+            [] -> if full_measure then "R" else "r"
+            [pitch] -> pitch
+            _ -> '<' : unwords pitches ++ ">"
         where ly_dur = to_lily dur ++ if tie then "~" else ""
     to_lily (ClefChange clef) = "\\clef " ++ clef
     to_lily (KeyChange (tonic, mode)) = "\\key " ++ tonic ++ " \\" ++ mode
@@ -366,6 +369,7 @@ convert_chord prev_attrs meter event events next =
     code = Code (prepend ++ append)
     note = Note
         { _note_pitch = pitches
+        , _note_full_measure = False
         , _note_duration = allowed_dur
         , _note_tie = any (> end) (map event_end chord)
         , _note_prepend = prepend
@@ -389,9 +393,12 @@ convert_chord prev_attrs meter event events next =
 
 make_rests :: Config -> Meter -> Time -> Time -> [Note]
 make_rests config meter start end
-    | start < end = map rest $ convert_duration meter
+    | start < end = map (make_rest full_measure) $ convert_duration meter
         (config_dotted_rests config) True start (end - start)
     | otherwise = []
+    where
+    full_measure = start `mod` measure == 0 && end - start >= measure
+    measure = Meter.measure_time meter
 
 
 -- ** util
@@ -448,7 +455,7 @@ clip_event end e
 convert_duration :: Meter -> Bool -> Bool -> Time -> Time -> [NoteDuration]
 convert_duration meter use_dot_ is_rest = go
     where
-    -- Dotted rests are allowed for triple meters.
+    -- Dotted rests are always allowed for triple meters.
     use_dot = use_dot_ || (is_rest && not (Meter.is_duple meter))
     go pos time_dur
         | time_dur <= 0 = []

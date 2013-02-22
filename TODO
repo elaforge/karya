@@ -167,10 +167,7 @@ UNSORTED
   * some way to get symbol feedback instantly to make it easier to compose them
     - But it calls SymbolC and I ran into a problem where linux ghci can't
       link FFI-using functions.  Ask on glasgow-haskell-users.
-  - do tuplets by setting local ruler?
-
-  debugging
-    - cmd to save and load cache to disk
+  / do tuplets by setting local ruler?
 
   - test sending mtc to reapaer
     also test some mmc commands.  How does reaper support control surfaces?
@@ -439,6 +436,7 @@ integrate / integration:
     calls)
 
 lilypond:
+  * use R for full-measure rests
   - I can fix rhythm spelling by changing the meter.  But it's a pain because
     the meter has to be over the entire block, and that means a whole new
     track, which also destroys track caching.
