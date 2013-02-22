@@ -30,11 +30,6 @@ UNSORTED
     - Figure out how to map continuous controls, and crossfade.
   - If I wrapped track titles I could see the entire thing, but at the cost of
     using more vertical space.
-  - consider track calls and block calls:
-    note_track :: TrackTree.EventsNode -> Derive.EventDeriver
-    derive_tree :: ScoreTime -> TrackTree.EventsTree -> Derive.EventDeriver
-    I could use this to implement is-ly and no-ly, and also totally custom
-    track types and block types.
   - double click isn't creating a fitted view?
   - Track caching is too fragile, if I add a track with scope over everything
     then I get no caching.  Instead I should cache the bottom note track, or
@@ -60,10 +55,6 @@ UNSORTED
     un-modified keys are unreliable even in NoEdit mode.
   - Should fltk collapse adjacent dividers?
   - maybe new control tracks should start with line render?
-  fancy calls
-    - approach and lower dyn
-    - accelerating trill
-    - overshoot pitch call, e.g. indian style
 
   - can I cache long blocks by slicing them if they're >n?
   - 'u' and 'd' have a problem with long notes because pitches can only be
@@ -108,6 +99,16 @@ UNSORTED
 
   - trill or trem with negative duration lines the integral number up to the
     end.
+    It's not too practical since I can't have a note start where the negative
+    note ends.  Though maybe I could if I put the "start" at the low end.
+
+    Events have a flag which says whether they are end-weighted or not.  If
+    so, the trigger line is drawn at the end, and text goes above the trigger,
+    but they are otherwise the same.  The duration is still positive, but the
+    flag is available to calls to do with what they will.
+
+    This simplifies the editing stuff quite a bit, all of the special negative
+    event handling goes away.
   * NoteTransformers apply a transformer to notes.  So why can't I apply
     any transformer as a note transformer?  NoteTransformers are actually more
     powerful because they can treat multiple args differently, but any
@@ -128,7 +129,7 @@ UNSORTED
 
   - doesn't seem to save track widths, I keep making it narrow but reload it's
     still wide.
-  - Managed to crash by undoing while editing, I think.  I wound up with
+  / Managed to crash by undoing while editing, I think.  I wound up with
     note events on a control track and when I tried to undo and delete it
     I got an update on wrong kind of track assertion error.
   - Sometimes tick makes more sense as at attribute of the previous note, or
@@ -144,18 +145,6 @@ UNSORTED
   - Hand damping: manually place hand damp positions.   Post proc, where tick
     and ngoret ornaments set an attribute or something so it knows which ones
     to extend.
-  trompong / reyong:
-    - trompong ngoret, actually I can use rambat tick
-      But damping on reyong is different, you can just forget some notes.
-    - split to ngembat, e.g.  λ 人 hmm, is there a reverse lambda?  Can I draw
-      symbols reversed? 入 兩
-    - various numpuk
-    kilitan
-      - more graceful transitions between pitches
-      - variant patterns
-      - coordination across parts
-      - damping, depending on speed
-      - support kilitan/beat speed more exotic than 4/1
   calls to define randomized scores:
     - how could I omit a transformer?
   - Pretty on a lot of events causes a stack overflow
@@ -439,7 +428,8 @@ incremental save / git
   Git docs: http://progit.org/book/ch9-2.html
 
 integrate / integration:
-  - adding a {soft} stroke appears to apply the soft again the dyn track
+  - adding a +soft stroke means it gets both less dyn and +soft again, so
+    it's extra soft
   - bug: can't delete a derived track, it just gets regenerated
   - bug: can't undo past a integrate create, it just creates a new one
     Maybe I could not record the integrate step?
@@ -449,9 +439,9 @@ integrate / integration:
   / Optimize block integration: similar to only_destinations_damaged,
     if only the destination blocks are damaged, don't rederive the source.
     Actually, this doesn't seem to be necessary.
-  - single track mode that doesn't split tracks
-  - integrate not logging means that integrate errors only show up on play
-  - It may be possible to parallelize multiple integrations.
+  / single track mode that doesn't split tracks
+  / integrate not logging means that integrate errors only show up on play
+  / It may be possible to parallelize multiple integrations.
   - Convert.Tracks should mirror TrackDestination structure.  Or
     parameterize TrackDestination?
   - Figure out how multiple levels of track integration work.
@@ -1054,14 +1044,8 @@ Cmd:
     - gzip save files
 
 Derive:
-  lazy signals:
-    - see if I can make control tracks truly lazy by making signals lazy
-    - reimplement various functions like integrate and resample, bsearches
-      must be linear
-    - make linear searches faster for e.g. warp by dropping warp in the past
-    - can make integrate output infinite and remove set-prev hack
   instrument
-    - per-project short aliases for inst names so you can fit them in tracks
+    * per-project short aliases for inst names so you can fit them in tracks
       easily
     - Implement >inst as setting the null call instead of env.instrument.
       That way the inst has control over the interpretation of e.g. attributes
@@ -1071,106 +1055,55 @@ Derive:
       Maybe I can get rid of the Instrument.inst_control_map if I do the
       mapping in generate_note?
 
-  * implement postproc calls
-    / framework for determining scope of a postproc: per inst, per track,
-      for pre or post overlaps, etc.
-    / Think about how to keep incremental recomputation in the presence of
-      postproc.  I suppose they have to declare how much they depend on.
-    examples of postprocs:
-      * echo
-      - retune a note depending on the previous interval (e.g. sloppy pitches
-        when playing quickly)
-      * string emulation:  Every note is assigned a string.  When
-        a legato new note is played, it either stops an existing string or takes
-        a new one.  The previous note will either ring for a decay if the
-        string is unassigned, or reset to its "open" pitch otherwise.  Strings
-        can either assume their new pitch instantly (stopped), or gradually
-        (bent).
-      - overblow emulation: a set of overblow ranges are defined, along with
-        possible pitches for each one (fundamental and overblow harmonics).
-        When a note moves from one to another, start a new note at the
-        destination pitch and bend the decay of the old one to the fundamental
-        or closer harmonic from the previous mode.
-      * rambat damping emulation: notes ring on by default until they can be
-        damped.  Damp at the first opportunity, where opportunity is defined
-        as a break with no notes for a certain amount of time.  Can only damp
-        two neighboring notes at a time.
+  postproc
+    - retune a note depending on the previous interval (e.g. sloppy pitches
+      when playing quickly)
+    - overblow emulation: a set of overblow ranges are defined, along with
+      possible pitches for each one (fundamental and overblow harmonics).
+      When a note moves from one to another, start a new note at the
+      destination pitch and bend the decay of the old one to the fundamental
+      or closer harmonic from the previous mode.
+    - rambat damping emulation: notes ring on by default until they can be
+      damped.  Damp at the first opportunity, where opportunity is defined
+      as a break with no notes for a certain amount of time.  Can only damp
+      two neighboring notes at a time.
 
-  - to cut the middle out of a pattern: a cut signal that disabled derivation
-    when it's 1?
-  - combine ornaments, like "hold 1s | tr" to hold the first note for 1 score
-    time before starting the trill.  I think this could work by warping tr
-
-  deriver customization
-    - set dynamic env vals, especially if a family of derivers use the same
-      argument names for analogous behaviour, e.g. 'tr-speed'
-    - make it easy to add haskell derivers, tracklang must remain simple
-    - derivers call other derivers, which can be rebound
-
-  - test Calls that return overlapping events
   - x = _ will unset x
-  - come up with a syntax for Ui.Event preproc calls
-    >inst1 | echo < preproc1 < preproc2
-  - some kind of notation for replacing the track interpreter, e.g.
-    TrackId -> EventDeriver.
-    This could be used to implement macros, and also preproc.
+  - consider track calls and block calls:
+    note_track :: TrackTree.EventsNode -> Derive.EventDeriver
+    derive_tree :: ScoreTime -> TrackTree.EventsTree -> Derive.EventDeriver
+    I could use this to implement is-ly and no-ly, and also totally custom
+    track types and block types.
+
   val calls:
-    - val calls to get the next/prev TimeStep e.g. trill speed in terms of
+    * val calls to get the next/prev TimeStep e.g. trill speed in terms of
       beats.  This means Derive has to have access to the rulers.
 
+  pitch calls:
+    - approach and lower dyn
+    - accelerating trill
+    - overshoot pitch call, e.g. indian style
+
   note calls:
-    * Implement tick as a call:
-      Need to get next and prev Ui.Event, get pitch from pitch sig
-      to_local (between (to_gloal prev_pos) (to_gloal next_pos)
-      d_absolute_at = d_at . to_local
-
-    - Implement suppress as call:
-      This is more tricky, how can a call modify neighbors?  Especially
-      preceding ones.  This seems to mean I still need postproc calls:
-      DeriveT -> DeriveT.  Internally it evaluates the deriver, processes
-      the Score.Events and wraps it in another deriver (the seq equivalent of
-      cue).  After that most behaviours are ineffective, but them's the
-      breaks I guess.  It seems nicer if I could pass something to the block
-      to cause it to skip the downbeat, but how can I do this in a non-ad-hoc
-      way?  If I can insert a per-project block deriver I can add it as an arg.
-
-    * Implement tuplet:
-      't *n1 *n2 *n3 |' runs deriver three times with three different
-      pitches. (Didn't wind up doing it that way.)
-
-    * Implement clip-call:
-      Undo the call stretching, this should be efficient because of stretch
-      combining:
-
-      d_stretch (recip (dur/block_dur)) $ d_clip dur $ deriver
-      "unstretch | sub"
-
-      A non-block call (including notes) will have a block_dur == dur.  I can
-      also imagine a version without the clip.  'unstretch' is a crummy name
-      though.  'restore'?  'abs-dur'?
-
-    * Implement sekar derivation.
-      It would be nice to do a piece on sekar patterns where the form itself is
-      in the same pattern, for a kind of fractal structure.  How to have
-      a pattern derive patterns?
-
-      - pass the calls as block args
-      - put the null deriver in the env
-      - more general than the above: dynamically scoped call map and syntax to
-        modify it
-      - env var that prepends or appends calls to notes.  actually, this is
-        better done as a preproc.
-      - implement deriver like vla/cello duet?  that's a sekaran, but derived
-        from another part.
-
-    Implement trill
+    trills
       - hybrid where the initial part stretches, final part is absolute
+    trompong / reyong:
+      - trompong ngoret, actually I can use rambat tick
+        But damping on reyong is different, you can just forget some notes.
+      - split to ngembat, e.g.  λ 人 hmm, is there a reverse lambda?  Can
+        I draw symbols reversed? 入 兩
+      - various numpuk
+      kilitan
+        - more graceful transitions between pitches
+        - variant patterns
+        - coordination across parts
+        - damping, depending on speed
+        - support kilitan/beat speed more exotic than 4/1
 
-  ControlTrack control
-    interpolators
-      - sine
-      - continuous tempo warping for signals
-        tempo: "2" -> "1", "2", cont: "2" -> "i, 1", should emit a bent line
+  control calls:
+    - sine
+    - continuous tempo warping for signals
+      tempo: "2" -> "1", "2", cont: "2" -> "i, 1", should emit a bent line
 
 pitch / scales
   scales / Derive.Scale:
@@ -1200,7 +1133,6 @@ pitch / scales
       is.  Then pitch calls use that to tune.  Doing the analysis might be
       tricky since I have to extract a "principle pitch" from each event,
       but it might be useful in general to have an analysis framework.
-
   fancier pitch signals:
     / Pitch signal render:
       To get it right, Pitch needs to emit (Note, Note, Frac) and send that to
@@ -1227,7 +1159,7 @@ Perform:
     - some basic midi instrument defs for generic midi (dev, patch)
   Midi:
     - see if synths support the set pitchbend range controller
-    - Convert certain attrs to controls for cc 'keyswitches'.
+    * Convert certain attrs to controls for cc 'keyswitches'.
     / inst has a notion of polyphony so I can avoid overloading a channel, say
       if I limit it to 2 voices
 
@@ -1300,17 +1232,13 @@ jack: JACK:
 misc ideas:
   - Staff notation represents chords well, but tracks don't.  Think of a more
     compact notation.
-  - I could have control calls that modify samples beneath them.  Calls
-    starting with '-' are skipped by Args.next, and then they can add multiply
-    or whatever to samples.  Oh wait, except they're not in scope, they're
-    combined with mconcat.
   - Why can't I write a 'tr' that generates pitch signal in some cases, and
     adds an attribute in others?  It would be redesigning control tracks so
     they are just note tracks that slice their children and apply
     a transformer to them.  I'm not sure that will coexist with the curve
     description language that control tracks currently implement.
     It would be interesting to get rid of track types entirely though.
-  - How can I have calls that generate multiple controls, e.g. pitch-dyn track
+  * How can I have calls that generate multiple controls, e.g. pitch-dyn track
     to implement fall + decresc?
 
 planning / research
