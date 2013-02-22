@@ -5,6 +5,7 @@ import qualified Data.Map as Map
 import qualified Data.Set as Set
 
 import Util.Control
+import qualified Util.Seq as Seq
 import qualified Midi.Midi as Midi
 import qualified Ui.Block as Block
 import qualified Ui.State as State
@@ -146,31 +147,51 @@ events_from start events
 
 -- | Filter events according to the Solo and Mute flags in the tracks of the
 -- given blocks.
-filter_muted :: [Block.Block] -> Derive.Events -> Derive.Events
+--
+-- Solo only applies to the block on which the track is soloed.  So if you solo
+-- a track on one block, other blocks will still play.
+--
+-- Solo always takes priority over Mute.
+filter_muted :: [(BlockId, Block.Block)] -> Derive.Events -> Derive.Events
 filter_muted blocks
-    | not (Set.null soloed) =
-        filter (maybe True (stack_contains soloed) . LEvent.event)
+    | not (Set.null soloed) = filter (LEvent.log_or track_soloed)
     | not (Set.null muted) =
-        filter (maybe True (not . stack_contains muted) . LEvent.event)
+        filter (LEvent.log_or $ not . stack_contains muted)
     | otherwise = id
     where
     stack_contains track_ids = any (`Set.member` track_ids) . stack_tracks
     stack_tracks = mapMaybe Stack.track_of . Stack.innermost . Score.event_stack
+    stack_blocks = mapMaybe Stack.block_of . Stack.innermost . Score.event_stack
     soloed = with_flag Block.Solo
     muted = with_flag Block.Mute
     with_flag flag = Set.fromList
         [ track_id
-        | block <- blocks
+        | (_, block) <- blocks
         , track <- Block.block_tracks block
         , Just track_id <- [Block.track_id_of (Block.tracklike_id track)]
         , flag `Set.member` Block.track_flags track
+        ]
+
+    -- Solo is trickier than it seems.  Firstly, it doesn't work to just mute
+    -- non-soloed tracks, because that winds up muting the parent track.
+    -- Secondly, if I just filter out non-soloed events then other blocks are
+    -- totally muted, and I'd like to leave them alone.  So always emit events
+    -- on blocks that don't have any solo tracks.
+    track_soloed e = block_not_soloed e || stack_contains soloed e
+    block_not_soloed = maybe True (`Set.notMember` soloed_blocks)
+        . Seq.head . stack_blocks
+    soloed_blocks = Set.fromList
+        [ block_id
+        | (block_id, block) <- blocks
+        , any ((Block.Solo `Set.member`) . Block.track_flags)
+            (Block.block_tracks block)
         ]
 
 perform_events :: (Cmd.M m) => Derive.Events -> m Perform.MidiEvents
 perform_events events = do
     midi_config <- State.get_midi_config
     lookup <- get_convert_lookup
-    blocks <- State.gets (Map.elems . State.state_blocks)
+    blocks <- State.gets (Map.toList . State.state_blocks)
     return $ fst $ Perform.perform Perform.initial_state midi_config $
         Convert.convert lookup (filter_muted blocks events)
 

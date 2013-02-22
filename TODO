@@ -150,7 +150,7 @@ UNSORTED
   - Pretty on a lot of events causes a stack overflow
     Need a reproduction.
     I should extend Util.Format so I can use it for Util.Pretty.
-  - solo on one track in a sub-block causes all other blocks to be filtered out.
+  * solo on one track in a sub-block causes all other blocks to be filtered out.
     It seems more intuitive that it only apply to that block.  That means solo
     would have to record the block that it's soloed on, and only filter events
     on that block.  Or simpler, turn a solo into a mute of all the other
