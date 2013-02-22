@@ -182,18 +182,21 @@ duration_attributes use_staccato controls attrs start end next
 randomized :: Score.ControlMap -> RealTime -> RealTime
     -> Derive.Deriver (RealTime, RealTime)
 randomized controls start end
+    | start_r == 0 && dur_r == 0 = return (start, end)
     | start == end = do
-        -- TODO should randomize start in this case
-        return (start, end)
+        r1 : _ <- Util.randoms
+        let offset = RealTime.seconds (Num.restrict (-start_r/2) (start_r/2) r1)
+        return (start + offset, end + offset)
     | otherwise = do
-        let start_r = Score.typed_val $
-                Score.control controls Score.c_start_rnd start
-            dur_r = Score.typed_val $
-                Score.control controls Score.c_dur_rnd start
-        if start_r == 0 && dur_r == 0 then return (start, end) else do
         r1 : r2 : _ <- Util.randoms
-        return (start + RealTime.seconds (Num.restrict 0 start_r r1),
+        let start2 = start + RealTime.seconds (Num.restrict 0 start_r r1)
+        return (start2, max start2 $
             end + RealTime.seconds (Num.restrict (-dur_r) 0 r2))
+    where
+    start_r = Score.typed_val $
+        Score.control controls Score.c_start_rnd start
+    dur_r = Score.typed_val $
+        Score.control controls Score.c_dur_rnd start
 
 -- | In a note track, the pitch signal for each note is constant as soon as
 -- the next note begins.  Otherwise, it looks like each note changes pitch

@@ -97,18 +97,6 @@ UNSORTED
     . The thing is, it seems like fl_scroll doesn't actually help scrolling
       speed at all.  Maybe all the time is spent elsewhere?
 
-  - trill or trem with negative duration lines the integral number up to the
-    end.
-    It's not too practical since I can't have a note start where the negative
-    note ends.  Though maybe I could if I put the "start" at the low end.
-
-    Events have a flag which says whether they are end-weighted or not.  If
-    so, the trigger line is drawn at the end, and text goes above the trigger,
-    but they are otherwise the same.  The duration is still positive, but the
-    flag is available to calls to do with what they will.
-
-    This simplifies the editing stuff quite a bit, all of the special negative
-    event handling goes away.
   * NoteTransformers apply a transformer to notes.  So why can't I apply
     any transformer as a note transformer?  NoteTransformers are actually more
     powerful because they can treat multiple args differently, but any
@@ -155,12 +143,9 @@ UNSORTED
     would have to record the block that it's soloed on, and only filter events
     on that block.  Or simpler, turn a solo into a mute of all the other
     tracks.
-
-  - Derive.Call.Note.randomized should randomize start for 0 dur notes
-
+  * Derive.Call.Note.randomized should randomize start for 0 dur notes
   - There's a lot of duplication between State.TrackEvents, Call.TrackInfo,
     and Derive.CallInfo.  Can I factor out the common bits?
-
   - if I added the cmd name before running the cmd, I could put it in the
     error msg when an exception is caught.
   - There are still some cmds without names, who are they?
@@ -497,6 +482,18 @@ lilypond:
     App/LilypondClick.hs
 
 negative duration / arrival beats:
+  - trill or trem with negative duration lines the integral number up to the
+    end.
+    It's not too practical since I can't have a note start where the negative
+    note ends.  Though maybe I could if I put the "start" at the low end.
+
+    Events have a flag which says whether they are end-weighted or not.  If
+    so, the trigger line is drawn at the end, and text goes above the trigger,
+    but they are otherwise the same.  The duration is still positive, but the
+    flag is available to calls to do with what they will.
+
+    This simplifies the editing stuff quite a bit, all of the special negative
+    event handling goes away.
   - Figure out how arrival works with controls.  It's most natural for
     a pitch for a call to go at the end of the call, but for that to work
     negative dur controls have to extend to their *previous* note.  Seems
