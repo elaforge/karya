@@ -394,6 +394,11 @@ put_val name val environ = case maybe_old of
             case maybe_old of
                 Just (VAttributes attrs) -> apply_attr rel_attr attrs
                 _ -> apply_attr rel_attr Score.no_attrs
+        -- Since I allow symbols to be coerced to strings, the effect is I
+        -- can omit the quotes on a string without spaces.  Since I don't have
+        -- any use for assigning a symbol to a val, just switch them all to
+        -- strings.
+        VSymbol (Symbol sym) -> VString sym
         _ -> to_val val
     environ_val name val environ = case to_val val of
         VRelativeAttrs rel_attr -> VAttributes $
