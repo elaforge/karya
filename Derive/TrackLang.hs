@@ -407,11 +407,13 @@ put_val name val environ = case maybe_old of
 hardcoded_types :: Map.Map ValName Type
 hardcoded_types = Map.fromList
     [ (v_attributes, TAttributes)
-    , (v_key, TString)
     , (v_instrument, TInstrument)
+    , (v_key, TString)
     , (v_scale, TScaleId)
-    , (v_srate, TNum TUntyped)
     , (v_seed, TNum TUntyped)
+    , (v_srate, TNum TUntyped)
+    , (v_tuning, TString)
+    , (v_voice, TNum TUntyped)
     ]
 
 data LookupError = NotFound | WrongType Type deriving (Show)
@@ -457,21 +459,27 @@ v_key = Symbol "key"
 v_scale :: ValName
 v_scale = Symbol "scale"
 
--- | Kind of tuning for the scale in scope.  The meaning is dependent on the
--- scale, e.g. ngumbang ngisep for Balinese scales.
-v_tuning :: ValName
-v_tuning = Symbol "tuning"
-
--- | Sampling rate used by signal interpolators.
-v_srate :: ValName
-v_srate = Symbol "srate"
-
 -- | Random seed used by randomization functions.  Can be explicitly
 -- initialized to capture a certain \"random\" variation.
 --
 -- This is rounded to an integer, so only integral values make sense.
 v_seed :: ValName
 v_seed = Symbol "seed"
+
+-- | Sampling rate used by signal interpolators.
+v_srate :: ValName
+v_srate = Symbol "srate"
+
+-- | Kind of tuning for the scale in scope.  The meaning is dependent on the
+-- scale, e.g. ngumbang ngisep for Balinese scales.
+v_tuning :: ValName
+v_tuning = Symbol "tuning"
+
+-- | Separate notes into different voices.  This is used by integrate to put
+-- them on their own tracks, and by the lilypond backend to split them into
+-- their own voices.
+v_voice :: ValName
+v_voice = Symbol "voice"
 
 
 -- * expressions

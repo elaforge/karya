@@ -2,7 +2,6 @@
 --
 -- This is meant to be imported unqualified.
 module Derive.Attrs (module Derive.Attrs, Attributes) where
-import Util.Control ((<>))
 import qualified Derive.Score as Score
 import Derive.Score (Attributes, attr)
 
@@ -151,13 +150,3 @@ v3 = attr "v3"
 v4 = attr "v4"
 v5 = attr "v5"
 v6 = attr "v6"
-
--- | Separate notes into different voices.  This is used by integrate to put
--- them on their own tracks, and by the lilypond backend to split them into
--- their own voices.
-voice1 = attr "voice1"
-voice2 = attr "voice2"
-voice3 = attr "voice3"
-voice4 = attr "voice4"
-
-voices = voice1 <> voice2 <> voice3 <> voice4

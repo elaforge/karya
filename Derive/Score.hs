@@ -58,6 +58,8 @@ data Event = Event {
 empty_event :: Event
 empty_event = Event 0 0 mempty mempty mempty Stack.empty empty_inst mempty
 
+-- ** attributes
+
 event_attributes :: Event -> Attributes
 event_attributes = environ_attributes . event_environ
 

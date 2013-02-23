@@ -2,7 +2,6 @@
 module Cmd.Integrate.Convert where
 import qualified Data.List as List
 import qualified Data.Map as Map
-import qualified Data.Set as Set
 import qualified Data.Tuple as Tuple
 
 import Util.Control
@@ -13,7 +12,6 @@ import qualified Util.Seq as Seq
 import qualified Ui.Event as Event
 import qualified Ui.State as State
 import qualified Cmd.Cmd as Cmd
-import qualified Derive.Attrs as Attrs
 import qualified Derive.Derive as Derive
 import qualified Derive.LEvent as LEvent
 import qualified Derive.PitchSignal as PitchSignal
@@ -21,6 +19,7 @@ import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Stack as Stack
 import qualified Derive.TrackInfo as TrackInfo
+import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.Midi.Instrument as Instrument
 import qualified Perform.Pitch as Pitch
@@ -103,17 +102,15 @@ split_overlapping events = track : split_overlapping rest
         (overlapping, rest) =
             break ((>= Score.event_end event) . Score.event_start) events
 
-event_voice :: Score.Event -> Score.Attributes
-event_voice = Score.set_to_attrs
-    . Set.intersection (Score.attrs_set Attrs.voices)
-    . Score.attrs_set . Score.event_attributes
+event_voice :: Score.Event -> Int
+event_voice =
+    fromMaybe 0 . TrackLang.maybe_val TrackLang.v_voice . Score.event_environ
 
 track_of :: Score.Event -> Maybe TrackId
 track_of = Seq.head . mapMaybe Stack.track_of . Stack.innermost
     . Score.event_stack
 
-type TrackKey = (Maybe TrackNum, Score.Instrument, Pitch.ScaleId,
-    Score.Attributes)
+type TrackKey = (Maybe TrackNum, Score.Instrument, Pitch.ScaleId, Int)
 
 integrate_track :: Config -> (TrackKey, [Score.Event])
     -> Either String (Track, [Track])

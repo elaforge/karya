@@ -126,8 +126,8 @@ realize start beat deriver = do
         =<< Derive.require "no events" (Seq.head events)
     let position voice pos = play_output voice $ realize1 pos start beat input
     Derive.with_scale scale $
-        position Attrs.voice1 position1 <> position Attrs.voice2 position2
-        <> position Attrs.voice3 position3 <> position Attrs.voice4 position4
+        position 0 position1 <> position 1 position2
+        <> position 2 position3 <> position 3 position4
 
 
 -- * input, realize
@@ -197,13 +197,14 @@ output_melody pos beat = concatMap play
     play (start, ds) = [(t, beat, pitch) | (t, pitch)
         <- zip (Seq.range_ start beat) (realize_melody pos ds)]
 
-play_output :: Score.Attributes -> [Output] -> Derive.EventDeriver
-play_output attrs = Derive.d_merge_asc . concatMap go
+play_output :: Int -> [Output] -> Derive.EventDeriver
+play_output voice = Derive.d_merge_asc . concatMap go
     where
     go (start, dur, Note ps strike) =
         map (note start dur strike) (Set.toAscList ps)
     note start dur strike pitch = do
-        Util.add_attrs (attrs <> strike_attrs strike) $
+        Derive.with_val TrackLang.v_voice voice $
+            Util.add_attrs (strike_attrs strike) $
             Util.with_symbolic_pitch (TrackLang.note sym []) start $
             Derive.d_place start dur Util.note
         where sym = Pitch.note_text $ show_pitch pitch

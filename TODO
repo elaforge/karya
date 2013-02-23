@@ -3,6 +3,9 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
+  - since I'm using symbol as a shorthand for string, should I have separate
+    types at all?  I can just say symbol is just another literal syntax for
+    a string.
   bloom
     - block b10 is messed up near the end
     - b13 silent
@@ -28,8 +31,6 @@ UNSORTED
     - should be able to select the most appropriate sec# dyn given
       +cresc or +dim on a note.
     - Figure out how to map continuous controls, and crossfade.
-  - If I wrapped track titles I could see the entire thing, but at the cost of
-    using more vertical space.
   - double click isn't creating a fitted view?
   - Track caching is too fragile, if I add a track with scope over everything
     then I get no caching.  Instead I should cache the bottom note track, or
@@ -42,7 +43,7 @@ UNSORTED
     That's actually two things, one is binding the symbol, the other is
     partially applying args.  The latter overlaps with setting default in
     the env, but is more concise.
-  - adding an intervening note track seems to mess up the signal render
+  / adding an intervening note track seems to mess up the signal render
   - Do profiles again with Data.Text instead of ByteString.
   - network midi doesn't seem to handle abort?
     playing the second time doesn't happen
@@ -171,10 +172,9 @@ UNSORTED
 
   - test sending mtc to reapaer
     also test some mmc commands.  How does reaper support control surfaces?
-
-  - playback should have multiple lines when a block is derived multiple
-    times have a set of playback selnums?
-  - If I quit and then restart, the second start takes a long time.  What's
+  - Playback should have multiple lines when a block is derived multiple
+    times. Have a set of playback selnums?
+  / If I quit and then restart, the second start takes a long time.  What's
     it waiting on?  Midi init?
 
 MILESTONES
@@ -473,8 +473,23 @@ lilypond:
   - movement marker than emits a page break and a title
   - Why does the cmd have to wait until lilypond is done?  Should be async.
   + add hand annotations to score
-  - possibly support voices, should be able to do it the same as hand
-    splitting
+  - Support voices, but they are complicated:
+    << { \voiceOne ... }
+      \new Voice { \voiceTwo ... }
+    >> \oneVoice
+
+    voice 1: highest, voice 2: lowest, voice 3: second highest,
+    voice 4: second lowest
+
+    It has to happen at convert_measure to Note because each voice has
+    independent rhythm.  When convert sees a voice, collect events while they
+    have voice set.  The lay those out, each starting at the current time.
+    Emit Notes with interleaved code for the \news and braces and trailing
+    \oneVoice.
+
+    Another option is that voice itself creates the lilypond, similar to
+    tuplet.  But 'simple_convert' doesn't handle barlines, though I could do
+    this at a per-measure level, if I can figure out the measure boundaries.
   + can I make a click on a note in the pdf highlight in the sequencer?
     Hung up on getting preview to send clicks to a program, notes in
     App/LilypondClick.hs
@@ -588,7 +603,6 @@ cleanup:
     normalized to start from their beginning, so that you never have to modify
     the signals.  Of course, it's only worth it if events tend to get moved
     more than once.
-
   - Think about some way to formalize the identifier restrictions, currently
     it's only enforced in the tracklang parser.
 
@@ -713,8 +727,10 @@ symbolic score
   - find or make a font with gong che pu
 
 fltk:
+  - If I wrapped track titles I could see the entire thing, but at the cost of
+    using more vertical space.
   - There's a focus bug, but I'm not sure how to reproduce it.
-  + can I get fltk to omit the jellybutton buttons on the window?
+  + can I get fltk to omit the jellybean buttons on the window?
     Completely disables resizing, ack.
     Yes, but requires hacking the library.  Mail the list about a better
     solution.

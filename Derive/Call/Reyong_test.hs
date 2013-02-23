@@ -8,10 +8,10 @@ import Util.Test
 import qualified Ui.UiTest as UiTest
 import qualified Cmd.CmdTest as CmdTest
 import qualified Cmd.Integrate as Integrate
-import qualified Derive.Attrs as Attrs
 import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Score as Score
+import qualified Derive.TrackLang as TrackLang
 
 import Types
 
@@ -71,21 +71,25 @@ test_realize = do
     let run pitches = DeriveTest.derive_blocks (mktracks False pitches)
         extract voice = first (extract_v voice) . DeriveTest.extract id
         extract_v voice = unwords . Seq.chunked 4 . concat
-                . map DeriveTest.e_pitch . filter (Score.has_attribute voice)
+                . map DeriveTest.e_pitch . filter ((==voice) . event_voice)
         run1 = DeriveTest.extract
-                (\e -> (DeriveTest.e_note e, DeriveTest.e_attributes e)) . run
+                (\e -> (DeriveTest.e_note e, event_voice e)) . run
         run2 voice = extract voice . run
 
     let (evts, logs) = run1 [(0, 4, "", "1")]
     equal (take 4 evts)
-        [ ((1, 1, "`6.`"), "+voice1"), ((1, 1, "2"), "+voice2")
-        , ((1, 1, "6"), "+voice3"), ((1, 1, "`2^`"), "+voice4")
+        [ ((1, 1, "`6.`"), 0), ((1, 1, "2"), 1)
+        , ((1, 1, "6"), 2), ((1, 1, "`2^`"), 3)
         ]
     equal logs []
-    equal (run2 Attrs.voice2 [(0, 4, "", "1"), (4, 4, "", "2")])
+    equal (run2 1 [(0, 4, "", "1"), (4, 4, "", "2")])
         ("2232 3232", [])
-    equal (run2 Attrs.voice2 [(0, 8, "", "1"), (8, 4, "", "2")])
+    equal (run2 1 [(0, 8, "", "1"), (8, 4, "", "2")])
         ("2121 2232 3232", [])
+
+event_voice :: Score.Event -> Int
+event_voice = fromMaybe 0 . TrackLang.maybe_val TrackLang.v_voice
+    . Score.event_environ
 
 mktracks :: Bool -> [(ScoreTime, ScoreTime, String, String)]
     -> [UiTest.BlockSpec]

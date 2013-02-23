@@ -74,7 +74,7 @@ transform_notes name generator_doc transform_doc transform = Derive.Call
     transformer = Sig.call0t $ \_args deriver -> transform deriver
 
 c_legato :: Derive.NoteCall
-c_legato = Derive.stream_generator "legato" (Tags.attr <> Tags.subs)
+c_legato = Derive.stream_generator "legato" (Tags.attr <> Tags.subs <> Tags.ly)
     ("Play the transformed notes legato.  This sets `+legato` on all notes\
     \ except the last one. The default note deriver will respond to `+legato`\
     \ and " <> ShowVal.doc_val Score.c_legato_overlap <> "."
