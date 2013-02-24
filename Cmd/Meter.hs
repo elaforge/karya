@@ -160,26 +160,26 @@ regular_subdivision ns = foldr subdivide T (reverse ns)
 
 -- ** predefined meters
 
--- replicate sections/block $ measures/section, half/measure, quarter/half, ...
+-- measures/section, half/measure, quarter/half, ...
 -- These use 1s to help keep the timestep mnemonics in sync with staff notation
 -- durations, as documented in the module haddock.
-m54, m44, m34 :: [AbstractMeter]
-m54 = replicate 4 $ regular_subdivision [4, 5, 2, 2, 2, 2]
-m44 = replicate 4 $ regular_subdivision [4, 2, 2, 2, 2, 2]
-m34 = replicate 4 $ regular_subdivision [4, 3, 2, 2, 2, 2]
-m24 = replicate 4 $ regular_subdivision [8, 1, 2, 2, 2, 2]
+m54, m44, m34 :: AbstractMeter
+m54 = regular_subdivision [4, 5, 2, 2, 2, 2]
+m44 = regular_subdivision [4, 2, 2, 2, 2, 2]
+m34 = regular_subdivision [4, 3, 2, 2, 2, 2]
+m24 = regular_subdivision [8, 1, 2, 2, 2, 2]
 
-m3p3p2_8 :: [AbstractMeter]
-m3p3p2_8 = replicate 4 $ repeats [4, 1] $ subdivides [2, 2, 2, 2] $
+m3p3p2_8 :: AbstractMeter
+m3p3p2_8 = repeats [4, 1] $ subdivides [2, 2, 2, 2] $
     D [D [T, T, T], D [T, T, T], D [T, T]]
 
 -- | 2+2+2 / 8, 4 quarters per measure
-m2p2p2_8 :: [AbstractMeter]
-m2p2p2_8 = replicate 4 $ regular_subdivision [4, 1, 3, 2, 2, 2, 2]
+m2p2p2_8 :: AbstractMeter
+m2p2p2_8 = regular_subdivision [4, 1, 3, 2, 2, 2, 2]
 
 -- | 3+3 / 8, 2 dotted quarters per measure
-m3p3_8 :: [AbstractMeter]
-m3p3_8 = replicate 4 $ regular_subdivision [4, 1, 2, 3, 2, 2, 2]
+m3p3_8 :: AbstractMeter
+m3p3_8 = regular_subdivision [4, 1, 2, 3, 2, 2, 2]
 
 -- *** AbstractMeter utils
 

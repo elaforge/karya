@@ -184,7 +184,7 @@ setup_big = do
 empty_block :: (Cmd.M m) => m BlockId
 empty_block = do
     rid <- Create.ruler "meter44"
-        (RulerUtil.meter_ruler 16 Meter.m44)
+        (RulerUtil.meter_ruler 16 (replicate 4 Meter.m44))
         { Ruler.ruler_align_to_bottom = arrival_beats }
 
     bid <- Create.block rid
