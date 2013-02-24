@@ -141,6 +141,12 @@ delete = do
     (block_id, _, _, start, end) <- Selection.tracks
     return (block_id, Meter.remove start end)
 
+-- | Add a number of measures of the given meter, where each measure is the
+-- given amount of time.
+measures :: (Cmd.M m) => ScoreTime -> Meter.AbstractMeter -> Int -> m Modify
+measures dur meter times =
+    fit_to_pos (dur * fromIntegral times) (replicate times meter)
+
 -- | Replace the meter on this block, fitted to the end of the last event on
 -- the block.
 fit_to_end :: (Cmd.M m) => [Meter.AbstractMeter] -> BlockId -> m Modify
