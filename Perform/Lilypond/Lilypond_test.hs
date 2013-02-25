@@ -323,7 +323,7 @@ make_event start dur pitch inst env = Lilypond.Event
     , Lilypond.event_pitch = pitch
     , Lilypond.event_instrument = Score.Instrument inst
     , Lilypond.event_environ = TrackLang.make_environ
-        [(name, TrackLang.VString val) | (name, val) <- env]
+        [(name, TrackLang.to_val val) | (name, val) <- env]
     , Lilypond.event_stack = UiTest.mkstack (1, 0, 1)
     }
 

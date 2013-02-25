@@ -266,9 +266,9 @@ default_environ :: TrackLang.Environ
 default_environ = TrackLang.make_environ
     -- tests are easier to write and read with integral interpolation
     [ (TrackLang.v_srate, TrackLang.num 1)
-    , (TrackLang.v_scale, TrackLang.VScaleId Twelve.scale_id)
+    , (TrackLang.v_scale, TrackLang.to_val Twelve.scale_id)
     , (TrackLang.v_attributes, TrackLang.VAttributes Score.no_attrs)
-    , (TrackLang.v_key, TrackLang.VString "c-maj")
+    , (TrackLang.v_key, TrackLang.to_val "c-maj")
     ]
 
 -- ** extract

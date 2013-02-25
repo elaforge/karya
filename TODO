@@ -3,9 +3,12 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
-  - since I'm using symbol as a shorthand for string, should I have separate
+  * since I'm using symbol as a shorthand for string, should I have separate
     types at all?  I can just say symbol is just another literal syntax for
     a string.
+    The reason not to do it is if I want symbols to be variables or something
+    later.  But I think those will be rare enough that I could prefix $ or
+    something.
   bloom
     - block b10 is messed up near the end
     - b13 silent

@@ -59,7 +59,7 @@ test_parse_expr = do
     equal (f "--") $ Right [Call (Symbol "") []]
     equal (f "  a -- comment") $ Right [Call (Symbol "a") []]
     equal (f "a 'b -- c'--d") $ Right
-        [Call (Symbol "a") [Literal (VString "b -- c")]]
+        [Call (Symbol "a") [Literal (VSymbol (Symbol "b -- c"))]]
 
 test_parse_val = do
     let rel mode = Just . VRelativeAttrs . mode . Score.attrs
@@ -86,8 +86,8 @@ test_parse_val = do
             , ("-.5d", Just (VNum (Score.Typed Score.Diatonic (-0.5))))
             , ("1q", Nothing)
 
-            , ("'hi'", Just (VString "hi"))
-            , ("'quinn''s hat'", Just (VString "quinn's hat"))
+            , ("hi", Just (VSymbol (Symbol "hi")))
+            , ("'quinn''s hat'", Just (VSymbol (Symbol "quinn's hat")))
             , ("'bad string", Nothing)
 
             , ("%", Just $ VControl $ LiteralControl (Score.Control ""))

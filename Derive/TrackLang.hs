@@ -134,7 +134,7 @@ instance ShowVal RealOrScore where
 -- * types
 
 data Type = TNum NumType
-    | TString | TRelativeAttrs | TAttributes
+    | TRelativeAttrs | TAttributes
     | TControl | TPitchControl | TScaleId | TPitch | TInstrument | TSymbol
     | TNotGiven | TMaybe Type | TEither Type Type | TVal
     deriving (Eq, Ord, Show)
@@ -176,7 +176,6 @@ type_of val = case val of
     -- promising to not evaluate the value seems even more hacky than just
     -- 'to_type' making that promise.
     VNum num -> TNum (to_num_type (Score.type_of num))
-    VString {} -> TString
     VRelativeAttrs {} -> TRelativeAttrs
     VAttributes {} -> TAttributes
     VControl {} -> TControl
@@ -313,13 +312,6 @@ instance Typecheck DefaultScore where
     to_val (DefaultScore a) = to_val a
     to_type _ = TNum TDefaultScore
 
-instance Typecheck String where
-    from_val (VString s) = Just s
-    from_val (VSymbol (Symbol s)) = Just s
-    from_val _ = Nothing
-    to_val = VString
-    to_type _ = TString
-
 instance Typecheck RelativeAttrs where
     from_val (VRelativeAttrs a) = Just a
     from_val _ = Nothing
@@ -369,6 +361,12 @@ instance Typecheck Symbol where
     to_val = VSymbol
     to_type _ = TSymbol
 
+instance Typecheck String where
+    from_val (VSymbol (Symbol s)) = Just s
+    from_val _ = Nothing
+    to_val = VSymbol . Symbol
+    to_type _ = TSymbol
+
 -- * environ
 
 -- | Insert a new val, but return Left if it changes the type of an existing
@@ -394,11 +392,6 @@ put_val name val environ = case maybe_old of
             case maybe_old of
                 Just (VAttributes attrs) -> apply_attr rel_attr attrs
                 _ -> apply_attr rel_attr Score.no_attrs
-        -- Since I allow symbols to be coerced to strings, the effect is I
-        -- can omit the quotes on a string without spaces.  Since I don't have
-        -- any use for assigning a symbol to a val, just switch them all to
-        -- strings.
-        VSymbol (Symbol sym) -> VString sym
         _ -> to_val val
     environ_val name val environ = case to_val val of
         VRelativeAttrs rel_attr -> VAttributes $
@@ -413,11 +406,11 @@ hardcoded_types :: Map.Map ValName Type
 hardcoded_types = Map.fromList
     [ (v_attributes, TAttributes)
     , (v_instrument, TInstrument)
-    , (v_key, TString)
+    , (v_key, TSymbol)
     , (v_scale, TScaleId)
     , (v_seed, TNum TUntyped)
     , (v_srate, TNum TUntyped)
-    , (v_tuning, TString)
+    , (v_tuning, TSymbol)
     , (v_voice, TNum TUntyped)
     ]
 

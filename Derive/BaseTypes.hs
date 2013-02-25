@@ -228,11 +228,6 @@ data Val =
     -- Literal: @42.23@, @-.4@, @1c@, @-2.4d@
     VNum !TypedVal
 
-    -- | Escape a quote by doubling it.
-    --
-    -- Literal: @\'hello\'@, @\'quinn\'\'s hat\'@
-    | VString !String
-
     -- | Relative attribute adjustment.
     --
     -- This is a bit of a hack, but means I can do attr adjustment without +=
@@ -270,14 +265,16 @@ data Val =
     -- Literal: @>@, @>inst@
     | VInstrument !Instrument
 
-    -- | A call to a function.  Symbol parsing is special in that the first
-    -- word is always parsed as a symbol.  So you can have symbols of numbers
-    -- or other special characters.  This means that a symbol can't be in the
-    -- middle of an expression, but if you surround a word with parens like
-    -- @(42)@, it will be interpreted as a call.  So the only characters a
-    -- symbol can't have are space and parens.
+    -- | A string, which is interpreted as a call if it's at the front of an
+    -- expression.  Parsing a symbol is somewhat complicated.  If it occurs
+    -- at the front of an expression, it can have anything in it except
+    -- spaces or parens: 'Derive.ParseBs.p_call_symbol'.  If it's in the
+    -- argument position, it can be surrounded with single quotes and contain
+    -- anything, and a single quote is encoded as two single quotes:
+    -- 'Derive.ParseBs.p_string'.  Or if it starts with a letter and has no
+    -- spaces it can be written bare: 'Derive.ParseBs.p_symbol'.
     --
-    -- Literal: @func@
+    -- Literal: @func@, @\'hello\'@, @\'quinn\'\'s hat\'@
     | VSymbol !Symbol
     -- | An explicit not-given arg for functions so you can use positional
     -- args with defaults.
@@ -289,7 +286,6 @@ data Val =
 instance ShowVal.ShowVal Val where
     show_val val = case val of
         VNum d -> ShowVal.show_val d
-        VString s -> ShowVal.show_val s
         VRelativeAttrs rel -> ShowVal.show_val rel
         VAttributes attrs -> ShowVal.show_val attrs
         VControl control -> ShowVal.show_val control
@@ -303,7 +299,6 @@ instance ShowVal.ShowVal Val where
 instance DeepSeq.NFData Val where
     rnf (VNum d) = DeepSeq.rnf d
     rnf (VSymbol (Symbol s)) = DeepSeq.rnf s
-    rnf (VString s) = DeepSeq.rnf s
     rnf _ = ()
 
 -- | Pitchas have no literal syntax, but I have to print something.
@@ -316,7 +311,14 @@ instance ShowVal.ShowVal Pitch.ScaleId where
 
 newtype Symbol = Symbol String deriving (Eq, Ord, Show, DeepSeq.NFData)
 instance Pretty.Pretty Symbol where pretty = ShowVal.show_val
-instance ShowVal.ShowVal Symbol where show_val (Symbol s) = s
+
+instance ShowVal.ShowVal Symbol where
+    show_val (Symbol s)
+        | ' ' `elem` s = '\'' : concatMap quote s ++ "'"
+        | otherwise = s
+        where
+        quote '\'' = "''"
+        quote c = [c]
 
 data RelativeAttrs = Add Attributes | Remove Attributes | Set Attributes
     deriving (Eq, Show)

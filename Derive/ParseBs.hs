@@ -176,7 +176,7 @@ p_val =
     <|> TrackLang.VRelativeAttrs <$> A.try p_rel_attrs
     <|> TrackLang.VNum . Score.untyped <$> p_hex
     <|> TrackLang.VNum <$> p_num
-    <|> (TrackLang.VString . to_string) <$> p_string
+    <|> TrackLang.VSymbol <$> p_string
     <|> TrackLang.VControl <$> p_control
     <|> TrackLang.VPitchControl <$> p_pitch_control
     <|> TrackLang.VScaleId <$> p_scale_id
@@ -210,8 +210,16 @@ parse_hex c1 c2 = higit c1 * 16 + higit c2
         | '0' <= c && c <= '9' = fromEnum c - fromEnum '0'
         | otherwise = fromEnum c - fromEnum 'a' + 10
 
-p_string :: A.Parser Text
-p_string = p_single_string <?> "string"
+-- | A string is anything between single quotes.  A single quote itself is
+-- represented by two single quotes in a row.
+p_string :: A.Parser TrackLang.Symbol
+p_string = TrackLang.Symbol . to_string <$> p_single_string
+
+p_single_string :: A.Parser Text
+p_single_string = do
+    chunks <- A.many1 $
+        Parse.between (A.char '\'') (A.char '\'') (A.takeTill (=='\''))
+    return $ B.intercalate "'" chunks
 
 -- There's no particular reason to restrict attrs to idents, but this will
 -- force some standardization on the names.
@@ -309,14 +317,6 @@ is_strict_id s = not (B.null s) && Id.ascii_lower (B.head s)
 
 is_id :: Text -> Bool
 is_id s = not (B.null s) && B.all Id.is_id_char s
-
--- | A string is anything between single quotes.  A single quote itself is
--- represented by two single quotes in a row.
-p_single_string :: A.Parser Text
-p_single_string = do
-    chunks <- A.many1 $
-        Parse.between (A.char '\'') (A.char '\'') (A.takeTill (=='\''))
-    return $ B.intercalate "'" chunks
 
 p_word, p_null_word :: A.Parser Text
 p_word = A.takeWhile1 _word_char
