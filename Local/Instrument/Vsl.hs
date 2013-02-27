@@ -7,6 +7,7 @@ import Util.Control
 import qualified Util.Seq as Seq
 import qualified Midi.Midi as Midi
 import qualified Derive.Attrs as Attrs
+import qualified Derive.Call.Attribute as Attribute
 import qualified Derive.Call.Note as Note
 import qualified Derive.Call.Ornament as Ornament
 import qualified Derive.Call.Trill as Trill
@@ -57,6 +58,7 @@ note_calls patch =
     <> with_attr Attrs.trem [("trem", Trill.c_attr_tremolo)]
     <> with_attr Attrs.staccato (MidiInst.null_call staccato_keyswitch)
     <> with_attr VslInst.grace [("g", grace_call (patch_attrs patch))]
+    <> with_attr VslInst.legato [("(", Attribute.c_legato_all)]
     where
     with_attr attr calls = if has_attr attr patch then calls else []
 

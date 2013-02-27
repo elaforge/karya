@@ -27,6 +27,20 @@ import qualified Perform.Pitch as Pitch
 import Types
 
 
+note_calls :: Derive.NoteCallMap
+note_calls = Derive.make_calls
+    [ ("is-ly", c_is_ly)
+    , ("not-ly", c_not_ly)
+    , ("if-ly", c_if_ly)
+    , ("8va", c_8va)
+    , ("xstaff", c_xstaff)
+    , ("dyn", c_dyn)
+    , ("clef", c_clef)
+    , ("meter", c_meter)
+    ]
+
+-- * utils for ly calls
+
 when_lilypond :: (Lilypond.Config -> Derive.Deriver a)
     -- ^ Run if this is a lilypond derive.
     -> Derive.Deriver a -- ^ Run if this is a normal derive.
@@ -39,7 +53,7 @@ append :: String -> Derive.PassedArgs d -> Derive.EventDeriver
 append code args = when_lilypond $
     const $ append_code code $ Util.place args Util.note
 
--- * note transformer
+-- ** note transformer
 
 -- | Replace a note transformer with one that derives its children as-is,
 -- but add lilypond code.
@@ -78,7 +92,7 @@ notes_with f args = when_lilypond $
 place_notes :: Derive.PassedArgs d -> Derive.EventDeriver
 place_notes = Note.place . concat . Note.sub_events
 
--- * code
+-- ** code
 
 -- | Either prepend or append some code to a lilypond note.
 data Code = Prefix String | Suffix String deriving (Show)
@@ -112,7 +126,7 @@ code0 start code = with (Derive.d_place start 0 Util.note)
         Prefix c -> Derive.with_val Lilypond.v_ly_prepend c
         Suffix c -> Derive.with_val Lilypond.v_ly_append c
 
--- * convert
+-- ** convert
 
 -- | Round the RealTime to the nearest NoteDuration.
 note_duration :: Lilypond.Config -> RealTime -> Lilypond.NoteDuration
@@ -157,7 +171,7 @@ to_time :: Lilypond.Config -> RealTime -> Lilypond.Time
 to_time = Lilypond.real_to_time . Lilypond.config_quarter_duration
 
 
--- * eval
+-- ** eval
 
 -- | A lilypond \"note\", which is just a chunk of text.
 type Note = String
@@ -193,18 +207,6 @@ eval_notes config meter start score_events =
 
 
 -- * calls
-
-note_calls :: Derive.NoteCallMap
-note_calls = Derive.make_calls
-    [ ("is-ly", c_is_ly)
-    , ("not-ly", c_not_ly)
-    , ("if-ly", c_if_ly)
-    , ("8va", c_8va)
-    , ("xstaff", c_xstaff)
-    , ("dyn", c_dyn)
-    , ("clef", c_clef)
-    , ("meter", c_meter)
-    ]
 
 -- | TODO it's ugly how this only works in the track title.  If applied to
 -- an event, it will emit a duplicate copy of the tracks below it, which is

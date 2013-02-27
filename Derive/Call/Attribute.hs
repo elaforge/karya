@@ -20,8 +20,6 @@ import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Sig as Sig
 import qualified Derive.TrackLang as TrackLang
 
-import Types
-
 
 lookup_attr :: Derive.LookupCall Derive.NoteCall
 lookup_attr = Derive.pattern_lookup "attribute starting with `+`" doc $
@@ -44,7 +42,7 @@ note_calls = Derive.make_calls
     , ("marc", attributed_note Attrs.marcato)
     , (".", attributed_note Attrs.staccato)
     , ("(", c_legato)
-    , ("{", c_portamento)
+    , ("{", attributed_note Attrs.porta)
     ]
 
 attributed_note :: Attrs.Attributes -> Derive.NoteCall
@@ -82,6 +80,13 @@ c_legato = Derive.stream_generator "legato" (Tags.attr <> Tags.subs <> Tags.ly)
     Lily.notes_around (Lily.Suffix "(") (Lily.Suffix ")") args $
         init_attr Attrs.legato args
 
+-- | Like 'c_legato', but apply the attribute to all notes instead of all but
+-- the last.  This is when the instrument itself responds to legato, e.g. with
+-- a keyswitch for transition samples, rather than the call responding by
+-- lengthening notes.
+c_legato_all :: Derive.NoteCall
+c_legato_all = attributed_note Attrs.legato
+
 -- | Apply the attributes to the init of the sub-events, i.e. every one but the
 -- last.
 init_attr :: Score.Attributes -> Derive.PassedArgs d -> Derive.EventDeriver
@@ -91,16 +96,3 @@ init_attr attr = Note.place . concatMap add . Note.sub_events
         (notes, Just last) ->
             Note.map_events (Util.add_attrs attr) notes ++ [last]
         _ -> []
-
-extend_duration :: RealTime -> [Score.Event] -> Score.Event -> [Score.Event]
-    -> Score.Event
-extend_duration _ _ cur [] = cur
-extend_duration overlap _prev cur (next:_) = Score.set_duration dur cur
-    where dur = Score.event_start next - Score.event_start cur + overlap
-
-c_portamento :: Derive.NoteCall
-c_portamento = Derive.stream_generator "portamento" Tags.attr
-    "Add `+porta` to all notes except the last one." $
-    Sig.call0 $ \args ->
-    Lily.notes_around (Lily.Suffix "(") (Lily.Suffix ")") args $
-        init_attr Attrs.porta args
