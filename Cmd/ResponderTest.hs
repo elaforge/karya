@@ -23,6 +23,7 @@ import qualified Ui.Update as Update
 
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.CmdTest as CmdTest
+import qualified Cmd.Lang as Lang
 import qualified Cmd.Msg as Msg
 import qualified Cmd.Responder as Responder
 
@@ -220,7 +221,9 @@ make_rstate update_chan loopback_chan ui_state cmd_state maybe_cmd =
         { Responder.state_static_config = config
         , Responder.state_ui = ui_state
         , Responder.state_cmd = cmd_state
-        , Responder.state_session = lang_session
+        -- Tests probably link with the dummy interpreter so this is just
+        -- return (), but profiling may try to use the interpreter.
+        , Responder.state_session = Unsafe.unsafePerformIO Lang.make_session
         , Responder.state_loopback = loopback
         , Responder.state_sync = dummy_sync
         , Responder.state_monitor_state = play_monitor_state
@@ -233,8 +236,6 @@ make_rstate update_chan loopback_chan ui_state cmd_state maybe_cmd =
         put_val update_chan updates
         return Nothing
     loopback = Chan.writeChan loopback_chan
-    -- Tests should link with the dummy interpreter.
-    lang_session = ()
 
 make_midi_interface :: IO (Interface.Interface, TVar.TVar [Interface.Message])
 make_midi_interface = do
