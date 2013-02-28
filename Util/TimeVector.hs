@@ -61,6 +61,11 @@ x_to_double = RealTime.to_seconds
 double_to_x :: Double -> X
 double_to_x = RealTime.seconds
 
+-- | X is a double, and doubles are inexact.  Functions that take an X value
+-- should operate on values within a range.
+eta :: X
+eta = 0.00000000000004
+
 -- * boxed
 
 type Boxed y = Vector.Vector (Sample y)
@@ -181,6 +186,9 @@ shift offset vec
     | offset == 0 = vec
     | otherwise = map_x (+offset) vec
 
+take :: (V.Vector v a) => Int -> v a -> v a
+take = V.take
+
 -- | Truncate a signal so it doesn't include the given X.  It's just a view of
 -- the old signal, so it doesn't allocate a new signal.
 --
@@ -191,10 +199,7 @@ shift offset vec
 truncate :: (V.Vector v (Sample y)) => X -> v (Sample y) -> v (Sample y)
 truncate x vec
     | x <= 0 = V.takeWhile ((<=0) . sx) vec
-    | otherwise = fst $ V.splitAt (lowest_index x vec) vec
-
-take :: (V.Vector v a) => Int -> v a -> v a
-take = V.take
+    | otherwise = V.take (lowest_index (x-eta) vec) vec
 
 -- | The dual of 'truncate'.  Trim a signal's head up until, but not including,
 -- the given X.  If there is no sample at @x@, keep one sample before it to

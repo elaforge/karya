@@ -56,16 +56,17 @@ test_truncate = do
     equal (f 1 vec) [(0, 0)]
     equal (f 2 vec) [(0, 0), (1, 1)]
     equal (f 3 vec) [(0, 0), (1, 1), (2, 0)]
+    equal (f 1 [(0, 0), (1 - V.eta, 1)]) [(0, 0)]
 
 test_drop_before = do
-    let vec = signal [(2, 0), (4, 1)]
-    let f p = unsignal $ V.drop_before p vec
-    equal (f 0) [(2, 0), (4, 1)]
-    equal (f 2) [(2, 0), (4, 1)]
-    equal (f 3) [(2, 0), (4, 1)]
-    equal (f 4) [(4, 1)]
-    equal (f 900) [(4, 1)]
-    equal (unsignal (V.drop_before 1 (signal []))) []
+    let f x = unsignal . V.drop_before x . signal
+    let vec = [(2, 0), (4, 1)]
+    equal (f 0 vec) [(2, 0), (4, 1)]
+    equal (f 2 vec) [(2, 0), (4, 1)]
+    equal (f 3 vec) [(2, 0), (4, 1)]
+    equal (f 4 vec) [(4, 1)]
+    equal (f 900 vec) [(4, 1)]
+    equal (f 1 []) []
 
 test_sig_op = do
     let f vec0 vec1 = unsignal $ V.sig_op 0 (+) (signal vec0) (signal vec1)
