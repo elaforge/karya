@@ -40,7 +40,7 @@ module Util.TimeVector (
     , module Util.TimeVectorStorable
     , module Data.Vector.Generic
 ) where
-import Prelude hiding (head, last, take, truncate)
+import Prelude hiding (head, last, take)
 import qualified Control.DeepSeq as DeepSeq
 import qualified Data.DList as DList
 import qualified Data.Vector as Vector
@@ -195,17 +195,17 @@ take = V.take
 -- If the x<=0 the signal will still contain up to and including 0.  That's
 -- because, as per the module haddock, a sample <=0 stands in for all values
 -- <=0.
-{-# SPECIALIZE truncate :: X -> Unboxed -> Unboxed #-}
-truncate :: (V.Vector v (Sample y)) => X -> v (Sample y) -> v (Sample y)
-truncate x vec
+{-# SPECIALIZE drop_after :: X -> Unboxed -> Unboxed #-}
+drop_after :: (V.Vector v (Sample y)) => X -> v (Sample y) -> v (Sample y)
+drop_after x vec
     | x <= 0 = V.takeWhile ((<=0) . sx) vec
     | otherwise = V.take (lowest_index (x-eta) vec) vec
 
--- | The dual of 'truncate'.  Trim a signal's head up until, but not including,
--- the given X.  If there is no sample at @x@, keep one sample before it to
--- preserve the value at @x@.
+-- | The reverse of 'drop_after'.  Trim a signal's head up until, but not
+-- including, the given X.  If there is no sample at @x@, keep one sample
+-- before it to preserve the value at @x@.
 --
--- As with 'truncate', this doesn't do any copying.
+-- As with 'drop_after', this doesn't do any copying.
 {-# SPECIALIZE drop_before :: X -> Unboxed -> Unboxed #-}
 drop_before :: (V.Vector v (Sample y)) => X -> v (Sample y) -> v (Sample y)
 drop_before x vec
@@ -215,9 +215,9 @@ drop_before x vec
     where i = lowest_index x vec
 
 -- | Return samples within a range.  This is a combination of 'drop_before'
--- and 'truncate'.
+-- and 'drop_after'.
 within :: (V.Vector v (Sample y)) => X -> X -> v (Sample y) -> v (Sample y)
-within start end = truncate end . drop_before start
+within start end = drop_after end . drop_before start
 
 map_x :: (V.Vector v (Sample y)) => (X -> X) -> v (Sample y) -> v (Sample y)
 map_x f = V.map $ \(Sample x y) -> Sample (f x) y

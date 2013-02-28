@@ -48,9 +48,9 @@ test_shift = do
     equal (shift 0) [(0, 1), (1, 0)]
     equal (shift 1) [(1, 1), (2, 0)]
 
-test_truncate = do
-    let vec = signal [(0, 0), (1, 1), (2, 0)]
-    let f p = unsignal . V.truncate p
+test_drop_after = do
+    let f x = unsignal . V.drop_after x . signal
+    let vec = [(0, 0), (1, 1), (2, 0)]
     equal (f (-1) vec) [(0, 0)]
     equal (f 0 vec) [(0, 0)]
     equal (f 1 vec) [(0, 0)]

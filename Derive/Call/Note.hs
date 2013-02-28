@@ -219,7 +219,7 @@ trimmed_pitch :: RealTime -> RealTime -> PitchSignal.Signal
     -> PitchSignal.Signal
 trimmed_pitch start end
     | start == end = PitchSignal.take 1 . PitchSignal.drop_before start
-    | otherwise = PitchSignal.truncate end . PitchSignal.drop_before start
+    | otherwise = PitchSignal.drop_after end . PitchSignal.drop_before start
 
 -- | Trim control signals to the given range.
 --
@@ -240,7 +240,7 @@ trimmed_controls start end = Map.map (fmap trim)
         -- until the start of the next note, but I think it did because
         -- I added this fix for it...
         then Signal.take 1 . Signal.drop_before start
-        else Signal.truncate end . Signal.drop_before start
+        else Signal.drop_after end . Signal.drop_before start
 
 -- ** transform
 

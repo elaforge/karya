@@ -34,7 +34,7 @@ module Perform.Signal (
     , sig_max, sig_min, scalar_max, scalar_min, clip_bounds
     , scalar_add, scalar_subtract, scalar_multiply, scalar_divide
     , shift, scale
-    , take, within, truncate, drop_before
+    , take, within, drop_after, drop_before
     , map_x, map_y
 
     -- ** special functions
@@ -42,7 +42,7 @@ module Perform.Signal (
     , pitches_share
 ) where
 import qualified Prelude
-import Prelude hiding (last, length, null, take, truncate)
+import Prelude hiding (last, length, null, take)
 import qualified Control.DeepSeq as DeepSeq
 import qualified Data.Monoid as Monoid
 import qualified Foreign
@@ -271,8 +271,8 @@ take = modify_vec . V.take
 within :: X -> X -> Signal y -> Signal y
 within start end = modify_vec $ V.within start end
 
-truncate :: X -> Signal y -> Signal y
-truncate = modify_vec . V.truncate
+drop_after :: X -> Signal y -> Signal y
+drop_after = modify_vec . V.drop_after
 
 drop_before :: X -> Signal y -> Signal y
 drop_before = modify_vec . V.drop_before

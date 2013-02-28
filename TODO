@@ -5,7 +5,7 @@ LEGEND
 UNSORTED
   * Wait, it's that the note is way too long.  How did that happen?
   * truncate should drop a sample that's eta before the end
-  - rename truncate to drop_after
+  * rename truncate to drop_after
   * since I'm using symbol as a shorthand for string, should I have separate
     types at all?  I can just say symbol is just another literal syntax for
     a string.
