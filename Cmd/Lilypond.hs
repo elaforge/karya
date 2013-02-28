@@ -71,7 +71,7 @@ lilypond_scope = Scope.add_note_lookup lookup
     lookup = Derive.map_lookup $ Derive.make_calls [("", note), ("n", note)]
     -- Turn off the behaviour where staccato shortens the note, since that's
     -- already implicit when you see the dot.
-    note = Note.note_call "" "" (Note.default_note False)
+    note = Note.note_call "" "" (Note.default_note Note.no_duration_attributes)
 
 compile_ly :: FilePath -> Lilypond.Config -> Lilypond.Title
     -> [Score.Event] -> IO (Either String Cmd.StackMap, [Log.Msg])

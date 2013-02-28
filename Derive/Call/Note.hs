@@ -3,6 +3,7 @@
 module Derive.Call.Note (
     note_calls
     , c_note, transformed_note, note_call
+    , Config(..), use_attributes, no_duration_attributes
     , default_note
     -- * inversion
     , when_under_inversion
@@ -61,12 +62,12 @@ note_calls = Derive.make_calls
 -- * note
 
 c_note :: Derive.NoteCall
-c_note = note_call "" "" (default_note True)
+c_note = note_call "" "" (default_note use_attributes)
 
 transformed_note :: String -> (Derive.EventDeriver -> Derive.EventDeriver)
     -> Derive.NoteCall
 transformed_note prepend_doc transform =
-    note_call "" prepend_doc (transform . default_note True)
+    note_call "" prepend_doc (transform . default_note use_attributes)
 
 -- | Create a note call, configuring it with the actual note generating
 -- function.  The generator is called with the usual note arguments, and
@@ -127,10 +128,22 @@ note_transform vals _ deriver = transform_note vals deriver
 -- null call for some instrument.
 type GenerateNote = Derive.PassedArgs Score.Event -> Derive.EventDeriver
 
+data Config = Config {
+    config_legato :: Bool
+    , config_staccato :: Bool
+    } deriving (Show)
+
+use_attributes :: Config
+use_attributes = Config True True
+
+-- | Don't observe any of the duration affecting attributes.
+no_duration_attributes :: Config
+no_duration_attributes = Config False False
+
 -- | TODO I need a better way than ad-hoc flags to customize the note call,
 -- but wait until I have some more uses to see how it will be customized.
-default_note :: Bool -> GenerateNote
-default_note use_staccato args = do
+default_note :: Config -> GenerateNote
+default_note config args = do
     start <- Args.real_start args
     end <- Args.real_end args
     real_next <- Derive.real (Args.next args)
@@ -146,7 +159,7 @@ default_note use_staccato args = do
     let controls = trimmed_controls start real_next (Derive.state_controls st)
         pitch_sig = trimmed_pitch start real_next (Derive.state_pitch st)
     (start, end) <- randomized controls start $
-        duration_attributes use_staccato controls attrs start end real_next
+        duration_attributes config controls attrs start end real_next
     return $! LEvent.one $! LEvent.Event $! Score.Event
         { Score.event_start = start
         , Score.event_duration = end - start
@@ -159,15 +172,16 @@ default_note use_staccato args = do
         }
 
 -- | Interpret attributes and controls that effect the note's duration.
-duration_attributes :: Bool -> Score.ControlMap -> Score.Attributes -> RealTime
-    -> RealTime -> RealTime -> RealTime
-duration_attributes use_staccato controls attrs start end next
-    | has Attrs.legato = next + lookup_time 0.1 Score.c_legato_overlap
+duration_attributes :: Config -> Score.ControlMap -> Score.Attributes
+    -> RealTime -> RealTime -> RealTime -> RealTime
+duration_attributes config controls attrs start end next
+    | config_legato config && has Attrs.legato =
+        next + lookup_time 0.1 Score.c_legato_overlap
     | otherwise = start + dur * sustain
     where
     has = Score.attrs_contain attrs
     dur = end - start
-    sustain = if use_staccato && has Attrs.staccato
+    sustain = if config_staccato config && has Attrs.staccato
         then sustain_ * 0.5 else sustain_
     sustain_ = lookup_time 1 Score.c_sustain
     lookup_time deflt control = maybe deflt

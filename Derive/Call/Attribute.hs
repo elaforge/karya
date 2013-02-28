@@ -68,7 +68,7 @@ transform_notes name generator_doc transform_doc transform = Derive.Call
     where
     generator = Sig.call0 $ \args -> case Note.sub_events args of
         [] -> transform $ Note.inverting Util.placed_note args
-        subs -> Note.place (Note.map_events transform (concat subs))
+        subs -> Note.place $ Note.map_events transform (concat subs)
     transformer = Sig.call0t $ \_args deriver -> transform deriver
 
 c_legato :: Derive.NoteCall
@@ -84,6 +84,8 @@ c_legato = Derive.stream_generator "legato" (Tags.attr <> Tags.subs <> Tags.ly)
 -- the last.  This is when the instrument itself responds to legato, e.g. with
 -- a keyswitch for transition samples, rather than the call responding by
 -- lengthening notes.
+--
+-- If you use this, you should definitely turn off 'Note.config_legato'.
 c_legato_all :: Derive.NoteCall
 c_legato_all = attributed_note Attrs.legato
 

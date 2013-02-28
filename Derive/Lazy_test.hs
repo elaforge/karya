@@ -280,7 +280,8 @@ mk_logging_call :: Log -> Derive.NoteCall
 mk_logging_call log_mvar = Call.Note.note_call "logging-note" "" $ \args -> do
     -- Call the real one to make sure I'm getting it's laziness
     -- characteristics.
-    [LEvent.Event sevent] <- Call.Note.default_note True args
+    [LEvent.Event sevent] <-
+        Call.Note.default_note Call.Note.use_attributes args
     st <- Derive.get_stack
     let write_log = Unsafe.unsafePerformIO $ put_log log_mvar $
             stack ++ " note at: " ++ Pretty.pretty (Score.event_start sevent)

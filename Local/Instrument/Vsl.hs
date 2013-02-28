@@ -56,18 +56,20 @@ note_calls patch =
     with_attr Attrs.trill
         [("tr", Trill.c_attr_trill), ("`tr`", Trill.c_attr_trill)]
     <> with_attr Attrs.trem [("trem", Trill.c_attr_tremolo)]
-    <> with_attr Attrs.staccato (MidiInst.null_call staccato_keyswitch)
     <> with_attr VslInst.grace [("g", grace_call (patch_attrs patch))]
     <> with_attr VslInst.legato [("(", Attribute.c_legato_all)]
+    <> (MidiInst.null_call (note_call patch))
     where
     with_attr attr calls = if has_attr attr patch then calls else []
 
-    -- Like the standard note call, but ignore +staccato, because it has its
-    -- own sample.
-    staccato_keyswitch = Note.note_call ""
-        "Staccato doesn't change note duration, since the sample already has\
-        \ that built-in."
-        (Note.default_note False)
+    -- Like the standard note call, but ignore attrs that are already handled
+    -- with keyswitches.
+    note_call patch =
+        Note.note_call "" "" (Note.default_note (note_config patch))
+    note_config patch = Note.Config
+        { Note.config_legato = not $ has_attr Attrs.legato patch
+        , Note.config_staccato = not $ has_attr Attrs.staccato patch
+        }
 
 patch_attrs :: Instrument.Patch -> [Score.Attributes]
 patch_attrs = Instrument.keyswitch_attributes . Instrument.patch_keyswitches
