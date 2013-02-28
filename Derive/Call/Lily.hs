@@ -27,18 +27,6 @@ import qualified Perform.Pitch as Pitch
 import Types
 
 
-note_calls :: Derive.NoteCallMap
-note_calls = Derive.make_calls
-    [ ("is-ly", c_is_ly)
-    , ("not-ly", c_not_ly)
-    , ("if-ly", c_if_ly)
-    , ("8va", c_8va)
-    , ("xstaff", c_xstaff)
-    , ("dyn", c_dyn)
-    , ("clef", c_clef)
-    , ("meter", c_meter)
-    ]
-
 -- * utils for ly calls
 
 when_lilypond :: (Lilypond.Config -> Derive.Deriver a)
@@ -208,6 +196,33 @@ eval_notes config meter start score_events =
 
 -- * calls
 
+note_calls :: Derive.NoteCallMap
+note_calls = Derive.make_calls
+    [ ("when-ly", c_when_ly)
+    , ("unless-ly", c_unless_ly)
+    , ("is-ly", c_is_ly)
+    , ("not-ly", c_not_ly)
+    , ("if-ly", c_if_ly)
+    , ("8va", c_8va)
+    , ("xstaff", c_xstaff)
+    , ("dyn", c_dyn)
+    , ("clef", c_clef)
+    , ("meter", c_meter)
+    ]
+
+c_when_ly :: Derive.NoteCall
+c_when_ly = Derive.transformer "when-ly" Tags.ly_only
+    "Evaluate the deriver only when in lilypond mode.  Unlike is-ly,\
+    \ this doesn't evaluate subtracks, so you can use it to emit an entirely\
+    \ different set of tracks."
+    $ Sig.call0t $ \_ deriver -> when_lilypond (const deriver) mempty
+
+c_unless_ly :: Derive.NoteCall
+c_unless_ly = Derive.transformer "unless-ly" Tags.ly_only
+    "The reverse of when-ly, evaluate the deriver only when not in lilypond\
+    \ mode."
+    $ Sig.call0t $ \_ deriver -> when_lilypond (const mempty) deriver
+
 -- | TODO it's ugly how this only works in the track title.  If applied to
 -- an event, it will emit a duplicate copy of the tracks below it, which is
 -- definitely not useful.  Ways around this would be:
@@ -227,8 +242,8 @@ eval_notes config meter start score_events =
 -- Derive.EventDeriver) too, so it's a bit of work.
 c_is_ly :: Derive.NoteCall
 c_is_ly = Derive.transformer "is-ly" Tags.ly_only
-    "Evaluate the deriver only when in lilypond mode, otherwise ignore the\
-    \ track and evaluate its subtracks. Apply this to a track \
+    "Evaluate the deriver only when in lilypond mode, otherwise ignore this\
+    \ track but evaluate its subtracks. Apply this to a track \
     \ to omit lilypond-only articulations, or to apply different articulations\
     \ to lilypond and non-lilypond output. Only use it in the track title!"
     $ Sig.call0t $ \args deriver ->
@@ -236,8 +251,8 @@ c_is_ly = Derive.transformer "is-ly" Tags.ly_only
 
 c_not_ly :: Derive.NoteCall
 c_not_ly = Derive.transformer "not-ly" Tags.ly
-    "The inverse of `is-ly`, evaluate the track or event only when not in\
-    \ lilypond mode. Only use it in the track title!"
+    "The inverse of `is-ly`, evaluate the track only when not in lilypond\
+    \ mode. Only use it in the track title!"
     $ Sig.call0t $ \args deriver ->
         when_lilypond (const $ derive_subtracks args) deriver
 

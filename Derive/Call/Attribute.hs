@@ -39,7 +39,6 @@ note_calls :: Derive.NoteCallMap
 note_calls = Derive.make_calls
     [ ("o", attributed_note Attrs.harmonic)
     , ("m", attributed_note Attrs.mute)
-    , ("marc", attributed_note Attrs.marcato)
     , (".", attributed_note Attrs.staccato)
     , ("(", c_legato)
     , ("{", attributed_note Attrs.porta)
