@@ -3,6 +3,10 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
+  - kendang-telek: add tempo .6 at 31, 'i .7' at 32, timing gets messed up
+  - Have to replace ( in lilypond mode.  In fact, wouldn't it be more robust
+    to have separately ly calls and always replace them all?  Might also be
+    faster.
   * Wait, it's that the note is way too long.  How did that happen?
   * truncate should drop a sample that's eta before the end
   * rename truncate to drop_after
@@ -49,7 +53,9 @@ UNSORTED
     That's actually two things, one is binding the symbol, the other is
     partially applying args.  The latter overlaps with setting default in
     the env, but is more concise.
-  / adding an intervening note track seems to mess up the signal render
+  - adding an intervening note track seems to mess up the signal render
+    in default untitled, change tempo track to a note track, pitch track
+    render changes
   - Do profiles again with Data.Text instead of ByteString.
   - network midi doesn't seem to handle abort?
     playing the second time doesn't happen
@@ -455,7 +461,7 @@ lilypond:
   - Can I have a solution for custom note durations that don't affect lilypond?
   - cross staff inside tuplet didn't work
   - hairpin crescendo / decrescendo
-  - I should store Lilypond.Config in the UI state.
+  * I should store Lilypond.Config in the UI state.
   - If I can figure out the meter from just the name, then I can get rid
     of the awkward map with hardcoded meters.
     I could have parse generate the Meter and memoize it.

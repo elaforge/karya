@@ -13,6 +13,7 @@ import qualified Util.Lens as Lens
 import qualified Util.Pretty as Pretty
 import qualified Ui.Id as Id
 import qualified Derive.Score as Score
+import qualified Perform.Lilypond.Types as Lilypond
 import qualified Perform.Midi.Instrument as Instrument
 import qualified Perform.Pitch as Pitch
 import qualified Perform.Signal as Signal
@@ -47,6 +48,7 @@ data Config = Config {
     -- | Local instrument aliases.  Map instruments through this map before
     -- setting them.
     , config_instruments :: !(Map.Map Score.Instrument Score.Instrument)
+    , config_lilypond :: !Lilypond.Config
     , config_default :: !Default
     } deriving (Eq, Read, Show, Generics.Typeable)
 
@@ -58,6 +60,8 @@ global_transform = Lens.lens config_global_transform
     (\v r -> r { config_global_transform = v })
 instruments =
     Lens.lens config_instruments (\v r -> r { config_instruments = v })
+lilypond =
+    Lens.lens config_lilypond (\v r -> r { config_lilypond = v })
 default_ = Lens.lens config_default (\v r -> r { config_default = v })
 
 -- | Extra data that doesn't have any effect on the score.
@@ -90,7 +94,8 @@ instrument = Lens.lens default_instrument (\v r -> r { default_instrument = v })
 tempo = Lens.lens default_tempo (\v r -> r { default_tempo = v })
 
 instance Pretty.Pretty Config where
-    format (Config namespace meta root midi global_transform insts default_) =
+    format (Config namespace meta root midi global_transform insts lily
+            default_) =
         Pretty.record_title "Config"
             [ ("namespace", Pretty.format namespace)
             , ("meta", Pretty.format meta)
@@ -98,6 +103,7 @@ instance Pretty.Pretty Config where
             , ("midi", Pretty.format midi)
             , ("global_transform", Pretty.format global_transform)
             , ("instruments", Pretty.format insts)
+            , ("lilypond", Pretty.format lily)
             , ("default", Pretty.format default_)
             ]
 

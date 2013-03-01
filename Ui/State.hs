@@ -23,7 +23,8 @@ module Ui.State (
     , empty, create, clear
     -- * config
     , Config(..)
-    , namespace, meta, root, midi, global_transform, instruments, default_
+    , namespace, meta, root, midi, global_transform, instruments, lilypond
+    , default_
     , Meta(..), creation, notes
     , Default(..)
     , scale, key, instrument, tempo
@@ -154,8 +155,10 @@ import qualified Ui.Types as Types
 import qualified Ui.Update as Update
 
 import qualified Derive.Score as Score
+import qualified Perform.Lilypond.Types as Lilypond
 import qualified Perform.Midi.Instrument as Instrument
 import qualified Perform.Pitch as Pitch
+
 import qualified App.Config as Config
 import Types
 
@@ -242,6 +245,7 @@ empty_config = Config
     , config_midi = Instrument.config []
     , config_global_transform = ""
     , config_instruments = Map.empty
+    , config_lilypond = Lilypond.default_config
     , config_default = empty_default
     }
 

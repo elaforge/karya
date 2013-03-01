@@ -30,8 +30,6 @@ import Perform.Lilypond.Meter (Meter)
 import Perform.Lilypond.Types
 import qualified Perform.Pitch as Pitch
 
-import Types
-
 
 -- * constants
 
@@ -79,16 +77,6 @@ modal_articulations =
     [ (Attrs.pizz, "^\"pizz.\"", "^\"arco\"")
     , (Attrs.nv, "^\"nv\"", "^\"vib\"")
     ]
-
--- * types
-
-default_config :: RealTime -> Config
-default_config quarter = Config
-    { config_quarter_duration = quarter
-    , config_quantize = D32
-    , config_dotted_rests = False
-    , config_staves = []
-    }
 
 -- ** Event
 

@@ -29,14 +29,27 @@ data Config = Config {
     -- | Map each instrument to its long name and short name.  The order is
     -- the order they should appear in the score.
     , config_staves :: ![(Score.Instrument, String, String)]
-    } deriving (Show)
+    } deriving (Eq, Read, Show)
+
+instance Pretty.Pretty Config where
+    format (Config quarter quantize dotted staves) =
+        Pretty.record_title "Config"
+            [ ("quarter_duration", Pretty.format quarter)
+            , ("quantize", Pretty.format quantize)
+            , ("dotted_rests", Pretty.format dotted)
+            , ("staves", Pretty.format staves)
+            ]
+
+default_config :: Config
+default_config = Config 1 D32 False []
 
 -- * Duration
 
 -- | This time duration measured as the fraction of a whole note.
 data Duration = D1 | D2 | D4 | D8 | D16 | D32 | D64 | D128
-    deriving (Enum, Bounded, Eq, Ord, Show)
+    deriving (Enum, Bounded, Eq, Ord, Read, Show)
 
+instance Pretty.Pretty Duration where pretty = show
 instance ToLily Duration where to_lily = drop 1 . show
 
 read_duration :: String -> Maybe Duration

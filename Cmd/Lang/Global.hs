@@ -193,20 +193,11 @@ revert_to = Save.cmd_revert . Just
 
 show_state :: Cmd.CmdL String
 show_state = do
-    (State.State views blocks tracks rulers
-        (State.Config ns _meta root _midi transform _insts
-            (State.Default scale key inst tempo))) <- State.get
-    -- midi config showed by show_midi_config
+    State.State views blocks tracks rulers _ <- State.get
     let f fm = PPrint.list (map show (Map.keys fm))
     return $ PPrint.record
-        [ ("namespace", Pretty.pretty ns), ("root", show root)
-        , ("global_transform", Pretty.pretty transform)
-        , ("views", f views), ("blocks", f blocks)
+        [ ("views", f views), ("blocks", f blocks)
         , ("tracks", f tracks), ("rulers", f rulers)
-        , ("scale", show scale)
-        , ("key", show key)
-        , ("inst", show inst)
-        , ("tempo", show tempo)
         ]
 
 -- ** views

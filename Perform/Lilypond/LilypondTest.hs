@@ -14,7 +14,7 @@ import qualified Perform.Lilypond.Lilypond as Lilypond
 
 
 default_config :: Lilypond.Config
-default_config = Lilypond.default_config 1
+default_config = Lilypond.default_config
 
 -- | (title, [Staff]) where Staff = [Measure] where Measure = String
 type StaffGroup = (String, [[String]])
@@ -63,4 +63,4 @@ derive_ly linear with tracks =
 make_ly :: [Lilypond.Event] -> String
 make_ly events = Text.unpack $ Text.strip $ Text.concat $ fst $
     expect_right "make_ly" $
-        Lilypond.make_ly (Lilypond.default_config 1) "title" events
+        Lilypond.make_ly Lilypond.default_config "title" events
