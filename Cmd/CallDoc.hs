@@ -254,8 +254,10 @@ type ScopeDoc = (Text, [CallBindings])
 
 -- | Walk up the scopes, keeping track of shadowed names.
 scope_doc :: Derive.ScopeType call -> [ScopeDoc]
-scope_doc (Derive.ScopeType inst scale builtin) = filter (not . null . snd)
-    [ ("instrument", lookup_docs (map Derive.lookup_docs inst))
+scope_doc (Derive.ScopeType override inst scale builtin) =
+    filter (not . null . snd)
+    [ ("override", lookup_docs (map Derive.lookup_docs override))
+    , ("instrument", lookup_docs (map Derive.lookup_docs inst))
     , ("scale", lookup_docs (map Derive.lookup_docs scale))
     , ("builtins", lookup_docs (map Derive.lookup_docs builtin))
     ]

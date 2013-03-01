@@ -232,11 +232,10 @@ with_instrument inst_ deriver = do
     where
     -- Replace the calls in the instrument scope type.
     set_scope (InstrumentCalls notes vals) scope = scope
-        { scope_val = set_val vals (scope_val scope)
-        , scope_note = set_note notes (scope_note scope)
+        { scope_val = set_inst vals (scope_val scope)
+        , scope_note = set_inst notes (scope_note scope)
         }
-    set_val vals stype = stype { stype_instrument = vals }
-    set_note notes stype = stype { stype_instrument = notes }
+    set_inst notes stype = stype { stype_instrument = notes }
 
 -- | Merge the given environ into the environ in effect.
 with_environ :: TrackLang.Environ -> Deriver a -> Deriver a

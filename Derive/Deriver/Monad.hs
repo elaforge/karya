@@ -483,26 +483,32 @@ instance DeepSeq.NFData Scope where
 -- This is hard-coded for the types of scopes I currently use.  It would be
 -- more general to make this a Map from symbol to scopes, but since I only
 -- have three types at the moment, this is simpler.
+--
+-- Priority is determined by 'get_scopes', which returns them in the
+-- declaration order.  So override calls take priority over instrument calls,
+-- which take priority over scale and builtin calls.
 data ScopeType call = ScopeType {
-    stype_instrument :: ![LookupCall call]
+    -- | Override calls shadow all others.  They're useful when you want to
+    -- prevent instruments from overriding calls, which the lilypond deriver
+    -- needs to do.
+    stype_override :: ![LookupCall call]
+    , stype_instrument :: ![LookupCall call]
     , stype_scale :: ![LookupCall call]
     , stype_builtin :: ![LookupCall call]
     }
 
 empty_scope_type :: ScopeType call
-empty_scope_type = ScopeType [] [] []
+empty_scope_type = ScopeType [] [] [] []
 
-instance Show (ScopeType call) where
-    show (ScopeType inst scale builtin) =
-        "((ScopeType" ++ n inst ++ n scale ++ n builtin ++ "))"
-        where n = (" "++) . show . length
-
+instance Show (ScopeType call) where show = Pretty.pretty
 instance Pretty.Pretty (ScopeType call) where
-    format (ScopeType inst scale builtin) = Pretty.record_title "ScopeType"
-        [ ("inst", Pretty.format inst)
-        , ("scale", Pretty.format scale)
-        , ("builtin", Pretty.format builtin)
-        ]
+    format (ScopeType override inst scale builtin) =
+        Pretty.record_title "ScopeType"
+            [ ("override", Pretty.format override)
+            , ("inst", Pretty.format inst)
+            , ("scale", Pretty.format scale)
+            , ("builtin", Pretty.format builtin)
+            ]
 
 -- | For flexibility, a scope is represented not by a map from symbols to
 -- derivers, but a function.  That way, it can inspect the CallId and return
@@ -589,8 +595,9 @@ lookup_with get call_id = do
 
 get_scopes :: (Scope -> ScopeType call) -> Deriver [LookupCall call]
 get_scopes get = do
-    ScopeType inst scale builtin <- get <$> gets (state_scope . state_dynamic)
-    return $ inst ++ scale ++ builtin
+    ScopeType override inst scale builtin <-
+        get <$> gets (state_scope . state_dynamic)
+    return $ override ++ inst ++ scale ++ builtin
 
 -- | Convert a list of lookups into a single lookup by returning the first
 -- one to yield a Just.

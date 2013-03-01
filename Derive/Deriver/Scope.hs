@@ -3,6 +3,11 @@ module Derive.Deriver.Scope where
 import qualified Derive.Derive as Derive
 
 
+add_override_note_lookup :: Derive.LookupCall Derive.NoteCall -> Derive.Scope
+    -> Derive.Scope
+add_override_note_lookup lookup scope = scope
+    { Derive.scope_note = add_override lookup (Derive.scope_note scope) }
+
 add_note_lookup :: Derive.LookupCall Derive.NoteCall -> Derive.Scope
     -> Derive.Scope
 add_note_lookup lookup scope = scope
@@ -22,3 +27,8 @@ add_builtin :: Derive.LookupCall call -> Derive.ScopeType call
     -> Derive.ScopeType call
 add_builtin lookup stype =
     stype { Derive.stype_builtin = lookup : Derive.stype_builtin stype }
+
+add_override :: Derive.LookupCall call -> Derive.ScopeType call
+    -> Derive.ScopeType call
+add_override lookup stype =
+    stype { Derive.stype_override = lookup : Derive.stype_override stype }
