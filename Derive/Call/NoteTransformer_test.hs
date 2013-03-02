@@ -1,13 +1,10 @@
 module Derive.Call.NoteTransformer_test where
-import Util.Control
 import qualified Util.Seq as Seq
 import Util.Test
-
 import qualified Ui.UiTest as UiTest
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Score as Score
 import qualified Perform.Lilypond.LilypondTest as LilypondTest
-import Perform.Lilypond.LilypondTest (convert_staves)
 
 
 test_tuplet = do
@@ -69,8 +66,8 @@ test_tuplet_multiple_tracks = do
     equal (run tracks) [(i1, 0, 6), (i2, 0, 6), (i1, 6, 6)]
 
 test_tuplet_ly = do
-    let run = first (convert_staves ["times", "acciaccatura"])
-            . LilypondTest.derive_linear True id
+    let run = LilypondTest.measures ["times", "acciaccatura"]
+            . LilypondTest.derive_linear
         pitches = map ('4':) (map (:"") "abcdefg")
     equal (run $
         (">", [(0, 2, "t")]) : UiTest.note_track
@@ -123,8 +120,7 @@ test_arpeggio = do
     equal (run (tracks "`arp-down` 1")) [(10, 10, "4d"), (11, 9, "4c")]
 
 test_slur_ly = do
-    let run = first (LilypondTest.convert_staves [])
-            . LilypondTest.derive_linear True id
+    let run = LilypondTest.measures [] . LilypondTest.derive_linear
     equal (run $ (">", [(0, 4, "(")]) : UiTest.note_track
         [(0, 1, "4a"), (1, 1, "4b"), (2, 1, "4c")])
         (Right ["a'4( b'4 c'4) r4"], [])

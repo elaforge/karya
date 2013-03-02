@@ -15,7 +15,6 @@ import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.Lilypond.Lilypond as Lilypond
 import qualified Perform.Lilypond.LilypondTest as LilypondTest
-import Perform.Lilypond.LilypondTest (convert_staves, derive)
 import qualified Perform.Lilypond.Meter as Meter
 import Perform.Lilypond.Types (Duration(..))
 
@@ -23,7 +22,7 @@ import Types
 
 
 test_convert_measures = do
-    let f = convert_staves [] . map simple_event
+    let f = LilypondTest.convert_measures [] . map simple_event
     equal (f [(0, 1, "a"), (1, 1, "b")]) $ Right ["a4 b4 r2"]
     equal (f [(1, 1, "a"), (2, 8, "b")]) $ Right
         ["r4 a4 b2~", "b1~", "b2 r2"]
@@ -37,12 +36,12 @@ test_convert_measures = do
         ["a8 b4 c8 r2"]
 
 test_full_measure_rest = do
-    let f = convert_staves [] . map simple_event
+    let f = LilypondTest.convert_measures [] . map simple_event
     equal (f [(5, 1, "a")]) $ Right ["R1", "r4 a4 r2"]
     equal (f [(9, 1, "a")]) $ Right ["R1", "R1", "r4 a4 r2"]
 
 test_dotted_rests = do
-    let f = convert_staves [] . map meter_event
+    let f = LilypondTest.convert_measures [] . map meter_event
     -- Rests are allowed to be dotted when the meter isn't duple.
     equal (f [(1.5, 0.5, "a", "3+3/8")]) $
         Right ["r4. a8 r4"]
@@ -50,7 +49,7 @@ test_dotted_rests = do
         Right ["r2 r4 a4"]
 
 test_change_meter = do
-    let f = convert_staves ["time"] . map meter_event
+    let f = LilypondTest.convert_measures ["time"] . map meter_event
     equal (f [(0, 5, "a", "4/4"), (6, 2, "b", "4/4")]) $ Right
         ["\\time 4/4 a1~", "a4 r4 b2"]
     -- Change meter on the measure boundary.
@@ -64,7 +63,7 @@ test_change_meter = do
         ["\\time 2/4 a2~", "a4 r4", "\\time 4/4 b1"]
 
     -- Inconsistent meters cause an error.
-    let run = convert_staves [] . fst . derive . concatMap UiTest.note_spec
+    let run = fst . LilypondTest.derive_measures [] . concatMap UiTest.note_spec
     left_like (run
             [ ("s/i1 | meter = '2/4'", [(0, 4, "4a")], [])
             , ("s/i2 | meter = '4/4'", [(0, 4, "4b")], [])
@@ -72,13 +71,13 @@ test_change_meter = do
         "staff for >s/i2: inconsistent meters"
 
 test_parse_error = do
-    let f = convert_staves [] . map environ_event
+    let f = LilypondTest.convert_measures [] . map environ_event
     left_like (f [(0, 1, "a", [(TrackLang.v_key, "oot-greet")])]) "unknown key"
     left_like (f [(0, 1, "a", [(Lilypond.v_meter, "oot-greet")])])
         "can't parse"
 
 test_chords = do
-    let f = convert_staves [] . map simple_event
+    let f = LilypondTest.convert_measures [] . map simple_event
     -- Homogenous durations.
     equal (f [(0, 1, "a"), (0, 1, "c")]) $ Right ["<a c>4 r4 r2"]
     -- Starting at the same time.
@@ -110,7 +109,8 @@ test_convert_duration = do
         concat $ replicate 2 ["2", "8.", "4.", "16", "4", "8.", "8", "16"]
 
 test_make_ly = do
-    let (events, logs) = derive $ concatMap UiTest.note_spec
+    let run = LilypondTest.derive_staves []
+    let (events, logs) = run $ concatMap UiTest.note_spec
             -- complicated rhythm
             [ ("s/i1", [(0, 1, "4c"), (1.5, 2, "4d#")], [])
             -- rhythm starts after 0, long multi measure note
@@ -118,7 +118,7 @@ test_make_ly = do
             ]
     equal logs []
     -- Shorter staff is padded out to the length of the longer one.
-    equal (LilypondTest.convert_events [] events) $ Right
+    equal events $ Right
         [ ("i1", [["c'4 r8 ds'8~ ds'4. r8", "R1", "R1", "R1"]])
         , ("i2", [["r4 g'4 a2~", "a1~", "a1~", "a2 r2"]])
         ]
@@ -126,20 +126,21 @@ test_make_ly = do
     -- compile_ly events
 
 test_hands = do
-    let (events, logs) = derive $ concatMap UiTest.note_spec
+    let run = LilypondTest.derive_staves [] . concatMap UiTest.note_spec
+    let (events, logs) = run
             [ (">s/1 | hand = 'right'", [(0, 4, "4c")], [])
             , (">s/1 | hand = 'left'", [(0, 4, "4d")], [])
             , (">s/2", [(0, 4, "4e")], [])
             ]
     equal logs []
     -- Right hand goes in first.
-    equal (LilypondTest.convert_events [] events) $ Right
+    equal events $ Right
         [ ("1", [["c'1"], ["d'1"]])
         , ("2", [["e'1"]])
         ]
 
 test_clefs = do
-    let f = first (convert_staves ["clef"]) . derive
+    let f = LilypondTest.derive_measures ["clef"]
     equal (f
             [ (">s/1 | clef = 'bass'", [(0, 2, ""), (2, 6, "clef = 'alto' |")])
             , ("*", [(0, 0, "4c")])
@@ -156,7 +157,7 @@ test_clefs = do
         (Right ["\\clef treble R1", "r4 c'2."], [])
 
 test_key = do
-    let f = first (convert_staves ["key"]) . derive
+    let f = LilypondTest.derive_measures ["key"]
     equal (f
             [ (">s/1 | key = 'a-mixo'", [(0, 2, ""), (2, 2, "key = 'c-maj' |")])
             , ("*", [(0, 0, "4c")])
@@ -164,7 +165,8 @@ test_key = do
         (Right ["\\key a \\mixolydian c'2 \\key c \\major c'2"], [])
 
 test_ly_code = do
-    let f = first (convert_staves []) . LilypondTest.derive_linear False calls
+    let f = LilypondTest.measures []
+            . LilypondTest.derive_tracks_with_ui calls id
     -- prepend
     equal (f $
             UiTest.note_track [(0, 1, "4a"), (1, 1, "4b")]
@@ -238,25 +240,25 @@ extract_rhythms = unwords
 -- in derive, but if I put them here I can test all the way to lilypond score.
 
 test_enharmonics = do
-    let (events, logs) = derive $ UiTest.note_track
+    let (events, logs) = LilypondTest.derive_measures [] $ UiTest.note_track
             [(0, 1, "4c#"), (1, 1, "4db"), (2, 1, "4cx")]
     equal logs []
-    equal (convert_staves [] events) $ Right ["cs'4 df'4 css'4 r4"]
+    equal events $ Right ["cs'4 df'4 css'4 r4"]
 
 test_tempo = do
     -- Lilypond derivation is unaffected by the tempo.
-    let (events, logs) = derive
+    let (events, logs) = LilypondTest.extract extract $ LilypondTest.derive
             [ ("tempo", [(0, 0, "3")])
             , (">s/1", [(0, 4, ""), (4, 4, "")])
             , ("*", [(0, 0, "4c")])
             ]
         extract e = (Lilypond.event_start e, Lilypond.event_duration e)
     equal logs []
-    equal (map extract events) [(0, whole), (whole, whole)]
+    equal events [(0, whole), (whole, whole)]
 
 test_attributes = do
     -- Test the attribute-adding calls and 'Lilypond.attrs_to_code'.
-    let f = first (convert_staves []) . LilypondTest.derive
+    let f = LilypondTest.derive_measures []
     equal (f
         [ (">", [(0, 1, "+mute"), (1, 1, "o"), (2, 1, "")])
         , ("*", [(0, 0, "4a"), (1, 0, "4b"), (2, 0, "4c")])
@@ -264,7 +266,7 @@ test_attributes = do
         (Right ["a'4-+ b'4-\\flageolet c'4 r4"], [])
 
 test_modal_attributes = do
-    let f = first (convert_staves []) . LilypondTest.derive
+    let f = LilypondTest.derive_measures []
     equal (f
         [ (">", [(0, 1, "+pizz"), (1, 1, "+pizz"), (2, 1, "")])
         , ("*", [(0, 0, "4c")])
@@ -272,7 +274,7 @@ test_modal_attributes = do
         (Right ["c'4^\"pizz.\" c'4 c'4^\"arco\" r4"], [])
 
 test_prepend_append = do
-    let f = first (convert_staves ["p", "mf"]) . LilypondTest.derive
+    let f = LilypondTest.derive_measures ["p", "mf"]
     equal (f $
             (">", [(0, 0, "dyn p"), (2, 0, "dyn mf")]) : UiTest.note_track
             [(0, 1, "4a"), (1, 1, "4b"), (2, 1, "4c"), (3, 1, "4d")])

@@ -1,7 +1,6 @@
 module Derive.Call.Ornament_test where
 import qualified Data.Map as Map
 
-import Util.Control
 import Util.Test
 import qualified Ui.State as State
 import qualified Derive.Call.CallTest as CallTest
@@ -93,8 +92,7 @@ test_grace = do
         ([((0, 1.5, "4b"), 1), ((1, 1, "4c"), 1)], [])
 
 test_grace_ly = do
-    let run = first (LilypondTest.convert_staves ["acciaccatura"])
-            . LilypondTest.derive
+    let run = LilypondTest.derive_measures ["acciaccatura"]
     equal (run
         [ (">", [(0, 2, "g (4a) (4b)"), (2, 2, "g (3a)")])
         , ("*", [(0, 0, "4c"), (2, 0, "4b")])

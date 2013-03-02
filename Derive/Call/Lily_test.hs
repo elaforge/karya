@@ -1,5 +1,4 @@
 module Derive.Call.Lily_test where
-import Util.Control
 import Util.Test
 import qualified Ui.UiTest as UiTest
 import qualified Derive.DeriveTest as DeriveTest
@@ -11,9 +10,9 @@ import qualified Perform.Lilypond.LilypondTest as LilypondTest
 test_is_ly = do
     let not_ly = DeriveTest.extract ex . DeriveTest.linear_derive_tracks id
             where ex e = (DeriveTest.e_pitch e, DeriveTest.e_attributes e)
-        is_ly = first (map ex) . LilypondTest.derive_linear True id
+        is_ly = LilypondTest.extract extract . LilypondTest.derive_linear
             where
-            ex e = (Lilypond.event_pitch e,
+            extract e = (Lilypond.event_pitch e,
                 ShowVal.show_val (Lilypond.event_attributes e))
 
     let tracks =

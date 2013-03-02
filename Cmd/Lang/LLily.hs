@@ -49,14 +49,27 @@ set_staves staves config = config
 
 -- * compile
 
+-- | Compile the given block as lilypond.
 block :: BlockId -> Cmd.CmdL ()
 block block_id = do
     events <- LEvent.write_logs =<< derive block_id
     config <- get_config
     compile_ly block_id config events
 
+-- | Compile the current block.
 current :: Cmd.CmdL ()
 current = block =<< Cmd.get_focused_block
+
+-- | Show the output of the lilypond for the given block.
+view_block :: BlockId -> Cmd.CmdL ()
+view_block block_id = do
+    filename <- Cmd.Lilypond.ly_filename block_id
+    liftIO $ Util.Process.logged $
+        Process.proc "open" [FilePath.replaceExtension filename ".pdf"]
+    return ()
+
+view :: Cmd.CmdL ()
+view = view_block =<< Cmd.get_focused_block
 
 -- * debugging
 
@@ -80,13 +93,6 @@ compile_ly block_id config events = do
         { Cmd.state_lilypond_stack_maps = Map.insert block_id
             stack_map (Cmd.state_lilypond_stack_maps st)
         }
-
-view_pdf :: BlockId -> Cmd.CmdL ()
-view_pdf block_id = do
-    filename <- Cmd.Lilypond.ly_filename block_id
-    liftIO $ Util.Process.logged $
-        Process.proc "open" [FilePath.replaceExtension filename ".pdf"]
-    return ()
 
 title_of :: BlockId -> Lilypond.Title
 title_of = Id.ident_name
