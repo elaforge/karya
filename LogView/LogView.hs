@@ -98,7 +98,7 @@ main = do
     filename <- maybe default_log_fn return $ Seq.last [n | File n <- flags]
     hdl <- Process.open filename seek
     log_chan <- STM.newTChanIO
-    Concurrent.forkIO (Process.tail_file log_chan hdl)
+    Concurrent.forkIO (Process.tail_file log_chan filename hdl)
     if Print `elem` flags
         then print_logs log_chan
         else gui log_chan filename history

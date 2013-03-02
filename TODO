@@ -9,7 +9,7 @@ UNSORTED
     - 9.1.1 ab, d, f notes are doubled
   * kendang-telek: add tempo .6 at 31, 'i .7' at 32, timing gets messed up
     Apparently it's removing the 'i' from the interpolate.
-  - logview should reopen the file when the log gets rotated
+  * logview should reopen the file when the log gets rotated
   * Have to replace ( in lilypond mode.  In fact, wouldn't it be more robust
     to have separately ly calls and always replace them all?  Might also be
     faster.

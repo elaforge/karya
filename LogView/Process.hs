@@ -11,9 +11,11 @@ import qualified Data.Sequence as Sequence
 import qualified Data.Time as Time
 
 import qualified System.IO as IO
+import qualified System.Posix.Files as Posix.Files
 import qualified Text.Printf as Printf
 
 import Util.Control
+import qualified Util.File as File
 import qualified Util.Log as Log
 import qualified Util.Map as Map
 import qualified Util.ParseBs as ParseBs
@@ -369,15 +371,18 @@ open filename seek = do
                 void $ IO.hGetLine hdl -- make sure I'm at a line boundary
     return hdl
 
-tail_file :: STM.TChan Log.Msg -> IO.Handle -> IO ()
-tail_file log_chan hdl = do
-    loop hdl =<< IO.hFileSize hdl
+tail_file :: STM.TChan Log.Msg -> FilePath -> IO.Handle -> IO ()
+tail_file log_chan filename hdl = do
+    size <- IO.hFileSize hdl
+    loop (hdl, size)
     where
-    loop hdl size = do
-        line <- tail_getline hdl size
+    loop state = do
+        (line, state) <- tail_getline filename state
         msg <- deserialize_line line
         STM.atomically $ STM.writeTChan log_chan msg
-        loop hdl =<< IO.hFileSize hdl
+        loop state
+
+type TailState = (IO.Handle, Integer)
 
 deserialize_line :: String -> IO Log.Msg
 deserialize_line line = do
@@ -387,17 +392,44 @@ deserialize_line line = do
             ++ show exc ++ ", line was: " ++ show line
         Right msg -> return msg
 
-tail_getline :: IO.Handle -> Integer -> IO String
-tail_getline hdl size = do
-    eof <- IO.hIsEOF hdl
-    if eof then do
-        new_size <- IO.hFileSize hdl
-        when (new_size < size) $
-            IO.hSeek hdl IO.AbsoluteSeek 0
-        Thread.delay 0.5
-        tail_getline hdl new_size
-    else do
-        -- Since hGetLine in its infinite wisdom chops the newline it's
-        -- impossible to tell if this is a complete line or not.  I'll set
-        -- LineBuffering and hope for the best.
-        IO.hGetLine hdl
+tail_getline :: FilePath -> TailState -> IO (String, TailState)
+tail_getline filename = go
+    where
+    go state@(hdl, last_size) = IO.hIsEOF hdl >>= \x -> case x of
+        True -> do
+            new_size <- IO.hFileSize hdl
+            -- Check if the file was truncated.
+            state <- if new_size < last_size
+                then IO.hSeek hdl IO.AbsoluteSeek 0 >> return state
+                else ifM (file_renamed filename new_size)
+                    (reopen hdl new_size filename)
+                    (Thread.delay 2 >> return state)
+            go state
+        False -> do
+            -- Since hGetLine in its infinite wisdom chops the newline it's
+            -- impossible to tell if this is a complete line or not.  I'll set
+            -- LineBuffering and hope for the best.
+            line <- IO.hGetLine hdl
+            return (line, state)
+
+-- | If the filename exists, open it and close the old file.
+reopen :: IO.Handle -> Integer -> FilePath -> IO TailState
+reopen hdl size filename =
+    File.ignore_enoent (IO.openFile filename IO.ReadMode) >>= \x -> case x of
+        Nothing -> do
+            return (hdl, size)
+        Just new -> do
+            IO.hClose hdl
+            IO.hSetBuffering new IO.LineBuffering
+            IO.hSeek new IO.AbsoluteSeek 0
+            size <- IO.hFileSize new
+            return (new, size)
+
+-- | Check if it looks like the file has been renamed.
+file_renamed :: FilePath -> Integer -> IO Bool
+file_renamed filename size = do
+    -- I should really use inode, but ghc's crummy IO libs make that a pain,
+    -- since handleToFd closes the handle.
+    file_size <- maybe 0 Posix.Files.fileSize <$>
+        File.ignore_enoent (Posix.Files.getFileStatus filename)
+    return $ fromIntegral file_size /= size && file_size /= 0
