@@ -473,22 +473,35 @@ test_control_damage_subblock = do
 test_tempo_damage = do
     let create = mkblocks
             [ ("top",
-                [ ("tempo", [(0, 0, "1")])
+                [ ("tempo", [(0, 0, "1"), (1, 0, "1")])
                 , (">i", [(0, 1, "sub"), (1, 1, "sub"), (2, 1, "sub")])
                 ])
-            , ("sub",
-                [ (">i", [(0, 1, "")]) ])
+            , ("sub", [(">i", [(0, 1, "")])])
             ]
     let (_, cached, uncached) = compare_cached create $
-            insert_event "top.t1" 1 0 "2"
+            insert_event "top.t1" 2 0 "2"
     equal (diff_events cached uncached) []
-    -- first is cached, second and third are not
+    -- Damage extends to the previous event, so the first is cached, second and
+    -- third are not.
     strings_like (r_block_logs cached)
         [ "top.t2 0-1: * using cache"
         , "top.t2 1-2: * control damage"
         , "top.t2 2-3: * control damage"
         , toplevel_rederived True
         ]
+
+    -- Change tempo call in a way that damages to the previous tempo call.
+    let create = mkblocks
+            [ ("top",
+                [ ("tempo", [(0, 0, "1"), (2, 0, "2")])
+                , (">", [(n, 1, "sub") | n <- Seq.range 0 4 1])
+                ])
+            , ("sub=ruler", [(">", [(0, 1, "")])])
+            ]
+    let (_, cached, uncached) = compare_cached create $
+            insert_event "top.t1" 2 0 "i 2"
+    equal (diff_events cached uncached) []
+    -- prettyp (DeriveTest.extract DeriveTest.e_note cached)
 
 test_extend_tempo_damage = do
     -- Make sure control damage emitted by 'get_tempo_damage' is reasonable.

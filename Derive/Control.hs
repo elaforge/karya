@@ -112,6 +112,7 @@ tempo_call track sig_deriver deriver = do
     with_damage = maybe id get_damage maybe_track_id
     get_damage track_id deriver = do
         damage <- Cache.get_tempo_damage track_id track_range
+            (TrackTree.tevents_events track)
         Internal.with_control_damage damage deriver
     track_range = TrackTree.tevents_range track
 

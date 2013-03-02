@@ -3,7 +3,13 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
-  - kendang-telek: add tempo .6 at 31, 'i .7' at 32, timing gets messed up
+  - ly render a block needs to emit leading rests
+  viola-sonata ly:
+    - 8.2 slurs aren't showing up
+    - 9.1.1 ab, d, f notes are doubled
+  * kendang-telek: add tempo .6 at 31, 'i .7' at 32, timing gets messed up
+    Apparently it's removing the 'i' from the interpolate.
+  - logview should reopen the file when the log gets rotated
   * Have to replace ( in lilypond mode.  In fact, wouldn't it be more robust
     to have separately ly calls and always replace them all?  Might also be
     faster.
@@ -41,6 +47,7 @@ UNSORTED
     - should be able to select the most appropriate sec# dyn given
       +cresc or +dim on a note.
     - Figure out how to map continuous controls, and crossfade.
+
   - double click isn't creating a fitted view?
   - Track caching is too fragile, if I add a track with scope over everything
     then I get no caching.  Instead I should cache the bottom note track, or

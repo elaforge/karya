@@ -214,7 +214,6 @@ is_cache_log msg = prefix "using cache, " || prefix "rederived generator "
 --
 -- If a block call is touched by control damage, the the control damage expands
 -- to cover the entire block.
---
 get_control_damage :: TrackId
     -> (ScoreTime, ScoreTime) -- ^ track_range must be passed explicitly
     -- because the event may have been sliced and shifted, but ControlDamage
@@ -228,10 +227,17 @@ get_control_damage track_id track_range = do
         control <> score_to_control track_id track_range score
 
 -- | Since the warp is the integral of the tempo track, damage on the tempo
--- track will affect all events after it.
-get_tempo_damage :: TrackId -> (ScoreTime, ScoreTime)
+-- track will affect all events after it.  Actually, the damage extends from
+-- the previous event to the end of the track, since interpolating calls extend
+-- from the previous event.
+--
+-- It would be simpler to have any edit invalidate the whole track, but it
+-- seems like editing a score at the end is a common case, and it would be
+-- a shame to rederive the entire score on each edit when only the very end has
+-- changed.
+get_tempo_damage :: TrackId -> (ScoreTime, ScoreTime) -> Events.Events
     -> Derive.Deriver ControlDamage
-get_tempo_damage track_id track_range = do
+get_tempo_damage track_id track_range events = do
     st <- Derive.get
     let control = Derive.state_control_damage (Derive.state_dynamic st)
         score = Derive.state_score_damage (Derive.state_constant st)
@@ -241,7 +247,10 @@ get_tempo_damage track_id track_range = do
         case Ranges.extract ranges of
             Nothing -> Ranges.everything
             Just [] -> Ranges.nothing
-            Just ((s, _) : _) -> Ranges.range s (snd track_range)
+            Just ((s, _) : _) -> case Events.split s events of
+                (prev : _, _) ->
+                    Ranges.range (Event.start prev) (snd track_range)
+                ([], _) -> Ranges.range s (snd track_range)
 
 -- | Convert score damage directly to ControlDamage on a given track.
 score_to_control :: TrackId -> (ScoreTime, ScoreTime) -> ScoreDamage
