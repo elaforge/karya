@@ -88,14 +88,14 @@ instance DeepSeq.NFData Event where
             `seq` rnf pitch
 
 instance Pretty.Pretty Event where
-    format (Event start dur bytes controls pitch stack inst attrs) =
+    format (Event start dur bytes controls pitch stack inst env) =
         Pretty.record (Pretty.text "Event" Pretty.<+> Pretty.format (start, dur)
                 Pretty.<+> Pretty.format bytes)
             [ ("controls", Pretty.format controls)
             , ("pitch", Pretty.format pitch)
             , ("stack", Pretty.format stack)
             , ("instrument", Pretty.format inst)
-            , ("attributes", Pretty.format attrs)
+            , ("environ", Pretty.format env)
             ]
 
 type ControlMap = Map.Map Control TypedSignal

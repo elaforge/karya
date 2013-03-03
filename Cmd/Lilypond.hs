@@ -52,16 +52,20 @@ lookup_key perf =
         Right key -> Just (Pitch.Key key)
         Left _ -> Nothing
 
+derive_block :: (Cmd.M m) => BlockId -> m Derive.Result
+derive_block block_id = do
+    global_transform <- State.config#State.global_transform <#> State.get
+    derive $ Call.Block.eval_root_block global_transform block_id
+
 -- | Run a derivation in lilypond context, which will cause certain calls to
 -- behave differently.
-derive :: (Cmd.M m) => Lilypond.Config -> BlockId -> m Derive.Result
-derive config block_id = do
+derive :: (Cmd.M m) => Derive.EventDeriver -> m Derive.Result
+derive deriver = do
+    config <- State.config#State.lilypond <#> State.get
     state <- (State.config#State.default_#State.tempo #= 1) <$> State.get
-    global_transform <- State.config#State.global_transform <#> State.get
     scope <- Cmd.gets (Cmd.state_global_scope . Cmd.state_config)
     constant <- PlayUtil.make_constant state mempty mempty
     env <- PlayUtil.make_environ
-    let deriver = Call.Block.eval_root_block global_transform block_id
     return $ Derive.extract_result $ Derive.derive
         (constant { Derive.state_lilypond = Just config })
         (lilypond_scope scope) env deriver
@@ -94,10 +98,10 @@ compile_ly ly_filename config title events = do
 
 make_ly :: Lilypond.Config -> Lilypond.Title -> [Score.Event]
     -> (Either String ([Text.Text], Cmd.StackMap), [Log.Msg])
-make_ly config title score_events =
-    (Lilypond.make_ly config title (postproc (Lilypond.config_quantize config)
-        events), logs)
+make_ly config title score_events = (text, logs)
     where
+    text = Lilypond.make_ly config title $
+        postproc (Lilypond.config_quantize config) events
     (events, logs) = LEvent.partition $
         Convert.convert (Lilypond.config_quarter_duration config)
             (map LEvent.Event score_events)

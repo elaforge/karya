@@ -46,9 +46,6 @@ import qualified App.Config as Config
 import Types
 
 
-empty_state :: Cmd.State
-empty_state = Cmd.initial_state empty_cmd_config
-
 -- * running cmds
 
 data Result val = Result {
@@ -181,29 +178,22 @@ thread_tracks tracks modify_cmd_state cmds =
     where (_, ustate) = UiTest.run_mkview tracks
 
 default_cmd_state :: Cmd.State
-default_cmd_state = empty_state
-    { Cmd.state_config = default_cmd_config
-    , Cmd.state_focused_view = Just UiTest.default_view_id
+default_cmd_state = (Cmd.initial_state cmd_config)
+    { Cmd.state_focused_view = Just UiTest.default_view_id
     , Cmd.state_edit = default_edit_state
     , Cmd.state_play = default_play_state
     }
 
-empty_cmd_config :: Cmd.Config
-empty_cmd_config = Cmd.Config
+cmd_config :: Cmd.Config
+cmd_config = Cmd.Config
     { Cmd.state_app_dir = "."
     , Cmd.state_midi_interface = Unsafe.unsafePerformIO StubMidi.interface
     , Cmd.state_rdev_map = mempty
     , Cmd.state_wdev_map = mempty
-    , Cmd.state_instrument_db = Instrument.Db.empty
-    , Cmd.state_global_scope = Derive.empty_scope
+    , Cmd.state_instrument_db = DeriveTest.default_db
+    , Cmd.state_global_scope = Call.All.scope
     , Cmd.state_lookup_scale = Cmd.LookupScale $
         \scale_id -> Map.lookup scale_id Scale.All.scales
-    }
-
-default_cmd_config :: Cmd.Config
-default_cmd_config = empty_cmd_config
-    { Cmd.state_instrument_db = DeriveTest.default_db
-    , Cmd.state_global_scope = Call.All.scope
     }
 
 default_play_state :: Cmd.PlayState

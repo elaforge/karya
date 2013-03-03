@@ -140,6 +140,9 @@ perform_stream lookup midi_config events = (perf_events, mmsgs)
 
 -- * derive
 
+type Transform a = Derive.Deriver a -> Derive.Deriver a
+type TransformUi = State.State -> State.State
+
 derive_tracks :: [UiTest.TrackSpec] -> Derive.Result
 derive_tracks = derive_tracks_with id
 
@@ -152,8 +155,9 @@ derive_tracks_with with = derive_tracks_with_ui with id
 -- to be modified, and it's too late for e.g. the initial environ anyway.
 derive_tracks_with_ui :: Transform Derive.Events -> TransformUi
     -> [UiTest.TrackSpec] -> Derive.Result
-derive_tracks_with_ui with transform_ui tracks = derive_blocks_with_ui
-    with transform_ui [(UiTest.default_block_name, tracks)]
+derive_tracks_with_ui with transform_ui tracks =
+    derive_blocks_with_ui with transform_ui
+        [(UiTest.default_block_name, tracks)]
 
 -- | Create multiple blocks, and derive the first one.
 derive_blocks :: [UiTest.BlockSpec] -> Derive.Result
@@ -167,9 +171,7 @@ derive_blocks_with_ui :: Transform Derive.Events -> TransformUi
     -> [UiTest.BlockSpec] -> Derive.Result
 derive_blocks_with_ui with transform_ui block_tracks =
     derive_block_with with (transform_ui ui_state) bid
-    where
-    (bid : _, ui_state) = UiTest.run State.empty $
-        set_defaults >> UiTest.mkblocks block_tracks
+    where (bid : _, ui_state) = mkblocks block_tracks
 
 derive_block :: State.State -> BlockId -> Derive.Result
 derive_block = derive_block_with id
@@ -186,12 +188,12 @@ derive ui_state deriver = Derive.extract_result $
     Derive.derive (default_constant ui_state mempty mempty) default_scope
         default_environ deriver
 
-type Transform a = Derive.Deriver a -> Derive.Deriver a
-
+-- | Turn BlockSpecs into a state.
+mkblocks :: [UiTest.BlockSpec] -> ([BlockId], State.State)
+mkblocks block_tracks = UiTest.run State.empty $
+    set_defaults >> UiTest.mkblocks block_tracks
 
 -- ** derive with ui
-
-type TransformUi = State.State -> State.State
 
 
 -- | Derive tracks but with a linear skeleton.  Good for testing note

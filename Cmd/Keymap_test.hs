@@ -79,7 +79,7 @@ run_cmd :: (Msg.Msg -> Cmd.CmdId a) -> [Cmd.Modifier] -> Msg.Msg
     -> CmdTest.Result a
 run_cmd cmd mods msg = CmdTest.run State.empty cstate (cmd msg)
     where
-    cstate = CmdTest.empty_state { Cmd.state_keys_down = state_mods }
+    cstate = CmdTest.default_cmd_state { Cmd.state_keys_down = state_mods }
     state_mods = Map.fromList [(m, m) | m <- mods ++ extra_mods]
     -- A click or drag implies that mouse button must be down.
     extra_mods = case fmap UiMsg.mouse_state (Msg.mouse msg) of

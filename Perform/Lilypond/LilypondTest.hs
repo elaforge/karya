@@ -5,6 +5,9 @@ import Util.Control
 import Util.Test
 import qualified Ui.State as State
 import qualified Ui.UiTest as UiTest
+import qualified Cmd.CmdTest as CmdTest
+import qualified Cmd.Lilypond
+import qualified Derive.Call.Block as Call.Block
 import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.LEvent as LEvent
@@ -71,15 +74,23 @@ derive_linear tracks =
     derive_tracks_with_ui id (DeriveTest.linear_skel tracks) tracks
 
 derive_tracks_with_ui :: (Derive.EventDeriver -> Derive.EventDeriver)
-    -> (State.State -> State.State)
-    -> [UiTest.TrackSpec] -> Derive.Result
+    -> (State.State -> State.State) -> [UiTest.TrackSpec] -> Derive.Result
 derive_tracks_with_ui with transform_ui tracks =
-    DeriveTest.derive_tracks_with_ui
-        (with . DeriveTest.modify_constant set_ly)
-        (transform_ui . (State.config#State.default_#State.tempo #= 1))
-        tracks
+    derive_ly (transform_ui state) (with deriver)
     where
-    set_ly constant = constant { Derive.state_lilypond = Just default_config }
+    deriver = Call.Block.eval_root_block global_transform bid
+    global_transform = State.config#State.global_transform #$ state
+    (bid:_, state) = DeriveTest.mkblocks [(UiTest.default_block_name, tracks)]
+
+derive_ly :: State.State -> Derive.EventDeriver -> Derive.Result
+derive_ly state deriver =
+    extract $ CmdTest.result_val $
+        CmdTest.run state CmdTest.default_cmd_state $
+        Cmd.Lilypond.derive deriver
+    where
+    extract (Right (Just val)) = val
+    extract (Right Nothing) = error "derive_ly: abort"
+    extract (Left err) = error $ "derive_ly: " ++ err
 
 make_ly :: [Lilypond.Event] -> String
 make_ly events = Text.unpack $ Text.strip $ Text.concat $ fst $

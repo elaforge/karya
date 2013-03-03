@@ -51,7 +51,7 @@ test_integrate = do
 integrate :: [UiTest.BlockSpec] -> (Derive.Result, CmdTest.Result ())
 integrate [] = error "integrate got [] blocks"
 integrate blocks@((block_name, _) : _) =
-    (result, CmdTest.run ui_state CmdTest.empty_state $
+    (result, CmdTest.run ui_state CmdTest.default_cmd_state $
         mapM_ (Integrate.integrate block_id) (Derive.r_integrated result))
     where
     result = DeriveTest.derive_blocks_with (block_damage blocks) blocks

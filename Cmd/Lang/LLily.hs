@@ -101,9 +101,7 @@ title_of = Id.ident_name
 
 -- | Run a lilypond derive and return score events.
 derive :: BlockId -> Cmd.CmdL Derive.Events
-derive block_id = do
-    config <- get_config
-    Derive.r_events <$> Cmd.Lilypond.derive config block_id
+derive block_id = Derive.r_events <$> Cmd.Lilypond.derive_block block_id
 
 -- | Convert to lilypond events.
 ly_events :: RealTime -> Derive.Events -> ([Lilypond.Event], [Log.Msg])
