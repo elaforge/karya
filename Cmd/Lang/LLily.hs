@@ -123,5 +123,4 @@ convert = do
     let (events, logs) = LEvent.partition $
             Convert.convert (Lilypond.config_quarter_duration config)
             score_events
-    return (Cmd.Lilypond.postproc (Lilypond.config_quantize config) events,
-        logs)
+    return (Convert.quantize (Lilypond.config_quantize config) events, logs)

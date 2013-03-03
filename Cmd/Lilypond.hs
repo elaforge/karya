@@ -101,19 +101,7 @@ make_ly :: Lilypond.Config -> Lilypond.Title -> [Score.Event]
 make_ly config title score_events = (text, logs)
     where
     text = Lilypond.make_ly config title $
-        postproc (Lilypond.config_quantize config) events
+        Convert.quantize (Lilypond.config_quantize config) events
     (events, logs) = LEvent.partition $
         Convert.convert (Lilypond.config_quarter_duration config)
             (map LEvent.Event score_events)
-
--- * postproc
-
-postproc :: Lilypond.Duration -> [Lilypond.Event] -> [Lilypond.Event]
-postproc quantize_dur = Convert.quantize quantize_dur . normalize
-
-normalize :: [Lilypond.Event] -> [Lilypond.Event]
-normalize [] = []
-normalize events@(e:_)
-    | Lilypond.event_start e == 0 = events
-    | otherwise = map (move (Lilypond.event_start e)) events
-    where move n e = e { Lilypond.event_start = Lilypond.event_start e - n }
