@@ -40,10 +40,16 @@ test_legato = do
 
 test_legato_ly = do
     let run = LilypondTest.measures [] . LilypondTest.derive_linear
-    equal (run $
-        (">", [(1, 2, "(")]) : UiTest.note_track
-            [(0, 1, "4a"), (1, 1, "4b"), (2, 1, "4c"), (3, 1, "4d")])
+    equal (run $ (">", [(1, 2, "(")]) : UiTest.regular_notes 4)
         (Right ["a'4 b'4( c'4) d'4"], [])
+    let tracks =
+            [ (">", [(0, 3, "("), (3, 3, "(")])
+            , (">", [(0, 2, "+legato"), (2, 1, "+sul"), (3, 3, "+sul")])
+            ] ++ UiTest.regular_notes 6
+    equal (run tracks)
+        (Right ["a'4( b'4 c'4) d'4(", "e'4 f'4) r2"], [])
+    -- let extract e = (DeriveTest.e_note e, Score.event_environ e)
+    -- prettyp (DeriveTest.extract extract $ LilypondTest.derive_linear tracks)
 
 test_attributed_note_ly = do
     let run = LilypondTest.measures [] . LilypondTest.derive_linear

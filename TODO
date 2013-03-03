@@ -6,10 +6,10 @@ UNSORTED
   * ly render a block needs to emit leading rests
   - in Lily, convert add_code to add_event_code
   viola-sonata ly:
-    - 8.2 slurs aren't showing up
+    * 8.2 slurs aren't showing up
       That's because of how ( applies directly to subnotes, it only ever works
       when it's directly next to the subs.
-    - 9.1.1 ab, d, f notes are doubled
+    * 9.1.1 ab, d, f notes are doubled
   * kendang-telek: add tempo .6 at 31, 'i .7' at 32, timing gets messed up
     Apparently it's removing the 'i' from the interpolate.
   * logview should reopen the file when the log gets rotated

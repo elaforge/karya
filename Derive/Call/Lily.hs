@@ -18,6 +18,7 @@ import qualified Derive.Scale.Theory as Theory
 import qualified Derive.Score as Score
 import qualified Derive.Sig as Sig
 import Derive.Sig (defaulted, required)
+import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.Lilypond.Convert as Convert
 import qualified Perform.Lilypond.Lilypond as Lilypond
@@ -58,10 +59,10 @@ notes_append = notes_code . Suffix
 notes_around :: Code -> Code -> Derive.PassedArgs d
     -> Derive.EventDeriver -> Derive.EventDeriver
 notes_around start end args = when_lilypond $
-    const $ Note.place $ concat $ map around $ Note.sub_events args
+    const $ mconcat $ map around $ Note.sub_events args
     where
-    around = Seq.first_last (Note.map_event (add_code start))
-        (Note.map_event (add_code end))
+    around notes = first_last
+        (add_event_code start) (add_event_code end) <$> Note.place notes
 
 -- | Like 'notes_around', but when I'm not in lilypond mode just derive the
 -- sub events unchanged.
@@ -79,6 +80,38 @@ notes_with f args = when_lilypond $
 
 place_notes :: Derive.PassedArgs d -> Derive.EventDeriver
 place_notes = Note.place . concat . Note.sub_events
+
+-- ** events around
+
+add_event_code :: Code -> Score.Event -> Score.Event
+add_event_code code = case code of
+    Prefix c -> Score.modify_environ $ add Lilypond.v_ly_prepend (c++)
+    Suffix c -> Score.modify_environ $ add Lilypond.v_ly_append (++c)
+    where
+    add name f env = TrackLang.insert_val name (TrackLang.to_val (f old)) env
+        where old = fromMaybe "" $ TrackLang.maybe_val name env
+
+-- | Like 'Seq.first_last', but applied to LEvents.  If the events start or end
+-- with a group of events with the same start time, the start or end function
+-- is applied to the entire group.  This is because the lilypond performer will
+-- group them into a chord and will only take ly-prepend and ly-append from the
+-- first note in the chord.  I could apply to only the first element of the
+-- group, but that would rely on every sort being stable.
+first_last :: (Score.Event -> Score.Event) -> (Score.Event -> Score.Event)
+    -> Derive.Events -> Derive.Events
+first_last _ _ [] = []
+first_last start end (log@(LEvent.Log _) : xs) = log : first_last start end xs
+first_last start end (LEvent.Event x : xs) = case split x xs of
+    (pre, []) -> pre
+    (pre, post) -> LEvent.Event (start x) : map (fmap start) pre ++ go post
+    where
+    go [] = [] -- should never happen
+    go (log@(LEvent.Log {}) : xs) = log : go xs
+    go (LEvent.Event x : xs) = case split x xs of
+        (pre, []) -> LEvent.Event (end x) : map (fmap end) pre
+        (pre, post) -> LEvent.Event x : pre ++ go post
+    split x = span
+        (LEvent.log_or $ ((<= Score.event_start x) . Score.event_start))
 
 -- ** code
 

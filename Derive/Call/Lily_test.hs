@@ -1,11 +1,33 @@
 module Derive.Call.Lily_test where
 import Util.Test
+import qualified Ui.Skeleton as Skeleton
 import qualified Ui.UiTest as UiTest
+import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.ShowVal as ShowVal
+
 import qualified Perform.Lilypond.Lilypond as Lilypond
 import qualified Perform.Lilypond.LilypondTest as LilypondTest
 
+
+test_when_ly = do
+    let run_ly = extract . uncurry derive_ly
+        run_normal = extract . uncurry derive_normal
+        extract = DeriveTest.extract DeriveTest.e_note
+        mktracks ly normal = ([(1, 3), (2, 3), (3, 4)],
+            [ ("> | when-ly", ly)
+            , ("> | unless-ly", normal)
+            ] ++ UiTest.regular_notes 4)
+
+    prettyp (run_ly $ mktracks [(0, 2, "(")] [(2, 2, "(")])
+    prettyp (run_normal $ mktracks [(0, 2, "(")] [(2, 2, "(")])
+
+derive_normal skel =
+    DeriveTest.derive_tracks_with_ui id (DeriveTest.set_skel skel)
+
+derive_ly :: [Skeleton.Edge] -> [UiTest.TrackSpec] -> Derive.Result
+derive_ly skel =
+    DeriveTest.derive_tracks_with_ui id (DeriveTest.set_skel skel)
 
 test_is_ly = do
     let not_ly = DeriveTest.extract ex . DeriveTest.linear_derive_tracks id

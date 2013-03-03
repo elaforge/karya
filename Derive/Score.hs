@@ -72,12 +72,13 @@ environ_attributes environ =
         Just (BaseTypes.VAttributes attrs) -> attrs
         _ -> mempty
 
+modify_environ :: (BaseTypes.Environ -> BaseTypes.Environ) -> Event -> Event
+modify_environ f event = event { event_environ = f (event_environ event) }
+
 modify_attributes :: (Attributes -> Attributes) -> Event -> Event
-modify_attributes modify event =
-    event { event_environ = modified (event_environ event) }
-    where
-    modified = BaseTypes.insert_val BaseTypes.v_attributes
-        (BaseTypes.VAttributes (modify (event_attributes event)))
+modify_attributes modify = modify_environ $ \env ->
+    BaseTypes.insert_val BaseTypes.v_attributes
+        (BaseTypes.VAttributes (modify (environ_attributes env))) env
 
 remove_attributes :: Attributes -> Event -> Event
 remove_attributes attrs = modify_attributes (attrs_remove attrs)
