@@ -1,8 +1,11 @@
-{-# LANGUAGE CPP, FlexibleContexts, ViewPatterns #-}
+{-# LANGUAGE FlexibleContexts, ViewPatterns #-}
 {-# LANGUAGE DeriveDataTypeable, GeneralizedNewtypeDeriving #-}
 {- | Shakefile for seq and associated binaries.
 
-    - Setting the 'repl' env var will add the -DINTERPRETER_GHC flag.
+    - Setting the @repl@ env var will add the -DINTERPRETER_GHC flag.
+
+    - The @midi@ env var can be set to @stub@, @jack@ or @core@.  If unset,
+    @jack@ is used for linux, and @core@ for OS X.
 
     - Building RunTests-something will include only tests matching
     *something*_test.hs.
@@ -18,10 +21,6 @@
     - If I update build/test/RunTests.hs, it gets regenerated, even though
     it's newer than everything else.  Why?
     Also, if I update generate_run_tests.py it doesn't rebuild anything.
-
-    - Paper suggests, in "Unchanging files" that files that remain unchanged
-    after a build should allow depending rules to be skipped.  Test this
-    with ghc's recompilation skipper.
 -}
 module Shake.Shakefile where
 import Control.Applicative ((<$>))
