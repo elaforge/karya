@@ -206,7 +206,7 @@ unfitted_view block_id = do
 view :: (Cmd.M m) => BlockId -> m ViewId
 view block_id = do
     view_id <- unfitted_view block_id
-    ViewConfig.resize_to_fit False view_id
+    ViewConfig.maximize_and_zoom view_id
 
     screen <- maybe (Cmd.get_screen (0, 0)) view_screen
         =<< Cmd.lookup_focused_view

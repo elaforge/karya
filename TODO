@@ -52,7 +52,7 @@ UNSORTED
       +cresc or +dim on a note.
     - Figure out how to map continuous controls, and crossfade.
 
-  - double click isn't creating a fitted view?
+  * double click isn't creating a fitted view?
   - Track caching is too fragile, if I add a track with scope over everything
     then I get no caching.  Instead I should cache the bottom note track, or
     perhaps every note track.  That doesn't work because they're all sliced
