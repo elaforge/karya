@@ -1,0 +1,33 @@
+It turns out one of the central themes of the score language is controlling
+evaluation order.
+
+The whole mechanism of a dynamic environment is to delay the implementation of
+various attributes until some call wants to interpret it.  For example,
+you may want to set a tempo signal at the global level which means it gets
+evaluated first, but delay the actual interpretation to individual calls,
+which lets them implement things like constant-time ornaments.  A call is
+interpreted at the position it appears in the score, so if it wants to
+put off decisions it can set a control, env val or attribute to delay
+the decision until some other call or the performer knows what to do with it.
+
+A transformer call also has control over when it is applied: if wants to
+apply abstract changes it can set controls in its deriver, or if it wants to
+delay until the score event level, it can evaluate the deriver and operate
+on the resulting events.
+
+This interaction gets complicated even for simple-seeming ornaments like a
+gender ngoret, which is a grace note that also affects the damp time of the
+preceding note.  It needs to know the pitch of its note along with the previous
+note, so it runs at call time, which is where the track is still visible.
+However, that's still not enough because it also extends the duration of the
+previous note, and a call can't modify something that has already happened.  So
+it leaves an attribute on the emitted grace note and a subsequent postproc has
+to fix up the durations and remove the attribute.  The whole thing is awkward
+and complicated, so hopefully some day I can think of a better way.
+
+Actually, postproc calls can reconstruct the track neighbors by examining the
+stack, but it doesn't work for neighbors that cross block boundaries.
+
+Inversion delays note evaluation until the control happens.
+
+PitchSignals delay pitch evaluation until all the transposition is available.

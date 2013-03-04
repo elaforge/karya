@@ -1,0 +1,34 @@
+Problem arises trying to add different attributes, specifically with if-ly and
+no-ly.
+
+You can't have overlapping events, or rather you can, but they will
+duplicate notes.  So given
+
+x   a
+| y b
+z | c
+
+This becomes (x (y [a, b, c]) <> (z (y [b, c]))
+TODO I think, verify.  What does slicing do when it doesn't overlap?
+
+If I wanted these to apply how the "should", then I might need
+a fundamentally different approach.  Namely:
+Create [Note] from [a, b, c].  Then select the ones that 'y' overlaps, and
+pass them to 'y', which produces [Note].  Select the ones that overlap 'x'
+and pass to 'x', likewise with 'z'.
+This still isn't quite right, because I want 'y' to apply to the output of
+'a' and 'b' regardless of where the Notes are, e.g. if they are jittered
+a bit they shouldn't be able to escape y's scope.  To do that I have to
+divide them up before calling anything, so I wind up with:
+
+x [a, y b]
+z (y [c])
+
+This would get rid of the orphans mess and let me write overlapping events.
+What about tuplets?
+
+
+Another solution would be for slice to cut events that extend before or after.
+This would have the effect of splitting the overlapping events into
+non-overlapping ones.  It seems like it might have surprising effects if the
+events have a non-uniform effect on their children.

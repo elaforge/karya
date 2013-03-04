@@ -3,8 +3,9 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
+  - come up with a solution for overlapping children, e.g.
+    doc/dev_notes/note_tracks
   * ly render a block needs to emit leading rests
-  - in Lily, convert add_code to add_event_code
   viola-sonata ly:
     * 8.2 slurs aren't showing up
       That's because of how ( applies directly to subnotes, it only ever works
