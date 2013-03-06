@@ -298,6 +298,11 @@ expon n x = x**exp
 
 -- ** control modification
 
+multiply_dyn :: (Double -> Double) -> RealTime -> Signal.Y -> RealTime
+    -> Signal.Y -> Derive.Deriver ()
+multiply_dyn = multiply_control Score.c_dynamic
+
+-- | Emit a multiplying modify control.
 multiply_control :: Score.Control -> (Double -> Double)
     -> RealTime -> Signal.Y -> RealTime -> Signal.Y -> Derive.Deriver ()
 multiply_control control f x1 y1 x2 y2 = do

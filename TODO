@@ -1114,7 +1114,7 @@ Derive:
       beats.  This means Derive has to have access to the rulers.
 
   pitch calls:
-    - approach and lower dyn
+    * approach and lower dyn
     - accelerating trill
     - overshoot pitch call, e.g. indian style
 

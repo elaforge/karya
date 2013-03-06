@@ -87,6 +87,7 @@ pitch_calls = Derive.make_calls
     , ("d", c_down)
 
     , ("drop", c_drop)
+    , ("ad", c_approach_dyn)
     ]
 
 -- | This should contain the calls that require the previous value.  It's used
@@ -219,12 +220,17 @@ c_approach = Derive.generator1 "approach" Tags.next
     "Slide to the next pitch." $ Sig.call
     ( defaulted "time" (TrackLang.real 0.2) "Time to get to destination pitch."
     ) $ \(TrackLang.DefaultReal time) args -> do
-        maybe_next <- next_pitch args
         (start, end) <- Util.duration_from_start args time
-        case (Args.prev_val args, maybe_next) of
-            (Just (_, prev), Just next) ->
-                make_interpolator id True start prev end next
-            _ -> Util.pitch_signal []
+        approach args start end
+
+approach :: Derive.PassedArgs PitchSignal.Signal -> RealTime -> RealTime
+    -> Derive.Deriver PitchSignal.Signal
+approach args start end = do
+    maybe_next <- next_pitch args
+    case (Args.prev_val args, maybe_next) of
+        (Just (_, prev), Just next) ->
+            make_interpolator id True start prev end next
+        _ -> Util.pitch_signal []
 
 next_pitch :: Derive.PassedArgs d -> Derive.Deriver (Maybe PitchSignal.Pitch)
 next_pitch = maybe (return Nothing) eval_pitch . Seq.head . Args.next_events
@@ -283,8 +289,20 @@ drop_call :: RealTime -> RealTime -> PitchSignal.Pitch -> Pitch.Transpose
 drop_call start end prev_pitch interval = do
     let dest = Pitches.transpose
             (Pitch.modify_transpose negate interval) prev_pitch
-    Control.multiply_control Score.c_dynamic id start 1 end 0
+    Control.multiply_dyn id start 1 end 0
     make_interpolator id False start prev_pitch end dest
+
+c_approach_dyn :: Derive.PitchCall
+c_approach_dyn = Derive.generator1 "approach-dyn" (Tags.cmod <> Tags.next)
+    "Like `approach`, slide to the next pitch, but also drop the `dyn`."
+    $ Sig.call ((,)
+    <$> defaulted "time" (TrackLang.real 0.2)
+        "Time to get to destination pitch and dyn."
+    <*> defaulted "dyn" 0.25 "Drop `dyn` by this factor."
+    ) $ \(TrackLang.DefaultReal time, dyn) args -> do
+        (start, end) <- Util.duration_from_start args time
+        Control.multiply_dyn id start 1 end dyn
+        approach args start end
 
 -- * util
 
