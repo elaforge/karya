@@ -209,7 +209,7 @@ TrackTile::get_track_width(int tracknum) const
 void
 TrackTile::set_track_width(int tracknum, int width)
 {
-    ASSERT(width > 0);
+    width = std::max(3, width);
     TrackView *track = this->track_at(tracknum);
     if (track->track_resizable())
         width = std::max(this->minimum_size.x, width);
