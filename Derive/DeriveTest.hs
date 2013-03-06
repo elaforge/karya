@@ -237,8 +237,8 @@ make_damage block tracknum s e = Derive.ScoreDamage
 
 -- ** defaults
 
-with_instrument :: State.State -> State.State
-with_instrument state =
+set_default_instrument :: State.State -> State.State
+set_default_instrument state =
     state { State.state_config = set (State.state_config state) }
     where
     set config = config
@@ -254,7 +254,7 @@ with_key key = Derive.with_val TrackLang.v_key key
 -- | Set UI state defaults that every derivation should have.
 set_defaults :: (State.M m) => m ()
 set_defaults = do
-    State.modify with_instrument
+    State.modify set_default_instrument
     State.modify_default $ \st -> st
         { State.default_key = Just (Pitch.Key "c-maj") }
 

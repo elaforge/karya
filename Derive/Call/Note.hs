@@ -4,7 +4,7 @@ module Derive.Call.Note (
     note_calls
     , c_note, transformed_note, note_call
     , Config(..), use_attributes, no_duration_attributes
-    , default_note
+    , GenerateNote, default_note
     -- * inversion
     , when_under_inversion
     , inverting, inverting_args, inverting_around
@@ -140,8 +140,6 @@ use_attributes = Config True True
 no_duration_attributes :: Config
 no_duration_attributes = Config False False
 
--- | TODO I need a better way than ad-hoc flags to customize the note call,
--- but wait until I have some more uses to see how it will be customized.
 default_note :: Config -> GenerateNote
 default_note config args = do
     start <- Args.real_start args

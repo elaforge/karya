@@ -67,7 +67,7 @@ result_failed res = case result_val res of
 -- | Run cmd with the given tracks.
 run_tracks :: [UiTest.TrackSpec] -> Cmd.CmdId a -> Result a
 run_tracks track_specs =
-    run (DeriveTest.with_instrument ustate) default_cmd_state
+    run (DeriveTest.set_default_instrument ustate) default_cmd_state
     where (_, ustate) = UiTest.run_mkview track_specs
 
 -- | Run a cmd and return everything you could possibly be interested in.

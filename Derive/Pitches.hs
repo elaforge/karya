@@ -41,3 +41,7 @@ transpose (Pitch.Diatonic v) =
 pitch_nn :: PitchSignal.Pitch -> Derive.Deriver Pitch.NoteNumber
 pitch_nn = either (Derive.throw . ("evaluating pitch: " ++) . Pretty.pretty)
     return . PitchSignal.pitch_nn
+
+constant_pitch :: Pitch.NoteNumber -> PitchSignal.Pitch
+constant_pitch nn = PitchSignal.pitch (const (Right nn))
+    (const $ Right $ Pitch.Note $ Pretty.pretty nn)

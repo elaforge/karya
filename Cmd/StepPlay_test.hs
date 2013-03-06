@@ -178,7 +178,7 @@ prepare_blocks :: String -> [UiTest.BlockSpec] -> IO (CmdTest.Result ())
 prepare_blocks focus blocks = CmdTest.update_perf ustate $
         CmdTest.run ustate cstate (return ())
     where
-    ustate = DeriveTest.with_instrument $
+    ustate = DeriveTest.set_default_instrument $
         UiTest.exec State.empty (UiTest.mkviews blocks)
     cstate = CmdTest.default_cmd_state
         { Cmd.state_focused_view = Just (UiTest.mk_vid_name focus) }

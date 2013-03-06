@@ -1,17 +1,26 @@
+{-# LANGUAGE TupleSections #-}
 -- | Vienna Symphonic Library.
 module Local.Instrument.Vsl where
+import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 
 import Util.Control
+import qualified Util.Map as Map
+import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
+
+import qualified Midi.Key as Key
 import qualified Midi.Midi as Midi
+import qualified Derive.Args as Args
 import qualified Derive.Attrs as Attrs
 import qualified Derive.Call.Attribute as Attribute
 import qualified Derive.Call.Note as Note
 import qualified Derive.Call.Ornament as Ornament
 import qualified Derive.Call.Trill as Trill
+import qualified Derive.Call.Util as Util
 import qualified Derive.Derive as Derive
+import qualified Derive.Pitches as Pitches
 import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
 
@@ -33,26 +42,40 @@ synth :: Instrument.SynthName
 synth = "vsl"
 
 patches :: [MidiInst.Patch]
-patches = map (add_code . make_patch) instruments
+patches =
+    [add_code hmap (make_patch inst category)
+        | ((inst, hmap), category) <- instruments]
     where
-    add_code patch = (patch, code)
-        where code = MidiInst.note_calls (note_calls patch)
+    add_code hmap patch = (patch, code)
+        where code = MidiInst.note_calls (note_calls hmap patch)
 
-instruments :: [(VslInst.Instrument, String)]
-instruments = concat
-    [ tag Tag.c_strings VslInst.solo_strings
-    , tag Tag.c_strings VslInst.strings
-    , tag Tag.c_strings VslInst.harps
-    , tag Tag.c_woodwinds VslInst.woodwinds1
-    , tag Tag.c_woodwinds VslInst.woodwinds2
-    , tag Tag.c_brass VslInst.brass1
+instruments :: [((VslInst.Instrument, Maybe HarmonicMap), String)]
+instruments = concatMap tag $
+    (solo_string_instruments, Tag.c_strings)
+    : no_hmap
+    [ (VslInst.strings, Tag.c_strings)
+    , (VslInst.harps, Tag.c_strings)
+    , (VslInst.woodwinds1, Tag.c_woodwinds)
+    , (VslInst.woodwinds2, Tag.c_woodwinds)
+    , (VslInst.brass1, Tag.c_brass)
     ]
-    where tag t = map (flip (,) t)
+    where
+    tag (inst, t) = map (, t) inst
+    no_hmap = map (first (map (, Nothing)))
+
+solo_string_instruments :: [(VslInst.Instrument, Maybe HarmonicMap)]
+solo_string_instruments = map (second Just)
+    [ (VslInst.solo_violin, violin_harmonics)
+    , (VslInst.solo_viola, viola_harmonics)
+    , (VslInst.solo_cello, cello_harmonics)
+    , (VslInst.solo_bass, bass_harmonics)
+    ]
 
 -- | Add various note calls, depending on the attributes that the patch
 -- understands.
-note_calls :: Instrument.Patch -> [(String, Derive.NoteCall)]
-note_calls patch =
+note_calls :: Maybe HarmonicMap -> Instrument.Patch
+    -> [(String, Derive.NoteCall)]
+note_calls maybe_hmap patch =
     with_attr Attrs.trill
         [("tr", Trill.c_attr_trill), ("`tr`", Trill.c_attr_trill)]
     <> with_attr Attrs.trem [("trem", Trill.c_attr_tremolo)]
@@ -64,8 +87,9 @@ note_calls patch =
 
     -- Like the standard note call, but ignore attrs that are already handled
     -- with keyswitches.
-    note_call patch =
-        Note.note_call "" "" (Note.default_note (note_config patch))
+    note_call patch = Note.note_call "" "" $
+        maybe (Note.default_note config) (natural_harmonic config) maybe_hmap
+        where config = note_config patch
     note_config patch = Note.Config
         { Note.config_legato = not $ has_attr Attrs.legato patch
         , Note.config_staccato = not $ has_attr Attrs.staccato patch
@@ -87,13 +111,34 @@ grace_intervals = Map.fromList $
     ++ [(-n, VslInst.grace <> VslInst.down <> attrs) | (n, attrs) <- ints]
     where ints = zip [1..] VslInst.intervals_to_oct
 
+-- | If +harmonic+nat (and optionally a string) attributes are present, try to
+-- play this pitch as a natural harmonic.  That means replacing the pitch and
+-- reapplying the default note call.
+natural_harmonic :: Note.Config -> HarmonicMap -> Note.GenerateNote
+natural_harmonic config (strings, hmap) args = do
+    attrs <- Util.get_attrs
+    with_pitch <- if Score.attrs_contain attrs (Attrs.harmonic <> VslInst.nat)
+        then harmonic_pitch $ List.find (Score.attrs_contain attrs) strings
+        else return id
+    with_pitch $ Note.default_note config args
+    where
+    harmonic_pitch maybe_string = do
+        nn <- Derive.require "note pitch"
+            =<< Derive.nn_at =<< Args.real_start args
+        let pitch = Midi.to_key (round nn)
+        case find_harmonic hmap pitch maybe_string of
+            Nothing -> Derive.throw $ Pretty.pretty pitch <> " unplayable on "
+                <> maybe (Pretty.pretty strings) Pretty.pretty maybe_string
+            Just key -> return $
+                Util.with_pitch (Pitches.constant_pitch (Midi.from_key key))
+
 -- * keyswitches
 
 type Instrument = (Instrument.InstrumentName, [Keyswitch])
 type Keyswitch = (Score.Attributes, [Instrument.Keyswitch])
 
-make_patch :: (VslInst.Instrument, String) -> Instrument.Patch
-make_patch (inst, category) =
+make_patch :: VslInst.Instrument -> String -> Instrument.Patch
+make_patch inst category =
     instrument_patch category (second strip (make_instrument inst))
     where strip = uncurry zip . first strip_attrs . unzip
 
@@ -145,7 +190,7 @@ keys_from low_key = map Instrument.Keyswitch [low_key ..]
 -- | Write matrices to a file for visual reference.
 write_matrices :: IO ()
 write_matrices = writeFile "matrices.txt" $ unlines $
-    map show_matrix (map fst instruments)
+    map show_matrix (map (fst . fst) instruments)
 
 show_matrix :: VslInst.Instrument -> String
 show_matrix (name, _, attrs) =
@@ -203,3 +248,45 @@ expand_ab attrs
         | Score.attrs_contain attrs attr = Just $ strip attrs attr
         | otherwise = Nothing
     strip = Score.attrs_diff
+
+
+-- * natural harmonics
+
+type HarmonicMap = ([OpenString], Map.Map Midi.Key [(OpenString, Midi.Key)])
+type OpenString = Score.Attributes
+
+find_harmonic :: Map.Map Midi.Key [(OpenString, Midi.Key)] -> Midi.Key
+    -> Maybe OpenString -> Maybe Midi.Key
+find_harmonic hmap pitch maybe_str =
+    maybe (fmap snd . Seq.head) lookup maybe_str =<< Map.lookup pitch hmap
+
+harmonic_map :: [(OpenString, Midi.Key)] -> HarmonicMap
+harmonic_map strings = (map fst strings ,) $ Map.multimap $ do
+    (oct, (str, base)) <- zip [0..] strings
+    (key, interval) <- natural_harmonics
+    return (add base interval, (str, add key (oct * 12)))
+    where add key n = Midi.to_key (Midi.from_key key + n)
+
+violin_harmonics, viola_harmonics, cello_harmonics, bass_harmonics
+    :: HarmonicMap
+violin_harmonics = harmonic_map $ map (first Score.attr)
+    [("g", Key.g3), ("d", Key.d4), ("a", Key.a4), ("e", Key.e4)]
+viola_harmonics = harmonic_map $ map (first Score.attr)
+    [("c", Key.c3), ("g", Key.g3), ("d", Key.d4), ("a", Key.a4)]
+cello_harmonics = harmonic_map $ map (first Score.attr)
+    [("c", Key.c2), ("g", Key.g2), ("d", Key.d3), ("a", Key.a3)]
+bass_harmonics = harmonic_map $ map (first Score.attr)
+    [("e", Key.e1), ("a", Key.a1), ("d", Key.d2), ("g", Key.g2)]
+
+natural_harmonics :: [(Midi.Key, Int)]
+natural_harmonics = absolute
+    [ (Key.c3, 0)
+    , (Key.d3, 12)
+    , (Key.e3, 7)
+    , (Key.f3, 5)
+    , (Key.g3, 4)
+    , (Key.gs3, 3)
+    , (Key.a3, 3)
+    , (Key.as3, 2)
+    ]
+    where absolute = uncurry zip . second (drop 1 . scanl (+) 0) . unzip

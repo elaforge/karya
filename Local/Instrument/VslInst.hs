@@ -22,6 +22,7 @@ data Keys = Keys {
     , key_matrix :: Midi.Key
     } deriving (Show)
 
+-- | (name, keyswitch configuration, attributes)
 type Instrument = (String, Keys, [[Attributes]])
 
 -- | Instruments that start above a1 use this.
@@ -43,6 +44,10 @@ solo_strings =
     , ("cello", low_keys, cello)
     , ("bass", high_keys, bass)
     ]
+solo_violin = ("violin", low_keys, violin)
+solo_viola = ("viola", low_keys, viola)
+solo_cello = ("cello", low_keys, cello)
+solo_bass = ("bass", high_keys, bass)
 
 violin =
     [ violin_short_long, violin_dynamics
