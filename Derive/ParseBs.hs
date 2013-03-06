@@ -109,7 +109,9 @@ p_macros replacement = do
     replace = from_string . replacement . to_string
 
 p_macro :: (Text -> Text) -> A.Parser Text
-p_macro replacement = A.char '@' >> replacement <$> p_id
+p_macro replacement = do
+    A.char '@'
+    replacement <$> A.takeWhile1 (A.notInClass " |=)")
 
 p_hs_string :: A.Parser Text
 p_hs_string = fmap (\s -> "\"" <> s <> "\"") $
@@ -300,23 +302,10 @@ p_identifier until = do
             ++ show ident
     return ident
 
--- | Much like 'p_identifier', but for BlockId, RulerId, etc. which are
--- more permissive.
-p_id :: A.Parser Text
-p_id = do
-    ident <- A.takeWhile1 (A.notInClass " |=)")
-    unless (is_id ident) $
-        fail $ "invalid chars in identifier; only [a-z0-9`.-] are accepted: "
-            ++ show ident
-    return ident
-
 -- | ByteString versions of the ones in "Ui.Id".
 is_strict_id :: Text -> Bool
 is_strict_id s = not (B.null s) && Id.ascii_lower (B.head s)
     && B.all Id.is_strict_id_char s
-
-is_id :: Text -> Bool
-is_id s = not (B.null s) && B.all Id.is_id_char s
 
 p_word, p_null_word :: A.Parser Text
 p_word = A.takeWhile1 _word_char
