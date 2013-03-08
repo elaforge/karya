@@ -1055,7 +1055,7 @@ Cmd:
       * track down uses of State.block_ruler_end and see if they shouldn't be
         block_end.
       - undo: why does the clip track change when I redo past a copy?
-      - why does it close the clip window when I do a new copy?
+      * why does it close the clip window when I do a new copy?
       - undo: don't record view-only and clip/-only operations
       * why does the clip block look totally bizarre?
       - it seems like a bug that insert to track 0 pushes the black

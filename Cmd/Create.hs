@@ -186,13 +186,17 @@ generate_block_id ns blocks = generate_id ns no_parent "b" Types.BlockId blocks
 -- | Create a view with the default dimensions.
 unfitted_view :: (State.M m) => BlockId -> m ViewId
 unfitted_view block_id = do
-    block <- State.get_block block_id
-    view_id <- require "view id" . generate_view_id block_id
-        =<< State.gets State.state_views
     (x, y) <- State.gets $ find_rect Nothing Config.view_size
         . map Block.view_rect . Map.elems . State.state_views
     let (w, h) = Config.view_size
     let rect = Rect.xywh x y w h
+    sized_view block_id rect
+
+sized_view :: (State.M m) => BlockId -> Rect.Rect -> m ViewId
+sized_view block_id rect = do
+    view_id <- require "view id" . generate_view_id block_id
+        =<< State.gets State.state_views
+    block <- State.get_block block_id
     State.create_view view_id $ Block.view block block_id rect Config.zoom
 
 -- | This is like 'unfitted_view', but tries to fit the view size to its

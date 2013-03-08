@@ -80,15 +80,15 @@ clip_block_id = Types.BlockId $
 -- Or maybe there can be a setting to automatically open a view on a copied
 -- block.
 state_to_clip :: (Cmd.M m) => State.State -> m ()
-state_to_clip state = state_to_namespace state clip_namespace
+state_to_clip state =
+    reopen_views clip_namespace $ state_to_namespace state clip_namespace
 
 clear_clip :: (Cmd.M m) => m ()
 clear_clip = Transform.destroy_namespace clip_namespace
 
 -- * copy
 
--- | Like 'cmd_copy_selection', but shift the following events back by the
--- selection duration.
+-- | Like 'cmd_copy_selection', but clear the selection after copying it.
 cmd_cut_selection :: (Cmd.M m) => m ()
 cmd_cut_selection = do
     cmd_copy_selection
@@ -111,10 +111,9 @@ selected_to_state block_id selected = State.exec State.empty $ do
     State.set_namespace $ Id.ident_namespace block_id
     State.create_block (Id.unpack_id block_id) ""
         [Block.track (Block.RId State.no_ruler) 0]
-    forM_ (zip [0..] selected) $ \(tracknum, (title, events)) ->
-        Create.track_events block_id State.no_ruler tracknum
-            Config.track_width (Track.track title
-                (Events.map_events Event.strip_stack events))
+    forM_ (zip [1..] selected) $ \(tracknum, (title, events)) ->
+        Create.track_events block_id State.no_ruler tracknum Config.track_width
+            (Track.track title (Events.map_events Event.strip_stack events))
 
 get_selection :: (Cmd.M m) => Selection.SelectedTracks -> m Selected
 get_selection (block_id, tracknums, _, start, end) = do
@@ -216,12 +215,23 @@ stretch (start, end) (clip_s, clip_e) = map reposition
 -- will be flattened into one.  Any collisions will throw an exception.
 state_to_namespace :: (State.M m) => State.State -> Id.Namespace -> m ()
 state_to_namespace state ns = do
+    state <- set_namespace ns state
     Transform.destroy_namespace ns
-    state2 <- set_namespace ns state
     global_st <- State.get
     merged <- State.require_right "merge states"
-        (Transform.merge_states global_st state2)
+        (Transform.merge_states global_st state)
     State.put merged
+
+reopen_views :: (State.M m) => Id.Namespace -> m a -> m a
+reopen_views ns operation = do
+    views <- map snd . filter ((==ns) . Id.ident_namespace . fst) <$>
+        State.gets (Map.toList . State.state_views)
+    result <- operation
+    block_ids <- State.all_block_ids
+    let reopen = filter ((`elem` block_ids) . Block.view_block) views
+    forM_ reopen $ \view ->
+        Create.sized_view (Block.view_block view) (Block.view_rect view)
+    return result
 
 -- | Set all the IDs in the state to be in the given namespace, except rulers.
 -- Collisions will throw.  Rulers are omitted because copy and paste doesn't
