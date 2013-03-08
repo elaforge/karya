@@ -61,9 +61,10 @@ modify_factor view_id f = do
 zoom_to_ruler :: (Cmd.M m) => ViewId -> m ()
 zoom_to_ruler view_id = do
     view <- State.get_view view_id
-    block_end <- State.block_ruler_end (Block.view_block view)
+    block_end <- State.block_end (Block.view_block view)
     let pixels = Block.view_visible_time view
-    let factor = fromIntegral pixels / ScoreTime.to_double block_end
+    let factor = if block_end == 0 then 1
+            else fromIntegral pixels / ScoreTime.to_double block_end
     set_zoom view_id (Types.Zoom 0 factor)
 
 -- * resize
@@ -94,7 +95,7 @@ resize_all = mapM_ (resize_to_fit False) =<< State.all_view_ids
 -- unchanged.
 contents_rect :: (State.M m) => Block.View -> m Rect.Rect
 contents_rect view = do
-    block_end <- State.block_ruler_end (Block.view_block view)
+    block_end <- State.block_end (Block.view_block view)
     block <- State.get_block (Block.view_block view)
     let (x, y) = Rect.upper_left (Block.view_rect view)
         w = sum $ map Block.display_track_width (Block.block_tracks block)

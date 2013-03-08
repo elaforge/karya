@@ -114,9 +114,9 @@ get_tree :: (State.M m) => BlockId -> m (TrackTree.EventsTree, ScoreTime)
 get_tree block_id = do
     info_tree <- TrackTree.strip_disabled_tracks block_id
         =<< TrackTree.get_track_tree block_id
-    block_end <- State.block_ruler_end block_id
-    tree <- TrackTree.events_tree block_end info_tree
-    return (tree, block_end)
+    ruler_end <- State.block_ruler_end block_id
+    tree <- TrackTree.events_tree ruler_end info_tree
+    return (tree, ruler_end)
 
 derive_tree :: ScoreTime -> TrackTree.EventsTree -> Derive.EventDeriver
 derive_tree block_end tree = with_default_tempo (derive_tracks tree)

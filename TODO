@@ -3,6 +3,9 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
+  - rename attr harmonic to harm
+  - I think TrackTree.tevents_end is now redundant
+  - should TrackTree.events_tree_of use ruler end instead of event end?
   - come up with a solution for overlapping children, e.g.
     doc/dev_notes/note_tracks
   * ly render a block needs to emit leading rests
@@ -1048,8 +1051,20 @@ Cmd:
     - It can be really confusing how undo and redo makes windows pop up and
       disappear.  Maybe I should make undo not affect views at all?
     + incremental save
-    - undo also undoes the clipboard, which makes undo, copy, redo, paste
-      useless
+    undo also undoes the clipboard, which makes undo, copy, redo, paste useless
+      * track down uses of State.block_ruler_end and see if they shouldn't be
+        block_end.
+      - undo: why does the clip track change when I redo past a copy?
+      - why does it close the clip window when I do a new copy?
+      - undo: don't record view-only and clip/-only operations
+      * why does the clip block look totally bizarre?
+      - it seems like a bug that insert to track 0 pushes the black
+        placeholder out to become a real track
+      * why doesn't the clip block let me set a selection?
+        Also the scroll bar is tiny, presumably because of length=0
+      - clip block should use the ruler, just to make it easier to look at
+      - clip could also copy over the skeleton
+
     - Add a "revert within selection" that searches backward for the last
       change within the selection.
     - Along those lines, should each block have its own independent history?

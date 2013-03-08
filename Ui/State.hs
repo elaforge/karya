@@ -65,7 +65,7 @@ module Ui.State (
     , set_integrated_block, set_integrated_tracks
     , set_block_config
     , set_edit_box, set_play_box
-    , block_ruler_end, block_event_end
+    , block_ruler_end, block_event_end, block_end
     -- ** skeleton
     , get_skeleton, set_skeleton, modify_skeleton
     , toggle_skeleton_edge, add_edges, remove_edges
@@ -668,6 +668,12 @@ block_event_end block_id = do
     block <- get_block block_id
     track_ends <- mapM track_event_end (Block.block_track_ids block)
     return $ maximum (0 : track_ends)
+
+-- | Get the maximum of ruler end and event end.  The end may still be 0 if the
+-- block is totally empty.
+block_end :: (M m) => BlockId -> m ScoreTime
+block_end block_id =
+    max <$> block_ruler_end block_id <*> block_event_end block_id
 
 -- ** skeleton
 

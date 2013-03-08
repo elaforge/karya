@@ -173,15 +173,15 @@ track_events title events end = TrackEvents
 events_tree_of :: (State.M m) => BlockId -> m EventsTree
 events_tree_of block_id = do
     info_tree <- get_track_tree block_id
-    block_end <- State.block_event_end block_id
-    events_tree block_end info_tree
+    end <- State.block_event_end block_id
+    events_tree end info_tree
 
 events_tree :: (State.M m) => ScoreTime -> TrackTree -> m EventsTree
-events_tree events_end = mapM resolve
+events_tree end = mapM resolve
     where
     resolve (Tree.Node (State.TrackInfo title track_id _) subs) =
         Tree.Node <$> make title track_id <*> mapM resolve subs
     make title track_id = do
         track <- State.get_track track_id
-        return $ (track_events title (Track.track_events track) events_end)
+        return $ (track_events title (Track.track_events track) end)
             { tevents_track_id = Just track_id }

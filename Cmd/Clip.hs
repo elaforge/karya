@@ -172,8 +172,8 @@ cmd_paste_insert :: (Cmd.M m) => m ()
 cmd_paste_insert = do
     (start, end, track_events) <- paste_info
     -- Only shift the tracks that are in clip_events.
-    block_end <- State.block_ruler_end =<< Cmd.get_focused_block
-    mapM_ (ModifyEvents.move_track_events block_end start (end-start) . fst)
+    ruler_end <- State.block_ruler_end =<< Cmd.get_focused_block
+    mapM_ (ModifyEvents.move_track_events ruler_end start (end-start) . fst)
         track_events
     forM_ track_events $ \(track_id, events) ->
         State.insert_events track_id events
@@ -267,7 +267,7 @@ get_paste_area :: (Cmd.M m) =>
     m ([TrackId], [TrackId], ScoreTime, ScoreTime, ScoreTime)
 get_paste_area = do
     (block_id, tracknums, track_ids, start, end) <- Selection.tracks
-    block_end <- State.block_ruler_end block_id
+    ruler_end <- State.block_ruler_end block_id
     clip_block <- State.get_block clip_block_id
     -- If the clip block has any rulers or anything, I skip them.
     let clip_track_ids =
@@ -276,5 +276,5 @@ get_paste_area = do
     -- If start==end, I have to set the end past the end of the clip in case
     -- the last event has dur 0.
     return (track_ids, clip_track_ids, start,
-        min block_end (if start == end then start + clip_end else end),
-        if start == end then block_end else end)
+        min ruler_end (if start == end then start + clip_end else end),
+        if start == end then ruler_end else end)
