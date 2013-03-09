@@ -37,7 +37,7 @@ lookup_attr = Derive.pattern_lookup "attribute starting with `+`" doc $
 
 note_calls :: Derive.NoteCallMap
 note_calls = Derive.make_calls
-    [ ("o", attributed_note Attrs.harmonic)
+    [ ("o", attributed_note Attrs.harm)
     , ("m", attributed_note Attrs.mute)
     , (".", attributed_note Attrs.staccato)
     , ("(", c_legato)

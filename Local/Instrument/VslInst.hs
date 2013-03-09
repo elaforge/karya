@@ -77,7 +77,7 @@ violin_tremolo_trills =
     , trill.acc.half, trill.acc.whole, trill.acc.half.dyn, trill.acc.whole.dyn
     ]
 violin_pizz_legno = [pizz, pizz.secco, pizz.snap, legno]
-violin_harmonics = map (harmonic.)
+violin_harmonics = map (harm.)
     [ art.staccato, art.sus, art.perf.rep, art.gliss.updown
     , nat.sus, nat.rep, nat.gliss.updown
     ]
@@ -142,7 +142,7 @@ viola_dynamics = seconds
     , (pfp.vib, [2, 4])
     ] ++ [fp.vib, sfz.vib, sffz.vib]
 viola_pizz_legno = [pizz, pizz.snap, legno]
-viola_harmonics = map (harmonic.)
+viola_harmonics = map (harm.)
     [ art.staccato, art.sus, art.perf.rep
     , nat.sus, nat.perf.rep, nat.gliss
     ]
@@ -189,7 +189,7 @@ cello_tremolo_trills =
     , trill.acc.half, trill.acc.whole, trill.acc.half.dyn, trill.acc.whole.dyn
     ]
 cello_pizz_legno = [pizz, pizz.secco, pizz.snap, pizz.legno]
-cello_harmonics = map (harmonic.)
+cello_harmonics = map (harm.)
     [art.staccato, art.sus, art.rep, nat.sus, nat.rep, nat.gliss]
 cello_ponticello = map (pont.)
     [ staccato, detache, sus, sus.fa, sus.fa.auto, sfz, sffz
@@ -247,7 +247,7 @@ bass_tremolo_trills =
     , trill.half, trill.whole, trill.half.dyn, trill.whole.dyn
     ]
 bass_pizz_legno = [pizz, pizz.snap, legno]
-bass_harmonics = map (harmonic.)
+bass_harmonics = map (harm.)
     [ art.staccato, art.sus, art.rep, nat.sus, nat.rep, nat.gliss]
 bass_perf_interval = map (perf.) [legato, porta, marcato, spiccato]
 bass_perf_repetition = map (rep.)
@@ -314,8 +314,8 @@ strings_pizz_legno =
     , legno, legno.slow
     ]
 strings_harmonics =
-    [ harmonic.art.staccato, harmonic.art.sus
-    , harmonic.art.sus.fa, harmonic.art.sus.fa.auto, harmonic.art.rep
+    [ harm.art.staccato, harm.art.sus
+    , harm.art.sus.fa, harm.art.sus.fa.auto, harm.art.rep
     ]
 strings_ponticello = map (pont.)
     [ staccato, sus, sus.fa, sus.fa.auto
@@ -410,7 +410,7 @@ harps =
 
 harp1 = [harp1_single_notes, harp1_glissandi, harp1_arpeggios]
 
-harp1_single_notes = [norm, mute, table, harmonic, bisbig, norm.rs.highlow]
+harp1_single_notes = [norm, mute, table, harm, bisbig, norm.rs.highlow]
 harp1_glissandi = map (gliss.)
     [ maj.slow, maj.med, maj.fast, min.slow, min.med, min.fast
     , maj.slow.v2, maj.med.v2, maj.fast.v2
@@ -431,7 +431,7 @@ harp1_arpeggios = map (arpup.notes 3 .)
 harp2 = [harp2_basic_articulations]
 
 harp2_basic_articulations =
-    [ norm, mute, damp, table, nail, harmonic, pedal.gliss
+    [ norm, mute, damp, table, nail, harm, pedal.gliss
     , bisbig, norm.rs, norm.rs.pedal.gliss
     ]
 

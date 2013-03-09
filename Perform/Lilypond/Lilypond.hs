@@ -59,7 +59,7 @@ v_ly_append = TrackLang.Symbol "ly-append"
 -- | Automatically add lilypond code for certain attributes.
 simple_articulations :: [(Score.Attributes, Code)]
 simple_articulations =
-    [ (Attrs.harmonic, "-\\flageolet")
+    [ (Attrs.harm, "-\\flageolet")
     , (Attrs.mute, "-+")
     , (Attrs.marcato, "-^")
     , (Attrs.staccato, "-.")

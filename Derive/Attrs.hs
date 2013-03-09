@@ -51,7 +51,7 @@ whole = attr "whole"
 
 pizz = attr "pizz" -- pizzicato
 snap = attr "snap" -- snap pizz, aka Bartok pizz
-harmonic = attr "harmonic"
+harm = attr "harm"
 
 pont = attr "pont" -- ponticello
 tasto = attr "tasto" -- sul tasto

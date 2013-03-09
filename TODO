@@ -3,7 +3,7 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
-  - rename attr harmonic to harm
+  * rename attr harmonic to harm
   - I think TrackTree.tevents_end is now redundant
   - should TrackTree.events_tree_of use ruler end instead of event end?
   - come up with a solution for overlapping children, e.g.

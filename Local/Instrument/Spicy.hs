@@ -40,14 +40,14 @@ controls =
     , (25, "impedance")
     , (26, "vibrato") -- speed of vibrato
     , (27, "mute") -- amount of palm mute effect
-    , (28, "harmonic")
+    , (28, "harm")
     ]
 
 keyswitches :: [(Score.Attributes, Midi.Key)]
 keyswitches =
     [ (Attrs.legato, Key.b2)
     , (Attrs.mute, Key.c3)
-    , (Attrs.harmonic, Key.cs3)
+    , (Attrs.harm, Key.cs3)
     ]
 
 note_call :: Derive.NoteCall

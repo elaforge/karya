@@ -111,13 +111,13 @@ grace_intervals = Map.fromList $
     ++ [(-n, VslInst.grace <> VslInst.down <> attrs) | (n, attrs) <- ints]
     where ints = zip [1..] VslInst.intervals_to_oct
 
--- | If +harmonic+nat (and optionally a string) attributes are present, try to
+-- | If +harm+nat (and optionally a string) attributes are present, try to
 -- play this pitch as a natural harmonic.  That means replacing the pitch and
 -- reapplying the default note call.
 natural_harmonic :: Note.Config -> HarmonicMap -> Note.GenerateNote
 natural_harmonic config (strings, hmap) args = do
     attrs <- Util.get_attrs
-    with_pitch <- if Score.attrs_contain attrs (Attrs.harmonic <> VslInst.nat)
+    with_pitch <- if Score.attrs_contain attrs (Attrs.harm <> VslInst.nat)
         then harmonic_pitch $ List.find (Score.attrs_contain attrs) strings
         else return id
     with_pitch $ Note.default_note config args
@@ -203,7 +203,7 @@ show_matrix (name, _, attrs) =
         . map (map (abbr . ShowVal.show_val))
     header = take 12 $ map show [1..]
     col_header = take 13 $ map (:"") "-abcdefghijkl"
-    abbr = Seq.replace "staccato" "stac" . Seq.replace "harmonic" "harm"
+    abbr = Seq.replace "staccato" "stac"
     strip = strip_attrs . map (`Score.attrs_diff` variants)
     variants = VslInst.updown <> VslInst.crescdim <> VslInst.highlow
 
