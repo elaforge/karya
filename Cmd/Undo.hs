@@ -152,24 +152,15 @@ load_history name load hist = case Cmd.hist_commit hist of
 -- inherit them from the old state.  It's confusing when undo moves a window,
 -- or a selection, or changes the zoom.
 merge_undo_states :: State.State -> State.State -> State.State
-merge_undo_states new old = new
-    { State.state_views = clip (State.state_views old) $ Map.mapWithKey
+merge_undo_states new old = State.State
+    { State.state_views = keep_clip (State.state_views old) $ Map.mapWithKey
         (merge_view (State.state_views old)) (State.state_views new)
-    , State.state_blocks = clip (State.state_blocks old) $ Map.mapWithKey
+    , State.state_blocks = keep_clip (State.state_blocks old) $ Map.mapWithKey
         (merge_block (State.state_blocks old)) (State.state_blocks new)
-    , State.state_tracks = clip
+    , State.state_tracks = keep_clip
         (State.state_tracks old) (State.state_tracks new)
-    , State.state_config =
-        merge_config (State.state_config new) (State.state_config old)
-    }
-    where
-    clip :: (Id.Ident k, Ord k) => Map.Map k a -> Map.Map k a -> Map.Map k a
-    clip = keep_clip Config.clip_namespace
-
-merge_config :: State.Config -> State.Config -> State.Config
-merge_config new old = new
-    { State.config_namespace = State.config_namespace old
-    , State.config_midi = State.config_midi old
+    , State.state_rulers = State.state_rulers new
+    , State.state_config = State.state_config old
     }
 
 merge_view :: Map.Map ViewId Block.View -> ViewId -> Block.View -> Block.View
@@ -182,11 +173,9 @@ merge_block old_blocks block_id new = case Map.lookup block_id old_blocks of
     Just old -> new { Block.block_config = Block.block_config old }
 
 -- | The contents of the clipboard should be preserved across undo and redo.
-keep_clip :: (Id.Ident k, Ord k) => Id.Namespace -> Map.Map k a
-    -> Map.Map k a -> Map.Map k a
-keep_clip clip_ns old new =
-    Map.union new (Map.filterWithKey (\k _ -> ns k) old)
-    where ns = (==clip_ns) . Id.ident_namespace
+keep_clip :: (Id.Ident k, Ord k) => Map.Map k a -> Map.Map k a -> Map.Map k a
+keep_clip old = Map.union (Map.filterWithKey (\k _ -> ns k) old)
+    where ns = (==Config.clip_namespace) . Id.ident_namespace
 
 
 -- * responder support

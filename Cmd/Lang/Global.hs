@@ -49,6 +49,7 @@ import Cmd.Lang.LRuler ()
 import Cmd.Lang.LTrack ()
 import qualified Cmd.Save as Save
 import qualified Cmd.Selection as Selection
+import qualified Cmd.Simple as Simple
 import qualified Cmd.ViewConfig as ViewConfig
 
 import qualified Derive.Stack as Stack
@@ -224,6 +225,13 @@ show_blocks match = do
     st <- State.get
     return $ Pretty.formatted $
         Map.filterWithKey (\k _ -> match_id match k) (State.state_blocks st)
+
+-- ** tracks
+
+show_track :: TrackId -> Cmd.CmdL Simple.Track
+show_track = Simple.dump_track
+
+-- ** misc
 
 -- | True if the ID contains the given substring.
 match_id :: (Id.Ident id) => String -> id -> Bool
