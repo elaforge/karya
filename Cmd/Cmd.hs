@@ -709,6 +709,12 @@ data HistoryEntry = HistoryEntry {
     -- | Since track event updates are not caught by diff but recorded by
     -- Ui.State, I have to save those too, or else an undo or redo will miss
     -- the event changes.  TODO ugly, can I avoid this?
+    --
+    -- If this HistoryEntry is in the past, these are the updates that took it
+    -- to the future, not the updates emitted by the cmd itself.  If the
+    -- HistoryEntry is in the future, the updates take it to the past, which
+    -- are the updated emitted by the cmd.  So don't be confused if it looks
+    -- like a HistoryEntry has the wrong updates.
     , hist_updates :: ![Update.CmdUpdate]
     -- | Cmds involved creating this entry.
     , hist_names :: ![String]

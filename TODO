@@ -1053,7 +1053,7 @@ Cmd:
     + incremental save
     undo also undoes the clipboard, which makes undo, copy, redo, paste useless
       - collapse CmdTrackEvents before recording
-      - why does copy emit CmdTrackEvents for the entire copied block?
+      * why does copy emit CmdTrackEvents for the entire copied block?
       * track down uses of State.block_ruler_end and see if they shouldn't be
         block_end.
       * undo: why does the clip track change when I redo past a copy?
@@ -1067,6 +1067,8 @@ Cmd:
         Also the scroll bar is tiny, presumably because of length=0
       - clip block should use the ruler, just to make it easier to look at
       - clip could also copy over the skeleton
+        It could use it to make sure the paste is compatible, but that might
+        be more of an annoyance than a convenience.
 
     - Add a "revert within selection" that searches backward for the last
       change within the selection.

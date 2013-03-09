@@ -74,11 +74,8 @@ clip_block_id :: BlockId
 clip_block_id = Types.BlockId $
     Id.unsafe_id clip_namespace Config.clip_block_name
 
--- | Replace the clipboard with the given state.
---
--- TODO If there is an open view on a given block, maybe it can be reopened.
--- Or maybe there can be a setting to automatically open a view on a copied
--- block.
+-- | Replace the clipboard with the given state.  This can be used to load
+-- another score and use the clipboard as a staging area.
 state_to_clip :: (Cmd.M m) => State.State -> m ()
 state_to_clip state =
     reopen_views clip_namespace $ state_to_namespace state clip_namespace
@@ -98,18 +95,19 @@ cmd_cut_selection = do
 cmd_copy_selection :: (Cmd.M m) => m ()
 cmd_copy_selection = do
     selected <- get_selection =<< Selection.tracks_selnum Config.insert_selnum
-    state <- State.require_right "selected_to_state" $
-        selected_to_state clip_block_id selected
-    state_to_clip state
+    reopen_views clip_namespace $ selected_to_block clip_block_id selected
 
 -- | (track_title, events) pairs for each copied track within the copied
 -- selection.
 type Selected = [(String, Events.Events)]
 
-selected_to_state :: BlockId -> Selected -> Either State.Error State.State
-selected_to_state block_id selected = State.exec State.empty $ do
-    State.set_namespace $ Id.ident_namespace block_id
-    State.create_block (Id.unpack_id block_id) ""
+-- | Destroy the existing clip namespace and replace it with a new block
+-- containing the contents of the Selected.
+selected_to_block :: (State.M m) => BlockId -> Selected -> m ()
+selected_to_block block_id selected = do
+    let ns = Id.id_namespace (Id.unpack_id block_id)
+    Transform.destroy_namespace ns
+    block_id <- State.create_block (Id.unpack_id block_id) ""
         [Block.track (Block.RId State.no_ruler) 0]
     forM_ (zip [1..] selected) $ \(tracknum, (title, events)) ->
         Create.track_events block_id State.no_ruler tracknum Config.track_width

@@ -419,12 +419,13 @@ track block_id tracknum title events = do
     track_events block_id ruler_id tracknum Config.track_width
         (Track.track title events)
 
--- | Lowest level track creator.
+-- | Lowest level track creator.  The new TrackId will be in the same namespace
+-- as the given BlockId.
 track_events :: (State.M m) =>
     BlockId -> RulerId -> TrackNum -> Types.Width -> Track.Track -> m TrackId
 track_events block_id ruler_id tracknum width track = do
-    track_id <- require "track id"
-        . generate_track_id block_id "t" =<< State.gets State.state_tracks
+    track_id <- require "track id" . generate_track_id block_id "t"
+        =<< State.gets State.state_tracks
     tid <- State.create_track track_id track
     State.insert_track block_id tracknum
         (Block.track (Block.TId tid ruler_id) width)
