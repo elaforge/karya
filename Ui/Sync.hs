@@ -62,11 +62,8 @@ import Types
 sync :: Track.TrackSignals -> Track.SetStyleHigh -> State.State
     -> [Update.DisplayUpdate] -> IO (Maybe State.Error)
 sync track_signals set_style state updates = do
-    -- TODO: TrackUpdates can overlap.  Merge them together here.
-    -- Technically I can also cancel out all TrackUpdates that only apply to
-    -- newly created views, but this optimization is probably not worth it.
-    result <- State.run state $
-        do_updates track_signals set_style (Update.sort updates)
+    result <- State.run state $ do_updates track_signals set_style $
+        Update.sort (Update.collapse_updates updates)
     return $ case result of
         Left err -> Just err
         -- I reuse State.StateT for convenience, but run_update should

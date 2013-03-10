@@ -352,7 +352,11 @@ merge_into_suppressed (Just (SaveGit.SaveHistory _ _ updates1 names1))
         (SaveGit.SaveHistory state2 commit2 updates2 _) =
     -- Keep the name of the first suppressed cmd.  The rest are likely to be
     -- either duplicates or unrecorded cmds like selection setting.
-    SaveGit.SaveHistory state2 commit2 (updates1 ++ updates2) names1
+    -- The collapse_updates is kind of useless, since both SaveGit.checkpoint
+    -- and Sync.sync will ignore redundant updates, but it does make the
+    -- history look a little nicer.
+    SaveGit.SaveHistory state2 commit2
+        (Update.collapse_updates (updates1 ++ updates2)) names1
 
 should_record :: [Update.UiUpdate] -> Bool
 should_record = not . all Update.is_view_update . filter (not . is_clip_update)

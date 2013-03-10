@@ -1052,7 +1052,7 @@ Cmd:
       disappear.  Maybe I should make undo not affect views at all?
     + incremental save
     undo also undoes the clipboard, which makes undo, copy, redo, paste useless
-      - collapse CmdTrackEvents before recording
+      * collapse CmdTrackEvents before recording
       * why does copy emit CmdTrackEvents for the entire copied block?
       * track down uses of State.block_ruler_end and see if they shouldn't be
         block_end.

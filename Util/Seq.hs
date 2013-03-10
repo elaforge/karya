@@ -340,14 +340,7 @@ diff eq xs ys = Maybe.mapMaybe f (equal_pairs eq xs ys)
     f (Second a) = Just (Right a)
     f _ = Nothing
 
--- * sublists
-
--- | Split into groups of a certain size.
-chunked :: Int -> [a] -> [[a]]
-chunked n xs = case splitAt n xs of
-    ([], []) -> []
-    (pre, []) -> [pre]
-    (pre, post) -> pre : chunked n post
+-- * partition
 
 -- | Partition a list of Eithers into a pair.  Lazy enough to handle an
 -- infinite input list.
@@ -358,6 +351,24 @@ partition_either (x:xs) =
     in case x of
         Left l -> (l:ls, rs)
         Right r -> (ls, r:rs)
+
+partition_with :: (a -> Maybe b) -> [a] -> ([b], [a])
+partition_with f = go
+    where
+    go [] = ([], [])
+    go (x:xs) = case f x of
+        Just b -> (b:bs, as)
+        Nothing -> (bs, x:as)
+        where (bs, as) = go xs
+
+-- * sublists
+
+-- | Split into groups of a certain size.
+chunked :: Int -> [a] -> [[a]]
+chunked n xs = case splitAt n xs of
+    ([], []) -> []
+    (pre, []) -> [pre]
+    (pre, post) -> pre : chunked n post
 
 -- | Take a list of rows to a list of columns.  Similar to zip, the result is
 -- trimmed to the length of the shortest row.
