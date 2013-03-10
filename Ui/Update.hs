@@ -16,6 +16,7 @@ import qualified Util.Seq as Seq
 
 import qualified Ui.Block as Block
 import qualified Ui.Color as Color
+import qualified Ui.Id as Id
 import qualified Ui.Ruler as Ruler
 import qualified Ui.Skeleton as Skeleton
 import qualified Ui.StateConfig as StateConfig
@@ -180,6 +181,24 @@ instance Pretty.Pretty State where
 
 instance Pretty.Pretty CmdUpdate where
     pretty = show
+
+update_id :: Update t State -> Maybe Id.Id
+update_id u = case u of
+    View view_id _ -> ident view_id
+    Block block_id _ -> ident block_id
+    Track track_id _ -> ident track_id
+    Ruler ruler_id -> ident ruler_id
+    State st -> case st of
+        Config {} -> Nothing
+        CreateBlock block_id _ -> ident block_id
+        DestroyBlock block_id -> ident block_id
+        CreateTrack track_id _ -> ident track_id
+        DestroyTrack track_id -> ident track_id
+        CreateRuler ruler_id _ -> ident ruler_id
+        DestroyRuler ruler_id -> ident ruler_id
+    where
+    ident :: (Id.Ident a) => a -> Maybe Id.Id
+    ident = Just . Id.unpack_id
 
 -- | Convert a UiUpdate to a DisplayUpdate by stripping out all the UiUpdate
 -- parts.

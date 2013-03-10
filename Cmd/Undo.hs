@@ -177,6 +177,12 @@ keep_clip :: (Id.Ident k, Ord k) => Map.Map k a -> Map.Map k a -> Map.Map k a
 keep_clip old = Map.union (Map.filterWithKey (\k _ -> ns k) old)
     where ns = (==Config.clip_namespace) . Id.ident_namespace
 
+-- | Since 'keep_clip' makes sure the clip\/ namespace doesn't participate in
+-- undo\/redo, I don't need to record if I have only those kind of updates.
+is_clip_update :: Update.UiUpdate -> Bool
+is_clip_update = maybe False ((==Config.clip_namespace) . Id.id_namespace)
+    . Update.update_id
+
 
 -- * responder support
 
@@ -349,4 +355,4 @@ merge_into_suppressed (Just (SaveGit.SaveHistory _ _ updates1 names1))
     SaveGit.SaveHistory state2 commit2 (updates1 ++ updates2) names1
 
 should_record :: [Update.UiUpdate] -> Bool
-should_record = not . all Update.is_view_update
+should_record = not . all Update.is_view_update . filter (not . is_clip_update)
