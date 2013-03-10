@@ -244,6 +244,9 @@ find_play_pos inv_tempo = block_pos_to_play_pos . inv_tempo
 
 -- | Do all the annoying shuffling around to convert the deriver-oriented
 -- blocks and tracks to the view-oriented views and tracknums.
+--
+-- This function has to be careful to not throw on non-existent IDs, because
+-- it's called from the monitor_loop.
 block_pos_to_play_pos :: (State.M m) => [(BlockId, [(TrackId, ScoreTime)])]
     -> m [(ViewId, [(TrackNum, ScoreTime)])]
 block_pos_to_play_pos = concatMapM convert
@@ -252,9 +255,11 @@ convert :: (State.M m) => (BlockId, [(TrackId, ScoreTime)])
     -> m [(ViewId, [(TrackNum, ScoreTime)])]
 convert (block_id, track_pos) = do
     view_ids <- Map.keys <$> State.views_of block_id
-    block <- State.get_block block_id
-    let tracknum_pos = concatMap (tracknums_of block) track_pos
-    return [(view_id, tracknum_pos) | view_id <- view_ids]
+    State.lookup_block block_id >>= \x -> return $ case x of
+        Nothing -> []
+        Just block ->
+            let tracknum_pos = concatMap (tracknums_of block) track_pos
+            in [(view_id, tracknum_pos) | view_id <- view_ids]
 
 tracknums_of :: Block.Block -> (TrackId, ScoreTime) -> [(TrackNum, ScoreTime)]
 tracknums_of block (track_id, pos) =

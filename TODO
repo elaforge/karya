@@ -3,6 +3,12 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
+  * destroy a block while playing, get a lot of
+    **** Cmd/PlayC.hs:150 [monitor_loop] - state error in play monitor: Error
+    "State.lookup: unknown (bid \"kendang-telek/b4\")"
+  - It's awkward how cmd-s sets the prev event, but cmd-z does the current one
+  - save/bug-no-cnt-dmg - in awit2-2, change dyn and kendang blocks below
+    don't pick up the dyn change
   * rename attr harmonic to harm
   - I think TrackTree.tevents_end is now redundant
   - should TrackTree.events_tree_of use ruler end instead of event end?
@@ -1050,7 +1056,7 @@ Cmd:
       name.
     - It can be really confusing how undo and redo makes windows pop up and
       disappear.  Maybe I should make undo not affect views at all?
-    + incremental save
+    * incremental save
     undo also undoes the clipboard, which makes undo, copy, redo, paste useless
       * collapse CmdTrackEvents before recording
       * why does copy emit CmdTrackEvents for the entire copied block?
