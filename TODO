@@ -10,8 +10,8 @@ UNSORTED
   - save/bug-no-cnt-dmg - in awit2-2, change dyn and kendang blocks below
     don't pick up the dyn change
   * rename attr harmonic to harm
-  - I think TrackTree.tevents_end is now redundant
-  - should TrackTree.events_tree_of use ruler end instead of event end?
+  / I think TrackTree.tevents_end is now redundant
+  * should TrackTree.events_tree_of use ruler end instead of event end?
   - come up with a solution for overlapping children, e.g.
     doc/dev_notes/note_tracks
   * ly render a block needs to emit leading rests

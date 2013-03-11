@@ -108,10 +108,11 @@ data TrackEvents = TrackEvents {
     -- pre-invert value, which is likely to not have the right scale.
     , tevents_track_id :: !(Maybe TrackId)
 
-    -- | Tracks often extend beyond the end of the last event.  The derivers
-    -- need to know the track end to get the controls of the last note, and
-    -- for the block stretch hack.  Note that this is the end of the longest
-    -- track of the block, so it's not the same as @snd . tevents_range@.
+    -- | The relative end of this slice of track.  This is different from @snd
+    -- . tevents_range@ because it gets shifted after slicing to be relative to
+    -- the sliced note, while tevents_range always reflects the absolute track
+    -- range.  So the difference between the two is how much this slice has
+    -- been shifted.
     , tevents_end :: !ScoreTime
 
     -- | Range of the track.  This may be past the end of the last event since
@@ -122,10 +123,6 @@ data TrackEvents = TrackEvents {
     -- damage outside of its range.
     --
     -- This is a (start, end) range, not (start, dur).
-    --
-    -- Tracks often extend beyond the end of the last event.  The derivers
-    -- need to know the track end to get the controls of the last note, and
-    -- for the block stretch hack.
     , tevents_range :: !(ScoreTime, ScoreTime)
     -- | True if this is a sliced track.  That means it's a fragment of
     -- a track and so certain track-level things, like recording a track
@@ -173,7 +170,7 @@ track_events title events end = TrackEvents
 events_tree_of :: (State.M m) => BlockId -> m EventsTree
 events_tree_of block_id = do
     info_tree <- get_track_tree block_id
-    end <- State.block_event_end block_id
+    end <- State.block_ruler_end block_id
     events_tree end info_tree
 
 events_tree :: (State.M m) => ScoreTime -> TrackTree -> m EventsTree
