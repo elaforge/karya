@@ -6,7 +6,7 @@ UNSORTED
   * destroy a block while playing, get a lot of
     **** Cmd/PlayC.hs:150 [monitor_loop] - state error in play monitor: Error
     "State.lookup: unknown (bid \"kendang-telek/b4\")"
-  - It's awkward how cmd-s sets the prev event, but cmd-z does the current one
+  * It's awkward how cmd-s sets the prev event, but cmd-z does the current one
   - save/bug-no-cnt-dmg - in awit2-2, change dyn and kendang blocks below
     don't pick up the dyn change
   * rename attr harmonic to harm

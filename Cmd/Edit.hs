@@ -92,14 +92,6 @@ insert_event text dur = do
     (_, _, track_id, pos) <- Selection.get_insert
     State.insert_event track_id $ Event.event pos dur text
 
--- | This can be used to extend the length of a block so when it is subderived
--- it has the right length.
---
--- If it's more convenient, I could remove any existing "--" events before
--- inserting the new one.
-cmd_insert_track_end :: (Cmd.M m) => m ()
-cmd_insert_track_end = insert_event "--" 0
-
 -- | Different from insert/delete time since it only modifies one event.
 -- Move back the next event, or move down the previous event.  If the
 -- selection is non-zero, the event's duration will be modified to the
@@ -137,39 +129,32 @@ move_event get_event = do
 -- This is more useful than reducing the event to 0, which has its own cmd
 -- anyway.
 cmd_set_duration :: (Cmd.M m) => m ()
-cmd_set_duration = do
+cmd_set_duration = modify_prev $ \sel_pos event ->
+    set_dur (sel_pos - Event.start event) event
+
+-- | Similar to 'ModifyEvents.event', but if the selection is a point, modify
+-- the previous event.  Also, pass the end of the selection.
+modify_prev :: (Cmd.M m) => (ScoreTime -> ModifyEvents.Event) -> m ()
+modify_prev modify = do
     (_, sel) <- Selection.get
-    (if Types.sel_is_point sel then set_prev_dur else set_sel_dur)
+    (if Types.sel_is_point sel then modify_prev else modify_events)
         (snd (Types.sel_range sel))
     where
-    set_sel_dur sel_pos = ModifyEvents.selection $ ModifyEvents.event $
-        \event -> set_dur (sel_pos - Event.start event) event
-    set_prev_dur sel_pos = do
+    modify_events = ModifyEvents.selection . ModifyEvents.event . modify
+    modify_prev sel_pos = do
         -- Wow it's a lot of work as soon as it's not the standard selection.
         (_, _, track_ids, _, _) <- Selection.tracks
         forM_ track_ids $ \track_id -> do
             prev <- Seq.head . fst . Events.split sel_pos . Track.track_events
                 <$> State.get_track track_id
-            when_just prev $ \event -> State.insert_event track_id $
-                set_dur (sel_pos - Event.start event) event
+            when_just prev $ State.insert_event track_id . modify sel_pos
 
--- | Toggle duration between zero and non-zero.
---
--- If the event is non-zero, then make it zero.  Otherwise, set its end to the
--- cursor.  Unless the cursor is on the event start, and then extend it by
--- a timestep.
+-- | This is like 'cmd_set_duration', except it toggles duration between zero
+-- and non-zero
 cmd_toggle_zero_duration :: (Cmd.M m) => m ()
-cmd_toggle_zero_duration = do
-    (_, sel) <- Selection.get
-    let point = Selection.point sel
-    (_, end) <- expand_range [Selection.point_track sel] point point
-    ModifyEvents.selection $ ModifyEvents.event (toggle end point)
-    where
-    toggle end point event
-        | Event.duration event /= 0 = Event.set_duration 0 event
-        | pos == point = Event.set_duration (end - pos) event
-        | otherwise = Event.set_duration (point - pos) event
-        where pos = Event.start event
+cmd_toggle_zero_duration = modify_prev $ \sel_pos event ->
+    if Event.duration event /= 0 then Event.set_duration 0 event
+        else Event.set_duration (sel_pos - Event.start event) event
 
 -- | Move only the beginning of an event.  As is usual for zero duration
 -- events, their duration will not be changed so this is equivalent to a move.
