@@ -7,17 +7,22 @@ import qualified Data.Text as Text
 import qualified Data.Text.IO as Text.IO
 
 import Util.Control
+import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
+
 import qualified Ui.Block as Block
 import qualified Ui.Event as Event
+import qualified Ui.Events as Events
 import qualified Ui.Id as Id
 import qualified Ui.State as State
+import qualified Ui.Track as Track
 import qualified Ui.Types as Types
 
 import qualified Cmd.BlockConfig as BlockConfig
 import qualified Cmd.CallDoc as CallDoc
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Create as Create
+import qualified Cmd.Lang.Util as Util
 import qualified Cmd.ModifyEvents as ModifyEvents
 import qualified Cmd.PitchTrack as PitchTrack
 import qualified Cmd.Selection as Selection
@@ -36,6 +41,28 @@ list = do
     view_blocks <- State.gets $
         map Block.view_block . Map.elems . State.state_views
     return [(block_id, Seq.count block_id view_blocks) | block_id <- block_ids]
+
+-- | Show blocks that match the string, along with their tracks and event
+-- counts.
+like :: (State.M m) => String -> m String
+like match = do
+    tracks <- State.gets State.state_tracks
+    view_blocks <- State.gets $
+        map Block.view_block . Map.elems . State.state_views
+    blocks <- State.gets State.state_blocks
+    return $ Pretty.formatted $ Map.mapWithKey
+        (pretty_tracks view_blocks tracks) (Util.match_map match blocks)
+    where
+    pretty_tracks view_blocks tracks block_id block =
+        Pretty.format (Block.block_title block)
+            Pretty.<+> Pretty.text ("(" ++ show views ++ " views)")
+            Pretty.<+> Pretty.text_list (map track (Block.block_tracks block))
+        where
+        track t = Pretty.pretty (Block.tracklike_id t)
+            ++ " (" ++ show (track_events t) ++ " events)"
+        views = Seq.count block_id view_blocks
+        get = flip Map.lookup tracks <=< Block.track_id_of . Block.tracklike_id
+        track_events = maybe 0 (Events.length . Track.track_events) . get
 
 -- * doc
 

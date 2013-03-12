@@ -25,7 +25,6 @@
     more specialized can go in Cmd.Lang.L* modules.
 -}
 module Cmd.Lang.Global where
-import qualified Data.List as List
 import qualified Data.Map as Map
 
 import Util.Control
@@ -47,6 +46,7 @@ import Cmd.Lang.LPerf ()
 import Cmd.Lang.LPitch ()
 import Cmd.Lang.LRuler ()
 import Cmd.Lang.LTrack ()
+import qualified Cmd.Lang.Util as Util
 import qualified Cmd.Save as Save
 import qualified Cmd.Selection as Selection
 import qualified Cmd.Simple as Simple
@@ -210,8 +210,7 @@ get_views = State.gets (Map.keys . State.state_views)
 show_views :: String -> Cmd.CmdL String
 show_views match = do
     st <- State.get
-    return $ Pretty.formatted $
-        Map.filterWithKey (\k _ -> match_id match k) (State.state_views st)
+    return $ Pretty.formatted $ Util.match_map match (State.state_views st)
 
 -- ** blocks
 
@@ -223,8 +222,7 @@ show_block block_id = Pretty.formatted <$> State.get_block block_id
 show_blocks :: String -> Cmd.CmdL String
 show_blocks match = do
     st <- State.get
-    return $ Pretty.formatted $
-        Map.filterWithKey (\k _ -> match_id match k) (State.state_blocks st)
+    return $ Pretty.formatted $ Util.match_map match (State.state_blocks st)
 
 -- ** tracks
 
@@ -232,10 +230,6 @@ show_track :: TrackId -> Cmd.CmdL Simple.Track
 show_track = Simple.dump_track
 
 -- ** misc
-
--- | True if the ID contains the given substring.
-match_id :: (Id.Ident id) => String -> id -> Bool
-match_id sub = (sub `List.isInfixOf`) . Id.show_id . Id.unpack_id
 
 collapse_track, expand_track :: BlockId -> TrackNum -> Cmd.CmdL ()
 collapse_track block_id tracknum = do

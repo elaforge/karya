@@ -40,11 +40,13 @@ UNSORTED
     - b13 silent
   - I can have regression tests that assert a score still derives the same
     way.
-  - Maybe I can get rid of named marklists.  If I'm willing to have cues cause
+  / Maybe I can get rid of named marklists.  If I'm willing to have cues cause
     a new ruler, then I can just mix them together, and put cues at rank -1
     or something.  Otherwise I can have them nameless and mixed by TimeStep
     implicitly, with cues still being -1 so timesteps don't count them
     unexpectedly.  Or just start at 0 and make meters start at 1.
+    Of course, in theory I can use multiple marklists to have two meters
+    simultaneously, so it seems like this flexibility may still be useful.
   vsl
     - dyn# should be 'dyn . crescdim . rep#'
       cre# should be just 'cresc . rep#'
@@ -76,7 +78,6 @@ UNSORTED
   - adding an intervening note track seems to mess up the signal render
     in default untitled, change tempo track to a note track, pitch track
     render changes
-  - Do profiles again with Data.Text instead of ByteString.
   - network midi doesn't seem to handle abort?
     playing the second time doesn't happen
   - StepPlay gets messed up by tuplets and the like.  Maybe it should step
@@ -86,7 +87,6 @@ UNSORTED
   / per-instrument binds e.g. kendang, should work without kbd entry
     However, that means I take over NoEdit for audition, and that means that
     un-modified keys are unreliable even in NoEdit mode.
-  - Should fltk collapse adjacent dividers?
   - maybe new control tracks should start with line render?
 
   - can I cache long blocks by slicing them if they're >n?
@@ -103,32 +103,8 @@ UNSORTED
     But filtering the midi shows dyn controls mixed into both channels.
   - the signal doesn't update if I change the default environ assignment on
     another track
-
-  make TrackLang.Symbol into ByteString?
-    . means fewer conversions
-    . maybe faster lookups
-    . But ByteString is not necessarily more compact for small strings, e.g.
-      1 char = 4 words, 2 char = 8 words
-    . Actually space isn't a big concern, it's probably more about looking
-      up in maps, bytestrings may be faster, but on the other hand strings can
-      abort early in comparison.
-    . Also ByteString is pinned.
-    / I think the number of calls is actually not that high.  Doesn't seem
-      worth it.
   / Score.instrument should strip invalid chars
     The thing is, MidiDb strips them before joining them with the synth name.
-  scrolling through giant blocks is slow
-    - drawing is stil slow, I'll have to look at the fltk layer
-      It happens when the block is wide.  Use test_block to see if it's just
-      fltk.
-      . It's fltk.  Not alpha draw though.
-      Scrolling is weirdly chunky near the top when fl_scroll() is on.
-      Curiously it doesn't seem to help at all.
-    - Would it be faster to call fl_scroll once for all the tracks?  I could
-      also theoretically call find_events all at once too, though that
-      shows up low on the profile, so maybe it's not a big deal.
-    . The thing is, it seems like fl_scroll doesn't actually help scrolling
-      speed at all.  Maybe all the time is spent elsewhere?
 
   * NoteTransformers apply a transformer to notes.  So why can't I apply
     any transformer as a note transformer?  NoteTransformers are actually more
@@ -141,12 +117,6 @@ UNSORTED
     Then 'harmonic' is the same as 'n +harmonic |' is the same as
     'attrs = +harmonic'
     But "" is already inverting!
-  - the same place that updates the status could use updates to clear caches
-    for cmds or for TimeStep
-    Clear when: inst changed, so if any performance was regenerated.  In fact,
-    if I put the cache in the performance then this happens automatically.
-    But where do I put it while the performance is still waiting?  I guess
-    I can stick stuff in the performance without forcing the events.
 
   - doesn't seem to save track widths, I keep making it narrow but reload it's
     still wide.
@@ -167,7 +137,7 @@ UNSORTED
     and ngoret ornaments set an attribute or something so it knows which ones
     to extend.
   calls to define randomized scores:
-    - how could I omit a transformer?
+    * how could I omit a transformer?  alternate with 'id'
   - Pretty on a lot of events causes a stack overflow
     Need a reproduction.
     I should extend Util.Format so I can use it for Util.Pretty.
@@ -669,6 +639,36 @@ cleanup:
     once.
 
 performance:
+  make TrackLang.Symbol into ByteString?
+    . means fewer conversions
+    . maybe faster lookups
+    . But ByteString is not necessarily more compact for small strings, e.g.
+      1 char = 4 words, 2 char = 8 words
+    . Actually space isn't a big concern, it's probably more about looking
+      up in maps, bytestrings may be faster, but on the other hand strings can
+      abort early in comparison.
+    . Also ByteString is pinned.
+    / I think the number of calls is actually not that high.  Doesn't seem
+      worth it.
+  - Do profiles again with Data.Text instead of ByteString.
+  scrolling through giant blocks is slow
+    - drawing is stil slow, I'll have to look at the fltk layer
+      It happens when the block is wide.  Use test_block to see if it's just
+      fltk.
+      . It's fltk.  Not alpha draw though.
+      Scrolling is weirdly chunky near the top when fl_scroll() is on.
+      Curiously it doesn't seem to help at all.
+    - Would it be faster to call fl_scroll once for all the tracks?  I could
+      also theoretically call find_events all at once too, though that
+      shows up low on the profile, so maybe it's not a big deal.
+    . The thing is, it seems like fl_scroll doesn't actually help scrolling
+      speed at all.  Maybe all the time is spent elsewhere?
+  - the same place that updates the status could use updates to clear caches
+    for cmds or for TimeStep
+    Clear when: inst changed, so if any performance was regenerated.  In fact,
+    if I put the cache in the performance then this happens automatically.
+    But where do I put it while the performance is still waiting?  I guess
+    I can stick stuff in the performance without forcing the events.
   - look into Debug.Trace.traceEventIO to see how long various things take as
     in http://www.yesodweb.com/blog/2012/10/future-work-warp
   efficient signals
@@ -759,6 +759,7 @@ symbolic score
   - find or make a font with gong che pu
 
 fltk:
+  - Should fltk collapse adjacent dividers?
   - If I wrapped track titles I could see the entire thing, but at the cost of
     using more vertical space.
   - There's a focus bug, but I'm not sure how to reproduce it.
@@ -1056,6 +1057,9 @@ Cmd:
       name.
     - It can be really confusing how undo and redo makes windows pop up and
       disappear.  Maybe I should make undo not affect views at all?
+      They have to go away if the block went away, but otherwise they can
+      remain unaffected.  Of course that means an undo could be undoing
+      something out of sight.  Another case for per-block undo?
     * incremental save
     undo also undoes the clipboard, which makes undo, copy, redo, paste useless
       * collapse CmdTrackEvents before recording
@@ -1066,7 +1070,7 @@ Cmd:
       * why does it close the clip window when I do a new copy?
       * undo: don't record clip/-only operations
       * why does the clip block look totally bizarre?
-      - it seems like a bug that insert to track 0 pushes the black
+      / it seems like a bug that insert to track 0 pushes the black
         placeholder out to become a real track
       * why doesn't the clip block let me set a selection?
         Also the scroll bar is tiny, presumably because of length=0
