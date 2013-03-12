@@ -298,8 +298,10 @@ targetToMode :: FilePath -> Maybe Mode
 targetToMode target = snd <$> List.find ((`List.isPrefixOf` target) . fst)
     (zip (map modeToDir [Debug ..]) [Debug ..])
 
-configure :: IO (Mode -> Config)
-configure = do
+data MidiConfig = StubMidi | JackMidi | CoreMidi deriving (Show, Eq)
+
+configure :: MidiConfig -> IO (Mode -> Config)
+configure midi = do
     ghcLib <- run ghcBinary ["--print-libdir"]
     fltkCs <- words <$> run fltkConfig ["--cflags"]
     fltkLds <- words <$> run fltkConfig ["--ldflags"]
@@ -354,11 +356,12 @@ configure = do
             -- { define = ["-DMAC_OS_X_VERSION_MAX_ALLOWED=1060",
             --     "-DMAC_OS_X_VERSION_MIN_REQUIRED=1050"]
             { define = ["-D__APPLE__"]
-            , midiLibs = words $ "-framework CoreFoundation "
-                ++ "-framework CoreMIDI -framework CoreAudio"
+            , midiLibs = if midi /= CoreMidi then [] else
+                words $ "-framework CoreFoundation "
+                    ++ "-framework CoreMIDI -framework CoreAudio"
             }
         "linux" -> mempty
-            { midiLibs = ["-ljack"]
+            { midiLibs = if midi /= JackMidi then [] else ["-ljack"]
             , define = ["-D__linux__"]
             }
         _ -> mempty -- Use the stub driver.
@@ -399,7 +402,8 @@ main = do
         Environment.getArgs
     when (not (null errors)) $
         error $ "Errors parsing flags: " ++ unlines errors
-    modeConfig <- configure
+    env <- Environment.getEnvironment
+    modeConfig <- configure (midiFromEnv env)
     let options = shakeOptions
             { Shake.shakeThreads =
                 Maybe.fromMaybe (Shake.shakeThreads shakeOptions) $
@@ -409,7 +413,6 @@ main = do
                     mlast [v | Verbosity v <- flags]
             }
     writeGhciFlags modeConfig
-    env <- Environment.getEnvironment
     Shake.shake options $ do
         let infer = inferConfig modeConfig
         setupOracle env (modeConfig Debug)
@@ -492,16 +495,22 @@ setupOracle env config = do
         Shake.addOracle (\(OracleMidi ()) -> return midiDriver)
     return $ Oracle ghc fltk repl midi
     where
-    midiDriver = case lookup "midi" env of
-      Just "stub" -> ""
-      Just "jack" -> "JACK_MIDI"
-      Just "core" -> "CORE_MIDI"
+    midiDriver = case midiFromEnv env of
+        StubMidi -> ""
+        JackMidi -> "JACK_MIDI"
+        CoreMidi -> "CORE_MIDI"
+
+midiFromEnv :: [(String, String)] -> MidiConfig
+midiFromEnv env = case lookup "midi" env of
+      Just "stub" -> StubMidi
+      Just "jack" -> JackMidi
+      Just "core" -> CoreMidi
       Just unknown -> error $ "midi driver should be stub, jack, or core: "
         ++ show unknown
       Nothing -> case System.Info.os of
-          "darwin" -> "CORE_MIDI"
-          "linux" -> "JACK_MIDI"
-          _ -> ""
+          "darwin" -> CoreMidi
+          "linux" -> JackMidi
+          _ -> StubMidi
 
 -- | Write a header to configure the haskell compilation.
 --
