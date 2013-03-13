@@ -144,7 +144,7 @@ cmd_track_all selnum = do
     view_id <- Cmd.get_focused_view
     sel <- Cmd.require =<< State.get_selection view_id selnum
     block_id <- State.block_id_of view_id
-    dur <- State.block_event_end block_id
+    dur <- State.block_end block_id
     tracks <- length . Block.block_tracks <$> State.get_block block_id
     set_selnum view_id selnum (Just (select_track_all dur tracks sel))
 
