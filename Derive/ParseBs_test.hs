@@ -63,6 +63,7 @@ test_parse_expr = do
 
 test_parse_val = do
     let rel mode = Just . VRelativeAttrs . mode . Score.attrs
+        sym = Just . VSymbol . Symbol
     let invertible =
             [ (">", Just $ VInstrument (Score.Instrument ""))
             , (">fu/nny^*", Just $ VInstrument (Score.Instrument "fu/nny^*"))
@@ -86,8 +87,11 @@ test_parse_val = do
             , ("-.5d", Just (VNum (Score.Typed Score.Diatonic (-0.5))))
             , ("1q", Nothing)
 
-            , ("hi", Just (VSymbol (Symbol "hi")))
-            , ("'quinn''s hat'", Just (VSymbol (Symbol "quinn's hat")))
+            , ("sym", sym "sym")
+            , ("'space sym'", sym "space sym")
+            , ("'23'", sym "23")
+            , ("'quinn''s hat'", sym "quinn's hat")
+            , ("s!$_", sym "s!$_")
             , ("'bad string", Nothing)
 
             , ("%", Just $ VControl $ LiteralControl (Score.Control ""))
@@ -110,8 +114,6 @@ test_parse_val = do
             , ("*scale", Just $ VScaleId (Pitch.ScaleId "scale"))
             , ("*bad/scale", Nothing)
 
-            , ("sym", Just $ VSymbol (Symbol "sym"))
-            , ("s!$_", Just $ VSymbol (Symbol "s!$_"))
             , ("$bad", Nothing)
             , ("-", Nothing)
             , ("_", Just VNotGiven)

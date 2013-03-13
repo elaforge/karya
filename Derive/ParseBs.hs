@@ -13,7 +13,7 @@
 -- preserved, but most of the parsers insist on a restrictive character set.
 -- Special characters should probably be written with backticks anyway.
 module Derive.ParseBs (
-    from_string, to_string, ParseExpr
+    from_string, to_string
     , parse_expr
     , parse_control_title
     , parse_val, parse_num, parse_call
@@ -52,9 +52,8 @@ from_string = UTF8.fromString
 to_string :: Text -> String
 to_string = UTF8.toString
 
-type ParseExpr = Text -> Either String TrackLang.Expr
 
-parse_expr :: ParseExpr
+parse_expr :: Text -> Either String TrackLang.Expr
 parse_expr = parse p_pipeline
 
 -- | Parse a control track title.  The first expression in the composition is

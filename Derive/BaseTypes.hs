@@ -24,6 +24,7 @@
 -}
 module Derive.BaseTypes where
 import qualified Control.DeepSeq as DeepSeq
+import qualified Data.Char as Char
 import qualified Data.Map as Map
 import qualified Data.Monoid as Monoid
 import qualified Data.Set as Set
@@ -314,11 +315,19 @@ instance Pretty.Pretty Symbol where pretty = ShowVal.show_val
 
 instance ShowVal.ShowVal Symbol where
     show_val (Symbol s)
-        | ' ' `elem` s = '\'' : concatMap quote s ++ "'"
-        | otherwise = s
+        | parseable = s
+        | otherwise = '\'' : concatMap quote s ++ "'"
         where
+        -- This should be the same as ParseBs.p_symbol.  I can't use it
+        -- directly because that would be a circular import.
+        parseable = case s of
+            c : cs -> (Char.isAlpha c || c == '*')
+                && all (\c -> c /= ' ' && c /= ')') cs
+            [] -> False
         quote '\'' = "''"
         quote c = [c]
+instance ShowVal.ShowVal String where
+    show_val = ShowVal.show_val . Symbol
 
 data RelativeAttrs = Add Attributes | Remove Attributes | Set Attributes
     deriving (Eq, Show)

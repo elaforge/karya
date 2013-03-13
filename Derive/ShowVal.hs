@@ -3,7 +3,6 @@ module Derive.ShowVal where
 import qualified Numeric
 
 import qualified Util.Pretty as Pretty
-import qualified Util.Seq as Seq
 import qualified Ui.ScoreTime as ScoreTime
 import qualified Perform.RealTime as RealTime
 
@@ -35,9 +34,6 @@ instance ShowVal Int where
 
 instance ShowVal Double where
     show_val = Pretty.show_float 3
-
-instance ShowVal String where
-    show_val s = "'" ++ Seq.replace1 '\'' "''" s ++ "'"
 
 instance ShowVal ScoreTime.ScoreTime where
     show_val =
