@@ -123,18 +123,17 @@ unparse_control = unwords . map TrackLang.show_val . unparse_control_vals
 
 unparse_control_vals :: ControlType -> [TrackLang.Val]
 unparse_control_vals ctype = case ctype of
-        Control call control ->
-            let cont = sym (if Score.typed_val control == Score.c_null
-                    then "%" else unparse_typed control)
-            in case call of
-                Nothing -> [cont]
-                Just op -> [TrackLang.VSymbol op, cont]
-        Pitch (Pitch.ScaleId scale_id) name -> sym ('*':scale_id)
-            : maybe [] ((:[]) . sym . ('#':) . uncontrol) name
-        Tempo -> [sym "tempo"]
+    Control call control -> maybe [] ((:[]) . TrackLang.VSymbol) call
+        ++ [control_val control]
+    Pitch scale_id name ->
+        TrackLang.VScaleId scale_id : maybe [] ((:[]) . pitch_control) name
+    Tempo -> [TrackLang.VSymbol $ TrackLang.Symbol "tempo"]
     where
-    sym = TrackLang.VSymbol . TrackLang.Symbol
-    uncontrol (Score.Control c) = c
+    pitch_control = TrackLang.VPitchControl . TrackLang.LiteralControl
+    control_val c
+        | c == Score.untyped Score.c_null = empty_control
+        | otherwise = TrackLang.VSymbol $ TrackLang.Symbol (unparse_typed c)
+    empty_control = TrackLang.VControl $ TrackLang.LiteralControl Score.c_null
 
 -- * note tracks
 

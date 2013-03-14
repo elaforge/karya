@@ -9,7 +9,6 @@ test_parse_control = do
     equal (f "*scale") (Right "*scale")
     equal (f "*scale #") (Right "*scale")
     equal (f "*scale #name") (Right "*scale #name")
-    equal (f "*scale #name") (Right "*scale #name")
     equal (f "tempo") (Right "tempo")
     equal (f "c") (Right "c")
     equal (f "c:d") (Right "c:d")

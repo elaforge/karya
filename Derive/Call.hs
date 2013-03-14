@@ -407,8 +407,8 @@ require_call call_id name =
     maybe (Derive.throw (unknown_call_id name call_id)) return
 
 unknown_call_id :: String -> TrackLang.CallId -> String
-unknown_call_id name call_id =
-    name ++ " call not found: " ++ TrackLang.show_val call_id
+unknown_call_id name (TrackLang.Symbol sym) =
+    name ++ " call not found: " ++ sym
 
 fallback_call_id :: TrackLang.CallId
 fallback_call_id = TrackLang.Symbol ""

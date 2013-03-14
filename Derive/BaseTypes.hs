@@ -323,7 +323,7 @@ instance ShowVal.ShowVal Symbol where
         parseable = case s of
             c : cs -> (Char.isAlpha c || c == '*')
                 && all (\c -> c /= ' ' && c /= ')') cs
-            [] -> False
+            [] -> True -- null call
         quote '\'' = "''"
         quote c = [c]
 instance ShowVal.ShowVal String where
