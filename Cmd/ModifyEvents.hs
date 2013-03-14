@@ -109,6 +109,17 @@ block block_id f = do
 all_blocks :: (Cmd.M m) => Track m -> m ()
 all_blocks f = mapM_ (flip block f) =<< State.all_block_ids
 
+all_tracks_named :: (Cmd.M m) => (String -> Bool) -> Track m -> m ()
+all_tracks_named wanted = all_blocks . tracks_named wanted
+
+all_note_tracks :: (Cmd.M m) => Track m -> m ()
+all_note_tracks = all_tracks_named TrackInfo.is_note_track
+
+all_control_tracks :: (Cmd.M m) => Track m -> m ()
+all_control_tracks = all_tracks_named TrackInfo.is_control_track
+
+all_pitch_tracks :: (Cmd.M m) => Track m -> m ()
+all_pitch_tracks = all_tracks_named TrackInfo.is_pitch_track
 
 -- * misc
 

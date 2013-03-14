@@ -27,9 +27,13 @@ import qualified Cmd.ModifyEvents as ModifyEvents
 import qualified Cmd.PitchTrack as PitchTrack
 import qualified Cmd.Selection as Selection
 
+import qualified Derive.ParseBs as ParseBs
 import qualified Derive.Scale as Scale
 import qualified Derive.Scale.Theory as Theory
 import qualified Derive.Scale.Twelve as Twelve
+import qualified Derive.ShowVal as ShowVal
+import qualified Derive.TrackInfo as TrackInfo
+import qualified Derive.TrackLang as TrackLang
 
 import Types
 
@@ -91,18 +95,39 @@ track_doc = do
 rename :: BlockId -> BlockId -> Cmd.CmdL ()
 rename = Create.rename_block
 
+-- | Rename a block and update all calls to it in all blocks.  This is not
+-- totally accurate since it updates all symbols that match, but it doesn't
+-- know that the symbol would be definitely used as a block call.  So if you
+-- have @clef = treble@ and a block named @treble@, it will update both.  I
+-- could probably solve this by switching back to separate string and symbol
+-- types, but it seems like a minor issue.
+rename_all :: BlockId -> BlockId -> Cmd.CmdL ()
+rename_all from to = do
+    Create.rename_block from to
+    ModifyEvents.all_note_tracks $ ModifyEvents.text $
+        replace_block_call from to
+
 -- | Rename block calls in a single block.
 replace :: BlockId -> BlockId -> Cmd.CmdL ()
 replace from to = do
     block_id <- Cmd.get_focused_block
-    ModifyEvents.block block_id $ ModifyEvents.text $
-        replace_block_call from to
+    ModifyEvents.block block_id $
+        ModifyEvents.tracks_named TrackInfo.is_note_track $
+        ModifyEvents.text $ replace_block_call from to
+
+map_symbol :: (TrackLang.Symbol -> TrackLang.Symbol) -> String -> String
+map_symbol f text =
+    either (const text) (ShowVal.show_val . TrackLang.map_symbol f)
+        (ParseBs.parse_expr (ParseBs.from_string text))
 
 replace_block_call :: BlockId -> BlockId -> String -> String
-replace_block_call from to text
-    | text == Id.ident_name from = Id.ident_name to
-    | text == Id.ident_string from = Id.ident_string to
-    | otherwise = text
+replace_block_call from to =
+    map_symbol $ \(TrackLang.Symbol sym) -> TrackLang.Symbol (f sym)
+    where
+    f sym
+        | sym == Id.ident_name from = Id.ident_name to
+        | sym == Id.ident_string from = Id.ident_string to
+        | otherwise = sym
 
 -- * create
 

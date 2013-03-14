@@ -490,9 +490,8 @@ data Term = ValCall Call | Literal Val deriving (Show)
 instance ShowVal Expr where
     show_val expr = Seq.join " | " (map show_val (NonEmpty.toList expr))
 instance ShowVal Call where
-    show_val (Call call_id terms) =
-        show_val call_id ++ if null terms then ""
-            else ' ' : Seq.join " " (map show_val terms)
+    show_val (Call (Symbol sym) terms) =
+        sym ++ if null terms then "" else ' ' : unwords (map show_val terms)
 instance ShowVal Term where
     show_val (ValCall call) = "(" ++ show_val call ++ ")"
     show_val (Literal val) = show_val val
@@ -505,6 +504,25 @@ instance DeepSeq.NFData Call where
 instance DeepSeq.NFData Term where
     rnf (ValCall call) = DeepSeq.rnf call
     rnf (Literal val) = DeepSeq.rnf val
+
+-- | Transform the Symbols in an expression.  This affects both symbols in call
+-- position, and argument symbols.
+map_symbol :: (Symbol -> Symbol) -> Expr -> Expr
+map_symbol f = fmap call
+    where
+    call (Call sym terms) = Call (f sym) (map term terms)
+    term (ValCall c) = ValCall (call c)
+    term (Literal (VSymbol sym)) = Literal (VSymbol (f sym))
+    term (Literal lit) = Literal lit
+
+-- | Transform the arguments in an expression.  This affects only vals in
+-- argument position.
+map_args :: (Val -> Val) -> Expr -> Expr
+map_args f = fmap call
+    where
+    call (Call sym terms) = Call sym (map term terms)
+    term (ValCall c) = ValCall (call c)
+    term (Literal lit) = Literal (f lit)
 
 -- | Convenient constructor for Call.  Not to be confused with 'call0'--calln.
 call :: String -> [Term] -> Call
