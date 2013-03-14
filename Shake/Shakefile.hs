@@ -330,8 +330,8 @@ configure midi = do
                 Test -> ["-fhpc"]
                 Profile -> ["-O", "-prof", "-auto-all", "-caf-all"]
         , hLinkFlags = libs ++ ["-rtsopts", "-threaded"]
-            ++ if mode == Profile then ["-prof"] else []
-            ++ if useEkg then ["-with-rtsopts=-T"] else []
+            ++ (if mode == Profile then ["-prof"] else [])
+            ++ (if useEkg then ["-with-rtsopts=-T"] else [])
         -- Hackery, make sure ghci gets link flags, otherwise it wants to
         -- load everything as bytecode and fails on missing symbols.  Actually,
         -- these only apply to loading the modules for the main app.  But
