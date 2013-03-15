@@ -153,9 +153,9 @@ test_logs = do
 
 test_extend_control_damage = do
     let f = Cache._extend_control_damage
-    equal (f (3, 4) (Events.from_list [Event.event 0 0 "4c"])
+    equal (f 3 (Events.from_list [Event.event 0 0 "4c"])
             (Ranges.ranges [(2, 5)]))
-        (Ranges.ranges [(0, 4)])
+        (Ranges.ranges [(0, 3)])
 
 -- | Extract cache logs so I can tell who rederived and who used the cache.
 -- I use strings instead of parsing it into structured data because strings
@@ -388,6 +388,19 @@ test_control_damage = do
         , "top.t2 \\*: * control damage"
         , toplevel_rederived True
         ]
+
+test_control_damage2 = do
+    -- Damage extends to the next event.
+    let create = mkblocks
+            [ ("top",
+                [ (">", [(0, 1, "sub"), (1, 1, "sub")])
+                , ("dyn", [(0, 0, "1")])
+                ])
+            , ("sub=ruler", [(">", [(0, 1, "")])])
+            ]
+    let (_, cached, uncached) = compare_cached create $
+            insert_event "top.t2" 0 0 "0.5"
+    equal (diff_events cached uncached) []
 
 test_get_control_damage = do
     let f tracks s e = run tracks (get_control_damage (0, 10) (mkdamage s e))

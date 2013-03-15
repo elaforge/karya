@@ -7,7 +7,6 @@ module Util.Ranges (
 import Prelude hiding (fmap)
 import qualified Control.DeepSeq as DeepSeq
 import qualified Data.List as List
-import qualified Data.Maybe as Maybe
 import qualified Data.Monoid as Monoid
 
 import qualified Util.Pretty as Pretty
@@ -33,10 +32,10 @@ instance (DeepSeq.NFData n) => DeepSeq.NFData (Ranges n) where
     rnf (Ranges xs) = DeepSeq.rnf xs
 
 -- | It has a different type from the real fmap, but it wants to be an fmap.
-fmap :: (Ord b) => ((a, a) -> Maybe (b, b)) -> Ranges a -> Ranges b
+fmap :: (Ord b) => ((a, a) -> (b, b)) -> Ranges a -> Ranges b
 fmap f r = case extract r of
     Nothing -> everything
-    Just pairs -> sorted_ranges (Maybe.mapMaybe f pairs)
+    Just pairs -> sorted_ranges (map f pairs)
 
 -- | Nothing means an everything range.
 extract :: Ranges n -> Maybe [(n, n)]

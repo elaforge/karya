@@ -224,7 +224,7 @@ get_control_damage track_id track_range = do
     let control = Derive.state_control_damage (Derive.state_dynamic st)
         score = Derive.state_score_damage (Derive.state_constant st)
     extend_damage track_id track_range $
-        control <> score_to_control track_id track_range score
+        control <> score_to_control track_id score
 
 -- | Since the warp is the integral of the tempo track, damage on the tempo
 -- track will affect all events after it.  Actually, the damage extends from
@@ -241,7 +241,7 @@ get_tempo_damage track_id track_range events = do
     st <- Derive.get
     let control = Derive.state_control_damage (Derive.state_dynamic st)
         score = Derive.state_score_damage (Derive.state_constant st)
-    return $ extend $ control <> score_to_control track_id track_range score
+    return $ extend $ control <> score_to_control track_id score
     where
     extend (Derive.ControlDamage ranges) = Derive.ControlDamage $
         case Ranges.extract ranges of
@@ -253,12 +253,10 @@ get_tempo_damage track_id track_range events = do
                 ([], _) -> Ranges.range s (snd track_range)
 
 -- | Convert score damage directly to ControlDamage on a given track.
-score_to_control :: TrackId -> (ScoreTime, ScoreTime) -> ScoreDamage
-    -> ControlDamage
-score_to_control track_id track_range score =
-    ControlDamage $ in_range $ fromMaybe Ranges.nothing $
+score_to_control :: TrackId -> ScoreDamage -> ControlDamage
+score_to_control track_id score =
+    ControlDamage $ fromMaybe Ranges.nothing $
         Map.lookup track_id (Derive.sdamage_tracks score)
-    where in_range = Ranges.intersection $ uncurry Ranges.range track_range
 
 -- | Extend the given ControlDamage as described in 'get_control_damage'.
 -- Somewhat tricky because I also want to clip the damage to the track range,
@@ -270,21 +268,21 @@ extend_damage track_id track_range (ControlDamage damage)
     | damage == mempty = return mempty
     | otherwise = do
         events <- Track.track_events <$> Derive.get_track track_id
-        -- Empty tracks could not have contributed to further damage.
-        return $ if events == Events.empty then ControlDamage damage
-            else ControlDamage $
-                _extend_control_damage track_range events damage
-
-_extend_control_damage :: (ScoreTime, ScoreTime) -> Events.Events
-    -> Ranges.Ranges ScoreTime -> Ranges.Ranges ScoreTime
-_extend_control_damage (track_s, track_e) events = Ranges.fmap (extend1 events)
+        return $ ControlDamage $ extend events
     where
-    extend1 events (s, e)
-        | e < track_s || s > track_e = Nothing
-        | otherwise = Just (event_at_before s events, event_after e events)
+    extend events
+        | Events.null events = damage
+        | otherwise = Ranges.intersection (uncurry Ranges.range track_range) $
+            _extend_control_damage (snd track_range) events damage
+
+_extend_control_damage :: ScoreTime -> Events.Events
+    -> Ranges.Ranges ScoreTime -> Ranges.Ranges ScoreTime
+_extend_control_damage track_end events = Ranges.fmap (extend1 events)
+    where
+    extend1 events (s, e) = (event_at_before s events, event_after e events)
     event_at_before p events = case Events.split p events of
         (_, at : _) | p == Event.start at -> p
         (prev : _, _) -> Event.start prev
         _ -> p
-    event_after p events = maybe track_e Event.start $
+    event_after p events = maybe track_end Event.start $
         Seq.head (Events.after p events)
