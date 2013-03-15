@@ -1,52 +1,26 @@
 LEGEND
-  - todo; + in progress; * done; / obsolete or do not want
+  - todo; + in progress; * done; / obsolete, do not want, or can't repro
   ? open question; . note or observation
 
 UNSORTED
-  * destroy a block while playing, get a lot of
-    **** Cmd/PlayC.hs:150 [monitor_loop] - state error in play monitor: Error
-    "State.lookup: unknown (bid \"kendang-telek/b4\")"
-  * It's awkward how cmd-s sets the prev event, but cmd-z does the current one
   - save/bug-no-cnt-dmg - in awit2-2, change dyn and kendang blocks below
     don't pick up the dyn change
-  * rename attr harmonic to harm
-  / I think TrackTree.tevents_end is now redundant
-  * should TrackTree.events_tree_of use ruler end instead of event end?
-  - come up with a solution for overlapping children, e.g.
-    doc/dev_notes/note_tracks
-  * ly render a block needs to emit leading rests
-  viola-sonata ly:
-    * 8.2 slurs aren't showing up
-      That's because of how ( applies directly to subnotes, it only ever works
-      when it's directly next to the subs.
-    * 9.1.1 ab, d, f notes are doubled
-  * kendang-telek: add tempo .6 at 31, 'i .7' at 32, timing gets messed up
-    Apparently it's removing the 'i' from the interpolate.
-  * logview should reopen the file when the log gets rotated
-  * Have to replace ( in lilypond mode.  In fact, wouldn't it be more robust
-    to have separately ly calls and always replace them all?  Might also be
-    faster.
-  * Wait, it's that the note is way too long.  How did that happen?
-  * truncate should drop a sample that's eta before the end
-  * rename truncate to drop_after
-  * since I'm using symbol as a shorthand for string, should I have separate
-    types at all?  I can just say symbol is just another literal syntax for
-    a string.
-    The reason not to do it is if I want symbols to be variables or something
-    later.  But I think those will be rare enough that I could prefix $ or
-    something.
   bloom
     - block b10 is messed up near the end
     - b13 silent
   - I can have regression tests that assert a score still derives the same
     way.
-  / Maybe I can get rid of named marklists.  If I'm willing to have cues cause
-    a new ruler, then I can just mix them together, and put cues at rank -1
-    or something.  Otherwise I can have them nameless and mixed by TimeStep
-    implicitly, with cues still being -1 so timesteps don't count them
-    unexpectedly.  Or just start at 0 and make meters start at 1.
-    Of course, in theory I can use multiple marklists to have two meters
-    simultaneously, so it seems like this flexibility may still be useful.
+  - make ^B refactor if there's a non-point selection: cut out the selection,
+    make a new block, paste it in.
+  calls:
+    - Sometimes tick makes more sense as at attribute of the previous note, or
+      perhaps a freestanding ornament, since it can happen or not on a repeat.
+    - 'u' and 'd' have a problem with long notes because pitches can only be
+      transposed so far.
+      . If I knew how far a pitch could be transposed, I could clip the end
+        time to the bottom pitch.  But I don't.  Maybe pitches should be
+        transposable infinitely far, but emit a -1 NN signal when they cross
+        the boundary?  Or would this hurt error reporting?
   vsl
     - dyn# should be 'dyn . crescdim . rep#'
       cre# should be just 'cresc . rep#'
@@ -63,11 +37,6 @@ UNSORTED
       +cresc or +dim on a note.
     - Figure out how to map continuous controls, and crossfade.
 
-  * double click isn't creating a fitted view?
-  - Track caching is too fragile, if I add a track with scope over everything
-    then I get no caching.  Instead I should cache the bottom note track, or
-    perhaps every note track.  That doesn't work because they're all sliced
-    up.
   - Arpeggio should be a bit randomized?  Or closer notes should be faster?
     Then I have to look at the pitches.  Or manually set times, e.g.
     arp .3 .1 (.3, .1, .1, .1, ...)
@@ -75,27 +44,14 @@ UNSORTED
     That's actually two things, one is binding the symbol, the other is
     partially applying args.  The latter overlaps with setting default in
     the env, but is more concise.
-  - adding an intervening note track seems to mess up the signal render
-    in default untitled, change tempo track to a note track, pitch track
-    render changes
   - network midi doesn't seem to handle abort?
     playing the second time doesn't happen
   - StepPlay gets messed up by tuplets and the like.  Maybe it should step
     along the performance (with some eta to account for randomization)
     instead of the score.
-
-  / per-instrument binds e.g. kendang, should work without kbd entry
-    However, that means I take over NoEdit for audition, and that means that
-    un-modified keys are unreliable even in NoEdit mode.
   - maybe new control tracks should start with line render?
 
   - can I cache long blocks by slicing them if they're >n?
-  - 'u' and 'd' have a problem with long notes because pitches can only be
-    transposed so far.
-    . If I knew how far a pitch could be transposed, I could clip the end time
-      to the bottom pitch.  But I don't.  Maybe pitches should be transposable
-      infinitely far, but emit a -1 NN signal when they cross the boundary?
-      Or would this hurt error reporting?
   - I have a feeling like FM8 doesn't obey ResetAllControls
     Maybe I should extend Midi.Interface.note_tracker to keep track of
     used CCs to issue resets for them.  Some reset to 1, e.g. cc2 and cc7,
@@ -103,28 +59,9 @@ UNSORTED
     But filtering the midi shows dyn controls mixed into both channels.
   - the signal doesn't update if I change the default environ assignment on
     another track
-  / Score.instrument should strip invalid chars
-    The thing is, MidiDb strips them before joining them with the synth name.
-
-  * NoteTransformers apply a transformer to notes.  So why can't I apply
-    any transformer as a note transformer?  NoteTransformers are actually more
-    powerful because they can treat multiple args differently, but any
-    transformer should be lifted.
-    If I make "" work as a note transformer, then I can write 'trans |',
-    right?  But that also means if I apply "" directly to subtracks it'll just
-    output them directly, do I really want that?  It's kind of a way of
-    grouping them together so the transformer can apply to them.
-    Then 'harmonic' is the same as 'n +harmonic |' is the same as
-    'attrs = +harmonic'
-    But "" is already inverting!
 
   - doesn't seem to save track widths, I keep making it narrow but reload it's
     still wide.
-  / Managed to crash by undoing while editing, I think.  I wound up with
-    note events on a control track and when I tried to undo and delete it
-    I got an update on wrong kind of track assertion error.
-  - Sometimes tick makes more sense as at attribute of the previous note, or
-    perhaps a freestanding ornament, since it can happen or not on a repeat.
 
   / parsing "1r" instead of "1s" gives a "unexpected eof" error msg, it should
     say 'r' was an unknown suffix
@@ -133,51 +70,25 @@ UNSORTED
   - It seems confusing that in val edit the note track doesn't need cmd-x but
     the control track does.
     Maybe I should get rid of the optional cmd- thing?
-  - Hand damping: manually place hand damp positions.   Post proc, where tick
-    and ngoret ornaments set an attribute or something so it knows which ones
-    to extend.
-  calls to define randomized scores:
-    * how could I omit a transformer?  alternate with 'id'
   - Pretty on a lot of events causes a stack overflow
-    Need a reproduction.
+   Need a reproduction.
     I should extend Util.Format so I can use it for Util.Pretty.
-  * solo on one track in a sub-block causes all other blocks to be filtered out.
-    It seems more intuitive that it only apply to that block.  That means solo
-    would have to record the block that it's soloed on, and only filter events
-    on that block.  Or simpler, turn a solo into a mute of all the other
-    tracks.
-  * Derive.Call.Note.randomized should randomize start for 0 dur notes
   - There's a lot of duplication between State.TrackEvents, Call.TrackInfo,
     and Derive.CallInfo.  Can I factor out the common bits?
   - if I added the cmd name before running the cmd, I could put it in the
     error msg when an exception is caught.
   - There are still some cmds without names, who are they?
     Do some logging to track them down.
-
-  / I could have a Cmd state flag that does things relative to the current
-    block vs. root block
   - key not applied in inner blocks, local play should take the root play's
     env as a starting point
-
-  * it's annoying how a track with nothing in it won't play, and has no
-    play monitor.
-  - when I implement control block calls, I might want to override a control
-    at certain points.  It should be possible to add a 'merge' operator that
-    replaces samples.  Is still no good if the samples don't line up, but I'll
-    need an event-level merge anyway for notes.
-
   - randomize any control by having the 'set' call look for the -rnd control
   * some way to get symbol feedback instantly to make it easier to compose them
     - But it calls SymbolC and I ran into a problem where linux ghci can't
       link FFI-using functions.  Ask on glasgow-haskell-users.
-  / do tuplets by setting local ruler?
-
   - test sending mtc to reapaer
     also test some mmc commands.  How does reaper support control surfaces?
   - Playback should have multiple lines when a block is derived multiple
     times. Have a set of playback selnums?
-  / If I quit and then restart, the second start takes a long time.  What's
-    it waiting on?  Midi init?
 
 MILESTONES
   0.1
@@ -378,10 +289,6 @@ block composition
       sometimes no...
 
 incremental save / git
-  / Verify the supposed previous commit against the real previous commit, to
-    prevent incremental saving on the wrong base.
-    The real problem is it's too expensive to know if it's the real
-    prev commit by comparing the states.
   + try saving individual events for incremental save
     Seems to be just as slow as full save, probably most of the time is in
     the call to git.  Test again with larger tracks.
@@ -434,11 +341,8 @@ integrate / integration:
   - What if an integrate wants to produce a note transformer track?  I
     think that's currently impossible.
   - quantization
-  * split tracks on overlapping notes since some calls make them (e.g. block
-    calls)
 
 lilypond:
-  * use R for full-measure rests
   - I can fix rhythm spelling by changing the meter.  But it's a pain because
     the meter has to be over the entire block, and that means a whole new
     track, which also destroys track caching.
@@ -451,7 +355,6 @@ lilypond:
   - Can I have a solution for custom note durations that don't affect lilypond?
   - cross staff inside tuplet didn't work
   - hairpin crescendo / decrescendo
-  * I should store Lilypond.Config in the UI state.
   - If I can figure out the meter from just the name, then I can get rid
     of the awkward map with hardcoded meters.
     I could have parse generate the Meter and memoize it.
@@ -776,7 +679,6 @@ fltk:
     detection.
     + gmail: subject:(scaling text)
       But it's OSX only.
-  / implement labels for pitch tracks in fltk/EventTrack.cc
   - skeleton display has leveled steps to make it easier to see who is
     below who.  Only if a track has multiple children.
   - rethrow c++ exceptions as FltkError
@@ -1060,20 +962,7 @@ Cmd:
       They have to go away if the block went away, but otherwise they can
       remain unaffected.  Of course that means an undo could be undoing
       something out of sight.  Another case for per-block undo?
-    * incremental save
     undo also undoes the clipboard, which makes undo, copy, redo, paste useless
-      * collapse CmdTrackEvents before recording
-      * why does copy emit CmdTrackEvents for the entire copied block?
-      * track down uses of State.block_ruler_end and see if they shouldn't be
-        block_end.
-      * undo: why does the clip track change when I redo past a copy?
-      * why does it close the clip window when I do a new copy?
-      * undo: don't record clip/-only operations
-      * why does the clip block look totally bizarre?
-      / it seems like a bug that insert to track 0 pushes the black
-        placeholder out to become a real track
-      * why doesn't the clip block let me set a selection?
-        Also the scroll bar is tiny, presumably because of length=0
       - clip block should use the ruler, just to make it easier to look at
       - clip could also copy over the skeleton
         It could use it to make sure the paste is compatible, but that might
@@ -1086,10 +975,8 @@ Cmd:
       file.  Wait, actually it's track, and that would be awkward if I undo one
       block and it changes tracks on another.  How do a say what position
       a block is in the history in that case?
-    . One appealing thing is that I don't necessarily want things like config
-      changes to be included in undo.
-    - undo as a tree?  On modification, split the undo tree instead of
-      throwing away the future.
+      . One appealing thing is that I don't necessarily want things like config
+        changes to be included in undo.
     - Visual display of undo history, because stepping back one-by-one is
       a bit of a hassle.
     - record view changes, at least zoom / scroll so it can be undone / redone
@@ -1097,20 +984,25 @@ Cmd:
 
   Cmd.MakeRuler
     - functions to modify zoom levels and other mark attributes
-    - functions to splice or delete time or a Meter into a ruler
+    * functions to splice or delete time or a Meter into a ruler
 
   Cmd.Freeze
     - details in doc/freeze_track
 
   Cmd.Save
     - save with a magic number so I can load songs, inst configs, etc.
-    - gzip save files
+    / gzip save files
 
 Derive:
+  tracklang:
+    - come up with a solution for overlapping children, e.g.
+      doc/dev_notes/note_tracks
+    - Track caching is too fragile, if I add a track with scope over everything
+      then I get no caching.  Instead I should cache the bottom note track, or
+      perhaps every note track.  That doesn't work because they're all sliced
+      up.
   instrument
-    * per-project short aliases for inst names so you can fit them in tracks
-      easily
-    - Implement >inst as setting the null call instead of env.instrument.
+    * Implement >inst as setting the null call instead of env.instrument.
       That way the inst has control over the interpretation of e.g. attributes
       and pitch slide (to implement piano style retrigger)
 
@@ -1138,12 +1030,7 @@ Derive:
     I could use this to implement is-ly and no-ly, and also totally custom
     track types and block types.
 
-  val calls:
-    * val calls to get the next/prev TimeStep e.g. trill speed in terms of
-      beats.  This means Derive has to have access to the rulers.
-
   pitch calls:
-    * approach and lower dyn
     - accelerating trill
     - overshoot pitch call, e.g. indian style
 
@@ -1269,7 +1156,7 @@ OSC backend
     a scheduler server that takes bundles and emits their msgs at the correct
     time.
 
-jack: JACK:
+jack: JACK: linux midi:
   bugs
     - something is still wrong, I get "no space in output port" and then
       corrupted output
@@ -1277,6 +1164,7 @@ jack: JACK:
       and then they get continuously spammed.  Apparently the jack_port_t*
       from the registration and the lookup are different.
       - Try stashing port from port_by_name port instead of jack_register_port.
+  - does jack not support sysex at all?  Maybe I can't use it at all then.
   - Ensure that shutdown stuff is being called correctly.  I don't care but
     maybe JACK does?
   use jack transport
@@ -1301,8 +1189,6 @@ misc ideas:
     a transformer to them.  I'm not sure that will coexist with the curve
     description language that control tracks currently implement.
     It would be interesting to get rid of track types entirely though.
-  * How can I have calls that generate multiple controls, e.g. pitch-dyn track
-    to implement fall + decresc?
 
 planning / research
   Composition of score fragments.  I think I want to display subderived
