@@ -164,9 +164,14 @@ test_p_equal = do
 
 test_lex1 = do
     let f = Parse.lex1
-    pprint (f "a b c")
-    pprint (f "(a b) c")
-    pprint (f "(a ')' (x) b) c")
+    equal (f "a b c") $ ("a ", "b c")
+    equal (f "(a b) c") $ ("(a b) ", "c")
+    equal (f "(a (b)) c") $ ("(a (b)) ", "c")
+    equal (f "(a ')' (x) b) c") $ ("(a ')' (x) b) ", "c")
+
+    -- Incomplete parses get lexed.
+    equal (f "1.") $ ("1.", "")
+    equal (f "'hi") $ ("'hi", "")
 
 val_call :: String -> [Term] -> Term
 val_call sym args = ValCall (Call (Symbol sym) args)

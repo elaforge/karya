@@ -124,6 +124,14 @@ val_edit_at :: (Cmd.M m) => State.Pos -> Signal.Y -> m ()
 val_edit_at pos val = modify_event_at pos $ \event ->
     (Just $ event { event_val = ShowVal.show_hex_val val }, False)
 
+-- | Semi-parse event text into method, val, and args.  Method is actually the
+-- call, val is the first argument to the calll, and args are the remaining
+-- arguments.  Control calls have a convention where the first argument is the
+-- value to set.  I separate it out so I can replace just that value while
+-- leaving any arguments intact.  E.g., exponential interpolation might look
+-- like @e 0 3@, where 0 is the destination and 3 is the exponent.
+-- Or @e (4c) 3@ in the case of pitches.  If I press a MIDI key I want to
+-- replace just the @4c@.
 data Event = Event {
     event_method :: String
     , event_val :: String
@@ -167,11 +175,12 @@ parse s
     where (pre, post) = break (==' ') s
 
 split_args :: String -> String -> Event
-split_args method rest = case ParseBs.lex1 (ParseBs.from_string rest) of
-    Nothing -> Event method rest ""
-    Just (w, ws) -> Event method (ParseBs.to_string (rstrip w))
+split_args method rest =
+    Event method (ParseBs.to_string (rstrip w))
         (ParseBs.to_string ws)
-    where rstrip = fst . ByteString.Char8.spanEnd (==' ')
+    where
+    (w, ws) = ParseBs.lex1 (ParseBs.from_string rest)
+    rstrip = fst . ByteString.Char8.spanEnd (==' ')
 
 unparse :: Event -> String
 unparse (Event method val args)

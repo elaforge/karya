@@ -84,10 +84,26 @@ parse p = Parse.parse_all (spaces >> p)
 
 -- * lex
 
-lex1 :: Text -> Maybe (Text, Text)
-lex1 text = case parse ((,) <$> p_term <*> A.takeWhile (const True)) text of
-    Right (_, rest) -> Just (B.take (B.length text - B.length rest) text, rest)
-    Left _ -> Nothing
+-- | Lex out a single expression.  This isn't really a traditional lex, because
+-- it will extract a whole parenthesized expression instead of a token.
+lex1 :: Text -> (Text, Text)
+lex1 text = case parse ((,) <$> p_lex1 <*> A.takeWhile (const True)) text of
+    Right ((), rest) -> (B.take (B.length text - B.length rest) text, rest)
+    Left _ -> (text, "")
+
+-- | Attoparsec doesn't keep track of byte position, and always backtracks.
+-- I think this means I can't reuse 'p_term'.
+p_lex1 :: A.Parser ()
+p_lex1 = (str <|> parens <|> word) >> spaces
+    where
+    str = p_single_string >> return ()
+    parens = do
+        A.char '('
+        A.many $ parens <|> str <|> (A.takeWhile1 content_char >> return ())
+        A.char ')'
+        return ()
+    word = A.skipWhile (\c -> c /= '(' && is_word_char c)
+    content_char c = c /= '(' && c /= ')' && c /= '\''
 
 -- * expand macros
 
@@ -307,10 +323,11 @@ is_strict_id s = not (B.null s) && Id.ascii_lower (B.head s)
     && B.all Id.is_strict_id_char s
 
 p_word, p_null_word :: A.Parser Text
-p_word = A.takeWhile1 _word_char
-p_null_word = A.takeWhile _word_char
-_word_char :: Char -> Bool
-_word_char c = c /= ' ' && c /= ')'
+p_word = A.takeWhile1 is_word_char
+p_null_word = A.takeWhile is_word_char
+
+is_word_char :: Char -> Bool
+is_word_char c = c /= ' ' && c /= ')'
     -- I need to exclude ')' because otherwise I can't tell where the symbol
     -- ends in a subcall like '(a)'.  But '(' is just fine, though it would
     -- look weird in a subcall: '(()'.
