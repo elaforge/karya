@@ -1,5 +1,7 @@
 -- | Utilities for calls to cooperate with the lilypond backend.
 module Derive.Call.Lily where
+import qualified Data.List as List
+
 import Util.Control
 import qualified Util.Log as Log
 import qualified Util.Pretty as Pretty
@@ -24,6 +26,7 @@ import qualified Perform.Lilypond.Convert as Convert
 import qualified Perform.Lilypond.Lilypond as Lilypond
 import qualified Perform.Lilypond.Meter as Meter
 import qualified Perform.Pitch as Pitch
+import qualified Perform.RealTime as RealTime
 
 import Types
 
@@ -64,6 +67,14 @@ notes_around start end args = when_lilypond $
     around notes = first_last
         (add_event_code start) (add_event_code end) <$> Note.place notes
 
+-- | Like 'notes_around', but for use when you already know you're in lilypond
+-- mode.
+notes_around_ly :: Code -> Code -> Derive.PassedArgs d -> Derive.EventDeriver
+notes_around_ly start end args = mconcat $ map around $ Note.sub_events args
+    where
+    around notes = first_last
+        (add_event_code start) (add_event_code end) <$> Note.place notes
+
 -- | Like 'notes_around', but when I'm not in lilypond mode just derive the
 -- sub events unchanged.
 code_around :: Code -> Code -> Derive.PassedArgs d -> Derive.EventDeriver
@@ -99,19 +110,12 @@ add_event_code code = case code of
 -- group, but that would rely on every sort being stable.
 first_last :: (Score.Event -> Score.Event) -> (Score.Event -> Score.Event)
     -> Derive.Events -> Derive.Events
-first_last _ _ [] = []
-first_last start end (log@(LEvent.Log _) : xs) = log : first_last start end xs
-first_last start end (LEvent.Event x : xs) = case split x xs of
-    (pre, []) -> pre
-    (pre, post) -> LEvent.Event (start x) : map (fmap start) pre ++ go post
+first_last start end xs =
+    map LEvent.Log logs ++ map LEvent.Event (concat
+        (Seq.first_last (map start) (map end) (List.groupBy cmp events)))
     where
-    go [] = [] -- should never happen
-    go (log@(LEvent.Log {}) : xs) = log : go xs
-    go (LEvent.Event x : xs) = case split x xs of
-        (pre, []) -> LEvent.Event (end x) : map (fmap end) pre
-        (pre, post) -> LEvent.Event x : pre ++ go post
-    split x = span
-        (LEvent.log_or $ ((<= Score.event_start x) . Score.event_start))
+    (events, logs) = LEvent.partition xs
+    cmp x y = RealTime.eq (Score.event_start x) (Score.event_start y)
 
 -- ** code
 

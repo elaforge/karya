@@ -59,7 +59,6 @@ UNSORTED
     But filtering the midi shows dyn controls mixed into both channels.
   - the signal doesn't update if I change the default environ assignment on
     another track
-
   - doesn't seem to save track widths, I keep making it narrow but reload it's
     still wide.
 
@@ -343,6 +342,8 @@ integrate / integration:
   - quantization
 
 lilypond:
+  - slurs should go to the last note in a tie
+  * slur on measure 8 makes the note disappear
   - I can fix rhythm spelling by changing the meter.  But it's a pain because
     the meter has to be over the entire block, and that means a whole new
     track, which also destroys track caching.

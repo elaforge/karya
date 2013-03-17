@@ -61,11 +61,6 @@ x_to_double = RealTime.to_seconds
 double_to_x :: Double -> X
 double_to_x = RealTime.seconds
 
--- | X is a double, and doubles are inexact.  Functions that take an X value
--- should operate on values within a range.
-eta :: X
-eta = 0.00000000000004
-
 -- * boxed
 
 type Boxed y = Vector.Vector (Sample y)
@@ -199,7 +194,7 @@ take = V.take
 drop_after :: (V.Vector v (Sample y)) => X -> v (Sample y) -> v (Sample y)
 drop_after x vec
     | x <= 0 = V.takeWhile ((<=0) . sx) vec
-    | otherwise = V.take (lowest_index (x-eta) vec) vec
+    | otherwise = V.take (lowest_index (x - RealTime.eta) vec) vec
 
 -- | The reverse of 'drop_after'.  Trim a signal's head up until, but not
 -- including, the given X.  If there is no sample at @x@, keep one sample

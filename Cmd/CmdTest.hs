@@ -336,8 +336,13 @@ keypress k = [make_key UiMsg.KeyDown k, make_key UiMsg.KeyUp k]
 keypresses :: [Key.Key] -> [Msg.Msg]
 keypresses = concatMap keypress
 
+key_down :: Char -> Msg.Msg
 key_down = make_key UiMsg.KeyDown . Key.Char
+
+key_up :: Char -> Msg.Msg
 key_up = make_key UiMsg.KeyUp . Key.Char
+
+backspace :: Msg.Msg
 backspace = make_key UiMsg.KeyDown Key.Backspace
 
 mouse :: Bool -> Types.MouseButton -> TrackNum -> ScoreTime -> Msg.Msg

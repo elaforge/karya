@@ -75,7 +75,7 @@ lilypond_scope = Scope.add_override_note_lookup lookup
     where
     lookup = Derive.map_lookup $ Derive.make_calls
         [ ("", note), ("n", note)
-        , ("(", Attribute.c_legato)
+        , ("(", Attribute.c_legato_ly)
         ]
     -- Turn off the behaviour where staccato shortens the note, since that's
     -- already implicit when you see the dot.

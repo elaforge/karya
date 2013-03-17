@@ -42,6 +42,8 @@ module Perform.RealTime (
     , seconds, milliseconds, microseconds, score
     -- * convert to
     , to_seconds, to_milliseconds, to_microseconds, to_score
+    -- * misc
+    , eta, eq
 ) where
 import Prelude hiding (div)
 import qualified Control.DeepSeq as DeepSeq
@@ -142,3 +144,12 @@ to_microseconds = round . (*1000000) . to_seconds
 
 to_score :: RealTime -> ScoreTime.ScoreTime
 to_score = ScoreTime.double . to_seconds
+
+-- | Eta for comparison.  Since RealTimes are seconds, this amount of time is
+-- definitely unnoticeable.
+eta :: RealTime
+eta = 0.00000000000004
+
+-- | RealTimes are imprecise, so compare them with this instead of (==).
+eq :: RealTime -> RealTime -> Bool
+eq = ApproxEq.approx_eq (to_seconds eta)

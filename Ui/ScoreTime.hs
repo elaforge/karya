@@ -1,5 +1,5 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
-module Ui.ScoreTime (ScoreTime, to_double, double, suffix) where
+module Ui.ScoreTime (ScoreTime, to_double, double, suffix, eta, eq) where
 import qualified Control.DeepSeq as DeepSeq
 import qualified Data.Digest.CRC32 as CRC32
 import qualified Text.ParserCombinators.ReadP as ReadP
@@ -54,3 +54,12 @@ double = ScoreTime
 -- | t is for time, since RealTime uses s for seconds
 suffix :: Char
 suffix = 't'
+
+-- | Eta for comparison.  ScoreTimes are all relative, but there's no reason to
+-- use such tiny ones.
+eta :: ScoreTime
+eta = 0.00000000000004
+
+-- | ScoreTimes are imprecise, so compare them with this instead of (==).
+eq :: ScoreTime -> ScoreTime -> Bool
+eq = ApproxEq.approx_eq (to_double eta)
