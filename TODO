@@ -342,7 +342,12 @@ integrate / integration:
   - quantization
 
 lilypond:
-  - slurs should go to the last note in a tie
+  * 2 measures per line instead of 4
+  * fix "cannot end slur" warnings
+  * slurs should go to the last note in a tie
+    Maybe I can do this by saying ly-append appends to the last note instead
+    of all of them.  Well, except that suffix ( should go on the first, and
+    suffix ) should go on the last.
   * slur on measure 8 makes the note disappear
   - I can fix rhythm spelling by changing the meter.  But it's a pain because
     the meter has to be over the entire block, and that means a whole new

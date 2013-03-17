@@ -164,7 +164,21 @@ test_key = do
             ])
         (Right ["\\key a \\mixolydian c'2 \\key c \\major c'2"], [])
 
+test_ly_prepend_append = do
+    let f env = LilypondTest.convert_measures [] $
+            map environ_event [(0, 12, "a", env)]
+    equal (f []) $ Right ["a1~", "a1~", "a1"]
+    equal (f [(Lilypond.v_ly_append_first, "x")]) $
+        Right ["a1~x", "a1~", "a1"]
+    equal (f [(Lilypond.v_ly_append_last, "x")]) $
+        Right ["a1~", "a1~", "a1x"]
+    equal (f [(Lilypond.v_ly_append_all, "x")]) $
+        Right ["a1~x", "a1~x", "a1x"]
+    equal (f [(Lilypond.v_ly_prepend, "x")]) $
+        Right ["xa1~", "a1~", "a1"]
+
 test_ly_code = do
+    -- Test stand-alone zero-dur code fragments.
     let f = LilypondTest.measures []
             . LilypondTest.derive_tracks_with_ui calls id
     -- prepend
@@ -190,9 +204,9 @@ test_ly_code = do
     calls = CallTest.with_note_call "pre" c_pre
         . CallTest.with_note_call "post" c_post
     c_pre = CallTest.generator $ \args ->
-        Lily.code0 (Args.start args) (Lily.Prefix "pre")
+        Lily.code0 (Args.start args) (Lily.Prefix, "pre")
     c_post = CallTest.generator $ \args ->
-        Lily.code0 (Args.start args) (Lily.Suffix "post")
+        Lily.code0 (Args.start args) (Lily.SuffixAll, "post")
 
 test_allowed_time_greedy = do
     let f meter = extract_rhythms
@@ -327,6 +341,7 @@ make_event start dur pitch inst env = Lilypond.Event
     , Lilypond.event_environ = TrackLang.make_environ
         [(name, TrackLang.to_val val) | (name, val) <- env]
     , Lilypond.event_stack = UiTest.mkstack (1, 0, 1)
+    , Lilypond.event_clipped = False
     }
 
 mkmeter :: String -> Meter.Meter

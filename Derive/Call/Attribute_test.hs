@@ -49,6 +49,14 @@ test_legato_ly = do
             ] ++ UiTest.regular_notes 6
     equal (run tracks)
         (Right ["a'4( b'4 c'4) d'4(", "e'4 f'4) r2"], [])
+    -- Goes to the last note in a tie.
+    let tracks =
+            [ (">", [(0, 12, "(")])
+            , (">", [(0, 4, ""), (4, 8, "")])
+            , ("*", [(0, 0, "4a"), (4, 0, "4b")])
+            ]
+    equal (run tracks) (Right ["a'1(", "b'1~", "b'1)"], [])
+    -- Legato on a single note does nothing.
     equal (run $ (">", [(0, 1, "(")]) : UiTest.regular_notes 1)
         (Right ["a'4 r4 r2"], [])
 

@@ -40,10 +40,11 @@ when_lilypond :: (Lilypond.Config -> Derive.Deriver a)
 when_lilypond lily not_lily =
     maybe not_lily lily =<< Derive.lookup_lilypond_config
 
-append :: String -> Derive.PassedArgs d -> Derive.EventDeriver
+-- | When in lilypond mode, generate a note with the given Code.
+note_code :: Code -> Derive.PassedArgs d -> Derive.EventDeriver
     -> Derive.EventDeriver
-append code args = when_lilypond $
-    const $ append_code code $ Util.place args Util.note
+note_code code args = when_lilypond $
+    const $ add_code code $ Util.place args Util.note
 
 -- ** note transformer
 
@@ -52,10 +53,6 @@ append code args = when_lilypond $
 notes_code :: Code -> Derive.PassedArgs d
     -> Derive.EventDeriver -> Derive.EventDeriver
 notes_code code = notes_with (add_code code)
-
-notes_append :: String -> Derive.PassedArgs d
-    -> Derive.EventDeriver -> Derive.EventDeriver
-notes_append = notes_code . Suffix
 
 -- | This is like 'notes_code', but the first event in each track gets the
 -- start code, and the last event in each track gets the end code.
@@ -95,9 +92,8 @@ place_notes = Note.place . concat . Note.sub_events
 -- ** events around
 
 add_event_code :: Code -> Score.Event -> Score.Event
-add_event_code code = case code of
-    Prefix c -> Score.modify_environ $ add Lilypond.v_ly_prepend (c++)
-    Suffix c -> Score.modify_environ $ add Lilypond.v_ly_append (++c)
+add_event_code (pos, code) =
+    Score.modify_environ $ add (position_env pos) (++code)
     where
     add name f env = TrackLang.insert_val name (TrackLang.to_val (f old)) env
         where old = fromMaybe "" $ TrackLang.maybe_val name env
@@ -120,18 +116,30 @@ first_last start end xs =
 -- ** code
 
 -- | Either prepend or append some code to a lilypond note.
-data Code = Prefix String | Suffix String deriving (Show)
+type Code = (CodePosition, String)
+data CodePosition =
+    -- | Code goes before the note.
+    Prefix
+    -- | Code goes after all the notes in a tied sequence.
+    | SuffixAll
+    -- | Code goes after only the first note in a tied sequence.
+    | SuffixFirst
+    -- | Code goes after the last note in a tied sequnece.
+    | SuffixLast
+    deriving (Show)
+
+position_env :: CodePosition -> TrackLang.ValName
+position_env c = case c of
+    Prefix -> Lilypond.v_ly_prepend
+    SuffixFirst -> Lilypond.v_ly_append_first
+    SuffixLast -> Lilypond.v_ly_append_last
+    SuffixAll -> Lilypond.v_ly_append_all
 
 prepend_code :: String -> Derive.EventDeriver -> Derive.EventDeriver
-prepend_code = add_code . Prefix
-
-append_code :: String -> Derive.EventDeriver -> Derive.EventDeriver
-append_code = add_code . Suffix
+prepend_code = add_code . (,) Prefix
 
 add_code :: Code -> Derive.EventDeriver -> Derive.EventDeriver
-add_code (Prefix code) = Derive.modify_val Lilypond.v_ly_prepend $
-    (code++) . fromMaybe ""
-add_code (Suffix code) = Derive.modify_val Lilypond.v_ly_append $
+add_code (pos, code) = Derive.modify_val (position_env pos) $
     (++code) . fromMaybe ""
 
 -- | Emit a note that carries raw lilypond code.  The code is emitted
@@ -145,11 +153,15 @@ code (start, dur) code = Derive.with_val Lilypond.v_ly_prepend code
 -- | Like 'code', but for 0 duration code fragments, and can either put them
 -- before or after notes that occur at the same time.
 code0 :: ScoreTime -> Code -> Derive.EventDeriver
-code0 start code = with (Derive.d_place start 0 Util.note)
+code0 start (pos_, code) = with (Derive.d_place start 0 Util.note)
     where
-    with = case code of
-        Prefix c -> Derive.with_val Lilypond.v_ly_prepend c
-        Suffix c -> Derive.with_val Lilypond.v_ly_append c
+    -- SuffixFirst and SuffixLast are not used for 0 dur events, so make it
+    -- less error-prone by getting rid of them.  Ick.
+    pos = case pos_ of
+        SuffixFirst -> SuffixAll
+        SuffixLast -> SuffixAll
+        _ -> pos_
+    with = Derive.with_val (position_env pos) code
 
 -- ** convert
 
@@ -310,7 +322,7 @@ c_8va :: Derive.NoteCall
 c_8va = Derive.stream_generator "ottava" Tags.ly_only
     "Emit `lilypond \\ottava = #n` around the notes in scope."
     $ Sig.call (defaulted "octave" 1 "Transpose this many octaves up or down.")
-    $ \oct args -> code_around (Prefix (ottava oct)) (Prefix (ottava 0)) args
+    $ \oct args -> code_around (Prefix, ottava oct) (Prefix, ottava 0) args
 
 ottava :: Int -> String
 ottava n = "\\ottava #" ++ show n
@@ -324,7 +336,7 @@ c_xstaff = Derive.stream_generator "xstaff" Tags.ly_only
             "up" -> return ("up", "down")
             "down" -> return ("down", "up")
             _ -> Derive.throw $ "expected 'up' or 'down', got " <> show staff
-        code_around (Prefix (change staff1)) (Prefix (change staff2)) args
+        code_around (Prefix, change staff1) (Prefix, change staff2) args
     where change staff = "\\change Staff = " <> Lilypond.to_lily staff
 
 ly_call :: String -> String -> Sig.Parser a -> (a -> Code) -> Derive.NoteCall
@@ -336,16 +348,16 @@ c_dyn :: Derive.NoteCall
 c_dyn = ly_call "dyn"
     "Emit a lilypond dynamic. If there are notes below, they are derived\
     \ unchanged."
-    (required "dynamic" "Should be `p`, `ff`, etc.") (Suffix . ('\\':))
+    (required "dynamic" "Should be `p`, `ff`, etc.") ((,) SuffixAll . ('\\':))
 
 c_clef :: Derive.NoteCall
 c_clef = ly_call "clef" "Emit lilypond clef change."
     (required "clef" "Should be `bass`, `treble`, etc.")
-    (Prefix . ("\\clef "++))
+    ((,) Prefix . ("\\clef "++))
 
 c_meter :: Derive.NoteCall
 c_meter = ly_call "meter"
     "Emit lilypond meter change. It will be interpreted as global no matter\
     \ where it is. Simultaneous different meters aren't supported yet."
     (required "meter" "Should be `4/4`, `3+3/8`, etc.")
-    (Prefix . ("\\time "++))
+    ((,) Prefix . ("\\time "++))

@@ -79,7 +79,7 @@ c_note_trill = Derive.stream_generator "trill" (Tags.ornament <> Tags.ly)
         "Alternate with a pitch at this interval."
     <*> speed_arg
     ) $ \(neighbor, speed) -> Note.inverting $ \args ->
-    Lily.append "\\trill" args $ do
+    Lily.note_code (Lily.SuffixFirst, "\\trill") args $ do
         mode <- get_mode
         (transpose, control) <- trill_from_controls
             (Args.start args, Args.end args) mode neighbor speed
@@ -131,9 +131,10 @@ c_tremolo = Derive.Call
     generator = Sig.call speed_arg $ \speed args -> do
         starts <- tremolo_starts speed (Args.range_or_next args)
         case filter (not . null) (Note.sub_events args) of
-            [] -> Note.inverting_args args $ Lily.append ":32" args $
+            [] -> Note.inverting_args args $ Lily.note_code code args $
                 simple_tremolo starts [Util.note]
-            notes -> Lily.notes_append ":32" args $ chord_tremolo starts notes
+            notes -> Lily.notes_code code args $ chord_tremolo starts notes
+    code = (Lily.SuffixAll, ":32")
 
 tremolo_starts :: TrackLang.ValControl -> (ScoreTime, ScoreTime)
     -> Derive.Deriver [ScoreTime]

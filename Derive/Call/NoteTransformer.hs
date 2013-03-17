@@ -124,15 +124,12 @@ c_real_arpeggio arp = Derive.stream_generator "arpeggio"
         arpeggio arp (RealTime.seconds time) (Note.sub_events args)
     where
     lily_code = Lily.notes_with
-        (Lily.prepend_code prefix . Lily.append_code suffix)
+        (Lily.prepend_code prefix . Lily.add_code (Lily.SuffixFirst, suffix))
     prefix = case arp of
         ToRight -> "\\arpeggioArrowUp"
         ToLeft -> "\\arpeggioArrowDown"
         Random -> "\\arpeggioNormal"
-    suffix = case arp of
-        ToRight -> "\\arpeggio"
-        ToLeft -> "\\arpeggio"
-        Random -> "\\arpeggio"
+    suffix = "\\arpeggio"
 
 -- | Shift each track of notes by a successive amount.
 arpeggio :: Arpeggio -> RealTime -> [[Note.Event]] -> Derive.EventDeriver

@@ -4,6 +4,8 @@ import qualified Data.Maybe as Maybe
 
 import Util.Control
 import qualified Util.Pretty as Pretty
+import qualified Util.Seq as Seq
+
 import qualified Derive.Derive as Derive
 import qualified Derive.LEvent as LEvent
 import qualified Derive.PitchSignal as PitchSignal
@@ -67,21 +69,22 @@ convert_event quarter event = do
         , Lilypond.event_instrument = Score.event_instrument event
         , Lilypond.event_environ = Score.event_environ event
         , Lilypond.event_stack = Score.event_stack event
+        , Lilypond.event_clipped = False
         }
     where
     check_0dur
         | not has_prepend && not has_append = throw $
-            "zero duration event must have either "
-            <> ShowVal.show_val Lilypond.v_ly_prepend <> " xor "
-            <> ShowVal.show_val Lilypond.v_ly_append
-            <> " had " <> Pretty.pretty (Score.event_environ event)
+            "zero duration event must have one of "
+            <> Seq.join ", " (map ShowVal.show_val code_attrs)
+            <> "; had " <> Pretty.pretty (Score.event_environ event)
         | has_prepend && has_append = throw $
             "zero duration event with both prepend and append is ambiguous"
         | otherwise = return ()
     has_prepend = has Lilypond.v_ly_prepend
-    has_append = has Lilypond.v_ly_append
+    has_append = has Lilypond.v_ly_append_all
     has v = Maybe.isJust $
         TrackLang.lookup_val v (Score.event_environ event)
+    code_attrs = [Lilypond.v_ly_prepend, Lilypond.v_ly_append_all]
 
 convert_pitch :: RealTime -> Score.ControlMap -> PitchSignal.Signal
     -> ConvertT (Maybe Theory.Pitch)
@@ -108,4 +111,3 @@ quantize dur = map $ \e -> e
 quantize_time :: Lilypond.Time -> Lilypond.Time -> Lilypond.Time
 quantize_time time t =
     round (fromIntegral t / fromIntegral time :: Double) * time
-
