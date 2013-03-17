@@ -236,7 +236,7 @@ strip_attrs :: [Score.Attributes] -> [Score.Attributes]
 strip_attrs attrs = foldr strip_attr attrs strip
     where
     strip = reverse
-        [ VslInst.sus, VslInst.vib, VslInst.perf, VslInst.fast
+        [ VslInst.sus, VslInst.vib, VslInst.perf, VslInst.fast, VslInst.fa
         , VslInst.norm, VslInst.na, VslInst.legato, VslInst.v1, VslInst.art
         , VslInst.med
         ]

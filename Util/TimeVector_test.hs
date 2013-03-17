@@ -1,9 +1,10 @@
 module Util.TimeVector_test where
 import qualified Util.Seq as Seq
 import Util.Test
-
 import qualified Util.TimeVector as V
 import Util.TimeVector (X)
+
+import qualified Perform.RealTime as RealTime
 
 
 type Y = Double
@@ -56,7 +57,7 @@ test_drop_after = do
     equal (f 1 vec) [(0, 0)]
     equal (f 2 vec) [(0, 0), (1, 1)]
     equal (f 3 vec) [(0, 0), (1, 1), (2, 0)]
-    equal (f 1 [(0, 0), (1 - V.eta, 1)]) [(0, 0)]
+    equal (f 1 [(0, 0), (1 - RealTime.eta, 1)]) [(0, 0)]
 
 test_drop_before = do
     let f x = unsignal . V.drop_before x . signal
