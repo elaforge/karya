@@ -20,6 +20,7 @@ import qualified Derive.Call.Ornament as Ornament
 import qualified Derive.Call.Trill as Trill
 import qualified Derive.Call.Util as Util
 import qualified Derive.Derive as Derive
+import qualified Derive.ParseBs as ParseBs
 import qualified Derive.Pitches as Pitches
 import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
@@ -29,6 +30,48 @@ import qualified Instrument.Tag as Tag
 import qualified Local.Instrument.VslInst as VslInst
 import qualified App.MidiInst as MidiInst
 
+
+-- * util
+
+-- | For interactive use, find keyswitches with the given attributes.
+find_attrs :: Instrument.InstrumentName -> String -> [String]
+find_attrs inst with_attrs =
+    map ShowVal.show_val $ filter (`Score.attrs_contain` search) attrs
+    where
+    search = either error id (ParseBs.parse_attrs with_attrs)
+    attrs = Instrument.keyswitch_attributes (Instrument.patch_keyswitches patch)
+    patch = maybe (error $ "patch not found: " ++ show inst) id $
+        List.find ((==inst) . Instrument.patch_name) (map fst patches)
+
+-- | Write matrices to a file for visual reference.
+write_matrices :: IO ()
+write_matrices = writeFile "matrices.txt" $ unlines $
+    map show_matrix (map (fst . fst) instruments)
+
+show_matrix :: VslInst.Instrument -> String
+show_matrix (name, _, attrs) =
+    name ++ ":\n" ++ unlines (map format matrices)
+    where
+    matrices = Seq.chunked 12 $ concatMap (Seq.chunked 12)
+        (map_shape strip attrs)
+    format = unlines . Seq.format_columns 1
+        . zipWith (:) col_header . (header:)
+        . map (map (abbr . ShowVal.show_val))
+    header = take 12 $ map show [1..]
+    col_header = take 13 $ map (:"") "-abcdefghijkl"
+    abbr = Seq.replace "staccato" "stac"
+    strip = strip_attrs . map (`Score.attrs_diff` variants)
+    variants = VslInst.updown <> VslInst.crescdim <> VslInst.highlow
+
+-- | Transform elements but retain the matrix's shape.
+map_shape :: ([a] -> [b]) -> [[a]] -> [[b]]
+map_shape f rows = split (map length rows) $ f (concat rows)
+    where
+    split (len:lens) xs = pre : split lens post
+        where (pre, post) = splitAt len xs
+    split [] _ = []
+
+-- * instrument definition
 
 load :: FilePath -> IO [MidiInst.SynthDesc]
 load _dir = return synth_descs
@@ -187,41 +230,16 @@ matrix keys = add . Seq.chunked 12 . concatMap (Seq.chunked 12)
 keys_from :: Midi.Key -> [Instrument.Keyswitch]
 keys_from low_key = map Instrument.Keyswitch [low_key ..]
 
--- | Write matrices to a file for visual reference.
-write_matrices :: IO ()
-write_matrices = writeFile "matrices.txt" $ unlines $
-    map show_matrix (map (fst . fst) instruments)
-
-show_matrix :: VslInst.Instrument -> String
-show_matrix (name, _, attrs) =
-    name ++ ":\n" ++ unlines (map format matrices)
-    where
-    matrices = Seq.chunked 12 $ concatMap (Seq.chunked 12)
-        (map_shape strip attrs)
-    format = unlines . Seq.format_columns 1
-        . zipWith (:) col_header . (header:)
-        . map (map (abbr . ShowVal.show_val))
-    header = take 12 $ map show [1..]
-    col_header = take 13 $ map (:"") "-abcdefghijkl"
-    abbr = Seq.replace "staccato" "stac"
-    strip = strip_attrs . map (`Score.attrs_diff` variants)
-    variants = VslInst.updown <> VslInst.crescdim <> VslInst.highlow
-
--- | Transform elements but retain the matrix's shape.
-map_shape :: ([a] -> [b]) -> [[a]] -> [[b]]
-map_shape f rows = split (map length rows) $ f (concat rows)
-    where
-    split (len:lens) xs = pre : split lens post
-        where (pre, post) = splitAt len xs
-    split [] _ = []
-
 -- * attrs
 
 strip_attrs :: [Score.Attributes] -> [Score.Attributes]
 strip_attrs attrs = foldr strip_attr attrs strip
     where
-    strip = reverse [VslInst.sus, VslInst.vib, VslInst.perf, VslInst.fast,
-        VslInst.norm, VslInst.na, VslInst.legato, VslInst.v1, VslInst.art]
+    strip = reverse
+        [ VslInst.sus, VslInst.vib, VslInst.perf, VslInst.fast
+        , VslInst.norm, VslInst.na, VslInst.legato, VslInst.v1, VslInst.art
+        , VslInst.med
+        ]
 
 -- | Strip the given attr, but only if it wouldn't cause clashes.
 strip_attr :: Score.Attributes -> [Score.Attributes] -> [Score.Attributes]

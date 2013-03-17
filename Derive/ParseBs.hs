@@ -16,7 +16,7 @@ module Derive.ParseBs (
     from_string, to_string
     , parse_expr
     , parse_control_title
-    , parse_val, parse_num, parse_call
+    , parse_val, parse_attrs, parse_num, parse_call
     , lex1
 
     -- * expand macros
@@ -67,6 +67,10 @@ parse_control_title = Parse.parse_all p_control_title . from_string
 -- Symbols, which are still Strings.
 parse_val :: String -> Either String TrackLang.Val
 parse_val = Parse.parse_all (lexeme p_val) . from_string
+
+-- | Parse attributes in the form +a+b.
+parse_attrs :: String -> Either String Score.Attributes
+parse_attrs = parse (A.option '+' (A.char '+') *> p_attrs) . from_string
 
 -- | Parse a number or hex code, without a type suffix.
 parse_num :: String -> Either String Signal.Y
