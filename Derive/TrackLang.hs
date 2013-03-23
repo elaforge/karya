@@ -45,9 +45,9 @@ import qualified Ui.ScoreTime as ScoreTime
 import qualified Derive.BaseTypes as Score
 import qualified Derive.BaseTypes as PitchSignal
 import Derive.BaseTypes
-       (Environ, make_environ, insert_val, lookup_val, null_environ,
-        ValName, Val(..), Symbol(..), RelativeAttrs(..), ControlRef(..),
-        PitchControl, ValControl, Note(..))
+       (Environ, make_environ, environ_to_list, insert_val, lookup_val,
+        null_environ, ValName, Val(..), Symbol(..), RelativeAttrs(..),
+        ControlRef(..), PitchControl, ValControl, Note(..))
 import Derive.ShowVal (ShowVal(..))
 
 import qualified Perform.Pitch as Pitch

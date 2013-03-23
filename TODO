@@ -3,6 +3,45 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
+  * It's because slice orphans acts like they're on different tracks even
+    though they're on the same one.
+    Slice all the way down to the bottom of the note tracks.
+  - Does this mean I can get rid of the is-ly track-level hack?
+  * Slice notes should complain when a sub-note is larger than its parent,
+    because those duplicate notes.  Right?
+    * Track level orphans should also check.
+    . I changed slice to no longer omit empty tracks, because I need to check
+      them for overlaps.  I should filter those out afterwards.
+    . I can't convince myself that checking against the slice start is right,
+      because it's relative while the events are absolute.
+      Also, one of the events in the cascading test gets picked up by the
+      track orphan slice and is duplicated.
+      I need to nail down what event_ranges returns and what that means for
+      slicing, along with the details of absolute vs. relative track time.
+
+    . Eval event at 1.  It calls sub_events on its range, and slices a child
+      at 1.  The event is shifted back to 0, setting shifted to 1.  That event
+      is evaluated, and calls sub_events.
+
+      The absolute time is in the calling track's shift, which is not visible
+      inside sub_events.
+
+      I could keep things in track time by adding shifted to the slice times.
+      Then event_ranges has to subtract
+      its event slices its subs.  The shift is incremented again.
+
+    * make sure all uses of slice strip empty tracks
+    * rename checked_sub_events to just sub_events
+    * cleanup Slice_test
+    * fix tests
+
+  - use type TrackTime = ScoreTime to at least document where time is expected
+    to be track time.  I really want TrackTime to be a subtype of ScoreTime.
+    A phantom type could do it, but would be a big pain to put everywhere.
+  - viola sonata: see about making piano more detached by default, only
+    linking notes under slurs
+  - now that I have tevents_around, can I get rid of slice_around and the
+    require_previous hack?
   * save/bug-no-cnt-dmg - in awit2-2, change dyn and kendang blocks below
     don't pick up the dyn change
   bloom
@@ -342,6 +381,7 @@ integrate / integration:
   - quantization
 
 lilypond:
+  * slur over harmonic in mm31 disappeared, and the one on mm41 is wrong
   * 2 measures per line instead of 4
   * fix "cannot end slur" warnings
   * slurs should go to the last note in a tie

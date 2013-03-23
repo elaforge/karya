@@ -17,6 +17,9 @@
     from underneath the empty parent, otherwise they will not be evaluated
     at all.  This is done at the 'derive_track' level, by 'extract_orphans'.
 
+    I should always strip empty tracks from the output.  See
+    'strip_empty_tracks' for details and rationale.
+
     This is a nasty tricky bit of work, but is depended on by all the high
     level notation, e.g. calls that can manipulate the results of other
     calls, aka NoteTransformers.  I'd still love to figure out a better way
@@ -30,13 +33,18 @@ import qualified Data.Monoid as Monoid
 import qualified Data.Set as Set
 import qualified Data.Tree as Tree
 
+import Util.Control
+import qualified Util.Pretty as Pretty
+import qualified Util.Seq as Seq
 import qualified Util.Then as Then
+
 import qualified Ui.Event as Event
 import qualified Ui.Events as Events
 import qualified Ui.TrackTree as TrackTree
 
 import qualified Derive.Call.Control as Control
 import qualified Derive.Call.Pitch as Pitch
+import qualified Derive.Derive as Derive
 import qualified Derive.ParseBs as ParseBs
 import qualified Derive.TrackInfo as TrackInfo
 
@@ -48,71 +56,23 @@ import Types
 -- will otherwise never be evaluated since it's the responsibility of the
 -- supernote to evaluate its subs.
 --
--- The toplevel parent track is omitted entirely, so you want the transformers
--- in the titles of the skipped tracks to apply you have to apply them
--- yourself.  TODO but that's complicated if there are multiple skipped tracks,
--- why not return the intervening track titles?
---
--- Since there's no point to a control track with no note track underneath,
--- control track orphans are stripped out.
---
--- TODO recursive is wrong, given:
---
---  a-
---    b-
---      c-
---  d-
---    e-
---    f-
---      g-
---
--- I expect: [[b], [c], [e, f], [g]]
--- But I get: [[b, c], [e, f, g]]
---
--- It's surprisingly tricky to get right.  I should be able to get the
--- sub-orphans recursively and then re-slice the orphans, omitting the
--- sub-orphans, but wouldn't it be more efficient to get the right slice ranges
--- in the first place?
-extract_orphans :: Bool -- ^ If true, if the extracted orphan ranges themselves
-    -- have orphans, extract those too.  This must be False for BlockUtil
-    -- because it evaluates the returned tracks recursively, at which point
-    -- extract_orphans will be called again.  But even though I tried, I can't
-    -- figure out how to get 'slice_notes' to have the same recursive
-    -- structure, so magic flag it is.
-    -> Maybe (ScoreTime, ScoreTime)
-    -> TrackTree.TrackEvents -> TrackTree.EventsTree
+-- The toplevel parent track is omitted entirely, so you want its title to
+-- apply you have to do it yourself.
+extract_orphans :: TrackTree.TrackEvents -> TrackTree.EventsTree
     -> [((ScoreTime, ScoreTime), TrackTree.EventsNode)]
-extract_orphans _ _ _ [] = []
-extract_orphans recursive maybe_range track subs =
-    filter (has_note . snd) $ concatMap slice_gap gaps
+    -- ^ [((start, end), track)]
+extract_orphans _ [] = []
+extract_orphans track subs = strip_empty $
+    filter (Foldable.any is_note . snd) $ concatMap slice_gap gaps
     where
     gaps = event_gaps (TrackTree.tevents_end track) (track_events track)
-    slice_gap (exclusive, start, end) = concat $
-        [((start, end), t) | t <- tree] : if not recursive then []
-            else [extract_orphans True maybe_range track subs
-                | Tree.Node track subs <- tree]
+    slice_gap (exclusive, start, end) = [((start, end), t) | t <- tree]
         where tree = slice exclusive (1, 1) start end Nothing subs
-
-    track_events = map Event.range . Events.ascending
-        . maybe id (uncurry Events.in_range_point) maybe_range
-        . TrackTree.tevents_events
-    has_note = Monoid.getAny . Foldable.foldMap
-        (Monoid.Any . TrackInfo.is_note_track . TrackTree.tevents_title)
-
--- event_ranges :: Bool -> Maybe (ScoreTime, ScoreTime) -> TrackTree.EventsNode
---     -> [(ScoreTime, ScoreTime)]
--- event_ranges recursive maybe_range tree = nonoverlapping ranges
---     where
---     ranges
---         | recursive =
---             Seq.merge_lists fst $ Tree.flatten $ fmap track_events tree
---         | otherwise = track_events (Tree.rootLabel tree)
---     track_events = map Event.range . Events.ascending
---         . maybe id (uncurry Events.in_range_point) maybe_range
---         . TrackTree.tevents_events
---     nonoverlapping [] = []
---     nonoverlapping (r:rs) = r : nonoverlapping (dropWhile (overlaps r) rs)
---     overlaps (s1, e1) (s2, e2) = not $ e1 <= s2 || e2 <= s1
+    track_events = map Event.range . Events.ascending . TrackTree.tevents_events
+    strip_empty tracks =
+        filter has_note_track [(range, stripped)
+            | (range, node) <- tracks, stripped <- strip_empty_tracks node]
+        where has_note_track (_, node) = Foldable.any is_note node
 
 -- | Given a list of events, return the gaps in between those events as
 -- ranges.  Each range also has an \"exclusive\" flag, which indicates whether
@@ -175,7 +135,7 @@ slice :: Bool -- ^ Omit events than begin at the start.  'event_gaps' documents
     -- The created track will have the given track_range, so it can create
     -- a Stack.Region entry.
     -> TrackTree.EventsTree -> TrackTree.EventsTree
-slice exclusive around start end insert_event = concatMap strip . map do_slice
+slice exclusive around start end insert_event = map do_slice
     where
     do_slice (Tree.Node track subs) = Tree.Node (slice_t track)
         (if null subs then insert else map do_slice subs)
@@ -218,10 +178,16 @@ slice exclusive around start end insert_event = concatMap strip . map do_slice
         es = TrackTree.tevents_events track
         title = TrackTree.tevents_title track
 
-    strip (Tree.Node track subs)
-        | TrackTree.tevents_events track == Events.empty =
-            concatMap strip subs
-        | otherwise = [Tree.Node track (concatMap strip subs)]
+-- | Strip out tracks with no events.  This is necessary because otherwise they
+-- would cause evaluation to stop, or in the case of inversion, cause the
+-- \"inverting below a note track will cause an endless loop\" error from
+-- 'Derive.Call.Note.invert'.  I used to do it inside 'slice', but I need to
+-- keep them around until 'find_overlapping' has done its thing.
+strip_empty_tracks :: TrackTree.EventsNode -> TrackTree.EventsTree
+strip_empty_tracks (Tree.Node track subs)
+    | TrackTree.tevents_events track == Events.empty = stripped
+    | otherwise = [Tree.Node track stripped]
+    where stripped = concatMap strip_empty_tracks subs
 
 -- | Note tracks don't include pre and post events like control tracks.
 extract_note_events :: Bool -> ScoreTime -> ScoreTime
@@ -290,35 +256,27 @@ extract_control_events is_pitch_track (before, after) start end events =
 -- extract orphans in the same way.
 --
 -- Ick.
-slice_notes :: ScoreTime -> ScoreTime -> TrackTree.EventsTree
-    -> [[(ScoreTime, ScoreTime, TrackTree.EventsTree)]]
-    -- ^ One list per note track, in right to left order.  Each track is
-    -- @[(shift, stretch, tree)]@, in no guaranteed order.  Null if there
-    -- were no note tracks.
-slice_notes start end =
-    filter (not . null) . map (map shift . slice_track) . concatMap note_tracks
+slice_notes :: ScoreTime -> ScoreTime -> TrackTree.EventsTree -> [[Note]]
+    -- ^ One [Note] per sub note track, in right to left order.
+slice_notes start end tracks =
+    filter (not . null) $ map (map shift . slice_track) $
+        concatMap note_tracks tracks
     where
-    -- Find the first note tracks.
-    note_tracks (Tree.Node track subs)
-        | TrackInfo.is_note_track (TrackTree.tevents_title track) =
-            ([], track, subs)
-            : [([], otrack, osubs) | (_, Tree.Node otrack osubs)
-                <- extract_orphans True (Just (start, end)) track subs]
-        | otherwise = [(track : parents, ntrack, nsubs)
-            | (parents, ntrack, nsubs) <- concatMap note_tracks subs]
+    note_tracks :: TrackTree.EventsNode -> [Sliced]
+    note_tracks node@(Tree.Node track subs)
+        | is_note track = [([], track, event_ranges start end node, subs)]
+        | otherwise =
+            [ (track : parents, ntrack, slices, nsubs)
+            | (parents, ntrack, slices, nsubs) <- concatMap note_tracks subs
+            ]
     -- For each note track, slice out each event.
-    slice_track ::
-        ([TrackTree.TrackEvents], TrackTree.TrackEvents, TrackTree.EventsTree)
-        -> [(ScoreTime, ScoreTime, TrackTree.EventsTree)]
-    slice_track (parents, track, subs) =
-        map (slice_event (make_tree parents)) (Events.ascending events)
+    slice_track :: Sliced -> [Note]
+    slice_track (parents, track, slices, subs) =
+        map (slice1 (make_tree parents)) slices
         where
-        events = Events.in_range_point start end
-            (TrackTree.tevents_events track)
         make_tree [] = [Tree.Node track subs]
         make_tree (p:ps) = [Tree.Node p (make_tree ps)]
-    slice_event tree event = (s, e - s, slice False (1, 1) s e Nothing tree)
-        where (s, e) = Event.range event
+    slice1 tree (s, e) = (s, e - s, slice False (1, 1) s e Nothing tree)
     shift (shift, stretch, tree) =
         (shift, stretch, map (fmap (shift_tree shift)) tree)
     shift_tree shift track = track
@@ -331,3 +289,108 @@ slice_notes start end =
         , TrackTree.tevents_shifted = TrackTree.tevents_shifted track + shift
         }
         where move = Event.move (subtract shift)
+
+-- | Slice overlaps are when an event overlaps the start of the slice range.
+-- They're bad because they tend to cause notes to get doubled.  This is
+-- because a slice is expanded by larger sub-events, so the events under the
+-- overlapping event have likely already be evaluated by the previous slice.
+--
+-- From another point of view, slices represent nested function calls.  An
+-- overlapping event would then represent a function that somehow exists in
+-- two call branches simultaneously, and there's no way to make sense of that
+-- without duplicating the call branches.  E.g., visually:
+--
+-- > a-b-
+-- > c---
+-- > 1-2-
+--
+-- The call @c@ overlaps @b@.  To make this into a call graph, you have to
+-- either omit @c@ even though it looks like it has scope over @2@:
+--
+-- > a (c 1) (b 2)
+--
+-- Or duplicate it:
+--
+-- > a (c 1) (b (c 2))
+--
+-- Duplication is reasonable for some calls, i.e. ones that treat all their
+-- sub-events uniformly, but not the rest.  Besides, when @a@ slices, @c@ will
+-- expand it to include @1@ and @2@, so the actual result is
+--
+-- > a (c 1 2) (b ...?)
+--
+-- It's ok for a sub-event to be larger than its caller, because there are
+-- zero-duration note transformers that take non-zero-duration sub-events.
+--
+-- This check also requires me to delay stripping out empty tracks until after
+-- the check has been done, because otherwise @b@ wouldn't notice that @c@
+-- overlaps.
+find_overlapping :: Note -> Maybe (Maybe TrackId, (ScoreTime, ScoreTime))
+find_overlapping (_, _, subs) = msum (map (find overlaps) subs)
+    where
+    overlaps track = case TrackTree.tevents_around track of
+        (prev : _, _)
+            -- Since the events have been shifted back by the slice start, an
+            -- event that extends over 0 means it overlaps the beginning of the
+            -- slice.
+            | Event.end prev > 0 ->
+                Just (TrackTree.tevents_track_id track,
+                    (shifted (Event.start prev), shifted (Event.end prev)))
+        _ -> Nothing
+        where shifted = (+ TrackTree.tevents_shifted track)
+
+-- | This is 'slice_notes', but throw an error if 'find_overlapping' complains.
+checked_slice_notes :: ScoreTime -> ScoreTime -> TrackTree.EventsTree
+    -> Derive.Deriver [[Note]]
+checked_slice_notes start end tracks = do
+    let notes = slice_notes start end tracks
+    -- Only check the first note of each slice.  Since the notes are
+    -- increasing, this is the only one which might start before the slice.
+    let overlapping = mapMaybe find_overlapping (mapMaybe Seq.head notes)
+    unless (null overlapping) $ do
+        Derive.throw $ "slice has overlaps: " <> Pretty.pretty overlapping
+    return $ filter (not . null) $ map strip_notes notes
+    where
+    strip_notes :: [Note] -> [Note]
+    strip_notes tracks =
+        filter non_null [(start, end, concatMap strip_empty_tracks tree)
+            | (start, end, tree) <- tracks ]
+        where non_null (_, _, xs) = not (null xs)
+
+-- | (parents, track, slices, subs)
+type Sliced = ([TrackTree.TrackEvents], TrackTree.TrackEvents,
+    [(ScoreTime, ScoreTime)], TrackTree.EventsTree)
+-- | (start, dur, tracks)
+type Note = (ScoreTime, ScoreTime, TrackTree.EventsTree)
+
+-- | Get slice ranges for a track.  This gets the non-overlapping ranges of all
+-- the note tracks events below.
+event_ranges :: ScoreTime -> ScoreTime -> TrackTree.EventsNode
+    -> [(ScoreTime, ScoreTime)]
+event_ranges start end = nonoverlapping . to_ranges
+    where
+    to_ranges = Seq.merge_lists fst . map track_events . filter is_note
+        . Tree.flatten
+    track_events = map Event.range . Events.ascending
+        . Events.in_range_point start end
+        . TrackTree.tevents_events
+    nonoverlapping [] = []
+    nonoverlapping (r:rs) = r : nonoverlapping (dropWhile (overlaps r) rs)
+    overlaps (s1, e1) (s2, e2) = not $ e1 <= s2 || e2 <= s1
+
+overlapping_parents :: TrackTree.TrackEvents -> [(ScoreTime, ScoreTime)]
+    -> [Events.Events]
+overlapping_parents track slices = do
+    (start, end) <- slices
+    let parents = Events.in_range_point start end $
+            TrackTree.tevents_events track
+    guard (Events.length parents > 1)
+    return parents
+
+-- * util
+
+is_note :: TrackTree.TrackEvents -> Bool
+is_note = TrackInfo.is_note_track . TrackTree.tevents_title
+
+find :: (Foldable.Foldable t) => (a -> Maybe b) -> t a -> Maybe b
+find f = Monoid.getFirst . Foldable.foldMap (Monoid.First . f)

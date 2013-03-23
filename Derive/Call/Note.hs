@@ -268,8 +268,8 @@ c_equal = Derive.Call
         (Sig.parsed_manually Util.equal_arg_doc Util.equal_transformer)
     }
     where
-    generate args = place $ map (map_event (Util.equal_transformer args)) $
-        concat $ sub_events args
+    generate args = place . map (map_event (Util.equal_transformer args))
+        . concat =<< sub_events args
 
 -- * inversion
 
@@ -353,11 +353,11 @@ invert around (track_start, _) subs start end next_start text events_around = do
     let sliced = slice track_id
     when_just (non_bottom_note_track sliced) $ \track ->
         Derive.throw $
-            "inverting below note track will lead to an endless loop: "
+            "inverting below a note track will lead to an endless loop: "
             ++ Pretty.pretty (TrackTree.tevents_track_id track)
     return sliced
     where
-    slice track_id =
+    slice track_id = concatMap Slice.strip_empty_tracks $
         Slice.slice False around start next_start (Just (insert track_id)) subs
     -- Use 'next_start' instead of track_end because in the absence of a next
     -- note, the track end becomes next note and clips controls.
@@ -416,11 +416,13 @@ instance Show Event where
     show (Event start dur _) = "Event " ++ show start ++ " " ++ show dur
 instance Pretty.Pretty Event where pretty = show
 
+
 -- | Get the Events of subtracks, if any, returning one list of events per sub
 -- note track.  This is the top-level utility for note calls that take other
 -- note calls as arguments.
-sub_events :: Derive.PassedArgs d -> [[Event]]
-sub_events args = map (map mkevent) (Slice.slice_notes start end subs)
+sub_events :: Derive.PassedArgs d -> Derive.Deriver [[Event]]
+sub_events args =
+    map (map mkevent) <$> Slice.checked_slice_notes start end subs
     where
     (start, end) = Args.range args
     subs = Derive.info_sub_tracks (Derive.passed_info args)

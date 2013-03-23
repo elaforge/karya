@@ -65,7 +65,7 @@ transform_notes name generator_doc transform_doc transform = Derive.Call
             transformer
     }
     where
-    generator = Sig.call0 $ \args -> case Note.sub_events args of
+    generator = Sig.call0 $ \args -> Note.sub_events args >>= \x -> case x of
         [] -> transform $ Note.inverting Util.placed_note args
         subs -> Note.place $ Note.map_events transform (concat subs)
     transformer = Sig.call0t $ \_args deriver -> transform deriver
@@ -94,7 +94,7 @@ c_legato_all = attributed_note Attrs.legato
 -- | Apply the attributes to the init of the sub-events, i.e. every one but the
 -- last.
 init_attr :: Score.Attributes -> Derive.PassedArgs d -> Derive.EventDeriver
-init_attr attr = Note.place . concatMap add . Note.sub_events
+init_attr attr = Note.place . concatMap add <=< Note.sub_events
     where
     add notes = case Seq.viewr notes of
         (notes, Just last) ->

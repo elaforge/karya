@@ -202,6 +202,9 @@ newtype Environ = Environ (Map.Map ValName Val)
 make_environ :: [(ValName, Val)] -> Environ
 make_environ = Environ . Map.fromList
 
+environ_to_list :: Environ -> [(ValName, Val)]
+environ_to_list (Environ env) = Map.toList env
+
 -- | Insert a val directly, with no typechecking.
 insert_val :: ValName -> Val -> Environ -> Environ
 insert_val name val (Environ env) = Environ $ Map.insert name val env

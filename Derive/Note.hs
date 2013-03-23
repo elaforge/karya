@@ -120,9 +120,9 @@ d_note_track (Tree.Node track subs) = do
     title = with_title subs (TrackTree.tevents_range track)
         (TrackTree.tevents_title track)
 
--- | 'Derive.Slice.slice' strips out empty tracks.  That's good, except it
--- means that they never have a few one-time track setup functions run, which
--- means they don't have track warps or track dynamics.
+-- | I call 'Derive.Slice.strip_empty_tracks' after slicing.  That's good,
+-- except it means that they never have one-time track setup functions run,
+-- which means they don't have track warps or track dynamics.
 record_empty_track :: BlockId -> TrackId -> Derive.Deriver ()
 record_empty_track block_id track_id = do
     Internal.add_track_warp track_id

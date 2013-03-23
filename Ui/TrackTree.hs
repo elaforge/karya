@@ -153,6 +153,7 @@ instance Pretty.Pretty TrackEvents where
         , ("sliced", Pretty.format (tevents_sliced track))
         , ("shifted", Pretty.format (tevents_shifted track))
         , ("events", Pretty.format (tevents_events track))
+        , ("around", Pretty.format (tevents_around track))
         ]
 
 track_events :: String -> Events.Events -> ScoreTime -> TrackEvents

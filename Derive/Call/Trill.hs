@@ -130,7 +130,8 @@ c_tremolo = Derive.Call
         simple_tremolo starts [Args.normalized args deriver]
     generator = Sig.call speed_arg $ \speed args -> do
         starts <- tremolo_starts speed (Args.range_or_next args)
-        case filter (not . null) (Note.sub_events args) of
+        notes <- Note.sub_events args
+        case filter (not . null) notes of
             [] -> Note.inverting_args args $ Lily.note_code code args $
                 simple_tremolo starts [Util.note]
             notes -> Lily.notes_code code args $ chord_tremolo starts notes

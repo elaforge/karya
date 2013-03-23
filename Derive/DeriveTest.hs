@@ -381,6 +381,14 @@ e_note e = (Score.event_start e, Score.event_duration e, e_pitch e)
 e_attributes :: Score.Event -> String
 e_attributes = ShowVal.show_val . Score.event_attributes
 
+e_environ :: (String -> Bool) -> Score.Event -> [(TrackLang.ValName, String)]
+e_environ f event =
+    [ (TrackLang.Symbol k, ShowVal.show_val v)
+    | (TrackLang.Symbol k, v)
+        <- TrackLang.environ_to_list (Score.event_environ event)
+    , f k
+    ]
+
 -- ** extract log msgs
 
 show_log_stack :: Log.Msg -> String

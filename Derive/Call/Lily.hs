@@ -58,8 +58,8 @@ notes_code code = notes_with (add_code code)
 -- start code, and the last event in each track gets the end code.
 notes_around :: Code -> Code -> Derive.PassedArgs d
     -> Derive.EventDeriver -> Derive.EventDeriver
-notes_around start end args = when_lilypond $
-    const $ mconcat $ map around $ Note.sub_events args
+notes_around start end args = when_lilypond $ const $
+    mconcat . map around =<< Note.sub_events args
     where
     around notes = first_last
         (add_event_code start) (add_event_code end) <$> Note.place notes
@@ -67,7 +67,7 @@ notes_around start end args = when_lilypond $
 -- | Like 'notes_around', but for use when you already know you're in lilypond
 -- mode.
 notes_around_ly :: Code -> Code -> Derive.PassedArgs d -> Derive.EventDeriver
-notes_around_ly start end args = mconcat $ map around $ Note.sub_events args
+notes_around_ly start end = mconcat . map around <=< Note.sub_events
     where
     around notes = first_last
         (add_event_code start) (add_event_code end) <$> Note.place notes
@@ -83,11 +83,11 @@ code_around start end args = when_lilypond
 notes_with :: (Derive.EventDeriver -> Derive.EventDeriver)
     -> Derive.PassedArgs d
     -> Derive.EventDeriver -> Derive.EventDeriver
-notes_with f args = when_lilypond $
-    const $ Note.place $ Note.map_events f $ concat (Note.sub_events args)
+notes_with f args = when_lilypond $ const $
+    Note.place . Note.map_events f . concat =<< Note.sub_events args
 
 place_notes :: Derive.PassedArgs d -> Derive.EventDeriver
-place_notes = Note.place . concat . Note.sub_events
+place_notes = Note.place . concat <=< Note.sub_events
 
 -- ** events around
 

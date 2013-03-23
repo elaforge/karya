@@ -11,7 +11,7 @@ z | c
 This becomes (x (y [a, b, c]) <> (z (y [b, c]))
 TODO I think, verify.  What does slicing do when it doesn't overlap?
 
-If I wanted these to apply how the "should", then I might need
+If I wanted these to apply how they "should", then I might need
 a fundamentally different approach.  Namely:
 Create [Note] from [a, b, c].  Then select the ones that 'y' overlaps, and
 pass them to 'y', which produces [Note].  Select the ones that overlap 'x'
@@ -25,10 +25,34 @@ x [a, y b]
 z (y [c])
 
 This would get rid of the orphans mess and let me write overlapping events.
-What about tuplets?
+But this is the same as splitting events, because 'y' is split.  That works for
+calls that treat each arg individually, but for e.g. tuplet, it will change the
+result.
 
+So the real problem is that some transformers can be applied overlapping while
+others can't.
 
-Another solution would be for slice to cut events that extend before or after.
-This would have the effect of splitting the overlapping events into
-non-overlapping ones.  It seems like it might have surprising effects if the
-events have a non-uniform effect on their children.
+I don't really like this orphan stuff.  Maybe I can build this into
+Note.sub_events.  Parent splits them up into expressions, error if they
+overlap.
+
+This only applies to successive note tracks.  If there's a control track then I
+slice it to the boundaries of each note above it.  Unlike note tracks,
+duplicating control events should be harmless since they just emit control
+points.
+
+The problem is that ( itself doesn't treat its args uniformly.  So extracting
+orphans duplicates it into to two copies on one event, which emits nothing.
+Grouping adjacent note tracks would solve this by eliminating orphans, at least
+sub event orphans.  Track level orphans are still present.
+
+But this makes note transformers into really being like transformers, in that
+they take [Note] as an argument.  In fact I could merge them with transformers
+by passing a single Note instead of a deriver.  This does preclude a call
+implementing its own ad-hoc little language.
+
+Though I considered more serious changes, I wound up just tweaking how note
+slicing works.  Note slicing now looks at events below it to decide on slice
+points, skipping past empty note tracks and control tracks.  I also inserted
+'find_overlapping', which warns about sub-events that overlap multiple parents,
+since there's no real defined meaning for those.

@@ -37,7 +37,7 @@ c_ap :: Derive.NoteCall
 c_ap = Derive.stream_generator "ap" Tags.subs
     "Derive sub events with no changes.  This is used to apply a transformer\
     \ to sub events."
-    $ Sig.call0 $ \args -> Note.place (concat (Note.sub_events args))
+    $ Sig.call0 $ Note.place . concat <=< Note.sub_events
 
 -- * tuplet
 
@@ -48,7 +48,7 @@ c_tuplet = Derive.stream_generator "tuplet" Tags.subs
     \\nIf there are multiple note tracks, they will all be stretched\
     \ the same amount."
     $ Sig.call0 $ \args -> emit_lily_tuplet args $
-        Note.place_at (Args.range args) (concat (Note.sub_events args))
+        Note.place_at (Args.range args) . concat =<< Note.sub_events args
 
 -- | 'c_tuplet' works by lengthening notes to fit in its range, but staff
 -- notation tuplets work by shortening notes.  So I double the duration
@@ -64,9 +64,10 @@ emit_lily_tuplet :: Derive.PassedArgs d -> Derive.EventDeriver
     -> Derive.EventDeriver
 emit_lily_tuplet args not_lily = Lily.when_lilypond lily not_lily
     where
-    lily config = either err return =<< Either.runEitherT (check config)
-    check config = do
-        (note, notes) <- case filter (not . null) (Note.sub_events args) of
+    lily config = either err return =<< Either.runEitherT . check config
+        =<< Note.sub_events args
+    check config notes = do
+        (note, notes) <- case filter (not . null) notes of
             [] -> Either.left $ Just "no sub events"
             [[]] -> Either.left $ Just "no sub events"
             _ : _ : _ -> Either.left $ Just ">1 non-empty sub track"
@@ -121,7 +122,7 @@ c_real_arpeggio arp = Derive.stream_generator "arpeggio"
     ) $ Sig.call
     ( defaulted "time" 0.1 "This much RealTime between each note."
     ) $ \time args -> lily_code args $
-        arpeggio arp (RealTime.seconds time) (Note.sub_events args)
+        arpeggio arp (RealTime.seconds time) =<< Note.sub_events args
     where
     lily_code = Lily.notes_with
         (Lily.prepend_code prefix . Lily.add_code (Lily.SuffixFirst, suffix))

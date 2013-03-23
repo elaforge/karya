@@ -31,8 +31,8 @@ c_sekar = Derive.stream_generator "sekar" (Tags.idiom <> Tags.subs)
         \ documented by 'Derive.Call.Sekar.make_pattern'."
     ) $ \pattern args -> do
         pattern <- make_pattern pattern
-        Note.place_at (Args.range args) $
-            sekar (concat (Note.sub_events args)) pattern
+        notes <- Note.sub_events args
+        Note.place_at (Args.range args) $ sekar (concat notes) pattern
 
 -- | [(index of note, is rest)]
 type Pattern = [(Int, Bool)]
