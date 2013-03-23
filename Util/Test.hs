@@ -103,14 +103,14 @@ equal_srcpos srcpos a b
     pa = Seq.strip $ PPrint.pshow a
     pb = Seq.strip $ PPrint.pshow b
     msg
-        | Seq.count '\n' pa > 7 = diff_values pa pb
+        | Seq.count '\n' pa >= 5 = diff_values pa pb
         | '\n' `elem` pa || '\n' `elem` pb || length pa + length pb >= 60 =
             "\n" ++ pa ++ "\n\t/=\n" ++ pb
         | otherwise = pa ++ " /= " ++ pb
 
 diff_values :: String -> String -> String
 diff_values pa pb =
-    highlight_lines first_lines pa ++ "\n\t/=\n"
+    '\n' : highlight_lines first_lines pa ++ "\n\t/=\n"
     ++ highlight_lines second_lines pb ++ "\ndiff:\n"
     ++ highlight_red diff_text
     where

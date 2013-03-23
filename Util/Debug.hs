@@ -99,7 +99,12 @@ put_line s = Trans.liftIO $ do
 -- * implementation
 
 with_msg :: String -> String -> String
-with_msg msg text = Seq.strip $ prefix ++ msg ++ ": " ++ text
+with_msg msg text_ =
+    prefix ++ msg ++ (if multiline then ":\n" else ": ")
+    ++ text ++ (if multiline then "\n" else "")
+    where
+    text = Seq.strip text_
+    multiline = Seq.count '\n' text > 2
 
 prefix :: String
 prefix = "** "
