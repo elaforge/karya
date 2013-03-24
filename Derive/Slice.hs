@@ -40,6 +40,7 @@ import qualified Util.Then as Then
 
 import qualified Ui.Event as Event
 import qualified Ui.Events as Events
+import qualified Ui.State as State
 import qualified Ui.TrackTree as TrackTree
 
 import qualified Derive.Call.Control as Control
@@ -347,8 +348,9 @@ checked_slice_notes start end tracks = do
     -- Only check the first note of each slice.  Since the notes are
     -- increasing, this is the only one which might start before the slice.
     let overlapping = mapMaybe find_overlapping (mapMaybe Seq.head notes)
-    unless (null overlapping) $ do
-        Derive.throw $ "slice has overlaps: " <> Pretty.pretty overlapping
+    unless (null overlapping) $
+        Derive.throw $ "slice has overlaps: "
+            <> Seq.join ", " (map show_overlapping overlapping)
     return $ filter (not . null) $ map strip_notes notes
     where
     strip_notes :: [Note] -> [Note]
@@ -356,6 +358,10 @@ checked_slice_notes start end tracks = do
         filter non_null [(start, end, concatMap strip_empty_tracks tree)
             | (start, end, tree) <- tracks ]
         where non_null (_, _, xs) = not (null xs)
+    show_overlapping (Nothing, (start, end)) =
+        Pretty.pretty start <> "--" <> Pretty.pretty end
+    show_overlapping (Just track_id, (start, end)) =
+        Pretty.pretty $ State.Range Nothing track_id start end
 
 -- | (parents, track, slices, subs)
 type Sliced = ([TrackTree.TrackEvents], TrackTree.TrackEvents,

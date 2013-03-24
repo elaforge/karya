@@ -30,6 +30,7 @@ import qualified Data.Map as Map
 import Util.Control
 import qualified Util.PPrint as PPrint
 import qualified Util.Pretty as Pretty
+import qualified Util.Seq as Seq
 
 -- Just make sure these are compiled.
 import Midi.Synth ()
@@ -132,24 +133,33 @@ s stackpos = maybe (Cmd.throw $ "can't parse stackpos: " ++ show stackpos)
         highlight_error (Stack.parse_ui_frame stackpos)
 
 highlight_error :: Stack.UiFrame -> Cmd.CmdL ()
-highlight_error (bid, maybe_tid, maybe_range) = do
+highlight_error (maybe_bid, maybe_tid, maybe_range) = do
     unerror
-    view_ids <- fmap Map.keys (State.views_of bid)
+    block_id <- maybe find_block return maybe_bid
+    view_ids <- Map.keys <$> State.views_of block_id
     mapM_ ViewConfig.bring_to_front view_ids
     case (maybe_tid, maybe_range) of
         (Nothing, _) -> forM_ view_ids $ \vid ->
             Selection.set_selnum vid Config.error_selnum
                 (Just (Types.selection 0 0 9999 9999))
         (Just tid, Nothing) -> do
-            tracknum <- State.get_tracknum_of bid tid
+            tracknum <- State.get_tracknum_of block_id tid
             forM_ view_ids $ \vid ->
                 Selection.set_selnum vid Config.error_selnum
                     (Just (Types.selection tracknum 0 tracknum 9999))
         (Just tid, Just (from, to)) -> do
-            tracknum <- State.get_tracknum_of bid tid
+            tracknum <- State.get_tracknum_of block_id tid
             forM_ view_ids $ \vid ->
                 Selection.set_and_scroll vid Config.error_selnum
                     (Types.selection tracknum to tracknum from)
+    where
+    find_block = case maybe_tid of
+        Nothing -> Cmd.throw $
+            "can't highlight stack frame with neither block nor track: "
+            <> show (maybe_bid, maybe_tid, maybe_range)
+        Just track_id -> maybe (Cmd.throw $ "no block with " <> show track_id)
+            (return . fst) . Seq.head
+                =<< State.blocks_with_track_id track_id
 
 unerror :: Cmd.CmdL ()
 unerror = do

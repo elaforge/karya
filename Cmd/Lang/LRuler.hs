@@ -68,20 +68,11 @@ gc = do
     mapM_ State.destroy_ruler ruler_ids
     return ruler_ids
 
--- | Blocks that contain the given ruler.
-blocks_of :: (State.M m) => RulerId -> m [BlockId]
-blocks_of = fmap (map fst) . State.blocks_with_ruler_id
-
--- | Set the rulers on a block to the given RulerId.
-set_ruler_id :: (State.M m) => RulerId -> BlockId -> m ()
-set_ruler_id ruler_id block_id = do
-    old <- State.block_ruler block_id
-    State.replace_ruler_id block_id old ruler_id
-
 -- | Group together rulers that are the same, replace all the duplicates with
--- the first ruler in each group, then gc away the duplicates.
-unify_rulers :: Cmd.CmdL [[RulerId]]
-unify_rulers = do
+-- the first ruler in each group, then gc away the duplicates.  Return the
+-- duplicates.
+unify :: Cmd.CmdL [[RulerId]]
+unify = do
     groups <- Seq.group_eq snd <$>
         State.gets (Map.toAscList . State.state_rulers)
     mapM_ unify groups
@@ -91,6 +82,16 @@ unify_rulers = do
     unify ((rid, _) : dups) = forM_ (map fst dups) $ \dup_rid ->
         replace_ruler_id dup_rid rid
     unify _ = return ()
+
+-- | Blocks that contain the given ruler.
+blocks_of :: (State.M m) => RulerId -> m [BlockId]
+blocks_of = fmap (map fst) . State.blocks_with_ruler_id
+
+-- | Set the rulers on a block to the given RulerId.
+set_ruler_id :: (State.M m) => RulerId -> BlockId -> m ()
+set_ruler_id ruler_id block_id = do
+    old <- State.block_ruler block_id
+    State.replace_ruler_id block_id old ruler_id
 
 -- | Replace all occurrences of one RulerId with another.
 replace_ruler_id :: (State.M m) => RulerId -> RulerId -> m ()
@@ -141,8 +142,8 @@ delete = do
     (block_id, _, _, start, end) <- Selection.tracks
     return (block_id, Meter.remove start end)
 
--- | Add a number of measures of the given meter, where each measure is the
--- given amount of time.
+-- | Set the ruler to a number of measures of the given meter, where each
+-- measure is the given amount of time.
 measures :: (Cmd.M m) => ScoreTime -> Meter.AbstractMeter -> Int -> m Modify
 measures dur meter times =
     fit_to_pos (dur * fromIntegral times) (replicate times meter)

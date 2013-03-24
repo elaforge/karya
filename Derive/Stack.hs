@@ -193,13 +193,13 @@ track_regions stack track_id =
 -- visible in the UI.
 --
 -- @(block_id, track_id, (event_start, event_end))@
-type UiFrame = (BlockId, Maybe TrackId, Maybe (TrackTime, TrackTime))
+type UiFrame = (Maybe BlockId, Maybe TrackId, Maybe (TrackTime, TrackTime))
 
 -- | UiFrames are returned in outermost to innermost order.
 to_ui :: Stack -> [UiFrame]
 to_ui stack = reverse $ foldr f [] (innermost stack)
     where
-    f (Block bid) accum = (bid, Nothing, Nothing) : accum
+    f (Block bid) accum = (Just bid, Nothing, Nothing) : accum
     f (Track tid) ((bid, _, _) : rest) = (bid, Just tid, Nothing) : rest
     f (Region s e) ((bid, tid@(Just _), _) : rest) =
         (bid, tid, Just (s, e)) : rest
@@ -212,10 +212,10 @@ to_ui stack = reverse $ foldr f [] (innermost stack)
 -- > "untitled/b0 foo/bar *"
 -- > "untitled/b0 * *"
 unparse_ui_frame :: UiFrame -> String
-unparse_ui_frame (bid, maybe_tid, maybe_range) =
+unparse_ui_frame (maybe_bid, maybe_tid, maybe_range) =
     Seq.join " " [bid_s, tid_s, range_s]
     where
-    bid_s = Id.show_id (Id.unpack_id bid)
+    bid_s = maybe "*" (Id.show_id . Id.unpack_id) maybe_bid
     tid_s = maybe "*" (Id.show_id . Id.unpack_id) maybe_tid
     range_s = maybe "*"
         (\(from, to) -> float from ++ "-" ++ float to) maybe_range
@@ -224,10 +224,10 @@ unparse_ui_frame (bid, maybe_tid, maybe_range) =
 -- | This is like 'unparse_ui_frame' except it omits the namespaces for a less
 -- cluttered but potentially ambiguous output.
 unparse_ui_frame_ :: UiFrame -> String
-unparse_ui_frame_ (bid, maybe_tid, maybe_range) =
+unparse_ui_frame_ (maybe_bid, maybe_tid, maybe_range) =
     Seq.join " " [bid_s, tid_s, range_s]
     where
-    bid_s = Id.ident_name bid
+    bid_s = maybe "*" Id.ident_name maybe_bid
     tid_s = maybe "*" Id.ident_name maybe_tid
     range_s = maybe "*"
         (\(from, to) -> float from ++ "-" ++ float to) maybe_range
@@ -235,15 +235,18 @@ unparse_ui_frame_ (bid, maybe_tid, maybe_range) =
 
 parse_ui_frame :: String -> Maybe UiFrame
 parse_ui_frame = Parse.maybe_parse_string $ do
-    bid <- Parse.lexeme Parse.p_word
-    tid <- optional (Parse.lexeme Parse.p_word)
+    bid <- optional $ Parse.lexeme Parse.p_word
+    tid <- optional $ Parse.lexeme Parse.p_word
     range <- optional $ do
         from <- Parse.p_float
         Parse.char '-'
         to <- Parse.p_float
         return (ScoreTime.double from, ScoreTime.double to)
-    return (Types.BlockId (Id.read_id (B.unpack bid)),
-        fmap (Types.TrackId . Id.read_id . B.unpack) tid, range)
+    return
+        ( Types.BlockId . Id.read_id . B.unpack <$> bid
+        , Types.TrackId . Id.read_id . B.unpack <$> tid
+        , range
+        )
     where
     optional p = (Parse.char '*' >> Parse.spaces >> return Nothing)
         <|> fmap Just p

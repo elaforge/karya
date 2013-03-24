@@ -36,7 +36,7 @@ find text_ = fmap concat . concatMapM search =<< State.all_block_track_ids
     search (block_id, track_ids) = forM track_ids $ \track_id -> do
         events <- Events.ascending . Track.track_events
             <$> State.get_track track_id
-        let range e = State.Range block_id track_id
+        let range e = State.Range (Just block_id) track_id
                 (Event.start e) (Event.end e)
         return [(range event, Event.event_string event) | event <- events,
             text `Char8.isInfixOf` Event.event_bytestring event]

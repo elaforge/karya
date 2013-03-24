@@ -30,7 +30,7 @@ module Ui.State (
     , scale, key, instrument, tempo
     , empty_config, empty_meta, empty_default
     -- * other types
-    , Pos(..), Range(..), Track(..), TrackInfo(..)
+    , Pos(..), Track(..), Range(..), TrackInfo(..)
     -- * StateT monad
     , M, StateT, StateId, get, unsafe_put, update, get_updates, throw
     , run, run_id, eval, eval_rethrow, exec, exec_rethrow
@@ -258,7 +258,7 @@ empty_default = Default {
     , default_tempo = 1
     }
 
--- * other types
+-- * address types
 
 -- These are types not necessarily used directly in this module, but are
 -- generic types used by users of this module.
@@ -272,18 +272,6 @@ instance Pretty.Pretty Pos where
     pretty (Pos block_id tracknum pos) = Pretty.pretty block_id ++ "/"
         ++ show tracknum ++ "/" ++ Pretty.pretty pos
 
--- | A position on a track that can be indicated on the UI.  Its Pretty
--- instance emits a string, which if logged or copy-pasted into the REPL, will
--- cause that section of score to be highlighted.
-data Range = Range !BlockId !TrackId !TrackTime !TrackTime
-    deriving (Eq, Show)
-
-instance Pretty.Pretty Range where
-    pretty (Range block_id track_id start end) = "{s \"" <> addr <> "\"}"
-        where
-        addr = Stack.unparse_ui_frame
-            (block_id, Just track_id, Just (start, end))
-
 -- | Address a track in a block.  This is similar to a TrackId, except it
 -- doesn't guarantee that the track is an event track.
 data Track = Track !BlockId !TrackNum
@@ -292,6 +280,20 @@ data Track = Track !BlockId !TrackNum
 instance Pretty.Pretty Track where
     pretty (Track block_id tracknum) =
         Pretty.pretty block_id ++ "/" ++ show tracknum
+
+-- | A position on a track that can be indicated on the UI.  Its Pretty
+-- instance emits a string, which if logged or copy-pasted into the REPL, will
+-- cause that section of score to be highlighted.
+data Range = Range !(Maybe BlockId) !TrackId !TrackTime !TrackTime
+    deriving (Eq, Show)
+
+instance Pretty.Pretty Range where
+    pretty (Range maybe_block_id track_id start end) = "{s \"" <> addr <> "\"}"
+        where
+        addr = Stack.unparse_ui_frame
+            (maybe_block_id, Just track_id, Just (start, end))
+
+-- * other types
 
 -- | Summary information on a Track.
 data TrackInfo = TrackInfo {

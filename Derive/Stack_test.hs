@@ -5,7 +5,7 @@ import Util.Test
 import qualified Ui.UiTest as UiTest
 import qualified Derive.Stack as Stack
 
-bid = UiTest.bid
+bid = Just . UiTest.bid
 tid = Just . UiTest.tid
 
 block = Stack.Block . UiTest.bid

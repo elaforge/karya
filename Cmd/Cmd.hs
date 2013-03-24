@@ -978,7 +978,7 @@ log_event :: BlockId -> TrackId -> Event.Event -> String
 log_event block_id track_id event = "{s" ++ show frame ++ "}"
     where
     frame = Stack.unparse_ui_frame
-        (block_id, Just track_id, Just (Event.range event))
+        (Just block_id, Just track_id, Just (Event.range event))
 
 -- | Extract a Just value, or 'abort'.  Generally used to check for Cmd
 -- conditions that don't fit into a Keymap.
