@@ -346,7 +346,8 @@ perform_notes state events =
     go state (LEvent.Log log, _) = (state, [LEvent.Log log])
     go state (LEvent.Event event@(_, addr), future) =
         _perform_note state (find_addr addr future) event
-    find_addr addr = fmap (event_start . fst) . LEvent.find ((==addr) . snd)
+    find_addr addr =
+        fmap (event_start . fst) . LEvent.find_event ((==addr) . snd)
 
 _perform_note :: PerformState -> Maybe RealTime -> (Event, Instrument.Addr)
     -> (PerformState, MidiEvents)

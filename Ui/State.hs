@@ -30,7 +30,7 @@ module Ui.State (
     , scale, key, instrument, tempo
     , empty_config, empty_meta, empty_default
     -- * other types
-    , Pos(..), Track(..), TrackInfo(..)
+    , Pos(..), Range(..), Track(..), TrackInfo(..)
     -- * StateT monad
     , M, StateT, StateId, get, unsafe_put, update, get_updates, throw
     , run, run_id, eval, eval_rethrow, exec, exec_rethrow
@@ -57,7 +57,7 @@ module Ui.State (
     , shift_selection, shift_tracknum
 
     -- * block
-    , get_block, lookup_block, all_block_ids
+    , get_block, lookup_block, all_block_ids, all_block_track_ids
     , create_block, destroy_block
     , block_of, block_id_of, views_of
     , get_block_title, set_block_title
@@ -155,6 +155,7 @@ import qualified Ui.Types as Types
 import qualified Ui.Update as Update
 
 import qualified Derive.Score as Score
+import qualified Derive.Stack as Stack
 import qualified Perform.Lilypond.Types as Lilypond
 import qualified Perform.Midi.Instrument as Instrument
 import qualified Perform.Pitch as Pitch
@@ -270,6 +271,18 @@ data Pos = Pos !BlockId !TrackNum !TrackTime
 instance Pretty.Pretty Pos where
     pretty (Pos block_id tracknum pos) = Pretty.pretty block_id ++ "/"
         ++ show tracknum ++ "/" ++ Pretty.pretty pos
+
+-- | A position on a track that can be indicated on the UI.  Its Pretty
+-- instance emits a string, which if logged or copy-pasted into the REPL, will
+-- cause that section of score to be highlighted.
+data Range = Range !BlockId !TrackId !TrackTime !TrackTime
+    deriving (Eq, Show)
+
+instance Pretty.Pretty Range where
+    pretty (Range block_id track_id start end) = "{s \"" <> addr <> "\"}"
+        where
+        addr = Stack.unparse_ui_frame
+            (block_id, Just track_id, Just (start, end))
 
 -- | Address a track in a block.  This is similar to a TrackId, except it
 -- doesn't guarantee that the track is an event track.
@@ -562,6 +575,11 @@ lookup_block block_id = get >>= return . Map.lookup block_id . state_blocks
 
 all_block_ids :: (M m) => m [BlockId]
 all_block_ids = gets (Map.keys . state_blocks)
+
+-- | Get all blocks along with their tracks.
+all_block_track_ids :: (M m) => m [(BlockId, [TrackId])]
+all_block_track_ids =
+    map (second Block.block_track_ids) <$> gets (Map.toList . state_blocks)
 
 -- | Make a new block.  If it's the first one, it will be set as the root.
 -- This is the low level version, you probably want to use 'create_block'.

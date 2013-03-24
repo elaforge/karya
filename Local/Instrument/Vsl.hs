@@ -55,11 +55,9 @@ show_matrix (name, _, attrs) =
     matrices = Seq.chunked 12 $ concatMap (Seq.chunked 12)
         (map_shape strip attrs)
     format = unlines . Seq.format_columns 1
-        . zipWith (:) col_header . (header:)
-        . map (map (abbr . ShowVal.show_val))
+        . zipWith (:) col_header . (header:) . map (map ShowVal.show_val)
     header = take 12 $ map show [1..]
     col_header = take 13 $ map (:"") "-abcdefghijkl"
-    abbr = Seq.replace "staccato" "stac"
     strip = strip_attrs . map (`Score.attrs_diff` variants)
     variants = VslInst.updown <> VslInst.crescdim <> VslInst.highlow
 

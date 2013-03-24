@@ -1224,7 +1224,7 @@ trumpet_c =
 trumpet_c_short_long_notes =
     [ staccato, portato.short
     , portato.med, portato.med.marcato, portato.med.soft
-    -- long-norm, long-marc, long-soft
+    -- long-norm, long-marcato, long-soft
     , portato.long.norm.vib, portato.long.marcato.vib
     , portato.long.norm.vib_str, portato.long.marcato.vib_str
     , portato.long.norm.nv, portato.long.marcato.nv

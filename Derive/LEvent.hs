@@ -56,10 +56,12 @@ either :: (d -> a) -> (Log.Msg -> a) -> LEvent d -> a
 either f1 _ (Event event) = f1 event
 either _ f2 (Log log) = f2 log
 
-find :: (a -> Bool) -> [LEvent a] -> Maybe a
-find _ [] = Nothing
-find f (Log _ : rest) = find f rest
-find f (Event event : rest) = if f event then Just event else find f rest
+find_event :: (a -> Bool) -> [LEvent a] -> Maybe a
+find_event _ [] = Nothing
+find_event f (Log _ : rest) = find_event f rest
+find_event f (Event event : rest)
+    | f event = Just event
+    | otherwise = find_event f rest
 
 events_of :: [LEvent d] -> [d]
 events_of [] = []

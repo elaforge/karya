@@ -12,17 +12,17 @@ no_attrs = Score.no_attrs
 -- * articulations
 
 flaut = attr "flaut" -- flautando
-staccato = attr "staccato"
-spiccato = attr "spiccato"
+staccato = attr "stac"
+spiccato = attr "spic"
 detache = attr "detache"
-marcato = attr "marcato"
-portato = attr "portato"
-tenuto = attr "tenuto"
+marcato = attr "marc"
+portato = attr "port"
+tenuto = attr "ten"
 accent = attr "accent"
 espr = attr "espr" -- espressivo
 trill = attr "trill"
 trem = attr "trem" -- tremolo
-arpeggio = attr "arpeggio"
+arpeggio = attr "arp"
 legato = attr "legato"
 porta = attr "porta" -- portamento
 gliss = attr "gliss" -- glissando

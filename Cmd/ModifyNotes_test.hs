@@ -154,7 +154,7 @@ mknote :: (ScoreTime, ScoreTime, String, [(String, [(ScoreTime, String)])],
 mknote (start, dur, text, controls, index) = ModifyNotes.Note
     { ModifyNotes.note_start = start
     , ModifyNotes.note_duration = dur
-    , ModifyNotes.note_text = Event.to_text text
+    , ModifyNotes.note_text = Event.from_string text
     , ModifyNotes.note_controls = mkcontrols controls
     , ModifyNotes.note_index = index
     }

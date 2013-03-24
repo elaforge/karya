@@ -1,11 +1,15 @@
 {-# LANGUAGE NoMonomorphismRestriction #-}
 -- | Lang cmds to deal with events.
 module Cmd.Lang.LEvent where
+import qualified Data.ByteString.Char8 as Char8
+
 import Util.Control
 import qualified Util.Seq as Seq
 import qualified Ui.Event as Event
+import qualified Ui.Events as Events
 import qualified Ui.ScoreTime as ScoreTime
 import qualified Ui.State as State
+import qualified Ui.Track as Track
 
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.ModifyEvents as ModifyEvents
@@ -22,6 +26,25 @@ stretch n = do
             map (\(_, _, evts) -> maybe 0 Event.start (Seq.head evts)) selected
     ModifyEvents.selection $ ModifyEvents.event $
         Event.move (\p -> (p - start) * n + start) . Event.modify_duration (*n)
+
+-- | Find all events having the given substring.  Call with 'pp' to get
+-- copy-pastable 's' codes.
+find :: String -> Cmd.CmdL [(State.Range, String)]
+find text_ = fmap concat . concatMapM search =<< State.all_block_track_ids
+    where
+    text = Event.from_string text_
+    search (block_id, track_ids) = forM track_ids $ \track_id -> do
+        events <- Events.ascending . Track.track_events
+            <$> State.get_track track_id
+        let range e = State.Range block_id track_id
+                (Event.start e) (Event.end e)
+        return [(range event, Event.event_string event) | event <- events,
+            text `Char8.isInfixOf` Event.event_bytestring event]
+
+-- | Replace text on events.  Call with 'ModifyEvents.all_blocks' to replace it
+-- everywhere, or 'ModifyEvents.all_note_tracks' for just note tracks.
+replace :: (Monad m) => String -> String -> ModifyEvents.Track m
+replace from to = ModifyEvents.text (Seq.replace from to)
 
 -- * quantize
 
