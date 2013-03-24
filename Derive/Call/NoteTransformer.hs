@@ -119,10 +119,12 @@ c_real_arpeggio arp = Derive.stream_generator "arpeggio"
     \ Since it transforms score and not events, it doesn't know the\
     \ pitches of the sub notes (they may not have a single pitch) so\
     \ it's not actually \"up\" or \"down\"."
-    ) $ Sig.call
-    ( defaulted "time" 0.1 "This much RealTime between each note."
-    ) $ \time args -> lily_code args $
-        arpeggio arp (RealTime.seconds time) =<< Note.sub_events args
+    ) $ Sig.call ((,)
+    <$> defaulted "time" 0.1 "This much RealTime between each note."
+    <*> defaulted "variation" 0.5
+        "Each note can vary randomly by `+- time/2 * variation`."
+    ) $ \(time, variation) args -> lily_code args $
+        arpeggio arp (RealTime.seconds time) variation =<< Note.sub_events args
     where
     lily_code = Lily.notes_with
         (Lily.prepend_code prefix . Lily.add_code (Lily.SuffixFirst, suffix))
@@ -133,15 +135,24 @@ c_real_arpeggio arp = Derive.stream_generator "arpeggio"
     suffix = "\\arpeggio"
 
 -- | Shift each track of notes by a successive amount.
-arpeggio :: Arpeggio -> RealTime -> [[Note.Event]] -> Derive.EventDeriver
-arpeggio arp time tracks = do
-    delay_tracks <- zip (Seq.range_ 0 time) <$> sort tracks
+arpeggio :: Arpeggio -> RealTime -> Double -> [[Note.Event]]
+    -> Derive.EventDeriver
+arpeggio arp time variation tracks = do
+    delay_tracks <- jitter . zip (Seq.range_ 0 time) =<< sort tracks
     events <- fmap concat $ forM delay_tracks $ \(delay, track) ->
         forM track $ \(Note.Event start dur d) -> do
             new_start <- Util.delay start delay
             return $ Note.Event new_start (dur - (new_start - start)) d
     Note.place events
     where
+    jitter tracks
+        | variation == 0 = return tracks
+        | otherwise = do
+            rs <- Util.randoms_in (-variation) variation
+            return $ zipWith nudge rs tracks
+    nudge r (delay, notes)
+        | delay == 0 = (delay, notes)
+        | otherwise = (delay + time/2 * RealTime.seconds r, notes)
     sort = case arp of
         ToRight -> return
         ToLeft -> return . reverse
