@@ -264,7 +264,7 @@ empty_default = Default {
 
 -- | Address a position on a track.  Usually functions take the parameters
 -- separately, but this is more convenient when a position is passed around.
-data Pos = Pos !BlockId !TrackNum !ScoreTime
+data Pos = Pos !BlockId !TrackNum !TrackTime
     deriving (Eq, Show)
 
 instance Pretty.Pretty Pos where
@@ -357,7 +357,7 @@ modify f = do
 -- | Run the given StateT with the given initial state, and return a new
 -- state along with updates.  Normally updates are produced by 'Ui.Diff.diff',
 -- but for efficiency updates to track data are accumulated when they are
--- actually made.  All the UI needs is a ScoreTime range to redraw in, and
+-- actually made.  All the UI needs is a TrackTime range to redraw in, and
 -- redrawing the whole track isn't that expensive.
 --
 -- See the StateStack comment for more.
@@ -655,7 +655,7 @@ set_play_box block_id color = do
 
 -- | Get the end of the block according to the ruler.  This means that if the
 -- block has no rulers (e.g. a clipboard block) then block_ruler_end will be 0.
-block_ruler_end :: (M m) => BlockId -> m ScoreTime
+block_ruler_end :: (M m) => BlockId -> m TrackTime
 block_ruler_end block_id = do
     block <- get_block block_id
     case Block.block_ruler_ids block of
@@ -663,7 +663,7 @@ block_ruler_end block_id = do
         ruler_id : _ -> Ruler.time_end <$> get_ruler ruler_id
 
 -- | Get the end of the block according to the last event of the block.
-block_event_end :: (M m) => BlockId -> m ScoreTime
+block_event_end :: (M m) => BlockId -> m TrackTime
 block_event_end block_id = do
     block <- get_block block_id
     track_ends <- mapM track_event_end (Block.block_track_ids block)
@@ -671,7 +671,7 @@ block_event_end block_id = do
 
 -- | Get the maximum of ruler end and event end.  The end may still be 0 if the
 -- block is totally empty.
-block_end :: (M m) => BlockId -> m ScoreTime
+block_end :: (M m) => BlockId -> m TrackTime
 block_end block_id =
     max <$> block_ruler_end block_id <*> block_event_end block_id
 
@@ -1172,13 +1172,13 @@ insert_block_events block_id track_id events = do
 insert_event :: (M m) => TrackId -> Event.Event -> m ()
 insert_event track_id event = insert_events track_id [event]
 
-get_events :: (M m) => TrackId -> ScoreTime -> ScoreTime -> m [Event.Event]
+get_events :: (M m) => TrackId -> TrackTime -> TrackTime -> m [Event.Event]
 get_events track_id start end = do
     events <- Track.track_events <$> get_track track_id
     return $ Events.ascending $ Events.in_range_point start end events
 
 -- | Get an event at or before the given time.
-get_event :: (M m) => TrackId -> ScoreTime -> m (Maybe Event.Event)
+get_event :: (M m) => TrackId -> TrackTime -> m (Maybe Event.Event)
 get_event track_id pos = Seq.head <$> get_events track_id pos pos
 
 get_all_events :: (M m) => TrackId -> m [Event.Event]
@@ -1196,7 +1196,7 @@ modify_some_events track_id f = _modify_events track_id $ \events ->
     let new_events = f events
     in (new_events, calculate_damage events new_events)
 
-calculate_damage :: Events.Events -> Events.Events -> Ranges.Ranges ScoreTime
+calculate_damage :: Events.Events -> Events.Events -> Ranges.Ranges TrackTime
 calculate_damage old new =
     Ranges.sorted_ranges $ foldr f [] $
         Seq.pair_sorted_on Event.start
@@ -1211,13 +1211,13 @@ calculate_damage old new =
 
 -- | Remove any events whose starting positions fall within the half-open
 -- range given, or under the point if the selection is a point.
-remove_events :: (M m) => TrackId -> ScoreTime -> ScoreTime -> m ()
+remove_events :: (M m) => TrackId -> TrackTime -> TrackTime -> m ()
 remove_events track_id start end
     | start == end = remove_event track_id start
     | otherwise = remove_event_range track_id start end
 
 -- | Remove a single event at @pos@, if there is one.
-remove_event :: (M m) => TrackId -> ScoreTime -> m ()
+remove_event :: (M m) => TrackId -> TrackTime -> m ()
 remove_event track_id pos = _modify_events track_id $ \events ->
     case Events.at pos events of
         Nothing -> (events, Ranges.nothing)
@@ -1226,14 +1226,14 @@ remove_event track_id pos = _modify_events track_id $ \events ->
 
 -- | Remove any events whose starting positions strictly fall within the
 -- half-open range given.
-remove_event_range :: (M m) => TrackId -> ScoreTime -> ScoreTime -> m ()
+remove_event_range :: (M m) => TrackId -> TrackTime -> TrackTime -> m ()
 remove_event_range track_id start end =
     _modify_events track_id $ \events ->
         let evts = Events.ascending (Events.in_range start end events)
         in (Events.remove start end events, events_range evts)
 
 -- | Get the end of the last event of the block.
-track_event_end :: (M m) => TrackId -> m ScoreTime
+track_event_end :: (M m) => TrackId -> m TrackTime
 track_event_end track_id =
     Events.time_end . Track.track_events <$> get_track track_id
 
@@ -1256,7 +1256,7 @@ modify_track track_id f = do
         st { state_tracks = Map.adjust f track_id (state_tracks st) }
 
 _modify_events :: (M m) => TrackId
-    -> (Events.Events -> (Events.Events, Ranges.Ranges ScoreTime))
+    -> (Events.Events -> (Events.Events, Ranges.Ranges TrackTime))
     -> m ()
 _modify_events track_id f = do
     track <- get_track track_id
@@ -1266,12 +1266,12 @@ _modify_events track_id f = do
         st { state_tracks = Map.insert track_id new_track (state_tracks st) }
     mapM_ update (ranges_to_updates track_id ranges)
 
-ranges_to_updates :: TrackId -> Ranges.Ranges ScoreTime -> [Update.CmdUpdate]
+ranges_to_updates :: TrackId -> Ranges.Ranges TrackTime -> [Update.CmdUpdate]
 ranges_to_updates track_id ranges = case Ranges.extract ranges of
     Nothing -> [Update.CmdTrackAllEvents track_id]
     Just pairs -> [Update.CmdTrackEvents track_id s e | (s, e) <- pairs]
 
-events_range :: [Event.Event] -> Ranges.Ranges ScoreTime
+events_range :: [Event.Event] -> Ranges.Ranges TrackTime
 events_range events = case minmax events of
         Just (emin, emax) -> Ranges.range emin emax
         Nothing -> Ranges.nothing

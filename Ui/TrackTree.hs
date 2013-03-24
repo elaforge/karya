@@ -123,7 +123,7 @@ data TrackEvents = TrackEvents {
     -- damage outside of its range.
     --
     -- This is a (start, end) range, not (start, dur).
-    , tevents_range :: !(ScoreTime, ScoreTime)
+    , tevents_range :: !(TrackTime, TrackTime)
     -- | True if this is a sliced track.  That means it's a fragment of
     -- a track and so certain track-level things, like recording a track
     -- signal, should be skipped.
@@ -135,11 +135,10 @@ data TrackEvents = TrackEvents {
     , tevents_around :: !([Event.Event], [Event.Event])
 
     -- | If the events have been shifted from their original positions on the
-    -- track, this can be added to them to put them back in track time.  This
-    -- is for the stack, which should always be in track time.  It's probably
-    -- the same as @fst . tevents_range@, but only applies if the events have
-    -- been shifted, which you can't tell from just looking at
-    -- @tevents_range@.
+    -- track, this can be added to them to put them back in TrackTime.  This is
+    -- for the stack, which should always be in TrackTime.  It's probably the
+    -- same as @fst . tevents_range@, but only applies if the events have been
+    -- shifted, which you can't tell from just looking at @tevents_range@.
     , tevents_shifted :: !ScoreTime
     } deriving (Show)
 

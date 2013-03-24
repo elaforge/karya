@@ -35,9 +35,10 @@ UNSORTED
     * cleanup Slice_test
     * fix tests
 
-  - use type TrackTime = ScoreTime to at least document where time is expected
+  * use type TrackTime = ScoreTime to at least document where time is expected
     to be track time.  I really want TrackTime to be a subtype of ScoreTime.
     A phantom type could do it, but would be a big pain to put everywhere.
+  - use State.Pos or something with a Pretty that logview understands
   - viola sonata: see about making piano more detached by default, only
     linking notes under slurs
   - now that I have tevents_around, can I get rid of slice_around and the

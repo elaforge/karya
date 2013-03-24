@@ -61,8 +61,8 @@ import Types
 
 
 data Event = Event {
-    start :: !ScoreTime
-    , duration :: !ScoreTime
+    start :: !TrackTime
+    , duration :: !TrackTime
     -- | UTF8 encoded.
     , event_bytestring :: !Text
     -- | Each event can have its own style.  However, in practice, because I
@@ -99,7 +99,7 @@ instance DeepSeq.NFData Stack where
 -- reasonable or even desirable since it's easier to understand.  I'll have to
 -- see what kinds of edits and what kinds of reintegrations are likely in
 -- practice.
-type IndexKey = ScoreTime
+type IndexKey = TrackTime
 
 instance DeepSeq.NFData Event where
     rnf = DeepSeq.rnf . stack

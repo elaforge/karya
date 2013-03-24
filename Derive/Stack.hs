@@ -92,7 +92,7 @@ track_of :: Frame -> Maybe TrackId
 track_of (Track t) = Just t
 track_of _ = Nothing
 
-region_of :: Frame -> Maybe (ScoreTime, ScoreTime)
+region_of :: Frame -> Maybe (TrackTime, TrackTime)
 region_of (Region s e) = Just (s, e)
 region_of _ = Nothing
 
@@ -103,7 +103,7 @@ call_of _ = Nothing
 data Frame =
     Block !BlockId
     | Track !TrackId
-    | Region !ScoreTime !ScoreTime
+    | Region !TrackTime !TrackTime
     | Call !String
     deriving (Eq, Ord, Read, Show)
 
@@ -175,7 +175,7 @@ from_strings = from_outermost . map read
 -- | Get the Regions associated with a track in a given stack.  It's a little
 -- tricky because track level calls will go in between the track and the
 -- region, e.g. [track, call, call, region].
-track_regions :: Stack -> TrackId -> [Ranges.Ranges ScoreTime]
+track_regions :: Stack -> TrackId -> [Ranges.Ranges TrackTime]
 track_regions stack track_id =
     [Ranges.range s e | (_:rest) <- grps, (s, e) <- get_region rest ]
     where
@@ -193,7 +193,7 @@ track_regions stack track_id =
 -- visible in the UI.
 --
 -- @(block_id, track_id, (event_start, event_end))@
-type UiFrame = (BlockId, Maybe TrackId, Maybe (ScoreTime, ScoreTime))
+type UiFrame = (BlockId, Maybe TrackId, Maybe (TrackTime, TrackTime))
 
 -- | UiFrames are returned in outermost to innermost order.
 to_ui :: Stack -> [UiFrame]

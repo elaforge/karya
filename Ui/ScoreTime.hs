@@ -1,5 +1,7 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
-module Ui.ScoreTime (ScoreTime, to_double, double, suffix, eta, eq) where
+module Ui.ScoreTime (
+    ScoreTime, TrackTime, to_double, double, suffix, eta, eq
+) where
 import qualified Control.DeepSeq as DeepSeq
 import qualified Data.Digest.CRC32 as CRC32
 import qualified Text.ParserCombinators.ReadP as ReadP
@@ -23,6 +25,23 @@ newtype ScoreTime = ScoreTime Double deriving
     , RealFrac, Eq, Ord, Serialize.Serialize, CRC32.CRC32
     , ApproxEq.ApproxEq
     )
+
+-- | This is also ScoreTime, but it's relative to the beginning of the track.
+-- I.e., UI events are all in track time, but when they get shifted and
+-- stretched as by note slicing they're no longer in TrackTime, but not yet in
+-- RealTime.
+--
+-- I'd like to make a type-level distinction because it's easy to get confused
+-- about whether a time has or hasn't been transformed, but when I tried it
+-- seemed like a big hassle since I'd really like for TrackTime to be a subtype
+-- of ScoreTime.  I could do it with a phantom type, but it would change about
+-- a million type declarations.  And since Events start in TrackTime but are
+-- then ScoreTime if transformed, they would also need a type parameter, along
+-- with probably a few other basic data types.
+--
+-- Unless I work up the courage to do that someday, the least I can do is
+-- document the difference with a type synonym.
+type TrackTime = ScoreTime
 
 -- I could derive Storable, but technically speaking Double is not necessarily
 -- the same as CDouble.

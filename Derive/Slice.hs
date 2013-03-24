@@ -325,7 +325,7 @@ slice_notes start end tracks =
 -- This check also requires me to delay stripping out empty tracks until after
 -- the check has been done, because otherwise @b@ wouldn't notice that @c@
 -- overlaps.
-find_overlapping :: Note -> Maybe (Maybe TrackId, (ScoreTime, ScoreTime))
+find_overlapping :: Note -> Maybe (Maybe TrackId, (TrackTime, TrackTime))
 find_overlapping (_, _, subs) = msum (map (find overlaps) subs)
     where
     overlaps track = case TrackTree.tevents_around track of
@@ -377,15 +377,6 @@ event_ranges start end = nonoverlapping . to_ranges
     nonoverlapping [] = []
     nonoverlapping (r:rs) = r : nonoverlapping (dropWhile (overlaps r) rs)
     overlaps (s1, e1) (s2, e2) = not $ e1 <= s2 || e2 <= s1
-
-overlapping_parents :: TrackTree.TrackEvents -> [(ScoreTime, ScoreTime)]
-    -> [Events.Events]
-overlapping_parents track slices = do
-    (start, end) <- slices
-    let parents = Events.in_range_point start end $
-            TrackTree.tevents_events track
-    guard (Events.length parents > 1)
-    return parents
 
 -- * util
 
