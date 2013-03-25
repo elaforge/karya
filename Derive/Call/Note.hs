@@ -170,21 +170,39 @@ default_note config args = do
         }
 
 -- | Interpret attributes and controls that effect the note's duration.
+--
+-- This is actually somewhat complicated.  Instead of all the
+-- duration-affecting controls all applying together, notes fit into distinct
+-- categories:
+--
+-- - Zero-duration notes ignore all this.
+--
+-- - Legato notes last until the next note plus 'Score.c_legato_overlap'.
+--
+-- - Staccato notes divide their duration by 2.
+--
+-- - Normal notes multiply 'Score.c_sustain' and add 'Score.c_duration_abs',
+-- which could be negative.  They clip at a minimum duration to keep from going
+-- negative.
 duration_attributes :: Config -> Score.ControlMap -> Score.Attributes
-    -> RealTime -> RealTime -> RealTime -> RealTime
+    -> RealTime -> RealTime -> RealTime -> RealTime -- ^ new end time
 duration_attributes config controls attrs start end next
+    | start >= end = end -- don't mess with 0 dur or negative notes
     | config_legato config && has Attrs.legato =
         next + lookup_time 0.1 Score.c_legato_overlap
-    | otherwise = start + dur * sustain
+    | otherwise = start + max min_duration (dur * sustain + sustain_abs)
     where
     has = Score.attrs_contain attrs
     dur = end - start
-    sustain = if config_staccato config && has Attrs.staccato
-        then sustain_ * 0.5 else sustain_
+    staccato = config_staccato config && has Attrs.staccato
+    sustain = if staccato then sustain_ * 0.5 else sustain_
+    sustain_abs = if staccato then 0 else lookup_time 0 Score.c_sustain_abs
     sustain_ = lookup_time 1 Score.c_sustain
     lookup_time deflt control = maybe deflt
         (RealTime.seconds . Signal.at start . Score.typed_val)
         (Map.lookup control controls)
+    -- This keeps a negative sustain_abs from making note duration negative.
+    min_duration = 0.01
 
 -- | Interpret the c_start_rnd and c_dur_rnd controls.
 --

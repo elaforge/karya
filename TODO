@@ -3,7 +3,12 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
+  - %sustain-abs=-.x is not quite right for detached, because it should scale
+    a bit for shorter notes.  E.g. it's absolute but scales down to 0 below
+    a certain threshold.
   - make 's' call open a view if there isn't already one open
+  - standard block, change tempo to >, add a ( event, then pitch signal gets
+    flattened
   * It's because slice orphans acts like they're on different tracks even
     though they're on the same one.
     Slice all the way down to the bottom of the note tracks.
