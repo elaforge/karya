@@ -440,7 +440,6 @@ decode config = decode_from []
     rmap _ collect [] = return (Map.fromList collect)
     rmap path collect (spec:specs) = do
         vals <- field path collect spec
-        -- Debug.tracepM "vals" vals
         rmap path (vals ++ collect) specs
 
     field :: [Name] -> [(Name, Record)] -> (Name, Spec)

@@ -339,8 +339,16 @@ is_root_block = do
 add_track_warp :: TrackId -> Deriver ()
 add_track_warp track_id = do
     stack <- get_stack
+    -- Put the track_id on the stack.  Originally this always happened
+    -- implicitly because 'add_track_warp' was only called from "inside" the
+    -- track (after adding the track's stack frame), but now there is orphan
+    -- extraction that strips out empty tracks.  So the block deriver winds up
+    -- explicitly calling 'add_track_warp' via 'record_empty_tracks' outside of
+    -- the track's stack frame.
     merge_collect $ mempty
-        { collect_warp_map = Map.singleton stack (Right track_id) }
+        { collect_warp_map = Map.singleton
+            (Stack.add (Stack.Track track_id) stack) (Right track_id)
+        }
 
 -- | Start a new track warp for the current block_id.
 --
@@ -390,3 +398,18 @@ track_setup track deriver = do
 -- record the track warp, see 'd_tempo' for why.
 setup_without_warp :: Deriver d -> Deriver d
 setup_without_warp = in_real_time
+
+-- | The deriver strips out tracks that can't be derived because they have no
+-- notes.  But that means the track warps and track dynamics aren't recorded,
+-- which means they don't have tempo or a playback monitor, which makes them
+-- annoying.
+record_empty_tracks :: [TrackId] -> Deriver ()
+record_empty_tracks [] = return ()
+record_empty_tracks track_ids = do
+    block_id <- get_current_block_id
+    mapM_ (record_empty_track block_id) track_ids
+
+record_empty_track :: BlockId -> TrackId -> Deriver ()
+record_empty_track block_id track_id = do
+    add_track_warp track_id
+    record_track_dynamic_for block_id track_id

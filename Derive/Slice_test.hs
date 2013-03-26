@@ -9,6 +9,7 @@ import Util.Test
 
 import qualified Ui.Event as Event
 import qualified Ui.Events as Events
+import qualified Ui.Id as Id
 import qualified Ui.ScoreTime as ScoreTime
 import qualified Ui.TrackTree as TrackTree
 import qualified Ui.UiTest as UiTest
@@ -25,17 +26,15 @@ import Types
 
 
 test_extract_orphans = do
-    let f events = second extract_tree . unzip
+    let f events = second extract_tree . unzip . fst
             . Slice.extract_orphans (uncurry make_track events) . make_tree
-    equal (f (make_notes 1 "a") [Node (make_notes 1 "b") []])
-        ([], [])
+    equal (f (make_notes 1 "a") [Node (make_notes 1 "b") []]) ([], [])
     equal (f (make_notes 1 "x") [Node (make_notes 0 "abc") []])
         ( [(0, 1), (2, 100)]
         , [ Node (make_notes 0 "a") []
           , Node (make_notes 2 "c") []
           ]
         )
-
     equal (f (make_notes 1 "x") [Node (make_notes 0 "abc") []])
         ( [(0, 1), (2, 100)]
         , [ Node (make_notes 0 "a") []
@@ -49,10 +48,22 @@ test_extract_orphans = do
           , Node (make_notes 2 "c") []
           ]
         )
-
     -- orphan control tracks are stripped out
     equal (f (make_notes 1 "a") [Node (make_controls "c" [0..4]) []])
         ([], [])
+
+test_extract_orphans_empty = do
+    let f events = snd . Slice.extract_orphans (uncurry make_track events)
+            . make_tree
+        empty title = Node (first (++title) $ make_notes 0 "")
+        notes title start = first (++title) . make_notes start
+        controls name = Node . make_controls name
+    equal (f (notes "top" 0 "a") [Node (notes "b" 1 "b") []]) []
+    equal (f (notes "top" 0 "") [empty "empty" [Node (notes "b" 1 "b") []]])
+        [UiTest.tid "empty"]
+    equal (f (notes "top" 0 "a")
+            [controls "c" [0] [], Node (notes "b" 1 "b") []])
+        []
 
 test_event_gaps = do
     let f = Slice.event_gaps
@@ -330,8 +341,14 @@ make_tree = map $ \(Node (title, events) subs) ->
     Node (make_track title events) (make_tree subs)
 
 make_track :: String -> [Event] -> TrackTree.TrackEvents
-make_track title events = TrackTree.track_events title tevents 100
+make_track title events =
+    (TrackTree.track_events title tevents 100)
+        { TrackTree.tevents_track_id = UiTest.tid <$> clean title }
     where
+    clean s
+        | null ident = Nothing
+        | otherwise = Just ident
+        where ident = fst (Id.clean_id True s)
     tevents = Events.from_list
         [Event.event start dur text | (start, dur, text) <- events]
 

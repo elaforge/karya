@@ -17,7 +17,7 @@
     from underneath the empty parent, otherwise they will not be evaluated
     at all.  This is done at the 'derive_track' level, by 'extract_orphans'.
 
-    I should always strip empty tracks from the output.  See
+    I try to always strip empty tracks from the output.  See
     'strip_empty_tracks' for details and rationale.
 
     This is a nasty tricky bit of work, but is depended on by all the high
@@ -60,20 +60,32 @@ import Types
 -- The toplevel parent track is omitted entirely, so you want its title to
 -- apply you have to do it yourself.
 extract_orphans :: TrackTree.TrackEvents -> TrackTree.EventsTree
-    -> [((ScoreTime, ScoreTime), TrackTree.EventsNode)]
-    -- ^ [((start, end), track)]
-extract_orphans _ [] = []
-extract_orphans track subs = strip_empty $
-    filter (Foldable.any is_note . snd) $ concatMap slice_gap gaps
+    -> ([((ScoreTime, ScoreTime), TrackTree.EventsNode)], [TrackId])
+    -- ^ ([((start, end), track)], empty_or_control_tracks)
+extract_orphans _ [] = ([], [])
+extract_orphans track subs = partition_orphans $ concatMap slice_gap gaps
     where
     gaps = event_gaps (TrackTree.tevents_end track) (track_events track)
     slice_gap (exclusive, start, end) = [((start, end), t) | t <- tree]
         where tree = slice exclusive (1, 1) start end Nothing subs
     track_events = map Event.range . Events.ascending . TrackTree.tevents_events
-    strip_empty tracks =
-        filter has_note_track [(range, stripped)
-            | (range, node) <- tracks, stripped <- strip_empty_tracks node]
-        where has_note_track (_, node) = Foldable.any is_note node
+
+-- | Strip out the empty tracks and return their TrackIds.  Also strip out
+-- control-only tracks, but I intentionally don't return their TrackIds,
+-- because not having a playback monitor should make it obvious that they're
+-- useless.
+partition_orphans :: [(a, TrackTree.EventsNode)]
+    -> ([(a, TrackTree.EventsNode)], [TrackId])
+partition_orphans tracks = (notes, underivable)
+    where
+    underivable = mapMaybe TrackTree.tevents_track_id $ concat empty
+    -- Use partition if I want to include controls in underivable.
+    notes = filter has_note_track
+        [(range, node) | (range, tree) <- nonempty, node <- tree]
+    (nonempty, empty) = unzip $ map split tracks
+    split (range, node) = ((range, nonempty), empty)
+        where (nonempty, empty) = partition_empty_tracks node
+    has_note_track (_, node) = Foldable.any is_note node
 
 -- | Given a list of events, return the gaps in between those events as
 -- ranges.  Each range also has an \"exclusive\" flag, which indicates whether
@@ -186,9 +198,20 @@ slice exclusive around start end insert_event = map do_slice
 -- keep them around until 'find_overlapping' has done its thing.
 strip_empty_tracks :: TrackTree.EventsNode -> TrackTree.EventsTree
 strip_empty_tracks (Tree.Node track subs)
-    | TrackTree.tevents_events track == Events.empty = stripped
+    | track_null track = stripped
     | otherwise = [Tree.Node track stripped]
     where stripped = concatMap strip_empty_tracks subs
+
+-- | This is like 'strip_empty_tracks' except return the stripped out tracks.
+partition_empty_tracks :: TrackTree.EventsNode
+    -> (TrackTree.EventsTree, [TrackTree.TrackEvents])
+    -- ^ (empty_tracks_stripped, empty_tracks)
+partition_empty_tracks (Tree.Node track subs)
+    | track_null track = (nonempty, track : empty)
+    | otherwise = ([Tree.Node track nonempty], empty)
+    where
+    (nonempty, empty) = (\(xs, ys) -> (concat xs, concat ys)) $ unzip $
+        map partition_empty_tracks subs
 
 -- | Note tracks don't include pre and post events like control tracks.
 extract_note_events :: Bool -> ScoreTime -> ScoreTime
@@ -388,6 +411,9 @@ event_ranges start end = nonoverlapping . to_ranges
 
 is_note :: TrackTree.TrackEvents -> Bool
 is_note = TrackInfo.is_note_track . TrackTree.tevents_title
+
+track_null :: TrackTree.TrackEvents -> Bool
+track_null = Events.null . TrackTree.tevents_events
 
 find :: (Foldable.Foldable t) => (a -> Maybe b) -> t a -> Maybe b
 find f = Monoid.getFirst . Foldable.foldMap (Monoid.First . f)

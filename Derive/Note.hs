@@ -85,7 +85,6 @@ import qualified Data.Char as Char
 import qualified Data.List.NonEmpty as NonEmpty
 import qualified Data.Tree as Tree
 
-import Util.Control
 import qualified Ui.Event as Event
 import qualified Ui.Events as Events
 import qualified Ui.TrackTree as TrackTree
@@ -105,13 +104,6 @@ import Types
 d_note_track :: TrackTree.EventsNode -> Derive.EventDeriver
 d_note_track (Tree.Node track subs) = do
     stash_sub_signals subs
-    let empty_subs = mapMaybe TrackTree.tevents_track_id $
-            filter (Events.null . TrackTree.tevents_events) $
-            concatMap Tree.flatten subs
-    unless (null empty_subs) $ do
-        block_id <- Internal.get_current_block_id
-        mapM_ (record_empty_track block_id) empty_subs
-    mapM_ Internal.add_track_warp empty_subs
     title $ derive_notes
         (TrackTree.tevents_end track) (TrackTree.tevents_range track)
         (TrackTree.tevents_shifted track) subs (TrackTree.tevents_around track)
@@ -119,14 +111,6 @@ d_note_track (Tree.Node track subs) = do
     where
     title = with_title subs (TrackTree.tevents_range track)
         (TrackTree.tevents_title track)
-
--- | I call 'Derive.Slice.strip_empty_tracks' after slicing.  That's good,
--- except it means that they never have one-time track setup functions run,
--- which means they don't have track warps or track dynamics.
-record_empty_track :: BlockId -> TrackId -> Derive.Deriver ()
-record_empty_track block_id track_id = do
-    Internal.add_track_warp track_id
-    Internal.record_track_dynamic_for block_id track_id
 
 with_title :: TrackTree.EventsTree -> (ScoreTime, ScoreTime) -> String
     -> Derive.EventDeriver -> Derive.EventDeriver

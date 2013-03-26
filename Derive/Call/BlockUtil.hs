@@ -140,23 +140,29 @@ derive_tracks = mconcat . map derive_track
 -- | Derive a single track node and any tracks below it.
 derive_track :: TrackTree.EventsNode -> Derive.EventDeriver
 derive_track node@(Tree.Node track subs)
-    | TrackInfo.is_note_track (TrackTree.tevents_title track) =
-        with_stack $ cached $ derive_orphans (TrackTree.tevents_title track)
-            (Slice.extract_orphans track subs)
-            (Internal.track_setup track (Note.d_note_track node))
-    -- I'd like track_setup up here, but tempo tracks are treated differently,
-    -- so it goes inside d_control_track.
+    | TrackInfo.is_note_track (TrackTree.tevents_title track) = do
+        let (orphans, underivable) = Slice.extract_orphans track subs
+        record underivable
+        with_stack $ cached $
+            derive_orphans (TrackTree.tevents_title track) orphans $
+                Internal.track_setup track (Note.d_note_track node)
+    -- I'd like to call track_setup up here, but tempo tracks are treated
+    -- differently, so it goes inside d_control_track.
     | otherwise = with_stack $ Control.d_control_track node (derive_tracks subs)
     where
-    derive_orphans title orphans
+    record = Internal.record_empty_tracks
+    derive_orphans title orphans deriver
         -- If d_merge could tell when an EventDeriver was mempty and not
         -- evaluate it I wouldn't need this little optimization.
-        | null orphans = id
+        | null orphans = deriver
         -- The orphans still get evaluated under the track title, otherwise
         -- they might miss the instrument.
-        | otherwise = (<>) $ mconcat
+        | otherwise = derived_orphans <> deriver
+        where
+        derived_orphans = mconcat
             [Note.with_title [] range title (derive_track orphan)
                 | (range, orphan) <- orphans]
+
     with_stack = maybe id Internal.with_stack_track
         (TrackTree.tevents_track_id track)
     cached

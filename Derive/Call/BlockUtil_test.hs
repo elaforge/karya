@@ -1,13 +1,16 @@
 module Derive.Call.BlockUtil_test where
 import qualified Data.Map as Map
+import qualified Data.Set as Set
 
 import Util.Control
 import Util.Test
+import qualified Ui.UiTest as UiTest
 import qualified Derive.Call.CallTest as CallTest
-import qualified Derive.Sig as Sig
 import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Score as Score
+import qualified Derive.Sig as Sig
+import qualified Derive.TrackWarp as TrackWarp
 
 import qualified Perform.Signal as Signal
 
@@ -85,6 +88,18 @@ test_extract_orphans = do
             -- let subs = Derive.info_sub_tracks (Derive.passed_info args)
             -- Log.warn $ show (Slice_test.extract_tree subs)
             return []
+
+test_record_empty_tracks = do
+    -- Ensure that TrackWarps and TrackDynamics are collected for empty tracks.
+    let run tracks = DeriveTest.linear_derive_tracks id tracks
+        track_warps = concatMap (Set.toList . TrackWarp.tw_tracks)
+            . Derive.r_track_warps
+        track_dyn = Map.keys . Derive.r_track_dynamic
+
+    let tracks = [(">a", []), (">b", []), (">c", [(0, 1, "")])]
+    equal (track_warps (run tracks)) (map UiTest.mk_tid [1, 2, 3])
+    equal (track_dyn (run tracks))
+        (map (((,) UiTest.default_block_id) . UiTest.mk_tid) [1, 2, 3])
 
 test_two_level_orphans = do
     -- Orphan extraction should be recursive, in case there are multiple
