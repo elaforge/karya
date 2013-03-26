@@ -511,6 +511,11 @@ map_around_asc f events = go [] events
     go _ [] = []
 
 -- | Apply a function on the first Event of an LEvent stream.
+map_first :: (a -> Derive.Deriver a) -> LEvent.LEvents a -> Derive.LogsDeriver a
+map_first f events = event_head events $ \e es -> do
+    e <- f e
+    return $ LEvent.Event e : es
+
 event_head :: LEvent.LEvents d
     -> (d -> LEvent.LEvents d -> Derive.Deriver (LEvent.LEvents d))
     -> Derive.LogsDeriver d

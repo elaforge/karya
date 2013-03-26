@@ -18,6 +18,7 @@ import qualified Derive.LEvent as LEvent
 import qualified Derive.PitchSignal as PitchSignal
 import qualified Derive.Scale.Theory as Theory
 import qualified Derive.Score as Score
+import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Sig as Sig
 import Derive.Sig (defaulted, required)
 import qualified Derive.TrackLang as TrackLang
@@ -45,6 +46,13 @@ note_code :: Code -> Derive.PassedArgs d -> Derive.EventDeriver
     -> Derive.EventDeriver
 note_code code args = when_lilypond $
     const $ add_code code $ Util.place args Util.note
+
+-- ** transformer
+
+-- | Add code to the first event.
+add_first :: Code -> Derive.EventDeriver -> Derive.EventDeriver
+add_first code deriver =
+    Util.map_first (return . add_event_code code) =<< deriver
 
 -- ** note transformer
 
@@ -80,6 +88,7 @@ code_around start end args = when_lilypond
             <> place_notes args <> code0 (Args.end args) end)
         (place_notes args)
 
+-- | Transform and evaluate the sub events.
 notes_with :: (Derive.EventDeriver -> Derive.EventDeriver)
     -> Derive.PassedArgs d
     -> Derive.EventDeriver -> Derive.EventDeriver
@@ -328,15 +337,14 @@ ottava :: Int -> String
 ottava n = "\\ottava #" ++ show n
 
 c_xstaff :: Derive.NoteCall
-c_xstaff = Derive.stream_generator "xstaff" Tags.ly_only
-    "Emit lilypond to put the notes on a different staff."
-    $ Sig.call (required "staff" "Should be `up` or `down`.") $
-    \staff args -> do
-        (staff1, staff2) <- case staff of
-            "up" -> return ("up", "down")
-            "down" -> return ("down", "up")
-            _ -> Derive.throw $ "expected 'up' or 'down', got " <> show staff
-        code_around (Prefix, change staff1) (Prefix, change staff2) args
+c_xstaff = Derive.transformer "xstaff" Tags.ly_only
+    "Emit lilypond to put the notes on a different staff." $
+    Sig.callt (required "staff" "Should be `up` or `down`.") $
+    \staff _ deriver -> do
+        when (staff `notElem` ["down", "up"]) $
+            Derive.throw $ "expected 'up' or 'down', got "
+                <> ShowVal.show_val staff
+        when_lilypond (const $ add_first (Prefix, change staff) deriver) deriver
     where change staff = "\\change Staff = " <> Lilypond.to_lily staff
 
 ly_call :: String -> String -> Sig.Parser a -> (a -> Code) -> Derive.NoteCall
