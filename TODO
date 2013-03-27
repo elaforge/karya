@@ -3,7 +3,11 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
-  - I think ly mode needs to turn off sustain and sustain-abs
+  - rename Derive.Call.Attribute to Transformer and Ornament to Grace
+  * I think ly mode needs to turn off sustain and sustain-abs
+  - transformer to shorten notes slightly, can just set sustain-abs -= small
+    Could use +detache, but that would have a different effect if it's already
+    a keyswitch.  Maybe just 'detach' transformer.
   * tracks without notes not getting tempo again
   - I might need to do the same fix for track signals
   - %sustain-abs=-.x is not quite right for detached, because it should scale
@@ -48,7 +52,7 @@ UNSORTED
     to be track time.  I really want TrackTime to be a subtype of ScoreTime.
     A phantom type could do it, but would be a big pain to put everywhere.
   * use State.Pos or something with a Pretty that logview understands
-  - viola sonata: see about making piano more detached by default, only
+  * viola sonata: see about making piano more detached by default, only
     linking notes under slurs
   - now that I have tevents_around, can I get rid of slice_around and the
     require_previous hack?

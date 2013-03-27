@@ -131,7 +131,7 @@ note_calls maybe_hmap patch =
     note_call patch = Note.note_call "" "" $
         maybe (Note.default_note config) (natural_harmonic config) maybe_hmap
         where config = note_config patch
-    note_config patch = Note.Config
+    note_config patch = Note.use_attributes
         { Note.config_legato = not $ has_attr Attrs.legato patch
         , Note.config_staccato = not $ has_attr Attrs.staccato patch
         }

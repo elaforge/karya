@@ -129,16 +129,20 @@ note_transform vals _ deriver = transform_note vals deriver
 type GenerateNote = Derive.PassedArgs Score.Event -> Derive.EventDeriver
 
 data Config = Config {
-    config_legato :: Bool
-    , config_staccato :: Bool
+    -- | Note duration is affected by +legato.
+    config_legato :: !Bool
+    -- | Note duration is affected by +staccato.
+    , config_staccato :: !Bool
+    -- | Note duration can depend on %sustain and %sustain-abs.
+    , config_sustain :: !Bool
     } deriving (Show)
 
 use_attributes :: Config
-use_attributes = Config True True
+use_attributes = Config True True True
 
 -- | Don't observe any of the duration affecting attributes.
 no_duration_attributes :: Config
-no_duration_attributes = Config False False
+no_duration_attributes = Config False False False
 
 default_note :: Config -> GenerateNote
 default_note config args = do
@@ -196,8 +200,10 @@ duration_attributes config controls attrs start end next
     dur = end - start
     staccato = config_staccato config && has Attrs.staccato
     sustain = if staccato then sustain_ * 0.5 else sustain_
-    sustain_abs = if staccato then 0 else lookup_time 0 Score.c_sustain_abs
-    sustain_ = lookup_time 1 Score.c_sustain
+    sustain_abs = if staccato || not (config_sustain config)
+        then 0 else lookup_time 0 Score.c_sustain_abs
+    sustain_ = if config_sustain config
+        then lookup_time 1 Score.c_sustain else 1
     lookup_time deflt control = maybe deflt
         (RealTime.seconds . Signal.at start . Score.typed_val)
         (Map.lookup control controls)
