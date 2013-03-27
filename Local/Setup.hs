@@ -188,8 +188,8 @@ empty_block = do
         { Ruler.ruler_align_to_bottom = arrival_beats }
 
     bid <- Create.block rid
-    t_tempo <- Create.named_track bid rid 1 "tempo"
-        (Track.track "tempo" Events.empty)
+    t_tempo <- Create.track bid 1 "tempo" $
+        Events.from_list $ map UiTest.make_event [(0, 0, "1")]
     State.set_track_width bid 1 40
     State.insert_events t_tempo $ map UiTest.make_event [(0, 0, "1")]
     return bid

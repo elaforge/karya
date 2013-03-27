@@ -323,18 +323,24 @@ class Random a where
     -- they depend on the current track, current call position, and the random
     -- seed.
     randoms :: Derive.Deriver [a]
-instance Random Double where randoms = _make_randoms Pure64.randomDouble
-instance Random Int where randoms = _make_randoms Pure64.randomInt
+    -- | Infinite list of random numbers in the given range.
+    randoms_in :: a -> a -> Derive.Deriver [a]
 
--- | Infinite list of random numbers in the given range.
-randoms_in :: (Real a, Random a) => a -> a -> Derive.Deriver [a]
-randoms_in low high = map (Num.restrict low high) <$> randoms
+instance Random Double where
+    -- Random numbers between 0 and 1.
+    randoms = _make_randoms Pure64.randomDouble
+    randoms_in low high = map (Num.scale low high) <$> randoms
+
+instance Random Int where
+    -- Random numbers between INT_MIN and INT_MAX.
+    randoms = _make_randoms Pure64.randomInt
+    randoms_in low high = map (Num.restrict low high) <$> randoms
 
 random :: (Random a) => Derive.Deriver a
 random = head <$> randoms
 
 random_in :: (Random a, Real a) => a -> a -> Derive.Deriver a
-random_in low high = Num.restrict low high <$> random
+random_in low high = head <$> randoms_in low high
 
 -- | If the chance is 1, return true all the time, if it's 0.5, return it half
 -- of the time.

@@ -121,10 +121,10 @@ c_real_arpeggio arp = Derive.stream_generator "arpeggio"
     \ it's not actually \"up\" or \"down\"."
     ) $ Sig.call ((,)
     <$> defaulted "time" 0.1 "This much RealTime between each note."
-    <*> defaulted "variation" 0.5
-        "Each note can vary randomly by `+- time/2 * variation`."
-    ) $ \(time, variation) args -> lily_code args $
-        arpeggio arp (RealTime.seconds time) variation =<< Note.sub_events args
+    <*> defaulted "random" 0.5
+        "Each note can vary randomly by `+- time/2 * random`."
+    ) $ \(time, random) args -> lily_code args $
+        arpeggio arp (RealTime.seconds time) random =<< Note.sub_events args
     where
     lily_code = Lily.notes_with
         (Lily.prepend_code prefix . Lily.add_code (Lily.SuffixFirst, suffix))
@@ -137,7 +137,7 @@ c_real_arpeggio arp = Derive.stream_generator "arpeggio"
 -- | Shift each track of notes by a successive amount.
 arpeggio :: Arpeggio -> RealTime -> Double -> [[Note.Event]]
     -> Derive.EventDeriver
-arpeggio arp time variation tracks = do
+arpeggio arp time random tracks = do
     delay_tracks <- jitter . zip (Seq.range_ 0 time) =<< sort tracks
     events <- fmap concat $ forM delay_tracks $ \(delay, track) ->
         forM track $ \(Note.Event start dur d) -> do
@@ -146,9 +146,9 @@ arpeggio arp time variation tracks = do
     Note.place events
     where
     jitter tracks
-        | variation == 0 = return tracks
+        | random == 0 = return tracks
         | otherwise = do
-            rs <- Util.randoms_in (-variation) variation
+            rs <- Util.randoms_in (-random) random
             return $ zipWith nudge rs tracks
     nudge r (delay, notes)
         | delay == 0 = (delay, notes)
