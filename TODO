@@ -9,7 +9,7 @@ UNSORTED
   - %sustain-abs=-.x is not quite right for detached, because it should scale
     a bit for shorter notes.  E.g. it's absolute but scales down to 0 below
     a certain threshold.
-  - make 's' call open a view if there isn't already one open
+  * make 's' call open a view if there isn't already one open
   - standard block, change tempo to >, add a ( event, then pitch signal gets
     flattened
   * It's because slice orphans acts like they're on different tracks even
@@ -392,6 +392,8 @@ integrate / integration:
   - quantization
 
 lilypond:
+  - make Note into a separate record type so I don't have partial functions:
+    Ly Note | ClefChange ... | ...
   * slur over harmonic in mm31 disappeared, and the one on mm41 is wrong
   * 2 measures per line instead of 4
   * fix "cannot end slur" warnings
@@ -448,6 +450,21 @@ lilypond:
     have voice set.  The lay those out, each starting at the current time.
     Emit Notes with interleaved code for the \news and braces and trailing
     \oneVoice.
+
+    If I see a note with 'voice=n', collect until an event with no voice env.
+    Split them up by voice and lay them out with rests padding to the length
+    of the longest.
+
+    Voices can go across barlines.
+
+    - write ly emitting part for Voices, it can't just use to_lily because it
+      has to have barlines inside.
+
+      r4 c''4 <<
+        { \voiceOne d''4 e''4 | f''4 r4 }
+        \new Voice { \voiceTwo a'4 b'4 | c'4 g'4 }
+      >>
+      r2 |
 
     Another option is that voice itself creates the lilypond, similar to
     tuplet.  But 'simple_convert' doesn't handle barlines, though I could do

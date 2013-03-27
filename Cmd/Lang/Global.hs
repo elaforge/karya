@@ -40,6 +40,7 @@ import qualified Ui.State as State
 import qualified Ui.Types as Types
 
 import qualified Cmd.Cmd as Cmd
+import qualified Cmd.Create as Create
 import qualified Cmd.Info as Info
 import Cmd.Lang.LEvent ()
 import qualified Cmd.Lang.LInst as LInst
@@ -137,6 +138,8 @@ highlight_error (maybe_bid, maybe_tid, maybe_range) = do
     unerror
     block_id <- maybe find_block return maybe_bid
     view_ids <- Map.keys <$> State.views_of block_id
+    view_ids <- if null view_ids then (:[]) <$> Create.view block_id
+        else return view_ids
     mapM_ ViewConfig.bring_to_front view_ids
     case (maybe_tid, maybe_range) of
         (Nothing, _) -> forM_ view_ids $ \vid ->
