@@ -20,8 +20,8 @@ import qualified Cmd.Perf as Perf
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Derive as Derive
 import qualified Derive.Scale as Scale
-import qualified Derive.ShowVal as ShowVal
 import qualified Derive.TrackInfo as TrackInfo
+import qualified Derive.TrackLang as TrackLang
 
 import Types
 
@@ -280,10 +280,9 @@ lookup_docs = group . snd . List.mapAccumL go Set.empty . concatMap flatten
             documented_call call))
     go shadowed (Right sym, call) = (Set.insert sym shadowed,
         ((sym `Set.member` shadowed, show_sym sym), documented_call call))
-    show_sym sym
-        | null s = "\"\""
-        | otherwise = Text.pack s
-        where s = ShowVal.show_val sym
+    show_sym (TrackLang.Symbol sym)
+        | null sym = "\"\""
+        | otherwise = Text.pack sym
     group :: [((Bool, SymbolName), (CallName, DocumentedCall))]
         -> [CallBindings]
     group pairs = [(extract names, doc_call)
