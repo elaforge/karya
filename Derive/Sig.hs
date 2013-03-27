@@ -82,7 +82,7 @@
 module Derive.Sig (
     Parser, Generator, Transformer
     -- * parsers
-    , parsed_manually
+    , parsed_manually, no_args
     , required, defaulted, optional, many, many1
     -- ** defaults
     , control, typed_control, required_control
@@ -153,6 +153,11 @@ instance Applicative.Applicative Parser where
 -- handle.
 parsed_manually :: String -> a -> Derive.WithArgDoc a
 parsed_manually doc f = (f, Derive.ArgsParsedSpecially doc)
+
+-- | Parser for nullary calls.  Either use this with 'call' and 'callt', or use
+-- 'call0' and 'call0t' as a shortcut.
+no_args :: Parser ()
+no_args = Applicative.pure ()
 
 -- | The argument is required to be present, and have the right type.
 required :: forall a. (TrackLang.Typecheck a) => String -> String -> Parser a
@@ -304,7 +309,7 @@ call parser f = (go, Derive.ArgDocs (parser_docs parser))
 -- | Specialization of 'call' for 0 arguments.
 call0 :: Generator y d -> Derive.WithArgDoc (Generator y d)
 call0 f = (go, Derive.ArgDocs [])
-    where go args = run_call (Applicative.pure ()) args >>= \() -> f args
+    where go args = run_call no_args args >>= \() -> f args
 
 callt :: Parser a -> (a -> Transformer y d)
     -> Derive.WithArgDoc (Transformer y d)

@@ -20,6 +20,8 @@ import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Sig as Sig
 import qualified Derive.TrackLang as TrackLang
 
+import qualified Perform.Signal as Signal
+
 
 lookup_attr :: Derive.LookupCall Derive.NoteCall
 lookup_attr = Derive.pattern_lookup "attribute starting with `+`" doc $
@@ -31,8 +33,8 @@ lookup_attr = Derive.pattern_lookup "attribute starting with `+`" doc $
             _ -> return Nothing
     parse_symbol _ = return Nothing
     call rel = transform_notes ("relative attrs: " ++ ShowVal.show_val rel)
-        "Doc unused." "Doc unused."
-        (Util.with_attrs (TrackLang.apply_attr rel))
+        Tags.attr "Doc unused." Sig.no_args
+        (\() -> Util.with_attrs (TrackLang.apply_attr rel))
     doc = Derive.extract_doc $ attributed_note (Score.attr "example-attr")
 
 note_calls :: Derive.NoteCallMap
@@ -42,33 +44,15 @@ note_calls = Derive.make_calls
     , (".", attributed_note Attrs.staccato)
     , ("(", c_legato)
     , ("{", attributed_note Attrs.porta)
+    , ("detach", c_detach)
     ]
 
 attributed_note :: Attrs.Attributes -> Derive.NoteCall
-attributed_note attrs =
-    transform_notes ("note with " ++ ShowVal.show_val attrs)
-        ("Apply attributes to notes. When applied as a note transformer\
-        \ (i.e. it has notes in child tracks) it applies its attributes to\
-        \ those notes. Otherwise, it applies its attributes to the null note\
-        \ call.")
-        "Apply attributes to the transformed deriver."
-        (Util.add_attrs attrs)
+attributed_note attrs = transform_notes
+    ("note with " ++ ShowVal.show_val attrs) Tags.attr
+    "Add attributes to the notes." Sig.no_args (\() -> Util.add_attrs attrs)
 
-transform_notes :: String -> String -> String
-    -> (Derive.EventDeriver -> Derive.EventDeriver) -> Derive.NoteCall
-transform_notes name generator_doc transform_doc transform = Derive.Call
-    { Derive.call_name = name
-    , Derive.call_generator = Just $
-        Derive.generator_call Tags.attr generator_doc generator
-    , Derive.call_transformer = Just $
-        Derive.transformer_call (Tags.attr <> Tags.subs) transform_doc
-            transformer
-    }
-    where
-    generator = Sig.call0 $ \args -> Note.sub_events args >>= \x -> case x of
-        [] -> transform $ Note.inverting Util.placed_note args
-        subs -> Note.place $ Note.map_events transform (concat subs)
-    transformer = Sig.call0t $ \_args deriver -> transform deriver
+-- * legato
 
 c_legato :: Derive.NoteCall
 c_legato = Derive.stream_generator "legato" (Tags.attr <> Tags.subs <> Tags.ly)
@@ -100,3 +84,37 @@ init_attr attr = Note.place . concatMap add <=< Note.sub_events
         (notes, Just last) ->
             Note.map_events (Util.add_attrs attr) notes ++ [last]
         _ -> []
+
+-- * misc
+
+c_detach :: Derive.NoteCall
+c_detach = transform_notes "detach" mempty
+    ("Detach the notes slightly, by setting "
+        <> ShowVal.show_val Score.c_sustain_abs <> ".")
+    (Sig.defaulted "time" 0.15 "Set control to `-time`.") $ \time ->
+        Derive.with_control Score.c_sustain_abs
+            (Score.untyped (Signal.constant (-time)))
+    where
+
+-- * util
+
+transform_notes :: String -> Tags.Tags -> String -> Sig.Parser a
+    -> (a -> Derive.EventDeriver -> Derive.EventDeriver) -> Derive.NoteCall
+transform_notes name tags transform_doc sig transform = Derive.Call
+    { Derive.call_name = name
+    , Derive.call_generator = Just $
+        Derive.generator_call tags generator_doc generator
+    , Derive.call_transformer = Just $
+        Derive.transformer_call (tags <> Tags.subs) transform_doc transformer
+    }
+    where
+    generator_doc = "If there are notes in child tracks, apply the\
+        \ transformation to them. Otherwise apply transformation to the null\
+        \ note call."
+    generator = Sig.call sig $ \params args ->
+        Note.sub_events args >>= \x -> case x of
+            [] -> transform params $ Note.inverting Util.placed_note args
+            subs -> Note.place $
+                Note.map_events (transform params) (concat subs)
+    transformer = Sig.callt sig $ \params _args deriver ->
+        transform params deriver

@@ -5,7 +5,7 @@ LEGEND
 UNSORTED
   - rename Derive.Call.Attribute to Transformer and Ornament to Grace
   * I think ly mode needs to turn off sustain and sustain-abs
-  - transformer to shorten notes slightly, can just set sustain-abs -= small
+  * transformer to shorten notes slightly, can just set sustain-abs -= small
     Could use +detache, but that would have a different effect if it's already
     a keyswitch.  Maybe just 'detach' transformer.
   * tracks without notes not getting tempo again
