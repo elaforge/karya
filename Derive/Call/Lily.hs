@@ -172,6 +172,10 @@ code0 start (pos_, code) = with (Derive.d_place start 0 Util.note)
         _ -> pos_
     with = Derive.with_val (position_env pos) code
 
+global_code0 :: ScoreTime -> Code -> Derive.EventDeriver
+global_code0 start =
+    Derive.with_val_raw TrackLang.v_instrument Lilypond.ly_global . code0 start
+
 -- ** convert
 
 -- | Round the RealTime to the nearest NoteDuration.
@@ -328,44 +332,79 @@ derive_subtracks =
     BlockUtil.derive_tracks . Derive.info_sub_tracks . Derive.passed_info
 
 c_8va :: Derive.NoteCall
-c_8va = Derive.stream_generator "ottava" Tags.ly_only
-    "Emit `lilypond \\ottava = #n` around the notes in scope."
-    $ Sig.call (defaulted "octave" 1 "Transpose this many octaves up or down.")
-    $ \oct args -> code_around (Prefix, ottava oct) (Prefix, ottava 0) args
-
-ottava :: Int -> String
-ottava n = "\\ottava #" ++ show n
+c_8va = code_call "ottava" "Emit lilypond ottava mark."
+    (defaulted "octave" 1 "Transpose this many octaves up or down.") $
+    \oct -> return (Prefix, ottava oct)
+    where
+    ottava :: Int -> String
+    ottava n = "\\ottava #" ++ show n
 
 c_xstaff :: Derive.NoteCall
-c_xstaff = Derive.transformer "xstaff" Tags.ly_only
-    "Emit lilypond to put the notes on a different staff." $
-    Sig.callt (required "staff" "Should be `up` or `down`.") $
-    \staff _ deriver -> do
+c_xstaff = code_call "xstaff"
+    "Emit lilypond to put the notes on a different staff."
+    (required "staff" "Should be `up` or `down`.") $ \staff -> do
         when (staff `notElem` ["down", "up"]) $
             Derive.throw $ "expected 'up' or 'down', got "
                 <> ShowVal.show_val staff
-        when_lilypond (const $ add_first (Prefix, change staff) deriver) deriver
+        return (Prefix, change staff)
     where change staff = "\\change Staff = " <> Lilypond.to_lily staff
 
-ly_call :: String -> String -> Sig.Parser a -> (a -> Code) -> Derive.NoteCall
-ly_call name doc arg code = Derive.stream_generator name Tags.ly_only doc $
-    Sig.call arg $ \val args ->
-        code0 (Args.start args) (code val) <> place_notes args
-
 c_dyn :: Derive.NoteCall
-c_dyn = ly_call "dyn"
+c_dyn = code0_call "dyn"
     "Emit a lilypond dynamic. If there are notes below, they are derived\
     \ unchanged."
     (required "dynamic" "Should be `p`, `ff`, etc.") ((,) SuffixAll . ('\\':))
 
 c_clef :: Derive.NoteCall
-c_clef = ly_call "clef" "Emit lilypond clef change."
+c_clef = code0_call "clef" "Emit lilypond clef change."
     (required "clef" "Should be `bass`, `treble`, etc.")
     ((,) Prefix . ("\\clef "++))
 
 c_meter :: Derive.NoteCall
-c_meter = ly_call "meter"
+c_meter = global_code0_call "meter"
     "Emit lilypond meter change. It will be interpreted as global no matter\
     \ where it is. Simultaneous different meters aren't supported yet."
-    (required "meter" "Should be `4/4`, `3+3/8`, etc.")
-    ((,) Prefix . ("\\time "++))
+    (required "meter" "Should be `4/4`, `3+3/8`, etc.") $
+    \pos val -> Derive.with_val Lilypond.v_meter (val :: String) $
+        Derive.d_place pos 0 Util.note
+
+-- * util
+
+-- | Attach ly code to the first note in the transformed deriver.
+code_call :: String -> String -> Sig.Parser a -> (a -> Derive.Deriver Code)
+    -> Derive.NoteCall
+code_call name doc sig make_code = Derive.transformer name Tags.ly_only doc $
+    Sig.callt sig $ \val _ deriver -> flip when_lilypond deriver $ const $ do
+        code <- make_code val
+        add_first code deriver
+
+-- | Emit a free-standing fragment of lilypond code.
+code0_call :: String -> String -> Sig.Parser a -> (a -> Code) -> Derive.NoteCall
+code0_call name doc sig make_code = make_code0_call name doc sig $
+    \pos val -> code0 pos (make_code val)
+
+-- | Just like 'code0_call', but the code uses the 'Lilypond.ly_global'
+-- instrument.
+global_code0_call :: String -> String -> Sig.Parser a
+    -> (ScoreTime -> a -> Derive.EventDeriver) -> Derive.NoteCall
+global_code0_call name doc sig call =
+    make_code0_call name doc sig $ \pos val -> global (call pos val)
+
+-- | Emit a free-standing fragment of lilypond code.
+make_code0_call :: String -> String -> Sig.Parser a
+    -> (ScoreTime -> a -> Derive.EventDeriver) -> Derive.NoteCall
+make_code0_call name doc sig call = Derive.Call
+    { Derive.call_name = name
+    , Derive.call_generator = Just $
+        Derive.generator_call Tags.ly_only doc generator
+    , Derive.call_transformer = Just $
+        Derive.transformer_call Tags.ly_only doc transformer
+    }
+    where
+    generator = Sig.call sig $ \val args ->
+        call (Args.start args) val <> place_notes args
+    transformer = Sig.callt sig $ \val args deriver ->
+        call (Args.start args) val <> deriver
+
+global :: Derive.Deriver a -> Derive.Deriver a
+global = Derive.with_val_raw TrackLang.v_instrument Lilypond.ly_global

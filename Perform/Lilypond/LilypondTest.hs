@@ -37,7 +37,7 @@ convert_staves wanted events =
     where
     extract_staves (Lilypond.StaffGroup inst staves) =
         (Lilypond.inst_name inst, map extract_staff staves)
-    extract_staff (Lilypond.Staff measures) =
+    extract_staff (Lilypond.Measures measures) =
         map (unwords . filter is_wanted . map Lilypond.to_lily) measures
     is_wanted ('\\':note) = takeWhile (/=' ') note `elem` wanted
     is_wanted _ = True

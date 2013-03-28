@@ -396,6 +396,7 @@ integrate / integration:
   - quantization
 
 lilypond:
+  - remove v_clef
   - make Note into a separate record type so I don't have partial functions:
     Ly Note | ClefChange ... | ...
   * slur over harmonic in mm31 disappeared, and the one on mm41 is wrong
@@ -415,8 +416,46 @@ lilypond:
     let each track set its own meter, assuming it will only be switching to
     ones with the same rhythm.  I can switch to synonyms, but does lilypond
     even support measures with different meters?
-  - Can I have a solution for custom note durations that don't affect lilypond?
-  - cross staff inside tuplet didn't work
+  set meter with a separate track, so I don't have to give it scope over
+    everything and destroy track caching.  Use pseudo-instrument so global
+    directives don't get their own staff.
+    * make lilypond not emit a staff for >ly-global
+    * make meter extraction code in Lilypond get it from the meter events
+    - meter call emits code fragment under >ly-global
+
+  - movement titles
+    Use >ly-global for these.
+    It has to break up staves, so I need a first pass to find them:
+      \score {
+        \new Staff { notes }
+        \header { piece = "title" }
+      }
+      \score {
+        \new Staff { notes }
+        \header { piece = "title" }
+      }
+
+  - page breaks:
+    . line break is \break.  Only one instrument needs it?
+    . page break is \pageBreak
+      \paper {
+        page-breaking = #ly:page-turn-breaking
+        % or #ly:optimal-breaking or #ly:minimal-breaking
+      }
+    . If I want to include line and page breaks on >ly-global, then it needs
+    to add a special voice to space them properly:
+      \score {
+        \new Staff <<
+          \new Voice {
+            s1 * 2 \break
+            s1 * 3 \break
+          }
+          \new Voice { ... }
+        >>
+      }
+
+  * Can I have a solution for custom note durations that don't affect lilypond?
+  * cross staff inside tuplet didn't work
   - hairpin crescendo / decrescendo
   - If I can figure out the meter from just the name, then I can get rid
     of the awkward map with hardcoded meters.
@@ -461,8 +500,14 @@ lilypond:
 
     Voices can go across barlines.
 
-    - write ly emitting part for Voices, it can't just use to_lily because it
-      has to have barlines inside.
+    If I can do them as Code then the output code is unchanged.
+
+    . write ly emitting part for Voices, it can't just use to_lily because it
+      has to have barlines inside.  Well, except when it starts or ends in the
+      middle of a measure.
+      I still want to keep the measure count, so:
+        newline, << { \voiceOne ... [ split every 2 measures, starting at the
+        same mm ]
 
       r4 c''4 <<
         { \voiceOne d''4 e''4 | f''4 r4 }
@@ -470,9 +515,9 @@ lilypond:
       >>
       r2 |
 
-    Another option is that voice itself creates the lilypond, similar to
-    tuplet.  But 'simple_convert' doesn't handle barlines, though I could do
-    this at a per-measure level, if I can figure out the measure boundaries.
+    . I think I need a Measure type { partial :: Bool, notes :: [Note] }
+      This way the score printer has enough structure to format it.
+
   + can I make a click on a note in the pdf highlight in the sequencer?
     Hung up on getting preview to send clicks to a program, notes in
     App/LilypondClick.hs

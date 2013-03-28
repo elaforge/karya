@@ -188,12 +188,13 @@ with_val name val deriver
         with_scale scale deriver
     | name == TrackLang.v_instrument, Just inst <- TrackLang.from_val v =
         with_instrument inst deriver
-    | otherwise = _with_val name val deriver
+    | otherwise = with_val_raw name val deriver
     where v = TrackLang.to_val val
 
-_with_val :: (TrackLang.Typecheck val) => TrackLang.ValName -> val
+-- | Like 'with_val', but don't set scopes for instrument and scale.
+with_val_raw :: (TrackLang.Typecheck val) => TrackLang.ValName -> val
     -> Deriver a -> Deriver a
-_with_val name val = Internal.localm $ \st -> do
+with_val_raw name val = Internal.localm $ \st -> do
     environ <- Internal.insert_environ name val (state_environ st)
     return $! st { state_environ = environ }
 
@@ -206,7 +207,7 @@ modify_val name modify = Internal.localm $ \st -> do
         TrackLang.insert_val name (TrackLang.to_val val) env }
 
 with_scale :: Scale -> Deriver d -> Deriver d
-with_scale scale = _with_val TrackLang.v_scale (scale_id scale)
+with_scale scale = with_val_raw TrackLang.v_scale (scale_id scale)
     . with_scope (\scope -> scope { scope_val = set (scope_val scope) })
     where
     set stype = stype { stype_scale = [scale_to_lookup scale] }
@@ -227,7 +228,7 @@ with_instrument inst_ deriver = do
     let maybe_inst = lookup_inst inst
         calls = maybe (InstrumentCalls [] []) inst_calls maybe_inst
         environ = maybe mempty inst_environ maybe_inst
-    _with_val TrackLang.v_instrument inst $
+    with_val_raw TrackLang.v_instrument inst $
         with_scope (set_scope calls) $ with_environ environ deriver
     where
     -- Replace the calls in the instrument scope type.

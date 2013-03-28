@@ -37,9 +37,9 @@ convert quarter = ConvertUtil.convert () (convert_event quarter)
 -- lilypond code directly with either a zero duration event or one without
 -- a pitch:
 --
--- - If the event has 0 duration, it must have prepend or append code.  The
--- code will go before or after other events at the same time.  Any pitch is
--- ignored.
+-- - If the event has 0 duration, it must have prepend or append code or have
+-- the magic 'Lilypond.ly_global' instrument.  The code will go before or after
+-- other events at the same time.  Any pitch is ignored.
 --
 -- - If it doesn't have a pitch, then it must have prepend or append code.
 -- prepend ++ append will be emitted and considered to have the given amount of
@@ -73,13 +73,14 @@ convert_event quarter event = do
         }
     where
     check_0dur
-        | not has_prepend && not has_append = throw $
+        | not is_ly_global && not has_prepend && not has_append = throw $
             "zero duration event must have one of "
             <> Seq.join ", " (map ShowVal.show_val code_attrs)
             <> "; had " <> Pretty.pretty (Score.event_environ event)
         | has_prepend && has_append = throw $
             "zero duration event with both prepend and append is ambiguous"
         | otherwise = return ()
+    is_ly_global = Score.event_instrument event == Lilypond.ly_global
     has_prepend = has Lilypond.v_ly_prepend
     has_append = has Lilypond.v_ly_append_all
     has v = Maybe.isJust $

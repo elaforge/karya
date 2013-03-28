@@ -3,9 +3,7 @@ import qualified Data.Char as Char
 import qualified System.Process as Process
 
 import Util.Control
-import qualified Util.Pretty as Pretty
 import Util.Test
-
 import qualified Ui.UiTest as UiTest
 import qualified Derive.Args as Args
 import qualified Derive.Call.CallTest as CallTest
@@ -41,40 +39,31 @@ test_full_measure_rest = do
     equal (f [(9, 1, "a")]) $ Right ["R1", "R1", "r4 a4 r2"]
 
 test_dotted_rests = do
-    let f = LilypondTest.convert_measures [] . map meter_event
+    let f meter = LilypondTest.convert_measures []
+            . (meter_event (0, meter) :) . map simple_event
     -- Rests are allowed to be dotted when the meter isn't duple.
-    equal (f [(1.5, 0.5, "a", "3+3/8")]) $
-        Right ["r4. a8 r4"]
-    equal (f [(3, 1, "a", "4/4")]) $
-        Right ["r2 r4 a4"]
+    equal (f "3+3/8" [(1.5, 0.5, "a")]) $ Right ["r4. a8 r4"]
+    equal (f "4/4" [(3, 1, "a")]) $ Right ["r2 r4 a4"]
 
 test_change_meter = do
-    let f = LilypondTest.convert_measures ["time"] . map meter_event
-    equal (f [(0, 5, "a", "4/4"), (6, 2, "b", "4/4")]) $ Right
-        ["\\time 4/4 a1~", "a4 r4 b2"]
+    let f meters events = LilypondTest.convert_measures ["time"] $
+            map meter_event meters ++ map simple_event events
     -- Change meter on the measure boundary.
-    equal (f [(0, 2, "a", "2/4"), (2, 2, "b", "4/4")]) $ Right
+    equal (f [(0, "2/4"), (2, "4/4")] [(0, 2, "a"), (2, 2, "b")]) $ Right
         ["\\time 2/4 a2", "\\time 4/4 b2 r2"]
-
+    -- Meter changes round up to the next barline.
+    equal (f [(0, "2/4"), (1, "4/4")] [(0, 2, "a"), (2, 2, "b")]) $ Right
+        ["\\time 2/4 a2", "\\time 4/4 b2 r2"]
     -- Meter changes during a note.
-    equal (f [(0, 3, "a", "2/4"), (3, 4, "b", "4/4")]) $ Right
-        ["\\time 2/4 a2~", "a4 b4~", "\\time 4/4 b2. r4"]
-    equal (f [(0, 3, "a", "2/4"), (4, 4, "b", "4/4")]) $ Right
-        ["\\time 2/4 a2~", "a4 r4", "\\time 4/4 b1"]
-
-    -- Inconsistent meters cause an error.
-    let run = fst . LilypondTest.derive_measures [] . concatMap UiTest.note_spec
-    left_like (run
-            [ ("s/i1 | meter = '2/4'", [(0, 4, "4a")], [])
-            , ("s/i2 | meter = '4/4'", [(0, 4, "4b")], [])
-            ])
-        "staff for >s/i2: inconsistent meters"
+    equal (f [(0, "2/4"), (2, "4/4")] [(0, 1, "a"), (1, 5, "b")]) $ Right
+        ["\\time 2/4 a4 b4~", "\\time 4/4 b1"]
+    -- Unparseable meter.
+    left_like (f [(0, "2/4"), (2, "q4/4")] [(0, 2, "a"), (2, 2, "b")])
+        "can't parse"
 
 test_parse_error = do
     let f = LilypondTest.convert_measures [] . map environ_event
     left_like (f [(0, 1, "a", [(TrackLang.v_key, "oot-greet")])]) "unknown key"
-    left_like (f [(0, 1, "a", [(Lilypond.v_meter, "oot-greet")])])
-        "can't parse"
 
 test_chords = do
     let f = LilypondTest.convert_measures [] . map simple_event
@@ -86,16 +75,6 @@ test_chords = do
     equal (f [(0, 2, "a"), (1, 1, "c")]) $ Right ["a4~ <a c>4 r2"]
     equal (f [(0, 2, "a"), (1, 2, "c"), (2, 2, "e")]) $ Right
         ["a4~ <a c>4~ <c e>4~ e4"]
-
-test_extract_meters = do
-    let f = fmap (map Pretty.pretty) . Lilypond.extract_meters
-            . map (\(s, d, meter) -> meter_event (s, d, "a", meter))
-    equal (f [(0, 1, "4/4")]) $ Right ["4/4"]
-    equal (f [(0, 5, "4/4")]) $ Right ["4/4", "4/4"]
-    equal (f [(5, 5, "4/4")]) $ Right ["4/4", "4/4", "4/4"]
-    equal (f [(5, 5, "3/4")]) $ Right ["3/4", "3/4", "3/4", "3/4"]
-    equal (f [(0, 2, "4/4"), (2, 4, "3/4")]) $ Right ["4/4", "3/4"]
-    equal (f [(0, 2, "4/4"), (1, 2, "4/4"), (2, 2, "4/4")]) $ Right ["4/4"]
 
 test_convert_duration = do
     let f meter pos = Lilypond.to_lily $ head $
@@ -253,6 +232,17 @@ extract_rhythms = unwords
 -- These actually test derivation in lilypond mode.  So maybe they should go
 -- in derive, but if I put them here I can test all the way to lilypond score.
 
+test_meter = do
+    let run meter notes = LilypondTest.derive_measures ["time"] $
+            (">ly-global", meter) : UiTest.note_track notes
+    equal (run [(0, 0, "meter '2/4'"), (2, 0, "meter '4/4'")]
+            [(0, 3, "4a"), (3, 3, "4b")])
+        (Right ["\\time 2/4 a'2~", "\\time 4/4 a'4 b'2."], [])
+    -- Meter change is rounded up to the next barline, as usual.
+    equal (run [(0, 0, "meter '2/4'"), (1, 0, "meter '4/4'")]
+            [(0, 3, "4a"), (3, 3, "4b")])
+        (Right ["\\time 2/4 a'2~", "\\time 4/4 a'4 b'2."], [])
+
 test_enharmonics = do
     let (events, logs) = LilypondTest.derive_measures [] $ UiTest.note_track
             [(0, 1, "4c#"), (1, 1, "4db"), (2, 1, "4cx")]
@@ -321,28 +311,32 @@ read_note text
         Lilypond.read_duration dur_text
 
 simple_event :: (RealTime, RealTime, String) -> Lilypond.Event
-simple_event (start, dur, pitch) = make_event start dur pitch "" []
+simple_event (start, dur, pitch) = make_event start dur pitch default_inst []
 
 environ_event :: (RealTime, RealTime, String, [(TrackLang.ValName, String)])
     -> Lilypond.Event
-environ_event (start, dur, pitch, env) = make_event start dur pitch "" env
+environ_event (start, dur, pitch, env) =
+    make_event start dur pitch default_inst env
 
-meter_event :: (RealTime, RealTime, String, String) -> Lilypond.Event
-meter_event (s, d, p, meter) =
-    environ_event (s, d, p, [(Lilypond.v_meter, meter)])
+meter_event :: (RealTime, String) -> Lilypond.Event
+meter_event (start, meter) =
+    make_event start 0 "" Lilypond.ly_global [(Lilypond.v_meter, meter)]
 
-make_event :: RealTime -> RealTime -> String -> String
+make_event :: RealTime -> RealTime -> String -> Score.Instrument
     -> [(TrackLang.ValName, String)] -> Lilypond.Event
 make_event start dur pitch inst env = Lilypond.Event
     { Lilypond.event_start = Lilypond.real_to_time 1 start
     , Lilypond.event_duration = Lilypond.real_to_time 1 dur
     , Lilypond.event_pitch = pitch
-    , Lilypond.event_instrument = Score.Instrument inst
+    , Lilypond.event_instrument = inst
     , Lilypond.event_environ = TrackLang.make_environ
         [(name, TrackLang.to_val val) | (name, val) <- env]
     , Lilypond.event_stack = UiTest.mkstack (1, 0, 1)
     , Lilypond.event_clipped = False
     }
+
+default_inst :: Score.Instrument
+default_inst = Score.Instrument "test"
 
 mkmeter :: String -> Meter.Meter
 mkmeter s = case Meter.parse_meter s of
