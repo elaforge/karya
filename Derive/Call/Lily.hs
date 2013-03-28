@@ -84,9 +84,9 @@ notes_around_ly start end = mconcat . map around <=< Note.sub_events
 -- sub events unchanged.
 code_around :: Code -> Code -> Derive.PassedArgs d -> Derive.EventDeriver
 code_around start end args = when_lilypond
-        (const $ code0 (Args.start args) start
-            <> place_notes args <> code0 (Args.end args) end)
-        (place_notes args)
+    (const $ code0 (Args.start args) start
+        <> place_notes args <> code0 (Args.end args) end)
+    (place_notes args)
 
 -- | Transform and evaluate the sub events.
 notes_with :: (Derive.EventDeriver -> Derive.EventDeriver)
@@ -308,7 +308,7 @@ c_is_ly = Derive.transformer "is-ly" Tags.ly_only
         when_lilypond (const deriver) (derive_subtracks args)
 
 c_not_ly :: Derive.NoteCall
-c_not_ly = Derive.transformer "not-ly" Tags.ly
+c_not_ly = Derive.transformer "not-ly" Tags.ly_only
     "The inverse of `is-ly`, evaluate the track only when not in lilypond\
     \ mode. Only use it in the track title!"
     $ Sig.call0t $ \args deriver ->

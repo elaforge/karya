@@ -51,7 +51,7 @@ c_echo = Derive.transformer "echo" mempty
     ) $ Sig.callt ((,,)
     <$> defaulted "delay" (control "echo-delay" 1) "Delay time."
     <*> defaulted "feedback" (control "echo-feedback" 0.4)
-        "The %dyn of each echo are multiplied by this amount."
+        "The %dyn of each echo is multiplied by this amount."
     <*> defaulted "times" (control "echo-times" 1)
         "Number of echoes, not counting the original."
     ) $ \(delay, feedback, times) args deriver ->
@@ -82,7 +82,7 @@ c_event_echo = Derive.transformer "event echo" Tags.postproc
     ) $ Sig.callt ((,,)
     <$> defaulted "delay" (control "echo-delay" 1) "Delay time."
     <*> defaulted "feedback" (control "echo-feedback" 0.4)
-        "The %dyn of each echo are multiplied by this amount."
+        "The %dyn of each echo is multiplied by this amount."
     <*> defaulted "times" (control "echo-times" 1)
         "Number of echoes, not counting the original."
     ) $ \(delay, feedback, times) _args ->

@@ -37,15 +37,15 @@ note_calls = Derive.make_calls
 
 c_guzheng :: [TrackLang.Note] -> Derive.NoteCall
 c_guzheng strings = Derive.transformer "guzheng" (Tags.postproc <> Tags.idiom)
-    ("Post-process events to play in a monophonic string-like idiom, where"
-    <> " strings must be bent or stopped to reach non-open pitches."
-    <> " Originally it was meant to play in the style of a 古箏 or"
-    <> " or other zither, but may also be appropriate for stopped strings"
-    <> " like the violin family.  Further documentation is in"
-    <> " 'Derive.Call.Idiom.String'."
+    ("Post-process events to play in a monophonic string-like idiom, where\
+    \ strings must be bent or stopped to reach non-open pitches.\
+    \ Originally it was meant to play in the style of a 古箏 or\
+    \ other zither, but may also be appropriate for stopped strings\
+    \ like the violin family.  Further documentation is in\
+    \ 'Derive.Call.Idiom.String'."
     ) $ Sig.callt ((,,)
     <$> defaulted "attack" (control "string-attack" 0.5)
-        "Time for a string to be bent to its desired pitch. A fast attack\
+        "Time for a string to bend to its desired pitch. A fast attack\
         \ sounds like a stopped string."
     <*> defaulted "release" (control "string-release" 0.5)
         "Time for a string to return to its original pitch."
