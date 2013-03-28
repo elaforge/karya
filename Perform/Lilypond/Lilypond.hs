@@ -42,10 +42,6 @@ ly_global = Score.Instrument "ly-global"
 v_hand :: TrackLang.ValName
 v_hand = TrackLang.Symbol "hand"
 
--- | String: whatever @\\clef@ accepts, defaults to @\'treble\'@.
-v_clef :: TrackLang.ValName
-v_clef = TrackLang.Symbol "clef"
-
 -- | String: should be parseable by 'Meter.parse_meter',
 -- e.g. @\'3/4\'@.
 v_meter :: TrackLang.ValName
@@ -135,7 +131,6 @@ data Note = Note {
     , _note_append :: !Code
     , _note_stack :: !(Maybe Stack.UiFrame)
     }
-    | ClefChange String
     | KeyChange Key
     | MeterChange Meter
     | Code !Code
@@ -171,7 +166,6 @@ instance ToLily Note where
             [pitch] -> pitch
             _ -> '<' : unwords pitches ++ ">"
         where ly_dur = to_lily dur ++ if tie then "~" else ""
-    to_lily (ClefChange clef) = "\\clef " ++ clef
     to_lily (KeyChange (tonic, mode)) = "\\key " ++ tonic ++ " \\" ++ mode
     to_lily (MeterChange meter) = "\\time " ++ to_lily meter
     to_lily (Code code) = code
@@ -198,7 +192,6 @@ data State = State {
     , state_note_end :: Time
         -- | Used in conjunction with 'modal_articulations'.
     , state_prev_attrs :: Score.Attributes
-    , state_clef :: Maybe Clef
     , state_key :: Maybe Key
     } deriving (Show)
 
@@ -216,7 +209,6 @@ convert_measures config meters events =
         , state_measure_end = 0
         , state_note_end = 0
         , state_prev_attrs = mempty
-        , state_clef = Nothing
         , state_key = Nothing
         }
     go [] = return []
@@ -276,8 +268,6 @@ convert_measure events = case events of
             then (, event:events) <$> trailing_rests meter
             else note_column state meter event events
     note_column state meter event events = do
-        clef <- lookup_clef event
-        let clef_change = [ClefChange clef | Just clef /= state_clef state]
         key <- lookup_key event
         measure_start <- State.gets state_measure_start
         let key_change = [KeyChange key | Just key /= state_key state]
@@ -285,10 +275,9 @@ convert_measure events = case events of
                 measure_start (state_prev_attrs state) meter event events
             leading_rests = make_rests (state_config state) meter
                 (state_note_end state) (event_start event)
-            notes = leading_rests ++ clef_change ++ key_change ++ chord_notes
+            notes = leading_rests ++ key_change ++ chord_notes
         State.modify $ \state -> state
-            { state_clef = Just clef
-            , state_key = Just key
+            { state_key = Just key
             , state_prev_attrs = last_attrs
             , state_note_end = end
             }
@@ -387,12 +376,6 @@ make_rests config meter start end
 run_convert :: State -> ConvertM a -> Either String a
 run_convert state = fmap fst . Identity.runIdentity . Error.runErrorT
     . flip State.runStateT state
-
-lookup_clef :: Event -> ConvertM Clef
-lookup_clef = lookup_val v_clef Right default_clef
-
-default_clef :: Clef
-default_clef = "treble"
 
 lookup_key :: Event -> ConvertM Key
 lookup_key = lookup_val TrackLang.v_key parse_key default_key
@@ -586,10 +569,10 @@ staff_group config meters inst staves = do
     staff_measures <- mapM (convert_measures config meters) staves
     return $ StaffGroup inst $ map promote_annotations staff_measures
 
--- | Normally clef or key changes go right before the note with the changed
--- status.  But if there are leading rests, the annotations should go at the
--- beginning of the score.  It's more complicated because I have to skip
--- leading measures of rests.
+-- | Normally key changes go right before the note with the changed status.
+-- But if there are leading rests, the annotations should go at the beginning
+-- of the score.  It's more complicated because I have to skip leading measures
+-- of rests.
 promote_annotations :: Measures -> Measures
 promote_annotations (Measures measures) = Measures $ case empty ++ stripped of
         [] -> []

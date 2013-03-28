@@ -396,7 +396,7 @@ integrate / integration:
   - quantization
 
 lilypond:
-  - remove v_clef
+  * remove v_clef
   - make Note into a separate record type so I don't have partial functions:
     Ly Note | ClefChange ... | ...
   * slur over harmonic in mm31 disappeared, and the one on mm41 is wrong

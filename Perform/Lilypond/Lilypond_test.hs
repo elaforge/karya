@@ -121,19 +121,10 @@ test_hands = do
 test_clefs = do
     let f = LilypondTest.derive_measures ["clef"]
     equal (f
-            [ (">s/1 | clef = 'bass'", [(0, 2, ""), (2, 6, "clef = 'alto' |")])
+            [ (">s/1 | clef bass", [(0, 2, ""), (2, 6, "clef alto |")])
             , ("*", [(0, 0, "4c")])
             ])
         (Right ["\\clef bass c'2 \\clef alto c'2~", "c'1"], [])
-
-    -- test annotation promote
-    -- The first clef and key are moved ahead of rests.
-    equal (f $ UiTest.note_spec ("s/1", [(1, 3, "4c")], []))
-        (Right ["\\clef treble r4 c'2."], [])
-
-    -- Even if there are measures of rests.
-    equal (f $ UiTest.note_spec ("s/1", [(5, 3, "4c")], []))
-        (Right ["\\clef treble R1", "r4 c'2."], [])
 
 test_key = do
     let f = LilypondTest.derive_measures ["key"]
