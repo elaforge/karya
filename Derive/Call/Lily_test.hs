@@ -46,3 +46,22 @@ test_is_ly = do
         ([("4a", "-"), ("4b", "+always+no1"), ("4c", "+no2"), ("4d", "-")], [])
     equal (is_ly tracks)
         ([("a'", "+ly1"), ("b'", "+always+ly2"), ("c'", "-"), ("d'", "-")], [])
+
+test_8va = do
+    let run = LilypondTest.derive_measures ["ottava"]
+    equal (run $ UiTest.note_track
+            [(0, 1, "8va 1 | -- 4a"), (1, 1, "8va 0 | -- 4b")])
+        (Right "\\ottava #1 a'4 \\ottava #0 b'4 r2", [])
+    equal (run $
+            (">", [(0, 0, "8va 1"), (1, 0, "8va 0")])
+            : UiTest.regular_notes 2)
+        (Right "\\ottava #1 a'4 \\ottava #0 b'4 r2", [])
+
+test_xstaff = do
+    let run = LilypondTest.derive_measures ["change"]
+    equal (run $ UiTest.note_track [(0, 1, "xstaff bad | -- 4a")])
+        (Right "a'4 r4 r2", ["Error: expected 'up' or 'down', got bad"])
+    equal (run $ UiTest.note_track [(0, 1, "xstaff up | -- 4a")])
+        (Right "\\change Staff = \"up\" a'4 r4 r2", [])
+    equal (run $ (">", [(1, 0, "xstaff up")]) : UiTest.regular_notes 2)
+        (Right "a'4 \\change Staff = \"up\" b'4 r2", [])

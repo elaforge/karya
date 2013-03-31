@@ -20,7 +20,7 @@ import qualified Derive.Scale.Theory as Theory
 import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Sig as Sig
-import Derive.Sig (defaulted, required)
+import Derive.Sig (required)
 import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.Lilypond.Constants as Constants
@@ -333,15 +333,15 @@ derive_subtracks =
     BlockUtil.derive_tracks . Derive.info_sub_tracks . Derive.passed_info
 
 c_8va :: Derive.NoteCall
-c_8va = code_call "ottava" "Emit lilypond ottava mark."
-    (defaulted "octave" 1 "Transpose this many octaves up or down.") $
+c_8va = code0_call "ottava" "Emit lilypond ottava mark."
+    (required "octave" "Transpose this many octaves up or down.") $
     \oct -> return (Prefix, ottava oct)
     where
     ottava :: Int -> String
     ottava n = "\\ottava #" ++ show n
 
 c_xstaff :: Derive.NoteCall
-c_xstaff = code_call "xstaff"
+c_xstaff = code0_call "xstaff"
     "Emit lilypond to put the notes on a different staff."
     (required "staff" "Should be `up` or `down`.") $ \staff -> do
         when (staff `notElem` ["down", "up"]) $
@@ -354,12 +354,13 @@ c_dyn :: Derive.NoteCall
 c_dyn = code0_call "dyn"
     "Emit a lilypond dynamic. If there are notes below, they are derived\
     \ unchanged."
-    (required "dynamic" "Should be `p`, `ff`, etc.") ((,) SuffixAll . ('\\':))
+    (required "dynamic" "Should be `p`, `ff`, etc.")
+    (return . (,) SuffixAll . ('\\':))
 
 c_clef :: Derive.NoteCall
 c_clef = code0_call "clef" "Emit lilypond clef change."
     (required "clef" "Should be `bass`, `treble`, etc.")
-    ((,) Prefix . ("\\clef "++))
+    (return . (,) Prefix . ("\\clef "++))
 
 c_meter :: Derive.NoteCall
 c_meter = global_code0_call "meter"
@@ -380,9 +381,14 @@ code_call name doc sig make_code = Derive.transformer name Tags.ly_only doc $
         add_first code deriver
 
 -- | Emit a free-standing fragment of lilypond code.
-code0_call :: String -> String -> Sig.Parser a -> (a -> Code) -> Derive.NoteCall
-code0_call name doc sig make_code = make_code0_call name doc sig $
-    \pos val -> code0 pos (make_code val)
+code0_call :: String -> String -> Sig.Parser a -> (a -> Derive.Deriver Code)
+    -> Derive.NoteCall
+code0_call name doc sig make_code =
+    make_code0_call name (doc <> code0_doc) sig $
+        \pos val -> code0 pos =<< make_code val
+    where
+    code0_doc = "\nThis either be placed in a separate track as a zero-dur\
+        \ event, or it can be attached to an individual note as a transformer."
 
 -- | Just like 'code0_call', but the code uses the 'Constant.ly_global'
 -- instrument.
