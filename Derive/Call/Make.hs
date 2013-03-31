@@ -27,9 +27,9 @@ transform_notes :: String -> Tags.Tags -> String -> Sig.Parser a
 transform_notes name tags transform_doc sig transform = Derive.Call
     { Derive.call_name = name
     , Derive.call_generator = Just $
-        Derive.generator_call tags generator_doc generator
+        Derive.generator_call (tags <> Tags.subs) generator_doc generator
     , Derive.call_transformer = Just $
-        Derive.transformer_call (tags <> Tags.subs) transform_doc transformer
+        Derive.transformer_call tags transform_doc transformer
     }
     where
     generator_doc = "If there are notes in child tracks, apply the\

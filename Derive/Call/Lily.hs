@@ -180,8 +180,7 @@ code0 start (pos_, code) = with (Derive.d_place start 0 Util.note)
     with = Derive.with_val (position_env pos) code
 
 global_code0 :: ScoreTime -> Code -> Derive.EventDeriver
-global_code0 start =
-    Derive.with_val_raw TrackLang.v_instrument Constants.ly_global . code0 start
+global_code0 start = global . code0 start
 
 -- ** convert
 
@@ -267,6 +266,7 @@ note_calls :: Derive.NoteCallMap
 note_calls = Derive.make_calls
     [ ("when-ly", c_when_ly)
     , ("unless-ly", c_unless_ly)
+    , ("ly-global", c_ly_global)
     , ("is-ly", c_is_ly)
     , ("not-ly", c_not_ly)
     , ("if-ly", c_if_ly)
@@ -291,6 +291,13 @@ c_unless_ly = Derive.transformer "unless-ly" Tags.ly_only
     "The reverse of when-ly, evaluate the deriver only when not in lilypond\
     \ mode."
     $ Sig.call0t $ \_ deriver -> when_lilypond (const mempty) deriver
+
+c_ly_global :: Derive.NoteCall
+c_ly_global = Derive.transformer "ly-global" Tags.ly_only
+    ("Evaluate the deriver only when in lilypond mode, like 'when-ly', but\
+    \ also set the " <> ShowVal.show_val Constants.ly_global <> " instrument."
+    ) $ Sig.call0t $ \_ deriver ->
+        when_lilypond (const (global deriver)) mempty
 
 -- | TODO it's ugly how this only works in the track title.  If applied to
 -- an event, it will emit a duplicate copy of the tracks below it, which is
@@ -406,7 +413,7 @@ code0_call name doc sig make_code =
     code0_doc = "\nThis either be placed in a separate track as a zero-dur\
         \ event, or it can be attached to an individual note as a transformer."
 
--- | Just like 'code0_call', but the code uses the 'Constant.ly_global'
+-- | Just like 'code0_call', but the code uses the 'Constants.ly_global'
 -- instrument.
 global_code0_call :: String -> String -> Sig.Parser a
     -> (ScoreTime -> a -> Derive.EventDeriver) -> Derive.NoteCall

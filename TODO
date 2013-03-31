@@ -396,6 +396,8 @@ integrate / integration:
   - quantization
 
 lilypond:
+  * add ly-global call which is like when-ly except it sets >ly-global
+  - tie within chords: <a~ c> d
   * way to insert courtesy accidental?  e.g. explicit natural at mm10
     Needs to append ! after the pitch.  But I don't have any way of
   - Use of voices seems to be affecting rest placement, e.g. full measure
@@ -414,7 +416,7 @@ lilypond:
     of all of them.  Well, except that suffix ( should go on the first, and
     suffix ) should go on the last.
   * slur on measure 8 makes the note disappear
-  - I can fix rhythm spelling by changing the meter.  But it's a pain because
+  * I can fix rhythm spelling by changing the meter.  But it's a pain because
     the meter has to be over the entire block, and that means a whole new
     track, which also destroys track caching.
     It seems like track caching is too fragile, and also like there should be
@@ -464,6 +466,8 @@ lilypond:
   * Can I have a solution for custom note durations that don't affect lilypond?
   * cross staff inside tuplet didn't work
   - hairpin crescendo / decrescendo
+    \< or \>, ended with \! or another hairpin or dynamic mark
+    if event has a duration, then end with \!, otherwise just emit the start
   - If I can figure out the meter from just the name, then I can get rid
     of the awkward map with hardcoded meters.
     I could have parse generate the Meter and memoize it.
@@ -484,7 +488,6 @@ lilypond:
   - pedal should emit pedal sign
     I can't use the pedal call for that, since it emits control.  But I can
     look at the pedal signal directly.
-  - movement marker than emits a page break and a title
   - Why does the cmd have to wait until lilypond is done?  Should be async.
   * add hand annotations to score
   - use Util.Format in ly output
