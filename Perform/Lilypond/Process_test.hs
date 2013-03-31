@@ -1,0 +1,115 @@
+module Perform.Lilypond.Process_test where
+import Util.Test
+import qualified Perform.Lilypond.LilypondTest as LilypondTest
+import qualified Perform.Lilypond.Process as Process
+import Perform.Lilypond.Process (Voice(..))
+import qualified Perform.Lilypond.Types as Types
+import Perform.Lilypond.Types (Duration(..))
+
+
+test_rests_until = do
+    let f meters = fmap (unwords . map Types.to_lily . fst)
+            . Process.run_convert (LilypondTest.mkstate meters)
+            . Process.rests_until . sum . map Types.dur_to_time
+    equal (f ["4/4"] [D2]) (Right "r2")
+    equal (f ["4/4"] [D2, D4]) (Right "r2 r4")
+    equal (f ["4/4"] [D1]) (Right "R1")
+    left_like (f ["4/4"] [D1, D1]) "out of meters"
+    equal (f ["4/4", "4/4"] [D1, D1]) (Right "R1 | R1")
+    -- Meters change.
+    left_like (f ["2/4", "4/4"] [D1, D1]) "out of meters"
+    equal (f ["2/4", "4/4"] [D1]) (Right "R2 | \\time 4/4 r2")
+
+    pprint (f (replicate 3 "4/4") [D1, D1, D2])
+
+test_process = do
+    let f wanted meters = LilypondTest.extract_simple wanted
+            . LilypondTest.process meters . map LilypondTest.simple_event
+        simple = LilypondTest.process_simple []
+
+    equal (simple [(1, 1, "a"), (2, 8, "b")]) $
+        Right "r4 a4 b2~ | b1~ | b2 r2"
+    -- Rests are not dotted, even when they could be.
+    -- I also get r8 r4, instead of r4 r8, see comment on 'allowed_time'.
+    equal (simple [(0, 1, "a"), (1.5, 1, "b"), (4, 1, "c")]) $
+        Right "a4 r8 b8~ b8 r8 r4 | c4 r4 r2"
+    equal (simple [(0, 2, "a"), (3.5, 0.25, "b"), (3.75, 0.25, "c")]) $
+        Right "a2 r4 r8 b16 c16"
+    equal (simple [(0, 0.5, "a"), (0.5, 1, "b"), (1.5, 0.5, "c")]) $
+        Right "a8 b4 c8 r2"
+    -- Skip a couple of measures.
+    equal (simple [(7, 1, "a"), (8, 1, "b")]) $
+        Right "R1 | r2 r4 a4 | b4 r4 r2"
+    equal (simple [(8, 1, "a"), (9, 1, "b")]) $
+        Right "R1 | R1 | a4 b4 r2"
+    equal (f [] ["4/4"] []) $ Right "R1"
+    equal (f [] ["4/4", "4/4"] []) $ Right "R1 | R1"
+
+    equal (f ["time", "key"] ["4/4"] [(0, 1, "a")]) $
+        Right "\\time 4/4 \\key c \\major a4 r4 r2"
+    equal (f ["time", "key"] ["4/4", "4/4"] [(0, 8, "a")]) $
+        Right "\\time 4/4 \\key c \\major a1~ | a1"
+
+    -- Key and meter are still at the beginning.
+    equal (f ["time", "key"] ["4/4"] [(1, 1, "a")]) $
+        Right "\\time 4/4 \\key c \\major r4 a4 r2"
+
+    -- Meter change.
+    equal (f ["time"] ["2/4", "4/4"] [(0, 6, "a")]) $
+        Right "\\time 2/4 a2~ | \\time 4/4 a1"
+
+test_dotted_rests = do
+    let f meter = LilypondTest.extract_simple []
+            . LilypondTest.process [meter]
+            . map LilypondTest.simple_event
+    -- Rests are allowed to be dotted when the meter isn't duple.
+    equal (f "3+3/8" [(1.5, 0.5, "a")]) $ Right "r4. a8 r4"
+    equal (f "4/4" [(3, 1, "a")]) $ Right "r2 r4 a4"
+
+test_chords = do
+    let f = LilypondTest.process_simple []
+    -- Homogenous durations.
+    equal (f [(0, 1, "a"), (0, 1, "c")]) $ Right "<a c>4 r4 r2"
+    -- Starting at the same time.
+    equal (f [(0, 2, "a"), (0, 1, "c")]) $ Right "<a c>4~ a4 r2"
+    -- Starting at different times.
+    equal (f [(0, 2, "a"), (1, 1, "c")]) $ Right "a4~ <a c>4 r2"
+    equal (f [(0, 2, "a"), (1, 2, "c"), (2, 2, "e")]) $
+        Right "a4~ <a c>4~ <c e>4~ e4"
+
+test_process_voices = do
+    let f wanted meters = LilypondTest.extract_lys (Just wanted)
+            . LilypondTest.process meters
+            . map LilypondTest.voice_event
+    equal (f [] ["4/4"]
+            [ (0, 1, "a", Nothing)
+            , (1, 1, "b", Just 1), (1, 1, "c", Just 2)
+            , (2, 1, "d", Nothing)
+            ]) $
+        Right [Right "a4", Left [(VoiceOne, "b4"), (VoiceTwo, "c4")],
+            Right "d4", Right "r4"]
+    -- Voices padded out to the longest one.
+    equal (f [] ["4/4"]
+            [(0, 2, "b", Just 1), (0, 1, "c", Just 2)]) $
+        Right [Left [(VoiceOne, "b2"), (VoiceTwo, "c4 r4")], Right "r2"]
+
+    -- Starting and ending in the middle of a measure works.
+    equal (f [] ["4/4", "4/4"]
+            [ (0, 2, "a", Nothing)
+            , (2, 4, "b", Just 1), (2, 2, "c", Just 2)
+            , (6, 2, "d", Nothing)
+            ]) $
+        Right
+            [ Right "a2"
+            , Left [(VoiceOne, "b2~ | b2"), (VoiceTwo, "c2 | r2")]
+            , Right "d2"
+            ]
+
+    -- Changing meter in the middle works.
+    equal (f ["time"] ["2/4", "4/4"]
+            [(0, 1, "a", Nothing), (1, 3, "b", Just 1)]) $
+        Right
+            [ Right "\\time 2/4", Right "a4"
+            , Left [(VoiceOne, "b4~ | \\time 4/4 b2")]
+            , Right "r2"
+            ]

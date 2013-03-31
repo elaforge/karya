@@ -23,9 +23,11 @@ import qualified Derive.Sig as Sig
 import Derive.Sig (defaulted, required)
 import qualified Derive.TrackLang as TrackLang
 
+import qualified Perform.Lilypond.Constants as Constants
 import qualified Perform.Lilypond.Convert as Convert
-import qualified Perform.Lilypond.Lilypond as Lilypond
 import qualified Perform.Lilypond.Meter as Meter
+import qualified Perform.Lilypond.Process as Process
+import qualified Perform.Lilypond.Types as Types
 import qualified Perform.Pitch as Pitch
 import qualified Perform.RealTime as RealTime
 
@@ -34,7 +36,7 @@ import Types
 
 -- * utils for ly calls
 
-when_lilypond :: (Lilypond.Config -> Derive.Deriver a)
+when_lilypond :: (Types.Config -> Derive.Deriver a)
     -- ^ Run if this is a lilypond derive.
     -> Derive.Deriver a -- ^ Run if this is a normal derive.
     -> Derive.Deriver a
@@ -139,10 +141,10 @@ data CodePosition =
 
 position_env :: CodePosition -> TrackLang.ValName
 position_env c = case c of
-    Prefix -> Lilypond.v_ly_prepend
-    SuffixFirst -> Lilypond.v_ly_append_first
-    SuffixLast -> Lilypond.v_ly_append_last
-    SuffixAll -> Lilypond.v_ly_append_all
+    Prefix -> Constants.v_ly_prepend
+    SuffixFirst -> Constants.v_ly_append_first
+    SuffixLast -> Constants.v_ly_append_last
+    SuffixAll -> Constants.v_ly_append_all
 
 prepend_code :: String -> Derive.EventDeriver -> Derive.EventDeriver
 prepend_code = add_code . (,) Prefix
@@ -154,9 +156,9 @@ add_code (pos, code) = Derive.modify_val (position_env pos) $
 -- | Emit a note that carries raw lilypond code.  The code is emitted
 -- literally, and assumed to have the duration of the event.  The event's pitch
 -- is ignored.  This can be used to emit lilypond that doesn't fit into
--- a 'Lilypond.Event'.
+-- a 'Types.Event'.
 code :: (ScoreTime, ScoreTime) -> String -> Derive.EventDeriver
-code (start, dur) code = Derive.with_val Lilypond.v_ly_prepend code
+code (start, dur) code = Derive.with_val Constants.v_ly_prepend code
     (Derive.d_place start dur Util.note)
 
 -- | Like 'code', but for 0 duration code fragments, and can either put them
@@ -174,23 +176,22 @@ code0 start (pos_, code) = with (Derive.d_place start 0 Util.note)
 
 global_code0 :: ScoreTime -> Code -> Derive.EventDeriver
 global_code0 start =
-    Derive.with_val_raw TrackLang.v_instrument Lilypond.ly_global . code0 start
+    Derive.with_val_raw TrackLang.v_instrument Constants.ly_global . code0 start
 
 -- ** convert
 
 -- | Round the RealTime to the nearest NoteDuration.
-note_duration :: Lilypond.Config -> RealTime -> Lilypond.NoteDuration
-note_duration config = Lilypond.time_to_note_dur . to_time config
+note_duration :: Types.Config -> RealTime -> Types.NoteDuration
+note_duration config = Types.time_to_note_dur . to_time config
 
 -- | Like 'note_duration', but only succeeds if the RealTime is exactly
 -- a NoteDuration.
-is_note_duration :: Lilypond.Config -> RealTime
-    -> Maybe Lilypond.NoteDuration
-is_note_duration config = Lilypond.is_note_dur . to_time config
+is_note_duration :: Types.Config -> RealTime -> Maybe Types.NoteDuration
+is_note_duration config = Types.is_note_dur . to_time config
 
-is_duration :: Lilypond.Config -> RealTime -> Maybe Lilypond.Duration
+is_duration :: Types.Config -> RealTime -> Maybe Types.Duration
 is_duration config t = case is_note_duration config t of
-    Just (Lilypond.NoteDuration dur False) -> Just dur
+    Just (Types.NoteDuration dur False) -> Just dur
     _ -> Nothing
 
 note_pitch :: Derive.EventDeriver -> Derive.Deriver String
@@ -210,15 +211,15 @@ pitch_to_lily pitch = do
     note <- right $ PitchSignal.pitch_note pitch
     pitch <- require ("unparseable note: " <> Pretty.pretty note) $
         Theory.parse_pitch (Pitch.note_text note)
-    right $ Lilypond.show_pitch pitch
+    right $ Types.show_pitch pitch
     where
     require = Derive.require . (prefix <>)
     right :: (Pretty.Pretty a) => Either a b -> Derive.Deriver b
     right = Derive.require_right ((prefix <>) . Pretty.pretty)
     prefix = "Lily.pitch_to_lily: "
 
-to_time :: Lilypond.Config -> RealTime -> Lilypond.Time
-to_time = Lilypond.real_to_time . Lilypond.config_quarter_duration
+to_time :: Types.Config -> RealTime -> Types.Time
+to_time = Types.real_to_time . Types.config_quarter_duration
 
 
 -- ** eval
@@ -226,34 +227,34 @@ to_time = Lilypond.real_to_time . Lilypond.config_quarter_duration
 -- | A lilypond \"note\", which is just a chunk of text.
 type Note = String
 
-eval :: Lilypond.Config -> Derive.PassedArgs d -> [Note.Event]
+eval :: Types.Config -> Derive.PassedArgs d -> [Note.Event]
     -> Derive.Deriver [Note]
 eval config args notes = do
     start <- Args.real_start args
     eval_events config start =<< Note.place notes
 
-eval_events :: Lilypond.Config -> RealTime -> Derive.Events
+eval_events :: Types.Config -> RealTime -> Derive.Events
     -> Derive.Deriver [Note]
 eval_events config start events = do
     meter <- maybe (return Meter.default_meter) parse_meter
-        =<< Derive.lookup_val Lilypond.v_meter
+        =<< Derive.lookup_val Constants.v_meter
     let (notes, logs) = eval_notes config meter start events
     mapM_ Log.write logs
     return notes
     where
     parse_meter = either err return . Meter.parse_meter
-    err = Derive.throw . ("parse " <> Pretty.pretty Lilypond.v_meter <>)
+    err = Derive.throw . ("parse " <> Pretty.pretty Constants.v_meter <>)
 
-eval_notes :: Lilypond.Config -> Meter.Meter -> RealTime -> Derive.Events
+eval_notes :: Types.Config -> Meter.Meter -> RealTime -> Derive.Events
     -> ([Note], [Log.Msg])
 eval_notes config meter start score_events =
-    (map Lilypond.to_lily notes, logs)
+    (map Types.to_lily notes, logs)
     where
     (events, logs) = LEvent.partition $ Convert.convert quarter score_events
-    notes = Lilypond.simple_convert config meter
-        (Lilypond.real_to_time quarter start)
-        (Convert.quantize (Lilypond.config_quantize config) events)
-    quarter = Lilypond.config_quarter_duration config
+    notes = Process.simple_convert config meter
+        (Types.real_to_time quarter start)
+        (Convert.quantize (Types.config_quantize config) events)
+    quarter = Types.config_quarter_duration config
 
 
 -- * calls
@@ -347,7 +348,7 @@ c_xstaff = code_call "xstaff"
             Derive.throw $ "expected 'up' or 'down', got "
                 <> ShowVal.show_val staff
         return (Prefix, change staff)
-    where change staff = "\\change Staff = " <> Lilypond.to_lily staff
+    where change staff = "\\change Staff = " <> Types.to_lily staff
 
 c_dyn :: Derive.NoteCall
 c_dyn = code0_call "dyn"
@@ -365,7 +366,7 @@ c_meter = global_code0_call "meter"
     "Emit lilypond meter change. It will be interpreted as global no matter\
     \ where it is. Simultaneous different meters aren't supported yet."
     (required "meter" "Should be `4/4`, `3+3/8`, etc.") $
-    \pos val -> Derive.with_val Lilypond.v_meter (val :: String) $
+    \pos val -> Derive.with_val Constants.v_meter (val :: String) $
         Derive.d_place pos 0 Util.note
 
 -- * util
@@ -383,7 +384,7 @@ code0_call :: String -> String -> Sig.Parser a -> (a -> Code) -> Derive.NoteCall
 code0_call name doc sig make_code = make_code0_call name doc sig $
     \pos val -> code0 pos (make_code val)
 
--- | Just like 'code0_call', but the code uses the 'Lilypond.ly_global'
+-- | Just like 'code0_call', but the code uses the 'Constant.ly_global'
 -- instrument.
 global_code0_call :: String -> String -> Sig.Parser a
     -> (ScoreTime -> a -> Derive.EventDeriver) -> Derive.NoteCall
@@ -407,4 +408,4 @@ make_code0_call name doc sig call = Derive.Call
         call (Args.start args) val <> deriver
 
 global :: Derive.Deriver a -> Derive.Deriver a
-global = Derive.with_val_raw TrackLang.v_instrument Lilypond.ly_global
+global = Derive.with_val_raw TrackLang.v_instrument Constants.ly_global

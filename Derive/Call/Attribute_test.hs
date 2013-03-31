@@ -41,24 +41,24 @@ test_legato = do
 test_legato_ly = do
     let run = LilypondTest.measures [] . LilypondTest.derive_linear
     equal (run $ (">", [(1, 2, "(")]) : UiTest.regular_notes 4)
-        (Right ["a'4 b'4( c'4) d'4"], [])
+        (Right "a'4 b'4( c'4) d'4", [])
     let tracks =
             -- Irregularly overlapping sub events.
             [ (">", [(0, 3, "("), (3, 3, "(")])
             , (">", [(0, 2, "+legato"), (2, 1, "+sul"), (3, 3, "+sul")])
             ] ++ UiTest.regular_notes 6
     equal (run tracks)
-        (Right ["a'4( b'4 c'4) d'4(", "e'4 f'4) r2"], [])
+        (Right "a'4( b'4 c'4) d'4( | e'4 f'4) r2", [])
     -- Goes to the last note in a tie.
     let tracks =
             [ (">", [(0, 12, "(")])
             , (">", [(0, 4, ""), (4, 8, "")])
             , ("*", [(0, 0, "4a"), (4, 0, "4b")])
             ]
-    equal (run tracks) (Right ["a'1(", "b'1~", "b'1)"], [])
+    equal (run tracks) (Right "a'1( | b'1~ | b'1)", [])
     -- Legato on a single note does nothing.
     equal (run $ (">", [(0, 1, "(")]) : UiTest.regular_notes 1)
-        (Right ["a'4 r4 r2"], [])
+        (Right "a'4 r4 r2", [])
 
 test_attributed_note_ly = do
     let run = LilypondTest.measures [] . LilypondTest.derive_linear
@@ -66,10 +66,10 @@ test_attributed_note_ly = do
     equal (run $
         (">", [(0, 2, "m")]) : UiTest.note_track
             [(0, 1, "4a"), (1, 1, "4b"), (2, 1, "4c")])
-        (Right ["a'4-+ b'4-+ c'4 r4"], [])
+        (Right "a'4-+ b'4-+ c'4 r4", [])
     -- Works as both a transformer and a generator.
     equal (run $
         [ (">", [(0, 1, "m |"), (1, 1, ""), (2, 1, "m")])
         , ("*", [(0, 0, "4a"), (1, 0, "4b"), (2, 0, "4c")])
         ])
-        (Right ["a'4-+ b'4 c'4-+ r4"], [])
+        (Right "a'4-+ b'4 c'4-+ r4", [])

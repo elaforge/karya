@@ -437,6 +437,15 @@ checked_val name environ = case get_val name environ of
         Right v -> return (Just v)
     where return_type = to_type (error "checked_val" :: a)
 
+-- | Like 'checked_val', but juggle the return type around so NotFound is just
+-- Nothing, which is more convenient in some cases.
+checked_val2 :: (Typecheck a) => ValName -> Environ -> Maybe (Either String a)
+checked_val2 name environ = case checked_val name environ of
+    Right Nothing -> Nothing
+    Right (Just val) -> Just (Right val)
+    Left err -> Just (Left err)
+
+
 -- Define a few inhabitants of Environ which are used by the built-in set
 -- of calls.
 

@@ -2,7 +2,9 @@ module Perform.Lilypond.LilypondTest where
 import qualified Data.Text as Text
 
 import Util.Control
+import qualified Util.Seq as Seq
 import Util.Test
+
 import qualified Ui.State as State
 import qualified Ui.UiTest as UiTest
 import qualified Cmd.CmdTest as CmdTest
@@ -11,22 +13,124 @@ import qualified Derive.Call.Block as Call.Block
 import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.LEvent as LEvent
+import qualified Derive.Score as Score
+import qualified Derive.TrackLang as TrackLang
 
+import qualified Perform.Lilypond.Constants as Constants
 import qualified Perform.Lilypond.Convert as Convert
 import qualified Perform.Lilypond.Lilypond as Lilypond
+import qualified Perform.Lilypond.Meter as Meter
+import qualified Perform.Lilypond.Process as Process
+import qualified Perform.Lilypond.Types as Types
+import qualified Perform.RealTime as RealTime
+
+import Types
 
 
 default_config :: Lilypond.Config
 default_config = Lilypond.default_config
 
--- | (title, [Staff]) where Staff = [Measure] where Measure = String
-type StaffGroup = (String, [[String]])
+type Output = Either Process.Voices Process.Ly
 
--- | Like 'convert_staves', but extract the converted staves to lists of
--- measures.
-convert_measures :: [String] -> [Lilypond.Event] -> Either String [String]
-convert_measures wanted =
-    fmap (concatMap (concat . snd)) . convert_staves wanted
+-- | Assume 4/4 and no voices.
+process_simple :: [String] -- ^ only include these lilypond backslash commands
+    -> [SimpleEvent] -> Either String String
+process_simple wanted events =
+    extract_simple wanted $ process meters $ map simple_event events
+    where
+    end = fromMaybe 0 $ Seq.maximum [start + dur | (start, dur, _) <- events]
+    bars = ceiling (RealTime.to_seconds end / 4)
+    meters = replicate bars "4/4"
+
+extract_rights :: (Show a) => [Either a String] -> String
+extract_rights = unwords . map (expect_right "expected only ly")
+
+process :: [String] -> [Types.Event] -> Either String [Output]
+process meters = Process.process Types.default_config (map mkmeter meters)
+
+-- * extract
+
+extract_simple :: [String] -> Either String [Output] -> Either String String
+extract_simple wanted = fmap extract_rights . extract_lys (Just wanted)
+
+extract_lys :: Maybe [String]
+    -- ^ if Just, only include these lilypond backslash commands
+    -> Either String [Output]
+    -> Either String [Either [(Process.Voice, String)] String]
+extract_lys wanted = fmap $ map to_str . filter is_wanted
+    where
+    to_str = either (Left . show_voices) (Right . Types.to_lily)
+    show_voices (Process.Voices voices) =
+        [(v, unwords $ map Types.to_lily lys) | (v, lys) <- voices]
+    is_wanted (Left _voices) = True -- TODO filter \s from voices?
+    is_wanted (Right ly) = case wanted of
+        Nothing -> True
+        Just words -> case ly of
+            Process.LyNote {} -> True
+            _ -> case Types.to_lily ly of
+                '\\' : text -> takeWhile (/=' ') text `elem` words
+                _ -> True
+
+-- * make data
+
+mkstate :: [String] -> Process.State
+mkstate meters = Process.make_state Types.default_config (map mkmeter meters)
+    Process.default_key
+
+mkmeter :: String -> Meter.Meter
+mkmeter = expect_right "mkmeter" . Meter.parse_meter
+
+-- | 1 == quarter, to be consistent with the default behaviour for
+-- 'Types.real_to_time'.
+mktime :: Double -> Types.Time
+mktime wholes = Types.Time $ floor $
+    wholes * fromIntegral Types.time_per_whole / 4
+
+type SimpleEvent = (RealTime, RealTime, String)
+
+simple_event :: SimpleEvent -> Types.Event
+simple_event (start, dur, pitch) =
+    mkevent start dur pitch default_inst []
+
+environ_event ::
+    (RealTime, RealTime, String, [(TrackLang.ValName, TrackLang.Val)])
+    -> Lilypond.Event
+environ_event (start, dur, pitch, env) =
+    mkevent start dur pitch default_inst env
+
+voice_event :: (RealTime, RealTime, String, Maybe Int) -> Types.Event
+voice_event (start, dur, pitch, maybe_voice) =
+    mkevent start dur pitch default_inst $
+        maybe [] ((:[]) . ((,) Constants.v_voice) . TrackLang.to_val)
+            maybe_voice
+
+mkevent :: RealTime -> RealTime -> String -> Score.Instrument
+    -> [(TrackLang.ValName, TrackLang.Val)] -> Types.Event
+mkevent start dur pitch inst env = Types.Event
+    { Types.event_start = Types.real_to_time 1 start
+    , Types.event_duration = Types.real_to_time 1 dur
+    , Types.event_pitch = pitch
+    , Types.event_instrument = inst
+    , Types.event_environ = TrackLang.make_environ env
+    , Types.event_stack = UiTest.mkstack (1, 0, 1)
+    , Types.event_clipped = False
+    }
+
+default_inst :: Score.Instrument
+default_inst = Score.Instrument "test"
+
+
+-- * derive
+
+-- | (title, [Staff]) where Staff = String
+type StaffGroup = (String, [String])
+
+-- | Like 'convert_staves', but expect only one staff.
+convert_measures :: [String] -> [Lilypond.Event] -> Either String String
+convert_measures wanted = fmap staff1 . convert_staves wanted
+    where
+    staff1 [(_, [code])] = code
+    staff1 staves = error $ "expected one staff: " <> show staves
 
 -- | Convert events to lilypond score.
 convert_staves ::
@@ -36,21 +140,28 @@ convert_staves wanted events =
     map extract_staves <$> Lilypond.convert_staff_groups default_config events
     where
     extract_staves (Lilypond.StaffGroup inst staves) =
-        (Lilypond.inst_name inst, map extract_staff staves)
-    extract_staff (Lilypond.Measures measures) =
-        map (unwords . filter is_wanted . map Lilypond.to_lily) measures
-    is_wanted ('\\':note) = takeWhile (/=' ') note `elem` wanted
+        (Lilypond.inst_name inst, map show_staff staves)
+    show_staff = unwords . mapMaybe (either show_voices show_ly)
+    show_ly ly
+        | is_wanted code = Just code
+        | otherwise = Nothing
+        where code = Lilypond.to_lily ly
+    show_voices (Process.Voices voices) = Just $
+        "<< " <> unwords (map show_voice voices) <> " >>"
+    show_voice (v, lys) = "{ " <> show v <> ": "
+        <> unwords (mapMaybe show_ly lys) <> " }"
+    is_wanted ('\\':text) = takeWhile (/=' ') text `elem` wanted
     is_wanted _ = True
 
 derive_measures :: [String] -> [UiTest.TrackSpec]
-    -> (Either String [String], [String])
+    -> (Either String String, [String])
 derive_measures wanted = measures wanted . derive
 
 derive_staves :: [String] -> [UiTest.TrackSpec]
     -> (Either String [StaffGroup], [String])
 derive_staves wanted = staves wanted . derive
 
-measures :: [String] -> Derive.Result -> (Either String [String], [String])
+measures :: [String] -> Derive.Result -> (Either String String, [String])
 measures wanted = first (convert_measures wanted) . partition
 
 staves :: [String] -> Derive.Result -> (Either String [StaffGroup], [String])

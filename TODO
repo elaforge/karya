@@ -396,8 +396,10 @@ integrate / integration:
   - quantization
 
 lilypond:
+  - \ottava has to be alone, but when it's a transformer it gets attached to
+    the note.
   * remove v_clef
-  - make Note into a separate record type so I don't have partial functions:
+  * make Note into a separate record type so I don't have partial functions:
     Ly Note | ClefChange ... | ...
   * slur over harmonic in mm31 disappeared, and the one on mm41 is wrong
   * 2 measures per line instead of 4
@@ -421,7 +423,7 @@ lilypond:
     directives don't get their own staff.
     * make lilypond not emit a staff for >ly-global
     * make meter extraction code in Lilypond get it from the meter events
-    - meter call emits code fragment under >ly-global
+    * meter call emits code fragment under >ly-global
 
   - movement titles
     Use >ly-global for these.
@@ -461,7 +463,7 @@ lilypond:
     of the awkward map with hardcoded meters.
     I could have parse generate the Meter and memoize it.
   - optionally emit the lilypond to display a compound meter
-  - why not implement clefs as a code-emitting note transformer rather than
+  * why not implement clefs as a code-emitting note transformer rather than
     env var?  There's '8va 1' and then there's staff = treble,
     time-sig = '3/4'.
     Key signatures are already env vars because they're not just lily.
@@ -479,8 +481,15 @@ lilypond:
     look at the pedal signal directly.
   - movement marker than emits a page break and a title
   - Why does the cmd have to wait until lilypond is done?  Should be async.
-  + add hand annotations to score
-  - Support voices, but they are complicated:
+  * add hand annotations to score
+  - use Util.Format in ly output
+  - to_lily should return Text
+  - try Util.LazyVector for Ly output and see if it helps
+  * Support voices, but they are complicated
+    * get rid of the measure thing in convert_measure, just one big recursive
+      function.  It's actually
+        ([a] -> m ([b], [a])) -> [a] -> m [b]
+
     << { \voiceOne ... }
       \new Voice { \voiceTwo ... }
     >> \oneVoice
@@ -499,24 +508,6 @@ lilypond:
     of the longest.
 
     Voices can go across barlines.
-
-    If I can do them as Code then the output code is unchanged.
-
-    . write ly emitting part for Voices, it can't just use to_lily because it
-      has to have barlines inside.  Well, except when it starts or ends in the
-      middle of a measure.
-      I still want to keep the measure count, so:
-        newline, << { \voiceOne ... [ split every 2 measures, starting at the
-        same mm ]
-
-      r4 c''4 <<
-        { \voiceOne d''4 e''4 | f''4 r4 }
-        \new Voice { \voiceTwo a'4 b'4 | c'4 g'4 }
-      >>
-      r2 |
-
-    . I think I need a Measure type { partial :: Bool, notes :: [Note] }
-      This way the score printer has enough structure to format it.
 
   + can I make a click on a note in the pdf highlight in the sequencer?
     Hung up on getting preview to send clicks to a program, notes in

@@ -21,7 +21,7 @@ import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Slice as Slice
 
-import qualified Perform.Lilypond.Lilypond as Lilypond
+import qualified Perform.Lilypond.Constants as Constants
 import Types
 
 
@@ -242,8 +242,8 @@ test_slur = do
             , (">", [(0, 1, "+a")])
             ] ++ UiTest.regular_notes 2
     equal events
-        [ ((0, 1, "4a"), [(Lilypond.v_ly_append_first, "'('")], "+a")
-        , ((1, 1, "4b"), [(Lilypond.v_ly_append_last, "')'")], "-")
+        [ ((0, 1, "4a"), [(Constants.v_ly_append_first, "'('")], "+a")
+        , ((1, 1, "4b"), [(Constants.v_ly_append_last, "')'")], "-")
         ]
     equal logs []
 

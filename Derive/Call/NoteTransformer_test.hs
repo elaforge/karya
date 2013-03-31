@@ -72,30 +72,30 @@ test_tuplet_ly = do
     equal (run $
         (">", [(0, 2, "t")]) : UiTest.note_track
             [(t, 0.5, p) | (t, p) <- zip (Seq.range 0 1 0.5) pitches])
-        (Right ["\\times 2/3 { a'4 b'4 c'4 } r2"], [])
+        (Right "\\times 2/3 { a'4 b'4 c'4 } r2", [])
     equal (run $
         (">", [(2, 2, "t")]) : UiTest.note_track
             [(t, 0.5, p) | (t, p) <- zip (Seq.range 2 3 0.5) pitches])
-        (Right ["r2 \\times 2/3 { a'4 b'4 c'4 }"], [])
+        (Right "r2 \\times 2/3 { a'4 b'4 c'4 }", [])
     equal (run $
         (">", [(0, 2, "t")]) : UiTest.note_track
             [(t, 0.25, p) | (t, p) <- zip (Seq.range 0 1.25 0.25) pitches])
-        (Right ["\\times 4/6 { a'8 b'8 c'8 d'8 e'8 f'8 } r2"], [])
+        (Right "\\times 4/6 { a'8 b'8 c'8 d'8 e'8 f'8 } r2", [])
 
     equal (run $
         (">", [(0, 4, "t")]) : UiTest.note_track
             [(t, 0.5, p) | (t, p) <- zip (Seq.range 0 2 0.5) pitches])
-        (Right ["\\times 4/5 { a'4 b'4 c'4 d'4 e'4 }"], [])
+        (Right "\\times 4/5 { a'4 b'4 c'4 d'4 e'4 }", [])
     equal (run $
         (">", [(0, 2, "t")]) : UiTest.note_track
             [(t, 0.25, p) | (t, p) <- zip (Seq.range 0 1 0.25) pitches])
-        (Right ["\\times 4/5 { a'8 b'8 c'8 d'8 e'8 } r2"], [])
+        (Right "\\times 4/5 { a'8 b'8 c'8 d'8 e'8 } r2", [])
     -- Ensure Lily.note_pitch preserves enharmonics.
     equal (run $
         (">", [(0, 2, "t")]) : UiTest.note_track
             [(t, 0.5, p) | (t, p) <- zip (Seq.range 0 1 0.5)
                 ["4c#", "4db", "4cx"]])
-        (Right ["\\times 2/3 { cs'4 df'4 css'4 } r2"], [])
+        (Right "\\times 2/3 { cs'4 df'4 css'4 } r2", [])
 
     -- Grace notes nested inside a tuplet work.
     equal (run
@@ -103,7 +103,7 @@ test_tuplet_ly = do
         , (">", [(0, 1, "g (4c) (4b)"), (1, 1, "")])
         , ("*", [(0, 0, "4a"), (1, 0, "4b")])
         ])
-        (Right ["\\times 1/2 { \\acciaccatura { c'8[ b'8] } a'2 b'2 } r2"], [])
+        (Right "\\times 1/2 { \\acciaccatura { c'8[ b'8] } a'2 b'2 } r2", [])
 
 test_arpeggio = do
     let run = DeriveTest.extract_events DeriveTest.e_note
@@ -125,4 +125,4 @@ test_slur_ly = do
     let run = LilypondTest.measures [] . LilypondTest.derive_linear
     equal (run $ (">", [(0, 4, "(")]) : UiTest.note_track
         [(0, 1, "4a"), (1, 1, "4b"), (2, 1, "4c")])
-        (Right ["a'4( b'4 c'4) r4"], [])
+        (Right "a'4( b'4 c'4) r4", [])
