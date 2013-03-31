@@ -65,3 +65,8 @@ test_xstaff = do
         (Right "\\change Staff = \"up\" a'4 r4 r2", [])
     equal (run $ (">", [(1, 0, "xstaff up")]) : UiTest.regular_notes 2)
         (Right "a'4 \\change Staff = \"up\" b'4 r2", [])
+
+test_reminder_accidental = do
+    let run = LilypondTest.derive_measures []
+    equal (run $ UiTest.note_track [(0, 1, "ly-! -- 4a"), (1, 1, "ly-? -- 4b")])
+        (Right "a'!4 b'?4 r2", [])

@@ -15,7 +15,7 @@ import qualified Cmd.Instrument.Util as CUtil
 import qualified Cmd.Keymap as Keymap
 
 import Derive.Attrs
-import qualified Derive.Call.Attribute as Attribute
+import qualified Derive.Call.Make as Make
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Derive as Derive
 import qualified Derive.Instrument.Util as DUtil
@@ -69,7 +69,7 @@ hang_code = MidiInst.empty_code
 
 hang_calls :: Derive.NoteCallMap
 hang_calls = Derive.make_calls
-    [ (text, Attribute.attributed_note attrs)
+    [ (text, Make.attributed_note attrs)
     | (attrs, _, Just text, _) <- hang_strokes
     -- Make sure to not shadow the default "" call.
     , not (null text)

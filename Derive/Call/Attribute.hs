@@ -10,6 +10,7 @@ import Util.Control
 import qualified Util.Seq as Seq
 import qualified Derive.Attrs as Attrs
 import qualified Derive.Call.Lily as Lily
+import qualified Derive.Call.Make as Make
 import qualified Derive.Call.Note as Note
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Call.Util as Util
@@ -32,25 +33,21 @@ lookup_attr = Derive.pattern_lookup "attribute starting with `+`" doc $
             Right (TrackLang.VRelativeAttrs rel) -> return $ Just $ call rel
             _ -> return Nothing
     parse_symbol _ = return Nothing
-    call rel = transform_notes ("relative attrs: " ++ ShowVal.show_val rel)
+    call rel = Make.transform_notes
+        ("relative attrs: " ++ ShowVal.show_val rel)
         Tags.attr "Doc unused." Sig.no_args
         (\() -> Util.with_attrs (TrackLang.apply_attr rel))
-    doc = Derive.extract_doc $ attributed_note (Score.attr "example-attr")
+    doc = Derive.extract_doc $ Make.attributed_note (Score.attr "example-attr")
 
 note_calls :: Derive.NoteCallMap
 note_calls = Derive.make_calls
-    [ ("o", attributed_note Attrs.harm)
-    , ("m", attributed_note Attrs.mute)
-    , (".", attributed_note Attrs.staccato)
+    [ ("o", Make.attributed_note Attrs.harm)
+    , ("m", Make.attributed_note Attrs.mute)
+    , (".", Make.attributed_note Attrs.staccato)
     , ("(", c_legato)
-    , ("{", attributed_note Attrs.porta)
+    , ("{", Make.attributed_note Attrs.porta)
     , ("detach", c_detach)
     ]
-
-attributed_note :: Attrs.Attributes -> Derive.NoteCall
-attributed_note attrs = transform_notes
-    ("note with " ++ ShowVal.show_val attrs) Tags.attr
-    "Add attributes to the notes." Sig.no_args (\() -> Util.add_attrs attrs)
 
 -- * legato
 
@@ -73,7 +70,7 @@ c_legato_ly = Derive.stream_generator "legato-ly" (Tags.subs <> Tags.ly)
 --
 -- If you use this, you should definitely turn off 'Note.config_legato'.
 c_legato_all :: Derive.NoteCall
-c_legato_all = attributed_note Attrs.legato
+c_legato_all = Make.attributed_note Attrs.legato
 
 -- | Apply the attributes to the init of the sub-events, i.e. every one but the
 -- last.
@@ -88,33 +85,10 @@ init_attr attr = Note.place . concatMap add <=< Note.sub_events
 -- * misc
 
 c_detach :: Derive.NoteCall
-c_detach = transform_notes "detach" mempty
+c_detach = Make.transform_notes "detach" mempty
     ("Detach the notes slightly, by setting "
         <> ShowVal.show_val Score.c_sustain_abs <> ".")
     (Sig.defaulted "time" 0.15 "Set control to `-time`.") $ \time ->
         Derive.with_control Score.c_sustain_abs
             (Score.untyped (Signal.constant (-time)))
     where
-
--- * util
-
-transform_notes :: String -> Tags.Tags -> String -> Sig.Parser a
-    -> (a -> Derive.EventDeriver -> Derive.EventDeriver) -> Derive.NoteCall
-transform_notes name tags transform_doc sig transform = Derive.Call
-    { Derive.call_name = name
-    , Derive.call_generator = Just $
-        Derive.generator_call tags generator_doc generator
-    , Derive.call_transformer = Just $
-        Derive.transformer_call (tags <> Tags.subs) transform_doc transformer
-    }
-    where
-    generator_doc = "If there are notes in child tracks, apply the\
-        \ transformation to them. Otherwise apply transformation to the null\
-        \ note call."
-    generator = Sig.call sig $ \params args ->
-        Note.sub_events args >>= \x -> case x of
-            [] -> transform params $ Note.inverting Util.placed_note args
-            subs -> Note.place $
-                Note.map_events (transform params) (concat subs)
-    transformer = Sig.callt sig $ \params _args deriver ->
-        transform params deriver

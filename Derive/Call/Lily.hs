@@ -10,6 +10,7 @@ import qualified Util.Seq as Seq
 import qualified Derive.Args as Args
 import qualified Derive.Call as Call
 import qualified Derive.Call.BlockUtil as BlockUtil
+import qualified Derive.Call.Make as Make
 import qualified Derive.Call.Note as Note
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Call.Util as Util
@@ -274,6 +275,8 @@ note_calls = Derive.make_calls
     , ("dyn", c_dyn)
     , ("clef", c_clef)
     , ("meter", c_meter)
+    , ("ly-!", c_reminder_accidental)
+    , ("ly-?", c_cautionary_accidental)
     ]
 
 c_when_ly :: Derive.NoteCall
@@ -372,6 +375,16 @@ c_meter = global_code0_call "meter"
     (required "meter" "Should be `4/4`, `3+3/8`, etc.") $
     \pos val -> Derive.with_val Constants.v_meter (val :: String) $
         Derive.d_place pos 0 Util.note
+
+c_reminder_accidental :: Derive.NoteCall
+c_reminder_accidental = Make.environ_note "ly-reminder-accidental"
+    Tags.ly_only "Force this note to display an accidental."
+    Constants.v_ly_append_pitch "!"
+
+c_cautionary_accidental :: Derive.NoteCall
+c_cautionary_accidental = Make.environ_note "ly-cautionary-accidental"
+    Tags.ly_only "Force this note to display a cautionary accidental."
+    Constants.v_ly_append_pitch "?"
 
 -- * util
 

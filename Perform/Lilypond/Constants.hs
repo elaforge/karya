@@ -39,3 +39,9 @@ v_ly_append_first = TrackLang.Symbol "ly-append-first"
 -- | String: append code to the last note in a tied sequence.
 v_ly_append_last :: TrackLang.ValName
 v_ly_append_last = TrackLang.Symbol "ly-append-last"
+
+-- | String: append after the pitch, and before the duration.  This is for
+-- pitch modifiers like reminder accidentals (!) and cautionary accidentals
+-- (?).
+v_ly_append_pitch :: TrackLang.ValName
+v_ly_append_pitch = TrackLang.Symbol "ly-append-pitch"

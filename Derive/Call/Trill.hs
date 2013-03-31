@@ -42,8 +42,8 @@ import Util.Control
 import qualified Util.Seq as Seq
 import qualified Derive.Args as Args
 import qualified Derive.Attrs as Attrs
-import qualified Derive.Call.Attribute as Attribute
 import qualified Derive.Call.Lily as Lily
+import qualified Derive.Call.Make as Make
 import qualified Derive.Call.Note as Note
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Call.Util as Util
@@ -187,7 +187,7 @@ simple_tremolo starts notes =
 -- | Only over here instead of in "Derive.Call.Attribute" so it can be next to
 -- 'c_tremolo'.
 c_attr_tremolo :: Derive.NoteCall
-c_attr_tremolo = Attribute.attributed_note Attrs.trem
+c_attr_tremolo = Make.attributed_note Attrs.trem
 
 take_full_notes :: (Ord a) => a -> [a] -> [a]
 take_full_notes _ [] = []

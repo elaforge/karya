@@ -396,7 +396,8 @@ integrate / integration:
   - quantization
 
 lilypond:
-  - way to insert courtesy accidental?  e.g. explicit natural at mm10
+  * way to insert courtesy accidental?  e.g. explicit natural at mm10
+    Needs to append ! after the pitch.  But I don't have any way of
   - Use of voices seems to be affecting rest placement, e.g. full measure
     rests in mm57 58 are too high.
   * use 4/4 instead of C.

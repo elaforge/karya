@@ -182,7 +182,7 @@ make_note measure_start prev_attrs meter events next =
     first = NonEmpty.head events
     env = event_environ first
     -- If there are no pitches, then this is code with duration.
-    pitches = filter (not . null) (map event_pitch (NonEmpty.toList events))
+    pitches = filter (not . null) (map get_pitch (NonEmpty.toList events))
     note = Note
         { note_pitch = pitches
         , note_full_measure = False
@@ -193,6 +193,9 @@ make_note measure_start prev_attrs meter events next =
             append ++ attrs_to_code prev_attrs (event_attributes first)
         , note_stack = Seq.last (Stack.to_ui (event_stack first))
         }
+    get_pitch event = event_pitch event ++ fromMaybe ""
+        (TrackLang.maybe_val Constants.v_ly_append_pitch (event_environ event))
+
     prepend = if is_first then get Constants.v_ly_prepend else ""
     append = (if is_first then get Constants.v_ly_append_first else "")
         ++ (if not is_tied then get Constants.v_ly_append_last else "")
