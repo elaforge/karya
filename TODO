@@ -450,7 +450,7 @@ lilypond:
   - tie within chords: <a~ c> d
   * way to insert courtesy accidental?  e.g. explicit natural at mm10
     Needs to append ! after the pitch.  But I don't have any way of
-  - Use of voices seems to be affecting rest placement, e.g. full measure
+  * Use of voices seems to be affecting rest placement, e.g. full measure
     rests in mm57 58 are too high.
     I think it's also affecting direction, e.g. mm26 / 6.1 the flags should be
     going down.

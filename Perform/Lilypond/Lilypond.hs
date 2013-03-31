@@ -163,10 +163,10 @@ ly_file config title staff_groups = run_output $ do
 
 write_voice_ly :: Process.VoiceLy -> Output ()
 write_voice_ly (Left (Process.Voices voices)) = do
-    output "<< "
+    output "<<\n  "
     start <- State.gets output_bar
     bars <- mapM (\v -> set_bar start >> write_voice v) voices
-    output "\n  >>\n  "
+    output ">> \\oneVoice\n  "
     when (not (all_equal bars)) $
         -- Lilypond will also complain.
         output $ "% WARNING: voices have different numbers of bars: "
@@ -189,7 +189,7 @@ write_voice (voice, lys) = do
     output $ (if voice == Process.VoiceOne then "" else "\\new Voice ")
         <> "{ " <> Text.pack (to_lily voice) <> "\n  "
     mapM_ write_ly lys
-    output "}\n  "
+    output "} "
     State.gets output_bar
 
 sort_staves :: [(Score.Instrument, String, String)] -> [StaffGroup]
