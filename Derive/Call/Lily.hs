@@ -277,6 +277,8 @@ note_calls = Derive.make_calls
     , ("meter", c_meter)
     , ("ly-!", c_reminder_accidental)
     , ("ly-?", c_cautionary_accidental)
+    , ("ly-<", c_crescendo)
+    , ("ly->", c_diminuendo)
     ]
 
 c_when_ly :: Derive.NoteCall
@@ -393,6 +395,31 @@ c_cautionary_accidental = Make.environ_note "ly-cautionary-accidental"
     Tags.ly_only "Force this note to display a cautionary accidental."
     Constants.v_ly_append_pitch "?"
 
+-- I want it to either attach to the end of the first note transformed, or
+-- be free-standing but suffix markup.
+c_crescendo :: Derive.NoteCall
+c_crescendo = make_code0_call "ly-crescendo"
+    "Start a crescendo hairpin.  If it has non-zero duration, stop the\
+    \ crescendo at the event's end, otherwise the crescendo will stop at the\
+    \ next hairpin or dynamic marking." Sig.no_args $
+    \() -> crescendo_diminuendo "\\<"
+
+c_diminuendo :: Derive.NoteCall
+c_diminuendo = make_code0_call "ly-diminuendo"
+    "Start a diminuendo hairpin.  If it has non-zero duration, stop the\
+    \ diminuendo at the event's end, otherwise the diminuendo will stop at the\
+    \ next hairpin or dynamic marking." Sig.no_args $
+    \() -> crescendo_diminuendo "\\>"
+
+crescendo_diminuendo :: String -> Derive.PassedArgs d -> Derive.EventDeriver
+crescendo_diminuendo hairpin args
+    -- TODO or is a transformer, I think I should set transformer duration to 0
+    | Args.end args > Args.start args = start <> end
+    | otherwise = start
+    where
+    start = code0 (Args.start args) (SuffixFirst, hairpin)
+    end = code0 (Args.end args) (SuffixFirst, "\\!")
+
 -- * util
 
 -- | Attach ly code to the first note in the transformed deriver.
@@ -408,7 +435,7 @@ code0_call :: String -> String -> Sig.Parser a -> (a -> Derive.Deriver Code)
     -> Derive.NoteCall
 code0_call name doc sig make_code =
     make_code0_call name (doc <> code0_doc) sig $
-        \pos val -> code0 pos =<< make_code val
+        \val args -> code0 (Args.start args) =<< make_code val
     where
     code0_doc = "\nThis either be placed in a separate track as a zero-dur\
         \ event, or it can be attached to an individual note as a transformer."
@@ -418,11 +445,13 @@ code0_call name doc sig make_code =
 global_code0_call :: String -> String -> Sig.Parser a
     -> (ScoreTime -> a -> Derive.EventDeriver) -> Derive.NoteCall
 global_code0_call name doc sig call =
-    make_code0_call name doc sig $ \pos val -> global (call pos val)
+    make_code0_call name doc sig $ \val args ->
+        global (call (Args.start args) val)
 
 -- | Emit a free-standing fragment of lilypond code.
 make_code0_call :: String -> String -> Sig.Parser a
-    -> (ScoreTime -> a -> Derive.EventDeriver) -> Derive.NoteCall
+    -> (a -> Derive.PassedArgs Score.Event -> Derive.EventDeriver)
+    -> Derive.NoteCall
 make_code0_call name doc sig call = Derive.Call
     { Derive.call_name = name
     , Derive.call_generator = Just $
@@ -432,9 +461,9 @@ make_code0_call name doc sig call = Derive.Call
     }
     where
     generator = Sig.call sig $ \val args -> only_lilypond $
-        call (Args.start args) val <> place_notes args
+        call val args <> place_notes args
     transformer = Sig.callt sig $ \val args deriver ->
-        when_lilypond (const $ call (Args.start args) val <> deriver) deriver
+        when_lilypond (const $ call val args <> deriver) deriver
 
 global :: Derive.Deriver a -> Derive.Deriver a
 global = Derive.with_val_raw TrackLang.v_instrument Constants.ly_global

@@ -1,3 +1,51 @@
+CURRENT
+  - hairpins
+  - git should save window moves and track resizes
+  * is arpeggio really random?  on two different hands it sounds the same
+    yes, but still doesn't quite sound like I want
+  * need some solution for multiple voices at 9.1, mm 38
+  - pno2: pedal
+  * ^z being like set is totally error prone, go back to the old way
+  - select tracks, then drag one to the right, does it reset to the top?
+    If timestep is events and there's an event only at 0 it will want to
+    extend the selection backwards.
+    Maybe drag snapping should only happen if the pointer is fairly close to
+    the snap point.
+  - Why I do need to make a point list for timestep?  Why not just calculate
+    directly?  Also, can I get rid of multiple steps in favor of just passing
+    a different number to TimeStep.step?
+    I guess if I'm doing every other I need to calculate from the beginning.
+  - bloom: add trumpet to fill in section near the end, just as harmony since
+    the piano has the melody
+    first part with trumpet has cool piano stuff that could be given to the
+    later part without trumpet
+  * for xstaff, I need to attach to the notes pre-tuple.  So I can put
+    'xstaff up' and 'xstaff' directly on the note as a transformer.
+  * do I want a call for the bounce, or just do them all manually?
+    I want the dynamics to be ff a0, a0 ff, but I'd need to alternate two
+    calls for that.
+  - ghc-heap-view: GHC.AssertNF
+
+  * clef and dyn should also act as transformers, so you can put them in the
+    same place.
+  - make 8va call like xstaff
+  - ly: set meter with a separate track, so I don't have to give it scope over
+    everything and destroy track caching.
+    An advantage of attributes is that it's clear which notes they are
+    attached to.  But I think meter doesn't have that problem since it's
+    global.
+    * For clefs I can have a note track with when-ly that just emits 0-dur ly
+    - Same for meter.
+      But I need an instrument or it winds up getting its own staff.
+      I could have a special pseudo-instrument that is for global things:
+        meter, page text, section titles, etc.
+      I still want to put meter, title etc. in the block title.  When in
+      transform position, they can emit ly-inst on the code fragment.
+    * Figure out a strategy for putting in lilypond, take into account
+      separating ly from performance (e.g. vsl doesn't sound good with just
+      legato on all slurs).  But figure out what does sound good, first.
+    * Also, legato is unsetting the legato keyswitch before the last note.
+
 LEGEND
   - todo; + in progress; * done; / obsolete, do not want, or can't repro
   ? open question; . note or observation
@@ -396,12 +444,16 @@ integrate / integration:
   - quantization
 
 lilypond:
+  - if-ly should switch between any two types, not just strings,
+    e.g. if-ly +a +b. Or at least complain about non strings.
   * add ly-global call which is like when-ly except it sets >ly-global
   - tie within chords: <a~ c> d
   * way to insert courtesy accidental?  e.g. explicit natural at mm10
     Needs to append ! after the pitch.  But I don't have any way of
   - Use of voices seems to be affecting rest placement, e.g. full measure
     rests in mm57 58 are too high.
+    I think it's also affecting direction, e.g. mm26 / 6.1 the flags should be
+    going down.
   * use 4/4 instead of C.
   * \ottava has to be alone, but when it's a transformer it gets attached to
     the note.
@@ -465,7 +517,7 @@ lilypond:
 
   * Can I have a solution for custom note durations that don't affect lilypond?
   * cross staff inside tuplet didn't work
-  - hairpin crescendo / decrescendo
+  * hairpin crescendo / decrescendo
     \< or \>, ended with \! or another hairpin or dynamic mark
     if event has a duration, then end with \!, otherwise just emit the start
   - If I can figure out the meter from just the name, then I can get rid

@@ -70,3 +70,9 @@ test_reminder_accidental = do
     let run = LilypondTest.derive_measures []
     equal (run $ UiTest.note_track [(0, 1, "ly-! -- 4a"), (1, 1, "ly-? -- 4b")])
         (Right "a'!4 b'?4 r2", [])
+
+test_crescendo_diminuendo = do
+    let run = LilypondTest.derive_measures ["<", ">", "!"]
+    equal (run $ (">", [(1, 1, "ly-<"), (3, 0, "ly->")])
+            : UiTest.regular_notes 4)
+        (Right "a'4 b'4 \\< c'4 \\! d'4 \\>", [])
