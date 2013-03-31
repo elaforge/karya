@@ -67,9 +67,11 @@ test_xstaff = do
         (Right "a'4 \\change Staff = \"up\" b'4 r2", [])
 
 test_reminder_accidental = do
-    let run = LilypondTest.derive_measures []
-    equal (run $ UiTest.note_track [(0, 1, "ly-! -- 4a"), (1, 1, "ly-? -- 4b")])
+    let run = LilypondTest.derive_measures [] . UiTest.note_track
+    equal (run [(0, 1, "ly-! -- 4a"), (1, 1, "ly-? -- 4b")])
         (Right "a'!4 b'?4 r2", [])
+    equal (run [(0, 8, "ly-! -- 4a")])
+        (Right "a'!1~ | a'1", [])
 
 test_crescendo_diminuendo = do
     let run = LilypondTest.derive_measures ["<", ">", "!"]

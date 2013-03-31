@@ -193,8 +193,10 @@ make_note measure_start prev_attrs meter events next =
             append ++ attrs_to_code prev_attrs (event_attributes first)
         , note_stack = Seq.last (Stack.to_ui (event_stack first))
         }
-    get_pitch event = event_pitch event ++ fromMaybe ""
-        (TrackLang.maybe_val Constants.v_ly_append_pitch (event_environ event))
+    get_pitch event = event_pitch event
+        ++ if is_first then append_pitch event else ""
+    append_pitch = fromMaybe ""
+        . TrackLang.maybe_val Constants.v_ly_append_pitch . event_environ
 
     prepend = if is_first then get Constants.v_ly_prepend else ""
     append = (if is_first then get Constants.v_ly_append_first else "")
