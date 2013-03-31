@@ -43,6 +43,10 @@ when_lilypond :: (Types.Config -> Derive.Deriver a)
 when_lilypond lily not_lily =
     maybe not_lily lily =<< Derive.lookup_lilypond_config
 
+-- | Only emit the deriver if I'm in lilypond mode.
+only_lilypond :: Derive.EventDeriver -> Derive.EventDeriver
+only_lilypond deriver = ifM Derive.is_lilypond_derive deriver mempty
+
 -- | When in lilypond mode, generate a note with the given Code.
 note_code :: Code -> Derive.PassedArgs d -> Derive.EventDeriver
     -> Derive.EventDeriver
@@ -247,8 +251,7 @@ eval_events config start events = do
 
 eval_notes :: Types.Config -> Meter.Meter -> RealTime -> Derive.Events
     -> ([Note], [Log.Msg])
-eval_notes config meter start score_events =
-    (map Types.to_lily notes, logs)
+eval_notes config meter start score_events = (map Types.to_lily notes, logs)
     where
     (events, logs) = LEvent.partition $ Convert.convert quarter score_events
     notes = Process.simple_convert config meter
@@ -408,10 +411,10 @@ make_code0_call name doc sig call = Derive.Call
         Derive.transformer_call Tags.ly_only doc transformer
     }
     where
-    generator = Sig.call sig $ \val args ->
+    generator = Sig.call sig $ \val args -> only_lilypond $
         call (Args.start args) val <> place_notes args
     transformer = Sig.callt sig $ \val args deriver ->
-        call (Args.start args) val <> deriver
+        when_lilypond (const $ call (Args.start args) val <> deriver) deriver
 
 global :: Derive.Deriver a -> Derive.Deriver a
 global = Derive.with_val_raw TrackLang.v_instrument Constants.ly_global
