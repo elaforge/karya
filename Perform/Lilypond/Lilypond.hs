@@ -150,6 +150,8 @@ ly_file config title staff_groups = run_output $ do
     ly_staff inst_names maybe_name lys = do
         output $ "\n\\new Staff " <> maybe "" (("= "<>) . str) maybe_name
             <+> "{\n"
+        -- Use 4/4 and 2/4 instead of C and C|
+        output "\\numericTimeSignature\n"
         when_just inst_names $ \(long, short) -> outputs
             [ ly_set "Staff.instrumentName" long
             , ly_set "Staff.shortInstrumentName" short

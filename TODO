@@ -399,7 +399,7 @@ lilypond:
   - way to insert courtesy accidental?  e.g. explicit natural at mm10
   - Use of voices seems to be affecting rest placement, e.g. full measure
     rests in mm57 58 are too high.
-  - use 4/4 instead of C.
+  * use 4/4 instead of C.
   * \ottava has to be alone, but when it's a transformer it gets attached to
     the note.
   * remove v_clef
