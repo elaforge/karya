@@ -317,6 +317,11 @@ newtype Symbol = Symbol String deriving (Eq, Ord, Show, DeepSeq.NFData)
 instance Pretty.Pretty Symbol where pretty = ShowVal.show_val
 
 instance ShowVal.ShowVal Symbol where
+    -- TODO This is actually kind of error prone.  The problem is that symbols
+    -- at the beginning of an expression are parsed as-is and cannot have
+    -- quotes.  Only ones as arguments need quotes.  Symbols are rarely
+    -- arguments, but strings frequently are.  Maybe I should go back to
+    -- separate types for symbols and strings?
     show_val (Symbol s)
         | parseable = s
         | otherwise = '\'' : concatMap quote s ++ "'"

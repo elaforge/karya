@@ -340,8 +340,14 @@ c_if_ly = Derive.stream_generator "if-ly" Tags.ly_only
     <$> required "is-ly" "Evaluated in lilypond mode."
     <*> required "not-ly" "Evaluated when not in lilypond mode."
     ) $ \(is_ly, not_ly) args -> when_lilypond
-        (const (Call.reapply_string args is_ly))
-        (Call.reapply_string args not_ly)
+        (const (Call.reapply_string args (show_val is_ly)))
+        (Call.reapply_string args (show_val not_ly))
+    where
+    -- Avoid putting quotes around the symbol, since it will go at the
+    -- beginning of the expression.
+    show_val :: TrackLang.Val -> String
+    show_val (TrackLang.VSymbol (TrackLang.Symbol sym)) = sym
+    show_val val = ShowVal.show_val val
 
 derive_subtracks :: Derive.PassedArgs d -> Derive.EventDeriver
 derive_subtracks =

@@ -444,7 +444,7 @@ integrate / integration:
   - quantization
 
 lilypond:
-  - if-ly should switch between any two types, not just strings,
+  * if-ly should switch between any two types, not just strings,
     e.g. if-ly +a +b. Or at least complain about non strings.
   * add ly-global call which is like when-ly except it sets >ly-global
   - tie within chords: <a~ c> d
@@ -454,6 +454,8 @@ lilypond:
     rests in mm57 58 are too high.
     I think it's also affecting direction, e.g. mm26 / 6.1 the flags should be
     going down.
+    Think I need \onlyVoice afterwards.
+    Also newline before <<, no newline after last }
   * use 4/4 instead of C.
   * \ottava has to be alone, but when it's a transformer it gets attached to
     the note.
