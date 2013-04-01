@@ -1,56 +1,10 @@
-CURRENT
-  - hairpins
-  - git should save window moves and track resizes
-  * is arpeggio really random?  on two different hands it sounds the same
-    yes, but still doesn't quite sound like I want
-  * need some solution for multiple voices at 9.1, mm 38
-  - pno2: pedal
-  * ^z being like set is totally error prone, go back to the old way
-  - select tracks, then drag one to the right, does it reset to the top?
-    If timestep is events and there's an event only at 0 it will want to
-    extend the selection backwards.
-    Maybe drag snapping should only happen if the pointer is fairly close to
-    the snap point.
-  - Why I do need to make a point list for timestep?  Why not just calculate
-    directly?  Also, can I get rid of multiple steps in favor of just passing
-    a different number to TimeStep.step?
-    I guess if I'm doing every other I need to calculate from the beginning.
-  - bloom: add trumpet to fill in section near the end, just as harmony since
-    the piano has the melody
-    first part with trumpet has cool piano stuff that could be given to the
-    later part without trumpet
-  * for xstaff, I need to attach to the notes pre-tuple.  So I can put
-    'xstaff up' and 'xstaff' directly on the note as a transformer.
-  * do I want a call for the bounce, or just do them all manually?
-    I want the dynamics to be ff a0, a0 ff, but I'd need to alternate two
-    calls for that.
-  - ghc-heap-view: GHC.AssertNF
-
-  * clef and dyn should also act as transformers, so you can put them in the
-    same place.
-  - make 8va call like xstaff
-  - ly: set meter with a separate track, so I don't have to give it scope over
-    everything and destroy track caching.
-    An advantage of attributes is that it's clear which notes they are
-    attached to.  But I think meter doesn't have that problem since it's
-    global.
-    * For clefs I can have a note track with when-ly that just emits 0-dur ly
-    - Same for meter.
-      But I need an instrument or it winds up getting its own staff.
-      I could have a special pseudo-instrument that is for global things:
-        meter, page text, section titles, etc.
-      I still want to put meter, title etc. in the block title.  When in
-      transform position, they can emit ly-inst on the code fragment.
-    * Figure out a strategy for putting in lilypond, take into account
-      separating ly from performance (e.g. vsl doesn't sound good with just
-      legato on all slurs).  But figure out what does sound good, first.
-    * Also, legato is unsetting the legato keyswitch before the last note.
-
 LEGEND
   - todo; + in progress; * done; / obsolete, do not want, or can't repro
   ? open question; . note or observation
 
 UNSORTED
+  - new block from template should copy the block title
+  - fltk doesn't show red trailing space warning when the text is wrapped
   - rename Derive.Call.Attribute to Transformer and Ornament to Grace
   * I think ly mode needs to turn off sustain and sustain-abs
   * transformer to shorten notes slightly, can just set sustain-abs -= small
@@ -444,6 +398,21 @@ integrate / integration:
   - quantization
 
 lilypond:
+  - Derive.Call.Lily needs a naming refactor since there are too many vaguely
+    named flavours.
+  - Why does accidentally putting e.g. 'dyn p' in a dyn column not log
+    a warning?
+  - suffix code should go after all rests
+    rationale: dynamics on rests
+  - instead of Code events interrupting voices, it should be incorporated into
+    all voices.  But that may be incorrect, e.g. I don't want ff on every
+    voicee, just one.
+  - Code notes shouldn't break up pitched notes, e.g. I wind up with
+    c4~ \code c4, should be c2 \code
+    order2, mm37
+  - how to manually flip flag direction? order1, mm17
+    also flip slur side: c'4^( or c'4_(  ^ up - default _ down
+  - double barline for end of piece
   * if-ly should switch between any two types, not just strings,
     e.g. if-ly +a +b. Or at least complain about non strings.
   * add ly-global call which is like when-ly except it sets >ly-global

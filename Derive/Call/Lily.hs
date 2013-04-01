@@ -63,11 +63,18 @@ add_first code deriver =
 
 -- ** note transformer
 
--- | Replace a note transformer with one that derives its children as-is,
--- but add lilypond code.
+-- | Replace a note transformer with one that derives its sub-events as-is
+-- and adds lilypond code to them.
 notes_code :: Code -> Derive.PassedArgs d
     -> Derive.EventDeriver -> Derive.EventDeriver
 notes_code code = notes_with (add_code code)
+
+-- | Like 'notes_code', but only apply the code to the first event, not all of
+-- them.
+first_note_code :: Code -> Derive.PassedArgs d
+    -> Derive.EventDeriver -> Derive.EventDeriver
+first_note_code code args = when_lilypond $ const $
+    add_first code $ place_notes args
 
 -- | This is like 'notes_code', but the first event in each track gets the
 -- start code, and the last event in each track gets the end code.
@@ -279,6 +286,8 @@ note_calls = Derive.make_calls
     , ("ly-?", c_cautionary_accidental)
     , ("ly-<", c_crescendo)
     , ("ly->", c_diminuendo)
+    , ("ly^", c_ly_text_above)
+    , ("ly_", c_ly_text_below)
     ]
 
 c_when_ly :: Derive.NoteCall
@@ -426,15 +435,39 @@ crescendo_diminuendo hairpin args
     start = code0 (Args.start args) (SuffixFirst, hairpin)
     end = code0 (Args.end args) (SuffixFirst, "\\!")
 
+c_ly_text_above :: Derive.NoteCall
+c_ly_text_above = code_call "ly-text-above" "Attach text above the note."
+    (required "text" "Text to attach.  Double quotes can be omitted.") $
+    (return . (,) SuffixFirst . ('^':) . lily_str)
+
+c_ly_text_below :: Derive.NoteCall
+c_ly_text_below = code_call "ly-text-below" "Attach text below the note."
+    (required "text" "Text to attach.  Double quotes can be omitted.") $
+    (return . (,) SuffixFirst . ('_':) . lily_str)
+
+lily_str :: String -> String
+lily_str = Types.to_lily
+
 -- * util
 
 -- | Attach ly code to the first note in the transformed deriver.
 code_call :: String -> String -> Sig.Parser a -> (a -> Derive.Deriver Code)
     -> Derive.NoteCall
-code_call name doc sig make_code = Derive.transformer name Tags.ly_only doc $
-    Sig.callt sig $ \val _ deriver -> flip when_lilypond deriver $ const $ do
+code_call name doc sig make_code = Derive.Call
+    { Derive.call_name = name
+    , Derive.call_generator = Just $
+        Derive.generator_call Tags.ly_only doc generator
+    , Derive.call_transformer = Just $
+        Derive.transformer_call Tags.ly_only doc transformer
+    }
+    where
+    generator = Sig.call sig $ \val args -> do
         code <- make_code val
-        add_first code deriver
+        first_note_code code args (place_notes args)
+    transformer = Sig.callt sig $ \val _args deriver ->
+        flip when_lilypond deriver $ const $ do
+            code <- make_code val
+            add_first code deriver
 
 -- | Emit a free-standing fragment of lilypond code.
 code0_call :: String -> String -> Sig.Parser a -> (a -> Derive.Deriver Code)

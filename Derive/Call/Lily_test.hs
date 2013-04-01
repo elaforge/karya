@@ -88,3 +88,16 @@ test_crescendo_diminuendo = do
     equal (run $ (">", [(1, 1, "ly-<"), (3, 0, "ly->")])
             : UiTest.regular_notes 4)
         (Right "a'4 b'4 \\< c'4 \\! d'4 \\>", [])
+
+test_ly_text = do
+    let run = LilypondTest.derive_measures []
+    equal (run $ UiTest.note_track [(0, 1, "ly^ hi | -- 4a")])
+        (Right "a'4^\"hi\" r4 r2", [])
+    equal (measures_linear [] $
+            (">", [(0, 0, "ly_ hi")]) : UiTest.regular_notes 1)
+        (Right "a'4_\"hi\" r4 r2", [])
+
+measures_linear :: [String] -> [UiTest.TrackSpec]
+    -> (Either String String, [String])
+measures_linear wanted =
+    LilypondTest.measures wanted . LilypondTest.derive_linear
