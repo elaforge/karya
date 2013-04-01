@@ -400,6 +400,8 @@ integrate / integration:
   - quantization
 
 lilypond:
+  - tie wrong direction, can override with \tieDown \tieUp \tieNeutral
+  - why does 'LLily.block @bogus' happily create an empty score?
   - Derive.Call.Lily needs a naming refactor since there are too many vaguely
     named flavours.
   - Why does accidentally putting e.g. 'dyn p' in a dyn column not log
@@ -412,13 +414,16 @@ lilypond:
   - Code notes shouldn't break up pitched notes, e.g. I wind up with
     c4~ \code c4, should be c2 \code
     order2, mm37
-  - how to manually flip flag direction? order1, mm17
-    also flip slur side: c'4^( or c'4_(  ^ up - default _ down
+  - how to manually flip stem direction? order1, mm17
+    \stemUp \stemDown \stemNeutral
+  - add ^( and _( ly calls for slurs with directions:
+    c'4^( or c'4_(  ^ up - default _ down
   - double barline for end of piece
+  - I need some way to hide rests.
   * if-ly should switch between any two types, not just strings,
     e.g. if-ly +a +b. Or at least complain about non strings.
   * add ly-global call which is like when-ly except it sets >ly-global
-  - tie within chords: <a~ c> d
+  * tie within chords: <a~ c> d
   * way to insert courtesy accidental?  e.g. explicit natural at mm10
     Needs to append ! after the pitch.  But I don't have any way of
   * Use of voices seems to be affecting rest placement, e.g. full measure

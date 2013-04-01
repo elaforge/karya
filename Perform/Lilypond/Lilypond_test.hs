@@ -162,6 +162,15 @@ test_prepend_append = do
             [(0, 1, "4a"), (1, 1, "4b"), (2, 1, "4c"), (3, 1, "4d")])
         (Right "a'4 \\p b'4 c'4 \\mf d'4", [])
 
+test_append_pitch = do
+    let f = LilypondTest.derive_measures []
+    -- Append pitch works even on pitches in chords.
+    equal (f $ concatMap UiTest.note_track
+            [ [(0, 4, "ly-? -- 4c")]
+            , [(0, 2, "4eb"), (2, 2, "ly-? -- 4e")]
+            ])
+        (Right "<c'?~ ef'>2 <c' e'?>2", [])
+
 test_voices = do
     -- let f meters = LilypondTest.extract_lys Nothing
     --         . LilypondTest.process meters . map LilypondTest.voice_event

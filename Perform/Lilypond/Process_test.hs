@@ -71,11 +71,14 @@ test_chords = do
     -- Homogenous durations.
     equal (f [(0, 1, "a"), (0, 1, "c")]) $ Right "<a c>4 r4 r2"
     -- Starting at the same time.
-    equal (f [(0, 2, "a"), (0, 1, "c")]) $ Right "<a c>4~ a4 r2"
+    equal (f [(0, 2, "a"), (0, 1, "c")]) $ Right "<a~ c>4 a4 r2"
     -- Starting at different times.
     equal (f [(0, 2, "a"), (1, 1, "c")]) $ Right "a4~ <a c>4 r2"
     equal (f [(0, 2, "a"), (1, 2, "c"), (2, 2, "e")]) $
-        Right "a4~ <a c>4~ <c e>4~ e4"
+        Right "a4~ <a c~>4 <c e~>4 e4"
+    -- Only some notes in the chord are tied.
+    equal (f [(0, 8, "a"), (0, 4, "b"), (4, 4, "b")]) $
+        Right "<a~ b>1 | <a b>1"
 
 test_process_voices = do
     let f wanted meters = LilypondTest.extract_lys (Just wanted)

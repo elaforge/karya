@@ -175,37 +175,44 @@ make_lys measure_start prev_attrs meter events =
 make_note :: Time -> Score.Attributes -> Meter.Meter -> NonEmpty Event
     -> Maybe Time -> (Ly, Time, [Event])
     -- ^ (note, note end time, clipped)
-make_note measure_start prev_attrs meter events next =
-    (if null pitches then Code (prepend ++ append) else LyNote note,
-        end, clipped)
+make_note measure_start prev_attrs meter events next = (ly, end, clipped)
     where
+    ly
+        | null pitches = Code (prepend first ++ append first)
+        | otherwise = LyNote note
     first = NonEmpty.head events
     env = event_environ first
     -- If there are no pitches, then this is code with duration.
-    pitches = filter (not . null) (map get_pitch (NonEmpty.toList events))
+    pitches = do
+        event <- NonEmpty.toList events
+        let pitch = get_pitch event
+        guard (not (null pitch))
+        return (pitch, is_tied event)
     note = Note
         { note_pitch = pitches
         , note_full_measure = False
         , note_duration = allowed_dur
-        , note_tie = is_tied
-        , note_prepend = prepend
+        , note_prepend = prepend first
         , note_append =
-            append ++ attrs_to_code prev_attrs (event_attributes first)
+            append first ++ attrs_to_code prev_attrs (event_attributes first)
         , note_stack = Seq.last (Stack.to_ui (event_stack first))
         }
     get_pitch event = event_pitch event
-        ++ if is_first then append_pitch event else ""
+        ++ if is_first event then append_pitch event else ""
     append_pitch = fromMaybe ""
         . TrackLang.maybe_val Constants.v_ly_append_pitch . event_environ
 
-    prepend = if is_first then get Constants.v_ly_prepend else ""
-    append = (if is_first then get Constants.v_ly_append_first else "")
-        ++ (if not is_tied then get Constants.v_ly_append_last else "")
-        ++ get Constants.v_ly_append_all
+    prepend event = if is_first event then get Constants.v_ly_prepend else ""
+    append event = concat
+        [ if is_first event then get Constants.v_ly_append_first else ""
+        , if is_last then get Constants.v_ly_append_last else ""
+        , get Constants.v_ly_append_all
+        ]
     get val = fromMaybe "" (TrackLang.maybe_val val env)
 
-    is_tied = any (>end) (map event_end (NonEmpty.toList events))
-    is_first = not (event_clipped first)
+    is_tied = (>end) . event_end
+    is_first = not . event_clipped
+    is_last = not (any snd pitches)
 
     allowed = min (max_end - start) $
         Meter.allowed_time_greedy True meter (start - measure_start)
@@ -390,12 +397,11 @@ instance Pretty.Pretty Ly where pretty = to_lily
 
 data Note = Note {
     -- | @[]@ means this is a rest, and greater than one pitch indicates
-    -- a chord.
-    note_pitch :: ![String]
+    -- a chord.  Bool is True if this pitch is tied.
+    note_pitch :: ![(String, Bool)]
     -- | True if this covers an entire measure.  Used only for rests.
     , note_full_measure :: !Bool
     , note_duration :: !Types.NoteDuration
-    , note_tie :: !Bool
     -- | Additional code to prepend to the note.
     , note_prepend :: !Code
     -- | Additional code to append to the note.
@@ -412,7 +418,6 @@ make_rest full_measure dur = Note
     { note_pitch = []
     , note_full_measure = full_measure
     , note_duration = dur
-    , note_tie = False
     , note_prepend = ""
     , note_append = ""
     , note_stack = Nothing
@@ -427,12 +432,14 @@ make_rest full_measure dur = Note
 -- is_note _ = False
 
 instance ToLily Note where
-    to_lily (Note pitches full_measure dur tie prepend append _stack) =
-        (prepend++) . (++ (ly_dur ++ append)) $ case pitches of
-            [] -> if full_measure then "R" else "r"
-            [pitch] -> pitch
-            _ -> '<' : unwords pitches ++ ">"
-        where ly_dur = to_lily dur ++ if tie then "~" else ""
+    to_lily (Note pitches full_measure dur prepend append _stack) =
+        (prepend++) . (++append) $ case pitches of
+            [] -> (if full_measure then "R" else "r") ++ ly_dur
+            [(pitch, t)] -> pitch ++ ly_dur ++ tie t
+            _ -> '<' : unwords [p ++ tie t | (p, t) <- pitches] ++ ">" ++ ly_dur
+        where
+        ly_dur = to_lily dur
+        tie t = if t then "~" else ""
 
 instance ToLily Ly where
     to_lily ly = case ly of
