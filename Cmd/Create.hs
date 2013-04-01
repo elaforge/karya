@@ -133,6 +133,7 @@ named_block_from_template template_id name = do
     ruler_id <- State.block_ruler template_id
     block_id <- named_block name ruler_id
     template <- State.get_block template_id
+    State.set_block_title block_id (Block.block_title template)
     let tracks = drop 1 (Block.block_tracks template)
     forM_ (zip [1..] tracks) $ \(tracknum, track) ->
         case Block.tracklike_id track of
@@ -164,7 +165,6 @@ named_block name ruler_id = do
         Nothing -> State.throw $ "invalid block name: " ++ show name
         Just ident -> State.create_block ident ""
             [Block.track (Block.RId ruler_id) Config.ruler_width]
-
 
 -- | Delete a block and any views it appears in.  Also delete any tracks
 -- that only appeared in that block.

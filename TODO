@@ -3,7 +3,9 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
-  - new block from template should copy the block title
+  - if I do ^t to the left of a divider, the created track doesn't have
+    a ruler
+  * new block from template should copy the block title
   - fltk doesn't show red trailing space warning when the text is wrapped
   - rename Derive.Call.Attribute to Transformer and Ornament to Grace
   * I think ly mode needs to turn off sustain and sustain-abs
