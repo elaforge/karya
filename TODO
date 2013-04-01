@@ -401,7 +401,7 @@ integrate / integration:
 
 lilypond:
   - tie wrong direction, can override with \tieDown \tieUp \tieNeutral
-  - why does 'LLily.block @bogus' happily create an empty score?
+  * why does 'LLily.block @bogus' happily create an empty score?
   - Derive.Call.Lily needs a naming refactor since there are too many vaguely
     named flavours.
   - Why does accidentally putting e.g. 'dyn p' in a dyn column not log

@@ -55,6 +55,8 @@ lookup_key perf =
 derive_block :: (Cmd.M m) => BlockId -> m Derive.Result
 derive_block block_id = do
     global_transform <- State.config#State.global_transform <#> State.get
+    -- Make sure a bad block id will fail right away.
+    _ <- State.get_block block_id
     derive $ Call.Block.eval_root_block global_transform block_id
 
 -- | Run a derivation in lilypond context, which will cause certain calls to
