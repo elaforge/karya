@@ -59,10 +59,10 @@ test_splice_below = do
     equal (run 4 [(2, 1), (2, 4)] 2)
         (Right ([('2', 'x'), ('x', '1'), ('x', '4')], []))
 
-test_append_tracks_from_template = do
+test_insert_branch = do
     let run titles skel sel_track = CmdTest.extract_ui_state extract $
             run_cmd titles skel (CmdTest.set_point_sel sel_track 0
-                >> Create.append_tracks_from_template)
+                >> Create.insert_branch)
         extract state = (map fst $ UiTest.extract_tracks state,
             UiTest.extract_skeleton state)
     equal (run ["tempo", ">inst", "dyn"] [(1, 2), (2, 3)] 2) $ Right

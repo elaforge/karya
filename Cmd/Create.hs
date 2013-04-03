@@ -320,16 +320,17 @@ splice_above_ancestors = do
                 Just $ State.track_tracknum $ last (track : parents)
         where find (track, _, _) = State.track_tracknum track == tracknum
 
-append_tracks_from_template :: (Cmd.M m) => m ()
-append_tracks_from_template = do
+insert_branch :: (Cmd.M m) => m ()
+insert_branch = do
     (block_id, tracknum, _, _) <- Selection.get_insert
-    append_tracks_from_template_at block_id tracknum
+    insert_branch_from block_id tracknum
 
 -- | Insert tracks using the given one and its children as a template.
 -- If the source track has a parent, the new tracks are spliced below its
--- rightmost child, otherwise they are appended.
-append_tracks_from_template_at :: (Cmd.M m) => BlockId -> TrackNum -> m ()
-append_tracks_from_template_at block_id source = do
+-- rightmost child, otherwise they are appended.  The effect is to copy the
+-- branch below the selection.
+insert_branch_from :: (Cmd.M m) => BlockId -> TrackNum -> m ()
+insert_branch_from block_id source = do
     tree <- TrackTree.get_track_tree block_id
     case Tree.find_with_parents ((==source) . State.track_tracknum) tree of
         Nothing -> Cmd.throw $ "selected track doesn't exist: "
@@ -374,8 +375,8 @@ assign_tracknums tracknum tree =
 
 -- | Insert a track after the selection, or just append one if there isn't one.
 -- This is useful for empty blocks which of course have no selection.
-insert_track :: (Cmd.M m) => m TrackId
-insert_track = do
+insert_track_right :: (Cmd.M m) => m TrackId
+insert_track_right = do
     sel <- Selection.lookup_any_insert
     case sel of
         Nothing -> append_track

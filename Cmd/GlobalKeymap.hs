@@ -357,20 +357,18 @@ pitch_bindings = concat
 
 create_bindings :: (Cmd.M m) => [Keymap.Binding m]
 create_bindings = concat
-    [ command_char 't' "insert track" Create.insert_track
-    , command_char 'T' "insert track from template"
-       Create.append_tracks_from_template
-    , command_char 'h' "splice track below" Create.splice_below
+    [ command_char 'n' "insert track right" Create.insert_track_right
+    , command_char 't' "splice track below" Create.splice_below
+    , command_char 'T' "insert branch" Create.insert_branch
+    -- , command_char 'h' "splice track above" Create.splice_above
     , command_char 'H' "splice track above ancestors"
         Create.splice_above_ancestors
     , command_char 'd' "delete tracks" Create.destroy_selected_tracks
 
-    , command_char 'n' "create view" (Create.view =<< Cmd.get_focused_block)
+    , command_char 'N' "create view" (Create.view =<< Cmd.get_focused_block)
     -- For the moment, never destroy blocks when closing the view.
-    , command_char 'w' "destroy view"
+    , command_char 'W' "destroy view"
         (State.destroy_view =<< Cmd.get_focused_view)
-    , command_char 'W' "destroy block"
-        (Create.destroy_block =<< Cmd.get_focused_block)
     , command_char 'b' "create block"
         (Create.view =<< Create.block =<< State.block_ruler
             =<< Cmd.get_focused_block)
