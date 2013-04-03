@@ -136,7 +136,8 @@ convert_measures wanted = fmap staff1 . convert_staves wanted
 
 -- | Convert events to lilypond score.
 convert_staves ::
-    [String] -- ^ only include lilypond backslash commands listed here
+    [String] -- ^ Only include lilypond backslash commands listed here.
+    -- Or ["ALL"] to see them all, for debugging.
     -> [Lilypond.Event] -> Either String [StaffGroup]
 convert_staves wanted events =
     map extract_staves <$> Lilypond.convert_staff_groups default_config events
@@ -153,6 +154,7 @@ convert_staves wanted events =
     show_voice (v, lys) = "{ " <> show v <> ": "
         <> unwords (mapMaybe show_ly lys) <> " }"
     is_wanted ('\\':text) = takeWhile (/=' ') text `elem` wanted
+        || wanted == ["ALL"]
     is_wanted _ = True
 
 derive_measures :: [String] -> [UiTest.TrackSpec]

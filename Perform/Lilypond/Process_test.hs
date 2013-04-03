@@ -102,22 +102,9 @@ test_code_events = do
             (8, 4, "b", [])])
         (Right "a1~ b | a a1 | b1")
 
-    -- Code with duration
+    -- Code with duration.
     equal (f [(0, 1, "a", []), (2, 1, "", append), (4, 1, "b", [])])
         (Right "a4 r4 b r4 | b4 r4 r2")
-
-test_interrupted_note = do
-    let f = LilypondTest.measures [">", "!"] . LilypondTest.derive_linear
-    -- Code goes after the note even though it occurs in the middle.
-    equal (f $ (">", [(0.5, 0, "ly->")]) : UiTest.regular_notes 1)
-        (Right "a'4 \\> r4 r2", [])
-    equal (f $ (">", [(0.5, 0, "ly->")]) : UiTest.regular_notes 2)
-        (Right "a'4 \\> b'4 r2", [])
-    -- Same but for rests.
-    equal (f [(">", [(0.5, 0, "ly->")]),
-            (">", [(1, 1, "")]), ("*", [(1, 0, "4a")])])
-        (Right "r4 \\> a'4 r2", [])
-
 
 test_process_voices = do
     let f wanted meters = LilypondTest.extract_lys (Just wanted)
