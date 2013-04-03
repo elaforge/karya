@@ -257,7 +257,8 @@ get_points time_step@(TimeStep steps) block_id tracknum pos = do
         (BlockEnd, _) -> True
         _ -> False
     get_ruler = do
-        ruler_id <- State.ruler_track_at block_id tracknum
+        ruler_id <- fromMaybe State.no_ruler <$>
+            State.ruler_track_at block_id tracknum
         Just . Ruler.ruler_marklists <$> State.get_ruler ruler_id
 
 -- | The approach is to enumerate all possible matches from the beginning of

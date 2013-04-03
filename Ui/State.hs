@@ -883,16 +883,16 @@ get_event_track_at block_id tracknum = do
             ++ " not an event track") $
         Block.track_id_of (Block.tracklike_id track)
 
--- | Get the RulerId of an event or ruler track.  It defaults to 'no_ruler'
--- if the tracknum is out of range or doesn't have a ruler.
-ruler_track_at :: (M m) => BlockId -> TrackNum -> m RulerId
+-- | Get the RulerId of an event or ruler track, or Nothing if the tracknum is
+-- out of range or doesn't have a ruler.
+ruler_track_at :: (M m) => BlockId -> TrackNum -> m (Maybe RulerId)
 ruler_track_at block_id tracknum = do
     maybe_track <- track_at block_id tracknum
-    return $ fromMaybe no_ruler $ Block.ruler_id_of =<< maybe_track
+    return $ Block.ruler_id_of =<< maybe_track
 
 -- | 0 is the conventional ruler tracknum.
 block_ruler :: (M m) => BlockId -> m RulerId
-block_ruler block_id = ruler_track_at block_id 0
+block_ruler block_id = fromMaybe no_ruler <$> ruler_track_at block_id 0
 
 -- *** tracks by TrackId
 

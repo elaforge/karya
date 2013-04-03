@@ -3,7 +3,8 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
-  - if I do ^t to the left of a divider, the created track doesn't have
+  - Data.Text for call docs
+  * if I do ^t to the left of a divider, the created track doesn't have
     a ruler
   - Track add bindings are hard to use.
     cmd-t -> add track to right

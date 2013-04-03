@@ -407,17 +407,19 @@ empty_track :: (State.M m) => BlockId -> TrackNum -> m TrackId
 empty_track block_id tracknum = track block_id tracknum "" Events.empty
 
 -- | Like 'track_events', but copy the ruler from the track to the left.
---
--- If the track to the left is a ruler track, it will assume there is
--- a ".overlay" version of it.
 track :: (State.M m) => BlockId -> TrackNum -> String -> Events.Events
     -> m TrackId
 track block_id tracknum title events = do
     -- Clip to valid range so callers can use an out of range tracknum.
     tracknum <- clip_tracknum block_id tracknum
-    ruler_id <- State.ruler_track_at block_id (max 0 (tracknum-1))
+    ruler_id <- find_ruler (tracknum-1)
     track_events block_id ruler_id tracknum Config.track_width
         (Track.track title events)
+    where
+    find_ruler tracknum
+        | tracknum < 0 = return State.no_ruler
+        | otherwise = maybe (find_ruler (tracknum-1)) return
+            =<< State.ruler_track_at block_id tracknum
 
 -- | Lowest level track creator.  The new TrackId will be in the same namespace
 -- as the given BlockId.
