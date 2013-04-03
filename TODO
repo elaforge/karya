@@ -5,6 +5,21 @@ LEGEND
 UNSORTED
   - if I do ^t to the left of a divider, the created track doesn't have
     a ruler
+  - Track add bindings are hard to use.
+    cmd-t -> add track to right
+    cmd-T -> add branch to right
+    cmd-h -> splice track to right
+    cmd-H -> splice track at top
+    It's hard to splice a track above, and splice at top is rarely useful.
+    n -> add track to right
+    t -> splice track to right
+    T -> add branch to right
+    h -> splice track to left
+    H -> splice track at top
+    . But isn't splice above always equivalent to go to the track above and
+    slpcie below?  Unless there is no track above, then can't I do splice
+    at top?
+
   * new block from template should copy the block title
   - fltk doesn't show red trailing space warning when the text is wrapped
   - rename Derive.Call.Attribute to Transformer and Ornament to Grace
@@ -401,20 +416,20 @@ integrate / integration:
 
 lilypond:
   - tie wrong direction, can override with \tieDown \tieUp \tieNeutral
+    or use ^~ or _~
   * why does 'LLily.block @bogus' happily create an empty score?
   - Derive.Call.Lily needs a naming refactor since there are too many vaguely
     named flavours.
   - Why does accidentally putting e.g. 'dyn p' in a dyn column not log
     a warning?
-  - suffix code should go after all rests
-    rationale: dynamics on rests
   - instead of Code events interrupting voices, it should be incorporated into
     all voices.  But that may be incorrect, e.g. I don't want ff on every
     voicee, just one.
-  - Code notes shouldn't break up pitched notes, e.g. I wind up with
+  * code events shouldn't break up rests
+  * Code notes shouldn't break up pitched notes, e.g. I wind up with
     c4~ \code c4, should be c2 \code
     order2, mm37
-  - how to manually flip stem direction? order1, mm17
+  - how to manually flip stem direction? order1, mm17, 4.0.1 right hand
     \stemUp \stemDown \stemNeutral
   - add ^( and _( ly calls for slurs with directions:
     c'4^( or c'4_(  ^ up - default _ down

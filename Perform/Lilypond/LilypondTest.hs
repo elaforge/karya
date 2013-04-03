@@ -22,7 +22,6 @@ import qualified Perform.Lilypond.Lilypond as Lilypond
 import qualified Perform.Lilypond.Meter as Meter
 import qualified Perform.Lilypond.Process as Process
 import qualified Perform.Lilypond.Types as Types
-import qualified Perform.RealTime as RealTime
 
 import Types
 
@@ -34,12 +33,12 @@ type Output = Either Process.Voices Process.Ly
 
 -- | Assume 4/4 and no voices.
 process_simple :: [String] -- ^ only include these lilypond backslash commands
-    -> [SimpleEvent] -> Either String String
+    -> [Types.Event] -> Either String String
 process_simple wanted events =
-    extract_simple wanted $ process meters $ map simple_event events
+    extract_simple wanted $ process meters events
     where
-    end = fromMaybe 0 $ Seq.maximum [start + dur | (start, dur, _) <- events]
-    bars = ceiling (RealTime.to_seconds end / 4)
+    end = fromMaybe 0 $ Seq.maximum $ map Types.event_end events
+    bars = ceiling (time_to_wholes end)
     meters = replicate bars "4/4"
 
 extract_rights :: (Show a) => [Either a String] -> String
@@ -85,6 +84,9 @@ mkmeter = expect_right "mkmeter" . Meter.parse_meter
 mktime :: Double -> Types.Time
 mktime wholes = Types.Time $ floor $
     wholes * fromIntegral Types.time_per_whole / 4
+
+time_to_wholes :: Types.Time -> Double
+time_to_wholes = (/ fromIntegral Types.time_per_whole) . fromIntegral
 
 type SimpleEvent = (RealTime, RealTime, String)
 

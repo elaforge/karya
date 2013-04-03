@@ -1,5 +1,8 @@
 module Perform.Lilypond.Process_test where
 import Util.Test
+import qualified Ui.UiTest as UiTest
+import qualified Derive.TrackLang as TrackLang
+import qualified Perform.Lilypond.Constants as Constants
 import qualified Perform.Lilypond.LilypondTest as LilypondTest
 import qualified Perform.Lilypond.Process as Process
 import Perform.Lilypond.Process (Voice(..))
@@ -25,7 +28,7 @@ test_rests_until = do
 test_process = do
     let f wanted meters = LilypondTest.extract_simple wanted
             . LilypondTest.process meters . map LilypondTest.simple_event
-        simple = LilypondTest.process_simple []
+        simple = LilypondTest.process_simple [] . map LilypondTest.simple_event
 
     equal (simple [(1, 1, "a"), (2, 8, "b")]) $
         Right "r4 a4 b2~ | b1~ | b2 r2"
@@ -67,7 +70,7 @@ test_dotted_rests = do
     equal (f "4/4" [(3, 1, "a")]) $ Right "r2 r4 a4"
 
 test_chords = do
-    let f = LilypondTest.process_simple []
+    let f = LilypondTest.process_simple [] . map LilypondTest.simple_event
     -- Homogenous durations.
     equal (f [(0, 1, "a"), (0, 1, "c")]) $ Right "<a c>4 r4 r2"
     -- Starting at the same time.
@@ -79,6 +82,42 @@ test_chords = do
     -- Only some notes in the chord are tied.
     equal (f [(0, 8, "a"), (0, 4, "b"), (4, 4, "b")]) $
         Right "<a~ b>1 | <a b>1"
+
+test_code_events = do
+    let f = LilypondTest.process_simple ["a", "b"]
+            . map LilypondTest.environ_event
+        prepend = [(Constants.v_ly_prepend, TrackLang.to_val "a")]
+        append = [(Constants.v_ly_append_all, TrackLang.to_val "b")]
+    -- Code that falls in the middle of rests.
+    equal (f [(0, 0, "p", append), (0, 0, "p", prepend)])
+        (Right "a b")
+    equal (f [(0, 0, "p", append), (1, 0, "p", prepend), (2, 2, "a", [])])
+        (Right "a r2 b a2")
+
+    -- Code that falls in the middle of notes.
+    equal (f [(0, 1, "a", []), (0.5, 0, "p", append), (0.5, 0, "p", prepend),
+            (1, 1, "b", [])])
+        (Right "a a4 b b4 r2")
+    equal (f [(0, 8, "a", []), (2, 0, "p", append), (6, 0, "p", prepend),
+            (8, 4, "b", [])])
+        (Right "a1~ b | a a1 | b1")
+
+    -- Code with duration
+    equal (f [(0, 1, "a", []), (2, 1, "", append), (4, 1, "b", [])])
+        (Right "a4 r4 b r4 | b4 r4 r2")
+
+test_interrupted_note = do
+    let f = LilypondTest.measures [">", "!"] . LilypondTest.derive_linear
+    -- Code goes after the note even though it occurs in the middle.
+    equal (f $ (">", [(0.5, 0, "ly->")]) : UiTest.regular_notes 1)
+        (Right "a'4 \\> r4 r2", [])
+    equal (f $ (">", [(0.5, 0, "ly->")]) : UiTest.regular_notes 2)
+        (Right "a'4 \\> b'4 r2", [])
+    -- Same but for rests.
+    equal (f [(">", [(0.5, 0, "ly->")]),
+            (">", [(1, 1, "")]), ("*", [(1, 0, "4a")])])
+        (Right "r4 \\> a'4 r2", [])
+
 
 test_process_voices = do
     let f wanted meters = LilypondTest.extract_lys (Just wanted)

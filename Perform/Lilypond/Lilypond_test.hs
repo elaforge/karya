@@ -96,7 +96,7 @@ test_ly_code = do
             ++ [(">", [(1, 0, "post")])]
             ++ [(">", [(1, 0, "pre")])]
             ++ UiTest.note_track [(0, 1, "4c"), (2, 1, "4d")])
-        (Right "<a' c'>4 pre post r4 <b' d'>4 r4", [])
+        (Right "<a' c'>4 pre r4 post <b' d'>4 r4", [])
     where
     calls = CallTest.with_note_call "pre" c_pre
         . CallTest.with_note_call "post" c_post

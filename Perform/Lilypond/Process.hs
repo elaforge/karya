@@ -94,7 +94,6 @@ convert = run_process trailing_rests go
         rests <- rests_until end
         remaining <- trailing_rests
         return $ map Right rests ++ remaining
-        -- Debug.tracepM "trail" (end, staff_end)
     to_voices [] = []
     to_voices voices = [Left (Voices voices)]
 
@@ -117,15 +116,60 @@ simple_convert config meter = go
 convert_voice :: Time -> [Event] -> ConvertM [Ly]
 convert_voice end = run_process (rests_until end) convert_chunk
 
--- ** lower level
+-- ** convert chunk
 
 convert_chunk :: [Event] -> ConvertM ([Ly], [Event])
-convert_chunk [] = return ([], [])
-convert_chunk (event : events) = do
-    rests <- rests_until $ event_start event
-    meter <- get_meter
-    (lys, remaining) <- convert_chord meter (event :| events)
-    return (rests ++ lys, remaining)
+convert_chunk events = case zero_dur_in_rest events of
+    ([], []) -> return ([], [])
+    (zero@(event:_), []) -> return (apply_code (event_start event) zero [], [])
+    (zero, event : events) -> do
+        start <- State.gets state_time
+        rests <- apply_code start zero <$> rests_until (event_start event)
+        meter <- get_meter
+        (lys, remaining) <- convert_chord meter (event :| events)
+        return (rests <> lys, remaining)
+
+-- | Code events are mixed into the Lys, depending on their prepend or append
+-- attrs.
+--
+-- This is doing the same thing as 'make_lys', but since rests aren't
+-- represented explicitly be events as notes are, I have to first generate the
+-- notes, and then mix in the code afterwards.
+apply_code :: Time -> [Event] -> [Ly] -> [Ly]
+apply_code start dur0 lys =
+    go dur0 (zip (scanl (+) start (map ly_dur lys)) lys)
+    where
+    go events [] = prepend ++ append
+        where (prepend, append) = partition_code events
+    go events ((start, (LyNote note)) : lys) =
+        prepend ++ LyNote note : append ++ go rest lys
+        where
+        (prepend, append) = partition_code overlapping
+        (overlapping, rest) = span ((< note_end note) . event_start) events
+        note_end = (+start) . note_dur
+    go events ((_, ly) : lys) = ly : go events lys
+    ly_dur (LyNote note) = note_dur note
+    ly_dur _ = 0
+    note_dur = Types.note_dur_to_time . note_duration
+
+partition_code :: [Event] -> ([Ly], [Ly])
+partition_code events = (map Code prepend, map Code append)
+    where
+    prepend = filter (not . null) $ map (get Constants.v_ly_prepend) events
+    append = filter (not . null) $ map (get Constants.v_ly_append_all) events
+    get :: TrackLang.ValName -> Event -> String
+    get v = fromMaybe "" . TrackLang.maybe_val v . event_environ
+
+zero_dur_in_rest :: [Event] -> ([Event], [Event])
+zero_dur_in_rest events = span (\e -> zero_dur e && in_rest e) events
+    where
+    next_note = Seq.head (filter (not . zero_dur) events)
+    in_rest e = maybe True ((> event_start e) . event_start) next_note
+
+zero_dur :: Event -> Bool
+zero_dur = (==0) . event_duration
+
+-- ** convert_chord
 
 convert_chord :: Meter.Meter -> NonEmpty Event -> ConvertM ([Ly], [Event])
 convert_chord meter events = do
@@ -143,7 +187,7 @@ convert_chord meter events = do
 
 -- | Convert a chunk of events all starting at the same time.  Events
 -- with 0 duration or null pitch are expected to have either
--- 'Constants.v_ly_prepend_*' or 'Constants.v_ly_append_*', and turn into
+-- 'Constants.v_ly_prepend' or 'Constants.v_ly_append_all', and turn into
 -- 'Code' Notes.
 --
 -- The rules are documented in 'Perform.Lilypond.Convert.convert_event'.
@@ -151,28 +195,38 @@ make_lys :: Time -> Score.Attributes -> Meter.Meter -> NonEmpty Event
     -> ([Ly], Time, Score.Attributes, [Event])
     -- ^ (note, note end time, last attrs, remaining events)
 make_lys measure_start prev_attrs meter events =
-    (notes, end, last_attrs, clipped ++ rest)
+    (notes, end, last_attrs, clipped ++ remaining)
     where
-    -- Circumfix any real notes with zero-dur code placeholders.
-    notes = map (Code . get Constants.v_ly_prepend) prepend
-        ++ chord_notes ++ map (Code . get Constants.v_ly_append_all) append
-    (chord_notes, end, last_attrs, clipped) = case NonEmpty.nonEmpty with_dur of
-        Nothing -> ([], event_start (NonEmpty.head events), prev_attrs, [])
+    -- As with rests, figuring out which notes to put the code events on is
+    -- tricky.  The idea is the same, but rests are generated en masse for
+    -- a block of time while notes are generated one at a time.
+
+    -- Get events that all start at the same time, and make a Ly if there are
+    -- any.  Otherwise they must all be zero dur code events that are
+    -- "free standing", not overlapped by any previous note.
+    (here, after) = NonEmpty.break
+        ((> event_start (NonEmpty.head events)) . event_start) events
+    (dur0, with_dur) = List.partition zero_dur here
+
+    (maybe_note, end, last_attrs, clipped) = case NonEmpty.nonEmpty with_dur of
+        Nothing -> (Nothing, event_start (NonEmpty.head events), prev_attrs, [])
         Just chord ->
-            let next = event_start <$> Seq.head rest
+            let next = event_start <$> List.find (not . zero_dur) after
                 (n, end, clipped) =
                     make_note measure_start prev_attrs meter chord next
-            in ([n], end, event_attributes (NonEmpty.last chord), clipped)
+            in (Just n, end, event_attributes (NonEmpty.last chord), clipped)
 
-    (here, rest) = NonEmpty.break
-        ((> event_start (NonEmpty.head events)) . event_start) events
-    (dur0, with_dur) = List.partition ((==0) . event_duration) here
-    (prepend, append) = List.partition (has Constants.v_ly_prepend) dur0
-    has v = not . null . get v
-    get :: TrackLang.ValName -> Event -> String
-    get v = fromMaybe "" . TrackLang.maybe_val v . event_environ
+    -- Now that I know the duration of the Ly (if any) I can get the zero-dur
+    -- code events it overlaps.
+    (overlapping, remaining) =
+        span (\e -> zero_dur e && event_start e < end) after
+    (prepend, append) = partition_code (dur0 ++ overlapping)
+    -- Circumfix the possible real note with zero-dur code placeholders.
+    notes = prepend ++ maybe [] (:[]) maybe_note ++ append
 
-make_note :: Time -> Score.Attributes -> Meter.Meter -> NonEmpty Event
+make_note :: Time -> Score.Attributes -> Meter.Meter
+    -> NonEmpty Event -- ^ Events that occur at the same time.
+    -- All these events must have >0 duration!
     -> Maybe Time -> (Ly, Time, [Event])
     -- ^ (note, note end time, clipped)
 make_note measure_start prev_attrs meter events next = (ly, end, clipped)
@@ -269,7 +323,6 @@ collect_voices events = do
 rests_until :: Time -> ConvertM [Ly]
 rests_until end = do
     now <- State.gets state_time
-    -- Debug.tracepM "rests until" (now, end)
     if now >= end then return [] else do
     measure_end <- State.gets state_measure_end
     rests <- create_rests (min end measure_end)
@@ -279,7 +332,6 @@ rests_until end = do
     create_rests end = do
         state <- State.get
         meter <- get_meter
-        -- Debug.tracepM "create" (end, state_measure_end state)
         barline <- advance_measure end
         let rests = make_rests (state_config state) meter (state_time state) end
         return $ map LyNote rests <> maybe [] (:[]) barline
