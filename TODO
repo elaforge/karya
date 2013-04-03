@@ -431,7 +431,7 @@ lilypond:
     order2, mm37
   - how to manually flip stem direction? order1, mm17, 4.0.1 right hand
     \stemUp \stemDown \stemNeutral
-  - add ^( and _( ly calls for slurs with directions:
+  * add ^( and _( ly calls for slurs with directions:
     c'4^( or c'4_(  ^ up - default _ down
   - double barline for end of piece
   - I need some way to hide rests.

@@ -58,10 +58,21 @@ c_legato = Derive.stream_generator "legato" (Tags.attr <> Tags.subs <> Tags.ly)
     \ and " <> ShowVal.doc_val Score.c_legato_overlap <> "."
     ) $ Sig.call0 $ init_attr Attrs.legato
 
-c_legato_ly :: Derive.NoteCall
-c_legato_ly = Derive.stream_generator "legato-ly" (Tags.subs <> Tags.ly)
+c_ly_slur :: Derive.NoteCall
+c_ly_slur = Derive.stream_generator "ly-slur" (Tags.subs <> Tags.ly_only)
     "Add a lilypond slur." $ Sig.call0 $
         Lily.notes_around_ly (Lily.SuffixFirst, "(") (Lily.SuffixLast, ")")
+
+c_ly_slur_up :: Derive.NoteCall
+c_ly_slur_up = Derive.stream_generator "ly-slur-up" (Tags.subs <> Tags.ly_only)
+    "Add a lilypond slur, forced to be above." $ Sig.call0 $
+        Lily.notes_around_ly (Lily.SuffixFirst, "^(") (Lily.SuffixLast, ")")
+
+c_ly_slur_down :: Derive.NoteCall
+c_ly_slur_down = Derive.stream_generator "ly-slur-down"
+    (Tags.subs <> Tags.ly_only)
+    "Add a lilypond slur, forced to be below." $ Sig.call0 $
+        Lily.notes_around_ly (Lily.SuffixFirst, "_(") (Lily.SuffixLast, ")")
 
 -- | Like 'c_legato', but apply the attribute to all notes instead of all but
 -- the last.  This is when the instrument itself responds to legato, e.g. with
