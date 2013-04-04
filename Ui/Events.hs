@@ -28,12 +28,14 @@ module Ui.Events (
     , at, overlapping, first, last
 
     -- ** split
-    , split_range
+    -- *** events
+    , split_range, split_at
+    , in_range, in_range_point
+    , around
+    -- *** [Event]
     , split
     , at_after, after
     , split_at_before
-    , in_range, in_range_point
-    , around
 
 #ifdef TESTING
     , clip_events
@@ -152,6 +154,8 @@ last (Events events) = snd <$> Map.max events
 
 -- ** split
 
+-- *** events
+
 -- | Split into tracks before, within, and after the half-open range.
 -- @before@ events are descending, the rest are ascending.
 --
@@ -166,30 +170,9 @@ split_range :: ScoreTime -> ScoreTime -> Events -> (Events, Events, Events)
 split_range start end events = (Events pre, Events within, Events post)
     where (pre, within, post) = _split_range start end (get events)
 
--- | Return the events before the given @pos@, and the events at and after it.
-split :: ScoreTime -> Events -> ([Event.Event], [Event.Event])
-split pos (Events events) = (to_desc_list pre, to_asc_list post)
+split_at :: ScoreTime -> Events -> (Events, Events)
+split_at pos (Events events) = (Events pre, Events post)
     where (pre, post) = Map.split2 pos events
-
--- | Events at or after @pos@.
-at_after :: ScoreTime -> Events -> [Event.Event]
-at_after pos events = snd (split pos events)
-
--- | Events after @pos@.
-after :: ScoreTime -> Events -> [Event.Event]
-after pos events = case at_after pos events of
-    next : rest | Event.start next == pos -> rest
-    events -> events
-
--- | This is like 'split', but if there isn't an event exactly at the pos and
--- the previous event is positive (i.e. has a chance of overlapping), include
--- that in the after event.
-split_at_before :: ScoreTime -> Events -> ([Event.Event], [Event.Event])
-split_at_before pos events
-    | next : _ <- post, Event.start next == pos = (pre, post)
-    | before : prepre <- pre, Event.positive before = (prepre, before:post)
-    | otherwise = (pre, post)
-    where (pre, post) = split pos events
 
 -- | Like 'split_range', but only return the middle part.
 in_range :: ScoreTime -> ScoreTime -> Events -> Events
@@ -217,6 +200,33 @@ around start end = emap (split_around start end)
                 (Map.max pre)
         above m = maybe m (\(pos, evt) -> Map.insert pos evt m)
             (Map.min post)
+
+-- *** [Event]
+
+-- | Return the events before the given @pos@, and the events at and after it.
+split :: ScoreTime -> Events -> ([Event.Event], [Event.Event])
+split pos (Events events) = (to_desc_list pre, to_asc_list post)
+    where (pre, post) = Map.split2 pos events
+
+-- | Events at or after @pos@.
+at_after :: ScoreTime -> Events -> [Event.Event]
+at_after pos events = snd (split pos events)
+
+-- | Events after @pos@.
+after :: ScoreTime -> Events -> [Event.Event]
+after pos events = case at_after pos events of
+    next : rest | Event.start next == pos -> rest
+    events -> events
+
+-- | This is like 'split', but if there isn't an event exactly at the pos and
+-- the previous event is positive (i.e. has a chance of overlapping), include
+-- that in the after event.
+split_at_before :: ScoreTime -> Events -> ([Event.Event], [Event.Event])
+split_at_before pos events
+    | next : _ <- post, Event.start next == pos = (pre, post)
+    | before : prepre <- pre, Event.positive before = (prepre, before:post)
+    | otherwise = (pre, post)
+    where (pre, post) = split pos events
 
 -- * implementation
 

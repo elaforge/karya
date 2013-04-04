@@ -78,7 +78,7 @@ module Ui.State (
     , event_track_at, get_event_track_at
     , ruler_track_at, block_ruler
     -- *** tracks by TrackId
-    , track_ids_of, all_track_ids_of
+    , track_ids_of, tracknums_of
     , tracknum_of, get_tracknum_of
     -- *** block track
     , set_track_width
@@ -116,6 +116,9 @@ module Ui.State (
 
     -- * verify
     , quick_verify, verify -- TODO should be done automatically by put
+
+    -- * ID
+    , read_id, try_read_id, make_namespace, Id
 ) where
 import qualified Control.Applicative as Applicative
 import Control.Arrow ((***))
@@ -397,7 +400,8 @@ eval state m = case result of
     where result = Identity.runIdentity (run state m)
 
 eval_rethrow :: (M m) => String -> State -> StateId a -> m a
-eval_rethrow msg state = require_right msg . eval state
+eval_rethrow msg state =
+    require_right ((msg <> ": " <>) . Pretty.pretty) . eval state
 
 exec :: State -> StateId a -> Either Error State
 exec state m = case result of
@@ -406,7 +410,8 @@ exec state m = case result of
     where result = Identity.runIdentity (run state m)
 
 exec_rethrow :: (M m) => String -> State -> StateId a -> m State
-exec_rethrow msg state = require_right msg . exec state
+exec_rethrow msg state =
+    require_right ((msg <> ": " <>) . Pretty.pretty) . exec state
 
 
 -- ** error
@@ -425,8 +430,8 @@ instance Pretty.Pretty Error where
 require :: (M m) => String -> Maybe a -> m a
 require err = maybe (throw err) return
 
-require_right :: (M m) => String -> Either Error a -> m a
-require_right msg = either (throw . ((msg ++ ": ") ++) . show) return
+require_right :: (M m) => (err -> String) -> Either err a -> m a
+require_right fmt_err = either (throw . fmt_err) return
 
 -- | Like 'require_right', but throw an IO exception.  Useful for tests.
 error_either :: (Show a, Monad m) => String -> Either Error a -> m a
@@ -900,19 +905,21 @@ block_ruler block_id = fromMaybe no_ruler <$> ruler_track_at block_id 0
 track_ids_of :: (M m) => BlockId -> m [TrackId]
 track_ids_of block_id = Block.block_track_ids <$> get_block block_id
 
--- | Get all TrackIds of the given block.  They are returned in TrackNum order,
--- so the list indices correspond to the TrackNum.  Non-event tracks show up as
--- Nothing.
-all_track_ids_of :: (M m) => BlockId -> m [Maybe TrackId]
-all_track_ids_of block_id =
-    map (Block.track_id_of . Block.tracklike_id) . Block.block_tracks <$>
-        get_block block_id
+-- | Get all TrackIds of the given block, along with their tracknums.
+tracknums_of :: (M m) => BlockId -> m [(TrackId, TrackNum)]
+tracknums_of block_id = extract <$> get_block block_id
+    where
+    extract = justs . flip zip [0..]
+        . map (Block.track_id_of . Block.tracklike_id)
+        . Block.block_tracks
+    justs pairs = [(track_id, tracknum) | (Just track_id, tracknum) <- pairs]
 
 -- | There can only be one TrackId per block, which allows TrackNums and
 -- TrackIds to be interchangeable.  This is enforced by 'insert_track'.
+--
+-- The inverse is 'event_track_at'.
 tracknum_of :: (M m) => BlockId -> TrackId -> m (Maybe TrackNum)
-tracknum_of block_id tid = find <$> all_track_ids_of block_id
-    where find = List.elemIndex (Just tid)
+tracknum_of block_id tid = lookup tid <$> tracknums_of block_id
 
 get_tracknum_of :: (M m) => BlockId -> TrackId -> m TrackNum
 get_tracknum_of block_id tid =
@@ -1204,6 +1211,8 @@ get_event track_id pos = Seq.head <$> get_events track_id pos pos
 get_all_events :: (M m) => TrackId -> m [Event.Event]
 get_all_events = (Events.ascending . Track.track_events <$>) . get_track
 
+-- | Modify the events on a track, and assume the entire track has been
+-- damaged.
 modify_events :: (M m) => TrackId -> (Events.Events -> Events.Events) -> m ()
 modify_events track_id f = _modify_events track_id $ \events ->
     (f events, Ranges.everything)
@@ -1591,3 +1600,32 @@ block_event_tracknums block =
     where
     track_ids = map (Block.track_id_of . Block.tracklike_id)
         (Block.block_tracks block)
+
+-- * IDs
+
+-- | Read an ID of the form \"namespace/name\", or just \"name\", filling in
+-- the current namespace if it's not present.
+read_id :: (M m, Id a) => String -> m a
+read_id = require_right id <=< try_read_id
+
+try_read_id :: (M m, Id a) => String -> m (Either String a)
+try_read_id name = do
+    ns <- get_namespace
+    return $ make_ns_id ns name
+
+make_namespace :: (M m) => String -> String -> m Id.Namespace
+make_namespace msg ns =
+    require (msg <> ": illegal characters in namespace: " <> show ns)
+        (Id.namespace ns)
+
+class Id a where make_ns_id :: Id.Namespace -> String -> Either String a
+instance Id ViewId where make_ns_id = _make_ns_id Types.ViewId "ViewId"
+instance Id BlockId where make_ns_id = _make_ns_id Types.BlockId "BlockId"
+instance Id RulerId where make_ns_id = _make_ns_id Types.RulerId "RulerId"
+instance Id TrackId where make_ns_id = _make_ns_id Types.TrackId "TrackId"
+
+_make_ns_id :: (Id.Id -> a) -> String -> Id.Namespace -> String
+    -> Either String a
+_make_ns_id make type_name ns name =
+    maybe (Left $ type_name <> ": illegal characters in ID: " <> show name)
+        (Right . make) (Id.read_short ns name)

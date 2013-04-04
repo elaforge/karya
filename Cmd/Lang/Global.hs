@@ -114,6 +114,8 @@ ns s = case Id.namespace s of
 ($>) = flip (<$>)
 infixl 1 $> -- put it above ($) but below everything else
 
+-- | The REPL puts haskell in your sequencer, so you can compose while you
+-- compose.
 (.>) :: (a -> b) -> (b -> c) -> (a -> c)
 (.>) = flip (.)
 infixl 9 .>
