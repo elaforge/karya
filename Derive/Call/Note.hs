@@ -11,7 +11,7 @@ module Derive.Call.Note (
     -- ** events
     , Event(..), event_end, event_overlaps, map_event, map_events
     , stretch
-    , sub_events
+    , has_sub_events, sub_events
     , place, place_at
 #ifdef TESTING
     , invert_call, trimmed_controls
@@ -440,6 +440,12 @@ instance Show Event where
     show (Event start dur _) = "Event " ++ show start ++ " " ++ show dur
 instance Pretty.Pretty Event where pretty = show
 
+-- | True if the are sub-events below this one.
+has_sub_events :: Derive.PassedArgs d -> Bool
+has_sub_events args =
+    any (not . null) $ Slice.slice_notes start end $
+        Derive.info_sub_tracks (Derive.passed_info args)
+    where (start, end) = Args.range args
 
 -- | Get the Events of subtracks, if any, returning one list of events per sub
 -- note track.  This is the top-level utility for note calls that take other

@@ -416,16 +416,32 @@ integrate / integration:
   - quantization
 
 lilypond:
+  - code events in >ly-global can be distributed to all staves
+    Otherwise I have to remember to add e.g. ly-key to all staves manually.
+    But ly-key is no good, I really do need to set the key.  I think I have to
+    break up the block.  Why can't I do assignment more easily?
+    Well, I have to grab a deriver to dynamically scope the new value around.
+    Unless I let a deriver mutate the environ, then it has to be nested.
+    If a deriver can mutate, then events have to be evaluated in order.  Of
+    course, they already do for controls because of the previous sample.
+    And since it's unset at the end of the block, block caching still works,
+    the same way as for previous sample.
+    On the other hand, I think I want to encourage nestedness and it should be
+    easy to split.  The only reason viola-sonata has huge blocks is that it's
+    a midi import.
+
   - tie wrong direction, can override with \tieDown \tieUp \tieNeutral
     or use ^~ or _~
   * why does 'LLily.block @bogus' happily create an empty score?
   - Derive.Call.Lily needs a naming refactor since there are too many vaguely
     named flavours.
-  - Why does accidentally putting e.g. 'dyn p' in a dyn column not log
+  / Why does accidentally putting e.g. 'dyn p' in a dyn column not log
     a warning?
+    Probably since it's a control, and not sliced by anyone, it never gets
+    evaluated.
   - instead of Code events interrupting voices, it should be incorporated into
     all voices.  But that may be incorrect, e.g. I don't want ff on every
-    voicee, just one.
+    voice, just one.
   * code events shouldn't break up rests
   * Code notes shouldn't break up pitched notes, e.g. I wind up with
     c4~ \code c4, should be c2 \code
@@ -436,6 +452,7 @@ lilypond:
     c'4^( or c'4_(  ^ up - default _ down
   - double barline for end of piece
   - I need some way to hide rests.
+    Add magic bit of code that turns its rest r4 into s4.
   * if-ly should switch between any two types, not just strings,
     e.g. if-ly +a +b. Or at least complain about non strings.
   * add ly-global call which is like when-ly except it sets >ly-global

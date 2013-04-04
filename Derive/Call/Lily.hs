@@ -463,11 +463,20 @@ code_call name doc sig make_code = Derive.Call
     where
     generator = Sig.call sig $ \val args -> do
         code <- make_code val
-        first_note_code code args (place_notes args)
+        -- If there are no sub-events I could just derive Util.note, but
+        -- then I'd have to invert, etc.  It seems better to have one way to
+        -- write it.
+        require_nonempty =<< first_note_code code args (place_notes args)
     transformer = Sig.callt sig $ \val _args deriver ->
         flip when_lilypond deriver $ const $ do
             code <- make_code val
             add_first code deriver
+
+require_nonempty :: Derive.Events -> Derive.Deriver Derive.Events
+require_nonempty events
+    | null (LEvent.events_of events) =
+        Derive.throw "this call expects sub-events but none were found"
+    | otherwise = return events
 
 -- | Emit a free-standing fragment of lilypond code.
 code0_call :: String -> String -> Sig.Parser a -> (a -> Derive.Deriver Code)

@@ -428,7 +428,7 @@ lookup_key :: Event -> ConvertM Key
 lookup_key = lookup_val TrackLang.v_key parse_key default_key
 
 default_key :: Key
-default_key = ("c", "major")
+default_key = Key "c" "major"
 
 lookup_val :: TrackLang.ValName -> (String -> Either String a) -> a -> Event
     -> ConvertM a
@@ -498,7 +498,7 @@ instance ToLily Ly where
         Barline Nothing -> "|"
         Barline (Just meter) -> "| " <> "\\time " <> to_lily meter
         LyNote note -> to_lily note
-        KeyChange (tonic, mode) -> "\\key " ++ tonic ++ " \\" ++ mode
+        KeyChange key -> to_lily key
         Code code -> code
 
 make_rests :: Types.Config -> Meter.Meter -> Time -> Time -> [Note]
@@ -512,9 +512,11 @@ make_rests config meter start end
 
 -- ** Key
 
--- | (tonic, Mode)
-type Key = (String, Mode)
+data Key = Key !String !Mode deriving (Eq, Show)
 type Mode = String
+
+instance ToLily Key where
+    to_lily (Key tonic mode) = "\\key " <> tonic <> " \\" <> mode
 
 parse_key :: String -> Either String Key
 parse_key key_name = do
@@ -523,7 +525,7 @@ parse_key key_name = do
     tonic <- Types.show_pitch_note (Theory.key_tonic key)
     mode <- maybe (Left $ "unknown mode: " ++ Theory.key_name key) Right $
         Map.lookup (Theory.key_name key) modes
-    return (tonic, mode)
+    return $ Key tonic mode
     where
     modes = Map.fromList
         [ ("min", "minor"), ("locrian", "locrian"), ("maj", "major")

@@ -74,6 +74,10 @@ find_index start end = go 0
 
 -- | If it's above the nn, compact starting at the high_index, otherwise
 -- compact starting at index 0.
+--
+-- For example, to split on middle C, assuming only dyads in the left hand:
+--
+-- > LNote.split_on_pitch 2 NN.c4
 split_on_pitch :: ModifyNotes.Index -> Pitch.NoteNumber -> Cmd.CmdL ()
 split_on_pitch high_index break_nn =
     ModifyNotes.selection $ ModifyNotes.annotate_nns $ \notes ->

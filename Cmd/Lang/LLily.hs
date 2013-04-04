@@ -71,7 +71,7 @@ view_block block_id = do
 view :: Cmd.CmdL ()
 view = view_block =<< Cmd.get_focused_block
 
--- * debugging
+-- * from events
 
 filter_inst :: [String] -> [Score.Event] -> [Score.Event]
 filter_inst inst_s = filter ((`elem` insts) . Score.event_instrument)
@@ -81,6 +81,8 @@ from_events :: Lilypond.Config -> [Score.Event] -> Cmd.CmdL ()
 from_events config events = do
     block_id <- Cmd.get_focused_block
     compile_ly block_id config events
+
+-- *
 
 compile_ly :: BlockId -> Lilypond.Config -> [Score.Event] -> Cmd.CmdL ()
 compile_ly block_id config events = do

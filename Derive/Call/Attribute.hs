@@ -45,6 +45,10 @@ note_calls = Derive.make_calls
     , ("m", Make.attributed_note Attrs.mute)
     , (".", Make.attributed_note Attrs.staccato)
     , ("(", c_legato)
+    -- These do different things in lilypond mode, but in normal performance
+    -- they are just the same as a slur.
+    , ("^(", c_legato)
+    , ("_(", c_legato)
     , ("{", Make.attributed_note Attrs.porta)
     , ("detach", c_detach)
     ]

@@ -72,6 +72,7 @@ meter_map :: Map.Map String Meter
 meter_map = Map.fromList $ Seq.key_on unparse_meter $ map make
     [ ([4], D4, [T])
     , ([2], D4, [T])
+    , ([1], D4, [T])
     , ([3], D4, [D [T, T, T]])
     , ([3, 2], D4, [D [T, T, T], D [T, T]])
     , ([2, 3], D4, [D [T, T], D [T, T, T]])
