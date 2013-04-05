@@ -61,6 +61,7 @@ import qualified Cmd.ModifyEvents as ModifyEvents
 import qualified Cmd.Perf as Perf
 import qualified Cmd.Play as Play
 import qualified Cmd.PlayUtil as PlayUtil
+import qualified Cmd.Refactor as Refactor
 import qualified Cmd.RulerUtil as RulerUtil
 import qualified Cmd.Save as Save
 import qualified Cmd.Selection as Selection

@@ -49,9 +49,7 @@ convert source_block levents = do
             . fmap (Instrument.patch_attribute_map . MidiDb.info_patch)
             . lookup_inst
     default_scale_id <- State.get_default State.default_scale
-    track_ids <- State.all_track_ids_of source_block
-    let tracknums = Map.fromList
-            [(track_id, n) | (n, Just track_id) <- zip [0..] track_ids]
+    tracknums <- Map.fromList <$> State.tracknums_of source_block
     let (events, logs) = LEvent.partition levents
         (tracks, errs) = integrate (lookup_attrs, default_scale_id)
             tracknums events

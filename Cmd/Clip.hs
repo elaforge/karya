@@ -216,7 +216,7 @@ state_to_namespace state ns = do
     state <- set_namespace ns state
     Transform.destroy_namespace ns
     global_st <- State.get
-    merged <- State.require_right "merge states"
+    merged <- State.require_right (("merge states: "<>) . show)
         (Transform.merge_states global_st state)
     State.put merged
 
@@ -237,10 +237,11 @@ reopen_views ns operation = do
 set_namespace :: (State.M m) => Id.Namespace -> State.State -> m State.State
 set_namespace ns state = do
     let state2 = state { State.state_rulers = Map.empty }
-    State.require_right "set to clip namespace" $ State.exec state2 $ do
-        Transform.map_view_ids (Id.set_namespace ns)
-        Transform.map_block_ids (Id.set_namespace ns)
-        Transform.map_track_ids (Id.set_namespace ns)
+    State.require_right (("set to clip namespace: "<>) . show) $
+        State.exec state2 $ do
+            Transform.map_view_ids (Id.set_namespace ns)
+            Transform.map_block_ids (Id.set_namespace ns)
+            Transform.map_track_ids (Id.set_namespace ns)
 
 -- ** paste
 
