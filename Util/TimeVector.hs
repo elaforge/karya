@@ -81,9 +81,6 @@ instance DeepSeq.NFData (Boxed y) where
 
 type Unboxed = Storable.Vector (Sample Double)
 
-instance DeepSeq.NFData Unboxed where
-    rnf v = v `seq` ()
-
 to_foreign_ptr :: (Storable.Storable a) =>
     Storable.Vector a -> (Foreign.ForeignPtr a, Int)
 to_foreign_ptr = Storable.unsafeToForeignPtr0
