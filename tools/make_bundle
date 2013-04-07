@@ -63,6 +63,7 @@ cat >"$binpath.app/Contents/Info.plist" <<EOF
             <string>$name</string>
         <key>CFBundlePackageType</key>
             <string>APPL</string>
+        <key>NSHighResolutionCapable</key><true/>
         $icon_info
     </dict>
 </plist>
