@@ -235,13 +235,12 @@ make_note measure_start prev_attrs meter events next = (ly, end, clipped)
         | null pitches = Code (prepend first ++ append first)
         | otherwise = LyNote note
     first = NonEmpty.head events
-    env = event_environ first
     -- If there are no pitches, then this is code with duration.
     pitches = do
         event <- NonEmpty.toList events
         let pitch = get_pitch event
         guard (not (null pitch))
-        return (pitch, is_tied event)
+        return (pitch, note_tie event)
     note = Note
         { note_pitch = pitches
         , note_full_measure = False
@@ -256,17 +255,25 @@ make_note measure_start prev_attrs meter events next = (ly, end, clipped)
     append_pitch = fromMaybe ""
         . TrackLang.maybe_val Constants.v_ly_append_pitch . event_environ
 
-    prepend event = if is_first event then get Constants.v_ly_prepend else ""
+    prepend event =
+        if is_first event then get Constants.v_ly_prepend event else ""
     append event = concat
-        [ if is_first event then get Constants.v_ly_append_first else ""
-        , if is_last then get Constants.v_ly_append_last else ""
-        , get Constants.v_ly_append_all
+        [ if is_first event then get Constants.v_ly_append_first event else ""
+        , if is_last then get Constants.v_ly_append_last event else ""
+        , get Constants.v_ly_append_all event
         ]
-    get val = fromMaybe "" (TrackLang.maybe_val val env)
+    get val = fromMaybe "" . TrackLang.maybe_val val . event_environ
 
-    is_tied = (>end) . event_end
+    note_tie event
+        | event_end event <= end = NoTie
+        | null direction = TieNeutral
+        | direction == "^" = TieUp
+        | otherwise = TieDown
+        where direction = get Constants.v_ly_tie_direction event
     is_first = not . event_clipped
-    is_last = not (any snd pitches)
+    is_last = not (any (is_tied . snd) pitches)
+    is_tied NoTie = False
+    is_tied _ = True
 
     allowed = min (max_end - start) $
         Meter.allowed_time_greedy True meter (start - measure_start)
@@ -449,8 +456,8 @@ instance Pretty.Pretty Ly where pretty = to_lily
 
 data Note = Note {
     -- | @[]@ means this is a rest, and greater than one pitch indicates
-    -- a chord.  Bool is True if this pitch is tied.
-    note_pitch :: ![(String, Bool)]
+    -- a chord.
+    note_pitch :: ![(String, Tie)]
     -- | True if this covers an entire measure.  Used only for rests.
     , note_full_measure :: !Bool
     , note_duration :: !Types.NoteDuration
@@ -460,6 +467,8 @@ data Note = Note {
     , note_append :: !Code
     , note_stack :: !(Maybe Stack.UiFrame)
     } deriving (Show)
+
+data Tie = NoTie | TieNeutral | TieUp | TieDown deriving (Show)
 
 -- | Arbitrary bit of lilypond code.  This type isn't used for non-arbitrary
 -- chunks, like 'note_pitch'.
@@ -479,19 +488,21 @@ make_rest full_measure dur = Note
 -- is_rest note@(Note {}) = null (_note_pitch note)
 -- is_rest _ = False
 
--- is_note :: Note -> Bool
--- is_note (Note {}) = True
--- is_note _ = False
-
 instance ToLily Note where
     to_lily (Note pitches full_measure dur prepend append _stack) =
         (prepend++) . (++append) $ case pitches of
             [] -> (if full_measure then "R" else "r") ++ ly_dur
-            [(pitch, t)] -> pitch ++ ly_dur ++ tie t
-            _ -> '<' : unwords [p ++ tie t | (p, t) <- pitches] ++ ">" ++ ly_dur
-        where
-        ly_dur = to_lily dur
-        tie t = if t then "~" else ""
+            [(pitch, tie)] -> pitch ++ ly_dur ++ to_lily tie
+            _ -> '<' :
+                unwords [p ++ to_lily tie | (p, tie) <- pitches] ++ ">" ++ ly_dur
+        where ly_dur = to_lily dur
+
+instance ToLily Tie where
+    to_lily t = case t of
+        NoTie -> ""
+        TieNeutral -> "~"
+        TieUp -> "^~"
+        TieDown -> "_~"
 
 instance ToLily Ly where
     to_lily ly = case ly of

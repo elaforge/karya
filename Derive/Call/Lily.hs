@@ -284,6 +284,8 @@ note_calls = Derive.make_calls
     , ("meter", c_meter)
     , ("ly-!", c_reminder_accidental)
     , ("ly-?", c_cautionary_accidental)
+    , ("ly-^~", c_tie_direction "^")
+    , ("ly-_~", c_tie_direction "_")
     , ("ly-<", c_crescendo)
     , ("ly->", c_diminuendo)
     , ("ly^", c_ly_text_above)
@@ -409,6 +411,11 @@ c_cautionary_accidental :: Derive.NoteCall
 c_cautionary_accidental = Make.environ_note "ly-cautionary-accidental"
     Tags.ly_only "Force this note to display a cautionary accidental."
     Constants.v_ly_append_pitch "?"
+
+c_tie_direction :: String -> Derive.NoteCall
+c_tie_direction code = Make.environ_note "ly-tie-direction"
+    Tags.ly_only "Force the note's tie to go either up or down."
+    Constants.v_ly_tie_direction code
 
 -- I want it to either attach to the end of the first note transformed, or
 -- be free-standing but suffix markup.

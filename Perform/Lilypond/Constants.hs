@@ -45,3 +45,8 @@ v_ly_append_last = TrackLang.Symbol "ly-append-last"
 -- (?).
 v_ly_append_pitch :: TrackLang.ValName
 v_ly_append_pitch = TrackLang.Symbol "ly-append-pitch"
+
+-- | String: \"^\" or \"_\", manually sets tie direction, if this note is
+-- tied.
+v_ly_tie_direction :: TrackLang.ValName
+v_ly_tie_direction = TrackLang.Symbol "ly-tie-direction"

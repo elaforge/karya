@@ -3,6 +3,8 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
+  - Play from root on a block not reachable from the root should just play
+    normally.
   Cmd.Refactor
     * Split a block horizontally: clip below the cursor, and create a new block
       with that pasted in.  Make new rulers for both.
@@ -424,6 +426,7 @@ integrate / integration:
   - quantization
 
 lilypond:
+  - turn off the cancel-out key signature thing
   - code events in >ly-global can be distributed to all staves
     Otherwise I have to remember to add e.g. ly-key to all staves manually.
     But ly-key is no good, I really do need to set the key.  I think I have to
@@ -438,7 +441,7 @@ lilypond:
     easy to split.  The only reason viola-sonata has huge blocks is that it's
     a midi import.
 
-  - tie wrong direction, can override with \tieDown \tieUp \tieNeutral
+  * tie wrong direction, can override with \tieDown \tieUp \tieNeutral
     or use ^~ or _~
   * why does 'LLily.block @bogus' happily create an empty score?
   - Derive.Call.Lily needs a naming refactor since there are too many vaguely

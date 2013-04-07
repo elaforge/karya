@@ -83,6 +83,13 @@ test_reminder_accidental = do
     equal (run [(0, 8, "ly-! -- 4a")])
         (Right "a'!1~ | a'1", [])
 
+test_tie_direction = do
+    let run = LilypondTest.derive_measures [] . concatMap UiTest.note_track
+    equal (run [[(0, 8, "ly-^~ -- 4a"), (8, 8, "ly-_~ -- 4b")]])
+        (Right "a'1^~ | a'1 | b'1_~ | b'1", [])
+    equal (run [[(0, 8, "ly-^~ -- 4a")], [(0, 8, "ly-_~ -- 4b")]])
+        (Right "<a'^~ b'_~>1 | <a' b'>1", [])
+
 test_crescendo_diminuendo = do
     let run = LilypondTest.derive_measures ["<", ">", "!"]
     equal (run $ (">", [(1, 1, "ly-<"), (3, 0, "ly->")])
