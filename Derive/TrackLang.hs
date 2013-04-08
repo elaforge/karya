@@ -58,9 +58,6 @@ import Types
 -- | Symbols used in function call position.
 type CallId = Symbol
 
-symbol_string :: Symbol -> String
-symbol_string (Symbol t) = t
-
 apply_attr :: RelativeAttrs -> Score.Attributes -> Score.Attributes
 apply_attr rel attrs = case rel of
     Add as -> attrs <> as

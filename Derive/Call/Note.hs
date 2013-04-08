@@ -38,6 +38,7 @@ import qualified Derive.Deriver.Internal as Internal
 import qualified Derive.LEvent as LEvent
 import qualified Derive.PitchSignal as PitchSignal
 import qualified Derive.Score as Score
+import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Sig as Sig
 import qualified Derive.Slice as Slice
 import qualified Derive.Stack as Stack
@@ -359,7 +360,7 @@ invert_call around args = case Derive.info_sub_tracks info of
     -- transformers are discarded.  But 'inverting' only applies to generators
     -- so those transformers should have already done their thing.
     -- See comment above and on ShowVal typeclass.
-    expr = TrackLang.show_val $ NonEmpty.last (Derive.info_expr info)
+    expr = ShowVal.show_val $ NonEmpty.last (Derive.info_expr info)
     info = Derive.passed_info args
 
 invert :: (Int, Int) -> (ScoreTime, ScoreTime) -> TrackTree.EventsTree

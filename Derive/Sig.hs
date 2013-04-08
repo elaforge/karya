@@ -162,7 +162,8 @@ no_args = Applicative.pure ()
 -- | The argument is required to be present, and have the right type.
 required :: forall a. (TrackLang.Typecheck a) => String -> String -> Parser a
 required name doc = parser arg_doc $ \state -> case get_val state name of
-    Nothing -> Left $ Derive.ArgError $ "too few arguments at: " ++ show name
+    Nothing -> Left $ Derive.ArgError $
+        "expected another argument at: " ++ show name
     Just (state, val) -> case TrackLang.from_val val of
         Just a -> Right (state, a)
         Nothing -> Left $ Derive.TypeError (state_argnum state) name expected
