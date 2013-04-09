@@ -76,8 +76,8 @@ process config start meters events = do
     (lys, _) <- run_convert state2 $
         error_context ("start: " <> Pretty.pretty start) $ convert events
     let meter = fromMaybe Meter.default_meter (Seq.head meters)
-    return $ Right (Code $ "\\time " <> to_lily meter) : Right (KeyChange key)
-        : lys
+    return $ Right (Code $ "\\time " <> to_lily meter)
+        : Right (KeyChange key) : lys
 
 convert :: [Event] -> ConvertM [VoiceLy]
 convert = run_process trailing_rests go
@@ -91,13 +91,14 @@ convert = run_process trailing_rests go
         return (voices ++ map Right lys, remaining)
     trailing_rests = do
         meters <- State.gets state_meters
-        if null meters then return [] else do
+        if null meters then return [Right final_barline] else do
         end <- State.gets state_measure_end
         rests <- rests_until end
         remaining <- trailing_rests
-        return $ map Right rests ++ remaining
+        return $ map Right rests ++ remaining ++ [Right final_barline]
     to_voices [] = []
     to_voices voices = [Left (Voices voices)]
+    final_barline = Code "\\bar \"|.\""
 
 -- | This is a simplified version of 'convert', designed for converting little
 -- chunks of lilypond that occur in other expressions.  So it doesn't handle

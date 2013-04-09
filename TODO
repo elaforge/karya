@@ -427,7 +427,7 @@ integrate / integration:
 
 lilypond:
   - remove the StackMap stuff
-  - put double barlines at the end
+  * put double barlines at the end
   * turn off the cancel-out key signature thing
   - code events in >ly-global can be distributed to all staves
     Otherwise I have to remember to add e.g. ly-key to all staves manually.
