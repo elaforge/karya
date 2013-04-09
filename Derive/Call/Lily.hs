@@ -287,6 +287,7 @@ note_calls = Derive.make_calls
     , ("dyn", c_dyn)
     , ("clef", c_clef)
     , ("meter", c_meter)
+    , ("movement", c_movement)
     , ("ly-!", c_reminder_accidental)
     , ("ly-?", c_cautionary_accidental)
     , ("ly-^~", c_tie_direction "^")
@@ -400,6 +401,12 @@ c_meter = global_code0_call "meter"
     \ where it is. Simultaneous different meters aren't supported yet."
     (required "meter" "Should be `4/4`, `3+3/8`, etc.") $
     \val -> Derive.with_val Constants.v_meter (val :: String)
+
+c_movement :: Derive.NoteCall
+c_movement = global_code0_call "movement"
+    "Start a new movement with the given title."
+    (required "title" "Title of this movement.") $
+    \title -> Derive.with_val Constants.v_movement (title :: String)
 
 c_reminder_accidental :: Derive.NoteCall
 c_reminder_accidental = Make.environ_note "ly-reminder-accidental"

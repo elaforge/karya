@@ -1,5 +1,6 @@
 -- | Cmd-level support for the lilypond backend.
 module Cmd.Lilypond where
+import qualified Data.Char as Char
 import qualified Data.Map as Map
 import qualified Data.Text as Text
 import qualified Data.Text.IO as Text.IO
@@ -37,11 +38,19 @@ import qualified Perform.Pitch as Pitch
 import Types
 
 
-ly_filename :: (Cmd.M m) => BlockId -> m FilePath
-ly_filename block_id = do
+block_id_filename :: (Cmd.M m) => BlockId -> m FilePath
+block_id_filename = ly_filename . Id.ident_name
+
+ly_filename :: (Cmd.M m) => String -> m FilePath
+ly_filename name = do
     dir <- Cmd.require_msg "ly_filename: no save dir"
         =<< Cmd.gets Cmd.state_save_dir
-    return $ dir </> "ly" </> Id.ident_name block_id ++ ".ly"
+    return $ dir </> "ly" </> clean name ++ ".ly"
+    where
+    clean = map replace . map Char.toLower
+    replace '/' = '-'
+    replace ' ' = '-'
+    replace c = c
 
 lookup_key :: Cmd.Performance -> Pitch.Key
 lookup_key perf =
@@ -85,27 +94,31 @@ lilypond_scope = Scope.add_override_note_lookup lookup
     -- already implicit when you see the dot.
     note = Note.note_call "" "" (Note.default_note Note.no_duration_attributes)
 
-compile_ly :: FilePath -> Lilypond.Config -> Lilypond.Title
-    -> [Score.Event] -> IO (Either String Cmd.StackMap, [Log.Msg])
-compile_ly ly_filename config title events = do
-    let (result, logs) = make_ly config title events
+compile_lys :: FilePath -> Lilypond.Config -> Lilypond.Title
+    -> [(String, [Score.Event])] -> IO (Either String Cmd.StackMap, [Log.Msg])
+compile_lys filename config title movements = do
+    let (result, logs) = make_lys config title movements
     (flip (,) logs) <$> case result of
         Left err -> return $ Left err
         Right (ly, stack_map) -> do
             Directory.createDirectoryIfMissing True
-                (FilePath.takeDirectory ly_filename)
-            IO.withFile ly_filename IO.WriteMode $ \hdl ->
+                (FilePath.takeDirectory filename)
+            IO.withFile filename IO.WriteMode $ \hdl ->
                 mapM_ (Text.IO.hPutStr hdl) ly
             Util.Process.logged $ Process.proc "lilypond"
-                ["-o", FilePath.dropExtension ly_filename, ly_filename]
+                ["-o", FilePath.dropExtension filename, filename]
             return $ Right stack_map
 
-make_ly :: Lilypond.Config -> Lilypond.Title -> [Score.Event]
+make_lys :: Lilypond.Config -> Lilypond.Title -> [(String, [Score.Event])]
     -> (Either String ([Text.Text], Cmd.StackMap), [Log.Msg])
-make_ly config title score_events = (text, logs)
+make_lys config title movements = (text, concat logs)
     where
-    text = Lilypond.make_ly config title $
-        Convert.quantize (Lilypond.config_quantize config) events
-    (events, logs) = LEvent.partition $
-        Convert.convert (Lilypond.config_quarter_duration config)
-            (map LEvent.Event score_events)
+    text = Lilypond.make_lys config title $
+        zip (map fst movements) movement_events
+    (movement_events, logs) = unzip (map (convert . snd) movements)
+    convert score_events =
+        (Convert.quantize (Lilypond.config_quantize config) events, logs)
+        where
+        (events, logs) = LEvent.partition $
+            Convert.convert (Lilypond.config_quarter_duration config)
+                (map LEvent.Event score_events)

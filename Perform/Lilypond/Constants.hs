@@ -12,11 +12,6 @@ ly_global = Score.Instrument "ly-global"
 v_hand :: TrackLang.ValName
 v_hand = TrackLang.Symbol "hand"
 
--- | String: should be parseable by 'Meter.parse_meter',
--- e.g. @\'3/4\'@.
-v_meter :: TrackLang.ValName
-v_meter = TrackLang.Symbol "meter"
-
 -- | Number: should be an integer from 1 to 4
 v_voice :: TrackLang.ValName
 v_voice = TrackLang.Symbol "voice"
@@ -50,3 +45,14 @@ v_ly_append_pitch = TrackLang.Symbol "ly-append-pitch"
 -- tied.
 v_ly_tie_direction :: TrackLang.ValName
 v_ly_tie_direction = TrackLang.Symbol "ly-tie-direction"
+
+-- * ly-global
+
+-- | String: should be parseable by 'Meter.parse_meter',
+-- e.g. @\'3/4\'@.  Used only on @>ly-global@ events.
+v_meter :: TrackLang.ValName
+v_meter = TrackLang.Symbol "meter"
+
+-- | Gives the title of a new movement.
+v_movement :: TrackLang.ValName
+v_movement = TrackLang.Symbol "movement"

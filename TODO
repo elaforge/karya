@@ -511,7 +511,7 @@ lilypond:
     * make meter extraction code in Lilypond get it from the meter events
     * meter call emits code fragment under >ly-global
 
-  - movement titles
+  * movement titles
     Use >ly-global for these.
     It has to break up staves, so I need a first pass to find them:
       \score {

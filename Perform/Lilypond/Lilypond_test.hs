@@ -1,6 +1,7 @@
 module Perform.Lilypond.Lilypond_test where
 import Util.Control
 import Util.Test
+
 import qualified Ui.UiTest as UiTest
 import qualified Derive.Args as Args
 import qualified Derive.Call.CallTest as CallTest
@@ -187,6 +188,32 @@ test_voices = do
     equal (f tracks)
         (Right "a'4 << { VoiceOne: b'2 } { VoiceTwo: d'4 r4 } >> c'4", [])
 
-    let make_ly = first LilypondTest.make_ly . LilypondTest.partition
-            . LilypondTest.derive
-    putStrLn (fst $ make_ly tracks)
+    let (text, logs) = make_ly tracks
+    equal logs []
+    match text "voiceOne*voiceTwo*oneVoice"
+
+test_movements = do
+    -- let (text, logs) = make_ly $
+    --         (">ly-global", [(4, 0, "movement 'number 2'")])
+    --         : UiTest.regular_notes 8
+    -- equal logs []
+    -- -- The movement with e'4 gets the header.
+    -- match text "score *a'4 *score *e'4 *header *number 2"
+
+    -- let (text, logs) = make_ly $
+    --         [ (">ly-global", [(4, 0, "movement 'number 2'")])
+    --         , (">", [(5, 8, "t")])
+    --         ] ++ UiTest.regular_notes 8
+    -- equal logs []
+    -- prettyp text
+
+    let (text, logs) = make_ly $
+            [ (">ly-global", [(4, 0, "movement 'number 2'")])
+            -- , (">", [(4, 4, "t")])
+            ] ++ UiTest.regular_notes 6
+    equal logs []
+    prettyp text
+
+make_ly :: [UiTest.TrackSpec] -> (String, [String])
+make_ly = first LilypondTest.make_ly . LilypondTest.partition_logs
+    . LilypondTest.derive

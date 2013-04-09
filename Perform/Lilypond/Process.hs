@@ -66,13 +66,15 @@ run_process complete f = go
 
 type VoiceLy = Either Voices Ly
 
-process :: Types.Config -> [Meter.Meter] -> [Event] -> Either String [VoiceLy]
-process config meters events = do
-    let state1 = make_state config meters default_key
+process :: Types.Config -> Time -> [Meter.Meter] -> [Event]
+    -> Either String [VoiceLy]
+process config start meters events = do
+    let state1 = make_state config start meters default_key
     key <- maybe (return default_key)
         (fmap fst . run_convert state1 . lookup_key) (Seq.head events)
     let state2 = state1 { state_key = key }
-    (lys, _) <- run_convert state2 $ convert events
+    (lys, _) <- run_convert state2 $
+        error_context ("start: " <> Pretty.pretty start) $ convert events
     let meter = fromMaybe Meter.default_meter (Seq.head meters)
     return $ Right (Code $ "\\time " <> to_lily meter) : Right (KeyChange key)
         : lys
@@ -119,7 +121,7 @@ convert_voice end = run_process (rests_until end) convert_chunk
 -- ** convert chunk
 
 convert_chunk :: [Event] -> ConvertM ([Ly], [Event])
-convert_chunk events = case zero_dur_in_rest events of
+convert_chunk events = error_context current $ case zero_dur_in_rest events of
     ([], []) -> return ([], [])
     (zero@(event:_), []) -> return (apply_code (event_start event) zero [], [])
     (zero, event : events) -> do
@@ -128,6 +130,7 @@ convert_chunk events = case zero_dur_in_rest events of
         meter <- get_meter
         (lys, remaining) <- convert_chord meter (event :| events)
         return (rests <> lys, remaining)
+    where current = maybe "no more events" Pretty.pretty (Seq.head events)
 
 -- | Code events are mixed into the Lys, depending on their prepend or append
 -- attrs.
@@ -393,6 +396,12 @@ run_convert state = Identity.runIdentity . Error.runErrorT
 
 type ConvertM a = State.StateT State (Error.ErrorT String Identity.Identity) a
 
+error_context :: String -> ConvertM a -> ConvertM a
+error_context msg = map_error (msg <> ": " <>)
+
+map_error :: (String -> String) -> ConvertM a -> ConvertM a
+map_error f action = Error.catchError action $ \err -> Error.throwError (f err)
+
 data State = State {
     -- Constant:
     state_config :: Types.Config
@@ -413,13 +422,13 @@ data State = State {
     , state_key :: Key
     } deriving (Show)
 
-make_state :: Types.Config -> [Meter.Meter] -> Key -> State
-make_state config meters key = State
+make_state :: Types.Config -> Time -> [Meter.Meter] -> Key -> State
+make_state config start meters key = State
     { state_config = config
     , state_meters = meters
-    , state_measure_start = 0
-    , state_measure_end = maybe 0 Meter.measure_time $ Seq.head meters
-    , state_time = 0
+    , state_measure_start = start
+    , state_measure_end = start + maybe 0 Meter.measure_time (Seq.head meters)
+    , state_time = start
     , state_prev_attrs = mempty
     , state_key = key
     }

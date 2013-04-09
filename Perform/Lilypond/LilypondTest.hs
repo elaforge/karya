@@ -45,7 +45,7 @@ extract_rights :: (Show a) => [Either a String] -> String
 extract_rights = unwords . map (expect_right "expected only ly")
 
 process :: [String] -> [Types.Event] -> Either String [Output]
-process meters = Process.process Types.default_config (map mkmeter meters)
+process meters = Process.process Types.default_config 0 (map mkmeter meters)
 
 -- * extract
 
@@ -73,7 +73,7 @@ extract_lys wanted = fmap $ map to_str . filter is_wanted
 -- * make data
 
 mkstate :: [String] -> Process.State
-mkstate meters = Process.make_state Types.default_config (map mkmeter meters)
+mkstate meters = Process.make_state Types.default_config 0 (map mkmeter meters)
     Process.default_key
 
 mkmeter :: String -> Meter.Meter
@@ -140,7 +140,7 @@ convert_staves ::
     -- Or ["ALL"] to see them all, for debugging.
     -> [Lilypond.Event] -> Either String [StaffGroup]
 convert_staves wanted events =
-    map extract_staves <$> Lilypond.convert_staff_groups default_config events
+    map extract_staves <$> Lilypond.convert_staff_groups default_config 0 events
     where
     extract_staves (Lilypond.StaffGroup inst staves) =
         (Lilypond.inst_name inst, map show_staff staves)
@@ -166,16 +166,16 @@ derive_staves :: [String] -> [UiTest.TrackSpec]
 derive_staves wanted = staves wanted . derive
 
 measures :: [String] -> Derive.Result -> (Either String String, [String])
-measures wanted = first (convert_measures wanted) . partition
+measures wanted = first (convert_measures wanted) . partition_logs
 
 staves :: [String] -> Derive.Result -> (Either String [StaffGroup], [String])
-staves wanted = first (convert_staves wanted) . partition
+staves wanted = first (convert_staves wanted) . partition_logs
 
 extract :: (Lilypond.Event -> a) -> Derive.Result -> ([a], [String])
-extract f = first (map f) . partition
+extract f = first (map f) . partition_logs
 
-partition :: Derive.Result -> ([Lilypond.Event], [String])
-partition result = (events, extract_logs logs)
+partition_logs :: Derive.Result -> ([Lilypond.Event], [String])
+partition_logs result = (events, extract_logs logs)
     where
     (events, logs) = LEvent.partition $ Convert.convert 1 $
         Derive.r_events result
@@ -191,21 +191,21 @@ derive_linear tracks =
 derive_tracks_with_ui :: (Derive.EventDeriver -> Derive.EventDeriver)
     -> (State.State -> State.State) -> [UiTest.TrackSpec] -> Derive.Result
 derive_tracks_with_ui with transform_ui tracks =
-    derive_ly (transform_ui state) (with deriver)
+    derive_lilypond (transform_ui state) (with deriver)
     where
     deriver = Call.Block.eval_root_block global_transform bid
     global_transform = State.config#State.global_transform #$ state
     (bid:_, state) = DeriveTest.mkblocks [(UiTest.default_block_name, tracks)]
 
-derive_ly :: State.State -> Derive.EventDeriver -> Derive.Result
-derive_ly state deriver =
+derive_lilypond :: State.State -> Derive.EventDeriver -> Derive.Result
+derive_lilypond state deriver =
     extract $ CmdTest.result_val $
         CmdTest.run state CmdTest.default_cmd_state $
         Cmd.Lilypond.derive deriver
     where
     extract (Right (Just val)) = val
-    extract (Right Nothing) = error "derive_ly: abort"
-    extract (Left err) = error $ "derive_ly: " ++ err
+    extract (Right Nothing) = error "derive_lilypond: abort"
+    extract (Left err) = error $ "derive_lilypond: " ++ err
 
 make_ly :: [Lilypond.Event] -> String
 make_ly events = Text.unpack $ Text.strip $ Text.concat $ fst $

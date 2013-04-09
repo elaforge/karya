@@ -5,7 +5,6 @@
 -- changes to a block, but it didn't seem too useful, since any useful amount
 -- of lilypond score takes quite a while to compile.
 module Cmd.Lang.LLily where
-import qualified Data.Map as Map
 import qualified Data.Text as Text
 import qualified System.FilePath as FilePath
 import qualified System.Process as Process
@@ -49,12 +48,14 @@ set_staves staves config = config
 
 -- * compile
 
+blocks :: String -> [(String, BlockId)] -> Cmd.CmdL ()
+blocks title movements = do
+    events <- mapM (LEvent.write_logs <=< derive) (map snd movements)
+    compile_lys title (zip (map fst movements) events)
+
 -- | Compile the given block as lilypond.
 block :: BlockId -> Cmd.CmdL ()
-block block_id = do
-    events <- LEvent.write_logs =<< derive block_id
-    config <- get_config
-    compile_ly block_id config events
+block block_id = blocks (title_of block_id) [("", block_id)]
 
 -- | Compile the current block.
 current :: Cmd.CmdL ()
@@ -63,7 +64,7 @@ current = block =<< Cmd.get_focused_block
 -- | Show the output of the lilypond for the given block.
 view_block :: BlockId -> Cmd.CmdL ()
 view_block block_id = do
-    filename <- Cmd.Lilypond.ly_filename block_id
+    filename <- Cmd.Lilypond.block_id_filename block_id
     liftIO $ Util.Process.logged $
         Process.proc "open" [FilePath.replaceExtension filename ".pdf"]
     return ()
@@ -77,24 +78,22 @@ filter_inst :: [String] -> [Score.Event] -> [Score.Event]
 filter_inst inst_s = filter ((`elem` insts) . Score.event_instrument)
     where insts = map Score.Instrument inst_s
 
-from_events :: Lilypond.Config -> [Score.Event] -> Cmd.CmdL ()
-from_events config events = do
+from_events :: [Score.Event] -> Cmd.CmdL ()
+from_events events = do
     block_id <- Cmd.get_focused_block
-    compile_ly block_id config events
+    compile_lys (title_of block_id) [("", events)]
 
--- *
+-- * compile_ly
 
-compile_ly :: BlockId -> Lilypond.Config -> [Score.Event] -> Cmd.CmdL ()
-compile_ly block_id config events = do
-    filename <- Cmd.Lilypond.ly_filename block_id
+compile_lys :: String -> [(String, [Score.Event])] -> Cmd.CmdL ()
+compile_lys title movements = do
+    filename <- Cmd.Lilypond.ly_filename title
+    config <- get_config
     (result, logs) <- liftIO $
-        Cmd.Lilypond.compile_ly filename config (title_of block_id) events
+        Cmd.Lilypond.compile_lys filename config title movements
     mapM_ Log.write logs
-    stack_map <- Cmd.require_right ("compile_ly: "++) result
-    Cmd.modify_play_state $ \st -> st
-        { Cmd.state_lilypond_stack_maps = Map.insert block_id
-            stack_map (Cmd.state_lilypond_stack_maps st)
-        }
+    _ <- Cmd.require_right ("compile_ly: "++) result
+    return ()
 
 title_of :: BlockId -> Lilypond.Title
 title_of = Id.ident_name
@@ -115,7 +114,7 @@ make_ly = do
     block_id <- Cmd.get_focused_block
     config <- get_config
     (events, logs) <- LEvent.partition <$> derive block_id
-    let (result, ly_logs) = Cmd.Lilypond.make_ly config "title" events
+    let (result, ly_logs) = Cmd.Lilypond.make_lys config "title" [("", events)]
     return (fst <$> result, logs ++ ly_logs)
 
 convert :: Cmd.CmdL ([Lilypond.Event], [Log.Msg])
