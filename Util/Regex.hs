@@ -1,7 +1,9 @@
 -- | More user friendly regex api.
 module Util.Regex where
 import qualified Data.Array.IArray as IArray
+import qualified Data.Bits as Bits
 import qualified Data.Maybe as Maybe
+
 import qualified Text.Regex.PCRE as PCRE
 
 
@@ -13,14 +15,28 @@ regex (Regex _ r) = r
 instance Show Regex where
     show (Regex reg _) = "Regex.make " ++ show reg
 
-makeM :: String -> Either String Regex
-makeM str = case PCRE.makeRegexM str of
+data Option = CaseInsensitive | DotAll
+    deriving (Ord, Eq, Show)
+
+makeM :: [Option] -> String -> Either String Regex
+makeM options str = case PCRE.makeRegexOptsM (convert_options options) 0 str of
     Left msg -> Left $ "compiling regex " ++ show str ++ ": " ++ msg
     Right reg -> Right (Regex str reg)
 
+convert_options :: [Option] -> PCRE.CompOption
+convert_options = foldr (Bits..|.) 0 . map convert
+    where
+    convert opt = case opt of
+        CaseInsensitive -> PCRE.compCaseless
+        DotAll -> PCRE.compDotAll
+
 -- | Will throw a runtime error if the regex has an error!
 make :: String -> Regex
-make = either error id . makeM
+make = make_options []
+
+-- | Like 'make', but you can provide options.
+make_options :: [Option] -> String -> Regex
+make_options options = either error id . makeM options
 
 matches :: Regex -> String -> Bool
 matches (Regex _ reg) = PCRE.matchTest reg

@@ -12,6 +12,7 @@ module Util.Test (
     , has_string, has_string_srcpos
     , check_right, check_right_srcpos
     , map_left, left_like, left_like_srcpos
+    , match, match_srcpos
     -- ** exception checks
     , throws, throws_srcpos, catch_srcpos
 
@@ -225,6 +226,16 @@ left_like_srcpos srcpos gotten expected = case gotten of
     Right a -> failure_srcpos srcpos $
         "Right (" ++ show a ++ ") !~ " ++ expected
 
+match :: String -> String -> IO Bool
+match = match_srcpos Nothing
+
+match_srcpos :: SrcPos.SrcPos -> String -> String -> IO Bool
+match_srcpos srcpos gotten pattern
+    | pattern_matches pattern gotten = success_srcpos srcpos $
+        gotten ++ "\n\t=~\n" ++ pattern
+    | otherwise = failure_srcpos srcpos $
+        gotten ++ "\n\t!~\n" ++ pattern
+
 -- | This is a simplified pattern that only has the @*@ operator, which is
 -- equivalent to regex's @.*?@.  This reduces the amount of quoting you have
 -- to write.  You can escape @*@ with a backslash.
@@ -233,7 +244,7 @@ pattern_matches pattern s = not $ null $
     Regex.find_groups (pattern_to_reg pattern) s
 
 pattern_to_reg :: String -> Regex.Regex
-pattern_to_reg = Regex.make . mkstar . Regex.escape
+pattern_to_reg = Regex.make_options [Regex.DotAll] . mkstar . Regex.escape
     where
     mkstar "" = ""
     mkstar ('\\' : '\\' : '\\' : '*' : cs) = '\\' : '*' : mkstar cs
