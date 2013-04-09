@@ -103,7 +103,7 @@ test_call_errors = do
         "non-generator in generator position: trans"
     let tr_result = extract $ DeriveTest.derive_tracks
             [(">", [(0, 4, "")]), ("*twelve", [(0, 0, "tr")])]
-    left_like tr_result "ArgError: too few arguments"
+    left_like tr_result "ArgError: expected another argument"
     equal (run_evt "test-t 2 | test-t 1 |")
         (Right [(0, 1, "test-t 2 | test-t 1 |")])
     where
