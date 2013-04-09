@@ -523,7 +523,7 @@ lilypond:
         \header { piece = "title" }
       }
 
-  - page breaks:
+  * page breaks:
     . line break is \break.  Only one instrument needs it?
     . page break is \pageBreak
       \paper {

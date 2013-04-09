@@ -295,6 +295,9 @@ note_calls = Derive.make_calls
     , ("ly->", c_diminuendo)
     , ("ly^", c_ly_text_above)
     , ("ly_", c_ly_text_below)
+    , ("ly-pre", c_ly_pre)
+    , ("ly-post", c_ly_post)
+    , ("ly-key", c_ly_key)
     ]
 
 c_when_ly :: Derive.NoteCall
@@ -450,6 +453,29 @@ c_ly_text_below = code_call "ly-text-below" "Attach text below the note."
 
 lily_str :: String -> String
 lily_str = Types.to_lily
+
+c_ly_pre :: Derive.NoteCall
+c_ly_pre = code0_call "ly-pre"
+    "Emit arbitrary lilypond code that will go before concurrent notes."
+    (required "code" "A leading \\ will be prepended.") $
+    \code -> return (Prefix, '\\' : code)
+
+c_ly_post :: Derive.NoteCall
+c_ly_post = code0_call "ly-pre"
+    "Emit arbitrary lilypond code that will go after concurrent notes."
+    (required "code" "A leading \\ will be prepended.") $
+    \code -> return (SuffixAll, '\\' : code)
+
+c_ly_key :: Derive.NoteCall
+c_ly_key = code0_call "ly-key"
+    "Emit a key change. This only emits a lilypond key change, it doesn't\
+    \ actually set the key. This means diatonic operations won't work as\
+    \ expected. Also, you have to add it to every staff manually.\
+    \ On the up side, it doesn't force a structural change like '=' does."
+    (required "key" "You can use any of the keys from the Twelve scale.") $
+    \key -> do
+        key <- Derive.require_right id $ Process.parse_key key
+        return (Prefix, Types.to_lily key)
 
 -- * util
 
