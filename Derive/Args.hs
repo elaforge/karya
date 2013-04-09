@@ -19,6 +19,8 @@ event = Derive.info_event . info
 prev_val :: PassedArgs d -> Maybe (RealTime, Derive.Elem d)
 prev_val = Derive.info_prev_val . info
 
+is_title_call :: PassedArgs d -> Bool
+is_title_call args = range args == Derive.info_track_range (info args)
 
 -- * event timing
 

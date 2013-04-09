@@ -62,7 +62,7 @@ c_tuplet = Derive.stream_generator "tuplet" Tags.subs
 -- possible, but seems hard.
 emit_lily_tuplet :: Derive.PassedArgs d -> Derive.EventDeriver
     -> Derive.EventDeriver
-emit_lily_tuplet args not_lily = Lily.when_lilypond lily not_lily
+emit_lily_tuplet args not_lily = Lily.when_lilypond_config lily not_lily
     where
     lily config = either err return =<< Either.runEitherT . check config
         =<< Note.sub_events args

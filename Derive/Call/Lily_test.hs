@@ -1,38 +1,37 @@
 module Derive.Call.Lily_test where
 import Util.Test
-import qualified Ui.Skeleton as Skeleton
 import qualified Ui.UiTest as UiTest
-import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.ShowVal as ShowVal
-
 import qualified Perform.Lilypond.Lilypond as Lilypond
 import qualified Perform.Lilypond.LilypondTest as LilypondTest
 
 
 test_when_ly = do
-    let run_ly = extract . uncurry derive_ly
-        run_normal = extract . uncurry derive_normal
-        extract = DeriveTest.extract DeriveTest.e_note
-        mktracks ly normal = ([(1, 3), (2, 3), (3, 4)],
-            [ ("> | when-ly", ly)
-            , ("> | unless-ly", normal)
-            ] ++ UiTest.regular_notes 4)
+    let run_ly = extract . LilypondTest.derive
+        run_normal = extract . DeriveTest.derive_tracks
+        extract = DeriveTest.extract $
+            \e -> (DeriveTest.e_note e, DeriveTest.e_attributes e)
+    let tracks =
+            [ ("> | when-ly", [(0, 1, "")])
+            , ("*", [(0, 0, "4a")])
+            , ("> | unless-ly", [(1, 1, "")])
+            , ("*", [(1, 0, "4b")])
+            ]
+    equal (run_ly tracks) ([((0, 1, "4a"), "-")], [])
+    equal (run_normal tracks) ([((1, 1, "4b"), "-")], [])
 
-    prettyp (run_ly $ mktracks [(0, 2, "(")] [(2, 2, "(")])
-    prettyp (run_normal $ mktracks [(0, 2, "(")] [(2, 2, "(")])
-
-derive_normal skel =
-    DeriveTest.derive_tracks_with_ui id (DeriveTest.set_skel skel)
-
-derive_ly :: [Skeleton.Edge] -> [UiTest.TrackSpec] -> Derive.Result
-derive_ly skel =
-    DeriveTest.derive_tracks_with_ui id (DeriveTest.set_skel skel)
+    let tracks = UiTest.note_track [(0, 1, "when-ly +a | -- 4a")]
+    equal (run_ly tracks) ([((0, 1, "4a"), "+a")], [])
+    equal (run_normal tracks) ([((0, 1, "4a"), "-")], [])
+    let tracks = UiTest.note_track [(0, 1, "unless-ly +a | -- 4a")]
+    equal (run_ly tracks) ([((0, 1, "4a"), "-")], [])
+    equal (run_normal tracks) ([((0, 1, "4a"), "+a")], [])
 
 test_is_ly = do
-    let not_ly = DeriveTest.extract ex . DeriveTest.linear_derive_tracks id
+    let run_normal = DeriveTest.extract ex . DeriveTest.linear_derive_tracks id
             where ex e = (DeriveTest.e_pitch e, DeriveTest.e_attributes e)
-        is_ly = LilypondTest.extract extract . LilypondTest.derive_linear
+        run_ly = LilypondTest.extract extract . LilypondTest.derive_linear
             where
             extract e = (Lilypond.event_pitch e,
                 ShowVal.show_val (Lilypond.event_attributes e))
@@ -42,9 +41,9 @@ test_is_ly = do
             , ("> | is-ly", [(0, 1, "+ly1"), (1, 1, "+ly2")])
             , ("> | not-ly", [(1, 1, "+no1"), (2, 1, "+no2")])
             ] ++ UiTest.regular_notes 4
-    equal (not_ly tracks)
+    equal (run_normal tracks)
         ([("4a", "-"), ("4b", "+always+no1"), ("4c", "+no2"), ("4d", "-")], [])
-    equal (is_ly tracks)
+    equal (run_ly tracks)
         ([("a'", "+ly1"), ("b'", "+always+ly2"), ("c'", "-"), ("d'", "-")], [])
 
 test_if_ly = do
@@ -56,6 +55,9 @@ test_if_ly = do
     -- Passing as strings is also ok.
     equal (run [(0, 1, "if-ly '+accent' '+mute' -- 4a")])
         (Right "a'4-> r4 r2", [])
+    -- Null call works.
+    equal (run [(0, 1, "if-ly '' '+mute' -- 4a")])
+        (Right "a'4 r4 r2", [])
 
 test_8va = do
     let run = LilypondTest.derive_measures ["ottava"]

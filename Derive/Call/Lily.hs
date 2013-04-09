@@ -37,11 +37,16 @@ import Types
 
 -- * utils for ly calls
 
-when_lilypond :: (Types.Config -> Derive.Deriver a)
+when_lilypond :: Derive.Deriver a -- ^ Run if this is a lilypond derive.
+    -> Derive.Deriver a -- ^ Run if this is a normal derive.
+    -> Derive.Deriver a
+when_lilypond lily = when_lilypond_config (const lily)
+
+when_lilypond_config :: (Types.Config -> Derive.Deriver a)
     -- ^ Run if this is a lilypond derive.
     -> Derive.Deriver a -- ^ Run if this is a normal derive.
     -> Derive.Deriver a
-when_lilypond lily not_lily =
+when_lilypond_config lily not_lily =
     maybe not_lily lily =<< Derive.lookup_lilypond_config
 
 -- | Only emit the deriver if I'm in lilypond mode.
@@ -52,7 +57,7 @@ only_lilypond deriver = ifM Derive.is_lilypond_derive deriver mempty
 note_code :: Code -> Derive.PassedArgs d -> Derive.EventDeriver
     -> Derive.EventDeriver
 note_code code args = when_lilypond $
-    const $ add_code code $ Util.place args Util.note
+    add_code code $ Util.place args Util.note
 
 -- ** transformer
 
@@ -73,14 +78,14 @@ notes_code code = notes_with (add_code code)
 -- them.
 first_note_code :: Code -> Derive.PassedArgs d
     -> Derive.EventDeriver -> Derive.EventDeriver
-first_note_code code args = when_lilypond $ const $
+first_note_code code args = when_lilypond $
     add_first code $ place_notes args
 
 -- | This is like 'notes_code', but the first event in each track gets the
 -- start code, and the last event in each track gets the end code.
 notes_around :: Code -> Code -> Derive.PassedArgs d
     -> Derive.EventDeriver -> Derive.EventDeriver
-notes_around start end args = when_lilypond $ const $
+notes_around start end args = when_lilypond $
     mconcat . map around =<< Note.sub_events args
     where
     around notes = first_last
@@ -98,7 +103,7 @@ notes_around_ly start end = mconcat . map around <=< Note.sub_events
 -- sub events unchanged.
 code_around :: Code -> Code -> Derive.PassedArgs d -> Derive.EventDeriver
 code_around start end args = when_lilypond
-    (const $ code0 (Args.start args) start
+    (code0 (Args.start args) start
         <> place_notes args <> code0 (Args.end args) end)
     (place_notes args)
 
@@ -106,7 +111,7 @@ code_around start end args = when_lilypond
 notes_with :: (Derive.EventDeriver -> Derive.EventDeriver)
     -> Derive.PassedArgs d
     -> Derive.EventDeriver -> Derive.EventDeriver
-notes_with f args = when_lilypond $ const $
+notes_with f args = when_lilypond $
     Note.place . Note.map_events f . concat =<< Note.sub_events args
 
 place_notes :: Derive.PassedArgs d -> Derive.EventDeriver
@@ -294,56 +299,54 @@ note_calls = Derive.make_calls
 
 c_when_ly :: Derive.NoteCall
 c_when_ly = Derive.transformer "when-ly" Tags.ly_only
-    "Evaluate the deriver only when in lilypond mode.  Unlike is-ly,\
-    \ this doesn't evaluate subtracks, so you can use it to emit an entirely\
-    \ different set of tracks."
-    $ Sig.call0t $ \_ deriver -> when_lilypond (const deriver) mempty
+    "With no arguments, evaluate the deriver only when in lilypond mode.\
+    \ Unlike is-ly, this doesn't evaluate subtracks, so you can use it to emit\
+    \ an entirely different set of tracks.\n\
+    \ With arguments, evaluate them as a transformer and apply it only\
+    \ when in lilypond mode.  Otherwise, the deriver is unchanged."
+    $ Sig.parsed_manually "Any number of arguments of any type." (when_ly False)
 
 c_unless_ly :: Derive.NoteCall
 c_unless_ly = Derive.transformer "unless-ly" Tags.ly_only
-    "The reverse of when-ly, evaluate the deriver only when not in lilypond\
-    \ mode."
-    $ Sig.call0t $ \_ deriver -> when_lilypond (const mempty) deriver
+    "The inverse of when-ly, evaluate the deriver or apply the args only when\
+    \ not in lilypond mode."
+    $ Sig.parsed_manually "Any number of arguments of any type." (when_ly True)
+
+when_ly :: Bool -> Derive.PassedArgs Score.Event -> Derive.EventDeriver
+    -> Derive.EventDeriver
+when_ly inverted args deriver = case Derive.passed_vals args of
+    [] -> when deriver mempty
+    call : vals -> when (apply args (make_call call vals) deriver) deriver
+    where
+    when = if inverted then flip when_lilypond else when_lilypond
+    make_call call vals = TrackLang.call (TrackLang.show_call_val call)
+        (map TrackLang.Literal vals)
+    apply args call = Call.apply_transformer (Derive.passed_info args) [call]
 
 c_ly_global :: Derive.NoteCall
 c_ly_global = Derive.transformer "ly-global" Tags.ly_only
     ("Evaluate the deriver only when in lilypond mode, like 'when-ly', but\
     \ also set the " <> ShowVal.show_val Constants.ly_global <> " instrument."
     ) $ Sig.call0t $ \_ deriver ->
-        when_lilypond (const (global deriver)) mempty
+        when_lilypond (global deriver) mempty
 
--- | TODO it's ugly how this only works in the track title.  If applied to
--- an event, it will emit a duplicate copy of the tracks below it, which is
--- definitely not useful.  Ways around this would be:
---
--- - Always slice the subtracks, but the track title call gives the range of
--- the whole track.  This would work but would cause lots of unnecessary
--- slicing.
---
--- - Add a in_track_title flag to CallInfo, so this can switch on it.  Hacky
--- and ad-hoc.
---
--- - Provide a way for custom track-level calls, e.g. EventNode ->
--- EventDeriver.  I might want to do this eventually anyway for tracks with
--- their own little custom language.  But if I do, I also have to support
--- documentation, lookup in some namespace, and will probably want to add block
--- calls (presumably derive_tree :: ScoreTime -> TrackTree.EventsTree ->
--- Derive.EventDeriver) too, so it's a bit of work.
 c_is_ly :: Derive.NoteCall
 c_is_ly = Derive.transformer "is-ly" Tags.ly_only
     "Evaluate the deriver only when in lilypond mode, otherwise ignore this\
-    \ track but evaluate its subtracks. Apply this to a track \
+    \ track but evaluate its subtracks. Apply this to a track\
     \ to omit lilypond-only articulations, or to apply different articulations\
     \ to lilypond and non-lilypond output. Only use it in the track title!"
-    $ Sig.call0t $ \args deriver ->
-        when_lilypond (const deriver) (derive_subtracks args)
+    $ Sig.call0t $ \args deriver -> when_lilypond deriver $
+        if Args.is_title_call args then derive_subtracks args
+            else place_notes args
 
 c_not_ly :: Derive.NoteCall
 c_not_ly = Derive.transformer "not-ly" Tags.ly_only
     "The inverse of `is-ly`, evaluate the track only when not in lilypond\
     \ mode. Only use it in the track title!"
-    $ Sig.call0t $ \args deriver ->
-        when_lilypond (const $ derive_subtracks args) deriver
+    $ Sig.call0t $ \args deriver -> flip when_lilypond deriver $
+        if Args.is_title_call args then derive_subtracks args
+            else place_notes args
 
 c_if_ly :: Derive.NoteCall
 c_if_ly = Derive.stream_generator "if-ly" Tags.ly_only
@@ -351,14 +354,8 @@ c_if_ly = Derive.stream_generator "if-ly" Tags.ly_only
     <$> required "is-ly" "Evaluated in lilypond mode."
     <*> required "not-ly" "Evaluated when not in lilypond mode."
     ) $ \(is_ly, not_ly) args -> when_lilypond
-        (const (Call.reapply_string args (show_val is_ly)))
-        (Call.reapply_string args (show_val not_ly))
-    where
-    -- Avoid putting quotes around the symbol, since it will go at the
-    -- beginning of the expression.
-    show_val :: TrackLang.Val -> String
-    show_val (TrackLang.VSymbol (TrackLang.Symbol sym)) = sym
-    show_val val = ShowVal.show_val val
+        (Call.reapply_string args (TrackLang.show_call_val is_ly))
+        (Call.reapply_string args (TrackLang.show_call_val not_ly))
 
 derive_subtracks :: Derive.PassedArgs d -> Derive.EventDeriver
 derive_subtracks =
@@ -399,8 +396,7 @@ c_meter = global_code0_call "meter"
     "Emit lilypond meter change. It will be interpreted as global no matter\
     \ where it is. Simultaneous different meters aren't supported yet."
     (required "meter" "Should be `4/4`, `3+3/8`, etc.") $
-    \pos val -> Derive.with_val Constants.v_meter (val :: String) $
-        Derive.d_place pos 0 Util.note
+    \val -> Derive.with_val Constants.v_meter (val :: String)
 
 c_reminder_accidental :: Derive.NoteCall
 c_reminder_accidental = Make.environ_note "ly-reminder-accidental"
@@ -475,7 +471,7 @@ code_call name doc sig make_code = Derive.Call
         -- write it.
         require_nonempty =<< first_note_code code args (place_notes args)
     transformer = Sig.callt sig $ \val _args deriver ->
-        flip when_lilypond deriver $ const $ do
+        flip when_lilypond deriver $ do
             code <- make_code val
             add_first code deriver
 
@@ -498,10 +494,10 @@ code0_call name doc sig make_code =
 -- | Just like 'code0_call', but the code uses the 'Constants.ly_global'
 -- instrument.
 global_code0_call :: String -> String -> Sig.Parser a
-    -> (ScoreTime -> a -> Derive.EventDeriver) -> Derive.NoteCall
+    -> (a -> Derive.EventDeriver -> Derive.EventDeriver) -> Derive.NoteCall
 global_code0_call name doc sig call =
     make_code0_call name doc sig $ \val args ->
-        global (call (Args.start args) val)
+        global (call val (Derive.d_place (Args.start args) 0 Util.note))
 
 -- | Emit a free-standing fragment of lilypond code.
 make_code0_call :: String -> String -> Sig.Parser a
@@ -518,7 +514,7 @@ make_code0_call name doc sig call = Derive.Call
     generator = Sig.call sig $ \val args -> only_lilypond $
         call val args <> place_notes args
     transformer = Sig.callt sig $ \val args deriver ->
-        when_lilypond (const $ call val args <> deriver) deriver
+        when_lilypond (call val args <> deriver) deriver
 
 global :: Derive.Deriver a -> Derive.Deriver a
 global = Derive.with_val_raw TrackLang.v_instrument Constants.ly_global

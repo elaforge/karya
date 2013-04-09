@@ -47,7 +47,8 @@ import qualified Derive.BaseTypes as PitchSignal
 import Derive.BaseTypes
        (Environ, make_environ, environ_to_list, insert_val, lookup_val,
         null_environ, ValName, Val(..), Symbol(..), RelativeAttrs(..),
-        ControlRef(..), PitchControl, ValControl, Note(..))
+        ControlRef(..), PitchControl, ValControl, Note(..),
+        show_call_val)
 import Derive.ShowVal (ShowVal(..))
 
 import qualified Perform.Pitch as Pitch

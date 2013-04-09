@@ -68,7 +68,7 @@ c_grace = Derive.stream_generator "grace" (Tags.ornament <> Tags.ly)
     <*> many "pitch" "Grace note pitches."
     ) $ \(dyn, pitches) -> Note.inverting $ \args -> do
         (_, pitches) <- resolve_pitches args pitches
-        Lily.when_lilypond (const $ lily_grace args pitches) $
+        Lily.when_lilypond (lily_grace args pitches) $
             grace (Args.extent args) (fromMaybe 0.5 dyn) pitches
 
 lily_grace :: Derive.PassedArgs d -> [PitchSignal.Pitch] -> Derive.EventDeriver
@@ -149,7 +149,7 @@ c_grace_attr supported =
     <*> many "pitch" "Grace note pitches."
     ) $ \(dyn, pitches) -> Note.inverting $ \args -> do
         (base, pitches) <- resolve_pitches args pitches
-        Lily.when_lilypond (const $ lily_grace args pitches) $ do
+        Lily.when_lilypond (lily_grace args pitches) $ do
             maybe_attrs <- grace_attrs supported pitches base
             case maybe_attrs of
                 Just attrs -> Util.add_attrs attrs (Util.placed_note args)

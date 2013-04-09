@@ -334,6 +334,13 @@ instance ShowVal.ShowVal Symbol where
             [] -> False
         quote '\'' = "''"
         quote c = [c]
+
+-- | Show a symbol intended for call position.  Call position is special in
+-- that it can contain any character except space without quoting.
+show_call_val :: Val -> String
+show_call_val (VSymbol (Symbol sym)) = sym
+show_call_val val = ShowVal.show_val val
+
 instance ShowVal.ShowVal String where
     show_val = ShowVal.show_val . Symbol
 

@@ -426,6 +426,8 @@ integrate / integration:
   - quantization
 
 lilypond:
+  - remove the StackMap stuff
+  - put double barlines at the end
   * turn off the cancel-out key signature thing
   - code events in >ly-global can be distributed to all staves
     Otherwise I have to remember to add e.g. ly-key to all staves manually.
@@ -440,12 +442,15 @@ lilypond:
     On the other hand, I think I want to encourage nestedness and it should be
     easy to split.  The only reason viola-sonata has huge blocks is that it's
     a midi import.
-
   * tie wrong direction, can override with \tieDown \tieUp \tieNeutral
     or use ^~ or _~
   * why does 'LLily.block @bogus' happily create an empty score?
   - Derive.Call.Lily needs a naming refactor since there are too many vaguely
     named flavours.
+  - rename is-ly to ly-track if I can't get it to apply to individual notes.
+    Well, I can, but it's just the same as when-ly.
+  * I need something to only transform if or not if ly, and pass through
+    otherwise.  Maybe overload is-ly and not-ly?
   / Why does accidentally putting e.g. 'dyn p' in a dyn column not log
     a warning?
     Probably since it's a control, and not sliced by anyone, it never gets
