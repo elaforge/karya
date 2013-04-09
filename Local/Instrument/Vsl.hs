@@ -14,9 +14,9 @@ import qualified Midi.Key as Key
 import qualified Midi.Midi as Midi
 import qualified Derive.Args as Args
 import qualified Derive.Attrs as Attrs
-import qualified Derive.Call.Attribute as Attribute
+import qualified Derive.Call.Articulation as Articulation
 import qualified Derive.Call.Note as Note
-import qualified Derive.Call.Ornament as Ornament
+import qualified Derive.Call.Grace as Grace
 import qualified Derive.Call.Trill as Trill
 import qualified Derive.Call.Util as Util
 import qualified Derive.Derive as Derive
@@ -121,7 +121,7 @@ note_calls maybe_hmap patch =
         [("tr", Trill.c_attr_trill), ("`tr`", Trill.c_attr_trill)]
     <> with_attr Attrs.trem [("trem", Trill.c_attr_tremolo)]
     <> with_attr VslInst.grace [("g", grace_call (patch_attrs patch))]
-    <> with_attr VslInst.legato [("(", Attribute.c_legato_all)]
+    <> with_attr VslInst.legato [("(", Articulation.c_legato_all)]
     <> (MidiInst.null_call (note_call patch))
     where
     with_attr attr calls = if has_attr attr patch then calls else []
@@ -143,8 +143,7 @@ has_attr :: Score.Attributes -> Instrument.Patch -> Bool
 has_attr attr = any (`Score.attrs_contain` attr) . patch_attrs
 
 grace_call :: [Score.Attributes] -> Derive.NoteCall
-grace_call attrs =
-    Ornament.c_grace_attr (Map.filter (`elem` attrs) grace_intervals)
+grace_call attrs = Grace.c_grace_attr (Map.filter (`elem` attrs) grace_intervals)
 
 grace_intervals :: Map.Map Int Score.Attributes
 grace_intervals = Map.fromList $

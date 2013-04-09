@@ -1,4 +1,4 @@
-module Derive.Call.Attribute_test where
+module Derive.Call.Articulation_test where
 import qualified Util.Seq as Seq
 import Util.Test
 import qualified Ui.UiTest as UiTest

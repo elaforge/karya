@@ -1,10 +1,10 @@
-module Derive.Call.Ornament_test where
+module Derive.Call.Grace_test where
 import qualified Data.Map as Map
 
 import Util.Test
 import qualified Ui.State as State
 import qualified Derive.Call.CallTest as CallTest
-import qualified Derive.Call.Ornament as Ornament
+import qualified Derive.Call.Grace as Grace
 import qualified Derive.Call.Util as Util
 import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
@@ -36,7 +36,7 @@ test_mordent = do
         ])
         (["4e", "4f", "4e"], [])
 
-    let f = Ornament.mordent
+    let f = Grace.mordent
         run = DeriveTest.run_events extract
             . DeriveTest.run State.empty
             . Util.with_pitch (DeriveTest.mkpitch12 "4c")
@@ -105,7 +105,7 @@ test_grace_attr = do
             . DeriveTest.derive_tracks_with with_call
         extract e = (DeriveTest.e_pitch e,
             ShowVal.show_val $ Score.event_attributes e)
-        with_call = CallTest.with_note_call "g" (Ornament.c_grace_attr graces)
+        with_call = CallTest.with_note_call "g" (Grace.c_grace_attr graces)
     -- Attrs when it can.
     equal (run [(">", [(0, 1, "g (4a)")]), ("*", [(0, 0, "4b")])])
         ([("4b", "+up+whole")], [])

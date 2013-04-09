@@ -1,4 +1,6 @@
-module Derive.Call.Ornament where
+-- | Calls that generate grace notes.  These are short sequences of quick notes
+-- whose duration is generally independent of the tempo.
+module Derive.Call.Grace where
 import qualified Data.Map as Map
 
 import Util.Control

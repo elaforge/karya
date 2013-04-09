@@ -33,7 +33,8 @@ UNSORTED
 
   * new block from template should copy the block title
   - fltk doesn't show red trailing space warning when the text is wrapped
-  - rename Derive.Call.Attribute to Transformer and Ornament to Grace
+  * rename Derive.Call.Attribute to Transformer and Ornament to Grace
+    But it's not all transformers, it has note transformers too.
   * I think ly mode needs to turn off sustain and sustain-abs
   * transformer to shorten notes slightly, can just set sustain-abs -= small
     Could use +detache, but that would have a different effect if it's already

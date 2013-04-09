@@ -3,17 +3,17 @@ module Derive.Call.All where
 import qualified Data.Map as Map
 
 import qualified Util.Map as Map
-import qualified Derive.Call.Attribute as Attribute
+import qualified Derive.Call.Articulation as Articulation
 import qualified Derive.Call.Block as Block
 import qualified Derive.Call.Control as Control
 import qualified Derive.Call.Echo as Echo
 import qualified Derive.Call.Gender as Gender
+import qualified Derive.Call.Grace as Grace
 import qualified Derive.Call.Idiom.String as String
 import qualified Derive.Call.Integrate as Integrate
 import qualified Derive.Call.Lily as Lily
 import qualified Derive.Call.Note as Note
 import qualified Derive.Call.NoteTransformer as NoteTransformer
-import qualified Derive.Call.Ornament as Ornament
 import qualified Derive.Call.Pitch as Pitch
 import qualified Derive.Call.Post.Idiom as Post.Idiom
 import qualified Derive.Call.Post.NegativeDur as Post.NegativeDur
@@ -41,7 +41,7 @@ note_lookups :: Derive.ScopeType Derive.NoteCall
 note_lookups = Derive.empty_scope_type
     { Derive.stype_builtin =
         [ Block.lookup_note_block
-        , Attribute.lookup_attr
+        , Articulation.lookup_attr
         , Derive.map_lookup note_calls
         ]
     }
@@ -63,11 +63,11 @@ map_lookup cmap = Derive.empty_scope_type
 
 note_calls :: Derive.NoteCallMap
 (note_calls, shadowed_notes) = unions
-    [ Attribute.note_calls, Block.note_calls, Echo.note_calls
+    [ Articulation.note_calls, Block.note_calls, Echo.note_calls
     , Gender.note_calls, Integrate.note_calls
     , Lily.note_calls
     , Note.note_calls, NoteTransformer.note_calls
-    , Ornament.note_calls
+    , Grace.note_calls
     , Post.Idiom.note_calls, Post.NegativeDur.note_calls
     , Post.Reverse.note_calls
     , Reyong.note_calls

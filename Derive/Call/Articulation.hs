@@ -1,11 +1,15 @@
--- | Calls that just apply attributes to the notes.  There is already general
--- purpose syntax for this, e.g. @attr = +x@ or @n +x@, and instruments may
--- supply special calls for their attributes, but there are several attributes
--- which look nice with their own calls and are used by many instruments.
+-- | Calls that are similar to staff-notation articulations, or could be.
+-- This means calls that modify notes in relatively straightforward ways, either
+-- by adding an attribute or modifying their environment.
+--
+-- There is already general purpose syntax to add attributes to notes, e.g.
+-- @attr = +x@ or @n +x@ or just @+x@, and instruments may supply special calls
+-- for their attributes, but there are several attributes which look nice with
+-- their own calls and are used by many instruments.
 --
 -- TODO There are too many ways to apply attributes to notes, and they work
 -- in inconsistent ways.
-module Derive.Call.Attribute where
+module Derive.Call.Articulation where
 import Util.Control
 import qualified Util.Seq as Seq
 import qualified Derive.Attrs as Attrs

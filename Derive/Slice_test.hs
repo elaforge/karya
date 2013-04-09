@@ -14,7 +14,7 @@ import qualified Ui.ScoreTime as ScoreTime
 import qualified Ui.TrackTree as TrackTree
 import qualified Ui.UiTest as UiTest
 
-import qualified Derive.Call.Attribute as Attribute
+import qualified Derive.Call.Articulation as Articulation
 import qualified Derive.Call.CallTest as CallTest
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Score as Score
@@ -233,7 +233,7 @@ test_slur = do
             , DeriveTest.e_environ ("ly-" `List.isPrefixOf`) e
             , ShowVal.show_val (Score.event_attributes e)
             )
-        with = CallTest.with_note_call "(" Attribute.c_ly_slur
+        with = CallTest.with_note_call "(" Articulation.c_ly_slur
     -- Yeah, a slur test should probably go in Attribute_test, but I'm also
     -- testing that the slicing mechanic interacts with calls how I expect it
     -- to.

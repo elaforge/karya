@@ -21,7 +21,7 @@ import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Msg as Msg
 import qualified Cmd.PlayUtil as PlayUtil
 
-import qualified Derive.Call.Attribute as Attribute
+import qualified Derive.Call.Articulation as Articulation
 import qualified Derive.Call.Block as Call.Block
 import qualified Derive.Call.Note as Note
 import qualified Derive.Derive as Derive
@@ -86,9 +86,9 @@ lilypond_scope = Scope.add_override_note_lookup lookup
     where
     lookup = Derive.map_lookup $ Derive.make_calls
         [ ("", note), ("n", note)
-        , ("(", Attribute.c_ly_slur)
-        , ("^(", Attribute.c_ly_slur_up)
-        , ("_(", Attribute.c_ly_slur_down)
+        , ("(", Articulation.c_ly_slur)
+        , ("^(", Articulation.c_ly_slur_up)
+        , ("_(", Articulation.c_ly_slur_down)
         ]
     -- Turn off the behaviour where staccato shortens the note, since that's
     -- already implicit when you see the dot.
