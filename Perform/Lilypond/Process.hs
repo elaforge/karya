@@ -95,7 +95,7 @@ convert = run_process trailing_rests go
         end <- State.gets state_measure_end
         rests <- rests_until end
         remaining <- trailing_rests
-        return $ map Right rests ++ remaining ++ [Right final_barline]
+        return $ map Right rests ++ remaining
     to_voices [] = []
     to_voices voices = [Left (Voices voices)]
     final_barline = Code "\\bar \"|.\""
@@ -344,7 +344,9 @@ rests_until end = do
         state <- State.get
         meter <- get_meter
         barline <- advance_measure end
-        let rests = make_rests (state_config state) meter (state_time state) end
+        let rests = make_rests (state_config state) meter
+                (state_time state - state_measure_start state)
+                (end - state_measure_start state)
         return $ map LyNote rests <> maybe [] (:[]) barline
 
 -- | Advance now to the given time, up to and including the end of the measure,

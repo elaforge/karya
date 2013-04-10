@@ -56,7 +56,7 @@ extract_lys :: Maybe [String]
     -- ^ if Just, only include these lilypond backslash commands
     -> Either String [Output]
     -> Either String [Either [(Process.Voice, String)] String]
-extract_lys wanted = fmap $ map to_str . filter is_wanted
+extract_lys wanted = fmap $ map to_str . filter is_wanted . split_barlines
     where
     to_str = either (Left . show_voices) (Right . Types.to_lily)
     show_voices (Process.Voices voices) =
@@ -69,6 +69,17 @@ extract_lys wanted = fmap $ map to_str . filter is_wanted
             _ -> case Types.to_lily ly of
                 '\\' : text -> takeWhile (/=' ') text `elem` words
                 _ -> True
+    -- Split the time signature into a separate Code, instead of being bundled
+    -- with Barlines.  This makes 'wanted' work properly.
+    split_barlines = concatMap $
+        either ((:[]) . Left . split_voices) (map Right . split_ly)
+    split_ly (Process.Barline (Just meter)) =
+        [ Process.Barline Nothing
+        , Process.Code $ "\\time " ++ Types.to_lily meter
+        ]
+    split_ly ly = [ly]
+    split_voices (Process.Voices voices) = Process.Voices $
+        map (second (concatMap split_ly)) voices
 
 -- * make data
 

@@ -32,7 +32,7 @@ module Ui.Events (
     , split_range, split_at
     , in_range, in_range_point
     , around
-    -- *** [Event]
+    -- *** List [Event]
     , split
     , at_after, after
     , split_at_before
@@ -201,7 +201,7 @@ around start end = emap (split_around start end)
         above m = maybe m (\(pos, evt) -> Map.insert pos evt m)
             (Map.min post)
 
--- *** [Event]
+-- *** List [Event]
 
 -- | Return the events before the given @pos@, and the events at and after it.
 split :: ScoreTime -> Events -> ([Event.Event], [Event.Event])

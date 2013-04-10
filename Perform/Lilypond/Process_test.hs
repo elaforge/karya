@@ -1,6 +1,5 @@
 module Perform.Lilypond.Process_test where
 import Util.Test
-import qualified Ui.UiTest as UiTest
 import qualified Derive.TrackLang as TrackLang
 import qualified Perform.Lilypond.Constants as Constants
 import qualified Perform.Lilypond.LilypondTest as LilypondTest
@@ -60,6 +59,12 @@ test_process = do
     -- Meter change.
     equal (f ["time"] ["2/4", "4/4"] [(0, 6, "a")]) $
         Right "\\time 2/4 a2~ | \\time 4/4 a1"
+
+test_meters = do
+    let f wanted meters = LilypondTest.extract_simple wanted
+            . LilypondTest.process meters . map LilypondTest.simple_event
+    equal (f ["time", "bar"] ["4/4", "3/4", "4/4"] []) $
+        Right "\\time 4/4 R1 | \\time 3/4 R2. | \\time 4/4 R1 \\bar \"|.\""
 
 test_dotted_rests = do
     let f meter = LilypondTest.extract_simple []
