@@ -24,6 +24,33 @@ import qualified Perform.Lilypond.Process as Process
 import Perform.Lilypond.Types
 
 
+-- * config
+
+-- | Lilypond code inserted inside the toplevel paper block.
+paper_config :: [Text.Text]
+paper_config =
+    -- Print page numbers centered at the bottom of the page, instead of
+    -- in the upper right and upper left corners.
+    [ "print-page-number = ##t"
+    , "print-first-page-number = ##t"
+    , "oddHeaderMarkup = \\markup \\null"
+    , "evenHeaderMarkup = \\markup \\null"
+    , "oddFooterMarkup = \\markup {"
+    , "\\fill-line {"
+    , "    \\on-the-fly #print-page-number-check-first"
+    , "    \\fromproperty #'page:page-number-string"
+    , "    }"
+    , "}"
+    , "evenFooterMarkup = \\oddFooterMarkup"
+    ]
+
+-- | Lilypond code inserted inside every staff.
+staff_config :: [Text.Text]
+staff_config =
+    [ "\\numericTimeSignature" -- Use 4/4 and 2/4 instead of C
+    , "\\set Staff.printKeyCancellation = ##f"
+    ]
+
 -- * output
 
 type Title = String
@@ -53,7 +80,10 @@ ly_file config title movements = run_output $ do
         , "\\language" <+> str "english"
         , "\\header { title =" <+> str title <+> "tagline = \"\" }"
         , ""
+        , "\\paper {"
         ]
+    outputs paper_config
+    outputs ["}", ""]
     mapM_ write_movement movements
     where
     write_movement (title, staff_groups) = do
@@ -84,10 +114,7 @@ ly_file config title movements = run_output $ do
     write_staff inst_names maybe_name lys = do
         output $ "\\new Staff " <> maybe "" (("= "<>) . str) maybe_name
             <+> "{\n"
-        outputs
-            [ "\\numericTimeSignature" -- Use 4/4 and 2/4 instead of C
-            , "\\set Staff.printKeyCancellation = ##f"
-            ]
+        outputs staff_config
         when_just inst_names $ \(long, short) -> outputs
             [ ly_set "Staff.instrumentName" long
             , ly_set "Staff.shortInstrumentName" short
