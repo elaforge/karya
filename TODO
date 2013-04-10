@@ -463,7 +463,7 @@ lilypond:
   * Code notes shouldn't break up pitched notes, e.g. I wind up with
     c4~ \code c4, should be c2 \code
     order2, mm37
-  - how to manually flip stem direction? order1, mm17, 4.0.1 right hand
+  * how to manually flip stem direction? order1, mm17, 4.0.1 right hand
     \stemUp \stemDown \stemNeutral
   * add ^( and _( ly calls for slurs with directions:
     c'4^( or c'4_(  ^ up - default _ down
@@ -650,8 +650,6 @@ external
     - read up on how jhc does it
     - ask ghc-users if it's a good idea
     - figure out how to implement pragmas in ghc
-  - add better symbol resolution to haddock
-    document 'qualification' -q flag, add mode to show it as written
 
 use fixed-binary instead of Doubles for ScoreTime and RealTime:
   reasons to do it:

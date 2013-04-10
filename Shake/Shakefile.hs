@@ -653,19 +653,31 @@ makeHaddock :: Config -> Shake.Action ()
 makeHaddock config = do
     hscs <- filter haddock <$> Util.findHs "*.hsc" "."
     hs <- filter haddock <$> Util.findHs "*.hs" "."
-    need $ map (hscToHs (hscDir config)) hscs
+    need $ (buildDir config </> "hsconfig.h")
+        : map (hscToHs (hscDir config)) hscs
     let flags = configFlags config
+    interfaces <- Trans.liftIO getHaddockInterfaces
     system "haddock" $
         [ "--html", "-B", ghcLib config
         , "--source-base=../hscolour/"
         , "--source-module=../hscolour/%{MODULE/.//}.html"
         , "--source-entity=../hscolour/%{MODULE/.//}.html#%{NAME}"
         , "--prologue=doc/prologue"
-        -- This flag crashes ghc 7.0.3
-        -- , "-q", "relative" -- Source references use qualified names.
+        -- Source references qualified names as written in the doc.
+        , "-q", "aliased"
         , "-o", build </> "haddock"
-        ] ++ ["--optghc=" ++ flag | flag <- define flags ++ cInclude flags]
+        ] ++ map ("-i"++) interfaces
+        ++ ["--optghc=" ++ flag | flag <- define flags ++ cInclude flags]
         ++ hs ++ map (hscToHs (hscDir config)) hscs
+
+-- | Get paths to haddock interface files for all the packages.
+getHaddockInterfaces :: IO [String]
+getHaddockInterfaces = do
+    -- ghc-pkg annoyingly provides no way to get a field from a list of
+    -- packages.
+    interfaces <- forM packages $ \package -> Process.readProcess "ghc-pkg"
+        ["field", package, "haddock-interfaces"] ""
+    return $ map (filter (/='\n') . drop 1 . dropWhile (/=' ')) interfaces
 
 -- | Should this module have haddock documentation generated?
 haddock :: FilePath -> Bool
