@@ -222,6 +222,8 @@ save_history cmd_state hist collect uncommitted = do
         { Cmd.state_history = hist
             { Cmd.hist_past = take keep (past ++ Cmd.hist_past hist)
             , Cmd.hist_present = present
+            , Cmd.hist_future = if null entries
+                then Cmd.hist_future hist else []
             , Cmd.hist_last_cmd = Nothing
             }
         , Cmd.state_history_collect = collect
