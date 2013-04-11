@@ -155,24 +155,28 @@ root_from_root_selection = do
     (block_id, _, track_id, pos) <- Selection.get_root_insert
     from_score block_id (Just track_id) pos Nothing
 
--- | Play the root performance from the selection on the current block.
+-- | Play the root performance from the selection on the current block.  If
+-- this block isn't linked from the root, then fall back on 'local_selection'.
 root_from_local_selection :: (Cmd.M m) => m Cmd.PlayMidiArgs
 root_from_local_selection = do
     (block_id, _, track_id, pos) <- Selection.get_insert
     root_id <- State.get_root_id
-    start <- get_realtime root_id block_id (Just track_id) pos
-    from_realtime root_id start Nothing
+    perf <- get_performance root_id
+    maybe local_selection (from_realtime root_id Nothing)
+        =<< Perf.lookup_realtime perf block_id (Just track_id) pos
 
 -- | Find the previous step on the focused block, get its RealTime, and play
--- from the root at that RealTime.
+-- from the root at that RealTime.  If this block isn't linked from the root,
+-- then fall back on 'local_previous'.
 root_previous :: (Cmd.M m) => m Cmd.PlayMidiArgs
 root_previous = do
     (block_id, tracknum, track_id, pos) <- Selection.get_insert
     step <- gets Cmd.state_play_step
     prev <- fromMaybe pos <$> TimeStep.rewind step block_id tracknum pos
     root_id <- State.get_root_id
-    start <- get_realtime root_id block_id (Just track_id) prev
-    from_realtime root_id start Nothing
+    perf <- get_performance root_id
+    maybe local_previous (from_realtime root_id Nothing)
+        =<< Perf.lookup_realtime perf block_id (Just track_id) prev
 
 from_score :: (Cmd.M m) => BlockId
     -> Maybe TrackId -- ^ Track to play from.  Since different tracks can have
@@ -185,7 +189,7 @@ from_score block_id start_track start_pos repeat_at = do
     start <- get_realtime block_id block_id start_track start_pos
     repeat_at <- maybe (return Nothing)
         (fmap Just . get_realtime block_id block_id start_track) repeat_at
-    from_realtime block_id start repeat_at
+    from_realtime block_id repeat_at start
 
 get_realtime :: (Cmd.M m) => BlockId
     -- ^ Lookup realtime according to the performance of this block.
@@ -194,8 +198,7 @@ get_realtime :: (Cmd.M m) => BlockId
     -> Maybe TrackId -> ScoreTime
     -> m RealTime
 get_realtime perf_block play_block maybe_track_id pos = do
-    perf <- Cmd.require_msg ("no performance for block " ++ show perf_block)
-        =<< lookup_current_performance perf_block
+    perf <- get_performance perf_block
     maybe_start <- Perf.lookup_realtime perf play_block maybe_track_id pos
     case maybe_start of
         Nothing -> do
@@ -205,10 +208,15 @@ get_realtime perf_block play_block maybe_track_id pos = do
                 ++ " has no tempo information"
         Just start -> return start
 
+get_performance :: (Cmd.M m) => BlockId -> m Cmd.Performance
+get_performance block_id =
+    Cmd.require_msg ("no performance for block " ++ show block_id)
+        =<< lookup_current_performance block_id
+
 -- | Play the performance of the given block starting from the given time.
-from_realtime :: (Cmd.M m) => BlockId -> RealTime -> Maybe RealTime
+from_realtime :: (Cmd.M m) => BlockId -> Maybe RealTime -> RealTime
     -> m Cmd.PlayMidiArgs
-from_realtime block_id start repeat_at = do
+from_realtime block_id repeat_at start = do
     play_control <- gets Cmd.state_play_control
     when_just play_control $ \_ -> Cmd.throw "player already running"
 

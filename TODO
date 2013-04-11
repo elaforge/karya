@@ -16,7 +16,7 @@ UNSORTED
       may be non-divisible.
     . The problem is that the output is flat, so I can't do nested structures
       like this.
-  - Play from root on a block not reachable from the root should just play
+  * Play from root on a block not reachable from the root should just play
     normally.
   Cmd.Refactor
     * Split a block horizontally: clip below the cursor, and create a new block
