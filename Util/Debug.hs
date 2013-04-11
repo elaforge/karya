@@ -1,7 +1,7 @@
 module Util.Debug (
     -- * forced by evaluation
     trace, tracep, tracep_full, traces, traceps
-    , tracef, trace_ret
+    , tracef, trace_ret, trace_retp
     -- * forced by monad
     , traceM, tracepM, tracepM_full, tracesM
     -- in IO
@@ -52,6 +52,13 @@ trace_ret function a ret = traces (function ++ " " ++ pa ++ arrow ++ pret) ret
     arrow = if '\n' `elem` pa || '\n' `elem` pret then "\t\t=>\n" else " => "
     pa = pshow a
     pret = pshow ret
+
+trace_retp :: (Pretty.Pretty a, Pretty.Pretty b) => String -> a -> b -> b
+trace_retp function a ret = traces (function ++ " " ++ pa ++ arrow ++ pret) ret
+    where
+    arrow = if '\n' `elem` pa || '\n' `elem` pret then "\t\t=>\n" else " => "
+    pa = Pretty.formatted a
+    pret = Pretty.formatted ret
 
 -- * forced by monad
 
