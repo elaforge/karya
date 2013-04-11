@@ -296,6 +296,8 @@ note_calls = Derive.make_calls
     , ("ly->", c_diminuendo)
     , ("ly^", c_ly_text_above)
     , ("ly_", c_ly_text_below)
+    , ("ly-(", c_ly_begin_slur)
+    , ("ly-)", c_ly_end_slur)
     , ("ly-pre", c_ly_pre)
     , ("ly-post", c_ly_post)
     , ("ly-key", c_ly_key)
@@ -458,6 +460,18 @@ c_ly_text_below = code_call "ly-text-below" "Attach text below the note."
     (required "text" "Text to attach.  Double quotes can be omitted.") $
     (return . (,) SuffixFirst . ('_':) . lily_str)
 
+c_ly_begin_slur :: Derive.NoteCall
+c_ly_begin_slur = code_call "ly-begin-slur"
+    "Begin a slur. The normal slur transformer doesn't work in some cases,\
+    \ for instance inside tuplets." Sig.no_args $
+    \() -> return (SuffixFirst, "(")
+
+c_ly_end_slur :: Derive.NoteCall
+c_ly_end_slur = code_call "ly-end-slur"
+    "End a slur. The normal slur transformer doesn't work in some cases,\
+    \ for instance inside tuplets." Sig.no_args $
+    \() -> return (SuffixLast, ")")
+
 lily_str :: String -> String
 lily_str = Types.to_lily
 
@@ -468,7 +482,7 @@ c_ly_pre = code0_call "ly-pre"
     \code -> return (Prefix, '\\' : code)
 
 c_ly_post :: Derive.NoteCall
-c_ly_post = code0_call "ly-pre"
+c_ly_post = code0_call "ly-post"
     "Emit arbitrary lilypond code that will go after concurrent notes."
     (required "code" "A leading \\ will be prepended.") $
     \code -> return (SuffixAll, '\\' : code)

@@ -106,6 +106,12 @@ test_ly_text = do
             (">", [(0, 0, "ly_ hi")]) : UiTest.regular_notes 1)
         (Right "a'4_\"hi\" r4 r2", [])
 
+test_ly_slur = do
+    let run = LilypondTest.derive_measures []
+    equal (run $ UiTest.note_track
+            [(0, 2, "ly-( | -- 3a"), (2, 6, "ly-) | -- 3b")])
+        (Right "a2( b2~ | b1)", [])
+
 measures_linear :: [String] -> [UiTest.TrackSpec]
     -> (Either String String, [String])
 measures_linear wanted =

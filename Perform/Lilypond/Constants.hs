@@ -16,9 +16,13 @@ v_hand = TrackLang.Symbol "hand"
 v_voice :: TrackLang.ValName
 v_voice = TrackLang.Symbol "voice"
 
--- | String: prepend this lilypond code to the note.  If the note has
--- 0 duration, it's a freestanding expression and should go before notes
--- starting at the same time.
+-- * code fragments
+
+-- | String: prepend this lilypond code to the note.  If the event has
+-- 0 duration, its pitch will be ignored and it's a freestanding code fragment
+-- and will preceed notes starting at the same time.  If the event has no
+-- pitch then its also considered a freestanding code fragment, but will
+-- occupy the given amount of duration.
 v_ly_prepend :: TrackLang.ValName
 v_ly_prepend = TrackLang.Symbol "ly-prepend"
 

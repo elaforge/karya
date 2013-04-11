@@ -3,6 +3,15 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
+  * Can't put a slur on a tuplet.  Can I do it by appending ( and ) directly
+    to the notes, as with xstaff?
+    It could also work if tuplet could reach inside the tuplet to stick
+    something on the notes inside.  Then it has to emit as
+    prefix+note, note, note+suffix rather than just one code chunk.
+    . Duration is problematic.  I can't give each note a duration, because it
+      may be non-divisible.
+    . The problem is that the output is flat, so I can't do nested structures
+      like this.
   - Play from root on a block not reachable from the root should just play
     normally.
   Cmd.Refactor

@@ -68,44 +68,45 @@ test_tuplet_multiple_tracks = do
 test_tuplet_ly = do
     let run = LilypondTest.measures ["times", "acciaccatura"]
             . LilypondTest.derive_linear
-        pitches = map ('4':) (map (:"") "abcdefg")
+        pitches = map ('3':) (map (:"") "abcdefg")
+        notes dur ts =
+            UiTest.note_track [(t, dur, p) | (t, p) <- zip ts pitches]
 
     -- The tuplet is not confused by a pitch already being in scope.
     equal (run $
-        ("*", [(0, 0, "3c")]) : (">", [(0, 2, "t")]) : UiTest.note_track
-            [(t, 0.5, p) | (t, p) <- zip (Seq.range 0 1 0.5) pitches])
-        (Right "\\times 2/3 { a'4 b'4 c'4 } r2", [])
-    equal (run $
-        (">", [(2, 2, "t")]) : UiTest.note_track
-            [(t, 0.5, p) | (t, p) <- zip (Seq.range 2 3 0.5) pitches])
-        (Right "r2 \\times 2/3 { a'4 b'4 c'4 }", [])
-    equal (run $
-        (">", [(0, 2, "t")]) : UiTest.note_track
-            [(t, 0.25, p) | (t, p) <- zip (Seq.range 0 1.25 0.25) pitches])
-        (Right "\\times 4/6 { a'8 b'8 c'8 d'8 e'8 f'8 } r2", [])
+        ("*", [(0, 0, "3c")]) : (">", [(0, 2, "t")]) : notes 0.5 [0, 0.5, 1])
+        (Right "\\times 2/3 { a4 b4 c4 } r2", [])
+    equal (run $ (">", [(2, 2, "t")]) : notes 0.5 [2, 2.5, 3])
+        (Right "r2 \\times 2/3 { a4 b4 c4 }", [])
+    equal (run $ (">", [(0, 2, "t")]) : notes 0.25 (Seq.range 0 1.25 0.25))
+        (Right "\\times 4/6 { a8 b8 c8 d8 e8 f8 } r2", [])
 
-    equal (run $
-        (">", [(0, 4, "t")]) : UiTest.note_track
-            [(t, 0.5, p) | (t, p) <- zip (Seq.range 0 2 0.5) pitches])
-        (Right "\\times 4/5 { a'4 b'4 c'4 d'4 e'4 }", [])
-    equal (run $
-        (">", [(0, 2, "t")]) : UiTest.note_track
-            [(t, 0.25, p) | (t, p) <- zip (Seq.range 0 1 0.25) pitches])
-        (Right "\\times 4/5 { a'8 b'8 c'8 d'8 e'8 } r2", [])
+    equal (run $ (">", [(0, 4, "t")]) : notes 0.5 (Seq.range 0 2 0.5))
+        (Right "\\times 4/5 { a4 b4 c4 d4 e4 }", [])
+    equal (run $ (">", [(0, 2, "t")]) : notes 0.25 (Seq.range 0 1 0.25))
+        (Right "\\times 4/5 { a8 b8 c8 d8 e8 } r2", [])
+
     -- Ensure Lily.note_pitch preserves enharmonics.
     equal (run $
         (">", [(0, 2, "t")]) : UiTest.note_track
             [(t, 0.5, p) | (t, p) <- zip (Seq.range 0 1 0.5)
-                ["4c#", "4db", "4cx"]])
-        (Right "\\times 2/3 { cs'4 df'4 css'4 } r2", [])
+                ["3c#", "3db", "3cx"]])
+        (Right "\\times 2/3 { cs4 df4 css4 } r2", [])
 
     -- Grace notes nested inside a tuplet work.
     equal (run
         [ (">", [(0, 2, "t")])
-        , (">", [(0, 1, "g (4c) (4b)"), (1, 1, "")])
-        , ("*", [(0, 0, "4a"), (1, 0, "4b")])
+        , (">", [(0, 1, "g (3c) (3b)"), (1, 1, "")])
+        , ("*", [(0, 0, "3a"), (1, 0, "3b")])
         ])
-        (Right "\\times 1/2 { \\acciaccatura { c'8[ b'8] } a'2 b'2 } r2", [])
+        (Right "\\times 1/2 { \\acciaccatura { c8[ b8] } a2 b2 } r2", [])
+
+    -- Slur inside a tuplet.
+    equal (run $
+        (">", [(0, 2, "t")]) : UiTest.note_track
+            [ (0, 0.5, "3a"), (0.5, 0.5, "ly-( | -- 3b"), (1, 0.5, "3c"),
+                (2, 1, "ly-) | -- 3d")])
+        (Right "\\times 2/3 { a4 b4( c4 } d4) r4", [])
 
 test_arpeggio = do
     let run = DeriveTest.extract_events DeriveTest.e_note
