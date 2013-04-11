@@ -13,7 +13,6 @@ import qualified Cmd.MidiThru as MidiThru
 import qualified Cmd.Msg as Msg
 import qualified Cmd.NoteEntry as NoteEntry
 import qualified Cmd.NoteTrack as NoteTrack
-import qualified Cmd.Selection as Selection
 
 import qualified Derive.Call.Note as Note
 import qualified Derive.Call.Util as Call.Util
@@ -68,7 +67,7 @@ inst_keymaps inputs = \msg -> do
 keymap_down :: (Cmd.M m) => Maybe Score.Instrument -> String -> Midi.Key -> m ()
 keymap_down maybe_inst note key = do
     whenM Cmd.is_val_edit $ suppressed $ do
-        pos <- Selection.get_insert_pos
+        pos <- EditUtil.get_pos
         NoteTrack.modify_event_at pos False True $ const (Just note, True)
     MidiThru.channel_messages maybe_inst True [Midi.NoteOn key 64]
     where suppressed = Cmd.suppress_history Cmd.ValEdit ("keymap: " ++ note)

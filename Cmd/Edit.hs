@@ -448,7 +448,7 @@ insert_recent :: (Cmd.M m) => Cmd.RecentNote -> m ()
 insert_recent (Cmd.RecentNote recent zero_dur) =
     EditUtil.modify_event zero_dur True (const (Just recent, True))
 insert_recent (Cmd.RecentTransform recent zero_dur) = do
-    pos <- Selection.get_insert_pos
+    pos <- EditUtil.get_pos
     EditUtil.modify_event_at pos zero_dur False $
         (\s -> (Just (replace s), True)) . fromMaybe ""
     where

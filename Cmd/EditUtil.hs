@@ -26,6 +26,18 @@ import qualified Perform.Pitch as Pitch
 import Types
 
 
+-- | block tracknum start duration
+data Pos = Pos !BlockId !TrackNum !TrackTime !TrackTime
+    deriving (Eq, Show)
+
+get_pos :: (Cmd.M m) => m Pos
+get_pos = do
+    (view_id, sel) <- Selection.get
+    block_id <- State.block_id_of view_id
+    let (start, end) = Types.sel_range sel
+    return $ Pos block_id (Selection.point_track sel) (Selection.point sel)
+        (end - start)
+
 -- * raw edit
 
 raw_edit :: Bool -> Cmd.Cmd
@@ -63,39 +75,41 @@ type Modify = Maybe String
 
 modify_event :: (Cmd.M m) => Bool -> Bool -> Modify -> m ()
 modify_event zero_dur modify_dur f = do
-    pos <- Selection.get_insert_pos
+    pos <- get_pos
     modify_event_at pos zero_dur modify_dur f
 
-modify_event_at :: (Cmd.M m) => State.Pos
-    -> Bool -- ^ Created event has 0 dur, otherwise until next time step.
+modify_event_at :: (Cmd.M m) => Pos
+    -> Bool -- ^ Created event has 0 dur, otherwise it's the duration of the
+    -- selection, or until next time step if the selection has 0 duration.
     -> Bool -- ^ If True, modify the duration of an existing event.
     -> Modify -> m ()
-modify_event_at (State.Pos block_id tracknum pos) zero_dur modify_dur f = do
+modify_event_at (Pos block_id tracknum start dur) zero_dur modify_dur f = do
     direction <- Cmd.gets (Cmd.state_note_direction . Cmd.state_edit)
     dur <- if zero_dur
         then return $ if direction == TimeStep.Advance then 0 else -0
+        else if dur > 0 then return dur
         else do
             step <- Cmd.gets (Cmd.state_note_duration . Cmd.state_edit)
-            end <- Selection.step_from tracknum pos direction step
-            return (end - pos)
+            end <- Selection.step_from tracknum start direction step
+            return (end - start)
     track_id <- State.get_event_track_at block_id tracknum
-    (event, created) <- get_event modify_dur track_id pos dur
+    (event, created) <- get_event modify_dur track_id start dur
     -- TODO I could have the modifier take Text, if it were worth it.
     let (val, advance) = f $
             if created then Nothing else Just (Event.event_string event)
     case val of
-        Nothing -> State.remove_event track_id pos
+        Nothing -> State.remove_event track_id start
         Just new_text -> State.insert_event track_id
             (Event.set_string new_text event)
     when advance Selection.advance
 
 remove_event :: (Cmd.M m) => Bool -> m ()
 remove_event advance = do
-    pos <- Selection.get_insert_pos
+    pos <- get_pos
     remove_event_at pos advance
 
 -- | Special case of 'modify_event_at' to only remove events.
-remove_event_at :: (Cmd.M m) => State.Pos -> Bool -> m ()
+remove_event_at :: (Cmd.M m) => Pos -> Bool -> m ()
 remove_event_at pos advance =
     modify_event_at pos False False (const (Nothing, advance))
 

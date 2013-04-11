@@ -24,12 +24,12 @@ UNSORTED
     * Split a block vertically: delete tracks and create a new block with those
       tracks.
     - implementation for ^B, factor out selection
-  - select range, then create event with e.g. raw edit.  Event duration should
+  * select range, then create event with e.g. raw edit.  Event duration should
     be to selected range.
   - Data.Text for call docs
   * if I do ^t to the left of a divider, the created track doesn't have
     a ruler
-  - Track add bindings are hard to use.
+  * Track add bindings are hard to use.
     cmd-t -> add track to right
     cmd-T -> add branch to right
     cmd-h -> splice track to right

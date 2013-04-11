@@ -387,11 +387,6 @@ type AnyPoint = (BlockId, TrackNum, ScoreTime)
 get_insert :: (Cmd.M m) => m Point
 get_insert = Cmd.require =<< lookup_insert
 
-get_insert_pos :: (Cmd.M m) => m State.Pos
-get_insert_pos = do
-    (block_id, tracknum, _, pos) <- get_insert
-    return $ State.Pos block_id tracknum pos
-
 lookup_insert :: (Cmd.M m) => m (Maybe Point)
 lookup_insert = fmap (fmap snd) $ lookup_selnum_insert Config.insert_selnum
 
@@ -416,8 +411,7 @@ lookup_any_selnum_insert :: (Cmd.M m) => Types.SelNum
 lookup_any_selnum_insert selnum =
     justm (lookup_selnum selnum) $ \(view_id, sel) -> do
         block_id <- State.block_id_of view_id
-        return $ Just
-            (view_id, (block_id, point_track sel, point sel))
+        return $ Just (view_id, (block_id, point_track sel, point sel))
 
 -- | Given a block, get the selection on it, if any.  If there are multiple
 -- views, take the one with the alphabetically first ViewId.

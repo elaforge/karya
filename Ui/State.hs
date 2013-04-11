@@ -29,8 +29,8 @@ module Ui.State (
     , Default(..)
     , scale, key, instrument, tempo
     , empty_config, empty_meta, empty_default
-    -- * other types
-    , Pos(..), Track(..), Range(..), TrackInfo(..)
+    -- * address types
+    , Track(..), Range(..), TrackInfo(..)
     -- * StateT monad
     , M, StateT, StateId, get, unsafe_put, update, get_updates, throw
     , run, run_id, eval, eval_rethrow, exec, exec_rethrow
@@ -262,18 +262,6 @@ empty_default = Default {
     }
 
 -- * address types
-
--- These are types not necessarily used directly in this module, but are
--- generic types used by users of this module.
-
--- | Address a position on a track.  Usually functions take the parameters
--- separately, but this is more convenient when a position is passed around.
-data Pos = Pos !BlockId !TrackNum !TrackTime
-    deriving (Eq, Show)
-
-instance Pretty.Pretty Pos where
-    pretty (Pos block_id tracknum pos) = Pretty.pretty block_id ++ "/"
-        ++ show tracknum ++ "/" ++ Pretty.pretty pos
 
 -- | Address a track in a block.  This is similar to a TrackId, except it
 -- doesn't guarantee that the track is an event track.

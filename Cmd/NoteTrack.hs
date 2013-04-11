@@ -56,7 +56,7 @@ import Types
 cmd_raw_edit :: Cmd.Cmd
 cmd_raw_edit msg = Cmd.suppress_history Cmd.RawEdit "note track raw edit" $ do
     EditUtil.fallthrough msg
-    pos <- Selection.get_insert_pos
+    pos <- EditUtil.get_pos
     case msg of
         Msg.InputNote (InputNote.NoteOn _ key _) -> do
             note <- EditUtil.parse_key key
@@ -90,12 +90,12 @@ data ControlTrack = ControlTrack {
 cmd_val_edit :: Cmd.Cmd
 cmd_val_edit msg = Cmd.suppress_history Cmd.ValEdit "note track val edit" $ do
     EditUtil.fallthrough msg
-    (block_id, sel_tracknum, _, pos) <- Selection.get_insert
+    EditUtil.Pos block_id sel_tracknum pos dur <- EditUtil.get_pos
     case msg of
         Msg.InputNote input_note -> case input_note of
             InputNote.NoteOn note_id key vel -> do
                 note <- EditUtil.parse_key key
-                note_on block_id sel_tracknum pos note_id note vel
+                note_on block_id sel_tracknum pos dur note_id note vel
             InputNote.PitchChange note_id key -> do
                 (pitch_tracknum, track_id) <- Cmd.require_msg
                     ("no track for note_id " ++ show note_id)
@@ -105,7 +105,7 @@ cmd_val_edit msg = Cmd.suppress_history Cmd.ValEdit "note track val edit" $ do
                 -- the pitch's position, so look for a previous event.
                 pos <- event_at_or_before track_id pos
                 PitchTrack.val_edit_at
-                    (State.Pos block_id pitch_tracknum pos) note
+                    (EditUtil.Pos block_id pitch_tracknum pos dur) note
             InputNote.NoteOff note_id _vel -> do
                 dissociate_note_id note_id
                 chord_done <- andM [get_state Cmd.state_chord, all_keys_up]
@@ -115,18 +115,17 @@ cmd_val_edit msg = Cmd.suppress_history Cmd.ValEdit "note track val edit" $ do
             InputNote.Control {} -> return ()
         (Msg.key_down -> Just Key.Backspace) -> do
             EditUtil.remove_event_at
-                (State.Pos block_id sel_tracknum pos) False
+                (EditUtil.Pos block_id sel_tracknum pos 0) False
             -- Clear out the pitch track too.
             maybe_pitch <- Info.pitch_of_note block_id sel_tracknum
-            when_just maybe_pitch $ \pitch ->
-                EditUtil.remove_event_at
-                    (State.Pos block_id (State.track_tracknum pitch) pos) False
+            when_just maybe_pitch $ \pitch -> EditUtil.remove_event_at
+                (EditUtil.Pos block_id (State.track_tracknum pitch) pos 0) False
             Selection.advance
         _ -> Cmd.abort
     return Cmd.Done
     where
     -- NoteOn handling is especially complicated.
-    note_on block_id sel_tracknum pos note_id note vel = do
+    note_on block_id sel_tracknum pos dur note_id note vel = do
         chord_mode <- get_state Cmd.state_chord
         -- Pitch track.
         (ctrack, create) <- if chord_mode
@@ -139,7 +138,7 @@ cmd_val_edit msg = Cmd.suppress_history Cmd.ValEdit "note track val edit" $ do
         when create $ create_pitch_track block_id ctrack
         associate_note_id block_id (track_control ctrack) note_id
         PitchTrack.val_edit_at
-            (State.Pos block_id (track_control ctrack) pos) note
+            (EditUtil.Pos block_id (track_control ctrack) pos 0) note
 
         -- Dyn track.
         whenM (get_state Cmd.state_record_velocity) $ do
@@ -149,10 +148,10 @@ cmd_val_edit msg = Cmd.suppress_history Cmd.ValEdit "note track val edit" $ do
                 else this_control_track block_id sel_tracknum is_dyn
             when create $ create_dyn_track block_id dtrack
             ControlTrack.val_edit_at
-                (State.Pos block_id (track_control dtrack) pos) vel
+                (EditUtil.Pos block_id (track_control dtrack) pos 0) vel
 
         -- Create note and advance.
-        ensure_note_event (State.Pos block_id (track_note ctrack) pos)
+        ensure_note_event (EditUtil.Pos block_id (track_note ctrack) pos dur)
         advance_mode <- get_state Cmd.state_advance
         when (advance_mode && not chord_mode) Selection.advance
 
@@ -264,8 +263,8 @@ cmd_method_edit msg = Cmd.suppress_history Cmd.MethodEdit
                 TrackInfo.is_pitch_track
             when create $ create_pitch_track block_id ctrack
             PitchTrack.method_edit_at
-                (State.Pos block_id (track_control ctrack) pos) key
-            ensure_note_event (State.Pos block_id (track_note ctrack) pos)
+                (EditUtil.Pos block_id (track_control ctrack) pos 0) key
+            ensure_note_event (EditUtil.Pos block_id (track_note ctrack) pos 0)
         _ -> Cmd.abort
     return Cmd.Done
 
@@ -303,7 +302,7 @@ create_dyn_track block_id (ControlTrack note dyn) = do
 
 -- | Ensure that a note event exists at the given spot.  An existing event is
 -- left alone, but if there is no existing event a new one will be created.
-ensure_note_event :: (Cmd.M m) => State.Pos -> m ()
+ensure_note_event :: (Cmd.M m) => EditUtil.Pos -> m ()
 ensure_note_event pos = do
     txt <- Cmd.gets (Cmd.state_note_text . Cmd.state_edit)
     modify_event_at pos False False $
@@ -317,7 +316,7 @@ triggered_inst (Just inst) =
     maybe False (Instrument.has_flag Instrument.Triggered . MidiDb.info_patch)
         <$> Cmd.lookup_instrument inst
 
-modify_event_at :: (Cmd.M m) => State.Pos -> Bool -> Bool
+modify_event_at :: (Cmd.M m) => EditUtil.Pos -> Bool -> Bool
     -> EditUtil.Modify -> m ()
 modify_event_at pos zero_dur modify_dur f = do
     trigger_inst <- triggered_inst =<< EditUtil.lookup_instrument

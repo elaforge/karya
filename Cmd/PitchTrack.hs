@@ -12,8 +12,6 @@ import qualified Util.Then as Then
 
 import qualified Ui.Event as Event
 import qualified Ui.Key as Key
-import qualified Ui.State as State
-
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.ControlTrack as ControlTrack
 import Cmd.ControlTrack (Event(..))
@@ -44,13 +42,13 @@ cmd_val_edit msg = Cmd.suppress_history Cmd.ValEdit "pitch track val edit" $ do
     EditUtil.fallthrough msg
     case msg of
         Msg.InputNote (InputNote.NoteOn _ key _) -> do
-            pos <- Selection.get_insert_pos
+            pos <- EditUtil.get_pos
             note <- EditUtil.parse_key key
             val_edit_at pos note
             whenM (Cmd.gets (Cmd.state_advance . Cmd.state_edit))
                 Selection.advance
         Msg.InputNote (InputNote.PitchChange _ key) -> do
-            pos <- Selection.get_insert_pos
+            pos <- EditUtil.get_pos
             note <- EditUtil.parse_key key
             val_edit_at pos note
         (Msg.key_down -> Just (Key.Char '\'')) -> EditUtil.soft_insert "'"
@@ -64,16 +62,16 @@ cmd_method_edit msg = Cmd.suppress_history Cmd.MethodEdit
     EditUtil.fallthrough msg
     case msg of
         (EditUtil.method_key -> Just key) -> do
-            pos <- Selection.get_insert_pos
+            pos <- EditUtil.get_pos
             method_edit_at pos key
         _ -> Cmd.abort
     return Cmd.Done
 
-val_edit_at :: (Cmd.M m) => State.Pos -> Pitch.Note -> m ()
+val_edit_at :: (Cmd.M m) => EditUtil.Pos -> Pitch.Note -> m ()
 val_edit_at pos note = modify_event_at pos $ \event ->
     (Just $ event { event_val = Pitch.note_text note }, False)
 
-method_edit_at :: (Cmd.M m) => State.Pos -> EditUtil.Key -> m ()
+method_edit_at :: (Cmd.M m) => EditUtil.Pos -> EditUtil.Key -> m ()
 method_edit_at pos key = modify_event_at pos $ \event ->
     (Just $ event { event_method = fromMaybe "" $
             EditUtil.modify_text_key [] key (event_method event) },
@@ -94,7 +92,7 @@ cmd_record_note_status msg = do
 -- | old_event -> (new_event, advance?)
 type Modify = Event -> (Maybe Event, Bool)
 
-modify_event_at :: (Cmd.M m) => State.Pos -> Modify -> m ()
+modify_event_at :: (Cmd.M m) => EditUtil.Pos -> Modify -> m ()
 modify_event_at pos f = EditUtil.modify_event_at pos True True
     (first (fmap unparse) . f . parse . fromMaybe "")
 

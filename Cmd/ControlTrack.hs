@@ -4,7 +4,6 @@ import qualified Data.ByteString.Char8 as ByteString.Char8
 
 import Util.Control
 import qualified Ui.Key as Key
-import qualified Ui.State as State
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.EditUtil as EditUtil
 import qualified Cmd.InputNote as InputNote
@@ -38,7 +37,7 @@ cmd_val_edit msg = suppress "control track val edit" $ do
     where
     suppress = Cmd.suppress_history Cmd.ValEdit
     insert_val control_input val = do
-        pos <- Selection.get_insert_pos
+        pos <- EditUtil.get_pos
         val_edit_at pos val
         -- Never advance for control input, because there are usually a lot
         -- of those at once.
@@ -120,7 +119,7 @@ cmd_method_edit msg =
 
 -- * implementation
 
-val_edit_at :: (Cmd.M m) => State.Pos -> Signal.Y -> m ()
+val_edit_at :: (Cmd.M m) => EditUtil.Pos -> Signal.Y -> m ()
 val_edit_at pos val = modify_event_at pos $ \event ->
     (Just $ event { event_val = ShowVal.show_hex_val val }, False)
 
@@ -143,10 +142,10 @@ type Modify = Event -> (Maybe Event, Bool)
 
 modify_event :: (Cmd.M m) => Modify -> m ()
 modify_event f = do
-    pos <- Selection.get_insert_pos
+    pos <- EditUtil.get_pos
     modify_event_at pos f
 
-modify_event_at :: (Cmd.M m) => State.Pos -> Modify -> m ()
+modify_event_at :: (Cmd.M m) => EditUtil.Pos -> Modify -> m ()
 modify_event_at pos f = EditUtil.modify_event_at pos True True
     (first (fmap unparse) . f . parse . fromMaybe "")
 
