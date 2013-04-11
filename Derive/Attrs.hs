@@ -1,6 +1,20 @@
--- | A common library of attributes for instrument definitians.
---
--- This is meant to be imported unqualified.
+{- | A common library of attributes for instrument definitians.
+
+    Usually attributes act like tags in that they all get combined into one
+    'Attributes' set.  This makes sense in some cases, but not all.  For
+    example, +mute and +cresc can be usefully combined, you could imagine
+    applying +mute to the entire melody and wanting that to combine with
+    individual articulations within.  But +pizz_right is an articulation on its
+    own, and it doesn't really make sense to, e.g. put +right a melody by
+    itself.
+
+    And of course since attributes are all mashed into one set, the information
+    about which ones were applied together is lost.  For example, I think it's
+    impossible for the lilypond backend to figure how to notate +pizz+right
+    inside of +pizz since right-hand pizz is applied as a per-note
+    articulation, while plain pizz is a mode.  But it's trivial if the
+    attribute is +pizz-right instead.
+-}
 module Derive.Attrs (module Derive.Attrs, Attributes) where
 import qualified Derive.Score as Score
 import Derive.Score (Attributes, attr)
@@ -50,6 +64,7 @@ whole = attr "whole"
 -- * strings
 
 pizz = attr "pizz" -- pizzicato
+pizz_right = attr "pizz-right"
 snap = attr "snap" -- snap pizz, aka Bartok pizz
 harm = attr "harm"
 

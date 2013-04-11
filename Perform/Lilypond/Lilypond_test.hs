@@ -149,12 +149,9 @@ test_attributes = do
         (Right "a'4-+ b'4-\\flageolet c'4 r4", [])
 
 test_modal_attributes = do
-    let f = LilypondTest.derive_measures []
-    equal (f
-        [ (">", [(0, 1, "+pizz"), (1, 1, "+pizz"), (2, 1, "")])
-        , ("*", [(0, 0, "4c")])
-        ])
-        (Right "c'4^\"pizz.\" c'4 c'4^\"arco\" r4", [])
+    let f = LilypondTest.derive_measures [] . (:[("*", [(0, 0, "3c")])])
+    equal (f (">", [(0, 1, "+pizz"), (1, 1, "+pizz"), (2, 1, "")]))
+        (Right "c4^\"pizz.\" c4 c4^\"arco\" r4", [])
 
 test_prepend_append = do
     let f = LilypondTest.derive_measures ["p", "mf"]
