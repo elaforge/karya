@@ -27,7 +27,9 @@ test_parse_expr = do
 
     -- Any word in call position is a symbol.
     equal (f "4") $ Right [Call (Symbol "4") []]
+    equal (f "()") $ Right [Call (Symbol "()") []]
     equal (f "4 4") $ Right [Call (Symbol "4") [Literal (vnum 4)]]
+    equal (f "4 (4)") $ Right [Call (Symbol "4") [val_call "4" []]]
     -- So the only way to have a null call is a null expression.
     equal (f "") $ Right [Call (Symbol "") []]
 

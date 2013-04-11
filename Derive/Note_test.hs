@@ -65,7 +65,7 @@ test_c_note = do
     equal evts []
     strings_like logs ["expected Instrument or RelativeAttrs"]
 
-    let (evts, logs) = run ">i" [(0, 1, ")parse/error")]
+    let (evts, logs) = run ">i" [(0, 1, "x (")]
     equal evts []
     strings_like logs ["parse error"]
 

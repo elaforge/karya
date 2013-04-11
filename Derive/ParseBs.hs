@@ -154,7 +154,7 @@ p_pipeline = do
     return $ c :| cs
 
 p_expr :: A.Parser TrackLang.Call
-p_expr = A.try p_equal <|> A.try p_call <|> p_null_call
+p_expr = A.try p_equal <|> A.try (p_call True) <|> p_null_call
 
 p_pipe :: A.Parser ()
 p_pipe = void $ lexeme (A.char '|')
@@ -169,8 +169,9 @@ p_equal = do
     a2 <- p_term
     return $ TrackLang.Call TrackLang.c_equal [TrackLang.Literal a1, a2]
 
-p_call :: A.Parser TrackLang.Call
-p_call = TrackLang.Call <$> lexeme p_call_symbol <*> A.many p_term
+p_call :: Bool -> A.Parser TrackLang.Call
+p_call toplevel =
+    TrackLang.Call <$> lexeme (p_call_symbol toplevel) <*> A.many p_term
 
 p_null_call :: A.Parser TrackLang.Call
 p_null_call = return (TrackLang.Call (TrackLang.Symbol "") []) <?> "null call"
@@ -178,15 +179,17 @@ p_null_call = return (TrackLang.Call (TrackLang.Symbol "") []) <?> "null call"
 -- | Any word in call position is considered a Symbol.  This means that
 -- you can have calls like @4@ and @>@, which are useful names for notes or
 -- ornaments.
-p_call_symbol :: A.Parser TrackLang.Symbol
-p_call_symbol = TrackLang.Symbol . to_string <$> p_word
+p_call_symbol :: Bool -- ^ A call at the top level can allow a ).
+    -> A.Parser TrackLang.Symbol
+p_call_symbol toplevel = TrackLang.Symbol . to_string <$>
+    (if toplevel then A.takeWhile1 (/=' ') else p_word)
 
 p_term :: A.Parser TrackLang.Term
 p_term = lexeme $
     TrackLang.Literal <$> p_val <|> TrackLang.ValCall <$> p_sub_call
 
 p_sub_call :: A.Parser TrackLang.Call
-p_sub_call = Parse.between (A.char '(') (A.char ')') p_call
+p_sub_call = Parse.between (A.char '(') (A.char ')') (p_call False)
 
 p_val :: A.Parser TrackLang.Val
 p_val =
