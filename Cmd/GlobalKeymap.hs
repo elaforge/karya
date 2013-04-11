@@ -360,7 +360,7 @@ create_bindings = concat
     [ command_char 'n' "insert track right" Create.insert_track_right
     , command_char 't' "splice track below" Create.splice_below
     , command_char 'T' "insert branch" Create.insert_branch
-    -- , command_char 'h' "splice track above" Create.splice_above
+    , command_char 'h' "splice track above" Create.splice_above
     , command_char 'H' "splice track above ancestors"
         Create.splice_above_ancestors
     , command_char 'd' "delete tracks" Create.destroy_selected_tracks

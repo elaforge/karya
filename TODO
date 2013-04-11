@@ -3,6 +3,10 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
+  - ^T should expand the window size just like ^t does
+  * if I have [(1, 2), (1, 3)], how do I add to make [(1, 2), (2, 3), (1, 4)]?
+    Insert right wants to make [(1, 2), (2, 3), (2, 4)].
+  - git should save window moves and track resizes
   * Can't put a slur on a tuplet.  Can I do it by appending ( and ) directly
     to the notes, as with xstaff?
     It could also work if tuplet could reach inside the tuplet to stick

@@ -262,14 +262,16 @@ splice_below = do
     State.splice_skeleton_below block_id tracknum sel_tracknum
     return track_id
 
-{-
 splice_above :: (Cmd.M m) => m TrackId
 splice_above = do
+    -- This doesn't need to avoid a merged track like 'splice_below', because
+    -- it inserts to the left.
     (block_id, tracknum, _, _) <- Selection.get_insert
-    track_id <- empty_track block_id tracknum
+    track_id <- focused_track block_id tracknum
     State.splice_skeleton_above block_id tracknum (tracknum+1)
     return track_id
 
+{-
 -- | Create a track and make it parent to the current one along with its
 -- siblings.  If the selected track has no parent, the new track will become
 -- parent to all toplevel tracks and be placed at tracknum 1.  Otherwise, it
@@ -300,10 +302,6 @@ splice_above_all = do
 -- | Get the ancestors (topmost parents) of the selected tracks and create
 -- a parent track to them.  It will be inserted to the left of the leftmost
 -- ancestor.
---
--- I don't think I need @splice_above@ because I can do the same with
--- 'splice_below', unless it's the leftmost track, in which case it probably is
--- also an ancestor, so 'splice_above_ancestors' will work.
 splice_above_ancestors :: (Cmd.M m) => m TrackId
 splice_above_ancestors = do
     (block_id, tracknums, _, _, _) <- Selection.tracks
