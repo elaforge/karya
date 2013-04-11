@@ -322,6 +322,7 @@ insert_branch :: (Cmd.M m) => m ()
 insert_branch = do
     (block_id, tracknum, _, _) <- Selection.get_insert
     insert_branch_from block_id tracknum
+    embiggen =<< Cmd.get_focused_view
 
 -- | Insert tracks using the given one and its children as a template.
 -- If the source track has a parent, the new tracks are spliced below its
@@ -346,8 +347,7 @@ insert_branch_from block_id source = do
     append_below tracknum track_node = do
         forM_ tracks $ \(n, title) -> track block_id n title mempty
         State.add_edges block_id skel
-        where
-        (tracks, skel) = make_tracks tracknum [track_node]
+        where (tracks, skel) = make_tracks tracknum [track_node]
     rightmost :: TrackTree.TrackTree -> Int
     rightmost = List.foldl' max 0
         . map (Foldable.foldl' (\x -> max x . State.track_tracknum) 0)
@@ -394,13 +394,18 @@ focused_track block_id tracknum = do
     -- This " " is a hack to tell fltk to set keyboard focus.
     track_id <- track block_id tracknum " " Events.empty
     view_id <- Cmd.get_focused_view
+    embiggen view_id
+    return track_id
+
+-- | Hush now, this is the correct technical term.
+embiggen :: (State.M m) => ViewId -> m ()
+embiggen view_id = do
     view <- State.get_view view_id
     embiggened <- ViewConfig.contents_rect view
     let rect = Block.view_visible_rect view
     when (Rect.rw embiggened > Rect.rw rect) $
         State.set_view_rect view_id $ Block.set_visible_rect view $
             Rect.resize (Rect.rw embiggened) (Rect.rh rect) rect
-    return track_id
 
 empty_track :: (State.M m) => BlockId -> TrackNum -> m TrackId
 empty_track block_id tracknum = track block_id tracknum "" Events.empty
