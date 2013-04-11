@@ -380,6 +380,9 @@ with_constant_pitch :: Maybe Score.Control -> Scale -> PitchSignal.Pitch
 with_constant_pitch maybe_name scale = with_pitch maybe_name
     . PitchSignal.constant (pitch_signal_scale scale)
 
+with_no_pitch :: Deriver a -> Deriver a
+with_no_pitch = modify_pitch Nothing (const mempty)
+
 pitch_signal_scale :: Scale -> PitchSignal.Scale
 pitch_signal_scale scale =
     PitchSignal.Scale (scale_id scale) (scale_transposers scale)

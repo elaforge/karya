@@ -175,8 +175,8 @@ add_code (pos, code) = Derive.modify_val (position_env pos) $
 -- is ignored.  This can be used to emit lilypond that doesn't fit into
 -- a 'Types.Event'.
 code :: (ScoreTime, ScoreTime) -> String -> Derive.EventDeriver
-code (start, dur) code = Derive.with_val Constants.v_ly_prepend code
-    (Derive.d_place start dur Util.note)
+code (start, dur) code = Derive.with_val Constants.v_ly_prepend code $
+    Derive.with_no_pitch $ Derive.d_place start dur Util.note
 
 -- | Like 'code', but for 0 duration code fragments, and can either put them
 -- before or after notes that occur at the same time.

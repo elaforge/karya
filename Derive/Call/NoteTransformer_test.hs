@@ -69,8 +69,10 @@ test_tuplet_ly = do
     let run = LilypondTest.measures ["times", "acciaccatura"]
             . LilypondTest.derive_linear
         pitches = map ('4':) (map (:"") "abcdefg")
+
+    -- The tuplet is not confused by a pitch already being in scope.
     equal (run $
-        (">", [(0, 2, "t")]) : UiTest.note_track
+        ("*", [(0, 0, "3c")]) : (">", [(0, 2, "t")]) : UiTest.note_track
             [(t, 0.5, p) | (t, p) <- zip (Seq.range 0 1 0.5) pitches])
         (Right "\\times 2/3 { a'4 b'4 c'4 } r2", [])
     equal (run $

@@ -467,7 +467,7 @@ lilypond:
     \stemUp \stemDown \stemNeutral
   * add ^( and _( ly calls for slurs with directions:
     c'4^( or c'4_(  ^ up - default _ down
-  - double barline for end of piece
+  * double barline for end of piece
   - I need some way to hide rests.
     Add magic bit of code that turns its rest r4 into s4.
   * if-ly should switch between any two types, not just strings,
@@ -511,7 +511,6 @@ lilypond:
     * make lilypond not emit a staff for >ly-global
     * make meter extraction code in Lilypond get it from the meter events
     * meter call emits code fragment under >ly-global
-
   * movement titles
     Use >ly-global for these.
     It has to break up staves, so I need a first pass to find them:
@@ -523,7 +522,6 @@ lilypond:
         \new Staff { notes }
         \header { piece = "title" }
       }
-
   * page breaks:
     . line break is \break.  Only one instrument needs it?
     . page break is \pageBreak
@@ -542,7 +540,6 @@ lilypond:
           \new Voice { ... }
         >>
       }
-
   * Can I have a solution for custom note durations that don't affect lilypond?
   * cross staff inside tuplet didn't work
   * hairpin crescendo / decrescendo
