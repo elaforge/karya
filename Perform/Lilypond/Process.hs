@@ -36,6 +36,7 @@ simple_articulations :: [(Score.Attributes, Code)]
 simple_articulations =
     [ (Attrs.harm, "-\\flageolet")
     , (Attrs.mute, "-+")
+    , (Attrs.pizz <> Attrs.right, "-+")
     , (Attrs.marcato, "-^")
     , (Attrs.staccato, "-.")
     , (Attrs.trill, "\\trill")
@@ -588,12 +589,18 @@ clip_event end e
     where left = event_end e - end
 
 attrs_to_code :: Score.Attributes -> Score.Attributes -> Code
-attrs_to_code prev_attrs attrs = concat $
-    [code | (attr, code) <- simple_articulations, has attr]
-    ++ [start | (attr, start, _) <- modal_articulations,
-        has attr, not (prev_has attr)]
-    ++ [end | (attr, _, end) <- modal_articulations,
-        not (has attr), prev_has attr]
+attrs_to_code prev_attrs attrs = concat $ concat $
+    [ [code | (attr, code) <- simple_articulations, has attr]
+    , [start | (attr, start, _) <- modal_articulations,
+        has_modal attr, not (prev_has attr)]
+    , [end | (attr, _, end) <- modal_articulations,
+        not (has_modal attr), prev_has attr]
+    ]
     where
     has = Score.attrs_contain attrs
-    prev_has = Score.attrs_contain prev_attrs
+    -- Only match modal articulations if they weren't already taken by
+    -- a simple articulation.  This is necessary because e.g. +pizz+right
+    -- overlaps +pizz.
+    has_modal = Score.attrs_contain (Score.attrs_diff attrs simple)
+    prev_has = Score.attrs_contain (Score.attrs_diff prev_attrs simple)
+    simple = mconcat (map fst simple_articulations)
