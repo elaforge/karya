@@ -6,7 +6,24 @@ UNSORTED
   * ^T should expand the window size just like ^t does
   * if I have [(1, 2), (1, 3)], how do I add to make [(1, 2), (2, 3), (1, 4)]?
     Insert right wants to make [(1, 2), (2, 3), (2, 4)].
+  - Undo didn't clear the future when I made an edit!
+  - git: I shouldn't be able to checkpointing to a repo unless I have
+    a previous commit hash.
   - git should save window moves and track resizes
+    . Currently undo and git checkpoints are 1:1, it would be a complicated if
+      that changed, because then undo would have to skip multiple states, and
+      have to know which ones to skip.  So maybe just save on quit, or when
+      loading a new state.
+    . Then I wind up with an extra checkpoint that just sets window positions,
+      which is kind of grody, and leads to oddness when undoing.
+    . I think the fundamental problem is that I only want to record some
+      things, but I save the whole state with everything.  Undo should only
+      apply to score data, and views should be saved separately, and
+      non-versioned.
+    - Before diffing state to save it, clear out the views.  Checkpoint
+      normally, and then if the views have changed, save them to a separate
+      file.
+
   * Can't put a slur on a tuplet.  Can I do it by appending ( and ) directly
     to the notes, as with xstaff?
     It could also work if tuplet could reach inside the tuplet to stick
@@ -385,7 +402,7 @@ block composition
       block repeats do I want the tempo to repeat as well?  Sometimes yes,
       sometimes no...
 
-incremental save / git
+incremental save / git:
   + try saving individual events for incremental save
     Seems to be just as slow as full save, probably most of the time is in
     the call to git.  Test again with larger tracks.

@@ -66,7 +66,7 @@ undo = do
     case Cmd.hist_past hist of
         prev : rest -> do_undo hist cur prev rest
         [] -> do
-            repo <- Save.get_git_save
+            repo <- Save.get_git_path
             past <- liftIO $ load_prev repo cur
             case past of
                 [] -> Cmd.throw "no past to undo"
@@ -100,7 +100,7 @@ redo = do
     case Cmd.hist_future hist of
         next : rest -> do_redo cur (Cmd.hist_past hist) next rest
         [] -> do
-            repo <- Save.get_git_save
+            repo <- Save.get_git_path
             future <- liftIO $ load_next repo cur
             case future of
                 [] -> Cmd.throw "no future to redo"
@@ -193,7 +193,7 @@ is_clip_update = maybe False ((==Config.clip_namespace) . Id.id_namespace)
 maintain_history :: State.State -> Cmd.State -> [Update.UiUpdate]
     -> IO Cmd.State
 maintain_history ui_state cmd_state updates =
-    save_history ui_state cmd_state hist collect uncommitted
+    save_history cmd_state hist collect uncommitted
     where
     (hist, collect, uncommitted) = update_history updates ui_state cmd_state
 
@@ -201,23 +201,22 @@ maintain_history ui_state cmd_state updates =
 record_suppressed :: Cmd.CmdT IO ()
 record_suppressed = do
     cmd_state <- Cmd.get
-    ui_state <- State.get
     let uncommitted = Maybe.maybeToList $ Cmd.state_suppressed $
             Cmd.state_history_collect cmd_state
         hist = Cmd.state_history cmd_state
         collect = Cmd.empty_history_collect
-    cmd_state <- liftIO $
-        save_history ui_state cmd_state hist collect uncommitted
-    Cmd.put cmd_state
+    Cmd.put =<< liftIO (save_history cmd_state hist collect uncommitted)
 
 -- | Write the given 'SaveGit.SaveHistory's to disk (if I'm recording into
 -- git), and update the Cmd.State accordingly.
-save_history :: State.State -> Cmd.State -> Cmd.History -> Cmd.HistoryCollect
+save_history :: Cmd.State -> Cmd.History -> Cmd.HistoryCollect
     -> [SaveGit.SaveHistory] -> IO Cmd.State
-save_history ui_state cmd_state hist collect uncommitted = do
-    entries <- if checkpointing
-        then commit_entries repo prev_commit uncommitted
-        else return $ map (history_entry Nothing) uncommitted
+save_history cmd_state hist collect uncommitted = do
+    entries <- case (Cmd.state_save_file cmd_state, maybe_prev_commit) of
+        -- I need both a repo and a previous commit to checkpoint.
+        (Just (Cmd.SaveGit repo), Just prev_commit) ->
+            commit_entries repo prev_commit uncommitted
+        _ -> return $ map (history_entry Nothing) uncommitted
     let (present, past) = bump_updates (Cmd.hist_present hist) entries
     return $ cmd_state
         { Cmd.state_history = hist
@@ -228,16 +227,13 @@ save_history ui_state cmd_state hist collect uncommitted = do
         , Cmd.state_history_collect = collect
         , Cmd.state_history_config = (Cmd.state_history_config cmd_state)
             { Cmd.hist_last_commit =
-                Cmd.hist_commit present `mplus` prev_commit
+                Cmd.hist_commit present `mplus` maybe_prev_commit
             }
         }
     where
     keep = Cmd.hist_keep (Cmd.state_history_config cmd_state)
-    prev_commit = Cmd.hist_last_commit $ Cmd.state_history_config cmd_state
-    checkpointing = Maybe.isJust $ Cmd.hist_last_save $
-        Cmd.state_history_config cmd_state
-    repo = Save.git_save_file (State.config#State.namespace #$ ui_state)
-        cmd_state
+    maybe_prev_commit =
+        Cmd.hist_last_commit $ Cmd.state_history_config cmd_state
 
 -- | The present is expected to have no updates, so bump the updates off the
 -- new present onto the old present, as described in [undo-and-updates].
@@ -256,7 +252,7 @@ bump_updates old_cur (new_cur : news) =
 
 -- | Convert 'SaveGit.SaveHistory's to 'Cmd.HistoryEntry's by writing the
 -- commits to disk.
-commit_entries :: SaveGit.Repo -> Maybe SaveGit.Commit -> [SaveGit.SaveHistory]
+commit_entries :: SaveGit.Repo -> SaveGit.Commit -> [SaveGit.SaveHistory]
     -> IO [Cmd.HistoryEntry]
 commit_entries _ _ [] = return []
 commit_entries repo prev_commit (hist0:hists) = do
@@ -267,11 +263,11 @@ commit_entries repo prev_commit (hist0:hists) = do
             Log.error $ "error committing history: " ++ err
             return []
         Right commit -> do
-            entries <- commit_entries repo (Just commit) hists
+            entries <- commit_entries repo commit hists
             return $ history_entry (Just commit) hist : entries
     where
     set_commit commit (SaveGit.SaveHistory state _ updates names) =
-        SaveGit.SaveHistory state commit updates names
+        SaveGit.SaveHistory state (Just commit) updates names
 
 -- | Create a 'Cmd.HistoryEntry' from a 'SaveGit.SaveHistory'.
 --

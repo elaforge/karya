@@ -51,13 +51,23 @@ data SaveHistory =
     SaveHistory !State.State !(Maybe Git.Commit) [Update.UiUpdate] ![String]
     deriving (Show)
 
+instance Pretty.Pretty SaveHistory where
+    format (SaveHistory _state commit updates cmds) =
+        Pretty.record_title "SaveHistory"
+            [ ("commit", Pretty.format commit)
+            , ("updates", Pretty.format updates)
+            , ("cmds", Pretty.format cmds)
+            ]
+
 is_git :: FilePath -> Bool
 is_git = (".git" `List.isSuffixOf`)
 
 -- * save
 
--- | Like 'checkpoint', but add a tag too, and write compact tracks.
+-- | Like 'checkpoint', but save everything all over again, and add a tag too.
 -- It will create a new repo if the given path doesn't exist.
+--
+-- TODO it shouldn't be necessary to save everything, and it's slow
 save :: Git.Repo -> State.State -> Maybe Git.Commit
     -> IO (Either String (Git.Commit, SavePoint))
 save repo state prev_commit = try "save" $

@@ -540,6 +540,7 @@ initial_edit_state = EditState {
 -- | These enable various commands to edit event text.  What exactly val
 -- and method mean are dependent on the track.
 data EditMode = NoEdit | RawEdit | ValEdit | MethodEdit deriving (Eq, Show)
+instance Pretty.Pretty EditMode where pretty = show
 
 data RecentNote =
     -- | Bool is true if the event was zero dur.  This is needed if
@@ -670,17 +671,14 @@ data LastCmd =
 data HistoryConfig = HistoryConfig {
     -- | Keep this many previous history entries in memory.
     hist_keep :: !Int
-    -- | The last full save.
-    , hist_last_save :: !(Maybe SaveGit.SavePoint)
-    -- | Checkpoints are saved relative to the state at another checkpoint.  So
-    -- it's important to keep the commit of that checkpoint up to date,
+    -- | Checkpoints are saved relative to the state at the next checkpoint.
+    -- So it's important to keep the commit of that checkpoint up to date,
     -- otherwise the state and the checkpoints will get out of sync.
     , hist_last_commit :: !(Maybe SaveGit.Commit)
     } deriving (Show)
 
 empty_history_config :: HistoryConfig
-empty_history_config =
-    HistoryConfig Config.default_keep_history Nothing Nothing
+empty_history_config = HistoryConfig Config.default_keep_history Nothing
 
 data HistoryCollect = HistoryCollect {
     -- | This is cleared after each cmd.  A cmd can cons its name on, and
@@ -741,11 +739,18 @@ instance Pretty.Pretty HistoryEntry where
         Pretty.<+> Pretty.format updates
 
 instance Pretty.Pretty HistoryConfig where
-    format (HistoryConfig keep last_save last_commit) =
+    format (HistoryConfig keep last_commit) =
         Pretty.record_title "HistoryConfig"
             [ ("keep", Pretty.format keep)
-            , ("last_save", Pretty.format last_save)
             , ("last_commit", Pretty.format last_commit)
+            ]
+
+instance Pretty.Pretty HistoryCollect where
+    format (HistoryCollect names edit suppressed) =
+        Pretty.record_title "HistoryCollect"
+            [ ("names", Pretty.format names)
+            , ("suppress_edit", Pretty.format edit)
+            , ("suppressed", Pretty.format suppressed)
             ]
 
 

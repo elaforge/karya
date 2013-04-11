@@ -182,28 +182,35 @@ show_history = do
 -- * load / save
 
 save :: Cmd.CmdL ()
-save = Save.cmd_save
+save = Save.save
 
 -- | Save to the given filename and switch to saving plain states.
-save_state :: FilePath -> Cmd.CmdL ()
-save_state = Save.cmd_save_state
+save_state :: Cmd.CmdL ()
+save_state = Save.save_state
+
+-- | Save to the given filename and switch to saving plain states.
+save_state_as :: FilePath -> Cmd.CmdL ()
+save_state_as = Save.save_state_as
 
 -- | Like 'save_state', but don't change 'Cmd.state_save_file'.
 write_state :: FilePath -> Cmd.CmdL ()
 write_state = Save.write_state
 
+save_git :: Cmd.CmdL ()
+save_git = Save.save_git
+
 -- | Save to the given git repo and switch to saving incrementally.
-save_git :: FilePath -> Cmd.CmdL ()
-save_git fn = Save.cmd_save_git (Just fn)
+save_git_as :: FilePath -> Cmd.CmdL ()
+save_git_as = Save.save_git_as
 
 load :: FilePath -> Cmd.CmdL ()
-load = Save.cmd_load
+load = Save.load
 
 revert :: Cmd.CmdL ()
-revert = Save.cmd_revert Nothing
+revert = Save.revert Nothing
 
 revert_to :: String -> Cmd.CmdL ()
-revert_to = Save.cmd_revert . Just
+revert_to = Save.revert . Just
 
 -- * show / modify UI state
 

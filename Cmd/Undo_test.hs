@@ -143,7 +143,7 @@ test_load_previous_history = do
     pprint (e_hist_updates res)
 
     res <- ResponderTest.respond_cmd (ResponderTest.mkstates []) $
-        Save.cmd_load_git repo Nothing
+        Save.load_git repo Nothing
     equal (extract_ui res) "xy"
 
     res <- next res Undo.undo
@@ -180,7 +180,7 @@ test_load_next_history = do
     let ([ent, _], _, _) = e_commits res
         (_, Just commit) = ent
     res <- ResponderTest.respond_cmd (ResponderTest.mkstates []) $
-        Save.cmd_load_git repo (Just commit)
+        Save.load_git repo (Just commit)
     equal (e_hist_names res) ([], "+x: x", [])
     equal (extract_ui res) "x"
 
@@ -207,12 +207,12 @@ test_branching_history = do
     res <- save_git $ ResponderTest.mkstates [(">", [(0, 1, "1")])]
     res <- next res $ Cmd.name "+x" $ insert_event 0 "x"
     res <- next res $ Cmd.name "+y" $ insert_event 1 "y"
-    res <- next res $ Cmd.name "save" (Save.cmd_save_git Nothing)
-    res <- next res $ Cmd.name "revert" $ Save.cmd_revert (Just "0")
+    res <- next res $ Cmd.name "save" Save.save_git
+    res <- next res $ Cmd.name "revert" $ Save.revert (Just "0")
     equal (extract_ui res) "1"
     res <- next res $ Cmd.name "+a" $ insert_event 0 "a"
     res <- next res $ Cmd.name "+b" $ insert_event 1 "b"
-    res <- next res $ Cmd.name "save" (Save.cmd_save_git Nothing)
+    res <- next res $ Cmd.name "save" Save.save_git
 
     -- The second branch got 1.0 because 1 was taken.
     refs <- Git.read_ref_map repo
@@ -227,7 +227,7 @@ test_branching_history = do
         ["save", "+y", "+x", "save"]
 
     equal (extract_ui res) "ab"
-    res <- next res $ Cmd.name "revert" $ Save.cmd_revert (Just "1")
+    res <- next res $ Cmd.name "revert" $ Save.revert (Just "1")
     equal (extract_ui res) "xy"
 
 read_log :: [SaveGit.Commit] -> IO [String]
@@ -238,8 +238,7 @@ read_log commits = do
 save_git :: ResponderTest.States -> IO ResponderTest.Result
 save_git states = do
     File.recursive_rm_dir repo
-    ResponderTest.respond_cmd (second set_dir states)
-        (Save.cmd_save_git Nothing)
+    ResponderTest.respond_cmd (second set_dir states) Save.save_git
     where
     set_dir state = state { Cmd.state_save_file = Just $ Cmd.SaveGit repo }
 

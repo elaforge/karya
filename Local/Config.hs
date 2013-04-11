@@ -50,12 +50,12 @@ parse_args argv = case argv of
     ["mod", fn] -> Setup.load_mod fn
     ["midi", fn] -> Setup.load_midi fn
     ["-a"] -> do
-        Save.cmd_load "save/default"
+        Save.load "save/default"
         State.set_namespace (Id.unsafe_namespace "untitled")
         return Cmd.Done
-    [fn] -> Save.cmd_load fn >> return Cmd.Done
+    [fn] -> Save.load fn >> return Cmd.Done
     [fn, ref_or_commit] -> do
         commit <- Cmd.require_msg ("not a ref or commit: " ++ ref_or_commit)
             =<< Trans.liftIO (SaveGit.infer_commit fn ref_or_commit)
-        Save.cmd_load_git fn (Just commit) >> return Cmd.Done
+        Save.load_git fn (Just commit) >> return Cmd.Done
     _ -> error $ "bad args: " ++ show argv
