@@ -2,6 +2,9 @@
 -- copy-paste-like operations.
 module Cmd.Refactor where
 import Util.Control
+import qualified Util.Num as Num
+import qualified Util.Seq as Seq
+
 import qualified Ui.Block as Block
 import qualified Ui.Event as Event
 import qualified Ui.Events as Events
@@ -12,6 +15,7 @@ import qualified Ui.Track as Track
 
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Create as Create
+import qualified Cmd.Edit as Edit
 import qualified Cmd.Meter as Meter
 import qualified Cmd.RulerUtil as RulerUtil
 import qualified Cmd.Selection as Selection
@@ -96,4 +100,42 @@ split_track_at from_block_id split_at block_name = do
         | (from, to) <- Skeleton.flatten skeleton
         , from >= split_at && to >= split_at
         ]
+    return to_block_id
+
+-- | Copy the selection into a new block, and replace it with a call to that
+-- block.
+selection :: (Cmd.M m) => String -> m BlockId
+selection name = do
+    (block_id, tracknums, track_ids, start, end) <- Selection.tracks
+    to_block_id <- selection_at (Just name) block_id tracknums track_ids
+        start end
+    Create.view to_block_id
+    return to_block_id
+
+selection_at :: (State.M m) => Maybe String -> BlockId -> [TrackNum]
+    -> [TrackId] -> TrackTime -> TrackTime -> m BlockId
+selection_at maybe_name block_id tracknums track_ids start end = do
+    ruler_id <- State.block_ruler block_id
+    to_block_id <- maybe Create.block Create.named_block maybe_name ruler_id
+    forM_ (zip [1..] track_ids) $ \(tracknum, track_id) -> do
+        title <- State.get_track_title track_id
+        events <- Events.in_range_point start end . Track.track_events <$>
+            State.get_track track_id
+        -- Shift the events back to start at 0.
+        Create.track to_block_id tracknum title $
+            Events.map_events (Event.move (subtract start)) events
+    edges <- Skeleton.flatten <$> State.get_skeleton block_id
+    case (Seq.minimum tracknums, Seq.maximum tracknums) of
+        (Just low, Just high) -> State.set_skeleton to_block_id $ Skeleton.make
+            [ (from-low, to-low) | (from, to) <- edges
+            , Num.in_range low high from, Num.in_range low high to
+            ]
+        _ -> return ()
+    -- Clear selected range and put in a call to the new block.
+    Edit.clear_range track_ids start end
+    when_just (Seq.head track_ids) $ \track_id ->
+        State.insert_event track_id $ Event.event start (end-start)
+            (Id.ident_name to_block_id)
+    -- Create a clipped ruler.
+    RulerUtil.local_meter to_block_id $ Meter.clip start end
     return to_block_id
