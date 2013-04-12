@@ -5,9 +5,11 @@ import Data.Function
 import qualified Data.List as List
 import Data.List.NonEmpty (NonEmpty(..))
 import qualified Data.List.Ordered as Ordered
+import Data.Monoid ((<>))
 import qualified Data.Maybe as Maybe
 import qualified Data.Ord as Ord
 import qualified Data.Set as Set
+import qualified Data.Text as Text
 
 
 -- * enumeration
@@ -613,11 +615,12 @@ mapAccumLM f state xs = go state xs
 -- * text
 
 -- | Format the given rows into columns, aligned vertically.
-format_columns :: Int -> [[String]] -> [String]
+format_columns :: Int -> [[Text.Text]] -> [Text.Text]
 format_columns padding rows = map format_row rows
     where
-    format_row = concat . map pad . zip widths
-    pad (w, cell) = cell ++ replicate (w - length cell + padding) ' '
-    by_col = map (map (Maybe.fromMaybe "")) (rotate2 rows)
-    widths = replace $ map (List.maximum . (0:) . map length) by_col
+    format_row = Text.concat . map pad . zip widths
+    pad (w, cell) = cell
+        <> Text.replicate (w - Text.length cell + padding) (Text.pack " ")
+    by_col = map (map (Maybe.fromMaybe Text.empty)) (rotate2 rows)
+    widths = replace $ map (List.maximum . (0:) . map Text.length) by_col
     replace = reverse . (0:) . drop 1 . reverse

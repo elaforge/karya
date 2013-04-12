@@ -92,9 +92,10 @@ convert_inst lookup_inst score_inst attrs = do
             Just key -> return (Just key)
     when warn_unused_attributes $ case maybe_key of
         Nothing | kmap_attrs /= mempty ->
-            Log.warn $ "attrs have no match in keyswitches or keymap of "
-                ++ ShowVal.show_val (Instrument.inst_score midi_inst) ++ ": "
-                ++ ShowVal.show_val kmap_attrs
+            Log.warn $ untxt $
+                "attrs have no match in keyswitches or keymap of "
+                <> ShowVal.show_val (Instrument.inst_score midi_inst) <> ": "
+                <> ShowVal.show_val kmap_attrs
         -- If there was a keymap and lookup succeeded then all the attributes
         -- are accounted for.
         _ -> return ()

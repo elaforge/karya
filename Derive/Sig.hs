@@ -92,11 +92,10 @@ module Derive.Sig (
     , cast, modify_vcall
 ) where
 import qualified Control.Applicative as Applicative
+import qualified Data.Text as Text
 
 import Util.Control
 import qualified Util.Pretty as Pretty
-import qualified Util.Seq as Seq
-
 import qualified Derive.Derive as Derive
 import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
@@ -129,7 +128,7 @@ run (Parser _ parse) state = case parse state of
     Right (state, a) -> case state_vals state of
         [] -> Right a
         vals -> Left $ Derive.ArgError $ "too many arguments: "
-            <> txt (Seq.join ", " (map ShowVal.show_val vals))
+            <> Text.intercalate ", " (map ShowVal.show_val vals)
     Left err -> Left err
 
 parser_docs :: Parser a -> Docs
@@ -348,7 +347,7 @@ cast name val = case TrackLang.from_val val of
         Nothing -> Derive.throw $
             name <> ": expected " <> Pretty.pretty return_type
             <> " but val was " <> Pretty.pretty (TrackLang.type_of val)
-            <> " " <> TrackLang.show_val val
+            <> " " <> untxt (TrackLang.show_val val)
         Just a -> return a
     where return_type = TrackLang.to_type (error "cast" :: a)
 

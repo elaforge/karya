@@ -81,7 +81,7 @@ write_doc text = do
 show_parser :: Derive.ArgParser -> (Maybe Text, Maybe Text)
 show_parser p = case p of
     Derive.Required -> (Nothing, Nothing)
-    Derive.Defaulted deflt -> (Nothing, Just (Text.pack deflt))
+    Derive.Defaulted deflt -> (Nothing, Just deflt)
     Derive.Optional -> (Just "?", Nothing)
     Derive.Many -> (Just "*", Nothing)
     Derive.Many1 -> (Just "+", Nothing)

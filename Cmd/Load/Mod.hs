@@ -205,7 +205,8 @@ convert_effect (fx, arg)
     | fx == fx_volume = Just ("vel", c arg)
     | fx == fx_vibrato = Just ("mod", c arg)
     | otherwise = Nothing
-    where c = (TrackLang.show_val :: Double -> String) . (/127) . fromIntegral
+    where
+    c = untxt . (TrackLang.show_val :: Double -> Text) . (/127) . fromIntegral
 
 cut_note = (0x0f, 0xff)
 cut_block = (0x0f, 0)

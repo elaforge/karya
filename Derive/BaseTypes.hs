@@ -28,6 +28,7 @@ import qualified Data.Char as Char
 import qualified Data.Map as Map
 import qualified Data.Monoid as Monoid
 import qualified Data.Set as Set
+import qualified Data.Text as Text
 
 import qualified Text.Read as Read
 
@@ -51,9 +52,9 @@ import qualified Perform.Signal as Signal
 newtype Instrument = Instrument String
     deriving (DeepSeq.NFData, Eq, Ord, Show, Read)
 
-instance Pretty.Pretty Instrument where pretty = ShowVal.show_val
+instance Pretty.Pretty Instrument where pretty = untxt . ShowVal.show_val
 instance ShowVal.ShowVal Instrument where
-    show_val (Instrument inst) = '>' : inst
+    show_val (Instrument inst) = txt $ '>' : inst
 
 newtype Control = Control String
     deriving (Eq, Ord, Read, Show, DeepSeq.NFData)
@@ -86,9 +87,9 @@ instance Monoid.Monoid Type where
     mappend Untyped typed = typed
     mappend typed _ = typed
 
-instance Pretty.Pretty Control where pretty = ShowVal.show_val
+instance Pretty.Pretty Control where pretty = untxt . ShowVal.show_val
 instance ShowVal.ShowVal Control where
-    show_val (Control c) = '%' : c
+    show_val (Control c) = txt $ '%' : c
 
 data Typed a = Typed {
     type_of :: !Type
@@ -116,7 +117,7 @@ type TypedSignal = Typed Signal.Control
 type TypedVal = Typed Signal.Y
 
 instance ShowVal.ShowVal TypedVal where
-    show_val (Typed typ val) = ShowVal.show_val val ++ type_to_code typ
+    show_val (Typed typ val) = ShowVal.show_val val <> txt (type_to_code typ)
 
 -- ** Attributes
 
@@ -128,9 +129,9 @@ type Attribute = String
 newtype Attributes = Attributes (Set.Set Attribute)
     deriving (Monoid.Monoid, Eq, Ord, Read, Show)
 
-instance Pretty.Pretty Attributes where pretty = ShowVal.show_val
+instance Pretty.Pretty Attributes where pretty = untxt . ShowVal.show_val
 instance ShowVal.ShowVal Attributes where
-    show_val attrs = if null alist then "-" else '+' : Seq.join "+" alist
+    show_val attrs = txt $ if null alist then "-" else '+' : Seq.join "+" alist
         where alist = attrs_list attrs
 
 attr :: String -> Attributes
@@ -190,8 +191,8 @@ instance Pretty.Pretty Pitch where
     pretty (Pitch p n) = either show Pretty.pretty (p Map.empty)
         <> "(" <> either show Pitch.note_text (n Map.empty) <> ")"
 
-newtype PitchError = PitchError String deriving (Eq, Ord, Read, Show)
-instance Pretty.Pretty PitchError where pretty (PitchError s) = s
+newtype PitchError = PitchError Text deriving (Eq, Ord, Read, Show)
+instance Pretty.Pretty PitchError where pretty (PitchError s) = untxt s
 
 
 -- * Derive.TrackLang
@@ -307,14 +308,14 @@ instance DeepSeq.NFData Val where
 
 -- | Pitchas have no literal syntax, but I have to print something.
 instance ShowVal.ShowVal Pitch where
-    show_val pitch = "<pitch: " ++ Pretty.pretty pitch ++ ">"
+    show_val pitch = "<pitch: " <> txt (Pretty.pretty pitch) <> ">"
 
-instance Pretty.Pretty Val where pretty = ShowVal.show_val
+instance Pretty.Pretty Val where pretty = untxt . ShowVal.show_val
 instance ShowVal.ShowVal Pitch.ScaleId where
-    show_val (Pitch.ScaleId s) = '*' : s
+    show_val (Pitch.ScaleId s) = txt $ '*' : s
 
 newtype Symbol = Symbol String deriving (Eq, Ord, Show, DeepSeq.NFData)
-instance Pretty.Pretty Symbol where pretty = ShowVal.show_val
+instance Pretty.Pretty Symbol where pretty = untxt . ShowVal.show_val
 
 instance ShowVal.ShowVal Symbol where
     -- TODO This is actually kind of error prone.  The problem is that symbols
@@ -323,8 +324,8 @@ instance ShowVal.ShowVal Symbol where
     -- arguments, but strings frequently are.  Maybe I should go back to
     -- separate types for symbols and strings?
     show_val (Symbol s)
-        | parseable = s
-        | otherwise = '\'' : concatMap quote s ++ "'"
+        | parseable = txt s
+        | otherwise = "'" <> Text.concatMap quote (txt s) <> "'"
         where
         -- This should be the same as ParseBs.p_symbol.  I can't use it
         -- directly because that would be a circular import.
@@ -333,13 +334,13 @@ instance ShowVal.ShowVal Symbol where
                 && all (\c -> c /= ' ' && c /= ')') cs
             [] -> False
         quote '\'' = "''"
-        quote c = [c]
+        quote c = Text.singleton c
 
 -- | Show a symbol intended for call position.  Call position is special in
 -- that it can contain any character except space without quoting.
 show_call_val :: Val -> String
 show_call_val (VSymbol (Symbol sym)) = sym
-show_call_val val = ShowVal.show_val val
+show_call_val val = untxt $ ShowVal.show_val val
 
 instance ShowVal.ShowVal String where
     show_val = ShowVal.show_val . Symbol
@@ -349,13 +350,13 @@ data RelativeAttrs = Add Attributes | Remove Attributes | Set Attributes
 
 instance ShowVal.ShowVal RelativeAttrs where
     show_val rel = case rel of
-            Add attrs -> '+' : str attrs
-            Remove attrs -> '-' : str attrs
-            Set attrs -> '=' : str attrs
+            Add attrs -> "+" <> str attrs
+            Remove attrs -> "-" <> str attrs
+            Set attrs -> "=" <> str attrs
         where
         str attrs = case attrs_list attrs of
             [] -> "-"
-            as -> Seq.join "+" as
+            as -> Text.intercalate "+" (map txt as)
 
 
 data ControlRef val =
@@ -371,22 +372,22 @@ data ControlRef val =
 type PitchControl = ControlRef Note
 type ValControl = ControlRef TypedVal
 
-instance Pretty.Pretty PitchControl where pretty = ShowVal.show_val
+instance Pretty.Pretty PitchControl where pretty = untxt . ShowVal.show_val
 instance ShowVal.ShowVal PitchControl where
     -- The PitchControl syntax doesn't support args for the signal default yet.
-    show_val = show_control '#' (Pitch.note_text . note_sym)
+    show_val = show_control '#' (txt . Pitch.note_text . note_sym)
 
-instance Pretty.Pretty ValControl where pretty = ShowVal.show_val
+instance Pretty.Pretty ValControl where pretty = untxt . ShowVal.show_val
 instance ShowVal.ShowVal ValControl where
     show_val = show_control '%' $ \(Typed typ num) ->
-        ShowVal.show_val num ++ type_to_code typ
+        ShowVal.show_val num <> txt (type_to_code typ)
 
-show_control :: Char -> (val -> String) -> ControlRef val -> String
-show_control prefix show_val control = case control of
-    ConstantControl val -> show_val val
-    DefaultedControl (Control cont) deflt ->
-        prefix : cont ++ ',' : show_val deflt
-    LiteralControl (Control cont) -> prefix : cont
+show_control :: Char -> (val -> Text) -> ControlRef val -> Text
+show_control prefix val_text control = case control of
+    ConstantControl val -> val_text val
+    DefaultedControl (Control cont) deflt -> mconcat
+        [Text.singleton prefix, txt cont, ",", val_text deflt]
+    LiteralControl (Control cont) -> txt $ prefix : cont
 
 -- ** Note
 

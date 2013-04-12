@@ -361,7 +361,7 @@ invert_call around args = case Derive.info_sub_tracks info of
     -- transformers are discarded.  But 'inverting' only applies to generators
     -- so those transformers should have already done their thing.
     -- See comment above and on ShowVal typeclass.
-    expr = ShowVal.show_val $ NonEmpty.last (Derive.info_expr info)
+    expr = untxt $ ShowVal.show_val $ NonEmpty.last (Derive.info_expr info)
     info = Derive.passed_info args
 
 invert :: (Int, Int) -> (ScoreTime, ScoreTime) -> TrackTree.EventsTree

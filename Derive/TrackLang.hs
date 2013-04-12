@@ -36,19 +36,17 @@ import qualified Control.DeepSeq as DeepSeq
 import qualified Data.List as List
 import qualified Data.List.NonEmpty as NonEmpty
 import qualified Data.Map as Map
+import qualified Data.Text as Text
 
 import Util.Control
 import qualified Util.Pretty as Pretty
-import qualified Util.Seq as Seq
-
 import qualified Ui.ScoreTime as ScoreTime
 import qualified Derive.BaseTypes as Score
 import qualified Derive.BaseTypes as PitchSignal
 import Derive.BaseTypes
        (Environ, make_environ, environ_to_list, insert_val, lookup_val,
         null_environ, ValName, Val(..), Symbol(..), RelativeAttrs(..),
-        ControlRef(..), PitchControl, ValControl, Note(..),
-        show_call_val)
+        ControlRef(..), PitchControl, ValControl, Note(..), show_call_val)
 import Derive.ShowVal (ShowVal(..))
 
 import qualified Perform.Pitch as Pitch
@@ -495,16 +493,17 @@ data Call = Call CallId [Term] deriving (Show)
 data Term = ValCall Call | Literal Val deriving (Show)
 
 instance ShowVal Expr where
-    show_val expr = Seq.join " | " (map show_val (NonEmpty.toList expr))
+    show_val expr = Text.intercalate " | " (map show_val (NonEmpty.toList expr))
 instance ShowVal Call where
     show_val (Call (Symbol sym) terms) =
-        sym ++ if null terms then "" else ' ' : unwords (map show_val terms)
+        txt sym <> if null terms then "" else " "
+        <> Text.unwords (map show_val terms)
 instance ShowVal Term where
-    show_val (ValCall call) = "(" ++ show_val call ++ ")"
+    show_val (ValCall call) = "(" <> show_val call <> ")"
     show_val (Literal val) = show_val val
 
 instance Pretty.Pretty Call where
-    pretty = show_val
+    pretty = untxt . show_val
 
 instance DeepSeq.NFData Call where
     rnf (Call call_id terms) = call_id `seq` DeepSeq.rnf terms

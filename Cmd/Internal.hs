@@ -345,7 +345,7 @@ sync_play_state st = do
     Cmd.set_global_status "play-step" $
         TimeStep.show_time_step (Cmd.state_play_step st)
     Cmd.set_global_status "play-mult" $
-        ShowVal.show_val (Cmd.state_play_multiplier st)
+        untxt $ ShowVal.show_val (Cmd.state_play_multiplier st)
 
 sync_save_file :: (Cmd.M m) => Maybe Cmd.SaveFile -> m ()
 sync_save_file maybe_save =
@@ -357,9 +357,9 @@ sync_save_file maybe_save =
 -- | Sync State.Config changes.
 sync_ui_config :: (Cmd.M m) => State.Config -> m ()
 sync_ui_config config = do
-    Cmd.set_global_status "scale" $ ShowVal.show_val $
+    Cmd.set_global_status "scale" $ untxt $ ShowVal.show_val $
         State.default_#State.scale #$ config
-    Cmd.set_global_status "tempo" $ ShowVal.show_val $
+    Cmd.set_global_status "tempo" $ untxt $ ShowVal.show_val $
         State.default_#State.tempo #$ config
 
 -- Zoom is actually not very useful.

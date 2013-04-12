@@ -386,9 +386,9 @@ overlapping_keyswitches (KeyswitchMap attr_ks) =
     where
     attrs = map fst attr_ks
     check prevs attr = case List.find (Score.attrs_contain attr) prevs of
-        Just other_attr -> Just $ "keyswitch attrs "
-            ++ ShowVal.show_val attr ++ " shadowed by "
-            ++ ShowVal.show_val other_attr
+        Just other_attr -> Just $ untxt $ "keyswitch attrs "
+            <> ShowVal.show_val attr <> " shadowed by "
+            <> ShowVal.show_val other_attr
         Nothing -> Nothing
 
 -- | Implement attribute priorities as described in 'KeyswitchMap'.  Return

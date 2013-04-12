@@ -26,7 +26,7 @@ import Types
 
 -- | Make a simple scale where there is a simple mapping from input to note to
 -- nn.
-simple_scale :: Text -> Pitch.Octave -> String -> Pitch.ScaleId
+simple_scale :: Text -> Pitch.Octave -> Text -> Pitch.ScaleId
     -> [Pitch.InputKey] -> [Pitch.Note] -> [Pitch.NoteNumber] -> Scale.Scale
 simple_scale doc per_octave note_pattern scale_id inputs notes nns = Scale.Scale
     { Scale.scale_id = scale_id
@@ -176,18 +176,18 @@ scale_to_pitch_error diatonic chromatic = either (Left . msg) Right
         Scale.KeyNeeded -> PitchSignal.PitchError
             "no key is set, but this transposition needs one"
         Scale.UnparseableEnviron name val -> PitchSignal.PitchError $
-            Pretty.pretty name ++ " unparseable by given scale: " ++ val
+            txt (Pretty.pretty name) <> " unparseable by given scale: " <> val
         Scale.UnparseableNote -> PitchSignal.PitchError
             "unparseable note (shouldn't happen)"
 
 invalid_transposition :: Signal.Y -> Signal.Y -> PitchSignal.PitchError
 invalid_transposition diatonic chromatic =
     PitchSignal.PitchError $ "note can't be transposed: "
-        ++ unwords (filter (not . null)
-            [show_val "d" diatonic, show_val "c" chromatic])
+        <> Text.unwords (filter (not . Text.null)
+            [fmt "d" diatonic, fmt "c" chromatic])
     where
-    show_val _ 0 = ""
-    show_val code val = Pretty.pretty val ++ code
+    fmt _ 0 = ""
+    fmt code val = txt (Pretty.pretty val) <> code
 
 -- ** input
 
@@ -254,11 +254,11 @@ make_nn mprev nn mnext frac
 -- As a special case for scales that start with possibly negative number, the
 -- step may start with a + or -, since a null step isn't very useful.
 join_note :: String -> Frac -> Pitch.Note
-join_note step frac = Pitch.Note $ step ++ frac_s
+join_note step frac = Pitch.Note $ step <> untxt frac_s
     where
     frac_s
         | frac == 0 = ""
-        | otherwise = ' ' : TrackLang.show_val frac
+        | otherwise = " " <> TrackLang.show_val frac
 
 -- ** call_doc
 
@@ -306,7 +306,7 @@ read_environ :: (TrackLang.Typecheck a) => (a -> Maybe val) -> val
     -> TrackLang.ValName -> TrackLang.Environ -> Either Scale.ScaleError val
 read_environ read_val deflt name env = case TrackLang.get_val name env of
     Left (TrackLang.WrongType expected) ->
-        unparseable ("expected type " ++ Pretty.pretty expected)
+        unparseable ("expected type " <> txt (Pretty.pretty expected))
     Left TrackLang.NotFound -> Right deflt
     Right val -> parse val
     where

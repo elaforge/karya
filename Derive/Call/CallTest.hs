@@ -84,7 +84,7 @@ c_show_args :: (Derive.Derived d) => Derive.Call d
 c_show_args = Derive.generator "show-args" mempty "doc" $
     Sig.parsed_manually "doc" $ \args -> do
         Log.warn $ Seq.join ", " $
-            map ShowVal.show_val (Derive.passed_vals args)
+            map (untxt . ShowVal.show_val) (Derive.passed_vals args)
         return []
 
 generator :: (Derive.Derived d) =>

@@ -3,6 +3,7 @@
 module Local.Setup where
 import qualified Control.Monad.Trans as Trans
 
+import Util.Control
 import qualified Util.Seq as Seq
 import qualified Midi.Midi as Midi
 import qualified Ui.Event as Event
@@ -124,7 +125,9 @@ setup_normal = do
 
     dyn <- Create.empty_track bid 5
     State.insert_events dyn $ map (control_event . UiTest.make_event)
-        [(0, 0, ShowVal.show_hex_val 0.7), (1, 0, ShowVal.show_hex_val 0.4)]
+        [ (0, 0, untxt $ ShowVal.show_hex_val 0.7)
+        , (1, 0, untxt $ ShowVal.show_hex_val 0.4)
+        ]
     State.set_track_title dyn "dyn"
 
     -- tempo 1 -> mod -> note -> pitch

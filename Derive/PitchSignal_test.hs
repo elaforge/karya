@@ -42,4 +42,4 @@ c_trans = Score.Control "trans"
 
 unsignal :: PitchSignal.Signal -> [(RealTime, Either String Pitch.NoteNumber)]
 unsignal = map (second (unerror . PitchSignal.pitch_nn)) . PitchSignal.unsignal
-    where unerror = either (\(PitchSignal.PitchError s) -> Left s) Right
+    where unerror = either (\(PitchSignal.PitchError s) -> Left (untxt s)) Right

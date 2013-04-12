@@ -14,7 +14,7 @@ import qualified Derive.TrackLang as TrackLang
 
 attributed_note :: Score.Attributes -> Derive.NoteCall
 attributed_note attrs = transform_notes
-    ("note with " <> txt (ShowVal.show_val attrs)) Tags.attr
+    ("note with " <> ShowVal.show_val attrs) Tags.attr
     "Add attributes to the notes." Sig.no_args (\() -> Util.add_attrs attrs)
 
 environ_note :: (TrackLang.Typecheck a) => Text -> Tags.Tags -> Text

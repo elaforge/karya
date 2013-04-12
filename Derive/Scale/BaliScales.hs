@@ -65,7 +65,7 @@ scale scale_id (ScaleMap degree_map input_map nn_map) = Scale.Scale
         \ should be set to either `'umbang'` or `'isep'`, and if it's not\
         \ set, `'umbang'` is assumed. Normally the umbang and isep\
         \ frequencies are hardcoded according to the scale, but if the "
-        <> txt (ShowVal.show_val c_ombak)
+        <> ShowVal.show_val c_ombak
         <> " control is present, they will be tuned that many hz apart."
 
 data Tuning = Umbang | Isep deriving (Show)

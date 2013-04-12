@@ -9,6 +9,7 @@
 -- though they are parsed as tracklang Vals.
 module Derive.TrackInfo where
 import qualified Data.Maybe as Maybe
+import qualified Data.Text as Text
 
 import Util.Control
 import qualified Util.Pretty as Pretty
@@ -88,13 +89,13 @@ parse_control_vals vals = case vals of
         [TrackLang.VSymbol call, TrackLang.VControl
                 (TrackLang.LiteralControl (Score.Control ""))] ->
             Right $ Control (Just call) (Score.untyped Score.c_null)
-        _ -> Left $ "control track must be one of [\"tempo\", control, "
-            ++ "op control, %, op %, *scale, *scale #name, op #, op #name], "
-            ++ "got: " ++ unwords (map TrackLang.show_val vals)
+        _ -> Left $ untxt $ "control track must be one of [\"tempo\", control,\
+            \ op control, %, op %, *scale, *scale #name, op #, op #name],\
+            \ got: " <> Text.unwords (map TrackLang.show_val vals)
     where
     control_of sym = maybe
-        (Left $ "control should look like 'name:[cdsr]': "
-            ++ TrackLang.show_val sym)
+        (Left $ untxt $ "control should look like 'name:[cdsr]': "
+            <> TrackLang.show_val sym)
         Right (parse_control_type sym)
 
     pitch_control :: TrackLang.Val -> Maybe (Maybe Score.Control)
@@ -119,7 +120,8 @@ unparse_typed (Score.Typed typ (Score.Control c)) =
         c -> ':' : c
 
 unparse_control :: ControlType -> String
-unparse_control = unwords . map TrackLang.show_val . unparse_control_vals
+unparse_control =
+    untxt . Text.unwords . map TrackLang.show_val . unparse_control_vals
 
 unparse_control_vals :: ControlType -> [TrackLang.Val]
 unparse_control_vals ctype = case ctype of
@@ -152,7 +154,7 @@ title_to_instrument _ = Nothing
 
 -- | Convert from an instrument to the title of its instrument track.
 instrument_to_title :: Score.Instrument -> String
-instrument_to_title = TrackLang.show_val . TrackLang.VInstrument
+instrument_to_title = untxt . TrackLang.show_val . TrackLang.VInstrument
 
 is_note_track :: String -> Bool
 is_note_track = Maybe.isJust . title_to_instrument

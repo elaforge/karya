@@ -31,6 +31,7 @@ import qualified Text.ParserCombinators.ReadP as ReadP
 import qualified Text.Read as Read
 
 import qualified Util.ApproxEq as ApproxEq
+import Util.Control
 import qualified Util.Pretty as Pretty
 import qualified Util.Serialize as Serialize
 
@@ -175,10 +176,10 @@ instance Pretty.Pretty Degree where
 data Transpose = Chromatic Double | Diatonic Double
     deriving (Eq, Ord, Show)
 
-instance Pretty.Pretty Transpose where pretty = ShowVal.show_val
+instance Pretty.Pretty Transpose where pretty = untxt . ShowVal.show_val
 instance ShowVal.ShowVal Transpose where
-    show_val (Chromatic d) = ShowVal.show_val d ++ "c"
-    show_val (Diatonic d) = ShowVal.show_val d ++ "d"
+    show_val (Chromatic d) = ShowVal.show_val d <> "c"
+    show_val (Diatonic d) = ShowVal.show_val d <> "d"
 
 modify_transpose :: (Double -> Double) -> Transpose -> Transpose
 modify_transpose f (Chromatic d) = Chromatic (f d)

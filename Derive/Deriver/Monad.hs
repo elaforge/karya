@@ -919,7 +919,7 @@ data ArgDoc = ArgDoc {
 
 -- | These enumerate the different ways an argumnt can be parsed, and
 -- correspond to parsers in "Derive.Sig".
-data ArgParser = Required | Defaulted !String | Optional | Many | Many1
+data ArgParser = Required | Defaulted !Text | Optional | Many | Many1
     deriving (Eq, Ord, Show)
 
 type NoteCall = Call Score.Event
@@ -1143,7 +1143,7 @@ data Scale = Scale {
     -- error msgs (i.e. parse errors) so it should be human readable and
     -- doesn't have to follow any particular syntax.  A regex is recommended
     -- though.
-    , scale_pattern :: !String
+    , scale_pattern :: !Text
 
     -- | If a scale uses 'Symbol.Symbol's, it can include the definitions here
     -- so they are close to their use.  This symbol list should be loaded as
@@ -1198,8 +1198,8 @@ type Enharmonics = Maybe Pitch.Key -> Pitch.Note
 data ScaleError =
     InvalidTransposition | KeyNeeded | UnparseableNote
     -- | An environ value was unparseable.
-    | UnparseableEnviron !TrackLang.ValName !String
-        -- String should be TrackLang.Val except that makes Eq not work.
+    | UnparseableEnviron !TrackLang.ValName !Text
+        -- The Text should be TrackLang.Val except that makes Eq not work.
     deriving (Eq, Show)
 
 {- note control-modification

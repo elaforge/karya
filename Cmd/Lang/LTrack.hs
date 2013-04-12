@@ -128,7 +128,7 @@ to_hex :: String -> String
 to_hex text = case Derive.ParseBs.parse_val (ControlTrack.event_val event) of
     Right (TrackLang.VNum (Score.Typed Score.Untyped n))
         | 0 <= n && n <= 1 -> ControlTrack.unparse $
-            event { ControlTrack.event_val = ShowVal.show_hex_val n }
+            event { ControlTrack.event_val = untxt $ ShowVal.show_hex_val n }
     _ -> text
     where event = ControlTrack.parse text
 

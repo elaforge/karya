@@ -89,12 +89,12 @@ update_hex val key
     | null val = case key of
         EditUtil.Backspace -> Just Nothing
         EditUtil.Key c
-            | higit c -> Just $ Just $ ShowVal.hex_prefix ++ ['0', c]
+            | higit c -> Just $ Just $ untxt ShowVal.hex_prefix <> ['0', c]
             | otherwise -> Nothing
     | Just c2 <- parse_val val = case key of
         EditUtil.Backspace -> Just Nothing
         EditUtil.Key c
-            | higit c -> Just $ Just $ ShowVal.hex_prefix ++ [c2, c]
+            | higit c -> Just $ Just $ untxt ShowVal.hex_prefix <> [c2, c]
             -- The field is hex, but this wasn't a higit, so ignore it.
             | otherwise -> Just (Just val)
     | otherwise = Nothing -- not hex at all
@@ -121,7 +121,7 @@ cmd_method_edit msg =
 
 val_edit_at :: (Cmd.M m) => EditUtil.Pos -> Signal.Y -> m ()
 val_edit_at pos val = modify_event_at pos $ \event ->
-    (Just $ event { event_val = ShowVal.show_hex_val val }, False)
+    (Just $ event { event_val = untxt $ ShowVal.show_hex_val val }, False)
 
 -- | Semi-parse event text into method, val, and args.  Method is actually the
 -- call, val is the first argument to the calll, and args are the remaining
@@ -193,6 +193,8 @@ modify_val :: (Signal.Y -> Signal.Y) -> String -> Maybe String
     -- ^ Nothing if I couldn't parse out a VNum.
 modify_val f text = case ParseBs.parse_val (event_val event) of
         Right (TrackLang.VNum n) -> Just $ unparse $ event
-            { event_val = TrackLang.show_val $ TrackLang.VNum (f <$> n) }
+            { event_val = untxt $
+                TrackLang.show_val $ TrackLang.VNum (f <$> n)
+            }
         _ -> Nothing
     where event = parse text

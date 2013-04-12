@@ -115,8 +115,8 @@ eval_one_at start dur expr = eval_expr cinfo expr
     where
     -- Set the event start and duration instead of using Derive.d_place since
     -- this way I can have zero duration events.
-    cinfo = Derive.dummy_call_info start dur
-        ("eval_one: " ++ TrackLang.show_val expr)
+    cinfo = Derive.dummy_call_info start dur $
+        untxt $ "eval_one: " <> TrackLang.show_val expr
 
 -- | Like 'derive_event' but evaluate the event outside of its track context.
 -- This is useful if you want to evaluate things out of order, i.e. evaluate

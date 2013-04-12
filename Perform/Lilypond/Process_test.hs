@@ -91,8 +91,8 @@ test_chords = do
 test_code_events = do
     let f = LilypondTest.process_simple ["a", "b"]
             . map LilypondTest.environ_event
-        prepend = [(Constants.v_ly_prepend, TrackLang.to_val "a")]
-        append = [(Constants.v_ly_append_all, TrackLang.to_val "b")]
+        prepend = [(Constants.v_ly_prepend, TrackLang.to_val ("a" :: String))]
+        append = [(Constants.v_ly_append_all, TrackLang.to_val ("b" :: String))]
     -- Code that falls in the middle of rests.
     equal (f [(0, 0, "p", append), (0, 0, "p", prepend)])
         (Right "a b")

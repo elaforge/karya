@@ -131,7 +131,7 @@ test_parse_val = do
             (Right val, Just expect) -> do
                 equal val expect
                 when invertible $
-                    void $ equal (TrackLang.show_val val) expr
+                    void $ equal (untxt $ TrackLang.show_val val) expr
             _ -> void $ success $ show res ++ " == " ++ show expected
 
 test_parse_num = do

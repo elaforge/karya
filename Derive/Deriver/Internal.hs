@@ -84,9 +84,9 @@ insert_environ :: (TrackLang.Typecheck val) => TrackLang.ValName
     -> val -> TrackLang.Environ -> Deriver TrackLang.Environ
 insert_environ name val environ =
     case TrackLang.put_val name val environ of
-        Left typ -> throw $ "can't set " ++ show name ++ " to "
-            ++ TrackLang.show_val (TrackLang.to_val val)
-            ++ ", expected " ++ Pretty.pretty typ
+        Left typ -> throw $ "can't set " <> show name <> " to "
+            <> untxt (TrackLang.show_val (TrackLang.to_val val))
+            <> ", expected " <> Pretty.pretty typ
         Right environ2 -> return environ2
 
 -- | Figure out the current block and track, and record the current environ

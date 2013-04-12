@@ -25,9 +25,9 @@
 module Ui.Event (
     Event, start, duration, style, stack, event_bytestring
     , Text, from_string
-    , Stack(..), IndexKey, event, event_text
+    , Stack(..), IndexKey, event, text_event, bs_event
     -- * text
-    , event_string, set_string, modify_string
+    , event_string, event_text, set_string, modify_string
     , modify_bytestring
     , intern_event
     -- * start, duration
@@ -45,6 +45,8 @@ import qualified Control.DeepSeq as DeepSeq
 import qualified Data.ByteString.Char8 as B
 import qualified Data.ByteString.UTF8 as UTF8
 import qualified Data.Map as Map
+import qualified Data.Text as Text
+import qualified Data.Text.Encoding as Encoding
 import Util.ForeignC
 
 import Util.Control hiding (Text)
@@ -115,10 +117,13 @@ instance Pretty.Pretty Stack where
 
 -- | Manual event constructor.
 event :: ScoreTime -> ScoreTime -> String -> Event
-event start dur text = event_text start dur (from_string text)
+event start dur text = bs_event start dur (from_string text)
 
-event_text :: ScoreTime -> ScoreTime -> Text -> Event
-event_text start dur text = Event
+text_event :: ScoreTime -> ScoreTime -> Text.Text -> Event
+text_event start dur = bs_event start dur . Encoding.encodeUtf8
+
+bs_event :: ScoreTime -> ScoreTime -> Text -> Event
+bs_event start dur text = Event
     { start = start
     , duration = dur
     , event_bytestring = text
@@ -130,6 +135,9 @@ event_text start dur text = Event
 
 event_string :: Event -> String
 event_string = UTF8.toString . event_bytestring
+
+event_text :: Event -> Text.Text
+event_text = Encoding.decodeUtf8 . event_bytestring
 
 set_string :: String -> Event -> Event
 set_string s event = modified $ event { event_bytestring = from_string s }

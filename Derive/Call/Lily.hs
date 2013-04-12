@@ -335,7 +335,7 @@ when_ly inverted args deriver = case Derive.passed_vals args of
 c_ly_global :: Derive.NoteCall
 c_ly_global = Derive.transformer "ly-global" Tags.ly_only
     ("Evaluate the deriver only when in lilypond mode, like 'when-ly', but\
-    \ also set the " <> txt (ShowVal.show_val Constants.ly_global)
+    \ also set the " <> ShowVal.show_val Constants.ly_global
     <> " instrument."
     ) $ Sig.call0t $ \_ deriver ->
         when_lilypond (global deriver) mempty
@@ -385,7 +385,7 @@ c_xstaff = code0_call "xstaff"
     (required "staff" "Should be `up` or `down`.") $ \staff -> do
         when (staff `notElem` ["down", "up"]) $
             Derive.throw $ "expected 'up' or 'down', got "
-                <> ShowVal.show_val staff
+                <> untxt (ShowVal.show_val staff)
         return (Prefix, change staff)
     where change staff = "\\change Staff = " <> Types.to_lily (staff :: String)
 

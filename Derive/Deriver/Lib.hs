@@ -214,10 +214,10 @@ with_scale scale = with_val_raw TrackLang.v_scale (scale_id scale)
 
 scale_to_lookup :: Scale -> LookupCall ValCall
 scale_to_lookup scale =
-    pattern_lookup (txt name) (scale_call_doc scale)
+    pattern_lookup name (scale_call_doc scale)
         (\call_id -> return $ scale_note_to_call scale (to_note call_id))
     where
-    name = ShowVal.show_val (scale_id scale) ++ ": " ++ scale_pattern scale
+    name = ShowVal.show_val (scale_id scale) <> ": " <> scale_pattern scale
     to_note (TrackLang.Symbol sym) = Pitch.Note sym
 
 with_instrument :: Score.Instrument -> Deriver d -> Deriver d
@@ -364,7 +364,7 @@ logged_pitch_nn :: String -> PitchSignal.Pitch
     -> Deriver (Maybe Pitch.NoteNumber)
 logged_pitch_nn msg pitch = case PitchSignal.pitch_nn pitch of
     Left (PitchSignal.PitchError err) -> do
-        Log.warn $ "pitch_nn " ++ msg ++ ": " ++ err
+        Log.warn $ "pitch_nn " <> msg <> ": " <> untxt err
         return Nothing
     Right nn -> return $ Just nn
 

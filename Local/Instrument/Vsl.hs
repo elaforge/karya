@@ -4,6 +4,8 @@ module Local.Instrument.Vsl where
 import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Set as Set
+import qualified Data.Text as Text
+import qualified Data.Text.IO as Text.IO
 
 import Util.Control
 import qualified Util.Map as Map
@@ -15,8 +17,8 @@ import qualified Midi.Midi as Midi
 import qualified Derive.Args as Args
 import qualified Derive.Attrs as Attrs
 import qualified Derive.Call.Articulation as Articulation
-import qualified Derive.Call.Note as Note
 import qualified Derive.Call.Grace as Grace
+import qualified Derive.Call.Note as Note
 import qualified Derive.Call.Trill as Trill
 import qualified Derive.Call.Util as Util
 import qualified Derive.Derive as Derive
@@ -34,7 +36,7 @@ import qualified App.MidiInst as MidiInst
 -- * util
 
 -- | For interactive use, find keyswitches with the given attributes.
-find_attrs :: Instrument.InstrumentName -> String -> [String]
+find_attrs :: Instrument.InstrumentName -> String -> [Text]
 find_attrs inst with_attrs =
     map ShowVal.show_val $ filter (`Score.attrs_contain` search) attrs
     where
@@ -45,19 +47,20 @@ find_attrs inst with_attrs =
 
 -- | Write matrices to a file for visual reference.
 write_matrices :: IO ()
-write_matrices = writeFile "matrices.txt" $ unlines $
+write_matrices = Text.IO.writeFile "matrices.txt" $ Text.unlines $
     map show_matrix (map (fst . fst) instruments)
 
-show_matrix :: VslInst.Instrument -> String
+show_matrix :: VslInst.Instrument -> Text
 show_matrix (name, _, attrs) =
-    name ++ ":\n" ++ unlines (map format matrices)
+    txt name <> ":\n" <> Text.unlines (map format matrices)
     where
     matrices = Seq.chunked 12 $ concatMap (Seq.chunked 12)
         (map_shape strip attrs)
-    format = unlines . Seq.format_columns 1
+    format = Text.unlines . Seq.format_columns 1
+        -- . (header:) . map (map ShowVal.show_val)
         . zipWith (:) col_header . (header:) . map (map ShowVal.show_val)
-    header = take 12 $ map show [1..]
-    col_header = take 13 $ map (:"") "-abcdefghijkl"
+    header = take 12 $ map (txt . show) [1..]
+    col_header = take 13 $ map Text.singleton "-abcdefghijkl"
     strip = strip_attrs . map (`Score.attrs_diff` variants)
     variants = VslInst.updown <> VslInst.crescdim <> VslInst.highlow
 

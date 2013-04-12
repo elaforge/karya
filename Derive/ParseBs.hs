@@ -30,6 +30,7 @@ import qualified Data.Attoparsec.Char8 as A
 import qualified Data.ByteString.Char8 as B
 import qualified Data.ByteString.UTF8 as UTF8
 import qualified Data.List.NonEmpty as NonEmpty
+import qualified Data.Text.Encoding as Encoding
 
 import Util.Control hiding (Text)
 import qualified Util.ParseBs as Parse
@@ -223,7 +224,7 @@ p_hex = do
     c1 <- A.satisfy higit
     c2 <- A.satisfy higit
     return $ fromIntegral (parse_hex c1 c2) / 0xff
-    where prefix = UTF8.fromString ShowVal.hex_prefix
+    where prefix = Encoding.encodeUtf8 ShowVal.hex_prefix
 
 parse_hex :: Char -> Char -> Int
 parse_hex c1 c2 = higit c1 * 16 + higit c2

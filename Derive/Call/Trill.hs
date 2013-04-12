@@ -107,7 +107,7 @@ c_attr_trill = Derive.stream_generator "attr-trill" (Tags.ornament <> Tags.attr)
             (2, Util.Chromatic) -> return Attrs.whole
             _ -> Derive.throw $
                 "attribute trill only supports 1c and 2c trills: "
-                <> ShowVal.show_val neighbor
+                <> untxt (ShowVal.show_val neighbor)
         Util.add_attrs (Attrs.trill <> width_attr) (Util.placed_note args)
 
 -- | TODO randomize dyn, randomize starts

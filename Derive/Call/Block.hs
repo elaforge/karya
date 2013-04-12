@@ -138,7 +138,8 @@ c_clip = Derive.stream_generator "clip" Tags.internal
     ) $
     \sym -> Note.inverting $ \args -> do
         block_id <- maybe
-            (Derive.throw $ "block not found: " ++ TrackLang.show_val sym)
+            (Derive.throw $ untxt $
+                "block not found: " <> TrackLang.show_val sym)
             return =<< symbol_to_block_id sym
         Internal.with_stack_block block_id $
             Cache.cache_block (clip_call block_id) args

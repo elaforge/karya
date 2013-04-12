@@ -132,7 +132,7 @@ note_event :: Instrument.AttributeMap -> Score.Event -> Event.Event
 note_event attr_map event = ui_event (Score.event_stack event)
     (RealTime.to_score (Score.event_start event))
     (RealTime.to_score (Score.event_duration event))
-    (Map.findWithDefault "" (Score.event_attributes event) attr_map)
+    (txt (Map.findWithDefault "" (Score.event_attributes event) attr_map))
 
 -- ** pitch
 
@@ -168,7 +168,7 @@ pitch_signal_events event = (ui_events, pitch_errs)
                 ++ Pretty.pretty err
             | (x, p, Left err) <- pitches]
     ui_events = [ui_event (Score.event_stack event) (RealTime.to_score x) 0
-            (Pitch.note_text note)
+            (txt (Pitch.note_text note))
         | (x, _, Right note) <- pitches]
 
 -- ** control
@@ -191,7 +191,7 @@ control_track events control =
     -- TODO generalize this to everything in in Derive.initial_controls
     drop_dyn [event]
         | Score.typed_val control == Score.c_dynamic
-            && Event.event_string event == default_dyn = []
+            && Event.event_text event == default_dyn = []
     drop_dyn events = events
     default_dyn = ShowVal.show_hex_val Derive.default_dynamic
     tidy_controls = clip_to_zero . drop_dups . clip_concat
@@ -227,9 +227,9 @@ event_stack :: Score.Event -> Event.Stack
 event_stack event = Event.Stack (Score.event_stack event)
     (RealTime.to_score (Score.event_start event))
 
-ui_event :: Stack.Stack -> ScoreTime -> ScoreTime -> String -> Event.Event
+ui_event :: Stack.Stack -> ScoreTime -> ScoreTime -> Text -> Event.Event
 ui_event stack pos dur text =
-    Event.set_stack (Event.Stack stack pos) $ Event.event pos dur text
+    Event.set_stack (Event.Stack stack pos) $ Event.text_event pos dur text
 
 -- | Concatenate the events, dropping ones that are out of order.  The
 -- durations are not modified, so they still might overlap in duration, but the

@@ -38,8 +38,7 @@ lookup_attr = Derive.pattern_lookup "attribute starting with `+`" doc $
             Right (TrackLang.VRelativeAttrs rel) -> return $ Just $ call rel
             _ -> return Nothing
     parse_symbol _ = return Nothing
-    call rel = Make.transform_notes
-        ("relative attrs: " <> txt (ShowVal.show_val rel))
+    call rel = Make.transform_notes ("relative attrs: " <> ShowVal.show_val rel)
         Tags.attr "Doc unused." Sig.no_args
         (\() -> Util.with_attrs (TrackLang.apply_attr rel))
     doc = Derive.extract_doc $ Make.attributed_note (Score.attr "example-attr")
@@ -64,7 +63,7 @@ c_legato :: Derive.NoteCall
 c_legato = Derive.stream_generator "legato" (Tags.attr <> Tags.subs <> Tags.ly)
     ("Play the transformed notes legato.  This sets `+legato` on all notes\
     \ except the last one. The default note deriver will respond to `+legato`\
-    \ and " <> txt (ShowVal.doc_val Score.c_legato_overlap) <> "."
+    \ and " <> ShowVal.doc_val Score.c_legato_overlap <> "."
     ) $ Sig.call0 $ init_attr Attrs.legato
 
 c_ly_slur :: Derive.NoteCall
@@ -107,7 +106,7 @@ init_attr attr = Note.place . concatMap add <=< Note.sub_events
 c_detach :: Derive.NoteCall
 c_detach = Make.transform_notes "detach" mempty
     ("Detach the notes slightly, by setting "
-        <> txt (ShowVal.show_val Score.c_sustain_abs) <> ".")
+        <> ShowVal.show_val Score.c_sustain_abs <> ".")
     (Sig.defaulted "time" 0.15 "Set control to `-time`.") $ \time ->
         Derive.with_control Score.c_sustain_abs
             (Score.untyped (Signal.constant (-time)))

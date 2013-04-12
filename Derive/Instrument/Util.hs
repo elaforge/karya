@@ -15,7 +15,7 @@ import qualified Derive.TrackLang as TrackLang
 -- | Make a call that simply calls the default note call with the given attrs.
 attrs_note :: Score.Attributes -> Derive.NoteCall
 attrs_note attrs =
-    Derive.stream_generator ("attrs_note " <> txt (ShowVal.show_val attrs))
+    Derive.stream_generator ("attrs_note " <> ShowVal.show_val attrs)
         Tags.attr
         "Invoke the default note call with the given attrs." $
     Sig.call0 $ \args ->
@@ -33,7 +33,7 @@ note_call name transform = Derive.stream_generator name mempty
 
 -- | Make a note and add the attribute if it's 0 duration.
 note0_attrs :: Score.Attributes -> Derive.NoteCall
-note0_attrs attrs = postproc_note ("note0 " <> txt (ShowVal.show_val attrs))
+note0_attrs attrs = postproc_note ("note0 " <> ShowVal.show_val attrs)
     "Invoke the default note call, but add attrs if it has a zero duration." $
     \evt -> if Score.event_duration evt /= 0 then evt
         else Score.modify_attributes (attrs<>) evt

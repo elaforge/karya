@@ -147,8 +147,7 @@ c_grace_attr supported =
     ("Emit grace notes as attrs, given a set of possible interval attrs.\
     \ If the grace note can't be expressed by the supported attrs, then emit\
     \ notes like the normal grace call.\nSupported: "
-    <> Text.intercalate ", "
-        (map (txt . ShowVal.show_val) (Map.elems supported))
+    <> Text.intercalate ", " (map ShowVal.show_val (Map.elems supported))
     ) $ Sig.call ((,)
     <$> optional "dyn" "Scale the dyn of the grace notes."
     <*> many "pitch" "Grace note pitches."

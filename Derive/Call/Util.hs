@@ -99,7 +99,7 @@ typed_control_at control pos = case control of
         fromMaybe deflt <$> Derive.control_at cont pos
     TrackLang.LiteralControl cont ->
         maybe (Derive.throw $ "not found and no default: "
-                ++ TrackLang.show_val cont) return
+                <> untxt (TrackLang.show_val cont)) return
             =<< Derive.control_at cont pos
 
 time_control_at :: TimeType -> TrackLang.ValControl -> RealTime
@@ -111,7 +111,8 @@ time_control_at default_type control pos = do
         Score.Score -> return Score
         Score.Real -> return Real
         _ -> Derive.throw $ "expected time type for "
-            ++ TrackLang.show_val control ++ " but got " ++ Pretty.pretty typ
+            <> untxt (TrackLang.show_val control) <> " but got "
+            <> Pretty.pretty typ
     return $ case time_type of
         Real -> TrackLang.Real (RealTime.seconds val)
         Score -> TrackLang.Score (ScoreTime.double val)
@@ -125,7 +126,8 @@ transpose_control_at default_type control pos = do
         Score.Chromatic -> return Chromatic
         Score.Diatonic -> return Diatonic
         _ -> Derive.throw $ "expected transpose type for "
-            ++ TrackLang.show_val control ++ " but got " ++ Pretty.pretty typ
+            <> untxt (TrackLang.show_val control) <> " but got "
+            <> Pretty.pretty typ
     return (val, transpose_type)
 
 -- | Convert a 'TrackLang.ValControl' to a signal.
@@ -162,7 +164,8 @@ to_transpose_signal default_type control = do
         Score.Chromatic -> return (sig, Score.c_chromatic)
         Score.Diatonic -> return (sig, Score.c_diatonic)
         _ -> Derive.throw $ "expected transpose type for "
-            ++ TrackLang.show_val control ++ " but got " ++ Pretty.pretty typ
+            <> untxt (TrackLang.show_val control) <> " but got "
+            <> Pretty.pretty typ
 
 -- | Version of 'to_signal' that will complain if the control isn't a time
 -- type.
@@ -175,7 +178,8 @@ to_time_signal default_type control = do
         Score.Score -> return (sig, Score)
         Score.Real -> return (sig, Real)
         _ -> Derive.throw $ "expected time type for "
-            ++ TrackLang.show_val control ++ " but got " ++ Pretty.pretty typ
+            <> untxt (TrackLang.show_val control) <> " but got "
+            <> Pretty.pretty typ
 
 -- TODO maybe pos should be be ScoreTime so I can pass it to eval_pitch?
 pitch_at :: RealTime -> TrackLang.PitchControl
@@ -395,8 +399,8 @@ real_duration default_type from (Score.Typed typ val)
         return (RealTime.seconds val)
     | typ == Score.Score || typ == Score.Untyped && default_type == Score =
         real_dur from (ScoreTime.double val)
-    | otherwise = Derive.throw $
-        "expected time type for " ++ TrackLang.show_val (Score.Typed typ val)
+    | otherwise = Derive.throw $ "expected time type for "
+        <> untxt (TrackLang.show_val (Score.Typed typ val))
 
 -- | Get the real duration of a typed time val at the given point of score
 -- time.  RealTime is linear, so 1 second is always 1 second no matter where
@@ -430,7 +434,7 @@ duration_from start (TrackLang.Real t) = do
 timestep :: ScoreTime -> TimeStep.TimeStep -> Int -> Derive.Deriver ScoreTime
 timestep start ts steps = do
     (block_id, tracknum) <- Internal.get_current_tracknum
-    Derive.require ("valid timestep from " ++ ShowVal.show_val start)
+    Derive.require ("valid timestep from " <> untxt (ShowVal.show_val start))
         =<< Derive.eval_ui "c_timestep"
             (TimeStep.step_from steps ts block_id tracknum start)
 

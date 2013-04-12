@@ -116,7 +116,7 @@ replace from to = do
 
 map_symbol :: (TrackLang.Symbol -> TrackLang.Symbol) -> String -> String
 map_symbol f text =
-    either (const text) (ShowVal.show_val . TrackLang.map_symbol f)
+    either (const text) (untxt . ShowVal.show_val . TrackLang.map_symbol f)
         (ParseBs.parse_expr (ParseBs.from_string text))
 
 replace_block_call :: BlockId -> BlockId -> String -> String
