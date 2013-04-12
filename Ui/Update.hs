@@ -132,8 +132,8 @@ instance Pretty.Pretty View where
         Status status is_root -> Pretty.constructor "Status"
             [Pretty.format status, Pretty.format is_root]
         TrackScroll width ->
-            Pretty.constructor "ViewSize" [Pretty.format width]
-        Zoom zoom -> Pretty.constructor "ViewSize" [Pretty.format zoom]
+            Pretty.constructor "TrackScroll" [Pretty.format width]
+        Zoom zoom -> Pretty.constructor "Zoom" [Pretty.format zoom]
         Selection selnum sel -> Pretty.constructor "Selection"
             [Pretty.format selnum, Pretty.format sel]
         BringToFront -> Pretty.text "BringToFront"
