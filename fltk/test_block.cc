@@ -178,20 +178,21 @@ timeout_func(void *vp)
     BlockViewWindow &view = *((BlockViewWindow *) vp);
     static int n;
 
-    // copy paste from main()
-    // static int i = t1_events.size() - 1;
-    // static ScoreTime t1_time_end = t1_events[i].pos
-    //     + t1_events[i].event.duration;
-    // static EventTrackConfig track1(track_bg, t1_no_events, t1_time_end);
-    // static RulerConfig truler(ruler_bg, false, true, true, arrival_beats,
-    //     m44_last_pos);
+    static int i = t1_events.size() - 1;
+    static ScoreTime t1_time_end =
+        t1_events[i].event.start + t1_events[i].event.duration;
+    static ScoreTime m44_last_pos;
+    m44_set(&m44_last_pos);
+
+    static EventTrackConfig empty_track(track_bg, t1_no_events, t1_time_end,
+            RenderConfig(RenderConfig::render_line, render_color));
+    static RulerConfig ruler(
+            ruler_bg, false, true, true, arrival_beats, m44_last_pos);
 
     std::cout << n << "------------\n";
     switch (n) {
     case 0:
-        view.block.set_selection(0, Selection(selection_colors[0],
-                    1, ScoreTime(64), 1, ScoreTime(64)));
-        view.block.set_zoom(ZoomInfo(ScoreTime(16), 1.6));
+        view.block.insert_track(2, Tracklike(&empty_track, &ruler), 30);
         break;
     case 1:
         return;
@@ -360,7 +361,7 @@ main(int argc, char **argv)
         SkeletonConfig skel(4, edges);
         view.block.set_skeleton(skel);
     } else {
-        view.block.insert_track(1, Tracklike(&empty_track, &ruler), 130);
+        view.block.insert_track(1, Tracklike(&track1, &ruler), 60);
         view.block.set_track_signal(1, *control_track_signal());
     }
 
@@ -373,7 +374,6 @@ main(int argc, char **argv)
     // print_children(&view);
 
     // Fl::add_timeout(1, creep_selection, (void*) &view);
-    // Fl::add_timeout(1, timeout_func, (void*) &view);
 
     view.block.set_zoom(ZoomInfo(ScoreTime(0), 1.6));
 

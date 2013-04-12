@@ -217,7 +217,9 @@ SymbolTable::draw_wrapped(const string &text, IPoint pos, int wrap_width,
     // But it seems to be fast enough, and in particular fl_width has been
     // optimized for single characters.
     IPoint total_size(0, 0);
+    // Beginning of the line of text I'm trying to draw.
     const char *line_start = text.c_str();
+    // The last time I saw a space character, for line breaking.
     const char *last_space = line_start;
     ClipArea clip(clip_rect(IRect(pos.x, pos.y, wrap_width, max_height)));
 
@@ -263,14 +265,31 @@ SymbolTable::draw_wrapped(const string &text, IPoint pos, int wrap_width,
                 string(line_start, p - line_start), style);
             // For text, line_size.y will be fl_height() - fl_descent(), but
             // it looks a little cramped.
-            line_size.y += 1;
+            line_size.y += 2;
             total_size.x = std::max(total_size.x, line_size.x);
             total_size.y += line_size.y;
-            // DEBUG("draw " << string(line_start, break_at - line_start));
-            this->draw(string(line_start, break_at - line_start),
-                IPoint(pos.x, pos.y + total_size.y), style);
-            // Don't draw the ugly rectangle unless I actually did some
-            // wrapping.
+
+            const string chunk(line_start, break_at - line_start);
+            // DEBUG("draw '" << chunk << "' at "
+            //     << IPoint(pos.x, pos.y + total_size.y));
+            this->draw(chunk, IPoint(pos.x, pos.y + total_size.y), style);
+            // Done drawing, text has a last char, and the last char is space.
+            if (*break_at == '\0' && text.size() > 0 && *(--text.end()) == ' ')
+            {
+                IPoint trailing(pos.x + line_size.x,
+                    pos.y + total_size.y - line_size.y);
+                // I want to put the mark on the last space, not afterwards,
+                // so subtract a bit.  But if it wrapped exactly at the space,
+                // the space will be omitted so don't subtract past the left
+                // margin.
+                trailing.x = std::max(trailing.x - 3, pos.x);
+                trailing.y += fl_descent();
+                fl_color(FL_RED);
+                fl_rectf(trailing.x, trailing.y, 2, fl_height() - fl_descent());
+            }
+
+            // If I'm forced to clip vertically, draw a horizontal abbreviation
+            // rectangle to indicate that.
             if (total_size.y >= max_height) {
                 if (total_size.y > line_size.y) {
                     fl_color(color_to_fl(Config::abbreviation_color));

@@ -677,21 +677,6 @@ EventTrackView::draw_upper_layer(int offset, const Event &event, int rank,
                 : IPoint(text_rect.x, text_rect.b() - 1);
             SymbolTable::get()->draw(event.text, draw_pos, style, vertical);
         }
-
-        if (!rank) {
-            if (too_wide && !vertical) {
-                // If the text is too long it gets truncated with a blue
-                // block.
-                fl_color(color_to_fl(Config::abbreviation_color));
-                fl_rectf(x()+w() - 3, text_rect.y, 2, text_rect.h);
-            } else if (event.text && *event.text
-                && isspace(event.text[strlen(event.text)-1]))
-            {
-                // Hightlight a trailing space.
-                fl_color(FL_RED);
-                fl_rectf(text_rect.r(), text_rect.y, 2, fl_height());
-            }
-        }
     }
     if (rank) {
         return prev_unranked_rect;
