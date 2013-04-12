@@ -29,7 +29,7 @@ UNSORTED
     * save views unconditionally when I quit or switch save files
       How do I get a hook on that?  For quit, I need something explicit.
     * load_git loads the view state separately.
-  - SaveGit.checkpoint should do nothing if there are no modifications
+  * SaveGit.checkpoint should do nothing if there are no modifications
 
   * Can't put a slur on a tuplet.  Can I do it by appending ( and ) directly
     to the notes, as with xstaff?
@@ -87,7 +87,7 @@ UNSORTED
   * It's because slice orphans acts like they're on different tracks even
     though they're on the same one.
     Slice all the way down to the bottom of the note tracks.
-  - Does this mean I can get rid of the is-ly track-level hack?
+  / Does this mean I can get rid of the is-ly track-level hack?
   * Slice notes should complain when a sub-note is larger than its parent,
     because those duplicate notes.  Right?
     * Track level orphans should also check.

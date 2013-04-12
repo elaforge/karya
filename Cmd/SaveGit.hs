@@ -159,6 +159,7 @@ checkpoint repo hist@(SaveHistory state prev_commit updates names) =
                     ++ Seq.join ", " warns
                     ++ "; this probably means 'Ui.Diff.cancel_updates didn't"
                     ++ " do its job"
+            if null mods then return $ Right prev_commit else do
             last_tree <- Git.commit_tree <$> Git.read_commit repo prev_commit
             tree <- Git.modify_tree repo last_tree mods
             commit <- commit_tree repo tree (Just prev_commit) $
