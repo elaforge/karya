@@ -1,4 +1,4 @@
-{-# LANGUAGE OverloadedStrings, GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 -- | Pull deriver call documentation out of a Performance and format it nicely.
 module Cmd.CallDoc where
 import qualified Data.List as List
@@ -7,7 +7,6 @@ import qualified Data.Monoid as Monoid
 import qualified Data.Set as Set
 import qualified Data.String as String
 import qualified Data.Text as Text
-import Data.Text (Text)
 
 import Util.Control
 import qualified Util.Format as Format
@@ -29,7 +28,7 @@ import Types
 -- * output
 
 -- | Convert a Document to plain text.
-doc_text :: Document -> Text.Text
+doc_text :: Document -> Text
 doc_text = Format.run (Just 75) . mapM_ section
     where
     section (call_type, scope_docs) = do
@@ -64,19 +63,19 @@ call_bindings_text (binds, sections) = do
         write_doc doc
     arg_docs (Derive.ArgDocs args) = mapM_ arg_doc args
     arg_doc (Derive.ArgDoc name typ parser doc) = do
-        Format.write $ Text.pack name <> fromMaybe mempty char <> " :: "
-            <> Text.pack (Pretty.pretty typ) <> maybe "" (" = "<>) deflt
+        Format.write $ name <> fromMaybe mempty char <> " :: "
+            <> txt (Pretty.pretty typ) <> maybe "" (" = "<>) deflt
             <> " -- "
         write_doc doc
         where (char, deflt) = show_parser parser
     write_tags tags
         | tags == mempty = return ()
         | otherwise = Format.write $
-            "Tags: " <> Text.pack (Seq.join ", " (Tags.untag tags)) <> "\n"
+            "Tags: " <> txt (Seq.join ", " (Tags.untag tags)) <> "\n"
 
-write_doc :: String -> Format.FormatM ()
+write_doc :: Text -> Format.FormatM ()
 write_doc text = do
-    Format.wrapped_words 4 (Text.pack text)
+    Format.wrapped_words 4 text
     Format.newline
 
 show_parser :: Derive.ArgParser -> (Maybe Text, Maybe Text)
@@ -90,7 +89,7 @@ show_parser p = case p of
 -- ** html output
 
 -- | Convert a Document to HTML.
-doc_html :: Document -> Text.Text
+doc_html :: Document -> Text
 doc_html = un_html . (html_header <>) . mconcatMap section
     where
     section (call_type, scope_docs) =
@@ -147,8 +146,8 @@ call_bindings_html (binds, sections) =
         "\n<li><b>Args parsed by call:</b> " <> html_doc doc
     arg_docs (Derive.ArgDocs args) = mconcatMap arg_doc args
     arg_doc (Derive.ArgDoc name typ parser doc) =
-        "<li>" <> tag "code" (html (Text.pack name)) <> show_char char
-        <> " :: " <> tag "em" (html (Text.pack (Pretty.pretty typ)))
+        "<li>" <> tag "code" (html name) <> show_char char
+        <> " :: " <> tag "em" (html (txt (Pretty.pretty typ)))
         <> show_default deflt <> " &mdash; " <> html_doc doc <> "\n"
         where (char, deflt) = show_parser parser
     show_default = maybe "" ((" = " <>) . tag "code" . html)
@@ -165,18 +164,18 @@ tag name content = "<" <> name <> ">" <> content <> "</" <> name <> ">"
 mconcatMap :: (Monoid.Monoid b) => (a -> b) -> [a] -> b
 mconcatMap f = mconcat . map f
 
-newtype Html = Html Text.Text
+newtype Html = Html Text
     deriving (Monoid.Monoid, String.IsString, Show)
 
-un_html :: Html -> Text.Text
+un_html :: Html -> Text
 un_html (Html text) = text
 
-html :: Text.Text -> Html
+html :: Text -> Html
 html = Html . Text.replace "<" "&lt;" . Text.replace ">" "&gt;"
         . Text.replace "&" "&amp;"
 
-html_doc :: String -> Html
-html_doc = map_html postproc . html . Text.pack
+html_doc :: Text -> Html
+html_doc = map_html postproc . html
     where
     map_html f (Html text) = Html (f text)
     postproc = para . backticks
@@ -190,7 +189,7 @@ html_doc = map_html postproc . html . Text.pack
 
 type Scale = [CallBindings]
 
-scales_html :: [Scale] -> Text.Text
+scales_html :: [Scale] -> Text
 scales_html scales = un_html $ html_header
         <> "<h2> Scales </h2>\n"
         <> "<dl class=main>\n" <> mconcatMap scale_html scales
@@ -276,13 +275,13 @@ lookup_docs = group . snd . List.mapAccumL go Set.empty . concatMap flatten
         [(Right sym, call) | (sym, call) <- Map.toAscList cmap]
     go shadowed (Left pattern, call) =
         -- There's no way to know if a programmatic lookup shadows.
-        (shadowed, ((False, "lookup: " <> Text.pack pattern),
+        (shadowed, ((False, "lookup: " <> pattern),
             documented_call call))
     go shadowed (Right sym, call) = (Set.insert sym shadowed,
         ((sym `Set.member` shadowed, show_sym sym), documented_call call))
     show_sym (TrackLang.Symbol sym)
         | null sym = "\"\""
-        | otherwise = Text.pack sym
+        | otherwise = txt sym
     group :: [((Bool, SymbolName), (CallName, DocumentedCall))]
         -> [CallBindings]
     group pairs = [(extract names, doc_call)
@@ -301,8 +300,6 @@ show_call_type TransformerCall = "transformer"
 
 documented_call :: Derive.DocumentedCall -> (CallName, DocumentedCall)
 documented_call (Derive.DocumentedCall name generator transformer) =
-    (Text.pack name,
-        doc GeneratorCall generator ++ doc TransformerCall transformer)
+    (name, doc GeneratorCall generator ++ doc TransformerCall transformer)
     where doc typ = maybe [] ((:[]) . (,) typ)
-documented_call (Derive.DocumentedValCall name cdoc) =
-    (Text.pack name, [(ValCall, cdoc)])
+documented_call (Derive.DocumentedValCall name cdoc) = (name, [(ValCall, cdoc)])

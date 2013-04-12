@@ -79,7 +79,8 @@ infer_transpose args start = do
 c_realize_damp :: Derive.NoteCall
 c_realize_damp = Derive.transformer "realize-damp" (Tags.idiom <> Tags.postproc)
     ("Extend the duration of events preceding one with a "
-    <> ShowVal.show_val damped_tag <> " to the end of the event with the attr.\
+    <> txt (ShowVal.show_val damped_tag)
+    <> " to the end of the event with the attr.\
     \ This is because the tick call can't modify its previous note.\
     \ TODO: Since there's no correspondence between tracks in different\
     \ blocks, the damping can't extend across block boundaries. I'd need\

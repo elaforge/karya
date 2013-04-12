@@ -1,4 +1,3 @@
-{-# LANGUAGE OverloadedStrings #-}
 module Util.Git.Git_test where
 import qualified Data.Map as Map
 import qualified System.Directory as Directory

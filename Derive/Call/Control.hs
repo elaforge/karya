@@ -104,7 +104,7 @@ c_set_prev = Derive.generator "set-prev" Tags.internal
 -- * linear
 
 linear_interpolation :: (TrackLang.Typecheck time) =>
-    String -> time -> String
+    Text -> time -> Text
     -> (Derive.PassedArgs Signal.Control -> time
         -> Derive.Deriver TrackLang.RealOrScore)
     -> Derive.ControlCall
@@ -117,7 +117,7 @@ linear_interpolation name time_default time_default_doc get_time =
     where
     doc = "Interpolate from the previous sample to the given one in a straight\
         \ line."
-    time_doc = "Time to reach destination. " ++ time_default_doc
+    time_doc = "Time to reach destination. " <> time_default_doc
 
 c_linear_prev :: Derive.ControlCall
 c_linear_prev = linear_interpolation "linear" Nothing
@@ -154,7 +154,7 @@ c_linear_next_const =
 
 -- | Exponential interpolation, with different start times.
 exponential_interpolation :: (TrackLang.Typecheck time) =>
-    String -> time -> String
+    Text -> time -> Text
     -> (Derive.PassedArgs Signal.Control -> time
         -> Derive.Deriver TrackLang.RealOrScore)
     -> Derive.ControlCall
@@ -167,9 +167,9 @@ exponential_interpolation name time_default time_default_doc get_time =
         interpolate (expon exp) args pitch =<< get_time args time
     where
     doc = "Interpolate from the previous pitch to the given one in a curve."
-    time_doc = "Time to reach destination. " ++ time_default_doc
+    time_doc = "Time to reach destination. " <> time_default_doc
 
-exp_doc :: String
+exp_doc :: Text
 exp_doc = "Slope of an exponential curve. Positive `n` is taken as `x^n`\
     \ and will generate a slowly departing and rapidly approaching\
     \ curve. Negative `-n` is taken as `x^1/n`, which will generate a\

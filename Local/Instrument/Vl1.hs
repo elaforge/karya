@@ -207,7 +207,7 @@ record_to_patch :: Sysex.RMap -> Either String Instrument.Patch
 record_to_patch rmap = do
     name <- get "name"
     elt1 <- extract_element 0 rmap
-    maybe_elt2 <- ifM ((=="dual") <$> get "voice mode")
+    maybe_elt2 <- ifM ((== ("dual" :: String)) <$> get "voice mode")
         (Just <$> extract_element 1 rmap)
         (return Nothing)
     vl1_patch name elt1 maybe_elt2

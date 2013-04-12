@@ -2,6 +2,7 @@ module Derive.Scale.TwelveScales where
 import qualified Data.Either as Either
 import qualified Data.Map as Map
 import qualified Data.Set as Set
+import qualified Data.Text as Text
 
 import Util.Control
 import qualified Util.Num as Num
@@ -30,15 +31,15 @@ data ScaleMap = ScaleMap {
     , smap_default_key :: Theory.Key
     }
 
-twelve_doc :: String
-twelve_doc = "Scales in the \"twelve\" family use western style note naming."
-    <> " That is, note names look like octave-letter-accidentals like \"4c#\"."
-    <> " They have a notion of a \"layout\", which is a pattern of half and"
-    <> " whole steps, e.g. the piano layout, and a key, which is a subset of"
-    <> " notes from the scale along with a preferred spelling for them. The"
-    <> " rules of how enharmonic spelling works are complicated, and documented"
-    <> " in 'Derive.Scale.Theory'. The key is read from the `key` env var, and"
-    <> " each scale has a list of keys it will accept."
+twelve_doc :: Text
+twelve_doc = "Scales in the \"twelve\" family use western style note naming.\
+    \ That is, note names look like octave-letter-accidentals like \"4c#\".\
+    \ They have a notion of a \"layout\", which is a pattern of half and\
+    \ whole steps, e.g. the piano layout, and a key, which is a subset of\
+    \ notes from the scale along with a preferred spelling for them. The\
+    \ rules of how enharmonic spelling works are complicated, and documented\
+    \ in 'Derive.Scale.Theory'. The key is read from the `key` env var, and\
+    \ each scale has a list of keys it will accept."
 
 scale_map :: Theory.Layout -> [Theory.Pitch] -> Keys -> Theory.Key -> ScaleMap
 scale_map layout pitches keys default_key =
@@ -120,7 +121,7 @@ input_to_note smap maybe_key (Pitch.InputKey key_nn) =
         flip Map.lookup (smap_keys smap) =<< maybe_key
     (nn_semis, cents) = properFraction key_nn
 
-call_doc :: Set.Set Score.Control -> ScaleMap -> String -> Derive.DocumentedCall
+call_doc :: Set.Set Score.Control -> ScaleMap -> Text -> Derive.DocumentedCall
 call_doc transposers smap doc =
     Util.annotate_call_doc transposers extra_doc fields $
         Derive.extract_val_doc call
@@ -130,15 +131,15 @@ call_doc transposers smap doc =
     extra_doc = doc <> "\n" <> twelve_doc
     fields =
         [ ("note range", note_range)
-        , ("default key", Pretty.pretty $
+        , ("default key", txt $ Pretty.pretty $
             Theory.show_key (smap_default_key smap))
-        , ("keys", Seq.join ", " $
-            map Pretty.pretty (Map.keys (smap_keys smap)))
+        , ("keys", Text.intercalate ", " $
+            map (txt . Pretty.pretty) (Map.keys (smap_keys smap)))
         ]
     note_range = case (Seq.minimum_on (snd . snd) notes,
             Seq.maximum_on (snd . snd) notes) of
         (Just (note1, _), Just (note2, _)) ->
-            Pretty.pretty note1 ++ " to " ++ Pretty.pretty note2
+            txt (Pretty.pretty note1) <> " to " <> txt (Pretty.pretty note2)
         _ -> ""
     notes = Map.toList (smap_note_to_degree smap)
 

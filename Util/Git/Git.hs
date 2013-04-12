@@ -1,4 +1,4 @@
-{-# LANGUAGE OverloadedStrings, DeriveDataTypeable, ScopedTypeVariables #-}
+{-# LANGUAGE DeriveDataTypeable, ScopedTypeVariables #-}
 -- | Low level interaction with the git object store.
 --
 -- This uses the git cmdline, which is easy but inefficient for lots of

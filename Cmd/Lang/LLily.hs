@@ -5,7 +5,6 @@
 -- changes to a block, but it didn't seem too useful, since any useful amount
 -- of lilypond score takes quite a while to compile.
 module Cmd.Lang.LLily where
-import qualified Data.Text as Text
 import qualified System.FilePath as FilePath
 import qualified System.Process as Process
 
@@ -109,7 +108,7 @@ ly_events :: RealTime -> Derive.Events -> ([Lilypond.Event], [Log.Msg])
 ly_events quarter = LEvent.partition . Convert.convert quarter
 
 -- | Convert down to lilypond score.
-make_ly :: Cmd.CmdL (Either String [Text.Text], [Log.Msg])
+make_ly :: Cmd.CmdL (Either String [Text], [Log.Msg])
 make_ly = do
     block_id <- Cmd.get_focused_block
     config <- get_config

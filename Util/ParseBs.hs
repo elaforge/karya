@@ -1,4 +1,3 @@
-{-# LANGUAGE OverloadedStrings #-}
 {- | Parsing utilities for ByteStrings, using Attoparsec.
 
     This module also exports some basic combinators.  The idea is that modules

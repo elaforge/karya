@@ -19,6 +19,7 @@ module Derive.Call.Note (
 ) where
 import qualified Data.List.NonEmpty as NonEmpty
 import qualified Data.Map as Map
+import qualified Data.Text as Text
 import qualified Data.Tree as Tree
 
 import Util.Control
@@ -65,7 +66,7 @@ note_calls = Derive.make_calls
 c_note :: Derive.NoteCall
 c_note = note_call "" "" (default_note use_attributes)
 
-transformed_note :: String -> (Derive.EventDeriver -> Derive.EventDeriver)
+transformed_note :: Text -> (Derive.EventDeriver -> Derive.EventDeriver)
     -> Derive.NoteCall
 transformed_note prepend_doc transform =
     note_call "" prepend_doc (transform . default_note use_attributes)
@@ -73,17 +74,17 @@ transformed_note prepend_doc transform =
 -- | Create a note call, configuring it with the actual note generating
 -- function.  The generator is called with the usual note arguments, and
 -- receives the usual instrument and attribute transform.
-note_call :: String
+note_call :: Text
     -- ^ Append to the name, if non-null.  The documentation for all calls that
     -- differ only in name can be grouped together, so it's easier to read
     -- if small modifications are reflected in the name only.  But since
     -- the name is then no longer a valid identifier, it can't be used to set
     -- default arguments.  That's not really a big deal for the note call,
     -- though.
-    -> String -> GenerateNote -> Derive.NoteCall
+    -> Text -> GenerateNote -> Derive.NoteCall
 note_call append_name prepend_doc generate = Derive.Call
     { Derive.call_name = "note"
-        ++ (if null append_name then "" else ' ' : append_name)
+        <> (if Text.null append_name then "" else Text.cons ' ' append_name)
     , Derive.call_generator = Just $ Derive.generator_call mempty prepended
         (Sig.call parser (note_generate generate))
     , Derive.call_transformer = Just $ Derive.transformer_call Tags.subs
@@ -92,9 +93,9 @@ note_call append_name prepend_doc generate = Derive.Call
     where
     parser = Sig.many "attribute" "Change the instrument or attributes."
     prepended
-        | null prepend_doc = generator_doc
-        | otherwise = "Modified note call: " ++ prepend_doc ++ "\n"
-            ++ generator_doc
+        | Text.null prepend_doc = generator_doc
+        | otherwise = "Modified note call: " <> prepend_doc <> "\n"
+            <> generator_doc
     generator_doc =
         "The note call is the main note generator, and will emit a single"
         <> " score event. It interprets `>inst` and `+attr` args by"

@@ -124,7 +124,7 @@ require msg = maybe (throw $ "required: " ++ msg) return
 require_right :: (err -> String) -> Either err a -> Deriver a
 require_right fmt_err = either (throw . fmt_err) return
 
-with_msg :: String -> Deriver a -> Deriver a
+with_msg :: Text -> Deriver a -> Deriver a
 with_msg msg = Internal.local $ \st ->
     st { state_log_context = msg : state_log_context st }
 
@@ -214,7 +214,7 @@ with_scale scale = with_val_raw TrackLang.v_scale (scale_id scale)
 
 scale_to_lookup :: Scale -> LookupCall ValCall
 scale_to_lookup scale =
-    pattern_lookup name (scale_call_doc scale)
+    pattern_lookup (txt name) (scale_call_doc scale)
         (\call_id -> return $ scale_note_to_call scale (to_note call_id))
     where
     name = ShowVal.show_val (scale_id scale) ++ ": " ++ scale_pattern scale

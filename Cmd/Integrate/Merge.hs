@@ -1,4 +1,4 @@
-{-# LANGUAGE CPP, OverloadedStrings #-}
+{-# LANGUAGE CPP #-}
 {- | Merge integrated tracks into existing, possibly hand-edited tracks, using
     the index of the previous integration to figure out which edits were made.
 

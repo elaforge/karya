@@ -1,5 +1,4 @@
 {-# LANGUAGE CPP #-}
-{-# LANGUAGE OverloadedStrings #-}
 -- | TrackLang parsers using ByteStrings and Attoparsec.
 --
 -- This is faster than Parsec + Strings, but cannot handle non-ascii text.
@@ -32,7 +31,7 @@ import qualified Data.ByteString.Char8 as B
 import qualified Data.ByteString.UTF8 as UTF8
 import qualified Data.List.NonEmpty as NonEmpty
 
-import Util.Control
+import Util.Control hiding (Text)
 import qualified Util.ParseBs as Parse
 import qualified Ui.Event as Event
 import qualified Ui.Id as Id
@@ -51,7 +50,6 @@ from_string = UTF8.fromString
 
 to_string :: Text -> String
 to_string = UTF8.toString
-
 
 parse_expr :: Text -> Either String TrackLang.Expr
 parse_expr = parse p_pipeline

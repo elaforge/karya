@@ -115,13 +115,13 @@ parser arg_doc = Parser [arg_doc]
 
 data State = State {
     -- | Pairs of the arg number, starting at 0, and the argument.
-    state_vals :: [TrackLang.Val]
+    state_vals :: ![TrackLang.Val]
     -- | This has to be incremented every time a Val is taken.  Pairing argnums
     -- in state_vals doesn't work because when I run out I don't know where
     -- I am.
-    , state_argnum :: Int
-    , state_environ :: TrackLang.Environ
-    , state_call_name :: String
+    , state_argnum :: !Int
+    , state_environ :: !TrackLang.Environ
+    , state_call_name :: !Text
     } deriving (Show)
 
 run :: Parser a -> State -> Either Error a
@@ -129,7 +129,7 @@ run (Parser _ parse) state = case parse state of
     Right (state, a) -> case state_vals state of
         [] -> Right a
         vals -> Left $ Derive.ArgError $ "too many arguments: "
-            ++ Seq.join ", " (map ShowVal.show_val vals)
+            <> txt (Seq.join ", " (map ShowVal.show_val vals))
     Left err -> Left err
 
 parser_docs :: Parser a -> Docs
@@ -151,7 +151,7 @@ instance Applicative.Applicative Parser where
 -- | Just pass the arguments through, and let the call process them.
 -- This is for calls whose args are more complicated than the Parser can
 -- handle.
-parsed_manually :: String -> a -> Derive.WithArgDoc a
+parsed_manually :: Text -> a -> Derive.WithArgDoc a
 parsed_manually doc f = (f, Derive.ArgsParsedSpecially doc)
 
 -- | Parser for nullary calls.  Either use this with 'call' and 'callt', or use
@@ -160,10 +160,10 @@ no_args :: Parser ()
 no_args = Applicative.pure ()
 
 -- | The argument is required to be present, and have the right type.
-required :: forall a. (TrackLang.Typecheck a) => String -> String -> Parser a
+required :: forall a. (TrackLang.Typecheck a) => Text -> Text -> Parser a
 required name doc = parser arg_doc $ \state -> case get_val state name of
     Nothing -> Left $ Derive.ArgError $
-        "expected another argument at: " ++ show name
+        "expected another argument at: " <> txt (show name)
     Just (state, val) -> case TrackLang.from_val val of
         Just a -> Right (state, a)
         Nothing -> Left $ Derive.TypeError (state_argnum state) name expected
@@ -179,7 +179,7 @@ required name doc = parser arg_doc $ \state -> case get_val state name of
 
 -- | The argument is not required to be present, but if it is, it has to have
 -- either the right type or be VNotGiven.
-defaulted :: forall a. (TrackLang.Typecheck a) => String -> a -> String
+defaulted :: forall a. (TrackLang.Typecheck a) => Text -> a -> Text
     -> Parser a
 defaulted name deflt doc = parser arg_doc $ \state -> case get_val state name of
     Nothing -> Right (state, deflt)
@@ -199,7 +199,7 @@ defaulted name deflt doc = parser arg_doc $ \state -> case get_val state name of
 
 -- | This is like 'defaulted', but if the argument is the wrong type return
 -- Nothing instead of failing.
-optional :: forall a. (TrackLang.Typecheck a) => String -> String
+optional :: forall a. (TrackLang.Typecheck a) => Text -> Text
     -> Parser (Maybe a)
 optional name doc = parser arg_doc $ \state -> case get_val state name of
     Nothing -> Right (state, Nothing)
@@ -222,7 +222,7 @@ optional name doc = parser arg_doc $ \state -> case get_val state name of
         }
 
 -- | Collect the rest of the arguments.
-many :: forall a. (TrackLang.Typecheck a) => String -> String -> Parser [a]
+many :: forall a. (TrackLang.Typecheck a) => Text -> Text -> Parser [a]
 many name doc = parser arg_doc $ \state -> do
     vals <- mapM typecheck (zip [state_argnum state..] (state_vals state))
     Right (state { state_vals = [] }, vals)
@@ -239,12 +239,12 @@ many name doc = parser arg_doc $ \state -> do
         }
 
 -- | Collect the rest of the arguments, but there must be at least one.
-many1 :: forall a. (TrackLang.Typecheck a) => String -> String
+many1 :: forall a. (TrackLang.Typecheck a) => Text -> Text
     -> Parser (NonEmpty a)
 many1 name doc = parser arg_doc $ \state ->
     case zip [state_argnum state ..] (state_vals state) of
         [] -> Left $
-            Derive.ArgError $ "many1 arg requires at least one value: " ++ name
+            Derive.ArgError $ "many1 arg requires at least one value: " <> name
         v : vs -> do
             v <- typecheck v
             vs <- mapM typecheck vs
@@ -278,7 +278,7 @@ required_control name = TrackLang.LiteralControl (Score.Control name)
 
 -- ** util
 
-get_val :: State -> String -> Maybe (State, TrackLang.Val)
+get_val :: State -> Text -> Maybe (State, TrackLang.Val)
 get_val state name = case state_vals state of
     [] -> (,) next <$> lookup_default state name
     v : vs -> Just (next { state_vals = vs }, case v of
@@ -287,14 +287,14 @@ get_val state name = case state_vals state of
         _ -> v)
     where next = state { state_argnum = state_argnum state + 1 }
 
-lookup_default :: State -> String -> Maybe TrackLang.Val
+lookup_default :: State -> Text -> Maybe TrackLang.Val
 lookup_default state name = TrackLang.lookup_val
     (arg_environ_default (state_call_name state) name)
     (state_environ state)
 
-arg_environ_default :: String -> String -> TrackLang.ValName
+arg_environ_default :: Text -> Text -> TrackLang.ValName
 arg_environ_default call_name arg_name =
-    TrackLang.Symbol $ call_name ++ "-" ++ arg_name
+    TrackLang.Symbol $ untxt $ call_name <> "-" <> arg_name
 
 
 -- * call
@@ -346,14 +346,14 @@ cast :: forall a. (TrackLang.Typecheck a) => String -> TrackLang.Val
     -> Derive.Deriver a
 cast name val = case TrackLang.from_val val of
         Nothing -> Derive.throw $
-            name ++ ": expected " ++ Pretty.pretty return_type
-            ++ " but val was " ++ Pretty.pretty (TrackLang.type_of val)
-            ++ " " ++ TrackLang.show_val val
+            name <> ": expected " <> Pretty.pretty return_type
+            <> " but val was " <> Pretty.pretty (TrackLang.type_of val)
+            <> " " <> TrackLang.show_val val
         Just a -> return a
     where return_type = TrackLang.to_type (error "cast" :: a)
 
 -- | Make a new ValCall from an existing one, by mapping over its output.
-modify_vcall :: Derive.ValCall -> String -> String
+modify_vcall :: Derive.ValCall -> Text -> Text
     -> (TrackLang.Val -> TrackLang.Val) -> Derive.ValCall
 modify_vcall vcall name doc f = vcall
     { Derive.vcall_name = name

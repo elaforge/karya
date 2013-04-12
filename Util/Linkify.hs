@@ -1,4 +1,3 @@
-{-# LANGUAGE OverloadedStrings #-}
 -- | Turn single quoted strings into links to haddock docs, depending on
 -- whether the module can be found or not.
 --

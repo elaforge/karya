@@ -1,4 +1,4 @@
-{-# LANGUAGE CPP, OverloadedStrings #-}
+{-# LANGUAGE CPP #-}
 {- | Like Show, but designed to be easy to read rather than unambiguous and
     complete.
 -}
@@ -121,7 +121,7 @@ instance (Pretty k, Pretty v) => Pretty (Map.Map k v) where
 instance Pretty ByteString.ByteString where
     format = PP.doubleQuotes . PP.text . UTF8.toString
 
-instance Pretty Text.Text where
+instance Pretty Text where
     format = PP.doubleQuotes . PP.text . Text.unpack
 
 instance Pretty Text.Lazy.Text where

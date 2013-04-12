@@ -275,7 +275,9 @@ make_note measure_start prev_attrs meter events next = (ly, end, clipped)
         | null direction = TieNeutral
         | direction == "^" = TieUp
         | otherwise = TieDown
-        where direction = get Constants.v_ly_tie_direction event
+        where
+        direction :: String
+        direction = get Constants.v_ly_tie_direction event
     is_first = not . event_clipped
     is_last = not (any (is_tied . snd) pitches)
     is_tied NoTie = False

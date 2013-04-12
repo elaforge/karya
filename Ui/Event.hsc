@@ -47,7 +47,7 @@ import qualified Data.ByteString.UTF8 as UTF8
 import qualified Data.Map as Map
 import Util.ForeignC
 
-import Util.Control
+import Util.Control hiding (Text)
 import qualified Util.Pretty as Pretty
 import qualified Util.Serialize as Serialize
 import Util.Serialize (get, put)

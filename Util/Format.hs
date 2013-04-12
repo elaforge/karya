@@ -1,5 +1,4 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE OverloadedStrings #-}
 -- | Simple text formatter.  The pretty print libraries never seem to do what
 -- I want and are hard to control.
 module Util.Format (
@@ -10,7 +9,6 @@ module Util.Format (
 import qualified Control.Monad.State.Strict as State
 import qualified Data.List as List
 import qualified Data.Text as Text
-import Data.Text (Text)
 
 import Util.Control
 import qualified Util.Seq as Seq

@@ -1,6 +1,5 @@
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE MagicHash, ScopedTypeVariables #-}
-{-# LANGUAGE OverloadedStrings #-}
 -- | REPL implementation that directly uses the GHC API.
 --
 -- Supported versions: 70, 74

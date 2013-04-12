@@ -1,4 +1,4 @@
-{-# LANGUAGE CPP, OverloadedStrings #-}
+{-# LANGUAGE CPP #-}
 module Derive.Cache (
     cache_block, cache_track
     , get_control_damage, get_tempo_damage

@@ -1,4 +1,3 @@
-{-# LANGUAGE OverloadedStrings #-}
 {- | Support for testing the GUI.
 
     The GUI exports a 'dump' function which emits a sexpr-like set of

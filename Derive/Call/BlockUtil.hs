@@ -59,7 +59,7 @@ control_deriver block_id = do
         Right tree -> return $ derive_control_tree block_end tree
 
 -- | Name of the call for the control deriver hack.
-capture_null_control :: String
+capture_null_control :: Text
 capture_null_control = "capture-null-control"
 
 -- | Ensure the tree meets the requirements documented by 'control_deriver'
@@ -80,7 +80,8 @@ check_control_tree block_end forest = case forest of
         ++ "but there are multiple children: "
         ++ show (map (TrackTree.tevents_title . Tree.rootLabel) tracks)
     where
-    events = Events.singleton (Event.event 0 block_end capture_null_control)
+    events = Events.singleton $
+        Event.event 0 block_end (untxt capture_null_control)
     capture_track = TrackTree.track_events ">" events block_end
 
 derive_control_tree :: ScoreTime -> TrackTree.EventsTree

@@ -1,4 +1,3 @@
-{-# LANGUAGE OverloadedStrings #-}
 module Util.Format_test where
 import qualified Data.Text as Text
 

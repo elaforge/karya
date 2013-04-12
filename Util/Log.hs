@@ -1,5 +1,4 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving, DeriveDataTypeable #-}
-{-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE FlexibleInstances, MultiParamTypeClasses, UndecidableInstances #-}
 {- | Functions for logging.
 
@@ -71,7 +70,7 @@ data Msg = Msg {
     -- score the msg was emitted.
     , msg_stack :: !(Maybe Stack)
     -- | Free form text for humans.
-    , msg_text :: !Text.Text
+    , msg_text :: !Text
     } deriving (Eq, Show, Read, Generics.Typeable)
 
 instance DeepSeq.NFData Msg where
@@ -206,7 +205,7 @@ warn_stack = warn_stack_srcpos Nothing
 error_stack = error_stack_srcpos Nothing
 
 -- | Prefix msgs with the given string.
-add_prefix :: Text.Text -> [Msg] -> [Msg]
+add_prefix :: Text -> [Msg] -> [Msg]
 add_prefix pref = map $ \m -> m { msg_text = pref <> ": " <> msg_text m }
 
 -- | Write log msgs with 'trace', for debugging.

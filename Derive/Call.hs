@@ -1,4 +1,4 @@
-{-# LANGUAGE OverloadedStrings, ScopedTypeVariables, RankNTypes #-}
+{-# LANGUAGE ScopedTypeVariables, RankNTypes #-}
 {- | Basic module for call evaluation.
 
     It should also have Deriver utilities that could go in Derive, but are more
@@ -344,11 +344,11 @@ apply_generator cinfo (TrackLang.Call call_id args) = do
             return (call, [val])
 
     let args = Derive.PassedArgs vals (Derive.call_name call) cinfo
-        with_stack = Internal.with_stack_call (Derive.call_name call)
+        with_stack = Internal.with_stack_call (untxt (Derive.call_name call))
     with_stack $ case Derive.call_generator call of
         Just gen -> Derive.generator_func gen args
         Nothing -> Derive.throw $ "non-generator in generator position: "
-            ++ Derive.call_name call
+            <> untxt (Derive.call_name call)
     where
     name = Derive.callable_name
         (error "Derive.callable_name shouldn't evaluate its argument." :: d)
@@ -361,12 +361,12 @@ apply_transformer cinfo (TrackLang.Call call_id args : calls) deriver = do
     vals <- mapM (eval cinfo) args
     call <- get_call call_id
     let args = Derive.PassedArgs vals (Derive.call_name call) cinfo
-        with_stack = Internal.with_stack_call (Derive.call_name call)
+        with_stack = Internal.with_stack_call (untxt (Derive.call_name call))
     with_stack $ case Derive.call_transformer call of
         Just trans -> Derive.transformer_func trans args $
             apply_transformer cinfo calls deriver
         Nothing -> Derive.throw $ "non-transformer in transformer position: "
-            ++ Derive.call_name call
+            ++ untxt (Derive.call_name call)
 
 eval :: Derive.CallInfo d -> TrackLang.Term -> Derive.Deriver TrackLang.Val
 eval _ (TrackLang.Literal val) = return val
@@ -379,7 +379,7 @@ apply :: Derive.CallInfo () -> Derive.ValCall
 apply cinfo call args = do
     vals <- mapM (eval cinfo) args
     let passed = Derive.PassedArgs vals (Derive.vcall_name call) cinfo
-    Derive.with_msg ("val call " ++ Derive.vcall_name call) $
+    Derive.with_msg ("val call " <> Derive.vcall_name call) $
         Derive.vcall_call call passed
 
 -- | Strip off the polymorphic part of the CallInfo so it can be given to

@@ -22,6 +22,9 @@ module Util.Control (
     , lift, liftIO
     -- * nonempty
     , module Data.List.NonEmpty
+    -- * text
+    , Text.Text
+    , txt, untxt
 ) where
 import Control.Applicative ((<$>), (<*>), (<*), (*>), (<|>))
 import qualified Control.Exception as Exception
@@ -33,6 +36,7 @@ import Data.List.NonEmpty (NonEmpty(..))
 import Data.Maybe (mapMaybe, fromMaybe)
 import qualified Data.Monoid as Monoid
 import Data.Monoid (mempty, mconcat)
+import qualified Data.Text as Text
 
 import Util.Functor0 (fmap0)
 import Util.Lens
@@ -120,3 +124,13 @@ justm op1 op2 = maybe (return Nothing) op2 =<< op1
 
 errorIO :: (Trans.MonadIO m) => String -> m a
 errorIO = Trans.liftIO . Exception.throwIO . Exception.ErrorCall
+
+-- * conversion
+
+-- | Utilities to make it easier to convert things to Text.  These are
+-- intentionally missing the e to make it easier to search for them.
+txt :: String -> Text.Text
+txt = Text.pack
+
+untxt :: Text.Text -> String
+untxt = Text.unpack

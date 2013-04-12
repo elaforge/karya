@@ -452,14 +452,14 @@ c_equal :: (Derive.Derived derived) => Derive.Call derived
 c_equal = Derive.transformer "equal" Tags.internal equal_doc
     (Sig.parsed_manually equal_arg_doc equal_transformer)
 
-equal_arg_doc :: String
+equal_arg_doc :: Text
 equal_arg_doc =
     "The left hand side can be a symbol, `%control-name`, or\
     \ `#pitch-control-name`. The right hand side is anything when binding\
     \ a symbol, a number or `%control-name` when binding a `%control`, or\
     \ a pitch or `#pitch-name` when binding a `#pitch`."
 
-equal_doc :: String
+equal_doc :: Text
 equal_doc =
     "Evaluate the deriver with a value set. Set environ vals with `x = 42`, \
     \or set a control or pitch signal with `%c = .5` or \

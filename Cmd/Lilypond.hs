@@ -2,7 +2,6 @@
 module Cmd.Lilypond where
 import qualified Data.Char as Char
 import qualified Data.Map as Map
-import qualified Data.Text as Text
 import qualified Data.Text.IO as Text.IO
 
 import qualified System.Directory as Directory
@@ -110,7 +109,7 @@ compile_lys filename config title movements = do
             return $ Right stack_map
 
 make_lys :: Lilypond.Config -> Lilypond.Title -> [(String, [Score.Event])]
-    -> (Either String ([Text.Text], Cmd.StackMap), [Log.Msg])
+    -> (Either String ([Text], Cmd.StackMap), [Log.Msg])
 make_lys config title movements = (text, concat logs)
     where
     text = Lilypond.make_lys config title $

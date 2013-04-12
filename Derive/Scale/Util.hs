@@ -2,6 +2,7 @@
 module Derive.Scale.Util where
 import qualified Data.Map as Map
 import qualified Data.Set as Set
+import qualified Data.Text as Text
 
 import Util.Control
 import qualified Util.Map as Map
@@ -25,7 +26,7 @@ import Types
 
 -- | Make a simple scale where there is a simple mapping from input to note to
 -- nn.
-simple_scale :: String -> Pitch.Octave -> String -> Pitch.ScaleId
+simple_scale :: Text -> Pitch.Octave -> String -> Pitch.ScaleId
     -> [Pitch.InputKey] -> [Pitch.Note] -> [Pitch.NoteNumber] -> Scale.Scale
 simple_scale doc per_octave note_pattern scale_id inputs notes nns = Scale.Scale
     { Scale.scale_id = scale_id
@@ -261,7 +262,7 @@ join_note step frac = Pitch.Note $ step ++ frac_s
 
 -- ** call_doc
 
-call_doc :: Set.Set Score.Control -> DegreeMap -> InputMap -> String
+call_doc :: Set.Set Score.Control -> DegreeMap -> InputMap -> Text
     -> Derive.DocumentedCall
 call_doc transposers dmap imap doc =
     annotate_call_doc transposers doc fields $ scale_degree_doc
@@ -271,8 +272,8 @@ call_doc transposers dmap imap doc =
         , ("input range", map_range fst imap)
         ]
     map_range extract fm = case (Map.min fm, Map.max fm) of
-        (Just kv1, Just kv2) ->
-            Pretty.pretty (extract kv1) ++ " to " ++ Pretty.pretty (extract kv2)
+        (Just kv1, Just kv2) -> txt (Pretty.pretty (extract kv1))
+            <> " to " <> txt (Pretty.pretty (extract kv2))
         _ -> ""
 
 -- | Documentation of the standard 'Call.Pitch.scale_degree'.
@@ -281,16 +282,17 @@ scale_degree_doc = Derive.extract_val_doc $
     Call.Pitch.scale_degree err err
         where err _ _ = Left $ PitchSignal.PitchError "it was just an example!"
 
-annotate_call_doc :: Set.Set Score.Control -> String -> [(String, String)]
+annotate_call_doc :: Set.Set Score.Control -> Text -> [(Text, Text)]
     -> Derive.DocumentedCall -> Derive.DocumentedCall
 annotate_call_doc transposers doc fields = Derive.prepend_doc extra_doc
     where
-    extra_doc = doc ++ "\n\n" ++ join (transposers_field ++ fields)
+    extra_doc = doc <> "\n\n" <> join (transposers_field <> fields)
     transposers_field = if Set.null transposers then []
-        else [("transposers", Pretty.pretty transposers)]
-    join = unlines . map (\(k, v) -> k ++ ": " ++ v) . filter (not . null . snd)
+        else [("transposers", txt $ Pretty.pretty transposers)]
+    join = Text.unlines
+        . map (\(k, v) -> k <> ": " <> v) . filter (not . Text.null . snd)
 
-add_doc :: Scale.Scale -> String -> Scale.Scale
+add_doc :: Scale.Scale -> Text -> Scale.Scale
 add_doc scale doc = scale
     { Scale.scale_call_doc = Derive.prepend_doc doc (Scale.scale_call_doc scale)
     }

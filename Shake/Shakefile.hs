@@ -792,7 +792,7 @@ docToHtml = (docDir </>) . FilePath.takeFileName . (++".html")
 
 hsORule :: InferConfig -> Shake.Rules ()
 hsORule infer = matchObj "//*.hs.o" ?> \obj -> do
-    Shake.askOracleWith (OracleGhc ()) ""
+    Shake.askOracleWith (OracleGhc ()) ("" :: String)
     let config = infer obj
     isHsc <- Trans.liftIO $
         Directory.doesFileExist (objToSrc config obj ++ "c")
@@ -852,6 +852,7 @@ ghcFlags :: Config -> [String]
 ghcFlags config =
     [ "-outputdir", oDir config
     , "-i" ++ oDir config ++ ":" ++ hscDir config
+    , "-XOverloadedStrings"
     ] ++ define (configFlags config)
     ++ cInclude (configFlags config)
 
@@ -859,7 +860,7 @@ ghcFlags config =
 
 ccORule :: InferConfig -> Shake.Rules ()
 ccORule infer = matchObj "//*.cc.o" ?> \obj -> do
-    Shake.askOracleWith (OracleFltk ()) ""
+    Shake.askOracleWith (OracleFltk ()) ("" :: String)
     let config = infer obj
     let cc = objToSrc config obj
     includes <- includesOf "ccORule" config cc

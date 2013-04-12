@@ -1,4 +1,4 @@
-{-# LANGUAGE GeneralizedNewtypeDeriving, OverloadedStrings #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {- | Description of a midi-specific instrument, as well as the runtime midi
     device and channel mapping.
 

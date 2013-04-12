@@ -1,4 +1,4 @@
-{-# LANGUAGE GeneralizedNewtypeDeriving, OverloadedStrings #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE ScopedTypeVariables, TupleSections #-}
 -- | Convert from Score events to a lilypond score.
 module Perform.Lilypond.Lilypond (
@@ -27,7 +27,7 @@ import Perform.Lilypond.Types
 -- * config
 
 -- | Lilypond code inserted inside the toplevel paper block.
-paper_config :: [Text.Text]
+paper_config :: [Text]
 paper_config =
     -- Print page numbers centered at the bottom of the page, instead of
     -- in the upper right and upper left corners.
@@ -45,7 +45,7 @@ paper_config =
     ]
 
 -- | Lilypond code inserted inside every staff.
-staff_config :: [Text.Text]
+staff_config :: [Text]
 staff_config =
     [ "\\numericTimeSignature" -- Use 4/4 and 2/4 instead of C
     , "\\set Staff.printKeyCancellation = ##f"
@@ -58,13 +58,13 @@ type Title = String
 -- | Same as 'Cmd.Cmd.StackMap', but I don't feel like importing Cmd here.
 type StackMap = Map.Map Int Stack.UiFrame
 
-make_ly :: Config -> Title -> [Event] -> Either String ([Text.Text], StackMap)
+make_ly :: Config -> Title -> [Event] -> Either String ([Text], StackMap)
 make_ly config title events =
     ly_file config title <$> convert_movements config events
 
 -- | Make a score from multiple movements.
 make_lys :: Config -> Title -> [(Title, [Event])]
-    -> Either String ([Text.Text], StackMap)
+    -> Either String ([Text], StackMap)
 make_lys config title sections = fmap (ly_file config title) $
     forM sections $ \(title, events) -> do
         staves <- convert_staff_groups config 0 events
@@ -73,7 +73,7 @@ make_lys config title sections = fmap (ly_file config title) $
 inst_name :: Score.Instrument -> String
 inst_name = dropWhile (=='/') . dropWhile (/='/') . Score.inst_name
 
-ly_file :: Config -> Title -> [Movement] -> ([Text.Text], StackMap)
+ly_file :: Config -> Title -> [Movement] -> ([Text], StackMap)
 ly_file config title movements = run_output $ do
     outputs
         [ "\\version" <+> str "2.14.2"
@@ -175,24 +175,24 @@ sort_staves staff_config = map lookup_name . Seq.sort_on inst_key
 
 type Output a = State.State OutputState a
 
-run_output :: Output a -> ([Text.Text], StackMap)
+run_output :: Output a -> ([Text], StackMap)
 run_output m = (reverse (output_chunks state), output_map state)
     where state = State.execState m (OutputState [] Map.empty 1 1)
 
 data OutputState = OutputState {
     -- | Chunks of text to write, in reverse order.  I could use
     -- Text.Lazy.Builder, but this is simpler and performance is probably ok.
-    output_chunks :: ![Text.Text]
+    output_chunks :: ![Text]
     , output_map :: !StackMap
     -- | Running sum of the length of the chunks.
     , output_char_num :: !Int
     , output_bar :: !Int
     } deriving (Show)
 
-outputs :: [Text.Text] -> Output ()
+outputs :: [Text] -> Output ()
 outputs = output . Text.unlines
 
-output :: Text.Text -> Output ()
+output :: Text -> Output ()
 output text = State.modify $ \state -> state
     { output_chunks = text : output_chunks state
     , output_char_num = Text.length text + output_char_num state

@@ -1,4 +1,3 @@
-{-# LANGUAGE OverloadedStrings #-}
 module Cmd.Integrate.Merge_test where
 import qualified Data.List.NonEmpty as NonEmpty
 

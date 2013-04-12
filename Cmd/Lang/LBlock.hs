@@ -3,7 +3,6 @@
 module Cmd.Lang.LBlock where
 import qualified Data.List as List
 import qualified Data.Map as Map
-import qualified Data.Text as Text
 import qualified Data.Text.IO as Text.IO
 
 import Util.Control
@@ -70,7 +69,7 @@ like match = do
 
 -- * doc
 
-doc :: Cmd.CmdL Text.Text
+doc :: Cmd.CmdL Text
 doc = CallDoc.doc_text <$> track_doc
 
 -- | Write HTML documentation for the selected track to

@@ -1,4 +1,3 @@
-{-# LANGUAGE OverloadedStrings #-}
 module Derive.ParseBs_test where
 import qualified Data.List.NonEmpty as NonEmpty
 

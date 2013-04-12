@@ -34,7 +34,7 @@ import Types
 note_calls :: Derive.NoteCallMap
 note_calls = Derive.make_calls
     [ ("clip", c_clip)
-    , (BlockUtil.capture_null_control, c_capture_null_control)
+    , (untxt BlockUtil.capture_null_control, c_capture_null_control)
     ]
 
 -- * root block
@@ -71,7 +71,7 @@ lookup_note_block = Derive.pattern_lookup "block id"
     fake_call = c_block (Types.BlockId (Id.read_id "example/block"))
 
 c_block :: BlockId -> Derive.NoteCall
-c_block block_id = Derive.stream_generator ("block " ++ show block_id)
+c_block block_id = Derive.stream_generator ("block " <> txt (show block_id))
         Tags.internal "Substitute the named block into the score." $
     Sig.call0 $ Note.inverting $ \args ->
         -- I have to put the block on the stack before calling 'd_block'

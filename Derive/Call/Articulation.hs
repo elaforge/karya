@@ -1,14 +1,15 @@
--- | Calls that are similar to staff-notation articulations, or could be.
--- This means calls that modify notes in relatively straightforward ways, either
--- by adding an attribute or modifying their environment.
---
--- There is already general purpose syntax to add attributes to notes, e.g.
--- @attr = +x@ or @n +x@ or just @+x@, and instruments may supply special calls
--- for their attributes, but there are several attributes which look nice with
--- their own calls and are used by many instruments.
---
--- TODO There are too many ways to apply attributes to notes, and they work
--- in inconsistent ways.
+{- | Calls that are similar to staff-notation articulations, or could be.
+    This means calls that modify notes in relatively straightforward ways,
+    either by adding an attribute or modifying their environment.
+
+    There is already general purpose syntax to add attributes to notes, e.g.
+    @attr = +x@ or @n +x@ or just @+x@, and instruments may supply special
+    calls for their attributes, but there are several attributes which look
+    nice with their own calls and are used by many instruments.
+
+    TODO There are too many ways to apply attributes to notes, and they work in
+    inconsistent ways.
+-}
 module Derive.Call.Articulation where
 import Util.Control
 import qualified Util.Seq as Seq
@@ -38,7 +39,7 @@ lookup_attr = Derive.pattern_lookup "attribute starting with `+`" doc $
             _ -> return Nothing
     parse_symbol _ = return Nothing
     call rel = Make.transform_notes
-        ("relative attrs: " ++ ShowVal.show_val rel)
+        ("relative attrs: " <> txt (ShowVal.show_val rel))
         Tags.attr "Doc unused." Sig.no_args
         (\() -> Util.with_attrs (TrackLang.apply_attr rel))
     doc = Derive.extract_doc $ Make.attributed_note (Score.attr "example-attr")
@@ -63,7 +64,7 @@ c_legato :: Derive.NoteCall
 c_legato = Derive.stream_generator "legato" (Tags.attr <> Tags.subs <> Tags.ly)
     ("Play the transformed notes legato.  This sets `+legato` on all notes\
     \ except the last one. The default note deriver will respond to `+legato`\
-    \ and " <> ShowVal.doc_val Score.c_legato_overlap <> "."
+    \ and " <> txt (ShowVal.doc_val Score.c_legato_overlap) <> "."
     ) $ Sig.call0 $ init_attr Attrs.legato
 
 c_ly_slur :: Derive.NoteCall
@@ -106,7 +107,7 @@ init_attr attr = Note.place . concatMap add <=< Note.sub_events
 c_detach :: Derive.NoteCall
 c_detach = Make.transform_notes "detach" mempty
     ("Detach the notes slightly, by setting "
-        <> ShowVal.show_val Score.c_sustain_abs <> ".")
+        <> txt (ShowVal.show_val Score.c_sustain_abs) <> ".")
     (Sig.defaulted "time" 0.15 "Set control to `-time`.") $ \time ->
         Derive.with_control Score.c_sustain_abs
             (Score.untyped (Signal.constant (-time)))

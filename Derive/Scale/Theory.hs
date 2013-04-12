@@ -1,4 +1,4 @@
-{-# LANGUAGE CPP, OverloadedStrings #-}
+{-# LANGUAGE CPP #-}
 {- | Functions to manipulate pitches in scales according to the rules of
     standard western music theory.
 

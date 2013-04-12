@@ -121,8 +121,7 @@ c_set_prev = Derive.generator "set-prev" Tags.internal
 type Transpose = Either PitchSignal.Pitch Pitch.Transpose
 
 -- | Linear interpolation, with different start times.
-linear_interpolation :: (TrackLang.Typecheck time) =>
-    String -> time -> String
+linear_interpolation :: (TrackLang.Typecheck time) => Text -> time -> Text
     -> (Derive.PassedArgs PitchSignal.Signal -> time
         -> Derive.Deriver TrackLang.RealOrScore)
     -> Derive.PitchCall
@@ -133,7 +132,7 @@ linear_interpolation name time_default time_default_doc get_time =
     where
     doc = "Interpolate from the previous pitch to the given one in a straight\
         \ line."
-    time_doc = "Time to reach destination. " ++ time_default_doc
+    time_doc = "Time to reach destination. " <> time_default_doc
 
 c_linear_prev :: Derive.PitchCall
 c_linear_prev = linear_interpolation "linear-prev" Nothing
@@ -161,7 +160,7 @@ c_linear_next_const =
 
 -- | Exponential interpolation, with different start times.
 exponential_interpolation :: (TrackLang.Typecheck time) =>
-    String -> time -> String
+    Text -> time -> Text
     -> (Derive.PassedArgs PitchSignal.Signal -> time
         -> Derive.Deriver TrackLang.RealOrScore)
     -> Derive.PitchCall
@@ -174,7 +173,7 @@ exponential_interpolation name time_default time_default_doc get_time =
         interpolate (Control.expon exp) args pitch =<< get_time args time
     where
     doc = "Interpolate from the previous pitch to the given one in a curve."
-    time_doc = "Time to reach destination. " ++ time_default_doc
+    time_doc = "Time to reach destination. " <> time_default_doc
 
 c_exp_prev :: Derive.PitchCall
 c_exp_prev = exponential_interpolation "exp-prev" Nothing
@@ -249,7 +248,7 @@ c_down :: Derive.PitchCall
 c_down = Derive.generator1 "down" Tags.prev
     "Descend at the given speed until the next event." $ slope "Descend" (-1)
 
-slope :: String -> Double -> Derive.WithArgDoc
+slope :: Text -> Double -> Derive.WithArgDoc
     (Derive.PassedArgs PitchSignal.Signal -> Derive.Deriver PitchSignal.Signal)
 slope word sign =
     Sig.call (defaulted "speed" (Pitch.Chromatic 1)

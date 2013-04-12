@@ -264,7 +264,8 @@ show_track_status :: (State.M m) => BlockId -> [State.TrackInfo] -> m [String]
 show_track_status block_id status = forM status $ \info -> do
     let tracknum = State.track_tracknum info
     btrack <- State.block_track_at block_id tracknum
-    let cmd_text = case fmap Block.track_flags btrack of
+    let cmd_text :: String
+        cmd_text = case fmap Block.track_flags btrack of
             Nothing -> "?"
             Just flags
                 | Block.Collapse `Set.member` flags -> "expand"

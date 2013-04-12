@@ -1,4 +1,3 @@
-{-# LANGUAGE OverloadedStrings #-}
 module Cmd.Integrate.Convert where
 import qualified Data.List as List
 import qualified Data.Map as Map

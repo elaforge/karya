@@ -156,6 +156,12 @@ data CodePosition =
     | SuffixLast
     deriving (Show)
 
+-- | Fragment of Lilypond code.
+type Ly = String
+
+-- | A lilypond \"note\", which is just a chunk of text.
+type Note = Ly
+
 position_env :: CodePosition -> TrackLang.ValName
 position_env c = case c of
     Prefix -> Constants.v_ly_prepend
@@ -163,7 +169,7 @@ position_env c = case c of
     SuffixLast -> Constants.v_ly_append_last
     SuffixAll -> Constants.v_ly_append_all
 
-prepend_code :: String -> Derive.EventDeriver -> Derive.EventDeriver
+prepend_code :: Ly -> Derive.EventDeriver -> Derive.EventDeriver
 prepend_code = add_code . (,) Prefix
 
 add_code :: Code -> Derive.EventDeriver -> Derive.EventDeriver
@@ -174,7 +180,7 @@ add_code (pos, code) = Derive.modify_val (position_env pos) $
 -- literally, and assumed to have the duration of the event.  The event's pitch
 -- is ignored.  This can be used to emit lilypond that doesn't fit into
 -- a 'Types.Event'.
-code :: (ScoreTime, ScoreTime) -> String -> Derive.EventDeriver
+code :: (ScoreTime, ScoreTime) -> Ly -> Derive.EventDeriver
 code (start, dur) code = Derive.with_val Constants.v_ly_prepend code $
     Derive.with_no_pitch $ Derive.d_place start dur Util.note
 
@@ -210,7 +216,7 @@ is_duration config t = case is_note_duration config t of
     Just (Types.NoteDuration dur False) -> Just dur
     _ -> Nothing
 
-note_pitch :: Derive.EventDeriver -> Derive.Deriver String
+note_pitch :: Derive.EventDeriver -> Derive.Deriver Note
 note_pitch deriver = do
     events <- deriver
     event <- require "had no event" $ Seq.head (LEvent.events_of events)
@@ -222,7 +228,7 @@ note_pitch deriver = do
     require = Derive.require . (prefix <>)
     prefix = "Lily.note_pitch: "
 
-pitch_to_lily :: PitchSignal.Pitch -> Derive.Deriver String
+pitch_to_lily :: PitchSignal.Pitch -> Derive.Deriver Note
 pitch_to_lily pitch = do
     note <- right $ PitchSignal.pitch_note pitch
     pitch <- require ("unparseable note: " <> Pretty.pretty note) $
@@ -239,9 +245,6 @@ to_time = Types.real_to_time . Types.config_quarter_duration
 
 
 -- ** eval
-
--- | A lilypond \"note\", which is just a chunk of text.
-type Note = String
 
 eval :: Types.Config -> Derive.PassedArgs d -> [Note.Event]
     -> Derive.Deriver [Note]
@@ -332,7 +335,8 @@ when_ly inverted args deriver = case Derive.passed_vals args of
 c_ly_global :: Derive.NoteCall
 c_ly_global = Derive.transformer "ly-global" Tags.ly_only
     ("Evaluate the deriver only when in lilypond mode, like 'when-ly', but\
-    \ also set the " <> ShowVal.show_val Constants.ly_global <> " instrument."
+    \ also set the " <> txt (ShowVal.show_val Constants.ly_global)
+    <> " instrument."
     ) $ Sig.call0t $ \_ deriver ->
         when_lilypond (global deriver) mempty
 
@@ -372,7 +376,7 @@ c_8va = code0_call "ottava" "Emit lilypond ottava mark."
     (required "octave" "Transpose this many octaves up or down.") $
     \oct -> return (Prefix, ottava oct)
     where
-    ottava :: Int -> String
+    ottava :: Int -> Ly
     ottava n = "\\ottava #" ++ show n
 
 c_xstaff :: Derive.NoteCall
@@ -383,7 +387,7 @@ c_xstaff = code0_call "xstaff"
             Derive.throw $ "expected 'up' or 'down', got "
                 <> ShowVal.show_val staff
         return (Prefix, change staff)
-    where change staff = "\\change Staff = " <> Types.to_lily staff
+    where change staff = "\\change Staff = " <> Types.to_lily (staff :: String)
 
 c_dyn :: Derive.NoteCall
 c_dyn = code0_call "dyn"
@@ -413,14 +417,14 @@ c_movement = global_code0_call "movement"
 c_reminder_accidental :: Derive.NoteCall
 c_reminder_accidental = Make.environ_note "ly-reminder-accidental"
     Tags.ly_only "Force this note to display an accidental."
-    Constants.v_ly_append_pitch "!"
+    Constants.v_ly_append_pitch ("!" :: Ly)
 
 c_cautionary_accidental :: Derive.NoteCall
 c_cautionary_accidental = Make.environ_note "ly-cautionary-accidental"
     Tags.ly_only "Force this note to display a cautionary accidental."
-    Constants.v_ly_append_pitch "?"
+    Constants.v_ly_append_pitch ("?" :: Ly)
 
-c_tie_direction :: String -> Derive.NoteCall
+c_tie_direction :: Ly -> Derive.NoteCall
 c_tie_direction code = Make.environ_note "ly-tie-direction"
     Tags.ly_only "Force the note's tie to go either up or down."
     Constants.v_ly_tie_direction code
@@ -441,7 +445,7 @@ c_diminuendo = make_code0_call "ly-diminuendo"
     \ next hairpin or dynamic marking." Sig.no_args $
     \() -> crescendo_diminuendo "\\>"
 
-crescendo_diminuendo :: String -> Derive.PassedArgs d -> Derive.EventDeriver
+crescendo_diminuendo :: Ly -> Derive.PassedArgs d -> Derive.EventDeriver
 crescendo_diminuendo hairpin args
     -- TODO or is a transformer, I think I should set transformer duration to 0
     | Args.end args > Args.start args = start <> end
@@ -472,7 +476,7 @@ c_ly_end_slur = code_call "ly-end-slur"
     \ for instance inside tuplets." Sig.no_args $
     \() -> return (SuffixLast, ")")
 
-lily_str :: String -> String
+lily_str :: String -> Ly
 lily_str = Types.to_lily
 
 c_ly_pre :: Derive.NoteCall
@@ -501,7 +505,7 @@ c_ly_key = code0_call "ly-key"
 -- * util
 
 -- | Attach ly code to the first note in the transformed deriver.
-code_call :: String -> String -> Sig.Parser a -> (a -> Derive.Deriver Code)
+code_call :: Text -> Text -> Sig.Parser a -> (a -> Derive.Deriver Code)
     -> Derive.NoteCall
 code_call name doc sig make_code = Derive.Call
     { Derive.call_name = name
@@ -529,7 +533,7 @@ require_nonempty events
     | otherwise = return events
 
 -- | Emit a free-standing fragment of lilypond code.
-code0_call :: String -> String -> Sig.Parser a -> (a -> Derive.Deriver Code)
+code0_call :: Text -> Text -> Sig.Parser a -> (a -> Derive.Deriver Code)
     -> Derive.NoteCall
 code0_call name doc sig make_code =
     make_code0_call name (doc <> code0_doc) sig $
@@ -540,14 +544,14 @@ code0_call name doc sig make_code =
 
 -- | Just like 'code0_call', but the code uses the 'Constants.ly_global'
 -- instrument.
-global_code0_call :: String -> String -> Sig.Parser a
+global_code0_call :: Text -> Text -> Sig.Parser a
     -> (a -> Derive.EventDeriver -> Derive.EventDeriver) -> Derive.NoteCall
 global_code0_call name doc sig call =
     make_code0_call name doc sig $ \val args ->
         global (call val (Derive.d_place (Args.start args) 0 Util.note))
 
 -- | Emit a free-standing fragment of lilypond code.
-make_code0_call :: String -> String -> Sig.Parser a
+make_code0_call :: Text -> Text -> Sig.Parser a
     -> (a -> Derive.PassedArgs Score.Event -> Derive.EventDeriver)
     -> Derive.NoteCall
 make_code0_call name doc sig call = Derive.Call

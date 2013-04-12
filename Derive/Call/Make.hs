@@ -14,15 +14,15 @@ import qualified Derive.TrackLang as TrackLang
 
 attributed_note :: Score.Attributes -> Derive.NoteCall
 attributed_note attrs = transform_notes
-    ("note with " ++ ShowVal.show_val attrs) Tags.attr
+    ("note with " <> txt (ShowVal.show_val attrs)) Tags.attr
     "Add attributes to the notes." Sig.no_args (\() -> Util.add_attrs attrs)
 
-environ_note :: (TrackLang.Typecheck a) => String -> Tags.Tags -> String
+environ_note :: (TrackLang.Typecheck a) => Text -> Tags.Tags -> Text
     -> TrackLang.ValName -> a -> Derive.NoteCall
 environ_note name tags doc key val =
     transform_notes name tags doc Sig.no_args (\() -> Derive.with_val key val)
 
-transform_notes :: String -> Tags.Tags -> String -> Sig.Parser a
+transform_notes :: Text -> Tags.Tags -> Text -> Sig.Parser a
     -> (a -> Derive.EventDeriver -> Derive.EventDeriver) -> Derive.NoteCall
 transform_notes name tags transform_doc sig transform = Derive.Call
     { Derive.call_name = name

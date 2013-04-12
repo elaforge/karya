@@ -1,4 +1,3 @@
-{-# LANGUAGE OverloadedStrings #-}
 module Instrument.Sysex_test where
 import qualified Data.Map as Map
 import Data.ByteString (ByteString)

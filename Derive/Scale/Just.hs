@@ -6,6 +6,7 @@ import qualified Data.Ratio as Ratio
 import Data.Ratio ((%))
 import qualified Data.Vector as Vector
 
+import Util.Control
 import qualified Util.Num as Num
 import qualified Util.Pretty as Pretty
 import qualified Derive.Call.Pitch as Call.Pitch
@@ -48,7 +49,7 @@ make_scale scale_id ratios = Scale.Scale
         \ starting from A.\
         \ If the base hz isn't given, it defaults to the 12TET tuning of the\
         \ key."
-        ) [("ratios", Pretty.pretty ratios)] Util.scale_degree_doc
+        ) [("ratios", txt $ Pretty.pretty ratios)] Util.scale_degree_doc
     }
     where double_ratios = Vector.map realToFrac ratios
 

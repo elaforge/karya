@@ -3,7 +3,6 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE FlexibleContexts #-} -- for super-classes of Derived
 {-# LANGUAGE UndecidableInstances #-}
-{-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE Rank2Types #-}
 {- | Implementation for the Deriver monad.
 
@@ -220,16 +219,15 @@ instance Log.LogMonad Deriver where
         stack <- maybe (gets (Stack.to_strings . state_stack . state_dynamic))
             return (Log.msg_stack msg)
         context <- gets (state_log_context . state_dynamic)
-        return $ msg {
-            Log.msg_stack = Just stack
+        return $ msg
+            { Log.msg_stack = Just stack
             , Log.msg_text = add_text_context context (Log.msg_text msg)
             }
         where
-        add_text_context :: [String] -> Text.Text -> Text.Text
+        add_text_context :: [Text] -> Text -> Text
         add_text_context [] s = s
         add_text_context context s =
-            Text.intercalate " / " (map Text.pack (reverse context))
-                <> ": " <> s
+            Text.intercalate " / " (reverse context) <> ": " <> s
 
 run :: State -> Deriver a -> RunResult a
 run state m = _runD m state []
@@ -256,22 +254,22 @@ instance Pretty.Pretty ErrorVal where
 
 data CallError =
     -- | arg number, arg name, expected type, received val
-    TypeError Int String TrackLang.Type (Maybe TrackLang.Val)
+    TypeError Int Text TrackLang.Type (Maybe TrackLang.Val)
     -- | Couldn't even call the thing because the name was not found.
     | CallNotFound TrackLang.CallId
     -- | Calling error that doesn't fit into the above categories.
-    | ArgError String
+    | ArgError Text
     deriving (Show)
 
 instance Pretty.Pretty CallError where
     pretty err = case err of
         TypeError argno name expected received ->
-            "TypeError: arg " ++ show argno ++ "/" ++ name ++ ": expected "
-            ++ Pretty.pretty expected ++ " but got "
-            ++ Pretty.pretty (TrackLang.type_of <$> received)
-            ++ ": " ++ Pretty.pretty received
-        ArgError err -> "ArgError: " ++ err
-        CallNotFound call_id -> "CallNotFound: " ++ Pretty.pretty call_id
+            "TypeError: arg " <> show argno <> "/" <> untxt name
+            <> ": expected " <> Pretty.pretty expected <> " but got "
+            <> Pretty.pretty (TrackLang.type_of <$> received)
+            <> ": " <> Pretty.pretty received
+        ArgError err -> "ArgError: " <> untxt err
+        CallNotFound call_id -> "CallNotFound: " <> Pretty.pretty call_id
 
 throw :: String -> Deriver a
 throw msg = throw_error (GenericError msg)
@@ -284,7 +282,7 @@ throw_arg_error = throw_arg_error_srcpos Nothing
 
 throw_arg_error_srcpos :: SrcPos.SrcPos -> String -> Deriver a
 throw_arg_error_srcpos srcpos =
-    throw_error_srcpos srcpos . CallError . ArgError
+    throw_error_srcpos srcpos . CallError . ArgError . txt
 
 throw_error :: ErrorVal -> Deriver a
 throw_error = throw_error_srcpos Nothing
@@ -403,7 +401,7 @@ data Dynamic = Dynamic {
     , state_stack :: !Stack.Stack
     -- | This is a free-form stack which can be used to prefix log msgs with
     -- a certain string.
-    , state_log_context :: ![String]
+    , state_log_context :: ![Text]
     } deriving (Show)
 
 initial_dynamic :: Scope -> TrackLang.Environ -> Dynamic
@@ -529,24 +527,24 @@ data LookupDocs =
     -- | Documentation for a programmatic lookup.  This is for calls that need
     -- to inspect the CallId.  The String should document what kinds of CallIds
     -- this lookup will match.
-    | LookupPattern String DocumentedCall
+    | LookupPattern Text DocumentedCall
 
 instance Pretty.Pretty (LookupCall call) where
     format look = "Lookup: " <> case lookup_docs look of
         LookupMap calls -> Pretty.format (Map.keys calls)
-        LookupPattern doc _ -> Pretty.text doc
+        LookupPattern doc _ -> Pretty.text (untxt doc)
 
 -- | This is like 'Call', but with only documentation.
 data DocumentedCall =
     -- Name (Maybe GeneratorDoc) (Maybe TransformerDoc)
-    DocumentedCall String (Maybe CallDoc) (Maybe CallDoc)
-    | DocumentedValCall String CallDoc
+    DocumentedCall !Text !(Maybe CallDoc) !(Maybe CallDoc)
+    | DocumentedValCall !Text !CallDoc
 
 -- | Prepend a bit of text to the documentation.
-prepend_doc :: String -> DocumentedCall -> DocumentedCall
-prepend_doc text = modify_doc ((text ++ "\n") ++)
+prepend_doc :: Text -> DocumentedCall -> DocumentedCall
+prepend_doc text = modify_doc (text <> "\n" <>)
 
-modify_doc :: (String -> String) -> DocumentedCall -> DocumentedCall
+modify_doc :: (Text -> Text) -> DocumentedCall -> DocumentedCall
 modify_doc modify doc = case doc of
     DocumentedCall name generator transformer ->
         DocumentedCall name (annotate <$> generator) (annotate <$> transformer)
@@ -570,7 +568,7 @@ map_val_lookup cmap = LookupCall
     }
 
 -- | Create a lookup that uses a function instead of a Map.
-pattern_lookup :: String -> DocumentedCall
+pattern_lookup :: Text -> DocumentedCall
     -> (TrackLang.CallId -> Deriver (Maybe call))
     -> LookupCall call
 pattern_lookup name doc lookup = LookupCall lookup (LookupPattern name doc)
@@ -790,7 +788,7 @@ data PassedArgs derived = PassedArgs {
     -- environment.  This is technically redundant since a call should know its
     -- own name, but it turns out to be inconvenient to pass the name to all of
     -- those functions.
-    , passed_call_name :: !String
+    , passed_call_name :: !Text
     , passed_info :: !(CallInfo derived)
     }
 
@@ -886,7 +884,7 @@ dummy_call_info start dur text = CallInfo
 data Call derived = Call {
     -- | Since call IDs may be rebound dynamically, each call has its own name
     -- so that error msgs are unambiguous.
-    call_name :: !String
+    call_name :: !Text
     , call_generator :: !(Maybe (GeneratorCall derived))
     , call_transformer :: !(Maybe (TransformerCall derived))
     }
@@ -903,20 +901,20 @@ instance Show (Call derived) where
 -- to start a new paragraph.
 data CallDoc = CallDoc {
     cdoc_tags :: Tags.Tags
-    , cdoc_doc :: String
+    , cdoc_doc :: Text
     , cdoc_args :: ArgDocs
     } deriving (Eq, Ord, Show)
 
 data ArgDocs = ArgDocs [ArgDoc]
     -- | This means the call parses the args itself in some special way.
-    | ArgsParsedSpecially String
+    | ArgsParsedSpecially Text
     deriving (Eq, Ord, Show)
 
 data ArgDoc = ArgDoc {
-    arg_name :: String
+    arg_name :: Text
     , arg_type :: TrackLang.Type
     , arg_parser :: ArgParser
-    , arg_doc :: String
+    , arg_doc :: Text
     } deriving (Eq, Ord, Show)
 
 -- | These enumerate the different ways an argumnt can be parsed, and
@@ -943,7 +941,7 @@ type GeneratorFunc d = PassedArgs d -> LogsDeriver d
 -- | Create a generator that expects a list of derived values (e.g. Score.Event
 -- or Signal.Control), with no logs mixed in.  The result is wrapped in
 -- LEvent.Event.
-generator :: (Derived d) => String -> Tags.Tags -> String
+generator :: (Derived d) => Text -> Tags.Tags -> Text
     -> WithArgDoc (PassedArgs d -> Deriver (LEvent.Stream d)) -> Call d
 generator name tags doc (func, arg_docs) =
     stream_generator name tags doc ((map LEvent.Event <$>) . func, arg_docs)
@@ -951,7 +949,7 @@ generator name tags doc (func, arg_docs) =
 -- | Since Signals themselves are collections, there's little reason for a
 -- signal generator to return a Stream of events.  So wrap the generator result
 -- in a Stream singleton.
-generator1 :: (Derived d) => String -> Tags.Tags -> String
+generator1 :: (Derived d) => Text -> Tags.Tags -> Text
     -> WithArgDoc (PassedArgs d -> Deriver d) -> Call d
 generator1 name tags doc (func, arg_docs) =
     generator name tags doc ((LEvent.one <$>) . func, arg_docs)
@@ -959,7 +957,7 @@ generator1 name tags doc (func, arg_docs) =
 -- | Like 'generator', but the deriver returns 'LEvent.LEvents' which already
 -- have logs mixed in.  Useful if the generator calls a sub-deriver which will
 -- already have merged the logs into the output.
-stream_generator :: (Derived d) => String -> Tags.Tags -> String
+stream_generator :: (Derived d) => Text -> Tags.Tags -> Text
     -> WithArgDoc (PassedArgs d -> LogsDeriver d) -> Call d
 stream_generator name tags doc with_docs = Call
     { call_name = name
@@ -967,7 +965,7 @@ stream_generator name tags doc with_docs = Call
     , call_transformer = Nothing
     }
 
-generator_call :: Tags.Tags -> String -> WithArgDoc (GeneratorFunc d)
+generator_call :: Tags.Tags -> Text -> WithArgDoc (GeneratorFunc d)
     -> GeneratorCall d
 generator_call tags doc (func, arg_docs) =
     GeneratorCall func (CallDoc tags doc arg_docs)
@@ -981,7 +979,7 @@ data TransformerCall d = TransformerCall
     }
 type TransformerFunc d = PassedArgs d -> LogsDeriver d -> LogsDeriver d
 
-transformer :: (Derived d) => String -> Tags.Tags -> String
+transformer :: (Derived d) => Text -> Tags.Tags -> Text
     -> WithArgDoc (PassedArgs d -> LogsDeriver d -> LogsDeriver d) -> Call d
 transformer name tags doc with_docs = Call
     { call_name = name
@@ -989,7 +987,7 @@ transformer name tags doc with_docs = Call
     , call_transformer = Just $ transformer_call tags doc with_docs
     }
 
-transformer_call :: Tags.Tags -> String
+transformer_call :: Tags.Tags -> Text
     -> WithArgDoc (TransformerFunc d) -> TransformerCall d
 transformer_call tags doc (func, arg_docs) =
     TransformerCall func (CallDoc tags doc arg_docs)
@@ -997,7 +995,7 @@ transformer_call tags doc (func, arg_docs) =
 -- ** val
 
 data ValCall = ValCall {
-    vcall_name :: !String
+    vcall_name :: !Text
     , vcall_call :: PassedArgs () -> Deriver TrackLang.Val
     , vcall_doc :: !CallDoc
     }
@@ -1005,7 +1003,7 @@ data ValCall = ValCall {
 instance Show ValCall where
     show (ValCall name _ _) = "((ValCall " ++ show name ++ "))"
 
-val_call :: String -> Tags.Tags -> String
+val_call :: Text -> Tags.Tags -> Text
     -> WithArgDoc (PassedArgs () -> Deriver TrackLang.Val) -> ValCall
 val_call name tags doc (call, arg_docs) = ValCall
     { vcall_name = name

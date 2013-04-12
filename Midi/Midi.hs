@@ -1,5 +1,4 @@
 {-# LANGUAGE DeriveDataTypeable, GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE OverloadedStrings #-}
 {-# OPTIONS_GHC -funbox-strict-fields #-}
 module Midi.Midi (
     WriteMessages, ReadMessages

@@ -270,7 +270,7 @@ default_environ = TrackLang.make_environ
     [ (TrackLang.v_srate, TrackLang.num 1)
     , (TrackLang.v_scale, TrackLang.to_val Twelve.scale_id)
     , (TrackLang.v_attributes, TrackLang.VAttributes Score.no_attrs)
-    , (TrackLang.v_key, TrackLang.to_val "c-maj")
+    , (TrackLang.v_key, TrackLang.to_val ("c-maj" :: String))
     ]
 
 -- ** extract
@@ -423,7 +423,7 @@ e_state = Derive.state_ui . Derive.state_constant . Derive.r_state
 
 -- * call
 
-passed_args :: String -> [TrackLang.Val] -> Derive.PassedArgs derived
+passed_args :: Text -> [TrackLang.Val] -> Derive.PassedArgs derived
 passed_args name vals =
     Derive.PassedArgs vals name (Derive.dummy_call_info 0 1 "DeriveTest")
 

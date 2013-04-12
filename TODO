@@ -3,6 +3,7 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
+  - remove bug workaround in Midi.Midi
   * ^T should expand the window size just like ^t does
   * if I have [(1, 2), (1, 3)], how do I add to make [(1, 2), (2, 3), (1, 4)]?
     Insert right wants to make [(1, 2), (2, 3), (2, 4)].
@@ -50,7 +51,9 @@ UNSORTED
     - implementation for ^B, factor out selection
   * select range, then create event with e.g. raw edit.  Event duration should
     be to selected range.
-  - Data.Text for call docs
+  * Data.Text for call docs
+  - show_val and pretty that return Text
+  - instance Typecheck Text instead of String
   * if I do ^t to the left of a divider, the created track doesn't have
     a ruler
   * Track add bindings are hard to use.

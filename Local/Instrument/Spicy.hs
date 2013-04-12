@@ -1,5 +1,7 @@
 -- | Spicy guitar, free at http://www.spicyguitar.com/
 module Local.Instrument.Spicy where
+import qualified Data.Text as Text
+
 import Util.Control
 import qualified Util.Seq as Seq
 import qualified Midi.Key as Key
@@ -52,13 +54,13 @@ keyswitches =
 
 note_call :: Derive.NoteCall
 note_call = Note.transformed_note
-    ("If given a string-name attribute in " <> attrs <> ", suffix the"
+    ("If given a string-name attribute in " <> attrs_doc <> ", suffix the"
         <> " instrument with the string name.  When combined with the proper"
         <> " midi config, this will redirect the note to the proper channel"
         <> " for that string.")
     transform
     where
-    attrs = Seq.join ", " ["`" <> a <> "`" | a <- strings]
+    attrs_doc = Text.intercalate ", " ["`" <> txt a <> "`" | a <- strings]
     transform deriver = do
         attrs <- Util.get_attrs
         inst <- Util.lookup_instrument
@@ -79,7 +81,7 @@ strings = ["e1", "a", "d", "g", "b", "e2"]
 -- 'note_call'.
 midi_config :: String -> Instrument.InstrumentName -> Instrument.Config
 midi_config dev_name name = Instrument.config $
-    inst name 0 : [inst (name ++ "-" ++ string) chan
+    inst name 0 : [inst (name <> "-" <> string) chan
         | (string, chan) <- zip strings [1..]]
     where
     inst name chan = (Score.instrument synth_name name, [(dev, chan)])

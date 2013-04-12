@@ -2,6 +2,7 @@
 -- whose duration is generally independent of the tempo.
 module Derive.Call.Grace where
 import qualified Data.Map as Map
+import qualified Data.Text as Text
 
 import Util.Control
 import qualified Util.Pretty as Pretty
@@ -129,12 +130,13 @@ grace_dur_default, grace_overlap_default :: RealTime
 grace_dur_default = RealTime.seconds 0.8
 grace_overlap_default = grace_dur_default / 2
 
-grace_doc :: String
+grace_doc :: Text
 grace_doc = "This variant of grace note doesn't affect the start time of the\
     \ destination note, and is of a uniform speed, regardless of the tempo.\
     \ Grace note duration is set by `grace-dur` in the environment and\
-    \ defaults to " <> Pretty.pretty grace_dur_default <> ", overlap time is\
-    \ `grace-overlap` and defaults to " <> Pretty.pretty grace_overlap_default
+    \ defaults to " <> txt (Pretty.pretty grace_dur_default)
+    <> ", overlap time is `grace-overlap` and defaults to "
+    <> txt (Pretty.pretty grace_overlap_default)
     <> "."
 
 c_grace_attr :: Map.Map Int Score.Attributes
@@ -145,7 +147,8 @@ c_grace_attr supported =
     ("Emit grace notes as attrs, given a set of possible interval attrs.\
     \ If the grace note can't be expressed by the supported attrs, then emit\
     \ notes like the normal grace call.\nSupported: "
-    <> Seq.join ", " (map ShowVal.show_val (Map.elems supported))
+    <> Text.intercalate ", "
+        (map (txt . ShowVal.show_val) (Map.elems supported))
     ) $ Sig.call ((,)
     <$> optional "dyn" "Scale the dyn of the grace notes."
     <*> many "pitch" "Grace note pitches."

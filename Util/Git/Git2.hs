@@ -1,4 +1,3 @@
-{-# LANGUAGE OverloadedStrings #-}
 -- | Low level interaction with the git object store, implemented via a libgit2
 -- binding.
 --
