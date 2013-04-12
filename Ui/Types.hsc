@@ -25,7 +25,7 @@ import qualified Util.Serialize as Serialize
 
 import qualified Ui.Id as Id
 import qualified Ui.ScoreTime as ScoreTime
-import Ui.ScoreTime (ScoreTime)
+import Ui.ScoreTime (TrackTime)
 import qualified Ui.Util as Util
 
 
@@ -65,7 +65,7 @@ instance CStorable Rect.Rect where
 
 -- | View zoom and time scroll offset.
 data Zoom = Zoom {
-    zoom_offset :: ScoreTime
+    zoom_offset :: TrackTime
     , zoom_factor :: Double
     } deriving (Eq, Ord, Show, Read)
 
@@ -86,12 +86,12 @@ instance CStorable Zoom where
 
 -- | Convert a position at a given zoom factor to a pixel position.  Doesn't
 -- take the zoom offset into account.
-zoom_to_pixels :: Zoom -> ScoreTime -> Int
+zoom_to_pixels :: Zoom -> TrackTime -> Int
 zoom_to_pixels zoom pos = Num.d2i $ ScoreTime.to_double pos * zoom_factor zoom
 
--- | Convert a pixel position to a ScoreTime at the given zoom factor.
+-- | Convert a pixel position to a TrackTime at the given zoom factor.
 -- Doesn't take the zoom offset into account.
-zoom_to_time :: Zoom -> Int -> ScoreTime
+zoom_to_time :: Zoom -> Int -> TrackTime
 zoom_to_time zoom pixels =
     ScoreTime.double (fromIntegral pixels / zoom_factor zoom)
 
@@ -152,14 +152,14 @@ instance Id.Ident RulerId where
 data Selection = Selection {
     -- | The position the selection was established at.
     sel_start_track :: TrackNum
-    , sel_start_pos :: ScoreTime
+    , sel_start_pos :: TrackTime
 
     -- | The position the selection is now at.  The tracks are an inclusive
     -- range, the pos are half-open.  This is because these pairs are meant to
     -- be symmetrical, but the c++ layer only supports half-open pos ranges.
     -- I don't think there's much I can do about this.
     , sel_cur_track :: TrackNum
-    , sel_cur_pos :: ScoreTime
+    , sel_cur_pos :: TrackTime
     } deriving (Eq, Ord, Show, Read)
 
 instance Pretty.Pretty Selection where
@@ -167,12 +167,12 @@ instance Pretty.Pretty Selection where
         "Selection " ++ Pretty.pretty (strack, spos) ++ "--"
             ++ Pretty.pretty (ctrack, cpos)
 
-selection :: TrackNum -> ScoreTime -> TrackNum -> ScoreTime -> Selection
+selection :: TrackNum -> TrackTime -> TrackNum -> TrackTime -> Selection
 selection start_track start_pos cur_track cur_pos =
     Selection start_track start_pos cur_track cur_pos
 
 -- | A point is a selection with no duration.
-point_selection :: TrackNum -> ScoreTime -> Selection
+point_selection :: TrackNum -> TrackTime -> Selection
 point_selection tracknum pos = selection tracknum pos tracknum pos
 
 sel_is_point :: Selection -> Bool
@@ -201,11 +201,11 @@ sel_tracknums :: Selection -> [TrackNum]
 sel_tracknums sel = let (start, end) = sel_track_range sel in [start..end]
 
 -- | Start and end points, from small to large.
-sel_range :: Selection -> (ScoreTime, ScoreTime)
+sel_range :: Selection -> (TrackTime, TrackTime)
 sel_range sel = (min pos0 pos1, max pos0 pos1)
     where (pos0, pos1) = (sel_start_pos sel, sel_cur_pos sel)
 
-sel_set_duration :: ScoreTime -> Selection -> Selection
+sel_set_duration :: TrackTime -> Selection -> Selection
 sel_set_duration dur sel
     | cur > start = sel { sel_cur_pos = start + (max 0 dur) }
     | otherwise = sel { sel_start_pos = cur + (max 0 dur) }

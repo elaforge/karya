@@ -75,7 +75,7 @@ set_subs view_id sel = do
         mapM_ (uncurry set_block) =<<
             Perf.sub_pos block_id track_id (Types.sel_cur_pos sel)
 
-set_block :: (State.M m) => BlockId -> [(TrackId, ScoreTime)] -> m ()
+set_block :: (State.M m) => BlockId -> [(TrackId, TrackTime)] -> m ()
 set_block _ [] = return ()
 set_block block_id ((_, pos) : _) = do
     view_ids <- Map.keys <$> State.views_of block_id
@@ -148,7 +148,7 @@ cmd_track_all selnum = do
     tracks <- length . Block.block_tracks <$> State.get_block block_id
     set_selnum view_id selnum (Just (select_track_all dur tracks sel))
 
-select_track_all :: ScoreTime -> TrackNum -> Types.Selection -> Types.Selection
+select_track_all :: TrackTime -> TrackNum -> Types.Selection -> Types.Selection
 select_track_all dur tracks sel
     | sel == select_tracks = select_all
     | sel == select_rest = select_tracks
@@ -217,7 +217,7 @@ cmd_snap_selection btn selnum extend msg = do
 
 -- | Like 'mouse_drag' but specialized for drags on the track.
 mouse_drag_pos :: (Cmd.M m) => Types.MouseButton -> Msg.Msg
-    -> m ((TrackNum, ScoreTime), (TrackNum, ScoreTime))
+    -> m ((TrackNum, TrackTime), (TrackNum, TrackTime))
 mouse_drag_pos btn msg = do
     ((num1, t1), (num2, t2)) <- mouse_drag btn msg
     case (t1, t2) of
@@ -267,7 +267,7 @@ auto_scroll view_id sel = do
 
 -- TODO this scrolls too fast when dragging.  Detect a drag and scroll at
 -- a rate determined by how far past the bottom the pointer is.
-auto_time_scroll :: Block.View -> Types.Selection -> ScoreTime
+auto_time_scroll :: Block.View -> Types.Selection -> TrackTime
 auto_time_scroll view sel
     | scroll_to >= view_end = scroll_to - visible + space
     | scroll_to < view_start = scroll_to - space
@@ -318,8 +318,8 @@ mouse_mod msg = do
 
 -- * util
 
-step_from :: (Cmd.M m) => TrackNum -> ScoreTime -> TimeStep.Direction
-    -> TimeStep.TimeStep -> m ScoreTime
+step_from :: (Cmd.M m) => TrackNum -> TrackTime -> TimeStep.Direction
+    -> TimeStep.TimeStep -> m TrackTime
 step_from tracknum pos direction step = do
     block_id <- Cmd.get_focused_block
     next <- TimeStep.step_from (TimeStep.direction direction) step block_id
@@ -341,7 +341,7 @@ relevant_ruler block tracknum = Seq.at (Block.ruler_ids_of in_order) 0
     orthogonal flavors:
 
     - Return a raw Types.Selection, or return its
-    (ViewId, BlockId, TrackId, ScoreTime) context.
+    (ViewId, BlockId, TrackId, TrackTime) context.
 
     - Get a single point from a selection, or a range on a single track, or
     a range of tracks.
@@ -356,7 +356,7 @@ relevant_ruler block tracknum = Seq.at (Block.ruler_ids_of in_order) 0
     - Used an arbitrary ViewId, BlockId, or use the focused view.
 
     And then there is a whole other dimension of converting selections, which
-    are in ScoreTime, to RealTime.  The selection can be converted either
+    are in TrackTime, to RealTime.  The selection can be converted either
     relative to its block's tempo, or relative to a calling block's tempo,
     namely the root block.
 
@@ -368,19 +368,19 @@ relevant_ruler block tracknum = Seq.at (Block.ruler_ids_of in_order) 0
 -}
 
 -- | Get the \"point\" position of a Selection.
-point :: Types.Selection -> ScoreTime
+point :: Types.Selection -> TrackTime
 point sel = point_pos (Types.sel_start_pos sel) (Types.sel_cur_pos sel)
 
 -- | Given a selection start and end, give the \"point\" position for it.
-point_pos :: ScoreTime -> ScoreTime -> ScoreTime
+point_pos :: TrackTime -> TrackTime -> TrackTime
 point_pos = min
 
 point_track :: Types.Selection -> TrackNum
 point_track sel = min (Types.sel_start_track sel) (Types.sel_cur_track sel)
 
 -- | A point on a track.
-type Point = (BlockId, TrackNum, TrackId, ScoreTime)
-type AnyPoint = (BlockId, TrackNum, ScoreTime)
+type Point = (BlockId, TrackNum, TrackId, TrackTime)
+type AnyPoint = (BlockId, TrackNum, TrackTime)
 
 -- | Get the "insert position", which is the start track and position of the
 -- insert selection.  Abort if it's not an event track.
@@ -529,9 +529,9 @@ point_to_real tempo (Just (block_id, _, track_id, pos)) =
 -- event range is also returned, which may not be the same as the selection
 -- range because these functions may select more events than lie strictly
 -- within the selection.
-type SelectedAround = [(TrackId, (ScoreTime, ScoreTime),
+type SelectedAround = [(TrackId, (TrackTime, TrackTime),
     ([Event.Event], [Event.Event], [Event.Event]))]
-type SelectedEvents = [(TrackId, (ScoreTime, ScoreTime), [Event.Event])]
+type SelectedEvents = [(TrackId, (TrackTime, TrackTime), [Event.Event])]
 
 -- | 'events_around' is the default selection behaviour.
 events :: (Cmd.M m) => m SelectedEvents
@@ -590,7 +590,7 @@ events_around_selnum selnum = do
 -- ** select tracks
 
 -- | @(block_id, [tracknums], [track_ids], start, end)@
-type SelectedTracks = (BlockId, [TrackNum], [TrackId], ScoreTime, ScoreTime)
+type SelectedTracks = (BlockId, [TrackNum], [TrackId], TrackTime, TrackTime)
 
 -- | Get selected event tracks along with the selection.  The tracks are
 -- returned in ascending order.  Only event tracks are returned, and tracks

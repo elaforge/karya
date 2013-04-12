@@ -380,7 +380,7 @@ invert around (track_start, _) subs start end next_start text events_around = do
     when_just (non_bottom_note_track sliced) $ \track ->
         Derive.throw $
             "inverting below a note track will lead to an endless loop: "
-            ++ Pretty.pretty (TrackTree.tevents_track_id track)
+            <> Pretty.pretty (TrackTree.tevents_track_id track)
     return sliced
     where
     slice track_id = concatMap Slice.strip_empty_tracks $

@@ -58,6 +58,9 @@ UNSORTED
     - Derive.throw
     - Cmd.ControlTrack.Event
     - instance Typecheck Text instead of String
+      It means e.g. TimeStep.parse_time_step should take Text, which means
+      Util.Parse should switch too.
+    - BaseTypes.Symbol
   * if I do ^t to the left of a divider, the created track doesn't have
     a ruler
   * Track add bindings are hard to use.
@@ -789,9 +792,8 @@ performance:
     . But ByteString is not necessarily more compact for small strings, e.g.
       1 char = 4 words, 2 char = 8 words
     . Actually space isn't a big concern, it's probably more about looking
-      up in maps, bytestrings may be faster, but on the other hand strings can
-      abort early in comparison.
-    . Also ByteString is pinned.
+      up in maps, bytestrings may be faster.
+    . Also ByteString is pinned, does it make a difference?
     / I think the number of calls is actually not that high.  Doesn't seem
       worth it.
   - Do profiles again with Data.Text instead of ByteString.
