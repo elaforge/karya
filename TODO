@@ -48,7 +48,8 @@ UNSORTED
       with that pasted in.  Make new rulers for both.
     * Split a block vertically: delete tracks and create a new block with those
       tracks.
-    - implementation for ^B, factor out selection
+    * implementation for ^B, factor out selection
+  - when I create a new block with ^B it initially thinks it doesn't exist
   * select range, then create event with e.g. raw edit.  Event duration should
     be to selected range.
   * Data.Text for call docs

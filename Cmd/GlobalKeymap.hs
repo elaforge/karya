@@ -57,6 +57,7 @@ import qualified Cmd.Meter as Meter
 import qualified Cmd.Msg as Msg
 import qualified Cmd.PitchTrack as PitchTrack
 import qualified Cmd.Play as Play
+import qualified Cmd.Refactor as Refactor
 import qualified Cmd.Save as Save
 import qualified Cmd.Selection as Selection
 import qualified Cmd.StepPlay as StepPlay
@@ -372,8 +373,8 @@ create_bindings = concat
     , command_char 'b' "create block"
         (Create.view =<< Create.block =<< State.block_ruler
             =<< Cmd.get_focused_block)
-    , command_char 'B' "create block from template"
-        (Create.view =<< Create.block_from_template =<< Cmd.get_focused_block)
+    , command_char 'B' "create block from template or refactor"
+        Refactor.block_from_template_or_refactor
     ]
 
 clip_bindings :: (Cmd.M m) => [Keymap.Binding m]

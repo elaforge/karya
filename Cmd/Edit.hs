@@ -372,6 +372,10 @@ expand_range [] start end = return (start, end)
 cmd_clear_selected :: (Cmd.M m) => m ()
 cmd_clear_selected = do
     (_, _, track_ids, start, end) <- Selection.tracks
+    clear_range track_ids start end
+
+clear_range :: (State.M m) => [TrackId] -> TrackTime -> TrackTime -> m ()
+clear_range track_ids start end =
     forM_ track_ids $ \track_id -> if start == end
         then State.remove_event track_id start
         else State.remove_events track_id start end

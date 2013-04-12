@@ -12,6 +12,7 @@ import qualified Ui.Id as Id
 import qualified Ui.Skeleton as Skeleton
 import qualified Ui.State as State
 import qualified Ui.Track as Track
+import qualified Ui.Types as Types
 
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Create as Create
@@ -124,13 +125,7 @@ selection_at maybe_name block_id tracknums track_ids start end = do
         -- Shift the events back to start at 0.
         Create.track to_block_id tracknum title $
             Events.map_events (Event.move (subtract start)) events
-    edges <- Skeleton.flatten <$> State.get_skeleton block_id
-    case (Seq.minimum tracknums, Seq.maximum tracknums) of
-        (Just low, Just high) -> State.set_skeleton to_block_id $ Skeleton.make
-            [ (from-low, to-low) | (from, to) <- edges
-            , Num.in_range low high from, Num.in_range low high to
-            ]
-        _ -> return ()
+    clipped_skeleton block_id to_block_id tracknums
     -- Clear selected range and put in a call to the new block.
     Edit.clear_range track_ids start end
     when_just (Seq.head track_ids) $ \track_id ->
@@ -139,3 +134,49 @@ selection_at maybe_name block_id tracknums track_ids start end = do
     -- Create a clipped ruler.
     RulerUtil.local_meter to_block_id $ Meter.clip start end
     return to_block_id
+
+block_from_template_or_refactor :: (Cmd.M m) => m ()
+block_from_template_or_refactor = do
+    (_, sel) <- Selection.get
+    if Types.sel_is_point sel
+        then void $ Create.view =<< Create.block_from_template
+            =<< Cmd.get_focused_block
+        else void named_block
+
+-- | Create a new block based on the first event under the selection.  Populate
+-- the new block with tracks based on the selection.
+named_block :: (Cmd.M m) => m BlockId
+named_block = Selection.events >>= \x -> case x of
+    (track_id, _, event : _) : rest -> do
+        let track_ids = track_id : [tid | (tid, _, _) <- rest]
+        block_id <- Cmd.get_focused_block
+        to_block_id <- named_block_from block_id track_ids (Event.start event)
+            (Event.end event) (Event.event_string event)
+        Create.view to_block_id
+        return to_block_id
+    _ -> Cmd.throw "no selected event"
+
+named_block_from :: (State.M m) => BlockId -> [TrackId]
+    -> TrackTime -> TrackTime -> String -> m BlockId
+named_block_from block_id track_ids start end text = do
+    to_block_id <- Create.named_block text =<< State.block_ruler block_id
+    forM_ (zip [1..] track_ids) $ \(tracknum, track_id) -> do
+        title <- State.get_track_title track_id
+        Create.track to_block_id tracknum title mempty
+    -- Create skeleton.
+    clipped_skeleton block_id to_block_id
+        =<< mapM (State.get_tracknum_of block_id) track_ids
+    -- Create a clipped ruler.
+    RulerUtil.local_meter to_block_id $ Meter.clip start end
+    return to_block_id
+
+clipped_skeleton :: (State.M m) => BlockId -> BlockId -> [TrackNum] -> m ()
+clipped_skeleton from_block to_block tracknums =
+    case (Seq.minimum tracknums, Seq.maximum tracknums) of
+        (Just low, Just high) -> do
+            edges <- Skeleton.flatten <$> State.get_skeleton from_block
+            State.set_skeleton to_block $ Skeleton.make
+                [ (from-low + 1, to-low + 1) | (from, to) <- edges
+                , Num.in_range low (high+1) from, Num.in_range low (high+1) to
+                ]
+        _ -> return ()
