@@ -8,7 +8,6 @@ import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 
 import qualified Numeric
-import qualified System.Directory as Directory
 import qualified System.FilePath as FilePath
 import System.FilePath ((</>))
 
@@ -75,10 +74,13 @@ save repo state prev_commit = try "save" $
 
 do_save :: Git.Repo -> SaveHistory -> IO (Git.Commit, SavePoint)
 do_save repo (SaveHistory state prev_commit _updates names) = do
-    exists <- Directory.doesDirectoryExist repo
-    prev_commit <- return $ if not exists then Nothing else prev_commit
-    when (Maybe.isNothing prev_commit) $
-        void $ Git.init repo
+    exists <- Git.init repo
+    prev_commit <- case prev_commit of
+        Just c -> return $ if exists then Just c else Nothing
+        Nothing -> do
+            when exists $
+                Git.throw "refusing to overwrite a repo that already exists"
+            return Nothing
     dir <- either (Git.throw . ("make_dir: "++)) return $
         Git.make_dir (dump state)
     tree <- Git.write_dir repo dir
@@ -147,9 +149,7 @@ checkpoint repo hist@(SaveHistory state prev_commit updates names) =
         try_e "checkpoint" $ do
     -- If this is a new repo then do a save instead.
     case prev_commit of
-        Nothing -> do
-            Git.init repo
-            Right . fst <$> do_save repo hist
+        Nothing -> Right . fst <$> do_save repo hist
         Just prev_commit -> do
             let (warns, mods) = dump_diff False state
                     (filter checkpoint_update updates)
