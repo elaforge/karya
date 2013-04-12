@@ -61,9 +61,8 @@ default_zoom = Config.zoom
 
 -- | Save the state to disk, so I can load it into the app and see it.
 save :: State.State -> FilePath -> IO ()
-save ui_state fname = do
-    save_state <- Serialize.save_state ui_state
-    Serialize.serialize fname save_state
+save ui_state fname =
+    Serialize.serialize fname =<< Serialize.make_save_state ui_state
 
 -- * monadic mk- functions
 

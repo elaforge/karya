@@ -9,7 +9,7 @@ UNSORTED
   * Undo didn't clear the future when I made an edit!
   * git: I shouldn't be able to checkpoint to a repo unless I have
     a previous commit hash.
-  - git should save window moves and track resizes
+  * git should save window moves and track resizes
     . Currently undo and git checkpoints are 1:1, it would be a complicated if
       that changed, because then undo would have to skip multiple states, and
       have to know which ones to skip.  So maybe just save on quit, or when
@@ -20,9 +20,16 @@ UNSORTED
       things, but I save the whole state with everything.  Undo should only
       apply to score data, and views should be saved separately, and
       non-versioned.
-    - Before diffing state to save it, clear out the views.  Checkpoint
-      normally, and then if the views have changed, save them to a separate
-      file.
+    * SaveGit doesn't save or load views
+    * Undo.save_history will save the view state if there were view changes
+      and I'm checkpointing.
+    . Most view updates aren't even updates, since they come from the UI
+      directly and modify the state.  So I think I don't need to checkpoint
+      views at all, just save them when I quit.
+    * save views unconditionally when I quit or switch save files
+      How do I get a hook on that?  For quit, I need something explicit.
+    * load_git loads the view state separately.
+  - SaveGit.checkpoint should do nothing if there are no modifications
 
   * Can't put a slur on a tuplet.  Can I do it by appending ( and ) directly
     to the notes, as with xstaff?

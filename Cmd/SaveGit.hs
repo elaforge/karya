@@ -18,6 +18,7 @@ import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 import qualified Util.Serialize as Serialize
 
+import qualified Ui.Block as Block
 import qualified Ui.Diff as Diff
 import qualified Ui.Events as Events
 import qualified Ui.Id as Id
@@ -27,7 +28,7 @@ import qualified Ui.Track as Track
 import qualified Ui.Types as Types
 import qualified Ui.Update as Update
 
-import Cmd.Serialize ()
+import qualified Cmd.Serialize
 import qualified App.Config as Config
 import Types
 
@@ -152,7 +153,7 @@ checkpoint repo hist@(SaveHistory state prev_commit updates names) =
         Nothing -> Right . fst <$> do_save repo hist
         Just prev_commit -> do
             let (warns, mods) = dump_diff False state
-                    (filter checkpoint_update updates)
+                    (filter should_record updates)
             unless (null warns) $
                 Log.warn $ "ignored updates for nonexistent "
                     ++ Seq.join ", " warns
@@ -163,13 +164,13 @@ checkpoint repo hist@(SaveHistory state prev_commit updates names) =
             commit <- commit_tree repo tree (Just prev_commit) $
                 unparse_names "checkpoint" names
             return $ Right commit
-    where
-    checkpoint_update update = case update of
-        -- BlockConfig changes are only box colors, which I never need to save.
-        Update.Block _ (Update.BlockConfig {}) -> False
-        Update.View _ (Update.Status {}) -> False
-        Update.View _ Update.BringToFront -> False
-        _ -> True
+
+-- | True if this update is interesting enough to record a checkpoint for.
+should_record :: Update.UiUpdate -> Bool
+should_record update = case update of
+    -- BlockConfig changes are only box colors, which I never need to save.
+    Update.Block _ (Update.BlockConfig {}) -> False
+    _ -> not $ Update.is_view_update update
 
 commit_tree :: Git.Repo -> Git.Tree -> Maybe Git.Commit -> String
     -> IO Git.Commit
@@ -226,9 +227,11 @@ load repo maybe_commit = try_e "load" $ do
     commit_data <- Git.read_commit repo commit
     dirs <- Git.read_dir repo (Git.commit_tree commit_data)
     names <- parse_names (Git.commit_text commit_data)
+    either_views <- load_views repo
     return $ do
         state <- undump dirs
-        return (state, commit, names)
+        views <- either_views
+        return (state { State.state_views = views }, commit, names)
 
 -- | Try to go get the previous history entry.
 load_previous_history :: Git.Repo -> State.State -> Git.Commit
@@ -295,11 +298,20 @@ parse_names text = case lines text of
 unparse_names :: String -> [String] -> String
 unparse_names msg names = msg ++ "\n" ++ show names ++ "\n"
 
+-- * views
+
+save_views :: Git.Repo -> Map.Map ViewId Block.View -> IO ()
+save_views repo views = Cmd.Serialize.serialize (repo </> "views") views
+
+load_views :: Git.Repo -> IO (Either String (Map.Map ViewId Block.View))
+load_views repo =
+    fmap (fromMaybe mempty) <$> Cmd.Serialize.unserialize (repo </> "views")
+
 -- * dump / undump
 
 dump :: State.State -> [(FilePath, ByteString)]
-dump (State.State views blocks tracks rulers config) =
-    dump_map views ++ dump_map blocks ++ dump_map tracks ++ dump_map rulers
+dump (State.State _views blocks tracks rulers config) =
+    dump_map blocks ++ dump_map tracks ++ dump_map rulers
     ++ [("config", Serialize.encode config)]
 
 dump_map :: (Ident id, Serialize.Serialize a) =>
@@ -318,12 +330,7 @@ dump_diff track_dir state =
     -- I use Left "" as a nop, so filter those out.
     first (filter (not . null)) . Seq.partition_either . map mk
     where
-    mk u@(Update.View view_id update) = case update of
-        Update.DestroyView -> Right $ Git.Remove (id_to_path view_id)
-        Update.BringToFront -> Left ""
-        _ | Just view <- Map.lookup view_id (State.state_views state) ->
-            Right $ Git.Add (id_to_path view_id) (Serialize.encode view)
-        _ -> Left $ "view_id: " ++ Pretty.pretty u
+    mk (Update.View {}) = Left ""
     mk u@(Update.Block block_id _)
         | Just block <- Map.lookup block_id (State.state_blocks state) =
             Right $ Git.Add (id_to_path block_id) (Serialize.encode block)
@@ -358,12 +365,11 @@ dump_diff track_dir state =
 
 undump :: Git.Dir -> Either String State.State
 undump dir = do
-    views <- undump_map Types.ViewId =<< get_dir "views"
     blocks <- undump_map Types.BlockId =<< get_dir "blocks"
     tracks <- undump_map Types.TrackId =<< get_dir "tracks"
     rulers <- undump_map Types.RulerId =<< get_dir "rulers"
     config <- decode "config" =<< get_file "config"
-    return $ State.State views blocks tracks rulers config
+    return $ State.State mempty blocks tracks rulers config
     where
     get_dir name = case Map.lookup name dir of
         Nothing -> return Map.empty
@@ -393,7 +399,6 @@ undump_diff :: State.State -> [Git.Modification]
 undump_diff state = foldM apply (state, [])
     where
     apply (state, updates) (Git.Remove path) = case split path of
-        ["views", ns, name] -> delete ns name Types.ViewId State.views
         ["blocks", ns, name] -> delete ns name Types.BlockId State.blocks
         ["tracks", ns, name] -> delete ns name Types.TrackId State.tracks
         ["rulers", ns, name] -> delete ns name Types.RulerId State.rulers
@@ -404,7 +409,6 @@ undump_diff state = foldM apply (state, [])
             vals <- delete_key ident (lens #$ state)
             return ((lens #= vals) state, updates)
     apply (state, updates) (Git.Add path bytes) = case split path of
-        ["views", ns, name] -> add ns name Types.ViewId State.views
         ["blocks", ns, name] -> add ns name Types.BlockId State.blocks
         ["tracks", ns, name] -> do
             (state_to, updates) <- add ns name Types.TrackId State.tracks
@@ -431,7 +435,6 @@ undump_diff state = foldM apply (state, [])
     split = FilePath.splitDirectories
 
 class Ident id where id_to_path :: id -> FilePath
-instance Ident ViewId where id_to_path = make_id_path "views"
 instance Ident BlockId where id_to_path = make_id_path "blocks"
 instance Ident TrackId where id_to_path = make_id_path "tracks"
 instance Ident RulerId where id_to_path = make_id_path "rulers"

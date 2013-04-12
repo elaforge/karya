@@ -10,7 +10,7 @@ import Types
 test_serialize = do
     let (_, ustate) =
             UiTest.run_mkview [("track", [(0, 1, "e0"), (1, 1, "e1")])]
-    save_state <- Serialize.save_state ustate
+    save_state <- Serialize.make_save_state ustate
     let run f = (f save_state, recode (f save_state))
 
     uncurry equal $ run (State.state_config . Serialize.save_ui_state)

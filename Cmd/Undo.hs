@@ -308,8 +308,7 @@ update_history updates ui_state cmd_state
     | otherwise =
         let (entries, collect) = record_history updates ui_state cmd_state
         in (hist, collect, entries)
-    where
-    hist = Cmd.state_history cmd_state
+    where hist = Cmd.state_history cmd_state
 
 -- | Get any history entries that should be saved, and the new HistoryCollect.
 -- There may be no saveable history if this cmd doesn't need to be recorded
@@ -356,5 +355,6 @@ merge_into_suppressed (Just (SaveGit.SaveHistory _ _ updates1 names1))
     SaveGit.SaveHistory state2 commit2
         (Update.collapse_updates (updates1 ++ updates2)) names1
 
+-- | True if these updates are interesting enough to record an undo state for.
 should_record :: [Update.UiUpdate] -> Bool
-should_record = not . all Update.is_view_update . filter (not . is_clip_update)
+should_record = any SaveGit.should_record . filter (not . is_clip_update)

@@ -27,7 +27,7 @@ test_save = do
             ]
     check_right =<< SaveGit.save repo state Nothing
     (state2, commit, _) <- expect_right "load" <$> SaveGit.load repo Nothing
-    equal state state2
+    equal (strip_views state) (strip_views state2)
     let state3 = UiTest.exec state2 $ do
             State.destroy_view UiTest.default_view_id
             UiTest.insert_event 1 (2, 2, "hi")
@@ -65,16 +65,16 @@ test_checkpoint = do
 
     let update num = Update.CmdTrackEvents (UiTest.mk_tid num)
     -- Make sure incremental loads work.
-    io_equal (SaveGit.load_from repo commit1 (Just commit2) state1)
+    io_equal (load_from repo commit1 (Just commit2) state1)
         -- UiTest.insert_event 1 (2, 2, "hi")
         (Right (state2, [update 1 2 4]))
-    io_equal (SaveGit.load_from repo commit2 (Just commit3) state2)
+    io_equal (load_from repo commit2 (Just commit3) state2)
         -- destroy_track 2, create_track 2, but generate no updates
         -- because normal diff will catch that.
         (Right (state3, []))
-    io_equal (SaveGit.load_from repo commit3 (Just commit4) state3)
+    io_equal (load_from repo commit3 (Just commit4) state3)
         (Right (state4, []))
-    io_equal (SaveGit.load_from repo commit1 (Just commit4) state1)
+    io_equal (load_from repo commit1 (Just commit4) state1)
         (Right (state4, [update 1 2 4]))
 
 test_ruler_checkpoint = do
@@ -104,8 +104,18 @@ check_sequence actions = do
     state_commits <- checkpoint_sequence repo (zip (map show [0..]) actions)
     forM_ (zip state_commits (drop 1 state_commits)) $
         \((state1, commit1), (state2, commit2)) -> do
-            io_equal (SaveGit.load_from repo commit1 (Just commit2) state1)
+            io_equal (load_from repo commit1 (Just commit2) state1)
                 (Right (state2, []))
+
+load_from :: Git.Repo -> Git.Commit -> Maybe Git.Commit -> State.State
+    -> IO (Either String (State.State, [Update.CmdUpdate]))
+load_from repo commit_from maybe_commit_to state =
+    fmap (first strip_views) <$>
+        SaveGit.load_from repo commit_from maybe_commit_to state
+
+-- | Views aren't saved, so I shouldn't compare them.
+strip_views :: State.State -> State.State
+strip_views state = state { State.state_views = mempty }
 
 check_load :: FilePath -> (State.State, Git.Commit, [String]) -> IO Bool
 check_load repo (state, commit, names) =
@@ -114,7 +124,7 @@ check_load repo (state, commit, names) =
 check_load_from :: FilePath -> (State.State, Git.Commit)
     -> (State.State, Git.Commit) -> IO Bool
 check_load_from repo (state1, commit1) (state2, commit2) =
-    io_equal (SaveGit.load_from repo commit1 (Just commit2) state1)
+    io_equal (load_from repo commit1 (Just commit2) state1)
         (Right (state2, []))
 
 checkpoint_sequence :: Git.Repo -> [(String, State.StateId ())]
@@ -127,7 +137,7 @@ checkpoint_sequence repo actions = apply (State.empty, Nothing) actions
         Right commit <- SaveGit.checkpoint repo
             (SaveGit.SaveHistory state prev_commit ui_updates [name])
         rest <- apply (state, Just commit) actions
-        return $ (state, commit) : rest
+        return $ (strip_views state, commit) : rest
 
 diff :: State.State -> State.StateId a -> (State.State, [Update.UiUpdate])
 diff state modify = (state2, ui_updates)

@@ -39,8 +39,8 @@ import qualified Ui.State as State
 import qualified Ui.Track as Track
 import qualified Ui.Types as Types
 
-import qualified Perform.Lilypond.Types as Lilypond
 import qualified Derive.Score as Score
+import qualified Perform.Lilypond.Types as Lilypond
 import qualified Perform.Midi.Instrument as Instrument
 import qualified Perform.Pitch as Pitch
 import qualified Perform.Signal as Signal
@@ -68,16 +68,19 @@ serialize_pretty_text fname state = do
     make_dir fname
     writeFile fname (PPrint.pshow state)
 
-unserialize :: (Serialize a) => FilePath -> IO (Either String a)
+-- | Returns Left if there was a parsing error, and Right Nothing if the file
+-- didn't exist.
+unserialize :: (Serialize a) => FilePath -> IO (Either String (Maybe a))
 unserialize fname = do
-    result <- Serialize.decode <$> ByteString.readFile fname
-    -- This is subtle.  Apparently Serialize.decode can still throw an
-    -- exception unless the contents of the Either is forced to whnf.
-    case result of
-        Left e -> return (Left e)
-        Right e -> return (Right e)
-    `Exception.catch` \(exc :: Exception.SomeException) ->
-        return $ Left $ "exception: " ++ show exc
+    maybe_bytes <- File.ignore_enoent $ ByteString.readFile fname
+    case maybe_bytes of
+        Nothing -> return (Right Nothing)
+        Just bytes ->
+            -- This is subtle.  Apparently Serialize.decode can still throw an
+            -- exception unless the contents of the Either is forced to whnf.
+            Exception.evaluate (Serialize.decode bytes)
+            `Exception.catch` \(exc :: Exception.SomeException) ->
+                return $ Left $ "exception: " ++ show exc
 
 unserialize_text :: (Read a) => FilePath -> IO (Either String a)
 unserialize_text fname = do
@@ -104,8 +107,8 @@ data SaveState = SaveState {
     , save_date :: Time.UTCTime
     }
 
-save_state :: State.State -> IO SaveState
-save_state ui_state = do
+make_save_state :: State.State -> IO SaveState
+make_save_state ui_state = do
     utc <- Time.getCurrentTime
     return (SaveState ui_state utc)
 

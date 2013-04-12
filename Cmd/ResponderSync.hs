@@ -40,9 +40,9 @@ sync sync_func send_status ui_pre ui_from ui_to cmd_state cmd_updates
     verify_state ui_to
 
     let (ui_updates, display_updates) = Diff.diff cmd_updates ui_from ui_to
-    -- unless (null display_updates) $
-    --     liftIO $ putStrLn $ "update: "
-    --          ++ PPrint.pshow display_updates
+    -- Debug.putp_full "ui_updates" ui_updates
+    -- Debug.putp_full "display_updates" display_updates
+
     when (any modified_view ui_updates) $
         MVar.modifyMVar_ play_monitor_state (const (return ui_to))
     let tsigs = get_track_signals

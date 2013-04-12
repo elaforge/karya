@@ -1,13 +1,14 @@
-Indents are 4 spaces only.  Nothing is lined up vertically, and there are no
-tabs.
+Indents are 4 spaces only.  Nothing is lined up vertically (so indents should
+all be multiples of 4 spaces), and there are no tabs.
 
-No line is longer than 80 columns, not counting the newline.
+No line is longer than 80 columns.
 
 All lower case names are lower_with_underscores even though it's not haskell
-standard.  All upper case names are haskell standard CamelCase.
+standard.  All upper case names are haskell standard CamelCase.  If I started
+again I'd use lowerUpper, but it's too late to change now.
 
 Operators are wrapped on the following line, with some exceptions like =, <-,
-$.
+$, <$>.
 
 Each module has a haddock comment, describing what it's for and what should go
 in it.
@@ -19,32 +20,37 @@ Modules are imported like 'import qualified A.B.C as C', with very few
 exceptions.  Therefore, names should generally not repeat the module name.
 Preferably no two modules have the same file name, but if they do, they can be
 imported along with their directory name, e.g. 'import qualified A.B.C as
-B.C'.  They are sorted by the order in the 'fix-imports' file, and
+B.C'.  They are sorted by the order in the '.fix-imports' file, and
 alphabetically after that.  The order is automatically enforced by the
-FixImports tool.
+fix-imports tool.
 
 Major high level types tend to go in a module with their own name.  Many types
 also often have a functional constructor with the lower cased name of the type
 which may provide default arguments and whatnot.  Even though I don't
-generally restrict the "real" constructor from module export list, you should
-use the functional constructor when possible to insulate against changes to
-the type.
+generally restrict the "real" constructor from the module export list, you
+should use the functional constructor when possible to insulate against
+changes to the type.
 
 All modules that call C end with "C", and are split up such that as few
-modules as possible import them.  This is because ghci won't work it has to
+modules as possible import them.  This is because ghci won't work if it has to
 import a module with foreign deps.  Technically it should be able to if you
-give it the object files but I've never been able to get that to work.
+give it the object files but since it's the entire GUI library and associated
+system libraries I've never been able to get that to work.
 
 Record fields are named rec_xyz, where 'rec' is an abbreviation of the record
 type name.
 
 Cmds begin with cmd_.  But not always.  I'm not very convinced of the value of
-this convention.  The idea with cmd_ is that the cmd_* version is directly
+this convention.  The idea with cmd_ is that the cmd_* version can be directly
 bound to a key, and it will get various default parameters from context and
 call the non-cmd_ prefixed version with more parameters.
 
 Derivers begin with d_.  I'm even less convinced that this convention is
-useful.
+useful, just because in Derive.* practically everything is a deriver.
+
+Calls begin with c_.  I use this convention pretty consistently, where the c_
+prefixed version has the documentation, signature, and any further arg
+parsing, and the non-prefixed version has the actual logic.
 
 Most types should be in Show, for debugging and interactive use.  Types that
 cannot use the automatic Show instance may derive their own.  If so, they
@@ -54,3 +60,7 @@ should emit valid haskell syntax because non-valid syntax will break
 to be used from the REPL should have a 'Util.Pretty.Pretty' instance, and a
 format method.  This way they can emit non-haksell descriptions and have it
 format nicely.
+
+There's a convention where functions that look something up are prefixed with
+lookup_ if they return Nothing on failure, and get_ if they throw an exception
+on failure.

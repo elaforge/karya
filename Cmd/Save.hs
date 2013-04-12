@@ -28,7 +28,7 @@ import qualified App.Config as Config
 -- | Save to the current 'Cmd.state_save_file', or create a new git repo if
 -- there is none.
 save :: Cmd.CmdT IO ()
-save = get_save_file >>= \x -> case x of
+save = Cmd.gets Cmd.state_save_file >>= \x -> case x of
     Nothing -> save_git
     Just (Cmd.SaveGit repo) -> save_git_as repo
     Just (Cmd.SaveState fn) -> save_state_as fn
@@ -68,16 +68,16 @@ save_state_as fname = do
 write_state :: FilePath -> Cmd.CmdT IO ()
 write_state fname = do
     ui_state <- State.get
-    save <- liftIO $ Serialize.save_state (State.clear ui_state)
+    save <- liftIO $ Serialize.make_save_state (State.clear ui_state)
     Log.notice $ "write state to " ++ show fname
     liftIO $ Serialize.serialize fname save
 
 load_state :: FilePath -> Cmd.CmdT IO ()
 load_state fname = do
     Log.notice $ "load state from " ++ show fname
-    Serialize.SaveState state _ <- Cmd.require_right
-        (("load " ++ fname ++ ": ") ++)
-        =<< liftIO (Serialize.unserialize fname)
+    let mkmsg = (("load " ++ fname ++ ": ") ++)
+    Serialize.SaveState state _ <- Cmd.require_msg (mkmsg "doesn't exist")
+        =<< Cmd.require_right mkmsg =<< liftIO (Serialize.unserialize fname)
     set_state state
     Cmd.modify $ \st -> st
         { Cmd.state_save_file = Just $ Cmd.SaveState fname }
@@ -183,7 +183,20 @@ default_git = "save.git"
 
 -- * misc
 
-get_save_file = Cmd.gets Cmd.state_save_file
+-- | Git repos don't checkpoint views, but because I'm accustomed to them
+-- checkpointing everything else I expect the views to always be saved.
+--
+-- So call this when quitting or switching away from a save file to save the
+-- views.
+--
+-- They could theoretically checkpoint view changes, but it would be
+-- complicated (they mostly come from the GUI, not diff) and inefficient
+-- (scrolling emits tons of them).
+close_state :: Cmd.State -> State.State -> IO ()
+close_state cmd_state ui_state = case Cmd.state_save_file cmd_state of
+    Just (Cmd.SaveGit repo) ->
+        SaveGit.save_views repo $ State.state_views ui_state
+    _ -> return ()
 
 -- | If I switch away from a repo (either to another repo or to a plain state),
 -- I have to clear out all the remains of the old repo, since its Commits are
@@ -212,6 +225,10 @@ set_save_file git_or_state state = state
 
 set_state :: State.State -> Cmd.CmdT IO ()
 set_state state = do
+    old_cmd <- Cmd.get
+    old_ui <- State.get
+    liftIO $ close_state old_cmd old_ui
+
     Play.cmd_stop
     Cmd.modify $ Cmd.reinit_state (Cmd.empty_history_entry state)
     State.put (State.clear state)

@@ -148,7 +148,8 @@ profile_saved with_perform fname block_id = do
         Serialize.unserialize fname
     state <- case result of
         Left err -> error $ "loading " ++ show fname ++ ": " ++ err
-        Right (Serialize.SaveState state _) -> return state
+        Right Nothing -> error $ "loading " ++ show fname ++ ": doesn't exist"
+        Right (Just (Serialize.SaveState state _)) -> return state
     let lookup = DeriveTest.lookup_from_state state
     if with_perform
         then replicateM_ 6 $ run_profile (Just lookup) block_id state

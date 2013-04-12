@@ -32,7 +32,9 @@ unserialize :: (Instrument.Patch -> code) -> FilePath
 unserialize code_for fname = do
     result <- Cmd.Serialize.unserialize fname
     return $ case result of
-        Right (SavedDb (time, db)) -> Right (time, make_synths code_for db)
+        Right (Just (SavedDb (time, db))) ->
+            Right (time, make_synths code_for db)
+        Right Nothing -> Left $ fname ++ ": file doesn't exist"
         Left err -> Left err
 
 
