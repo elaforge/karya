@@ -10,9 +10,6 @@ module Midi.Midi (
     , read_device_bs, write_device_bs
     , peek_wdev, peek_rdev, with_wdev, with_rdev
     , add_timestamp, modify_timestamp
-    -- TODO I don't want to export the constructors, but must due to a ghc bug:
-    -- http://hackage.haskell.org/trac/ghc/ticket/5252
-    , ReadDevice(ReadDevice), WriteDevice(WriteDevice)
 
     -- * constructors
     , program_change, pitch_bend_sensitivity, reset_channel
