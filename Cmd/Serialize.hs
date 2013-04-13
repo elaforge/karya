@@ -75,12 +75,13 @@ unserialize fname = do
     maybe_bytes <- File.ignore_enoent $ ByteString.readFile fname
     case maybe_bytes of
         Nothing -> return (Right Nothing)
-        Just bytes ->
+        Just bytes -> do
             -- This is subtle.  Apparently Serialize.decode can still throw an
             -- exception unless the contents of the Either is forced to whnf.
-            Exception.evaluate (Serialize.decode bytes)
-            `Exception.catch` \(exc :: Exception.SomeException) ->
-                return $ Left $ "exception: " ++ show exc
+            val <- Exception.evaluate (Serialize.decode bytes)
+                `Exception.catch` \(exc :: Exception.SomeException) ->
+                    return $ Left $ "exception: " ++ show exc
+            return $ Just <$> val
 
 unserialize_text :: (Read a) => FilePath -> IO (Either String a)
 unserialize_text fname = do
@@ -105,7 +106,7 @@ make_dir = Directory.createDirectoryIfMissing True . FilePath.takeDirectory
 data SaveState = SaveState {
     save_ui_state :: State.State
     , save_date :: Time.UTCTime
-    }
+    } deriving (Show)
 
 make_save_state :: State.State -> IO SaveState
 make_save_state ui_state = do
