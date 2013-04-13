@@ -132,7 +132,7 @@ find_generator_cache typ stack event_range score (ControlDamage control)
         Invalid -> Left (False, "cache invalidated by score damage")
         Cached entry -> maybe (Left (False, "cache has wrong type")) Right $
             Derive.from_cache_entry entry
-    let Derive.GeneratorDep block_deps = Derive.collect_local_dep collect
+    let Derive.BlockDeps block_deps = Derive.collect_block_deps collect
     let damaged_blocks = Set.union
             (sdamage_track_blocks score) (sdamage_blocks score)
     case typ of

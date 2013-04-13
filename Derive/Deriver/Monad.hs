@@ -94,7 +94,7 @@ module Derive.Deriver.Monad (
     -- $cache_doc
     , Cache(..), Cached(..), cache_size
     , CacheEntry(..), CallType(..)
-    , GeneratorDep(..)
+    , BlockDeps(..)
 
     -- ** damage
     , ScoreDamage(..)
@@ -709,7 +709,7 @@ data Collect = Collect {
     , collect_track_dynamic :: !TrackDynamic
     -- | This is how a call records its dependencies.  After evaluation of
     -- a deriver, this will contain the dependencies of the most recent call.
-    , collect_local_dep :: !GeneratorDep
+    , collect_block_deps :: !BlockDeps
 
     -- | New caches accumulating over the course of the derivation.
     , collect_cache :: !Cache
@@ -1070,7 +1070,7 @@ instance (DeepSeq.NFData d) => DeepSeq.NFData (CallType d) where
 
 -- ** deps
 
-newtype GeneratorDep = GeneratorDep (Set.Set BlockId)
+newtype BlockDeps = BlockDeps (Set.Set BlockId)
     deriving (Monoid.Monoid, Show, Eq, DeepSeq.NFData)
 
 -- ** damage
@@ -1080,7 +1080,7 @@ data ScoreDamage = ScoreDamage {
     -- | Damaged ranges in tracks.
     sdamage_tracks :: !(Map.Map TrackId (Ranges.Ranges ScoreTime))
     -- | The blocks with damaged tracks.  Calls depend on blocks
-    -- ('GeneratorDep') rather than tracks, so it's convenient to keep the
+    -- ('BlockDeps') rather than tracks, so it's convenient to keep the
     -- blocks here.  This is different than block damage because a damaged
     -- block will invalidate all caches below it, but a block with damaged
     -- tracks must be called but may still have valid caches within.

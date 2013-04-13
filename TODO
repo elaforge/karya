@@ -60,7 +60,7 @@ UNSORTED
       found.  I think I have to not cache when there is a new block, because
       it might make a failed call now work.  Or add a block dep for
       non-existent blocks.
-  - rename GeneratorDep to BlockDep, collect_local_dep to collect_block_dep
+  * rename GeneratorDep to BlockDep, collect_local_dep to collect_block_dep
   * select range, then create event with e.g. raw edit.  Event duration should
     be to selected range.
   * Data.Text for call docs

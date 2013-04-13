@@ -273,7 +273,7 @@ test_collect = do
             ( Seq.sort_on fst $ map (first Stack.show_ui_) $
                 Map.toAscList (Derive.collect_warp_map collect)
             , Derive.collect_track_signals collect
-            , Derive.collect_local_dep collect
+            , Derive.collect_block_deps collect
             )
 
     -- Wow, this is a hassle, but it's hard to figure out how to verify this
@@ -291,7 +291,7 @@ test_collect = do
           , ("top top.t1 0-1: sub sub.t2 *", track "sub.t2")
           ]
         , Map.fromList [(UiTest.tid "sub.t2", tsig)]
-        , mk_gdep ["top", "sub"]
+        , mk_block_deps ["top", "sub"]
         ))
 
 test_sliced_score_damage = do
@@ -585,11 +585,11 @@ r_cache_deps :: Derive.Result -> [(String, Maybe [BlockId])]
 r_cache_deps result =
     [(stack, fmap deps collect) | (stack, collect) <- r_cache_collect result]
     where
-    deps collect = case Derive.collect_local_dep collect of
-        Derive.GeneratorDep blocks -> Set.toAscList blocks
+    deps collect = case Derive.collect_block_deps collect of
+        Derive.BlockDeps blocks -> Set.toAscList blocks
 
-mk_gdep :: [String] -> Derive.GeneratorDep
-mk_gdep = Derive.GeneratorDep . Set.fromList . map UiTest.bid
+mk_block_deps :: [String] -> Derive.BlockDeps
+mk_block_deps = Derive.BlockDeps . Set.fromList . map UiTest.bid
 
 r_cache_stacks = Map.keys . uncache . Derive.r_cache
 uncache (Derive.Cache cache) = cache

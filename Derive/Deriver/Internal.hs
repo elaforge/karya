@@ -125,7 +125,7 @@ with_control_damage damage = local $ \st ->
 
 add_block_dep :: BlockId -> Deriver ()
 add_block_dep block_id = merge_collect $ mempty
-    { collect_local_dep = GeneratorDep (Set.singleton block_id) }
+    { collect_block_deps = BlockDeps (Set.singleton block_id) }
 
 -- * ui state
 
