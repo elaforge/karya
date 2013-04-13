@@ -416,12 +416,11 @@ run_continue caller cmd = do
     (result, cmd_state) <- run_cmd cmd
     case result of
         Left err -> do
-            liftIO $ Log.error $ caller ++ ": " ++ Pretty.pretty err
+            liftIO $ Log.error $ caller <> ": " <> Pretty.pretty err
             return Nothing
         Right (status, ui_state) -> do
             when (not_continue status) $ liftIO $
-                Log.error $ caller ++ ": " ++ "expected Continue: "
-                    ++ show status
+                Log.error $ caller <> ": expected Continue: " <> show status
             return $ Just (status, ui_state, cmd_state)
 
 run_throw :: EitherCmd -> ErrorResponderM ()

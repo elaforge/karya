@@ -19,6 +19,7 @@ import qualified Cmd.Cmd as Cmd
 import qualified Cmd.CmdTest as CmdTest
 import qualified Cmd.Edit as Edit
 import qualified Cmd.ResponderTest as ResponderTest
+import Cmd.ResponderTest (next)
 import qualified Cmd.Save as Save
 import qualified Cmd.SaveGit as SaveGit
 import qualified Cmd.Selection as Selection
@@ -253,9 +254,6 @@ insert_event pos text = UiTest.insert_event 1 (pos, 1, text)
 set_sel :: (Cmd.M m) => ScoreTime -> m ()
 set_sel pos = Cmd.name "select" $ Selection.set_current Config.insert_selnum
     (Just (Types.point_selection 1 pos))
-
-next :: ResponderTest.Result -> Cmd.CmdT IO a -> IO ResponderTest.Result
-next = ResponderTest.respond_cmd . ResponderTest.result_states
 
 
 -- ** extract

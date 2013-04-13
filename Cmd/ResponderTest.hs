@@ -1,3 +1,10 @@
+-- | This is similar in intent to "Cmd.CmdTest", but it simulates the entire
+-- respond loop.  So it's more accurate and can test more, but is less
+-- convenient in that you can't run Cmds directly (you have to use
+-- 'respond_cmd').  In addition, you can't run the tests from ghci since it
+-- winds up linking in the GUI libs, even though there's no GUI.
+--
+-- TODO shouldn't it be possible to lift this restriction?
 module Cmd.ResponderTest where
 import qualified Control.Concurrent.Chan as Chan
 import qualified Control.Concurrent.MVar as MVar
@@ -37,13 +44,15 @@ import Types
 
 type States = (State.State, Cmd.State)
 
+-- | Make a UI state with one block with the given tracks, and a standard cmd
+-- state.
 mkstates :: [UiTest.TrackSpec] -> States
 mkstates tracks = (ui_state, mk_cmd_state ui_state UiTest.default_view_id)
     where
     ui_state = UiTest.exec State.empty $ do
         UiTest.mkblock_view (UiTest.default_block_name, tracks)
-        State.set_selection UiTest.default_view_id Config.insert_selnum
-            (Just (Types.selection 1 0 1 0))
+        State.set_selection UiTest.default_view_id Config.insert_selnum $
+            Just $ Types.selection 1 0 1 0
 
 -- | Many cmds rely on a focused view, and it's easy to forget to add it, so
 -- make it mandatory.
@@ -58,6 +67,11 @@ mk_cmd_state ui_state view_id = CmdTest.default_cmd_state
 -- | It would be nicer to have this happen automatically.
 set_midi_config :: State.StateId ()
 set_midi_config = State.set_midi_config DeriveTest.default_midi_config
+
+set_sel :: TrackNum -> TrackTime -> TrackNum -> TrackTime -> States -> States
+set_sel track1 pos1 track2 pos2 = first $ flip UiTest.exec $
+    State.set_selection UiTest.default_view_id Config.insert_selnum $
+        Just $ Types.selection track1 pos1 track2 pos2
 
 
 -- * result
@@ -170,6 +184,10 @@ respond_cmd states cmd = respond1 states (Just (mkcmd cmd)) magic
     is_magic (Msg.Socket _ "MAGIC!!") = True
     is_magic _ = False
     magic = Msg.Socket IO.stdout "MAGIC!!"
+
+-- | Respond to a cmd, using the state from the result of the last cmd.
+next :: Result -> Cmd.CmdT IO a -> IO Result
+next = respond_cmd . result_states
 
 respond_msg :: States -> Msg.Msg -> IO Result
 respond_msg states = respond1 states Nothing

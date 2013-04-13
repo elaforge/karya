@@ -102,20 +102,15 @@ call_from_block_id :: BlockId -> TrackLang.Call
 call_from_block_id block_id =
     TrackLang.call (Id.show_id (Id.unpack_id block_id)) []
 
-symbol_to_block_id :: TrackLang.Symbol -> Derive.Deriver (Maybe BlockId)
-symbol_to_block_id sym
-    | sym == TrackLang.Symbol "" = return Nothing
-    | otherwise = do
-        ui_state <- Derive.get_ui_state id
-        let ns = State.config_namespace (State.state_config ui_state)
-        return $ do
-            block_id <- make_block_id ns sym
-            if block_id `Map.member` State.state_blocks ui_state
-                then Just block_id else Nothing
-
-make_block_id :: Id.Namespace -> TrackLang.Symbol -> Maybe BlockId
-make_block_id namespace (TrackLang.Symbol call) =
-    Types.BlockId <$> Id.read_short namespace call
+-- | Like 'Call.symbol_to_block_id' but return Nothing if the block doesn't
+-- exist.
+symbol_to_block_id :: TrackLang.CallId -> Derive.Deriver (Maybe BlockId)
+symbol_to_block_id sym = Call.symbol_to_block_id sym >>= \x -> case x of
+    Nothing -> return Nothing
+    Just block_id -> do
+        blocks <- Derive.get_ui_state State.state_blocks
+        if Map.member block_id blocks
+            then return (Just block_id) else return Nothing
 
 -- ** clip
 
