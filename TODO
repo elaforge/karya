@@ -49,12 +49,10 @@ UNSORTED
     * Split a block vertically: delete tracks and create a new block with those
       tracks.
     * implementation for ^B, factor out selection
-  * when I create a new block with ^B it initially thinks it doesn't exist
-    Why does LRuler need invalidate_performances anyway?  Can't it figure out
+  * Why does LRuler need invalidate_performances anyway?  Can't it figure out
     from the ruler changes?
+  * when I create a new block with ^B it initially thinks it doesn't exist
     . When does a perf invalidate? When there's ScoreDamage.
-    / Make new blocks start with damage.  Didn't I already reject that once?
-      Don't remember.
     . It does clear the perf and add damage, but the block just caches,
       probably because it doesn't have the block dep for x, because x wasn't
       found.  I think I have to not cache when there is a new block, because

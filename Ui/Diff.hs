@@ -314,7 +314,13 @@ derive_diff st1 st2 updates = postproc $ run_derive_diff $ do
         Map.zip_intersection (State.state_blocks st1) (State.state_blocks st2)
     mapM_ (uncurry3 derive_diff_track) $
         Map.zip_intersection (State.state_tracks st1) (State.state_tracks st2)
-    where postproc = postproc_damage st2 . (updates_damage updates <>)
+    where
+    postproc = postproc_damage st2 . (updates_damage block_rulers updates <>)
+    block_rulers = Map.multimap
+        [ (ruler_id, block_id)
+        | (block_id, block) <- Map.toList (State.state_blocks st2)
+        , ruler_id <- Block.block_ruler_ids block
+        ]
 
 -- | Fill in 'Derive.sdamage_track_blocks'.
 postproc_damage :: State.State -> Derive.ScoreDamage -> Derive.ScoreDamage
@@ -326,10 +332,16 @@ postproc_damage state (Derive.ScoreDamage tracks _ blocks) =
     track_of_block (Block.TId tid _) = Map.member tid tracks
     track_of_block _ = False
 
-updates_damage :: [Update.UiUpdate] -> Derive.ScoreDamage
-updates_damage updates = mempty { Derive.sdamage_tracks = tracks }
+updates_damage :: Map.Map RulerId [BlockId] -> [Update.UiUpdate]
+    -> Derive.ScoreDamage
+updates_damage block_rulers updates = mempty
+    { Derive.sdamage_tracks = tracks
+    , Derive.sdamage_blocks = blocks
+    }
     where
     tracks = Map.fromListWith (<>) $ mapMaybe Update.track_changed updates
+    blocks = Set.fromList [block_id | Update.Ruler ruler_id <- updates,
+        block_id <- Map.findWithDefault [] ruler_id block_rulers]
 
 derive_diff_block :: BlockId -> Block.Block -> Block.Block -> DeriveDiffM ()
 derive_diff_block block_id block1 block2 = do

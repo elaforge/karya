@@ -211,14 +211,10 @@ type Modify = (BlockId, Meter.Meter -> Meter.Meter)
 -- I don't add this directly to 'RulerUtil.local_meter' because that would make
 -- it be in Cmd and IO.
 local :: Modify -> Cmd.CmdL ()
-local (block_id, f) = do
-    RulerUtil.local_meter block_id f
-    Cmd.invalidate_performances
+local (block_id, f) = RulerUtil.local_meter block_id f
 
 modify :: Modify -> Cmd.CmdL ()
-modify (block_id, f) = do
-    RulerUtil.modify_meter block_id f
-    Cmd.invalidate_performances
+modify (block_id, f) = RulerUtil.modify_meter block_id f
 
 
 -- * cue
@@ -240,6 +236,4 @@ cue_mark :: String -> Ruler.Mark
 cue_mark text = Ruler.Mark 0 2 Color.black text 0 0
 
 modify_block :: BlockId -> (Ruler.Ruler -> Ruler.Ruler) -> Cmd.CmdL ()
-modify_block block_id f = do
-    RulerUtil.modify_block block_id f
-    Cmd.invalidate_performances
+modify_block = RulerUtil.modify_block
