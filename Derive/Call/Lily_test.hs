@@ -28,7 +28,7 @@ test_when_ly = do
     equal (run_ly tracks) ([((0, 1, "4a"), "-")], [])
     equal (run_normal tracks) ([((0, 1, "4a"), "+a")], [])
 
-test_is_ly = do
+test_ly_track = do
     let run_normal = DeriveTest.extract ex . DeriveTest.linear_derive_tracks id
             where ex e = (DeriveTest.e_pitch e, DeriveTest.e_attributes e)
         run_ly = LilypondTest.extract extract . LilypondTest.derive_linear
@@ -38,8 +38,8 @@ test_is_ly = do
 
     let tracks =
             [ (">", [(1, 1, "+always")])
-            , ("> | is-ly", [(0, 1, "+ly1"), (1, 1, "+ly2")])
-            , ("> | not-ly", [(1, 1, "+no1"), (2, 1, "+no2")])
+            , ("> | ly-track", [(0, 1, "+ly1"), (1, 1, "+ly2")])
+            , ("> | not-ly-track", [(1, 1, "+no1"), (2, 1, "+no2")])
             ] ++ UiTest.regular_notes 4
     equal (run_normal tracks)
         ([("3c", "-"), ("3d", "+always+no1"), ("3e", "+no2"), ("3f", "-")], [])
