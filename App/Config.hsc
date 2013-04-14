@@ -260,6 +260,7 @@ track_width = 40
 collapsed_width :: Types.Width
 collapsed_width = 3
 
+-- | Default color for the track signal, as rendered in the track UI.
 render_color :: Color.Color
 render_color = Color.rgba 0.65 0.65 0.8 0.5
 
@@ -366,14 +367,14 @@ note_color = Color.rgb 0.9 0.9 0.7
 
 -- | Events on control tracks.
 control_color :: Color.Color
-control_color = Color.rgb 0.8 0.9 0.8
+control_color = Color.rgb 0.7 0.8 0.7
 
 -- | Events on pitch tracks
 pitch_color :: Color.Color
 pitch_color = Color.rgb 0.7 0.8 0.9
 
--- | NoteTransformer style: events that affect further derivation and don't
--- output any notes themselves, e.g. @x = y@.
+-- | NoteTransformer style, events on note tracks which are parents of other
+-- note tracks.
 note_transformer_color :: Color.Color
 note_transformer_color = Color.rgb 1.0 1.0 0.65
 

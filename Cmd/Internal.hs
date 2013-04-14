@@ -238,9 +238,9 @@ event_style has_note_children title event =
 -- | Set the track background color.
 track_bg :: Track.Track -> Color.Color
 track_bg track
-    | TrackInfo.is_pitch_track title = Color.brightness 1.55 Config.pitch_color
+    | TrackInfo.is_pitch_track title = Color.brightness 1.7 Config.pitch_color
     | TrackInfo.is_control_track title =
-        Color.brightness 1.4 Config.control_color
+        Color.brightness 1.7 Config.control_color
     | otherwise = Track.track_bg track
     where title = Track.track_title track
 
