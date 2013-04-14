@@ -59,7 +59,7 @@ test_stash_sub_signals = do
             . Map.map (fmap (Signal.unsignal . Track.ts_signal))
             . Derive.r_track_signals
     equal (run $ (">", [(1, 2, "(")]) : UiTest.regular_notes 4)
-        [(UiTest.mk_tid 3, Right [(0, 69), (1, 71), (2, 60), (3, 62)])]
+        [(UiTest.mk_tid 3, Right [(0, 48), (1, 50), (2, 52), (3, 53)])]
 
 -- * derivers
 

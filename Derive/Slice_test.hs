@@ -242,8 +242,8 @@ test_slur = do
             , (">", [(0, 1, "+a")])
             ] ++ UiTest.regular_notes 2
     equal events
-        [ ((0, 1, "4a"), [(Constants.v_ly_append_first, "'('")], "+a")
-        , ((1, 1, "4b"), [(Constants.v_ly_append_last, "')'")], "-")
+        [ ((0, 1, "3c"), [(Constants.v_ly_append_first, "'('")], "+a")
+        , ((1, 1, "3d"), [(Constants.v_ly_append_last, "')'")], "-")
         ]
     equal logs []
 
@@ -260,7 +260,7 @@ test_overlaps = do
             [ (">", [(1, 1, "+a")])
             , (">", [(0, 2, "+b")])
             ] ++ UiTest.regular_notes 2
-    equal events [((0, 1, "4a"), "+b")]
+    equal events [((0, 1, "3c"), "+b")]
     strings_like logs [overlapping_log]
 
     -- +c overlaps with +b.
@@ -272,8 +272,8 @@ test_overlaps = do
             , (">", [(0, 2, "+c")])
             ] ++ UiTest.regular_notes 2
     equal events
-        [ ((0, 1, "4a"), "+a+c")
-        , ((1, 1, "4b"), "+a+c")
+        [ ((0, 1, "3c"), "+a+c")
+        , ((1, 1, "3d"), "+a+c")
         ]
     strings_like logs [overlapping_log]
 
@@ -286,8 +286,8 @@ test_overlaps = do
             , (">", [(0, 1, "+b"), (1, 1, "+c")])
             ] ++ UiTest.regular_notes 2
     equal events
-        [ ((0, 1, "4a"), "+a+b")
-        , ((1, 1, "4b"), "+a+c")
+        [ ((0, 1, "3c"), "+a+b")
+        , ((1, 1, "3d"), "+a+c")
         ]
     equal logs []
 
@@ -300,10 +300,10 @@ test_overlaps = do
             , (">", [(0, 1, "+c"), (1, 3, "+d")])
             ] ++ UiTest.regular_notes 4
     equal events
-        [ ((0, 1, "4a"), "+a+c")
-        , ((1, 1, "4b"), "+a+d")
-        , ((2, 1, "4c"), "+a+d")
-        , ((3, 1, "4d"), "+a+d")
+        [ ((0, 1, "3c"), "+a+c")
+        , ((1, 1, "3d"), "+a+d")
+        , ((2, 1, "3e"), "+a+d")
+        , ((3, 1, "3f"), "+a+d")
         ]
     strings_like logs [overlapping_log]
 

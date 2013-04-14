@@ -259,7 +259,7 @@ note_track track =
 regular_notes :: Int -> [TrackSpec]
 regular_notes n = note_track $ take n
     [(t, 1, p) | (t, p) <- zip (Seq.range_ 0 1) (cycle pitches)]
-    where pitches = [o:p:"" | o <- "4567", p <- "abcdefg"]
+    where pitches = [o:p:"" | o <- "34567", p <- "cdefgab"]
 
 -- * state to spec
 

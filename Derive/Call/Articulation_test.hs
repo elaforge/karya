@@ -41,14 +41,14 @@ test_legato = do
 test_legato_ly = do
     let run = LilypondTest.measures [] . LilypondTest.derive_linear
     equal (run $ (">", [(1, 2, "(")]) : UiTest.regular_notes 4)
-        (Right "a'4 b'4( c'4) d'4", [])
+        (Right "c4 d4( e4) f4", [])
     let tracks =
             -- Irregularly overlapping sub events.
             [ (">", [(0, 3, "("), (3, 3, "(")])
             , (">", [(0, 2, "+legato"), (2, 1, "+sul"), (3, 3, "+sul")])
             ] ++ UiTest.regular_notes 6
     equal (run tracks)
-        (Right "a'4( b'4 c'4) d'4( | e'4 f'4) r2", [])
+        (Right "c4( d4 e4) f4( | g4 a4) r2", [])
     -- Goes to the last note in a tie.
     let tracks =
             [ (">", [(0, 12, "(")])
@@ -58,7 +58,7 @@ test_legato_ly = do
     equal (run tracks) (Right "a'1( | b'1~ | b'1)", [])
     -- Legato on a single note does nothing.
     equal (run $ (">", [(0, 1, "(")]) : UiTest.regular_notes 1)
-        (Right "a'4 r4 r2", [])
+        (Right "c4 r4 r2", [])
 
 test_attributed_note_ly = do
     let run = LilypondTest.measures [] . LilypondTest.derive_linear

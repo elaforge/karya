@@ -42,9 +42,9 @@ test_is_ly = do
             , ("> | not-ly", [(1, 1, "+no1"), (2, 1, "+no2")])
             ] ++ UiTest.regular_notes 4
     equal (run_normal tracks)
-        ([("4a", "-"), ("4b", "+always+no1"), ("4c", "+no2"), ("4d", "-")], [])
+        ([("3c", "-"), ("3d", "+always+no1"), ("3e", "+no2"), ("3f", "-")], [])
     equal (run_ly tracks)
-        ([("a'", "+ly1"), ("b'", "+always+ly2"), ("c'", "-"), ("d'", "-")], [])
+        ([("c", "+ly1"), ("d", "+always+ly2"), ("e", "-"), ("f", "-")], [])
 
 test_if_ly = do
     let run = LilypondTest.derive_measures [] . UiTest.note_track
@@ -67,7 +67,7 @@ test_8va = do
     equal (run $
             (">", [(0, 0, "8va 1"), (1, 0, "8va 0")])
             : UiTest.regular_notes 2)
-        (Right "\\ottava #1 a'4 \\ottava #0 b'4 r2", [])
+        (Right "\\ottava #1 c4 \\ottava #0 d4 r2", [])
 
 test_xstaff = do
     let run = LilypondTest.derive_measures ["change"]
@@ -76,7 +76,7 @@ test_xstaff = do
     equal (run $ UiTest.note_track [(0, 1, "xstaff up | -- 4a")])
         (Right "\\change Staff = \"up\" a'4 r4 r2", [])
     equal (run $ (">", [(1, 0, "xstaff up")]) : UiTest.regular_notes 2)
-        (Right "a'4 \\change Staff = \"up\" b'4 r2", [])
+        (Right "c4 \\change Staff = \"up\" d4 r2", [])
 
 test_reminder_accidental = do
     let run = LilypondTest.derive_measures [] . UiTest.note_track
@@ -96,7 +96,7 @@ test_crescendo_diminuendo = do
     let run = LilypondTest.derive_measures ["<", ">", "!"]
     equal (run $ (">", [(1, 1, "ly-<"), (3, 0, "ly->")])
             : UiTest.regular_notes 4)
-        (Right "a'4 b'4 \\< c'4 \\! d'4 \\>", [])
+        (Right "c4 d4 \\< e4 \\! f4 \\>", [])
 
 test_ly_text = do
     let run = LilypondTest.derive_measures []
@@ -104,7 +104,7 @@ test_ly_text = do
         (Right "a'4^\"hi\" r4 r2", [])
     equal (measures_linear [] $
             (">", [(0, 0, "ly_ hi")]) : UiTest.regular_notes 1)
-        (Right "a'4_\"hi\" r4 r2", [])
+        (Right "c4_\"hi\" r4 r2", [])
 
 test_ly_slur = do
     let run = LilypondTest.derive_measures []
