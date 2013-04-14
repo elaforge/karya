@@ -2,7 +2,6 @@
 -- | Cmds for track level operations.
 module Cmd.Lang.LTrack where
 import qualified Data.List as List
-import qualified Data.Map as Map
 import qualified Data.Set as Set
 
 import Util.Control
@@ -46,17 +45,6 @@ gc = mapM_ State.destroy_track . Set.elems =<< Create.orphan_tracks
 orphans :: Cmd.CmdL [TrackId]
 orphans = Set.elems <$> Create.orphan_tracks
 
--- | Every track along with how many times it appears in a block.
-refs :: Cmd.CmdL [(TrackId, Int)]
-refs = do
-    st <- State.get
-    let tids = concatMap Block.block_track_ids
-            (Map.elems (State.state_blocks st))
-        insert fm tid = Map.insertWith (+) tid 1 fm
-        ref_map = List.foldl' insert Map.empty tids
-    return [(tid, Map.findWithDefault 0 tid ref_map)
-        | tid <- Map.keys (State.state_tracks st)]
-
 -- | Remove tracks with no events from the given block.
 remove_empty :: BlockId -> Cmd.CmdL ()
 remove_empty block_id = do
@@ -86,6 +74,16 @@ map_titles :: (String -> String) -> Cmd.CmdL ()
 map_titles f = do
     bids <- State.all_block_ids
     mapM_ (flip map_block_titles f) bids
+
+-- | Find all tracks with the given string in their title.  You can use
+-- 'State.blocks_with_track_id' to find the blocks with the tracks, and
+-- 'map_titles' to change the titles.
+find :: String -> Cmd.CmdL [(TrackId, String)]
+find search = do
+    tids <- State.all_track_ids
+    titles <- mapM State.get_track_title tids
+    return [(tid, title) | (tid, title) <- zip tids titles,
+        search `List.isInfixOf` title]
 
 -- Should this go in Ui.Transform?
 -- TODO should map 'x | abc' to 'y | abc'
