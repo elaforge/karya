@@ -7,6 +7,7 @@ UNSORTED
   - shakefile should use typesafe oracle calls, is there newtype based
     oracle utils yet?
   convert to Text:
+    * Lilypond.to_lily
     - Pretty.pretty
     - Derive.throw
     - Cmd.ControlTrack.Event
@@ -386,7 +387,7 @@ lilypond:
     look at the pedal signal directly.
   - Why does the cmd have to wait until lilypond is done?  Should be async.
   - use Util.Format in ly output
-  - to_lily should return Text
+  * to_lily should return Text
   - try Util.LazyVector for Ly output and see if it helps
   + can I make a click on a note in the pdf highlight in the sequencer?
     Hung up on getting preview to send clicks to a program, notes in

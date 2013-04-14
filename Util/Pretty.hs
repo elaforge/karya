@@ -49,6 +49,8 @@ default_width = 75
 class Pretty a where
     pretty :: a -> String
     pretty = render_compact . format
+    prettytxt :: a -> Text
+    prettytxt = txt . pretty
     format :: a -> Doc
     format = PP.text . pretty
 

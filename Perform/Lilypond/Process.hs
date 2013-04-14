@@ -11,6 +11,7 @@ import qualified Data.List as List
 import qualified Data.List.NonEmpty as NonEmpty
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
+import qualified Data.Text as Text
 
 import Util.Control
 import qualified Util.Pretty as Pretty
@@ -161,10 +162,12 @@ apply_code start dur0 lys =
 partition_code :: [Event] -> ([Ly], [Ly])
 partition_code events = (map Code prepend, map Code append)
     where
-    prepend = filter (not . null) $ map (get Constants.v_ly_prepend) events
-    append = filter (not . null) $ map (get Constants.v_ly_append_all) events
-    get :: TrackLang.ValName -> Event -> String
-    get v = fromMaybe "" . TrackLang.maybe_val v . event_environ
+    prepend = filter (not . Text.null) $
+        map (get Constants.v_ly_prepend) events
+    append = filter (not . Text.null) $
+        map (get Constants.v_ly_append_all) events
+    get :: TrackLang.ValName -> Event -> Text
+    get v = txt . fromMaybe "" . TrackLang.maybe_val v . event_environ
 
 zero_dur_in_rest :: [Event] -> ([Event], [Event])
 zero_dur_in_rest events = span (\e -> zero_dur e && in_rest e) events
@@ -238,14 +241,14 @@ make_note :: Time -> Score.Attributes -> Meter.Meter
 make_note measure_start prev_attrs meter events next = (ly, end, clipped)
     where
     ly
-        | null pitches = Code (prepend first ++ append first)
+        | null pitches = Code (prepend first <> append first)
         | otherwise = LyNote note
     first = NonEmpty.head events
     -- If there are no pitches, then this is code with duration.
     pitches = do
         event <- NonEmpty.toList events
         let pitch = get_pitch event
-        guard (not (null pitch))
+        guard (not (Text.null pitch))
         return (pitch, note_tie event)
     note = Note
         { note_pitch = pitches
@@ -253,30 +256,30 @@ make_note measure_start prev_attrs meter events next = (ly, end, clipped)
         , note_duration = allowed_dur
         , note_prepend = prepend first
         , note_append =
-            append first ++ attrs_to_code prev_attrs (event_attributes first)
+            append first <> attrs_to_code prev_attrs (event_attributes first)
         , note_stack = Seq.last (Stack.to_ui (event_stack first))
         }
     get_pitch event = event_pitch event
-        ++ if is_first event then append_pitch event else ""
-    append_pitch = fromMaybe ""
+        <> if is_first event then append_pitch event else ""
+    append_pitch = txt . fromMaybe ""
         . TrackLang.maybe_val Constants.v_ly_append_pitch . event_environ
 
     prepend event =
         if is_first event then get Constants.v_ly_prepend event else ""
-    append event = concat
+    append event = mconcat
         [ if is_first event then get Constants.v_ly_append_first event else ""
         , if is_last then get Constants.v_ly_append_last event else ""
         , get Constants.v_ly_append_all event
         ]
-    get val = fromMaybe "" . TrackLang.maybe_val val . event_environ
+    get val = txt . fromMaybe "" . TrackLang.maybe_val val . event_environ
 
     note_tie event
         | event_end event <= end = NoTie
-        | null direction = TieNeutral
+        | Text.null direction = TieNeutral
         | direction == "^" = TieUp
         | otherwise = TieDown
         where
-        direction :: String
+        direction :: Text
         direction = get Constants.v_ly_tie_direction event
     is_first = not . event_clipped
     is_last = not (any (is_tied . snd) pitches)
@@ -468,12 +471,12 @@ data Ly = Barline !(Maybe Meter.Meter) | LyNote !Note | KeyChange !Key
     | Code !Code
     deriving (Show)
 
-instance Pretty.Pretty Ly where pretty = to_lily
+instance Pretty.Pretty Ly where pretty = untxt . to_lily
 
 data Note = Note {
     -- | @[]@ means this is a rest, and greater than one pitch indicates
     -- a chord.
-    note_pitch :: ![(String, Tie)]
+    note_pitch :: ![(Text, Tie)]
     -- | True if this covers an entire measure.  Used only for rests.
     , note_full_measure :: !Bool
     , note_duration :: !Types.NoteDuration
@@ -488,7 +491,7 @@ data Tie = NoTie | TieNeutral | TieUp | TieDown deriving (Show)
 
 -- | Arbitrary bit of lilypond code.  This type isn't used for non-arbitrary
 -- chunks, like 'note_pitch'.
-type Code = String
+type Code = Text
 
 make_rest :: Bool -> Types.NoteDuration -> Note
 make_rest full_measure dur = Note
@@ -506,11 +509,11 @@ make_rest full_measure dur = Note
 
 instance ToLily Note where
     to_lily (Note pitches full_measure dur prepend append _stack) =
-        (prepend++) . (++append) $ case pitches of
-            [] -> (if full_measure then "R" else "r") ++ ly_dur
-            [(pitch, tie)] -> pitch ++ ly_dur ++ to_lily tie
-            _ -> '<' :
-                unwords [p ++ to_lily tie | (p, tie) <- pitches] ++ ">" ++ ly_dur
+        (prepend<>) . (<>append) $ case pitches of
+            [] -> (if full_measure then "R" else "r") <> ly_dur
+            [(pitch, tie)] -> pitch <> ly_dur <> to_lily tie
+            _ -> "<" <> Text.unwords [p <> to_lily tie | (p, tie) <- pitches]
+                <> ">" <> ly_dur
         where ly_dur = to_lily dur
 
 instance ToLily Tie where
@@ -539,8 +542,8 @@ make_rests config meter start end
 
 -- ** Key
 
-data Key = Key !String !Mode deriving (Eq, Show)
-type Mode = String
+data Key = Key !Text !Mode deriving (Eq, Show)
+type Mode = Text
 
 instance ToLily Key where
     to_lily (Key tonic mode) = "\\key " <> tonic <> " \\" <> mode
@@ -592,7 +595,7 @@ clip_event end e
     where left = event_end e - end
 
 attrs_to_code :: Score.Attributes -> Score.Attributes -> Code
-attrs_to_code prev_attrs attrs = concat $ concat $
+attrs_to_code prev_attrs attrs = mconcat $ mconcat $
     [ [code | (attr, code) <- simple_articulations, has attr]
     , [start | (attr, start, _) <- modal_articulations,
         has attr, not (prev_has attr)]

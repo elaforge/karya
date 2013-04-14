@@ -94,7 +94,8 @@ lilypond_scope = Scope.add_override_note_lookup lookup
     note = Note.note_call "" "" (Note.default_note Note.no_duration_attributes)
 
 compile_lys :: FilePath -> Lilypond.Config -> Lilypond.Title
-    -> [(String, [Score.Event])] -> IO (Either String Cmd.StackMap, [Log.Msg])
+    -> [(Lilypond.Title, [Score.Event])]
+    -> IO (Either String Cmd.StackMap, [Log.Msg])
 compile_lys filename config title movements = do
     let (result, logs) = make_lys config title movements
     (flip (,) logs) <$> case result of
@@ -108,7 +109,8 @@ compile_lys filename config title movements = do
                 ["-o", FilePath.dropExtension filename, filename]
             return $ Right stack_map
 
-make_lys :: Lilypond.Config -> Lilypond.Title -> [(String, [Score.Event])]
+make_lys :: Lilypond.Config -> Lilypond.Title
+    -> [(Lilypond.Title, [Score.Event])]
     -> (Either String ([Text], Cmd.StackMap), [Log.Msg])
 make_lys config title movements = (text, concat logs)
     where

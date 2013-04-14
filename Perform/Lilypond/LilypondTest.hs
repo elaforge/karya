@@ -58,15 +58,15 @@ extract_lys :: Maybe [String]
     -> Either String [Either [(Process.Voice, String)] String]
 extract_lys wanted = fmap $ map to_str . filter is_wanted . split_barlines
     where
-    to_str = either (Left . show_voices) (Right . Types.to_lily)
+    to_str = either (Left . show_voices) (Right . untxt . Types.to_lily)
     show_voices (Process.Voices voices) =
-        [(v, unwords $ map Types.to_lily lys) | (v, lys) <- voices]
+        [(v, unwords $ map (untxt . Types.to_lily) lys) | (v, lys) <- voices]
     is_wanted (Left _voices) = True -- TODO filter \s from voices?
     is_wanted (Right ly) = case wanted of
         Nothing -> True
         Just words -> case ly of
             Process.LyNote {} -> True
-            _ -> case Types.to_lily ly of
+            _ -> case untxt $ Types.to_lily ly of
                 '\\' : text -> takeWhile (/=' ') text `elem` words
                 _ -> True
     -- Split the time signature into a separate Code, instead of being bundled
@@ -75,7 +75,7 @@ extract_lys wanted = fmap $ map to_str . filter is_wanted . split_barlines
         either ((:[]) . Left . split_voices) (map Right . split_ly)
     split_ly (Process.Barline (Just meter)) =
         [ Process.Barline Nothing
-        , Process.Code $ "\\time " ++ Types.to_lily meter
+        , Process.Code $ "\\time " <> Types.to_lily meter
         ]
     split_ly ly = [ly]
     split_voices (Process.Voices voices) = Process.Voices $
@@ -88,7 +88,7 @@ mkstate meters = Process.make_state Types.default_config 0 (map mkmeter meters)
     Process.default_key
 
 mkmeter :: String -> Meter.Meter
-mkmeter = expect_right "mkmeter" . Meter.parse_meter
+mkmeter = expect_right "mkmeter" . Meter.parse_meter . txt
 
 -- | 1 == quarter, to be consistent with the default behaviour for
 -- 'Types.real_to_time'.
@@ -122,7 +122,7 @@ mkevent :: RealTime -> RealTime -> String -> Score.Instrument
 mkevent start dur pitch inst env = Types.Event
     { Types.event_start = Types.real_to_time 1 start
     , Types.event_duration = Types.real_to_time 1 dur
-    , Types.event_pitch = pitch
+    , Types.event_pitch = txt pitch
     , Types.event_instrument = inst
     , Types.event_environ = TrackLang.make_environ env
     , Types.event_stack = UiTest.mkstack (1, 0, 1)
@@ -154,12 +154,12 @@ convert_staves wanted events =
     map extract_staves <$> Lilypond.convert_staff_groups default_config 0 events
     where
     extract_staves (Lilypond.StaffGroup inst staves) =
-        (Lilypond.inst_name inst, map show_staff staves)
+        (untxt $ Lilypond.inst_name inst, map show_staff staves)
     show_staff = unwords . mapMaybe (either show_voices show_ly)
     show_ly ly
         | is_wanted code = Just code
         | otherwise = Nothing
-        where code = Lilypond.to_lily ly
+        where code = untxt $ Lilypond.to_lily ly
     show_voices (Process.Voices voices) = Just $
         "<< " <> unwords (map show_voice voices) <> " >>"
     show_voice (v, lys) = "{ " <> show v <> ": "

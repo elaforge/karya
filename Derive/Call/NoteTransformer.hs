@@ -2,6 +2,7 @@
 -- via 'Note.sub_events'.
 module Derive.Call.NoteTransformer where
 import qualified Control.Monad.Trans.Either as Either
+import qualified Data.Text as Text
 
 import Util.Control
 import qualified Util.Log as Log
@@ -95,10 +96,10 @@ emit_lily_tuplet args not_lily = Lily.when_lilypond_config lily not_lily
         not_lily
 
 tuplet_code :: Lilypond.Duration -> Lilypond.Duration -> Int -> [Lily.Note]
-    -> String
+    -> Lily.Ly
 tuplet_code tuplet_dur note_dur note_count notes =
-    "\\times " <> show (d tuplet_dur `div` d note_dur) <> "/"
-        <> show note_count <> " { " <> unwords notes <> " }"
+    "\\times " <> txt (show (d tuplet_dur `div` d note_dur)) <> "/"
+        <> txt (show note_count) <> " { " <> Text.unwords notes <> " }"
     where d = toInteger . Lilypond.dur_to_time
 
 -- * arpeggio

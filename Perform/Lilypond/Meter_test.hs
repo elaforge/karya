@@ -1,4 +1,7 @@
 module Perform.Lilypond.Meter_test where
+import qualified Data.Text as Text
+
+import Util.Control
 import Util.Test
 import Perform.Lilypond.LilypondTest (mkmeter)
 import qualified Perform.Lilypond.Meter as Meter
@@ -51,8 +54,8 @@ test_allowed_time_best = do
     equal (f True "3+3/8" [0, t D8 .. 6 * t D8])
         "2. 4 8 4. 4 8 2."
 
-extract_rhythms :: [Types.Time] -> String
-extract_rhythms = unwords
+extract_rhythms :: [Types.Time] -> Text
+extract_rhythms = Text.unwords
         . map (Types.to_lily . expect1 . Types.time_to_note_durs)
     where
     expect1 [x] = x

@@ -39,7 +39,8 @@ make_config quarter quantize = Lilypond.default_config
     , Lilypond.config_quantize = quantize
     }
 
-set_staves :: [(String, String, String)] -> Lilypond.Config -> Lilypond.Config
+set_staves :: [(String, Lilypond.Instrument, Lilypond.Instrument)]
+    -> Lilypond.Config -> Lilypond.Config
 set_staves staves config = config
     { Lilypond.config_staves =
         [(Score.Instrument inst, short, long) | (inst, short, long) <- staves]
@@ -47,7 +48,7 @@ set_staves staves config = config
 
 -- * compile
 
-blocks :: String -> [(String, BlockId)] -> Cmd.CmdL ()
+blocks :: Lilypond.Title -> [(Lilypond.Title, BlockId)] -> Cmd.CmdL ()
 blocks title movements = do
     events <- mapM (LEvent.write_logs <=< derive) (map snd movements)
     compile_lys title (zip (map fst movements) events)
@@ -84,9 +85,10 @@ from_events events = do
 
 -- * compile_ly
 
-compile_lys :: String -> [(String, [Score.Event])] -> Cmd.CmdL ()
+compile_lys :: Lilypond.Title -> [(Lilypond.Title, [Score.Event])]
+    -> Cmd.CmdL ()
 compile_lys title movements = do
-    filename <- Cmd.Lilypond.ly_filename title
+    filename <- Cmd.Lilypond.ly_filename (untxt title)
     config <- get_config
     (result, logs) <- liftIO $
         Cmd.Lilypond.compile_lys filename config title movements
@@ -95,7 +97,7 @@ compile_lys title movements = do
     return ()
 
 title_of :: BlockId -> Lilypond.Title
-title_of = Id.ident_name
+title_of = txt . Id.ident_name
 
 -- * debugging
 

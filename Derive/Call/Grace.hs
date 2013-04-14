@@ -77,11 +77,11 @@ c_grace = Derive.stream_generator "grace" (Tags.ornament <> Tags.ly)
 lily_grace :: Derive.PassedArgs d -> [PitchSignal.Pitch] -> Derive.EventDeriver
 lily_grace args pitches = do
     pitches <- mapM Lily.pitch_to_lily pitches
-    let ly_notes = map (++ Lilypond.to_lily Lilypond.D8) pitches
-        beamed = Seq.first_last (++"[") (++"]") ly_notes
+    let ly_notes = map (<> Lilypond.to_lily Lilypond.D8) pitches
+        beamed = Seq.first_last (<>"[") (<>"]") ly_notes
         -- I use \acciaccatura instead of \grace because it adds a slur
         -- automatically.
-        code = "\\acciaccatura { " <> unwords beamed <> " }"
+        code = "\\acciaccatura { " <> Text.unwords beamed <> " }"
     Lily.code (Args.start args, 0) code <> Util.place args Util.note
 
 grace :: (ScoreTime, ScoreTime) -> Signal.Y -> [PitchSignal.Pitch]

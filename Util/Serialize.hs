@@ -22,6 +22,8 @@ import qualified Data.Map as Map
 import qualified Data.Serialize as Serialize
 import Data.Serialize (Get, Put, getWord8, putWord8)
 import qualified Data.Set as Set
+import qualified Data.Text as Text
+import qualified Data.Text.Encoding as Text.Encoding
 import qualified Data.Vector.Unboxed as Unboxed
 
 import Foreign
@@ -164,9 +166,15 @@ instance (Serialize i, IArray.Ix i, Serialize e) =>
 
 instance Serialize ByteString where
     put bs = do
-        put (ByteString.length bs)
+        put $ ByteString.length bs
         Serialize.putByteString bs
     get = get >>= Serialize.getByteString
+
+instance Serialize Text.Text where
+    put text = do
+        put $ Text.length text
+        Serialize.putByteString $ Text.Encoding.encodeUtf8 text
+    get = Text.Encoding.decodeUtf8 <$> (Serialize.getByteString =<< get)
 
 instance (Serialize a, Unboxed.Unbox a) => Serialize (Unboxed.Vector a) where
     put v = do

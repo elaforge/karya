@@ -577,7 +577,7 @@ instance Serialize Midi.Key where
 -- ** lilypond
 
 instance Serialize Lilypond.Config where
-    put (Lilypond.Config a b c d) = Serialize.put_version 0
+    put (Lilypond.Config a b c d) = Serialize.put_version 1
         >> put a >> put b >> put c >> put d
     get = do
         v <- Serialize.get_version
@@ -587,6 +587,14 @@ instance Serialize Lilypond.Config where
                 quantize :: Lilypond.Duration <- get
                 dotted_rests :: Bool <- get
                 staves :: [(Score.Instrument, String, String)] <- get
+                return $ Lilypond.Config quarter quantize dotted_rests
+                    [(inst, txt a, txt b) | (inst, a, b) <- staves]
+            1 -> do
+                quarter :: RealTime <- get
+                quantize :: Lilypond.Duration <- get
+                dotted_rests :: Bool <- get
+                staves :: [(Score.Instrument, Lilypond.Instrument,
+                    Lilypond.Instrument)] <- get
                 return $ Lilypond.Config quarter quantize dotted_rests staves
             _ -> Serialize.bad_version "Lilypond.Config" v
 

@@ -1,16 +1,19 @@
 -- | Support for rhythmic spelling in different meters.
 module Perform.Lilypond.Meter where
 import qualified Data.Map as Map
+import qualified Data.Text as Text
 import qualified Data.Vector.Unboxed as Vector
 import Data.Vector.Unboxed ((!))
 
 import Util.Control
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
+
 import qualified Cmd.Meter as Meter
 import Cmd.Meter (AbstractMeter(..))
 import qualified Perform.Lilypond.Types as Types
-import Perform.Lilypond.Types (Time(..), Duration(..), NoteDuration(..))
+import Perform.Lilypond.Types
+       (Time(..), Duration(..), NoteDuration(..))
 
 
 data Meter = Meter {
@@ -34,10 +37,10 @@ find_rank start rank = fmap ((+ (start + 1)) . Time)
     . Vector.findIndex (<= max 0 rank)
     . Vector.drop (fromIntegral start + 1) . meter_ranks
 
-instance Pretty.Pretty Meter where pretty = Types.to_lily
+instance Pretty.Pretty Meter where pretty = untxt . Types.to_lily
 instance Types.ToLily Meter where
     to_lily (Meter nums denom _) =
-        show (sum nums) ++ "/" ++ Types.to_lily denom
+        txt (show (sum nums)) <> "/" <> Types.to_lily denom
 
 is_duple :: Meter -> Bool
 is_duple meter = case meter_nums meter of
@@ -49,14 +52,15 @@ measure_time :: Meter -> Time
 measure_time meter =
     Time (time_num meter) * Types.dur_to_time (meter_denom meter)
 
-unparse_meter :: Meter -> String
-unparse_meter meter = Seq.join "+" (map show (meter_nums meter))
-    ++ "/" ++ Types.to_lily (meter_denom meter)
+unparse_meter :: Meter -> Text
+unparse_meter meter = Text.intercalate "+"
+    (map (txt . show) (meter_nums meter))
+        <> "/" <> Types.to_lily (meter_denom meter)
 
-parse_meter :: String -> Either String Meter
+parse_meter :: Text -> Either String Meter
 parse_meter s = case Map.lookup s meter_map of
-    Nothing -> Left $ "can't parse " ++ show s ++ ", should be in "
-        ++ Seq.join ", " (Map.keys meter_map)
+    Nothing -> Left $ "can't parse " <> show s <> ", should be in "
+        <> untxt (Text.intercalate ", " (Map.keys meter_map))
     Just meter -> Right meter
 
 default_meter :: Meter
@@ -68,7 +72,7 @@ type Ranks = Vector.Vector Rank
 -- D1 | D2 | D4 | D8 | D16 | D32 | D64 | D128
 -- 0    1    2    3    4     5     6     7
 
-meter_map :: Map.Map String Meter
+meter_map :: Map.Map Text Meter
 meter_map = Map.fromList $ Seq.key_on unparse_meter $ map make
     [ ([4], D4, [T])
     , ([2], D4, [T])

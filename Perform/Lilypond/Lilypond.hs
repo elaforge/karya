@@ -53,7 +53,7 @@ staff_config =
 
 -- * output
 
-type Title = String
+type Title = Text
 
 -- | Same as 'Cmd.Cmd.StackMap', but I don't feel like importing Cmd here.
 type StackMap = Map.Map Int Stack.UiFrame
@@ -70,8 +70,8 @@ make_lys config title sections = fmap (ly_file config title) $
         staves <- convert_staff_groups config 0 events
         return (title, staves)
 
-inst_name :: Score.Instrument -> String
-inst_name = dropWhile (=='/') . dropWhile (/='/') . Score.inst_name
+inst_name :: Score.Instrument -> Instrument
+inst_name = txt . dropWhile (=='/') . dropWhile (/='/') . Score.inst_name
 
 ly_file :: Config -> Title -> [Movement] -> ([Text], StackMap)
 ly_file config title movements = run_output $ do
@@ -89,9 +89,10 @@ ly_file config title movements = run_output $ do
     write_movement (title, staff_groups) = do
         output "\\score {\n"
         output "<<\n"
-        mapM_ write_staff_group $ sort_staves (config_staves config) staff_groups
+        mapM_ write_staff_group $
+            sort_staves (config_staves config) staff_groups
         output ">>\n"
-        when (not (null title)) $
+        when (not (Text.null title)) $
             output $ "\\header { piece =" <+> str title <+> "}\n"
         output "}\n\n"
     write_staff_group (StaffGroup _ staves, long_inst, short_inst) =
@@ -124,7 +125,8 @@ ly_file config title movements = run_output $ do
         mapM_ write_voice_ly lys
         output "} }\n"
 
-    str = Text.pack . to_lily
+    str :: Text -> Text
+    str = to_lily
     x <+> y = x <> " " <> y
     ly_set name val = "\\set" <+> name <+> "=" <+> str val
 
@@ -147,20 +149,20 @@ write_voice_ly (Right ly) = write_ly ly
 write_ly :: Process.Ly -> Output ()
 write_ly ly@(Process.Barline {}) = do
     bar <- State.gets output_bar
-    output $ Text.pack (to_lily ly) <> " % " <> Text.pack (show bar) <> "\n  "
+    output $ to_lily ly <> " % " <> Text.pack (show bar) <> "\n  "
     set_bar (bar+1)
-write_ly ly = output $ Text.pack (to_lily ly) <> " "
+write_ly ly = output $ to_lily ly <> " "
 
 write_voice :: (Process.Voice, [Process.Ly]) -> Output Int
 write_voice (voice, lys) = do
     output $ (if voice == Process.VoiceOne then "" else "\\new Voice ")
-        <> "{ " <> Text.pack (to_lily voice) <> "\n  "
+        <> "{ " <> to_lily voice <> "\n  "
     mapM_ write_ly lys
     output "} "
     State.gets output_bar
 
-sort_staves :: [(Score.Instrument, String, String)] -> [StaffGroup]
-    -> [(StaffGroup, String, String)]
+sort_staves :: [(Score.Instrument, Instrument, Instrument)]
+    -> [StaffGroup] -> [(StaffGroup, Instrument, Instrument)]
 sort_staves staff_config = map lookup_name . Seq.sort_on inst_key
     where
     lookup_name staff =
@@ -268,7 +270,7 @@ staff_group config start meters inst staves = do
 -- are not shifted in time, so each movement has to start at the proper offset.
 -- The reason is that certain calls, like tuplet, bake in lilypond code, and it
 -- will be wrong if the events change position.
-split_movements :: [(Time, String)] -> [Event] -> [(Time, String, [Event])]
+split_movements :: [(Time, Title)] -> [Event] -> [(Time, Title, [Event])]
 split_movements movements =
     filter (not . null . events_of) . split (Seq.zip_next ((0, "") : movements))
     where
@@ -279,9 +281,10 @@ split_movements movements =
     split [] events = [(0, "", events)]
     events_of (_, _, x) = x
 
-get_movements :: [Event] -> Either String [(Time, String)]
+get_movements :: [Event] -> Either String [(Time, Title)]
 get_movements = mapMaybeM $ \event -> do
-    title <- TrackLang.checked_val Constants.v_movement (event_environ event)
+    title <- fmap txt <$>
+        TrackLang.checked_val Constants.v_movement (event_environ event)
     return $ (,) (event_start event) <$> title
 
 -- ** meter
@@ -305,7 +308,7 @@ get_meters start staff_end events = do
         fromIntegral dur / fromIntegral (Meter.measure_time meter)
 
     get_meter event = error_context context $ do
-        maybe_val <- TrackLang.checked_val Constants.v_meter
+        maybe_val <- fmap txt <$> TrackLang.checked_val Constants.v_meter
             (event_environ event)
         case maybe_val of
             Nothing -> return Nothing

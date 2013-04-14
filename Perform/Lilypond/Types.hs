@@ -3,6 +3,8 @@
 -- | Basic types used by both "Perform.Lilypond.Lilypond" and module that use
 -- it.  Defined here to avoid circular imports.
 module Perform.Lilypond.Types where
+import qualified Data.Text as Text
+
 import Util.Control
 import qualified Util.Pretty as Pretty
 import qualified Derive.Scale.Theory as Theory
@@ -16,11 +18,12 @@ import Types
 
 -- | Convert a value to its lilypond representation.
 class ToLily a where
-    to_lily :: a -> String
+    to_lily :: a -> Text
 
-instance ToLily String where
-    -- lilypond will probably choke on non-ascii chars, but that's ok
-    to_lily = show
+instance ToLily Text where
+    -- Lilypond's string literal is undocumented, but from lily/lexer.ll it
+    -- looks haskell-like enough.  It'll probably choke on non-ascii.
+    to_lily = txt . show
 
 -- | Configure how the lilypond score is generated.
 data Config = Config {
@@ -33,8 +36,10 @@ data Config = Config {
     , config_dotted_rests :: !Bool
     -- | Map each instrument to its long name and short name.  The order is
     -- the order they should appear in the score.
-    , config_staves :: ![(Score.Instrument, String, String)]
+    , config_staves :: ![(Score.Instrument, Instrument, Instrument)]
     } deriving (Eq, Read, Show)
+
+type Instrument = Text
 
 instance Pretty.Pretty Config where
     format (Config quarter quantize dotted staves) =
@@ -55,7 +60,7 @@ data Duration = D1 | D2 | D4 | D8 | D16 | D32 | D64 | D128
     deriving (Enum, Bounded, Eq, Ord, Read, Show)
 
 instance Pretty.Pretty Duration where pretty = show
-instance ToLily Duration where to_lily = drop 1 . show
+instance ToLily Duration where to_lily = txt . drop 1 . show
 
 read_duration :: String -> Maybe Duration
 read_duration s = case s of
@@ -101,7 +106,7 @@ data NoteDuration = NoteDuration Duration Bool
     deriving (Eq, Show)
 
 instance ToLily NoteDuration where
-    to_lily (NoteDuration dur dot) = to_lily dur ++ if dot then "." else ""
+    to_lily (NoteDuration dur dot) = to_lily dur <> if dot then "." else ""
 
 note_dur_to_time :: NoteDuration -> Time
 note_dur_to_time (NoteDuration dur dotted) =
@@ -155,7 +160,7 @@ real_to_time quarter = Time . floor . adjust . RealTime.to_seconds
 data Event = Event {
     event_start :: !Time
     , event_duration :: !Time
-    , event_pitch :: !String
+    , event_pitch :: !Text
     , event_instrument :: !Score.Instrument
     , event_environ :: !TrackLang.Environ
     , event_stack :: !Stack.Stack
@@ -174,18 +179,20 @@ event_attributes = Score.environ_attributes . event_environ
 instance Pretty.Pretty Event where
     format (Event start dur pitch inst attrs _stack _clipped) =
         Pretty.constructor "Event" [Pretty.format start, Pretty.format dur,
-            Pretty.text pitch, Pretty.format inst, Pretty.format attrs]
+            Pretty.text (untxt pitch), Pretty.format inst, Pretty.format attrs]
 
 -- * pitch
 
-show_pitch :: Theory.Pitch -> Either String String
-show_pitch pitch = (++ oct_mark) <$> show_pitch_note note
+show_pitch :: Theory.Pitch -> Either String Text
+show_pitch pitch = (<> oct_mark) <$> show_pitch_note note
     where
     (octave, note) = Theory.pitch_c_octave pitch
-    oct_mark = let oct = octave - 5
-        in if oct >= 0 then replicate oct '\'' else replicate (abs oct) ','
+    oct_mark
+        | oct >= 0 = Text.replicate oct "'"
+        | otherwise = Text.replicate (abs oct) ","
+        where oct = octave - 5
 
-show_pitch_note :: Theory.Note -> Either String String
+show_pitch_note :: Theory.Note -> Either String Text
 show_pitch_note (Theory.Note pc accs) = do
     acc <- case accs of
         -2 -> Right "ff"
@@ -194,4 +201,4 @@ show_pitch_note (Theory.Note pc accs) = do
         1 -> Right "s"
         2 -> Right "ss"
         _ -> Left $ "too many accidentals: " ++ show accs
-    return $ Theory.pc_char pc : acc
+    return $ Text.cons (Theory.pc_char pc) acc

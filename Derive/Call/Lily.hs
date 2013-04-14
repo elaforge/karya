@@ -121,7 +121,7 @@ place_notes = Note.place . concat <=< Note.sub_events
 
 add_event_code :: Code -> Score.Event -> Score.Event
 add_event_code (pos, code) =
-    Score.modify_environ $ add (position_env pos) (++code)
+    Score.modify_environ $ add (position_env pos) (<> untxt code)
     where
     add name f env = TrackLang.insert_val name (TrackLang.to_val (f old)) env
         where old = fromMaybe "" $ TrackLang.maybe_val name env
@@ -144,7 +144,7 @@ first_last start end xs =
 -- ** code
 
 -- | Either prepend or append some code to a lilypond note.
-type Code = (CodePosition, String)
+type Code = (CodePosition, Ly)
 data CodePosition =
     -- | Code goes before the note.
     Prefix
@@ -157,7 +157,7 @@ data CodePosition =
     deriving (Show)
 
 -- | Fragment of Lilypond code.
-type Ly = String
+type Ly = Text
 
 -- | A lilypond \"note\", which is just a chunk of text.
 type Note = Ly
@@ -174,14 +174,14 @@ prepend_code = add_code . (,) Prefix
 
 add_code :: Code -> Derive.EventDeriver -> Derive.EventDeriver
 add_code (pos, code) = Derive.modify_val (position_env pos) $
-    (++code) . fromMaybe ""
+    (<> untxt code) . fromMaybe ""
 
 -- | Emit a note that carries raw lilypond code.  The code is emitted
 -- literally, and assumed to have the duration of the event.  The event's pitch
 -- is ignored.  This can be used to emit lilypond that doesn't fit into
 -- a 'Types.Event'.
 code :: (ScoreTime, ScoreTime) -> Ly -> Derive.EventDeriver
-code (start, dur) code = Derive.with_val Constants.v_ly_prepend code $
+code (start, dur) code = Derive.with_val Constants.v_ly_prepend (untxt code) $
     Derive.with_no_pitch $ Derive.d_place start dur Util.note
 
 -- | Like 'code', but for 0 duration code fragments, and can either put them
@@ -195,7 +195,7 @@ code0 start (pos_, code) = with (Derive.d_place start 0 Util.note)
         SuffixFirst -> SuffixAll
         SuffixLast -> SuffixAll
         _ -> pos_
-    with = Derive.with_val (position_env pos) code
+    with = Derive.with_val (position_env pos) (untxt code)
 
 global_code0 :: ScoreTime -> Code -> Derive.EventDeriver
 global_code0 start = global . code0 start
@@ -255,7 +255,7 @@ eval config args notes = do
 eval_events :: Types.Config -> RealTime -> Derive.Events
     -> Derive.Deriver [Note]
 eval_events config start events = do
-    meter <- maybe (return Meter.default_meter) parse_meter
+    meter <- maybe (return Meter.default_meter) (parse_meter . txt)
         =<< Derive.lookup_val Constants.v_meter
     let (notes, logs) = eval_notes config meter start events
     mapM_ Log.write logs
@@ -377,7 +377,7 @@ c_8va = code0_call "ottava" "Emit lilypond ottava mark."
     \oct -> return (Prefix, ottava oct)
     where
     ottava :: Int -> Ly
-    ottava n = "\\ottava #" ++ show n
+    ottava n = "\\ottava #" <> txt (show n)
 
 c_xstaff :: Derive.NoteCall
 c_xstaff = code0_call "xstaff"
@@ -387,19 +387,20 @@ c_xstaff = code0_call "xstaff"
             Derive.throw $ "expected 'up' or 'down', got "
                 <> untxt (ShowVal.show_val staff)
         return (Prefix, change staff)
-    where change staff = "\\change Staff = " <> Types.to_lily (staff :: String)
+    where
+    change staff = "\\change Staff = " <> Types.to_lily (txt (staff :: String))
 
 c_dyn :: Derive.NoteCall
 c_dyn = code0_call "dyn"
     "Emit a lilypond dynamic. If there are notes below, they are derived\
     \ unchanged."
     (required "dynamic" "Should be `p`, `ff`, etc.")
-    (return . (,) SuffixAll . ('\\':))
+    (return . (,) SuffixAll . ("\\"<>) . txt)
 
 c_clef :: Derive.NoteCall
 c_clef = code0_call "clef" "Emit lilypond clef change."
     (required "clef" "Should be `bass`, `treble`, etc.")
-    (return . (,) Prefix . ("\\clef "++))
+    (return . (,) Prefix . ("\\clef "<>) . txt)
 
 c_meter :: Derive.NoteCall
 c_meter = global_code0_call "meter"
@@ -417,17 +418,17 @@ c_movement = global_code0_call "movement"
 c_reminder_accidental :: Derive.NoteCall
 c_reminder_accidental = Make.environ_note "ly-reminder-accidental"
     Tags.ly_only "Force this note to display an accidental."
-    Constants.v_ly_append_pitch ("!" :: Ly)
+    Constants.v_ly_append_pitch (untxt ("!" :: Ly))
 
 c_cautionary_accidental :: Derive.NoteCall
 c_cautionary_accidental = Make.environ_note "ly-cautionary-accidental"
     Tags.ly_only "Force this note to display a cautionary accidental."
-    Constants.v_ly_append_pitch ("?" :: Ly)
+    Constants.v_ly_append_pitch (untxt ("?" :: Ly))
 
 c_tie_direction :: Ly -> Derive.NoteCall
 c_tie_direction code = Make.environ_note "ly-tie-direction"
     Tags.ly_only "Force the note's tie to go either up or down."
-    Constants.v_ly_tie_direction code
+    Constants.v_ly_tie_direction (untxt code)
 
 -- I want it to either attach to the end of the first note transformed, or
 -- be free-standing but suffix markup.
@@ -457,12 +458,12 @@ crescendo_diminuendo hairpin args
 c_ly_text_above :: Derive.NoteCall
 c_ly_text_above = code_call "ly-text-above" "Attach text above the note."
     (required "text" "Text to attach.  Double quotes can be omitted.") $
-    (return . (,) SuffixFirst . ('^':) . lily_str)
+    (return . (,) SuffixFirst . ("^"<>) . lily_str . txt)
 
 c_ly_text_below :: Derive.NoteCall
 c_ly_text_below = code_call "ly-text-below" "Attach text below the note."
     (required "text" "Text to attach.  Double quotes can be omitted.") $
-    (return . (,) SuffixFirst . ('_':) . lily_str)
+    (return . (,) SuffixFirst . ("_"<>) . lily_str . txt)
 
 c_ly_begin_slur :: Derive.NoteCall
 c_ly_begin_slur = code_call "ly-begin-slur"
@@ -476,20 +477,20 @@ c_ly_end_slur = code_call "ly-end-slur"
     \ for instance inside tuplets." Sig.no_args $
     \() -> return (SuffixLast, ")")
 
-lily_str :: String -> Ly
+lily_str :: Text -> Ly
 lily_str = Types.to_lily
 
 c_ly_pre :: Derive.NoteCall
 c_ly_pre = code0_call "ly-pre"
     "Emit arbitrary lilypond code that will go before concurrent notes."
     (required "code" "A leading \\ will be prepended.") $
-    \code -> return (Prefix, '\\' : code)
+    \code -> return (Prefix, "\\" <> txt code)
 
 c_ly_post :: Derive.NoteCall
 c_ly_post = code0_call "ly-post"
     "Emit arbitrary lilypond code that will go after concurrent notes."
     (required "code" "A leading \\ will be prepended.") $
-    \code -> return (SuffixAll, '\\' : code)
+    \code -> return (SuffixAll, "\\" <> txt code)
 
 c_ly_key :: Derive.NoteCall
 c_ly_key = code0_call "ly-key"
