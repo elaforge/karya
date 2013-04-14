@@ -3,6 +3,7 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
+  * move meters to Cmd.Meters and don't hardcode measures/section
   * Tags.internal should be for really internal things, add Tags.builtin for
     basic ones.
   - update shakefile to use new system calls and logging levels
@@ -23,7 +24,7 @@ UNSORTED
   - now that I have tevents_around, can I get rid of slice_around and the
     require_previous hack?
   bloom
-    - block b10 is messed up near the end
+    * block b10 is messed up near the end
     * b13 silent
   - I can have regression tests that assert a score still derives the same
     way.

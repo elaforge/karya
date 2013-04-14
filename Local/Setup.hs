@@ -21,6 +21,7 @@ import qualified Cmd.Create as Create
 import qualified Cmd.Load.Midi as Load.Midi
 import qualified Cmd.Load.Mod as Load.Mod
 import qualified Cmd.Meter as Meter
+import qualified Cmd.Meters as Meters
 import qualified Cmd.RulerUtil as RulerUtil
 import qualified Cmd.Selection as Selection
 
@@ -187,7 +188,7 @@ setup_big = do
 empty_block :: (Cmd.M m) => m BlockId
 empty_block = do
     rid <- Create.ruler "meter44"
-        (RulerUtil.meter_ruler 16 (replicate 4 Meter.m44))
+        (RulerUtil.meter_ruler 16 (replicate 4 (Meter.repeat 4 Meters.m44)))
         { Ruler.ruler_align_to_bottom = arrival_beats }
 
     bid <- Create.block rid

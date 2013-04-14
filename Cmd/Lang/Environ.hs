@@ -19,6 +19,7 @@ import qualified Util.Map as Map
 import qualified Util.Log as Log
 import qualified Util.PPrint as PPrint
 import qualified Util.Pretty as Pretty
+import qualified Util.Seq as Seq
 
 import qualified Ui.Block as Block
 import qualified Ui.Color as Color
@@ -57,6 +58,7 @@ import qualified Cmd.Lang.LState as LState
 import qualified Cmd.Lang.LTrack as LTrack
 import qualified Cmd.Lang.LView as LView
 import qualified Cmd.Meter as Meter
+import qualified Cmd.Meters as Meters
 import qualified Cmd.ModifyEvents as ModifyEvents
 import qualified Cmd.Perf as Perf
 import qualified Cmd.Play as Play
