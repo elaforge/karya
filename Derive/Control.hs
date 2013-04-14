@@ -324,18 +324,13 @@ put_track_signals tracks = Internal.merge_collect $ mempty
 -- track evaluation, but tracks below a note track are not evaluated normally.
 track_signal :: TrackTree.TrackEvents
     -> Derive.Deriver (Either [Log.Msg] Track.TrackSignal)
-track_signal track
-    | null title = return $ Left []
-    | otherwise = do
-        -- Note tracks don't have signals.
-        if TrackInfo.is_note_track title then return (Left []) else do
-        (ctype, expr) <- either (\err -> Derive.throw $ "track title: " ++ err)
-            return (TrackInfo.parse_control_expr title)
-        -- Since these signals are being rendered solely for display, they
-        -- should ignore any tempo warping, just like 'stash_signal' does
-        -- above.
-        run_sub $ Derive.in_real_time $ eval_signal track expr ctype
-    where title = TrackTree.tevents_title track
+track_signal track = do
+    (ctype, expr) <- either (\err -> Derive.throw $ "track title: " ++ err)
+        return $ TrackInfo.parse_control_expr (TrackTree.tevents_title track)
+    -- Since these signals are being rendered solely for display, they
+    -- should ignore any tempo warping, just like 'stash_signal' does
+    -- above.
+    run_sub $ Derive.in_real_time $ eval_signal track expr ctype
 
 eval_signal :: TrackTree.TrackEvents -> [TrackLang.Call]
     -> TrackInfo.ControlType -> Derive.Deriver Track.TrackSignal

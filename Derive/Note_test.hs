@@ -1,7 +1,12 @@
 module Derive.Note_test where
-import Util.Test
+import qualified Data.Map as Map
 
+import Util.Test
+import qualified Ui.Track as Track
+import qualified Ui.UiTest as UiTest
+import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
+import qualified Perform.Signal as Signal
 
 
 test_sub_tracks = do
@@ -47,6 +52,14 @@ test_sub_tracks = do
 --     let subs = Derive.info_sub_tracks (Derive.passed_info args)
 --     Log.warn $ show subs
 --     return []
+
+test_stash_sub_signals = do
+    let run = extract . DeriveTest.linear_derive_tracks id
+        extract = Map.toList
+            . Map.map (fmap (Signal.unsignal . Track.ts_signal))
+            . Derive.r_track_signals
+    equal (run $ (">", [(1, 2, "(")]) : UiTest.regular_notes 4)
+        [(UiTest.mk_tid 3, Right [(0, 69), (1, 71), (2, 60), (3, 62)])]
 
 -- * derivers
 

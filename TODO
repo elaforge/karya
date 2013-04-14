@@ -3,6 +3,9 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
+  - update shakefile to use new system calls and logging levels
+  - shakefile should use typesafe oracle calls, is there newtype based
+    oracle utils yet?
   * remove bug workaround in Midi.Midi
   * ^T should expand the window size just like ^t does
   * if I have [(1, 2), (1, 3)], how do I add to make [(1, 2), (2, 3), (1, 4)]?
@@ -96,18 +99,21 @@ UNSORTED
   * transformer to shorten notes slightly, can just set sustain-abs -= small
     Could use +detache, but that would have a different effect if it's already
     a keyswitch.  Maybe just 'detach' transformer.
-  * tracks without notes not getting tempo again
-  - I might need to do the same fix for track signals
   - %sustain-abs=-.x is not quite right for detached, because it should scale
     a bit for shorter notes.  E.g. it's absolute but scales down to 0 below
     a certain threshold.
   * make 's' call open a view if there isn't already one open
-  - standard block, change tempo to >, add a ( event, then pitch signal gets
-    flattened
-  * It's because slice orphans acts like they're on different tracks even
+  * tracks without notes not getting tempo again
+    It's because slice orphans acts like they're on different tracks even
     though they're on the same one.
     Slice all the way down to the bottom of the note tracks.
+    I might need to do the same fix for track signals
   / Does this mean I can get rid of the is-ly track-level hack?
+  * standard block, change tempo to >, add a ( event, then pitch signal gets
+    flattened
+    . Orphan slice makes a "ab", then "d", then unsliced "abcd",
+      then sliced "bc", then "cd"
+    . Emits correctly for "abcd", but then the signal is lost.
   * Slice notes should complain when a sub-note is larger than its parent,
     because those duplicate notes.  Right?
     * Track level orphans should also check.
@@ -151,7 +157,7 @@ UNSORTED
     - b13 silent
   - I can have regression tests that assert a score still derives the same
     way.
-  - make ^B refactor if there's a non-point selection: cut out the selection,
+  * make ^B refactor if there's a non-point selection: cut out the selection,
     make a new block, paste it in.
   calls:
     - Sometimes tick makes more sense as at attribute of the previous note, or
