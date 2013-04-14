@@ -50,12 +50,12 @@ replace from to = ModifyEvents.text (Seq.replace from to)
 
 data Mode = Start | End | Both
 
-quantize_sel :: (Cmd.M m) => String -> m ()
+quantize_sel :: (Cmd.M m) => Text -> m ()
 quantize_sel = ModifyEvents.selection . quantize_timestep Both
 
 -- | Quantize to a TimeStep's duration.  Actually it just takes the timestep at
 -- time 0, so it won't be correct if the timestep changes.
-quantize_timestep :: (Cmd.M m) => Mode -> String -> ModifyEvents.Track m
+quantize_timestep :: (Cmd.M m) => Mode -> Text -> ModifyEvents.Track m
 quantize_timestep mode step block_id track_id events = do
     step <- Cmd.require_right ("parsing timestep: "++) $
         TimeStep.parse_time_step step

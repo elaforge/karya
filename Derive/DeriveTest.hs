@@ -248,7 +248,7 @@ set_default_instrument state =
             }
         }
 
-with_key :: String -> Derive.Deriver a -> Derive.Deriver a
+with_key :: Text -> Derive.Deriver a -> Derive.Deriver a
 with_key key = Derive.with_val TrackLang.v_key key
 
 -- | Set UI state defaults that every derivation should have.
@@ -270,7 +270,7 @@ default_environ = TrackLang.make_environ
     [ (TrackLang.v_srate, TrackLang.num 1)
     , (TrackLang.v_scale, TrackLang.to_val Twelve.scale_id)
     , (TrackLang.v_attributes, TrackLang.VAttributes Score.no_attrs)
-    , (TrackLang.v_key, TrackLang.to_val ("c-maj" :: String))
+    , (TrackLang.v_key, TrackLang.to_val ("c-maj" :: Text))
     ]
 
 -- ** extract

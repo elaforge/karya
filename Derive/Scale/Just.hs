@@ -4,11 +4,13 @@ module Derive.Scale.Just where
 import qualified Data.Map as Map
 import qualified Data.Ratio as Ratio
 import Data.Ratio ((%))
+import qualified Data.Text as Text
 import qualified Data.Vector as Vector
 
 import Util.Control
 import qualified Util.Num as Num
 import qualified Util.Pretty as Pretty
+
 import qualified Derive.Call.Pitch as Call.Pitch
 import qualified Derive.Derive as Derive
 import qualified Derive.Scale as Scale
@@ -190,9 +192,9 @@ data Key = Key {
     , key_tonic_nn :: !Pitch.NoteNumber
     } deriving (Show)
 
-all_keys :: Map.Map String Key
+all_keys :: Map.Map Text Key
 all_keys =
-    Map.fromList $ take 7 [([char], Key pc nn)
+    Map.fromList $ take 7 [(Text.singleton char, Key pc nn)
         | (char, pc, nn) <- zip3 ['a'..] [0..] nns]
     where
     -- Start at A which is nn -3.  This is like 'nn_to_degree', but the other

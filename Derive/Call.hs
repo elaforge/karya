@@ -139,9 +139,9 @@ reapply :: (Derive.Derived d) => Derive.PassedArgs d -> TrackLang.Expr
 reapply args = eval_expr (Derive.passed_info args)
 
 -- | Like 'reapply', but parse the string first.
-reapply_string :: (Derive.Derived d) => Derive.PassedArgs d -> String
+reapply_string :: (Derive.Derived d) => Derive.PassedArgs d -> Text
     -> Derive.LogsDeriver d
-reapply_string args s = case ParseBs.parse_expr (ParseBs.from_string s) of
+reapply_string args s = case ParseBs.parse_expr (ParseBs.from_text s) of
     Left err -> Derive.throw $ "parse error: " ++ err
     Right expr -> reapply args expr
 

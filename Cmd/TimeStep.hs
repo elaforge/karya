@@ -129,7 +129,7 @@ show_time_step (TimeStep steps) = Seq.join ";" (map show1 steps)
     show_tracks (TrackNums tracks) = "s:" ++ Seq.join "," (map show tracks)
 
 -- | Parse that curiously somewhat readable representation back to a TimeStep.
-parse_time_step :: String -> Either String TimeStep
+parse_time_step :: Text -> Either String TimeStep
 parse_time_step = Parse.parse p_time_step
     where
     p_time_step = TimeStep <$> P.sepBy p_pair (P.char ';')

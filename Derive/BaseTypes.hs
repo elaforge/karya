@@ -342,8 +342,8 @@ show_call_val :: Val -> String
 show_call_val (VSymbol (Symbol sym)) = sym
 show_call_val val = untxt $ ShowVal.show_val val
 
-instance ShowVal.ShowVal String where
-    show_val = ShowVal.show_val . Symbol
+instance ShowVal.ShowVal Text where
+    show_val = ShowVal.show_val . Symbol . untxt
 
 data RelativeAttrs = Add Attributes | Remove Attributes | Set Attributes
     deriving (Eq, Show)

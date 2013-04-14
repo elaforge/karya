@@ -70,10 +70,11 @@ scale scale_id (ScaleMap degree_map input_map nn_map) = Scale.Scale
 
 data Tuning = Umbang | Isep deriving (Show)
 
-read_tuning :: String -> Maybe Tuning
-read_tuning "umbang" = Just Umbang
-read_tuning "isep" = Just Isep
-read_tuning _ = Nothing
+read_tuning :: Text -> Maybe Tuning
+read_tuning t
+    | t == "umbang" = Just Umbang
+    | t == "isep" = Just Isep
+    | otherwise = Nothing
 
 -- | If ombak is unset, use the hardcoded tunings.  Otherwise, create new
 -- umbang and isep tunings based on the given number.

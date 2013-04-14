@@ -249,7 +249,7 @@ split_events events =
     where
     by_inst = Seq.keyed_group_on event_instrument events
     lookup_hand environ = case TrackLang.get_val Constants.v_hand environ of
-        Right (val :: String)
+        Right (val :: Text)
             | val == "right" -> 0
             | val == "left" -> 1
             | otherwise -> 2
@@ -283,8 +283,7 @@ split_movements movements =
 
 get_movements :: [Event] -> Either String [(Time, Title)]
 get_movements = mapMaybeM $ \event -> do
-    title <- fmap txt <$>
-        TrackLang.checked_val Constants.v_movement (event_environ event)
+    title <- TrackLang.checked_val Constants.v_movement (event_environ event)
     return $ (,) (event_start event) <$> title
 
 -- ** meter
@@ -308,7 +307,7 @@ get_meters start staff_end events = do
         fromIntegral dur / fromIntegral (Meter.measure_time meter)
 
     get_meter event = error_context context $ do
-        maybe_val <- fmap txt <$> TrackLang.checked_val Constants.v_meter
+        maybe_val <- TrackLang.checked_val Constants.v_meter
             (event_environ event)
         case maybe_val of
             Nothing -> return Nothing

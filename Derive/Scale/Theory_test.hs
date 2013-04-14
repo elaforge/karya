@@ -148,7 +148,7 @@ test_nn_to_semis = do
 
 -- * util
 
-key :: String -> Theory.Key
+key :: Text -> Theory.Key
 key name = either (error $ "can't parse key: " ++ show name) id $
     TwelveScales.read_key Twelve.scale_map (Just (Pitch.Key name))
 

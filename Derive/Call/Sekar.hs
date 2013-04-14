@@ -7,6 +7,7 @@
 -- a preproc pass or deriving the notes backwards.
 module Derive.Call.Sekar where
 import qualified Data.Char as Char
+import qualified Data.Text as Text
 
 import Util.Control
 import qualified Util.Seq as Seq
@@ -39,12 +40,12 @@ type Pattern = [(Int, Bool)]
 
 -- | Lowercase letters represent a deriver starting from @a@, uppercase ones
 -- represent a rest of the duration of that deriver.  E.g. @abAb@.
-make_pattern :: String -> Derive.Deriver Pattern
+make_pattern :: Text -> Derive.Deriver Pattern
 make_pattern pattern = do
-    when (null pattern || any (not . a_to_z . Char.toLower) pattern) $
+    when (Text.null pattern || Text.any (not . a_to_z . Char.toLower) pattern) $
         Derive.throw $ "pattern chars must be a-z: " ++ show pattern
     return [(fromEnum (Char.toLower c) - fromEnum 'a', Char.isUpper c)
-        | c <- pattern]
+        | c <- Text.unpack pattern]
     where a_to_z c = 'a' <= c && c <= 'z'
 
 sekar :: [Note.Event] -> Pattern -> [Note.Event]

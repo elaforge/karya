@@ -12,7 +12,7 @@ import qualified Perform.RealTime as RealTime
 get_step :: Cmd.CmdL String
 get_step = TimeStep.show_time_step <$> get_time_step
 
-set_step :: String -> Cmd.CmdL ()
+set_step :: Text -> Cmd.CmdL ()
 set_step = set_time_step <=< Cmd.require_right id . TimeStep.parse_time_step
 
 get_time_step :: Cmd.CmdL TimeStep.TimeStep

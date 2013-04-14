@@ -357,10 +357,10 @@ instance Typecheck Symbol where
     to_val = VSymbol
     to_type _ = TSymbol
 
-instance Typecheck String where
-    from_val (VSymbol (Symbol s)) = Just s
+instance Typecheck Text where
+    from_val (VSymbol (Symbol s)) = Just (txt s)
     from_val _ = Nothing
-    to_val = VSymbol . Symbol
+    to_val = VSymbol . Symbol . untxt
     to_type _ = TSymbol
 
 -- * environ

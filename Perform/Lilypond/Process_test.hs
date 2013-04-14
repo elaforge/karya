@@ -1,6 +1,7 @@
 module Perform.Lilypond.Process_test where
 import qualified Data.Text as Text
 
+import Util.Control
 import Util.Test
 import qualified Derive.TrackLang as TrackLang
 import qualified Perform.Lilypond.Constants as Constants
@@ -93,8 +94,8 @@ test_chords = do
 test_code_events = do
     let f = LilypondTest.process_simple ["a", "b"]
             . map LilypondTest.environ_event
-        prepend = [(Constants.v_ly_prepend, TrackLang.to_val ("a" :: String))]
-        append = [(Constants.v_ly_append_all, TrackLang.to_val ("b" :: String))]
+        prepend = [(Constants.v_ly_prepend, TrackLang.to_val ("a" :: Text))]
+        append = [(Constants.v_ly_append_all, TrackLang.to_val ("b" :: Text))]
     -- Code that falls in the middle of rests.
     equal (f [(0, 0, "p", append), (0, 0, "p", prepend)])
         (Right "a b")

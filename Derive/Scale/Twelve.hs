@@ -18,6 +18,7 @@ module Derive.Scale.Twelve where
 import qualified Data.Map as Map
 import qualified Data.Vector.Unboxed as Vector
 
+import Util.Control
 import qualified Derive.Scale as Scale
 import qualified Derive.Scale.Theory as Theory
 import qualified Derive.Scale.TwelveScales as TwelveScales
@@ -106,7 +107,7 @@ all_notes = [Theory.Note pc accs | pc <- [0..6], accs <- [-2..2]]
 all_pitches :: [Theory.Pitch]
 all_pitches = [Theory.Pitch oct note | oct <- [0..10], note <- all_notes]
 
-make_keys :: String -> [Theory.Semi] -> [Theory.Key]
+make_keys :: Text -> [Theory.Semi] -> [Theory.Key]
 make_keys name intervals =
     [Theory.key tonic name intervals layout
         | tonic <- all_notes, abs (Theory.note_accidentals tonic) <= 1]

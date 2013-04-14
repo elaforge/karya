@@ -335,7 +335,7 @@ show_note sharp sharp2 flat flat2 (Note pc acc) = pc_char pc : accs
 -- is a tension between diatonic and chromatic systems.
 data Key = Key {
     key_tonic :: !Note
-    , key_name :: !String
+    , key_name :: !Text
     -- | Semitones between each scale degree.  This should have at least two
     -- octaves of intervals, as needed by 'chromatic_steps'.  If this is a
     -- diatonic key, each interval is one pitch class.
@@ -353,7 +353,7 @@ type Intervals = Vector.Vector Semi
 -- Make a Key given intervals and a layout.  If the number of intervals are
 -- equal to the number of intervals in the layout, the scale is considered
 -- diatonic and will get a 'Signature'.
-key :: Note -> String -> [Accidentals] -> Layout -> Key
+key :: Note -> Text -> [Accidentals] -> Layout -> Key
 key tonic name intervals layout = Key
     { key_tonic = tonic
     , key_name = name
@@ -365,7 +365,8 @@ key tonic name intervals layout = Key
     where int = Vector.fromList intervals
 
 show_key :: Key -> Pitch.Key
-show_key key = Pitch.Key $ Pretty.pretty (key_tonic key) ++ "-" ++ key_name key
+show_key key = Pitch.Key $
+    Pretty.prettytxt (key_tonic key) <> "-" <> key_name key
 
 -- | Precalculated transpositions so I can figure out a transposition with
 -- a single table lookup.  This goes out to two octaves on either direction
@@ -404,7 +405,7 @@ instance Pretty.Pretty Key where
         ]
         where
         title = Pretty.text "Key" Pretty.<+> Pretty.format tonic
-            Pretty.<+> Pretty.text name
+            Pretty.<+> Pretty.text (untxt name)
 
 -- | Number of degrees in an octave for this scale.
 --

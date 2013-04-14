@@ -12,7 +12,7 @@
 -- preserved, but most of the parsers insist on a restrictive character set.
 -- Special characters should probably be written with backticks anyway.
 module Derive.ParseBs (
-    from_string, to_string
+    from_string, to_string, from_text
     , parse_expr
     , parse_control_title
     , parse_val, parse_attrs, parse_num, parse_call
@@ -30,6 +30,8 @@ import qualified Data.Attoparsec.Char8 as A
 import qualified Data.ByteString.Char8 as B
 import qualified Data.ByteString.UTF8 as UTF8
 import qualified Data.List.NonEmpty as NonEmpty
+import qualified Data.Text as Text
+import qualified Data.Text.Encoding as Text.Encoding
 import qualified Data.Text.Encoding as Encoding
 
 import Util.Control hiding (Text)
@@ -51,6 +53,9 @@ from_string = UTF8.fromString
 
 to_string :: Text -> String
 to_string = UTF8.toString
+
+from_text :: Text.Text -> Text
+from_text = Text.Encoding.encodeUtf8
 
 parse_expr :: Text -> Either String TrackLang.Expr
 parse_expr = parse p_pipeline

@@ -1,22 +1,29 @@
 -- | Like "Util.ParseBs", but for parsec, not attoparsec.  I only use
 -- attoparsec when performance matters, because its error msgs are crummy.
 module Util.Parse where
-import qualified Text.Parsec.Error as Error
+import qualified Data.Text.IO as Text.IO
 import qualified Numeric
 import qualified Text.Parsec as P
 import Text.Parsec ((<?>))
+import qualified Text.Parsec.Error as Error
+import Text.Parsec.Text ()
 
 import Util.Control
 import qualified Util.Seq as Seq
 
 
-type Parser st a = P.Parsec String st a
+type Parser st a = P.Parsec Text st a
 
-parse :: Parser () a -> String -> Either String a
+parse :: Parser () a -> Text -> Either String a
 parse parser input = either (Left . format1 input) Right $
     P.parse (parser <* P.eof) "" input
 
-format1 :: String -> P.ParseError -> String
+file :: Parser st a -> st -> FilePath -> IO (Either P.ParseError a)
+file parser state fname =
+    P.runParser parser state fname <$> Text.IO.readFile fname
+
+-- | Format a ParseError assuming the input is just one line.
+format1 :: Text -> P.ParseError -> String
 format1 input err
     | line == 1 = "col " ++ show col ++ ": " ++ msg
     | otherwise = show line ++ ":" ++ show col ++ ": " ++ msg
@@ -26,7 +33,7 @@ format1 input err
     (line, col) = (P.sourceLine pos, P.sourceColumn pos)
 
 show_error :: P.ParseError -> [String]
-show_error = filter (not.null) . lines
+show_error = filter (not . null) . lines
     . Error.showErrorMessages "or" "unknown parse error"
         "expecting" "unexpected" "end of input"
     . Error.errorMessages

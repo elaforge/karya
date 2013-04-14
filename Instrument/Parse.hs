@@ -6,7 +6,6 @@ import qualified Data.Maybe as Maybe
 
 import qualified Text.Parsec as Parsec
 import Text.Parsec ((<?>))
-import qualified Text.Parsec.String as Parsec.String
 
 import Util.Control
 import qualified Util.Parse as Parse
@@ -18,7 +17,7 @@ import qualified Instrument.Sysex as Sysex
 import qualified Instrument.Tag as Tag
 
 
-type Parser st a = Parsec.Parsec String st a
+type Parser st a = Parsec.Parsec Text st a
 
 -- * annotation file
 
@@ -31,7 +30,7 @@ type Annotation = Instrument.Tag
 parse_annotations :: FilePath
     -> IO (Either String (Map.Map Score.Instrument [Annotation]))
 parse_annotations fn = do
-    result <- Parsec.String.parseFromFile p_annotation_file fn
+    result <- Parse.file p_annotation_file () fn
     return $ either (Left . show) (Right . Map.fromListWith (++)) result
 
 p_annotation_file :: Parser st [(Score.Instrument, [Annotation])]
@@ -86,10 +85,8 @@ patch_file fn = either (errorIO . ("parse patches: " ++) . show) return
     =<< parse_patch_file fn
 
 parse_patch_file :: String -> IO (Either Parsec.ParseError [Instrument.Patch])
-parse_patch_file fn = do
-    contents <- readFile fn
-    let result = Parsec.runParser p_patch_file empty_state fn contents
-    return $ map (Sysex.add_file fn) <$> result
+parse_patch_file fn =
+    fmap (map (Sysex.add_file fn)) <$> Parse.file p_patch_file empty_state fn
 
 data State = State {
     state_bank :: Int

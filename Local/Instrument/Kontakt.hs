@@ -53,7 +53,7 @@ patches = concat [hang, wayang, kendang_patches]
         ]
     with_tuning tuning =
         MidiInst.environ TrackLang.v_scale Wayang.scale_id
-        <> MidiInst.environ TrackLang.v_tuning (tuning :: String)
+        <> MidiInst.environ TrackLang.v_tuning (tuning :: Text)
     inst name ks = Instrument.set_keyswitches ks $
         Instrument.patch $ Instrument.instrument name [] pb_range
 

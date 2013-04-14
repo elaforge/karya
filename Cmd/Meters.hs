@@ -17,6 +17,10 @@ m44 = regular_subdivision [2, 2, 2, 2, 2]
 m34 = regular_subdivision [3, 2, 2, 2, 2]
 m24 = regular_subdivision [1, 2, 2, 2, 2]
 
+-- | A section of 4 4/4 bars.
+m44_4 :: AbstractMeter
+m44_4 = Meter.repeat 4 m44
+
 m3p3p2_8 :: AbstractMeter
 m3p3p2_8 = Meter.repeat 1 $ Meter.subdivides [2, 2, 2, 2] $
     D [D [T, T, T], D [T, T, T], D [T, T]]

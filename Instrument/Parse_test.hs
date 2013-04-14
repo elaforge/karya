@@ -1,6 +1,7 @@
 module Instrument.Parse_test where
-import qualified Text.ParserCombinators.Parsec as Parsec
+import qualified Text.Parsec as Parsec
 
+import Util.Control
 import Util.Test
 import qualified Midi.Midi as Midi
 import qualified Derive.Score as Score
@@ -48,7 +49,7 @@ test_parse_patch_file = do
     left_like (parse e_tags "p, tag=") "unexpected end of input"
 
 
-patch_file :: String
+patch_file :: Text
 patch_file =
     "# some synth\n\
     \\n\

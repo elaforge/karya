@@ -167,7 +167,7 @@ partition_code events = (map Code prepend, map Code append)
     append = filter (not . Text.null) $
         map (get Constants.v_ly_append_all) events
     get :: TrackLang.ValName -> Event -> Text
-    get v = txt . fromMaybe "" . TrackLang.maybe_val v . event_environ
+    get v = fromMaybe "" . TrackLang.maybe_val v . event_environ
 
 zero_dur_in_rest :: [Event] -> ([Event], [Event])
 zero_dur_in_rest events = span (\e -> zero_dur e && in_rest e) events
@@ -261,7 +261,7 @@ make_note measure_start prev_attrs meter events next = (ly, end, clipped)
         }
     get_pitch event = event_pitch event
         <> if is_first event then append_pitch event else ""
-    append_pitch = txt . fromMaybe ""
+    append_pitch = fromMaybe ""
         . TrackLang.maybe_val Constants.v_ly_append_pitch . event_environ
 
     prepend event =
@@ -271,7 +271,7 @@ make_note measure_start prev_attrs meter events next = (ly, end, clipped)
         , if is_last then get Constants.v_ly_append_last event else ""
         , get Constants.v_ly_append_all event
         ]
-    get val = txt . fromMaybe "" . TrackLang.maybe_val val . event_environ
+    get val = fromMaybe "" . TrackLang.maybe_val val . event_environ
 
     note_tie event
         | event_end event <= end = NoTie
@@ -456,7 +456,7 @@ lookup_key = lookup_val TrackLang.v_key parse_key default_key
 default_key :: Key
 default_key = Key "c" "major"
 
-lookup_val :: TrackLang.ValName -> (String -> Either String a) -> a -> Event
+lookup_val :: TrackLang.ValName -> (Text -> Either String a) -> a -> Event
     -> ConvertM a
 lookup_val key parse deflt event = prefix $ do
     maybe_val <- TrackLang.checked_val key (event_environ event)
@@ -548,13 +548,13 @@ type Mode = Text
 instance ToLily Key where
     to_lily (Key tonic mode) = "\\key " <> tonic <> " \\" <> mode
 
-parse_key :: String -> Either String Key
+parse_key :: Text -> Either String Key
 parse_key key_name = do
-    key <- maybe (Left $ "unknown key: " ++ key_name) Right $
+    key <- maybe (Left $ "unknown key: " ++ untxt key_name) Right $
         Map.lookup (Pitch.Key key_name) Twelve.all_keys
     tonic <- Types.show_pitch_note (Theory.key_tonic key)
-    mode <- maybe (Left $ "unknown mode: " ++ Theory.key_name key) Right $
-        Map.lookup (Theory.key_name key) modes
+    mode <- maybe (Left $ "unknown mode: " ++ untxt (Theory.key_name key))
+        Right $ Map.lookup (Theory.key_name key) modes
     return $ Key tonic mode
     where
     modes = Map.fromList

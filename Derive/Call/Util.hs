@@ -444,7 +444,7 @@ meter_duration start rank steps = do
     end <- timestep start ts steps
     return $ end - start
 
-parsed_meter_duration :: ScoreTime -> String -> Int -> Derive.Deriver ScoreTime
+parsed_meter_duration :: ScoreTime -> Text -> Int -> Derive.Deriver ScoreTime
 parsed_meter_duration start rank steps = do
     rank <- Derive.require_right ("parsing timestep: "++) $
         Parse.parse TimeStep.parse_rank rank
