@@ -285,12 +285,12 @@ transform_note vals deriver = with_inst (with_attrs deriver)
 c_equal :: Derive.NoteCall
 c_equal = Derive.Call
     { Derive.call_name = "equal"
-    , Derive.call_generator = Just $ Derive.generator_call Tags.internal
+    , Derive.call_generator = Just $ Derive.generator_call Tags.prelude
         ("Similar to the transformer, this will evaluate the notes below in"
             <> " a transformed environ.")
         (Sig.parsed_manually Util.equal_arg_doc generate)
     , Derive.call_transformer = Just $ Derive.transformer_call
-        (Tags.internal <> Tags.subs) Util.equal_doc
+        (Tags.prelude <> Tags.subs) Util.equal_doc
         (Sig.parsed_manually Util.equal_arg_doc Util.equal_transformer)
     }
     where

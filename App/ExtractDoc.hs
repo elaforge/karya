@@ -123,8 +123,11 @@ columns title n contents = unlines $
     size = fromIntegral (length contents) / fromIntegral n
     tables = map fmt_table (chunk (ceiling size) contents)
     fmt_table rows = unlines $ ["<table>"] ++ fmt_rows rows ++ ["</table>"]
-    fmt_rows rows = [Printf.printf "<tr bgcolor=%s> %s </tr>" color row
-        | (color, row) <- zip (cycle ["white", "#dddddd"]) rows]
+    fmt_rows rows =
+        [ Printf.printf "<tr bgcolor=%s> %s </tr>" (color :: String)
+            (row :: String)
+        | (color, row) <- zip (cycle ["white", "#dddddd"]) rows
+        ]
 
 chunk :: Int -> [a] -> [[a]]
 chunk _ [] = []

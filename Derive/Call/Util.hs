@@ -453,7 +453,7 @@ parsed_meter_duration start rank steps = do
 -- * c_equal
 
 c_equal :: (Derive.Derived derived) => Derive.Call derived
-c_equal = Derive.transformer "equal" Tags.internal equal_doc
+c_equal = Derive.transformer "equal" Tags.prelude equal_doc
     (Sig.parsed_manually equal_arg_doc equal_transformer)
 
 equal_arg_doc :: Text

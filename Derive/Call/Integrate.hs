@@ -31,7 +31,7 @@ note_calls = Derive.make_calls
 -- * block integrate
 
 c_block_integrate :: Derive.NoteCall
-c_block_integrate = Derive.transformer "block-integrate" Tags.internal
+c_block_integrate = Derive.transformer "block-integrate" Tags.prelude
     ("Integrate the output into a new block. The events are returned as-is\
     \ so the block can still be played normally."
     ) $ Sig.call0t $ \_ deriver -> do
@@ -73,7 +73,7 @@ uses_default_tempo block_id =
 -- * track integrate
 
 c_track_integrate :: Derive.NoteCall
-c_track_integrate = Derive.transformer "track-integrate" Tags.internal
+c_track_integrate = Derive.transformer "track-integrate" Tags.prelude
     ("Integrate the output into new tracks. Events will be split into tracks\
     \ based on source track, instrument, and scale, as documented in\
     \ 'Cmd.Integrate.Convert'.\

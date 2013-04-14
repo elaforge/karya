@@ -3,6 +3,8 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
+  * Tags.internal should be for really internal things, add Tags.builtin for
+    basic ones.
   - update shakefile to use new system calls and logging levels
   - shakefile should use typesafe oracle calls, is there newtype based
     oracle utils yet?

@@ -72,7 +72,7 @@ lookup_note_block = Derive.pattern_lookup "block id"
 
 c_block :: BlockId -> Derive.NoteCall
 c_block block_id = Derive.stream_generator ("block " <> txt (show block_id))
-        Tags.internal "Substitute the named block into the score." $
+        Tags.prelude "Substitute the named block into the score." $
     Sig.call0 $ Note.inverting $ \args ->
         -- I have to put the block on the stack before calling 'd_block'
         -- because 'Cache.cache_block' relies on on the block id already being
@@ -115,7 +115,7 @@ symbol_to_block_id sym = Call.symbol_to_block_id sym >>= \x -> case x of
 -- ** clip
 
 c_clip :: Derive.NoteCall
-c_clip = Derive.stream_generator "clip" Tags.internal
+c_clip = Derive.stream_generator "clip" Tags.prelude
     ("Like the normal block call, this will substitute the named block into\
     \ the score. But instead of stretching the block to fit the event\
     \ length, the block will be substituted with no stretching. Any\
@@ -158,7 +158,7 @@ lookup_control_block = Derive.pattern_lookup "block id"
     fake_call = c_control_block (Types.BlockId (Id.read_id "fake/block"))
 
 c_control_block :: BlockId -> Derive.ControlCall
-c_control_block block_id = Derive.stream_generator "control-block" Tags.internal
+c_control_block block_id = Derive.stream_generator "control-block" Tags.prelude
     ("Substitute the control signal from the named control block.\
     \ A control block should consist of a single branch ending in\
     \ a track named `%`.  The signal from that track will be\

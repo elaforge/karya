@@ -35,7 +35,7 @@ lookup_number = Derive.pattern_lookup "numbers and hex" doc $
         Right num -> return $ Just $ set num
     where
     set :: Signal.Y -> Derive.ControlCall
-    set num = Derive.generator1 "self-eval" Tags.internal
+    set num = Derive.generator1 "self-eval" Tags.prelude
         "Emit a sample with no interpolation. This accepts either decimal\
         \ numbers or hex numbers that look like `\\`0x\\`xx`.  The hex\
         \ is divided by 255, so they represent a number between 0 and 1." $
@@ -89,7 +89,7 @@ c_set = Derive.generator1 "set" mempty "Emit a sample with no interpolation." $
 -- also automatically set by the control track deriver for the hack described
 -- in 'Perform.Signal.integrate'.
 c_set_prev :: Derive.ControlCall
-c_set_prev = Derive.generator "set-prev" Tags.internal
+c_set_prev = Derive.generator "set-prev" Tags.prelude
     ("Re-set the previous value.  This can be used to extend a breakpoint,\
     \ and is also automatically set by the control track deriver for\
     \ the hack described in 'Perform.Signal.integrate'."

@@ -1,3 +1,8 @@
+-- | Tags categorize calls, and can be used to organize or filter
+-- documentation.
+--
+-- TODO many of these document internal properties of a call, and it would be
+-- better to extract them automatically, e.g. 'next', 'inverting', 'subs', etc.
 module Derive.Call.Tags where
 import Util.Control
 import qualified Data.Set as Set
@@ -12,9 +17,16 @@ tag = Set.singleton . Tag
 untag :: Tags -> [String]
 untag = map (\(Tag t) -> t) . Set.toList
 
--- | Interacts intimately with the built-in derivation machinery.
+-- | Internal calls are used to implement the basic track calls.  You should
+-- never need to call them directly, and they can probably be omitted from the
+-- documentation.
 internal :: Tags
 internal = tag "internal"
+
+-- | This marks a standard library of \"fundamental\" calls.  They may also
+-- interact more intimately with the builtin derivation machinery.
+prelude :: Tags
+prelude = tag "prelude"
 
 -- | Takes sub-events.
 subs :: Tags
