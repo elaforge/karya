@@ -369,7 +369,7 @@ lilypond:
     a midi import.
   - Derive.Call.Lily needs a naming refactor since there are too many vaguely
     named flavours.
-  - rename is-ly to ly-track if I can't get it to apply to individual notes.
+  * rename is-ly to ly-track if I can't get it to apply to individual notes.
     Well, I can, but it's just the same as when-ly.
   - instead of Code events interrupting voices, it should be incorporated into
     all voices.  But that may be incorrect, e.g. I don't want ff on every

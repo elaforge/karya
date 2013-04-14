@@ -282,8 +282,8 @@ note_calls = Derive.make_calls
     [ ("when-ly", c_when_ly)
     , ("unless-ly", c_unless_ly)
     , ("ly-global", c_ly_global)
-    , ("is-ly", c_is_ly)
-    , ("not-ly", c_not_ly)
+    , ("ly-track", c_ly_track)
+    , ("not-ly-track", c_not_ly_track)
     , ("if-ly", c_if_ly)
     , ("8va", c_8va)
     , ("xstaff", c_xstaff)
@@ -309,8 +309,8 @@ note_calls = Derive.make_calls
 c_when_ly :: Derive.NoteCall
 c_when_ly = Derive.transformer "when-ly" Tags.ly_only
     "With no arguments, evaluate the deriver only when in lilypond mode.\
-    \ Unlike is-ly, this doesn't evaluate subtracks, so you can use it to emit\
-    \ an entirely different set of tracks.\n\
+    \ Unlike `ly-track`, this doesn't evaluate subtracks, so you can use it to\
+    \ emit an entirely different set of tracks.\n\
     \ With arguments, evaluate them as a transformer and apply it only\
     \ when in lilypond mode.  Otherwise, the deriver is unchanged."
     $ Sig.parsed_manually "Any number of arguments of any type." (when_ly False)
@@ -340,8 +340,8 @@ c_ly_global = Derive.transformer "ly-global" Tags.ly_only
     ) $ Sig.call0t $ \_ deriver ->
         when_lilypond (global deriver) mempty
 
-c_is_ly :: Derive.NoteCall
-c_is_ly = Derive.transformer "is-ly" Tags.ly_only
+c_ly_track :: Derive.NoteCall
+c_ly_track = Derive.transformer "ly-track" Tags.ly_only
     "Evaluate the deriver only when in lilypond mode, otherwise ignore this\
     \ track but evaluate its subtracks. Apply this to a track\
     \ to omit lilypond-only articulations, or to apply different articulations\
@@ -350,9 +350,9 @@ c_is_ly = Derive.transformer "is-ly" Tags.ly_only
         if Args.is_title_call args then derive_subtracks args
             else place_notes args
 
-c_not_ly :: Derive.NoteCall
-c_not_ly = Derive.transformer "not-ly" Tags.ly_only
-    "The inverse of `is-ly`, evaluate the track only when not in lilypond\
+c_not_ly_track :: Derive.NoteCall
+c_not_ly_track = Derive.transformer "not-ly-track" Tags.ly_only
+    "The inverse of `ly-track`, evaluate the track only when not in lilypond\
     \ mode. Only use it in the track title!"
     $ Sig.call0t $ \args deriver -> flip when_lilypond deriver $
         if Args.is_title_call args then derive_subtracks args
