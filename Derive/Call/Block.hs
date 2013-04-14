@@ -34,7 +34,7 @@ import Types
 note_calls :: Derive.NoteCallMap
 note_calls = Derive.make_calls
     [ ("clip", c_clip)
-    , (untxt BlockUtil.capture_null_control, c_capture_null_control)
+    , (BlockUtil.capture_null_control, c_capture_null_control)
     ]
 
 -- * root block
@@ -100,7 +100,7 @@ d_block block_id = do
 -- | Given a block id, produce a call expression that will call that block.
 call_from_block_id :: BlockId -> TrackLang.Call
 call_from_block_id block_id =
-    TrackLang.call (Id.show_id (Id.unpack_id block_id)) []
+    TrackLang.call (txt $ Id.show_id $ Id.unpack_id block_id) []
 
 -- | Like 'Call.symbol_to_block_id' but return Nothing if the block doesn't
 -- exist.

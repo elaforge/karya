@@ -61,7 +61,7 @@ transpose_all octs steps = ModifyEvents.all_blocks $ PitchTrack.pitch_tracks $
 
 -- | Convert the selected absolute pitch track into a relative one by
 -- subtracting all the notes from the given base note.
-to_relative :: Bool -> String -> Cmd.CmdL ()
+to_relative :: Bool -> Text -> Cmd.CmdL ()
 to_relative diatonic note_s =
     ModifyEvents.selection $ \block_id track_id events -> do
         -- This is tricky because it's converting a pitch track to a control
@@ -85,9 +85,9 @@ to_relative diatonic note_s =
 relative_event :: Bool -> Scale.Scale -> Maybe Pitch.Key -> Pitch.Note
     -> String -> Either String String
 relative_event diatonic scale m_key base = PitchTrack.modify_expr $ \text ->
-    case scale_diff scale m_key diatonic base (Pitch.Note text) of
+    case scale_diff scale m_key diatonic base (Pitch.Note $ txt text) of
         Left err -> Left (show err)
-        Right note -> Right $ Pitch.note_text note
+        Right note -> Right $ untxt $ Pitch.note_text note
 
 -- TODO unimplemented, it would have to a be a Scale method
 scale_diff :: Scale.Scale -> Maybe Pitch.Key -> Bool
@@ -101,4 +101,5 @@ add_control control = TrackInfo.unparse_control $
 
 set_note :: Pitch.Note -> Event.Event -> Event.Event
 set_note note = PitchTrack.modify f
-    where f event = event { PitchTrack.event_val = Pitch.note_text note }
+    where
+    f event = event { PitchTrack.event_val = untxt $ Pitch.note_text note }

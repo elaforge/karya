@@ -51,12 +51,12 @@ run_control events = extract $ DeriveTest.derive_tracks
 
 -- * call map
 
-with_note_call :: String -> Derive.NoteCall
+with_note_call :: Text -> Derive.NoteCall
     -> Derive.Deriver a -> Derive.Deriver a
 with_note_call name call =
     Derive.with_scope $ Scope.add_note_lookup (single_lookup name call)
 
-with_control_call :: String -> Derive.ControlCall
+with_control_call :: Text -> Derive.ControlCall
     -> Derive.Deriver a -> Derive.Deriver a
 with_control_call name call = with_control_lookup (single_lookup name call)
 
@@ -64,16 +64,16 @@ with_control_lookup :: Derive.LookupCall Derive.ControlCall
     -> Derive.Deriver a -> Derive.Deriver a
 with_control_lookup = Derive.with_scope . Scope.add_control_lookup
 
-with_val_call :: String -> Derive.ValCall
+with_val_call :: Text -> Derive.ValCall
     -> Derive.Deriver a -> Derive.Deriver a
 with_val_call name call =
     Derive.with_scope $ Scope.add_val_lookup (single_val_lookup name call)
 
-single_lookup :: String -> Derive.Call d -> Derive.LookupCall (Derive.Call d)
+single_lookup :: Text -> Derive.Call d -> Derive.LookupCall (Derive.Call d)
 single_lookup name call =
     Derive.map_lookup (Map.singleton (TrackLang.Symbol name) call)
 
-single_val_lookup :: String -> Derive.ValCall
+single_val_lookup :: Text -> Derive.ValCall
     -> Derive.LookupCall Derive.ValCall
 single_val_lookup name call =
     Derive.map_val_lookup (Map.singleton (TrackLang.Symbol name) call)
@@ -97,5 +97,5 @@ expr :: String -> TrackLang.Expr
 expr = either (error . ("CallTest.expr: " ++)) id . ParseBs.parse_expr
     . ParseBs.from_string
 
-val :: String -> TrackLang.Val
+val :: Text -> TrackLang.Val
 val = either (error . ("CallTest.val: " ++)) id . ParseBs.parse_val

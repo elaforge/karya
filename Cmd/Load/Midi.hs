@@ -41,6 +41,8 @@ import qualified Perform.RealTime as RealTime
 import Types
 
 
+type Warn = String
+
 load :: FilePath -> Cmd.CmdT IO BlockId
 load fn = liftIO (parse fn) >>= \x -> case x of
     Left err -> Cmd.throw $ "parsing " ++ show fn ++ ": " ++ err
@@ -49,7 +51,7 @@ load fn = liftIO (parse fn) >>= \x -> case x of
         mapM_ (Log.warn . ((fn ++ ": ") ++)) warns
         create tracks skel
 
-create :: (State.M m) => [(String, Track)] -> Skeleton.Skeleton -> m BlockId
+create :: (State.M m) => [(Text, Track)] -> Skeleton.Skeleton -> m BlockId
 create tracks skel = do
     block_id <- Create.block State.no_ruler
     mapM_ (add_track block_id) tracks
@@ -57,15 +59,15 @@ create tracks skel = do
     return block_id
     where
     add_track block_id (title, track) =
-        Create.track block_id 9999 title $
-            Events.from_list [Event.event start dur text
+        Create.track block_id 9999 (untxt title) $
+            Events.from_list [Event.event start dur (untxt text)
                 | (start, (dur, text)) <- Map.toAscList track]
 
-parse :: FilePath -> IO (Either String Z.MidiFile)
+parse :: FilePath -> IO (Either Warn Z.MidiFile)
 parse fn = either (Left . show_error) Right <$> Z.readMidi fn
     where show_error (Z.ParseErr pos msg) = show pos ++ ": " ++ msg
 
-convert :: Z.MidiFile -> ([(String, Track)], Skeleton.Skeleton, [String])
+convert :: Z.MidiFile -> ([(Text, Track)], Skeleton.Skeleton, [Warn])
 convert = extract . convert_tracks . extract_tracks
     where extract (tracks, skel, warns) = (tracks, skel, warns)
 
@@ -73,7 +75,7 @@ convert = extract . convert_tracks . extract_tracks
 
 type Midi = (RealTime, Midi.Message)
 
-extract_tracks :: Z.MidiFile -> [(String, [Midi])]
+extract_tracks :: Z.MidiFile -> [(Text, [Midi])]
 extract_tracks (Z.MidiFile header tracks) =
     filter (not . null . snd) $ map (extract_track per_sec) tracks
     where
@@ -81,11 +83,11 @@ extract_tracks (Z.MidiFile header tracks) =
         Z.FPS val -> val
         Z.TPB val -> val
 
-extract_track :: RealTime -> Z.MidiTrack -> (String, [Midi])
+extract_track :: RealTime -> Z.MidiTrack -> (Text, [Midi])
 extract_track per_sec (Z.MidiTrack msgs) =
     (name, concatMap extract_message (zip times (map snd msgs)))
     where
-    name = fromMaybe "" $ Seq.head
+    name = maybe "" txt $ Seq.head
         [name | Z.MetaEvent (Z.TextEvent _ name) <- take 10 (map snd msgs)]
     times = drop 1 $ scanl (+) 0 $
         map ((/per_sec) . RealTime.seconds . fromIntegral . fst) msgs
@@ -117,7 +119,7 @@ extract_message (time, msg) = case msg of
 data NoteTrack = NoteTrack Track Track (Map.Map Score.Control Track)
     deriving (Show)
 -- | Map start (dur, text)
-type Track = Map.Map ScoreTime (ScoreTime, String)
+type Track = Map.Map ScoreTime (ScoreTime, Text)
 
 instance Monoid.Monoid NoteTrack where
     mempty = NoteTrack mempty mempty mempty
@@ -126,16 +128,16 @@ instance Monoid.Monoid NoteTrack where
         NoteTrack (notes1 <> notes2) (pitches1 <> pitches2)
             (Map.mappend controls1 controls2)
 
-convert_tracks :: [(String, [Midi])]
-    -> ([(String, Track)], Skeleton.Skeleton, [String])
+convert_tracks :: [(Text, [Midi])]
+    -> ([(Text, Track)], Skeleton.Skeleton, [Warn])
 convert_tracks midi_tracks = (concatMap convert tracks, skeleton, warns)
     where
     (tracks, warns) = mconcat $ map convert_track midi_tracks
     skeleton = Skeleton.make $ note_track_edges $ map snd tracks
     convert (inst, NoteTrack notes pitches controls) =
-        (TrackInfo.instrument_to_title inst, notes)
+        (txt $ TrackInfo.instrument_to_title inst, notes)
         : ("*", pitches)
-        : [(TrackInfo.control_to_title control, track)
+        : [(txt $ TrackInfo.control_to_title control, track)
             | (control, track) <- Map.toAscList controls]
 
 note_track_edges :: [NoteTrack] -> [Skeleton.Edge]
@@ -147,15 +149,15 @@ note_track_edges = concat . snd . List.mapAccumL edges 1
         end = n + 2 + Map.size controls
         ns = [n .. end-1]
 
-convert_track :: (String, [Midi])
-    -> ([(Score.Instrument, NoteTrack)], [String])
+convert_track :: (Text, [Midi])
+    -> ([(Score.Instrument, NoteTrack)], [Warn])
 convert_track (title, msgs) =
-    (map ((,) (Score.instrument "s" title)) tracks, warns)
+    (map ((,) (Score.instrument "s" (untxt title))) tracks, warns)
     where
     (tracks, stuck_on) = split_track msgs
     warns = if null stuck_on then []
-        else [title ++ ": omitted notes with no note-offs: "
-            ++ Pretty.pretty stuck_on]
+        else [untxt title <> ": omitted notes with no note-offs: "
+            <> Pretty.pretty stuck_on]
 
 -- ** split_track
 
@@ -208,7 +210,7 @@ convert_controls cs =
         Map.fromList [(RealTime.to_score start, (0, show_val val))
             | (start, (_, val)) <- midi_controls]
 
-key_to_pitch :: Midi.Key -> String
+key_to_pitch :: Midi.Key -> Text
 key_to_pitch (Midi.Key key) =
     case Scale.scale_input_to_note Twelve.scale Nothing input of
         Just note -> Pitch.note_text note
@@ -224,8 +226,8 @@ cc_to_control cc =
     cc_control =
         Map.fromList [(cc, Score.Control c) | (cc, c) <- Control.cc_map]
 
-show_val :: Word.Word8 -> String -- the Midi types are aliases for Word8
-show_val val = untxt $ ShowVal.show_hex_val $ d / 0x7f
+show_val :: Word.Word8 -> Text -- the Midi types are aliases for Word8
+show_val val = ShowVal.show_hex_val $ d / 0x7f
     where
     d :: Double
     d = fromIntegral val

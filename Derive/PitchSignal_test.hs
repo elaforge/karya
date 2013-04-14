@@ -29,7 +29,8 @@ mksignal = PitchSignal.signal
     . map (second mkpitch)
 
 mkpitch :: Pitch.NoteNumber -> PitchSignal.Pitch
-mkpitch nn = PitchSignal.pitch note (const (Right (Pitch.Note (show nn))))
+mkpitch nn =
+    PitchSignal.pitch note (const $ Right $ Pitch.Note $ txt $ show nn)
     where
     note controls
         | nn + t >= 4 = Left (PitchSignal.PitchError "bad transpose")

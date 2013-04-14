@@ -76,6 +76,6 @@ ratios :: [Pitch.Hz] -> [Pitch.Hz]
 ratios [] = []
 ratios (x:xs) = map (/x) (x:xs)
 
-p :: String -> Theory.Pitch
+p :: Text -> Theory.Pitch
 p s = fromMaybe (error $ "can't parse pitch: " ++ show s) $
     Theory.parse_pitch s

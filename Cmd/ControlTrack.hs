@@ -191,7 +191,7 @@ unparse (Event method val args)
 -- with the given function.
 modify_val :: (Signal.Y -> Signal.Y) -> String -> Maybe String
     -- ^ Nothing if I couldn't parse out a VNum.
-modify_val f text = case ParseBs.parse_val (event_val event) of
+modify_val f text = case ParseBs.parse_val (txt (event_val event)) of
         Right (TrackLang.VNum n) -> Just $ unparse $ event
             { event_val = untxt $
                 TrackLang.show_val $ TrackLang.VNum (f <$> n)

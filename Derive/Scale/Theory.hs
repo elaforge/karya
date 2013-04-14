@@ -53,6 +53,7 @@ import qualified Data.Attoparsec.Char8 as A
 import qualified Data.ByteString as ByteString
 import qualified Data.List as List
 import qualified Data.Maybe as Maybe
+import qualified Data.Text as Text
 import qualified Data.Vector as Boxed
 import qualified Data.Vector.Unboxed as Vector
 
@@ -68,7 +69,7 @@ import qualified Perform.Pitch as Pitch
 
 -- | Parse a Pitch and verify it against the given Layout.  Octaves wrap at
 -- A, which is nonstandard, the usual practice is to wrap at C.
-read_pitch :: Layout -> String -> Maybe Pitch
+read_pitch :: Layout -> Text -> Maybe Pitch
 read_pitch layout s = case parse_pitch s of
     Nothing -> Nothing
     Just p -> if note_in_layout layout (pitch_note p) then Just p else Nothing
@@ -239,13 +240,13 @@ data Pitch = Pitch {
     } deriving (Eq, Show)
 
 instance Pretty.Pretty Pitch where
-    pretty = show_pitch "#" "x" "b" "bb"
+    pretty = untxt . show_pitch "#" "x" "b" "bb"
 
 pitch_accidentals :: Pitch -> Accidentals
 pitch_accidentals = note_accidentals . pitch_note
 
-parse_pitch :: String -> Maybe Pitch
-parse_pitch = ParseBs.maybe_parse_string p_pitch
+parse_pitch :: Text -> Maybe Pitch
+parse_pitch = ParseBs.maybe_parse_text p_pitch
 
 modify_octave :: (Octave -> Octave) -> Pitch -> Pitch
 modify_octave f (Pitch octave note) = Pitch (f octave) note
@@ -267,7 +268,7 @@ data Note = Note {
 
 instance Pretty.Pretty Note where
     -- But B flat looks ugly, B double-flat doubly so.
-    pretty = show_note "#" "x" "b" "bb"
+    pretty = untxt . show_note "#" "x" "b" "bb"
 
 parse_note :: String -> Maybe Note
 parse_note = ParseBs.maybe_parse_string p_note
@@ -278,9 +279,9 @@ note_in_layout layout note =
 
 -- | Show and read pitches in the usual letter format.  The inverse of
 -- 'p_pitch'.
-show_pitch :: String -> String -> String -> String -> Pitch -> String
+show_pitch :: Text -> Text -> Text -> Text -> Pitch -> Text
 show_pitch sharp sharp2 flat flat2 pitch =
-    show (oct - 2) ++ show_note sharp sharp2 flat flat2 note
+    txt (show (oct - 2)) <> show_note sharp sharp2 flat flat2 note
     where (oct, note) = pitch_c_octave pitch
 
 -- | Extract the octave from the Note, wrapping it at C.
@@ -312,13 +313,13 @@ p_note_with sharp sharp2 flat flat2 = do
     p_flat = A.string flat >> return (-1)
     p_flat2 = A.string flat2 >> return (-2)
 
-show_note :: String -> String -> String -> String -> Note -> String
-show_note sharp sharp2 flat flat2 (Note pc acc) = pc_char pc : accs
+show_note :: Text -> Text -> Text -> Text -> Note -> Text
+show_note sharp sharp2 flat flat2 (Note pc acc) = Text.cons (pc_char pc) accs
     where
     accs
         | acc == 0 = ""
-        | acc < 0 = concat $ replicate x flat2 ++ replicate s flat
-        | otherwise = concat $ replicate x sharp2 ++ replicate s sharp
+        | acc < 0 = Text.replicate x flat2 <> Text.replicate s flat
+        | otherwise = Text.replicate x sharp2 <> Text.replicate s sharp
         where (x, s) = abs acc `divMod` 2
 
 -- * Key

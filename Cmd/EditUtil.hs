@@ -254,6 +254,6 @@ drop_expr expr = reverse rev
         _ : s -> go nest s
 
 modify_text_note :: Pitch.Note -> String -> Maybe String
-modify_text_note note s = Just $
-    s ++ leading ++ "(" ++ Pitch.note_text note ++ ")"
+modify_text_note note s = Just $ untxt $
+    txt s <> leading <> "(" <> Pitch.note_text note <> ")"
     where leading = if null s then "" else " "

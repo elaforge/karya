@@ -24,16 +24,19 @@ import qualified Perform.Midi.Instrument as Instrument
 import qualified App.MidiInst as MidiInst
 
 
+-- | Text of the event to create.
+type Note = Text
+
 -- * keymap
 
-keymaps :: (Cmd.M m) => [(Char, String, Midi.Key)] -> Msg.Msg -> m Cmd.Status
+keymaps :: (Cmd.M m) => [(Char, Note, Midi.Key)] -> Msg.Msg -> m Cmd.Status
 keymaps inputs = inst_keymaps [(c, n, k, Nothing) | (c, n, k) <- inputs]
 
 -- | Create a note entry Cmd for a keymapped instrument.
 --
 -- Like NoteEntry, if kbd entry is on but ValEdit is not, then play the sound
 -- but don't enter the note.
-inst_keymaps :: (Cmd.M m) => [(Char, String, Midi.Key, Maybe Score.Instrument)]
+inst_keymaps :: (Cmd.M m) => [(Char, Note, Midi.Key, Maybe Score.Instrument)]
     -- ^ (kbd key mapped to note, text to insert, midi key to emit for thru,
     -- emit thru on this instrument or current inst if Nothing)
     -> Msg.Msg -> m Cmd.Status
@@ -64,13 +67,15 @@ inst_keymaps inputs = \msg -> do
     to_note = Map.fromList
         [(char, (note, key, inst)) | (char, note, key, inst) <- inputs]
 
-keymap_down :: (Cmd.M m) => Maybe Score.Instrument -> String -> Midi.Key -> m ()
+keymap_down :: (Cmd.M m) => Maybe Score.Instrument -> Note -> Midi.Key -> m ()
 keymap_down maybe_inst note key = do
     whenM Cmd.is_val_edit $ suppressed $ do
         pos <- EditUtil.get_pos
-        NoteTrack.modify_event_at pos False True $ const (Just note, True)
+        NoteTrack.modify_event_at pos False True $
+            const (Just $ untxt note, True)
     MidiThru.channel_messages maybe_inst True [Midi.NoteOn key 64]
-    where suppressed = Cmd.suppress_history Cmd.ValEdit ("keymap: " ++ note)
+    where
+    suppressed = Cmd.suppress_history Cmd.ValEdit (untxt $ "keymap: " <> note)
 
 keymap_up :: (Cmd.M m) => Maybe Score.Instrument -> Midi.Key -> m ()
 keymap_up maybe_inst key =
@@ -92,8 +97,7 @@ keymap_up maybe_inst key =
 -- TODO if I can pull the current or previous note out of the derive then I
 -- could use that to play an example note.  Wait until I have a "play current
 -- line" framework up for that.
-keyswitches :: (Cmd.M m) => [(Char, String, Midi.Key)]
-    -> Msg.Msg -> m Cmd.Status
+keyswitches :: (Cmd.M m) => [(Char, Note, Midi.Key)] -> Msg.Msg -> m Cmd.Status
 keyswitches inputs = \msg -> do
     EditUtil.fallthrough msg
     char <- Cmd.require $ Msg.char_down msg
@@ -122,12 +126,13 @@ drum_instrument :: [(Drums.Note, Midi.Key)] -> Instrument.Patch
     -> Instrument.Patch
 drum_instrument note_keys = Instrument.triggered
     . Instrument.set_attribute_map
-        [(Drums.note_attrs note, Drums.note_name note) | (note, _) <- note_keys]
+        [(Drums.note_attrs note, untxt $ Drums.note_name note)
+            | (note, _) <- note_keys]
     . Instrument.set_keymap
         [(Drums.note_attrs note, key) | (note, key) <- note_keys]
 
 -- | Create a LookupCall for the given Notes.
-drum_calls :: [Drums.Note] -> [(String, Derive.NoteCall)]
+drum_calls :: [Drums.Note] -> [(Note, Derive.NoteCall)]
 drum_calls notes =
     [(Drums.note_name n, note_call (Drums.note_dynamic n) (Drums.note_attrs n))
         | n <- notes]

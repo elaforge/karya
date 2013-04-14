@@ -14,10 +14,14 @@ UNSORTED
     - Pretty.pretty
     - Derive.throw
     - Cmd.ControlTrack.Event
+      Cmd.PitchTrack.modify_expr
     * instance Typecheck Text instead of String
       It means e.g. TimeStep.parse_time_step should take Text, which means
       Util.Parse should switch too.
-    - BaseTypes.Symbol
+    * BaseTypes.Symbol
+    - Score.Control
+    - Ui.Id
+    - ModifyEvents.text
   - %sustain-abs=-.x is not quite right for detached, because it should scale
     a bit for shorter notes.  E.g. it's absolute but scales down to 0 below
     a certain threshold.
@@ -390,6 +394,7 @@ lilypond:
     look at the pedal signal directly.
     Maybe it would be simpler to just have a ly-ped call, especially since the
     pedal signal doesn't line up exactly the same.
+    \sustainOn .. \sustainOff, \set Staff.pedalSustainStyle = #'mixed
   - Why does the cmd have to wait until lilypond is done?  Should be async.
   - use Util.Format in ly output
   * to_lily should return Text
@@ -539,7 +544,7 @@ cleanup:
     once.
 
 performance:
-  make TrackLang.Symbol into ByteString?
+  * make TrackLang.Symbol into ByteString?
     . means fewer conversions
     . maybe faster lookups
     . But ByteString is not necessarily more compact for small strings, e.g.

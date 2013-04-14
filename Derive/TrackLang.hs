@@ -358,9 +358,9 @@ instance Typecheck Symbol where
     to_type _ = TSymbol
 
 instance Typecheck Text where
-    from_val (VSymbol (Symbol s)) = Just (txt s)
+    from_val (VSymbol (Symbol s)) = Just s
     from_val _ = Nothing
-    to_val = VSymbol . Symbol . untxt
+    to_val = VSymbol . Symbol
     to_type _ = TSymbol
 
 -- * environ
@@ -495,9 +495,8 @@ data Term = ValCall Call | Literal Val deriving (Show)
 instance ShowVal Expr where
     show_val expr = Text.intercalate " | " (map show_val (NonEmpty.toList expr))
 instance ShowVal Call where
-    show_val (Call (Symbol sym) terms) =
-        txt sym <> if null terms then "" else " "
-        <> Text.unwords (map show_val terms)
+    show_val (Call (Symbol sym) terms) = sym
+        <> if null terms then "" else " " <> Text.unwords (map show_val terms)
 instance ShowVal Term where
     show_val (ValCall call) = "(" <> show_val call <> ")"
     show_val (Literal val) = show_val val
@@ -531,16 +530,16 @@ map_args f = fmap call
     term (Literal lit) = Literal (f lit)
 
 -- | Convenient constructor for Call.  Not to be confused with 'call0'--calln.
-call :: String -> [Term] -> Call
+call :: Text -> [Term] -> Call
 call sym = Call (Symbol sym)
 
 inst :: String -> Term
 inst = Literal . VInstrument . Score.Instrument
 
-val_call :: String -> [Val] -> Term
+val_call :: Text -> [Val] -> Term
 val_call sym args = ValCall (Call (Symbol sym) (map Literal args))
 
-note :: String -> [Val] -> Note
+note :: Text -> [Val] -> Note
 note sym args = Note (Pitch.Note sym) args
 
 note_call :: Note -> Term

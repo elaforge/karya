@@ -4,6 +4,7 @@
 -- figure out how to parse .nki files or something.
 module Local.Instrument.Kontakt where
 import qualified Data.Map as Map
+import qualified Data.Text as Text
 
 import Util.Control
 import qualified Util.Seq as Seq
@@ -72,7 +73,7 @@ hang_calls = Derive.make_calls
     [ (text, Make.attributed_note attrs)
     | (attrs, _, Just text, _) <- hang_strokes
     -- Make sure to not shadow the default "" call.
-    , not (null text)
+    , not (Text.null text)
     ]
 
 hang_cmd :: Cmd.Cmd
@@ -80,7 +81,7 @@ hang_cmd = CUtil.keyswitches [(Keymap.physical_key char, text, key)
     | (_, key, Just text, Just char) <- hang_strokes]
 
 -- | The order is important because it determines attr lookup priority.
-hang_strokes :: [(Score.Attributes, Midi.Key, Maybe String, Maybe Char)]
+hang_strokes :: [(Score.Attributes, Midi.Key, Maybe Text, Maybe Char)]
 hang_strokes =
     [ (center,  Key.c2,     Just "",            Just 'Z')
     , (edge,    Key.cs2,    Just "`pang2`",     Just 'X')

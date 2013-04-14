@@ -11,6 +11,8 @@
     inconsistent ways.
 -}
 module Derive.Call.Articulation where
+import qualified Data.Text as Text
+
 import Util.Control
 import qualified Util.Seq as Seq
 import qualified Derive.Attrs as Attrs
@@ -33,11 +35,11 @@ lookup_attr :: Derive.LookupCall Derive.NoteCall
 lookup_attr = Derive.pattern_lookup "attribute starting with `+`" doc $
     \(TrackLang.Symbol sym) -> parse_symbol sym
     where
-    parse_symbol sym@(c:_)
-        | c == '+' || c == '=' = case ParseBs.parse_val sym of
+    parse_symbol sym = case Text.uncons sym of
+        Just (c, _) | c == '+' || c == '=' -> case ParseBs.parse_val sym of
             Right (TrackLang.VRelativeAttrs rel) -> return $ Just $ call rel
             _ -> return Nothing
-    parse_symbol _ = return Nothing
+        _ -> return Nothing
     call rel = Make.transform_notes ("relative attrs: " <> ShowVal.show_val rel)
         Tags.attr "Doc unused." Sig.no_args
         (\() -> Util.with_attrs (TrackLang.apply_attr rel))

@@ -2,6 +2,9 @@
 -- field, but there are a number of symbols that are common between a number of
 -- scales.  If I define them once here I can avoid loading them redundantly.
 module Derive.Scale.Symbols where
+import qualified Data.Text as Text
+
+import Util.Control
 import qualified Ui.Symbol as Symbol
 import qualified Perform.Pitch as Pitch
 import qualified App.Config as Config
@@ -15,9 +18,9 @@ symbols = dotted_numbers ++ staff_symbols ++ gongchepu
 dotted_number :: Int -> Int -> Pitch.Note
 dotted_number num oct
     | oct == 0 = Pitch.Note nums
-    | oct < 0 = Pitch.Note $ "`" ++ nums ++ replicate (abs oct) '.' ++ "`"
-    | otherwise = Pitch.Note $ "`" ++ nums ++ replicate oct '^' ++ "`"
-    where nums = show num
+    | oct < 0 = Pitch.Note $ "`" <> nums <> Text.replicate (abs oct) "." <> "`"
+    | otherwise = Pitch.Note $ "`" <> nums <> Text.replicate oct "^" <> "`"
+    where nums = txt $ show num
 
 dot :: Symbol.Glyph
 dot = Symbol.glyph "•" -- unicode \x2022

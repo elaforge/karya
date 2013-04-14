@@ -44,13 +44,13 @@ import qualified Derive.ShowVal as ShowVal
 -- * Note
 
 -- | A Note belongs to a scale and describes a certain note in that scale.
-newtype Note = Note String deriving (Eq, Ord, Show)
+newtype Note = Note Text deriving (Eq, Ord, Show)
 
-note_text :: Note -> String
+note_text :: Note -> Text
 note_text (Note s) = s
 
 instance Pretty.Pretty Note where
-    pretty (Note n) = n
+    pretty (Note n) = untxt n
 
 -- * InputKey
 

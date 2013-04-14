@@ -143,7 +143,7 @@ modify action state = UiTest.exec state action
 mktracks :: [(UiTest.TrackSpec, [UiTest.TrackSpec])] -> Convert.Tracks
 mktracks = map $ \(note, controls) -> (convert note, map convert controls)
     where
-    convert (title, events) = Convert.Track title
+    convert (title, events) = Convert.Track (txt title)
         (map (add_stack title) $ map UiTest.make_event events)
     add_stack title event = Event.set_stack
         (Event.Stack (Stack.call title) (Event.start event)) event

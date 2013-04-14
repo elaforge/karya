@@ -307,7 +307,7 @@ class (Pretty.Pretty (Elem derived), Show (Elem derived), Show derived) =>
     from_cache_entry :: CacheEntry -> Maybe (CallType derived)
     to_cache_entry :: CallType derived -> CacheEntry
     lookup_callable :: TrackLang.CallId -> Deriver (Maybe (Call derived))
-    callable_name :: derived -> String
+    callable_name :: derived -> Text
 
 type LogsDeriver d = Deriver (LEvent.LEvents d)
 

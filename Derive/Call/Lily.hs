@@ -364,8 +364,8 @@ c_if_ly = Derive.stream_generator "if-ly" Tags.ly_only
     <$> required "is-ly" "Evaluated in lilypond mode."
     <*> required "not-ly" "Evaluated when not in lilypond mode."
     ) $ \(is_ly, not_ly) args -> when_lilypond
-        (Call.reapply_string args (txt $ TrackLang.show_call_val is_ly))
-        (Call.reapply_string args (txt $ TrackLang.show_call_val not_ly))
+        (Call.reapply_string args (TrackLang.show_call_val is_ly))
+        (Call.reapply_string args (TrackLang.show_call_val not_ly))
 
 derive_subtracks :: Derive.PassedArgs d -> Derive.EventDeriver
 derive_subtracks =

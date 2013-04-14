@@ -161,7 +161,7 @@ setup_big = do
                 | (i, (oct, n)) <- zip (Seq.range_ 0 1) notes]
         to_str n = case Scale.scale_input_to_note Twelve.scale Nothing
                 (Pitch.InputKey n) of
-            Just (Pitch.Note s) -> s
+            Just (Pitch.Note s) -> untxt s
             Nothing -> error $ "converting " ++ show n
         mkdyn vels = map UiTest.make_event
             [(i*0.25, 0, show vel) | (i, vel) <- zip (Seq.range_ 0 1) vels]

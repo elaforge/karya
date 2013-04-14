@@ -293,7 +293,7 @@ lookup_default state name = TrackLang.lookup_val
 
 arg_environ_default :: Text -> Text -> TrackLang.ValName
 arg_environ_default call_name arg_name =
-    TrackLang.Symbol $ untxt $ call_name <> "-" <> arg_name
+    TrackLang.Symbol $ call_name <> "-" <> arg_name
 
 
 -- * call

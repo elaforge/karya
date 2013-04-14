@@ -60,7 +60,7 @@ type Meta = Map.Map String String
 -- | This holds the 'EventIndex' for one track or block.
 data TrackDestination = TrackDestination {
     dest_note :: !(TrackId, EventIndex)
-    , dest_controls :: !(Map.Map String (TrackId, EventIndex))
+    , dest_controls :: !(Map.Map Text (TrackId, EventIndex))
     } deriving (Eq, Show, Read)
 
 -- | This is a picture of the integrated events that were used to create an

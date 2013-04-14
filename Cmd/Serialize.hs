@@ -233,12 +233,22 @@ instance Serialize State.Default where
 instance Serialize Block.Block where
     -- Config is not serialized because everything in the block config is
     -- either derived from the Cmd.State or is hardcoded.
-    put (Block.Block a _config b c d e f) = Serialize.put_version 7
+    put (Block.Block a _config b c d e f) = Serialize.put_version 8
         >> put a >> put b >> put c >> put d >> put e >> put f
     get = do
         v <- Serialize.get_version
         case v of
             7 -> do
+                title :: String <- get
+                tracks :: [Block.Track] <- get
+                skel :: Skeleton.Skeleton <- get
+                _integrated ::
+                    Maybe (BlockId, NonEmpty OldTrackDestination) <- get
+                _itracks :: [(TrackId, NonEmpty OldTrackDestination)] <- get
+                meta :: Map.Map String String <- get
+                return $ Block.Block title Block.default_config tracks skel
+                    Nothing [] meta
+            8 -> do
                 title :: String <- get
                 tracks :: [Block.Track] <- get
                 skel :: Skeleton.Skeleton <- get
@@ -250,11 +260,22 @@ instance Serialize Block.Block where
                     integrated itracks meta
             _ -> Serialize.bad_version "Block.Block" v
 
+instance Serialize OldTrackDestination where
+    put (OldTrackDestination a b) = put a >> put b
+    get = do
+        note :: (TrackId, Block.EventIndex) <- get
+        controls :: (Map.Map String (TrackId, Block.EventIndex)) <- get
+        return $ OldTrackDestination note controls
+
+-- | This holds the 'EventIndex' for one track or block.
+data OldTrackDestination = OldTrackDestination
+    (TrackId, Block.EventIndex) (Map.Map String (TrackId, Block.EventIndex))
+
 instance Serialize Block.TrackDestination where
     put (Block.TrackDestination a b) = put a >> put b
     get = do
         note :: (TrackId, Block.EventIndex) <- get
-        controls :: (Map.Map String (TrackId, Block.EventIndex)) <- get
+        controls :: (Map.Map Text (TrackId, Block.EventIndex)) <- get
         return $ Block.TrackDestination note controls
 
 instance Serialize Skeleton.Skeleton where

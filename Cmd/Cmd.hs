@@ -56,6 +56,7 @@ import qualified Control.Monad.Trans as Trans
 import qualified Data.Generics as Generics
 import qualified Data.Map as Map
 import qualified Data.Set as Set
+import qualified Data.Text as Text
 
 import qualified System.FilePath as FilePath
 import System.FilePath ((</>))
@@ -504,7 +505,7 @@ data EditState = EditState {
     , state_note_direction :: !TimeStep.Direction
     -- | New notes get this text by default.  This way, you can enter a series
     -- of notes with the same attributes, or whatever.
-    , state_note_text :: !String
+    , state_note_text :: !Text
     -- | Transpose note entry on the keyboard by this many octaves.  It's by
     -- octave instead of scale degree since scales may have different numbers
     -- of notes per octave.
@@ -951,10 +952,11 @@ is_val_edit = (== ValEdit) <$> gets (state_edit_mode . state_edit)
 is_kbd_entry :: (M m) => m Bool
 is_kbd_entry = gets (state_kbd_entry . state_edit)
 
-set_note_text :: (M m) => String -> m ()
-set_note_text txt = do
-    modify_edit_state $ \st -> st { state_note_text = txt }
-    set_status Config.status_note_text (if null txt then Nothing else Just txt)
+set_note_text :: (M m) => Text -> m ()
+set_note_text text = do
+    modify_edit_state $ \st -> st { state_note_text = text }
+    set_status Config.status_note_text $
+        if Text.null text then Nothing else Just (untxt text)
 
 
 -- * util

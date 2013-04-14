@@ -69,7 +69,7 @@ cmd_method_edit msg = Cmd.suppress_history Cmd.MethodEdit
 
 val_edit_at :: (Cmd.M m) => EditUtil.Pos -> Pitch.Note -> m ()
 val_edit_at pos note = modify_event_at pos $ \event ->
-    (Just $ event { event_val = Pitch.note_text note }, False)
+    (Just $ event { event_val = untxt $ Pitch.note_text note }, False)
 
 method_edit_at :: (Cmd.M m) => EditUtil.Pos -> EditUtil.Key -> m ()
 method_edit_at pos key = modify_event_at pos $ \event ->
@@ -83,7 +83,8 @@ cmd_record_note_status msg = do
     case msg of
         Msg.InputNote (InputNote.NoteOn _ key _) -> do
             note <- EditUtil.parse_key key
-            Cmd.set_status Config.status_note (Just (Pitch.note_text note))
+            Cmd.set_status Config.status_note $
+                Just $ untxt $ Pitch.note_text note
         _ -> return ()
     return Cmd.Continue
 
@@ -151,10 +152,11 @@ unparse (ControlTrack.Event method val args)
 modify_note :: (Pitch.Note -> Either String Pitch.Note) -> String
     -> Either String String
 modify_note f = modify_expr $ \note_str -> case note_str of
-    '(':rest ->
+    '(' : rest ->
         let (note, post) = break (`elem` " )") rest
-        in ('(':) . (++post) . Pitch.note_text <$> f (Pitch.Note note)
-    _ -> Pitch.note_text <$> f (Pitch.Note note_str)
+        in ('(':) . (<>post) . untxt . Pitch.note_text <$>
+            f (Pitch.Note (txt note))
+    _ -> untxt . Pitch.note_text <$> f (Pitch.Note $ txt note_str)
 
 -- | Modify the note expression, e.g. in @i (a b c)@ it would be @(a b c)@,
 -- including the parens.

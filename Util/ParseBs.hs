@@ -9,10 +9,11 @@
 -}
 module Util.ParseBs (module Util.ParseBs, many) where
 import Control.Applicative (many)
-import qualified Data.ByteString.Char8 as B
 import qualified Data.Attoparsec as Attoparsec
-import qualified Data.Attoparsec.Char8 as A
 import Data.Attoparsec ((<?>))
+import qualified Data.Attoparsec.Char8 as A
+import qualified Data.ByteString.Char8 as B
+import qualified Data.Text.Encoding as Text.Encoding
 
 import Util.Control
 import qualified Util.Seq as Seq
@@ -47,6 +48,9 @@ maybe_parse parser text = either (const Nothing) Just (parse_all parser text)
 
 maybe_parse_string :: Parser a -> String -> Maybe a
 maybe_parse_string parser = maybe_parse parser . B.pack
+
+maybe_parse_text :: Parser a -> Text -> Maybe a
+maybe_parse_text parser = maybe_parse parser . Text.Encoding.encodeUtf8
 
 float :: String -> Maybe Double
 float = maybe_parse_string p_float

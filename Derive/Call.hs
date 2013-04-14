@@ -406,7 +406,7 @@ get_call call_id = require_call call_id name =<< Derive.lookup_callable call_id
     name = Derive.callable_name
         (error "Derive.callable_name shouldn't evaluate its argument." :: d)
 
-require_call :: TrackLang.CallId -> String -> Maybe a -> Derive.Deriver a
+require_call :: TrackLang.CallId -> Text -> Maybe a -> Derive.Deriver a
 require_call _ _ (Just a) = return a
 require_call call_id name Nothing = do
     -- If the call wasn't found, it can be seen as a block call whose block
@@ -415,9 +415,9 @@ require_call call_id name Nothing = do
     -- realize that the bad call is now valid.
     block_id <- symbol_to_block_id call_id
     when_just block_id Internal.add_block_dep
-    Derive.throw (unknown_call_id name call_id)
+    Derive.throw $ untxt (unknown_call_id name call_id)
 
-unknown_call_id :: String -> TrackLang.CallId -> String
+unknown_call_id :: Text -> TrackLang.CallId -> Text
 unknown_call_id name (TrackLang.Symbol sym) =
     name <> " call not found: " <> sym
 
@@ -436,4 +436,4 @@ symbol_to_block_id sym
 
 make_block_id :: Id.Namespace -> TrackLang.Symbol -> Maybe BlockId
 make_block_id namespace (TrackLang.Symbol call) =
-    Types.BlockId <$> Id.read_short namespace call
+    Types.BlockId <$> Id.read_short namespace (untxt call)

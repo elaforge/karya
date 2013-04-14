@@ -124,8 +124,8 @@ replace_block_call from to =
     map_symbol $ \(TrackLang.Symbol sym) -> TrackLang.Symbol (f sym)
     where
     f sym
-        | sym == Id.ident_name from = Id.ident_name to
-        | sym == Id.ident_string from = Id.ident_string to
+        | sym == txt (Id.ident_name from) = txt $ Id.ident_name to
+        | sym == txt (Id.ident_string from) = txt $ Id.ident_string to
         | otherwise = sym
 
 -- * create

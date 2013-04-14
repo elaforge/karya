@@ -1,4 +1,5 @@
 module Cmd.PitchTrack_test where
+import Util.Control
 import Util.Test
 import qualified Ui.Key as Key
 import qualified Ui.UiMsg as UiMsg
@@ -67,7 +68,7 @@ test_unparse = do
 
 test_modify_note = do
     let f = PitchTrack.modify_note
-            (\n -> Right $ Pitch.Note $ "*" ++ Pitch.note_text n ++ "*")
+            (\n -> Right $ Pitch.Note $ "*" <> Pitch.note_text n <> "*")
     equal (f "x") (Right "*x*")
     equal (f "x (y)") (Right "x (*y*)")
     equal (f "x (y 1 2)") (Right "x (*y* 1 2)")

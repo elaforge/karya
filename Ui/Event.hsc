@@ -77,7 +77,7 @@ data Event = Event {
     , stack :: !(Maybe Stack)
     } deriving (Eq, Read, Show)
 
-type Text = B.ByteString
+type Text = UTF8.ByteString
 
 from_string :: String -> Text
 from_string = UTF8.fromString

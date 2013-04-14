@@ -152,7 +152,7 @@ key :: Text -> Theory.Key
 key name = either (error $ "can't parse key: " ++ show name) id $
     TwelveScales.read_key Twelve.scale_map (Just (Pitch.Key name))
 
-p :: String -> Theory.Pitch
+p :: Text -> Theory.Pitch
 p s = fromMaybe (error $ "can't parse pitch: " ++ show s) $
     Theory.read_pitch Twelve.layout s
 

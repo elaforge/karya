@@ -185,11 +185,12 @@ instance Show Pitch where
 instance Read Pitch where
     readPrec = mk <$> Read.readPrec
         where
-        mk nn = Pitch (const (Right nn)) (const (Right (Pitch.Note (show nn))))
+        mk nn = Pitch (const (Right nn)) $
+            const $ Right $ Pitch.Note $ txt $ show nn
 
 instance Pretty.Pretty Pitch where
     pretty (Pitch p n) = either show Pretty.pretty (p Map.empty)
-        <> "(" <> either show Pitch.note_text (n Map.empty) <> ")"
+        <> "(" <> either show (untxt . Pitch.note_text) (n Map.empty) <> ")"
 
 newtype PitchError = PitchError Text deriving (Eq, Ord, Read, Show)
 instance Pretty.Pretty PitchError where pretty (PitchError s) = untxt s
@@ -314,7 +315,7 @@ instance Pretty.Pretty Val where pretty = untxt . ShowVal.show_val
 instance ShowVal.ShowVal Pitch.ScaleId where
     show_val (Pitch.ScaleId s) = txt $ '*' : s
 
-newtype Symbol = Symbol String deriving (Eq, Ord, Show, DeepSeq.NFData)
+newtype Symbol = Symbol Text deriving (Eq, Ord, Show, DeepSeq.NFData)
 instance Pretty.Pretty Symbol where pretty = untxt . ShowVal.show_val
 
 instance ShowVal.ShowVal Symbol where
@@ -324,26 +325,26 @@ instance ShowVal.ShowVal Symbol where
     -- arguments, but strings frequently are.  Maybe I should go back to
     -- separate types for symbols and strings?
     show_val (Symbol s)
-        | parseable = txt s
-        | otherwise = "'" <> Text.concatMap quote (txt s) <> "'"
+        | parseable = s
+        | otherwise = "'" <> Text.concatMap quote s <> "'"
         where
         -- This should be the same as ParseBs.p_symbol.  I can't use it
         -- directly because that would be a circular import.
-        parseable = case s of
-            c : cs -> (Char.isAlpha c || c == '*')
-                && all (\c -> c /= ' ' && c /= ')') cs
-            [] -> False
+        parseable = case Text.uncons s of
+            Just (c, cs) -> (Char.isAlpha c || c == '*')
+                && Text.all (\c -> c /= ' ' && c /= ')') cs
+            Nothing -> False
         quote '\'' = "''"
         quote c = Text.singleton c
 
 -- | Show a symbol intended for call position.  Call position is special in
 -- that it can contain any character except space without quoting.
-show_call_val :: Val -> String
+show_call_val :: Val -> Text
 show_call_val (VSymbol (Symbol sym)) = sym
-show_call_val val = untxt $ ShowVal.show_val val
+show_call_val val = ShowVal.show_val val
 
 instance ShowVal.ShowVal Text where
-    show_val = ShowVal.show_val . Symbol . untxt
+    show_val = ShowVal.show_val . Symbol
 
 data RelativeAttrs = Add Attributes | Remove Attributes | Set Attributes
     deriving (Eq, Show)
@@ -375,7 +376,7 @@ type ValControl = ControlRef TypedVal
 instance Pretty.Pretty PitchControl where pretty = untxt . ShowVal.show_val
 instance ShowVal.ShowVal PitchControl where
     -- The PitchControl syntax doesn't support args for the signal default yet.
-    show_val = show_control '#' (txt . Pitch.note_text . note_sym)
+    show_val = show_control '#' (Pitch.note_text . note_sym)
 
 instance Pretty.Pretty ValControl where pretty = untxt . ShowVal.show_val
 instance ShowVal.ShowVal ValControl where

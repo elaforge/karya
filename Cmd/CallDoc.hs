@@ -280,8 +280,8 @@ lookup_docs = group . snd . List.mapAccumL go Set.empty . concatMap flatten
     go shadowed (Right sym, call) = (Set.insert sym shadowed,
         ((sym `Set.member` shadowed, show_sym sym), documented_call call))
     show_sym (TrackLang.Symbol sym)
-        | null sym = "\"\""
-        | otherwise = txt sym
+        | Text.null sym = "\"\""
+        | otherwise = sym
     group :: [((Bool, SymbolName), (CallName, DocumentedCall))]
         -> [CallBindings]
     group pairs = [(extract names, doc_call)

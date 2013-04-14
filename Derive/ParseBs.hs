@@ -57,6 +57,9 @@ to_string = UTF8.toString
 from_text :: Text.Text -> Text
 from_text = Text.Encoding.encodeUtf8
 
+to_text :: Text -> Text.Text
+to_text = Text.Encoding.decodeUtf8
+
 parse_expr :: Text -> Either String TrackLang.Expr
 parse_expr = parse p_pipeline
 
@@ -69,19 +72,19 @@ parse_control_title = Parse.parse_all p_control_title . from_string
 
 -- | Parse a single Val.  This takes a String since it's used with Notes and
 -- Symbols, which are still Strings.
-parse_val :: String -> Either String TrackLang.Val
-parse_val = Parse.parse_all (lexeme p_val) . from_string
+parse_val :: Text.Text -> Either String TrackLang.Val
+parse_val = Parse.parse_all (lexeme p_val) . from_text
 
 -- | Parse attributes in the form +a+b.
 parse_attrs :: String -> Either String Score.Attributes
 parse_attrs = parse (A.option '+' (A.char '+') *> p_attrs) . from_string
 
 -- | Parse a number or hex code, without a type suffix.
-parse_num :: String -> Either String Signal.Y
-parse_num = Parse.parse_all (lexeme (p_hex <|> p_untyped_num)) . from_string
+parse_num :: Text.Text -> Either String Signal.Y
+parse_num = Parse.parse_all (lexeme (p_hex <|> p_untyped_num)) . from_text
 
 -- | Extract only the call part of the text.
-parse_call :: Text -> Maybe String
+parse_call :: Text -> Maybe Text.Text
 parse_call text = case parse_expr text of
     Right expr -> case NonEmpty.last expr of
         TrackLang.Call (TrackLang.Symbol call) _ -> Just call
@@ -185,7 +188,7 @@ p_null_call = return (TrackLang.Call (TrackLang.Symbol "") []) <?> "null call"
 -- ornaments.
 p_call_symbol :: Bool -- ^ A call at the top level can allow a ).
     -> A.Parser TrackLang.Symbol
-p_call_symbol toplevel = TrackLang.Symbol . to_string <$>
+p_call_symbol toplevel = TrackLang.Symbol . to_text <$>
     (if toplevel then A.takeWhile1 (/=' ') else p_word)
 
 p_term :: A.Parser TrackLang.Term
@@ -241,7 +244,7 @@ parse_hex c1 c2 = higit c1 * 16 + higit c2
 -- | A string is anything between single quotes.  A single quote itself is
 -- represented by two single quotes in a row.
 p_string :: A.Parser TrackLang.Symbol
-p_string = TrackLang.Symbol . to_string <$> p_single_string
+p_string = TrackLang.Symbol . to_text <$> p_single_string
 
 p_single_string :: A.Parser Text
 p_single_string = do
@@ -281,8 +284,8 @@ p_pitch_control = do
     return $ case deflt of
         Nothing -> TrackLang.LiteralControl control
         Just val ->
-            TrackLang.DefaultedControl control
-                (TrackLang.Note (Pitch.Note (to_string val)) [])
+            TrackLang.DefaultedControl control $
+                TrackLang.Note (Pitch.Note (to_text val)) []
     <?> "pitch control"
 
 p_scale_id :: A.Parser Pitch.ScaleId
@@ -306,7 +309,7 @@ p_symbol :: A.Parser TrackLang.Symbol
 p_symbol = do
     c <- A.satisfy (\c -> A.isAlpha_ascii c || c == '*')
     rest <- p_null_word
-    return $ TrackLang.Symbol (c : to_string rest)
+    return $ TrackLang.Symbol $ Text.cons c (to_text rest)
 
 -- | Identifiers are somewhat more strict than usual.  They must be lowercase,
 -- and the only non-letter allowed is hyphen.  This means words must be

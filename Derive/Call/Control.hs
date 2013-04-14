@@ -75,7 +75,7 @@ control_calls = Derive.make_calls
 
 -- | This should contain the calls that require the previous value.  It's used
 -- by a hack in 'Derive.Slice.slice'.
-require_previous :: Set.Set String
+require_previous :: Set.Set Text
 require_previous = Set.fromList
     ["'", "i>", "i>>", "i<<", "e>", "e>>", "e<<", "u", "d"]
 

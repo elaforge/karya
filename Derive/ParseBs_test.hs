@@ -131,7 +131,7 @@ test_parse_val = do
             (Right val, Just expect) -> do
                 equal val expect
                 when invertible $
-                    void $ equal (untxt $ TrackLang.show_val val) expr
+                    void $ equal (TrackLang.show_val val) expr
             _ -> void $ success $ show res ++ " == " ++ show expected
 
 test_parse_num = do
@@ -174,10 +174,10 @@ test_lex1 = do
     equal (f "1.") $ ("1.", "")
     equal (f "'hi") $ ("'hi", "")
 
-val_call :: String -> [Term] -> Term
+val_call :: Text -> [Term] -> Term
 val_call sym args = ValCall (Call (Symbol sym) args)
 
-symbol :: String -> Val
+symbol :: Text -> Val
 symbol sym = VSymbol (Symbol sym)
 
 

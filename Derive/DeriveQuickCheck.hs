@@ -60,7 +60,7 @@ simple_pitch :: Q.Gen Block
 simple_pitch = do
     ranges <- granges
     pitches <- Q.vectorOf (length ranges) gpitch
-    let ptrack = [(p, 0, Pitch.note_text n)
+    let ptrack = [(p, 0, untxt $ Pitch.note_text n)
             | (p, n) <- zip (map fst ranges) pitches]
     return (("block", [(">", map (to_spec "") ranges), ("*", ptrack)]),
         [(1, 2)])
@@ -161,7 +161,7 @@ state_pitch_signal = PitchSignal.constant scale . mknote . state_pitch
     scale = PitchSignal.Scale Twelve.scale_id
         (Scale.scale_transposers Twelve.scale)
     mknote nn = PitchSignal.pitch (const (return nn))
-        (const (return (Pitch.Note (show nn))))
+        (const $ return $ Pitch.Note $ txt $ show nn)
 
 update_state :: [Sample] -> RealTime -> State -> (State, [Sample])
 update_state samples pos state = (List.foldl' go state pre, post)
@@ -175,7 +175,7 @@ update_state samples pos state = (List.foldl' go state pre, post)
 
 parse_pitch :: String -> Pitch.NoteNumber
 parse_pitch text = maybe (error $ "unparseable pitch: " ++ show text)
-    (to_nn . snd) $ Map.lookup (Pitch.Note text) note_to_degree
+    (to_nn . snd) $ Map.lookup (Pitch.Note $ txt text) note_to_degree
     where
     to_nn (Pitch.Degree d) = Pitch.NoteNumber (fromIntegral d)
 

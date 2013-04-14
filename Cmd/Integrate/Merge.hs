@@ -101,12 +101,12 @@ merge_pairs block_id pairs = do
                     | (title, track_id, index) <- controls])
 
 merge_pair :: (State.M m) => BlockId
-    -> TrackPair -> m (Maybe (String, TrackId, Block.EventIndex))
+    -> TrackPair -> m (Maybe (Text, TrackId, Block.EventIndex))
 merge_pair block_id pair = case pair of
     (Nothing, Left _) -> return Nothing -- not reached
     (Just (Convert.Track title events), Left tracknum) -> do
         -- Track was deleted or never existed.
-        track_id <- Create.track block_id tracknum title
+        track_id <- Create.track block_id tracknum (untxt title)
             (Events.from_list (map unmodified events))
         return $ Just (title, track_id, make_index events)
     (Nothing, Right (track_id, _)) -> do

@@ -44,4 +44,4 @@ pitch_nn = either (Derive.throw . ("evaluating pitch: " ++) . Pretty.pretty)
 
 constant_pitch :: Pitch.NoteNumber -> PitchSignal.Pitch
 constant_pitch nn = PitchSignal.pitch (const (Right nn))
-    (const $ Right $ Pitch.Note $ Pretty.pretty nn)
+    (const $ Right $ Pitch.Note $ Pretty.prettytxt nn)

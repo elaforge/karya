@@ -369,7 +369,7 @@ signal_to_nn psig
     where (sig, errs) = PitchSignal.to_nn psig
 
 e_pitch :: Score.Event -> String
-e_pitch e = maybe "?" Pitch.note_text (Score.initial_note e)
+e_pitch e = maybe "?" (untxt . Pitch.note_text) (Score.initial_note e)
 
 e_start_dur :: Score.Event -> (RealTime, RealTime)
 e_start_dur e = (Score.event_start e, Score.event_duration e)
@@ -386,7 +386,7 @@ e_environ f event =
     [ (TrackLang.Symbol k, untxt $ ShowVal.show_val v)
     | (TrackLang.Symbol k, v)
         <- TrackLang.environ_to_list (Score.event_environ event)
-    , f k
+    , f (untxt k)
     ]
 
 -- ** extract log msgs
@@ -469,7 +469,7 @@ with_scale scale = modify_constant $ \st ->
     st { Derive.state_lookup_scale = \scale_id -> Map.lookup scale_id
         (Map.insert (Scale.scale_id scale) scale Scale.All.scales) }
 
-mkscale :: String -> [(String, Pitch.NoteNumber)] -> Scale.Scale
+mkscale :: String -> [(Text, Pitch.NoteNumber)] -> Scale.Scale
 mkscale name notes =
     Scale.Util.simple_scale "simple test scale" 5 "test" (Pitch.ScaleId name)
         inputs (map (Pitch.Note . fst) notes) (map snd notes)
@@ -578,7 +578,7 @@ mkpitch scale p = case eval State.empty deriver of
     Right pitch -> pitch
     where
     deriver = Derive.with_scale scale $
-        Call.eval_pitch 0 (TrackLang.Note (Pitch.Note p) [])
+        Call.eval_pitch 0 (TrackLang.Note (Pitch.Note $ txt p) [])
 
 default_scale :: Scale.Scale
 default_scale = Twelve.scale

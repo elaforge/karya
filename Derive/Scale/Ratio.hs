@@ -49,7 +49,7 @@ scale_id = Pitch.ScaleId "ratio"
 
 note_to_call :: Pitch.Note -> Maybe Derive.ValCall
 note_to_call note = note_call note <$>
-    Parse.maybe_parse_string p_note (Pitch.note_text note)
+    Parse.maybe_parse_text p_note (Pitch.note_text note)
 
 note_call :: Pitch.Note -> (Double -> Double) -> Derive.ValCall
 note_call note ratio = Derive.val_call "ratio" Tags.scale

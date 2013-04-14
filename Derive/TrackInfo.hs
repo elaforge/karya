@@ -109,15 +109,15 @@ parse_control_type :: TrackLang.Symbol -> Maybe (Score.Typed Score.Control)
 parse_control_type (TrackLang.Symbol name) = case post of
         ':' : c -> Score.Typed <$>
             Score.code_to_type c <*> return (Score.Control pre)
-        "" -> Just (Score.untyped (Score.Control name))
+        "" -> Just $ Score.untyped $ Score.Control $ untxt name
         _ -> Nothing
-    where (pre, post) = break (==':') name
+    where (pre, post) = break (==':') (untxt name)
 
-unparse_typed :: Score.Typed Score.Control -> String
+unparse_typed :: Score.Typed Score.Control -> Text
 unparse_typed (Score.Typed typ (Score.Control c)) =
-    c ++ case Score.type_to_code typ of
+    txt c <> case Score.type_to_code typ of
         "" -> ""
-        c -> ':' : c
+        code -> txt $ ':' : code
 
 unparse_control :: ControlType -> String
 unparse_control =

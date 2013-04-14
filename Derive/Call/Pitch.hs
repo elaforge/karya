@@ -57,10 +57,10 @@ scale_degree pitch_nn pitch_note = Derive.val_call
 
 -- | Convert a note and @frac@ arg into a tracklang expression representing
 -- that note.
-pitch_expr :: Pitch.Note -> Double -> String
+pitch_expr :: Pitch.Note -> Double -> Text
 pitch_expr (Pitch.Note note) frac
     | frac == 0 = note
-    | otherwise = note ++ " " ++ show (floor (frac * 100))
+    | otherwise = note <> " " <> txt (show (floor (frac * 100)))
 
 
 -- * pitch
@@ -92,7 +92,7 @@ pitch_calls = Derive.make_calls
 
 -- | This should contain the calls that require the previous value.  It's used
 -- by a hack in 'Derive.Slice.slice'.
-require_previous :: Set.Set String
+require_previous :: Set.Set Text
 require_previous = Set.fromList
     ["'", "i>", "i>>", "i<<", "e>", "e>>", "e<<", "a", "u", "d"]
 

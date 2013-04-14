@@ -253,8 +253,8 @@ make_nn mprev nn mnext frac
 --
 -- As a special case for scales that start with possibly negative number, the
 -- step may start with a + or -, since a null step isn't very useful.
-join_note :: String -> Frac -> Pitch.Note
-join_note step frac = Pitch.Note $ step <> untxt frac_s
+join_note :: Text -> Frac -> Pitch.Note
+join_note step frac = Pitch.Note $ step <> frac_s
     where
     frac_s
         | frac == 0 = ""

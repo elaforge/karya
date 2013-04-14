@@ -18,12 +18,12 @@ import qualified Perform.Signal as Signal
 -- drum sets that don't fit in (e.g. have two or three snares), but at least
 -- this provides a standard base.
 data Note = Note {
-    note_name :: String
-    , note_attrs :: Attributes
-    , note_char :: Char
+    note_name :: !Text
+    , note_attrs :: !Attributes
+    , note_char :: !Char
     -- | Scale the dynamic by this value.  This is for drums that have
     -- different symbols for soft strokes.
-    , note_dynamic :: Signal.Y
+    , note_dynamic :: !Signal.Y
     } deriving (Show)
 
 

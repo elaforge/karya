@@ -405,7 +405,7 @@ with_scope modify_scope = Internal.local $ \st ->
 -- * calls
 
 -- | Make a call map.
-make_calls :: [(String, call)] -> Map.Map TrackLang.CallId call
+make_calls :: [(Text, call)] -> Map.Map TrackLang.CallId call
 make_calls = Map.fromList . map (first TrackLang.Symbol)
 
 -- * postproc
