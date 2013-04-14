@@ -3,71 +3,10 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
-  * UiTest.regular_note should go cdefgabc
   - update shakefile to use new system calls and logging levels
   - shakefile should use typesafe oracle calls, is there newtype based
     oracle utils yet?
-  * remove bug workaround in Midi.Midi
-  * ^T should expand the window size just like ^t does
-  * if I have [(1, 2), (1, 3)], how do I add to make [(1, 2), (2, 3), (1, 4)]?
-    Insert right wants to make [(1, 2), (2, 3), (2, 4)].
-  * Undo didn't clear the future when I made an edit!
-  * git: I shouldn't be able to checkpoint to a repo unless I have
-    a previous commit hash.
-  * git should save window moves and track resizes
-    . Currently undo and git checkpoints are 1:1, it would be a complicated if
-      that changed, because then undo would have to skip multiple states, and
-      have to know which ones to skip.  So maybe just save on quit, or when
-      loading a new state.
-    . Then I wind up with an extra checkpoint that just sets window positions,
-      which is kind of grody, and leads to oddness when undoing.
-    . I think the fundamental problem is that I only want to record some
-      things, but I save the whole state with everything.  Undo should only
-      apply to score data, and views should be saved separately, and
-      non-versioned.
-    * SaveGit doesn't save or load views
-    * Undo.save_history will save the view state if there were view changes
-      and I'm checkpointing.
-    . Most view updates aren't even updates, since they come from the UI
-      directly and modify the state.  So I think I don't need to checkpoint
-      views at all, just save them when I quit.
-    * save views unconditionally when I quit or switch save files
-      How do I get a hook on that?  For quit, I need something explicit.
-    * load_git loads the view state separately.
-  * SaveGit.checkpoint should do nothing if there are no modifications
-
-  * Can't put a slur on a tuplet.  Can I do it by appending ( and ) directly
-    to the notes, as with xstaff?
-    It could also work if tuplet could reach inside the tuplet to stick
-    something on the notes inside.  Then it has to emit as
-    prefix+note, note, note+suffix rather than just one code chunk.
-    . Duration is problematic.  I can't give each note a duration, because it
-      may be non-divisible.
-    . The problem is that the output is flat, so I can't do nested structures
-      like this.
-  * Play from root on a block not reachable from the root should just play
-    normally.
-  Cmd.Refactor
-    * Split a block horizontally: clip below the cursor, and create a new block
-      with that pasted in.  Make new rulers for both.
-    * Split a block vertically: delete tracks and create a new block with those
-      tracks.
-    * implementation for ^B, factor out selection
-  * Why does LRuler need invalidate_performances anyway?  Can't it figure out
-    from the ruler changes?
-  * when I create a new block with ^B it initially thinks it doesn't exist
-    . When does a perf invalidate? When there's ScoreDamage.
-    . It does clear the perf and add damage, but the block just caches,
-      probably because it doesn't have the block dep for x, because x wasn't
-      found.  I think I have to not cache when there is a new block, because
-      it might make a failed call now work.  Or add a block dep for
-      non-existent blocks.
-  * rename GeneratorDep to BlockDep, collect_local_dep to collect_block_dep
-  * select range, then create event with e.g. raw edit.  Event duration should
-    be to selected range.
-  * Data.Text for call docs
   convert to Text:
-    * show_val
     - Pretty.pretty
     - Derive.throw
     - Cmd.ControlTrack.Event
@@ -75,91 +14,16 @@ UNSORTED
       It means e.g. TimeStep.parse_time_step should take Text, which means
       Util.Parse should switch too.
     - BaseTypes.Symbol
-  * if I do ^t to the left of a divider, the created track doesn't have
-    a ruler
-  * Track add bindings are hard to use.
-    cmd-t -> add track to right
-    cmd-T -> add branch to right
-    cmd-h -> splice track to right
-    cmd-H -> splice track at top
-    It's hard to splice a track above, and splice at top is rarely useful.
-    n -> add track to right
-    t -> splice track to right
-    T -> add branch to right
-    h -> splice track to left
-    H -> splice track at top
-    . But isn't splice above always equivalent to go to the track above and
-    slpcie below?  Unless there is no track above, then can't I do splice
-    at top?
-
-  * new block from template should copy the block title
-  * fltk doesn't show red trailing space warning when the text is wrapped
-  * rename Derive.Call.Attribute to Transformer and Ornament to Grace
-    But it's not all transformers, it has note transformers too.
-  * I think ly mode needs to turn off sustain and sustain-abs
-  * transformer to shorten notes slightly, can just set sustain-abs -= small
-    Could use +detache, but that would have a different effect if it's already
-    a keyswitch.  Maybe just 'detach' transformer.
   - %sustain-abs=-.x is not quite right for detached, because it should scale
     a bit for shorter notes.  E.g. it's absolute but scales down to 0 below
     a certain threshold.
-  * make 's' call open a view if there isn't already one open
-  * tracks without notes not getting tempo again
-    It's because slice orphans acts like they're on different tracks even
-    though they're on the same one.
-    Slice all the way down to the bottom of the note tracks.
-    I might need to do the same fix for track signals
-  / Does this mean I can get rid of the is-ly track-level hack?
-  * standard block, change tempo to >, add a ( event, then pitch signal gets
-    flattened
-    . Orphan slice makes a "ab", then "d", then unsliced "abcd",
-      then sliced "bc", then "cd"
-    . Emits correctly for "abcd", but then the signal is lost.
-  * Slice notes should complain when a sub-note is larger than its parent,
-    because those duplicate notes.  Right?
-    * Track level orphans should also check.
-    . I changed slice to no longer omit empty tracks, because I need to check
-      them for overlaps.  I should filter those out afterwards.
-    . I can't convince myself that checking against the slice start is right,
-      because it's relative while the events are absolute.
-      Also, one of the events in the cascading test gets picked up by the
-      track orphan slice and is duplicated.
-      I need to nail down what event_ranges returns and what that means for
-      slicing, along with the details of absolute vs. relative track time.
-
-    . Eval event at 1.  It calls sub_events on its range, and slices a child
-      at 1.  The event is shifted back to 0, setting shifted to 1.  That event
-      is evaluated, and calls sub_events.
-
-      The absolute time is in the calling track's shift, which is not visible
-      inside sub_events.
-
-      I could keep things in track time by adding shifted to the slice times.
-      Then event_ranges has to subtract
-      its event slices its subs.  The shift is incremented again.
-
-    * make sure all uses of slice strip empty tracks
-    * rename checked_sub_events to just sub_events
-    * cleanup Slice_test
-    * fix tests
-
-  * use type TrackTime = ScoreTime to at least document where time is expected
-    to be track time.  I really want TrackTime to be a subtype of ScoreTime.
-    A phantom type could do it, but would be a big pain to put everywhere.
-  * use State.Pos or something with a Pretty that logview understands
-  * viola sonata: see about making piano more detached by default, only
-    linking notes under slurs
   - now that I have tevents_around, can I get rid of slice_around and the
     require_previous hack?
-  * save/bug-no-cnt-dmg - in awit2-2, change dyn and kendang blocks below
-    don't pick up the dyn change
   bloom
     - block b10 is messed up near the end
     - b13 silent
   - I can have regression tests that assert a score still derives the same
     way.
-  * make ^B refactor if there's a non-point selection: cut out the selection,
-    make a new block, paste it in.
   calls:
     - Sometimes tick makes more sense as at attribute of the previous note, or
       perhaps a freestanding ornament, since it can happen or not on a repeat.
@@ -185,9 +49,6 @@ UNSORTED
       +cresc or +dim on a note.
     - Figure out how to map continuous controls, and crossfade.
 
-  * Arpeggio should be a bit randomized?  Or closer notes should be faster?
-    Then I have to look at the pitches.  Or manually set times, e.g.
-    arp .3 .1 (.3, .1, .1, .1, ...)
   - Can I bind symbol names with =, e.g. 'arp = arp-manual .3 .2 .1'
     That's actually two things, one is binding the symbol, the other is
     partially applying args.  The latter overlaps with setting default in
@@ -230,7 +91,7 @@ UNSORTED
   - key not applied in inner blocks, local play should take the root play's
     env as a starting point
   - randomize any control by having the 'set' call look for the -rnd control
-  * some way to get symbol feedback instantly to make it easier to compose them
+  some way to get symbol feedback instantly to make it easier to compose them
     - But it calls SymbolC and I ran into a problem where linux ghci can't
       link FFI-using functions.  Ask on glasgow-haskell-users.
   - test sending mtc to reapaer
@@ -492,8 +353,6 @@ integrate / integration:
 
 lilypond:
   - remove the StackMap stuff
-  * put double barlines at the end
-  * turn off the cancel-out key signature thing
   - code events in >ly-global can be distributed to all staves
     Otherwise I have to remember to add e.g. ly-key to all staves manually.
     But ly-key is no good, I really do need to set the key.  I think I have to
@@ -507,157 +366,28 @@ lilypond:
     On the other hand, I think I want to encourage nestedness and it should be
     easy to split.  The only reason viola-sonata has huge blocks is that it's
     a midi import.
-  * tie wrong direction, can override with \tieDown \tieUp \tieNeutral
-    or use ^~ or _~
-  * why does 'LLily.block @bogus' happily create an empty score?
   - Derive.Call.Lily needs a naming refactor since there are too many vaguely
     named flavours.
   - rename is-ly to ly-track if I can't get it to apply to individual notes.
     Well, I can, but it's just the same as when-ly.
-  * I need something to only transform if or not if ly, and pass through
-    otherwise.  Maybe overload is-ly and not-ly?
-  / Why does accidentally putting e.g. 'dyn p' in a dyn column not log
-    a warning?
-    Probably since it's a control, and not sliced by anyone, it never gets
-    evaluated.
   - instead of Code events interrupting voices, it should be incorporated into
     all voices.  But that may be incorrect, e.g. I don't want ff on every
     voice, just one.
-  * code events shouldn't break up rests
-  * Code notes shouldn't break up pitched notes, e.g. I wind up with
-    c4~ \code c4, should be c2 \code
-    order2, mm37
-  * how to manually flip stem direction? order1, mm17, 4.0.1 right hand
-    \stemUp \stemDown \stemNeutral
-  * add ^( and _( ly calls for slurs with directions:
-    c'4^( or c'4_(  ^ up - default _ down
-  * double barline for end of piece
   - I need some way to hide rests.
     Add magic bit of code that turns its rest r4 into s4.
-  * if-ly should switch between any two types, not just strings,
-    e.g. if-ly +a +b. Or at least complain about non strings.
-  * add ly-global call which is like when-ly except it sets >ly-global
-  * tie within chords: <a~ c> d
-  * way to insert courtesy accidental?  e.g. explicit natural at mm10
-    Needs to append ! after the pitch.  But I don't have any way of
-  * Use of voices seems to be affecting rest placement, e.g. full measure
-    rests in mm57 58 are too high.
-    I think it's also affecting direction, e.g. mm26 / 6.1 the flags should be
-    going down.
-    Think I need \onlyVoice afterwards.
-    Also newline before <<, no newline after last }
-  * use 4/4 instead of C.
-  * \ottava has to be alone, but when it's a transformer it gets attached to
-    the note.
-  * remove v_clef
-  * make Note into a separate record type so I don't have partial functions:
-    Ly Note | ClefChange ... | ...
-  * slur over harmonic in mm31 disappeared, and the one on mm41 is wrong
-  * 2 measures per line instead of 4
-  * fix "cannot end slur" warnings
-  * slurs should go to the last note in a tie
-    Maybe I can do this by saying ly-append appends to the last note instead
-    of all of them.  Well, except that suffix ( should go on the first, and
-    suffix ) should go on the last.
-  * slur on measure 8 makes the note disappear
-  * I can fix rhythm spelling by changing the meter.  But it's a pain because
-    the meter has to be over the entire block, and that means a whole new
-    track, which also destroys track caching.
-    It seems like track caching is too fragile, and also like there should be
-    some easier way to change something globally for a period of time.
-    Alternately, I could make lilypond less strict about meters, and
-    let each track set its own meter, assuming it will only be switching to
-    ones with the same rhythm.  I can switch to synonyms, but does lilypond
-    even support measures with different meters?
-  set meter with a separate track, so I don't have to give it scope over
-    everything and destroy track caching.  Use pseudo-instrument so global
-    directives don't get their own staff.
-    * make lilypond not emit a staff for >ly-global
-    * make meter extraction code in Lilypond get it from the meter events
-    * meter call emits code fragment under >ly-global
-  * movement titles
-    Use >ly-global for these.
-    It has to break up staves, so I need a first pass to find them:
-      \score {
-        \new Staff { notes }
-        \header { piece = "title" }
-      }
-      \score {
-        \new Staff { notes }
-        \header { piece = "title" }
-      }
-  * page breaks:
-    . line break is \break.  Only one instrument needs it?
-    . page break is \pageBreak
-      \paper {
-        page-breaking = #ly:page-turn-breaking
-        % or #ly:optimal-breaking or #ly:minimal-breaking
-      }
-    . If I want to include line and page breaks on >ly-global, then it needs
-    to add a special voice to space them properly:
-      \score {
-        \new Staff <<
-          \new Voice {
-            s1 * 2 \break
-            s1 * 3 \break
-          }
-          \new Voice { ... }
-        >>
-      }
-  * Can I have a solution for custom note durations that don't affect lilypond?
-  * cross staff inside tuplet didn't work
-  * hairpin crescendo / decrescendo
-    \< or \>, ended with \! or another hairpin or dynamic mark
-    if event has a duration, then end with \!, otherwise just emit the start
   - If I can figure out the meter from just the name, then I can get rid
     of the awkward map with hardcoded meters.
     I could have parse generate the Meter and memoize it.
   - optionally emit the lilypond to display a compound meter
-  * why not implement clefs as a code-emitting note transformer rather than
-    env var?  There's '8va 1' and then there's staff = treble,
-    time-sig = '3/4'.
-    Key signatures are already env vars because they're not just lily.
-    time-sig I think has to be attrs because lily wants to make the timesig
-    map, but then again if I emit code, I can solve the problem where I can't
-    emit a time sig change during rests.  And lily can recognize an event
-    with code = '\time \d+/\d+'.
-
-    Then I could possibly do everything with code, just have to deal with key.
-    I guess the '=' call could have some when_lily magic.
   - convert lily code to Text instead of String.  Maybe VString has to become
     Text then.
   - pedal should emit pedal sign
     I can't use the pedal call for that, since it emits control.  But I can
     look at the pedal signal directly.
   - Why does the cmd have to wait until lilypond is done?  Should be async.
-  * add hand annotations to score
   - use Util.Format in ly output
   - to_lily should return Text
   - try Util.LazyVector for Ly output and see if it helps
-  * Support voices, but they are complicated
-    * get rid of the measure thing in convert_measure, just one big recursive
-      function.  It's actually
-        ([a] -> m ([b], [a])) -> [a] -> m [b]
-
-    << { \voiceOne ... }
-      \new Voice { \voiceTwo ... }
-    >> \oneVoice
-
-    voice 1: highest, voice 2: lowest, voice 3: second highest,
-    voice 4: second lowest
-
-    It has to happen at convert_measure to Note because each voice has
-    independent rhythm.  When convert sees a voice, collect events while they
-    have voice set.  The lay those out, each starting at the current time.
-    Emit Notes with interleaved code for the \news and braces and trailing
-    \oneVoice.
-
-    If I see a note with 'voice=n', collect until an event with no voice env.
-    Split them up by voice and lay them out with rests padding to the length
-    of the longest.
-
-    Voices can go across barlines.
-
   + can I make a click on a note in the pdf highlight in the sequencer?
     Hung up on getting preview to send clicks to a program, notes in
     App/LilypondClick.hs
@@ -1132,16 +862,6 @@ REPL: repl:
 
 Cmd:
   meter / timestep
-    * It seems like it would be simpler to have meter rank divisions at every
-      note, e.g. w, h, q, e, s, 32, 64, etc. rather than every other.  That
-      way I can get rid of the weird 'q*2' TimeSteps.  I can avoid having to
-      come up with too many mark colors by just making them the same color.
-    * Putting twice as many ranks makes the meter labels ugly, because they only
-      go up to 1.  Except the toplevel repeats.
-      There are two possibilities: go back to dividing by 4, or add another
-      flag to make it squash that rank into the previous for the purposes of
-      labelling.  The latter adds a bit of complexity to everyone handling
-      meters.  The former just makes me use the q*2 timesteps.
     - timestep 64*2 skips two 's', because 's' is the minimum match
       skip should be ignored when the match is a larger rank than exists, or
       maybe step should fail.
@@ -1242,10 +962,6 @@ Cmd:
     - record view changes, at least zoom / scroll so it can be undone / redone
       separately
 
-  Cmd.MakeRuler
-    - functions to modify zoom levels and other mark attributes
-    * functions to splice or delete time or a Meter into a ruler
-
   Cmd.Freeze
     - details in doc/freeze_track
 
@@ -1261,15 +977,6 @@ Derive:
       then I get no caching.  Instead I should cache the bottom note track, or
       perhaps every note track.  That doesn't work because they're all sliced
       up.
-  instrument
-    * Implement >inst as setting the null call instead of env.instrument.
-      That way the inst has control over the interpretation of e.g. attributes
-      and pitch slide (to implement piano style retrigger)
-
-      or maybe, lookup val calls in current inst analogous to current scale
-      Maybe I can get rid of the Instrument.inst_control_map if I do the
-      mapping in generate_note?
-
   postproc
     - retune a note depending on the previous interval (e.g. sloppy pitches
       when playing quickly)
@@ -1344,13 +1051,6 @@ pitch / scales
       tricky since I have to extract a "principle pitch" from each event,
       but it might be useful in general to have an analysis framework.
   fancier pitch signals:
-    / Pitch signal render:
-      To get it right, Pitch needs to emit (Note, Note, Frac) and send that to
-      fltk instead of NNs.  But I'm not sure I even want it, the NNs actually
-      look ok.
-    * Lilypond enharmonics: they way I spelled it on the score should be the
-      way it's spelled in lilypond.  (Note, Note, Frac) can do this but it's
-      actually overkill since I'll probably just pick the bottom Note.
     - to_relatve: This needs Note - Note = Semis.  I think I could just add
       a field in Scale, but I'm not totally sure I really want this.
     - Cmd.Lang.LPitch.to_relative: I would need to implement Scale.scale_diff
@@ -1369,7 +1069,6 @@ Perform:
     - some basic midi instrument defs for generic midi (dev, patch)
   Midi:
     - see if synths support the set pitchbend range controller
-    * Convert certain attrs to controls for cc 'keyswitches'.
     / inst has a notion of polyphony so I can avoid overloading a channel, say
       if I limit it to 2 voices
 
