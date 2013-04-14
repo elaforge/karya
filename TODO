@@ -24,7 +24,7 @@ UNSORTED
     require_previous hack?
   bloom
     - block b10 is messed up near the end
-    - b13 silent
+    * b13 silent
   - I can have regression tests that assert a score still derives the same
     way.
   calls:

@@ -68,7 +68,7 @@ eval_track track expr ctype deriver = case ctype of
     TrackInfo.Tempo -> ifM Derive.is_lilypond_derive deriver $
         tempo_call track (derive_control True tempo_track expr) deriver
     TrackInfo.Control maybe_op control -> do
-        op <- lookup_op maybe_op
+        op <- lookup_op control maybe_op
         control_call track control op (derive_control False track expr) deriver
     TrackInfo.Pitch scale_id maybe_name ->
         pitch_call track maybe_name scale_id expr deriver
@@ -84,9 +84,18 @@ eval_track track expr ctype deriver = case ctype of
         track_range = TrackTree.tevents_range track
         evts = TrackTree.tevents_events track
 
-lookup_op :: Maybe TrackLang.CallId -> Derive.Deriver (Maybe Derive.ControlOp)
-lookup_op op = case op of
-    Nothing -> return $ Just Derive.op_mul
+-- | Get the combining operator for this track.  Controls multiply by default,
+-- unless they use the @set@ operator.  The exception is 'Score.c_null', which
+-- is used by control calls.  Since the control call emits signal which then
+-- goes in a control track, it would lead to multiplication being applied
+-- twice.  In addition, applying a relative signal tends to create a leading
+-- 0 sample, which then causes control calls to wipe out previous samples.
+lookup_op :: Score.Typed Score.Control -> Maybe TrackLang.CallId
+    -> Derive.Deriver (Maybe Derive.ControlOp)
+lookup_op control op = case op of
+    Nothing
+        | control == Score.untyped Score.c_null -> return Nothing
+        | otherwise -> return $ Just Derive.op_mul
     Just sym
         | sym == TrackLang.Symbol "set" -> return Nothing
         | otherwise -> Just <$> Derive.get_control_op sym

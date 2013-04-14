@@ -123,3 +123,15 @@ test_empty_parent_track = do
         extract e = (Score.event_start e, DeriveTest.e_inst e)
     equal (run [(">i1", [(0, 1, "t")]), (">", [(0, 1, "")])]) ([(0, "i1")], [])
     equal (run [(">i1", []), (">", [(0, 1, "")])]) ([(0, "i1")], [])
+
+test_control_call = do
+    let run tracks = DeriveTest.extract extract $ DeriveTest.derive_blocks
+            [ ("top", tracks)
+            , ("c=ruler", [("%", [(0, 0, "1"), (1, 0, ".5"), (2, 0, "--")])])
+            ]
+        extract e = (Score.event_start e, Score.initial_dynamic e)
+        dyn_call = ("dyn", [(0, 2, "c"), (2, 2, "c")])
+    equal (run $ dyn_call : UiTest.regular_notes 4)
+        ([(0, 1), (1, 0.5), (2, 1), (3, 0.5)], [])
+    equal (run $ UiTest.regular_notes 4 ++ [dyn_call])
+        ([(0, 1), (1, 0.5), (2, 1), (3, 0.5)], [])
