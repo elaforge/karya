@@ -23,7 +23,18 @@ main :: IO ()
 main = SendCmd.initialize $ Haskeline.runInputT settings $ do
     liftIO $ putStrLn "^D to quit"
     term <- liftIO $ Terminfo.setupTermFromEnv
-    while (repl term)
+    Haskeline.withInterrupt $ while $
+        Haskeline.handleInterrupt
+            (Haskeline.outputStrLn "interrupted" >> return True)
+            (repl term)
+
+-- The trailing \STX tells haskeline this is a control sequence, from
+-- http://trac.haskell.org/haskeline/wiki/ControlSequencesInPrompt
+cyan_bg :: String
+cyan_bg = "\ESC[46m\STX"
+
+plain_bg :: String
+plain_bg = "\ESC[39;49m\STX"
 
 with_bg :: Terminfo.Terminal -> Terminfo.Color -> String -> String
 with_bg term color s =
@@ -35,9 +46,7 @@ repl :: Terminfo.Terminal -> Haskeline.InputT IO Bool
 repl term =
     -- Colorize the prompt to make it stand out.
     maybe (return False) ((>> return True) . handle)
-        =<< Haskeline.getInputLine "> " -- (with_bg term Terminfo.Cyan "> ")
-        -- TODO disable the colered prompt for now, since it doesn't get along
-        -- with haskeline
+        =<< Haskeline.getInputLine (cyan_bg ++ "入 " ++ plain_bg)
     where
     handle line
         | null (Seq.strip line) = return ()

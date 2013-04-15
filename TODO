@@ -854,7 +854,7 @@ REPL: repl:
   - repl should load the history from save/.../repl, and have a history search
     seq will have to tell the REPL what it loaded, so it needs a fancier
     protocol.
-  - haskeline doesn't get along with the prompt colorization in repl
+  * haskeline doesn't get along with the prompt colorization in repl
     I could get rid of it, but is there a way to get haskeline to understand
     it?
   - add ^P for history search, and display a short menu of the various matches
