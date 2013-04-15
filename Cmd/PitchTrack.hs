@@ -4,12 +4,10 @@
     This module creates the pitches that are later parsed by Derive.Control.
 -}
 module Cmd.PitchTrack (module Cmd.PitchTrack, module Cmd.ControlTrack) where
-import qualified Data.List as List
+import qualified Data.Text as Text
 
 import Util.Control
 import qualified Util.Seq as Seq
-import qualified Util.Then as Then
-
 import qualified Ui.Event as Event
 import qualified Ui.Key as Key
 import qualified Cmd.Cmd as Cmd
@@ -69,7 +67,7 @@ cmd_method_edit msg = Cmd.suppress_history Cmd.MethodEdit
 
 val_edit_at :: (Cmd.M m) => EditUtil.Pos -> Pitch.Note -> m ()
 val_edit_at pos note = modify_event_at pos $ \event ->
-    (Just $ event { event_val = untxt $ Pitch.note_text note }, False)
+    (Just $ event { event_val = Pitch.note_text note }, False)
 
 method_edit_at :: (Cmd.M m) => EditUtil.Pos -> EditUtil.Key -> m ()
 method_edit_at pos key = modify_event_at pos $ \event ->
@@ -100,9 +98,9 @@ modify_event_at pos f = EditUtil.modify_event_at pos True True
 -- | Modify event text.  This is not used within this module but is exported
 -- for others as a more general variant of 'modify_event_at'.
 modify :: (Event -> Event) -> Event.Event -> Event.Event
-modify f event = Event.set_string text event
+modify f event = Event.set_text text event
     where
-    text = process (Event.event_string event)
+    text = process (Event.event_text event)
     process = unparse . f . parse
 
 -- | Like 'ControlTrack.parse', but complicated by the fact that pitch calls
@@ -113,32 +111,33 @@ modify f event = Event.set_string text event
 -- > "x y"      -> Event { method = "", val = "x y", args = "" }
 -- > "x (y)"    -> Event { method = "x", val = "(y)", args = "" }
 -- > "x (y) z"  -> Event { method = "x", val = "(y)", args = "z" }
-parse :: String -> Event
+parse :: Text -> Event
 parse s
-    | null post = Event "" pre ""
+    | Text.null post = Event "" pre ""
     | post == " " = Event pre "" ""
-    | " (" `List.isPrefixOf` post = ControlTrack.split_args pre (drop 1 post)
+    | " (" `Text.isPrefixOf` post =
+        ControlTrack.split_args pre (Text.drop 1 post)
     | otherwise = Event "" s ""
-    where (pre, post) = break (==' ') s
+    where (pre, post) = Text.break (==' ') s
 
 -- | This is a bit more complicated than 'ControlTrack.unparse', since it needs
 -- to add or strip parens.
-unparse :: Event -> String
+unparse :: Event -> Text
 unparse (ControlTrack.Event method val args)
-    | null method && null val = ""
+    | Text.null method && Text.null val = ""
     -- If the method is gone, the note no longer needs its parens.
-    | null method = strip_parens val
-    | otherwise = unwords $
-        method : add_parens val : if null args then [] else [args]
+    | Text.null method = strip_parens val
+    | otherwise = Text.unwords $
+        method : add_parens val : if Text.null args then [] else [args]
     where
-    strip_parens ('(':s) = case reverse s of
-        ')' : rest -> reverse rest
-        _ -> '(' : s -- oops, not matched, put it back on I guess
-    strip_parens s = s
+    strip_parens t
+        | "(" `Text.isPrefixOf` t && ")" `Text.isSuffixOf` t =
+            Text.drop 1 $ Text.take (Text.length t - 1) t
+        | otherwise = t
     -- If there's a method and it doesn't already have parens, it'll need them.
     add_parens val
-        | null val || "(" `List.isPrefixOf` val = val
-        | otherwise = '(' : val ++ ")"
+        | Text.null val || "(" `Text.isPrefixOf` val = val
+        | otherwise = "(" <> val <> ")"
 
 -- | Try to figure out where the pitch call part is in event text and modify
 -- that with the given function.  The function can signal failure by returning
@@ -149,32 +148,35 @@ unparse (ControlTrack.Event method val args)
 -- the text is a call with a val call as its first argument, that's considered
 -- the pitch call.  Otherwise, if the text is just a call, that's the pitch
 -- call.  Otherwise the text is unchanged.
-modify_note :: (Pitch.Note -> Either String Pitch.Note) -> String
-    -> Either String String
-modify_note f = modify_expr $ \note_str -> case note_str of
-    '(' : rest ->
-        let (note, post) = break (`elem` " )") rest
-        in ('(':) . (<>post) . untxt . Pitch.note_text <$>
-            f (Pitch.Note (txt note))
-    _ -> untxt . Pitch.note_text <$> f (Pitch.Note $ txt note_str)
+modify_note :: (Pitch.Note -> Either String Pitch.Note) -> Text
+    -> Either String Text
+modify_note f = modify_expr $ \note_str -> case Text.uncons note_str of
+    Just ('(', rest) ->
+        let (note, post) = Text.break (`elem` " )") rest
+        in Text.cons '(' . (<>post) . Pitch.note_text <$> f (Pitch.Note note)
+    _ -> Pitch.note_text <$> f (Pitch.Note note_str)
 
 -- | Modify the note expression, e.g. in @i (a b c)@ it would be @(a b c)@,
 -- including the parens.
-modify_expr :: (String -> Either String String) -> String
-    -> Either String String
-modify_expr f text = case ParseBs.parse_expr (ParseBs.from_string text) of
+modify_expr :: (Text -> Either String Text) -> Text -> Either String Text
+modify_expr f text = case ParseBs.parse_expr (ParseBs.from_text text) of
     Left _ -> Right text
     Right expr -> case expr of
         TrackLang.Call sym (TrackLang.ValCall _ : _) :| []
             | sym /= TrackLang.c_equal ->
-                let (pre, within) = break (=='(') text
-                    (note, post) = Then.break1 (==')') within
-                in (\n -> pre ++ n ++ post) <$> f note
+                let (pre, within) = Text.break (=='(') text
+                    (note, post) = break1 (==')') within
+                in (\n -> pre <> n <> post) <$> f note
         TrackLang.Call sym _ :| []
             | sym /= TrackLang.c_equal ->
-                let (pre, post) = break (==' ') text
-                in (++post) <$> f pre
+                let (pre, post) = Text.break (==' ') text
+                in (<>post) <$> f pre
         _ -> Right text
+
+    where
+    break1 f t = case Text.findIndex f t of
+        Just i -> Text.splitAt (i+1) t
+        Nothing -> (t, "")
 
 
 -- * edits

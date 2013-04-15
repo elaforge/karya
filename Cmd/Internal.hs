@@ -334,9 +334,9 @@ sync_recent st = do
     Cmd.set_global_status "recent" $
         Seq.join ", " (map show_recent (Seq.sort_on fst recent))
     where
-    show_recent (num, note) = show num ++ ": " ++ case note of
-        Cmd.RecentNote s zero_dur -> s ++ zero zero_dur
-        Cmd.RecentTransform s zero_dur -> s ++ "|" ++ zero zero_dur
+    show_recent (num, note) = show num <> ": " <> case note of
+        Cmd.RecentNote s zero_dur -> untxt $ s <> zero zero_dur
+        Cmd.RecentTransform s zero_dur -> untxt $ s <> "|" <> zero zero_dur
     zero True = " (0 dur)"
     zero False = ""
 

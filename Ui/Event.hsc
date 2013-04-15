@@ -24,10 +24,10 @@
 -}
 module Ui.Event (
     Event, start, duration, style, stack, event_bytestring
-    , Text, from_string
+    , Text, from_string, from_text
     , Stack(..), IndexKey, event, text_event, bs_event
     -- * text
-    , event_string, event_text, set_string, modify_string
+    , event_string, event_text, set_text
     , modify_bytestring
     , intern_event
     -- * start, duration
@@ -82,6 +82,9 @@ type Text = UTF8.ByteString
 from_string :: String -> Text
 from_string = UTF8.fromString
 
+from_text :: Text.Text -> Text
+from_text = Encoding.encodeUtf8
+
 data Stack = Stack {
     -- | The stack is used so the event retains a reference to its generating
     -- event.
@@ -120,7 +123,7 @@ event :: ScoreTime -> ScoreTime -> String -> Event
 event start dur text = bs_event start dur (from_string text)
 
 text_event :: ScoreTime -> ScoreTime -> Text.Text -> Event
-text_event start dur = bs_event start dur . Encoding.encodeUtf8
+text_event start dur = bs_event start dur . from_text
 
 bs_event :: ScoreTime -> ScoreTime -> Text -> Event
 bs_event start dur text = Event
@@ -139,13 +142,8 @@ event_string = UTF8.toString . event_bytestring
 event_text :: Event -> Text.Text
 event_text = Encoding.decodeUtf8 . event_bytestring
 
-set_string :: String -> Event -> Event
-set_string s event = modified $ event { event_bytestring = from_string s }
-
-modify_string :: (String -> String) -> Event -> Event
-modify_string f event =
-    modified $ event { event_bytestring = modify (event_bytestring event) }
-    where modify = UTF8.fromString . f . UTF8.toString
+set_text :: Text.Text -> Event -> Event
+set_text s event = modified $ event { event_bytestring = from_text s }
 
 modify_bytestring :: (Text -> Text) -> Event -> Event
 modify_bytestring f event =

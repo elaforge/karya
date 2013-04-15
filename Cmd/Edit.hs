@@ -4,10 +4,10 @@
 -}
 module Cmd.Edit where
 import qualified Data.List as List
+import qualified Data.Text as Text
 
 import Util.Control
 import qualified Util.Seq as Seq
-
 import qualified Ui.Event as Event
 import qualified Ui.Events as Events
 import qualified Ui.Ruler as Ruler
@@ -458,10 +458,11 @@ insert_recent (Cmd.RecentTransform recent zero_dur) = do
     where
     -- "a |" -> "x |"
     -- "a" -> "x | a"
-    replace event
-        | '|' `elem` event = recent ++ " " ++ dropWhile (/='|') event
+    replace text
+        | "|" `Text.isInfixOf` text =
+            recent <> " " <> Text.dropWhile (/='|') text
         | otherwise =
-            recent ++ " |" ++ (if null event then "" else " " ++ event)
+            recent <> " |" <> (if Text.null text then "" else " " <> text)
 
 -- | Try to record the current event in the LIFO recent note queue, as
 -- documented in 'Cmd.state_recent_notes'.
@@ -479,13 +480,13 @@ record_recent_note = do
 
 recent_note :: Event.Event -> Maybe Cmd.RecentNote
 recent_note event
-    | null post = let note = Seq.strip pre
-        in if null note then Nothing else Just $ Cmd.RecentNote note zero_dur
-    | otherwise = let trans = Seq.strip pre
-        in if null trans then Nothing
-            else Just (Cmd.RecentTransform trans zero_dur)
+    | Text.null post =
+        if Text.null pre then Nothing else Just $ Cmd.RecentNote pre zero_dur
+    | otherwise = if Text.null pre then Nothing
+        else Just $ Cmd.RecentTransform pre zero_dur
     where
-    (pre, post) = break (=='|') (Seq.strip (Event.event_string event))
+    (pre, post) = (Text.strip *** Text.strip) $ Text.break (=='|')
+        (Event.event_text event)
     zero_dur = Event.duration event == 0
 
 record_recent :: Cmd.RecentNote -> [(Int, Cmd.RecentNote)]
@@ -499,5 +500,5 @@ record_recent note recent0 = (key, note) : recent
         Seq.head (filter (`notElem` map fst recent) [1..max_recent])
     max_recent = 4
     match (Cmd.RecentNote n1 _) (Cmd.RecentNote n2 _) =
-        Seq.head (words n1) == Seq.head (words n2)
+        Seq.head (Text.words n1) == Seq.head (Text.words n2)
     match n1 n2 = n1 == n2

@@ -1,6 +1,6 @@
 {-# LANGUAGE ViewPatterns #-}
 module Cmd.ControlTrack where
-import qualified Data.ByteString.Char8 as ByteString.Char8
+import qualified Data.Text as Text
 
 import Util.Control
 import qualified Ui.Key as Key
@@ -58,7 +58,7 @@ cmd_tempo_val_edit msg = suppress "tempo track val edit" $ do
 modify_num :: EditUtil.Key -> Modify
 modify_num key event =
     case EditUtil.modify_text_key [] key (event_val event) of
-        Nothing -> (Nothing, null (event_val event))
+        Nothing -> (Nothing, Text.null $ event_val event)
         Just new_val -> (Just $ event { event_val = new_val }, False)
 
 -- | This is tricky because the editing mode is different depending on whether
@@ -84,25 +84,25 @@ modify_hex key event
 
 -- | Nothing if the val is not a hex number, Just Nothing if it was but the key
 -- was Backspace, and Just Just if it should get a new value.
-update_hex :: String -> EditUtil.Key -> Maybe (Maybe String)
+update_hex :: Text -> EditUtil.Key -> Maybe (Maybe Text)
 update_hex val key
-    | null val = case key of
+    | Text.null val = case key of
         EditUtil.Backspace -> Just Nothing
         EditUtil.Key c
-            | higit c -> Just $ Just $ untxt ShowVal.hex_prefix <> ['0', c]
+            | higit c -> Just $ Just $ ShowVal.hex_prefix <> Text.pack ['0', c]
             | otherwise -> Nothing
     | Just c2 <- parse_val val = case key of
         EditUtil.Backspace -> Just Nothing
         EditUtil.Key c
-            | higit c -> Just $ Just $ untxt ShowVal.hex_prefix <> [c2, c]
+            | higit c -> Just $ Just $ ShowVal.hex_prefix <> Text.pack [c2, c]
             -- The field is hex, but this wasn't a higit, so ignore it.
             | otherwise -> Just (Just val)
     | otherwise = Nothing -- not hex at all
     where
     higit c = '0' <= c && c <= '9' || 'a' <= c && c <= 'f'
-    parse_val ['`', '0', 'x', '`', c1, c2]
-        | higit c1 && higit c2 = Just c2
-    parse_val _ = Nothing
+    parse_val t = case Text.unpack <$> Text.stripPrefix "`0x`" t of
+        Just [c1, c2] | higit c1 && higit c2 -> Just c2
+        _ -> Nothing
 
 cmd_method_edit :: Cmd.Cmd
 cmd_method_edit msg =
@@ -121,7 +121,7 @@ cmd_method_edit msg =
 
 val_edit_at :: (Cmd.M m) => EditUtil.Pos -> Signal.Y -> m ()
 val_edit_at pos val = modify_event_at pos $ \event ->
-    (Just $ event { event_val = untxt $ ShowVal.show_hex_val val }, False)
+    (Just $ event { event_val = ShowVal.show_hex_val val }, False)
 
 -- | Semi-parse event text into method, val, and args.  Method is actually the
 -- call, val is the first argument to the calll, and args are the remaining
@@ -132,9 +132,9 @@ val_edit_at pos val = modify_event_at pos $ \event ->
 -- Or @e (4c) 3@ in the case of pitches.  If I press a MIDI key I want to
 -- replace just the @4c@.
 data Event = Event {
-    event_method :: String
-    , event_val :: String
-    , event_args :: String
+    event_method :: !Text
+    , event_val :: !Text
+    , event_args :: !Text
     } deriving (Eq, Show)
 
 -- | old_event -> (new_event, advance?)
@@ -166,35 +166,33 @@ modify_event_at pos f = EditUtil.modify_event_at pos True True
 --
 -- TODO The event is already bytestring, why don't I just directly give it to
 -- lex1?
-parse :: String -> Event
+parse :: Text -> Event
 parse s
-    | null post = Event "" pre ""
+    | Text.null post = Event "" pre ""
     | post == " " = Event pre "" ""
-    | otherwise = split_args pre (drop 1 post)
-    where (pre, post) = break (==' ') s
+    | otherwise = split_args pre (Text.drop 1 post)
+    where (pre, post) = Text.break (==' ') s
 
-split_args :: String -> String -> Event
-split_args method rest =
-    Event method (ParseBs.to_string (rstrip w))
-        (ParseBs.to_string ws)
+split_args :: Text -> Text -> Event
+split_args method rest = Event method (Text.stripEnd w) ws
     where
-    (w, ws) = ParseBs.lex1 (ParseBs.from_string rest)
-    rstrip = fst . ByteString.Char8.spanEnd (==' ')
+    (w, ws) = (ParseBs.to_text *** ParseBs.to_text) $ ParseBs.lex1 $
+        ParseBs.from_text rest
 
-unparse :: Event -> String
+unparse :: Event -> Text
 unparse (Event method val args)
-    | null method && null val = ""
-    | null method = val -- No method means no args, see comment on 'parse'.
-    | otherwise = unwords $ method : val : if null args then [] else [args]
+    | Text.null method && Text.null val = ""
+    | Text.null method = val -- No method means no args, see comment on 'parse'.
+    | otherwise = Text.unwords $
+        method : val : if Text.null args then [] else [args]
 
 -- | Try to figure out where the note part is in event text and modify that
 -- with the given function.
-modify_val :: (Signal.Y -> Signal.Y) -> String -> Maybe String
+modify_val :: (Signal.Y -> Signal.Y) -> Text -> Maybe Text
     -- ^ Nothing if I couldn't parse out a VNum.
-modify_val f text = case ParseBs.parse_val (txt (event_val event)) of
+modify_val f text = case ParseBs.parse_val (event_val event) of
         Right (TrackLang.VNum n) -> Just $ unparse $ event
-            { event_val = untxt $
-                TrackLang.show_val $ TrackLang.VNum (f <$> n)
+            { event_val = TrackLang.show_val $ TrackLang.VNum (f <$> n)
             }
         _ -> Nothing
     where event = parse text

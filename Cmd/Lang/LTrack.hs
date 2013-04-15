@@ -122,12 +122,12 @@ block_to_hex block_id = ModifyEvents.block block_id $
     ModifyEvents.tracks_named TrackInfo.is_signal_track $
         ModifyEvents.text to_hex
 
-to_hex :: String -> String
+to_hex :: Text -> Text
 to_hex text =
-    case Derive.ParseBs.parse_val (txt (ControlTrack.event_val event)) of
+    case Derive.ParseBs.parse_val (ControlTrack.event_val event) of
         Right (TrackLang.VNum (Score.Typed Score.Untyped n))
             | 0 <= n && n <= 1 -> ControlTrack.unparse $
-                event { ControlTrack.event_val = untxt $ ShowVal.show_hex_val n }
+                event { ControlTrack.event_val = ShowVal.show_hex_val n }
         _ -> text
     where event = ControlTrack.parse text
 

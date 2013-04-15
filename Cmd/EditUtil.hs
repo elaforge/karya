@@ -3,9 +3,9 @@
 module Cmd.EditUtil where
 import qualified Data.Char as Char
 import qualified Data.Map as Map
+import qualified Data.Text as Text
 
 import Util.Control
-import qualified Util.Seq as Seq
 import qualified Ui.Event as Event
 import qualified Ui.Events as Events
 import qualified Ui.Key as Key
@@ -68,9 +68,9 @@ get_event modify_dur track_id pos dur = do
         (Events.at pos (Track.track_events track))
 
 -- | Modify event text.
-type Modify = Maybe String
+type Modify = Maybe Text
     -- ^ Existing text, Nothing if the event will be created.
-    -> (Maybe String, Bool)
+    -> (Maybe Text, Bool)
     -- ^ Nothing deletes the event, True to advance cursor
 
 modify_event :: (Cmd.M m) => Bool -> Bool -> Modify -> m ()
@@ -96,11 +96,11 @@ modify_event_at (Pos block_id tracknum start dur) zero_dur modify_dur f = do
     (event, created) <- get_event modify_dur track_id start dur
     -- TODO I could have the modifier take Text, if it were worth it.
     let (val, advance) = f $
-            if created then Nothing else Just (Event.event_string event)
+            if created then Nothing else Just (Event.event_text event)
     case val of
         Nothing -> State.remove_event track_id start
         Just new_text -> State.insert_event track_id
-            (Event.set_string new_text event)
+            (Event.set_text new_text event)
     when advance Selection.advance
 
 remove_event :: (Cmd.M m) => Bool -> m ()
@@ -114,9 +114,9 @@ remove_event_at pos advance =
     modify_event_at pos False False (const (Nothing, advance))
 
 -- | Insert an event, but only if there isn't already a non-empty one there.
-soft_insert :: (Cmd.M m) => String -> m ()
+soft_insert :: (Cmd.M m) => Text -> m ()
 soft_insert text = modify_event True True $ \old_text ->
-    if null (fromMaybe "" old_text) then (Just text, True)
+    if Text.null (fromMaybe "" old_text) then (Just text, True)
         else (old_text, False)
 
 lookup_instrument :: (Cmd.M m) => m (Maybe Score.Instrument)
@@ -212,33 +212,33 @@ parse_key input = do
 -- | Since there's no use for leading spaces, just a space makes an empty
 -- event.  Backspacing an empty event returns Nothing, which should delete the
 -- event itself.
-modify_text_key :: [Key.Modifier] -> Key -> String -> Maybe String
+modify_text_key :: [Key.Modifier] -> Key -> Text -> Maybe Text
 modify_text_key mods key s = case key of
     Backspace
         | Key.Shift `elem` mods -> backspace_expr s
         | otherwise -> backspace s
-    Key ' ' | null s -> Just ""
+    Key ' ' | Text.null s -> Just ""
     Key c
         -- It really shouldn't be non-printable, but check just in case.
-        | Char.isPrint c -> Just (s ++ [c])
+        | Char.isPrint c -> Just (Text.snoc s c)
         | otherwise -> Just s
 
-backspace :: String -> Maybe String
+backspace :: Text -> Maybe Text
 backspace s
-    | null s = Nothing
-    | otherwise = Just (Seq.rdrop 1 s)
+    | Text.null s = Nothing
+    | otherwise = Just $ Text.take (Text.length s - 1) s
 
-backspace_expr :: String -> Maybe String
+backspace_expr :: Text -> Maybe Text
 backspace_expr s
-    | null s = Nothing
+    | Text.null s = Nothing
     | otherwise = Just $ drop_expr s
 
 -- | Drop a parenthesized expression, or a `symbol` up to its matching
 -- backtick.
-drop_expr :: String -> String
-drop_expr expr = reverse rev
+drop_expr :: Text -> Text
+drop_expr expr = Text.reverse $ txt rev
     where
-    rev = case dropWhile (==' ') (reverse expr) of
+    rev = case untxt $ Text.reverse $ Text.dropWhileEnd (==' ') expr of
         ')' : s -> dropWhile (==' ') (go 1 s)
         '`' : s -> case dropWhile (/='`') s of
             '`' : rest -> rest
@@ -247,13 +247,13 @@ drop_expr expr = reverse rev
         s -> drop 1 s
     go 0 s = s
     go nest s = case s of
-        "" -> drop 1 expr -- No balanced paren, just drop 1.
+        "" -> untxt $ Text.drop 1 expr -- No balanced paren, just drop 1.
         -- These are backwards because the string is reversed.
         ')' : s -> go (nest+1) s
         '(' : s -> go (nest-1) s
         _ : s -> go nest s
 
-modify_text_note :: Pitch.Note -> String -> Maybe String
-modify_text_note note s = Just $ untxt $
-    txt s <> leading <> "(" <> Pitch.note_text note <> ")"
-    where leading = if null s then "" else " "
+modify_text_note :: Pitch.Note -> Text -> Maybe Text
+modify_text_note note s =
+    Just $ s <> leading <> "(" <> Pitch.note_text note <> ")"
+    where leading = if Text.null s then "" else " "

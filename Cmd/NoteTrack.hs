@@ -306,7 +306,7 @@ ensure_note_event :: (Cmd.M m) => EditUtil.Pos -> m ()
 ensure_note_event pos = do
     text <- Cmd.gets (Cmd.state_note_text . Cmd.state_edit)
     modify_event_at pos False False $
-        maybe (Just $ untxt text, False) (\old -> (Just old, False))
+        maybe (Just text, False) (\old -> (Just old, False))
 
 -- | Instruments with the triggered flag set don't pay attention to note off,
 -- so I can make the duration 0.

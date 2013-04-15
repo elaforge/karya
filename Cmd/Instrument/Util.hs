@@ -71,8 +71,7 @@ keymap_down :: (Cmd.M m) => Maybe Score.Instrument -> Note -> Midi.Key -> m ()
 keymap_down maybe_inst note key = do
     whenM Cmd.is_val_edit $ suppressed $ do
         pos <- EditUtil.get_pos
-        NoteTrack.modify_event_at pos False True $
-            const (Just $ untxt note, True)
+        NoteTrack.modify_event_at pos False True $ const (Just note, True)
     MidiThru.channel_messages maybe_inst True [Midi.NoteOn key 64]
     where
     suppressed = Cmd.suppress_history Cmd.ValEdit (untxt $ "keymap: " <> note)

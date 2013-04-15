@@ -30,13 +30,13 @@ events f _ _ = liftM Just . f
 event :: (Monad m) => Event -> Track m
 event f = events (return . map f)
 
-text :: (Monad m) => (String -> String) -> Track m
-text = event . Event.modify_string
+text :: (Monad m) => (Text -> Text) -> Track m
+text = event . (\f event -> Event.set_text (f (Event.event_text event)) event)
 
 -- | Take a text transformation that can fail to a Track transformation that
 -- transforms all the events and throws if any of the text transformations
 -- failed.
-failable_texts :: (Cmd.M m) => (String -> Either String String) -> Track m
+failable_texts :: (Cmd.M m) => (Text -> Either String Text) -> Track m
 failable_texts f block_id track_id events = do
     let (failed, ok) = Seq.partition_either $ map (failing_text f) events
         errs = [err ++ ": " ++ Cmd.log_event block_id track_id evt
@@ -45,9 +45,9 @@ failable_texts f block_id track_id events = do
         "transformation failed: " ++ Seq.join ", " errs
     return $ Just ok
     where
-    failing_text f event = case f (Event.event_string event) of
+    failing_text f event = case f (Event.event_text event) of
         Left err -> Left (err, event)
-        Right text -> Right $ Event.set_string text event
+        Right text -> Right $ Event.set_text text event
 
 
 -- * modify selections

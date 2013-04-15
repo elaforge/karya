@@ -114,12 +114,12 @@ replace from to = do
         ModifyEvents.tracks_named TrackInfo.is_note_track $
         ModifyEvents.text $ replace_block_call from to
 
-map_symbol :: (TrackLang.Symbol -> TrackLang.Symbol) -> String -> String
+map_symbol :: (TrackLang.Symbol -> TrackLang.Symbol) -> Text -> Text
 map_symbol f text =
-    either (const text) (untxt . ShowVal.show_val . TrackLang.map_symbol f)
-        (ParseBs.parse_expr (ParseBs.from_string text))
+    either (const text) (ShowVal.show_val . TrackLang.map_symbol f)
+        (ParseBs.parse_expr $ ParseBs.from_text text)
 
-replace_block_call :: BlockId -> BlockId -> String -> String
+replace_block_call :: BlockId -> BlockId -> Text -> Text
 replace_block_call from to =
     map_symbol $ \(TrackLang.Symbol sym) -> TrackLang.Symbol (f sym)
     where
