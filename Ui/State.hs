@@ -121,7 +121,6 @@ module Ui.State (
     , read_id, try_read_id, make_namespace, Id
 ) where
 import qualified Control.Applicative as Applicative
-import Control.Arrow ((***))
 import qualified Control.DeepSeq as DeepSeq
 import qualified Control.Monad.Error as Error
 import qualified Control.Monad.Identity as Identity

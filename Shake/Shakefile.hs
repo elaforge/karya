@@ -612,7 +612,7 @@ hlint config = do
 
 hlintIgnore :: [String]
 hlintIgnore =
-    [ "Use camelCase", "Use &&&", "Use ***", "Use uncurry", "Use section"
+    [ "Use camelCase", "Use &&&", "Use uncurry", "Use section"
     , "Use infix", "Use maybeToList", "Use join", "Use String"
     , "Redundant lambda", "Avoid lambda" -- I do it on purpose for clarity.
     , "Use import/export shortcut" -- Weird, don't like it.

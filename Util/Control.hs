@@ -2,7 +2,7 @@
 -}
 module Util.Control (
     (<$>), (<*>), (<*), (*>), (<|>)
-    , first, second
+    , first, second, (***)
     , (<>), mempty, mconcat
     , while, while_
     , whenM, unlessM, when_just, if_just, ifM, andM, orM, findM
@@ -49,6 +49,9 @@ first f (a, c) = (f a, c)
 
 second :: (a -> b) -> (c, a) -> (c, b)
 second f (c, a) = (c, f a)
+
+(***) :: (a -> c) -> (b -> d) -> (a, b) -> (c, d)
+f *** g = \(x, y) -> (f x, g y)
 
 (<>) :: (Monoid.Monoid a) => a -> a -> a
 (<>) = Monoid.mappend
