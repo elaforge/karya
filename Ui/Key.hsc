@@ -94,7 +94,7 @@ unshift = case System.Info.os of
 -- key text, rather than the keycap.
 unshifted_osx_usa :: Map.Map Char.Char Char.Char
 unshifted_osx_usa = Map.fromList
-    [ ('_', '-'), ('+', '=')
+    [ ('~', '`'), ('_', '-'), ('+', '=')
     , ('{', '['), ('}', ']'), ('|', '\\')
     , (':', ';'), ('"', '\'')
     , ('<', ','), ('>', '.'), ('?', '/')

@@ -3,6 +3,8 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
+  - rename *_lang stuff in Config to repl
+  - Cmd.Lang* should go too
   * move meters to Cmd.Meters and don't hardcode measures/section
   * Tags.internal should be for really internal things, add Tags.builtin for
     basic ones.
@@ -13,6 +15,8 @@ UNSORTED
     * Lilypond.to_lily
     - Pretty.pretty
     - Derive.throw
+    - track titles
+    - turn txt (show ...) into showt
     * Cmd.ControlTrack.Event
     * instance Typecheck Text instead of String
       It means e.g. TimeStep.parse_time_step should take Text, which means
