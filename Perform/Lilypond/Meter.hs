@@ -40,7 +40,7 @@ find_rank start rank = fmap ((+ (start + 1)) . Time)
 instance Pretty.Pretty Meter where pretty = untxt . Types.to_lily
 instance Types.ToLily Meter where
     to_lily (Meter nums denom _) =
-        txt (show (sum nums)) <> "/" <> Types.to_lily denom
+        showt (sum nums) <> "/" <> Types.to_lily denom
 
 is_duple :: Meter -> Bool
 is_duple meter = case meter_nums meter of
@@ -53,9 +53,8 @@ measure_time meter =
     Time (time_num meter) * Types.dur_to_time (meter_denom meter)
 
 unparse_meter :: Meter -> Text
-unparse_meter meter = Text.intercalate "+"
-    (map (txt . show) (meter_nums meter))
-        <> "/" <> Types.to_lily (meter_denom meter)
+unparse_meter meter = Text.intercalate "+" (map showt (meter_nums meter))
+    <> "/" <> Types.to_lily (meter_denom meter)
 
 parse_meter :: Text -> Either String Meter
 parse_meter s = case Map.lookup s meter_map of

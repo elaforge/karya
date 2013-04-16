@@ -186,7 +186,7 @@ instance Read Pitch where
     readPrec = mk <$> Read.readPrec
         where
         mk nn = Pitch (const (Right nn)) $
-            const $ Right $ Pitch.Note $ txt $ show nn
+            const $ Right $ Pitch.Note $ showt nn
 
 instance Pretty.Pretty Pitch where
     pretty (Pitch p n) = either show Pretty.pretty (p Map.empty)

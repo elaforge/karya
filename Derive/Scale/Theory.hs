@@ -281,7 +281,7 @@ note_in_layout layout note =
 -- 'p_pitch'.
 show_pitch :: Text -> Text -> Text -> Text -> Pitch -> Text
 show_pitch sharp sharp2 flat flat2 pitch =
-    txt (show (oct - 2)) <> show_note sharp sharp2 flat flat2 note
+    showt (oct - 2) <> show_note sharp sharp2 flat flat2 note
     where (oct, note) = pitch_c_octave pitch
 
 -- | Extract the octave from the Note, wrapping it at C.

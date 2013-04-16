@@ -20,7 +20,7 @@ dotted_number num oct
     | oct == 0 = Pitch.Note nums
     | oct < 0 = Pitch.Note $ "`" <> nums <> Text.replicate (abs oct) "." <> "`"
     | otherwise = Pitch.Note $ "`" <> nums <> Text.replicate oct "^" <> "`"
-    where nums = txt $ show num
+    where nums = showt num
 
 dot :: Symbol.Glyph
 dot = Symbol.glyph "•" -- unicode \x2022

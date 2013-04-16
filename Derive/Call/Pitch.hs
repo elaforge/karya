@@ -60,7 +60,7 @@ scale_degree pitch_nn pitch_note = Derive.val_call
 pitch_expr :: Pitch.Note -> Double -> Text
 pitch_expr (Pitch.Note note) frac
     | frac == 0 = note
-    | otherwise = note <> " " <> txt (show (floor (frac * 100)))
+    | otherwise = note <> " " <> showt (floor (frac * 100))
 
 
 -- * pitch

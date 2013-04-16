@@ -59,7 +59,7 @@ show_matrix (name, _, attrs) =
     format = Text.unlines . Seq.format_columns 1
         -- . (header:) . map (map ShowVal.show_val)
         . zipWith (:) col_header . (header:) . map (map ShowVal.show_val)
-    header = take 12 $ map (txt . show) [1..]
+    header = take 12 $ map showt [1..]
     col_header = take 13 $ map Text.singleton "-abcdefghijkl"
     strip = strip_attrs . map (`Score.attrs_diff` variants)
     variants = VslInst.updown <> VslInst.crescdim <> VslInst.highlow

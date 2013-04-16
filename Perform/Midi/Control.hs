@@ -120,7 +120,7 @@ c_pressure = Control "pressure"
 -- low level cc## names work uniformly.
 -- TODO an array would be a little faster
 cc_map :: [(Midi.Control, Text)]
-cc_map = [(n, "cc" <> txt (show n)) | n <- [0..127]] ++
+cc_map = [(n, "cc" <> showt n) | n <- [0..127]] ++
     [ (1, "mod")
     , (2, "breath")
     , (4, "foot")

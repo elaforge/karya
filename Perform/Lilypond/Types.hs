@@ -23,7 +23,7 @@ class ToLily a where
 instance ToLily Text where
     -- Lilypond's string literal is undocumented, but from lily/lexer.ll it
     -- looks haskell-like enough.  It'll probably choke on non-ascii.
-    to_lily = txt . show
+    to_lily = showt
 
 -- | Configure how the lilypond score is generated.
 data Config = Config {

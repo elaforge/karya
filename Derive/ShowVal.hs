@@ -32,7 +32,7 @@ doc_val a = "`" <> show_val a <> "`"
 -- Derive.TrackLang, which needs them.
 
 instance ShowVal Int where
-    show_val = txt . show
+    show_val = showt
 
 instance ShowVal Double where
     show_val = txt . Pretty.show_float 3

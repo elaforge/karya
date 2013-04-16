@@ -162,7 +162,7 @@ no_args = Applicative.pure ()
 required :: forall a. (TrackLang.Typecheck a) => Text -> Text -> Parser a
 required name doc = parser arg_doc $ \state -> case get_val state name of
     Nothing -> Left $ Derive.ArgError $
-        "expected another argument at: " <> txt (show name)
+        "expected another argument at: " <> showt name
     Just (state, val) -> case TrackLang.from_val val of
         Just a -> Right (state, a)
         Nothing -> Left $ Derive.TypeError (state_argnum state) name expected

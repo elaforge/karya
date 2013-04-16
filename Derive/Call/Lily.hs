@@ -377,7 +377,7 @@ c_8va = code0_call "ottava" "Emit lilypond ottava mark."
     \oct -> return (Prefix, ottava oct)
     where
     ottava :: Int -> Ly
-    ottava n = "\\ottava #" <> txt (show n)
+    ottava n = "\\ottava #" <> showt n
 
 c_xstaff :: Derive.NoteCall
 c_xstaff = code0_call "xstaff"

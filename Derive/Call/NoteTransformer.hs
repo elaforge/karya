@@ -98,8 +98,8 @@ emit_lily_tuplet args not_lily = Lily.when_lilypond_config lily not_lily
 tuplet_code :: Lilypond.Duration -> Lilypond.Duration -> Int -> [Lily.Note]
     -> Lily.Ly
 tuplet_code tuplet_dur note_dur note_count notes =
-    "\\times " <> txt (show (d tuplet_dur `div` d note_dur)) <> "/"
-        <> txt (show note_count) <> " { " <> Text.unwords notes <> " }"
+    "\\times " <> showt (d tuplet_dur `div` d note_dur) <> "/"
+        <> showt note_count <> " { " <> Text.unwords notes <> " }"
     where d = toInteger . Lilypond.dur_to_time
 
 -- * arpeggio

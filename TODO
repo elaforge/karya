@@ -16,7 +16,7 @@ UNSORTED
     - Pretty.pretty
     - Derive.throw
     - track titles
-    - turn txt (show ...) into showt
+    * turn txt (show ...) into showt
     * Cmd.ControlTrack.Event
     * instance Typecheck Text instead of String
       It means e.g. TimeStep.parse_time_step should take Text, which means
@@ -326,8 +326,8 @@ incremental save / git:
     But then how do I start the saving?  I would need a special value to say
     it should start saving.  Binding to ^S is logical, but then the first
     save doesn't add a tag.  Unless the first save always tags.
-    - Initially save_checkpoints is false, so no checkpointing
-    - cmd_save makes it true, then Undo does a checkpoint
+    . Initially save_checkpoints is false, so no checkpointing
+    . cmd_save makes it true, then Undo does a checkpoint
       But it has to notice the false -> true transition, otherwise it will
       consider the cmd not worth saving.  So hist_save_checkpoints is just
       True for the cmd that turns it on, and goes off after that.
