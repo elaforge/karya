@@ -221,7 +221,7 @@ key_to_pitch (Midi.Key key) =
 -- dependency.
 cc_to_control :: Midi.Control -> Score.Control
 cc_to_control cc =
-    fromMaybe (Score.Control ("cc" ++ show cc)) (Map.lookup cc cc_control)
+    fromMaybe (Score.Control ("cc" <> showt cc)) (Map.lookup cc cc_control)
     where
     cc_control =
         Map.fromList [(cc, Score.Control c) | (cc, c) <- Control.cc_map]

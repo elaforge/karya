@@ -139,7 +139,7 @@ pb_to_input (low, high) pb key =
     offset = if pb < 0 then -pb * fromIntegral low else pb * fromIntegral high
 
 cc_to_control :: Midi.Control -> Score.Control
-cc_to_control cc = fromMaybe (Score.Control ("cc" ++ show cc))
+cc_to_control cc = fromMaybe (Score.Control ("cc" <> showt cc))
     (Map.lookup cc cc_control)
 
 control_to_cc :: Score.Control -> Maybe Midi.Control

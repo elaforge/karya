@@ -8,6 +8,7 @@ import qualified Data.Either as Either
 import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
+import qualified Data.Text as Text
 import Data.Word (Word8)
 
 import qualified System.FilePath as FilePath
@@ -201,7 +202,7 @@ checksum bytes = (2^7 - val) .&. 0x7f
 
 -- | Each voice has two elements, each with their own PbRange, name, and
 -- controls.
-type ElementInfo = (Control.PbRange, String, [(Midi.Control, [String])])
+type ElementInfo = (Control.PbRange, String, [(Midi.Control, [Text])])
 
 record_to_patch :: Sysex.RMap -> Either String Instrument.Patch
 record_to_patch rmap = do
@@ -251,15 +252,16 @@ extract_element n rmap = do
     name <- get ["name"]
     return ((pb_up, pb_down), name, process_controls controls)
     where
-    get :: (Sysex.RecordVal a) => [String] -> Either String a
-    get k = Sysex.get_rmap (Seq.join "." (["element", show n] ++ k)) rmap
+    get :: (Sysex.RecordVal a) => [Text] -> Either String a
+    get k = Sysex.get_rmap
+        (untxt (Text.intercalate "." (["element", showt n] ++ k))) rmap
     -- The vl1 mostly uses the midi control list, except sticks some
     -- internal ones in there.  TODO 120 is aftertouch.
     valid_control cc = cc>0 && (cc<11 || cc>15) && cc<120
-    clean = map (\c -> if c == ' ' then '-' else c)
+    clean = Text.map $ \c -> if c == ' ' then '-' else c
 
-    process_controls :: [(String, Midi.Control, [Word8])]
-        -> [(Midi.Control, [String])]
+    process_controls :: [(Text, Midi.Control, [Word8])]
+        -> [(Midi.Control, [Text])]
     process_controls controls =
         [(cc, map snd grp) | (cc, grp) <- Seq.keyed_group_on fst by_cc]
         where
@@ -276,7 +278,7 @@ extract_element n rmap = do
 -- I ignore controls below a certain depth anyway.
 --
 -- Paired with the byte offset in the @element parameters@ sysex section.
-vl1_control_map :: [(String, Bool)]
+vl1_control_map :: [(Text, Bool)]
 vl1_control_map =
     [ ("embouchure", True)
     , ("pressure", False)

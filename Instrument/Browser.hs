@@ -153,7 +153,7 @@ show_keyswitches (Instrument.KeyswitchMap keyswitches) = unlines
 
 show_control_map :: Control.ControlMap -> String
 show_control_map cmap =
-    Seq.join ", " [cont ++ " (" ++ show num ++ ")"
+    Seq.join ", " [untxt cont ++ " (" ++ show num ++ ")"
         | (Control.Control cont, num) <- Map.assocs cmap]
 
 show_cmds :: [Cmd.Cmd] -> String

@@ -43,7 +43,7 @@ data Softsynth = Softsynth {
     name :: Instrument.SynthName
     , synth_doc :: String
     , pb_range :: Control.PbRange
-    , controls :: [(Midi.Control, String)]
+    , controls :: [(Midi.Control, Text)]
     -- | Add explicit non-wildcard patches.
     , extra_patches :: [Patch]
     -- | Configure the wildcard patch.
@@ -58,7 +58,7 @@ type Patch = (Instrument.Patch, Code)
 -- patch, which can be modified if necessary by a passed in function.  In case
 -- some patches are special, you can also pass named patches in to be merged.
 softsynth :: Instrument.SynthName -> String -> Control.PbRange
-    -> [(Midi.Control, String)] -> Softsynth
+    -> [(Midi.Control, Text)] -> Softsynth
 softsynth name doc pb_range controls =
     Softsynth name doc pb_range controls [] id empty_code
 
@@ -129,7 +129,7 @@ default_scale = environ TrackLang.v_scale
 
 -- | Make a patch, with a few parameters that tend to be unique per patch.
 patch :: Control.PbRange -> Instrument.InstrumentName
-    -> [(Midi.Control, String)] -> Instrument.Patch
+    -> [(Midi.Control, Text)] -> Instrument.Patch
 patch pb_range name controls =
     Instrument.patch (Instrument.instrument name controls pb_range)
 

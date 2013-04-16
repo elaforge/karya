@@ -264,15 +264,15 @@ many1 name doc = parser arg_doc $ \state ->
 
 -- | The argument's value is taken from the given signal, with the given
 -- default.  If the value isn't given, the default is Untyped.
-control :: String -> Signal.Y -> TrackLang.ValControl
+control :: Text -> Signal.Y -> TrackLang.ValControl
 control name deflt = typed_control name deflt Score.Untyped
 
 -- | Like 'control', but the default can have a type.
-typed_control :: String -> Signal.Y -> Score.Type -> TrackLang.ValControl
+typed_control :: Text -> Signal.Y -> Score.Type -> TrackLang.ValControl
 typed_control name deflt typ =
     TrackLang.DefaultedControl (Score.Control name) (Score.Typed typ deflt)
 
-required_control :: String -> TrackLang.ValControl
+required_control :: Text -> TrackLang.ValControl
 required_control name = TrackLang.LiteralControl (Score.Control name)
 
 -- ** util

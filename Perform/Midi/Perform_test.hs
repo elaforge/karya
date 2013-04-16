@@ -682,7 +682,7 @@ mkevent (inst, pitch, start, dur, controls) =
 
 -- | Similar to mkevent, but allow a pitch curve.
 mkpevent :: (RealTime, RealTime, [(Signal.X, Signal.Y)],
-        [(String, [(Signal.X, Signal.Y)])])
+        [(Text, [(Signal.X, Signal.Y)])])
     -> Perform.Event
 mkpevent (start, dur, psig, conts) =
     Perform.Event inst1 start dur (mkcontrols conts) (Signal.signal psig)
@@ -697,7 +697,7 @@ mkevents = map mkevent
 set_inst :: Instrument.Instrument -> Perform.Event -> Perform.Event
 set_inst inst event = event { Perform.event_instrument = inst }
 
-mkcontrols :: [(String, [(Signal.X, Signal.Y)])] -> Perform.ControlMap
+mkcontrols :: [(Text, [(Signal.X, Signal.Y)])] -> Perform.ControlMap
 mkcontrols csigs = Map.fromList
     [(Control.Control c, Signal.signal sig) | (c, sig) <- csigs]
 

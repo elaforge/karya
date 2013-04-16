@@ -143,7 +143,7 @@ instance Pretty.Pretty Instrument where
 
 -- | Initialize with values I think just about every instrument will want to
 -- set.  The rest can be initialized with set_* functions.
-instrument :: InstrumentName -> [(Midi.Control, String)] -> Control.PbRange
+instrument :: InstrumentName -> [(Midi.Control, Text)] -> Control.PbRange
     -> Instrument
 instrument name cmap pb_range = Instrument
     { inst_name = name
@@ -431,7 +431,7 @@ data Synth = Synth {
     , synth_control_map :: Control.ControlMap
     } deriving (Eq, Show)
 
-synth :: SynthName -> String -> [(Midi.Control, String)] -> Synth
+synth :: SynthName -> String -> [(Midi.Control, Text)] -> Synth
 synth name doc = Synth name doc . Control.control_map
 
 -- | Synths default to writing to a device with their name.  You'll have to
@@ -467,7 +467,7 @@ add_tag tag = tags %= (tag:)
 -- | Constructor for a softsynth with a single wildcard patch.  Used by
 -- 'Instrument.MidiDb.softsynth'.
 make_softsynth :: SynthName -> String -> Control.PbRange
-    -> [(Midi.Control, String)] -> (Synth, Patch)
+    -> [(Midi.Control, Text)] -> (Synth, Patch)
 make_softsynth name doc pb_range controls = (synth, template_patch)
     where
     synth = Synth name doc (Control.control_map controls)

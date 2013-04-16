@@ -8,6 +8,7 @@ import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 
+import Util.Control
 import qualified Util.Map as Map
 import qualified Util.Seq as Seq
 import qualified Midi.Midi as Midi
@@ -144,4 +145,4 @@ normalize_tags = Seq.drop_dups id . List.sort . lower
     where lower = map $ \(k, v) -> (map Char.toLower k, map Char.toLower v)
 
 control_tags :: Control.ControlMap -> [Instrument.Tag]
-control_tags = map ((,) Tag.control) . Control.control_map_names
+control_tags = map ((,) Tag.control . untxt) . Control.control_map_names

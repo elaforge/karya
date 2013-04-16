@@ -475,7 +475,7 @@ test_fractional_pitch = do
             <- map snd mmsgs]
         [(0, 72), (1, 73)]
 
-e_control :: String -> Score.Event -> Maybe [(Signal.X, Signal.Y)]
+e_control :: Text -> Score.Event -> Maybe [(Signal.X, Signal.Y)]
 e_control cont = fmap (Signal.unsignal . Score.typed_val)
     . Map.lookup (Score.Control cont) . Score.event_controls
 

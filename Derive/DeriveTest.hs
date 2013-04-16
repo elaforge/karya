@@ -349,7 +349,7 @@ e_everything e =
 e_inst :: Score.Event -> String
 e_inst = Score.inst_name . Score.event_instrument
 
-e_control :: String -> Score.Event -> [(RealTime, Signal.Y)]
+e_control :: Text -> Score.Event -> [(RealTime, Signal.Y)]
 e_control cont event = maybe [] (Signal.unsignal . Score.typed_val) $
     Map.lookup (Score.Control cont) (Score.event_controls event)
 
@@ -540,7 +540,7 @@ default_inst_title = ">s/1"
 
 -- | (start, dur, pitch12, controls, inst)
 type EventSpec = (RealTime, RealTime, String, Controls, Score.Instrument)
-type Controls = [(String, [(RealTime, Signal.Y)])]
+type Controls = [(Text, [(RealTime, Signal.Y)])]
 
 mkevent :: EventSpec -> Score.Event
 mkevent = mkevent_scale Twelve.scale

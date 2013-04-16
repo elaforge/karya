@@ -1,6 +1,7 @@
 module Cmd.ModifyNotes_test where
 import qualified Data.Map as Map
 
+import Util.Control
 import Util.Test
 import qualified Ui.Event as Event
 import qualified Ui.Events as Events
@@ -166,7 +167,7 @@ mkcontrols = Map.fromList . map mk
         where
         control = case name of
             '*' : s -> ModifyNotes.Pitch (Pitch.ScaleId s)
-            _ -> ModifyNotes.Control (Score.Control name)
+            _ -> ModifyNotes.Control (Score.Control (txt name))
 
 mkstate :: [UiTest.TrackSpec] -> [Skeleton.Edge] -> State.State
 mkstate tracks skel = UiTest.exec State.empty $ UiTest.mkblocks_skel

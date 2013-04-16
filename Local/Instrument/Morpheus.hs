@@ -26,7 +26,7 @@ make_db dir = do
 synth :: Instrument.Synth
 synth = Instrument.synth synth_name "E-mu Morpheus" synth_controls
 
-synth_controls :: [(Midi.Control, String)]
+synth_controls :: [(Midi.Control, Text)]
 synth_controls =
     -- Definitions depend on the preset.
     [ (1, "a"), (2, "b"), (3, "c"), (4, "d")

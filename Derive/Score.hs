@@ -340,9 +340,6 @@ split_inst (Instrument inst) = (synth, drop 1 inst_name)
 
 -- * controls
 
-control_name :: Control -> String
-control_name (Control name) = name
-
 -- | Used as the default control by control block calls.  This is because
 -- a ControlCall produces a Signal, but for it to be derived in a block it
 -- needs a temporary name.

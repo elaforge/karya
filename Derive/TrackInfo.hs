@@ -99,23 +99,22 @@ parse_control_vals vals = case vals of
         Right (parse_control_type sym)
 
     pitch_control :: TrackLang.Val -> Maybe (Maybe Score.Control)
-    pitch_control (TrackLang.VPitchControl
-            (TrackLang.LiteralControl cont@(Score.Control name)))
-        | null name = Just Nothing
+    pitch_control (TrackLang.VPitchControl (TrackLang.LiteralControl cont))
+        | cont == Score.c_null = Just Nothing
         | otherwise = Just (Just cont)
     pitch_control _ = Nothing
 
 parse_control_type :: TrackLang.Symbol -> Maybe (Score.Typed Score.Control)
-parse_control_type (TrackLang.Symbol name) = case post of
-        ':' : c -> Score.Typed <$>
-            Score.code_to_type c <*> return (Score.Control pre)
-        "" -> Just $ Score.untyped $ Score.Control $ untxt name
+parse_control_type (TrackLang.Symbol name) = case Text.uncons post of
+        Just (':', c) -> Score.Typed <$>
+            Score.code_to_type (untxt c) <*> return (Score.Control pre)
+        Nothing -> Just $ Score.untyped $ Score.Control name
         _ -> Nothing
-    where (pre, post) = break (==':') (untxt name)
+    where (pre, post) = Text.break (==':') name
 
 unparse_typed :: Score.Typed Score.Control -> Text
 unparse_typed (Score.Typed typ (Score.Control c)) =
-    txt c <> case Score.type_to_code typ of
+    c <> case Score.type_to_code typ of
         "" -> ""
         code -> txt $ ':' : code
 
@@ -184,7 +183,7 @@ title_to_control title = case parse_control title of
     _ -> Nothing
 
 control_to_title :: Score.Control -> String
-control_to_title (Score.Control cont) = cont
+control_to_title (Score.Control cont) = untxt cont
 
 -- | A pitch track is also considered a control track.
 is_control_track :: String -> Bool

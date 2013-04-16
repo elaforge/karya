@@ -22,7 +22,7 @@ UNSORTED
       It means e.g. TimeStep.parse_time_step should take Text, which means
       Util.Parse should switch too.
     * BaseTypes.Symbol
-    - Score.Control
+    * Score.Control
     - Ui.Id
     * ModifyEvents.text
   - %sustain-abs=-.x is not quite right for detached, because it should scale

@@ -56,7 +56,7 @@ instance Pretty.Pretty Instrument where pretty = untxt . ShowVal.show_val
 instance ShowVal.ShowVal Instrument where
     show_val (Instrument inst) = txt $ '>' : inst
 
-newtype Control = Control String
+newtype Control = Control Text
     deriving (Eq, Ord, Read, Show, DeepSeq.NFData)
 
 -- | Tag for the type of the values in a control signal.
@@ -89,7 +89,7 @@ instance Monoid.Monoid Type where
 
 instance Pretty.Pretty Control where pretty = untxt . ShowVal.show_val
 instance ShowVal.ShowVal Control where
-    show_val (Control c) = txt $ '%' : c
+    show_val (Control c) = Text.cons '%' c
 
 data Typed a = Typed {
     type_of :: !Type
@@ -387,8 +387,8 @@ show_control :: Char -> (val -> Text) -> ControlRef val -> Text
 show_control prefix val_text control = case control of
     ConstantControl val -> val_text val
     DefaultedControl (Control cont) deflt -> mconcat
-        [Text.singleton prefix, txt cont, ",", val_text deflt]
-    LiteralControl (Control cont) -> txt $ prefix : cont
+        [Text.singleton prefix, cont, ",", val_text deflt]
+    LiteralControl (Control cont) -> Text.cons prefix cont
 
 -- ** Note
 

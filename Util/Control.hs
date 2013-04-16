@@ -24,7 +24,7 @@ module Util.Control (
     , module Data.List.NonEmpty
     -- * text
     , Text.Text
-    , txt, untxt
+    , txt, untxt, showt
 ) where
 import Control.Applicative ((<$>), (<*>), (<*), (*>), (<|>))
 import qualified Control.Exception as Exception
@@ -137,3 +137,6 @@ txt = Text.pack
 
 untxt :: Text.Text -> String
 untxt = Text.unpack
+
+showt :: (Show a) => a -> Text.Text
+showt = txt . show

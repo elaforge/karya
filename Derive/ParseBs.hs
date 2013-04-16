@@ -269,7 +269,7 @@ p_attrs =
 p_control :: A.Parser TrackLang.ValControl
 p_control = do
     A.char '%'
-    control <- Score.Control . to_string <$> A.option "" (p_identifier ",")
+    control <- Score.Control . to_text <$> A.option "" (p_identifier ",")
     deflt <- Parse.optional (A.char ',' >> p_num)
     return $ case deflt of
         Nothing -> TrackLang.LiteralControl control
@@ -279,7 +279,7 @@ p_control = do
 p_pitch_control :: A.Parser TrackLang.PitchControl
 p_pitch_control = do
     A.char '#'
-    control <- Score.Control . to_string <$> A.option "" (p_identifier ",")
+    control <- Score.Control . to_text <$> A.option "" (p_identifier ",")
     deflt <- Parse.optional (A.char ',' >> p_word)
     return $ case deflt of
         Nothing -> TrackLang.LiteralControl control

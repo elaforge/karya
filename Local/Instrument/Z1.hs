@@ -49,7 +49,7 @@ make_db dir = do
 synth :: Instrument.Synth
 synth = Instrument.synth synth_name "Korg Z1" synth_controls
 
-synth_controls :: [(Midi.Control, String)]
+synth_controls :: [(Midi.Control, Text)]
 synth_controls =
     -- The PE controls are the "performance expression" knobs whose effect
     -- depends on the instrument.

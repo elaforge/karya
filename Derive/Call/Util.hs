@@ -491,9 +491,8 @@ equal_transformer args deriver = case Derive.passed_vals args of
     where
     control (TrackLang.VControl (TrackLang.LiteralControl c)) = Just c
     control _ = Nothing
-    pitch (TrackLang.VPitchControl
-            (TrackLang.LiteralControl c@(Score.Control n)))
-        | null n = Just Nothing
+    pitch (TrackLang.VPitchControl (TrackLang.LiteralControl c))
+        | c == Score.c_null = Just Nothing
         | otherwise = Just (Just c)
     pitch _ = Nothing
 

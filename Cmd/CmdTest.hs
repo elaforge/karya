@@ -377,7 +377,7 @@ m_note_on note_id nn vel = Msg.InputNote (note_on note_id nn vel)
 m_note_off :: Int -> Signal.Y -> Msg.Msg
 m_note_off note_id vel = Msg.InputNote (note_off note_id vel)
 
-m_control :: Int -> String -> Signal.Y -> Msg.Msg
+m_control :: Int -> Text -> Signal.Y -> Msg.Msg
 m_control note_id cont val = Msg.InputNote (control note_id cont val)
 
 m_pitch :: Int -> Double -> Msg.Msg
