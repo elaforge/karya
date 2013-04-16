@@ -1,15 +1,15 @@
 -- | The full haskell interpretation loads a whole bunch of modules and can be
 -- slow.  Shortcut a few common commands so they happen quickly.
-module Cmd.Lang.Fast where
+module Cmd.Repl.Fast where
 import qualified Data.Char as Char
 
 import qualified Util.Then as Then
 import qualified Ui.State as State
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Create as Create
-import qualified Cmd.Lang.Global as Global
-import qualified Cmd.Lang.LInst as LInst
-import qualified Cmd.Lang.LState as LState
+import qualified Cmd.Repl.Global as Global
+import qualified Cmd.Repl.LInst as LInst
+import qualified Cmd.Repl.LState as LState
 
 
 -- | 'interpret' loads a whole bunch of modules and can be slow.  Shortcut a

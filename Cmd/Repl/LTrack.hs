@@ -1,6 +1,6 @@
 {-# LANGUAGE NoMonomorphismRestriction #-}
 -- | Cmds for track level operations.
-module Cmd.Lang.LTrack where
+module Cmd.Repl.LTrack where
 import qualified Data.List as List
 import qualified Data.Set as Set
 

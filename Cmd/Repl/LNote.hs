@@ -1,5 +1,5 @@
 -- | Utilities that use "Cmd.ModifyNote" to do higher-level transformations.
-module Cmd.Lang.LNote where
+module Cmd.Repl.LNote where
 import qualified Data.List as List
 
 import Util.Control

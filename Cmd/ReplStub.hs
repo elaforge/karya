@@ -1,6 +1,6 @@
 -- | A stub module that doesn't do a good job at interpreting haskell but does
 -- a great job at linking quickly.
-module Cmd.LangStub (
+module Cmd.ReplStub (
     Session, make_session
     , interpreter, interpret
 ) where

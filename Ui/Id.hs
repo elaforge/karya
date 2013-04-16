@@ -204,7 +204,7 @@ show_short default_ns ident@(Id ns name)
 -- * Ident
 
 -- | BlockIds, RulerIds, etc. are just wrappers around Ids.  Giving them a
--- consistent display format lets me copy and paste them on the lang socket,
+-- consistent display format lets me copy and paste them on the repl socket,
 -- which puts the constructors in scope.
 class Ident a where
     unpack_id :: a -> Id

@@ -79,7 +79,7 @@ repl settings = input_loop settings $
 
 format_response :: String -> String
 format_response "()" = ""
-format_response ('!':s) = s -- See 'Cmd.Lang.unformatted'.
+format_response ('!':s) = s -- See 'Cmd.Repl.unformatted'.
 format_response s = PPrint.format_str s
 
 input_loop :: Haskeline.Settings IO -> Input Bool -> IO ()

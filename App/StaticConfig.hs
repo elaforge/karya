@@ -13,7 +13,7 @@ import qualified Instrument.Db
 
 data StaticConfig = StaticConfig {
     instrument_db :: Cmd.InstrumentDb
-    -- | Path to directories containing Local.Lang modules.  They will be
+    -- | Path to directories containing Local.Repl modules.  They will be
     -- included in the repl namespace.
     , local_repl_dirs :: [FilePath]
 

@@ -1,14 +1,13 @@
 {-# OPTIONS_GHC -fno-warn-unused-imports #-} -- This module is intentionally
 -- full of imports that will be used by the REPL.
-{- | Top-level module for the interpreter in Language.  Everything in this
-    module is visible to the REPL, so it imports a lot of potentially useful
-    modules.
+{- | Top-level module for the REPL interpreter.  Everything in this module is
+    visible to the REPL, so it imports a lot of potentially useful modules.
 
     It has to be interpreted, so it should just put useful things into scope
     but not actually define anything itself.  Those definitions go in
-    Cmd.Lang.Global.
+    Cmd.Repl.Global.
 -}
-module Cmd.Lang.Environ where
+module Cmd.Repl.Environ where
 import Control.Monad.Trans (liftIO)
 import qualified Data.Map as Map
 import qualified Data.List as List
@@ -42,21 +41,21 @@ import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Create as Create
 import qualified Cmd.Edit as Edit
 import qualified Cmd.Info as Info
-import qualified Cmd.Lang.LBlock as LBlock
-import qualified Cmd.Lang.LCmd as LCmd
-import qualified Cmd.Lang.LDebug as LDebug
-import qualified Cmd.Lang.LEvent as LEvent
-import qualified Cmd.Lang.LInst as LInst
-import qualified Cmd.Lang.LIntegrate as LIntegrate
-import qualified Cmd.Lang.LLily as LLily
-import qualified Cmd.Lang.LNote as LNote
-import qualified Cmd.Lang.LPerf as LPerf
-import qualified Cmd.Lang.LPitch as LPitch
-import qualified Cmd.Lang.LRuler as LRuler
-import qualified Cmd.Lang.LState as LState
--- import qualified Cmd.Lang.LSymbol as LSymbol
-import qualified Cmd.Lang.LTrack as LTrack
-import qualified Cmd.Lang.LView as LView
+import qualified Cmd.Repl.LBlock as LBlock
+import qualified Cmd.Repl.LCmd as LCmd
+import qualified Cmd.Repl.LDebug as LDebug
+import qualified Cmd.Repl.LEvent as LEvent
+import qualified Cmd.Repl.LInst as LInst
+import qualified Cmd.Repl.LIntegrate as LIntegrate
+import qualified Cmd.Repl.LLily as LLily
+import qualified Cmd.Repl.LNote as LNote
+import qualified Cmd.Repl.LPerf as LPerf
+import qualified Cmd.Repl.LPitch as LPitch
+import qualified Cmd.Repl.LRuler as LRuler
+import qualified Cmd.Repl.LState as LState
+import qualified Cmd.Repl.LSymbol as LSymbol
+import qualified Cmd.Repl.LTrack as LTrack
+import qualified Cmd.Repl.LView as LView
 import qualified Cmd.Meter as Meter
 import qualified Cmd.Meters as Meters
 import qualified Cmd.ModifyEvents as ModifyEvents
@@ -84,7 +83,7 @@ import qualified Perform.Midi.Perform as Perform
 import qualified Perform.NN as NN
 import qualified Instrument.Db as Db
 
-import Cmd.Lang.Global
+import Cmd.Repl.Global
 import qualified Local.Instrument.Spicy as Spicy
 
 import qualified App.Config as Config

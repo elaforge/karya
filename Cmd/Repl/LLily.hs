@@ -4,7 +4,7 @@
 -- I used to have some support for automatically reinvoking lilypond after
 -- changes to a block, but it didn't seem too useful, since any useful amount
 -- of lilypond score takes quite a while to compile.
-module Cmd.Lang.LLily where
+module Cmd.Repl.LLily where
 import qualified System.FilePath as FilePath
 import qualified System.Process as Process
 

@@ -46,7 +46,7 @@ import qualified Midi.StubMidi as MidiDriver
 #endif
 
 import qualified Cmd.GlobalKeymap as GlobalKeymap
-import qualified Cmd.Lang as Lang
+import qualified Cmd.Repl as Repl
 import qualified Cmd.Responder as Responder
 
 import qualified Derive.Call.All as Call.All
@@ -66,7 +66,7 @@ import qualified Local.Config
 -- This is only used by the REPL,  but by importing it here I can make
 -- sure it, along with REPL-only modules, are compiled and don't have any
 -- errors.
-import Cmd.Lang.Environ ()
+import Cmd.Repl.Environ ()
 
 
 initialize :: (Network.Socket -> Interface.Interface -> IO ()) -> IO ()
@@ -151,10 +151,10 @@ main = initialize $ \repl_socket midi_interface -> do
 
     startup_initialization
 
-    session <- Lang.make_session
+    session <- Repl.make_session
     quit_request <- MVar.newMVar ()
     Thread.start_logged "interpreter" $ do
-        Lang.interpreter session
+        Repl.interpreter session
         `Exception.finally` Ui.quit_ui_thread quit_request
         -- ctrl-C is killing this thread now.  The interaction between signals
         -- and OS threads managed by the GHC RTS is probably unpredictable.

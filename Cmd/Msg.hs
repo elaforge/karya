@@ -33,9 +33,9 @@ data Msg =
     -- | Message about the derivation status, from the background derivation
     -- threads.
     | DeriveStatus BlockId DeriveStatus
-    -- | Message from the language control socket, includes the socket handle
-    -- than can be used to write a response.  Whoever responds to Socket should
-    -- close the handle.
+    -- | Message from the REPL socket, includes the socket handle than can be
+    -- used to write a response.  Whoever responds to it should close the
+    -- handle.
     | Socket IO.Handle String
     deriving (Show)
 

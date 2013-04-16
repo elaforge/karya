@@ -1,6 +1,6 @@
 {-# LANGUAGE NoMonomorphismRestriction #-}
 -- | Cmds to modify cmd state.
-module Cmd.Lang.LCmd where
+module Cmd.Repl.LCmd where
 import Util.Control
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.TimeStep as TimeStep

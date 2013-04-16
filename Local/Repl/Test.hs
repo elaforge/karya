@@ -1,5 +1,5 @@
 -- | Put your own local commands here.
-module Local.Lang.Test where
+module Local.Repl.Test where
 import qualified Util.Log as Log
 
 import qualified Ui.Color as Color
@@ -18,7 +18,7 @@ import qualified Cmd.Play as Play
 import qualified Derive.Score as Score
 import qualified Perform.Midi.Convert as Convert
 import qualified Perform.Midi.Instrument as Instrument
-import Cmd.Lang.Global
+import Cmd.Repl.Global
 import Types
 
 

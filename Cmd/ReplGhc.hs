@@ -3,7 +3,7 @@
 -- | REPL implementation that directly uses the GHC API.
 --
 -- Supported versions: 70, 74
-module Cmd.LangGhc (
+module Cmd.ReplGhc (
     Session(..), make_session
     , interpreter, interpret
 ) where
@@ -77,7 +77,7 @@ interpreter (Session chan) = do
     GHC.runGhcT (Just GHC.Paths.libdir) $ do
         parse_flags args
         -- obj_allowed must be False, otherwise I get
-        -- Cannot add module Cmd.Lang.Environ to context: not interpreted
+        -- Cannot add module Cmd.Repl.Environ to context: not interpreted
         GHC.setTargets [make_target False toplevel]
         (result, logs, warns) <- reload
         case result of
@@ -95,7 +95,7 @@ interpreter (Session chan) = do
                         return $ return $ "Exception: " ++ show exc
             liftIO $ MVar.putMVar return_mvar result
     where
-    toplevel = "Cmd.Lang.Environ"
+    toplevel = "Cmd.Repl.Environ"
 
     normal_cmd :: Id.Namespace -> String -> Ghc Cmd
     normal_cmd namespace expr = case expand_macros namespace expr of

@@ -1,6 +1,6 @@
 {-# LANGUAGE NoMonomorphismRestriction #-}
 -- | Debugging utilities.
-module Cmd.Lang.LDebug where
+module Cmd.Repl.LDebug where
 import qualified System.IO as IO
 
 import Util.Control
@@ -11,7 +11,7 @@ import qualified Util.Seq as Seq
 import qualified Ui.State as State
 import qualified Ui.UiTest as UiTest
 import qualified Cmd.Cmd as Cmd
-import qualified Cmd.Lang.LPerf as LPerf
+import qualified Cmd.Repl.LPerf as LPerf
 import qualified Derive.LEvent as LEvent
 import qualified Perform.Midi.Perform as Perform
 import qualified Perform.Midi.PerformTest as PerformTest

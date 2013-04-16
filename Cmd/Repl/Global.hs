@@ -1,9 +1,9 @@
-{- | Helper functions to be imported into Cmd.Lang.Environ.  Cmd.Lang.Environ
+{- | Helper functions to be imported into Cmd.Repl.Environ.  Cmd.Repl.Environ
     must be interpreted since it's the \"top level\" module, so I put the
-    library of commands in here.  An unqualified import in Cmd.Lang.Environ
+    library of commands in here.  An unqualified import in Cmd.Repl.Environ
     means this module is in scope at the REPL.
 
-    Of course, lang commands can use anything in scope in Cmd.Lang.Environ, not
+    Of course, REPL commands can use anything in scope in Cmd.Repl.Environ, not
     just these helpers.  That includes all the various cmd_* functions used by
     the keybindings and everything in State.  Also, keybindings can be invoked
     directly with the 'keybinding' helper.  TODO not implemented
@@ -22,9 +22,9 @@
 
     To keep this module from getting huge, only general purpose and common cmds
     should go here.  Cmds which are meant to be used from the REPL but may be
-    more specialized can go in Cmd.Lang.L* modules.
+    more specialized can go in Cmd.Repl.L* modules.
 -}
-module Cmd.Lang.Global where
+module Cmd.Repl.Global where
 import qualified Data.Map as Map
 
 import Util.Control
@@ -42,13 +42,13 @@ import qualified Ui.Types as Types
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Create as Create
 import qualified Cmd.Info as Info
-import Cmd.Lang.LEvent ()
-import qualified Cmd.Lang.LInst as LInst
-import Cmd.Lang.LPerf ()
-import Cmd.Lang.LPitch ()
-import Cmd.Lang.LRuler ()
-import Cmd.Lang.LTrack ()
-import qualified Cmd.Lang.Util as Util
+import Cmd.Repl.LEvent ()
+import qualified Cmd.Repl.LInst as LInst
+import Cmd.Repl.LPerf ()
+import Cmd.Repl.LPitch ()
+import Cmd.Repl.LRuler ()
+import Cmd.Repl.LTrack ()
+import qualified Cmd.Repl.Util as Util
 import qualified Cmd.Save as Save
 import qualified Cmd.Selection as Selection
 import qualified Cmd.Simple as Simple

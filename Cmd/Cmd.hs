@@ -115,7 +115,7 @@ type CmdId = CmdT Identity.Identity
 -- alias wouldn't help much.
 type CmdIO = CmdT IO Status
 
--- | Cmds used by the language system, which all run in Identity.
+-- | Cmds used by the REPL, which all run in IO.
 type CmdL a = CmdT IO a
 
 data Status = Done | Continue | Quit

@@ -1,6 +1,6 @@
 {-# LANGUAGE NoMonomorphismRestriction #-}
--- | Lang cmds providing general UI state operations.
-module Cmd.Lang.LState where
+-- | Repl cmds providing general UI state operations.
+module Cmd.Repl.LState where
 import qualified Data.Map as Map
 import qualified Data.Time as Time
 import qualified System.FilePath as FilePath

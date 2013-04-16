@@ -5,7 +5,7 @@
 -- However, they are distinct from Cmd.PitchTrack, so a separate module is
 -- good.  I suppose if I need these functions elsewhere I can more them to more
 -- generic places.
-module Cmd.Lang.LPitch where
+module Cmd.Repl.LPitch where
 import Util.Control
 import qualified Ui.Event as Event
 import qualified Ui.State as State

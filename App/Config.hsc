@@ -54,7 +54,7 @@ instrument_dir = RelativePath "inst_db"
 
 -- | Local CmdL code goes here.
 repl_dir :: RelativePath
-repl_dir = RelativePath $ (\(RelativePath p) -> p) local_dir </> "Lang"
+repl_dir = RelativePath $ (\(RelativePath p) -> p) local_dir </> "Repl"
 
 -- | Directory for instruments with slow patch loading to save their caches.
 instrument_cache_dir :: RelativePath

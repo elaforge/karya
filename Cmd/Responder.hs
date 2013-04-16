@@ -48,7 +48,7 @@ import qualified Cmd.Cmd as Cmd
 import qualified Cmd.GlobalKeymap as GlobalKeymap
 import qualified Cmd.Integrate as Integrate
 import qualified Cmd.Internal as Internal
-import qualified Cmd.Lang as Lang
+import qualified Cmd.Repl as Repl
 import qualified Cmd.Meter as Meter
 import qualified Cmd.Msg as Msg
 import qualified Cmd.PlayC as PlayC
@@ -70,7 +70,7 @@ data State = State {
     , state_ui :: State.State
     , state_cmd :: Cmd.State
     -- | State for the repl subsystem.
-    , state_session :: Lang.Session
+    , state_session :: Repl.Session
     -- | This is used to feed msgs back into the MsgReader.
     , state_loopback :: Loopback
     -- | This function takes diffs and actually applies them to the UI.  It's
@@ -98,7 +98,7 @@ type MsgReader = IO Msg.Msg
 type Loopback = Msg.Msg -> IO ()
 
 responder :: StaticConfig.StaticConfig -> MsgReader -> Interface.Interface
-    -> Cmd.CmdIO -> Lang.Session -> Loopback -> IO ()
+    -> Cmd.CmdIO -> Repl.Session -> Loopback -> IO ()
 responder config msg_reader midi_interface setup_cmd repl_session loopback = do
     Log.debug "start responder"
     ui_state <- State.create
@@ -398,9 +398,9 @@ hardcoded_cmds =
     [Track.track_cmd, Internal.cmd_update_ui_state, Internal.cmd_record_focus]
 
 -- | And these special commands that run in IO.
-hardcoded_io_cmds :: Lang.Session -> [FilePath] -> [Msg.Msg -> Cmd.CmdIO]
+hardcoded_io_cmds :: Repl.Session -> [FilePath] -> [Msg.Msg -> Cmd.CmdIO]
 hardcoded_io_cmds repl_session repl_dirs =
-    [ Lang.repl repl_session repl_dirs
+    [ Repl.repl repl_session repl_dirs
     , Integrate.cmd_integrate
     , PlayC.cmd_play_msg
     ] ++ GlobalKeymap.io_cmds

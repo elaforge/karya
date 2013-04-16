@@ -1,6 +1,6 @@
 {-# LANGUAGE NoMonomorphismRestriction #-}
 -- | Block level cmds.
-module Cmd.Lang.LBlock where
+module Cmd.Repl.LBlock where
 import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Text.IO as Text.IO
@@ -21,7 +21,7 @@ import qualified Cmd.BlockConfig as BlockConfig
 import qualified Cmd.CallDoc as CallDoc
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Create as Create
-import qualified Cmd.Lang.Util as Util
+import qualified Cmd.Repl.Util as Util
 import qualified Cmd.ModifyEvents as ModifyEvents
 import qualified Cmd.PitchTrack as PitchTrack
 import qualified Cmd.Selection as Selection

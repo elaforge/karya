@@ -205,7 +205,7 @@ to_ui stack = reverse $ foldr f [] (innermost stack)
         (bid, tid, Just (s, e)) : rest
     f _ accum = accum
 
--- | These functions are used by LogView and Cmd.Lang.*, but are here since
+-- | These functions are used by LogView and Cmd.Repl.*, but are here since
 -- both places import this module.  Examples:
 --
 -- > "untitled/b0 untitled/b0.t2 0-.25"

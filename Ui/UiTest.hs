@@ -263,7 +263,7 @@ regular_notes n = note_track $ take n
 
 -- * state to spec
 
--- | These can be used from 'Cmd.Lang.LDebug.dump_blocks' to dump state in
+-- | These can be used from 'Cmd.Repl.LDebug.dump_blocks' to dump state in
 -- a form that can be pasted into a test, trimmed down by hand, and passed to
 -- 'read_blocks'.  This way problems that show up in the app can be pasted
 -- into a test.

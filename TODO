@@ -4,7 +4,7 @@ LEGEND
 
 UNSORTED
   * rename *_lang stuff in Config to repl
-  - Cmd.Lang* should go too
+  * Cmd.Lang* should go too
   * move meters to Cmd.Meters and don't hardcode measures/section
   * Tags.internal should be for really internal things, add Tags.builtin for
     basic ones.
@@ -33,8 +33,7 @@ UNSORTED
   bloom
     * block b10 is messed up near the end
     * b13 silent
-  - I can have regression tests that assert a score still derives the same
-    way.
+  - I can have regression tests that assert a score still derives the same way.
   calls:
     - Sometimes tick makes more sense as at attribute of the previous note, or
       perhaps a freestanding ornament, since it can happen or not on a repeat.
@@ -79,7 +78,7 @@ UNSORTED
     But filtering the midi shows dyn controls mixed into both channels.
   - the signal doesn't update if I change the default environ assignment on
     another track
-  - doesn't seem to save track widths, I keep making it narrow but reload it's
+  * doesn't seem to save track widths, I keep making it narrow but reload it's
     still wide.
 
   / parsing "1r" instead of "1s" gives a "unexpected eof" error msg, it should

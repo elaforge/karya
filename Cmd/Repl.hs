@@ -6,12 +6,12 @@
     The incoming commands are received via Msg.Socket msgs.
 
     TODO currently this will reload any updated modules as interpreted.  While
-    I want to do this for explicitly named modules (Cmd.Lang.Environ and
-    Local/Lang/ *.hs), it's just annoying and brittle when applied to the main
+    I want to do this for explicitly named modules (Cmd.Repl.Environ and
+    Local/Repl/ *.hs), it's just annoying and brittle when applied to the main
     src files.  Is there a way to get ghc to load the objects even if the
     source files are newer?
 -}
-module Cmd.Lang (
+module Cmd.Repl (
     Session, make_session, interpreter, repl
 ) where
 import qualified Control.DeepSeq as DeepSeq
@@ -28,44 +28,44 @@ import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 
 import qualified Ui.State as State
-import qualified Cmd.Lang.Fast as Fast
+import qualified Cmd.Repl.Fast as Fast
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Msg as Msg
 
 #include "hsconfig.h"
 #if defined(INTERPRETER_GHC)
-import qualified Cmd.LangGhc as LangImpl
+import qualified Cmd.ReplGhc as ReplImpl
 #else
-import qualified Cmd.LangStub as LangImpl
+import qualified Cmd.ReplStub as ReplImpl
 #endif
 
 
 -- | This is the persistent interpreter session which is stored in the global
 -- state.
-type Session = LangImpl.Session
+type Session = ReplImpl.Session
 
 make_session :: IO Session
-make_session = LangImpl.make_session
+make_session = ReplImpl.make_session
 
 -- | This is the interpreter thread, which should be started when the app
 -- starts.  It's in a separate thread so it can run in its own monad.
 interpreter :: Session -> IO ()
-interpreter = LangImpl.interpreter
+interpreter = ReplImpl.interpreter
 
 repl :: Session -> [FilePath] -> Msg.Msg -> Cmd.CmdIO
-repl session lang_dirs msg = do
+repl session repl_dirs msg = do
     (response_hdl, text) <- case msg of
         Msg.Socket hdl s -> return (hdl, s)
         _ -> Cmd.abort
     Log.debug $ "repl input: " ++ show text
     ui_state <- State.get
     cmd_state <- Cmd.get
-    local_modules <- fmap concat (mapM get_local_modules lang_dirs)
+    local_modules <- fmap concat (mapM get_local_modules repl_dirs)
 
     cmd <- case Fast.fast_interpret text of
         Just cmd -> return cmd
         Nothing -> liftIO $
-            LangImpl.interpret session local_modules ui_state cmd_state text
+            ReplImpl.interpret session local_modules ui_state cmd_state text
     (response, status) <- run_cmdio $ Cmd.name ("repl: " ++ text) cmd
     liftIO $ catch_io_errors $ do
         unless (null response) $
@@ -112,12 +112,12 @@ unformatted :: String -> String
 unformatted = ('!':)
 
 get_local_modules :: FilePath -> Cmd.CmdT IO [String]
-get_local_modules lang_dir = do
-    fns <- liftIO $ Directory.getDirectoryContents lang_dir
+get_local_modules repl_dir = do
+    fns <- liftIO $ Directory.getDirectoryContents repl_dir
         `Exception.catch` \(exc :: IOError) -> do
-            Log.warn $ "error reading local lang dir: " ++ show exc
+            Log.warn $ "error reading local repl dir: " ++ show exc
             return []
-    let mod_fns = map (lang_dir </>) (filter is_hs fns)
+    let mod_fns = map (repl_dir </>) (filter is_hs fns)
     mod_fns <- liftIO $ filterM Directory.doesFileExist mod_fns
     -- Turn /s into dots to get a module name.  It's kind of a hack.
     return $ map (Seq.replace (FilePath.pathSeparator:"") "."

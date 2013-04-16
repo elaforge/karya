@@ -30,7 +30,7 @@ import qualified Ui.Update as Update
 
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.CmdTest as CmdTest
-import qualified Cmd.Lang as Lang
+import qualified Cmd.Repl as Repl
 import qualified Cmd.Msg as Msg
 import qualified Cmd.Responder as Responder
 
@@ -241,7 +241,7 @@ make_rstate update_chan loopback_chan ui_state cmd_state maybe_cmd =
         , Responder.state_cmd = cmd_state
         -- Tests probably link with the dummy interpreter so this is just
         -- return (), but profiling may try to use the interpreter.
-        , Responder.state_session = Unsafe.unsafePerformIO Lang.make_session
+        , Responder.state_session = Unsafe.unsafePerformIO Repl.make_session
         , Responder.state_loopback = loopback
         , Responder.state_sync = dummy_sync
         , Responder.state_monitor_state = play_monitor_state

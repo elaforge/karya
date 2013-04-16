@@ -27,7 +27,7 @@
 
     - TODO: inspect a meter
 -}
-module Cmd.Lang.LRuler where
+module Cmd.Repl.LRuler where
 import qualified Data.Map as Map
 
 import Util.Control

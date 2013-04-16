@@ -1,6 +1,6 @@
 {-# LANGUAGE NoMonomorphismRestriction #-}
 -- | REPL Cmds dealing with instruments and MIDI config.
-module Cmd.Lang.LInst where
+module Cmd.Repl.LInst where
 import Prelude hiding (lookup)
 import qualified Data.List as List
 import qualified Data.Map as Map

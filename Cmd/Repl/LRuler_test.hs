@@ -1,11 +1,11 @@
-module Cmd.Lang.LRuler_test where
+module Cmd.Repl.LRuler_test where
 import Util.Control
 import Util.Test
 import qualified Ui.State as State
 import qualified Ui.UiTest as UiTest
 import qualified Cmd.CmdTest as CmdTest
 import qualified Cmd.Create as Create
-import qualified Cmd.Lang.LRuler as LRuler
+import qualified Cmd.Repl.LRuler as LRuler
 import qualified Cmd.Meter as Meter
 import qualified Cmd.RulerUtil as RulerUtil
 

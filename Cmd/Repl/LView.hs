@@ -1,5 +1,5 @@
 {-# LANGUAGE NoMonomorphismRestriction #-}
-module Cmd.Lang.LView where
+module Cmd.Repl.LView where
 import qualified Data.List as List
 import qualified Data.Map as Map
 

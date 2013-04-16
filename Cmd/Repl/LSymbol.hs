@@ -3,7 +3,7 @@
 --
 -- TODO using this module on linux will break the REPL.  Apparently
 -- ghci on linux has a problem when it has to link in a FFI-using module.
-module Cmd.Lang.LSymbol where
+module Cmd.Repl.LSymbol where
 import Util.Control
 import qualified Util.Pretty as Pretty
 import qualified Ui.Event as Event

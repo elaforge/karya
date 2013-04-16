@@ -1,4 +1,4 @@
-module Cmd.LangGhc_test where
+module Cmd.ReplGhc_test where
 import qualified Control.Concurrent as Concurrent
 import qualified Control.Concurrent.Chan as Chan
 import qualified Control.Concurrent.MVar as MVar
@@ -9,7 +9,7 @@ import qualified Ui.Id as Id
 import qualified Ui.State as State
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.CmdTest as CmdTest
-import qualified Cmd.LangGhc as LangGhc
+import qualified Cmd.ReplGhc as ReplGhc
 
 
 -- Fiddle around with the REPL by hand.
@@ -18,8 +18,8 @@ test_lang_ghc = do
     -- Get generate_run_tests.py to recognize this as interactive.
     -- TODO need a better way
     io_human "Ready?" (return ())
-    sess@(LangGhc.Session chan) <- LangGhc.make_session
-    Concurrent.forkIO $ LangGhc.interpreter sess
+    sess@(ReplGhc.Session chan) <- ReplGhc.make_session
+    Concurrent.forkIO $ ReplGhc.interpreter sess
     go chan
     where
     go chan = do

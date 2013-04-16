@@ -1,4 +1,4 @@
-module Cmd.Lang.Util where
+module Cmd.Repl.Util where
 import qualified Data.List as List
 import qualified Data.Map as Map
 
