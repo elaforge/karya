@@ -77,8 +77,8 @@ initialize app = do
     MidiDriver.initialize "seq" want_message $ \interface -> case interface of
         Left err -> error $ "initializing midi: " ++ err
         Right midi_interface -> Network.withSocketsDo $ do
-            Config.initialize_lang_port
-            socket <- Network.listenOn Config.lang_port
+            Config.initialize_repl_port
+            socket <- Network.listenOn Config.repl_port
             midi_interface <- Interface.track_interface midi_interface
             app socket midi_interface
     where
@@ -106,7 +106,7 @@ rotate_logs = do
     ignore = File.ignore_enoent
 
 main :: IO ()
-main = initialize $ \lang_socket midi_interface -> do
+main = initialize $ \repl_socket midi_interface -> do
 #ifdef USE_EKG
     System.Remote.Monitoring.forkServer (ByteString.pack "localhost") 8080
 #endif
@@ -146,7 +146,7 @@ main = initialize $ \lang_socket midi_interface -> do
     get_msg <- Responder.create_msg_reader
         (remap_read_message (StaticConfig.rdev_map
             (StaticConfig.midi static_config)))
-        (Interface.read_channel midi_interface) lang_socket msg_chan
+        (Interface.read_channel midi_interface) repl_socket msg_chan
         loopback_chan
 
     startup_initialization

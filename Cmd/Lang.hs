@@ -12,7 +12,7 @@
     source files are newer?
 -}
 module Cmd.Lang (
-    Session, make_session, interpreter, cmd_language
+    Session, make_session, interpreter, repl
 ) where
 import qualified Control.DeepSeq as DeepSeq
 import qualified Control.Exception as Exception
@@ -52,8 +52,8 @@ make_session = LangImpl.make_session
 interpreter :: Session -> IO ()
 interpreter = LangImpl.interpreter
 
-cmd_language :: Session -> [FilePath] -> Msg.Msg -> Cmd.CmdIO
-cmd_language session lang_dirs msg = do
+repl :: Session -> [FilePath] -> Msg.Msg -> Cmd.CmdIO
+repl session lang_dirs msg = do
     (response_hdl, text) <- case msg of
         Msg.Socket hdl s -> return (hdl, s)
         _ -> Cmd.abort

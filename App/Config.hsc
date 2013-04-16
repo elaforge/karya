@@ -7,6 +7,7 @@ import qualified Network
 import qualified System.Directory as Directory
 import System.FilePath ((</>))
 import qualified System.Info
+import Control.Monad
 
 import qualified Util.Array as Array
 import qualified Util.File as File
@@ -23,8 +24,7 @@ import qualified Perform.Midi.Control as Control
 #include "fltk/config.h"
 
 
--- | Thees go into the save files, mostly just because git insists on having
--- it them.
+-- | These go into the git save files, because git insists on having them.
 name, email :: String
 name = "Evan Laforge"
 email = "qdunkan@gmail.com"
@@ -53,8 +53,8 @@ instrument_dir :: RelativePath
 instrument_dir = RelativePath "inst_db"
 
 -- | Local CmdL code goes here.
-lang_dir :: RelativePath
-lang_dir = RelativePath $ (\(RelativePath p) -> p) local_dir </> "Lang"
+repl_dir :: RelativePath
+repl_dir = RelativePath $ (\(RelativePath p) -> p) local_dir </> "Lang"
 
 -- | Directory for instruments with slow patch loading to save their caches.
 instrument_cache_dir :: RelativePath
@@ -117,13 +117,16 @@ status_integrate_source :: (Int, String)
 status_integrate_source = (8, "src")
 
 
--- * lang
+-- * repl
 
--- | Port to listen on for language requests.
-lang_port = Network.UnixSocket "seq_language"
-initialize_lang_port = File.ignore_enoent $ Directory.removeFile "seq_language"
+-- | Port to listen on for repl requests.
+repl_port :: Network.PortID
+repl_port = Network.UnixSocket "seq-repl"
+initialize_repl_port :: IO ()
+initialize_repl_port =
+    void $ File.ignore_enoent $ Directory.removeFile "seq-repl"
 
--- | This string coming from the lang socket indicates that the message is
+-- | This string coming from the repl socket indicates that the message is
 -- complete and the server should process it and send a response.  It's
 -- necessary because I can't exactly use EOF for this if I want to send
 -- a response.

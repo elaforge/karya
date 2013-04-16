@@ -3,7 +3,7 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
-  - rename *_lang stuff in Config to repl
+  * rename *_lang stuff in Config to repl
   - Cmd.Lang* should go too
   * move meters to Cmd.Meters and don't hardcode measures/section
   * Tags.internal should be for really internal things, add Tags.builtin for

@@ -14,8 +14,8 @@ import qualified Instrument.Db
 data StaticConfig = StaticConfig {
     instrument_db :: Cmd.InstrumentDb
     -- | Path to directories containing Local.Lang modules.  They will be
-    -- included in the lang namespace.
-    , local_lang_dirs :: [FilePath]
+    -- included in the repl namespace.
+    , local_repl_dirs :: [FilePath]
 
     -- | These Cmds are run before any of the usual ones, and can implement
     -- local global keymaps and whatnot.
@@ -35,7 +35,7 @@ data StaticConfig = StaticConfig {
 empty :: StaticConfig
 empty = StaticConfig {
     instrument_db = Instrument.Db.empty
-    , local_lang_dirs = []
+    , local_repl_dirs = []
     , global_cmds = []
     , global_scope = Derive.empty_scope
     , setup_cmd = const (return Cmd.Done)

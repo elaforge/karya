@@ -27,8 +27,8 @@ load_static_config = do
     midi <- get_midi_config instrument_db
     return $ StaticConfig.StaticConfig {
         StaticConfig.instrument_db = instrument_db
-        , StaticConfig.local_lang_dirs =
-            [Config.make_path app_dir Config.lang_dir]
+        , StaticConfig.local_repl_dirs =
+            [Config.make_path app_dir Config.repl_dir]
         , StaticConfig.global_cmds = []
         , StaticConfig.global_scope = Call.All.scope
         , StaticConfig.setup_cmd = parse_args

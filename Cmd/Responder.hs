@@ -69,7 +69,7 @@ data State = State {
     state_static_config :: StaticConfig.StaticConfig
     , state_ui :: State.State
     , state_cmd :: Cmd.State
-    -- | State for the lang subsystem.
+    -- | State for the repl subsystem.
     , state_session :: Lang.Session
     -- | This is used to feed msgs back into the MsgReader.
     , state_loopback :: Loopback
@@ -99,7 +99,7 @@ type Loopback = Msg.Msg -> IO ()
 
 responder :: StaticConfig.StaticConfig -> MsgReader -> Interface.Interface
     -> Cmd.CmdIO -> Lang.Session -> Loopback -> IO ()
-responder config msg_reader midi_interface setup_cmd lang_session loopback = do
+responder config msg_reader midi_interface setup_cmd repl_session loopback = do
     Log.debug "start responder"
     ui_state <- State.create
     monitor_state <- MVar.newMVar ui_state
@@ -109,7 +109,7 @@ responder config msg_reader midi_interface setup_cmd lang_session loopback = do
         , state_ui = ui_state
         , state_cmd = setup_state $ Cmd.initial_state $
             cmd_config app_dir midi_interface config
-        , state_session = lang_session
+        , state_session = repl_session
         , state_loopback = loopback
         , state_sync = Sync.sync
         , state_monitor_state = monitor_state
@@ -176,14 +176,14 @@ create_msg_reader ::
     (Midi.ReadMessage -> Midi.ReadMessage) -> TChan.TChan Midi.ReadMessage
     -> Network.Socket -> TChan.TChan UiMsg.UiMsg -> TChan.TChan Msg.Msg
     -> IO MsgReader
-create_msg_reader remap_rmsg midi_chan lang_socket ui_chan loopback_chan = do
-    lang_chan <- TChan.newTChanIO
-    Thread.start_logged "accept lang socket" $
-        accept_loop lang_socket lang_chan
+create_msg_reader remap_rmsg midi_chan repl_socket ui_chan loopback_chan = do
+    repl_chan <- TChan.newTChanIO
+    Thread.start_logged "accept repl socket" $
+        accept_loop repl_socket repl_chan
     return $ STM.atomically $
         fmap Msg.Ui (TChan.readTChan ui_chan)
         `STM.orElse` fmap (Msg.Midi . remap_rmsg) (TChan.readTChan midi_chan)
-        `STM.orElse` fmap (uncurry Msg.Socket) (TChan.readTChan lang_chan)
+        `STM.orElse` fmap (uncurry Msg.Socket) (TChan.readTChan repl_chan)
         `STM.orElse` TChan.readTChan loopback_chan
 
 -- | Accept a connection on the socket, read everything that comes over, then
@@ -389,7 +389,7 @@ run_core_cmds msg = do
     -- Certain commands require IO.  Rather than make everything IO,
     -- I hardcode them in a special list that gets run in IO.
     let io_cmds = hardcoded_io_cmds (state_session state)
-            (StaticConfig.local_lang_dirs config)
+            (StaticConfig.local_repl_dirs config)
     mapM_ (run_throw . Right . ($msg)) io_cmds
 
 -- | Everyone always gets these commands.
@@ -399,8 +399,8 @@ hardcoded_cmds =
 
 -- | And these special commands that run in IO.
 hardcoded_io_cmds :: Lang.Session -> [FilePath] -> [Msg.Msg -> Cmd.CmdIO]
-hardcoded_io_cmds lang_session lang_dirs =
-    [ Lang.cmd_language lang_session lang_dirs
+hardcoded_io_cmds repl_session repl_dirs =
+    [ Lang.repl repl_session repl_dirs
     , Integrate.cmd_integrate
     , PlayC.cmd_play_msg
     ] ++ GlobalKeymap.io_cmds
