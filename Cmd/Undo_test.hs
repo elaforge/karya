@@ -221,11 +221,11 @@ test_branching_history = do
 
     -- Each branch has its own history.
     io_equal (read_log =<< Git.read_log repo "tags/1.0")
-        ["save", "+b", "+a", "save"]
+        ["+b", "+a", "save"]
     io_equal (read_log =<< Git.read_log_head repo)
-        ["save", "+b", "+a", "save"]
+        ["+b", "+a", "save"]
     io_equal (read_log =<< Git.read_log repo "tags/1")
-        ["save", "+y", "+x", "save"]
+        ["+y", "+x", "save"]
 
     equal (extract_ui res) "ab"
     res <- next res $ Cmd.name "revert" $ Save.revert (Just "1")

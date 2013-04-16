@@ -111,11 +111,15 @@ save_git_as ::
     -- 'Cmd.Undo.maintain_history' will start checkpointing to it.
     -> Cmd.CmdT IO ()
 save_git_as repo = do
-    state <- State.get
     cmd_state <- Cmd.get
-    let prev_commit = Cmd.hist_last_commit $ Cmd.state_history_config cmd_state
-    (commit, save) <- Cmd.require_right (("save git " ++ repo ++ ": ") ++)
-        =<< liftIO (SaveGit.save repo state prev_commit)
+    let rethrow = Cmd.require_right ("save git " <> repo <> ": " <>)
+    commit <- case Cmd.hist_last_commit $ Cmd.state_history_config cmd_state of
+        Just commit -> return commit
+        Nothing -> do
+            state <- State.get
+            rethrow =<< liftIO (SaveGit.checkpoint repo
+                (SaveGit.SaveHistory state Nothing [] ["save"]))
+    save <- rethrow =<< liftIO (SaveGit.set_save_tag repo commit)
     Log.notice $ "wrote save " ++ show save ++ " to " ++ show repo
     set_save_file (Left (commit, repo)) False
 
@@ -148,7 +152,7 @@ revert maybe_ref = do
     where
     revert_git repo = do
         save <- case maybe_ref of
-            Nothing -> Cmd.require_msg "no last save"
+            Nothing -> fmap fst $ Cmd.require_msg "no last save"
                 =<< liftIO (SaveGit.read_last_save repo Nothing)
             Just ref -> Cmd.require_msg ("unparseable SavePoint: " ++ show ref)
                 (SaveGit.ref_to_save ref)

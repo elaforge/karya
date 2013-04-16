@@ -19,19 +19,15 @@ import qualified Cmd.Create as Create
 import qualified Cmd.SaveGit as SaveGit
 
 
-test_save = do
+test_do_save = do
     repo <- new_repo
     let state = snd $ UiTest.run_mkview
             [ ("1", [(0, 1, "1a"), (1, 1, "1b")])
             , ("2", [(0, 1, "2a")])
             ]
-    check_right =<< SaveGit.save repo state Nothing
-    (state2, commit, _) <- expect_right "load" <$> SaveGit.load repo Nothing
+    SaveGit.save repo state ["save"]
+    (state2, _, _) <- expect_right "load" <$> SaveGit.load repo Nothing
     equal (strip_views state) (strip_views state2)
-    let state3 = UiTest.exec state2 $ do
-            State.destroy_view UiTest.default_view_id
-            UiTest.insert_event 1 (2, 2, "hi")
-    SaveGit.save repo state3 (Just commit)
 
 test_checkpoint = do
     repo <- new_repo

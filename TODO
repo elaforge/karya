@@ -316,7 +316,7 @@ incremental save / git:
   - make sure things are ok if it fails at any step
   - I don't think Ui.State needs to emit CmdTrackAllEvents for cases where
     diff will catch it.
-  - Why should I ever do a complete save?  Why not always just do partial?
+  * Why should I ever do a complete save?  Why not always just do partial?
     The repo should only contain one copy of something that never changes.
     One reason is to trim history, but maybe for that I should have a option
     to rename and save without bringing the history.

@@ -62,36 +62,21 @@ instance Pretty.Pretty SaveHistory where
 is_git :: FilePath -> Bool
 is_git = (".git" `List.isSuffixOf`)
 
--- * save
+-- * save point
 
--- | Like 'checkpoint', but save everything all over again, and add a tag too.
--- It will create a new repo if the given path doesn't exist.
---
--- TODO it shouldn't be necessary to save everything, and it's slow
-save :: Git.Repo -> State.State -> Maybe Git.Commit
-    -> IO (Either String (Git.Commit, SavePoint))
-save repo state prev_commit = try "save" $
-    do_save repo (SaveHistory state prev_commit [] ["save"])
-
-do_save :: Git.Repo -> SaveHistory -> IO (Git.Commit, SavePoint)
-do_save repo (SaveHistory state prev_commit _updates names) = do
-    exists <- Git.init repo
-    prev_commit <- case prev_commit of
-        Just c -> return $ if exists then Just c else Nothing
+-- | Add a new save point tag to the given commit, unless it already has one.
+set_save_tag :: Git.Repo -> Git.Commit -> IO (Either String SavePoint)
+set_save_tag repo commit = try "set_save_tag" $ do
+    Git.gc repo -- Might as well clean things up at this point.
+    read_last_save repo (Just commit) >>= \x -> case x of
         Nothing -> do
-            when exists $
-                Git.throw "refusing to overwrite a repo that already exists"
-            return Nothing
-    dir <- either (Git.throw . ("make_dir: "++)) return $
-        Git.make_dir (dump state)
-    tree <- Git.write_dir repo dir
-    last_save <- read_last_save repo prev_commit
-    save <- find_next_save repo (fromMaybe (SavePoint []) last_save)
-    commit <- commit_tree repo tree prev_commit $
-        unparse_names ("save " ++ save_to_ref save) names
-    write_save_ref repo save commit
-    Git.gc repo
-    return (commit, save)
+            save <- find_next_save repo (SavePoint [])
+            write_save_ref repo save commit
+            return save
+        Just (last_save, save_commit) -> do
+            save <- find_next_save repo last_save
+            if commit == save_commit then return last_save
+                else write_save_ref repo save commit >> return save
 
 -- | Stored in reverse order as in the ref name.
 newtype SavePoint = SavePoint [Int] deriving (Eq, Show, Pretty.Pretty)
@@ -105,7 +90,7 @@ read_save_ref repo save = Git.read_ref repo (save_to_ref save)
 
 read_last_save :: Git.Repo -> Maybe Git.Commit
     -- ^ Find the last save from this commit, or HEAD if not given.
-    -> IO (Maybe SavePoint)
+    -> IO (Maybe (SavePoint, Git.Commit))
 read_last_save repo maybe_commit = do
     -- This may be called on incomplete repos without a HEAD.
     maybe_commits <- catch $
@@ -116,8 +101,10 @@ read_last_save repo maybe_commit = do
             (ref, commit) <- Map.toList refs
             Just save <- return $ ref_to_save ref
             return (commit, save)
-    return $ msum $ map (`Map.lookup` commit_to_save) commits
+    return $ Seq.head [(save, commit) | (Just save, commit)
+        <- zip (map (`Map.lookup` commit_to_save) commits) commits]
 
+-- | Find the SavePoint that should be added after the given SavePoint.
 find_next_save :: Git.Repo -> SavePoint -> IO SavePoint
 find_next_save repo save =
     from_just =<< findM save_free (iterate split (increment save))
@@ -145,26 +132,33 @@ save_to_ref (SavePoint versions) =
 
 -- * checkpoint
 
+-- | Checkpoint the given SaveHistory.  If it has no previous commit, create
+-- a new repo.
 checkpoint :: Git.Repo -> SaveHistory -> IO (Either String Git.Commit)
-checkpoint repo hist@(SaveHistory state prev_commit updates names) =
-        try_e "checkpoint" $ do
-    -- If this is a new repo then do a save instead.
-    case prev_commit of
-        Nothing -> Right . fst <$> do_save repo hist
-        Just prev_commit -> do
-            let (warns, mods) = dump_diff False state
-                    (filter should_record updates)
-            unless (null warns) $
-                Log.warn $ "ignored updates for nonexistent "
-                    ++ Seq.join ", " warns
-                    ++ "; this probably means 'Ui.Diff.cancel_updates didn't"
-                    ++ " do its job"
-            if null mods then return $ Right prev_commit else do
-            last_tree <- Git.commit_tree <$> Git.read_commit repo prev_commit
-            tree <- Git.modify_tree repo last_tree mods
-            commit <- commit_tree repo tree (Just prev_commit) $
-                unparse_names "checkpoint" names
-            return $ Right commit
+checkpoint repo (SaveHistory state Nothing _ names) =
+    try "save" $ save repo state names
+checkpoint repo (SaveHistory state (Just commit) updates names) =
+        try "checkpoint" $ do
+    let (warns, mods) = dump_diff False state (filter should_record updates)
+    unless (null warns) $
+        Log.warn $ "ignored updates for nonexistent "
+            <> Seq.join ", " warns
+            <> "; this probably means 'Ui.Diff.cancel_updates didn't"
+            <> " do its job"
+    if null mods then return commit else do
+    last_tree <- Git.commit_tree <$> Git.read_commit repo commit
+    tree <- Git.modify_tree repo last_tree mods
+    commit_tree repo tree (Just commit) $ unparse_names "checkpoint" names
+
+-- | Create a new repo, or throw if it already exists.
+save :: Git.Repo -> State.State -> [String] -> IO Git.Commit
+save repo state cmd_names = do
+    whenM (Git.init repo) $
+        Git.throw "refusing to overwrite a repo that already exists"
+    dir <- either (Git.throw . ("make_dir: "<>)) return $
+        Git.make_dir (dump state)
+    tree <- Git.write_dir repo dir
+    commit_tree repo tree Nothing $ unparse_names "save" cmd_names
 
 -- | True if this update is interesting enough to record a checkpoint for.
 should_record :: Update.UiUpdate -> Bool
