@@ -15,6 +15,7 @@
 module LogView.LogView where
 import qualified Control.Concurrent as Concurrent
 import qualified Control.Concurrent.STM as STM
+import qualified Control.Concurrent.STM.TChan as TChan
 import qualified Control.Exception as Exception
 import Control.Monad
 import qualified Control.Monad.State as State
@@ -25,16 +26,15 @@ import qualified System.Console.GetOpt as GetOpt
 import qualified System.Directory as Directory
 import qualified System.Environment
 import qualified System.Exit
-import System.FilePath ((</>))
 
 import qualified Util.Fltk as Fltk
 import qualified Util.Log as Log
-import qualified Util.Regex as Regex
 import qualified Util.Seq as Seq
 
 import qualified LogView.LogViewC as LogViewC
 import qualified LogView.Process as Process
-import qualified App.Config as Config
+import qualified LogView.Tail as Tail
+
 import qualified App.SendCmd as SendCmd
 
 
@@ -47,7 +47,7 @@ initial_size = (900, 300)
 
 default_catch_patterns :: [Process.CatchPattern]
 default_catch_patterns =
-    [ ("_", Regex.make "^global status: (.*?) -- (.*)")
+    [ Process.global_status_pattern
     -- I wound up having the app emit catch patterns explicitly instead of
     -- putting the smarts in logview.  But it still seems conceivable that
     -- I may want logview to catch things the app didn't explicitly mean to
@@ -83,6 +83,8 @@ options =
         "read from this file"
     ]
 
+type LogChan = TChan.TChan Log.Msg
+
 main :: IO ()
 main = do
     args <- System.Environment.getArgs
@@ -95,24 +97,24 @@ main = do
 
     let seek = maybe (Just 0) id $ Seq.last [s | Seek s <- flags]
         history = maybe default_history id $ Seq.last [n | History n <- flags]
-    filename <- maybe default_log_fn return $ Seq.last [n | File n <- flags]
-    hdl <- Process.open filename seek
+    filename <- maybe Tail.log_filename return $ Seq.last [n | File n <- flags]
+    hdl <- Tail.open filename seek
     log_chan <- STM.newTChanIO
-    Concurrent.forkIO (Process.tail_file log_chan filename hdl)
+    Concurrent.forkIO $ tail_loop log_chan hdl
     if Print `elem` flags
         then print_logs log_chan
         else gui log_chan filename history
     where
+    tail_loop log_chan hdl = do
+        (msg, hdl) <- Tail.tail hdl
+        STM.atomically $ TChan.writeTChan log_chan msg
+        tail_loop log_chan hdl
     usage msg = do
         putStrLn "usage: logview [ flags ]"
         putStr (GetOpt.usageInfo msg options)
         System.Exit.exitFailure
 
-default_log_fn :: IO FilePath
-default_log_fn = Config.get_app_dir >>= \app_dir -> return $
-    Config.make_path app_dir Config.log_dir </> "seq.log"
-
-gui :: STM.TChan Log.Msg -> FilePath -> Int -> IO ()
+gui :: LogChan -> FilePath -> Int -> IO ()
 gui log_chan filename history = do
     filename <- Directory.canonicalizePath filename
     win <- LogViewC.create 20 20 (fst initial_size) (snd initial_size)
@@ -123,17 +125,15 @@ gui log_chan filename history = do
     Concurrent.forkIO (handle_msgs state history log_chan win)
     Fltk.run
 
-print_logs :: STM.TChan Log.Msg -> IO ()
-print_logs log_chan = forever $ do
-    msg <- STM.atomically $ STM.readTChan log_chan
-    putStrLn $ Log.format_msg msg
+print_logs :: LogChan -> IO ()
+print_logs log_chan = forever $
+    putStrLn . Log.format_msg =<< STM.atomically (TChan.readTChan log_chan)
 
 
 data Msg = NewLog Log.Msg | ClickedWord String | FilterChanged String
     deriving (Show)
 
-handle_msgs :: Process.State -> Int -> STM.TChan Log.Msg -> LogViewC.Window
-    -> IO ()
+handle_msgs :: Process.State -> Int -> LogChan -> LogViewC.Window -> IO ()
 handle_msgs st history log_chan win = flip State.evalStateT st $ forever $ do
     msg <- liftIO $ get_msg log_chan win
     case msg of
@@ -182,7 +182,7 @@ send_to_app cmd = do
     unless (null response) $
         putStrLn $ "response: " ++ response
 
-get_msg :: STM.TChan Log.Msg -> LogViewC.Window -> IO Msg
+get_msg :: LogChan -> LogViewC.Window -> IO Msg
 get_msg log_chan win = STM.atomically $
     fmap NewLog (STM.readTChan log_chan)
     `STM.orElse` fmap parse_ui_msg (Fltk.read_msg win)

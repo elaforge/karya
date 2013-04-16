@@ -23,7 +23,6 @@ import qualified System.FilePath as FilePath
 import System.FilePath ((</>))
 
 import Util.Control
-import qualified Util.File as File
 import qualified Util.Log as Log
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
@@ -67,19 +66,18 @@ cmd_language session lang_dirs msg = do
         Just cmd -> return cmd
         Nothing -> liftIO $
             LangImpl.interpret session local_modules ui_state cmd_state text
-    (response, status, success) <- run_cmdio $ Cmd.name ("repl: " ++ text) cmd
+    (response, status) <- run_cmdio $ Cmd.name ("repl: " ++ text) cmd
     liftIO $ catch_io_errors $ do
         unless (null response) $
             IO.hPutStrLn response_hdl response
         IO.hClose response_hdl
-    when success (write_cmd text)
     return status
     where
     catch_io_errors = Exception.handle $ \(exc :: IOError) ->
         Log.warn $ "caught exception from socket write: " ++ show exc
 
 -- | Run the Cmd under an IO exception handler.
-run_cmdio :: Cmd.CmdT IO String -> Cmd.CmdT IO (String, Cmd.Status, Bool)
+run_cmdio :: Cmd.CmdT IO String -> Cmd.CmdT IO (String, Cmd.Status)
 run_cmdio cmd = do
     ui_state <- State.get
     cmd_state <- Cmd.get
@@ -94,19 +92,18 @@ run_cmdio cmd = do
         return (cmd_state, midi, result)
     case result of
         Left (exc :: Exception.SomeException) ->
-            return (unformatted $ "IO exception: " ++ show exc,
-                Cmd.Done, False)
+            return (unformatted $ "IO exception: " ++ show exc, Cmd.Done)
         Right (cmd_state, midi, result) -> case result of
             Left err ->
                 return (unformatted $ "State error: " ++ Pretty.pretty err,
-                    Cmd.Done, False)
+                    Cmd.Done)
             Right (val, ui_state, updates) -> do
                 mapM_ Cmd.write_midi midi
                 Cmd.put $ cmd_state { Cmd.state_repl_status = Cmd.Continue }
                 -- Should be safe, because I'm writing the updates.
                 State.unsafe_put ui_state
                 mapM_ State.update updates
-                return (val, Cmd.state_repl_status cmd_state, True)
+                return (val, Cmd.state_repl_status cmd_state)
 
 -- | Prepend a magic character that makes the REPL not try to pretty-print the
 -- output.  It won't pretty print it if it's not parseable as haskell, but
@@ -128,10 +125,3 @@ get_local_modules lang_dir = do
 
 is_hs :: FilePath -> Bool
 is_hs fn = take 1 fn /= "." && FilePath.takeExtension fn == ".hs"
-
-write_cmd :: String -> Cmd.CmdT IO ()
-write_cmd text = Cmd.gets Cmd.state_save_dir >>= \x -> case x of
-    Nothing -> return ()
-    Just dir ->
-        liftIO $ void $ File.log_io_error "write_cmd" $
-            IO.appendFile (FilePath.combine dir "repl") (text ++ "\n")

@@ -851,7 +851,7 @@ integrator / midi record:
   - implement
 
 REPL: repl:
-  - repl should load the history from save/.../repl, and have a history search
+  * repl should load the history from save/.../repl, and have a history search
     seq will have to tell the REPL what it loaded, so it needs a fancier
     protocol.
   * haskeline doesn't get along with the prompt colorization in repl

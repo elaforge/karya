@@ -1,8 +1,6 @@
 module LogView.Process where
-import qualified Control.Concurrent.STM as STM
 import qualified Control.Monad.Trans.State as State
 import qualified Control.Monad.Trans.Writer as Writer
-
 import qualified Data.Foldable as Foldable
 import qualified Data.Functor.Identity as Identity
 import qualified Data.List as List
@@ -10,18 +8,14 @@ import qualified Data.Map as Map
 import qualified Data.Sequence as Sequence
 import qualified Data.Time as Time
 
-import qualified System.IO as IO
-import qualified System.Posix.Files as Posix.Files
 import qualified Text.Printf as Printf
 
 import Util.Control
-import qualified Util.File as File
 import qualified Util.Log as Log
 import qualified Util.Map as Map
 import qualified Util.ParseBs as ParseBs
 import qualified Util.Regex as Regex
 import qualified Util.Seq as Seq
-import qualified Util.Thread as Thread
 
 import qualified Ui.Id as Id
 import qualified Derive.Stack as Stack
@@ -153,15 +147,9 @@ suppress_last msg process = do
 -- has one group, that group is used.  If it has two groups, the first group
 -- will replace the key.  >2 groups is an error.
 catch_regexes :: [CatchPattern] -> Catch
-catch_regexes patterns msg =
-    Map.union (Map.fromList (concatMap match patterns))
+catch_regexes patterns msg = Map.union status
     where
-    match (title, reg) =
-        map extract (Regex.find_groups reg (Log.msg_string msg))
-        where
-        extract (_, [match]) = (title, match)
-        extract (_, [match_title, match]) = (match_title, match)
-        extract _ = error $ show reg ++ " has >2 groups"
+    status = Map.unions $ map (($ Log.msg_string msg) . match_pattern) patterns
 
 -- | The app sends this on startup, so I can clear out any status from the
 -- last session.
@@ -169,6 +157,16 @@ catch_start :: Catch
 catch_start msg status
     | Log.msg_string msg == "app starting" = Map.empty
     | otherwise = status
+
+global_status_pattern :: CatchPattern
+global_status_pattern = ("_", Regex.make "^global status: (.*?) -- (.*)")
+
+match_pattern :: CatchPattern -> String -> Map.Map String String
+match_pattern (title, reg) = Map.fromList . map extract . Regex.find_groups reg
+    where
+    extract (_, [match]) = (title, match)
+    extract (_, [match_title, match]) = (match_title, match)
+    extract _ = error $ show reg ++ " has >2 groups"
 
 
 -- ** cache status
@@ -351,85 +349,3 @@ style_emphasis = 'D'
 style_divider = 'E'
 style_func_name = 'F'
 style_filename = 'G'
-
-
--- * tail file
-
-open :: FilePath
-    -> Maybe Integer -- ^ no seek if Nothing, else seek n*m bytes from end
-    -> IO IO.Handle
-open filename seek = do
-    -- ReadWriteMode makes it create the file if it doesn't exist, and not
-    -- die here.
-    hdl <- IO.openFile filename IO.ReadWriteMode
-    IO.hSetBuffering hdl IO.LineBuffering -- See tail_getline.
-    case seek of
-        Nothing -> return ()
-        Just n -> do
-            IO.hSeek hdl IO.SeekFromEnd (-n * 200)
-            when (n /= 0) $
-                void $ IO.hGetLine hdl -- make sure I'm at a line boundary
-    return hdl
-
-tail_file :: STM.TChan Log.Msg -> FilePath -> IO.Handle -> IO ()
-tail_file log_chan filename hdl = do
-    size <- IO.hFileSize hdl
-    loop (hdl, size)
-    where
-    loop state = do
-        (line, state) <- tail_getline filename state
-        msg <- deserialize_line line
-        STM.atomically $ STM.writeTChan log_chan msg
-        loop state
-
-type TailState = (IO.Handle, Integer)
-
-deserialize_line :: String -> IO Log.Msg
-deserialize_line line = do
-    err_msg <- Log.deserialize_msg line
-    case err_msg of
-        Left exc -> Log.initialized_msg Log.Error $ "error parsing: "
-            ++ show exc ++ ", line was: " ++ show line
-        Right msg -> return msg
-
-tail_getline :: FilePath -> TailState -> IO (String, TailState)
-tail_getline filename = go
-    where
-    go state@(hdl, last_size) = IO.hIsEOF hdl >>= \x -> case x of
-        True -> do
-            new_size <- IO.hFileSize hdl
-            -- Check if the file was truncated.
-            state <- if new_size < last_size
-                then IO.hSeek hdl IO.AbsoluteSeek 0 >> return state
-                else ifM (file_renamed filename new_size)
-                    (reopen hdl new_size filename)
-                    (Thread.delay 2 >> return state)
-            go state
-        False -> do
-            -- Since hGetLine in its infinite wisdom chops the newline it's
-            -- impossible to tell if this is a complete line or not.  I'll set
-            -- LineBuffering and hope for the best.
-            line <- IO.hGetLine hdl
-            return (line, state)
-
--- | If the filename exists, open it and close the old file.
-reopen :: IO.Handle -> Integer -> FilePath -> IO TailState
-reopen hdl size filename =
-    File.ignore_enoent (IO.openFile filename IO.ReadMode) >>= \x -> case x of
-        Nothing -> do
-            return (hdl, size)
-        Just new -> do
-            IO.hClose hdl
-            IO.hSetBuffering new IO.LineBuffering
-            IO.hSeek new IO.AbsoluteSeek 0
-            size <- IO.hFileSize new
-            return (new, size)
-
--- | Check if it looks like the file has been renamed.
-file_renamed :: FilePath -> Integer -> IO Bool
-file_renamed filename size = do
-    -- I should really use inode, but ghc's crummy IO libs make that a pain,
-    -- since handleToFd closes the handle.
-    file_size <- maybe 0 Posix.Files.fileSize <$>
-        File.ignore_enoent (Posix.Files.getFileStatus filename)
-    return $ fromIntegral file_size /= size && file_size /= 0
