@@ -63,7 +63,7 @@ save_state = save_state_as =<< get_state_path
 save_state_as :: FilePath -> Cmd.CmdT IO ()
 save_state_as fname = do
     write_state fname
-    Cmd.modify $ set_save_file $ Right fname
+    set_save_file (Right fname) False
 
 write_state :: FilePath -> Cmd.CmdT IO ()
 write_state fname = do
@@ -78,9 +78,7 @@ load_state fname = do
     let mkmsg = (("load " ++ fname ++ ": ") ++)
     Serialize.SaveState state _ <- Cmd.require_msg (mkmsg "doesn't exist")
         =<< Cmd.require_right mkmsg =<< liftIO (Serialize.unserialize fname)
-    set_state state
-    Cmd.modify $ \st -> st
-        { Cmd.state_save_file = Just $ Cmd.SaveState fname }
+    set_state (Right fname) True state
 
 -- ** path
 
@@ -119,7 +117,7 @@ save_git_as repo = do
     (commit, save) <- Cmd.require_right (("save git " ++ repo ++ ": ") ++)
         =<< liftIO (SaveGit.save repo state prev_commit)
     Log.notice $ "wrote save " ++ show save ++ " to " ++ show repo
-    Cmd.modify $ set_save_file $ Left (commit, repo)
+    set_save_file (Left (commit, repo)) False
 
 load_git :: FilePath -> Maybe SaveGit.Commit -> Cmd.CmdT IO ()
 load_git repo maybe_commit = do
@@ -127,13 +125,12 @@ load_git repo maybe_commit = do
         (("load git " ++ repo ++ ": ") ++)
         =<< liftIO (SaveGit.load repo maybe_commit)
     Log.notice $ "loaded from " ++ show repo ++ ", at " ++ Pretty.pretty commit
-    set_state state
+    set_state (Left (commit, repo)) True state
     Cmd.modify $ \st -> st
-        { Cmd.state_save_file = Just $ Cmd.SaveGit repo
-        , Cmd.state_history = (Cmd.state_history st)
+        { Cmd.state_history = (Cmd.state_history st)
+            -- This will cause "Cmd.Undo" to clear out the history, so
+            -- 'set_save_file' as called by 'set_state' above is redundant.
             { Cmd.hist_last_cmd = Just $ Cmd.Load (Just commit) names }
-        , Cmd.state_history_config = (Cmd.state_history_config st)
-            { Cmd.hist_last_commit = Just commit }
         }
 
 -- | Revert to given save point, or the last one.
@@ -198,18 +195,20 @@ close_state cmd_state ui_state = case Cmd.state_save_file cmd_state of
         SaveGit.save_views repo $ State.state_views ui_state
     _ -> return ()
 
+type SaveFile = Either (SaveGit.Commit, SaveGit.Repo) FilePath
+
 -- | If I switch away from a repo (either to another repo or to a plain state),
 -- I have to clear out all the remains of the old repo, since its Commits are
 -- no longer valid.
 --
 -- It's really important to call this whenever you change
 -- 'Cmd.state_save_file'!
-set_save_file :: Either (SaveGit.Commit, SaveGit.Repo) FilePath
-    -> Cmd.State -> Cmd.State
-set_save_file git_or_state state = state
+set_save_file :: (Cmd.M m) => SaveFile -> Bool -> m ()
+set_save_file git_or_state clear_history = Cmd.modify $ \state -> state
     { Cmd.state_save_file = Just file
     , Cmd.state_history = let hist = Cmd.state_history state in hist
-        { Cmd.hist_past = map clear (Cmd.hist_past hist)
+        { Cmd.hist_past = if clear_history then []
+            else map clear (Cmd.hist_past hist)
         , Cmd.hist_present = (Cmd.hist_present hist)
             { Cmd.hist_commit = commit }
         , Cmd.hist_future = []
@@ -223,8 +222,9 @@ set_save_file git_or_state state = state
         Right fname -> (Nothing, Cmd.SaveState fname)
     clear entry = entry { Cmd.hist_commit = Nothing }
 
-set_state :: State.State -> Cmd.CmdT IO ()
-set_state state = do
+set_state :: SaveFile -> Bool -> State.State -> Cmd.CmdT IO ()
+set_state git_or_state clear_history state = do
+    set_save_file git_or_state clear_history
     old_cmd <- Cmd.get
     old_ui <- State.get
     liftIO $ close_state old_cmd old_ui
