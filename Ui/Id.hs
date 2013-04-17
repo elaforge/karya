@@ -18,14 +18,13 @@ module Ui.Id (
     -- * Ident
     , Ident(..)
     , show_ident, read_ident
-    , ident_string, ident_name, ident_namespace
+    , ident_string, ident_text, ident_name, ident_namespace
 
     -- * constants
     , global, global_namespace
 ) where
 import Prelude hiding (id)
 import qualified Control.DeepSeq as DeepSeq
-import Control.Monad
 import qualified Data.ByteString.Char8 as B
 import qualified Data.Char as Char
 import qualified Data.Digest.CRC32 as CRC32
@@ -34,6 +33,7 @@ import qualified System.IO.Unsafe as Unsafe
 import qualified Text.ParserCombinators.ReadPrec as ReadPrec
 import qualified Text.Read as Read
 
+import Util.Control
 import qualified Util.Log as Log
 import qualified Util.Pretty as Pretty
 import qualified Util.Serialize as Serialize
@@ -229,6 +229,9 @@ read_ident witness = do
 -- | SomethingId -> "ns/name"
 ident_string :: (Ident a) => a -> String
 ident_string = show_id . unpack_id
+
+ident_text :: (Ident a) => a -> Text
+ident_text = txt . show_id . unpack_id
 
 -- | SomethingId -> "name"
 ident_name :: (Ident a) => a -> String

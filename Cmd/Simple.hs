@@ -35,13 +35,13 @@ import Types
 -- but copy and paste can't copy and paste the ruler.
 --
 -- (id_name, title, tracks, skeleton)
-type Block = (String, String, [Track], [(Int, Int)])
+type Block = (String, Text, [Track], [(Int, Int)])
 
 -- | (id_name, title, events)
-type Track = (String, String, [Event])
+type Track = (String, Text, [Event])
 
 -- | (start, duration, text)
-type Event = (Double, Double, String)
+type Event = (Double, Double, Text)
 
 -- | (start, duration, text, initial_nn)
 type ScoreEvent = (Double, Double, String, Maybe Pitch.NoteNumber)
@@ -57,7 +57,7 @@ from_real = RealTime.to_seconds
 
 event :: Event.Event -> Event
 event event = (from_score (Event.start event),
-    from_score (Event.duration event), Event.event_string event)
+    from_score (Event.duration event), Event.event_text event)
 
 score_event :: Score.Event -> ScoreEvent
 score_event evt = (from_real (Score.event_start evt),
@@ -134,4 +134,4 @@ convert_track (id_name, title, events) = do
 
 convert_event :: Event -> Event.Event
 convert_event (start, dur, text) =
-    Event.event (ScoreTime.double start) (ScoreTime.double dur) text
+    Event.text_event (ScoreTime.double start) (ScoreTime.double dur) text

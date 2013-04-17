@@ -182,10 +182,6 @@ comma_list xs = Seq.join ", " xs
 semicolon_list [] = "[]"
 semicolon_list xs = Seq.join "; " xs
 
-str :: String -> String
-str "" = '"' : '"' : ""
-str s = s
-
 show_runs :: (Show a, Num a, Ord a) => [a] -> [String]
 show_runs = concatMap show_run . Seq.split_between (\a b -> a+1 < b)
     where
@@ -221,8 +217,8 @@ get_track_status block_id tracknum = do
         track_descs <- show_track_status block_id controls
         addrs <- Map.findWithDefault [] inst <$> State.get_midi_alloc
         let title = TrackInfo.instrument_to_title inst
-        return $ Printf.printf "%s at %d: %s -- [%s]" title note_tracknum
-            (show_addrs addrs) (Seq.join ", " track_descs)
+        return $ Printf.printf "%s at %d: %s -- [%s]" (untxt title)
+            note_tracknum (show_addrs addrs) (Seq.join ", " track_descs)
 
 -- | Given a tracknum, find the note track associated with it.  Since there
 -- may be multiple ones, pick the first one.  First try children, then
@@ -271,7 +267,8 @@ show_track_status block_id status = forM status $ \info -> do
                 | Block.Collapse `Set.member` flags -> "expand"
                 | otherwise -> "collapse"
     return $ Printf.printf "%s {%s %d}"
-        (str (TrackInfo.strip_expr (State.track_title info))) cmd_text tracknum
+        (untxt $ TrackInfo.strip_expr $ State.track_title info)
+        cmd_text tracknum
 
 paths_of :: TrackTree.TrackTree -> TrackNum
     -> Maybe (State.TrackInfo, [State.TrackInfo], [State.TrackInfo])

@@ -198,7 +198,7 @@ extract_calls track_id = do
     events <- Events.ascending . Track.track_events <$>
         State.get_track track_id
     ns <- State.get_namespace
-    let call = NoteTrack.block_call ns . Event.event_string
+    let call = NoteTrack.block_call ns . Event.event_text
     return $ do
         event <- events
         Just block_id <- return (call event)

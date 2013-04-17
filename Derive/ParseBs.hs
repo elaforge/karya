@@ -66,9 +66,9 @@ parse_expr = parse p_pipeline
 -- | Parse a control track title.  The first expression in the composition is
 -- parsed simply as a list of values, not a Call.  Control track titles don't
 -- follow the normal calling process but pattern match directly on vals.
-parse_control_title :: String
+parse_control_title :: Text.Text
     -> Either String ([TrackLang.Val], [TrackLang.Call])
-parse_control_title = Parse.parse_all p_control_title . from_string
+parse_control_title = Parse.parse_all p_control_title . from_text
 
 -- | Parse a single Val.  This takes a String since it's used with Notes and
 -- Symbols, which are still Strings.

@@ -126,7 +126,7 @@ note_events :: Score.Instrument -> Instrument.AttributeMap -> [Score.Event]
     -> Track
 note_events inst attr_map events =
     make_track note_title (map (note_event attr_map) events)
-    where note_title = txt $ TrackInfo.instrument_to_title inst
+    where note_title = TrackInfo.instrument_to_title inst
 
 note_event :: Instrument.AttributeMap -> Score.Event -> Event.Event
 note_event attr_map event = ui_event (Score.event_stack event)
@@ -144,7 +144,7 @@ pitch_events :: Pitch.ScaleId -> Pitch.ScaleId -> [Score.Event]
 pitch_events default_scale_id scale_id events =
     (make_track pitch_title (tidy_pitches ui_events), concat errs)
     where
-    pitch_title = txt $ TrackInfo.scale_to_title $
+    pitch_title = TrackInfo.scale_to_title $
         if scale_id == default_scale_id then Pitch.empty_scale else scale_id
     (ui_events, errs) = unzip $ map pitch_signal_events events
     tidy_pitches = clip_to_zero . clip_concat . map drop_dups

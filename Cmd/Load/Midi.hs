@@ -59,7 +59,7 @@ create tracks skel = do
     return block_id
     where
     add_track block_id (title, track) =
-        Create.track block_id 9999 (untxt title) $
+        Create.track block_id 9999 title $
             Events.from_list [Event.event start dur (untxt text)
                 | (start, (dur, text)) <- Map.toAscList track]
 
@@ -135,9 +135,9 @@ convert_tracks midi_tracks = (concatMap convert tracks, skeleton, warns)
     (tracks, warns) = mconcat $ map convert_track midi_tracks
     skeleton = Skeleton.make $ note_track_edges $ map snd tracks
     convert (inst, NoteTrack notes pitches controls) =
-        (txt $ TrackInfo.instrument_to_title inst, notes)
+        (TrackInfo.instrument_to_title inst, notes)
         : ("*", pitches)
-        : [(txt $ TrackInfo.control_to_title control, track)
+        : [(TrackInfo.control_to_title control, track)
             | (control, track) <- Map.toAscList controls]
 
 note_track_edges :: [NoteTrack] -> [Skeleton.Edge]

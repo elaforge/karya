@@ -143,7 +143,7 @@ instance Serialize State.State where
             _ -> Serialize.bad_version "State.State" v
 
 instance Serialize State.Config where
-    put (State.Config a b c d e f g h) = Serialize.put_version 5
+    put (State.Config a b c d e f g h) = Serialize.put_version 6
         >> put a >> put b >> put c >> put d >> put e >> put f >> put g >> put h
     get = Serialize.get_version >>= \v -> case v of
         0 -> do
@@ -152,7 +152,7 @@ instance Serialize State.Config where
             root :: Maybe BlockId <- get
             midi :: Instrument.Config <- get
             defaults :: State.Default <- get
-            return $ State.Config ns State.empty_meta root midi [] mempty
+            return $ State.Config ns State.empty_meta root midi "" mempty
                 Lilypond.default_config defaults
         1 -> do
             ns :: Id.Namespace <- get
@@ -162,7 +162,7 @@ instance Serialize State.Config where
             transform :: String <- get
             defaults :: State.Default <- get
             return $ State.Config ns State.empty_meta root midi
-                transform mempty Lilypond.default_config defaults
+                (txt transform) mempty Lilypond.default_config defaults
         2 -> do
             ns :: Id.Namespace <- get
             _dir :: String <- get
@@ -171,7 +171,7 @@ instance Serialize State.Config where
             midi :: Instrument.Config <- get
             transform :: String <- get
             defaults :: State.Default <- get
-            return $ State.Config ns meta root midi transform mempty
+            return $ State.Config ns meta root midi (txt transform) mempty
                 Lilypond.default_config defaults
         3 -> do
             ns :: Id.Namespace <- get
@@ -180,7 +180,7 @@ instance Serialize State.Config where
             midi :: Instrument.Config <- get
             transform :: String <- get
             defaults :: State.Default <- get
-            return $ State.Config ns meta root midi transform mempty
+            return $ State.Config ns meta root midi (txt transform) mempty
                 Lilypond.default_config defaults
         4 -> do
             ns :: Id.Namespace <- get
@@ -190,7 +190,7 @@ instance Serialize State.Config where
             transform :: String <- get
             instruments :: Map.Map Score.Instrument Score.Instrument <- get
             defaults :: State.Default <- get
-            return $ State.Config ns meta root midi transform instruments
+            return $ State.Config ns meta root midi (txt transform) instruments
                 Lilypond.default_config defaults
         5 -> do
             ns :: Id.Namespace <- get
@@ -198,6 +198,17 @@ instance Serialize State.Config where
             root :: Maybe BlockId <- get
             midi :: Instrument.Config <- get
             transform :: String <- get
+            instruments :: Map.Map Score.Instrument Score.Instrument <- get
+            lilypond :: Lilypond.Config <- get
+            defaults :: State.Default <- get
+            return $ State.Config ns meta root midi (txt transform) instruments
+                lilypond defaults
+        6 -> do
+            ns :: Id.Namespace <- get
+            meta :: State.Meta <- get
+            root :: Maybe BlockId <- get
+            midi :: Instrument.Config <- get
+            transform :: Text <- get
             instruments :: Map.Map Score.Instrument Score.Instrument <- get
             lilypond :: Lilypond.Config <- get
             defaults :: State.Default <- get
@@ -233,7 +244,7 @@ instance Serialize State.Default where
 instance Serialize Block.Block where
     -- Config is not serialized because everything in the block config is
     -- either derived from the Cmd.State or is hardcoded.
-    put (Block.Block a _config b c d e f) = Serialize.put_version 8
+    put (Block.Block a _config b c d e f) = Serialize.put_version 9
         >> put a >> put b >> put c >> put d >> put e >> put f
     get = do
         v <- Serialize.get_version
@@ -245,9 +256,9 @@ instance Serialize Block.Block where
                 _integrated ::
                     Maybe (BlockId, NonEmpty OldTrackDestination) <- get
                 _itracks :: [(TrackId, NonEmpty OldTrackDestination)] <- get
-                meta :: Map.Map String String <- get
-                return $ Block.Block title Block.default_config tracks skel
-                    Nothing [] meta
+                _meta :: Map.Map String String <- get
+                return $ Block.Block (txt title) Block.default_config tracks
+                    skel Nothing [] mempty
             8 -> do
                 title :: String <- get
                 tracks :: [Block.Track] <- get
@@ -255,7 +266,17 @@ instance Serialize Block.Block where
                 integrated ::
                     Maybe (BlockId, NonEmpty Block.TrackDestination) <- get
                 itracks :: [(TrackId, NonEmpty Block.TrackDestination)] <- get
-                meta :: Map.Map String String <- get
+                _meta :: Map.Map String String <- get
+                return $ Block.Block (txt title) Block.default_config tracks
+                    skel integrated itracks mempty
+            9 -> do
+                title :: Text <- get
+                tracks :: [Block.Track] <- get
+                skel :: Skeleton.Skeleton <- get
+                integrated ::
+                    Maybe (BlockId, NonEmpty Block.TrackDestination) <- get
+                itracks :: [(TrackId, NonEmpty Block.TrackDestination)] <- get
+                meta :: Map.Map Text Text <- get
                 return $ Block.Block title Block.default_config tracks skel
                     integrated itracks meta
             _ -> Serialize.bad_version "Block.Block" v
@@ -342,7 +363,7 @@ instance Serialize Block.Divider where
         return $ Block.Divider color
 
 instance Serialize Block.View where
-    put (Block.View a b c d e f g h) = Serialize.put_version 4
+    put (Block.View a b c d e f g h) = Serialize.put_version 5
         >> put a >> put b >> put c >> put d >> put e >> put f >> put g >> put h
     get = do
         v <- Serialize.get_version
@@ -363,7 +384,18 @@ instance Serialize Block.View where
                 rect :: Rect.Rect <- get
                 visible_track :: Int <- get
                 visible_time :: Int <- get
-                status :: Map.Map (Int, String) String <- get
+                _status :: Map.Map (Int, String) String <- get
+                track_scroll :: Types.Width <- get
+                zoom :: Types.Zoom <- get
+                selections :: Map.Map Types.SelNum Types.Selection <- get
+                return $ Block.View block rect visible_track visible_time
+                    mempty track_scroll zoom selections
+            5 -> do
+                block :: Types.BlockId <- get
+                rect :: Rect.Rect <- get
+                visible_track :: Int <- get
+                visible_time :: Int <- get
+                status :: Map.Map (Int, Text) Text <- get
                 track_scroll :: Types.Width <- get
                 zoom :: Types.Zoom <- get
                 selections :: Map.Map Types.SelNum Types.Selection <- get
@@ -445,13 +477,19 @@ instance Serialize Ruler.Mark where
 -- ** Track
 
 instance Serialize Track.Track where
-    put (Track.Track a b c d) = Serialize.put_version 3 >>
+    put (Track.Track a b c d) = Serialize.put_version 4 >>
         put a >> put b >> put c >> put d
     get = do
         v <- Serialize.get_version
         case v of
             3 -> do
                 title :: String <- get
+                events :: Events.Events <- get
+                color :: Color.Color <- get
+                render :: Track.RenderConfig <- get
+                return $ Track.Track (txt title) events color render
+            4 -> do
+                title :: Text <- get
                 events :: Events.Events <- get
                 color :: Color.Color <- get
                 render :: Track.RenderConfig <- get

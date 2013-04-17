@@ -22,7 +22,7 @@ UNSORTED
     * Lilypond.to_lily
     - Pretty.pretty
     - Derive.throw
-    - track titles
+    * track titles
     * turn txt (show ...) into showt
     * Cmd.ControlTrack.Event
     * instance Typecheck Text instead of String

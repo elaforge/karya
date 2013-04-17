@@ -9,8 +9,10 @@ import qualified Data.Generics as Generics
 import qualified Data.Map as Map
 import qualified Data.Time as Time
 
+import Util.Control
 import qualified Util.Lens as Lens
 import qualified Util.Pretty as Pretty
+
 import qualified Ui.Id as Id
 import qualified Derive.Score as Score
 import qualified Perform.Lilypond.Types as Lilypond
@@ -44,7 +46,7 @@ data Config = Config {
     -- block then playing in sub-blocks doesn't get the transformation, and
     -- if you put it in sub-blocks then you repeat yourself and possibly apply
     -- it multiple times.
-    , config_global_transform :: !String
+    , config_global_transform :: !Text
     -- | Local instrument aliases.  Map instruments through this map before
     -- setting them.
     , config_instruments :: !(Map.Map Score.Instrument Score.Instrument)

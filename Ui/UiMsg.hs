@@ -54,12 +54,12 @@ data Msg =
 -- to its own state.  They are like Ui.Update except in the opposide
 -- direction: fltk telling haskell what changes occurred.
 data UiUpdate =
-    UpdateInput String
-    | UpdateTrackScroll Types.Width
-    | UpdateZoom Types.Zoom
+    UpdateInput !String
+    | UpdateTrackScroll !Types.Width
+    | UpdateZoom !Types.Zoom
     -- | Size of entire block window, and (track_padding, time_padding).
-    | UpdateViewResize Rect.Rect (Int, Int)
-    | UpdateTrackWidth Types.Width
+    | UpdateViewResize !Rect.Rect !(Int, Int)
+    | UpdateTrackWidth !Types.Width
     -- | The given view was closed.
     | UpdateClose
     deriving (Eq, Ord, Show)

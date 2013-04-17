@@ -60,8 +60,10 @@ module Ui.BlockC (
 ) where
 import qualified Control.Concurrent.MVar as MVar
 import qualified Control.Exception as Exception
+import qualified Data.ByteString as ByteString
 import qualified Data.List as List
 import qualified Data.Map as Map
+import qualified Data.Text.Encoding as Text.Encoding
 import qualified Data.Typeable as Typeable
 import Util.ForeignC
 import qualified System.IO.Unsafe as Unsafe
@@ -88,6 +90,9 @@ import Types
 -- This is from http://haskell.org/haskellwiki/FFI_cook_book.  Is there a
 -- better way?  I dunno, but this is clever and looks like it should work.
 #let alignment t = "%lu", (unsigned long)offsetof(struct {char x__; t (y__); }, y__)
+
+withText :: Text -> (CString -> IO a) -> IO a
+withText = ByteString.useAsCString . Text.Encoding.encodeUtf8
 
 -- * errors
 
@@ -125,13 +130,13 @@ lookup_id viewp = do
 
 -- | Create an empty block view with the given configs.  Tracks must be
 -- inserted separately.
-create_view :: ViewId -> String -> Rect.Rect -> Block.Config -> Fltk ()
+create_view :: ViewId -> Text -> Rect.Rect -> Block.Config -> Fltk ()
 create_view view_id window_title rect block_config =
     MVar.modifyMVar_ view_id_to_ptr $ \ptr_map -> do
         when (view_id `Map.member` ptr_map) $
             throw $ show view_id ++ " already in displayed view list: "
                 ++ show (Map.assocs ptr_map)
-        viewp <- withCString window_title $ \titlep ->
+        viewp <- withText window_title $ \titlep ->
             with block_config $ \configp ->
                 c_create (i x) (i y) (i w) (i h) titlep configp
         return $ Map.insert view_id viewp ptr_map
@@ -231,16 +236,16 @@ set_skeleton view_id skel integrate_edges = do
 foreign import ccall "set_skeleton"
     c_set_skeleton :: Ptr CView -> Ptr SkeletonConfig -> IO ()
 
-set_title :: ViewId -> String -> Fltk ()
+set_title :: ViewId -> Text -> Fltk ()
 set_title view_id title = do
     viewp <- get_ptr view_id
-    withCString title (c_set_title viewp)
+    withText title (c_set_title viewp)
 foreign import ccall "set_title" c_set_title :: Ptr CView -> CString -> IO ()
 
-set_status :: ViewId -> String -> Color.Color -> Fltk ()
+set_status :: ViewId -> Text -> Color.Color -> Fltk ()
 set_status view_id status color = do
     viewp <- get_ptr view_id
-    withCString status $ \statusp -> with color $ \colorp ->
+    withText status $ \statusp -> with color $ \colorp ->
         c_set_status viewp statusp colorp
 foreign import ccall "set_status"
     c_set_status :: Ptr CView -> CString -> Ptr Color.Color -> IO ()
@@ -333,10 +338,10 @@ data TracklikePtr =
     | RPtr (Ptr Ruler.Ruler)
     | DPtr (Ptr Block.Divider)
 
-set_track_title :: ViewId -> TrackNum -> String -> Fltk ()
+set_track_title :: ViewId -> TrackNum -> Text -> Fltk ()
 set_track_title view_id tracknum title = do
     viewp <- get_ptr view_id
-    withCString title (c_set_track_title viewp (Util.c_int tracknum))
+    withText title (c_set_track_title viewp (Util.c_int tracknum))
 foreign import ccall "set_track_title"
     c_set_track_title :: Ptr CView -> CInt -> CString -> IO ()
 

@@ -3,6 +3,7 @@
 module Cmd.Repl.LBlock where
 import qualified Data.List as List
 import qualified Data.Map as Map
+import qualified Data.Text as Text
 import qualified Data.Text.IO as Text.IO
 
 import Util.Control
@@ -21,9 +22,9 @@ import qualified Cmd.BlockConfig as BlockConfig
 import qualified Cmd.CallDoc as CallDoc
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Create as Create
-import qualified Cmd.Repl.Util as Util
 import qualified Cmd.ModifyEvents as ModifyEvents
 import qualified Cmd.PitchTrack as PitchTrack
+import qualified Cmd.Repl.Util as Util
 import qualified Cmd.Selection as Selection
 
 import qualified Derive.ParseBs as ParseBs
@@ -66,6 +67,13 @@ like match = do
         views = Seq.count block_id view_blocks
         get = flip Map.lookup tracks <=< Block.track_id_of . Block.tracklike_id
         track_events = maybe 0 (Events.length . Track.track_events) . get
+
+find :: Text -> Cmd.CmdL [(BlockId, Text)]
+find search = do
+    block_ids <- State.all_block_ids
+    titles <- mapM State.get_block_title block_ids
+    return [(block_id, title) | (block_id, title) <- zip block_ids titles,
+        search `Text.isInfixOf` title]
 
 -- * doc
 
@@ -136,9 +144,9 @@ block_for_event :: Maybe BlockId -> Cmd.CmdL ()
 block_for_event template = mapM_ make =<< Selection.events
     where
     make (_, _, events) = mapM_
-        (create_named template . Event.event_string) events
+        (create_named template . Event.event_text) events
 
-create_named :: Maybe BlockId -> String -> Cmd.CmdL ()
+create_named :: Maybe BlockId -> Text -> Cmd.CmdL ()
 create_named template name = whenM (can_create name) $
     Create.view =<< case template of
         Nothing -> do
@@ -146,14 +154,15 @@ create_named template name = whenM (can_create name) $
             Create.named_block name =<< State.block_ruler template_id
         Just template_id -> Create.named_block_from_template template_id name
 
-can_create :: (State.M m) => String -> m Bool
-can_create "" = return False
-can_create name = do
-    ns <- State.get_namespace
-    case Types.BlockId <$> Id.read_short ns name of
-        Just block_id -> not . Map.member block_id
-            <$> State.gets State.state_blocks
-        Nothing -> return False
+can_create :: (State.M m) => Text -> m Bool
+can_create name
+    | Text.null name = return False
+    | otherwise = do
+        ns <- State.get_namespace
+        case Types.BlockId <$> Id.read_short ns (untxt name) of
+            Just block_id -> not . Map.member block_id
+                <$> State.gets State.state_blocks
+            Nothing -> return False
 
 -- * dividers
 

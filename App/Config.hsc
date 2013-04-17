@@ -7,7 +7,7 @@ import qualified Network
 import qualified System.Directory as Directory
 import System.FilePath ((</>))
 import qualified System.Info
-import Control.Monad
+import Util.Control
 
 import qualified Util.Array as Array
 import qualified Util.File as File
@@ -76,44 +76,44 @@ save_dir = RelativePath "save"
 
 -- | Selection start and range.  This goes at the end because it changes width
 -- a lot.
-status_selection :: (Int, String)
+status_selection :: (Int, Text)
 status_selection = (8, "s")
 
 -- | Zoom and scroll of the visible area.
-status_zoom :: (Int, String)
+status_zoom :: (Int, Text)
 status_zoom = (9, "z")
 
 -- ** per block
 
 -- | Base octave of the kbd note entry.
-status_octave :: (Int, String)
+status_octave :: (Int, Text)
 status_octave = (0, "8")
 
 -- | Current time step.
-status_step :: (Int, String)
+status_step :: (Int, Text)
 status_step = (1, "t")
 
-status_note_duration :: (Int, String)
+status_note_duration :: (Int, Text)
 status_note_duration = (2, "d")
 
 -- | Various record flags.  Most are reflected in the color of the edit box,
 -- but the secondary ones go here.
-status_record :: (Int, String)
+status_record :: (Int, Text)
 status_record = (4, "r")
 
 -- | Text of the last note, even if it didn't create an event.  Useful to know
 -- what a key would enter.
-status_note :: (Int, String)
+status_note :: (Int, Text)
 status_note = (5, "n")
 
 -- | Track 'Cmd.state_note_text', which is the previously entered note track
 -- text.  This is useful e.g. to set an attribute and maintain that for
 -- several notes in a row.
-status_note_text :: (Int, String)
+status_note_text :: (Int, Text)
 status_note_text = (5, "note")
 
 -- | Show the source block for blocks integrated from another block.
-status_integrate_source :: (Int, String)
+status_integrate_source :: (Int, Text)
 status_integrate_source = (8, "src")
 
 

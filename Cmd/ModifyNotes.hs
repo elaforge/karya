@@ -105,19 +105,19 @@ data Control = Control Score.Control | Pitch Pitch.ScaleId
     deriving (Eq, Ord, Show)
 
 instance Pretty.Pretty Control where
-    pretty = control_to_title
+    pretty = untxt . control_to_title
 
-control_to_title :: Control -> String
+control_to_title :: Control -> Text
 control_to_title control = TrackInfo.unparse_control $ case control of
     Control c -> TrackInfo.Control Nothing (Score.untyped c)
     Pitch scale_id -> TrackInfo.Pitch scale_id Nothing
 
-title_to_control :: String -> Either String Control
+title_to_control :: Text -> Either String Control
 title_to_control title = TrackInfo.parse_control title >>= \x -> case x of
     TrackInfo.Control Nothing (Score.Typed Score.Untyped c) ->
         return $ Control c
     TrackInfo.Pitch scale_id Nothing -> return $ Pitch scale_id
-    _ -> Left $ "complicated controls unsupported: " ++ title
+    _ -> Left $ "complicated controls unsupported: " <> untxt title
 
 -- | Put the pitch tracks next to the note, the rest go in alphabetical order.
 sorted_controls :: Controls -> [(Control, Events.Events)]

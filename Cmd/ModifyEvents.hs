@@ -78,7 +78,7 @@ overlapping f = do
                 State.insert_block_events block_id track_id new_events
 
 -- | Map over tracks whose name matches the predicate.
-tracks_named :: (Cmd.M m) => (String -> Bool) -> Track m -> Track m
+tracks_named :: (Cmd.M m) => (Text -> Bool) -> Track m -> Track m
 tracks_named wanted f = \block_id track_id events ->
     ifM (not . wanted <$> State.get_track_title track_id)
         (return Nothing) (f block_id track_id events)
@@ -109,7 +109,7 @@ block block_id f = do
 all_blocks :: (Cmd.M m) => Track m -> m ()
 all_blocks f = mapM_ (flip block f) =<< State.all_block_ids
 
-all_tracks_named :: (Cmd.M m) => (String -> Bool) -> Track m -> m ()
+all_tracks_named :: (Cmd.M m) => (Text -> Bool) -> Track m -> m ()
 all_tracks_named wanted = all_blocks . tracks_named wanted
 
 all_note_tracks :: (Cmd.M m) => Track m -> m ()

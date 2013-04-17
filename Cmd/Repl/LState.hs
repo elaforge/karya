@@ -9,17 +9,35 @@ import qualified System.Posix as Posix
 
 import Util.Control
 import qualified Util.File as File
+import qualified Util.Pretty as Pretty
+
 import qualified Ui.Id as Id
 import qualified Ui.State as State
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Create as Create
 import qualified Cmd.Load.Midi as Load.Midi
+import qualified Cmd.Repl.LBlock as LBlock
+import qualified Cmd.Repl.LEvent as LEvent
+import qualified Cmd.Repl.LTrack as LTrack
 
 import qualified Derive.Score as Score
 import qualified Perform.Pitch as Pitch
 import qualified Perform.Signal as Signal
 import Types
 
+
+-- | Find text in block titles, track titles, or events.
+find :: Text -> Cmd.CmdL String
+find search = do
+    blocks <- LBlock.find search
+    tracks <- LTrack.find search
+    events <- LEvent.find search
+    return $ unlines $ concatMap section $ concat
+        [ [("blocks:", Pretty.formatted blocks) | not (null blocks)]
+        , [("tracks:", Pretty.formatted tracks) | not (null tracks)]
+        , [("events:", Pretty.formatted events) | not (null events)]
+        ]
+    where section (title, doc) = [title, doc]
 
 -- * configure
 
@@ -48,10 +66,10 @@ modify_config f = State.modify_config f >> Cmd.invalidate_performances
 
 -- | 'State.config_global_transform' is an expression that's applied to the
 -- output of derivation.
-set_global_transform :: String -> Cmd.CmdL ()
+set_global_transform :: Text -> Cmd.CmdL ()
 set_global_transform = State.modify . (State.config#State.global_transform #=)
 
-get_global_transform :: Cmd.CmdL String
+get_global_transform :: Cmd.CmdL Text
 get_global_transform = State.config#State.global_transform <#> State.get
 
 instruments :: Cmd.CmdL (Map.Map Score.Instrument Score.Instrument)

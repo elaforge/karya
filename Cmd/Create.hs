@@ -108,7 +108,7 @@ orphan_blocks = do
 -- TODO this is inadequate.  I need a function to get parsed inst and control
 -- track titles separately.  Use TrackTree.get_track_tree to figure inst vs.
 -- control.
-map_track_titles :: (State.M m) => (String -> String) -> m ()
+map_track_titles :: (State.M m) => (Text -> Text) -> m ()
 map_track_titles f = do
     tracks <- Map.assocs . State.state_tracks <$> State.get
     forM_ tracks $ \(track_id, track) ->
@@ -117,18 +117,18 @@ map_track_titles f = do
 
 -- * block
 
-block_name :: (State.M m) => m String
+block_name :: (State.M m) => m Text
 block_name = do
     ns <- State.get_namespace
     id <- require "block id" . generate_block_id ns
         =<< State.gets State.state_blocks
-    return $ Id.id_name id
+    return $ txt $ Id.id_name id
 
 block_from_template :: (State.M m) => BlockId -> m BlockId
 block_from_template template_id =
     named_block_from_template template_id =<< block_name
 
-named_block_from_template :: (State.M m) => BlockId -> String -> m BlockId
+named_block_from_template :: (State.M m) => BlockId -> Text -> m BlockId
 named_block_from_template template_id name = do
     ruler_id <- State.block_ruler template_id
     block_id <- named_block name ruler_id
@@ -158,10 +158,10 @@ block ruler_id = do
 -- | Create a block with the given ID name.  Useful for blocks meant to be
 -- sub-derived.  If the name doesn't contain a @/@, it gets the current
 -- namespace.
-named_block :: (State.M m) => String -> RulerId -> m BlockId
+named_block :: (State.M m) => Text -> RulerId -> m BlockId
 named_block name ruler_id = do
     ns <- State.get_namespace
-    case Id.read_short ns name of
+    case Id.read_short ns (untxt name) of
         Nothing -> State.throw $ "invalid block name: " ++ show name
         Just ident -> State.create_block ident ""
             [Block.track (Block.RId ruler_id) Config.ruler_width]
@@ -353,7 +353,7 @@ insert_branch_from block_id source = do
         . map (Foldable.foldl' (\x -> max x . State.track_tracknum) 0)
 
 make_tracks :: TrackNum -> TrackTree.TrackTree
-    -> ([(TrackNum, String)], [(TrackNum, TrackNum)])
+    -> ([(TrackNum, Text)], [(TrackNum, TrackNum)])
 make_tracks tracknum tree =
     (concatMap Tree.flatten tracks, Tree.edges (map (fmap fst) tracks))
     where tracks = assign_tracknums tracknum tree
@@ -361,7 +361,7 @@ make_tracks tracknum tree =
 -- | Assign ascending tracknums to the given tree in depth-first order.  Return
 -- (tracknum, title) pairs.
 assign_tracknums :: TrackNum -> TrackTree.TrackTree
-    -> [Tree.Tree (TrackNum, String)]
+    -> [Tree.Tree (TrackNum, Text)]
 assign_tracknums tracknum tree =
     Monad.State.evalState (mapM assign tree) tracknum
     where
@@ -411,7 +411,7 @@ empty_track :: (State.M m) => BlockId -> TrackNum -> m TrackId
 empty_track block_id tracknum = track block_id tracknum "" Events.empty
 
 -- | Like 'track_events', but copy the ruler from the track to the left.
-track :: (State.M m) => BlockId -> TrackNum -> String -> Events.Events
+track :: (State.M m) => BlockId -> TrackNum -> Text -> Events.Events
     -> m TrackId
 track block_id tracknum title events = do
     -- Clip to valid range so callers can use an out of range tracknum.

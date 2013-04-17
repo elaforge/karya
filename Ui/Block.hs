@@ -7,11 +7,11 @@ import qualified Data.List.NonEmpty as NonEmpty
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 import qualified Data.Set as Set
+import qualified Data.Text as Text
 
 import Util.Control
 import qualified Util.Pretty as Pretty
 import qualified Util.Rect as Rect
-import qualified Util.Seq as Seq
 
 import qualified Ui.Color as Color
 import qualified Ui.Event as Event
@@ -27,7 +27,7 @@ import Types
 -- * block model
 
 data Block = Block {
-    block_title :: !String
+    block_title :: !Text
     , block_config :: !Config
     , block_tracks :: ![Track]
     , block_skeleton :: !Skeleton.Skeleton
@@ -55,7 +55,7 @@ instance DeepSeq.NFData Block where
 -- | Block metadata is extra data that doesn't affect normal derivation, but
 -- may be of interest to cmds.  For instance, it can mark if this block should
 -- be rendered to lilypond and provide arguments for it.
-type Meta = Map.Map String String
+type Meta = Map.Map Text Text
 
 -- | This holds the 'EventIndex' for one track or block.
 data TrackDestination = TrackDestination {
@@ -93,7 +93,7 @@ block_track_ids = track_ids_of . block_tracklike_ids
 block_ruler_ids :: Block -> [RulerId]
 block_ruler_ids = ruler_ids_of . block_tracklike_ids
 
-block :: Config -> String -> [Track] -> Block
+block :: Config -> Text -> [Track] -> Block
 block config title tracks = Block
     { block_title = title
     , block_config = config
@@ -302,7 +302,7 @@ data View = View {
     , view_track_padding :: !Int
     , view_time_padding :: !Int
     -- | Map (sort_order, name) contents
-    , view_status :: !(Map.Map (Int, String) String)
+    , view_status :: !(Map.Map (Int, Text) Text)
 
     -- | Scroll and zoom
     , view_track_scroll :: !Types.Width
@@ -352,9 +352,9 @@ status_color block_id block maybe_root_id
         Config.status_integrate_destination
     | otherwise = Config.status_default
 
-show_status :: Map.Map (Int, String) String -> String
-show_status =
-    Seq.join " | " . map (\((_, k), v) -> k ++ ": " ++ v) . Map.toAscList
+show_status :: Map.Map (Int, Text) Text -> Text
+show_status = Text.intercalate " | "
+    . map (\((_, k), v) -> k <> ": " <> v) . Map.toAscList
 
 -- | Return how much track is in view.
 visible_time :: View -> ScoreTime
@@ -387,6 +387,6 @@ view_visible_time view = Rect.rh (view_rect view) - view_time_padding view
 -- has not yet been set by the UI.
 default_time_padding, default_track_padding :: Block -> Int
 default_time_padding block = Config.view_time_padding
-    + if not (null (block_title block))
+    + if not (Text.null (block_title block))
         then Config.block_title_height else 0
 default_track_padding = const Config.view_track_padding

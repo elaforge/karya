@@ -136,14 +136,14 @@ mkstates :: String -> UiTest.NoteSpec -> ResponderTest.States
 mkstates title notes = (UiTest.exec ui_state set_title, cmd_state)
     where
     (ui_state, cmd_state) = ResponderTest.mkstates (UiTest.note_spec notes)
-    set_title = State.set_block_title UiTest.default_block_id title
+    set_title = State.set_block_title UiTest.default_block_id (txt title)
 
 run :: String -> [UiTest.TrackSpec] -> Cmd.CmdId a -> CmdTest.Result a
 run title tracks = CmdTest.run ustate CmdTest.default_cmd_state
     where
     ustate = UiTest.exec State.empty $ do
         UiTest.mkblock_view (UiTest.default_block_name, tracks)
-        State.set_block_title UiTest.default_block_id title
+        State.set_block_title UiTest.default_block_id (txt title)
 
 {-
 

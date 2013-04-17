@@ -99,7 +99,7 @@ type EventsTree = [EventsNode]
 type EventsNode = Tree.Tree TrackEvents
 
 data TrackEvents = TrackEvents {
-    tevents_title :: !String
+    tevents_title :: !Text
     , tevents_events :: !Events.Events
     -- | This goes into the stack when the track is evaluated.  Inverted tracks
     -- will carry the TrackId of the track they were inverted from, so they'll
@@ -155,7 +155,7 @@ instance Pretty.Pretty TrackEvents where
         , ("around", Pretty.format (tevents_around track))
         ]
 
-track_events :: String -> Events.Events -> ScoreTime -> TrackEvents
+track_events :: Text -> Events.Events -> ScoreTime -> TrackEvents
 track_events title events end = TrackEvents
     { tevents_title = title
     , tevents_events = events

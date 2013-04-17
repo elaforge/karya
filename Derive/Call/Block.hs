@@ -6,6 +6,7 @@ module Derive.Call.Block (
 ) where
 import qualified Data.List.NonEmpty as NonEmpty
 import qualified Data.Map as Map
+import qualified Data.Text as Text
 
 import Util.Control
 import qualified Ui.Block as Block
@@ -41,7 +42,7 @@ note_calls = Derive.make_calls
 
 -- | Evaluate the root block in a performance.  Making this an ordinary call
 -- means it participates in the derive cache just like all other calls.
-eval_root_block :: String -> BlockId -> Derive.EventDeriver
+eval_root_block :: Text -> BlockId -> Derive.EventDeriver
     -- Derive.d_tempo does a bit of magic to stretch all blocks to length 1,
     -- except the root one.  The root block should operate in real time, so
     -- no stretching here.  Otherwise, a tempo of '2' is the same as '1'.
@@ -49,13 +50,12 @@ eval_root_block global_transform block_id =
     apply_transform "global transform" global_transform $
         Call.eval_one_call $ call_from_block_id block_id
 
-apply_transform :: String -> String -> Derive.EventDeriver
-    -> Derive.EventDeriver
+apply_transform :: String -> Text -> Derive.EventDeriver -> Derive.EventDeriver
 apply_transform name expr_str deriver = do
-    expr <- case ParseBs.parse_expr (ParseBs.from_string expr_str) of
+    expr <- case ParseBs.parse_expr (ParseBs.from_text expr_str) of
         Left err -> Derive.throw $ name ++ ": " ++ err
         Right expr -> return expr
-    let transform = if null expr_str then id
+    let transform = if Text.null expr_str then id
             else Call.apply_transformer info (NonEmpty.toList expr)
         info = Derive.dummy_call_info 0 1 name
     transform deriver

@@ -13,8 +13,6 @@ import qualified Data.Text as Text
 
 import Util.Control
 import qualified Util.Pretty as Pretty
-import qualified Util.Seq as Seq
-
 import qualified Derive.ParseBs as Parse
 import qualified Derive.Score as Score
 import qualified Derive.TrackLang as TrackLang
@@ -27,7 +25,7 @@ data Type = TempoTrack | ControlTrack | PitchTrack | NoteTrack
 
 instance Pretty.Pretty Type where pretty = show
 
-track_type :: String -> Type
+track_type :: Text -> Type
 track_type title
     | is_note_track title = NoteTrack
     | is_pitch_track title = PitchTrack
@@ -44,12 +42,13 @@ data ControlType =
     | Tempo
     deriving (Show)
 
-instance Pretty.Pretty ControlType where pretty = unparse_control
+instance Pretty.Pretty ControlType where
+    pretty = untxt . unparse_control
 
-parse_control :: String -> Either String ControlType
+parse_control :: Text -> Either String ControlType
 parse_control = fmap fst . parse_control_expr
 
-parse_control_expr :: String -> Either String (ControlType, [TrackLang.Call])
+parse_control_expr :: Text -> Either String (ControlType, [TrackLang.Call])
 parse_control_expr title = do
     (vals, expr) <- Parse.parse_control_title title
     ctrack <- parse_control_vals vals
@@ -118,9 +117,8 @@ unparse_typed (Score.Typed typ (Score.Control c)) =
         "" -> ""
         code -> txt $ ':' : code
 
-unparse_control :: ControlType -> String
-unparse_control =
-    untxt . Text.unwords . map TrackLang.show_val . unparse_control_vals
+unparse_control :: ControlType -> Text
+unparse_control = Text.unwords . map TrackLang.show_val . unparse_control_vals
 
 unparse_control_vals :: ControlType -> [TrackLang.Val]
 unparse_control_vals ctype = case ctype of
@@ -140,60 +138,61 @@ unparse_control_vals ctype = case ctype of
 
 -- | Parse a note track like @>inst@ as @note-track >inst@.  Other than
 -- this, note track titles are normal expressions.
-parse_note :: String -> Either String TrackLang.Expr
-parse_note = Parse.parse_expr . Parse.from_string . ("note-track "++)
+parse_note :: Text -> Either String TrackLang.Expr
+parse_note = Parse.parse_expr . Parse.from_text . ("note-track "<>)
 
 -- | Convert a track title into its instrument.
 --
 -- This is a hack because the track title is actually code and I'm trying to
 -- pick an instrument out without executing it.
-title_to_instrument :: String -> Maybe Score.Instrument
-title_to_instrument ('>':name) = Just (Score.Instrument (strip_expr name))
-title_to_instrument _ = Nothing
+title_to_instrument :: Text -> Maybe Score.Instrument
+title_to_instrument title = case Text.uncons title of
+    Just ('>', name) -> Just $ Score.Instrument $ untxt $ strip_expr name
+    _ -> Nothing
 
 -- | Convert from an instrument to the title of its instrument track.
-instrument_to_title :: Score.Instrument -> String
-instrument_to_title = untxt . TrackLang.show_val . TrackLang.VInstrument
+instrument_to_title :: Score.Instrument -> Text
+instrument_to_title = TrackLang.show_val . TrackLang.VInstrument
 
-is_note_track :: String -> Bool
+is_note_track :: Text -> Bool
 is_note_track = Maybe.isJust . title_to_instrument
 
-strip_expr :: String -> String
-strip_expr = Seq.rstrip . takeWhile (/='|')
+strip_expr :: Text -> Text
+strip_expr = Text.stripEnd . Text.takeWhile (/='|')
 
 -- * pitch
 
-title_to_scale :: String -> Maybe Pitch.ScaleId
+title_to_scale :: Text -> Maybe Pitch.ScaleId
 title_to_scale title = case parse_control title of
     Right (Pitch scale_id _) -> Just scale_id
     _ -> Nothing
 
-scale_to_title :: Pitch.ScaleId -> String
+scale_to_title :: Pitch.ScaleId -> Text
 scale_to_title scale_id = unparse_control (Pitch scale_id Nothing)
 
-is_pitch_track :: String -> Bool
+is_pitch_track :: Text -> Bool
 is_pitch_track = Maybe.isJust . title_to_scale
 
 -- * control
 
 -- | Convert a track title to its control.
-title_to_control :: String -> Maybe Score.Control
+title_to_control :: Text -> Maybe Score.Control
 title_to_control title = case parse_control title of
     Right (Control _ cont) -> Just (Score.typed_val cont)
     _ -> Nothing
 
-control_to_title :: Score.Control -> String
-control_to_title (Score.Control cont) = untxt cont
+control_to_title :: Score.Control -> Text
+control_to_title (Score.Control cont) = cont
 
 -- | A pitch track is also considered a control track.
-is_control_track :: String -> Bool
+is_control_track :: Text -> Bool
 is_control_track = not . is_note_track
 
 -- | This is like 'is_control_track' but doesn't include pitch tracks.
-is_signal_track :: String -> Bool
+is_signal_track :: Text -> Bool
 is_signal_track title = is_control_track title && case parse_control title of
     Right (Control {}) -> True
     _ -> False
 
-is_tempo_track :: String -> Bool
+is_tempo_track :: Text -> Bool
 is_tempo_track = (=="tempo")

@@ -83,8 +83,10 @@
 module Derive.Note where
 import qualified Data.Char as Char
 import qualified Data.List.NonEmpty as NonEmpty
+import qualified Data.Text as Text
 import qualified Data.Tree as Tree
 
+import Util.Control
 import qualified Ui.Event as Event
 import qualified Ui.Events as Events
 import qualified Ui.TrackTree as TrackTree
@@ -112,10 +114,10 @@ d_note_track (Tree.Node track subs) = do
     title = with_title subs (TrackTree.tevents_range track)
         (TrackTree.tevents_title track)
 
-with_title :: TrackTree.EventsTree -> (ScoreTime, ScoreTime) -> String
+with_title :: TrackTree.EventsTree -> (ScoreTime, ScoreTime) -> Text
     -> Derive.EventDeriver -> Derive.EventDeriver
 with_title subs (start, end) title deriver
-    | all Char.isSpace title = deriver
+    | Text.all Char.isSpace title = deriver
     | otherwise = do
         track_expr <- either (Derive.throw . ("track title: "++)) return
             (TrackInfo.parse_note title)
@@ -134,7 +136,7 @@ stash_sub_signals subs = do
 
 should_render :: TrackTree.TrackEvents -> Bool
 should_render track =
-    not $ TrackTree.tevents_sliced track || null title
+    not $ TrackTree.tevents_sliced track || Text.null title
         || TrackInfo.is_note_track title
         || Events.null (TrackTree.tevents_events track)
     where title = TrackTree.tevents_title track

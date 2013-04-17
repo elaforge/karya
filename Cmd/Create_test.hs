@@ -1,9 +1,9 @@
 module Cmd.Create_test where
+import qualified Data.Text as Text
 import qualified Data.Tree as Tree
 
 import Util.Control
 import qualified Util.Rect as Rect
-import qualified Util.Seq as Seq
 import Util.Test
 
 import qualified Ui.Skeleton as Skeleton
@@ -80,7 +80,7 @@ test_make_tracks = do
     let f tracknum = Create.make_tracks tracknum . make_tree
         make_tree :: [Tree.Tree String] -> TrackTree.TrackTree
         make_tree = map $ fmap $ \title ->
-            State.TrackInfo title (UiTest.mk_tid 0) 0
+            State.TrackInfo (txt title) (UiTest.mk_tid 1) 1
     equal (f 1
             [ Tree.Node "1" [Tree.Node "11" [], Tree.Node "12" []]
             , Tree.Node "2" []
@@ -120,7 +120,8 @@ run_skel m ntracks skel (start_track, end_track) =
     replace n = do
         tid <- State.get_event_track_at UiTest.default_block_id n
         title <- Track.track_title <$> State.get_track tid
-        return $ head $ if null (Seq.strip title) then "x" else title
+        return $ Text.head $
+            if Text.null (Text.strip title) then "x" else title
 
 test_find_rect = do
     let f w = Create.find_rect (Just (Rect.xywh 0 0 10 10)) (w, 0) . map rect

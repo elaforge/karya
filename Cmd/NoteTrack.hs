@@ -15,9 +15,9 @@
 module Cmd.NoteTrack where
 import qualified Data.List as List
 import qualified Data.Map as Map
+import qualified Data.Text as Text
 
 import Util.Control
-import qualified Util.Seq as Seq
 import qualified Ui.Event as Event
 import qualified Ui.Events as Events
 import qualified Ui.Id as Id
@@ -170,7 +170,7 @@ cmd_val_edit msg = Cmd.suppress_history Cmd.ValEdit "note track val edit" $ do
 -- is or is on the right of the given track, has either the same instrument or
 -- has the default instrument, and doesn't already have a note_id associated
 -- with it.
-next_control_track :: (Cmd.M m) => BlockId -> TrackNum -> (String -> Bool)
+next_control_track :: (Cmd.M m) => BlockId -> TrackNum -> (Text -> Bool)
     -> m (ControlTrack, Bool, Maybe TrackNum)
     -- ^ (selected_track_pair, should_create, next_control_track)
 next_control_track block_id tracknum is_control = do
@@ -204,14 +204,14 @@ next_control_track block_id tracknum is_control = do
 
 -- | The given track should be a note track.  Figure out if it has a control
 -- track, or if one should be created.
-this_control_track :: (Cmd.M m) => BlockId -> TrackNum -> (String -> Bool)
+this_control_track :: (Cmd.M m) => BlockId -> TrackNum -> (Text -> Bool)
     -> m (ControlTrack, Bool)
 this_control_track block_id tracknum is_control = do
     track <- Info.get_track_type block_id tracknum
     should_create_control block_id track is_control
 
 should_create_control :: (Cmd.M m) => BlockId -> Info.Track
-    -> (String -> Bool) -> m (ControlTrack, Bool)
+    -> (Text -> Bool) -> m (ControlTrack, Bool)
 should_create_control block_id track is_control = case Info.track_type track of
     Info.Note controls -> case find controls of
         Nothing -> return (ControlTrack tracknum (tracknum+1), True)
@@ -276,12 +276,12 @@ cmd_method_edit msg = Cmd.suppress_history Cmd.MethodEdit
 --
 -- This doesn't use the full Derive.Parse machinery, but is simple and doesn't
 -- require the text to be fully parseable.
-block_call :: Id.Namespace -> String -> Maybe BlockId
-block_call ns expr = Types.BlockId <$> Id.read_short ns call
+block_call :: Id.Namespace -> Text -> Maybe BlockId
+block_call ns expr = Types.BlockId <$> Id.read_short ns (untxt call)
     where call = generator_of expr
 
-generator_of :: String -> String
-generator_of = Seq.strip . last . Seq.split "|"
+generator_of :: Text -> Text
+generator_of = Text.strip . last . Text.splitOn "|"
 
 -- * implementation
 

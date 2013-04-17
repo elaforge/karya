@@ -3,6 +3,7 @@
 module Cmd.Internal where
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
+import qualified Data.Text as Text
 
 import Util.Control
 import qualified Util.Log as Log
@@ -201,10 +202,10 @@ ui_update_state maybe_tracknum view_id update = case update of
         Just tracknum -> do
             track_id <- State.event_track_at block_id tracknum
             case track_id of
-                Just track_id -> State.set_track_title track_id text
+                Just track_id -> State.set_track_title track_id (txt text)
                 Nothing -> State.throw $ show (UiMsg.UpdateInput text)
                     ++ " on non-event track " ++ show tracknum
-        Nothing -> State.set_block_title block_id text
+        Nothing -> State.set_block_title block_id (txt text)
 
 update_of :: Msg.Msg -> Maybe (UiMsg.Context, ViewId, UiMsg.UiUpdate)
 update_of (Msg.Ui (UiMsg.UiMsg ctx (UiMsg.UiUpdate view_id update))) =
@@ -313,11 +314,11 @@ edit_color mode = case mode of
 
 sync_step_status :: (Cmd.M m) => Cmd.EditState -> m ()
 sync_step_status st = do
-    let step_status = TimeStep.show_time_step (Cmd.state_time_step st)
+    let step_status = txt $ TimeStep.show_time_step (Cmd.state_time_step st)
         dur_status = TimeStep.show_direction (Cmd.state_note_direction st)
-            ++ TimeStep.show_time_step (Cmd.state_note_duration st)
+            <> TimeStep.show_time_step (Cmd.state_note_duration st)
     Cmd.set_status Config.status_step (Just step_status)
-    Cmd.set_status Config.status_note_duration (Just dur_status)
+    Cmd.set_status Config.status_note_duration (Just $ txt dur_status)
     Cmd.set_global_status "note dur" dur_status
 
 sync_octave_status :: (Cmd.M m) => Cmd.EditState -> m ()
@@ -326,7 +327,7 @@ sync_octave_status st = do
     -- This is technically global state and doesn't belong in the block's
     -- status line, but I'm used to looking for it there, so put it in both
     -- places.
-    Cmd.set_status Config.status_octave (Just (show octave))
+    Cmd.set_status Config.status_octave (Just (showt octave))
 
 sync_recent :: (Cmd.M m) => Cmd.EditState -> m ()
 sync_recent st = do
@@ -383,13 +384,13 @@ sync_selection view_id maybe_sel = do
             set $ Just (selection_status ns sel tid)
             Info.set_inst_status block_id (Types.sel_cur_track sel)
 
-selection_status :: Id.Namespace -> Types.Selection -> Maybe TrackId -> String
+selection_status :: Id.Namespace -> Types.Selection -> Maybe TrackId -> Text
 selection_status ns sel maybe_track_id =
-    Pretty.pretty start
-        ++ (if start == end then "" else '-' : Pretty.pretty end)
-    ++ " " ++ show tstart
-        ++ (if tstart == tend then "" else '-' : show tend)
-    ++ maybe "" ((' ':) . Id.show_short ns . Id.unpack_id) maybe_track_id
+    Pretty.prettytxt start
+        <> (if start == end then "" else Text.cons '-' (Pretty.prettytxt end))
+    <> " " <> showt tstart
+        <> (if tstart == tend then "" else Text.cons '-' (showt tend))
+    <> maybe "" (txt . (' ':) . Id.show_short ns . Id.unpack_id) maybe_track_id
     where
     (start, end) = Types.sel_range sel
     (tstart, tend) = Types.sel_track_range sel

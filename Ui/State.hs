@@ -287,9 +287,9 @@ instance Pretty.Pretty Range where
 
 -- | Summary information on a Track.
 data TrackInfo = TrackInfo {
-    track_title :: String
-    , track_id :: TrackId
-    , track_tracknum :: TrackNum
+    track_title :: !Text
+    , track_id :: !TrackId
+    , track_tracknum :: !TrackNum
     } deriving (Eq, Show)
 
 instance Pretty.Pretty TrackInfo where
@@ -492,7 +492,7 @@ create_view id view = do
     with_status block = case Block.block_integrated block of
         Just (source_block, _) -> view
             { Block.view_status = Map.insert Config.status_integrate_source
-                (Id.ident_string source_block) (Block.view_status view)
+                (Id.ident_text source_block) (Block.view_status view)
             }
         Nothing -> view
 
@@ -501,7 +501,7 @@ destroy_view view_id = unsafe_modify $ \st ->
     st { state_views = Map.delete view_id (state_views st) }
 
 -- | Set a status variable on a view.
-set_view_status :: (M m) => ViewId -> (Int, String) -> Maybe String -> m ()
+set_view_status :: (M m) => ViewId -> (Int, Text) -> Maybe Text -> m ()
 set_view_status view_id key val =
     modify_view view_id $ \view -> view { Block.view_status =
         Map.alter (const val) key (Block.view_status view) }
@@ -589,7 +589,7 @@ create_config_block id block = insert (Types.BlockId id) block state_blocks $
         }
 
 -- | Make a new block with the default 'Block.Config'.
-create_block :: (M m) => Id.Id -> String -> [Block.Track] -> m BlockId
+create_block :: (M m) => Id.Id -> Text -> [Block.Track] -> m BlockId
 create_block block_id title tracks =
     create_config_block block_id
         (Block.block Block.default_config title tracks)
@@ -619,10 +619,10 @@ views_of block_id = do
     views <- gets state_views
     return $ Map.filter ((==block_id) . Block.view_block) views
 
-get_block_title :: (M m) => BlockId -> m String
+get_block_title :: (M m) => BlockId -> m Text
 get_block_title = fmap Block.block_title . get_block
 
-set_block_title :: (M m) => BlockId -> String -> m ()
+set_block_title :: (M m) => BlockId -> Text -> m ()
 set_block_title block_id title =
     modify_block block_id (\block -> block { Block.block_title = title })
 
@@ -1131,13 +1131,13 @@ destroy_track track_id = do
     unsafe_modify $ \st ->
         st { state_tracks = Map.delete track_id (state_tracks st) }
 
-get_track_title :: (M m) => TrackId -> m String
+get_track_title :: (M m) => TrackId -> m Text
 get_track_title = (Track.track_title <$>) . get_track
 
-set_track_title :: (M m) => TrackId -> String -> m ()
+set_track_title :: (M m) => TrackId -> Text -> m ()
 set_track_title track_id text = modify_track_title track_id (const text)
 
-modify_track_title :: (M m) => TrackId -> (String -> String) -> m ()
+modify_track_title :: (M m) => TrackId -> (Text -> Text) -> m ()
 modify_track_title track_id f = modify_track track_id $ \track ->
     track { Track.track_title = f (Track.track_title track) }
 

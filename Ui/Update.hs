@@ -62,7 +62,7 @@ data View =
     CreateView
     | DestroyView
     | ViewSize Rect.Rect
-    | Status (Map.Map (Int, String) String) Color.Color -- ^ background color
+    | Status (Map.Map (Int, Text) Text) Color.Color -- ^ background color
     | TrackScroll Types.Width
     | Zoom Types.Zoom
     | Selection Types.SelNum (Maybe Types.Selection)
@@ -72,7 +72,7 @@ data View =
     deriving (Eq, Show)
 
 data Block t
-    = BlockTitle String
+    = BlockTitle Text
     | BlockConfig Block.Config
     -- | The second is the \"integrate skeleton\", which is drawn in the same
     -- place.
@@ -89,7 +89,7 @@ data Track =
     TrackEvents ScoreTime ScoreTime
     -- | Update the entire track.
     | TrackAllEvents
-    | TrackTitle String
+    | TrackTitle Text
     | TrackBg Color.Color
     | TrackRender Track.RenderConfig
     deriving (Eq, Show)

@@ -57,8 +57,8 @@ setup_generate gen = do
     return Cmd.Done
     where
     set_inst title
-        | title == Derive_profile.inst1 = ">fm8/1"
-        | title == Derive_profile.inst2 = ">fm8/2"
+        | untxt title == Derive_profile.inst1 = ">fm8/1"
+        | untxt title == Derive_profile.inst2 = ">fm8/2"
         | otherwise = title
 
 load_mod :: FilePath -> Cmd.CmdIO

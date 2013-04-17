@@ -35,14 +35,14 @@ split_time = do
     let (from_block, to_block) = split_names block_id
     to_block_id <- split_time_at block_id pos to_block
     Create.view to_block_id
-    new_from <- State.read_id from_block
+    new_from <- State.read_id $ untxt from_block
     Create.rename_block block_id new_from
     return to_block_id
 
 -- | Create a new block from template, then copy over all the events below the
 -- given time.  Clear the source track, and trim events that overlap the split
 -- point.  Modify the ruler (locally!) in the old and new blocks.
-split_time_at :: (State.M m) => BlockId -> ScoreTime -> String -> m BlockId
+split_time_at :: (State.M m) => BlockId -> ScoreTime -> Text -> m BlockId
 split_time_at from_block_id pos block_name = do
     tracks <- State.tracknums_of from_block_id
     -- Copy over the new events.
@@ -68,9 +68,9 @@ split_time_at from_block_id pos block_name = do
     RulerUtil.local_meter to_block_id $ Meter.remove 0 pos
     return to_block_id
 
-split_names :: BlockId -> (String, String)
-split_names block_id = (name ++ "-1", name ++ "-2")
-    where name = Id.ident_name block_id
+split_names :: BlockId -> (Text, Text)
+split_names block_id = (name <> "-1", name <> "-2")
+    where name = txt $ Id.ident_name block_id
 
 -- | Put all tracks with a after the selection into a new block.
 --
@@ -84,7 +84,7 @@ split_track = do
     Create.view to_block_id
     return to_block_id
 
-split_track_at :: (State.M m) => BlockId -> TrackNum -> String -> m BlockId
+split_track_at :: (State.M m) => BlockId -> TrackNum -> Text -> m BlockId
 split_track_at from_block_id split_at block_name = do
     to_block_id <- Create.named_block block_name
         =<< State.ruler_of from_block_id
@@ -105,7 +105,7 @@ split_track_at from_block_id split_at block_name = do
 
 -- | Copy the selection into a new block, and replace it with a call to that
 -- block.
-selection :: (Cmd.M m) => String -> m BlockId
+selection :: (Cmd.M m) => Text -> m BlockId
 selection name = do
     (block_id, tracknums, track_ids, start, end) <- Selection.tracks
     to_block_id <- selection_at (Just name) block_id tracknums track_ids
@@ -113,7 +113,7 @@ selection name = do
     Create.view to_block_id
     return to_block_id
 
-selection_at :: (State.M m) => Maybe String -> BlockId -> [TrackNum]
+selection_at :: (State.M m) => Maybe Text -> BlockId -> [TrackNum]
     -> [TrackId] -> TrackTime -> TrackTime -> m BlockId
 selection_at maybe_name block_id tracknums track_ids start end = do
     ruler_id <- State.block_ruler block_id
@@ -151,13 +151,13 @@ named_block = Selection.events >>= \x -> case x of
         let track_ids = track_id : [tid | (tid, _, _) <- rest]
         block_id <- Cmd.get_focused_block
         to_block_id <- named_block_from block_id track_ids (Event.start event)
-            (Event.end event) (Event.event_string event)
+            (Event.end event) (Event.event_text event)
         Create.view to_block_id
         return to_block_id
     _ -> Cmd.throw "no selected event"
 
 named_block_from :: (State.M m) => BlockId -> [TrackId]
-    -> TrackTime -> TrackTime -> String -> m BlockId
+    -> TrackTime -> TrackTime -> Text -> m BlockId
 named_block_from block_id track_ids start end text = do
     to_block_id <- Create.named_block text =<< State.block_ruler block_id
     forM_ (zip [1..] track_ids) $ \(tracknum, track_id) -> do

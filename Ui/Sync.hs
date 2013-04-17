@@ -217,7 +217,7 @@ update_view track_signals set_style view_id Update.CreateView = do
                 insert_track state set_style (Block.view_block view) view_id
                     tracknum dtrack tlike_id tlike track_signals
                     (Block.track_flags btrack)
-        unless (null (Block.block_title block)) $
+        unless (Text.null (Block.block_title block)) $
             BlockC.set_title view_id (Block.block_title block)
         BlockC.set_skeleton view_id (Block.block_skeleton block)
             (Block.integrate_skeleton block)
@@ -365,7 +365,7 @@ insert_track state set_style block_id view_id tracknum dtrack tlike_id tlike
     BlockC.set_display_track view_id tracknum dtrack
     case (tlike, tlike_id) of
         (Block.T t _, Block.TId tid _) -> do
-            unless (null (Track.track_title t)) $
+            unless (Text.null (Track.track_title t)) $
                 BlockC.set_track_title view_id tracknum (Track.track_title t)
             case Map.lookup tid track_signals of
                 Just (Right tsig) | wants_tsig flags t ->
@@ -408,10 +408,10 @@ wants_tsig flags track =
     && Block.Collapse `Set.notMember` flags
 
 -- | Generate the title for block windows.
-block_window_title :: Id.Namespace -> ViewId -> BlockId -> String
-block_window_title ns view_id block_id =
-    Id.show_short ns (Id.unpack_id block_id) ++ " - "
-    ++ Id.show_short ns (Id.unpack_id view_id)
+block_window_title :: Id.Namespace -> ViewId -> BlockId -> Text
+block_window_title ns view_id block_id = txt $
+    Id.show_short ns (Id.unpack_id block_id) <> " - "
+    <> Id.show_short ns (Id.unpack_id view_id)
 
 events_of_track_ids :: State.State -> [TrackId] -> [Events.Events]
 events_of_track_ids state track_ids = mapMaybe events_of track_ids

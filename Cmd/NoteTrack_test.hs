@@ -1,6 +1,8 @@
 module Cmd.NoteTrack_test where
+import Util.Control
 import qualified Util.Seq as Seq
 import Util.Test
+
 import qualified Ui.Key as Key
 import qualified Ui.State as State
 import qualified Ui.UiMsg as UiMsg
@@ -184,15 +186,16 @@ simplify = simplify_tracks . UiTest.extract_tracks . fst
 -- -> [(">", [(0, 1, "4c")])]
 simplify_tracks :: [UiTest.TrackSpec] -> [UiTest.TrackSpec]
 simplify_tracks tracks =
-    case Seq.split_with (TrackInfo.is_note_track . fst) tracks of
+    case Seq.split_with (TrackInfo.is_note_track . txt . fst) tracks of
         [] -> []
         [] : groups -> map simplify groups
         hd : _ ->
             error $ "simplify_tracks: extra tracks in front: " ++ show hd
     where
     simplify [(note, notes), (pitch, pitches)]
-        | TrackInfo.is_note_track note && TrackInfo.is_pitch_track pitch =
-            (note, combine "" notes pitches)
+        | TrackInfo.is_note_track (txt note)
+            && TrackInfo.is_pitch_track (txt pitch) =
+                (note, combine "" notes pitches)
     simplify tracks = error $ "simplify_tracks: expected a note and a pitch: "
         ++ show tracks
     combine _ [] _ = []

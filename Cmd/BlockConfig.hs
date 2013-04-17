@@ -5,6 +5,7 @@ import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 import qualified Data.Set as Set
+import qualified Data.Text as Text
 
 import Util.Control
 import qualified Util.Log as Log
@@ -77,7 +78,7 @@ cmd_open_block = do
     let call_of = NoteTrack.block_call ns
     sel <- Selection.events
     forM_ sel $ \(_, _, events) -> forM_ events $ \event ->
-        when_just (call_of (Event.event_string event)) $ \block_id ->
+        when_just (call_of (Event.event_text event)) $ \block_id ->
             whenM (Maybe.isJust <$> State.lookup_block block_id) $ do
                 views <- State.views_of block_id
                 maybe (Create.view block_id >> return ())
@@ -87,7 +88,7 @@ cmd_add_block_title :: (Cmd.M m) => Msg.Msg -> m ()
 cmd_add_block_title _ = do
     block_id <- Cmd.get_focused_block
     title <- State.get_block_title block_id
-    when (null title) $
+    when (Text.null title) $
         State.set_block_title block_id " "
 
 -- * collapse / expand tracks

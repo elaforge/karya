@@ -282,10 +282,10 @@ show_block :: BlockId -> State.State -> (BlockSpec, [Skeleton.Edge])
 show_block block_id state = ((block_name, map dump_track tracks), skel)
     where
     (id_str, _, tracks, skel) = eval state (Simple.dump_block block_id)
-    block_name = snd (Id.un_id (Id.read_id id_str))
-    dump_track (_, title, events) = (title, map convert events)
+    block_name = snd $ Id.un_id $ Id.read_id id_str
+    dump_track (_, title, events) = (untxt title, map convert events)
     convert (start, dur, text) =
-        (ScoreTime.double start, ScoreTime.double dur, text)
+        (ScoreTime.double start, ScoreTime.double dur, untxt text)
 
 -- | Like 'show_block' but strip out everything but the tracks.
 extract_tracks_of :: BlockId -> State.State -> [TrackSpec]
@@ -327,7 +327,7 @@ select_point view_id tracknum pos =
 create_block :: (State.M m) => String -> String
     -> [(Block.TracklikeId, Types.Width)] -> m BlockId
 create_block block_name title tracks = State.create_block (mkid block_name)
-    title (map (uncurry Block.track) tracks)
+    (txt title) (map (uncurry Block.track) tracks)
 
 mkstack :: (TrackNum, ScoreTime, ScoreTime) -> Stack.Stack
 mkstack (tracknum, s, e) = mkstack_block (default_block_name, tracknum, s, e)
@@ -345,7 +345,7 @@ event_track_2 = make_track ("2", [(16, 10, "ho"), (30, 32, "eyo")])
 make_track :: TrackSpec -> Track.Track
 make_track (title, triplets) = Track.modify_events
     (Events.insert (map make_event triplets)) (empty_track title)
-empty_track title = Track.track title Events.empty
+empty_track title = Track.track (txt title) Events.empty
 
 -- ** event
 

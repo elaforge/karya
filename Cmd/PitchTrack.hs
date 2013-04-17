@@ -81,8 +81,7 @@ cmd_record_note_status msg = do
     case msg of
         Msg.InputNote (InputNote.NoteOn _ key _) -> do
             note <- EditUtil.parse_key key
-            Cmd.set_status Config.status_note $
-                Just $ untxt $ Pitch.note_text note
+            Cmd.set_status Config.status_note $ Just $ Pitch.note_text note
         _ -> return ()
     return Cmd.Continue
 

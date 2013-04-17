@@ -328,7 +328,7 @@ type EventsTree = [Tree.Tree (String, [Event])]
 
 extract_tree :: TrackTree.EventsTree -> EventsTree
 extract_tree = map $ fmap $ \track ->
-    (TrackTree.tevents_title track,
+    (untxt $ TrackTree.tevents_title track,
         extract_track (TrackTree.tevents_events track))
 
 extract_track :: Events.Events -> [Event]
@@ -342,7 +342,7 @@ make_tree = map $ \(Node (title, events) subs) ->
 
 make_track :: String -> [Event] -> TrackTree.TrackEvents
 make_track title events =
-    (TrackTree.track_events title tevents 100)
+    (TrackTree.track_events (txt title) tevents 100)
         { TrackTree.tevents_track_id = UiTest.tid <$> clean title }
     where
     clean s

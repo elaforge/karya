@@ -225,7 +225,7 @@ modified event = event { style = Config.modified_style (style event) }
 -- | This is called on events before they go to the UI, to be used for "syntax
 -- highlighting", i.e. it can set the style depending on the event, but the
 -- change in style won't be saved in the event itself.
-type EventStyle = String -- ^ track title
+type EventStyle = Text.Text -- ^ track title
     -> Event -> Style.StyleId
 
 -- * serialize

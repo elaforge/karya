@@ -1,8 +1,8 @@
 {-# LANGUAGE NoMonomorphismRestriction #-}
 -- | Cmds for track level operations.
 module Cmd.Repl.LTrack where
-import qualified Data.List as List
 import qualified Data.Set as Set
+import qualified Data.Text as Text
 
 import Util.Control
 import qualified Util.Seq as Seq
@@ -38,8 +38,11 @@ list = do
     counts <- map length <$> mapM State.blocks_with_track_id track_ids
     return $ zip track_ids counts
 
-gc :: Cmd.CmdL ()
-gc = mapM_ State.destroy_track . Set.elems =<< Create.orphan_tracks
+gc :: Cmd.CmdL Int
+gc = do
+    tids <- orphans
+    mapM_ State.destroy_track tids
+    return $ length tids
 
 -- | Tracks that don't appear in any block.
 orphans :: Cmd.CmdL [TrackId]
@@ -57,7 +60,7 @@ remove_empty block_id = do
 remove_all_empty :: Cmd.CmdL ()
 remove_all_empty = mapM_ remove_empty =<< State.all_block_ids
 
-map_widths :: (String -> Bool) -> (Types.Width -> Types.Width) -> Cmd.CmdL ()
+map_widths :: (Text -> Bool) -> (Types.Width -> Types.Width) -> Cmd.CmdL ()
 map_widths wanted f = do
     block_ids <- State.all_block_ids
     forM_ block_ids $ \block_id -> do
@@ -70,7 +73,7 @@ map_widths wanted f = do
             tracknums (map f widths)
 
 -- | Transform all track titles.
-map_titles :: (String -> String) -> Cmd.CmdL ()
+map_titles :: (Text -> Text) -> Cmd.CmdL ()
 map_titles f = do
     bids <- State.all_block_ids
     mapM_ (flip map_block_titles f) bids
@@ -78,19 +81,19 @@ map_titles f = do
 -- | Find all tracks with the given string in their title.  You can use
 -- 'State.blocks_with_track_id' to find the blocks with the tracks, and
 -- 'map_titles' to change the titles.
-find :: String -> Cmd.CmdL [(TrackId, String)]
+find :: Text -> Cmd.CmdL [(TrackId, Text)]
 find search = do
     tids <- State.all_track_ids
     titles <- mapM State.get_track_title tids
     return [(tid, title) | (tid, title) <- zip tids titles,
-        search `List.isInfixOf` title]
+        search `Text.isInfixOf` title]
 
 -- Should this go in Ui.Transform?
 -- TODO should map 'x | abc' to 'y | abc'
 -- And 'mul x' -> 'mul y'
 --
 -- Use Cmd.Info and do replace instead of map.
-map_block_titles :: BlockId -> (String -> String) -> Cmd.CmdL ()
+map_block_titles :: BlockId -> (Text -> Text) -> Cmd.CmdL ()
 map_block_titles block_id f = do
     tids <- map State.track_id <$> TrackTree.tracks_of block_id
     mapM_ (flip State.modify_track_title f) tids
@@ -107,7 +110,7 @@ duplicate source_block source_tracknum dest_block dest_tracknum = do
 
 -- * control tracks
 
-map_control_val :: String -> (Signal.Y -> Signal.Y) -> Cmd.CmdL ()
+map_control_val :: Text -> (Signal.Y -> Signal.Y) -> Cmd.CmdL ()
 map_control_val name f = ModifyEvents.selection $
     ModifyEvents.tracks_named (==name) $ ModifyEvents.text $ \text ->
         fromMaybe text (ControlTrack.modify_val f text)

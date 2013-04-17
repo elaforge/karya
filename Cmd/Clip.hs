@@ -99,7 +99,7 @@ cmd_copy_selection = do
 
 -- | (track_title, events) pairs for each copied track within the copied
 -- selection.
-type Selected = [(String, Events.Events)]
+type Selected = [(Text, Events.Events)]
 
 -- | Destroy the existing clip namespace and replace it with a new block
 -- containing the contents of the Selected.

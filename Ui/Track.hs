@@ -4,8 +4,10 @@ module Ui.Track where
 import qualified Control.DeepSeq as DeepSeq
 import qualified Data.Map as Map
 
+import Util.Control
 import qualified Util.Log as Log
 import qualified Util.Pretty as Pretty
+
 import qualified Ui.Color as Color
 import qualified Ui.Event as Event
 import qualified Ui.Events as Events
@@ -18,7 +20,7 @@ import Types
 -- * track
 
 data Track = Track {
-    track_title :: !String
+    track_title :: !Text
     , track_events :: !Events.Events
     -- | Similar to 'Event.Event.style', you can individually configure track
     -- bg color, but in practice I do it automatically at the low level with
@@ -35,7 +37,7 @@ instance Pretty.Pretty Track where
             ]
 
 -- | Construct a new Track.
-track :: String -> Events.Events -> Track
+track :: Text -> Events.Events -> Track
 track title events = Track
     { track_title = title
     , track_events = events

@@ -95,7 +95,7 @@ scale_diff :: Scale.Scale -> Maybe Pitch.Key -> Bool
 scale_diff = undefined
 
 -- | Make a control track title.
-add_control :: Score.Control -> String
+add_control :: Score.Control -> Text
 add_control control = TrackInfo.unparse_control $
     TrackInfo.Control (Just (TrackLang.Symbol "add")) (Score.untyped control)
 
