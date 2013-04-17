@@ -356,7 +356,7 @@ c_dynamic = Control "dyn"
 --
 -- Note duration is documented in 'Derive.Call.Note.duration_attributes'.
 c_sustain :: Control
-c_sustain = Control "sustain"
+c_sustain = Control "sus"
 
 -- | Amount of note overlap that @+legato@ implies.  This is additive, in
 -- RealTime.
@@ -365,12 +365,19 @@ c_legato_overlap = Control "legato-overlap"
 
 -- | Add an absolute amount of real time to the duration of each note.
 c_sustain_abs :: Control
-c_sustain_abs = Control "sustain-abs"
+c_sustain_abs = Control "sus-abs"
 
-c_start_rnd, c_dur_rnd, c_vel_rnd :: Control
+-- | Offset the start time of each note by a value between - start-rnd/2 and
+-- start-rnd/2.  The start and end are shifted by the same amount, so the
+-- duration of the note is unaffected.
+c_start_rnd :: Control
 c_start_rnd = Control "start-rnd"
+
+-- | Shorten each note by a value between 0 and dur-rnd.  Shortening makes it
+-- less likely that this will cause notes to become overlapping, which MIDI
+-- doesn't like when they have the same pitch.
+c_dur_rnd :: Control
 c_dur_rnd = Control "dur-rnd"
-c_vel_rnd = Control "vel-rnd"
 
 -- | MIDI velocity and breath.  Generally you should use 'c_dynamic', which
 -- will emit velocity or breath depending on the instrument.

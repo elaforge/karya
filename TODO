@@ -3,6 +3,13 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
+  - Slurs shouldn't make a note overlap the same note.
+    Or at least, on the piano, slurs on chords shouldn't overlap at all.
+    Also, slurs can give a slight dynamic boost to the beginning of the
+    phrase.
+  - postproc to make sure the same pitches don't overlap
+  * %sustain -> %sus, sustain-abs -> sus-abs
+  / ly-( should make a note if a generator, rather than looking for subs.
   * rename *_lang stuff in Config to repl
   * Cmd.Lang* should go too
   * move meters to Cmd.Meters and don't hardcode measures/section
@@ -25,7 +32,7 @@ UNSORTED
     * Score.Control
     - Ui.Id
     * ModifyEvents.text
-  - %sustain-abs=-.x is not quite right for detached, because it should scale
+  - %sus-abs=-.x is not quite right for detached, because it should scale
     a bit for shorter notes.  E.g. it's absolute but scales down to 0 below
     a certain threshold.
   - now that I have tevents_around, can I get rid of slice_around and the
