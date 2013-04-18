@@ -182,12 +182,13 @@ symbol sym = VSymbol (Symbol sym)
 
 
 test_expand_macros = do
-    let f = Parse.expand_macros ("!" <>)
+    let f = Parse.expand_macros (\s -> "(" <> s <> ")")
     equal (f "") (Right "")
     equal (f "hi") (Right "hi")
     left_like (f "hi @") "parse error"
-    equal (f "hi @a-b") (Right "hi !a-b")
-    equal (f "hi @a b") (Right "hi !a b")
-    equal (f "hi (Just @a/b)") (Right "hi (Just !a/b)")
+    equal (f "hi @a-b") (Right "hi (a-b)")
+    equal (f "hi @a b") (Right "hi (a) b")
+    equal (f "hi (Just @a/b)") (Right "hi (Just (a/b))")
+    equal (f "hi [@b0, @b1]") (Right "hi [(b0), (b1)]")
     -- Doesn't substitute macros inside quotes.
     equal (f "hi \"@a\" there") (Right "hi \"@a\" there")

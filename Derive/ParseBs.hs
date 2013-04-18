@@ -137,7 +137,7 @@ p_macros replacement = do
 p_macro :: (Text -> Text) -> A.Parser Text
 p_macro replacement = do
     A.char '@'
-    replacement <$> A.takeWhile1 (A.notInClass " |=)")
+    replacement <$> A.takeWhile1 (\c -> Id.is_strict_id_char c || c == '/')
 
 p_hs_string :: A.Parser Text
 p_hs_string = fmap (\s -> "\"" <> s <> "\"") $

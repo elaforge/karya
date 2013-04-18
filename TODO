@@ -12,7 +12,7 @@ UNSORTED
     Can I do a prepend command?  I could go for full text input, but even then
     it would require a click.  Well, in that case I can open it with the
     cursor set wherever I want.
-  - repl macro: [@b0, @b1] didn't work
+  * repl macro: [@b0, @b1] didn't work
   - Refactor.order_block makes a block with a mysteriously black ruler
   - 6/4 = 3+3/4, or 4 q.  I think this is not expressable in staff notation,
     but is in the meter ruler
