@@ -10,7 +10,9 @@ import qualified System.Process as Process
 
 import Util.Control
 import qualified Util.Log as Log
+import qualified Util.Pretty as Pretty
 import qualified Util.Process
+import qualified Util.Seq as Seq
 
 import qualified Ui.Id as Id
 import qualified Ui.State as State
@@ -27,11 +29,12 @@ import Types
 
 -- * config
 
-set_config :: (State.M m) => Lilypond.Config -> m ()
-set_config config = State.modify_config $ State.lilypond #= config
-
 get_config :: (State.M m) => m Lilypond.Config
 get_config = State.config#State.lilypond <#> State.get
+
+modify_config :: (State.M m) => (Lilypond.Config -> Lilypond.Config)
+    -> m ()
+modify_config modify = State.modify_config $ State.lilypond %= modify
 
 make_config :: RealTime -> Lilypond.Duration -> Lilypond.Config
 make_config quarter quantize = Lilypond.default_config
@@ -39,12 +42,30 @@ make_config quarter quantize = Lilypond.default_config
     , Lilypond.config_quantize = quantize
     }
 
+set_code :: (State.M m) => String -> [Text] -> m ()
+set_code inst code = modify_staff inst $ \staff -> staff
+    { Lilypond.staff_code = code }
+
+modify_staff :: (State.M m) => String
+    -> (Lilypond.StaffConfig -> Lilypond.StaffConfig)
+    -> m ()
+modify_staff inst_ modify = do
+    config <- get_config
+    let staves = Lilypond.config_staves config
+    case Seq.find_modify ((==inst) . fst) (second modify) staves of
+        Nothing -> State.throw $ "no staff config for " <> Pretty.pretty inst
+        Just staves -> modify_config $ const $
+            config { Lilypond.config_staves = staves }
+    where inst = Score.Instrument inst_
+
 set_staves :: [(String, Lilypond.Instrument, Lilypond.Instrument)]
     -> Lilypond.Config -> Lilypond.Config
-set_staves staves config = config
-    { Lilypond.config_staves =
-        [(Score.Instrument inst, short, long) | (inst, short, long) <- staves]
-    }
+set_staves staves config =
+    config { Lilypond.config_staves = map mk staves }
+    where
+    mk (inst, long, short) = (,) (Score.Instrument inst) $
+        Lilypond.empty_staff_config
+            { Lilypond.staff_long = long, Lilypond.staff_short = short }
 
 -- * compile
 

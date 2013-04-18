@@ -636,7 +636,7 @@ instance Serialize Midi.Key where
 -- ** lilypond
 
 instance Serialize Lilypond.Config where
-    put (Lilypond.Config a b c d) = Serialize.put_version 1
+    put (Lilypond.Config a b c d) = Serialize.put_version 2
         >> put a >> put b >> put c >> put d
     get = do
         v <- Serialize.get_version
@@ -646,16 +646,42 @@ instance Serialize Lilypond.Config where
                 quantize :: Lilypond.Duration <- get
                 dotted_rests :: Bool <- get
                 staves :: [(Score.Instrument, String, String)] <- get
-                return $ Lilypond.Config quarter quantize dotted_rests
-                    [(inst, txt a, txt b) | (inst, a, b) <- staves]
+                let configs =
+                        [staff inst (txt a) (txt b) | (inst, a, b) <- staves]
+                return $ Lilypond.Config quarter quantize dotted_rests configs
             1 -> do
                 quarter :: RealTime <- get
                 quantize :: Lilypond.Duration <- get
                 dotted_rests :: Bool <- get
                 staves :: [(Score.Instrument, Lilypond.Instrument,
                     Lilypond.Instrument)] <- get
+                return $ Lilypond.Config quarter quantize dotted_rests
+                    [staff inst a b | (inst, a, b) <- staves]
+            2 -> do
+                quarter :: RealTime <- get
+                quantize :: Lilypond.Duration <- get
+                dotted_rests :: Bool <- get
+                staves :: [(Score.Instrument, Lilypond.StaffConfig)] <- get
                 return $ Lilypond.Config quarter quantize dotted_rests staves
             _ -> Serialize.bad_version "Lilypond.Config" v
+        where
+        staff inst a b = (inst, Lilypond.empty_staff_config
+            { Lilypond.staff_long = a
+            , Lilypond.staff_short = b
+            })
+
+instance Serialize Lilypond.StaffConfig where
+    put (Lilypond.StaffConfig a b c) = Serialize.put_version 0
+        >> put a >> put b >> put c
+    get = do
+        v <- Serialize.get_version
+        case v of
+            0 -> do
+                long :: Lilypond.Instrument <- get
+                short :: Lilypond.Instrument <- get
+                code :: [Text] <- get
+                return $ Lilypond.StaffConfig long short code
+            _ -> Serialize.bad_version "Lilypond.StaffConfig" v
 
 instance Serialize Lilypond.Duration where
     put = put . fromEnum

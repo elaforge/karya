@@ -1,4 +1,5 @@
 module Perform.Lilypond.Constants where
+import Util.Control
 import qualified Derive.Score as Score
 import qualified Derive.TrackLang as TrackLang
 
@@ -60,3 +61,9 @@ v_meter = TrackLang.Symbol "meter"
 -- | Gives the title of a new movement.
 v_movement :: TrackLang.ValName
 v_movement = TrackLang.Symbol "movement"
+
+-- * common code
+
+-- | Emit Ped___^___/ style pedal markings.
+mixed_pedal_style :: Text
+mixed_pedal_style = "\\set Staff.pedalSustainStyle = #'mixed"

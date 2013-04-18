@@ -384,10 +384,10 @@ integrate / integration:
   - quantization
 
 lilypond:
-  - put staff config like '\set Staff.pedalSustainStyle = #'mixed'
+  * put staff config like '\set Staff.pedalSustainStyle = #'mixed'
     in the staff config
   - I could use staff config to filter out some instruments
-  - library of common staff code
+  * library of common staff code
   - remove the StackMap stuff
   - code events in >ly-global can be distributed to all staves
     Otherwise I have to remember to add e.g. ly-key to all staves manually.

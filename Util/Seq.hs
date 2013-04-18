@@ -1,5 +1,6 @@
 module Util.Seq where
 import Prelude hiding (head, tail, last)
+import Control.Applicative ((<$>))
 import qualified Data.Char as Char
 import Data.Function
 import qualified Data.List as List
@@ -125,6 +126,16 @@ modify_at i f xs = case post of
         [] -> pre
         (elt:rest) -> pre ++ f elt : rest
     where (pre, post) = splitAt i xs
+
+-- | Find an element, then change it.  Return Nothing if the element wasn't
+-- found.
+find_modify :: (a -> Bool) -> (a -> a) -> [a] -> Maybe [a]
+find_modify match modify = go
+    where
+    go (x:xs)
+        | match x = Just $ modify x : xs
+        | otherwise = (x:) <$> go xs
+    go [] = Nothing
 
 -- | Similar to 'modify_at', but will insert an element for an out of range
 -- positive index.  The list will be extended with 'deflt', and the modify

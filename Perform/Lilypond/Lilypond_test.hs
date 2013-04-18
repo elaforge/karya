@@ -1,11 +1,11 @@
 module Perform.Lilypond.Lilypond_test where
 import Util.Control
 import Util.Test
-
 import qualified Ui.UiTest as UiTest
 import qualified Derive.Args as Args
 import qualified Derive.Call.CallTest as CallTest
 import qualified Derive.Call.Lily as Lily
+import qualified Derive.Score as Score
 import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.Lilypond.Constants as Constants
@@ -13,7 +13,7 @@ import qualified Perform.Lilypond.LilypondTest as LilypondTest
 import qualified Perform.Lilypond.Types as Types
 
 
-test_make_ly = do
+test_convert_sections = do
     let run = LilypondTest.derive_staves []
     let (events, logs) = run $ concatMap UiTest.note_spec
             -- complicated rhythm
@@ -28,8 +28,30 @@ test_make_ly = do
         [ ("i1", ["c'4 r8 ds'8~ ds'4. r8 | R1 | R1 | R1"])
         , ("i2", ["r4 g'4 a2~ | a1~ | a1~ | a2 r2"])
         ]
-    -- putStrLn $ LilypondTest.make_ly events
-    -- compile_ly events
+
+test_staff_configs = do
+    let piano = Types.StaffConfig
+            { Types.staff_long = "piano"
+            , Types.staff_short = ""
+            , Types.staff_code = ["piano code"]
+            }
+        viola = Types.StaffConfig
+            { Types.staff_long = "viola"
+            , Types.staff_short = "vla"
+            , Types.staff_code = ["viola code"]
+            }
+        staves = [(Score.Instrument "v", viola), (Score.Instrument "p", piano)]
+        config = Types.default_config { Types.config_staves = staves }
+    let (text, logs) = make_ly config
+            [ (">p", [(0, 1, "")]), ("*", [(0, 0, "3c")])
+            , (">v", [(0, 1, "")]), ("*", [(0, 0, "3d")])
+            ]
+    equal logs []
+    -- Viola goes first, has correct long and short names and code.
+    match text
+        "instrumentName = \"viola\"*shortInstrumentName = \"vla\"*viola code\
+        \*instrumentName = \"piano\"*piano code"
+
 
 test_hands = do
     let run = LilypondTest.derive_staves [] . concatMap UiTest.note_spec
@@ -186,7 +208,7 @@ test_voices = do
     equal (f tracks)
         (Right "a'4 << { VoiceOne: b'2 } { VoiceTwo: d'4 r4 } >> c'4", [])
 
-    let (text, logs) = make_ly tracks
+    let (text, logs) = make_ly Types.default_config tracks
     equal logs []
     match text "voiceOne*voiceTwo*oneVoice"
 
@@ -205,13 +227,15 @@ test_movements = do
     -- equal logs []
     -- prettyp text
 
-    let (text, logs) = make_ly $
+    let (text, logs) = make_ly Types.default_config $
             [ (">ly-global", [(4, 0, "movement 'number 2'")])
             -- , (">", [(4, 4, "t")])
             ] ++ UiTest.regular_notes 6
     equal logs []
-    prettyp text
+    -- \score, first movement, \score, second movement, movement title
+    match text
+        "score*c4 d4 e4 f4*score*g4 a4 r2*number 2"
 
-make_ly :: [UiTest.TrackSpec] -> (String, [String])
-make_ly = first LilypondTest.make_ly . LilypondTest.partition_logs
-    . LilypondTest.derive
+make_ly :: Types.Config -> [UiTest.TrackSpec] -> (String, [String])
+make_ly config = first (LilypondTest.make_ly config)
+    . LilypondTest.partition_logs . LilypondTest.derive

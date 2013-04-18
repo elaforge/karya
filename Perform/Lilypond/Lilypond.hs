@@ -44,13 +44,6 @@ paper_config =
     , "evenFooterMarkup = \\oddFooterMarkup"
     ]
 
--- | Lilypond code inserted inside every staff.
-staff_config :: [Text]
-staff_config =
-    [ "\\numericTimeSignature" -- Use 4/4 and 2/4 instead of C
-    , "\\set Staff.printKeyCancellation = ##f"
-    ]
-
 -- * output
 
 type Title = Text
@@ -69,9 +62,6 @@ make_lys config title sections = fmap (ly_file config title) $
     forM sections $ \(title, events) -> do
         staves <- convert_staff_groups config 0 events
         return (title, staves)
-
-inst_name :: Score.Instrument -> Instrument
-inst_name = txt . dropWhile (=='/') . dropWhile (/='/') . Score.inst_name
 
 ly_file :: Config -> Title -> [Movement] -> ([Text], StackMap)
 ly_file config title movements = run_output $ do
@@ -95,31 +85,32 @@ ly_file config title movements = run_output $ do
         when (not (Text.null title)) $
             output $ "\\header { piece =" <+> str title <+> "}\n"
         output "}\n\n"
-    write_staff_group (StaffGroup _ staves, long_inst, short_inst) =
+    write_staff_group (StaffGroup _ staves, config) =
         case staves of
-            [staff] -> write_staff (Just (long_inst, short_inst)) Nothing staff
-            [up, down] -> write_piano_staff long_inst short_inst $ do
-                write_staff Nothing (Just "up") up
-                write_staff Nothing (Just "down") down
-            _ -> write_piano_staff long_inst short_inst $
-                mapM_ (write_staff Nothing Nothing) staves
-    write_piano_staff long short contents = do
+            [staff] -> write_staff config Nothing staff
+            [up, down] -> write_piano_staff config $ \config -> do
+                write_staff config (Just "up") up
+                write_staff config (Just "down") down
+            _ -> write_piano_staff config $ \config ->
+                mapM_ (write_staff config Nothing) staves
+    write_piano_staff config contents = do
         outputs
             [ "\\new PianoStaff <<"
-            , ly_set "PianoStaff.instrumentName" long
-            , ly_set "PianoStaff.shortInstrumentName" short
+            , ly_set "PianoStaff.instrumentName" (staff_long config)
+            , ly_set "PianoStaff.shortInstrumentName" (staff_short config)
             ]
-        contents
+        contents $ config { staff_long = "", staff_short = "" }
         output ">>\n"
 
-    write_staff inst_names maybe_name lys = do
+    write_staff config maybe_name lys = do
         output $ "\\new Staff " <> maybe "" (("= "<>) . str) maybe_name
             <+> "{\n"
-        outputs staff_config
-        when_just inst_names $ \(long, short) -> outputs
-            [ ly_set "Staff.instrumentName" long
-            , ly_set "Staff.shortInstrumentName" short
-            ]
+        unless (Text.null (staff_long config)) $
+            outputs [ly_set "Staff.instrumentName" (staff_long config)]
+        unless (Text.null (staff_short config)) $
+            outputs [ly_set "Staff.shortInstrumentName" (staff_short config)]
+        outputs (staff_code config)
+        outputs global_staff_code
         output "{\n"
         set_bar 1
         mapM_ write_voice_ly lys
@@ -161,18 +152,16 @@ write_voice (voice, lys) = do
     output "} "
     State.gets output_bar
 
-sort_staves :: [(Score.Instrument, Instrument, Instrument)]
-    -> [StaffGroup] -> [(StaffGroup, Instrument, Instrument)]
-sort_staves staff_config = map lookup_name . Seq.sort_on inst_key
+sort_staves :: [(Score.Instrument, StaffConfig)] -> [StaffGroup]
+    -> [(StaffGroup, StaffConfig)]
+sort_staves inst_configs = map lookup_name . Seq.sort_on inst_key
     where
-    lookup_name staff =
-        case List.find (\(i, _, _) -> i == inst) staff_config of
-            Nothing -> (staff, inst_name inst, inst_name inst)
-            Just (_, long, short) -> (staff, long, short)
-        where inst = inst_of staff
+    lookup_name staff = case lookup (inst_of staff) inst_configs of
+        Nothing -> (staff, default_staff_config (inst_of staff))
+        Just config -> (staff, config)
     inst_key staff =
-        maybe (1, 0) ((,) 0) $ List.elemIndex (inst_of staff) order
-    order = [inst | (inst, _, _) <- staff_config]
+        maybe (1, 0) ((,) 0) $ List.elemIndex (inst_of staff)
+            (map fst inst_configs)
     inst_of (StaffGroup inst _) = inst
 
 type Output a = State.State OutputState a

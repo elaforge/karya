@@ -36,7 +36,16 @@ data Config = Config {
     , config_dotted_rests :: !Bool
     -- | Map each instrument to its long name and short name.  The order is
     -- the order they should appear in the score.
-    , config_staves :: ![(Score.Instrument, Instrument, Instrument)]
+    , config_staves :: ![(Score.Instrument, StaffConfig)]
+    } deriving (Eq, Read, Show)
+
+data StaffConfig = StaffConfig {
+    -- | Set Staff.instrumentName or PianoStaff.instrumentName.
+    staff_long :: !Instrument
+    -- | Set Staff.shortInstrumentName or PianoStaff.shortInstrumentName.
+    , staff_short :: !Instrument
+    -- | Additional code to include verbatim, after the \\new Staff line.
+    , staff_code :: ![Text]
     } deriving (Eq, Read, Show)
 
 type Instrument = Text
@@ -50,8 +59,35 @@ instance Pretty.Pretty Config where
             , ("staves", Pretty.format staves)
             ]
 
+instance Pretty.Pretty StaffConfig where
+    format (StaffConfig long short code) = Pretty.record_title "StaffConfig"
+        [ ("long", Pretty.format long)
+        , ("short", Pretty.format short)
+        , ("code", Pretty.format code)
+        ]
+
 default_config :: Config
 default_config = Config 1 D32 False []
+
+empty_staff_config :: StaffConfig
+empty_staff_config = StaffConfig
+    { staff_long = ""
+    , staff_short = ""
+    , staff_code = []
+    }
+
+default_staff_config :: Score.Instrument -> StaffConfig
+default_staff_config inst = empty_staff_config { staff_long = inst_name inst }
+
+-- | This is emitted for every staff, regardless of its 'staff_code'.
+global_staff_code :: [Text]
+global_staff_code =
+    [ "\\numericTimeSignature" -- Use 4/4 and 2/4 instead of C
+    , "\\set Staff.printKeyCancellation = ##f"
+    ]
+
+inst_name :: Score.Instrument -> Instrument
+inst_name = txt . dropWhile (=='/') . dropWhile (/='/') . Score.inst_name
 
 -- * Duration
 
