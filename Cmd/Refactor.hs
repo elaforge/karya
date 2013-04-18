@@ -143,6 +143,8 @@ block_from_template_or_refactor = do
             =<< Cmd.get_focused_block
         else void named_block
 
+-- * named block
+
 -- | Create a new block based on the first event under the selection.  Populate
 -- the new block with tracks based on the selection.
 named_block :: (Cmd.M m) => m BlockId
@@ -180,3 +182,31 @@ clipped_skeleton from_block to_block tracknums =
                 , Num.in_range low (high+1) from, Num.in_range low (high+1) to
                 ]
         _ -> return ()
+
+-- * order block
+
+-- | Create a new block containing calls to the given BlockIds.
+order_block :: (Cmd.M m) => Text -> [BlockId] -> m BlockId
+order_block name block_ids = do
+    block_id <- Create.named_block name State.no_ruler
+    order_track block_id block_ids
+    Create.view block_id
+    return block_id
+
+-- | Append a track to the given block with calls to the given BlockIds.  The
+-- calling track will have a 1:1 time relationship with the calls, which is
+-- useful for lilypond derivation since it only understands 1:1.  Also
+-- modify the ruler to be the concatenation of the rulers of the sub-blocks.
+order_track :: (State.M m) => BlockId -> [BlockId] -> m TrackId
+order_track block_id sub_blocks = do
+    ruler_ids <- mapM State.ruler_of sub_blocks
+    meters <- mapM RulerUtil.get_meter ruler_ids
+    let durs = map Meter.time_end meters
+        starts = scanl (+) 0 durs
+        events = [Event.text_event start dur (block_id_to_call block_id)
+            | (start, dur, block_id) <- zip3 starts durs sub_blocks]
+    RulerUtil.local_meter block_id $ const $ mconcat meters
+    Create.track block_id 9999 ">" (Events.from_list events)
+
+block_id_to_call :: BlockId -> Text
+block_id_to_call = txt . Id.ident_name
