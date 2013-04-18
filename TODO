@@ -3,6 +3,8 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
+  - somehow track status got out of sync, a track was Solo but the UI didn't
+    reflect that.  Maybe because I added a track?
   * Slurs shouldn't make a note overlap the same note.
     Or at least, on the piano, slurs on chords shouldn't overlap at all.
     Also, slurs can give a slight dynamic boost to the beginning of the
@@ -369,6 +371,8 @@ integrate / integration:
   - quantization
 
 lilypond:
+  - put staff config like '\set Staff.pedalSustainStyle = #'mixed'
+    in the staff config
   - remove the StackMap stuff
   - code events in >ly-global can be distributed to all staves
     Otherwise I have to remember to add e.g. ly-key to all staves manually.
@@ -398,7 +402,7 @@ lilypond:
   - optionally emit the lilypond to display a compound meter
   * convert lily code to Text instead of String.  Maybe VString has to become
     Text then.
-  - pedal should emit pedal sign
+  * pedal should emit pedal sign
     I can't use the pedal call for that, since it emits control.  But I can
     look at the pedal signal directly.
     Maybe it would be simpler to just have a ly-ped call, especially since the

@@ -110,7 +110,6 @@ c_attr_trill = Derive.stream_generator "attr-trill" (Tags.ornament <> Tags.attr)
                 <> untxt (ShowVal.show_val neighbor)
         Util.add_attrs (Attrs.trill <> width_attr) (Util.placed_note args)
 
--- | TODO randomize dyn, randomize starts
 c_tremolo :: Derive.NoteCall
 c_tremolo = Derive.Call
     { Derive.call_name = "tremolo"

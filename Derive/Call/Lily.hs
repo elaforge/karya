@@ -304,6 +304,7 @@ note_calls = Derive.make_calls
     , ("ly-pre", c_ly_pre)
     , ("ly-post", c_ly_post)
     , ("ly-key", c_ly_key)
+    , ("ly-sus", c_ly_sus)
     ]
 
 c_when_ly :: Derive.NoteCall
@@ -502,6 +503,16 @@ c_ly_key = code0_call "ly-key"
     \key -> do
         key <- Derive.require_right id $ Process.parse_key key
         return (Prefix, Types.to_lily key)
+
+c_ly_sus :: Derive.NoteCall
+c_ly_sus = code0_call "ly-sus" "Emit \\sustainOn and \\sustainOff markup."
+    (required "state" "t for \\sustainOn, f for \\sustainOff,\
+        \ ft for \\sustainOff\\sustainOn.") $
+    \state -> case untxt state of
+        "f" -> return (SuffixAll, "\\sustainOff")
+        "t" -> return (SuffixAll, "\\sustainOn")
+        "ft" -> return (SuffixAll, "\\sustainOff\\sustainOn")
+        _ -> Derive.throw $ "should be f, t, or ft: " <> untxt state
 
 -- * util
 
