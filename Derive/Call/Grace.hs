@@ -46,14 +46,14 @@ c_mordent default_neighbor = Derive.stream_generator "mordent" Tags.ornament
     <$> defaulted "neighbor" default_neighbor "Neighbor pitch."
     <*> defaulted "dyn" 0.5 "Scale the dyn of the generated grace notes."
     ) $ \(neighbor, dyn) -> Note.inverting $ \args ->
-        mordent (Args.extent args) dyn neighbor
+        Lily.when_lilypond (lily_mordent args neighbor) $
+            mordent (Args.extent args) dyn neighbor
 
 mordent :: (ScoreTime, ScoreTime) -> Signal.Y -> Pitch.Transpose
     -> Derive.EventDeriver
 mordent (start, dur) dyn_scale neighbor = do
     pos <- Derive.real start
-    pitch <- Derive.require ("pitch at " ++ Pretty.pretty pos)
-        =<< Util.pitch pos
+    pitch <- Util.get_pitch pos
     dyn <- (*dyn_scale) <$> Util.dynamic pos
     (grace_dur, overlap) <- grace_dur_overlap
     grace_notes pos grace_dur overlap
@@ -61,6 +61,11 @@ mordent (start, dur) dyn_scale neighbor = do
         , Util.pitched_note (Pitches.transpose neighbor pitch) dyn
         ]
         <> Derive.d_place start dur Util.note
+
+lily_mordent :: Derive.PassedArgs d -> Pitch.Transpose -> Derive.EventDeriver
+lily_mordent args neighbor = do
+    pitch <- Util.get_pitch =<< Args.real_start args
+    lily_grace args [pitch, Pitches.transpose neighbor pitch]
 
 type Pitch = Either PitchSignal.Pitch Pitch.Transpose
 

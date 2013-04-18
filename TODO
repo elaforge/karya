@@ -3,6 +3,7 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
+  - default track width should be enough for 0x80
   - up and down arrows in text entry should go to front and back
   - add edit and windows menu to all apps
     There must be special OS X support for these
@@ -384,6 +385,9 @@ integrate / integration:
   - quantization
 
 lilypond:
+  * support for mordent
+  - one track has voice, the other doesn't, causes a "can't advance time
+    backward" error
   * put staff config like '\set Staff.pedalSustainStyle = #'mixed'
     in the staff config
   - I could use staff config to filter out some instruments

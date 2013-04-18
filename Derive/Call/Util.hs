@@ -235,6 +235,10 @@ signal = PitchSignal.signal . Derive.pitch_signal_scale
 pitch :: RealTime -> Derive.Deriver (Maybe PitchSignal.Pitch)
 pitch = Derive.pitch_at
 
+get_pitch :: RealTime -> Derive.Deriver PitchSignal.Pitch
+get_pitch pos = Derive.require ("pitch at " ++ Pretty.pretty pos)
+    =<< Derive.pitch_at pos
+
 dynamic :: RealTime -> Derive.Deriver Signal.Y
 dynamic pos = maybe Derive.default_dynamic Score.typed_val <$>
     Derive.control_at Score.c_dynamic pos
