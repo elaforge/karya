@@ -256,7 +256,7 @@ cmd_sync_status ui_from cmd_from = do
     when (not (null new_views) || Cmd.state_edit cmd_from /= edit_state) $
         sync_edit_state edit_state
     sync_play_state =<< Cmd.gets Cmd.state_play
-    sync_save_file =<< Cmd.gets Cmd.state_save_file
+    flip when_just sync_save_file =<< Cmd.gets Cmd.state_save_file
 
     when (State.state_config ui_from /= State.state_config ui_to) $
         sync_ui_config (State.state_config ui_to)
@@ -348,12 +348,10 @@ sync_play_state st = do
     Cmd.set_global_status "play-mult" $
         untxt $ ShowVal.show_val (Cmd.state_play_multiplier st)
 
-sync_save_file :: (Cmd.M m) => Maybe Cmd.SaveFile -> m ()
-sync_save_file maybe_save =
-    Cmd.set_global_status "save" $ maybe "" path maybe_save
-    where
-    path (Cmd.SaveState fn) = fn
-    path (Cmd.SaveGit repo) = repo
+sync_save_file :: (Cmd.M m) => Cmd.SaveFile -> m ()
+sync_save_file save = Cmd.set_global_status "save" $ case save of
+    Cmd.SaveState fn -> fn
+    Cmd.SaveGit repo -> repo
 
 -- | Sync State.Config changes.
 sync_ui_config :: (Cmd.M m) => State.Config -> m ()

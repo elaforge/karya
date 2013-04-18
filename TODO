@@ -386,6 +386,8 @@ integrate / integration:
 lilypond:
   - put staff config like '\set Staff.pedalSustainStyle = #'mixed'
     in the staff config
+  - I could use staff config to filter out some instruments
+  - library of common staff code
   - remove the StackMap stuff
   - code events in >ly-global can be distributed to all staves
     Otherwise I have to remember to add e.g. ly-key to all staves manually.
@@ -880,7 +882,7 @@ integrator / midi record:
 REPL: repl:
   * don't load history if it hasn't changed
   - repl should understand --
-  - stop writing history to ".repl"
+  * stop writing history to ".repl"
   - only write history when the cmd succeeded
   * repl should load the history from save/.../repl, and have a history search
     seq will have to tell the REPL what it loaded, so it needs a fancier
