@@ -28,6 +28,7 @@ import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 
 import qualified Ui.State as State
+import qualified Ui.Id as Id
 import qualified Cmd.Repl.Fast as Fast
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Msg as Msg
@@ -38,6 +39,8 @@ import qualified Cmd.ReplGhc as ReplImpl
 #else
 import qualified Cmd.ReplStub as ReplImpl
 #endif
+
+import qualified Derive.ParseBs as ParseBs
 
 
 -- | This is the persistent interpreter session which is stored in the global
@@ -57,15 +60,14 @@ repl session repl_dirs msg = do
     (response_hdl, text) <- case msg of
         Msg.Socket hdl s -> return (hdl, s)
         _ -> Cmd.abort
+    ns <- State.config#State.namespace <#> State.get
+    text <- Cmd.require_right ("expand_macros: "<>) $ expand_macros ns text
     Log.debug $ "repl input: " ++ show text
-    ui_state <- State.get
-    cmd_state <- Cmd.get
     local_modules <- fmap concat (mapM get_local_modules repl_dirs)
 
     cmd <- case Fast.fast_interpret text of
         Just cmd -> return cmd
-        Nothing -> liftIO $
-            ReplImpl.interpret session local_modules ui_state cmd_state text
+        Nothing -> liftIO $ ReplImpl.interpret session local_modules text
     (response, status) <- run_cmdio $ Cmd.name ("repl: " ++ text) cmd
     liftIO $ catch_io_errors $ do
         unless (null response) $
@@ -75,6 +77,13 @@ repl session repl_dirs msg = do
     where
     catch_io_errors = Exception.handle $ \(exc :: IOError) ->
         Log.warn $ "caught exception from socket write: " ++ show exc
+
+-- | Replace \@some-id with @(auto_id ns \"some-id\")@
+expand_macros :: Id.Namespace -> String -> Either String String
+expand_macros namespace expr = ParseBs.expand_macros replace expr
+    where
+    replace ident = "(auto_id " <> show (Id.un_namespace namespace) <> " "
+        <> show ident <> ")"
 
 -- | Run the Cmd under an IO exception handler.
 run_cmdio :: Cmd.CmdT IO String -> Cmd.CmdT IO (String, Cmd.Status)

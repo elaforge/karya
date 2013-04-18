@@ -13,8 +13,8 @@ import qualified Cmd.ReplGhc as ReplGhc
 
 
 -- Fiddle around with the REPL by hand.
-test_lang_ghc :: IO ()
-test_lang_ghc = do
+test_repl_ghc :: IO ()
+test_repl_ghc = do
     -- Get generate_run_tests.py to recognize this as interactive.
     -- TODO need a better way
     io_human "Ready?" (return ())

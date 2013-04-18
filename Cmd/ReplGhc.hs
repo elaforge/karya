@@ -10,33 +10,30 @@ module Cmd.ReplGhc (
 import qualified Control.Concurrent.Chan as Chan
 import qualified Control.Concurrent.MVar as MVar
 import qualified Control.Exception as Exception
-import System.FilePath ((</>))
 
 import qualified Data.IORef as IORef
 import qualified Data.List as List
-
 -- GHC imports
 import qualified GHC
 import qualified GHC.Exts
 import qualified GHC.Paths
+
 -- The liftIO here is not the same one in Control.Monad.Trans!
 -- GHC defines its own MonadIO.
 import MonadUtils (MonadIO, liftIO)
 import qualified Outputable
+import System.FilePath ((</>))
 
 import Util.Control hiding (liftIO)
 import qualified Util.Log as Log
 import qualified Util.Seq as Seq
 
-import qualified Ui.Id as Id
-import qualified Ui.State as State
 import qualified Cmd.Cmd as Cmd
-import qualified Derive.ParseBs as ParseBs
 
 
 -- | The actual session runs in another thread, so this is the communication
 -- channel.  @(expr, namespace, response_mvar)@
-newtype Session = Session (Chan.Chan (String, Id.Namespace, MVar.MVar Cmd))
+newtype Session = Session (Chan.Chan (String, MVar.MVar Cmd))
 type Cmd = Cmd.CmdL String
 
 -- | Text version of the Cmd type.
@@ -48,12 +45,10 @@ type Ghc a = GHC.GhcT IO a
 make_session :: IO Session
 make_session = Session <$> Chan.newChan
 
-interpret :: Session -> [String] -> State.State
-    -> Cmd.State -> String -> IO (Cmd.CmdT IO String)
-interpret (Session chan) _local_modules ui_state _cmd_state expr = do
+interpret :: Session -> [String] -> String -> IO (Cmd.CmdT IO String)
+interpret (Session chan) _local_modules expr = do
     mvar <- MVar.newEmptyMVar
-    let ns = State.config_namespace (State.state_config ui_state)
-    Chan.writeChan chan (expr, ns, mvar)
+    Chan.writeChan chan (expr, mvar)
     MVar.takeMVar mvar
 
 ghci_flags :: FilePath
@@ -86,10 +81,10 @@ interpreter (Session chan) = do
                     ++ Seq.join "; " warns ++ " / " ++ Seq.join "; " logs
             _ -> return ()
         forever $ do
-            (expr, namespace, return_mvar) <- liftIO $ Chan.readChan chan
+            (expr, return_mvar) <- liftIO $ Chan.readChan chan
             result <- case expr of
                 ':' : colon -> colon_cmd colon
-                _ -> normal_cmd namespace expr
+                _ -> normal_cmd expr
                     `GHC.gcatch` \(exc :: Exception.SomeException) ->
                         -- set_context throws if the reload failed.
                         return $ return $ "Exception: " ++ show exc
@@ -97,12 +92,10 @@ interpreter (Session chan) = do
     where
     toplevel = "Cmd.Repl.Environ"
 
-    normal_cmd :: Id.Namespace -> String -> Ghc Cmd
-    normal_cmd namespace expr = case expand_macros namespace expr of
-        Left err -> return $ return $ "expand_macros: " ++ err
-        Right expr -> do
-            set_context [toplevel]
-            format_response <$> compile expr
+    normal_cmd :: String -> Ghc Cmd
+    normal_cmd expr = do
+        set_context [toplevel]
+        format_response <$> compile expr
 
     colon_cmd :: String -> Ghc Cmd
     colon_cmd "r" = format_response <$> reload
@@ -124,13 +117,6 @@ format_response (result, logs, warns) = decorate $ case result of
 
 
 -- * implementation
-
--- | Replace \@some-id with @(auto_id ns \"some-id\")@
-expand_macros :: Id.Namespace -> String -> Either String String
-expand_macros namespace expr = ParseBs.expand_macros replace expr
-    where
-    replace ident = "(auto_id " <> show (Id.un_namespace namespace) <> " "
-        <> show ident <> ")"
 
 -- | (Either error result, logs, warns)
 type Result a = (Either String a, [String], [String])
