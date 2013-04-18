@@ -3,6 +3,19 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
+  - up and down arrows in text entry should go to front and back
+  - add edit and windows menu to all apps
+    There must be special OS X support for these
+  - keys to move focus?
+  - shift-play from a super-block drops the first note of the sub-block
+  - it's annoying to insert text at the beginning of an event
+    Can I do a prepend command?  I could go for full text input, but even then
+    it would require a click.  Well, in that case I can open it with the
+    cursor set wherever I want.
+  - repl macro: [@b0, @b1] didn't work
+  - Refactor.order_block makes a block with a mysteriously black ruler
+  - 6/4 = 3+3/4, or 4 q.  I think this is not expressable in staff notation,
+    but is in the meter ruler
   - somehow track status got out of sync, a track was Solo but the UI didn't
     reflect that.  Maybe because I added a track?
   * Slurs shouldn't make a note overlap the same note.
@@ -865,6 +878,10 @@ integrator / midi record:
   - implement
 
 REPL: repl:
+  * don't load history if it hasn't changed
+  - repl should understand --
+  - stop writing history to ".repl"
+  - only write history when the cmd succeeded
   * repl should load the history from save/.../repl, and have a history search
     seq will have to tell the REPL what it loaded, so it needs a fancier
     protocol.

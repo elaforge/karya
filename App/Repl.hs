@@ -37,32 +37,40 @@ initial_settings = Haskeline.defaultSettings
 -- REPL thread, which is otherwise blocked on user input.  When the REPL thread
 -- gets the exception, it restarts runInputT with a new historyFile.
 
+type CurrentHistory = MVar.MVar (Maybe FilePath)
+
 main :: IO ()
 main = SendCmd.initialize $ do
     liftIO $ putStrLn "^D to quit"
     fname <- Tail.log_filename
     done <- MVar.newEmptyMVar
+    current_history <- MVar.newMVar Nothing
     repl_thread <- Concurrent.forkIO $ do
-        repl initial_settings
+        repl current_history initial_settings
         MVar.putMVar done ()
     hdl <- Tail.open fname (Just 0)
-    Concurrent.forkIO $ loop repl_thread hdl
+    Concurrent.forkIO $ loop repl_thread current_history hdl
     MVar.takeMVar done
     where
-    loop repl_thread hdl = do
-        (msg, hdl) <- Tail.tail hdl
-        when_just (save_dir_of (Log.msg_string msg)) $ \dir ->
-            Concurrent.throwTo repl_thread (SaveFileChanged dir)
-        loop repl_thread hdl
+    loop repl_thread current_history = go
+        where
+        go hdl = do
+            (msg, hdl) <- Tail.tail hdl
+            when_just (save_dir_of (Log.msg_string msg)) $ \dir -> do
+                changed <- MVar.modifyMVar current_history $ \current ->
+                    return (Just dir, current /= Just dir)
+                when changed $
+                    Concurrent.throwTo repl_thread SaveFileChanged
+            go hdl
 
-newtype SaveFileChanged = SaveFileChanged FilePath
+data SaveFileChanged = SaveFileChanged
     deriving (Show, Typeable.Typeable)
 instance Exception.Exception SaveFileChanged
 
 -- I have to modify history and read lines in the same thread.  But haskeline
 -- blocks in getInputLine, and I don't think I can interrupt it.
-repl :: Haskeline.Settings IO -> IO ()
-repl settings = input_loop settings $
+repl :: CurrentHistory -> Haskeline.Settings IO -> IO ()
+repl current_history settings = input_loop current_history settings $
     maybe (return False) ((>> return True) . handle . Seq.strip)
         =<< Haskeline.getInputLine prompt
     where
@@ -74,33 +82,37 @@ repl settings = input_loop settings $
             unless (null formatted) $
                 liftIO $ putStrLn formatted
     catch_all :: Exception.SomeException -> IO String
-    catch_all exc = return ("error: " ++ show exc)
+    catch_all exc = return ("!error: " ++ show exc)
 
 format_response :: String -> String
 format_response "()" = ""
 format_response ('!':s) = s -- See 'Cmd.Repl.unformatted'.
 format_response s = PPrint.format_str s
 
-input_loop :: Haskeline.Settings IO -> Input Bool -> IO ()
-input_loop settings action = do
-    x <- Haskeline.runInputT settings (Haskeline.withInterrupt loop)
-    when_just x $ \fname -> do
-        putStrLn $ "loading history from " ++ show fname
-        input_loop (settings { Haskeline.historyFile = Just fname }) action
+input_loop :: CurrentHistory -> Haskeline.Settings IO -> Input Bool -> IO ()
+input_loop current_history settings action = outer_loop settings
     where
-    loop = run_action >>= \x -> case x of
-        Continue -> loop
+    outer_loop settings = do
+        liftIO $ putStrLn $
+            "run with repl: " <> show (Haskeline.historyFile settings)
+        x <- Haskeline.runInputT settings (Haskeline.withInterrupt action_loop)
+        when_just x $ \maybe_fname -> do
+            putStrLn $ "loading history from " ++ show maybe_fname
+            outer_loop $ settings { Haskeline.historyFile = maybe_fname }
+
+    action_loop = run_action >>= \x -> case x of
+        Continue -> action_loop
         Quit -> return Nothing
-        Load dir -> return (Just dir)
+        Load -> liftIO $ Just <$> MVar.readMVar current_history
     run_action = Haskeline.MonadException.handle interrupt $
         Haskeline.MonadException.handle changed $
             ifM action (return Continue) (return Quit)
     interrupt Haskeline.Interrupt = do
         Haskeline.outputStrLn "interrupted"
         return Continue
-    changed (SaveFileChanged dir) = return $ Load dir
+    changed SaveFileChanged = return Load
 
-data Status = Continue | Quit | Load !FilePath
+data Status = Continue | Quit | Load deriving (Show)
 
 save_dir_of :: String -> Maybe FilePath
 save_dir_of msg =
