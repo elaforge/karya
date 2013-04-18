@@ -63,9 +63,8 @@ instance Exception.Exception SaveFileChanged
 -- blocks in getInputLine, and I don't think I can interrupt it.
 repl :: Haskeline.Settings IO -> IO ()
 repl settings = input_loop settings $
-    -- Colorize the prompt to make it stand out.
     maybe (return False) ((>> return True) . handle . Seq.strip)
-        =<< Haskeline.getInputLine (cyan_bg ++ "入 " ++ plain_bg)
+        =<< Haskeline.getInputLine prompt
     where
     handle line
         | null line = return ()
@@ -107,6 +106,10 @@ save_dir_of :: String -> Maybe FilePath
 save_dir_of msg =
     flip FilePath.replaceExtension "repl" <$> Map.lookup "save" status
     where status = Process.match_pattern Process.global_status_pattern msg
+
+-- | Colorize the prompt to make it stand out.
+prompt :: String
+prompt = cyan_bg ++ "入" ++ plain_bg ++ " "
 
 -- The trailing \STX tells haskeline this is a control sequence, from
 -- http://trac.haskell.org/haskeline/wiki/ControlSequencesInPrompt

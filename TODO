@@ -3,11 +3,11 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
-  - Slurs shouldn't make a note overlap the same note.
+  * Slurs shouldn't make a note overlap the same note.
     Or at least, on the piano, slurs on chords shouldn't overlap at all.
     Also, slurs can give a slight dynamic boost to the beginning of the
     phrase.
-  - postproc to make sure the same pitches don't overlap
+  * postproc to make sure the same pitches don't overlap
   * %sustain -> %sus, sustain-abs -> sus-abs
   / ly-( should make a note if a generator, rather than looking for subs.
   * rename *_lang stuff in Config to repl

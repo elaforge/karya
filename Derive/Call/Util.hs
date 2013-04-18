@@ -508,9 +508,9 @@ equal_transformer args deriver = case Derive.passed_vals args of
 -- simple for transformers.  Hopefully functions here can mostly hide LEvents
 -- from transformers.
 
-map_around_asc :: ([Score.Event] -> Score.Event -> [Score.Event] -> Score.Event)
+map_around :: ([Score.Event] -> Score.Event -> [Score.Event] -> Score.Event)
     -> Derive.Events -> Derive.Events
-map_around_asc f events = go [] events
+map_around f events = go [] events
     where
     go prev (event : events) = case event of
         LEvent.Log log -> LEvent.Log log : go prev events

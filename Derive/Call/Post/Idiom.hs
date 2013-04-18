@@ -20,33 +20,34 @@ import Types
 
 note_calls :: Derive.NoteCallMap
 note_calls = Derive.make_calls
-    [ ("arp-pizz", c_arp_pizz)
+    [ ("pizz-arp", c_pizz_arp)
+    , ("avoid-overlap", c_avoid_overlap)
     ]
 
-c_arp_pizz :: Derive.NoteCall
-c_arp_pizz = Derive.transformer "arp-pizz" (Tags.postproc <> Tags.idiom)
+-- * pizz arp
+
+c_pizz_arp :: Derive.NoteCall
+c_pizz_arp = Derive.transformer "pizz-arp" (Tags.postproc <> Tags.idiom)
     "Arpeggiate simultaneous notes with `+pizz`. The order is arbitrary but\
     \ probably in track order.  TODO sort by pitch?" $
-    Sig.callt (defaulted "time" (control "arp-pizz-time" 0.02)
+    Sig.callt (defaulted "time" (control "pizz-arp-time" 0.02)
         "Insert this much time between each note.") $
-    \time _args deriver -> arp_pizz time =<< deriver
+    \time _args deriver -> pizz_arp time =<< deriver
 
-arp_pizz :: TrackLang.ValControl -> Derive.Events -> Derive.EventDeriver
-arp_pizz time = map_contemporary 0.025 (Score.has_attribute Attrs.pizz) $
+pizz_arp :: TrackLang.ValControl -> Derive.Events -> Derive.EventDeriver
+pizz_arp time = map_contemporary 0.025 (Score.has_attribute Attrs.pizz) $
     \(event :| chord) -> do
         let start = Score.event_start event
         time <- RealTime.seconds <$> Util.control_at time start
         return [Score.move (+t) event
             | (t, event) <- zip (Seq.range_ 0 time) (event : chord)]
 
--- TODO I know there's a better word than contemporary
--- coincident?  simultenous?
 map_contemporary :: RealTime
-    -- ^ events starting closer than this amount are considered contemporary
+    -- ^ events starting closer than this amount are considered coincident
     -> (Score.Event -> Bool)
     -- ^ only process events that pass this predicate
     -> (NonEmpty Score.Event -> Derive.Deriver [Score.Event])
-    -- ^ process contemporary events
+    -- ^ process coincident events
     -> Derive.Events -> Derive.EventDeriver
 map_contemporary eta accept f = go
     where
@@ -67,3 +68,29 @@ map_contemporary eta accept f = go
             events
         (chord, logs) = LEvent.partition with
         (wanted, unwanted) = List.partition accept chord
+
+-- * avoid overlap
+
+c_avoid_overlap :: Derive.NoteCall
+c_avoid_overlap = Derive.transformer "avoid-overlap"
+    (Tags.postproc <> Tags.idiom)
+    "Notes with the same starting pitch are shortened so they don't overlap\
+    \ with each other.  This simulates keyboard instruments, where you have\
+    \ to release a key before striking the same key again. This also happens\
+    \ to be what MIDI expects, since it's based on keyboards."
+    $ Sig.callt (defaulted "time" 0.1
+        "Ensure at least this much time between two notes of the same pitch.")
+    $ \time _args deriver -> avoid_overlap time =<< deriver
+
+avoid_overlap :: RealTime -> Derive.Events -> Derive.EventDeriver
+avoid_overlap time = return . Util.map_around go
+    where
+    go _ event future = case List.find same (takeWhile overlaps future) of
+        Nothing -> event
+        Just next -> Score.set_duration
+                (Score.event_start next - time - Score.event_start event) event
+        where
+        overlaps next = Score.event_end event + time > Score.event_start next
+        nn = Score.initial_nn event
+        same next = Score.event_instrument event == Score.event_instrument next
+            && nn == Score.initial_nn next

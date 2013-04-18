@@ -518,9 +518,14 @@ code_call name doc sig make_code = Derive.Call
     where
     generator = Sig.call sig $ \val args -> do
         code <- make_code val
-        -- If there are no sub-events I could just derive Util.note, but
-        -- then I'd have to invert, etc.  It seems better to have one way to
-        -- write it.
+        -- Code calls mostly apply code to a single note.  It would be
+        -- convenient to derive Util.note, but then I'd have to invert, and
+        -- since inversion and sub-events are incompatible I would then have to
+        -- ignore sub-events.  That in turn would mean I couldn't split the
+        -- code calls into a separate track, which is notationally convenient.
+        --
+        -- The price is that if I want to put the call on the note track,
+        -- I have to append |, which is easy to forget.
         require_nonempty =<< first_note_code code args (place_notes args)
     transformer = Sig.callt sig $ \val _args deriver ->
         flip when_lilypond deriver $ do

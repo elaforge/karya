@@ -85,7 +85,7 @@ c_realize_damp = Derive.transformer "realize-damp" (Tags.idiom <> Tags.postproc)
     \ TODO: Since there's no correspondence between tracks in different\
     \ blocks, the damping can't extend across block boundaries. I'd need\
     \ something like a 'hand' attribute to fix this."
-    ) $ Sig.call0t $ \_ deriver -> Util.map_around_asc realize <$> deriver
+    ) $ Sig.call0t $ \_ deriver -> Util.map_around realize <$> deriver
     where
     realize _prev event next = Score.remove_attributes damped_tag $
         case Util.filter_next_in_track event next of
