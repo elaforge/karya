@@ -1,6 +1,7 @@
 {-# LANGUAGE DeriveDataTypeable #-}
 module Ui.Block where
 import qualified Control.DeepSeq as DeepSeq
+import qualified Data.Char as Char
 import qualified Data.Generics as Generics
 import qualified Data.List as List
 import qualified Data.List.NonEmpty as NonEmpty
@@ -173,7 +174,7 @@ data DisplayTrack = DisplayTrack {
     , dtrack_event_brightness :: Double
     } deriving (Eq, Show, Read)
 
-type Status = Maybe (Char, Color.Color)
+type Status = Maybe (String, Color.Color)
 
 instance Pretty.Pretty DisplayTrack where
     format (DisplayTrack tlike_id width merged status _bright) =
@@ -221,10 +222,21 @@ display_track_width = dtrack_width . display_track
 
 flags_to_status :: Set.Set TrackFlag -> (Status, Double)
 flags_to_status flags
-    | Disable `Set.member` flags = (Just ('D', Config.mute_color), 0.5)
-    | Solo `Set.member` flags = (Just ('S', Config.solo_color), 1)
-    | Mute `Set.member` flags = (Just ('M', Config.mute_color), 0.75)
+    | Disable `Set.member` flags =
+        (Just (chars Disable, Config.mute_color), 0.5)
+    | Solo `Set.member` flags = (Just (chars Solo, Config.solo_color), 1)
+    | Mute `Set.member` flags = (Just (chars Mute, Config.mute_color), 0.75)
     | otherwise = (Nothing, 1)
+    where
+    chars flag = filter (/=' ') $ flag_char flag
+        : map (Char.toLower . flag_char) (Set.toList (Set.delete flag flags))
+
+flag_char :: TrackFlag -> Char
+flag_char status = case status of
+    Disable -> 'D'
+    Solo -> 'S'
+    Mute -> 'M'
+    Collapse -> ' '
 
 modify_id :: (TracklikeId -> TracklikeId) -> Track -> Track
 modify_id f track = track { tracklike_id = f (tracklike_id track) }

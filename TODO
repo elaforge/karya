@@ -754,7 +754,7 @@ fltk:
   Track
     / dividers can have separate color for upper part, for collapsable tracks
   event track
-    - visual indication when both solo and mute is on
+    * visual indication when both solo and mute is on
     - bring back the idea of opening up a text entry in raw edit mode?  Then I
       can get real cursor control and use the IME.  But I'd need to either
       switch to Text or make sure ParseBs works on UTF8.

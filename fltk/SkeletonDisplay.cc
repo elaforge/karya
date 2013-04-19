@@ -83,7 +83,8 @@ SkeletonDisplay::set_config(
     // Should be the same, but just in case.
     int len = std::min(static_cast<int>(widths.size()), config.statuses_len);
     for (int i = 0; i < len; i++) {
-        tracks[i].status = config.statuses[i].status;
+        tracks[i].status1 = config.statuses[i].status1;
+        tracks[i].status2 = config.statuses[i].status2;
         tracks[i].color = config.statuses[i].color;
     }
     this->recalculate_centers();
@@ -92,11 +93,13 @@ SkeletonDisplay::set_config(
 
 
 void
-SkeletonDisplay::set_status(int tracknum, char status, Color color)
+SkeletonDisplay::set_status(
+    int tracknum, char status1, char status2, Color color)
 {
     ASSERT(0 <= tracknum);
     if (static_cast<size_t>(tracknum) < tracks.size()) {
-        tracks[tracknum].status = status;
+        tracks[tracknum].status1 = status1;
+        tracks[tracknum].status2 = status2;
         tracks[tracknum].color = color;
     }
     this->redraw();
@@ -168,7 +171,7 @@ SkeletonDisplay::draw()
 
     // Draw status color.
     for (int i = 0; i < ntracks; i++) {
-        if (tracks[i].status) {
+        if (tracks[i].status1) {
             fl_color(color_to_fl(tracks[i].color));
             fl_rectf(x() + tracks[i].left, y(), tracks[i].width, h());
         }
@@ -176,7 +179,7 @@ SkeletonDisplay::draw()
         // something.
         if (tracks[i].height) {
             int height = tracks[i].height * height_step;
-            if (tracks[i].status)
+            if (tracks[i].status1)
                 fl_color(color_to_fl(tracks[i].color.brightness(0.8)));
             else
                 fl_color(color_to_fl(
@@ -220,17 +223,16 @@ SkeletonDisplay::draw()
     // Draw status letters.
     fl_font(Config::font + FL_BOLD, Config::font_size::track_status);
     for (int i = 0; i < ntracks; i++) {
-        char c = tracks[i].status;
-        // DEBUG("center " << i << " " << tracks[i].center);
-        if (c) {
+        char c[] = {tracks[i].status1, tracks[i].status2};
+        if (c[0]) {
             // DEBUG("draw " << i << " " << tracks[i].color);
-            int cw = fl_width(c);
+            int cw = fl_width(c, 2);
             int ch = fl_height() + fl_descent();
             int xpos = this->x() + tracks[i].center - cw/2;
             fl_color(color_to_fl(tracks[i].color));
             fl_rectf(xpos-1, bottom - ch, cw + 2, ch);
             fl_color(FL_BLACK);
-            fl_draw(&c, 1, xpos, bottom - fl_descent());
+            fl_draw(c, 2, xpos, bottom - fl_descent());
         }
     }
 }

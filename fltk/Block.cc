@@ -458,8 +458,8 @@ BlockView::set_display_track(int tracknum, const DisplayTrack &dtrack)
 {
     ASSERT(0 <= tracknum && tracknum < this->tracks());
     if (tracknum > 0) {
-        this->skel_display.set_status(tracknum-1, dtrack.status,
-                dtrack.status_color);
+        this->skel_display.set_status(tracknum-1, dtrack.status1,
+            dtrack.status2, dtrack.status_color);
     }
     this->track_at(tracknum)->set_event_brightness(dtrack.event_brightness);
     this->set_track_width(tracknum, dtrack.width);

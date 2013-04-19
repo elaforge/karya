@@ -70,8 +70,10 @@ struct BlockModelConfig {
 struct DisplayTrack {
     double event_brightness;
     int width;
+    // These are also in SkeletonStatus.  The duplication is unfortunate, and
+    // the reasons for it are documented in Ui.Update.Block.
     Color status_color;
-    char status;
+    char status1, status2;
 };
 
 

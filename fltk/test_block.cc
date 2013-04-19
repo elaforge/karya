@@ -360,7 +360,7 @@ main(int argc, char **argv)
         };
         SkeletonConfig skel(sizeof edges / sizeof(*edges), edges);
         SkeletonStatus statuses[] = {
-            SkeletonStatus(Color(0, 0xff, 0xff), 'x')
+            SkeletonStatus(Color(0, 0xff, 0xff), 'X', 'y')
         };
         skel.statuses = statuses;
         skel.statuses_len = 1;
@@ -371,7 +371,8 @@ main(int argc, char **argv)
     }
 
     DisplayTrack dtrack;
-    dtrack.status = 'M';
+    dtrack.status1 = 'M';
+    dtrack.status2 = '\0';
     dtrack.width = 30;
     dtrack.status_color = Color(255, 150, 150);
     // dtrack.status_color = Color(150, 150, 150);
