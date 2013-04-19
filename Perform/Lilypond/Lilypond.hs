@@ -239,8 +239,8 @@ split_events events =
     by_inst = Seq.keyed_group_on event_instrument events
     lookup_hand environ = case TrackLang.get_val Constants.v_hand environ of
         Right (val :: Text)
-            | val == "right" -> 0
-            | val == "left" -> 1
+            | val == "r" || val == "right" -> 0
+            | val == "l" || val == "left" -> 1
             | otherwise -> 2
         _ -> 0
 

@@ -9,7 +9,7 @@ import qualified Derive.TrackLang as TrackLang
 ly_global :: Score.Instrument
 ly_global = Score.Instrument "ly-global"
 
--- | String: @\'right\'@ or @\'left\'@.
+-- | String: @right@, @r@,  @left@, or @l@.
 v_hand :: TrackLang.ValName
 v_hand = TrackLang.Symbol "hand"
 
