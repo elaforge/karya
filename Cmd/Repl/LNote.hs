@@ -3,6 +3,7 @@ module Cmd.Repl.LNote where
 import qualified Data.List as List
 
 import Util.Control
+import qualified Util.Seq as Seq
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.ModifyNotes as ModifyNotes
 import qualified Cmd.Selection as Selection
@@ -34,7 +35,7 @@ merge :: Cmd.CmdL ()
 merge = ModifyNotes.selection $ ModifyNotes.modify_note $ set_index 0
 
 -- | Distribute the notes among the given number of tracks, round-robin.  Since
--- only each note only carries over the controls in its extend, if there are
+-- only each note only carries over the controls in its extent, if there are
 -- notes that rely on control values carried forward, the values will be
 -- different in the new tracks.
 distribute_n :: Int -> Cmd.CmdL ()
@@ -83,7 +84,7 @@ split_on_pitch high_index break_nn =
     ModifyNotes.selection $ ModifyNotes.annotate_nns $ \notes ->
         return $ split notes
     where
-    split xs = snd (List.mapAccumL allocate ([], []) xs)
+    split = snd . List.mapAccumL allocate ([], [])
     allocate (low_alloc, high_alloc) (note, maybe_nn)
         | maybe True (<=break_nn) maybe_nn =
             let (i, next) = find low_alloc
@@ -94,6 +95,15 @@ split_on_pitch high_index break_nn =
         where
         find = find_index (ModifyNotes.note_start note)
             (ModifyNotes.note_end note)
+
+-- | Order overlapping notes by pitch, left to right.
+sort_on_pitch :: Cmd.CmdL ()
+sort_on_pitch = ModifyNotes.selection $ ModifyNotes.annotate_nns $
+    return . concatMap sort . Seq.group_eq overlap
+    where
+    overlap n1 n2 = ModifyNotes.notes_overlap (fst n1) (fst n2)
+    sort = realloc . map fst . Seq.sort_on snd
+    realloc = zipWith set_index [0..]
 
 set_index :: ModifyNotes.Index -> ModifyNotes.Note -> ModifyNotes.Note
 set_index i note = note { ModifyNotes.note_index = i }

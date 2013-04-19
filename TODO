@@ -3,7 +3,6 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
-  - default track width should be enough for 0x80
   - up and down arrows in text entry should go to front and back
   - add edit and windows menu to all apps
     There must be special OS X support for these
@@ -13,10 +12,13 @@ UNSORTED
     Can I do a prepend command?  I could go for full text input, but even then
     it would require a click.  Well, in that case I can open it with the
     cursor set wherever I want.
+    I could get rid of RawEdit entirely and use vi-style 'A' and 'I' to append
+    and insert respectively.  But then I lose the space idiom.  Since space is
+    stop playing, it might be nice to bind that to something else anyway, like
+    'Z' starts an append with zero duration.  It then becomes more annoying to
+    add a bunch of single char calls, like (.
   * repl macro: [@b0, @b1] didn't work
   - Refactor.order_block makes a block with a mysteriously black ruler
-  - 6/4 = 3+3/4, or 4 q.  I think this is not expressable in staff notation,
-    but is in the meter ruler
   - somehow track status got out of sync, a track was Solo but the UI didn't
     reflect that.  Maybe because I added a track?
   * Slurs shouldn't make a note overlap the same note.

@@ -59,6 +59,7 @@ import qualified Cmd.Repl.LView as LView
 import qualified Cmd.Meter as Meter
 import qualified Cmd.Meters as Meters
 import qualified Cmd.ModifyEvents as ModifyEvents
+import qualified Cmd.ModifyNotes as ModifyNotes
 import qualified Cmd.Perf as Perf
 import qualified Cmd.Play as Play
 import qualified Cmd.PlayUtil as PlayUtil

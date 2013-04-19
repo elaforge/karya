@@ -226,12 +226,20 @@ keyed_group_on key = map (\gs -> (key (List.head gs), gs)) . group_on key
 group_on :: (Ord key) => (a -> key) -> [a] -> [[a]]
 group_on key = group key . sort_on key -- TODO faster to use a map?
 
--- | Like 'group_on', but only requires Eq, not Ord, and is O(n^2) rather than
--- O(n log n).  The group elements appear in their original order.
-group_eq :: (Eq key) => (a -> key) -> [a] -> [[a]]
-group_eq _ [] = []
-group_eq key (x:xs) = (x : equal) : group_eq key inequal
-    where (equal, inequal) = List.partition ((== key x) . key) xs
+-- | Group each element with all the other elements that compare equal to it.
+-- The heads of the groups appear in their original order.
+--
+-- The sublists are never null.
+group_eq :: (a -> a -> Bool) -> [a] -> [[a]]
+group_eq is_equal = go
+    where
+    go [] = []
+    go (x:xs) = (x : equal) : go inequal
+        where (equal, inequal) = List.partition (is_equal x) xs
+
+-- | 'group_eq' but with a key function.
+group_eq_on :: (Eq key) => (a -> key) -> [a] -> [[a]]
+group_eq_on key = group_eq (\x y -> key x == key y)
 
 -- | This is just 'List.groupBy' except with a key function.  It only groups
 -- adjacent elements.

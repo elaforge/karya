@@ -36,21 +36,48 @@ import Types
 
 -- * notes
 
+note_to_nn :: (Cmd.M m) => Pitch.ScaleId -> Pitch.Note
+    -> m (Either String Pitch.NoteNumber)
+note_to_nn scale_id note = either Left eval <$> note_to_pitch scale_id note
+    where
+    eval p = either (Left . Pretty.pretty) Right $
+        PitchSignal.eval_pitch p mempty
+
 -- | Convert a note to a note number by running a mini derivation just for it.
-note_to_pitch :: (Cmd.M m) => Pitch.ScaleId -> BlockId -> TrackId -> ScoreTime
-    -> Pitch.Note -> m (Either String Pitch.NoteNumber)
-note_to_pitch scale_id block_id track_id pos note = do
+--
+-- This doesn't apply any of the fancy context-sensitive tuning stuff, so any
+-- scales that change tuning will emit their default pitch.  It also doesn't
+-- apply any transpositions in scope, so in reflects the pitch of the note as
+-- written in the score.
+note_to_pitch :: (Cmd.M m) => Pitch.ScaleId -> Pitch.Note
+    -> m (Either String PitchSignal.Pitch)
+note_to_pitch scale_id note = do
     scale <- Cmd.get_scale "Perf.note_to_pitch" scale_id
     case Scale.scale_note_to_call scale note of
-        Nothing -> return $ Left $ "no call for " ++ show note
+        Nothing -> return $ Left $ "no call for " <> show note
+        Just call -> derive $ Call.apply_pitch 0 call >>= \val -> case val of
+            TrackLang.VPitch pitch -> return pitch
+            _ -> Derive.throw $ "note call returned non-pitch: " <> show val
+
+-- | Like 'note_to_pitch', but supply enough context to get the actual
+-- performed pitch.
+--
+-- I'm not sure if this is actually useful, since if you want the real derived
+-- pitch you are probably better off asking 'get_nn_at'.
+note_to_transposed_pitch :: (Cmd.M m) => Pitch.ScaleId -> BlockId -> TrackId
+    -> ScoreTime -- ^ some scales retune over time
+    -> Pitch.Note -> m (Either String PitchSignal.Pitch)
+note_to_transposed_pitch scale_id block_id track_id pos note = do
+    scale <- Cmd.get_scale "Perf.note_to_pitch" scale_id
+    case Scale.scale_note_to_call scale note of
+        Nothing -> return $ Left $ "no call for " <> show note
         Just call -> derive_at block_id track_id $
             Call.apply_pitch pos call >>= \val -> case val of
                 TrackLang.VPitch pitch -> do
                     controls <- Derive.controls_at =<< Derive.real pos
-                    either (Derive.throw . show) return $
-                        PitchSignal.eval_pitch pitch controls
+                    return $ PitchSignal.apply controls pitch
                 _ -> Derive.throw $
-                    "note call returned non-pitch: " ++ show val
+                    "note call returned non-pitch: " <> show val
 
 -- | A cheap quick derivation that sets up the correct initial state, but
 -- runs without the cache and throws away any logs.

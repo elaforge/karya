@@ -73,7 +73,7 @@ gc = do
 -- duplicates.
 unify :: Cmd.CmdL [[RulerId]]
 unify = do
-    groups <- Seq.group_eq snd <$>
+    groups <- Seq.group_eq_on snd <$>
         State.gets (Map.toAscList . State.state_rulers)
     mapM_ unify groups
     gc

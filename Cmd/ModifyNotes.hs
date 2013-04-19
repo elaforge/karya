@@ -96,6 +96,10 @@ instance Pretty.Pretty Note where
             , ("index", Pretty.format index)
             ]
 
+notes_overlap :: Note -> Note -> Bool
+notes_overlap n1 n2 =
+    not $ note_start n1 >= note_end n2 || note_end n1 <= note_start n2
+
 -- * controls
 
 type Controls = Map.Map Control Events.Events
@@ -129,11 +133,14 @@ sorted_controls = Seq.sort_on (key . fst) . Map.toList
 
 -- * selection
 
--- | Modify notes, annotated with arbitrary additional data.
+-- | Modify notes.
 type ModifyNotes m = BlockId -> [(Note, TrackId)] -> m [Note]
 
--- | Modify a single note, with no state.
-modify_note :: (Cmd.M m) => (Note -> Note) -> ModifyNotes m
+modify_notes :: (Monad m) => ([Note] -> [Note]) -> ModifyNotes m
+modify_notes f _ = return . f . map fst
+
+-- | Modify a single note.
+modify_note :: (Monad m) => (Note -> Note) -> ModifyNotes m
 modify_note f _ = return . map (f . fst)
 
 -- | Modify notes on the selected tracks.  Only the top level note tracks are
@@ -181,6 +188,9 @@ annotate_controls modify block_id note_track_ids = do
         Cmd.get_performance block_id
     modify $ find_controls note_track_ids events
 
+-- | This finds the controls of each note by looking for its corresponding
+-- event in the performance.  TODO matching by stack seems like it could be
+-- inaccurate, and inefficient too.  Shouldn't I use 'Perf.lookup_signal'?
 find_controls :: [(Note, TrackId)] -> [Score.Event]
     -> [(Note, (Maybe PitchSignal.Pitch, PitchSignal.Controls))]
 find_controls note_track_ids events =
