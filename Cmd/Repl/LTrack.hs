@@ -78,6 +78,9 @@ map_titles f = do
     bids <- State.all_block_ids
     mapM_ (flip map_block_titles f) bids
 
+replace :: Text -> Text -> Cmd.CmdL ()
+replace from to = map_titles $ Text.replace from to
+
 -- | Find all tracks with the given string in their title.  You can use
 -- 'State.blocks_with_track_id' to find the blocks with the tracks, and
 -- 'map_titles' to change the titles.

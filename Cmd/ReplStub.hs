@@ -6,7 +6,6 @@ module Cmd.ReplStub (
 ) where
 import Control.Monad
 import qualified Util.Thread as Thread
-import qualified Ui.State as State
 import qualified Cmd.Cmd as Cmd
 
 type Session = ()
