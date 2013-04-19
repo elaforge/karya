@@ -28,13 +28,43 @@ SkeletonDisplay::resize(int x, int y, int w, int h)
 void
 SkeletonDisplay::recalculate_centers()
 {
-    this->track_centers.clear();
     int right = 0;
-    for (size_t i = 0; i < this->track_widths.size(); i++) {
-        track_centers.push_back(right + (track_widths[i] / 2));
-        right += track_widths[i];
+    for (size_t i = 0; i < tracks.size(); i++) {
+        int width = tracks[i].width;
+        tracks[i].center = right + (width/2);
+        tracks[i].left = right;
+        right += width;
     }
     this->right_edge = right;
+}
+
+
+static void
+children_of(const std::vector<SkeletonEdge> &edges, int tracknum,
+    std::vector<int> *children)
+{
+    for (size_t i = 0; i < edges.size(); i++) {
+        if (tracknum == edges[i].parent)
+            children->push_back(edges[i].child);
+    }
+}
+
+// Get the height of a track, which is the maximum depth of its children.
+// Only a track of >1 child counts toward the depth, so linear sequences don't
+// contribute to the height.
+static int
+track_height(const std::vector<SkeletonEdge> &edges, int tracknum)
+{
+    std::vector<int> children;
+    children_of(edges, tracknum, &children);
+    if (children.size() == 0)
+        return 0;
+    int height = 0;
+    for (size_t i = 0; i < children.size(); i++)
+        height = std::max(height, track_height(edges, children[i]));
+    if (children.size() > 1)
+        height++;
+    return height;
 }
 
 
@@ -42,9 +72,15 @@ void
 SkeletonDisplay::set_config(
     const SkeletonConfig &config, const std::vector<int> &widths)
 {
-    this->track_widths = widths;
-    this->recalculate_centers();
     edges.assign(config.edges, config.edges + config.len);
+    this->tracks.clear();
+    this->tracks.reserve(widths.size());
+    for (size_t i = 0; i < widths.size(); i++) {
+        int height = track_height(edges, i);
+        // DEBUG("height " << i << " -> " << height);
+        tracks.push_back(Track(widths[i], height));
+    }
+    this->recalculate_centers();
     this->redraw();
 }
 
@@ -52,22 +88,12 @@ SkeletonDisplay::set_config(
 void
 SkeletonDisplay::set_status(int tracknum, char status, Color color)
 {
-    while (this->status_color.size() <= static_cast<size_t>(tracknum)) {
-        this->status_color.push_back(std::make_pair('\0', Color()));
+    ASSERT(0 <= tracknum);
+    if (static_cast<size_t>(tracknum) < tracks.size()) {
+        tracks[tracknum].status = status;
+        tracks[tracknum].color = color;
     }
-    this->status_color[tracknum] = std::make_pair(status, color);
     this->redraw();
-}
-
-
-void
-SkeletonDisplay::get_status(int tracknum, char *status, Color *color)
-{
-    ASSERT(tracknum >= 0);
-    std::pair<char, Color> v = vector_get(
-        status_color, tracknum, std::make_pair(' ', Color()));
-    *status = v.first;
-    *color = v.second;
 }
 
 
@@ -77,64 +103,87 @@ SkeletonDisplay::set_width(int tracknum, int width)
     ASSERT(tracknum >= 0);
     // If a track has been added and the skeleton not yet updated, tracknum
     // could be out of range.
-    if (static_cast<size_t>(tracknum) < track_widths.size()) {
-        ASSERT(0 <= tracknum && (size_t) tracknum < track_widths.size());
-        this->track_widths.at(tracknum) = width;
-        this->recalculate_centers();
-        this->redraw();
+    if (static_cast<size_t>(tracknum) < tracks.size()) {
+        ASSERT(0 <= tracknum && (size_t) tracknum < tracks.size());
+        if (tracks[tracknum].width != width) {
+            tracks[tracknum].width = width;
+            this->recalculate_centers();
+            this->redraw();
+        }
     }
 }
 
 
 static void
-draw_arrow(int fromx, int tox, int width, Color color, int bottom, int top)
+draw_arrow(IPoint from, IPoint to, int width, Color color, int bottom, int top)
 {
     const static int offset = 5;
     // The bigger the difference between px and cx, the higher top should
     // be.  This is a kinda half-assed heuristic but it seems to look ok.
-    double distance = ::normalize(20.0, 110.0, fabs(tox - fromx));
+    double distance = ::normalize(20.0, 110.0, fabs(to.x - from.x));
     double ratio = ::clamp(.30, 1.0, ::scale(.30, 1.0, distance));
-    // printf("%d->%d: %f %f\n", fromx, tox, distance, ratio);
+    // DEBUG(from << " -> " << to << ": dist " << distance << " rat " << ratio);
     top = bottom - ((bottom - top) * ratio);
 
     fl_color(color_to_fl(color));
     fl_line_style(FL_SOLID, width, 0);
     fl_begin_line();
-    fl_curve(fromx, bottom,
-        fromx + (fromx<tox ? offset : -offset), top,
-        tox + (fromx<tox ? -offset : offset), top,
-        tox, bottom);
+    fl_curve(from.x, bottom - from.y,
+        from.x + (from.x<to.x ? offset : -offset), top,
+        to.x + (from.x<to.x ? -offset : offset), top,
+        to.x, bottom - to.y);
     fl_end_line();
 
     // TODO get arrow angle right
     fl_begin_polygon();
-    fl_vertex(tox-2, bottom-5);
-    fl_vertex(tox, bottom);
-    fl_vertex(tox+2, bottom-5);
+    fl_vertex(to.x-2, bottom-5 - to.y);
+    fl_vertex(to.x, bottom - to.y);
+    fl_vertex(to.x+2, bottom-5 - to.y);
     fl_end_polygon();
 }
 
 
+// The arrow source will be raised depending on how levels it's at, where
+// a parent with only one child doesn't count as a level.
 void
 SkeletonDisplay::draw()
 {
     Fl_Box::draw();
-    int tracks = this->track_widths.size();
-    int top = this->y();
-    int bottom = this->y() + this->h();
-    size_t status_size = std::min(status_color.size(), track_centers.size());
-    for (size_t i = 0; i < status_size; i++) {
-        char c = status_color[i].first;
-        if (c) {
-            fl_color(color_to_fl(status_color[i].second));
-            int w = track_widths[i];
-            fl_rectf(this->x()+track_centers[i] - w/2, this->y(), w, this->h());
+    const int ntracks = this->tracks.size();
+    const int top = y();
+    const int bottom = y() + h();
+
+    int max_height = 0;
+    for (int i = 0; i < ntracks; i++)
+        max_height = std::max(max_height, tracks[i].height);
+    // Keep half of the display free for the arrow arcs, and divide the lower
+    // half among the steps.
+    const int height_step = h() / 2 / (max_height+1);
+
+    // Draw status color.
+    for (int i = 0; i < ntracks; i++) {
+        if (tracks[i].status) {
+            fl_color(color_to_fl(tracks[i].color));
+            fl_rectf(x() + tracks[i].left, y(), tracks[i].width, h());
+        }
+        // Draw the step rectangle so it looks like the arrows are sitting on
+        // something.
+        if (tracks[i].height) {
+            int height = tracks[i].height * height_step;
+            if (tracks[i].status)
+                fl_color(color_to_fl(tracks[i].color.brightness(0.8)));
+            else
+                fl_color(color_to_fl(
+                    Config::skeleton_display_bg.brightness(0.8)));
+            fl_rectf(x() + tracks[i].left, y() + h() - height,
+                tracks[i].width, height);
         }
     }
+
     for (size_t i = 0; i < this->edges.size(); i++) {
         const SkeletonEdge &e = edges[i];
-        if (!(0 <= e.parent && e.parent < tracks)
-            || !(0 <= e.child && e.child < tracks))
+        if (!(0 <= e.parent && e.parent < ntracks)
+            || !(0 <= e.child && e.child < ntracks))
         {
             // +1 because the ruler track has been subtracted.
             DEBUG("parent->child out of range: " << e.parent + 1 << "->"
@@ -144,30 +193,35 @@ SkeletonDisplay::draw()
         // Offset the ends of the arrow to make it clearer which is coming and
         // which is going.  But if the arc is too narrow it looks ugly, so
         // put it in the center in that case.
-        int coffset = track_widths[e.child] < 15
-            ? 0 : track_widths[e.child] / 8;
-        int poffset = track_widths[e.parent] < 15
-            ? 0 : track_widths[e.parent] / 8;
-        if (abs(track_centers[e.child] - track_centers[e.parent]) < 15) {
+        int coffset = tracks[e.child].width < 15
+            ? 0 : tracks[e.child].width / 8;
+        int poffset = tracks[e.parent].width < 15
+            ? 0 : tracks[e.parent].width / 8;
+        if (abs(tracks[e.child].center - tracks[e.parent].center) < 15) {
             coffset = poffset = 0;
         }
-        int cx = track_centers[e.child] - coffset + this->x();
-        int px = track_centers[e.parent] + poffset + this->x();
+        int cx = tracks[e.child].center - coffset + this->x();
+        int px = tracks[e.parent].center + poffset + this->x();
+        int ch = tracks[e.child].height * height_step;
+        int ph = tracks[e.parent].height * height_step;
 
         // printf("draw %d->%d: (%d->%d) (%d, %d)\n", e.child, e.parent,
         //         cx, px, bottom, top);
-        draw_arrow(px, cx, e.width, e.color, bottom-1, top);
+        draw_arrow(IPoint(px, ph), IPoint(cx, ch),
+            e.width, e.color, bottom-1, top);
     }
+
+    // Draw status letters.
     fl_font(Config::font + FL_BOLD, Config::font_size::track_status);
-    for (size_t i = 0; i < status_size; i++) {
-        char c = status_color[i].first;
-        // DEBUG("center " << i << " " << track_centers[i]);
+    for (int i = 0; i < ntracks; i++) {
+        char c = tracks[i].status;
+        // DEBUG("center " << i << " " << tracks[i].center);
         if (c) {
-            // DEBUG("draw " << i << " " << this->status_color[i]);
+            // DEBUG("draw " << i << " " << tracks[i].color);
             int cw = fl_width(c);
             int ch = fl_height() + fl_descent();
-            int xpos = this->x() + track_centers[i] - cw/2;
-            fl_color(color_to_fl(status_color[i].second));
+            int xpos = this->x() + tracks[i].center - cw/2;
+            fl_color(color_to_fl(tracks[i].color));
             fl_rectf(xpos-1, bottom - ch, cw + 2, ch);
             fl_color(FL_BLACK);
             fl_draw(&c, 1, xpos, bottom - fl_descent());

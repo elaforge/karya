@@ -45,7 +45,6 @@ public:
     void set_config(
         const SkeletonConfig &config, const std::vector<int> &widths);
     void set_status(int tracknum, char status, Color color);
-    void get_status(int tracknum, char *status, Color *color);
     void set_width(int tracknum, int width);
 
 protected:
@@ -53,10 +52,23 @@ protected:
 
 private:
     void recalculate_centers();
-    std::vector<int> track_widths;
-    std::vector<int> track_centers;
+    struct Track {
+        Track(int width, int height) : width(width), left(0),
+            center(0), height(height), status(0)
+        {}
+        int width; // Width of this track.
+        // Left edge of the track.  It's technically redundant, since it should
+        // always be center - width/2, but it's simpler to cache it.
+        int left;
+        int center;
+        int height; // Number of children, as defined by 'track_height'.
+        // '\0' means don't draw a status and ignore the color.  ' ' means draw
+        // the color, but with no text, of course.
+        char status;
+        Color color;
+    };
+    std::vector<Track> tracks;
     std::vector<SkeletonEdge> edges;
-    std::vector<std::pair<char, Color> > status_color;
     int right_edge;
 };
 

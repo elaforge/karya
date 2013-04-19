@@ -3,6 +3,7 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
+  - solo still gets another track with a 'bounce' call, save/bug-bounce-solo
   - up and down arrows in text entry should go to front and back
   - add edit and windows menu to all apps
     There must be special OS X support for these
@@ -19,8 +20,14 @@ UNSORTED
     add a bunch of single char calls, like (.
   * repl macro: [@b0, @b1] didn't work
   - Refactor.order_block makes a block with a mysteriously black ruler
-  - somehow track status got out of sync, a track was Solo but the UI didn't
-    reflect that.  Maybe because I added a track?
+  - track status is lost when a track is added or removed
+    The problem is that set skeleton resets the display, but doesn't reset the
+    status, they have to be set separately with Block::set_status.
+    So add/remove track will set skeleton, but not send Update.BlockTrack
+    . Skel display could track insert and remove by bumping the Track by one.
+    . It also needs to preserve across a set_skeleton.
+    . Or, if I can bundle status and skeleton together.
+
   * Slurs shouldn't make a note overlap the same note.
     Or at least, on the piano, slurs on chords shouldn't overlap at all.
     Also, slurs can give a slight dynamic boost to the beginning of the
@@ -387,6 +394,7 @@ integrate / integration:
   - quantization
 
 lilypond:
+  - omit the voice division as long as there is only one voice
   * support for mordent
   - one track has voice, the other doesn't, causes a "can't advance time
     backward" error
@@ -714,7 +722,7 @@ fltk:
     detection.
     + gmail: subject:(scaling text)
       But it's OSX only.
-  - skeleton display has leveled steps to make it easier to see who is
+  * skeleton display has leveled steps to make it easier to see who is
     below who.  Only if a track has multiple children.
   - rethrow c++ exceptions as FltkError
   - factor scroll redrawing into a single class
