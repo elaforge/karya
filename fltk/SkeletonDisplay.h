@@ -17,14 +17,24 @@ struct SkeletonEdge {
     Color color;
 };
 
+struct SkeletonStatus {
+    SkeletonStatus(Color color, char status) : color(color), status(status) {}
+    Color color;
+    char status;
+};
+
 // This is a list of pairs linking parent tracknums to child tracknums.
 // "Parent" and "child" have no meaning at the UI level, but it uses them to
 // show the relationship visually.  Out of range tracknums will be warned about
 // and ignored.
 struct SkeletonConfig {
-    SkeletonConfig(int len, SkeletonEdge *edges) : len(len), edges(edges) {}
-    int len;
+    SkeletonConfig(int edges_len, SkeletonEdge *edges)
+        : edges_len(edges_len), edges(edges), statuses_len(0), statuses(0)
+    {}
+    int edges_len;
     SkeletonEdge *edges;
+    int statuses_len;
+    SkeletonStatus *statuses;
 };
 
 // Display the arrows for the skeleton tree.
@@ -51,7 +61,6 @@ protected:
     void draw();
 
 private:
-    void recalculate_centers();
     struct Track {
         Track(int width, int height) : width(width), left(0),
             center(0), height(height), status(0)
@@ -67,6 +76,8 @@ private:
         char status;
         Color color;
     };
+
+    void recalculate_centers();
     std::vector<Track> tracks;
     std::vector<SkeletonEdge> edges;
     int right_edge;

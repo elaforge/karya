@@ -72,13 +72,19 @@ void
 SkeletonDisplay::set_config(
     const SkeletonConfig &config, const std::vector<int> &widths)
 {
-    edges.assign(config.edges, config.edges + config.len);
+    edges.assign(config.edges, config.edges + config.edges_len);
     this->tracks.clear();
     this->tracks.reserve(widths.size());
     for (size_t i = 0; i < widths.size(); i++) {
         int height = track_height(edges, i);
         // DEBUG("height " << i << " -> " << height);
         tracks.push_back(Track(widths[i], height));
+    }
+    // Should be the same, but just in case.
+    int len = std::min(static_cast<int>(widths.size()), config.statuses_len);
+    for (int i = 0; i < len; i++) {
+        tracks[i].status = config.statuses[i].status;
+        tracks[i].color = config.statuses[i].color;
     }
     this->recalculate_centers();
     this->redraw();

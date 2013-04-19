@@ -169,9 +169,11 @@ data DisplayTrack = DisplayTrack {
     dtracklike_id :: TracklikeId
     , dtrack_width :: Types.Width
     , dtrack_merged :: [TrackId]
-    , dtrack_status :: Maybe (Char, Color.Color)
+    , dtrack_status :: Status
     , dtrack_event_brightness :: Double
     } deriving (Eq, Show, Read)
+
+type Status = Maybe (Char, Color.Color)
 
 instance Pretty.Pretty DisplayTrack where
     format (DisplayTrack tlike_id width merged status _bright) =
@@ -217,7 +219,7 @@ display_track track =
 display_track_width :: Track -> Types.Width
 display_track_width = dtrack_width . display_track
 
-flags_to_status :: Set.Set TrackFlag -> (Maybe (Char, Color.Color), Double)
+flags_to_status :: Set.Set TrackFlag -> (Status, Double)
 flags_to_status flags
     | Disable `Set.member` flags = (Just ('D', Config.mute_color), 0.5)
     | Solo `Set.member` flags = (Just ('S', Config.solo_color), 1)

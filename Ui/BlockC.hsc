@@ -228,11 +228,12 @@ set_model_config view_id config = do
 foreign import ccall "set_model_config"
     c_set_model_config :: Ptr CView -> Ptr Block.Config -> IO ()
 
-set_skeleton :: ViewId -> Skeleton.Skeleton -> [(TrackNum, TrackNum)] -> Fltk ()
-set_skeleton view_id skel integrate_edges = do
+set_skeleton :: ViewId -> Skeleton.Skeleton -> [(TrackNum, TrackNum)]
+    -> [Block.Status] -> Fltk ()
+set_skeleton view_id skel integrate_edges statuses = do
     viewp <- get_ptr view_id
-    with_skeleton_config (skeleton_edges skel integrate_edges) $ \configp ->
-        c_set_skeleton viewp configp
+    with_skeleton_config (skeleton_edges skel integrate_edges) statuses $
+        \configp -> c_set_skeleton viewp configp
 foreign import ccall "set_skeleton"
     c_set_skeleton :: Ptr CView -> Ptr SkeletonConfig -> IO ()
 
@@ -434,11 +435,18 @@ skeleton_edges skel integrate_edges =
     -- while of course the tracknums here do.
     -- TODO would it be better to put this in BlockView::set_skeleton?
 
-with_skeleton_config :: [SkeletonEdge] -> (Ptr SkeletonConfig -> IO a) -> IO a
-with_skeleton_config edges f =
-    withArrayLen edges $ \len edgesp -> alloca $ \skelp -> do
+with_skeleton_config :: [SkeletonEdge] -> [Block.Status]
+    -> (Ptr SkeletonConfig -> IO a) -> IO a
+with_skeleton_config edges statuses f =
+    withArrayLen edges $ \edges_len edgesp ->
+    -- The first status is for the ruler track, which is never displayed, since
+    -- the skeleton display starts at the first track.
+    withArrayLen (map SkeletonStatus (drop 1 statuses)) $ \slen statusesp ->
+    alloca $ \skelp -> do
+        (#poke SkeletonConfig, edges_len) skelp (Util.c_int edges_len)
         (#poke SkeletonConfig, edges) skelp edgesp
-        (#poke SkeletonConfig, len) skelp (Util.c_int len)
+        (#poke SkeletonConfig, statuses_len) skelp (Util.c_int slen)
+        (#poke SkeletonConfig, statuses) skelp statusesp
         f skelp
 
 data SkeletonConfig
@@ -458,6 +466,18 @@ instance CStorable SkeletonEdge where
         (#poke SkeletonEdge, child) edgep (Util.c_int child)
         (#poke SkeletonEdge, width) edgep (Util.c_int width)
         (#poke SkeletonEdge, color) edgep color
+
+newtype SkeletonStatus = SkeletonStatus Block.Status
+instance CStorable SkeletonStatus where
+    sizeOf _ = #size SkeletonStatus
+    alignment _ = #{alignment SkeletonStatus}
+    peek _ = error "SkeletonStatus peek unimplemented"
+    poke edgep (SkeletonStatus (Just (status, color))) = do
+        (#poke SkeletonStatus, status) edgep (Util.c_char status)
+        (#poke SkeletonStatus, color) edgep color
+    poke edgep (SkeletonStatus Nothing) = do
+        (#poke SkeletonStatus, status) edgep (0 :: CChar)
+        (#poke SkeletonStatus, color) edgep Color.black
 
 -- ** selection
 

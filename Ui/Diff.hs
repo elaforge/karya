@@ -216,10 +216,14 @@ diff_block block_id block1 block2 = do
         emit $ Update.BlockTitle (Block.block_title block2)
     when (unequal Block.block_config) $
         emit $ Update.BlockConfig (Block.block_config block2)
+
+    let dtracks1 = map Block.display_track (Block.block_tracks block1)
+        dtracks2 = map Block.display_track (Block.block_tracks block2)
     let int_skel1 = Block.integrate_skeleton block1
         int_skel2 = Block.integrate_skeleton block2
     when (unequal Block.block_skeleton || int_skel1 /= int_skel2) $ do
         emit $ Update.BlockSkeleton (Block.block_skeleton block2) int_skel2
+            (map Block.dtrack_status dtracks2)
         -- Changing the skeleton may change event styles.
         changes [Update.Track track_id Update.TrackAllEvents
             | track_id <- Block.block_track_ids block2]
@@ -234,8 +238,6 @@ diff_block block_id block1 block2 = do
             emit $ Update.BlockTrack i2 track2
         _ -> return ()
 
-    let dtracks1 = map Block.display_track (Block.block_tracks block1)
-        dtracks2 = map Block.display_track (Block.block_tracks block2)
     let dpairs = Seq.indexed_pairs_on Block.dtracklike_id dtracks1 dtracks2
     forM_ dpairs $ \(i2, paired) -> case paired of
         -- Insert and remove are emitted for cmd updates above, but

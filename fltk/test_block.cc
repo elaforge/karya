@@ -358,7 +358,12 @@ main(int argc, char **argv)
             SkeletonEdge(1, 3, 0, Color::black),
             SkeletonEdge(0, 4, 2, Color(0xff, 0, 0))
         };
-        SkeletonConfig skel(4, edges);
+        SkeletonConfig skel(sizeof edges / sizeof(*edges), edges);
+        SkeletonStatus statuses[] = {
+            SkeletonStatus(Color(0, 0xff, 0xff), 'x')
+        };
+        skel.statuses = statuses;
+        skel.statuses_len = 1;
         view.block.set_skeleton(skel);
     } else {
         view.block.insert_track(1, Tracklike(&track1, &ruler), 60);
@@ -367,13 +372,14 @@ main(int argc, char **argv)
 
     DisplayTrack dtrack;
     dtrack.status = 'M';
-    // dtrack.status_color = Color(255, 150, 150);
-    dtrack.status_color = Color(150, 150, 150);
+    dtrack.width = 30;
+    dtrack.status_color = Color(255, 150, 150);
+    // dtrack.status_color = Color(150, 150, 150);
     dtrack.event_brightness = .75;
     // view.block.set_display_track(3, dtrack);
     // print_children(&view);
 
-    // Fl::add_timeout(1, creep_selection, (void*) &view);
+    // Fl::add_timeout(1, timeout_func, (void*) &view);
 
     view.block.set_zoom(ZoomInfo(ScoreTime(0), 1.6));
 

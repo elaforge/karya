@@ -203,6 +203,9 @@ newArray vals = do
     pokeArray ptr vals
     return ptr
 
+withArray :: (CStorable a) => [a] -> (Ptr a -> IO b) -> IO b
+withArray vals f = withArrayLen vals (const f)
+
 withArrayLen :: (CStorable a) => [a] -> (Int -> Ptr a -> IO b) -> IO b
 withArrayLen vals f = allocaArray len $ \ptr -> do
     pokeArray ptr vals

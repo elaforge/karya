@@ -5,6 +5,8 @@
 
 #include "util.h"
 
+// A customized Fl_Input that can expand on demand for entered text, and
+// collapse back down to size when it loses focus.
 class SeqInput : public Fl_Input {
 public:
     SeqInput(int X, int Y, int W, int H, bool do_expansion);

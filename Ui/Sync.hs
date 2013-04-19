@@ -220,7 +220,7 @@ update_view track_signals set_style view_id Update.CreateView = do
         unless (Text.null (Block.block_title block)) $
             BlockC.set_title view_id (Block.block_title block)
         BlockC.set_skeleton view_id (Block.block_skeleton block)
-            (Block.integrate_skeleton block)
+            (Block.integrate_skeleton block) (map Block.dtrack_status dtracks)
         forM_ (zip (Map.keys sels) csels) $ \(selnum, csel) ->
             BlockC.set_selection True view_id selnum csel
         BlockC.set_status view_id (Block.show_status (Block.view_status view))
@@ -255,9 +255,9 @@ update_block track_signals set_style block_id update = do
             mapM_ (flip BlockC.set_title title) view_ids
         Update.BlockConfig config -> return $
             mapM_ (flip BlockC.set_model_config config) view_ids
-        Update.BlockSkeleton skel integrate_edges -> return $
+        Update.BlockSkeleton skel integrate_edges statuses -> return $
             forM_ view_ids $ \view_id ->
-                BlockC.set_skeleton view_id skel integrate_edges
+                BlockC.set_skeleton view_id skel integrate_edges statuses
         Update.RemoveTrack tracknum -> return $
             mapM_ (flip BlockC.remove_track tracknum) view_ids
         Update.InsertTrack tracknum dtrack ->

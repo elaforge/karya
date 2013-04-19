@@ -20,13 +20,22 @@ UNSORTED
     add a bunch of single char calls, like (.
   * repl macro: [@b0, @b1] didn't work
   - Refactor.order_block makes a block with a mysteriously black ruler
-  - track status is lost when a track is added or removed
+  * track status is lost when a track is added or removed
     The problem is that set skeleton resets the display, but doesn't reset the
     status, they have to be set separately with Block::set_status.
     So add/remove track will set skeleton, but not send Update.BlockTrack
     . Skel display could track insert and remove by bumping the Track by one.
     . It also needs to preserve across a set_skeleton.
     . Or, if I can bundle status and skeleton together.
+      The problem is that skeleton is the whole thing, status is per-track.
+      But I could merge them, break status out of DisplayTrack and make
+      status changes emit a BlockSkeleton, which has all statuses
+    . If I always set status via BlockSkeleton, e.g. emit BlockSkeleton on
+      status-only change, and omit it from the dtrack check, then I can
+      get rid of SkeletonDisplay::set_status.  Is it worth it?
+    * have SkeletonDisplay::set_config use the statuses
+    * remove insert_track remove_track
+    - consider removing set_status
 
   * Slurs shouldn't make a note overlap the same note.
     Or at least, on the piano, slurs on chords shouldn't overlap at all.

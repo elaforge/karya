@@ -426,7 +426,8 @@ void
 BlockView::remove_track(int tracknum)
 {
     if (tracknum != 0) {
-        TrackView *t = track_tile.remove_track(tracknum-1);
+        tracknum--; // adjust to be relative to the first non-ruler track
+        TrackView *t = track_tile.remove_track(tracknum);
         t->finalize_callbacks();
         delete t;
 
@@ -435,7 +436,7 @@ BlockView::remove_track(int tracknum)
         // is a replace then the skeleton can be preserved.  This happens when
         // a track is collapsed.  Otherwise, the skeleton is out of date and
         // there should be a set_skeleton soon.
-        this->skel_display.set_width(tracknum-1, 0);
+        this->skel_display.set_width(tracknum, 0);
     } else if (this->tracks() == 1) {
         if (this->ruler_track != this->no_ruler) {
             TrackView *t = this->replace_ruler_track(this->no_ruler, 0);
@@ -477,10 +478,11 @@ BlockView::insert_track_view(int tracknum, TrackView *track, int width)
         // Changing the ruler will change the track area.
         MsgCollector::get()->block(UiMsg::msg_resize, this);
     } else {
-        track_tile.insert_track(tracknum - 1, track, width);
+        tracknum--; // adjust to be relative to the first non-ruler track
+        track_tile.insert_track(tracknum, track, width);
         this->track_tile.set_zoom(this->zoom);
         // Restore the width as per the comment in 'remove_track'.
-        this->skel_display.set_width(tracknum-1, width);
+        this->skel_display.set_width(tracknum, width);
     }
     this->update_scrollbars();
 }
