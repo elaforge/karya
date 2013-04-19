@@ -13,6 +13,11 @@ import qualified Data.Set as Set
 import qualified Data.Text as Text
 
 
+-- | This is just a list, but is documentation that a return value will never
+-- be null, or an argument should never be null.  This is for cases where
+-- 'NonEmpty' is too annoying to work with.
+type NonNull a = [a]
+
 -- * enumeration
 
 enumerate :: [a] -> [(Int, a)]
@@ -214,23 +219,17 @@ merge_asc_lists key = foldr go []
 
 -- | Group the unsorted list into @(key x, xs)@ where all @xs@ compare equal
 -- after @key@ is applied to them.  List is returned in sorted order.
---
--- The sublists are never null.
-keyed_group_on :: (Ord key) => (a -> key) -> [a] -> [(key, [a])]
+keyed_group_on :: (Ord key) => (a -> key) -> [a] -> [(key, NonNull a)]
 keyed_group_on key = map (\gs -> (key (List.head gs), gs)) . group_on key
 
 -- | Like 'groupBy', but the list doesn't need to be sorted, and use a key
 -- function instead of equality.  The list is returned in sorted order.
---
--- The sublists are never null.
-group_on :: (Ord key) => (a -> key) -> [a] -> [[a]]
+group_on :: (Ord key) => (a -> key) -> [a] -> [NonNull a]
 group_on key = group key . sort_on key -- TODO faster to use a map?
 
 -- | Group each element with all the other elements that compare equal to it.
 -- The heads of the groups appear in their original order.
---
--- The sublists are never null.
-group_eq :: (a -> a -> Bool) -> [a] -> [[a]]
+group_eq :: (a -> a -> Bool) -> [a] -> [NonNull a]
 group_eq is_equal = go
     where
     go [] = []
@@ -238,7 +237,7 @@ group_eq is_equal = go
         where (equal, inequal) = List.partition (is_equal x) xs
 
 -- | 'group_eq' but with a key function.
-group_eq_on :: (Eq key) => (a -> key) -> [a] -> [[a]]
+group_eq_on :: (Eq key) => (a -> key) -> [a] -> [NonNull a]
 group_eq_on key = group_eq (\x y -> key x == key y)
 
 -- | This is just 'List.groupBy' except with a key function.  It only groups
@@ -545,7 +544,7 @@ split_with f xs = map reverse (go f xs [])
         | otherwise = go f xs (x:collect)
 
 -- | Split 'xs' on 'sep', dropping 'sep' from the result.
-split :: (Eq a) => [a] -> [a] -> [[a]]
+split :: (Eq a) => NonNull a -> [a] -> NonNull [a]
 split [] _ = error "Util.Seq.split: empty separator"
 split sep xs = go sep xs
     where
@@ -554,15 +553,15 @@ split sep xs = go sep xs
         | otherwise = pre : split sep (drop (length sep) post)
         where (pre, post) = break_tails (sep `List.isPrefixOf`) xs
 
--- | 'split' never returns nil, so sometimes it's more convenient to express
+-- | 'split' never returns null, so sometimes it's more convenient to express
 -- that in the type.
-split_t :: (Eq a) => [a] -> [a] -> ([a], [[a]])
+split_t :: (Eq a) => NonNull a -> [a] -> ([a], [[a]])
 split_t sep xs = case split sep xs of
     (g:gs) -> (g, gs)
     _ -> error "split_t: unreached"
 
 -- | Like 'split', but only split once.
-split1 :: (Eq a) => [a] -> [a] -> ([a], [a])
+split1 :: (Eq a) => NonNull a -> [a] -> ([a], [a])
 split1 [] _ = error "Util.Seq.split1: empty seperator"
 split1 sep xs = (pre, drop (length sep) post)
     where (pre, post) = break_tails (sep `List.isPrefixOf`) xs
