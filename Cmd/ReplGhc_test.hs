@@ -5,7 +5,6 @@ import qualified Control.Concurrent.MVar as MVar
 
 import qualified Util.Pretty as Pretty
 import Util.Test
-import qualified Ui.Id as Id
 import qualified Ui.State as State
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.CmdTest as CmdTest
@@ -26,7 +25,7 @@ test_repl_ghc = do
         line <- getLine
         if line == "quit" then return () else do
         mvar <- MVar.newEmptyMVar
-        Chan.writeChan chan (line, Id.unsafe_namespace "ns", mvar)
+        Chan.writeChan chan (line, mvar)
         cmd <- MVar.takeMVar mvar
         result <- run_io "" cmd
         case result of
