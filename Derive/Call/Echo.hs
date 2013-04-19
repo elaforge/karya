@@ -6,6 +6,7 @@ import Data.FixedList (Cons(..), Nil(..))
 
 import Util.Control
 import qualified Derive.Args as Args
+import qualified Derive.Call.Lily as Lily
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Call.Util as Util
 import qualified Derive.Derive as Derive
@@ -28,12 +29,12 @@ note_calls = Derive.make_calls
 -- * note calls
 
 c_delay :: Derive.NoteCall
-c_delay = Derive.transformer "delay" mempty
+c_delay = Derive.transformer "delay" Tags.ly
     ("Simple abstract delay. As with `echo`, abstract means it happens in the\
     \ score, so events may not be delayed evenly if the tempo is changing."
     ) $ Sig.callt
     ( defaulted "time" (typed_control "delay-time" 0.1 Score.Real) "Delay time."
-    ) $ \time args deriver -> do
+    ) $ \time args deriver -> Lily.when_lilypond deriver $ do
         delay <- Util.duration_from (Args.start args)
             =<< Util.time_control_at Util.Real time
             =<< Args.real_start args
