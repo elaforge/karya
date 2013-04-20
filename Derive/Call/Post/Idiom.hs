@@ -1,10 +1,12 @@
 -- | Idiomatic things for various instruments.
 module Derive.Call.Post.Idiom where
 import qualified Data.List as List
+import qualified Data.Maybe as Maybe
 
 import Util.Control
 import qualified Util.Seq as Seq
 import qualified Derive.Attrs as Attrs
+import qualified Derive.Call.Lily as Lily
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Call.Util as Util
 import qualified Derive.Derive as Derive
@@ -80,7 +82,8 @@ c_avoid_overlap = Derive.transformer "avoid-overlap"
     \ to be what MIDI expects, since it's based on keyboards."
     $ Sig.callt (defaulted "time" 0.1
         "Ensure at least this much time between two notes of the same pitch.")
-    $ \time _args deriver -> avoid_overlap time =<< deriver
+    $ \time _args deriver -> Lily.when_lilypond deriver $
+        avoid_overlap time =<< deriver
 
 avoid_overlap :: RealTime -> Derive.Events -> Derive.EventDeriver
 avoid_overlap time = return . Util.map_around go
@@ -93,4 +96,4 @@ avoid_overlap time = return . Util.map_around go
         overlaps next = Score.event_end event + time > Score.event_start next
         nn = Score.initial_nn event
         same next = Score.event_instrument event == Score.event_instrument next
-            && nn == Score.initial_nn next
+            && Maybe.isJust nn && nn == Score.initial_nn next
