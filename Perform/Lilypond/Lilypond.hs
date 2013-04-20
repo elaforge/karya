@@ -100,7 +100,7 @@ ly_file config title movements = run_output $ do
             , ly_set "PianoStaff.shortInstrumentName" (staff_short config)
             ]
         contents $ config { staff_long = "", staff_short = "" }
-        output ">>\n"
+        output ">>\n\n"
 
     write_staff config maybe_name lys = do
         output $ "\\new Staff " <> maybe "" (("= "<>) . str) maybe_name
@@ -114,7 +114,7 @@ ly_file config title movements = run_output $ do
         output "{\n"
         set_bar 1
         mapM_ write_voice_ly lys
-        output "} }\n"
+        output "\n} }\n\n"
 
     str :: Text -> Text
     str = to_lily

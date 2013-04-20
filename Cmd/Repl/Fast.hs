@@ -43,6 +43,8 @@ interpret toks = case toks of
         ["save"] -> action Global.save
         ["save_state_as", str] | Just arg <- val str ->
             action $ Global.save_state_as arg
+        ["write_state", str] | Just arg <- val str ->
+            action $ Global.write_state arg
         ["save_git_as", str] | Just arg <- val str ->
             action $ Global.save_git_as arg
         ["load", str] | Just arg <- val str -> action $ Global.load arg
