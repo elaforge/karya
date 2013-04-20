@@ -127,10 +127,10 @@ convert_voice end = run_process (rests_until end) convert_chunk
 convert_chunk :: [Event] -> ConvertM ([Ly], [Event])
 convert_chunk events = error_context current $ case zero_dur_in_rest events of
     ([], []) -> return ([], [])
-    (zero@(event:_), []) -> return (apply_code (event_start event) zero [], [])
+    (zero@(event:_), []) -> return (mix_in_code (event_start event) zero [], [])
     (zero, event : events) -> do
         start <- State.gets state_time
-        rests <- apply_code start zero <$> rests_until (event_start event)
+        rests <- mix_in_code start zero <$> rests_until (event_start event)
         meter <- get_meter
         (lys, remaining) <- convert_chord meter (event :| events)
         return (rests <> lys, remaining)
@@ -142,8 +142,8 @@ convert_chunk events = error_context current $ case zero_dur_in_rest events of
 -- This is doing the same thing as 'make_lys', but since rests aren't
 -- represented explicitly be events as notes are, I have to first generate the
 -- notes, and then mix in the code afterwards.
-apply_code :: Time -> [Event] -> [Ly] -> [Ly]
-apply_code start dur0 lys =
+mix_in_code :: Time -> [Event] -> [Ly] -> [Ly]
+mix_in_code start dur0 lys =
     go dur0 (zip (scanl (+) start (map ly_dur lys)) lys)
     where
     go events [] = prepend ++ append
@@ -322,12 +322,22 @@ convert_voices voices = do
 -- | Span events until they don't have a 'Constants.v_voice' val.
 collect_voices :: [Event] -> Either String ([(Voice, [Event])], [Event])
 collect_voices events = do
-    let (with_voice, rest) = Seq.span_while voice_of events
+    let (spanned, rest) = Seq.span_while voice_of events
+        (code, with_voice) = Seq.partition_either spanned
     with_voice <- mapM check_type with_voice
-    return (map (second (map fst)) $ Seq.keyed_group_on snd with_voice, rest)
+    return $ case map (second (map fst)) $ Seq.keyed_group_on snd with_voice of
+        -- Code events get mixed into the first voice.  It probably doesn't
+        -- matter what voice they go into.
+        (voice, events) : voices ->
+            ((voice, Seq.merge_on Types.event_start code events) : voices, rest)
+        [] -> ([], code ++ rest)
     where
-    voice_of event = ((,) event) <$>
-        TrackLang.checked_val2 Constants.v_voice (event_environ event)
+    voice_of event
+        | zero_dur event = Just $ Left event
+        | otherwise = case get event of
+            Nothing -> Nothing
+            Just voice -> Just $ Right (event, voice)
+        where get = TrackLang.checked_val2 Constants.v_voice . event_environ
     check_type (event, Right num) = do
         voice <- maybe (Left $ "voice should be 1--4: " ++ show num) Right $
             parse_voice num
@@ -576,6 +586,8 @@ instance ToLily Voice where
     to_lily v = case v of
         VoiceOne -> "\\voiceOne"; VoiceTwo -> "\\voiceTwo"
         VoiceThree -> "\\voiceThree"; VoiceFour -> "\\voiceFour"
+
+instance Pretty.Pretty Voice where pretty = show
 
 parse_voice :: Int -> Maybe Voice
 parse_voice v = case v of

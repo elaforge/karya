@@ -118,6 +118,7 @@ test_process_voices = do
     let f wanted meters = LilypondTest.extract_lys (Just wanted)
             . LilypondTest.process meters
             . map LilypondTest.voice_event
+
     equal (f [] ["4/4"]
             [ (0, 1, "a", Nothing)
             , (1, 1, "b", Just 1), (1, 1, "c", Just 2)
@@ -149,4 +150,22 @@ test_process_voices = do
             [ Right "\\time 2/4", Right "a4"
             , Left [(VoiceOne, "b4~ | \\time 4/4 b2")]
             , Right "r2"
+            ]
+
+test_voices_and_code = do
+    let f wanted meters = LilypondTest.extract_lys (Just wanted)
+            . LilypondTest.process meters
+            . map LilypondTest.environ_event
+        v n = (Constants.v_voice, TrackLang.num n)
+        append text = (Constants.v_ly_append_all, TrackLang.str text)
+
+    -- Code events are assigned to the first voice.
+    equal (f ["mf"] ["4/4"]
+            [ (0, 0, "", [append "\\mf"])
+            , (0, 1, "b", [v 1])
+            , (0, 1, "c", [v 2])
+            ]) $
+        Right
+            [ Left [(VoiceOne, "b4 \\mf"), (VoiceTwo, "c4")]
+            , Right "r4", Right "r2"
             ]

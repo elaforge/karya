@@ -126,10 +126,6 @@ title_of = txt . Id.ident_name
 derive :: BlockId -> Cmd.CmdL Derive.Events
 derive block_id = Derive.r_events <$> Cmd.Lilypond.derive_block block_id
 
--- | Convert to lilypond events.
-ly_events :: RealTime -> Derive.Events -> ([Lilypond.Event], [Log.Msg])
-ly_events quarter = LEvent.partition . Convert.convert quarter
-
 -- | Convert down to lilypond score.
 make_ly :: Cmd.CmdL (Either String [Text], [Log.Msg])
 make_ly = do
@@ -139,6 +135,7 @@ make_ly = do
     let (result, ly_logs) = Cmd.Lilypond.make_lys config "title" [("", events)]
     return (fst <$> result, logs ++ ly_logs)
 
+-- | Derive focused block to ly events.
 convert :: Cmd.CmdL ([Lilypond.Event], [Log.Msg])
 convert = do
     config <- get_config

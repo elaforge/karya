@@ -404,7 +404,6 @@ integrate / integration:
   - quantization
 
 lilypond:
-  - dyn marking messes up simultaneous voices
   - rename voice to v, rename hand to h?
   - omit the voice division as long as there is only one voice
   * support for mordent
@@ -432,9 +431,10 @@ lilypond:
     named flavours.
   * rename is-ly to ly-track if I can't get it to apply to individual notes.
     Well, I can, but it's just the same as when-ly.
-  - instead of Code events interrupting voices, it should be incorporated into
+  * instead of Code events interrupting voices, it should be incorporated into
     all voices.  But that may be incorrect, e.g. I don't want ff on every
     voice, just one.
+    * dyn marking messes up simultaneous voices
   - I need some way to hide rests.
     Add magic bit of code that turns its rest r4 into s4.
   - If I can figure out the meter from just the name, then I can get rid
