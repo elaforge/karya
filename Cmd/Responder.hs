@@ -294,7 +294,7 @@ run_responder state m = do
                     (Transport.info_state (state_transport_info state))
             cmd_to <- Undo.maintain_history ui_to cmd_to updates
             when (is_quit status) $
-                Save.close_state cmd_to ui_to
+                Save.save_views cmd_to ui_to
             return (is_quit status,
                 state { state_ui = ui_to, state_cmd = cmd_to })
     where

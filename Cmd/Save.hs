@@ -193,8 +193,8 @@ default_git = "save.git"
 -- They could theoretically checkpoint view changes, but it would be
 -- complicated (they mostly come from the GUI, not diff) and inefficient
 -- (scrolling emits tons of them).
-close_state :: Cmd.State -> State.State -> IO ()
-close_state cmd_state ui_state = case Cmd.state_save_file cmd_state of
+save_views :: Cmd.State -> State.State -> IO ()
+save_views cmd_state ui_state = case Cmd.state_save_file cmd_state of
     Just (Cmd.SaveGit repo) ->
         SaveGit.save_views repo $ State.state_views ui_state
     _ -> return ()
@@ -207,19 +207,24 @@ type SaveFile = Either (SaveGit.Commit, SaveGit.Repo) FilePath
 --
 -- It's really important to call this whenever you change
 -- 'Cmd.state_save_file'!
-set_save_file :: (Cmd.M m) => SaveFile -> Bool -> m ()
-set_save_file git_or_state clear_history = Cmd.modify $ \state -> state
-    { Cmd.state_save_file = Just file
-    , Cmd.state_history = let hist = Cmd.state_history state in hist
-        { Cmd.hist_past = if clear_history then []
-            else map clear (Cmd.hist_past hist)
-        , Cmd.hist_present = (Cmd.hist_present hist)
-            { Cmd.hist_commit = commit }
-        , Cmd.hist_future = []
-        }
-    , Cmd.state_history_config = (Cmd.state_history_config state)
-        { Cmd.hist_last_commit = commit }
-    }
+set_save_file :: SaveFile -> Bool -> Cmd.CmdT IO ()
+set_save_file git_or_state clear_history = do
+    cmd_state <- Cmd.get
+    when (Just file /= Cmd.state_save_file cmd_state) $ do
+        ui_state <- State.get
+        liftIO $ save_views cmd_state ui_state
+        Cmd.modify $ \state -> state
+            { Cmd.state_save_file = Just file
+            , Cmd.state_history = let hist = Cmd.state_history state in hist
+                { Cmd.hist_past = if clear_history then []
+                    else map clear (Cmd.hist_past hist)
+                , Cmd.hist_present = (Cmd.hist_present hist)
+                    { Cmd.hist_commit = commit }
+                , Cmd.hist_future = []
+                }
+            , Cmd.state_history_config = (Cmd.state_history_config state)
+                { Cmd.hist_last_commit = commit }
+            }
     where
     (commit, file) = case git_or_state of
         Left (commit, repo) -> (Just commit, Cmd.SaveGit repo)
@@ -229,10 +234,6 @@ set_save_file git_or_state clear_history = Cmd.modify $ \state -> state
 set_state :: SaveFile -> Bool -> State.State -> Cmd.CmdT IO ()
 set_state git_or_state clear_history state = do
     set_save_file git_or_state clear_history
-    old_cmd <- Cmd.get
-    old_ui <- State.get
-    liftIO $ close_state old_cmd old_ui
-
     Play.cmd_stop
     Cmd.modify $ Cmd.reinit_state (Cmd.empty_history_entry state)
     State.put (State.clear state)

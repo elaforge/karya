@@ -140,9 +140,10 @@ test_load_previous_history = do
     res <- save_git $ ResponderTest.mkstates [(">", [(0, 1, "1")])]
     res <- next res $ Cmd.name "+x" $ insert_event 0 "x"
     res <- next res $ Cmd.name "+y" $ insert_event 1 "y"
-    pprint (e_commits res)
-    pprint (e_hist_updates res)
+    -- pprint (e_commits res)
+    -- pprint (e_hist_updates res)
 
+    equal (extract_ui res) "xy"
     res <- ResponderTest.respond_cmd (ResponderTest.mkstates []) $
         Save.load_git repo Nothing
     equal (extract_ui res) "xy"
@@ -239,9 +240,7 @@ read_log commits = do
 save_git :: ResponderTest.States -> IO ResponderTest.Result
 save_git states = do
     File.recursive_rm_dir repo
-    ResponderTest.respond_cmd (second set_dir states) Save.save_git
-    where
-    set_dir state = state { Cmd.state_save_file = Just $ Cmd.SaveGit repo }
+    ResponderTest.respond_cmd states (Save.save_git_as repo)
 
 repo :: SaveGit.Repo
 repo = "build/test/save.git"

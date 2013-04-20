@@ -307,7 +307,7 @@ data State = State {
     } deriving (Show, Generics.Typeable)
 
 data SaveFile = SaveState !FilePath | SaveGit !SaveGit.Repo
-    deriving (Show, Generics.Typeable)
+    deriving (Show, Eq, Generics.Typeable)
 
 -- | Directory of the save file.
 state_save_dir :: State -> Maybe FilePath

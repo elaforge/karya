@@ -3,6 +3,7 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
+  * when I switched with save_state_as, it emptied the old state's views
   - solo still gets another track with a 'bounce' call, save/bug-bounce-solo
   - up and down arrows in text entry should go to front and back
   - add edit and windows menu to all apps
@@ -403,6 +404,8 @@ integrate / integration:
   - quantization
 
 lilypond:
+  - dyn marking messes up simultaneous voices
+  - rename voice to v, rename hand to h?
   - omit the voice division as long as there is only one voice
   * support for mordent
   - one track has voice, the other doesn't, causes a "can't advance time
