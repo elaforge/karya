@@ -223,8 +223,8 @@ cc_to_control :: Midi.Control -> Score.Control
 cc_to_control cc =
     fromMaybe (Score.Control ("cc" <> showt cc)) (Map.lookup cc cc_control)
     where
-    cc_control =
-        Map.fromList [(cc, Score.Control c) | (cc, c) <- Control.cc_map]
+    cc_control = Map.map convert $ Map.invert Control.universal_control_map
+    convert (Control.Control s) = Score.Control s
 
 show_val :: Word.Word8 -> Text -- the Midi types are aliases for Word8
 show_val val = ShowVal.show_hex_val $ d / 0x7f

@@ -146,10 +146,10 @@ control_to_cc :: Score.Control -> Maybe Midi.Control
 control_to_cc = flip Map.lookup control_cc
 
 cc_control :: Map.Map Midi.Control Score.Control
-cc_control = Map.fromList [(cc, Score.Control c) | (cc, c) <- Control.cc_map]
+cc_control = Map.invert control_cc
 
 control_cc :: Map.Map Score.Control Midi.Control
-control_cc = Map.fromList [(Score.Control c, cc) | (cc, c) <- Control.cc_map]
+control_cc = Map.mapKeys convert_control Control.universal_control_map
 
 c_aftertouch :: Score.Control
 c_aftertouch = convert_control Control.c_aftertouch

@@ -14,17 +14,6 @@ import qualified Derive.Score as Score
 import qualified Perform.Signal as Signal
 
 
-type ControlMap = Map.Map Control Midi.Control
-
-control_map :: [(Midi.Control, Text)] -> ControlMap
-control_map cmap = Map.fromList [(Control c, fromIntegral n) | (n, c) <- cmap]
-
-empty_map :: ControlMap
-empty_map = control_map []
-
-control_map_names :: ControlMap -> [Text]
-control_map_names cmap = [name | Control name <- Map.keys cmap]
-
 -- | A control is an abstract parameter that influences derivation.  Some of
 -- them affect performance and will be rendered as MIDI controls or note
 -- parameters or whatever, while others may affect derivation (e.g. tempo) and
@@ -37,6 +26,18 @@ newtype Control = Control Text deriving (Eq, Ord, Show, Read, DeepSeq.NFData)
 
 instance Pretty.Pretty Control where
     pretty (Control s) = untxt $ Text.cons '%' s
+
+type ControlMap = Map.Map Control Midi.Control
+
+control_map :: [(Midi.Control, Text)] -> ControlMap
+control_map cmap = Map.fromList [(Control c, fromIntegral n) | (n, c) <- cmap]
+
+empty_map :: ControlMap
+empty_map = control_map []
+
+control_map_names :: ControlMap -> [Text]
+control_map_names cmap = [name | Control name <- Map.keys cmap]
+
 
 -- | Pitchbend range in tempered semitones below and above unity.  The first
 -- integer should probably be negative.
@@ -118,26 +119,23 @@ c_pressure = Control "pressure"
 --
 -- On output, the \"standard\" set of symbolic names are understood, but the
 -- low level cc## names work uniformly.
--- TODO an array would be a little faster
-cc_map :: [(Midi.Control, Text)]
-cc_map = [(n, "cc" <> showt n) | n <- [0..127]] ++
+--
+-- This will also be checked by 'control_constructor', so these are controls
+-- that every instrument will respond to.  Of course it may override some of
+-- these names if it wishes.
+universal_control_map :: ControlMap
+universal_control_map = control_map $ [(n, "cc" <> showt n) | n <- [0..127]] ++
     [ (1, "mod")
     , (2, "breath")
     , (4, "foot")
     , (7, "volume")
     , (8, "balance")
     , (10, "pan")
-    , (64, "damper-pedal")
+    , (64, "pedal")
     , (65, "portamento-pedal")
     , (66, "sostenuto-pedal")
     , (67, "soft-pedal")
     ]
-
--- | This will also be checked by 'control_constructor', so these are
--- controls that every instrument will respond to.  Of course it may
--- override some of these names if it wishes.
-universal_control_map :: ControlMap
-universal_control_map = control_map cc_map
 
 c_breath :: Control
 c_breath = Control "breath"
