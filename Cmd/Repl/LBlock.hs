@@ -23,14 +23,10 @@ import qualified Cmd.CallDoc as CallDoc
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Create as Create
 import qualified Cmd.ModifyEvents as ModifyEvents
-import qualified Cmd.PitchTrack as PitchTrack
 import qualified Cmd.Repl.Util as Util
 import qualified Cmd.Selection as Selection
 
 import qualified Derive.ParseBs as ParseBs
-import qualified Derive.Scale as Scale
-import qualified Derive.Scale.Theory as Theory
-import qualified Derive.Scale.Twelve as Twelve
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.TrackInfo as TrackInfo
 import qualified Derive.TrackLang as TrackLang
@@ -215,22 +211,3 @@ stretch_block factor block_id = ModifyEvents.block block_id $
 
 stretch :: ScoreTime -> ModifyEvents.Event
 stretch factor = Event.move (*factor) . Event.modify_duration (*factor)
-
--- * pitch
-
-simplify_block_enharmonics :: BlockId -> Cmd.CmdL ()
-simplify_block_enharmonics block_id =
-    ModifyEvents.block block_id simplify_enharmonics
-
--- | This only works for Twelve at the moment.  For it to work for any scale
--- I need a way to parse to Theory.Pitch.  Can't use scale_enharmonics because
--- I don't want to mess with ones that are already simple.
-simplify_enharmonics :: (Cmd.M m) => ModifyEvents.Track m
-simplify_enharmonics = PitchTrack.pitch_tracks $ \scale key note ->
-    case Twelve.read_pitch note of
-        Left _ -> Right note
-        Right pitch
-            | abs (Theory.pitch_accidentals pitch) < 2 -> Right note
-            | otherwise -> case Scale.scale_enharmonics scale key note of
-                Right (simpler : _) -> Right simpler
-                _ -> Right note

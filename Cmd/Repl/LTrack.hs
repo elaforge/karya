@@ -111,32 +111,6 @@ duplicate source_block source_tracknum dest_block dest_tracknum = do
     track <- State.get_block_track_at source_block source_tracknum
     State.insert_track dest_block dest_tracknum track
 
--- * control tracks
-
-map_control_val :: Text -> (Signal.Y -> Signal.Y) -> Cmd.CmdL ()
-map_control_val name f = ModifyEvents.selection $
-    ModifyEvents.tracks_named (==name) $ ModifyEvents.text $ \text ->
-        fromMaybe text (ControlTrack.modify_val f text)
-
-score_to_hex :: Cmd.CmdL ()
-score_to_hex = ModifyEvents.all_blocks $
-    ModifyEvents.tracks_named TrackInfo.is_signal_track $
-        ModifyEvents.text to_hex
-
-block_to_hex :: BlockId -> Cmd.CmdL ()
-block_to_hex block_id = ModifyEvents.block block_id $
-    ModifyEvents.tracks_named TrackInfo.is_signal_track $
-        ModifyEvents.text to_hex
-
-to_hex :: Text -> Text
-to_hex text =
-    case Derive.ParseBs.parse_val (ControlTrack.event_val event) of
-        Right (TrackLang.VNum (Score.Typed Score.Untyped n))
-            | 0 <= n && n <= 1 -> ControlTrack.unparse $
-                event { ControlTrack.event_val = ShowVal.show_hex_val n }
-        _ -> text
-    where event = ControlTrack.parse text
-
 -- * events
 
 events :: TrackId -> ScoreTime -> ScoreTime -> Cmd.CmdL [Event.Event]
