@@ -45,7 +45,8 @@ SeqInput::handle(int evt)
     if (evt == FL_KEYDOWN || evt == FL_KEYUP) {
         switch (key) {
         case FL_Shift_L: case FL_Shift_R: case FL_Enter: case FL_Escape:
-        case FL_Right: case FL_Left: case FL_BackSpace: case FL_Tab:
+        case FL_Right: case FL_Left: case FL_Up: case FL_Down:
+        case FL_BackSpace: case FL_Tab:
             break; // some non-prinables are handled here
         default:
             // but control chars and the like should be passed out
@@ -53,11 +54,18 @@ SeqInput::handle(int evt)
                 return 0;
         }
     }
+
     switch (evt) {
     case FL_KEYDOWN:
         switch (Fl::event_key()) {
         case FL_Tab: case FL_Enter: case FL_Escape:
             Fl::focus(this->window());
+            return 1;
+        case FL_Up:
+            this->position(0);
+            return 1;
+        case FL_Down:
+            this->position(this->size());
             return 1;
         }
         break;

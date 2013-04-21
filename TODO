@@ -7,7 +7,7 @@ UNSORTED
     Samples should be at [0, 29, 31], but are [0, 20.71, 22.14]
   * when I switched with save_state_as, it emptied the old state's views
   - solo still gets another track with a 'bounce' call, save/bug-bounce-solo
-  - up and down arrows in text entry should go to front and back
+  * up and down arrows in text entry should go to front and back
   - add edit and windows menu to all apps
     There must be special OS X support for these
   - keys to move focus?
