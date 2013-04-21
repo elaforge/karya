@@ -34,24 +34,25 @@ c_pizz_arp = Derive.transformer "pizz-arp" (Tags.postproc <> Tags.idiom)
     \ probably in track order.  TODO sort by pitch?" $
     Sig.callt (defaulted "time" (control "pizz-arp-time" 0.02)
         "Insert this much time between each note.") $
-    \time _args deriver -> pizz_arp time =<< deriver
+    \time _args deriver -> Lily.when_lilypond deriver $
+        pizz_arp time =<< deriver
 
 pizz_arp :: TrackLang.ValControl -> Derive.Events -> Derive.EventDeriver
-pizz_arp time = map_contemporary 0.025 (Score.has_attribute Attrs.pizz) $
+pizz_arp time = map_simultaneous 0.025 (Score.has_attribute Attrs.pizz) $
     \(event :| chord) -> do
         let start = Score.event_start event
         time <- RealTime.seconds <$> Util.control_at time start
         return [Score.move (+t) event
             | (t, event) <- zip (Seq.range_ 0 time) (event : chord)]
 
-map_contemporary :: RealTime
-    -- ^ events starting closer than this amount are considered coincident
+map_simultaneous :: RealTime
+    -- ^ events starting closer than this amount are considered simultaneous
     -> (Score.Event -> Bool)
     -- ^ only process events that pass this predicate
     -> (NonEmpty Score.Event -> Derive.Deriver [Score.Event])
-    -- ^ process coincident events
+    -- ^ process simultaneous events
     -> Derive.Events -> Derive.EventDeriver
-map_contemporary eta accept f = go
+map_simultaneous eta accept f = go
     where
     go [] = return []
     go (LEvent.Log log : events) = (LEvent.Log log :) <$> go events
