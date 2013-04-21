@@ -148,7 +148,7 @@ to_score = ScoreTime.double . to_seconds
 -- | Eta for comparison.  Since RealTimes are seconds, this amount of time is
 -- definitely unnoticeable.
 eta :: RealTime
-eta = 0.00000000000004
+eta = 0.0000000000004
 
 -- | RealTimes are imprecise, so compare them with this instead of (==).
 eq :: RealTime -> RealTime -> Bool

@@ -21,6 +21,7 @@ import qualified Derive.TrackLang as TrackLang
 import qualified Perform.Midi.Convert as Convert
 import qualified Perform.Midi.Perform as Perform
 import qualified Perform.Pitch as Pitch
+import qualified Perform.RealTime as RealTime
 
 import qualified Instrument.MidiDb as MidiDb
 import Types
@@ -133,10 +134,11 @@ first_time msgs = case LEvent.events_of msgs of
 -- msgs tend to show up first because 'Derive.d_merge' puts logs before events
 -- and all the events on a track are merged.
 events_from :: RealTime -> Derive.Events -> Derive.Events
-events_from start events
+events_from start_ events
     | start <= 0 = events
     | otherwise = go [] events
     where
+    start = start_ - RealTime.eta
     go _ [] = []
     go logs (e@(LEvent.Event event) : es)
         | Score.event_start event >= start = reverse logs ++ e : es
