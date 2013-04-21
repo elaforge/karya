@@ -169,3 +169,15 @@ test_voices_and_code = do
             [ Left [(VoiceOne, "b4 \\mf"), (VoiceTwo, "c4")]
             , Right "r4", Right "r2"
             ]
+
+    -- But code afterwards doesn't get included.
+    equal (f ["mf"] ["4/4"]
+            [ (0, 1, "b", [v 1])
+            , (0, 1, "c", [v 2])
+            , (1, 0, "", [append "\\mf"])
+            , (1, 1, "d", [])
+            ]) $
+        Right
+            [ Left [(VoiceOne, "b4"), (VoiceTwo, "c4")]
+            , Right "d4", Right "\\mf", Right "r2"
+            ]

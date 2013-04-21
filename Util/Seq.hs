@@ -504,13 +504,19 @@ drop_suffix suffix list
     | otherwise = (list, False)
     where (pre, post) = splitAt (length list - length suffix) list
 
--- ** splitting and joining
+-- ** span and break
 
+-- | Like 'break', but the called function has access to the entire tail.
 break_tails :: ([a] -> Bool) -> [a] -> ([a], [a])
 break_tails _ [] = ([], [])
 break_tails f lst@(x:xs)
     | f lst = ([], lst)
     | otherwise = let (pre, post) = break_tails f xs in (x:pre, post)
+
+-- | 'List.span' from the end of the list.
+span_end :: (a -> Bool) -> [a] -> ([a], [a])
+span_end f xs = (reverse post, reverse pre)
+    where (pre, post) = span f (reverse xs)
 
 -- | Like 'span', but it can transform the spanned sublist.
 span_while :: (a -> Maybe b) -> [a] -> ([b], [a])
@@ -521,6 +527,11 @@ span_while f = go
         Nothing -> ([], x : xs)
         Just y -> let (ys, rest) = go xs in (y:ys, rest)
 
+-- | 'span_while' from the end of the list.
+span_end_while :: (a -> Maybe b) -> [a] -> ([a], [b])
+span_end_while f xs = (reverse post, reverse pre)
+    where (pre, post) = span_while f (reverse xs)
+
 -- | List initial and final element, if any.
 viewr :: [a] -> ([a], Maybe a)
 viewr [] = ([], Nothing)
@@ -530,6 +541,8 @@ viewr (x:xs) = let (first, last) = viewr xs in (x:first, last)
 ne_viewr :: NonEmpty a -> ([a], a)
 ne_viewr (x :| xs) = case viewr (x : xs) of
     (first, last) -> (first, Maybe.fromJust last)
+
+-- ** split and join
 
 -- | Split @xs@ before places where @f@ matches.
 --

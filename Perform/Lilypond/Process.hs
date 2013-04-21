@@ -322,7 +322,7 @@ convert_voices voices = do
 -- | Span events until they don't have a 'Constants.v_voice' val.
 collect_voices :: [Event] -> Either String ([(Voice, [Event])], [Event])
 collect_voices events = do
-    let (spanned, rest) = Seq.span_while voice_of events
+    let (spanned, rest) = span_voices events
         (code, with_voice) = Seq.partition_either spanned
     with_voice <- mapM check_type with_voice
     return $ case map (second (map fst)) $ Seq.keyed_group_on snd with_voice of
@@ -332,17 +332,26 @@ collect_voices events = do
             ((voice, Seq.merge_on Types.event_start code events) : voices, rest)
         [] -> ([], code ++ rest)
     where
+    check_type (event, Right num) = do
+        voice <- maybe (Left $ "voice should be 1--4: " ++ show num) Right $
+            parse_voice num
+        return (event, voice)
+    check_type (event, Left err) = Left $ Pretty.pretty event <> ": " <> err
+
+-- | Strip off events with voices.  This is complicated by the possibility of
+-- intervening zero_dur code events.
+span_voices :: [Event] -> ([Either Event (Event, Either String Int)], [Event])
+span_voices events = (spanned2, trailing_code ++ rest)
+    where
+    (spanned1, rest) = Seq.span_while voice_of events
+    (spanned2, trailing_code) =
+        Seq.span_end_while (either Just (const Nothing)) spanned1
     voice_of event
         | zero_dur event = Just $ Left event
         | otherwise = case get event of
             Nothing -> Nothing
             Just voice -> Just $ Right (event, voice)
         where get = TrackLang.checked_val2 Constants.v_voice . event_environ
-    check_type (event, Right num) = do
-        voice <- maybe (Left $ "voice should be 1--4: " ++ show num) Right $
-            parse_voice num
-        return (event, voice)
-    check_type (event, Left err) = Left $ Pretty.pretty event <> ": " <> err
 
 -- * misc
 
@@ -512,10 +521,6 @@ make_rest full_measure dur = Note
     , note_append = ""
     , note_stack = Nothing
     }
-
--- is_rest :: Note -> Bool
--- is_rest note@(Note {}) = null (_note_pitch note)
--- is_rest _ = False
 
 instance ToLily Note where
     to_lily (Note pitches full_measure dur prepend append _stack) =

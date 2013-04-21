@@ -83,7 +83,7 @@ replace from to = map_titles $ Text.replace from to
 
 -- | Find all tracks with the given string in their title.  You can use
 -- 'State.blocks_with_track_id' to find the blocks with the tracks, and
--- 'map_titles' to change the titles.
+-- 'map_titles' or 'replace' to change the titles.
 find :: Text -> Cmd.CmdL [(TrackId, Text)]
 find search = do
     tids <- State.all_track_ids
