@@ -1,12 +1,14 @@
 module Cmd.Repl.LRuler_test where
 import Util.Control
 import Util.Test
+import qualified Ui.Ruler as Ruler
 import qualified Ui.State as State
 import qualified Ui.UiTest as UiTest
+
 import qualified Cmd.CmdTest as CmdTest
 import qualified Cmd.Create as Create
-import qualified Cmd.Repl.LRuler as LRuler
 import qualified Cmd.Meter as Meter
+import qualified Cmd.Repl.LRuler as LRuler
 import qualified Cmd.RulerUtil as RulerUtil
 
 import Types
@@ -20,7 +22,7 @@ test_extract = do
                 , ("b2", [])
                 ]
             vid <- Create.unfitted_view top
-            Create.new_ruler top "r.top" $ RulerUtil.ruler []
+            Create.new_ruler top "r.top" $ Ruler.ruler []
             Create.new_ruler b1 "r.b1" $
                 RulerUtil.meter_ruler 16 [Meter.repeat 4 Meter.T]
             Create.new_ruler b2 "r.b2" $

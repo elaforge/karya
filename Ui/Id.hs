@@ -98,7 +98,7 @@ is_id :: String -> Bool
 is_id s = not (null s) && all is_id_char s
 
 is_id_char :: Char -> Bool
-is_id_char c = is_strict_id_char c || c == '`' || c == '.'
+is_id_char c = is_strict_id_char c || c == '`'
 
 -- | Many other symbols have an even more restrictive character set.  In
 -- addition since they show up as tracklang literals, they must start with
@@ -107,8 +107,11 @@ is_strict_id :: String -> Bool
 is_strict_id (c:cs) = ascii_lower c && all is_strict_id_char cs
 is_strict_id "" = False
 
+-- | @-@ is the word separator, but @.@ is also allowed as a higher-level
+-- separator.  For instance, tracks are conventionally named @block.t#@, and
+-- if the block has words it's still non-ambiguous: @some-block.t3@.
 is_strict_id_char :: Char -> Bool
-is_strict_id_char c = ascii_lower c || ascii_digit c || c == '-'
+is_strict_id_char c = ascii_lower c || ascii_digit c || c == '-' || c == '.'
 
 ascii_lower :: Char -> Bool
 ascii_lower c = 'a' <= c && c <= 'z'
