@@ -41,7 +41,6 @@ import Data.Monoid (mempty)
 
 import qualified Development.Shake as Shake
 import Development.Shake ((?==), (?>), (*>), need)
-import qualified System.Console.GetOpt as GetOpt
 import qualified System.Directory as Directory
 import qualified System.Environment as Environment
 import qualified System.FilePath as FilePath
@@ -70,8 +69,8 @@ fltkConfig = "/usr/local/src/fltk-1.3/fltk-config"
 ghcBinary = "ghc"
 hspp = modeToDir Opt </> "hspp"
 
-shakeOptions :: Shake.ShakeOptions
-shakeOptions = Shake.shakeOptions
+defaultOptions :: Shake.ShakeOptions
+defaultOptions = Shake.shakeOptions
     { Shake.shakeFiles = build </> "shake"
     , Shake.shakeVerbosity = Shake.Quiet
     , Shake.shakeThreads = 4
@@ -179,7 +178,7 @@ cppFlags config fn
         cInclude (configFlags config) ++ define (configFlags config)
     | otherwise = Nothing
     where
-    cppFiles = ["App/Main.hs", "Cmd/Lang.hs", "Midi/TestMidi.hs", "Ui/Sync.hs"]
+    cppFiles = ["App/Main.hs", "Cmd/Repl.hs", "Midi/TestMidi.hs", "Ui/Sync.hs"]
 
 -- | Module that define 'main' and should get linked to their own binaries,
 -- and the names of their eventual binaries.
@@ -376,44 +375,13 @@ inferConfig modeConfig fn =
 
 -- * rules
 
-data Flag = Verbosity Shake.Verbosity | Jobs Int deriving (Eq, Show)
-
-cmdOptions :: [GetOpt.OptDescr Flag]
-cmdOptions =
-    [ GetOpt.Option ['v'] []
-        (GetOpt.OptArg (maybe (Verbosity Shake.Normal) readVerbosity)
-            "verbosity") $ "Verbosity, from 0 to 4."
-    , GetOpt.Option ['j'] [] (GetOpt.ReqArg (Jobs . read) "jobs") $
-        "Number of jobs to run simultaneously."
-    ]
-    where
-    readVerbosity s = Verbosity $ case read s of
-        0 -> Shake.Silent
-        1 -> Shake.Quiet
-        2 -> Shake.Normal
-        3 -> Shake.Loud
-        4 -> Shake.Diagnostic
-        n -> error $ "verbosity should be 0--4: " ++ show n
-
 main :: IO ()
 main = do
     IO.hSetBuffering IO.stdout IO.LineBuffering
-    (flags, targets, errors) <- GetOpt.getOpt GetOpt.Permute cmdOptions <$>
-        Environment.getArgs
-    when (not (null errors)) $
-        error $ "Errors parsing flags: " ++ unlines errors
     env <- Environment.getEnvironment
     modeConfig <- configure (midiFromEnv env)
-    let options = shakeOptions
-            { Shake.shakeThreads =
-                Maybe.fromMaybe (Shake.shakeThreads shakeOptions) $
-                    mlast [j | Jobs j <- flags]
-            , Shake.shakeVerbosity =
-                Maybe.fromMaybe (Shake.shakeVerbosity shakeOptions) $
-                    mlast [v | Verbosity v <- flags]
-            }
     writeGhciFlags modeConfig
-    Shake.shake options $ do
+    Shake.shakeArgsWith defaultOptions [] $ \[] targets -> return $ Just $ do
         let infer = inferConfig modeConfig
         setupOracle env (modeConfig Debug)
         -- hspp is depended on by all .hs files.  To avoid recursion, I
