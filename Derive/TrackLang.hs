@@ -44,9 +44,10 @@ import qualified Ui.ScoreTime as ScoreTime
 import qualified Derive.BaseTypes as Score
 import qualified Derive.BaseTypes as PitchSignal
 import Derive.BaseTypes
-       (Environ, make_environ, environ_to_list, insert_val, lookup_val,
-        null_environ, ValName, Val(..), Symbol(..), RelativeAttrs(..),
-        ControlRef(..), PitchControl, ValControl, Note(..), show_call_val)
+       (Environ, make_environ, environ_to_list, insert_val, delete_val,
+        lookup_val, null_environ, ValName, Val(..), Symbol(..),
+        RelativeAttrs(..), ControlRef(..), PitchControl, ValControl,
+        Note(..), show_call_val)
 import Derive.ShowVal (ShowVal(..))
 
 import qualified Perform.Pitch as Pitch
@@ -375,15 +376,19 @@ instance Typecheck Text where
 --
 -- 'RelativeAttrs's are never inserted, they combine with existing Attributes or
 -- create new ones.
+--
+-- 'VNotGiven' is another special case, it deletes the given key.
 put_val :: (Typecheck val) => ValName -> val -> Environ -> Either Type Environ
-put_val name val environ = case maybe_old of
-    Nothing -> case Map.lookup name hardcoded_types of
-        Just expected | type_of new_val /= expected -> Left expected
-        _ -> Right $ insert_val name new_val environ
-    Just old_val
-        | type_of old_val == type_of new_val ->
-            Right $ insert_val name (environ_val name val environ) environ
-        | otherwise -> Left (type_of old_val)
+put_val name val environ
+    | VNotGiven <- to_val val = Right $ delete_val name environ
+    | otherwise = case maybe_old of
+        Nothing -> case Map.lookup name hardcoded_types of
+            Just expected | type_of new_val /= expected -> Left expected
+            _ -> Right $ insert_val name new_val environ
+        Just old_val
+            | type_of old_val == type_of new_val ->
+                Right $ insert_val name (environ_val name val environ) environ
+            | otherwise -> Left (type_of old_val)
     where
     maybe_old = lookup_val name environ
     new_val = case to_val val of

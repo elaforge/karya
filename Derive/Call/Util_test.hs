@@ -63,6 +63,10 @@ test_c_equal = do
     equal (run ">i" [(0, 1, ""), (1, 1, "inst = >i2 |"), (2, 1, "n >i3 |")])
         ([(0, "i"), (1, "i2"), (2, "i3")], [])
 
+    -- Unset a val.
+    equal (run ">i" [(0, 1, ""), (1, 1, "inst = _ |")])
+        ([(0, "i"), (1, "")], [])
+
 test_c_equal_note_transformer = do
     let run events = DeriveTest.extract e_inst $
             DeriveTest.linear_derive_tracks id

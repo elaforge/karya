@@ -211,6 +211,9 @@ environ_to_list (Environ env) = Map.toList env
 insert_val :: ValName -> Val -> Environ -> Environ
 insert_val name val (Environ env) = Environ $ Map.insert name val env
 
+delete_val :: ValName -> Environ -> Environ
+delete_val name (Environ env) = Environ $ Map.delete name env
+
 lookup_val :: ValName -> Environ -> Maybe Val
 lookup_val name (Environ env) = Map.lookup name env
 

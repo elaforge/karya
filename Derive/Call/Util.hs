@@ -465,7 +465,8 @@ equal_arg_doc =
     "The left hand side can be a symbol, `%control-name`, or\
     \ `#pitch-control-name`. The right hand side is anything when binding\
     \ a symbol, a number or `%control-name` when binding a `%control`, or\
-    \ a pitch or `#pitch-name` when binding a `#pitch`."
+    \ a pitch or `#pitch-name` when binding a `#pitch`.\
+    \ Setting a symbol to @_@ will unset an env var."
 
 equal_doc :: Text
 equal_doc =

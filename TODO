@@ -1064,7 +1064,7 @@ Derive:
       as a break with no notes for a certain amount of time.  Can only damp
       two neighboring notes at a time.
 
-  - x = _ will unset x
+  * x = _ will unset x
   - consider track calls and block calls:
     note_track :: TrackTree.EventsNode -> Derive.EventDeriver
     derive_tree :: ScoreTime -> TrackTree.EventsTree -> Derive.EventDeriver
