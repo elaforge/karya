@@ -32,6 +32,11 @@ test_at = do
     equal (f (-1) [(1, 2)]) Nothing
     equal (f 0 [(1, 2)]) Nothing
 
+test_at_eta = do
+    let f x sig = V.at x (signal sig)
+    equal (f 6.666666666666664 [(6.666666666666666, 1)]) (Just 1)
+    equal (f 6.6666666665 [(6.666666666666666, 1)]) Nothing
+
 -- * transformation
 
 test_merge = do

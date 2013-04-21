@@ -157,7 +157,8 @@ merge vecs = V.unfoldrN len go vecs
                 | otherwise -> Just (Sample x y, cur_tl : vecs)
 
 -- | Find the value of the signal at the X value.  Nothing if the X is before
--- the first sample.
+-- the first sample.  However, any sample within 'RealTime.eta' is considered
+-- a match.
 --
 -- There is a special rule that says a sample at <=0 is considered to extend
 -- backwards indefinitely.  So @at (-1) [(1, 1)]@ is 0, but
@@ -299,13 +300,14 @@ lowest_index x vec = go vec 0 (V.length vec)
 
 -- | Return the highest index of the given X.  So the next value is
 -- guaranteed to have a higher x, if it exists.  Return -1 if @x@ is before
--- the first element.
+-- the first element.  'RealTime.eta' is added to @x@, so a sample that's
+-- almost the same will still be considered a match.
 {-# SPECIALIZE highest_index :: X -> Unboxed -> Int #-}
 highest_index :: (V.Vector v (Sample y)) => X -> v (Sample y) -> Int
 highest_index x vec
     | V.null vec = -1
     | otherwise = i - 1
-    where i = bsearch_above x vec
+    where i = bsearch_above (x + RealTime.eta) vec
 
 -- | This gets the index of the value *after* @x@.
 {-# SPECIALIZE bsearch_above :: X -> Unboxed -> Int #-}
