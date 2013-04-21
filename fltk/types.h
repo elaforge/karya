@@ -36,6 +36,11 @@ public:
     ScoreTime divide(ScoreTime div) const {
         return ScoreTime(_val / div._val);
     }
+    // TODO redundant with scale(), I should maybe get rid of that, or
+    // overload (*) and (/).
+    ScoreTime multiply(ScoreTime factor) const {
+        return ScoreTime(_val * factor._val);
+    }
 
     // Basic arithmetic and comparisons work on a ScoreTime.
     ScoreTime operator-() const { return ScoreTime(-_val); }

@@ -40,6 +40,13 @@ struct TrackSignal {
     ScoreTime shift;
     ScoreTime stretch;
 
+    RealTime to_real(ScoreTime p) const {
+        return (p.multiply(stretch) + shift).to_real();
+    }
+    ScoreTime from_real(RealTime p) const {
+        return (ScoreTime::from_real(p) - shift).divide(stretch);
+    }
+
     // Return the index of the sample before 'start', or 0.
     int find_sample(ScoreTime start) const;
     // Get the time at the given index, taking shift, stretch, and the given

@@ -42,20 +42,19 @@ compare_control_sample(const ControlSample &s1, const ControlSample &s2)
 int
 TrackSignal::find_sample(ScoreTime start) const
 {
-    if (signal) {
-        ControlSample sample(start.to_real(), 0);
-        ControlSample *found =
-            std::lower_bound(signal, signal + length, sample,
-                compare_control_sample);
-        // Back up one to make sure I have the sample before start.
-        if (found > signal)
-            found--;
-        return found - signal;
-    } else {
+    if (!signal) {
         // Render was set but there is no signal... so just say nothing was
         // found.
         return 0;
     }
+    ControlSample sample(to_real(start), 0);
+    ControlSample *found =
+        std::lower_bound(signal, signal + length, sample,
+            compare_control_sample);
+    // Back up one to make sure I have the sample before start.
+    if (found > signal)
+        found--;
+    return found - signal;
 }
 
 
@@ -63,8 +62,7 @@ int
 TrackSignal::time_at(const ZoomInfo &zoom, int i) const
 {
     ASSERT_MSG(signal, "time_at on empty track signal");
-    ScoreTime at = ScoreTime::from_real(signal[i].time);
-    return zoom.to_pixels((at - shift).divide(stretch) - zoom.offset);
+    return zoom.to_pixels(from_real(signal[i].time) - zoom.offset);
 }
 
 
@@ -325,7 +323,8 @@ EventTrackView::draw_area()
     start = start + this->zoom.offset;
     end = end + this->zoom.offset;
     // DEBUG("TRACK CLIP: " << start << "--" << end << ", "
-    //         << clip.y << "--" << clip.b());
+    //         << clip.y << "--" << clip.b()
+    //         << " zoom " << zoom);
 
     Event *events;
     int *ranks;

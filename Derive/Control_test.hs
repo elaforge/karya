@@ -1,8 +1,10 @@
 module Derive.Control_test where
 import qualified Data.Map as Map
 
+import Util.Control
 import qualified Util.Log as Log
 import Util.Test
+
 import qualified Ui.Events as Events
 import qualified Ui.State as State
 import qualified Ui.Track as Track
@@ -140,10 +142,6 @@ test_stash_signal = do
     let run = extract . DeriveTest.derive_tracks
         extract r = Log.trace_logs (snd $ DeriveTest.r_split r)
             (map e_tsig (Map.elems (Derive.r_track_signals r)))
-        e_tsig result = case result of
-            Left logs -> Left $ map DeriveTest.show_log logs
-            Right (Track.TrackSignal sig shift stretch _) ->
-                Right (sig, shift, stretch)
     let tsig samples p x = Right (Signal.signal samples, p, x)
 
     equal (run [ctrack, itrack]) [Right (csig, 0, 1)]
@@ -174,3 +172,18 @@ test_stash_signal = do
     equal (run [itrack, ("$ broken", [(0, 0, "0")])]) []
     equal (run [itrack, itrack]) []
     equal (run [itrack, ptrack]) [Right (psig, 0, 1)]
+
+test_signal_default_tempo = do
+    -- Signal is stretched by the default tempo.
+    let r = extract $ DeriveTest.derive_tracks_with_ui id set_tempo
+            [("*", [(0, 0, "4c"), (10, 0, "4d"), (20, 0, "4c")])]
+        set_tempo = State.config#State.default_#State.tempo #= 2
+        extract = map e_tsig . Map.elems . Derive.r_track_signals
+    equal r [Right (Signal.signal [(0, 60), (5, 62), (10, 60)], 0, 0.5)]
+
+e_tsig :: Either [Log.Msg] Track.TrackSignal
+    -> Either [String] (Signal.Display, ScoreTime, ScoreTime)
+e_tsig result = case result of
+    Left logs -> Left $ map DeriveTest.show_log logs
+    Right (Track.TrackSignal sig shift stretch _) ->
+        Right (sig, shift, stretch)
