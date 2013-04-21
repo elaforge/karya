@@ -377,7 +377,8 @@ main(int argc, char **argv)
     dtrack.status_color = Color(255, 150, 150);
     // dtrack.status_color = Color(150, 150, 150);
     dtrack.event_brightness = .75;
-    // view.block.set_display_track(3, dtrack);
+    view.block.set_display_track(2, dtrack);
+
     // print_children(&view);
 
     // Fl::add_timeout(1, timeout_func, (void*) &view);

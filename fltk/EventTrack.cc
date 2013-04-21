@@ -39,8 +39,6 @@ compare_control_sample(const ControlSample &s1, const ControlSample &s2)
     return s1.time < s2.time;
 }
 
-// A pitch signal will find the first sample of a given (from, to) series
-// since only the first one gets the label.
 int
 TrackSignal::find_sample(ScoreTime start) const
 {
@@ -56,7 +54,7 @@ TrackSignal::find_sample(ScoreTime start) const
     } else {
         // Render was set but there is no signal... so just say nothing was
         // found.
-        return length;
+        return 0;
     }
 }
 
@@ -64,26 +62,18 @@ TrackSignal::find_sample(ScoreTime start) const
 int
 TrackSignal::time_at(const ZoomInfo &zoom, int i) const
 {
-    ScoreTime at;
-    if (signal)
-        at = ScoreTime::from_real(signal[i].time);
-    else
-        ASSERT_MSG(0, "time_at on empty track signal");
+    ASSERT_MSG(signal, "time_at on empty track signal");
+    ScoreTime at = ScoreTime::from_real(signal[i].time);
     return zoom.to_pixels((at - shift).divide(stretch) - zoom.offset);
 }
 
 
-// Get the val at the given index, normalized between 0--1.  If appropriate,
-// return the val names below and above the val.  Otherwise, the pointers will
-// be set to NULL.
+// Get the val at the given index, normalized between 0--1.
 double
-TrackSignal::val_at(int i, const char **lower, const char **upper) const
+TrackSignal::val_at(int i) const
 {
-    *lower = *upper = NULL;
-    if (signal)
-        return normalize(this->val_min, this->val_max, signal[i].val);
-    else
-        ASSERT_MSG(0, "val_at on empty track signal");
+    ASSERT_MSG(signal, "val_at on empty track signal");
+    return normalize(this->val_min, this->val_max, signal[i].val);
 }
 
 
@@ -443,14 +433,11 @@ EventTrackView::draw_signal(int min_y, int max_y, ScoreTime start)
     // it.
     Fl_Color signal_color =
         color_to_fl(config.render.color.brightness(brightness));
-    Fl_Color text_color = color_to_fl(config.render.color.brightness(.5));
 
     // Account for both the 1 pixel track border and the width of the line.
     const int min_x = x() + 2;
     const int max_x = x() + w() - 2;
     int prev_xpos = -1;
-    const char *prev_lower = NULL;
-    const char *prev_upper = NULL;
     const SymbolTable::Style style(
         Config::font, Config::font_size::pitch_signal, FL_BLACK);
 
@@ -472,38 +459,10 @@ EventTrackView::draw_signal(int min_y, int max_y, ScoreTime start)
         // display.
         if (next_offset <= offset)
             continue;
-        const char *lower, *upper;
-        double val = tsig.val_at(i, &lower, &upper);
+        double val = tsig.val_at(i);
         int xpos = floor(::scale(double(min_x), double(max_x),
             ::clamp(0.0, 1.0, val)));
         // DEBUG("sample " << i << " val " << val << " offset " << offset);
-
-        // Skip drawing things out of the clip area.
-        // TODO avoid overlap with event text
-        // TODO skip drawing text if they would overlap each other
-        bool scale_changed = false;
-        // Draw text.
-        if (lower && upper && (lower != prev_lower || upper != prev_upper)) {
-            IPoint lower_size, upper_size;
-            // DEBUG((offset-min_y) << " text in range "
-            //         << (void *) prev_lower << " = " << (void *) lower);
-            scale_changed = true;
-            fl_line_style(FL_SOLID | FL_CAP_ROUND, 0);
-            fl_color(text_color);
-
-            // If they are the same I don't need to draw both.  I omit the one
-            // on the left because that one is more likely to overlap with
-            // event text.
-            if (lower != upper) {
-                lower_size = SymbolTable::get()->draw(
-                    lower, IPoint(min_x, offset-1), style);
-                fl_line(min_x, offset, min_x + lower_size.x, offset);
-            }
-            upper_size = SymbolTable::get()->measure(upper, style);
-            SymbolTable::get()->draw(
-                upper, IPoint(max_x - upper_size.x, offset-1), style);
-            fl_line(max_x - upper_size.x, offset, max_x, offset);
-        }
 
         // I originally wanted to draw the signal as one big line in a separate
         // pass, eliminating the jump from the previous xpos if the distance is
@@ -518,11 +477,8 @@ EventTrackView::draw_signal(int min_y, int max_y, ScoreTime start)
             switch (config.render.style) {
             case RenderConfig::render_line:
                 fl_line_style(FL_SOLID | FL_CAP_ROUND, 2);
-                // If the xpos scale has changed, it doesn't make much sense to
-                // connect with the previous sample, which implies the signal
-                // actually made a jump.
-                // And don't draw a jump from prev_xpos if it didn't exist.
-                if (prev_xpos == -1 || scale_changed) {
+                // Don't draw a jump from prev_xpos if it didn't exist.
+                if (prev_xpos == -1) {
                     fl_line(xpos, offset, xpos, next_offset);
                 } else {
                     fl_line(
@@ -547,8 +503,6 @@ EventTrackView::draw_signal(int min_y, int max_y, ScoreTime start)
         // DEBUG("draw " << i << " @ " << offset << "--" << next_offset);
 
         prev_xpos = xpos;
-        prev_lower = lower;
-        prev_upper = upper;
         if (offset > max_y)
             break;
     }

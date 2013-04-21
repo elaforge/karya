@@ -46,7 +46,7 @@ struct TrackSignal {
     // zoom into account.
     int time_at(const ZoomInfo &zoom, int i) const;
     // Get the val at the given index, normalized between 0--1.
-    double val_at(int i, const char **lower, const char **upper) const;
+    double val_at(int i) const;
 
     // Set 'val_min' and 'val_max'.  Normally this would be called by the
     // constructor, but since I construct manually from haskell I don't have
