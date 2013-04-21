@@ -30,12 +30,12 @@ test_convert_sections = do
         ]
 
 test_staff_configs = do
-    let piano = Types.StaffConfig
+    let piano = Types.empty_staff_config
             { Types.staff_long = "piano"
             , Types.staff_short = ""
             , Types.staff_code = ["piano code"]
             }
-        viola = Types.StaffConfig
+        viola = Types.empty_staff_config
             { Types.staff_long = "viola"
             , Types.staff_short = "vla"
             , Types.staff_code = ["viola code"]
