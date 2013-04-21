@@ -85,8 +85,9 @@ ly_file config title movements = run_output $ do
         when (not (Text.null title)) $
             output $ "\\header { piece =" <+> str title <+> "}\n"
         output "}\n\n"
-    write_staff_group (StaffGroup _ staves, config) =
-        case staves of
+    write_staff_group (StaffGroup _ staves, config)
+        | not (staff_display config) = return ()
+        | otherwise = case staves of
             [staff] -> write_staff config Nothing staff
             [up, down] -> write_piano_staff config $ \config -> do
                 write_staff config (Just "up") up

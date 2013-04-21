@@ -32,8 +32,7 @@ import Types
 get_config :: (State.M m) => m Lilypond.Config
 get_config = State.config#State.lilypond <#> State.get
 
-modify_config :: (State.M m) => (Lilypond.Config -> Lilypond.Config)
-    -> m ()
+modify_config :: (State.M m) => (Lilypond.Config -> Lilypond.Config) -> m ()
 modify_config modify = State.modify_config $ State.lilypond %= modify
 
 make_config :: RealTime -> Lilypond.Duration -> Lilypond.Config
@@ -45,6 +44,10 @@ make_config quarter quantize = Lilypond.default_config
 set_code :: (State.M m) => String -> [Text] -> m ()
 set_code inst code = modify_staff inst $ \staff -> staff
     { Lilypond.staff_code = code }
+
+toggle_display :: (State.M m) => String -> m ()
+toggle_display inst = modify_staff inst $ \staff -> staff
+    { Lilypond.staff_display = not $ Lilypond.staff_display staff }
 
 modify_staff :: (State.M m) => String
     -> (Lilypond.StaffConfig -> Lilypond.StaffConfig)

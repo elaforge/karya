@@ -54,8 +54,8 @@ test_staff_configs = do
 
 
 test_hands = do
-    let run = LilypondTest.derive_staves [] . concatMap UiTest.note_spec
-    let (events, logs) = run
+    let run = LilypondTest.derive_staves
+    let (events, logs) = run [] $ concatMap UiTest.note_spec
             [ (">s/1 | hand = r", [(0, 4, "4c")], [])
             , (">s/1 | hand = l", [(0, 4, "4d")], [])
             , (">s/2", [(0, 4, "4e")], [])

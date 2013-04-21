@@ -7,11 +7,11 @@ UNSORTED
     Samples should be at [0, 29, 31], but are [0, 20.71, 22.14]
   * when I switched with save_state_as, it emptied the old state's views
   - solo still gets another track with a 'bounce' call, save/bug-bounce-solo
+  - shift-play from a super-block drops the first note of the sub-block
   * up and down arrows in text entry should go to front and back
   - add edit and windows menu to all apps
     There must be special OS X support for these
   - keys to move focus?
-  - shift-play from a super-block drops the first note of the sub-block
   - it's annoying to insert text at the beginning of an event
     Can I do a prepend command?  I could go for full text input, but even then
     it would require a click.  Well, in that case I can open it with the
@@ -374,7 +374,7 @@ incremental save / git:
       But it has to notice the false -> true transition, otherwise it will
       consider the cmd not worth saving.  So hist_save_checkpoints is just
       True for the cmd that turns it on, and goes off after that.
-  - Ability to give names to SavePoints.
+  / Ability to give names to SavePoints.
   - See if git's delta compression understands binary and can compress
     tracks.  Otherwise, would it be worth helping it by e.g. separating
     each event with a newline?  But then it makes serializing events more of
@@ -414,7 +414,7 @@ lilypond:
     backward" error
   * put staff config like '\set Staff.pedalSustainStyle = #'mixed'
     in the staff config
-  - I could use staff config to filter out some instruments
+  * I could use staff config to filter out some instruments
   * library of common staff code
   - remove the StackMap stuff
   - code events in >ly-global can be distributed to all staves

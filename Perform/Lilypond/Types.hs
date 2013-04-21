@@ -46,6 +46,8 @@ data StaffConfig = StaffConfig {
     , staff_short :: !Instrument
     -- | Additional code to include verbatim, after the \\new Staff line.
     , staff_code :: ![Text]
+    -- | If false, this staff is omitted from the score.
+    , staff_display :: !Bool
     } deriving (Eq, Read, Show)
 
 type Instrument = Text
@@ -60,20 +62,28 @@ instance Pretty.Pretty Config where
             ]
 
 instance Pretty.Pretty StaffConfig where
-    format (StaffConfig long short code) = Pretty.record_title "StaffConfig"
-        [ ("long", Pretty.format long)
-        , ("short", Pretty.format short)
-        , ("code", Pretty.format code)
-        ]
+    format (StaffConfig long short code display) =
+        Pretty.record_title "StaffConfig"
+            [ ("long", Pretty.format long)
+            , ("short", Pretty.format short)
+            , ("code", Pretty.format code)
+            , ("display", Pretty.format display)
+            ]
 
 default_config :: Config
-default_config = Config 1 D32 False []
+default_config = Config
+    { config_quarter_duration = 1
+    , config_quantize = D32
+    , config_dotted_rests = False
+    , config_staves = []
+    }
 
 empty_staff_config :: StaffConfig
 empty_staff_config = StaffConfig
     { staff_long = ""
     , staff_short = ""
     , staff_code = []
+    , staff_display = True
     }
 
 default_staff_config :: Score.Instrument -> StaffConfig

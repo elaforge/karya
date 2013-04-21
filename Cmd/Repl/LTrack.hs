@@ -15,19 +15,11 @@ import qualified Ui.TrackTree as TrackTree
 import qualified Ui.Types as Types
 
 import qualified Cmd.Cmd as Cmd
-import qualified Cmd.ControlTrack as ControlTrack
 import qualified Cmd.Create as Create
 import qualified Cmd.ModifyEvents as ModifyEvents
 import qualified Cmd.PlayUtil as PlayUtil
 import qualified Cmd.Selection as Selection
 
-import qualified Derive.ParseBs
-import qualified Derive.Score as Score
-import qualified Derive.ShowVal as ShowVal
-import qualified Derive.TrackInfo as TrackInfo
-import qualified Derive.TrackLang as TrackLang
-
-import qualified Perform.Signal as Signal
 import Types
 
 
