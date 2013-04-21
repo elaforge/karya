@@ -77,7 +77,10 @@ c_equal = Symbol "="
 
 -- | Make an untyped VNum.
 num :: Double -> Val
-num = VNum . Score.untyped
+num = to_val
+
+str :: Text -> Val
+str = to_val
 
 score_time :: ScoreTime -> Val
 score_time = VNum . Score.Typed Score.Score . ScoreTime.to_double
@@ -480,9 +483,9 @@ v_tuning = Symbol "tuning"
 
 -- | Separate notes into different voices.  This is used by integrate to put
 -- them on their own tracks, and by the lilypond backend to split them into
--- their own voices.
+-- their own voices.  Should be an integer from 1 to 4.
 v_voice :: ValName
-v_voice = Symbol "voice"
+v_voice = Symbol "v"
 
 
 -- * expressions

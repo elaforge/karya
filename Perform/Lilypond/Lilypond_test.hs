@@ -56,8 +56,8 @@ test_staff_configs = do
 test_hands = do
     let run = LilypondTest.derive_staves [] . concatMap UiTest.note_spec
     let (events, logs) = run
-            [ (">s/1 | hand = 'right'", [(0, 4, "4c")], [])
-            , (">s/1 | hand = 'left'", [(0, 4, "4d")], [])
+            [ (">s/1 | hand = r", [(0, 4, "4c")], [])
+            , (">s/1 | hand = l", [(0, 4, "4d")], [])
             , (">s/2", [(0, 4, "4e")], [])
             ]
     equal logs []
@@ -202,8 +202,8 @@ test_voices = do
     --         ]
     let f = LilypondTest.derive_measures []
     let tracks = concatMap UiTest.note_track
-            [ [(0, 1, "4a"), (1, 2, "voice = 1 | -- 4b"), (3, 1, "4c")]
-            , [(1, 1, "voice = 2 | -- 4d")]
+            [ [(0, 1, "4a"), (1, 2, "v = 1 | -- 4b"), (3, 1, "4c")]
+            , [(1, 1, "v = 2 | -- 4d")]
             ]
     equal (f tracks)
         (Right "a'4 << { VoiceOne: b'2 } { VoiceTwo: d'4 r4 } >> c'4", [])

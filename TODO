@@ -404,7 +404,8 @@ integrate / integration:
   - quantization
 
 lilypond:
-  - rename voice to v, rename hand to h?
+  * rename voice to v, rename hand to h?
+    hand is usually in titles, and h seems too obscure
   - omit the voice division as long as there is only one voice
   * support for mordent
   - one track has voice, the other doesn't, causes a "can't advance time

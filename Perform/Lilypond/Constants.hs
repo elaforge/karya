@@ -13,9 +13,9 @@ ly_global = Score.Instrument "ly-global"
 v_hand :: TrackLang.ValName
 v_hand = TrackLang.Symbol "hand"
 
--- | Number: should be an integer from 1 to 4
+-- | Number: should be an integer from 1 to 4.
 v_voice :: TrackLang.ValName
-v_voice = TrackLang.Symbol "voice"
+v_voice = TrackLang.v_voice
 
 -- * code fragments
 
