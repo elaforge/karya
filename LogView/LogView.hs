@@ -17,16 +17,18 @@ import qualified Control.Concurrent as Concurrent
 import qualified Control.Concurrent.STM as STM
 import qualified Control.Concurrent.STM.TChan as TChan
 import qualified Control.Exception as Exception
-import Control.Monad
 import qualified Control.Monad.State as State
-import Control.Monad.Trans (liftIO)
 
 import qualified Data.List as List
+import qualified Data.Text as Text
+import qualified Data.Text.IO as Text.IO
+
 import qualified System.Console.GetOpt as GetOpt
 import qualified System.Directory as Directory
 import qualified System.Environment
 import qualified System.Exit
 
+import Util.Control
 import qualified Util.Fltk as Fltk
 import qualified Util.Log as Log
 import qualified Util.Seq as Seq
@@ -178,9 +180,9 @@ send_to_app :: String -> IO ()
 send_to_app cmd = do
     response <- SendCmd.send cmd
         `Exception.catch` \(exc :: Exception.SomeException) ->
-            return ("error: " ++ show exc)
-    unless (null response) $
-        putStrLn $ "response: " ++ response
+            return ("error: " <> showt exc)
+    unless (Text.null response) $
+        Text.IO.putStrLn $ "response: " <> response
 
 get_msg :: LogChan -> LogViewC.Window -> IO Msg
 get_msg log_chan win = STM.atomically $

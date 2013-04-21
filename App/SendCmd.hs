@@ -1,10 +1,10 @@
 module App.SendCmd where
-
+import qualified Data.Text as Text
+import qualified Data.Text.IO as Text.IO
 import qualified Network
 import qualified System.IO as IO
 import qualified System.Posix as Posix
 
-import qualified Util.Seq as Seq
 import qualified App.Config as Config
 
 
@@ -17,10 +17,10 @@ initialize app = Network.withSocketsDo $ do
         "caught SIGPIPE, reader must have closed the socket"
 
 
-send :: String -> IO String
+send :: String -> IO Text.Text
 send msg = do
     hdl <- Network.connectTo "localhost" Config.repl_port
     IO.hPutStr hdl msg
     IO.hPutStr hdl Config.message_complete_token
     IO.hFlush hdl
-    fmap Seq.rstrip $ IO.hGetContents hdl
+    fmap Text.strip $ Text.IO.hGetContents hdl

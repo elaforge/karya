@@ -7,7 +7,10 @@ import qualified Control.Concurrent.MVar as MVar
 import qualified Control.Exception as Exception
 
 import qualified Data.Map as Map
+import qualified Data.Text as Text
+import qualified Data.Text.IO as Text.IO
 import qualified Data.Typeable as Typeable
+
 import qualified System.Console.Haskeline as Haskeline
 import qualified System.Console.Haskeline.MonadException
        as Haskeline.MonadException
@@ -78,16 +81,17 @@ repl current_history settings = input_loop current_history settings $
         | null line = return ()
         | otherwise = do
             response <- liftIO $ Exception.handle catch_all $ SendCmd.send line
-            let formatted = Seq.strip $ format_response response
-            unless (null formatted) $
-                liftIO $ putStrLn formatted
-    catch_all :: Exception.SomeException -> IO String
-    catch_all exc = return ("!error: " ++ show exc)
+            let formatted = Text.strip $ format_response response
+            unless (Text.null formatted) $
+                liftIO $ Text.IO.putStrLn formatted
+    catch_all :: Exception.SomeException -> IO Text.Text
+    catch_all exc = return ("!error: " <> Text.pack (show exc))
 
-format_response :: String -> String
-format_response "()" = ""
-format_response ('!':s) = s -- See 'Cmd.Repl.unformatted'.
-format_response s = PPrint.format_str s
+format_response :: Text.Text -> Text.Text
+format_response text
+    | text == "()" = ""
+    | Just ('!', s) <- Text.uncons text = s -- See 'Cmd.Repl.unformatted'.
+    | otherwise = Text.pack $ PPrint.format_str $ Text.unpack text
 
 input_loop :: CurrentHistory -> Haskeline.Settings IO -> Input Bool -> IO ()
 input_loop current_history settings action = outer_loop settings

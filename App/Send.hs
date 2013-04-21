@@ -5,12 +5,15 @@
 -}
 module App.Send where
 import qualified Control.DeepSeq as DeepSeq
-import Control.Monad
+import qualified Data.Text as Text
+import qualified Data.Text.IO as Text.IO
 import qualified Data.Time as Time
+
 import qualified System.Console.GetOpt as GetOpt
 import qualified System.Environment as Environment
 import qualified Text.Printf as Printf
 
+import Util.Control
 import qualified App.SendCmd as SendCmd
 
 
@@ -35,13 +38,13 @@ main = SendCmd.initialize $ do
         putStrLn $ "---> " ++ msg
         if Timing `elem` flags then do
             (response, time) <- timed $ SendCmd.send (msg ++ "\n")
-            Printf.printf "%s - %.3f\n" response time
+            Printf.printf "%s - %.3f\n" (Text.unpack response) time
         else do
-            response <- SendCmd.send (msg ++ "\n")
-            unless (null response) $
-                putStrLn response
+            response <- SendCmd.send (msg <> "\n")
+            unless (Text.null response) $
+                Text.IO.putStrLn response
 
-timed :: IO String -> IO (String, Double)
+timed :: IO Text -> IO (Text, Double)
 timed action = do
     start <- now
     result <- action
