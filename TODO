@@ -22,7 +22,7 @@ UNSORTED
     'Z' starts an append with zero duration.  It then becomes more annoying to
     add a bunch of single char calls, like (.
   * repl macro: [@b0, @b1] didn't work
-  - Refactor.order_block makes a block with a mysteriously black ruler
+  * Refactor.order_block makes a block with a mysteriously black ruler
   * track status is lost when a track is added or removed
     The problem is that set skeleton resets the display, but doesn't reset the
     status, they have to be set separately with Block::set_status.

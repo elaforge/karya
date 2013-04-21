@@ -1317,8 +1317,7 @@ all_ruler_ids = gets (Map.keys . state_rulers)
 create_ruler :: (M m) => Id.Id -> Ruler.Ruler -> m RulerId
 create_ruler id ruler
         -- no_ruler is global and assumed to always exist.
-    | id == Id.unpack_id no_ruler =
-        throw $ "can't insert no-ruler: " ++ Pretty.pretty no_ruler
+    | id == Id.unpack_id no_ruler = throw "can't insert no-ruler"
     | otherwise = insert (Types.RulerId id) ruler state_rulers $ \rulers st ->
         st { state_rulers = rulers }
 
@@ -1338,6 +1337,8 @@ destroy_ruler ruler_id = do
 
 modify_ruler :: (M m) => RulerId -> (Ruler.Ruler -> Ruler.Ruler) -> m ()
 modify_ruler ruler_id f = do
+    when (ruler_id == no_ruler) $
+        throw "can't modify no_ruler"
     ruler <- get_ruler ruler_id
     unsafe_modify $ \st ->
         st { state_rulers = Map.insert ruler_id (f ruler) (state_rulers st) }

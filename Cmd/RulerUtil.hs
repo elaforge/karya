@@ -1,31 +1,19 @@
 module Cmd.RulerUtil where
-import qualified Data.Map as Map
-
 import Util.Control
 import qualified Ui.Id as Id
 import qualified Ui.Ruler as Ruler
 import qualified Ui.State as State
 
 import qualified Cmd.Meter as Meter
-import qualified App.Config as Config
 import Types
 
 
 -- * constructors
 
--- | Constructor for "plain" rulers.
-ruler :: [(Ruler.Name, Ruler.Marklist)] -> Ruler.Ruler
-ruler marklists = Ruler.Ruler
-    { Ruler.ruler_marklists = Map.fromList marklists
-    , Ruler.ruler_bg = Config.ruler_bg
-    , Ruler.ruler_show_names = False
-    , Ruler.ruler_align_to_bottom = False
-    }
-
 -- | Create a ruler with a meter of the given duration.
 meter_ruler :: ScoreTime -> [Meter.AbstractMeter] -> Ruler.Ruler
-meter_ruler dur meters =
-    ruler [(Meter.meter, Meter.meter_marklist (Meter.fit_meter dur meters))]
+meter_ruler dur meters = Ruler.ruler
+    [(Meter.meter, Meter.meter_marklist (Meter.fit_meter dur meters))]
 
 -- | Replace or add a marklist with the given name.
 set_marklist :: (State.M m) => RulerId -> Ruler.Name -> Ruler.Marklist -> m ()
@@ -68,9 +56,10 @@ local_modify :: (State.M m) => BlockId -> RulerId
 local_modify block_id ruler_id f = do
     blocks <- State.blocks_with_ruler_id ruler_id
     case blocks of
-        [(rblock_id, _)] | block_id == rblock_id -> do
-            State.modify_ruler ruler_id f
-            return ruler_id
+        [(rblock_id, _)]
+            | ruler_id /= State.no_ruler && block_id == rblock_id -> do
+                State.modify_ruler ruler_id f
+                return ruler_id
         _ -> do
             -- Give the ruler the same name as the block, since it's now local
             -- to that block.

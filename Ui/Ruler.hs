@@ -1,7 +1,7 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 module Ui.Ruler (
     -- * Ruler
-    Ruler(..), Marklists, Name, no_ruler
+    Ruler(..), Marklists, Name, ruler, no_ruler
     , lookup_marklist, get_marklist, set_marklist, remove_marklist
     , modify_marklist, modify_marklists, map_marklists
     , time_end
@@ -33,6 +33,7 @@ import qualified Util.Pretty as Pretty
 import Util.Pretty
 
 import qualified Ui.Color as Color
+import qualified App.Config as Config
 import Types
 
 
@@ -55,22 +56,29 @@ type Marklists = Map.Map Name Marklist
 type Name = String
 
 instance Pretty.Pretty Ruler where
-    pretty ruler = "((Ruler "
-        ++ Pretty.pretty
-            (Map.map (Map.size . marklist_map) (ruler_marklists ruler))
-        ++ "))"
+    format (Ruler mlists bg show_names align_to_bottom) =
+        Pretty.record_title "Ruler"
+            [ ("marklists", Pretty.format mlists)
+            , ("bg", Pretty.format bg)
+            , ("show_names", Pretty.format show_names)
+            , ("align_to_bottom", Pretty.format align_to_bottom)
+            ]
 
 instance DeepSeq.NFData Ruler where
     rnf (Ruler mlists _ _ _) = DeepSeq.rnf mlists
 
--- | Empty ruler.
-no_ruler :: Ruler
-no_ruler = Ruler
-    { ruler_marklists = Map.empty
-    , ruler_bg = Color.black
+-- | Constructor for "plain" rulers.
+ruler :: [(Name, Marklist)] -> Ruler
+ruler marklists = Ruler
+    { ruler_marklists = Map.fromList marklists
+    , ruler_bg = Config.ruler_bg
     , ruler_show_names = False
     , ruler_align_to_bottom = False
     }
+
+-- | Empty ruler.
+no_ruler :: Ruler
+no_ruler = ruler []
 
 lookup_marklist :: Name -> Ruler -> Maybe Marklist
 lookup_marklist name = Map.lookup name . ruler_marklists
@@ -115,6 +123,9 @@ data Marklist = Marklist
     -- constructor.
     , marklist_fptr :: !MarklistPtr
     }
+
+instance Pretty.Pretty Marklist where
+    pretty mlist = "((" <> show (Map.size (marklist_map mlist)) <> " marks))"
 
 -- | This should be opaque, but it needs to be exported for RulerC.  Don't look
 -- inside if you're not RulerC, OK?
