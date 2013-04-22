@@ -91,8 +91,24 @@ acyclic skel@(Skeleton graph)
     | Graph.has_cycle graph = Nothing
     | otherwise = Just skel
 
-move :: TrackNum -> TrackNum -> Skeleton -> Maybe Skeleton
-move from to (Skeleton graph) = Skeleton <$> Graph.move from to graph
+-- | If from<to, then @from@ is inserted after @to@.
+-- If to<from, then @from@ is inserted before @to@.
+move :: TrackNum -> TrackNum -> Skeleton -> Skeleton
+move from to = make . go . flatten
+    -- TODO should be possible to translate into a map over the graph array
+    where
+    go
+        | from < to = map $ up *** up
+        | to < from = map $ down *** down
+        | otherwise = id
+    up x
+        | x == from = to
+        | x > from && x <= to = x - 1
+        | otherwise = x
+    down x
+        | x == from = to
+        | x >= to && x < from = x + 1
+        | otherwise = x
 
 map_skel :: (Graph.Graph -> Graph.Graph) -> Skeleton -> Skeleton
 map_skel f (Skeleton graph) = Skeleton (f graph)

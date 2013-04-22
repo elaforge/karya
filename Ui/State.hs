@@ -825,7 +825,7 @@ move_track block_id from to = do
 move_block_track :: TrackNum -> TrackNum -> Block.Block -> Maybe Block.Block
 move_block_track from to block = do
     tracks <- Seq.move from to (Block.block_tracks block)
-    skel <- Skeleton.move from to (Block.block_skeleton block)
+    let skel = Skeleton.move from to (Block.block_skeleton block)
     return $ block
         { Block.block_tracks = tracks, Block.block_skeleton = skel }
 

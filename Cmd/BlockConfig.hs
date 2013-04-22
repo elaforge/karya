@@ -177,11 +177,19 @@ cmd_expand_track msg = do
 cmd_move_tracks :: (Cmd.M m) => Msg.Msg -> m ()
 cmd_move_tracks msg = do
     (block_id, tracknums, _, _, _) <- Selection.tracks
-    clicked_tracknum <- Cmd.require $ clicked_track msg
-    tracks <- State.track_count block_id
-    let to = min clicked_tracknum (tracks - length tracknums)
-    from <- Cmd.require (Seq.head tracknums)
-    let shift = to - from
-        moves = (if shift > 0 then reverse else id) (zip tracknums [to..])
+    clicked <- Cmd.require $ clicked_track msg
+    move_tracks block_id tracknums clicked
+    -- Shift from the max tracknum or the minimum tracknum, depending on
+    -- the move direction.
+    when_just (Seq.minimum_on abs $ map (clicked-) tracknums) $ \shift -> do
+        Selection.cmd_shift_selection Config.insert_selnum shift False
+
+move_tracks :: (State.M m) => BlockId -> [TrackNum] -> TrackNum -> m ()
+move_tracks block_id sources dest =
     mapM_ (uncurry (State.move_track block_id)) moves
-    Selection.cmd_shift_selection Config.insert_selnum shift False
+    where
+    moves -- Start at the last source, then insert at the dest counting down.
+        | any (<dest) sources =
+            zip (reverse (List.sort sources)) [dest, dest-1 ..]
+        -- Start at the first source, then insert at the dest counting up.
+        | otherwise = zip (List.sort sources) [dest ..]

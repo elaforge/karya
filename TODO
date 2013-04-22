@@ -11,9 +11,8 @@ UNSORTED
   - Add a way to mute an instrument.  I can set the allocation to [], but then
     I lose the old allocation, and it constantly warns about it.  I could also
     add solo.
-  - move tracks messes up the skeleton:
-    () (1 2) (2 3) (3 4) (5 6)
-    move 0 to 5
+  * move tracks messes up the skeleton:
+    () (1 2) (2 3) (3 4) (5 6), move 0 to 5
   * drawing bug: long track render sample doesn't draw near the bottom
     Samples should be at [0, 29, 31], but are [0, 20.71, 22.14]
   * when I switched with save_state_as, it emptied the old state's views
