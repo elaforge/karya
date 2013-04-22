@@ -34,6 +34,7 @@ import qualified Ui.Track as Track
 import qualified Ui.TrackTree as TrackTree
 import qualified Ui.Transform as Transform
 import qualified Ui.Types as Types
+import qualified Ui.Update as Update
 
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Selection as Selection
@@ -391,10 +392,11 @@ append_track = do
 -- to make sure it's visible.
 focused_track :: (Cmd.M m) => BlockId -> TrackNum -> m TrackId
 focused_track block_id tracknum = do
-    -- This " " is a hack to tell fltk to set keyboard focus.
-    track_id <- track block_id tracknum " " Events.empty
+    track_id <- track block_id tracknum "" Events.empty
     view_id <- Cmd.get_focused_view
     embiggen view_id
+    tracknum <- clip_tracknum block_id tracknum
+    State.update $ Update.CmdTrackTitleFocus view_id tracknum
     return track_id
 
 -- | Hush now, this is the correct technical term.

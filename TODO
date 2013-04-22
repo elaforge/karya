@@ -3,6 +3,17 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
+  * explicit track focus, to avoid putting focus back on every time
+  - why does lilypond think this is a bad barcheck?
+    save/bloom/ly/mvt2.ly:113:35: warning: barcheck failed at: 3/4
+    \time 6/4 \key d \minor \clef bass
+                                       R2. R2. | % 1
+  - Add a way to mute an instrument.  I can set the allocation to [], but then
+    I lose the old allocation, and it constantly warns about it.  I could also
+    add solo.
+  - move tracks messes up the skeleton:
+    () (1 2) (2 3) (3 4) (5 6)
+    move 0 to 5
   * drawing bug: long track render sample doesn't draw near the bottom
     Samples should be at [0, 29, 31], but are [0, 20.71, 22.14]
   * when I switched with save_state_as, it emptied the old state's views
@@ -1045,12 +1056,12 @@ Cmd:
 
 Derive:
   tracklang:
-    - come up with a solution for overlapping children, e.g.
+    * come up with a solution for overlapping children, e.g.
       doc/dev_notes/note_tracks
     - Track caching is too fragile, if I add a track with scope over everything
       then I get no caching.  Instead I should cache the bottom note track, or
-      perhaps every note track.  That doesn't work because they're all sliced
-      up.
+      perhaps every note track.  But that doesn't work because they're all
+      sliced up.
   postproc
     - retune a note depending on the previous interval (e.g. sloppy pitches
       when playing quickly)

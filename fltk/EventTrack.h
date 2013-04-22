@@ -116,6 +116,7 @@ public:
         return this->title_input->value();
     }
     virtual void set_title(const char *title);
+    virtual void set_title_focus();
     void set_zoom(const ZoomInfo &new_zoom);
     virtual void set_selection(int selnum, int tracknum, const Selection &sel)
     {

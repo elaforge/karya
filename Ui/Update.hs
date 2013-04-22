@@ -46,6 +46,7 @@ data CmdUpdate =
     | CmdTrackAllEvents TrackId
     | CmdRuler RulerId
     | CmdBringToFront ViewId
+    | CmdTrackTitleFocus ViewId TrackNum
     deriving (Eq, Show)
 
 data Update t u
@@ -69,6 +70,8 @@ data View =
     -- | Bring the window to the front.  Unlike most other updates, this is
     -- recorded directly and is not reflected in Ui.State.
     | BringToFront
+    -- | Similar to BringToFront, but sets keyboard focus in a track title.
+    | TrackTitleFocus TrackNum
     deriving (Eq, Show)
 
 data Block t
@@ -145,6 +148,8 @@ instance Pretty.Pretty View where
         Selection selnum sel -> Pretty.constructor "Selection"
             [Pretty.format selnum, Pretty.format sel]
         BringToFront -> Pretty.text "BringToFront"
+        TrackTitleFocus tracknum ->
+            Pretty.constructor "TrackTitleFocus" [Pretty.format tracknum]
 
 instance (Pretty.Pretty t) => Pretty.Pretty (Block t) where
     format update = case update of
@@ -228,9 +233,12 @@ to_ui (CmdTrackEvents track_id s e) = Track track_id (TrackEvents s e)
 to_ui (CmdTrackAllEvents track_id) = Track track_id TrackAllEvents
 to_ui (CmdRuler ruler_id) = Ruler ruler_id
 to_ui (CmdBringToFront view_id) = View view_id BringToFront
+to_ui (CmdTrackTitleFocus view_id tracknum) =
+    View view_id (TrackTitleFocus tracknum)
 
--- | Pull the CmdUpdate out of a UiUpdate, if any.  Discard BringToFront since
--- that's just an instruction to Sync and I don't need to remember it.
+-- | Pull the CmdUpdate out of a UiUpdate, if any.  Discard BringToFront and
+-- TrackTitleFocus since they're just instructions to Sync and I don't need to
+-- remember them.
 to_cmd :: UiUpdate -> Maybe CmdUpdate
 to_cmd (Track track_id (TrackEvents s e)) = Just $ CmdTrackEvents track_id s e
 to_cmd (Track track_id TrackAllEvents) = Just $ CmdTrackAllEvents track_id

@@ -1,3 +1,6 @@
+#ifndef __MSG_COLLECTOR_H
+#define __MSG_COLLECTOR_H
+
 #include <vector>
 #include <map>
 
@@ -220,3 +223,5 @@ private:
     // Map Fl::event_key() to Fl::event_text().
     std::map<int, int> keys_down;
 };
+
+#endif

@@ -244,6 +244,8 @@ update_view _ _ view_id update = case update of
         return $ BlockC.set_selection True view_id selnum
             (to_csel selnum maybe_sel)
     Update.BringToFront -> return $ BlockC.bring_to_front view_id
+    Update.TrackTitleFocus tracknum -> return $
+        BlockC.set_track_title_focus view_id tracknum
 
 -- | Block ops apply to every view with that block.
 update_block :: Track.TrackSignals -> Track.SetStyleHigh

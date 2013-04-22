@@ -54,6 +54,7 @@ void update_track(BlockViewWindow *view, int tracknum,
         ScoreTime *start, ScoreTime *end);
 void set_track_signal(BlockViewWindow *view, int tracknum, TrackSignal *tsig);
 void set_track_title(BlockViewWindow *view, int tracknum, const char *title);
+void set_track_title_focus(BlockViewWindow *view, int tracknum);
 
 // rulers
 

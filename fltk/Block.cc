@@ -292,7 +292,8 @@ BlockView::set_zoom(const ZoomInfo &zoom)
     // events, so I'm going to comment this out for now.
     // int track_h = track_tile.h() - view_config.track_title_height;
     // ScoreTime height = zoom.to_time(track_h);
-    // ScoreTime max_pos = std::max(ScoreTime(0), track_tile.time_end() - height);
+    // ScoreTime max_pos =
+    //     std::max(ScoreTime(0), track_tile.time_end() - height);
     //
     // this->zoom = ZoomInfo(clamp(ScoreTime(0), max_pos, zoom.offset),
     //         zoom.factor);

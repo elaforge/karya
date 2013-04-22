@@ -146,12 +146,15 @@ void
 EventTrackView::set_title(const char *title)
 {
     this->title_input->set_text(title);
-    if (strcmp(title, " ") == 0) {
-        this->title_input->take_focus();
-        // Since focus goes to the text input, the msg collector won't receive
-        // any subsequent key ups.
-        MsgCollector::get()->all_keys_up();
-    }
+}
+
+void
+EventTrackView::set_title_focus()
+{
+    this->title_input->take_focus();
+    // Since focus goes to the text input, the msg collector won't receive
+    // any subsequent key ups.
+    MsgCollector::get()->all_keys_up();
 }
 
 void

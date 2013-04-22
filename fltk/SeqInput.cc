@@ -86,7 +86,6 @@ SeqInput::handle(int evt)
     }
     // TODO
     // change keymap:
-    // ^A and cmd+a should select all
     // set callback to when(FL_WHEN_RELEASE)
     // or maybe some control keys unfocus but don't eat the event?
     int val = Fl_Input::handle(evt);
@@ -176,26 +175,26 @@ SeqInput::redraw_neighbors()
 }
 
 
-static const char *
-strip(const char *s)
+static void
+strip_value(Fl_Input *w)
 {
+    // Fl_Input manages the storage.
+    const char *s = w->value();
+
     // Why am I still writing functions like this?
     int start = 0, end = strlen(s);
     if (!(end > 0 && isspace(s[0]) || isspace(s[end-1]))) {
-        return s;
+        return;
     }
     while (start < end && isspace(s[start]))
         start++;
-    if (start == end)
-        return "";
-    while (isspace(s[end-1]))
+    while (end > start && isspace(s[end-1]))
         end--;
-    if (end - start <= 0)
-        return "";
-    char *stripped = new char[end-start + 1];
-    strncpy(stripped, s + start, end - start);
-    stripped[end-start] = '\0';
-    return stripped;
+    if (end - start <= 0) {
+        w->value(NULL);
+    } else {
+        w->value(s + start, end - start);
+    }
 }
 
 
@@ -203,7 +202,7 @@ void
 SeqInput::changed_cb(Fl_Widget *w, void *vp)
 {
     SeqInput *self = static_cast<SeqInput *>(vp);
-    self->value(strip(self->value()));
+    strip_value(self);
 
     // I only put SeqInputs in BlockViewWindows, so this should be safe.
     BlockViewWindow *view = static_cast<BlockViewWindow *>(self->window());

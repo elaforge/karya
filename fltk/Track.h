@@ -93,6 +93,7 @@ public:
     // The text in the title_widget, if there is any.
     virtual const char *get_title() const { return 0; }
     virtual void set_title(const char *title) { /* TODO throw bad_arg */ }
+    virtual void set_title_focus() { /* only implemented for Event tracks */ }
 
     virtual std::string dump() const = 0;
 };
