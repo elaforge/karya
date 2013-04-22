@@ -31,6 +31,7 @@ import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Network
 import qualified System.IO as IO
+import qualified System.Posix.IO as Posix.IO
 
 import Util.Control
 import qualified Util.Log as Log
@@ -48,10 +49,10 @@ import qualified Cmd.Cmd as Cmd
 import qualified Cmd.GlobalKeymap as GlobalKeymap
 import qualified Cmd.Integrate as Integrate
 import qualified Cmd.Internal as Internal
-import qualified Cmd.Repl as Repl
 import qualified Cmd.Meter as Meter
 import qualified Cmd.Msg as Msg
 import qualified Cmd.PlayC as PlayC
+import qualified Cmd.Repl as Repl
 import qualified Cmd.ResponderSync as ResponderSync
 import qualified Cmd.Save as Save
 import qualified Cmd.TimeStep as TimeStep
@@ -192,6 +193,10 @@ create_msg_reader remap_rmsg midi_chan repl_socket ui_chan loopback_chan = do
 accept_loop :: Network.Socket -> TChan.TChan (IO.Handle, String) -> IO ()
 accept_loop socket output_chan = forever $ catch_io_errors $ do
     (hdl, _host, _port) <- Network.accept socket
+    -- Make sure subprocesses don't inherit this.
+    fd <- Posix.IO.handleToFd hdl -- Closes hdl as a side-effect.
+    Posix.IO.setFdOption fd Posix.IO.CloseOnExec True
+    hdl <- Posix.IO.fdToHandle fd
     IO.hSetBuffering hdl IO.NoBuffering
     msg <- read_until hdl Config.message_complete_token
     STM.atomically $ TChan.writeTChan output_chan (hdl, msg)

@@ -105,8 +105,12 @@ compile_lys filename config title movements = do
                 (FilePath.takeDirectory filename)
             IO.withFile filename IO.WriteMode $ \hdl ->
                 mapM_ (Text.IO.hPutStr hdl) ly
-            Util.Process.logged $ Process.proc "lilypond"
-                ["-o", FilePath.dropExtension filename, filename]
+            Util.Process.logged
+                (Process.proc "lilypond"
+                    ["-o", FilePath.dropExtension filename, filename])
+                { Process.close_fds = True }
+                -- If I don't close the fds, the subprocess inherits the open
+                -- repl socket and I can't close it until the subprocess exits!
             return $ Right stack_map
 
 make_lys :: Lilypond.Config -> Lilypond.Title

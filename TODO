@@ -463,7 +463,7 @@ lilypond:
     Maybe it would be simpler to just have a ly-ped call, especially since the
     pedal signal doesn't line up exactly the same.
     \sustainOn .. \sustainOff, \set Staff.pedalSustainStyle = #'mixed
-  - Why does the cmd have to wait until lilypond is done?  Should be async.
+  * Why does the cmd have to wait until lilypond is done?  Should be async.
   - use Util.Format in ly output
   * to_lily should return Text
   - try Util.LazyVector for Ly output and see if it helps

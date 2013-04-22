@@ -21,6 +21,7 @@ readProcessWithExitCode env cmd args stdin = do
             , Process.std_in = Process.CreatePipe
             , Process.std_out = Process.CreatePipe
             , Process.std_err = Process.CreatePipe
+            , Process.close_fds = True
             }
     outMVar <- MVar.newEmptyMVar
     errMVar <- MVar.newEmptyMVar
