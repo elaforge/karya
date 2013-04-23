@@ -115,7 +115,7 @@ simple_convert config meter = go
     go start (event : events) =
         leading_rests ++ lys ++ go end rest_events
         where
-        leading_rests = map LyNote $
+        leading_rests = map LyRest $
             make_rests config meter start (event_start event)
         (lys, end, _, rest_events) = make_lys 0 mempty meter (event :| events)
 
@@ -144,20 +144,20 @@ convert_chunk events = error_context current $ case zero_dur_in_rest events of
 -- notes, and then mix in the code afterwards.
 mix_in_code :: Time -> [Event] -> [Ly] -> [Ly]
 mix_in_code start dur0 lys =
-    go dur0 (zip (scanl (+) start (map ly_dur lys)) lys)
+    go dur0 $ zip (scanl (+) start (map ly_dur lys)) lys
     where
     go events [] = prepend ++ append
         where (prepend, append) = partition_code events
-    go events ((start, (LyNote note)) : lys) =
-        prepend ++ LyNote note : append ++ go rest lys
+    go events ((start, LyRest note) : lys) =
+        prepend ++ LyRest note : append ++ go rest lys
         where
         (prepend, append) = partition_code overlapping
         (overlapping, rest) = span ((< note_end note) . event_start) events
-        note_end = (+start) . note_dur
+        note_end = (+start) . rest_time
     go events ((_, ly) : lys) = ly : go events lys
-    ly_dur (LyNote note) = note_dur note
+    ly_dur (LyNote note) = Types.note_dur_to_time (note_duration note)
+    ly_dur (LyRest rest) = rest_time rest
     ly_dur _ = 0
-    note_dur = Types.note_dur_to_time . note_duration
 
 partition_code :: [Event] -> ([Ly], [Ly])
 partition_code events = (map Code prepend, map Code append)
@@ -240,9 +240,9 @@ make_note :: Time -> Score.Attributes -> Meter.Meter
     -- ^ (note, note end time, clipped)
 make_note measure_start prev_attrs meter events next = (ly, end, clipped)
     where
-    ly
-        | null pitches = Code (prepend first <> append first)
-        | otherwise = LyNote note
+    ly = case NonEmpty.nonEmpty pitches of
+        Nothing -> Code (prepend first <> append first)
+        Just pitches -> LyNote (note pitches)
     first = NonEmpty.head events
     -- If there are no pitches, then this is code with duration.
     pitches = do
@@ -250,9 +250,8 @@ make_note measure_start prev_attrs meter events next = (ly, end, clipped)
         let pitch = get_pitch event
         guard (not (Text.null pitch))
         return (pitch, note_tie event)
-    note = Note
+    note pitches = Note
         { note_pitch = pitches
-        , note_full_measure = False
         , note_duration = allowed_dur
         , note_prepend = prepend first
         , note_append =
@@ -282,7 +281,7 @@ make_note measure_start prev_attrs meter events next = (ly, end, clipped)
         direction :: Text
         direction = get Constants.v_ly_tie_direction event
     is_first = not . event_clipped
-    is_last = not (any (is_tied . snd) pitches)
+    is_last = not $ any (is_tied . snd) pitches
     is_tied NoTie = False
     is_tied _ = True
 
@@ -373,7 +372,7 @@ rests_until end = do
         let rests = make_rests (state_config state) meter
                 (state_time state - state_measure_start state)
                 (end - state_measure_start state)
-        return $ map LyNote rests <> maybe [] (:[]) barline
+        return $ map LyRest rests <> maybe [] (:[]) barline
 
 -- | Advance now to the given time, up to and including the end of the measure,
 -- but no further.  Return Ly with a Barline if this is a new measure.
@@ -486,18 +485,27 @@ lookup_val key parse deflt event = prefix $ do
 
 -- * types
 
-data Ly = Barline !(Maybe Meter.Meter) | LyNote !Note | KeyChange !Key
-    | Code !Code
+data Ly = Barline !(Maybe Meter.Meter) | LyNote !Note | LyRest !Rest
+    | KeyChange !Key | Code !Code
     deriving (Show)
 
 instance Pretty.Pretty Ly where pretty = untxt . to_lily
 
+instance ToLily Ly where
+    to_lily ly = case ly of
+        Barline Nothing -> "|"
+        Barline (Just meter) -> "| " <> "\\time " <> to_lily meter
+        LyNote note -> to_lily note
+        LyRest rest -> to_lily rest
+        KeyChange key -> to_lily key
+        Code code -> code
+
+-- ** Note
+
 data Note = Note {
     -- | @[]@ means this is a rest, and greater than one pitch indicates
     -- a chord.
-    note_pitch :: ![(Text, Tie)]
-    -- | True if this covers an entire measure.  Used only for rests.
-    , note_full_measure :: !Bool
+    note_pitch :: !(NonEmpty (Text, Tie))
     , note_duration :: !Types.NoteDuration
     -- | Additional code to prepend to the note.
     , note_prepend :: !Code
@@ -512,22 +520,13 @@ data Tie = NoTie | TieNeutral | TieUp | TieDown deriving (Show)
 -- chunks, like 'note_pitch'.
 type Code = Text
 
-make_rest :: Bool -> Types.NoteDuration -> Note
-make_rest full_measure dur = Note
-    { note_pitch = []
-    , note_full_measure = full_measure
-    , note_duration = dur
-    , note_prepend = ""
-    , note_append = ""
-    , note_stack = Nothing
-    }
-
 instance ToLily Note where
-    to_lily (Note pitches full_measure dur prepend append _stack) =
+    to_lily (Note pitches dur prepend append _stack) =
         (prepend<>) . (<>append) $ case pitches of
-            [] -> (if full_measure then "R" else "r") <> ly_dur
-            [(pitch, tie)] -> pitch <> ly_dur <> to_lily tie
-            _ -> "<" <> Text.unwords [p <> to_lily tie | (p, tie) <- pitches]
+            (pitch, tie) :| [] -> pitch <> ly_dur <> to_lily tie
+            _ -> "<"
+                <> Text.unwords [p <> to_lily tie | (p, tie)
+                    <- NonEmpty.toList pitches]
                 <> ">" <> ly_dur
         where ly_dur = to_lily dur
 
@@ -538,19 +537,55 @@ instance ToLily Tie where
         TieUp -> "^~"
         TieDown -> "_~"
 
-instance ToLily Ly where
-    to_lily ly = case ly of
-        Barline Nothing -> "|"
-        Barline (Just meter) -> "| " <> "\\time " <> to_lily meter
-        LyNote note -> to_lily note
-        KeyChange key -> to_lily key
-        Code code -> code
+-- ** Rest
 
-make_rests :: Types.Config -> Meter.Meter -> Time -> Time -> [Note]
+data Rest = Rest {
+    rest_duration :: !Types.NoteDuration
+    -- | If true, the rest is emitted as @R@ and is expected to cover a whole
+    -- measure.
+    , rest_type :: !RestType
+    , rest_prepend :: !Code
+    , rest_append :: !Code
+    } deriving (Show)
+
+make_rest :: RestType -> Types.NoteDuration -> Rest
+make_rest typ dur = Rest
+    { rest_duration = dur
+    , rest_type = typ
+    , rest_prepend = ""
+    , rest_append = ""
+    }
+
+data RestType = NormalRest | FullMeasure !Int | HiddenRest deriving (Show)
+
+rest_time :: Rest -> Time
+rest_time rest =
+    Types.note_dur_to_time (rest_duration rest) * case rest_type rest of
+        FullMeasure mult -> fromIntegral mult
+        _ -> 1
+
+instance ToLily Rest where
+    to_lily (Rest dur typ prepend append) =
+        (prepend<>) . (<>append) $ to_lily typ <> to_lily dur <> mult
+        where
+        mult = case typ of
+            FullMeasure mult -> "*" <> showt mult
+            _ -> ""
+
+instance ToLily RestType where
+    to_lily r = case r of
+        NormalRest -> "r"
+        FullMeasure {} -> "R"
+        HiddenRest -> "s"
+
+make_rests :: Types.Config -> Meter.Meter -> Time -> Time -> [Rest]
 make_rests config meter start end
-    | start < end = map (make_rest full_measure) $ Meter.convert_duration meter
+    | start >= end = []
+    | full_measure = (:[]) $ make_rest
+        (FullMeasure (Meter.time_num meter))
+        (Types.NoteDuration (Meter.meter_denom meter) False)
+    | otherwise = map (make_rest NormalRest) $ Meter.convert_duration meter
         (Types.config_dotted_rests config) True start (end - start)
-    | otherwise = []
     where
     full_measure = start `mod` measure == 0 && end - start >= measure
     measure = Meter.measure_time meter

@@ -4,10 +4,12 @@ LEGEND
 
 UNSORTED
   * explicit track focus, to avoid putting focus back on every time
-  - why does lilypond think this is a bad barcheck?
+  * why does lilypond think this is a bad barcheck?
     save/bloom/ly/mvt2.ly:113:35: warning: barcheck failed at: 3/4
     \time 6/4 \key d \minor \clef bass
                                        R2. R2. | % 1
+    . Full measure rests must be a full bar, so it must be R1.
+
   * Add a way to mute an instrument.  I can set the allocation to [], but then
     I lose the old allocation, and it constantly warns about it.  I could also
     add solo.
@@ -21,6 +23,9 @@ UNSORTED
   * up and down arrows in text entry should go to front and back
   - add edit and windows menu to all apps
     There must be special OS X support for these
+    Apparently not?  iTerms is defined in English.lproj/MainMenu.xib
+    https://developer.apple.com/library/mac/#documentation/Cocoa/Conceptual/WinPanel/Tasks/UsingWindowsMenu.html
+    But it doesn't say how to add the Window menu.
   - keys to move focus?
   - it's annoying to insert text at the beginning of an event
     Can I do a prepend command?  I could go for full text input, but even then

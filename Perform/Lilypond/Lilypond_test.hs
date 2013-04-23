@@ -25,7 +25,7 @@ test_convert_sections = do
     -- Shorter staff is padded out to the length of the longer one, and then to
     -- the end of the bar.
     equal events $ Right
-        [ ("i1", ["c'4 r8 ds'8~ ds'4. r8 | R1 | R1 | R1"])
+        [ ("i1", ["c'4 r8 ds'8~ ds'4. r8 | R4*4 | R4*4 | R4*4"])
         , ("i2", ["r4 g'4 a2~ | a1~ | a1~ | a2 r2"])
         ]
 

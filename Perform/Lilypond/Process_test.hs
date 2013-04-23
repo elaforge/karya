@@ -18,14 +18,17 @@ test_rests_until = do
             . Process.rests_until . sum . map Types.dur_to_time
     equal (f ["4/4"] [D2]) (Right "r2")
     equal (f ["4/4"] [D2, D4]) (Right "r2 r4")
-    equal (f ["4/4"] [D1]) (Right "R1")
+    equal (f ["4/4"] [D1]) (Right "R4*4")
     left_like (f ["4/4"] [D1, D1]) "out of meters"
-    equal (f ["4/4", "4/4"] [D1, D1]) (Right "R1 | R1")
+    equal (f ["4/4", "4/4"] [D1, D1]) (Right "R4*4 | R4*4")
     -- Meters change.
     left_like (f ["2/4", "4/4"] [D1, D1]) "out of meters"
-    equal (f ["2/4", "4/4"] [D1]) (Right "R2 | \\time 4/4 r2")
+    equal (f ["2/4", "4/4"] [D1]) (Right "R4*2 | \\time 4/4 r2")
 
-    pprint (f (replicate 3 "4/4") [D1, D1, D2])
+    -- Test full-measure rests.
+    equal (f ["6/4", "6/4"] [D1, D1, D1]) $ Right "R4*6 | R4*6"
+    equal (f ["6/4"] [D1]) $ Right "r2. r4"
+    equal (f (replicate 3 "4/4") [D1, D1, D2]) $ Right "R4*4 | R4*4 | r2"
 
 test_process = do
     let f wanted meters = LilypondTest.extract_simple wanted
@@ -44,11 +47,11 @@ test_process = do
         Right "a8 b4 c8 r2"
     -- Skip a couple of measures.
     equal (simple [(7, 1, "a"), (8, 1, "b")]) $
-        Right "R1 | r2 r4 a4 | b4 r4 r2"
+        Right "R4*4 | r2 r4 a4 | b4 r4 r2"
     equal (simple [(8, 1, "a"), (9, 1, "b")]) $
-        Right "R1 | R1 | a4 b4 r2"
-    equal (f [] ["4/4"] []) $ Right "R1"
-    equal (f [] ["4/4", "4/4"] []) $ Right "R1 | R1"
+        Right "R4*4 | R4*4 | a4 b4 r2"
+    equal (f [] ["4/4"] []) $ Right "R4*4"
+    equal (f [] ["4/4", "4/4"] []) $ Right "R4*4 | R4*4"
 
     equal (f ["time", "key"] ["4/4"] [(0, 1, "a")]) $
         Right "\\time 4/4 \\key c \\major a4 r4 r2"
@@ -67,7 +70,7 @@ test_meters = do
     let f wanted meters = LilypondTest.extract_simple wanted
             . LilypondTest.process meters . map LilypondTest.simple_event
     equal (f ["time", "bar"] ["4/4", "3/4", "4/4"] []) $
-        Right "\\time 4/4 R1 | \\time 3/4 R2. | \\time 4/4 R1 \\bar \"|.\""
+        Right "\\time 4/4 R4*4 | \\time 3/4 R4*3 | \\time 4/4 R4*4 \\bar \"|.\""
 
 test_dotted_rests = do
     let f meter = LilypondTest.extract_simple []
