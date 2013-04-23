@@ -6,6 +6,7 @@ import qualified Data.List as List
 import qualified Data.Map as Map
 
 import Util.Control
+import qualified Util.Lens as Lens
 import qualified Util.Log as Log
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
@@ -33,9 +34,46 @@ inst_info inst_name = Info.inst_info (Score.Instrument inst_name)
 
 all_inst_info :: Cmd.CmdL String
 all_inst_info = do
-    alloc <- State.get_midi_alloc
-    info <- mapM Info.inst_info (Map.keys alloc)
+    config <- State.get_midi_config
+    info <- mapM Info.inst_info (Map.keys config)
     return $ show (length info) ++ " instruments:\n" ++ Seq.join "\n\n" info
+
+-- * config
+
+configs :: (State.M m) => m Instrument.Configs
+configs = State.get_midi_config
+
+aliases :: Cmd.CmdL (Map.Map Score.Instrument Score.Instrument)
+aliases = State.config#State.instruments <#> State.get
+
+add_alias :: String -> String -> Cmd.CmdL ()
+add_alias from to = State.modify $
+    State.config#State.instruments
+        %= Map.insert (Score.Instrument from) (Score.Instrument to)
+
+remove_alias :: String -> Cmd.CmdL ()
+remove_alias inst = State.modify $
+    State.config#State.instruments %= Map.delete (Score.Instrument inst)
+
+toggle_mute :: (State.M m) => String -> m Bool
+toggle_mute inst = modify_config (Score.Instrument inst) $ \config ->
+    let mute = not $ Instrument.config_mute config
+    in (config { Instrument.config_mute = mute }, mute)
+
+toggle_solo :: (State.M m) => String -> m Bool
+toggle_solo inst = modify_config (Score.Instrument inst) $ \config ->
+    let solo = not $ Instrument.config_solo config
+    in (config { Instrument.config_solo = solo }, solo)
+
+modify_config :: (State.M m) => Score.Instrument
+    -> (Instrument.Config -> (Instrument.Config, a)) -> m a
+modify_config inst modify = do
+    config <- State.require ("no config for " <> Pretty.pretty inst)
+        . Map.lookup inst =<< configs
+    let (new, result) = modify config
+    State.modify $ State.config # State.midi # Lens.map inst #= Just new
+    return result
+
 
 -- * allocate a device and channels
 
@@ -58,11 +96,9 @@ alloc_default inst_name chans = do
         =<< device_of inst
     alloc_instrument inst [(wdev, c) | c <- chans]
 
--- | Merge the given config into the existing one.
-merge :: Instrument.Config -> Cmd.CmdL ()
-merge config = do
-    old <- State.get_midi_config
-    State.set_midi_config (config <> old)
+-- | Merge the given configs into the existing one.
+merge :: Instrument.Configs -> Cmd.CmdL ()
+merge config = State.modify $ State.config # State.midi %= (config<>)
 
 -- * rest
 
@@ -108,9 +144,9 @@ load inst_name = do
 
 find_chan_for :: Midi.WriteDevice -> Cmd.CmdL Midi.Channel
 find_chan_for dev = do
-    alloc <- State.get_midi_alloc
+    config <- State.get_midi_config
     let addrs = map ((,) dev) [0..15]
-        taken = concat (Map.elems alloc)
+        taken = concatMap Instrument.config_addrs (Map.elems config)
     let match = fmap snd $ List.find (not . (`elem` taken)) addrs
     Cmd.require_msg ("couldn't find free channel for " ++ show dev) match
 
@@ -134,18 +170,12 @@ send_initialization init inst dev chan = case init of
     Instrument.NoInitialization -> return ()
 
 alloc_instrument :: Score.Instrument -> [Instrument.Addr] -> Cmd.CmdL ()
-alloc_instrument inst addrs = do
-    config <- State.get_midi_config
-    let alloc = Instrument.config_alloc config
-    State.set_midi_config $ config
-        { Instrument.config_alloc = Map.insert inst addrs alloc }
+alloc_instrument inst addrs = State.modify $
+    State.config # State.midi # Lens.map inst #= Just (Instrument.config addrs)
 
 dealloc_instrument :: Score.Instrument -> Cmd.CmdL ()
-dealloc_instrument inst = do
-    config <- State.get_midi_config
-    let alloc = Instrument.config_alloc config
-    State.set_midi_config $ config
-        { Instrument.config_alloc = Map.delete inst alloc }
+dealloc_instrument inst = State.modify $
+    State.config # State.midi # Lens.map inst #= Nothing
 
 block_instruments :: BlockId -> Cmd.CmdL [Score.Instrument]
 block_instruments block_id = do
@@ -160,19 +190,21 @@ block_instruments block_id = do
 --
 -- TODO: won't work if there are >1 block, need a merge config
 -- TODO: same inst with different keyswitches should get the same addrs
-auto_config :: BlockId -> Cmd.CmdL Instrument.Config
+auto_config :: BlockId -> Cmd.CmdL Instrument.Configs
 auto_config block_id = do
     insts <- block_instruments block_id
     devs <- mapM device_of insts
     let no_dev = [inst | (inst, Nothing) <- zip insts devs]
         inst_devs = [(inst, dev) | (inst, Just dev) <- zip insts devs]
-        allocs = [(inst, [(dev, fromIntegral i)])
+        addrs =
+            [ (inst, [(dev, fromIntegral i)])
             | (dev, by_dev) <- Seq.keyed_group_on snd inst_devs
-            , (i, (inst, _dev)) <- Seq.enumerate by_dev]
+            , (i, (inst, _dev)) <- Seq.enumerate by_dev
+            ]
     unless (null no_dev) $
         Log.warn $ "no synth or midi device found for instruments: "
             ++ show no_dev
-    return $ Instrument.config allocs
+    return $ Instrument.configs addrs
 
 device_of :: Score.Instrument -> Cmd.CmdL (Maybe Midi.WriteDevice)
 device_of inst = do

@@ -8,7 +8,7 @@ UNSORTED
     save/bloom/ly/mvt2.ly:113:35: warning: barcheck failed at: 3/4
     \time 6/4 \key d \minor \clef bass
                                        R2. R2. | % 1
-  - Add a way to mute an instrument.  I can set the allocation to [], but then
+  * Add a way to mute an instrument.  I can set the allocation to [], but then
     I lose the old allocation, and it constantly warns about it.  I could also
     add solo.
   * move tracks messes up the skeleton:

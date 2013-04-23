@@ -117,7 +117,7 @@ perform_blocks blocks = (mmsgs, map show_log (filter interesting_log logs))
         (Derive.r_events result)
     result = derive_blocks blocks
 
-perform :: Convert.Lookup -> Instrument.Config -> Derive.Events
+perform :: Convert.Lookup -> Instrument.Configs -> Derive.Events
     -> ([Perform.Event], [Midi], [Log.Msg])
 perform lookup midi_config events =
     (fst (LEvent.partition perf_events), mmsgs, filter interesting_log logs)
@@ -128,7 +128,7 @@ perform lookup midi_config events =
 perform_defaults :: Derive.Events -> ([Perform.Event], [Midi], [Log.Msg])
 perform_defaults = perform default_convert_lookup default_midi_config
 
-perform_stream :: Convert.Lookup -> Instrument.Config -> Derive.Events
+perform_stream :: Convert.Lookup -> Instrument.Configs -> Derive.Events
     -> ([LEvent.LEvent Perform.Event], [LEvent.LEvent Midi])
 perform_stream lookup midi_config events = (perf_events, mmsgs)
     where
@@ -518,8 +518,7 @@ lookup_from_insts = make_convert_lookup . make_db . convert
 
 lookup_from_state :: State.State -> Convert.Lookup
 lookup_from_state state = lookup_from_insts $
-    Seq.drop_dups id $ Map.keys $ Instrument.config_alloc $
-    State.config#State.midi #$ state
+    Seq.drop_dups id $ Map.keys $ State.config#State.midi #$ state
 
 default_convert_lookup :: Convert.Lookup
 default_convert_lookup = make_convert_lookup default_db
@@ -530,7 +529,7 @@ default_db = make_db [("s", map make_patch ["1", "2"])]
 make_patch :: String -> Instrument.Patch
 make_patch name = Instrument.patch $ Instrument.instrument name [] (-2, 2)
 
-default_midi_config :: Instrument.Config
+default_midi_config :: Instrument.Configs
 default_midi_config = UiTest.midi_config [("s/1", [0..2]), ("s/2", [3])]
 
 default_inst_title :: String

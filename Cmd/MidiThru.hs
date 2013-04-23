@@ -78,7 +78,7 @@ cmd_midi_thru msg = do
         (Pretty.pretty scale_id ++ " doesn't have " ++ show input)
         =<< map_scale (Instrument.patch_scale patch) scale input
 
-    addrs <- Map.get [] score_inst <$> State.get_midi_alloc
+    addrs <- Instrument.get_addrs score_inst <$> State.get_midi_config
     wdev_state <- Cmd.get_wdev_state
     let (thru_msgs, maybe_wdev_state) =
             input_to_midi pb_range wdev_state addrs input
@@ -203,6 +203,5 @@ channel_messages maybe_inst first_addr msgs = do
 
 get_addrs :: (Cmd.M m) => Maybe Score.Instrument -> m [Addr]
 get_addrs maybe_inst = do
-    inst <- maybe (Cmd.require =<< EditUtil.lookup_instrument)
-        return maybe_inst
-    Map.get [] inst <$> State.get_midi_alloc
+    inst <- maybe (Cmd.require =<< EditUtil.lookup_instrument) return maybe_inst
+    Instrument.get_addrs inst <$> State.get_midi_config

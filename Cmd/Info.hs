@@ -150,8 +150,9 @@ get_default_instrument block_id track_id inst
 inst_info :: (Cmd.M m) => Score.Instrument -> m String
 inst_info inst = do
     maybe_info <- Cmd.lookup_instrument inst
-    alloc <- State.get_midi_alloc
-    let show_info = show_instrument_info (Map.findWithDefault [] inst alloc)
+    addrs <- maybe [] Instrument.config_addrs . Map.lookup inst <$>
+        State.get_midi_config
+    let show_info = show_instrument_info addrs
     return $ show_inst inst ++ ": " ++ maybe "<not found>" show_info maybe_info
 
 show_instrument_info :: [Instrument.Addr] -> Cmd.MidiInfo -> String
@@ -215,7 +216,8 @@ get_track_status block_id tracknum = do
     status block_id tree note_tracknum inst = do
         let controls = control_tracks_of tree note_tracknum
         track_descs <- show_track_status block_id controls
-        addrs <- Map.findWithDefault [] inst <$> State.get_midi_alloc
+        addrs <- maybe [] Instrument.config_addrs . Map.lookup inst <$>
+            State.get_midi_config
         let title = TrackInfo.instrument_to_title inst
         return $ Printf.printf "%s at %d: %s -- [%s]" (untxt title)
             note_tracknum (show_addrs addrs) (Seq.join ", " track_descs)

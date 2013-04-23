@@ -35,8 +35,8 @@ data Config = Config {
     -- a program with a more absolute notion of time, like a DAW.
     , config_root :: !(Maybe BlockId)
 
-    -- | This maps the midi instruments used in this State to their Addrs.
-    , config_midi :: !Instrument.Config
+    -- | This maps the midi instruments used in this State to their Configs.
+    , config_midi :: !Instrument.Configs
     -- | This is a tracklang transformer expression that's wrapped around every
     -- derivation.  So if it's @x = 1 | y = 2@ then the environment will be so
     -- modified for every derivation.

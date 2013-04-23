@@ -79,8 +79,8 @@ strings = ["e1", "a", "d", "g", "b", "e2"]
 
 -- | Create the proper midi config to work with the string attrs used by
 -- 'note_call'.
-midi_config :: String -> Instrument.InstrumentName -> Instrument.Config
-midi_config dev_name name = Instrument.config $
+midi_config :: String -> Instrument.InstrumentName -> Instrument.Configs
+midi_config dev_name name = Instrument.configs $
     inst name 0 : [inst (name <> "-" <> string) chan
         | (string, chan) <- zip strings [1..]]
     where

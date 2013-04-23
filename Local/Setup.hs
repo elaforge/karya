@@ -197,7 +197,7 @@ empty_block = do
     State.insert_events t_tempo $ map UiTest.make_event [(0, 0, "1")]
     return bid
 
-make_midi_config :: String -> [(String, [Midi.Channel])] -> Instrument.Config
-make_midi_config dev config = Instrument.config
+make_midi_config :: String -> [(String, [Midi.Channel])] -> Instrument.Configs
+make_midi_config dev config = Instrument.configs
     [(Score.Instrument inst, map mkaddr chans) | (inst, chans) <- config]
     where mkaddr chan = (Midi.write_device dev, chan)

@@ -23,7 +23,6 @@ import Control.DeepSeq
 import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
-import qualified Data.Monoid as Monoid
 import qualified Data.Set as Set
 import qualified Data.Vector.Unboxed as Vector
 
@@ -177,21 +176,48 @@ inst_decay = fromMaybe default_decay . inst_maybe_decay
 -- * config
 
 -- | Per-score instrument configuration.
-newtype Config = Config {
+type Configs = Map.Map Score.Instrument Config
+
+configs :: [(Score.Instrument, [Addr])] -> Configs
+configs inst_addrs = Map.fromList
+    [(inst, config addrs) | (inst, addrs) <- inst_addrs]
+
+get_addrs :: Score.Instrument -> Configs -> [Addr]
+get_addrs inst = maybe [] config_addrs . Map.lookup inst
+
+data Config = Config {
     -- | An instrument may have multiple addresses assigned to it, which means
     -- that it can be multiplexed across multiple channels.  In addition,
     -- multiple instruments can be allocated to overlapping addresses, which is
     -- how keyswitches work; each one is considered a separate instrument.  An
     -- instrument wishing to use an address will emit an appropriate message to
     -- configure it (probably a keyswitch, possibly a program change).
-    config_alloc :: Map.Map Score.Instrument [Addr]
-    } deriving (Monoid.Monoid, Eq, Read, Show)
+    config_addrs :: ![Addr]
+    -- | If true, this instrument is filtered out prior to playing.
+    , config_mute :: !Bool
+    -- | If any instrument is soloed, all instruments except soloed ones are
+    -- filtered out prior to playing.
+    , config_solo :: !Bool
+    } deriving (Eq, Show, Read)
 
-config :: [(Score.Instrument, [Addr])] -> Config
-config alloc = Config (Map.fromList alloc)
+addrs = Lens.lens config_addrs (\v r -> r { config_addrs = v })
+mute = Lens.lens config_mute (\v r -> r { config_mute = v })
+solo = Lens.lens config_solo (\v r -> r { config_solo = v })
+
+config :: [Addr] -> Config
+config addrs = Config
+    { config_addrs = addrs
+    , config_mute = False
+    , config_solo = False
+    }
 
 instance Pretty.Pretty Config where
-    format (Config alloc) = Pretty.format alloc
+    format (Config addrs mute solo) =
+        Pretty.record_title "Config"
+            [ ("addrs", Pretty.format addrs)
+            , ("mute", Pretty.format mute)
+            , ("solo", Pretty.format solo)
+            ]
 
 -- | Midi instruments are addressed by a (device, channel) pair, allocated in
 -- 'Config'.

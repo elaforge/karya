@@ -19,6 +19,7 @@ import qualified Derive.Stack as Stack
 import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.Midi.Convert as Convert
+import qualified Perform.Midi.Instrument as Instrument
 import qualified Perform.Midi.Perform as Perform
 import qualified Perform.Pitch as Pitch
 import qualified Perform.RealTime as RealTime
@@ -154,8 +155,8 @@ events_from start_ events
 -- a track on one block, other blocks will still play.
 --
 -- Solo always takes priority over Mute.
-filter_muted :: [(BlockId, Block.Block)] -> Derive.Events -> Derive.Events
-filter_muted blocks
+filter_track_muted :: [(BlockId, Block.Block)] -> Derive.Events -> Derive.Events
+filter_track_muted blocks
     | not (Set.null soloed) = filter (LEvent.log_or track_soloed)
     | not (Set.null muted) =
         filter (LEvent.log_or $ not . stack_contains muted)
@@ -189,13 +190,29 @@ filter_muted blocks
             (Block.block_tracks block)
         ]
 
+-- | Similar to the Solo and Mute track flags, individual instruments can be
+-- soloed or muted.
+filter_instrument_muted :: Instrument.Configs -> Derive.Events -> Derive.Events
+filter_instrument_muted configs
+    | not (Set.null soloed) = filter $
+        LEvent.log_or $ (`Set.member` soloed) . Score.event_instrument
+    | not (Set.null muted) = filter $
+        LEvent.log_or $ (`Set.notMember` muted) . Score.event_instrument
+    | otherwise = id
+    where
+    soloed = Set.fromList $ map fst $ filter (Instrument.config_solo . snd) $
+        Map.toList configs
+    muted = Set.fromList $ map fst $ filter (Instrument.config_mute . snd) $
+        Map.toList configs
+
 perform_events :: (Cmd.M m) => Derive.Events -> m Perform.MidiEvents
 perform_events events = do
     midi_config <- State.get_midi_config
     lookup <- get_convert_lookup
     blocks <- State.gets (Map.toList . State.state_blocks)
     return $ fst $ Perform.perform Perform.initial_state midi_config $
-        Convert.convert lookup (filter_muted blocks events)
+        Convert.convert lookup $ filter_track_muted blocks $
+        filter_instrument_muted midi_config events
 
 get_convert_lookup :: (Cmd.M m) => m Convert.Lookup
 get_convert_lookup = do

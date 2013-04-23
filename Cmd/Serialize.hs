@@ -143,14 +143,16 @@ instance Serialize State.State where
             _ -> Serialize.bad_version "State.State" v
 
 instance Serialize State.Config where
-    put (State.Config a b c d e f g h) = Serialize.put_version 6
-        >> put a >> put b >> put c >> put d >> put e >> put f >> put g >> put h
+    put (State.Config ns meta root midi transform instruments lilypond defaults)
+        =  Serialize.put_version 6
+            >> put ns >> put meta >> put root >> put (Configs midi)
+            >> put transform >> put instruments >> put lilypond >> put defaults
     get = Serialize.get_version >>= \v -> case v of
         0 -> do
             ns :: Id.Namespace <- get
             _dir :: String <- get
             root :: Maybe BlockId <- get
-            midi :: Instrument.Config <- get
+            Configs midi :: Configs <- get
             defaults :: State.Default <- get
             return $ State.Config ns State.empty_meta root midi "" mempty
                 Lilypond.default_config defaults
@@ -158,7 +160,7 @@ instance Serialize State.Config where
             ns :: Id.Namespace <- get
             _dir :: String <- get
             root :: Maybe BlockId <- get
-            midi :: Instrument.Config <- get
+            Configs midi :: Configs <- get
             transform :: String <- get
             defaults :: State.Default <- get
             return $ State.Config ns State.empty_meta root midi
@@ -168,7 +170,7 @@ instance Serialize State.Config where
             _dir :: String <- get
             meta :: State.Meta <- get
             root :: Maybe BlockId <- get
-            midi :: Instrument.Config <- get
+            Configs midi :: Configs <- get
             transform :: String <- get
             defaults :: State.Default <- get
             return $ State.Config ns meta root midi (txt transform) mempty
@@ -177,7 +179,7 @@ instance Serialize State.Config where
             ns :: Id.Namespace <- get
             meta :: State.Meta <- get
             root :: Maybe BlockId <- get
-            midi :: Instrument.Config <- get
+            Configs midi :: Configs <- get
             transform :: String <- get
             defaults :: State.Default <- get
             return $ State.Config ns meta root midi (txt transform) mempty
@@ -186,7 +188,7 @@ instance Serialize State.Config where
             ns :: Id.Namespace <- get
             meta :: State.Meta <- get
             root :: Maybe BlockId <- get
-            midi :: Instrument.Config <- get
+            Configs midi :: Configs <- get
             transform :: String <- get
             instruments :: Map.Map Score.Instrument Score.Instrument <- get
             defaults :: State.Default <- get
@@ -196,7 +198,7 @@ instance Serialize State.Config where
             ns :: Id.Namespace <- get
             meta :: State.Meta <- get
             root :: Maybe BlockId <- get
-            midi :: Instrument.Config <- get
+            Configs midi :: Configs <- get
             transform :: String <- get
             instruments :: Map.Map Score.Instrument Score.Instrument <- get
             lilypond :: Lilypond.Config <- get
@@ -207,7 +209,7 @@ instance Serialize State.Config where
             ns :: Id.Namespace <- get
             meta :: State.Meta <- get
             root :: Maybe BlockId <- get
-            midi :: Instrument.Config <- get
+            Configs midi :: Configs <- get
             transform :: Text <- get
             instruments :: Map.Map Score.Instrument Score.Instrument <- get
             lilypond :: Lilypond.Config <- get
@@ -521,14 +523,33 @@ instance Serialize Track.RenderStyle where
 
 -- ** Midi.Instrument
 
-instance Serialize Instrument.Config where
-    put (Instrument.Config a) = Serialize.put_version 3 >> put a
+-- | It's a type synonym, but Serialize needs a newtype.
+newtype Configs = Configs Instrument.Configs
+
+instance Serialize Configs where
+    put (Configs a) = Serialize.put_version 4 >> put a
     get = do
         v <- Serialize.get_version
         case v of
             3 -> do
                 alloc :: Map.Map Score.Instrument [Instrument.Addr] <- get
-                return $ Instrument.Config alloc
+                return $ Configs $ Instrument.configs $ Map.toList alloc
+            4 -> do
+                insts :: Map.Map Score.Instrument Instrument.Config <- get
+                return $ Configs insts
+            _ -> Serialize.bad_version "Instrument.Configs" v
+
+instance Serialize Instrument.Config where
+    put (Instrument.Config a b c) = Serialize.put_version 0
+        >> put a >> put b >> put c
+    get = do
+        v <- Serialize.get_version
+        case v of
+            0 -> do
+                addrs :: [Instrument.Addr] <- get
+                mute :: Bool <- get
+                solo :: Bool <- get
+                return $ Instrument.Config addrs mute solo
             _ -> Serialize.bad_version "Instrument.Config" v
 
 instance Serialize Score.Instrument where

@@ -430,7 +430,7 @@ note_key (Midi.ChannelMessage _ (Midi.NoteOn key _)) = Just (True, key)
 note_key (Midi.ChannelMessage _ (Midi.NoteOff key _)) = Just (False, key)
 note_key _ = Nothing
 
-perform :: Instrument.Config -> [Perform.Event]
+perform :: Instrument.Configs -> [Perform.Event]
     -> ([Midi.WriteMessage], [String])
 perform midi_config = split_logs . fst
     . Perform.perform Perform.initial_state midi_config . map LEvent.Event
@@ -491,9 +491,8 @@ test_perform_control = do
 
 -- test the overlap map and channel allocation
 test_channelize = do
-    let inst_addrs = Instrument.config_alloc midi_config2
-        pevent (start, dur, psig) = mkpevent (start, dur, psig, [])
-        f = map snd . channelize inst_addrs . map pevent
+    let pevent (start, dur, psig) = mkpevent (start, dur, psig, [])
+        f = map snd . channelize (inst_addrs midi_config2) . map pevent
 
     -- Re-use channels when the pitch is different, but don't when it's the
     -- same.
@@ -531,7 +530,7 @@ test_channelize = do
         [0, 0]
 
     -- don't bother channelizing if the inst only has one addr
-    equal (map snd $ channelize inst_addrs $ mkevents
+    equal (map snd $ channelize (inst_addrs midi_config2) $ mkevents
         [ (inst2, "a", 0, 2, [])
         , (inst2, "a2", 1, 2, [])
         ])
@@ -623,9 +622,8 @@ test_allot = do
     let mk inst chan start = (mkevent (inst, "a", start, 1, []), chan)
         mk1 = mk inst1
         in_time mks = zipWith ($) mks (Seq.range_ 0 1)
-        inst_addrs = Instrument.config_alloc midi_config1
         allot_chans events = map (snd . snd) $ fst $ LEvent.partition $
-            allot inst_addrs events
+            allot midi_config1 events
 
     -- They should alternate channels, according to LRU.
     equal (allot_chans (in_time [mk1 0, mk1 1, mk1 2, mk1 3]))
@@ -640,12 +638,11 @@ test_allot = do
         [0, 1]
 
 test_allot_warn = do
-    let inst_addrs = Instrument.config_alloc midi_config1
     let extract (LEvent.Event (e, (dev, chan))) = Left
             (Instrument.inst_name (Perform.event_instrument e),
                 Pretty.pretty dev, chan)
         extract (LEvent.Log msg) = Right $ DeriveTest.show_log msg
-    let f = map extract . allot inst_addrs
+    let f = map extract . allot midi_config1
             . map (\(evt, chan) -> (mkevent evt, chan))
     let no_inst = mkinst "no_inst"
     equal (f [((inst1, "a", 0, 1, []), 0)])
@@ -653,12 +650,16 @@ test_allot_warn = do
     equal (f [((no_inst, "a", 0, 1, []), 0), ((no_inst, "b", 1, 2, []), 0)])
         (replicate 2 $ Right "Perform: no allocation for >synth1/no_inst")
 
-allot :: Perform.InstAddrs -> [(Perform.Event, Perform.Channel)]
+allot :: Instrument.Configs -> [(Perform.Event, Perform.Channel)]
     -> [LEvent.LEvent (Perform.Event, Instrument.Addr)]
-allot inst_addrs events = fst $
-    Perform.allot Perform.empty_allot_state inst_addrs (map LEvent.Event events)
+allot configs events = fst $
+    Perform.allot Perform.empty_allot_state (inst_addrs configs)
+        (map LEvent.Event events)
 
 -- * setup
+
+inst_addrs :: Instrument.Configs -> Perform.InstAddrs
+inst_addrs = Map.map Instrument.config_addrs
 
 secs :: Double -> RealTime
 secs = RealTime.seconds
@@ -722,10 +723,11 @@ mkinst name = (Instrument.instrument name [] (-1, 1))
 dev1 = Midi.write_device "dev1"
 dev2 = Midi.write_device "dev2"
 synth1 = Instrument.synth "synth1" []
-midi_config1 = Instrument.config
+midi_config1 = Instrument.configs
     [(Instrument.inst_score inst1, [(dev1, 0), (dev1, 1)])]
 
 -- Also includes inst2.
-midi_config2 = Instrument.config
+midi_config2 = Instrument.configs
     [ (Instrument.inst_score inst1, [(dev1, 0), (dev1, 1)])
-    , (Instrument.inst_score inst2, [(dev2, 2)]) ]
+    , (Instrument.inst_score inst2, [(dev2, 2)])
+    ]
