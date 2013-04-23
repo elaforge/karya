@@ -136,14 +136,12 @@ time_to_dur time = (dur, time - dur_to_time dur)
     log2 = floor . logBase 2 . fromIntegral
 
 time_to_durs :: Time -> [Duration]
-time_to_durs (Time time) =
-    map fst $ filter ((/=0) . snd) $ reverse $ zip durs (binary time)
+time_to_durs time = go D1 time
     where
-    durs = [D128, D64 ..]
-    binary rest
-        | rest > 0 = m : binary d
-        | otherwise = []
-        where (d, m) = rest `divMod` 2
+    go dur time
+        | time >= dur_to_time dur = dur : go dur (time - dur_to_time dur)
+        | dur == D128 = []
+        | otherwise = go (succ dur) time
 
 -- * NoteDuration
 
