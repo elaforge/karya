@@ -393,6 +393,7 @@ chunked n xs = case splitAt n xs of
 -- | Take a list of rows to a list of columns.  Similar to zip, the result is
 -- trimmed to the length of the shortest row.
 rotate :: [[a]] -> [[a]]
+rotate [] = []
 rotate xs = maybe [] (: rotate (map List.tail xs)) (mapM head xs)
 
 -- | Similar to 'rotate', except that the result is the length of the longest
