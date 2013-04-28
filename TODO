@@ -421,9 +421,10 @@ integrate / integration:
   - quantization
 
 lilypond:
+  - bloom, mvt2, mm31: grace links to wrong note
   * rename voice to v, rename hand to h?
     hand is usually in titles, and h seems too obscure
-  - omit the voice division as long as there is only one voice
+  * omit the voice division as long as there is only one voice
   * support for mordent
   - one track has voice, the other doesn't, causes a "can't advance time
     backward" error
@@ -1140,7 +1141,7 @@ pitch / scales
       tricky since I have to extract a "principle pitch" from each event,
       but it might be useful in general to have an analysis framework.
   fancier pitch signals:
-    - to_relatve: This needs Note - Note = Semis.  I think I could just add
+    - to_relative: This needs Note - Note = Semis.  I think I could just add
       a field in Scale, but I'm not totally sure I really want this.
     - Cmd.Lang.LPitch.to_relative: I would need to implement Scale.scale_diff
       but I'm reluctant until I need to_relative or something similar

@@ -34,18 +34,22 @@ type Output = Either Process.Voices Process.Ly
 -- | Assume 4/4 and no voices.
 process_simple :: [String] -- ^ only include these lilypond backslash commands
     -> [Types.Event] -> Either String String
-process_simple wanted events =
-    extract_simple wanted $ process meters events
+process_simple wanted events = extract_simple wanted $ process events
+
+extract_rights :: (Show a) => [Either a String] -> String
+extract_rights = unwords . map (expect_right "expected only ly")
+
+process :: [Types.Event] -> Either String [Output]
+process events =
+    Process.process Types.default_config 0 (map mkmeter meters) events
     where
     end = fromMaybe 0 $ Seq.maximum $ map Types.event_end events
     bars = ceiling (time_to_wholes end)
     meters = replicate bars "4/4"
 
-extract_rights :: (Show a) => [Either a String] -> String
-extract_rights = unwords . map (expect_right "expected only ly")
-
-process :: [String] -> [Types.Event] -> Either String [Output]
-process meters = Process.process Types.default_config 0 (map mkmeter meters)
+process_meters :: [String] -> [Types.Event] -> Either String [Output]
+process_meters meters =
+    Process.process Types.default_config 0 (map mkmeter meters)
 
 -- * extract
 
@@ -80,6 +84,14 @@ extract_lys wanted = fmap $ map to_str . filter is_wanted . split_barlines
     split_ly ly = [ly]
     split_voices (Process.Voices voices) = Process.Voices $
         map (second (concatMap split_ly)) voices
+
+unwords_right :: [Either a String] -> [Either a String]
+unwords_right = go
+    where
+    go [] = []
+    go (Right x : xs) = Right (unwords (x:pre)) : go post
+        where (pre, post) = Seq.span_while (either (const Nothing) Just) xs
+    go (Left x : xs) = Left x : go xs
 
 -- * make data
 

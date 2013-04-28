@@ -32,7 +32,7 @@ test_rests_until = do
 
 test_process = do
     let f wanted meters = LilypondTest.extract_simple wanted
-            . LilypondTest.process meters . map LilypondTest.simple_event
+            . LilypondTest.process_meters meters . map LilypondTest.simple_event
         simple = LilypondTest.process_simple [] . map LilypondTest.simple_event
 
     equal (simple [(1, 1, "a"), (2, 8, "b")]) $
@@ -68,13 +68,13 @@ test_process = do
 
 test_meters = do
     let f wanted meters = LilypondTest.extract_simple wanted
-            . LilypondTest.process meters . map LilypondTest.simple_event
+            . LilypondTest.process_meters meters . map LilypondTest.simple_event
     equal (f ["time", "bar"] ["4/4", "3/4", "4/4"] []) $
         Right "\\time 4/4 R4*4 | \\time 3/4 R4*3 | \\time 4/4 R4*4 \\bar \"|.\""
 
 test_dotted_rests = do
     let f meter = LilypondTest.extract_simple []
-            . LilypondTest.process [meter]
+            . LilypondTest.process_meters [meter]
             . map LilypondTest.simple_event
     -- Rests are allowed to be dotted when the meter isn't duple.
     equal (f "3+3/8" [(1.5, 0.5, "a")]) $ Right "r4. a8 r4"
@@ -117,9 +117,9 @@ test_code_events = do
     equal (f [(0, 1, "a", []), (2, 1, "", append), (4, 1, "b", [])])
         (Right "a4 r4 b r4 | b4 r4 r2")
 
-test_process_voices = do
+test_voices = do
     let f wanted meters = LilypondTest.extract_lys (Just wanted)
-            . LilypondTest.process meters
+            . LilypondTest.process_meters meters
             . map LilypondTest.voice_event
 
     equal (f [] ["4/4"]
@@ -148,22 +148,53 @@ test_process_voices = do
 
     -- Changing meter in the middle works.
     equal (f ["time"] ["2/4", "4/4"]
-            [(0, 1, "a", Nothing), (1, 3, "b", Just 1)]) $
+            [(0, 4, "a", Just 2), (0, 4, "b", Just 1)]) $
         Right
-            [ Right "\\time 2/4", Right "a4"
-            , Left [(VoiceOne, "b4~ | \\time 4/4 b2")]
+            [ Right "\\time 2/4"
+            , Left
+                [ (VoiceOne, "b2~ | \\time 4/4 b2")
+                , (VoiceTwo, "a2~ | \\time 4/4 a2")
+                ]
             , Right "r2"
             ]
 
+test_simplify_voices = do
+    let f = fmap LilypondTest.unwords_right . LilypondTest.extract_lys (Just [])
+            . LilypondTest.process . map LilypondTest.voice_event
+    -- No voices.
+    equal (f [(0, 4, "a", Nothing)]) $
+        Right [Right "a1"]
+    -- Simple voices.
+    equal (f [(0, 4, "a", Just 1), (0, 4, "b", Just 2)]) $
+        Right [Left [(VoiceOne, "a1"), (VoiceTwo, "b1")]]
+    -- Just one voice is omitted entirely.
+    equal (f [(0, 2, "a", Just 1), (8, 4, "b", Just 1)]) $
+        Right [Right "a2 r2 | R4*4 | b1"]
+    -- Empty measures are stripped, and the single voice is then flattened.
+    equal (f [(0, 2, "a", Just 1), (8, 4, "b", Just 1), (8, 4, "c", Just 2)]) $
+        Right
+            [ Right "a2 r2 | R4*4 |"
+            , Left [(VoiceOne, "b1"), (VoiceTwo, "c1")]
+            ]
+    -- Filter out non-present voices.
+    equal (f
+            [ (0, 4, "a", Just 1), (0, 4, "b", Just 2), (0, 4, "c", Just 3)
+            , (4, 4, "d", Just 1), (4, 4, "e", Just 2)
+            ]) $
+        Right
+            [ Left [(VoiceOne, "a1 |"), (VoiceTwo, "b1 |")
+                , (VoiceThree, "c1 |")]
+            , Left [(VoiceOne, "d1"), (VoiceTwo, "e1")]
+            ]
+
 test_voices_and_code = do
-    let f wanted meters = LilypondTest.extract_lys (Just wanted)
-            . LilypondTest.process meters
-            . map LilypondTest.environ_event
+    let f wanted = LilypondTest.extract_lys (Just wanted)
+            . LilypondTest.process . map LilypondTest.environ_event
         v n = (Constants.v_voice, TrackLang.num n)
         append text = (Constants.v_ly_append_all, TrackLang.str text)
 
     -- Code events are assigned to the first voice.
-    equal (f ["mf"] ["4/4"]
+    equal (f ["mf"]
             [ (0, 0, "", [append "\\mf"])
             , (0, 1, "b", [v 1])
             , (0, 1, "c", [v 2])
@@ -174,7 +205,7 @@ test_voices_and_code = do
             ]
 
     -- But code afterwards doesn't get included.
-    equal (f ["mf"] ["4/4"]
+    equal (f ["mf"]
             [ (0, 1, "b", [v 1])
             , (0, 1, "c", [v 2])
             , (1, 0, "", [append "\\mf"])
