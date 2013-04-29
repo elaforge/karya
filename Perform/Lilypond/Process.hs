@@ -89,8 +89,7 @@ convert = run_process trailing_rests go
     go :: [Event] -> ConvertM ([VoiceLy], [Event])
     go [] = return ([], [])
     go events = do
-        (voices, events) <- either throw return $ collect_voices events
-        voices <- simplify_voices <$> convert_voices voices
+        (voices, events) <- convert_voices events
         (lys, remaining) <- convert_chunk events
         return (voices ++ map Right lys, remaining)
     trailing_rests = do
@@ -141,17 +140,39 @@ convert_chunk events = error_context current $ case zero_dur_in_rest events of
 -- represented explicitly be events as notes are, I have to first generate the
 -- notes, and then mix in the code afterwards.
 mix_in_code :: Time -> [Event] -> [Ly] -> [Ly]
-mix_in_code start dur0 lys = go dur0 $ zip (ly_start_times start lys) lys
+mix_in_code start code lys = go code $ with_starts start lys
     where
-    go events [] = prepend ++ append
-        where (prepend, append) = partition_code events
-    go events ((start, LyRest note) : lys) =
-        prepend ++ LyRest note : append ++ go rest lys
+    go code [] = prepend ++ append
+        where (prepend, append) = partition_code code
+    go code ((start, ly) : lys) = applied ++ go rest_code lys
+        where (applied, rest_code) = apply_code start code ly
+
+-- | This is the same thing as 'mix_in_code', except it has to mix code into
+-- [VoiceLy], which is more complicated.  The duplicated logic is pretty
+-- unfortunate but I couldn't think of a way to get rid of it.  See
+-- 'collect_voices' for more information.
+mix_in_code_voices :: Time -> [Event] -> [VoiceLy] -> [VoiceLy]
+mix_in_code_voices start code lys = go code start lys
+    where
+    go code _ [] = map Right $ prepend ++ append
+        where (prepend, append) = partition_code code
+    go code start (Right ly : lys) =
+        map Right applied ++ go rest_code (ly_duration ly + start) lys
+        where (applied, rest_code) = apply_code start code ly
+    go code start (Left (Voices []) : rest) = go code start rest
+    go code start (Left (Voices ((voice, lys) : voices)) : rest) =
+        Left (Voices $ (voice, mixed) : voices) : go post end rest
         where
-        (prepend, append) = partition_code overlapping
-        (overlapping, rest) = span ((< note_end note) . event_start) events
-        note_end = (+start) . rest_time
-    go events ((_, ly) : lys) = ly : go events lys
+        (pre, post) = span ((<end) . event_start) code
+        end = start + sum (map ly_duration lys)
+        mixed = mix_in_code start pre lys
+
+apply_code :: Time -> [Event] -> Ly -> ([Ly], [Event])
+apply_code start code ly = (prepend ++ ly : append, post)
+    where
+    (prepend, append) = partition_code pre
+    (pre, post) = span ((<end) . event_start) code
+    end = ly_duration ly + start
 
 partition_code :: [Event] -> ([Ly], [Ly])
 partition_code events = (map Code prepend, map Code append)
@@ -298,97 +319,29 @@ make_note measure_start prev_attrs meter events next = (ly, end, clipped)
 -- so list it is.
 type VoiceMap a = [(Voice, [a])]
 
--- | Like 'convert', but converts within a voice, which means no nested voices
--- are expected.
-convert_voices :: VoiceMap Event -> ConvertM (VoiceMap Ly)
-convert_voices [] = return []
-convert_voices voices = do
-    state <- State.get
-    let max_dur = fromMaybe (state_measure_start state) $ Seq.maximum $
-            mapMaybe (Seq.maximum . map event_end . snd) voices
-    (states, voice_lys) <- unzip <$> mapM (convert max_dur state) voices
-    -- Since I pad with rests to the longest voice, I also want the State from
-    -- that one.
-    when_just (Seq.maximum_on state_time states) State.put
-    return voice_lys
-    where
-    convert max_dur state (v, events) = do
-        (measures, final_state) <- either throw return $
-            run_convert state (convert_voice max_dur events)
-        return (final_state, (v, measures))
+convert_voices :: [Event] -> ConvertM ([VoiceLy], [Event])
+convert_voices [] = return ([], [])
+convert_voices events@(event:_) = do
+    (voices, code, events) <- either throw return $ collect_voices events
+    voices <- mix_in_code_voices (event_start event) code . simplify_voices <$>
+        voices_to_ly voices
+    return (voices, events)
 
--- | If a whole measure of a voice is empty, omit the voice for that measure.
---
--- Previously, I tried a more fine-grained approach, documented in
--- 'span_voices'.  This way is more complicated because it has to operate on
--- Lys since it needs to know where the measure boundaries are, but gives much
--- better results.
-simplify_voices :: VoiceMap Ly -> [VoiceLy]
-simplify_voices voices =
-    concatMap (flatten . strip) $ split_voices_at rest_starts voices
-    where
-    rest_starts = Seq.drop_dups id $ Seq.merge_lists id $
-        concatMap (rests_at . snd) voices
-    rests_at lys =
-        [ [start, start + ly_duration ly]
-        | (start, ly) <- with_starts lys, full_measure_rest ly
-        ]
-    with_starts lys = zip (ly_start_times 0 lys) lys
-    full_measure_rest (LyRest (Rest { rest_type = FullMeasure {} })) = True
-    full_measure_rest _ = False
-
-    -- Split voices every place any of them has a full measure rest.
-    -- [(1, xs), (2, ys)] -> [(1, x), (2, y)], [(1, x), (2, y)]
-    -- [(1, xs), (2, ys)] -> [(1, [xs]), (2, [ys])]
-    -- Strip out voices that consist entirely of rests, keeping at least one.
-    strip voices = case filter (not . rest_measure . snd) voices of
-            [] -> take 1 voices
-            voices -> voices
-        where rest_measure = all (\ly -> full_measure_rest ly || ly_duration ly == 0)
-    flatten :: VoiceMap Ly -> [VoiceLy]
-    flatten [] = []
-    flatten [(_, lys)] = map Right lys
-    flatten voices = [Left (Voices voices)]
-
-split_voices_at :: [Time] -> VoiceMap Ly -> [VoiceMap Ly]
-split_voices_at ts = rotate . map (second (split_at ts))
-    where
-    -- This is really hard for me to understand, but I don't need to because
-    -- the types work out :)
-    -- [(1, [x, y]), (2, [a, b])] -> [[(1, x), (2, a)], [(1, y), (2, b)]]
-    -- split_at should produce a [Ly] group for every split Time, but if it
-    -- doesn't the rotate will drop all the other voices.
-    rotate :: VoiceMap [Ly] -> [VoiceMap Ly]
-    rotate voice_groups = map (zip voices) (Seq.rotate lys)
-        where (voices, lys) = unzip voice_groups
-    -- Ly times should always line up at measure boundaries, and the split
-    -- times should all be at measure boundaries.  So this should return one
-    -- [Ly] for each Time.
-    split_at :: [Time] -> [Ly] -> [[Ly]]
-    split_at times lys = go times $ zip (drop 1 $ ly_start_times 0 lys) lys
-        where
-        go _ [] = []
-        go [] rest = [map snd rest]
-        go (t:ts) lys = map snd pre : go ts post
-            where (pre, post) = span ((<=t) . fst) lys
-
--- | drop 1 for end times.
-ly_start_times :: Time -> [Ly] -> [Time]
-ly_start_times start = scanl (+) start . map ly_duration
+-- ** collect_voices
 
 -- | Span events until they don't have a 'Constants.v_voice' val.
-collect_voices :: [Event] -> Either String (VoiceMap Event, [Event])
+--
+-- I used to mix the code into the first voice here, but 'simplify_voices' may
+-- then get rid of it.  So return the code events and mix them in after
+-- simplification.
+collect_voices :: [Event] -> Either String (VoiceMap Event, [Event], [Event])
 collect_voices events = do
     let (spanned, rest) = span_voices events
         (code, with_voice) = Seq.partition_either spanned
     with_voice <- mapM check_type with_voice
     return $ case map (second (map snd)) $ Seq.keyed_group_on fst with_voice of
-        [] -> ([], events)
-        -- Code events get mixed into the first voice.  It probably doesn't
-        -- matter what voice they go into.
-        (voice, events) : voices ->
-            let merged = Seq.merge_on event_start code events
-            in ((voice, merged) : voices, rest)
+        [] -> ([], [], events)
+        voices -> (voices, code, rest)
     where
     check_type (Right num, event) = do
         voice <- maybe (Left $ "voice should be 1--4: " ++ show num) Right $
@@ -419,6 +372,90 @@ span_voices events
     -- because it would turn any two voices with the same duration notes into
     -- a chord.  So now I simplify voices only at the measure level, in
     -- 'simplify_voices'.
+
+-- ** voices_to_ly
+
+-- | Like 'convert', but converts within a voice, which means no nested voices
+-- are expected.
+voices_to_ly :: VoiceMap Event -> ConvertM (VoiceMap Ly)
+voices_to_ly [] = return []
+voices_to_ly voices = do
+    state <- State.get
+    let max_dur = fromMaybe (state_measure_start state) $ Seq.maximum $
+            mapMaybe (Seq.maximum . map event_end . snd) voices
+    (states, voice_lys) <- unzip <$> mapM (convert max_dur state) voices
+    -- Since I pad with rests to the longest voice, I also want the State from
+    -- that one.
+    when_just (Seq.maximum_on state_time states) State.put
+    return voice_lys
+    where
+    convert max_dur state (v, events) = do
+        (measures, final_state) <- either throw return $
+            run_convert state (convert_voice max_dur events)
+        return (final_state, (v, measures))
+
+-- | If a whole measure of a voice is empty, omit the voice for that measure.
+--
+-- Previously, I tried a more fine-grained approach, documented in
+-- 'span_voices'.  This way is more complicated because it has to operate on
+-- Lys since it needs to know where the measure boundaries are, but gives much
+-- better results.
+simplify_voices :: VoiceMap Ly -> [VoiceLy]
+simplify_voices voices =
+    concatMap (flatten . strip) $ split_voices_at rest_starts voices
+    where
+    rest_starts = Seq.drop_dups id $ Seq.merge_lists id $
+        concatMap (rests_at . snd) voices
+    rests_at lys =
+        [ [start, start + ly_duration ly]
+        | (start, ly) <- with_starts 0 lys, full_measure_rest ly
+        ]
+    full_measure_rest (LyRest (Rest { rest_type = FullMeasure {} })) = True
+    full_measure_rest _ = False
+
+    -- Strip out voices that consist entirely of rests, keeping at least one.
+    strip voices = case filter (not . rest_measure . snd) voices of
+            [] -> take 1 voices
+            voices -> voices
+        where
+        rest_measure = all (\ly -> full_measure_rest ly || ly_duration ly == 0)
+    flatten :: VoiceMap Ly -> [VoiceLy]
+    flatten [] = []
+    flatten [(_, lys)] = map Right lys
+    flatten voices = [Left (Voices voices)]
+
+-- | Split voices every place any of them has a full measure rest.
+--
+-- > [(1, xs), (2, ys)] -> [(1, x), (2, y)], [(1, x), (2, y)]
+-- > [(1, xs), (2, ys)] -> [(1, [xs]), (2, [ys])]
+split_voices_at :: [Time] -> VoiceMap Ly -> [VoiceMap Ly]
+split_voices_at ts = rotate . map (second (split_at ts))
+    where
+    -- This is really hard for me to understand, but I don't need to because
+    -- the types work out :)
+    -- [(1, [x, y]), (2, [a, b])] -> [[(1, x), (2, a)], [(1, y), (2, b)]]
+    -- split_at should produce a [Ly] group for every split Time, but if it
+    -- doesn't the rotate will drop all the other voices.
+    rotate :: VoiceMap [Ly] -> [VoiceMap Ly]
+    rotate voice_groups = map (zip voices) (Seq.rotate lys)
+        where (voices, lys) = unzip voice_groups
+    -- Ly times should always line up at measure boundaries, and the split
+    -- times should all be at measure boundaries.  So this should return one
+    -- [Ly] for each Time.
+    split_at :: [Time] -> [Ly] -> [[Ly]]
+    split_at times lys = go times $ zip (drop 1 $ ly_start_times 0 lys) lys
+        where
+        go _ [] = []
+        go [] rest = [map snd rest]
+        go (t:ts) lys = map snd pre : go ts post
+            where (pre, post) = span ((<=t) . fst) lys
+
+with_starts :: Time -> [Ly] -> [(Time, Ly)]
+with_starts start lys = zip (ly_start_times start lys) lys
+
+-- | drop 1 for end times.
+ly_start_times :: Time -> [Ly] -> [Time]
+ly_start_times start = scanl (+) start . map ly_duration
 
 -- * misc
 

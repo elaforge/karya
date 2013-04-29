@@ -60,7 +60,8 @@ extract_lys :: Maybe [String]
     -- ^ if Just, only include these lilypond backslash commands
     -> Either String [Output]
     -> Either String [Either [(Process.Voice, String)] String]
-extract_lys wanted = fmap $ map to_str . filter is_wanted . split_barlines
+extract_lys wanted =
+    fmap $ unwords_right . map to_str . filter is_wanted . split_barlines
     where
     to_str = either (Left . show_voices) (Right . untxt . Types.to_lily)
     show_voices (Process.Voices voices) =

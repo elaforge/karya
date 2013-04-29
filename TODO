@@ -421,6 +421,9 @@ integrate / integration:
   - quantization
 
 lilypond:
+  - KeyChange -> Code
+  * code is mixed into the first voice, but is then lost if voice
+    simplification elides that voice
   - bloom, mvt2, mm31: grace links to wrong note
   * rename voice to v, rename hand to h?
     hand is usually in titles, and h seems too obscure

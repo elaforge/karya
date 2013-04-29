@@ -128,7 +128,7 @@ test_voices = do
             , (2, 1, "d", Nothing)
             ]) $
         Right [Right "a4", Left [(VoiceOne, "b4"), (VoiceTwo, "c4")],
-            Right "d4", Right "r4"]
+            Right "d4 r4"]
     -- Voices padded out to the longest one.
     equal (f [] ["4/4"]
             [(0, 2, "b", Just 1), (0, 1, "c", Just 2)]) $
@@ -201,7 +201,7 @@ test_voices_and_code = do
             ]) $
         Right
             [ Left [(VoiceOne, "b4 \\mf"), (VoiceTwo, "c4")]
-            , Right "r4", Right "r2"
+            , Right "r4 r2"
             ]
 
     -- But code afterwards doesn't get included.
@@ -213,5 +213,13 @@ test_voices_and_code = do
             ]) $
         Right
             [ Left [(VoiceOne, "b4"), (VoiceTwo, "c4")]
-            , Right "d4", Right "\\mf", Right "r2"
+            , Right "d4 \\mf r2"
             ]
+
+    -- Code isn't lost if the voice is simplified away.
+    equal (f ["mf"]
+            [ (0, 0, "", [append "\\mf"])
+            , (0, 4, "a", [v 2])
+            , (4, 4, "b", [v 1])
+            ]) $
+        Right [Right "a1 \\mf | b1"]
