@@ -97,7 +97,14 @@ test_grace_ly = do
         [ (">", [(0, 2, "g (4a) (4b)"), (2, 2, "g (3a)")])
         , ("*", [(0, 0, "4c"), (2, 0, "4b")])
         ])
-        (Right "\\acciaccatura { a'8[ b'8] } c'2 \\acciaccatura { a8 } b'2",
+        (Right "\\acciaccatura { a'8[ b'8] } c'2 \\acciaccatura { a8 } b'2", [])
+    equal (run
+        [ ("> | v = 1", [(0, 4, "")])
+        , ("*", [(0, 0, "3c")])
+        , ("> | v = 2", [(0, 4, "g (3e)")])
+        , ("*", [(0, 0, "3d")])
+        ])
+        (Right "<< { VoiceOne: c1 } { VoiceTwo: \\acciaccatura { e8 } d1 } >>",
             [])
 
 test_grace_attr = do

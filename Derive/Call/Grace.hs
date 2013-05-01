@@ -86,8 +86,10 @@ lily_grace args pitches = do
         beamed = Seq.first_last (<>"[") (<>"]") ly_notes
         -- I use \acciaccatura instead of \grace because it adds a slur
         -- automatically.
-        code = "\\acciaccatura { " <> Text.unwords beamed <> " }"
-    Lily.code (Args.start args, 0) code <> Util.place args Util.note
+        code = "\\acciaccatura { " <> Text.unwords beamed <> " } "
+    -- Prepending to the note instead of emitting a separate Lily.code ensures
+    -- it stays with the note's voice.
+    Lily.prepend_code code $ Util.place args Util.note
 
 grace :: (ScoreTime, ScoreTime) -> Signal.Y -> [PitchSignal.Pitch]
     -> Derive.EventDeriver
