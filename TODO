@@ -73,6 +73,9 @@ UNSORTED
   convert to Text:
     * Lilypond.to_lily
     - Pretty.pretty
+      For this I need to extend Util.Format to be a simplified prettyprinter:
+      - monoidal interface, not monadic
+      - write text, set indent for expression, insert soft break
     - Derive.throw
     * track titles
     * turn txt (show ...) into showt
@@ -421,7 +424,7 @@ integrate / integration:
   - quantization
 
 lilypond:
-  - bloom 6/4 should be able to span the whole measure with a dotted whole
+  * bloom 6/4 should be able to span the whole measure with a dotted whole
   - warning if ly-prepend or ly-append is being omitted due to a chord
   * KeyChange -> Code
   * code is mixed into the first voice, but is then lost if voice
