@@ -24,6 +24,7 @@ val_calls = Derive.make_calls
     , ("<", c_prev_val)
     , ("t", c_timestep)
     , ("ts", c_timestep_reciprocal)
+    , ("1/", c_reciprocal)
     ]
 
 c_next_val :: Derive.ValCall
@@ -122,3 +123,10 @@ c_timestep_reciprocal = Sig.modify_vcall c_timestep "timestep-reciprocal"
     where
     reciprocal (TrackLang.VNum num) = TrackLang.VNum $ recip <$> num
     reciprocal val = val
+
+c_reciprocal :: Derive.ValCall
+c_reciprocal = Derive.val_call "reciprocal" mempty
+    "Find the reciprocal of a number. Useful for tempo, e.g. set the tempo to\
+    \ 1/time." $ Sig.call (required "num" "") $ \num _ ->
+        if num == 0 then Derive.throw "1/0"
+            else return $ TrackLang.num (1 / num)
