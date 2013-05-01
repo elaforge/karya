@@ -421,10 +421,14 @@ integrate / integration:
   - quantization
 
 lilypond:
-  - KeyChange -> Code
+  - bloom 6/4 should be able to span the whole measure with a dotted whole
+  - warning if ly-prepend or ly-append is being omitted due to a chord
+  * KeyChange -> Code
   * code is mixed into the first voice, but is then lost if voice
     simplification elides that voice
-  - bloom, mvt2, mm31: grace links to wrong note
+  * bloom, mvt2, mm31: grace links to wrong note
+  - Maybe code events with a voice should go in the voice requested rather
+    than mixed into the first one.  E.g. would have fixed grace notes.
   * rename voice to v, rename hand to h?
     hand is usually in titles, and h seems too obscure
   * omit the voice division as long as there is only one voice

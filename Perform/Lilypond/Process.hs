@@ -81,7 +81,7 @@ process config start meters events = do
         error_context ("start: " <> Pretty.pretty start) $ convert events
     let meter = fromMaybe Meter.default_meter (Seq.head meters)
     return $ Right (Code $ "\\time " <> to_lily meter)
-        : Right (KeyChange key) : lys
+        : Right (Code $ to_lily key) : lys
 
 convert :: [Event] -> ConvertM [VoiceLy]
 convert = run_process trailing_rests go
@@ -199,7 +199,7 @@ convert_chord :: Meter.Meter -> NonEmpty Event -> ConvertM ([Ly], [Event])
 convert_chord meter events = do
     key <- lookup_key (NonEmpty.head events)
     state <- State.get
-    let key_change = [KeyChange key | key /= state_key state]
+    let key_change = [Code (to_lily key) | key /= state_key state]
     let (chord_notes, end, last_attrs, remaining) = make_lys
             (state_measure_start state) (state_prev_attrs state) meter events
     barline <- advance_measure end
@@ -590,8 +590,8 @@ lookup_val key parse deflt event = prefix $ do
 
 -- * types
 
-data Ly = Barline !(Maybe Meter.Meter) | LyNote !Note | LyRest !Rest
-    | KeyChange !Key | Code !Code
+data Ly =
+    Barline !(Maybe Meter.Meter) | LyNote !Note | LyRest !Rest | Code !Code
     deriving (Show)
 
 ly_duration :: Ly -> Time
@@ -608,7 +608,6 @@ instance ToLily Ly where
         Barline (Just meter) -> "| " <> "\\time " <> to_lily meter
         LyNote note -> to_lily note
         LyRest rest -> to_lily rest
-        KeyChange key -> to_lily key
         Code code -> code
 
 -- ** Note
