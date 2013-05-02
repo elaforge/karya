@@ -9,7 +9,7 @@ UNSORTED
       If pre is null, then maybe I should indent to the next level, e.g.
       [(0, ("", "a")), (2, ("", "b"))]
   fltk drawing artifacts:
-    - signal renders get white lines
+    * signal renders get white lines
     - track bevels get junk
   * Select block call puts select on ruler, but play monitor does not then
     remove it.

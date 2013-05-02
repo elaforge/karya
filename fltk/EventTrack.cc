@@ -319,6 +319,9 @@ void
 EventTrackView::draw_area()
 {
     IRect clip = clip_rect(rect(this));
+    // Expand by a pixel, otherwise I miss little slivers on retina displays.
+    clip.y--;
+    clip.h++;
     int y = this->y() + 1; // top pixel is a bevel
 
     ScoreTime start = this->zoom.to_time(clip.y - y);

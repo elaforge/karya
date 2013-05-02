@@ -97,8 +97,6 @@ input_loop :: CurrentHistory -> Haskeline.Settings IO -> Input Bool -> IO ()
 input_loop current_history settings action = outer_loop settings
     where
     outer_loop settings = do
-        liftIO $ putStrLn $
-            "run with repl: " <> show (Haskeline.historyFile settings)
         x <- Haskeline.runInputT settings (Haskeline.withInterrupt action_loop)
         when_just x $ \maybe_fname -> do
             putStrLn $ "loading history from " ++ show maybe_fname
