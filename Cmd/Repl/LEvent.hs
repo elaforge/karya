@@ -13,6 +13,7 @@ import qualified Ui.State as State
 import qualified Ui.Track as Track
 
 import qualified Cmd.Cmd as Cmd
+import qualified Cmd.Edit as Edit
 import qualified Cmd.ModifyEvents as ModifyEvents
 import qualified Cmd.Selection as Selection
 import qualified Cmd.TimeStep as TimeStep
@@ -27,6 +28,9 @@ stretch n = do
             map (\(_, _, evts) -> maybe 0 Event.start (Seq.head evts)) selected
     ModifyEvents.selection $ ModifyEvents.event $
         Event.move (\p -> (p - start) * n + start) . Event.modify_duration (*n)
+
+modify_dur :: (Cmd.M m) => (ScoreTime -> ScoreTime) -> m ()
+modify_dur = Edit.modify_dur
 
 -- | Find all events having the given substring.  Call with 'pp' to get
 -- copy-pastable 's' codes.

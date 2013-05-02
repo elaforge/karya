@@ -13,8 +13,8 @@ import qualified Cmd.Selection as Selection
 make_keymap :: (Cmd.M m) => (Keymap.CmdMap m, [String])
 make_keymap = Keymap.make_cmd_map $ concat
     [ command_char 'm' "toggle merged" cmd_toggle_merged
-    , plain_command_char '.' "dur * 1.5" (Edit.cmd_modify_dur (*1.5))
-    , plain_command_char ',' "dur / 1.5" (Edit.cmd_modify_dur (/1.5))
+    , plain_command_char '.' "dur * 1.5" (Edit.modify_dur (*1.5))
+    , plain_command_char ',' "dur / 1.5" (Edit.modify_dur (/1.5))
     ]
 
 cmd_toggle_merged :: (Cmd.M m) => m ()

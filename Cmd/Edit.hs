@@ -208,8 +208,8 @@ cmd_set_beginning = do
 
 -- | Modify event durations by applying a function to them.  0 durations
 -- are passed through, so you can't accidentally give control events duration.
-cmd_modify_dur :: (Cmd.M m) => (ScoreTime -> ScoreTime) -> m ()
-cmd_modify_dur f = ModifyEvents.selection $ ModifyEvents.event $ \evt ->
+modify_dur :: (Cmd.M m) => (ScoreTime -> ScoreTime) -> m ()
+modify_dur f = ModifyEvents.selection $ ModifyEvents.event $ \evt ->
     Event.set_duration (apply (Event.duration evt)) evt
     where apply dur = if dur == 0 then dur else f dur
 
