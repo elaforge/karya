@@ -244,7 +244,10 @@ EventTrackView::draw()
     IRect draw_area = rect(this);
 
     // DEBUG("event track damage " << show_damage(damage()));
-    if (this->damage() == FL_DAMAGE_SCROLL) {
+    // Fast scrolling is disabled, because it's hard to get right, and it
+    // doesn't actually seem to improve performance.
+    // TODO either fix or remove
+    if (false && this->damage() == FL_DAMAGE_SCROLL) {
         // Avoid the one pixel upper and lower bezels;
         draw_area.x++; draw_area.w -= 2;
         draw_area.y++; draw_area.h -= 2;
@@ -292,10 +295,14 @@ EventTrackView::draw()
     // TODO It might be cleaner to eliminate bg_box and just call fl_rectf
     // and fl_draw_box myself.  But this draws the all-mighty bevel too.
     this->draw_child(this->bg_box);
+
+    // This is more than one pixel, but otherwise I draw on top of the bevel on
+    // retina displays.
     IRect inside_bevel = rect(this);
-    inside_bevel.x++; inside_bevel.w -= 2;
-    inside_bevel.y++; inside_bevel.h -= 2;
+    inside_bevel.x += 2; inside_bevel.w -= 3;
+    inside_bevel.y += 2; inside_bevel.h -= 3;
     ClipArea clip_area2(inside_bevel);
+
     this->draw_area();
     overlay_ruler.damaged_area.w = overlay_ruler.damaged_area.h = 0;
     this->last_offset = this->zoom.offset;

@@ -239,7 +239,7 @@ OverlayRuler::draw_marklists()
     // DEBUG("clip: " << clip);
     if (clip.w == 0 || clip.h == 0)
         return;
-    int y = this->y() + 1; // avoid bevel
+    int y = this->y();
 
     ScoreTime start = this->zoom.to_time(clip.y - y);
     ScoreTime end = start + this->zoom.to_time(clip.h);
@@ -321,7 +321,7 @@ OverlayRuler::draw_mark(bool at_zero, int offset, const Mark &mark)
         if (xpos + text_width > x() + w()) {
             fl_color(color_to_fl(Config::abbreviation_color));
             fl_line_style(FL_SOLID, 2);
-            fl_line(x() + 1, offset - fl_height(), x() + 1, offset);
+            fl_line(x() + 2, offset - fl_height(), x() + 2, offset);
             fl_line_style(0);
             xpos = xmax;
         }
@@ -339,7 +339,7 @@ void
 OverlayRuler::draw_selections()
 {
     IRect sel_rect;
-    int y = this->y() + 1; // avoid bevel
+    int y = this->y();
     for (int i = 0; i < Config::max_selections; i++) {
         const TrackSelection &sel = this->selections[i];
         if (sel.empty())
@@ -442,7 +442,11 @@ RulerTrackView::draw()
     // TODO this is mostly a copy from EventTrackView
     // factor this stuff into a "ScrollableTrack" base class?
     // DEBUG("ruler track damage " << show_damage(damage()));
-    if (damage() == FL_DAMAGE_SCROLL) {
+
+    // Fast scrolling is disabled, because it's hard to get right, and it
+    // doesn't actually seem to improve performance.
+    // TODO either fix or remove
+    if (false && damage() == FL_DAMAGE_SCROLL) {
         // Avoid the one pixel upper and lower bezels;
         draw_area.x++; draw_area.w -= 2;
         draw_area.y++; draw_area.h -= 2;
@@ -483,10 +487,13 @@ RulerTrackView::draw()
     ClipArea clip_area(draw_area);
     this->draw_child(this->bg_box);
 
+    // This is more than one pixel, but otherwise I draw on top of the bevel on
+    // retina displays.
     IRect inside_bevel = rect(this);
-    inside_bevel.x++; inside_bevel.w -= 2;
-    inside_bevel.y++; inside_bevel.h -= 2;
+    inside_bevel.x += 2; inside_bevel.w -= 3;
+    inside_bevel.y += 2; inside_bevel.h -= 3;
     ClipArea clip_area2(inside_bevel);
+
     if (damage() & FL_DAMAGE_ALL)
         this->draw_child(this->ruler);
     else

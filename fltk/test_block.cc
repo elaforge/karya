@@ -314,6 +314,8 @@ main(int argc, char **argv)
 
     RulerConfig ruler(ruler_bg, false, true, true, arrival_beats, m44_last_pos);
     ruler.marklists = mlists;
+    RulerConfig no_ruler(
+        ruler_bg, false, true, true, arrival_beats, ScoreTime(0));
     DividerConfig divider(Color(0x00, 0xff, 0x00));
 
     int i = t1_events.size() - 1;
@@ -365,19 +367,20 @@ main(int argc, char **argv)
         skel.statuses = statuses;
         skel.statuses_len = 1;
         view.block.set_skeleton(skel);
-    } else {
-        view.block.insert_track(1, Tracklike(&track1, &ruler), 60);
-        view.block.set_track_signal(1, *control_track_signal());
-    }
 
-    DisplayTrack dtrack;
-    dtrack.status1 = 'M';
-    dtrack.status2 = '\0';
-    dtrack.width = 30;
-    dtrack.status_color = Color(255, 150, 150);
-    // dtrack.status_color = Color(150, 150, 150);
-    dtrack.event_brightness = .75;
-    view.block.set_display_track(2, dtrack);
+        DisplayTrack dtrack;
+        dtrack.status1 = 'M';
+        dtrack.status2 = '\0';
+        dtrack.width = 30;
+        dtrack.status_color = Color(255, 150, 150);
+        // dtrack.status_color = Color(150, 150, 150);
+        dtrack.event_brightness = .75;
+        view.block.set_display_track(2, dtrack);
+    } else {
+        view.block.insert_track(0, Tracklike(&ruler), 20);
+        view.block.insert_track(1, Tracklike(&track1, &no_ruler), 60);
+        // view.block.set_track_signal(1, *control_track_signal());
+    }
 
     // print_children(&view);
 
@@ -423,6 +426,9 @@ main(int argc, char **argv)
     t->insert("0x", zerox);
     t->insert("tamil-i", SymbolTable::Symbol(
         SymbolTable::Glyph("\xe0\xae\x87", tamil, 4)));
+    //෴  looks useful
+    t->insert("sinhala-stop", SymbolTable::Symbol(
+        SymbolTable::Glyph("\xe0\xb7\xb4", Config::font, 4)));
     // t->load("yen", "\xc2\xa5");
     // t->load("coda", "\xef\x80\xa5");
 

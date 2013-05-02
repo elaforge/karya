@@ -10,7 +10,7 @@ UNSORTED
       [(0, ("", "a")), (2, ("", "b"))]
   fltk drawing artifacts:
     * signal renders get white lines
-    - track bevels get junk
+    * track bevels get junk
   * Select block call puts select on ruler, but play monitor does not then
     remove it.
   * explicit track focus, to avoid putting focus back on every time
