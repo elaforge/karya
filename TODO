@@ -3,10 +3,15 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
+  Format2
+    . Rethink how indent breaking happens.
+      Maybe indent should be a flag on SoftBreak
+      If pre is null, then maybe I should indent to the next level, e.g.
+      [(0, ("", "a")), (2, ("", "b"))]
   fltk drawing artifacts:
     - signal renders get white lines
     - track bevels get junk
-  - Select block call puts select on ruler, but play monitor does not then
+  * Select block call puts select on ruler, but play monitor does not then
     remove it.
   * explicit track focus, to avoid putting focus back on every time
   * why does lilypond think this is a bad barcheck?

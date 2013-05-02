@@ -127,6 +127,8 @@ play_monitor_thread transport_info ctl inv_tempo_func repeat_at = do
             , monitor_ui_state = Transport.info_state transport_info
             , monitor_repeat_at = repeat_at
             }
+    ui_state <- MVar.readMVar (monitor_ui_state state)
+    mapM_ Sync.clear_play_position $ Map.keys $ State.state_views ui_state
     Exception.bracket_
         (Transport.info_send_status transport_info Transport.Playing)
         (Transport.info_send_status transport_info Transport.Stopped)
