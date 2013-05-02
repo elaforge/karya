@@ -29,14 +29,14 @@ import Types
 lookup :: String -> Cmd.CmdL (Maybe Cmd.MidiInfo)
 lookup = Cmd.lookup_instrument . Score.Instrument
 
-inst_info :: String -> Cmd.CmdL String
-inst_info inst_name = Info.inst_info (Score.Instrument inst_name)
+info :: String -> Cmd.CmdL String
+info inst_name = Info.inst_info (Score.Instrument inst_name)
 
-all_inst_info :: Cmd.CmdL String
-all_inst_info = do
+info_all :: Cmd.CmdL String
+info_all = do
     config <- State.get_midi_config
     info <- mapM Info.inst_info (Map.keys config)
-    return $ show (length info) ++ " instruments:\n" ++ Seq.join "\n\n" info
+    return $ show (length info) ++ " instruments:\n" ++ Seq.join "\n" info
 
 -- * config
 

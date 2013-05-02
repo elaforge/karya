@@ -149,18 +149,23 @@ get_default_instrument block_id track_id inst
 
 inst_info :: (Cmd.M m) => Score.Instrument -> m String
 inst_info inst = do
-    maybe_info <- Cmd.lookup_instrument inst
-    addrs <- maybe [] Instrument.config_addrs . Map.lookup inst <$>
-        State.get_midi_config
-    let show_info = show_instrument_info addrs
-    return $ show_inst inst ++ ": " ++ maybe "<not found>" show_info maybe_info
+    config <- Map.lookup inst <$> State.get_midi_config
+    info <- Cmd.lookup_instrument inst
+    return $ show_inst inst ++ ": " ++ show_instrument_info config info
 
-show_instrument_info :: [Instrument.Addr] -> Cmd.MidiInfo -> String
-show_instrument_info addrs info = unlines
-    [ "keyswitches: " ++ show_keyswitch_map
-        (Instrument.patch_keyswitches (MidiDb.info_patch info))
-    , "addrs: " ++ show_addrs addrs
+show_instrument_info :: Maybe Instrument.Config -> Maybe Cmd.MidiInfo -> String
+show_instrument_info config info = fields
+    [ ("keyswitches", maybe ""
+        (show_keyswitch_map . Instrument.patch_keyswitches . MidiDb.info_patch)
+        info)
+    , ("addrs", maybe "" show_addrs (Instrument.config_addrs <$> config))
+    , ("flags", unwords $ ["mute" | get Instrument.config_mute]
+        ++ ["solo" | get Instrument.config_solo])
     ]
+    where
+    get f = maybe False f config
+    fields = unlines . map (\(k, v) -> k <> ": " <> v)
+        . filter (not . null . snd)
 
 -- | Looks like: "wdev1 [0..2]; wdev2 [0,4]"
 show_addrs :: [Instrument.Addr] -> String

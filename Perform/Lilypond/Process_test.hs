@@ -27,7 +27,6 @@ test_rests_until = do
 
     -- Test full-measure rests.
     equal (f ["6/4", "6/4"] [D1, D1, D1]) $ Right "R4*6 | R4*6"
-    equal (f ["6/4"] [D1]) $ Right "r2. r4"
     equal (f (replicate 3 "4/4") [D1, D1, D2]) $ Right "R4*4 | R4*4 | r2"
 
 test_process = do

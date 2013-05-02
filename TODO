@@ -3,6 +3,11 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
+  fltk drawing artifacts:
+    - signal renders get white lines
+    - track bevels get junk
+  - Select block call puts select on ruler, but play monitor does not then
+    remove it.
   * explicit track focus, to avoid putting focus back on every time
   * why does lilypond think this is a bad barcheck?
     save/bloom/ly/mvt2.ly:113:35: warning: barcheck failed at: 3/4
@@ -196,10 +201,10 @@ MILESTONES
     - solution for audio, plugins, track bouncing, etc.  ardour / reaper?
     + jack support on linux
     - simple csound backend
-    + lilypond backend: good enough to render viola-sonata
+    * lilypond backend: good enough to render viola-sonata
     + documentation
   1.0
-    - defined stable api
+    - stable api
     - solution for local data / code
   future
     - non-realtime synthesizer: doc/dev_notes/synthesizer
