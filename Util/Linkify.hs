@@ -1,23 +1,14 @@
--- | Turn single quoted strings into links to haddock docs, depending on
--- whether the module can be found or not.
---
--- E.g.
---
--- > 'Derive.Score.Event'
---
--- becomes
---
--- > [Derive.Score.Event](build/doc/Derive-Score.html#t:Event)
---
--- > 'Derive.Score'
---
--- becomes
---
--- > [Derive.Score](build/doc/Derive-Score.html)
+{- | Turn single quoted strings into links to haddock docs, depending on
+    whether the module can be found or not.
+
+    E.g., @\'Derive.Score.Event\'@ becomes
+    @[Derive.Score.Event](build/doc/Derive-Score.html#t:Event)@
+    and @\'Derive.Score\'@ becomes
+    @[Derive.Score](build/doc/Derive-Score.html)@.
+-}
 module Util.Linkify where
 import qualified Data.Char as Char
 import qualified Data.Text as Text
-import Data.Text (Text)
 import qualified Data.Text.IO as Text.IO
 
 import qualified System.Directory as Directory

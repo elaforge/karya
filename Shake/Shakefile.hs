@@ -635,7 +635,8 @@ makeHaddock config = do
         , "-q", "aliased"
         , "-o", build </> "haddock"
         ] ++ map ("-i"++) interfaces
-        ++ ["--optghc=" ++ flag | flag <- define flags ++ cInclude flags]
+        ++ ["--optghc=" ++ flag | flag <- define flags ++ cInclude flags
+            ++ ghcLanguageFlags]
         ++ hs ++ map (hscToHs (hscDir config)) hscs
 
 -- | Get paths to haddock interface files for all the packages.
@@ -820,9 +821,11 @@ ghcFlags :: Config -> [String]
 ghcFlags config =
     [ "-outputdir", oDir config
     , "-i" ++ oDir config ++ ":" ++ hscDir config
-    , "-XOverloadedStrings"
-    ] ++ define (configFlags config)
+    ] ++ ghcLanguageFlags ++ define (configFlags config)
     ++ cInclude (configFlags config)
+
+ghcLanguageFlags :: [String]
+ghcLanguageFlags = map ("-X"++) ["OverloadedStrings"]
 
 -- * cc
 

@@ -5,13 +5,13 @@
     This is all a little too complicated.
 
     The complete description for a set of instruments is a 'MidiDb.SynthDesc'.
-    This is just a (Synth, PatchMap) pair, and a PatchMap is a map from
-    instrument name to Patch.  A Patch contains an Instrument, which is the
+    This is just a ('Synth', PatchMap) pair, and a PatchMap is a map from
+    instrument name to 'Patch'.  A Patch contains an 'Instrument', which is the
     subset of data needed for performance.  Since there is a separate
     Instrument per keyswitch, multiple Instruments may be generated from
     a single Patch.  Patches also inherit some information from their Synth.
     So the hierarchy, from general to specific, goes
-    @Synth -> Patch -> Instrument@.
+    @'Synth' -> 'Patch' -> 'Instrument'@.
 
     Creation of a SynthDesc is a little complicated because of the
     inter-relationships between the types.  A Patch is created with an

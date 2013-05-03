@@ -11,25 +11,42 @@ everything else that's needed by the performer.
 The lowest level is the score format, which is analogous to syntax in a normal
 language.
 
-The most basic structure is a "block".  Each block can have 0 or more "views",
-which are just windows on a certain block (so technically this is a
-[UI](ui.md.html) concept).  A block has a title, which is a box you can put
-text in, and a set of tracks.  Each track can be either an event track or a
-ruler.  Rulers just display hierarchical marks, and by convention each block
-has a ruler in the 0th track spot, which is special in that it stays put and
-doesn't scroll off the screen.  The ruler is analogous to the meter since the
-the selection can aligns to it.
+### block
 
-Derivation is mostly concerned with event tracks.  They have a title, which is
-once again a place for text, and a bunch of events.
+The most basic structure is a 'Ui.Block.Block'.  Each block can have 0 or more
+'Ui.Block.View's, which are just windows on a certain block.  A block has a
+title, which is a box you can put text in, and a list of 'Ui.Block.Track's.
+There are three kinds of tracks: divider, ruler, and event.
 
-Event tracks have a title, which is once again a place for text, and a bunch of
-events.  A UI event is a start time, a duration, and a bit of text (with some
-other auxiliary attributes: 'Ui.Event.Event').  The events aren't allowed to
-overlap, but other than that are free form.  One other detail is that there's a
-"skeleton", which links together each track in a hierarchical way, so each
-track can have parents or children.  The skeleton is visualized as some lines
-with arrows above the tracks.
+### divider track
+
+'Ui.Block.Divider's are just visual spacers.  All they have is a color and a
+width.  You can place them manually to provide visual separation between
+tracks, and they are used automatically to represent collapsed tracks.
+
+### ruler track
+
+'Ui.Ruler.Ruler's display 'Ui.Ruler.Mark' of varying rank and color.  By
+convention each block has a ruler in the 0th track spot, which is special in
+that it stays put and doesn't scroll right to left like the other tracks.
+
+In general the ruler is just a collection of Marks, but supported by convention
+it fills the role of a meter.  A 'Cmd.TimeStep.TimeStep' describes a time
+interval in terms of ruler mark ranks.  Utilities in 'Cmd.Meter' can create and
+modify rulers with appropriately spaced marks, which cause the various
+timesteps to correspond to whole notes, quarter notes, etc.
+
+### event track
+
+Derivation is mostly concerned with event 'Ui.Track.Track's.  They have a
+title, which is once again a place for text, and a bunch of events.
+
+A 'Ui.Event.Event' is a start time, a duration, a bit of text, and some
+auxiliary attributes.  Events aren't allowed to overlap, but other than
+that are free form.  One other detail is that there's a "skeleton", which links
+together each track in a hierarchical way, so each track can have parents or
+children.  The skeleton is visualized as some lines with arrows above the
+tracks.
 
 ## Derivation
 
@@ -137,11 +154,11 @@ special behaviour.
 
 ## ScoreTime and RealTime
 
-Time as represented by physical location in the score is called ScoreTime.
+Time as represented by physical location in the score is called 'Ui.ScoreTime'.
 It's in abstract units and may be shifted and stretched arbitrarily.  For
-performance it has to be converted into RealTime, which is in seconds.  The
-ScoreTime to RealTime conversion is yet another signal, called the warp
-signal.
+performance it has to be converted into 'Perform.RealTime', which is in
+seconds.  The ScoreTime to RealTime conversion is yet another signal, called
+the warp signal.
 
 Event placement is handled not by directly manipulating score events after
 they are derived, but by modifying the warp signal in scope, and allowing the
@@ -153,8 +170,6 @@ slope to stretch or compress them.  The event generating call can then map its
 ScoreTimes through the warp signal, or adjust the times itself.  For instance,
 a call implementing grace notes may override the warp to give them a constant
 duration regardless of the tempo.
-
-ScoreTime is implemented in 'Ui.ScoreTime', RealTime in 'Perform.RealTime'.
 
 ## TrackLang syntax
 
@@ -211,7 +226,7 @@ TODO blah blah 'Derive.TrackLang.Val' or 'Derive.BaseTypes.Val' thanks to
 haddock bugs.
 
 Identifier naming is more strict than most languages.  Only lowercase letters
-a-z, digits 0-9, and the hyphen are allowed.  IDs also allow \`s so BlockIds
+a-z, digits 0-9, period and hyphen are allowed.  IDs also allow \`s so BlockIds
 can embed symbols.  This enforces a lowercase-with-hyphens naming scheme.  The
 exact definition is in 'Derive.ParseBs.p_identifier'.
 
@@ -326,17 +341,17 @@ for control tracks.  The sub-block is expected to have a control track titled
 
 ## track evaluation
 
-Each kind of track is evaluated in its own way, but they are all very similar.
+Each kind of track is evaluated in its own way, but they are all similar.
 
 The main difference is in how the titles are interpreted.  The parsing is
 documented in 'Derive.TrackInfo.parse_control', but here's an overview:
 
-- Control tracks look like `control`, `add control` or `%`.  A plain word
-replaces the named control in the environment with the signal from the track.
-`add control` instead adds the signal to an existing one.  There are other
-functions like `sub`, `mul`, `min` and `max`, documented in
-'Derive.Deriver.Monad.default_control_op_map'.  `%` is an unnamed control
-track and is used only by control block calls, as documented below.
+- Control tracks look like `control`, `add control` or `%`.  If a control with
+the same name is already in scope, the new track will multiply with it by
+default.  This behaviour can be changed with the leading "operator", e.g.  `set
+c` will replace `c`, or `add c` will add to it.  The complete set of operators
+is listed in 'Derive.Deriver.Monad.default_control_op_map'.  `%` is an unnamed
+control track and is used only by control block calls, as documented below.
 
     You can optionally append a pipeline expression after the control name,
 and the expressions will be called as a transformer around the whole track.
