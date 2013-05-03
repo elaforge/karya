@@ -11,7 +11,7 @@ import qualified App.Config as Config
 
 
 symbols :: [Symbol.Symbol]
-symbols = dotted_numbers ++ staff_symbols ++ gongchepu
+symbols = dotted_numbers <> staff_symbols <> gongchepu
 
 -- * dotted numbers
 
@@ -25,33 +25,33 @@ dotted_number num oct
 dot :: Symbol.Glyph
 dot = Symbol.glyph "•" -- unicode \x2022
 
-dot_above :: String -> Symbol.Symbol
-dot_above s = Symbol.Symbol (s ++ "^") True
+dot_above :: Text -> Symbol.Symbol
+dot_above s = Symbol.Symbol (s <> "^") True
     [Symbol.glyph s, Symbol.glyph_at 0 (0.5, -0.3) dot]
 
-dot2_above :: String -> Symbol.Symbol
-dot2_above s = Symbol.Symbol (s ++ "^^") True
+dot2_above :: Text -> Symbol.Symbol
+dot2_above s = Symbol.Symbol (s <> "^^") True
     [Symbol.glyph s,
         Symbol.glyph_at 0 (-0.3, -0.3) dot,
         Symbol.glyph_at 0 (0.5, -0.3) dot]
 
-dot_below :: String -> Symbol.Symbol
-dot_below s = Symbol.Symbol (s ++ ".") True
+dot_below :: Text -> Symbol.Symbol
+dot_below s = Symbol.Symbol (s <> ".") True
     [Symbol.glyph s, Symbol.glyph_at 0 (0.5, 0.3) dot]
 
-dot2_below :: String -> Symbol.Symbol
-dot2_below s = Symbol.Symbol (s ++ "..") True
+dot2_below :: Text -> Symbol.Symbol
+dot2_below s = Symbol.Symbol (s <> "..") True
     [ Symbol.glyph s
     , Symbol.glyph_at 0 (-0.3, 0.3) dot
     , Symbol.glyph_at 0 (0.5, 0.3) dot
     ]
 
 dotted_numbers :: [Symbol.Symbol]
-dotted_numbers = map dot_above cs ++ map dot2_above
-        cs ++ map dot_below cs ++ map dot2_below cs
+dotted_numbers = map dot_above cs <> map dot2_above
+        cs <> map dot_below cs <> map dot2_below cs
     where
     -- If some scale wants higher numbers, they are easy to add.
-    cs = map show [0..9]
+    cs = map showt [0..9]
 
 
 -- * staff notation

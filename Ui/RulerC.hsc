@@ -6,6 +6,7 @@
 module Ui.RulerC (with_ruler, no_ruler) where
 import qualified Control.Concurrent.MVar as MVar
 import qualified Data.Map as Map
+import qualified Data.Text as Text
 
 import Util.ForeignC
 import qualified Ui.Ruler as Ruler
@@ -112,7 +113,8 @@ poke_mark markp (Ruler.Mark
     , Ruler.mark_zoom_level = zoom_level
     }) = do
         -- Must be freed by the caller.
-        namep <- if null name then return nullPtr else newCString name
+        namep <- if Text.null name then return nullPtr
+            else Util.textToCString0 name
         (#poke Mark, rank) markp (Util.c_int rank)
         (#poke Mark, width) markp (Util.c_int width)
         (#poke Mark, color) markp color

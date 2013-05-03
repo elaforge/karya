@@ -23,6 +23,7 @@ import qualified Control.DeepSeq as DeepSeq
 import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Monoid as Monoid
+import qualified Data.Text as Text
 
 import qualified Foreign
 import qualified System.IO.Unsafe as Unsafe
@@ -40,8 +41,6 @@ import Types
 -- * Ruler
 
 data Ruler = Ruler {
-    -- | The marklists are drawn in order, and the draw order is determined
-    -- by the order of the string key.
     ruler_marklists :: !Marklists
     , ruler_bg :: !Color.Color
     -- | Show the names if this is on an event track.  Ruler tracks always show
@@ -52,8 +51,15 @@ data Ruler = Ruler {
     , ruler_align_to_bottom :: !Bool
     } deriving (Eq, Show)
 
+-- | Each ruler can have multiple named marklists.  This means a ruler can
+-- have multiple simultaneous meters, or a separate list of ad-hoc cue points.
+-- All marks are flattened before display, and are drawn in order. Since it's
+-- a map, that means they are sorted by their names.
+--
+-- The name is used only to differentiate the marklists, and has meaning only
+-- by convention.
 type Marklists = Map.Map Name Marklist
-type Name = String
+type Name = Text
 
 instance Pretty.Pretty Ruler where
     format (Ruler mlists bg show_names align_to_bottom) =
@@ -197,11 +203,19 @@ insert_mark pos mark = mapm $ Map.insert pos mark
 -- * mark
 
 data Mark = Mark {
+    -- | An arbitrary low integer.  This is the only part of the mark that
+    -- matters to the code, the rest is purely visual.  By convention, the
+    -- most prominent divisions start at rank 0 and go up from there.
     mark_rank :: !Rank
+    -- | Width in pixels.
     , mark_width :: !Int
     , mark_color :: !Color.Color
-    , mark_name :: !String
+    -- | A bit of text displayed with the mark.
+    , mark_name :: !Text
+    -- | The text is only displayed when the zoom factor exceeds this value.
     , mark_name_zoom_level :: !Double
+    -- | The mark itself is only displayed when the zoom factor exeeds this
+    -- value.
     , mark_zoom_level :: !Double
     } deriving (Eq, Show, Read)
 
@@ -216,4 +230,5 @@ instance DeepSeq.NFData Mark where
 
 instance Pretty Mark where
     pretty m = "<mark: " ++ show (mark_rank m) ++ name ++ ">"
-        where name = if null (mark_name m) then "" else ' ' : mark_name m
+        where
+        name = if Text.null (mark_name m) then "" else ' ' : untxt (mark_name m)

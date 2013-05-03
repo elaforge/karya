@@ -9,6 +9,8 @@
 module Ui.Util where
 import qualified Data.ByteString as ByteString
 import qualified Data.ByteString.Unsafe as Unsafe
+import qualified Data.Text as Text
+import qualified Data.Text.Encoding as Encoding
 import qualified Data.Word as Word
 
 import qualified Foreign
@@ -81,9 +83,19 @@ free_fun_ptr fptr = do
 
 -- | Unpack the bytestring to a null-terminated cstring, in malloc'd space.
 -- ByteString only has an alloca version of this.
-unpackCString0 :: ByteString.ByteString -> IO CString
-unpackCString0 bs = Unsafe.unsafeUseAsCStringLen bs $ \(str, len) -> do
+bytesToCString0 :: ByteString.ByteString -> IO CString
+bytesToCString0 bs = Unsafe.unsafeUseAsCStringLen bs $ \(str, len) -> do
     new <- Foreign.mallocBytes (len+1)
     Foreign.copyBytes new str len
     Foreign.poke (new `Foreign.plusPtr` len) (0 :: Word.Word8)
     return new
+
+-- | Allocate a new UTF8-encoded null-terminated CString.
+--
+-- This copies the string twice, but I think I'd need a encodeUtf8 that can
+-- write directly to a pointer to solve that.
+textToCString0 :: Text.Text -> IO CString
+textToCString0 = bytesToCString0 . Encoding.encodeUtf8
+
+withText :: Text.Text -> (CString -> IO a) -> IO a
+withText = ByteString.useAsCString . Encoding.encodeUtf8

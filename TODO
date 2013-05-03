@@ -3,14 +3,14 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
+  - For a short-term control track, It should be possible to change the
+    control track with a %new-control event.  Pre interpretation, scan for
+    those events and split the track accordingly.
   Format2
     . Rethink how indent breaking happens.
       Maybe indent should be a flag on SoftBreak
       If pre is null, then maybe I should indent to the next level, e.g.
       [(0, ("", "a")), (2, ("", "b"))]
-  fltk drawing artifacts:
-    * signal renders get white lines
-    * track bevels get junk
   * Select block call puts select on ruler, but play monitor does not then
     remove it.
   * explicit track focus, to avoid putting focus back on every time
@@ -37,15 +37,6 @@ UNSORTED
     https://developer.apple.com/library/mac/#documentation/Cocoa/Conceptual/WinPanel/Tasks/UsingWindowsMenu.html
     But it doesn't say how to add the Window menu.
   - keys to move focus?
-  - it's annoying to insert text at the beginning of an event
-    Can I do a prepend command?  I could go for full text input, but even then
-    it would require a click.  Well, in that case I can open it with the
-    cursor set wherever I want.
-    I could get rid of RawEdit entirely and use vi-style 'A' and 'I' to append
-    and insert respectively.  But then I lose the space idiom.  Since space is
-    stop playing, it might be nice to bind that to something else anyway, like
-    'Z' starts an append with zero duration.  It then becomes more annoying to
-    add a bunch of single char calls, like (.
   * repl macro: [@b0, @b1] didn't work
   * Refactor.order_block makes a block with a mysteriously black ruler
   * track status is lost when a track is added or removed
@@ -81,6 +72,7 @@ UNSORTED
   - shakefile should use typesafe oracle calls, is there newtype based
     oracle utils yet?
   convert to Text:
+    - TimeStep.show_time_step
     * Lilypond.to_lily
     - Pretty.pretty
       For this I need to extend Util.Format to be a simplified prettyprinter:
@@ -756,16 +748,26 @@ symbolic score
   - find or make a font with gong che pu
 
 fltk:
+  drawing artifacts on retina:
+    . Some of this may be fltk bugs.
+    * signal renders get white lines
+    * track bevels get junk
+    - tops of tracks and the tops of track text boxes still get gunk, visible
+      when scrolling horizontally
   - Should fltk collapse adjacent dividers?
-  - If I wrapped track titles I could see the entire thing, but at the cost of
-    using more vertical space.
+  track titles
+    - Grow the window when the title grows past it.
+    - Grow text past edge of window, when I resize the window the text keeps
+      growing with it.  But it doesn't expect that size, and doesn't clear
+      when deselected.
+    - Type into track text on the right side, then expand the window so it can
+      be visible.  It doesn't redraw the newly-revealed bit correctly.
+    - If I wrapped track titles I could see the entire thing, but at the cost
+      of using more vertical space.
   - There's a focus bug, but I'm not sure how to reproduce it.
   + can I get fltk to omit the jellybean buttons on the window?
-    Completely disables resizing, ack.
-    Yes, but requires hacking the library.  Mail the list about a better
-    solution.
-  - Type into track text on the right side, then expand the window so it can
-    be visible.  It doesn't redraw the newly-revealed bit correctly.
+    . Yes, but requires hacking fltk.
+    . Completely disables resizing.  Apparently this is hardcoded.
   - event.text would have to be utf8 to support option-key symbols
   - some way to scroll that's not the scroll wheel
   - I could set certain Symbols to stretch to the length of their event, this
@@ -775,7 +777,7 @@ fltk:
       But it's OSX only.
   * skeleton display has leveled steps to make it easier to see who is
     below who.  Only if a track has multiple children.
-  - rethrow c++ exceptions as FltkError
+  / rethrow c++ exceptions as FltkError
   - factor scroll redrawing into a single class
   / draw arrows in SkeletonDisplay.cc properly meh, they look ok
   - figure out how to have a minimal title bar in os x (win.border(0) removes
@@ -789,21 +791,22 @@ fltk:
     Get rid of damage and redraw everything every time.  Then I have to make
     it fast to fetch the data for one screenful.  What makes that slow
     currently?
-  draw bugs:
-    - redraw after track range damage draws things a pixel too low
-    - when scrolling upwards, ruler mark text is not drawn completely
-    - doesn't redraw after switching monitors
   Track
     / dividers can have separate color for upper part, for collapsable tracks
   event track
     * visual indication when both solo and mute is on
-    - bring back the idea of opening up a text entry in raw edit mode?  Then I
-      can get real cursor control and use the IME.  But I'd need to either
-      switch to Text or make sure ParseBs works on UTF8.
-    - editing event text should use a text entry widget, that way I get
-      a cursor, IME, etc.  A side benefit is that I don't have to derive half
-      edited data.  This also solves the problem where the currently edited
-      event is hidden.
+    - Bring back the idea of opening up a text entry in raw edit mode.
+      Pros:
+        . Insert at beginning or in middle since I have a cursor.
+        . I can clean up text, e.g. strip spaces.
+        . IME available.
+        . Can edit hidden event.
+        . No deriving partially written text.
+      Cons:
+        . Complicated.
+        . Can't zoom / play / etc. while in edit mode.
+        . May require more keystrokes to enter single char, though there are
+          probably ways to work around that.
 
       This only applies to raw edit mode.  Entering notes and doing
       programmatic changes is still single key.
@@ -812,27 +815,38 @@ fltk:
       event if one doesn't exist and begins editing its text.  Keyboard focus
       is then in the widget until return or tab or a click outside of it.
 
-      The responder has to be able to tell UI to open a text entry, so return
-      (State, [UiCommand]), where
+      Or, 'a' appends and 'i' inserts.  Return or escape completes.
+
+      The responder has to be able to tell UI to open a text entry, so cmds
+      can return an Edit:
         data Edit = Edit {
           edit_block_id :: BlockId
           , edit_tracknum :: TrackNum
           , edit_at :: ScoreTime
-          , edit_text :: String
-          , edit_insert :: Bool
+          , edit_text :: Text
+          , edit_cursor :: Int
           , edit_selected :: Bool
           }
+          | AppendText Text
 
-      If the edit_insert is True and there is already a text entry open at
-      that position, insert the given string at the insertion point rather
-      than creating a new one.  This can implement midi->*note insertion.
+      If there is already a text entry open at that position, insert the given
+      string at the insertion point rather than creating a new one.  This can
+      implement midi->*note insertion.
+
+      When I get a midi key, I emit AppendText.  Ideally I should only do this
+      when edit is open, otherwise I'm constantly sending notes to the UI
+      which are ignored.  I guess I can flip a bit when Edit goes out, and
+      turn it off when Edited comes back in.
 
       Return msg is:
-        data Edited = Edited BlockId TrackNum ScoreTime String
-
+        data Edited = Edited BlockId TrackNum ScoreTime Text
       The UI can suppress this if it detects the text hasn't changed.
 
+      . Starting an event with a leading space could create a zero-dur
+        event.
+
   control track, render signal
+    - Figure out linear sets of samples and emit them as one line.
     / decided against rendering signal as one long line, comment in
       EventTrack.cc
     - render option: solid with color gradient

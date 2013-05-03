@@ -123,7 +123,8 @@ show_time_step (TimeStep steps) = Seq.join ";" (map show1 steps)
         | skip < 0 = '/' : show (abs skip + 1)
         | otherwise = ""
     show_marklists AllMarklists = ""
-    show_marklists (NamedMarklists mlists) = Seq.join "," mlists ++ "|"
+    show_marklists (NamedMarklists mlists) =
+        Seq.join "," (map untxt mlists) ++ "|"
     show_tracks CurrentTrack = ""
     show_tracks AllTracks = "s"
     show_tracks (TrackNums tracks) = "s:" ++ Seq.join "," (map show tracks)
@@ -150,7 +151,7 @@ parse_time_step = Parse.parse p_time_step
     p_marklists =
         P.try ((NamedMarklists <$> P.sepBy p_name (P.char ',')) <* P.char '|')
         <|> return AllMarklists
-    p_name = P.many1 (P.lower <|> P.char '-')
+    p_name = txt <$> P.many1 (P.lower <|> P.char '-')
     p_tracks = P.option CurrentTrack $
         P.try (TrackNums <$> (str "s:" *> p_tracknums))
         <|> P.char 's' *> return AllTracks

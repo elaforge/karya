@@ -19,9 +19,9 @@ module Cmd.Meter where
 import Prelude hiding (repeat)
 import qualified Data.List as List
 import qualified Data.Map as Map
+import qualified Data.Text as Text
 
 import Util.Control
-import qualified Util.Seq as Seq
 import qualified Ui.Color as Color
 import qualified Ui.Ruler as Ruler
 import qualified Ui.ScoreTime as ScoreTime
@@ -238,8 +238,8 @@ collapse_ranks_for_labels = map (\r -> r - sub r)
 -- | Name the MarkRanks in a #.#.# format.
 --
 -- TODO starts at 0, but maybe I should start at 1?
-ranks_to_labels :: [Ruler.Rank] -> [String]
-ranks_to_labels = map (Seq.join "." . map show . reverse)
+ranks_to_labels :: [Ruler.Rank] -> [Text]
+ranks_to_labels = map (Text.intercalate "." . map showt . reverse)
     . snd .  List.mapAccumL mkname (-1, [])
     where
     mkname (prev_rank, prev_path) rank = ((rank, path), path)

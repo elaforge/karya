@@ -25,8 +25,7 @@ import qualified Util.File as File
 import qualified Util.PPrint as PPrint
 import qualified Util.Rect as Rect
 import qualified Util.Serialize as Serialize
-import Util.Serialize
-       (Serialize, get, put, get_tag, put_tag, bad_tag)
+import Util.Serialize (Serialize, get, put, get_tag, put_tag, bad_tag)
 
 import qualified Midi.Midi as Midi
 import qualified Ui.Block as Block
@@ -437,26 +436,36 @@ instance Serialize Color.Color where
 -- ** Ruler
 
 instance Serialize Ruler.Ruler where
-    put (Ruler.Ruler a b c d) = Serialize.put_version 3
+    put (Ruler.Ruler a b c d) = Serialize.put_version 4
         >> put a >> put b >> put c >> put d
     get = do
         v <- Serialize.get_version
         case v of
             2 -> do
-                marklists :: Map.Map Ruler.Name Ruler.Marklist <- get
+                marklists :: Map.Map String Marklist0 <- get
                 bg :: Color.Color <- get
                 show_names :: Bool <- get
                 _use_alpha :: Bool <- get
                 align_to_bottom :: Bool <- get
                 _full_width :: Bool <- get
-                return $ Ruler.Ruler marklists bg show_names align_to_bottom
+                return $ Ruler.Ruler (convert marklists)
+                    bg show_names align_to_bottom
             3 -> do
+                marklists :: Map.Map String Marklist0 <- get
+                bg :: Color.Color <- get
+                show_names :: Bool <- get
+                align_to_bottom :: Bool <- get
+                return $ Ruler.Ruler (convert marklists)
+                    bg show_names align_to_bottom
+            4 -> do
                 marklists :: Map.Map Ruler.Name Ruler.Marklist <- get
                 bg :: Color.Color <- get
                 show_names :: Bool <- get
                 align_to_bottom :: Bool <- get
                 return $ Ruler.Ruler marklists bg show_names align_to_bottom
             _ -> Serialize.bad_version "Ruler.Ruler" v
+        where
+        convert = Map.fromList . map (txt *** convert_marklist0) . Map.toList
 
 instance Serialize Ruler.Marklist where
     put mlist = put (Ruler.marklist_map mlist)
@@ -471,10 +480,36 @@ instance Serialize Ruler.Mark where
         rank :: Int <- get
         width :: Int <- get
         color :: Color.Color <- get
-        name :: String <- get
+        name :: Text <- get
         name_zoom :: Double <- get
         zoom :: Double <- get
         return $ Ruler.Mark rank width color name name_zoom zoom
+
+convert_marklist0 :: Marklist0 -> Ruler.Marklist
+convert_marklist0 (Marklist0 mlists) = Ruler.marklist $ Map.map convert mlists
+    where
+    convert (Mark0 rank width color name name_zoom zoom) = Ruler.Mark
+        rank width color (txt name) name_zoom zoom
+
+data Marklist0 = Marklist0 (Map.Map ScoreTime Mark0)
+data Mark0 = Mark0 Int Int Color.Color String Double Double
+
+instance Serialize Marklist0 where
+    put _ = error "can't serialize Marklist0"
+    get = do
+        marks :: Map.Map ScoreTime Mark0 <- get
+        return $ Marklist0 marks
+
+instance Serialize Mark0 where
+    put _ = error "can't serialize Mark0"
+    get = do
+        rank :: Int <- get
+        width :: Int <- get
+        color :: Color.Color <- get
+        name :: String <- get
+        name_zoom :: Double <- get
+        zoom :: Double <- get
+        return $ Mark0 rank width color name name_zoom zoom
 
 -- ** Track
 

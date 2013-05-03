@@ -1,6 +1,6 @@
 module Ui.SymbolC (get_fonts, insert_symbol) where
-import qualified Data.ByteString.UTF8 as UTF8
 import qualified Data.Maybe as Maybe
+import qualified Data.Text as Text
 import Foreign
 import Foreign.C
 
@@ -39,41 +39,39 @@ insert_symbol (Symbol.Symbol name absolute_y glyphs) = do
         then return (Maybe.catMaybes missing)
         else do
             let glyphcs = Maybe.catMaybes maybe_glyphcs
-            withCString name $ \namep -> withArrayLen glyphcs $ \len glyphsp ->
-                c_insert_symbol namep (fromBool absolute_y)
-                    glyphsp (Util.c_int len)
+            Util.withText name $ \namep -> withArrayLen glyphcs $
+                \len glyphsp ->
+                    c_insert_symbol namep (fromBool absolute_y)
+                        glyphsp (Util.c_int len)
             return []
 
 foreign import ccall "insert_symbol"
     c_insert_symbol :: CString -> CInt -> Ptr GlyphC -> CInt -> IO ()
 
 glyph_to_glyphc :: Symbol.Glyph -> IO (Maybe GlyphC)
-glyph_to_glyphc (Symbol.Glyph chars maybe_font size (x, y) rotation) = do
+glyph_to_glyphc (Symbol.Glyph text maybe_font size (x, y) rotation) = do
     cfont <- maybe (return (#const Config::font))
         (\f -> withCString f c_get_font) maybe_font
     return $ if cfont == (#const SymbolTable::font_not_found)
         then Nothing
-        else Just $ GlyphC chars cfont size x y rotation
+        else Just $ GlyphC text cfont size x y rotation
 
 foreign import ccall "get_font" c_get_font :: CString -> IO CFont
 
 
 type CFont = CInt
 
-data GlyphC = GlyphC String CFont Int Double Double Int
+data GlyphC = GlyphC Text.Text CFont Int Double Double Int
     deriving (Show)
 
 instance Storable GlyphC where
     sizeOf _ = #size SymbolTable::Glyph
     alignment _ = #{alignment SymbolTable::Glyph}
-    poke glyphp (GlyphC str font size align_x align_y rotate) = do
-        encoded <- encode_utf8 str
+    poke glyphp (GlyphC text font size align_x align_y rotate) = do
+        encoded <- Util.textToCString0 text
         (#poke SymbolTable::Glyph, utf8) glyphp encoded
         (#poke SymbolTable::Glyph, font) glyphp font
         (#poke SymbolTable::Glyph, size) glyphp (Util.c_int size)
         (#poke SymbolTable::Glyph, align_x) glyphp (Util.c_double align_x)
         (#poke SymbolTable::Glyph, align_y) glyphp (Util.c_double align_y)
         (#poke SymbolTable::Glyph, rotate) glyphp (Util.c_int rotate)
-
-encode_utf8 :: String -> IO CString
-encode_utf8 = Util.unpackCString0 . UTF8.fromString

@@ -226,8 +226,8 @@ modify (block_id, f) = RulerUtil.modify_meter block_id f
 cue :: Ruler.Name
 cue = "cue"
 
--- | Drop a mark at the selected point in the "cue" ruler.
-add_cue :: String -> Cmd.CmdL ()
+-- | Drop a mark at the selected point in the \"cue\" ruler.
+add_cue :: Text -> Cmd.CmdL ()
 add_cue text = do
     (block_id, _, _, pos) <- Selection.get_insert
     add_cue_at block_id pos text
@@ -237,11 +237,11 @@ remove_cues = do
     block_id <- Cmd.get_focused_block
     modify_block block_id $ Ruler.remove_marklist cue
 
-add_cue_at :: BlockId -> ScoreTime -> String -> Cmd.CmdL ()
+add_cue_at :: BlockId -> ScoreTime -> Text -> Cmd.CmdL ()
 add_cue_at block_id pos text = modify_block block_id $
     Ruler.modify_marklist cue $ Ruler.insert_mark pos (cue_mark text)
 
-cue_mark :: String -> Ruler.Mark
+cue_mark :: Text -> Ruler.Mark
 cue_mark text = Ruler.Mark 0 2 Color.black text 0 0
 
 modify_block :: BlockId -> (Ruler.Ruler -> Ruler.Ruler) -> Cmd.CmdL ()

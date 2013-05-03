@@ -13,15 +13,17 @@
     a C dependency.
 -}
 module Ui.Symbol where
+import Data.Text (Text)
 
-symbol :: String -> [Glyph] -> Symbol
+
+symbol :: Text -> [Glyph] -> Symbol
 symbol name = Symbol name False
 
 -- | Make a simple symbol with only text.
-simple :: String -> String -> Symbol
+simple :: Text -> Text -> Symbol
 simple name chars = Symbol name True [glyph chars]
 
-glyph :: String -> Glyph
+glyph :: Text -> Glyph
 glyph s = Glyph s Nothing 0 (0, 0) 0
 
 size :: Int -> Glyph -> Glyph
@@ -38,7 +40,7 @@ type Font = String
 -- The bounding box will be scaled by the eventual font size.  Don't pass an
 -- empty glyphs list.
 data Symbol = Symbol {
-    sym_name :: String
+    sym_name :: Text
     -- | Turn on absolute y placement, disabling automatic y placement.  If
     -- the glyphs have descenders and you want them to actually descend, turn
     -- this on.
@@ -48,7 +50,7 @@ data Symbol = Symbol {
 
 data Glyph = Glyph {
     -- | Unicode characters that make up the glyph.
-    glyph_chars :: String
+    glyph_text :: Text
     , glyph_font :: Maybe Font
     -- | Relative size.  This is added to the font size when the glyph is
     -- drawn.
