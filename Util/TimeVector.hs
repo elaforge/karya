@@ -51,6 +51,7 @@ import qualified Foreign
 
 import Util.Control
 import qualified Util.Pretty as Pretty
+import qualified Util.Seq as Seq
 import qualified Perform.RealTime as RealTime
 import Util.TimeVectorStorable (X, Sample(..))
 
@@ -78,6 +79,10 @@ instance DeepSeq.NFData (Boxed y) where
 -- I tried making newtypes for Boxed and Unboxed, but couldn't then figure
 -- out how to get the generic functions to apply to them.  So clients have to
 -- implement Monoid themselves, using 'merge'.
+--
+-- Actually it's not really a monoid because merge isn't commutative if both
+-- signals start at the same time.  But then, Data.Map's mappend isn't
+-- commutative either.
 
 type Unboxed = Storable.Vector (Sample Double)
 
@@ -137,10 +142,10 @@ to_pair (Sample x y) = (x, y)
 instance (Pretty.Pretty y) => Pretty.Pretty (Sample y) where
     format (Sample x y) = Pretty.format x <> Pretty.char ':' <> Pretty.format y
 
--- | Merge a sorted list of vectors.  Samples are not interspersed, and if
--- the vectors overlap the later one wins.
+-- | Merge a list of vectors.  Samples are not interspersed, and if the vectors
+-- overlap the one with a later first sample wins.
 merge :: (V.Vector v (Sample y)) => [v (Sample y)] -> v (Sample y)
-merge vecs = V.unfoldrN len go vecs
+merge vecs = V.unfoldrN len go $ Seq.sort_on (fmap sx . head) vecs
     where
     -- This will be too big if there's lots of overlap.
     len = sum (map V.length vecs) + 1
