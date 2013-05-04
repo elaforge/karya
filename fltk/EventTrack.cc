@@ -329,7 +329,7 @@ EventTrackView::draw_area()
     // Expand by a pixel, otherwise I miss little slivers on retina displays.
     clip.y--;
     clip.h++;
-    int y = this->y() + 1; // top pixel is a bevel
+    int y = this->track_start();
 
     ScoreTime start = this->zoom.to_time(clip.y - y);
     ScoreTime end = start + this->zoom.to_time(clip.h);
@@ -440,7 +440,7 @@ EventTrackView::draw_signal(int min_y, int max_y, ScoreTime start)
     if (found == tsig.length)
         return;
 
-    const int y = this->y() + 1; // avoid bevel
+    const int y = this->track_start();
     // TODO alpha not supported, I'd need a non-portable drawing routine for
     // it.
     Fl_Color signal_color =

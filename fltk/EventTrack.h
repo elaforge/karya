@@ -109,8 +109,11 @@ struct EventTrackConfig {
 class EventTrackView : public TrackView {
 public:
     EventTrackView(const EventTrackConfig &config,
-            const RulerConfig &ruler_config);
+        const RulerConfig &ruler_config);
     void resize(int x, int y, int w, int h);
+    // Y position of the track start.  Use this instead of y() to avoid
+    // colliding with the track bevel.
+    int track_start() { return overlay_ruler.track_start(); }
     virtual SeqInput &title_widget() { return *this->title_input; }
     virtual const char *get_title() const {
         return this->title_input->value();

@@ -110,6 +110,10 @@ public:
     // Only public so that EventTrack::draw can call it.
     void damage_range(ScoreTime start, ScoreTime end);
 
+    // Y position of the track start.  Use this instead of y() to avoid
+    // colliding with the track bevel.
+    int track_start() { return y() + 2; }
+
     enum { DAMAGE_RANGE = FL_DAMAGE_USER1 };
     // This area needs to be redrawn.
     IRect damaged_area;

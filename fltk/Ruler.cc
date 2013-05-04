@@ -153,7 +153,7 @@ OverlayRuler::draw()
     if (damage() == OverlayRuler::DAMAGE_RANGE) {
         IRect c = rect(this).intersect(this->damaged_area);
         fl_push_clip(c.x, c.y, c.w, c.h);
-        // DEBUG("draw range " << c << c.height_range());
+        // DEBUG("draw range " << c << ": " << c.height_range());
         clip = true;
     } else {
         // DEBUG("draw all");
@@ -239,7 +239,7 @@ OverlayRuler::draw_marklists()
     // DEBUG("clip: " << clip);
     if (clip.w == 0 || clip.h == 0)
         return;
-    int y = this->y();
+    int y = this->track_start();
 
     ScoreTime start = this->zoom.to_time(clip.y - y);
     ScoreTime end = start + this->zoom.to_time(clip.h);
@@ -339,7 +339,7 @@ void
 OverlayRuler::draw_selections()
 {
     IRect sel_rect;
-    int y = this->y();
+    int y = this->track_start();
     for (int i = 0; i < Config::max_selections; i++) {
         const TrackSelection &sel = this->selections[i];
         if (sel.empty())
