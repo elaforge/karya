@@ -28,7 +28,7 @@ module Perform.Signal (
     , first, last
 
     -- * transformation
-    , merge
+    , merge, interleave
     , sig_add, sig_subtract, sig_multiply
     -- ** scalar transformation
     , sig_max, sig_min, scalar_max, scalar_min, clip_bounds
@@ -210,6 +210,9 @@ last = fmap V.to_pair . V.last . sig_vec
 
 merge :: [Signal y] -> Signal y
 merge = Signal . V.merge . map sig_vec
+
+interleave :: Signal y -> Signal y -> Signal y
+interleave sig1 sig2 = Signal $ V.interleave (sig_vec sig1) (sig_vec sig2)
 
 sig_add, sig_subtract, sig_multiply :: Control -> Control -> Control
 sig_add = sig_op (+)

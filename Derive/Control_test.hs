@@ -39,6 +39,48 @@ test_control_track = do
     strings_like logs ["call not found: abc", "call not found: def"]
     equal (derive ("cont", events)) ([[(0, 1), (1, 2)]], [])
 
+test_split_control = do
+    let run = DeriveTest.derive_tracks
+        e_controls = DeriveTest.extract $ \event ->
+            let e name = DeriveTest.e_control name event
+            in ('a', e "a", 'b', e "b")
+        e_tsigs = map snd . DeriveTest.e_tsigs
+
+    let tracks =
+            [ (">", [(0, 4, "")])
+            , ("a", [(0, 0, "1"), (1, 0, "%b"), (2, 0, "2")])
+            ]
+    equal (e_controls $ run tracks)
+        ([('a', [(0, 1)], 'b', [(0, 0), (2, 2)])], [])
+    equal (e_tsigs $ run tracks) [Right [(0, 1), (2, 2)]]
+
+    let tracks =
+            [ (">", [(0, 2, ""), (2, 2, "")])
+            , ("a", [(0, 0, ".5"), (1, 0, "%b"), (2, 0, "1")])
+            ]
+    equal (e_controls $ run tracks)
+        ( [ ('a', [(0, 0.5)], 'b', [(0, 0)])
+          , ('a', [(0, 0.5)], 'b', [(2, 1)])
+          ]
+        , []
+        )
+    equal (e_tsigs $ run tracks) [Right [(0, 0.5), (2, 1)]]
+
+    -- Tracks with the same name are merged.
+    let tracks =
+            [ (">", [(0, 2, ""), (2, 2, ""), (4, 2, "")])
+            , ("a", [(0, 0, "1"), (1, 0, "%b"), (2, 0, "2"),
+                (3, 0, "%a"), (4, 0, "3")])
+            ]
+    equal (e_controls $ run tracks)
+        ( [ ('a', [(0, 1)], 'b', [(0, 0)])
+          , ('a', [(0, 1)], 'b', [(2, 2)])
+          , ('a', [(4, 3)], 'b', [(2, 2)])
+          ]
+        , []
+        )
+    equal (e_tsigs $ run tracks) [Right [(0, 1), (2, 2), (4, 3)]]
+
 test_hex = do
     let derive events =
             do_derive (DeriveTest.e_control "cont") ("cont", events)

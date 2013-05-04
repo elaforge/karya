@@ -133,3 +133,13 @@ instance Pretty.Pretty TrackSignal where
 
 instance DeepSeq.NFData TrackSignal where
     rnf (TrackSignal sig _ _ _) = DeepSeq.rnf sig
+
+-- | Not a monoid because there's no mempty and since I take shift and stretch
+-- from the first TrackSignal it's not really commutative.
+merge_signals :: Either [Log.Msg] TrackSignal -> Either [Log.Msg] TrackSignal
+    -> Either [Log.Msg] TrackSignal
+merge_signals val1 val2 = do
+    tsig1 <- val1
+    tsig2 <- val2
+    return $ tsig1
+        { ts_signal = Signal.interleave (ts_signal tsig1) (ts_signal tsig2) }

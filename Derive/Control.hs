@@ -17,6 +17,7 @@
     normal controls using transposition signals like 'Score.c_chromatic'.
 -}
 module Derive.Control where
+import qualified Data.ByteString.Char8 as Char8
 import qualified Data.Char as Char
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
@@ -25,6 +26,8 @@ import qualified Data.Tree as Tree
 
 import Util.Control
 import qualified Util.Log as Log
+import qualified Util.Seq as Seq
+
 import qualified Ui.Event as Event
 import qualified Ui.Events as Events
 import qualified Ui.Track as Track
@@ -36,6 +39,7 @@ import qualified Derive.Call.Util as Util
 import qualified Derive.Derive as Derive
 import qualified Derive.Deriver.Internal as Internal
 import qualified Derive.LEvent as LEvent
+import qualified Derive.ParseBs as ParseBs
 import qualified Derive.PitchSignal as PitchSignal
 import qualified Derive.Scale as Scale
 import qualified Derive.Score as Score
@@ -62,6 +66,75 @@ d_control_track (Tree.Node track _) deriver = do
     (ctype, expr) <- either (\err -> Derive.throw $ "track title: " ++ err)
         return (TrackInfo.parse_control_expr title)
     eval_track track expr ctype deriver
+    -- case ctype of
+    --     TrackInfo.Control {} -> do
+    --         let (orig_track, split_tracks) = split_control track
+    --         eval_track orig_track expr ctype $
+    --             foldr eval_split_track deriver split_tracks
+    --     _ -> eval_track track expr ctype deriver
+
+-- | Preprocess a track tree by splitting the control tracks.  An event
+-- starting with @%@ splits the events below it into a new control track.  The
+-- text after the @%@ becomes the new track title.  Split tracks with the same
+-- title will be merged together, but they have to have exactly the same title.
+-- If they have different titles but create the same control, they will wind up
+-- in separate tracks and likely the last one will win, due to the implicit
+-- leading 0 sample in each control track.
+--
+-- Preprocessing at the track tree level means the split tracks act like real
+-- tracks and interact with slicing correctly.
+--
+-- This is experimental.  It provides a way to have short ad-hoc control
+-- sections, which is likely to be convenient for individual calls that can use
+-- a control signal.  On the other hand, it invisibly rearranges the score, and
+-- that has been a real mess with slicing.  Hopefully it's simple enough that
+-- it won't be as confusing as slicing and inversion.
+--
+-- TrackSignals should work out because the split tracks all have the same
+-- TrackId, and so their individual signal fragments should be joined by
+-- 'Track.merge_signals'.
+split_control_tracks :: TrackTree.EventsTree -> TrackTree.EventsTree
+split_control_tracks = map split
+    where
+    split (Tree.Node track subs) =
+        case TrackInfo.track_type (TrackTree.tevents_title track) of
+            TrackInfo.ControlTrack -> splice (split_control track) subs
+            _ -> Tree.Node track (map split subs)
+        where
+        splice [] subs = Tree.Node track subs
+        splice [x] subs = Tree.Node x subs
+        splice (x:xs) subs = Tree.Node x [splice xs subs]
+
+-- | Look for events starting with @%@, and split the track at each one.
+-- Each split-off track is titled with the text after the @%@.
+split_control :: TrackTree.TrackEvents -> [TrackTree.TrackEvents]
+split_control track = extract $ split $ TrackTree.tevents_events track
+    where
+    split events = go (TrackTree.tevents_title track) events $
+        mapMaybe switch_control $ Events.ascending events
+    go title events [] = [(title, events)]
+    go title events ((start, next_title) : switches) =
+        (title, pre) : go next_title post switches
+        where (pre, post) = Events.split_at_exclude start events
+    switch_control event
+        | Just ('%', title) <- Char8.uncons (Event.event_bytestring event),
+            not (Char8.null title) =
+                Just (Event.start event, ParseBs.to_text title)
+        | otherwise = Nothing
+    extract [] = [track]
+    extract [_] = [track]
+    extract tracks = map convert (merge tracks)
+    convert (title,  events) = track
+        { TrackTree.tevents_title = title
+        , TrackTree.tevents_events = events
+        }
+    -- Tracks with the same name are merged back together.
+    -- TODO Group by control, not title.
+    merge = map merge_track . Seq.group_on fst
+    merge_track [] = error "Seq.group_on postcondition violated"
+    merge_track tracks@((title, _) : _) = (title, mconcat (map snd tracks))
+
+-- * eval_track
 
 eval_track :: TrackTree.TrackEvents -> [TrackLang.Call]
     -> TrackInfo.ControlType -> Derive.EventDeriver -> Derive.EventDeriver
@@ -324,7 +397,9 @@ put_track_signals :: [(TrackId, Either [Log.Msg] Track.TrackSignal)]
     -> Derive.Deriver ()
 put_track_signals [] = return ()
 put_track_signals tracks = Internal.merge_collect $ mempty
-    { Derive.collect_track_signals = Map.fromList tracks }
+    { Derive.collect_track_signals =
+        Map.fromListWith Track.merge_signals tracks
+    }
 
 -- * track_signal
 

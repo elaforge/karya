@@ -144,6 +144,7 @@ instance (Pretty.Pretty y) => Pretty.Pretty (Sample y) where
 
 -- | Merge a list of vectors.  Samples are not interspersed, and if the vectors
 -- overlap the one with a later first sample wins.
+{-# SPECIALIZE merge :: [Unboxed] -> Unboxed #-}
 merge :: (V.Vector v (Sample y)) => [v (Sample y)] -> v (Sample y)
 merge vecs = V.unfoldrN len go $ Seq.sort_on (fmap sx . head) vecs
     where
@@ -160,6 +161,24 @@ merge vecs = V.unfoldrN len go $ Seq.sort_on (fmap sx . head) vecs
             Just (Sample next_x next_y, next_tl)
                 | next_x <= x -> Just (Sample next_x next_y, next_tl : rest)
                 | otherwise -> Just (Sample x y, cur_tl : vecs)
+
+-- | Merge two vectors, interleaving their samples.
+{-# SPECIALIZE interleave :: Unboxed -> Unboxed -> Unboxed #-}
+interleave :: (V.Vector v (Sample y)) => v (Sample y) -> v (Sample y)
+    -> v (Sample y)
+interleave vec1 vec2 = V.unfoldrN (len1 + len2) go (0, 0)
+    where
+    len1 = V.length vec1
+    len2 = V.length vec2
+    go (i1, i2)
+        | i1 >= len1 && i2 >= len2 = Nothing
+        | i1 >= len1 = Just (s2, (i1, i2+1))
+        | i2 >= len2 = Just (s1, (i1+1, i2))
+        | sx s1 <= sx s2 = Just (s1, (i1+1, i2))
+        | otherwise = Just (s2, (i1, i2+1))
+        where
+        s1 = V.unsafeIndex vec1 i1
+        s2 = V.unsafeIndex vec2 i2
 
 -- | Find the value of the signal at the X value.  Nothing if the X is before
 -- the first sample.  However, any sample within 'RealTime.eta' is considered

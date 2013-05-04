@@ -728,11 +728,12 @@ data ControlModification =
 
 instance Monoid.Monoid Collect where
     mempty = Collect mempty mempty mempty mempty mempty mempty mempty
-    mappend (Collect warps1 signals1 env1 deps1 cache1 integrated1 cmods1)
-            (Collect warps2 signals2 env2 deps2 cache2 integrated2 cmods2) =
-        Collect (warps1 <> warps2) (signals1 <> signals2) (env1 <> env2)
-            (deps1 <> deps2) (cache1 <> cache2) (integrated1 <> integrated2)
-            (cmods1 <> cmods2)
+    mappend (Collect warps1 tsigs1 env1 deps1 cache1 integrated1 cmods1)
+            (Collect warps2 tsigs2 env2 deps2 cache2 integrated2 cmods2) =
+        Collect (warps1 <> warps2)
+            (Map.unionWith Track.merge_signals tsigs1 tsigs2)
+            (env1 <> env2) (deps1 <> deps2) (cache1 <> cache2)
+            (integrated1 <> integrated2) (cmods1 <> cmods2)
 
 instance DeepSeq.NFData Collect where
     rnf (Collect warp_map tsigs track_dyn local_dep cache integrated _cmods) =

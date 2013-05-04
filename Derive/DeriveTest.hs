@@ -15,6 +15,7 @@ import qualified Midi.Midi as Midi
 import qualified Ui.Ruler as Ruler
 import qualified Ui.Skeleton as Skeleton
 import qualified Ui.State as State
+import qualified Ui.Track as Track
 import qualified Ui.UiTest as UiTest
 
 import qualified Cmd.Cmd as Cmd
@@ -388,6 +389,10 @@ e_environ f event =
         <- TrackLang.environ_to_list (Score.event_environ event)
     , f (untxt k)
     ]
+
+e_tsigs :: Derive.Result -> [(TrackId, Either [Log.Msg] [(Signal.X, Signal.Y)])]
+e_tsigs = Map.toList . Map.map (fmap tsig) . Derive.r_track_signals
+    where tsig t = Signal.unsignal $ Track.ts_signal t
 
 -- ** extract log msgs
 

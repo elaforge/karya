@@ -29,7 +29,7 @@ module Ui.Events (
 
     -- ** split
     -- *** events
-    , split_range, split_at
+    , split_range, split_at, split_at_exclude
     , in_range, in_range_point
     , around
     -- *** List [Event]
@@ -117,8 +117,8 @@ insert :: [Event.Event] -> Events -> Events
 insert [] events = events
 insert new_events events = merge clipped events
     where
-    clipped = Events $ Map.fromAscList $
-        Seq.key_on Event.start (clip_events (Seq.sort_on Event.start new_events))
+    clipped = Events $ Map.fromAscList $ Seq.key_on Event.start $
+        clip_events (Seq.sort_on Event.start new_events)
 
 -- | Remove events in the half-open range.  Since the range is half-open, if
 -- start==end this will never remove any events.  Use 'remove_event' for that.
@@ -157,7 +157,6 @@ last (Events events) = snd <$> Map.max events
 -- *** events
 
 -- | Split into tracks before, within, and after the half-open range.
--- @before@ events are descending, the rest are ascending.
 --
 -- This is complicated due to negative events.  The idea is that when positive
 -- events are present, the range is half-open where the end is excluded, as is
@@ -170,9 +169,17 @@ split_range :: ScoreTime -> ScoreTime -> Events -> (Events, Events, Events)
 split_range start end events = (Events pre, Events within, Events post)
     where (pre, within, post) = _split_range start end (get events)
 
+-- | Split at the given time.  An event that starts at the give time will
+-- appear in the above events.
 split_at :: ScoreTime -> Events -> (Events, Events)
 split_at pos (Events events) = (Events pre, Events post)
     where (pre, post) = Map.split2 pos events
+
+-- | Like 'split_at', but an event that matches exactly is excluded from the
+-- result.
+split_at_exclude :: ScoreTime -> Events -> (Events, Events)
+split_at_exclude pos (Events events) = (Events pre, Events post)
+    where (pre, post) = Map.split pos events
 
 -- | Like 'split_range', but only return the middle part.
 in_range :: ScoreTime -> ScoreTime -> Events -> Events

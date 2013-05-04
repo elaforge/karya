@@ -48,6 +48,14 @@ test_merge = do
     equal (f [[(0, 0), (1, 1), (2, 2)], [(1, 3), (2, 4), (3, 5)]])
         [(0, 0), (1, 3), (2, 4), (3, 5)]
 
+test_interleave = do
+    let f v1 v2 = unsignal $ V.interleave (signal v1) (signal v2)
+    equal (f [] []) []
+    equal (f [(0, 0)] []) [(0, 0)]
+    equal (f [(0, 0)] [(0, 1)]) [(0, 0), (0, 1)]
+    equal (f [(0, 0)] [(1, 1)]) [(0, 0), (1, 1)]
+    equal (f [(0, 0), (2, 2)] [(1, 1)]) [(0, 0), (1, 1), (2, 2)]
+
 test_shift = do
     let vec = signal [(0, 1), (1, 0)]
     let shift x = unsignal $ V.shift x vec

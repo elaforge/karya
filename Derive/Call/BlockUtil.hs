@@ -41,7 +41,7 @@ import Types
 note_deriver :: BlockId -> State.StateId Derive.EventDeriver
 note_deriver block_id = do
     (tree, block_end) <- get_tree block_id
-    return $ derive_tree block_end tree
+    return $ derive_tree block_end (Control.split_control_tracks tree)
 
 -- * control deriver
 

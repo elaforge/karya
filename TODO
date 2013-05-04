@@ -3,7 +3,9 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
-  - For a short-term control track, It should be possible to change the
+  - Top of the tracks are a bit too clipped off, the selection is barely
+    visible.
+  * For a short-term control track, It should be possible to change the
     control track with a %new-control event.  Pre interpretation, scan for
     those events and split the track accordingly.
   Format2
