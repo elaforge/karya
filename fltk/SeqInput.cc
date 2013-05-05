@@ -9,7 +9,7 @@
 
 
 SeqInput::SeqInput(int X, int Y, int W, int H, bool do_expansion) :
-    Fl_Input(W, Y, W, H), focus_color(255, 240, 220),
+    Fl_Input(X, Y, W, H), focus_color(255, 240, 220),
     proper_size(W, H), expanded(false), do_expansion(do_expansion)
 {
     this->color(FL_WHITE);
