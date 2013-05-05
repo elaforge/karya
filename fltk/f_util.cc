@@ -8,6 +8,7 @@
 #include <FL/Fl.H>
 #include <FL/Fl_Widget.H>
 #include <FL/Fl_Group.H>
+#include <FL/Fl_Input_.H>
 
 #include "f_util.h"
 
@@ -163,21 +164,23 @@ const char *
 show_damage(uchar d)
 {
     static char buf[1024];
-    memset(buf, '\0', sizeof buf);
+    *buf = '\0';
     if (d & FL_DAMAGE_ALL)
-        strcat(buf, "all, ");
+        strcat(buf, "all+");
     if (d & FL_DAMAGE_CHILD)
-        strcat(buf, "child, ");
+        strcat(buf, "child+");
     if (d & FL_DAMAGE_EXPOSE)
-        strcat(buf, "expose, ");
+        strcat(buf, "expose+");
     if (d & FL_DAMAGE_SCROLL)
-        strcat(buf, "scroll, ");
+        strcat(buf, "scroll+");
     if (d & FL_DAMAGE_OVERLAY)
-        strcat(buf, "overlay, ");
+        strcat(buf, "overlay+");
     if (d & FL_DAMAGE_USER1)
-        strcat(buf, "user1, ");
+        strcat(buf, "user1+");
     if (d & FL_DAMAGE_USER2)
-        strcat(buf, "user2, ");
+        strcat(buf, "user2+");
+    if (*buf)
+        buf[strlen(buf)-1] = '\0';
     sprintf(buf+strlen(buf), "(%d)", d);
     buf[strlen(buf)] = '\0';
     return buf;
@@ -187,12 +190,21 @@ show_damage(uchar d)
 const char *
 show_widget(const Fl_Widget *w)
 {
-    static char buf[127];
+    std::ostringstream out;
     IRect r = rect(*w);
-    snprintf(buf, sizeof buf, "(%d %d %d %d) %s \"%s\" '%s'",
-        r.x, r.y, r.w, r.h,
-        typeid(*w).name(), w->label(), show_damage(w->damage()));
-    return buf;
+    out << typeid(*w).name() << ": ";
+    out << rect(*w) << " label=";
+    if (w->label())
+        out << '"' << w->label() << '"';
+    else
+        out << "NULL";
+    const Fl_Input_ *input = dynamic_cast<const Fl_Input_ *>(w);
+    if (input)
+        out << " input=\"" << input->value() << '"';
+    out << " dmg=" << show_damage(w->damage());
+    static std::string outs;
+    outs = out.str();
+    return outs.c_str();
 }
 
 
