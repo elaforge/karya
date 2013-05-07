@@ -116,12 +116,9 @@ undo_bindings = concat
 -- | Quit is special because it's the only Cmd that returns Cmd.Quit.
 -- See how annoying it is to make a keymap by hand?
 quit_bindings :: [Keymap.Binding (Cmd.CmdT IO)]
-quit_bindings = [(kspec, cspec) | kspec <- kspecs]
-    where
-    kspecs = [Keymap.key_spec mods key
-        | mods <- Keymap.expand_mods key [PrimaryCommand]]
-    key = Keymap.Key False (Key.Char '\'')
-    cspec = Keymap.cspec "quit" $ const (Play.cmd_stop >> return Cmd.Quit)
+quit_bindings =
+    bind_key_status [PrimaryCommand] (Key.Char '\'') "quit"
+        (Play.cmd_stop >> return Cmd.Quit)
 
 -- * pure cmds
 
@@ -331,6 +328,9 @@ event_bindings = concat
     , shift_char '4' "insert recent 4" (Edit.cmd_insert_recent 4)
     , shift_char '5' "cycle enharmonic"
         (PitchTrack.pitches PitchTrack.cycle_enharmonics)
+
+    , bind_key_status [] (Key.Char 'A') "append text" Edit.append_text
+    , bind_key_status [] (Key.Char 'I') "prepend text" Edit.prepend_text
     ]
 
 -- | Bindings which work on pitch tracks.  The reason this is global rather

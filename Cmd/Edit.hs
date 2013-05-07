@@ -502,3 +502,25 @@ record_recent note recent0 = (key, note) : recent
     match (Cmd.RecentNote n1 _) (Cmd.RecentNote n2 _) =
         Seq.head (Text.words n1) == Seq.head (Text.words n2)
     match n1 n2 = n1 == n2
+
+
+-- * edit input
+
+append_text :: (Cmd.M m) => m Cmd.Status
+append_text = edit_open (const Nothing)
+
+prepend_text :: (Cmd.M m) => m Cmd.Status
+prepend_text = edit_open (const $ Just (0, 0))
+
+edit_open :: (Cmd.M m) => (Text -> Maybe (Int, Int)) -> m Cmd.Status
+edit_open selection = do
+    view_id <- Cmd.get_focused_view
+    (_, tracknum, track_id, pos) <- Selection.get_insert
+    text <- event_text_at track_id pos
+    return $ Cmd.EditInput $ Cmd.EditOpen view_id tracknum pos text
+        (selection text)
+
+event_text_at :: (State.M m) => TrackId -> ScoreTime -> m Text
+event_text_at track_id pos = do
+    events <- Track.track_events <$> State.get_track track_id
+    return $ maybe "" Event.event_text $ Events.at pos events

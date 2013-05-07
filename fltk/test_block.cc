@@ -28,7 +28,7 @@ BlockModelConfig block_model_config()
     BlockModelConfig c;
     c.skel_box = BlockBox(Color(0x99, 0x99, 0xff), 'a');
     c.track_box = BlockBox(Color(0x44, 0xff, 0xff), 'K');
-    c.sb_box = BlockBox(Color(0x00, 0xff, 0xff), 'S');
+    c.sb_box = BlockBox(Color(0x00, 0xff, 0xff), ' ');
     return c;
 }
 
@@ -192,14 +192,16 @@ timeout_func(void *vp)
     std::cout << n << "------------\n";
     switch (n) {
     case 0:
-        view.block.insert_track(2, Tracklike(&empty_track, &ruler), 30);
+        static const char *text = "hi";
+        view.block.edit_open(1, ScoreTime(16), text, 10, 10);
+        // view.block.insert_track(2, Tracklike(&empty_track, &ruler), 30);
         break;
     case 1:
+        view.block.edit_append("haha");
         return;
         // view.block.insert_track(2, Tracklike(&track1, &truler), 30);
         break;
     case 2:
-        // print_children(&view);
         break;
     default:
         return;
@@ -246,42 +248,6 @@ control_track_signal()
     ts->shift = ScoreTime(0);
     ts->stretch = ScoreTime(1);
     ts->calculate_val_bounds();
-    return ts;
-}
-
-static TrackSignal *
-pitch_track_signal()
-{
-    TrackSignal *ts = new TrackSignal();
-
-    /*
-    const int length = 4;
-    PitchSample *samples = (PitchSample *)
-        calloc(length, sizeof(PitchSample));
-    samples[0] = PitchSample(ScoreTime(0), 2, 4, 0.2);
-    samples[1] = PitchSample(ScoreTime(20), 2, 4, 0.75);
-    samples[2] = PitchSample(ScoreTime(40), 1, 3, 0.5);
-    samples[3] = PitchSample(ScoreTime(60), 1.75, 3.5, 0.5);
-
-    const int length = 80;
-    int i = 0;
-    PitchSample *samples = (PitchSample *) calloc(length, sizeof(PitchSample));
-    for (; i < 20; i++) {
-        samples[i] = PitchSample(ScoreTime(i).to_real(), 2, 4, i / 20.0);
-    }
-    for (; i < 40; i++) {
-        samples[i] = PitchSample(ScoreTime(i).to_real(), 1, 3, (i-20) / 20.0);
-    }
-    for (; i < 80; i++) {
-        samples[i] = PitchSample(
-            ScoreTime(i).to_real(), 1.5, 3.5, (i-40) / 40.0);
-    }
-    */
-
-    ts->signal = NULL;
-    ts->length = 0;
-    ts->shift = ScoreTime(0);
-    ts->stretch = ScoreTime(1);
     return ts;
 }
 
@@ -346,13 +312,10 @@ main(int argc, char **argv)
         view.block.insert_track(5, Tracklike(&track2, &ruler), 80);
 
         view.block.set_status("ABC`tamil-i` ABC `xie`", Color::white);
-        view.block.set_title("hi there");
 
-        TrackSignal *pitch_tsig = pitch_track_signal();
-        view.block.set_track_signal(1, *pitch_tsig);
         TrackSignal *control_tsig = control_track_signal();
-        view.block.set_track_signal(2, *control_tsig);
         view.block.set_track_signal(3, *control_tsig);
+        view.block.set_track_signal(4, *control_tsig);
 
         SkeletonEdge edges[] = {
             SkeletonEdge(0, 1, 0, Color::black),
@@ -379,12 +342,14 @@ main(int argc, char **argv)
     } else {
         view.block.insert_track(0, Tracklike(&ruler), 20);
         view.block.insert_track(1, Tracklike(&track1, &no_ruler), 60);
+        view.block.track_at(1)->set_title("track title");
         // view.block.set_track_signal(1, *control_track_signal());
     }
+    view.block.set_title("hi there");
 
     // print_children(&view);
 
-    // Fl::add_timeout(1, timeout_func, (void*) &view);
+    Fl::add_timeout(1, timeout_func, (void*) &view);
 
     view.block.set_zoom(ZoomInfo(ScoreTime(0), 1.6));
 

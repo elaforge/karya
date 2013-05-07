@@ -1,16 +1,16 @@
 /* This adds track-specific stuff to a MoveTile.
 
-Manage the underlying MoveTile:
-Fill rightmost track edge until the right edge of the window with a pad box of
-the given color.
+    Manage the underlying MoveTile:
+    Fill rightmost track edge until the right edge of the window with a pad box
+    of the given color.
 
-Accept zoom callbacks from parent Zoom and BlockView.
+    Accept zoom callbacks from parent Zoom and BlockView.
 
-Tracks come in pairs of a title and body.
+    Tracks come in pairs of a title and body.
 
-TrackTile_______
-   |             \
-EventTrackTitle EventTrack
+    TrackTile________________
+       |           \         \
+    title_input  EventTrack  SeqInput (edit_input, temporary)
 */
 
 #ifndef __TRACK_TILE_H
@@ -25,6 +25,7 @@ EventTrackTitle EventTrack
 
 #include "MoveTile.h"
 #include "Track.h"
+#include "SeqInput.h"
 
 
 class TrackTile : public MoveTile {
@@ -43,6 +44,12 @@ public:
         this->redraw();
     }
 
+    // Edit input.
+    void edit_open(int tracknum, ScoreTime pos, const char *text,
+        int select_start, int select_end);
+    void edit_close();
+    void edit_append(const char *text);
+
     // ScoreTime of the end of the last event.
     ScoreTime time_end() const;
     // ScoreTime of the bottom of the visible window.
@@ -58,7 +65,9 @@ public:
     // Remove and return the TrackView, so the parent can delete it.
     TrackView *remove_track(int tracknum);
     // A track is a (title, body) pair, minus the track_pad.
-    int tracks() const { return floor(children()/2.0); }
+    int tracks() const {
+        return floor((children() - (edit_input ? 1 : 0)) / 2.0);
+    }
     TrackView *track_at(int tracknum);
     const TrackView *track_at(int tracknum) const;
     int get_track_width(int tracknum) const;
@@ -73,6 +82,11 @@ private:
     int title_height;
     ZoomInfo zoom;
     Fl_Box track_pad; // box to take up space not covered by tracks
+    // Created and destroyed when 'edit_open' is called.
+    SeqInput *edit_input;
+    // When edit_input is set, this is the tracknum is was opened for.
+    int edit_input_tracknum;
+    ScoreTime edit_input_pos;
 
     void update_sizes();
 };

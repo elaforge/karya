@@ -49,6 +49,8 @@ module Ui.BlockC (
     -- * Block operations
     , set_model_config, set_skeleton, set_title, set_status
     , set_display_track
+    -- ** edit input
+    , edit_open, edit_append
 
     -- ** Track operations
     , insert_track, remove_track, update_track, update_entire_track
@@ -259,6 +261,28 @@ set_display_track view_id tracknum dtrack = do
         c_set_display_track viewp (Util.c_int tracknum) dtrackp
 foreign import ccall "set_display_track"
     c_set_display_track :: Ptr CView -> CInt -> Ptr Block.DisplayTrack -> IO ()
+
+-- ** edit input
+
+edit_open :: ViewId -> TrackNum -> ScoreTime -> Text -> Maybe (Int, Int)
+    -> Fltk ()
+edit_open view_id tracknum at text selection = do
+    viewp <- get_ptr view_id
+    let (start, end) = fromMaybe (-1, 0) selection
+    Util.withText text $ \textp -> with at $ \atp ->
+        c_edit_open viewp (Util.c_int tracknum) atp textp
+            (Util.c_int start) (Util.c_int end)
+foreign import ccall "edit_open"
+    c_edit_open :: Ptr CView -> CInt -> Ptr ScoreTime -> CString -> CInt
+        -> CInt -> IO ()
+
+edit_append :: [ViewId] -> Text -> Fltk ()
+edit_append view_ids text = do
+    Util.withText text $ \textp -> forM_ view_ids $ \view_id -> do
+        viewp <- get_ptr view_id
+        c_edit_append viewp textp
+foreign import ccall "edit_append"
+    c_edit_append :: Ptr CView -> CString -> IO ()
 
 -- * Track operations
 

@@ -121,6 +121,7 @@ type CmdL a = CmdT IO a
 data Status = Done | Continue | Quit
     -- | Hack to control import dependencies, see "Cmd.PlayC".
     | PlayMidi !PlayMidiArgs
+    | EditInput !EditInput
     deriving (Show, Generics.Typeable)
 
 -- | Arguments for "Cmd.PlayC.play".
@@ -129,8 +130,14 @@ data Status = Done | Continue | Quit
 -- to repeat at.
 data PlayMidiArgs = PlayMidiArgs !String !Midi.Perform.MidiEvents
     !(Maybe Transport.InverseTempoFunction) !(Maybe RealTime)
-instance Show PlayMidiArgs where
-    show _ = "((PlayMidiArgs))"
+instance Show PlayMidiArgs where show _ = "((PlayMidiArgs))"
+
+data EditInput =
+    -- | Open a new text input.  View, track, pos, (select start, select end).
+    EditOpen !ViewId !TrackNum !ScoreTime !Text !(Maybe (Int, Int))
+    -- | Append the given text to an already open edit box.
+    | EditAppend !Text
+    deriving (Show, Generics.Typeable)
 
 -- | Cmds can run in either Identity or IO, but are generally returned in IO,
 -- just to make things uniform.

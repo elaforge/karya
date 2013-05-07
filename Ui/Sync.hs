@@ -27,6 +27,7 @@ module Ui.Sync (
     sync
     , set_track_signals
     , set_play_position, clear_play_position
+    , edit_input
 ) where
 import qualified Data.List as List
 import qualified Data.Map as Map
@@ -49,6 +50,7 @@ import qualified Ui.Types as Types
 import qualified Ui.Ui as Ui
 import qualified Ui.Update as Update
 
+import qualified Cmd.Cmd as Cmd
 import qualified Derive.TrackInfo as TrackInfo
 import qualified App.Config as Config
 import Types
@@ -147,6 +149,12 @@ set_play_position block_sels = Ui.send_action $ sequence_
 clear_play_position :: ViewId -> IO ()
 clear_play_position view_id = Ui.send_action $
     BlockC.set_selection False view_id Config.play_position_selnum Nothing
+
+edit_input :: State.State -> Cmd.EditInput -> IO ()
+edit_input _ (Cmd.EditOpen view_id tracknum at text selection) =
+    BlockC.edit_open view_id tracknum at text selection
+edit_input state (Cmd.EditAppend text) =
+    BlockC.edit_append (Map.keys (State.state_views state)) text
 
 
 -- * run_update

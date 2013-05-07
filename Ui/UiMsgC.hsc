@@ -63,7 +63,8 @@ peek_context msgp = do
     has_pos <- toBool <$> ((#peek UiMsg, context.has_pos) msgp :: IO CChar)
     cpos <- (#peek UiMsg, context.pos) msgp
     let track = decode_track track_type tracknum has_pos cpos
-    return (UiMsg.Context focus track, view)
+        is_edit_input = track_type == (#const UiMsg::track_edit_input)
+    return (UiMsg.Context focus track is_edit_input, view)
     where
     lookup_id p
         | p == nullPtr = return Nothing
@@ -75,8 +76,7 @@ decode_track track_type tracknum has_pos pos
     | track_type == (#const UiMsg::track_divider) =
         Just (tracknum, UiMsg.Divider)
     | track_type /= 0 && has_pos = Just (tracknum, UiMsg.Track pos)
-    | track_type /= 0 =
-        Just (tracknum, UiMsg.SkeletonDisplay)
+    | track_type /= 0 = Just (tracknum, UiMsg.SkeletonDisplay)
     | otherwise = Nothing
 
 peek_event :: Ptr UiMsg.UiMsg -> IO UiMsg.MsgEvent

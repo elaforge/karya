@@ -186,8 +186,10 @@ ui_update maybe_tracknum view_id update = case update of
 cmd_update_ui_state :: Cmd.Cmd
 cmd_update_ui_state msg = do
     (ctx, view_id, update) <- Cmd.require (update_of msg)
-    ui_update_state (fst <$> UiMsg.ctx_track ctx) view_id update
-    return Cmd.Done
+    if UiMsg.ctx_edit_input ctx then return Cmd.Continue
+        else do
+            ui_update_state (fst <$> UiMsg.ctx_track ctx) view_id update
+            return Cmd.Done
 
 ui_update_state :: Maybe TrackNum -> ViewId -> UiMsg.UiUpdate -> Cmd.CmdId ()
 ui_update_state maybe_tracknum view_id update = case update of

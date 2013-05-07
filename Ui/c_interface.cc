@@ -161,6 +161,19 @@ set_display_track(BlockViewWindow *view, int tracknum,
     view->block.set_display_track(tracknum, *dtrack);
 }
 
+void
+edit_open(BlockViewWindow *view, int tracknum, ScoreTime *at,
+    const char *text, int select_start, int select_end)
+{
+    view->block.edit_open(tracknum, *at, text, select_start, select_end);
+}
+
+void
+edit_append(BlockViewWindow *view, const char *text)
+{
+    view->block.edit_append(text);
+}
+
 
 // tracks
 

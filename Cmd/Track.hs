@@ -5,6 +5,7 @@ import qualified Util.Log as Log
 import qualified Ui.State as State
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.ControlTrack as ControlTrack
+import qualified Cmd.EditUtil as EditUtil
 import qualified Cmd.Info as Info
 import qualified Cmd.Keymap as Keymap
 import qualified Cmd.MidiThru as MidiThru
@@ -47,6 +48,9 @@ get_track_cmds = do
     let note_cmd = NoteEntry.cmds_with_note (Cmd.state_kbd_entry edit_state)
             (MidiDb.info_patch <$> maybe_inst) (note_cmds edit_mode track)
         tcmds = track_cmds edit_mode track
+    let edit_input_cmd = EditUtil.edit_input $ case Info.track_type track of
+            Info.Note {} -> False
+            _ -> True
     kcmds <- keymap_cmds track
     -- The order is important:
     -- - Per-instrument cmds can override all others.
@@ -58,7 +62,7 @@ get_track_cmds = do
     --
     -- - Keymap cmds are "background" and only apply if no more special mode is
     -- active, so they go last.
-    return $ icmds ++ note_cmd : tcmds ++ kcmds
+    return $ icmds ++ edit_input_cmd : note_cmd : tcmds ++ kcmds
 
 instrument_cmds :: (Cmd.M m) => TrackId -> Cmd.MidiInfo -> m (Maybe [Cmd.Cmd])
 instrument_cmds track_id inst =

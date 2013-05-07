@@ -44,6 +44,10 @@ void set_status(BlockViewWindow *view, const char *status, Color *color);
 void set_display_track(BlockViewWindow *view, int tracknum,
         DisplayTrack *dtrack);
 
+void edit_open(BlockViewWindow *view, int tracknum, ScoreTime *at,
+    const char *text, int select_start, int select_end);
+void edit_append(BlockViewWindow *view, const char *text);
+
 // tracks
 
 void insert_track(BlockViewWindow *view, int tracknum,

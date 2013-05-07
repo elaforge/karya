@@ -23,6 +23,9 @@ data Context = Context
     -- | Index into block tracks.  The TrackNum will be one greater than the
     -- last track if the cursor has moved beyond it.
     , ctx_track :: Maybe (TrackNum, Track)
+    -- | Indicates that the msg originated from the floating edit_input.
+    -- It should be an 'UpdateInput'.
+    , ctx_edit_input :: !Bool
     } deriving (Show)
 
 -- | Whether the context is on the track itself or the skeleton display above
@@ -33,7 +36,7 @@ data Context = Context
 -- However, those cases are handled in a specific place while Track goes on
 -- to become a mouse Modifier, so I don't mind if the former is a little
 -- awkward for the benefit of the latter.
-data Track = Track ScoreTime | SkeletonDisplay | Divider
+data Track = Track !TrackTime | SkeletonDisplay | Divider
     deriving (Eq, Ord, Read, Show)
     -- (Eq, Ord, Read) needed because this is in Cmd.Modifier
 
@@ -112,10 +115,13 @@ instance Pretty.Pretty UiMsg where
             printf "Other Event: %s %s" (show msg) (Pretty.pretty ctx)
 
 instance Pretty.Pretty Context where
-    pretty (Context focus track) = "{" ++ contents ++ "}"
+    pretty (Context focus track edit_input) = "{" ++ contents ++ "}"
         where
         contents = Seq.join " " $ filter (not.null)
-            [show_maybe "focus" focus, maybe "" show_track track]
+            [ show_maybe "focus" focus
+            , maybe "" show_track track
+            , if edit_input then "edit_input" else ""
+            ]
         show_track (tnum, track) =
             "track=" ++ show tnum ++ ":" ++ Pretty.pretty track
         show_maybe desc = maybe "" (\v -> desc ++ "=" ++ show v)

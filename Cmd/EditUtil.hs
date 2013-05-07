@@ -12,6 +12,7 @@ import qualified Ui.Key as Key
 import qualified Ui.State as State
 import qualified Ui.Track as Track
 import qualified Ui.Types as Types
+import qualified Ui.UiMsg as UiMsg
 
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.InputNote as InputNote
@@ -54,12 +55,28 @@ raw_edit zero_dur msg = do
         _ -> Cmd.abort
     return Cmd.Done
 
+-- | Handle UpdateInput that comes back from the floating edit input.
+edit_input :: Bool -> Cmd.Cmd
+edit_input zero_dur msg = do
+    (view_id, tracknum, pos, text) <- Cmd.require $ edit_input_msg msg
+    block_id <- State.block_id_of view_id
+    modify_event_at (Pos block_id tracknum pos 0) zero_dur False $
+        const (Just (txt text), False)
+    return Cmd.Done
+
+edit_input_msg :: Msg.Msg -> Maybe (ViewId, TrackNum, TrackTime, String)
+edit_input_msg (Msg.Ui (UiMsg.UiMsg ctx (UiMsg.UiUpdate view_id
+        (UiMsg.UpdateInput text))))
+    | Just (tracknum, UiMsg.Track pos) <- UiMsg.ctx_track ctx,
+        UiMsg.ctx_edit_input ctx = Just (view_id, tracknum, pos, text)
+edit_input_msg _ = Nothing
+
 -- * events
 
 -- | Get the event under insertion point, creating an empty one if there is
 -- none.
 get_event :: (State.M m) =>
-    Bool -> TrackId -> ScoreTime -> ScoreTime -> m (Event.Event, Bool)
+    Bool -> TrackId -> TrackTime -> TrackTime -> m (Event.Event, Bool)
 get_event modify_dur track_id pos dur = do
     track <- State.get_track track_id
     let modify = if modify_dur then Event.set_duration dur else id

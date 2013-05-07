@@ -289,7 +289,7 @@ run_responder state m = do
             -- Exception rolls back changes to ui_state and cmd_state.
             return (False, state { state_ui = ui_from, state_cmd = cmd_from })
         Right status -> do
-            cmd_to <- handle_play
+            cmd_to <- handle_special_status
                 ui_to cmd_to (state_transport_info state) status
             cmd_to <- return $ fix_cmd_state ui_to cmd_to
             (updates, ui_to, cmd_to) <-
@@ -312,15 +312,17 @@ run_responder state m = do
             cmd_state { Cmd.state_focused_view = Nothing }
         _ -> cmd_state
 
-handle_play :: State.State -> Cmd.State -> Transport.Info -> Cmd.Status
-    -> IO Cmd.State
-handle_play ui_state cmd_state transport_info (Cmd.PlayMidi args) = do
-    play_ctl <- PlayC.play ui_state transport_info args
-    return $ cmd_state
-        { Cmd.state_play = (Cmd.state_play cmd_state)
-            { Cmd.state_play_control = Just play_ctl }
-        }
-handle_play _ cmd_state _ _ = return cmd_state
+handle_special_status :: State.State -> Cmd.State -> Transport.Info
+    -> Cmd.Status -> IO Cmd.State
+handle_special_status ui_state cmd_state transport_info status = case status of
+    Cmd.PlayMidi args -> do
+        play_ctl <- PlayC.play ui_state transport_info args
+        return $ cmd_state
+            { Cmd.state_play = (Cmd.state_play cmd_state)
+                { Cmd.state_play_control = Just play_ctl }
+            }
+    Cmd.EditInput edit -> Sync.edit_input ui_state edit >> return cmd_state
+    _ -> return cmd_state
 
 respond :: State -> Msg.Msg -> IO (Bool, State)
 respond state msg = run_responder state $ do

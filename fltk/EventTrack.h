@@ -150,6 +150,8 @@ private:
     Color bg_color;
 
     SeqInput *title_input;
+    // Created and destroyed when 'edit_open' is called.
+    SeqInput *edit_input;
     Fl_Box bg_box;
     OverlayRuler overlay_ruler;
 };

@@ -394,10 +394,6 @@ BlockView::set_title(const char *s)
 {
     title.set_text(s);
     title_cb(NULL, this);
-    // Haskell uses " " to make the title line appear and assign focus to it.
-    // It's a hack but simpler than making a FocusOnTitle Update.
-    if (strcmp(s, " ") == 0)
-        title.take_focus();
 }
 
 
@@ -464,6 +460,24 @@ BlockView::set_display_track(int tracknum, const DisplayTrack &dtrack)
     }
     this->track_at(tracknum)->set_event_brightness(dtrack.event_brightness);
     this->set_track_width(tracknum, dtrack.width);
+}
+
+
+void
+BlockView::edit_open(int tracknum, ScoreTime pos, const char *text,
+    int select_start, int select_end)
+{
+    ASSERT(0 <= tracknum && tracknum < this->tracks());
+    // Unlike all the other TrackTile methods, this one doesn't subtract 1
+    // from the tracknum.  Documented in TrackTile::edit_open.
+    track_tile.edit_open(tracknum, pos, text, select_start, select_end);
+}
+
+
+void
+BlockView::edit_append(const char *text)
+{
+    track_tile.edit_append(text);
 }
 
 
@@ -676,6 +690,8 @@ void
 BlockView::title_cb(Fl_Widget *_w, void *vp)
 {
     BlockView *self = static_cast<BlockView *>(vp);
+    BlockViewWindow *view = static_cast<BlockViewWindow *>(self->window());
+    MsgCollector::get()->view(UiMsg::msg_input, view);
     if (strlen(self->title.value()) == 0) {
         if (self->title.visible()) {
             self->title.hide();

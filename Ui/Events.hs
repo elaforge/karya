@@ -175,7 +175,7 @@ split_at :: ScoreTime -> Events -> (Events, Events)
 split_at pos (Events events) = (Events pre, Events post)
     where (pre, post) = Map.split2 pos events
 
--- | Like 'split_at', but an event that matches exactly is excluded from the
+-- | Liek 'split_at', but an event that matches exactly is excluded from the
 -- result.
 split_at_exclude :: ScoreTime -> Events -> (Events, Events)
 split_at_exclude pos (Events events) = (Events pre, Events post)

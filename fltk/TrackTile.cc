@@ -3,16 +3,19 @@
 #include <FL/Fl_Widget.H>
 
 #include "util.h"
+#include "config.h"
 
 #include "TrackTile.h"
 #include "SeqInput.h"
+#include "MsgCollector.h"
 
 
 TrackTile::TrackTile(int X, int Y, int W, int H, Color bg_color,
         int title_height) :
     MoveTile(X, Y, W, H),
     title_height(title_height),
-    track_pad(X, Y, W, H)
+    track_pad(X, Y, W, H),
+    edit_input(NULL)
 {
     ASSERT(title_height >= 0);
     end(); // don't automatically put more children in here
@@ -95,6 +98,86 @@ TrackTile::set_zoom(const ZoomInfo &zoom)
 }
 
 
+// edit input //////////////////////////
+
+static void
+edit_input_cb(Fl_Widget *_w, void *vp)
+{
+    TrackTile *self = static_cast<TrackTile *>(vp);
+    self->edit_close();
+}
+
+void
+TrackTile::edit_open(int tracknum, ScoreTime pos, const char *text,
+    int select_start, int select_end)
+{
+    // The edit_input is handled by TrackTile, so I can't put one on the ruler
+    // track.  Also, when I report the tracknum to the MsgCollector, I should
+    // report the absolute tracknum, not the TrackTile relative one.  So this
+    // method takes an unadjusted absolute tracknum, and subtracts one
+    // internally, except for tracknum 0 of course.
+    ASSERT(0 <= tracknum && tracknum <= tracks());
+    this->edit_close();
+    int ypos = this->zoom.to_pixels(pos - zoom.offset);
+    int xpos, width;
+    if (tracks() == 0) {
+        xpos = x();
+        width = 60;
+    } else {
+        xpos = track_at(std::max(0, tracknum - 1))->x();
+        width = track_at(std::max(0, tracknum - 1))->w();
+    }
+    // +3 gets the input right below the trigger line of an event at this
+    // position.
+    ypos += y() + title_height + 3;
+    width -= 3;
+    xpos += 2;
+    this->edit_input = new SeqInput(
+        xpos, ypos, width, Config::View::track_title_height, true);
+    this->edit_input_tracknum = tracknum;
+    this->edit_input_pos = pos;
+    edit_input->set_callback2(edit_input_cb, static_cast<void *>(this));
+    edit_input->show();
+    if (text)
+        edit_input->set_text(text);
+    if (select_start >= 0)
+        edit_input->position(select_end, select_start);
+
+    this->add(edit_input);
+    edit_input->take_focus();
+    this->redraw();
+}
+
+
+void
+TrackTile::edit_close()
+{
+    // Return or escape makes the input defocus itself.  Then it gets
+    // FL_UNFOCUS, which calls SeqInput::contract and then
+    // SeqInput::redraw_neighbors.  Then it invokes the 'edit_input_cb', which
+    // then calls 'edit_close'.  edit_close then deletes the SeqInput, which
+    // causes it to be removed from the TrackTile.
+    if (!this->edit_input)
+        return;
+    MsgCollector::get()->edit_input(
+        this, edit_input_tracknum, edit_input_pos, edit_input->value());
+    delete edit_input;
+    edit_input = NULL;
+    this->redraw();
+}
+
+
+void
+TrackTile::edit_append(const char *text)
+{
+    if (!this->edit_input)
+        return;
+    edit_input->insert_text(text);
+}
+
+////////////////////////////////////////
+
+
 ScoreTime
 TrackTile::time_end() const
 {
@@ -145,6 +228,9 @@ TrackTile::insert_track(int tracknum, TrackView *track, int width)
 {
     ASSERT(0 <= tracknum && tracknum <= tracks());
 
+    // Track placement assumes [(title, track)], which the extra edit_input
+    // child messes up.
+    this->edit_close();
     // Can't create a track smaller than you could resize, except dividers
     // which are supposed to be small.
     if (track->track_resizable())
@@ -172,6 +258,7 @@ TrackView *
 TrackTile::remove_track(int tracknum)
 {
     ASSERT(0 <= tracknum && tracknum <= tracks());
+    this->edit_close();
     TrackView *t = track_at(tracknum);
     this->remove_child(t);
     this->remove_child(&t->title_widget());

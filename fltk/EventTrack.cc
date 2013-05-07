@@ -116,7 +116,7 @@ EventTrackView::EventTrackView(const EventTrackConfig &config,
             const RulerConfig &ruler_config) :
     TrackView("events"),
     config(config), last_offset(0), brightness(1), bg_color(config.bg_color),
-    title_input(NULL),
+    title_input(NULL), edit_input(NULL),
     bg_box(0, 0, 1, 1),
     overlay_ruler(ruler_config, false)
 {
@@ -127,7 +127,6 @@ EventTrackView::EventTrackView(const EventTrackConfig &config,
     // create event widgets
     bg_box.box(FL_THIN_DOWN_BOX);
     bg_box.color(color_to_fl(config.bg_color.brightness(this->brightness)));
-
     this->title_input = new SeqInput(0, 0, 1, 1, true);
 }
 
@@ -283,29 +282,31 @@ EventTrackView::draw()
         // much bother right now.
         this->damage(FL_DAMAGE_ALL);
     }
-    if (draw_area.w == 0 || draw_area.h == 0)
-        return;
 
-    // DEBUG("draw area " << draw_area << " " << SHOW_RANGE(draw_area));
-    // When overlay_ruler.draw() is called it will redundantly clip again on
-    // damage_range, but that's ok because it needs the clip when called from
-    // RulerTrackView::draw().
-    ClipArea clip_area(draw_area);
+    if (draw_area.w > 0  && draw_area.h > 0) {
+        // DEBUG("draw area " << draw_area << " " << SHOW_RANGE(draw_area));
+        // When overlay_ruler.draw() is called it will redundantly clip again
+        // on damage_range, but that's ok because it needs the clip when called
+        // from RulerTrackView::draw().
+        ClipArea clip_area(draw_area);
 
-    // TODO It might be cleaner to eliminate bg_box and just call fl_rectf
-    // and fl_draw_box myself.  But this draws the all-mighty bevel too.
-    this->draw_child(this->bg_box);
+        // TODO It might be cleaner to eliminate bg_box and just call fl_rectf
+        // and fl_draw_box myself.  But this draws the all-mighty bevel too.
+        this->draw_child(this->bg_box);
 
-    // This is more than one pixel, but otherwise I draw on top of the bevel on
-    // retina displays.
-    IRect inside_bevel = rect(this);
-    inside_bevel.x += 2; inside_bevel.w -= 3;
-    inside_bevel.y += 2; inside_bevel.h -= 3;
-    ClipArea clip_area2(inside_bevel);
+        // This is more than one pixel, but otherwise I draw on top of the
+        // bevel on retina displays.
+        IRect inside_bevel = rect(this);
+        inside_bevel.x += 2; inside_bevel.w -= 3;
+        inside_bevel.y += 2; inside_bevel.h -= 3;
+        ClipArea clip_area2(inside_bevel);
 
-    this->draw_area();
-    overlay_ruler.damaged_area.w = overlay_ruler.damaged_area.h = 0;
-    this->last_offset = this->zoom.offset;
+        this->draw_area();
+        overlay_ruler.damaged_area.w = overlay_ruler.damaged_area.h = 0;
+        this->last_offset = this->zoom.offset;
+    }
+    if (edit_input)
+        this->draw_child(*edit_input);
 }
 
 

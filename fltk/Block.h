@@ -167,6 +167,10 @@ public:
     int get_track_width(int tracknum) const;
     void set_track_width(int tracknum, int width);
 
+    void edit_open(int tracknum, ScoreTime pos, const char *text,
+        int select_start, int select_end);
+    void edit_append(const char *text);
+
     const char *dump() const;
     // Just so the MsgCollector can know if the mouse is in a track.
     int status_top() const { return status_line.y(); }

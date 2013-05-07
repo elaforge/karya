@@ -317,7 +317,7 @@ default_synth = Instrument.synth "synth" []
 -- * msg
 
 empty_context :: UiMsg.Context
-empty_context = UiMsg.Context Nothing Nothing
+empty_context = UiMsg.Context Nothing Nothing False
 
 make_key_mods :: [Key.Modifier] -> UiMsg.KbdState -> Key.Key -> Msg.Msg
 make_key_mods mods state k = Msg.Ui
@@ -350,13 +350,13 @@ mouse down btn track pos = Msg.Ui $ UiMsg.UiMsg context $
     UiMsg.MsgEvent (UiMsg.Mouse state [] (42, 2) 0 True)
     where
     state = if down then UiMsg.MouseDown btn else UiMsg.MouseUp btn
-    context = UiMsg.Context Nothing (Just (track, UiMsg.Track pos))
+    context = empty_context { UiMsg.ctx_track = Just (track, UiMsg.Track pos) }
 
 drag :: Types.MouseButton -> TrackNum -> ScoreTime -> Msg.Msg
 drag btn track pos = Msg.Ui $ UiMsg.UiMsg context $
     UiMsg.MsgEvent (UiMsg.Mouse (UiMsg.MouseDrag btn) [] (42, 2) 0 False)
     where
-    context = UiMsg.Context Nothing (Just (track, UiMsg.Track pos))
+    context = empty_context { UiMsg.ctx_track = Just (track, UiMsg.Track pos) }
 
 make_midi :: Midi.ChannelMessage -> Msg.Msg
 make_midi chan_msg = Msg.Midi $

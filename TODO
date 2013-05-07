@@ -21,7 +21,6 @@ UNSORTED
     \time 6/4 \key d \minor \clef bass
                                        R2. R2. | % 1
     . Full measure rests must be a full bar, so it must be R1.
-
   * Add a way to mute an instrument.  I can set the allocation to [], but then
     I lose the old allocation, and it constantly warns about it.  I could also
     add solo.
@@ -74,6 +73,7 @@ UNSORTED
   - shakefile should use typesafe oracle calls, is there newtype based
     oracle utils yet?
   convert to Text:
+    - UiMsg.UpdateInput
     - TimeStep.show_time_step
     * Lilypond.to_lily
     - Pretty.pretty
@@ -795,9 +795,35 @@ fltk:
     currently?
   Track
     / dividers can have separate color for upper part, for collapsable tracks
+  - ScoreTime is just a double, I can pass it directly as CDouble
+  - Why does seq sometimes leave a app menubar on quit?  Do other fltk apps
+    do that?
+  - Disable application persistence for fltk apps:
+    http://oleb.net/blog/2011/07/whats-new-for-developers-in-lion-part-1/
+    Can then re-enable ~/Library/Saved Application State.
   event track
     * visual indication when both solo and mute is on
-    - Bring back the idea of opening up a text entry in raw edit mode.
+    Bring back the idea of opening up a text entry in raw edit mode.
+      * Block::edit_open closes any existing edits, calls
+        EventTrack::edit_open
+      * Block::edit_append finds a track with an open edit
+      * Make sure input gets events.
+      * If I put it in TrackTile, I only need one, and don't need to iterate
+        through the tracks, and I think the redraw stuff works as-is.
+        But then it doesn't work for an event track in the ruler position.
+        And how the redraw stuff works is a hack.
+      * remove is_edit_input
+      * EventTrack::edit_close emits a msg
+        Return msg is:
+          data Edited = Edited BlockId TrackNum ScoreTime Text
+        The UI can suppress this if it detects the text hasn't changed.
+      * starts in the wrong place
+      * respond to the response msg correctly
+      - leading space creates a zero-dur event
+      - there's a memory corruption bug in there somewhere
+      - chinese text is corrupted
+      - send EditAppend
+      - remove RawEdit?
       Pros:
         . Insert at beginning or in middle since I have a cursor.
         . I can clean up text, e.g. strip spaces.
@@ -809,15 +835,6 @@ fltk:
         . Can't zoom / play / etc. while in edit mode.
         . May require more keystrokes to enter single char, though there are
           probably ways to work around that.
-
-      This only applies to raw edit mode.  Entering notes and doing
-      programmatic changes is still single key.
-
-      Remove the separate raw edit mode.  Return while in edit mode creates an
-      event if one doesn't exist and begins editing its text.  Keyboard focus
-      is then in the widget until return or tab or a click outside of it.
-
-      Or, 'a' appends and 'i' inserts.  Return or escape completes.
 
       The responder has to be able to tell UI to open a text entry, so cmds
       can return an Edit:
@@ -839,13 +856,6 @@ fltk:
       when edit is open, otherwise I'm constantly sending notes to the UI
       which are ignored.  I guess I can flip a bit when Edit goes out, and
       turn it off when Edited comes back in.
-
-      Return msg is:
-        data Edited = Edited BlockId TrackNum ScoreTime Text
-      The UI can suppress this if it detects the text hasn't changed.
-
-      . Starting an event with a leading space could create a zero-dur
-        event.
 
   control track, render signal
     - Figure out linear sets of samples and emit them as one line.

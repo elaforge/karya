@@ -82,20 +82,21 @@ public:
 
     // This is called before the object is deleted.
     virtual void finalize_callbacks() {}
+    virtual std::string dump() const = 0;
+
+    // Only implemented for Event tracks.  Would it be nicer to have one
+    // method that returns *EventTrackView?
 
     // Factory to generate the title widget for this track.  It should be
     // dynamically allocated because it will be passed to TrackTile who will
     // own it.
     virtual Fl_Widget &title_widget() = 0;
 
-    // TODO only EventTracks support these, so it might be nicer to to have
-    // one method that returns *EventTrackView
     // The text in the title_widget, if there is any.
     virtual const char *get_title() const { return 0; }
-    virtual void set_title(const char *title) { /* TODO throw bad_arg */ }
-    virtual void set_title_focus() { /* only implemented for Event tracks */ }
 
-    virtual std::string dump() const = 0;
+    virtual void set_title(const char *title) {}
+    virtual void set_title_focus() {}
 };
 
 

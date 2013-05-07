@@ -65,10 +65,17 @@ operator<<(std::ostream &os, const UiMsg::Context &c)
     if (c.view)
         os << "v='" << c.view->block.get_title() << "' ";
     if (c.track_type) {
-        if (c.track_type == UiMsg::track_divider)
+        switch (c.track_type) {
+        case UiMsg::track_normal:
+            os << "normal";
+            break;
+        case UiMsg::track_edit_input:
+            os << "edit_input";
+            break;
+        case UiMsg::track_divider:
             os << "div";
-        else
-            os << "t";
+            break;
+        }
         os << "=" << c.tracknum << ' ';
     }
     if (c.has_pos)
@@ -191,9 +198,9 @@ static UiMsg::Context
 context(BlockViewWindow *view, int tracknum)
 {
     UiMsg::Context c;
-    set_context(c, view);
-    c.track_type = true;
+    c.track_type = UiMsg::track_normal;
     c.tracknum = tracknum;
+    set_context(c, view);
     return c;
 }
 
@@ -227,7 +234,7 @@ set_event(UiMsg::Event &e, int evt)
 
 
 static void
-set_update(UiMsg &m, UiMsg::MsgType type)
+set_update(UiMsg &m, UiMsg::MsgType type, const char *edit_input)
 {
     ASSERT_MSG(m.context.view, "caller must explicitly set view for updates");
     BlockView *block = &m.context.view->block;
@@ -235,7 +242,9 @@ set_update(UiMsg &m, UiMsg::MsgType type)
     case UiMsg::msg_input:
         {
             const char *s;
-            if (m.context.track_type)
+            if (edit_input)
+                s = edit_input;
+            else if (m.context.track_type)
                 s = block->track_at(m.context.tracknum)->get_title();
             else
                 s = block->get_title();
@@ -328,6 +337,18 @@ MsgCollector::track(UiMsg::MsgType type, Fl_Widget *w, int tracknum)
 
 
 void
+MsgCollector::edit_input(Fl_Widget *w, int tracknum, ScoreTime pos,
+    const char *edit_input)
+{
+    UiMsg::Context c(context(window(w), tracknum));
+    c.track_type = UiMsg::track_edit_input;
+    c.has_pos = true;
+    c.pos = pos;
+    push_update(UiMsg::msg_input, c, edit_input);
+}
+
+
+void
 MsgCollector::view(UiMsg::MsgType type, BlockViewWindow *view)
 {
     push_update(type, context(view));
@@ -352,12 +373,13 @@ MsgCollector::screen_update()
 
 
 void
-MsgCollector::push_update(UiMsg::MsgType type, const UiMsg::Context &c)
+MsgCollector::push_update(UiMsg::MsgType type, const UiMsg::Context &c,
+    const char *edit_input)
 {
     UiMsg m;
     m.type = type;
     m.context = c;
-    set_update(m, type);
+    set_update(m, type, edit_input);
     this->push(m);
 }
 
@@ -389,6 +411,13 @@ void
 MsgCollector::all_keys_up()
 {
     keys_down.clear();
+}
+
+
+void
+MsgCollector::key_up(int key)
+{
+    keys_down.erase(key);
 }
 
 

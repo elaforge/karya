@@ -103,7 +103,13 @@ struct UiMsg {
     // This goes in track_type and doubles as a boolean.  Since only click
     // events can apply to a divider, this can be interpreted as a boolean for
     // non-click events and only differentiate dividers for clicks.
-    enum TrackType { track_none = 0, track_normal, track_divider };
+    enum TrackType {
+        track_none = 0, track_normal,
+        // Like track_normal, but indicates that this msg comes from the
+        // floating edit_input.
+        track_edit_input,
+        track_divider
+    };
 
     // WARNING:
     // Union members can't have constructors, so make extra sure all fields
@@ -179,11 +185,16 @@ public:
     // focus is changed.
     void focus(BlockViewWindow *focus);
 
-    // Updates.  For updates that carry Context, there are methods to provide
-    // the relevant data.
+    // Record an update with no Context.
     void update(UiMsg::MsgType type);
+    // Record a msg from a block.  The Fl_Widget is any widget within the
+    // msg's window.
     void block(UiMsg::MsgType type, Fl_Widget *w);
+    // Record a msg from the given tracknum, where 'w' is within the msg's
+    // window.
     void track(UiMsg::MsgType type, Fl_Widget *w, int tracknum);
+    void edit_input(Fl_Widget *w, int tracknum, ScoreTime pos,
+        const char *edit_input);
     void view(UiMsg::MsgType type, BlockViewWindow *view);
 
     // Send one msg_screen_size msg for each screen.
@@ -205,6 +216,7 @@ public:
     int msgs_size() const { return msgs.size(); }
     // Clear out the keydown map manually.
     void all_keys_up();
+    void key_up(int key);
     void clear();
 
     // If true, log all collected msgs for debugging.
@@ -215,7 +227,8 @@ public:
     static int event_handler(int evt);
 
 private:
-    void push_update(UiMsg::MsgType type, const UiMsg::Context &c);
+    void push_update(UiMsg::MsgType type, const UiMsg::Context &c,
+        const char *text = NULL);
     void push(UiMsg &m);
     std::vector<UiMsg> msgs;
 
