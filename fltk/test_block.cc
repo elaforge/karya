@@ -91,6 +91,9 @@ void t1_set()
         e.push_back(EventInfo(0,
             Event(ScoreTime(40), ScoreTime(-8), "e", style)));
     } else {
+        char *zh1 = "\xe4\xb8\xad\xe6\x96\x87"; // 中文
+        // 兩個 分開
+        char *zh2 = "\xe5\x85\xa9\xe5\x80\x8b \xe5\x88\x86\xe9\x96\x8b";
         e.push_back(EventInfo(0,
             Event(ScoreTime(0), ScoreTime(16), "`arp-down`", style)));
         e.push_back(EventInfo(0,
@@ -119,6 +122,10 @@ void t1_set()
         // doesn't overlap rank 0
         e.push_back(EventInfo(0,
             Event(ScoreTime(230), ScoreTime(0), "bg4", style)));
+        e.push_back(EventInfo(0,
+            Event(ScoreTime(72), ScoreTime(16), zh1, style)));
+        e.push_back(EventInfo(0,
+            Event(ScoreTime(82), ScoreTime(16), zh2, style)));
     }
 }
 

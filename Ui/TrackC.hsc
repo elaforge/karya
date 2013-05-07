@@ -77,15 +77,17 @@ instance CStorable Track.TrackSignal where
 -- a FunPtr which is then manually deleted from c++ via the usual finalizer.
 -- If that failed, I could use a StablePtr with a little more work.
 --
--- However, memcpy is quite fast.  I tested 0.01s for 32mb, which is a good
--- upper bound.  It's 87m of 0.1s pitch signal * 8 tracks * 4 controls, which
--- is a lot.
+-- However, memcpy is quite fast.  At 0.01s sampling rate, one minute of
+-- a control track is 8 bytes/Double * 600 = 4.6kb.  So * 60 minutes * 8 tracks
+-- = 2.25mb.  Since I tested 0.01s to copy 32mb, this should totally be fast
+-- enough.
 --
 -- Copying over the valname list when it probably never changes galls a little.
 -- However, as with the signal above, a copy is probably fast enough and is
 -- much simpler wrt storage, especially because there are variable length
 -- strings involved.  I shouldn't use static storage because customizing pitch
 -- sig rendering by messing with ValNames seems like a useful thing to do.
+-- TOOD ValNames are gone now, revisit this?
 poke_track_signal :: Ptr Track.TrackSignal -> Track.TrackSignal -> IO ()
 poke_track_signal tsigp (Track.TrackSignal sig shift stretch is_pitch) = do
     (#poke TrackSignal, shift) tsigp shift

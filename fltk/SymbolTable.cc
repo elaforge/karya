@@ -207,6 +207,30 @@ SymbolTable::measure_backticks(const char *text, Size size) const
 }
 
 
+static const char *
+utf8_backward(const char *str, const char *start)
+{
+    if (str == start)
+        return str;
+    else
+        return fl_utf8back(str-1, start, str);
+}
+
+static const char *
+utf8_forward(const char *str, const char *end)
+{
+    if (str + 1 >= end)
+        return end;
+    else
+        return fl_utf8fwd(str+1, str, end);
+}
+
+static int
+utf8_width(const char *str)
+{
+    return fl_width(str, fl_utf8len(*str));
+}
+
 IPoint
 SymbolTable::draw_wrapped(const string &text, IPoint pos, int wrap_width,
     int max_height, Style style) const
@@ -223,7 +247,7 @@ SymbolTable::draw_wrapped(const string &text, IPoint pos, int wrap_width,
     const char *last_space = line_start;
     ClipArea clip(clip_rect(IRect(pos.x, pos.y, wrap_width, max_height)));
 
-    style.set(); // because of fl_width below
+    style.set(); // because of utf8_width below
     double line_width = 0;
     for (const char *p = line_start;;) {
         if (*p == ' ')
@@ -231,14 +255,14 @@ SymbolTable::draw_wrapped(const string &text, IPoint pos, int wrap_width,
         if (*p == '`') {
             double width = this->measure_backticks(p, style.size);
             if (width == -1)
-                line_width += fl_width(p, 1);
+                line_width += utf8_width(p);
             else
                 line_width += width;
             // DEBUG("at ``: " << width << " = " << line_width);
         } else {
             if (*p)
-                line_width += fl_width(p, 1);
-            // DEBUG("at " << string(p, 1) << ": " << fl_width(p, 1)
+                line_width += utf8_width(p);
+            // DEBUG("at " << string(p, 1) << ": " << utf8_width(p)
             //     << " = " << line_width);
         }
         // Display at least one char before a line wrap, this prevents an
@@ -304,7 +328,7 @@ SymbolTable::draw_wrapped(const string &text, IPoint pos, int wrap_width,
                 // If I broke on 'p' then I have to rewind a character because
                 // I haven't actually drawn the char at 'p' yet.
                 if (*p != ' ')
-                    p--;
+                    p = utf8_backward(p, text.c_str());
                 line_width = 0;
                 line_start = break_at;
                 if (*line_start == ' ')
@@ -319,12 +343,12 @@ SymbolTable::draw_wrapped(const string &text, IPoint pos, int wrap_width,
                     p += i+1;
                     break;
                 } else if (!p[i]) {
-                    p++;
+                    p = utf8_forward(p, text.c_str() + text.length());
                     break;
                 }
             }
         } else {
-            p++;
+            p = utf8_forward(p, text.c_str() + text.length());
         }
     }
     return total_size;

@@ -83,7 +83,7 @@ free_fun_ptr fptr = do
     -- putStrLn $ "- " ++ show fptr
     Foreign.freeHaskellFunPtr fptr
 
--- | Unpack the bytestring to a null-terminated cstring, in malloc'd space.
+-- | Copy the bytestring to a null-terminated cstring, in malloc'd space.
 -- ByteString only has an alloca version of this.
 bytesToCString0 :: ByteString.ByteString -> IO CString
 bytesToCString0 bs = Unsafe.unsafeUseAsCStringLen bs $ \(str, len) -> do

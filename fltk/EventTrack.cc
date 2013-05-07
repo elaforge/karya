@@ -113,7 +113,7 @@ operator<<(std::ostream &os, const TrackSignal &sig)
 // EventTrackView ///////
 
 EventTrackView::EventTrackView(const EventTrackConfig &config,
-            const RulerConfig &ruler_config) :
+        const RulerConfig &ruler_config) :
     TrackView("events"),
     config(config), last_offset(0), brightness(1), bg_color(config.bg_color),
     title_input(NULL), edit_input(NULL),
@@ -141,11 +141,13 @@ EventTrackView::resize(int x, int y, int w, int h)
     this->bg_box.resize(x, y, w, h);
 }
 
+
 void
 EventTrackView::set_title(const char *title)
 {
     this->title_input->set_text(title);
 }
+
 
 void
 EventTrackView::set_title_focus()
@@ -155,6 +157,7 @@ EventTrackView::set_title_focus()
     // any subsequent key ups.
     MsgCollector::get()->all_keys_up();
 }
+
 
 void
 EventTrackView::set_zoom(const ZoomInfo &new_zoom)
@@ -310,7 +313,6 @@ EventTrackView::draw()
 }
 
 
-/*
 static void
 show_found_events(ScoreTime start, ScoreTime end, Event *events, int count)
 {
@@ -320,7 +322,6 @@ show_found_events(ScoreTime start, ScoreTime end, Event *events, int count)
     }
     printf("\n");
 }
-*/
 
 
 void
@@ -343,7 +344,9 @@ EventTrackView::draw_area()
     Event *events;
     int *ranks;
     int count = this->config.find_events(&start, &end, &events, &ranks);
-    // show_found_events(start, end, events, count);
+    // Suppress the unused function msg.
+    if (false)
+        show_found_events(start, end, events, count);
 
     int *offsets = new int[count];
     for (int i = 0; i < count; i++) {
