@@ -51,9 +51,10 @@ die msg = do
 
 dump_simple :: [Flag] -> FilePath -> IO ()
 dump_simple flags fn = do
+    save <- either (die . (("reading " ++ show fn ++ ":") ++)) return
+        =<< Serialize.unserialize fn
     Serialize.SaveState state date <-
-        either (die . (("reading " ++ show fn ++ ":") ++)) return
-            =<< Serialize.unserialize fn
+        maybe (die $ "file not found: " ++ show fn) return save
     printf "saved at %s:\n" (show date)
     pprint_state flags state
 

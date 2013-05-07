@@ -527,7 +527,7 @@ dispatch modeConfig targets = do
             let debug = (modeToDir Debug </>)
             Shake.want $
                 [ debug "browser", debug "logview", debug "make_db"
-                , debug "seq", debug "update"
+                , debug "seq", debug "update", debug "dump"
                 , modeToDir Profile </> "RunProfile"
                 , "karya.cabal"
                 ] ++ extractableDocs
