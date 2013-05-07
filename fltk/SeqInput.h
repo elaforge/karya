@@ -9,7 +9,8 @@
 // collapse back down to size when it loses focus.
 class SeqInput : public Fl_Input {
 public:
-    SeqInput(int X, int Y, int W, int H, bool do_expansion);
+    SeqInput(int X, int Y, int W, int H, bool do_expansion,
+        bool strip_text = true);
     virtual void resize(int x, int y, int w, int h);
     // Fl_Input_::value() isn't virtual so I get to make up my own.  Yay fltk!
     virtual void set_text(const char *text);
@@ -35,6 +36,7 @@ private:
     IPoint proper_size;
     bool expanded;
     bool do_expansion;
+    const bool strip_text;
     void expand();
     void contract();
     void redraw_neighbors();

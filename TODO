@@ -819,7 +819,7 @@ fltk:
         The UI can suppress this if it detects the text hasn't changed.
       * starts in the wrong place
       * respond to the response msg correctly
-      - leading space creates a zero-dur event
+      * leading space creates a zero-dur event
       - there's a memory corruption bug in there somewhere
       - chinese text is corrupted
       - send EditAppend

@@ -56,12 +56,15 @@ raw_edit zero_dur msg = do
     return Cmd.Done
 
 -- | Handle UpdateInput that comes back from the floating edit input.
+--
+-- A leading space will create a zero duration event.
 edit_input :: Bool -> Cmd.Cmd
 edit_input zero_dur msg = do
     (view_id, tracknum, pos, text) <- Cmd.require $ edit_input_msg msg
     block_id <- State.block_id_of view_id
-    modify_event_at (Pos block_id tracknum pos 0) zero_dur False $
-        const (Just text, False)
+    let space = " " `Text.isPrefixOf` text
+    modify_event_at (Pos block_id tracknum pos 0) (zero_dur || space) False $
+        const (Just (Text.strip text), False)
     return Cmd.Done
 
 edit_input_msg :: Msg.Msg -> Maybe (ViewId, TrackNum, TrackTime, Text)

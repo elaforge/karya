@@ -133,7 +133,7 @@ TrackTile::edit_open(int tracknum, ScoreTime pos, const char *text,
     width -= 3;
     xpos += 2;
     this->edit_input = new SeqInput(
-        xpos, ypos, width, Config::View::track_title_height, true);
+        xpos, ypos, width, Config::View::track_title_height, true, false);
     this->edit_input_tracknum = tracknum;
     this->edit_input_pos = pos;
     edit_input->set_callback2(edit_input_cb, static_cast<void *>(this));

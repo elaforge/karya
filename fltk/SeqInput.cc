@@ -8,9 +8,11 @@
 #include "SeqInput.h"
 
 
-SeqInput::SeqInput(int X, int Y, int W, int H, bool do_expansion) :
+SeqInput::SeqInput(int X, int Y, int W, int H, bool do_expansion,
+        bool strip_text) :
     Fl_Input(X, Y, W, H), focus_color(255, 240, 220),
-    proper_size(W, H), expanded(false), do_expansion(do_expansion)
+    proper_size(W, H), expanded(false), do_expansion(do_expansion),
+    strip_text(strip_text)
 {
     this->color(FL_WHITE);
     this->textsize(Config::font_size::input);
@@ -220,7 +222,8 @@ void
 SeqInput::changed_cb(Fl_Widget *w, void *vp)
 {
     SeqInput *self = static_cast<SeqInput *>(vp);
-    strip_value(self);
+    if (self->strip_text)
+        strip_value(self);
 
     // I only put SeqInputs in BlockViewWindows, so this should be safe.
     BlockViewWindow *view = dynamic_cast<BlockViewWindow *>(self->window());
