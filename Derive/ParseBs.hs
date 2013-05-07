@@ -38,6 +38,8 @@ import Util.Control hiding (Text)
 import qualified Util.ParseBs as Parse
 import qualified Ui.Event as Event
 import qualified Ui.Id as Id
+import qualified Ui.Util
+
 import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.TrackLang as TrackLang
@@ -58,7 +60,7 @@ from_text :: Text.Text -> Text
 from_text = Text.Encoding.encodeUtf8
 
 to_text :: Text -> Text.Text
-to_text = Text.Encoding.decodeUtf8
+to_text = Ui.Util.decodeUtf8
 
 parse_expr :: Text -> Either String TrackLang.Expr
 parse_expr = parse p_pipeline

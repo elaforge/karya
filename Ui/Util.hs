@@ -102,9 +102,10 @@ textToCString0 = bytesToCString0 . Encoding.encodeUtf8
 peekCString :: CString -> IO Text.Text
 peekCString cstr
     | cstr == Foreign.nullPtr = return Text.empty
-    | otherwise = do
-        bytes <- ByteString.Unsafe.unsafePackCString cstr
-        return $ Encoding.decodeUtf8With Encoding.Error.lenientDecode bytes
+    | otherwise = fmap decodeUtf8 $ ByteString.Unsafe.unsafePackCString cstr
 
 withText :: Text.Text -> (CString -> IO a) -> IO a
 withText = ByteString.useAsCString . Encoding.encodeUtf8
+
+decodeUtf8 :: ByteString.ByteString -> Text.Text
+decodeUtf8 = Encoding.decodeUtf8With Encoding.Error.lenientDecode
