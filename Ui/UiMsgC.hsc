@@ -4,8 +4,9 @@ import Util.ForeignC
 
 import qualified Ui.BlockC as BlockC
 import qualified Ui.Key as Key
-import qualified Ui.UiMsg as UiMsg
 import qualified Ui.Types as Types
+import qualified Ui.UiMsg as UiMsg
+import qualified Ui.Util as Util
 import Types
 
 
@@ -121,8 +122,8 @@ peek_ui_update :: CInt -> Ptr UiMsg.UiMsg -> IO UiMsg.UiUpdate
 peek_ui_update type_num msgp = case type_num of
     (#const UiMsg::msg_input) -> do
         ctext <- (#peek UiMsg, input.text) msgp :: IO CString
-        text <- maybePeek peekCString ctext
-        return $ UiMsg.UpdateInput (fromMaybe "" text)
+        text <- Util.peekCString ctext
+        return $ UiMsg.UpdateInput text
     (#const UiMsg::msg_track_scroll) -> do
         scroll <- int <$> (#peek UiMsg, track_scroll.scroll) msgp :: IO Int
         return $ UiMsg.UpdateTrackScroll scroll

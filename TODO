@@ -3,7 +3,7 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
-  - Top of the tracks are a bit too clipped off, the selection is barely
+  * Top of the tracks are a bit too clipped off, the selection is barely
     visible.
   * For a short-term control track, It should be possible to change the
     control track with a %new-control event.  Pre interpretation, scan for
@@ -73,7 +73,7 @@ UNSORTED
   - shakefile should use typesafe oracle calls, is there newtype based
     oracle utils yet?
   convert to Text:
-    - UiMsg.UpdateInput
+    * UiMsg.UpdateInput
     - TimeStep.show_time_step
     * Lilypond.to_lily
     - Pretty.pretty

@@ -2,7 +2,8 @@
     them on to the event handling mechanism (the responder).
 -}
 module Ui.UiMsg where
-import Text.Printf
+import qualified Data.Text as Text
+import Text.Printf (printf)
 
 import qualified Util.Pretty as Pretty
 import qualified Util.Rect as Rect
@@ -57,7 +58,7 @@ data Msg =
 -- to its own state.  They are like Ui.Update except in the opposide
 -- direction: fltk telling haskell what changes occurred.
 data UiUpdate =
-    UpdateInput !String
+    UpdateInput !Text.Text
     | UpdateTrackScroll !Types.Width
     | UpdateZoom !Types.Zoom
     -- | Size of entire block window, and (track_padding, time_padding).

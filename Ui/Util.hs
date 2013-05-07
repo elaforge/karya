@@ -8,9 +8,11 @@
 -}
 module Ui.Util where
 import qualified Data.ByteString as ByteString
+import qualified Data.ByteString.Unsafe as ByteString.Unsafe
 import qualified Data.ByteString.Unsafe as Unsafe
 import qualified Data.Text as Text
 import qualified Data.Text.Encoding as Encoding
+import qualified Data.Text.Encoding.Error as Encoding.Error
 import qualified Data.Word as Word
 
 import qualified Foreign
@@ -96,6 +98,13 @@ bytesToCString0 bs = Unsafe.unsafeUseAsCStringLen bs $ \(str, len) -> do
 -- write directly to a pointer to solve that.
 textToCString0 :: Text.Text -> IO CString
 textToCString0 = bytesToCString0 . Encoding.encodeUtf8
+
+peekCString :: CString -> IO Text.Text
+peekCString cstr
+    | cstr == Foreign.nullPtr = return Text.empty
+    | otherwise = do
+        bytes <- ByteString.Unsafe.unsafePackCString cstr
+        return $ Encoding.decodeUtf8With Encoding.Error.lenientDecode bytes
 
 withText :: Text.Text -> (CString -> IO a) -> IO a
 withText = ByteString.useAsCString . Encoding.encodeUtf8

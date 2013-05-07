@@ -204,10 +204,10 @@ ui_update_state maybe_tracknum view_id update = case update of
         Just tracknum -> do
             track_id <- State.event_track_at block_id tracknum
             case track_id of
-                Just track_id -> State.set_track_title track_id (txt text)
+                Just track_id -> State.set_track_title track_id text
                 Nothing -> State.throw $ show (UiMsg.UpdateInput text)
                     ++ " on non-event track " ++ show tracknum
-        Nothing -> State.set_block_title block_id (txt text)
+        Nothing -> State.set_block_title block_id text
 
 update_of :: Msg.Msg -> Maybe (UiMsg.Context, ViewId, UiMsg.UiUpdate)
 update_of (Msg.Ui (UiMsg.UiMsg ctx (UiMsg.UiUpdate view_id update))) =

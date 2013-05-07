@@ -61,10 +61,10 @@ edit_input zero_dur msg = do
     (view_id, tracknum, pos, text) <- Cmd.require $ edit_input_msg msg
     block_id <- State.block_id_of view_id
     modify_event_at (Pos block_id tracknum pos 0) zero_dur False $
-        const (Just (txt text), False)
+        const (Just text, False)
     return Cmd.Done
 
-edit_input_msg :: Msg.Msg -> Maybe (ViewId, TrackNum, TrackTime, String)
+edit_input_msg :: Msg.Msg -> Maybe (ViewId, TrackNum, TrackTime, Text)
 edit_input_msg (Msg.Ui (UiMsg.UiMsg ctx (UiMsg.UiUpdate view_id
         (UiMsg.UpdateInput text))))
     | Just (tracknum, UiMsg.Track pos) <- UiMsg.ctx_track ctx,
