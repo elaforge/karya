@@ -8,7 +8,6 @@
 -}
 module Ui.Util where
 import qualified Data.ByteString as ByteString
-import qualified Data.ByteString.Unsafe as ByteString.Unsafe
 import qualified Data.ByteString.Unsafe as Unsafe
 import qualified Data.Text as Text
 import qualified Data.Text.Encoding as Encoding
@@ -102,7 +101,7 @@ textToCString0 = bytesToCString0 . Encoding.encodeUtf8
 peekCString :: CString -> IO Text.Text
 peekCString cstr
     | cstr == Foreign.nullPtr = return Text.empty
-    | otherwise = fmap decodeUtf8 $ ByteString.Unsafe.unsafePackCString cstr
+    | otherwise = fmap decodeUtf8 $ ByteString.packCString cstr
 
 withText :: Text.Text -> (CString -> IO a) -> IO a
 withText = ByteString.useAsCString . Encoding.encodeUtf8
