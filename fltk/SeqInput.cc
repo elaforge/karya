@@ -136,7 +136,7 @@ forward_token(const char *end, const char *pos)
 }
 
 static void
-backward_word(SeqInput *w, bool shift)
+move_backward(SeqInput *w, bool shift)
 {
     const char *text = w->value();
     const char *p = backward_token(text, text + w->position());
@@ -148,7 +148,7 @@ backward_word(SeqInput *w, bool shift)
 
 
 static void
-forward_word(SeqInput *w, bool shift)
+move_forward(SeqInput *w, bool shift)
 {
     const char *text = w->value();
     const char *p = forward_token(text + w->size(), text + w->position());
@@ -160,7 +160,7 @@ forward_word(SeqInput *w, bool shift)
 
 
 static void
-backspace_word(SeqInput *w)
+backspace_token(SeqInput *w)
 {
     const char *text = w->value();
     const char *p = backward_token(text, text + w->position());
@@ -171,7 +171,8 @@ backspace_word(SeqInput *w)
 int
 SeqInput::handle(int evt)
 {
-    int key = Fl::event_key();
+    // This is a crazy delicate mess because I have to apply my own key
+    // bindings but fall back on the Fl_Input ones otherwise.
     if (evt == FL_KEYUP) {
         // If this is an edit input created in response to a keystroke, it gets
         // focus immediately and the keyup will wind up here.  So I have to
@@ -179,7 +180,7 @@ SeqInput::handle(int evt)
         MsgCollector::get()->key_up(Fl::event_key());
     }
     if (evt == FL_KEYDOWN || evt == FL_KEYUP) {
-        switch (key) {
+        switch (Fl::event_key()) {
         case FL_Shift_L: case FL_Shift_R: case FL_Enter: case FL_Escape:
         case FL_Right: case FL_Left: case FL_Up: case FL_Down:
         case FL_BackSpace: case FL_Tab:
@@ -210,19 +211,19 @@ SeqInput::handle(int evt)
             break;
         case 'h':
             if (state & (FL_SHIFT | FL_META | FL_CTRL)) {
-                backward_word(this, state & FL_SHIFT);
+                move_backward(this, state & FL_SHIFT);
                 handled = true;
             }
             break;
         case 'l':
             if (state & (FL_SHIFT | FL_META | FL_CTRL)) {
-                forward_word(this, state & FL_SHIFT);
+                move_forward(this, state & FL_SHIFT);
                 handled = true;
             }
             break;
         case FL_BackSpace:
             if (state & (FL_SHIFT | FL_META | FL_CTRL)) {
-                backspace_word(this);
+                backspace_token(this);
                 handled = true;
             }
             break;
@@ -246,11 +247,17 @@ SeqInput::handle(int evt)
     }
 
     // Call Fl_Input::handle before expand(), so it has the updated value().
-    // If I didn't handle the event above, hand
-    if (!handled)
+    // If I didn't handle the event above, hand it to Fl_Input so it can do its
+    // keybindings.
+    if (!handled) {
         handled = Fl_Input::handle(evt);
+        // Only call expand if Fl_Input handled the key, which means it may
+        // have added or removed a character.
+        if (handled && evt == FL_KEYDOWN)
+            this->expand();
+    }
     switch (evt) {
-    case FL_FOCUS: case FL_KEYDOWN:
+    case FL_FOCUS:
         this->expand();
         break;
     case FL_UNFOCUS:
@@ -296,8 +303,7 @@ SeqInput::expand()
 
     if (size.x != this->w()) {
         bool contraction = size.x < this->w();
-        // Bypass this->size, which sets proper_size.
-        Fl_Input::resize(x(), y(), size.x, size.y);
+        this->resize(x(), y(), size.x, size.y);
         if (contraction)
             this->redraw_neighbors();
         this->redraw();
@@ -308,15 +314,15 @@ SeqInput::expand()
 void
 SeqInput::contract()
 {
-    if (!this->do_expansion)
+    if (!do_expansion || !expanded)
         return;
-    this->expanded = false;
     if (this->w() != proper_size.x || this->h() != proper_size.y) {
-        Fl_Input::resize(x(), y(), proper_size.x, proper_size.y);
+        this->resize(x(), y(), proper_size.x, proper_size.y);
         // Since I might have sized over my neighbors to the right, I'll go
         // redraw them.
         this->redraw_neighbors();
     }
+    this->expanded = false;
 }
 
 
