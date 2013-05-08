@@ -51,6 +51,123 @@ SeqInput::insert_text(const char *text)
 }
 
 
+// First skip trailing spaces, then skip a token.  A token is a parenthesized
+// expression, from a ` to the next `, or until a space.
+static const char *
+backward_token(const char *start, const char *pos)
+{
+    const char *p = utf8::backward(pos, start);
+    while (p > start && *p == ' ')
+        p = utf8::backward(p, start);
+    if (*p == ')') {
+        int parens = 1;
+        do {
+            p = utf8::backward(p, start);
+            if (*p == '(')
+                parens--;
+            else if (*p == ')')
+                parens++;
+            if (parens == 0)
+                break;
+        } while (p > start);
+        // Unbalanced parens, so just go back one character.
+        if (parens)
+            p = utf8::backward(pos, start);
+    } else if (*p == '`') {
+        do {
+            p = utf8::backward(p, start);
+            if (*p == '`')
+                break;
+        } while (p > start);
+        // Unbalanced backticks, so just go back one character.
+        if (*p != '`')
+            p = utf8::backward(pos, start);
+    } else {
+        while (p > start && *p != ' ')
+            p = utf8::backward(p, start);
+        if (*p == ' ')
+            p = utf8::forward(p, pos);
+    }
+    return p;
+}
+
+// Skip a token, and then any trailing spaces.  A token has the same definition
+// as in 'backward_token'.
+static const char *
+forward_token(const char *end, const char *pos)
+{
+    const char *p = pos;
+    if (p == end)
+        return p;
+    if (*p == '(') {
+        int parens = 1;
+        do {
+            p = utf8::forward(p, end);
+            if (*p == '(')
+                parens++;
+            else if (*p == ')')
+                parens--;
+            if (parens == 0)
+                break;
+        } while (p < end);
+        // Unbalanced parens, so just go forward one character.
+        if (parens)
+            p = utf8::forward(pos, end);
+        else
+            p = utf8::forward(p, end);
+    } else if (*p == '`') {
+        do {
+            p = utf8::forward(p, end);
+            if (*p == '`')
+                break;
+        } while (p < end);
+        // Unbalanced backticks, so just go forward one character.
+        if (*p != '`')
+            p = utf8::forward(pos, end);
+        else
+            p = utf8::forward(p, end);
+    } else {
+        while (p < end && *p != ' ')
+            p = utf8::forward(p, end);
+    }
+    while (p < end && *p == ' ')
+        p = utf8::forward(p, end);
+    return p;
+}
+
+static void
+backward_word(SeqInput *w, bool shift)
+{
+    const char *text = w->value();
+    const char *p = backward_token(text, text + w->position());
+    if (shift)
+        w->position(p - text, w->mark());
+    else
+        w->position(p - text);
+}
+
+
+static void
+forward_word(SeqInput *w, bool shift)
+{
+    const char *text = w->value();
+    const char *p = forward_token(text + w->size(), text + w->position());
+    if (shift)
+        w->position(p - text, w->mark());
+    else
+        w->position(p - text);
+}
+
+
+static void
+backspace_word(SeqInput *w)
+{
+    const char *text = w->value();
+    const char *p = backward_token(text, text + w->position());
+    w->replace(p - text, w->position(), NULL);
+}
+
+
 int
 SeqInput::handle(int evt)
 {
@@ -74,54 +191,82 @@ SeqInput::handle(int evt)
         }
     }
 
-    // Call Fl_Input::handle before expand(), so it has the updated value().
-    int val = Fl_Input::handle(evt);
-    switch (evt) {
-    case FL_FOCUS: case FL_KEYDOWN:
-        this->expand();
-        break;
-    case FL_UNFOCUS:
-        this->contract();
-        break;
-    }
-
+    int state = Fl::event_state();
+    bool handled = false;
     switch (evt) {
     case FL_KEYDOWN:
         switch (Fl::event_key()) {
         case FL_Tab: case FL_Enter: case FL_Escape:
             Fl::focus(this->window());
-            return 1;
+            handled = true;
+            break;
         case FL_Up:
             this->position(0);
-            return 1;
+            handled = true;
+            break;
         case FL_Down:
             this->position(this->size());
-            return 1;
+            handled = true;
+            break;
+        case 'h':
+            if (state & (FL_SHIFT | FL_META | FL_CTRL)) {
+                backward_word(this, state & FL_SHIFT);
+                handled = true;
+            }
+            break;
+        case 'l':
+            if (state & (FL_SHIFT | FL_META | FL_CTRL)) {
+                forward_word(this, state & FL_SHIFT);
+                handled = true;
+            }
+            break;
+        case FL_BackSpace:
+            if (state & (FL_SHIFT | FL_META | FL_CTRL)) {
+                backspace_word(this);
+                handled = true;
+            }
+            break;
         }
         break;
     case FL_KEYUP:
         // Eat keyups if I have focus.
-        return 1;
+        handled = true;
+        break;
     case FL_FOCUS:
         this->color(color_to_fl(this->focus_color));
         this->redraw();
+        // Don't set handled, because Fl_Input still needs to get this.
         break;
     case FL_UNFOCUS:
         this->color(FL_WHITE);
         // So inputs consistently display the same part of text.
         // this->position(9999);
         this->redraw();
+        break;
+    }
+
+    // Call Fl_Input::handle before expand(), so it has the updated value().
+    // If I didn't handle the event above, hand
+    if (!handled)
+        handled = Fl_Input::handle(evt);
+    switch (evt) {
+    case FL_FOCUS: case FL_KEYDOWN:
+        this->expand();
+        break;
+    case FL_UNFOCUS:
+        this->contract();
         // edit_input needs to emit text even when the text hasn't changed.
         this->do_callback();
         break;
     }
-    // Returning 0 is how Fl_Input lets the parent group do keynav so its
+
+    // Returning false is how Fl_Input lets the parent group do keynav so its
     // arrow key refocus thing works.  Returing 1 disables that.
     // I still get 14 keyups on arrow keys.  FLTK I LOVE YOU TOO!
     if (evt == FL_KEYDOWN)
-        val = 1;
+        handled = true;
 
-    return val;
+    return handled;
 }
 
 

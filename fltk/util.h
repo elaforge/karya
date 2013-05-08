@@ -8,6 +8,15 @@
 using namespace geom_util;
 
 
+namespace utf8 {
+
+const char *backward(const char *str, const char *start);
+const char *forward(const char *str, const char *end);
+int width(const char *str);
+
+}
+
+
 // Assert //////////////////////////////
 
 // assertions

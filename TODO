@@ -799,7 +799,7 @@ fltk:
   - ScoreTime is just a double, I can pass it directly as CDouble
   - Why does seq sometimes leave a app menubar on quit?  Do other fltk apps
     do that?
-  - Disable application persistence for fltk apps:
+  + Disable application persistence for fltk apps:
     http://oleb.net/blog/2011/07/whats-new-for-developers-in-lion-part-1/
     Can then re-enable ~/Library/Saved Application State.
   event track
@@ -822,10 +822,11 @@ fltk:
       * respond to the response msg correctly
       * leading space creates a zero-dur event
       - there's a memory corruption bug in there somewhere
+        Sometimes haskell gets \NUL\NUL instead of "hi".
       * chinese text is corrupted
       - send EditAppend
       - remove RawEdit?
-      - use shift arrow and shift delete to move and delete words
+      * use cmd-h, cmd-l, cmd-delete to move and delete words
       - 'i' insert, 'a' append, 'I' replace first call, 'A' replace last call
       Pros:
         . Insert at beginning or in middle since I have a cursor.
