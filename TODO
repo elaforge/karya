@@ -797,8 +797,8 @@ fltk:
   Track
     / dividers can have separate color for upper part, for collapsable tracks
   - ScoreTime is just a double, I can pass it directly as CDouble
-  - Why does seq sometimes leave a app menubar on quit?  Do other fltk apps
-    do that?
+  + Why does seq sometimes leave a app menubar on quit?  Do other fltk apps
+    do that?  Yes.
   + Disable application persistence for fltk apps:
     http://oleb.net/blog/2011/07/whats-new-for-developers-in-lion-part-1/
     Can then re-enable ~/Library/Saved Application State.
@@ -821,7 +821,7 @@ fltk:
       * starts in the wrong place
       * respond to the response msg correctly
       * leading space creates a zero-dur event
-      - there's a memory corruption bug in there somewhere
+      * there's a memory corruption bug in there somewhere
         Sometimes haskell gets \NUL\NUL instead of "hi".
       * chinese text is corrupted
       - send EditAppend

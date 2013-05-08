@@ -12,7 +12,7 @@ SeqInput::SeqInput(int X, int Y, int W, int H, bool do_expansion,
         bool strip_text) :
     Fl_Input(X, Y, W, H), focus_color(255, 240, 220),
     proper_size(W, H), expanded(false), do_expansion(do_expansion),
-    strip_text(strip_text)
+    strip_text(strip_text), callback2(NULL), callback2_arg(NULL)
 {
     this->color(FL_WHITE);
     this->textsize(Config::font_size::input);
