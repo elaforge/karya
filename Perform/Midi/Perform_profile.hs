@@ -101,6 +101,7 @@ mkinst name = (Instrument.instrument name [] (-2, 2))
     , Instrument.inst_maybe_decay = Just 1
     }
 
+midi_config :: Instrument.Configs
 midi_config =
-    Instrument.config [(Score.Instrument "inst1", [(dev, n) | n <- [0..8]])]
+    Instrument.configs [(Score.Instrument "inst1", [(dev, n) | n <- [0..8]])]
     where dev = Midi.write_device "dev1"
