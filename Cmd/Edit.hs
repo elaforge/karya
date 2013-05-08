@@ -512,6 +512,20 @@ append_text = edit_open (const Nothing)
 prepend_text :: (Cmd.M m) => m Cmd.Status
 prepend_text = edit_open (const $ Just (0, 0))
 
+-- | This will be fooled by a @|@ inside a string, but I'll fix that if it's
+-- ever actually a problem.
+replace_first_call :: (Cmd.M m) => m Cmd.Status
+replace_first_call = edit_open $ \text -> case Text.breakOn "|" text of
+    (pre, _) ->
+        let space = " " `Text.isSuffixOf` pre
+        in Just (0, Text.length pre - (if space then 1 else 0))
+
+replace_last_call :: (Cmd.M m) => m Cmd.Status
+replace_last_call = edit_open $ \text -> case Text.breakOnEnd "|" text of
+    (pre, post) ->
+        let space = " " `Text.isPrefixOf` post
+        in Just (Text.length pre + (if space then 1 else 0), Text.length text)
+
 edit_open :: (Cmd.M m) => (Text -> Maybe (Int, Int)) -> m Cmd.Status
 edit_open selection = do
     view_id <- Cmd.get_focused_view

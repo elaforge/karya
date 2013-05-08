@@ -329,8 +329,12 @@ event_bindings = concat
     , shift_char '5' "cycle enharmonic"
         (PitchTrack.pitches PitchTrack.cycle_enharmonics)
 
-    , bind_key_status [] (Key.Char 'A') "append text" Edit.append_text
-    , bind_key_status [] (Key.Char 'I') "prepend text" Edit.prepend_text
+    , bind_key_status [] (Key.Char 'a') "append text" Edit.append_text
+    , bind_key_status [] (Key.Char 'A') "replace last call"
+        Edit.replace_last_call
+    , bind_key_status [] (Key.Char 'i') "prepend text" Edit.prepend_text
+    , bind_key_status [] (Key.Char 'I') "replace first call"
+        Edit.replace_first_call
     ]
 
 -- | Bindings which work on pitch tracks.  The reason this is global rather

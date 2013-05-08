@@ -821,13 +821,14 @@ fltk:
       * starts in the wrong place
       * respond to the response msg correctly
       * leading space creates a zero-dur event
-      * there's a memory corruption bug in there somewhere
+      - there's a memory corruption bug in there somewhere
         Sometimes haskell gets \NUL\NUL instead of "hi".
       * chinese text is corrupted
       - send EditAppend
       - remove RawEdit?
       * use cmd-h, cmd-l, cmd-delete to move and delete words
-      - 'i' insert, 'a' append, 'I' replace first call, 'A' replace last call
+      * 'i' insert, 'a' append, 'I' replace first call, 'A' replace last call
+      - make sure select_start and select_end are char indices, not bytes
       Pros:
         . Insert at beginning or in middle since I have a cursor.
         . I can clean up text, e.g. strip spaces.

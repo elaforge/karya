@@ -16,7 +16,7 @@ module Derive.ParseBs (
     , parse_expr
     , parse_control_title
     , parse_val, parse_attrs, parse_num, parse_call
-    , lex1
+    , lex1, lex
 
     -- * expand macros
     , expand_macros
@@ -24,6 +24,7 @@ module Derive.ParseBs (
     , p_equal
 #endif
 ) where
+import Prelude hiding (lex)
 import qualified Control.Applicative as A (many)
 import Data.Attoparsec ((<?>))
 import qualified Data.Attoparsec.Char8 as A
@@ -103,6 +104,13 @@ lex1 :: Text -> (Text, Text)
 lex1 text = case parse ((,) <$> p_lex1 <*> A.takeWhile (const True)) text of
     Right ((), rest) -> (B.take (B.length text - B.length rest) text, rest)
     Left _ -> (text, "")
+
+lex :: Text -> [Text]
+lex text
+    | B.null pre = []
+    | B.null post = [pre]
+    | otherwise = pre : lex post
+    where (pre, post) = lex1 text
 
 -- | Attoparsec doesn't keep track of byte position, and always backtracks.
 -- I think this means I can't reuse 'p_term'.
