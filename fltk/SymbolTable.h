@@ -60,7 +60,7 @@ public:
 
     // A Symbol is a group of glyphs.
     struct Symbol {
-        Symbol() : absolute_y(0) {}
+        Symbol() : absolute_y(false) {}
         Symbol(const Glyph &g1) {
             Symbol();
             glyphs.push_back(g1);

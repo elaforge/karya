@@ -49,7 +49,7 @@ skel_box  skel_display  ruler_group _____________        track_group
 
 
 struct BlockBox {
-    BlockBox() {}
+    BlockBox() : color(), c() {}
     BlockBox(Color color, char c) : color(color), c(c) {}
     bool operator==(const BlockBox &that) const {
         return color == that.color && c == that.c;

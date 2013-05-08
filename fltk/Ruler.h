@@ -72,7 +72,7 @@ struct RulerConfig {
     // more convenient to serialize from haskell.
     RulerConfig(Color bg, bool show_names, bool use_alpha, bool full_width,
             bool align_to_bottom, ScoreTime last_mark_pos) :
-        bg(bg), show_names(show_names), use_alpha(use_alpha),
+        marklists(), bg(bg), show_names(show_names), use_alpha(use_alpha),
         full_width(full_width), align_to_bottom(align_to_bottom),
         last_mark_pos(last_mark_pos)
     {}

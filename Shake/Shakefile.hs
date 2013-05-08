@@ -342,6 +342,10 @@ configure midi = do
             -- Always compile c++ with optimization because I don't have much
             -- of it and it compiles quickly.
             fltkCc flags ++ define flags ++ cInclude flags ++ ["-Wall", "-O2"]
+                -- Turn on Effective C++ warnings, which includes uninitialized
+                -- variables.  Unfortunately it's very noisy with lots of
+                -- false positives.
+                -- ++ ["-Weffc++"]
         }
     libs = ["-lgit2"]
     osFlags = case System.Info.os of

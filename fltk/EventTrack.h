@@ -22,7 +22,9 @@ struct ControlSample {
 };
 
 struct TrackSignal {
-    TrackSignal() : signal(NULL), length(0), is_pitch_signal(false) {}
+    TrackSignal() : signal(NULL), val_min(0), val_max(0), length(0),
+        is_pitch_signal(false), shift(0), stretch(1)
+    {}
 
     // The track containing the TrackSignal is responsible for the freeing of
     // the signal pointers.
@@ -92,7 +94,7 @@ struct EventTrackConfig {
             ScoreTime time_end, RenderConfig render_config) :
         text_wrap(wrap), // hardcode for now
         bg_color(bg_color), find_events(find_events), time_end(time_end),
-        render(render_config)
+        render(render_config), track_signal()
     {}
     // This should be a text_wrap_style, but it's easier to use from the
     // haskell FFI if it's an int.

@@ -51,7 +51,7 @@ Marklist::decref()
 // OverlayRuler
 
 OverlayRuler::OverlayRuler(const RulerConfig &config, bool is_ruler_track) :
-    Fl_Widget(0, 0, 1, 1), config(config)
+    Fl_Widget(0, 0, 1, 1), damaged_area(), config(config), zoom()
 {
     // No matter what the config, ruler tracks always have these settings.
     // This means that event tracks can look like ruler tracks if they want
