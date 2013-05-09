@@ -139,6 +139,12 @@ perform_stream lookup midi_config events = (perf_events, mmsgs)
     extract_m wmsg =
         (RealTime.to_milliseconds (Midi.wmsg_ts wmsg), Midi.wmsg_msg wmsg)
 
+-- | Perform events with the given instrument config.
+perform_inst :: [Cmd.SynthDesc] -> [(String, [Midi.Channel])] -> Derive.Events
+    -> ([Perform.Event], [Midi], [Log.Msg])
+perform_inst synths config =
+    perform (synth_to_convert_lookup synths) (UiTest.midi_config config)
+
 -- * derive
 
 type Transform a = Derive.Deriver a -> Derive.Deriver a
@@ -482,20 +488,29 @@ mkscale name notes =
 
 -- * inst
 
+-- Derive and perform with instrument db.
+
 -- | Derive with a bit of the real instrument db.  Useful for testing
 -- instrument calls.
-with_inst_db :: [MidiInst.SynthDesc] -> Derive.Deriver a -> Derive.Deriver a
+with_inst_db :: [Cmd.SynthDesc] -> Derive.Deriver a -> Derive.Deriver a
 with_inst_db synth_descs = modify_constant $ \const -> const
-    { Derive.state_lookup_instrument = lookup_derive_instrument synth_descs }
+    { Derive.state_lookup_instrument = synth_to_derive_instrument synth_descs }
 
-lookup_derive_instrument :: [Cmd.SynthDesc] -> Score.Instrument
+synth_to_derive_instrument :: [Cmd.SynthDesc] -> Score.Instrument
     -> Maybe Derive.Instrument
-lookup_derive_instrument synth_descs inst =
+synth_to_derive_instrument synth_descs inst =
     fmap Cmd.derive_instrument $ Instrument.Db.db_lookup db inst
-    where
-    (midi_db, warns) = MidiDb.midi_db synth_descs
-    db = trace_logs (map (Log.msg Log.Warn Nothing) warns) $
-        Instrument.Db.db midi_db
+    where db = synth_to_db synth_descs
+
+synth_to_convert_lookup :: [MidiInst.SynthDesc] -> Convert.Lookup
+synth_to_convert_lookup = make_convert_lookup . synth_to_db
+
+synth_to_db :: [Cmd.SynthDesc] -> Cmd.InstrumentDb
+synth_to_db synth_descs =
+    trace_logs (map (Log.msg Log.Warn Nothing) warns) $ Instrument.Db.db midi_db
+    where (midi_db, warns) = MidiDb.midi_db synth_descs
+
+-- ** older patch creating functions
 
 make_convert_lookup :: Cmd.InstrumentDb -> Convert.Lookup
 make_convert_lookup midi_db = Convert.Lookup

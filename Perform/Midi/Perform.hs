@@ -486,12 +486,15 @@ perform_note_msgs event (dev, chan) midi_nn = (events, note_off)
     where
     events = map LEvent.Event
         [ chan_msg note_on (Midi.NoteOn midi_nn on_vel)
-        , chan_msg (note_off - adjacent_note_gap)
-            (Midi.NoteOff midi_nn off_vel)
+        , chan_msg tweaked_note_off (Midi.NoteOff midi_nn off_vel)
         ]
         ++ map LEvent.Log warns
     note_on = event_start event
     note_off = event_end event
+    -- Subtract the adjacent_note_gap, but leave a little bit of duration for
+    -- 0-dur notes.
+    tweaked_note_off = max (note_on + adjacent_note_gap)
+        (note_off - adjacent_note_gap)
     (on_vel, off_vel, vel_clip_warns) = note_velocity event note_on note_off
     warns = make_clip_warnings event (Control.c_velocity, vel_clip_warns)
     chan_msg pos msg = Midi.WriteMessage dev pos (Midi.ChannelMessage chan msg)

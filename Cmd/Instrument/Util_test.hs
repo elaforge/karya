@@ -1,11 +1,19 @@
 module Cmd.Instrument.Util_test where
+import Util.Control
 import Util.Test
-
+import qualified Midi.Key as Key
 import qualified Midi.Midi as Midi
+import Midi.Midi (ChannelMessage(..))
 
+import qualified Ui.UiTest as UiTest
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.CmdTest as CmdTest
+import qualified Cmd.Instrument.Drums as Drums
 import qualified Cmd.Instrument.Util as Util
+
+import qualified Derive.Derive as Derive
+import qualified Derive.DeriveTest as DeriveTest
+import qualified App.MidiInst as MidiInst
 
 
 test_keymaps = do
@@ -21,11 +29,43 @@ test_keymaps = do
     equal (run True (f (CmdTest.key_up 'a')))
         (Right empty, [msg (Midi.NoteOff 1 64)])
 
+run_tracks :: [UiTest.TrackSpec] -> Bool -> Cmd.CmdId a
+    -> (Either String [UiTest.TrackSpec], [Midi.Message])
 run_tracks tracks val_edit cmd = extract $ CmdTest.run_sel 0 tracks $ do
     Cmd.modify_edit_state $ \st -> st
         { Cmd.state_edit_mode = if val_edit then Cmd.ValEdit else Cmd.NoEdit
         , Cmd.state_kbd_entry = True
         }
     cmd
+    where
+    extract res =
+        (CmdTest.trace_logs (CmdTest.e_tracks res), CmdTest.e_midi res)
 
-extract res = (CmdTest.trace_logs (CmdTest.e_tracks res), CmdTest.e_midi res)
+test_drum_instrument = do
+    let run = DeriveTest.derive_tracks_with
+            (DeriveTest.with_inst_db drum_synth)
+        extract = DeriveTest.extract $ \e -> DeriveTest.e_attributes e
+    let result = run [(">synth/x", [(0, 0, "bd"), (1, 0, "sn")])]
+    equal (extract result) (["+bd", "+snare"], [])
+
+    let (_, midi, logs) = DeriveTest.perform_inst drum_synth [("synth/x", [0])]
+            (Derive.r_events result)
+    equal logs []
+    equal (mapMaybeSnd Midi.channel_message (filter (Midi.is_note . snd) midi))
+        [ (0, NoteOn Key.c2 127), (10, NoteOff Key.c2 127)
+        , (1000, NoteOn Key.d2 127), (1010, NoteOff Key.d2 127)
+        ]
+
+-- I'll bet lenses could do this.
+mapMaybeSnd :: (b -> Maybe c) -> [(a, b)] -> [(a, c)]
+mapMaybeSnd f xs = [(a, b) | (a, Just b) <- map (second f) xs]
+
+drum_synth :: [MidiInst.SynthDesc]
+drum_synth = MidiInst.make $
+    (MidiInst.softsynth "synth" "Synth" (-24, 24) [])
+    { MidiInst.modify_wildcard = Util.drum_instrument notes
+    , MidiInst.code =
+        MidiInst.note_calls (Util.drum_calls (map fst notes))
+        <> MidiInst.cmd (Util.drum_cmd notes)
+    }
+    where notes = [(Drums.c_bd, Key.c2), (Drums.c_sn, Key.d2)]
