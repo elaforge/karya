@@ -14,4 +14,6 @@ pb_range = (-36, 36)
 patches :: [Instrument.Patch]
 patches =
     [ MidiInst.pressure $ MidiInst.patch pb_range "fm1" [(4, "depth")]
+    -- Tunable comb filter.
+    , MidiInst.patch pb_range "comb" [(1, "mix"), (4, "fbk")]
     ]

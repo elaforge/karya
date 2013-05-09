@@ -3,6 +3,21 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
+  - play monitor disappears when doing looped play past the end of the score
+  - documentation for instruments, that will show up in the inst browser
+  - Drum+comb instrument uses a keymap to turn attrs into pitches.  But it can
+    also take a pitch, which goes to a different channel.  It should be
+    possible to support this kind of composite instrument, but maybe more
+    trouble than it's worth:
+      . Instruments get a field: pitch_track_instrument :: Score.Instrument
+        If it has this field then it expects a pitch from the keymap and emits
+        an event with the keymap pitch and another with the pitch track.
+      . This could also be useful for instruments with multiple pitches, e.g.
+        a resonance:
+          [(Maybe Score.Control, Score.Instrument)]
+        Nothing means the default pitch gets that instrument, otherwise it's
+        a named pitch.  But Score.Events would have to carry named pitches for
+        that.
   - can I use the fancy Status trick to implement the symbol composer?
   * Top of the tracks are a bit too clipped off, the selection is barely
     visible.

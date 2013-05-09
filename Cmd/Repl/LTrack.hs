@@ -122,18 +122,18 @@ drop_dups = ModifyEvents.selection $ ModifyEvents.events $
 
 filled :: Cmd.CmdL ()
 filled = do
-    (block_id, _, track_id, _) <- Selection.get_insert
+    (block_id, _, track_ids, _, _) <- Selection.tracks
     PlayUtil.clear_cache block_id
-    State.set_render_style Track.Filled track_id
+    mapM_ (State.set_render_style Track.Filled) track_ids
 
 line :: Cmd.CmdL ()
 line = do
-    (block_id, _, track_id, _) <- Selection.get_insert
+    (block_id, _, track_ids, _, _) <- Selection.tracks
     PlayUtil.clear_cache block_id
-    State.set_render_style Track.Line track_id
+    mapM_ (State.set_render_style Track.Line) track_ids
 
 no_render :: Cmd.CmdL ()
 no_render = do
-    (block_id, _, track_id, _) <- Selection.get_insert
+    (block_id, _, track_ids, _, _) <- Selection.tracks
     PlayUtil.clear_cache block_id
-    State.set_render_style Track.NoRender track_id
+    mapM_ (State.set_render_style Track.NoRender) track_ids
