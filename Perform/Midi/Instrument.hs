@@ -387,6 +387,12 @@ has_flag flag = Set.member flag . patch_flags
 set_decay :: RealTime -> Patch -> Patch
 set_decay secs = instrument_#maybe_decay #= Just secs
 
+add_composite :: Score.Instrument -> Maybe Text -> [Text] -> Patch -> Patch
+add_composite inst pitch controls = composite %= (comp:)
+    where
+    comp = (inst, Score.Control <$> pitch,
+        Set.fromList $ map Score.Control controls)
+
 -- | Various instrument flags.
 data Flag =
     -- | Patch doesn't pay attention to duration.  E.g., drum samples may not

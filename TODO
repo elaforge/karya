@@ -4,7 +4,9 @@ LEGEND
 
 UNSORTED
   - play monitor disappears when doing looped play past the end of the score
-  - documentation for instruments, that will show up in the inst browser
+  * documentation for instruments, that will show up in the inst browser
+  - composite 0 dur notes still not quite right, controls come too early
+  - show composite patch info in the browser
   * Drum+comb instrument uses a keymap to turn attrs into pitches.  But it can
     also take a pitch, which goes to a different channel.  It should be
     possible to support this kind of composite instrument, but maybe more

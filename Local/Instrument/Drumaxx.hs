@@ -6,17 +6,35 @@ import qualified Midi.Midi as Midi
 import qualified Cmd.Instrument.Drums as Drums
 import qualified Cmd.Instrument.Util as Util
 import Derive.Attrs
+import qualified Derive.Score as Score
+import qualified Perform.Midi.Instrument as Instrument
 import qualified App.MidiInst as MidiInst
 
 
 load :: FilePath -> IO [MidiInst.SynthDesc]
 load _dir = return $ MidiInst.make $
-    (MidiInst.softsynth "dmx" "Image-Line Drumaxx" (-24, 24) [])
+    (MidiInst.softsynth "dmx" "Image-Line Drumaxx" pb_range [])
     { MidiInst.modify_wildcard = Util.drum_instrument notes
-    , MidiInst.code =
-        MidiInst.note_calls (Util.drum_calls (map fst notes))
-        <> MidiInst.cmd (Util.drum_cmd notes)
+    , MidiInst.code = code
+    , MidiInst.extra_patches = MidiInst.with_code code $
+        map (Util.drum_instrument notes) patches
     }
+    where
+    code = MidiInst.note_calls (Util.drum_calls (map fst notes))
+        <> MidiInst.cmd (Util.drum_cmd notes)
+
+pb_range = (-24, 24)
+
+patches :: [Instrument.Patch]
+patches =
+    [ Instrument.text #= "This drum takes a pitch signal, which is then sent\
+        \ to the >reak/comb instrument, which is a tuned comb filter.\
+        \ The audio routing has to be set up in the VST host." $
+        composite $ MidiInst.patch pb_range "comb" []
+    ]
+    where
+    composite = Instrument.add_composite (Score.instrument "reak" "comb")
+        Nothing ["mix", "fbk"]
 
 -- | The octave numbers on the drummax are one greater than the standard
 -- usage.  This is for \"Acoustic 2 FG\".  I'll have to come up with

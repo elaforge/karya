@@ -257,8 +257,14 @@ d_place :: ScoreTime -> ScoreTime -> Deriver a -> Deriver a
 d_place shift stretch = d_warp
     (Score.id_warp { Score.warp_stretch = stretch, Score.warp_shift = shift })
 
+-- | Low level warp function.  Stretching to 0 is the same as stretching 1.
+-- This may seem surprising, but otherwise 0 duration events wind up with no
+-- controls since their extent is crunched to nothing.  Rather than track down
+-- every spot where notes are stretched based on an event duration and special
+-- case 0 duration, it seemed to be less error-prone to put it in the stretch
+-- function.
 d_warp :: Score.Warp -> Deriver a -> Deriver a
-d_warp warp deriver
+d_warp warp_ deriver
     | Score.is_id_warp warp = deriver
     -- Originally a 0 stretch was also illegal, the idea being that it's
     -- probably a bug.  However, 0 duration events are legal, and if I want to
@@ -269,6 +275,9 @@ d_warp warp deriver
     | otherwise = local
         (\st -> st { state_warp = Score.compose_warps (state_warp st) warp })
         deriver
+    where
+    warp = if Score.warp_stretch warp_ == 0
+        then warp_ { Score.warp_stretch = 1 } else warp_
 
 -- | Warp a block with the given deriver with the given signal.
 
