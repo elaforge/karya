@@ -3,131 +3,40 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
-  * play monitor disappears when doing looped play past the end of the score
-  * documentation for instruments, that will show up in the inst browser
   - composite 0 dur notes still not quite right, controls come too early
-  * show composite patch info in the browser
-  * Drum+comb instrument uses a keymap to turn attrs into pitches.  But it can
-    also take a pitch, which goes to a different channel.  It should be
-    possible to support this kind of composite instrument, but maybe more
-    trouble than it's worth:
-      . Instruments get a field: pitch_track_instrument :: Score.Instrument
-        If it has this field then it expects a pitch from the keymap and emits
-        an event with the keymap pitch and another with the pitch track.
-      . This could also be useful for instruments with multiple pitches, e.g.
-        a resonance:
-          [(Maybe Score.Control, Score.Instrument)]
-        Nothing means the default pitch gets that instrument, otherwise it's
-        a named pitch.  But Score.Events would have to carry named pitches for
-        that.
-      . Also should split the controls to avoid sending controls to an inst
-        that doesn't need them.  So
-
-          split_instrument :: [(Score.Instrument, Maybe Score.Control,
-            Set Score.Control)]
-          drum+comb gets: [("reak/comb", Nothing, ["fbk", "mix"])]
-          inst+resonance: [("reak/reso", Just "res", ["q"])]
-
-        . If the pitch control is Nothing, then the inst gets the default
-          pitch, and the inst must have a keymap pitch.
   - can I use the fancy Status trick to implement the symbol composer?
-  * Top of the tracks are a bit too clipped off, the selection is barely
-    visible.
-  * For a short-term control track, It should be possible to change the
-    control track with a %new-control event.  Pre interpretation, scan for
-    those events and split the track accordingly.
   Format2
     . Rethink how indent breaking happens.
       Maybe indent should be a flag on SoftBreak
       If pre is null, then maybe I should indent to the next level, e.g.
       [(0, ("", "a")), (2, ("", "b"))]
-  * Select block call puts select on ruler, but play monitor does not then
-    remove it.
-  * explicit track focus, to avoid putting focus back on every time
-  * why does lilypond think this is a bad barcheck?
-    save/bloom/ly/mvt2.ly:113:35: warning: barcheck failed at: 3/4
-    \time 6/4 \key d \minor \clef bass
-                                       R2. R2. | % 1
-    . Full measure rests must be a full bar, so it must be R1.
-  * Add a way to mute an instrument.  I can set the allocation to [], but then
-    I lose the old allocation, and it constantly warns about it.  I could also
-    add solo.
-  * move tracks messes up the skeleton:
-    () (1 2) (2 3) (3 4) (5 6), move 0 to 5
-  * drawing bug: long track render sample doesn't draw near the bottom
-    Samples should be at [0, 29, 31], but are [0, 20.71, 22.14]
-  * when I switched with save_state_as, it emptied the old state's views
-  * solo still gets another track with a 'bounce' call, save/bug-bounce-solo
-  * shift-play from a super-block drops the first note of the sub-block
-  * up and down arrows in text entry should go to front and back
   - add edit and windows menu to all apps
     There must be special OS X support for these
     Apparently not?  iTerms is defined in English.lproj/MainMenu.xib
     https://developer.apple.com/library/mac/#documentation/Cocoa/Conceptual/WinPanel/Tasks/UsingWindowsMenu.html
     But it doesn't say how to add the Window menu.
   - keys to move focus?
-  * repl macro: [@b0, @b1] didn't work
-  * Refactor.order_block makes a block with a mysteriously black ruler
-  * track status is lost when a track is added or removed
-    The problem is that set skeleton resets the display, but doesn't reset the
-    status, they have to be set separately with Block::set_status.
-    So add/remove track will set skeleton, but not send Update.BlockTrack
-    . Skel display could track insert and remove by bumping the Track by one.
-    . It also needs to preserve across a set_skeleton.
-    . Or, if I can bundle status and skeleton together.
-      The problem is that skeleton is the whole thing, status is per-track.
-      But I could merge them, break status out of DisplayTrack and make
-      status changes emit a BlockSkeleton, which has all statuses
-    . If I always set status via BlockSkeleton, e.g. emit BlockSkeleton on
-      status-only change, and omit it from the dtrack check, then I can
-      get rid of SkeletonDisplay::set_status.  Is it worth it?
-    * have SkeletonDisplay::set_config use the statuses
-    * remove insert_track remove_track
-    - consider removing set_status
+  - Update.BlockSkeleton sets Block.Status, and so does Update.BlockTrack.  If
+    I merge status update into skeleton updates I can take Status out of
+    Block.DisplayTrack.
 
-  * Slurs shouldn't make a note overlap the same note.
-    Or at least, on the piano, slurs on chords shouldn't overlap at all.
-    Also, slurs can give a slight dynamic boost to the beginning of the
-    phrase.
-  * postproc to make sure the same pitches don't overlap
-  * %sustain -> %sus, sustain-abs -> sus-abs
-  / ly-( should make a note if a generator, rather than looking for subs.
-  * rename *_lang stuff in Config to repl
-  * Cmd.Lang* should go too
-  * move meters to Cmd.Meters and don't hardcode measures/section
-  * Tags.internal should be for really internal things, add Tags.builtin for
-    basic ones.
   - update shakefile to use new system calls and logging levels
   - shakefile should use typesafe oracle calls, is there newtype based
     oracle utils yet?
   convert to Text:
     - Perform.Midi.Instrument.patch_text
-    * UiMsg.UpdateInput
     - TimeStep.show_time_step
-    * Lilypond.to_lily
     - Pretty.pretty
       For this I need to extend Util.Format to be a simplified prettyprinter:
       - monoidal interface, not monadic
       - write text, set indent for expression, insert soft break
     - Derive.throw
-    * track titles
-    * turn txt (show ...) into showt
-    * Cmd.ControlTrack.Event
-    * instance Typecheck Text instead of String
-      It means e.g. TimeStep.parse_time_step should take Text, which means
-      Util.Parse should switch too.
-    * BaseTypes.Symbol
-    * Score.Control
     - Ui.Id
-    * ModifyEvents.text
   - %sus-abs=-.x is not quite right for detached, because it should scale
     a bit for shorter notes.  E.g. it's absolute but scales down to 0 below
     a certain threshold.
   - now that I have tevents_around, can I get rid of slice_around and the
     require_previous hack?
-  bloom
-    * block b10 is messed up near the end
-    * b13 silent
   - I can have regression tests that assert a score still derives the same way.
   calls:
     - Sometimes tick makes more sense as at attribute of the previous note, or
@@ -173,14 +82,6 @@ UNSORTED
     But filtering the midi shows dyn controls mixed into both channels.
   - the signal doesn't update if I change the default environ assignment on
     another track
-  * doesn't seem to save track widths, I keep making it narrow but reload it's
-    still wide.
-
-  / parsing "1r" instead of "1s" gives a "unexpected eof" error msg, it should
-    say 'r' was an unknown suffix
-    Can't get attoparsec to consistently report an error.  Kind of hard when
-    it always backtracks.
-    - Need to add <||> to attoparsec.
   - It seems confusing that in val edit the note track doesn't need cmd-x but
     the control track does.
     Maybe I should get rid of the optional cmd- thing?
@@ -410,22 +311,6 @@ incremental save / git:
   - make sure things are ok if it fails at any step
   - I don't think Ui.State needs to emit CmdTrackAllEvents for cases where
     diff will catch it.
-  * Why should I ever do a complete save?  Why not always just do partial?
-    The repo should only contain one copy of something that never changes.
-    One reason is to trim history, but maybe for that I should have a option
-    to rename and save without bringing the history.
-    So save is just a tag operation, it doesn't actually dump state.  This
-    will remove the irregularity where a save state corresponds to no
-    history entry.
-    But then how do I start the saving?  I would need a special value to say
-    it should start saving.  Binding to ^S is logical, but then the first
-    save doesn't add a tag.  Unless the first save always tags.
-    . Initially save_checkpoints is false, so no checkpointing
-    . cmd_save makes it true, then Undo does a checkpoint
-      But it has to notice the false -> true transition, otherwise it will
-      consider the cmd not worth saving.  So hist_save_checkpoints is just
-      True for the cmd that turns it on, and goes off after that.
-  / Ability to give names to SavePoints.
   - See if git's delta compression understands binary and can compress
     tracks.  Otherwise, would it be worth helping it by e.g. separating
     each event with a newline?  But then it makes serializing events more of
@@ -457,24 +342,11 @@ integrate / integration:
   - quantization
 
 lilypond:
-  * bloom 6/4 should be able to span the whole measure with a dotted whole
   - warning if ly-prepend or ly-append is being omitted due to a chord
-  * KeyChange -> Code
-  * code is mixed into the first voice, but is then lost if voice
-    simplification elides that voice
-  * bloom, mvt2, mm31: grace links to wrong note
   - Maybe code events with a voice should go in the voice requested rather
     than mixed into the first one.  E.g. would have fixed grace notes.
-  * rename voice to v, rename hand to h?
-    hand is usually in titles, and h seems too obscure
-  * omit the voice division as long as there is only one voice
-  * support for mordent
   - one track has voice, the other doesn't, causes a "can't advance time
     backward" error
-  * put staff config like '\set Staff.pedalSustainStyle = #'mixed'
-    in the staff config
-  * I could use staff config to filter out some instruments
-  * library of common staff code
   - remove the StackMap stuff
   - code events in >ly-global can be distributed to all staves
     Otherwise I have to remember to add e.g. ly-key to all staves manually.
@@ -491,29 +363,13 @@ lilypond:
     a midi import.
   - Derive.Call.Lily needs a naming refactor since there are too many vaguely
     named flavours.
-  * rename is-ly to ly-track if I can't get it to apply to individual notes.
-    Well, I can, but it's just the same as when-ly.
-  * instead of Code events interrupting voices, it should be incorporated into
-    all voices.  But that may be incorrect, e.g. I don't want ff on every
-    voice, just one.
-    * dyn marking messes up simultaneous voices
   - I need some way to hide rests.
     Add magic bit of code that turns its rest r4 into s4.
   - If I can figure out the meter from just the name, then I can get rid
     of the awkward map with hardcoded meters.
     I could have parse generate the Meter and memoize it.
   - optionally emit the lilypond to display a compound meter
-  * convert lily code to Text instead of String.  Maybe VString has to become
-    Text then.
-  * pedal should emit pedal sign
-    I can't use the pedal call for that, since it emits control.  But I can
-    look at the pedal signal directly.
-    Maybe it would be simpler to just have a ly-ped call, especially since the
-    pedal signal doesn't line up exactly the same.
-    \sustainOn .. \sustainOff, \set Staff.pedalSustainStyle = #'mixed
-  * Why does the cmd have to wait until lilypond is done?  Should be async.
   - use Util.Format in ly output
-  * to_lily should return Text
   - try Util.LazyVector for Ly output and see if it helps
   + can I make a click on a note in the pdf highlight in the sequencer?
     Hung up on getting preview to send clicks to a program, notes in
@@ -555,6 +411,11 @@ negative duration / arrival beats:
     I have to make SymbolTable wrap text above too.
 
 external
+  parsing "1r" instead of "1s" gives a "unexpected eof" error msg, it should
+    say 'r' was an unknown suffix
+    Can't get attoparsec to consistently report an error.  Kind of hard when
+    it always backtracks.
+    - Need to add <||> to attoparsec.
   - chorded keys are not getting the proper pitch bend
     It's a pianoteq problem.
     Track it down and send it to them?
@@ -660,17 +521,7 @@ cleanup:
     once.
 
 performance:
-  * make TrackLang.Symbol into ByteString?
-    . means fewer conversions
-    . maybe faster lookups
-    . But ByteString is not necessarily more compact for small strings, e.g.
-      1 char = 4 words, 2 char = 8 words
-    . Actually space isn't a big concern, it's probably more about looking
-      up in maps, bytestrings may be faster.
-    . Also ByteString is pinned, does it make a difference?
-    / I think the number of calls is actually not that high.  Doesn't seem
-      worth it.
-  - Do profiles again with Data.Text instead of ByteString.
+  - Do profiles again with Event.event_text :: Data.Text instead of ByteString.
   scrolling through giant blocks is slow
     - drawing is stil slow, I'll have to look at the fltk layer
       It happens when the block is wide.  Use test_block to see if it's just
@@ -781,8 +632,7 @@ symbolic score
 fltk:
   drawing artifacts on retina:
     . Some of this may be fltk bugs.
-    * signal renders get white lines
-    * track bevels get junk
+    - move selection up, leaves a single pixel line
     - tops of tracks and the tops of track text boxes still get gunk, visible
       when scrolling horizontally
   - Should fltk collapse adjacent dividers?
@@ -806,8 +656,6 @@ fltk:
     detection.
     + gmail: subject:(scaling text)
       But it's OSX only.
-  * skeleton display has leveled steps to make it easier to see who is
-    below who.  Only if a track has multiple children.
   / rethrow c++ exceptions as FltkError
   - factor scroll redrawing into a single class
   / draw arrows in SkeletonDisplay.cc properly meh, they look ok
@@ -831,64 +679,12 @@ fltk:
     http://oleb.net/blog/2011/07/whats-new-for-developers-in-lion-part-1/
     Can then re-enable ~/Library/Saved Application State.
   event track
-    * visual indication when both solo and mute is on
-    Bring back the idea of opening up a text entry in raw edit mode.
-      * Block::edit_open closes any existing edits, calls
-        EventTrack::edit_open
-      * Block::edit_append finds a track with an open edit
-      * Make sure input gets events.
-      * If I put it in TrackTile, I only need one, and don't need to iterate
-        through the tracks, and I think the redraw stuff works as-is.
-        But then it doesn't work for an event track in the ruler position.
-        And how the redraw stuff works is a hack.
-      * remove is_edit_input
-      * EventTrack::edit_close emits a msg
-        Return msg is:
-          data Edited = Edited BlockId TrackNum ScoreTime Text
-        The UI can suppress this if it detects the text hasn't changed.
-      * starts in the wrong place
-      * respond to the response msg correctly
-      * leading space creates a zero-dur event
+    floating edit input
       - there's a memory corruption bug in there somewhere
         Sometimes haskell gets \NUL\NUL instead of "hi".
-      * chinese text is corrupted
       - send EditAppend
       - remove RawEdit?
-      * use cmd-h, cmd-l, cmd-delete to move and delete words
-      * 'i' insert, 'a' append, 'I' replace first call, 'A' replace last call
       - make sure select_start and select_end are char indices, not bytes
-      Pros:
-        . Insert at beginning or in middle since I have a cursor.
-        . I can clean up text, e.g. strip spaces.
-        . IME available.
-        . Can edit hidden event.
-        . No deriving partially written text.
-      Cons:
-        . Complicated.
-        . Can't zoom / play / etc. while in edit mode.
-        . May require more keystrokes to enter single char, though there are
-          probably ways to work around that.
-
-      The responder has to be able to tell UI to open a text entry, so cmds
-      can return an Edit:
-        data Edit = Edit {
-          edit_block_id :: BlockId
-          , edit_tracknum :: TrackNum
-          , edit_at :: ScoreTime
-          , edit_text :: Text
-          , edit_cursor :: Int
-          , edit_selected :: Bool
-          }
-          | AppendText Text
-
-      If there is already a text entry open at that position, insert the given
-      string at the insertion point rather than creating a new one.  This can
-      implement midi->*note insertion.
-
-      When I get a midi key, I emit AppendText.  Ideally I should only do this
-      when edit is open, otherwise I'm constantly sending notes to the UI
-      which are ignored.  I guess I can flip a bit when Edit goes out, and
-      turn it off when Edited comes back in.
 
   control track, render signal
     - Figure out linear sets of samples and emit them as one line.
@@ -898,8 +694,6 @@ fltk:
     - combine multiple signals, e.g. one controls xpos, one controls color
 
 logview:
-  * two lines for the status bar at the top
-    Or as many as necessary?  Wrap on |, and justify by inserting spaces?
   - can I get the standard edit menu and copy/paste?
   - haskell and c++ use the same machine readable format
   - tabs are not lining up properly
@@ -1004,17 +798,8 @@ integrator / midi record:
   - implement
 
 REPL: repl:
-  * don't load history if it hasn't changed
   - repl should understand --
-  * stop writing history to ".repl"
   - only write history when the cmd succeeded
-  * repl should load the history from save/.../repl, and have a history search
-    seq will have to tell the REPL what it loaded, so it needs a fancier
-    protocol.
-  * haskeline doesn't get along with the prompt colorization in repl
-    I could get rid of it, but is there a way to get haskeline to understand
-    it?
-  - add ^P for history search, and display a short menu of the various matches
   - command to open the haddock for a module
   - haskeline sucks for long lines, add multiple line editing?
     really I'd prefer plan9 style esc then edit
@@ -1140,8 +925,6 @@ Cmd:
 
 Derive:
   tracklang:
-    * come up with a solution for overlapping children, e.g.
-      doc/dev_notes/note_tracks
     - Track caching is too fragile, if I add a track with scope over everything
       then I get no caching.  Instead I should cache the bottom note track, or
       perhaps every note track.  But that doesn't work because they're all
@@ -1159,7 +942,6 @@ Derive:
       as a break with no notes for a certain amount of time.  Can only damp
       two neighboring notes at a time.
 
-  * x = _ will unset x
   - consider track calls and block calls:
     note_track :: TrackTree.EventsNode -> Derive.EventDeriver
     derive_tree :: ScoreTime -> TrackTree.EventsTree -> Derive.EventDeriver
