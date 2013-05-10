@@ -249,6 +249,7 @@ data Patch = Patch {
     patch_instrument :: Instrument
     , patch_scale :: PatchScale
     , patch_flags :: Set.Set Flag
+    , patch_composite :: [Composite]
     , patch_initialize :: InitializePatch
     -- | Keyswitches available to this instrument, if any.  Each of these is
     -- considered its own instrument, like synth\/inst\/ks.  A keyswitch key
@@ -265,12 +266,27 @@ data Patch = Patch {
     , patch_file :: FilePath
     } deriving (Eq, Show)
 
+-- | A composite patch corresponds to multiple underlying midi patches.
+-- At conversion time, a single event with a composite patch will be split
+-- into multiple events.
+--
+-- If the @Maybe Score.Control@ is Nothing, then the given instrument gets the
+-- default pitch signal, and the main instrument must have a keymap pitch.
+-- Otherwise, it gets the given named pitch.  The Set of Controls are given to
+-- the split instrument and not the main one.
+--
+-- This is useful for instruments with multiple pitches, e.g. a drum with
+-- a keymap for strokes as well as a tuned pitch, or a pitched instrument with
+-- a secondary pitch as a resonance.
+type Composite = (Score.Instrument, Maybe Score.Control, Set.Set Score.Control)
+
 -- | Create a Patch with empty vals, to set them as needed.
 patch :: Instrument -> Patch
 patch inst = Patch
     { patch_instrument = inst
     , patch_scale = Nothing
     , patch_flags = Set.empty
+    , patch_composite = []
     , patch_initialize = NoInitialization
     , patch_keyswitches = KeyswitchMap []
     , patch_attribute_map = Map.empty
@@ -282,6 +298,7 @@ patch inst = Patch
 instrument_ = Lens.lens patch_instrument (\v r -> r { patch_instrument = v })
 scale = Lens.lens patch_scale (\v r -> r { patch_scale = v })
 flags = Lens.lens patch_flags (\v r -> r { patch_flags = v })
+composite = Lens.lens patch_composite (\v r -> r { patch_composite = v })
 initialize = Lens.lens patch_initialize (\v r -> r { patch_initialize = v })
 keyswitches = Lens.lens patch_keyswitches (\v r -> r { patch_keyswitches = v })
 attribute_map =
@@ -328,11 +345,12 @@ convert_patch_scale scale (Pitch.NoteNumber nn) =
 
 -- | A Pretty instance is useful because InitializeMidi tends to be huge.
 instance Pretty.Pretty Patch where
-    format (Patch inst scale flags init ks attr_map tags text file) =
+    format (Patch inst scale flags composite init ks attr_map tags text file) =
         Pretty.record_title "Patch"
             [ ("instrument", Pretty.format inst)
             , ("scale", Pretty.format scale)
             , ("flags", Pretty.format flags)
+            , ("composite", Pretty.format composite)
             , ("initialize", Pretty.format init)
             , ("keyswitches", Pretty.format ks)
             , ("attribute_map", Pretty.format attr_map)

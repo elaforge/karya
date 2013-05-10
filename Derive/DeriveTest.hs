@@ -453,6 +453,7 @@ c_note s_start dur = do
         , Score.event_bs = B.pack "evt"
         , Score.event_controls = controls
         , Score.event_pitch = pitch_sig
+        , Score.event_pitches = Derive.state_pitches st
         , Score.event_stack = Stack.empty
         , Score.event_instrument = inst
         , Score.event_environ = environ
@@ -575,6 +576,7 @@ mkevent_scale scale (start, dur, pitch, controls, inst) = Score.Event
     , Score.event_controls = mkcontrols controls
     , Score.event_pitch = PitchSignal.signal
         (Derive.pitch_signal_scale scale) [(start, mkpitch scale pitch)]
+    , Score.event_pitches = mempty
     , Score.event_stack = fake_stack
     , Score.event_instrument = inst
     , Score.event_environ = mempty

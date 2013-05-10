@@ -7,6 +7,7 @@
 module Perform.Midi.Convert where
 import qualified Control.Monad.State.Strict as State
 import qualified Data.Map as Map
+import qualified Data.Maybe as Maybe
 import qualified Data.Set as Set
 
 import Util.Control
@@ -55,13 +56,16 @@ data Lookup = Lookup {
 convert :: Lookup -> Derive.Events -> [LEvent.LEvent Perform.Event]
 convert lookup = ConvertUtil.convert Set.empty (convert_event lookup)
 
-convert_event :: Lookup -> Score.Event -> ConvertT Perform.Event
-convert_event lookup event = do
-    let score_inst = Score.event_instrument event
+convert_event :: Lookup -> Score.Event
+    -> ConvertT (Perform.Event, [Score.Event])
+convert_event lookup event_ = do
+    let score_inst = Score.event_instrument event_
     (midi_inst, maybe_key) <- convert_inst (lookup_inst lookup) score_inst
-        (Score.event_attributes event)
+        (Score.event_attributes event_)
     patch <- require ("patch in instrument db: " ++ show score_inst) $
         lookup_patch lookup score_inst
+    let (event, additional) =
+            split_composite (Instrument.patch_composite patch) event_
     pitch <- case maybe_key of
         Nothing -> convert_pitch (Instrument.patch_scale patch)
             (Score.event_controls event) (Score.event_pitch event)
@@ -73,9 +77,33 @@ convert_event lookup event = do
     when_just overridden $ \sig ->
         Log.warn $ "non-null control overridden by "
             ++ Pretty.pretty Score.c_dynamic ++ ": " ++ Pretty.pretty sig
-    return $ Perform.Event midi_inst
-        (Score.event_start event) (Score.event_duration event)
-        controls pitch (Score.event_stack event)
+    let converted = Perform.Event midi_inst
+            (Score.event_start event) (Score.event_duration event)
+            controls pitch (Score.event_stack event)
+    return (converted, additional)
+
+-- | Split a composite patch, as documented in 'Instrument.Composite'.
+split_composite :: [Instrument.Composite] -> Score.Event
+    -> (Score.Event, [Score.Event])
+split_composite [] event = (event, [])
+split_composite composite event = (stripped, map extract composite)
+    where
+    stripped = event
+        { Score.event_pitch =
+            if any Maybe.isNothing [p | (_, p, _) <- composite]
+                then mempty else Score.event_pitch event
+        , Score.event_controls =
+            filter_key (`Set.notMember` split_controls)
+        }
+    split_controls = mconcat [cs | (_, _, cs) <- composite]
+    extract (inst, maybe_pitch, controls) = event
+        { Score.event_instrument = inst
+        , Score.event_pitch = case maybe_pitch of
+            Nothing -> Score.event_pitch event
+            Just c -> Map.findWithDefault mempty c (Score.event_pitches event)
+        , Score.event_controls = filter_key (`Set.member` controls)
+        }
+    filter_key f = Map.filterWithKey (\k _ -> f k) (Score.event_controls event)
 
 -- | Look up the score inst and figure out keyswitches and keymap based on
 -- its attributes.  Warn if there are attributes that didn't match anything.

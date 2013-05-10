@@ -35,6 +35,7 @@ import qualified Text.Read as Read
 import Util.Control
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
+import qualified Util.Serialize as Serialize
 
 import qualified Ui.ScoreTime as ScoreTime
 import qualified Derive.ShowVal as ShowVal
@@ -57,7 +58,7 @@ instance ShowVal.ShowVal Instrument where
     show_val (Instrument inst) = txt $ '>' : inst
 
 newtype Control = Control Text
-    deriving (Eq, Ord, Read, Show, DeepSeq.NFData)
+    deriving (Eq, Ord, Read, Show, DeepSeq.NFData, Serialize.Serialize)
 
 -- | Tag for the type of the values in a control signal.
 data Type = Untyped | Chromatic | Diatonic | Score | Real

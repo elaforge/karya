@@ -170,6 +170,7 @@ default_note config args = do
         , Score.event_bs = Event.event_bytestring (Args.event args)
         , Score.event_controls = controls
         , Score.event_pitch = pitch_sig
+        , Score.event_pitches = Derive.state_pitches st
         , Score.event_stack = Derive.state_stack st
         , Score.event_instrument = inst
         , Score.event_environ = environ

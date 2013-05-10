@@ -5,7 +5,7 @@ LEGEND
 UNSORTED
   - play monitor disappears when doing looped play past the end of the score
   - documentation for instruments, that will show up in the inst browser
-  - Drum+comb instrument uses a keymap to turn attrs into pitches.  But it can
+  * Drum+comb instrument uses a keymap to turn attrs into pitches.  But it can
     also take a pitch, which goes to a different channel.  It should be
     possible to support this kind of composite instrument, but maybe more
     trouble than it's worth:
@@ -18,6 +18,16 @@ UNSORTED
         Nothing means the default pitch gets that instrument, otherwise it's
         a named pitch.  But Score.Events would have to carry named pitches for
         that.
+      . Also should split the controls to avoid sending controls to an inst
+        that doesn't need them.  So
+
+          split_instrument :: [(Score.Instrument, Maybe Score.Control,
+            Set Score.Control)]
+          drum+comb gets: [("reak/comb", Nothing, ["fbk", "mix"])]
+          inst+resonance: [("reak/reso", Just "res", ["q"])]
+
+        . If the pitch control is Nothing, then the inst gets the default
+          pitch, and the inst must have a keymap pitch.
   - can I use the fancy Status trick to implement the symbol composer?
   * Top of the tracks are a bit too clipped off, the selection is barely
     visible.
@@ -89,6 +99,7 @@ UNSORTED
   - shakefile should use typesafe oracle calls, is there newtype based
     oracle utils yet?
   convert to Text:
+    - Perform.Midi.Instrument.patch_text
     * UiMsg.UpdateInput
     - TimeStep.show_time_step
     * Lilypond.to_lily

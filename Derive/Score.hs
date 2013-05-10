@@ -44,19 +44,28 @@ data Event = Event {
     , event_bs :: !B.ByteString
     , event_controls :: !ControlMap
     , event_pitch :: !PitchSignal.Signal
+    -- | Named pitch signals.
+    , event_pitches :: !PitchMap
     -- | Keep track of where this event originally came from.  That way, if an
     -- error or warning is emitted concerning this event, its position on the
     -- UI can be highlighted.
     , event_stack :: !Stack.Stack
-
-    -- | The interpretation of these fields is up to the performer.
     , event_instrument :: !Instrument
     , event_environ :: !BaseTypes.Environ
-    }
-    deriving (Show)
+    } deriving (Show)
 
 empty_event :: Event
-empty_event = Event 0 0 mempty mempty mempty Stack.empty empty_inst mempty
+empty_event = Event
+    { event_start = 0
+    , event_duration = 0
+    , event_bs = mempty
+    , event_controls = mempty
+    , event_pitch = mempty
+    , event_pitches = mempty
+    , event_stack = Stack.empty
+    , event_instrument = empty_inst
+    , event_environ = mempty
+    }
 
 -- ** attributes
 
@@ -84,16 +93,17 @@ remove_attributes :: Attributes -> Event -> Event
 remove_attributes attrs = modify_attributes (attrs_remove attrs)
 
 instance DeepSeq.NFData Event where
-    rnf (Event start dur text controls pitch _ _ _) =
+    rnf (Event start dur text controls pitch pitches _ _ _) =
         rnf start `seq` rnf dur `seq` rnf text `seq` rnf controls
-            `seq` rnf pitch
+            `seq` rnf pitch `seq` rnf pitches
 
 instance Pretty.Pretty Event where
-    format (Event start dur bytes controls pitch stack inst env) =
+    format (Event start dur bytes controls pitch pitches stack inst env) =
         Pretty.record (Pretty.text "Event" Pretty.<+> Pretty.format (start, dur)
                 Pretty.<+> Pretty.format bytes)
             [ ("controls", Pretty.format controls)
             , ("pitch", Pretty.format pitch)
+            , ("pitches", Pretty.format pitches)
             , ("stack", Pretty.format stack)
             , ("instrument", Pretty.format inst)
             , ("environ", Pretty.format env)
