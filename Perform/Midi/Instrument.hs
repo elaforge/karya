@@ -481,6 +481,13 @@ data Synth = Synth {
     , synth_control_map :: Control.ControlMap
     } deriving (Eq, Show)
 
+instance Pretty.Pretty Synth where
+    format (Synth name doc cmap) = Pretty.record_title "Synth"
+        [ ("name", Pretty.format name)
+        , ("doc", Pretty.format doc)
+        , ("control_map", Pretty.format cmap)
+        ]
+
 synth :: SynthName -> String -> [(Midi.Control, Text)] -> Synth
 synth name doc = Synth name doc . Control.control_map
 

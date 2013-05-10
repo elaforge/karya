@@ -657,6 +657,12 @@ instance Show InstrumentCalls where
     show (InstrumentCalls nlookups vlookups) = "((InstrumentCalls note "
         ++ show (length nlookups) ++ " val " ++ show (length vlookups) ++ "))"
 
+instance Pretty.Pretty InstrumentCalls where
+    format (InstrumentCalls note val) = Pretty.record_title "InstrumentCalls"
+        [ ("note", Pretty.format note)
+        , ("val", Pretty.format val)
+        ]
+
 
 -- ** control
 

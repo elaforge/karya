@@ -118,6 +118,13 @@ data Info code = Info {
     , info_code :: code
     } deriving (Show)
 
+instance (Pretty.Pretty code) => Pretty.Pretty (Info code) where
+    format (Info synth patch code) = Pretty.record_title "Info"
+        [ ("synth", Pretty.format synth)
+        , ("patch", Pretty.format patch)
+        , ("code", Pretty.format code)
+        ]
+
 lookup_midi :: MidiDb code -> LookupMidiInstrument
 lookup_midi midi_db attrs inst = case lookup_instrument midi_db inst of
     Nothing -> Nothing

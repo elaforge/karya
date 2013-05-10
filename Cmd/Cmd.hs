@@ -626,8 +626,14 @@ data InstrumentCode = InstrumentCode {
     , inst_cmds :: ![Cmd]
     }
 
-instance Show InstrumentCode where
-    show _ = "((InstrumentCode))"
+instance Show InstrumentCode where show _ = "((InstrumentCode))"
+instance Pretty.Pretty InstrumentCode where
+    format (InstrumentCode calls env cmds) =
+        Pretty.record_title "InstrumentCode"
+            [ ("calls", Pretty.format calls)
+            , ("environ", Pretty.format env)
+            , ("cmds", Pretty.format cmds)
+            ]
 
 derive_instrument :: MidiInfo -> Derive.Instrument
 derive_instrument info = Derive.Instrument
