@@ -885,7 +885,7 @@ fltk:
     - combine multiple signals, e.g. one controls xpos, one controls color
 
 logview:
-  - two lines for the status bar at the top
+  * two lines for the status bar at the top
     Or as many as necessary?  Wrap on |, and justify by inserting spaces?
   - can I get the standard edit menu and copy/paste?
   - haskell and c++ use the same machine readable format

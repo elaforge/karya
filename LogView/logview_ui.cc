@@ -1,9 +1,17 @@
+#include <string>
+#include <algorithm>
 #include <FL/Fl.H>
 #include "logview_ui.h"
 #include "util.h"
 
+using std::string;
 
 enum { default_font_size = 12 };
+
+enum {
+    status_height = 16,
+    command_height = 20
+};
 
 static Fl_Text_Display::Style_Table_Entry style_table[] = {
     { FL_BLACK, FL_HELVETICA, default_font_size }, // A - plain
@@ -31,11 +39,7 @@ style_unfinished_cb(int n, void *p)
     // who knows what this does?
 }
 
-
-enum {
-    status_height = 16,
-    command_height = 20
-};
+// LogView /////////////////////////////
 
 LogView::LogView(int X, int Y, int W, int H, MsgCallback cb, int max_bytes) :
     Fl_Group(X, Y, W, H),
@@ -69,6 +73,7 @@ LogView::LogView(int X, int Y, int W, int H, MsgCallback cb, int max_bytes) :
             'Z', style_unfinished_cb, 0);
     buffer.add_modify_callback(style_update, &display);
 
+    // Wrapping is done manually in 'wrap_text'.
     status.wrap_mode(false, 0);
     // This should turn scrollbars off.
     status.scrollbar_align(FL_ALIGN_CENTER);
@@ -79,6 +84,26 @@ LogView::LogView(int X, int Y, int W, int H, MsgCallback cb, int max_bytes) :
     status_buffer.add_modify_callback(style_update, &status);
 }
 
+
+void
+LogView::set_status_height(int height)
+{
+    int sy = status.y();
+    status.resize(status.x(), sy, status.w(), height);
+    command.resize(command.x(), sy + height, command.w(), command_height);
+    display.resize(
+        display.x(), sy + height + command_height,
+        display.w(), h() - height - command_height);
+}
+
+
+void
+LogView::resize(int x, int y, int w, int h)
+{
+    Fl_Group::resize(x, y, w, h);
+    // Re-wrap the status line.
+    set_status(unwrapped.c_str(), unwrapped_style.c_str());
+}
 
 void
 LogView::append_log(const char *msg, const char *style)
@@ -103,14 +128,63 @@ LogView::clear_logs()
 }
 
 
+// YES, it's yet another text wrapping function in C++!
+static void
+wrap_text(const char *ctext, const char *cstyle, double wrap_width,
+    string &wrapped, string &wrapped_style)
+{
+    static const char *split = " || ";
+    string text(ctext), style(cstyle);
+    size_t pos = 0;
+    size_t line_start = 0;
+
+    // TODO For some reason when using the real logview (not test_logview), it
+    // wraps a little late.  I'm too lazy to figure out what the problem is at
+    // the moment, so a hack will do.
+    wrap_width -= 15;
+
+    // DEBUG("WRAP: 0123456789012345678901234567890123456789");
+    // DEBUG("WRAP: " << text << " to " << wrap_width);
+    // Measure each substr until it crosses the width, then use the previous
+    // break point.
+    while (pos < text.length()) {
+        size_t i = text.find(split, pos);
+        if (i == string::npos)
+            i = text.length();
+        double width = fl_width(text.c_str() + line_start, i - line_start);
+        // DEBUG("width: " << width << " index " << line_start << ", "
+        //     << pos << ", " << i);
+        if (line_start == pos || width < wrap_width) {
+            pos = i + strlen(split);
+        } else {
+            // DEBUG("line: " << text.substr(line_start, pos));
+            size_t len = pos - strlen(split) - line_start;
+            wrapped += text.substr(line_start, len) + '\n';
+            wrapped_style += style.substr(line_start, len) + 'A';
+            line_start = pos;
+        }
+    }
+    if (line_start < pos) {
+        wrapped += text.substr(line_start, pos);
+        wrapped_style += style.substr(line_start, pos);
+    }
+}
+
+
 void
 LogView::set_status(const char *text, const char *style)
 {
     ASSERT(strlen(text) == strlen(style));
+    this->unwrapped = text;
+    this->unwrapped_style = style;
 
+    string wrapped, wrapped_style;
+    wrap_text(text, style, this->w(), wrapped, wrapped_style);
+    int lines = std::count(wrapped.begin(), wrapped.end(), '\n');
+    set_status_height(status_height * (lines + 1));
     int end = status_buffer.length();
-    status_style_buffer.replace(0, end, style);
-    status_buffer.replace(0, end, text);
+    status_buffer.replace(0, end, wrapped.c_str());
+    status_style_buffer.replace(0, end, wrapped_style.c_str());
 }
 
 

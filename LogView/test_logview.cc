@@ -45,8 +45,8 @@ main(int argc, char **argv)
         argv++;
         printf("\n");
     }
-    const char *status = "hi this the {sta tus} is";
-    const char *style  = "AAAAAAAAAAAACCCCCCCCCAAA";
+    const char *status = "abcdefg || 1234567 || ABCDEFG";
+    const char *style  = "AAAAAAAACCABBBBBBBACCAAAAAAAA";
     win.view.set_status(status, style);
     win.show(argc, argv);
     // print_children(&win);

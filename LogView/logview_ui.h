@@ -1,6 +1,7 @@
 #ifndef __LOGVIEW_UI_H
 #define __LOGVIEW_UI_H
 
+#include <string>
 #include <FL/Fl_Double_Window.H>
 #include <FL/Fl_Group.H>
 #include <FL/Fl_Output.H>
@@ -27,6 +28,7 @@ public:
 class LogView : public Fl_Group {
 public:
     LogView(int X, int Y, int W, int H, MsgCallback cb, int max_bytes);
+    void resize(int x, int y, int w, int h);
     void append_log(const char *msg, const char *style);
     void clear_logs();
     void set_status(const char *msg, const char *style);
@@ -44,6 +46,11 @@ private:
     Fl_Input command;
     TextDisplay display;
 
+    // Unwrapped versions of style_buffer and status_buffer, so they can be
+    // rewrapped when the window size changes.
+    std::string unwrapped, unwrapped_style;
+
+    void set_status_height(int height);
     static void command_cb(Fl_Widget *w, void *vp);
 
     // Keep a maximm of this many bytes.
