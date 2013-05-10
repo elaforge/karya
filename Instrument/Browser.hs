@@ -91,6 +91,8 @@ info_of db score_inst (MidiDb.Info synth patch code) =
     printf "%s -- %s -- %s\n\n" synth_name name synth_doc ++ info_sections
         -- important properties
         [ ("Flags", Seq.join ", " flags)
+        , ("Composite", unlines $ map show_composite $
+            Instrument.patch_composite patch)
         , ("Instrument controls", show_control_map inst_cmap)
         , ("Synth controls", show_control_map synth_cmap)
         , ("Keymap", if Map.null (Instrument.inst_keymap inst) then ""
@@ -131,6 +133,12 @@ info_of db score_inst (MidiDb.Info synth patch code) =
     inst_cmap = Instrument.inst_control_map inst
     Derive.InstrumentCalls note_calls val_calls = Cmd.inst_calls code
     tags = maybe "" show_tags $ Search.tags_of (db_index db) score_inst
+
+show_composite :: Instrument.Composite -> String
+show_composite (inst, maybe_pitch, controls) =
+    Pretty.pretty inst <> ": pitch: "
+        <> maybe "<default>" Pretty.pretty maybe_pitch
+        <> ", controls: " <> Pretty.pretty controls
 
 info_sections :: [(String, String)] -> String
 info_sections = unlines . filter (not.null) . map info_section
