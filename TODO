@@ -3,7 +3,7 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
-  - play monitor disappears when doing looped play past the end of the score
+  * play monitor disappears when doing looped play past the end of the score
   * documentation for instruments, that will show up in the inst browser
   - composite 0 dur notes still not quite right, controls come too early
   * show composite patch info in the browser
