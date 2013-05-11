@@ -9,6 +9,7 @@ import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 import qualified Data.Text as Text
+import qualified Data.Text.IO as Text.IO
 import Data.Word (Word8)
 
 import qualified System.FilePath as FilePath
@@ -109,18 +110,18 @@ parse_dir dir = do
 parse_file :: FilePath -> IO [Either String Instrument.Patch]
 parse_file fn = do
     syxs <- file_to_syx fn
-    txt <- fromMaybe "" <$>
-        File.ignore_enoent (readFile (FilePath.replaceExtension fn ".txt"))
+    txt <- fromMaybe "" <$> File.ignore_enoent
+        (Text.IO.readFile (FilePath.replaceExtension fn ".txt"))
     let results = map (record_to_patch <=< decode_sysex) syxs
     return [either (Left . failed i) (Right . combine fn txt syx) result
         | (i, syx, result) <- zip3 [1..] syxs results]
     where
     failed i msg = "parsing " ++ show fn ++ "/" ++ show i ++ ": " ++ msg
 
-combine :: FilePath -> String -> ByteString -> Instrument.Patch
+combine :: FilePath -> Text -> ByteString -> Instrument.Patch
     -> Instrument.Patch
 combine fn txt syx patch = Sysex.add_file fn $ patch
-    { Instrument.patch_text = Seq.strip txt
+    { Instrument.patch_text = Text.strip txt
     , Instrument.patch_initialize =
         Instrument.InitializeMidi [Midi.Parse.decode syx]
     }

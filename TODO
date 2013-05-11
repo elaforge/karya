@@ -32,7 +32,7 @@ UNSORTED
   - shakefile should use typesafe oracle calls, is there newtype based
     oracle utils yet?
   convert to Text:
-    - Perform.Midi.Instrument.patch_text
+    * Perform.Midi.Instrument.patch_text
     - TimeStep.show_time_step
     - Pretty.pretty
       For this I need to extend Util.Format to be a simplified prettyprinter:

@@ -261,7 +261,7 @@ data Patch = Patch {
     -- once with different values.
     , patch_tags :: [Tag]
     -- | Some free form text about the patch.
-    , patch_text :: String
+    , patch_text :: Text
     -- | The patch was read from this file.
     , patch_file :: FilePath
     } deriving (Eq, Show)
