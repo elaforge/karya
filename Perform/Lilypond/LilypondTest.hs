@@ -1,4 +1,5 @@
 module Perform.Lilypond.LilypondTest where
+import qualified Data.List as List
 import qualified Data.Text as Text
 
 import Util.Control
@@ -234,3 +235,8 @@ derive_lilypond state deriver =
 make_ly :: Types.Config -> [Lilypond.Event] -> String
 make_ly config events = Text.unpack $ Text.strip $ Text.concat $ fst $
     expect_right "make_ly" $ Lilypond.make_ly config "title" events
+
+-- * extract
+
+e_ly_env :: Score.Event -> [(TrackLang.ValName, String)]
+e_ly_env = DeriveTest.e_environ ("ly-" `List.isPrefixOf`)

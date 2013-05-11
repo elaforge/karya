@@ -118,7 +118,7 @@ test_composite_instrument = do
                 mempty)
         notes = [(Drums.c_bd, Key.c4), (Drums.c_sn, Key.d4)]
     let (events, _, logs) = perform keymap [("s/i", [0]), ("s/x", [1])]
-            [ (">s/i", [(0, 0, "+bd"), (1, 0, "+snare")])
+            [ (">s/i", [(0, 1, "+bd"), (1, 1, "+snare")])
             , ("*", [(0, 0, "3c"), (0.5, 0, "3d")])
             ]
         extract e =
@@ -141,8 +141,7 @@ perform :: (Instrument.Patch -> Instrument.Patch, MidiInst.Code)
     -> [(String, [Midi.Channel])] -> [UiTest.TrackSpec]
     -> ([Perform.Event], [DeriveTest.Midi], [Log.Msg])
 perform (set_patch, code) alloc tracks =
-    DeriveTest.perform_inst synth alloc
-        (Debug.tracep "events" (Derive.r_events result))
+    DeriveTest.perform_inst synth alloc (Derive.r_events result)
     where
     synth = mksynth code set_patch
     result = DeriveTest.derive_tracks_with

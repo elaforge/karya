@@ -87,7 +87,7 @@ setup_small = do
     pitch <- Create.empty_track bid 4
     State.insert_events pitch $ map UiTest.make_event
         [(0, 0, "5c"), (1, 0, "5d"), (2, 0, "5e"), (3, 0, "5f")]
-    State.set_track_title pitch "*twelve"
+    State.set_track_title pitch "*"
     State.modify_track_render pitch $ \render ->
         render { Track.render_style = Track.Line }
     State.set_skeleton bid $ Skeleton.make [(1, 2), (2, 3)]

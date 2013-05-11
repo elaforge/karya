@@ -377,6 +377,9 @@ set_scale = (scale #=)
 set_flag :: Flag -> Patch -> Patch
 set_flag flag = flags %= Set.insert flag
 
+unset_flag :: Flag -> Patch -> Patch
+unset_flag flag = flags %= Set.delete flag
+
 triggered, pressure :: Patch -> Patch
 triggered = set_flag Triggered
 pressure = set_flag Pressure

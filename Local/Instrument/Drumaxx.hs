@@ -16,23 +16,27 @@ load _dir = return $ MidiInst.make $
     (MidiInst.softsynth "dmx" "Image-Line Drumaxx" pb_range [])
     { MidiInst.modify_wildcard = Util.drum_instrument notes
     , MidiInst.code = code
-    , MidiInst.extra_patches = MidiInst.with_code code $
-        map (Util.drum_instrument notes) patches
+    , MidiInst.extra_patches = patches
     }
-    where
-    code = MidiInst.note_calls (Util.drum_calls (map fst notes))
-        <> MidiInst.cmd (Util.drum_cmd notes)
 
 pb_range = (-24, 24)
 
-patches :: [Instrument.Patch]
-patches =
+code :: MidiInst.Code
+code = MidiInst.note_calls (Util.drum_calls (map fst notes))
+    <> MidiInst.cmd (Util.drum_cmd notes)
+
+patches :: [MidiInst.Patch]
+patches = MidiInst.with_code code $ map make_patch
     [ Instrument.text #= "This drum takes a pitch signal, which is then sent\
         \ to the >reak/comb instrument, which is a tuned comb filter.\
         \ The audio routing has to be set up in the VST host." $
         composite $ MidiInst.patch pb_range "comb" []
     ]
     where
+    -- Since this drum has pitches and continuous controls, its notes need to
+    -- have duration.
+    make_patch = Instrument.unset_flag Instrument.Triggered
+        . Util.drum_instrument notes
     composite = Instrument.add_composite (Score.instrument "reak" "comb")
         Nothing ["mix", "fbk"]
 

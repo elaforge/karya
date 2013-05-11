@@ -99,16 +99,16 @@ test_code_events = do
         prepend = [(Constants.v_ly_prepend, TrackLang.to_val ("a" :: Text))]
         append = [(Constants.v_ly_append_all, TrackLang.to_val ("b" :: Text))]
     -- Code that falls in the middle of rests.
-    equal (f [(0, 0, "p", append), (0, 0, "p", prepend)])
+    equal (f [(0, 0, "?", append), (0, 0, "?", prepend)])
         (Right "a b")
-    equal (f [(0, 0, "p", append), (1, 0, "p", prepend), (2, 2, "a", [])])
+    equal (f [(0, 0, "?", append), (1, 0, "?", prepend), (2, 2, "a", [])])
         (Right "a r2 b a2")
 
     -- Code that falls in the middle of notes.
-    equal (f [(0, 1, "a", []), (0.5, 0, "p", append), (0.5, 0, "p", prepend),
+    equal (f [(0, 1, "a", []), (0.5, 0, "?", append), (0.5, 0, "?", prepend),
             (1, 1, "b", [])])
         (Right "a a4 b b4 r2")
-    equal (f [(0, 8, "a", []), (2, 0, "p", append), (6, 0, "p", prepend),
+    equal (f [(0, 8, "a", []), (2, 0, "?", append), (6, 0, "?", prepend),
             (8, 4, "b", [])])
         (Right "a1~ b | a a1 | b1")
 
