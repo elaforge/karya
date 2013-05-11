@@ -44,16 +44,17 @@ configs :: (State.M m) => m Instrument.Configs
 configs = State.get_midi_config
 
 aliases :: Cmd.CmdL (Map.Map Score.Instrument Score.Instrument)
-aliases = State.config#State.instruments <#> State.get
+aliases = State.config#State.aliases <#> State.get
 
+-- | Add a new instrument, copied from an existing one.
 add_alias :: String -> String -> Cmd.CmdL ()
-add_alias from to = State.modify $
-    State.config#State.instruments
-        %= Map.insert (Score.Instrument from) (Score.Instrument to)
+add_alias new inst = State.modify $
+    State.config#State.aliases %= Map.insert (Score.Instrument new)
+        (Score.Instrument inst)
 
 remove_alias :: String -> Cmd.CmdL ()
 remove_alias inst = State.modify $
-    State.config#State.instruments %= Map.delete (Score.Instrument inst)
+    State.config#State.aliases %= Map.delete (Score.Instrument inst)
 
 toggle_mute :: (State.M m) => String -> m Bool
 toggle_mute inst = modify_config (Score.Instrument inst) $ \config ->

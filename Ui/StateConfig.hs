@@ -49,7 +49,7 @@ data Config = Config {
     , config_global_transform :: !Text
     -- | Local instrument aliases.  Map instruments through this map before
     -- setting them.
-    , config_instruments :: !(Map.Map Score.Instrument Score.Instrument)
+    , config_aliases :: !(Map.Map Score.Instrument Score.Instrument)
     , config_lilypond :: !Lilypond.Config
     , config_default :: !Default
     } deriving (Eq, Read, Show, Generics.Typeable)
@@ -60,8 +60,7 @@ root = Lens.lens config_root (\v r -> r { config_root = v })
 midi = Lens.lens config_midi (\v r -> r { config_midi = v })
 global_transform = Lens.lens config_global_transform
     (\v r -> r { config_global_transform = v })
-instruments =
-    Lens.lens config_instruments (\v r -> r { config_instruments = v })
+aliases = Lens.lens config_aliases (\v r -> r { config_aliases = v })
 lilypond =
     Lens.lens config_lilypond (\v r -> r { config_lilypond = v })
 default_ = Lens.lens config_default (\v r -> r { config_default = v })
@@ -96,7 +95,7 @@ instrument = Lens.lens default_instrument (\v r -> r { default_instrument = v })
 tempo = Lens.lens default_tempo (\v r -> r { default_tempo = v })
 
 instance Pretty.Pretty Config where
-    format (Config namespace meta root midi global_transform insts lily
+    format (Config namespace meta root midi global_transform aliases lily
             default_) =
         Pretty.record_title "Config"
             [ ("namespace", Pretty.format namespace)
@@ -104,7 +103,7 @@ instance Pretty.Pretty Config where
             , ("root", Pretty.format root)
             , ("midi", Pretty.format midi)
             , ("global_transform", Pretty.format global_transform)
-            , ("instruments", Pretty.format insts)
+            , ("aliases", Pretty.format aliases)
             , ("lilypond", Pretty.format lily)
             , ("default", Pretty.format default_)
             ]

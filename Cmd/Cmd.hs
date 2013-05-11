@@ -882,15 +882,21 @@ set_status key val = do
     forM_ view_ids $ \view_id -> set_view_status view_id key val
 
 get_lookup_midi_instrument :: (M m) => m MidiDb.LookupMidiInstrument
-get_lookup_midi_instrument =
-    gets (Instrument.Db.db_lookup_midi . state_instrument_db . state_config)
+get_lookup_midi_instrument = do
+    aliases <- State.config#State.aliases <#> State.get
+    gets $ Instrument.Db.db_lookup_midi
+        . Instrument.Db.with_aliases aliases . state_instrument_db
+        . state_config
 
 lookup_instrument :: (M m) => Score.Instrument -> m (Maybe MidiInfo)
 lookup_instrument inst = ($ inst) <$> get_lookup_instrument
 
 get_lookup_instrument :: (M m) => m (Score.Instrument -> Maybe MidiInfo)
-get_lookup_instrument = gets $
-    Instrument.Db.db_lookup . state_instrument_db . state_config
+get_lookup_instrument = do
+    aliases <- State.config#State.aliases <#> State.get
+    gets $ Instrument.Db.db_lookup
+        . Instrument.Db.with_aliases aliases . state_instrument_db
+        . state_config
 
 get_midi_patch :: (M m) => Score.Instrument -> m Instrument.Patch
 get_midi_patch inst = do

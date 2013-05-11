@@ -23,7 +23,7 @@ module Ui.State (
     , empty, create, clear
     -- * config
     , Config(..)
-    , namespace, meta, root, midi, global_transform, instruments, lilypond
+    , namespace, meta, root, midi, global_transform, aliases, lilypond
     , default_
     , Meta(..), creation, notes
     , Default(..)
@@ -246,7 +246,7 @@ empty_config = Config
     , config_root = Nothing
     , config_midi = Instrument.configs []
     , config_global_transform = ""
-    , config_instruments = Map.empty
+    , config_aliases = mempty
     , config_lilypond = Lilypond.default_config
     , config_default = empty_default
     }
