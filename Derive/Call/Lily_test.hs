@@ -2,7 +2,10 @@ module Derive.Call.Lily_test where
 import Util.Test
 import qualified Ui.UiTest as UiTest
 import qualified Derive.DeriveTest as DeriveTest
+import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
+
+import qualified Perform.Lilypond.Constants as Constants
 import qualified Perform.Lilypond.Lilypond as Lilypond
 import qualified Perform.Lilypond.LilypondTest as LilypondTest
 
@@ -77,6 +80,23 @@ test_xstaff = do
         (Right "\\change Staff = \"up\" a'4 r4 r2", [])
     equal (run $ (">", [(1, 0, "xstaff up")]) : UiTest.regular_notes 2)
         (Right "c4 \\change Staff = \"up\" d4 r2", [])
+
+test_clef_dyn = do
+    let run = LilypondTest.derive_measures ["clef", "f"]
+        tracks = (">", [(0, 0, "clef treble | dyn f")]) : UiTest.regular_notes 2
+    equal (run tracks) (Right "\\clef treble c4 \\f d4 r2", [])
+
+    let extract e = (Score.event_start e, DeriveTest.e_pitch e,
+            LilypondTest.e_ly_env e)
+        pre = Constants.v_ly_prepend
+        app = Constants.v_ly_append_all
+    equal (DeriveTest.extract extract $ LilypondTest.derive tracks)
+        ( [ (0, "?", [(pre, "'\\clef treble'")])
+          , (0, "?", [(app, "'\\f'")])
+          , (0, "3c", []), (1, "3d", [])
+          ]
+        , []
+        )
 
 test_reminder_accidental = do
     let run = LilypondTest.derive_measures [] . UiTest.note_track

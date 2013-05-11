@@ -3,7 +3,16 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
-  - composite 0 dur notes still not quite right, controls come too early
+  - Instead of instrument aliases just being aliases, they should make a new
+    instrument whose lookup gets the aliased instrument.  That way I can
+    instantiate a single instrument multiple times.
+    This generalizes the wildcard instrument thing, instead I can provide
+    a single generic instrument and expect the user to add specific aliases.
+  - Composite 0 dur notes still not quite right, controls come too early.
+    Maybe I should just abandon the idea of trying to make those 0 dur notes.
+    What is the point of a 0 dur note?  The score has no explicit duration,
+    and the eventual performance has some arbitrary short duration.  This
+    corresponds to midi instruments whose envelope ignores NoteOff.
   - can I use the fancy Status trick to implement the symbol composer?
   Format2
     . Rethink how indent breaking happens.
@@ -16,9 +25,6 @@ UNSORTED
     https://developer.apple.com/library/mac/#documentation/Cocoa/Conceptual/WinPanel/Tasks/UsingWindowsMenu.html
     But it doesn't say how to add the Window menu.
   - keys to move focus?
-  - Update.BlockSkeleton sets Block.Status, and so does Update.BlockTrack.  If
-    I merge status update into skeleton updates I can take Status out of
-    Block.DisplayTrack.
 
   - update shakefile to use new system calls and logging levels
   - shakefile should use typesafe oracle calls, is there newtype based
@@ -473,6 +479,9 @@ plugins:
     map.
 
 cleanup:
+  - Update.BlockSkeleton sets Block.Status, and so does Update.BlockTrack.  If
+    I merge status update into skeleton updates I can take Status out of
+    Block.DisplayTrack.
   - move src into src subdir.  Then I don't have to do hacks in the shakefile
     where I only recurse into [A-Z]* dirs.
   - split Ui.State into separate modules for views, blocks, tracks, etc.

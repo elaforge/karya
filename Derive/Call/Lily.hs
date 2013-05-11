@@ -434,14 +434,14 @@ c_tie_direction code = Make.environ_note "ly-tie-direction"
 -- I want it to either attach to the end of the first note transformed, or
 -- be free-standing but suffix markup.
 c_crescendo :: Derive.NoteCall
-c_crescendo = make_code0_call "ly-crescendo"
+c_crescendo = make_code_call "ly-crescendo"
     "Start a crescendo hairpin.  If it has non-zero duration, stop the\
     \ crescendo at the event's end, otherwise the crescendo will stop at the\
     \ next hairpin or dynamic marking." Sig.no_args $
     \() -> crescendo_diminuendo "\\<"
 
 c_diminuendo :: Derive.NoteCall
-c_diminuendo = make_code0_call "ly-diminuendo"
+c_diminuendo = make_code_call "ly-diminuendo"
     "Start a diminuendo hairpin.  If it has non-zero duration, stop the\
     \ diminuendo at the event's end, otherwise the diminuendo will stop at the\
     \ next hairpin or dynamic marking." Sig.no_args $
@@ -553,7 +553,7 @@ require_nonempty events
 code0_call :: Text -> Text -> Sig.Parser a -> (a -> Derive.Deriver Code)
     -> Derive.NoteCall
 code0_call name doc sig make_code =
-    make_code0_call name (doc <> code0_doc) sig $
+    make_code_call name (doc <> code0_doc) sig $
         \val args -> code0 (Args.start args) =<< make_code val
     where
     code0_doc = "\nThis either be placed in a separate track as a zero-dur\
@@ -564,14 +564,14 @@ code0_call name doc sig make_code =
 global_code0_call :: Text -> Text -> Sig.Parser a
     -> (a -> Derive.EventDeriver -> Derive.EventDeriver) -> Derive.NoteCall
 global_code0_call name doc sig call =
-    make_code0_call name doc sig $ \val args ->
+    make_code_call name doc sig $ \val args ->
         global (call val (Derive.d_place (Args.start args) 0 Util.note))
 
 -- | Emit a free-standing fragment of lilypond code.
-make_code0_call :: Text -> Text -> Sig.Parser a
+make_code_call :: Text -> Text -> Sig.Parser a
     -> (a -> Derive.PassedArgs Score.Event -> Derive.EventDeriver)
     -> Derive.NoteCall
-make_code0_call name doc sig call = Derive.Call
+make_code_call name doc sig call = Derive.Call
     { Derive.call_name = name
     , Derive.call_generator = Just $
         Derive.generator_call Tags.ly_only doc generator

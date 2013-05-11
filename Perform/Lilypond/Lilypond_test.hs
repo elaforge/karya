@@ -66,6 +66,13 @@ test_hands = do
         [ ("1", ["c'1", "d'1"])
         , ("2", ["e'1"])
         ]
+    -- If there are code events for the hand, they get emitted.
+    equal (run ["clef"]
+            [ ("> | hand = r", [(0, 4, "")])
+            , ("*", [(0, 0, "3c")])
+            , ("> | hand = l", [(0, 0, "clef bass")])
+            ])
+        (Right [("1", ["c1", "\\clef bass R4*4"])], [])
 
 test_clefs = do
     let f = LilypondTest.derive_measures ["clef"]
