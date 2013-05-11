@@ -4,15 +4,8 @@
     This gets the performance for the current block and creates a series of
     MIDI states at each event start which you can then scrub through.
 
-    Because it uses the start of the events in the score it can't take into
-    account anything during derivation that causes the actual note to begin
-    somewhere else.  So things that cause notes to move, such as the start-rnd
-    control, will cause step play to miss notes.  I use the block performance
-    instead of the global performance to minimize this, since e.g. start-rnd
-    is likely to be applied at the global level.
-
-    TODO I think I could get this right by annotating MIDI output with the
-    event that produced it.
+    It uses the starts of the notes in the performance, with a bit of eta
+    to account for start randomization.
 -}
 module Cmd.StepPlay (
     cmd_set_or_advance, cmd_set, cmd_here, cmd_clear, cmd_advance, cmd_rewind
@@ -24,6 +17,7 @@ module Cmd.StepPlay (
 import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
+import qualified Data.Set as Set
 
 import Util.Control
 import qualified Util.Seq as Seq
@@ -32,7 +26,6 @@ import qualified Midi.State
 import qualified Ui.State as State
 import qualified Ui.Types as Types
 import qualified Cmd.Cmd as Cmd
-import qualified Cmd.Perf as Perf
 import qualified Cmd.PlayUtil as PlayUtil
 import qualified Cmd.Selection as Selection
 import qualified Cmd.TimeStep as TimeStep
@@ -41,6 +34,8 @@ import qualified Derive.LEvent as LEvent
 import qualified Derive.Score as Score
 import qualified Derive.Stack as Stack
 
+import qualified Perform.RealTime as RealTime
+import qualified Perform.Transport as Transport
 import qualified App.Config as Config
 import Types
 
@@ -64,16 +59,15 @@ cmd_here = set False
 -- | Prepare the step play performance and emit MIDI for the initial position.
 set :: (Cmd.M m) => Bool -- ^ Rewind from the selection pos by the play step.
     -> Bool -- ^ Filter events to include only the ones on the selected
-    -- tracks.  This is like rederiving with those tracks soloed but doesn't
-    -- require a full rederive.
+    -- tracks.
     -> m ()
 set step_back play_selected_tracks = do
-    (block_id, tracknum, track_id, sel_pos) <- Selection.get_insert
+    (block_id, tracknum, _, sel_pos) <- Selection.get_insert
     view_id <- Cmd.get_focused_view
     play_tracks <- if play_selected_tracks
         then Types.sel_tracknums . snd <$> Selection.get
         else return []
-    initialize view_id block_id tracknum track_id sel_pos play_tracks
+    initialize view_id block_id play_tracks
     start <- if step_back
         then do
             step <- Cmd.gets (Cmd.state_play_step . Cmd.state_play)
@@ -82,6 +76,15 @@ set step_back play_selected_tracks = do
         else return sel_pos
     move_to block_id start
 
+make_states :: [RealTime] -> [Midi.WriteMessage] -> [Midi.State.State]
+make_states ts msgs = snd $ List.mapAccumL go (Midi.State.empty, msgs) ts
+    where
+    go (prev_state, msgs) t = ((state, post), state)
+        where
+        (pre, post) = break ((>t) . Midi.wmsg_ts) msgs
+        state = Midi.State.play (map Midi.State.convert pre) prev_state
+
+-- ** initialize
 
 -- | Puts MIDI states at every step point along the block.  Then set will zip
 -- forward to a certain one and diff it with empty to start the process.
@@ -91,49 +94,61 @@ set step_back play_selected_tracks = do
 -- to detect when the selection has moved before the starting point and
 -- reinitialize from there.  I'll do that only if this simpler approach has
 -- problems.
-initialize :: (Cmd.M m) => ViewId -> BlockId -> TrackNum -> TrackId
-    -> ScoreTime -> [TrackNum] -> m ()
-initialize view_id block_id tracknum track_id pos play_tracks = do
+--
+-- This places step points by looking for event edges, within an eta value.
+-- Previously, I placed points based on score positions of event starts and
+-- ends, but that doesn't work when the events don't line up with the score.
+-- This happens with tuplets, or even if events are a bit randomized.
+initialize :: (Cmd.M m) => ViewId -> BlockId -> [TrackNum] -> m ()
+initialize view_id block_id play_tracks = do
+    play_track_ids <- Set.fromList <$>
+        mapMaybeM (State.event_track_at block_id) play_tracks
     perf <- Cmd.get_performance block_id
-    steps <- Cmd.require_msg "can't get event starts for step play"
-        =<< TimeStep.get_points play_step block_id tracknum pos
-    let (score_steps, real_steps) = unzip $
-            Perf.get_realtimes perf block_id track_id steps
-    start <- Cmd.require_msg "no valid step points" (Seq.head real_steps)
-
-    filter_tracks <- if null play_tracks then return id
-        else do
-            play_ids <- mapMaybeM (State.event_track_at block_id) play_tracks
-            return $ filter $ LEvent.either (from_track play_ids) (const False)
-    msgs <- fmap LEvent.events_of $ PlayUtil.perform_events $ filter_tracks $
-        PlayUtil.events_from start $ Cmd.perf_events perf
-
+    let events = filter_tracks play_track_ids $
+            LEvent.events_of $ Cmd.perf_events perf
+        reals = group_edges eta events
+        scores = real_to_score block_id (Cmd.perf_inv_tempo perf) reals
+        steps = [(s, r) | (Just s, r) <- zip scores reals]
+    msgs <- fmap LEvent.events_of $ PlayUtil.perform_events $
+        map LEvent.Event events
     Cmd.modify_play_state $ \st -> st { Cmd.state_step = Just $
         Cmd.StepState view_id play_tracks []
-            (zip score_steps (make_states real_steps msgs)) }
+            (zip (map fst steps) (make_states (map ((+eta) . snd) steps) msgs)) }
+    where eta = RealTime.seconds 0.1
+
+real_to_score :: BlockId -> Transport.InverseTempoFunction -> [RealTime]
+    -> [Maybe ScoreTime]
+real_to_score block_id inv = map convert
     where
-    play_step = TimeStep.TimeStep
-        [ (TimeStep.EventStart step_tracks, 0)
-        , (TimeStep.EventEnd step_tracks, 0)
-        ]
-    step_tracks = if null play_tracks then TimeStep.AllTracks
-        else TimeStep.TrackNums play_tracks
+    convert t = case Seq.head $ filter ((==block_id) . fst) (inv t) of
+        -- If this block is being played multiple times then just pick the
+        -- first one and the first track.  That's basically what the playback
+        -- monitor does anyway.
+        Just (_, (_, score) : _) -> Just score
+        _ -> Nothing
+
+filter_tracks :: Set.Set TrackId -> [Score.Event] -> [Score.Event]
+filter_tracks track_ids
+    | Set.null track_ids = id
+    | otherwise = filter (from_track track_ids)
+
+group_edges :: RealTime -> [Score.Event] -> [RealTime]
+group_edges eta = group . edges
+    where
+    edges events = Seq.merge (map Score.event_start events)
+        (map Score.event_end events)
+    group [] = []
+    group (t : ts) = t : group (dropWhile (<= t + eta) ts)
 
 -- | True if the event was from one of these tracks.
-from_track :: [TrackId] -> Score.Event -> Bool
-from_track track_ids event = any (`elem` track_ids) $
+from_track :: Set.Set TrackId -> Score.Event -> Bool
+from_track track_ids event = any (`Set.member` track_ids) $
     mapMaybe track_of $ Stack.innermost (Score.event_stack event)
     where
     track_of (Stack.Track tid) = Just tid
     track_of _ = Nothing
 
-make_states :: [RealTime] -> [Midi.WriteMessage] -> [Midi.State.State]
-make_states ts msgs = snd $ List.mapAccumL go (Midi.State.empty, msgs) ts
-    where
-    go (prev_state, msgs) t = ((state, post), state)
-        where
-        (pre, post) = break ((>t) . Midi.wmsg_ts) msgs
-        state = Midi.State.play (map Midi.State.convert pre) prev_state
+-- * movement
 
 cmd_clear :: (Cmd.M m) => m ()
 cmd_clear = do

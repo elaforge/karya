@@ -77,7 +77,7 @@ UNSORTED
     the env, but is more concise.
   - network midi doesn't seem to handle abort?
     playing the second time doesn't happen
-  - StepPlay gets messed up by tuplets and the like.  Maybe it should step
+  * StepPlay gets messed up by tuplets and the like.  Maybe it should step
     along the performance (with some eta to account for randomization)
     instead of the score.
   - maybe new control tracks should start with line render?
@@ -837,7 +837,7 @@ Cmd:
     - cache points by returning CachedTimeStep = Points
     - TimeStep.snap should optimize steps that don't do any snapping when
       prev_val is Nothing, e.g. RelativeMark and Absolute
-  - step play StepPlay could work even when notes were moved by annotating
+  / step play StepPlay could work even when notes were moved by annotating
     the midi output with the UI event that produced it.  This might be useful
     for debugging too.
   - Can I give Cmds their own state without putting it in Cmd.State every time?
