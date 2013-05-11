@@ -176,7 +176,17 @@ newtype PatchMap code =
 -- to move this entire module into Cmd.Cmd.
 type PatchCode code = (Instrument.Patch, code)
 
--- | This patch takes whatever name you give.
+-- | This is a name for a synth with a generic \"main\" patch.  Typically this
+-- is a soft-synth that must be configured by its own UI.  Normally you'd
+-- create an alias from a score-specific name to @>synth/*@, but if you look up
+-- a patch and it isn't found, the wildcard patch will be copied and returned.
+-- This is sort of a shorthand for explicitly creating an alias.
+-- TODO I could remove the feature if the complication outweighs the
+-- convenience.
+--
+-- The other special behaviour that patches with the wildcard name have is that
+-- 'annotate', if asked to annotate an patch that doesn't exist, will copy and
+-- annotate the wildcard patch, if there is one for the relevant synth.
 wildcard_inst_name :: Instrument.InstrumentName
 wildcard_inst_name = "*"
 
@@ -231,7 +241,8 @@ logged_synths synth patches = do
     mapM_ (Log.notice . (prefix++)) msgs
     return (synth, pmap)
 
--- | Build a PatchMap for a synth that has whatever patch you name.
+-- | Build a PatchMap for a synth with a single wildcard patch, documented by
+-- 'wildcard_inst_name'.
 wildcard_patch_map :: PatchCode code -> PatchMap code
 wildcard_patch_map patch = PatchMap $ Map.singleton wildcard_inst_name patch
 
