@@ -112,7 +112,7 @@ info_of db score_inst (MidiDb.Info synth patch code) =
             if Map.null attr_map then "" else Pretty.pretty attr_map)
         , ("Initialization", show_initialize initialize)
         -- info
-        , ("Text", text)
+        , ("Text", untxt text)
         , ("File", file)
         , ("Tags", tags)
         ]

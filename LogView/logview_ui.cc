@@ -94,6 +94,7 @@ LogView::set_status_height(int height)
     display.resize(
         display.x(), sy + height + command_height,
         display.w(), h() - height - command_height);
+    this->redraw();
 }
 
 
