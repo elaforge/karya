@@ -13,6 +13,7 @@ module Cmd.PlayC (cmd_play_msg, play) where
 import qualified Control.Concurrent.MVar as MVar
 import qualified Control.Exception as Exception
 import qualified Data.Map as Map
+import qualified Data.Maybe as Maybe
 import qualified Data.Set as Set
 
 import Util.Control
@@ -164,9 +165,20 @@ monitor_loop state = do
     state <- return $ state { monitor_active_sels = active_sels }
 
     stopped <- Transport.poll_player_stopped (monitor_ctl state)
-    let clear = mapM_ (Sync.clear_play_position . fst) $
-            Set.toList (monitor_active_sels state)
-    -- Don't quit until I get a Stop.  When the monitor thread stops, it sends
-    -- Stopped on the transport, which clears out the player ctl which will
-    -- make the player unstoppable, if it's still going.
-    if stopped then clear else Thread.delay 0.05 >> monitor_loop state
+    -- If repeat_at is on, then playback will never stop on its own, even if
+    -- I run out of tempo map (which happens if the repeat point is at or past
+    -- the end of the score).  When the monitor thread stops, it sends Stopped
+    -- on the transport, which clears out the player ctl which will make the
+    -- player unstoppable, if it's still going.
+    if stopped || (null block_pos && Maybe.isNothing (monitor_repeat_at state))
+        then do
+            mapM_ (Sync.clear_play_position . fst) $
+                Set.toList (monitor_active_sels state)
+            unless stopped $ wait_for_stop $
+                Transport.poll_player_stopped (monitor_ctl state)
+        else Thread.delay 0.05 >> monitor_loop state
+    where
+    wait_for_stop ctl = do
+        Thread.delay 0.1
+        stopped <- ctl
+        if stopped then return () else wait_for_stop ctl
