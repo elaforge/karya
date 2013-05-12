@@ -40,7 +40,6 @@ import qualified Util.Log as Log
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 
-import qualified Ui.State as State
 import qualified Ui.Track as Track
 import qualified Derive.Deriver.Internal as Internal
 import Derive.Deriver.Monad

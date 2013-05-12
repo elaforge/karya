@@ -305,7 +305,7 @@ match_all rank = map fst .  filter ((<=rank) . Ruler.mark_rank . snd)
 -- merge their marks into one list.
 get_marks :: Ruler.Marklists -> MarklistMatch -> [(ScoreTime, Ruler.Mark)]
 get_marks marklists names =
-    Seq.merge_lists fst [Ruler.ascending mlist 0 | mlist <- matching]
+    Seq.merge_lists fst $ map (Ruler.ascending 0) matching
     where
     matching = case names of
         AllMarklists -> Map.elems marklists

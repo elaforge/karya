@@ -41,7 +41,6 @@ module Util.TimeVector (
     , module Data.Vector.Generic
 ) where
 import Prelude hiding (head, last, take)
-import qualified Control.DeepSeq as DeepSeq
 import qualified Data.DList as DList
 import qualified Data.Vector as Vector
 import qualified Data.Vector.Generic as V
@@ -62,12 +61,7 @@ x_to_double = RealTime.to_seconds
 double_to_x :: Double -> X
 double_to_x = RealTime.seconds
 
--- * boxed
-
 type Boxed y = Vector.Vector (Sample y)
-
-instance DeepSeq.NFData (Boxed y) where
-    rnf v = v `seq` ()
 
 -- * unboxed
 
@@ -197,6 +191,16 @@ at x vec
         _ -> Nothing
     where i = highest_index x vec
 
+-- | Samples at and above the given time.
+ascending :: (V.Vector v (Sample y)) => X -> v (Sample y) -> [Sample y]
+ascending x vec =
+    [V.unsafeIndex vec i | i <- Seq.range' (lowest_index x vec) (V.length vec) 1]
+
+-- | Descending samples, starting below the time.
+descending :: (V.Vector v (Sample y)) => X -> v (Sample y) -> [Sample y]
+descending x vec =
+    [V.unsafeIndex vec i | i <- Seq.range (lowest_index x vec - 1) 0 (-1)]
+
 -- | Shift the signal in time.
 shift :: (V.Vector v (Sample y)) => X -> v (Sample y) -> v (Sample y)
 shift offset vec
@@ -313,6 +317,7 @@ x_at x0 y0 x1 y1 y
 -- be if it were present.  So the next value is guaranteed to be >= the given
 -- X.
 {-# SPECIALIZE lowest_index :: X -> Unboxed -> Int #-}
+{-# SPECIALIZE lowest_index :: X -> Boxed y -> Int #-}
 lowest_index :: V.Vector v (Sample y) => X -> v (Sample y) -> Int
 lowest_index x vec = go vec 0 (V.length vec)
     where
@@ -327,6 +332,7 @@ lowest_index x vec = go vec 0 (V.length vec)
 -- the first element.  'RealTime.eta' is added to @x@, so a sample that's
 -- almost the same will still be considered a match.
 {-# SPECIALIZE highest_index :: X -> Unboxed -> Int #-}
+{-# SPECIALIZE highest_index :: X -> Boxed y -> Int #-}
 highest_index :: (V.Vector v (Sample y)) => X -> v (Sample y) -> Int
 highest_index x vec
     | V.null vec = -1
@@ -335,6 +341,7 @@ highest_index x vec
 
 -- | This gets the index of the value *after* @x@.
 {-# SPECIALIZE bsearch_above :: X -> Unboxed -> Int #-}
+{-# SPECIALIZE bsearch_above :: X -> Boxed y -> Int #-}
 bsearch_above :: (V.Vector v (Sample y)) => X -> v (Sample y) -> Int
 bsearch_above x vec = go vec 0 (V.length vec)
     where

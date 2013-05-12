@@ -368,8 +368,7 @@ no_ruler :: Ruler.Ruler
 no_ruler = mkruler 0 0
 
 ruler_until :: ScoreTime -> Ruler.Ruler
-ruler_until pos = ruler
-    [("until", Ruler.marklist $ Map.singleton pos Ruler.null_mark)]
+ruler_until pos = ruler [("until", Ruler.marklist [(pos, Ruler.null_mark)])]
 
 -- | TimeStep to step by 1 ScoreTime on the default ruler.
 step1 :: TimeStep.TimeStep
@@ -396,8 +395,7 @@ ruler marklists = Ruler.Ruler
     }
 
 marklist :: Int -> ScoreTime -> Ruler.Marklist
-marklist n dist = Ruler.marklist $
-    Map.fromList (take n $ zip (Seq.range_ 0 dist) m44)
+marklist n dist = Ruler.marklist $ take n $ zip (Seq.range_ 0 dist) m44
 
 m44 :: [Ruler.Mark]
 m44 = concatMap (\n -> [major n, minor, minor, minor]) [0..]

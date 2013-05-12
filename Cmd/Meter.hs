@@ -18,7 +18,6 @@
 module Cmd.Meter where
 import Prelude hiding (repeat)
 import qualified Data.List as List
-import qualified Data.Map as Map
 import qualified Data.Text as Text
 
 import Util.Control
@@ -200,12 +199,11 @@ make_marklist :: ScoreTime -> [AbstractMeter] -> Ruler.Marklist
 make_marklist stretch = meter_marklist . make_meter stretch
 
 meter_marklist :: Meter -> Ruler.Marklist
-meter_marklist meter_ = Ruler.marklist (Map.fromList pos_marks)
+meter_marklist meter_ = Ruler.marklist
+    [(pos, mark rank_dur rank name) | ((rank, _), pos, rank_dur, name)
+        <- List.zip4 meter mark_pos (rank_durs meter)
+            (ranks_to_labels (collapse_ranks_for_labels (map fst meter)))]
     where
-    pos_marks =
-        [(pos, mark rank_dur rank name) | ((rank, _), pos, rank_dur, name)
-            <- List.zip4 meter mark_pos (rank_durs meter)
-                (ranks_to_labels (collapse_ranks_for_labels (map fst meter)))]
     -- By convention, the block ends with a rank 0 mark.
     meter = meter_ ++ [(0, 0)]
     mark_pos = scanl (+) 0 (map snd meter)
@@ -263,7 +261,7 @@ pixels_to_zoom dur pixels
 marklist_meter :: Ruler.Marklist -> Meter
 marklist_meter mlist = zipWith to_dur marks (drop 1 marks)
     where
-    marks = Map.toAscList $ Ruler.marklist_map mlist
+    marks = Ruler.ascending 0 mlist
     -- This drops the last mark, but by convention that's a rank 0 mark intended
     -- to delemit the duration of the second-to-last mark.
     to_dur (p, m) (next_p, _) = (Ruler.mark_rank m, next_p - p)

@@ -336,7 +336,7 @@ test_selection = do
     return ()
 
 cue_marklist :: Ruler.Marklist
-cue_marklist = Ruler.marklist $ Map.fromList
+cue_marklist = Ruler.marklist
     [ (0, UiTest.mark "start")
     , (2, UiTest.mark "head explodes")
     ]
@@ -352,7 +352,7 @@ test_modify_ruler = do
     _ <- io_human "doesn't crash when a track is collapsed" $ run state $ do
         State.add_track_flag t_block_id 1 Block.Collapse
         State.modify_ruler t_ruler_id $ Ruler.map_marklists
-            (const (Ruler.marklist $ Map.fromList [(0, UiTest.mark "new")]))
+            (const (Ruler.marklist [(0, UiTest.mark "new")]))
     return ()
 
 -- | Selection is correct even when tracks are added or deleted.

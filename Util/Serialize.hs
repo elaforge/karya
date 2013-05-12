@@ -24,6 +24,7 @@ import Data.Serialize (Get, Put, getWord8, putWord8)
 import qualified Data.Set as Set
 import qualified Data.Text as Text
 import qualified Data.Text.Encoding as Text.Encoding
+import qualified Data.Vector as Vector
 import qualified Data.Vector.Unboxed as Unboxed
 
 import Foreign
@@ -183,6 +184,15 @@ instance (Serialize a, Unboxed.Unbox a) => Serialize (Unboxed.Vector a) where
     get = do
         len <- get :: Get Int
         Unboxed.replicateM len get
+
+instance (Serialize a) => Serialize (Vector.Vector a) where
+    put v = do
+        put (Vector.length v)
+        Vector.mapM_ put v
+    get = do
+        len <- get :: Get Int
+        Vector.replicateM len get
+
 
 -- * versions
 

@@ -3,7 +3,6 @@ import qualified Data.Map as Map
 import qualified Data.Set as Set
 
 import Util.Control
-import qualified Util.Debug as Debug
 import qualified Util.Log as Log
 import Util.Test
 

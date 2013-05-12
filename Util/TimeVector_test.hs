@@ -15,6 +15,9 @@ signal = V.signal
 unsignal :: V.Unboxed -> [(X, Y)]
 unsignal = V.unsignal
 
+unsample :: V.Sample y -> (X, y)
+unsample s = (V.sx s, V.sy s)
+
 test_at = do
     let range low high sig = [V.at p (signal sig)
             | p <- Seq.range low (high-1) 1] :: [Maybe Y]
@@ -36,6 +39,19 @@ test_at_eta = do
     let f x sig = V.at x (signal sig)
     equal (f 6.666666666666664 [(6.666666666666666, 1)]) (Just 1)
     equal (f 6.6666666665 [(6.666666666666666, 1)]) Nothing
+
+test_ascending = do
+    let f p = map unsample $ V.ascending p (signal [(1, 1), (2, 2), (3, 3)])
+    equal (f 2) [(2, 2), (3, 3)]
+    equal (f 3) [(3, 3)]
+    equal (f 4) []
+
+test_descending = do
+    let f p = map unsample $ V.descending p (signal [(1, 1), (2, 2), (3, 3)])
+    equal (f 3) [(2, 2), (1, 1)]
+    equal (f 2) [(1, 1)]
+    equal (f 1) []
+
 
 -- * transformation
 

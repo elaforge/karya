@@ -1,4 +1,5 @@
 {-# LANGUAGE ScopedTypeVariables #-} -- needed for SomeException
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {- | Serialize and unserialize all the data types used by Ui.State.State.
 
     Types that I think might change have versions.  If the type changes,
@@ -436,7 +437,7 @@ instance Serialize Color.Color where
 -- ** Ruler
 
 instance Serialize Ruler.Ruler where
-    put (Ruler.Ruler a b c d) = Serialize.put_version 4
+    put (Ruler.Ruler a b c d) = Serialize.put_version 5
         >> put a >> put b >> put c >> put d
     get = do
         v <- Serialize.get_version
@@ -458,6 +459,13 @@ instance Serialize Ruler.Ruler where
                 return $ Ruler.Ruler (convert marklists)
                     bg show_names align_to_bottom
             4 -> do
+                marklists :: Map.Map Ruler.Name Marklist1 <- get
+                bg :: Color.Color <- get
+                show_names :: Bool <- get
+                align_to_bottom :: Bool <- get
+                return $ Ruler.Ruler (Map.map convert_marklist1 marklists)
+                    bg show_names align_to_bottom
+            5 -> do
                 marklists :: Map.Map Ruler.Name Ruler.Marklist <- get
                 bg :: Color.Color <- get
                 show_names :: Bool <- get
@@ -468,10 +476,10 @@ instance Serialize Ruler.Ruler where
         convert = Map.fromList . map (txt *** convert_marklist0) . Map.toList
 
 instance Serialize Ruler.Marklist where
-    put mlist = put (Ruler.marklist_map mlist)
+    put mlist = put (Ruler.marklist_vec mlist)
     get = do
-        marks :: Map.Map ScoreTime Ruler.Mark <- get
-        return $ Ruler.marklist marks
+        vec :: Ruler.MarklistVector <- get
+        return $ Ruler.marklist_from_vector vec
 
 instance Serialize Ruler.Mark where
     put (Ruler.Mark a b c d e f) = put a >> put b >> put c >> put d >> put e
@@ -485,8 +493,15 @@ instance Serialize Ruler.Mark where
         zoom :: Double <- get
         return $ Ruler.Mark rank width color name name_zoom zoom
 
+convert_marklist1 :: Marklist1 -> Ruler.Marklist
+convert_marklist1 (Marklist1 marks) = Ruler.marklist $ Map.toAscList marks
+
+newtype Marklist1 = Marklist1 (Map.Map ScoreTime Ruler.Mark)
+    deriving (Serialize)
+
 convert_marklist0 :: Marklist0 -> Ruler.Marklist
-convert_marklist0 (Marklist0 mlists) = Ruler.marklist $ Map.map convert mlists
+convert_marklist0 (Marklist0 marks) =
+    Ruler.marklist $ Map.toAscList $ Map.map convert marks
     where
     convert (Mark0 rank width color name name_zoom zoom) = Ruler.Mark
         rank width color (txt name) name_zoom zoom

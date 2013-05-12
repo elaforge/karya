@@ -9,6 +9,7 @@ import qualified Data.Map as Map
 import qualified Data.Text as Text
 
 import Util.ForeignC
+import qualified Util.TimeVector as TimeVector
 import qualified Ui.Ruler as Ruler
 import qualified Ui.Util as Util
 import Types
@@ -47,14 +48,14 @@ marklist_fptr mlist = MVar.modifyMVar (extract mlist) create
     create (Right fptr) =
         return (Right fptr, fptr)
     create (Left _) = do
-        fptr <- create_marklist (Ruler.marklist_map mlist)
+        fptr <- create_marklist mlist
         return (Right fptr, fptr)
 
-create_marklist :: Map.Map ScoreTime Ruler.Mark
-    -> IO (ForeignPtr Ruler.Marklist)
-create_marklist marks = do
-    marksp <- newArray (map PosMark (Map.toAscList marks))
-    mlistp <- c_create_marklist marksp (Util.c_int (Map.size marks))
+create_marklist :: Ruler.Marklist -> IO (ForeignPtr Ruler.Marklist)
+create_marklist mlist = do
+    marksp <- newArray $ map PosMark $ Ruler.ascending 0 mlist
+    mlistp <- c_create_marklist marksp $ Util.c_int $
+        TimeVector.length $ Ruler.marklist_vec mlist
     newForeignPtr c_marklist_decref mlistp
 
 foreign import ccall "create_marklist"

@@ -7,6 +7,7 @@
 module Util.TimeVectorStorable where
 import Foreign
 import qualified Util.ForeignC as C
+import qualified Util.Serialize as Serialize
 import qualified Ui.Util as Util
 import qualified Perform.RealTime as RealTime
 
@@ -14,6 +15,11 @@ import qualified Perform.RealTime as RealTime
 #include "Ui/c_interface.h"
 -- See comment in BlockC.hsc.
 #let alignment t = "%lu", (unsigned long)offsetof(struct {char x__; t (y__); }, y__)
+
+data Sample y = Sample {
+    sx :: {-# UNPACK #-} !X
+    , sy :: !y
+    } deriving (Read, Show, Eq)
 
 type X = RealTime.RealTime
 
@@ -34,7 +40,6 @@ instance C.CStorable (Sample Double) where
     peek = peek
     poke = poke
 
-data Sample y = Sample {
-    sx :: {-# UNPACK #-} !X
-    , sy :: !y
-    } deriving (Read, Show, Eq)
+instance (Serialize.Serialize y) => Serialize.Serialize (Sample y) where
+    put (Sample a b) = Serialize.put a >> Serialize.put b
+    get = Serialize.get >>= \a -> Serialize.get >>= \b -> return $ Sample a b
