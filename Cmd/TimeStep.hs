@@ -4,7 +4,7 @@
 -}
 module Cmd.TimeStep (
     -- * TimeStep
-    TimeStep(..), Skip, time_step, step, event_step, to_list
+    TimeStep(..), time_step, event_step, to_list
     , match_meter
     , Step(..), Tracks(..)
     , MarklistMatch(..)
@@ -41,34 +41,17 @@ import qualified Cmd.Meter as Meter
 import Types
 
 
--- | A list of Steps and skip factors.  The TimeStep is the given steps
--- merged.
---
--- Use the 'time_step' and 'merge' constructors to preserve the invariant of
--- a non-empty list and non-negative skip.
-newtype TimeStep = TimeStep [(Step, Skip)]
+-- | A TimeStep is the union of a set of Steps.
+newtype TimeStep = TimeStep [Step]
     deriving (Eq, Show, Read)
 
--- | Natural number.  Skip this many Steps.  So a skip of 0 will match at
--- every point the Step matches, and a skip of 1 will match every other point.
---
--- A negative skip will match a fraction of the way to the next Step,
--- which is recip (abs skip + 1), e.g.  -1 will match half way, -2 one-third,
--- etc.
--- TODO implement
-type Skip = Int
-
-step :: Step -> TimeStep
-step ts = TimeStep [(ts, 0)]
+time_step :: Step -> TimeStep
+time_step = TimeStep . (:[])
 
 event_step :: TimeStep
-event_step =
-    TimeStep [(EventStart CurrentTrack, 0), (EventEnd CurrentTrack, 0)]
+event_step = TimeStep [EventStart CurrentTrack, EventEnd CurrentTrack]
 
-time_step :: Step -> Ruler.Rank -> TimeStep
-time_step step rank = TimeStep [(step, rank)]
-
-to_list :: TimeStep -> [(Step, Skip)]
+to_list :: TimeStep -> [Step]
 to_list (TimeStep steps) = steps
 
 -- | Match on the meter marklist, which is the usual thing to do.
@@ -105,11 +88,10 @@ data Direction = Advance | Rewind deriving (Eq, Show)
 -- | Convert a TimeStep to a compact and yet somehow still somewhat readable
 -- representation.
 show_time_step :: TimeStep -> String
-show_time_step (TimeStep steps) = Seq.join ";" (map show1 steps)
+show_time_step (TimeStep steps) = Seq.join ";" (map show_step steps)
     where
     -- The keywords and symbols are chosen carefully to allow unambiguous
     -- parsing.
-    show1 (step, skip) = show_step step ++ show_skip skip
     show_step step = case step of
         Duration pos -> "d:" ++ Pretty.pretty pos
         RelativeMark mlists rank ->
@@ -118,10 +100,6 @@ show_time_step (TimeStep steps) = Seq.join ";" (map show1 steps)
         EventStart tracks -> "start" ++ show_tracks tracks
         EventEnd tracks -> "end" ++ show_tracks tracks
         AbsoluteMark mlists rank -> show_marklists mlists ++ show_rank rank
-    show_skip skip
-        | skip > 0 = '*' : show (skip + 1)
-        | skip < 0 = '/' : show (abs skip + 1)
-        | otherwise = ""
     show_marklists AllMarklists = ""
     show_marklists (NamedMarklists mlists) =
         Seq.join "," (map untxt mlists) ++ "|"
@@ -133,8 +111,7 @@ show_time_step (TimeStep steps) = Seq.join ";" (map show1 steps)
 parse_time_step :: Text -> Either String TimeStep
 parse_time_step = Parse.parse p_time_step
     where
-    p_time_step = TimeStep <$> P.sepBy p_pair (P.char ';')
-    p_pair = (,) <$> p_step <*> p_skip
+    p_time_step = TimeStep <$> P.sepBy p_step (P.char ';')
     -- P.choice must backtrack because AbsoluteMark parses can overlap.
     p_step = P.choice $ map P.try
         [ str "d:" *> (Duration <$>
@@ -145,9 +122,6 @@ parse_time_step = Parse.parse p_time_step
         , str "end" *> (EventEnd <$> p_tracks)
         , AbsoluteMark <$> p_marklists <*> parse_rank
         ]
-    p_skip = (subtract 1 <$> (P.char '*' *> Parse.p_positive))
-        <|> (negate . subtract 1 <$> (P.char '/' *> Parse.p_positive))
-        <|> return 0
     p_marklists =
         P.try ((NamedMarklists <$> P.sepBy p_name (P.char ',')) <* P.char '|')
         <|> return AllMarklists
@@ -252,10 +226,10 @@ get_points time_step@(TimeStep steps) block_id tracknum pos = do
             all_points marklists tracknum track_events pos time_step
     where
     wants_ruler = List.foldl' (||) False $ flip map steps $ \s -> case s of
-        (Duration {}, _) -> True
-        (AbsoluteMark {}, _) -> True
-        (RelativeMark {}, _) -> True
-        (BlockEnd, _) -> True
+        Duration {} -> True
+        AbsoluteMark {} -> True
+        RelativeMark {} -> True
+        BlockEnd -> True
         _ -> False
     get_ruler = do
         ruler_id <- fromMaybe State.no_ruler <$>
@@ -277,8 +251,8 @@ all_points marklists cur events pos (TimeStep steps) = Seq.drop_dups id $
     Seq.merge_lists id $ map (step_points marklists cur events pos) steps
 
 step_points :: Ruler.Marklists -> TrackNum -> [[Event.Event]]
-    -> ScoreTime -> (Step, Skip) -> [ScoreTime]
-step_points marklists cur events pos (step, skip) = stride skip $ case step of
+    -> ScoreTime -> Step -> [ScoreTime]
+step_points marklists cur events pos step = case step of
         Duration incr -> Seq.range (Num.fmod pos incr) end incr
         AbsoluteMark names matcher -> matches names matcher
         RelativeMark names matcher -> shift (matches names matcher)
@@ -325,11 +299,3 @@ find_before_equal p (x:xs)
     | otherwise = case xs of
         next : _ | p >= next -> find_before_equal p xs
         _ -> Just x
-
-stride :: Int -> [a] -> [a]
-stride n xs
-    | n <= 0 = xs
-    | otherwise = go xs
-    where
-    go [] = []
-    go (x:xs) = x : go (drop n xs)

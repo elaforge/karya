@@ -9,7 +9,7 @@ UNSORTED
     I guess if I'm doing every other I need to calculate from the beginning.
     But I think I don't need that.
     * Make ruler into Vector.
-    - Remove TimeStep's skip.
+    * Remove TimeStep's skip.
     - Remove all_points, use marklist directly.
 
   * Instead of instrument aliases just being aliases, they should make a new

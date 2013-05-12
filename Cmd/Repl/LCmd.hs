@@ -31,7 +31,7 @@ dur_to_step :: Cmd.CmdL ()
 dur_to_step = set_note_duration =<< get_time_step
 
 dur_to_end :: Cmd.CmdL ()
-dur_to_end = set_note_duration (TimeStep.step TimeStep.BlockEnd)
+dur_to_end = set_note_duration $ TimeStep.time_step TimeStep.BlockEnd
 
 -- | Set play step to current step.
 set_play_step :: Cmd.CmdL ()

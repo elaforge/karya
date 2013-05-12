@@ -123,11 +123,11 @@ responder config msg_reader midi_interface setup_cmd repl_session loopback = do
 setup_state :: Cmd.State -> Cmd.State
 setup_state state = state
     { Cmd.state_edit = (Cmd.state_edit state)
-        { Cmd.state_time_step = TimeStep.step $
+        { Cmd.state_time_step = TimeStep.time_step $
             TimeStep.AbsoluteMark TimeStep.AllMarklists Meter.r_4
         }
     , Cmd.state_play = (Cmd.state_play state)
-        { Cmd.state_play_step = TimeStep.step $
+        { Cmd.state_play_step = TimeStep.time_step $
             TimeStep.AbsoluteMark TimeStep.AllMarklists Meter.r_1
         }
     }

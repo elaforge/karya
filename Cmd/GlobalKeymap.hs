@@ -274,14 +274,14 @@ edit_state_bindings = concat
         Edit.cmd_toggle_kbd_entry
 
     , command_char '0' "set event step" $ Edit.set_step TimeStep.event_step
-    , uncurry (command_char '1') (step_rank Meter.r_section 0)
-    , uncurry (command_char '2') (step_rank Meter.r_1 0)
-    , uncurry (command_char '3') (step_rank Meter.r_2 0)
-    , uncurry (command_char '4') (step_rank Meter.r_4 0)
-    , uncurry (command_char '5') (step_rank Meter.r_8 0)
-    , uncurry (command_char '6') (step_rank Meter.r_16 0)
-    , uncurry (command_char '7') (step_rank Meter.r_32 0)
-    , uncurry (command_char '8') (step_rank Meter.r_64 0)
+    , uncurry (command_char '1') (step_rank Meter.r_section)
+    , uncurry (command_char '2') (step_rank Meter.r_1)
+    , uncurry (command_char '3') (step_rank Meter.r_2)
+    , uncurry (command_char '4') (step_rank Meter.r_4)
+    , uncurry (command_char '5') (step_rank Meter.r_8)
+    , uncurry (command_char '6') (step_rank Meter.r_16)
+    , uncurry (command_char '7') (step_rank Meter.r_32)
+    , uncurry (command_char '8') (step_rank Meter.r_64)
     , shift_char '=' "toggle duration" Edit.toggle_note_duration
 
     , bind_key [PrimaryCommand] (Key.Char '`') "toggle step mode"
@@ -295,11 +295,10 @@ edit_state_bindings = concat
     , plain_char '=' "octave +1" (Edit.cmd_modify_octave (+1))
     ]
     where
-    step_rank rank skips =
+    step_rank rank =
         ("set step: " ++ TimeStep.show_time_step step,
-            Edit.set_step_rank step rank skips)
-        where
-        step = TimeStep.time_step (TimeStep.AbsoluteMark meter rank) skips
+            Edit.set_step_rank step rank)
+        where step = TimeStep.time_step (TimeStep.AbsoluteMark meter rank)
     meter = TimeStep.NamedMarklists [Meter.meter]
 
 -- delete = remove events and move following events back

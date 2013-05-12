@@ -444,7 +444,7 @@ timestep start ts steps = do
 
 meter_duration :: ScoreTime -> Ruler.Rank -> Int -> Derive.Deriver ScoreTime
 meter_duration start rank steps = do
-    let ts = TimeStep.step $ TimeStep.RelativeMark TimeStep.match_meter rank
+    let ts = TimeStep.time_step $ TimeStep.RelativeMark TimeStep.match_meter rank
     end <- timestep start ts steps
     return $ end - start
 

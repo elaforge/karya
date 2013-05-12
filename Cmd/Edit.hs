@@ -388,20 +388,18 @@ cmd_clear_and_advance = do
             && Types.sel_start_track sel == Types.sel_cur_track sel)
         Selection.advance
 
--- | If the TimeStep is AbsoluteMark or RelativeMark, set its rank and skips
--- to the given ones.  Otherwise, set it to the deflt.  This means the marklist
--- names are sticky, so if you set it manually the default bindings won't mess
--- it up.
-set_step_rank :: (Cmd.M m) => TimeStep.TimeStep -> Ruler.Rank
-    -> TimeStep.Skip -> m ()
-set_step_rank deflt rank skip = Cmd.modify_edit_state $ \st ->
+-- | If the TimeStep is AbsoluteMark or RelativeMark, set its rank.  Otherwise,
+-- set it to the deflt.  This means the marklist names are sticky, so if you
+-- set it manually the default bindings won't mess it up.
+set_step_rank :: (Cmd.M m) => TimeStep.TimeStep -> Ruler.Rank -> m ()
+set_step_rank deflt rank = Cmd.modify_edit_state $ \st ->
     st { Cmd.state_time_step =
         set (TimeStep.to_list (Cmd.state_time_step st)) }
     where
-    set [(TimeStep.AbsoluteMark names _, _)] =
-        TimeStep.time_step (TimeStep.AbsoluteMark names rank) skip
-    set [(TimeStep.RelativeMark names _, _)] =
-        TimeStep.time_step (TimeStep.RelativeMark names rank) skip
+    set [TimeStep.AbsoluteMark names _] =
+        TimeStep.time_step (TimeStep.AbsoluteMark names rank)
+    set [TimeStep.RelativeMark names _] =
+        TimeStep.time_step (TimeStep.RelativeMark names rank)
     set _ = deflt
 
 -- | Toggle between absolute and relative mark step.
@@ -410,10 +408,10 @@ toggle_mark_step = Cmd.modify_edit_state $ \st ->
         st { Cmd.state_time_step = toggle (Cmd.state_time_step st) }
     where
     toggle step = case TimeStep.to_list step of
-        [(TimeStep.AbsoluteMark names rank, skip)] ->
-            TimeStep.time_step (TimeStep.RelativeMark names rank) skip
-        [(TimeStep.RelativeMark names rank, skip)] ->
-            TimeStep.time_step (TimeStep.AbsoluteMark names rank) skip
+        [TimeStep.AbsoluteMark names rank] ->
+            TimeStep.time_step (TimeStep.RelativeMark names rank)
+        [TimeStep.RelativeMark names rank] ->
+            TimeStep.time_step (TimeStep.AbsoluteMark names rank)
         _ -> step
 
 set_step :: (Cmd.M m) => TimeStep.TimeStep -> m ()
@@ -438,7 +436,7 @@ toggle_note_duration = do
     step <- Cmd.gets $ Cmd.state_time_step . Cmd.state_edit
     Cmd.modify_edit_state $ \st ->
         st { Cmd.state_note_duration = if dur == to_end then step else to_end }
-    where to_end = TimeStep.step TimeStep.BlockEnd
+    where to_end = TimeStep.time_step TimeStep.BlockEnd
 
 
 -- * recent note

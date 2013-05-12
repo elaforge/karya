@@ -372,11 +372,7 @@ ruler_until pos = ruler [("until", Ruler.marklist [(pos, Ruler.null_mark)])]
 
 -- | TimeStep to step by 1 ScoreTime on the default ruler.
 step1 :: TimeStep.TimeStep
-step1 = steps 0
-
-steps :: Int -> TimeStep.TimeStep
-steps n =
-    TimeStep.time_step (TimeStep.AbsoluteMark TimeStep.AllMarklists r_4) n
+step1 = TimeStep.time_step (TimeStep.AbsoluteMark TimeStep.AllMarklists r_4)
 
 -- | Create a ruler with a 4/4 "meter" marklist with the given number of marks
 -- at the given distance.  Marks are rank [1, 2, 2, ...].
