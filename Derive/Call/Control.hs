@@ -10,6 +10,7 @@ import qualified Derive.Args as Args
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Call.Util as Util
 import qualified Derive.Derive as Derive
+import qualified Derive.Environ as Environ
 import qualified Derive.ParseBs as ParseBs
 import qualified Derive.Score as Score
 import qualified Derive.Sig as Sig
@@ -32,16 +33,25 @@ lookup_number :: Derive.LookupCall Derive.ControlCall
 lookup_number = Derive.pattern_lookup "numbers and hex" doc $
     \(TrackLang.Symbol sym) -> case ParseBs.parse_num sym of
         Left _ -> return Nothing
-        Right num -> return $ Just $ set num
+        Right val -> return $ Just $ set val
     where
     set :: Signal.Y -> Derive.ControlCall
-    set num = Derive.generator1 "self-eval" Tags.prelude
+    set val = Derive.generator1 "self-eval" Tags.prelude
         "Emit a sample with no interpolation. This accepts either decimal\
         \ numbers or hex numbers that look like `\\`0x\\`xx`.  The hex\
-        \ is divided by 255, so they represent a number between 0 and 1." $
+        \ is divided by 255, so they represent a number between 0 and 1.\n\
+        \ Setting a control called `<controlname>-rnd` will cause the set value\
+        \ to be randomized by the given number." $
         Sig.call0 $ \args -> do
             pos <- Args.real_start args
-            return $! Signal.signal [(pos, num)]
+            maybe_cname <- Derive.lookup_val Environ.control
+            rnd <- case maybe_cname of
+                Nothing -> return 0
+                Just cname -> do
+                    rnd_max <- fromMaybe 0 <$> Derive.untyped_control_at
+                        (Score.Control $ cname <> "-rnd") pos
+                    Util.random_in 0 rnd_max
+            return $! Signal.signal [(pos, val + rnd)]
     doc = Derive.extract_doc (set 0)
 
 -- * call map
@@ -83,7 +93,7 @@ c_set :: Derive.ControlCall
 c_set = Derive.generator1 "set" mempty "Emit a sample with no interpolation." $
     Sig.call (required "val" "Destination value.") $ \val args -> do
         pos <- Args.real_start args
-        return $ Signal.signal [(pos, val)]
+        return $! Signal.signal [(pos, val)]
 
 -- | Re-set the previous val.  This can be used to extend a breakpoint, and is
 -- also automatically set by the control track deriver for the hack described

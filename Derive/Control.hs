@@ -38,6 +38,7 @@ import qualified Derive.Call as Call
 import qualified Derive.Call.Util as Util
 import qualified Derive.Derive as Derive
 import qualified Derive.Deriver.Internal as Internal
+import qualified Derive.Environ as Environ
 import qualified Derive.LEvent as LEvent
 import qualified Derive.ParseBs as ParseBs
 import qualified Derive.PitchSignal as PitchSignal
@@ -66,12 +67,6 @@ d_control_track (Tree.Node track _) deriver = do
     (ctype, expr) <- either (\err -> Derive.throw $ "track title: " ++ err)
         return (TrackInfo.parse_control_expr title)
     eval_track track expr ctype deriver
-    -- case ctype of
-    --     TrackInfo.Control {} -> do
-    --         let (orig_track, split_tracks) = split_control track
-    --         eval_track orig_track expr ctype $
-    --             foldr eval_split_track deriver split_tracks
-    --     _ -> eval_track track expr ctype deriver
 
 -- | Preprocess a track tree by splitting the control tracks.  An event
 -- starting with @%@ splits the events below it into a new control track.  The
@@ -140,10 +135,16 @@ eval_track :: TrackTree.TrackEvents -> [TrackLang.Call]
     -> TrackInfo.ControlType -> Derive.EventDeriver -> Derive.EventDeriver
 eval_track track expr ctype deriver = case ctype of
     TrackInfo.Tempo -> ifM Derive.is_lilypond_derive deriver $
-        tempo_call track (derive_control True tempo_track expr) deriver
+        tempo_call track
+            (Derive.with_val Environ.control ("tempo" :: Text) $
+                derive_control True tempo_track expr)
+            deriver
     TrackInfo.Control maybe_op control -> do
         op <- lookup_op control maybe_op
-        control_call track control op (derive_control False track expr) deriver
+        control_call track control op
+            (Derive.with_val Environ.control (cname control) $
+                derive_control False track expr)
+            deriver
     TrackInfo.Pitch scale_id maybe_name ->
         pitch_call track maybe_name scale_id expr deriver
     where
@@ -157,6 +158,8 @@ eval_track track expr ctype deriver = case ctype of
         where
         track_range = TrackTree.tevents_range track
         evts = TrackTree.tevents_events track
+    cname cont = case Score.typed_val cont of
+        Score.Control name -> name
 
 -- | Get the combining operator for this track.  Controls multiply by default,
 -- unless they use the @set@ operator.  The exception is 'Score.c_null', which

@@ -411,6 +411,7 @@ hardcoded_types :: Map.Map ValName Type
 hardcoded_types = Map.fromList
     [ (Environ.attributes, TAttributes)
     , (Environ.instrument, TInstrument)
+    , (Environ.control, TSymbol)
     , (Environ.key, TSymbol)
     , (Environ.scale, TScaleId)
     , (Environ.seed, TNum TUntyped)

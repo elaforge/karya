@@ -8,6 +8,10 @@ import Derive.BaseTypes (ValName, Symbol(..))
 attributes :: ValName
 attributes = Symbol "attr"
 
+-- | Set to the control that is being derived, inside of a control track.
+control :: ValName
+control = Symbol "control"
+
 -- | Default instrument.
 instrument :: ValName
 instrument = Symbol "inst"

@@ -1,6 +1,8 @@
 module Derive.Call.Control_test where
+import Util.Control
 import Util.Test
 import qualified Derive.Call.CallTest as CallTest
+import qualified Derive.DeriveTest as DeriveTest
 import qualified Perform.Signal as Signal
 import Types
 
@@ -11,6 +13,14 @@ run = CallTest.run_control
 test_set = do
     equal (run [(0, "1"), (1, "0")]) [(0, 1), (1, 0)]
     equal (run [(0, "1"), (1, "")]) [(0, 1)]
+
+test_set_rnd = do
+    let run title val = DeriveTest.extract extract $ DeriveTest.derive_tracks
+            [(">", [(0, 1, "")]), ("c" <> title, [(0, 0, val)])]
+        extract = DeriveTest.e_control "c"
+    equal (run "" ".5") ([[(0, 0.5)]], [])
+    let ([[(0, val)]], []) = run " | %c-rnd = .5" ".5"
+    check (val /= 0.5 && 0 <= val && val <= 1)
 
 test_linear = do
     equal (run [(0, "1"), (2, "i 0")]) [(0, 1), (1, 0.5), (2, 0)]

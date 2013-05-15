@@ -349,7 +349,9 @@ random :: (Random a) => Derive.Deriver a
 random = head <$> randoms
 
 random_in :: (Random a, Real a) => a -> a -> Derive.Deriver a
-random_in low high = head <$> randoms_in low high
+random_in low high
+    | low == high = return low
+    | otherwise = head <$> randoms_in low high
 
 -- | If the chance is 1, return true all the time, if it's 0.5, return it half
 -- of the time.

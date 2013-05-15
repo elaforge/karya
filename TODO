@@ -111,7 +111,7 @@ UNSORTED
     Do some logging to track them down.
   - key not applied in inner blocks, local play should take the root play's
     env as a starting point
-  - randomize any control by having the 'set' call look for the -rnd control
+  * randomize any control by having the 'set' call look for the -rnd control
   some way to get symbol feedback instantly to make it easier to compose them
     - But it calls SymbolC and I ran into a problem where linux ghci can't
       link FFI-using functions.  Ask on glasgow-haskell-users.
