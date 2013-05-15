@@ -15,6 +15,7 @@ import qualified Derive.Call.Note as Note
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Call.Util as Util
 import qualified Derive.Derive as Derive
+import qualified Derive.Environ as Environ
 import qualified Derive.LEvent as LEvent
 import qualified Derive.PitchSignal as PitchSignal
 import qualified Derive.Scale.Theory as Theory
@@ -585,4 +586,4 @@ make_code_call name doc sig call = Derive.Call
         when_lilypond (call val args <> deriver) deriver
 
 global :: Derive.Deriver a -> Derive.Deriver a
-global = Derive.with_val_raw TrackLang.v_instrument Constants.ly_global
+global = Derive.with_val_raw Environ.instrument Constants.ly_global

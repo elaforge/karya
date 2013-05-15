@@ -19,6 +19,7 @@ import qualified Ui.Track as Track
 import qualified Ui.TrackTree as TrackTree
 
 import Derive.Deriver.Monad
+import qualified Derive.Environ as Environ
 import qualified Derive.Score as Score
 import qualified Derive.Stack as Stack
 import qualified Derive.TrackLang as TrackLang
@@ -212,8 +213,8 @@ add_stack_frame frame st = st
     }
     where
     update_seed env = TrackLang.insert_val
-        TrackLang.v_seed (TrackLang.num (seed old)) env
-        where old = fromMaybe 0 (TrackLang.maybe_val TrackLang.v_seed env)
+        Environ.seed (TrackLang.num (seed old)) env
+        where old = fromMaybe 0 (TrackLang.maybe_val Environ.seed env)
     seed :: Double -> Double
     seed n = i2d (CRC32.crc32Update (floor n) frame)
     -- A Double should be able to hold up to 2^52, but that's still an

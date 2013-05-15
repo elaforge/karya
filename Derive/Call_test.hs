@@ -16,12 +16,13 @@ import qualified Derive.Call as Call
 import qualified Derive.Call.CallTest as CallTest
 import qualified Derive.Call.Note as Note
 import qualified Derive.Call.Util as Util
-import qualified Derive.Sig as Sig
 import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
+import qualified Derive.Environ as Environ
 import qualified Derive.Instrument.Util as Instrument.Util
 import qualified Derive.Scale.Legong as Legong
 import qualified Derive.Score as Score
+import qualified Derive.Sig as Sig
 import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.Midi.Instrument as Instrument
@@ -209,8 +210,8 @@ test_track_dynamic = do
     let extract = map extract1 . Map.assocs . Derive.r_track_dynamic
         extract1 ((bid, tid), dyn) =
             (bid, tid,
-                TrackLang.lookup_val TrackLang.v_scale env,
-                TrackLang.lookup_val TrackLang.v_instrument env)
+                TrackLang.lookup_val Environ.scale env,
+                TrackLang.lookup_val Environ.instrument env)
             where env = Derive.state_environ dyn
     let res = DeriveTest.derive_blocks
             [ ("b", [("*legong", [(0, 0, "1")]), (">i1", [(0, 1, "sub")])])
@@ -231,7 +232,7 @@ test_track_dynamic_invert = do
     let run = extract . DeriveTest.derive_tracks
         extract = Map.toList . Map.map (e_env . Derive.state_environ)
             . Derive.r_track_dynamic
-        e_env e = (lookup TrackLang.v_instrument e, lookup TrackLang.v_scale e)
+        e_env e = (lookup Environ.instrument e, lookup Environ.scale e)
         lookup val = Pretty.pretty . TrackLang.lookup_val val
     -- Both tracks get *legong, even though >inst has to be inverted to see it.
     equal (run [(">inst", [(0, 0, "")]), ("*legong", [(0, 0, "1")])])

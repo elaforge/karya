@@ -13,6 +13,7 @@ import qualified Util.Seq as Seq
 import qualified Derive.Call as Call
 import qualified Derive.Call.Pitch as Call.Pitch
 import qualified Derive.Derive as Derive
+import qualified Derive.Environ as Environ
 import qualified Derive.PitchSignal as PitchSignal
 import qualified Derive.Scale as Scale
 import qualified Derive.Score as Score
@@ -165,7 +166,7 @@ note_to_call dmap degree_to_nn note =
         diatonic = Map.findWithDefault 0 Score.c_diatonic controls
 
 lookup_key :: TrackLang.Environ -> Maybe Pitch.Key
-lookup_key = fmap Pitch.Key . TrackLang.maybe_val TrackLang.v_key
+lookup_key = fmap Pitch.Key . TrackLang.maybe_val Environ.key
 
 scale_to_pitch_error :: Signal.Y -> Signal.Y
     -> Either Scale.ScaleError a -> Either PitchSignal.PitchError a

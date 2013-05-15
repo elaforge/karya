@@ -16,6 +16,7 @@ import qualified Derive.Call.Tags as Tags
 import qualified Derive.Call.Util as Util
 import qualified Derive.Derive as Derive
 import qualified Derive.Deriver.Internal as Internal
+import qualified Derive.Environ as Environ
 import qualified Derive.LEvent as LEvent
 import qualified Derive.Scale.Symbols as Symbols
 import qualified Derive.Score as Score
@@ -203,7 +204,7 @@ play_output voice = Derive.d_merge_asc . concatMap go
     go (start, dur, Note ps strike) =
         map (note start dur strike) (Set.toAscList ps)
     note start dur strike pitch = do
-        Derive.with_val TrackLang.v_voice voice $
+        Derive.with_val Environ.voice voice $
             Util.add_attrs (strike_attrs strike) $
             Util.with_symbolic_pitch (TrackLang.note sym []) start $
             Derive.d_place start dur Util.note

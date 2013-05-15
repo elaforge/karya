@@ -13,6 +13,7 @@ import qualified Util.Pretty as Pretty
 
 import qualified Derive.Call.Pitch as Call.Pitch
 import qualified Derive.Derive as Derive
+import qualified Derive.Environ as Environ
 import qualified Derive.Scale as Scale
 import qualified Derive.Scale.Theory as Theory
 import qualified Derive.Scale.Util as Util
@@ -206,7 +207,7 @@ Just default_key = Map.lookup "c" all_keys
 
 read_key :: TrackLang.Environ -> Either Scale.ScaleError Key
 read_key = Util.read_environ (\k -> Map.lookup k all_keys)
-    default_key TrackLang.v_key
+    default_key Environ.key
 
 -- * ratios
 

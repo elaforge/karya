@@ -4,6 +4,7 @@ module Derive.Scale.BaliScales where
 import qualified Data.Map as Map
 
 import Util.Control
+import qualified Derive.Environ as Environ
 import qualified Derive.PitchSignal as PitchSignal
 import qualified Derive.Scale as Scale
 import qualified Derive.Scale.Symbols as Symbols
@@ -94,7 +95,7 @@ degree_to_nn :: NoteNumberMap
     -> TrackLang.Environ -> PitchSignal.Controls -> Pitch.Degree
     -> Either Scale.ScaleError Pitch.NoteNumber
 degree_to_nn (umbang_nns, isep_nns, center_nns) = \env controls degree -> do
-    tuning <- Util.read_environ read_tuning Umbang TrackLang.v_tuning env
+    tuning <- Util.read_environ read_tuning Umbang Environ.tuning env
     let lookup_nn =
             maybe (Left Scale.InvalidTransposition) Right . Map.lookup degree
     case Map.lookup c_ombak controls of

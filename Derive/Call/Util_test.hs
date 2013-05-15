@@ -5,8 +5,8 @@ import qualified Ui.State as State
 import qualified Derive.Call.Util as Util
 import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
+import qualified Derive.Environ as Environ
 import qualified Derive.Score as Score
-import qualified Derive.TrackLang as TrackLang
 
 import Types
 
@@ -31,7 +31,7 @@ test_random = do
 
 test_randoms_in = do
     let run seed = expect_right "run" . DeriveTest.eval State.empty
-            . Derive.with_val TrackLang.v_seed (seed :: Int)
+            . Derive.with_val Environ.seed (seed :: Int)
         randoms seed low high = take 4 $
             run seed (Util.randoms_in low high)
     let double :: Int -> Double -> Double -> [Double]

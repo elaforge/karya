@@ -11,6 +11,7 @@ import qualified Util.Seq as Seq
 
 import qualified Derive.Call.Pitch as Call.Pitch
 import qualified Derive.Derive as Derive
+import qualified Derive.Environ as Environ
 import qualified Derive.PitchSignal as PitchSignal
 import qualified Derive.Scale as Scale
 import qualified Derive.Scale.Theory as Theory
@@ -170,14 +171,14 @@ read_env_key :: ScaleMap -> TrackLang.Environ
     -> Either Scale.ScaleError Theory.Key
 read_env_key smap = Util.read_environ
     (\k -> Map.lookup (Pitch.Key k) (smap_keys smap))
-    (smap_default_key smap) TrackLang.v_key
+    (smap_default_key smap) Environ.key
 
 read_key :: ScaleMap -> Maybe Pitch.Key -> Either Scale.ScaleError Theory.Key
 read_key smap Nothing = Right (smap_default_key smap)
 read_key smap (Just key) =
     maybe (Left err) Right $ Map.lookup key (smap_keys smap)
     where
-    err = Scale.UnparseableEnviron TrackLang.v_key (txt (Pretty.pretty key))
+    err = Scale.UnparseableEnviron Environ.key (txt (Pretty.pretty key))
 
 read_pitch :: Theory.Layout -> Pitch.Note
     -> Either Scale.ScaleError Theory.Pitch

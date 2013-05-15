@@ -13,6 +13,7 @@ import qualified Cmd.Cmd as Cmd
 import qualified Derive.Cache as Cache
 import qualified Derive.Call.Block as Call.Block
 import qualified Derive.Derive as Derive
+import qualified Derive.Environ as Environ
 import qualified Derive.LEvent as LEvent
 import qualified Derive.Score as Score
 import qualified Derive.Stack as Stack
@@ -33,15 +34,15 @@ initial_environ :: Pitch.ScaleId -> Maybe Score.Instrument -> TrackLang.Environ
 initial_environ scale_id maybe_inst = TrackLang.make_environ $
     inst ++
     -- Control interpolators rely on this.
-    [ (TrackLang.v_srate, TrackLang.num 0.02)
+    [ (Environ.srate, TrackLang.num 0.02)
     -- Looking up any val call relies on having a scale in scope.
-    , (TrackLang.v_scale, TrackLang.VScaleId scale_id)
-    , (TrackLang.v_attributes, TrackLang.VAttributes Score.no_attrs)
-    , (TrackLang.v_seed, TrackLang.num 0)
+    , (Environ.scale, TrackLang.VScaleId scale_id)
+    , (Environ.attributes, TrackLang.VAttributes Score.no_attrs)
+    , (Environ.seed, TrackLang.num 0)
     ]
     where
     inst = case maybe_inst of
-        Just inst -> [(TrackLang.v_instrument, TrackLang.VInstrument inst)]
+        Just inst -> [(Environ.instrument, TrackLang.VInstrument inst)]
         Nothing -> []
 
 -- | Derive with the cache.

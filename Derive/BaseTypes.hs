@@ -224,12 +224,6 @@ null_environ (Environ env) = Map.null env
 -- | Symbols to look up a val in the 'ValMap'.
 type ValName = Symbol
 
--- | Environ key for the default attributes.
---
--- This is defined here so 'Derive.Score.event_attributes' can use it.
-v_attributes :: ValName
-v_attributes = Symbol "attr"
-
 -- ** Val
 
 data Val =

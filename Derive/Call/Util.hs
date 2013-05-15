@@ -31,6 +31,7 @@ import qualified Derive.Call as Call
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Derive as Derive
 import qualified Derive.Deriver.Internal as Internal
+import qualified Derive.Environ as Environ
 import qualified Derive.LEvent as LEvent
 import qualified Derive.PitchSignal as PitchSignal
 import qualified Derive.Scale as Scale
@@ -287,7 +288,7 @@ with_attrs :: (Score.Attributes -> Score.Attributes) -> Derive.Deriver d
     -> Derive.Deriver d
 with_attrs f deriver = do
     attrs <- get_attrs
-    Derive.with_val TrackLang.v_attributes (f attrs) deriver
+    Derive.with_val Environ.attributes (f attrs) deriver
 
 add_attrs :: Score.Attributes -> Derive.Deriver d -> Derive.Deriver d
 add_attrs attrs
@@ -297,7 +298,7 @@ add_attrs attrs
 -- * environ
 
 get_srate :: Derive.Deriver RealTime
-get_srate = RealTime.seconds <$> Derive.get_val TrackLang.v_srate
+get_srate = RealTime.seconds <$> Derive.get_val Environ.srate
 
 get_scale :: Derive.Deriver Scale.Scale
 get_scale = Derive.get_scale =<< get_scale_id
@@ -306,16 +307,16 @@ lookup_scale :: Derive.Deriver (Maybe Scale.Scale)
 lookup_scale = Derive.lookup_scale =<< get_scale_id
 
 get_scale_id :: Derive.Deriver Pitch.ScaleId
-get_scale_id = Derive.get_val TrackLang.v_scale
+get_scale_id = Derive.get_val Environ.scale
 
 lookup_key :: Derive.Deriver (Maybe Pitch.Key)
-lookup_key = fmap Pitch.Key <$> Derive.lookup_val TrackLang.v_key
+lookup_key = fmap Pitch.Key <$> Derive.lookup_val Environ.key
 
 lookup_instrument :: Derive.Deriver (Maybe Score.Instrument)
-lookup_instrument = Derive.lookup_val TrackLang.v_instrument
+lookup_instrument = Derive.lookup_val Environ.instrument
 
 get_attrs :: Derive.Deriver Score.Attributes
-get_attrs = fromMaybe mempty <$> Derive.lookup_val TrackLang.v_attributes
+get_attrs = fromMaybe mempty <$> Derive.lookup_val Environ.attributes
 
 -- * random
 
@@ -373,7 +374,7 @@ _make_randoms f = List.unfoldr (Just . f) <$> _random_generator
 
 _random_generator :: Derive.Deriver Pure64.PureMT
 _random_generator = do
-    seed <- fromMaybe 0 <$> Derive.lookup_val TrackLang.v_seed
+    seed <- fromMaybe 0 <$> Derive.lookup_val Environ.seed
     return $ Pure64.pureMT (floor (seed :: Double))
 
 -- * time

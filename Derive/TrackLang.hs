@@ -46,8 +46,9 @@ import qualified Derive.BaseTypes as PitchSignal
 import Derive.BaseTypes
        (Environ, make_environ, environ_to_list, insert_val, delete_val,
         lookup_val, null_environ, ValName, Val(..), Symbol(..),
-        RelativeAttrs(..), ControlRef(..), PitchControl, ValControl,
-        Note(..), show_call_val)
+        RelativeAttrs(..), ControlRef(..), PitchControl, ValControl, Note(..),
+        show_call_val)
+import qualified Derive.Environ as Environ
 import Derive.ShowVal (ShowVal(..))
 
 import qualified Perform.Pitch as Pitch
@@ -408,14 +409,14 @@ put_val name val environ
 -- errors later on.
 hardcoded_types :: Map.Map ValName Type
 hardcoded_types = Map.fromList
-    [ (v_attributes, TAttributes)
-    , (v_instrument, TInstrument)
-    , (v_key, TSymbol)
-    , (v_scale, TScaleId)
-    , (v_seed, TNum TUntyped)
-    , (v_srate, TNum TUntyped)
-    , (v_tuning, TSymbol)
-    , (v_voice, TNum TUntyped)
+    [ (Environ.attributes, TAttributes)
+    , (Environ.instrument, TInstrument)
+    , (Environ.key, TSymbol)
+    , (Environ.scale, TScaleId)
+    , (Environ.seed, TNum TUntyped)
+    , (Environ.srate, TNum TUntyped)
+    , (Environ.tuning, TSymbol)
+    , (Environ.voice, TNum TUntyped)
     ]
 
 data LookupError = NotFound | WrongType Type deriving (Show)
@@ -450,47 +451,6 @@ checked_val2 name environ = case checked_val name environ of
     Left err -> Just (Left err)
 
 
--- Define a few inhabitants of Environ which are used by the built-in set
--- of calls.
-
--- | Default set of attrs.
-v_attributes :: ValName
-v_attributes = Score.v_attributes
-
--- | Default instrument.
-v_instrument :: ValName
-v_instrument = Symbol "inst"
-
--- | Diatonic transposition often requires a key.  The interpretation of the
--- value depends on the scale.
-v_key :: ValName
-v_key = Symbol "key"
-
--- | Default scale, used by pitch tracks with a @*@ title.
-v_scale :: ValName
-v_scale = Symbol "scale"
-
--- | Random seed used by randomization functions.  Can be explicitly
--- initialized to capture a certain \"random\" variation.
---
--- This is rounded to an integer, so only integral values make sense.
-v_seed :: ValName
-v_seed = Symbol "seed"
-
--- | Sampling rate used by signal interpolators.
-v_srate :: ValName
-v_srate = Symbol "srate"
-
--- | Kind of tuning for the scale in scope.  The meaning is dependent on the
--- scale, e.g. ngumbang ngisep for Balinese scales.
-v_tuning :: ValName
-v_tuning = Symbol "tuning"
-
--- | Separate notes into different voices.  This is used by integrate to put
--- them on their own tracks, and by the lilypond backend to split them into
--- their own voices.  Should be an integer from 1 to 4.
-v_voice :: ValName
-v_voice = Symbol "v"
 
 
 -- * expressions

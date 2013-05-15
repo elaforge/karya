@@ -24,6 +24,7 @@ import qualified Derive.Call.All as Call.All
 import qualified Derive.Call.Block as Call.Block
 import qualified Derive.Derive as Derive
 import qualified Derive.Deriver.Internal as Internal
+import qualified Derive.Environ as Environ
 import qualified Derive.LEvent as LEvent
 import qualified Derive.PitchSignal as PitchSignal
 import qualified Derive.Scale as Scale
@@ -256,7 +257,7 @@ set_default_instrument state =
         }
 
 with_key :: Text -> Derive.Deriver a -> Derive.Deriver a
-with_key key = Derive.with_val TrackLang.v_key key
+with_key key = Derive.with_val Environ.key key
 
 -- | Set UI state defaults that every derivation should have.
 set_defaults :: (State.M m) => m ()
@@ -274,10 +275,10 @@ default_scope = Call.All.scope
 default_environ :: TrackLang.Environ
 default_environ = TrackLang.make_environ
     -- tests are easier to write and read with integral interpolation
-    [ (TrackLang.v_srate, TrackLang.num 1)
-    , (TrackLang.v_scale, TrackLang.to_val Twelve.scale_id)
-    , (TrackLang.v_attributes, TrackLang.VAttributes Score.no_attrs)
-    , (TrackLang.v_key, TrackLang.to_val ("c-maj" :: Text))
+    [ (Environ.srate, TrackLang.num 1)
+    , (Environ.scale, TrackLang.to_val Twelve.scale_id)
+    , (Environ.attributes, TrackLang.VAttributes Score.no_attrs)
+    , (Environ.key, TrackLang.to_val ("c-maj" :: Text))
     ]
 
 -- ** extract
@@ -442,7 +443,7 @@ c_note :: ScoreTime -> ScoreTime -> Derive.EventDeriver
 c_note s_start dur = do
     start <- Derive.real s_start
     end <- Derive.real (s_start + dur)
-    inst <- Derive.get_val TrackLang.v_instrument
+    inst <- Derive.get_val Environ.instrument
     environ <- Internal.get_dynamic Derive.state_environ
     st <- Derive.gets Derive.state_dynamic
     let controls = Derive.state_controls st

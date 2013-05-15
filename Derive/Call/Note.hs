@@ -36,6 +36,7 @@ import qualified Derive.Call.Tags as Tags
 import qualified Derive.Call.Util as Util
 import qualified Derive.Derive as Derive
 import qualified Derive.Deriver.Internal as Internal
+import qualified Derive.Environ as Environ
 import qualified Derive.LEvent as LEvent
 import qualified Derive.PitchSignal as PitchSignal
 import qualified Derive.Score as Score
@@ -155,10 +156,10 @@ default_note config args = do
     -- What this really means is that the sounding duration of the note depends
     -- on the next one, which should be sorted out later by post processing.
     inst <- fromMaybe Score.empty_inst <$>
-        Derive.lookup_val TrackLang.v_instrument
+        Derive.lookup_val Environ.instrument
     environ <- Internal.get_dynamic Derive.state_environ
     let attrs = either (const Score.no_attrs) id $
-            TrackLang.get_val TrackLang.v_attributes environ
+            TrackLang.get_val Environ.attributes environ
     st <- Derive.gets Derive.state_dynamic
     let controls = trimmed_controls start real_next (Derive.state_controls st)
         pitch_sig = trimmed_pitch start real_next (Derive.state_pitch st)

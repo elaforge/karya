@@ -36,7 +36,6 @@ UNSORTED
     Apparently not?  iTerms is defined in English.lproj/MainMenu.xib
     https://developer.apple.com/library/mac/#documentation/Cocoa/Conceptual/WinPanel/Tasks/UsingWindowsMenu.html
     But it doesn't say how to add the Window menu.
-  - keys to move focus?
 
   - update shakefile to use new system calls and logging levels
   - shakefile should use typesafe oracle calls, is there newtype based
@@ -106,8 +105,6 @@ UNSORTED
   - Pretty on a lot of events causes a stack overflow
     Need a reproduction.
     I should extend Util.Format so I can use it for Util.Pretty.
-  - There's a lot of duplication between State.TrackEvents, Call.TrackInfo,
-    and Derive.CallInfo.  Can I factor out the common bits?
   - if I added the cmd name before running the cmd, I could put it in the
     error msg when an exception is caught.
   - There are still some cmds without names, who are they?
@@ -491,6 +488,8 @@ plugins:
     map.
 
 cleanup:
+  - There's a lot of duplication between State.TrackEvents, Call.TrackInfo,
+    and Derive.CallInfo.  Can I factor out the common bits?
   - Update.BlockSkeleton sets Block.Status, and so does Update.BlockTrack.  If
     I merge status update into skeleton updates I can take Status out of
     Block.DisplayTrack.

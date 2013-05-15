@@ -19,6 +19,7 @@ import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 
 import qualified Derive.Attrs as Attrs
+import qualified Derive.Environ as Environ
 import qualified Derive.Scale.Theory as Theory
 import qualified Derive.Scale.Twelve as Twelve
 import qualified Derive.Score as Score
@@ -574,7 +575,7 @@ throw msg = do
     Error.throwError $ Pretty.pretty now <> ": " <> msg
 
 lookup_key :: Event -> ConvertM Key
-lookup_key = lookup_val TrackLang.v_key parse_key default_key
+lookup_key = lookup_val Environ.key parse_key default_key
 
 default_key :: Key
 default_key = Key "c" "major"

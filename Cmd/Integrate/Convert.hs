@@ -12,6 +12,7 @@ import qualified Ui.Event as Event
 import qualified Ui.State as State
 import qualified Cmd.Cmd as Cmd
 import qualified Derive.Derive as Derive
+import qualified Derive.Environ as Environ
 import qualified Derive.LEvent as LEvent
 import qualified Derive.PitchSignal as PitchSignal
 import qualified Derive.Score as Score
@@ -101,7 +102,7 @@ split_overlapping events = track : split_overlapping rest
 
 event_voice :: Score.Event -> Int
 event_voice =
-    fromMaybe 0 . TrackLang.maybe_val TrackLang.v_voice . Score.event_environ
+    fromMaybe 0 . TrackLang.maybe_val Environ.voice . Score.event_environ
 
 track_of :: Score.Event -> Maybe TrackId
 track_of = Seq.head . mapMaybe Stack.track_of . Stack.innermost

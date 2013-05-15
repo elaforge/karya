@@ -1,5 +1,6 @@
 module Perform.Lilypond.Constants where
 import Util.Control
+import qualified Derive.Environ as Environ
 import qualified Derive.Score as Score
 import qualified Derive.TrackLang as TrackLang
 
@@ -15,7 +16,7 @@ v_hand = TrackLang.Symbol "hand"
 
 -- | Number: should be an integer from 1 to 4.
 v_voice :: TrackLang.ValName
-v_voice = TrackLang.v_voice
+v_voice = Environ.voice
 
 -- * code fragments
 

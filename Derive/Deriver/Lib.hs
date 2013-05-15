@@ -43,6 +43,7 @@ import qualified Util.Seq as Seq
 import qualified Ui.Track as Track
 import qualified Derive.Deriver.Internal as Internal
 import Derive.Deriver.Monad
+import qualified Derive.Environ as Environ
 import qualified Derive.LEvent as LEvent
 import qualified Derive.PitchSignal as PitchSignal
 import qualified Derive.Score as Score
@@ -105,10 +106,10 @@ extract_result (result, state, logs) = Result
 with_initial_scope :: TrackLang.Environ -> Deriver d -> Deriver d
 with_initial_scope env deriver = set_inst (set_scale deriver)
     where
-    set_inst = case TrackLang.get_val TrackLang.v_instrument env of
+    set_inst = case TrackLang.get_val Environ.instrument env of
         Right inst -> with_instrument inst
         _ -> id
-    set_scale = case TrackLang.get_val TrackLang.v_scale env of
+    set_scale = case TrackLang.get_val Environ.scale env of
         Right scale_id -> \deriver -> do
             scale <- get_scale scale_id
             with_scale scale deriver
@@ -182,10 +183,10 @@ lookup_lilypond_config = gets (state_lilypond . state_constant)
 with_val :: (TrackLang.Typecheck val) => TrackLang.ValName -> val
     -> Deriver a -> Deriver a
 with_val name val deriver
-    | name == TrackLang.v_scale, Just scale_id <- TrackLang.from_val v = do
+    | name == Environ.scale, Just scale_id <- TrackLang.from_val v = do
         scale <- get_scale scale_id
         with_scale scale deriver
-    | name == TrackLang.v_instrument, Just inst <- TrackLang.from_val v =
+    | name == Environ.instrument, Just inst <- TrackLang.from_val v =
         with_instrument inst deriver
     | otherwise = with_val_raw name val deriver
     where v = TrackLang.to_val val
@@ -206,7 +207,7 @@ modify_val name modify = Internal.localm $ \st -> do
         TrackLang.insert_val name (TrackLang.to_val val) env }
 
 with_scale :: Scale -> Deriver d -> Deriver d
-with_scale scale = with_val_raw TrackLang.v_scale (scale_id scale)
+with_scale scale = with_val_raw Environ.scale (scale_id scale)
     . with_scope (\scope -> scope { scope_val = set (scope_val scope) })
     where
     set stype = stype { stype_scale = [scale_to_lookup scale] }
@@ -225,7 +226,7 @@ with_instrument inst deriver = do
     let maybe_inst = lookup_inst inst
         calls = maybe (InstrumentCalls [] []) inst_calls maybe_inst
         environ = maybe mempty inst_environ maybe_inst
-    with_val_raw TrackLang.v_instrument inst $
+    with_val_raw Environ.instrument inst $
         with_scope (set_scope calls) $ with_environ environ deriver
     where
     -- Replace the calls in the instrument scope type.

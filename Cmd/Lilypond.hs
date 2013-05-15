@@ -25,6 +25,7 @@ import qualified Derive.Call.Block as Call.Block
 import qualified Derive.Call.Note as Note
 import qualified Derive.Derive as Derive
 import qualified Derive.Deriver.Scope as Scope
+import qualified Derive.Environ as Environ
 import qualified Derive.LEvent as LEvent
 import qualified Derive.Scale.Twelve as Twelve
 import qualified Derive.Score as Score
@@ -56,7 +57,7 @@ lookup_key perf =
     fromMaybe Twelve.default_key $ msum $ map (lookup . Derive.state_environ) $
         Map.elems (Msg.perf_track_dynamic perf)
     where
-    lookup environ = case TrackLang.get_val TrackLang.v_key environ of
+    lookup environ = case TrackLang.get_val Environ.key environ of
         Right key -> Just (Pitch.Key key)
         Left _ -> Nothing
 

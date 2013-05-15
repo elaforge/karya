@@ -27,7 +27,9 @@ import qualified Midi.Midi as Midi
 import qualified Cmd.Cmd as Cmd
 import Cmd.Cmd (SynthDesc)
 import qualified Derive.Derive as Derive
+import qualified Derive.Environ as Environ
 import qualified Derive.TrackLang as TrackLang
+
 import qualified Perform.Midi.Control as Control
 import qualified Perform.Midi.Instrument as Instrument
 import qualified Perform.Pitch as Pitch
@@ -123,7 +125,7 @@ environ name val = mempty
 
 -- | The instrument will set the given scale when it comes into scope.
 default_scale :: Pitch.ScaleId -> Code
-default_scale = environ TrackLang.v_scale
+default_scale = environ Environ.scale
 
 -- * making patches
 

@@ -19,12 +19,12 @@ import Derive.Attrs
 import qualified Derive.Call.Make as Make
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Derive as Derive
+import qualified Derive.Environ as Environ
 import qualified Derive.Instrument.Util as DUtil
 import qualified Derive.LEvent as LEvent
 import qualified Derive.Scale.Wayang as Wayang
 import qualified Derive.Score as Score
 import qualified Derive.Sig as Sig
-import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.Midi.Instrument as Instrument
 import qualified App.MidiInst as MidiInst
@@ -53,8 +53,8 @@ patches = concat [hang, wayang, kendang_patches]
             with_tuning "isep" <> wayang_code)
         ]
     with_tuning tuning =
-        MidiInst.environ TrackLang.v_scale Wayang.scale_id
-        <> MidiInst.environ TrackLang.v_tuning (tuning :: Text)
+        MidiInst.environ Environ.scale Wayang.scale_id
+        <> MidiInst.environ Environ.tuning (tuning :: Text)
     inst name ks = Instrument.set_keyswitches ks $
         Instrument.patch $ Instrument.instrument name [] pb_range
 

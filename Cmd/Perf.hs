@@ -20,6 +20,7 @@ import qualified Cmd.Cmd as Cmd
 import qualified Cmd.PlayUtil as PlayUtil
 import qualified Derive.Call as Call
 import qualified Derive.Derive as Derive
+import qualified Derive.Environ as Environ
 import qualified Derive.PitchSignal as PitchSignal
 import qualified Derive.Scale as Scale
 import qualified Derive.Score as Score
@@ -155,7 +156,7 @@ get_nn_at track_id ps = do
 get_scale_id :: (Cmd.M m) => BlockId -> Maybe TrackId -> m Pitch.ScaleId
 get_scale_id block_id maybe_track_id = first_just
     [ maybe (return Nothing) (scale_from_titles block_id) maybe_track_id
-    , lookup_val block_id maybe_track_id TrackLang.v_scale
+    , lookup_val block_id maybe_track_id Environ.scale
     ]
     (State.get_default State.default_scale)
 
@@ -184,13 +185,13 @@ scale_from_titles block_id track_id = do
 get_key :: (Cmd.M m) => BlockId -> Maybe TrackId -> m (Maybe Pitch.Key)
 get_key block_id maybe_track_id =
     maybe (State.get_default State.default_key) (return . Just . Pitch.Key)
-        =<< lookup_val block_id maybe_track_id TrackLang.v_key
+        =<< lookup_val block_id maybe_track_id Environ.key
 
 lookup_instrument :: (Cmd.M m) => BlockId -> Maybe TrackId
     -> m (Maybe Score.Instrument)
 lookup_instrument block_id maybe_track_id =
     maybe (State.get_default State.default_instrument) return
-        =<< lookup_val block_id maybe_track_id TrackLang.v_instrument
+        =<< lookup_val block_id maybe_track_id Environ.instrument
 
 -- | Lookup value from the deriver's Environ at the given block and (possibly)
 -- track.  See 'Derive.TrackDynamic' for details on the limitations here.

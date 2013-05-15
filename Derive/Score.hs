@@ -19,10 +19,11 @@ import qualified Util.Pretty as Pretty
 import qualified Ui.ScoreTime as ScoreTime
 import qualified Derive.BaseTypes as BaseTypes
 import Derive.BaseTypes
-       (Instrument(..), Control(..), Type(..), Typed(..), untyped,
-        merge_typed, type_to_code, code_to_type, TypedSignal, TypedVal,
-        Attributes, Attribute, attr, attrs, set_to_attrs, attrs_diff,
-        attrs_contain, attrs_remove, attrs_set, attrs_list, no_attrs)
+       (Instrument(..), Control(..), Type(..), Typed(..), untyped, merge_typed,
+        type_to_code, code_to_type, TypedSignal, TypedVal, Attributes,
+        Attribute, attr, attrs, set_to_attrs, attrs_diff, attrs_contain,
+        attrs_remove, attrs_set, attrs_list, no_attrs)
+import qualified Derive.Environ as Environ
 import qualified Derive.PitchSignal as PitchSignal
 import qualified Derive.Stack as Stack
 
@@ -77,7 +78,7 @@ has_attribute attr = (`attrs_contain` attr) . event_attributes
 
 environ_attributes :: BaseTypes.Environ -> Attributes
 environ_attributes environ =
-    case BaseTypes.lookup_val BaseTypes.v_attributes environ of
+    case BaseTypes.lookup_val Environ.attributes environ of
         Just (BaseTypes.VAttributes attrs) -> attrs
         _ -> mempty
 
@@ -86,7 +87,7 @@ modify_environ f event = event { event_environ = f (event_environ event) }
 
 modify_attributes :: (Attributes -> Attributes) -> Event -> Event
 modify_attributes modify = modify_environ $ \env ->
-    BaseTypes.insert_val BaseTypes.v_attributes
+    BaseTypes.insert_val Environ.attributes
         (BaseTypes.VAttributes (modify (environ_attributes env))) env
 
 remove_attributes :: Attributes -> Event -> Event

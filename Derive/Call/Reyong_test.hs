@@ -10,6 +10,7 @@ import qualified Cmd.CmdTest as CmdTest
 import qualified Cmd.Integrate as Integrate
 import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
+import qualified Derive.Environ as Environ
 import qualified Derive.Score as Score
 import qualified Derive.TrackLang as TrackLang
 
@@ -88,7 +89,7 @@ test_realize = do
         ("2121 2232 3232", [])
 
 event_voice :: Score.Event -> Int
-event_voice = fromMaybe 0 . TrackLang.maybe_val TrackLang.v_voice
+event_voice = fromMaybe 0 . TrackLang.maybe_val Environ.voice
     . Score.event_environ
 
 mktracks :: Bool -> [(ScoreTime, ScoreTime, String, String)]
