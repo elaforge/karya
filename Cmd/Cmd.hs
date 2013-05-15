@@ -536,7 +536,7 @@ initial_edit_state = EditState {
     , state_record_velocity = False
     , state_time_step =
         TimeStep.time_step $ TimeStep.AbsoluteMark TimeStep.AllMarklists 0
-    , state_note_duration = TimeStep.time_step TimeStep.BlockEnd
+    , state_note_duration = TimeStep.time_step TimeStep.BlockEdge
     , state_note_direction = TimeStep.Advance
     , state_note_text = ""
     -- This should put middle C in the center of the kbd entry keys.

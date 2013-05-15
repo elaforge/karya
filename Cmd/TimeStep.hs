@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP #-}
 {- | A TimeStep is an abstract description of a ScoreTime interval.
 
     It's used to advance a cursor, snap a selection, set a note duration, etc.
@@ -15,17 +16,17 @@ module Cmd.TimeStep (
     -- * step
     , snap
     , step_from, rewind, advance, direction
-    , get_points
 
-    -- * for testing
-    , step_from_points, find_before_equal
+#ifdef TESTING
+    , get_points_from, ascending_points, descending_points
+    , find_before_equal
+#endif
 ) where
-import qualified Data.List as List
+import qualified Data.List.Ordered as Ordered
 import qualified Data.Map as Map
 import qualified Text.Parsec as P
 
 import Util.Control
-import qualified Util.Num as Num
 import qualified Util.Parse as Parse
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
@@ -68,14 +69,14 @@ data Step =
     -- | Until next matching mark + offset from previous mark.
     | RelativeMark MarklistMatch Ruler.Rank
     -- | Until the end or beginning of the block.
-    | BlockEnd
+    | BlockEdge
     -- | Until event edges.  EventStart is after EventEnd if the duration is
     -- negative.
     | EventStart Tracks
     | EventEnd Tracks
     deriving (Eq, Show, Read)
 
--- | Events of which tracks the event time step should snap to.
+-- | Events of which tracks the event time step should use.
 data Tracks = CurrentTrack | AllTracks | TrackNums [TrackNum]
     deriving (Eq, Show, Read)
 
@@ -96,7 +97,7 @@ show_time_step (TimeStep steps) = Seq.join ";" (map show_step steps)
         Duration pos -> "d:" ++ Pretty.pretty pos
         RelativeMark mlists rank ->
             "r:" ++ show_marklists mlists ++ show_rank rank
-        BlockEnd -> "END"
+        BlockEdge -> "END"
         EventStart tracks -> "start" ++ show_tracks tracks
         EventEnd tracks -> "end" ++ show_tracks tracks
         AbsoluteMark mlists rank -> show_marklists mlists ++ show_rank rank
@@ -117,7 +118,7 @@ parse_time_step = Parse.parse p_time_step
         [ str "d:" *> (Duration <$>
             (ScoreTime.double <$> (Parse.p_float <* P.char ScoreTime.suffix)))
         , str "r:" *> (RelativeMark <$> p_marklists <*> parse_rank)
-        , str "END" *> return BlockEnd
+        , str "END" *> return BlockEdge
         , str "start" *> (EventStart <$> p_tracks)
         , str "end" *> (EventEnd <$> p_tracks)
         , AbsoluteMark <$> p_marklists <*> parse_rank
@@ -148,148 +149,26 @@ show_direction Rewind = "-"
 
 -- | Given a pos, the point on a timestep at or previous to that pos.  If
 -- there was no snap point, the pos is return unchanged.
---
--- To snap RelativeMark I need the last sel pos.
 snap :: (State.M m) => TimeStep -> BlockId -> TrackNum
-    -> Maybe ScoreTime -> ScoreTime -> m ScoreTime
-snap step block_id tracknum prev_pos pos = do
-    -- 'pos' is the pos to snap, prev_pos is what we want to snap to
-    maybe_points <- get_points step block_id tracknum (fromMaybe pos prev_pos)
-    return $ fromMaybe pos $ step_from_points 0 pos =<< maybe_points
-
--- * step
-
--- | Step in the given direction from the given position, or Nothing if
--- the step is out of range.
-step_from :: (State.M m) => Int -> TimeStep -> BlockId -> TrackNum
-    -> ScoreTime -> m (Maybe ScoreTime)
-step_from n step block_id tracknum pos = do
-    maybe_points <- get_points step block_id tracknum pos
-    return $ step_from_points n pos =<< maybe_points
-
-rewind :: (State.M m) => TimeStep -> BlockId -> TrackNum
-    -> ScoreTime -> m (Maybe ScoreTime)
-rewind = step_from (-1)
-
-advance :: (State.M m) => TimeStep -> BlockId -> TrackNum
-    -> ScoreTime -> m (Maybe ScoreTime)
-advance = step_from 1
-
--- | TODO remove this along with Direction?
-direction :: Direction -> Int
-direction Advance = 1
-direction Rewind = -1
-
--- * implementation
-
--- | Step @n@ times from the given time.  Positive is forward, negative is
--- backward.  0 snaps to the nearest <= pos, or the next one if there is no
--- previous.
-step_from_points :: Int -> ScoreTime -> [ScoreTime] -> Maybe ScoreTime
-step_from_points n pos points = go =<< find_around pos points
+    -> Maybe TrackTime -- ^ Last sel pos, needed to snap relative steps like
+    -- 'Duration' and 'RelativeMark'.
+    -> TrackTime -> m TrackTime
+snap tstep block_id tracknum prev_pos pos =
+    -- I only need to step from prev_pos if there's a RelativeMark in the tstep.
+    -- Otherwise, I can be a bit more efficient and snap pos directly.
+    fromMaybe pos <$> snap_from (if any is_relative (to_list tstep)
+        then fromMaybe pos prev_pos else pos)
     where
-    go (pre, post)
-        | n < 0 = Seq.at pre (abs n - 1)
-        | n == 0 = case post of
-            (next : _) | pos == next -> Just pos
-            _ -> Seq.head (if null pre then post else pre)
-        | otherwise = case post of
-            (next : rest) | pos == next -> Seq.at rest (n - 1)
-            _ -> Seq.at post (n - 1)
-
-find_around :: (Ord a) => a -> [a] -> Maybe ([a], [a])
-find_around pos = List.find close . Seq.zipper []
-    where
-    close (_, []) = True
-    close (_, next : _) | next >= pos = True
-    close _ = False
-
-get_events :: (State.M m) => BlockId -> TrackNum -> m [Event.Event]
-get_events block_id tracknum = do
-    maybe_track_id <- State.event_track_at block_id tracknum
-    case maybe_track_id of
-        Just track_id -> Events.ascending . Track.track_events <$>
-            State.get_track track_id
-        Nothing -> return []
-
--- ** get_points
-
-get_points :: (State.M m) =>
-    TimeStep -> BlockId -> TrackNum -> ScoreTime -> m (Maybe [ScoreTime])
-get_points time_step@(TimeStep steps) block_id tracknum pos = do
-    all_tracknums <- State.track_count block_id
-    track_events <- mapM (get_events block_id) [0..all_tracknums-1]
-    ruler <- if wants_ruler then get_ruler else return (Just Map.empty)
-    return $ case ruler of
-        Nothing -> Nothing
-        Just marklists -> Just $
-            all_points marklists tracknum track_events pos time_step
-    where
-    wants_ruler = List.foldl' (||) False $ flip map steps $ \s -> case s of
-        Duration {} -> True
-        AbsoluteMark {} -> True
-        RelativeMark {} -> True
-        BlockEnd -> True
-        _ -> False
-    get_ruler = do
-        ruler_id <- fromMaybe State.no_ruler <$>
-            State.ruler_track_at block_id tracknum
-        Just . Ruler.ruler_marklists <$> State.get_ruler ruler_id
-
--- | The approach is to enumerate all possible matches from the beginning of
--- the block and then pick the right one.  This is inefficient because it
--- involves a linear search, but linear search is pretty fast and I expect
--- rulers to not be more than 1000 elements.  But maybe calculating the
--- lists and generating the garbage is a problem when dragging.
---
--- If it's a problem I can cache it.
---
--- This relies on 'get_points' to give it the proper values.
-all_points :: Ruler.Marklists -> TrackNum -> [[Event.Event]] -> ScoreTime
-    -> TimeStep -> [ScoreTime]
-all_points marklists cur events pos (TimeStep steps) = Seq.drop_dups id $
-    Seq.merge_lists id $ map (step_points marklists cur events pos) steps
-
-step_points :: Ruler.Marklists -> TrackNum -> [[Event.Event]]
-    -> ScoreTime -> Step -> [ScoreTime]
-step_points marklists cur events pos step = case step of
-        Duration incr -> Seq.range (Num.fmod pos incr) end incr
-        AbsoluteMark names matcher -> matches names matcher
-        RelativeMark names matcher -> shift (matches names matcher)
-        BlockEnd -> [0, end]
-        EventStart tracks -> Seq.merge_lists id $
-            map (map Event.start) (track_events tracks)
-        EventEnd tracks -> Seq.merge_lists id $ map (map Event.end)
-            (track_events tracks)
-    where
-    track_events AllTracks = events
-    track_events CurrentTrack = maybe [] (:[]) (Seq.at events cur)
-    track_events (TrackNums tracknums) = mapMaybe (Seq.at events) tracknums
-    end = fromMaybe 0 $ Seq.maximum $
-        map Ruler.marklist_end (Map.elems marklists)
-    matches names matcher = match_all matcher (get_marks marklists names)
-    shift points = case find_before_equal pos points of
-        Just p | p < pos -> map (+ (pos-p)) points
-        _ -> points
-
-match_all :: Ruler.Rank -> [(ScoreTime, Ruler.Mark)] -> [ScoreTime]
-match_all rank = map fst .  filter ((<=rank) . Ruler.mark_rank . snd)
-
--- | Get all marks from the marklists that match the proper names and
--- merge their marks into one list.
-get_marks :: Ruler.Marklists -> MarklistMatch -> [(ScoreTime, Ruler.Mark)]
-get_marks marklists names =
-    Seq.merge_lists fst $ map (Ruler.ascending 0) matching
-    where
-    matching = case names of
-        AllMarklists -> Map.elems marklists
-        NamedMarklists names -> mapMaybe (flip Map.lookup marklists) names
-
--- * seq utils
-
--- These could be moved to Util.Seq if I they become more generally useful.
-
--- How awkward!  There must be a more concise way to write these.
+    snap_from p
+        | pos > p = -- Advance p until one before pos.
+            find_before_equal pos <$>
+                get_points_from Advance block_id tracknum p tstep
+        | otherwise = -- Rewind p until before pos.
+            Seq.head . dropWhile (>pos) <$>
+                get_points_from Rewind block_id tracknum p tstep
+    is_relative (Duration {}) = True
+    is_relative (RelativeMark {}) = True
+    is_relative _ = False
 
 -- | Find the first element from a list before or equal to the given element.
 find_before_equal :: (Ord a) => a -> [a] -> Maybe a
@@ -299,3 +178,160 @@ find_before_equal p (x:xs)
     | otherwise = case xs of
         next : _ | p >= next -> find_before_equal p xs
         _ -> Just x
+
+-- * step
+
+rewind :: (State.M m) => TimeStep -> BlockId -> TrackNum -> TrackTime
+    -> m (Maybe TrackTime)
+rewind = step_from (-1)
+
+advance :: (State.M m) => TimeStep -> BlockId -> TrackNum -> TrackTime
+    -> m (Maybe TrackTime)
+advance = step_from 1
+
+direction :: Direction -> Int
+direction Advance = 1
+direction Rewind = -1
+
+-- | Step in the given direction from the given position, or Nothing if
+-- there is no step from that point.  This may return a point past the end of
+-- the ruler, or before 0, so if the caller wants to step the selection it
+-- should make sure to limit the value.  The reason is that this is also used
+-- to get e.g. the duration of a whole note at a given point, and that should
+-- work even if the given point is near the end of the ruler.
+step_from :: (State.M m) => Int -> TimeStep -> BlockId -> TrackNum
+    -> TrackTime -> m (Maybe TrackTime)
+step_from steps tstep block_id tracknum start = extract <$>
+    get_points_from (if steps >= 0 then Advance else Rewind) block_id tracknum
+        start tstep
+    where
+    extract = Seq.head
+        . if steps == 0 then id else drop (abs steps - 1) . dropWhile (==start)
+
+get_points_from :: (State.M m) => Direction -> BlockId -> TrackNum -> TrackTime
+    -> TimeStep -> m [TrackTime]
+get_points_from dir block_id tracknum start tstep =
+    merge_points dir <$> mapM (get block_id tracknum start) (to_list tstep)
+    where
+    get = case dir of
+        Advance -> ascending_points
+        Rewind -> descending_points
+
+-- | Step points ascending from the given time.  Includes the start
+-- point.
+ascending_points :: (State.M m) => BlockId -> TrackNum -> TrackTime -> Step
+    -> m [TrackTime]
+ascending_points block_id tracknum start step =
+    dropWhile (<start) <$> case step of
+        Duration t -> do
+            end <- State.block_ruler_end block_id
+            return $ Seq.range start end t
+        AbsoluteMark match rank ->
+            get_marks Advance False match rank start <$>
+                get_ruler block_id tracknum
+        RelativeMark match rank ->
+            shift . get_marks Advance True match rank start <$>
+                get_ruler block_id tracknum
+        BlockEdge -> do
+            end <- State.block_ruler_end block_id
+            return [0, end]
+        EventStart tracks ->
+            track_events Advance True block_id tracknum start tracks
+        EventEnd tracks ->
+            track_events Advance False block_id tracknum start tracks
+    where
+    shift [] = []
+    shift (p:ps)
+        | p == start = p : ps
+        | otherwise = map (+ (start-p)) (p:ps)
+
+-- | Step points descending from the given time.  Includes the start
+-- point.
+descending_points :: (State.M m) => BlockId -> TrackNum -> TrackTime -> Step
+    -> m [TrackTime]
+descending_points block_id tracknum start step =
+    dropWhile (>start) <$> case step of
+        Duration t -> return $ Seq.range start 0 (-t)
+        AbsoluteMark match rank ->
+            get_marks Rewind True match rank start <$>
+                get_ruler block_id tracknum
+        RelativeMark match rank ->
+            shift . get_marks Rewind True match rank start <$>
+                get_ruler block_id tracknum
+        BlockEdge -> do
+            end <- State.block_ruler_end block_id
+            return [end, 0]
+        EventStart tracks ->
+            track_events Rewind True block_id tracknum start tracks
+        EventEnd tracks ->
+            track_events Rewind False block_id tracknum start tracks
+    where
+    shift [] = []
+    shift (p:ps)
+        | p == start = p : ps
+        | otherwise = map (+ (start-p)) (p:ps)
+
+track_events :: (State.M m) => Direction -> Bool
+    -> BlockId -> TrackNum -> TrackTime -> Tracks -> m [TrackTime]
+track_events dir event_start block_id tracknum start tracks = case tracks of
+    AllTracks -> do
+        track_ids <- State.track_ids_of block_id
+        merge_points dir <$> mapM get_times track_ids
+    CurrentTrack -> do
+        track_id <- State.get_event_track_at block_id tracknum
+        get_times track_id
+    TrackNums tracknums -> do
+        track_ids <- mapM (State.get_event_track_at block_id) tracknums
+        merge_points dir <$> mapM get_times track_ids
+    where
+    event_time = if event_start then Event.start else Event.end
+    get_times = fmap (map event_time . get_events . Track.track_events)
+        . State.get_track
+    get_events = case dir of
+        Advance -> if event_start then Events.at_after start
+            else snd . Events.split_at_before start
+        Rewind -> at_before start
+    at_before p events = case post of
+            e : _ | Event.start e == p -> e : pre
+            _ -> pre
+        where (pre, post) = Events.split p events
+
+merge_points :: Direction -> [[TrackTime]] -> [TrackTime]
+merge_points Advance = Seq.drop_dups id . Seq.merge_lists id
+merge_points Rewind = Seq.drop_dups id . merge_desc
+
+merge_desc :: [[TrackTime]] -> [TrackTime]
+merge_desc = foldr (Ordered.mergeBy (flip compare)) []
+
+-- | Get all marks from the marklists that match the proper names and
+-- merge their marks into one list.
+get_marks :: Direction -> Bool -> MarklistMatch -> Ruler.Rank -> TrackTime
+    -> Ruler.Marklists -> [TrackTime]
+get_marks dir minus1 match rank start marklists =
+    merge_points dir $ map extract matching
+    where
+    extract = case dir of
+        Advance
+            | minus1 -> ascending1
+            | otherwise -> with_rank . Ruler.ascending start
+        Rewind
+            | minus1 -> descending1
+            | otherwise -> with_rank . Ruler.descending start
+    matching = case match of
+        AllMarklists -> Map.elems marklists
+        NamedMarklists names -> mapMaybe (flip Map.lookup marklists) names
+    ascending1 mlist
+        | Just p <- Seq.head marks, p == start = marks
+        | otherwise = maybe marks (:marks) $
+            Seq.head (with_rank $ Ruler.descending start mlist)
+        where marks = with_rank $ Ruler.ascending start mlist
+    descending1 mlist = maybe marks (:marks) $
+        Seq.head (with_rank $ Ruler.ascending start mlist)
+        where marks = with_rank $ Ruler.descending start mlist
+    with_rank = map fst . filter ((<=rank) . Ruler.mark_rank . snd)
+
+get_ruler :: (State.M m) => BlockId -> TrackNum -> m Ruler.Marklists
+get_ruler block_id tracknum = do
+    ruler_id <- fromMaybe State.no_ruler <$>
+        State.ruler_track_at block_id tracknum
+    Ruler.ruler_marklists <$> State.get_ruler ruler_id

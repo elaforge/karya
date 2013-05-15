@@ -322,9 +322,12 @@ step_from :: (Cmd.M m) => TrackNum -> TrackTime -> TimeStep.Direction
     -> TimeStep.TimeStep -> m TrackTime
 step_from tracknum pos direction step = do
     block_id <- Cmd.get_focused_block
+    end <- State.block_ruler_end block_id
     next <- TimeStep.step_from (TimeStep.direction direction) step block_id
         tracknum pos
-    return $ fromMaybe pos next
+    return $ case next of
+        Just next | 0 <= next && next <= end -> next
+        _ -> pos
 
 -- | Get the ruler that applies to the given track.  Search left for the
 -- closest ruler that has all the given marklist names.  This includes ruler

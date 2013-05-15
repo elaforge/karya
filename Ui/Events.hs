@@ -34,7 +34,7 @@ module Ui.Events (
     , around
     -- *** List [Event]
     , split
-    , at_after, after
+    , at_after, after, before
     , split_at_before
 
 #ifdef TESTING
@@ -217,13 +217,17 @@ split pos (Events events) = (to_desc_list pre, to_asc_list post)
 
 -- | Events at or after @pos@.
 at_after :: ScoreTime -> Events -> [Event.Event]
-at_after pos events = snd (split pos events)
+at_after pos = snd . split pos
 
--- | Events after @pos@.
+-- | Events strictly after @pos@.
 after :: ScoreTime -> Events -> [Event.Event]
 after pos events = case at_after pos events of
     next : rest | Event.start next == pos -> rest
     events -> events
+
+-- | Events before @pos@.
+before :: ScoreTime -> Events -> [Event.Event]
+before pos = fst . split pos
 
 -- | This is like 'split', but if there isn't an event exactly at the pos and
 -- the previous event is positive (i.e. has a chance of overlapping), include

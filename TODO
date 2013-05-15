@@ -10,7 +10,8 @@ UNSORTED
     But I think I don't need that.
     * Make ruler into Vector.
     * Remove TimeStep's skip.
-    - Remove all_points, use marklist directly.
+    * Remove all_points, use marklist directly.
+    * fix snap
 
   * Instead of instrument aliases just being aliases, they should make a new
     instrument whose lookup gets the aliased instrument.  That way I can
