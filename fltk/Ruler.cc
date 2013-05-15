@@ -181,7 +181,8 @@ OverlayRuler::damage_range(ScoreTime start, ScoreTime end)
         // is no longer a point the extra hanging bit will be cleared properly.
         // The problem doesn't occur above the selection because it hangs down,
         // not up.
-        r.h += selection_point_size;
+        // +1, otherwise retina displays get a hanging pixel.
+        r.h += selection_point_size + 1;
         if (start == end) {
             r.y -= selection_point_size;
             r.h += selection_point_size;
