@@ -2,12 +2,12 @@
 module Cmd.Lilypond where
 import qualified Data.Char as Char
 import qualified Data.Map as Map
-import qualified Data.Text.IO as Text.IO
+import qualified Data.Text.Lazy as Lazy
+import qualified Data.Text.Lazy.IO as Lazy.IO
 
 import qualified System.Directory as Directory
 import qualified System.FilePath as FilePath
 import System.FilePath ((</>))
-import qualified System.IO as IO
 import qualified System.Process as Process
 
 import Util.Control
@@ -100,11 +100,10 @@ compile_lys filename config title movements = do
     let (result, logs) = make_lys config title movements
     (flip (,) logs) <$> case result of
         Left err -> return $ Just err
-        Right ly -> do
+        Right output -> do
             Directory.createDirectoryIfMissing True
                 (FilePath.takeDirectory filename)
-            IO.withFile filename IO.WriteMode $ \hdl ->
-                mapM_ (Text.IO.hPutStr hdl) ly
+            Lazy.IO.writeFile filename output
             Util.Process.logged
                 (Process.proc "lilypond"
                     ["-o", FilePath.dropExtension filename, filename])
@@ -114,7 +113,7 @@ compile_lys filename config title movements = do
             return Nothing
 
 make_lys :: Lilypond.Config -> Lilypond.Title
-    -> [(Lilypond.Title, [Score.Event])] -> (Either String [Text], [Log.Msg])
+    -> [(Lilypond.Title, [Score.Event])] -> (Either String Lazy.Text, [Log.Msg])
 make_lys config title movements = (text, concat logs)
     where
     text = Lilypond.make_lys config title $

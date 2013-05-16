@@ -385,7 +385,7 @@ lilypond:
     I could have parse generate the Meter and memoize it.
   - optionally emit the lilypond to display a compound meter
   - use Util.Format in ly output
-  - try Util.LazyVector for Ly output and see if it helps
+  / try Util.LazyVector for Ly output and see if it helps
   / can I make a click on a note in the pdf highlight in the sequencer?
     Hung up on getting preview to send clicks to a program, notes in
     App/LilypondClick.hs

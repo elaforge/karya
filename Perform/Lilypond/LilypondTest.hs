@@ -1,6 +1,6 @@
 module Perform.Lilypond.LilypondTest where
 import qualified Data.List as List
-import qualified Data.Text as Text
+import qualified Data.Text.Lazy as Text.Lazy
 
 import Util.Control
 import qualified Util.Seq as Seq
@@ -233,7 +233,7 @@ derive_lilypond state deriver =
     extract (Left err) = error $ "derive_lilypond: " ++ err
 
 make_ly :: Types.Config -> [Lilypond.Event] -> String
-make_ly config events = Text.unpack $ Text.strip $ Text.concat $
+make_ly config events = Text.Lazy.unpack $
     expect_right "make_ly" $ Lilypond.make_ly config "title" events
 
 -- * extract

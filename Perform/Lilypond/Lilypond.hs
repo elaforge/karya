@@ -8,6 +8,8 @@ module Perform.Lilypond.Lilypond (
 import qualified Control.Monad.State.Strict as State
 import qualified Data.List as List
 import qualified Data.Text as Text
+import qualified Data.Text.Lazy as Lazy
+import qualified Data.Text.Lazy.Builder as Builder
 
 import Util.Control
 import qualified Util.Pretty as Pretty
@@ -47,18 +49,18 @@ paper_config =
 
 type Title = Text
 
-make_ly :: Config -> Title -> [Event] -> Either String [Text]
+make_ly :: Config -> Title -> [Event] -> Either String Lazy.Text
 make_ly config title events =
     ly_file config title <$> convert_movements config events
 
 -- | Make a score from multiple movements.
-make_lys :: Config -> Title -> [(Title, [Event])] -> Either String [Text]
+make_lys :: Config -> Title -> [(Title, [Event])] -> Either String Lazy.Text
 make_lys config title sections = fmap (ly_file config title) $
     forM sections $ \(title, events) -> do
         staves <- convert_staff_groups config 0 events
         return (title, staves)
 
-ly_file :: Config -> Title -> [Movement] -> [Text]
+ly_file :: Config -> Title -> [Movement] -> Lazy.Text
 ly_file config title movements = run_output $ do
     outputs
         [ "\\version" <+> str "2.14.2"
@@ -175,14 +177,12 @@ sort_staves inst_configs = map lookup_name . Seq.sort_on inst_key
 
 type Output a = State.State OutputState a
 
-run_output :: Output a -> [Text]
-run_output m = reverse (output_chunks state)
-    where state = State.execState m (OutputState [] 1 Nothing)
+run_output :: Output a -> Lazy.Text
+run_output m = Builder.toLazyText (output_text state)
+    where state = State.execState m (OutputState mempty 1 Nothing)
 
 data OutputState = OutputState {
-    -- | Chunks of text to write, in reverse order.  I could use
-    -- Text.Lazy.Builder, but this is simpler and performance is probably ok.
-    output_chunks :: ![Text]
+    output_text :: !Builder.Builder
     , output_bar :: !Int
     , output_last_stack :: !(Maybe Stack.UiFrame)
     } deriving (Show)
@@ -192,7 +192,7 @@ outputs = output . Text.unlines
 
 output :: Text -> Output ()
 output text = State.modify $ \state -> state
-    { output_chunks = text : output_chunks state }
+    { output_text = output_text state <> Builder.fromText text }
 
 set_bar :: Int -> Output ()
 set_bar n = State.modify $ \state -> state { output_bar = n }

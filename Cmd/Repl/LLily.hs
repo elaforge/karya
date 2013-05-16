@@ -5,6 +5,7 @@
 -- changes to a block, but it didn't seem too useful, since any useful amount
 -- of lilypond score takes quite a while to compile.
 module Cmd.Repl.LLily where
+import qualified Data.Text.Lazy as Lazy
 import qualified System.FilePath as FilePath
 import qualified System.Process as Process
 
@@ -130,7 +131,7 @@ derive :: BlockId -> Cmd.CmdL Derive.Events
 derive block_id = Derive.r_events <$> Cmd.Lilypond.derive_block block_id
 
 -- | Convert down to lilypond score.
-make_ly :: Cmd.CmdL (Either String [Text], [Log.Msg])
+make_ly :: Cmd.CmdL (Either String Lazy.Text, [Log.Msg])
 make_ly = do
     block_id <- Cmd.get_focused_block
     config <- get_config
