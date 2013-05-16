@@ -431,7 +431,6 @@ data PlayState = PlayState {
     -- new performance is needed before the old one is complete, it can be
     -- killed off.
     , state_performance_threads :: !(Map.Map BlockId Concurrent.ThreadId)
-    , state_lilypond_stack_maps :: !(Map.Map BlockId StackMap)
     -- | Some play commands can start playing from a short distance before the
     -- cursor.
     , state_play_step :: !TimeStep.TimeStep
@@ -444,18 +443,12 @@ data PlayState = PlayState {
     , state_play_multiplier :: RealTime
     } deriving (Show, Generics.Typeable)
 
--- | Map char number in a written .ly score to stack position of the generating
--- event.  Lilypond can have the generated PDF can report clicks, but I need to
--- map them back to stacks to highlight the clicked note.
-type StackMap = Map.Map Int Stack.UiFrame
-
 initial_play_state :: PlayState
 initial_play_state = PlayState
     { state_play_control = Nothing
     , state_performance = Map.empty
     , state_current_performance = Map.empty
     , state_performance_threads = Map.empty
-    , state_lilypond_stack_maps = Map.empty
     , state_play_step =
         TimeStep.time_step $ TimeStep.RelativeMark TimeStep.AllMarklists 0
     , state_step = Nothing

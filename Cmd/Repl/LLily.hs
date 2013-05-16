@@ -117,8 +117,8 @@ compile_lys title movements = do
     (result, logs) <- liftIO $
         Cmd.Lilypond.compile_lys filename config title movements
     mapM_ Log.write logs
-    _ <- Cmd.require_right ("compile_ly: "++) result
-    return ()
+    when_just result $ \err ->
+        Log.warn $ "compile_ly: " <> err
 
 title_of :: BlockId -> Lilypond.Title
 title_of = txt . Id.ident_name
@@ -136,7 +136,7 @@ make_ly = do
     config <- get_config
     (events, logs) <- LEvent.partition <$> derive block_id
     let (result, ly_logs) = Cmd.Lilypond.make_lys config "title" [("", events)]
-    return (fst <$> result, logs ++ ly_logs)
+    return (result, logs ++ ly_logs)
 
 -- | Derive focused block to ly events.
 convert :: Cmd.CmdL ([Lilypond.Event], [Log.Msg])

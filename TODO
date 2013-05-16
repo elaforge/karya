@@ -25,7 +25,6 @@ UNSORTED
     What is the point of a 0 dur note?  The score has no explicit duration,
     and the eventual performance has some arbitrary short duration.  This
     corresponds to midi instruments whose envelope ignores NoteOff.
-  - can I use the fancy Status trick to implement the symbol composer?
   Format2
     . Rethink how indent breaking happens.
       Maybe indent should be a flag on SoftBreak
@@ -113,8 +112,9 @@ UNSORTED
     env as a starting point
   * randomize any control by having the 'set' call look for the -rnd control
   some way to get symbol feedback instantly to make it easier to compose them
-    - But it calls SymbolC and I ran into a problem where linux ghci can't
+    . But it calls SymbolC and I ran into a problem where linux ghci can't
       link FFI-using functions.  Ask on glasgow-haskell-users.
+    - I can either have a separate app, or use the special Status trick.
   - test sending mtc to reapaer
     also test some mmc commands.  How does reaper support control surfaces?
   - Playback should have multiple lines when a block is derived multiple
@@ -362,7 +362,7 @@ lilypond:
     than mixed into the first one.  E.g. would have fixed grace notes.
   - one track has voice, the other doesn't, causes a "can't advance time
     backward" error
-  - remove the StackMap stuff
+  * remove the StackMap stuff
   - code events in >ly-global can be distributed to all staves
     Otherwise I have to remember to add e.g. ly-key to all staves manually.
     But ly-key is no good, I really do need to set the key.  I think I have to
@@ -386,9 +386,12 @@ lilypond:
   - optionally emit the lilypond to display a compound meter
   - use Util.Format in ly output
   - try Util.LazyVector for Ly output and see if it helps
-  + can I make a click on a note in the pdf highlight in the sequencer?
+  / can I make a click on a note in the pdf highlight in the sequencer?
     Hung up on getting preview to send clicks to a program, notes in
     App/LilypondClick.hs
+    * Seems simpler and maybe more useful to put the position in the
+      per-measure comments and let the clicking highlight in the ly file as
+      normal.
 
 negative duration / arrival beats:
   - trill or trem with negative duration lines the integral number up to the

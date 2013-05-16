@@ -158,7 +158,6 @@ hsBinaries =
     , HsBinary "extract_doc" "App/ExtractDoc.hs" ["fltk/fltk.a"] Nothing
     , plain "repl" "App/Repl.hs"
     , plain "send" "App/Send.hs"
-    , plain "lilypond_click" "App/LilypondClick.hs"
     , gui "seq" "App/Main.hs" ["fltk/fltk.a"] (Just "doc/seq.icns")
     , plain "shakefile" "Shake/Shakefile.hs"
     , plain "test_midi" "Midi/TestMidi.hs"

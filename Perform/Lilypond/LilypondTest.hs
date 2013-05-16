@@ -233,7 +233,7 @@ derive_lilypond state deriver =
     extract (Left err) = error $ "derive_lilypond: " ++ err
 
 make_ly :: Types.Config -> [Lilypond.Event] -> String
-make_ly config events = Text.unpack $ Text.strip $ Text.concat $ fst $
+make_ly config events = Text.unpack $ Text.strip $ Text.concat $
     expect_right "make_ly" $ Lilypond.make_ly config "title" events
 
 -- * extract

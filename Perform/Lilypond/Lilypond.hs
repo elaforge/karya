@@ -7,7 +7,6 @@ module Perform.Lilypond.Lilypond (
 ) where
 import qualified Control.Monad.State.Strict as State
 import qualified Data.List as List
-import qualified Data.Map as Map
 import qualified Data.Text as Text
 
 import Util.Control
@@ -48,26 +47,24 @@ paper_config =
 
 type Title = Text
 
--- | Same as 'Cmd.Cmd.StackMap', but I don't feel like importing Cmd here.
-type StackMap = Map.Map Int Stack.UiFrame
-
-make_ly :: Config -> Title -> [Event] -> Either String ([Text], StackMap)
+make_ly :: Config -> Title -> [Event] -> Either String [Text]
 make_ly config title events =
     ly_file config title <$> convert_movements config events
 
 -- | Make a score from multiple movements.
-make_lys :: Config -> Title -> [(Title, [Event])]
-    -> Either String ([Text], StackMap)
+make_lys :: Config -> Title -> [(Title, [Event])] -> Either String [Text]
 make_lys config title sections = fmap (ly_file config title) $
     forM sections $ \(title, events) -> do
         staves <- convert_staff_groups config 0 events
         return (title, staves)
 
-ly_file :: Config -> Title -> [Movement] -> ([Text], StackMap)
+ly_file :: Config -> Title -> [Movement] -> [Text]
 ly_file config title movements = run_output $ do
     outputs
         [ "\\version" <+> str "2.14.2"
         , "\\language" <+> str "english"
+        -- I'm not using it, and it increases file size a lot.
+        , "\\pointAndClickOff"
         , "\\header { title =" <+> str title <+> "tagline = \"\" }"
         , ""
         , "\\paper {"
@@ -141,9 +138,20 @@ write_voice_ly (Right ly) = write_ly ly
 write_ly :: Process.Ly -> Output ()
 write_ly ly@(Process.Barline {}) = do
     bar <- State.gets output_bar
-    output $ to_lily ly <> " % " <> Text.pack (show bar) <> "\n  "
+    stack <- State.gets output_last_stack
+    output $ to_lily ly <> " % " <> show_stack stack <> Text.pack (show bar)
+        <> "\n  "
     set_bar (bar+1)
-write_ly ly = output $ to_lily ly <> " "
+write_ly ly = do
+    output $ to_lily ly <> " "
+    case ly of
+        Process.LyNote note -> State.modify $ \state -> state
+            { output_last_stack = Process.note_stack note }
+        _ -> return ()
+
+show_stack :: Maybe Stack.UiFrame -> Text
+show_stack (Just stack) =  txt (Stack.unparse_ui_frame stack) <> "; "
+show_stack Nothing = ""
 
 write_voice :: (Process.Voice, [Process.Ly]) -> Output Int
 write_voice (voice, lys) = do
@@ -167,18 +175,16 @@ sort_staves inst_configs = map lookup_name . Seq.sort_on inst_key
 
 type Output a = State.State OutputState a
 
-run_output :: Output a -> ([Text], StackMap)
-run_output m = (reverse (output_chunks state), output_map state)
-    where state = State.execState m (OutputState [] Map.empty 1 1)
+run_output :: Output a -> [Text]
+run_output m = reverse (output_chunks state)
+    where state = State.execState m (OutputState [] 1 Nothing)
 
 data OutputState = OutputState {
     -- | Chunks of text to write, in reverse order.  I could use
     -- Text.Lazy.Builder, but this is simpler and performance is probably ok.
     output_chunks :: ![Text]
-    , output_map :: !StackMap
-    -- | Running sum of the length of the chunks.
-    , output_char_num :: !Int
     , output_bar :: !Int
+    , output_last_stack :: !(Maybe Stack.UiFrame)
     } deriving (Show)
 
 outputs :: [Text] -> Output ()
@@ -186,13 +192,7 @@ outputs = output . Text.unlines
 
 output :: Text -> Output ()
 output text = State.modify $ \state -> state
-    { output_chunks = text : output_chunks state
-    , output_char_num = Text.length text + output_char_num state
-    }
-
-record_stack :: Stack.UiFrame -> Output ()
-record_stack stack = State.modify $ \st -> st { output_map =
-    Map.insert (output_char_num st) stack (output_map st) }
+    { output_chunks = text : output_chunks state }
 
 set_bar :: Int -> Output ()
 set_bar n = State.modify $ \state -> state { output_bar = n }

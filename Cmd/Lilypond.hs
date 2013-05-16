@@ -95,13 +95,12 @@ lilypond_scope = Scope.add_override_note_lookup lookup
     note = Note.note_call "" "" (Note.default_note Note.no_duration_attributes)
 
 compile_lys :: FilePath -> Lilypond.Config -> Lilypond.Title
-    -> [(Lilypond.Title, [Score.Event])]
-    -> IO (Either String Cmd.StackMap, [Log.Msg])
+    -> [(Lilypond.Title, [Score.Event])] -> IO (Maybe String, [Log.Msg])
 compile_lys filename config title movements = do
     let (result, logs) = make_lys config title movements
     (flip (,) logs) <$> case result of
-        Left err -> return $ Left err
-        Right (ly, stack_map) -> do
+        Left err -> return $ Just err
+        Right ly -> do
             Directory.createDirectoryIfMissing True
                 (FilePath.takeDirectory filename)
             IO.withFile filename IO.WriteMode $ \hdl ->
@@ -112,11 +111,10 @@ compile_lys filename config title movements = do
                 { Process.close_fds = True }
                 -- If I don't close the fds, the subprocess inherits the open
                 -- repl socket and I can't close it until the subprocess exits!
-            return $ Right stack_map
+            return Nothing
 
 make_lys :: Lilypond.Config -> Lilypond.Title
-    -> [(Lilypond.Title, [Score.Event])]
-    -> (Either String ([Text], Cmd.StackMap), [Log.Msg])
+    -> [(Lilypond.Title, [Score.Event])] -> (Either String [Text], [Log.Msg])
 make_lys config title movements = (text, concat logs)
     where
     text = Lilypond.make_lys config title $
