@@ -78,30 +78,31 @@ show_key(int key)
 const char *
 show_event(int ev)
 {
-    const char *e = "unknown";
     switch (ev) {
-    case FL_NO_EVENT: e = "nothing"; break;
-    case FL_PUSH: e = "push"; break;
-    case FL_DRAG: e = "drag"; break;
-    case FL_RELEASE: e = "release"; break;
-    case FL_MOVE: e = "move"; break;
-    case FL_MOUSEWHEEL: e = "mousewheel"; break;
-    case FL_ENTER: e = "enter"; break;
-    case FL_LEAVE: e = "leave"; break;
-    case FL_FOCUS: e = "focus"; break;
-    case FL_UNFOCUS: e = "unfocus"; break;
+    case FL_NO_EVENT: return "nothing";
+    case FL_PUSH: return "push";
+    case FL_DRAG: return "drag";
+    case FL_RELEASE: return "release";
+    case FL_MOVE: return "move";
+    case FL_MOUSEWHEEL: return "mousewheel";
+    case FL_ENTER: return "enter";
+    case FL_LEAVE: return "leave";
+    case FL_FOCUS: return "focus";
+    case FL_UNFOCUS: return "unfocus";
 
-    case FL_KEYDOWN: e = "keydown"; break;
-    case FL_KEYUP: e = "keyup"; break;
-    case FL_SHORTCUT: e = "shortcut"; break;
-    case FL_DEACTIVATE: e = "deactivate"; break;
-    case FL_ACTIVATE: e = "activate"; break;
-    case FL_HIDE: e = "hide"; break;
-    case FL_SHOW: e = "show"; break;
+    case FL_KEYDOWN: return "keydown";
+    case FL_KEYUP: return "keyup";
+    case FL_SHORTCUT: return "shortcut";
+    case FL_DEACTIVATE: return "deactivate";
+    case FL_ACTIVATE: return "activate";
+    case FL_HIDE: return "hide";
+    case FL_SHOW: return "show";
 
-    case FL_SCREEN_CONFIGURATION_CHANGED: e = "screen configuration"; break;
+    case FL_SCREEN_CONFIGURATION_CHANGED: return "screen configuration";
     }
-    return e;
+    static char buf[127];
+    snprintf(buf, 127, "unknown:%d", ev);
+    return buf;
 }
 
 const char *

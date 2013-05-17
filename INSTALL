@@ -33,6 +33,8 @@ lilypond, for some fonts
     # or
     cp /usr/share/lilypond/<version>/fonts/otf/ /usr/share/fonts/
 
+    Use fc-list to see installed fonts and their names.
+
 fltk-1.3, from http://fltk.org/
 
     LINUX
