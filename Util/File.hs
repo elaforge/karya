@@ -33,13 +33,16 @@ read_binary fn = do
 list_dir :: FilePath -> IO [FilePath]
 list_dir dir = do
     fns <- Directory.getDirectoryContents dir
-    return $ map (dir </>) $ filter ((/=".") . take 1) fns
+    return $ map (strip . (dir </>)) $ filter ((/=".") . take 1) fns
+    where
+    strip ('.' : '/' : path) = path
+    strip path = path
 
 recursive_list_dir :: (FilePath -> Bool) -> FilePath -> IO [FilePath]
 recursive_list_dir descend dir = do
     is_file <- Directory.doesFileExist dir
     if is_file then return [dir]
-        else maybe_descend (descend dir) descend dir
+        else maybe_descend (dir == "." || descend dir) descend dir
     where
     maybe_descend True descend dir = do
         fns <- list_dir dir
