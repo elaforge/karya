@@ -156,12 +156,15 @@ TrackTile::edit_close()
     // FL_UNFOCUS, which calls SeqInput::contract and then
     // SeqInput::redraw_neighbors.  Then it invokes the 'edit_input_cb', which
     // then calls 'edit_close'.  edit_close then deletes the SeqInput, which
-    // causes it to be removed from the TrackTile.
+    // causes it to be removed from the TrackTile.  But since it's still inside
+    // the callback, it has to use Fl::delete_widget, which delays the delete
+    // until after I'm safely outside of the widget's callback.
     if (!this->edit_input)
         return;
     MsgCollector::get()->edit_input(
         this, edit_input_tracknum, edit_input_pos, edit_input->value());
-    delete edit_input;
+    this->remove(edit_input);
+    Fl::delete_widget(edit_input);
     edit_input = NULL;
     this->redraw();
 }

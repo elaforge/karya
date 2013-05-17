@@ -12,7 +12,6 @@ UNSORTED
     * Remove TimeStep's skip.
     * Remove all_points, use marklist directly.
     * fix snap
-
   * Instead of instrument aliases just being aliases, they should make a new
     instrument whose lookup gets the aliased instrument.  That way I can
     instantiate a single instrument multiple times.
@@ -174,6 +173,13 @@ documentation
     - I could go look through arg docs for controls and list all the controls
       that have someone listening to them in a certain scope.
     - linkify single quotes
+    - CallDoc should automatically add some tags: generator / transformer,
+      note / pitch / control / val, one for each %control, one for each
+      name-arg.  They don't show up in the tag list, but can be used for
+      searching.
+    - calls.html page should have a search box that can filter by tag presence
+      or abscence.  Each call gets its tags associated, then JS can go through
+      and show/hide.
 
 strict derivation / parallelization / memory leaks
   cache tracks
@@ -448,23 +454,6 @@ external
     - ask ghc-users if it's a good idea
     - figure out how to implement pragmas in ghc
 
-use fixed-binary instead of Doubles for ScoreTime and RealTime:
-  reasons to do it:
-    - get rid of custom implementation in Perform.RealTime
-    - get rid of half-open except start==end hack for ranges, a point selection
-      is simple (start, start+1).
-    - RealTime.to_seconds is big on the profile
-  reasons not to do it:
-    - what to do about -0?  I could disallow 0 dur events and make control
-      events have an eta dur
-    - will fixed64 be slower?
-  switch back to Double for RealTime, split from Timestamp for midi
-    - but floating point imprecision make controls not be clipped to their
-      notes properly.  I think this happened at the Deriver level, not Perform
-  problems:
-    too slow, I do lots of to_double conversions that are slow.
-    Can I do all that math in Fixed?
-
 plugins:
   - Either dynamically load local inst definitions and local StaticConfig, or
     auto-generate the link file Local/Instrument.hs.
@@ -526,7 +515,6 @@ cleanup:
     no-overlap invariant easier.  E.g. have explicit 'off' events, otherwise
     each event extends to the next one.  It means after merging I have to
     clear redundant offs, but that's easier right?
-
   / instead of building log dup suppressing logic into various functions,
     e.g.  allot, maybe I can add 'key' field to Log.Msg and suppress dup
     keys?  Who else produces dups?  Convert does.  But isn't it more
@@ -655,7 +643,7 @@ symbolic score
 fltk:
   drawing artifacts on retina:
     . Some of this may be fltk bugs.
-    - move selection up, leaves a single pixel line
+    * move selection up, leaves a single pixel line
     - tops of tracks and the tops of track text boxes still get gunk, visible
       when scrolling horizontally
   - Should fltk collapse adjacent dividers?
@@ -672,7 +660,7 @@ fltk:
   + can I get fltk to omit the jellybean buttons on the window?
     . Yes, but requires hacking fltk.
     . Completely disables resizing.  Apparently this is hardcoded.
-  - event.text would have to be utf8 to support option-key symbols
+  * event.text would have to be utf8 to support option-key symbols
   - some way to scroll that's not the scroll wheel
   - I could set certain Symbols to stretch to the length of their event, this
     would yield a nicer looking score.  But it would mess up the bounds
@@ -695,7 +683,8 @@ fltk:
     currently?
   Track
     / dividers can have separate color for upper part, for collapsable tracks
-  - ScoreTime is just a double, I can pass it directly as CDouble
+  / ScoreTime is just a double, I can pass it directly as CDouble
+    Not really worth it, it's passed in very few places.
   + Why does seq sometimes leave a app menubar on quit?  Do other fltk apps
     do that?  Yes.
   + Disable application persistence for fltk apps:
@@ -703,7 +692,7 @@ fltk:
     Can then re-enable ~/Library/Saved Application State.
   event track
     floating edit input
-      - there's a memory corruption bug in there somewhere
+      * there's a memory corruption bug in there somewhere
         Sometimes haskell gets \NUL\NUL instead of "hi".
       - send EditAppend
       - remove RawEdit?
@@ -711,10 +700,9 @@ fltk:
 
   control track, render signal
     - Figure out linear sets of samples and emit them as one line.
-    / decided against rendering signal as one long line, comment in
-      EventTrack.cc
     - render option: solid with color gradient
     - combine multiple signals, e.g. one controls xpos, one controls color
+      I could combine pitch and dyn.
 
 logview:
   - can I get the standard edit menu and copy/paste?
@@ -817,7 +805,7 @@ test:
   - tests count number of tests in addition to checks within each test
   - use generics or Foldable or something to write a generic StructEqual
 
-integrator / midi record:
+midi record:
   - implement
 
 REPL: repl:
@@ -844,17 +832,15 @@ Cmd:
       maybe step should fail.
     - use NE list for TimeStep
     - TimeStep should support negative skip as a fractional skip
-    - points use vector instead of list
+    / points use vector instead of list
       But then I lose laziness.  Maybe only worth it if I cache.
-    - cache points by returning CachedTimeStep = Points
-    - TimeStep.snap should optimize steps that don't do any snapping when
+    / cache points by returning CachedTimeStep = Points
+    / TimeStep.snap should optimize steps that don't do any snapping when
       prev_val is Nothing, e.g. RelativeMark and Absolute
   / step play StepPlay could work even when notes were moved by annotating
     the midi output with the UI event that produced it.  This might be useful
     for debugging too.
   - Can I give Cmds their own state without putting it in Cmd.State every time?
-    For instance, twelve scale may want to know what key you're in.
-    Actually, it would be best to have per-module state.
     At worst I can have 'Map.Map String Dynamic'.
 
     Use existentials:
@@ -894,19 +880,25 @@ Cmd:
     - alternate finale-like note entry: hold down step key to set step and
       turn on edit mode, but only while the key is down
       (merge will clip them to the next event)
-    - controller edit mode accepts two numbers and moves on, no spaces
-    - a legato command that always goes to the next note would still be useful
+    * controller edit mode accepts two numbers and moves on, no spaces
+    / a legato command that always goes to the next note would still be useful
 
-  Cmd.Language
-    - lang cmd stuff to load string serialized tracks for event cut and paste
+  Cmd.Repl
+    - functions to load string serialized tracks for event cut and paste
     - an aux data input for the lang socket might be useful, to paste in data
       without having to quote it
   Cmd.LanguageCmd
-    - some way to more easily type IDs, either the mangler adds a let for pbid,
+    * some way to more easily type IDs, either the mangler adds a let for pbid,
       pvid, etc., or the mangler turns <foo> into <current/foo>
 
   Cmd.Play
     - start playing from top of displayed area
+
+  copy / paste / Clip
+    - clip block should use the ruler, just to make it easier to look at
+    - clip could also copy over the skeleton
+      It could use it to make sure the paste is compatible, but that might
+      be more of an annoyance than a convenience.
 
   Undo / UNDO
     - shift [ and ] undo and redo zooms.  or one key to toggle last zoom?
@@ -914,17 +906,12 @@ Cmd:
       edits without leaving val edit.  Maybe don't do it for pitch val edit.
       Try going back to using the name to suppress, but ignore cmds with no
       name.
-    - It can be really confusing how undo and redo makes windows pop up and
+    * It can be really confusing how undo and redo makes windows pop up and
       disappear.  Maybe I should make undo not affect views at all?
       They have to go away if the block went away, but otherwise they can
       remain unaffected.  Of course that means an undo could be undoing
       something out of sight.  Another case for per-block undo?
-    undo also undoes the clipboard, which makes undo, copy, redo, paste useless
-      - clip block should use the ruler, just to make it easier to look at
-      - clip could also copy over the skeleton
-        It could use it to make sure the paste is compatible, but that might
-        be more of an annoyance than a convenience.
-
+    * undo also undoes the clipboard, which makes undo, copy, redo, paste useless
     - Add a "revert within selection" that searches backward for the last
       change within the selection.
     - Along those lines, should each block have its own independent history?
@@ -944,7 +931,7 @@ Cmd:
 
   Cmd.Save
     - save with a magic number so I can load songs, inst configs, etc.
-    / gzip save files
+    - gzip save files
 
 Derive:
   tracklang:
@@ -1001,6 +988,20 @@ pitch / scales
     just intonation
       - interpolate between just scales in different keys
       + just intonation tuned to a pitch signal
+        Works, but I need a less awkward way to set the base frequency.
+      . Specifically, how do just scales handle accidentals?  Presumably I need
+        to pick a pitch based on the ratios it will have with other sounding
+        pitches, which means I might need several kinds of intervals, and pick
+        one based on context.  So it means maybe a couple of different
+        accidentals.
+      . Or, I play ratios from the previous note, and just write ratios
+        directly.  E.g. '4a' is an absolute frequency, based on the current
+        tuning of course.  '+5/4' is 5/4 above the previous pitch.  '4a +5/4' is
+        relative to another pitch.
+      . I can have a display that shows the relationships between the currently
+        sounding pitches.
+    - Interpolate between two scales.  The main thing is to establish a note
+      to note correspondance.
     - looks like fun: http://en.wikipedia.org/wiki/Bohlen-Pierce_scale
     - retune a note depending on the previous interval (e.g. sloppy pitches
       when playing quickly)
