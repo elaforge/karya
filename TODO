@@ -699,7 +699,7 @@ fltk:
       - make sure select_start and select_end are char indices, not bytes
 
   control track, render signal
-    - Figure out linear sets of samples and emit them as one line.
+    * Figure out linear sets of samples and emit them as one line.
     - render option: solid with color gradient
     - combine multiple signals, e.g. one controls xpos, one controls color
       I could combine pitch and dyn.

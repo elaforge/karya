@@ -58,20 +58,28 @@ TrackSignal::find_sample(ScoreTime start) const
 }
 
 
-int
-TrackSignal::time_at(const ZoomInfo &zoom, int i) const
-{
-    ASSERT_MSG(signal, "time_at on empty track signal");
-    return zoom.to_pixels(from_real(signal[i].time) - zoom.offset);
-}
-
-
 // Get the val at the given index, normalized between 0--1.
 double
 TrackSignal::val_at(int i) const
 {
     ASSERT_MSG(signal, "val_at on empty track signal");
     return normalize(this->val_min, this->val_max, signal[i].val);
+}
+
+
+RealTime
+TrackSignal::time_at(int i) const
+{
+    ASSERT_MSG(signal, "time_at on empty track signal");
+    return signal[i].time;
+}
+
+
+int
+TrackSignal::pixel_time_at(const ZoomInfo &zoom, int i) const
+{
+    ASSERT_MSG(signal, "pixel_time_at on empty track signal");
+    return zoom.to_pixels(from_real(signal[i].time) - zoom.offset);
 }
 
 
@@ -433,6 +441,91 @@ EventTrackView::draw_area()
 }
 
 
+// Try to find a linear slope of close-placed samples, so they can be drawn
+// as a single line instead of a bunch of separate samples.  This looks a lot
+// nicer, especially on retina displays, where fltk doesn't support subpixel
+// positioning.
+//
+// Return the index of the end of a line starting at the given index.  If
+// there's no line then it just returns the start index.
+// Run along the samples as long as the slope is constant.  When it changes
+// too much, return the last index.  Also stop if the slope is too high, which
+// implies the signal is itended to be discontinuous, or the samples are far
+// apart, which implies the signal is intended to be jagged.
+static int
+find_linear(const TrackSignal &sig, int i)
+{
+    // Samples at this distance are likely intended to sound smooth, so they
+    // should look smooth too.
+    static const double time_threshold = 0.05;
+    static const double slope_threshold = 1;
+    static const double eta = 0.0001;
+
+    if (i + 1 >= sig.length)
+        return i;
+
+    double prev_t = sig.time_at(i);
+    double prev_val = sig.val_at(i);
+    double t = sig.time_at(i+1);
+    double val = sig.val_at(i+1);
+    double expected_slope = (val - prev_val) / (t - prev_t);
+    // DEBUG(i << ": slope " << val << "-" << prev_val << " = "
+    //     << expected_slope << " time " << fabs(t-prev_t));
+    if (fabs(t - prev_t) >= time_threshold)
+        return i;
+    if (fabs(expected_slope) >= slope_threshold)
+        return i;
+
+    i += 2;
+    for (; i < sig.length; i++) {
+        prev_t = t;
+        t = sig.time_at(i);
+        prev_val = val;
+        val = sig.val_at(i);
+        double slope = (val - prev_val) / (t - prev_t);
+        if (fabs(t - prev_t) >= time_threshold
+            || fabs(slope - expected_slope) > eta)
+        {
+            break;
+        }
+    }
+    return i - 1;
+}
+
+static void
+draw_segment(RenderConfig::RenderStyle style, int min_x,
+    int prev_xpos, int xpos, int next_xpos,
+    int offset, int next_offset)
+{
+    // Draw horizontal jump from prev_xpos if it exists and is far enough from
+    // the xpos.  render_filled doesn't need this.
+    switch (style) {
+    case RenderConfig::render_line:
+        fl_line_style(FL_SOLID | FL_CAP_ROUND, 2);
+        // DEBUG("xpos: " << prev_xpos << " " << xpos << " " << next_xpos);
+        if (prev_xpos != -1 && abs(prev_xpos - xpos) > 2) {
+            fl_line(prev_xpos, offset, xpos, offset);
+        }
+        fl_line(xpos, offset, next_xpos, next_offset);
+        break;
+    case RenderConfig::render_filled:
+        fl_line_style(FL_SOLID | FL_CAP_ROUND, 0);
+        fl_polygon(
+            min_x, offset,
+            xpos, offset,
+            next_xpos, next_offset,
+            min_x, next_offset);
+        break;
+    case RenderConfig::render_none:
+        // Shouldn't get here since the caller aborts when it sees this.
+        ASSERT_MSG(0, "tried to draw a signal with render_none");
+        break;
+    default:
+        DEBUG("unknown render style: " << style);
+    }
+}
+
+
 void
 EventTrackView::draw_signal(int min_y, int max_y, ScoreTime start)
 {
@@ -447,80 +540,55 @@ EventTrackView::draw_signal(int min_y, int max_y, ScoreTime start)
     const int y = this->track_start();
     // TODO alpha not supported, I'd need a non-portable drawing routine for
     // it.
-    Fl_Color signal_color =
+    const Fl_Color signal_color =
         color_to_fl(config.render.color.brightness(brightness));
 
     // Account for both the 1 pixel track border and the width of the line.
     const int min_x = x() + 2;
     const int max_x = x() + w() - 2;
-    int prev_xpos = -1;
     const SymbolTable::Style style(
         Config::font, Config::font_size::pitch_signal, FL_BLACK);
 
-    for (int i = found; i < tsig.length; i++) {
-        int offset = y + tsig.time_at(zoom, i);
-        // Skip coincident samples, or at least ones that are too close.
-        int next_offset;
-        if (i+1 >= tsig.length) {
+    int next_i;
+    int offset = 0;
+    int prev_xpos = -1;
+
+    for (int i = found; i < tsig.length; i = next_i) {
+        // I draw from offset to next_offset.
+        // For the first sample, 'found' should be at or before start.
+        next_i = find_linear(tsig, i);
+
+        int xpos = floor(scale(double(min_x), double(max_x),
+            clamp(0.0, 1.0, tsig.val_at(i))));
+        int next_xpos, next_offset;
+        if (i + 1 >= tsig.length) {
             // Out of signal, last sample goes to the bottom.
+            next_i = tsig.length;
+            next_xpos = xpos;
             next_offset = max_y;
+        } else if (next_i > i + 1) {
+            next_xpos = floor(scale(double(min_x), double(max_x),
+                clamp(0.0, 1.0, tsig.val_at(next_i))));
+            next_offset = y + tsig.pixel_time_at(zoom, next_i);
         } else {
-            next_offset = y + tsig.time_at(zoom, i+1);
+            next_i = i + 1;
+            next_xpos = xpos;
+            next_offset = y + tsig.pixel_time_at(zoom, next_i);
         }
+
+        offset = y + tsig.pixel_time_at(zoom, i);
         // If the next sample is too close then don't draw this one.
-        // TODO I'd also like to skip samples that are too close to make
-        // much difference, but I still have to draw some or a series of
-        // close samples would be omitted entirely, so it's quite a bit
-        // more complicated.  This is a similar problem to the event text
-        // display.
         if (next_offset <= offset)
             continue;
-        double val = tsig.val_at(i);
-        int xpos = floor(::scale(double(min_x), double(max_x),
-            ::clamp(0.0, 1.0, val)));
-        // DEBUG("sample " << i << " val " << val << " offset " << offset);
 
-        // I originally wanted to draw the signal as one big line in a separate
-        // pass, eliminating the jump from the previous xpos if the distance is
-        // below a threshold, but it turned out it seems to be slower and
-        // uglier, and ugly artifacts appear as seperate segments of the line
-        // pop across the threshold.
-        //
-        // I'm already skipping samples when they are too close together so I
-        // don't think I have to worry about dense signals.
-        if (next_offset > min_y && offset <= max_y) {
-            fl_color(signal_color);
-            switch (config.render.style) {
-            case RenderConfig::render_line:
-                fl_line_style(FL_SOLID | FL_CAP_ROUND, 2);
-                // Don't draw a jump from prev_xpos if it didn't exist.
-                if (prev_xpos == -1) {
-                    fl_line(xpos, offset, xpos, next_offset);
-                } else {
-                    fl_line(
-                        prev_xpos, offset, xpos, offset, xpos, next_offset);
-                }
-                break;
-            case RenderConfig::render_filled:
-                fl_line_style(FL_SOLID | FL_CAP_ROUND, 0);
-                // For some reason, on OS X at least, height 1 rects don't get
-                // drawn.
-                fl_rectf(min_x, offset, xpos - min_x,
-                    (next_offset - offset) + 1);
-                break;
-            case RenderConfig::render_none:
-                // shouldn't get here since the function returns early
-                ASSERT_MSG(0, "tried to draw a signal with render_none");
-                break;
-            default:
-                DEBUG("unknown render style: " << config.render.style);
-            }
-        }
-        // DEBUG("draw " << i << " @ " << offset << "--" << next_offset);
-
-        prev_xpos = xpos;
-        if (offset > max_y)
-            break;
+        // DEBUG("sample " << i << "--" << next_i
+        //     << " val " << xpos << "--" << next_xpos
+        //     << ", " << offset << "--" << next_offset);
+        fl_color(signal_color);
+        draw_segment(config.render.style, min_x,
+            prev_xpos, xpos, next_xpos,
+            offset, next_offset);
+        prev_xpos = next_xpos;
     }
     // Reset line style to not mess up other draw routines.
     fl_line_style(0);

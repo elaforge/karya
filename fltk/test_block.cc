@@ -91,9 +91,9 @@ void t1_set()
         e.push_back(EventInfo(0,
             Event(ScoreTime(40), ScoreTime(-8), "e", style)));
     } else {
-        char *zh1 = "\xe4\xb8\xad\xe6\x96\x87"; // 中文
+        const char *zh1 = "\xe4\xb8\xad\xe6\x96\x87"; // 中文
         // 兩個 分開
-        char *zh2 = "\xe5\x85\xa9\xe5\x80\x8b \xe5\x88\x86\xe9\x96\x8b";
+        const char *zh2 = "\xe5\x85\xa9\xe5\x80\x8b \xe5\x88\x86\xe9\x96\x8b";
         e.push_back(EventInfo(0,
             Event(ScoreTime(0), ScoreTime(16), "`arp-down`", style)));
         e.push_back(EventInfo(0,
@@ -199,8 +199,7 @@ timeout_func(void *vp)
     std::cout << n << "------------\n";
     switch (n) {
     case 0:
-        static const char *text = "hi";
-        view.block.edit_open(1, ScoreTime(16), text, 10, 10);
+        view.block.edit_open(1, ScoreTime(16), "hi there", 10, 10);
         // view.block.insert_track(2, Tracklike(&empty_track, &ruler), 30);
         break;
     case 1:
@@ -243,6 +242,7 @@ control_track_signal()
 {
     TrackSignal *ts = new TrackSignal();
 
+    // linear ramps
     const int length = 145;
     ControlSample *samples = (ControlSample *)
         calloc(length, sizeof(ControlSample));
@@ -250,6 +250,21 @@ control_track_signal()
         samples[i].time = ScoreTime(i).to_real();
         samples[i].val = fmod(i / 20.0, 5);
     }
+
+    // // flat steps
+    // const int length = 1;
+    // ControlSample *samples = (ControlSample *)
+    //     calloc(length, sizeof(ControlSample));
+    // samples[0] = ControlSample(4, 0.5);
+    // samples[1] = ControlSample(10, 0);
+    // samples[2] = ControlSample(20, 1);
+    // samples[3] = ControlSample(25, 0.5);
+
+    // for (int i = 0; i < length; i++) {
+    //     DEBUG("sample " << i << ": " << samples[i].time << ", "
+    //         << samples[i].val);
+    // }
+
     ts->signal = samples;
     ts->length = length;
     ts->shift = ScoreTime(0);

@@ -399,7 +399,9 @@ MsgCollector::event_handler(int evt)
     case FL_SCREEN_CONFIGURATION_CHANGED:
         get()->screen_update();
         return 1;
-        break;
+    case FL_NO_EVENT:
+        // For some reason fltk sends these to the Fl::add_handler on linux.
+        return 1;
     default:
         DEBUG("unknown event: " << show_event(evt));
     }

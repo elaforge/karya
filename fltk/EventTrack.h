@@ -51,11 +51,13 @@ struct TrackSignal {
 
     // Return the index of the sample before 'start', or 0.
     int find_sample(ScoreTime start) const;
-    // Get the time at the given index, taking shift, stretch, and the given
-    // zoom into account.
-    int time_at(const ZoomInfo &zoom, int i) const;
     // Get the val at the given index, normalized between 0--1.
     double val_at(int i) const;
+    // RealTime at the given index.
+    RealTime time_at(int i) const;
+    // Get the time pixel at the given index, taking shift, stretch, and the
+    // given zoom into account.
+    int pixel_time_at(const ZoomInfo &zoom, int i) const;
 
     // Set 'val_min' and 'val_max'.  Normally this would be called by the
     // constructor, but since I construct manually from haskell I don't have
