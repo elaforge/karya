@@ -172,7 +172,7 @@ documentation
   call doc:
     - I could go look through arg docs for controls and list all the controls
       that have someone listening to them in a certain scope.
-    - linkify single quotes
+    * linkify single quotes
     - CallDoc should automatically add some tags: generator / transformer,
       note / pitch / control / val, one for each %control, one for each
       name-arg.  They don't show up in the tag list, but can be used for

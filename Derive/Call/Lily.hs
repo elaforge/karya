@@ -336,7 +336,7 @@ when_ly inverted args deriver = case Derive.passed_vals args of
 
 c_ly_global :: Derive.NoteCall
 c_ly_global = Derive.transformer "ly-global" Tags.ly_only
-    ("Evaluate the deriver only when in lilypond mode, like 'when-ly', but\
+    ("Evaluate the deriver only when in lilypond mode, like `when-ly`, but\
     \ also set the " <> ShowVal.show_val Constants.ly_global
     <> " instrument."
     ) $ Sig.call0t $ \_ deriver ->
@@ -499,7 +499,7 @@ c_ly_key = code0_call "ly-key"
     "Emit a key change. This only emits a lilypond key change, it doesn't\
     \ actually set the key. This means diatonic operations won't work as\
     \ expected. Also, you have to add it to every staff manually.\
-    \ On the up side, it doesn't force a structural change like '=' does."
+    \ On the up side, it doesn't force a structural change like `=` does."
     (required "key" "You can use any of the keys from the Twelve scale.") $
     \key -> do
         key <- Derive.require_right id $ Process.parse_key key

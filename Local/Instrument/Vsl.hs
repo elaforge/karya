@@ -11,6 +11,7 @@ import Util.Control
 import qualified Util.Map as Map
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
+import qualified Util.TextUtil as TextUtil
 
 import qualified Midi.Key as Key
 import qualified Midi.Midi as Midi
@@ -56,7 +57,7 @@ show_matrix (name, _, attrs) =
     where
     matrices = Seq.chunked 12 $ concatMap (Seq.chunked 12)
         (map_shape strip attrs)
-    format = Text.unlines . Seq.format_columns 1
+    format = Text.unlines . TextUtil.formatColumns 1
         -- . (header:) . map (map ShowVal.show_val)
         . zipWith (:) col_header . (header:) . map (map ShowVal.show_val)
     header = take 12 $ map showt [1..]

@@ -27,10 +27,13 @@ main = do
     args <- Environment.getArgs
     case args of
         ["keymap"] -> putStr keymap_doc
-        ["calls"] -> Text.IO.putStr $
-            CallDoc.doc_html $ CallDoc.all_sections Call.All.scope
-        ["scales"] -> Text.IO.putStr $
-            CallDoc.scales_html $ map CallDoc.scale_doc $
+        ["calls"] -> do
+            hstate <- CallDoc.get_html_state "../haddock" "."
+            Text.IO.putStr $ CallDoc.doc_html hstate $ CallDoc.all_sections
+                Call.All.scope
+        ["scales"] -> do
+            hstate <- CallDoc.get_html_state "../haddock" "."
+            Text.IO.putStr $ CallDoc.scales_html hstate $ map CallDoc.scale_doc $
                 Map.elems Scale.All.scales
         _ -> error $ "usage: extract_doc [ keymap | calls | scales ]"
 

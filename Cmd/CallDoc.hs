@@ -1,6 +1,7 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 -- | Pull deriver call documentation out of a Performance and format it nicely.
 module Cmd.CallDoc where
+import qualified Data.Char as Char
 import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Monoid as Monoid
@@ -9,9 +10,11 @@ import qualified Data.String as String
 import qualified Data.Text as Text
 
 import Util.Control
+import qualified Util.File as File
 import qualified Util.Format as Format
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
+import qualified Util.TextUtil as TextUtil
 
 import qualified Ui.State as State
 import qualified Cmd.Cmd as Cmd
@@ -88,16 +91,30 @@ show_parser p = case p of
 
 -- ** html output
 
+-- | (haddock_dir, directory_tree)
+type HtmlState = (FilePath, Set.Set FilePath)
+
+get_html_state :: FilePath -> FilePath -> IO HtmlState
+get_html_state haddock_dir app_dir = do
+    files <- liftIO $ get_files app_dir
+    -- The eventual output is in build/doc.
+    return (haddock_dir, files)
+    where
+    get_files dir = do
+        files <- File.recursive_list_dir
+            (maybe False Char.isUpper . Seq.head) dir
+        return $ Set.fromList files
+
 -- | Convert a Document to HTML.
-doc_html :: Document -> Text
-doc_html = un_html . (html_header <>) . mconcatMap section
+doc_html :: HtmlState -> Document -> Text
+doc_html hstate = un_html . (html_header <>) . mconcatMap section
     where
     section (call_type, scope_docs) =
         tag "h2" (html call_type) <> "\n\n"
         <> mconcatMap scope_doc scope_docs
     scope_doc (source, calls) =
         tag "h3" ("from " <> html source) <> "\n\n<dl class=main>\n"
-        <> mconcatMap call_bindings_html calls
+        <> mconcatMap (call_bindings_html hstate) calls
         <> "</dl>\n"
 
 html_header :: Html
@@ -124,8 +141,8 @@ html_header =
         <> "    padding: 0;\n"
         <> "}\n"
 
-call_bindings_html :: CallBindings -> Html
-call_bindings_html (binds, sections) =
+call_bindings_html :: HtmlState -> CallBindings -> Html
+call_bindings_html hstate (binds, sections) =
     mconcatMap show_bind binds <> show_sections sections <> "\n\n"
     where
     show_bind (shadowed, sym, name) =
@@ -134,21 +151,21 @@ call_bindings_html (binds, sections) =
     strikeout sym = tag "strike" (tag "code" (html sym))
         <> tag "em" "(shadowed)"
     show_sections [(ValCall, Derive.CallDoc tags doc args)] =
-        "<dd>" <> html_doc doc <> write_tags tags <> "\n<dd>"
+        "<dd>" <> html_doc hstate doc <> write_tags tags <> "\n<dd>"
         <> tag "ul" (arg_docs args)
     show_sections sections = "<dd> <dl class=compact>\n"
         <> mconcatMap call_section sections <> "</dl>\n"
     call_section (call_type, Derive.CallDoc tags doc args) =
         "<dt>" <> tag "em" (html (show_call_type call_type)) <> ": "
-        <> "<dd>" <> html_doc doc <> write_tags tags <> "\n<dd>"
+        <> "<dd>" <> html_doc hstate doc <> write_tags tags <> "\n<dd>"
         <> tag "ul" (arg_docs args)
     arg_docs (Derive.ArgsParsedSpecially doc) =
-        "\n<li><b>Args parsed by call:</b> " <> html_doc doc
+        "\n<li><b>Args parsed by call:</b> " <> html_doc hstate doc
     arg_docs (Derive.ArgDocs args) = mconcatMap arg_doc args
     arg_doc (Derive.ArgDoc name typ parser doc) =
         "<li>" <> tag "code" (html name) <> show_char char
         <> " :: " <> tag "em" (html (txt (Pretty.pretty typ)))
-        <> show_default deflt <> " &mdash; " <> html_doc doc <> "\n"
+        <> show_default deflt <> " &mdash; " <> html_doc hstate doc <> "\n"
         where (char, deflt) = show_parser parser
     show_default = maybe "" ((" = " <>) . tag "code" . html)
     show_char = maybe "" (tag "sup" . html)
@@ -171,30 +188,42 @@ un_html :: Html -> Text
 un_html (Html text) = text
 
 html :: Text -> Html
-html = Html . Text.replace "<" "&lt;" . Text.replace ">" "&gt;"
-        . Text.replace "&" "&amp;"
+html = Html . html_quote
 
-html_doc :: Text -> Html
-html_doc = map_html postproc . html
+html_quote :: Text -> Text
+html_quote = Text.replace "<" "&lt;" . Text.replace ">" "&gt;"
+    . Text.replace "&" "&amp;"
+
+html_doc :: HtmlState -> Text -> Html
+html_doc (haddock_dir, files) = Html . postproc . html_quote
     where
-    map_html f (Html text) = Html (f text)
-    postproc = para . backticks
+    -- To keep the Text vs. Html type distinction I'd have to have [Either Text
+    -- Html] and make mapDelimited return a list, and I couldn't use
+    -- Text.replace.  It's doable, but would be more trouble than it's worth.
+    postproc = para . backticks . single_quotes
     para = Text.replace "\n" "\n<br>"
-    backticks = mconcat . codify . Text.split (=='`')
-    -- foo `bar` ba`z` -> ["foo ", "bar", "ba", "z", ""]
-    codify (x:y:zs) = x : ("<code>" <> y <> "</code>") : codify zs
-    codify xs = xs
+    backticks = TextUtil.mapDelimited True "`" "`"
+        (\t -> "<code>" <> t <> "</code>")
+    single_quotes = TextUtil.mapDelimited False "'" "'" $ \text ->
+        case TextUtil.haddockUrl files haddock_dir text of
+            Nothing -> "'" <> text <> "'"
+            Just url -> html_link text url
+
+html_link :: Text -> String -> Text
+html_link text url =
+    "<a href=\"" <> html_quote (txt url) <> "\">" <> html_quote text <> "</a>"
+
 
 -- * scale doc
 
 type Scale = [CallBindings]
 
-scales_html :: [Scale] -> Text
-scales_html scales = un_html $ html_header
+scales_html :: HtmlState -> [Scale] -> Text
+scales_html hstate scales = un_html $ html_header
         <> "<h2> Scales </h2>\n"
         <> "<dl class=main>\n" <> mconcatMap scale_html scales
         <> "</dl>\n"
-    where scale_html = mconcatMap call_bindings_html
+    where scale_html = mconcatMap (call_bindings_html hstate)
 
 scale_doc :: Scale.Scale -> Scale
 scale_doc scale =
