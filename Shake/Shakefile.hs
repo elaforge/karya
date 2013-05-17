@@ -138,16 +138,16 @@ data HsBinary = HsBinary {
     hsName :: FilePath
     , hsMain :: FilePath -- ^ main module
     , hsDeps :: [FilePath] -- ^ additional deps, relative to obj dir
-    , hsGui :: Maybe (Maybe FilePath) -- ^ GUI needs make_bundle + maybe icon
+    , hsGui :: Maybe Bool -- ^ Just if it's a GUI app and thus needs
+    -- make_bundle on the mac, True if it has an icon at build/name.icns.
     } deriving (Show)
 
 hsBinaries :: [HsBinary]
 hsBinaries =
-    [ gui "browser" "Instrument/Browser.hs" ["Instrument/browser_ui.cc.o"]
-        Nothing
+    [ gui "browser" "Instrument/Browser.hs" ["Instrument/browser_ui.cc.o"] True
     , plain "dump" "App/Dump.hs"
     , plain "logcat" "LogView/LogCat.hs"
-    , gui "logview" "LogView/LogView.hs" ["LogView/logview_ui.cc.o"] Nothing
+    , gui "logview" "LogView/LogView.hs" ["LogView/logview_ui.cc.o"] True
     , plain "linkify" "Util/Linkify.hs"
     , plain "make_db" "Instrument/MakeDb.hs"
     , plain "pprint" "App/PPrint.hs"
@@ -158,7 +158,7 @@ hsBinaries =
     , HsBinary "extract_doc" "App/ExtractDoc.hs" ["fltk/fltk.a"] Nothing
     , plain "repl" "App/Repl.hs"
     , plain "send" "App/Send.hs"
-    , gui "seq" "App/Main.hs" ["fltk/fltk.a"] (Just "doc/seq.icns")
+    , gui "seq" "App/Main.hs" ["fltk/fltk.a"] True
     , plain "shakefile" "Shake/Shakefile.hs"
     , plain "test_midi" "Midi/TestMidi.hs"
     , plain "timer" "LogView/Timer.hs"
@@ -402,15 +402,20 @@ main = do
             let objs = map (oDir config </>) (ccDeps binary)
             need objs
             Util.cmdline $ linkCc config fn objs
-            makeBundle fn Nothing
+            makeBundle fn False
         forM_ hsBinaries $ \binary -> matchBuildDir (hsName binary) ?> \fn -> do
             let config = infer fn
             hs <- maybe (errorIO $ "no main module for " ++ fn) return
                 (Map.lookup (FilePath.takeFileName fn) nameToMain)
             buildHs config (map (oDir config </>) (hsDeps binary)) hs fn
             case hsGui binary of
-                Just icon -> makeBundle fn icon
+                Just has_icon -> makeBundle fn has_icon
                 _ -> return ()
+        (build </> "*.icns") *> \fn -> do
+            -- Build OS X .icns file from .iconset dir.
+            let src = "doc/icon" </> replaceExt fn "iconset"
+            need [src]
+            system "iconutil" ["-c", "icns", "-o", fn, src]
         forM_ extractableDocs $ \fn ->
             fn *> extractDoc (modeConfig Debug)
         "karya.cabal" *> makeCabal
@@ -697,11 +702,14 @@ buildHs config deps hs fn = do
     logDeps config "build" fn objs
     Util.cmdline $ linkHs config fn packages objs
 
-makeBundle :: FilePath -> Maybe FilePath -> Shake.Action ()
-makeBundle binary icon
-    | System.Info.os == "darwin" =
-        system "tools/make_bundle" (binary : maybe [] (:[]) icon)
+makeBundle :: FilePath -> Bool -> Shake.Action ()
+makeBundle binary has_icon
+    | System.Info.os == "darwin" = do
+        need icon
+        system "tools/make_bundle" (binary : icon)
     | otherwise = return ()
+    where
+    icon = if has_icon then [build </> replaceExt binary "icns"] else []
 
 -- * tests and profiles
 
@@ -715,8 +723,7 @@ testRules config = do
         -- automatically added when any .o that uses it is linked in.
         buildHs config [oDir config </> "fltk/fltk.a"] (fn ++ ".hs") fn
         -- This sticks around and breaks hpc.
-        system "rm" ["-f",
-            FilePath.replaceExtension (FilePath.takeFileName fn) "tix"]
+        system "rm" ["-f", replaceExt fn "tix"]
         -- This gets reset on each new test run.
         system "rm" ["-f", "test.output"]
 
@@ -951,6 +958,9 @@ dropPrefix :: String -> String -> Maybe String
 dropPrefix pref str
     | pref `List.isPrefixOf` str = Just (drop (length pref) str)
     | otherwise = Nothing
+
+replaceExt :: FilePath -> String -> FilePath
+replaceExt fn = FilePath.replaceExtension (FilePath.takeFileName fn)
 
 mlast :: [a] -> Maybe a
 mlast [] = Nothing
