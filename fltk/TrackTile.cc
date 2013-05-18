@@ -140,8 +140,12 @@ TrackTile::edit_open(int tracknum, ScoreTime pos, const char *text,
     edit_input->show();
     if (text)
         edit_input->set_text(text);
-    if (select_start >= 0)
-        edit_input->position(select_end, select_start);
+    if (select_start >= 0) {
+        int len = strlen(text);
+        edit_input->position(
+            utf8::bytes(text, len, select_end),
+            utf8::bytes(text, len, select_start));
+    }
 
     this->add(edit_input);
     edit_input->take_focus();

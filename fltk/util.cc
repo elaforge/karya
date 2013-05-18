@@ -28,6 +28,16 @@ width(const char *str)
     return fl_width(str, fl_utf8len(*str));
 }
 
+int
+bytes(const char *str, int len, int chars)
+{
+    const char *end = str + len;
+    const char *p = str;
+    for (int i = 0; i < chars; i++)
+        p = forward(p, end);
+    return p - str;
+}
+
 }
 
 const Color Color::black = Color(0, 0, 0, 0);

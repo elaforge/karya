@@ -127,7 +127,7 @@ MILESTONES
     * record chords
     + integration
     - record continuum
-    + Just scales, and other ratio-oriented scales that use letters and
+    + just scales, and other ratio-oriented scales that use letters and
       accidentals
     - complete Idiom.Wind, experiment with the Idiom postprocs
     + bring back negative duration / arrival beats
@@ -695,8 +695,19 @@ fltk:
       * there's a memory corruption bug in there somewhere
         Sometimes haskell gets \NUL\NUL instead of "hi".
       - send EditAppend
+        Can't return and Continue.  Can't call directly unless I put all
+        track cmds in IO.  So either a special Cmd collect val, or consider
+        EditAppend a Continue.  Latter doesn't work because
+        NoteEntry.cmds_with_note always returns Done.  Former doesn't work
+        because the val edit still gets the note.  I actually want to suppress
+        it when there is an edit open.  So EditAppend is actually a Done, but
+        I can't return it unless an edit is open.  RawEdit doesn't have the
+        problem because it has an explicit state.
+        . For state, turn on flag when I send EditOpen, turn it off when I get
+          a msg with UiMsg.ctx_edit_input.  When the flag is on, I want to
+          intercept the Msg.InputNote after midi thru but before track edit.
       - remove RawEdit?
-      - make sure select_start and select_end are char indices, not bytes
+      * make sure select_start and select_end are char indices, not bytes
 
   control track, render signal
     * Figure out linear sets of samples and emit them as one line.

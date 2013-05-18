@@ -13,6 +13,9 @@ namespace utf8 {
 const char *backward(const char *str, const char *start);
 const char *forward(const char *str, const char *end);
 int width(const char *str);
+// The byte index of 'chars' char index into a utf8 string, of the given length.
+// Returns 'len' if the index is past the end.
+int bytes(const char *str, int len, int chars);
 
 }
 
