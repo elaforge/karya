@@ -25,7 +25,7 @@
 module Derive.BaseTypes where
 import qualified Control.DeepSeq as DeepSeq
 import qualified Data.Char as Char
-import qualified Data.Map as Map
+import qualified Data.Map.Strict as Map
 import qualified Data.Monoid as Monoid
 import qualified Data.Set as Set
 import qualified Data.Text as Text
@@ -262,7 +262,7 @@ data Val =
     -- Literal: @*scale@, @*@.
     | VScaleId !Pitch.ScaleId
     -- | No literal yet, but is returned from val calls.
-    | VPitch Pitch
+    | VPitch !Pitch
     -- | Sets the instrument in scope for a note.  An empty instrument doesn't
     -- set the instrument, but can be used to mark a track as a note track.
     --

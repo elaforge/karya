@@ -1,4 +1,10 @@
 #!/bin/zsh
+# Run matching profiles with biographical profiling:
+# heap=hb tools/run_profile profile1 profile2
+#
+# Run RunProfile-Rederive with default profiling:
+# tools/run_profile -Rederive profile1 profile2
+#
 # Flags for 'heap' env var:
 # hc - by producing cost-center stack
 # hm - by module

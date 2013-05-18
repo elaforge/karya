@@ -1,6 +1,5 @@
 -- | Create val calls for scale degrees.
 module Derive.Call.Pitch where
-import qualified Control.DeepSeq as DeepSeq
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 
@@ -41,11 +40,7 @@ scale_degree pitch_nn pitch_note = Derive.val_call
     <*> defaulted "hz" 0 "Add an absolute hz value to the output."
     ) $ \(frac, hz) _ -> do
         environ <- Internal.get_dynamic Derive.state_environ
-        -- TODO apparently lots of DRAG gets caught in the environ.  Properly
-        -- I should make environ more strict so that doesn't happen, but it
-        -- doesn't seem to be working.  Meanwhile, here's a hack.
-        environ <- DeepSeq.rnf environ `seq` return environ
-        return $ TrackLang.VPitch $ PitchSignal.pitch
+        return $! TrackLang.VPitch $ PitchSignal.pitch
             (call frac hz environ) (pitch_note environ)
     where
     call frac hz environ controls =

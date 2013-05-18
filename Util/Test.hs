@@ -301,9 +301,10 @@ io_human_srcpos srcpos expected_msg op = do
         _ -> failure_srcpos srcpos $ "didn't see " ++ show expected_msg
     return result
 
-pause :: IO ()
-pause = do
-    putStr "pausing, hit almost any key... "
+pause :: String -> IO ()
+pause msg = do
+    putStr $ "pausing, hit almost any key... "
+        ++ if null msg then "" else " -- " ++ msg
     human_getch
     putStr "\n"
 

@@ -3,7 +3,7 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE FlexibleContexts #-} -- for super-classes of Derived
 {-# LANGUAGE UndecidableInstances #-}
-{-# LANGUAGE Rank2Types #-}
+{-# LANGUAGE Rank2Types, BangPatterns #-}
 {- | Implementation for the Deriver monad.
 
     This module should contain only 'Deriver' and the definitions needed to
@@ -185,7 +185,7 @@ _throw err = Deriver $ \st logs lose _ -> lose st logs err
 
 {-# INLINE modify #-}
 modify :: (State -> State) -> Deriver ()
-modify f = Deriver $ \st logs _ win -> win (f st) logs ()
+modify f = Deriver $ \st logs _ win -> let !x = f st in win x logs ()
 
 {-# INLINE get #-}
 get :: Deriver State
@@ -193,11 +193,13 @@ get = Deriver $ \st logs _ win -> win st logs st
 
 {-# INLINE gets #-}
 gets :: (State -> a) -> Deriver a
-gets f = f <$> get
+gets f = do
+    state <- get
+    return $! f state
 
 {-# INLINE put #-}
 put :: State -> Deriver ()
-put st = Deriver $ \_ logs _ win -> win st logs ()
+put !st = Deriver $ \_ logs _ win -> win st logs ()
 
 instance Functor Deriver where
     fmap = fmapC
@@ -362,7 +364,7 @@ instance Derived PitchSignal.Signal where
 data State = State {
     -- | This data is modified in a dynamically scoped way, for
     -- sub-derivations.
-    state_dynamic :: Dynamic
+    state_dynamic :: !Dynamic
     -- | This data is mappended.  It functions like an implicit return value.
     , state_collect :: !Collect
     -- | This data is constant throughout the derivation.
