@@ -694,7 +694,7 @@ fltk:
     floating edit input
       * there's a memory corruption bug in there somewhere
         Sometimes haskell gets \NUL\NUL instead of "hi".
-      - send EditAppend
+      * send EditAppend
         Can't return and Continue.  Can't call directly unless I put all
         track cmds in IO.  So either a special Cmd collect val, or consider
         EditAppend a Continue.  Latter doesn't work because

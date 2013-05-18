@@ -9,10 +9,12 @@ import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 import qualified Data.Set as Set
 
+import Util.Control
 import qualified Midi.Midi as Midi
 import qualified Ui.Key as Key
 import qualified Ui.UiMsg as UiMsg
 import qualified Cmd.Cmd as Cmd
+import qualified Cmd.EditUtil as EditUtil
 import qualified Cmd.InputNote as InputNote
 import qualified Cmd.Keymap as Keymap
 import qualified Cmd.Msg as Msg
@@ -59,14 +61,10 @@ cmds_with_note kbd_entry maybe_patch cmds msg = do
                     (Instrument.has_flag Instrument.Pressure) maybe_patch
             return $ kbd_input is_pressure octave msg
         else return Nothing
-    new_msgs <- case new_msgs of
-        Nothing -> midi_input msg
-        Just msgs -> return $ Just msgs
+    new_msgs <- maybe (midi_input msg) (return . Just) new_msgs
     case new_msgs of
         Nothing -> Cmd.run_subs cmds msg
-        Just msgs -> do
-            mapM_ send msgs
-            return Cmd.Done
+        Just msgs -> foldr Cmd.merge_status Cmd.Done <$> mapM send msgs
     where
     send msg = do
         case msg of
@@ -154,3 +152,15 @@ midi_input (Msg.Midi (Midi.ReadMessage rdev _ midi_msg)) = do
             return $ Just [Msg.InputNote input]
         Nothing -> return (Just [])
 midi_input _ = return Nothing
+
+-- * edit_append
+
+edit_append :: (Cmd.M m) => Msg.Msg -> m Cmd.Status
+edit_append msg = do
+    edit_input <- Cmd.gets $ Cmd.state_edit_input . Cmd.state_edit
+    case msg of
+        Msg.InputNote (InputNote.NoteOn _ key _) | edit_input -> do
+            note <- EditUtil.parse_key key
+            return $ Cmd.EditInput $ Cmd.EditAppend $
+                " (" <> Pitch.note_text note <> ")"
+        _ -> return Cmd.Continue

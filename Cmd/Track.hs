@@ -93,7 +93,10 @@ note_cmds edit_mode track = universal ++ case Info.track_type track of
             | otherwise -> [ControlTrack.cmd_val_edit]
         _ -> []
     where
-    universal = [PitchTrack.cmd_record_note_status, MidiThru.cmd_midi_thru]
+    universal =
+        [ PitchTrack.cmd_record_note_status, MidiThru.cmd_midi_thru
+        , NoteEntry.edit_append
+        ]
     is_tempo = TrackInfo.is_tempo_track $
         State.track_title (Info.track_info track)
 

@@ -124,6 +124,17 @@ data Status = Done | Continue | Quit
     | EditInput !EditInput
     deriving (Show, Generics.Typeable)
 
+-- | Combine two Statuses by keeping the one with higher priority.
+merge_status :: Status -> Status -> Status
+merge_status s1 s2 = if prio s1 >= prio s2 then s1 else s2
+    where
+    prio status = case status of
+        Continue -> 0
+        Done -> 1
+        PlayMidi {} -> 2
+        EditInput {} -> 3
+        Quit -> 4
+
 -- | Arguments for "Cmd.PlayC.play".
 --
 -- Descriptive name, events, tempo func to display play position, optional time
@@ -478,6 +489,8 @@ data StepState = StepState {
 data EditState = EditState {
     -- | Edit mode enables various commands that write to tracks.
     state_edit_mode :: !EditMode
+    -- | True if the floating input edit is open.
+    , state_edit_input :: !Bool
     -- | Whether or not to advance the insertion point after a note is
     -- entered.
     , state_advance :: Bool
@@ -523,6 +536,7 @@ data EditState = EditState {
 initial_edit_state :: EditState
 initial_edit_state = EditState {
     state_edit_mode = NoEdit
+    , state_edit_input = False
     , state_kbd_entry = False
     , state_advance = True
     , state_chord = False
@@ -782,7 +796,9 @@ mouse_mod_btn _ = Nothing
 -- ** state access
 
 gets :: (M m) => (State -> a) -> m a
-gets f = f <$> get
+gets f = do
+    state <- get
+    return $! f state
 
 modify :: (M m) => (State -> State) -> m ()
 modify f = do

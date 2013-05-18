@@ -30,6 +30,11 @@ v_ly_prepend = TrackLang.Symbol "ly-prepend"
 
 -- | String: like 'v_ly_prepend' but append the code to all the notes in a tied
 -- sequence.  This is the only append variant accepted for zero-dur notes.
+--
+-- TODO The behaviour for v_ly_append_all for zero-dur notes seems to be
+-- v_ly_append_first.  I should make zero-durs understand all the append
+-- variations for consistency, though I don't have examples of where they would
+-- be useful.
 v_ly_append_all :: TrackLang.ValName
 v_ly_append_all = TrackLang.Symbol "ly-append-all"
 

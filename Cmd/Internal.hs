@@ -122,8 +122,8 @@ msg_to_mod msg = case msg of
 -- * focus
 
 -- | Keep 'Cmd.state_focused_view' up to date.
-cmd_record_focus :: Cmd.Cmd
-cmd_record_focus msg = case msg of
+record_focus :: Cmd.Cmd
+record_focus msg = case msg of
     Msg.Ui (UiMsg.UiMsg (UiMsg.Context { UiMsg.ctx_focus = Just view_id }) msg)
             -> do
         set_focused_view view_id
@@ -158,7 +158,7 @@ cmd_record_ui_updates (Msg.Ui (UiMsg.UiMsg _
 cmd_record_ui_updates msg = do
     (ctx, view_id, update) <- Cmd.require (update_of msg)
     ui_update (fst <$> UiMsg.ctx_track ctx) view_id update
-    -- return Continue to give 'cmd_update_ui_state' a crack at it
+    -- return Continue to give 'update_ui_state' a crack at it
     return Cmd.Continue
 
 ui_update :: Maybe TrackNum -> ViewId -> UiMsg.UiUpdate -> Cmd.CmdId ()
@@ -183,10 +183,13 @@ ui_update maybe_tracknum view_id update = case update of
 -- | This is the other half of 'cmd_record_ui_updates', whose output is synced
 -- like normal Cmds.  When its a block update I have to update the other
 -- views.
-cmd_update_ui_state :: Cmd.Cmd
-cmd_update_ui_state msg = do
+update_ui_state :: Cmd.Cmd
+update_ui_state msg = do
     (ctx, view_id, update) <- Cmd.require (update_of msg)
-    if UiMsg.ctx_edit_input ctx then return Cmd.Continue
+    if UiMsg.ctx_edit_input ctx
+        then do
+            Cmd.modify_edit_state $ \st -> st { Cmd.state_edit_input = False }
+            return Cmd.Continue
         else do
             ui_update_state (fst <$> UiMsg.ctx_track ctx) view_id update
             return Cmd.Done
@@ -249,8 +252,8 @@ track_bg track
 
 -- * sync
 
-cmd_sync_status :: (Cmd.M m) => State.State -> Cmd.State -> m Cmd.Status
-cmd_sync_status ui_from cmd_from = do
+sync_status :: (Cmd.M m) => State.State -> Cmd.State -> m Cmd.Status
+sync_status ui_from cmd_from = do
     edit_state <- Cmd.gets Cmd.state_edit
     ui_to <- State.get
     let updates = view_updates ui_from ui_to

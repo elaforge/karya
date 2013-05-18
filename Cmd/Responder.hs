@@ -321,7 +321,12 @@ handle_special_status ui_state cmd_state transport_info status = case status of
             { Cmd.state_play = (Cmd.state_play cmd_state)
                 { Cmd.state_play_control = Just play_ctl }
             }
-    Cmd.EditInput edit -> Sync.edit_input ui_state edit >> return cmd_state
+    Cmd.EditInput edit -> do
+        Sync.edit_input ui_state edit
+        return $! cmd_state
+            { Cmd.state_edit = (Cmd.state_edit cmd_state)
+                { Cmd.state_edit_input = True }
+            }
     _ -> return cmd_state
 
 respond :: State -> Msg.Msg -> IO (Bool, State)
@@ -375,7 +380,7 @@ run_sync_status :: ResponderM ()
 run_sync_status = do
     rstate <- Monad.State.get
     result <- run_continue "sync_status" $ Left $
-        Internal.cmd_sync_status (rstate_ui_from rstate)
+        Internal.sync_status (rstate_ui_from rstate)
             (rstate_cmd_from rstate)
     when_just result $ \(_, ui_state, cmd_state) -> Monad.State.modify $ \st ->
         st { rstate_ui_to = ui_state, rstate_cmd_to = cmd_state }
@@ -399,10 +404,10 @@ run_core_cmds msg = do
             (StaticConfig.local_repl_dirs config)
     mapM_ (run_throw . Right . ($msg)) io_cmds
 
--- | Everyone always gets these commands.
+-- | These cmds always get the first shot at the Msg.
 hardcoded_cmds :: [Cmd.Cmd]
 hardcoded_cmds =
-    [Track.track_cmd, Internal.cmd_update_ui_state, Internal.cmd_record_focus]
+    [Internal.record_focus, Internal.update_ui_state, Track.track_cmd]
 
 -- | And these special commands that run in IO.
 hardcoded_io_cmds :: Repl.Session -> [FilePath] -> [Msg.Msg -> Cmd.CmdIO]
@@ -417,6 +422,8 @@ hardcoded_io_cmds repl_session repl_dirs =
 type EitherCmd = Either (Cmd.CmdId Cmd.Status) Cmd.CmdIO
 type ErrorResponderM = Error.ErrorT Done ResponderM
 
+-- | Run a cmd and ignore the 'Cmd.Status', but log a complaint if it wasn't
+-- Continue.
 run_continue :: String -> EitherCmd
     -> ResponderM (Maybe (Cmd.Status, State.State, Cmd.State))
 run_continue caller cmd = do
@@ -430,6 +437,7 @@ run_continue caller cmd = do
                 Log.error $ caller <> ": expected Continue: " <> show status
             return $ Just (status, ui_state, cmd_state)
 
+-- | Run a Cmd, throwing the 'Cmd.Status' if it wasn't Continue.
 run_throw :: EitherCmd -> ErrorResponderM ()
 run_throw cmd = do
     (result, cmd_state) <- lift $ run_cmd cmd
