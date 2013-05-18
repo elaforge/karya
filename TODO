@@ -177,9 +177,10 @@ documentation
       note / pitch / control / val, one for each %control, one for each
       name-arg.  They don't show up in the tag list, but can be used for
       searching.
-    - calls.html page should have a search box that can filter by tag presence
-      or abscence.  Each call gets its tags associated, then JS can go through
+    * calls.html page should have a search box that can filter by tag presence
+      or absence.  Each call gets its tags associated, then JS can go through
       and show/hide.
+      - filter by absence
 
 strict derivation / parallelization / memory leaks
   cache tracks

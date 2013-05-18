@@ -120,30 +120,61 @@ doc_html hstate = un_html . (html_header <>) . mconcatMap section
 html_header :: Html
 html_header =
     "<style type=text/css>\n" <> css <> "</style>\n"
+    <> "<script>\n" <> javascript <> "</script>\n"
     <> mconcat (List.intersperse "; "
         [ "<code>arg = val</code> &mdash; arg with default"
         , "<code>arg<sup>?</sup></code> &mdash; optional arg"
         , "<code>arg<sup>*</sup></code> &mdash; zero or more args"
         , "<code>arg<sup>+</sup></code> &mdash; one or more args"
         ])
-    where
-    css = ".main dl { border-bottom: 1px solid #999 }\n"
-        <> "dl.compact {\n"
-        <> "    margin: 0px;\n"
-        <> "    padding: 0;\n"
-        <> "}\n"
-        <> ".compact dt {\n"
-        <> "    margin: 0;\n"
-        <> "    padding: 0;\n"
-        <> "}\n"
-        <> ".compact dd {\n"
-        <> "    margin: 0 0 1em 0;\n"
-        <> "    padding: 0;\n"
-        <> "}\n"
+    <> "<br> Search tags: <input type=text onchange=\"search(this.value)\">\n"
+
+css :: Html
+css = ".main dl { border-bottom: 1px solid #999 }\n\
+    \dl.compact {\n\
+    \    margin: 0px;\n\
+    \    padding: 0;\n\
+    \}\n\
+    \.compact dt {\n\
+    \    margin: 0;\n\
+    \    padding: 0;\n\
+    \}\n\
+    \.compact dd {\n\
+    \    margin: 0 0 1em 0;\n\
+    \    padding: 0;\n\
+    \}\n"
+
+javascript :: Html
+javascript =
+    "var search = function(val) {\n\
+    \   var search = val.split(/ +/).filter(function(x) { return x != '' });\n\
+    \   var defs = document.getElementsByClassName('main');\n\
+    \   for (var i = 0; i < defs.length; i++) {\n\
+    \       for (var j = 0; j < defs[i].children.length; j++) {\n\
+    \           var c = defs[i].children[j];\n\
+    \           var tags = c.attributes.tags.value.split(' ');\n\
+    \           c.hidden = !matches(search, tags);\n\
+    \       }\n\
+    \   }\n\
+    \};\n\
+    \var matches = function(search, tags) {\n\
+    \   tags = tags.filter(function(x) { return x != '' });\n\
+    \   if (search.length == 0)\n\
+    \       return true;\n\
+    \   for (var i = 0; i < search.length; i++) {\n\
+    \       for (var j = 0; j < tags.length; j++) {\n\
+    \           if (search[i] === tags[j])\n\
+    \               return true;\n\
+    \       }\n\
+    \   }\n\
+    \   return false;\n\
+    \};\n"
 
 call_bindings_html :: HtmlState -> CallBindings -> Html
 call_bindings_html hstate (binds, sections) =
-    mconcatMap show_bind binds <> show_sections sections <> "\n\n"
+    "<div tags=\"" <> html (Text.unwords (doc_call_tags sections)) <> "\">"
+    <> mconcatMap show_bind binds <> show_sections sections
+    <> "</div>\n\n"
     where
     show_bind (shadowed, sym, name) =
         "<dt>" <> (if shadowed then strikeout sym else tag "code" (html sym))
@@ -174,6 +205,10 @@ call_bindings_html hstate (binds, sections) =
         | otherwise = "<br><b>Tags:</b> <em>"
             <> html (Text.pack (Seq.join ", " (Tags.untag tags)))
             <> "</em>"
+
+doc_call_tags :: DocumentedCall -> [Text]
+doc_call_tags = map txt . Seq.drop_dups id
+    . concatMap (Tags.untag . Derive.cdoc_tags . snd)
 
 tag :: Html -> Html -> Html
 tag name content = "<" <> name <> ">" <> content <> "</" <> name <> ">"
