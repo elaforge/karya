@@ -86,6 +86,7 @@ module Derive.Sig (
     , required, defaulted, optional, many, many1
     -- ** defaults
     , control, typed_control, required_control
+    , arg_environ_default
     -- * call
     , call, call0, callt, call0t
     -- * misc

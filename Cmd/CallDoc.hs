@@ -22,6 +22,7 @@ import qualified Cmd.Perf as Perf
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Derive as Derive
 import qualified Derive.Scale as Scale
+import qualified Derive.Sig as Sig
 import qualified Derive.TrackInfo as TrackInfo
 import qualified Derive.TrackLang as TrackLang
 
@@ -109,12 +110,12 @@ get_html_state haddock_dir app_dir = do
 doc_html :: HtmlState -> Document -> Text
 doc_html hstate = un_html . (html_header <>) . mconcatMap section
     where
-    section (call_type, scope_docs) =
-        tag "h2" (html call_type) <> "\n\n"
-        <> mconcatMap scope_doc scope_docs
-    scope_doc (source, calls) =
+    section (call_kind, scope_docs) =
+        tag "h2" (html call_kind) <> "\n\n"
+        <> mconcatMap (scope_doc call_kind) scope_docs
+    scope_doc call_kind (source, calls) =
         tag "h3" ("from " <> html source) <> "\n\n<dl class=main>\n"
-        <> mconcatMap (call_bindings_html hstate) calls
+        <> mconcatMap (call_bindings_html hstate call_kind) calls
         <> "</dl>\n"
 
 html_header :: Html
@@ -159,23 +160,16 @@ javascript =
     \};\n\
     \var matches = function(search, tags) {\n\
     \   tags = tags.filter(function(x) { return x != '' });\n\
-    \   if (search.length == 0)\n\
-    \       return true;\n\
-    \   for (var i = 0; i < search.length; i++) {\n\
-    \       for (var j = 0; j < tags.length; j++) {\n\
-    \           if (search[i] === tags[j])\n\
-    \               return true;\n\
-    \       }\n\
-    \   }\n\
-    \   return false;\n\
+    \   return search.every(function(x) { return tags.indexOf(x) != -1 });\n\
     \};\n"
 
-call_bindings_html :: HtmlState -> CallBindings -> Html
-call_bindings_html hstate (binds, sections) =
-    "<div tags=\"" <> html (Text.unwords (doc_call_tags sections)) <> "\">"
+call_bindings_html :: HtmlState -> Text -> CallBindings -> Html
+call_bindings_html hstate call_kind bindings@(binds, sections) =
+    "<div tags=\"" <> html (Text.unwords tags) <> "\">"
     <> mconcatMap show_bind binds <> show_sections sections
     <> "</div>\n\n"
     where
+    tags = call_kind : binding_tags bindings
     show_bind (shadowed, sym, name) =
         "<dt>" <> (if shadowed then strikeout sym else tag "code" (html sym))
         <> " &mdash; " <> tag "b" (html name) <> ":\n"
@@ -206,9 +200,26 @@ call_bindings_html hstate (binds, sections) =
             <> html (Text.pack (Seq.join ", " (Tags.untag tags)))
             <> "</em>"
 
-doc_call_tags :: DocumentedCall -> [Text]
-doc_call_tags = map txt . Seq.drop_dups id
-    . concatMap (Tags.untag . Derive.cdoc_tags . snd)
+binding_tags :: CallBindings -> [Text]
+binding_tags (binds, dcall) = Seq.unique (concatMap extract dcall)
+    where
+    names = [name | (_, _, name) <- binds]
+    extract (_, call_doc) =
+        cdoc_tags call_doc ++ args_tags (Derive.cdoc_args call_doc)
+    cdoc_tags = map txt . Tags.untag . Derive.cdoc_tags
+    args_tags (Derive.ArgDocs args) = concatMap arg_tags args
+    args_tags (Derive.ArgsParsedSpecially {}) = []
+    arg_tags arg =
+        [ unsym $ Sig.arg_environ_default name (Derive.arg_name arg)
+        | name <- names
+        ] ++ arg_control_tags (Derive.arg_parser arg)
+    unsym (TrackLang.Symbol sym) = sym
+    -- An arg with a control signal default should look like "%sig,.5".
+    -- This is a hack, since the default isn't stored in a structured way.
+    arg_control_tags (Derive.Defaulted deflt)
+        | "%" `Text.isPrefixOf` deflt = [Text.takeWhile (/=',') deflt]
+        | otherwise = []
+    arg_control_tags _ = []
 
 tag :: Html -> Html -> Html
 tag name content = "<" <> name <> ">" <> content <> "</" <> name <> ">"
@@ -258,7 +269,7 @@ scales_html hstate scales = un_html $ html_header
         <> "<h2> Scales </h2>\n"
         <> "<dl class=main>\n" <> mconcatMap scale_html scales
         <> "</dl>\n"
-    where scale_html = mconcatMap (call_bindings_html hstate)
+    where scale_html = mconcatMap (call_bindings_html hstate "scale")
 
 scale_doc :: Scale.Scale -> Scale
 scale_doc scale =
@@ -301,7 +312,10 @@ track block_id track_id = do
     ttype <- TrackInfo.track_type <$> State.get_track_title track_id
     return $ track_sections ttype (Derive.state_scope dynamic)
 
--- | (call type, docs)
+-- | (call kind, docs)
+--
+-- Call kind is note, control, pitch, val.  CallType is val, generator,
+-- transformer.
 type Section = (Text, [ScopeDoc])
 
 track_sections :: TrackInfo.Type -> Derive.Scope -> [Section]
