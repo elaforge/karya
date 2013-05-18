@@ -405,7 +405,7 @@ thread setup tests = do
         putStr "***dump: " >> pslist unparsed
         let dumps = map parse_dump unparsed
         passed <- match_dumps desc dumps expected
-        unless passed pause
+        unless passed (pause "")
         return state
 
 match_dumps :: String -> [Dump.Dump] -> [[(String, String)]] -> IO Bool

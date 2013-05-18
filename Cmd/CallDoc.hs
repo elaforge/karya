@@ -75,7 +75,7 @@ call_bindings_text (binds, sections) = do
     write_tags tags
         | tags == mempty = return ()
         | otherwise = Format.write $
-            "Tags: " <> txt (Seq.join ", " (Tags.untag tags)) <> "\n"
+            "Tags: " <> Text.intercalate ", " (Tags.untag tags) <> "\n"
 
 write_doc :: Text -> Format.FormatM ()
 write_doc text = do
@@ -197,7 +197,7 @@ call_bindings_html hstate call_kind bindings@(binds, sections) =
     write_tags tags
         | tags == mempty = ""
         | otherwise = "<br><b>Tags:</b> <em>"
-            <> html (Text.pack (Seq.join ", " (Tags.untag tags)))
+            <> html (Text.intercalate ", " (Tags.untag tags))
             <> "</em>"
 
 binding_tags :: CallBindings -> [Text]
@@ -206,7 +206,7 @@ binding_tags (binds, dcall) = Seq.unique (concatMap extract dcall)
     names = [name | (_, _, name) <- binds]
     extract (_, call_doc) =
         cdoc_tags call_doc ++ args_tags (Derive.cdoc_args call_doc)
-    cdoc_tags = map txt . Tags.untag . Derive.cdoc_tags
+    cdoc_tags = Tags.untag . Derive.cdoc_tags
     args_tags (Derive.ArgDocs args) = concatMap arg_tags args
     args_tags (Derive.ArgsParsedSpecially {}) = []
     arg_tags arg =

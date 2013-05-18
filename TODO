@@ -40,7 +40,7 @@ UNSORTED
     oracle utils yet?
   convert to Text:
     * Perform.Midi.Instrument.patch_text
-    - Derive.Tags.Tags
+    * Derive.Tags.Tags
     - TimeStep.show_time_step
     - Pretty.pretty
       For this I need to extend Util.Format to be a simplified prettyprinter:

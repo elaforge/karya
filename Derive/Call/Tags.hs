@@ -9,12 +9,12 @@ import qualified Data.Set as Set
 
 
 type Tags = Set.Set Tag
-newtype Tag = Tag String deriving (Show, Ord, Eq)
+newtype Tag = Tag Text deriving (Show, Ord, Eq)
 
-tag :: String -> Tags
+tag :: Text -> Tags
 tag = Set.singleton . Tag
 
-untag :: Tags -> [String]
+untag :: Tags -> [Text]
 untag = map (\(Tag t) -> t) . Set.toList
 
 -- | Internal calls are used to implement the basic track calls.  You should
