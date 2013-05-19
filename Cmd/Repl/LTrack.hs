@@ -67,8 +67,8 @@ map_widths wanted f = do
 -- | Transform all track titles.
 map_titles :: (Text -> Text) -> Cmd.CmdL ()
 map_titles f = do
-    bids <- State.all_block_ids
-    mapM_ (flip map_block_titles f) bids
+    tids <- State.all_track_ids
+    mapM_ (flip State.modify_track_title f) tids
 
 replace :: Text -> Text -> Cmd.CmdL ()
 replace from to = map_titles $ Text.replace from to
@@ -82,16 +82,6 @@ find search = do
     titles <- mapM State.get_track_title tids
     return [(tid, title) | (tid, title) <- zip tids titles,
         search `Text.isInfixOf` title]
-
--- Should this go in Ui.Transform?
--- TODO should map 'x | abc' to 'y | abc'
--- And 'mul x' -> 'mul y'
---
--- Use Cmd.Info and do replace instead of map.
-map_block_titles :: BlockId -> (Text -> Text) -> Cmd.CmdL ()
-map_block_titles block_id f = do
-    tids <- map State.track_id <$> TrackTree.tracks_of block_id
-    mapM_ (flip State.modify_track_title f) tids
 
 -- * manipulation
 
