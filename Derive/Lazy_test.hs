@@ -277,16 +277,17 @@ with_calls mvar = CallTest.with_note_call "" (mk_logging_call mvar)
     . CallTest.with_control_lookup (c_set mvar)
 
 mk_logging_call :: Log -> Derive.NoteCall
-mk_logging_call log_mvar = Call.Note.note_call "logging-note" "" $ \args -> do
-    -- Call the real one to make sure I'm getting it's laziness
-    -- characteristics.
-    [LEvent.Event sevent] <-
-        Call.Note.default_note Call.Note.use_attributes args
-    st <- Derive.get_stack
-    let write_log = Unsafe.unsafePerformIO $ put_log log_mvar $
-            stack ++ " note at: " ++ Pretty.pretty (Score.event_start sevent)
-        stack = Stack.unparse_ui_frame_ $ last $ Stack.to_ui st
-    return $! LEvent.one $! LEvent.Event $! write_log `seq` sevent
+mk_logging_call log_mvar = Call.Note.note_call "logging-note" "" mempty $
+    \args -> do
+        -- Call the real one to make sure I'm getting it's laziness
+        -- characteristics.
+        [LEvent.Event sevent] <-
+            Call.Note.default_note Call.Note.use_attributes args
+        st <- Derive.get_stack
+        let write_log = Unsafe.unsafePerformIO $ put_log log_mvar $
+                stack ++ " note at: " ++ Pretty.pretty (Score.event_start sevent)
+            stack = Stack.unparse_ui_frame_ $ last $ Stack.to_ui st
+        return $! LEvent.one $! LEvent.Event $ write_log `seq` sevent
 
 c_set :: Log -> Derive.LookupCall Derive.ControlCall
 c_set log_mvar = Derive.pattern_lookup "numbers and hex" doc $

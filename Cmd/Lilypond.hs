@@ -92,7 +92,8 @@ lilypond_scope = Scope.add_override_note_lookup lookup
         ]
     -- Turn off the behaviour where staccato shortens the note, since that's
     -- already implicit when you see the dot.
-    note = Note.note_call "" "" (Note.default_note Note.no_duration_attributes)
+    note = Note.note_call "" "" mempty
+        (Note.default_note Note.no_duration_attributes)
 
 compile_lys :: FilePath -> Lilypond.Config -> Lilypond.Title
     -> [(Lilypond.Title, [Score.Event])] -> IO (Maybe String, [Log.Msg])

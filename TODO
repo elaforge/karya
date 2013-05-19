@@ -3,6 +3,7 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
+  - every time I play, the cache stats in logview collect more
   . Why I do need to make a point list for timestep?  Why not just calculate
     directly?  Also, can I get rid of multiple steps in favor of just passing
     a different number to TimeStep.step?
@@ -181,7 +182,7 @@ documentation
     * calls.html page should have a search box that can filter by tag presence
       or absence.  Each call gets its tags associated, then JS can go through
       and show/hide.
-      - filter by absence
+      * filter by absence
 
 strict derivation / parallelization / memory leaks
   cache tracks

@@ -65,12 +65,12 @@ note_calls = Derive.make_calls
 -- * note
 
 c_note :: Derive.NoteCall
-c_note = note_call "" "" (default_note use_attributes)
+c_note = note_call "" "" Tags.prelude (default_note use_attributes)
 
-transformed_note :: Text -> (Derive.EventDeriver -> Derive.EventDeriver)
-    -> Derive.NoteCall
-transformed_note prepend_doc transform =
-    note_call "" prepend_doc (transform . default_note use_attributes)
+transformed_note :: Text -> Tags.Tags
+    -> (Derive.EventDeriver -> Derive.EventDeriver) -> Derive.NoteCall
+transformed_note prepend_doc tags transform =
+    note_call "" prepend_doc tags (transform . default_note use_attributes)
 
 -- | Create a note call, configuring it with the actual note generating
 -- function.  The generator is called with the usual note arguments, and
@@ -82,14 +82,14 @@ note_call :: Text
     -- the name is then no longer a valid identifier, it can't be used to set
     -- default arguments.  That's not really a big deal for the note call,
     -- though.
-    -> Text -> GenerateNote -> Derive.NoteCall
-note_call append_name prepend_doc generate = Derive.Call
+    -> Text -> Tags.Tags -> GenerateNote -> Derive.NoteCall
+note_call append_name prepend_doc tags generate = Derive.Call
     { Derive.call_name = "note"
         <> (if Text.null append_name then "" else Text.cons ' ' append_name)
-    , Derive.call_generator = Just $ Derive.generator_call mempty prepended
+    , Derive.call_generator = Just $ Derive.generator_call tags prepended
         (Sig.call parser (note_generate generate))
-    , Derive.call_transformer = Just $ Derive.transformer_call Tags.subs
-        transformer_doc (Sig.callt parser note_transform)
+    , Derive.call_transformer = Just $ Derive.transformer_call
+        (tags <> Tags.subs) transformer_doc (Sig.callt parser note_transform)
     }
     where
     parser = Sig.many "attribute" "Change the instrument or attributes."

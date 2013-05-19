@@ -128,7 +128,11 @@ html_header =
         , "<code>arg<sup>*</sup></code> &mdash; zero or more args"
         , "<code>arg<sup>+</sup></code> &mdash; one or more args"
         ])
-    <> "<br> Search tags: <input type=text onchange=\"search(this.value)\">\n"
+    <> "<br> <code>word</code> to include a tag, <code>-word</code> to\n\
+        \exclude: <input type=text onchange=\"search(this.value)\">\n\
+        \<br>You can also search by <code>%control</code>, arg default\n\
+        \(<code>name-arg</code>), and call kind (<code>note</code>,\n\
+        \<code>control</code>, ...)\n"
 
 css :: Html
 css = ".main dl { border-bottom: 1px solid #999 }\n\
@@ -160,7 +164,12 @@ javascript =
     \};\n\
     \var matches = function(search, tags) {\n\
     \   tags = tags.filter(function(x) { return x != '' });\n\
-    \   return search.every(function(x) { return tags.indexOf(x) != -1 });\n\
+    \   return search.every(function(x) {\n\
+    \       if (x[0] === '-')\n\
+    \           return tags.indexOf(x.slice(1)) === -1;\n\
+    \       else\n\
+    \           return tags.indexOf(x) !== -1;\n\
+    \    });\n\
     \};\n"
 
 call_bindings_html :: HtmlState -> Text -> CallBindings -> Html
@@ -200,6 +209,10 @@ call_bindings_html hstate call_kind bindings@(binds, sections) =
             <> html (Text.intercalate ", " (Tags.untag tags))
             <> "</em>"
 
+-- | Extract explicit tags as well as some implicit tags.  Implicit tags are
+-- @%control@ for controls in the default arguments, @name-arg@ for environ
+-- keys that default the arguments, and @note@, @control@, @pitch@, or @val@ for
+-- the call kind.
 binding_tags :: CallBindings -> [Text]
 binding_tags (binds, dcall) = Seq.unique (concatMap extract dcall)
     where

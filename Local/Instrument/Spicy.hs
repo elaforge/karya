@@ -57,7 +57,7 @@ note_call = Note.transformed_note
     ("If given a string-name attribute in " <> attrs_doc <> ", suffix the"
         <> " instrument with the string name.  When combined with the proper"
         <> " midi config, this will redirect the note to the proper channel"
-        <> " for that string.")
+        <> " for that string.") mempty
     transform
     where
     attrs_doc = Text.intercalate ", " ["`" <> txt a <> "`" | a <- strings]

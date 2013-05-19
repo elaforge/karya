@@ -31,9 +31,9 @@ import Types
 -- 'Call.eval_event'.
 lookup_number :: Derive.LookupCall Derive.ControlCall
 lookup_number = Derive.pattern_lookup "numbers and hex" doc $
-    \(TrackLang.Symbol sym) -> case ParseBs.parse_num sym of
-        Left _ -> return Nothing
-        Right val -> return $ Just $ set val
+    \(TrackLang.Symbol sym) -> return $! case ParseBs.parse_num sym of
+        Left _ -> Nothing
+        Right val -> Just $ set val
     where
     set :: Signal.Y -> Derive.ControlCall
     set val = Derive.generator1 "self-eval" Tags.prelude
@@ -90,7 +90,8 @@ require_previous = Set.fromList
     ["'", "i>", "i>>", "i<<", "e>", "e>>", "e<<", "u", "d"]
 
 c_set :: Derive.ControlCall
-c_set = Derive.generator1 "set" mempty "Emit a sample with no interpolation." $
+c_set = Derive.generator1 "set" Tags.prelude
+    "Emit a sample with no interpolation." $
     Sig.call (required "val" "Destination value.") $ \val args -> do
         pos <- Args.real_start args
         return $! Signal.signal [(pos, val)]
@@ -119,7 +120,7 @@ linear_interpolation :: (TrackLang.Typecheck time) =>
         -> Derive.Deriver TrackLang.RealOrScore)
     -> Derive.ControlCall
 linear_interpolation name time_default time_default_doc get_time =
-    Derive.generator1 name Tags.prev doc $ Sig.call ((,)
+    Derive.generator1 name (Tags.prelude <> Tags.prev) doc $ Sig.call ((,)
     <$> required "val" "Destination value."
     <*> defaulted "time" time_default time_doc
     ) $ \(val, time) args ->
@@ -169,7 +170,7 @@ exponential_interpolation :: (TrackLang.Typecheck time) =>
         -> Derive.Deriver TrackLang.RealOrScore)
     -> Derive.ControlCall
 exponential_interpolation name time_default time_default_doc get_time =
-    Derive.generator1 name Tags.prev doc $ Sig.call ((,,)
+    Derive.generator1 name (Tags.prelude <> Tags.prev) doc $ Sig.call ((,,)
     <$> required "val" "Destination value."
     <*> defaulted "exp" 2 exp_doc
     <*> defaulted "time" time_default time_doc
@@ -209,7 +210,7 @@ c_exp_next_const =
 -- * misc
 
 c_neighbor :: Derive.ControlCall
-c_neighbor = Derive.generator1 "neighbor" mempty
+c_neighbor = Derive.generator1 "neighbor" Tags.prelude
     ("Emit a slide from a value to 0 in absolute time. This is the control\
     \ equivalent of the neighbor pitch call."
     ) $ Sig.call ((,)
@@ -218,10 +219,10 @@ c_neighbor = Derive.generator1 "neighbor" mempty
     ) $ \(neighbor, TrackLang.DefaultReal time) args -> do
         (start, end) <- Util.duration_from_start args time
         srate <- Util.get_srate
-        return $ interpolator srate id True start neighbor end 0
+        return $! interpolator srate id True start neighbor end 0
 
 c_down :: Derive.ControlCall
-c_down = Derive.generator1 "down" Tags.prev
+c_down = Derive.generator1 "down" (Tags.prelude <> Tags.prev)
     ("Descend at the given speed until the value reaches 0 or the next event."
     ) $
     Sig.call (defaulted "speed" 1 "Descend this amount per second.") $
@@ -232,7 +233,7 @@ c_down = Derive.generator1 "down" Tags.prev
         in (end, max 0 (prev_y - diff))
 
 c_up :: Derive.ControlCall
-c_up = Derive.generator1 "up" Tags.prev
+c_up = Derive.generator1 "up" (Tags.prelude <> Tags.prev)
     ("Ascend at the given speed until the value reaches 1 or the next event."
     ) $
     Sig.call (defaulted "speed" 1 "Ascend this amount per second.") $

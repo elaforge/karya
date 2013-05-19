@@ -131,7 +131,7 @@ note_calls maybe_hmap patch =
 
     -- Like the standard note call, but ignore attrs that are already handled
     -- with keyswitches.
-    note_call patch = Note.note_call "" "" $
+    note_call patch = Note.note_call "" "" mempty $
         maybe (Note.default_note config) (natural_harmonic config) maybe_hmap
         where config = note_config patch
     note_config patch = Note.use_attributes
