@@ -3,6 +3,7 @@
 module Util.Vector where
 import qualified Data.Vector.Generic as Generic
 import qualified Data.Vector.Unboxed as Unboxed
+import qualified Data.Vector as V
 
 
 count :: (Generic.Vector v a) => (a -> Bool) -> v a -> Int
@@ -29,3 +30,21 @@ bracketing vec a = case Generic.findIndex (>=a) vec of
         | i > 0 ->
             Just (i-1, Unboxed.unsafeIndex vec (i-1), Unboxed.unsafeIndex vec i)
     _ -> Nothing
+
+viewL :: V.Vector a -> Maybe (a, V.Vector a)
+viewL v
+    | V.null v = Nothing
+    | otherwise = Just (V.unsafeHead v, V.unsafeTail v)
+
+-- | Binary search for the lowest index of the given value, or where it would
+-- be if it were present.
+{-# SPECIALIZE lowest_index :: (Ord key) =>
+    (a -> key) -> key -> V.Vector a -> Int #-}
+lowest_index :: (Ord key, Generic.Vector v a) => (a -> key) -> key -> v a -> Int
+lowest_index key x vec = go vec 0 (Generic.length vec)
+    where
+    go vec low high
+        | low == high = low
+        | x <= key (Generic.unsafeIndex vec mid) = go vec low mid
+        | otherwise = go vec (mid+1) high
+        where mid = (low + high) `div` 2

@@ -9,8 +9,7 @@ import qualified Perform.Lilypond.Lilypond as Lilypond
 
 
 test_convert = do
-    let f quarter = map (fmap extract) . Convert.convert quarter
-            . map (LEvent.Event . mkevent)
+    let f quarter = map (fmap extract) . Convert.convert quarter . map mkevent
         mkevent (start, dur, pitch) =
             DeriveTest.mkevent (start, dur, pitch, [], Score.empty_inst)
         extract e = (Lilypond.event_start e, Lilypond.event_duration e,

@@ -131,13 +131,12 @@ root_sel_events = get_sel_events True block_events
 
 -- * play from
 
-events_from :: Cmd.CmdL [Score.Event]
+events_from :: Cmd.CmdL Cmd.Events
 events_from = do
     (block_id, _, track_id, pos) <- Selection.get_insert
     perf <- Cmd.get_performance block_id
     start <- Perf.get_realtime perf block_id (Just track_id) pos
-    return $ LEvent.events_of $
-        PlayUtil.events_from start (Cmd.perf_events perf)
+    return $ PlayUtil.events_from start (Cmd.perf_events perf)
 
 perform_from :: Cmd.CmdL Perform.MidiEvents
 perform_from = do
@@ -186,7 +185,7 @@ in_range start_of start end =
 
 -- * perform_events
 
-convert :: Derive.Events -> Cmd.CmdL (Events Perform.Event)
+convert :: [Score.Event] -> Cmd.CmdL (Events Perform.Event)
 convert events = do
     lookup <- PlayUtil.get_convert_lookup
     return $ Midi.Convert.convert lookup events
@@ -197,7 +196,7 @@ perf_event_inst =
 
 -- * midi
 
-perform_events :: Derive.Events -> Cmd.CmdL Perform.MidiEvents
+perform_events :: Cmd.Events -> Cmd.CmdL Perform.MidiEvents
 perform_events = PlayUtil.perform_events
 
 -- | This is the local block's performance, and the events are filtered to the
@@ -235,7 +234,7 @@ simple_midi = map f . LEvent.events_of
 cache_stats :: BlockId -> Cmd.CmdL String
 cache_stats block_id = do
     perf <- Cmd.get_performance block_id
-    let logs = filter Cache.is_cache_log $ LEvent.logs_of (Cmd.perf_events perf)
+    let logs = filter Cache.is_cache_log $ Cmd.perf_logs perf
     return $ unlines
         [format_stack msg ++ ": " ++ Log.msg_string msg | msg <- logs]
     where

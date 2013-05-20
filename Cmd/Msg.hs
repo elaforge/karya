@@ -1,6 +1,7 @@
 module Cmd.Msg where
 import Control.Monad
 import qualified Data.Map as Map
+import qualified Data.Vector as Vector
 import qualified System.IO as IO
 
 import qualified Util.Log as Log
@@ -12,7 +13,9 @@ import qualified Ui.UiMsg as UiMsg
 
 import qualified Cmd.InputNote as InputNote
 import qualified Derive.Derive as Derive
+import qualified Derive.Score as Score
 import qualified Derive.TrackWarp as TrackWarp
+
 import qualified Perform.Transport as Transport
 import Types
 
@@ -70,7 +73,7 @@ instance Pretty.Pretty DeriveStatus where pretty = show
 data Performance = Performance {
     perf_derive_cache :: !Derive.Cache
     -- | Intentionally not strict.  TODO figure out if that matters
-    , perf_events :: Derive.Events
+    , perf_events :: Events
     , perf_logs :: [Log.Msg]
     , perf_track_dynamic :: !Derive.TrackDynamic
     , perf_integrated :: ![Derive.Integrated]
@@ -82,6 +85,8 @@ data Performance = Performance {
     , perf_track_signals :: !Track.TrackSignals
     }
 
+type Events = Vector.Vector Score.Event
+
 instance Show Performance where
     show perf = "((Performance " ++ Pretty.pretty len ++ "))"
         where len = Derive.cache_size (perf_derive_cache perf)
@@ -90,7 +95,7 @@ instance Pretty.Pretty Performance where
     format perf =
         Pretty.record_title "Performance"
             [ ("cache", Pretty.format (Map.keys c))
-            , ("events", Pretty.format (length (perf_events perf)))
+            , ("events", Pretty.format (Vector.length (perf_events perf)))
             , ("integrated", Pretty.format (perf_integrated perf))
             , ("score_damage", Pretty.format (perf_score_damage perf))
             , ("warps", Pretty.format (perf_warps perf))

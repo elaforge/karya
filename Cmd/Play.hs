@@ -80,9 +80,7 @@ import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 
 import Util.Control
-import qualified Util.Log as Log
 import qualified Util.Pretty as Pretty
-
 import qualified Ui.State as State
 import qualified Ui.Types as Types
 import qualified Cmd.Cmd as Cmd
@@ -92,7 +90,6 @@ import qualified Cmd.Selection as Selection
 import qualified Cmd.StepPlay as StepPlay
 import qualified Cmd.TimeStep as TimeStep
 
-import qualified Derive.LEvent as LEvent
 import qualified Perform.Transport as Transport
 import Types
 
@@ -201,11 +198,8 @@ get_realtime perf_block play_block maybe_track_id pos = do
     perf <- get_performance perf_block
     maybe_start <- Perf.lookup_realtime perf play_block maybe_track_id pos
     case maybe_start of
-        Nothing -> do
-            -- Otherwise we don't get to see why it failed.
-            mapM_ Log.write $ LEvent.logs_of (Cmd.perf_events perf)
-            Cmd.throw $ "play " ++ show perf_block
-                ++ " has no tempo information"
+        Nothing -> Cmd.throw $ "play " ++ show perf_block
+            ++ " has no tempo information"
         Just start -> return start
 
 get_performance :: (Cmd.M m) => BlockId -> m Cmd.Performance

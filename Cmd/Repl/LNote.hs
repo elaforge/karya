@@ -8,7 +8,6 @@ import qualified Cmd.Cmd as Cmd
 import qualified Cmd.ModifyNotes as ModifyNotes
 import qualified Cmd.Selection as Selection
 
-import qualified Derive.LEvent as LEvent
 import qualified Derive.PitchSignal as PitchSignal
 import qualified Perform.Pitch as Pitch
 import Types
@@ -23,8 +22,7 @@ note_controls :: Cmd.CmdL
     [(ModifyNotes.Note, (Maybe PitchSignal.Pitch, PitchSignal.Controls))]
 note_controls = do
     block_id <- Cmd.get_focused_block
-    events <- LEvent.events_of . Cmd.perf_events <$>
-        Cmd.get_performance block_id
+    events <- Cmd.perf_events <$> Cmd.get_performance block_id
     note_track_ids <- notes
     return $ ModifyNotes.find_controls note_track_ids events
 

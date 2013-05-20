@@ -251,10 +251,11 @@ eval :: Types.Config -> Derive.PassedArgs d -> [Note.Event]
     -> Derive.Deriver [Note]
 eval config args notes = do
     start <- Args.real_start args
-    eval_events config start =<< Note.place notes
+    (events, logs) <- LEvent.partition <$> Note.place notes
+    mapM_ Log.write logs
+    eval_events config start events
 
-eval_events :: Types.Config -> RealTime -> Derive.Events
-    -> Derive.Deriver [Note]
+eval_events :: Types.Config -> RealTime -> [Score.Event] -> Derive.Deriver [Note]
 eval_events config start events = do
     meter <- maybe (return Meter.default_meter) parse_meter
         =<< Derive.lookup_val Constants.v_meter
@@ -265,7 +266,7 @@ eval_events config start events = do
     parse_meter = either err return . Meter.parse_meter
     err = Derive.throw . ("parse " <> Pretty.pretty Constants.v_meter <>)
 
-eval_notes :: Types.Config -> Meter.Meter -> RealTime -> Derive.Events
+eval_notes :: Types.Config -> Meter.Meter -> RealTime -> [Score.Event]
     -> ([Note], [Log.Msg])
 eval_notes config meter start score_events = (map Types.to_lily notes, logs)
     where

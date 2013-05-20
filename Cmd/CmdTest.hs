@@ -2,6 +2,7 @@
 module Cmd.CmdTest where
 import qualified Control.Concurrent.Chan as Chan
 import qualified Data.Map as Map
+import qualified Data.Vector as Vector
 import qualified Debug.Trace as Trace
 import qualified System.IO.Unsafe as Unsafe
 
@@ -136,8 +137,9 @@ extract_derive_result res =
     mkres = do
         Cmd.Performance cache events logs track_dyn integrated _damage warps
             tsigs <- Perf.get_root
-        return $ Derive.Result (map LEvent.Log logs ++ events) cache warps
-            tsigs track_dyn integrated
+        let devents = map LEvent.Log logs
+                ++ map LEvent.Event (Vector.toList events)
+        return $ Derive.Result devents cache warps tsigs track_dyn integrated
             (error "can't fake a Derive.State for an extracted Result")
 
 update_performance :: State.State -> State.State -> Cmd.State
@@ -256,8 +258,9 @@ e_performance :: BlockId -> Result a -> Maybe Cmd.Performance
 e_performance block_id = Map.lookup block_id . Cmd.state_performance
     . Cmd.state_play . result_cmd_state
 
-e_events :: BlockId -> Result a -> Derive.Events
-e_events block_id = maybe [] Cmd.perf_events . e_performance block_id
+e_events :: BlockId -> Result a -> [Score.Event]
+e_events block_id = maybe [] (Vector.toList . Cmd.perf_events)
+    . e_performance block_id
 
 e_midi :: Result a -> [Midi.Message]
 e_midi result = [Midi.wmsg_msg msg | Interface.Midi msg <- result_midi result]
@@ -415,7 +418,7 @@ set_env root_id block_id track_id environ =
 empty_performance :: Msg.Performance
 empty_performance = Cmd.Performance
     { Cmd.perf_derive_cache = mempty
-    , Cmd.perf_events = []
+    , Cmd.perf_events = mempty
     , Cmd.perf_logs = []
     , Cmd.perf_track_dynamic = mempty
     , Cmd.perf_integrated = []

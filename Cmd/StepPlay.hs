@@ -18,6 +18,7 @@ import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 import qualified Data.Set as Set
+import qualified Data.Vector as Vector
 
 import Util.Control
 import qualified Util.Seq as Seq
@@ -104,13 +105,11 @@ initialize view_id block_id play_tracks = do
     play_track_ids <- Set.fromList <$>
         mapMaybeM (State.event_track_at block_id) play_tracks
     perf <- Cmd.get_performance block_id
-    let events = filter_tracks play_track_ids $
-            LEvent.events_of $ Cmd.perf_events perf
+    let events = filter_tracks play_track_ids $ Cmd.perf_events perf
         reals = group_edges eta events
         scores = real_to_score block_id (Cmd.perf_inv_tempo perf) reals
         steps = [(s, r) | (Just s, r) <- zip scores reals]
-    msgs <- fmap LEvent.events_of $ PlayUtil.perform_events $
-        map LEvent.Event events
+    msgs <- fmap LEvent.events_of $ PlayUtil.perform_events events
     Cmd.modify_play_state $ \st -> st { Cmd.state_step = Just $
         Cmd.StepState view_id play_tracks []
             (zip (map fst steps) (make_states (map ((+eta) . snd) steps) msgs)) }
@@ -127,13 +126,13 @@ real_to_score block_id inv = map convert
         Just (_, (_, score) : _) -> Just score
         _ -> Nothing
 
-filter_tracks :: Set.Set TrackId -> [Score.Event] -> [Score.Event]
+filter_tracks :: Set.Set TrackId -> Cmd.Events -> Cmd.Events
 filter_tracks track_ids
     | Set.null track_ids = id
-    | otherwise = filter (from_track track_ids)
+    | otherwise = Vector.filter (from_track track_ids)
 
-group_edges :: RealTime -> [Score.Event] -> [RealTime]
-group_edges eta = group . edges
+group_edges :: RealTime -> Cmd.Events -> [RealTime]
+group_edges eta = group . edges . Vector.toList
     where
     edges events = Seq.merge (map Score.event_start events)
         (map Score.event_end events)

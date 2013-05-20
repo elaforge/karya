@@ -3,6 +3,7 @@ module Cmd.Repl.LIntegrate where
 import qualified Data.List.NonEmpty as NonEmpty
 import qualified Data.Map as Map
 import qualified Data.Set as Set
+import qualified Data.Vector as Vector
 
 import Util.Control
 import qualified Ui.Block as Block
@@ -16,13 +17,15 @@ import qualified Cmd.Integrate.Merge as Merge
 import qualified Cmd.Selection as Selection
 
 import qualified Derive.Call.Integrate as Call.Integrate
+import qualified Derive.LEvent as LEvent
 import Types
 
 
 block :: (Cmd.M m) => BlockId -> m ViewId
 block block_id = do
     perf <- Cmd.get_performance block_id
-    events <- Call.Integrate.unwarp block_id (Cmd.perf_events perf)
+    events <- Call.Integrate.unwarp block_id $
+        map LEvent.Event $ Vector.toList $ Cmd.perf_events perf
     tracks <- Convert.convert block_id events
     (new_block_id, dests) <- Merge.create_block block_id tracks
     when_just (NonEmpty.nonEmpty dests) $ \dests ->

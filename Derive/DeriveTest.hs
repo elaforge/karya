@@ -134,7 +134,7 @@ perform_stream :: Convert.Lookup -> Instrument.Configs -> Derive.Events
     -> ([LEvent.LEvent Perform.Event], [LEvent.LEvent Midi])
 perform_stream lookup midi_config events = (perf_events, mmsgs)
     where
-    perf_events = Convert.convert lookup events
+    perf_events = Convert.convert lookup (LEvent.events_of events)
     (midi, _) = Perform.perform Perform.initial_state midi_config perf_events
     mmsgs = map (fmap extract_m) midi
     extract_m wmsg =

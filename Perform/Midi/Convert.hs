@@ -53,7 +53,7 @@ data Lookup = Lookup {
 
 -- | Convert Score events to Perform events, emitting warnings that may have
 -- happened along the way.
-convert :: Lookup -> Derive.Events -> [LEvent.LEvent Perform.Event]
+convert :: Lookup -> [Score.Event] -> [LEvent.LEvent Perform.Event]
 convert lookup = ConvertUtil.convert Set.empty (convert_event lookup)
 
 convert_event :: Lookup -> Score.Event

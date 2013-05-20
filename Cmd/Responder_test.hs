@@ -1,4 +1,6 @@
 module Cmd.Responder_test where
+import qualified Data.Vector as Vector
+
 import Util.Test
 import qualified Ui.Key as Key
 import qualified Ui.State as State
@@ -11,7 +13,6 @@ import qualified Cmd.Meters as Meters
 import qualified Cmd.ResponderTest as ResponderTest
 import qualified Cmd.RulerUtil as RulerUtil
 
-import qualified Derive.LEvent as LEvent
 import qualified Derive.Score as Score
 
 
@@ -36,7 +37,7 @@ test_modify_tempo = do
     -- fix it by simulating loopback more accurately.
     let result = results !! 4
     (_, perf) <- ResponderTest.result_perf result
-    equal (map Score.event_start $ LEvent.events_of $ Cmd.perf_events perf)
+    equal (map Score.event_start $ Vector.toList $ Cmd.perf_events perf)
         [0, 0.5]
 
 test_modify_middle_tempo = do
@@ -44,5 +45,5 @@ test_modify_middle_tempo = do
             [("tempo", [(0, 0, "1")]), (">i", [(0, 1, ""), (1, 1, "")])]
     res <- ResponderTest.respond_cmd states $ UiTest.insert_event 1 (1, 0, "2")
     (_, perf) <- ResponderTest.result_perf res
-    equal (map Score.event_duration $ LEvent.events_of $ Cmd.perf_events perf)
+    equal (map Score.event_duration $ Vector.toList $ Cmd.perf_events perf)
         [1, 0.5]

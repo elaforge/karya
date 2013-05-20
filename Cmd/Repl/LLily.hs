@@ -143,8 +143,10 @@ make_ly = do
 convert :: Cmd.CmdL ([Lilypond.Event], [Log.Msg])
 convert = do
     config <- get_config
-    score_events <- derive =<< Cmd.get_focused_block
+    (score_events, derive_logs) <-
+        LEvent.partition <$> (derive =<< Cmd.get_focused_block)
     let (events, logs) = LEvent.partition $
             Convert.convert (Lilypond.config_quarter_duration config)
             score_events
-    return (Convert.quantize (Lilypond.config_quantize config) events, logs)
+    return (Convert.quantize (Lilypond.config_quantize config) events,
+        derive_logs ++ logs)

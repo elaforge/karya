@@ -86,9 +86,9 @@ test_track_integrate = do
     equal (e_damage res) $ Just
         [(UiTest.mk_tid n, Ranges.everything) | n <- [1..4]]
     -- Not derived yet.
-    equal (e_events res) ([], [])
+    equal (e_events res) []
     res <- last <$> continue res
-    equal (e_events res) ([(0, 1, "4d"), (1, 1, "4c")], [])
+    equal (e_events res) [(0, 1, "4d"), (1, 1, "4c")]
 
     res <- next res $ UiTest.insert_event 2 (0, 0, "3c")
     equal (e_tracks res)
@@ -99,9 +99,9 @@ test_track_integrate = do
             , ("*", [(0, 0, "4d"), (1, 0, "3c")])
             ])]
     equal (e_damage res) $ Just [(UiTest.mk_tid 4, Ranges.range 1 1)]
-    equal (e_events res) ([(0, 1, "4d"), (1, 1, "4c")], [])
+    equal (e_events res) [(0, 1, "4d"), (1, 1, "4c")]
     res <- last <$> continue res
-    equal (e_events res) ([(0, 1, "4d"), (1, 1, "3c")], [])
+    equal (e_events res) [(0, 1, "4d"), (1, 1, "3c")]
 
     -- TODO make a call that creates more or fewer tracks
 
@@ -124,8 +124,8 @@ e_tracks = UiTest.extract_all_tracks . ResponderTest.result_ui_state
 e_track_ids :: ResponderTest.Result -> [(BlockId, [TrackId])]
 e_track_ids = UiTest.extract_track_ids . ResponderTest.result_ui_state
 
-e_events :: ResponderTest.Result -> ([(RealTime, RealTime, String)], [String])
-e_events = DeriveTest.extract_levents DeriveTest.e_note
+e_events :: ResponderTest.Result -> [(RealTime, RealTime, String)]
+e_events = map DeriveTest.e_note
     . CmdTest.e_events UiTest.default_block_id . ResponderTest.result_cmd
 
 e_perf :: ResponderTest.Result -> Maybe Cmd.Performance

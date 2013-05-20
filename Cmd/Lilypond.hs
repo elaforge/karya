@@ -125,4 +125,4 @@ make_lys config title movements = (text, concat logs)
         where
         (events, logs) = LEvent.partition $
             Convert.convert (Lilypond.config_quarter_duration config)
-                (map LEvent.Event score_events)
+                score_events

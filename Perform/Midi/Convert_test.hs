@@ -28,13 +28,11 @@ import Types
 
 
 test_lazy = do
-    equal (take 1 (convert (repeat (mklog "hi")))) [Right "hi"]
     let events = zipWith ($) (cycle [noinst, nopitch, good])
             (map RealTime.seconds [0..])
     equal (length (take 3 (convert events))) 3
 
 test_convert = do
-    equal (convert [mklog "hi"]) [Right "hi"]
     equal (convert [noinst 0, nopitch 1, good 2])
         [ Right $ "event requires midi instrument in instrument db: "
             ++ ">noinst (further warnings suppressed)"
@@ -67,22 +65,18 @@ test_convert_controls = do
     equal (f False [("vel", []), ("dyn", [(0, 0.5)])])
         ([(Control.c_velocity, Signal.constant 0.5)], Nothing)
 
-noinst n = LEvent.Event $ mkevent n "4c" "noinst"
-nopitch n = LEvent.Event $
-    (mkevent n "4c" "s/1") { Score.event_pitch = mempty }
-good n = LEvent.Event $ mkevent n "4c" "s/1"
-
-mklog :: String -> LEvent.LEvent a
-mklog = LEvent.Log . Log.msg Log.Warn Nothing
+noinst n = mkevent n "4c" "noinst"
+nopitch n = (mkevent n "4c" "s/1") { Score.event_pitch = mempty }
+good n = mkevent n "4c" "s/1"
 
 mkevent :: RealTime -> String -> String -> Score.Event
 mkevent start pitch inst =
     DeriveTest.mkevent (start, 1, pitch, [], Score.Instrument inst)
 
-convert :: Derive.Events
-    -> [Either (Double, [(Signal.X, Signal.Y)]) String]
-convert = show_logs extract_event
-    . Convert.convert DeriveTest.default_convert_lookup
+convert :: [Score.Event] -> [Either (Double, [(Signal.X, Signal.Y)]) String]
+convert events =
+    show_logs extract_event $
+        Convert.convert DeriveTest.default_convert_lookup events
 
 extract_event e = (RealTime.to_seconds (Perform.event_start e),
     Signal.unsignal (Perform.event_pitch e))

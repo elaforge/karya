@@ -6,7 +6,6 @@ import Util.Control
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 
-import qualified Derive.Derive as Derive
 import qualified Derive.LEvent as LEvent
 import qualified Derive.PitchSignal as PitchSignal
 import qualified Derive.Scale.Theory as Theory
@@ -30,7 +29,7 @@ type ConvertT a = ConvertUtil.ConvertT () a
 -- | Convert Score events to Perform events, emitting warnings that may have
 -- happened along the way.
 convert :: RealTime -- ^ this length of time becomes a quarter note
-    -> Derive.Events -> [LEvent.LEvent Types.Event]
+    -> [Score.Event] -> [LEvent.LEvent Types.Event]
 convert quarter = ConvertUtil.convert () (convert_event quarter)
 
 -- | Normally events have a duration and a pitch, and the lilypond performer

@@ -42,6 +42,7 @@ import qualified Data.Monoid as Monoid
 import qualified Data.Set as Set
 import qualified Data.Traversable as Traversable
 import qualified Data.Tree as Tree
+import qualified Data.Vector as Vector
 
 import Util.Control
 import qualified Util.Map as Map
@@ -59,7 +60,6 @@ import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Create as Create
 import qualified Cmd.Selection as Selection
 
-import qualified Derive.LEvent as LEvent
 import qualified Derive.PitchSignal as PitchSignal
 import qualified Derive.Score as Score
 import qualified Derive.Stack as Stack
@@ -184,14 +184,13 @@ annotate_controls :: (Cmd.M m) =>
     Annotated (Maybe PitchSignal.Pitch, PitchSignal.Controls) m
     -> ModifyNotes m
 annotate_controls modify block_id note_track_ids = do
-    events <- LEvent.events_of . Cmd.perf_events <$>
-        Cmd.get_performance block_id
+    events <- Cmd.perf_events <$> Cmd.get_performance block_id
     modify $ find_controls note_track_ids events
 
 -- | This finds the controls of each note by looking for its corresponding
 -- event in the performance.  TODO matching by stack seems like it could be
 -- inaccurate, and inefficient too.  Shouldn't I use 'Perf.lookup_signal'?
-find_controls :: [(Note, TrackId)] -> [Score.Event]
+find_controls :: [(Note, TrackId)] -> Cmd.Events
     -> [(Note, (Maybe PitchSignal.Pitch, PitchSignal.Controls))]
 find_controls note_track_ids events =
     zip (map fst note_track_ids) $
@@ -204,8 +203,8 @@ find_controls note_track_ids events =
             Score.event_controls_at start event)
         where start = Score.event_start event
 
-find_event :: TrackId -> Note -> [Score.Event] -> Maybe Score.Event
-find_event track_id note = List.find $ \event ->
+find_event :: TrackId -> Note -> Cmd.Events -> Maybe Score.Event
+find_event track_id note = Vector.find $ \event ->
     stack_matches track_id (note_start note) (note_end note) $
         Score.event_stack event
 

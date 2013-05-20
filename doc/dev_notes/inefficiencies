@@ -30,9 +30,10 @@ cmd
   and it's very annoying.
   - Cmd level recreates the list of context sensitive (i.e. track specefic)
     Cmds on every single Cmd.
-  - Cmd.TimeStep creates a list of all possible time steps to step down it
+  * Cmd.TimeStep creates a list of all possible time steps to step down it
     once.  Of course laziness means they won't all be created, but it's still
     probably needlessly inefficient.  The list could be cached.
+    . This is now fixed, it now computes steps by scanning from the start point.
   - Playback is constantly sampling the inverse tempo map to find out the
     current possition of the playback mark.  This means a bsearch every
     time even though it's almost always increasing in time.  It could

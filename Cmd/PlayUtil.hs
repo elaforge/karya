@@ -3,14 +3,16 @@
 module Cmd.PlayUtil where
 import qualified Data.Map as Map
 import qualified Data.Set as Set
+import qualified Data.Vector as Vector
 
 import Util.Control
 import qualified Util.Seq as Seq
+import qualified Util.Vector as Vector
+
 import qualified Midi.Midi as Midi
 import qualified Ui.Block as Block
 import qualified Ui.State as State
 import qualified Cmd.Cmd as Cmd
-import qualified Derive.Cache as Cache
 import qualified Derive.Call.Block as Call.Block
 import qualified Derive.Derive as Derive
 import qualified Derive.Environ as Environ
@@ -130,24 +132,12 @@ first_time msgs = case LEvent.events_of msgs of
 
 -- | As a special case, a start <= 0 will get all events, including negative
 -- ones.  This is so notes pushed before 0 won't be clipped on a play from 0.
---
--- Cache log msgs are emitted even if they are before @start@ because otherwise
--- you never see the cache status unless you play from the beginning.  Cache
--- msgs tend to show up first because 'Derive.d_merge' puts logs before events
--- and all the events on a track are merged.
-events_from :: RealTime -> Derive.Events -> Derive.Events
-events_from start_ events
+events_from :: RealTime -> Cmd.Events -> Cmd.Events
+events_from start events
     | start <= 0 = events
-    | otherwise = go [] events
+    | otherwise = Vector.drop i events
     where
-    start = start_ - RealTime.eta
-    go _ [] = []
-    go logs (e@(LEvent.Event event) : es)
-        | Score.event_start event >= start = reverse logs ++ e : es
-        | otherwise = go [] es
-    go logs (e@(LEvent.Log msg) : es)
-        | Cache.is_cache_log msg = e : go logs es
-        | otherwise = go (e:logs) es
+    i = Vector.lowest_index Score.event_start (start - RealTime.eta) events
 
 -- | Filter events according to the Solo and Mute flags in the tracks of the
 -- given blocks.
@@ -156,11 +146,10 @@ events_from start_ events
 -- a track on one block, other blocks will still play.
 --
 -- Solo always takes priority over Mute.
-filter_track_muted :: [(BlockId, Block.Block)] -> Derive.Events -> Derive.Events
+filter_track_muted :: [(BlockId, Block.Block)] -> [Score.Event] -> [Score.Event]
 filter_track_muted blocks
-    | not (Set.null soloed) = filter (LEvent.log_or track_soloed)
-    | not (Set.null muted) =
-        filter (LEvent.log_or $ not . stack_contains muted)
+    | not (Set.null soloed) = filter track_soloed
+    | not (Set.null muted) = filter (not . stack_contains muted)
     | otherwise = id
     where
     stack_contains track_ids = any (`Set.member` track_ids) . stack_tracks
@@ -193,12 +182,12 @@ filter_track_muted blocks
 
 -- | Similar to the Solo and Mute track flags, individual instruments can be
 -- soloed or muted.
-filter_instrument_muted :: Instrument.Configs -> Derive.Events -> Derive.Events
+filter_instrument_muted :: Instrument.Configs -> [Score.Event] -> [Score.Event]
 filter_instrument_muted configs
     | not (Set.null soloed) = filter $
-        LEvent.log_or $ (`Set.member` soloed) . Score.event_instrument
+        (`Set.member` soloed) . Score.event_instrument
     | not (Set.null muted) = filter $
-        LEvent.log_or $ (`Set.notMember` muted) . Score.event_instrument
+        (`Set.notMember` muted) . Score.event_instrument
     | otherwise = id
     where
     soloed = Set.fromList $ map fst $ filter (Instrument.config_solo . snd) $
@@ -206,14 +195,17 @@ filter_instrument_muted configs
     muted = Set.fromList $ map fst $ filter (Instrument.config_mute . snd) $
         Map.toList configs
 
-perform_events :: (Cmd.M m) => Derive.Events -> m Perform.MidiEvents
+perform_events :: (Cmd.M m) => Cmd.Events -> m Perform.MidiEvents
 perform_events events = do
     midi_config <- State.get_midi_config
     lookup <- get_convert_lookup
     blocks <- State.gets (Map.toList . State.state_blocks)
     return $ fst $ Perform.perform Perform.initial_state midi_config $
         Convert.convert lookup $ filter_track_muted blocks $
-        filter_instrument_muted midi_config events
+        filter_instrument_muted midi_config $
+        -- Performance should be lazy, so converting to a list here means I can
+        -- avoid doing work for the notes that never get played.
+        Vector.toList events
 
 get_convert_lookup :: (Cmd.M m) => m Convert.Lookup
 get_convert_lookup = do

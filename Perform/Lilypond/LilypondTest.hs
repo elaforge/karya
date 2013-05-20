@@ -200,10 +200,11 @@ extract :: (Lilypond.Event -> a) -> Derive.Result -> ([a], [String])
 extract f = first (map f) . partition_logs
 
 partition_logs :: Derive.Result -> ([Lilypond.Event], [String])
-partition_logs result = (events, extract_logs logs)
+partition_logs result = (events, extract_logs (dlogs ++ logs))
     where
     (events, logs) = LEvent.partition $ Convert.convert 1 $
-        Derive.r_events result
+        LEvent.events_of $ Derive.r_events result
+    dlogs = LEvent.logs_of (Derive.r_events result)
     extract_logs = map DeriveTest.show_log . DeriveTest.quiet_filter_logs
 
 derive :: [UiTest.TrackSpec] -> Derive.Result
