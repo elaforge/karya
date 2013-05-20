@@ -62,7 +62,7 @@ violin_short_long =
     [ staccato, detache.short, detache.long.vib, detache.long.nv
     , sus.vib, sus.vib.fa, sus.vib.fa.auto
     , sus.vib.marcato, sus.vib.espr, sus.progr
-    , sus.vib.down, sus.nv
+    , sus.vib_down, sus.nv
     ]
 violin_dynamics =
     [ dyn.med.vib.sec15, dyn.med.vib.sec 3, dyn.med.vib.sec 4
@@ -135,7 +135,7 @@ viola_short_long_notes =
     [ staccato, detache.short, detache.long
     , sus.vib, sus.vib.fa, sus.vib.fa.auto
     , sus.vib.marcato, sus.vib.espr
-    , sus.vib.progr, sus.vib.down, sus.nv
+    , sus.vib.progr, sus.vib_down, sus.nv
     ]
 viola_dynamics = seconds
     [ (dyn.med, [15, 3]), (dyn.str, [15, 3, 4]), (dyn.med.nv, [15, 3])
@@ -176,7 +176,7 @@ cello =
 cello_short_long_notes =
     [ staccato, detache.short, detache.long
     , sus.vib, sus.vib.fa, sus.vib.fa.auto
-    , sus.vib.marcato, sus.vib.espr, sus.vib.progr, sus.vib.down, sus.nv
+    , sus.vib.marcato, sus.vib.espr, sus.vib.progr, sus.vib_down, sus.nv
     ]
 cello_dynamics = seconds
     [ (dyn.med.vib, [15, 3]), (dyn.str.vib, [15, 3, 4]), (dyn.med.nv, [15, 3])
@@ -235,7 +235,7 @@ bass =
 bass_short_long =
     [ staccato, detache.short, detache.long
     , sus.vib, sus.vib.fa, sus.vib.fa.auto
-    , sus.vib.marcato, sus.progr, sus.vib.down, sus.nv
+    , sus.vib.marcato, sus.progr, sus.vib_down, sus.nv
     ]
 bass_dynamics =
     [ dyn.str.vib.sec15, dyn.str.vib.sec 3, dyn.str.vib.sec 4
@@ -1794,6 +1794,7 @@ sa = attr "sa" -- soft attack
 pa = attr "pa" -- pressed attack
 progr = attr "progr" -- progressive vibrato
 vib_str = attr "vib-str" -- strong vibrato
+vib_down = attr "vib-down" -- decreasing vibrato
 
 lyric = attr "lyric"
 

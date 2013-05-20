@@ -77,7 +77,7 @@ UNSORTED
     - make sure perf_upbeat_repetitions are consistent
     - make sure grace vs. grace.updown is correct
     attribute groups:
-      - +vib+down turns into just +down, there should be +vib-down
+      * +vib+down turns into just +down, there should be +vib-down
       I should be able to pick a default and remove that one:
         legato/marcato/staccato, na/ha/fa/sa, vib/nv/progr
         * for grace notes, fast should be default
