@@ -1,10 +1,9 @@
 module Cmd.Msg where
-import qualified Control.DeepSeq as DeepSeq
-import Control.DeepSeq (rnf)
 import Control.Monad
 import qualified Data.Map as Map
 import qualified System.IO as IO
 
+import qualified Util.Log as Log
 import qualified Util.Pretty as Pretty
 import qualified Midi.Midi as Midi
 import qualified Ui.Key as Key
@@ -70,7 +69,9 @@ instance Pretty.Pretty DeriveStatus where pretty = show
 -- future.
 data Performance = Performance {
     perf_derive_cache :: !Derive.Cache
-    , perf_events :: !Derive.Events
+    -- | Intentionally not strict.  TODO figure out if that matters
+    , perf_events :: Derive.Events
+    , perf_logs :: [Log.Msg]
     , perf_track_dynamic :: !Derive.TrackDynamic
     , perf_integrated :: ![Derive.Integrated]
     -- | Score damage on top of the Performance, used by the derive cache.
@@ -86,25 +87,15 @@ instance Show Performance where
         where len = Derive.cache_size (perf_derive_cache perf)
 
 instance Pretty.Pretty Performance where
-    format (Performance cache events _track_dyn integrated damage warps
-            _tsigs) =
+    format perf =
         Pretty.record_title "Performance"
             [ ("cache", Pretty.format (Map.keys c))
-            , ("events", Pretty.format (length events))
-            -- , ("track_dynamic", Pretty.format track_dyn)
-            , ("integrated", Pretty.format integrated)
-            , ("score_damage", Pretty.format damage)
-            , ("warps", Pretty.format warps)
-            -- , ("track_signals", Pretty.format tsigs)
+            , ("events", Pretty.format (length (perf_events perf)))
+            , ("integrated", Pretty.format (perf_integrated perf))
+            , ("score_damage", Pretty.format (perf_score_damage perf))
+            , ("warps", Pretty.format (perf_warps perf))
             ]
-        where Derive.Cache c = cache
-
-instance DeepSeq.NFData Performance where
-    rnf (Performance cache events track_dyn integrated damage warps tsigs) =
-        -- I don't know if it makes a difference, but I feel like I should
-        -- force the events first, since they can be evaluated incrementally.
-        rnf events `seq` rnf cache `seq` rnf track_dyn `seq` rnf integrated
-        `seq` rnf damage `seq` rnf warps `seq` rnf tsigs
+        where Derive.Cache c = perf_derive_cache perf
 
 -- * views
 

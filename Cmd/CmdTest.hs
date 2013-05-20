@@ -33,6 +33,7 @@ import qualified Derive.Call.All as Call.All
 import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Environ as Environ
+import qualified Derive.LEvent as LEvent
 import qualified Derive.Scale.All as Scale.All
 import qualified Derive.Score as Score
 import qualified Derive.TrackLang as TrackLang
@@ -133,9 +134,10 @@ extract_derive_result res =
     where
     msg = "extract_derive_result: cmd failed so result is probably not right: "
     mkres = do
-        Cmd.Performance cache events track_dyn integrated _damage warps tsigs
-            <- Perf.get_root
-        return $ Derive.Result events cache warps tsigs track_dyn integrated
+        Cmd.Performance cache events logs track_dyn integrated _damage warps
+            tsigs <- Perf.get_root
+        return $ Derive.Result (map LEvent.Log logs ++ events) cache warps
+            tsigs track_dyn integrated
             (error "can't fake a Derive.State for an extracted Result")
 
 update_performance :: State.State -> State.State -> Cmd.State
@@ -414,6 +416,7 @@ empty_performance :: Msg.Performance
 empty_performance = Cmd.Performance
     { Cmd.perf_derive_cache = mempty
     , Cmd.perf_events = []
+    , Cmd.perf_logs = []
     , Cmd.perf_track_dynamic = mempty
     , Cmd.perf_integrated = []
     , Cmd.perf_score_damage = mempty

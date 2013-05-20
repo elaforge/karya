@@ -60,13 +60,17 @@ cmd_play_msg msg = do
         when_just (derive_status_color status) (State.set_play_box block_id)
         case status of
             Msg.OutOfDate perf ->
-                Cmd.modify_play_state $ \st ->
-                    st { Cmd.state_current_performance = Map.insert block_id
-                        perf (Cmd.state_current_performance st) }
+                Cmd.modify_play_state $ \st -> st
+                    { Cmd.state_current_performance = Map.insert block_id
+                        perf (Cmd.state_current_performance st)
+                    }
             Msg.DeriveComplete perf -> do
-                Cmd.modify_play_state $ \st ->
-                    st { Cmd.state_performance = Map.insert block_id
-                         perf (Cmd.state_performance st) }
+                Cmd.modify_play_state $ \st -> st
+                    { Cmd.state_performance = Map.insert block_id
+                         perf (Cmd.state_performance st)
+                    , Cmd.state_current_performance = Map.insert block_id
+                         perf (Cmd.state_current_performance st)
+                    }
                 ui_state <- State.get
                 liftIO $ Sync.set_track_signals block_id ui_state
                     (Cmd.perf_track_signals perf)

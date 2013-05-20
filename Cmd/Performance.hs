@@ -8,9 +8,7 @@
 -- UI latency).
 module Cmd.Performance (SendStatus, update_performance, performance) where
 import qualified Control.Concurrent as Concurrent
-import qualified Control.DeepSeq as DeepSeq
 import qualified Control.Exception as Exception
-
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 
@@ -28,7 +26,9 @@ import qualified Cmd.Msg as Msg
 import qualified Cmd.PlayUtil as PlayUtil
 
 import qualified Derive.Derive as Derive
+import qualified Derive.LEvent as LEvent
 import qualified Derive.TrackWarp as TrackWarp
+
 import qualified Perform.RealTime as RealTime
 import qualified App.Config as Config
 import Types
@@ -166,17 +166,19 @@ evaluate_performance wait send_status block_id perf = do
     send_status block_id (Msg.OutOfDate perf)
     Thread.delay wait
     send_status block_id Msg.Deriving
-    secs <- Log.time_eval (DeepSeq.rnf perf)
+    ((), secs) <- Log.time_eval $
+        mapM_ Log.write (Cmd.perf_logs perf)
     when (secs > 1) $
         Log.notice $ "derived " ++ show block_id ++ " in "
             ++ Pretty.pretty (RealTime.seconds secs)
-    send_status block_id $ Msg.DeriveComplete perf
+    send_status block_id $ Msg.DeriveComplete $ perf { Cmd.perf_logs = [] }
 
 -- | Constructor for 'Cmd.Performance'.
 performance :: Derive.Result -> Cmd.Performance
 performance result = Cmd.Performance
     { Cmd.perf_derive_cache = Derive.r_cache result
-    , Cmd.perf_events = Derive.r_events result
+    , Cmd.perf_events = map LEvent.Event events
+    , Cmd.perf_logs = logs
     , Cmd.perf_track_dynamic = Derive.r_track_dynamic result
     , Cmd.perf_integrated = Derive.r_integrated result
     , Cmd.perf_score_damage = mempty
@@ -184,3 +186,4 @@ performance result = Cmd.Performance
         Derive.state_collect $ Derive.r_state result
     , Cmd.perf_track_signals = Derive.r_track_signals result
     }
+    where (events, logs) = LEvent.partition (Derive.r_events result)

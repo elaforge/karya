@@ -3,7 +3,7 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
-  - every time I play, the cache stats in logview collect more
+  * every time I play, the cache stats in logview collect more
   . Why I do need to make a point list for timestep?  Why not just calculate
     directly?  Also, can I get rid of multiple steps in favor of just passing
     a different number to TimeStep.step?
@@ -65,12 +65,19 @@ UNSORTED
         transposable infinitely far, but emit a -1 NN signal when they cross
         the boundary?  Or would this hurt error reporting?
   vsl
+    . Legato attack scale control affects the crossfade level of interval
+      samples, experiment with that.
+    . figure out how perf reps work, and how I should handle them
     - dyn# should be 'dyn . crescdim . rep#'
       cre# should be just 'cresc . rep#'
+      If there is a way to trigger a specific sample, then I can customize
+      crescendo / decrescendo without having to edit the vsl instrument, e.g.
+      r1, r2, r3, r4, etc.  I can load the samples separately if I need it.
     - can all perf.rep be turned into rep, or is there non-perf rep?
     - make sure perf_upbeat_repetitions are consistent
     - make sure grace vs. grace.updown is correct
     attribute groups:
+      - +vib+down turns into just +down, there should be +vib-down
       I should be able to pick a default and remove that one:
         legato/marcato/staccato, na/ha/fa/sa, vib/nv/progr
         * for grace notes, fast should be default

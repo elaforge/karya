@@ -1,4 +1,4 @@
-{-# LANGUAGE GeneralizedNewtypeDeriving, DeriveDataTypeable #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving, DeriveDataTypeable, BangPatterns #-}
 {-# LANGUAGE FlexibleInstances, MultiParamTypeClasses, UndecidableInstances #-}
 {- | Functions for logging.
 
@@ -308,12 +308,12 @@ deserialize_msg log_msg = Exception.try (readIO log_msg)
 -- * util
 
 -- | Run an action and report the time in CPU seconds.
-time_eval :: (DeepSeq.NFData a) => a -> IO Double
+time_eval :: IO a -> IO (a, Double)
 time_eval op = do
     start_cpu <- CPUTime.getCPUTime
-    op `DeepSeq.deepseq` return ()
+    !val <- op
     end_cpu <- CPUTime.getCPUTime
-    return $ cpu_to_sec (end_cpu - start_cpu)
+    return (val, cpu_to_sec (end_cpu - start_cpu))
 
 cpu_to_sec :: Integer -> Double
 cpu_to_sec s = fromIntegral s / fromIntegral (10^12)
