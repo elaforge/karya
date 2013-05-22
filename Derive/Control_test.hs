@@ -52,7 +52,7 @@ test_split_control = do
             ]
     equal (e_controls $ run tracks)
         ([('a', [(0, 1)], 'b', [(0, 0), (2, 2)])], [])
-    equal (e_tsigs $ run tracks) [Right [(0, 1), (2, 2)]]
+    equal (e_tsigs $ run tracks) [[(0, 1), (2, 2)]]
 
     let tracks =
             [ (">", [(0, 2, ""), (2, 2, "")])
@@ -64,7 +64,7 @@ test_split_control = do
           ]
         , []
         )
-    equal (e_tsigs $ run tracks) [Right [(0, 0.5), (2, 1)]]
+    equal (e_tsigs $ run tracks) [[(0, 0.5), (2, 1)]]
 
     -- Tracks with the same name are merged.
     let tracks =
@@ -79,7 +79,7 @@ test_split_control = do
           ]
         , []
         )
-    equal (e_tsigs $ run tracks) [Right [(0, 1), (2, 2), (4, 3)]]
+    equal (e_tsigs $ run tracks) [[(0, 1), (2, 2), (4, 3)]]
 
 test_hex = do
     let derive events =
@@ -184,9 +184,9 @@ test_stash_signal = do
     let run = extract . DeriveTest.derive_tracks
         extract r = Log.trace_logs (snd $ DeriveTest.r_split r)
             (map e_tsig (Map.elems (Derive.r_track_signals r)))
-    let tsig samples p x = Right (Signal.signal samples, p, x)
+    let tsig samples p x = (Signal.signal samples, p, x)
 
-    equal (run [ctrack, itrack]) [Right (csig, 0, 1)]
+    equal (run [ctrack, itrack]) [(csig, 0, 1)]
     -- Constant tempo stretches track sig.
     -- Tempo track itself is unstretched.
     -- Extra sample at the end of the tempo track due to the set-prev hack.
@@ -206,14 +206,14 @@ test_stash_signal = do
     -- pitch tracks work too
     let ptrack = ("*twelve", [(0, 0, "4c"), (1, 0, "4d")])
         psig = Signal.signal [(0, 60), (1, 62)]
-    equal (run [ptrack, itrack]) [Right (psig, 0, 1)]
+    equal (run [ptrack, itrack]) [(psig, 0, 1)]
 
     -- Subtracks should be rendered, even though they're never evaluated as
     -- a whole.
-    equal (run [itrack, ctrack]) [Right (csig, 0, 1)]
+    equal (run [itrack, ctrack]) [(csig, 0, 1)]
     equal (run [itrack, ("$ broken", [(0, 0, "0")])]) []
     equal (run [itrack, itrack]) []
-    equal (run [itrack, ptrack]) [Right (psig, 0, 1)]
+    equal (run [itrack, ptrack]) [(psig, 0, 1)]
 
 test_signal_default_tempo = do
     -- Signal is stretched by the default tempo.
@@ -221,11 +221,7 @@ test_signal_default_tempo = do
             [("*", [(0, 0, "4c"), (10, 0, "4d"), (20, 0, "4c")])]
         set_tempo = State.config#State.default_#State.tempo #= 2
         extract = map e_tsig . Map.elems . Derive.r_track_signals
-    equal r [Right (Signal.signal [(0, 60), (5, 62), (10, 60)], 0, 0.5)]
+    equal r [(Signal.signal [(0, 60), (5, 62), (10, 60)], 0, 0.5)]
 
-e_tsig :: Either [Log.Msg] Track.TrackSignal
-    -> Either [String] (Signal.Display, ScoreTime, ScoreTime)
-e_tsig result = case result of
-    Left logs -> Left $ map DeriveTest.show_log logs
-    Right (Track.TrackSignal sig shift stretch _) ->
-        Right (sig, shift, stretch)
+e_tsig :: Track.TrackSignal -> (Signal.Display, ScoreTime, ScoreTime)
+e_tsig (Track.TrackSignal sig shift stretch _) = (sig, shift, stretch)

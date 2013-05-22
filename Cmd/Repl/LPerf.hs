@@ -37,7 +37,7 @@ get_root = Cmd.require =<< Perf.lookup_root
 get :: BlockId -> Cmd.CmdL Cmd.Performance
 get = Cmd.get_performance
 
-track_signals :: Cmd.CmdL (Maybe (Either [Log.Msg] Track.TrackSignal))
+track_signals :: Cmd.CmdL (Maybe Track.TrackSignal)
 track_signals = do
     (block_id, _, track_id, _) <- Selection.get_insert
     perf <- get block_id

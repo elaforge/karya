@@ -3,6 +3,33 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
+  Fix leak from cache:
+    . It's likely because derivation intentionally disconnects for
+      TrackSignals, so those thunks hold all of State, which means the old
+      cache etc.  The only way around it might be to avoid the laziness by
+      only generating TrackSignals for tracks that want them, and not
+      disconnecting from derivation.
+    . But first, look at the code that puts in the TrackSignals and see if
+      I can get it to stop holding on to the State.
+    . Do I use TrackSignals in Cmds for other than display purposes?  If so,
+      that's a reason to try to keep deriving them lazily.
+      No, Perf.lookup_signal isn't used anywhere.  It's the way to go
+      ScoreTime -> Control, but I could also use TrackDynamic after first
+      mapping Score->Real.  This gives access to a PitchSignal, which
+      lookup_signal couldn't do.
+    . Another side-effect is that expanding a collapsed track now wants
+      a signal, so I'd have to rederive.  Of course that hits all the caches
+      so it should be cheap.
+    ? But why is keeping the last State around so bad anyway?  The real
+      question is why that doesn't get cleared up on the next derive.
+
+    * pass state_track_signals in to Constant.
+    - key TrackSignals on (BlockId, TrackId).  I'll need to put BlockId in
+      TrackTree.TrackEvents, I think.
+  - What's the gap between the change and MsgOutOfDate?
+  - compact the signal in the cache?
+  - figure out what in cmd is holding on to the reference
+  - parallelize derivation
   * every time I play, the cache stats in logview collect more
   . Why I do need to make a point list for timestep?  Why not just calculate
     directly?  Also, can I get rid of multiple steps in favor of just passing

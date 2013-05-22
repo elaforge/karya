@@ -189,7 +189,8 @@ annotate_controls modify block_id note_track_ids = do
 
 -- | This finds the controls of each note by looking for its corresponding
 -- event in the performance.  TODO matching by stack seems like it could be
--- inaccurate, and inefficient too.  Shouldn't I use 'Perf.lookup_signal'?
+-- inaccurate, and inefficient too.  Shouldn't I look up the signal directly
+-- from the performance?
 find_controls :: [(Note, TrackId)] -> Cmd.Events
     -> [(Note, (Maybe PitchSignal.Pitch, PitchSignal.Controls))]
 find_controls note_track_ids events =

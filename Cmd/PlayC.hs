@@ -12,7 +12,7 @@
 module Cmd.PlayC (cmd_play_msg, play) where
 import qualified Control.Concurrent.MVar as MVar
 import qualified Control.Exception as Exception
-import qualified Data.Map as Map
+import qualified Data.Map.Strict as Map
 import qualified Data.Maybe as Maybe
 import qualified Data.Set as Set
 

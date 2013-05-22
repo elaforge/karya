@@ -36,7 +36,6 @@ import qualified Data.Text as Text
 
 import Util.Control
 import qualified Util.Log as Log
-import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 
 import qualified Ui.Block as Block
@@ -93,12 +92,8 @@ set_track_signals block_id state track_signals =
         Right tracks -> Ui.send_action $ forM_ tracks set_tsig
     where
     set_tsig (view_id, track_id, tracknum) =
-        case Map.lookup track_id track_signals of
-            Just (Right tsig) -> set_track_signal view_id tracknum tsig
-            Just (Left logs) -> mapM_ Log.write $ prefix view_id tracknum logs
-            Nothing -> return ()
-    prefix view_id tracknum = Log.add_prefix $ Text.pack $
-        "getting track signal for " ++ Pretty.pretty (view_id, tracknum)
+        when_just (Map.lookup track_id track_signals) $ \tsig ->
+            set_track_signal view_id tracknum tsig
 
     -- | Get the tracks of this block which want to render a signal.
     rendering_tracks :: State.StateId [(ViewId, TrackId, TrackNum)]
@@ -378,7 +373,7 @@ insert_track state set_style block_id view_id tracknum dtrack tlike_id tlike
             unless (Text.null (Track.track_title t)) $
                 BlockC.set_track_title view_id tracknum (Track.track_title t)
             case Map.lookup tid track_signals of
-                Just (Right tsig) | wants_tsig flags t ->
+                Just tsig | wants_tsig flags t ->
                     BlockC.set_track_signal view_id tracknum tsig
                 _ -> return ()
         _ -> return ()

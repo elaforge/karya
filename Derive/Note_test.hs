@@ -56,10 +56,10 @@ test_sub_tracks = do
 test_stash_sub_signals = do
     let run = extract . DeriveTest.linear_derive_tracks id
         extract = Map.toList
-            . Map.map (fmap (Signal.unsignal . Track.ts_signal))
+            . Map.map (Signal.unsignal . Track.ts_signal)
             . Derive.r_track_signals
     equal (run $ (">", [(1, 2, "(")]) : UiTest.regular_notes 4)
-        [(UiTest.mk_tid 3, Right [(0, 48), (1, 50), (2, 52), (3, 53)])]
+        [(UiTest.mk_tid 3, [(0, 48), (1, 50), (2, 52), (3, 53)])]
 
 -- * derivers
 

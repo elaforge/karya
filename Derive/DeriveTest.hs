@@ -98,8 +98,12 @@ run_events f = extract_run $
 default_constant :: State.State -> Derive.Cache -> Derive.ScoreDamage
     -> Derive.Constant
 default_constant ui_state cache damage =
-    Derive.initial_constant ui_state default_lookup_scale (const Nothing)
-        cache damage
+    Derive.initial_constant ui_state track_ids
+        default_lookup_scale (const Nothing) cache damage
+    where track_ids = Set.fromList $ Map.keys $ State.state_tracks ui_state
+    -- Get track signals for all tracks by default.  This is a bit less
+    -- efficient for tests that don't want them, but more convenient for those
+    -- that do.
 
 eval :: State.State -> Derive.Deriver a -> Either String a
 eval ui_state m = extract_run id (run ui_state m)
@@ -397,9 +401,15 @@ e_environ f event =
     , f (untxt k)
     ]
 
-e_tsigs :: Derive.Result -> [(TrackId, Either [Log.Msg] [(Signal.X, Signal.Y)])]
-e_tsigs = Map.toList . Map.map (fmap tsig) . Derive.r_track_signals
+e_tsigs :: Derive.Result -> [(TrackId, [(Signal.X, Signal.Y)])]
+e_tsigs =
+    filter (not . null . snd) . Map.toList . Map.map tsig
+        . Derive.r_track_signals
     where tsig t = Signal.unsignal $ Track.ts_signal t
+
+e_tsig_logs :: Derive.Result -> [String]
+e_tsig_logs = filter ("Track signal: " `List.isPrefixOf`) . map show_log
+    . LEvent.logs_of . Derive.r_events
 
 -- ** extract log msgs
 

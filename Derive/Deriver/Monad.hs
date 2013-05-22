@@ -112,7 +112,7 @@ import qualified Control.Applicative as Applicative
 import qualified Control.DeepSeq as DeepSeq
 import Control.DeepSeq (rnf)
 
-import qualified Data.Map as Map
+import qualified Data.Map.Strict as Map
 import qualified Data.Maybe as Maybe
 import qualified Data.Monoid as Monoid
 import qualified Data.Set as Set
@@ -610,12 +610,14 @@ lookup_scopes (lookup:rest) call_id =
 -- ** constant
 
 data Constant = Constant {
-    state_ui :: State.State
-    , state_control_op_map :: Map.Map TrackLang.CallId ControlOp
-    , state_lookup_scale :: LookupScale
+    state_ui :: !State.State
+    -- | Set of tracks that I want 'Track.TrackSignals' for.
+    , state_track_signals :: !(Set.Set TrackId)
+    , state_control_op_map :: !(Map.Map TrackLang.CallId ControlOp)
+    , state_lookup_scale :: !LookupScale
     -- | Get the calls and environ that should be in scope with a certain
     -- instrument.  The environ is merged with the environ in effect.
-    , state_lookup_instrument :: Score.Instrument -> Maybe Instrument
+    , state_lookup_instrument :: !(Score.Instrument -> Maybe Instrument)
     -- | Cache from the last derivation.
     , state_cache :: !Cache
     , state_score_damage :: !ScoreDamage
@@ -625,11 +627,13 @@ data Constant = Constant {
     , state_lilypond :: !(Maybe Lilypond.Types.Config)
     }
 
-initial_constant :: State.State -> LookupScale
+initial_constant :: State.State -> Set.Set TrackId -> LookupScale
     -> (Score.Instrument -> Maybe Instrument) -> Cache -> ScoreDamage
     -> Constant
-initial_constant ui_state lookup_scale lookup_inst cache score_damage = Constant
+initial_constant ui_state track_signals lookup_scale lookup_inst cache
+        score_damage = Constant
     { state_ui = ui_state
+    , state_track_signals = track_signals
     , state_control_op_map = default_control_op_map
     , state_lookup_scale = lookup_scale
     , state_lookup_instrument = lookup_inst

@@ -13,7 +13,6 @@ import qualified Util.Seq as Seq
 
 import qualified Ui.Block as Block
 import qualified Ui.State as State
-import qualified Ui.Track as Track
 import qualified Ui.TrackTree as TrackTree
 
 import qualified Cmd.Cmd as Cmd
@@ -28,10 +27,7 @@ import qualified Derive.TrackInfo as TrackInfo
 import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.Pitch as Pitch
-import qualified Perform.RealTime as RealTime
-import qualified Perform.Signal as Signal
 import qualified Perform.Transport as Transport
-
 import Types
 
 
@@ -98,48 +94,6 @@ derive_at block_id track_id deriver = do
     return $ either (Left . Pretty.pretty) Right val
     where
     empty_dynamic = Derive.initial_dynamic Derive.empty_scope mempty
-
-
--- * signal
-
--- TODO this looks in TrackSignal, which are the signals sent to the UI,
--- so they're in score time.  If I want the ones in RealTime, or if I want
--- a PitchSignal, I have to look in TrackDynamic.
-
--- | Look up the signal of a track from the last derivation.  It's looked up
--- in the root block's performance.
-lookup_signal :: (Cmd.M m) => TrackId -> m (Maybe Track.TrackSignal)
-lookup_signal track_id = do
-    maybe_perf <- lookup_root
-    return $ do
-        perf <- maybe_perf
-        result <- Map.lookup track_id (Cmd.perf_track_signals perf)
-        either (const Nothing) Just result
-
-control_at :: Track.TrackSignal -> [ScoreTime] -> [Signal.Y]
-control_at (Track.TrackSignal sig shift stretch _) ps =
-    map (flip Signal.at sig . warp) ps
-    where warp p = RealTime.score (p * stretch + shift)
-
-nn_at :: Track.TrackSignal -> [ScoreTime] -> [Pitch.NoteNumber]
-nn_at tsig ps = map Pitch.NoteNumber (control_at tsig ps)
-
--- | Get the control values at the given points, or fail if there is no
--- signal there.
-get_control_at :: (Cmd.M m) => TrackId -> [ScoreTime] -> m [Signal.Y]
-get_control_at track_id ps = do
-    sig <- Cmd.require_msg ("no signal for " ++ show track_id)
-        =<< lookup_signal track_id
-    return $ control_at sig ps
-
--- | Get the pitch values at the given points, or fail if there is no
--- signal there.  TODO can't tell the difference between a pitch and control
--- track.
-get_nn_at :: (Cmd.M m) => TrackId -> [ScoreTime] -> m [Pitch.NoteNumber]
-get_nn_at track_id ps = do
-    sig <- Cmd.require_msg ("no signal for " ++ show track_id)
-        =<< lookup_signal track_id
-    return $ nn_at sig ps
 
 
 -- * environ

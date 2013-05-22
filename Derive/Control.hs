@@ -21,6 +21,7 @@ import qualified Data.ByteString.Char8 as Char8
 import qualified Data.Char as Char
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
+import qualified Data.Set as Set
 import qualified Data.Text as Text
 import qualified Data.Tree as Tree
 
@@ -186,7 +187,7 @@ tempo_call track sig_deriver deriver = do
     (signal, logs) <- Internal.setup_without_warp sig_deriver
     when_just maybe_track_id $ \track_id ->
         unless (TrackTree.tevents_sliced track) $
-            put_track_signal track_id $ Right $
+            put_track_signal track_id $
                 Track.TrackSignal (Signal.coerce signal) 0 1 False
     -- 'with_damage' must be applied *inside* 'd_tempo'.  If it were outside,
     -- it would get the wrong RealTimes when it tried to create the
@@ -356,31 +357,18 @@ stash_signal :: TrackTree.TrackEvents
     -> Bool
     -- ^ True if this is a pitch signal.
     -> Derive.Deriver ()
-stash_signal track sig derive_sig is_pitch =
+stash_signal track sig derive_sig is_pitch = whenM (signal_wanted track) $
     case TrackTree.tevents_track_id track of
         Just track_id | not (TrackTree.tevents_sliced track) ->
             stash track_id =<< linear_tempo
         _ -> return ()
     where
     stash track_id (Just (shift, stretch)) =
-        put_track_signal track_id $ Right $
+        put_track_signal track_id $
             Track.TrackSignal (Signal.coerce sig) shift stretch is_pitch
     stash track_id Nothing = do
-        logs_or_sig <- run_sub $ Derive.in_real_time derive_sig
-        put_track_signal track_id $ case logs_or_sig of
-            Left logs -> Left logs
-            Right sig -> Right $ Track.TrackSignal sig 0 1 is_pitch
-
--- | Ensure the computation runs lazily by detaching it from the state.  This
--- is important because the track signal will not necessarily be demanded.
--- Details in 'Ui.Track.TrackSignals'.
-run_sub :: Derive.Deriver a -> Derive.Deriver (Either [Log.Msg] a)
-run_sub d = do
-    state <- Derive.get
-    let (result, _, logs) = Derive.run state d
-    return $ case result of
-        Right val -> Right val
-        Left err -> Left $ Derive.error_to_warn err : logs
+        sig <- Derive.in_real_time derive_sig
+        put_track_signal track_id $ Track.TrackSignal sig 0 1 is_pitch
 
 -- | Return (shift, stretch) if the tempo is linear.  This relies on an
 -- optimization in 'Derive.d_tempo' to notice when the tempo is constant and
@@ -392,17 +380,21 @@ linear_tempo = do
         then Just (Score.warp_shift warp, Score.warp_stretch warp)
         else Nothing
 
-put_track_signal :: TrackId -> Either [Log.Msg] Track.TrackSignal
-    -> Derive.Deriver ()
+put_track_signal :: TrackId -> Track.TrackSignal -> Derive.Deriver ()
 put_track_signal track_id tsig = put_track_signals [(track_id, tsig)]
 
-put_track_signals :: [(TrackId, Either [Log.Msg] Track.TrackSignal)]
-    -> Derive.Deriver ()
+put_track_signals :: [(TrackId, Track.TrackSignal)] -> Derive.Deriver ()
 put_track_signals [] = return ()
 put_track_signals tracks = Internal.merge_collect $ mempty
     { Derive.collect_track_signals =
         Map.fromListWith Track.merge_signals tracks
     }
+
+signal_wanted :: TrackTree.TrackEvents -> Derive.Deriver Bool
+signal_wanted track = case TrackTree.tevents_track_id track of
+    Nothing -> return False
+    Just track_id -> Set.member track_id <$>
+        Internal.get_constant Derive.state_track_signals
 
 -- * track_signal
 
@@ -410,34 +402,38 @@ put_track_signals tracks = Internal.merge_collect $ mempty
 -- be rendered.  This is like 'eval_track' but specialized to derive only the
 -- signal.  The track signal is normally stashed as a side-effect of control
 -- track evaluation, but tracks below a note track are not evaluated normally.
-track_signal :: TrackTree.TrackEvents
-    -> Derive.Deriver (Either [Log.Msg] Track.TrackSignal)
-track_signal track = do
+track_signal :: TrackTree.TrackEvents -> Derive.Deriver (Maybe Track.TrackSignal)
+track_signal track = ifM (not <$> signal_wanted track) (return Nothing) $ do
     (ctype, expr) <- either (\err -> Derive.throw $ "track title: " ++ err)
         return $ TrackInfo.parse_control_expr (TrackTree.tevents_title track)
     -- Since these signals are being rendered solely for display, they
     -- should ignore any tempo warping, just like 'stash_signal' does
     -- above.
-    run_sub $ Derive.in_real_time $ eval_signal track expr ctype
+    Just <$> (Derive.in_real_time $ eval_signal track expr ctype)
 
 eval_signal :: TrackTree.TrackEvents -> [TrackLang.Call]
     -> TrackInfo.ControlType -> Derive.Deriver Track.TrackSignal
 eval_signal track expr ctype = case ctype of
     TrackInfo.Tempo {} -> do
         (sig, logs) <- derive_control True track expr
-        mapM_ Log.write logs
+        write logs
         return $ track_sig sig False
     TrackInfo.Control {} -> do
         (sig, logs) <- derive_control False track expr
-        mapM_ Log.write logs
+        write logs
         return $ track_sig sig False
     TrackInfo.Pitch {} -> do
         (sig, logs) <- derive_pitch track expr
-        mapM_ Log.write logs
+        write logs
         -- TODO I log derivation errors... why not log pitch errors?
         (nn_sig, _) <- pitch_signal_to_nn sig
         return $ track_sig nn_sig True
     where
+    -- If the track has errors deriving they are likely already reported by the
+    -- main derivation.  Still, I shouldn't just discard them, since the track
+    -- signal derivation may fail in a way the inverted one didn't.
+    write = mapM_ Log.write . map prio . Log.add_prefix "Track signal"
+    prio msg = msg { Log.msg_prio = Log.Debug }
     track_sig sig is_pitch = Track.TrackSignal
         { Track.ts_signal = Signal.coerce sig
         , Track.ts_shift = 0

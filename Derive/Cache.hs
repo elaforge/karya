@@ -9,7 +9,7 @@ module Derive.Cache (
     , _extend_control_damage
 #endif
 ) where
-import qualified Data.Map as Map
+import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 import qualified Data.Text as Text
 
@@ -154,7 +154,6 @@ make_cache :: (Derive.Derived d) => Stack.Stack -> Derive.Collect
     -> LEvent.LEvents d -> Cache
 make_cache stack collect stream = Cache $ Map.singleton stack (Cached entry)
     where
-    -- TODO clear out other bits of cache that this overlaps with
     stripped = collect
         { Derive.collect_cache = mempty
         -- Integration only happens for toplevel blocks, so there's no point
@@ -164,7 +163,7 @@ make_cache stack collect stream = Cache $ Map.singleton stack (Cached entry)
         , Derive.collect_integrated = []
         }
     entry = Derive.to_cache_entry $
-        Derive.CallType stripped (filter (not . cache_log) stream)
+        Derive.CallType stripped $ filter (not . cache_log) stream
     -- I do want a cached chunk to retain its log msgs, since those include
     -- errors deriving.  However, it's confusing if it also includes cache
     -- msgs because then it looks like it wasn't cached after all.

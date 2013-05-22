@@ -238,6 +238,12 @@ flag_char status = case status of
     Mute -> 'M'
     Collapse -> ' '
 
+-- | True if this track wants to render a 'Track.TrackSignal'.
+wants_track_signal :: Set.Set TrackFlag -> Track.Track -> Bool
+wants_track_signal flags track =
+    Track.render_style (Track.track_render track) /= Track.NoRender
+    && Collapse `Set.notMember` flags
+
 modify_id :: (TracklikeId -> TracklikeId) -> Track -> Track
 modify_id f track = track { tracklike_id = f (tracklike_id track) }
 

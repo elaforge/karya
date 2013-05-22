@@ -131,7 +131,7 @@ stash_sub_signals subs = do
     let tracks = filter should_render $ concatMap Tree.flatten subs
     sigs <- mapM Control.track_signal tracks
     Control.put_track_signals
-        [(track_id, tsig) | (Just track_id, tsig)
+        [(track_id, tsig) | (Just track_id, Just tsig)
             <- zip (map TrackTree.tevents_track_id tracks) sigs]
 
 should_render :: TrackTree.TrackEvents -> Bool
