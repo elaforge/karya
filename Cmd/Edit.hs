@@ -14,10 +14,12 @@ import qualified Ui.Ruler as Ruler
 import qualified Ui.State as State
 import qualified Ui.Track as Track
 import qualified Ui.Types as Types
+import qualified Ui.UiMsg as UiMsg
 
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.EditUtil as EditUtil
 import qualified Cmd.ModifyEvents as ModifyEvents
+import qualified Cmd.Msg as Msg
 import qualified Cmd.Selection as Selection
 import qualified Cmd.TimeStep as TimeStep
 
@@ -536,3 +538,24 @@ event_text_at :: (State.M m) => TrackId -> ScoreTime -> m Text
 event_text_at track_id pos = do
     events <- Track.track_events <$> State.get_track track_id
     return $ maybe "" Event.event_text $ Events.at pos events
+
+-- ** handle edit input msg
+
+-- | Handle UpdateInput that comes back from the floating edit input.
+--
+-- A leading space will create a zero duration event.
+edit_input :: Bool -> Cmd.Cmd
+edit_input zero_dur msg = do
+    text <- Cmd.require $ edit_input_msg msg
+    pos <- EditUtil.get_pos
+    let space = " " `Text.isPrefixOf` text
+    EditUtil.modify_event_at pos (zero_dur || space) False $
+        const (Just (Text.strip text), False)
+    record_recent_note
+    return Cmd.Done
+
+edit_input_msg :: Msg.Msg -> Maybe Text
+edit_input_msg (Msg.Ui (UiMsg.UiMsg ctx
+        (UiMsg.UiUpdate _ (UiMsg.UpdateInput text))))
+    | UiMsg.ctx_edit_input ctx = Just text
+edit_input_msg _ = Nothing

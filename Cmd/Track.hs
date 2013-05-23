@@ -5,7 +5,7 @@ import qualified Util.Log as Log
 import qualified Ui.State as State
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.ControlTrack as ControlTrack
-import qualified Cmd.EditUtil as EditUtil
+import qualified Cmd.Edit as Edit
 import qualified Cmd.Info as Info
 import qualified Cmd.Keymap as Keymap
 import qualified Cmd.MidiThru as MidiThru
@@ -48,7 +48,7 @@ get_track_cmds = do
     let note_cmd = NoteEntry.cmds_with_note (Cmd.state_kbd_entry edit_state)
             (MidiDb.info_patch <$> maybe_inst) (note_cmds edit_mode track)
         tcmds = track_cmds edit_mode track
-    let edit_input_cmd = EditUtil.edit_input $ case Info.track_type track of
+    let edit_input_cmd = Edit.edit_input $ case Info.track_type track of
             Info.Note {} -> False
             _ -> True
     kcmds <- keymap_cmds track

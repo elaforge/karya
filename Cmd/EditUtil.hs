@@ -12,7 +12,6 @@ import qualified Ui.Key as Key
 import qualified Ui.State as State
 import qualified Ui.Track as Track
 import qualified Ui.Types as Types
-import qualified Ui.UiMsg as UiMsg
 
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.InputNote as InputNote
@@ -54,24 +53,6 @@ raw_edit zero_dur msg = do
                 (modify_text_key mods key (fromMaybe "" txt), False)
         _ -> Cmd.abort
     return Cmd.Done
-
--- | Handle UpdateInput that comes back from the floating edit input.
---
--- A leading space will create a zero duration event.
-edit_input :: Bool -> Cmd.Cmd
-edit_input zero_dur msg = do
-    text <- Cmd.require $ edit_input_msg msg
-    pos <- get_pos
-    let space = " " `Text.isPrefixOf` text
-    modify_event_at pos (zero_dur || space) False $
-        const (Just (Text.strip text), False)
-    return Cmd.Done
-
-edit_input_msg :: Msg.Msg -> Maybe Text
-edit_input_msg (Msg.Ui (UiMsg.UiMsg ctx
-        (UiMsg.UiUpdate _ (UiMsg.UpdateInput text))))
-    | UiMsg.ctx_edit_input ctx = Just text
-edit_input_msg _ = Nothing
 
 -- * events
 
