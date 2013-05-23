@@ -20,7 +20,7 @@ test_lookup_midi = do
 
     let ks = (:[]) . Instrument.Keyswitch
     let kkt_inst name = (Instrument.instrument name [] (-12, 12))
-            { Instrument.inst_score = Score.Instrument ("kkt/" ++ name)
+            { Instrument.inst_score = Score.Instrument ("kkt/" <> name)
             , Instrument.inst_synth = "kkt"
             }
         hang = kkt_inst "hang1"
@@ -59,7 +59,7 @@ mkpatch name init = (patch, ())
     inst = Instrument.instrument name [] (-2, 2)
     patch = (Instrument.patch inst)
         { Instrument.patch_initialize = init
-        , Instrument.patch_file = "path/" ++ name ++ ".vc"
+        , Instrument.patch_file = "path/" ++ untxt name ++ ".vc"
         }
 
 pgm_change :: Midi.Program -> Instrument.InitializePatch

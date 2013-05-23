@@ -1,4 +1,5 @@
 module Local.Config.Archy where
+import Util.Control
 import qualified Cmd.Cmd as Cmd
 import qualified Instrument.Db as Db
 import qualified App.StaticConfig as StaticConfig
@@ -10,7 +11,7 @@ midi_config db = StaticConfig.Midi
     , StaticConfig.wdev_map = StaticConfig.make_wdev_map $
         -- Give all the softsynths a default mapping so they're easy to play
         -- with.
-        [(dev, iac 1) | dev <- Db.synths db] ++ wdev_map
+        [(dev, iac 1) | dev <- map untxt (Db.synths db)] ++ wdev_map
     , StaticConfig.read_devices = StaticConfig.make_read_devices read_devices
     }
 

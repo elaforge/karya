@@ -52,7 +52,7 @@ make_db dir = do
     MidiInst.save_patches synth (builtins ++ patches) synth_name dir
 
 synth :: Instrument.Synth
-synth = Instrument.synth synth_name "Yamaha VL1" []
+synth = Instrument.synth (txt synth_name) "Yamaha VL1" []
 
 -- * parse
 
@@ -67,8 +67,9 @@ extract_syxs dir fn = do
         B.writeFile (fn ++ ".syx") syx
         writeFile (fn ++ ".rec") (unlines (Sysex.show_flat rec))
 
-syx_fname :: Int -> String -> FilePath
-syx_fname num name = Printf.printf "%03d.%s" num (MidiDb.clean_inst_name name)
+syx_fname :: Int -> Text -> FilePath
+syx_fname num name = Printf.printf "%03d.%s" num
+    (untxt $ MidiDb.clean_inst_name name)
 
 send_to_buffer = modify
     [ put_int "memory type" 0x7f
@@ -203,13 +204,13 @@ checksum bytes = (2^7 - val) .&. 0x7f
 
 -- | Each voice has two elements, each with their own PbRange, name, and
 -- controls.
-type ElementInfo = (Control.PbRange, String, [(Midi.Control, [Text])])
+type ElementInfo = (Control.PbRange, Text, [(Midi.Control, [Text])])
 
 record_to_patch :: Sysex.RMap -> Either String Instrument.Patch
 record_to_patch rmap = do
     name <- get "name"
     elt1 <- extract_element 0 rmap
-    maybe_elt2 <- ifM ((== ("dual" :: String)) <$> get "voice mode")
+    maybe_elt2 <- ifM ((== ("dual" :: Text)) <$> get "voice mode")
         (Just <$> extract_element 1 rmap)
         (return Nothing)
     vl1_patch name elt1 maybe_elt2

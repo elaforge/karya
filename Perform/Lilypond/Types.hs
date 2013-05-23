@@ -97,7 +97,7 @@ global_staff_code =
     ]
 
 inst_name :: Score.Instrument -> Instrument
-inst_name = txt . dropWhile (=='/') . dropWhile (/='/') . Score.inst_name
+inst_name = Text.dropWhile (=='/') . Text.dropWhile (/='/') . Score.inst_name
 
 -- * Duration
 

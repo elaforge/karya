@@ -6,7 +6,7 @@ import Data.Bits ((.|.))
 import qualified Data.ByteString as B
 import Data.ByteString (ByteString)
 import qualified Data.ByteString.Char8 as Char8
-import qualified Data.Char as Char
+import qualified Data.Text as Text
 import Data.Word (Word8)
 
 import System.FilePath ((</>))
@@ -47,7 +47,7 @@ make_db dir = do
         Instrument.instrument_#Instrument.pitch_bend_range #= (-24, 24)
 
 synth :: Instrument.Synth
-synth = Instrument.synth synth_name "Korg Z1" synth_controls
+synth = Instrument.synth (txt synth_name) "Korg Z1" synth_controls
 
 synth_controls :: [(Midi.Control, Text)]
 synth_controls =
@@ -150,8 +150,8 @@ encode_bank_dump unit bank rmaps = do
     encode_sysex (encode program_dump_header header_rmap)
         (mconcat <$> mapM (encode patch_spec) rmaps)
     where
-    set_bank = Sysex.put_rmap "bank" (map Char.toLower (show bank))
-        <=< Sysex.put_rmap "unit" (map Char.toLower (show unit))
+    set_bank = Sysex.put_rmap "bank" (Text.toLower (showt bank))
+        <=< Sysex.put_rmap "unit" (Text.toLower (showt unit))
 
 encode_sysex :: Either String ByteString -> Either String ByteString
     -> Either String ByteString

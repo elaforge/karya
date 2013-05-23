@@ -305,7 +305,7 @@ p_scale_id = do
     <?> "scale id"
 
 p_instrument :: A.Parser Score.Instrument
-p_instrument = A.char '>' >> (Score.Instrument . to_string) <$> p_null_word
+p_instrument = A.char '>' >> (Score.Instrument . to_text) <$> p_null_word
     <?> "instrument"
 
 -- | Symbols can have anything in them but they have to start with a letter.

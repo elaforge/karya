@@ -13,6 +13,7 @@ import Control.DeepSeq (rnf)
 import qualified Data.ByteString.Char8 as B
 import qualified Data.ByteString.UTF8 as UTF8
 import qualified Data.Map as Map
+import qualified Data.Text as Text
 
 import Util.Control
 import qualified Util.Pretty as Pretty
@@ -336,18 +337,18 @@ place_warp shift stretch warp = compose_warps warp
 inst_valid_chars :: [Char]
 inst_valid_chars = '-' : ['0'..'9'] ++ ['a'..'z']
 
-inst_name :: Instrument -> String
+inst_name :: Instrument -> Text
 inst_name (Instrument s) = s
 
 empty_inst :: Instrument
 empty_inst = Instrument ""
 
-instrument :: String -> String -> Instrument
-instrument synth inst = Instrument $ synth ++ "/" ++ inst
+instrument :: Text -> Text -> Instrument
+instrument synth inst = Instrument $ synth <> "/" <> inst
 
-split_inst :: Instrument -> (String, String)
-split_inst (Instrument inst) = (synth, drop 1 inst_name)
-    where (synth, inst_name) = break (=='/') inst
+split_inst :: Instrument -> (Text, Text)
+split_inst (Instrument inst) = (synth, Text.drop 1 inst_name)
+    where (synth, inst_name) = Text.break (=='/') inst
 
 -- * controls
 

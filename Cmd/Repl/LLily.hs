@@ -42,15 +42,15 @@ make_config quarter quantize = Lilypond.default_config
     , Lilypond.config_quantize = quantize
     }
 
-set_code :: (State.M m) => String -> [Text] -> m ()
+set_code :: (State.M m) => Text -> [Text] -> m ()
 set_code inst code = modify_staff inst $ \staff -> staff
     { Lilypond.staff_code = code }
 
-toggle_display :: (State.M m) => String -> m ()
+toggle_display :: (State.M m) => Text -> m ()
 toggle_display inst = modify_staff inst $ \staff -> staff
     { Lilypond.staff_display = not $ Lilypond.staff_display staff }
 
-modify_staff :: (State.M m) => String
+modify_staff :: (State.M m) => Text
     -> (Lilypond.StaffConfig -> Lilypond.StaffConfig)
     -> m ()
 modify_staff inst_ modify = do
@@ -62,7 +62,7 @@ modify_staff inst_ modify = do
             config { Lilypond.config_staves = staves }
     where inst = Score.Instrument inst_
 
-set_staves :: [(String, Lilypond.Instrument, Lilypond.Instrument)]
+set_staves :: [(Text, Lilypond.Instrument, Lilypond.Instrument)]
     -> Lilypond.Config -> Lilypond.Config
 set_staves staves config =
     config { Lilypond.config_staves = map mk staves }
@@ -99,7 +99,7 @@ view = view_block =<< Cmd.get_focused_block
 
 -- * from events
 
-filter_inst :: [String] -> [Score.Event] -> [Score.Event]
+filter_inst :: [Text] -> [Score.Event] -> [Score.Event]
 filter_inst inst_s = filter ((`elem` insts) . Score.event_instrument)
     where insts = map Score.Instrument inst_s
 

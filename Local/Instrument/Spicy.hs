@@ -26,7 +26,7 @@ load _dir = return $ MidiInst.make $
     , MidiInst.code = MidiInst.note_calls (MidiInst.null_call note_call)
     }
 
-synth_name :: String
+synth_name :: Instrument.SynthName
 synth_name = "spicy"
 
 pb_range = (-3, 3)
@@ -60,21 +60,21 @@ note_call = Note.transformed_note
         <> " for that string.") mempty
     transform
     where
-    attrs_doc = Text.intercalate ", " ["`" <> txt a <> "`" | a <- strings]
+    attrs_doc = Text.intercalate ", " ["`" <> a <> "`" | a <- strings]
     transform deriver = do
         attrs <- Util.get_attrs
         inst <- Util.lookup_instrument
         let string = Seq.head
                 [string | attr <- Score.attrs_list attrs, string <- strings,
-                    attr == string]
+                    txt attr == string]
         case (inst, string) of
             (Just inst, Just string) ->
                 Derive.with_instrument (string_inst inst string) deriver
             _ -> deriver
     string_inst inst string =
-        Score.Instrument $ Score.inst_name inst ++ "-" ++ string
+        Score.Instrument $ Score.inst_name inst <> "-" <> string
 
-strings :: [String]
+strings :: [Text]
 strings = ["e1", "a", "d", "g", "b", "e2"]
 
 -- | Create the proper midi config to work with the string attrs used by

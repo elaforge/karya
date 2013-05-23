@@ -47,12 +47,12 @@ p_instrument = do
     synth <- Parsec.many1 $ Parsec.oneOf Score.inst_valid_chars
     Parsec.char '/'
     name <- Parsec.many1 $ Parsec.oneOf Score.inst_valid_chars
-    return $ Score.Instrument $ synth ++ '/' : name
+    return $ Score.instrument (txt synth) (txt name)
     <?> "instrument"
 
 p_tag :: Parser st Instrument.Tag
-p_tag = (,) <$> Parsec.many1 tag_char
-        <*> Parsec.option "" (Parsec.char '=' *> Parsec.many1 tag_char)
+p_tag = (,) <$> (txt <$> Parsec.many1 tag_char)
+        <*> (txt <$> Parsec.option "" (Parsec.char '=' *> Parsec.many1 tag_char))
     where tag_char = Parsec.alphaNum <|> Parsec.char '-'
 
 lexeme :: Parser st a -> Parser st a
@@ -97,7 +97,7 @@ empty_state :: State
 empty_state = State 0 0
 
 data PatchLine = PatchLine {
-    patch_name :: String
+    patch_name :: Text
     , patch_bank :: Int
     , patch_program :: Midi.Program
     , patch_tags :: [Instrument.Tag]
@@ -137,7 +137,7 @@ p_patch_line = do
     p_eol
     st <- Parsec.getState
     Parsec.setState $ st { state_patch_num = state_patch_num st + 1 }
-    return $ PatchLine name (state_bank st) (state_patch_num st) tags
+    return $ PatchLine (txt name) (state_bank st) (state_patch_num st) tags
     where
     comma = lexeme (Parsec.char ',')
 

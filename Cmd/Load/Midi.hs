@@ -152,7 +152,7 @@ note_track_edges = concat . snd . List.mapAccumL edges 1
 convert_track :: (Text, [Midi])
     -> ([(Score.Instrument, NoteTrack)], [Warn])
 convert_track (title, msgs) =
-    (map ((,) (Score.instrument "s" (untxt title))) tracks, warns)
+    (map ((,) (Score.instrument "s" title)) tracks, warns)
     where
     (tracks, stuck_on) = split_track msgs
     warns = if null stuck_on then []

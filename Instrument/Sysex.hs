@@ -11,13 +11,13 @@ import qualified Data.Bits as Bits
 import Data.Bits ((.&.), (.|.))
 import qualified Data.ByteString as B
 import Data.ByteString (ByteString)
-import qualified Data.ByteString.Char8 as Char8
 import qualified Data.ByteString.Lazy as Lazy
 import qualified Data.ByteString.Lazy.Builder as Builder
 import qualified Data.Either as Either
 import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Serialize.Get as Get
+import qualified Data.Text as Text
 import Data.Word (Word8)
 
 import qualified Numeric
@@ -32,6 +32,7 @@ import qualified Util.Seq as Seq
 
 import qualified Midi.Midi as Midi
 import qualified Midi.Parse
+import qualified Ui.Util
 import qualified Perform.Midi.Instrument as Instrument
 import qualified Instrument.Tag as Tag
 
@@ -94,7 +95,7 @@ add_file :: FilePath -> Instrument.Patch -> Instrument.Patch
 add_file fn patch = patch
     { Instrument.patch_file = fn
     , Instrument.patch_tags =
-        (Tag.file, FilePath.takeFileName fn) : Instrument.patch_tags patch
+        (Tag.file, txt (FilePath.takeFileName fn)) : Instrument.patch_tags patch
     }
 
 -- * record
@@ -105,11 +106,11 @@ data Record =
     RMap RMap
     -- | Which one this is is determined by an RStr elsewhere.
     | RUnion RMap
-    | RNum Int | RStr String
+    | RNum Int | RStr Text
     | RUnparsed ByteString
     deriving (Eq, Show)
 type Error = String
-type EnumName = String
+type EnumName = Text
 
 data RecordType = TMap | TUnion | TNum | TStr | TUnparsed
     deriving (Eq, Show)
@@ -164,7 +165,7 @@ show_flat = show_map []
             RMap rmap -> show_map (field : fields) rmap
             RUnion rmap -> show_map (field : fields) rmap
             RNum n -> [path ++ show n]
-            RStr s -> [path ++ s]
+            RStr s -> [path ++ untxt s]
             RUnparsed {} -> []
         where
         path = Seq.join "." (reverse (field : fields)) ++ ": "
@@ -183,7 +184,7 @@ instance RecordVal Word8 where
     to_val (RNum x) = Just (fromIntegral x)
     to_val _ = Nothing
 
-instance RecordVal String where
+instance RecordVal Text where
     from_val = RStr
     to_val (RStr x) = Just x
     to_val _ = Nothing
@@ -332,12 +333,12 @@ encode_spec config path rmap (name, spec) = case spec of
         str <- lookup_field name >>= \x -> case x of
             RStr str -> return str
             val -> throw $ "expected RStr, but got " ++ show val
-        let diff = chars - length str
+        let diff = chars - Text.length str
         padded <- if diff >= 0
-            then return $ str ++ replicate diff ' '
+            then return $ str <> Text.replicate diff " "
             else throw $ "too many characters, expected " ++ show chars
                 ++ ": " ++ show str
-        Writer.tell (Builder.string7 padded)
+        Writer.tell (Builder.string7 $ untxt padded)
     SubSpec specs -> do
         sub_record <- lookup_field name >>= \x -> case x of
             RMap rmap -> return rmap
@@ -369,7 +370,7 @@ encode_spec config path rmap (name, spec) = case spec of
         specs <- case lookup enum enum_specs of
             Just specs -> return specs
             Nothing -> throw $ "not found in union "
-                ++ show (map fst enum_specs) ++ ": " ++ enum
+                ++ show (map fst enum_specs) ++ ": " ++ untxt enum
         bytes <- either Error.throwError return $ run_encode $
             mapM_ (encode_spec config (name:path) union_rmap) specs
         Writer.tell $ Builder.byteString $ bytes
@@ -421,7 +422,7 @@ encode_range (Range low high) (RNum num)
         ++ show num
 encode_range (Enum enums) (RStr enum)
     | Just i <- List.elemIndex enum enums = Right i
-    | otherwise = Left $ "unknown enum: " ++ enum
+    | otherwise = Left $ "unknown enum: " ++ untxt enum
 encode_range _ record =
     Left $ "expected a num or str, but got " ++ show record
 
@@ -453,7 +454,7 @@ decode config = decode_from []
             either throw (return . (:[]) . ((,) name)) $ decode_range num range
         Str chars -> do
             str <- Get.getByteString chars
-            return [(name, RStr (Seq.strip (Char8.unpack str)))]
+            return [(name, RStr $ Text.strip $ Ui.Util.decodeUtf8 str)]
         SubSpec specs -> do
             subs <- rmap (name : path) [] specs
             return [(name, RMap subs)]
@@ -469,7 +470,7 @@ decode config = decode_from []
                 _ -> throw $ "previous enum not found: " ++ enum_name
             specs <- case lookup enum enum_specs of
                 Just specs -> return specs
-                Nothing -> throw $ "union doesn't contain enum: " ++ enum
+                Nothing -> throw $ "union doesn't contain enum: " ++ untxt enum
             bytes <- Get.getByteString bytes
             record <- either fail (return . fst) $ decode_from path specs bytes
             return [(name, RUnion record)]
@@ -658,7 +659,7 @@ ranged low high = Num (Range low high)
 signed :: Int -> Spec
 signed high = ranged (-high) high
 
-enum :: [String] -> Spec
+enum :: [EnumName] -> Spec
 enum enums = Num (Enum enums)
 
 bool :: Spec
@@ -672,7 +673,7 @@ bits n = (n, Range 0 (2^n))
 ranged_bits :: Int -> (Int, Int) -> BitField
 ranged_bits n (low, high) = (n, Range low high)
 
-enum_bits :: Int -> [String] -> BitField
+enum_bits :: Int -> [EnumName] -> BitField
 enum_bits n vals = (n, Enum vals)
 
 bool_bit :: BitField

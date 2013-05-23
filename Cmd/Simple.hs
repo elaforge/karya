@@ -66,7 +66,7 @@ score_event evt = (from_real (Score.event_start evt),
 
 perf_event :: Perform.Event -> PerfEvent
 perf_event evt =
-    ( Instrument.inst_name (Perform.event_instrument evt)
+    ( untxt $ Instrument.inst_name (Perform.event_instrument evt)
     , from_real start
     , from_real (Perform.event_duration evt)
     , Pitch.nn (Signal.at start (Perform.event_pitch evt))

@@ -175,7 +175,7 @@ show_addrs addrs = semicolon_list
     | (wdev, addrs) <- Seq.keyed_group_on fst addrs]
 
 show_inst :: Score.Instrument -> String
-show_inst (Score.Instrument name) = '>' : name
+show_inst (Score.Instrument name) = '>' : untxt name
 
 show_keyswitch_map :: Instrument.KeyswitchMap -> String
 show_keyswitch_map (Instrument.KeyswitchMap attr_ks) = comma_list $

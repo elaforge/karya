@@ -7,6 +7,7 @@ import qualified Data.Char as Char
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 import qualified Data.Monoid as Monoid
+import qualified Data.Text as Text
 
 import qualified System.FilePath as FilePath
 
@@ -35,7 +36,7 @@ midi_db :: [SynthDesc code] -> (MidiDb code, [String])
 midi_db synth_pmaps = (MidiDb db_map, validate synth_pmaps)
     where
     db_map = Map.fromList
-        [ (lc (Instrument.synth_name synth), (synth, pmap))
+        [ (Text.toLower (Instrument.synth_name synth), (synth, pmap))
         | (synth, pmap) <- synth_pmaps
         ]
 
@@ -202,34 +203,36 @@ patch_map patches = run $ concatMapM split =<< mapM strip_init by_name
     run = first (PatchMap . Map.fromList) . Identity.runIdentity . Logger.run
 
     strip_init :: NamedPatch code -> Merge (NamedPatch code)
-    strip_init ("", patches) = do
-        log "dropped patches with no name" patches
-        return ("", [])
     -- If the initialization is the same, they are likely duplicates.
-    strip_init (name, patches) = do
-        let (unique, dups) =
-                Seq.partition_dups (Instrument.patch_initialize . fst) patches
-        forM_ dups $ \(patch, dups) ->
-            log ("dropped patches with the same initialization as "
-                ++ details patch) dups
-        return (name, unique)
+    strip_init (name, patches)
+        | Text.null name = do
+            log "dropped patches with no name" patches
+            return ("", [])
+        | otherwise = do
+            let (unique, dups) = Seq.partition_dups
+                    (Instrument.patch_initialize . fst) patches
+            forM_ dups $ \(patch, dups) ->
+                log ("dropped patches with the same initialization as "
+                    ++ details patch) dups
+            return (name, unique)
 
     -- Remaining patches are probably different and just happened to get the
     -- same name, so number them to disambiguate.
-    split :: NamedPatch code -> Merge [(String, PatchCode code)]
+    split :: NamedPatch code -> Merge [(Text, PatchCode code)]
     split (name, patches@(_:_:_)) = do
-        let named = zip (map ((name++) . show) [1..]) patches
-        log ("split into " ++ Seq.join ", " (map fst named)) patches
+        let named = zip (map ((name<>) . showt) [1..]) patches
+        log ("split into " ++ untxt (Text.intercalate ", " (map fst named)))
+            patches
         return named
     split (name, patches) = return $ map (name,) patches
 
     log _ [] = return ()
     log msg ps = Logger.log $ msg ++ ": " ++ Seq.join ", " (map details ps)
-    details patch = Instrument.inst_name (patch_inst patch)
+    details patch = untxt (Instrument.inst_name (patch_inst patch))
         ++ " (" ++ FilePath.takeFileName (Instrument.patch_file (fst patch))
         ++ ")"
 
-type NamedPatch code = (String, [PatchCode code])
+type NamedPatch code = (Text, [PatchCode code])
 type Merge = Logger.LoggerT String Identity.Identity
 
 -- | Make the patches into a PatchMap.  This is just a version of
@@ -237,7 +240,7 @@ type Merge = Logger.LoggerT String Identity.Identity
 logged_synths :: Instrument.Synth -> [PatchCode code] -> IO (SynthDesc code)
 logged_synths synth patches = do
     let (pmap, msgs) = patch_map patches
-    let prefix = "synth " ++ Instrument.synth_name synth ++ ": "
+    let prefix = "synth " ++ untxt (Instrument.synth_name synth) ++ ": "
     mapM_ (Log.notice . (prefix++)) msgs
     return (synth, pmap)
 
@@ -269,12 +272,15 @@ lc = map Char.toLower
 -- | People like to put wacky characters in their names, but it makes them
 -- hard to type.  This affects the key under which the instrument is stored
 -- and therefore lookup, but the inst_name field remains unchanged.
-clean_inst_name :: String -> String
+clean_inst_name :: Text -> Text
 clean_inst_name =
-    Seq.rdrop_while (=='-') . dropWhile (=='-')
-        . Seq.drop_with (\a b -> a == '-' && b == '-')
-        . filter (`elem` Score.inst_valid_chars) . map replace . lc
+    Text.dropWhileEnd (=='-') . Text.dropWhile (=='-')
+        . strip_dups
+        . Text.filter (`elem` Score.inst_valid_chars) . Text.map replace
+        . Text.toLower
     where
+    strip_dups = Text.intercalate "-" . filter (not . Text.null)
+        . Text.split (=='-')
     replace c
         | c `elem` " _/" = '-'
         | otherwise = c

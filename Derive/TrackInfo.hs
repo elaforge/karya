@@ -147,7 +147,7 @@ parse_note = Parse.parse_expr . Parse.from_text . ("note-track "<>)
 -- pick an instrument out without executing it.
 title_to_instrument :: Text -> Maybe Score.Instrument
 title_to_instrument title = case Text.uncons title of
-    Just ('>', name) -> Just $ Score.Instrument $ untxt $ strip_expr name
+    Just ('>', name) -> Just $ Score.Instrument $ strip_expr name
     _ -> Nothing
 
 -- | Convert from an instrument to the title of its instrument track.

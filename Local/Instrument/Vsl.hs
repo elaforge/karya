@@ -53,7 +53,7 @@ write_matrices = Text.IO.writeFile "matrices.txt" $ Text.unlines $
 
 show_matrix :: VslInst.Instrument -> Text
 show_matrix (name, _, attrs) =
-    txt name <> ":\n" <> Text.unlines (map format matrices)
+    name <> ":\n" <> Text.unlines (map format matrices)
     where
     matrices = Seq.chunked 12 $ concatMap (Seq.chunked 12)
         (map_shape strip attrs)
@@ -94,7 +94,7 @@ patches =
     add_code hmap patch = (patch, code)
         where code = MidiInst.note_calls (note_calls hmap patch)
 
-instruments :: [((VslInst.Instrument, Maybe HarmonicMap), String)]
+instruments :: [((VslInst.Instrument, Maybe HarmonicMap), Text)]
 instruments = concatMap tag $
     (solo_string_instruments, Tag.c_strings)
     : no_hmap
@@ -180,12 +180,12 @@ natural_harmonic config (strings, hmap) args = do
 type Instrument = (Instrument.InstrumentName, [Keyswitch])
 type Keyswitch = (Score.Attributes, [Instrument.Keyswitch])
 
-make_patch :: VslInst.Instrument -> String -> Instrument.Patch
+make_patch :: VslInst.Instrument -> Text -> Instrument.Patch
 make_patch inst category =
     instrument_patch category (second strip (make_instrument inst))
     where strip = uncurry zip . first strip_attrs . unzip
 
-instrument_patch :: String -> Instrument -> Instrument.Patch
+instrument_patch :: Text -> Instrument -> Instrument.Patch
 instrument_patch category (name, keyswitches) =
     Instrument.add_tag (Tag.category, category) $
     (Instrument.keyswitches #= keyswitch_map keyswitches) $

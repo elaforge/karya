@@ -267,4 +267,4 @@ track_take = second . take
 
 set_midi_config :: State.State -> State.State
 set_midi_config = State.config#State.midi #=
-     UiTest.midi_config [(drop 1 inst1, [0, 1]), (drop 1 inst2, [2])]
+     UiTest.midi_config [(txt $ drop 1 inst1, [0, 1]), (txt $ drop 1 inst2, [2])]

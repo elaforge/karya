@@ -34,7 +34,7 @@ midi_db :: MidiDb.MidiDb Cmd.InstrumentCode
 midi_db = fst $ MidiDb.midi_db
     [(z1_synth, z1_patches), (fm8_synth, fm8_patches)]
 
-t_all_insts :: [String]
+t_all_insts :: [Text]
 t_all_insts = map Score.inst_name (Map.keys (Search.idx_instrument_tags index))
 
 z1_synth :: Instrument.Synth
@@ -57,7 +57,7 @@ fm8_synth = Instrument.synth "fm8" "NI FM8" []
 fm8_patches :: MidiDb.PatchMap Cmd.InstrumentCode
 fm8_patches = MidiDb.wildcard_patch_map (mkpatch ("none", "fm", []))
 
-mkpatch :: (String, String, [(Midi.Control, Text)])
+mkpatch :: (Text, Text, [(Midi.Control, Text)])
     -> MidiDb.PatchCode Cmd.InstrumentCode
 mkpatch (name, cat, conts) = (patch, Cmd.empty_code)
     where

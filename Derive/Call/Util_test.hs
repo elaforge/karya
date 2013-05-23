@@ -1,5 +1,6 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 module Derive.Call.Util_test where
+import Util.Control
 import Util.Test
 import qualified Ui.State as State
 import qualified Derive.Call.Util as Util
@@ -79,5 +80,5 @@ test_c_equal_note_transformer = do
     equal (run [(0, 1, "inst = >i1"), (1, 1, "inst = >i2")])
         ([(0, "i1"), (1, "i2"), (2, "")], [])
 
-e_inst :: Score.Event -> (RealTime, String)
+e_inst :: Score.Event -> (RealTime, Text)
 e_inst e = (Score.event_start e, Score.inst_name (Score.event_instrument e))

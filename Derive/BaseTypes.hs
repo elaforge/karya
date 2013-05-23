@@ -50,12 +50,12 @@ import qualified Perform.Signal as Signal
 -- the instrument db to get the backend specific Instrument type as well as
 -- the backend itself, but things at the Derive layer and above don't care
 -- about all that.
-newtype Instrument = Instrument String
+newtype Instrument = Instrument Text
     deriving (DeepSeq.NFData, Eq, Ord, Show, Read)
 
 instance Pretty.Pretty Instrument where pretty = untxt . ShowVal.show_val
 instance ShowVal.ShowVal Instrument where
-    show_val (Instrument inst) = txt $ '>' : inst
+    show_val (Instrument inst) = Text.cons '>' inst
 
 newtype Control = Control Text
     deriving (Eq, Ord, Read, Show, DeepSeq.NFData, Serialize.Serialize)

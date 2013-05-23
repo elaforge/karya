@@ -52,7 +52,7 @@ get_default_tempo = State.config#State.default_#State.tempo <#> State.get
 set_default_tempo :: Signal.Y -> Cmd.CmdL ()
 set_default_tempo t = modify_config $ State.default_#State.tempo #= t
 
-set_default_inst :: String -> Cmd.CmdL ()
+set_default_inst :: Text -> Cmd.CmdL ()
 set_default_inst inst = modify_config $
     State.default_#State.instrument #= Just (Score.Instrument inst)
 

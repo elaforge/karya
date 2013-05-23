@@ -74,6 +74,10 @@ UNSORTED
   - shakefile should use typesafe oracle calls, is there newtype based
     oracle utils yet?
   convert to Text:
+    * Derive.BaseTypes.Instrument
+    - Derive.BaseTypes.Attribute
+    - Perform.Pitch.ScaleId
+    - WriteDevice, ReadDevice
     * Perform.Midi.Instrument.patch_text
     * Derive.Tags.Tags
     - TimeStep.show_time_step
@@ -186,7 +190,7 @@ MILESTONES
     + save undo history / incremental save - more extensive testing
     - solution for audio, plugins, track bouncing, etc.  ardour / reaper?
     + jack support on linux
-    - simple csound backend
+    / simple csound backend
     * lilypond backend: good enough to render viola-sonata
     + documentation
   1.0
@@ -205,6 +209,7 @@ MILESTONES
 ----------------------------------------------------------------------
 
 documentation
+  - update those READMEs
   + doc/derivation.md
   * integrate doc/tracklang into derivation.md
   - split up derivation.md into separate files
@@ -607,14 +612,7 @@ performance:
       - UI edits should see the Chunk expanded out as Events.  Inserting an
         event should modify the chunk or split it depending on if the inserted
         event is a set call or not.
-    pitch
-      Similar to control except I can't make Chunks automatically, since
-      collapsing to NoteNumbers loses information.  But recording doesn't have
-      this information in the first place, so it can generate chunks.
-      However, maybe I should omit chunked pitch signals entirely and instead
-      emit an initial pitch along with a transposition curve.
-
-  - make seeks on derive output more efficient with a lazy index
+  * make seeks on derive output more efficient
   cache
     - Can I make cached signal more efficient by merging the signals before
       stashing it?  Of course laziness means that this won't actually happen
@@ -663,7 +661,7 @@ performance:
       chunks, which is then all forced at once since merge needs them all.
     - Parallelize derivation with strategies.  Can I spark subderivations?
   Perform
-    - use a lazy storeable vector for [Score.Event] and [Midi.Message] to save
+    / use a lazy storeable vector for [Score.Event] and [Midi.Message] to save
       memory?  If I make Messages a storable vector, I'd have to hash the wdev
       or something.
     packed midi, encode to storable vector
@@ -1044,15 +1042,19 @@ pitch / scales
       - interpolate between just scales in different keys
       + just intonation tuned to a pitch signal
         Works, but I need a less awkward way to set the base frequency.
-      . Specifically, how do just scales handle accidentals?  Presumably I need
-        to pick a pitch based on the ratios it will have with other sounding
-        pitches, which means I might need several kinds of intervals, and pick
-        one based on context.  So it means maybe a couple of different
+      . How do just scales handle accidentals?  Presumably I need to pick
+        a pitch based on the ratios it will have with other sounding pitches,
+        which means I might need several kinds of intervals, and pick one
+        based on context.  So it means maybe a couple of different
         accidentals.
       . Or, I play ratios from the previous note, and just write ratios
         directly.  E.g. '4a' is an absolute frequency, based on the current
         tuning of course.  '+5/4' is 5/4 above the previous pitch.  '4a +5/4' is
         relative to another pitch.
+      . Do I want a ratio literal?  Then I can write '4a 3/2 9/8' without
+        quotes.  Or give each of these intervals a name and allow a symbolic
+        name too.
+      . This would also work well with a cipher notation, e.g. 4-1, 4-2, etc.
       . I can have a display that shows the relationships between the currently
         sounding pitches.
     - Interpolate between two scales.  The main thing is to establish a note
@@ -1061,8 +1063,6 @@ pitch / scales
     - retune a note depending on the previous interval (e.g. sloppy pitches
       when playing quickly)
       I think this has to be postproc.
-    - Ratio based notation where the ratios are from the previous pitch.
-      Should be able to do this with val calls.
     - parser for scala .scl files
     - support scales that are different ascending vs. descending
     - twelve, but relative to key and using numbers, aka jianpu

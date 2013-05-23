@@ -69,7 +69,7 @@ noinst n = mkevent n "4c" "noinst"
 nopitch n = (mkevent n "4c" "s/1") { Score.event_pitch = mempty }
 good n = mkevent n "4c" "s/1"
 
-mkevent :: RealTime -> String -> String -> Score.Event
+mkevent :: RealTime -> String -> Text -> Score.Event
 mkevent start pitch inst =
     DeriveTest.mkevent (start, 1, pitch, [], Score.Instrument inst)
 
@@ -131,7 +131,7 @@ set_composite pitch controls =
         Set.fromList (map Score.Control controls))]
 
 perform :: (Instrument.Patch -> Instrument.Patch, MidiInst.Code)
-    -> [(String, [Midi.Channel])] -> [UiTest.TrackSpec]
+    -> [(Text, [Midi.Channel])] -> [UiTest.TrackSpec]
     -> ([Perform.Event], [DeriveTest.Midi], [Log.Msg])
 perform (set_patch, code) alloc tracks =
     DeriveTest.perform_inst synth alloc (Derive.r_events result)

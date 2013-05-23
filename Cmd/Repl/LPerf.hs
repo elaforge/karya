@@ -190,7 +190,7 @@ convert events = do
     lookup <- PlayUtil.get_convert_lookup
     return $ Midi.Convert.convert lookup events
 
-perf_event_inst :: Perform.Event -> String
+perf_event_inst :: Perform.Event -> Text
 perf_event_inst =
     Score.inst_name . Instrument.inst_score . Perform.event_instrument
 

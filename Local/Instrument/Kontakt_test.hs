@@ -20,7 +20,7 @@ test_kendang = do
         lanang_inst = "kkt/kendang-lanang"
         kendang_inst = "kkt/kendang"
     let run_kendang suffix stroke_events = e_attrs $
-            run [('>':kendang_inst ++ suffix, strokes stroke_events)]
+            run [('>' : untxt kendang_inst ++ suffix, strokes stroke_events)]
     equal (run_kendang "" ["PL", "k", "P", "u", "U"])
         ( [ (0, kendang_inst, wadon <> plak)
           , (1, kendang_inst, wadon <> pak)
@@ -45,7 +45,7 @@ test_kendang = do
             (Score.event_start e, Pretty.pretty (Score.event_attributes e),
                 Score.initial_dynamic e)
     equal (e_vel $ run
-            [ ('>':wadon_inst, strokes ["-", "+", ".", "P", "^"])
+            [ ('>' : untxt wadon_inst, strokes ["-", "+", ".", "P", "^"])
             , ("dyn", [(0, 0, "1")])
             ])
         ([(0, "+de+soft", 0.3), (1, "+de", 1), (2, "+ka+soft", 0.3),

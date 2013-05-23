@@ -3,6 +3,7 @@
 --
 -- Any attribute of a patch that should be searchable should be given a tag.
 module Instrument.Tag where
+import Data.Text (Text)
 import Perform.Midi.Instrument (TagKey)
 
 
@@ -34,6 +35,7 @@ sysex = "sysex"
 
 -- * categories
 
+c_strings, c_woodwinds, c_brass, c_percussion, c_synth :: Text
 c_strings = "strings"
 c_woodwinds = "woodwinds"
 c_brass = "brass"

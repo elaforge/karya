@@ -3,6 +3,7 @@ import qualified Data.ByteString.Char8 as B
 import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Set as Set
+import qualified Data.Text as Text
 
 import Util.Control
 import qualified Util.Log as Log
@@ -145,7 +146,7 @@ perform_stream lookup midi_config events = (perf_events, mmsgs)
         (RealTime.to_milliseconds (Midi.wmsg_ts wmsg), Midi.wmsg_msg wmsg)
 
 -- | Perform events with the given instrument config.
-perform_inst :: [Cmd.SynthDesc] -> [(String, [Midi.Channel])] -> Derive.Events
+perform_inst :: [Cmd.SynthDesc] -> [(Text, [Midi.Channel])] -> Derive.Events
     -> ([Perform.Event], [Midi], [Log.Msg])
 perform_inst synths config =
     perform (synth_to_convert_lookup synths) (UiTest.midi_config config)
@@ -349,7 +350,7 @@ r_log_strings = snd . extract id
 e_event :: Score.Event -> (RealTime, RealTime, String)
 e_event e = (Score.event_start e, Score.event_duration e, Score.event_string e)
 
-e_everything :: Score.Event -> (RealTime, RealTime, String, String, [String])
+e_everything :: Score.Event -> (RealTime, RealTime, String, Text, [String])
 e_everything e =
     ( Score.event_start e
     , Score.event_duration e
@@ -358,7 +359,7 @@ e_everything e =
     , Score.attrs_list (Score.event_attributes e)
     )
 
-e_inst :: Score.Event -> String
+e_inst :: Score.Event -> Text
 e_inst = Score.inst_name . Score.event_instrument
 
 e_control :: Text -> Score.Event -> [(RealTime, Signal.Y)]
@@ -531,7 +532,7 @@ make_convert_lookup midi_db = Convert.Lookup
     lookup_inst = Instrument.Db.db_lookup_midi midi_db
     lookup_patch = fmap MidiDb.info_patch . Instrument.Db.db_lookup midi_db
 
-make_db :: [(String, [Instrument.Patch])] -> Cmd.InstrumentDb
+make_db :: [(Text, [Instrument.Patch])] -> Cmd.InstrumentDb
 make_db synth_patches = Instrument.Db.db midi_db
     where
     midi_db = fst $ MidiDb.midi_db $ concatMap make synth_patches
@@ -545,8 +546,8 @@ lookup_from_insts = make_convert_lookup . make_db . convert
     where
     convert = map (second (map make_patch)) . Seq.keyed_group_on (fst . split)
         . map Score.inst_name
-    split name = (pre, drop 1 post)
-        where (pre, post) = break (=='/') name
+    split name = (pre, Text.drop 1 post)
+        where (pre, post) = Text.break (=='/') name
 
 lookup_from_state :: State.State -> Convert.Lookup
 lookup_from_state state = lookup_from_insts $
@@ -558,7 +559,7 @@ default_convert_lookup = make_convert_lookup default_db
 default_db :: Cmd.InstrumentDb
 default_db = make_db [("s", map make_patch ["1", "2"])]
 
-make_patch :: String -> Instrument.Patch
+make_patch :: Text -> Instrument.Patch
 make_patch name = Instrument.patch $ Instrument.instrument name [] (-2, 2)
 
 default_midi_config :: Instrument.Configs

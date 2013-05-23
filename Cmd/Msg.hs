@@ -74,6 +74,17 @@ data Performance = Performance {
     perf_derive_cache :: !Derive.Cache
     -- | Intentionally not strict.  TODO figure out if that matters
     , perf_events :: Events
+    -- | Logs from the derivation are written separately, by the evaluation
+    -- thread in "Cmd.Performance".  Evaluation may be triggered by either the
+    -- evaluation thread (after a short delay), or by a Cmd that wants up to
+    -- date derivation output (such as play).  I could have those Cmds write
+    -- and filter any logs if the evaluator hasn't yet gotten around to it, but
+    -- then I can't stop the evaluator from repeating that work without an MVar
+    -- or something to tell the evaluator thread.  If I rely on lazy evaluation
+    -- I get that communication \"for free\".  However, it means that you might
+    -- have a play fail, and only get the logs about why when the evaluation
+    -- thread gets done waiting.  It doesn't wait long though, so that
+    -- shouldn't be a big deal.
     , perf_logs :: [Log.Msg]
     , perf_track_dynamic :: !Derive.TrackDynamic
     , perf_integrated :: ![Derive.Integrated]

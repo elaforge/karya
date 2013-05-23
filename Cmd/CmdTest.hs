@@ -297,7 +297,7 @@ extract_ui m = extract_ui_state $ \state -> UiTest.eval state m
 -- * inst db
 
 -- | Configure ustate and cstate with the given instruments.
-set_insts :: [String] -> State.State -> Cmd.State -> (State.State, Cmd.State)
+set_insts :: [Text] -> State.State -> Cmd.State -> (State.State, Cmd.State)
 set_insts insts ustate cstate =
     (UiTest.set_midi_config config ustate,
         cstate { Cmd.state_config = set_db (Cmd.state_config cstate) })
@@ -306,11 +306,11 @@ set_insts insts ustate cstate =
     config = UiTest.midi_config [(inst, [chan])
         | (inst, chan) <- zip insts [0..]]
 
-make_inst_db :: [String] -> Instrument.Db.Db code
+make_inst_db :: [Text] -> Instrument.Db.Db code
 make_inst_db inst_names = Instrument.Db.empty
     { Instrument.Db.db_lookup_midi = make_lookup inst_names }
 
-make_lookup :: [String] -> MidiDb.LookupMidiInstrument
+make_lookup :: [Text] -> MidiDb.LookupMidiInstrument
 make_lookup inst_names _attrs (Score.Instrument inst) =
     fmap (\inst -> (inst, Score.no_attrs)) (Map.lookup inst inst_map)
     where inst_map = Map.fromList $ zip inst_names (map make_inst inst_names)

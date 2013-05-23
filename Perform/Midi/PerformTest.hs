@@ -33,7 +33,7 @@ read_perf_events events = do
     return $ mapMaybe
         (make_perf_event (Instrument.Db.db_lookup_midi db)) events
 
-type Event = (String, RealTime, RealTime, [(Text, [(RealTime, Signal.Y)])],
+type Event = (Text, RealTime, RealTime, [(Text, [(RealTime, Signal.Y)])],
     [(RealTime, Signal.Y)], [String])
 
 show_perf_event :: Perform.Event -> Event

@@ -717,8 +717,10 @@ vol_cc = Control.Control "volume"
 
 inst1 = mkinst "inst1"
 inst2 = mkinst "inst2"
+
+mkinst :: Text -> Instrument.Instrument
 mkinst name = (Instrument.instrument name [] (-1, 1))
-    { Instrument.inst_score = Score.Instrument ("synth1/" ++ name) }
+    { Instrument.inst_score = Score.Instrument ("synth1/" <> name) }
 
 dev1 = Midi.write_device "dev1"
 dev2 = Midi.write_device "dev2"

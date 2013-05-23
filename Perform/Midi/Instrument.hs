@@ -464,8 +464,8 @@ keyswitch_attributes (KeyswitchMap attrs) = map fst attrs
 type AttributeMap = Map.Map Score.Attributes String
 
 type Tag = (TagKey, TagVal)
-type TagKey = String
-type TagVal = String
+type TagKey = Text
+type TagVal = Text
 
 -- * synth
 
@@ -497,10 +497,10 @@ synth name doc = Synth name doc . Control.control_map
 -- | Synths default to writing to a device with their name.  You'll have to
 -- map it to a real hardware WriteDevice in the 'Cmd.Cmd.write_device_map'.
 synth_device :: Synth -> Midi.WriteDevice
-synth_device = Midi.write_device . synth_name
+synth_device = Midi.write_device . untxt . synth_name
 
-type SynthName = String
-type InstrumentName = String
+type SynthName = Text
+type InstrumentName = Text
 
 -- | Describe how an instrument should be initialized before it can be played.
 data InitializePatch =
@@ -516,10 +516,6 @@ instance Pretty.Pretty InitializePatch where
     format (InitializeMidi msgs) =
         Pretty.text "InitializeMidi" Pretty.<+> Pretty.format msgs
     format init = Pretty.text (show init)
-
-patch_summary :: Patch -> String
-patch_summary patch = inst_name inst ++ " -- " ++ show (patch_tags patch)
-    where inst = patch_instrument patch
 
 add_tag :: Tag -> Patch -> Patch
 add_tag tag = tags %= (tag:)

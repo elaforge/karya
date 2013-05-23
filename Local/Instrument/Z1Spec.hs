@@ -6,6 +6,7 @@ module Local.Instrument.Z1Spec (
 import qualified Data.ByteString as B
 import Data.ByteString (ByteString)
 
+import Util.Control
 import qualified Midi.Midi as Midi
 import qualified Instrument.Sysex as Sysex
 import Instrument.Sysex
@@ -116,7 +117,7 @@ pitch_bend = ("pitch bend", SubSpec
     [ ("intensity +", ranged (-60) 24)
     , ("intensity -", ranged (-60) 24)
     , ("", Bits $
-        let vals = ["0", "1/8", "1/4", "1/2"] ++ map show [1..12] in
+        let vals = ["0", "1/8", "1/4", "1/2"] ++ map showt [1..12] in
         [ ("step +", enum_bits 4 vals)
         , ("step -", enum_bits 4 vals)
         ])
@@ -168,7 +169,7 @@ lfo_spec =
         ])
     ]
 
-lfo_waveforms :: [String]
+lfo_waveforms :: [Sysex.EnumName]
 lfo_waveforms =
     [ "triangle 0", "triangle 90", "tri random", "sine"
     , "saw up 0", "saw up 180", "saw down 0", "saw down 180"
@@ -179,7 +180,7 @@ lfo_waveforms =
 
 -- | The Z1 has a built-in set of categories. Map the category index to the
 -- name.
-categories :: [String]
+categories :: [Sysex.EnumName]
 categories =
     [ "Synth-Hard", "Synth-Soft", "Synth-Lead", "Synth-Motion", "Synth-Bass"
     , "E.Piano", "Organ", "Keyboard", "Bell", "Strings", "Band/Choir"
@@ -221,7 +222,7 @@ osc_spec =
     , ("setting", Unparsed 38) -- union of osc params
     ]
 
-osc_types :: [String]
+osc_types :: [Sysex.EnumName]
 osc_types =
     [ "standard", "comb", "vpm", "resonance", "ring-mod", "cross-mod", "sync"
     , "organ", "electric-piano", "brass", "reed", "plucked", "bowed"
@@ -513,7 +514,7 @@ pe_knob_spec = assert_valid "pe knob" 16
     where
     knob =
         -- TODO
-        [ ("parameter", enum $ "off" : ["unknown " ++ show n | n <- [1..230]])
+        [ ("parameter", enum $ "off" : ["unknown " <> showt n | n <- [1..230]])
         , ("left value", percent)
         , ("right value", percent)
         , ("curve", enum ["linear", "exponential", "log", "sw"])
@@ -607,14 +608,14 @@ timbre_spec =
 
 -- * effects
 
-effect_type2 :: [String]
+effect_type2 :: [Sysex.EnumName]
 effect_type2 =
     [ "overdrive", "compressor", "parametric eq", "wah", "exciter"
     , "decimator", "chorus", "flanger", "phaser", "rotary speaker-small"
     , "delay-mono"
     ]
 
-effect_type1 :: [String]
+effect_type1 :: [Sysex.EnumName]
 effect_type1 = effect_type2 ++
     [ "talking modulator", "multitap delay", "ensemble", "rotary speaker-large"
     ]
@@ -937,10 +938,10 @@ percent :: Spec
 percent = unsigned 100
 
 -- | TODO like mod_source_list_1 except entries 1--10 are invalid.
-mod_source_list_2 :: [String]
+mod_source_list_2 :: [Sysex.EnumName]
 mod_source_list_2 = mod_source_list_1
 
-mod_source_list_1 :: [String]
+mod_source_list_1 :: [Sysex.EnumName]
 mod_source_list_1 =
     [ "off"
     , "eg1", "eg2", "eg3", "eg4"
@@ -974,5 +975,5 @@ mod_source_list_1 =
     , "fx1 off/on (cc#94)", "fx2 off/on (cc#95)"
     ]
 
-master_effect_type :: [String]
+master_effect_type :: [Sysex.EnumName]
 master_effect_type = ["stereo delay", "reverb-hall", "reverb-room"]

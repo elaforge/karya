@@ -23,7 +23,7 @@ data Keys = Keys {
     } deriving (Show)
 
 -- | (name, keyswitch configuration, attributes)
-type Instrument = (String, Keys, [[Attributes]])
+type Instrument = (Text, Keys, [[Attributes]])
 
 -- | Instruments that start above a1 use this.
 low_keys :: Keys
@@ -44,6 +44,7 @@ solo_strings =
     , ("cello", low_keys, cello)
     , ("bass", high_keys, bass)
     ]
+solo_violin, solo_viola, solo_cello, solo_bass :: Instrument
 solo_violin = ("violin", low_keys, violin)
 solo_viola = ("viola", low_keys, viola)
 solo_cello = ("cello", low_keys, cello)

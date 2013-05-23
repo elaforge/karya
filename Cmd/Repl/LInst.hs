@@ -26,10 +26,10 @@ import Types
 
 -- * instrument info
 
-lookup :: String -> Cmd.CmdL (Maybe Cmd.MidiInfo)
+lookup :: Text -> Cmd.CmdL (Maybe Cmd.MidiInfo)
 lookup = Cmd.lookup_instrument . Score.Instrument
 
-info :: String -> Cmd.CmdL String
+info :: Text -> Cmd.CmdL String
 info inst_name = Info.inst_info (Score.Instrument inst_name)
 
 info_all :: Cmd.CmdL String
@@ -47,21 +47,21 @@ aliases :: Cmd.CmdL (Map.Map Score.Instrument Score.Instrument)
 aliases = State.config#State.aliases <#> State.get
 
 -- | Add a new instrument, copied from an existing one.
-add_alias :: String -> String -> Cmd.CmdL ()
+add_alias :: Text -> Text -> Cmd.CmdL ()
 add_alias new inst = State.modify $
     State.config#State.aliases %= Map.insert (Score.Instrument new)
         (Score.Instrument inst)
 
-remove_alias :: String -> Cmd.CmdL ()
+remove_alias :: Text -> Cmd.CmdL ()
 remove_alias inst = State.modify $
     State.config#State.aliases %= Map.delete (Score.Instrument inst)
 
-toggle_mute :: (State.M m) => String -> m Bool
+toggle_mute :: (State.M m) => Text -> m Bool
 toggle_mute inst = modify_config (Score.Instrument inst) $ \config ->
     let mute = not $ Instrument.config_mute config
     in (config { Instrument.config_mute = mute }, mute)
 
-toggle_solo :: (State.M m) => String -> m Bool
+toggle_solo :: (State.M m) => Text -> m Bool
 toggle_solo inst = modify_config (Score.Instrument inst) $ \config ->
     let solo = not $ Instrument.config_solo config
     in (config { Instrument.config_solo = solo }, solo)
@@ -80,17 +80,17 @@ modify_config inst modify = do
 
 -- | Deallocate the old allocation, and set it to the new one.  Meant for
 -- interactive use.
-alloc :: String -> String -> [Midi.Channel] -> Cmd.CmdL ()
+alloc :: Text -> String -> [Midi.Channel] -> Cmd.CmdL ()
 alloc inst_name wdev chans = do
     let inst = Score.Instrument inst_name
     dealloc_instrument inst
     alloc_instrument inst [(Midi.write_device wdev, c) | c <- chans]
 
-dealloc :: String -> Cmd.CmdL ()
+dealloc :: Text -> Cmd.CmdL ()
 dealloc = dealloc_instrument . Score.Instrument
 
 -- | Allocate the given channels for the instrument using its default device.
-alloc_default :: String -> [Midi.Channel] -> Cmd.CmdL ()
+alloc_default :: Text -> [Midi.Channel] -> Cmd.CmdL ()
 alloc_default inst_name chans = do
     let inst = Score.Instrument inst_name
     wdev <- maybe (Cmd.throw $ "inst not in db: " ++ Pretty.pretty inst) return
@@ -118,7 +118,7 @@ merge config = State.modify $ State.config # State.midi %= (config<>)
 -- For example, typing a new instrument in a track title should only complain
 -- if there is no allocation, but not necessarily deallocate the replaced
 -- instrument or send midi init.
-load :: String -> Cmd.CmdL ()
+load :: Text -> Cmd.CmdL ()
 load inst_name = do
     let inst = Score.Instrument inst_name
     block_id <- Cmd.get_focused_block

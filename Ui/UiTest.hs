@@ -412,7 +412,7 @@ mark name = Ruler.Mark 0 3 (Color.rgba 0.4 0 0.4 0.4) name 0 0
 set_midi_config :: Instrument.Configs -> State.State -> State.State
 set_midi_config = flip exec . State.set_midi_config
 
-midi_config :: [(String, [Midi.Channel])] -> Instrument.Configs
+midi_config :: [(Text, [Midi.Channel])] -> Instrument.Configs
 midi_config config = Instrument.configs
     [(Score.Instrument inst, map mkaddr chans) | (inst, chans) <- config]
     where mkaddr chan = (Midi.write_device "s", chan)

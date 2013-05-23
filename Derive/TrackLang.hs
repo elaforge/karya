@@ -502,7 +502,7 @@ map_args f = fmap call
 call :: Text -> [Term] -> Call
 call sym = Call (Symbol sym)
 
-inst :: String -> Term
+inst :: Text -> Term
 inst = Literal . VInstrument . Score.Instrument
 
 val_call :: Text -> [Val] -> Term

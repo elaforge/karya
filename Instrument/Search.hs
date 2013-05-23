@@ -3,14 +3,15 @@
     The syntax is documented by 'Query'.
 -}
 module Instrument.Search where
-import qualified Data.Char as Char
 import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Set as Set
+import qualified Data.Text as Text
 
 import Util.Control
 import qualified Util.Map as Map
 import qualified Util.Seq as Seq
+
 import qualified Midi.Midi as Midi
 import qualified Derive.Score as Score
 import qualified Perform.Midi.Control as Control
@@ -93,12 +94,13 @@ make_index midi_db = Index
 -- >    Clause True "e" "f"]
 --
 -- TODO parse quotes for keys or vals with spaces
-parse :: String -> Query
-parse = Query . map clause . words
+parse :: Text -> Query
+parse = Query . map clause . Text.words
     where
-    clause word = case break (=='=') word of
-        ('!':pre, post) -> Clause True pre (drop 1 post)
-        (pre, post) -> Clause False pre (drop 1 post)
+    clause word
+        | Just ('!', pre) <- Text.uncons pre = Clause True pre (Text.drop 1 post)
+        | otherwise = Clause False pre (Text.drop 1 post)
+        where (pre, post) = Text.break (=='=') word
 
 -- * implementation
 
@@ -108,7 +110,7 @@ query_matches (Index idx _) = map with_tag
     where
     with_tag (key, val) = case Map.lookup key idx of
         Nothing -> []
-        Just vals -> concatMap snd $ filter ((val `List.isInfixOf`) . fst)
+        Just vals -> concatMap snd $ filter ((val `Text.isInfixOf`) . fst)
             (Map.assocs vals)
 
 instrument_tags :: MidiDb.MidiDb code -> [(Score.Instrument, [Instrument.Tag])]
@@ -141,8 +143,8 @@ patch_tags synth inst_name patch = normalize_tags $
         _ -> []
 
 normalize_tags :: [Instrument.Tag] -> [Instrument.Tag]
-normalize_tags = Seq.drop_dups id . List.sort . lower
-    where lower = map $ \(k, v) -> (map Char.toLower k, map Char.toLower v)
+normalize_tags =
+    Seq.drop_dups id . List.sort . map (Text.toLower *** Text.toLower)
 
 control_tags :: Control.ControlMap -> [Instrument.Tag]
-control_tags = map ((,) Tag.control . untxt) . Control.control_map_names
+control_tags = map ((,) Tag.control) . Control.control_map_names
