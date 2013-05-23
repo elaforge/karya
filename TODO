@@ -75,7 +75,8 @@ UNSORTED
     oracle utils yet?
   convert to Text:
     * Derive.BaseTypes.Instrument
-    - Derive.BaseTypes.Attribute
+    * Derive.BaseTypes.Attribute
+    - Cmd.Info.inst_info
     - Perform.Pitch.ScaleId
     - WriteDevice, ReadDevice
     * Perform.Midi.Instrument.patch_text

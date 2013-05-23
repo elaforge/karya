@@ -66,7 +66,7 @@ note_call = Note.transformed_note
         inst <- Util.lookup_instrument
         let string = Seq.head
                 [string | attr <- Score.attrs_list attrs, string <- strings,
-                    txt attr == string]
+                    attr == string]
         case (inst, string) of
             (Just inst, Just string) ->
                 Derive.with_instrument (string_inst inst string) deriver

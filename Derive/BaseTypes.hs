@@ -34,7 +34,6 @@ import qualified Text.Read as Read
 
 import Util.Control
 import qualified Util.Pretty as Pretty
-import qualified Util.Seq as Seq
 import qualified Util.Serialize as Serialize
 
 import qualified Ui.ScoreTime as ScoreTime
@@ -126,19 +125,21 @@ instance ShowVal.ShowVal TypedVal where
 -- propagated dynamically down the derivation stack.  They function like
 -- arguments to an instrument, and will typically select an articulation, or
 -- a drum from a drumset, or something like that.
-type Attribute = String
+type Attribute = Text
 newtype Attributes = Attributes (Set.Set Attribute)
     deriving (Monoid.Monoid, Eq, Ord, Read, Show)
 
 instance Pretty.Pretty Attributes where pretty = untxt . ShowVal.show_val
 instance ShowVal.ShowVal Attributes where
-    show_val attrs = txt $ if null alist then "-" else '+' : Seq.join "+" alist
+    show_val attrs
+        | null alist = "-"
+        | otherwise = "+" <> Text.intercalate "+" alist
         where alist = attrs_list attrs
 
-attr :: String -> Attributes
+attr :: Text -> Attributes
 attr = Attributes . Set.singleton
 
-attrs :: [String] -> Attributes
+attrs :: [Text] -> Attributes
 attrs = Attributes . Set.fromList
 
 set_to_attrs :: Set.Set Attribute -> Attributes
@@ -355,7 +356,7 @@ instance ShowVal.ShowVal RelativeAttrs where
         where
         str attrs = case attrs_list attrs of
             [] -> "-"
-            as -> Text.intercalate "+" (map txt as)
+            as -> Text.intercalate "+" as
 
 
 data ControlRef val =

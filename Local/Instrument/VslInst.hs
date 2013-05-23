@@ -2,6 +2,7 @@ module Local.Instrument.VslInst (
     module Local.Instrument.VslInst, module Derive.Attrs
 )where
 import Prelude hiding (min, (.))
+import qualified Data.Text as Text
 
 import Util.Control
 import qualified Midi.Key as Key
@@ -354,7 +355,7 @@ strings_perf_upbeat_repetition = map (rep.upbeat.)
 strings_fast_repetition = fast_rep_bpm [(mempty, [15..19]), (dyn, [15..19])]
 strings_grace_notes = [grace.updown.half, grace.updown.whole]
 strings_glissandi strings =
-    [perf.gliss.attr [s] | s <- strings] ++ [gliss.updown.oct]
+    [perf.gliss.attr (Text.singleton s) | s <- strings] ++ [gliss.updown.oct]
 strings_scale_runs = scale_runs
     [legato.maj, legato.min, legato.chrom, legato.whole, spiccato.maj]
 
@@ -1733,17 +1734,17 @@ prefix_attrs attrs = concat [map (prefix.) attrs | (prefix, attrs) <- attrs]
 sec :: Int -> Score.Attributes
 sec n
     | n == 15 = sec15
-    | otherwise = attr ("sec" ++ show n)
+    | otherwise = attr ("sec" <> showt n)
 
 sec15 :: Score.Attributes
 sec15 = attr "sec1-5"
 
 bpm :: Int -> Score.Attributes
-bpm n = attr ("bpm" ++ show n)
+bpm n = attr ("bpm" <> showt n)
 
 -- | Number of notes.
 notes :: Int -> Score.Attributes
-notes n = attr ("n" ++ show n)
+notes n = attr ("n" <> showt n)
 
 n1 = notes 1
 n2 = notes 2

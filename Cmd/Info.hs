@@ -24,7 +24,9 @@ import qualified Ui.TrackTree as TrackTree
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Perf as Perf
 import qualified Derive.Score as Score
+import qualified Derive.ShowVal as ShowVal
 import qualified Derive.TrackInfo as TrackInfo
+
 import qualified Perform.Midi.Instrument as Instrument
 import qualified Instrument.MidiDb as MidiDb
 import Types
@@ -179,7 +181,7 @@ show_inst (Score.Instrument name) = '>' : untxt name
 
 show_keyswitch_map :: Instrument.KeyswitchMap -> String
 show_keyswitch_map (Instrument.KeyswitchMap attr_ks) = comma_list $
-    map (('+':) . Seq.join "+" . Set.elems . Score.attrs_set . fst) attr_ks
+    map (untxt . ShowVal.show_val . fst) attr_ks
 
 comma_list, semicolon_list :: [String] -> String
 comma_list [] = "[]"

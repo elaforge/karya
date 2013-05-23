@@ -273,7 +273,7 @@ p_rel_attrs =
 
 p_attrs :: A.Parser Score.Attributes
 p_attrs =
-    Score.attrs . map to_string <$> A.sepBy1 (p_identifier "+") (A.char '+')
+    Score.attrs . map to_text <$> A.sepBy1 (p_identifier "+") (A.char '+')
     <|> A.char '-' *> return mempty
 
 p_control :: A.Parser TrackLang.ValControl

@@ -1,4 +1,5 @@
 module Perform.Midi.Instrument_test where
+import qualified Data.Text as Text
 
 import Util.Test
 import qualified Derive.Score as Score
@@ -11,8 +12,8 @@ ksmap = Instrument.simple_keyswitches
     , (mkattrs "sfz", 2)
     , (mkattrs "trem", 3)
     ]
-mkattrs = Score.attrs . words
-unattrs = unwords . Score.attrs_list
+mkattrs = Score.attrs . Text.words
+unattrs = Text.unwords . Score.attrs_list
 
 test_get_keyswitch = do
     let f attrs = fmap (unattrs . snd) $

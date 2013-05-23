@@ -350,7 +350,7 @@ r_log_strings = snd . extract id
 e_event :: Score.Event -> (RealTime, RealTime, String)
 e_event e = (Score.event_start e, Score.event_duration e, Score.event_string e)
 
-e_everything :: Score.Event -> (RealTime, RealTime, String, Text, [String])
+e_everything :: Score.Event -> (RealTime, RealTime, String, Text, [Text])
 e_everything e =
     ( Score.event_start e
     , Score.event_duration e
