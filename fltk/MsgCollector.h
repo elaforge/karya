@@ -193,8 +193,7 @@ public:
     // Record a msg from the given tracknum, where 'w' is within the msg's
     // window.
     void track(UiMsg::MsgType type, Fl_Widget *w, int tracknum);
-    void edit_input(Fl_Widget *w, int tracknum, ScoreTime pos,
-        const char *edit_input);
+    void edit_input(Fl_Widget *w, const char *edit_input);
     void view(UiMsg::MsgType type, BlockViewWindow *view);
 
     // Send one msg_screen_size msg for each screen.

@@ -60,18 +60,17 @@ raw_edit zero_dur msg = do
 -- A leading space will create a zero duration event.
 edit_input :: Bool -> Cmd.Cmd
 edit_input zero_dur msg = do
-    (view_id, tracknum, pos, text) <- Cmd.require $ edit_input_msg msg
-    block_id <- State.block_id_of view_id
+    text <- Cmd.require $ edit_input_msg msg
+    pos <- get_pos
     let space = " " `Text.isPrefixOf` text
-    modify_event_at (Pos block_id tracknum pos 0) (zero_dur || space) False $
+    modify_event_at pos (zero_dur || space) False $
         const (Just (Text.strip text), False)
     return Cmd.Done
 
-edit_input_msg :: Msg.Msg -> Maybe (ViewId, TrackNum, TrackTime, Text)
-edit_input_msg (Msg.Ui (UiMsg.UiMsg ctx (UiMsg.UiUpdate view_id
-        (UiMsg.UpdateInput text))))
-    | Just (tracknum, UiMsg.Track pos) <- UiMsg.ctx_track ctx,
-        UiMsg.ctx_edit_input ctx = Just (view_id, tracknum, pos, text)
+edit_input_msg :: Msg.Msg -> Maybe Text
+edit_input_msg (Msg.Ui (UiMsg.UiMsg ctx
+        (UiMsg.UiUpdate _ (UiMsg.UpdateInput text))))
+    | UiMsg.ctx_edit_input ctx = Just text
 edit_input_msg _ = Nothing
 
 -- * events

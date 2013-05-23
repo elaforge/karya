@@ -44,7 +44,7 @@ void set_status(BlockViewWindow *view, const char *status, Color *color);
 void set_display_track(BlockViewWindow *view, int tracknum,
         DisplayTrack *dtrack);
 
-void edit_open(BlockViewWindow *view, int tracknum, ScoreTime *at,
+void edit_open(BlockViewWindow *view, int tracknum, double pos,
     const char *text, int select_start, int select_end);
 void edit_append(BlockViewWindow *view, const char *text);
 
@@ -55,7 +55,7 @@ void insert_track(BlockViewWindow *view, int tracknum,
 void remove_track(BlockViewWindow *view, int tracknum);
 void update_track(BlockViewWindow *view, int tracknum,
         Tracklike *track, Marklist **marklists, int nmarklists,
-        ScoreTime *start, ScoreTime *end);
+        double start, double end);
 void set_track_signal(BlockViewWindow *view, int tracknum, TrackSignal *tsig);
 void set_track_title(BlockViewWindow *view, int tracknum, const char *title);
 void set_track_title_focus(BlockViewWindow *view, int tracknum);

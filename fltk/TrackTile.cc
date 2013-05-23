@@ -134,8 +134,6 @@ TrackTile::edit_open(int tracknum, ScoreTime pos, const char *text,
     xpos += 2;
     this->edit_input = new SeqInput(
         xpos, ypos, width, Config::View::track_title_height, true, false);
-    this->edit_input_tracknum = tracknum;
-    this->edit_input_pos = pos;
     edit_input->set_callback2(edit_input_cb, static_cast<void *>(this));
     edit_input->show();
     if (text)
@@ -165,8 +163,7 @@ TrackTile::edit_close()
     // until after I'm safely outside of the widget's callback.
     if (!this->edit_input)
         return;
-    MsgCollector::get()->edit_input(
-        this, edit_input_tracknum, edit_input_pos, edit_input->value());
+    MsgCollector::get()->edit_input(this, edit_input->value());
     this->remove(edit_input);
     Fl::delete_widget(edit_input);
     edit_input = NULL;

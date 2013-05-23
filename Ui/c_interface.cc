@@ -162,10 +162,11 @@ set_display_track(BlockViewWindow *view, int tracknum,
 }
 
 void
-edit_open(BlockViewWindow *view, int tracknum, ScoreTime *at,
-    const char *text, int select_start, int select_end)
+edit_open(BlockViewWindow *view, int tracknum, double pos, const char *text,
+    int select_start, int select_end)
 {
-    view->block.edit_open(tracknum, *at, text, select_start, select_end);
+    view->block.edit_open(tracknum, ScoreTime(pos), text,
+        select_start, select_end);
 }
 
 void
@@ -208,7 +209,7 @@ remove_track(BlockViewWindow *view, int tracknum)
 void
 update_track(BlockViewWindow *view, int tracknum,
         Tracklike *track, Marklist **marklists, int nmarklists,
-        ScoreTime *start, ScoreTime *end)
+        double start, double end)
 {
     RulerConfig *old_ruler = track->ruler;
     if (track->ruler) {
@@ -220,12 +221,14 @@ update_track(BlockViewWindow *view, int tracknum,
         for (int i = 0; i < nmarklists; i++)
             config.marklists.push_back(marklists[i]);
         track->ruler = &config;
-        view->block.update_track(tracknum, *track, *start, *end);
+        view->block.update_track(tracknum, *track,
+            ScoreTime(start), ScoreTime(end));
         // No one should be reading this afterwards, but don't leave it
         // pointing to out of scope memory.
         track->ruler = old_ruler;
     } else {
-        view->block.update_track(tracknum, *track, *start, *end);
+        view->block.update_track(tracknum, *track,
+            ScoreTime(start), ScoreTime(end));
     }
 }
 

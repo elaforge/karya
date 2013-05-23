@@ -84,9 +84,6 @@ private:
     Fl_Box track_pad; // box to take up space not covered by tracks
     // Created and destroyed when 'edit_open' is called.
     SeqInput *edit_input;
-    // When edit_input is set, this is the tracknum is was opened for.
-    int edit_input_tracknum;
-    ScoreTime edit_input_pos;
 
     void update_sizes();
 };

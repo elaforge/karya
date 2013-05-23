@@ -1,6 +1,6 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 module Ui.ScoreTime (
-    ScoreTime, TrackTime, to_double, double, suffix, eta, eq
+    ScoreTime, TrackTime, to_double, to_cdouble, double, suffix, eta, eq
 ) where
 import qualified Control.DeepSeq as DeepSeq
 import qualified Data.Digest.CRC32 as CRC32
@@ -66,6 +66,9 @@ instance Pretty.Pretty ScoreTime where
 
 to_double :: ScoreTime -> Double
 to_double (ScoreTime p) = p
+
+to_cdouble :: ScoreTime -> C.CDouble
+to_cdouble = C.CDouble . to_double
 
 double :: Double -> ScoreTime
 double = ScoreTime

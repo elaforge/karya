@@ -337,13 +337,10 @@ MsgCollector::track(UiMsg::MsgType type, Fl_Widget *w, int tracknum)
 
 
 void
-MsgCollector::edit_input(Fl_Widget *w, int tracknum, ScoreTime pos,
-    const char *edit_input)
+MsgCollector::edit_input(Fl_Widget *w, const char *edit_input)
 {
-    UiMsg::Context c(context(window(w), tracknum));
+    UiMsg::Context c(context(window(w)));
     c.track_type = UiMsg::track_edit_input;
-    c.has_pos = true;
-    c.pos = pos;
     push_update(UiMsg::msg_input, c, edit_input);
 }
 

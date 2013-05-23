@@ -80,9 +80,10 @@ import Ui.Util (Fltk)
 
 import qualified Ui.Block as Block
 import qualified Ui.Events as Events
-import qualified Ui.Skeleton as Skeleton
 import qualified Ui.Ruler as Ruler
 import qualified Ui.RulerC as RulerC
+import qualified Ui.ScoreTime as ScoreTime
+import qualified Ui.Skeleton as Skeleton
 import qualified Ui.Track as Track
 import qualified Ui.TrackC as TrackC
 import Types
@@ -266,15 +267,15 @@ foreign import ccall "set_display_track"
 
 edit_open :: ViewId -> TrackNum -> ScoreTime -> Text -> Maybe (Int, Int)
     -> Fltk ()
-edit_open view_id tracknum at text selection = do
+edit_open view_id tracknum pos text selection = do
     viewp <- get_ptr view_id
-    let (start, end) = fromMaybe (-1, 0) selection
-    Util.withText text $ \textp -> with at $ \atp ->
-        c_edit_open viewp (Util.c_int tracknum) atp textp
-            (Util.c_int start) (Util.c_int end)
+    let (sel_start, sel_end) = fromMaybe (-1, 0) selection
+    Util.withText text $ \textp ->
+        c_edit_open viewp (Util.c_int tracknum) (ScoreTime.to_cdouble pos)
+            textp (Util.c_int sel_start) (Util.c_int sel_end)
 foreign import ccall "edit_open"
-    c_edit_open :: Ptr CView -> CInt -> Ptr ScoreTime -> CString -> CInt
-        -> CInt -> IO ()
+    c_edit_open :: Ptr CView -> CInt -> CDouble -> CString -> CInt -> CInt
+        -> IO ()
 
 edit_append :: [ViewId] -> Text -> Fltk ()
 edit_append view_ids text = do
@@ -307,10 +308,9 @@ update_track :: Bool -- ^ True if the ruler has changed and should be copied
 update_track update_ruler view_id tracknum tracklike merged set_style start
         end = do
     viewp <- get_ptr view_id
-    with start $ \startp -> with end $ \endp ->
-        with_tracklike update_ruler merged set_style tracklike $
-            \tp mlistp len -> c_update_track viewp (Util.c_int tracknum)
-                    tp mlistp len startp endp
+    with_tracklike update_ruler merged set_style tracklike $ \tp mlistp len ->
+        c_update_track viewp (Util.c_int tracknum) tp mlistp len
+            (ScoreTime.to_cdouble start) (ScoreTime.to_cdouble end)
 
 -- | Like 'update_track' except update everywhere.
 update_entire_track :: Bool -> ViewId -> TrackNum -> Block.Tracklike
@@ -327,8 +327,7 @@ foreign import ccall "remove_track"
     c_remove_track :: Ptr CView -> CInt -> IO ()
 foreign import ccall "update_track"
     c_update_track :: Ptr CView -> CInt -> Ptr TracklikePtr
-        -> Ptr (Ptr Ruler.Marklist) -> CInt -> Ptr ScoreTime -> Ptr ScoreTime
-        -> IO ()
+        -> Ptr (Ptr Ruler.Marklist) -> CInt -> CDouble -> CDouble -> IO ()
 
 -- | Unlike other Fltk functions, this doesn't throw if the ViewId is not
 -- found.  That's because it's called asynchronously when derivation is

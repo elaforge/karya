@@ -3,7 +3,7 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
-  - Add event with EditAppend should use the selection duration.
+  * Add event with EditAppend should use the selection duration.
   - "Recent" should record EditAppends.
   * 'detach' is too long, what's a shorter name? 'd' is taken, maybe 'D' for
     symmetry with 'd'?
@@ -734,8 +734,7 @@ fltk:
     currently?
   Track
     / dividers can have separate color for upper part, for collapsable tracks
-  / ScoreTime is just a double, I can pass it directly as CDouble
-    Not really worth it, it's passed in very few places.
+  * ScoreTime is just a double, I can pass it directly as CDouble
   + Why does seq sometimes leave a app menubar on quit?  Do other fltk apps
     do that?  Yes.
   + Disable application persistence for fltk apps:
