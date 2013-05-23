@@ -56,7 +56,7 @@ note_calls = Derive.make_calls
     , ("^(", c_legato)
     , ("_(", c_legato)
     , ("{", Make.attributed_note Attrs.porta)
-    , ("detach", c_detach)
+    , ("D", c_detach) -- for symmetry with 'd', which delays the start
     ]
 
 -- * legato
