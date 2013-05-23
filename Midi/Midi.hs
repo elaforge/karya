@@ -6,8 +6,7 @@ module Midi.Midi (
 
     -- * devices
     , ReadDevice, WriteDevice, read_device, write_device
-    , read_device_string, write_device_string
-    , read_device_bs, write_device_bs
+    , read_device_text, write_device_text
     , peek_wdev, peek_rdev, with_wdev, with_rdev
     , add_timestamp, modify_timestamp
 
@@ -40,18 +39,22 @@ import qualified Control.DeepSeq as DeepSeq
 import Control.DeepSeq (rnf)
 import Data.Bits
 import qualified Data.ByteString as ByteString
-import qualified Data.ByteString.UTF8 as UTF8
 import qualified Data.Generics as Generics
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
+import qualified Data.Text.Encoding as Encoding
 import Data.Word (Word8)
 
 import qualified Foreign.C
 import qualified Text.Printf as Printf
 
+import Util.Control
 import qualified Util.Pretty as Pretty
 import Util.Pretty (pretty, format, (<+>))
+import qualified Util.Serialize as Serialize
+
 import qualified Midi.CC as CC
+import qualified Ui.Util
 import Perform.RealTime (RealTime)
 
 
@@ -92,27 +95,23 @@ instance Pretty.Pretty WriteMessage where
 -- This can be saved to and loaded from files without regard for the devices
 -- actually installed or opened.
 newtype ReadDevice = ReadDevice ByteString.ByteString
-    deriving (Eq, Ord, Show, Read, Generics.Typeable)
+    deriving (Eq, Ord, Show, Read, Generics.Typeable, Serialize.Serialize)
+    -- Storing these as ByteString gives a cheap marshal and unmarshal.  Not
+    -- that it matters, but maybe it will someday for a different MIDI backend.
 newtype WriteDevice = WriteDevice ByteString.ByteString
-    deriving (Eq, Ord, Show, Read, Generics.Typeable)
+    deriving (Eq, Ord, Show, Read, Generics.Typeable, Serialize.Serialize)
 
-read_device :: String -> ReadDevice
-read_device = ReadDevice . UTF8.fromString
+read_device :: Text -> ReadDevice
+read_device = ReadDevice . Encoding.encodeUtf8
 
-write_device :: String -> WriteDevice
-write_device = WriteDevice . UTF8.fromString
+write_device :: Text -> WriteDevice
+write_device = WriteDevice . Encoding.encodeUtf8
 
-read_device_string :: ReadDevice -> String
-read_device_string (ReadDevice bs) = UTF8.toString bs
+read_device_text :: ReadDevice -> Text
+read_device_text (ReadDevice bs) = Ui.Util.decodeUtf8 bs
 
-write_device_string :: WriteDevice -> String
-write_device_string (WriteDevice bs) = UTF8.toString bs
-
-read_device_bs :: ReadDevice -> ByteString.ByteString
-read_device_bs (ReadDevice bs) = bs
-
-write_device_bs :: WriteDevice -> ByteString.ByteString
-write_device_bs (WriteDevice bs) = bs
+write_device_text :: WriteDevice -> Text
+write_device_text (WriteDevice bs) = Ui.Util.decodeUtf8 bs
 
 peek_wdev :: Foreign.C.CString -> IO WriteDevice
 peek_wdev = fmap WriteDevice . ByteString.packCString
@@ -126,8 +125,8 @@ with_wdev (WriteDevice dev) = ByteString.useAsCString dev
 with_rdev :: ReadDevice -> (Foreign.C.CString -> IO a) -> IO a
 with_rdev (ReadDevice dev) = ByteString.useAsCString dev
 
-instance Pretty.Pretty ReadDevice where pretty = read_device_string
-instance Pretty.Pretty WriteDevice where pretty = write_device_string
+instance Pretty.Pretty ReadDevice where pretty = untxt . read_device_text
+instance Pretty.Pretty WriteDevice where pretty = untxt . write_device_text
 
 add_timestamp :: RealTime -> WriteMessage -> WriteMessage
 add_timestamp ts wmsg = wmsg { wmsg_ts = wmsg_ts wmsg + ts }

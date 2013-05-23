@@ -1,6 +1,7 @@
 module App.StaticConfig where
 import qualified Data.Map as Map
 import qualified Data.Set as Set
+import Data.Text (Text)
 
 import qualified Midi.Midi as Midi
 import qualified Cmd.Cmd as Cmd
@@ -68,13 +69,13 @@ data Midi = Midi {
 empty_midi :: Midi
 empty_midi = Midi Map.empty Map.empty Set.empty
 
-make_rdev_map :: [(String, String)] -> Map.Map Midi.ReadDevice Midi.ReadDevice
+make_rdev_map :: [(Text, Text)] -> Map.Map Midi.ReadDevice Midi.ReadDevice
 make_rdev_map =
     Map.fromList . map (\(k, v) -> (Midi.read_device k, Midi.read_device v))
 
-make_wdev_map :: [(String, String)] -> Map.Map Midi.WriteDevice Midi.WriteDevice
+make_wdev_map :: [(Text, Text)] -> Map.Map Midi.WriteDevice Midi.WriteDevice
 make_wdev_map =
     Map.fromList . map (\(k, v) -> (Midi.write_device k, Midi.write_device v))
 
-make_read_devices :: [String] -> Set.Set Midi.ReadDevice
+make_read_devices :: [Text] -> Set.Set Midi.ReadDevice
 make_read_devices = Set.fromList . map Midi.read_device

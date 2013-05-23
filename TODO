@@ -78,7 +78,7 @@ UNSORTED
     * Derive.BaseTypes.Attribute
     * Cmd.Info.inst_info
     * Perform.Pitch.ScaleId
-    - WriteDevice, ReadDevice
+    * WriteDevice, ReadDevice
     * Perform.Midi.Instrument.patch_text
     * Derive.Tags.Tags
     - TimeStep.show_time_step

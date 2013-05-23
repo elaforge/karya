@@ -497,7 +497,7 @@ synth name doc = Synth name doc . Control.control_map
 -- | Synths default to writing to a device with their name.  You'll have to
 -- map it to a real hardware WriteDevice in the 'Cmd.Cmd.write_device_map'.
 synth_device :: Synth -> Midi.WriteDevice
-synth_device = Midi.write_device . untxt . synth_name
+synth_device = Midi.write_device . synth_name
 
 type SynthName = Text
 type InstrumentName = Text

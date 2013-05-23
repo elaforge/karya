@@ -15,6 +15,7 @@ import qualified Data.ByteString as ByteString
 import qualified Data.IORef as IORef
 import qualified Data.Map as Map
 import qualified Data.Set as Set
+import Data.Text (Text)
 
 import Foreign hiding (void)
 import Foreign.C
@@ -24,6 +25,7 @@ import qualified Midi.Interface as Interface
 import qualified Midi.Midi as Midi
 import qualified Midi.Parse as Parse
 
+import qualified Ui.Util
 import qualified Perform.RealTime as RealTime
 import Perform.RealTime (RealTime)
 
@@ -119,7 +121,7 @@ notify_callback :: Client -> NotifyCallback
 notify_callback client namep _dev_id c_is_added c_is_read = do
     -- I could make connect_read_device and connect_write_device that take
     -- the dev_id directly, but that's too much work.
-    name <- peekCString namep
+    name <- Ui.Util.peekCString namep
     case (toBool c_is_added, toBool c_is_read) of
         (True, True) -> do
             let dev = Midi.read_device name
@@ -153,7 +155,7 @@ type DeviceId = CInt
 
 connect_read_device :: Client -> Midi.ReadDevice -> IO Bool
 connect_read_device client dev = do
-    maybe_dev_id <- lookup_device_id True (Midi.read_device_string dev)
+    maybe_dev_id <- lookup_device_id True (Midi.read_device_text dev)
     case maybe_dev_id of
         Nothing -> do
             -- This means I want the device if it ever gets plugged in.
@@ -177,7 +179,7 @@ foreign import ccall "core_midi_connect_read_device"
 
 disconnect_read_device :: Client -> Midi.ReadDevice -> IO Bool
 disconnect_read_device client dev = do
-    maybe_dev_id <- lookup_device_id True (Midi.read_device_string dev)
+    maybe_dev_id <- lookup_device_id True (Midi.read_device_text dev)
     wanted <- Set.member dev <$> IORef.readIORef (client_reads client)
     IORef.modifyIORef (client_reads client) (Set.delete dev)
     case (maybe_dev_id, wanted) of
@@ -193,7 +195,7 @@ connect_write_device client dev = do
     -- CoreMIDI doesn't have a notion of connected write devices, they are
     -- all implicitly connected and you need only emit a msg with the
     -- appropriate device id.
-    maybe_dev_id <- lookup_device_id False (Midi.write_device_string dev)
+    maybe_dev_id <- lookup_device_id False (Midi.write_device_text dev)
     case maybe_dev_id of
         Nothing -> do
             IORef.modifyIORef (client_writes client) (Map.insert dev Nothing)
@@ -203,9 +205,9 @@ connect_write_device client dev = do
                 (Map.insert dev (Just dev_id))
             return True
 
-lookup_device_id :: Bool -> String -> IO (Maybe DeviceId)
+lookup_device_id :: Bool -> Text -> IO (Maybe DeviceId)
 lookup_device_id is_read dev = alloca $ \dev_idp -> do
-    found <- withCString dev $ \devp ->
+    found <- Ui.Util.withText dev $ \devp ->
         c_lookup_device_id (fromBool is_read) devp dev_idp
     if found == 0 then return Nothing
         else Just <$> peek dev_idp
@@ -213,12 +215,12 @@ lookup_device_id is_read dev = alloca $ \dev_idp -> do
 foreign import ccall "lookup_device_id"
     c_lookup_device_id :: CInt -> CString -> Ptr DeviceId -> IO CInt
 
-get_devices :: Bool -> IO [String]
+get_devices :: Bool -> IO [Text]
 get_devices is_read = alloca $ \namesp -> do
     len <- c_get_devices (fromBool is_read) namesp
     name_array <- peek namesp
     cnames <- peekArray (fromIntegral len) name_array
-    names <- mapM peekCString cnames
+    names <- mapM Ui.Util.peekCString cnames
     mapM_ free cnames
     free name_array
     return names

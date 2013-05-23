@@ -611,9 +611,10 @@ instance Serialize Configs where
         v <- Serialize.get_version
         case v of
             3 -> do
-                alloc :: Map.Map String [Instrument.Addr] <- get
+                alloc :: Map.Map String [(String, Midi.Channel)] <- get
                 return $ Configs $ Instrument.configs $
-                    map (first (Score.Instrument . txt)) $ Map.toList alloc
+                    map (first (Score.Instrument . txt)) $ Map.toList $
+                        (Map.map (map (first (Midi.write_device . txt))) alloc)
             4 -> do
                 insts :: Map.Map String Instrument.Config <- get
                 return $ Configs $ Map.mapKeys (Score.Instrument . txt) insts
@@ -623,12 +624,18 @@ instance Serialize Configs where
             _ -> Serialize.bad_version "Instrument.Configs" v
 
 instance Serialize Instrument.Config where
-    put (Instrument.Config a b c) = Serialize.put_version 0
+    put (Instrument.Config a b c) = Serialize.put_version 1
         >> put a >> put b >> put c
     get = do
         v <- Serialize.get_version
         case v of
             0 -> do
+                addrs :: [(String, Midi.Channel)] <- get
+                mute :: Bool <- get
+                solo :: Bool <- get
+                return $ Instrument.Config
+                    (map (first (Midi.write_device . txt)) addrs) mute solo
+            1 -> do
                 addrs :: [Instrument.Addr] <- get
                 mute :: Bool <- get
                 solo :: Bool <- get
@@ -640,14 +647,6 @@ instance Serialize Score.Instrument where
     get = fmap Score.Instrument get
 
 -- ** Midi
-
-instance Serialize Midi.ReadDevice where
-    put = put . Midi.read_device_string
-    get = get >>= \a -> return (Midi.read_device a)
-
-instance Serialize Midi.WriteDevice where
-    put = put . Midi.write_device_string
-    get = get >>= \a -> return (Midi.write_device a)
 
 instance Serialize Midi.Message where
     put (Midi.ChannelMessage a b) = put_tag 0 >> put a >> put b

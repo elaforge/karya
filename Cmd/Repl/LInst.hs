@@ -82,7 +82,7 @@ modify_config inst modify = do
 
 -- | Deallocate the old allocation, and set it to the new one.  Meant for
 -- interactive use.
-alloc :: Text -> String -> [Midi.Channel] -> Cmd.CmdL ()
+alloc :: Text -> Text -> [Midi.Channel] -> Cmd.CmdL ()
 alloc inst_name wdev chans = do
     let inst = Score.Instrument inst_name
     dealloc_instrument inst
@@ -243,6 +243,6 @@ run_interface op = do
 
 -- | Send a CC MIDI message on the given device.  This is for synths that use
 -- MIDI learn.
-teach :: String -> Midi.Channel -> Midi.Control -> Cmd.CmdL ()
+teach :: Text -> Midi.Channel -> Midi.Control -> Cmd.CmdL ()
 teach dev chan cc = Cmd.midi (Midi.write_device dev) $
     Midi.ChannelMessage chan (Midi.ControlChange cc 1)

@@ -11,19 +11,19 @@ midi_config db = StaticConfig.Midi
     , StaticConfig.wdev_map = StaticConfig.make_wdev_map $
         -- Give all the softsynths a default mapping so they're easy to play
         -- with.
-        [(dev, iac 1) | dev <- map untxt (Db.synths db)] ++ wdev_map
+        [(dev, iac 1) | dev <- Db.synths db] ++ wdev_map
     , StaticConfig.read_devices = StaticConfig.make_read_devices read_devices
     }
 
-iac, tapco, network :: Int -> String
-iac n = "IAC Synth " ++ show n
-tapco n = "Tapco Port " ++ show n
-network n = "Network archy" ++ show n
+iac, tapco, network :: Int -> Text
+iac n = "IAC Synth " <> showt n
+tapco n = "Tapco Port " <> showt n
+network n = "Network archy" <> showt n
 
-wdev_map :: [(String, String)]
+wdev_map :: [(Text, Text)]
 wdev_map =
-    [("loop" ++ show n, iac n) | n <- [1..4]] ++
-    [("net" ++ show n, network n) | n <- [1..4]] ++
+    [("loop" <> showt n, iac n) | n <- [1..4]] ++
+    [("net" <> showt n, network n) | n <- [1..4]] ++
     [ ("fm8", "Native Instruments FM8 Virtual Input")
     , ("msv", "Massive Virtual Input")
     , ("z1", tapco 1)
@@ -32,7 +32,7 @@ wdev_map =
     , ("pc2496", tapco 4)
     ]
 
-rdev_map :: [(String, String)]
+rdev_map :: [(Text, Text)]
 rdev_map =
     [ (tapco 1, "z1")
     , (tapco 2, "vl1")
@@ -41,7 +41,7 @@ rdev_map =
     ]
 
 -- | Open these read devices on startup.
-read_devices :: [String]
+read_devices :: [Text]
 read_devices =
     [ "Oxygen USB Oxygen 8 v2"
     , "EDIROL UA-25"
