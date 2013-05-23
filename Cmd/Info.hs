@@ -7,6 +7,7 @@ module Cmd.Info where
 import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Set as Set
+import qualified Data.Text as Text
 import qualified Data.Tree as Tree
 
 import qualified Text.Printf as Printf
@@ -149,52 +150,49 @@ get_default_instrument block_id track_id inst
 
 -- * inst info
 
-inst_info :: (Cmd.M m) => Score.Instrument -> m String
+inst_info :: (Cmd.M m) => Score.Instrument -> m Text
 inst_info inst = do
     config <- Map.lookup inst <$> State.get_midi_config
     info <- Cmd.lookup_instrument inst
-    return $ show_inst inst ++ ": " ++ show_instrument_info config info
+    return $ ShowVal.show_val inst <> ": " <> show_instrument_info config info
 
-show_instrument_info :: Maybe Instrument.Config -> Maybe Cmd.MidiInfo -> String
+show_instrument_info :: Maybe Instrument.Config -> Maybe Cmd.MidiInfo -> Text
 show_instrument_info config info = fields
     [ ("keyswitches", maybe ""
         (show_keyswitch_map . Instrument.patch_keyswitches . MidiDb.info_patch)
         info)
     , ("addrs", maybe "" show_addrs (Instrument.config_addrs <$> config))
-    , ("flags", unwords $ ["mute" | get Instrument.config_mute]
+    , ("flags", Text.unwords $ ["mute" | get Instrument.config_mute]
         ++ ["solo" | get Instrument.config_solo])
     ]
     where
     get f = maybe False f config
-    fields = unlines . map (\(k, v) -> k <> ": " <> v)
-        . filter (not . null . snd)
+    fields = Text.unlines . map (\(k, v) -> k <> ": " <> v)
+        . filter (not . Text.null . snd)
 
 -- | Looks like: "wdev1 [0..2]; wdev2 [0,4]"
-show_addrs :: [Instrument.Addr] -> String
+show_addrs :: [Instrument.Addr] -> Text
 show_addrs addrs = semicolon_list
-    [ Pretty.pretty wdev ++ " "
-        ++ "[" ++ Seq.join "," (show_runs (map snd addrs)) ++ "]"
-    | (wdev, addrs) <- Seq.keyed_group_on fst addrs]
+    [ Pretty.prettytxt wdev <> " "
+        <> "[" <> Text.intercalate "," (show_runs (map snd addrs)) <> "]"
+    | (wdev, addrs) <- Seq.keyed_group_on fst addrs
+    ]
 
-show_inst :: Score.Instrument -> String
-show_inst (Score.Instrument name) = '>' : untxt name
-
-show_keyswitch_map :: Instrument.KeyswitchMap -> String
+show_keyswitch_map :: Instrument.KeyswitchMap -> Text
 show_keyswitch_map (Instrument.KeyswitchMap attr_ks) = comma_list $
-    map (untxt . ShowVal.show_val . fst) attr_ks
+    map (ShowVal.show_val . fst) attr_ks
 
-comma_list, semicolon_list :: [String] -> String
+comma_list, semicolon_list :: [Text] -> Text
 comma_list [] = "[]"
-comma_list xs = Seq.join ", " xs
-
+comma_list xs = Text.intercalate ", " xs
 semicolon_list [] = "[]"
-semicolon_list xs = Seq.join "; " xs
+semicolon_list xs = Text.intercalate "; " xs
 
-show_runs :: (Show a, Num a, Ord a) => [a] -> [String]
+show_runs :: (Show a, Num a, Ord a) => [a] -> [Text]
 show_runs = concatMap show_run . Seq.split_between (\a b -> a+1 < b)
     where
-    show_run xs@(_:_:_:_) = [show (head xs) ++ ".." ++ show (last xs)]
-    show_run xs = map show xs
+    show_run xs@(_:_:_:_) = [showt (head xs) <> ".." <> showt (last xs)]
+    show_run xs = map showt xs
 
 
 -- * set_inst_status
@@ -227,7 +225,7 @@ get_track_status block_id tracknum = do
             State.get_midi_config
         let title = TrackInfo.instrument_to_title inst
         return $ Printf.printf "%s at %d: %s -- [%s]" (untxt title)
-            note_tracknum (show_addrs addrs) (Seq.join ", " track_descs)
+            note_tracknum (untxt (show_addrs addrs)) (Seq.join ", " track_descs)
 
 -- | Given a tracknum, find the note track associated with it.  Since there
 -- may be multiple ones, pick the first one.  First try children, then

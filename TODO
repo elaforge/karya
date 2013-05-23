@@ -76,7 +76,7 @@ UNSORTED
   convert to Text:
     * Derive.BaseTypes.Instrument
     * Derive.BaseTypes.Attribute
-    - Cmd.Info.inst_info
+    * Cmd.Info.inst_info
     - Perform.Pitch.ScaleId
     - WriteDevice, ReadDevice
     * Perform.Midi.Instrument.patch_text

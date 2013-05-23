@@ -4,6 +4,7 @@ module Cmd.Repl.LInst where
 import Prelude hiding (lookup)
 import qualified Data.List as List
 import qualified Data.Map as Map
+import qualified Data.Text as Text
 
 import Util.Control
 import qualified Util.Lens as Lens
@@ -29,14 +30,15 @@ import Types
 lookup :: Text -> Cmd.CmdL (Maybe Cmd.MidiInfo)
 lookup = Cmd.lookup_instrument . Score.Instrument
 
-info :: Text -> Cmd.CmdL String
+info :: Text -> Cmd.CmdL Text
 info inst_name = Info.inst_info (Score.Instrument inst_name)
 
-info_all :: Cmd.CmdL String
+info_all :: Cmd.CmdL Text
 info_all = do
     config <- State.get_midi_config
     info <- mapM Info.inst_info (Map.keys config)
-    return $ show (length info) ++ " instruments:\n" ++ Seq.join "\n" info
+    return $ showt (length info) <> " instruments:\n"
+        <> Text.intercalate "\n" info
 
 -- * config
 
