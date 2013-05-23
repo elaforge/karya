@@ -26,6 +26,13 @@ UNSORTED
     * pass state_track_signals in to Constant.
     - key TrackSignals on (BlockId, TrackId).  I'll need to put BlockId in
       TrackTree.TrackEvents, I think.
+  - If a control track depends on a previous control track,
+    Derive.Control.track_signal can't derive it properly if the previous
+    control isn't derived.  The alternative is to get track signals for all
+    controls below a note that themselves have children.  The other option is
+    to abandon track_signal and rely on merging fragments from the inversions.
+    Meanwhile it just doesn't work, reverse the #ratio-source and >i1 tracks
+    in Ratio_test to demonstrate.
   - What's the gap between the change and MsgOutOfDate?
   - compact the signal in the cache?
   - figure out what in cmd is holding on to the reference

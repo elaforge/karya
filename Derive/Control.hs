@@ -422,8 +422,9 @@ eval_signal track expr ctype = case ctype of
         (sig, logs) <- derive_control False track expr
         write logs
         return $ track_sig sig False
-    TrackInfo.Pitch {} -> do
-        (sig, logs) <- derive_pitch track expr
+    TrackInfo.Pitch scale_id _ -> do
+        scale <- get_scale scale_id
+        (sig, logs) <- Derive.with_scale scale $ derive_pitch track expr
         write logs
         -- TODO I log derivation errors... why not log pitch errors?
         (nn_sig, _) <- pitch_signal_to_nn sig

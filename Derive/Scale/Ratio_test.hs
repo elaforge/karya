@@ -1,23 +1,32 @@
 module Derive.Scale.Ratio_test where
 import Util.Test
+import qualified Ui.UiTest as UiTest
 import qualified Derive.DeriveTest as DeriveTest
 
 
 test_ratio = do
-    let extract = DeriveTest.extract DeriveTest.e_nns
-    let run ratio base = extract $ DeriveTest.derive_tracks
-            [ (">i1", [(0, 1, "")])
-            , ("*twelve #ratio-source", [(0, 0, base)])
+    let e_nns = DeriveTest.extract DeriveTest.e_nns
+        e_tsig r = (lookup (UiTest.mk_tid 3) (DeriveTest.e_tsigs r),
+            DeriveTest.e_tsig_logs r)
+    let run ratio base = DeriveTest.derive_tracks
+            [ ("*twelve #ratio-source", [(0, 0, base)])
+            , (">i1", [(0, 1, "")])
             , ("*ratio", [(0, 0, ratio)])
             ]
     -- Bah, 'hz_to_nn . nn_to_hz' introduces imprecision.
-    equal (run "1/1" "4c") ([[(0, 60.00000000000001)]], [])
-
-    equal (run "2/1" "4c") ([[(0, 72.00000000000001)]], [])
-    equal (run "-2/1" "4c") ([[(0, 48)]], [])
-    equal (extract $ DeriveTest.derive_tracks
+    equalf 0.001 (e_nns $ run "1/1" "4c") ([[(0, 60)]], [])
+    equalf 0.001 (e_nns $ run "2/1" "4c") ([[(0, 72)]], [])
+    equalf 0.001 (e_nns $ run "-2/1" "4c") ([[(0, 48)]], [])
+    let tracks =
             [ (">i1", [(0, 1, "")])
             , ("*ratio", [(0, 0, "1/1")])
             , ("*twelve #ratio-source", [(0, 0, "4c")])
-            ])
+            ]
+    equal (e_nns $ DeriveTest.derive_tracks tracks)
         ([[]], ["Error: required: ratio scale requires #ratio-source"])
+
+    -- This actually tests that Control.eval_signal sets the scale properly.
+    equalf 0.001 (e_tsig $ run "2/1" "4c") (Just [(0, 72)], [])
+    -- TODO but if I put #ratio-source under >i1, it doesn't work.  I think
+    -- there's no way short of rederiving all intermediate tracks, or storing
+    -- track signals for sliced sections and merging them together.
