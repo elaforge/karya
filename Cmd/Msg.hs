@@ -72,8 +72,7 @@ instance Pretty.Pretty DeriveStatus where pretty = show
 -- future.
 data Performance = Performance {
     perf_derive_cache :: !Derive.Cache
-    -- | Intentionally not strict.  TODO figure out if that matters
-    , perf_events :: Events
+    , perf_events :: !Events
     -- | Logs from the derivation are written separately, by the evaluation
     -- thread in "Cmd.Performance".  Evaluation may be triggered by either the
     -- evaluation thread (after a short delay), or by a Cmd that wants up to
@@ -85,7 +84,7 @@ data Performance = Performance {
     -- have a play fail, and only get the logs about why when the evaluation
     -- thread gets done waiting.  It doesn't wait long though, so that
     -- shouldn't be a big deal.
-    , perf_logs :: [Log.Msg]
+    , perf_logs :: ![Log.Msg]
     , perf_track_dynamic :: !Derive.TrackDynamic
     , perf_integrated :: ![Derive.Integrated]
     -- | Score damage on top of the Performance, used by the derive cache.

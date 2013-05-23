@@ -33,10 +33,11 @@ UNSORTED
     to abandon track_signal and rely on merging fragments from the inversions.
     Meanwhile it just doesn't work, reverse the #ratio-source and >i1 tracks
     in Ratio_test to demonstrate.
-  - What's the gap between the change and MsgOutOfDate?
+  * What's the gap between the change and MsgOutOfDate?
   - compact the signal in the cache?
   - figure out what in cmd is holding on to the reference
   - parallelize derivation
+  - update all the saves and remove backward compatibility from Cmd.Serialize
   * every time I play, the cache stats in logview collect more
   . Why I do need to make a point list for timestep?  Why not just calculate
     directly?  Also, can I get rid of multiple steps in favor of just passing

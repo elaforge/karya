@@ -12,7 +12,7 @@
 module Cmd.PlayC (cmd_play_msg, play) where
 import qualified Control.Concurrent.MVar as MVar
 import qualified Control.Exception as Exception
-import qualified Data.Map.Strict as Map
+import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 import qualified Data.Set as Set
 
@@ -60,6 +60,9 @@ cmd_play_msg msg = do
         when_just (derive_status_color status) (State.set_play_box block_id)
         case status of
             Msg.OutOfDate perf ->
+                -- It's important that this Map.insert is lazy in the value.
+                -- Otherwise, Performance, which is strict, will force its
+                -- contents, which defeats the point of the eval thread.
                 Cmd.modify_play_state $ \st -> st
                     { Cmd.state_current_performance = Map.insert block_id
                         perf (Cmd.state_current_performance st)
