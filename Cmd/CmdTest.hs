@@ -315,9 +315,11 @@ make_lookup inst_names _attrs (Score.Instrument inst) =
     fmap (\inst -> (inst, Score.no_attrs)) (Map.lookup inst inst_map)
     where inst_map = Map.fromList $ zip inst_names (map make_inst inst_names)
 
+make_inst :: Instrument.InstrumentName -> Instrument.Instrument
 make_inst name = default_perf_inst { Instrument.inst_name = name }
+
+default_perf_inst :: Instrument.Instrument
 default_perf_inst = Instrument.instrument "i0" [] (-2, 2)
-default_synth = Instrument.synth "synth" []
 
 
 -- * msg

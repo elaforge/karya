@@ -27,6 +27,7 @@ import qualified Cmd.CallDoc as CallDoc
 import qualified Cmd.Cmd as Cmd
 import qualified Derive.Derive as Derive
 import qualified Derive.Score as Score
+import qualified Derive.ShowVal as ShowVal
 import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.Midi.Control as Control
@@ -65,15 +66,15 @@ handle_msgs :: BrowserC.Window -> Db -> IO ()
 handle_msgs win db = do
     displayed <- liftIO $ process_query win db [] ""
     flip State.evalStateT (State displayed) $ forever $ do
-        (Fltk.Msg typ text) <- liftIO $ STM.atomically $ Fltk.read_msg win
-        let inst = Score.Instrument text
+        Fltk.Msg typ text <- liftIO $ STM.atomically $ Fltk.read_msg win
+        let inst = Score.Instrument (txt text)
         case typ of
             BrowserC.Select -> liftIO $ show_info win db inst
             BrowserC.Choose -> liftIO $ choose_instrument inst
             BrowserC.Query -> do
                 state <- State.get
                 displayed <- liftIO $
-                    process_query win db (state_displayed state) text
+                    process_query win db (state_displayed state) (txt text)
                 State.put (state { state_displayed = displayed })
             BrowserC.Unknown c -> liftIO $
                 putStrLn $ "unknown msg type: " ++ show c
@@ -82,38 +83,38 @@ handle_msgs win db = do
 show_info :: BrowserC.Window -> Db -> Score.Instrument -> IO ()
 show_info win db inst = Fltk.send_action $ BrowserC.set_info win info
     where
-    info = maybe ("not found: " ++ Pretty.pretty inst) id $ do
+    info = maybe ("not found: " <> ShowVal.show_val inst) id $ do
         info <- Db.db_lookup (db_db db) inst
         return $ info_of db inst info
 
-info_of :: Db -> Score.Instrument -> Cmd.MidiInfo -> String
+info_of :: Db -> Score.Instrument -> Cmd.MidiInfo -> Text
 info_of db score_inst (MidiDb.Info synth patch code) =
-    printf "%s -- %s -- %s\n\n" synth_name name synth_doc ++ info_sections
+    synth_name <> " -- " <> name <> " -- " <> synth_doc <> "\n\n" <> fields
         -- important properties
-        [ ("Flags", Seq.join ", " flags)
-        , ("Composite", unlines $ map show_composite $
+        [ ("Flags", Text.intercalate ", " flags)
+        , ("Composite", Text.unlines $ map show_composite $
             Instrument.patch_composite patch)
         , ("Instrument controls", show_control_map inst_cmap)
         , ("Synth controls", show_control_map synth_cmap)
         , ("Keymap", if Map.null (Instrument.inst_keymap inst) then ""
-            else Pretty.pretty (Instrument.inst_keymap inst))
+            else Pretty.prettytxt (Instrument.inst_keymap inst))
         -- code
         , ("Cmds", show_cmds (Cmd.inst_cmds code))
         , ("Note calls", show_calls note_calls)
         , ("Val calls", show_calls val_calls)
         , ("Environ", if TrackLang.null_environ (Cmd.inst_environ code) then ""
-            else Pretty.pretty (Cmd.inst_environ code))
+            else Pretty.prettytxt (Cmd.inst_environ code))
 
         -- implementation details
         , ("Keyswitches", show_keyswitches keyswitches)
-        , ("Pitchbend range", show (Instrument.inst_pitch_bend_range inst))
-        , ("Scale", maybe "" Pretty.pretty scale)
+        , ("Pitchbend range", showt (Instrument.inst_pitch_bend_range inst))
+        , ("Scale", maybe "" Pretty.prettytxt scale)
         , ("Attribute map",
-            if Map.null attr_map then "" else Pretty.pretty attr_map)
+            if Map.null attr_map then "" else Pretty.prettytxt attr_map)
         , ("Initialization", show_initialize initialize)
         -- info
-        , ("Text", untxt text)
-        , ("File", file)
+        , ("Text", text)
+        , ("File", txt file)
         , ("Tags", tags)
         ]
     where
@@ -128,67 +129,66 @@ info_of db score_inst (MidiDb.Info synth patch code) =
         , Instrument.patch_text = text
         , Instrument.patch_file = file
         } = patch
-    flags = map show (Set.toList pflags)
-    name = let n = Instrument.inst_name inst in if null n then "*" else n
+    flags = map showt (Set.toList pflags)
+    name = let n = Instrument.inst_name inst in if Text.null n then "*" else n
     inst_cmap = Instrument.inst_control_map inst
     Derive.InstrumentCalls note_calls val_calls = Cmd.inst_calls code
     tags = maybe "" show_tags $ Search.tags_of (db_index db) score_inst
 
-show_composite :: Instrument.Composite -> String
+show_composite :: Instrument.Composite -> Text
 show_composite (inst, maybe_pitch, controls) =
-    Pretty.pretty inst <> ": pitch: "
-        <> maybe "<default>" Pretty.pretty maybe_pitch
-        <> ", controls: " <> Pretty.pretty controls
+    ShowVal.show_val inst <> ": pitch: "
+        <> maybe "<default>" Pretty.prettytxt maybe_pitch
+        <> ", controls: " <> Pretty.prettytxt controls
 
-info_sections :: [(String, String)] -> String
-info_sections = unlines . filter (not.null) . map info_section
+fields :: [(Text, Text)] -> Text
+fields = Text.unlines . filter (not . Text.null) . map field
 
-info_section :: (String, String) -> String
-info_section (title, raw_text)
-    | null text = ""
-    | length text < 40 && '\n' `notElem` text = title ++ ": " ++ text ++ "\n"
-    | otherwise = "\t" ++ title ++ ":\n" ++ text ++ "\n"
-    where text = Seq.strip raw_text
+field :: (Text, Text) -> Text
+field (title, raw_text)
+    | Text.null text = ""
+    | Text.length text < 40 && not ("\n" `Text.isInfixOf` text) =
+        title <> ": " <> text <> "\n"
+    | otherwise = "\t" <> title <> ":\n" <> text <> "\n"
+    where text = Text.strip raw_text
 
-show_keyswitches :: Instrument.KeyswitchMap -> String
-show_keyswitches (Instrument.KeyswitchMap keyswitches) = unlines
+show_keyswitches :: Instrument.KeyswitchMap -> Text
+show_keyswitches (Instrument.KeyswitchMap keyswitches) = Text.unlines
     -- Still not quite right for lining up columns.
-    [printf "%-*s\t%s" longest attr ks | (attr, ks) <- zip attrs kss]
+    [txt $ printf "%-*s\t%s" longest attr ks | (attr, ks) <- zip attrs kss]
     where
     attrs = map (Pretty.pretty . fst) keyswitches
     kss = map (Pretty.pretty . snd) keyswitches
     longest = fromMaybe 0 $ Seq.maximum (map length attrs)
 
-show_control_map :: Control.ControlMap -> String
+show_control_map :: Control.ControlMap -> Text
 show_control_map cmap =
-    Seq.join ", " [untxt cont ++ " (" ++ show num ++ ")"
+    Text.intercalate ", " [cont <> " (" <> showt num <> ")"
         | (Control.Control cont, num) <- Map.assocs cmap]
 
-show_cmds :: [Cmd.Cmd] -> String
+show_cmds :: [Cmd.Cmd] -> Text
 show_cmds [] = ""
-show_cmds cmds = show (length cmds) ++ " cmds (cmds can't be introspected yet)"
+show_cmds cmds = showt (length cmds) <> " cmds (cmds can't be introspected yet)"
 
-show_calls :: [Derive.LookupCall call] -> String
+show_calls :: [Derive.LookupCall call] -> Text
 show_calls lookups =
     -- Pass a Nothing for width because I should let fltk do the wrapping.
-    Text.unpack $ Format.run Nothing $
-        mapM_ CallDoc.call_bindings_text call_bindings
-    where
-    call_bindings = CallDoc.lookup_docs (map Derive.lookup_docs lookups)
+    Format.run Nothing $ mapM_ CallDoc.call_bindings_text call_bindings
+    where call_bindings = CallDoc.lookup_docs (map Derive.lookup_docs lookups)
 
-show_tags :: [(String, String)] -> String
+show_tags :: [(Text, Text)] -> Text
 show_tags tags =
-    unwords [quote k ++ "=" ++ quote v | (k, v) <- Seq.sort_on fst tags]
+    Text.unwords [quote k <> "=" <> quote v | (k, v) <- Seq.sort_on fst tags]
 
-show_initialize :: Instrument.InitializePatch -> String
+show_initialize :: Instrument.InitializePatch -> Text
 show_initialize Instrument.NoInitialization = ""
-show_initialize (Instrument.InitializeMessage msg) = "Message: " ++ msg
+show_initialize (Instrument.InitializeMessage msg) = "Message: " <> msg
 show_initialize (Instrument.InitializeMidi msgs) =
-    unlines (map Pretty.pretty msgs)
+    Text.unlines (map Pretty.prettytxt msgs)
 
-quote :: String -> String
+quote :: Text -> Text
 quote s
-    | any Char.isSpace s = "\"" ++ s ++ "\""
+    | Text.any Char.isSpace s = "\"" <> s <> "\""
     | otherwise = s
 
 -- | Send the chosen instrument to the sequencer.
@@ -203,7 +203,7 @@ choose_instrument inst = do
         putStrLn $ "response: " ++ response
 
 -- | Find instruments that match the query, and update the UI incrementally.
-process_query :: BrowserC.Window -> Db -> [Score.Instrument] -> String
+process_query :: BrowserC.Window -> Db -> [Score.Instrument] -> Text
     -> IO [Score.Instrument]
 process_query win db displayed query = do
     let matches = Search.search (db_index db) (Search.parse query)

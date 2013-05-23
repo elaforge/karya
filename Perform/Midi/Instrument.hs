@@ -475,13 +475,13 @@ type TagVal = Text
 -- score.
 data Synth = Synth {
     -- | Uniquely defines the synth.
-    synth_name :: SynthName
+    synth_name :: !SynthName
     -- | Full name for the synthesizer.  'synth_name' appears in inst names so
     -- it's usually abbreviated.
-    , synth_doc :: String
+    , synth_doc :: !Text
     -- | Often synths have a set of common controls in addition to the
     -- global midi defaults.
-    , synth_control_map :: Control.ControlMap
+    , synth_control_map :: !Control.ControlMap
     } deriving (Eq, Show)
 
 instance Pretty.Pretty Synth where
@@ -491,7 +491,7 @@ instance Pretty.Pretty Synth where
         , ("control_map", Pretty.format cmap)
         ]
 
-synth :: SynthName -> String -> [(Midi.Control, Text)] -> Synth
+synth :: SynthName -> Text -> [(Midi.Control, Text)] -> Synth
 synth name doc = Synth name doc . Control.control_map
 
 -- | Synths default to writing to a device with their name.  You'll have to
@@ -506,9 +506,9 @@ type InstrumentName = Text
 data InitializePatch =
     -- | Send these msgs to initialize the patch.  Should be a patch change or
     -- a sysex.
-    InitializeMidi [Midi.Message]
+    InitializeMidi ![Midi.Message]
     -- | Display this msg to the user and hope they do what it says.
-    | InitializeMessage String
+    | InitializeMessage !Text
     | NoInitialization
     deriving (Eq, Ord, Show)
 
@@ -522,7 +522,7 @@ add_tag tag = tags %= (tag:)
 
 -- | Constructor for a softsynth with a single wildcard patch.  Used by
 -- 'Instrument.MidiDb.softsynth'.
-make_softsynth :: SynthName -> String -> Control.PbRange
+make_softsynth :: SynthName -> Text -> Control.PbRange
     -> [(Midi.Control, Text)] -> (Synth, Patch)
 make_softsynth name doc pb_range controls = (synth, template_patch)
     where

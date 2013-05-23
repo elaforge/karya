@@ -169,7 +169,7 @@ send_initialization init inst dev chan = case init of
         mapM_ (Cmd.midi dev . Midi.set_channel chan) msgs
     Instrument.InitializeMessage msg ->
         -- TODO warn doesn't seem quite right for this...
-        Log.warn $ "initialize instrument " ++ show inst ++ ": " ++ msg
+        Log.warn $ "initialize instrument " ++ show inst ++ ": " ++ untxt msg
     Instrument.NoInitialization -> return ()
 
 alloc_instrument :: Score.Instrument -> [Instrument.Addr] -> Cmd.CmdL ()

@@ -43,7 +43,7 @@ import qualified App.Config as Config
 -- parameters.
 data Softsynth = Softsynth {
     name :: Instrument.SynthName
-    , synth_doc :: String
+    , synth_doc :: Text
     , pb_range :: Control.PbRange
     , controls :: [(Midi.Control, Text)]
     -- | Add explicit non-wildcard patches.
@@ -59,7 +59,7 @@ type Patch = (Instrument.Patch, Code)
 -- their own internal patch management, and thus have only a single wildcard
 -- patch, which can be modified if necessary by a passed in function.  In case
 -- some patches are special, you can also pass named patches in to be merged.
-softsynth :: Instrument.SynthName -> String -> Control.PbRange
+softsynth :: Instrument.SynthName -> Text -> Control.PbRange
     -> [(Midi.Control, Text)] -> Softsynth
 softsynth name doc pb_range controls =
     Softsynth name doc pb_range controls [] id empty_code

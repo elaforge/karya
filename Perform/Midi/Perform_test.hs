@@ -722,9 +722,11 @@ mkinst :: Text -> Instrument.Instrument
 mkinst name = (Instrument.instrument name [] (-1, 1))
     { Instrument.inst_score = Score.Instrument ("synth1/" <> name) }
 
+dev1, dev2 :: Midi.WriteDevice
 dev1 = Midi.write_device "dev1"
 dev2 = Midi.write_device "dev2"
-synth1 = Instrument.synth "synth1" []
+
+midi_config1 :: Instrument.Configs
 midi_config1 = Instrument.configs
     [(Instrument.inst_score inst1, [(dev1, 0), (dev1, 1)])]
 
