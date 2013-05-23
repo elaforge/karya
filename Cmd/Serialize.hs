@@ -144,7 +144,7 @@ instance Serialize State.State where
 
 instance Serialize State.Config where
     put (State.Config ns meta root midi transform instruments lilypond defaults)
-        =  Serialize.put_version 6
+        =  Serialize.put_version 7
             >> put ns >> put meta >> put root >> put (Configs midi)
             >> put transform >> put instruments >> put lilypond >> put defaults
     get = Serialize.get_version >>= \v -> case v of
@@ -190,22 +190,33 @@ instance Serialize State.Config where
             root :: Maybe BlockId <- get
             Configs midi :: Configs <- get
             transform :: String <- get
-            instruments :: Map.Map Score.Instrument Score.Instrument <- get
+            instruments :: Map.Map String String <- get
             defaults :: State.Default <- get
-            return $ State.Config ns meta root midi (txt transform) instruments
-                Lilypond.default_config defaults
+            return $ State.Config ns meta root midi (txt transform)
+                (convert_insts instruments) Lilypond.default_config defaults
         5 -> do
             ns :: Id.Namespace <- get
             meta :: State.Meta <- get
             root :: Maybe BlockId <- get
             Configs midi :: Configs <- get
             transform :: String <- get
-            instruments :: Map.Map Score.Instrument Score.Instrument <- get
+            instruments :: Map.Map String String <- get
             lilypond :: Lilypond.Config <- get
             defaults :: State.Default <- get
-            return $ State.Config ns meta root midi (txt transform) instruments
-                lilypond defaults
+            return $ State.Config ns meta root midi (txt transform)
+                (convert_insts instruments) lilypond defaults
         6 -> do
+            ns :: Id.Namespace <- get
+            meta :: State.Meta <- get
+            root :: Maybe BlockId <- get
+            Configs midi :: Configs <- get
+            transform :: Text <- get
+            instruments :: Map.Map String String <- get
+            lilypond :: Lilypond.Config <- get
+            defaults :: State.Default <- get
+            return $ State.Config ns meta root midi transform
+                (convert_insts instruments) lilypond defaults
+        7 -> do
             ns :: Id.Namespace <- get
             meta :: State.Meta <- get
             root :: Maybe BlockId <- get
@@ -217,6 +228,10 @@ instance Serialize State.Config where
             return $ State.Config ns meta root midi transform instruments
                 lilypond defaults
         _ -> Serialize.bad_version "State.Config" v
+        where
+        convert_insts = Map.fromList
+            . map ((Score.Instrument . txt) *** (Score.Instrument . txt))
+            . Map.toList
 
 instance Serialize State.Meta where
     put (State.Meta a b) = Serialize.put_version 0 >> put a >> put b
@@ -229,11 +244,25 @@ instance Serialize State.Meta where
 
 instance Serialize State.Default where
     put (State.Default a b c d) =
-        Serialize.put_version 1 >> put a >> put b >> put c >> put d
+        Serialize.put_version 3 >> put a >> put b >> put c >> put d
     get = do
         v <- Serialize.get_version
         case v of
             1 -> do
+                scale :: String <- get
+                key :: Maybe Pitch.Key <- get
+                inst :: Maybe String <- get
+                tempo :: Signal.Y <- get
+                return $ State.Default (Pitch.ScaleId (txt scale)) key
+                    (Score.Instrument . txt <$> inst) tempo
+            2 -> do
+                scale :: Pitch.ScaleId <- get
+                key :: Maybe Pitch.Key <- get
+                inst :: Maybe String <- get
+                tempo :: Signal.Y <- get
+                return $ State.Default scale key
+                    (Score.Instrument . txt <$> inst) tempo
+            3 -> do
                 scale :: Pitch.ScaleId <- get
                 key :: Maybe Pitch.Key <- get
                 inst :: Maybe Score.Instrument <- get
@@ -577,14 +606,18 @@ instance Serialize Track.RenderStyle where
 newtype Configs = Configs Instrument.Configs
 
 instance Serialize Configs where
-    put (Configs a) = Serialize.put_version 4 >> put a
+    put (Configs a) = Serialize.put_version 5 >> put a
     get = do
         v <- Serialize.get_version
         case v of
             3 -> do
-                alloc :: Map.Map Score.Instrument [Instrument.Addr] <- get
-                return $ Configs $ Instrument.configs $ Map.toList alloc
+                alloc :: Map.Map String [Instrument.Addr] <- get
+                return $ Configs $ Instrument.configs $
+                    map (first (Score.Instrument . txt)) $ Map.toList alloc
             4 -> do
+                insts :: Map.Map String Instrument.Config <- get
+                return $ Configs $ Map.mapKeys (Score.Instrument . txt) insts
+            5 -> do
                 insts :: Map.Map Score.Instrument Instrument.Config <- get
                 return $ Configs insts
             _ -> Serialize.bad_version "Instrument.Configs" v
@@ -707,7 +740,7 @@ instance Serialize Midi.Key where
 -- ** lilypond
 
 instance Serialize Lilypond.Config where
-    put (Lilypond.Config a b c d) = Serialize.put_version 2
+    put (Lilypond.Config a b c d) = Serialize.put_version 3
         >> put a >> put b >> put c >> put d
     get = do
         v <- Serialize.get_version
@@ -716,7 +749,7 @@ instance Serialize Lilypond.Config where
                 quarter :: RealTime <- get
                 quantize :: Lilypond.Duration <- get
                 dotted_rests :: Bool <- get
-                staves :: [(Score.Instrument, String, String)] <- get
+                staves :: [(String, String, String)] <- get
                 let configs =
                         [staff inst (txt a) (txt b) | (inst, a, b) <- staves]
                 return $ Lilypond.Config quarter quantize dotted_rests configs
@@ -724,7 +757,7 @@ instance Serialize Lilypond.Config where
                 quarter :: RealTime <- get
                 quantize :: Lilypond.Duration <- get
                 dotted_rests :: Bool <- get
-                staves :: [(Score.Instrument, Lilypond.Instrument,
+                staves :: [(String, Lilypond.Instrument,
                     Lilypond.Instrument)] <- get
                 return $ Lilypond.Config quarter quantize dotted_rests
                     [staff inst a b | (inst, a, b) <- staves]
@@ -732,14 +765,22 @@ instance Serialize Lilypond.Config where
                 quarter :: RealTime <- get
                 quantize :: Lilypond.Duration <- get
                 dotted_rests :: Bool <- get
+                staves :: [(String, Lilypond.StaffConfig)] <- get
+                return $ Lilypond.Config quarter quantize dotted_rests
+                    (map (first (Score.Instrument . txt)) staves)
+            3 -> do
+                quarter :: RealTime <- get
+                quantize :: Lilypond.Duration <- get
+                dotted_rests :: Bool <- get
                 staves :: [(Score.Instrument, Lilypond.StaffConfig)] <- get
                 return $ Lilypond.Config quarter quantize dotted_rests staves
             _ -> Serialize.bad_version "Lilypond.Config" v
         where
-        staff inst a b = (inst, Lilypond.empty_staff_config
-            { Lilypond.staff_long = a
-            , Lilypond.staff_short = b
-            })
+        staff inst a b = (Score.Instrument (txt inst),
+            Lilypond.empty_staff_config
+                { Lilypond.staff_long = a
+                , Lilypond.staff_short = b
+                })
 
 instance Serialize Lilypond.StaffConfig where
     put (Lilypond.StaffConfig a b c d) = Serialize.put_version 1

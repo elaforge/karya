@@ -301,7 +301,7 @@ p_pitch_control = do
 p_scale_id :: A.Parser Pitch.ScaleId
 p_scale_id = do
     A.char '*'
-    Pitch.ScaleId . to_string <$> A.option "" (p_identifier "")
+    Pitch.ScaleId . to_text <$> A.option "" (p_identifier "")
     <?> "scale id"
 
 p_instrument :: A.Parser Score.Instrument

@@ -56,7 +56,7 @@ set_default_inst :: Text -> Cmd.CmdL ()
 set_default_inst inst = modify_config $
     State.default_#State.instrument #= Just (Score.Instrument inst)
 
-set_default_scale :: String -> Cmd.CmdL ()
+set_default_scale :: Text -> Cmd.CmdL ()
 set_default_scale scale = modify_config $
     State.default_#State.scale #= Pitch.ScaleId scale
 

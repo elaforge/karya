@@ -235,7 +235,7 @@ default_keep_history = 20
 
 -- | Default scale id for new projects.  It's a string so I don't have import
 -- anything.
-default_scale_id :: String
+default_scale_id :: Text
 default_scale_id = "twelve"
 
 -- | Default range for instruments that don't say otherwise.

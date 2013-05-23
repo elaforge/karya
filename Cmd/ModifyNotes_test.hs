@@ -1,5 +1,6 @@
 module Cmd.ModifyNotes_test where
 import qualified Data.Map as Map
+import qualified Data.Text as Text
 
 import Util.Control
 import Util.Test
@@ -150,7 +151,7 @@ mkevents :: [(ScoreTime, String)] -> Events.Events
 mkevents = Events.from_list . map mkevent
     where mkevent (start, text) = Event.event start 0 text
 
-mknote :: (ScoreTime, ScoreTime, String, [(String, [(ScoreTime, String)])],
+mknote :: (ScoreTime, ScoreTime, String, [(Text, [(ScoreTime, String)])],
     ModifyNotes.Index) -> ModifyNotes.Note
 mknote (start, dur, text, controls, index) = ModifyNotes.Note
     { ModifyNotes.note_start = start
@@ -160,14 +161,14 @@ mknote (start, dur, text, controls, index) = ModifyNotes.Note
     , ModifyNotes.note_index = index
     }
 
-mkcontrols :: [(String, [(ScoreTime, String)])] -> ModifyNotes.Controls
+mkcontrols :: [(Text, [(ScoreTime, String)])] -> ModifyNotes.Controls
 mkcontrols = Map.fromList . map mk
     where
     mk (name, events) = (control, mkevents events)
         where
-        control = case name of
-            '*' : s -> ModifyNotes.Pitch (Pitch.ScaleId s)
-            _ -> ModifyNotes.Control (Score.Control (txt name))
+        control = case Text.uncons name of
+            Just ('*', s) -> ModifyNotes.Pitch (Pitch.ScaleId s)
+            _ -> ModifyNotes.Control (Score.Control name)
 
 mkstate :: [UiTest.TrackSpec] -> [Skeleton.Edge] -> State.State
 mkstate tracks skel = UiTest.exec State.empty $ UiTest.mkblocks_skel

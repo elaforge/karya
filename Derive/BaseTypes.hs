@@ -311,8 +311,6 @@ instance ShowVal.ShowVal Pitch where
     show_val pitch = "<pitch: " <> txt (Pretty.pretty pitch) <> ">"
 
 instance Pretty.Pretty Val where pretty = untxt . ShowVal.show_val
-instance ShowVal.ShowVal Pitch.ScaleId where
-    show_val (Pitch.ScaleId s) = txt $ '*' : s
 
 newtype Symbol = Symbol Text deriving (Eq, Ord, Show, DeepSeq.NFData)
 instance Pretty.Pretty Symbol where pretty = untxt . ShowVal.show_val

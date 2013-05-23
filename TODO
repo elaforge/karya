@@ -77,7 +77,7 @@ UNSORTED
     * Derive.BaseTypes.Instrument
     * Derive.BaseTypes.Attribute
     * Cmd.Info.inst_info
-    - Perform.Pitch.ScaleId
+    * Perform.Pitch.ScaleId
     - WriteDevice, ReadDevice
     * Perform.Midi.Instrument.patch_text
     * Derive.Tags.Tags
