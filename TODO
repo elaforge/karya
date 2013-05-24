@@ -9,7 +9,7 @@ UNSORTED
     symmetry with 'd'?
   - I should shorten the last note of attr legato, to avoid triggering
     legato from the previous note.
-  - Event text is wrapping too late.  E.g. a trailing | will totally vanish.
+  * Event text is wrapping too late.  E.g. a trailing | will totally vanish.
   Fix leak from cache:
     . It's likely because derivation intentionally disconnects for
       TrackSignals, so those thunks hold all of State, which means the old
@@ -42,6 +42,17 @@ UNSORTED
     in Ratio_test to demonstrate.
   * What's the gap between the change and MsgOutOfDate?
   - compact the signal in the cache?
+    . Wait, but I think the cache never actually caches control or pitch
+      signals, because track caching is only for note tracks.  Maybe I should
+      cache control tracks?  In any case, it would only apply to control
+      tracks above note tracks.
+    . If I cache pitch track output, I wind up getting events with the signal
+      already applied.  Which is even better, right?  Why not just get rid of
+      CachedControl and CachedPitch?  The cache from control tracks is exactly
+      the same events, so I think if I edit a track underneath it's not
+      actually helping.
+    . If I edit the note track, the control track should rederive unchanged.
+    - Ensure this happens.
   - figure out what in cmd is holding on to the reference
   - parallelize derivation
   - update all the saves and remove backward compatibility from Cmd.Serialize

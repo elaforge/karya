@@ -235,10 +235,13 @@ SymbolTable::draw_wrapped(const string &text, IPoint pos, int wrap_width,
                 line_width += width;
             // DEBUG("at ``: " << width << " = " << line_width);
         } else {
-            if (*p)
-                line_width += utf8::width(p);
+            if (*p) {
+                // fl_width seems to under-report widths by a small amount on
+                // retina displays.
+                line_width += utf8::width(p) + 1;
+            }
             // DEBUG("at " << string(p, 1) << ": " << utf8::width(p)
-            //     << " = " << line_width);
+            //     << " = " << line_width << " < " << wrap_width);
         }
         // Display at least one char before a line wrap, this prevents an
         // endless loop.
