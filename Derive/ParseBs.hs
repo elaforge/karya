@@ -233,7 +233,16 @@ p_num = do
         Just typ -> return $ Score.Typed typ num
 
 p_untyped_num :: A.Parser Signal.Y
-p_untyped_num = Parse.p_float
+p_untyped_num = p_ratio <|> Parse.p_float
+
+p_ratio :: A.Parser Signal.Y
+p_ratio = do
+    sign <- A.option '+' (A.satisfy (\c -> c == '+' || c == '-'))
+    num <- Parse.p_nat
+    A.char '/'
+    denom <- Parse.p_nat
+    return $ (if sign == '-' then -1 else 1)
+        * fromIntegral num / fromIntegral denom
 
 p_hex :: A.Parser Signal.Y
 p_hex = do

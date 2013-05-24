@@ -20,7 +20,7 @@ module Perform.Pitch (
     , NoteNumber(..), nn
 
     -- * Hz
-    , Hz, add_hz, nn_to_hz, hz_to_nn
+    , Hz, add_hz, modify_hz, nn_to_hz, hz_to_nn
 
     -- * Scale
     , ScaleId(..), empty_scale, twelve
@@ -113,6 +113,9 @@ type Hz = Double
 add_hz :: Hz -> NoteNumber -> NoteNumber
 add_hz 0 nn = nn -- hz_to_nn . nn_to_hz adds a tiny bit of inaccuracy
 add_hz hz nn = hz_to_nn (hz + nn_to_hz nn)
+
+modify_hz :: (Hz -> Hz) -> NoteNumber -> NoteNumber
+modify_hz f = hz_to_nn . f . nn_to_hz
 
 nn_to_hz :: NoteNumber -> Hz
 nn_to_hz (NoteNumber nn) = exp (nn * _hz_scale + _hz_offset)

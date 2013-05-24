@@ -4,15 +4,29 @@ import qualified Data.Ratio as Ratio
 import qualified Data.Vector as Vector
 
 import Util.Control
+import qualified Util.Seq as Seq
 import Util.Test
+
 import qualified Ui.State as State
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Scale as Scale
 import qualified Derive.Scale.Just as Just
 import qualified Derive.Scale.Theory as Theory
+import qualified Derive.Score as Score
 
 import qualified Perform.Pitch as Pitch
 
+
+test_note_to_call = do
+    let run ps = DeriveTest.extract extract $ DeriveTest.derive_tracks
+            [ ("*just-major | key = a", [(t, 0, p) | (t, p) <- times ps])
+            , (">", [(t, 1, "") | (t, _) <- times ps])
+            ]
+            where times = zip (Seq.range_ 0 1)
+        extract = fmap Pitch.nn_to_hz . Score.initial_nn
+    equalf 0.001 (run ["4a"]) ([Just 440], [])
+    equalf 0.001 (run ["4a 3/2"]) ([Just 660], [])
+    equalf 0.001 (run ["4a P5"]) ([Just 660], [])
 
 test_input_to_note = do
     let f = Just.input_to_note Nothing

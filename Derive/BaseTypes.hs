@@ -228,9 +228,11 @@ type ValName = Symbol
 -- ** Val
 
 data Val =
-    -- | A number with an optional type suffix.
+    -- | A number with an optional type suffix.  It also has a ratio style
+    -- literal, though the output is still a floating point value, not a true
+    -- ratio.
     --
-    -- Literal: @42.23@, @-.4@, @1c@, @-2.4d@
+    -- Literal: @42.23@, @-.4@, @1c@, @-2.4d@, @3/2@, @-3/2@.
     VNum !TypedVal
 
     -- | Relative attribute adjustment.

@@ -12,12 +12,16 @@ import qualified Util.Num as Num
 import qualified Util.Pretty as Pretty
 
 import qualified Derive.Call.Pitch as Call.Pitch
+import qualified Derive.Call.Tags as Tags
 import qualified Derive.Derive as Derive
+import qualified Derive.Deriver.Internal as Internal
 import qualified Derive.Environ as Environ
+import qualified Derive.PitchSignal as PitchSignal
 import qualified Derive.Scale as Scale
 import qualified Derive.Scale.Theory as Theory
 import qualified Derive.Scale.Util as Util
 import qualified Derive.Score as Score
+import qualified Derive.Sig as Sig
 import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.Pitch as Pitch
@@ -52,7 +56,8 @@ make_scale scale_id ratios = Scale.Scale
         \ starting from A.\
         \ If the base hz isn't given, it defaults to the 12TET tuning of the\
         \ key."
-        ) [("ratios", txt $ Pretty.pretty ratios)] Util.scale_degree_doc
+        ) [("ratios", txt $ Pretty.pretty ratios)]
+            (Util.scale_degree_doc scale_degree)
     }
     where double_ratios = Vector.map realToFrac ratios
 
@@ -124,8 +129,8 @@ valid_pitch pitch = Theory.note_accidentals note == 0
 note_to_call :: Ratios -> Pitch.Note -> Maybe Derive.ValCall
 note_to_call ratios note = case read_pitch note of
     Left _ -> Nothing
-    Right pitch -> Just $ Call.Pitch.scale_degree
-        (pitch_nn pitch) (pitch_note pitch)
+    Right pitch -> Just $
+        scale_degree (pitch_nn pitch) (pitch_note pitch)
     where
     pitch_nn :: Theory.Pitch -> Scale.PitchNn
     pitch_nn pitch env controls =
@@ -148,6 +153,31 @@ note_to_call ratios note = case read_pitch note of
             (round (chromatic + diatonic)) pitch
         chromatic = Map.findWithDefault 0 Score.c_chromatic controls
         diatonic = Map.findWithDefault 0 Score.c_diatonic controls
+
+scale_degree :: Scale.PitchNn -> Scale.PitchNote -> Derive.ValCall
+scale_degree pitch_nn pitch_note = Derive.val_call "pitch" Tags.scale
+    "Emit the pitch of a scale degree." $ Sig.call
+    (Sig.many "interval" $ "Multiply this interval with the note's frequency.\
+        \ Can be either a ratio or a symbol drawn from: "
+        <> Text.intercalate ", " (Map.keys named_intervals)) $
+    \intervals _ -> do
+        interval <- product <$> mapM (either return resolve_interval) intervals
+        environ <- Internal.get_dynamic Derive.state_environ
+        return $! TrackLang.VPitch $ PitchSignal.pitch
+            (call interval environ) (pitch_note environ)
+    where
+    call interval environ controls =
+        Pitch.modify_hz ((+ Call.Pitch.get_hz controls) . (*interval)) <$>
+            pitch_nn environ controls
+
+resolve_interval :: Text -> Derive.Deriver Double
+resolve_interval text = case Text.uncons text of
+    Just ('-', text) -> negate <$> resolve text
+    _ -> resolve text
+    where
+    resolve text = case Map.lookup text named_intervals of
+        Nothing -> Derive.throw $ "named interval unknown: " <> show text
+        Just ratio -> return $ realToFrac ratio
 
 just_base_control :: Score.Control
 just_base_control = Score.Control "just-base"
@@ -223,6 +253,27 @@ major_ratios = Vector.fromList [1, 9%8, 5%4, 4%3, 3%2, 5%3, 15%8]
 -- | 5-limit diatonic, with just minor triads.
 minor_ratios :: Vector.Vector Ratio.Rational
 minor_ratios = Vector.fromList [1, 9%8, 6%5, 4%3, 3%2, 8%5, 9%5]
+
+named_intervals :: Map.Map Text Ratio.Rational
+named_intervals = Map.fromList
+    [ ("m2-", 25 % 24) -- 71, 5-limit minor half-step
+    , ("m2", 16 % 15) -- 112, 5-limit major half-step
+    , ("M2-", 10 % 9) -- 182, minor whole tone
+    , ("M2", 9 % 8) -- 204, 5-limit major second
+    , ("m3", 6 % 5) -- 316, 5-limit minor third
+    , ("M3", 5 % 4) -- 386, 5-limit major third
+    , ("P4", 4 % 3) -- 498, perfect fourth
+    , ("tt11", 11 % 8) -- 551, undecimal tritone
+    , ("tt7-", 7 % 5) -- 583, septimal tritone
+    , ("tt", 64 % 65) -- 610, low 5-limit tritone
+    , ("tt7+", 10 % 7) -- 618, septimal tritone
+    , ("wolf", 40 % 27) -- 681, wolf 5-limit 5th
+    , ("P5", 3 % 2) -- 702, perfect fifth
+    , ("m6", 8 % 5) -- 5-limit minor sixth
+    , ("M6", 5 % 3) -- 5-limit major sixth
+    , ("m7", 9 % 5) -- 5-limit large minor seventh
+    , ("M7", 15 % 8) -- 5-limit major seventh
+    ]
 
 
 {- Retuning scales:

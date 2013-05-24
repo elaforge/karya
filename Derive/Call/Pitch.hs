@@ -44,11 +44,13 @@ scale_degree pitch_nn pitch_note = Derive.val_call
             (call frac hz environ) (pitch_note environ)
     where
     call frac hz environ controls =
-        Pitch.add_hz (hz + hz_sig) <$> pitch_nn environ
+        Pitch.add_hz (hz + get_hz controls) <$> pitch_nn environ
             (if frac == 0 then controls
                 else Map.insertWith' (+) Score.c_chromatic (frac / 100)
                     controls)
-        where hz_sig = Map.findWithDefault 0 Score.c_hz controls
+
+get_hz :: PitchSignal.Controls -> Pitch.Hz
+get_hz = Map.findWithDefault 0 Score.c_hz
 
 -- | Convert a note and @frac@ arg into a tracklang expression representing
 -- that note.

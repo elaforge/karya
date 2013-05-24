@@ -266,7 +266,7 @@ join_note step frac = Pitch.Note $ step <> frac_s
 call_doc :: Set.Set Score.Control -> DegreeMap -> InputMap -> Text
     -> Derive.DocumentedCall
 call_doc transposers dmap imap doc =
-    annotate_call_doc transposers doc fields $ scale_degree_doc
+    annotate_call_doc transposers doc fields default_scale_degree_doc
     where
     fields =
         [ ("note range", map_range snd (dm_to_note dmap))
@@ -278,10 +278,13 @@ call_doc transposers dmap imap doc =
         _ -> ""
 
 -- | Documentation of the standard 'Call.Pitch.scale_degree'.
-scale_degree_doc :: Derive.DocumentedCall
-scale_degree_doc = Derive.extract_val_doc $
-    Call.Pitch.scale_degree err err
-        where err _ _ = Left $ PitchSignal.PitchError "it was just an example!"
+default_scale_degree_doc :: Derive.DocumentedCall
+default_scale_degree_doc = scale_degree_doc Call.Pitch.scale_degree
+
+scale_degree_doc :: (Scale.PitchNn -> Scale.PitchNote -> Derive.ValCall)
+    -> Derive.DocumentedCall
+scale_degree_doc scale_degree = Derive.extract_val_doc $ scale_degree err err
+    where err _ _ = Left $ PitchSignal.PitchError "it was just an example!"
 
 annotate_call_doc :: Set.Set Score.Control -> Text -> [(Text, Text)]
     -> Derive.DocumentedCall -> Derive.DocumentedCall

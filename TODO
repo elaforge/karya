@@ -3,6 +3,7 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
+  - shift-enter on an empty selection causes an unstoppable play
   * Add event with EditAppend should use the selection duration.
   * "Recent" should record EditAppends.
   * 'detach' is too long, what's a shorter name? 'd' is taken, maybe 'D' for
@@ -53,6 +54,7 @@ UNSORTED
       actually helping.
     . If I edit the note track, the control track should rederive unchanged.
     - Ensure this happens.
+    - I think it's not properly invalidating control track cache on edit.
   - figure out what in cmd is holding on to the reference
   - parallelize derivation
   - update all the saves and remove backward compatibility from Cmd.Serialize
@@ -162,7 +164,7 @@ UNSORTED
     used CCs to issue resets for them.  Some reset to 1, e.g. cc2 and cc7,
     the rest reset to 0.
     But filtering the midi shows dyn controls mixed into both channels.
-  - the signal doesn't update if I change the default environ assignment on
+  * the signal doesn't update if I change the default environ assignment on
     another track
   - It seems confusing that in val edit the note track doesn't need cmd-x but
     the control track does.
@@ -438,19 +440,21 @@ lilypond:
   - one track has voice, the other doesn't, causes a "can't advance time
     backward" error
   * remove the StackMap stuff
+  - Support ly-append-first and ly-append-last for zero-dur notes.
+    . First come up with uses for them?  Or do it just for orthogonality?
   - code events in >ly-global can be distributed to all staves
     Otherwise I have to remember to add e.g. ly-key to all staves manually.
-    But ly-key is no good, I really do need to set the key.  I think I have to
-    break up the block.  Why can't I do assignment more easily?
-    Well, I have to grab a deriver to dynamically scope the new value around.
-    Unless I let a deriver mutate the environ, then it has to be nested.
-    If a deriver can mutate, then events have to be evaluated in order.  Of
-    course, they already do for controls because of the previous sample.
-    And since it's unset at the end of the block, block caching still works,
-    the same way as for previous sample.
-    On the other hand, I think I want to encourage nestedness and it should be
-    easy to split.  The only reason viola-sonata has huge blocks is that it's
-    a midi import.
+    . But ly-key is no good, I really do need to set the key.  I think I have
+      to break up the block.  Why can't I do assignment more easily?
+    . Well, I have to grab a deriver to dynamically scope the new value around.
+      Unless I let a deriver mutate the environ, then it has to be nested.  If
+      a deriver can mutate, then events have to be evaluated in order.  Of
+      course, they already do for controls because of the previous sample.
+      And since it's unset at the end of the block, block caching still works,
+      the same way as for previous sample.
+    . On the other hand, I think I want to encourage nestedness and it should
+      be easy to split.  The only reason viola-sonata has huge blocks is that
+      it's a midi import.
   - Derive.Call.Lily needs a naming refactor since there are too many vaguely
     named flavours.
   - I need some way to hide rests.
@@ -1073,8 +1077,14 @@ pitch / scales
       . Do I want a ratio literal?  Then I can write '4a 3/2 9/8' without
         quotes.  Or give each of these intervals a name and allow a symbolic
         name too.
-      . This would also work well with a cipher notation, e.g. 4-1, 4-2, etc.
-      . I can have a display that shows the relationships between the currently
+
+      * Pitch call takes ratio args, multiplied by the base pitch.
+      - It can also take accidentals, which add or subtract m2.
+      - A ratio without the absolute pitch is multiplied with the previous
+        pitch.
+      - Support relative cipher notation, e.g. 4-1, 4-2, etc.
+
+      - I can have a display that shows the relationships between the currently
         sounding pitches.
     - Interpolate between two scales.  The main thing is to establish a note
       to note correspondance.

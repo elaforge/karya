@@ -119,8 +119,12 @@ test_parse_val = do
             , ("-", Nothing)
             , ("_", Just VNotGiven)
             ]
-    -- No longer any noninvertable ones, but maybe there will be again someday.
-    let exprs = map ((,) True) invertible
+    let noninvertible =
+            [ ("+3/2", Just (VNum (Score.untyped 1.5)))
+            , ("-3/2", Just (VNum (Score.untyped (-1.5))))
+            , ("3/2d", Just (VNum (Score.Typed Score.Diatonic 1.5)))
+            ]
+    let exprs = map ((,) True) invertible ++ map ((,) False) noninvertible
     forM_ exprs $ \(invertible, (expr, expected)) -> do
         let res = Parse.parse_val expr
         case (res, expected) of
