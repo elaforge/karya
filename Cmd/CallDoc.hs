@@ -140,6 +140,8 @@ css = ".main dl { border-bottom: 1px solid #999 }\n\
     \    margin: 0px;\n\
     \    padding: 0;\n\
     \}\n\
+    \ul { margin: 0; }\n\
+    \div { margin-bottom: 10px; }\n\
     \.compact dt {\n\
     \    margin: 0;\n\
     \    padding: 0;\n\
