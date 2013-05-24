@@ -44,6 +44,7 @@ player_thread name state msgs = do
     Log.debug $ "play complete: " ++ name
 
 cycle_messages :: Maybe RealTime -> Messages -> Messages
+cycle_messages _ [] = []
 cycle_messages Nothing msgs = msgs
 cycle_messages (Just repeat_at) msgs =
     go1 (takeWhile (LEvent.log_or ((<repeat_at) . Midi.wmsg_ts)) msgs)

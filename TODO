@@ -3,7 +3,7 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
-  - shift-enter on an empty selection causes an unstoppable play
+  * shift-enter on an empty selection causes an unstoppable play
   * Add event with EditAppend should use the selection duration.
   * "Recent" should record EditAppends.
   * 'detach' is too long, what's a shorter name? 'd' is taken, maybe 'D' for
