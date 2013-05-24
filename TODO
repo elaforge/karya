@@ -7,7 +7,7 @@ UNSORTED
   * "Recent" should record EditAppends.
   * 'detach' is too long, what's a shorter name? 'd' is taken, maybe 'D' for
     symmetry with 'd'?
-  - I should shorten the last note of attr legato, to avoid triggering
+  * I should shorten the last note of attr legato, to avoid triggering
     legato from the previous note.
   * Event text is wrapping too late.  E.g. a trailing | will totally vanish.
   Fix leak from cache:

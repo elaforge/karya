@@ -1,8 +1,14 @@
 module Derive.Call.Articulation_test where
+import Util.Control
 import qualified Util.Seq as Seq
 import Util.Test
+
 import qualified Ui.UiTest as UiTest
+import qualified Derive.Call.Articulation as Articulation
+import qualified Derive.Call.CallTest as CallTest
+import qualified Derive.Call.Note as Note
 import qualified Derive.DeriveTest as DeriveTest
+
 import qualified Perform.Lilypond.LilypondTest as LilypondTest
 
 
@@ -36,6 +42,22 @@ test_legato = do
         [ (0, 2.1, "?", "+legato")
         , (2, 1, "?", "-")
         , (4, 1, "?", "-")
+        ]
+
+test_attr_legato = do
+    let run = DeriveTest.extract extract . DeriveTest.linear_derive_tracks with
+        with = CallTest.with_note_call "(" Articulation.c_attr_legato
+            . CallTest.with_note_call "" (Note.note_call "" "" mempty
+                (Note.default_note note_config))
+        note_config = Note.use_attributes { Note.config_legato = False }
+        extract e = (s, d, p, a)
+            where
+            ((s, d, p), a) = (DeriveTest.e_note e, DeriveTest.e_attributes e)
+    let (events, logs) = run $ (">", [(0, 2, "( .5")]) : UiTest.regular_notes 3
+    equal logs []
+    equal events
+        [ (0, 1, "3c", "+legato"), (1, 0.5, "3d", "+legato")
+        , (2, 1, "3e", "-")
         ]
 
 test_legato_ly = do

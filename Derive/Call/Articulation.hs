@@ -26,9 +26,11 @@ import qualified Derive.ParseBs as ParseBs
 import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Sig as Sig
+import Derive.Sig (defaulted)
 import qualified Derive.TrackLang as TrackLang
 
-import qualified Perform.Signal as Signal
+import qualified Perform.RealTime as RealTime
+import Types
 
 
 lookup_attr :: Derive.LookupCall Derive.NoteCall
@@ -84,14 +86,24 @@ c_ly_slur_down = Derive.stream_generator "ly-slur-down"
     "Add a lilypond slur, forced to be below." $ Sig.call0 $
         Lily.notes_around_ly (Lily.SuffixFirst, "_(") (Lily.SuffixLast, ")")
 
--- | Like 'c_legato', but apply the attribute to all notes instead of all but
--- the last.  This is when the instrument itself responds to legato, e.g. with
--- a keyswitch for transition samples, rather than the call responding by
--- lengthening notes.
---
--- If you use this, you should definitely turn off 'Note.config_legato'.
-c_legato_all :: Derive.NoteCall
-c_legato_all = Make.attributed_note Attrs.legato
+c_attr_legato :: Derive.NoteCall
+c_attr_legato = Derive.stream_generator "legato" (Tags.attr <> Tags.subs)
+    "This is for instruments that understand the `+legato` attribute,\
+    \ for instance with a keyswitch for transition samples.\
+    \\nIf you use this, you should definitely turn off `Note.config_legato`."
+    $ Sig.call (defaulted "detach" 0.05 "Shorten the final note by this amount.\
+        \ This is to avoid triggering legato from the previous note.")
+    attr_legato
+
+attr_legato :: RealTime -> Derive.PassedArgs d -> Derive.EventDeriver
+attr_legato detach = Note.place . concat . map apply <=< Note.sub_events
+    where
+    apply notes = case Seq.viewr notes of
+        Just (pre, post) -> Note.map_events (Util.add_attrs Attrs.legato) $
+            pre ++ [Note.map_event shorten post]
+        Nothing -> []
+    shorten = Util.with_constant Score.c_sustain_abs
+        (- RealTime.to_seconds detach)
 
 -- | Apply the attributes to the init of the sub-events, i.e. every one but the
 -- last.
@@ -99,9 +111,9 @@ init_attr :: Score.Attributes -> Derive.PassedArgs d -> Derive.EventDeriver
 init_attr attr = Note.place . concatMap add <=< Note.sub_events
     where
     add notes = case Seq.viewr notes of
-        (notes, Just last) ->
+        Just (notes, last) ->
             Note.map_events (Util.add_attrs attr) notes ++ [last]
-        _ -> []
+        Nothing -> []
 
 -- * misc
 
@@ -109,7 +121,5 @@ c_detach :: Derive.NoteCall
 c_detach = Make.transform_notes "detach" mempty
     ("Detach the notes slightly, by setting "
         <> ShowVal.show_val Score.c_sustain_abs <> ".")
-    (Sig.defaulted "time" 0.15 "Set control to `-time`.") $ \time ->
-        Derive.with_control Score.c_sustain_abs
-            (Score.untyped (Signal.constant (-time)))
-    where
+    (defaulted "time" 0.15 "Set control to `-time`.") $ \time ->
+        Util.with_constant Score.c_sustain_abs (-time)

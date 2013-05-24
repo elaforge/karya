@@ -541,14 +541,16 @@ span_end_while f xs = (reverse post, reverse pre)
     where (pre, post) = span_while f (reverse xs)
 
 -- | List initial and final element, if any.
-viewr :: [a] -> ([a], Maybe a)
-viewr [] = ([], Nothing)
-viewr [x] = ([], Just x)
-viewr (x:xs) = let (first, last) = viewr xs in (x:first, last)
+viewr :: [a] -> Maybe ([a], a)
+viewr [] = Nothing
+viewr (x:xs) = Just $ go x xs
+    where
+    go x [] = ([], x)
+    go x (x':xs) = let (pre, post) = go x' xs in (x:pre, post)
 
 ne_viewr :: NonEmpty a -> ([a], a)
-ne_viewr (x :| xs) = case viewr (x : xs) of
-    (first, last) -> (first, Maybe.fromJust last)
+ne_viewr (x :| xs) =
+    Maybe.fromMaybe (error "ne_viewr: not reached") (viewr (x : xs))
 
 -- ** split and join
 

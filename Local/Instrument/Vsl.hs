@@ -124,7 +124,7 @@ note_calls maybe_hmap patch =
         [("tr", Trill.c_attr_trill), ("`tr`", Trill.c_attr_trill)]
     <> with_attr Attrs.trem [("trem", Trill.c_attr_tremolo)]
     <> with_attr VslInst.grace [("g", grace_call (patch_attrs patch))]
-    <> with_attr VslInst.legato [("(", Articulation.c_legato_all)]
+    <> with_attr VslInst.legato [("(", Articulation.c_attr_legato)]
     <> (MidiInst.null_call (note_call patch))
     where
     with_attr attr calls = if has_attr attr patch then calls else []

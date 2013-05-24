@@ -256,8 +256,12 @@ with_symbolic_pitch note pos deriver = do
     with_pitch pitch deriver
 
 with_dynamic :: Signal.Y -> Derive.Deriver a -> Derive.Deriver a
-with_dynamic =
-    Derive.with_control Score.c_dynamic . Score.untyped . Signal.constant
+with_dynamic = with_constant Score.c_dynamic
+
+with_constant :: Score.Control -> Signal.Y -> Derive.Deriver a
+    -> Derive.Deriver a
+with_constant control = Derive.with_control control . Score.untyped
+    . Signal.constant
 
 -- | Generate a single note, from 0 to 1.
 note :: Derive.EventDeriver

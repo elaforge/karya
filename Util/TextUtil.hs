@@ -66,8 +66,8 @@ haddockUrl files haddock_dir text
     strip ('.' : '/' : path) = path
     strip path = path
     symbolLink = case Seq.viewr components of
-        (mod, Just sym) -> Just $ moduleLink mod ++ symbolAnchor sym
-        _ -> Nothing
+        Just (mod, sym) -> Just $ moduleLink mod ++ symbolAnchor sym
+        Nothing -> Nothing
 
 symbolAnchor :: String -> String
 symbolAnchor sym = case sym of
