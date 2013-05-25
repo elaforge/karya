@@ -95,6 +95,7 @@ UNSORTED
   - shakefile should use typesafe oracle calls, is there newtype based
     oracle utils yet?
   convert to Text:
+    - Internal.with_stack_call
     * Derive.BaseTypes.Instrument
     * Derive.BaseTypes.Attribute
     * Cmd.Info.inst_info
@@ -1063,8 +1064,10 @@ pitch / scales
   scales / Derive.Scale:
     just intonation
       - interpolate between just scales in different keys
-      + just intonation tuned to a pitch signal
-        Works, but I need a less awkward way to set the base frequency.
+      * just intonation tuned to a pitch signal
+      - Works, but I need a less awkward way to set the base frequency.
+        Currently, I have to say 'key = a | just-base = 1234'.  Can I say
+        'just-base = (4a)' to return based on a previous pitch?
       . How do just scales handle accidentals?  Presumably I need to pick
         a pitch based on the ratios it will have with other sounding pitches,
         which means I might need several kinds of intervals, and pick one
@@ -1082,10 +1085,19 @@ pitch / scales
       - It can also take accidentals, which add or subtract m2.
       - A ratio without the absolute pitch is multiplied with the previous
         pitch.
+        But it's a val call, which has no access to the previous elem.
+        There is prev-val, but it's a brittle hack, and won't work for
+        successive prev-vals.
+      * I could support this by making (Elem ValCall) = Control | Pitch
+      . But it passes derived, and gets Elem of derived, and Elem is only
+        defined in Derived.
+      * Replace Derive.Call.Val.c_prev_val
       - Support relative cipher notation, e.g. 4-1, 4-2, etc.
 
-      - I can have a display that shows the relationships between the currently
-        sounding pitches.
+      display:
+        - Show ratio relationships between sounding pitches.
+        - Optionally select one pitch as 1/1, and show the others relative to
+          it.  Otherwise, they're relative to the key.
     - Interpolate between two scales.  The main thing is to establish a note
       to note correspondance.
     - looks like fun: http://en.wikipedia.org/wiki/Bohlen-Pierce_scale

@@ -116,8 +116,7 @@ c_set_prev = Derive.generator "set-prev" Tags.prelude
 
 linear_interpolation :: (TrackLang.Typecheck time) =>
     Text -> time -> Text
-    -> (Derive.PassedArgs Signal.Control -> time
-        -> Derive.Deriver TrackLang.RealOrScore)
+    -> (Derive.ControlArgs -> time -> Derive.Deriver TrackLang.RealOrScore)
     -> Derive.ControlCall
 linear_interpolation name time_default time_default_doc get_time =
     Derive.generator1 name (Tags.prelude <> Tags.prev) doc $ Sig.call ((,)
@@ -166,8 +165,7 @@ c_linear_next_const =
 -- | Exponential interpolation, with different start times.
 exponential_interpolation :: (TrackLang.Typecheck time) =>
     Text -> time -> Text
-    -> (Derive.PassedArgs Signal.Control -> time
-        -> Derive.Deriver TrackLang.RealOrScore)
+    -> (Derive.ControlArgs -> time -> Derive.Deriver TrackLang.RealOrScore)
     -> Derive.ControlCall
 exponential_interpolation name time_default time_default_doc get_time =
     Derive.generator1 name (Tags.prelude <> Tags.prev) doc $ Sig.call ((,,)
@@ -243,7 +241,7 @@ c_up = Derive.generator1 "up" (Tags.prelude <> Tags.prev)
                 (start + RealTime.seconds (1-prev_y) / RealTime.seconds speed)
         in (end, min 1 (prev_y + diff))
 
-slope :: Derive.PassedArgs Signal.Control
+slope :: Derive.ControlArgs
     -> (RealTime -> RealTime -> Signal.Y -> (RealTime, Signal.Y))
     -> Derive.Deriver Signal.Control
 slope args f = case Args.prev_val args of
@@ -278,7 +276,7 @@ type Interpolator = Bool -- ^ include the initial sample or not
 
 -- | Create an interpolating call, from a certain duration (positive or
 -- negative) from the event start to the event start.
-interpolate :: (Double -> Double) -> Derive.PassedArgs Signal.Control
+interpolate :: (Double -> Double) -> Derive.ControlArgs
     -> Signal.Y -> TrackLang.RealOrScore
     -> Derive.Deriver Signal.Control
 interpolate f args val dur = do

@@ -88,7 +88,8 @@ c_show_args = Derive.generator "show-args" mempty "doc" $
         return []
 
 generator :: (Derive.Derived d) =>
-    (Derive.PassedArgs d -> Derive.LogsDeriver d) -> Derive.Call d
+    (Derive.PassedArgs (Derive.Elem d) -> Derive.LogsDeriver d)
+    -> Derive.Call d
 generator = Derive.stream_generator "test" mempty "test doc" . Sig.call0
 
 -- * PassedArgs

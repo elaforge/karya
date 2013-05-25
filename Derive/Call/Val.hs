@@ -29,8 +29,9 @@ val_calls = Derive.make_calls
 
 c_next_val :: Derive.ValCall
 c_next_val = Derive.val_call "next-val" Tags.next
-    "Evaluate the value of the next event. Only works on pitch and control\
-    \ tracks." $ Sig.call0 $ \args -> do
+    "Evaluate the next event. Only works on pitch and control tracks, and\
+    \ if the next event doesn't need its previous event."
+    $ Sig.call0 $ \args -> do
         event <- Derive.require "no next event" $
             Seq.head (Args.next_events args)
         start <- Derive.real (Event.start event)
@@ -40,8 +41,8 @@ c_next_val = Derive.val_call "next-val" Tags.next
             Just TrackInfo.PitchTrack -> do
                 signal <- eval event
                 case PitchSignal.at start signal of
-                    Nothing -> Derive.throw
-                        "next pitch event didn't actually emit a pitch"
+                    Nothing ->
+                        Derive.throw "next pitch event didn't emit a pitch"
                     Just pitch -> return $ TrackLang.VPitch pitch
             Just TrackInfo.NoteTrack -> Derive.throw
                 "can't get next value for note tracks"
@@ -54,47 +55,15 @@ c_next_val = Derive.val_call "next-val" Tags.next
     eval event = mconcat . LEvent.events_of <$>
         (either Derive.throw return =<< Call.eval_event event)
 
--- | This is less efficient than the various control and pitch calls that use
--- the prev val, because it has to re-evaluate the previous event and pick out
--- the last sample.  It has trouble re-using the already-computed previous
--- value because that would make 'Derive.ValCall' polymorphic which in turn
--- means it's hard to put into a single ValScope.
---
--- TODO maybe something could done with existentials, since the return value is
--- still monomorphic.
---
--- TODO This doesn't work for notes in other slices because (<) isn't in the
--- 'Pitch.require_previous' hack, which is because it wouldn't work if (<) is
--- in an expression.  I could make it work by including the prev events even in
--- sliced tracks, if I'm not evaluating them except when needed that should be
--- ok.
 c_prev_val :: Derive.ValCall
 c_prev_val = Derive.val_call "prev-val" Tags.prev
-    ("Return the previous value. Only works on pitch and control tracks.\
-    \ Unfortunately, this doesn't work when the next value is on a different\
-    \ note, because of slicing."
-    ) $ Sig.call0 $ \args -> do
-        event <- Derive.require "no prev event" $
-            Seq.head (Args.prev_events args)
-        case Derive.info_track_type (Derive.passed_info args) of
-            Just TrackInfo.ControlTrack -> eval_control event
-            Just TrackInfo.TempoTrack -> eval_control event
-            Just TrackInfo.PitchTrack -> do
-                signal <- eval event
-                case PitchSignal.last signal of
-                    Nothing -> Derive.throw
-                        "last pitch event didn't actually emit a pitch"
-                    Just (_, pitch) -> return $ TrackLang.VPitch pitch
-            Just TrackInfo.NoteTrack -> Derive.throw
-                "can't get prev value for note tracks"
-            Nothing -> Derive.throw "no track type"
-    where
-    eval_control event = do
-        signal <- eval event
-        return $ TrackLang.VNum $ Score.untyped $
-            maybe 0 snd $ Signal.last (signal :: Signal.Control)
-    eval event = mconcat . LEvent.events_of <$>
-        (either Derive.throw return =<< Call.eval_event event)
+    "Return the previous value. Only works on pitch and control tracks.\
+    \ Also, this wont work across slice boundaries, so if you want to use it\
+    \ you should probably put the control track above the note track."
+    $ Sig.call0 $ \args -> case Args.prev_val args of
+        Just (_, Derive.TagPitch v) -> return $ TrackLang.VPitch v
+        Just (_, Derive.TagControl v) -> return $ TrackLang.num v
+        _ -> Derive.throw "no previous value"
 
 eval_pitch :: Event.Event -> Derive.Deriver (Maybe PitchSignal.Pitch)
 eval_pitch event =

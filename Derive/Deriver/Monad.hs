@@ -36,11 +36,11 @@ module Derive.Deriver.Monad (
     , throw_error, throw_error_srcpos
 
     -- * derived types
-    , Derived(..)
+    , Derived(..), Elem, Tagged(..), ToTagged(..)
     , LogsDeriver
 
-    , EventDeriver, Events
-    , ControlDeriver, PitchDeriver
+    , EventDeriver, Events, EventArgs
+    , ControlDeriver, ControlArgs, PitchDeriver, PitchArgs
 
     -- * state
     , State(..), initial_state
@@ -297,25 +297,40 @@ throw_error_srcpos srcpos err = do
 
 -- * derived types
 
--- | Cachable might be a better name.  The Elem type is only used for
--- 'info_prev_val', that could go in a separate type family, especially
--- since it also applies to TrackLang.Val calls, which are not cacheable.
-class (Pretty.Pretty (Elem derived), Show (Elem derived), Show derived) =>
-        Derived derived where
-    type Elem derived :: *
+-- | The various types of calls have different haskell types, which improves
+-- type safety and reduces the need for tagging.  However, sometimes
+-- a polymorphic type is inconvenient and I need to reify the type to the value
+-- level.
+class (Show d, ToTagged (Elem d)) => Derived d where
     -- | I would prefer to have a function to a generic reified type and then
     -- use that value to index the CacheEntry, but I can't think of how to do
     -- that right now.
-    from_cache_entry :: CacheEntry -> Maybe (CallType derived)
-    to_cache_entry :: CallType derived -> CacheEntry
-    lookup_callable :: TrackLang.CallId -> Deriver (Maybe (Call derived))
-    callable_name :: derived -> Text
+    from_cache_entry :: CacheEntry -> Maybe (CallType d)
+    to_cache_entry :: CallType d -> CacheEntry
+    lookup_callable :: TrackLang.CallId -> Deriver (Maybe (Call d))
+    callable_name :: d -> Text
 
+-- | This converts the deriver return type to the scalar value used by
+-- 'info_prev_val'.
+type family Elem d :: *
 type LogsDeriver d = Deriver (LEvent.LEvents d)
+
+-- | This is for 'info_prev_val'.  Normally the previous value is available
+-- in all its untagged glory based on the type of the call, but ValCalls can
+-- occur with all the different types, so they need a tagged 'info_prev_val'.
+data Tagged =
+    TagEvent Score.Event | TagControl Signal.Y | TagPitch PitchSignal.Pitch
+
+class ToTagged a where to_tagged :: a -> Tagged
+instance ToTagged Tagged where to_tagged = id
 
 -- ** event
 
 type EventDeriver = LogsDeriver Score.Event
+type EventArgs = PassedArgs Score.Event
+
+type instance Elem Score.Event = Score.Event
+instance ToTagged Score.Event where to_tagged = TagEvent
 
 -- | This might seem like an inefficient way to represent the Event stream,
 -- but I can't think of how to make it better.
@@ -323,11 +338,9 @@ type EventDeriver = LogsDeriver Score.Event
 -- Each call generates a chunk [Event], and the chunks are then joined with
 -- 'd_merge_asc'.  This means every cons is copied once, but I think this is
 -- hard to avoid if I want to merge streams.
-
 type Events = LEvent.LEvents Score.Event
 
 instance Derived Score.Event where
-    type Elem Score.Event = Score.Event
     from_cache_entry (CachedEvents ctype) = Just ctype
     from_cache_entry _ = Nothing
     to_cache_entry = CachedEvents
@@ -337,9 +350,12 @@ instance Derived Score.Event where
 -- ** control
 
 type ControlDeriver = LogsDeriver Signal.Control
+type ControlArgs = PassedArgs Signal.Y
+
+type instance Elem Signal.Control = Signal.Y
+instance ToTagged Signal.Y where to_tagged = TagControl
 
 instance Derived Signal.Control where
-    type Elem Signal.Control = Signal.Y
     from_cache_entry (CachedControl ctype) = Just ctype
     from_cache_entry _ = Nothing
     to_cache_entry = CachedControl
@@ -349,9 +365,12 @@ instance Derived Signal.Control where
 -- ** pitch
 
 type PitchDeriver = LogsDeriver PitchSignal.Signal
+type PitchArgs = PassedArgs PitchSignal.Pitch
+
+type instance Elem PitchSignal.Signal = PitchSignal.Pitch
+instance ToTagged PitchSignal.Pitch where to_tagged = TagPitch
 
 instance Derived PitchSignal.Signal where
-    type Elem PitchSignal.Signal = PitchSignal.Pitch
     from_cache_entry (CachedPitch ctype) = Just ctype
     from_cache_entry _ = Nothing
     to_cache_entry = CachedPitch
@@ -792,20 +811,17 @@ type PitchCallMap = Map.Map TrackLang.CallId PitchCall
 type ValCallMap = Map.Map TrackLang.CallId ValCall
 
 -- | Data passed to a 'Call'.
---
--- PassedArgs and 'CallInfo' could take the Elem type directly instead of
--- derived, but it's more convenient for the callers to pass the derived.
-data PassedArgs derived = PassedArgs {
+data PassedArgs val = PassedArgs {
     passed_vals :: ![TrackLang.Val]
     -- | Used by "Derive.Sig" to look for default arg values in the
     -- environment.  This is technically redundant since a call should know its
     -- own name, but it turns out to be inconvenient to pass the name to all of
     -- those functions.
     , passed_call_name :: !Text
-    , passed_info :: !(CallInfo derived)
+    , passed_info :: !(CallInfo val)
     }
 
-instance (Pretty.Pretty (Elem d)) => Pretty.Pretty (PassedArgs d) where
+instance (Pretty.Pretty val) => Pretty.Pretty (PassedArgs val) where
     format (PassedArgs vals call_name info) = Pretty.record_title "PassedArgs"
         [ ("vals", Pretty.format vals)
         , ("call_name", Pretty.format call_name)
@@ -818,7 +834,7 @@ instance (Pretty.Pretty (Elem d)) => Pretty.Pretty (PassedArgs d) where
 -- The events are not used for transform calls.
 --
 -- TODO make separate types so the irrelevent data need not be passed?
-data CallInfo derived = CallInfo {
+data CallInfo val = CallInfo {
     -- | The expression currently being evaluated.  Why I need this is
     -- documented in 'Derive.Call.Note.inverting'.
     info_expr :: !TrackLang.Expr
@@ -829,7 +845,7 @@ data CallInfo derived = CallInfo {
 
     -- | Hack so control calls have access to the previous sample, since
     -- they tend to want to interpolate from that value.
-    , info_prev_val :: !(Maybe (RealTime, Elem derived))
+    , info_prev_val :: !(Maybe (RealTime, val))
 
     , info_event :: !Event.Event
     , info_prev_events :: ![Event.Event]
@@ -858,7 +874,7 @@ data CallInfo derived = CallInfo {
     , info_track_type :: !(Maybe TrackInfo.Type)
     }
 
-instance (Pretty.Pretty (Elem d)) => Pretty.Pretty (CallInfo d) where
+instance (Pretty.Pretty val) => Pretty.Pretty (CallInfo val) where
     format (CallInfo expr prev_val event prev_events next_events event_end
             track_range sub_tracks track_type) =
         Pretty.record_title "CallInfo"
@@ -875,7 +891,7 @@ instance (Pretty.Pretty (Elem d)) => Pretty.Pretty (CallInfo d) where
 
 -- | Transformer calls don't necessarily apply to any particular event, and
 -- neither to generators for that matter.
-dummy_call_info :: ScoreTime -> ScoreTime -> String -> CallInfo derived
+dummy_call_info :: ScoreTime -> ScoreTime -> String -> CallInfo a
 dummy_call_info start dur text = CallInfo
     { info_expr = TrackLang.Call (TrackLang.Symbol "") [] :| []
     , info_prev_val = Nothing
@@ -949,13 +965,13 @@ data GeneratorCall d = GeneratorCall
     { generator_func :: GeneratorFunc d
     , generator_doc :: CallDoc
     }
-type GeneratorFunc d = PassedArgs d -> LogsDeriver d
+type GeneratorFunc d = PassedArgs (Elem d) -> LogsDeriver d
 
 -- | Create a generator that expects a list of derived values (e.g. Score.Event
 -- or Signal.Control), with no logs mixed in.  The result is wrapped in
 -- LEvent.Event.
 generator :: (Derived d) => Text -> Tags.Tags -> Text
-    -> WithArgDoc (PassedArgs d -> Deriver (LEvent.Stream d)) -> Call d
+    -> WithArgDoc (PassedArgs (Elem d) -> Deriver (LEvent.Stream d)) -> Call d
 generator name tags doc (func, arg_docs) =
     stream_generator name tags doc ((map LEvent.Event <$>) . func, arg_docs)
 
@@ -963,7 +979,7 @@ generator name tags doc (func, arg_docs) =
 -- signal generator to return a Stream of events.  So wrap the generator result
 -- in a Stream singleton.
 generator1 :: (Derived d) => Text -> Tags.Tags -> Text
-    -> WithArgDoc (PassedArgs d -> Deriver d) -> Call d
+    -> WithArgDoc (PassedArgs (Elem d) -> Deriver d) -> Call d
 generator1 name tags doc (func, arg_docs) =
     generator name tags doc ((LEvent.one <$>) . func, arg_docs)
 
@@ -971,7 +987,7 @@ generator1 name tags doc (func, arg_docs) =
 -- have logs mixed in.  Useful if the generator calls a sub-deriver which will
 -- already have merged the logs into the output.
 stream_generator :: (Derived d) => Text -> Tags.Tags -> Text
-    -> WithArgDoc (PassedArgs d -> LogsDeriver d) -> Call d
+    -> WithArgDoc (PassedArgs (Elem d) -> LogsDeriver d) -> Call d
 stream_generator name tags doc with_docs = Call
     { call_name = name
     , call_generator = Just $ generator_call tags doc with_docs
@@ -990,10 +1006,11 @@ data TransformerCall d = TransformerCall
     { transformer_func :: TransformerFunc d
     , transformer_doc :: CallDoc
     }
-type TransformerFunc d = PassedArgs d -> LogsDeriver d -> LogsDeriver d
+type TransformerFunc d = PassedArgs (Elem d) -> LogsDeriver d -> LogsDeriver d
 
 transformer :: (Derived d) => Text -> Tags.Tags -> Text
-    -> WithArgDoc (PassedArgs d -> LogsDeriver d -> LogsDeriver d) -> Call d
+    -> WithArgDoc (PassedArgs (Elem d) -> LogsDeriver d -> LogsDeriver d)
+    -> Call d
 transformer name tags doc with_docs = Call
     { call_name = name
     , call_generator = Nothing
@@ -1009,7 +1026,7 @@ transformer_call tags doc (func, arg_docs) =
 
 data ValCall = ValCall {
     vcall_name :: !Text
-    , vcall_call :: PassedArgs () -> Deriver TrackLang.Val
+    , vcall_call :: PassedArgs Tagged -> Deriver TrackLang.Val
     , vcall_doc :: !CallDoc
     }
 
@@ -1017,7 +1034,7 @@ instance Show ValCall where
     show (ValCall name _ _) = "((ValCall " ++ show name ++ "))"
 
 val_call :: Text -> Tags.Tags -> Text
-    -> WithArgDoc (PassedArgs () -> Deriver TrackLang.Val) -> ValCall
+    -> WithArgDoc (PassedArgs Tagged -> Deriver TrackLang.Val) -> ValCall
 val_call name tags doc (call, arg_docs) = ValCall
     { vcall_name = name
     , vcall_call = call

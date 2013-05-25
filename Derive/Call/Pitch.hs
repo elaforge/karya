@@ -119,8 +119,7 @@ type Transpose = Either PitchSignal.Pitch Pitch.Transpose
 
 -- | Linear interpolation, with different start times.
 linear_interpolation :: (TrackLang.Typecheck time) => Text -> time -> Text
-    -> (Derive.PassedArgs PitchSignal.Signal -> time
-        -> Derive.Deriver TrackLang.RealOrScore)
+    -> (Derive.PitchArgs -> time -> Derive.Deriver TrackLang.RealOrScore)
     -> Derive.PitchCall
 linear_interpolation name time_default time_default_doc get_time =
     Derive.generator1 name Tags.prev doc $ Sig.call
@@ -158,8 +157,7 @@ c_linear_next_const =
 -- | Exponential interpolation, with different start times.
 exponential_interpolation :: (TrackLang.Typecheck time) =>
     Text -> time -> Text
-    -> (Derive.PassedArgs PitchSignal.Signal -> time
-        -> Derive.Deriver TrackLang.RealOrScore)
+    -> (Derive.PitchArgs -> time -> Derive.Deriver TrackLang.RealOrScore)
     -> Derive.PitchCall
 exponential_interpolation name time_default time_default_doc get_time =
     Derive.generator1 name Tags.prev doc $ Sig.call ((,,)
@@ -219,7 +217,7 @@ c_approach = Derive.generator1 "approach" Tags.next
         (start, end) <- Util.duration_from_start args time
         approach args start end
 
-approach :: Derive.PassedArgs PitchSignal.Signal -> RealTime -> RealTime
+approach :: Derive.PitchArgs -> RealTime -> RealTime
     -> Derive.Deriver PitchSignal.Signal
 approach args start end = do
     maybe_next <- next_pitch args
@@ -246,7 +244,7 @@ c_down = Derive.generator1 "down" Tags.prev
     "Descend at the given speed until the next event." $ slope "Descend" (-1)
 
 slope :: Text -> Double -> Derive.WithArgDoc
-    (Derive.PassedArgs PitchSignal.Signal -> Derive.Deriver PitchSignal.Signal)
+    (Derive.PitchArgs -> Derive.Deriver PitchSignal.Signal)
 slope word sign =
     Sig.call (defaulted "speed" (Pitch.Chromatic 1)
         (word <> " this many steps per second.")) $
@@ -312,7 +310,7 @@ type Interpolator = Bool -- ^ include the initial sample or not
 
 -- | Create an interpolating call, from a certain duration (positive or
 -- negative) from the event start to the event start.
-interpolate :: (Double -> Double) -> Derive.PassedArgs PitchSignal.Signal
+interpolate :: (Double -> Double) -> Derive.PitchArgs
     -> Transpose -> TrackLang.RealOrScore
     -> Derive.Deriver PitchSignal.Signal
 interpolate f args pitch_transpose dur = do

@@ -101,6 +101,9 @@ import qualified Perform.Signal as Signal
 import Types
 
 
+type CallInfo d = Derive.CallInfo (Derive.Elem d)
+type PassedArgs d = Derive.PassedArgs (Derive.Elem d)
+
 -- * eval
 
 -- | Evaluate a single note as a generator.  Fake up an event with no prev or
@@ -132,26 +135,29 @@ eval_event event = case ParseBs.parse_expr (Event.event_bytestring event) of
         eval_one_at (Event.start event) (Event.duration event) expr
 
 -- | Apply an expr with the current call info.
-reapply :: (Derive.Derived d) => Derive.PassedArgs d -> TrackLang.Expr
+reapply :: (Derive.Derived d) => PassedArgs d -> TrackLang.Expr
     -> Derive.LogsDeriver d
 reapply args = eval_expr (Derive.passed_info args)
 
 -- | Like 'reapply', but parse the string first.
-reapply_string :: (Derive.Derived d) => Derive.PassedArgs d -> Text
+reapply_string :: (Derive.Derived d) => PassedArgs d -> Text
     -> Derive.LogsDeriver d
 reapply_string args s = case ParseBs.parse_expr (ParseBs.from_text s) of
     Left err -> Derive.throw $ "parse error: " ++ err
     Right expr -> reapply args expr
 
-reapply_call :: (Derive.Derived d) => Derive.PassedArgs d -> TrackLang.Call
+reapply_call :: (Derive.Derived d) => PassedArgs d -> TrackLang.Call
     -> Derive.LogsDeriver d
 reapply_call args call = reapply args (call :| [])
 
 -- | A version of 'eval' specialized to evaluate pitch calls.
 eval_pitch :: ScoreTime -> TrackLang.Note -> Derive.Deriver PitchSignal.Pitch
-eval_pitch pos note = Sig.cast ("eval note " ++ show note)
-    =<< eval (Derive.dummy_call_info pos 0 "<eval_pitch>")
-        (TrackLang.note_call note)
+eval_pitch pos note =
+    Sig.cast ("eval note " ++ show note)
+        =<< eval cinfo (TrackLang.note_call note)
+    where
+    cinfo :: Derive.CallInfo PitchSignal.Pitch
+    cinfo = Derive.dummy_call_info pos 0 "<eval_pitch>"
     -- Note calls shouldn't care about their pos.
 
 -- | This is like 'eval_pitch' when you already know the call, presumably
@@ -161,7 +167,7 @@ apply_pitch pos call = apply cinfo call []
     where cinfo = Derive.dummy_call_info pos 0 "<apply_pitch>"
 
 -- | Evaluate a single expression.
-eval_expr :: (Derive.Derived d) => Derive.CallInfo d -> TrackLang.Expr
+eval_expr :: (Derive.Derived d) => CallInfo d -> TrackLang.Expr
     -> Derive.LogsDeriver d
 eval_expr cinfo expr = do
     state <- Derive.get
@@ -303,8 +309,8 @@ repeat_call_of prev cur
     | otherwise = prev
 
 -- | Apply a toplevel expression.
-apply_toplevel :: (Derive.Derived d) => Derive.State -> Derive.CallInfo d
-    -> TrackLang.Expr
+apply_toplevel :: (Derive.Derived d) => Derive.State
+    -> CallInfo d -> TrackLang.Expr
     -> (Either Derive.Error (LEvent.LEvents d), [Log.Msg], Derive.Collect)
 apply_toplevel state cinfo expr =
     run $ apply_transformer cinfo transform_calls $
@@ -314,7 +320,7 @@ apply_toplevel state cinfo expr =
     run d = case Derive.run state d of
         (result, state, logs) -> (result, logs, Derive.state_collect state)
 
-apply_generator :: forall d. (Derive.Derived d) => Derive.CallInfo d
+apply_generator :: forall d. (Derive.Derived d) => CallInfo d
     -> TrackLang.Call -> Derive.LogsDeriver d
 apply_generator cinfo (TrackLang.Call call_id args) = do
     maybe_call <- Derive.lookup_callable call_id
@@ -330,7 +336,7 @@ apply_generator cinfo (TrackLang.Call call_id args) = do
             -- lookup says it's a failed val lookup.
             vcall <- require_call call_id name
                 =<< Derive.lookup_val_call call_id
-            val <- apply (strip_call_info cinfo) vcall args
+            val <- apply (tag_call_info cinfo) vcall args
             -- We only do this fallback thing once.
             call <- get_call fallback_call_id
             return (call, [val])
@@ -345,7 +351,7 @@ apply_generator cinfo (TrackLang.Call call_id args) = do
     name = Derive.callable_name
         (error "Derive.callable_name shouldn't evaluate its argument." :: d)
 
-apply_transformer :: (Derive.Derived d) => Derive.CallInfo d
+apply_transformer :: (Derive.Derived d) => CallInfo d
     -> [TrackLang.Call] -> Derive.LogsDeriver d
     -> Derive.LogsDeriver d
 apply_transformer _ [] deriver = deriver
@@ -360,13 +366,14 @@ apply_transformer cinfo (TrackLang.Call call_id args : calls) deriver = do
         Nothing -> Derive.throw $ "non-transformer in transformer position: "
             ++ untxt (Derive.call_name call)
 
-eval :: Derive.CallInfo d -> TrackLang.Term -> Derive.Deriver TrackLang.Val
+eval :: (Derive.ToTagged a) => Derive.CallInfo a -> TrackLang.Term
+    -> Derive.Deriver TrackLang.Val
 eval _ (TrackLang.Literal val) = return val
 eval cinfo (TrackLang.ValCall (TrackLang.Call call_id terms)) = do
     call <- get_val_call call_id
-    apply (strip_call_info cinfo) call terms
+    apply (tag_call_info cinfo) call terms
 
-apply :: Derive.CallInfo () -> Derive.ValCall
+apply :: Derive.CallInfo Derive.Tagged -> Derive.ValCall
     -> [TrackLang.Term] -> Derive.Deriver TrackLang.Val
 apply cinfo call args = do
     vals <- mapM (eval cinfo) args
@@ -374,11 +381,15 @@ apply cinfo call args = do
     Derive.with_msg ("val call " <> Derive.vcall_name call) $
         Derive.vcall_call call passed
 
--- | Strip off the polymorphic part of the CallInfo so it can be given to
+-- | Tag the polymorphic part of the CallInfo so it can be given to
 -- a 'Derive.ValCall'.  Otherwise, ValCall would have to be polymorphic too,
 -- which means it would hard to write generic ones.
-strip_call_info :: Derive.CallInfo d -> Derive.CallInfo ()
-strip_call_info cinfo = cinfo { Derive.info_prev_val = Nothing }
+tag_call_info :: (Derive.ToTagged a) => Derive.CallInfo a
+    -> Derive.CallInfo Derive.Tagged
+tag_call_info cinfo = cinfo
+    { Derive.info_prev_val =
+        second Derive.to_tagged <$> Derive.info_prev_val cinfo
+    }
 
 event_start :: Derive.CallInfo d -> ScoreTime
 event_start = Event.start . Derive.info_event

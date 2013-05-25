@@ -11,11 +11,13 @@ import Util.Control
 import qualified Util.Num as Num
 import qualified Util.Pretty as Pretty
 
+import qualified Derive.Args as Args
 import qualified Derive.Call.Pitch as Call.Pitch
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Derive as Derive
 import qualified Derive.Deriver.Internal as Internal
 import qualified Derive.Environ as Environ
+import qualified Derive.ParseBs as ParseBs
 import qualified Derive.PitchSignal as PitchSignal
 import qualified Derive.Scale as Scale
 import qualified Derive.Scale.Theory as Theory
@@ -125,10 +127,12 @@ valid_pitch pitch = Theory.note_accidentals note == 0
 -- | TODO Modulating from one just scale to another is awkward:
 --
 -- Set to 440.  Then if I modulate to C, set to
--- @key = 'c'@, @base = * 5:4 (hz (4c))@
+-- @key = c | just-base = * 5:4 (hz (4c))@
 note_to_call :: Ratios -> Pitch.Note -> Maybe Derive.ValCall
 note_to_call ratios note = case read_pitch note of
-    Left _ -> Nothing
+    Left _ -> case parse_relative_interval note of
+        Nothing -> Nothing
+        Just interval -> Just $ relative_scale_degree interval
     Right pitch -> Just $
         scale_degree (pitch_nn pitch) (pitch_note pitch)
     where
@@ -154,14 +158,14 @@ note_to_call ratios note = case read_pitch note of
         chromatic = Map.findWithDefault 0 Score.c_chromatic controls
         diatonic = Map.findWithDefault 0 Score.c_diatonic controls
 
+just_base_control :: Score.Control
+just_base_control = Score.Control "just-base"
+
 scale_degree :: Scale.PitchNn -> Scale.PitchNote -> Derive.ValCall
 scale_degree pitch_nn pitch_note = Derive.val_call "pitch" Tags.scale
-    "Emit the pitch of a scale degree." $ Sig.call
-    (Sig.many "interval" $ "Multiply this interval with the note's frequency.\
-        \ Can be either a ratio or a symbol drawn from: "
-        <> Text.intercalate ", " (Map.keys named_intervals)) $
+    "Emit the pitch of a scale degree." $ Sig.call intervals_arg $
     \intervals _ -> do
-        interval <- product <$> mapM (either return resolve_interval) intervals
+        interval <- resolve_intervals intervals
         environ <- Internal.get_dynamic Derive.state_environ
         return $! TrackLang.VPitch $ PitchSignal.pitch
             (call interval environ) (pitch_note environ)
@@ -170,17 +174,56 @@ scale_degree pitch_nn pitch_note = Derive.val_call "pitch" Tags.scale
         Pitch.modify_hz ((+ Call.Pitch.get_hz controls) . (*interval)) <$>
             pitch_nn environ controls
 
-resolve_interval :: Text -> Derive.Deriver Double
-resolve_interval text = case Text.uncons text of
-    Just ('-', text) -> negate <$> resolve text
-    _ -> resolve text
-    where
-    resolve text = case Map.lookup text named_intervals of
-        Nothing -> Derive.throw $ "named interval unknown: " <> show text
-        Just ratio -> return $ realToFrac ratio
+intervals_arg :: Sig.Parser [Either Pitch.Hz Text]
+intervals_arg = Sig.many "interval" $
+    "Multiply this interval with the note's frequency. Negative numbers\
+    \ divide, so while `3/2` goes up a fifth, `-3/2` goes down a fifth.\
+    \ Can be either a ratio or a symbol drawn from: "
+    <> Text.intercalate ", " (Map.keys named_intervals)
 
-just_base_control :: Score.Control
-just_base_control = Score.Control "just-base"
+resolve_intervals :: [Either Pitch.Hz Text] -> Derive.Deriver Pitch.Hz
+resolve_intervals intervals =
+    product . map unsign <$> mapM (either return resolve) intervals
+    where
+    resolve text = Derive.require ("unknown named interval: " <> show text) $
+        resolve_interval text
+    unsign val = if val < 0 then recip (abs val) else val
+
+resolve_interval :: Text -> Maybe Pitch.Hz
+resolve_interval text = case Text.uncons text of
+    Just ('-', text) -> negate <$> lookup text
+    _ -> lookup text
+    where lookup text = realToFrac <$> Map.lookup text named_intervals
+
+-- ** relative interval
+
+parse_relative_interval :: Pitch.Note -> Maybe Pitch.Hz
+parse_relative_interval note =
+    unsign <$> (resolve_interval (Pitch.note_text note) `mplus` parse_num)
+    where
+    parse_num = case ParseBs.parse_val (Pitch.note_text note) of
+        Right (TrackLang.VNum (Score.Typed Score.Untyped num)) -> Just num
+        _ -> Nothing
+    unsign val = if val < 0 then recip (abs val) else val
+
+relative_scale_degree :: Pitch.Hz -> Derive.ValCall
+relative_scale_degree initial_interval =
+    Derive.val_call "pitch" Tags.scale "doc doc" $ Sig.call intervals_arg $
+    \intervals args -> do
+        interval <- (initial_interval*) <$> resolve_intervals intervals
+        case Args.prev_val args of
+            Just (_, Derive.TagPitch prev) ->
+                return $ TrackLang.VPitch (modify interval prev)
+            _ -> Derive.throw "relative interval requires a previous pitch"
+    where
+    modify interval pitch =
+        PitchSignal.pitch (pitch_nn interval pitch)
+            (PitchSignal.eval_note pitch)
+    pitch_nn interval pitch controls = do
+        nn <- PitchSignal.eval_pitch pitch controls
+        return $ Pitch.modify_hz (*interval) nn
+
+-- ** implementation
 
 transpose_to_hz :: Ratios -> Maybe Pitch.Hz -> Key -> Double
     -> Theory.Pitch -> Pitch.Hz
@@ -265,7 +308,7 @@ named_intervals = Map.fromList
     , ("P4", 4 % 3) -- 498, perfect fourth
     , ("tt11", 11 % 8) -- 551, undecimal tritone
     , ("tt7-", 7 % 5) -- 583, septimal tritone
-    , ("tt", 64 % 65) -- 610, low 5-limit tritone
+    , ("tt", 45 % 32) -- 590, high 5-limit tritone
     , ("tt7+", 10 % 7) -- 618, septimal tritone
     , ("wolf", 40 % 27) -- 681, wolf 5-limit 5th
     , ("P5", 3 % 2) -- 702, perfect fifth

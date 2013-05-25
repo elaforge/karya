@@ -80,8 +80,6 @@ sysex messages to add to the database.
 developed one, but there is also some ability to export to lilypond.
 Lilypond export is necessarily limited because it's hard to translate between
 different kinds of scores, but with a bit of work you can get usable output.
-There are also csound and OSC backends, but they're mostly just proof of
-concept and I don't expect to use them much.
 
 - Incremental saving.  The score is continually saved as changes are made.  You
 can undo and make different changes, resulting in a branching history.  If
@@ -138,6 +136,7 @@ generate the high resolution output.  VST's "automation parameters" are
 basically higher resolution MIDI controls, so some of this could probably be
 ameliorated by extending a VST host to turn high resolution OSC into VST
 automation.  Ardour is the only open source DAW so it's the only option here.
+Someday I would like to write my own synthesizer that responds to OSC.
 
 - The score format is not as efficient at displaying vertical structure (chords
 and harmony) as 5-line staff notation.  This is the price of generality, since
@@ -157,8 +156,8 @@ flexibility, but they tend to be oriented around an academic style of music,
 which eschews such conservative trappings as melodies, themes, harmony, and the
 like.  Perhaps this self-supporting: it's hard to write a melody in text, and
 if you do, it's even harder to write an expressive dynamic curve by typing in
-envelope breakpoints, and once you do a compile debug cycle means you won't get
-to hear it very soon.  This makes it much easier to write generative,
+envelope breakpoints, and being limited to a compile debug cycle means you
+won't get to hear it very soon.  This makes it much easier to write generative,
 algorithmic, or abstract sound-scapey stuff.  So they attract people who are
 interested in that sort of thing, who further develop the field in the
 direction of fractal note generators and markov sequences.  No one minds how

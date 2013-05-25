@@ -41,20 +41,24 @@ test_timestep = do
 test_prev_next_val = do
     let runc control = DeriveTest.extract (DeriveTest.e_control "c") $
             DeriveTest.derive_tracks [(">", [(0, 10, "")]), ("c", control)]
-    equal (runc [(0, 0, ".5"), (1, 0, "set (<)")])
-        ([[(0, 0.5), (1, 0.5)]], [])
-    equal (runc [(0, 0, "set (>)"), (1, 0, ".75")])
-        ([[(0, 0.75), (1, 0.75)]], [])
-
     let runp notes pitch = DeriveTest.extract DeriveTest.e_note $
             DeriveTest.derive_tracks [(">", notes), ("*", pitch)]
-    -- TODO doesn't work :(
-    -- equal (runp [(0, 1, "4a"), (1, 1, "<")])
-    --     ([(0, 1, "4a"), (1, 1, "4a")], [])
 
+    -- prev
+    equal (runc [(0, 0, ".5"), (1, 0, "set (<)")])
+        ([[(0, 0.5), (1, 0.5)]], [])
+    -- -- TODO doesn't work :(
+    -- equal (runp [(0, 1, ""), (1, 1, "")] [(0, 0, "4a"), (1, 0, "<")])
+    --     ([(0, 1, "4a"), (1, 1, "4a")], [])
     -- Within a note works though.
     equal (runp [(0, 2, "")] [(0, 0, "4a"), (1, 0, "<")])
         ([(0, 2, "4a")], [])
+    equal (runp [(0, 3, "")] [(0, 0, "4a"), (1, 0, "<"), (2, 0, "<")])
+        ([(0, 3, "4a")], [])
+
+    -- next
+    equal (runc [(0, 0, "set (>)"), (1, 0, ".75")])
+        ([[(0, 0.75), (1, 0.75)]], [])
     -- Next also works, because the next event is always included.
     equal (runp [(0, 1, ""), (1, 1, "")] [(0, 0, ">"), (1, 0, "4a")])
         ([(0, 1, "4a"), (1, 1, "4a")], [])

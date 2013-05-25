@@ -27,6 +27,18 @@ test_note_to_call = do
     equalf 0.001 (run ["4a"]) ([Just 440], [])
     equalf 0.001 (run ["4a 3/2"]) ([Just 660], [])
     equalf 0.001 (run ["4a P5"]) ([Just 660], [])
+    equalf 0.001 (run ["5e"]) ([Just 660], [])
+    equalf 0.001 (run ["5e -3/2"]) ([Just 440], [])
+    equalf 0.001 (run ["4a 3/2 -3/2"]) ([Just 440], [])
+
+    -- relative pitch
+    equalf 0.001 (run ["4a", "3/2"]) ([Just 440, Just 660], [])
+    equalf 0.001 (run ["4a", "3/2 3/2"]) ([Just 440, Just 990], [])
+    equalf 0.001 (run ["5e", "-3/2"]) ([Just 660, Just 440], [])
+    equalf 0.001 (run ["5e", "-P5"]) ([Just 660, Just 440], [])
+    equalf 0.001 (run ["4a", "3/2", "3/2"]) ([Just 440, Just 660, Just 990], [])
+    equalf 0.001 (run ["4a", "P5", "-P5"]) ([Just 440, Just 660, Just 440], [])
+
 
 test_input_to_note = do
     let f = Just.input_to_note Nothing
