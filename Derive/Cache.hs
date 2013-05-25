@@ -1,6 +1,6 @@
 {-# LANGUAGE CPP #-}
 module Derive.Cache (
-    cache_block, cache_track
+    block, track
     , get_control_damage, get_tempo_damage
     , is_cache_log
 
@@ -33,7 +33,7 @@ import qualified Derive.Stack as Stack
 import Types
 
 
--- * cache_block
+-- * block
 
 -- | Unfortunately caching is not entirely general, and cache invalidation
 -- works a bit differently for blocks and tracks.
@@ -50,14 +50,14 @@ data Type = Block
 -- I can reuse the cached values for it.  This is effectively a kind of
 -- memoization.  If the generator is called, the results will be put in the
 -- cache before being returned.
-cache_block :: (Derive.PassedArgs d -> Derive.EventDeriver)
+block :: (Derive.PassedArgs d -> Derive.EventDeriver)
     -> (Derive.PassedArgs d -> Derive.EventDeriver)
-cache_block call args = caching_deriver Block range (call args)
+block call args = caching_deriver Block range (call args)
     where range = uncurry Ranges.range (Args.range_on_track args)
 
-cache_track :: (Derive.Derived d) => Set.Set TrackId
+track :: (Derive.Derived d) => Set.Set TrackId
     -> Derive.LogsDeriver d -> Derive.LogsDeriver d
-cache_track children = caching_deriver (Track children) Ranges.everything
+track children = caching_deriver (Track children) Ranges.everything
 
 caching_deriver :: (Derive.Derived d) => Type -> Ranges.Ranges ScoreTime
     -> Derive.LogsDeriver d -> Derive.LogsDeriver d

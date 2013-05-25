@@ -75,9 +75,9 @@ c_block block_id = Derive.stream_generator ("block " <> showt block_id)
         Tags.prelude "Substitute the named block into the score." $
     Sig.call0 $ Note.inverting $ \args ->
         -- I have to put the block on the stack before calling 'd_block'
-        -- because 'Cache.cache_block' relies on on the block id already being
+        -- because 'Cache.block' relies on on the block id already being
         -- on the stack.
-        Internal.with_stack_block block_id (Cache.cache_block run args)
+        Internal.with_stack_block block_id (Cache.block run args)
     where
     run args = Derive.d_place start (end-start) (d_block block_id)
         where (start, end) = Args.range args
@@ -137,7 +137,7 @@ c_clip = Derive.stream_generator "clip" Tags.prelude
                 "block not found: " <> TrackLang.show_val sym)
             return =<< symbol_to_block_id sym
         Internal.with_stack_block block_id $
-            Cache.cache_block (clip_call block_id) args
+            Cache.block (clip_call block_id) args
     where
     clip_call block_id args = do
         sub_dur <- Derive.get_block_dur block_id

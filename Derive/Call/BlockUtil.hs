@@ -169,7 +169,7 @@ derive_track node@(Tree.Node track subs)
     cached
         | TrackTree.tevents_sliced track
             || Maybe.isNothing (TrackTree.tevents_track_id track) = id
-        | otherwise = Cache.cache_track children
+        | otherwise = Cache.track children
     children = List.foldl' (flip Set.insert) Set.empty $
         mapMaybe TrackTree.tevents_track_id $ Tree.flatten node
 
