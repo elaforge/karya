@@ -69,7 +69,7 @@ block :: BlockId -> Stack
 block = from_innermost . (:[]) . Block
 
 -- | Make a Stack with a single call.
-call :: String -> Stack
+call :: Text -> Stack
 call = from_innermost . (:[]) . Call
 
 add :: Frame -> Stack -> Stack
@@ -96,7 +96,7 @@ region_of :: Frame -> Maybe (TrackTime, TrackTime)
 region_of (Region s e) = Just (s, e)
 region_of _ = Nothing
 
-call_of :: Frame -> Maybe String
+call_of :: Frame -> Maybe Text
 call_of (Call s) = Just s
 call_of _ = Nothing
 
@@ -104,7 +104,7 @@ data Frame =
     Block !BlockId
     | Track !TrackId
     | Region !TrackTime !TrackTime
-    | Call !String
+    | Call !Text
     deriving (Eq, Ord, Read, Show)
 
 instance DeepSeq.NFData Frame where
@@ -117,14 +117,14 @@ instance Pretty.Pretty Frame where
     pretty (Block bid) = show bid
     pretty (Track tid) = show tid
     pretty (Region s e) = Pretty.pretty s ++ "--" ++ Pretty.pretty e
-    pretty (Call call) = call
+    pretty (Call call) = untxt call
 
 instance Serialize.Serialize Frame where
     put frame = case frame of
         Block bid -> Serialize.put_tag 0 >> Serialize.put bid
         Track tid -> Serialize.put_tag 1 >> Serialize.put tid
         Region s e -> Serialize.put_tag 2 >> Serialize.put s >> Serialize.put e
-        Call s -> Serialize.put_tag 3 >> Serialize.put s
+        Call s -> Serialize.put_tag 4 >> Serialize.put s
     get = do
         tag <- Serialize.get_tag
         case tag of
@@ -140,6 +140,9 @@ instance Serialize.Serialize Frame where
                 return $ Region s e
             3 -> do
                 s :: String <- Serialize.get
+                return $ Call (txt s)
+            4 -> do
+                s :: Text <- Serialize.get
                 return $ Call s
             _ -> Serialize.bad_tag "Stack.Frame" tag
 

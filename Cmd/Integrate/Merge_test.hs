@@ -146,7 +146,7 @@ mktracks = map $ \(note, controls) -> (convert note, map convert controls)
     convert (title, events) = Convert.Track (txt title)
         (map (add_stack title) $ map UiTest.make_event events)
     add_stack title event = Event.set_stack
-        (Event.Stack (Stack.call title) (Event.start event)) event
+        (Event.Stack (Stack.call (txt title)) (Event.start event)) event
 
 mkindex :: [Event] -> Block.EventIndex
 mkindex = Merge.make_index . map mkevent
@@ -161,7 +161,7 @@ mkevent (start, dur, text, mb_stack) = add_stack (Event.event start dur text)
     add_stack = case mb_stack of
         Nothing -> id
         Just pos ->
-            Event.set_stack (Event.Stack (Stack.call (show pos)) pos)
+            Event.set_stack (Event.Stack (Stack.call (showt pos)) pos)
 
 extract_event :: Event.Event -> Event
 extract_event event =

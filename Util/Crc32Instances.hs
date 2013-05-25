@@ -4,6 +4,7 @@ import qualified Data.ByteString.Unsafe as ByteString.Unsafe
 import Data.Digest.CRC32
 import qualified Data.Int as Int
 import qualified Data.List as List
+import qualified Data.Text as Text
 import qualified Data.Word as Word
 
 import qualified Foreign
@@ -26,6 +27,8 @@ instance CRC32 Int.Int32 where crc32Update = crcStorable
 instance CRC32 Int.Int64 where crc32Update = crcStorable
 instance CRC32 Double where crc32Update = crcStorable
 instance CRC32 Float where crc32Update = crcStorable
+
+instance CRC32 Text.Text where crc32Update = Text.foldl' crc32Update
 
 crcStorable :: forall a. (Foreign.Storable a) => Word.Word32 -> a -> Word.Word32
 crcStorable n d = Unsafe.unsafePerformIO $ Foreign.alloca $

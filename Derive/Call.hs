@@ -342,7 +342,7 @@ apply_generator cinfo (TrackLang.Call call_id args) = do
             return (call, [val])
 
     let args = Derive.PassedArgs vals (Derive.call_name call) cinfo
-        with_stack = Internal.with_stack_call (untxt (Derive.call_name call))
+        with_stack = Internal.with_stack_call (Derive.call_name call)
     with_stack $ case Derive.call_generator call of
         Just gen -> Derive.generator_func gen args
         Nothing -> Derive.throw $ "non-generator in generator position: "
@@ -359,7 +359,7 @@ apply_transformer cinfo (TrackLang.Call call_id args : calls) deriver = do
     vals <- mapM (eval cinfo) args
     call <- get_call call_id
     let args = Derive.PassedArgs vals (Derive.call_name call) cinfo
-        with_stack = Internal.with_stack_call (untxt (Derive.call_name call))
+        with_stack = Internal.with_stack_call (Derive.call_name call)
     with_stack $ case Derive.call_transformer call of
         Just trans -> Derive.transformer_func trans args $
             apply_transformer cinfo calls deriver

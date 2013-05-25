@@ -95,7 +95,7 @@ UNSORTED
   - shakefile should use typesafe oracle calls, is there newtype based
     oracle utils yet?
   convert to Text:
-    - Internal.with_stack_call
+    * Internal.with_stack_call
     * Derive.BaseTypes.Instrument
     * Derive.BaseTypes.Attribute
     * Cmd.Info.inst_info

@@ -190,7 +190,7 @@ with_stack_track = with_stack . Stack.Track
 with_stack_region :: ScoreTime -> ScoreTime -> Deriver a -> Deriver a
 with_stack_region s e = with_stack (Stack.Region s e)
 
-with_stack_call :: String -> Deriver a -> Deriver a
+with_stack_call :: Text -> Deriver a -> Deriver a
 with_stack_call name = with_stack (Stack.Call name)
 
 with_stack :: Stack.Frame -> Deriver a -> Deriver a

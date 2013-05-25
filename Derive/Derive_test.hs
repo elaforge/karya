@@ -71,7 +71,7 @@ test_basic = do
         , Stack.Call "note-track" -- inverted note track is >
         , Stack.Region s e, Stack.Call "note"
         ]
-    block_call bid = Stack.Call $ "block " ++ show bid
+    block_call bid = Stack.Call $ "block " <> showt bid
     extract_perf_event (Perform.Event inst start dur _controls _pitch stack) =
         (Instrument.inst_name inst,
             RealTime.to_seconds start, RealTime.to_seconds dur, stack)
@@ -120,7 +120,7 @@ test_stack = do
             , ("sub", [(">", [(0, 1, ""), (1, 1, "")])])
             ]
     let block = Stack.Block . UiTest.bid
-        block_call bid = Stack.Call $ "block " ++ show (UiTest.bid bid)
+        block_call bid = Stack.Call $ "block " <> showt (UiTest.bid bid)
         track name num = Stack.Track (UiTest.mk_tid_name name num)
         call = Stack.Call
     equal (map (map Stack.unparse_ui_frame . Stack.to_ui) stacks)

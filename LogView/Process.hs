@@ -303,7 +303,7 @@ emit_stack :: Stack.Stack -> Formatter
 emit_stack stack = do
     with_style style_clickable $ Seq.join "/" (map fmt (Stack.to_ui stack))
     when_just (last_call stack) $ \call ->
-        with_plain $ ' ' : call ++ ": "
+        with_plain $ ' ' : untxt call ++ ": "
     where
     fmt frame = "{s " ++ show (Stack.unparse_ui_frame frame) ++ "}"
     last_call = Seq.head . mapMaybe Stack.call_of . Stack.innermost
