@@ -12,20 +12,14 @@ import qualified Control.Exception as Exception
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 import qualified Network
-import qualified System.Directory as Directory
 import qualified System.Environment
-import qualified System.FilePath as FilePath
-import System.FilePath ((</>))
 import qualified System.IO as IO
-import qualified System.Posix as Posix
-import qualified System.Process as Process
 #ifdef USE_EKG
 import qualified Data.ByteString.Char8 as ByteString
 import qualified System.Remote.Monitoring
 #endif
 
 import Util.Control
-import qualified Util.File as File
 import qualified Util.Log as Log
 import qualified Util.Map as Map
 import qualified Util.Pretty as Pretty
@@ -56,6 +50,7 @@ import qualified Derive.Scale.All as Scale.All
 import qualified Derive.Scale.Symbols as Scale.Symbols
 
 import qualified Instrument.Db as Db
+import qualified LogView.Tail as Tail
 
 import qualified App.Config as Config
 import qualified App.LoadConfig as LoadConfig
@@ -71,7 +66,8 @@ import Cmd.Repl.Environ ()
 
 initialize :: (Network.Socket -> Interface.Interface -> IO ()) -> IO ()
 initialize app = do
-    log_hdl <- rotate_logs
+    log_fn <- Tail.log_filename
+    log_hdl <- Tail.rotate_logs 4 (4 * 1024^2) log_fn
     Log.configure $ const $
         Log.State (Just log_hdl) Log.Debug Log.serialize_msg
     MidiDriver.initialize "seq" want_message $ \interface -> case interface of
@@ -84,26 +80,6 @@ initialize app = do
     where
     want_message (Midi.RealtimeMessage Midi.ActiveSense) = False
     want_message _ = True
-
-rotate_logs :: IO IO.Handle
-rotate_logs = do
-    log_dir <- flip Config.make_path Config.log_dir <$> Config.get_app_dir
-    let log_fn = log_dir </> "seq.log"
-        rotated_fn n = log_dir </> "seq." ++ show n ++ ".gz"
-    size <- maybe 0 Posix.fileSize <$> ignore (Posix.getFileStatus log_fn)
-    when (size >= max_size) $ do
-        forM_ (reverse (zip [1..keep] (drop 1 [1..keep]))) $ \(from, to) ->
-            ignore $ Directory.renameFile (rotated_fn from) (rotated_fn to)
-        let fn = FilePath.dropExtension (rotated_fn 1)
-        ignore $ Directory.renameFile log_fn fn
-        Process.waitForProcess =<< Process.runProcess "gzip" [fn]
-            Nothing Nothing Nothing Nothing Nothing
-        return ()
-    IO.openFile log_fn IO.AppendMode
-    where
-    max_size = 4 * 1024 * 1024
-    keep = 4
-    ignore = File.ignore_enoent
 
 main :: IO ()
 main = initialize $ \repl_socket midi_interface -> do

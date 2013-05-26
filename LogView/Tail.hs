@@ -1,8 +1,19 @@
-module LogView.Tail (Handle, log_filename, open, tail) where
+-- | Functions to tail a log file, even if it gets rotated.
+module LogView.Tail (
+    log_filename
+    -- * rotate
+    , rotate_logs
+    -- * tail
+    , Handle, open, tail
+) where
 import Prelude hiding (read, tail)
+import qualified System.Directory as Directory
+import qualified System.FilePath as FilePath
 import System.FilePath ((</>))
 import qualified System.IO as IO
+import qualified System.Posix as Posix
 import qualified System.Posix.Files as Posix.Files
+import qualified System.Process as Process
 
 import Util.Control
 import qualified Util.File as File
@@ -12,14 +23,37 @@ import qualified Util.Thread as Thread
 import qualified App.Config as Config
 
 
-data Handle = Handle !FilePath !IO.Handle !Integer deriving (Show)
-
 log_filename :: IO FilePath
 log_filename = Config.get_app_dir >>= \app_dir -> return $
     Config.make_path app_dir Config.log_dir </> "seq.log"
 
+-- * rotate
+
+rotate_logs :: Int -> Int -> FilePath -> IO IO.Handle
+rotate_logs keep max_size log_fn = do
+    let rotated_fn n = log_fn ++ "." ++ show n ++ ".gz"
+    size <- maybe 0 Posix.fileSize <$> ignore (Posix.getFileStatus log_fn)
+    when (size >= fromIntegral max_size) $ do
+        forM_ (reverse (zip [1..keep] (drop 1 [1..keep]))) $ \(from, to) ->
+            ignore $ Directory.renameFile (rotated_fn from) (rotated_fn to)
+        let fn = FilePath.dropExtension (rotated_fn 1)
+        ignore $ Directory.renameFile log_fn fn
+        Process.waitForProcess =<< Process.runProcess "gzip" [fn]
+            Nothing Nothing Nothing Nothing Nothing
+        return ()
+    IO.openFile log_fn IO.AppendMode
+    where
+    ignore = File.ignore_enoent
+
+
+-- * tail
+
+data Handle = Handle !FilePath !IO.Handle !Integer deriving (Show)
+
 open :: FilePath
-    -> Maybe Integer -- ^ no seek if Nothing, else seek n*200 bytes from end
+    -> Maybe Integer -- ^ No seek if Nothing, else seek n*200 bytes from end.
+    -- TODO this should be the number of lines, but I'm too lazy to do that
+    -- right.
     -> IO Handle
 open filename seek = do
     -- ReadWriteMode makes it create the file if it doesn't exist, and not

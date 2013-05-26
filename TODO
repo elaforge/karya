@@ -3,6 +3,17 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
+  - Logview got some kind of file locked error, presumably trying to track
+    a rotated log.
+    . It happens if the write handle is still open, for some reason
+      Posix.getFileStatus then gets openFile: resource busy (file is locked)
+  - +detache+short, +detache+long is too long.  Change to +det, +det+long.
+  - I think logview is still collecting cache msgs multiple times, make sure
+    it gets reset on each rederive.
+  - It's annoying how score errors show up in the log even if you don't hit
+    play.  Only write logs on the first play.
+  - use zlib module to compress saved state
+    Codec.Compression.Gzip
   * shift-enter on an empty selection causes an unstoppable play
   * Add event with EditAppend should use the selection duration.
   * "Recent" should record EditAppends.
@@ -1083,7 +1094,7 @@ pitch / scales
 
       * Pitch call takes ratio args, multiplied by the base pitch.
       * It can also take accidentals, which add or subtract m2.
-      - A ratio without the absolute pitch is multiplied with the previous
+      * A ratio without the absolute pitch is multiplied with the previous
         pitch.
         But it's a val call, which has no access to the previous elem.
         There is prev-val, but it's a brittle hack, and won't work for
@@ -1098,6 +1109,7 @@ pitch / scales
         - Show ratio relationships between sounding pitches.
         - Optionally select one pitch as 1/1, and show the others relative to
           it.  Otherwise, they're relative to the key.
+    - meantone
     - Interpolate between two scales.  The main thing is to establish a note
       to note correspondance.
     - looks like fun: http://en.wikipedia.org/wiki/Bohlen-Pierce_scale
