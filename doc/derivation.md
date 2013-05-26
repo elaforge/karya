@@ -398,7 +398,7 @@ previous value.
 
 ### Slicing and inversion
 
-[Slicing and inversion](inverting_calls.md.html) is a score level
+[Slicing and inversion](slicing-inverting.md.html) is a score level
 transformation that happens at when a track is derived.
 
 ### Note Transformers

@@ -1,6 +1,6 @@
 ## Inverting calls
 
-Slicing and inversion are a confusing and error-prone features that are
+Slicing and inversion are confusing and error-prone features that are
 unfortunately very useful and therefore ubiquitous.
 
 ### Overview

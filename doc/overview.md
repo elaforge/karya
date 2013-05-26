@@ -1,25 +1,32 @@
-Karya is a music sequencer, but as far as I know it's different from any other
-sequencer.  If there are other similar programs out there I'd be interested in
-hearing about them!
+<img align=left width=180 src="../../doc/img/karya.png"> Karya is a music
+sequencer.  It's purely a sequencer, so it doesn't deal with actual audio at
+all.  It doesn't record audio, host VSTs, or produce any kind of sound.  It
+produces MIDI (there is also a Lilypond backend) and relies on external
+synthesizers to turn that into sound.  There is some limited integration with
+DAWs so you can combine recorded audio and written score, but Karya is
+oriented around score writing, not audio.
 
-Karya is purely a sequencer, so it doesn't deal with actual audio at all.  It
-doesn't record audio, host VSTs, or produce any kind of sound.  It produces
-MIDI (there is also a Lilypond backend) and relies on external synthesizers to
-turn that into sound.  There is some limited integration with DAWs so you can
-combine recorded audio and written score, but Karya is entirely oriented around
-score writing.
-
-It uses its own score format, which is not like staff notation, or piano roll
-notation, or anything else that I'm aware of, and is supposed to be extensible.
-It's visually similar to trackers (Renoise is a modern example), and the
-editing style may be most familiar to people accustomed to them.
+It uses its own score format.  It's visually similar to a tracker
+([Renoise](http://www.renoise.com) is a modern example), and the editing style
+may be familiar to people accustomed to them.
 
 It's main goals are to be a flexible and high level way to *hand write* scores
 (so it's not oriented around realtime use), to produce the complicated control
 signals needed for expressive music, and to support non-western (or
 non-traditional western) idioms and scales.
 
+As far as I know, there are no other sequencers with a similar feature set,
+but if there are, I'd be interested in hearing about them.  Here are some
+incomplete and biased notes on its
+[relationship with other sequencers](other-sequencers.md.html).
+
+## Music
+
+link to music page, link to scores
+
 ## Features:
+
+<img align=right width=180 src="../../doc/img/ss-vla.png">
 
 - Ornaments.  There is a library of musical ornaments, such as grace notes,
 tuplets, trills of various flavor, arpeggio, echo, delay, etc.  These are
@@ -41,11 +48,12 @@ signals.
 
 - Scales.  Scales can use custom symbols and can take arguments for per-note
 pitch variations.  Scale pitches can depend on signals (e.g. a gradually
-retuning a just scale to another key) or on other instruments (e.g. the tuning
-of one part is defined relative to another).  Enharmonics and chromatic and
-diatonic transposition are supported for scales that employ those concepts.
-You can define your own scales that involve any combination of the above
-concepts.
+retuning a scale) or on other instruments (e.g. the intonation of one part is
+defined relative to another).  For example, you can write the melody in
+mean-tone, and define the harmony in just intervals relative to the melody.
+Enharmonics and chromatic and diatonic transposition are supported for scales
+that employ those concepts.  You can define your own scales that involve any
+combination of the above concepts.
 
 - Tempo control.  You can give separate tempos to separate parts
 simultaneously, so you can express that one part is pushing or lagging the
@@ -70,7 +78,7 @@ particular transformation you can compile it into the program by pasting it
 into a file.
 
 - Instruments.  Instruments can map MIDI CC numbers to symbolic names, support
-keyswitches as named attributes, and automatically multixplex MIDI channels to
+keyswitches as named attributes, and automatically multiplex MIDI channels to
 give note-level control over pitch or control signals.  They are collected
 into a searchable database.  The database is created by either entering patch
 information by hand, or for external synthesizers that use them you can parse
@@ -79,7 +87,8 @@ sysex messages to add to the database.
 - Multiple backends.  The main backend is MIDI, and this is the most well
 developed one, but there is also some ability to export to lilypond.
 Lilypond export is necessarily limited because it's hard to translate between
-different kinds of scores, but with a bit of work you can get usable output.
+different kinds of scores, but with a bit of work you can get
+(reasonable looking output)[viola-sonata.pdf].
 
 - Incremental saving.  The score is continually saved as changes are made.  You
 can undo and make different changes, resulting in a branching history.  If
@@ -90,16 +99,17 @@ many source control concepts don't really apply.
 
 ## Weaknesses:
 
-- Complicated.  If there is a bug in an call implementation it can be a
-hassle to track it down what is going wrong and fix it.  There are a lot of
-tools for inspecting intermediate output, but still it's rather like debugging
-a compiler.  And since it's a rather programmerly view of music and relies on
-writing code to perform operations, it will probably never be very usable by
-non-programmers.
+- Complicated.  If there is a bug in a call's implementation it can be a
+hassle to track it down what is going wrong and fix it.  Due to [slicing and
+inversion](slicing-inverting.md.html), the structure of the score can get
+complicated and hard to understand.  There are a lot of tools for inspecting
+intermediate output, but sometimes it can feel like debugging a compiler.  And
+since it's a rather programmerly view of music and relies on writing code to
+perform operations, it will probably never be very usable by non-programmers.
 
-- Slow.  It relies on caching to rederive scores quickly.  If you put your score
-together in a way that defeats caching it will start taking a long time to
-rederive a score.  Fortunately it's relatively easy to work with the cache
+- Slow.  It relies on caching to rederive scores quickly.  If you put your
+score together in a way that defeats caching it will start taking a long time
+to rederive a score.  Fortunately it's relatively easy to work with the cache
 system, and you get notified about cache misses so you should notice when
 something goes wrong.  But the cache, as usual, is a rich source of its own
 bugs.
@@ -148,50 +158,17 @@ against internal interfaces is likely to be broken by changes down the line.
 And there's no defined external interface yet, so everything is an internal
 interface.
 
-## Relation to other sequencers
-
-- There is a family of "academic" music programming languages: csound, clm,
-supercollider, max, chuck, etc.  Being languages, they offer quite a bit of
-flexibility, but they tend to be oriented around an academic style of music,
-which eschews such conservative trappings as melodies, themes, harmony, and the
-like.  Perhaps this self-supporting: it's hard to write a melody in text, and
-if you do, it's even harder to write an expressive dynamic curve by typing in
-envelope breakpoints, and being limited to a compile debug cycle means you
-won't get to hear it very soon.  This makes it much easier to write generative,
-algorithmic, or abstract sound-scapey stuff.  So they attract people who are
-interested in that sort of thing, who further develop the field in the
-direction of fractal note generators and markov sequences.  No one minds how
-awkward it is to write a melody because that's not the kind of music they do.
-Those things just aren't in the academic computer music idiom.
-
-- Commercial sequencers: cubase, logic, sonar, etc.  They're designed to work
-like a 4-track to not scare musicians, so they're inflexible.  Generally
-speaking, you record on your keyboard, do some limited editing, and that's
-that.  But on the other hand, being all about conservative trappings, they can
-do melodies and harmonies and instant feedback pretty well.  But because of
-their 4-track origins, they're entirely oriented around recording, and because
-the only MIDI instrument that caught on is the keyboard, you wind up with
-everything sounding like it's played on a keyboard.  Perhaps this is
-self-supporting too: whole genres have grown up around music that sounds like
-it's played on a keyboard.  So those programs attract people who want to do
-that kind of music, and no one minds much how awkward it is to write in a
-non-keyboard-like idiom, or something in a non 12-TET scale, or an instrument
-whose part is derived from another according to complicated rules.  Those
-things just aren't in the popular electronic music idiom.
-
-- There's actually another kind of music programming language, the "livecoding"
-ones, which are very good at instant feedback, and seem oriented somewhat more
-in the popular electronic music direction.  But it's not because they solved
-the expressiveness problem, they're moving in the direction of the more
-mechanical style of popular music.
-
-## Overview
+## Documentation
 
 Don't hesitate to look at [haddock documentation](../haddock/index.html) or
 the [source](../hscolour/).  Since using karya probably involves writing code
 that interacts with the internal APIs, you'll need to be familiar with the
 code.  Sometimes the documentation isn't exported as haddock, so if the haddock
 seems sparse try the "source" link.
+
+[My blog](http://elaforge.blogspot.com/) has notes I have taken during
+development.  It's mostly just notes to myself, but it may give some
+historical context for why certain features are the way they are.
 
 Karya is divided into several layers, corresponding to the top level
 directories in the source tree:
