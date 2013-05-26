@@ -3,6 +3,8 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
+  - Logview: adding new log msgs causes the status bar to shrink back to one
+    line, even though it should be wrapped to two.
   - Logview got some kind of file locked error, presumably trying to track
     a rotated log.
     . It happens if the write handle is still open, for some reason
@@ -10,7 +12,7 @@ UNSORTED
   - +detache+short, +detache+long is too long.  Change to +det, +det+long.
   - I think logview is still collecting cache msgs multiple times, make sure
     it gets reset on each rederive.
-  - It's annoying how score errors show up in the log even if you don't hit
+  * It's annoying how score errors show up in the log even if you don't hit
     play.  Only write logs on the first play.
   - use zlib module to compress saved state
     Codec.Compression.Gzip

@@ -80,7 +80,9 @@ import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 
 import Util.Control
+import qualified Util.Log as Log
 import qualified Util.Pretty as Pretty
+
 import qualified Ui.State as State
 import qualified Ui.Types as Types
 import qualified Cmd.Cmd as Cmd
@@ -203,9 +205,17 @@ get_realtime perf_block play_block maybe_track_id pos = do
         Just start -> return start
 
 get_performance :: (Cmd.M m) => BlockId -> m Cmd.Performance
-get_performance block_id =
-    Cmd.require_msg ("no performance for block " ++ show block_id)
+get_performance block_id = do
+    perf <- Cmd.require_msg ("no performance for block " ++ show block_id)
         =<< lookup_current_performance block_id
+    unless (Cmd.perf_logs_written perf) $ do
+        mapM_ Log.write (Cmd.perf_logs perf)
+        Cmd.modify_play_state $ \st -> st
+            { Cmd.state_current_performance = Map.insert block_id
+                (perf { Cmd.perf_logs_written = True })
+                (Cmd.state_current_performance st)
+            }
+    return perf
 
 -- | Play the performance of the given block starting from the given time.
 from_realtime :: (Cmd.M m) => BlockId -> Maybe RealTime -> RealTime

@@ -8,7 +8,9 @@
 -- UI latency).
 module Cmd.Performance (SendStatus, update_performance, performance) where
 import qualified Control.Concurrent as Concurrent
+import qualified Control.DeepSeq as DeepSeq
 import qualified Control.Exception as Exception
+
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 import qualified Data.Vector as Vector
@@ -168,12 +170,10 @@ evaluate_performance wait send_status block_id perf = do
     Thread.delay wait
     send_status block_id Msg.Deriving
     ((), secs) <- Log.time_eval $
-        mapM_ Log.write (Cmd.perf_logs perf)
+        return $! DeepSeq.deepseq (Cmd.perf_logs perf) ()
     when (secs > 1) $
         Log.notice $ "derived " ++ show block_id ++ " in "
             ++ Pretty.pretty (RealTime.seconds secs)
-    -- Though the logs are already written I don't clear them out, so
-    -- Cmd.Repl.LPerf.cache_stats can inspect them.
     send_status block_id $ Msg.DeriveComplete perf
 
 -- | Constructor for 'Cmd.Performance'.
@@ -182,6 +182,7 @@ performance result = Cmd.Performance
     { Cmd.perf_derive_cache = Derive.r_cache result
     , Cmd.perf_events = Vector.fromList events
     , Cmd.perf_logs = logs
+    , Cmd.perf_logs_written = False
     , Cmd.perf_track_dynamic = Derive.r_track_dynamic result
     , Cmd.perf_integrated = Derive.r_integrated result
     , Cmd.perf_score_damage = mempty

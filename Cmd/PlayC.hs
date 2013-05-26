@@ -71,9 +71,9 @@ cmd_play_msg msg = do
                 Cmd.modify_play_state $ \st -> st
                     { Cmd.state_performance = Map.insert block_id
                          perf (Cmd.state_performance st)
-                    , Cmd.state_current_performance = Map.insert block_id
-                         perf (Cmd.state_current_performance st)
                     }
+                    -- Don't mess with state_current_performance because Play
+                    -- may have flipped the 'Cmd.perf_logs_written' bit.
                 ui_state <- State.get
                 liftIO $ Sync.set_track_signals block_id ui_state
                     (Cmd.perf_track_signals perf)

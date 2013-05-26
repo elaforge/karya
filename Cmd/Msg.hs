@@ -85,6 +85,11 @@ data Performance = Performance {
     -- thread gets done waiting.  It doesn't wait long though, so that
     -- shouldn't be a big deal.
     , perf_logs :: ![Log.Msg]
+    -- | The logs are only written on the first play, to minimize error spam.
+    -- So there's a flag which says whether these logs have been written or
+    -- not.  I don't clear the logs, so Cmd.Repl.LPerf.cache_stats can inspect
+    -- them.
+    , perf_logs_written :: !Bool
     , perf_track_dynamic :: !Derive.TrackDynamic
     , perf_integrated :: ![Derive.Integrated]
     -- | Score damage on top of the Performance, used by the derive cache.
