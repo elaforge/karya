@@ -32,6 +32,10 @@ import qualified Perform.Pitch as Pitch
 scales :: [Scale.Scale]
 scales = [just_major, just_minor]
 
+-- | Each accidental adds or subtracts this interval.
+accidental_interval :: Double
+accidental_interval = 16 / 15
+
 just_major :: Scale.Scale
 just_major = make_scale (Pitch.ScaleId "just-major") major_ratios
 
@@ -41,11 +45,11 @@ just_minor = make_scale (Pitch.ScaleId "just-minor") minor_ratios
 make_scale :: Pitch.ScaleId -> Vector.Vector Ratio.Rational -> Scale.Scale
 make_scale scale_id ratios = Scale.Scale
     { Scale.scale_id = scale_id
-    , Scale.scale_pattern = "[-1-9][a-g]"
+    , Scale.scale_pattern = "[-1-9][a-g][#b]?"
     , Scale.scale_symbols = []
     , Scale.scale_transposers = Util.standard_transposers
     , Scale.scale_transpose = transpose
-    , Scale.scale_enharmonics = Util.no_enharmonics
+    , Scale.scale_enharmonics = enharmonics
     , Scale.scale_note_to_call = note_to_call double_ratios
     , Scale.scale_input_to_note = input_to_note
     , Scale.scale_input_to_nn =
@@ -53,27 +57,31 @@ make_scale scale_id ratios = Scale.Scale
     , Scale.scale_call_doc = Util.annotate_call_doc Util.standard_transposers
         ("Just scales are tuned by ratios from a base frequency.\
         \ That frequency is taken from the `%just-base` control and the key.\
-        \ For example, `%just-base = 440 | key = 'a-maj'` means that A in the\
-        \ middle octave is 440hz and the scale will use the major just ratios\
-        \ starting from A.\
-        \ If the base hz isn't given, it defaults to the 12TET tuning of the\
-        \ key."
-        ) [("ratios", txt $ Pretty.pretty ratios)]
-            (Util.scale_degree_doc scale_degree)
+        \ For example, `%just-base = 440 | key = a` means that A in the\
+        \ middle octave is 440hz and is considered 1/1. If the base hz isn't\
+        \ given, it defaults to the 12TET tuning of the key."
+        ) [("ratios", Pretty.prettytxt ratios)]
+            (Util.scale_degree_doc (scale_degree 0))
     }
     where double_ratios = Vector.map realToFrac ratios
 
 -- * input_to_note
 
-input_to_note :: Maybe Pitch.Key -> Pitch.InputKey -> Maybe Pitch.Note
-input_to_note _key (Pitch.InputKey key_nn) = case (degree1, degree2) of
-    (Just d1, Just d2) -> Just $ degree_note (Num.scale d1 d2 frac)
-    _ -> Nothing
-    where
-    degree1 = nn_to_degree Vector.!? input_degree
-    degree2 = nn_to_degree Vector.!? (input_degree + 1)
-    (input_degree, frac) = properFraction key_nn
+enharmonics :: Derive.Enharmonics
+enharmonics _key note = do
+    pitch <- read_pitch note
+    return $ map show_pitch $ Theory.enharmonics_of layout pitch
 
+input_to_note :: Maybe Pitch.Key -> Pitch.InputKey -> Maybe Pitch.Note
+input_to_note _key (Pitch.InputKey nn) =
+    Just $ show_pitch $ Theory.semis_to_pitch_sharps layout $
+        Theory.nn_to_semis $ floor nn
+
+layout :: Theory.Layout
+layout = Theory.layout [2, 1, 2, 2, 1, 2, 2]
+
+-- | Since just scales don't really have key signatures or even accidentals,
+-- this only even produces sharps.
 degree_note :: Double -> Pitch.Note
 degree_note degreef = Pitch.Note $ Call.Pitch.pitch_expr note frac
     where
@@ -81,8 +89,18 @@ degree_note degreef = Pitch.Note $ Call.Pitch.pitch_expr note frac
     (octave, pc) = degree `divMod` pc_per_octave
     note = show_pitch $ Theory.Pitch octave (Theory.Note pc 0)
 
+-- | Unused, but still here in case I don't like accidentals.
+input_to_note_no_acc :: Maybe Pitch.Key -> Pitch.InputKey -> Maybe Pitch.Note
+input_to_note_no_acc _key (Pitch.InputKey nn) = case (degree1, degree2) of
+    (Just d1, Just d2) -> Just $ degree_note (Num.scale d1 d2 frac)
+    _ -> Nothing
+    where
+    degree1 = nn_to_degree Vector.!? input_degree
+    degree2 = nn_to_degree Vector.!? (input_degree + 1)
+    (input_degree, frac) = properFraction nn
+
 show_pitch :: Theory.Pitch -> Pitch.Note
-show_pitch = Pitch.Note . Theory.show_pitch "" "" "" ""
+show_pitch = Pitch.Note . Theory.show_pitch "#" "x" "b" "bb"
 
 -- | NoteNumber 0 is -1c, and becomes 2.
 nn_to_degree :: Vector.Vector Double
@@ -117,8 +135,8 @@ read_pitch note = case Theory.parse_pitch (Pitch.note_text note) of
     _ -> Left Scale.UnparseableNote
 
 valid_pitch :: Theory.Pitch -> Bool
-valid_pitch pitch = Theory.note_accidentals note == 0
-        && Theory.note_pc note >= 0 && Theory.note_pc note < pc_per_octave
+valid_pitch pitch =
+    Theory.note_pc note >= 0 && Theory.note_pc note < pc_per_octave
     where note = Theory.pitch_note pitch
 
 
@@ -133,8 +151,11 @@ note_to_call ratios note = case read_pitch note of
     Left _ -> case parse_relative_interval note of
         Nothing -> Nothing
         Just interval -> Just $ relative_scale_degree interval
-    Right pitch -> Just $
-        scale_degree (pitch_nn pitch) (pitch_note pitch)
+    Right pitch_ ->
+        let pitch = pitch_ { Theory.pitch_note = (Theory.pitch_note pitch_)
+                { Theory.note_accidentals = 0 } }
+            accs = Theory.pitch_accidentals pitch_
+        in Just $ scale_degree accs (pitch_nn pitch) (pitch_note pitch)
     where
     pitch_nn :: Theory.Pitch -> Scale.PitchNn
     pitch_nn pitch env controls =
@@ -161,14 +182,16 @@ note_to_call ratios note = case read_pitch note of
 just_base_control :: Score.Control
 just_base_control = Score.Control "just-base"
 
-scale_degree :: Scale.PitchNn -> Scale.PitchNote -> Derive.ValCall
-scale_degree pitch_nn pitch_note = Derive.val_call "pitch" Tags.scale
+scale_degree :: Theory.Accidentals -> Scale.PitchNn -> Scale.PitchNote
+    -> Derive.ValCall
+scale_degree accs pitch_nn pitch_note = Derive.val_call "pitch" Tags.scale
     "Emit the pitch of a scale degree." $ Sig.call intervals_arg $
     \intervals _ -> do
+        let acc_interval = accidental_interval ^^ accs
         interval <- resolve_intervals intervals
         environ <- Internal.get_dynamic Derive.state_environ
         return $! TrackLang.VPitch $ PitchSignal.pitch
-            (call interval environ) (pitch_note environ)
+            (call (acc_interval * interval) environ) (pitch_note environ)
     where
     call interval environ controls =
         Pitch.modify_hz ((+ Call.Pitch.get_hz controls) . (*interval)) <$>

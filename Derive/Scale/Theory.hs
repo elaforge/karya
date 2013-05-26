@@ -27,10 +27,10 @@ module Derive.Scale.Theory (
     , transpose_diatonic, transpose_chromatic
     -- * input
     , enharmonics_of
-    , pitch_to_semis, semis_to_pitch
+    , pitch_to_semis, semis_to_pitch, semis_to_pitch_sharps
     , semis_to_nn, nn_to_semis
     -- * types
-    , PitchClass, Degree, Semi, Octave, char_pc, pc_char
+    , PitchClass, Degree, Semi, Octave, Accidentals, char_pc, pc_char
     , Pitch(..), pitch_accidentals
     , parse_pitch, parse_note
     , modify_octave, transpose_pitch
@@ -173,6 +173,15 @@ semis_to_pitch key semis = mkpitch $ case key_signature key of
     -- Sharpish looking key signatures favor sharps.
     sharp_signature sig = Vector.count (>0) sig >= Vector.count (<0) sig
     sharp_tonic = (>=0) . note_accidentals . key_tonic
+
+-- | Like 'semis_to_pitch', but only ever emits sharps, so it doesn't require
+-- a key.
+semis_to_pitch_sharps :: Layout -> Semi -> Pitch
+semis_to_pitch_sharps layout semis = Pitch (octave + oct) note
+    where
+    (octave, steps) = semis `divMod` 12
+    (oct, note) = head $ enharmonics Boxed.! steps
+    enharmonics = layout_enharmonics layout
 
 -- | Convert Semis to integral nns.  Semis count from A while NNs start at C.
 -- It doesn't return NoteNumber because these values are specifically integral,

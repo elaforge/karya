@@ -39,14 +39,17 @@ test_note_to_call = do
     equalf 0.001 (run ["4a", "3/2", "3/2"]) ([Just 440, Just 660, Just 990], [])
     equalf 0.001 (run ["4a", "P5", "-P5"]) ([Just 440, Just 660, Just 440], [])
 
+    let acc = Just.accidental_interval
+    equalf 0.001 (run ["4a", "4a#", "4ab"])
+        ([Just 440, Just $ 440 * acc, Just $ 440 / acc], [])
+
 
 test_input_to_note = do
     let f = Just.input_to_note Nothing
         n = Just . Pitch.Note
     equal (map f (map Pitch.InputKey [0..5])) $
-        map n ["-1c", "-1c 50", "-1d", "-1d 50", "-1e", "-1f"]
+        map n ["-1c", "-1c#", "-1d", "-1d#", "-1e", "-1f"]
     equal (f Pitch.middle_c) (n "4c")
-    equal (f (Pitch.middle_c + Pitch.InputKey 0.5)) (n "4c 25")
 
 test_input_to_nn = do
     let f = DeriveTest.with_key "c" . Scale.scale_input_to_nn Just.just_major 0

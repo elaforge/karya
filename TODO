@@ -1082,7 +1082,7 @@ pitch / scales
         name too.
 
       * Pitch call takes ratio args, multiplied by the base pitch.
-      - It can also take accidentals, which add or subtract m2.
+      * It can also take accidentals, which add or subtract m2.
       - A ratio without the absolute pitch is multiplied with the previous
         pitch.
         But it's a val call, which has no access to the previous elem.
