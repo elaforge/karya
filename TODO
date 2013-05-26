@@ -9,13 +9,12 @@ UNSORTED
     a rotated log.
     . It happens if the write handle is still open, for some reason
       Posix.getFileStatus then gets openFile: resource busy (file is locked)
-  - +detache+short, +detache+long is too long.  Change to +det, +det+long.
+  * +detache+short, +detache+long is too long.  Change to +det, +det+long.
   - I think logview is still collecting cache msgs multiple times, make sure
     it gets reset on each rederive.
   * It's annoying how score errors show up in the log even if you don't hit
     play.  Only write logs on the first play.
-  - use zlib module to compress saved state
-    Codec.Compression.Gzip
+  - use zlib module to compress saved state: Codec.Compression.Gzip
   * shift-enter on an empty selection causes an unstoppable play
   * Add event with EditAppend should use the selection duration.
   * "Recent" should record EditAppends.

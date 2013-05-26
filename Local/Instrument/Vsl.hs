@@ -238,7 +238,7 @@ strip_attrs attrs = foldr strip_attr attrs strip
     strip = reverse
         [ VslInst.sus, VslInst.vib, VslInst.perf, VslInst.fast, VslInst.fa
         , VslInst.norm, VslInst.na, VslInst.legato, VslInst.v1, VslInst.art
-        , VslInst.med
+        , VslInst.med, VslInst.short
         ]
 
 -- | Strip the given attr, but only if it wouldn't cause clashes.
