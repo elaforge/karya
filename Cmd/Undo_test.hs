@@ -239,7 +239,7 @@ read_log commits = do
 
 save_git :: ResponderTest.States -> IO ResponderTest.Result
 save_git states = do
-    File.recursive_rm_dir repo
+    File.rmDirRecursive repo
     ResponderTest.respond_cmd states (Save.save_git_as repo)
 
 repo :: SaveGit.Repo
