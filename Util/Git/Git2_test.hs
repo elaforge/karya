@@ -107,6 +107,6 @@ test_modifications_to_dir = do
 
 new_repo = do
     let repo = "build/test/test.git"
-    File.ignore_enoent $ Directory.removeDirectoryRecursive repo
+    File.ignoreEnoent $ Directory.removeDirectoryRecursive repo
     io_equal (Git.init repo) False
     return repo

@@ -124,7 +124,7 @@ repl_port :: Network.PortID
 repl_port = Network.UnixSocket "seq-repl"
 initialize_repl_port :: IO ()
 initialize_repl_port =
-    void $ File.ignore_enoent $ Directory.removeFile "seq-repl"
+    void $ File.ignoreEnoent $ Directory.removeFile "seq-repl"
 
 -- | This string coming from the repl socket indicates that the message is
 -- complete and the server should process it and send a response.  It's

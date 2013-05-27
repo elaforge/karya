@@ -103,7 +103,7 @@ parse_builtins fn = do
 
 parse_dir :: FilePath -> IO [Instrument.Patch]
 parse_dir dir = do
-    fns <- File.recursive_list_dir (const True) dir
+    fns <- File.listRecursive (const True) dir
     (warns, patches) <- Seq.partition_either . concat <$> mapM parse_file fns
     mapM_ Log.warn warns
     return patches
@@ -111,7 +111,7 @@ parse_dir dir = do
 parse_file :: FilePath -> IO [Either String Instrument.Patch]
 parse_file fn = do
     syxs <- file_to_syx fn
-    txt <- fromMaybe "" <$> File.ignore_enoent
+    txt <- fromMaybe "" <$> File.ignoreEnoent
         (Text.IO.readFile (FilePath.replaceExtension fn ".txt"))
     let results = map (record_to_patch <=< decode_sysex) syxs
     return [either (Left . failed i) (Right . combine fn txt syx) result

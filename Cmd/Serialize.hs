@@ -72,7 +72,7 @@ serialize_pretty_text fname state = do
 -- didn't exist.
 unserialize :: (Serialize a) => FilePath -> IO (Either String (Maybe a))
 unserialize fname = do
-    maybe_bytes <- File.ignore_enoent $ ByteString.readFile fname
+    maybe_bytes <- File.ignoreEnoent $ ByteString.readFile fname
     case maybe_bytes of
         Nothing -> return (Right Nothing)
         Just bytes -> do
@@ -96,7 +96,7 @@ unserialize_text fname = do
 -- fail.
 backup_file :: FilePath -> IO ()
 backup_file fname =
-    void $ File.ignore_enoent $ Directory.renameFile fname (fname ++ ".last")
+    void $ File.ignoreEnoent $ Directory.renameFile fname (fname ++ ".last")
 
 make_dir :: FilePath -> IO ()
 make_dir = Directory.createDirectoryIfMissing True . FilePath.takeDirectory

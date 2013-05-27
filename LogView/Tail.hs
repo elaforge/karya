@@ -43,7 +43,7 @@ rotate_logs keep max_size log_fn = do
         return ()
     IO.openFile log_fn IO.AppendMode
     where
-    ignore = File.ignore_enoent
+    ignore = File.ignoreEnoent
 
 
 -- * tail
@@ -108,7 +108,7 @@ read_line (Handle filename hdl size) = go (hdl, size)
 -- | If the filename exists, open it and close the old file.
 reopen :: IO.Handle -> Integer -> FilePath -> IO TailState
 reopen hdl size filename =
-    File.ignore_enoent (IO.openFile filename IO.ReadMode) >>= \x -> case x of
+    File.ignoreEnoent (IO.openFile filename IO.ReadMode) >>= \x -> case x of
         Nothing -> return (hdl, size)
         Just new -> do
             IO.hClose hdl
@@ -123,5 +123,5 @@ file_renamed filename size = do
     -- I should really use inode, but ghc's crummy IO libs make that a pain,
     -- since handleToFd closes the handle.
     file_size <- maybe 0 Posix.Files.fileSize <$>
-        File.ignore_enoent (Posix.Files.getFileStatus filename)
+        File.ignoreEnoent (Posix.Files.getFileStatus filename)
     return $ fromIntegral file_size /= size && file_size /= 0

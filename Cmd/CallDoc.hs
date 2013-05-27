@@ -102,8 +102,7 @@ get_html_state haddock_dir app_dir = do
     return (haddock_dir, files)
     where
     get_files dir = do
-        files <- File.recursive_list_dir
-            (maybe False Char.isUpper . Seq.head) dir
+        files <- File.listRecursive (maybe False Char.isUpper . Seq.head) dir
         return $ Set.fromList files
 
 -- | Convert a Document to HTML.

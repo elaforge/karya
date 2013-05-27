@@ -46,7 +46,7 @@ type Parser a = ByteString -> Either String a
 parse_dir :: [Parser [Instrument.Patch]] -> FilePath -> IO [Instrument.Patch]
 parse_dir parsers dir = do
     fns <- filter ((==".syx") . FilePath.takeExtension) <$>
-        File.recursive_list_dir (const True) dir
+        File.listRecursive (const True) dir
     results <- mapM (\fn -> parse_file parsers fn <$> B.readFile fn) fns
     sequence_ [Log.warn $ "parsing " ++ fn ++ ": " ++ err
         | (fn, Left err) <- zip fns results]

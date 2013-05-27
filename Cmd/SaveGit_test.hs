@@ -148,5 +148,5 @@ mkview tracks = void $ UiTest.mkblock_view (UiTest.default_block_name, tracks)
 
 new_repo = do
     let repo = "build/test/test.git"
-    File.ignore_enoent $ Directory.removeDirectoryRecursive repo
+    File.ignoreEnoent $ Directory.removeDirectoryRecursive repo
     return repo

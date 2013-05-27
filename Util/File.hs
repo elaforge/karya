@@ -3,70 +3,41 @@
 -}
 module Util.File where
 import qualified Control.Exception as Exception
-import qualified Data.ByteString as ByteString
-import qualified Data.Word as Word
 import qualified System.Directory as Directory
 import System.FilePath ((</>))
-import qualified System.IO as IO
 import qualified System.IO.Error as IO.Error
 import qualified System.Process as Process
 
 import Util.Control
-import qualified Util.Log as Log
 
 
-lazy_read_binary :: FilePath -> IO [Word.Word8]
-lazy_read_binary fn = do
-    hdl <- IO.openBinaryFile fn IO.ReadMode
-    bytes <- IO.hGetContents hdl
-    return (map (fromIntegral . fromEnum) bytes)
-
-read_binary :: FilePath -> IO [Word.Word8]
-read_binary fn = do
-    -- ByteString for strictness... would it be better to use plain readFile
-    -- + seq?
-    bytes <- ByteString.readFile fn
-    return (ByteString.unpack bytes)
-
--- | Like Directory.getDirectoryContents except don't return dotfiles and
--- prepend the dir.
-list_dir :: FilePath -> IO [FilePath]
-list_dir dir = do
+-- | Like 'Directory.getDirectoryContents' except don't return dotfiles and
+-- it prepends the directory.
+list :: FilePath -> IO [FilePath]
+list dir = do
     fns <- Directory.getDirectoryContents dir
     return $ map (strip . (dir </>)) $ filter ((/=".") . take 1) fns
     where
     strip ('.' : '/' : path) = path
     strip path = path
 
-recursive_list_dir :: (FilePath -> Bool) -> FilePath -> IO [FilePath]
-recursive_list_dir descend dir = do
+listRecursive :: (FilePath -> Bool) -> FilePath -> IO [FilePath]
+listRecursive descend dir = do
     is_file <- Directory.doesFileExist dir
     if is_file then return [dir]
         else maybe_descend (dir == "." || descend dir) descend dir
     where
     maybe_descend True descend dir = do
-        fns <- list_dir dir
-        fmap concat $ mapM (recursive_list_dir descend) fns
+        fns <- list dir
+        fmap concat $ mapM (listRecursive descend) fns
     maybe_descend False _ _ = return []
 
--- | recursiveRemoveDirectory in System.Process crashes if the dir doesn't
--- exist, and follows symlinks.
-recursive_rm_dir :: FilePath -> IO ()
-recursive_rm_dir dir = void $ Process.rawSystem "rm" ["-rf", dir]
+-- | 'Directory.recursiveRemoveDirectory' crashes if the dir doesn't exist, and
+-- follows symlinks.
+rmDirRecursive :: FilePath -> IO ()
+rmDirRecursive dir = void $ Process.rawSystem "rm" ["-rf", dir]
 
 -- | If @op@ raised ENOENT, return Nothing.
-ignore_enoent :: IO a -> IO (Maybe a)
-ignore_enoent op = Exception.handleJust (guard . IO.Error.isDoesNotExistError)
+ignoreEnoent :: IO a -> IO (Maybe a)
+ignoreEnoent op = Exception.handleJust (guard . IO.Error.isDoesNotExistError)
     (const (return Nothing)) (fmap Just op)
-
-ignore_io_error :: IO a -> IO (Maybe a)
-ignore_io_error op = fmap Just op
-    `Exception.catch` \(_ :: Exception.IOException) -> return Nothing
-
--- | Catch and log an IOException.
-log_io_error :: String -> IO a -> IO (Maybe a)
-log_io_error msg op = Exception.handle handler (fmap Just op)
-    where
-    handler (exc :: Exception.IOException) = do
-        Log.warn $ msg ++ ": " ++ show exc
-        return Nothing

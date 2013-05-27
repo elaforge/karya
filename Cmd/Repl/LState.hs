@@ -102,7 +102,7 @@ rename ns = do
             -- diretory for some reason.  I'd rather throw an exception.
             let old_dir = FilePath.takeDirectory repo
                 new_dir = FilePath.replaceFileName old_dir (Id.un_namespace ns)
-            Cmd.rethrow_io $ File.ignore_enoent $ Posix.rename old_dir new_dir
+            Cmd.rethrow_io $ File.ignoreEnoent $ Posix.rename old_dir new_dir
             Cmd.modify $ \st -> st
                 { Cmd.state_save_file = Just $ Cmd.SaveState $
                     new_dir </> FilePath.takeFileName repo
