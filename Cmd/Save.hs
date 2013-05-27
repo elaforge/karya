@@ -78,7 +78,11 @@ load_state fname = do
     let mkmsg = (("load " ++ fname ++ ": ") ++)
     Serialize.SaveState state _ <- Cmd.require_msg (mkmsg "doesn't exist")
         =<< Cmd.require_right mkmsg =<< liftIO (Serialize.unserialize fname)
-    set_state (Right fname) True state
+    -- Saving will automatically add the .gz, so if I don't strip it when
+    -- loading I get an endless string of .gzs.
+    let stripped = if FilePath.takeExtension fname == ".gz"
+            then FilePath.dropExtension fname else fname
+    set_state (Right stripped) True state
 
 -- ** path
 

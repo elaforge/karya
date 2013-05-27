@@ -2,14 +2,30 @@
 {- | Do things with files.
 -}
 module Util.File where
+import qualified Codec.Compression.GZip as GZip
 import qualified Control.Exception as Exception
+import qualified Data.ByteString as ByteString
+import qualified Data.ByteString.Lazy as Lazy
 import qualified System.Directory as Directory
+import qualified System.FilePath as FilePath
 import System.FilePath ((</>))
 import qualified System.IO.Error as IO.Error
 import qualified System.Process as Process
 
 import Util.Control
 
+
+-- | Read a file, ungzipping it if it ends with @.gz@.
+readGz :: FilePath -> IO ByteString.ByteString
+readGz fn
+    | FilePath.takeExtension fn == ".gz" = do
+        bytes <- Lazy.readFile fn
+        return $ Lazy.toStrict $ GZip.decompress bytes
+    | otherwise = ByteString.readFile fn
+
+-- | Write a gzipped file.
+writeGz :: FilePath -> ByteString.ByteString -> IO ()
+writeGz fn = Lazy.writeFile fn . GZip.compress . Lazy.fromStrict
 
 -- | Like 'Directory.getDirectoryContents' except don't return dotfiles and
 -- it prepends the directory.

@@ -12,7 +12,6 @@
 -}
 module Cmd.Serialize where
 import qualified Control.Exception as Exception
-import qualified Data.ByteString as ByteString
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 import qualified Data.Time as Time
@@ -52,7 +51,7 @@ serialize :: (Serialize a) => FilePath -> a -> IO ()
 serialize fname state = do
     backup_file fname
     make_dir fname
-    ByteString.writeFile fname $ Serialize.encode state
+    File.writeGz (fname ++ ".gz") $ Serialize.encode state
 
 serialize_text :: (Show a) => FilePath -> a -> IO ()
 serialize_text fname state = do
@@ -72,7 +71,7 @@ serialize_pretty_text fname state = do
 -- didn't exist.
 unserialize :: (Serialize a) => FilePath -> IO (Either String (Maybe a))
 unserialize fname = do
-    maybe_bytes <- File.ignoreEnoent $ ByteString.readFile fname
+    maybe_bytes <- File.ignoreEnoent $ File.readGz fname
     case maybe_bytes of
         Nothing -> return (Right Nothing)
         Just bytes -> do

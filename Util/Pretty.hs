@@ -1,4 +1,4 @@
-{-# LANGUAGE CPP #-}
+{-# LANGUAGE CPP, OverloadedStrings #-}
 {- | Like Show, but designed to be easy to read rather than unambiguous and
     complete.
 -}

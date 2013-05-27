@@ -247,8 +247,8 @@ libraryDependencies = concat $
     , [("regex-pcre", ""), ("Diff", ">=0.2")] -- Util.Test
     , w "QuickCheck" -- Derive.DeriveQuickCheck
     , [("shake", ">=0.6"), ("binary", ""), ("syb", "")] -- build system
-    , w "hashable"
-    , w "ekg" -- if useEkg == True
+    , w "ekg" -- removed if not useEkg, but is here so the cabal file has it
+    , w "hashable zlib"
     , [("zmidi-core", ">=0.6")] -- for Cmd.Load.Midi
     ]
     where w = map (\p -> (p, "")) . words
@@ -418,7 +418,9 @@ main = do
             system "iconutil" ["-c", "icns", "-o", fn, src]
         forM_ extractableDocs $ \fn ->
             fn *> extractDoc (modeConfig Debug)
-        "karya.cabal" *> makeCabal
+        -- Always build, since it can't tell when 'libraryDependencies' has
+        -- changed.
+        Shake.phony "karya.cabal" $ makeCabal "karya.cabal"
         configHeaderRule
         testRules (modeConfig Test)
         profileRules (modeConfig Profile)
