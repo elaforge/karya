@@ -11,6 +11,7 @@ import qualified Cmd.Msg as Msg
 import qualified Cmd.Selection as Selection
 
 import qualified Derive.ParseBs as ParseBs
+import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.TrackLang as TrackLang
 
@@ -188,11 +189,17 @@ unparse (Event method val args)
 
 -- | Try to figure out where the note part is in event text and modify that
 -- with the given function.
+--
+-- If the val was hex, keep it hex.
 modify_val :: (Signal.Y -> Signal.Y) -> Text -> Maybe Text
     -- ^ Nothing if I couldn't parse out a VNum.
 modify_val f text = case ParseBs.parse_val (event_val event) of
-        Right (TrackLang.VNum n) -> Just $ unparse $ event
-            { event_val = TrackLang.show_val $ TrackLang.VNum (f <$> n)
-            }
+        Right (TrackLang.VNum n) -> Just $ unparse $
+            event { event_val = show_val (f <$> n) }
         _ -> Nothing
-    where event = parse text
+    where
+    event = parse text
+    show_val num
+        | Score.Typed Score.Untyped n <- num,
+            ShowVal.is_hex_val (event_val event) = ShowVal.show_hex_val n
+        | otherwise = ShowVal.show_val $ TrackLang.VNum num

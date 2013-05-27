@@ -20,9 +20,14 @@ class ShowVal a where
 hex_prefix :: Text
 hex_prefix = "`0x`"
 
+-- | VNums have hex and decimal literals, and show_val produces the decimal
+-- one.  So I need a way to produce the hex literal.
 show_hex_val :: Double -> Text
 show_hex_val n = hex_prefix <> if Text.length h == 1 then "0" <> h else h
     where h = txt $ Numeric.showHex (round (n * 0xff)) ""
+
+is_hex_val :: Text -> Bool
+is_hex_val = (hex_prefix `Text.isPrefixOf`)
 
 -- | Show a val for inclusion into CallDoc.
 doc_val :: (ShowVal a) => a -> Text
