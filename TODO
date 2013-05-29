@@ -54,7 +54,7 @@ UNSORTED
     Meanwhile it just doesn't work, reverse the #ratio-source and >i1 tracks
     in Ratio_test to demonstrate.
   * What's the gap between the change and MsgOutOfDate?
-  - compact the signal in the cache?
+  * compact the signal in the cache?
     . Wait, but I think the cache never actually caches control or pitch
       signals, because track caching is only for note tracks.  Maybe I should
       cache control tracks?  In any case, it would only apply to control
@@ -65,8 +65,9 @@ UNSORTED
       the same events, so I think if I edit a track underneath it's not
       actually helping.
     . If I edit the note track, the control track should rederive unchanged.
-    - Ensure this happens.
-    - I think it's not properly invalidating control track cache on edit.
+    * Ensure that currently, if I edit a note below a control, the control is
+      rederived.  After caching, ensure that it isn't.
+    * I think it's not properly invalidating control track cache on edit.
   - figure out what in cmd is holding on to the reference
   - parallelize derivation
   - update all the saves and remove backward compatibility from Cmd.Serialize
@@ -163,7 +164,12 @@ UNSORTED
   - Can I bind symbol names with =, e.g. 'arp = arp-manual .3 .2 .1'
     That's actually two things, one is binding the symbol, the other is
     partially applying args.  The latter overlaps with setting default in
-    the env, but is more concise.
+    the env, but is more concise.  It can also set Sig.many args, where env
+    can't.
+    . How then do a tell 'env-var = 42' from 'call = call2'?
+      &env-literal, could also use it to apply an env value as an argument
+      explicitly.  But that means all default setting becomes '&call-val = 2'.
+      Or bind calls with &call = sym.
   - network midi doesn't seem to handle abort?
     playing the second time doesn't happen
   * StepPlay gets messed up by tuplets and the like.  Maybe it should step
@@ -1105,6 +1111,8 @@ pitch / scales
         defined in Derived.
       * Replace Derive.Call.Val.c_prev_val
       - Support relative cipher notation, e.g. 4-1, 4-2, etc.
+      - val call to turn a pitch into hz or nn?  Then I can say
+        'just-base = (nn (4c))'
 
       display:
         - Show ratio relationships between sounding pitches.

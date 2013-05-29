@@ -231,6 +231,8 @@ simple_midi = map f . LEvent.events_of
 
 -- * cache
 
+-- Should this go in LDebug?
+
 cache_stats :: BlockId -> Cmd.CmdL String
 cache_stats block_id = do
     perf <- Cmd.get_performance block_id
@@ -240,6 +242,23 @@ cache_stats block_id = do
     where
     format_stack =
         maybe "" (Stack.show_ui_ . Stack.from_strings) . Log.msg_stack
+
+get_cache :: (Cmd.M m) => BlockId -> m (Map.Map Stack.Stack Derive.Cached)
+get_cache block_id = do
+    Derive.Cache cache <- Cmd.perf_derive_cache <$>
+        Cmd.get_performance block_id
+    return cache
+
+get_cache_events :: (Derive.Derived d, Cmd.M m) => BlockId
+    -> m (Map.Map Stack.Stack (LEvent.LEvents d))
+get_cache_events block_id = do
+    cache <- get_cache block_id
+    return $ Map.mapMaybe get cache
+    where
+    get Derive.Invalid = Nothing
+    get (Derive.Cached c) = case Derive.from_cache_entry c of
+        Nothing -> Nothing
+        Just (Derive.CallType _ events) -> Just events
 
 show_cache :: (Cmd.M m) => BlockId -> m String
 show_cache block_id = do

@@ -24,8 +24,7 @@ import qualified Ui.Track as Track
 
 import qualified Derive.Args as Args
 import qualified Derive.Derive as Derive
-import Derive.Derive
-       (Cache(..), Cached(..), ScoreDamage(..), ControlDamage(..))
+import Derive.Derive (Cache(..), Cached(..), ScoreDamage(..), ControlDamage(..))
 import qualified Derive.Deriver.Internal as Internal
 import qualified Derive.LEvent as LEvent
 import qualified Derive.Stack as Stack
@@ -38,10 +37,12 @@ import Types
 -- | Unfortunately caching is not entirely general, and cache invalidation
 -- works a bit differently for blocks and tracks.
 data Type = Block
-    -- | Cache a track.  The set is its TrackId along with its children, so
-    -- it knows what sort of damage will invalidate the cache.  If the track
-    -- has children, it's assumed to be inverting, so that it depends on all of
-    -- its children.
+    -- | Cache a track.  For a note track, it has the set is its TrackId along
+    -- with its children, so it knows what sort of damage will invalidate the
+    -- cache.  If the track has children, it's assumed to be inverting, so that
+    -- it depends on all of its children.  For a control track, the set should
+    -- be empty, since control tracks are not invalidated by damage on their
+    -- children.
     | Track (Set.Set TrackId)
     deriving (Eq, Show)
 
@@ -56,6 +57,7 @@ block call args = caching_deriver Block range (call args)
     where range = uncurry Ranges.range (Args.range_on_track args)
 
 track :: (Derive.Derived d) => Set.Set TrackId
+    -- ^ Children, as documented in 'Track'.
     -> Derive.LogsDeriver d -> Derive.LogsDeriver d
 track children = caching_deriver (Track children) Ranges.everything
 

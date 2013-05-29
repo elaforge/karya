@@ -11,10 +11,8 @@ module Derive.Call.BlockUtil (
     , derive_tree
 #endif
 ) where
-import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
-import qualified Data.Set as Set
 import qualified Data.Tree as Tree
 
 import Util.Control
@@ -169,9 +167,7 @@ derive_track node@(Tree.Node track subs)
     cached
         | TrackTree.tevents_sliced track
             || Maybe.isNothing (TrackTree.tevents_track_id track) = id
-        | otherwise = Cache.track children
-    children = List.foldl' (flip Set.insert) Set.empty $
-        mapMaybe TrackTree.tevents_track_id $ Tree.flatten node
+        | otherwise = Cache.track (TrackTree.tevents_children node)
 
 -- | Does this tree have any non-tempo tracks at the top level?
 has_nontempo_track :: TrackTree.EventsTree -> Bool

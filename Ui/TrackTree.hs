@@ -182,3 +182,8 @@ events_tree end = mapM resolve
         track <- State.get_track track_id
         return $ (track_events title (Track.track_events track) end)
             { tevents_track_id = Just track_id }
+
+-- | All the children of this EventsNode with TrackIds.
+tevents_children :: EventsNode -> Set.Set TrackId
+tevents_children = List.foldl' (flip Set.insert) Set.empty
+    . mapMaybe tevents_track_id . Tree.flatten

@@ -8,8 +8,6 @@ import Util.Test
 import qualified Ui.UiTest as UiTest
 import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
-import qualified Derive.LEvent as LEvent
-
 import Types
 
 
@@ -23,7 +21,8 @@ test_integrate_track = do
         extract i = (Derive.integrated_source i, Derive.integrated_events i)
     let [(source, events)] = map extract (Derive.r_integrated res)
     equal source (Right (UiTest.mk_tid 1))
-    equal (map (fmap DeriveTest.e_note) events) [LEvent.Event (0, 1, "4c")]
+    equal (DeriveTest.extract_levents DeriveTest.e_note events)
+        ([(0, 1, "4c")], [])
     equal (DeriveTest.extract DeriveTest.e_note res) ([(0, 2, "?")], [])
 
 with_damage :: [TrackNum] -> Derive.Deriver a -> Derive.Deriver a

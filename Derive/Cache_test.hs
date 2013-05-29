@@ -44,16 +44,13 @@ test_invalidate_damaged = do
     let f damage stack = map extract $ Map.toList $ uncache $
             Derive.invalidate_damaged damage (mkcache stack)
 
-    let stack = Stack.from_outermost
-            [block "top", track "t", call "c", region 1 2]
-    equal (f (mkdamage [] []) stack) [(stack, True)]
-    equal (f (mkdamage [] [UiTest.bid "top"]) stack) [(stack, False)]
-    equal (f (mkdamage [(UiTest.tid "t", Ranges.range 2 3)] []) stack)
-        [(stack, True)]
-    equal (f (mkdamage [(UiTest.tid "t", Ranges.range 1 3)] []) stack)
-        [(stack, False)]
-    equal (f (mkdamage [(UiTest.tid "top", Ranges.range 1 3)] []) stack)
-        [(stack, True)]
+    let block_stack = Stack.from_outermost [block "top"]
+        track_stack = Stack.from_outermost [block "top", track "t"]
+    equal (f (mkdamage [] []) track_stack) [(track_stack, True)]
+    equal (f (mkdamage [] [UiTest.bid "top"]) block_stack)
+        [(block_stack, False)]
+    equal (f (mkdamage [(UiTest.tid "t", Ranges.range 1 3)] []) track_stack)
+        [(track_stack, False)]
 
 -- * cached generators
 
@@ -359,6 +356,7 @@ test_control_damage = do
     strings_like (r_cache_logs cached)
         [ "top.t2 0-1: * using cache"
         , "top.t2 1-2: * using cache"
+        , "top.t1 \\*: rederived"
         , "top.t2 \\*: rederived"
         , toplevel_rederived True
         ]
@@ -368,9 +366,10 @@ test_control_damage = do
             insert_event "top.t1" 1 0 ".5"
     equal (diff_events cached uncached) []
     strings_like (r_cache_logs cached)
-        [ "top.t2 0-1: * using cache"
+        [ "top.t2 0-1: sub \\* \\*: using cache"
         , "top.t2 1-2: sub sub.t1 \\*: * control damage"
         , "top.t2 1-2: sub \\* \\*: * control damage"
+        , "top.t1 \\*: rederived"
         , "top.t2 \\*: * control damage"
         , toplevel_rederived True
         ]
@@ -385,6 +384,7 @@ test_control_damage = do
         , "top.t2 0-1: sub \\* \\*: * control damage"
         , "top.t2 1-2: * control damage"
         , "top.t2 1-2: sub \\* \\*: * control damage"
+        , "top.t1 \\*: rederived"
         , "top.t2 \\*: * control damage"
         , toplevel_rederived True
         ]
@@ -527,29 +527,29 @@ test_extend_tempo_damage = do
             State.insert_event (UiTest.mk_tid 1) (Event.event 1 0 "2")
     equal (diff_events cached uncached) []
 
-test_damage_to_real_to_score = do
-    -- Doc in 'Derive.Score.safe_unwarp_pos', this fails due to roundoff.
-    let create = do
-            UiTest.mkblocks_skel state
-            return (UiTest.bid "order")
+test_control_cache = do
+    let create = fmap fst $ UiTest.mkblock $ (,) UiTest.default_block_name
+            [ ("dyn", [(0, 0, ".5"), (1, 0, "1")])
+            , (">", [(0, 2, "")])
+            ]
+    -- Ensure that a control track above a note track is cached.
     let (_, cached, uncached) = compare_cached create $
-            insert_event "order.t1" 67 0 "5"
+            State.insert_event (UiTest.mk_tid 2) $ Event.event 1 1 ""
     equal (diff_events cached uncached) []
-    let (events, logs) = DeriveTest.extract Score.event_start cached
-    equal (length events) 2
-    equal logs []
-    where
-    state =
-        [ (("order",
-            [("tempo", [(0.0, 0.0, "6")]),
-            (">ptq/c1", [(0.0, 61.0, "b0"), (61.0, 61.0, "b1")])]),
-            [(1, 2)])
-        , (("b0", [(">", [(0.0, 1, "")])]), [])
-        , (("b1",
-            [ (">", [(0.0, 1, "")])
-            , ("*", [(0.0, 0.0, "4d")])
-            ]),
-        [(1, 2)])
+    strings_like (r_cache_logs cached)
+        [ "b1 b1.t1 \\*: using cache"
+        , "b1 b1.t2 \\*: rederived"
+        , "b1 \\* \\*: rederived"
+        ]
+
+    -- And invalidated on damage.
+    let (_, cached, uncached) = compare_cached create $
+            State.insert_event (UiTest.mk_tid 1) $ Event.event 0 0 ".75"
+    equal (diff_events cached uncached) []
+    strings_like (r_cache_logs cached)
+        [ "b1 b1.t1 \\*: rederived * cache invalidated"
+        , "b1 b1.t2 \\*: rederived"
+        , "b1 \\* \\*: rederived"
         ]
 
 -- ** support
@@ -650,6 +650,7 @@ diff_events :: Derive.Result -> Derive.Result
 diff_events r1 r2 = Seq.diff (==) (extract r1) (extract r2)
     where extract = fst . DeriveTest.extract simple_event
 
+-- | (start, dur, pitch, initial_dyn)
 type DiffEvent = (RealTime, RealTime, String, Double)
 
 simple_event :: Score.Event -> DiffEvent

@@ -285,19 +285,22 @@ derive_control is_tempo track expr = do
     stream <- Call.apply_transformer
         (Derive.dummy_call_info start (end-start) "control track") expr deriver
     let (signal_chunks, logs) = LEvent.partition stream
-        signal = Signal.merge signal_chunks
+        -- I just did it in 'compact', so this should just convert [x] to x.
+        signal = mconcat signal_chunks
     return (signal, logs)
     where
     deriver :: Derive.ControlDeriver
-    deriver = do
+    deriver = Cache.track mempty $ do
         state <- Derive.get
         let (stream, collect) = Call.derive_track state tinfo
                 Call.control_last_sample (tevents track)
         Internal.merge_collect collect
         -- I can use concat instead of merge_asc_events because the signals
-        -- will be merged with Signal.merge and I don't care if the logs
-        -- are a little out of order.
-        return (concat stream)
+        -- will be merged with Signal.merge and the logs extracted.
+        return $ compact (concat stream)
+    -- Merge the signal here so it goes in the cache as one signal event.
+    compact events = LEvent.Event (mconcat sigs) : map LEvent.Log logs
+        where (sigs, logs) = LEvent.partition events
     tinfo = Call.TrackInfo
         { Call.tinfo_events_end = TrackTree.tevents_end track
         , Call.tinfo_track_range = TrackTree.tevents_range track
@@ -316,15 +319,19 @@ derive_pitch track expr = do
     stream <- Call.apply_transformer
         (Derive.dummy_call_info start (end-start) "pitch track") expr deriver
     let (signal_chunks, logs) = LEvent.partition stream
+        -- I just did it in 'compact', so this should just convert [x] to x.
         signal = mconcat signal_chunks
     return (signal, logs)
     where
-    deriver = do
+    deriver = Cache.track mempty $ do
         state <- Derive.get
         let (stream, collect) = Call.derive_track state tinfo
                 Call.pitch_last_sample (tevents track)
         Internal.merge_collect collect
-        return (concat stream)
+        return $ compact (concat stream)
+    -- Merge the signal here so it goes in the cache as one signal event.
+    compact events = LEvent.Event (mconcat sigs) : map LEvent.Log logs
+        where (sigs, logs) = LEvent.partition events
     tinfo = Call.TrackInfo
         { Call.tinfo_events_end = TrackTree.tevents_end track
         , Call.tinfo_track_range = TrackTree.tevents_range track

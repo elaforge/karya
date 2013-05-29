@@ -307,6 +307,10 @@ class (Show d, ToTagged (Elem d)) => Derived d where
     -- that right now.
     from_cache_entry :: CacheEntry -> Maybe (CallType d)
     to_cache_entry :: CallType d -> CacheEntry
+    -- | Each kind of deriver looks a different scope for its calls.  By making
+    -- this a class method, I can figure out which scope to look in just from
+    -- the type.  TODO this is redundant with 'to_cache_entry', I could replace
+    -- them both with a generic to_tagged, but for d not Elem d.
     lookup_callable :: TrackLang.CallId -> Deriver (Maybe (Call d))
     callable_name :: d -> Text
 
@@ -1148,11 +1152,12 @@ invalidate_damaged (ScoreDamage tracks _ blocks) (Cache cache) =
     invalidate stack cached
         | has_damage stack = Invalid
         | otherwise = cached
-    has_damage stack =
-        any (`Stack.member` stack) (map Stack.Block (Set.elems blocks))
-        || any (overlapping stack) (Map.assocs tracks)
-    overlapping stack (track_id, ranges) =
-        any (Ranges.overlapping ranges) (Stack.track_regions stack track_id)
+    has_damage stack
+        | Just frame <- Seq.head (Stack.innermost stack) = case frame of
+            Stack.Block block_id -> Set.member block_id blocks
+            Stack.Track track_id -> Map.member track_id tracks
+            _ -> False
+        | otherwise = False
 
 -- | Control damage indicates that a section of control signal has been
 -- modified.  It's dynamically scoped over the same range as the control

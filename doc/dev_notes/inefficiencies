@@ -89,10 +89,12 @@ perform
     merge channels by comparing each note with each overlapping one.  It
     doesn't know when two tracks share the same controls and can be merged
     with no comparison.
-  - When Perform.Midi wants to merge two notes it has to compare their
+  * When Perform.Midi wants to merge two notes it has to compare their
     controls.  To do that it has to resample them to have the same sample
     points.  Resample is implemented by converting it to a list.  This is
     good for laziness, so I don't resample any more of the signal than is
     needed to be compared, but presumably means boxing and consing up every
     sample.  I could pass the compare function into resample and reimplement
     resample to iterate directly over the arrays.
+    . Fixed, hand-written recursion on the vectors in
+      'Perform.Signal.signals.share'.
