@@ -32,14 +32,17 @@ module Derive.Scale.Theory (
     -- * types
     , PitchClass, Degree, Semi, Octave, Accidentals, char_pc, pc_char
     , Pitch(..), pitch_accidentals
-    , parse_pitch, parse_note
     , modify_octave, transpose_pitch
     , Note(..)
+    -- ** parse, show
+    , show_pitch, pitch_c_octave, parse_pitch
+    , show_note, parse_note
+    , AccidentalFormat(..), ascii_accidentals, symbol_accidentals
+    , show_sargam, parse_sargam
+    -- ** key
     , Key(key_tonic, key_name, key_layout), key, show_key
     , key_degrees_per_octave
     , layout
-    , show_pitch, pitch_c_octave
-    , show_note
     -- * util
     , diatonic_degree_of
 #ifndef TESTING
@@ -50,10 +53,10 @@ module Derive.Scale.Theory (
 #endif
 ) where
 import qualified Data.Attoparsec.Char8 as A
-import qualified Data.ByteString as ByteString
 import qualified Data.List as List
 import qualified Data.Maybe as Maybe
 import qualified Data.Text as Text
+import qualified Data.Text.Encoding as Encoding
 import qualified Data.Vector as Boxed
 import qualified Data.Vector.Unboxed as Vector
 
@@ -69,14 +72,14 @@ import qualified Perform.Pitch as Pitch
 
 -- | Parse a Pitch and verify it against the given Layout.  Octaves wrap at
 -- A, which is nonstandard, the usual practice is to wrap at C.
-read_pitch :: Layout -> Text -> Maybe Pitch
-read_pitch layout s = case parse_pitch s of
+read_pitch :: Layout -> Pitch.Note -> Maybe Pitch
+read_pitch layout note = case parse_pitch note of
     Nothing -> Nothing
     Just p -> if note_in_layout layout (pitch_note p) then Just p else Nothing
 
 -- | Parse a Note and verify it against the given Layout.
-read_note :: Layout -> String -> Maybe Note
-read_note layout s = case parse_note s of
+read_note :: Layout -> Text -> Maybe Note
+read_note layout s = case parse_note ascii_accidentals s of
     Nothing -> Nothing
     Just n -> if note_in_layout layout n then Just n else Nothing
 
@@ -249,13 +252,10 @@ data Pitch = Pitch {
     } deriving (Eq, Show)
 
 instance Pretty.Pretty Pitch where
-    pretty = untxt . show_pitch "#" "x" "b" "bb"
+    pretty = untxt . Pitch.note_text . show_pitch ascii_accidentals
 
 pitch_accidentals :: Pitch -> Accidentals
 pitch_accidentals = note_accidentals . pitch_note
-
-parse_pitch :: Text -> Maybe Pitch
-parse_pitch = ParseBs.maybe_parse_text p_pitch
 
 modify_octave :: (Octave -> Octave) -> Pitch -> Pitch
 modify_octave f (Pitch octave note) = Pitch (f octave) note
@@ -277,20 +277,19 @@ data Note = Note {
 
 instance Pretty.Pretty Note where
     -- But B flat looks ugly, B double-flat doubly so.
-    pretty = untxt . show_note "#" "x" "b" "bb"
-
-parse_note :: String -> Maybe Note
-parse_note = ParseBs.maybe_parse_string p_note
+    pretty = untxt . show_note ascii_accidentals
 
 note_in_layout :: Layout -> Note -> Bool
 note_in_layout layout note =
     0 <= note_pc note && note_pc note < layout_max_pc layout
 
+-- ** parse and show absolute pitches
+
 -- | Show and read pitches in the usual letter format.  The inverse of
 -- 'p_pitch'.
-show_pitch :: Text -> Text -> Text -> Text -> Pitch -> Text
-show_pitch sharp sharp2 flat flat2 pitch =
-    showt (oct - 2) <> show_note sharp sharp2 flat flat2 note
+show_pitch :: AccidentalFormat -> Pitch -> Pitch.Note
+show_pitch acc_format pitch =
+    Pitch.Note $ showt (oct - 2) <> show_note acc_format note
     where (oct, note) = pitch_c_octave pitch
 
 -- | Extract the octave from the Note, wrapping it at C.
@@ -298,38 +297,94 @@ pitch_c_octave :: Pitch -> (Octave, Note)
 pitch_c_octave (Pitch octave note) =
     (if note_pc note >= 2 then octave + 1 else octave, note)
 
+parse_pitch :: Pitch.Note -> Maybe Pitch
+parse_pitch =
+    ParseBs.maybe_parse_text (p_pitch ascii_accidentals) . Pitch.note_text
+
 -- | Internally octaves wrap at A, but the text representation wraps at C,
 -- since that's how the rest of the world does it.
-p_pitch :: A.Parser Pitch
-p_pitch = do
+p_pitch :: AccidentalFormat -> A.Parser Pitch
+p_pitch acc_format = do
     oct <- ParseBs.p_int
-    note <- p_note
+    note <- p_note acc_format
     let octave = if note_pc note >= 2 then oct - 1 else oct
     return $ Pitch (octave + 2) note
 
-p_note :: A.Parser Note
-p_note = p_note_with "#" "x" "b" "bb"
+show_note :: AccidentalFormat -> Note -> Text
+show_note acc_format (Note pc acc) =
+    Text.cons (pc_char pc) (show_accidentals acc_format acc)
 
-p_note_with :: ByteString.ByteString -> ByteString.ByteString
-    -> ByteString.ByteString -> ByteString.ByteString -> A.Parser Note
-p_note_with sharp sharp2 flat flat2 = do
+parse_note :: AccidentalFormat -> Text -> Maybe Note
+parse_note acc_format = ParseBs.maybe_parse_text (p_note acc_format)
+
+p_note :: AccidentalFormat -> A.Parser Note
+p_note acc_format = do
     c <- A.satisfy (\c -> c >= 'a' && c <= 'z')
-    accs <- ParseBs.many (A.choice [p_flat2, p_sharp2, p_flat, p_sharp])
-    return $ Note (char_pc c) (sum accs)
-    where
-    p_sharp = A.string sharp >> return 1
-    p_sharp2 = A.string sharp2 >> return 2
-    p_flat = A.string flat >> return (-1)
-    p_flat2 = A.string flat2 >> return (-2)
+    accs <- p_accidentals acc_format
+    return $ Note (char_pc c) accs
 
-show_note :: Text -> Text -> Text -> Text -> Note -> Text
-show_note sharp sharp2 flat flat2 (Note pc acc) = Text.cons (pc_char pc) accs
+-- ** accidentals
+
+data AccidentalFormat = AccidentalFormat !Text !Text !Text !Text deriving (Show)
+
+ascii_accidentals :: AccidentalFormat
+ascii_accidentals = AccidentalFormat "#" "x" "b" "bb"
+
+symbol_accidentals :: AccidentalFormat
+symbol_accidentals = AccidentalFormat "`#`" "`##`" "`b`" "`bb`"
+
+p_accidentals :: AccidentalFormat -> A.Parser Accidentals
+p_accidentals (AccidentalFormat sharp1 sharp2 flat1 flat2) = do
+    sum <$> ParseBs.many (A.choice [p_flat2, p_sharp2, p_flat1, p_sharp1])
     where
-    accs
-        | acc == 0 = ""
-        | acc < 0 = Text.replicate x flat2 <> Text.replicate s flat
-        | otherwise = Text.replicate x sharp2 <> Text.replicate s sharp
-        where (x, s) = abs acc `divMod` 2
+    p_sharp1 = A.string (bs sharp1) >> return 1
+    p_sharp2 = A.string (bs sharp2) >> return 2
+    p_flat1 = A.string (bs flat1) >> return (-1)
+    p_flat2 = A.string (bs flat2) >> return (-2)
+    bs = Encoding.encodeUtf8
+
+show_accidentals :: AccidentalFormat -> Accidentals -> Text
+show_accidentals (AccidentalFormat sharp1 sharp2 flat1 flat2) acc
+    | acc == 0 = ""
+    | acc < 0 = Text.replicate x flat2 <> Text.replicate s flat1
+    | otherwise = Text.replicate x sharp2 <> Text.replicate s sharp1
+    where (x, s) = abs acc `divMod` 2
+
+-- ** relative pitches
+
+type Degrees = Boxed.Vector Text
+
+show_sargam :: PitchClass -> Pitch -> Pitch.Note
+show_sargam key =
+    Pitch.Note . show_pitch_relative sargam_degrees ascii_accidentals key
+
+parse_sargam :: PitchClass -> Pitch.Note -> Maybe Pitch
+parse_sargam key =
+    ParseBs.maybe_parse_text
+        (p_pitch_relative sargam_degrees ascii_accidentals key)
+    . Pitch.note_text
+
+sargam_degrees :: Degrees
+sargam_degrees = Boxed.fromList ["s", "r", "g", "m", "p", "d", "n"]
+
+show_pitch_relative :: Degrees -> AccidentalFormat -> PitchClass -> Pitch
+    -> Text
+show_pitch_relative degrees acc_format key (Pitch octave (Note pc acc)) =
+    showt (octave + oct) <> (degrees Boxed.! degree)
+        <> show_accidentals acc_format acc
+    where (oct, degree) = (pc - key) `divMod` Boxed.length degrees
+
+p_pitch_relative :: Degrees -> AccidentalFormat -> PitchClass -> A.Parser Pitch
+p_pitch_relative degrees acc_format key = do
+    octave <- ParseBs.p_int
+    -- TODO this is inefficient, I should switch to Text attoparsec some day
+    degree <- A.choice
+        [ A.string (Encoding.encodeUtf8 s) >> return i
+        | (i, s) <- zip [0..] (Boxed.toList degrees)
+        ]
+    acc <- p_accidentals acc_format
+    let (oct, pc) = (degree + key) `divMod` Boxed.length degrees
+    return $ Pitch (octave + oct) (Note pc acc)
 
 -- * Key
 

@@ -145,6 +145,13 @@ test_nn_to_semis = do
     equal (Pretty.pretty (f 60)) "4c"
     equal (Pretty.pretty (f 59)) "3b"
 
+test_parse_show_relative_pitch = do
+    let f :: Int -> Text -> Maybe Text
+        f key = fmap (Pitch.note_text . Theory.show_sargam key)
+            . Theory.parse_sargam key . Pitch.Note
+    forM_ [(key, n) | key <- [0, 1, 2, 6], n <- ["4s", "4r", "4n", "5s"]] $
+        \(key, n) -> equal (f key n) (Just n)
+
 
 -- * util
 
@@ -154,8 +161,8 @@ key name = either (error $ "can't parse key: " ++ show name) id $
 
 p :: Text -> Theory.Pitch
 p s = fromMaybe (error $ "can't parse pitch: " ++ show s) $
-    Theory.read_pitch Twelve.layout s
+    Theory.read_pitch Twelve.layout (Pitch.Note s)
 
-n :: String -> Theory.Note
+n :: Text -> Theory.Note
 n s = fromMaybe (error $ "can't parse note: " ++ show s) $
     Theory.read_note Twelve.layout s

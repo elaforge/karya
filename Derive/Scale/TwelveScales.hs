@@ -148,10 +148,10 @@ call_doc transposers smap doc =
 
 make_note_to_degree :: Theory.Layout -> [Theory.Pitch] -> NoteToDegree
 make_note_to_degree layout all_pitches = Map.fromList $ filter in_range $
-    concat [[note "#" "x" "b" "bb" p, note "`#`" "`##`" "`b`" "`bb`" p]
+    concat [[note Theory.ascii_accidentals p, note Theory.symbol_accidentals p]
         | p <- all_pitches]
     where
-    note s s2 f f2 p = (Pitch.Note $ Theory.show_pitch s s2 f f2 p,
+    note show_accs p = (Theory.show_pitch show_accs p,
         (p, Pitch.Degree $ Theory.semis_to_nn $ Theory.pitch_to_semis layout p))
     in_range = Num.in_range 1 128 . snd . snd
 
@@ -165,7 +165,7 @@ pitch_note smap pitch
     where note = show_pitch pitch
 
 show_pitch :: Theory.Pitch -> Pitch.Note
-show_pitch = Pitch.Note . Theory.show_pitch "#" "x" "b" "bb"
+show_pitch = Theory.show_pitch Theory.ascii_accidentals
 
 read_env_key :: ScaleMap -> TrackLang.Environ
     -> Either Scale.ScaleError Theory.Key
@@ -183,4 +183,4 @@ read_key smap (Just key) =
 read_pitch :: Theory.Layout -> Pitch.Note
     -> Either Scale.ScaleError Theory.Pitch
 read_pitch layout note = maybe (Left Scale.UnparseableNote) Right $
-    Theory.read_pitch layout (Pitch.note_text note)
+    Theory.read_pitch layout note

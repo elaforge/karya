@@ -30,7 +30,6 @@ import qualified Perform.Lilypond.Convert as Convert
 import qualified Perform.Lilypond.Meter as Meter
 import qualified Perform.Lilypond.Process as Process
 import qualified Perform.Lilypond.Types as Types
-import qualified Perform.Pitch as Pitch
 import qualified Perform.RealTime as RealTime
 
 import Types
@@ -233,7 +232,7 @@ pitch_to_lily :: PitchSignal.Pitch -> Derive.Deriver Note
 pitch_to_lily pitch = do
     note <- right $ PitchSignal.pitch_note pitch
     pitch <- require ("unparseable note: " <> Pretty.pretty note) $
-        Theory.parse_pitch (Pitch.note_text note)
+        Theory.parse_pitch note
     right $ Types.show_pitch pitch
     where
     require = Derive.require . (prefix <>)

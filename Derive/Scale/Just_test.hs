@@ -19,7 +19,7 @@ import qualified Perform.Pitch as Pitch
 
 test_note_to_call = do
     let run ps = DeriveTest.extract extract $ DeriveTest.derive_tracks
-            [ ("*just-major | key = a", [(t, 0, p) | (t, p) <- times ps])
+            [ ("*just-maj | key = a", [(t, 0, p) | (t, p) <- times ps])
             , (">", [(t, 1, "") | (t, _) <- times ps])
             ]
             where times = zip (Seq.range_ 0 1)
@@ -107,4 +107,4 @@ ratios (x:xs) = map (/x) (x:xs)
 
 p :: Text -> Theory.Pitch
 p s = fromMaybe (error $ "can't parse pitch: " ++ show s) $
-    Theory.parse_pitch s
+    Theory.parse_pitch (Pitch.Note s)

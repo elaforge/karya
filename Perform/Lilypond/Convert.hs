@@ -17,7 +17,6 @@ import qualified Perform.ConvertUtil as ConvertUtil
 import Perform.ConvertUtil (require, throw)
 import qualified Perform.Lilypond.Constants as Constants
 import qualified Perform.Lilypond.Types as Types
-import qualified Perform.Pitch as Pitch
 
 import Types
 
@@ -99,7 +98,7 @@ convert_pitch start controls psig = case PitchSignal.at start psig of
             PitchSignal.pitch_note $
                 PitchSignal.apply (PitchSignal.controls_at start controls) pitch
         require ("parseable note: " ++ Pretty.pretty note) $
-            Theory.parse_pitch (Pitch.note_text note)
+            Theory.parse_pitch note
 
 -- * util
 

@@ -37,10 +37,10 @@ accidental_interval :: Double
 accidental_interval = 16 / 15
 
 just_major :: Scale.Scale
-just_major = make_scale (Pitch.ScaleId "just-major") major_ratios
+just_major = make_scale (Pitch.ScaleId "just-maj") major_ratios
 
 just_minor :: Scale.Scale
-just_minor = make_scale (Pitch.ScaleId "just-minor") minor_ratios
+just_minor = make_scale (Pitch.ScaleId "just-min") minor_ratios
 
 make_scale :: Pitch.ScaleId -> Vector.Vector Ratio.Rational -> Scale.Scale
 make_scale scale_id ratios = Scale.Scale
@@ -100,7 +100,7 @@ input_to_note_no_acc _key (Pitch.InputKey nn) = case (degree1, degree2) of
     (input_degree, frac) = properFraction nn
 
 show_pitch :: Theory.Pitch -> Pitch.Note
-show_pitch = Pitch.Note . Theory.show_pitch "#" "x" "b" "bb"
+show_pitch = Theory.show_pitch Theory.ascii_accidentals
 
 -- | NoteNumber 0 is -1c, and becomes 2.
 nn_to_degree :: Vector.Vector Double
@@ -130,7 +130,7 @@ pc_per_octave :: Theory.PitchClass
 pc_per_octave = 7
 
 read_pitch :: Pitch.Note -> Either Scale.ScaleError Theory.Pitch
-read_pitch note = case Theory.parse_pitch (Pitch.note_text note) of
+read_pitch note = case Theory.parse_pitch note of
     Just pitch | valid_pitch pitch -> Right pitch
     _ -> Left Scale.UnparseableNote
 
