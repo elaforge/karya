@@ -9,12 +9,14 @@ import qualified Derive.Call.Util as Util
 import qualified Derive.Derive as Derive
 import qualified Derive.LEvent as LEvent
 import qualified Derive.PitchSignal as PitchSignal
+import qualified Derive.Pitches as Pitches
 import qualified Derive.Score as Score
 import qualified Derive.Sig as Sig
 import Derive.Sig (defaulted, required)
 import qualified Derive.TrackInfo as TrackInfo
 import qualified Derive.TrackLang as TrackLang
 
+import qualified Perform.Pitch as Pitch
 import qualified Perform.Signal as Signal
 
 
@@ -25,6 +27,8 @@ val_calls = Derive.make_calls
     , ("t", c_timestep)
     , ("ts", c_timestep_reciprocal)
     , ("1/", c_reciprocal)
+    , ("nn", c_nn)
+    , ("hz", c_hz)
     ]
 
 c_next_val :: Derive.ValCall
@@ -99,3 +103,18 @@ c_reciprocal = Derive.val_call "reciprocal" mempty
     \ 1/time." $ Sig.call (required "num" "") $ \num _ ->
         if num == 0 then Derive.throw "1/0"
             else return $ TrackLang.num (1 / num)
+
+c_nn :: Derive.ValCall
+c_nn = Derive.val_call "nn" mempty
+    "Convert a pitch or hz to a NoteNumber." $ Sig.call (required "val" "") $
+    \val _ -> case val of
+        Left pitch -> TrackLang.num . realToFrac <$> Pitches.pitch_nn pitch
+        Right hz -> return $ TrackLang.num . realToFrac $ Pitch.hz_to_nn hz
+
+c_hz :: Derive.ValCall
+c_hz = Derive.val_call "hz" mempty
+    "Convert a pitch or NoteNumber to hz." $ Sig.call (required "val" "") $
+    \val _ -> case val of
+        Left pitch -> TrackLang.num . Pitch.nn_to_hz <$> Pitches.pitch_nn pitch
+        Right nn ->
+            return $ TrackLang.num $ Pitch.nn_to_hz (Pitch.NoteNumber nn)

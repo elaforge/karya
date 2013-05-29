@@ -3,6 +3,8 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
+  - Changing env assignment in the block title isn't reflected in
+    LPerf.environ, but track title is.
   - Logview: adding new log msgs causes the status bar to shrink back to one
     line, even though it should be wrapped to two.
   - Logview got some kind of file locked error, presumably trying to track
@@ -1111,7 +1113,7 @@ pitch / scales
         defined in Derived.
       * Replace Derive.Call.Val.c_prev_val
       - Support relative cipher notation, e.g. 4-1, 4-2, etc.
-      - val call to turn a pitch into hz or nn?  Then I can say
+      * val call to turn a pitch into hz or nn?  Then I can say
         'just-base = (nn (4c))'
 
       display:
