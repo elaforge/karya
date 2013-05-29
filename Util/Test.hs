@@ -171,16 +171,17 @@ strings_like_srcpos :: SrcPos.SrcPos -> [String] -> [String] -> IO Bool
 strings_like_srcpos srcpos gotten expected
     | null gotten && null expected = success_srcpos srcpos "[] =~ []"
     | otherwise = foldl (&&) True <$>
-        mapM string_like (Seq.padded_zip gotten expected)
+        mapM string_like (zip [0..] (Seq.padded_zip gotten expected))
     where
-    string_like (Seq.Second reg) =
-        failure_srcpos srcpos $ "gotten list too short: expected " ++ show reg
-    string_like (Seq.First gotten) =
-        failure_srcpos srcpos $ "expected list too short: got " ++ show gotten
-    string_like (Seq.Both gotten reg)
+    string_like (n, Seq.Second reg) = failure_srcpos srcpos $
+        show n ++ ": gotten list too short: expected " ++ show reg
+    string_like (n, Seq.First gotten) = failure_srcpos srcpos $
+        show n ++ ": expected list too short: got " ++ show gotten
+    string_like (n, Seq.Both gotten reg)
         | pattern_matches reg gotten = success_srcpos srcpos $
-            gotten ++ " =~ " ++ reg
-        | otherwise = failure_srcpos srcpos $ gotten ++ " !~ " ++ reg
+            show n ++ ": " ++ gotten ++ " =~ " ++ reg
+        | otherwise = failure_srcpos srcpos $
+            show n ++ ": " ++ gotten ++ " !~ " ++ reg
 
 -- | The given list of strings contains the given pattern.  Useful to make sure
 -- a certain message was logged.
