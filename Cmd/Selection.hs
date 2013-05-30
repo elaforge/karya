@@ -205,7 +205,8 @@ cmd_snap_selection btn selnum extend msg = do
     view_id <- Cmd.get_focused_view
     old_sel <- State.get_selection view_id selnum
     snap_pos <- TimeStep.snap step block_id mouse_tracknum
-        (fmap Types.sel_cur_pos old_sel) mouse_pos
+        (Types.sel_cur_pos <$> old_sel) mouse_pos
+    snap_pos <- snap_over_threshold view_id mouse_pos snap_pos
     let sel = case old_sel of
             _ | Msg.mouse_down msg && not extend || old_sel == Nothing ->
                 Types.selection down_tracknum snap_pos mouse_tracknum snap_pos
@@ -214,6 +215,14 @@ cmd_snap_selection btn selnum extend msg = do
             -- ghc doesn't realize it is exhaustive
             _ -> error "Cmd.Selection: not reached"
     set_and_scroll view_id selnum sel
+    where
+    -- If I'm dragging, only snap if I'm close to a snap point.  Otherwise,
+    -- it's easy for the selection to jump way off screen while dragging.
+    snap_over_threshold view_id pos snap = do
+        zoom <- State.get_zoom view_id
+        let over = Types.zoom_to_pixels zoom (abs (snap - pos)) > threshold
+        return $ if not (Msg.mouse_down msg) && over then pos else snap
+    threshold = 20
 
 -- | Like 'mouse_drag' but specialized for drags on the track.
 mouse_drag_pos :: (Cmd.M m) => Types.MouseButton -> Msg.Msg

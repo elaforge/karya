@@ -3,6 +3,7 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
+  * when dragging, don't snap if it would move too far
   - Changing env assignment in the block title isn't reflected in
     LPerf.environ, but track title is.
   - Logview: adding new log msgs causes the status bar to shrink back to one
