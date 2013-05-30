@@ -6,6 +6,7 @@ import qualified Util.Pretty as Pretty
 import Util.Test
 
 import qualified Derive.Scale.Theory as Theory
+import qualified Derive.Scale.TheoryFormat as TheoryFormat
 import qualified Derive.Scale.Twelve as Twelve
 import qualified Derive.Scale.TwelveScales as TwelveScales
 
@@ -65,7 +66,7 @@ test_transpose_diatonic = do
     equal [(f (key "a-maj") n (p "1a")) | n <- [0..7]]
         ["1a", "1b", "2c#", "2d", "2e", "2f#", "2g#", "2a"]
     equal [(f (key "a-maj") n (p "1a#")) | n <- [0..7]]
-        ["1a#", "1b#", "2cx", "2d#", "2e#", "2fx", "2gx", "2a#"]
+        ["1a#", "1b#", "2c##", "2d#", "2e#", "2f##", "2g##", "2a#"]
 
     equal [(f (key "a-octa21") n (p "1a")) | n <- [0..8]]
         ["1a", "1b", "2c", "2d", "2d#", "2f", "2f#", "2g#", "2a"]
@@ -81,7 +82,7 @@ test_pitch_to_semis = do
         [24, 26, 28, 29, 31, 33]
     equal (map (semis . p) ["1c", "1d", "2c"]) [24, 26, 36]
 
-    let notes = map p ["1a", "1a#", "1ax", "1ab", "1abb"]
+    let notes = map p ["1a", "1a#", "1a##", "1ab", "1abb"]
     equal (map (Pretty.pretty . pitch "c-maj" . semis) notes)
         ["1a", "1a#", "1b", "1g#", "1g"]
 
@@ -117,14 +118,14 @@ test_calculate_signature = do
 
 test_enharmonics_of = do
     let f = map Pretty.pretty . Theory.enharmonics_of Twelve.layout . p
-    equal (f "1e") ["1fb", "1dx"]
+    equal (f "1e") ["1fb", "1d##"]
     equal (f "1f") ["1gbb", "1e#"]
     equal (f "1b#") ["2c", "2dbb"]
     equal (f "1dbb") ["0b#", "1c"]
     equal (f "1g#") ["1ab"]
     let cycle_en = map Pretty.pretty . take 4
             . iterate (head . Theory.enharmonics_of Twelve.layout) . p
-    equal (cycle_en "1b") ["1b", "2cb", "1ax", "1b"]
+    equal (cycle_en "1b") ["1b", "2cb", "1a##", "1b"]
     equal (cycle_en "1c") ["1c", "1dbb", "0b#", "1c"]
     equal (cycle_en "1g#") ["1g#", "1ab", "1g#", "1ab"]
 
@@ -145,13 +146,6 @@ test_nn_to_semis = do
     equal (Pretty.pretty (f 60)) "4c"
     equal (Pretty.pretty (f 59)) "3b"
 
-test_parse_show_relative_pitch = do
-    let f :: Int -> Text -> Maybe Text
-        f key = fmap (Pitch.note_text . Theory.show_sargam key)
-            . Theory.parse_sargam key . Pitch.Note
-    forM_ [(key, n) | key <- [0, 1, 2, 6], n <- ["4s", "4r", "4n", "5s"]] $
-        \(key, n) -> equal (f key n) (Just n)
-
 
 -- * util
 
@@ -161,8 +155,8 @@ key name = either (error $ "can't parse key: " ++ show name) id $
 
 p :: Text -> Theory.Pitch
 p s = fromMaybe (error $ "can't parse pitch: " ++ show s) $
-    Theory.read_pitch Twelve.layout (Pitch.Note s)
+    TheoryFormat.read_pitch Twelve.layout (Pitch.Note s)
 
 n :: Text -> Theory.Note
 n s = fromMaybe (error $ "can't parse note: " ++ show s) $
-    Theory.read_note Twelve.layout s
+    TheoryFormat.read_note Twelve.layout s

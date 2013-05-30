@@ -1232,7 +1232,8 @@ type Enharmonics = Maybe Pitch.Key -> Pitch.Note
 -- | Things that can go wrong during scale operations.
 data ScaleError =
     InvalidTransposition | KeyNeeded | UnparseableNote
-    -- | An environ value was unparseable.
+    -- | An environ value was unparseable.  Has the environ key and a text
+    -- description of the error.
     | UnparseableEnviron !TrackLang.ValName !Text
         -- The Text should be TrackLang.Val except that makes Eq not work.
     deriving (Eq, Show)

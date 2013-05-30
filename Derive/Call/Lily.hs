@@ -18,7 +18,7 @@ import qualified Derive.Derive as Derive
 import qualified Derive.Environ as Environ
 import qualified Derive.LEvent as LEvent
 import qualified Derive.PitchSignal as PitchSignal
-import qualified Derive.Scale.Theory as Theory
+import qualified Derive.Scale.TheoryFormat as TheoryFormat
 import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Sig as Sig
@@ -232,7 +232,7 @@ pitch_to_lily :: PitchSignal.Pitch -> Derive.Deriver Note
 pitch_to_lily pitch = do
     note <- right $ PitchSignal.pitch_note pitch
     pitch <- require ("unparseable note: " <> Pretty.pretty note) $
-        Theory.parse_pitch note
+        TheoryFormat.parse_pitch note
     right $ Types.show_pitch pitch
     where
     require = Derive.require . (prefix <>)

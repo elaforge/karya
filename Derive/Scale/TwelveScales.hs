@@ -15,6 +15,7 @@ import qualified Derive.Environ as Environ
 import qualified Derive.PitchSignal as PitchSignal
 import qualified Derive.Scale as Scale
 import qualified Derive.Scale.Theory as Theory
+import qualified Derive.Scale.TheoryFormat as TheoryFormat
 import qualified Derive.Scale.Util as Util
 import qualified Derive.Score as Score
 import qualified Derive.TrackLang as TrackLang
@@ -148,10 +149,11 @@ call_doc transposers smap doc =
 
 make_note_to_degree :: Theory.Layout -> [Theory.Pitch] -> NoteToDegree
 make_note_to_degree layout all_pitches = Map.fromList $ filter in_range $
-    concat [[note Theory.ascii_accidentals p, note Theory.symbol_accidentals p]
+    concat [[note TheoryFormat.ascii_accidentals p,
+            note TheoryFormat.symbol_accidentals p]
         | p <- all_pitches]
     where
-    note show_accs p = (Theory.show_pitch show_accs p,
+    note show_accs p = (TheoryFormat.show_pitch show_accs p,
         (p, Pitch.Degree $ Theory.semis_to_nn $ Theory.pitch_to_semis layout p))
     in_range = Num.in_range 1 128 . snd . snd
 
@@ -165,7 +167,7 @@ pitch_note smap pitch
     where note = show_pitch pitch
 
 show_pitch :: Theory.Pitch -> Pitch.Note
-show_pitch = Theory.show_pitch Theory.ascii_accidentals
+show_pitch = TheoryFormat.show_pitch TheoryFormat.ascii_accidentals
 
 read_env_key :: ScaleMap -> TrackLang.Environ
     -> Either Scale.ScaleError Theory.Key
@@ -183,4 +185,4 @@ read_key smap (Just key) =
 read_pitch :: Theory.Layout -> Pitch.Note
     -> Either Scale.ScaleError Theory.Pitch
 read_pitch layout note = maybe (Left Scale.UnparseableNote) Right $
-    Theory.read_pitch layout note
+    TheoryFormat.read_pitch layout note

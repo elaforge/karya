@@ -1,4 +1,5 @@
 module Derive.Scale.Just_test where
+import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Ratio as Ratio
 import qualified Data.Vector as Vector
@@ -12,6 +13,7 @@ import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Scale as Scale
 import qualified Derive.Scale.Just as Just
 import qualified Derive.Scale.Theory as Theory
+import qualified Derive.Scale.TheoryFormat as TheoryFormat
 import qualified Derive.Score as Score
 
 import qualified Perform.Pitch as Pitch
@@ -43,16 +45,22 @@ test_note_to_call = do
     equalf 0.001 (run ["4a", "4a#", "4ab"])
         ([Just 440, Just $ 440 * acc, Just $ 440 / acc], [])
 
-
 test_input_to_note = do
-    let f = Just.input_to_note Nothing
+    let f = Just.input_to_note show_absolute Nothing
         n = Just . Pitch.Note
+        (show_absolute, _, _) = Just.absolute_format
     equal (map f (map Pitch.InputKey [0..5])) $
         map n ["-1c", "-1c#", "-1d", "-1d#", "-1e", "-1f"]
     equal (f Pitch.middle_c) (n "4c")
 
+    let f2 = Just.input_to_note show_relative Nothing
+        (show_relative, _, _) = Just.relative_format
+    equal (map f2 [0, 1, 2, 11, 12, 14]) $
+        map n ["-1s", "-1s#", "-1r", "-1n", "0s", "0r"]
+    equal (f2 Pitch.middle_c) (Just (Pitch.Note "4s"))
+
 test_input_to_nn = do
-    let f = DeriveTest.with_key "c" . Scale.scale_input_to_nn Just.just_major 0
+    let f = DeriveTest.with_key "c" . Scale.scale_input_to_nn just_major 0
     equalf 0.01 (DeriveTest.eval State.empty $ f Pitch.middle_c) $
         Right (Just (Pitch.nn Pitch.middle_c))
     equalf 0.01 (DeriveTest.eval State.empty $ f (Pitch.middle_c + 2)) $
@@ -60,7 +68,7 @@ test_input_to_nn = do
             Pitch.hz_to_nn (Pitch.nn_to_hz (Pitch.nn Pitch.middle_c) * 9/8)
 
 test_transpose = do
-    let f = Just.transpose Nothing
+    let f = Just.transpose Just.absolute_format Nothing
     equal [f 0 (Pitch.Chromatic n) (Pitch.Note "4a") | n <- [0..2]] $
         map (Right . Pitch.Note) ["4a", "4b", "5c"]
     equal [f n (Pitch.Chromatic 0) (Pitch.Note "4a") | n <- [0..2]] $
@@ -98,6 +106,10 @@ convert = Vector.map realToFrac
 
 -- * implementation
 
+just_major :: Scale.Scale
+Just just_major =
+    List.find ((== Pitch.ScaleId "just-maj") . Scale.scale_id) Just.scales
+
 make_ratios :: Just.Ratios -> [Pitch.Hz]
 make_ratios ratios = concat [map (+ oct) (Vector.toList ratios) | oct <- [0..]]
 
@@ -107,4 +119,4 @@ ratios (x:xs) = map (/x) (x:xs)
 
 p :: Text -> Theory.Pitch
 p s = fromMaybe (error $ "can't parse pitch: " ++ show s) $
-    Theory.parse_pitch (Pitch.Note s)
+    TheoryFormat.parse_pitch (Pitch.Note s)

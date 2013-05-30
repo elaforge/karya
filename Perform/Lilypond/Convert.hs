@@ -9,6 +9,7 @@ import qualified Util.Seq as Seq
 import qualified Derive.LEvent as LEvent
 import qualified Derive.PitchSignal as PitchSignal
 import qualified Derive.Scale.Theory as Theory
+import qualified Derive.Scale.TheoryFormat as TheoryFormat
 import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.TrackLang as TrackLang
@@ -98,7 +99,7 @@ convert_pitch start controls psig = case PitchSignal.at start psig of
             PitchSignal.pitch_note $
                 PitchSignal.apply (PitchSignal.controls_at start controls) pitch
         require ("parseable note: " ++ Pretty.pretty note) $
-            Theory.parse_pitch note
+            TheoryFormat.parse_pitch note
 
 -- * util
 

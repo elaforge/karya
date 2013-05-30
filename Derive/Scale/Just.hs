@@ -21,6 +21,7 @@ import qualified Derive.ParseBs as ParseBs
 import qualified Derive.PitchSignal as PitchSignal
 import qualified Derive.Scale as Scale
 import qualified Derive.Scale.Theory as Theory
+import qualified Derive.Scale.TheoryFormat as TheoryFormat
 import qualified Derive.Scale.Util as Util
 import qualified Derive.Score as Score
 import qualified Derive.Sig as Sig
@@ -30,30 +31,43 @@ import qualified Perform.Pitch as Pitch
 
 
 scales :: [Scale.Scale]
-scales = [just_major, just_minor]
+scales =
+    [ make_scale (Pitch.ScaleId "just-maj") major_ratios absolute_format
+    , make_scale (Pitch.ScaleId "just-min") minor_ratios absolute_format
+    , make_scale (Pitch.ScaleId "just-maj-r") major_ratios relative_format
+    , make_scale (Pitch.ScaleId "just-min-r") minor_ratios relative_format
+    ]
+
+absolute_format :: TheoryFormat.PitchFormat
+absolute_format = TheoryFormat.absolute_format pc_per_octave
+
+relative_format :: TheoryFormat.PitchFormat
+relative_format = TheoryFormat.sargam (fmap key_tonic . lookup_key) 0
+
+lookup_key :: Maybe Pitch.Key -> Either Scale.ScaleError Key
+lookup_key Nothing = Right default_key
+lookup_key (Just (Pitch.Key key)) =
+    maybe (Left $ Scale.UnparseableEnviron Environ.key key) Right $
+        Map.lookup key all_keys
 
 -- | Each accidental adds or subtracts this interval.
 accidental_interval :: Double
 accidental_interval = 16 / 15
 
-just_major :: Scale.Scale
-just_major = make_scale (Pitch.ScaleId "just-maj") major_ratios
-
-just_minor :: Scale.Scale
-just_minor = make_scale (Pitch.ScaleId "just-min") minor_ratios
-
-make_scale :: Pitch.ScaleId -> Vector.Vector Ratio.Rational -> Scale.Scale
-make_scale scale_id ratios = Scale.Scale
+make_scale :: Pitch.ScaleId -> Vector.Vector Ratio.Rational
+    -> TheoryFormat.PitchFormat -> Scale.Scale
+make_scale scale_id ratios pitch_format@(show_pitch, _, _) = Scale.Scale
     { Scale.scale_id = scale_id
     , Scale.scale_pattern = "[-1-9][a-g][#b]?"
     , Scale.scale_symbols = []
     , Scale.scale_transposers = Util.standard_transposers
-    , Scale.scale_transpose = transpose
-    , Scale.scale_enharmonics = enharmonics
-    , Scale.scale_note_to_call = note_to_call double_ratios
-    , Scale.scale_input_to_note = input_to_note
+    , Scale.scale_transpose = transpose pitch_format
+    , Scale.scale_enharmonics = enharmonics pitch_format
+    , Scale.scale_note_to_call = note_to_call pitch_format double_ratios
+    , Scale.scale_input_to_note = input_to_note show_pitch
     , Scale.scale_input_to_nn =
-        Util.computed_input_to_nn input_to_note (note_to_call double_ratios)
+        Util.computed_input_to_nn (input_to_note show_pitch) $
+            note_to_call pitch_format double_ratios
     , Scale.scale_call_doc = Util.annotate_call_doc Util.standard_transposers
         ("Just scales are tuned by ratios from a base frequency.\
         \ That frequency is taken from the `%just-base` control and the key.\
@@ -65,16 +79,18 @@ make_scale scale_id ratios = Scale.Scale
     }
     where double_ratios = Vector.map realToFrac ratios
 
+
 -- * input_to_note
 
-enharmonics :: Derive.Enharmonics
-enharmonics _key note = do
-    pitch <- read_pitch note
-    return $ map show_pitch $ Theory.enharmonics_of layout pitch
+enharmonics :: TheoryFormat.PitchFormat -> Derive.Enharmonics
+enharmonics (show_pitch, read_pitch, adjust_pitch) key note = do
+    pitch <- adjust_pitch key =<< read_pitch note
+    return $ map (show_pitch key) $ Theory.enharmonics_of layout pitch
 
-input_to_note :: Maybe Pitch.Key -> Pitch.InputKey -> Maybe Pitch.Note
-input_to_note _key (Pitch.InputKey nn) =
-    Just $ show_pitch $ Theory.semis_to_pitch_sharps layout $
+input_to_note :: TheoryFormat.ShowPitch -> Maybe Pitch.Key -> Pitch.InputKey
+    -> Maybe Pitch.Note
+input_to_note show_pitch key (Pitch.InputKey nn) =
+    Just $ show_pitch key $ Theory.semis_to_pitch_sharps layout $
         Theory.nn_to_semis $ floor nn
 
 layout :: Theory.Layout
@@ -82,25 +98,26 @@ layout = Theory.layout [2, 1, 2, 2, 1, 2, 2]
 
 -- | Since just scales don't really have key signatures or even accidentals,
 -- this only even produces sharps.
-degree_note :: Double -> Pitch.Note
-degree_note degreef = Pitch.Note $ Call.Pitch.pitch_expr note frac
+degree_note :: TheoryFormat.ShowPitch -> Maybe Pitch.Key -> Double -> Pitch.Note
+degree_note show_pitch key degreef =
+    Pitch.Note $ Call.Pitch.pitch_expr note frac
     where
     (degree, frac) = properFraction degreef
     (octave, pc) = degree `divMod` pc_per_octave
-    note = show_pitch $ Theory.Pitch octave (Theory.Note pc 0)
+    note = show_pitch key $ Theory.Pitch octave (Theory.Note pc 0)
 
 -- | Unused, but still here in case I don't like accidentals.
-input_to_note_no_acc :: Maybe Pitch.Key -> Pitch.InputKey -> Maybe Pitch.Note
-input_to_note_no_acc _key (Pitch.InputKey nn) = case (degree1, degree2) of
-    (Just d1, Just d2) -> Just $ degree_note (Num.scale d1 d2 frac)
-    _ -> Nothing
+input_to_note_no_acc :: TheoryFormat.ShowPitch -> Maybe Pitch.Key
+    -> Pitch.InputKey -> Maybe Pitch.Note
+input_to_note_no_acc show_pitch key (Pitch.InputKey nn) =
+    case (degree1, degree2) of
+        (Just d1, Just d2) ->
+            Just $ degree_note show_pitch key (Num.scale d1 d2 frac)
+        _ -> Nothing
     where
     degree1 = nn_to_degree Vector.!? input_degree
     degree2 = nn_to_degree Vector.!? (input_degree + 1)
     (input_degree, frac) = properFraction nn
-
-show_pitch :: Theory.Pitch -> Pitch.Note
-show_pitch = Theory.show_pitch Theory.ascii_accidentals
 
 -- | NoteNumber 0 is -1c, and becomes 2.
 nn_to_degree :: Vector.Vector Double
@@ -116,51 +133,42 @@ nn_to_degree = Vector.fromList $ take 127 $
 
 -- * transpose
 
-transpose :: Maybe Pitch.Key -> Pitch.Octave -> Pitch.Transpose
-    -> Pitch.Note -> Either Scale.ScaleError Pitch.Note
-transpose _key oct transpose note = do
-    pitch <- read_pitch note
+transpose :: TheoryFormat.PitchFormat -> Maybe Pitch.Key -> Pitch.Octave
+    -> Pitch.Transpose -> Pitch.Note -> Either Scale.ScaleError Pitch.Note
+transpose (show_pitch, read_pitch, adjust_pitch) key oct transpose note = do
+    pitch <- adjust_pitch key =<< read_pitch note
     let steps = floor $ case transpose of
             Pitch.Chromatic steps -> steps
             Pitch.Diatonic steps -> steps
-    Right $ show_pitch $ Theory.transpose_pitch pc_per_octave
+    Right $ show_pitch key $ Theory.transpose_pitch pc_per_octave
         (oct * pc_per_octave + steps) pitch
 
 pc_per_octave :: Theory.PitchClass
 pc_per_octave = 7
 
-read_pitch :: Pitch.Note -> Either Scale.ScaleError Theory.Pitch
-read_pitch note = case Theory.parse_pitch note of
-    Just pitch | valid_pitch pitch -> Right pitch
-    _ -> Left Scale.UnparseableNote
-
-valid_pitch :: Theory.Pitch -> Bool
-valid_pitch pitch =
-    Theory.note_pc note >= 0 && Theory.note_pc note < pc_per_octave
-    where note = Theory.pitch_note pitch
-
-
 -- * note_to_call
 
--- | TODO Modulating from one just scale to another is awkward:
---
--- Set to 440.  Then if I modulate to C, set to
--- @key = c | just-base = * 5:4 (hz (4c))@
-note_to_call :: Ratios -> Pitch.Note -> Maybe Derive.ValCall
-note_to_call ratios note = case read_pitch note of
-    Left _ -> case parse_relative_interval note of
-        Nothing -> Nothing
-        Just interval -> Just $ relative_scale_degree interval
-    Right pitch_ ->
-        let pitch = pitch_ { Theory.pitch_note = (Theory.pitch_note pitch_)
-                { Theory.note_accidentals = 0 } }
-            accs = Theory.pitch_accidentals pitch_
-        in Just $ scale_degree accs (pitch_nn pitch) (pitch_note pitch)
+-- | To modulate to another scale: @just-base = (hz (4g)) | key = g@
+-- The order is important, so the @(hz (4g))@ happens in the context of the old
+-- key.
+note_to_call :: TheoryFormat.PitchFormat -> Ratios -> Pitch.Note
+    -> Maybe Derive.ValCall
+note_to_call (show_pitch, read_pitch, adjust_pitch) ratios note =
+    case read_pitch note of
+        Left _ -> case parse_relative_interval note of
+            Nothing -> Nothing
+            Just interval -> Just $ relative_scale_degree interval
+        Right pitch_ ->
+            let pitch = pitch_ { Theory.pitch_note = (Theory.pitch_note pitch_)
+                    { Theory.note_accidentals = 0 } }
+                accs = Theory.pitch_accidentals pitch_
+            in Just $ scale_degree accs (pitch_nn pitch) (pitch_note pitch)
     where
     pitch_nn :: Theory.Pitch -> Scale.PitchNn
     pitch_nn pitch env controls =
         Util.scale_to_pitch_error chromatic diatonic $ do
             key <- read_key env
+            pitch <- adjust_pitch (environ_key env) pitch
             let hz = transpose_to_hz ratios base_hz key
                     (chromatic + diatonic) pitch
                 nn = Pitch.hz_to_nn hz
@@ -172,10 +180,14 @@ note_to_call ratios note = case read_pitch note of
         base_hz = Map.lookup just_base_control controls
 
     pitch_note :: Theory.Pitch -> Scale.PitchNote
-    pitch_note pitch _env controls = Right $ show_pitch transposed
+    pitch_note pitch env controls =
+        Util.scale_to_pitch_error chromatic diatonic $ do
+            let key = environ_key env
+            pitch <- adjust_pitch key pitch
+            let transposed = Theory.transpose_pitch pc_per_octave
+                    (round (chromatic + diatonic)) pitch
+            Right $ show_pitch key transposed
         where
-        transposed = Theory.transpose_pitch pc_per_octave
-            (round (chromatic + diatonic)) pitch
         chromatic = Map.findWithDefault 0 Score.c_chromatic controls
         diatonic = Map.findWithDefault 0 Score.c_diatonic controls
 
@@ -304,6 +316,9 @@ Just default_key = Map.lookup "c" all_keys
 read_key :: TrackLang.Environ -> Either Scale.ScaleError Key
 read_key = Util.read_environ (\k -> Map.lookup k all_keys)
     default_key Environ.key
+
+environ_key :: TrackLang.Environ -> Maybe Pitch.Key
+environ_key env = Pitch.Key <$> TrackLang.maybe_val Environ.key env
 
 -- * ratios
 

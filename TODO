@@ -1085,7 +1085,7 @@ pitch / scales
     just intonation
       - interpolate between just scales in different keys
       * just intonation tuned to a pitch signal
-      - Works, but I need a less awkward way to set the base frequency.
+      * Works, but I need a less awkward way to set the base frequency.
         Currently, I have to say 'key = a | just-base = 1234'.  Can I say
         'just-base = (4a)' to return based on a previous pitch?
       . How do just scales handle accidentals?  Presumably I need to pick
@@ -1112,12 +1112,13 @@ pitch / scales
       . But it passes derived, and gets Elem of derived, and Elem is only
         defined in Derived.
       * Replace Derive.Call.Val.c_prev_val
-      - Support relative cipher notation, e.g. 4-1, 4-2, etc.
+      * Support relative cipher notation, e.g. 4-1, 4-2, etc.
       * val call to turn a pitch into hz or nn?  Then I can say
         'just-base = (nn (4c))'
 
       display:
         - Show ratio relationships between sounding pitches.
+          Reduce float to ratio: denom from [1..n]
         - Optionally select one pitch as 1/1, and show the others relative to
           it.  Otherwise, they're relative to the key.
     - meantone
