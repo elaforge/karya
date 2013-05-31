@@ -167,11 +167,11 @@ save_patches synth patches db_name app_dir = do
 
 load_db :: (Instrument.Patch -> Code) -> FilePath -> FilePath -> IO [SynthDesc]
 load_db code_for db_name app_dir = do
-    let file = db_path app_dir db_name
-    saved <- Serialize.unserialize (make_code . code_for) file
+    let fname = db_path app_dir db_name
+    saved <- Serialize.unserialize (make_code . code_for) fname
     case saved of
         Left err -> do
-            Log.warn $ "Error loading instrument db " ++ show file ++ ": "
+            Log.warn $ "Error loading instrument db " ++ show fname ++ ": "
                 ++ Seq.strip err
             return []
         Right (_time, synths) -> return synths

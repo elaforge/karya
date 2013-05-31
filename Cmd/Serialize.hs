@@ -55,7 +55,7 @@ serialize :: (Serialize a) => FilePath -> a -> IO ()
 serialize fname state = do
     backup_file fname
     make_dir fname
-    File.writeGz (fname ++ ".gz") $ Serialize.encode state
+    File.writeGz fname $ Serialize.encode state
 
 serialize_text :: (Show a) => FilePath -> a -> IO ()
 serialize_text fname state = do
@@ -98,8 +98,13 @@ unserialize_text fname = do
 -- | Move the file to file.last.  Do this before writing a new one that may
 -- fail.
 backup_file :: FilePath -> IO ()
-backup_file fname =
-    void $ File.ignoreEnoent $ Directory.renameFile fname (fname ++ ".last")
+backup_file fname = do
+    moved <- File.ignoreEnoent $
+        Directory.renameFile (fname ++ ".gz") (fname ++ ".last.gz")
+    case moved of
+        Nothing -> void $ File.ignoreEnoent $
+            Directory.renameFile fname (fname ++ ".last")
+        _ -> return ()
 
 make_dir :: FilePath -> IO ()
 make_dir = Directory.createDirectoryIfMissing True . FilePath.takeDirectory

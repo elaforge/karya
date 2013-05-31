@@ -19,17 +19,18 @@ import qualified System.Process as Process
 import Util.Control
 
 
--- | Read a file, ungzipping it if it ends with @.gz@.
+-- | Read and decompress @.gz@ file if it exists, otherwise read the given file
+-- without decompressing.
 readGz :: FilePath -> IO ByteString.ByteString
-readGz fn
-    | FilePath.takeExtension fn == ".gz" = do
-        bytes <- Lazy.readFile fn
-        return $ Lazy.toStrict $ GZip.decompress bytes
-    | otherwise = ByteString.readFile fn
+readGz fn = do
+    maybe_bytes <- ignoreEnoent $ Lazy.readFile (fn ++ ".gz")
+    case maybe_bytes of
+        Nothing -> ByteString.readFile fn
+        Just bytes -> return $ Lazy.toStrict $ GZip.decompress bytes
 
--- | Write a gzipped file.
+-- | Append @.gz@ and write a gzipped file.
 writeGz :: FilePath -> ByteString.ByteString -> IO ()
-writeGz fn = Lazy.writeFile fn . GZip.compress . Lazy.fromStrict
+writeGz fn = Lazy.writeFile (fn ++ ".gz") . GZip.compress . Lazy.fromStrict
 
 -- | Like 'Directory.getDirectoryContents' except don't return dotfiles and
 -- it prepends the directory.
