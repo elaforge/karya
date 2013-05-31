@@ -1475,8 +1475,8 @@ tuba_perf_interval = map (perf.legato.) [nv, nv.sus, vib.sus]
 tuba_perf_interval_fast = [perf.legato.fast]
 tuba_perf_repetition = map (perf.rep.)
     [ legato, portato.slow, portato.fast, staccato.slow, staccato.fast
-    , dyn6.legato, cre9.portato.slow, cre9.portato.fast, cre9.staccato.slow
-    , cre9.staccato.fast
+    , dyn6.legato, cresc9.portato.slow, cresc9.portato.fast
+    , cresc9.staccato.slow, cresc9.staccato.fast
     ]
 tuba_fast_repetition =
     fast_rep_bpm [(mempty, [14..19]), (cresc, [15..19])]
@@ -1831,11 +1831,11 @@ triple = attr "triple"
 cluster = attr "cluster" -- cluster of tones
 
 -- repetitions
-dyn4 = attr "dyn4"
-dyn5 = attr "dyn5"
-dyn6 = attr "dyn6"
-dyn9 = attr "dyn9"
-cre9 = attr "cre9"
+dyn4 = dyn . notes 4 . crescdim
+dyn5 = dyn . notes 5 . crescdim
+dyn6 = dyn . notes 6 . crescdim
+dyn9 = dyn . notes 9 . crescdim
+cresc9 = notes 9 . cresc
 
 -- ** a/b variants
 
