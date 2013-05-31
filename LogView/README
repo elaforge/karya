@@ -1,6 +1,0 @@
-Features:
-
-- tail logs in real time
-- filter / refilter msg view by prio, file, function, etc.
-- log msgs with event callpos can be clicked on, to highlight the event on the
-track

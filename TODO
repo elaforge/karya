@@ -253,7 +253,10 @@ MILESTONES
 ----------------------------------------------------------------------
 
 documentation
-  - update those READMEs
+  READMEs
+    * update
+    - Pandoc and linkify them, I should create build/doc/App/README.md.html,
+      etc.  Then link them to the rest of the docs.
   + doc/derivation.md
   * integrate doc/tracklang into derivation.md
   - split up derivation.md into separate files
@@ -905,6 +908,10 @@ test:
 
 midi record:
   - implement
+  . Ideas for editing recorded MIDI:
+    . control: realign attacks, smooth or sharpen attacks.
+    . pitch: retune intervals, fix wrong note or add notes, change portamento
+      speed.  Add, widen, or narrow vibrato.
 
 REPL: repl:
   - repl should understand --
@@ -922,6 +929,14 @@ REPL: repl:
   - :browse to look in modules... can I use GHC.getBindings for this?
   - :module cmd to move evaluation context to a certain module, maybe I
     could also get rid of the need for Cmd.Lang.Environ to import everything.
+
+tempo
+  - Create tempo by "stretching", i.e. select start and end, and create tempo
+    mark that will cause the start point to be played where the end point used
+    to be played.
+  - Magic marker in tempo track that causes a section to be absolute, e.g.
+    when the block stretches, only the non-absolute bits stretch ala attack
+    and sustain.
 
 Cmd:
   meter / timestep

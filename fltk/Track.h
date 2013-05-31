@@ -1,4 +1,13 @@
 /*
+    A track can be one of three types: an event track, containing note data, a
+    ruler track, like the block ruler view, and a divider, which is meant to
+    visually break up tracks or represent collapsed tracks.
+
+    Their implementation is somewhat unsatisfying.  TrackView is an abstract
+    base class with the various kinds of tracks as subclasses, but TrackModel
+    is a struct with pointers to all of them.  Anyone wanting to convert a
+    model to a view (BlockView::insert_track) or marshal between haskell and C
+    needs to do case analysis.
 */
 
 #ifndef __TRACK_H

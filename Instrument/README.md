@@ -1,3 +1,5 @@
+This directory has code dealing with the instrument DB.
+
 The instrument DB has information about all the known instruments.  They are
 divided up by their backend (only MIDI for now) and have data on how to
 initialize the instrument (e.g. a program change or sysex for MIDI, or possibly
@@ -6,48 +8,34 @@ configuration).  In addition, a set of arbitrary tag/value pairs are associated
 with each instrument which can be used for better searches.
 
 The DB itself is of course specific to the local configuration, and is found in
-Local/Instrument.  This directory has library modules that help construct the
-DB.
+`Local/Instrument`.  This directory has library modules that help construct
+the DB.
 
 There are two clients:
 
-- The main sequencer refers to instruments with Score.Instrument, which is
-merely a string.  It looks these strings up in the instrument DB to get
-information like backend, and for midi, initialization technique, available
-controlers, and so forth.
+- The main sequencer refers to instruments with 'Derive.Score.Instrument',
+which is merely a string.  It looks these strings up in the instrument DB to
+get information like backend, and for midi, initialization technique,
+available controlers, and so forth.
 
-- A separate program is used to search the db interactively.  It accepts
-a simple query language and incrementally displays the search results.  If you
-select an instrument it uses the lang socket to tell the sequencer to
-initialize the instrument and set up midi thru to talk to it (only for
-instruments that render in real-time component, of course).
+- A separate program called `browser` is used to search the db interactively.
+It accepts a simple query language and incrementally displays the search
+results.  If you select an instrument it uses the lang socket to tell the
+sequencer to initialize the instrument and set up midi thru to talk to it
+(only for instruments that render in real-time component, of course).
 
 To help with searches, there's a simple tag/value set associated with each
-instrument.  There are some general conventions for tags, but in general
-they're arbitrary.
+instrument.  There are some general conventions for tags expressed in
+'Instrument.Tag', but in general they're arbitrary.
 
-    TODO unimplemented
-    TODO document some conventions
-
-
-Like most search engines, the db is divided into a crawl portion and a search
-portion.  The crawl gathers instrument definitions from around the filesystem
-and stores them in some easily searchable format.  Data sources are programs or
-functions that return a (Synth, [Patch]) pair.  They include reading
-a specially formatted file with patch descriptions for an external synth,
-parsing a directory of sysex dumps, or simply accepting an patch name and
-expecting the user to set up the patch manually on the synth (for instance,
-many soft synths have no method for remote configuration but include their own
-internal search interface... yay for failure to interoperate).
-
-The results of the crawl are stored in some kind of quickly loaded and easily
-searched format.  Probably just a Binary serialized data structure that is
-loaded into memory unless that gets too slow, in which case maybe I'll do
-something like sqlite.
+Since building the instrument db may involve parsing directories full of sysex
+files, there's a separate program called `make_db` that generates the
+expensive parts of the db and dumps them to files.  How this happens and where
+the dumps go is up to the instrument definition, but they should put them in
+`inst_db/db`.
 
 
-
-Old doc, integrate into current docs somehow:
+## Old doc, integrate into current docs somehow:
 
 Controller mapping:
 The goal is to convert the symbolic controller names into MIDI controller
