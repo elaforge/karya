@@ -1,3 +1,7 @@
+-- Copyright 2013 Evan Laforge
+-- This program is distributed under the terms of the GNU General Public
+-- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
+
 -- | Scales can keep their symbols with them in the 'Pitch.Scale.scale_symbols'
 -- field, but there are a number of symbols that are common between a number of
 -- scales.  If I define them once here I can avoid loading them redundantly.

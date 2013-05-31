@@ -1,3 +1,7 @@
+-- Copyright 2013 Evan Laforge
+-- This program is distributed under the terms of the GNU General Public
+-- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
+
 {-# LANGUAGE ScopedTypeVariables #-}
 module Ui.Ui (event_loop, send_action, quit_ui_thread) where
 import qualified Control.Concurrent.MVar as MVar

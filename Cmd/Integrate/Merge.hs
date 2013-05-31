@@ -1,3 +1,7 @@
+-- Copyright 2013 Evan Laforge
+-- This program is distributed under the terms of the GNU General Public
+-- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
+
 {-# LANGUAGE CPP #-}
 {- | Merge integrated tracks into existing, possibly hand-edited tracks, using
     the index of the previous integration to figure out which edits were made.

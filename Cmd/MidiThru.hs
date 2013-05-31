@@ -1,3 +1,7 @@
+-- Copyright 2013 Evan Laforge
+-- This program is distributed under the terms of the GNU General Public
+-- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
+
 {- | Implement midi thru by mapping InputNotes to MIDI messages.
 
     This is a very complicated thru and might be too slow.  It has to deal

@@ -1,3 +1,7 @@
+-- Copyright 2013 Evan Laforge
+-- This program is distributed under the terms of the GNU General Public
+-- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
+
 -- | Keymap cmds for a NoteTrack.  These apply regardless of the edit mode.
 module Cmd.NoteTrackKeymap where
 import qualified Ui.Block as Block

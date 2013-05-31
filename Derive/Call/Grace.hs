@@ -1,3 +1,7 @@
+-- Copyright 2013 Evan Laforge
+-- This program is distributed under the terms of the GNU General Public
+-- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
+
 -- | Calls that generate grace notes.  These are short sequences of quick notes
 -- whose duration is generally independent of the tempo.
 module Derive.Call.Grace where

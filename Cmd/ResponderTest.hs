@@ -1,3 +1,7 @@
+-- Copyright 2013 Evan Laforge
+-- This program is distributed under the terms of the GNU General Public
+-- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
+
 -- | This is similar in intent to "Cmd.CmdTest", but it simulates the entire
 -- respond loop.  So it's more accurate and can test more, but is less
 -- convenient in that you can't run Cmds directly (you have to use

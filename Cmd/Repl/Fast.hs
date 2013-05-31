@@ -1,3 +1,7 @@
+-- Copyright 2013 Evan Laforge
+-- This program is distributed under the terms of the GNU General Public
+-- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
+
 -- | The full haskell interpretation loads a whole bunch of modules and can be
 -- slow.  Shortcut a few common commands so they happen quickly.
 module Cmd.Repl.Fast where

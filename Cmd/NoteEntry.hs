@@ -1,3 +1,7 @@
+-- Copyright 2013 Evan Laforge
+-- This program is distributed under the terms of the GNU General Public
+-- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
+
 {-# LANGUAGE ViewPatterns #-}
 {-# OPTIONS_GHC -fno-warn-overlapping-patterns #-}
 {- | This module implements kbd entry by intercepting kbd and MIDI events and

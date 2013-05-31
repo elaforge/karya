@@ -1,3 +1,7 @@
+-- Copyright 2013 Evan Laforge
+-- This program is distributed under the terms of the GNU General Public
+-- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
+
 {- | The FFI-using part of "Cmd.Play".  It uses the FFI because the play
     monitor wants to directly call to the UI to update the playback indicator,
     which is much more efficient than going through the whole "Ui.Diff" thing.

@@ -1,3 +1,7 @@
+-- Copyright 2013 Evan Laforge
+-- This program is distributed under the terms of the GNU General Public
+-- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
+
 -- | This is like "Derive.Call.Util", but higher level.  It has templates for
 -- creating calls.
 module Derive.Call.Make where

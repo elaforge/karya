@@ -1,3 +1,7 @@
+-- Copyright 2013 Evan Laforge
+-- This program is distributed under the terms of the GNU General Public
+-- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
+
 {- | The western equal tempered 12 note scale, aka 12TET.
 
     For the note text, I use a non-traditional format that goes "octave note

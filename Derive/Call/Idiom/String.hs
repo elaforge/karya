@@ -1,3 +1,7 @@
+-- Copyright 2013 Evan Laforge
+-- This program is distributed under the terms of the GNU General Public
+-- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
+
 -- | Post-processing to apply a string idiom.
 module Derive.Call.Idiom.String where
 import Data.FixedList (Cons(..), Nil(..))

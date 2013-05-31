@@ -1,3 +1,7 @@
+-- Copyright 2013 Evan Laforge
+-- This program is distributed under the terms of the GNU General Public
+-- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
+
 {- | Instrument DB, for converting Score.Instruments, which are just names, to
     the detailed instrument in whatever backend.
 

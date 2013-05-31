@@ -1,3 +1,7 @@
+-- Copyright 2013 Evan Laforge
+-- This program is distributed under the terms of the GNU General Public
+-- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
+
 {- | A Symbol is a bit of text enclosed in ``s, such as `sharp`.  When
     rendered, it's turned into a special graphic that may be made up of
     multiple glyphs from different fonts.  The intent is to be able to write

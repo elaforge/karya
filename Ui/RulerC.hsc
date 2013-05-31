@@ -1,3 +1,7 @@
+-- Copyright 2013 Evan Laforge
+-- This program is distributed under the terms of the GNU General Public
+-- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
+
 {- | A ruler is also a Track, and can be mixed with them freely.  Rulers have
     Marks at various positions.  Marks have width, color, translucency, and an
     optional name.  They also have a display at zoom value.  Marks are only

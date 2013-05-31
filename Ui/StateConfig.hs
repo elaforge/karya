@@ -1,3 +1,7 @@
+-- Copyright 2013 Evan Laforge
+-- This program is distributed under the terms of the GNU General Public
+-- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
+
 {-# LANGUAGE DeriveDataTypeable #-}
 {-# OPTIONS_HADDOCK not-home #-}
 -- | State.Config and State.Default, in their own module to avoid circular

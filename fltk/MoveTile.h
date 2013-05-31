@@ -1,3 +1,7 @@
+// Copyright 2013 Evan Laforge
+// This program is distributed under the terms of the GNU General Public
+// License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
+
 /* Differences from Fl_Tile:
     When dragging, only resize the widget to the left.  The widgets to the
     right get moved, except the rightmost widget, which resizes as normal

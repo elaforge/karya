@@ -1,7 +1,7 @@
 #!/usr/bin/python
 # Copyright 2013 Evan Laforge
 # This program is distributed under the terms of the GNU General Public
-# License, in the file COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
+# License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 """Automatically add tiresome licensing boilerplate."""
 
@@ -10,7 +10,7 @@ import os, sys
 copyright = """\
 Copyright 2013 Evan Laforge
 This program is distributed under the terms of the GNU General Public
-License, in the file COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
+License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 """
 
 def main():

@@ -1,3 +1,7 @@
+-- Copyright 2013 Evan Laforge
+-- This program is distributed under the terms of the GNU General Public
+-- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
+
 {- | Helper functions to be imported into Cmd.Repl.Environ.  Cmd.Repl.Environ
     must be interpreted since it's the \"top level\" module, so I put the
     library of commands in here.  An unqualified import in Cmd.Repl.Environ

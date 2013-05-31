@@ -1,3 +1,7 @@
+-- Copyright 2013 Evan Laforge
+-- This program is distributed under the terms of the GNU General Public
+-- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
+
 {- | This module is for Cmds that want to peek into the derived score for
     whatever reason.  Normally the flow of information goes from Cmd -> Derive
     -> Perform, but this module is for those cases when Cmd wants to know

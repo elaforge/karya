@@ -1,3 +1,7 @@
+-- Copyright 2013 Evan Laforge
+-- This program is distributed under the terms of the GNU General Public
+-- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
+
 {- | Simple Events are supposed to be easy to read, and easy to serialize to
     text and load back again.  Functions here convert them to and from text
     form, stashing converted simple blocks in the clipboard.

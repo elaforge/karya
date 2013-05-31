@@ -1,3 +1,7 @@
+-- Copyright 2013 Evan Laforge
+-- This program is distributed under the terms of the GNU General Public
+-- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
+
 {- | This module is sister to "Derive.Deriver.Lib", except that it contains
     functions which are normally only used by the built-in track derivation
     scheme, and are not so useful when writing calls.

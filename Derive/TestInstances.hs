@@ -1,3 +1,7 @@
+-- Copyright 2013 Evan Laforge
+-- This program is distributed under the terms of the GNU General Public
+-- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
+
 {-# LANGUAGE CPP, StandaloneDeriving #-}
 -- | Instances that are not safe but very useful for testing.
 module Derive.TestInstances where

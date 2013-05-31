@@ -1,3 +1,7 @@
+// Copyright 2013 Evan Laforge
+// This program is distributed under the terms of the GNU General Public
+// License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
+
 /* Rulers appear in two places: on a dedicated ruler track, and as an overlay
     on an event track.  The former can be implemented as an overlay onto a
     plain box.  There are some differences though: I may want to disable names

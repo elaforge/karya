@@ -1,3 +1,7 @@
+-- Copyright 2013 Evan Laforge
+-- This program is distributed under the terms of the GNU General Public
+-- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
+
 {-# LANGUAGE ScopedTypeVariables #-} -- for pattern type sig in catch
 {- | This module reads lines and streams them to the GUI, which displays them
     in a scrolling box.  Clickable text is marked and will be highlighted in

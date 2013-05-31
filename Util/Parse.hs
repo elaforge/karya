@@ -1,3 +1,7 @@
+-- Copyright 2013 Evan Laforge
+-- This program is distributed under the terms of the GNU General Public
+-- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
+
 -- | Like "Util.ParseBs", but for parsec, not attoparsec.  I only use
 -- attoparsec when performance matters, because its error msgs are crummy.
 module Util.Parse where

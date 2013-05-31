@@ -1,3 +1,7 @@
+// Copyright 2013 Evan Laforge
+// This program is distributed under the terms of the GNU General Public
+// License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
+
 /*
 Fl_Scroll does random extraneous crap like wanting to keep track of scrollbars
 and not resizing its children.  This is just the bare minimum scrolling widget,
