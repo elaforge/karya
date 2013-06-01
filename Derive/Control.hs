@@ -294,7 +294,7 @@ derive_control is_tempo track expr = do
     return (signal, logs)
     where
     deriver :: Derive.ControlDeriver
-    deriver = Cache.track mempty $ do
+    deriver = cache_track track $ do
         state <- Derive.get
         let (stream, collect) = Call.derive_track state tinfo
                 Call.control_last_sample (tevents track)
@@ -327,7 +327,7 @@ derive_pitch track expr = do
         signal = mconcat signal_chunks
     return (signal, logs)
     where
-    deriver = Cache.track mempty $ do
+    deriver = cache_track track $ do
         state <- Derive.get
         let (stream, collect) = Call.derive_track state tinfo
                 Call.pitch_last_sample (tevents track)
@@ -348,6 +348,12 @@ derive_pitch track expr = do
 
 tevents :: TrackTree.TrackEvents -> [Event.Event]
 tevents = Events.ascending . TrackTree.tevents_events
+
+cache_track :: (Derive.Derived d) => TrackTree.TrackEvents
+    -> Derive.LogsDeriver d -> Derive.LogsDeriver d
+cache_track track
+    | TrackTree.tevents_sliced track = id
+    | otherwise = Cache.track mempty
 
 
 -- * TrackSignal
