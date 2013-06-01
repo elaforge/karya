@@ -17,6 +17,7 @@ import qualified Control.Monad.Writer as Writer
 import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Set as Set
+import qualified Data.Text as Text
 
 import Util.Control
 import qualified Util.Logger as Logger
@@ -352,7 +353,8 @@ updates_damage block_rulers updates = mempty
 derive_diff_block :: BlockId -> Block.Block -> Block.Block -> DeriveDiffM ()
 derive_diff_block block_id block1 block2 = do
     let unequal f = unequal_on f block1 block2
-    when (unequal Block.block_title || unequal Block.block_skeleton)
+    when (unequal (Text.strip . Block.block_title)
+            || unequal Block.block_skeleton)
         block_damage
     let (ts1, ts2) = (Block.block_tracks block1, Block.block_tracks block2)
     let tpairs = Seq.indexed_pairs_on Block.tracklike_id ts1 ts2
@@ -373,7 +375,7 @@ flags_differ track1 track2 = relevant track1 /= relevant track2
 
 derive_diff_track :: TrackId -> Track.Track -> Track.Track -> DeriveDiffM ()
 derive_diff_track track_id track1 track2 =
-    when (unequal_on Track.track_title track1 track2) $
+    when (unequal_on (Text.strip . Track.track_title) track1 track2) $
         Writer.tell $ mempty { Derive.sdamage_tracks =
             Map.singleton track_id Ranges.everything }
 
