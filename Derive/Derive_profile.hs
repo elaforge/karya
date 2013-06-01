@@ -19,7 +19,7 @@ import qualified Ui.TrackTree as TrackTree
 import qualified Ui.UiTest as UiTest
 
 import qualified Cmd.Create as Create
-import qualified Cmd.Serialize as Serialize
+import qualified Cmd.Save as Save
 import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.ParseSkeleton as ParseSkeleton
@@ -149,11 +149,11 @@ mkblock tracks = do
 profile_saved :: Bool -> FilePath -> BlockId -> IO ()
 profile_saved with_perform fname block_id = do
     result <- print_timer ("unserialize " ++ show fname) (const "") $
-        Serialize.unserialize fname
+        Save.read_state fname
     state <- case result of
         Left err -> error $ "loading " ++ show fname ++ ": " ++ err
         Right Nothing -> error $ "loading " ++ show fname ++ ": doesn't exist"
-        Right (Just (Serialize.SaveState state _)) -> return state
+        Right (Just state) -> return state
     let lookup = DeriveTest.lookup_from_state state
     if with_perform
         then replicateM_ 6 $ run_profile (Just lookup) block_id state

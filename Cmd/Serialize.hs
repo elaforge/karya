@@ -16,6 +16,8 @@
 -}
 module Cmd.Serialize where
 import qualified Control.Exception as Exception
+import qualified Data.ByteString as B
+import qualified Data.ByteString.Char8 as Char8
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 import qualified Data.Time as Time
@@ -51,11 +53,19 @@ import qualified Perform.Signal as Signal
 import Types
 
 
-serialize :: (Serialize a) => FilePath -> a -> IO ()
-serialize fname state = do
+data Magic = Magic !Char !Char !Char !Char deriving (Show)
+
+magic_bytes :: Magic -> B.ByteString
+magic_bytes (Magic c1 c2 c3 c4) = Char8.pack [c1, c2, c3, c4]
+
+magic_length :: Int
+magic_length = 4
+
+serialize :: (Serialize a) => Magic -> FilePath -> a -> IO ()
+serialize magic fname state = do
     backup_file fname
     make_dir fname
-    File.writeGz fname $ Serialize.encode state
+    File.writeGz fname $ magic_bytes magic <> Serialize.encode state
 
 serialize_text :: (Show a) => FilePath -> a -> IO ()
 serialize_text fname state = do
@@ -73,18 +83,26 @@ serialize_pretty_text fname state = do
 
 -- | Returns Left if there was a parsing error, and Right Nothing if the file
 -- didn't exist.
-unserialize :: (Serialize a) => FilePath -> IO (Either String (Maybe a))
-unserialize fname = do
+unserialize :: (Serialize a) => Magic -> FilePath
+    -> IO (Either String (Maybe a))
+unserialize magic fname = do
     maybe_bytes <- File.ignoreEnoent $ File.readGz fname
     case maybe_bytes of
         Nothing -> return (Right Nothing)
-        Just bytes -> do
-            -- This is subtle.  Apparently Serialize.decode can still throw an
-            -- exception unless the contents of the Either is forced to whnf.
-            val <- Exception.evaluate (Serialize.decode bytes)
-                `Exception.catch` \(exc :: Exception.SomeException) ->
-                    return $ Left $ "exception: " ++ show exc
-            return $ Just <$> val
+        Just bytes
+            | not (magic_bytes magic `B.isPrefixOf` bytes) ->
+                return $ Left $ "expected magic code "
+                    <> show (magic_bytes magic) <> " but got "
+                    <> show (B.take magic_length bytes)
+            | otherwise -> do
+                -- This is subtle.  Apparently Serialize.decode can still throw
+                -- an exception unless the contents of the Either is forced to
+                -- whnf.
+                val <- Exception.evaluate
+                        (Serialize.decode (B.drop magic_length bytes))
+                    `Exception.catch` \(exc :: Exception.SomeException) ->
+                        return $ Left $ "exception: " ++ show exc
+                return $ Just <$> val
 
 unserialize_text :: (Read a) => FilePath -> IO (Either String a)
 unserialize_text fname = do
@@ -109,31 +127,8 @@ backup_file fname = do
 make_dir :: FilePath -> IO ()
 make_dir = Directory.createDirectoryIfMissing True . FilePath.takeDirectory
 
--- * data types
 
-data SaveState = SaveState {
-    save_ui_state :: State.State
-    , save_date :: Time.UTCTime
-    } deriving (Show)
-
-make_save_state :: State.State -> IO SaveState
-make_save_state ui_state = do
-    utc <- Time.getCurrentTime
-    return (SaveState ui_state utc)
-
--- * binary instances
-
-instance Serialize SaveState where
-    put (SaveState a b) = Serialize.put_version 0
-        >> put a >> put b
-    get = do
-        v <- Serialize.get_version
-        case v of
-            0 -> do
-                ui_state :: State.State <- get
-                date :: Time.UTCTime <- get
-                return (SaveState ui_state date)
-            _ -> Serialize.bad_version "SaveState" v
+-- * Serialize instances
 
 instance Serialize State.State where
     put (State.State a b c d e) = Serialize.put_version 6
@@ -156,74 +151,6 @@ instance Serialize State.Config where
             >> put ns >> put meta >> put root >> put (Configs midi)
             >> put transform >> put instruments >> put lilypond >> put defaults
     get = Serialize.get_version >>= \v -> case v of
-        0 -> do
-            ns :: Id.Namespace <- get
-            _dir :: String <- get
-            root :: Maybe BlockId <- get
-            Configs midi :: Configs <- get
-            defaults :: State.Default <- get
-            return $ State.Config ns State.empty_meta root midi "" mempty
-                Lilypond.default_config defaults
-        1 -> do
-            ns :: Id.Namespace <- get
-            _dir :: String <- get
-            root :: Maybe BlockId <- get
-            Configs midi :: Configs <- get
-            transform :: String <- get
-            defaults :: State.Default <- get
-            return $ State.Config ns State.empty_meta root midi
-                (txt transform) mempty Lilypond.default_config defaults
-        2 -> do
-            ns :: Id.Namespace <- get
-            _dir :: String <- get
-            meta :: State.Meta <- get
-            root :: Maybe BlockId <- get
-            Configs midi :: Configs <- get
-            transform :: String <- get
-            defaults :: State.Default <- get
-            return $ State.Config ns meta root midi (txt transform) mempty
-                Lilypond.default_config defaults
-        3 -> do
-            ns :: Id.Namespace <- get
-            meta :: State.Meta <- get
-            root :: Maybe BlockId <- get
-            Configs midi :: Configs <- get
-            transform :: String <- get
-            defaults :: State.Default <- get
-            return $ State.Config ns meta root midi (txt transform) mempty
-                Lilypond.default_config defaults
-        4 -> do
-            ns :: Id.Namespace <- get
-            meta :: State.Meta <- get
-            root :: Maybe BlockId <- get
-            Configs midi :: Configs <- get
-            transform :: String <- get
-            instruments :: Map.Map String String <- get
-            defaults :: State.Default <- get
-            return $ State.Config ns meta root midi (txt transform)
-                (convert_insts instruments) Lilypond.default_config defaults
-        5 -> do
-            ns :: Id.Namespace <- get
-            meta :: State.Meta <- get
-            root :: Maybe BlockId <- get
-            Configs midi :: Configs <- get
-            transform :: String <- get
-            instruments :: Map.Map String String <- get
-            lilypond :: Lilypond.Config <- get
-            defaults :: State.Default <- get
-            return $ State.Config ns meta root midi (txt transform)
-                (convert_insts instruments) lilypond defaults
-        6 -> do
-            ns :: Id.Namespace <- get
-            meta :: State.Meta <- get
-            root :: Maybe BlockId <- get
-            Configs midi :: Configs <- get
-            transform :: Text <- get
-            instruments :: Map.Map String String <- get
-            lilypond :: Lilypond.Config <- get
-            defaults :: State.Default <- get
-            return $ State.Config ns meta root midi transform
-                (convert_insts instruments) lilypond defaults
         7 -> do
             ns :: Id.Namespace <- get
             meta :: State.Meta <- get
@@ -236,10 +163,6 @@ instance Serialize State.Config where
             return $ State.Config ns meta root midi transform instruments
                 lilypond defaults
         _ -> Serialize.bad_version "State.Config" v
-        where
-        convert_insts = Map.fromList
-            . map ((Score.Instrument . txt) *** (Score.Instrument . txt))
-            . Map.toList
 
 instance Serialize State.Meta where
     put (State.Meta a b) = Serialize.put_version 0 >> put a >> put b
@@ -256,20 +179,6 @@ instance Serialize State.Default where
     get = do
         v <- Serialize.get_version
         case v of
-            1 -> do
-                scale :: String <- get
-                key :: Maybe Pitch.Key <- get
-                inst :: Maybe String <- get
-                tempo :: Signal.Y <- get
-                return $ State.Default (Pitch.ScaleId (txt scale)) key
-                    (Score.Instrument . txt <$> inst) tempo
-            2 -> do
-                scale :: Pitch.ScaleId <- get
-                key :: Maybe Pitch.Key <- get
-                inst :: Maybe String <- get
-                tempo :: Signal.Y <- get
-                return $ State.Default scale key
-                    (Score.Instrument . txt <$> inst) tempo
             3 -> do
                 scale :: Pitch.ScaleId <- get
                 key :: Maybe Pitch.Key <- get
@@ -288,26 +197,6 @@ instance Serialize Block.Block where
     get = do
         v <- Serialize.get_version
         case v of
-            7 -> do
-                title :: String <- get
-                tracks :: [Block.Track] <- get
-                skel :: Skeleton.Skeleton <- get
-                _integrated ::
-                    Maybe (BlockId, NonEmpty OldTrackDestination) <- get
-                _itracks :: [(TrackId, NonEmpty OldTrackDestination)] <- get
-                _meta :: Map.Map String String <- get
-                return $ Block.Block (txt title) Block.default_config tracks
-                    skel Nothing [] mempty
-            8 -> do
-                title :: String <- get
-                tracks :: [Block.Track] <- get
-                skel :: Skeleton.Skeleton <- get
-                integrated ::
-                    Maybe (BlockId, NonEmpty Block.TrackDestination) <- get
-                itracks :: [(TrackId, NonEmpty Block.TrackDestination)] <- get
-                _meta :: Map.Map String String <- get
-                return $ Block.Block (txt title) Block.default_config tracks
-                    skel integrated itracks mempty
             9 -> do
                 title :: Text <- get
                 tracks :: [Block.Track] <- get
@@ -319,17 +208,6 @@ instance Serialize Block.Block where
                 return $ Block.Block title Block.default_config tracks skel
                     integrated itracks meta
             _ -> Serialize.bad_version "Block.Block" v
-
-instance Serialize OldTrackDestination where
-    put (OldTrackDestination a b) = put a >> put b
-    get = do
-        note :: (TrackId, Block.EventIndex) <- get
-        controls :: (Map.Map String (TrackId, Block.EventIndex)) <- get
-        return $ OldTrackDestination note controls
-
--- | This holds the 'EventIndex' for one track or block.
-data OldTrackDestination = OldTrackDestination
-    (TrackId, Block.EventIndex) (Map.Map String (TrackId, Block.EventIndex))
 
 instance Serialize Block.TrackDestination where
     put (Block.TrackDestination a b) = put a >> put b
@@ -348,12 +226,6 @@ instance Serialize Block.Track where
     get = do
         v <- Serialize.get_version
         case v of
-            1 -> do
-                id :: Block.TracklikeId <- get
-                width :: Types.Width <- get
-                flags :: [Block.TrackFlag] <- get
-                merged :: [Types.TrackId] <- get
-                return $ Block.Track id width (Set.fromList flags) merged
             2 -> do
                 id :: Block.TracklikeId <- get
                 width :: Types.Width <- get
@@ -407,28 +279,6 @@ instance Serialize Block.View where
     get = do
         v <- Serialize.get_version
         case v of
-            3 -> do
-                block :: Types.BlockId <- get
-                rect :: Rect.Rect <- get
-                visible_track :: Int <- get
-                visible_time :: Int <- get
-                _status :: Map.Map String String <- get
-                track_scroll :: Types.Width <- get
-                zoom :: Types.Zoom <- get
-                selections :: Map.Map Types.SelNum Types.Selection <- get
-                return $ Block.View block rect visible_track visible_time
-                    mempty track_scroll zoom selections
-            4 -> do
-                block :: Types.BlockId <- get
-                rect :: Rect.Rect <- get
-                visible_track :: Int <- get
-                visible_time :: Int <- get
-                _status :: Map.Map (Int, String) String <- get
-                track_scroll :: Types.Width <- get
-                zoom :: Types.Zoom <- get
-                selections :: Map.Map Types.SelNum Types.Selection <- get
-                return $ Block.View block rect visible_track visible_time
-                    mempty track_scroll zoom selections
             5 -> do
                 block :: Types.BlockId <- get
                 rect :: Rect.Rect <- get
@@ -479,29 +329,6 @@ instance Serialize Ruler.Ruler where
     get = do
         v <- Serialize.get_version
         case v of
-            2 -> do
-                marklists :: Map.Map String Marklist0 <- get
-                bg :: Color.Color <- get
-                show_names :: Bool <- get
-                _use_alpha :: Bool <- get
-                align_to_bottom :: Bool <- get
-                _full_width :: Bool <- get
-                return $ Ruler.Ruler (convert marklists)
-                    bg show_names align_to_bottom
-            3 -> do
-                marklists :: Map.Map String Marklist0 <- get
-                bg :: Color.Color <- get
-                show_names :: Bool <- get
-                align_to_bottom :: Bool <- get
-                return $ Ruler.Ruler (convert marklists)
-                    bg show_names align_to_bottom
-            4 -> do
-                marklists :: Map.Map Ruler.Name Marklist1 <- get
-                bg :: Color.Color <- get
-                show_names :: Bool <- get
-                align_to_bottom :: Bool <- get
-                return $ Ruler.Ruler (Map.map convert_marklist1 marklists)
-                    bg show_names align_to_bottom
             5 -> do
                 marklists :: Map.Map Ruler.Name Ruler.Marklist <- get
                 bg :: Color.Color <- get
@@ -509,8 +336,6 @@ instance Serialize Ruler.Ruler where
                 align_to_bottom :: Bool <- get
                 return $ Ruler.Ruler marklists bg show_names align_to_bottom
             _ -> Serialize.bad_version "Ruler.Ruler" v
-        where
-        convert = Map.fromList . map (txt *** convert_marklist0) . Map.toList
 
 instance Serialize Ruler.Marklist where
     put mlist = put (Ruler.marklist_vec mlist)
@@ -530,39 +355,6 @@ instance Serialize Ruler.Mark where
         zoom :: Double <- get
         return $ Ruler.Mark rank width color name name_zoom zoom
 
-convert_marklist1 :: Marklist1 -> Ruler.Marklist
-convert_marklist1 (Marklist1 marks) = Ruler.marklist $ Map.toAscList marks
-
-newtype Marklist1 = Marklist1 (Map.Map ScoreTime Ruler.Mark)
-    deriving (Serialize)
-
-convert_marklist0 :: Marklist0 -> Ruler.Marklist
-convert_marklist0 (Marklist0 marks) =
-    Ruler.marklist $ Map.toAscList $ Map.map convert marks
-    where
-    convert (Mark0 rank width color name name_zoom zoom) = Ruler.Mark
-        rank width color (txt name) name_zoom zoom
-
-data Marklist0 = Marklist0 (Map.Map ScoreTime Mark0)
-data Mark0 = Mark0 Int Int Color.Color String Double Double
-
-instance Serialize Marklist0 where
-    put _ = error "can't serialize Marklist0"
-    get = do
-        marks :: Map.Map ScoreTime Mark0 <- get
-        return $ Marklist0 marks
-
-instance Serialize Mark0 where
-    put _ = error "can't serialize Mark0"
-    get = do
-        rank :: Int <- get
-        width :: Int <- get
-        color :: Color.Color <- get
-        name :: String <- get
-        name_zoom :: Double <- get
-        zoom :: Double <- get
-        return $ Mark0 rank width color name name_zoom zoom
-
 -- ** Track
 
 instance Serialize Track.Track where
@@ -571,12 +363,6 @@ instance Serialize Track.Track where
     get = do
         v <- Serialize.get_version
         case v of
-            3 -> do
-                title :: String <- get
-                events :: Events.Events <- get
-                color :: Color.Color <- get
-                render :: Track.RenderConfig <- get
-                return $ Track.Track (txt title) events color render
             4 -> do
                 title :: Text <- get
                 events :: Events.Events <- get
@@ -618,14 +404,6 @@ instance Serialize Configs where
     get = do
         v <- Serialize.get_version
         case v of
-            3 -> do
-                alloc :: Map.Map String [(String, Midi.Channel)] <- get
-                return $ Configs $ Instrument.configs $
-                    map (first (Score.Instrument . txt)) $ Map.toList $
-                        (Map.map (map (first (Midi.write_device . txt))) alloc)
-            4 -> do
-                insts :: Map.Map String Instrument.Config <- get
-                return $ Configs $ Map.mapKeys (Score.Instrument . txt) insts
             5 -> do
                 insts :: Map.Map Score.Instrument Instrument.Config <- get
                 return $ Configs insts
@@ -637,12 +415,6 @@ instance Serialize Instrument.Config where
     get = do
         v <- Serialize.get_version
         case v of
-            0 -> do
-                addrs :: [(String, Midi.Channel)] <- get
-                mute :: Bool <- get
-                solo :: Bool <- get
-                return $ Instrument.Config
-                    (map (first (Midi.write_device . txt)) addrs) mute solo
             1 -> do
                 addrs :: [Instrument.Addr] <- get
                 mute :: Bool <- get
@@ -752,29 +524,6 @@ instance Serialize Lilypond.Config where
     get = do
         v <- Serialize.get_version
         case v of
-            0 -> do
-                quarter :: RealTime <- get
-                quantize :: Lilypond.Duration <- get
-                dotted_rests :: Bool <- get
-                staves :: [(String, String, String)] <- get
-                let configs =
-                        [staff inst (txt a) (txt b) | (inst, a, b) <- staves]
-                return $ Lilypond.Config quarter quantize dotted_rests configs
-            1 -> do
-                quarter :: RealTime <- get
-                quantize :: Lilypond.Duration <- get
-                dotted_rests :: Bool <- get
-                staves :: [(String, Lilypond.Instrument,
-                    Lilypond.Instrument)] <- get
-                return $ Lilypond.Config quarter quantize dotted_rests
-                    [staff inst a b | (inst, a, b) <- staves]
-            2 -> do
-                quarter :: RealTime <- get
-                quantize :: Lilypond.Duration <- get
-                dotted_rests :: Bool <- get
-                staves :: [(String, Lilypond.StaffConfig)] <- get
-                return $ Lilypond.Config quarter quantize dotted_rests
-                    (map (first (Score.Instrument . txt)) staves)
             3 -> do
                 quarter :: RealTime <- get
                 quantize :: Lilypond.Duration <- get
@@ -782,12 +531,6 @@ instance Serialize Lilypond.Config where
                 staves :: [(Score.Instrument, Lilypond.StaffConfig)] <- get
                 return $ Lilypond.Config quarter quantize dotted_rests staves
             _ -> Serialize.bad_version "Lilypond.Config" v
-        where
-        staff inst a b = (Score.Instrument (txt inst),
-            Lilypond.empty_staff_config
-                { Lilypond.staff_long = a
-                , Lilypond.staff_short = b
-                })
 
 instance Serialize Lilypond.StaffConfig where
     put (Lilypond.StaffConfig a b c d) = Serialize.put_version 1

@@ -7,20 +7,18 @@ import qualified Util.Serialize
 import Util.Test
 import qualified Ui.State as State
 import qualified Ui.UiTest as UiTest
-import qualified Cmd.Serialize as Serialize
 import Types
 
 
 test_serialize = do
-    let (_, ustate) =
+    let (_, state) =
             UiTest.run_mkview [("track", [(0, 1, "e0"), (1, 1, "e1")])]
-    save_state <- Serialize.make_save_state ustate
-    let run f = (f save_state, recode (f save_state))
-    uncurry equal $ run (State.state_config . Serialize.save_ui_state)
-    uncurry equal $ run (State.state_views . Serialize.save_ui_state)
-    uncurry equal $ run (State.state_blocks . Serialize.save_ui_state)
-    uncurry equal $ run (State.state_tracks . Serialize.save_ui_state)
-    uncurry equal $ run (State.state_rulers . Serialize.save_ui_state)
+    let run f = (f state, recode (f state))
+    uncurry equal $ run State.state_config
+    uncurry equal $ run State.state_views
+    uncurry equal $ run State.state_blocks
+    uncurry equal $ run State.state_tracks
+    uncurry equal $ run State.state_rulers
 
 test_negative_zero = do
     -- make sure negative zero is encoded properly

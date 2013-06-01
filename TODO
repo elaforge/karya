@@ -73,7 +73,7 @@ UNSORTED
     * I think it's not properly invalidating control track cache on edit.
   - figure out what in cmd is holding on to the reference
   - parallelize derivation
-  - update all the saves and remove backward compatibility from Cmd.Serialize
+  * update all the saves and remove backward compatibility from Cmd.Serialize
   * every time I play, the cache stats in logview collect more
   . Why I do need to make a point list for timestep?  Why not just calculate
     directly?  Also, can I get rid of multiple steps in favor of just passing
@@ -253,6 +253,7 @@ MILESTONES
 ----------------------------------------------------------------------
 
 documentation
+  - INSTALL should say how to build
   READMEs
     * update
     - Pandoc and linkify them, I should create build/doc/App/README.md.html,

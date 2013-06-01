@@ -23,10 +23,13 @@ import qualified Instrument.MidiDb as MidiDb
 import qualified Instrument.Search as Search
 
 
+magic :: Cmd.Serialize.Magic
+magic = Cmd.Serialize.Magic 'i' 'n' 's' 't'
+
 -- | Serialize instrument definitions to a file.  Since the @code@ parameter
 -- is unserializable code, it will be stripped off.
 serialize :: FilePath -> [MidiDb.SynthDesc code] -> IO ()
-serialize fname synths = Cmd.Serialize.serialize fname =<< saved_db synths
+serialize fname synths = Cmd.Serialize.serialize magic fname =<< saved_db synths
 
 -- | Unserialize instrument definitions.  Since the code was stripped off by
 -- 'serialize', it must be provided on a per-patch basis to reconstitute the
@@ -34,7 +37,7 @@ serialize fname synths = Cmd.Serialize.serialize fname =<< saved_db synths
 unserialize :: (Instrument.Patch -> code) -> FilePath
     -> IO (Either String (Time.UTCTime, [MidiDb.SynthDesc code]))
 unserialize code_for fname = do
-    result <- Cmd.Serialize.unserialize fname
+    result <- Cmd.Serialize.unserialize magic fname
     return $ case result of
         Right (Just (SavedDb (time, db))) ->
             Right (time, make_synths code_for db)

@@ -11,7 +11,6 @@ import qualified Control.Exception as Exception
 import qualified Data.ByteString as ByteString
 import qualified Data.ByteString.Lazy as Lazy
 import qualified System.Directory as Directory
-import qualified System.FilePath as FilePath
 import System.FilePath ((</>))
 import qualified System.IO.Error as IO.Error
 import qualified System.Process as Process

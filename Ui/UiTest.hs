@@ -29,7 +29,7 @@ import qualified Ui.Types as Types
 
 import qualified Cmd.Create as Create
 import qualified Cmd.Meter as Meter
-import qualified Cmd.Serialize as Serialize
+import qualified Cmd.Save as Save
 import qualified Cmd.Simple as Simple
 import qualified Cmd.TimeStep as TimeStep
 
@@ -64,9 +64,8 @@ default_zoom :: Types.Zoom
 default_zoom = Config.zoom
 
 -- | Save the state to disk, so I can load it into the app and see it.
-save :: State.State -> FilePath -> IO ()
-save ui_state fname =
-    Serialize.serialize fname =<< Serialize.make_save_state ui_state
+save :: FilePath -> State.State -> IO ()
+save = Save.write_state
 
 -- * monadic mk- functions
 

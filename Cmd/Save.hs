@@ -57,6 +57,9 @@ load path
 
 -- * plain serialize
 
+state_magic :: Serialize.Magic
+state_magic = Serialize.Magic 's' 'c' 'o' 'r'
+
 save_state :: Cmd.CmdT IO ()
 save_state = save_state_as =<< get_state_path
 
@@ -66,15 +69,15 @@ save_state = save_state_as =<< get_state_path
 -- like the saved REPL history and the ly subdirectory will go there.
 save_state_as :: FilePath -> Cmd.CmdT IO ()
 save_state_as fname = do
-    write_state fname
+    save_state_as_ fname
     set_save_file (Right fname) False
 
-write_state :: FilePath -> Cmd.CmdT IO ()
-write_state fname = do
-    ui_state <- State.get
-    save <- liftIO $ Serialize.make_save_state (State.clear ui_state)
+-- | Like 'save_state_as', but don't set the SaveFile.
+save_state_as_ :: FilePath -> Cmd.CmdT IO ()
+save_state_as_ fname = do
+    state <- State.get
     Log.notice $ "write state to " ++ show fname
-    liftIO $ Serialize.serialize fname save
+    liftIO $ write_state fname state
 
 load_state :: FilePath -> Cmd.CmdT IO ()
 load_state fname = do
@@ -82,9 +85,19 @@ load_state fname = do
         then FilePath.dropExtension fname else fname
     Log.notice $ "load state from " ++ show fname
     let mkmsg = (("load " ++ fname ++ ": ") ++)
-    Serialize.SaveState state _ <- Cmd.require_msg (mkmsg "doesn't exist")
-        =<< Cmd.require_right mkmsg =<< liftIO (Serialize.unserialize fname)
+    state <- Cmd.require_msg (mkmsg "doesn't exist")
+        =<< Cmd.require_right mkmsg =<< liftIO (read_state fname)
     set_state (Right fname) True state
+
+write_state :: FilePath -> State.State -> IO ()
+write_state fname state =
+    Serialize.serialize state_magic fname (State.clear state)
+
+read_state :: FilePath -> IO (Either String (Maybe State.State))
+read_state fname = do
+    fname <- return $ if FilePath.takeExtension fname == ".gz"
+        then FilePath.dropExtension fname else fname
+    liftIO $ Serialize.unserialize state_magic fname
 
 -- ** path
 

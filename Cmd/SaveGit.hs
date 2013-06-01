@@ -299,12 +299,16 @@ unparse_names msg names = msg ++ "\n" ++ show names ++ "\n"
 
 -- * views
 
+magic :: Cmd.Serialize.Magic
+magic = Cmd.Serialize.Magic 'v' 'i' 'e' 'w'
+
 save_views :: Git.Repo -> Map.Map ViewId Block.View -> IO ()
-save_views repo views = Cmd.Serialize.serialize (repo </> "views") views
+save_views repo views =
+    Cmd.Serialize.serialize magic (repo </> "views") views
 
 load_views :: Git.Repo -> IO (Either String (Map.Map ViewId Block.View))
-load_views repo =
-    fmap (fromMaybe mempty) <$> Cmd.Serialize.unserialize (repo </> "views")
+load_views repo = fmap (fromMaybe mempty) <$>
+    Cmd.Serialize.unserialize magic (repo </> "views")
 
 -- * dump / undump
 

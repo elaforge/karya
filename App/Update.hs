@@ -11,9 +11,9 @@ import qualified System.Environment as Environment
 import qualified System.Exit as Exit
 import qualified System.IO as IO
 
-import Util.Control
+import qualified Ui.State as State
+import qualified Cmd.Save as Save
 import qualified Cmd.SaveGit as SaveGit
-import qualified Cmd.Serialize as Serialize
 
 
 main :: IO ()
@@ -30,21 +30,20 @@ update from_fn to_fn = do
         else unserialize from_fn
     case either_state of
         Left err -> fail_with $ "Reading " ++ show from_fn ++ ": " ++ err
-        Right (Serialize.SaveState st dt) ->
-            Serialize.serialize to_fn (Serialize.SaveState st dt)
+        Right state -> Save.write_state to_fn state
 
-unserialize :: FilePath -> IO (Either String Serialize.SaveState)
-unserialize = fmap fix . Serialize.unserialize
+unserialize :: FilePath -> IO (Either String State.State)
+unserialize = fmap fix . Save.read_state
     where
     fix (Left err) = Left err
     fix (Right Nothing) = Left "file not found"
     fix (Right (Just v)) = Right v
 
-load_git :: SaveGit.Repo -> IO (Either String Serialize.SaveState)
+load_git :: SaveGit.Repo -> IO (Either String State.State)
 load_git repo = do
     result <- SaveGit.load repo Nothing
-    either (return . Left)
-        (\(state, _, _) -> Right <$> Serialize.make_save_state state) result
+    return $ either Left (Right . extract) result
+    where extract (state, _, _) = state
 
 err_msg :: String -> IO ()
 err_msg = IO.hPutStrLn IO.stderr

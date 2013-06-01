@@ -3,15 +3,15 @@
 # This program is distributed under the terms of the GNU General Public
 # License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
-"""Automatically add tiresome licensing boilerplate."""
+'''Automatically add tiresome licensing boilerplate.'''
 
 import os, sys
 
-copyright = """\
+copyright = '''\
 Copyright 2013 Evan Laforge
 This program is distributed under the terms of the GNU General Public
 License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
-"""
+'''
 
 def main():
     for fn in sys.argv[1:]:
