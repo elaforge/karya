@@ -239,7 +239,7 @@ write_logs block_id perf = unless (Cmd.perf_logs_written perf) $ do
 -- | Summarize the cache stats and emit them as global status msgs.
 record_cache_stats :: (Cmd.M m) => [Log.Msg] -> m ()
 record_cache_stats logs = do
-    let (rederived, cached) = extract_cache_stats logs
+    let (rederived, cached) = extract_cache_stats get_block_id logs
     Cmd.set_global_status "~C" $ ellide 25 $
         show (length cached) <> " [" <> show (sum (map snd cached)) <> "] "
         <> unwords (map (Id.ident_name . fst) cached)
@@ -257,8 +257,10 @@ record_cache_stats logs = do
         | length s > len = take (len-3) s <> "..."
         | otherwise = s
 
-extract_cache_stats :: [Log.Msg] -> ([(Text, [BlockId])], [(BlockId, Int)])
-extract_cache_stats logs = (rederived, cached)
+extract_cache_stats :: (Log.Msg -> Maybe k) -> [Log.Msg]
+    -> ([(Text, [k])], [(k, Int)])
+    -- ^ ([(because, [key])], [(key, cached_vals)])
+extract_cache_stats key logs = (rederived, cached)
     where
     -- [("because xyz", [bid, bid, bid, ...])]
     rederived = map (second (map fst)) $ Seq.keyed_group_on snd
@@ -266,7 +268,7 @@ extract_cache_stats logs = (rederived, cached)
     -- [(bid1, 42), (bid2, 32), ...]
     cached = [(block_id, vals) | (block_id, Right vals) <- stats]
     stats = mapMaybe extract logs
-    extract log = case get_block_id log of
+    extract log = case key log of
         Nothing -> Nothing
         Just block_id
             | Just because <- Cache.extract_rederived_msg text ->
@@ -275,8 +277,18 @@ extract_cache_stats logs = (rederived, cached)
                 Just (block_id, Right vals)
             | otherwise -> Nothing
         where text = Log.msg_text log
-    get_block_id = Stack.block_of
-        <=< Seq.head . Stack.innermost . Stack.from_strings <=< Log.msg_stack
+
+-- | Get block cache stats.
+get_block_id :: Log.Msg -> Maybe BlockId
+get_block_id = Stack.block_of
+    <=< Seq.head . Stack.innermost . Stack.from_strings <=< Log.msg_stack
+
+-- | Get track cache stats.
+get_track_id :: Log.Msg -> Maybe (BlockId, TrackId)
+get_track_id log = do
+    stack <- Stack.from_strings <$> Log.msg_stack log
+    (Just block_id, Just track_id, _) <- Seq.last $ Stack.to_ui stack
+    return (block_id, track_id)
 
 -- | Play the performance of the given block starting from the given time.
 from_realtime :: (Cmd.M m) => BlockId -> Maybe RealTime -> RealTime

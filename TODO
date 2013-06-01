@@ -8,10 +8,6 @@ UNSORTED
     LPerf.environ, but track title is.
   - Logview: adding new log msgs causes the status bar to shrink back to one
     line, even though it should be wrapped to two.
-  - Logview got some kind of file locked error, presumably trying to track
-    a rotated log.
-    . It happens if the write handle is still open, for some reason
-      Posix.getFileStatus then gets openFile: resource busy (file is locked)
   * +detache+short, +detache+long is too long.  Change to +det, +det+long.
   * I think logview is still collecting cache msgs multiple times, make sure
     it gets reset on each rederive.
@@ -71,7 +67,8 @@ UNSORTED
     * Ensure that currently, if I edit a note below a control, the control is
       rederived.  After caching, ensure that it isn't.
     * I think it's not properly invalidating control track cache on edit.
-  - figure out what in cmd is holding on to the reference
+  - After a rederive, it still takes a Cmd to free up the memory.  Who is
+    holding on to it?
   - parallelize derivation
   * update all the saves and remove backward compatibility from Cmd.Serialize
   * every time I play, the cache stats in logview collect more
@@ -111,6 +108,7 @@ UNSORTED
   - shakefile should use typesafe oracle calls, is there newtype based
     oracle utils yet?
   convert to Text:
+    - Util.Log.Stack
     * Internal.with_stack_call
     * Derive.BaseTypes.Instrument
     * Derive.BaseTypes.Attribute
@@ -807,6 +805,10 @@ fltk:
       I could combine pitch and dyn.
 
 logview:
+  - Logview got some kind of file locked error, presumably trying to track
+    a rotated log.
+    . It happens if the write handle is still open, for some reason
+      Posix.getFileStatus then gets openFile: resource busy (file is locked)
   - can I get the standard edit menu and copy/paste?
   - haskell and c++ use the same machine readable format
   - tabs are not lining up properly

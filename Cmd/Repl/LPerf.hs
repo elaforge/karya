@@ -5,6 +5,7 @@
 {-# LANGUAGE NoMonomorphismRestriction #-}
 -- | Cmds to deal with Cmd.Performance, derivation, and performance.
 module Cmd.Repl.LPerf where
+import qualified Data.List as List
 import qualified Data.Map as Map
 
 import Util.Control
@@ -12,10 +13,12 @@ import qualified Util.Log as Log
 import qualified Util.Seq as Seq
 
 import qualified Midi.Midi as Midi
+import qualified Ui.Id as Id
 import qualified Ui.Track as Track
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Perf as Perf
 import qualified Cmd.Performance as Performance
+import qualified Cmd.Play as Play
 import qualified Cmd.PlayUtil as PlayUtil
 import qualified Cmd.Selection as Selection
 import qualified Cmd.Simple as Simple
@@ -40,6 +43,10 @@ get_root = Cmd.require =<< Perf.lookup_root
 
 get :: BlockId -> Cmd.CmdL Cmd.Performance
 get = Cmd.get_performance
+
+get_current :: BlockId -> Cmd.CmdL Cmd.Performance
+get_current block_id = Cmd.require =<< Map.lookup block_id <$>
+    Cmd.gets (Cmd.state_current_performance . Cmd.state_play)
 
 track_signals :: Cmd.CmdL (Maybe Track.TrackSignal)
 track_signals = do
@@ -237,8 +244,9 @@ simple_midi = map f . LEvent.events_of
 
 -- Should this go in LDebug?
 
-cache_stats :: BlockId -> Cmd.CmdL String
-cache_stats block_id = do
+-- | Extract the cache logs, with no summarizing.
+cache_logs :: BlockId -> Cmd.CmdL String
+cache_logs block_id = do
     perf <- Cmd.get_performance block_id
     let logs = filter Cache.is_cache_log $ Cmd.perf_logs perf
     return $ unlines
@@ -246,6 +254,44 @@ cache_stats block_id = do
     where
     format_stack =
         maybe "" (Stack.show_ui_ . Stack.from_strings) . Log.msg_stack
+
+-- | Stats for both block and track caches on the focused block.
+block_stats :: Cmd.CmdL String
+block_stats = do
+    block <- block_cache =<< Cmd.get_focused_block
+    track <- track_cache =<< Cmd.get_focused_block
+    return $ unlines
+        ["block:", format_stats block, "track:", format_stats track]
+
+-- | Get summarized stats for cached blocks.
+block_cache :: BlockId -> Cmd.CmdL ([(Text, [BlockId])], [(BlockId, Int)])
+block_cache block_id =
+    Play.extract_cache_stats Play.get_block_id . Cmd.perf_logs <$> get block_id
+
+-- | Get summarized stats for cached tracks on the given block.
+track_cache :: BlockId -> Cmd.CmdL ([(Text, [TrackId])], [(TrackId, Int)])
+track_cache block_id = do
+    (rederived, cached) <- (rederived_block *** cached_block)
+        . Play.extract_cache_stats Play.get_track_id . Cmd.perf_logs
+        <$> get block_id
+    return (rederived, cached)
+    where
+    rederived_block = map (second $ map snd . filter ((==block_id) . fst))
+    cached_block = map (first snd) . filter ((==block_id) . fst . fst)
+
+format_stats :: (Id.Ident id) => ([(Text, [id])], [(id, Int)]) -> String
+format_stats (rederived, cached) =
+    "cached: " <> format_cached cached <> "\n"
+        <> unlines (map format_rederived rederived)
+    where
+    format_rederived (because, ids) =
+        untxt because <> ": [" <> show (length ids) <> "] "
+        <> unwords (map Id.ident_name ids)
+    format_cached cached =
+        show (length cached) <> " [" <> show (sum (map snd cached)) <> "] "
+        <> unwords (map (Id.ident_name . fst) cached)
+
+-- ** cache contents
 
 get_cache :: (Cmd.M m) => BlockId -> m (Map.Map Stack.Stack Derive.Cached)
 get_cache block_id = do
