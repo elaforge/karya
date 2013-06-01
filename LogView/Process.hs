@@ -10,25 +10,14 @@ import qualified Data.Functor.Identity as Identity
 import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Sequence as Sequence
-import qualified Data.Time as Time
-
-import qualified Text.Printf as Printf
 
 import Util.Control
 import qualified Util.Log as Log
-import qualified Util.Map as Map
-import qualified Util.ParseBs as ParseBs
 import qualified Util.Regex as Regex
 import qualified Util.Seq as Seq
 
-import qualified Ui.Id as Id
 import qualified Derive.Stack as Stack
-import Types
 
-
--- | Only display timing msgs that take longer than this.
-timing_diff_threshold :: Time.NominalDiffTime
-timing_diff_threshold = 0.5
 
 -- * state
 
@@ -37,7 +26,6 @@ data State = State {
     -- | Msgs matching this regex have their matching groups put in the
     -- status line.
     , state_catch_patterns :: [CatchPattern]
-    , state_cache :: Cache
     , state_status :: Status
     -- | A cache of the most recent msgs.  When the filter is changed they can
     -- be displayed.  This way memory use is bounded but you can display recent
@@ -50,17 +38,12 @@ data State = State {
 
 initial_state :: String -> State
 initial_state filt = State
-    (compile_filter filt) [] initial_cache Map.empty Sequence.empty Nothing
-
--- | Keep track of cache msgs.
-data Cache = Cache {
-    cache_rederived :: Map.Map String [String]
-    , cache_total :: Int
-    , cache_blocks :: [String]
-    } deriving (Show)
-
-initial_cache :: Cache
-initial_cache = Cache Map.empty 0 []
+    { state_filter = compile_filter filt
+    , state_catch_patterns = []
+    , state_status = Map.empty
+    , state_cached_msgs = Sequence.empty
+    , state_last_displayed = Nothing
+    }
 
 add_msg :: Int -> Log.Msg -> State -> State
 add_msg history msg state = state { state_cached_msgs = seq }
@@ -110,16 +93,14 @@ type ProcessM = State.StateT State Identity.Identity
 process_msg :: State -> Log.Msg -> (Maybe StyledText, State)
 process_msg state msg = run $ do -- suppress_last msg $ do
     filt <- State.gets state_filter
-    process_cache msg
     process_catch
     let styled = format_msg msg
     return $ if eval_filter filt msg (style_text styled)
-        then Just styled
-        else Nothing
+        then Just styled else Nothing
     where
     run = flip State.runState state
-    process_catch = State.modify $ \st -> st { state_status =
-        catch (state_status st) (state_catch_patterns st) }
+    process_catch = State.modify $ \st -> st
+        { state_status = catch (state_status st) (state_catch_patterns st) }
     catch status patterns = List.foldl'
         (\status catch -> catch msg status) status (catches patterns)
 
@@ -150,10 +131,13 @@ suppress_last msg process = do
 -- If the regex has no groups, the entire match is used for the value.  If it
 -- has one group, that group is used.  If it has two groups, the first group
 -- will replace the key.  >2 groups is an error.
+--
+-- If the value is "", then the key is removed.
 catch_regexes :: [CatchPattern] -> Catch
-catch_regexes patterns msg = Map.union status
+catch_regexes patterns msg = Map.filter (not . null) . Map.union status
     where
-    status = Map.unions $ map (($ Log.msg_string msg) . match_pattern) patterns
+    status = Map.unions $
+        map (($ Log.msg_string msg) . match_pattern) patterns
 
 -- | The app sends this on startup, so I can clear out any status from the
 -- last session.
@@ -172,83 +156,6 @@ match_pattern (title, reg) = Map.fromList . map extract . Regex.find_groups reg
     extract (_, [match_title, match]) = (match_title, match)
     extract _ = error $ show reg ++ " has >2 groups"
 
-
--- ** cache status
-
--- | Update the Cache state and Status.
---
--- The status keys start with ~ so they sort last.
-process_cache :: Log.Msg -> ProcessM ()
-process_cache msg
-    | Regex.matches start_play_pattern (Log.msg_string msg) = do
-        modify_cache $ const initial_cache
-        modify_status $ Map.filter_key ((/="~") . take 1)
-    -- Only keep track of block cache msgs.
-    | Just bid <- get_block_id msg, Just because <- extract rederived_pattern =
-        increment_rederived bid because
-    | Just bid <- get_block_id msg, Just nvals <- extract cached_pattern,
-            Just vals <- ParseBs.int nvals =
-        increment_cached bid vals
-    | otherwise = return ()
-    where
-    get_block_id = Stack.block_of
-        <=< Seq.head . Stack.innermost . Stack.from_strings
-        <=< Log.msg_stack
-    extract regex = case Regex.find_groups regex (Log.msg_string msg) of
-        [] -> Nothing
-        [(_, [match])] -> Just match
-        [(match, [])] -> Just match
-        [(_, _:_:_)] -> error $ show regex ++ " has >1 group"
-        matches -> error $
-            "unexpected matches for " ++ show regex ++ ": " ++ show matches
-    -- I clear and regenerate the cache status on every play.  It would be
-    -- nicer to only do that when the score is rederived, but then I have to
-    -- keep track of which block is being displayed in the cache status.
-    start_play_pattern = Regex.make "^play block "
-    rederived_pattern = Regex.make "^rederived generator because of (.*)"
-    cached_pattern = Regex.make "^using cache, (\\d+) vals"
-
--- | Add the block of the given msg to the status string.  E.g.,
--- \"[13] bid1 bid2 ...\" -> \"14 bid0 bid1 ...\"
-increment_rederived :: BlockId -> String -> ProcessM ()
-increment_rederived bid because = do
-    bids <- State.gets (Map.get [] because . cache_rederived . state_cache)
-    -- append so they appear in order of appearance
-    let new_bids = bids ++ [Id.ident_name bid]
-    modify_cache $ \cache -> cache { cache_rederived =
-        Map.insert because new_bids (cache_rederived cache) }
-    modify_status $
-        Map.insert ("~rederived " ++ because) (rederived new_bids)
-    where
-    rederived bids = ellide 25 $
-        Printf.printf "[%d] %s" (length bids) (unwords bids)
-
--- | Add the number of cached blocks and total cached events.  E.g.,
--- \"cached: 10 [42]: bid1 bid2 bid3 ...\"
-increment_cached :: BlockId -> Int -> ProcessM ()
-increment_cached bid vals = do
-    modify_cache $ \cache -> cache
-        { cache_total = vals + cache_total cache
-        , cache_blocks = cache_blocks cache ++ [Id.ident_name bid]
-        }
-    cache <- State.gets state_cache
-    modify_status $ Map.insert "~cached" (cached cache)
-    where
-    cached cache = ellide 25 $ Printf.printf "%d [%d] %s"
-        (length (cache_blocks cache)) (cache_total cache)
-        (unwords (cache_blocks cache))
-
-ellide :: Int -> String -> String
-ellide len s
-    | length s > len = take (len-3) s ++ "..."
-    | otherwise = s
-
-modify_cache :: (Cache -> Cache) -> ProcessM ()
-modify_cache f = State.modify $ \st -> st { state_cache = f (state_cache st) }
-
-modify_status :: (Status -> Status) -> ProcessM ()
-modify_status f =
-    State.modify $ \st -> st { state_status = f (state_status st) }
 
 -- ** filter
 

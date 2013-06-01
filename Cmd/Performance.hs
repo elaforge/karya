@@ -173,8 +173,10 @@ evaluate_performance wait send_status block_id perf = do
     send_status block_id (Msg.OutOfDate perf)
     Thread.delay wait
     send_status block_id Msg.Deriving
+    -- I just force the logs here, and wait for a play to actually write them.
     ((), secs) <- Log.time_eval $
-        return $! DeepSeq.deepseq (Cmd.perf_logs perf) ()
+        return $! Cmd.perf_logs perf `DeepSeq.deepseq` Cmd.perf_events perf
+            `DeepSeq.deepseq` ()
     when (secs > 1) $
         Log.notice $ "derived " ++ show block_id ++ " in "
             ++ Pretty.pretty (RealTime.seconds secs)

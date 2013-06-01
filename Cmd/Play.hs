@@ -80,15 +80,20 @@
     clears the PlayMonitorControl.
 -}
 module Cmd.Play where
+import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
+import qualified Data.Set as Set
 
 import Util.Control
 import qualified Util.Log as Log
 import qualified Util.Pretty as Pretty
+import qualified Util.Seq as Seq
 
+import qualified Ui.Id as Id
 import qualified Ui.State as State
 import qualified Ui.Types as Types
+
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Perf as Perf
 import qualified Cmd.PlayUtil as PlayUtil
@@ -96,6 +101,8 @@ import qualified Cmd.Selection as Selection
 import qualified Cmd.StepPlay as StepPlay
 import qualified Cmd.TimeStep as TimeStep
 
+import qualified Derive.Cache as Cache
+import qualified Derive.Stack as Stack
 import qualified Perform.Transport as Transport
 import Types
 
@@ -212,14 +219,64 @@ get_performance :: (Cmd.M m) => BlockId -> m Cmd.Performance
 get_performance block_id = do
     perf <- Cmd.require_msg ("no performance for block " ++ show block_id)
         =<< lookup_current_performance block_id
-    unless (Cmd.perf_logs_written perf) $ do
-        mapM_ Log.write (Cmd.perf_logs perf)
-        Cmd.modify_play_state $ \st -> st
-            { Cmd.state_current_performance = Map.insert block_id
-                (perf { Cmd.perf_logs_written = True })
-                (Cmd.state_current_performance st)
-            }
+    write_logs block_id perf
     return perf
+
+write_logs :: (Cmd.M m) => BlockId -> Cmd.Performance -> m ()
+write_logs block_id perf = unless (Cmd.perf_logs_written perf) $ do
+    -- There are so many cache msgs it clogs up logview.  I'm writing a summary
+    -- anyway so I can filter them out.
+    mapM_ Log.write $ filter (not . Cache.is_cache_log) (Cmd.perf_logs perf)
+    -- Logview can only display one set of stats, so only show the root block.
+    whenM ((==block_id) <$> State.get_root_id) $
+        record_cache_stats (Cmd.perf_logs perf)
+    Cmd.modify_play_state $ \st -> st
+        { Cmd.state_current_performance = Map.insert block_id
+            (perf { Cmd.perf_logs_written = True })
+            (Cmd.state_current_performance st)
+        }
+
+-- | Summarize the cache stats and emit them as global status msgs.
+record_cache_stats :: (Cmd.M m) => [Log.Msg] -> m ()
+record_cache_stats logs = do
+    let (rederived, cached) = extract_cache_stats logs
+    Cmd.set_global_status "~C" $ ellide 25 $
+        show (length cached) <> " [" <> show (sum (map snd cached)) <> "] "
+        <> unwords (map (Id.ident_name . fst) cached)
+    status_keys <- Cmd.gets (Map.keysSet . Cmd.state_global_status)
+    let keys = map (("~X "<>) . untxt . fst) rederived
+        gone = Set.filter ("~X " `List.isPrefixOf`) $
+            status_keys Set.\\ Set.fromList keys
+    forM_ (zip keys (map snd rederived)) $ \(key, block_ids) ->
+        Cmd.set_global_status key $ ellide 25 $
+            "[" <> show (length block_ids) <> "] "
+            <> unwords (map Id.ident_name block_ids)
+    forM_ (Set.toList gone) $ \key -> Cmd.set_global_status key ""
+    where
+    ellide len s
+        | length s > len = take (len-3) s <> "..."
+        | otherwise = s
+
+extract_cache_stats :: [Log.Msg] -> ([(Text, [BlockId])], [(BlockId, Int)])
+extract_cache_stats logs = (rederived, cached)
+    where
+    -- [("because xyz", [bid, bid, bid, ...])]
+    rederived = map (second (map fst)) $ Seq.keyed_group_on snd
+        [(block_id, because) | (block_id, Left because) <- stats]
+    -- [(bid1, 42), (bid2, 32), ...]
+    cached = [(block_id, vals) | (block_id, Right vals) <- stats]
+    stats = mapMaybe extract logs
+    extract log = case get_block_id log of
+        Nothing -> Nothing
+        Just block_id
+            | Just because <- Cache.extract_rederived_msg text ->
+                Just (block_id, Left because)
+            | Just vals <- Cache.extract_cached_msg text ->
+                Just (block_id, Right vals)
+            | otherwise -> Nothing
+        where text = Log.msg_text log
+    get_block_id = Stack.block_of
+        <=< Seq.head . Stack.innermost . Stack.from_strings <=< Log.msg_stack
 
 -- | Play the performance of the given block starting from the given time.
 from_realtime :: (Cmd.M m) => BlockId -> Maybe RealTime -> RealTime

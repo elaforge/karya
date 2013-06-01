@@ -6,19 +6,21 @@
 module Derive.Cache (
     block, track
     , get_control_damage, get_tempo_damage
-    , is_cache_log
+    , is_cache_log, extract_cached_msg, extract_rederived_msg
 
 #ifdef TESTING
     , find_generator_cache
     , _extend_control_damage
 #endif
 ) where
+import qualified Data.Char as Char
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 import qualified Data.Text as Text
 
 import Util.Control
 import qualified Util.Log as Log
+import qualified Util.ParseBs as ParseBs
 import qualified Util.Ranges as Ranges
 import qualified Util.Seq as Seq
 
@@ -190,6 +192,17 @@ rederived_msg reason = "rederived generator because of " ++ reason
 is_cache_log :: Log.Msg -> Bool
 is_cache_log msg = prefix "using cache, " || prefix "rederived generator "
     where prefix = (`Text.isPrefixOf` Log.msg_text msg)
+
+extract_cached_msg :: Text -> Maybe Int
+extract_cached_msg = extract . Text.stripPrefix "using cache, "
+    where
+    extract (Just rest)
+        | Just vals <- ParseBs.int (untxt $ Text.takeWhile Char.isDigit rest) =
+            Just vals
+    extract _ = Nothing
+
+extract_rederived_msg :: Text -> Maybe Text
+extract_rederived_msg = Text.stripPrefix "rederived generator because of "
 
 
 -- * get_control_damage
