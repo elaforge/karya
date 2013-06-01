@@ -16,7 +16,6 @@ module Derive.Call.BlockUtil (
 #endif
 ) where
 import qualified Data.Map as Map
-import qualified Data.Maybe as Maybe
 import qualified Data.Tree as Tree
 
 import Util.Control
@@ -146,7 +145,7 @@ derive_track node@(Tree.Node track subs)
     | TrackInfo.is_note_track (TrackTree.tevents_title track) = do
         let (orphans, underivable) = Slice.extract_orphans track subs
         record underivable
-        with_stack $ cached $
+        with_stack $ Cache.track track (TrackTree.tevents_children node) $
             derive_orphans (TrackTree.tevents_title track) orphans $
                 Internal.track_setup track (Note.d_note_track node)
     -- I'd like to call track_setup up here, but tempo tracks are treated
@@ -165,13 +164,8 @@ derive_track node@(Tree.Node track subs)
         derived_orphans = mconcat
             [Note.with_title [] range title (derive_track orphan)
                 | (range, orphan) <- orphans]
-
     with_stack = maybe id Internal.with_stack_track
         (TrackTree.tevents_track_id track)
-    cached
-        | TrackTree.tevents_sliced track
-            || Maybe.isNothing (TrackTree.tevents_track_id track) = id
-        | otherwise = Cache.track (TrackTree.tevents_children node)
 
 -- | Does this tree have any non-tempo tracks at the top level?
 has_nontempo_track :: TrackTree.EventsTree -> Bool

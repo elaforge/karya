@@ -15,6 +15,7 @@ module Derive.Cache (
 ) where
 import qualified Data.Char as Char
 import qualified Data.Map.Strict as Map
+import qualified Data.Maybe as Maybe
 import qualified Data.Set as Set
 import qualified Data.Text as Text
 
@@ -27,6 +28,7 @@ import qualified Util.Seq as Seq
 import qualified Ui.Event as Event
 import qualified Ui.Events as Events
 import qualified Ui.Track as Track
+import qualified Ui.TrackTree as TrackTree
 
 import qualified Derive.Args as Args
 import qualified Derive.Derive as Derive
@@ -62,10 +64,17 @@ block :: (Derive.PassedArgs d -> Derive.EventDeriver)
 block call args = caching_deriver Block range (call args)
     where range = uncurry Ranges.range (Args.range_on_track args)
 
-track :: (Derive.Derived d) => Set.Set TrackId
+-- | Cache a track, but only if it's not sliced and has a TrackId.
+track :: (Derive.Derived d) => TrackTree.TrackEvents -> Set.Set TrackId
     -- ^ Children, as documented in 'Track'.
     -> Derive.LogsDeriver d -> Derive.LogsDeriver d
-track children = caching_deriver (Track children) Ranges.everything
+track track children
+    | should_cache track = caching_deriver (Track children) Ranges.everything
+    | otherwise = id
+
+should_cache :: TrackTree.TrackEvents -> Bool
+should_cache track = not (TrackTree.tevents_sliced track)
+    && Maybe.isJust (TrackTree.tevents_track_id track)
 
 caching_deriver :: (Derive.Derived d) => Type -> Ranges.Ranges ScoreTime
     -> Derive.LogsDeriver d -> Derive.LogsDeriver d
