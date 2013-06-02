@@ -16,8 +16,8 @@ import Text.Printf
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 import qualified Ui.State as State
+import qualified Cmd.Save as Save
 import qualified Cmd.SaveGit as SaveGit
-import qualified Cmd.Serialize as Serialize
 
 
 options :: [GetOpt.OptDescr Flag]
@@ -38,10 +38,10 @@ main = do
         (_, _, errs) -> usage $ "flag errors: " ++ Seq.join ", " errs
     let is_git = (".git" `List.isSuffixOf`)
     case args of
-        [fn]
-            | is_git fn -> dump_git flags fn Nothing
-            | otherwise -> dump_simple flags fn
-        [fn, commit] | is_git fn -> dump_git flags fn (Just commit)
+        [fname]
+            | is_git fname -> dump_git flags fname Nothing
+            | otherwise -> dump_simple flags fname
+        [fname, commit] | is_git fname -> dump_git flags fname (Just commit)
         _ -> usage $ "expected a single filename: " ++ Seq.join ", " args
     where
     usage msg = do
@@ -54,12 +54,10 @@ die msg = do
     System.Exit.exitWith (System.Exit.ExitFailure 1)
 
 dump_simple :: [Flag] -> FilePath -> IO ()
-dump_simple flags fn = do
-    save <- either (die . (("reading " ++ show fn ++ ":") ++)) return
-        =<< Serialize.unserialize fn
-    Serialize.SaveState state date <-
-        maybe (die $ "file not found: " ++ show fn) return save
-    printf "saved at %s:\n" (show date)
+dump_simple flags fname = do
+    save <- either (die . (("reading " ++ show fname ++ ":") ++)) return
+        =<< Save.read_state fname
+    state <- maybe (die $ "file not found: " ++ show fname) return save
     pprint_state flags state
 
 -- | Either a commit hash or a save point ref.

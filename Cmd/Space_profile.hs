@@ -10,7 +10,7 @@ import qualified Util.Memory as Memory
 import Util.Test
 import qualified Ui.State as State
 import qualified Ui.Transform as Transform
-import qualified Cmd.Serialize as Serialize
+import qualified Cmd.Save as Save
 
 
 profile_load = do
@@ -31,8 +31,8 @@ profile_load = do
 load :: FilePath -> IO State.State
 load fname = do
     result <- print_timer ("unserialize " ++ show fname)
-        (const "") (Serialize.unserialize fname)
-    Just (Serialize.SaveState state _) <- return $ expect_right "load" result
+        (const "") (Save.read_state fname)
+    Just state <- return $ expect_right "load" result
     return state
 
 print_memory_diff :: (Memory.Size, Memory.Size) -> (Memory.Size, Memory.Size)

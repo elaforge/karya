@@ -880,6 +880,8 @@ get_insert_tracknum = do
 set_view_status :: (M m) => ViewId -> (Int, Text) -> Maybe Text -> m ()
 set_view_status = State.set_view_status
 
+-- | Emit a special log msg that will cause log view to put this key and value
+-- in its status bar.  A value of \"\" will cause logview to delete that key.
 set_global_status :: (M m) => String -> String -> m ()
 set_global_status key val = do
     status_map <- gets state_global_status

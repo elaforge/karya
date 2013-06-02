@@ -5,7 +5,6 @@
 {-# LANGUAGE NoMonomorphismRestriction #-}
 -- | Cmds to deal with Cmd.Performance, derivation, and performance.
 module Cmd.Repl.LPerf where
-import qualified Data.List as List
 import qualified Data.Map as Map
 
 import Util.Control
