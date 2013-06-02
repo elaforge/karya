@@ -142,13 +142,13 @@ eval_track track expr ctype deriver = case ctype of
     TrackInfo.Tempo -> ifM Derive.is_lilypond_derive deriver $
         tempo_call track
             (Derive.with_val Environ.control ("tempo" :: Text) $
-                derive_control True tempo_track expr)
+                derive_control True True tempo_track expr)
             deriver
     TrackInfo.Control maybe_op control -> do
         op <- lookup_op control maybe_op
         control_call track control op
-            (Derive.with_val Environ.control (cname control) $
-                derive_control False track expr)
+            (\cache -> Derive.with_val Environ.control (cname control) $
+                derive_control cache False track expr)
             deriver
     TrackInfo.Pitch scale_id maybe_name ->
         pitch_call track maybe_name scale_id expr deriver
@@ -191,6 +191,8 @@ tempo_call track sig_deriver deriver = do
     (signal, logs) <- Internal.setup_without_warp sig_deriver
     when_just maybe_track_id $ \track_id ->
         unless (TrackTree.tevents_sliced track) $
+            -- I don't need stash_signal because this is definitely in
+            -- TrackTime.
             put_track_signal track_id $
                 Track.TrackSignal (Signal.coerce signal) 0 1 False
     -- 'with_damage' must be applied *inside* 'd_tempo'.  If it were outside,
@@ -208,11 +210,14 @@ tempo_call track sig_deriver deriver = do
     track_range = TrackTree.tevents_range track
 
 control_call :: TrackTree.TrackEvents -> Score.Typed Score.Control
-    -> Maybe Derive.ControlOp -> Derive.Deriver (TrackResults Signal.Control)
+    -> Maybe Derive.ControlOp
+    -> (Bool -> Derive.Deriver (TrackResults Signal.Control))
+    -- ^ The deriver takes a switch to prevent caching if 'stash_signal' runs
+    -- it again.
     -> Derive.EventDeriver -> Derive.EventDeriver
 control_call track control maybe_op control_deriver deriver = do
-    (signal, logs) <- Internal.track_setup track control_deriver
-    stash_signal track signal (to_display <$> control_deriver) False
+    (signal, logs) <- Internal.track_setup track (control_deriver True)
+    stash_signal track signal (to_display <$> control_deriver False) False
     -- Apply and strip any control modifications made during the above derive.
     Derive.apply_control_modifications $ merge_logs logs $ with_damage $
         with_control control signal deriver
@@ -244,11 +249,11 @@ pitch_call track maybe_name scale_id expr deriver =
     Internal.track_setup track $ do
         scale <- get_scale scale_id
         Derive.with_scale scale $ do
-            let derive = derive_pitch track expr
-            (signal, logs) <- derive
+            (signal, logs) <- derive_pitch True track expr
             -- Ignore errors, they should be logged on conversion.
             (nn_sig, _) <- pitch_signal_to_nn signal
-            stash_signal track (Signal.coerce nn_sig) (to_psig derive) True
+            stash_signal track (Signal.coerce nn_sig)
+                (to_psig $ derive_pitch False track expr) True
             -- Apply and strip any control modifications made during the above
             -- derive.
             Derive.apply_control_modifications $ merge_logs logs $ with_damage $
@@ -282,9 +287,9 @@ with_control_damage maybe_track_id track_range =
 type TrackResults sig = (sig, [Log.Msg])
 
 -- | Derive the signal of a control track.
-derive_control :: Bool -> TrackTree.TrackEvents -> [TrackLang.Call]
+derive_control :: Bool -> Bool -> TrackTree.TrackEvents -> [TrackLang.Call]
     -> Derive.Deriver (TrackResults Signal.Control)
-derive_control is_tempo track expr = do
+derive_control cache is_tempo track expr = do
     let (start, end) = TrackTree.tevents_range track
     stream <- Call.apply_transformer
         (Derive.dummy_call_info start (end-start) "control track") expr deriver
@@ -294,7 +299,7 @@ derive_control is_tempo track expr = do
     return (signal, logs)
     where
     deriver :: Derive.ControlDeriver
-    deriver = Cache.track track mempty $ do
+    deriver = (if cache then Cache.track track mempty else id) $ do
         state <- Derive.get
         let (stream, collect) = Call.derive_track state tinfo
                 Call.control_last_sample (tevents track)
@@ -316,9 +321,9 @@ derive_control is_tempo track expr = do
             if is_tempo then TrackInfo.TempoTrack else TrackInfo.ControlTrack
         }
 
-derive_pitch :: TrackTree.TrackEvents -> [TrackLang.Call]
+derive_pitch :: Bool -> TrackTree.TrackEvents -> [TrackLang.Call]
     -> Derive.Deriver (TrackResults Pitch)
-derive_pitch track expr = do
+derive_pitch cache track expr = do
     let (start, end) = TrackTree.tevents_range track
     stream <- Call.apply_transformer
         (Derive.dummy_call_info start (end-start) "pitch track") expr deriver
@@ -327,7 +332,7 @@ derive_pitch track expr = do
         signal = mconcat signal_chunks
     return (signal, logs)
     where
-    deriver = Cache.track track mempty $ do
+    deriver = (if cache then Cache.track track mempty else id) $ do
         state <- Derive.get
         let (stream, collect) = Call.derive_track state tinfo
                 Call.pitch_last_sample (tevents track)
