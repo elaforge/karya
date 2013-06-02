@@ -285,10 +285,7 @@ get_block_id = Stack.block_of
 
 -- | Get track cache stats.
 get_track_id :: Log.Msg -> Maybe (BlockId, TrackId)
-get_track_id log = do
-    stack <- Stack.from_strings <$> Log.msg_stack log
-    (Just block_id, Just track_id, _) <- Seq.last $ Stack.to_ui stack
-    return (block_id, track_id)
+get_track_id = Stack.block_track_of . Stack.from_strings <=< Log.msg_stack
 
 -- | Play the performance of the given block starting from the given time.
 from_realtime :: (Cmd.M m) => BlockId -> Maybe RealTime -> RealTime

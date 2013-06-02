@@ -1147,6 +1147,8 @@ instance DeepSeq.NFData ScoreDamage where
         rnf tracks `seq` rnf track_blocks `seq` rnf blocks
 
 -- | Clear the damaged portions out of the cache so they will rederive.
+--
+-- Block damage also clears track caches that are on that block.
 invalidate_damaged :: ScoreDamage -> Cache -> Cache
 invalidate_damaged (ScoreDamage tracks _ blocks) (Cache cache) =
     Cache $ Map.mapWithKey invalidate $ Map.filter is_valid cache
@@ -1156,11 +1158,13 @@ invalidate_damaged (ScoreDamage tracks _ blocks) (Cache cache) =
     invalidate stack cached
         | has_damage stack = Invalid
         | otherwise = cached
+    -- Block damage clears caches for that block, but not parents because the
+    -- normal cache machinery will take care of that.
     has_damage stack
-        | Just frame <- Seq.head (Stack.innermost stack) = case frame of
-            Stack.Block block_id -> Set.member block_id blocks
-            Stack.Track track_id -> Map.member track_id tracks
-            _ -> False
+        | Just (Stack.Block block_id) <- Seq.head (Stack.innermost stack) =
+            Set.member block_id blocks
+        | Just (block_id, track_id) <- Stack.block_track_of stack =
+            Map.member track_id tracks || Set.member block_id blocks
         | otherwise = False
 
 -- | Control damage indicates that a section of control signal has been

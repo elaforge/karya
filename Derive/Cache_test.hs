@@ -29,6 +29,7 @@ import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.LEvent as LEvent
 import qualified Derive.Score as Score
 import qualified Derive.Stack as Stack
+import qualified Derive.TrackLang as TrackLang
 import qualified Derive.TrackWarp as TrackWarp
 
 import qualified Perform.Signal as Signal
@@ -39,7 +40,8 @@ import Types
 
 test_invalidate_damaged = do
     let mkdamage tracks blocks = Derive.ScoreDamage
-            (Map.fromList tracks) Set.empty (Set.fromList blocks)
+            (Map.fromList tracks) Set.empty
+            (Set.fromList (map UiTest.bid blocks))
         empty = Derive.CachedEvents (Derive.CallType mempty [])
         mkcache stack = Derive.Cache $
             Map.singleton stack (Derive.Cached empty)
@@ -51,9 +53,12 @@ test_invalidate_damaged = do
     let block_stack = Stack.from_outermost [block "top"]
         track_stack = Stack.from_outermost [block "top", track "t"]
     equal (f (mkdamage [] []) track_stack) [(track_stack, True)]
-    equal (f (mkdamage [] [UiTest.bid "top"]) block_stack)
+    equal (f (mkdamage [] ["top"]) block_stack)
         [(block_stack, False)]
     equal (f (mkdamage [(UiTest.tid "t", Ranges.range 1 3)] []) track_stack)
+        [(track_stack, False)]
+    -- Block damage should also invalidate track caches on that block.
+    equal (f (mkdamage [] ["top"]) track_stack)
         [(track_stack, False)]
 
 -- * cached generators
@@ -374,7 +379,7 @@ test_control_damage = do
         , "top.t2 1-2: sub sub.t1 \\*: * control damage"
         , "top.t2 1-2: sub \\* \\*: * control damage"
         , "top.t1 \\*: rederived"
-        , "top.t2 \\*: * control damage"
+        , "top.t2 \\*: * score damage"
         , toplevel_rederived True
         ]
 
@@ -389,7 +394,7 @@ test_control_damage = do
         , "top.t2 1-2: * control damage"
         , "top.t2 1-2: sub \\* \\*: * control damage"
         , "top.t1 \\*: rederived"
-        , "top.t2 \\*: * control damage"
+        , "top.t2 \\*: * score damage"
         , toplevel_rederived True
         ]
 
@@ -531,7 +536,7 @@ test_extend_tempo_damage = do
             State.insert_event (UiTest.mk_tid 1) (Event.event 1 0 "2")
     equal (diff_events cached uncached) []
 
-test_control_cache = do
+test_track_cache = do
     let create = fmap fst $ UiTest.mkblock $ (,) UiTest.default_block_name
             [ ("dyn", [(0, 0, ".5"), (1, 0, "1")])
             , (">", [(0, 2, "")])
@@ -555,6 +560,26 @@ test_control_cache = do
         , "b1 b1.t2 \\*: rederived"
         , "b1 \\* \\*: rederived"
         ]
+
+    let title = State.set_block_title UiTest.default_block_id
+
+    -- Also invalidated on block damage.
+    let (_, cached, _) = compare_cached (create <* title "foo = a") $
+            title "foo = b"
+    equal (DeriveTest.extract (DeriveTest.e_environ (=="foo")) cached)
+        ([[(TrackLang.Symbol "foo", "b")]], [])
+    strings_like (r_cache_logs cached)
+        [ "b1 b1.t1 \\*: rederived"
+        , "b1 b1.t2 \\*: rederived"
+        , "b1 \\* \\*: rederived"
+        ]
+
+    -- Make sure I don't get extra cache entries when the stack changes.
+    let (_, cached, _) = compare_cached create $ title "foo = a"
+    equal (DeriveTest.extract (DeriveTest.e_environ (=="foo")) cached)
+        ([[(TrackLang.Symbol "foo", "a")]], [])
+    equal (r_cache_stacks cached)
+        ["b1 * *", "b1 b1.t1 *", "b1 b1.t2 *"]
 
 -- ** support
 
@@ -595,7 +620,13 @@ r_cache_deps result =
 mk_block_deps :: [String] -> Derive.BlockDeps
 mk_block_deps = Derive.BlockDeps . Set.fromList . map UiTest.bid
 
-r_cache_stacks = Map.keys . uncache . Derive.r_cache
+r_cache_stacks :: Derive.Result -> [String]
+r_cache_stacks = map Stack.show_ui_ . Map.keys . Map.filter valid . uncache
+    . Derive.r_cache
+    where
+    valid Derive.Invalid = False
+    valid _ = True
+
 uncache (Derive.Cache cache) = cache
 
 mkblocks :: (State.M m) => [UiTest.BlockSpec] -> m BlockId

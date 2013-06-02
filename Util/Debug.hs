@@ -6,7 +6,7 @@ module Util.Debug (
     full, fullM
     -- * forced by evaluation
     , trace, tracep, traces, traceps
-    , tracef, trace_ret, trace_retp
+    , tracef, tracefp, trace_ret, trace_retp
     -- * forced by monad
     , traceM, tracepM, tracesM
     -- in IO
@@ -57,6 +57,9 @@ traceps msg traced = Trace.trace (with_msg msg (Pretty.formatted traced))
 -- | Print a value after applying a function to it.
 tracef :: (Show b) => String -> (a -> b) -> a -> a
 tracef msg f val = Trace.trace (with_msg msg (pshow (f val))) val
+
+tracefp :: (Pretty.Pretty b) => String -> (a -> b) -> a -> a
+tracefp msg f val = Trace.trace (with_msg msg (Pretty.pretty (f val))) val
 
 -- | Trace input and output of a function.
 trace_ret :: (Show a, Show b) => String -> a -> b -> b

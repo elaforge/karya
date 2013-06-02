@@ -51,7 +51,7 @@ data Type = Block
     -- it depends on all of its children.  For a control track, the set should
     -- be empty, since control tracks are not invalidated by damage on their
     -- children.
-    | Track (Set.Set TrackId)
+    | Track !(Set.Set TrackId)
     deriving (Eq, Show)
 
 -- | If the given generator has a cache entry, relevant derivation context is

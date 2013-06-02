@@ -4,8 +4,15 @@ LEGEND
 
 UNSORTED
   * when dragging, don't snap if it would move too far
-  - Changing env assignment in the block title isn't reflected in
+  * Changing env assignment in the block title isn't reflected in
     LPerf.environ, but track title is.
+    . Editing the title makes block score damage, and that doesn't invalidate
+      track caches.
+    . But the first time it does, why?  It still thinks the cache is empty.
+    . If I add a new call, then it changes the stack, so the old cache doesn't
+      apply.  What's more it sticks around.
+      Invalidate should clear it.
+    * Why do I see "rederived generator because not in cache" twice for b1.t2?
   - Logview: adding new log msgs causes the status bar to shrink back to one
     line, even though it should be wrapped to two.
   * +detache+short, +detache+long is too long.  Change to +det, +det+long.
