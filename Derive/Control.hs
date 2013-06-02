@@ -413,7 +413,8 @@ signal_wanted track = case TrackTree.tevents_track_id track of
 -- be rendered.  This is like 'eval_track' but specialized to derive only the
 -- signal.  The track signal is normally stashed as a side-effect of control
 -- track evaluation, but tracks below a note track are not evaluated normally.
-track_signal :: TrackTree.TrackEvents -> Derive.Deriver (Maybe Track.TrackSignal)
+track_signal :: TrackTree.TrackEvents
+    -> Derive.Deriver (Maybe Track.TrackSignal)
 track_signal track = ifM (not <$> signal_wanted track) (return Nothing) $ do
     (ctype, expr) <- either (\err -> Derive.throw $ "track title: " ++ err)
         return $ TrackInfo.parse_control_expr (TrackTree.tevents_title track)
@@ -426,21 +427,27 @@ eval_signal :: TrackTree.TrackEvents -> [TrackLang.Call]
     -> TrackInfo.ControlType -> Derive.Deriver Track.TrackSignal
 eval_signal track expr ctype = case ctype of
     TrackInfo.Tempo {} -> do
-        (sig, logs) <- derive_control True track expr
+        (sig, logs) <- with_stack $ derive_control False True track expr
         write logs
         return $ track_sig sig False
     TrackInfo.Control {} -> do
-        (sig, logs) <- derive_control False track expr
+        (sig, logs) <- with_stack $ derive_control False False track expr
         write logs
         return $ track_sig sig False
     TrackInfo.Pitch scale_id _ -> do
         scale <- get_scale scale_id
-        (sig, logs) <- Derive.with_scale scale $ derive_pitch track expr
+        (sig, logs) <- with_stack $ Derive.with_scale scale $
+            derive_pitch False track expr
         write logs
         -- TODO I log derivation errors... why not log pitch errors?
         (nn_sig, _) <- pitch_signal_to_nn sig
         return $ track_sig nn_sig True
     where
+    -- Normally the TrackId is added to the stack by 'BlockUtil.derive_track',
+    -- but I'm bypassing the usual track derivation so I need to add it myself.
+    with_stack = case TrackTree.tevents_track_id track of
+        Nothing -> id
+        Just track_id -> Internal.with_stack_track track_id
     -- If the track has errors deriving they are likely already reported by the
     -- main derivation.  Still, I shouldn't just discard them, since the track
     -- signal derivation may fail in a way the inverted one didn't.
