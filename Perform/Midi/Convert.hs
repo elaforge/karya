@@ -64,16 +64,15 @@ convert_event :: Lookup -> Score.Event
     -> ConvertT (Perform.Event, [Score.Event])
 convert_event lookup event_ = do
     let score_inst = Score.event_instrument event_
-    (midi_inst, maybe_key) <- convert_inst (lookup_inst lookup) score_inst
-        (Score.event_attributes event_)
-    patch <- require ("patch in instrument db: " ++ show score_inst) $
-        lookup_patch lookup score_inst
+    patch <- get_patch score_inst $ lookup_patch lookup score_inst
     let (event, additional) =
             split_composite (Instrument.patch_composite patch) event_
-    pitch <- case maybe_key of
-        Nothing -> convert_pitch (Instrument.patch_scale patch)
-            (Score.event_controls event) (Score.event_pitch event)
-        Just key -> return $ Signal.constant (Midi.from_key key)
+    let attrs = Score.event_attributes event
+    (midi_inst, ks_attrs) <- require
+        ("instrument in db: " <> Pretty.pretty score_inst) $
+            lookup_inst lookup attrs score_inst
+    pitch <- convert_midi_pitch score_inst patch
+        (Score.attrs_diff attrs ks_attrs) event
     let (controls, overridden) = convert_controls
             (Instrument.has_flag Instrument.Pressure patch)
             (Instrument.inst_control_map midi_inst)
@@ -85,6 +84,20 @@ convert_event lookup event_ = do
             (Score.event_start event) (Score.event_duration event)
             controls pitch (Score.event_stack event)
     return (converted, additional)
+
+-- | Abort if the patch wasn't found.  If it wasn't found the first time, it
+-- won't be found the second time either, so avoid spamming the log by throwing
+-- Nothing after the first time.
+get_patch :: Score.Instrument -> Maybe Instrument.Patch
+    -> ConvertT Instrument.Patch
+get_patch _ (Just v) = return v
+get_patch inst Nothing = do
+    not_found <- State.get
+    if Set.member inst not_found then ConvertUtil.abort
+        else do
+            State.put (Set.insert inst not_found)
+            require ("patch in instrument db: " ++ Pretty.pretty inst
+                ++ " (further warnings suppressed)") Nothing
 
 -- | Split a composite patch, as documented in 'Instrument.Composite'.
 split_composite :: [Instrument.Composite] -> Score.Event
@@ -109,43 +122,26 @@ split_composite composite event = (stripped, map extract composite)
         }
     filter_key f = Map.filterWithKey (\k _ -> f k) (Score.event_controls event)
 
--- | Look up the score inst and figure out keyswitches and keymap based on
--- its attributes.  Warn if there are attributes that didn't match anything.
-convert_inst :: MidiDb.LookupMidiInstrument -> Score.Instrument
-    -> Score.Attributes -> ConvertT (Instrument.Instrument, Maybe Midi.Key)
-convert_inst lookup_inst score_inst attrs = do
-    (midi_inst, ks_attrs) <- get_inst score_inst (lookup_inst attrs score_inst)
-    let kmap_attrs = Score.attrs_diff attrs ks_attrs
-    let kmap = Instrument.inst_keymap midi_inst
-    maybe_key <- if Map.null kmap
-        then return Nothing
-        else case Map.lookup kmap_attrs kmap of
-            Nothing -> return Nothing
-            Just key -> return (Just key)
+-- | If the Event has an attribute matching its keymap, use the pitch from the
+-- keymap.  Otherwise convert the pitch signal.  Possibly warn if there are
+-- attributes that didn't match anything.
+convert_midi_pitch :: Score.Instrument -> Instrument.Patch -> Score.Attributes
+    -> Score.Event -> ConvertT Signal.NoteNumber
+convert_midi_pitch inst patch attrs event = do
+    let kmap = Instrument.patch_keymap patch
+    let maybe_key = Map.lookup attrs kmap
     when warn_unused_attributes $ case maybe_key of
-        Nothing | kmap_attrs /= mempty ->
+        Nothing | attrs /= mempty ->
             Log.warn $ untxt $
                 "attrs have no match in keyswitches or keymap of "
-                <> ShowVal.show_val (Instrument.inst_score midi_inst) <> ": "
-                <> ShowVal.show_val kmap_attrs
+                <> ShowVal.show_val inst <> ": " <> ShowVal.show_val attrs
         -- If there was a keymap and lookup succeeded then all the attributes
         -- are accounted for.
         _ -> return ()
-    return (midi_inst, maybe_key)
-
--- | Lookup the instrument or throw.  If an instrument wasn't found the first
--- time, it won't be found the second time either, so avoid spamming the log
--- by throwing Nothing after the first time.
-get_inst :: Score.Instrument -> Maybe (Instrument.Instrument, Score.Attributes)
-    -> ConvertT (Instrument.Instrument, Score.Attributes)
-get_inst _ (Just v) = return v
-get_inst inst Nothing = do
-    not_found <- State.get
-    if Set.member inst not_found then ConvertUtil.abort
-        else do
-            State.put (Set.insert inst not_found)
-            require ("midi instrument in instrument db: " ++ Pretty.pretty inst
-                ++ " (further warnings suppressed)") Nothing
+    case maybe_key of
+        Nothing -> convert_pitch (Instrument.patch_scale patch)
+            (Score.event_controls event) (Score.event_pitch event)
+        Just key -> return $ Signal.constant (Midi.from_key key)
 
 -- | Convert deriver controls to performance controls.  Drop all non-MIDI
 -- controls, since those will inhibit channel sharing later.

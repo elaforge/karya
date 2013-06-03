@@ -100,8 +100,8 @@ info_of db score_inst (MidiDb.Info synth patch code) =
             Instrument.patch_composite patch)
         , ("Instrument controls", show_control_map inst_cmap)
         , ("Synth controls", show_control_map synth_cmap)
-        , ("Keymap", if Map.null (Instrument.inst_keymap inst) then ""
-            else Pretty.prettytxt (Instrument.inst_keymap inst))
+        , ("Keymap", if Map.null (Instrument.patch_keymap patch) then ""
+            else Pretty.prettytxt (Instrument.patch_keymap patch))
         -- code
         , ("Cmds", show_cmds (Cmd.inst_cmds code))
         , ("Note calls", show_calls note_calls)

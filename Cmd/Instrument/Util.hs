@@ -115,6 +115,8 @@ keyswitches inputs = \msg -> do
 
 -- * drums
 
+-- | Construct code from drum notes.  This is both the deriver calls to
+-- interpret the stroke names, and the cmds to enter them.
 drum_code :: [(Drums.Note, Midi.Key)] -> MidiInst.Code
 drum_code note_keys =
     MidiInst.note_calls (drum_calls (map fst note_keys))

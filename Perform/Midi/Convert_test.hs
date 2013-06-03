@@ -38,7 +38,7 @@ test_lazy = do
 
 test_convert = do
     equal (convert [noinst 0, nopitch 1, good 2])
-        [ Right $ "event requires midi instrument in instrument db: "
+        [ Right $ "event requires patch in instrument db: "
             ++ ">noinst (further warnings suppressed)"
         -- emits an event anyway so the previous pitch doesn't continue
         , Left (1, [])
