@@ -81,7 +81,7 @@ test_no_damage = do
 
 test_cached_track = do
     -- If one track is damaged, it rederives and the other is cached.
-    let create = fmap fst $ UiTest.mkblock $ ((,) "top")
+    let create = mkblock
             [ (">1", [(0, 1, "")])
             , (">2", [(1, 1, "")])
             ]
@@ -379,7 +379,7 @@ test_control_damage = do
         , "top.t2 1-2: sub sub.t1 \\*: * control damage"
         , "top.t2 1-2: sub \\* \\*: * control damage"
         , "top.t1 \\*: rederived"
-        , "top.t2 \\*: * score damage"
+        , "top.t2 \\*: * control damage"
         , toplevel_rederived True
         ]
 
@@ -394,7 +394,7 @@ test_control_damage = do
         , "top.t2 1-2: * control damage"
         , "top.t2 1-2: sub \\* \\*: * control damage"
         , "top.t1 \\*: rederived"
-        , "top.t2 \\*: * score damage"
+        , "top.t2 \\*: * control damage"
         , toplevel_rederived True
         ]
 
@@ -527,41 +527,41 @@ test_tempo_damage = do
 
 test_extend_tempo_damage = do
     -- Make sure control damage emitted by 'get_tempo_damage' is reasonable.
-    let create = mkblocks [(UiTest.default_block_name,
+    let create = mkblock
             [ ("tempo", [(0, 0, "1")])
             , (">i", [(0, 1, ""), (1, 1, "")])
             , ("modulation", [(0, 1, "0")])
-            ])]
+            ]
     let (_, cached, uncached) = compare_cached create $
-            State.insert_event (UiTest.mk_tid 1) (Event.event 1 0 "2")
+            State.insert_event (mk_tid 1) (Event.event 1 0 "2")
     equal (diff_events cached uncached) []
 
 test_track_cache = do
-    let create = fmap fst $ UiTest.mkblock $ (,) UiTest.default_block_name
+    let create = mkblock
             [ ("dyn", [(0, 0, ".5"), (1, 0, "1")])
             , (">", [(0, 2, "")])
             ]
     -- Ensure that a control track above a note track is cached.
     let (_, cached, uncached) = compare_cached create $
-            State.insert_event (UiTest.mk_tid 2) $ Event.event 1 1 ""
+            State.insert_event (mk_tid 2) $ Event.event 1 1 ""
     equal (diff_events cached uncached) []
     strings_like (r_cache_logs cached)
-        [ "b1 b1.t1 \\*: using cache"
-        , "b1 b1.t2 \\*: rederived"
-        , "b1 \\* \\*: rederived"
+        [ "top top.t1 \\*: using cache"
+        , "top top.t2 \\*: rederived"
+        , "top \\* \\*: rederived"
         ]
 
     -- And invalidated on damage.
     let (_, cached, uncached) = compare_cached create $
-            State.insert_event (UiTest.mk_tid 1) $ Event.event 0 0 ".75"
+            State.insert_event (mk_tid 1) $ Event.event 0 0 ".75"
     equal (diff_events cached uncached) []
     strings_like (r_cache_logs cached)
-        [ "b1 b1.t1 \\*: rederived * cache invalidated"
-        , "b1 b1.t2 \\*: rederived"
-        , "b1 \\* \\*: rederived"
+        [ "top top.t1 \\*: rederived * cache invalidated"
+        , "top top.t2 \\*: rederived"
+        , "top \\* \\*: rederived"
         ]
 
-    let title = State.set_block_title UiTest.default_block_id
+    let title = State.set_block_title (UiTest.bid "top")
 
     -- Also invalidated on block damage.
     let (_, cached, _) = compare_cached (create <* title "foo = a") $
@@ -569,9 +569,9 @@ test_track_cache = do
     equal (DeriveTest.extract (DeriveTest.e_environ (=="foo")) cached)
         ([[(TrackLang.Symbol "foo", "b")]], [])
     strings_like (r_cache_logs cached)
-        [ "b1 b1.t1 \\*: rederived"
-        , "b1 b1.t2 \\*: rederived"
-        , "b1 \\* \\*: rederived"
+        [ "top top.t1 \\*: rederived"
+        , "top top.t2 \\*: rederived"
+        , "top \\* \\*: rederived"
         ]
 
     -- Make sure I don't get extra cache entries when the stack changes.
@@ -579,9 +579,27 @@ test_track_cache = do
     equal (DeriveTest.extract (DeriveTest.e_environ (=="foo")) cached)
         ([[(TrackLang.Symbol "foo", "a")]], [])
     equal (r_cache_stacks cached)
-        ["b1 * *", "b1 b1.t1 *", "b1 b1.t2 *"]
+        ["top * *", "top top.t1 *", "top top.t2 *"]
+
+test_track_cache2 = do
+    let create = mkblock
+            [ ("tempo", [(0, 0, "1")])
+            , ("dyn", [(0, 0, ".5")])
+            , (">", [(0, 1, "")])
+            ]
+    -- Two levels of track caching.
+    let (_, cached, uncached) = compare_cached create $
+            State.insert_event (mk_tid 2) $ Event.event 0 0 "1"
+    equal (diff_events cached uncached) []
+
 
 -- ** support
+
+mkblock :: (State.M m) => [UiTest.TrackSpec] -> m BlockId
+mkblock tracks = fst <$> UiTest.mkblock ("top", tracks)
+
+mk_tid :: TrackNum -> TrackId
+mk_tid = UiTest.mk_tid_name "top"
 
 -- | The toplevel block is just about always damaged.
 toplevel_rederived :: Bool -> String

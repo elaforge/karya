@@ -52,9 +52,10 @@ configs = State.get_midi_config
 aliases :: Cmd.CmdL (Map.Map Score.Instrument Score.Instrument)
 aliases = State.config#State.aliases <#> State.get
 
--- | Add a new instrument, copied from an existing one.
+-- | Add a new instrument, copied from an existing one.  Argument order
+-- mnemonic: same as @ln@.
 add_alias :: Text -> Text -> Cmd.CmdL ()
-add_alias new inst = State.modify $
+add_alias inst new = State.modify $
     State.config#State.aliases %= Map.insert (Score.Instrument new)
         (Score.Instrument inst)
 

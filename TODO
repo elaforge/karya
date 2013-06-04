@@ -3,6 +3,10 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
+  * Modifying a pitch track above a note track doesn't rederive the note
+    track.
+  - need an easy way to create IDs for debugging, so I can copy paste
+    (bid "xyz") stuff
   * mridangam instrument that depends on key
     . If I handle attr in the inst then I get a nice attr+pitch score event, but
       I need a somewhat complicated config: (low_key, high_key, low_key_pitch)
@@ -15,6 +19,7 @@ UNSORTED
     . Why read 'key', why not just look at the pitch signal?
     - Report out of bounds.
   - Meter for adi talam
+  - Cmd.Instrument.Util and Derive.Instrument.Util need better names
   * move Istrument.inst_keymap to Patch, since it's resolved by Convert
   * when dragging, don't snap if it would move too far
   * Changing env assignment in the block title isn't reflected in

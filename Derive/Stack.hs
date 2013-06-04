@@ -110,7 +110,7 @@ block_track_of :: Stack -> Maybe (BlockId, TrackId)
 block_track_of = go Nothing . innermost
     where
     go _ [] = Nothing
-    go _ (Track track_id : rest) = go (Just track_id) rest
+    go Nothing (Track track_id : rest) = go (Just track_id) rest
     go Nothing (_ : rest) = go Nothing rest
     go (Just track_id) (Block block_id : _) = Just (block_id, track_id)
     go track_id (_ : rest) = go track_id rest
