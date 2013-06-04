@@ -58,9 +58,9 @@ import Types
 -- into the Patch.  TODO if it helps performance, have a separate
 -- Perform.Instrument that includes a fingerprint for fast comparison.
 data Instrument = Instrument {
-    -- | This is the name that the patch calls itself, and likely has all sorts
-    -- of wacky characters in it, and may not be unique, even on a single
-    -- synth.
+    -- | This is the name of the instrument on the synthesizer, and likely has
+    -- all sorts of wacky characters in it, and may not be unique, even on
+    -- a single synth.
     --
     -- For wildcard patches, the name should be left blank and will be filled
     -- in by however the instrument is looked up.  This doesn't have the synth
@@ -370,7 +370,7 @@ patch_name = inst_name . patch_instrument
 set_keyswitches :: [(Score.Attributes, Midi.Key)] -> Patch -> Patch
 set_keyswitches ks = keyswitches #= simple_keyswitches ks
 
-set_attribute_map :: [(Score.Attributes, String)] -> Patch -> Patch
+set_attribute_map :: [(Score.Attributes, Text)] -> Patch -> Patch
 set_attribute_map attrs = attribute_map #= Map.fromList attrs
 
 set_keymap :: [(Score.Attributes, Midi.Key)] -> Patch -> Patch
@@ -438,13 +438,13 @@ simple_keyswitches :: [(Score.Attributes, Midi.Key)] -> KeyswitchMap
 simple_keyswitches attr_keys =
     KeyswitchMap [(attrs, [Keyswitch key]) | (attrs, key) <- attr_keys]
 
-overlapping_keyswitches :: KeyswitchMap -> [String]
+overlapping_keyswitches :: KeyswitchMap -> [Text]
 overlapping_keyswitches (KeyswitchMap attr_ks) =
     Maybe.catMaybes $ zipWith check (List.inits attrs) attrs
     where
     attrs = map fst attr_ks
     check prevs attr = case List.find (Score.attrs_contain attr) prevs of
-        Just other_attr -> Just $ untxt $ "keyswitch attrs "
+        Just other_attr -> Just $ "keyswitch attrs "
             <> ShowVal.show_val attr <> " shadowed by "
             <> ShowVal.show_val other_attr
         Nothing -> Nothing
@@ -466,7 +466,7 @@ keyswitch_attributes (KeyswitchMap attrs) = map fst attrs
 
 -- | Map attributes to the names of the calls they should map to.  This
 -- is used by the integrator to turn score events into UI events.
-type AttributeMap = Map.Map Score.Attributes String
+type AttributeMap = Map.Map Score.Attributes Text
 
 type Tag = (TagKey, TagVal)
 type TagKey = Text

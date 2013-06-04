@@ -65,7 +65,7 @@ load app_dir = do
         Left err -> Log.warn err >> return mempty
         Right annots -> return annots
     let (midi_db, warns) = MidiDb.midi_db synth_descs
-    forM_ warns $ \msg -> Log.warn $ "inst db: " ++ msg
+    forM_ warns $ \msg -> Log.warn $ "inst db: " ++ untxt msg
     (midi_db, not_found) <- return $ MidiDb.annotate annots midi_db
     unless (null not_found) $
         Log.warn $ "annotated instruments not found: "

@@ -137,7 +137,7 @@ note_event :: Instrument.AttributeMap -> Score.Event -> Event.Event
 note_event attr_map event = ui_event (Score.event_stack event)
     (RealTime.to_score (Score.event_start event))
     (RealTime.to_score (Score.event_duration event))
-    (txt (Map.findWithDefault "" (Score.event_attributes event) attr_map))
+    (Map.findWithDefault "" (Score.event_attributes event) attr_map)
 
 -- ** pitch
 

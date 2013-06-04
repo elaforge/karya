@@ -36,7 +36,7 @@ newtype MidiDb code = MidiDb {
 type SynthDesc code = (Instrument.Synth, PatchMap code)
 
 -- | Construct and validate a MidiDb, returning any errors that occurred.
-midi_db :: [SynthDesc code] -> (MidiDb code, [String])
+midi_db :: [SynthDesc code] -> (MidiDb code, [Text])
 midi_db synth_pmaps = (MidiDb db_map, validate synth_pmaps)
     where
     db_map = Map.fromList
@@ -44,15 +44,15 @@ midi_db synth_pmaps = (MidiDb db_map, validate synth_pmaps)
         | (synth, pmap) <- synth_pmaps
         ]
 
-validate :: [SynthDesc a] -> [String]
+validate :: [SynthDesc a] -> [Text]
 validate synth_pmaps = concatMap check_synth synth_pmaps
     where
     check_synth (synth, PatchMap patches) =
         concatMap (check_patch synth) (map fst (Map.elems patches))
-    check_patch synth patch = map (\s -> prefix ++ ": " ++ s) $
+    check_patch synth patch = map (\s -> prefix <> ": " <> s) $
         Instrument.overlapping_keyswitches (Instrument.patch_keyswitches patch)
         where
-        prefix = Pretty.pretty $ Score.instrument
+        prefix = Pretty.prettytxt $ Score.instrument
             (Instrument.synth_name synth) (Instrument.patch_name patch)
 
 -- | Merge the MidiDbs, favoring instruments in the leftmost one.

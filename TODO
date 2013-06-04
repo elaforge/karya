@@ -126,6 +126,8 @@ UNSORTED
     oracle utils yet?
   convert to Text:
     - Util.Log.Stack
+    - Util.Log
+    - browser
     * Internal.with_stack_call
     * Derive.BaseTypes.Instrument
     * Derive.BaseTypes.Attribute

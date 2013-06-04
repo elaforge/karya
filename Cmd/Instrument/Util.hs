@@ -131,8 +131,7 @@ drum_instrument :: [(Drums.Note, Midi.Key)] -> Instrument.Patch
     -> Instrument.Patch
 drum_instrument note_keys = Instrument.triggered
     . Instrument.set_attribute_map
-        [(Drums.note_attrs note, untxt $ Drums.note_name note)
-            | (note, _) <- note_keys]
+        [(Drums.note_attrs note, Drums.note_name note) | (note, _) <- note_keys]
     . Instrument.set_keymap
         [(Drums.note_attrs note, key) | (note, key) <- note_keys]
 
