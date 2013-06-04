@@ -3,15 +3,18 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
-  - mridangam instrument that depends on key
+  * mridangam instrument that depends on key
     . If I handle attr in the inst then I get a nice attr+pitch score event, but
       I need a somewhat complicated config: (low_key, high_key, low_key_pitch)
-      and hten special logic in the performer to handle it.  Current keymap
+      and then special logic in the performer to handle it.  Current keymap
       would become (key, key, Nothing).
     . If I handle in the call, then I'm bypassing keymaps entirely.  I also
       have to flatten the pitch to NNs and emit a special purpose pitch.  So
       this way doesn't play nicely with transposition since the keymap part of
       the note is already baked into the pitch.
+    . Why read 'key', why not just look at the pitch signal?
+    - Report out of bounds.
+  - Meter for adi talam
   * move Istrument.inst_keymap to Patch, since it's resolved by Convert
   * when dragging, don't snap if it would move too far
   * Changing env assignment in the block title isn't reflected in

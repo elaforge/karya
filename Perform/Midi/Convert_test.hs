@@ -8,13 +8,14 @@ import qualified Data.Set as Set
 
 import Util.Control
 import qualified Util.Log as Log
+import qualified Util.Seq as Seq
 import Util.Test
 
 import qualified Midi.Key as Key
 import qualified Midi.Midi as Midi
 import qualified Ui.UiTest as UiTest
 import qualified Cmd.Instrument.Drums as Drums
-import qualified Cmd.Instrument.Util as Instrument.Util
+import qualified Cmd.Instrument.Util as CUtil
 import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.LEvent as LEvent
@@ -24,6 +25,8 @@ import qualified Perform.Midi.Control as Control
 import qualified Perform.Midi.Convert as Convert
 import qualified Perform.Midi.Instrument as Instrument
 import qualified Perform.Midi.Perform as Perform
+import qualified Perform.NN as NN
+import qualified Perform.Pitch as Pitch
 import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
 
@@ -110,11 +113,11 @@ test_patch_scale = do
 -- * composite instrument
 
 test_composite_instrument = do
-    let keymap =
-            (set_composite Nothing [] . Instrument.Util.drum_instrument notes,
+    let patch =
+            (set_composite Nothing [] . CUtil.drum_instrument notes,
                 mempty)
         notes = [(Drums.c_bd, Key.c4), (Drums.c_sn, Key.d4)]
-    let (events, _, logs) = perform keymap [("s/i", [0]), ("s/x", [1])]
+    let (events, _, logs) = perform patch [("s/i", [0]), ("s/x", [1])]
             [ (">s/i", [(0, 1, "+bd"), (1, 1, "+snare")])
             , ("*", [(0, 0, "3c"), (0.5, 0, "3d")])
             ]
@@ -133,6 +136,30 @@ set_composite :: Maybe Text -> [Text] -> Instrument.Patch -> Instrument.Patch
 set_composite pitch controls =
     Instrument.composite #= [(Score.Instrument "s/x", Score.Control <$> pitch,
         Set.fromList (map Score.Control controls))]
+
+-- * keymap
+
+test_keymap = do
+    let patch = (set_keymap [("bd", (Key.c2, Key.c3, Just NN.c4))], mempty)
+        set_keymap kmap = Instrument.keymap
+            #= Map.fromList (map (first Score.attr) kmap)
+        mktracks ps =
+            [ (">s/i", [(n, 1, "+bd") | (n, _) <- vals])
+            , ("*", [(n, 0, p) | (n, p) <- vals])
+            ]
+            where vals = zip (Seq.range_ 0 1) ps
+        unsig = map (second Pitch.nn) . Signal.unsignal
+    let (events, _, logs) = perform patch [("s/i", [0])]
+            (mktracks ["3c", "4c", "5c", "6c"])
+    equal logs []
+    equal (map (unsig . Perform.event_pitch) events)
+        [ [(0, NN.c2)]
+        , [(1, NN.c2)]
+        , [(2, NN.c3)]
+        , [(3, NN.c3)]
+        ]
+
+-- * implementation
 
 perform :: (Instrument.Patch -> Instrument.Patch, MidiInst.Code)
     -> [(Text, [Midi.Channel])] -> [UiTest.TrackSpec]

@@ -139,9 +139,22 @@ convert_midi_pitch inst patch attrs event = do
         -- are accounted for.
         _ -> return ()
     case maybe_key of
-        Nothing -> convert_pitch (Instrument.patch_scale patch)
-            (Score.event_controls event) (Score.event_pitch event)
-        Just key -> return $ Signal.constant (Midi.from_key key)
+        Nothing -> pitch_signal
+        Just (low_key, _, Nothing) ->
+            return $ Signal.constant (Midi.from_key low_key)
+        Just (low_key, high_key, Just low_pitch) ->
+            convert_keymap (Midi.from_key low_key) (Midi.from_key high_key)
+                low_pitch =<< pitch_signal
+    where
+    convert_keymap :: Signal.Y -> Signal.Y -> Pitch.NoteNumber
+        -> Signal.NoteNumber -> ConvertT Signal.NoteNumber
+    convert_keymap low high low_pitch sig = return clipped
+        where
+        (clipped, out_of_range) = Signal.clip_bounds low high $
+            Signal.scalar_add (low - un_nn low_pitch) sig
+    un_nn (Pitch.NoteNumber nn) = nn
+    pitch_signal = convert_pitch (Instrument.patch_scale patch)
+        (Score.event_controls event) (Score.event_pitch event)
 
 -- | Convert deriver controls to performance controls.  Drop all non-MIDI
 -- controls, since those will inhibit channel sharing later.

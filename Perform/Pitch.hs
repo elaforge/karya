@@ -93,7 +93,8 @@ middle_octave = 5
 -- It would be less tempered-centric to use hz, but for the moment this seems
 -- practical since note numbers are easier to read.
 newtype NoteNumber = NoteNumber Double
-    deriving (ApproxEq.ApproxEq, Eq, Ord, Fractional, Real, RealFrac, Num)
+    deriving (ApproxEq.ApproxEq, Eq, Ord, Fractional, Real, RealFrac, Num,
+        Serialize.Serialize)
 
 instance Show NoteNumber where
     show (NoteNumber nn) = Pretty.show_float0 3 nn ++ "nn"

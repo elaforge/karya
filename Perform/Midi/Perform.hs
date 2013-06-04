@@ -597,7 +597,7 @@ perform_control cmap prev_note_off start midi_key (control, sig) =
     pos_vals = create_leading_cc prev_note_off start sig $
         trim (Signal.unsignal clipped)
     trim = dropWhile ((< start) . fst)
-    (clipped, out_of_bounds) = Signal.clip_bounds sig
+    (clipped, out_of_bounds) = Signal.clip_bounds 0 1 sig
     clip_warns = [(s, e) | (s, e) <- out_of_bounds]
 
 -- | I rely on postprocessing to eliminate the redundant msgs.

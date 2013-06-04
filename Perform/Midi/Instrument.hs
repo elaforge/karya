@@ -22,7 +22,9 @@
     Instrument as a template, but the template Instrument also wants know
     the synth name for error reporting, so those should be kept in sync.
 -}
-module Perform.Midi.Instrument where
+module Perform.Midi.Instrument (
+    module Perform.Midi.Instrument, Control.PbRange
+) where
 import Control.DeepSeq
 import qualified Data.List as List
 import qualified Data.Map as Map
@@ -249,7 +251,7 @@ data Patch = Patch {
     -- | Some midi instruments, like drum kits, have a different sound on each
     -- key.  If there is a match in this map, the pitch will be replaced with
     -- the given key.
-    , patch_keymap :: !(Map.Map Score.Attributes Midi.Key)
+    , patch_keymap :: !Keymap
     , patch_composite :: ![Composite]
     , patch_initialize :: !InitializePatch
     -- | Keyswitches available to this instrument, if any.  Each of these is
@@ -266,6 +268,10 @@ data Patch = Patch {
     -- | The patch was read from this file.
     , patch_file :: !FilePath
     } deriving (Eq, Show)
+
+-- | (low_key, high_key, pitch of low_key)
+type Keymap =
+    Map.Map Score.Attributes (Midi.Key, Midi.Key, Maybe Pitch.NoteNumber)
 
 -- | A composite patch corresponds to multiple underlying midi patches.
 -- At conversion time, a single event with a composite patch will be split
@@ -374,7 +380,8 @@ set_attribute_map :: [(Score.Attributes, Text)] -> Patch -> Patch
 set_attribute_map attrs = attribute_map #= Map.fromList attrs
 
 set_keymap :: [(Score.Attributes, Midi.Key)] -> Patch -> Patch
-set_keymap kmap = keymap #= Map.fromList kmap
+set_keymap kmap =
+    keymap #= Map.fromList [(attr, (key, key, Nothing)) | (attr, key) <- kmap]
 
 set_scale :: PatchScale -> Patch -> Patch
 set_scale = (scale #=)

@@ -230,7 +230,7 @@ sig_min = sig_op min
 -- ** scalar transformation
 
 scalar_add, scalar_subtract, scalar_multiply, scalar_divide ::
-    Y -> Control -> Control
+    Y -> Signal y -> Signal y
 scalar_add n = map_y (+n)
 scalar_subtract n = map_y (subtract n)
 scalar_multiply n = map_y (*n)
@@ -244,8 +244,8 @@ scalar_min val = map_y (max val)
 
 -- | Clip the signal's Y values to lie between (0, 1), inclusive.  Return the
 -- half-open ranges during which the Y was out of range, if any.
-clip_bounds :: Signal y -> (Signal y, [(X, X)])
-clip_bounds sig = (clipped, reverse out_of_range)
+clip_bounds :: Y -> Y -> Signal y -> (Signal y, [(X, X)])
+clip_bounds low high sig = (clipped, reverse out_of_range)
     where
     clipped = if Prelude.null out_of_range then sig
         else map_y (Num.clamp low high) sig
@@ -259,8 +259,6 @@ clip_bounds sig = (clipped, reverse out_of_range)
     go state@(accum, Just start) (V.Sample x y)
         | y < low || y > high = state
         | otherwise = ((start, x) : accum, Nothing)
-    low = 0
-    high = 1
 
 shift :: X -> Signal y -> Signal y
 shift 0 = id
