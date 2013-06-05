@@ -3,6 +3,7 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
+  - transposition is messed up for just-r, it drops it by an octave
   * Modifying a pitch track above a note track doesn't rederive the note
     track.
   - need an easy way to create IDs for debugging, so I can copy paste

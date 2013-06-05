@@ -31,6 +31,7 @@ import qualified Derive.Score as Score
 import qualified Derive.Sig as Sig
 
 import qualified Perform.Midi.Instrument as Instrument
+import qualified Perform.NN as NN
 import qualified App.MidiInst as MidiInst
 
 
@@ -46,10 +47,9 @@ synth :: Instrument.SynthName
 synth = "kkt"
 
 patches :: [MidiInst.Patch]
-patches = concat [hang, wayang, kendang_patches]
+patches = concat [hang, wayang, kendang_patches, mridangam_patches]
     where
-    hang = MidiInst.with_code hang_code
-        [inst "hang1" hang_ks, inst "hang2" hang_ks]
+    hang = MidiInst.with_code hang_code [inst "hang" hang_ks]
     wayang =
         [ (Instrument.set_scale wayang_umbang $ inst "wayang-umbang" wayang_ks,
             with_tuning "umbang" <> wayang_code)
@@ -62,6 +62,7 @@ patches = concat [hang, wayang, kendang_patches]
     inst name ks = Instrument.set_keyswitches ks $
         Instrument.patch $ Instrument.instrument name [] pb_range
 
+pb_range :: Instrument.PbRange
 pb_range = (-12, 12)
 
 -- * hang
@@ -134,7 +135,7 @@ kendang_patches =
     tunggal = map fst Drums.kendang_tunggal
     composite = map fst Drums.kendang_composite
     inst notes name = CUtil.drum_instrument notes $
-        Instrument.patch $ Instrument.instrument name [] (-12, 12)
+        Instrument.patch $ Instrument.instrument name [] pb_range
     wadon_inst = Score.instrument synth wadon_name
     lanang_inst = Score.instrument synth lanang_name
     wadon_name = "kendang-wadon"
@@ -173,7 +174,6 @@ realize_kendang insts events = Derive.merge_asc_events $
     attrs_of event = Map.lookup (Score.event_attributes event) attrs_to_inst
 
 type KendangEvent = (Attributes, Drums.Kendang)
-
 
 -- | The realization is not correct because I don't yet fully understand how it
 -- works.
@@ -236,3 +236,55 @@ attrs_to_inst :: Map.Map Attributes KendangEvent
 attrs_to_inst =
     Map.fromList [(Drums.note_attrs n, (attrs, kendang))
         | ((n, _), (attrs, kendang)) <- Drums.kendang_composite]
+
+
+-- * mridangam
+
+mridangam_patches :: [MidiInst.Patch]
+mridangam_patches = [(inst, code)]
+    where
+    inst = Instrument.triggered $
+        -- Instrument.set_attribute_map $
+        Instrument.keymap #= mridangam_keymap $
+        Instrument.patch $ Instrument.instrument "mridangam" [] pb_range
+    code =
+        MidiInst.note_calls (CUtil.drum_calls (concatMap fst mridangam_notes))
+        <> MidiInst.cmd (CUtil.drum_cmd note_keys)
+    note_keys = map (first head) mridangam_notes
+
+mridangam_notes :: [([Drums.Note], Midi.Key)]
+mridangam_notes = map mk mridangam
+    where
+    mk (name, attrs, char, (_, mid, _)) = (notes, mid)
+        where
+        notes = [Drums.Note name attr char 1 | attr <- attrs]
+
+mridangam_keymap :: Instrument.Keymap
+mridangam_keymap = Map.fromList
+    [ (attr, (low, high, Just NN.e3))
+    | (_, attrs, _, (low, _, high)) <- mridangam
+    , attr <- attrs
+    ]
+
+mridangam :: [(Text, [Score.Attributes], Char, (Midi.Key, Midi.Key, Midi.Key))]
+mridangam =
+    -- left
+    [ ("tha", [tha],            'z', (Key.g_1, Key.c0, Key.e0))
+    , ("thom", [thom],          'x', (Key.g0, Key.c1, Key.e1))
+    , ("thom/", [thom <> mute], 'c', (Key.g1, Key.c2, Key.e2))
+    -- right
+    -- TODO dhi as synonym for ki
+    , ("ki", [ki],              'q', (Key.g2, Key.c3, Key.e3))
+    , ("ta", [ta],              'w', (Key.g3, Key.c4, Key.e4))
+    , ("nam", [nam],            'e', (Key.g4, Key.c5, Key.e5))
+    , ("dhin", [dhin],          'r', (Key.g5, Key.c6, Key.e6))
+    , ("dhin2", [dhin <> v2],   't', (Key.g6, Key.c7, Key.e7))
+    , ("open", [open],          'y', (Key.g7, Key.c8, Key.e8))
+    ]
+
+tha = Score.attr "tha"
+thom = Score.attr "thom"
+ki = Score.attr "ki"
+ta = Score.attr "ta"
+nam = Score.attr "nam"
+dhin = Score.attr "dhin"

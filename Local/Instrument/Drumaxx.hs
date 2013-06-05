@@ -44,7 +44,7 @@ patches = MidiInst.with_code code $ map make_patch
     composite = Instrument.add_composite (Score.instrument "reak" "comb")
         Nothing ["mix", "fbk"]
 
--- | The octave numbers on the drummax are one greater than the standard
+-- | The octave numbers on the drumaxx are one greater than the standard
 -- usage.  This is for \"Acoustic 2 FG\".  I'll have to come up with
 -- a standard mapping later.
 notes :: [(Drums.Note, Midi.Key)]

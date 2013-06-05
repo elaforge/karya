@@ -27,10 +27,10 @@ test_lookup_midi = do
             { Instrument.inst_score = Score.Instrument ("kkt/" <> name)
             , Instrument.inst_synth = "kkt"
             }
-        hang = kkt_inst "hang1"
-    equal (f "kkt/hang1" ["slap"]) $
+        hang = kkt_inst "hang"
+    equal (f "kkt/hang" ["slap"]) $
         Just (hang { Instrument.inst_keyswitch = ks 38 }, Score.attrs ["slap"])
-    equal (f "kkt/hang1" []) $
+    equal (f "kkt/hang" []) $
         Just (hang { Instrument.inst_keyswitch = ks 36 },
             Score.no_attrs)
 
