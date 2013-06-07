@@ -9,6 +9,7 @@ import qualified Data.Vector.Unboxed as Vector
 import Util.Control
 import qualified Derive.Scale as Scale
 import qualified Derive.Scale.Theory as Theory
+import qualified Derive.Scale.TheoryFormat as TheoryFormat
 import qualified Derive.Scale.TwelveScales as TwelveScales
 import qualified Derive.Scale.Util as Util
 
@@ -45,9 +46,14 @@ make_scale scale_id layout key_suffix = Scale.Scale
         \ octa12 starts with a half-step."
     }
     where
-    scale_map = TwelveScales.scale_map layout all_pitches keys deflt
+    scale_map = TwelveScales.scale_map layout fmt all_pitches keys deflt
         where Just deflt = Map.lookup (Pitch.Key $ "a-" <> key_suffix) keys
     keys = all_keys layout key_suffix
+
+fmt :: TheoryFormat.PitchFormat
+fmt = TheoryFormat.make_absolute_format (TheoryFormat.make_degrees degrees)
+        TheoryFormat.ascii_accidentals
+    where degrees = ["a", "b", "c", "d", "e", "f", "g", "h"]
 
 all_notes :: [Theory.Note]
 all_notes = [Theory.Note pc accs | pc <- [0..7], accs <- [-1..1]]
@@ -61,7 +67,8 @@ make_keys layout name intervals =
         | tonic <- all_notes, abs (Theory.note_accidentals tonic) <= 1]
 
 all_keys :: Theory.Layout -> Text -> Map.Map Pitch.Key Theory.Key
-all_keys layout name = Map.fromList $ zip (map Theory.show_key keys) keys
+all_keys layout name =
+    Map.fromList $ zip (map (TheoryFormat.show_key fmt) keys) keys
     where
     keys = make_keys layout name $
         Vector.toList (Theory.layout_intervals layout)

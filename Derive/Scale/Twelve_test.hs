@@ -16,6 +16,7 @@ test_note_to_nn = do
             . flip Map.lookup
                 (TwelveScales.smap_note_to_degree Twelve.scale_map)
             . Pitch.Note
+    equal (f "3b") (Just 59)
     equal (f "4c") (Just 60)
     equal (f "-1c") Nothing
     equal (f "-1c#") (Just 1)

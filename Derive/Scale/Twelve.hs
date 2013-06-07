@@ -25,6 +25,7 @@ import qualified Data.Vector.Unboxed as Vector
 import Util.Control
 import qualified Derive.Scale as Scale
 import qualified Derive.Scale.Theory as Theory
+import qualified Derive.Scale.TheoryFormat as TheoryFormat
 import qualified Derive.Scale.TwelveScales as TwelveScales
 import qualified Derive.Scale.Util as Util
 
@@ -50,14 +51,21 @@ scale_id :: Pitch.ScaleId
 scale_id = Pitch.ScaleId "twelve"
 
 scale_map :: TwelveScales.ScaleMap
-scale_map = TwelveScales.scale_map layout all_pitches all_keys key
+scale_map =
+    TwelveScales.scale_map layout fmt all_pitches all_keys key
     where Just key = Map.lookup default_key all_keys
+
+fmt :: TheoryFormat.PitchFormat
+fmt = TheoryFormat.absolute_c
 
 default_key :: Pitch.Key
 default_key = Pitch.Key "c-maj"
 
-read_pitch :: Pitch.Note -> Either Scale.ScaleError Theory.Pitch
-read_pitch = TwelveScales.read_pitch layout
+show_pitch :: Theory.Pitch -> Pitch.Note
+show_pitch = TwelveScales.show_pitch scale_map
+
+read_pitch :: Pitch.Note -> Maybe Theory.Pitch
+read_pitch = either (const Nothing) Just . TwelveScales.read_pitch scale_map
 
 -- * constants
 
@@ -80,15 +88,15 @@ c6, d6, e6, f6, g6, a6, b6 :: Pitch.Degree
 -- * implementation
 
 all_keys :: Map.Map Pitch.Key Theory.Key
-all_keys = Map.fromList $ zip (map Theory.show_key keys) keys
+all_keys = Map.fromList $ zip (map (TheoryFormat.show_key fmt) keys) keys
     where keys = church_keys ++ octatonic_keys ++ whole_keys ++ exotic_keys
 
 church_keys :: [Theory.Key]
 church_keys = concat (zipWith make_keys modes intervals)
     where
-    modes = ["min", "locrian", "maj", "dorian", "phrygian", "lydian", "mixo"]
-    minor = cycle $ Vector.toList (Theory.layout_intervals layout)
-    intervals = [take 7 (drop n minor) | n <- [0..6]]
+    modes = ["maj", "dorian", "phrygian", "lydian", "mixo", "min", "locrian"]
+    intervals = [take 7 (drop n major) | n <- [0..6]]
+    major = cycle $ Vector.toList (Theory.layout_intervals layout)
 
 octatonic_keys :: [Theory.Key]
 octatonic_keys = make_keys "octa21" (take 8 (cycle [2, 1]))
@@ -103,7 +111,7 @@ exotic_keys = make_keys "hijaz" [1, 3, 1, 2, 1, 2, 2]
 
 -- | The layout of keys on everyone's favorite boxed harp.
 layout :: Theory.Layout
-layout = Theory.layout [2, 1, 2, 2, 1, 2, 2]
+layout = Theory.layout TheoryFormat.absolute_c_intervals
 
 all_notes :: [Theory.Note]
 all_notes = [Theory.Note pc accs | pc <- [0..6], accs <- [-2..2]]

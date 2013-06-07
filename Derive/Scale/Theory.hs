@@ -33,12 +33,12 @@ module Derive.Scale.Theory (
     , pitch_to_semis, semis_to_pitch, semis_to_pitch_sharps
     , semis_to_nn, nn_to_semis
     -- * types
-    , PitchClass, Degree, Semi, Octave, Accidentals, char_pc, pc_char
+    , PitchClass, Degree, Semi, Octave, Accidentals
     , Pitch(..), pitch_accidentals
-    , pitch_c_octave, modify_octave, transpose_pitch
+    , modify_octave, transpose_pitch
     , Note(..), note_in_layout
     -- ** key
-    , Key(key_tonic, key_name, key_layout), key, show_key
+    , Key(key_tonic, key_name, key_layout), key
     , key_degrees_per_octave
     , layout
     -- * util
@@ -52,7 +52,6 @@ module Derive.Scale.Theory (
 ) where
 import qualified Data.List as List
 import qualified Data.Maybe as Maybe
-import qualified Data.Text as Text
 import qualified Data.Vector as Boxed
 import qualified Data.Vector.Unboxed as Vector
 
@@ -61,8 +60,6 @@ import qualified Util.Num as Num
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 import qualified Util.Vector as Vector
-
-import qualified Perform.Pitch as Pitch
 
 
 -- * NoteNumber diatonic transposition
@@ -173,10 +170,10 @@ semis_to_pitch_sharps layout semis = Pitch (octave + oct) note
 -- and are likely going to be turned into an integral flavor of NoteNumbers,
 -- like Pitch.Degree.
 semis_to_nn :: Semi -> Int
-semis_to_nn = subtract 3
+semis_to_nn = id
 
 nn_to_semis :: Int -> Semi
-nn_to_semis = (+ 3)
+nn_to_semis = id
 
 -- * input
 
@@ -219,12 +216,6 @@ type Octave = Int
 -- | Positive for sharps, negative for flats.
 type Accidentals = Int
 
-char_pc :: Char -> PitchClass
-char_pc c = fromEnum c - fromEnum 'a'
-
-pc_char :: PitchClass -> Char
-pc_char pc = toEnum (fromEnum 'a' + pc)
-
 -- *** Pitch
 
 -- | A Pitch is just a Note with an octave.
@@ -236,13 +227,7 @@ data Pitch = Pitch {
 -- | This subtracts 2 from the octave so that middle C winds up at octave 4,
 -- and the bottom of the range ends up at octave -1.
 instance Pretty.Pretty Pitch where
-    pretty pitch = show (oct - 2) <> Pretty.pretty note
-        where (oct, note) = pitch_c_octave pitch
-
--- | Extract the octave from the Note, wrapping it at C.
-pitch_c_octave :: Pitch -> (Octave, Note)
-pitch_c_octave (Pitch octave note) =
-    (if note_pc note >= 2 then octave + 1 else octave, note)
+    pretty (Pitch oct note) = show oct <> "-" <> Pretty.pretty note
 
 pitch_accidentals :: Pitch -> Accidentals
 pitch_accidentals = note_accidentals . pitch_note
@@ -266,8 +251,8 @@ data Note = Note {
     } deriving (Eq, Show)
 
 instance Pretty.Pretty Note where
-    pretty (Note pc acc) = untxt $ Text.cons (pc_char pc) $
-        if acc < 0 then Text.replicate (abs acc) "b" else Text.replicate acc "#"
+    pretty (Note pc acc) = show pc
+        <> if acc < 0 then replicate (abs acc) 'b' else replicate acc '#'
 
 note_in_layout :: Layout -> Note -> Bool
 note_in_layout layout note =
@@ -315,10 +300,6 @@ key tonic name intervals layout = Key
     , key_layout = layout
     }
     where int = Vector.fromList intervals
-
-show_key :: Key -> Pitch.Key
-show_key key = Pitch.Key $
-    Pretty.prettytxt (key_tonic key) <> "-" <> key_name key
 
 -- | Precalculated transpositions so I can figure out a transposition with
 -- a single table lookup.  This goes out to two octaves on either direction

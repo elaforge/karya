@@ -232,13 +232,12 @@ instance Pretty.Pretty Event where
 -- * pitch
 
 show_pitch :: Theory.Pitch -> Either String Text
-show_pitch pitch = (<> oct_mark) <$> show_pitch_note note
+show_pitch (Theory.Pitch octave note) = (<> oct_mark) <$> show_pitch_note note
     where
-    (octave, note) = Theory.pitch_c_octave pitch
     oct_mark
         | oct >= 0 = Text.replicate oct "'"
         | otherwise = Text.replicate (abs oct) ","
-        where oct = octave - 5
+        where oct = octave - 4
 
 show_pitch_note :: Theory.Note -> Either String Text
 show_pitch_note (Theory.Note pc accs) = do
@@ -248,5 +247,9 @@ show_pitch_note (Theory.Note pc accs) = do
         0 -> Right ""
         1 -> Right "s"
         2 -> Right "ss"
-        _ -> Left $ "too many accidentals: " ++ show accs
-    return $ Text.cons (Theory.pc_char pc) acc
+        _ -> Left $ "too many accidentals: " <> show accs
+    t <- case pc of
+            0 -> Right 'c'; 1 -> Right 'd'; 2 -> Right 'e'; 3 -> Right 'f'
+            4 -> Right 'g'; 5 -> Right 'a'; 6 -> Right 'b'
+            _ -> Left $ "pitch class out of range 0-6: " <> show pc
+    return $ Text.cons t acc

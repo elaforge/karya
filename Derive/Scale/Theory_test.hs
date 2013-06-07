@@ -63,14 +63,14 @@ test_diatonic_to_chromatic_other = do
     equal (map (f (key "a-whole") (n "a#")) [0..3]) [0, 2, 4, 6]
 
 test_transpose_diatonic = do
-    let f key steps pitch = Pretty.pretty $
+    let f key steps pitch = show_pitch $
             Theory.transpose_diatonic key steps pitch
     equal [(f (key "a-min") n (p "1a")) | n <- [0..7]]
         ["1a", "1b", "2c", "2d", "2e", "2f", "2g", "2a"]
     equal [(f (key "a-maj") n (p "1a")) | n <- [0..7]]
         ["1a", "1b", "2c#", "2d", "2e", "2f#", "2g#", "2a"]
     equal [(f (key "a-maj") n (p "1a#")) | n <- [0..7]]
-        ["1a#", "1b#", "2c##", "2d#", "2e#", "2f##", "2g##", "2a#"]
+        ["1a#", "1b#", "2cx", "2d#", "2e#", "2fx", "2gx", "2a#"]
 
     equal [(f (key "a-octa21") n (p "1a")) | n <- [0..8]]
         ["1a", "1b", "2c", "2d", "2d#", "2f", "2f#", "2g#", "2a"]
@@ -86,18 +86,18 @@ test_pitch_to_semis = do
         [24, 26, 28, 29, 31, 33]
     equal (map (semis . p) ["1c", "1d", "2c"]) [24, 26, 36]
 
-    let notes = map p ["1a", "1a#", "1a##", "1ab", "1abb"]
-    equal (map (Pretty.pretty . pitch "c-maj" . semis) notes)
+    let notes = map p ["1a", "1a#", "1ax", "1ab", "1abb"]
+    equal (map (show_pitch . pitch "c-maj" . semis) notes)
         ["1a", "1a#", "1b", "1g#", "1g"]
 
-    equal (map (Pretty.pretty . pitch "a-maj") [24..36])
+    equal (map (show_pitch . pitch "a-maj") [24..36])
         ["1c", "1c#", "1d", "1d#", "1e", "1f", "1f#", "1g", "1g#", "1a",
             "1a#", "1b", "2c"]
-    equal (map (Pretty.pretty . pitch "cb-maj") [23..35])
+    equal (map (show_pitch . pitch "cb-maj") [23..35])
         ["1cb", "1c", "1db", "1d", "1eb", "1fb", "1f", "1gb", "1g", "1ab",
             "1a", "1bb", "2cb"]
     -- hijaz has both a flat and a sharp in D
-    equal (map (Pretty.pretty . pitch "d-hijaz") [26, 27, 28, 29, 30, 31])
+    equal (map (show_pitch . pitch "d-hijaz") [26, 27, 28, 29, 30, 31])
         ["1d", "1eb", "1e", "1f", "1f#", "1g"]
 
 test_calculate_signature = do
@@ -121,15 +121,15 @@ test_calculate_signature = do
         [-1, -1, -1, -1, -1, -1, -1]
 
 test_enharmonics_of = do
-    let f = map Pretty.pretty . Theory.enharmonics_of Twelve.layout . p
-    equal (f "1e") ["1fb", "1d##"]
+    let f = map show_pitch . Theory.enharmonics_of Twelve.layout . p
+    equal (f "1e") ["1fb", "1dx"]
     equal (f "1f") ["1gbb", "1e#"]
     equal (f "1b#") ["2c", "2dbb"]
     equal (f "1dbb") ["0b#", "1c"]
     equal (f "1g#") ["1ab"]
-    let cycle_en = map Pretty.pretty . take 4
+    let cycle_en = map show_pitch . take 4
             . iterate (head . Theory.enharmonics_of Twelve.layout) . p
-    equal (cycle_en "1b") ["1b", "2cb", "1a##", "1b"]
+    equal (cycle_en "1b") ["1b", "2cb", "1ax", "1b"]
     equal (cycle_en "1c") ["1c", "1dbb", "0b#", "1c"]
     equal (cycle_en "1g#") ["1g#", "1ab", "1g#", "1ab"]
 
@@ -139,16 +139,16 @@ test_degree_of = do
     equal (map (f "a-min") ["a", "b", "c", "d", "d#", "eb", "e"])
         [0, 1, 2, 3, 3, 4, 4]
     -- But chromatic scales just care about the pitch.
-    equal (map (f "a-octa21") ["a", "a#", "bb", "b"])
+    equal (map (f "a-octa21") ["c", "c#", "db", "d"])
         [0, 0, 0, 1]
-    equal (map (f "a-octa21") ["a", "b", "c", "d", "d#"])
+    equal (map (f "a-octa21") ["c", "d", "eb", "f", "f#"])
         [0, 1, 2, 3, 4]
 
 test_nn_to_semis = do
     let f = Theory.semis_to_pitch (key "c-maj") . Theory.nn_to_semis
-    equal (Pretty.pretty (f 0)) "-1c"
-    equal (Pretty.pretty (f 60)) "4c"
-    equal (Pretty.pretty (f 59)) "3b"
+    equal (Pretty.pretty (f 0)) "0-0"
+    equal (Pretty.pretty (f 60)) "5-0"
+    equal (Pretty.pretty (f 59)) "4-6"
 
 
 -- * util
@@ -158,9 +158,12 @@ key name = either (error $ "can't parse key: " ++ show name) id $
     TwelveScales.read_key Twelve.scale_map (Just (Pitch.Key name))
 
 p :: Text -> Theory.Pitch
-p s = fromMaybe (error $ "can't parse pitch: " ++ show s) $
-    TheoryFormat.read_pitch Twelve.layout (Pitch.Note s)
+p s = either (const $ error $ "can't parse pitch: " ++ show s) id $
+    TheoryFormat.read_pitch TheoryFormat.absolute_c (Pitch.Note s)
 
 n :: Text -> Theory.Note
 n s = fromMaybe (error $ "can't parse note: " ++ show s) $
-    TheoryFormat.read_note Twelve.layout s
+    TheoryFormat.read_note TheoryFormat.absolute_c s
+
+show_pitch :: Theory.Pitch -> Text
+show_pitch = Pitch.note_text . Twelve.show_pitch

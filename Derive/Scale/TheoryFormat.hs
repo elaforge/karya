@@ -20,138 +20,133 @@ import qualified Derive.Scale.Theory as Theory
 import qualified Perform.Pitch as Pitch
 
 
--- * absolute pitches
+-- | The usual 7 note scale, which wraps around at @c@ instead of @a@.
+absolute_c :: PitchFormat
+absolute_c =
+    make_absolute_format (make_degrees absolute_c_degrees) ascii_accidentals
 
--- | Parse a Pitch and verify it against the given Layout.  Octaves wrap at
--- A, which is nonstandard, the usual practice is to wrap at C.
-read_pitch :: Theory.Layout -> Pitch.Note -> Maybe Theory.Pitch
-read_pitch layout note = case parse_pitch note of
-    Just p | Theory.note_in_layout layout (Theory.pitch_note p) -> Just p
-    _ -> Nothing
+absolute_c_degrees :: [Text]
+absolute_c_degrees = ["c", "d", "e", "f", "g", "a", "b"]
 
--- | Parse a Note and verify it against the given Layout.
-read_note :: Theory.Layout -> Text -> Maybe Theory.Note
-read_note layout s = case parse_note ascii_accidentals s of
-    Just n | Theory.note_in_layout layout n -> Just n
-    _ -> Nothing
-
--- | Show and read pitches in the usual letter format.  The inverse of
--- 'p_pitch'.
---
--- This subtracts 2 from the octave so that middle C winds up at octave 4, and
--- the bottom of the range ends up at octave -1.
-show_pitch :: AccidentalFormat -> Theory.Pitch -> Pitch.Note
-show_pitch acc_format pitch =
-    Pitch.Note $ showt (oct - 2) <> show_note acc_format note
-    where (oct, note) = Theory.pitch_c_octave pitch
-
-parse_pitch :: Pitch.Note -> Maybe Theory.Pitch
-parse_pitch =
-    ParseBs.maybe_parse_text (p_pitch ascii_accidentals) . Pitch.note_text
-
--- | Internally octaves wrap at A, but the text representation wraps at C,
--- since that's how the rest of the world does it.
-p_pitch :: AccidentalFormat -> A.Parser Theory.Pitch
-p_pitch acc_format = do
-    oct <- ParseBs.p_int
-    note <- p_note acc_format
-    let octave = if Theory.note_pc note >= 2 then oct - 1 else oct
-    return $ Theory.Pitch (octave + 2) note
-
-show_note :: AccidentalFormat -> Theory.Note -> Text
-show_note acc_format (Theory.Note pc acc) =
-    Text.cons (Theory.pc_char pc) (show_accidentals acc_format acc)
-
-parse_note :: AccidentalFormat -> Text -> Maybe Theory.Note
-parse_note acc_format = ParseBs.maybe_parse_text (p_note acc_format)
-
-p_note :: AccidentalFormat -> A.Parser Theory.Note
-p_note acc_format = do
-    c <- A.satisfy (\c -> c >= 'a' && c <= 'z')
-    accs <- p_accidentals acc_format
-    return $ Theory.Note (Theory.char_pc c) accs
-
-
--- * relative pitches
-
-absolute_format :: Theory.PitchClass -> PitchFormat
-absolute_format pc_per_octave = (show_absolute, read_absolute, const Right)
-    where
-    show_absolute _ = show_pitch ascii_accidentals
-    read_absolute note = case parse_pitch note of
-        Just pitch | valid pitch -> Right pitch
-        _ -> Left Scale.UnparseableNote
-    valid pitch =
-        Theory.note_pc note >= 0 && Theory.note_pc note < pc_per_octave
-        where note = Theory.pitch_note pitch
+absolute_c_intervals :: [Int]
+absolute_c_intervals = [2, 2, 1, 2, 2, 2, 1]
 
 sargam :: ParseKey -> Theory.PitchClass -> PitchFormat
 sargam = make_relative_format degrees ascii_accidentals
-    where degrees = Vector.fromList ["s", "r", "g", "m", "p", "d", "n"]
+    where degrees = make_degrees ["s", "r", "g", "m", "p", "d", "n"]
 
 cipher :: ParseKey -> Theory.PitchClass -> PitchFormat
 cipher = make_relative_format degrees ascii_accidentals
-    where degrees = Vector.fromList ["-1", "-2", "-3", "-4", "-5", "-6", "-7"]
+    where degrees = make_degrees ["/1", "/2", "/3", "/4", "/5", "/6", "/7"]
 
 chinese :: ParseKey -> Theory.PitchClass -> PitchFormat
 chinese = make_relative_format degrees ascii_accidentals
-    where degrees = Vector.fromList ["一", "二", "三", "四", "五", "六", "七"]
+    where degrees = make_degrees ["一", "二", "三", "四", "五", "六", "七"]
 
 nanguan :: ParseKey -> Theory.PitchClass -> PitchFormat
 nanguan = make_relative_format degrees ascii_accidentals
-    where degrees = Vector.fromList ["士", "下", "ㄨ", "工", "六"]
+    where degrees = make_degrees ["士", "下", "ㄨ", "工", "六"]
 
--- ** implementation
+-- * PitchFormat
 
-type PitchFormat = (ShowPitch, ReadPitch, AdjustPitch)
-type ShowPitch = Maybe Pitch.Key -> Theory.Pitch -> Pitch.Note
-type ReadPitch = Pitch.Note -> Either Scale.ScaleError Theory.Pitch
--- | I need the key to parse the pitch, but that can't happen unless I want to
--- give all pattern_lookup calls access to the env in scope.  But I don't need
--- the env to recognize if it's a valid call or not.
-type AdjustPitch = Maybe Pitch.Key -> Theory.Pitch
-    -> Either Scale.ScaleError Theory.Pitch
+data PitchFormat = PitchFormat {
+    -- | Return the note and a possible adjustment for the octave.
+    fmt_show :: Maybe Pitch.Key -> Theory.Note -> (Theory.Octave, Text)
+    -- | This doesn't need the key because that work is split off to
+    -- 'AdjustPitch'.
+    , fmt_read :: A.Parser Theory.Note
+    -- | I need the key to parse the pitch, but that can't happen unless I want
+    -- to give all pattern_lookup calls access to the env in scope.  But
+    -- I don't need the env to recognize if it's a valid call or not.
+    , fmt_adjust :: Maybe Pitch.Key -> Theory.Pitch
+        -> Either Scale.ScaleError Theory.Pitch
+    }
 type ParseKey = Maybe Pitch.Key -> Either Scale.ScaleError Theory.PitchClass
-
 type Degrees = Vector.Vector Text
 
-make_relative_format :: Degrees -> AccidentalFormat
-    -> ParseKey -> Theory.PitchClass
+make_degrees :: [Text] -> Degrees
+make_degrees = Vector.fromList
+
+-- ** show, read
+
+show_key :: PitchFormat -> Theory.Key -> Pitch.Key
+show_key fmt key = Pitch.Key $
+    snd (fmt_show fmt Nothing (Theory.key_tonic key))
+        <> "-" <> Theory.key_name key
+
+type ShowPitch = Maybe Pitch.Key -> Theory.Pitch -> Pitch.Note
+
+show_pitch :: PitchFormat -> ShowPitch
+show_pitch fmt key (Theory.Pitch oct note) =
+    Pitch.Note $ show_octave (oct + octave) <> note_name
+    where (octave, note_name) = fmt_show fmt key note
+
+read_pitch :: PitchFormat -> Pitch.Note -> Either Scale.ScaleError Theory.Pitch
+read_pitch fmt = maybe (Left Scale.UnparseableNote) Right
+    . ParseBs.maybe_parse_text (Theory.Pitch <$> p_octave <*> fmt_read fmt)
+    . Pitch.note_text
+
+read_note :: PitchFormat -> Text -> Maybe Theory.Note
+read_note fmt = ParseBs.maybe_parse_text (fmt_read fmt)
+
+show_octave :: Theory.Octave -> Text
+show_octave = showt . (subtract 1)
+
+p_octave :: A.Parser Theory.Octave
+p_octave = (+1) <$> ParseBs.p_int
+
+-- ** make
+
+make_absolute_format :: Degrees -> AccidentalFormat -> PitchFormat
+make_absolute_format degrees acc_fmt =
+    PitchFormat (const $ show_note_absolute degrees acc_fmt)
+        (p_pitch_absolute degrees acc_fmt) (const Right)
+
+make_relative_format :: Degrees -> AccidentalFormat -> ParseKey
+    -> Theory.PitchClass
     -- ^ Default key if there is none, or it's not parseable.  Otherwise, a bad
     -- or missing key would mean you couldn't even display notes.
     -> PitchFormat
-make_relative_format degrees acc_format parse_key default_key =
-    (p_show, p_read, p_adjust)
+make_relative_format degrees acc_fmt parse_key default_key =
+    PitchFormat p_show p_read p_adjust
     where
-    p_show key = Pitch.Note . show_pitch_relative degrees acc_format
-        (either (const default_key) id $ parse_key key)
-    p_read = maybe (Left Scale.UnparseableNote) Right
-        . ParseBs.maybe_parse_text (p_pitch_relative degrees acc_format)
-        . Pitch.note_text
+    p_show key = show_note_relative degrees acc_fmt
+        (either (const default_key) id (parse_key key))
+    p_read = p_pitch_relative degrees acc_fmt
     p_adjust maybe_key pitch = do
         key <- parse_key maybe_key
         return $ adjust_relative_key degrees key pitch
 
--- | Like 'show_pitch', this subtracts 1 from the octave so middle C winds up
--- at octave 4.
-show_pitch_relative :: Degrees -> AccidentalFormat -> Theory.PitchClass
-    -> Theory.Pitch -> Text
-show_pitch_relative degrees acc_format key
-        (Theory.Pitch octave (Theory.Note pc acc)) =
-    showt (octave + oct - 1) <> (degrees Vector.! degree)
-        <> show_accidentals acc_format acc
+-- *** absolute
+
+show_note_absolute :: Degrees -> AccidentalFormat -> Theory.Note
+    -> (Theory.Octave, Text)
+show_note_absolute degrees acc_fmt (Theory.Note pc acc) =
+    (oct, (degrees Vector.! degree) <> show_accidentals acc_fmt acc)
+    where (oct, degree) = pc `divMod` Vector.length degrees
+
+p_pitch_absolute :: Degrees -> AccidentalFormat -> A.Parser Theory.Note
+p_pitch_absolute = p_pitch_relative
+
+-- *** relative
+
+-- | Like 'show_note_absolute', this subtracts 2 from the octave so middle
+-- C winds up at octave 4.
+show_note_relative :: Degrees -> AccidentalFormat -> Theory.PitchClass
+    -> Theory.Note -> (Theory.Octave, Text)
+show_note_relative degrees acc_fmt key (Theory.Note pc acc) =
+    (oct, (degrees Vector.! degree) <> show_accidentals acc_fmt acc)
     where (oct, degree) = (pc - key) `divMod` Vector.length degrees
 
-p_pitch_relative :: Degrees -> AccidentalFormat -> A.Parser Theory.Pitch
-p_pitch_relative degrees acc_format = do
-    octave <- ParseBs.p_int
+p_pitch_relative :: Degrees -> AccidentalFormat -> A.Parser Theory.Note
+p_pitch_relative degrees acc_fmt =
+    Theory.Note <$> p_degree <*> p_accidentals acc_fmt
+    where
     -- TODO this is inefficient, I should switch to Text attoparsec some day
-    degree <- A.choice
+    p_degree = A.choice
         [ A.string (Encoding.encodeUtf8 s) >> return i
         | (i, s) <- zip [0..] (Vector.toList degrees)
         ]
-    acc <- p_accidentals acc_format
-    return $ Theory.Pitch octave (Theory.Note degree acc)
 
 adjust_relative_key :: Degrees -> Theory.PitchClass -> Theory.Pitch
     -> Theory.Pitch

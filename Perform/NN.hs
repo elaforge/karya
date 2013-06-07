@@ -20,3 +20,6 @@ c_1 : cs_1 : d_1 : ds_1 : e_1 : f_1 : fs_1 : g_1 : gs_1 : a_1 : as_1 : b_1
     : c8 : cs8 : d8 : ds8 : e8 : f8 : fs8 : g8 : gs8 : a8 : as8 : b8
     : c9 : cs9 : d9 : ds9 : e9 : f9 : fs9 : g9
     : _ = map Pitch.NoteNumber [0..]
+
+middle_c :: Pitch.NoteNumber
+middle_c = c4

@@ -120,8 +120,8 @@ simplify_block_enharmonics block_id =
 simplify_enharmonics :: (Cmd.M m) => ModifyEvents.Track m
 simplify_enharmonics = PitchTrack.pitch_tracks $ \scale key note ->
     case Twelve.read_pitch note of
-        Left _ -> Right note
-        Right pitch
+        Nothing -> Right note
+        Just pitch
             | abs (Theory.pitch_accidentals pitch) < 2 -> Right note
             | otherwise -> case Scale.scale_enharmonics scale key note of
                 Right (simpler : _) -> Right simpler
