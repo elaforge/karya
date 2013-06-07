@@ -42,10 +42,10 @@ scales =
     , make_scale (Pitch.ScaleId "just-min-r") minor_ratios relative_format
     ]
 
-absolute_format :: TheoryFormat.PitchFormat
+absolute_format :: TheoryFormat.Format
 absolute_format = TheoryFormat.absolute_c
 
-relative_format :: TheoryFormat.PitchFormat
+relative_format :: TheoryFormat.Format
 relative_format = TheoryFormat.sargam (fmap key_tonic . lookup_key) 0
 
 lookup_key :: Maybe Pitch.Key -> Either Scale.ScaleError Key
@@ -59,7 +59,7 @@ accidental_interval :: Double
 accidental_interval = 16 / 15
 
 make_scale :: Pitch.ScaleId -> Vector.Vector Ratio.Rational
-    -> TheoryFormat.PitchFormat -> Scale.Scale
+    -> TheoryFormat.Format -> Scale.Scale
 make_scale scale_id ratios fmt = Scale.Scale
     { Scale.scale_id = scale_id
     , Scale.scale_pattern = "[-1-9][a-g][#b]?"
@@ -84,7 +84,7 @@ make_scale scale_id ratios fmt = Scale.Scale
     }
     where double_ratios = Vector.map realToFrac ratios
 
-read_note :: TheoryFormat.PitchFormat -> Maybe Pitch.Key -> Pitch.Note
+read_note :: TheoryFormat.Format -> Maybe Pitch.Key -> Pitch.Note
     -> Either Scale.ScaleError Theory.Pitch
 read_note fmt key =
     TheoryFormat.fmt_adjust fmt key <=< TheoryFormat.read_pitch fmt
@@ -92,7 +92,7 @@ read_note fmt key =
 
 -- * input_to_note
 
-enharmonics :: TheoryFormat.PitchFormat -> Derive.Enharmonics
+enharmonics :: TheoryFormat.Format -> Derive.Enharmonics
 enharmonics fmt key note = do
     pitch <- read_note fmt key note
     return $ map (TheoryFormat.show_pitch fmt key) $
@@ -145,7 +145,7 @@ nn_to_degree = Vector.fromList $ take 127 $
 
 -- * transpose
 
-transpose :: TheoryFormat.PitchFormat -> Maybe Pitch.Key -> Pitch.Octave
+transpose :: TheoryFormat.Format -> Maybe Pitch.Key -> Pitch.Octave
     -> Pitch.Transpose -> Pitch.Note -> Either Scale.ScaleError Pitch.Note
 transpose fmt key oct transpose note = do
     pitch <- read_note fmt key note
@@ -163,7 +163,7 @@ pc_per_octave = 7
 -- | To modulate to another scale: @just-base = (hz (4g)) | key = g@
 -- The order is important, so the @(hz (4g))@ happens in the context of the old
 -- key.
-note_to_call :: TheoryFormat.PitchFormat -> Ratios -> Pitch.Note
+note_to_call :: TheoryFormat.Format -> Ratios -> Pitch.Note
     -> Maybe Derive.ValCall
 note_to_call fmt ratios note = case TheoryFormat.read_pitch fmt note of
     Left _ -> case parse_relative_interval note of

@@ -50,7 +50,7 @@ make_scale scale_id layout key_suffix = Scale.Scale
         where Just deflt = Map.lookup (Pitch.Key $ "a-" <> key_suffix) keys
     keys = all_keys layout key_suffix
 
-fmt :: TheoryFormat.PitchFormat
+fmt :: TheoryFormat.Format
 fmt = TheoryFormat.make_absolute_format (TheoryFormat.make_degrees degrees)
         TheoryFormat.ascii_accidentals
     where degrees = ["a", "b", "c", "d", "e", "f", "g", "h"]

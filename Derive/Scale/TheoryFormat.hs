@@ -21,7 +21,7 @@ import qualified Perform.Pitch as Pitch
 
 
 -- | The usual 7 note scale, which wraps around at @c@ instead of @a@.
-absolute_c :: PitchFormat
+absolute_c :: Format
 absolute_c =
     make_absolute_format (make_degrees absolute_c_degrees) ascii_accidentals
 
@@ -31,25 +31,25 @@ absolute_c_degrees = ["c", "d", "e", "f", "g", "a", "b"]
 absolute_c_intervals :: [Int]
 absolute_c_intervals = [2, 2, 1, 2, 2, 2, 1]
 
-sargam :: ParseKey -> Theory.PitchClass -> PitchFormat
+sargam :: ParseKey -> Theory.PitchClass -> Format
 sargam = make_relative_format degrees ascii_accidentals
     where degrees = make_degrees ["s", "r", "g", "m", "p", "d", "n"]
 
-cipher :: ParseKey -> Theory.PitchClass -> PitchFormat
+cipher :: ParseKey -> Theory.PitchClass -> Format
 cipher = make_relative_format degrees ascii_accidentals
     where degrees = make_degrees ["/1", "/2", "/3", "/4", "/5", "/6", "/7"]
 
-chinese :: ParseKey -> Theory.PitchClass -> PitchFormat
+chinese :: ParseKey -> Theory.PitchClass -> Format
 chinese = make_relative_format degrees ascii_accidentals
     where degrees = make_degrees ["一", "二", "三", "四", "五", "六", "七"]
 
-nanguan :: ParseKey -> Theory.PitchClass -> PitchFormat
+nanguan :: ParseKey -> Theory.PitchClass -> Format
 nanguan = make_relative_format degrees ascii_accidentals
     where degrees = make_degrees ["士", "下", "ㄨ", "工", "六"]
 
--- * PitchFormat
+-- * Format
 
-data PitchFormat = PitchFormat {
+data Format = Format {
     -- | Return the note and a possible adjustment for the octave.
     fmt_show :: Maybe Pitch.Key -> Theory.Note -> (Theory.Octave, Text)
     -- | This doesn't need the key because that work is split off to
@@ -69,24 +69,24 @@ make_degrees = Vector.fromList
 
 -- ** show, read
 
-show_key :: PitchFormat -> Theory.Key -> Pitch.Key
+show_key :: Format -> Theory.Key -> Pitch.Key
 show_key fmt key = Pitch.Key $
     snd (fmt_show fmt Nothing (Theory.key_tonic key))
         <> "-" <> Theory.key_name key
 
 type ShowPitch = Maybe Pitch.Key -> Theory.Pitch -> Pitch.Note
 
-show_pitch :: PitchFormat -> ShowPitch
+show_pitch :: Format -> ShowPitch
 show_pitch fmt key (Theory.Pitch oct note) =
     Pitch.Note $ show_octave (oct + octave) <> note_name
     where (octave, note_name) = fmt_show fmt key note
 
-read_pitch :: PitchFormat -> Pitch.Note -> Either Scale.ScaleError Theory.Pitch
+read_pitch :: Format -> Pitch.Note -> Either Scale.ScaleError Theory.Pitch
 read_pitch fmt = maybe (Left Scale.UnparseableNote) Right
     . ParseBs.maybe_parse_text (Theory.Pitch <$> p_octave <*> fmt_read fmt)
     . Pitch.note_text
 
-read_note :: PitchFormat -> Text -> Maybe Theory.Note
+read_note :: Format -> Text -> Maybe Theory.Note
 read_note fmt = ParseBs.maybe_parse_text (fmt_read fmt)
 
 show_octave :: Theory.Octave -> Text
@@ -97,18 +97,18 @@ p_octave = (+1) <$> ParseBs.p_int
 
 -- ** make
 
-make_absolute_format :: Degrees -> AccidentalFormat -> PitchFormat
+make_absolute_format :: Degrees -> AccidentalFormat -> Format
 make_absolute_format degrees acc_fmt =
-    PitchFormat (const $ show_note_absolute degrees acc_fmt)
+    Format (const $ show_note_absolute degrees acc_fmt)
         (p_pitch_absolute degrees acc_fmt) (const Right)
 
 make_relative_format :: Degrees -> AccidentalFormat -> ParseKey
     -> Theory.PitchClass
     -- ^ Default key if there is none, or it's not parseable.  Otherwise, a bad
     -- or missing key would mean you couldn't even display notes.
-    -> PitchFormat
+    -> Format
 make_relative_format degrees acc_fmt parse_key default_key =
-    PitchFormat p_show p_read p_adjust
+    Format p_show p_read p_adjust
     where
     p_show key = show_note_relative degrees acc_fmt
         (either (const default_key) id (parse_key key))

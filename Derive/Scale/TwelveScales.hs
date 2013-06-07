@@ -33,7 +33,7 @@ import qualified Perform.Pitch as Pitch
 -- TODO this will need to be extended to handle non-equal-tempered scales.
 data ScaleMap = ScaleMap {
     smap_note_to_degree :: !NoteToDegree
-    , smap_fmt :: !TheoryFormat.PitchFormat
+    , smap_fmt :: !TheoryFormat.Format
     , smap_keys :: !Keys
     , smap_default_key :: !Theory.Key
     }
@@ -48,7 +48,7 @@ twelve_doc = "Scales in the \"twelve\" family use western style note naming.\
     \ in 'Derive.Scale.Theory'. The key is read from the `key` env var, and\
     \ each scale has a list of keys it will accept."
 
-scale_map :: Theory.Layout -> TheoryFormat.PitchFormat -> [Theory.Pitch] -> Keys
+scale_map :: Theory.Layout -> TheoryFormat.Format -> [Theory.Pitch] -> Keys
     -> Theory.Key -> ScaleMap
 scale_map layout fmt pitches keys default_key = ScaleMap
     { smap_note_to_degree = make_note_to_degree layout fmt pitches
@@ -156,8 +156,8 @@ call_doc transposers smap doc =
 
 -- * implementation
 
-make_note_to_degree :: Theory.Layout -> TheoryFormat.PitchFormat
-    -> [Theory.Pitch] -> NoteToDegree
+make_note_to_degree :: Theory.Layout -> TheoryFormat.Format -> [Theory.Pitch]
+    -> NoteToDegree
 make_note_to_degree layout fmt pitches =
     Map.fromList $ filter in_range $ map note pitches
     where

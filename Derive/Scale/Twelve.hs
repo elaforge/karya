@@ -55,7 +55,7 @@ scale_map =
     TwelveScales.scale_map layout fmt all_pitches all_keys key
     where Just key = Map.lookup default_key all_keys
 
-fmt :: TheoryFormat.PitchFormat
+fmt :: TheoryFormat.Format
 fmt = TheoryFormat.absolute_c
 
 default_key :: Pitch.Key
