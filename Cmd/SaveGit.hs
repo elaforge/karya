@@ -219,7 +219,7 @@ score_to_hex = pad . flip Numeric.showHex "" . Serialize.encode_double
 
 load :: Git.Repo -> Maybe Git.Commit
     -> IO (Either String (State.State, Git.Commit, [String]))
-    -- ^ (state, commit, cmd_names)
+    -- ^ (state, commit, name of the cmd this is a checkpoint of)
 load repo maybe_commit = try_e "load" $ do
     -- TODO have to handle both compact and expanded tracks
     commit <- default_head repo maybe_commit
@@ -289,6 +289,10 @@ default_head repo Nothing =
     maybe (Git.throw $ "repo with no HEAD commit: " ++ show repo)
         return =<< Git.read_head_commit repo
 
+-- | Each commit saves the name of the command, so when you load it, it still
+-- has the proper name.
+--
+-- TODO save and parse in a more robust way
 parse_names :: String -> IO [String]
 parse_names text = case lines text of
     [_, names] -> readIO names

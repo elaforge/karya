@@ -56,7 +56,7 @@ die msg = do
 dump_simple :: [Flag] -> FilePath -> IO ()
 dump_simple flags fname = do
     save <- either (die . (("reading " ++ show fname ++ ":") ++)) return
-        =<< Save.read_state fname
+        =<< Save.read_state_ fname
     state <- maybe (die $ "file not found: " ++ show fname) return save
     pprint_state flags state
 

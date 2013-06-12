@@ -3,15 +3,23 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
+  - is StateConfig.Default obsolete now that there is global transform?
+  - ^B with a selection is just making empty blocks
+  * implement load_merge
   - nv on every note in viola-sonata
+  tala
+    - Support both chapu and suladi sapta talas.
+    - Make talas work with LRuler.  The problem is that they include label
+      information, and Meter.Meter doesn't support that.
   * update TwelveScales to use TheoryFormat.PitchFormat
     . Need a way to show keys.  I should be able to show Notes since octaves
       don't change, but showing notes can affect the octave.
   * rename PitchFormat to just Format
   - TheoryFormat.PitchFormat fmt_read should allow both ascii and symbolic
     accs.
-  - make TheoryFormat.Degrees be (Vector [Text], Vector [ByteString])
-  - transposition is messed up for just-r, it drops it by an octave
+  - add relative notation to twelve
+  / make TheoryFormat.Degrees be (Vector [Text], Vector [ByteString])
+  * transposition is messed up for just-r, it drops it by an octave
   * Modifying a pitch track above a note track doesn't rederive the note
     track.
   - need an easy way to create IDs for debugging, so I can copy paste

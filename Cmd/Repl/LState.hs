@@ -16,16 +16,20 @@ import qualified Util.Pretty as Pretty
 
 import qualified Ui.Id as Id
 import qualified Ui.State as State
+import qualified Ui.Transform as Transform
+
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Create as Create
 import qualified Cmd.Load.Midi as Load.Midi
 import qualified Cmd.Repl.LBlock as LBlock
 import qualified Cmd.Repl.LEvent as LEvent
 import qualified Cmd.Repl.LTrack as LTrack
+import qualified Cmd.Save as Save
 
 import qualified Derive.Score as Score
 import qualified Perform.Pitch as Pitch
 import qualified Perform.Signal as Signal
+import qualified App.Config as Config
 import Types
 
 
@@ -101,7 +105,7 @@ rename ns = do
         Nothing -> return ()
         Just (Cmd.SaveState fn) -> Cmd.modify $ \st -> st
             { Cmd.state_save_file = Just $ Cmd.SaveState $ replace_dir ns fn }
-        Just (Cmd.SaveGit repo) -> do
+        Just (Cmd.SaveRepo repo) -> do
             -- System.Directory.renameDirectory deletes the destination
             -- diretory for some reason.  I'd rather throw an exception.
             let old_dir = FilePath.takeDirectory repo
@@ -121,3 +125,18 @@ rename ns = do
 
 load_midi :: FilePath -> Cmd.CmdL BlockId
 load_midi = Load.Midi.load
+
+-- | Load the state from the file and merge it with the current state.  This
+-- will fail if any IDs collide, so hopefully they live in different
+-- namespaces.  In fact, this is why IDs have namespaces.
+--
+-- TODO option to rename on load?
+load_merge :: FilePath -> Cmd.CmdL ()
+load_merge fn = do
+    (new_state, _) <- Save.read fn
+    new_state <- State.exec_rethrow "strip clip" new_state $
+        Transform.destroy_namespace Config.clip_namespace
+    state <- State.get
+    merged <- Cmd.require_right (("merge state: "<>) . Pretty.pretty) $
+        Transform.merge_states state new_state
+    State.put merged

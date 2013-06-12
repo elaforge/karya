@@ -328,7 +328,7 @@ data State = State {
     , state_repl_status :: !Status
     } deriving (Show, Generics.Typeable)
 
-data SaveFile = SaveState !FilePath | SaveGit !SaveGit.Repo
+data SaveFile = SaveState !FilePath | SaveRepo !SaveGit.Repo
     deriving (Show, Eq, Generics.Typeable)
 
 -- | Directory of the save file.
@@ -337,7 +337,7 @@ state_save_dir state = path state . Config.RelativePath <$>
     case state_save_file state of
         Nothing -> Nothing
         Just (SaveState fn) -> Just $ FilePath.takeDirectory fn
-        Just (SaveGit repo) -> Just $ FilePath.takeDirectory repo
+        Just (SaveRepo repo) -> Just $ FilePath.takeDirectory repo
 
 initial_state :: Config -> State
 initial_state config = State

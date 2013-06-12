@@ -130,7 +130,6 @@ safe_map_keys name f fm0
 
 -- * namespace
 
-
 -- | Destroy all views, blocks, tracks, and rulers with the given namespace.
 destroy_namespace :: (State.M m) => Id.Namespace -> m ()
 destroy_namespace ns = do
@@ -149,6 +148,7 @@ destroy_namespace ns = do
 -- * merge
 
 -- | Merge ID maps from the states together.  Collisions will throw.
+-- The 'State.Config' comes from the first state.
 merge_states :: State.State -> State.State -> Either State.Error State.State
 merge_states st0 st1 = State.exec st0 $ do
     views <- safe_union "views"

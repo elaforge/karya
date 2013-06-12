@@ -3,8 +3,15 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 {- | Functions to save and restore state to and from files.
+
+    The naming convention is that @load@ and @save@ functions either load
+    the given file, replace the state with it, and set the SaveFile, or save
+    the current state and set the SaveFile.  @read@ and @write@ functions
+    are lower level and either read the file and return the state, or write the
+    given state, without messing with the SaveFile.
 -}
 module Cmd.Save where
+import Prelude hiding (read)
 import qualified Data.Map as Map
 import qualified System.Directory as Directory
 import qualified System.FilePath as FilePath
@@ -34,26 +41,35 @@ import qualified App.Config as Config
 save :: Cmd.CmdT IO ()
 save = Cmd.gets Cmd.state_save_file >>= \x -> case x of
     Nothing -> save_git
-    Just (Cmd.SaveGit repo) -> save_git_as repo
+    Just (Cmd.SaveRepo repo) -> save_git_as repo
     Just (Cmd.SaveState fn) -> save_state_as fn
+
+-- | Like 'read', but replace the current state and set 'Cmd.state_save_file'.
+load :: FilePath -> Cmd.CmdT IO ()
+load path = do
+    (state, save_file) <- read path
+    set_state save_file True state
 
 -- | Try to guess whether the given path is a git save or state save.  If it's
 -- a directory, look inside for a .git or .state save.
-load :: FilePath -> Cmd.CmdT IO ()
-load path
-    | SaveGit.is_git path = load_git path Nothing
-    | otherwise = ifM (isdir path) look_in_dir (load_state path)
+read :: FilePath -> Cmd.CmdT IO (State.State, SaveFile)
+read path
+    | SaveGit.is_git path = read_git path Nothing
+    | otherwise = ifM (isdir path) look_in_dir (read_state path)
     where
     look_in_dir =
-        ifM (isdir git_fn) (load_git git_fn Nothing) $
-        ifM (isfile state_fn) (load_state state_fn) $
-        Cmd.throw $ "directory contains neither " ++ git_fn ++ " nor "
-            ++ state_fn
+        ifM (isdir git_fn) (read_git git_fn Nothing) $
+        ifM (isfile state_fn) (read_state state_fn) $
+        ifM (orM [isfile state_fn, isfile (state_fn <> ".gz")])
+            (read_state state_fn) $
+            Cmd.throw $ "directory contains neither " <> git_fn <> " nor "
+                <> state_fn <> " nor " <> state_fn <> ".gz"
         where
         git_fn = path </> default_git
         state_fn = path </> default_state
     isdir = Cmd.rethrow_io . Directory.doesDirectoryExist
     isfile = Cmd.rethrow_io . Directory.doesFileExist
+
 
 -- * plain serialize
 
@@ -69,35 +85,37 @@ save_state = save_state_as =<< get_state_path
 -- like the saved REPL history and the ly subdirectory will go there.
 save_state_as :: FilePath -> Cmd.CmdT IO ()
 save_state_as fname = do
-    save_state_as_ fname
-    set_save_file (Right fname) False
+    write_current_state fname
+    set_save_file (SaveState fname) False
 
--- | Like 'save_state_as', but don't set the SaveFile.
-save_state_as_ :: FilePath -> Cmd.CmdT IO ()
-save_state_as_ fname = do
+write_current_state :: FilePath -> Cmd.CmdT IO ()
+write_current_state fname = do
     state <- State.get
     Log.notice $ "write state to " ++ show fname
     liftIO $ write_state fname state
-
-load_state :: FilePath -> Cmd.CmdT IO ()
-load_state fname = do
-    fname <- return $ if FilePath.takeExtension fname == ".gz"
-        then FilePath.dropExtension fname else fname
-    Log.notice $ "load state from " ++ show fname
-    let mkmsg = (("load " ++ fname ++ ": ") ++)
-    state <- Cmd.require_msg (mkmsg "doesn't exist")
-        =<< Cmd.require_right mkmsg =<< liftIO (read_state fname)
-    set_state (Right fname) True state
 
 write_state :: FilePath -> State.State -> IO ()
 write_state fname state =
     Serialize.serialize state_magic fname (State.clear state)
 
-read_state :: FilePath -> IO (Either String (Maybe State.State))
+load_state :: FilePath -> Cmd.CmdT IO ()
+load_state fname = do
+    (state, save_file) <- read_state fname
+    set_state save_file True state
+
+read_state :: FilePath -> Cmd.CmdT IO (State.State, SaveFile)
 read_state fname = do
+    let mkmsg = (("load " ++ fname ++ ": ") ++)
     fname <- return $ if FilePath.takeExtension fname == ".gz"
         then FilePath.dropExtension fname else fname
-    liftIO $ Serialize.unserialize state_magic fname
+    Log.notice $ "read state from " ++ show fname
+    state <- Cmd.require_msg (mkmsg "doesn't exist")
+        =<< Cmd.require_right mkmsg =<< liftIO (read_state_ fname)
+    return (state, SaveState fname)
+
+-- | Lower level 'read_state'.
+read_state_ :: FilePath -> IO (Either String (Maybe State.State))
+read_state_ = Serialize.unserialize state_magic
 
 -- ** path
 
@@ -112,7 +130,7 @@ make_state_path ns state = case Cmd.state_save_file state of
     Nothing -> Cmd.path state Config.save_dir </> Id.un_namespace ns
         </> default_state
     Just (Cmd.SaveState fn) -> fn
-    Just (Cmd.SaveGit repo) -> FilePath.replaceExtension repo ".state"
+    Just (Cmd.SaveRepo repo) -> FilePath.replaceExtension repo ".state"
 
 default_state :: FilePath
 default_state = "save.state"
@@ -140,21 +158,22 @@ save_git_as repo = do
                 (SaveGit.SaveHistory state Nothing [] ["save"]))
     save <- rethrow =<< liftIO (SaveGit.set_save_tag repo commit)
     Log.notice $ "wrote save " ++ show save ++ " to " ++ show repo
-    set_save_file (Left (commit, repo)) False
+    set_save_file (SaveRepo repo commit Nothing) False
 
 load_git :: FilePath -> Maybe SaveGit.Commit -> Cmd.CmdT IO ()
 load_git repo maybe_commit = do
+    (state, save_file) <- read_git repo maybe_commit
+    set_state save_file True state
+
+read_git :: FilePath -> Maybe SaveGit.Commit
+    -> Cmd.CmdT IO (State.State, SaveFile)
+read_git repo maybe_commit = do
     (state, commit, names) <- Cmd.require_right
-        (("load git " ++ repo ++ ": ") ++)
+        (("load git " <> repo <> ": ") <>)
         =<< liftIO (SaveGit.load repo maybe_commit)
-    Log.notice $ "loaded from " ++ show repo ++ ", at " ++ Pretty.pretty commit
-    set_state (Left (commit, repo)) True state
-    Cmd.modify $ \st -> st
-        { Cmd.state_history = (Cmd.state_history st)
-            -- This will cause "Cmd.Undo" to clear out the history, so
-            -- 'set_save_file' as called by 'set_state' above is redundant.
-            { Cmd.hist_last_cmd = Just $ Cmd.Load (Just commit) names }
-        }
+    Log.notice $ "read from " <> show repo <> ", at " <> Pretty.pretty commit
+        <> " names: " <> show names
+    return (state, SaveRepo repo commit (Just names))
 
 -- | Revert to given save point, or the last one.
 revert :: Maybe String -> Cmd.CmdT IO ()
@@ -166,7 +185,7 @@ revert maybe_ref = do
             when_just maybe_ref $ Cmd.throw .
                 ("can't revert to a commit when the save file isn't git: " ++)
             load fn
-        Cmd.SaveGit repo -> revert_git repo
+        Cmd.SaveRepo repo -> revert_git repo
     Log.notice $ "revert to " ++ show save_file
     where
     revert_git repo = do
@@ -196,7 +215,7 @@ make_git_path ns state = case Cmd.state_save_file state of
     Nothing -> Cmd.path state Config.save_dir </> Id.un_namespace ns
         </> default_git
     Just (Cmd.SaveState fn) -> FilePath.replaceExtension fn ".git"
-    Just (Cmd.SaveGit repo) -> repo
+    Just (Cmd.SaveRepo repo) -> repo
 
 default_git :: FilePath
 default_git = "save.git"
@@ -214,11 +233,17 @@ default_git = "save.git"
 -- (scrolling emits tons of them).
 save_views :: Cmd.State -> State.State -> IO ()
 save_views cmd_state ui_state = case Cmd.state_save_file cmd_state of
-    Just (Cmd.SaveGit repo) ->
+    Just (Cmd.SaveRepo repo) ->
         SaveGit.save_views repo $ State.state_views ui_state
     _ -> return ()
 
-type SaveFile = Either (SaveGit.Commit, SaveGit.Repo) FilePath
+-- | This is just like 'Cmd.SaveFile', except SaveRepo has more data.
+data SaveFile =
+    SaveState !FilePath
+    -- | The Strings are the cmd name of this commit, and only set on a git
+    -- load.
+    | SaveRepo !SaveGit.Repo !SaveGit.Commit !(Maybe [String])
+    deriving (Show)
 
 -- | If I switch away from a repo (either to another repo or to a plain state),
 -- I have to clear out all the remains of the old repo, since its Commits are
@@ -227,7 +252,7 @@ type SaveFile = Either (SaveGit.Commit, SaveGit.Repo) FilePath
 -- It's really important to call this whenever you change
 -- 'Cmd.state_save_file'!
 set_save_file :: SaveFile -> Bool -> Cmd.CmdT IO ()
-set_save_file git_or_state clear_history = do
+set_save_file save_file clear_history = do
     cmd_state <- Cmd.get
     when (Just file /= Cmd.state_save_file cmd_state) $ do
         ui_state <- State.get
@@ -238,23 +263,31 @@ set_save_file git_or_state clear_history = do
                 { Cmd.hist_past = if clear_history then []
                     else map clear (Cmd.hist_past hist)
                 , Cmd.hist_present = (Cmd.hist_present hist)
-                    { Cmd.hist_commit = commit }
+                    { Cmd.hist_commit = maybe_commit }
                 , Cmd.hist_future = []
                 }
             , Cmd.state_history_config = (Cmd.state_history_config state)
-                { Cmd.hist_last_commit = commit }
+                { Cmd.hist_last_commit = maybe_commit }
             }
     where
-    (commit, file) = case git_or_state of
-        Left (commit, repo) -> (Just commit, Cmd.SaveGit repo)
-        Right fname -> (Nothing, Cmd.SaveState fname)
+    (maybe_commit, file) = case save_file of
+        SaveState fname -> (Nothing, Cmd.SaveState fname)
+        SaveRepo repo commit _ -> (Just commit, Cmd.SaveRepo repo)
     clear entry = entry { Cmd.hist_commit = Nothing }
 
 set_state :: SaveFile -> Bool -> State.State -> Cmd.CmdT IO ()
-set_state git_or_state clear_history state = do
-    set_save_file git_or_state clear_history
+set_state save_file clear_history state = do
+    set_save_file save_file clear_history
     Play.cmd_stop
     Cmd.modify $ Cmd.reinit_state (Cmd.empty_history_entry state)
+    -- Names is only set on a git load.  This will cause "Cmd.Undo" to clear
+    -- out the history.
+    case save_file of
+        SaveRepo _ commit (Just names) -> Cmd.modify $ \st -> st
+            { Cmd.state_history = (Cmd.state_history st)
+                { Cmd.hist_last_cmd = Just $ Cmd.Load (Just commit) names }
+            }
+        _ -> return ()
     State.put (State.clear state)
     root <- case State.config_root (State.state_config state) of
         Nothing -> return Nothing

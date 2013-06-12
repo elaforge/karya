@@ -149,7 +149,7 @@ mkblock tracks = do
 profile_saved :: Bool -> FilePath -> BlockId -> IO ()
 profile_saved with_perform fname block_id = do
     result <- print_timer ("unserialize " ++ show fname) (const "") $
-        Save.read_state fname
+        Save.read_state_ fname
     state <- case result of
         Left err -> error $ "loading " ++ show fname ++ ": " ++ err
         Right Nothing -> error $ "loading " ++ show fname ++ ": doesn't exist"

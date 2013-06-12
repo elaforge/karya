@@ -33,7 +33,7 @@ update from_fn to_fn = do
         Right state -> Save.write_state to_fn state
 
 unserialize :: FilePath -> IO (Either String State.State)
-unserialize = fmap fix . Save.read_state
+unserialize = fmap fix . Save.read_state_
     where
     fix (Left err) = Left err
     fix (Right Nothing) = Left "file not found"

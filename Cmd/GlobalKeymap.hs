@@ -105,9 +105,9 @@ file_bindings = concat
     [ command_char 'S' "save" $ do
         -- Always save a state, but only save a git checkpoint if I'm alreading
         -- gitting.
-        Save.save_state_as_ =<< Save.get_state_path
+        Save.write_current_state =<< Save.get_state_path
         Cmd.gets Cmd.state_save_file >>= \x -> case x of
-            Just (Cmd.SaveGit repo) -> Save.save_git_as repo
+            Just (Cmd.SaveRepo repo) -> Save.save_git_as repo
             _ -> return ()
     ]
 

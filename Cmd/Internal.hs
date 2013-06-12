@@ -360,7 +360,7 @@ sync_play_state st = do
 sync_save_file :: (Cmd.M m) => Cmd.SaveFile -> m ()
 sync_save_file save = Cmd.set_global_status "save" $ case save of
     Cmd.SaveState fn -> fn
-    Cmd.SaveGit repo -> repo
+    Cmd.SaveRepo repo -> repo
 
 -- | Sync State.Config changes.
 sync_ui_config :: (Cmd.M m) => State.Config -> m ()

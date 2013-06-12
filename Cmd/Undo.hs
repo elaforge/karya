@@ -218,7 +218,7 @@ save_history :: Cmd.State -> Cmd.History -> Cmd.HistoryCollect
 save_history cmd_state hist collect uncommitted = do
     entries <- case (Cmd.state_save_file cmd_state, maybe_prev_commit) of
         -- I need both a repo and a previous commit to checkpoint.
-        (Just (Cmd.SaveGit repo), Just prev_commit) ->
+        (Just (Cmd.SaveRepo repo), Just prev_commit) ->
             commit_entries repo prev_commit uncommitted
         _ -> return $ map (history_entry Nothing) uncommitted
     let (present, past) = bump_updates (Cmd.hist_present hist) entries
