@@ -8,7 +8,7 @@ UNSORTED
   * implement load_merge
   - nv on every note in viola-sonata
   tala
-    - Support both chapu and suladi sapta talas.
+    * Support both chapu and suladi sapta talas.
     - Make talas work with LRuler.  The problem is that they include label
       information, and Meter.Meter doesn't support that.
   * update TwelveScales to use TheoryFormat.PitchFormat

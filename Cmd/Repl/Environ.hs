@@ -74,6 +74,7 @@ import qualified Cmd.Save as Save
 import qualified Cmd.Selection as Selection
 import qualified Cmd.Simple as Simple
 import qualified Cmd.StepPlay as StepPlay
+import qualified Cmd.Tala as Tala
 import qualified Cmd.TimeStep as TimeStep
 import qualified Cmd.ViewConfig as ViewConfig
 

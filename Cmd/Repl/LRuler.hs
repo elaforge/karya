@@ -104,18 +104,6 @@ replace_ruler_id old new = do
     forM_ (map fst blocks) $ \block_id ->
         State.replace_ruler_id block_id old new
 
--- | Fix up old states with overlay rulers.
-fix :: Cmd.CmdL [RulerId]
-fix = do
-    rids <- State.all_ruler_ids
-    forM_ rids $ \r -> State.modify_ruler r $ \ru ->
-        ru { Ruler.ruler_show_names = False }
-    block_ids <- State.all_block_ids
-    forM_ block_ids $ \block_id -> do
-        r <- State.ruler_of block_id
-        Create.set_block_ruler r block_id
-    gc
-
 -- | Double the meter of the current block. You can then trim it down to size.
 double :: (Cmd.M m) => m Modify
 double = do

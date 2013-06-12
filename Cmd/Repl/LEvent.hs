@@ -84,3 +84,11 @@ quantize dur time = ScoreTime.double (fromIntegral int) * dur
     where
     int :: Integer
     int = round (time / dur)
+
+-- * insert
+
+insert :: (Cmd.M m) => [(ScoreTime, ScoreTime, Text)] -> m ()
+insert events = do
+    (_, _, track_id, pos) <- Selection.get_insert
+    State.insert_events track_id
+        [Event.text_event (start + pos) dur text | (start, dur, text) <- events]
