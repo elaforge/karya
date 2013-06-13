@@ -20,7 +20,8 @@
 -}
 module Derive.Scale.Twelve where
 import qualified Data.Map as Map
-import qualified Data.Vector.Unboxed as Vector
+import qualified Data.Vector as Vector
+import qualified Data.Vector.Unboxed as Unboxed
 
 import Util.Control
 import qualified Derive.Scale as Scale
@@ -32,37 +33,99 @@ import qualified Derive.Scale.Util as Util
 import qualified Perform.Pitch as Pitch
 
 
+-- Twelve is a popular default, so export these directly.
+
 scale :: Scale.Scale
-scale = Scale.Scale
-    { Scale.scale_id = scale_id
-    , Scale.scale_pattern = "[-1-9][a-g](b|bb|#|x)?"
-    , Scale.scale_symbols = [] -- later maybe I can use fancy sharps and flats
-    , Scale.scale_transposers = Util.standard_transposers
-    , Scale.scale_transpose = TwelveScales.transpose scale_map
-    , Scale.scale_enharmonics = TwelveScales.enharmonics scale_map
-    , Scale.scale_note_to_call = TwelveScales.note_to_call scale_map
-    , Scale.scale_input_to_note = TwelveScales.input_to_note scale_map
-    , Scale.scale_input_to_nn = Util.direct_input_to_nn
-    , Scale.scale_call_doc = TwelveScales.call_doc Util.standard_transposers
-        scale_map "The world-famous equal tempered twelve note scale."
-    }
+scale = make_scale scale_map "[-1-9][a-g](b|bb|#|x)?" scale_id
+    "The world-famous equal tempered twelve note scale."
 
 scale_id :: Pitch.ScaleId
 scale_id = Pitch.ScaleId "twelve"
 
 scale_map :: TwelveScales.ScaleMap
-scale_map =
-    TwelveScales.scale_map layout fmt all_pitches all_keys key
-    where Just key = Map.lookup default_key all_keys
+scale_map = TwelveScales.scale_map layout fmt all_keys default_theory_key
 
 fmt :: TheoryFormat.Format
 fmt = TheoryFormat.absolute_c
 
+relative_scale_map :: TwelveScales.ScaleMap
+relative_scale_map =
+    TwelveScales.scale_map layout fmt all_keys default_theory_key
+    where
+    fmt = TheoryFormat.sargam parse_key default_theory_key
+        show_note_chromatic adjust_chromatic
+    parse_key maybe_key = TwelveScales.read_key relative_scale_map maybe_key
+
+show_note_chromatic :: TheoryFormat.ShowNote Theory.Key
+show_note_chromatic degrees acc_fmt key (Theory.Note pc acc) =
+    (oct, text <> acc_text)
+    where
+    acc_text = TheoryFormat.show_accidentals acc_fmt
+        (acc - Theory.note_accidentals tonic)
+    (oct, text) = TheoryFormat.show_degree degrees (Theory.note_pc tonic) pc
+    tonic = Theory.key_tonic key
+
+adjust_chromatic :: TheoryFormat.Adjust Theory.Key
+adjust_chromatic degrees key (Theory.Pitch octave (Theory.Note pc acc)) =
+    Theory.Pitch (octave + oct) (Theory.Note pc2 acc2)
+    where
+    (oct, pc2) = (pc + Theory.note_pc tonic) `divMod` Vector.length degrees
+    acc2 = acc + case Theory.key_signature key of
+        -- If it's chromatic then I can't adjust for the mode, but I still
+        -- want to map degree 1 to C# if I'm in C#.
+        Nothing -> Theory.note_accidentals tonic
+        Just sig -> case sig Unboxed.!? pc of
+            Nothing -> 0 -- That shouldn't have happened.
+            Just acc -> acc
+    tonic = Theory.key_tonic key
+
+-- * scales
+
+scales :: [Scale.Scale]
+scales =
+    [ scale { Scale.scale_input_to_nn = Util.direct_input_to_nn }
+    , make_scale relative_scale_map "[-1-9][a-g][#b]?"
+        (Pitch.ScaleId "twelve-r")
+        "This is 12TET, but spelled relative to the current key and mode.\
+        \ It behaves oddly around accidentals. This is because the input is\
+        \ taken to be relative, so the key is at C on the input. But the\
+        \ input layout is still in C major, so the black keys are in the wrong\
+        \ place. TODO to fix this I'd have to either abandon the relative\
+        \ input, or reconfigure the input layout. The latter would be really\
+        \ confusing, and incompatible with a piano keyboard."
+    ]
+
+make_scale :: TwelveScales.ScaleMap -> Text -> Pitch.ScaleId -> Text
+    -> Scale.Scale
+make_scale scale_map pattern scale_id doc = Scale.Scale
+    { Scale.scale_id = scale_id
+    , Scale.scale_pattern = pattern
+    , Scale.scale_symbols = []
+    , Scale.scale_transposers = Util.standard_transposers
+    , Scale.scale_transpose = TwelveScales.transpose scale_map
+    , Scale.scale_enharmonics = TwelveScales.enharmonics scale_map
+    , Scale.scale_note_to_call = TwelveScales.note_to_call scale_map
+    , Scale.scale_input_to_note = TwelveScales.input_to_note scale_map
+    , Scale.scale_input_to_nn = Util.computed_input_to_nn
+        (TwelveScales.input_to_note scale_map)
+        (TwelveScales.note_to_call scale_map)
+    , Scale.scale_call_doc = TwelveScales.call_doc Util.standard_transposers
+        scale_map doc
+    }
+
 default_key :: Pitch.Key
 default_key = Pitch.Key "c-maj"
 
-show_pitch :: Theory.Pitch -> Pitch.Note
-show_pitch = TwelveScales.show_pitch scale_map
+default_theory_key :: Theory.Key
+Just default_theory_key = Map.lookup default_key all_keys
+
+show_pitch :: Theory.Pitch -> Maybe Pitch.Note
+show_pitch = either (const Nothing) Just
+    . TwelveScales.show_pitch scale_map Nothing
+
+show_nn :: Pitch.NoteNumber -> Maybe Pitch.Note
+show_nn = show_pitch . Theory.semis_to_pitch_sharps layout
+    . Theory.nn_to_semis . floor
 
 read_pitch :: Pitch.Note -> Maybe Theory.Pitch
 read_pitch = either (const Nothing) Just . TwelveScales.read_pitch scale_map
@@ -96,7 +159,7 @@ church_keys = concat (zipWith make_keys modes intervals)
     where
     modes = ["maj", "dorian", "phrygian", "lydian", "mixo", "min", "locrian"]
     intervals = [take 7 (drop n major) | n <- [0..6]]
-    major = cycle $ Vector.toList (Theory.layout_intervals layout)
+    major = cycle $ Unboxed.toList (Theory.layout_intervals layout)
 
 octatonic_keys :: [Theory.Key]
 octatonic_keys = make_keys "octa21" (take 8 (cycle [2, 1]))
@@ -115,9 +178,6 @@ layout = Theory.layout TheoryFormat.absolute_c_intervals
 
 all_notes :: [Theory.Note]
 all_notes = [Theory.Note pc accs | pc <- [0..6], accs <- [-2..2]]
-
-all_pitches :: [Theory.Pitch]
-all_pitches = [Theory.Pitch oct note | oct <- [0..10], note <- all_notes]
 
 make_keys :: Text -> [Theory.Semi] -> [Theory.Key]
 make_keys name intervals =

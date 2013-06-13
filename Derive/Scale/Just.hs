@@ -46,7 +46,9 @@ absolute_format :: TheoryFormat.Format
 absolute_format = TheoryFormat.absolute_c
 
 relative_format :: TheoryFormat.Format
-relative_format = TheoryFormat.sargam (fmap key_tonic . lookup_key) 0
+relative_format =
+    TheoryFormat.sargam (fmap key_tonic . lookup_key) 0
+        TheoryFormat.show_note_diatonic TheoryFormat.adjust_diatonic
 
 lookup_key :: Maybe Pitch.Key -> Either Scale.ScaleError Key
 lookup_key Nothing = Right default_key
@@ -179,7 +181,7 @@ note_to_call fmt ratios note = case TheoryFormat.read_pitch fmt note of
     pitch_nn pitch env controls =
         Util.scale_to_pitch_error chromatic diatonic $ do
             key <- read_key env
-            pitch <- TheoryFormat.fmt_adjust fmt (environ_key env) pitch
+            pitch <- TheoryFormat.fmt_adjust fmt (Util.lookup_key env) pitch
             let hz = transpose_to_hz ratios base_hz key
                     (chromatic + diatonic) pitch
                 nn = Pitch.hz_to_nn hz
@@ -193,7 +195,7 @@ note_to_call fmt ratios note = case TheoryFormat.read_pitch fmt note of
     pitch_note :: Theory.Pitch -> Scale.PitchNote
     pitch_note pitch env controls =
         Util.scale_to_pitch_error chromatic diatonic $ do
-            let key = environ_key env
+            let key = Util.lookup_key env
             pitch <- TheoryFormat.fmt_adjust fmt key pitch
             let transposed = Theory.transpose_pitch pc_per_octave
                     (round (chromatic + diatonic)) pitch
@@ -323,9 +325,6 @@ Just default_key = Map.lookup "c" all_keys
 read_key :: TrackLang.Environ -> Either Scale.ScaleError Key
 read_key = Util.read_environ (\k -> Map.lookup k all_keys)
     default_key Environ.key
-
-environ_key :: TrackLang.Environ -> Maybe Pitch.Key
-environ_key env = Pitch.Key <$> TrackLang.maybe_val Environ.key env
 
 -- * ratios
 

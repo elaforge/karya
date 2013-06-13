@@ -29,6 +29,6 @@ import qualified Perform.Pitch as Pitch
 scales :: Map.Map Pitch.ScaleId Scale.Scale
 shadowed :: [Pitch.ScaleId]
 (scales, shadowed) = mk $
-    [Ratio.scale, Twelve.scale, Legong.scale, Wayang.scale]
-    ++ Octa.scales ++ Just.scales
+    [Ratio.scale, Legong.scale, Wayang.scale]
+    ++ Twelve.scales ++ Octa.scales ++ Just.scales
     where mk = second (map fst) . Map.unique . Seq.key_on Scale.scale_id

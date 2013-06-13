@@ -31,20 +31,23 @@ absolute_c_degrees = ["c", "d", "e", "f", "g", "a", "b"]
 absolute_c_intervals :: [Int]
 absolute_c_intervals = [2, 2, 1, 2, 2, 2, 1]
 
-sargam :: ParseKey -> Theory.PitchClass -> Format
+type MakeRelativeFormat key = ParseKey key -> key -> ShowNote key -> Adjust key
+    -> Format
+
+sargam :: MakeRelativeFormat key
 sargam = make_relative_format degrees ascii_accidentals
     where degrees = make_degrees ["s", "r", "g", "m", "p", "d", "n"]
 
-cipher :: ParseKey -> Theory.PitchClass -> Format
+cipher :: MakeRelativeFormat key
 cipher = make_relative_format degrees ascii_accidentals
     where degrees = make_degrees ["/1", "/2", "/3", "/4", "/5", "/6", "/7"]
 
-chinese :: ParseKey -> Theory.PitchClass -> Format
-chinese = make_relative_format degrees ascii_accidentals
+zh_cipher :: MakeRelativeFormat key
+zh_cipher = make_relative_format degrees ascii_accidentals
     where degrees = make_degrees ["一", "二", "三", "四", "五", "六", "七"]
 
-nanguan :: ParseKey -> Theory.PitchClass -> Format
-nanguan = make_relative_format degrees ascii_accidentals
+gongche :: MakeRelativeFormat key
+gongche = make_relative_format degrees ascii_accidentals
     where degrees = make_degrees ["士", "下", "ㄨ", "工", "六"]
 
 -- * Format
@@ -61,7 +64,7 @@ data Format = Format {
     , fmt_adjust :: Maybe Pitch.Key -> Theory.Pitch
         -> Either Scale.ScaleError Theory.Pitch
     }
-type ParseKey = Maybe Pitch.Key -> Either Scale.ScaleError Theory.PitchClass
+type ParseKey key = Maybe Pitch.Key -> Either Scale.ScaleError key
 type Degrees = Vector.Vector Text
 
 make_degrees :: [Text] -> Degrees
@@ -98,24 +101,34 @@ p_octave = (+1) <$> ParseBs.p_int
 -- ** make
 
 make_absolute_format :: Degrees -> AccidentalFormat -> Format
-make_absolute_format degrees acc_fmt =
-    Format (const $ show_note_absolute degrees acc_fmt)
-        (p_pitch_absolute degrees acc_fmt) (const Right)
+make_absolute_format degrees acc_fmt = Format
+    { fmt_show = const $ show_note_absolute degrees acc_fmt
+    , fmt_read = p_pitch_absolute degrees acc_fmt
+    , fmt_adjust = const Right
+    }
 
-make_relative_format :: Degrees -> AccidentalFormat -> ParseKey
-    -> Theory.PitchClass
+make_relative_format :: Degrees -> AccidentalFormat
+    -> ParseKey key -> key
     -- ^ Default key if there is none, or it's not parseable.  Otherwise, a bad
     -- or missing key would mean you couldn't even display notes.
-    -> Format
-make_relative_format degrees acc_fmt parse_key default_key =
-    Format p_show p_read p_adjust
+    -> ShowNote key -> Adjust key -> Format
+make_relative_format degrees acc_fmt parse_key default_key show_note adjust =
+    Format
+        { fmt_show = p_show
+        , fmt_read = p_read
+        , fmt_adjust = p_adjust
+        }
     where
-    p_show key = show_note_relative degrees acc_fmt
+    p_show key = show_note degrees acc_fmt
         (either (const default_key) id (parse_key key))
     p_read = p_pitch_relative degrees acc_fmt
     p_adjust maybe_key pitch = do
         key <- parse_key maybe_key
-        return $ adjust_relative_key degrees key pitch
+        return $ adjust degrees key pitch
+
+type ShowNote key = Degrees -> AccidentalFormat -> key -> Theory.Note
+    -> (Theory.Octave, Text)
+type Adjust key = Degrees -> key -> Theory.Pitch -> Theory.Pitch
 
 -- *** absolute
 
@@ -132,11 +145,20 @@ p_pitch_absolute = p_pitch_relative
 
 -- | Like 'show_note_absolute', this subtracts 2 from the octave so middle
 -- C winds up at octave 4.
-show_note_relative :: Degrees -> AccidentalFormat -> Theory.PitchClass
-    -> Theory.Note -> (Theory.Octave, Text)
-show_note_relative degrees acc_fmt key (Theory.Note pc acc) =
-    (oct, (degrees Vector.! degree) <> show_accidentals acc_fmt acc)
+show_note_diatonic :: ShowNote Theory.PitchClass
+show_note_diatonic degrees acc_fmt key (Theory.Note pc acc) =
+    (oct, text <> show_accidentals acc_fmt acc)
+    where (oct, text) = show_degree degrees key pc
+
+show_degree :: Degrees -> Theory.PitchClass -> Theory.PitchClass
+    -> (Theory.Octave, Text)
+show_degree degrees key pc = (oct, degrees Vector.! degree)
     where (oct, degree) = (pc - key) `divMod` Vector.length degrees
+
+adjust_diatonic :: Adjust Theory.PitchClass
+adjust_diatonic degrees key (Theory.Pitch octave (Theory.Note pc acc)) =
+    Theory.Pitch (octave + oct) (Theory.Note pc2 acc)
+    where (oct, pc2) = (pc + key) `divMod` Vector.length degrees
 
 p_pitch_relative :: Degrees -> AccidentalFormat -> A.Parser Theory.Note
 p_pitch_relative degrees acc_fmt =
@@ -147,12 +169,6 @@ p_pitch_relative degrees acc_fmt =
         [ A.string (Encoding.encodeUtf8 s) >> return i
         | (i, s) <- zip [0..] (Vector.toList degrees)
         ]
-
-adjust_relative_key :: Degrees -> Theory.PitchClass -> Theory.Pitch
-    -> Theory.Pitch
-adjust_relative_key degrees key (Theory.Pitch octave (Theory.Note pc acc)) =
-    Theory.Pitch (octave + oct) (Theory.Note pc2 acc)
-    where (oct, pc2) = (pc + key) `divMod` Vector.length degrees
 
 
 -- * accidentals

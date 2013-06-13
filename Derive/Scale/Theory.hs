@@ -38,7 +38,7 @@ module Derive.Scale.Theory (
     , modify_octave, transpose_pitch
     , Note(..), note_in_layout
     -- ** key
-    , Key(key_tonic, key_name, key_layout), key
+    , Key(key_tonic, key_name, key_signature, key_layout), key
     , key_degrees_per_octave
     , layout
     -- * util
@@ -264,7 +264,7 @@ note_in_layout layout note =
 --
 -- There's a distinction between \"diatonic\" and \"chromatic\" keys.  It's not
 -- really standard terminology, but within this module I call scales with a 1:1
--- 'PitchClass' : 'Degree' mapping \"diatonic\", and the ones without
+-- 'PitchClass' to 'Degree' mapping \"diatonic\", and the ones without
 -- \"chromatic\".  That's because diatonic transposition for the former kind of
 -- scale is defined in terms of pitch classes, regardless of what accidentals
 -- the Note may have, but the latter kind of scale must resort to chromatic
@@ -277,6 +277,7 @@ data Key = Key {
     -- octaves of intervals, as needed by 'chromatic_steps'.  If this is a
     -- diatonic key, each interval is one pitch class.
     , key_intervals :: Intervals
+    -- | Nothing for a chromatic key.
     , key_signature :: Maybe Signature
     -- | Table to speed up diatonic transposition, see 'make_table'.
     , key_transpose_table :: Intervals
@@ -287,7 +288,7 @@ data Key = Key {
 type Signature = Vector.Vector Accidentals
 type Intervals = Vector.Vector Semi
 
--- Make a Key given intervals and a layout.  If the number of intervals are
+-- | Make a Key given intervals and a layout.  If the number of intervals are
 -- equal to the number of intervals in the layout, the scale is considered
 -- diatonic and will get a 'Signature'.
 key :: Note -> Text -> [Accidentals] -> Layout -> Key

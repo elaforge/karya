@@ -3,6 +3,7 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
+  - ensure I can say '* = (4c)' to set a drone, e.g. in mridangam
   - is StateConfig.Default obsolete now that there is global transform?
   - ^B with a selection is just making empty blocks
   * implement load_merge
@@ -17,7 +18,13 @@ UNSORTED
   * rename PitchFormat to just Format
   - TheoryFormat.PitchFormat fmt_read should allow both ascii and symbolic
     accs.
-  - add relative notation to twelve
+  add relative notation to twelve
+    * remove NoteToDegree
+    * check range in TwelveScales.show_pitch
+    * pass key to TwelveScales.show_pitch, apply fmt_adjust
+    * adjust has to understand keys better, so you have to pass an adjust in
+      addition to ParseKey.
+  - scale pattern should go into the fmt
   / make TheoryFormat.Degrees be (Vector [Text], Vector [ByteString])
   * transposition is messed up for just-r, it drops it by an octave
   * Modifying a pitch track above a note track doesn't rederive the note
@@ -35,7 +42,7 @@ UNSORTED
       the note is already baked into the pitch.
     . Why read 'key', why not just look at the pitch signal?
     - Report out of bounds.
-  - Meter for adi talam
+  * Meter for adi talam
   - Cmd.Instrument.Util and Derive.Instrument.Util need better names
   * move Istrument.inst_keymap to Patch, since it's resolved by Convert
   * when dragging, don't snap if it would move too far
@@ -89,11 +96,11 @@ UNSORTED
       TrackTree.TrackEvents, I think.
   - If a control track depends on a previous control track,
     Derive.Control.track_signal can't derive it properly if the previous
-    control isn't derived.  The alternative is to get track signals for all
-    controls below a note that themselves have children.  The other option is
-    to abandon track_signal and rely on merging fragments from the inversions.
-    Meanwhile it just doesn't work, reverse the #ratio-source and >i1 tracks
-    in Ratio_test to demonstrate.
+    control isn't derived.  One way to fix this is to get track signals for
+    all controls below a note that themselves have children.  The other option
+    is to abandon track_signal and rely on merging fragments from the
+    inversions.  Meanwhile it just doesn't work, reverse the #ratio-source and
+    >i1 tracks in Ratio_test to demonstrate.
   * What's the gap between the change and MsgOutOfDate?
   * compact the signal in the cache?
     . Wait, but I think the cache never actually caches control or pitch

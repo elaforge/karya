@@ -46,7 +46,7 @@ make_scale scale_id layout key_suffix = Scale.Scale
         \ octa12 starts with a half-step."
     }
     where
-    scale_map = TwelveScales.scale_map layout fmt all_pitches keys deflt
+    scale_map = TwelveScales.scale_map layout fmt keys deflt
         where Just deflt = Map.lookup (Pitch.Key $ "a-" <> key_suffix) keys
     keys = all_keys layout key_suffix
 
@@ -57,9 +57,6 @@ fmt = TheoryFormat.make_absolute_format (TheoryFormat.make_degrees degrees)
 
 all_notes :: [Theory.Note]
 all_notes = [Theory.Note pc accs | pc <- [0..7], accs <- [-1..1]]
-
-all_pitches :: [Theory.Pitch]
-all_pitches = [Theory.Pitch oct note | oct <- [-2..9], note <- all_notes]
 
 make_keys :: Theory.Layout -> Text -> [Theory.Semi] -> [Theory.Key]
 make_keys layout name intervals =

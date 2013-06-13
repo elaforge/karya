@@ -146,8 +146,9 @@ get_stack = gets (state_stack . state_dynamic)
 
 -- | Lookup a scale_id or throw.
 get_scale :: Pitch.ScaleId -> Deriver Scale
-get_scale scale_id = maybe (throw $ "unknown " ++ show scale_id) return
-    =<< lookup_scale scale_id
+get_scale scale_id = maybe
+    (throw $ "get_scale: unknown " ++ untxt (ShowVal.show_val scale_id))
+    return =<< lookup_scale scale_id
 
 lookup_scale :: Pitch.ScaleId -> Deriver (Maybe Scale)
 lookup_scale scale_id = do

@@ -31,7 +31,7 @@ test_compile = do
             ]
 
     let (_, logs) = derive ("*c2", [(0, 0, ".1")])
-    strings_like logs ["unknown ScaleId \"c2\""]
+    strings_like logs ["get_scale: unknown \\*c2"]
 
     let mkcont vals = Map.union Derive.initial_controls
             (Map.singleton (Score.Control "c1")

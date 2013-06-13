@@ -166,4 +166,5 @@ n s = fromMaybe (error $ "can't parse note: " ++ show s) $
     TheoryFormat.read_note TheoryFormat.absolute_c s
 
 show_pitch :: Theory.Pitch -> Text
-show_pitch = Pitch.note_text . Twelve.show_pitch
+show_pitch p = maybe (error $ "can't show pitch: " ++ show p) Pitch.note_text $
+    Twelve.show_pitch p

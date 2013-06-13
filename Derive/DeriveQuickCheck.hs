@@ -45,7 +45,6 @@ import qualified Ui.UiTest as UiTest
 import qualified Derive.PitchSignal as PitchSignal
 import qualified Derive.Scale as Scale
 import qualified Derive.Scale.Twelve as Twelve
-import qualified Derive.Scale.TwelveScales as TwelveScales
 import qualified Derive.Score as Score
 
 import qualified Perform.Pitch as Pitch
@@ -81,7 +80,7 @@ granges = Q.sized $ \n -> go 0 =<< Q.choose (0, n)
         return $ (start, start + dur) : rest
 
 gpitch :: Q.Gen Pitch.Note
-gpitch = Q.oneof $ map return (Map.keys note_to_degree)
+gpitch = Q.oneof $ map return (Map.keys note_to_nn)
 
 -- | Random list of non-overlapping events, some of which are adjacent.
 gevents :: Q.Gen [Event.Event]
@@ -178,13 +177,14 @@ update_state samples pos state = (List.foldl' go state pre, post)
                 (state_controls state) }
 
 parse_pitch :: String -> Pitch.NoteNumber
-parse_pitch text = maybe (error $ "unparseable pitch: " ++ show text)
-    (to_nn . snd) $ Map.lookup (Pitch.Note $ txt text) note_to_degree
-    where
-    to_nn (Pitch.Degree d) = Pitch.NoteNumber (fromIntegral d)
+parse_pitch text =
+    fromMaybe (error $ "unparseable pitch: " ++ show text) $
+        Map.lookup (Pitch.Note $ txt text) note_to_nn
 
-note_to_degree :: TwelveScales.NoteToDegree
-note_to_degree = TwelveScales.smap_note_to_degree Twelve.scale_map
+note_to_nn :: Map.Map Pitch.Note Pitch.NoteNumber
+note_to_nn = Map.fromList
+    [(note, nn) | (Just note, nn) <- zip (map Twelve.show_nn nns) nns]
+    where nns = Seq.range 1 127 1
 
 parse_control :: String -> Signal.Y
 parse_control text = fromMaybe
