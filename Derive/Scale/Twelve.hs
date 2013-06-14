@@ -26,7 +26,7 @@ import Util.Control
 import qualified Derive.Scale as Scale
 import qualified Derive.Scale.Theory as Theory
 import qualified Derive.Scale.TheoryFormat as TheoryFormat
-import qualified Derive.Scale.TwelveScales as TwelveScales
+import qualified Derive.Scale.ChromaticScales as ChromaticScales
 import qualified Derive.Scale.Util as Util
 
 import qualified Perform.Pitch as Pitch
@@ -41,20 +41,20 @@ scale = make_scale scale_map scale_id
 scale_id :: Pitch.ScaleId
 scale_id = Pitch.ScaleId "twelve"
 
-scale_map :: TwelveScales.ScaleMap
-scale_map = TwelveScales.scale_map layout fmt all_keys default_theory_key
+scale_map :: ChromaticScales.ScaleMap
+scale_map = ChromaticScales.scale_map layout fmt all_keys default_theory_key
 
 fmt :: TheoryFormat.Format
 fmt = TheoryFormat.absolute_c
 
-relative_scale_map :: TwelveScales.ScaleMap
+relative_scale_map :: ChromaticScales.ScaleMap
 relative_scale_map =
-    TwelveScales.scale_map layout fmt all_keys default_theory_key
+    ChromaticScales.scale_map layout fmt all_keys default_theory_key
     where
     fmt = TheoryFormat.sargam parse_key default_theory_key
         TheoryFormat.show_note_chromatic TheoryFormat.adjust_chromatic
     parse_key maybe_key =
-        TwelveScales.read_key relative_scale_map maybe_key
+        ChromaticScales.read_key relative_scale_map maybe_key
 
 -- Making the keys needs fmt, 'fmt_show fmt Nothing key_tonic'
 -- But fmt_show needs the keys if it wants to display relative scales that need
@@ -81,21 +81,21 @@ scales =
         \ confusing, and incompatible with a piano keyboard."
     ]
 
-make_scale :: TwelveScales.ScaleMap -> Pitch.ScaleId -> Text -> Scale.Scale
+make_scale :: ChromaticScales.ScaleMap -> Pitch.ScaleId -> Text -> Scale.Scale
 make_scale scale_map scale_id doc = Scale.Scale
     { Scale.scale_id = scale_id
     , Scale.scale_pattern =
-        TheoryFormat.fmt_pattern (TwelveScales.smap_fmt scale_map)
+        TheoryFormat.fmt_pattern (ChromaticScales.smap_fmt scale_map)
     , Scale.scale_symbols = []
     , Scale.scale_transposers = Util.standard_transposers
-    , Scale.scale_transpose = TwelveScales.transpose scale_map
-    , Scale.scale_enharmonics = TwelveScales.enharmonics scale_map
-    , Scale.scale_note_to_call = TwelveScales.note_to_call scale_map
-    , Scale.scale_input_to_note = TwelveScales.input_to_note scale_map
+    , Scale.scale_transpose = ChromaticScales.transpose scale_map
+    , Scale.scale_enharmonics = ChromaticScales.enharmonics scale_map
+    , Scale.scale_note_to_call = ChromaticScales.note_to_call scale_map
+    , Scale.scale_input_to_note = ChromaticScales.input_to_note scale_map
     , Scale.scale_input_to_nn = Util.computed_input_to_nn
-        (TwelveScales.input_to_note scale_map)
-        (TwelveScales.note_to_call scale_map)
-    , Scale.scale_call_doc = TwelveScales.call_doc Util.standard_transposers
+        (ChromaticScales.input_to_note scale_map)
+        (ChromaticScales.note_to_call scale_map)
+    , Scale.scale_call_doc = ChromaticScales.call_doc Util.standard_transposers
         scale_map doc
     }
 
@@ -107,14 +107,14 @@ Just default_theory_key = Map.lookup default_key all_keys
 
 show_pitch :: Theory.Pitch -> Maybe Pitch.Note
 show_pitch = either (const Nothing) Just
-    . TwelveScales.show_pitch scale_map Nothing
+    . ChromaticScales.show_pitch scale_map Nothing
 
 show_nn :: Pitch.NoteNumber -> Maybe Pitch.Note
 show_nn = show_pitch . Theory.semis_to_pitch_sharps layout
     . Theory.nn_to_semis . floor
 
 read_pitch :: Pitch.Note -> Maybe Theory.Pitch
-read_pitch = either (const Nothing) Just . TwelveScales.read_pitch scale_map
+read_pitch = either (const Nothing) Just . ChromaticScales.read_pitch scale_map
 
 -- * constants
 

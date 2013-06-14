@@ -3,7 +3,7 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 -- | Utilities for equal-tempered chromatic scales with keys and modes.
-module Derive.Scale.TwelveScales where
+module Derive.Scale.ChromaticScales where
 import qualified Data.Either as Either
 import qualified Data.Map as Map
 import qualified Data.Set as Set

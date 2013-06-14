@@ -9,7 +9,7 @@ import qualified Data.Vector.Unboxed as Vector
 import qualified Derive.Scale as Scale
 import qualified Derive.Scale.Theory as Theory
 import qualified Derive.Scale.TheoryFormat as TheoryFormat
-import qualified Derive.Scale.TwelveScales as TwelveScales
+import qualified Derive.Scale.ChromaticScales as ChromaticScales
 import qualified Derive.Scale.Util as Util
 
 import qualified Perform.Pitch as Pitch
@@ -37,7 +37,7 @@ absolute_fmt =
     where
     degrees = TheoryFormat.make_degrees ["a", "b", "c", "d", "e", "f", "g", "h"]
 
-relative_fmt :: TwelveScales.Keys -> TheoryFormat.Format
+relative_fmt :: ChromaticScales.Keys -> TheoryFormat.Format
 relative_fmt keys =
     TheoryFormat.make_relative_format (TheoryFormat.make_pattern degrees)
         degrees TheoryFormat.ascii_accidentals parse_key default_tkey
@@ -45,29 +45,29 @@ relative_fmt keys =
     where
     degrees = TheoryFormat.make_degrees
         ["一", "二", "三", "四", "五", "六", "七", "八"]
-    parse_key = TwelveScales.lookup_key default_tkey keys
+    parse_key = ChromaticScales.lookup_key default_tkey keys
     Just default_tkey = Map.lookup default_key keys
 
-make_scale :: Pitch.ScaleId -> Theory.Layout -> TwelveScales.Keys
+make_scale :: Pitch.ScaleId -> Theory.Layout -> ChromaticScales.Keys
     -> TheoryFormat.Format -> Scale.Scale
 make_scale scale_id layout keys fmt = Scale.Scale
     { Scale.scale_id = scale_id
     , Scale.scale_pattern = TheoryFormat.fmt_pattern fmt
     , Scale.scale_symbols = []
     , Scale.scale_transposers = Util.standard_transposers
-    , Scale.scale_transpose = TwelveScales.transpose scale_map
-    , Scale.scale_enharmonics = TwelveScales.enharmonics scale_map
-    , Scale.scale_note_to_call = TwelveScales.note_to_call scale_map
-    , Scale.scale_input_to_note = TwelveScales.input_to_note scale_map
+    , Scale.scale_transpose = ChromaticScales.transpose scale_map
+    , Scale.scale_enharmonics = ChromaticScales.enharmonics scale_map
+    , Scale.scale_note_to_call = ChromaticScales.note_to_call scale_map
+    , Scale.scale_input_to_note = ChromaticScales.input_to_note scale_map
     , Scale.scale_input_to_nn = Util.direct_input_to_nn
-    , Scale.scale_call_doc = TwelveScales.call_doc Util.standard_transposers
+    , Scale.scale_call_doc = ChromaticScales.call_doc Util.standard_transposers
         scale_map
         "Octatonic scales as true 8 note scales, using notes from a-h.\
         \ There are two variants: octa21 starts with a whole step, while\
         \ octa12 starts with a half-step."
     }
     where
-    scale_map = TwelveScales.scale_map layout fmt keys default_tkey
+    scale_map = ChromaticScales.scale_map layout fmt keys default_tkey
     Just default_tkey = Map.lookup default_key keys
 
 default_key :: Pitch.Key
@@ -81,7 +81,7 @@ make_keys layout intervals =
     [Theory.key tonic "" intervals layout
         | tonic <- all_notes, abs (Theory.note_accidentals tonic) <= 1]
 
-all_keys :: Theory.Layout -> TwelveScales.Keys
+all_keys :: Theory.Layout -> ChromaticScales.Keys
 all_keys layout =
     Map.fromList $ zip (map (TheoryFormat.show_key absolute_fmt) keys) keys
     where
