@@ -117,7 +117,7 @@ selected_to_block block_id selected = do
         Create.track_events block_id State.no_ruler tracknum Config.track_width
             (Track.track title (Events.map_events Event.strip_stack events))
 
-get_selection :: (Cmd.M m) => Selection.SelectedTracks -> m Selected
+get_selection :: (Cmd.M m) => Selection.Tracks -> m Selected
 get_selection (block_id, tracknums, _, start, end) = do
     tracks <- mapM State.get_track =<<
         mapMaybeM (State.event_track_at block_id) tracknums

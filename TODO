@@ -3,7 +3,7 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
-  - rename Selection.SelectedTracks to Selection.Tracks
+  * rename Selection.SelectedTracks to Selection.Tracks
   - Rename TwelveScales to ChromaticScales.
   - do I really need a separate ScaleId literal?  Or should I allow
     'scale = just-min'?
