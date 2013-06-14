@@ -64,7 +64,7 @@ make_scale :: Pitch.ScaleId -> Vector.Vector Ratio.Rational
     -> TheoryFormat.Format -> Scale.Scale
 make_scale scale_id ratios fmt = Scale.Scale
     { Scale.scale_id = scale_id
-    , Scale.scale_pattern = "[-1-9][a-g][#b]?"
+    , Scale.scale_pattern = TheoryFormat.fmt_pattern fmt
     , Scale.scale_symbols = []
     , Scale.scale_transposers = Util.standard_transposers
     , Scale.scale_transpose = transpose fmt
@@ -80,7 +80,9 @@ make_scale scale_id ratios fmt = Scale.Scale
         \ That frequency is taken from the `%just-base` control and the key.\
         \ For example, `%just-base = 440 | key = a` means that A in the\
         \ middle octave is 440hz and is considered 1/1. If the base hz isn't\
-        \ given, it defaults to the 12TET tuning of the key."
+        \ given, it defaults to the 12TET tuning of the key. Just scales\
+        \ support accidentals, but are inherently diatonic, so chromatic\
+        \ transposition is the same as diatonic transposition."
         ) [("ratios", Pretty.prettytxt ratios)]
             (Util.scale_degree_doc (scale_degree 0))
     }

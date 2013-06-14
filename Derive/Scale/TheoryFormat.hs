@@ -12,6 +12,7 @@ import qualified Data.Attoparsec.Char8 as A
 import qualified Data.Text as Text
 import qualified Data.Text.Encoding as Encoding
 import qualified Data.Vector as Vector
+import qualified Data.Vector.Unboxed as Unboxed
 
 import Util.Control
 import qualified Util.ParseBs as ParseBs
@@ -23,7 +24,8 @@ import qualified Perform.Pitch as Pitch
 -- | The usual 7 note scale, which wraps around at @c@ instead of @a@.
 absolute_c :: Format
 absolute_c =
-    make_absolute_format (make_degrees absolute_c_degrees) ascii_accidentals
+    make_absolute_format (make_pattern degrees) degrees ascii_accidentals
+    where degrees = make_degrees absolute_c_degrees
 
 absolute_c_degrees :: [Text]
 absolute_c_degrees = ["c", "d", "e", "f", "g", "a", "b"]
@@ -35,20 +37,24 @@ type MakeRelativeFormat key = ParseKey key -> key -> ShowNote key -> Adjust key
     -> Format
 
 sargam :: MakeRelativeFormat key
-sargam = make_relative_format degrees ascii_accidentals
+sargam = make_relative_format (make_pattern degrees) degrees ascii_accidentals
     where degrees = make_degrees ["s", "r", "g", "m", "p", "d", "n"]
 
 cipher :: MakeRelativeFormat key
-cipher = make_relative_format degrees ascii_accidentals
+cipher = make_relative_format "/[1-7]" degrees ascii_accidentals
     where degrees = make_degrees ["/1", "/2", "/3", "/4", "/5", "/6", "/7"]
 
 zh_cipher :: MakeRelativeFormat key
-zh_cipher = make_relative_format degrees ascii_accidentals
+zh_cipher =
+    make_relative_format (make_pattern degrees) degrees ascii_accidentals
     where degrees = make_degrees ["一", "二", "三", "四", "五", "六", "七"]
 
 gongche :: MakeRelativeFormat key
-gongche = make_relative_format degrees ascii_accidentals
+gongche = make_relative_format (make_pattern degrees) degrees ascii_accidentals
     where degrees = make_degrees ["士", "下", "ㄨ", "工", "六"]
+
+make_pattern :: Degrees -> Text
+make_pattern degrees = "[" <> mconcat (Vector.toList degrees) <> "]"
 
 -- * Format
 
@@ -63,6 +69,7 @@ data Format = Format {
     -- I don't need the env to recognize if it's a valid call or not.
     , fmt_adjust :: Maybe Pitch.Key -> Theory.Pitch
         -> Either Scale.ScaleError Theory.Pitch
+    , fmt_pattern :: !Text
     }
 type ParseKey key = Maybe Pitch.Key -> Either Scale.ScaleError key
 type Degrees = Vector.Vector Text
@@ -74,8 +81,10 @@ make_degrees = Vector.fromList
 
 show_key :: Format -> Theory.Key -> Pitch.Key
 show_key fmt key = Pitch.Key $
-    snd (fmt_show fmt Nothing (Theory.key_tonic key))
-        <> "-" <> Theory.key_name key
+    tonic <> (if Text.null name then "" else "-" <> name)
+    where
+    tonic = snd $ fmt_show fmt Nothing (Theory.key_tonic key)
+    name = Theory.key_name key
 
 type ShowPitch = Maybe Pitch.Key -> Theory.Pitch -> Pitch.Note
 
@@ -92,6 +101,8 @@ read_pitch fmt = maybe (Left Scale.UnparseableNote) Right
 read_note :: Format -> Text -> Maybe Theory.Note
 read_note fmt = ParseBs.maybe_parse_text (fmt_read fmt)
 
+-- | This subtracts 1 from the octave so middle C winds up at octave 4, as per
+-- 'Theory.Octave'.
 show_octave :: Theory.Octave -> Text
 show_octave = showt . (subtract 1)
 
@@ -100,24 +111,26 @@ p_octave = (+1) <$> ParseBs.p_int
 
 -- ** make
 
-make_absolute_format :: Degrees -> AccidentalFormat -> Format
-make_absolute_format degrees acc_fmt = Format
+make_absolute_format :: Text -> Degrees -> AccidentalFormat -> Format
+make_absolute_format pattern degrees acc_fmt = Format
     { fmt_show = const $ show_note_absolute degrees acc_fmt
     , fmt_read = p_pitch_absolute degrees acc_fmt
     , fmt_adjust = const Right
+    , fmt_pattern = octave_pattern <> pattern <> acc_pattern
     }
 
-make_relative_format :: Degrees -> AccidentalFormat
+make_relative_format :: Text -> Degrees -> AccidentalFormat
     -> ParseKey key -> key
     -- ^ Default key if there is none, or it's not parseable.  Otherwise, a bad
     -- or missing key would mean you couldn't even display notes.
     -> ShowNote key -> Adjust key -> Format
-make_relative_format degrees acc_fmt parse_key default_key show_note adjust =
-    Format
-        { fmt_show = p_show
-        , fmt_read = p_read
-        , fmt_adjust = p_adjust
-        }
+make_relative_format pattern degrees acc_fmt parse_key default_key show_note
+        adjust = Format
+    { fmt_show = p_show
+    , fmt_read = p_read
+    , fmt_adjust = p_adjust
+    , fmt_pattern = octave_pattern <> pattern <> acc_pattern
+    }
     where
     p_show key = show_note degrees acc_fmt
         (either (const default_key) id (parse_key key))
@@ -129,6 +142,12 @@ make_relative_format degrees acc_fmt parse_key default_key show_note adjust =
 type ShowNote key = Degrees -> AccidentalFormat -> key -> Theory.Note
     -> (Theory.Octave, Text)
 type Adjust key = Degrees -> key -> Theory.Pitch -> Theory.Pitch
+
+acc_pattern :: Text
+acc_pattern = "(#|x|b|bb)?"
+
+octave_pattern :: Text
+octave_pattern = "[-1-9]"
 
 -- *** absolute
 

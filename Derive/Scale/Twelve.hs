@@ -20,7 +20,6 @@
 -}
 module Derive.Scale.Twelve where
 import qualified Data.Map as Map
-import qualified Data.Vector as Vector
 import qualified Data.Vector.Unboxed as Unboxed
 
 import Util.Control
@@ -36,7 +35,7 @@ import qualified Perform.Pitch as Pitch
 -- Twelve is a popular default, so export these directly.
 
 scale :: Scale.Scale
-scale = make_scale scale_map "[-1-9][a-g](b|bb|#|x)?" scale_id
+scale = make_scale scale_map scale_id
     "The world-famous equal tempered twelve note scale."
 
 scale_id :: Pitch.ScaleId
@@ -53,8 +52,9 @@ relative_scale_map =
     TwelveScales.scale_map layout fmt all_keys default_theory_key
     where
     fmt = TheoryFormat.sargam parse_key default_theory_key
-        show_note_chromatic adjust_chromatic
-    parse_key maybe_key = TwelveScales.read_key relative_scale_map maybe_key
+        TheoryFormat.show_note_chromatic TheoryFormat.adjust_chromatic
+    parse_key maybe_key =
+        TwelveScales.read_key relative_scale_map maybe_key
 
 show_note_chromatic :: TheoryFormat.ShowNote Theory.Key
 show_note_chromatic degrees acc_fmt key (Theory.Note pc acc) =
@@ -84,7 +84,7 @@ adjust_chromatic degrees key (Theory.Pitch octave (Theory.Note pc acc)) =
 scales :: [Scale.Scale]
 scales =
     [ scale { Scale.scale_input_to_nn = Util.direct_input_to_nn }
-    , make_scale relative_scale_map "[-1-9][a-g][#b]?"
+    , make_scale relative_scale_map
         (Pitch.ScaleId "twelve-r")
         "This is 12TET, but spelled relative to the current key and mode.\
         \ It behaves oddly around accidentals. This is because the input is\
@@ -95,11 +95,11 @@ scales =
         \ confusing, and incompatible with a piano keyboard."
     ]
 
-make_scale :: TwelveScales.ScaleMap -> Text -> Pitch.ScaleId -> Text
-    -> Scale.Scale
-make_scale scale_map pattern scale_id doc = Scale.Scale
+make_scale :: TwelveScales.ScaleMap -> Pitch.ScaleId -> Text -> Scale.Scale
+make_scale scale_map scale_id doc = Scale.Scale
     { Scale.scale_id = scale_id
-    , Scale.scale_pattern = pattern
+    , Scale.scale_pattern =
+        TheoryFormat.fmt_pattern (TwelveScales.smap_fmt scale_map)
     , Scale.scale_symbols = []
     , Scale.scale_transposers = Util.standard_transposers
     , Scale.scale_transpose = TwelveScales.transpose scale_map

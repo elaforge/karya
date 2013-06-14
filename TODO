@@ -24,7 +24,8 @@ UNSORTED
     * pass key to TwelveScales.show_pitch, apply fmt_adjust
     * adjust has to understand keys better, so you have to pass an adjust in
       addition to ParseKey.
-  - scale pattern should go into the fmt
+    - add *octa21-r and *octa12-r
+  * scale pattern should go into the fmt
   / make TheoryFormat.Degrees be (Vector [Text], Vector [ByteString])
   * transposition is messed up for just-r, it drops it by an octave
   * Modifying a pitch track above a note track doesn't rederive the note

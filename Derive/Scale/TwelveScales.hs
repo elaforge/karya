@@ -2,6 +2,7 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
+-- | Utilities for equal-tempered chromatic scales with keys and modes.
 module Derive.Scale.TwelveScales where
 import qualified Data.Either as Either
 import qualified Data.Map as Map
@@ -26,8 +27,6 @@ import qualified Perform.Pitch as Pitch
 
 -- | This contains all that is needed to define a western-like key system.
 -- It fills a similar role to 'Derive.Call.Util.ScaleMap' for non-keyed scales.
---
--- TODO this will need to be extended to handle non-equal-tempered scales.
 data ScaleMap = ScaleMap {
     smap_fmt :: !TheoryFormat.Format
     , smap_pitch_to_degree :: Theory.Pitch -> Pitch.Degree
@@ -116,8 +115,8 @@ note_to_call smap note = case TheoryFormat.read_pitch (smap_fmt smap) note of
         chromatic = Map.findWithDefault 0 Score.c_chromatic controls
         diatonic = Map.findWithDefault 0 Score.c_diatonic controls
 
-input_to_note :: ScaleMap
-    -> Maybe Pitch.Key -> Pitch.InputKey -> Maybe Pitch.Note
+input_to_note :: ScaleMap -> Maybe Pitch.Key -> Pitch.InputKey
+    -> Maybe Pitch.Note
 input_to_note smap maybe_key (Pitch.InputKey key_nn) =
     case show_pitch smap maybe_key $
             Theory.semis_to_pitch key (Theory.nn_to_semis nn_semis) of
@@ -172,7 +171,10 @@ read_env_key smap = Util.read_environ
     (smap_default_key smap) Environ.key
 
 read_key :: ScaleMap -> Maybe Pitch.Key -> Either Scale.ScaleError Theory.Key
-read_key smap Nothing = Right (smap_default_key smap)
-read_key smap (Just key) =
-    maybe (Left err) Right $ Map.lookup key (smap_keys smap)
-    where err = Scale.UnparseableEnviron Environ.key (txt (Pretty.pretty key))
+read_key smap = lookup_key (smap_default_key smap) (smap_keys smap)
+
+lookup_key :: key -> Map.Map Pitch.Key key -> Maybe Pitch.Key
+    -> Either Scale.ScaleError key
+lookup_key deflt _ Nothing = Right deflt
+lookup_key _ keys (Just key) = maybe (Left err) Right $ Map.lookup key keys
+    where err = Scale.UnparseableEnviron Environ.key (Pretty.prettytxt key)
