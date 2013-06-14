@@ -123,7 +123,8 @@ doc_html hstate = un_html . (html_header <>) . mconcatMap section
 
 html_header :: Html
 html_header =
-    "<style type=text/css>\n" <> css <> "</style>\n"
+    "<meta charset=utf-8>\n"
+    <> "<style type=text/css>\n" <> css <> "</style>\n"
     <> "<script>\n" <> javascript <> "</script>\n"
     <> mconcat (List.intersperse "; "
         [ "<code>arg = val</code> &mdash; arg with default"
