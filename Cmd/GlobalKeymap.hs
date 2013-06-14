@@ -380,8 +380,8 @@ create_bindings = concat
     , command_char 'b' "create block"
         (Create.view =<< Create.block =<< State.block_ruler
             =<< Cmd.get_focused_block)
-    , command_char 'B' "create block from template or refactor"
-        Refactor.block_from_template_or_refactor
+    , command_char 'B' "create block from template or selection"
+        Refactor.block_from_template
     ]
 
 clip_bindings :: (Cmd.M m) => [Keymap.Binding m]

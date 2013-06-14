@@ -139,33 +139,32 @@ selection_at maybe_name block_id tracknums track_ids start end = do
     RulerUtil.local_meter to_block_id $ Meter.clip start end
     return to_block_id
 
-block_from_template_or_refactor :: (Cmd.M m) => m ()
-block_from_template_or_refactor = do
+-- | If there's a point selection, create a new empty block based on the
+-- current one.  If the selection has time, then the new block will have only
+-- the selected tracks with a ruler clipped to the selected range.
+block_from_template :: (Cmd.M m) => m ()
+block_from_template = do
     (_, sel) <- Selection.get
     if Types.sel_is_point sel
         then void $ Create.view =<< Create.block_from_template
             =<< Cmd.get_focused_block
-        else void named_block
+        else void block_template_from_selection
 
 -- * named block
 
--- | Create a new block based on the first event under the selection.  Populate
--- the new block with tracks based on the selection.
-named_block :: (Cmd.M m) => m BlockId
-named_block = Selection.events >>= \x -> case x of
-    (track_id, _, event : _) : rest -> do
-        let track_ids = track_id : [tid | (tid, _, _) <- rest]
-        block_id <- Cmd.get_focused_block
-        to_block_id <- named_block_from block_id track_ids (Event.start event)
-            (Event.end event) (Event.event_text event)
+block_template_from_selection :: (Cmd.M m) => m BlockId
+block_template_from_selection =
+    Selection.tracks >>= \(block_id, _, track_ids, start, end) -> do
+        to_block_id <- block_template block_id track_ids start end
         Create.view to_block_id
         return to_block_id
-    _ -> Cmd.throw "no selected event"
 
-named_block_from :: (State.M m) => BlockId -> [TrackId]
-    -> TrackTime -> TrackTime -> Text -> m BlockId
-named_block_from block_id track_ids start end text = do
-    to_block_id <- Create.named_block text =<< State.block_ruler block_id
+-- | Create a new block with the given tracks and ruler clipped to the given
+-- range.
+block_template :: (State.M m) => BlockId -> [TrackId] -> TrackTime -> TrackTime
+    -> m BlockId
+block_template block_id track_ids start end = do
+    to_block_id <- Create.block =<< State.block_ruler block_id
     forM_ (zip [1..] track_ids) $ \(tracknum, track_id) -> do
         title <- State.get_track_title track_id
         Create.track to_block_id tracknum title mempty

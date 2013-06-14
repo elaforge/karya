@@ -3,9 +3,12 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
-  - ensure I can say '* = (4c)' to set a drone, e.g. in mridangam
+  - rename Selection.SelectedTracks to Selection.Tracks
+  - Rename TwelveScales to ChromaticScales.
+  - do I really need a separate ScaleId literal?  Or should I allow
+    'scale = just-min'?
   - is StateConfig.Default obsolete now that there is global transform?
-  - ^B with a selection is just making empty blocks
+  * ^B with a selection is just making empty blocks
   * implement load_merge
   - nv on every note in viola-sonata
   tala
@@ -16,7 +19,7 @@ UNSORTED
     . Need a way to show keys.  I should be able to show Notes since octaves
       don't change, but showing notes can affect the octave.
   * rename PitchFormat to just Format
-  - TheoryFormat.PitchFormat fmt_read should allow both ascii and symbolic
+  / TheoryFormat.PitchFormat fmt_read should allow both ascii and symbolic
     accs.
   add relative notation to twelve
     * remove NoteToDegree
@@ -160,7 +163,6 @@ UNSORTED
   convert to Text:
     - Util.Log.Stack
     - Util.Log
-    - browser
     * Internal.with_stack_call
     * Derive.BaseTypes.Instrument
     * Derive.BaseTypes.Attribute
