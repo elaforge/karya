@@ -52,3 +52,16 @@ nrpn_msb = 0x63
 rpn_lsb, rpn_msb :: Control
 rpn_lsb = 0x64
 rpn_msb = 0x65
+
+-- | My own convention: vibrato speed, when vibrato depth is controlled by
+-- 'mod'.
+vib_speed :: Control
+vib_speed = 3
+
+-- | There are spare CCs which are ripe for the mapping.
+cc14, cc15, cc16, cc17, cc18, cc19, cc20, cc21, cc22, cc23, cc24 :: Control
+cc14 : cc15 : cc16 : cc17 : cc18 : cc19 : cc20 : cc21 : cc22 : cc23 : cc24 : _
+    = [14..]
+
+cc25, cc26, cc27, cc28, cc29, cc30, cc31 :: Control
+cc25 : cc26 : cc27 : cc28 : cc29 : cc30 : cc31 : _ = [25..]
