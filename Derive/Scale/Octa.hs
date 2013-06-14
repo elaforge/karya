@@ -6,7 +6,6 @@ module Derive.Scale.Octa where
 import qualified Data.Map as Map
 import qualified Data.Vector.Unboxed as Vector
 
-import Util.Control
 import qualified Derive.Scale as Scale
 import qualified Derive.Scale.Theory as Theory
 import qualified Derive.Scale.TheoryFormat as TheoryFormat
@@ -18,20 +17,42 @@ import qualified Perform.Pitch as Pitch
 
 scales :: [Scale.Scale]
 scales =
-    [ make_scale octa21_id (Theory.layout [2, 1, 2, 1, 2, 1, 2, 1]) "21"
-    , make_scale octa12_id (Theory.layout [1, 2, 1, 2, 1, 2, 1, 2]) "12"
+    [ make_scale (Pitch.ScaleId "octa21") layout21 keys21 absolute_fmt
+    , make_scale (Pitch.ScaleId "octa12") layout12 keys12 absolute_fmt
+    , make_scale (Pitch.ScaleId "octa21-r") layout21 keys21
+        (relative_fmt keys21)
+    , make_scale (Pitch.ScaleId "octa12-r") layout12 keys12
+        (relative_fmt keys12)
     ]
+    where
+    layout21 = Theory.layout [2, 1, 2, 1, 2, 1, 2, 1]
+    layout12 = Theory.layout [1, 2, 1, 2, 1, 2, 1, 2]
+    keys21 = all_keys layout21
+    keys12 = all_keys layout12
 
-octa21_id :: Pitch.ScaleId
-octa21_id = Pitch.ScaleId "octa21"
+absolute_fmt :: TheoryFormat.Format
+absolute_fmt =
+    TheoryFormat.make_absolute_format (TheoryFormat.make_pattern degrees)
+        degrees TheoryFormat.ascii_accidentals
+    where
+    degrees = TheoryFormat.make_degrees ["a", "b", "c", "d", "e", "f", "g", "h"]
 
-octa12_id :: Pitch.ScaleId
-octa12_id = Pitch.ScaleId "octa12"
+relative_fmt :: TwelveScales.Keys -> TheoryFormat.Format
+relative_fmt keys =
+    TheoryFormat.make_relative_format (TheoryFormat.make_pattern degrees)
+        degrees TheoryFormat.ascii_accidentals parse_key default_tkey
+        TheoryFormat.show_note_chromatic TheoryFormat.adjust_chromatic
+    where
+    degrees = TheoryFormat.make_degrees
+        ["一", "二", "三", "四", "五", "六", "七", "八"]
+    parse_key = TwelveScales.lookup_key default_tkey keys
+    Just default_tkey = Map.lookup default_key keys
 
-make_scale :: Pitch.ScaleId -> Theory.Layout -> Text -> Scale.Scale
-make_scale scale_id layout key_suffix = Scale.Scale
+make_scale :: Pitch.ScaleId -> Theory.Layout -> TwelveScales.Keys
+    -> TheoryFormat.Format -> Scale.Scale
+make_scale scale_id layout keys fmt = Scale.Scale
     { Scale.scale_id = scale_id
-    , Scale.scale_pattern = "[-1-9][a-h](b|bb|#|x)?"
+    , Scale.scale_pattern = TheoryFormat.fmt_pattern fmt
     , Scale.scale_symbols = []
     , Scale.scale_transposers = Util.standard_transposers
     , Scale.scale_transpose = TwelveScales.transpose scale_map
@@ -46,26 +67,22 @@ make_scale scale_id layout key_suffix = Scale.Scale
         \ octa12 starts with a half-step."
     }
     where
-    scale_map = TwelveScales.scale_map layout fmt keys deflt
-        where Just deflt = Map.lookup (Pitch.Key $ "a-" <> key_suffix) keys
-    keys = all_keys layout key_suffix
+    scale_map = TwelveScales.scale_map layout fmt keys default_tkey
+    Just default_tkey = Map.lookup default_key keys
 
-fmt :: TheoryFormat.Format
-fmt = TheoryFormat.make_absolute_format (TheoryFormat.make_degrees degrees)
-        TheoryFormat.ascii_accidentals
-    where degrees = ["a", "b", "c", "d", "e", "f", "g", "h"]
+default_key :: Pitch.Key
+default_key = Pitch.Key "a"
 
 all_notes :: [Theory.Note]
 all_notes = [Theory.Note pc accs | pc <- [0..7], accs <- [-1..1]]
 
-make_keys :: Theory.Layout -> Text -> [Theory.Semi] -> [Theory.Key]
-make_keys layout name intervals =
-    [Theory.key tonic name intervals layout
+make_keys :: Theory.Layout -> [Theory.Semi] -> [Theory.Key]
+make_keys layout intervals =
+    [Theory.key tonic "" intervals layout
         | tonic <- all_notes, abs (Theory.note_accidentals tonic) <= 1]
 
-all_keys :: Theory.Layout -> Text -> Map.Map Pitch.Key Theory.Key
-all_keys layout name =
-    Map.fromList $ zip (map (TheoryFormat.show_key fmt) keys) keys
+all_keys :: Theory.Layout -> TwelveScales.Keys
+all_keys layout =
+    Map.fromList $ zip (map (TheoryFormat.show_key absolute_fmt) keys) keys
     where
-    keys = make_keys layout name $
-        Vector.toList (Theory.layout_intervals layout)
+    keys = make_keys layout $ Vector.toList (Theory.layout_intervals layout)

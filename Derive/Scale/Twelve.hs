@@ -56,28 +56,14 @@ relative_scale_map =
     parse_key maybe_key =
         TwelveScales.read_key relative_scale_map maybe_key
 
-show_note_chromatic :: TheoryFormat.ShowNote Theory.Key
-show_note_chromatic degrees acc_fmt key (Theory.Note pc acc) =
-    (oct, text <> acc_text)
-    where
-    acc_text = TheoryFormat.show_accidentals acc_fmt
-        (acc - Theory.note_accidentals tonic)
-    (oct, text) = TheoryFormat.show_degree degrees (Theory.note_pc tonic) pc
-    tonic = Theory.key_tonic key
-
-adjust_chromatic :: TheoryFormat.Adjust Theory.Key
-adjust_chromatic degrees key (Theory.Pitch octave (Theory.Note pc acc)) =
-    Theory.Pitch (octave + oct) (Theory.Note pc2 acc2)
-    where
-    (oct, pc2) = (pc + Theory.note_pc tonic) `divMod` Vector.length degrees
-    acc2 = acc + case Theory.key_signature key of
-        -- If it's chromatic then I can't adjust for the mode, but I still
-        -- want to map degree 1 to C# if I'm in C#.
-        Nothing -> Theory.note_accidentals tonic
-        Just sig -> case sig Unboxed.!? pc of
-            Nothing -> 0 -- That shouldn't have happened.
-            Just acc -> acc
-    tonic = Theory.key_tonic key
+-- Making the keys needs fmt, 'fmt_show fmt Nothing key_tonic'
+-- But fmt_show needs the keys if it wants to display relative scales that need
+-- to parse the key.
+-- It's not circular because the key fmts with Nothing and that shouldn't need
+-- the keys.  But still it's confusing, so I should make show_key use
+-- a separate fmt_show that show the key tonic.
+-- In the case of relative, what does it actually mean?  They keys must use
+-- absolute notation.
 
 -- * scales
 

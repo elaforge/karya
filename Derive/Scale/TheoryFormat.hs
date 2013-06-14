@@ -162,8 +162,29 @@ p_pitch_absolute = p_pitch_relative
 
 -- *** relative
 
--- | Like 'show_note_absolute', this subtracts 2 from the octave so middle
--- C winds up at octave 4.
+show_note_chromatic :: ShowNote Theory.Key
+show_note_chromatic degrees acc_fmt key (Theory.Note pc acc) =
+    (oct, text <> acc_text)
+    where
+    acc_text = show_accidentals acc_fmt
+        (acc - Theory.note_accidentals tonic)
+    (oct, text) = show_degree degrees (Theory.note_pc tonic) pc
+    tonic = Theory.key_tonic key
+
+adjust_chromatic :: Adjust Theory.Key
+adjust_chromatic degrees key (Theory.Pitch octave (Theory.Note pc acc)) =
+    Theory.Pitch (octave + oct) (Theory.Note pc2 acc2)
+    where
+    (oct, pc2) = (pc + Theory.note_pc tonic) `divMod` Vector.length degrees
+    acc2 = acc + case Theory.key_signature key of
+        -- If it's chromatic then I can't adjust for the mode, but I still
+        -- want to map degree 1 to C# if I'm in C#.
+        Nothing -> Theory.note_accidentals tonic
+        Just sig -> case sig Unboxed.!? pc of
+            Nothing -> 0 -- That shouldn't have happened.
+            Just acc -> acc
+    tonic = Theory.key_tonic key
+
 show_note_diatonic :: ShowNote Theory.PitchClass
 show_note_diatonic degrees acc_fmt key (Theory.Note pc acc) =
     (oct, text <> show_accidentals acc_fmt acc)
