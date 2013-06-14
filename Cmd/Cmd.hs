@@ -93,6 +93,7 @@ import qualified Cmd.TimeStep as TimeStep
 import qualified Derive.Derive as Derive
 import qualified Derive.Scale as Scale
 import qualified Derive.Score as Score
+import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Stack as Stack
 import qualified Derive.TrackLang as TrackLang
 import qualified Derive.TrackWarp as TrackWarp
@@ -935,8 +936,9 @@ get_lookup_scale = do
 get_scale :: (M m) => String -> Pitch.ScaleId -> m Scale.Scale
 get_scale caller scale_id = do
     lookup_scale <- get_lookup_scale
-    maybe (throw (caller ++ ": unknown " ++ show scale_id)) return
-        (lookup_scale scale_id)
+    maybe (throw $ caller ++ ": get_scale: unknown "
+            ++ untxt (ShowVal.show_val scale_id))
+        return (lookup_scale scale_id)
 
 get_rdev_state :: (M m) => Midi.ReadDevice -> m InputNote.ControlState
 get_rdev_state rdev = do

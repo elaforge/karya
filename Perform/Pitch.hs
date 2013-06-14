@@ -85,7 +85,8 @@ middle_octave = 5
 -- * NoteNumber
 
 -- | This is equal tempered scale notes with the same definition as MIDI, so
--- MIDI note 0 is NoteNumber 0, at 8.176 Hz.  Middle C is NoteNumber 60.
+-- MIDI note 0 is NoteNumber 0, at 8.176 Hz, and is -1c.  Middle C (4c) is
+-- NoteNumber 60.
 --
 -- 'PitchSignal's are converted into this before performance since performance
 -- doesn't understand scales.

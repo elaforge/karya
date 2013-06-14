@@ -10,12 +10,8 @@
     work with any number of 'PitchClass'es, but since each scale carries an
     implied key 'Layout' it can only handle pitch classes in a certain range.
     Internally there are no checks that the pitch class is in range, so the
-    only way to construct a Pitch or a Note is with 'read_pitch' or
-    'read_note', which take a Layout for verification.
-
-    Internally Pitches set A equal to 0, and thus wrap the octave at A.  This
-    is contrary to common practice, which is to wrap the octave at C, so
-    'read_pitch' and 'show_pitch' make this adjustment.
+    range has to be checked on parse or show.  Parsing and showing is handled
+    in "Derive.Scale.TheoryFormat".
 
     @
         db      eb  fb      gb      ab      bb  cb
@@ -161,14 +157,13 @@ semis_to_pitch key semis = mkpitch $ case key_signature key of
 semis_to_pitch_sharps :: Layout -> Semi -> Pitch
 semis_to_pitch_sharps layout semis = Pitch (octave + oct) note
     where
-    (octave, steps) = semis `divMod` 12
+    (octave, steps) = semis `divMod` layout_semis_per_octave layout
     (oct, note) = head $ enharmonics Boxed.! steps
     enharmonics = layout_enharmonics layout
 
--- | Convert Semis to integral nns.  Semis count from A while NNs start at C.
--- It doesn't return NoteNumber because these values are specifically integral,
--- and are likely going to be turned into an integral flavor of NoteNumbers,
--- like Pitch.Degree.
+-- | Convert Semis to integral NNs.  It doesn't return 'Pitch.NoteNumber'
+-- because these values are specifically integral, and are likely going to be
+-- turned into an integral flavor of NoteNumbers, like 'Pitch.Degree'.
 semis_to_nn :: Semi -> Int
 semis_to_nn = id
 
@@ -177,8 +172,7 @@ nn_to_semis = id
 
 -- * input
 
--- | Enharmonics of a note, along with an octave offset if the enharmonic
--- wrapped an octave boundary.
+-- | Enharmonics of a pitch.
 --
 -- This choses the next highest enharmonic until it wraps around, so if you
 -- repeatedly pick the first one you'll cycle through them all.
@@ -191,26 +185,32 @@ enharmonics_of layout pitch =
 
 -- ** pitch types
 
--- | A PitchClass maps directly to a letter, starting at @a@.  So the usual
--- a--g is represented as 0--6, but of course scales with more or fewer notes
--- per octave may use different ranges.  The PitchClass is also absolute in
--- that it doesn't depend on the tonic of a key.
+-- | A PitchClass maps directly to a scale degree, which is a letter in
+-- traditional Western notation, though this PitchClass may have fewer or
+-- greater than 7 notes.  The PitchClass is absolute in that it doesn't depend
+-- on the tonic of a key.
 type PitchClass = Int
 
 -- | A degree is one step of a scale.  Unlike 'PitchClass' it's relative to the
 -- tonic of the key, but also may have a different range.  This is because some
 -- scales, such as whole-tone or octatonic, have fewer or more degrees than 7,
--- which means that not every Degree will map to a PitchClass.  Another
--- approach is to change the number of PitchClasses, this would result in a--h
--- for octatonic, but it would not admit easy modulation from an octatonic
--- scale to a septatonic one.
+-- even though the underlying notation system uses only 7 letters.  This means
+-- that not every Degree will map to a PitchClass.
+--
+-- Another approach is to change the number of PitchClasses, which would result
+-- in a--h for octatonic, but it would not admit easy modulation from an
+-- octatonic scale to a septatonic one.
 --
 -- 'Key' has more documentation about the PitchClass and Degree distinction.
 type Degree = Int
 
 -- | Number of semitones.
 type Semi = Int
--- | Middle C is octave 4.
+
+-- | Octaves count from 0, which means if you translate directly to
+-- 'Pitch.NoteNumbers', middle C will wind up in octave 5.  Since by convention
+-- NoteNumber 0 is in octave -1 and middle C at octave 4,
+-- "Derive.Scale.TheoryFormat" has to add or subtract 1.
 type Octave = Int
 
 -- | Positive for sharps, negative for flats.
@@ -224,8 +224,6 @@ data Pitch = Pitch {
     , pitch_note :: !Note
     } deriving (Eq, Show)
 
--- | This subtracts 2 from the octave so that middle C winds up at octave 4,
--- and the bottom of the range ends up at octave -1.
 instance Pretty.Pretty Pitch where
     pretty (Pitch oct note) = show oct <> "-" <> Pretty.pretty note
 
@@ -295,12 +293,12 @@ key :: Note -> Text -> [Accidentals] -> Layout -> Key
 key tonic name intervals layout = Key
     { key_tonic = tonic
     , key_name = name
-    , key_intervals = int
-    , key_signature = generate_signature tonic layout int
+    , key_intervals = ints
+    , key_signature = generate_signature tonic layout ints
     , key_transpose_table = make_table intervals
     , key_layout = layout
     }
-    where int = Vector.fromList intervals
+    where ints = Vector.fromList intervals
 
 -- | Precalculated transpositions so I can figure out a transposition with
 -- a single table lookup.  This goes out to two octaves on either direction
@@ -387,6 +385,11 @@ layout intervals =
     notes = [Note pc accs | (pc, int) <- zip [0..] intervals,
         accs <- [0..int-1]]
 
+-- | Enharmonics of a note, along with an octave offset if the enharmonic
+-- wrapped an octave boundary.
+--
+-- This choses the next highest enharmonic until it wraps around, so if you
+-- repeatedly pick the first one you'll cycle through them all.
 get_enharmonics :: Intervals -> Note -> [(Octave, Note)]
 get_enharmonics intervals (Note note_pc note_accs) =
     [ mknote intervals (note_pc + pc) (note_accs + accs)

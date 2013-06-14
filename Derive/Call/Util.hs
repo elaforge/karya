@@ -481,9 +481,9 @@ equal_arg_doc =
 
 equal_doc :: Text
 equal_doc =
-    "Evaluate the deriver with a value set. Set environ vals with `x = 42`, \
-    \or set a control or pitch signal with `%c = .5` or \
-    \`#pitch = (4c)`.\
+    "Evaluate the deriver with a value set. Set environ vals with `x = 42`,\
+    \ a constant control signal with `%c = .5` or a pitch signal with\
+    \ `#pitch = (4c)`. `# = (4c)` sets the default pitch signal.\
     \\nA special parsing rule means that this call can be written infix."
 
 equal_transformer :: Derive.PassedArgs derived -> Derive.Deriver a
