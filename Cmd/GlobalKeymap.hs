@@ -253,7 +253,13 @@ view_config_bindings = concat
     , command_char 'L' "horizontal tile" ViewConfig.horizontal_tile
     , command_char '\\' "maximize and zoom"
         (ViewConfig.maximize_and_zoom =<< Cmd.get_focused_view)
+
+    , secondary 'H' "move focus left" $ ViewConfig.move_focus ViewConfig.West
+    , secondary 'J' "move focus down" $ ViewConfig.move_focus ViewConfig.South
+    , secondary 'K' "move focus up" $ ViewConfig.move_focus ViewConfig.North
+    , secondary 'L' "move focus right" $ ViewConfig.move_focus ViewConfig.East
     ]
+    where secondary c = bind_key [SecondaryCommand] (Key.Char c)
 
 block_config_bindings :: (Cmd.M m) => [Keymap.Binding m]
 block_config_bindings = concat

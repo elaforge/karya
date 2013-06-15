@@ -142,6 +142,26 @@ group_with cmp keys vals = Tuple.swap $ List.mapAccumL go vals keys
     go vals key = (out, (key, inside))
         where (inside, out) = List.partition (cmp key) vals
 
+-- ** focus
+
+-- | Right and Left would clash with Either.
+data Direction = North | South | East | West deriving (Show)
+
+move_focus :: (Cmd.M m) => Direction -> m ()
+move_focus dir = do
+    rects <- State.gets $
+        map (second Block.view_rect) . Map.toList . State.state_views
+    focused <- Block.view_rect <$> (State.get_view =<< Cmd.get_focused_view)
+    let get_rects cmp f = Seq.sort_on snd $ filter ((`cmp` f focused) . snd) $
+            map (second f) rects
+    let next = case dir of
+            East -> Seq.head $ get_rects (>) Rect.rx
+            West -> Seq.last $ get_rects (<) Rect.rx
+            South -> Seq.head $ get_rects (>) Rect.ry
+            North -> Seq.last $ get_rects (<) Rect.ry
+    when_just next $ \(view_id, _) ->
+        State.update $ Update.CmdBringToFront view_id
+
 -- * misc
 
 maximize_and_zoom :: (Cmd.M m) => ViewId -> m ()

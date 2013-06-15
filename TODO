@@ -3,6 +3,9 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
+  - control call for sawtooth, ramp, sine, for e.g. bow tremolo
+  * key cmds to move window focus around
+  - maybe use ^hjkl to move selection
   * rename Selection.SelectedTracks to Selection.Tracks
   * Rename TwelveScales to ChromaticScales.
   - do I really need a separate ScaleId literal?  Or should I allow
@@ -10,7 +13,6 @@ UNSORTED
   - is StateConfig.Default obsolete now that there is global transform?
   * ^B with a selection is just making empty blocks
   * implement load_merge
-  - nv on every note in viola-sonata
   tala
     * Support both chapu and suladi sapta talas.
     - Make talas work with LRuler.  The problem is that they include label
