@@ -13,6 +13,7 @@ import qualified Text.Parsec.Error as Error
 import Text.Parsec.Text ()
 
 import Util.Control
+import qualified Util.File as File
 import qualified Util.Seq as Seq
 
 
@@ -22,9 +23,11 @@ parse :: Parser () a -> Text -> Either String a
 parse parser input = either (Left . format1 input) Right $
     P.parse (parser <* P.eof) "" input
 
-file :: Parser st a -> st -> FilePath -> IO (Either P.ParseError a)
-file parser state fname =
-    P.runParser parser state fname <$> Text.IO.readFile fname
+-- | Try to parse a file, or return a default value if the file doesn't exist.
+file :: a -> Parser st a -> st -> FilePath -> IO (Either P.ParseError a)
+file deflt parser state fname = do
+    maybe_text <- File.ignoreEnoent (Text.IO.readFile fname)
+    return $ maybe (Right deflt) (P.runParser parser state fname) maybe_text
 
 -- | Format a ParseError assuming the input is just one line.
 format1 :: Text -> P.ParseError -> String

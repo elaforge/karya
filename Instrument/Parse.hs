@@ -34,7 +34,7 @@ type Annotation = Instrument.Tag
 parse_annotations :: FilePath
     -> IO (Either String (Map.Map Score.Instrument [Annotation]))
 parse_annotations fn = do
-    result <- Parse.file p_annotation_file () fn
+    result <- Parse.file mempty p_annotation_file () fn
     return $ either (Left . show) (Right . Map.fromListWith (++)) result
 
 p_annotation_file :: Parser st [(Score.Instrument, [Annotation])]
@@ -90,7 +90,8 @@ patch_file fn = either (errorIO . ("parse patches: " ++) . show) return
 
 parse_patch_file :: String -> IO (Either Parsec.ParseError [Instrument.Patch])
 parse_patch_file fn =
-    fmap (map (Sysex.add_file fn)) <$> Parse.file p_patch_file empty_state fn
+    fmap (map (Sysex.add_file fn)) <$>
+        Parse.file mempty p_patch_file empty_state fn
 
 data State = State {
     state_bank :: Int
