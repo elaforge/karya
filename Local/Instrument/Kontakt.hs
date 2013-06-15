@@ -57,7 +57,7 @@ patches = concat [hang, wayang, kendang_patches, mridangam_patches]
             with_tuning "isep" <> wayang_code)
         ]
     with_tuning tuning =
-        MidiInst.environ Environ.scale Wayang.scale_id
+        MidiInst.default_scale Wayang.scale_id
         <> MidiInst.environ Environ.tuning (tuning :: Text)
     inst name ks = Instrument.set_keyswitches ks $
         Instrument.patch $ Instrument.instrument name [] pb_range

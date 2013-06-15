@@ -8,7 +8,7 @@ UNSORTED
   - maybe use ^hjkl to move selection
   * rename Selection.SelectedTracks to Selection.Tracks
   * Rename TwelveScales to ChromaticScales.
-  - do I really need a separate ScaleId literal?  Or should I allow
+  * do I really need a separate ScaleId literal?  Or should I allow
     'scale = just-min'?
   - is StateConfig.Default obsolete now that there is global transform?
   * ^B with a selection is just making empty blocks

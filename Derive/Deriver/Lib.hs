@@ -114,8 +114,8 @@ with_initial_scope env deriver = set_inst (set_scale deriver)
         Right inst -> with_instrument inst
         _ -> id
     set_scale = case TrackLang.get_val Environ.scale env of
-        Right scale_id -> \deriver -> do
-            scale <- get_scale scale_id
+        Right sym -> \deriver -> do
+            scale <- get_scale (TrackLang.sym_to_scale_id sym)
             with_scale scale deriver
         _ -> id
 
@@ -188,7 +188,7 @@ lookup_lilypond_config = gets (state_lilypond . state_constant)
 with_val :: (TrackLang.Typecheck val) => TrackLang.ValName -> val
     -> Deriver a -> Deriver a
 with_val name val deriver
-    | name == Environ.scale, Just scale_id <- TrackLang.from_val v = do
+    | name == Environ.scale, Just scale_id <- TrackLang.to_scale_id v = do
         scale <- get_scale scale_id
         with_scale scale deriver
     | name == Environ.instrument, Just inst <- TrackLang.from_val v =
@@ -212,7 +212,8 @@ modify_val name modify = Internal.localm $ \st -> do
         TrackLang.insert_val name (TrackLang.to_val val) env }
 
 with_scale :: Scale -> Deriver d -> Deriver d
-with_scale scale = with_val_raw Environ.scale (scale_id scale)
+with_scale scale =
+    with_val_raw Environ.scale (TrackLang.scale_id_to_sym (scale_id scale))
     . with_scope (\scope -> scope { scope_val = set (scope_val scope) })
     where
     set stype = stype { stype_scale = [scale_to_lookup scale] }

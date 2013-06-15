@@ -98,6 +98,17 @@ transposition :: Pitch.Transpose -> Val
 transposition (Pitch.Diatonic d) = VNum $ Score.Typed Score.Diatonic d
 transposition (Pitch.Chromatic d) = VNum $ Score.Typed Score.Chromatic d
 
+to_scale_id :: (Typecheck a) => a -> Maybe Pitch.ScaleId
+to_scale_id val
+    | VSymbol (Symbol s) <- to_val val = Just (Pitch.ScaleId s)
+    | otherwise = Nothing
+
+sym_to_scale_id :: Symbol -> Pitch.ScaleId
+sym_to_scale_id (Symbol s) = Pitch.ScaleId s
+
+scale_id_to_sym :: Pitch.ScaleId -> Symbol
+scale_id_to_sym (Pitch.ScaleId s) = Symbol s
+
 -- * time
 
 -- | Some calls can operate in either RealTime or ScoreTime.
@@ -140,7 +151,7 @@ instance ShowVal RealOrScore where
 
 data Type = TNum NumType
     | TRelativeAttrs | TAttributes
-    | TControl | TPitchControl | TScaleId | TPitch | TInstrument | TSymbol
+    | TControl | TPitchControl | TPitch | TInstrument | TSymbol
     | TNotGiven | TMaybe Type | TEither Type Type | TVal
     deriving (Eq, Ord, Show)
 
@@ -185,7 +196,6 @@ type_of val = case val of
     VAttributes {} -> TAttributes
     VControl {} -> TControl
     VPitchControl {} -> TPitchControl
-    VScaleId {} -> TScaleId
     VPitch {} -> TPitch
     VInstrument {} -> TInstrument
     VSymbol {} -> TSymbol
@@ -342,12 +352,6 @@ instance Typecheck PitchControl where
     to_val = VPitchControl
     to_type _ = TPitchControl
 
-instance Typecheck Pitch.ScaleId where
-    from_val (VScaleId a) = Just a
-    from_val _ = Nothing
-    to_val = VScaleId
-    to_type _ = TScaleId
-
 instance Typecheck PitchSignal.Pitch where
     from_val (VPitch a) = Just a
     from_val _ = Nothing
@@ -417,7 +421,7 @@ hardcoded_types = Map.fromList
     , (Environ.instrument, TInstrument)
     , (Environ.control, TSymbol)
     , (Environ.key, TSymbol)
-    , (Environ.scale, TScaleId)
+    , (Environ.scale, TSymbol)
     , (Environ.seed, TNum TUntyped)
     , (Environ.srate, TNum TUntyped)
     , (Environ.tuning, TSymbol)

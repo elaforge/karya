@@ -162,9 +162,10 @@ p_hs_string = fmap (\s -> "\"" <> s <> "\"") $
 
 -- * toplevel parsers
 
+-- | See 'parse_control_title'.
 p_control_title :: A.Parser ([TrackLang.Val], [TrackLang.Call])
 p_control_title = do
-    vals <- A.many (lexeme p_val)
+    vals <- A.many (lexeme $ TrackLang.VSymbol <$> p_scale_id <|> p_val)
     expr <- A.option [] (p_pipe >> NonEmpty.toList <$> p_pipeline)
     return (vals, expr)
 
@@ -224,7 +225,6 @@ p_val =
     <|> TrackLang.VSymbol <$> p_string
     <|> TrackLang.VControl <$> p_control
     <|> TrackLang.VPitchControl <$> p_pitch_control
-    <|> TrackLang.VScaleId <$> p_scale_id
     <|> (A.char '_' >> return TrackLang.VNotGiven)
     <|> TrackLang.VSymbol <$> p_symbol
 
@@ -311,10 +311,11 @@ p_pitch_control = do
                 TrackLang.Note (Pitch.Note (to_text val)) []
     <?> "pitch control"
 
-p_scale_id :: A.Parser Pitch.ScaleId
+-- | This is special syntax that's only allowed in control track titles.
+p_scale_id :: A.Parser TrackLang.Symbol
 p_scale_id = do
     A.char '*'
-    Pitch.ScaleId . to_text <$> A.option "" (p_identifier "")
+    TrackLang.Symbol . Text.cons '*' . to_text <$> A.option "" (p_identifier "")
     <?> "scale id"
 
 p_instrument :: A.Parser Score.Instrument

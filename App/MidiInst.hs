@@ -129,7 +129,7 @@ environ name val = mempty
 
 -- | The instrument will set the given scale when it comes into scope.
 default_scale :: Pitch.ScaleId -> Code
-default_scale = environ Environ.scale
+default_scale = environ Environ.scale . TrackLang.scale_id_to_sym
 
 -- * making patches
 

@@ -42,7 +42,7 @@ initial_environ scale_id maybe_inst = TrackLang.make_environ $
     -- Control interpolators rely on this.
     [ (Environ.srate, TrackLang.num 0.02)
     -- Looking up any val call relies on having a scale in scope.
-    , (Environ.scale, TrackLang.VScaleId scale_id)
+    , (Environ.scale, TrackLang.VSymbol (TrackLang.scale_id_to_sym scale_id))
     , (Environ.attributes, TrackLang.VAttributes Score.no_attrs)
     , (Environ.seed, TrackLang.num 0)
     ]

@@ -114,7 +114,8 @@ derive_at block_id track_id deriver = do
 get_scale_id :: (Cmd.M m) => BlockId -> Maybe TrackId -> m Pitch.ScaleId
 get_scale_id block_id maybe_track_id = first_just
     [ maybe (return Nothing) (scale_from_titles block_id) maybe_track_id
-    , lookup_val block_id maybe_track_id Environ.scale
+    , fmap (TrackLang.sym_to_scale_id) <$>
+        lookup_val block_id maybe_track_id Environ.scale
     ]
     (State.get_default State.default_scale)
 

@@ -262,13 +262,7 @@ data Val =
     -- Literal: @\#pitch,4c@, @\#,4@, @\#@
     | VPitchControl !PitchControl
 
-    -- | The literal names a ScaleId, and will probably result in an exception
-    -- if the lookup fails.  The empty scale is taken to mean the relative
-    -- scale.
-    --
-    -- Literal: @*scale@, @*@.
-    | VScaleId !Pitch.ScaleId
-    -- | No literal yet, but is returned from val calls.
+    -- | No literal, but is returned from val calls, notably scale calls.
     | VPitch !Pitch
     -- | Sets the instrument in scope for a note.  An empty instrument doesn't
     -- set the instrument, but can be used to mark a track as a note track.
@@ -301,7 +295,6 @@ instance ShowVal.ShowVal Val where
         VAttributes attrs -> ShowVal.show_val attrs
         VControl control -> ShowVal.show_val control
         VPitchControl control -> ShowVal.show_val control
-        VScaleId scale_id -> ShowVal.show_val scale_id
         VPitch pitch -> ShowVal.show_val pitch
         VInstrument inst -> ShowVal.show_val inst
         VSymbol sym -> ShowVal.show_val sym

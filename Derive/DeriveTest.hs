@@ -285,7 +285,8 @@ default_environ :: TrackLang.Environ
 default_environ = TrackLang.make_environ
     -- tests are easier to write and read with integral interpolation
     [ (Environ.srate, TrackLang.num 1)
-    , (Environ.scale, TrackLang.to_val Twelve.scale_id)
+    , (Environ.scale,
+        TrackLang.VSymbol (TrackLang.scale_id_to_sym Twelve.scale_id))
     , (Environ.attributes, TrackLang.VAttributes Score.no_attrs)
     , (Environ.key, TrackLang.to_val ("c-maj" :: Text))
     ]

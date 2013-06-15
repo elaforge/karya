@@ -222,7 +222,8 @@ test_track_dynamic = do
             , ("sub", [(">", [(0, 1, "")]), ("*", [(0, 0, "2")])])
             ]
     let inst = Just $ TrackLang.VInstrument $ Score.Instrument "i1"
-        scale = Just $ TrackLang.VScaleId $ Legong.scale_id
+        scale = Just $ TrackLang.VSymbol $
+            TrackLang.scale_id_to_sym Legong.scale_id
     equal (extract res)
         [ (UiTest.bid "b", UiTest.mk_tid_name "b" 1, scale, Nothing)
         , (UiTest.bid "b", UiTest.mk_tid_name "b" 2, scale, inst)
@@ -240,8 +241,8 @@ test_track_dynamic_invert = do
         lookup val = Pretty.pretty . TrackLang.lookup_val val
     -- Both tracks get *legong, even though >inst has to be inverted to see it.
     equal (run [(">inst", [(0, 0, "")]), ("*legong", [(0, 0, "1")])])
-        [ ((UiTest.default_block_id, UiTest.mk_tid 1), (">inst", "*legong"))
-        , ((UiTest.default_block_id, UiTest.mk_tid 2), (">inst", "*legong"))
+        [ ((UiTest.default_block_id, UiTest.mk_tid 1), (">inst", "legong"))
+        , ((UiTest.default_block_id, UiTest.mk_tid 2), (">inst", "legong"))
         ]
 
 -- * implementation

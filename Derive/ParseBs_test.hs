@@ -115,10 +115,6 @@ test_parse_val = do
                 DefaultedControl (Score.Control "sig")
                     (TrackLang.Note (Pitch.Note "0") []))
 
-            , ("*", Just $ VScaleId (Pitch.ScaleId ""))
-            , ("*scale", Just $ VScaleId (Pitch.ScaleId "scale"))
-            , ("*bad/scale", Nothing)
-
             , ("$bad", Nothing)
             , ("-", Nothing)
             , ("_", Just VNotGiven)
@@ -142,6 +138,11 @@ test_parse_val = do
                     void $ equal (TrackLang.show_val val) expr
             _ -> void $ success $ show res ++ " == " ++ show expected
 
+test_parse_control_title = do
+    let f = Parse.parse_control_title
+    equal (f "*") $ Right ([VSymbol (Symbol "*")], [])
+    equal (f "*a") $ Right ([VSymbol (Symbol "*a")], [])
+
 test_parse_num = do
     let f = Parse.parse_num
     equal (f "`0x`00") (Right 0)
@@ -160,8 +161,6 @@ test_p_equal = do
     left_like (f "a=") "not enough bytes"
     left_like (f "a=b") "not enough bytes"
 
-    equal (f "*a = *b") (eq (VScaleId (Pitch.ScaleId "a"))
-        (Literal (VScaleId (Pitch.ScaleId "b"))))
     equal (f "a = =b") (eq (sym "a")
         (Literal (VRelativeAttrs (Set (Score.attr "b")))))
 

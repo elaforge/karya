@@ -400,9 +400,8 @@ m_pitch note_id nn = Msg.InputNote (pitch note_id nn)
 
 set_scale :: (Cmd.M m) => BlockId -> BlockId -> TrackId -> Pitch.ScaleId
     -> m ()
-set_scale root_id block_id track_id scale_id =
-    set_env root_id block_id track_id
-        [(Environ.scale, TrackLang.VScaleId scale_id)]
+set_scale root_id block_id track_id scale_id = set_env root_id block_id track_id
+    [(Environ.scale, TrackLang.VSymbol (TrackLang.scale_id_to_sym scale_id))]
 
 -- | Fake up just enough Performance to have environ in it.
 set_env :: (Cmd.M m) => BlockId -> BlockId -> TrackId

@@ -60,42 +60,45 @@ parse_control_expr title = do
 
 parse_control_vals :: [TrackLang.Val] -> Either String ControlType
 parse_control_vals vals = case vals of
-        --  *twelve -> default pitch track in twelve
-        [TrackLang.VScaleId scale_id] ->
-            Right $ Pitch scale_id Nothing
-        --  *twelve # -> default pitch track in twelve
-        --  *twelve #name -> named pitch track
-        [TrackLang.VScaleId scale_id, pitch_control -> Just cont] ->
-            Right $ Pitch scale_id cont
-        -- "tempo"
-        [TrackLang.VSymbol (TrackLang.Symbol "tempo")] -> Right Tempo
-        -- control
-        --
-        -- It would be more regular to require \"%control\" and \"add
-        -- %control\" for control tracks, but it looks nicer without the extra
-        -- noise.
-        [TrackLang.VSymbol control] -> Control Nothing <$> control_of control
-        -- add control -> relative control
-        [TrackLang.VSymbol call, TrackLang.VSymbol control] ->
-            Control (Just call) <$> control_of control
-        -- % -> default control
-        -- It might be more regular to allow anything after %, but I'm a fan
-        -- of only one way to do it, so only allow it for "".
-        --
-        -- The empty scale * defaults to the current scale id, because there's
-        -- no real meaning to an empty scale id.  However, Score.c_null is
-        -- a valid control like any other and is simply used as a special
-        -- name by the control block call hack in "Derive.Call.Block".
-        [TrackLang.VControl (TrackLang.LiteralControl (Score.Control ""))] ->
-            Right $ Control Nothing (Score.untyped Score.c_null)
-        -- add % -> relative default control
-        [TrackLang.VSymbol call, TrackLang.VControl
-                (TrackLang.LiteralControl (Score.Control ""))] ->
-            Right $ Control (Just call) (Score.untyped Score.c_null)
-        _ -> Left $ untxt $ "control track must be one of [\"tempo\", control,\
-            \ op control, %, op %, *scale, *scale #name, op #, op #name],\
-            \ got: " <> Text.unwords (map TrackLang.show_val vals)
+    --  *twelve -> default pitch track in twelve
+    [scale -> Just scale_id] -> Right $ Pitch scale_id Nothing
+    --  *twelve # -> default pitch track in twelve
+    --  *twelve #name -> named pitch track
+    [scale -> Just scale_id, pitch_control -> Just cont] ->
+        Right $ Pitch scale_id cont
+    -- "tempo"
+    [TrackLang.VSymbol (TrackLang.Symbol "tempo")] -> Right Tempo
+    -- control
+    --
+    -- It would be more regular to require \"%control\" and \"add %control\"
+    -- for control tracks, but it looks nicer without the extra noise.
+    [TrackLang.VSymbol control] -> Control Nothing <$> control_of control
+    -- add control -> relative control
+    [TrackLang.VSymbol call, TrackLang.VSymbol control] ->
+        Control (Just call) <$> control_of control
+    -- % -> default control
+    -- It might be more regular to allow anything after %, but I'm a fan of
+    -- only one way to do it, so only allow it for "".
+    --
+    -- The empty scale * defaults to the current scale id, because there's no
+    -- real meaning to an empty scale id.  However, Score.c_null is a valid
+    -- control like any other and is simply used as a special name by the
+    -- control block call hack in "Derive.Call.Block".
+    [TrackLang.VControl (TrackLang.LiteralControl (Score.Control ""))] ->
+        Right $ Control Nothing (Score.untyped Score.c_null)
+    -- add % -> relative default control
+    [TrackLang.VSymbol call, TrackLang.VControl
+            (TrackLang.LiteralControl (Score.Control ""))] ->
+        Right $ Control (Just call) (Score.untyped Score.c_null)
+    _ -> Left $ untxt $ "control track must be one of [\"tempo\", control,\
+        \ op control, %, op %, *scale, *scale #name, op #, op #name],\
+        \ got: " <> Text.unwords (map TrackLang.show_val vals)
     where
+    scale (TrackLang.VSymbol (TrackLang.Symbol sym)) =
+        case Text.uncons sym of
+            Just ('*', scale_id) -> Just (Pitch.ScaleId scale_id)
+            _ -> Nothing
+    scale _ = Nothing
     control_of sym = maybe
         (Left $ untxt $ "control should look like 'name:[cdsr]': "
             <> TrackLang.show_val sym)
@@ -128,8 +131,9 @@ unparse_control_vals :: ControlType -> [TrackLang.Val]
 unparse_control_vals ctype = case ctype of
     Control call control -> maybe [] ((:[]) . TrackLang.VSymbol) call
         ++ [control_val control]
-    Pitch scale_id name ->
-        TrackLang.VScaleId scale_id : maybe [] ((:[]) . pitch_control) name
+    Pitch (Pitch.ScaleId scale_id) name ->
+        TrackLang.VSymbol (TrackLang.Symbol (Text.cons '*' scale_id))
+            : maybe [] ((:[]) . pitch_control) name
     Tempo -> [TrackLang.VSymbol $ TrackLang.Symbol "tempo"]
     where
     pitch_control = TrackLang.VPitchControl . TrackLang.LiteralControl

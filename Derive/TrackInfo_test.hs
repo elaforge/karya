@@ -7,7 +7,7 @@ import Util.Test
 import qualified Derive.TrackInfo as TrackInfo
 
 
-test_parse_control = do
+test_parse_unparse_control = do
     let f = fmap TrackInfo.unparse_control . TrackInfo.parse_control
     equal (f "*") (Right "*")
     equal (f "*scale") (Right "*scale")
