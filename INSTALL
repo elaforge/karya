@@ -1,3 +1,13 @@
+- Install dependencies.
+
+- Build shakefile: bin/mkmk
+
+- Build optimized binaries: bin/mk binaries-opt
+
+- On OS X, run 'defaults write -g ApplePressAndHoldEnabled -bool false' to
+re-enable key repeats globally.
+
+
     HASKELL DEPENDENCIES
 
 To install the needed haskell dependencies, type:

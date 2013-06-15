@@ -4,7 +4,7 @@ LEGEND
 
 UNSORTED
   - control call for sawtooth, ramp, sine, for e.g. bow tremolo
-  - maybe use ^hjkl to move selection
+  * maybe use ^hjkl to move selection
   - is StateConfig.Default obsolete now that there is global transform?
   - Make talas work with LRuler.  The problem is that they include label
     information, and Meter.Meter doesn't support that.
@@ -98,7 +98,7 @@ UNSORTED
     used CCs to issue resets for them.  Some reset to 1, e.g. cc2 and cc7,
     the rest reset to 0.
     But filtering the midi shows dyn controls mixed into both channels.
-  - It seems confusing that in val edit the note track doesn't need cmd-x but
+  * It seems confusing that in val edit the note track doesn't need cmd-x but
     the control track does.
     Maybe I should get rid of the optional cmd- thing?
   - Pretty on a lot of events causes a stack overflow
@@ -749,11 +749,11 @@ Cmd:
     happens when the module is reloaded?
 
   vi style keymap:
-    - movement: hjkl, HJKL to move timestep+1 or skip to
+    * movement: hjkl, HJKL to move timestep+1 or skip to
       next inst track, bf to move timestep at block section rank, BF to move to
       top and bottom of block
-    - esc and i for edit mode
-    - number prefixed cmds?  not for now
+    * esc and i for edit mode
+    / number prefixed cmds?
   Cmd.Edit
     - alternate finale-like note entry: hold down step key to set step and
       turn on edit mode, but only while the key is down

@@ -30,7 +30,6 @@ import qualified Cmd.Selection as Selection
 import qualified Cmd.ViewConfig as ViewConfig
 
 import qualified Derive.TrackInfo as TrackInfo
-import qualified App.Config as Config
 import Types
 
 
@@ -185,8 +184,8 @@ cmd_move_tracks msg = do
     move_tracks block_id tracknums clicked
     -- Shift from the max tracknum or the minimum tracknum, depending on
     -- the move direction.
-    when_just (Seq.minimum_on abs $ map (clicked-) tracknums) $ \shift -> do
-        Selection.cmd_shift_selection Config.insert_selnum shift False
+    when_just (Seq.minimum_on abs $ map (clicked-) tracknums) $
+        Selection.shift False
 
 move_tracks :: (State.M m) => BlockId -> [TrackNum] -> TrackNum -> m ()
 move_tracks block_id sources dest =

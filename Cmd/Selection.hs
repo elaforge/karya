@@ -26,6 +26,7 @@ import qualified Ui.Events as Events
 import qualified Ui.ScoreTime as ScoreTime
 import qualified Ui.State as State
 import qualified Ui.Track as Track
+import qualified Ui.TrackTree as TrackTree
 import qualified Ui.Types as Types
 import qualified Ui.UiMsg as UiMsg
 
@@ -103,7 +104,7 @@ set_and_scroll view_id selnum sel = do
 -- | Advance the insert selection by the current step, which is a popular thing
 -- to do.
 advance :: (Cmd.M m) => m ()
-advance = cmd_step_selection Config.insert_selnum TimeStep.Advance False
+advance = step TimeStep.Advance False
 
 -- | Advance the given selection by the current step.
 --
@@ -111,32 +112,56 @@ advance = cmd_step_selection Config.insert_selnum TimeStep.Advance False
 -- advance to the next relevant mark.  "next relevant mark" is the next visible
 -- mark in the ruler to the left.  If @extend@ is true, extend the current
 -- selection instead of setting a new point selection.
-cmd_step_selection :: (Cmd.M m) => Types.SelNum -> TimeStep.Direction
-    -> Bool -> m ()
-cmd_step_selection selnum dir extend = do
+step :: (Cmd.M m) => TimeStep.Direction -> Bool -> m ()
+step dir extend = do
+    st <- Cmd.get_current_step
+    step_with (TimeStep.direction dir) extend st
+
+step_with :: (Cmd.M m) => Int -> Bool -> TimeStep.TimeStep -> m ()
+step_with steps extend step = do
     view_id <- Cmd.get_focused_view
     Types.Selection start_track start_pos cur_track cur_pos <-
-        Cmd.require =<< State.get_selection view_id selnum
-    step <- Cmd.get_current_step
-    new_pos <- step_from cur_track cur_pos dir step
+        Cmd.require =<< State.get_selection view_id Config.insert_selnum
+    new_pos <- step_from cur_track cur_pos steps step
     let new_sel = if extend
             then Types.selection start_track start_pos cur_track new_pos
             else Types.point_selection start_track new_pos
-    set_and_scroll view_id selnum new_sel
+    set_and_scroll view_id Config.insert_selnum new_sel
 
 -- | Move the selection across tracks by @shift@, skipping non-event tracks
 -- and collapsed tracks.
 --
 -- If @extend@ is true, extend the current selection instead of setting a new
 -- selection.
-cmd_shift_selection :: (Cmd.M m) => Types.SelNum -> TrackNum -> Bool -> m ()
-cmd_shift_selection selnum shift extend = do
+shift :: (Cmd.M m) => Bool -> TrackNum -> m ()
+shift extend shift = do
     view_id <- Cmd.get_focused_view
     block <- State.block_of view_id
-    sel <- Cmd.require =<< State.get_selection view_id selnum
-    let sel' = State.shift_selection block shift sel
-    set_and_scroll view_id selnum
-        (if extend then merge_sel sel sel' else sel')
+    sel <- Cmd.require =<< State.get_selection view_id Config.insert_selnum
+    let new_sel = State.shift_selection block shift sel
+    set_and_scroll view_id Config.insert_selnum
+        (if extend then merge_sel sel new_sel else new_sel)
+
+-- | Shift a selection right or left.
+data Shift = R | L deriving (Show)
+
+-- | Find the first track before or after the current one whose title matches
+-- a predicate.
+find_track :: (Cmd.M m) => Shift -> (Text -> Bool) -> m TrackNum
+find_track shift stop = do
+    (view_id, sel) <- get
+    block_id <- State.block_id_of view_id
+    tracks <- TrackTree.tracks_of block_id
+    let maybe_next = Seq.head $ dropWhile (not . stop . State.track_title)
+            (order sel tracks)
+    return $ case maybe_next of
+        Nothing -> 0
+        Just next -> State.track_tracknum next - Types.sel_cur_track sel
+    where
+    order sel = case shift of
+        R -> dropWhile ((<= Types.sel_cur_track sel) . State.track_tracknum)
+        L -> dropWhile ((>= Types.sel_cur_track sel) . State.track_tracknum)
+            . reverse
 
 -- | Progressive selection: select the rest of the track, then the entire
 -- track, then the whole block.
@@ -331,13 +356,12 @@ mouse_mod msg = do
 
 -- * util
 
-step_from :: (Cmd.M m) => TrackNum -> TrackTime -> TimeStep.Direction
-    -> TimeStep.TimeStep -> m TrackTime
-step_from tracknum pos direction step = do
+step_from :: (Cmd.M m) => TrackNum -> TrackTime -> Int -> TimeStep.TimeStep
+    -> m TrackTime
+step_from tracknum pos steps step = do
     block_id <- Cmd.get_focused_block
     end <- State.block_ruler_end block_id
-    next <- TimeStep.step_from (TimeStep.direction direction) step block_id
-        tracknum pos
+    next <- TimeStep.step_from steps step block_id tracknum pos
     return $ case next of
         Just next | 0 <= next && next <= end -> next
         _ -> pos

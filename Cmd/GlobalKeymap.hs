@@ -43,6 +43,7 @@ module Cmd.GlobalKeymap where
 import qualified Control.Monad.Identity as Identity
 
 import Util.Control
+import qualified Util.Num as Num
 import qualified Ui.Block as Block
 import qualified Ui.Key as Key
 import qualified Ui.State as State
@@ -55,8 +56,7 @@ import qualified Cmd.Edit as Edit
 import qualified Cmd.Keymap as Keymap
 import Cmd.Keymap
        (plain_key, plain_char, shift_char, bind_key, bind_key_status,
-        bind_repeatable, bind_click, bind_drag, plain_command_char,
-        command_char, SimpleMod(..))
+        bind_repeatable, bind_click, bind_drag, command_char, SimpleMod(..))
 import qualified Cmd.Meter as Meter
 import qualified Cmd.Msg as Msg
 import qualified Cmd.PitchTrack as PitchTrack
@@ -69,6 +69,7 @@ import qualified Cmd.TimeStep as TimeStep
 import qualified Cmd.Undo as Undo
 import qualified Cmd.ViewConfig as ViewConfig
 
+import qualified Derive.TrackInfo as TrackInfo
 import qualified Perform.Pitch as Pitch
 import qualified App.Config as Config
 
@@ -199,30 +200,70 @@ mouse_bindings = concat
 
 selection_bindings :: (Cmd.M m) => [Keymap.Binding m]
 selection_bindings = concat
-    [ bind_repeatable [] Key.Down "advance selection"
-        (Selection.cmd_step_selection selnum TimeStep.Advance False)
-    , bind_repeatable [Shift] Key.Down "extend advance selection"
-        (Selection.cmd_step_selection selnum TimeStep.Advance True)
+    [ bind_repeatable [] Key.Down "advance selection" $
+        Selection.step TimeStep.Advance False
+    , bind_repeatable [Shift] Key.Down "extend advance selection" $
+        Selection.step TimeStep.Advance True
 
-    , bind_repeatable [] Key.Up "rewind selection"
-        (Selection.cmd_step_selection selnum TimeStep.Rewind False)
-    , bind_repeatable [Shift] Key.Up "extend rewind selection"
-        (Selection.cmd_step_selection selnum TimeStep.Rewind True)
+    , bind_repeatable [] Key.Up "rewind selection" $
+        Selection.step TimeStep.Rewind False
+    , bind_repeatable [Shift] Key.Up "extend rewind selection" $
+        Selection.step TimeStep.Rewind True
 
-    , bind_repeatable [] Key.Right "shift selection right"
-        (Selection.cmd_shift_selection selnum 1 False)
-    , bind_repeatable [Shift] Key.Right "extend shift selection right"
-        (Selection.cmd_shift_selection selnum 1 True)
+    , bind_repeatable [] Key.Right "shift selection right" $
+        Selection.shift False 1
+    , bind_repeatable [Shift] Key.Right "extend shift selection right" $
+        Selection.shift True 1
 
-    , bind_repeatable [] Key.Left "shift selection left"
-        (Selection.cmd_shift_selection selnum (-1) False)
-    , bind_repeatable [Shift] Key.Left "extend shift selection left"
-        (Selection.cmd_shift_selection selnum (-1) True)
+    , bind_repeatable [] Key.Left "shift selection left" $
+        Selection.shift False (-1)
+    , bind_repeatable [Shift] Key.Left "extend shift selection left" $
+        Selection.shift True (-1)
+
+    -- It would be more consistent to use shift to extend the selection, but
+    -- the "large step"s seem to be more useful.  I could use 'w' and 'b' for
+    -- that, but then there's no obivous place to put right and left large
+    -- steps.  Also, once I start using caps for extend selection there's a
+    -- temptation to want to use it everywhere.
+
+    , repeatable_char 'h' "move selection left" $
+        Selection.shift False (-1)
+    , repeatable_char 'l' "move selection right" $
+        Selection.shift False 1
+    , repeatable_char 'j' "move selection advance" $
+        Selection.step TimeStep.Advance False
+    , repeatable_char 'k' "move selection rewind" $
+        Selection.step TimeStep.Rewind False
+
+    , repeatable_char 'H' "move selection next note track" $
+        Selection.shift False
+            =<< Selection.find_track Selection.L TrackInfo.is_note_track
+    , repeatable_char 'L' "move selection previous note track" $
+        Selection.shift False
+            =<< Selection.find_track Selection.R TrackInfo.is_note_track
+    , repeatable_char 'J' "move selection advance 2" $
+        Selection.step_with 1 False =<< promoted (-1)
+    , repeatable_char 'K' "move selection rewind 2" $
+        Selection.step_with (-1) False =<< promoted (-1)
+
+    -- Or should shifted keys only jump to event starts, in analogy with
+    -- vi 'w' and 'b'?
+    , repeatable_char 'w' "move selection next event" $
+        Selection.step_with 1 False TimeStep.event_step
+    , repeatable_char 'W' "move selection next event" $
+        Selection.step_with 1 True TimeStep.event_step
+    , repeatable_char 'b' "move selection previous event" $
+        Selection.step_with (-1) False TimeStep.event_step
+    , repeatable_char 'B' "move selection previous event" $
+        Selection.step_with (-1) True TimeStep.event_step
 
     , bind_key [PrimaryCommand] (Key.Char 'a') "select track / all"
-        (Selection.cmd_track_all selnum)
+        (Selection.cmd_track_all Config.insert_selnum)
     ]
-    where selnum = Config.insert_selnum
+    where
+    repeatable_char c = bind_repeatable [] (Key.Char c)
+    promoted ranks = TimeStep.modify_rank (Num.clamp 0 Meter.r_64 . (+ranks))
+        <$> Cmd.get_current_step
 
 step_play_bindings :: (Cmd.M m) => [Keymap.Binding m]
 step_play_bindings = concat
@@ -276,10 +317,13 @@ block_config_bindings = concat
 edit_state_bindings :: (Cmd.M m) => [Keymap.Binding m]
 edit_state_bindings = concat
     [ plain_key Key.Escape "toggle val edit" Edit.cmd_toggle_val_edit
+    -- TODO this should be control-[, but SecondaryCommand is control on OS X
+    -- and alt on linux...
+    , bind_key [SecondaryCommand] (Key.Char '[') "toggle val edit"
+        Edit.cmd_toggle_val_edit
     , bind_key [PrimaryCommand] Key.Escape "toggle raw edit"
         Edit.cmd_toggle_raw_edit
     , bind_key [] Key.Tab "toggle method edit" Edit.cmd_toggle_method_edit
-
     , bind_key [Shift] Key.Escape "toggle kbd entry mode"
         Edit.cmd_toggle_kbd_entry
 
@@ -317,19 +361,19 @@ edit_state_bindings = concat
 event_bindings :: (Cmd.M m) => [Keymap.Binding m]
 event_bindings = concat
     -- J = move previous event down, K = move next event up.
-    [ plain_command_char 'J' "move event forward" Edit.cmd_move_event_forward
-    , plain_command_char 'K' "move event back" Edit.cmd_move_event_back
-    , plain_command_char 'j' "insert time" Edit.cmd_insert_time
-    , plain_command_char 'k' "delete time" Edit.cmd_delete_time
+    [ command_char 'J' "move event forward" Edit.cmd_move_event_forward
+    , command_char 'K' "move event back" Edit.cmd_move_event_back
+    , command_char 'j' "insert time" Edit.cmd_insert_time
+    , command_char 'k' "delete time" Edit.cmd_delete_time
     -- Unlike other event editing commands, you don't have to be in insert
     -- mode to remove events.  Maybe I'll change that later.
     , plain_key Key.Backspace "clear selected" Edit.cmd_clear_and_advance
-    , plain_command_char 'o' "join events" Edit.cmd_join_events
-    , plain_command_char 'O' "split events" Edit.cmd_split_events
+    , command_char 'o' "join events" Edit.cmd_join_events
+    , command_char 'O' "split events" Edit.cmd_split_events
 
-    , plain_command_char 's' "set dur" Edit.cmd_set_duration
-    , plain_command_char 'z' "toggle zero-dur" Edit.cmd_toggle_zero_duration
-    , plain_command_char 'g' "set beginning" Edit.cmd_set_beginning
+    , command_char 's' "set dur" Edit.cmd_set_duration
+    , command_char 'z' "toggle zero-dur" Edit.cmd_toggle_zero_duration
+    , command_char 'g' "set beginning" Edit.cmd_set_beginning
 
     , shift_char '1' "insert recent 1" (Edit.cmd_insert_recent 1)
     , shift_char '2' "insert recent 2" (Edit.cmd_insert_recent 2)

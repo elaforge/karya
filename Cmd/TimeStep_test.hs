@@ -17,7 +17,7 @@ import Types
 test_show_parse_time_step = do
     let f step = (trip step, Right (mk step))
         trip = TimeStep.parse_time_step . txt . TimeStep.show_time_step . mk
-        mk = TimeStep.TimeStep
+        mk = TimeStep.from_list
     uncurry equal (f [Duration 2])
     uncurry equal (f [Duration 0.5])
     uncurry equal (f [RelativeMark (NamedMarklists ["hi", "there"]) 5])
@@ -98,7 +98,7 @@ test_get_points_from = do
             (desc2, asc2) = ascend_descend state start step2
         merge_asc xs ys = Seq.drop_dups id $ Seq.merge xs ys
         merge_desc xs ys = Seq.drop_dups id $ Seq.merge_by (flip compare) xs ys
-    let merged start step1 step2 = (f start (TimeStep.TimeStep [step1, step2]),
+    let merged start step1 step2 = (f start (TimeStep.from_list [step1, step2]),
             asc_desc start step1 step2)
     uncurry equal $ merged 0 (EventEnd AllTracks) (EventStart AllTracks)
     uncurry equal $ merged 2 (EventEnd AllTracks) (EventStart AllTracks)

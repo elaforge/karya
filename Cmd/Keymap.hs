@@ -88,13 +88,6 @@ plain_char = plain_key . Key.Char
 shift_char :: (Cmd.M m) => Char -> String -> m a -> [Binding m]
 shift_char = bind_key [Shift] . Key.Char
 
--- | Some cmds are mapped to both a plain keystroke and command key version.
--- This is a little unusual, but it means the command can still be invoked when
--- kbd entry has taken over the alphanumeric keys.
-plain_command_char :: (Cmd.M m) => Char -> String -> m a -> [Binding m]
-plain_command_char c desc cmd =
-    plain_char c desc cmd ++ command_char c desc cmd
-
 -- | Bind a Char with the PrimaryCommand.
 command_char :: (Cmd.M m) => Char -> String -> m a -> [Binding m]
 command_char = bind_key [PrimaryCommand] . Key.Char

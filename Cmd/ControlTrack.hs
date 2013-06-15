@@ -33,7 +33,7 @@ cmd_val_edit :: Cmd.Cmd
 cmd_val_edit msg = suppress "control track val edit" $ do
     EditUtil.fallthrough msg
     case msg of
-        (EditUtil.alphanum_key -> Just key) -> modify_event (modify_hex key)
+        (EditUtil.hex_key -> Just key) -> modify_event (modify_hex key)
         (Msg.key_down -> Just (Key.Char '\'')) -> EditUtil.soft_insert "'"
         Msg.InputNote (InputNote.NoteOn _ _ vel) -> insert_val False vel
         Msg.InputNote (InputNote.Control _ _ val) -> insert_val True val

@@ -9,7 +9,8 @@
 -}
 module Cmd.TimeStep (
     -- * TimeStep
-    TimeStep(..), time_step, event_step, to_list
+    TimeStep, time_step, event_step, from_list, to_list
+    , modify_rank
     , match_meter
     , Step(..), Tracks(..)
     , MarklistMatch(..)
@@ -56,8 +57,18 @@ time_step = TimeStep . (:[])
 event_step :: TimeStep
 event_step = TimeStep [EventStart CurrentTrack, EventEnd CurrentTrack]
 
+from_list :: [Step] -> TimeStep
+from_list = TimeStep
+
 to_list :: TimeStep -> [Step]
 to_list (TimeStep steps) = steps
+
+modify_rank :: (Ruler.Rank -> Ruler.Rank) -> TimeStep -> TimeStep
+modify_rank f = from_list . map modify . to_list
+    where
+    modify (AbsoluteMark m r) = AbsoluteMark m (f r)
+    modify (RelativeMark m r) = RelativeMark m (f r)
+    modify step = step
 
 -- | Match on the meter marklist, which is the usual thing to do.
 match_meter :: MarklistMatch
