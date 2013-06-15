@@ -4,102 +4,15 @@ LEGEND
 
 UNSORTED
   - control call for sawtooth, ramp, sine, for e.g. bow tremolo
-  * key cmds to move window focus around
   - maybe use ^hjkl to move selection
-  * rename Selection.SelectedTracks to Selection.Tracks
-  * Rename TwelveScales to ChromaticScales.
-  * do I really need a separate ScaleId literal?  Or should I allow
-    'scale = just-min'?
   - is StateConfig.Default obsolete now that there is global transform?
-  * ^B with a selection is just making empty blocks
-  * implement load_merge
-  tala
-    * Support both chapu and suladi sapta talas.
-    - Make talas work with LRuler.  The problem is that they include label
-      information, and Meter.Meter doesn't support that.
-  * update TwelveScales to use TheoryFormat.PitchFormat
-    . Need a way to show keys.  I should be able to show Notes since octaves
-      don't change, but showing notes can affect the octave.
-  * rename PitchFormat to just Format
-  / TheoryFormat.PitchFormat fmt_read should allow both ascii and symbolic
-    accs.
-  add relative notation to twelve
-    * remove NoteToDegree
-    * check range in TwelveScales.show_pitch
-    * pass key to TwelveScales.show_pitch, apply fmt_adjust
-    * adjust has to understand keys better, so you have to pass an adjust in
-      addition to ParseKey.
-    * add *octa21-r and *octa12-r
-  * scale pattern should go into the fmt
-  / make TheoryFormat.Degrees be (Vector [Text], Vector [ByteString])
-  * transposition is messed up for just-r, it drops it by an octave
-  * Modifying a pitch track above a note track doesn't rederive the note
-    track.
+  - Make talas work with LRuler.  The problem is that they include label
+    information, and Meter.Meter doesn't support that.
   - need an easy way to create IDs for debugging, so I can copy paste
     (bid "xyz") stuff
-  * mridangam instrument that depends on key
-    . If I handle attr in the inst then I get a nice attr+pitch score event, but
-      I need a somewhat complicated config: (low_key, high_key, low_key_pitch)
-      and then special logic in the performer to handle it.  Current keymap
-      would become (key, key, Nothing).
-    . If I handle in the call, then I'm bypassing keymaps entirely.  I also
-      have to flatten the pitch to NNs and emit a special purpose pitch.  So
-      this way doesn't play nicely with transposition since the keymap part of
-      the note is already baked into the pitch.
-    . Why read 'key', why not just look at the pitch signal?
-    - Report out of bounds.
-  * Meter for adi talam
   - Cmd.Instrument.Util and Derive.Instrument.Util need better names
-  * move Istrument.inst_keymap to Patch, since it's resolved by Convert
-  * when dragging, don't snap if it would move too far
-  * Changing env assignment in the block title isn't reflected in
-    LPerf.environ, but track title is.
-    . Editing the title makes block score damage, and that doesn't invalidate
-      track caches.
-    . But the first time it does, why?  It still thinks the cache is empty.
-    . If I add a new call, then it changes the stack, so the old cache doesn't
-      apply.  What's more it sticks around.
-      Invalidate should clear it.
-    * Why do I see "rederived generator because not in cache" twice for b1.t2?
-  - Logview: adding new log msgs causes the status bar to shrink back to one
-    line, even though it should be wrapped to two.
-  * +detache+short, +detache+long is too long.  Change to +det, +det+long.
-  * I think logview is still collecting cache msgs multiple times, make sure
-    it gets reset on each rederive.
-  * It's annoying how score errors show up in the log even if you don't hit
-    play.  Only write logs on the first play.
-  * use zlib module to compress saved state: Codec.Compression.Gzip
-  * shift-enter on an empty selection causes an unstoppable play
-  * Add event with EditAppend should use the selection duration.
-  * "Recent" should record EditAppends.
-  * 'detach' is too long, what's a shorter name? 'd' is taken, maybe 'D' for
-    symmetry with 'd'?
-  * I should shorten the last note of attr legato, to avoid triggering
-    legato from the previous note.
-  * Event text is wrapping too late.  E.g. a trailing | will totally vanish.
-  Fix leak from cache:
-    . It's likely because derivation intentionally disconnects for
-      TrackSignals, so those thunks hold all of State, which means the old
-      cache etc.  The only way around it might be to avoid the laziness by
-      only generating TrackSignals for tracks that want them, and not
-      disconnecting from derivation.
-    . But first, look at the code that puts in the TrackSignals and see if
-      I can get it to stop holding on to the State.
-    . Do I use TrackSignals in Cmds for other than display purposes?  If so,
-      that's a reason to try to keep deriving them lazily.
-      No, Perf.lookup_signal isn't used anywhere.  It's the way to go
-      ScoreTime -> Control, but I could also use TrackDynamic after first
-      mapping Score->Real.  This gives access to a PitchSignal, which
-      lookup_signal couldn't do.
-    . Another side-effect is that expanding a collapsed track now wants
-      a signal, so I'd have to rederive.  Of course that hits all the caches
-      so it should be cheap.
-    ? But why is keeping the last State around so bad anyway?  The real
-      question is why that doesn't get cleared up on the next derive.
-
-    * pass state_track_signals in to Constant.
-    - key TrackSignals on (BlockId, TrackId).  I'll need to put BlockId in
-      TrackTree.TrackEvents, I think.
+  - key TrackSignals on (BlockId, TrackId).  I'll need to put BlockId in
+    TrackTree.TrackEvents, I think.
   - If a control track depends on a previous control track,
     Derive.Control.track_signal can't derive it properly if the previous
     control isn't derived.  One way to fix this is to get track signals for
@@ -107,42 +20,9 @@ UNSORTED
     is to abandon track_signal and rely on merging fragments from the
     inversions.  Meanwhile it just doesn't work, reverse the #ratio-source and
     >i1 tracks in Ratio_test to demonstrate.
-  * What's the gap between the change and MsgOutOfDate?
-  * compact the signal in the cache?
-    . Wait, but I think the cache never actually caches control or pitch
-      signals, because track caching is only for note tracks.  Maybe I should
-      cache control tracks?  In any case, it would only apply to control
-      tracks above note tracks.
-    . If I cache pitch track output, I wind up getting events with the signal
-      already applied.  Which is even better, right?  Why not just get rid of
-      CachedControl and CachedPitch?  The cache from control tracks is exactly
-      the same events, so I think if I edit a track underneath it's not
-      actually helping.
-    . If I edit the note track, the control track should rederive unchanged.
-    * Ensure that currently, if I edit a note below a control, the control is
-      rederived.  After caching, ensure that it isn't.
-    * I think it's not properly invalidating control track cache on edit.
   - After a rederive, it still takes a Cmd to free up the memory.  Who is
     holding on to it?
   - parallelize derivation
-  * update all the saves and remove backward compatibility from Cmd.Serialize
-  * every time I play, the cache stats in logview collect more
-  . Why I do need to make a point list for timestep?  Why not just calculate
-    directly?  Also, can I get rid of multiple steps in favor of just passing
-    a different number to TimeStep.step?
-    I guess if I'm doing every other I need to calculate from the beginning.
-    But I think I don't need that.
-    * Make ruler into Vector.
-    * Remove TimeStep's skip.
-    * Remove all_points, use marklist directly.
-    * fix snap
-  * Instead of instrument aliases just being aliases, they should make a new
-    instrument whose lookup gets the aliased instrument.  That way I can
-    instantiate a single instrument multiple times.
-    This generalizes the wildcard instrument thing, instead I can provide
-    a single generic instrument and expect the user to add specific aliases.
-    . Implement as a wrapper around inst db.
-  / Remove wildcard patches. Decided to not remove it after all.
   - Composite 0 dur notes still not quite right, controls come too early.
     Maybe I should just abandon the idea of trying to make those 0 dur notes.
     What is the point of a 0 dur note?  The score has no explicit duration,
@@ -165,14 +45,6 @@ UNSORTED
   convert to Text:
     - Util.Log.Stack
     - Util.Log
-    * Internal.with_stack_call
-    * Derive.BaseTypes.Instrument
-    * Derive.BaseTypes.Attribute
-    * Cmd.Info.inst_info
-    * Perform.Pitch.ScaleId
-    * WriteDevice, ReadDevice
-    * Perform.Midi.Instrument.patch_text
-    * Derive.Tags.Tags
     - TimeStep.show_time_step
     - Pretty.pretty
       For this I need to extend Util.Format to be a simplified prettyprinter:
@@ -199,20 +71,9 @@ UNSORTED
     . Legato attack scale control affects the crossfade level of interval
       samples, experiment with that.
     . figure out how perf reps work, and how I should handle them
-    * dyn# should be 'dyn . crescdim . rep#'
-      cre# should be just 'cresc . rep#'
-      If there is a way to trigger a specific sample, then I can customize
-      crescendo / decrescendo without having to edit the vsl instrument, e.g.
-      r1, r2, r3, r4, etc.  I can load the samples separately if I need it.
-    / can all perf.rep be turned into rep, or is there non-perf rep?
     - make sure perf_upbeat_repetitions are consistent
     - make sure grace vs. grace.updown is correct
     attribute groups:
-      * +vib+down turns into just +down, there should be +vib-down
-      I should be able to pick a default and remove that one:
-        legato/marcato/staccato, na/ha/fa/sa, vib/nv/progr
-        * for grace notes, fast should be default
-        * strip norm
       . bass clarinet has nv without vib
     - should be able to select the most appropriate sec# dyn given
       +cresc or +dim on a note.
@@ -229,9 +90,6 @@ UNSORTED
       Or bind calls with &call = sym.
   - network midi doesn't seem to handle abort?
     playing the second time doesn't happen
-  * StepPlay gets messed up by tuplets and the like.  Maybe it should step
-    along the performance (with some eta to account for randomization)
-    instead of the score.
   - maybe new control tracks should start with line render?
 
   - can I cache long blocks by slicing them if they're >n?
@@ -240,8 +98,6 @@ UNSORTED
     used CCs to issue resets for them.  Some reset to 1, e.g. cc2 and cc7,
     the rest reset to 0.
     But filtering the midi shows dyn controls mixed into both channels.
-  * the signal doesn't update if I change the default environ assignment on
-    another track
   - It seems confusing that in val edit the note track doesn't need cmd-x but
     the control track does.
     Maybe I should get rid of the optional cmd- thing?
@@ -254,7 +110,6 @@ UNSORTED
     Do some logging to track them down.
   / key not applied in inner blocks, local play should take the root play's
     env as a starting point
-  * randomize any control by having the 'set' call look for the -rnd control
   some way to get symbol feedback instantly to make it easier to compose them
     . But it calls SymbolC and I ran into a problem where linux ghci can't
       link FFI-using functions.  Ask on glasgow-haskell-users.
@@ -308,10 +163,6 @@ MILESTONES
 
 documentation
   - INSTALL should say how to build
-  READMEs
-    * update
-    - Pandoc and linkify them, I should create build/doc/App/README.md.html,
-      etc.  Then link them to the rest of the docs.
   + doc/derivation.md
   * integrate doc/tracklang into derivation.md
   - split up derivation.md into separate files
@@ -322,118 +173,6 @@ documentation
   call doc:
     - I could go look through arg docs for controls and list all the controls
       that have someone listening to them in a certain scope.
-    * linkify single quotes
-    * CallDoc should automatically add some tags: generator / transformer,
-      note / pitch / control / val, one for each %control, one for each
-      name-arg.  They don't show up in the tag list, but can be used for
-      searching.
-    * calls.html page should have a search box that can filter by tag presence
-      or absence.  Each call gets its tags associated, then JS can go through
-      and show/hide.
-      * filter by absence
-
-strict derivation / parallelization / memory leaks
-  cache tracks
-    - put the "cached" log msg at the end of the cache results?
-      Otherwise it immediately forces all of them.
-      Wait, why should it?  Just cons on the front.
-      . But it breaks lots of tests.  Is it really worth it?
-  parallelism?
-    . why does priming take so long?
-      It needs the tempo.  Since signals are eager, that means evaluating
-      the tempo track at least.  But not just tempo obviously, or it would be
-      fast.
-      What else?  Well, I need signals if they are being rendered.
-    - Can I fork a spark for each note track being merged?
-      Perhaps I should abandon the idea fo lazy derivation, it's likely not
-      happening anyway.  I still want the evaluation incremental, but I could
-      parallel force each track.
-    - Try Util.AppendList again, but just at the track and block call level.
-      At the block level it's to reduce copying, at the track level I can
-      run a strategy on a multi-way merge to eval them in parallel.
-      . Does this offer an advantage over embedding the parallel in BlockUtil?
-        Well, parallelism depends on evaluation, and the track derivation is
-        lazy.  So I think I'd have to put some bangs in track derivation.
-      . Maybe I should try that anyway?
-  strict derivation
-    - If I'm forcing entirely, I can put in a merge at the cache level, so
-      tracks and blocks would become merges, but all other calls are just (++)
-      as before.  Then I can apply a parallel strategy at the merge level.
-    * Also, consecutive signals should be mconcated.
-  - try giving a big heap to speed startup? +RTS -H512m
-  control memory leaks
-    . Lots of lag and drag.
-    . How big is each event?  Maybe the caches aren't so expensive because they
-      share events?
-    . Alternately, I could try doing the strict/parallel thing, and see if
-      that clears it up.  Or at least strictifying.
-    * use strict pair for cache entry (collect, events)
-    * force the events when priming a perf
-    * try lifecycle profiling, lots of void and drag
-    * try retainer profiling
-      - it's buggy and crashes, go mention it on the ghc bug
-    * The drag is Map, and is eliminated when I clear the performances
-      Narrow it down.
-      . Forcing does nothing, but clearing the cache gets rid of a big
-        portion.
-    . If each event or unevaluated event has future and past it will keep
-      the UI alive.  Maybe forcing the result of each event will clean that
-      up.
-  Space usage.  On startup it balloons up to 450mb, what is it doing?  After
-    a bit of editing it's up to 750mb, who is leaking?  Undo history?
-    * Write size profile that loads a big score and reports the size increase.
-    - Write function to sum up State, Cache, and Performance sizes.
-      Return stats about event size, etc.
-    / Try interning strings on load.
-      Savings are negligable, provided I'm calculating them correctly.
-    - Flatten pointers out of data structures.
-      Which ones? Cached Events, performed MIDI.
-    * Discard old undo states.
-    - Link libraries into seq as shared, also link with ghc api as shared.
-      Ask on ghc-users first if anyone has done this.
-    Compact cached signals and rendered MIDI.
-      - First write tests that demonstrate where the space is going.
-      - UNPACK Derive.Score.Event
-      - Midi.Midi.WriteMessages compact as a lazy storablevector
-    - Compact control tracks when I have that in, maybe compact only on
-      checkpoints?
-      But savings are likely to be very small for handwritten scores, would
-      only make a difference for recorded control tracks.
-    The ghc api uses tons of space when it starts linking in everything.
-      - How much space does ghci take loading the same stuff?  Why so much
-        less?
-      - I probably have the whole app twice.  Can I use dynamic libraries to
-        improve this?
-      - dynamic libraries: www.well-typed.com/blog/30
-    Check size on linux.
-      stripped or not makes no difference
-      bloom is 110m in memory
-      repl is 200m in memory
-      plus 50m for normal app
-      so 360 for everything + bloom
-      - calculate size of a score
-      - calculate size of cache
-    resident memory size:
-    debug, no repl: 31m / 19m -- ? / ?
-      darwin: 76 / 150
-      linux: 32m / 129m
-    debug, repl: unstripped / stripped -- 78m / ? -- 60m / 40m
-      darwin: 193m -> 248m -- 323m -> 376m
-      linux: 182m -> 230m -- 320m -> 367m
-    opt, no repl: 35m / 20m -- ? / ?
-      darwin: 39 / 116
-      linux: 31m / 90m
-    opt, repl: 81m / 48m -- 62m / 41m
-      darwin: 194 -> 246 / ?
-      linux: 131m -> 178m / 243m -> 321m
-
-    loading bloom, debug: 74, 97
-    loading bloom, opt: 77 / 59
-
-    linux:
-      bloom: 59 without the repl, but 231 with (huh?)
-      repl: 100m + 47 to load seq libs
-    darwin:
 
 block composition
   - I do a lot of appending a block along with its ruler, I could have
@@ -519,7 +258,6 @@ lilypond:
     than mixed into the first one.  E.g. would have fixed grace notes.
   - one track has voice, the other doesn't, causes a "can't advance time
     backward" error
-  * remove the StackMap stuff
   - Support ly-append-first and ly-append-last for zero-dur notes.
     . First come up with uses for them?  Or do it just for orthogonality?
   - code events in >ly-global can be distributed to all staves
@@ -544,13 +282,6 @@ lilypond:
     I could have parse generate the Meter and memoize it.
   - optionally emit the lilypond to display a compound meter
   - use Util.Format in ly output
-  / try Util.LazyVector for Ly output and see if it helps
-  / can I make a click on a note in the pdf highlight in the sequencer?
-    Hung up on getting preview to send clicks to a program, notes in
-    App/LilypondClick.hs
-    * Seems simpler and maybe more useful to put the position in the
-      per-measure comments and let the clicking highlight in the ly file as
-      normal.
 
 negative duration / arrival beats:
   - trill or trem with negative duration lines the integral number up to the
@@ -716,11 +447,7 @@ performance:
       - UI edits should see the Chunk expanded out as Events.  Inserting an
         event should modify the chunk or split it depending on if the inserted
         event is a set call or not.
-  * make seeks on derive output more efficient
   cache
-    * Can I make cached signal more efficient by merging the signals before
-      stashing it?  Of course laziness means that this won't actually happen
-      until the next time the cache is demanded, unless I force it.
     - see if the cache filtering logs is causing significant copying and
       remove
   Cmd
@@ -789,7 +516,6 @@ symbolic score
 fltk:
   drawing artifacts on retina:
     . Some of this may be fltk bugs.
-    * move selection up, leaves a single pixel line
     - tops of tracks and the tops of track text boxes still get gunk, visible
       when scrolling horizontally
   - Should fltk collapse adjacent dividers?
@@ -806,7 +532,6 @@ fltk:
   + can I get fltk to omit the jellybean buttons on the window?
     . Yes, but requires hacking fltk.
     . Completely disables resizing.  Apparently this is hardcoded.
-  * event.text would have to be utf8 to support option-key symbols
   - some way to scroll that's not the scroll wheel
   - I could set certain Symbols to stretch to the length of their event, this
     would yield a nicer looking score.  But it would mess up the bounds
@@ -829,38 +554,21 @@ fltk:
     currently?
   Track
     / dividers can have separate color for upper part, for collapsable tracks
-  * ScoreTime is just a double, I can pass it directly as CDouble
   + Why does seq sometimes leave a app menubar on quit?  Do other fltk apps
     do that?  Yes.
   + Disable application persistence for fltk apps:
     http://oleb.net/blog/2011/07/whats-new-for-developers-in-lion-part-1/
     Can then re-enable ~/Library/Saved Application State.
-  event track
-    floating edit input
-      * there's a memory corruption bug in there somewhere
-        Sometimes haskell gets \NUL\NUL instead of "hi".
-      * send EditAppend
-        Can't return and Continue.  Can't call directly unless I put all
-        track cmds in IO.  So either a special Cmd collect val, or consider
-        EditAppend a Continue.  Latter doesn't work because
-        NoteEntry.cmds_with_note always returns Done.  Former doesn't work
-        because the val edit still gets the note.  I actually want to suppress
-        it when there is an edit open.  So EditAppend is actually a Done, but
-        I can't return it unless an edit is open.  RawEdit doesn't have the
-        problem because it has an explicit state.
-        . For state, turn on flag when I send EditOpen, turn it off when I get
-          a msg with UiMsg.ctx_edit_input.  When the flag is on, I want to
-          intercept the Msg.InputNote after midi thru but before track edit.
-      - remove RawEdit?
-      * make sure select_start and select_end are char indices, not bytes
+  - remove RawEdit?
 
   control track, render signal
-    * Figure out linear sets of samples and emit them as one line.
     - render option: solid with color gradient
     - combine multiple signals, e.g. one controls xpos, one controls color
       I could combine pitch and dyn.
 
 logview:
+  - Logview: adding new log msgs causes the status bar to shrink back to one
+    line, even though it should be wrapped to two.
   - Logview got some kind of file locked error, presumably trying to track
     a rotated log.
     . It happens if the write handle is still open, for some reason
@@ -943,7 +651,6 @@ test:
   complete quickcheck derive testing
     I switched back to Double for RealTime, but this means the roundoff errors
     are back.  Use quickcheck to repro them.
-    * make Arbitrary for BlockSpecs
     + make a simple deriver that creates event and midi output skeletons
     - integrate quickcheck with generate_run_tests.py
     - assert that the reduced deriver output equals the simple deriver output
@@ -1051,15 +758,10 @@ Cmd:
     - alternate finale-like note entry: hold down step key to set step and
       turn on edit mode, but only while the key is down
       (merge will clip them to the next event)
-    * controller edit mode accepts two numbers and moves on, no spaces
-    / a legato command that always goes to the next note would still be useful
   Cmd.Repl
     - functions to load string serialized tracks for event cut and paste
     - an aux data input for the lang socket might be useful, to paste in data
       without having to quote it
-  Cmd.LanguageCmd
-    * some way to more easily type IDs, either the mangler adds a let for pbid,
-      pvid, etc., or the mangler turns <foo> into <current/foo>
   Cmd.Play
     - start playing from top of displayed area
   copy / paste / Clip
@@ -1074,12 +776,6 @@ Cmd:
       edits without leaving val edit.  Maybe don't do it for pitch val edit.
       Try going back to using the name to suppress, but ignore cmds with no
       name.
-    * It can be really confusing how undo and redo makes windows pop up and
-      disappear.  Maybe I should make undo not affect views at all?
-      They have to go away if the block went away, but otherwise they can
-      remain unaffected.  Of course that means an undo could be undoing
-      something out of sight.  Another case for per-block undo?
-    * undo also undoes the clipboard, which makes undo, copy, redo, paste useless
     - Add a "revert within selection" that searches backward for the last
       change within the selection.
     - Along those lines, should each block have its own independent history?
@@ -1093,10 +789,6 @@ Cmd:
       a bit of a hassle.
     - record view changes, at least zoom / scroll so it can be undone / redone
       separately
-
-  Cmd.Save
-    - save with a magic number so I can load songs, inst configs, etc.
-    * gzip save files
 
 Derive:
   tracklang:
@@ -1152,38 +844,6 @@ pitch / scales
   scales / Derive.Scale:
     just intonation
       - interpolate between just scales in different keys
-      * just intonation tuned to a pitch signal
-      * Works, but I need a less awkward way to set the base frequency.
-        Currently, I have to say 'key = a | just-base = 1234'.  Can I say
-        'just-base = (4a)' to return based on a previous pitch?
-      . How do just scales handle accidentals?  Presumably I need to pick
-        a pitch based on the ratios it will have with other sounding pitches,
-        which means I might need several kinds of intervals, and pick one
-        based on context.  So it means maybe a couple of different
-        accidentals.
-      . Or, I play ratios from the previous note, and just write ratios
-        directly.  E.g. '4a' is an absolute frequency, based on the current
-        tuning of course.  '+5/4' is 5/4 above the previous pitch.  '4a +5/4' is
-        relative to another pitch.
-      . Do I want a ratio literal?  Then I can write '4a 3/2 9/8' without
-        quotes.  Or give each of these intervals a name and allow a symbolic
-        name too.
-
-      * Pitch call takes ratio args, multiplied by the base pitch.
-      * It can also take accidentals, which add or subtract m2.
-      * A ratio without the absolute pitch is multiplied with the previous
-        pitch.
-        But it's a val call, which has no access to the previous elem.
-        There is prev-val, but it's a brittle hack, and won't work for
-        successive prev-vals.
-      * I could support this by making (Elem ValCall) = Control | Pitch
-      . But it passes derived, and gets Elem of derived, and Elem is only
-        defined in Derived.
-      * Replace Derive.Call.Val.c_prev_val
-      * Support relative cipher notation, e.g. 4-1, 4-2, etc.
-      * val call to turn a pitch into hz or nn?  Then I can say
-        'just-base = (nn (4c))'
-
       display:
         - Show ratio relationships between sounding pitches.
           Reduce float to ratio: denom from [1..n]
