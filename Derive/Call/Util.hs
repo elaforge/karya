@@ -474,9 +474,11 @@ c_equal = Derive.transformer "equal" Tags.prelude equal_doc
 equal_arg_doc :: Text
 equal_arg_doc =
     "The left hand side can be a symbol, `%control-name`, or\
-    \ `#pitch-control-name`. The right hand side is anything when binding\
+    \ `#pitch-name`. The right hand side is anything when binding\
     \ a symbol, a number or `%control-name` when binding a `%control`, or\
     \ a pitch or `#pitch-name` when binding a `#pitch`.\
+    \ As a special case, assigning to `%tempo` to a number will compose \
+    \ the warp with the given tempo.\n\
     \ Setting a symbol to `_` will unset an env var."
 
 equal_doc :: Text
@@ -494,8 +496,10 @@ equal_transformer args deriver = case Derive.passed_vals args of
     [control -> Just assignee, TrackLang.VControl val] -> do
         sig <- to_signal val
         Derive.with_control assignee sig deriver
-    [control -> Just assignee, TrackLang.VNum val] ->
-        Derive.with_control assignee (fmap Signal.constant val) deriver
+    [control -> Just assignee, TrackLang.VNum val]
+        | assignee == Score.c_tempo -> set_tempo val
+        | otherwise ->
+            Derive.with_control assignee (fmap Signal.constant val) deriver
     [pitch -> Just assignee, TrackLang.VPitchControl val] -> do
         sig <- to_pitch_signal val
         Derive.with_pitch assignee sig deriver
@@ -503,8 +507,12 @@ equal_transformer args deriver = case Derive.passed_vals args of
         scale <- get_scale
         Derive.with_pitch assignee (constant_pitch scale val) deriver
     _ -> Derive.throw_arg_error
-        "equal call expected (sym, val) or (sig, sig) args"
+        "equal call expected 'sym = val' or 'sig = sig' args"
     where
+    set_tempo val =
+        Internal.d_warp warp $ Internal.add_new_track_warp Nothing >> deriver
+        where
+        warp = Internal.tempo_to_warp $ Signal.constant (Score.typed_val val)
     control (TrackLang.VControl (TrackLang.LiteralControl c)) = Just c
     control _ = Nothing
     pitch (TrackLang.VPitchControl (TrackLang.LiteralControl c))

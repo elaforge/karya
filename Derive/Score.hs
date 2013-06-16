@@ -362,6 +362,11 @@ split_inst (Instrument inst) = (synth, Text.drop 1 inst_name)
 c_null :: Control
 c_null = Control ""
 
+-- | The tempo track is handled differently than other controls, and winds up
+-- in the warp rather than the 'ControlMap'.
+c_tempo :: Control
+c_tempo = Control "tempo"
+
 -- | Converted into velocity or breath depending on the instrument.
 c_dynamic :: Control
 c_dynamic = Control "dyn"

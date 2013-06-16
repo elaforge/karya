@@ -43,10 +43,11 @@ import qualified Util.Pretty as Pretty
 import qualified Util.Serialize as Serialize
 
 
--- | Type of a project ID.
+-- | IDs come in two parts, a namespace and a name.
 --
--- It doesn't so much belong in this module, but Ui.Block etc. all use it and
--- it's easier to put it here than make a whole new module.
+-- This is so so that you can merge two scores together and not have their IDs
+-- clash.  Since block calls within a score will generally leave the namespace
+-- implicit, the merged score should still be playable.
 newtype Namespace = Namespace B.ByteString
     deriving (Eq, Ord, Show, Read, DeepSeq.NFData, CRC32.CRC32)
 data Id = Id !Namespace !B.ByteString

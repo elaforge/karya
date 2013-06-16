@@ -277,7 +277,7 @@ d_warp warp deriver
         deriver
 
 -- | Warp a block with the given deriver with the given signal.
-
+--
 -- Tempo is the tempo signal, which is the standard musical definition of
 -- tempo: trackpos over time.  Warp is the time warping that the tempo
 -- implies, which is integral (1/tempo).
