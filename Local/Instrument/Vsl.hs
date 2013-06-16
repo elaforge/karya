@@ -47,7 +47,7 @@ find_attrs inst with_attrs =
     where
     search = either error id (ParseBs.parse_attrs with_attrs)
     attrs = Instrument.keyswitch_attributes (Instrument.patch_keyswitches patch)
-    patch = maybe (error $ "patch not found: " ++ show inst) id $
+    patch = fromMaybe (error $ "patch not found: " ++ show inst) $
         List.find ((==inst) . Instrument.patch_name) (map fst patches)
 
 -- | Write matrices to a file for visual reference.
@@ -150,7 +150,8 @@ has_attr :: Score.Attributes -> Instrument.Patch -> Bool
 has_attr attr = any (`Score.attrs_contain` attr) . patch_attrs
 
 grace_call :: [Score.Attributes] -> Derive.NoteCall
-grace_call attrs = Grace.c_grace_attr (Map.filter (`elem` attrs) grace_intervals)
+grace_call attrs =
+    Grace.c_grace_attr (Map.filter (`elem` attrs) grace_intervals)
 
 grace_intervals :: Map.Map Int Score.Attributes
 grace_intervals = Map.fromList $

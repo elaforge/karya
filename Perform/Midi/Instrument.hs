@@ -445,6 +445,13 @@ simple_keyswitches :: [(Score.Attributes, Midi.Key)] -> KeyswitchMap
 simple_keyswitches attr_keys =
     KeyswitchMap [(attrs, [Keyswitch key]) | (attrs, key) <- attr_keys]
 
+-- | Create a KeyswitchMap of 'ControlChanges', one for each attribute.
+-- Remember the attribute still have to go in specific to general order.
+cc_keyswitches :: Midi.Control -> [(Score.Attributes, Midi.ControlValue)]
+    -> KeyswitchMap
+cc_keyswitches cc attrs =
+    KeyswitchMap [(attr, [ControlSwitch cc val]) | (attr, val) <- attrs]
+
 overlapping_keyswitches :: KeyswitchMap -> [Text]
 overlapping_keyswitches (KeyswitchMap attr_ks) =
     Maybe.catMaybes $ zipWith check (List.inits attrs) attrs

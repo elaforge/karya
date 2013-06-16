@@ -6,6 +6,7 @@
 module Local.Instrument.Reaktor where
 import Util.Control
 import qualified Midi.CC as CC
+import qualified Derive.Attrs as Attrs
 import qualified Perform.Midi.Instrument as Instrument
 import qualified App.MidiInst as MidiInst
 
@@ -71,12 +72,17 @@ patches =
         -- Modifications: Remove gesture and replace with a direct mapping to
         -- cc2.  Add pitch bend to pitch.  Assign controls to knobs.
         --
+        -- It's important to put the pitch bend in "Bowed String", after the
+        -- tuner.
+        --
         -- I map breath to only one bowing direction, since deciding on which
         -- direction the bow is going all the time seems like a pain, and
         -- probably has minimal affect on the sound.  If dropping to
         -- 0 momentarily sounds like a direction change then that's good
         -- enough.
-        MidiInst.pressure $ MidiInst.patch pb_range "serenade"
+        Instrument.keyswitches #=
+            Instrument.cc_keyswitches CC.cc20 [(Attrs.pizz, 127), (mempty, 0)] $
+        MidiInst.pressure $ MidiInst.patch (-24, 24) "serenade"
             [ (CC.mod, "vib")
             , (CC.vib_speed, "vib-speed")
             , (CC.cc14, "bow-speed")
@@ -84,7 +90,6 @@ patches =
             , (CC.cc16, "bow-pos")
             , (CC.cc17, "string-jitter")
             , (CC.cc18, "string-buzz")
-            , (CC.cc20, "pizz") -- 0 == arco, 127 = pizz
             , (CC.cc21, "pizz-tone")
             , (CC.cc22, "pizz-time")
             , (CC.cc23, "pizz-level")
