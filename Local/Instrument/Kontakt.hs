@@ -269,22 +269,18 @@ mridangam_keymap = Map.fromList
 mridangam :: [(Text, [Score.Attributes], Char, (Midi.Key, Midi.Key, Midi.Key))]
 mridangam =
     -- left
-    [ ("tha", [tha],            'z', (Key.g_1, Key.c0, Key.e0))
-    , ("thom", [thom],          'x', (Key.g0, Key.c1, Key.e1))
-    , ("thom/", [thom <> mute], 'c', (Key.g1, Key.c2, Key.e2))
+    [ ("+", [a "tha"],          'z', (Key.g_1, Key.c0, Key.e0))
+    , ("o", [a "thom"],         'x', (Key.g0, Key.c1, Key.e1))
+    , ("o/", [a "thom" <> mute],'c', (Key.g1, Key.c2, Key.e2))
     -- right
-    -- TODO dhi as synonym for ki
-    , ("ki", [ki],              'q', (Key.g2, Key.c3, Key.e3))
-    , ("ta", [ta],              'w', (Key.g3, Key.c4, Key.e4))
-    , ("nam", [nam],            'e', (Key.g4, Key.c5, Key.e5))
-    , ("dhin", [dhin],          'r', (Key.g5, Key.c6, Key.e6))
-    , ("dhin2", [dhin <> v2],   't', (Key.g6, Key.c7, Key.e7))
-    , ("open", [open],          'y', (Key.g7, Key.c8, Key.e8))
+    , ("k", [a "ki"],           'q', (Key.g2, Key.c3, Key.e3))
+    , ("t", [a "ta"],           'w', (Key.g3, Key.c4, Key.e4))
+    , ("n", [a "nam"],          'e', (Key.g4, Key.c5, Key.e5))
+    , ("d", [a "din"],          'r', (Key.g5, Key.c6, Key.e6))
+    , ("d2", [a "din" <> v2],   't', (Key.g6, Key.c7, Key.e7))
+    , ("m", [a "dheem"],        'y', (Key.g7, Key.c8, Key.e8))
+    , ("u", [a "araichapu"],    'u', (Key.g8, Key.c9, Key.e9))
+    , (">", [a "muruchapu"],    'i', (Key.g9, Key.g9, Key.g9))
+    -- TODO out of keys!  Replace o/ and d2 with a keyswitch?
     ]
-
-tha = Score.attr "tha"
-thom = Score.attr "thom"
-ki = Score.attr "ki"
-ta = Score.attr "ta"
-nam = Score.attr "nam"
-dhin = Score.attr "dhin"
+    where a = Score.attr

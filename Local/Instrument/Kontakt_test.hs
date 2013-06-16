@@ -66,8 +66,7 @@ test_mridangam = do
             , (">kkt/mridangam",
                 [(t, 0, n) | (t, n) <- zip (Seq.range_ 0 1) notes])
             ]
-    let right = ["ki", "ta", "nam", "dhin", "dhin2", "open"]
-    -- let right = ["dhin2"]
+    let right = ["k", "t", "n", "d", "d2", "m"]
     let (_events, midi, logs) = run "3b" right
     equal logs []
     equal (mapMaybe Midi.channel_message $ filter Midi.is_note_on $

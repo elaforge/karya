@@ -26,9 +26,14 @@ patches =
 
     -- Commercial patches.
 
-    , MidiInst.patch pb_range "spark"     -- Chords Sister
+    , MidiInst.patch pb_range "spark"
         [ (4, "mc1"), (11, "mc2"), (1, "mc3")
-        , (24, "cutoff"), (25, "q")
+        , (CC.cc14, "cutoff")
+        , (CC.cc15, "q")
+        ]
+    , MidiInst.patch pb_range "prism"
+        [ (1, "mc1")
+        , (11, "mc2")
         ]
 
     -- Downloaded patches.
