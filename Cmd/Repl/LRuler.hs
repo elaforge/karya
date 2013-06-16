@@ -167,6 +167,11 @@ get_meter :: (State.M m) => BlockId -> m Meter.Meter
 get_meter block_id =
     Meter.ruler_meter <$> (State.get_ruler =<< State.ruler_of block_id)
 
+set_local :: (Cmd.M m) => Ruler.Ruler -> m ()
+set_local ruler = do
+    block_id <- Cmd.get_focused_block
+    RulerUtil.local_block block_id (const ruler)
+
 -- * extract
 
 extract :: (Cmd.M m) => m Modify
@@ -227,14 +232,11 @@ add_cue text = do
 remove_cues :: Cmd.CmdL ()
 remove_cues = do
     block_id <- Cmd.get_focused_block
-    modify_block block_id $ Ruler.remove_marklist cue
+    RulerUtil.local_block block_id $ Ruler.remove_marklist cue
 
 add_cue_at :: BlockId -> ScoreTime -> Text -> Cmd.CmdL ()
-add_cue_at block_id pos text = modify_block block_id $
+add_cue_at block_id pos text = RulerUtil.local_block block_id $
     Ruler.modify_marklist cue $ Ruler.insert_mark pos (cue_mark text)
 
 cue_mark :: Text -> Ruler.Mark
 cue_mark text = Ruler.Mark 0 2 Color.black text 0 0
-
-modify_block :: BlockId -> (Ruler.Ruler -> Ruler.Ruler) -> Cmd.CmdL ()
-modify_block = RulerUtil.modify_block
