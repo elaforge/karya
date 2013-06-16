@@ -39,6 +39,8 @@ patches =
     -- Downloaded patches.
 
     , MidiInst.patch pb_range "shark"
+        -- Downloaded from NI, Shark.ens.
+        -- Modifications: pitchbend to 96, signal smoothers from 100ms to 10ms.
         [ (4, "cutoff1"), (3, "q") -- 1st filter
         , (10, "color")
         ]

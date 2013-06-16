@@ -281,8 +281,7 @@ type Interpolator = Bool -- ^ include the initial sample or not
 -- | Create an interpolating call, from a certain duration (positive or
 -- negative) from the event start to the event start.
 interpolate :: (Double -> Double) -> Derive.ControlArgs
-    -> Signal.Y -> TrackLang.RealOrScore
-    -> Derive.Deriver Signal.Control
+    -> Signal.Y -> TrackLang.RealOrScore -> Derive.Deriver Signal.Control
 interpolate f args val dur = do
     (start, end) <- Util.duration_from_start args dur
     srate <- Util.get_srate
@@ -295,9 +294,14 @@ interpolate f args val dur = do
 
 interpolator :: RealTime -> (Double -> Double) -> Interpolator
 interpolator srate f include_initial x1 y1 x2 y2 =
-    Signal.signal $ (if include_initial then id else drop 1) sig
+    Signal.signal $ (if include_initial then id else drop 1)
+        (interpolate_list srate f x1 y1 x2 y2)
+
+interpolate_list :: RealTime -> (Double -> Double)
+    -> RealTime -> Signal.Y -> RealTime -> Signal.Y -> [(RealTime, Signal.Y)]
+interpolate_list srate f x1 y1 x2 y2 =
+    [(x, y_of x) | x <- Seq.range_end x1 x2 srate]
     where
-    sig = [(x, y_of x) | x <- Seq.range_end x1 x2 srate]
     y_of = Num.scale y1 y2 . f . Num.normalize (secs x1) (secs x2) . secs
     secs = RealTime.to_seconds
 

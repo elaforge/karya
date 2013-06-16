@@ -6,7 +6,7 @@ UNSORTED
   - Should be a way to rename the namespace, otherwise when you write a new
     name you wind up with the old namespace.
   * Should be able to set block tempo with '%tempo = 4'
-  - control call for sawtooth, ramp, sine, for e.g. bow tremolo
+  * control call for sawtooth, for e.g. bow tremolo
   * maybe use ^hjkl to move selection
   - is StateConfig.Default obsolete now that there is global transform?
   - Make talas work with LRuler.  The problem is that they include label

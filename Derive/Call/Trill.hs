@@ -46,6 +46,7 @@ import Util.Control
 import qualified Util.Seq as Seq
 import qualified Derive.Args as Args
 import qualified Derive.Attrs as Attrs
+import qualified Derive.Call.Control as Control
 import qualified Derive.Call.Lily as Lily
 import qualified Derive.Call.Make as Make
 import qualified Derive.Call.Note as Note
@@ -146,8 +147,8 @@ tremolo_starts speed range = do
     (speed_sig, time_type) <- Util.to_time_signal Util.Real speed
     case time_type of
         Util.Real -> do
-            (start, end) <-
-                (\(s, e) -> (,) <$> Derive.real s <*> Derive.real e) range
+            start <- Derive.real (fst range)
+            end <- Derive.real (snd range)
             mapM Derive.score $ take_full_notes end $
                 real_pos_at_speed speed_sig start
         Util.Score -> do
@@ -213,19 +214,6 @@ pitch_calls = Derive.make_calls
     , ("`tr`2", c_pitch_trill (Just NeighborFirst))
     ]
 
--- | Generate a pitch signal of alternating pitches.  If mode is UnisonFirst
--- it will start with the unison, and NeighborFirst will start with the
--- neighbor, Baroque style.  If the mode is not given explicitly via @tr1@ or
--- @tr2@, it's taken from the @trill-mode@ env var, which should be @'unison'@
--- or @'neighbor'@.
---
--- [neighbor /Control/ @%trill-neighbor,1d@] Alternate with this relative
--- pitch.
---
--- [speed /Control/ @%trill-speed,14r@] Trill at this speed.  If it's
--- a RealTime, the value is the number of cycles per second, which will be
--- unaffected by the tempo.  If it's a ScoreTime, the value is the number
--- of cycles per ScoreTime unit, and will stretch along with tempo changes.
 c_pitch_trill :: Maybe Mode -> Derive.PitchCall
 c_pitch_trill maybe_mode = Derive.generator1 "pitch-trill" Tags.ornament
     ("Generate a pitch signal of alternating pitches. `tr1` will start with\
@@ -255,6 +243,7 @@ control_calls = Derive.make_calls
     , ("tr2", c_control_trill (Just NeighborFirst))
     , ("tr1", c_control_trill (Just UnisonFirst))
     , ("tr2", c_control_trill (Just NeighborFirst))
+    , ("saw", c_sawtooth)
     ]
 
 -- | The control version of 'c_pitch_trill'.  It generates a signal of values
@@ -281,6 +270,40 @@ speed_arg = defaulted "speed" (typed_control "trill-speed" 14 Score.Real) $
     \ a ScoreTime, the value is the number of cycles per ScoreTime\
     \ unit, and will stretch along with tempo changes. In either case,\
     \ this will emit an integral number of cycles."
+
+c_sawtooth :: Derive.ControlCall
+c_sawtooth = Derive.generator1 "sawtooth" Tags.ornament
+    "Emit a down-sloping sawtooth."
+    $ Sig.call ((,,)
+    <$> defaulted "speed" (typed_control "saw-speed" 10 Score.Real)
+        "Repeat at this speed. Its meaning is the same as the trill speed."
+    <*> defaulted "from" 1 "Start from this value."
+    <*> defaulted "to" 0 "End at this value."
+    ) $ \(speed, from, to) args -> do
+        starts <- speed_starts speed (Args.range_or_next args)
+        srate <- Util.get_srate
+        return $ sawtooth srate starts from to
+
+sawtooth :: RealTime -> [RealTime] -> Double -> Double -> Signal.Control
+sawtooth srate starts from to =
+    Signal.signal $ concatMap saw (zip starts (drop 1 starts))
+    where saw (t1, t2) = Control.interpolate_list srate id t1 from (t2-srate) to
+
+-- | Get start times before the end of the range, at the given speed.
+speed_starts :: TrackLang.ValControl -> (ScoreTime, ScoreTime)
+    -> Derive.Deriver [RealTime]
+speed_starts speed range = do
+    (speed_sig, time_type) <- Util.to_time_signal Util.Real speed
+    case time_type of
+        Util.Real -> do
+            start <- Derive.real (fst range)
+            end <- Derive.real (snd range)
+            return $ takeWhile (<=end) $
+                real_pos_at_speed speed_sig start
+        Util.Score -> do
+            let (start, end) = range
+            starts <- score_pos_at_speed speed_sig start end
+            mapM Derive.real $ takeWhile (<=end) starts
 
 
 -- * util
