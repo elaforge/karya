@@ -16,7 +16,7 @@ import Types
 
 test_show_parse_time_step = do
     let f step = (trip step, Right (mk step))
-        trip = TimeStep.parse_time_step . txt . TimeStep.show_time_step . mk
+        trip = TimeStep.parse_time_step . TimeStep.show_time_step . mk
         mk = TimeStep.from_list
     uncurry equal (f [Duration 2])
     uncurry equal (f [Duration 0.5])

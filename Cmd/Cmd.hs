@@ -311,7 +311,7 @@ data State = State {
     -- instead of per-view.  So changes are logged with a special prefix so
     -- logview can catch them.  Really I only need this map to suppress log
     -- spam.
-    , state_global_status :: !(Map.Map String String)
+    , state_global_status :: !(Map.Map Text Text)
     , state_play :: !PlayState
 
     -- External device tracking.
@@ -883,13 +883,13 @@ set_view_status = State.set_view_status
 
 -- | Emit a special log msg that will cause log view to put this key and value
 -- in its status bar.  A value of \"\" will cause logview to delete that key.
-set_global_status :: (M m) => String -> String -> m ()
+set_global_status :: (M m) => Text -> Text -> m ()
 set_global_status key val = do
     status_map <- gets state_global_status
     when (Map.lookup key status_map /= Just val) $ do
         modify $ \st ->
             st { state_global_status = Map.insert key val status_map }
-        Log.debug $ "global status: " ++ key ++ " -- " ++ val
+        Log.debug $ untxt $ "global status: " <> key <> " -- " <> val
 
 -- | Set a status variable on all views.
 set_status :: (M m) => (Int, Text) -> Maybe Text -> m ()

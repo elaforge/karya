@@ -69,7 +69,8 @@ quantize_timestep mode step block_id track_id events = do
     step <- Cmd.require_right ("parsing timestep: "++) $
         TimeStep.parse_time_step step
     tracknum <- State.get_tracknum_of block_id track_id
-    dur <- Cmd.require_msg ("can't step: " ++ TimeStep.show_time_step step)
+    dur <- Cmd.require_msg
+        ("can't step: " <> untxt (TimeStep.show_time_step step))
         =<< TimeStep.advance step block_id tracknum 0
     return $ Just $ map (quantize_event mode dur) events
 

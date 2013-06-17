@@ -29,6 +29,8 @@ module Cmd.TimeStep (
 ) where
 import qualified Data.List.Ordered as Ordered
 import qualified Data.Map as Map
+import qualified Data.Text as Text
+
 import qualified Text.Parsec as P
 
 import Util.Control
@@ -103,25 +105,25 @@ data Direction = Advance | Rewind deriving (Eq, Show)
 
 -- | Convert a TimeStep to a compact and yet somehow still somewhat readable
 -- representation.
-show_time_step :: TimeStep -> String
-show_time_step (TimeStep steps) = Seq.join ";" (map show_step steps)
+show_time_step :: TimeStep -> Text
+show_time_step (TimeStep steps) = Text.intercalate ";" (map show_step steps)
     where
     -- The keywords and symbols are chosen carefully to allow unambiguous
     -- parsing.
     show_step step = case step of
-        Duration pos -> "d:" ++ Pretty.pretty pos
+        Duration pos -> "d:" <> Pretty.prettytxt pos
         RelativeMark mlists rank ->
-            "r:" ++ show_marklists mlists ++ show_rank rank
+            "r:" <> show_marklists mlists <> show_rank rank
         BlockEdge -> "END"
-        EventStart tracks -> "start" ++ show_tracks tracks
-        EventEnd tracks -> "end" ++ show_tracks tracks
-        AbsoluteMark mlists rank -> show_marklists mlists ++ show_rank rank
+        EventStart tracks -> "start" <> show_tracks tracks
+        EventEnd tracks -> "end" <> show_tracks tracks
+        AbsoluteMark mlists rank -> show_marklists mlists <> show_rank rank
     show_marklists AllMarklists = ""
-    show_marklists (NamedMarklists mlists) =
-        Seq.join "," (map untxt mlists) ++ "|"
+    show_marklists (NamedMarklists mlists) = Text.intercalate "," mlists <> "|"
     show_tracks CurrentTrack = ""
     show_tracks AllTracks = "s"
-    show_tracks (TrackNums tracks) = "s:" ++ Seq.join "," (map show tracks)
+    show_tracks (TrackNums tracks) =
+        "s:" <> Text.intercalate "," (map showt tracks)
 
 -- | Parse that curiously somewhat readable representation back to a TimeStep.
 parse_time_step :: Text -> Either String TimeStep
@@ -148,15 +150,15 @@ parse_time_step = Parse.parse p_time_step
     p_tracknums = P.sepBy Parse.p_nat (P.char ',')
     str = P.string
 
-show_rank :: Ruler.Rank -> String
-show_rank rank = fromMaybe ('R' : show rank) $ lookup rank Meter.rank_names
+show_rank :: Ruler.Rank -> Text
+show_rank rank = fromMaybe ("R" <> showt rank) $ lookup rank Meter.rank_names
 
 parse_rank :: Parse.Parser st Ruler.Rank
 parse_rank = P.choice $ map P.try
-    [P.string name *> return rank | (rank, name) <- Meter.rank_names]
+    [Parse.text name *> return rank | (rank, name) <- Meter.rank_names]
     ++ [P.char 'R' *> Parse.p_nat]
 
-show_direction :: Direction -> String
+show_direction :: Direction -> Text
 show_direction Advance = "+"
 show_direction Rewind = "-"
 

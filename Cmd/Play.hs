@@ -80,10 +80,10 @@
     clears the PlayMonitorControl.
 -}
 module Cmd.Play where
-import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 import qualified Data.Set as Set
+import qualified Data.Text as Text
 
 import Util.Control
 import qualified Util.Log as Log
@@ -241,20 +241,20 @@ record_cache_stats :: (Cmd.M m) => [Log.Msg] -> m ()
 record_cache_stats logs = do
     let (rederived, cached) = extract_cache_stats get_block_id logs
     Cmd.set_global_status "~C" $ ellide 25 $
-        show (length cached) <> " [" <> show (sum (map snd cached)) <> "] "
-        <> unwords (map (Id.ident_name . fst) cached)
+        showt (length cached) <> " [" <> showt (sum (map snd cached)) <> "] "
+        <> Text.unwords (map (Id.ident_text . fst) cached)
     status_keys <- Cmd.gets (Map.keysSet . Cmd.state_global_status)
-    let keys = map (("~X "<>) . untxt . fst) rederived
-        gone = Set.filter ("~X " `List.isPrefixOf`) $
+    let keys = map (("~X "<>) . fst) rederived
+        gone = Set.filter ("~X " `Text.isPrefixOf`) $
             status_keys Set.\\ Set.fromList keys
     forM_ (zip keys (map snd rederived)) $ \(key, block_ids) ->
         Cmd.set_global_status key $ ellide 25 $
-            "[" <> show (length block_ids) <> "] "
-            <> unwords (map Id.ident_name block_ids)
+            "[" <> showt (length block_ids) <> "] "
+            <> Text.unwords (map Id.ident_text block_ids)
     forM_ (Set.toList gone) $ \key -> Cmd.set_global_status key ""
     where
     ellide len s
-        | length s > len = take (len-3) s <> "..."
+        | Text.length s > len = Text.take (len-3) s <> "..."
         | otherwise = s
 
 extract_cache_stats :: (Log.Msg -> Maybe k) -> [Log.Msg]

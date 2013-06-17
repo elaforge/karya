@@ -13,7 +13,7 @@ import qualified Perform.RealTime as RealTime
 
 -- * edit
 
-get_step :: Cmd.CmdL String
+get_step :: Cmd.CmdL Text
 get_step = TimeStep.show_time_step <$> get_time_step
 
 set_step :: Text -> Cmd.CmdL ()

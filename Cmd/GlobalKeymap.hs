@@ -350,7 +350,7 @@ edit_state_bindings = concat
     ]
     where
     step_rank rank =
-        ("set step: " ++ TimeStep.show_time_step step,
+        ("set step: " ++ untxt (TimeStep.show_time_step step),
             Edit.set_step_rank step rank)
         where step = TimeStep.time_step (TimeStep.AbsoluteMark meter rank)
     meter = TimeStep.NamedMarklists [Meter.meter]

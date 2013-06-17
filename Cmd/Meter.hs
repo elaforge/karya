@@ -115,7 +115,7 @@ r_section : r_1 : r_2 : r_4 : r_8 : r_16 : r_32 : r_64 : r_128 : r_256 : _ =
 unlabelled_ranks :: [Ruler.Rank]
 unlabelled_ranks = [r_2, r_8, r_32, r_64, r_256]
 
-rank_names :: [(Ruler.Rank, String)]
+rank_names :: [(Ruler.Rank, Text)]
 rank_names = zip [0..]
     ["section", "w", "h", "q", "e", "s", "32", "64", "128", "256"]
 

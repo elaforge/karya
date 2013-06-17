@@ -49,7 +49,7 @@ UNSORTED
   convert to Text:
     - Util.Log.Stack
     - Util.Log
-    - TimeStep.show_time_step
+    * TimeStep.show_time_step
     - Pretty.pretty
       For this I need to extend Util.Format to be a simplified prettyprinter:
       - monoidal interface, not monadic

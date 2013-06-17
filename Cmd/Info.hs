@@ -213,7 +213,7 @@ set_inst_status block_id tracknum = do
 -- | Looks like:
 -- title (tracknum): inst_name, allocation, [control tracks]
 -- fm8/inst1 at 1: fm8:0,1,2, [vel {collapse 2}, pedal {expand 3}]
-get_track_status :: (Cmd.M m) => BlockId -> TrackNum -> m (Maybe String)
+get_track_status :: (Cmd.M m) => BlockId -> TrackNum -> m (Maybe Text)
 get_track_status block_id tracknum = do
     tree <- TrackTree.get_track_tree block_id
     case find_note_track tree tracknum of
@@ -228,7 +228,7 @@ get_track_status block_id tracknum = do
         addrs <- maybe [] Instrument.config_addrs . Map.lookup inst <$>
             State.get_midi_config
         let title = TrackInfo.instrument_to_title inst
-        return $ Printf.printf "%s at %d: %s -- [%s]" (untxt title)
+        return $ txt $ Printf.printf "%s at %d: %s -- [%s]" (untxt title)
             note_tracknum (untxt (show_addrs addrs)) (Seq.join ", " track_descs)
 
 -- | Given a tracknum, find the note track associated with it.  Since there

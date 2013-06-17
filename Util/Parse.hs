@@ -45,6 +45,11 @@ show_error = filter (not . null) . lines
         "expecting" "unexpected" "end of input"
     . Error.errorMessages
 
+-- | Like 'P.string', but for text.  Apparently there's no way to do this
+-- without converting to String first.
+text :: Text -> Parser st ()
+text txt = P.string (untxt txt) >> return ()
+
 -- | Natural number including 0.
 p_nat :: Parser st Int
 p_nat = do
