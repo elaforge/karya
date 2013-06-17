@@ -71,7 +71,7 @@ module Derive.Deriver.Monad (
     , ControlOp(..)
 
     -- ** collect
-    , Collect(..), ControlModification(..), Integrated(..)
+    , Collect(..), ControlMod(..), Integrated(..)
     , TrackDynamic
 
     -- * calls
@@ -753,7 +753,7 @@ data Collect = Collect {
     -- | New caches accumulating over the course of the derivation.
     , collect_cache :: !Cache
     , collect_integrated :: ![Integrated]
-    , collect_control_modifications :: ![ControlModification]
+    , collect_control_mods :: ![ControlMod]
     } deriving (Show)
 
 -- | This is a hack so a call on a control track can modify other controls.
@@ -761,13 +761,12 @@ data Collect = Collect {
 -- dynamics.  The modifications are a secondary return value from control
 -- and pitch calls.  The track deriver will extract them and merge them into
 -- the dynamic environment.  [note control-modification]
-data ControlModification =
-    ControlModification !Score.Control !Signal.Control !ControlOp
+data ControlMod = ControlMod !Score.Control !Signal.Control !ControlOp
     deriving (Show)
 
-instance Pretty.Pretty ControlModification where
-    format (ControlModification control signal op) =
-        Pretty.constructor "ControlModification"
+instance Pretty.Pretty ControlMod where
+    format (ControlMod control signal op) =
+        Pretty.constructor "ControlMod"
             [Pretty.format control, Pretty.format signal, Pretty.text (show op)]
 
 instance Monoid.Monoid Collect where

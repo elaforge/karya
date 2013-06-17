@@ -161,7 +161,7 @@ convert_midi_pitch inst patch attrs event = do
 convert_controls :: Bool -- ^ True if the @p@ control should become breath.
     -> Control.ControlMap -- ^ Instrument's control map.
     -> Score.ControlMap
-    -> (Perform.ControlMap, Maybe (Score.Control, Score.TypedSignal))
+    -> (Perform.ControlMap, Maybe (Score.Control, Score.TypedControl))
 convert_controls pressure_inst inst_cmap =
     first (Map.fromAscList . map (\(k, v) -> (cc k, Score.typed_val v))
         . Map.toAscList

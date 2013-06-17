@@ -3,7 +3,7 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
-  - rename Score.TypedSignal to TypedControl, ControlModification to ControlMod
+  * rename Score.TypedSignal to TypedControl, ControlModification to ControlMod
   - just scale: make major and minor into keys, and add some more keys
   - Should be a way to rename the namespace, otherwise when you write a new
     name you wind up with the old namespace.

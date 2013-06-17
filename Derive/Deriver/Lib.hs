@@ -254,7 +254,7 @@ with_environ environ
 
 -- | Return an entire signal.  Remember, signals are in RealTime, so if you
 -- want to index them in ScoreTime you will have to call 'real'.
-get_control :: Score.Control -> Deriver (Maybe Score.TypedSignal)
+get_control :: Score.Control -> Deriver (Maybe Score.TypedControl)
 get_control cont = Map.lookup cont <$> get_controls
 
 get_controls :: Deriver Score.ControlMap
@@ -271,7 +271,7 @@ untyped_control_at cont = fmap (fmap Score.typed_val) . control_at cont
 controls_at :: RealTime -> Deriver PitchSignal.Controls
 controls_at pos = Score.controls_at pos <$> get_controls
 
-with_control :: Score.Control -> Score.TypedSignal -> Deriver a -> Deriver a
+with_control :: Score.Control -> Score.TypedControl -> Deriver a -> Deriver a
 with_control cont signal = Internal.local $ \st ->
     st { state_controls = Map.insert cont signal (state_controls st) }
 
@@ -279,7 +279,7 @@ with_control cont signal = Internal.local $ \st ->
 --
 -- If both signals are typed, the existing type wins over the relative
 -- signal's type.  If one is untyped, the typed one wins.
-with_relative_control :: Score.Control -> ControlOp -> Score.TypedSignal
+with_relative_control :: Score.Control -> ControlOp -> Score.TypedControl
     -> Deriver a -> Deriver a
 with_relative_control cont op signal deriver = do
     controls <- get_controls
@@ -287,8 +287,8 @@ with_relative_control cont op signal deriver = do
     with_control cont new deriver
 
 -- | Combine two signals with a ControlOp.
-apply_control_op :: ControlOp -> Maybe Score.TypedSignal
-    -> Score.TypedSignal -> Score.TypedSignal
+apply_control_op :: ControlOp -> Maybe Score.TypedControl
+    -> Score.TypedControl -> Score.TypedControl
 apply_control_op (ControlOp _ op ident) maybe_old new =
     Score.Typed (Score.type_of old <> Score.type_of new)
         (op (Score.typed_val old) (Score.typed_val new))
@@ -296,11 +296,11 @@ apply_control_op (ControlOp _ op ident) maybe_old new =
     old = fromMaybe (Score.Typed (Score.type_of new) (Signal.constant ident))
         maybe_old
 
-with_added_control :: Score.Control -> Score.TypedSignal -> Deriver a
+with_added_control :: Score.Control -> Score.TypedControl -> Deriver a
     -> Deriver a
 with_added_control cont = with_relative_control cont op_add
 
-with_multiplied_control :: Score.Control -> Score.TypedSignal -> Deriver a
+with_multiplied_control :: Score.Control -> Score.TypedControl -> Deriver a
     -> Deriver a
 with_multiplied_control cont = with_relative_control cont op_mul
 
@@ -318,20 +318,18 @@ get_control_op c_op = do
 
 modify_control :: ControlOp -> Score.Control -> Signal.Control -> Deriver ()
 modify_control op control signal = Internal.modify_collect $ \collect ->
-    collect { collect_control_modifications =
-        ControlModification control signal op
-            : collect_control_modifications collect }
+    collect { collect_control_mods =
+        ControlMod control signal op : collect_control_mods collect }
 
--- | Apply the collected control modifications to the given deriver and clear
--- them out.
-apply_control_modifications :: Deriver a -> Deriver a
-apply_control_modifications deriver = do
-    mods <- gets (collect_control_modifications . state_collect)
+-- | Apply the collected control mods to the given deriver and clear them out.
+apply_control_mods :: Deriver a -> Deriver a
+apply_control_mods deriver = do
+    mods <- gets (collect_control_mods . state_collect)
     Internal.modify_collect $ \collect ->
-        collect { collect_control_modifications = [] }
+        collect { collect_control_mods = [] }
     foldr ($) deriver (map apply mods)
     where
-    apply (ControlModification control signal op) =
+    apply (ControlMod control signal op) =
         with_relative_control control op (Score.untyped signal)
 
 -- ** pitch

@@ -217,7 +217,7 @@ control_call track control maybe_op control_deriver deriver = do
     (signal, logs) <- Internal.track_setup track (control_deriver True)
     stash_signal track signal (to_display <$> control_deriver False) False
     -- Apply and strip any control modifications made during the above derive.
-    Derive.apply_control_modifications $ merge_logs logs $ with_damage $
+    Derive.apply_control_mods $ merge_logs logs $ with_damage $
         with_control_op control maybe_op signal deriver
     -- I think this forces sequentialness because 'deriver' runs in the state
     -- from the end of 'control_deriver'.  To make these parallelize, I need to
@@ -258,7 +258,7 @@ pitch_call track maybe_name scale_id expr deriver =
                 (to_psig $ derive_pitch False track expr) True
             -- Apply and strip any control modifications made during the above
             -- derive.
-            Derive.apply_control_modifications $ merge_logs logs $ with_damage $
+            Derive.apply_control_mods $ merge_logs logs $ with_damage $
                 Derive.with_pitch maybe_name signal deriver
     where
     maybe_track_id = TrackTree.tevents_track_id track
@@ -479,7 +479,7 @@ eval_signal track expr ctype subs
                 with_control_env (Score.typed_val control) $
                 derive_control False False track expr
             write logs
-            sub_sigs <- Derive.apply_control_modifications $
+            sub_sigs <- Derive.apply_control_mods $
                 with_control_op control op signal $ track_signal_ subs
             -- Signals are combined with control mods only when they go into
             -- the ControlMap, so they're not visible in the UI.  I originally
@@ -500,7 +500,7 @@ eval_signal track expr ctype subs
             -- TODO maybe I shouldn't apply transposition, because it's going
             -- to the display
             (nn_signal, _) <- pitch_signal_to_nn signal
-            sub_sigs <- Derive.apply_control_modifications $
+            sub_sigs <- Derive.apply_control_mods $
                 Derive.with_pitch maybe_name signal $ track_signal_ subs
             return $ (track_id, track_sig nn_signal True) : sub_sigs
     | otherwise = return []
@@ -518,16 +518,6 @@ eval_signal track expr ctype subs
         , Track.ts_stretch = 1
         , Track.ts_is_pitch = is_pitch
         }
-
--- apply_control_modifications :: [Derive.ControlModification]
---     -> Score.Control -> Signal.Control -> Signal.Control
--- apply_control_modifications cmods control sig =
---     Score.typed_val $ foldr ($) (Score.untyped sig) (map apply cmods)
---     where
---     apply (Derive.ControlModification mod_control mod_sig op) sig
---         | mod_control == control =
---             Derive.apply_control_op op (Just sig) (Score.untyped mod_sig)
---         | otherwise = sig
 
 with_control_env :: Score.Control -> Derive.Deriver a -> Derive.Deriver a
 with_control_env (Score.Control c) = Derive.with_val Environ.control c

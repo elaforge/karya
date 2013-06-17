@@ -25,7 +25,7 @@ import qualified Ui.ScoreTime as ScoreTime
 import qualified Derive.BaseTypes as BaseTypes
 import Derive.BaseTypes
        (Instrument(..), Control(..), Type(..), Typed(..), untyped, merge_typed,
-        type_to_code, code_to_type, TypedSignal, TypedVal, Attributes,
+        type_to_code, code_to_type, TypedControl, TypedVal, Attributes,
         Attribute, attr, attrs, set_to_attrs, attrs_diff, attrs_contain,
         attrs_remove, attrs_set, attrs_list, no_attrs)
 import qualified Derive.Environ as Environ
@@ -115,7 +115,7 @@ instance Pretty.Pretty Event where
             , ("environ", Pretty.format env)
             ]
 
-type ControlMap = Map.Map Control TypedSignal
+type ControlMap = Map.Map Control TypedControl
 type PitchMap = Map.Map Control PitchSignal.Signal
 
 event_string :: Event -> String
@@ -153,7 +153,7 @@ set_duration = duration . const
 
 -- *** control
 
-control_at :: RealTime -> TypedSignal -> TypedVal
+control_at :: RealTime -> TypedControl -> TypedVal
 control_at t = fmap (Signal.at t)
 
 -- | Get control value at the given time.

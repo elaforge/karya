@@ -117,7 +117,7 @@ merge_typed f (Typed typ1 v1) (Typed typ2 v2) = Typed (typ1<>typ2) (f v1 v2)
 untyped :: a -> Typed a
 untyped = Typed Untyped
 
-type TypedSignal = Typed Signal.Control
+type TypedControl = Typed Signal.Control
 type TypedVal = Typed Signal.Y
 
 instance ShowVal.ShowVal TypedVal where
