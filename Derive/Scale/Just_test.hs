@@ -5,7 +5,6 @@
 module Derive.Scale.Just_test where
 import qualified Data.List as List
 import qualified Data.Map as Map
-import qualified Data.Ratio as Ratio
 import qualified Data.Vector as Vector
 
 import Util.Control
@@ -26,18 +25,19 @@ import qualified Perform.Pitch as Pitch
 
 test_note_to_call = do
     let run key ps = DeriveTest.extract extract $ DeriveTest.derive_tracks
-            [ ("*just-maj | key = " <> key, [(t, 0, p) | (t, p) <- times ps])
+            [ ("*just | key = " <> key, [(t, 0, p) | (t, p) <- times ps])
             , (">", [(t, 1, "") | (t, _) <- times ps])
             ]
             where times = zip (Seq.range_ 0 1)
         extract = fmap Pitch.nn_to_hz . Score.initial_nn
     -- Ensure that the octave wraps at C.
-    equalf 0.001 (run "c" ["4c"]) ([Just c_hz], [])
-    equalf 0.001 (run "a" ["4a"]) ([Just 440], [])
-    equalf 0.001 (run "b" ["4b"])
+    equalf 0.001 (run "c-maj" ["4c"]) ([Just c_hz], [])
+    equalf 0.001 (run "a-maj" ["4a"]) ([Just 440], [])
+    equalf 0.001 (run "b-maj" ["4b"])
         ([Just $ Pitch.nn_to_hz (NN.middle_c + 11)], [])
+    equalf 0.001 (run "c-min" ["4e"]) ([Just (c_hz * 6/5)], [])
 
-    let runa = run "a"
+    let runa = run "a-maj"
     equalf 0.001 (runa ["4a 3/2"]) ([Just 660], [])
     equalf 0.001 (runa ["4a P5"]) ([Just 660], [])
     equalf 0.001 (runa ["5e"]) ([Just 660], [])
@@ -63,9 +63,9 @@ test_note_to_call_relative = do
             , (">", [(0, 1, "")])
             ]
         extract = fmap Pitch.nn_to_hz . Score.initial_nn
-    equalf 0.001 (run "just-maj-r" "c" "4s") ([Just c_hz], [])
-    equalf 0.001 (run "just-maj-r" "a" "4s") ([Just 440], [])
-    equalf 0.001 (run "just-maj-r" "c" "3s") ([Just (c_hz / 2)], [])
+    equalf 0.001 (run "just-r" "c-maj" "4s") ([Just c_hz], [])
+    equalf 0.001 (run "just-r" "a-maj" "4s") ([Just 440], [])
+    equalf 0.001 (run "just-r" "c-maj" "3s") ([Just (c_hz / 2)], [])
 
 c_hz :: Pitch.Hz
 c_hz = Pitch.nn_to_hz NN.middle_c
@@ -94,7 +94,7 @@ test_input_to_note_relative = do
     equal (f "d" Pitch.middle_c) (n "4s")
 
 test_input_to_nn = do
-    let f = DeriveTest.with_key "c" . Scale.scale_input_to_nn just_major 0
+    let f = DeriveTest.with_key "c-maj" . Scale.scale_input_to_nn just_scale 0
     equalf 0.01 (DeriveTest.eval State.empty $ f Pitch.middle_c) $
         Right (Just (Pitch.nn Pitch.middle_c))
     equalf 0.01 (DeriveTest.eval State.empty $ f (Pitch.middle_c + 2)) $
@@ -102,10 +102,10 @@ test_input_to_nn = do
 
 test_input_to_nn_relative = do
     let to_nn key = DeriveTest.with_key key
-            . Scale.scale_input_to_nn just_major_rel 0
+            . Scale.scale_input_to_nn just_scale_rel 0
         run key input = DeriveTest.eval State.empty (to_nn key input)
-    equalf 0.01 (run "c" Pitch.middle_c) $ Right (Just 60)
-    equalf 0.01 (run "a" Pitch.middle_c) $ Right (Just 69)
+    equalf 0.01 (run "c-maj" Pitch.middle_c) $ Right (Just 60)
+    equalf 0.01 (run "a-maj" Pitch.middle_c) $ Right (Just 69)
 
 test_transpose = do
     let f = Just.transpose Just.absolute_format Nothing
@@ -122,9 +122,9 @@ test_transpose_relative = do
 test_degree_to_hz = do
     let f base_hz tonic pitch = Just.degree_to_hz Just.pc_per_octave
             major base_hz tonic (read_note pitch)
-        major = convert Just.major_ratios
-        Just key_a = Map.lookup "a" Just.all_keys
-        Just key_b = Map.lookup "b" Just.all_keys
+        Just major = lookup "maj" Just.all_key_ratios
+        Just key_a = Map.lookup "a-maj" Just.all_keys
+        Just key_b = Map.lookup "b-maj" Just.all_keys
 
     -- tonic A, nice minor triad is in tune
     equalf 0.01 (f Nothing key_a "4a") 440
@@ -145,19 +145,16 @@ test_degree_to_hz = do
     let hzs = map (f (Just 10) key_b) ["-1a", "-1b", "0c"]
     equalf 0.01 hzs [9.375, 10, 11.25]
 
-convert :: Vector.Vector Ratio.Rational -> Just.Ratios
-convert = Vector.map realToFrac
-
 
 -- * implementation
 
-just_major :: Scale.Scale
-Just just_major =
-    List.find ((== Pitch.ScaleId "just-maj") . Scale.scale_id) Just.scales
+just_scale :: Scale.Scale
+Just just_scale =
+    List.find ((== Pitch.ScaleId "just") . Scale.scale_id) Just.scales
 
-just_major_rel :: Scale.Scale
-Just just_major_rel =
-    List.find ((== Pitch.ScaleId "just-maj-r") . Scale.scale_id) Just.scales
+just_scale_rel :: Scale.Scale
+Just just_scale_rel =
+    List.find ((== Pitch.ScaleId "just-r") . Scale.scale_id) Just.scales
 
 make_ratios :: Just.Ratios -> [Pitch.Hz]
 make_ratios ratios = concat [map (+ oct) (Vector.toList ratios) | oct <- [0..]]

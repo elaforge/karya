@@ -2,7 +2,7 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
--- | A version of a just intonation 12 note scale that is tuned based on
+-- | A version of a just intonation diatonic scale that is tuned based on
 -- a pitch signal.
 module Derive.Scale.Just where
 import qualified Data.Map as Map
@@ -13,8 +13,6 @@ import qualified Data.Vector as Vector
 
 import Util.Control
 import qualified Util.Num as Num
-import qualified Util.Pretty as Pretty
-
 import qualified Derive.Args as Args
 import qualified Derive.Call.Pitch as Call.Pitch
 import qualified Derive.Call.Tags as Tags
@@ -36,10 +34,8 @@ import qualified Perform.Pitch as Pitch
 
 scales :: [Scale.Scale]
 scales =
-    [ make_scale (Pitch.ScaleId "just-maj") major_ratios absolute_format
-    , make_scale (Pitch.ScaleId "just-min") minor_ratios absolute_format
-    , make_scale (Pitch.ScaleId "just-maj-r") major_ratios relative_format
-    , make_scale (Pitch.ScaleId "just-min-r") minor_ratios relative_format
+    [ make_scale (Pitch.ScaleId "just") absolute_format
+    , make_scale (Pitch.ScaleId "just-r") relative_format
     ]
 
 absolute_format :: TheoryFormat.Format
@@ -60,33 +56,32 @@ lookup_key (Just (Pitch.Key key)) =
 accidental_interval :: Double
 accidental_interval = 16 / 15
 
-make_scale :: Pitch.ScaleId -> Vector.Vector Ratio.Rational
-    -> TheoryFormat.Format -> Scale.Scale
-make_scale scale_id ratios fmt = Scale.Scale
+make_scale :: Pitch.ScaleId -> TheoryFormat.Format -> Scale.Scale
+make_scale scale_id fmt = Scale.Scale
     { Scale.scale_id = scale_id
     , Scale.scale_pattern = TheoryFormat.fmt_pattern fmt
     , Scale.scale_symbols = []
     , Scale.scale_transposers = Util.standard_transposers
     , Scale.scale_transpose = transpose fmt
     , Scale.scale_enharmonics = enharmonics fmt
-    , Scale.scale_note_to_call = note_to_call fmt double_ratios
+    , Scale.scale_note_to_call = note_to_call fmt
     , Scale.scale_input_to_note = input_to_note (TheoryFormat.show_pitch fmt)
     , Scale.scale_input_to_nn =
         Util.computed_input_to_nn
             (input_to_note (TheoryFormat.show_pitch fmt))
-            (note_to_call fmt double_ratios)
+            (note_to_call fmt)
     , Scale.scale_call_doc = Util.annotate_call_doc Util.standard_transposers
         ("Just scales are tuned by ratios from a base frequency.\
         \ That frequency is taken from the `%just-base` control and the key.\
-        \ For example, `%just-base = 440 | key = a` means that A in the\
-        \ middle octave is 440hz and is considered 1/1. If the base hz isn't\
-        \ given, it defaults to the 12TET tuning of the key. Just scales\
-        \ support accidentals, but are inherently diatonic, so chromatic\
-        \ transposition is the same as diatonic transposition."
-        ) [("ratios", Pretty.prettytxt ratios)]
-            (Util.scale_degree_doc (scale_degree 0))
+        \ For example, `%just-base = 440 | key = a-maj` means that A in the\
+        \ middle octave is 440hz and is considered 1/1, and uses the `maj`\
+        \ set of ratios.  If the base hz isn't given, it defaults to the\
+        \ 12TET tuning of the key.\
+        \ Just scales support accidentals, but are inherently\
+        \ diatonic, so chromatic transposition is the same as diatonic\
+        \ transposition."
+        ) [] (Util.scale_degree_doc (scale_degree 0))
     }
-    where double_ratios = Vector.map realToFrac ratios
 
 read_note :: TheoryFormat.Format -> Maybe Pitch.Key -> Pitch.Note
     -> Either Scale.ScaleError Theory.Pitch
@@ -167,9 +162,8 @@ pc_per_octave = 7
 -- | To modulate to another scale: @just-base = (hz (4g)) | key = g@
 -- The order is important, so the @(hz (4g))@ happens in the context of the old
 -- key.
-note_to_call :: TheoryFormat.Format -> Ratios -> Pitch.Note
-    -> Maybe Derive.ValCall
-note_to_call fmt ratios note = case TheoryFormat.read_pitch fmt note of
+note_to_call :: TheoryFormat.Format -> Pitch.Note -> Maybe Derive.ValCall
+note_to_call fmt note = case TheoryFormat.read_pitch fmt note of
     Left _ -> case parse_relative_interval note of
         Nothing -> Nothing
         Just interval -> Just $ relative_scale_degree interval
@@ -184,8 +178,7 @@ note_to_call fmt ratios note = case TheoryFormat.read_pitch fmt note of
         Util.scale_to_pitch_error chromatic diatonic $ do
             key <- read_key env
             pitch <- TheoryFormat.fmt_adjust fmt (Util.lookup_key env) pitch
-            let hz = transpose_to_hz ratios base_hz key
-                    (chromatic + diatonic) pitch
+            let hz = transpose_to_hz base_hz key (chromatic + diatonic) pitch
                 nn = Pitch.hz_to_nn hz
             if Num.in_range 0 127 nn then Right nn
                 else Left Scale.InvalidTransposition
@@ -278,14 +271,13 @@ relative_scale_degree initial_interval =
 
 -- ** implementation
 
-transpose_to_hz :: Ratios -> Maybe Pitch.Hz -> Key -> Double
-    -> Theory.Pitch -> Pitch.Hz
-transpose_to_hz ratios base_hz key frac_steps pitch = Num.scale hz1 hz2 frac
+transpose_to_hz :: Maybe Pitch.Hz -> Key -> Double -> Theory.Pitch -> Pitch.Hz
+transpose_to_hz base_hz key frac_steps pitch = Num.scale hz1 hz2 frac
     where
     (steps, frac) = properFraction frac_steps
     pitch1 = Theory.transpose_pitch pc_per_octave steps pitch
-    hz1 = degree_to_hz pc_per_octave ratios base_hz key pitch1
-    hz2 = degree_to_hz pc_per_octave ratios base_hz key
+    hz1 = degree_to_hz pc_per_octave (key_ratios key) base_hz key pitch1
+    hz2 = degree_to_hz pc_per_octave (key_ratios key) base_hz key
         (Theory.transpose_pitch pc_per_octave 1 pitch1)
 
 -- | Given a Key, convert a pitch in that key to its hz value.
@@ -313,16 +305,19 @@ data Key = Key {
     -- | NoteNumber in the bottom octave as returned by 'normalize_octave',
     -- e.g. -3--9.
     , key_tonic_nn :: !Pitch.NoteNumber
+    , key_ratios :: !Ratios
     } deriving (Show)
 
 all_keys :: Map.Map Text Key
-all_keys =
-    Map.fromList $ take 7 [(d, Key pc nn)
-        | (d, pc, nn) <- zip3 TheoryFormat.absolute_c_degrees [0..] nns]
+all_keys = Map.fromList
+    [ (degree <> "-" <> name, Key pc nn ratios)
+    | (name, ratios) <- all_key_ratios
+    , (degree, pc, nn) <- zip3 TheoryFormat.absolute_c_degrees [0..6] nns
+    ]
     where nns = scanl (+) 0 (cycle [2, 2, 1, 2, 2, 2, 1])
 
 default_key :: Key
-Just default_key = Map.lookup "c" all_keys
+Just default_key = Map.lookup "c-maj" all_keys
 
 read_key :: TrackLang.Environ -> Either Scale.ScaleError Key
 read_key = Util.read_environ (\k -> Map.lookup k all_keys)
@@ -335,13 +330,12 @@ index_mod v i = Vector.unsafeIndex v (i `mod` Vector.length v)
 
 type Ratios = Vector.Vector Double
 
--- | 5-limit diatonic, with just major triads.
-major_ratios :: Vector.Vector Ratio.Rational
-major_ratios = Vector.fromList [1, 9%8, 5%4, 4%3, 3%2, 5%3, 15%8]
-
--- | 5-limit diatonic, with just minor triads.
-minor_ratios :: Vector.Vector Ratio.Rational
-minor_ratios = Vector.fromList [1, 9%8, 6%5, 4%3, 3%2, 8%5, 9%5]
+all_key_ratios :: [(Text, Ratios)]
+all_key_ratios =
+    [ ("maj", Vector.fromList [1, 9/8, 5/4, 4/3, 3/2, 5/3, 15/8])
+    , ("min", Vector.fromList [1, 9/8, 6/5, 4/3, 3/2, 8/5, 9/5])
+    , ("legong", Vector.fromList [1, 10/9, 6/5, 4/3, 3/2, 25/16, 9/5])
+    ]
 
 named_intervals :: Map.Map Text Ratio.Rational
 named_intervals = Map.fromList

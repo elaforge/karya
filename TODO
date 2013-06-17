@@ -4,7 +4,8 @@ LEGEND
 
 UNSORTED
   * rename Score.TypedSignal to TypedControl, ControlModification to ControlMod
-  - just scale: make major and minor into keys, and add some more keys
+  * just scale: make major and minor into keys, and add some more keys
+  - Make just scale support keys with greater or less than 7 degrees
   - Should be a way to rename the namespace, otherwise when you write a new
     name you wind up with the old namespace.
   * Should be able to set block tempo with '%tempo = 4'
