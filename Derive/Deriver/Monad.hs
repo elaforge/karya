@@ -639,7 +639,7 @@ lookup_scopes (lookup:rest) call_id =
 data Constant = Constant {
     state_ui :: !State.State
     -- | Set of tracks that I want 'Track.TrackSignals' for.
-    , state_track_signals :: !(Set.Set TrackId)
+    , state_wanted_track_signals :: !(Set.Set TrackId)
     , state_control_op_map :: !(Map.Map TrackLang.CallId ControlOp)
     , state_lookup_scale :: !LookupScale
     -- | Get the calls and environ that should be in scope with a certain
@@ -660,7 +660,7 @@ initial_constant :: State.State -> Set.Set TrackId -> LookupScale
 initial_constant ui_state track_signals lookup_scale lookup_inst cache
         score_damage = Constant
     { state_ui = ui_state
-    , state_track_signals = track_signals
+    , state_wanted_track_signals = track_signals
     , state_control_op_map = default_control_op_map
     , state_lookup_scale = lookup_scale
     , state_lookup_instrument = lookup_inst
@@ -764,6 +764,11 @@ data Collect = Collect {
 data ControlModification =
     ControlModification !Score.Control !Signal.Control !ControlOp
     deriving (Show)
+
+instance Pretty.Pretty ControlModification where
+    format (ControlModification control signal op) =
+        Pretty.constructor "ControlModification"
+            [Pretty.format control, Pretty.format signal, Pretty.text (show op)]
 
 instance Monoid.Monoid Collect where
     mempty = Collect mempty mempty mempty mempty mempty mempty mempty

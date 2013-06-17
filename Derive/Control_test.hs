@@ -4,11 +4,10 @@
 
 module Derive.Control_test where
 import qualified Data.Map as Map
+import qualified Data.Set as Set
 
 import Util.Control
-import qualified Util.Log as Log
 import Util.Test
-
 import qualified Ui.Events as Events
 import qualified Ui.State as State
 import qualified Ui.Track as Track
@@ -185,9 +184,7 @@ test_stash_signal = do
     let itrack = (">i", [])
         ctrack = ("cont", [(0, 0, "1"), (1, 0, "0")])
         csig = Signal.signal [(0, 1), (1, 0)]
-    let run = extract . DeriveTest.derive_tracks
-        extract r = Log.trace_logs (snd $ DeriveTest.r_split r)
-            (map e_tsig (Map.elems (Derive.r_track_signals r)))
+    let run = e_tsigs . DeriveTest.derive_tracks
     let tsig samples p x = (Signal.signal samples, p, x)
 
     equal (run [ctrack, itrack]) [(csig, 0, 1)]
@@ -221,11 +218,68 @@ test_stash_signal = do
 
 test_signal_default_tempo = do
     -- Signal is stretched by the default tempo.
-    let r = extract $ DeriveTest.derive_tracks_with_ui id set_tempo
+    let r = e_tsigs $ DeriveTest.derive_tracks_with_ui id set_tempo
             [("*", [(0, 0, "4c"), (10, 0, "4d"), (20, 0, "4c")])]
         set_tempo = State.config#State.default_#State.tempo #= 2
-        extract = map e_tsig . Map.elems . Derive.r_track_signals
     equal r [(Signal.signal [(0, 60), (5, 62), (10, 60)], 0, 0.5)]
 
-e_tsig :: Track.TrackSignal -> (Signal.Display, ScoreTime, ScoreTime)
-e_tsig (Track.TrackSignal sig shift stretch _) = (sig, shift, stretch)
+test_derive_track_signals = do
+    let run wanted t2 t3 = DeriveTest.derive_tracks_with (set_wanted wanted)
+            [(">", [(0, 8, "+a")]), t2, t3]
+        set_wanted wanted = DeriveTest.modify_constant $ \st -> st
+            { Derive.state_wanted_track_signals =
+                Set.fromList $ map UiTest.mk_tid wanted
+            }
+        e_events = DeriveTest.extract $ \e ->
+            (DeriveTest.e_nns e, DeriveTest.e_dyn e)
+        e_ts r = [(tid, Signal.unsignal sig)
+            | (tid, (sig, _, _)) <- e_tsig_tracks r]
+
+    equal (e_ts $ run [] ("c1", [(0, 0, "1")]) ("c2", [(0, 0, "2")])) []
+    -- Child track causes both to get signals.
+    equal (e_ts $ run [3] ("c1", [(0, 0, "1")]) ("c2", [(0, 0, "2")]))
+        [ (UiTest.mk_tid 2, [(0, 1)])
+        , (UiTest.mk_tid 3, [(0, 2)])
+        ]
+
+    equal (e_ts $ run [3]
+            ("speed", [(0, 0, "1")])
+            ("*", [(0, 0, "tr (4c) 1c %speed"), (4, 0, "4c")]))
+        [ (UiTest.mk_tid 2, [(0, 1)])
+        , (UiTest.mk_tid 3, [(0, 60), (1, 61), (2, 60), (3, 61), (4, 60)])
+        ]
+    equal (e_ts $ run [3]
+            ("speed", [(0, 0, "1"), (2, 0, "2")])
+            ("*", [(0, 0, "tr (4c) 1c %speed"), (4, 0, "4c")]))
+        [ (UiTest.mk_tid 2, [(0, 1), (2, 2)])
+        , (UiTest.mk_tid 3,
+            [ (0, 60), (1, 61), (2, 60), (2.5, 61), (3, 60), (3.5, 61), (4, 60)
+            ])
+        ]
+
+    -- Not fooled by two levels of note tracks.
+    equal (e_ts $ DeriveTest.linear_derive_tracks id
+            [ (">vln", [(1, 1, "+pizz")])
+            , (">vln", [(0, 1, ""), (1, 1, "")])
+            , ("*", [(0, 0, "4c")])
+            ])
+        [(UiTest.mk_tid 3, [(0, 60)])]
+
+    -- Control modifications show up in the signal.
+    let result = run [3] ("*", [(0, 0, "4c"), (2, 0, "drop 1c 2")])
+            ("dyn", [(0, 0, ".5")])
+    equal (e_ts result)
+        [ (UiTest.mk_tid 2, [(0, 60), (3, 59.5), (4, 59)])
+        , (UiTest.mk_tid 3, [(0, 0.5), (3, 0.25), (4, 0)])
+        ]
+    pprint (e_events result)
+
+
+e_tsigs :: Derive.Result -> [(Signal.Display, ScoreTime, ScoreTime)]
+e_tsigs = map snd . e_tsig_tracks
+
+e_tsig_tracks :: Derive.Result
+    -> [(TrackId, (Signal.Display, ScoreTime, ScoreTime))]
+e_tsig_tracks = map (second extract) . Map.toList . Derive.r_track_signals
+    where
+    extract (Track.TrackSignal sig shift stretch _) = (sig, shift, stretch)

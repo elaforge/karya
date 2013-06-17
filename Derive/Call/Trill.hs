@@ -82,7 +82,7 @@ c_note_trill = Derive.stream_generator "trill" (Tags.ornament <> Tags.ly)
     ) $ Sig.call ((,)
     <$> defaulted "neighbor" (typed_control "trill-neighbor" 1 Score.Diatonic)
         "Alternate with a pitch at this interval."
-    <*> speed_arg
+    <*> trill_speed_arg
     ) $ \(neighbor, speed) -> Note.inverting $ \args ->
     Lily.note_code (Lily.SuffixFirst, "\\trill") args $ do
         mode <- get_mode
@@ -224,7 +224,7 @@ c_pitch_trill maybe_mode = Derive.generator1 "pitch-trill" Tags.ornament
     <$> required "note" "Base pitch."
     <*> defaulted "neighbor" (typed_control "trill-neighbor" 1 Score.Diatonic)
         "Alternate with a pitch at this interval."
-    <*> speed_arg
+    <*> trill_speed_arg
     ) $ \(note, neighbor, speed) args -> do
         mode <- maybe get_mode return maybe_mode
         (transpose, control) <- trill_from_controls
@@ -257,14 +257,14 @@ c_control_trill maybe_mode = Derive.generator1 "control-trill" Tags.ornament
     ) $ Sig.call ((,)
     <$> defaulted "neighbor" (control "trill-neighbor" 1)
         "Alternate with this value."
-    <*> speed_arg
+    <*> trill_speed_arg
     ) $ \(neighbor, speed) args -> do
         mode <- maybe get_mode return maybe_mode
         fst <$> trill_from_controls (Args.start args, Args.next args)
             mode neighbor speed
 
-speed_arg :: Sig.Parser TrackLang.ValControl
-speed_arg = defaulted "speed" (typed_control "trill-speed" 14 Score.Real) $
+trill_speed_arg :: Sig.Parser TrackLang.ValControl
+trill_speed_arg = defaulted "speed" (typed_control "trill-speed" 14 Score.Real)
     "Trill at this speed. If it's a RealTime, the value is the number of\
     \ cycles per second, which will be unaffected by the tempo. If it's\
     \ a ScoreTime, the value is the number of cycles per ScoreTime\

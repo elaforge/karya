@@ -141,13 +141,13 @@ eval_track :: TrackTree.TrackEvents -> [TrackLang.Call]
 eval_track track expr ctype deriver = case ctype of
     TrackInfo.Tempo -> ifM Derive.is_lilypond_derive deriver $
         tempo_call track
-            (Derive.with_val Environ.control ("tempo" :: Text) $
+            (with_control_env Score.c_tempo $
                 derive_control True True tempo_track expr)
             deriver
     TrackInfo.Control maybe_op control -> do
         op <- lookup_op control maybe_op
         control_call track control op
-            (\cache -> Derive.with_val Environ.control (cname control) $
+            (\cache -> with_control_env (Score.typed_val control) $
                 derive_control cache False track expr)
             deriver
     TrackInfo.Pitch scale_id maybe_name ->
@@ -163,8 +163,6 @@ eval_track track expr ctype deriver = case ctype of
         where
         track_range = TrackTree.tevents_range track
         evts = TrackTree.tevents_events track
-    cname cont = case Score.typed_val cont of
-        Score.Control name -> name
 
 -- | Get the combining operator for this track.  Controls multiply by default,
 -- unless they use the @set@ operator.  The exception is 'Score.c_null', which
@@ -220,7 +218,7 @@ control_call track control maybe_op control_deriver deriver = do
     stash_signal track signal (to_display <$> control_deriver False) False
     -- Apply and strip any control modifications made during the above derive.
     Derive.apply_control_modifications $ merge_logs logs $ with_damage $
-        with_control control signal deriver
+        with_control_op control maybe_op signal deriver
     -- I think this forces sequentialness because 'deriver' runs in the state
     -- from the end of 'control_deriver'.  To make these parallelize, I need to
     -- run control_deriver as a sub-derive, then mappend the Collect.
@@ -228,10 +226,14 @@ control_call track control maybe_op control_deriver deriver = do
     maybe_track_id = TrackTree.tevents_track_id track
     with_damage = with_control_damage maybe_track_id
         (TrackTree.tevents_range track)
-    with_control (Score.Typed typ control) signal deriver = case maybe_op of
+
+with_control_op :: Score.Typed Score.Control -> Maybe Derive.ControlOp
+    -> Signal.Control -> Derive.Deriver a -> Derive.Deriver a
+with_control_op (Score.Typed typ control) maybe_op signal deriver =
+    case maybe_op of
         Nothing -> Derive.with_control control sig deriver
         Just op -> Derive.with_relative_control control op sig deriver
-        where sig = Score.Typed typ signal
+    where sig = Score.Typed typ signal
 
 to_display :: TrackResults Signal.Control -> Signal.Display
 to_display (sig, _) = Signal.coerce sig
@@ -410,7 +412,7 @@ signal_wanted :: TrackTree.TrackEvents -> Derive.Deriver Bool
 signal_wanted track = case TrackTree.tevents_track_id track of
     Nothing -> return False
     Just track_id -> Set.member track_id <$>
-        Internal.get_constant Derive.state_track_signals
+        Internal.get_constant Derive.state_wanted_track_signals
 
 -- * track_signal
 
@@ -418,52 +420,98 @@ signal_wanted track = case TrackTree.tevents_track_id track of
 -- be rendered.  This is like 'eval_track' but specialized to derive only the
 -- signal.  The track signal is normally stashed as a side-effect of control
 -- track evaluation, but tracks below a note track are not evaluated normally.
-track_signal :: TrackTree.TrackEvents
-    -> Derive.Deriver (Maybe Track.TrackSignal)
-track_signal track = ifM (not <$> signal_wanted track) (return Nothing) $ do
-    (ctype, expr) <- either (\err -> Derive.throw $ "track title: " ++ err)
-        return $ TrackInfo.parse_control_expr (TrackTree.tevents_title track)
-    -- Since these signals are being rendered solely for display, they
-    -- should ignore any tempo warping, just like 'stash_signal' does
-    -- above.
-    Just <$> (Derive.in_real_time $ eval_signal track expr ctype)
+derive_track_signals :: TrackTree.EventsTree -> Derive.Deriver ()
+derive_track_signals = put_track_signals <=< track_signal_ <=< filter_rendered
+
+-- | Filter out tracks that shouldn't be rendered, or don't want to be
+-- rendered.  Since control tracks can depend on other controls, a parent
+-- must be rendered if any of its children want to be rendered.
+filter_rendered :: TrackTree.EventsTree -> Derive.Deriver TrackTree.EventsTree
+filter_rendered = concatMapM f
+    where
+    f (Tree.Node track subs) | not (should_render track) = filter_rendered subs
+    f node@(Tree.Node track []) =
+        ifM (signal_wanted track) (return [node]) (return [])
+    f (Tree.Node track subs) = do
+        filtered <- filter_rendered subs
+        this_wanted <- signal_wanted track
+        return $ case filtered of
+            [] | not this_wanted -> []
+            _ -> [Tree.Node track filtered]
+
+-- | False if the track should not render at all, not even for the benefit of
+-- sub tracks.
+should_render :: TrackTree.TrackEvents -> Bool
+should_render track =
+    not $ TrackTree.tevents_sliced track || Text.null title
+        || TrackInfo.is_note_track title
+        || Events.null (TrackTree.tevents_events track)
+    where title = TrackTree.tevents_title track
+
+track_signal_ :: TrackTree.EventsTree
+    -> Derive.Deriver [(TrackId, Track.TrackSignal)]
+track_signal_ = concatMapM go
+    where
+    go (Tree.Node track subs) = do
+        (ctype, expr) <-
+            either (\err -> Derive.throw $ "track title: " ++ err) return
+            (TrackInfo.parse_control_expr (TrackTree.tevents_title track))
+        -- Since these signals are being rendered solely for display, they
+        -- should ignore any tempo warping, just like 'stash_signal' does
+        -- above.
+        Derive.in_real_time $ eval_signal track expr ctype subs
 
 eval_signal :: TrackTree.TrackEvents -> [TrackLang.Call]
-    -> TrackInfo.ControlType -> Derive.Deriver Track.TrackSignal
-eval_signal track expr ctype = case ctype of
-    TrackInfo.Tempo {} -> do
-        (sig, logs) <- with_stack $ derive_control False True track expr
-        write logs
-        return $ track_sig sig False
-    TrackInfo.Control {} -> do
-        (sig, logs) <- with_stack $ derive_control False False track expr
-        write logs
-        return $ track_sig sig False
-    TrackInfo.Pitch scale_id _ -> do
-        scale <- get_scale scale_id
-        (sig, logs) <- with_stack $ Derive.with_scale scale $
-            derive_pitch False track expr
-        write logs
-        -- TODO I log derivation errors... why not log pitch errors?
-        (nn_sig, _) <- pitch_signal_to_nn sig
-        return $ track_sig nn_sig True
+    -> TrackInfo.ControlType -> [TrackTree.EventsNode]
+    -> Derive.Deriver [(TrackId, Track.TrackSignal)]
+eval_signal track expr ctype subs
+    -- They should all have TrackIds because of 'signal_wanted'.
+    | Just track_id <- TrackTree.tevents_track_id track = case ctype of
+        TrackInfo.Tempo -> do
+            (signal, logs) <- with_stack $ with_control_env Score.c_tempo $
+                derive_control False True track expr
+            write logs
+            sub_sigs <- track_signal_ subs
+            return $ (track_id, track_sig signal False) : sub_sigs
+        TrackInfo.Control maybe_op control -> do
+            op <- lookup_op control maybe_op
+            (signal, logs) <- with_stack $
+                with_control_env (Score.typed_val control) $
+                derive_control False False track expr
+            write logs
+            sub_sigs <- Derive.apply_control_modifications $
+                with_control_op control op signal $ track_signal_ subs
+            return $ (track_id, track_sig signal False) : sub_sigs
+        TrackInfo.Pitch scale_id maybe_name -> do
+            scale <- get_scale scale_id
+            (signal, logs) <- with_stack $ Derive.with_scale scale $
+                derive_pitch False track expr
+            write logs
+            -- TODO I log derivation errors... why not log pitch errors?
+            -- TODO maybe I shouldn't apply transposition, because it's going
+            -- to the display
+            (nn_signal, _) <- pitch_signal_to_nn signal
+            sub_sigs <- Derive.apply_control_modifications $
+                Derive.with_pitch maybe_name signal $ track_signal_ subs
+            return $ (track_id, track_sig nn_signal True) : sub_sigs
+    | otherwise = return []
     where
     -- Normally the TrackId is added to the stack by 'BlockUtil.derive_track',
     -- but I'm bypassing the usual track derivation so I need to add it myself.
     with_stack = case TrackTree.tevents_track_id track of
         Nothing -> id
         Just track_id -> Internal.with_stack_track track_id
-    -- If the track has errors deriving they are likely already reported by the
-    -- main derivation.  Still, I shouldn't just discard them, since the track
-    -- signal derivation may fail in a way the inverted one didn't.
     write = mapM_ Log.write . map prio . Log.add_prefix "Track signal"
     prio msg = msg { Log.msg_prio = Log.Debug }
-    track_sig sig is_pitch = Track.TrackSignal
-        { Track.ts_signal = Signal.coerce sig
+    track_sig signal is_pitch = Track.TrackSignal
+        { Track.ts_signal = Signal.coerce signal
         , Track.ts_shift = 0
         , Track.ts_stretch = 1
         , Track.ts_is_pitch = is_pitch
         }
+
+with_control_env :: Score.Control -> Derive.Deriver a -> Derive.Deriver a
+with_control_env (Score.Control c) = Derive.with_val Environ.control c
 
 
 -- * util

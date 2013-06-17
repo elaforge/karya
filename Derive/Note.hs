@@ -109,7 +109,7 @@ import Types
 -- | Top level deriver for note tracks.
 d_note_track :: TrackTree.EventsNode -> Derive.EventDeriver
 d_note_track (Tree.Node track subs) = do
-    stash_sub_signals subs
+    Control.derive_track_signals subs
     title $ derive_notes
         (TrackTree.tevents_end track) (TrackTree.tevents_range track)
         (TrackTree.tevents_shifted track) subs (TrackTree.tevents_around track)
@@ -129,21 +129,6 @@ with_title subs (start, end) title deriver
     where
     info = (Derive.dummy_call_info start (end - start) "note track")
         { Derive.info_sub_tracks = subs }
-
-stash_sub_signals :: TrackTree.EventsTree -> Derive.Deriver ()
-stash_sub_signals subs = do
-    let tracks = filter should_render $ concatMap Tree.flatten subs
-    sigs <- mapM Control.track_signal tracks
-    Control.put_track_signals
-        [(track_id, tsig) | (Just track_id, Just tsig)
-            <- zip (map TrackTree.tevents_track_id tracks) sigs]
-
-should_render :: TrackTree.TrackEvents -> Bool
-should_render track =
-    not $ TrackTree.tevents_sliced track || Text.null title
-        || TrackInfo.is_note_track title
-        || Events.null (TrackTree.tevents_events track)
-    where title = TrackTree.tevents_title track
 
 -- | It could just pass the 'TrackTree.TrackInfo', but this way
 -- "Derive.Lazy_test" can pass an infinite events list.

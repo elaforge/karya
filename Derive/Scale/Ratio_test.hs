@@ -13,8 +13,8 @@ test_ratio = do
         e_tsig r = (lookup (UiTest.mk_tid 3) (DeriveTest.e_tsigs r),
             DeriveTest.e_tsig_logs r)
     let run ratio base = DeriveTest.derive_tracks
-            [ ("*twelve #ratio-source", [(0, 0, base)])
-            , (">i1", [(0, 1, "")])
+            [ (">i1", [(0, 1, "")])
+            , ("*twelve #ratio-source", [(0, 0, base)])
             , ("*ratio", [(0, 0, ratio)])
             ]
     -- Bah, 'hz_to_nn . nn_to_hz' introduces imprecision.
@@ -31,6 +31,3 @@ test_ratio = do
 
     -- This actually tests that Control.eval_signal sets the scale properly.
     equalf 0.001 (e_tsig $ run "2/1" "4c") (Just [(0, 72)], [])
-    -- TODO but if I put #ratio-source under >i1, it doesn't work.  I think
-    -- there's no way short of rederiving all intermediate tracks, or storing
-    -- track signals for sliced sections and merging them together.
