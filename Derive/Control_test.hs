@@ -230,8 +230,6 @@ test_derive_track_signals = do
             { Derive.state_wanted_track_signals =
                 Set.fromList $ map UiTest.mk_tid wanted
             }
-        e_events = DeriveTest.extract $ \e ->
-            (DeriveTest.e_nns e, DeriveTest.e_dyn e)
         e_ts r = [(tid, Signal.unsignal sig)
             | (tid, (sig, _, _)) <- e_tsig_tracks r]
 
@@ -265,14 +263,15 @@ test_derive_track_signals = do
             ])
         [(UiTest.mk_tid 3, [(0, 60)])]
 
-    -- Control modifications show up in the signal.
-    let result = run [3] ("*", [(0, 0, "4c"), (2, 0, "drop 1c 2")])
-            ("dyn", [(0, 0, ".5")])
-    equal (e_ts result)
-        [ (UiTest.mk_tid 2, [(0, 60), (3, 59.5), (4, 59)])
-        , (UiTest.mk_tid 3, [(0, 0.5), (3, 0.25), (4, 0)])
-        ]
-    pprint (e_events result)
+    -- -- Control modifications show up in the signal.
+    -- -- Except I don't want to do this anymore, see comment in
+    -- -- 'Control.eval_signal'.
+    -- let result = run [3] ("*", [(0, 0, "4c"), (2, 0, "drop 1c 2")])
+    --         ("dyn", [(0, 0, ".5")])
+    -- equal (e_ts result)
+    --     [ (UiTest.mk_tid 2, [(0, 60), (3, 59.5), (4, 59)])
+    --     , (UiTest.mk_tid 3, [(0, 0.5), (2, 0.5), (3, 0.25), (4, 0)])
+    --     ]
 
 
 e_tsigs :: Derive.Result -> [(Signal.Display, ScoreTime, ScoreTime)]

@@ -281,14 +281,20 @@ with_control cont signal = Internal.local $ \st ->
 -- signal's type.  If one is untyped, the typed one wins.
 with_relative_control :: Score.Control -> ControlOp -> Score.TypedSignal
     -> Deriver a -> Deriver a
-with_relative_control cont (ControlOp _ op ident) signal deriver = do
+with_relative_control cont op signal deriver = do
     controls <- get_controls
-    let old = Map.findWithDefault ident_sig cont controls
-    with_control cont (apply old signal) deriver
-    where
-    apply old new = Score.Typed (Score.type_of old <> Score.type_of new)
+    let new = apply_control_op op (Map.lookup cont controls) signal
+    with_control cont new deriver
+
+-- | Combine two signals with a ControlOp.
+apply_control_op :: ControlOp -> Maybe Score.TypedSignal
+    -> Score.TypedSignal -> Score.TypedSignal
+apply_control_op (ControlOp _ op ident) maybe_old new =
+    Score.Typed (Score.type_of old <> Score.type_of new)
         (op (Score.typed_val old) (Score.typed_val new))
-    ident_sig = Score.Typed (Score.type_of signal) (Signal.constant ident)
+    where
+    old = fromMaybe (Score.Typed (Score.type_of new) (Signal.constant ident))
+        maybe_old
 
 with_added_control :: Score.Control -> Score.TypedSignal -> Deriver a
     -> Deriver a

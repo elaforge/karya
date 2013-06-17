@@ -481,6 +481,15 @@ eval_signal track expr ctype subs
             write logs
             sub_sigs <- Derive.apply_control_modifications $
                 with_control_op control op signal $ track_signal_ subs
+            -- Signals are combined with control mods only when they go into
+            -- the ControlMap, so they're not visible in the UI.  I originally
+            -- wanted to apply control modifications to the output signal to
+            -- make them visible, but that's problematic because they then want
+            -- to apply to the entire signal.  In real derivation, that doesn't
+            -- happen because of slicing.  In any case, the track render is
+            -- supposed to be the output of the track, not what the signal
+            -- eventually becomes, so maybe not applying mods is the right
+            -- thing.
             return $ (track_id, track_sig signal False) : sub_sigs
         TrackInfo.Pitch scale_id maybe_name -> do
             scale <- get_scale scale_id
@@ -509,6 +518,16 @@ eval_signal track expr ctype subs
         , Track.ts_stretch = 1
         , Track.ts_is_pitch = is_pitch
         }
+
+-- apply_control_modifications :: [Derive.ControlModification]
+--     -> Score.Control -> Signal.Control -> Signal.Control
+-- apply_control_modifications cmods control sig =
+--     Score.typed_val $ foldr ($) (Score.untyped sig) (map apply cmods)
+--     where
+--     apply (Derive.ControlModification mod_control mod_sig op) sig
+--         | mod_control == control =
+--             Derive.apply_control_op op (Just sig) (Score.untyped mod_sig)
+--         | otherwise = sig
 
 with_control_env :: Score.Control -> Derive.Deriver a -> Derive.Deriver a
 with_control_env (Score.Control c) = Derive.with_val Environ.control c
