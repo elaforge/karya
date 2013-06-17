@@ -23,7 +23,7 @@ import qualified Derive.Call.Util as Util
 import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Environ as Environ
-import qualified Derive.Instrument.Util as Instrument.Util
+import qualified Derive.Instrument.DUtil as DUtil
 import qualified Derive.Scale.Legong as Legong
 import qualified Derive.Score as Score
 import qualified Derive.Sig as Sig
@@ -256,8 +256,7 @@ midi_db :: MidiDb.MidiDb Cmd.InstrumentCode
     where
     sdescs = MidiInst.make $ (MidiInst.softsynth "s" "test synth" (-2, 2) [])
         { MidiInst.extra_patches = [(patch, code)] }
-    code = MidiInst.note_calls
-        [("sn", Instrument.Util.attrs_note Attrs.snare)]
+    code = MidiInst.note_calls [("sn", DUtil.attrs_note Attrs.snare)]
 
 lookup_inst :: Score.Instrument -> Maybe Derive.Instrument
 lookup_inst = fmap Cmd.derive_instrument . MidiDb.lookup_instrument midi_db

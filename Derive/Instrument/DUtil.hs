@@ -2,8 +2,11 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
--- | Utility functions for writing instrument calls.
-module Derive.Instrument.Util where
+-- | Functions for instrument cmds.  This is called DUtil because there is also
+-- "Cmd.Instrument.CUtil" and they are usually imported together.
+--
+-- I need a better name than \"Util\" for everything.
+module Derive.Instrument.DUtil where
 import Util.Control
 import qualified Derive.Call as Call
 import qualified Derive.Call.Note as Note

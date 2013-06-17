@@ -16,7 +16,7 @@ import qualified Midi.Key as Key
 import qualified Midi.Midi as Midi
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Instrument.Drums as Drums
-import qualified Cmd.Instrument.Util as CUtil
+import qualified Cmd.Instrument.CUtil as CUtil
 import qualified Cmd.Keymap as Keymap
 
 import Derive.Attrs
@@ -24,7 +24,7 @@ import qualified Derive.Call.Make as Make
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Derive as Derive
 import qualified Derive.Environ as Environ
-import qualified Derive.Instrument.Util as DUtil
+import qualified Derive.Instrument.DUtil as DUtil
 import qualified Derive.LEvent as LEvent
 import qualified Derive.Scale.Wayang as Wayang
 import qualified Derive.Score as Score

@@ -2,8 +2,11 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
--- | Functions for instrument cmds.
-module Cmd.Instrument.Util where
+-- | Functions for instrument cmds.  This is called CUtil because there is also
+-- "Derive.Instrument.DUtil" and they are usually imported together.
+--
+-- I need a better name than \"Util\" for everything.
+module Cmd.Instrument.CUtil where
 import qualified Data.Map as Map
 
 import Util.Control

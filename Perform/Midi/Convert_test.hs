@@ -15,7 +15,7 @@ import qualified Midi.Key as Key
 import qualified Midi.Midi as Midi
 import qualified Ui.UiTest as UiTest
 import qualified Cmd.Instrument.Drums as Drums
-import qualified Cmd.Instrument.Util as CUtil
+import qualified Cmd.Instrument.CUtil as CUtil
 import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.LEvent as LEvent

@@ -6,8 +6,6 @@ UNSORTED
   * rename Score.TypedSignal to TypedControl, ControlModification to ControlMod
   * just scale: make major and minor into keys, and add some more keys
   - Make just scale support keys with greater or less than 7 degrees
-  - Should be a way to rename the namespace, otherwise when you write a new
-    name you wind up with the old namespace.
   * Should be able to set block tempo with '%tempo = 4'
   * control call for sawtooth, for e.g. bow tremolo
   * maybe use ^hjkl to move selection
@@ -16,7 +14,7 @@ UNSORTED
     information, and Meter.Meter doesn't support that.
   - need an easy way to create IDs for debugging, so I can copy paste
     (bid "xyz") stuff
-  - Cmd.Instrument.Util and Derive.Instrument.Util need better names
+  * Cmd.Instrument.Util and Derive.Instrument.Util need better names
   - key TrackSignals on (BlockId, TrackId).  I'll need to put BlockId in
     TrackTree.TrackEvents, I think.
   * If a control track depends on a previous control track,

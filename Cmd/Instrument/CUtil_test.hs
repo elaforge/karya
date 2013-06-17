@@ -2,7 +2,7 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
-module Cmd.Instrument.Util_test where
+module Cmd.Instrument.CUtil_test where
 import Util.Control
 import Util.Test
 import qualified Midi.Key as Key
@@ -13,7 +13,7 @@ import qualified Ui.UiTest as UiTest
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.CmdTest as CmdTest
 import qualified Cmd.Instrument.Drums as Drums
-import qualified Cmd.Instrument.Util as Util
+import qualified Cmd.Instrument.CUtil as CUtil
 
 import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
@@ -21,7 +21,7 @@ import qualified App.MidiInst as MidiInst
 
 
 test_keymaps = do
-    let f = Util.keymaps [('a', "anote", 1), ('b', "bnote", 2)]
+    let f = CUtil.keymaps [('a', "anote", 1), ('b', "bnote", 2)]
         empty = [(">", [])]
         run = run_tracks empty
         msg = Midi.ChannelMessage 0
@@ -67,9 +67,9 @@ mapMaybeSnd f xs = [(a, b) | (a, Just b) <- map (second f) xs]
 drum_synth :: [MidiInst.SynthDesc]
 drum_synth = MidiInst.make $
     (MidiInst.softsynth "synth" "Synth" (-24, 24) [])
-    { MidiInst.modify_wildcard = Util.drum_instrument notes
+    { MidiInst.modify_wildcard = CUtil.drum_instrument notes
     , MidiInst.code =
-        MidiInst.note_calls (Util.drum_calls (map fst notes))
-        <> MidiInst.cmd (Util.drum_cmd notes)
+        MidiInst.note_calls (CUtil.drum_calls (map fst notes))
+        <> MidiInst.cmd (CUtil.drum_cmd notes)
     }
     where notes = [(Drums.c_bd, Key.c2), (Drums.c_sn, Key.d2)]
