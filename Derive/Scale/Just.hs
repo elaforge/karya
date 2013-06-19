@@ -46,12 +46,6 @@ relative_format =
     TheoryFormat.sargam (fmap key_tonic . lookup_key) 0
         TheoryFormat.show_note_diatonic TheoryFormat.adjust_diatonic
 
-lookup_key :: Maybe Pitch.Key -> Either Scale.ScaleError Key
-lookup_key Nothing = Right default_key
-lookup_key (Just (Pitch.Key key)) =
-    maybe (Left $ Scale.UnparseableEnviron Environ.key key) Right $
-        Map.lookup key all_keys
-
 -- | Each accidental adds or subtracts this interval.
 accidental_interval :: Double
 accidental_interval = 16 / 15
@@ -155,7 +149,7 @@ transpose fmt key oct transpose note = do
         Theory.transpose_pitch pc_per_octave (oct * pc_per_octave + steps) pitch
 
 pc_per_octave :: Theory.PitchClass
-pc_per_octave = 7
+pc_per_octave = Theory.layout_max_pc layout
 
 -- * note_to_call
 
@@ -308,20 +302,30 @@ data Key = Key {
     , key_ratios :: !Ratios
     } deriving (Show)
 
-all_keys :: Map.Map Text Key
+-- | Number of degrees in an octave.
+key_octave :: Key -> Theory.PitchClass
+key_octave = Vector.length . key_ratios
+
+all_keys :: Map.Map Pitch.Key Key
 all_keys = Map.fromList
-    [ (degree <> "-" <> name, Key pc nn ratios)
+    [ (Pitch.Key $ degree <> "-" <> name, Key pc nn ratios)
     | (name, ratios) <- all_key_ratios
     , (degree, pc, nn) <- zip3 TheoryFormat.absolute_c_degrees [0..6] nns
     ]
     where nns = scanl (+) 0 (cycle [2, 2, 1, 2, 2, 2, 1])
 
 default_key :: Key
-Just default_key = Map.lookup "c-maj" all_keys
+Just default_key = Map.lookup (Pitch.Key "c-maj") all_keys
 
 read_key :: TrackLang.Environ -> Either Scale.ScaleError Key
-read_key = Util.read_environ (\k -> Map.lookup k all_keys)
+read_key = Util.read_environ (\k -> Map.lookup (Pitch.Key k) all_keys)
     default_key Environ.key
+
+lookup_key :: Maybe Pitch.Key -> Either Scale.ScaleError Key
+lookup_key Nothing = Right default_key
+lookup_key (Just key@(Pitch.Key txt)) =
+    maybe (Left $ Scale.UnparseableEnviron Environ.key txt) Right $
+        Map.lookup key all_keys
 
 -- * ratios
 
@@ -331,10 +335,11 @@ index_mod v i = Vector.unsafeIndex v (i `mod` Vector.length v)
 type Ratios = Vector.Vector Double
 
 all_key_ratios :: [(Text, Ratios)]
-all_key_ratios =
-    [ ("maj", Vector.fromList [1, 9/8, 5/4, 4/3, 3/2, 5/3, 15/8])
-    , ("min", Vector.fromList [1, 9/8, 6/5, 4/3, 3/2, 8/5, 9/5])
-    , ("legong", Vector.fromList [1, 10/9, 6/5, 4/3, 3/2, 25/16, 9/5])
+all_key_ratios = map (second Vector.fromList)
+    [ ("maj", [1, 9/8, 5/4, 4/3, 3/2, 5/3, 15/8])
+    , ("min", [1, 9/8, 6/5, 4/3, 3/2, 8/5, 9/5])
+    , ("legong", [1, 10/9, 6/5, 4/3, 3/2, 25/16, 9/5])
+    , ("hemavathi", [1, 10/9, 6/5, (3/2) / (16/15), 3/2, 5/3, 9/5])
     ]
 
 named_intervals :: Map.Map Text Ratio.Rational

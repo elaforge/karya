@@ -37,6 +37,7 @@ module Derive.Scale.Theory (
     , Key(key_tonic, key_name, key_signature, key_layout), key
     , key_degrees_per_octave
     , layout
+    , layout_max_pc
     -- * util
     , diatonic_degree_of
 #ifndef TESTING
