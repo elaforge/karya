@@ -268,7 +268,7 @@ test_collect = do
             ]
     let create = do
             bid <- blocks
-            State.set_render_style Track.Line (UiTest.tid "sub.t1")
+            State.set_render_style (Track.Line Nothing) (UiTest.tid "sub.t1")
             return bid
     let (_, cached, _) = compare_cached create $ insert_event "top.t1" 1 1 ""
     -- pprint (r_cache_collect cached)

@@ -93,7 +93,7 @@ setup_small = do
         [(0, 0, "5c"), (1, 0, "5d"), (2, 0, "5e"), (3, 0, "5f")]
     State.set_track_title pitch "*"
     State.modify_track_render pitch $ \render ->
-        render { Track.render_style = Track.Line }
+        render { Track.render_style = Track.Line Nothing }
     State.set_skeleton bid $ Skeleton.make [(1, 2), (2, 3)]
     State.set_midi_config (make_midi_config "ptq" [("ptq/c", [0..2])])
     vid <- Create.view bid
@@ -111,7 +111,7 @@ setup_normal = do
             (3, 0, ".5")]
     State.set_track_title mod "mod"
     State.modify_track_render mod $ \render ->
-        render { Track.render_style = Track.Filled }
+        render { Track.render_style = Track.Filled Nothing }
 
     note <- Create.empty_track bid 3
     State.insert_events note $ map (note_event . UiTest.make_event)
@@ -124,7 +124,7 @@ setup_normal = do
             (3, 0, "i (5f)")]
     State.set_track_title pitch "*twelve | key = 'c-maj'"
     State.modify_track_render pitch $ \render ->
-        render { Track.render_style = Track.Line }
+        render { Track.render_style = Track.Line Nothing }
     State.set_track_width bid 3 50
 
     dyn <- Create.empty_track bid 5

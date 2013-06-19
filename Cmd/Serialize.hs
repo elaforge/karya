@@ -372,27 +372,61 @@ instance Serialize Track.Track where
             _ -> Serialize.bad_version "Track.Track" v
 
 instance Serialize Track.RenderConfig where
-    put (Track.RenderConfig a b) = Serialize.put_version 0 >> put a >> put b
-    get = do
-        v <- Serialize.get_version
-        case v of
-            0 -> do
-                style :: Track.RenderStyle <- get
-                color :: Color.Color <- get
-                return $ Track.RenderConfig style color
-            _ -> Serialize.bad_version "Track.RenderConfig" v
+    put (Track.RenderConfig a b) = Serialize.put_version 1 >> put a >> put b
+    get = Serialize.get_version >>= \v -> case v of
+        0 -> do
+            style :: RenderStyle0 <- get
+            color :: Color.Color <- get
+            return $ Track.RenderConfig (convert style) color
+        1 -> do
+            style :: Track.RenderStyle <- get
+            color :: Color.Color <- get
+            return $ Track.RenderConfig style color
+        _ -> Serialize.bad_version "Track.RenderConfig" v
+        where
+        convert NoRender = Track.NoRender
+        convert Line = Track.Line Nothing
+        convert Filled = Track.Filled Nothing
 
 instance Serialize Track.RenderStyle where
     put Track.NoRender = put_tag 0
-    put Track.Line = put_tag 1
-    put Track.Filled = put_tag 2
+    put (Track.Line a) = put_tag 1 >> put a
+    put (Track.Filled a) = put_tag 2 >> put a
+    get = get_tag >>= \tag -> case tag of
+        0 -> return Track.NoRender
+        1 -> do
+            source :: Maybe Track.RenderSource <- get
+            return $ Track.Line source
+        2 -> do
+            source :: Maybe Track.RenderSource <- get
+            return $ Track.Filled source
+        _ -> bad_tag "Track.RenderStyle" tag
+
+instance Serialize Track.RenderSource where
+    put (Track.Control a) = put_tag 0 >> put a
+    put (Track.Pitch a) = put_tag 1 >> put a
+    get = get_tag >>= \tag -> case tag of
+        0 -> do
+            control :: Score.Control <- get
+            return $ Track.Control control
+        1 -> do
+            control :: Maybe Score.Control <- get
+            return $ Track.Pitch control
+        _ -> bad_tag "Track.RenderSource" tag
+
+instance Serialize RenderStyle0 where
+    put NoRender = put_tag 0
+    put Line = put_tag 1
+    put Filled = put_tag 2
     get = do
         tag <- get_tag
         case tag of
-            0 -> return Track.NoRender
-            1 -> return Track.Line
-            2 -> return Track.Filled
-            _ -> bad_tag "Track.RenderStyle" tag
+            0 -> return NoRender
+            1 -> return Line
+            2 -> return Filled
+            _ -> bad_tag "RenderStyle0" tag
+
+data RenderStyle0 = NoRender | Line | Filled
 
 -- ** Midi.Instrument
 

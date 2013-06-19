@@ -14,6 +14,7 @@ import qualified Ui.Color as Color
 import qualified Ui.Event as Event
 import qualified Ui.Events as Events
 
+import qualified Derive.Score as Score
 import qualified Perform.Signal as Signal
 import qualified App.Config as Config
 import Types
@@ -83,8 +84,15 @@ no_render = RenderConfig NoRender Config.render_color
 instance Pretty.Pretty RenderConfig where
     pretty (RenderConfig style color) = Pretty.pretty (style, color)
 
-data RenderStyle = NoRender | Line | Filled
-    deriving (Eq, Show, Read)
+-- | RenderStyles can take an optional source which says which control the
+-- signal comes from.  This is only for note tracks, and will extract the
+-- final signal from the events and display that.
+data RenderStyle = NoRender | Line !(Maybe RenderSource)
+    | Filled !(Maybe RenderSource)
+    deriving (Eq, Read, Show)
+
+data RenderSource = Control Score.Control | Pitch (Maybe Score.Control)
+    deriving (Eq, Read, Show)
 
 instance Pretty.Pretty RenderStyle where pretty = show
 

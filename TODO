@@ -3,9 +3,22 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
+  * If I turn on track rendering for a pitch track, it extracts and concats
+    an event control and shows that, so I can see the final value.
+    But tempo.  If tempo is id I can pull the signal after the note track
+    derive.  Otherwise, I rederive in realtime.
+    . This is also a place to use the pos+intensity signal render idea.
+    * But I need some place to say what control I want to render.
+    * Has to be post-slicing, in BlockUtil.
+    * support pitch signals
+    * support non-id tempo
   * rename Score.TypedSignal to TypedControl, ControlModification to ControlMod
   * just scale: make major and minor into keys, and add some more keys
   - Make just scale support keys with greater or less than 7 degrees
+    But then I can wind up putting bp under just?  Well, maybe not, since it
+    has its own notion of keys.
+    . It has to go in layout, otherwise input doesn't know how to work.
+      So just changing the ratios doesn't work.
   * Should be able to set block tempo with '%tempo = 4'
   * control call for sawtooth, for e.g. bow tremolo
   * maybe use ^hjkl to move selection
@@ -568,7 +581,7 @@ fltk:
   control track, render signal
     - render option: solid with color gradient
     - combine multiple signals, e.g. one controls xpos, one controls color
-      I could combine pitch and dyn.
+      I could combine pitch and dyn.  This is appropriate for the note track.
 
 logview:
   - Logview: adding new log msgs causes the status bar to shrink back to one
@@ -577,6 +590,7 @@ logview:
     a rotated log.
     . It happens if the write handle is still open, for some reason
       Posix.getFileStatus then gets openFile: resource busy (file is locked)
+    . Maybe it's when reopen tries to open the file and it's already open.
   - can I get the standard edit menu and copy/paste?
   - haskell and c++ use the same machine readable format
   - tabs are not lining up properly

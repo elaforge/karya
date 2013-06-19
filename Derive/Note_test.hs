@@ -6,10 +6,15 @@ module Derive.Note_test where
 import qualified Data.Map as Map
 
 import Util.Test
+import qualified Ui.State as State
 import qualified Ui.Track as Track
 import qualified Ui.UiTest as UiTest
+
 import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
+import qualified Derive.Score as Score
+
+import qualified Perform.NN as NN
 import qualified Perform.Signal as Signal
 
 
@@ -57,13 +62,31 @@ test_sub_tracks = do
 --     Log.warn $ show subs
 --     return []
 
-test_stash_sub_signals = do
+test_derive_track_signals = do
     let run = extract . DeriveTest.linear_derive_tracks id
         extract = Map.toList
             . Map.map (Signal.unsignal . Track.ts_signal)
             . Derive.r_track_signals
     equal (run $ (">", [(1, 2, "(")]) : UiTest.regular_notes 4)
         [(UiTest.mk_tid 3, [(0, 48), (1, 50), (2, 52), (3, 53)])]
+
+test_stash_signal = do
+    let run wanted tempo tracks =
+            lookup (UiTest.mk_tid 2) $ DeriveTest.e_tsigs $
+            DeriveTest.derive_tracks_with_ui id (want wanted) $
+                ("tempo", tempo) : (">", [(0, 1, ""), (1, 1, "")]) : tracks
+        want control state = UiTest.exec state $
+            State.set_render_style (Track.Line (Just control)) (UiTest.mk_tid 2)
+        dyn = Track.Control Score.c_dynamic
+        pitch = Track.Pitch Nothing
+    equal (run dyn [(0, 0, "1")] [("dyn", [(0, 0, ".5"), (1, 0, "1")])])
+        (Just [(0, 0.5), (1, 1)])
+    equal (run pitch [(0, 0, "1")] [("*", [(0, 0, "4c"), (1, 0, "4d")])])
+        (Just [(0, realToFrac NN.c4), (1, realToFrac NN.d4)])
+
+    equal (run dyn [(0, 0, "1"), (1, 0, "2")]
+            [("dyn", [(0, 0, ".5"), (1, 0, "1"), (2, 0, ".5")])])
+        (Just [(0, 0.5), (1, 1), (2, 0.5)])
 
 -- * derivers
 

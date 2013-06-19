@@ -24,6 +24,8 @@ import qualified Cmd.ModifyEvents as ModifyEvents
 import qualified Cmd.PlayUtil as PlayUtil
 import qualified Cmd.Selection as Selection
 
+import qualified Derive.Score as Score
+import qualified Derive.TrackInfo as TrackInfo
 import Types
 
 
@@ -118,13 +120,34 @@ filled :: Cmd.CmdL ()
 filled = do
     (block_id, _, track_ids, _, _) <- Selection.tracks
     PlayUtil.clear_cache block_id
-    mapM_ (State.set_render_style Track.Filled) track_ids
+    mapM_ (State.set_render_style (Track.Filled Nothing)) track_ids
 
 line :: Cmd.CmdL ()
 line = do
     (block_id, _, track_ids, _, _) <- Selection.tracks
     PlayUtil.clear_cache block_id
-    mapM_ (State.set_render_style Track.Line) track_ids
+    mapM_ (State.set_render_style (Track.Line Nothing)) track_ids
+
+nline :: Text -> Cmd.CmdL ()
+nline = note_render Track.Line
+
+nfilled :: Text -> Cmd.CmdL ()
+nfilled = note_render Track.Filled
+
+note_render :: (Cmd.M m) => (Maybe Track.RenderSource -> Track.RenderStyle)
+    -> Text -> m ()
+note_render mode control_name = do
+    (block_id, _, track_ids, _, _) <- Selection.tracks
+    PlayUtil.clear_cache block_id
+    track_ids <- filterM is_note track_ids
+    mapM_ (State.set_render_style (mode (Just control))) track_ids
+    where
+    control = case Text.stripPrefix "#" control_name of
+        Nothing -> Track.Control $ Score.Control control_name
+        Just s
+            | Text.null s -> Track.Pitch Nothing
+            | otherwise -> Track.Pitch $ Just (Score.Control s)
+    is_note = fmap TrackInfo.is_note_track . State.get_track_title
 
 no_render :: Cmd.CmdL ()
 no_render = do

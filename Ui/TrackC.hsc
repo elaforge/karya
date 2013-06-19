@@ -121,8 +121,8 @@ initialize_track_signal tsigp = do
 encode_style :: Track.RenderStyle -> (#type RenderConfig::RenderStyle)
 encode_style style = case style of
     Track.NoRender -> (#const RenderConfig::render_none)
-    Track.Line -> (#const RenderConfig::render_line)
-    Track.Filled -> (#const RenderConfig::render_filled)
+    Track.Line {} -> (#const RenderConfig::render_line)
+    Track.Filled {} -> (#const RenderConfig::render_filled)
 
 -- typedef int (*FindEvents)(ScoreTime *start_pos, ScoreTime *end_pos,
 --         Event **ret_events, int **ret_ranks);

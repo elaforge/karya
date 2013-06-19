@@ -87,20 +87,26 @@
 module Derive.Note where
 import qualified Data.Char as Char
 import qualified Data.List.NonEmpty as NonEmpty
+import qualified Data.Map as Map
 import qualified Data.Text as Text
 import qualified Data.Tree as Tree
 
 import Util.Control
 import qualified Ui.Event as Event
 import qualified Ui.Events as Events
+import qualified Ui.Track as Track
 import qualified Ui.TrackTree as TrackTree
 
 import qualified Derive.Call as Call
 import qualified Derive.Control as Control
 import qualified Derive.Derive as Derive
 import qualified Derive.Deriver.Internal as Internal
+import qualified Derive.LEvent as LEvent
+import qualified Derive.PitchSignal as PitchSignal
+import qualified Derive.Score as Score
 import qualified Derive.TrackInfo as TrackInfo
 
+import qualified Perform.Signal as Signal
 import Types
 
 
@@ -117,6 +123,66 @@ d_note_track (Tree.Node track subs) = do
     where
     title = with_title subs (TrackTree.tevents_range track)
         (TrackTree.tevents_title track)
+
+record_if_wanted :: TrackTree.TrackEvents -> [TrackTree.EventsNode]
+    -> Derive.Events -> Derive.Deriver ()
+record_if_wanted track subs events
+    | Control.should_render True track =
+        render_of track >>= flip when_just
+            (stash_signal rederive (LEvent.events_of events))
+    | otherwise = return ()
+    where rederive = d_note_track $ fmap strip_track_id (Tree.Node track subs)
+
+-- | Clear out the TrackIds so the rederive doesn't wind up stashing its own
+-- signals.
+strip_track_id :: TrackTree.TrackEvents -> TrackTree.TrackEvents
+strip_track_id track = track { TrackTree.tevents_track_id = Nothing }
+
+stash_signal :: Derive.EventDeriver -> [Score.Event]
+    -> (TrackId, Track.RenderSource) -> Derive.Deriver ()
+stash_signal rederive events (track_id, source) =
+    Control.linear_tempo >>= \x -> case x of
+        -- This is super inefficient but there's not much that can be done.
+        Nothing ->
+            put_track_signal track_id source 0 1 . LEvent.events_of
+                =<< Derive.in_real_time rederive
+        Just (shift, stretch) ->
+            put_track_signal track_id source shift stretch events
+
+put_track_signal :: TrackId -> Track.RenderSource -> ScoreTime -> ScoreTime
+    -> [Score.Event] -> Derive.Deriver ()
+put_track_signal track_id source shift stretch events =
+    Control.put_track_signal track_id $ extract shift stretch
+    where
+    extract shift stretch =
+        Track.TrackSignal (Signal.coerce sig) shift stretch is_pitch
+    sig = mconcat $ case source of
+        Track.Control control -> mapMaybe (extract_control control) events
+        Track.Pitch control -> mapMaybe (extract_pitch control) events
+    is_pitch = case source of
+        Track.Control {} -> False
+        Track.Pitch {} -> True
+    extract_control control = fmap Score.typed_val . Map.lookup control
+        . Score.event_controls
+    extract_pitch Nothing event = Just $ convert event $ Score.event_pitch event
+    extract_pitch (Just control) event =
+        fmap (convert event) $ Map.lookup control $ Score.event_pitches event
+    convert event psig =
+        Signal.coerce $ fst $ PitchSignal.to_nn $
+            PitchSignal.apply_controls (Score.event_controls event) psig
+
+-- | Wait, if I can just look at the Track, why do I need
+-- Derive.state_wanted_track_signals?
+render_of :: TrackTree.TrackEvents
+    -> Derive.Deriver (Maybe (TrackId, Track.RenderSource))
+render_of track = case TrackTree.tevents_track_id track of
+    Nothing -> return Nothing
+    Just track_id -> fmap ((,) track_id) . extract . Track.render_style
+        . Track.track_render <$> Derive.get_track track_id
+    where
+    extract (Track.Line (Just source)) = Just source
+    extract (Track.Filled (Just source)) = Just source
+    extract _ = Nothing
 
 with_title :: TrackTree.EventsTree -> (ScoreTime, ScoreTime) -> Text
     -> Derive.EventDeriver -> Derive.EventDeriver

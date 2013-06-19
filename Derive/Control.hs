@@ -429,7 +429,8 @@ derive_track_signals = put_track_signals <=< track_signal_ <=< filter_rendered
 filter_rendered :: TrackTree.EventsTree -> Derive.Deriver TrackTree.EventsTree
 filter_rendered = concatMapM f
     where
-    f (Tree.Node track subs) | not (should_render track) = filter_rendered subs
+    f (Tree.Node track subs) | not (should_render False track) =
+        filter_rendered subs
     f node@(Tree.Node track []) =
         ifM (signal_wanted track) (return [node]) (return [])
     f (Tree.Node track subs) = do
@@ -441,11 +442,11 @@ filter_rendered = concatMapM f
 
 -- | False if the track should not render at all, not even for the benefit of
 -- sub tracks.
-should_render :: TrackTree.TrackEvents -> Bool
-should_render track =
-    not $ TrackTree.tevents_sliced track || Text.null title
-        || TrackInfo.is_note_track title
-        || Events.null (TrackTree.tevents_events track)
+should_render :: Bool -> TrackTree.TrackEvents -> Bool
+should_render note_track track =
+    not (TrackTree.tevents_sliced track || Text.null title
+        || Events.null (TrackTree.tevents_events track))
+    && (if note_track then id else not) (TrackInfo.is_note_track title)
     where title = TrackTree.tevents_title track
 
 track_signal_ :: TrackTree.EventsTree

@@ -145,9 +145,11 @@ derive_track node@(Tree.Node track subs)
     | TrackInfo.is_note_track (TrackTree.tevents_title track) = do
         let (orphans, underivable) = Slice.extract_orphans track subs
         record underivable
-        with_stack $ Cache.track track (TrackTree.tevents_children node) $
-            derive_orphans (TrackTree.tevents_title track) orphans $
+        with_stack $ Cache.track track (TrackTree.tevents_children node) $ do
+            events <- derive_orphans (TrackTree.tevents_title track) orphans $
                 Internal.track_setup track (Note.d_note_track node)
+            Note.record_if_wanted track subs events
+            return events
     -- I'd like to call track_setup up here, but tempo tracks are treated
     -- differently, so it goes inside d_control_track.
     | otherwise = with_stack $ Control.d_control_track node (derive_tracks subs)

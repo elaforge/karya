@@ -133,7 +133,7 @@ test_insert_remove_track = do
 
 test_track_signal = do
     view <- create_empty_view
-    let track = Track.set_render_style Track.Line event_track_1
+    let track = Track.set_render_style (Track.Line Nothing) event_track_1
     io_human "track without signal" $
         insert_track view 1 (event_track track) 40
 

@@ -67,6 +67,8 @@ test_merge = do
         [(1, 1), (2, 2), (3, 3)]
     equal (f [[(0, 0), (1, 1), (2, 2)], [(1, 3), (2, 4), (3, 5)]])
         [(0, 0), (1, 3), (2, 4), (3, 5)]
+    equal (f [[(0, 0), (1, 1)], [(1, 1), (2, 2)]])
+        [(0, 0), (1, 1), (2, 2)]
 
 test_interleave = do
     let f v1 v2 = unsignal $ V.interleave (signal v1) (signal v2)
