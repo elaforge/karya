@@ -116,9 +116,7 @@ import Types
 d_note_track :: TrackTree.EventsNode -> Derive.EventDeriver
 d_note_track (Tree.Node track subs) = do
     Control.derive_track_signals subs
-    title $ derive_notes
-        (TrackTree.tevents_end track) (TrackTree.tevents_range track)
-        (TrackTree.tevents_shifted track) subs (TrackTree.tevents_around track)
+    title $ derive_notes (track_info track subs)
         (Events.ascending (TrackTree.tevents_events track))
     where
     title = with_title subs (TrackTree.tevents_range track)
@@ -196,25 +194,20 @@ with_title subs (start, end) title deriver
     info = (Derive.dummy_call_info start (end - start) "note track")
         { Derive.info_sub_tracks = subs }
 
--- | It could just pass the 'TrackTree.TrackInfo', but this way
--- "Derive.Lazy_test" can pass an infinite events list.
-derive_notes :: ScoreTime -> (ScoreTime, ScoreTime) -> ScoreTime
-    -> TrackTree.EventsTree -> ([Event.Event], [Event.Event])
-    -> [Event.Event] -> Derive.EventDeriver
-derive_notes events_end track_range shifted subs events_around events = do
-    -- You'd think 'd_note_track' should just pass TrackEvents, but then I
-    -- can't test for laziness by passing an infinite events list.
+derive_notes :: Call.TrackInfo -> [Event.Event] -> Derive.EventDeriver
+derive_notes tinfo events = do
     state <- Derive.get
     let (event_groups, collect) = Call.derive_track state tinfo
             (\_ _ -> Nothing) events
     Internal.merge_collect collect
     return $ Derive.merge_asc_events event_groups
-    where
-    tinfo = Call.TrackInfo
-        { Call.tinfo_events_end = events_end
-        , Call.tinfo_track_range = track_range
-        , Call.tinfo_shifted = shifted
-        , Call.tinfo_sub_tracks = subs
-        , Call.tinfo_events_around = events_around
-        , Call.tinfo_type = TrackInfo.NoteTrack
-        }
+
+track_info :: TrackTree.TrackEvents -> [TrackTree.EventsNode] -> Call.TrackInfo
+track_info track subs = Call.TrackInfo
+    { Call.tinfo_events_end = TrackTree.tevents_end track
+    , Call.tinfo_track_range = TrackTree.tevents_range track
+    , Call.tinfo_shifted = TrackTree.tevents_shifted track
+    , Call.tinfo_sub_tracks = subs
+    , Call.tinfo_events_around = TrackTree.tevents_around track
+    , Call.tinfo_type = TrackInfo.NoteTrack
+    }

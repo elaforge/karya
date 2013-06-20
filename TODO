@@ -3,6 +3,11 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
+  - instead of shorten/lengethen ,., it should apply staccato
+  - trill in b2 ending clashes with next note
+  - cmd-a when something is selected should extend the bottom of the selection
+  - hjkl kind of needs selecting to be useful
+  - play from prev should have a larger default
   * If I turn on track rendering for a pitch track, it extracts and concats
     an event control and shows that, so I can see the final value.
     But tempo.  If tempo is id I can pull the signal after the note track
@@ -381,6 +386,8 @@ plugins:
     map.
 
 cleanup:
+  - I could make the fltk interface clearer by putting c_interface.cc into
+    fltk, and then putting all the types it depends on in one header.
   - There's a lot of duplication between State.TrackEvents, Call.TrackInfo,
     and Derive.CallInfo.  Can I factor out the common bits?
   - Update.BlockSkeleton sets Block.Status, and so does Update.BlockTrack.  If
@@ -446,12 +453,6 @@ performance:
       shows up low on the profile, so maybe it's not a big deal.
     . The thing is, it seems like fl_scroll doesn't actually help scrolling
       speed at all.  Maybe all the time is spent elsewhere?
-  - the same place that updates the status could use updates to clear caches
-    for cmds or for TimeStep
-    Clear when: inst changed, so if any performance was regenerated.  In fact,
-    if I put the cache in the performance then this happens automatically.
-    But where do I put it while the performance is still waiting?  I guess
-    I can stick stuff in the performance without forcing the events.
   - look into Debug.Trace.traceEventIO to see how long various things take as
     in http://www.yesodweb.com/blog/2012/10/future-work-warp
   efficient signals
@@ -573,6 +574,8 @@ fltk:
     / dividers can have separate color for upper part, for collapsable tracks
   + Why does seq sometimes leave a app menubar on quit?  Do other fltk apps
     do that?  Yes.
+    . It has to do with starting from the cmdline, starting with 'open' doesn't
+      have this problem.
   + Disable application persistence for fltk apps:
     http://oleb.net/blog/2011/07/whats-new-for-developers-in-lion-part-1/
     Can then re-enable ~/Library/Saved Application State.
@@ -582,6 +585,9 @@ fltk:
     - render option: solid with color gradient
     - combine multiple signals, e.g. one controls xpos, one controls color
       I could combine pitch and dyn.  This is appropriate for the note track.
+      . I'm pretty sure OS X can do this, as can cairo, so I would need to
+        figure out how to get direct access to that API.  I could get rid of
+        the awful alpha_draw.cc hack while I'm at it.
 
 logview:
   - Logview: adding new log msgs causes the status bar to shrink back to one
@@ -727,7 +733,7 @@ Cmd:
     - timestep 64*2 skips two 's', because 's' is the minimum match
       skip should be ignored when the match is a larger rank than exists, or
       maybe step should fail.
-    - use NE list for TimeStep
+    / use NE list for TimeStep
     / TimeStep should support negative skip as a fractional skip
     / points use vector instead of list
       But then I lose laziness.  Maybe only worth it if I cache.
