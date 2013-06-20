@@ -166,28 +166,31 @@ find_track shift stop = do
 -- | Progressive selection: select the rest of the track, then the entire
 -- track, then the whole block.
 --
--- Tracknum 0, assumed to be a ruler, is omitted, since selecting the ruler is
+-- TrackNum 0, assumed to be a ruler, is omitted, since selecting the ruler is
 -- not only not useful, it tends to make cmds that want to get a TrackId abort.
 cmd_track_all :: (Cmd.M m) => Types.SelNum -> m ()
 cmd_track_all selnum = do
     view_id <- Cmd.get_focused_view
     sel <- Cmd.require =<< State.get_selection view_id selnum
     block_id <- State.block_id_of view_id
-    dur <- State.block_end block_id
+    block_end <- State.block_end block_id
     tracks <- length . Block.block_tracks <$> State.get_block block_id
-    set_selnum view_id selnum (Just (select_track_all dur tracks sel))
+    set_selnum view_id selnum (Just (select_track_all block_end tracks sel))
 
 select_track_all :: TrackTime -> TrackNum -> Types.Selection -> Types.Selection
-select_track_all dur tracks sel
+select_track_all block_end tracks sel
     | sel == select_tracks = select_all
     | sel == select_rest = select_tracks
     | otherwise = select_rest
     where
     -- Keep sel_cur_pos at the current position, or set it to the top.
     -- This is so 'auto_scroll' won't jump to the bottom of the block.
-    select_rest = sel { Types.sel_start_pos = dur }
-    select_tracks = sel { Types.sel_start_pos = dur, Types.sel_cur_pos = 0 }
-    select_all = Types.selection 1 0 tracks dur
+    select_rest =
+        sel { Types.sel_start_pos = start, Types.sel_cur_pos = block_end }
+        where start = fst $ Types.sel_range sel
+    select_tracks =
+        sel { Types.sel_start_pos = 0, Types.sel_cur_pos = block_end }
+    select_all = Types.selection 1 0 tracks block_end
 
 merge_sel :: Types.Selection -> Types.Selection -> Types.Selection
 merge_sel (Types.Selection strack spos _ _) (Types.Selection _ _ ctrack cpos) =

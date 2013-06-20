@@ -59,8 +59,6 @@ import qualified Data.Char as Char
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 
-import qualified System.Info
-
 import Util.Control
 import qualified Util.Log as Log
 import qualified Util.Pretty as Pretty
@@ -73,6 +71,7 @@ import qualified Ui.UiMsg as UiMsg
 
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Msg as Msg
+import qualified App.Config as Config
 
 
 -- * binding
@@ -217,19 +216,25 @@ data SimpleMod =
     | Mouse Types.MouseButton
     deriving (Eq, Ord, Show)
 
+-- | Sometimes you really want to bind to control, regardless of the platform.
+really_control :: SimpleMod
+really_control = case Config.platform of
+    Config.Mac -> SecondaryCommand
+    Config.Linux -> PrimaryCommand
+
 -- * implementation
 
 -- | TODO This is a hardcoded Mac layout, when I support other platforms
 -- it'll have to be configurable.
 simple_mod_map :: [(SimpleMod, [Key.Modifier])]
-simple_mod_map = case System.Info.os of
-    "darwin" ->
+simple_mod_map = case Config.platform of
+    Config.Mac ->
         [ (Shift, [Key.Shift])
         , (PrimaryCommand, [Key.Meta])
         -- Alt is the Mac's option key.
         , (SecondaryCommand, [Key.Control, Key.Alt])
         ]
-    _ ->
+    Config.Linux ->
         [ (Shift, [Key.Shift])
         , (PrimaryCommand, [Key.Control])
         , (SecondaryCommand, [Key.Alt])

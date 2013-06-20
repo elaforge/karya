@@ -33,6 +33,14 @@ name, email :: String
 name = "Evan Laforge"
 email = "qdunkan@gmail.com"
 
+data Platform = Mac | Linux deriving (Show, Eq)
+
+platform :: Platform
+platform = case System.Info.os of
+    "darwin" -> Mac
+    _ -> Linux
+    -- That's all there is, right?
+
 -- * paths
 
 -- | Paths which are intended to be relative to the app dir get this type,
@@ -329,9 +337,10 @@ window_decoration_h = 0
 -- * fonts
 
 emmentaler :: String
-emmentaler = case System.Info.os of
-    "darwin" -> "Emmentaler 11"
-    _ -> " Emmentaler"
+emmentaler = case platform of
+    Mac -> "Emmentaler 11"
+    Linux -> " Emmentaler"
+    -- I have no idea why the lilypond font names are inconsistent.
 
 
 -- * event style

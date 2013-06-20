@@ -56,7 +56,8 @@ import qualified Cmd.Edit as Edit
 import qualified Cmd.Keymap as Keymap
 import Cmd.Keymap
        (plain_key, plain_char, shift_char, bind_key, bind_key_status,
-        bind_repeatable, bind_click, bind_drag, command_char, SimpleMod(..))
+        bind_repeatable, bind_click, bind_drag, command_char, SimpleMod(..),
+        really_control)
 import qualified Cmd.Meter as Meter
 import qualified Cmd.Msg as Msg
 import qualified Cmd.PitchTrack as PitchTrack
@@ -317,14 +318,14 @@ block_config_bindings = concat
 edit_state_bindings :: (Cmd.M m) => [Keymap.Binding m]
 edit_state_bindings = concat
     [ plain_key Key.Escape "toggle val edit" Edit.cmd_toggle_val_edit
-    -- TODO this should be control-[, but SecondaryCommand is control on OS X
-    -- and alt on linux...
-    , bind_key [SecondaryCommand] (Key.Char '[') "toggle val edit"
+    , bind_key [really_control] (Key.Char '[') "toggle val edit"
         Edit.cmd_toggle_val_edit
     , bind_key [PrimaryCommand] Key.Escape "toggle raw edit"
         Edit.cmd_toggle_raw_edit
     , bind_key [] Key.Tab "toggle method edit" Edit.cmd_toggle_method_edit
     , bind_key [Shift] Key.Escape "toggle kbd entry mode"
+        Edit.cmd_toggle_kbd_entry
+    , bind_key [really_control] (Key.Char ']') "toggle kbd entry mode"
         Edit.cmd_toggle_kbd_entry
 
     , command_char '0' "set event step" $ Edit.set_step TimeStep.event_step

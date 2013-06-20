@@ -130,10 +130,6 @@ setup_state state = state
         { Cmd.state_time_step = TimeStep.time_step $
             TimeStep.AbsoluteMark TimeStep.AllMarklists Meter.r_4
         }
-    , Cmd.state_play = (Cmd.state_play state)
-        { Cmd.state_play_step = TimeStep.time_step $
-            TimeStep.AbsoluteMark TimeStep.AllMarklists Meter.r_1
-        }
     }
 
 -- | Create a 'Cmd.Config'.  It would be nicer in "Cmd.Cmd", but that would
