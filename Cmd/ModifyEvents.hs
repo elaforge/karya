@@ -11,9 +11,11 @@ import qualified Ui.Event as Event
 import qualified Ui.Events as Events
 import qualified Ui.State as State
 import qualified Ui.Track as Track
+import qualified Ui.Types as Types
 
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Selection as Selection
+import qualified Derive.ParseBs as ParseBs
 import qualified Derive.TrackInfo as TrackInfo
 import Types
 
@@ -36,6 +38,10 @@ event f = events (return . map f)
 
 text :: (Monad m) => (Text -> Text) -> Track m
 text = event . (\f event -> Event.set_text (f (Event.event_text event)) event)
+
+-- | Split up a pipeline and lex the calls.
+pipeline :: ([[Text]] -> [[Text]]) -> Text -> Text
+pipeline modify = ParseBs.join_pipeline . modify . ParseBs.split_pipeline
 
 -- | Take a text transformation that can fail to a Track transformation that
 -- transforms all the events and throws if any of the text transformations
@@ -66,6 +72,14 @@ selection f = do
         when_just maybe_new_events $ \new_events -> do
             State.remove_events track_id start end
             State.insert_block_events block_id track_id new_events
+
+-- | Like 'selection', but advance it afterwards if it was a point selection.
+-- This is convenient for applying a transformation repeatedly.
+selection_advance :: (Cmd.M m) => Track m -> m ()
+selection_advance f = do
+    selection f
+    whenM (Types.sel_is_point . snd <$> Selection.get)
+        Selection.advance
 
 -- | Map a function over the events that overlap the selection point.
 overlapping :: (Cmd.M m) => Track m -> m ()

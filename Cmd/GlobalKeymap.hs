@@ -348,6 +348,8 @@ edit_state_bindings = concat
 
     , plain_char '-' "octave -1" (Edit.cmd_modify_octave (subtract 1))
     , plain_char '=' "octave +1" (Edit.cmd_modify_octave (+1))
+
+    , command_char ',' "strip transformer" Edit.strip_transformer
     ]
     where
     step_rank rank =

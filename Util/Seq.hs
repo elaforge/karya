@@ -580,6 +580,11 @@ split sep xs = go sep xs
         | otherwise = pre : split sep (drop (length sep) post)
         where (pre, post) = break_tails (sep `List.isPrefixOf`) xs
 
+-- | Like 'split', but it returns [] if the input was null.
+split_null :: (Eq a) => NonNull a -> [a] -> [[a]]
+split_null _ [] = []
+split_null sep xs = split sep xs
+
 -- | 'split' never returns null, so sometimes it's more convenient to express
 -- that in the type.
 split_t :: (Eq a) => NonNull a -> [a] -> ([a], [[a]])

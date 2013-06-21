@@ -20,7 +20,7 @@ module Derive.ParseBs (
     , parse_expr
     , parse_control_title
     , parse_val, parse_attrs, parse_num, parse_call
-    , lex1, lex
+    , lex1, lex, split_pipeline, join_pipeline
 
     -- * expand macros
     , expand_macros
@@ -34,6 +34,7 @@ import Data.Attoparsec ((<?>))
 import qualified Data.Attoparsec.Char8 as A
 import qualified Data.ByteString.Char8 as B
 import qualified Data.ByteString.UTF8 as UTF8
+import qualified Data.List as List
 import qualified Data.List.NonEmpty as NonEmpty
 import qualified Data.Text as Text
 import qualified Data.Text.Encoding as Text.Encoding
@@ -41,6 +42,8 @@ import qualified Data.Text.Encoding as Encoding
 
 import Util.Control hiding (Text)
 import qualified Util.ParseBs as Parse
+import qualified Util.Seq as Seq
+
 import qualified Ui.Event as Event
 import qualified Ui.Id as Id
 import qualified Ui.Util
@@ -109,12 +112,21 @@ lex1 text = case parse ((,) <$> p_lex1 <*> A.takeWhile (const True)) text of
     Right ((), rest) -> (B.take (B.length text - B.length rest) text, rest)
     Left _ -> (text, "")
 
+-- | Like 'lex1', but get all of them.
 lex :: Text -> [Text]
 lex text
     | B.null pre = []
-    | B.null post = [pre]
-    | otherwise = pre : lex post
-    where (pre, post) = lex1 text
+    | B.null post = [rstrip pre]
+    | otherwise = rstrip pre : lex post
+    where
+    (pre, post) = lex1 text
+    rstrip = fst . B.spanEnd (==' ')
+
+split_pipeline :: Text.Text -> [[Text.Text]]
+split_pipeline = map (map to_text) . Seq.split_null ["|"] . lex . from_text
+
+join_pipeline :: [[Text.Text]] -> Text.Text
+join_pipeline = mconcat . List.intercalate [" | "]
 
 -- | Attoparsec doesn't keep track of byte position, and always backtracks.
 -- I think this means I can't reuse 'p_term'.

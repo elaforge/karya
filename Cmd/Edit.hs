@@ -444,8 +444,13 @@ toggle_note_duration = do
         st { Cmd.state_note_duration = if dur == to_end then step else to_end }
     where to_end = TimeStep.time_step TimeStep.BlockEdge
 
+-- * modify text
 
--- * recent note
+strip_transformer :: (Cmd.M m) => m ()
+strip_transformer = ModifyEvents.selection_advance $
+    ModifyEvents.text $ ModifyEvents.pipeline $ drop 1
+
+-- ** recent note
 
 cmd_insert_recent :: (Cmd.M m) => Int -> m ()
 cmd_insert_recent num = do
@@ -508,7 +513,7 @@ record_recent note recent0 = (key, note) : recent
     match n1 n2 = n1 == n2
 
 
--- * edit input
+-- ** edit input
 
 append_text :: (Cmd.M m) => m Cmd.Status
 append_text = edit_open (const Nothing)
