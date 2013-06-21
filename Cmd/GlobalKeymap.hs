@@ -229,26 +229,28 @@ selection_bindings = concat
 
     , repeatable_char 'h' "move selection left" $
         Selection.shift False (-1)
+    , repeatable_char 'H' "move selection left" $
+        Selection.shift True (-1)
     , repeatable_char 'l' "move selection right" $
         Selection.shift False 1
+    , repeatable_char 'L' "move selection right" $
+        Selection.shift True 1
     , repeatable_char 'j' "move selection advance" $
         Selection.step TimeStep.Advance False
+    , repeatable_char 'J' "move selection advance" $
+        Selection.step TimeStep.Advance True
     , repeatable_char 'k' "move selection rewind" $
         Selection.step TimeStep.Rewind False
-
-    , repeatable_char 'H' "move selection next note track" $
-        Selection.shift False
-            =<< Selection.find_track Selection.L TrackInfo.is_note_track
-    , repeatable_char 'L' "move selection previous note track" $
+    , repeatable_char 'K' "move selection rewind" $
+        Selection.step TimeStep.Rewind True
+    -- Mnemonic: next, previous.
+    , repeatable_char 'n' "move selection right note track" $
         Selection.shift False
             =<< Selection.find_track Selection.R TrackInfo.is_note_track
-    , repeatable_char 'J' "move selection advance 2" $
-        Selection.step_with 1 False =<< promoted (-1)
-    , repeatable_char 'K' "move selection rewind 2" $
-        Selection.step_with (-1) False =<< promoted (-1)
+    , repeatable_char 'p' "move selection left note track" $
+        Selection.shift False
+            =<< Selection.find_track Selection.L TrackInfo.is_note_track
 
-    -- Or should shifted keys only jump to event starts, in analogy with
-    -- vi 'w' and 'b'?
     , repeatable_char 'w' "move selection next event" $
         Selection.step_with 1 False TimeStep.event_step
     , repeatable_char 'W' "move selection next event" $
@@ -263,8 +265,6 @@ selection_bindings = concat
     ]
     where
     repeatable_char c = bind_repeatable [] (Key.Char c)
-    promoted ranks = TimeStep.modify_rank (Num.clamp 0 Meter.r_64 . (+ranks))
-        <$> Cmd.get_current_step
 
 step_play_bindings :: (Cmd.M m) => [Keymap.Binding m]
 step_play_bindings = concat
