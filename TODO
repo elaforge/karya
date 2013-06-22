@@ -7,7 +7,7 @@ UNSORTED
     on previous state.
   - Analysis for all controls that are used for that instrument, along with
     initial and final values.
-  - Automatic new pitch tracks should just be '*', not '*twelve'.
+  * Automatic new pitch tracks should just be '*', not '*twelve'.
   * if play step goes before the start of the block it gets stuck for a bit
   * cmd-] to toggle kbd entry
   * instead of shorten/lengethen ,., it should apply staccato

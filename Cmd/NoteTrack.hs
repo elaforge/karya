@@ -222,7 +222,7 @@ should_create_control block_id track is_control = case Info.track_type track of
         Just control ->
             return (ControlTrack tracknum (State.track_tracknum control), False)
     ttype -> Cmd.throw $ "expected a note track for "
-        ++ show (block_id, tracknum) ++ " but got " ++ show ttype
+        <> show (block_id, tracknum) <> " but got " <> show ttype
     where
     find = List.find (is_control . State.track_title)
     tracknum = State.track_tracknum (Info.track_info track)
@@ -292,11 +292,9 @@ generator_of = Text.strip . last . Text.splitOn "|"
 -- | Create a pitch track.
 create_pitch_track :: (Cmd.M m) => BlockId -> ControlTrack -> m ()
 create_pitch_track block_id (ControlTrack note pitch) = do
-    scale_id <- EditUtil.get_scale_id
-    tid <- Create.empty_track block_id pitch
+    Create.track block_id pitch "*" Events.empty
     -- Link note track underneath newly created pitch track.
     State.splice_skeleton_below block_id pitch note
-    State.set_track_title tid (TrackInfo.scale_to_title scale_id)
 
 create_dyn_track :: (Cmd.M m) => BlockId -> ControlTrack -> m ()
 create_dyn_track block_id (ControlTrack note dyn) = do
