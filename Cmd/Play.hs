@@ -290,7 +290,11 @@ get_track_id = Stack.block_track_of . Stack.from_strings <=< Log.msg_stack
 -- | Play the performance of the given block starting from the given time.
 from_realtime :: (Cmd.M m) => BlockId -> Maybe RealTime -> RealTime
     -> m Cmd.PlayMidiArgs
-from_realtime block_id repeat_at start = do
+from_realtime block_id repeat_at start_ = do
+    -- Since 0 is considered "the beginning", even if that happens to be before
+    -- 0, there's no point asking for something before 0, and will just cause
+    -- play to seem to wedge for a moment.
+    let start = max 0 start_
     play_control <- gets Cmd.state_play_control
     when_just play_control $ \_ -> Cmd.throw "player already running"
 
