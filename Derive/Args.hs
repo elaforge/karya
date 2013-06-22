@@ -23,6 +23,9 @@ event = Derive.info_event . info
 prev_val :: PassedArgs a -> Maybe (RealTime, a)
 prev_val = Derive.info_prev_val . info
 
+require_prev_val :: PassedArgs a -> Derive.Deriver (RealTime, a)
+require_prev_val = Derive.require "previous value" . prev_val
+
 is_title_call :: PassedArgs a -> Bool
 is_title_call args = range args == Derive.info_track_range (info args)
 
@@ -77,6 +80,10 @@ prev_events = Derive.info_prev_events . info
 range :: PassedArgs a -> (ScoreTime, ScoreTime)
 range = Event.range . event
 
+real_range :: PassedArgs a -> Derive.Deriver (RealTime, RealTime)
+real_range args = (,) <$> Derive.real start <*> Derive.real end
+    where (start, end) = range args
+
 -- | Like 'range', but if the duration is 0, then the end is 'next' event.
 range_or_next :: PassedArgs a -> (ScoreTime, ScoreTime)
 range_or_next args
@@ -84,9 +91,9 @@ range_or_next args
     | otherwise = (start, end)
     where (start, end) = range args
 
-real_range :: PassedArgs a -> Derive.Deriver (RealTime, RealTime)
-real_range args = (,) <$> Derive.real start <*> Derive.real end
-    where (start, end) = range args
+real_range_or_next :: PassedArgs a -> Derive.Deriver (RealTime, RealTime)
+real_range_or_next args = (,) <$> Derive.real start <*> Derive.real end
+    where (start, end) = range_or_next args
 
 -- | Start and duration of the event.  This is probably the right thing for
 -- calls that generate a note since it will give a negative duration when

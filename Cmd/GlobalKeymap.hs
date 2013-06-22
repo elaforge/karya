@@ -43,7 +43,6 @@ module Cmd.GlobalKeymap where
 import qualified Control.Monad.Identity as Identity
 
 import Util.Control
-import qualified Util.Num as Num
 import qualified Ui.Block as Block
 import qualified Ui.Key as Key
 import qualified Ui.State as State

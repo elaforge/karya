@@ -60,6 +60,7 @@ import qualified Derive.Sig as Sig
 import Derive.Sig (defaulted, required, typed_control, control)
 import qualified Derive.TrackLang as TrackLang
 
+import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
 import Types
 
@@ -244,6 +245,9 @@ control_calls = Derive.make_calls
     , ("tr1", c_control_trill (Just UnisonFirst))
     , ("tr2", c_control_trill (Just NeighborFirst))
     , ("saw", c_sawtooth)
+    , ("sine", c_sine Bipolar)
+    , ("sine+", c_sine Positive)
+    , ("sine-", c_sine Negative)
     ]
 
 -- | The control version of 'c_pitch_trill'.  It generates a signal of values
@@ -273,7 +277,8 @@ trill_speed_arg = defaulted "speed" (typed_control "trill-speed" 14 Score.Real)
 
 c_sawtooth :: Derive.ControlCall
 c_sawtooth = Derive.generator1 "sawtooth" Tags.ornament
-    "Emit a down-sloping sawtooth."
+    "Emit a sawtooth.  By default it has a downward slope, but you can make\
+    \ an upward slope by setting `from` and `to`."
     $ Sig.call ((,,)
     <$> defaulted "speed" (typed_control "saw-speed" 10 Score.Real)
         "Repeat at this speed. Its meaning is the same as the trill speed."
@@ -288,6 +293,45 @@ sawtooth :: RealTime -> [RealTime] -> Double -> Double -> Signal.Control
 sawtooth srate starts from to =
     Signal.signal $ concatMap saw (zip starts (drop 1 starts))
     where saw (t1, t2) = Control.interpolate_list srate id t1 from (t2-srate) to
+
+data SineMode = Bipolar | Negative | Positive deriving (Show)
+
+-- | This is probably not terribly convenient to use on its own, I should
+-- have some more specialized calls based on this.
+c_sine :: SineMode -> Derive.ControlCall
+c_sine mode = Derive.generator1 "sine" Tags.ornament
+    "Emit a sine wave. The default version is centered on the `offset`,\
+    \ and the `+` and `-` variants are above and below it, respectively."
+    $ Sig.call ((,,)
+    <$> defaulted "speed" (typed_control "sine-speed" 1 Score.Real) "Frequency."
+    <*> defaulted "amp" 1 "Amplitude, measured center to peak."
+    <*> defaulted "offset" 0 "Center point."
+    ) $ \(speed, amp, offset) args -> do
+        (speed_sig, time_type) <- Util.to_time_signal Util.Real speed
+        case time_type of
+            Util.Score -> Derive.throw "RealTime signal required"
+            _ -> return ()
+        srate <- Util.get_srate
+        let sign = case mode of
+                Bipolar -> 0
+                Negative -> -amp
+                Positive -> amp
+        (start, end) <- Args.real_range_or_next args
+        -- let samples = Seq.range' start end srate
+        return $ Signal.map_y ((+(offset+sign)) . (*amp)) $
+            sine srate start end speed_sig
+
+-- Emit val at this phase, increment phase based on current freq and distance
+-- to next srate.
+sine :: RealTime -> RealTime -> RealTime -> Signal.Control -> Signal.Control
+sine srate start end freq_sig = Signal.unfoldr go (start, 0)
+    where
+    go (pos, phase)
+        | pos >= end = Nothing
+        | otherwise = Just ((pos, sin phase), (pos + srate, next_phase))
+        where
+        freq = Signal.at pos freq_sig
+        next_phase = phase + RealTime.to_seconds srate * 2*pi * freq
 
 -- | Get start times before the end of the range, at the given speed.
 speed_starts :: TrackLang.ValControl -> (ScoreTime, ScoreTime)

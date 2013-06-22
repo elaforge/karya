@@ -3,6 +3,12 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
+  - I need some way to set initial inst state, so it doesn't wind up relying
+    on previous state.
+  - Analysis for all controls that are used for that instrument, along with
+    initial and final values.
+  - Automatic new pitch tracks should just be '*', not '*twelve'.
+  - if play step goes before the start of the block it gets stuck for a bit
   * cmd-] to toggle kbd entry
   * instead of shorten/lengethen ,., it should apply staccato
   - trill in b2 ending clashes with next note
@@ -862,7 +868,9 @@ Derive:
         - support kilitan/beat speed more exotic than 4/1
 
   control calls:
-    - sine
+    - signal transformations: +, *, max, min
+    - saturation limit, e.g. flatten sine wave but without clipping
+    * sine
     - continuous tempo warping for signals
       tempo: "2" -> "1", "2", cont: "2" -> "i, 1", should emit a bent line
 
