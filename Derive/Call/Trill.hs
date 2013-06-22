@@ -44,6 +44,7 @@ import qualified Data.List as List
 
 import Util.Control
 import qualified Util.Seq as Seq
+import qualified Ui.ScoreTime as ScoreTime
 import qualified Derive.Args as Args
 import qualified Derive.Attrs as Attrs
 import qualified Derive.Call.Control as Control
@@ -321,8 +322,6 @@ c_sine mode = Derive.generator1 "sine" Tags.ornament
         return $ Signal.map_y ((+(offset+sign)) . (*amp)) $
             sine srate start end speed_sig
 
--- Emit val at this phase, increment phase based on current freq and distance
--- to next srate.
 sine :: RealTime -> RealTime -> RealTime -> Signal.Control -> Signal.Control
 sine srate start end freq_sig = Signal.unfoldr go (start, 0)
     where
@@ -387,7 +386,7 @@ score_trill :: Mode -> (ScoreTime, ScoreTime) -> Signal.Control
     -> Signal.Control -> Derive.Deriver Signal.Control
 score_trill mode (start, end) neighbor speed = do
     all_transitions <- score_pos_at_speed speed start end
-    let transitions = integral_cycles end all_transitions
+    let transitions = integral_cycles ScoreTime.eta end all_transitions
     real_transitions <- mapM Derive.real transitions
     return $ trill_from_transitions mode real_transitions neighbor
 
@@ -412,7 +411,7 @@ make_trill :: Mode -> RealTime -> RealTime -> Signal.Control -> Signal.Control
     -> Signal.Control
 make_trill mode start end neighbor speed =
     trill_from_transitions mode transitions neighbor
-    where transitions = integral_cycles end (real_pos_at_speed speed start)
+    where transitions = integral_cycles RealTime.eta end (real_pos_at_speed speed start)
 
 -- | Emit an infinite list of RealTimes at the given speed, which may change
 -- over time.  The speed is taken as hertz in real time.
@@ -421,6 +420,7 @@ real_pos_at_speed sig start =
     start : real_pos_at_speed sig (start + Signal.y_to_real (recip speed))
     where speed = Signal.at start sig
 
+-- | Make a trill signal from a list of transition times.
 trill_from_transitions :: Mode -> [RealTime] -> Signal.Control -> Signal.Control
 trill_from_transitions mode transitions neighbor =
     Signal.signal [(x, if t then Signal.at x neighbor else 0)
@@ -433,10 +433,13 @@ trill_from_transitions mode transitions neighbor =
 make_square :: [RealTime] -> Signal.Control
 make_square xs = Signal.signal (zip xs (cycle [0, 1]))
 
-integral_cycles :: (Ord a) => a -> [a] -> [a]
-integral_cycles end (x0:x1:x2:xs)
+-- | Given a list of trill transition times, take only complete cycles (pairs)
+-- that fall before the end time.  A bit of eta is to ensure that a transition
+-- that almost lines up with the end doesn't result in a super short note.
+integral_cycles :: (Ord a, Num a) => a -> a -> [a] -> [a]
+integral_cycles eta end (x0:x1:x2:xs)
     -- This is what makes trills include the end, as documented in the module
     -- haddock.
-    | x2 > end = [x0]
-    | otherwise = x0 : x1 : integral_cycles end (x2:xs)
-integral_cycles _ xs = take 1 xs
+    | x2 + eta >= end = [x0]
+    | otherwise = x0 : x1 : integral_cycles eta end (x2:xs)
+integral_cycles _ _ xs = take 1 xs

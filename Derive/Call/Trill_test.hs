@@ -16,13 +16,20 @@ import qualified Perform.Signal as Signal
 
 
 test_note_trill = do
-    let run notes pitches = extract $ DeriveTest.derive_tracks
-            [(">", notes), ("*", pitches)]
+    let run tempo notes pitches = extract $ DeriveTest.derive_tracks
+            [("tempo", [(0, 0, show tempo)]), (">", notes), ("*", pitches)]
         extract = DeriveTest.extract DeriveTest.e_note
-    equal (run [(0, 3, "tr 1 1")] [(0, 0, "4c")])
+    equal (run 1 [(0, 3, "tr 1 1")] [(0, 0, "4c")])
         ([(0, 1, "4c"), (1, 1, "4d"), (2, 1, "4c")], [])
-    equal (run [(0, 3, "tr 2 1")] [(0, 0, "4a"), (2, 0, "i (4b)")])
+    equal (run 1 [(0, 3, "tr 2 1")] [(0, 0, "4a"), (2, 0, "i (4b)")])
         ([(0, 1, "4a"), (1, 1, "5c"), (2, 1, "4b")], [])
+
+    -- Without the eta argument to 'integral_cycles', I wind up with a super
+    -- short note that fell right below the "full cycle" threshold.
+    let (notes, logs) = run 1.75
+            [(7, 1, "tr"), (8, 1, "")] [(7, 0, "5b"), (8, 0, "3c")]
+    equal logs []
+    check $ all (>0.05) [d | (_, d, _) <- notes]
 
 test_tremolo = do
     let run tempo notes = extract $ DeriveTest.derive_tracks
