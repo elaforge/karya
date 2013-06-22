@@ -73,6 +73,17 @@ toggle_solo inst = modify_config (Score.Instrument inst) $ \config ->
     let solo = not $ Instrument.config_solo config
     in (config { Instrument.config_solo = solo }, solo)
 
+set_control :: (State.M m) => Text -> Text -> Double -> m ()
+set_control inst control val = modify_config_ (Score.Instrument inst) $
+    Instrument.controls#Lens.map (Score.Control control) #= Just val
+
+set_controls :: (State.M m) => Text -> [(Text, Double)] -> m ()
+set_controls inst controls = modify_config_ (Score.Instrument inst) $
+    Instrument.controls #= Map.fromList (map (first Score.Control) controls)
+
+get_controls :: (State.M m) => m (Map.Map Score.Instrument Score.ControlValMap)
+get_controls = Map.map Instrument.config_controls <$> configs
+
 modify_config :: (State.M m) => Score.Instrument
     -> (Instrument.Config -> (Instrument.Config, a)) -> m a
 modify_config inst modify = do
@@ -81,6 +92,10 @@ modify_config inst modify = do
     let (new, result) = modify config
     State.modify $ State.config # State.midi # Lens.map inst #= Just new
     return result
+
+modify_config_ :: (State.M m) => Score.Instrument
+    -> (Instrument.Config -> Instrument.Config) -> m ()
+modify_config_ inst modify = modify_config inst (\c -> (modify c, ()))
 
 
 -- * allocate a device and channels

@@ -22,8 +22,8 @@ module Perform.Signal (
     , Tempo, Warp, Control, NoteNumber, Display
 
     -- * construction / deconstruction
-    , signal, unsignal
-    , constant, length, null
+    , signal, unsignal, constant, unfoldr
+    , length, null
     , coerce
     , with_ptr
 
@@ -167,6 +167,9 @@ unsignal = V.unsignal . sig_vec
 
 constant :: Y -> Signal y
 constant = Signal . V.constant
+
+unfoldr :: (state -> Maybe ((X, Y), state)) -> state -> Signal y
+unfoldr f st = Signal $ V.unfoldr f st
 
 length :: Signal y -> Int
 length = V.length . sig_vec

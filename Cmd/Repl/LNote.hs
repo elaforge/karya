@@ -13,6 +13,7 @@ import qualified Cmd.ModifyNotes as ModifyNotes
 import qualified Cmd.Selection as Selection
 
 import qualified Derive.PitchSignal as PitchSignal
+import qualified Derive.Score as Score
 import qualified Perform.Pitch as Pitch
 import Types
 
@@ -23,7 +24,7 @@ notes :: Cmd.CmdL [(ModifyNotes.Note, TrackId)]
 notes = ModifyNotes.selection_notes
 
 note_controls :: Cmd.CmdL
-    [(ModifyNotes.Note, (Maybe PitchSignal.Pitch, PitchSignal.Controls))]
+    [(ModifyNotes.Note, (Maybe PitchSignal.Pitch, Score.ControlValMap))]
 note_controls = do
     block_id <- Cmd.get_focused_block
     events <- Cmd.perf_events <$> Cmd.get_performance block_id

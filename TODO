@@ -3,9 +3,9 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
-  - I need some way to set initial inst state, so it doesn't wind up relying
+  * I need some way to set initial inst state, so it doesn't wind up relying
     on previous state.
-  - Analysis for all controls that are used for that instrument, along with
+  * Analysis for all controls that are used for that instrument, along with
     initial and final values.
   * Automatic new pitch tracks should just be '*', not '*twelve'.
   * if play step goes before the start of the block it gets stuck for a bit

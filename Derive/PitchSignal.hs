@@ -13,7 +13,7 @@ module Derive.PitchSignal (
     , null, at, shift, last
     , take, drop_after, drop_before
     -- * Pitch
-    , Pitch, PitchError(..), Controls
+    , Pitch, PitchError(..), ControlValMap
     , pitch, apply, add_control, eval_pitch, eval_note, pitch_nn, pitch_note
 ) where
 import Prelude hiding (take, last, null)
@@ -30,7 +30,7 @@ import qualified Util.Seq as Seq
 import qualified Util.TimeVector as TimeVector
 
 import qualified Derive.BaseTypes as Score
-import Derive.BaseTypes (Pitch(..), PitchCall, Controls, PitchError(..))
+import Derive.BaseTypes (Pitch(..), PitchCall, ControlValMap, PitchError(..))
 import qualified Perform.Pitch as Pitch
 import qualified Perform.Signal as Signal
 import Types
@@ -132,7 +132,7 @@ apply_controls controls sig
 
 -- | Sample the ControlMap on the sample points of the given set of controls.
 sample_controls :: ControlMap -> Set.Set Score.Control
-    -> TimeVector.Boxed Controls
+    -> TimeVector.Boxed ControlValMap
 sample_controls controls transposers =
     TimeVector.signal $ zip xs (map (flip controls_at controls) xs)
     where
@@ -149,7 +149,7 @@ sample_controls controls transposers =
 apply_control :: Score.Control -> Score.TypedControl -> Signal -> Signal
 apply_control cont sig = apply_controls (Map.singleton cont sig)
 
-controls_at :: RealTime -> ControlMap -> Controls
+controls_at :: RealTime -> ControlMap -> ControlValMap
 controls_at t = Map.map (Signal.at t . Score.typed_val)
 
 -- * signal functions
@@ -181,14 +181,14 @@ drop_before x = modify_vector (TimeVector.drop_before x)
 -- * Pitch
 
 -- newtype Pitch = Pitch PitchCall
--- type PitchCall = Controls -> Either PitchError Pitch.NoteNumber
--- type Controls = Map.Map Score.Control Signal.Y
+-- type PitchCall = ControlValMap -> Either PitchError Pitch.NoteNumber
+-- type ControlValMap = Map.Map Score.Control Signal.Y
 
 pitch :: PitchCall Pitch.NoteNumber -> PitchCall Pitch.Note -> Pitch
 pitch = Pitch
 
 -- | Apply controls to a pitch.
-apply :: Controls -> Pitch -> Pitch
+apply :: ControlValMap -> Pitch -> Pitch
 apply controls (Pitch nn note) = Pitch
     (\controls2 -> nn $! Map.unionWith (+) controls2 controls)
     (\controls2 -> note $! Map.unionWith (+) controls2 controls)

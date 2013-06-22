@@ -5,6 +5,7 @@
 {-# LANGUAGE NoMonomorphismRestriction #-}
 -- | Cmds to deal with Cmd.Performance, derivation, and performance.
 module Cmd.Repl.LPerf where
+import qualified Data.List as List
 import qualified Data.Map as Map
 
 import Util.Control
@@ -30,9 +31,11 @@ import qualified Derive.Stack as Stack
 import qualified Derive.TrackLang as TrackLang
 import qualified Derive.TrackWarp as TrackWarp
 
+import qualified Perform.Midi.Control as Midi.Control
 import qualified Perform.Midi.Convert as Midi.Convert
 import qualified Perform.Midi.Instrument as Instrument
 import qualified Perform.Midi.Perform as Perform
+import qualified Perform.Signal as Signal
 
 import Types
 
@@ -84,6 +87,31 @@ get_realtime root = do
     perf <- if root then get_root else get block_id
     Perf.get_realtime perf block_id (Just track_id) pos
 
+-- * analysis
+
+type ControlVals =
+    Map.Map Midi.Control.Control ((RealTime, Signal.Y), (RealTime, Signal.Y))
+
+-- | Get the first and last values for each instrument.  This can be used to
+-- show which controls the each instrument uses, which in turn can be used
+-- to set its 'Instrument.config_controls', to make sure it is always
+-- initialized consistently.
+inst_controls :: BlockId -> Cmd.CmdL (Map.Map Score.Instrument ControlVals)
+inst_controls block_id =
+    List.foldl' merge mempty <$> block_perform_events block_id
+    where
+    merge insts event =
+        Map.insertWith (Map.unionWith merge1) (event_inst event)
+            (control_vals (Perform.event_controls event))
+            insts
+    control_vals = Map.mapMaybe $ \sig ->
+        case (Signal.first sig, Signal.last sig) of
+            (Just a, Just b) -> Just (a, b)
+            _ -> Nothing
+    merge1 (start1, end1) (start2, end2) =
+        (Seq.min_on fst start1 start2, Seq.max_on fst end1 end2)
+    event_inst = Instrument.inst_score . Perform.event_instrument
+
 -- * derive
 
 -- These are mostly for testing, to find problems in performer output.
@@ -121,6 +149,10 @@ block_events block_id = Derive.r_events <$> PlayUtil.cached_derive block_id
 
 block_uncached_events :: BlockId -> Cmd.CmdL Derive.Events
 block_uncached_events block_id = Derive.r_events <$> uncached_derive block_id
+
+block_perform_events :: BlockId -> Cmd.CmdL [Perform.Event]
+block_perform_events block_id =
+    LEvent.events_of <$> (convert . LEvent.events_of =<< block_events block_id)
 
 -- | Derive all the way to MIDI.
 block_midi :: BlockId -> Cmd.CmdL Perform.MidiEvents

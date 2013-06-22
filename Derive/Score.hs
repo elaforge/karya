@@ -24,10 +24,10 @@ import qualified Util.Pretty as Pretty
 import qualified Ui.ScoreTime as ScoreTime
 import qualified Derive.BaseTypes as BaseTypes
 import Derive.BaseTypes
-       (Instrument(..), Control(..), Type(..), Typed(..), untyped, merge_typed,
-        type_to_code, code_to_type, TypedControl, TypedVal, Attributes,
-        Attribute, attr, attrs, set_to_attrs, attrs_diff, attrs_contain,
-        attrs_remove, attrs_set, attrs_list, no_attrs)
+       (Instrument(..), Control(..), Type(..), Typed(..), ControlValMap,
+        untyped, merge_typed, type_to_code, code_to_type, TypedControl,
+        TypedVal, Attributes, Attribute, attr, attrs, set_to_attrs, attrs_diff,
+        attrs_contain, attrs_remove, attrs_set, attrs_list, no_attrs)
 import qualified Derive.Environ as Environ
 import qualified Derive.PitchSignal as PitchSignal
 import qualified Derive.Stack as Stack
@@ -193,10 +193,10 @@ modify_event_control control f event = case Map.lookup control controls of
             { event_controls = Map.insert control (fmap f typed) controls }
     where controls = event_controls event
 
-event_controls_at :: RealTime -> Event -> PitchSignal.Controls
+event_controls_at :: RealTime -> Event -> ControlValMap
 event_controls_at t = controls_at t .  event_controls
 
-controls_at :: RealTime -> ControlMap -> PitchSignal.Controls
+controls_at :: RealTime -> ControlMap -> ControlValMap
 controls_at p = Map.map (typed_val . control_at p)
 
 -- *** pitch

@@ -30,6 +30,7 @@ import qualified Perform.Midi.Instrument as Instrument
 import qualified Perform.Midi.Perform as Perform
 import qualified Perform.Pitch as Pitch
 import qualified Perform.RealTime as RealTime
+import qualified Perform.Signal as Signal
 
 import qualified Instrument.MidiDb as MidiDb
 import Types
@@ -233,8 +234,16 @@ get_convert_lookup = do
     lookup_scale <- Cmd.get_lookup_scale
     lookup_inst <- Cmd.get_lookup_midi_instrument
     lookup_info <- Cmd.get_lookup_instrument
-    return $ Convert.Lookup lookup_scale lookup_inst
-        (fmap MidiDb.info_patch . lookup_info)
+    configs <- State.get_midi_config
+    let defaults = Map.map (Map.map (Score.untyped . Signal.constant)
+            . Instrument.config_controls) configs
+    return $ Convert.Lookup
+        { Convert.lookup_scale = lookup_scale
+        , Convert.lookup_inst = lookup_inst
+        , Convert.lookup_patch = fmap MidiDb.info_patch . lookup_info
+        , Convert.lookup_default_controls = \inst ->
+            Map.findWithDefault mempty inst defaults
+        }
 
 -- * util
 

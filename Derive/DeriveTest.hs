@@ -533,7 +533,11 @@ synth_to_db synth_descs =
 
 make_convert_lookup :: Cmd.InstrumentDb -> Convert.Lookup
 make_convert_lookup midi_db = Convert.Lookup
-    default_lookup_scale lookup_inst lookup_patch
+    { Convert.lookup_scale = default_lookup_scale
+    , Convert.lookup_inst = lookup_inst
+    , Convert.lookup_patch = lookup_patch
+    , Convert.lookup_default_controls = const mempty
+    }
     where
     lookup_inst = Instrument.Db.db_lookup_midi midi_db
     lookup_patch = fmap MidiDb.info_patch . Instrument.Db.db_lookup midi_db

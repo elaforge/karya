@@ -53,7 +53,7 @@ scale_degree pitch_nn pitch_note = Derive.val_call
                 else Map.insertWith' (+) Score.c_chromatic (frac / 100)
                     controls)
 
-get_hz :: PitchSignal.Controls -> Pitch.Hz
+get_hz :: Score.ControlValMap -> Pitch.Hz
 get_hz = Map.findWithDefault 0 Score.c_hz
 
 -- | Convert a note and @frac@ arg into a tracklang expression representing

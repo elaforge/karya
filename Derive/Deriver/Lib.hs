@@ -268,7 +268,7 @@ control_at cont pos = do
 untyped_control_at :: Score.Control -> RealTime -> Deriver (Maybe Signal.Y)
 untyped_control_at cont = fmap (fmap Score.typed_val) . control_at cont
 
-controls_at :: RealTime -> Deriver PitchSignal.Controls
+controls_at :: RealTime -> Deriver Score.ControlValMap
 controls_at pos = Score.controls_at pos <$> get_controls
 
 with_control :: Score.Control -> Score.TypedControl -> Deriver a -> Deriver a

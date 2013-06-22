@@ -301,6 +301,13 @@ resample1 prev_ay prev_by len1 len2 i1 i2 vec1 vec2
 
 -- * util
 
+{-# INLINEABLE unfoldr #-}
+unfoldr :: V.Vector v (Sample y) => (b -> Maybe ((X, y), b)) -> b
+    -> v (Sample y)
+unfoldr f = V.unfoldr $ \st -> case f st of
+    Nothing -> Nothing
+    Just ((x, y), next) -> Just (Sample x y, next)
+
 -- | Given a line defined by the two points, find the y at the given x.
 -- Crashes if called on a vertical line (y0==y1).  Yeah, it's inconsistent
 -- with 'x_at'.

@@ -176,6 +176,12 @@ move from to xs = do
 
 -- * min / max
 
+min_on :: (Ord k) => (a -> k) -> a -> a -> a
+min_on key x y = if key x <= key y then x else y
+
+max_on :: (Ord k) => (a -> k) -> a -> a -> a
+max_on key x y = if key x >= key y then x else y
+
 minimum_on :: (Ord ord) => (a -> ord) -> [a] -> Maybe a
 minimum_on _ [] = Nothing
 minimum_on key xs = Just (List.foldl1' f xs)

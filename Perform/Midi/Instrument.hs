@@ -192,6 +192,10 @@ data Config = Config {
     -- instrument wishing to use an address will emit an appropriate message to
     -- configure it (probably a keyswitch, possibly a program change).
     config_addrs :: ![Addr]
+    -- | Default controls for this instrument, will always be set unless
+    -- explicitly replaced.  This hopefully avoids the problem where
+    -- a synthesizer starts in an undefined state.
+    , config_controls :: Score.ControlValMap
     -- | If true, this instrument is filtered out prior to playing.
     , config_mute :: !Bool
     -- | If any instrument is soloed, all instruments except soloed ones are
@@ -200,21 +204,24 @@ data Config = Config {
     } deriving (Eq, Show, Read)
 
 addrs = Lens.lens config_addrs (\v r -> r { config_addrs = v })
+controls = Lens.lens config_controls (\v r -> r { config_controls = v })
 mute = Lens.lens config_mute (\v r -> r { config_mute = v })
 solo = Lens.lens config_solo (\v r -> r { config_solo = v })
 
 config :: [Addr] -> Config
 config addrs = Config
     { config_addrs = addrs
+    , config_controls = mempty
     , config_mute = False
     , config_solo = False
     }
 
 instance Pretty.Pretty Config where
-    format (Config addrs mute solo) =
+    format (Config addrs controls mute solo) =
         Pretty.record_title "Config"
             [ ("addrs", Pretty.format addrs)
             , ("mute", Pretty.format mute)
+            , ("controls", Pretty.format controls)
             , ("solo", Pretty.format solo)
             ]
 

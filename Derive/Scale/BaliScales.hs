@@ -9,7 +9,6 @@ import qualified Data.Map as Map
 
 import Util.Control
 import qualified Derive.Environ as Environ
-import qualified Derive.PitchSignal as PitchSignal
 import qualified Derive.Scale as Scale
 import qualified Derive.Scale.Symbols as Symbols
 import qualified Derive.Scale.Util as Util
@@ -96,7 +95,7 @@ make_nn_map umbang isep =
     where center = zipWith (\a b -> (a+b) / 2) umbang isep
 
 degree_to_nn :: NoteNumberMap
-    -> TrackLang.Environ -> PitchSignal.Controls -> Pitch.Degree
+    -> TrackLang.Environ -> Score.ControlValMap -> Pitch.Degree
     -> Either Scale.ScaleError Pitch.NoteNumber
 degree_to_nn (umbang_nns, isep_nns, center_nns) = \env controls degree -> do
     tuning <- Util.read_environ read_tuning Umbang Environ.tuning env

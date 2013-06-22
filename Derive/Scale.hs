@@ -10,9 +10,9 @@ import qualified Derive.TrackLang as TrackLang
 import qualified Perform.Pitch as Pitch
 
 
-type PitchNn = TrackLang.Environ -> PitchSignal.Controls
+type PitchNn = TrackLang.Environ -> PitchSignal.ControlValMap
     -> Either PitchSignal.PitchError Pitch.NoteNumber
-type PitchNote = TrackLang.Environ -> PitchSignal.Controls
+type PitchNote = TrackLang.Environ -> PitchSignal.ControlValMap
     -> Either PitchSignal.PitchError Pitch.Note
 
 -- | TODO this is incorrect, because you can't get from NN to note if the scale

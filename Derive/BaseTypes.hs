@@ -177,8 +177,8 @@ no_attrs = Attributes Set.empty
 -- Pitch understands, for example 'Derive.Score.c_chromatic' and
 -- 'Derive.Score.c_diatonic'.
 data Pitch = Pitch !(PitchCall Pitch.NoteNumber) !(PitchCall Pitch.Note)
-type PitchCall a = Controls -> Either PitchError a
-type Controls = Map.Map Control Signal.Y
+type PitchCall a = ControlValMap -> Either PitchError a
+type ControlValMap = Map.Map Control Signal.Y
 
 instance Eq Pitch where
     Pitch p1 _ == Pitch p2 _ = p1 Map.empty == p2 Map.empty

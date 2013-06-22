@@ -88,7 +88,7 @@ degree_map notes =
 
 type NoteNumberMap = Map.Map Pitch.Degree Pitch.NoteNumber
 
-type DegreeToNoteNumber = TrackLang.Environ -> PitchSignal.Controls
+type DegreeToNoteNumber = TrackLang.Environ -> Score.ControlValMap
     -> Pitch.Degree -> Either Scale.ScaleError Pitch.NoteNumber
 
 note_number_map :: [Pitch.NoteNumber] -> NoteNumberMap

@@ -53,6 +53,7 @@ data Lookup = Lookup {
     lookup_scale :: Derive.LookupScale
     , lookup_inst :: MidiDb.LookupMidiInstrument
     , lookup_patch :: Score.Instrument -> Maybe Instrument.Patch
+    , lookup_default_controls :: Score.Instrument -> Score.ControlMap
     }
 
 -- | Convert Score events to Perform events, emitting warnings that may have
@@ -76,7 +77,8 @@ convert_event lookup event_ = do
     let (controls, overridden) = convert_controls
             (Instrument.has_flag Instrument.Pressure patch)
             (Instrument.inst_control_map midi_inst)
-            (Score.event_controls event)
+            (Score.event_controls event
+                `Map.union` lookup_default_controls lookup score_inst)
     when_just overridden $ \sig ->
         Log.warn $ "non-null control overridden by "
             ++ Pretty.pretty Score.c_dynamic ++ ": " ++ Pretty.pretty sig
@@ -160,7 +162,7 @@ convert_midi_pitch inst patch attrs event = do
 -- controls, since those will inhibit channel sharing later.
 convert_controls :: Bool -- ^ True if the @p@ control should become breath.
     -> Control.ControlMap -- ^ Instrument's control map.
-    -> Score.ControlMap
+    -> Score.ControlMap -- ^ Controls to convert.
     -> (Perform.ControlMap, Maybe (Score.Control, Score.TypedControl))
 convert_controls pressure_inst inst_cmap =
     first (Map.fromAscList . map (\(k, v) -> (cc k, Score.typed_val v))
