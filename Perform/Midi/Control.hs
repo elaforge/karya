@@ -132,12 +132,12 @@ universal_control_map = control_map $ [(n, "cc" <> showt n) | n <- [0..127]] ++
     [ (1, "mod")
     , (2, "breath")
     , (4, "foot")
-    , (7, "volume")
+    , (7, "vol")
     , (8, "balance")
     , (10, "pan")
     , (64, "pedal")
-    , (65, "portamento-pedal")
-    , (66, "sostenuto-pedal")
+    , (65, "porta-pedal")
+    , (66, "sost-pedal")
     , (67, "soft-pedal")
     ]
 
