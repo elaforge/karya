@@ -133,10 +133,12 @@ html_header =
         , "<code>arg<sup>+</sup></code> &mdash; one or more args"
         ])
     <> "<br> <code>word</code> to include a tag, <code>-word</code> to\n\
-        \exclude: <input type=text onchange=\"search(this.value)\">\n\
+        \exclude: <input id=input type=text size=60 value=\"" <> default_search
+        <> "\" onchange=\"search(this.value)\">\n\
         \<br>You can also search by <code>%control</code>, arg default\n\
         \(<code>name-arg</code>), and call kind (<code>note</code>,\n\
         \<code>control</code>, ...)\n"
+    where default_search = "-internal -ly"
 
 css :: Html
 css = ".main dl { border-bottom: 1px solid #999 }\n\
@@ -176,6 +178,9 @@ javascript =
     \       else\n\
     \           return tags.indexOf(x) !== -1;\n\
     \    });\n\
+    \};\n\
+    \window.onload = function() {\n\
+    \   search(document.getElementById('input').value);\n\
     \};\n"
 
 call_bindings_html :: HtmlState -> Text -> CallBindings -> Html
