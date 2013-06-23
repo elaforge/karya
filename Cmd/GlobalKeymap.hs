@@ -338,8 +338,8 @@ edit_state_bindings = concat
     , uncurry (command_char '8') (step_rank Meter.r_64)
     , shift_char '=' "toggle duration" Edit.toggle_note_duration
 
-    , bind_key [PrimaryCommand] (Key.Char '`') "toggle step mode"
-        Edit.toggle_mark_step
+    , bind_key [PrimaryCommand] (Key.Char '`') "toggle absolute/relative step"
+        Edit.toggle_absolute_relative_step
     , bind_key [PrimaryCommand, Shift] (Key.Char '`') "invert step"
         Edit.cmd_invert_step_direction
     , plain_char '`' "toggle advance" Edit.toggle_advance

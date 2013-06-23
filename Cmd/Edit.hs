@@ -409,8 +409,8 @@ set_step_rank deflt rank = Cmd.modify_edit_state $ \st ->
     set _ = deflt
 
 -- | Toggle between absolute and relative mark step.
-toggle_mark_step :: (Cmd.M m) => m ()
-toggle_mark_step = Cmd.modify_edit_state $ \st ->
+toggle_absolute_relative_step :: (Cmd.M m) => m ()
+toggle_absolute_relative_step = Cmd.modify_edit_state $ \st ->
         st { Cmd.state_time_step = toggle (Cmd.state_time_step st) }
     where
     toggle step = case TimeStep.to_list step of
