@@ -16,8 +16,9 @@
     necessarily correspond to a half note.  It actually corresponds to the
     division below the measure, which in 3+3/8 is a dotted quarter.  In the
     case of 2/4 it would be a quarter note, but to keep the mnemonic names from
-    getting too far from their staff notation counterparts I just skip a rank
-    so that 'r_1' and 'r_2' both correspond to the same amount of time.
+    getting too far from their staff notation counterparts, the 2/4 meter
+    should skip a rank so that 'r_1' and 'r_2' both correspond to the same
+    amount of time.
 -}
 module Cmd.Meter where
 import Prelude hiding (repeat)
@@ -115,6 +116,8 @@ r_section : r_1 : r_2 : r_4 : r_8 : r_16 : r_32 : r_64 : r_128 : r_256 : _ =
 unlabelled_ranks :: [Ruler.Rank]
 unlabelled_ranks = [r_2, r_8, r_32, r_64, r_256]
 
+-- | These are mnemonics for staff notation durations, though they may not
+-- correspond exactly, as documented in "Cmd.Meter".
 rank_names :: [(Ruler.Rank, Text)]
 rank_names = zip [0..]
     ["section", "w", "h", "q", "e", "s", "32", "64", "128", "256"]

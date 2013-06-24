@@ -13,7 +13,7 @@ may be familiar to people accustomed to them.
 It's main goals are to be a flexible and high level way to *hand write* scores
 (so it's not oriented around realtime use), to produce the complicated control
 signals needed for expressive music, and to support non-western (or
-non-traditional western) idioms and scales.
+non-traditional) idioms and scales.
 
 As far as I know, there are no other sequencers with a similar feature set,
 but if there are, I'd be interested in hearing about them.  Here are some
@@ -22,7 +22,7 @@ incomplete and biased notes on its
 
 ## Music
 
-link to music page, link to scores
+TODO link to music page, link to scores
 
 ## Features:
 
@@ -35,16 +35,21 @@ arbitrarily complicated.  For example, there are postprocessing operations that
 apply instrument-specific restrictions or idioms, such as selecting a string
 for a given pitch, or adding pitch sloppiness to especially rapid notes.
 Another may simply put a "pizz" attribute on a note or section of score, or
-slide between two pitches in a certain way.  Scores are composed
-hierarchically, and there's no strict division between call that modifies or
-emits a single note and one that modifies or produces an entire piece.  Calls
-can take arguments and be written with custom symbols, and when the existing
-ones aren't sufficient you can write your own.
+slide between two pitches in a certain way.  Calls may vary by instrument or
+scale, so a piano synthesizer might implement a slur as a change in note
+duration, while a sampler might interpret it as a keyswitch or control change.
+
+    Scores are composed hierarchically, and there's no strict division between
+call that modifies or emits a single note and one that modifies or produces an
+entire piece, so the entire score is a call too.  Calls can take arguments and
+be written with custom symbols, and when the existing ones aren't sufficient
+you can create your own.
 
 - Pitch control.  You have full control over the pitch of each note, and can
 apply customized forms of vibrato, portamento, vocal ornaments, or whatever
 else, all within whatever scale is in use.  The same goes for other control
-signals.
+signals.  The MIDI backend can automatically multiplex an instrument across
+multiple channels to keep control changes isolated to their intended notes.
 
 - Scales.  Scales can use custom symbols and can take arguments for per-note
 pitch variations.  Scale pitches can depend on signals (e.g. a gradually
@@ -88,7 +93,7 @@ sysex messages to add to the database.
 developed one, but there is also some ability to export to lilypond.
 Lilypond export is necessarily limited because it's hard to translate between
 different kinds of scores, but with a bit of work you can get
-(reasonable looking output)[viola-sonata.pdf].
+TODO (reasonable looking output)[viola-sonata.pdf].
 
 - Incremental saving.  The score is continually saved as changes are made.  You
 can undo and make different changes, resulting in a branching history.  If
@@ -181,7 +186,7 @@ in 'Ui.State.State'.  They mostly correspond directly to what is visible in the
 GUI.  This is what gets saved when you save a score.
 
 - Cmd - Cmds take user input and transform the Ui state.  This layer handles
-all user interaction.
+all user interaction.  'Cmd.Cmd.State' is the non-score app state.
 
 - Derive - The [deriver](derivation.md.html) interprets the Ui State and turns
 into into a stream of lower level events.  It implements the "tracklang"
@@ -192,16 +197,16 @@ format, e.g. MIDI messages or lilypond score.  It's also responsible for
 "playing" the output, e.g. scheduling MIDI messages with the MIDI driver or
 calling lilypond.
 
-There are a few auxiliary programs:
+The main program is called `seq`, but there are a few auxiliary programs:
 
-- LogView - Logview is a separate program that formats log output.  The karya
-GUI doesn't have a place for global information, so logview serves this purpose
-too.  When log messages display stack traces, you can click on them to
-highlight their positions in the score.  'LogView.LogView'.
+- logview - `logview` is a separate program that formats log output.
+The karya GUI doesn't have a place for global information, so logview serves
+this purpose too.  When log messages display stack traces, you can click on
+them to highlight their positions in the score.  'LogView.LogView'.
 
-- browser (Instrument) - This is a simple browser for the instrument database.
-To the UI and Derive layers, an instrument is just a text string, but they have
-quite a bit of extra information associated with them which is important to the
+- browser - This is a simple browser for the instrument database.  To the UI
+and Derive layers, an instrument is just a text string, but they have quite a
+bit of extra information associated with them which is important to the
 performer.  'Instrument.Browser'.
 
 - make_db - If the instruments involve expensive operations like parsing
@@ -214,8 +219,9 @@ interact at the programmatic level by sending haskell expressions to be
 evaluated in the Cmd context.  `send` is a one-off version of repl that can be
 used to send a single command from shell scripts.
 
-- print_keymap - Write out a reference to the
-[global keymap in HTML.](keymap.html)
+- extract_doc - This extracts documentation and saves it to HTML.  That
+includes the [global keymap](keymap.html), [builtin calls](calls.html), and
+[builtin scales](scales.html).
 
 ## karya
 

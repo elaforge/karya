@@ -6,48 +6,6 @@ corresponds directly to a bit of text in the score, a score event
 everything else that's needed by the performer.
 
 
-## Score syntax
-
-The lowest level is the score format, which is analogous to syntax in a normal
-language.
-
-### block
-
-The most basic structure is a 'Ui.Block.Block'.  Each block can have 0 or more
-'Ui.Block.View's, which are just windows on a certain block.  A block has a
-title, which is a box you can put text in, and a list of 'Ui.Block.Track's.
-There are three kinds of tracks: divider, ruler, and event.
-
-### divider track
-
-'Ui.Block.Divider's are just visual spacers.  All they have is a color and a
-width.  You can place them manually to provide visual separation between
-tracks, and they are used automatically to represent collapsed tracks.
-
-### ruler track
-
-'Ui.Ruler.Ruler's display 'Ui.Ruler.Mark' of varying rank and color.  By
-convention each block has a ruler in the 0th track spot, which is special in
-that it stays put and doesn't scroll right to left like the other tracks.
-
-In general the ruler is just a collection of Marks, but supported by convention
-it fills the role of a meter.  A 'Cmd.TimeStep.TimeStep' describes a time
-interval in terms of ruler mark ranks.  Utilities in 'Cmd.Meter' can create and
-modify rulers with appropriately spaced marks, which cause the various
-timesteps to correspond to whole notes, quarter notes, etc.
-
-### event track
-
-Derivation is mostly concerned with event 'Ui.Track.Track's.  They have a
-title, which is once again a place for text, and a bunch of events.
-
-A 'Ui.Event.Event' is a start time, a duration, a bit of text, and some
-auxiliary attributes.  Events aren't allowed to overlap, but other than
-that are free form.  One other detail is that there's a "skeleton", which links
-together each track in a hierarchical way, so each track can have parents or
-children.  The skeleton is visualized as some lines with arrows above the
-tracks.
-
 ## Derivation
 
 Derivation starts from a root block.  You can derive from any block, but for
@@ -56,8 +14,9 @@ from there.  The eventual output of derivation is a stream of
 'Derive.Score.Event's.
 
 Tracks are arranged hierarchically, as expressed by the lines and arrows in
-the "skeleton", above the track titles.  A parent track has scope over its
-children, which means it sets the environment in which the children evaluate.
+the "skeleton", which is graphically displayed above the track titles.  A
+parent track has scope over its children, which means it sets the environment
+in which the children evaluate.
 
 Tracks are divided into two kinds: note tracks, and control tracks.  Control
 tracks are further divided into tempo, control, and pitch.  The type of a track
@@ -89,6 +48,82 @@ Since control and pitch track calls are usually points in a curve, they tend
 to be zero duration, while note track events tend to have a duration.  There
 are exceptions, for instance a pedal or switch control might use the event
 duration, while a percussion instrument may have no need for note duration.
+
+## track evaluation
+
+Each kind of track is evaluated in its own way, but they are all similar.
+
+When a track is evaluated, the text of each UI event is evaluated, and the
+results from each one are merged.  Any evaluation errors will be logged and
+abort the evaluation of that event.
+
+In addition to the arguments, each call actually gets a whole bunch of other
+information ('Derive.Deriver.Monad.CallInfo').  Notably, it gets the event
+start and duration, along with previous and subsequent events, so calls know
+where their neighbors are.  It also gets the last value of the previous call,
+which is used by control calls, some of which want to interpolate from the
+previous value.
+
+### note track
+
+Note tracks look like `>` or `>inst` or `>inst arg1 arg2 ...`.  They are passed
+as arguments to a `note-track` transformer whose default behaviour is to set
+the current instrument and possibly attributes, the same as the [default null
+note call](#call-docs).  Similar to scales, setting the instrument will bring
+the instrument's calls into scope, as documented under
+[Instruments](#instruments).
+
+You can optionally append a pipeline expression, and the
+expressions will be called as a transformer around the whole track.  So
+`>inst | t1 | x = 42` will evaluate the track with `x` set to `42` and
+transformed by `t1`.
+
+Note tracks can have children, by virtue of a complicated process called
+[slicing and inversion](#slicing-and-inversion).
+
+### control track
+
+Control tracks look like `control`, `add control` or `%`.  If a control with
+the same name is already in scope, the new track will multiply with it by
+default.  This behaviour can be changed with the leading "operator", e.g.  `set
+c` will replace `c`, or `add c` will add to it.  The complete set of operators
+is listed in 'Derive.Deriver.Monad.default_control_op_map'.  `%` is an unnamed
+control track and is used only by [control block calls](#control-block-calls).
+
+As with note tracks, you can append a transformer pipeline.
+
+Control tracks put their control into scope for their children, so a control
+track should always have children (a control track below a note track may not look like it has children, but in fact it does, courtesy of inversion).
+
+### tempo track
+
+Tempo tracks are just titled `tempo`.  The track is just a normal control
+track, but the generated signal will be composed with the warp signal in scope.
+Normally a single tempo track will have scope over all the tracks in a module,
+but it's also possible to have multiple tempo tracks.
+
+### pitch track
+
+Pitch tracks look like `*`, `*scale` or `*scale #name`.  They set the scale to
+`scale` and evaluate the track as a pitch track.  A plain `*` will use the
+scale currently in scope.  Setting a scale also has the effect of bringing the
+scale's calls into scope, as documented under Scales.  The generated pitch
+signal will replace the default unnamed pitch signal in scope, unless you give
+a `#name`.  There is no facility for combining pitch tracks as there is for
+control tracks.  Relative pitch signals are instead implemented by a control
+signal that represents chromatic or diatonic transposition.  What those are
+depends on the scale, but the defaults are 'Derive.Score.c_chromatic',
+'Derive.Score.c_diatonic' and 'Derive.Score.c_hz'.  As with control tracks, you
+can append a transformer pipeline.  Pitch tracks are highly related to
+[scales](#scales).
+
+### Slicing and inversion
+
+[Slicing and inversion](slicing-inverting.md.html) is a score level
+transformation that happens at when a track is derived.
+
+### Note Transformers
+
 
 ## Dynamic environment
 
@@ -324,7 +359,7 @@ Evaluation is implemented by 'Derive.Call.apply_toplevel'.
 ### call docs
 
 [Documentation for individual calls](calls.html) is included in the calls
-themselves, and is extracted and formatted by 'Cmd.CallDoc'.  'Cmd.Lang.LBlock'
+themselves, and is extracted and formatted by 'Cmd.CallDoc'.  'Cmd.Repl.LBlock'
 provides some functions to emit documentation for the calls in scope at the
 cursor.
 
@@ -335,77 +370,19 @@ will substitute the contents of that block, stretching and shifting it into
 place.  If the sub-block uses relative pitches and controls the generated
 notes will wind up depending on the calling environment.
 
+### Control block calls
+
 Block calls are note calls and go on a note track, but there's also a variant
 for control tracks.  The sub-block is expected to have a control track titled
 `%` whose signal will be substituted into the signal of the calling track.
 
-## track evaluation
-
-Each kind of track is evaluated in its own way, but they are all similar.
-
-The main difference is in how the titles are interpreted.  The parsing is
-documented in 'Derive.TrackInfo.parse_control', but here's an overview:
-
-- Control tracks look like `control`, `add control` or `%`.  If a control with
-the same name is already in scope, the new track will multiply with it by
-default.  This behaviour can be changed with the leading "operator", e.g.  `set
-c` will replace `c`, or `add c` will add to it.  The complete set of operators
-is listed in 'Derive.Deriver.Monad.default_control_op_map'.  `%` is an unnamed
-control track and is used only by control block calls, as documented below.
-
-    You can optionally append a pipeline expression after the control name,
-and the expressions will be called as a transformer around the whole track.
-So `add c | t1 | x = 42` will evaluate the track with `x` set to `42` and
-transformed by `t1`, and then add the resulting signal to the `c` control
-currently in scope.
-
-- Pitch tracks look like `*`, `*scale` or `*scale #name`.  They set the scale
-to `scale` and evaluate the track as a pitch track.  A plain `*` will reuse
-the scale currently in scope.  Setting a scale also has the effect of bringing
-the scale's calls into scope, as documented under Scales.  The generated pitch
-signal will replace the default unnamed pitch signal in scope, unless you give
-a `#name`.  There is no facility for combining pitch tracks as there is for
-control tracks.  Relative pitch signals are instead implemented by a control
-signal that represents chromatic or diatonic transposition.  What those are
-depends on the scale, but the defaults are 'Derive.Score.c_chromatic',
-'Derive.Score.c_diatonic' and 'Derive.Score.c_hz'.  As with control tracks,
-you can append a transformer pipeline.  Pitch tracks are highly related to
-[scales](#scales).
-
-- Tempo tracks are just titled `tempo`.  The track is just a normal control
-track, but the generated signal will be composed with the warp signal in
-scope.  Normally a single tempo track will have scope over all the tracks in a
-module, but it's also possible to have multiple tempo tracks.
-
-- Note tracks look like `>` or `>inst` or `>inst arg1 arg2 ...`.  They are
-passed as arguments to a `note-track` transformer whose default behaviour is to
-set the current instrument and possibly attributes, the same as the
-[default null note call](#call-docs).  Similar to scales, setting the
-instrument will bring the instrument's calls into scope, as documented under
-[Instruments](#instruments).  As with control tracks, you can append a
-transformer pipeline.
-
-When a track is evaluated, the text of each UI event is evaluated, and the
-results from each call are merged.  Any evaluation errors will be logged and
-abort the evaluation of that event.
-
-In addition to the arguments, each call actually gets a whole bunch of other
-information ('Derive.Deriver.Monad.CallInfo').  Notably, it gets the event
-start and duration, along with previous and subsequent events, so calls know
-where their neighbors are.  It also gets the last value of the previous call,
-which is used by control calls, some of which want to interpolate from the
-previous value.
-
-### Slicing and inversion
-
-[Slicing and inversion](slicing-inverting.md.html) is a score level
-transformation that happens at when a track is derived.
-
-### Note Transformers
-
 ### Integration
 
+TODO
+
 ## Instruments
+
+TODO
 
 ### Attributes
 
@@ -430,9 +407,13 @@ priority which one to apply.  Details are in
 
 ### Local.Instrument
 
+TODO
+
 [doc/local](local.md.html)
 
 ## Scales
+
+TODO
 
 talk about how abstract transposition works
 
@@ -441,6 +422,8 @@ caveat about how you can't write `%t-chromatic = 1 | 4c`
 [Scale docs](scales.html)
 
 ## Logging
+
+TODO
 
 ## Randomness
 

@@ -291,13 +291,13 @@ view_updates ui_from ui_to = fst $ Diff.run $
 
 sync_edit_state :: (Cmd.M m) => Cmd.EditState -> m ()
 sync_edit_state st = do
-    sync_edit_box_status st
+    sync_edit_box st
     sync_step_status st
     sync_octave_status st
     sync_recent st
 
-sync_edit_box_status :: (Cmd.M m) => Cmd.EditState -> m ()
-sync_edit_box_status st = do
+sync_edit_box :: (Cmd.M m) => Cmd.EditState -> m ()
+sync_edit_box st = do
     let mode = Cmd.state_edit_mode st
     let skel = Block.Box (skel_color mode (Cmd.state_advance st))
             (if Cmd.state_chord st then 'c' else ' ')

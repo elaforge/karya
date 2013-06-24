@@ -13,7 +13,7 @@ import Cmd.Meter (AbstractMeter(..), regular_subdivision)
 
 -- half/measure, quarter/half, eighth/quarter, ...
 -- These use 1s to help keep the timestep mnemonics in sync with staff notation
--- durations, as documented in the module haddock.
+-- durations, as documented in "Cmd.Meter".
 m64, m54, m44, m34 :: AbstractMeter
 m64 = regular_subdivision [2, 3, 2, 2, 2]
 m54 = regular_subdivision [1, 5, 2, 2, 2]

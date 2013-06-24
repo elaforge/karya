@@ -1,18 +1,61 @@
-- Install dependencies.
+## HOW TO GET SOUND TO COME OUT
 
-- Build shakefile: bin/mkmk
+In 12 complicated confusing steps, each with many sub-steps:
 
-- Build optimized binaries: bin/mk binaries-opt
+- Install dependencies, documented below.
 
 - On OS X, run 'defaults write -g ApplePressAndHoldEnabled -bool false' to
 re-enable key repeats globally.
 
+- Set up some internal MIDI devices.  On OS X this means going to "Audio MIDI
+Setup" and adding some IAC ports.
 
-    HASKELL DEPENDENCIES
+- Add your machine's name to 'Local.Config.get_midi_config', and add make a
+config for it.  This is just optional aliases for MIDI device names, and a list
+of MIDI inputs to pay attention to.
+
+- Configure a synthesizer.  There are lots of fancy features, but if you ignore
+them all the configuration is basically just synth name and pitch bend range.
+Copy an existing soft synth, e.g. 'Local.Instrument.Fm8', and add the new
+module's `load` function to 'Local.Instrument.synths'.  If you use
+'MidiInst.softsynth' then you don't have to have any explicit patch names.
+
+- Build shakefile: bin/mkmk
+
+- Build optimized binaries and documentation: 'repl=t bin/mk binaries doc'
+The repl=t part enables the REPL, which you want, but will make linking take a
+lot longer.  It will try to link to CoreMIDI on the mac and to JACK on linux.
+If for some reason you don't have one of those, you can pass midi=stub to link
+the stub MIDI driver, but don't expect any interesting music to come out.
+
+- Start `build/opt/logview` in the background, and the app `build/opt/seq` from
+one terminal, and the REPL `build/opt/repl` from another.
+
+- The default block has a tempo track, note track, and pitch track.  Note tracks
+start with `>`, rename it `>synth-name/patch-name`, where `synth-name` is
+whatever you named the new synth, and `patch-name` is whatever you want.
+
+- Type in the REPL: `LInst.alloc "synth-name/patch-name" "loop1" [0]`  `loop1`
+should be the name of one of the internal MIDI devices you created, or its
+alias if you configured one in 'Local.Config'.  This allocates MIDI channel 0
+on loop1 to that instrument.  You can see allocation with `pp LInst.configs`.
+
+- Turn on edit mode with `^[` and note entry with `^]', the edit box should be
+red and have a `K`.  If you have a MIDI keyboard you don't have to turn on note
+entry.  Play a few notes, either on the MIDI keyboard or the computer keyboard.
+If things are configured correctly, you should get MIDI thru on loop1, channel
+0.
+
+- Press enter to play, or cmd-enter to play from the start of the block, and
+space to stop.
+
+
+## HASKELL DEPENDENCIES
 
 To install the needed haskell dependencies, type:
 
-cabal install --only-dependencies
+> cabal install --only-dependencies
+> cabal install hscolour
 
 The actual build is with shake, but there's a dummy cabal file with just
 dependencies to make install easier.
@@ -22,7 +65,7 @@ zillion dependencies and I just need the binary.  Or just read the markdown
 directly, that's what it's for.  So many dependencies just to convert text to
 HTML.
 
-    INSTALLED SEPARATELY
+## INSTALLED SEPARATELY
 
 libpcre library from http://www.pcre.org
 OS X ports puts headers in /opt where configure may not find them.
@@ -47,11 +90,11 @@ lilypond, for some fonts
 
 fltk-1.3, from http://fltk.org/
 
-    LINUX
+## LINUX
 
 Either jack1 or jack2.  JACK support is mostly untested and probably doesn't
 work.
 
-    MISC
+## MISC
 
 tools/run_profile expects ps2pdf in the path, which is part of ghostscript.

@@ -541,13 +541,17 @@ dispatch modeConfig targets = do
             let debug = (modeToDir Debug </>)
             Shake.want $
                 [ debug "browser", debug "logview", debug "make_db"
-                , debug "seq", debug "update", debug "dump"
+                , debug "seq", debug "update", debug "dump", debug "repl"
                 , modeToDir Profile </> "RunProfile"
                 , "karya.cabal"
                 ] ++ extractableDocs
             dispatch modeConfig ["tests"]
             -- The gui tests tend to wedge.
             -- dispatch config "complete-tests"
+            return True
+        "binaries" -> do
+            Shake.want $ map (modeToDir Opt </>)
+                ["browser", "logview", "make_db", "seq", "repl"]
             return True
         "clean" -> action $ do
             -- The shake database will remain because shake creates it after the
