@@ -6,27 +6,19 @@
 -- a pitch signal.
 module Derive.Scale.Just where
 import qualified Data.Map as Map
-import qualified Data.Ratio as Ratio
 import Data.Ratio ((%))
-import qualified Data.Text as Text
 import qualified Data.Vector as Vector
 
 import Util.Control
 import qualified Util.Num as Num
-import qualified Derive.Args as Args
-import qualified Derive.Call.Pitch as Call.Pitch
-import qualified Derive.Call.Tags as Tags
+import qualified Derive.Call.ScaleDegree as ScaleDegree
 import qualified Derive.Derive as Derive
-import qualified Derive.Deriver.Internal as Internal
 import qualified Derive.Environ as Environ
-import qualified Derive.ParseBs as ParseBs
-import qualified Derive.PitchSignal as PitchSignal
 import qualified Derive.Scale as Scale
 import qualified Derive.Scale.Theory as Theory
 import qualified Derive.Scale.TheoryFormat as TheoryFormat
 import qualified Derive.Scale.Util as Util
 import qualified Derive.Score as Score
-import qualified Derive.Sig as Sig
 import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.Pitch as Pitch
@@ -107,7 +99,8 @@ layout = Theory.layout TheoryFormat.absolute_c_intervals
 -- this only even produces sharps.
 degree_note :: TheoryFormat.ShowPitch -> Maybe Pitch.Key -> Double -> Pitch.Note
 degree_note show_pitch key degreef =
-    Pitch.Note $ Call.Pitch.pitch_expr note frac
+    -- TODO pitch_expr makes a call to scale_degree, so I think this is wrong!
+    Pitch.Note $ ScaleDegree.pitch_expr note frac
     where
     (degree, frac) = properFraction degreef
     (octave, pc) = degree `divMod` pc_per_octave
@@ -158,110 +151,47 @@ pc_per_octave = Theory.layout_max_pc layout
 -- key.
 note_to_call :: TheoryFormat.Format -> Pitch.Note -> Maybe Derive.ValCall
 note_to_call fmt note = case TheoryFormat.read_pitch fmt note of
-    Left _ -> case parse_relative_interval note of
-        Nothing -> Nothing
-        Just interval -> Just $ relative_scale_degree interval
+    Left _ -> ScaleDegree.scale_degree_interval named_intervals note
     Right pitch_ ->
         let pitch = pitch_ { Theory.pitch_note = (Theory.pitch_note pitch_)
                 { Theory.note_accidentals = 0 } }
             accs = Theory.pitch_accidentals pitch_
-        in Just $ scale_degree accs (pitch_nn pitch) (pitch_note pitch)
-    where
-    pitch_nn :: Theory.Pitch -> Scale.PitchNn
-    pitch_nn pitch env controls =
-        Util.scale_to_pitch_error chromatic diatonic $ do
-            key <- read_key env
-            pitch <- TheoryFormat.fmt_adjust fmt (Util.lookup_key env) pitch
-            let hz = transpose_to_hz base_hz key (chromatic + diatonic) pitch
-                nn = Pitch.hz_to_nn hz
-            if Num.in_range 0 127 nn then Right nn
-                else Left Scale.InvalidTransposition
-        where
-        chromatic = Map.findWithDefault 0 Score.c_chromatic controls
-        diatonic = Map.findWithDefault 0 Score.c_diatonic controls
-        base_hz = Map.lookup just_base_control controls
+        in Just $ scale_degree (accidental_interval ^^ accs)
+            (pitch_nn fmt pitch) (pitch_note fmt pitch)
 
-    pitch_note :: Theory.Pitch -> Scale.PitchNote
-    pitch_note pitch env controls =
-        Util.scale_to_pitch_error chromatic diatonic $ do
-            let key = Util.lookup_key env
-            pitch <- TheoryFormat.fmt_adjust fmt key pitch
-            let transposed = Theory.transpose_pitch pc_per_octave
-                    (round (chromatic + diatonic)) pitch
-            Right $ TheoryFormat.show_pitch fmt key transposed
-        where
-        chromatic = Map.findWithDefault 0 Score.c_chromatic controls
-        diatonic = Map.findWithDefault 0 Score.c_diatonic controls
+pitch_nn :: TheoryFormat.Format -> Theory.Pitch -> Scale.PitchNn
+pitch_nn fmt pitch env controls =
+    Util.scale_to_pitch_error chromatic diatonic $ do
+        key <- read_key env
+        pitch <- TheoryFormat.fmt_adjust fmt (Util.lookup_key env) pitch
+        let hz = transpose_to_hz base_hz key (chromatic + diatonic) pitch
+            nn = Pitch.hz_to_nn hz
+        if Num.in_range 0 127 nn then Right nn
+            else Left Scale.InvalidTransposition
+    where
+    chromatic = Map.findWithDefault 0 Score.c_chromatic controls
+    diatonic = Map.findWithDefault 0 Score.c_diatonic controls
+    base_hz = Map.lookup just_base_control controls
+
+pitch_note :: TheoryFormat.Format -> Theory.Pitch -> Scale.PitchNote
+pitch_note fmt pitch env controls =
+    Util.scale_to_pitch_error chromatic diatonic $ do
+        let key = Util.lookup_key env
+        pitch <- TheoryFormat.fmt_adjust fmt key pitch
+        let transposed = Theory.transpose_pitch pc_per_octave
+                (round (chromatic + diatonic)) pitch
+        Right $ TheoryFormat.show_pitch fmt key transposed
+    where
+    chromatic = Map.findWithDefault 0 Score.c_chromatic controls
+    diatonic = Map.findWithDefault 0 Score.c_diatonic controls
+
+scale_degree :: Pitch.Hz -> Scale.PitchNn -> Scale.PitchNote -> Derive.ValCall
+scale_degree = ScaleDegree.scale_degree_just named_intervals
 
 just_base_control :: Score.Control
 just_base_control = Score.Control "just-base"
 
-scale_degree :: Theory.Accidentals -> Scale.PitchNn -> Scale.PitchNote
-    -> Derive.ValCall
-scale_degree accs pitch_nn pitch_note = Derive.val_call "pitch" Tags.scale
-    "Emit the pitch of a scale degree." $ Sig.call intervals_arg $
-    \intervals _ -> do
-        let acc_interval = accidental_interval ^^ accs
-        interval <- resolve_intervals intervals
-        environ <- Internal.get_dynamic Derive.state_environ
-        return $! TrackLang.VPitch $ PitchSignal.pitch
-            (call (acc_interval * interval) environ) (pitch_note environ)
-    where
-    call interval environ controls =
-        modify interval (Call.Pitch.get_hz controls) <$>
-            pitch_nn environ controls
-    modify interval hz
-        | interval == 1 && hz == 0 = id
-        | otherwise = Pitch.modify_hz ((+hz) . (*interval))
-
-intervals_arg :: Sig.Parser [Either Pitch.Hz Text]
-intervals_arg = Sig.many "interval" $
-    "Multiply this interval with the note's frequency. Negative numbers\
-    \ divide, so while `3/2` goes up a fifth, `-3/2` goes down a fifth.\
-    \ Can be either a ratio or a symbol drawn from: "
-    <> Text.intercalate ", " (Map.keys named_intervals)
-
-resolve_intervals :: [Either Pitch.Hz Text] -> Derive.Deriver Pitch.Hz
-resolve_intervals intervals =
-    product . map unsign <$> mapM (either return resolve) intervals
-    where
-    resolve text = Derive.require ("unknown named interval: " <> show text) $
-        resolve_interval text
-    unsign val = if val < 0 then recip (abs val) else val
-
-resolve_interval :: Text -> Maybe Pitch.Hz
-resolve_interval text = case Text.uncons text of
-    Just ('-', text) -> negate <$> lookup text
-    _ -> lookup text
-    where lookup text = realToFrac <$> Map.lookup text named_intervals
-
 -- ** relative interval
-
-parse_relative_interval :: Pitch.Note -> Maybe Pitch.Hz
-parse_relative_interval note =
-    unsign <$> (resolve_interval (Pitch.note_text note) `mplus` parse_num)
-    where
-    parse_num = case ParseBs.parse_val (Pitch.note_text note) of
-        Right (TrackLang.VNum (Score.Typed Score.Untyped num)) -> Just num
-        _ -> Nothing
-    unsign val = if val < 0 then recip (abs val) else val
-
-relative_scale_degree :: Pitch.Hz -> Derive.ValCall
-relative_scale_degree initial_interval =
-    Derive.val_call "pitch" Tags.scale "doc doc" $ Sig.call intervals_arg $
-    \intervals args -> do
-        interval <- (initial_interval*) <$> resolve_intervals intervals
-        case Args.prev_val args of
-            Just (_, Derive.TagPitch prev) ->
-                return $ TrackLang.VPitch (modify interval prev)
-            _ -> Derive.throw "relative interval requires a previous pitch"
-    where
-    modify interval pitch =
-        PitchSignal.pitch (pitch_nn interval pitch)
-            (PitchSignal.eval_note pitch)
-    pitch_nn interval pitch controls = do
-        nn <- PitchSignal.eval_pitch pitch controls
-        return $ Pitch.modify_hz (*interval) nn
 
 -- ** implementation
 
@@ -296,8 +226,7 @@ normalize_octave = (`Num.fmod` 12)
 data Key = Key {
     -- | PitchClass starts at A, not C.
     key_tonic :: !Theory.PitchClass
-    -- | NoteNumber in the bottom octave as returned by 'normalize_octave',
-    -- e.g. -3--9.
+    -- | NoteNumber in the bottom octave as returned by 'normalize_octave'.
     , key_tonic_nn :: !Pitch.NoteNumber
     , key_ratios :: !Ratios
     } deriving (Show)
@@ -342,7 +271,7 @@ all_key_ratios = map (second Vector.fromList)
     , ("hemavathi", [1, 10/9, 6/5, (3/2) / (16/15), 3/2, 5/3, 9/5])
     ]
 
-named_intervals :: Map.Map Text Ratio.Rational
+named_intervals :: ScaleDegree.NamedIntervals
 named_intervals = Map.fromList
     [ ("m2-", 25 % 24) -- 71, 5-limit minor half-step
     , ("m2", 16 % 15) -- 112, 5-limit major half-step

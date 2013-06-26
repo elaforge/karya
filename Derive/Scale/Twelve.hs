@@ -35,7 +35,7 @@ import qualified Perform.Pitch as Pitch
 -- Twelve is a popular default, so export these directly.
 
 scale :: Scale.Scale
-scale = make_scale scale_map scale_id
+scale = ChromaticScales.make_scale scale_map scale_id
     "The world-famous equal tempered twelve note scale."
 
 scale_id :: Pitch.ScaleId
@@ -70,7 +70,7 @@ relative_scale_map =
 scales :: [Scale.Scale]
 scales =
     [ scale { Scale.scale_input_to_nn = Util.direct_input_to_nn }
-    , make_scale relative_scale_map
+    , ChromaticScales.make_scale relative_scale_map
         (Pitch.ScaleId "twelve-r")
         "This is 12TET, but spelled relative to the current key and mode.\
         \ It behaves oddly around accidentals. This is because the input is\
@@ -80,24 +80,6 @@ scales =
         \ input, or reconfigure the input layout. The latter would be really\
         \ confusing, and incompatible with a piano keyboard."
     ]
-
-make_scale :: ChromaticScales.ScaleMap -> Pitch.ScaleId -> Text -> Scale.Scale
-make_scale scale_map scale_id doc = Scale.Scale
-    { Scale.scale_id = scale_id
-    , Scale.scale_pattern =
-        TheoryFormat.fmt_pattern (ChromaticScales.smap_fmt scale_map)
-    , Scale.scale_symbols = []
-    , Scale.scale_transposers = Util.standard_transposers
-    , Scale.scale_transpose = ChromaticScales.transpose scale_map
-    , Scale.scale_enharmonics = ChromaticScales.enharmonics scale_map
-    , Scale.scale_note_to_call = ChromaticScales.note_to_call scale_map
-    , Scale.scale_input_to_note = ChromaticScales.input_to_note scale_map
-    , Scale.scale_input_to_nn = Util.computed_input_to_nn
-        (ChromaticScales.input_to_note scale_map)
-        (ChromaticScales.note_to_call scale_map)
-    , Scale.scale_call_doc = ChromaticScales.call_doc Util.standard_transposers
-        scale_map doc
-    }
 
 default_key :: Pitch.Key
 default_key = Pitch.Key "c-maj"
@@ -137,8 +119,8 @@ c6, d6, e6, f6, g6, a6, b6 :: Pitch.Degree
 -- * implementation
 
 all_keys :: Map.Map Pitch.Key Theory.Key
-all_keys = Map.fromList $ zip (map (TheoryFormat.show_key fmt) keys) keys
-    where keys = church_keys ++ octatonic_keys ++ whole_keys ++ exotic_keys
+all_keys = ChromaticScales.make_keys fmt $
+    church_keys ++ octatonic_keys ++ whole_keys ++ exotic_keys
 
 church_keys :: [Theory.Key]
 church_keys = concat (zipWith make_keys modes intervals)

@@ -26,7 +26,7 @@ module Derive.Scale.Theory (
     , transpose_diatonic, transpose_chromatic
     -- * input
     , enharmonics_of
-    , pitch_to_semis, semis_to_pitch, semis_to_pitch_sharps
+    , pitch_to_semis, note_to_semis, semis_to_pitch, semis_to_pitch_sharps
     , semis_to_nn, nn_to_semis
     -- * types
     , PitchClass, Degree, Semi, Octave, Accidentals
@@ -34,10 +34,10 @@ module Derive.Scale.Theory (
     , modify_octave, transpose_pitch
     , Note(..), note_in_layout
     -- ** key
-    , Key(key_tonic, key_name, key_signature, key_layout), key
-    , key_degrees_per_octave
+    , Key(key_tonic, key_name, key_intervals, key_signature, key_layout), key
+    , Signature
     , layout
-    , layout_max_pc
+    , layout_max_pc, key_degrees_per_octave, layout_semis_per_octave
     -- * util
     , diatonic_degree_of
 #ifndef TESTING

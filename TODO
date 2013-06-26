@@ -899,13 +899,13 @@ pitch / scales
       to note correspondance.
     - document Monad.scale_input_to_nn
     bohlen-pierce
-      - Replace pitch-producing bits in ChromaticScales with just variants.
+      * Replace pitch-producing bits in ChromaticScales with just variants.
         . I think I just need to let note_to_call support something other than
           id for degree -> NoteNumber.
         . If I move the just pitch stuff to JustScales then I should be able
           to mix ChromaticScales and JustScales.
-        - move pitch_nn and pitch_note to a common place so bp can reuse them
-        - ScaleMap.smap_note_to_degree is unused for just scales
+        * move pitch_nn and pitch_note to a common place so bp can reuse them
+        * ScaleMap.smap_note_to_degree is unused for just scales
       - Figure out how to inputs line up with c4
         . I think for that to work, I have to be able to customize the
           note-entry layout.  This will make the relative entry work correctly

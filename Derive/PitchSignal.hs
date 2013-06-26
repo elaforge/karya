@@ -13,7 +13,7 @@ module Derive.PitchSignal (
     , null, at, shift, last
     , take, drop_after, drop_before
     -- * Pitch
-    , Pitch, PitchError(..), ControlValMap
+    , Pitch, PitchError(..)
     , pitch, apply, add_control, eval_pitch, eval_note, pitch_nn, pitch_note
 ) where
 import Prelude hiding (take, last, null)

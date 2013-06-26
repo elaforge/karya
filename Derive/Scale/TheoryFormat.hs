@@ -77,7 +77,7 @@ type Degrees = Vector.Vector Text
 make_degrees :: [Text] -> Degrees
 make_degrees = Vector.fromList
 
--- ** show, read
+-- ** show keys
 
 show_key :: Format -> Theory.Key -> Pitch.Key
 show_key fmt key = Pitch.Key $
@@ -86,12 +86,45 @@ show_key fmt key = Pitch.Key $
     tonic = snd $ fmt_show fmt Nothing (Theory.key_tonic key)
     name = Theory.key_name key
 
+-- | Show a key along with its key signature.
+show_key_signature :: Format -> Theory.Key -> Text
+show_key_signature fmt key =
+    Pitch.key_text (show_key fmt key) <> " -- " <> intervals
+        <> "\n    " <> commas (show_signature fmt key)
+    where
+    intervals = commas $ map showt $ Unboxed.toList $ Theory.key_intervals key
+    commas = Text.intercalate ", "
+
+-- | Show the signature of the given key by showing each scale degree with the
+-- the accidentals implied by the key signature.
+show_signature :: Format -> Theory.Key -> [Text]
+show_signature fmt key = map (show_note fmt Nothing . Theory.pitch_note) pitches
+    where
+    pc_per_octave = Unboxed.length (Theory.key_intervals key)
+    pitches = map transpose [0 .. pc_per_octave - 1]
+    transpose pc = Theory.transpose_diatonic key pc
+        (Theory.Pitch 0 (Theory.key_tonic key))
+
+-- | Get the note names of a chromatic scale in this key.
+key_notes :: Theory.Key -> Format -> [Text]
+key_notes key fmt = map (show_note fmt Nothing . Theory.pitch_note) pitches
+    where
+    per_octave = Theory.layout_semis_per_octave (Theory.key_layout key)
+    pitches = map transpose [0 .. per_octave - 1]
+    transpose steps = Theory.transpose_chromatic key steps
+        (Theory.Pitch 0 (Theory.Note 0 0))
+
+-- ** show pitches
+
 type ShowPitch = Maybe Pitch.Key -> Theory.Pitch -> Pitch.Note
 
 show_pitch :: Format -> ShowPitch
 show_pitch fmt key (Theory.Pitch oct note) =
     Pitch.Note $ show_octave (oct + octave) <> note_name
     where (octave, note_name) = fmt_show fmt key note
+
+show_note :: Format -> Maybe Pitch.Key -> Theory.Note -> Text
+show_note fmt key = snd . fmt_show fmt key
 
 read_pitch :: Format -> Pitch.Note -> Either Scale.ScaleError Theory.Pitch
 read_pitch fmt = maybe (Left Scale.UnparseableNote) Right

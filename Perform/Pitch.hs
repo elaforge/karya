@@ -24,12 +24,12 @@ module Perform.Pitch (
     , NoteNumber(..), nn
 
     -- * Hz
-    , Hz, add_hz, modify_hz, nn_to_hz, hz_to_nn
+    , Hz, add_hz, modify_hz, nn_to_hz, hz_to_nn, middle_c_hz
 
     -- * Scale
     , ScaleId(..), empty_scale, twelve
     , Degree(..), Transpose(..), modify_transpose
-    , Key(..)
+    , Key(Key), key_text
 ) where
 import qualified Data.Text as Text
 import qualified Text.ParserCombinators.ReadP as ReadP
@@ -141,6 +141,9 @@ _hz_offset = log a_hz - (a_nn * _hz_scale)
     a_hz = 440
     a_nn = 69
 
+middle_c_hz :: Hz
+middle_c_hz = nn_to_hz 60
+
 -- Alternate implementation that also introduces a bit of imprecision.  Seems
 -- to be about the same as the one above.
 --
@@ -204,6 +207,9 @@ modify_transpose f (Diatonic d) = Diatonic (f d)
 -- independent, and not every scale will have the same values for key and
 -- mode.
 newtype Key = Key Text deriving (Eq, Ord, Read, Show, Serialize.Serialize)
+
+key_text :: Key -> Text
+key_text (Key t) = t
 
 instance Pretty.Pretty Key where
     format (Key s) = Pretty.text (untxt s)

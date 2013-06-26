@@ -4,7 +4,6 @@
 
 -- | Create val calls for scale degrees.
 module Derive.Call.Pitch where
-import qualified Data.Map as Map
 import qualified Data.Set as Set
 
 import Util.Control
@@ -18,12 +17,10 @@ import qualified Derive.Call.Control as Control
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Call.Util as Util
 import qualified Derive.Derive as Derive
-import qualified Derive.Deriver.Internal as Internal
 import qualified Derive.LEvent as LEvent
 import qualified Derive.PitchSignal as PitchSignal
 import qualified Derive.Pitches as Pitches
 import qualified Derive.Scale as Scale
-import qualified Derive.Score as Score
 import qualified Derive.Sig as Sig
 import Derive.Sig (defaulted, required)
 import qualified Derive.TrackLang as TrackLang
@@ -31,37 +28,6 @@ import qualified Derive.TrackLang as TrackLang
 import qualified Perform.Pitch as Pitch
 import qualified Perform.RealTime as RealTime
 import Types
-
-
--- | Create a pitch val call for the given scale degree.  This is intended to
--- be used by scales to generate their calls, but of course each scale may
--- define calls in its own way.
-scale_degree :: Scale.PitchNn -> Scale.PitchNote -> Derive.ValCall
-scale_degree pitch_nn pitch_note = Derive.val_call
-    "pitch" Tags.scale "Emit the pitch of a scale degree." $ Sig.call ((,)
-    <$> defaulted "frac" 0
-        "Add this many hundredths of a scale degree to the output."
-    <*> defaulted "hz" 0 "Add an absolute hz value to the output."
-    ) $ \(frac, hz) _ -> do
-        environ <- Internal.get_dynamic Derive.state_environ
-        return $! TrackLang.VPitch $ PitchSignal.pitch
-            (call frac hz environ) (pitch_note environ)
-    where
-    call frac hz environ controls =
-        Pitch.add_hz (hz + get_hz controls) <$> pitch_nn environ
-            (if frac == 0 then controls
-                else Map.insertWith' (+) Score.c_chromatic (frac / 100)
-                    controls)
-
-get_hz :: Score.ControlValMap -> Pitch.Hz
-get_hz = Map.findWithDefault 0 Score.c_hz
-
--- | Convert a note and @frac@ arg into a tracklang expression representing
--- that note.
-pitch_expr :: Pitch.Note -> Double -> Text
-pitch_expr (Pitch.Note note) frac
-    | frac == 0 = note
-    | otherwise = note <> " " <> showt (floor (frac * 100))
 
 
 -- * pitch

@@ -15,7 +15,7 @@ import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 
 import qualified Derive.Call as Call
-import qualified Derive.Call.Pitch as Call.Pitch
+import qualified Derive.Call.ScaleDegree as ScaleDegree
 import qualified Derive.Derive as Derive
 import qualified Derive.Environ as Environ
 import qualified Derive.PitchSignal as PitchSignal
@@ -140,7 +140,7 @@ note_to_call :: DegreeMap -> DegreeToNoteNumber -> Pitch.Note
 note_to_call dmap degree_to_nn note =
     case Map.lookup note (dm_to_degree dmap) of
         Nothing -> Nothing
-        Just degree -> Just $ Call.Pitch.scale_degree (pitch_nn degree)
+        Just degree -> Just $ ScaleDegree.scale_degree (pitch_nn degree)
             (pitch_note degree)
     where
     pitch_nn :: Pitch.Degree -> Scale.PitchNn
@@ -283,7 +283,7 @@ call_doc transposers dmap imap doc =
 
 -- | Documentation of the standard 'Call.Pitch.scale_degree'.
 default_scale_degree_doc :: Derive.DocumentedCall
-default_scale_degree_doc = scale_degree_doc Call.Pitch.scale_degree
+default_scale_degree_doc = scale_degree_doc ScaleDegree.scale_degree
 
 scale_degree_doc :: (Scale.PitchNn -> Scale.PitchNote -> Derive.ValCall)
     -> Derive.DocumentedCall
