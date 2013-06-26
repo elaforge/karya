@@ -71,7 +71,7 @@ instance Pretty.Pretty DeriveStatus where pretty = show
 -- actually play music, and poked and prodded in a separate thread to control
 -- its evaluation.
 --
--- This is basically the same as Derive.Result.  I could make them be the
+-- This is basically the same as 'Derive.Result'.  I could make them be the
 -- same, but Performance wasn't always the same and may not be the same in the
 -- future.
 data Performance = Performance {
@@ -91,8 +91,8 @@ data Performance = Performance {
     , perf_logs :: ![Log.Msg]
     -- | The logs are only written on the first play, to minimize error spam.
     -- So there's a flag which says whether these logs have been written or
-    -- not.  I don't clear the logs, so Cmd.Repl.LPerf.cache_stats can inspect
-    -- them.
+    -- not.  I don't clear the logs, so 'Cmd.Repl.LPerf.cache_stats' can
+    -- inspect them.
     , perf_logs_written :: !Bool
     , perf_track_dynamic :: !Derive.TrackDynamic
     , perf_integrated :: ![Derive.Integrated]
@@ -104,6 +104,7 @@ data Performance = Performance {
     , perf_track_signals :: !Track.TrackSignals
     }
 
+-- | This is the forced result of a derivation.
 type Events = Vector.Vector Score.Event
 
 instance Show Performance where

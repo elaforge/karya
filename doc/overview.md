@@ -179,14 +179,20 @@ Karya is divided into several layers, corresponding to the top level
 directories in the source tree:
 
 - fltk - Low level C++ to draw the GUI.  Nothing much interesting here unless
-you like reading C++.
+you like reading C++.  But if you do, get in there and make it better, I'm no
+good at it.
 
 - Ui - The UI level has the data structures that hold the score, all collected
 in 'Ui.State.State'.  They mostly correspond directly to what is visible in the
-GUI.  This is what gets saved when you save a score.
+GUI.  This is what gets saved when you save a score.  If you study the UI state
+and follow some of the links, you can get an idea for what a score actually is.
 
 - Cmd - Cmds take user input and transform the Ui state.  This layer handles
-all user interaction.  'Cmd.Cmd.State' is the non-score app state.
+all user interaction.  'Cmd.Cmd.State' is the non-score app state.  If you
+study the Cmd state and follow links, you can get an idea of the various
+features supported.  The UI state plus the Cmd state is all the state in the
+app, except the GUI state stashed in C++, so if you have a handle on those two
+then you have a good handle on the whole program.
 
 - Derive - The [deriver](derivation.md.html) interprets the Ui State and turns
 into into a stream of lower level events.  It implements the "tracklang"
@@ -199,15 +205,15 @@ calling lilypond.
 
 The main program is called `seq`, but there are a few auxiliary programs:
 
-- logview - `logview` is a separate program that formats log output.
+- logview - 'LogView.LogView' is a separate program that formats log output.
 The karya GUI doesn't have a place for global information, so logview serves
 this purpose too.  When log messages display stack traces, you can click on
-them to highlight their positions in the score.  'LogView.LogView'.
+them to highlight their positions in the score.
 
-- browser - This is a simple browser for the instrument database.  To the UI
-and Derive layers, an instrument is just a text string, but they have quite a
-bit of extra information associated with them which is important to the
-performer.  'Instrument.Browser'.
+- browser - 'Instrument.Browser' is a simple browser for the instrument
+database.  To the UI and Derive layers, an instrument is just a text string,
+but they have quite a bit of extra information associated with them which is
+important to the performer.
 
 - make_db - If the instruments involve expensive operations like parsing
 directories full of sysex messages, they can serialize the parsed instruments
@@ -219,7 +225,7 @@ interact at the programmatic level by sending haskell expressions to be
 evaluated in the Cmd context.  `send` is a one-off version of repl that can be
 used to send a single command from shell scripts.
 
-- extract_doc - This extracts documentation and saves it to HTML.  That
+- extract_doc - This extracts documentation and saves it as HTML.  That
 includes the [global keymap](keymap.html), [builtin calls](calls.html), and
 [builtin scales](scales.html).
 

@@ -396,7 +396,7 @@ data Config = Config {
     , state_instrument_db :: !InstrumentDb
     -- | Global namespace for deriver.
     , state_global_scope :: !Derive.Scope
-    -- | Turn ScaleIds into Scales.
+    -- | Turn 'Pitch.ScaleId's into 'Scale.Scale's.
     , state_lookup_scale :: !LookupScale
     } deriving (Show, Generics.Typeable)
 
@@ -432,14 +432,13 @@ data PlayState = PlayState {
     -- | Transport control channel for the player, if one is running.
     state_play_control :: !(Maybe Transport.PlayControl)
     -- | When changes are made to a block, its performance will be
-    -- recalculated in the background.  When the Performance is forced
-    -- \"enough\", it will replace the existing performance in
-    -- 'state_performance', if any.  This means there will be a window in
-    -- which the performance is out of date, but this is better than hanging
-    -- the responder every time it touches an insufficiently lazy part of
-    -- the performance.
+    -- recalculated in the background.  When the Performance is forced, it will
+    -- replace the existing performance in 'state_performance', if any.  This
+    -- means there will be a window in which the performance is out of date,
+    -- but this is better than hanging the responder every time it touches an
+    -- insufficiently lazy part of the performance.
     , state_performance :: !(Map.Map BlockId Performance)
-    -- | However some cmds, like play, want the most up to date performance,
+    -- | However, some cmds, like play, want the most up to date performance
     -- even if they have to wait for it.  This map will be updated
     -- immediately.
     , state_current_performance :: !(Map.Map BlockId Performance)
@@ -447,7 +446,7 @@ data PlayState = PlayState {
     -- new performance is needed before the old one is complete, it can be
     -- killed off.
     , state_performance_threads :: !(Map.Map BlockId Concurrent.ThreadId)
-    -- | Some play commands can start playing from a short distance before the
+    -- | Some play commands start playing from a short distance before the
     -- cursor.
     , state_play_step :: !TimeStep.TimeStep
     -- | Contain a StepState if step play is active.  Managed in
@@ -671,8 +670,8 @@ data History = History {
     -- | The present is actually the immediate past.  When you undo, the
     -- undo itself is actually in the future of the state you want to undo.
     -- So another way of looking at it is that you undo from the past to
-    -- a point further in the past.  But since you always require a "recent
-    -- past" to exist, it's more convenient to break it out and call it the
+    -- a point further in the past.  But since you always require a \"recent
+    -- past\" to exist, it's more convenient to break it out and call it the
     -- \"present\".  Isn't time travel confusing?
     , hist_present :: !HistoryEntry
     , hist_future :: ![HistoryEntry]

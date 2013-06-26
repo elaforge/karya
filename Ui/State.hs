@@ -174,9 +174,6 @@ import Types
 data State = State {
     state_views :: Map.Map ViewId Block.View
     , state_blocks :: Map.Map BlockId Block.Block
-    -- | Track data also gets a symbol table.  This is so that I can
-    -- efficiently compare a track for identity, and also so I can
-    -- change it here and all of its occurrances change.
     , state_tracks :: Map.Map TrackId Track.Track
     , state_rulers :: Map.Map RulerId Ruler.Ruler
     , state_config :: Config

@@ -38,7 +38,7 @@ data Block = Block {
     , block_skeleton :: !Skeleton.Skeleton
     -- | Present if this block was integrated from another.
     , block_integrated :: !(Maybe (BlockId, NonEmpty TrackDestination))
-    -- | [(source_track, destinations)]
+    -- | @[(source_track, destinations)]@
     , block_integrated_tracks :: ![(TrackId, NonEmpty TrackDestination)]
     , block_meta :: !Meta
     } deriving (Eq, Read, Show)
@@ -59,7 +59,9 @@ instance DeepSeq.NFData Block where
 
 -- | Block metadata is extra data that doesn't affect normal derivation, but
 -- may be of interest to cmds.  For instance, it can mark if this block should
--- be rendered to lilypond and provide arguments for it.
+-- be rendered to lilypond and provide arguments for it.  TODO But lilypond
+-- is always kicked off manually now, so this has no use at the moment.  Maybe
+-- you could put notes in there.
 type Meta = Map.Map Text Text
 
 -- | This holds the 'EventIndex' for one track or block.

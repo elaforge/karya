@@ -3,7 +3,15 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
+  - use lens package
+  - If I want to draw multiple signals together, I need a line or polygon
+    + gradient function.  Maybe I can get ahold of the OS X graphics context
+    and directly call cocoa functions.  For that to work on linux, I think I'd
+    have to do the same for cairo.
+    . Or perhaps I should just switch to OpenGL?
   - rename i>> to s for slide, or p for porta
+    Well, don't forget about i<< and e>>
+    Maybe add 'p' and 'p<'
   * I need some way to set initial inst state, so it doesn't wind up relying
     on previous state.
   * Analysis for all controls that are used for that instrument, along with
@@ -193,14 +201,14 @@ MILESTONES
 ----------------------------------------------------------------------
 
 documentation
-  - INSTALL should say how to build
+  * INSTALL should say how to build
   + doc/derivation.md
   * integrate doc/tracklang into derivation.md
   - split up derivation.md into separate files
-  * doc/performance.md, and reorganize derivation under it, and integrate with
-    doc/score.md
-  - doc/ui.md
-  - doc/cmd.md
+  + doc/ui.md
+  - doc/performance.md
+  - doc/symbols.md
+  - make sure core state types and their dependents have good haddock
   call doc:
     - I could go look through arg docs for controls and list all the controls
       that have someone listening to them in a certain scope.
@@ -728,6 +736,8 @@ REPL: repl:
   - :browse to look in modules... can I use GHC.getBindings for this?
   - :module cmd to move evaluation context to a certain module, maybe I
     could also get rid of the need for Cmd.Lang.Environ to import everything.
+  - new ghc api lets log_action catch ghci msgs, e.g. "Compiling xyz", added
+    in f81e14bb14e459cdd59ea232f7c711827be85dd6
 
 tempo
   - Create tempo by "stretching", i.e. select start and end, and create tempo
@@ -887,7 +897,37 @@ pitch / scales
     - meantone
     - Interpolate between two scales.  The main thing is to establish a note
       to note correspondance.
-    - looks like fun: http://en.wikipedia.org/wiki/Bohlen-Pierce_scale
+    - document Monad.scale_input_to_nn
+    bohlen-pierce
+      - Replace pitch-producing bits in ChromaticScales with just variants.
+        . I think I just need to let note_to_call support something other than
+          id for degree -> NoteNumber.
+        . If I move the just pitch stuff to JustScales then I should be able
+          to mix ChromaticScales and JustScales.
+        - move pitch_nn and pitch_note to a common place so bp can reuse them
+        - ScaleMap.smap_note_to_degree is unused for just scales
+      - Figure out how to inputs line up with c4
+        . I think for that to work, I have to be able to customize the
+          note-entry layout.  This will make the relative entry work correctly
+          as well, and for twelve-r as well.
+        . The underlying problem is that InputKeys are NNs... but wait,
+          nothing says they have to be.  If they have a different meaning
+          per scale, then NoteEntry can get the layout and try to fit an
+          "octave" into one row.
+      - But then I need another mapping to get that to cooperate with a MIDI
+        kbd.  I probably need a function to map the piano layout to the scale
+        layout.
+        . I think the easiest thing is to map bp to every two octaves, so that
+          most of the second octave is unused.  This is analogous to how
+          *legong maps only the first 5 white keys from C.  So I should do the
+          same thing.
+        . This won't work for relative, because then there are black keys
+          where MIDI doesn't have them.  The letter kbd doesn't have the
+          problem since it has black keys for every key.  So on a relative
+          scale, I should have the letter kbd always place degree 0 at 'z' and
+          'q', but the MIDI kbd is relative.
+          . This means Cmd.NoteEntry needs the scale and key.
+      - Make relative scale.
     - retune a note depending on the previous interval (e.g. sloppy pitches
       when playing quickly)
       I think this has to be postproc.
@@ -944,6 +984,8 @@ Perform:
       some busywork on the user which should be left to the performer, but
       since the solution is fairly complicated I think I'll leave it be for
       now.
+    - But could I set an addr to just one voice?  That way it doesn't matter
+      if I used up the polyphony on one addr, if there's a note there, I did.
 
 Instrument DB / browser:
   - browser has lots of empty space on the bottom

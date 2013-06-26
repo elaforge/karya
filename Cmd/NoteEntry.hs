@@ -35,8 +35,8 @@ import qualified Perform.Pitch as Pitch
 -- if no InputNote was produced.
 --
 -- For the ASCII keyboard, the two rows of keys each map one octave of C to C.
--- The @/@ and @.@ keys map to breath on and off to make it easier to play
--- breath oriented instruments.
+-- If the instrument responds to breath control, the key will also emit
+-- a breath control CC.
 --
 -- It's a little less graceful than calling it many times applied to a single
 -- cmd, but only has to convert the input once and doesn't need tricks to

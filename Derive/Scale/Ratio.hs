@@ -58,21 +58,21 @@ note_to_call note = note_call note <$>
 note_call :: Pitch.Note -> (Double -> Double) -> Derive.ValCall
 note_call note ratio = Derive.val_call "ratio" Tags.scale
     ( "Generate a frequency that is the\
-    \ ratio of the frequency of the " <> pitch_control <> " signal.\
-    \ A negative ratio divides, a positive one multiplies."
+    \ ratio of the frequency of the " <> ShowVal.doc_val pitch_control
+    <> " signal. A negative ratio divides, a positive one multiplies."
     ) $ Sig.call
     (defaulted "hz" 0 "Add an absolute hz value to the output.") $
     \hz args -> do
         start <- Args.real_start args
-        nn <- Derive.require ("ratio scale requires " <> untxt pitch_control)
+        nn <- Derive.require
+            ("ratio scale requires " <> untxt (ShowVal.show_val pitch_control))
             =<< Derive.named_nn_at control start
         let out_nn = Pitch.hz_to_nn $ ratio (Pitch.nn_to_hz nn) + hz
         return $ TrackLang.VPitch $ PitchSignal.pitch
             (const $ return out_nn)
             (const $ return note)
     where
-    pitch_control = ShowVal.show_val
-        (TrackLang.LiteralControl control :: TrackLang.PitchControl)
+    pitch_control = TrackLang.LiteralControl control :: TrackLang.PitchControl
     control = Score.Control "ratio-source"
 
 -- | Ratios look like @2/5@, @-4/3@.  A negative ratio divides, a positive one
