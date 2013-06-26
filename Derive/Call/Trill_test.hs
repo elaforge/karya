@@ -136,58 +136,47 @@ test_moving_trill = do
         [ ("*", [(0, 0, "4a"), (4, 0, "i (4b)")])
         , ("t-diatonic", [(0, 0, "tr 1 1"), (6, 0, "--")])
         ])
-        ([[(0, 69), (1, 71.25), (2, 70), (3, 71.75), (4, 71), (5, 72),
-            (6, 71)]], [])
+        ([[(0, 69), (1, 71.25), (2, 70), (3, 71.75), (4, 71), (5, 72)]], [])
     equal (run
         [ ("*", [(0, 0, "4a"), (4, 0, "i (4b)")])
         , ("t-chromatic", [(0, 0, "tr 1 1"), (6, 0, "--")])
         ])
-        ([[(0, 69), (1, 70.5), (2, 70), (3, 71.5), (4, 71), (5, 72),
-            (6, 71)]], [])
+        ([[(0, 69), (1, 70.5), (2, 70), (3, 71.5), (4, 71), (5, 72)]], [])
 
 test_real_trill = do
     let f = Trill.real_trill Trill.UnisonFirst (0, 1)
         run = extract . DeriveTest.run State.empty
         extract = DeriveTest.extract_run Signal.unsignal
-    equal (run $ f (con 1) (con 2)) $
-        Right [(0, 0), (0.5, 1), (1, 0)]
-    equal (run $ f (con (-1)) (con 2)) $
-        Right [(0, 0), (0.5, -1), (1, 0)]
-    -- Cycles must be integral.
-    equal (run $ f (con 1) (con 1.9)) $
-        Right [(0, 0)]
+        cnst = Signal.constant
+    equal (run $ f (cnst 1) (cnst 2)) $
+        Right [(0, 0), (0.5, 1)]
+    equal (run $ f (cnst (-1)) (cnst 2)) $
+        Right [(0, 0), (0.5, -1)]
 
     -- Trill speed is in real time and not affected by stretch.
-    equal (run $ Derive.d_stretch 2 $ f (con 1) (con 2)) $
-        Right [(0, 0), (0.5, 1), (1, 0), (1.5, 1), (2, 0)]
-
-    -- It still produces an integral number of cycles.
-    equal (run $ Derive.d_stretch 1.8 $ f (con 1) (con 2)) $
-        Right [(0, 0), (0.5, 1), (1, 0)]
+    equal (run $ Derive.d_stretch 2 $ f (cnst 1) (cnst 2)) $
+        Right [(0, 0), (0.5, 1), (1, 0), (1.5, 1)]
 
     -- Changing depth signal.
-    equal (run $ f (Signal.signal [(0, 1), (0.5, 2)]) (con 4)) $
-        Right [(0, 0), (0.25, 1), (0.5, 0), (0.75, 2), (1, 0)]
-    equal (run $ f (con 1) (Signal.signal [(0, 2), (0.5, 4)])) $
+    equal (run $ f (Signal.signal [(0, 1), (0.5, 2)]) (cnst 4)) $
+        Right [(0, 0), (0.25, 1), (0.5, 0), (0.75, 2)]
+    equal (run $ f (cnst 1) (Signal.signal [(0, 2), (0.5, 4)])) $
         Right [(0, 0), (0.5, 1), (0.75, 0)]
 
 test_score_trill = do
     let f dur = Trill.score_trill Trill.UnisonFirst (0, dur)
         run = extract . DeriveTest.run State.empty
         extract = DeriveTest.extract_run Signal.unsignal
-    equal (run $ f 1 (con 1) (con 2)) $
+        cnst = Signal.constant
+    equal (run $ f 1 (cnst 1) (cnst 2)) $
         Right [(0, 0), (0.5, 1), (1, 0)]
 
     -- If the event was length 2 there should be 2 cycles
-    equal (run $ f 2 (con 1) (con 2)) $
-        Right [(0, 0), (0.5, 1), (1, 0), (1.5, 1), (2, 0)]
-
-    -- Ignores a bit of extra times since cycles must be integral.
-    equal (run $ f 2.5 (con 1) (con 2)) $
+    equal (run $ f 2 (cnst 1) (cnst 2)) $
         Right [(0, 0), (0.5, 1), (1, 0), (1.5, 1), (2, 0)]
 
     -- Trill speed affected by stretch.
-    equal (run $ Derive.d_stretch 2 $ f 1 (con 1) (con 2)) $
+    equal (run $ Derive.d_stretch 2 $ f 1 (cnst 1) (cnst 2)) $
         Right [(0, 0), (1, 1), (2, 0)]
 
 test_pitch_trill = do
@@ -207,12 +196,8 @@ test_control_trill = do
         trill xs = zip xs (cycle [0, 1])
     equal (run 1 "tr 1 1") ([trill [0, 1, 2]], [])
     -- Defaults to RealTime, but stretches with ScoreTime if asked.
-    equal (run 0.5 "tr 1 1") ([trill [0, 1, 2, 3, 4, 5, 6]], [])
-    equal (run 0.5 "tr 1 1s") ([trill [0, 1, 2, 3, 4, 5, 6]], [])
-    equal (run 0.5 "tr 1 1t") ([trill [0, 2, 4]], [])
+    equal (run 0.5 "tr 1 1") ([trill [0, 1, 2, 3, 4, 5]], [])
+    equal (run 0.5 "tr 1 1s") ([trill [0, 1, 2, 3, 4, 5]], [])
+    equal (run 0.5 "tr 1 1t") ([trill [0, 2, 4, 6]], [])
     equal (run 1 "tr 1 1d")
         ([[(0, 0)]], ["Error: expected time type for 1d but got Diatonic"])
-
--- * util
-
-con = Signal.constant

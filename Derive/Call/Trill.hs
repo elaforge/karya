@@ -386,7 +386,7 @@ score_trill :: Mode -> (ScoreTime, ScoreTime) -> Signal.Control
     -> Signal.Control -> Derive.Deriver Signal.Control
 score_trill mode (start, end) neighbor speed = do
     all_transitions <- score_pos_at_speed speed start end
-    let transitions = integral_cycles ScoreTime.eta end all_transitions
+    let transitions = full_cycles ScoreTime.eta end all_transitions
     real_transitions <- mapM Derive.real transitions
     return $ trill_from_transitions mode real_transitions neighbor
 
@@ -411,7 +411,9 @@ make_trill :: Mode -> RealTime -> RealTime -> Signal.Control -> Signal.Control
     -> Signal.Control
 make_trill mode start end neighbor speed =
     trill_from_transitions mode transitions neighbor
-    where transitions = integral_cycles RealTime.eta end (real_pos_at_speed speed start)
+    where
+    transitions = full_cycles RealTime.eta end
+        (real_pos_at_speed speed start)
 
 -- | Emit an infinite list of RealTimes at the given speed, which may change
 -- over time.  The speed is taken as hertz in real time.
@@ -433,13 +435,15 @@ trill_from_transitions mode transitions neighbor =
 make_square :: [RealTime] -> Signal.Control
 make_square xs = Signal.signal (zip xs (cycle [0, 1]))
 
--- | Given a list of trill transition times, take only complete cycles (pairs)
--- that fall before the end time.  A bit of eta is to ensure that a transition
--- that almost lines up with the end doesn't result in a super short note.
-integral_cycles :: (Ord a, Num a) => a -> a -> [a] -> [a]
-integral_cycles eta end (x0:x1:x2:xs)
-    -- This is what makes trills include the end, as documented in the module
-    -- haddock.
-    | x2 + eta >= end = [x0]
-    | otherwise = x0 : x1 : integral_cycles eta end (x2:xs)
-integral_cycles _ _ xs = take 1 xs
+-- | Given a list of trill transition times, take only ones with a complete
+-- duration.  Otherwise a trill can wind up with a short note at the end, which
+-- sounds funny.  However it's ok if the note is slightly too short, as tends
+-- to happen with floating point.
+full_cycles :: (Ord a, Num a) => a -> a -> [a] -> [a]
+full_cycles eta end vals = if null cycles then take 1 vals else cycles
+    where
+    cycles = go vals
+    go (x1 : xs@(x2 : _))
+        | x2 <= end + eta = x1 : go xs
+        | otherwise = []
+    go xs = take 1 xs
