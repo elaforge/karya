@@ -44,9 +44,9 @@ test_cmd_val_edit_create = do
         note = CmdTest.m_note_on 60 60 127
     -- creates a new pitch track
     equal (run [(">i", [])] (f note)) $
-        Right [(">i", [(0, 1, "")]), ("*twelve", [(0, 0, "4c")])]
+        Right [(">i", [(0, 1, "")]), ("*", [(0, 0, "4c")])]
     equal (run [(">i", []), ("mod", [])] (f note)) $
-        Right [(">i", [(0, 1, "")]), ("*twelve", [(0, 0, "4c")]), ("mod", [])]
+        Right [(">i", [(0, 1, "")]), ("*", [(0, 0, "4c")]), ("mod", [])]
 
 test_cmd_val_edit_simple = do
     let f = NoteTrack.cmd_val_edit
@@ -139,11 +139,11 @@ test_cmd_val_edit_dyn = do
     equal (f [">"] [on 127]) $ Right
         [ (">", [(0, 1, "")])
         , ("dyn", [(0, 0, "`0x`ff")])
-        , ("*twelve", [(0, 0, "4c")])
+        , ("*", [(0, 0, "4c")])
         ]
     equal (f [">", "dyn"] [on 64]) $ Right
         [ (">", [(0, 1, "")])
-        , ("*twelve", [(0, 0, "4c")])
+        , ("*", [(0, 0, "4c")])
         , ("dyn", [(0, 0, "`0x`81")])
         ]
 

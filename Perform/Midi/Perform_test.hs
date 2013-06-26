@@ -211,6 +211,7 @@ test_control_lead_time = do
         , (4, 1, ControlChange 7 127)
         , (6 - gap, 1, NoteOff 61 100)
         ], [])
+
     -- Non-overlapping notes means they go on the same channel, but there's no
     -- room for control lead.
     equal (f [("a", 0, 4, []), ("b", 4, 4, [vol 4])])
@@ -257,10 +258,10 @@ test_clip_warns = do
     -- check that the clips happen at the same places as the warnings
 
     equal warns
-        [ "Perform: %volume clipped: (1.5s, 2.5s)"
+        [ "Perform: %cc7 clipped: (1.5s, 2.5s)"
         -- TODO this used to be (3.5, 4) but I can't be bothered to find out
         -- why it changed when RealTime became integral
-        , "Perform: %volume clipped: (4s, 4s)"
+        , "Perform: %cc7 clipped: (4s, 4s)"
         ]
 
     check (all_msgs_valid msgs)
@@ -717,7 +718,8 @@ linear_interp = Signal.signal . interpolate
             | x <- Seq.range_end x0 (x1-1) 1] ++ interpolate rest
     interpolate val = val
 
-vol_cc = Control.Control "volume"
+vol_cc :: Control.Control
+vol_cc = Control.Control "cc7"
 
 inst1 = mkinst "inst1"
 inst2 = mkinst "inst2"
