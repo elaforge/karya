@@ -1219,8 +1219,13 @@ data Scale = Scale {
     -- @eval . note_to_call . input_to_note@ but can often be implemented more
     -- efficiently by the scale.
     --
-    -- TODO if controls had (shift, stretch) I could shift the controls
-    -- efficiently and not have to worry about passing the pos separately.
+    -- The ScoreTime is the time at which this pitch is evaluated.  If it
+    -- depends on a control, it can get the control from 'Dynamic', but it
+    -- needs to know at what point in time to look at the signal.
+    --
+    -- This is because pitch val calls aren't evaluated in normalized time.
+    -- If controls had (shift, stretch) I could normalize them efficiently
+    -- and the pitch would just always look at time 0.  But they don't.
     , scale_input_to_nn ::
         !(ScoreTime -> Pitch.InputKey -> Deriver (Maybe Pitch.NoteNumber))
 

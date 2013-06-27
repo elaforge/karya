@@ -59,6 +59,7 @@ notes =
     , (Drums.c_mtom, b2)
     , (Drums.c_htom, c3)
     , (Drums.c_hh, fs2)
+    , (Drums.c_ohh, as2)
     , (Drums.c_ride, ds3)
     , (Drums.c_crash, cs3)
     ]

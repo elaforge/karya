@@ -3,7 +3,18 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
-  - use lens package
+  things for expressive music
+    There needs to be some way for notes to affect surrounding notes.  For
+    example
+      . A trill might want to push the next note back a bit so it can complete
+        its cycle.
+      . Portamento might want to put controls points on a curve, so the speed
+        a distance between pitches affects how quickly they approach, and
+        quick notes will have less accurate pitch.
+      . Gender tick affects the damping of the previous note.
+    Other ideas:
+      . Switch samples when played quickly.
+      . Drum thing where successive strokes lose some energy.
   - If I want to draw multiple signals together, I need a line or polygon
     + gradient function.  Maybe I can get ahold of the OS X graphics context
     and directly call cocoa functions.  For that to work on linux, I think I'd
@@ -897,7 +908,7 @@ pitch / scales
     - meantone
     - Interpolate between two scales.  The main thing is to establish a note
       to note correspondance.
-    - document Monad.scale_input_to_nn
+    * document Monad.scale_input_to_nn
     bohlen-pierce
       * Replace pitch-producing bits in ChromaticScales with just variants.
         . I think I just need to let note_to_call support something other than
@@ -906,36 +917,27 @@ pitch / scales
           to mix ChromaticScales and JustScales.
         * move pitch_nn and pitch_note to a common place so bp can reuse them
         * ScaleMap.smap_note_to_degree is unused for just scales
-      - Figure out how to inputs line up with c4
+      * Figure out how to inputs line up with c4
         . I think for that to work, I have to be able to customize the
           note-entry layout.  This will make the relative entry work correctly
           as well, and for twelve-r as well.
-        . The underlying problem is that InputKeys are NNs... but wait,
-          nothing says they have to be.  If they have a different meaning
-          per scale, then NoteEntry can get the layout and try to fit an
-          "octave" into one row.
-      - But then I need another mapping to get that to cooperate with a MIDI
-        kbd.  I probably need a function to map the piano layout to the scale
-        layout.
-        . I think the easiest thing is to map bp to every two octaves, so that
-          most of the second octave is unused.  This is analogous to how
-          *legong maps only the first 5 white keys from C.  So I should do the
-          same thing.
-        . This won't work for relative, because then there are black keys
-          where MIDI doesn't have them.  The letter kbd doesn't have the
-          problem since it has black keys for every key.  So on a relative
-          scale, I should have the letter kbd always place degree 0 at 'z' and
-          'q', but the MIDI kbd is relative.
-          . This means Cmd.NoteEntry needs the scale and key.
+        . I think this can be done with a way to tell the MIDI and letter kbd
+          which keys to skip.  For twelve, MIDI skips nothing, but letter
+          skips a bunch of keys.  For bp, MIDI skips the top of the 2nd octave,
+          and letter skips fewer keys.  A continuum just inputs straight NNs,
+          though, so none of this applies.
+        - make it work with MIDI kbd
       - Make relative scale.
+    - Make twelve-r and bp-r work right.  The letter kbd skips different keys
+      since the black keys moved, and the MIDI kbd is always absolute.
     - retune a note depending on the previous interval (e.g. sloppy pitches
       when playing quickly)
       I think this has to be postproc.
     - parser for scala .scl files
     - support scales that are different ascending vs. descending
-    - twelve, but relative to key and using numbers, aka jianpu
+    * twelve, but relative to key and using numbers, aka jianpu
     - letter and jianpu but with implicit accidentals based on the key
-  - It's a bit unpleasant how I have TwelveUtils for accidental and key using
+  + It's a bit unpleasant how I have TwelveUtils for accidental and key using
     scales, then Scale.Util for simple scales, and then Just is its own thing.
     Can I unify things into one framework?
   intonation: think about how to do e.g. meantone melody, with just harmony

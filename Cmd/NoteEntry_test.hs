@@ -19,7 +19,8 @@ import qualified Cmd.NoteEntry as NoteEntry
 
 test_key_to_input = do
     let k = Key.Char
-    let f = NoteEntry.key_to_input False
+    let f = NoteEntry.key_to_input NoteEntry.twelve_kbd_map False
+    -- This is assuming dvorak input.
     equal (f 4 True (k '\'')) (Just [CmdTest.note_on 60 60 100])
     equal (f 4 True (k ',')) (Just [CmdTest.note_on 62 62 100])
     equal (f 4 True (k ';')) (Just [CmdTest.note_on 48 48 100])
@@ -30,7 +31,8 @@ test_key_to_input = do
     equal (f 4 True (k '[')) Nothing
     equal (f 4 True Key.Backspace) Nothing
 
-    equal (NoteEntry.key_to_input True 4 True (k '\'')) $ Just
+    let pressure = NoteEntry.key_to_input NoteEntry.twelve_kbd_map True
+    equal (pressure 4 True (k '\'')) $ Just
         [ CmdTest.note_on 60 60 100
         , CmdTest.control 60 "breath" 100
         ]
@@ -44,8 +46,8 @@ test_cmds_with_note = do
         input = Msg.InputNote
         -- key passed through to cmd_dummy
         through msg = Right (Just Cmd.Done, [show msg])
-    let f kbd_entry msg =
-            NoteEntry.cmds_with_note kbd_entry Nothing [cmd_dummy] msg
+    let f kbd_entry msg = NoteEntry.cmds_with_note NoteEntry.twelve_kbd_map
+            kbd_entry Nothing [cmd_dummy] msg
 
     -- test kbd entry
 

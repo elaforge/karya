@@ -30,7 +30,6 @@ data Note = Note {
     , note_dynamic :: !Signal.Y
     } deriving (Show)
 
-
 c_bd    = Note "bd"     bd              'z' 1
 c_bd2   = Note "bd2"    (bd <> v2)      's' 1
 c_sn    = Note "sn"     snare           'x' 1
@@ -40,9 +39,9 @@ c_ltom  = Note "ltom"   (tom <> low)    'b' 1
 c_mtom  = Note "mtom"   (tom <> middle) 'n' 1
 c_htom  = Note "htom"   (tom <> high)   'm' 1
 
+-- Also doubles as closed hh, if both exist.
 c_hh    = Note "hh"     hh              'q' 1
-c_ohh   = Note "ohh"    (open <> hh)    'q' 1
-c_chh   = Note "chh"    (closed <> hh)  'w' 1
+c_ohh   = Note "ohh"    (open <> hh)    'w' 1
 c_phh   = Note "phh"    (pedal <> hh)   'e' 1
 
 c_ride  = Note "ride"   ride            't' 1

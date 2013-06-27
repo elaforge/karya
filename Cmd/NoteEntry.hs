@@ -14,6 +14,7 @@ import qualified Data.Maybe as Maybe
 import qualified Data.Set as Set
 
 import Util.Control
+import qualified Util.Seq as Seq
 import qualified Midi.Midi as Midi
 import qualified Ui.Key as Key
 import qualified Ui.UiMsg as UiMsg
@@ -55,15 +56,16 @@ import qualified Perform.Pitch as Pitch
 -- then mapped input to note.  PitchTrack would still need the scale.  I could
 -- reduce the scope of InputKey or eliminate it entirely for the more universal
 -- NoteNumber.  It seems like a wash at the moment.
-cmds_with_note :: Bool -> Maybe Instrument.Patch -> [Cmd.Cmd] -> Cmd.Cmd
-cmds_with_note kbd_entry maybe_patch cmds msg = do
+cmds_with_note :: KbdMap -> Bool -> Maybe Instrument.Patch -> [Cmd.Cmd]
+    -> Cmd.Cmd
+cmds_with_note kbd_map kbd_entry maybe_patch cmds msg = do
     has_mods <- are_modifiers_down
     new_msgs <- if kbd_entry && not has_mods
         then do
             octave <- Cmd.gets (Cmd.state_kbd_entry_octave . Cmd.state_edit)
             let is_pressure = maybe False
                     (Instrument.has_flag Instrument.Pressure) maybe_patch
-            return $ kbd_input is_pressure octave msg
+            return $ kbd_input kbd_map is_pressure octave msg
         else return Nothing
     new_msgs <- maybe (midi_input msg) (return . Just) new_msgs
     case new_msgs of
@@ -87,13 +89,13 @@ are_modifiers_down = fmap (not . Set.null) Keymap.mods_down
 --
 -- @Nothing@ means there's no input, @Just []@ means there was input, but
 -- nothing to do.
-kbd_input :: Bool -- ^ Whether this is a Pressure instrument or not.
+kbd_input :: KbdMap -> Bool -- ^ Whether this is a Pressure instrument or not.
     -- Pressure instruments respond to breath, and a kbd entry note on will
     -- emit an extra breath control.  This is convenient in practice because
     -- kbd entry is for quick and easy input and breath control gets in the way
     -- of that.
     -> Pitch.Octave -> Msg.Msg -> Maybe [Msg.Msg]
-kbd_input is_pressure octave (Msg.key -> Just (down, key)) =
+kbd_input kbd_map is_pressure octave (Msg.key -> Just (down, key)) =
     case down of
         UiMsg.KeyRepeat
             -- Just [] makes the repeats get eaten here, but make sure to only
@@ -103,46 +105,77 @@ kbd_input is_pressure octave (Msg.key -> Just (down, key)) =
         _ -> msg
     where
     msg = (fmap . fmap) Msg.InputNote $
-        key_to_input is_pressure octave (down == UiMsg.KeyDown) key
-kbd_input _ _ _ = Nothing
+        key_to_input kbd_map is_pressure octave (down == UiMsg.KeyDown) key
+kbd_input _ _ _ _ = Nothing
 
-key_to_input :: Bool -> Pitch.Octave -> Bool -> Key.Key
-    -> Maybe [InputNote.Input]
-key_to_input is_pressure octave is_down (Key.Char c) =
+type NoteMap = Map.Map Char (Pitch.Octave, Pitch.InputKey)
+
+data KbdMap = KbdMap {
+    kbd_note_map :: !NoteMap
+    , kbd_per_octave :: !Pitch.InputKey
+    } deriving (Show)
+
+twelve_kbd_map :: KbdMap
+twelve_kbd_map = KbdMap
+    (make_note_map (physical "q2w3er5t6y7ui") (physical "zsxdcvgbhnjm,")) 12
+
+key_to_input :: KbdMap -> Bool -> Pitch.Octave -> Bool
+    -> Key.Key -> Maybe [InputNote.Input]
+key_to_input (KbdMap note_map per_octave) is_pressure octave is_down
+        (Key.Char c) =
     case Map.lookup c note_map of
-        Nothing -> Nothing
-        Just Nothing -> Just []
-        Just (Just key) -> Just $ case InputNote.from_key octave is_down key of
+        Nothing
+            | c `Set.member` kbd_input_keys -> Just []
+            | otherwise -> Nothing
+        Just (octave_offset, input) -> Just $ inputs_of octave_offset input
+    where
+    inputs_of octave_offset input =
+        case InputNote.from_key 0 is_down adjusted of
             input@(InputNote.NoteOn note_id _ _) | is_pressure ->
                 -- Breath goes second, otherwise thru won't think it belongs to
                 -- this note.
                 [input, breath note_id (100/127)]
             input -> [input]
-    where
+        where
+        adjusted = input + fromIntegral (octave + octave_offset) * per_octave
     breath note_id val = InputNote.Control note_id Score.c_breath val
--- Special keys can fall through.
-key_to_input _ _ _ _ = Nothing
+key_to_input _ _ _ _ _ = Nothing
 
-note_map :: Map.Map Char (Maybe Pitch.InputKey)
-note_map = Map.map Just (Map.fromList (upper_keys ++ lower_keys))
-    `Map.union` Map.fromList [(c, Nothing) | c <- all_keys]
+kbd_input_keys :: Set.Set Char
+kbd_input_keys = Set.fromList $ physical $ concat
+    [ "1234567890"
+    , "qwertyuiop"
+    , "asdfghjkl;"
+    , "zxcvbnm,./"
+    ]
 
--- | These are the 10 keys from left to right, not including @[]-=@ etc. since
--- those don't appear on the lower \"manual\" and they're useful for other
--- things anyway.
---
--- Qwerty's @q@ should be the middle C.
-all_keys :: [Char]
-all_keys = "1234567890qwertyuiopasdfghjkl;zxcvbnm,./"
-upper_keys, lower_keys :: [(Char, Pitch.InputKey)]
-upper_keys = make_key_map 1 "q2w3er5t6y7ui"
-lower_keys = make_key_map 0 "zsxdcvgbhnjm,"
+make_note_map :: [Char] -> [Char] -> NoteMap
+make_note_map top_row bottom_row =
+    Map.fromList $ mkrow 1 top_row ++ mkrow 0 bottom_row
+    where mkrow oct row = zip row (map ((,) oct) (Seq.range_ 0 1))
 
-make_key_map :: Pitch.Octave -> [Char] -> [(Char, Pitch.InputKey)]
-make_key_map oct = zipWith mk_input [0..]
-    where
-    mk_input n c = (Keymap.physical_key c,
-        Pitch.InputKey (fromIntegral (oct*12+n)))
+-- | TODO this hardcodes *bp scale support into NoteEntry.  The key layout
+-- should really be expressed in the scale itself, but I'm not really sure what
+-- the interface should look like, since I have to reconcile the scale's
+-- desires with the keyboard's limitations..  Since *bp is the only scale with
+-- a nonstandard layout so far I'll just hardcode for now.  If there is ever
+-- a third layout I'll have a better idea of what the possibilities.
+bp_kbd_map :: KbdMap
+bp_kbd_map = KbdMap (make_note_map (physical bp1) (physical bp2)) 13
+
+bp1, bp2 :: [Char]
+bp1 ="q2w e r5t y7u i9o"
+bp2 ="zsx c vgb njm ,l."
+-- > │ █ │ │ █ │ █ │ █ │ │
+-- > │ █ │ │ █ │ █ │ █ │ │
+-- > │ │ │ │ │ │ │ │ │ │ │
+-- > └─┴─┴─┴─┴─┴─┴─┴─┴─┴─┘
+-- >  1 2 3 4 5 6 7 8 9 A
+-- >  A B C D E F G H I A
+
+-- | This should happen at compile time, even though it doesn't.
+physical :: [Char] -> [Char]
+physical = map Keymap.physical_key . filter (/=' ')
 
 -- ** midi
 

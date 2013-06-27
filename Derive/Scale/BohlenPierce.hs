@@ -27,9 +27,12 @@ import qualified Perform.Pitch as Pitch
 scales :: [Scale.Scale]
 scales = [absolute_scale]
 
+scale_id :: Pitch.ScaleId
+scale_id = Pitch.ScaleId "bp"
+
 absolute_scale :: Scale.Scale
 absolute_scale =
-    (ChromaticScales.make_scale scale_map (Pitch.ScaleId "bp") "documentation")
+    (ChromaticScales.make_scale scale_map scale_id "documentation")
     { Scale.scale_note_to_call = note_to_call scale_map
     , Scale.scale_input_to_nn = Util.computed_input_to_nn
         (ChromaticScales.input_to_note scale_map) (note_to_call scale_map)
@@ -113,17 +116,17 @@ scale_degree = ScaleDegree.scale_degree_just named_intervals 1
 layout :: Theory.Layout
 layout = Theory.layout lambda_intervals
 
+lambda_intervals :: [Int]
+lambda_intervals = [2, 1, 1, 2, 1, 2, 1, 2, 1]
+
 -- 1, 7, 11, or in lambda: A, E, G -- 1 5 7
 just_ratios :: Vector.Vector Double
 just_ratios = Vector.fromList (map realToFrac bp_ratios)
 
 bp_ratios :: [Ratio.Rational]
 bp_ratios =
-    -- a m-2 a# m2 b m-2 c   d,   d#,    e
     [ 1, 27 % 25, 25 % 21, 9 % 7, 7 % 5, 75 % 49, 5 % 3
-    -- f,  f#,    g,    h,   h#,    i
     , 9 % 5, 49 % 25, 15 % 7, 7 % 3, 63 % 25, 25 % 9
-    -- , 3/1
     ]
 
 -- | Display scale degrees and the intervals between them.
@@ -180,8 +183,6 @@ lambda_names =
     [ "lambda", "walker-a", "moll-2", "walker-1", "harmonic", "walker-2"
     , "dur-1", "moll-1", "walker-b"
     ]
-lambda_intervals :: [Int]
-lambda_intervals = [2, 1, 1, 2, 1, 2, 1, 2, 1]
 
 -- | Gamma family.  The x modes are considered not very useful.
 gamma_names :: [Text]

@@ -19,6 +19,7 @@ import qualified Cmd.NoteTrackKeymap as NoteTrackKeymap
 import qualified Cmd.Perf as Perf
 import qualified Cmd.PitchTrack as PitchTrack
 
+import qualified Derive.Scale.BohlenPierce as BohlenPierce
 import qualified Derive.TrackInfo as TrackInfo
 import qualified Instrument.MidiDb as MidiDb
 import Types
@@ -41,6 +42,10 @@ get_track_cmds = do
 
     maybe_inst <- maybe (return Nothing) (lookup_instrument block_id)
         maybe_track_id
+    scale_id <- Perf.get_scale_id block_id maybe_track_id
+    -- TODO hack, see NoteEntry.bp_kbd_map
+    let kbd_map = if scale_id == BohlenPierce.scale_id
+            then NoteEntry.bp_kbd_map else NoteEntry.twelve_kbd_map
     track_title <- maybe (return Nothing) (fmap Just . State.get_track_title)
         maybe_track_id
     let icmds = case (track_title, maybe_inst) of
@@ -49,8 +54,9 @@ get_track_cmds = do
             _ -> []
     edit_state <- Cmd.gets Cmd.state_edit
     let edit_mode = Cmd.state_edit_mode edit_state
-    let note_cmd = NoteEntry.cmds_with_note (Cmd.state_kbd_entry edit_state)
-            (MidiDb.info_patch <$> maybe_inst) (note_cmds edit_mode track)
+    let note_cmd = NoteEntry.cmds_with_note kbd_map
+            (Cmd.state_kbd_entry edit_state) (MidiDb.info_patch <$> maybe_inst)
+            (note_cmds edit_mode track)
         tcmds = track_cmds edit_mode track
     let edit_input_cmd = Edit.edit_input $ case Info.track_type track of
             Info.Note {} -> False
