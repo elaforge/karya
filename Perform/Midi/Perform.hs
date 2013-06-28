@@ -112,7 +112,8 @@ perform state configs events = (final_msgs, final_state)
     (final_msgs, _) = post_process mempty msgs
 
 -- | Map each instrument to its allocated Addrs.
-type InstAddrs = Map.Map Score.Instrument [Instrument.Addr]
+type InstAddrs =
+    Map.Map Score.Instrument [(Instrument.Addr, Maybe Instrument.Voices)]
 
 -- * channelize
 
@@ -272,11 +273,21 @@ data AllotState = AllotState {
     -- This is used by the voice stealer to figure out which voice is ripest
     -- for plunder.
     ast_available :: !(Map.Map Instrument.Addr RealTime)
-    -- | Map arbitrary input channels to an instrument address in the allocated
-    -- range.
-    , ast_allotted ::
-        !(Map.Map (Instrument.Instrument, Channel) Instrument.Addr)
+    -- | Map input channels to an instrument address in the allocated range.
+    -- Once an (inst, chan) pair has been allotted to a particular Addr, it
+    -- should keep going to that Addr, as long as voices remain.
+    , ast_allotted :: !(Map.Map (Instrument.Instrument, Channel) Allotted)
     } deriving (Eq, Show)
+
+data Allotted = Allotted {
+    allotted_addr :: !Instrument.Addr
+    -- | End time for each allocated voice.
+    , allotted_voices :: ![RealTime]
+    -- | Maximum length for allotted_voices.
+    , allotted_voice_count :: !Instrument.Voices
+    } deriving (Eq, Show)
+
+empty_allot_state :: AllotState
 empty_allot_state = AllotState Map.empty Map.empty
 
 -- | Try to find an Addr for the given Event.  If that's impossible, return
@@ -284,30 +295,60 @@ empty_allot_state = AllotState Map.empty Map.empty
 allot_event :: InstAddrs -> AllotState -> (Event, Channel)
     -> (AllotState, LEvent.LEvent (Event, Instrument.Addr))
 allot_event inst_addrs state (event, ichan) =
-    case Map.lookup (inst, ichan) (ast_allotted state) of
-        Just addr -> (update addr state, LEvent.Event (event, addr))
-        Nothing -> case steal_addr inst_addrs inst state of
-            Just addr -> (update addr (update_map addr state),
-                LEvent.Event (event, addr))
+    case expire_voices <$> Map.lookup (inst, ichan) (ast_allotted state) of
+        -- If there is an already allotted addr with a free voice, add this
+        -- event to it.
+        Just (Allotted addr voices voice_count)
+            | length voices < voice_count ->
+                (update Nothing addr voices state, LEvent.Event (event, addr))
+        -- Otherwise, steal the oldest already allotted voice.
+        _ -> case steal_addr inst_addrs inst state of
+            Just (addr, voice_count) ->
+                (update (Just voice_count) addr [] state,
+                    LEvent.Event (event, addr))
             -- This will return lots of msgs if an inst has no allocation.
             -- A higher level should filter out the duplicates.
             Nothing -> (state, LEvent.Log no_alloc)
     where
+    expire_voices allotted = allotted
+        { allotted_voices =
+            filter (> event_start event) (allotted_voices allotted)
+        }
     inst = event_instrument event
-    update addr state = state { ast_available =
-            Map.insert addr (event_end event) (ast_available state) }
-    update_map addr state = state { ast_allotted =
-        Map.insert (inst, ichan) addr (ast_allotted state) }
+    update = update_allot_state (inst, ichan) (event_end event)
     no_alloc = event_warning event
         ("no allocation for " ++ Pretty.pretty (Instrument.inst_score inst))
 
--- | Steal the least recently used address for the given instrument.
+-- | Record this addr as now being allotted, and add its voice allocation.
+update_allot_state :: (Instrument.Instrument, Channel) -> RealTime
+    -> Maybe Instrument.Voices -> Instrument.Addr -> [RealTime]
+    -> AllotState -> AllotState
+update_allot_state inst_chan end maybe_voice_count addr voices state = state
+    { ast_available = Map.insert addr end (ast_available state)
+    , ast_allotted = case maybe_voice_count of
+        Just voice_count ->
+            Map.insert inst_chan (Allotted addr [end] voice_count)
+                (ast_allotted state)
+        Nothing -> Map.adjust adjust inst_chan (ast_allotted state)
+    }
+    where adjust allotted = allotted { allotted_voices = end : voices }
+
+-- | Steal the least recently used address for the given instrument, and return
+-- how many voices it supports.
+--
+-- Nothing voices means no limit, and in this case it'll pick a big number.
+-- I initially feared keeping track of voice allocation would be wasteful for
+-- addrs with no limitation, but profiling revealed no detectable difference.
+-- So either it's not important or my profiles are broken.
 steal_addr :: InstAddrs -> Instrument.Instrument -> AllotState
-    -> Maybe Instrument.Addr
+    -> Maybe (Instrument.Addr, Instrument.Voices)
 steal_addr inst_addrs inst state =
     case Map.lookup (Instrument.inst_score inst) inst_addrs of
-        Just addrs -> let avail = zip addrs (map mlookup addrs)
-            in fst <$> Seq.minimum_on snd avail
+        Just addr_voices ->
+            let avail = zip addr_voices (map (mlookup . fst) addr_voices)
+            in case Seq.minimum_on snd avail of
+                Just ((addr, voices), _) -> Just (addr, fromMaybe 10000 voices)
+                Nothing -> Nothing
         _ -> Nothing
     where
     mlookup addr = Map.findWithDefault 0 addr (ast_available state)

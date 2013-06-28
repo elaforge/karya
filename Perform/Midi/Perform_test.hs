@@ -120,6 +120,28 @@ test_perform = do
         , ("dev1", 2.0 - gap, 0, NoteOff 60 100)
         ]
 
+test_perform_voices = do
+    let f config = first e_note_ons . perform (mkconfig config)
+            . map (mkevent . mke)
+        mke (p, start) = (inst1, p, start, 1, [])
+        mkconfig chans = Instrument.voice_configs
+            [(Instrument.inst_score inst1, [((dev1, c), v) | (c, v) <- chans])]
+    let config12 = [(0, Just 1), (1, Just 2)]
+    equal (f config12 [("a", 0)]) ([(0, (0, Key.c4))], [])
+    -- b gets bumped to the next channel.
+    equal (f config12 [("a", 0), ("b", 0)])
+        ([(0, (0, Key.c4)), (0, (1, Key.cs4))], [])
+    -- But not if they don't overlap.
+    equal (f config12 [("a", 0), ("b", 1)])
+        ([(0, (0, Key.c4)), (1, (0, Key.cs4))], [])
+    -- First voice gets stolen because they both ran out.
+    equal (f config12 [("a", 0), ("b", 0.5), ("c", 0.5), ("d", 0.5)])
+        ([(0, (0, Key.c4)), (0.5, (1, Key.cs4)), (0.5, (1, Key.d4)),
+            (0.5, (0, Key.ds4))], [])
+    -- Infinite voices means the second channel is never chosen.
+    equal (f [(0, Nothing), (1, Just 1)] [("a", 0), ("b", 0), ("c", 0)])
+        ([(0, (0, Key.c4)), (0, (0, Key.cs4)), (0, (0, Key.d4))], [])
+
 test_aftertouch = do
     let f = map extract_msg . fst . perform midi_config1
                 . Seq.sort_on Perform.event_start . map event
@@ -249,6 +271,7 @@ test_control_lead_time = do
         ], [])
 
 -- Bad signal that goes over 1 at 1 and 3.
+badsig :: Control.Control -> (Control.Control, Signal.Control)
 badsig cont = (cont, linear_interp [(0, 0), (1.5, 1.5), (2.5, 0.5), (4, 2)])
 
 test_clip_warns = do
@@ -256,14 +279,12 @@ test_clip_warns = do
         (msgs, warns) = perform midi_config1 events
     -- TODO check that warnings came at the right places
     -- check that the clips happen at the same places as the warnings
-
     equal warns
         [ "Perform: %cc7 clipped: (1.5s, 2.5s)"
         -- TODO this used to be (3.5, 4) but I can't be bothered to find out
         -- why it changed when RealTime became integral
         , "Perform: %cc7 clipped: (4s, 4s)"
         ]
-
     check (all_msgs_valid msgs)
 
 test_vel_clip_warns = do
@@ -272,10 +293,22 @@ test_vel_clip_warns = do
     equal warns ["Perform: %vel clipped: (0s, 4s)"]
     check (all_msgs_valid msgs)
 
+-- * extract
+
+all_msgs_valid :: Midi.WriteMessages -> Bool
 all_msgs_valid wmsgs = all Midi.valid_msg (map Midi.wmsg_msg wmsgs)
 
-midi_cc_of (Midi.ChannelMessage _ (Midi.ControlChange cc val)) = Just (cc, val)
-midi_cc_of _ = Nothing
+e_note_ons :: Midi.WriteMessages -> [(RealTime, (Midi.Channel, Midi.Key))]
+e_note_ons wmsgs =
+    [ (ts, (chan, key))
+    | (ts, (chan, Midi.NoteOn key _)) <- mapMaybe e_channel_msg wmsgs
+    ]
+
+e_channel_msg :: Midi.WriteMessage
+    -> Maybe (RealTime, (Midi.Channel, Midi.ChannelMessage))
+e_channel_msg wmsg = case Midi.wmsg_msg wmsg of
+    Midi.ChannelMessage chan msg -> Just (Midi.wmsg_ts wmsg, (chan, msg))
+    _ -> Nothing
 
 extract_msg :: Midi.WriteMessage
     -> (RealTime, Midi.Channel, Midi.ChannelMessage)
@@ -497,7 +530,7 @@ test_perform_control = do
 -- test the overlap map and channel allocation
 test_channelize = do
     let pevent (start, dur, psig) = mkpevent (start, dur, psig, [])
-        f = map snd . channelize (inst_addrs midi_config2) . map pevent
+        f = map snd . channelize (mk_inst_addrs midi_config2) . map pevent
 
     -- Re-use channels when the pitch is different, but don't when it's the
     -- same.
@@ -535,7 +568,7 @@ test_channelize = do
         [0, 0]
 
     -- don't bother channelizing if the inst only has one addr
-    equal (map snd $ channelize (inst_addrs midi_config2) $ mkevents
+    equal (map snd $ channelize (mk_inst_addrs midi_config2) $ mkevents
         [ (inst2, "a", 0, 2, [])
         , (inst2, "a2", 1, 2, [])
         ])
@@ -658,13 +691,13 @@ test_allot_warn = do
 allot :: Instrument.Configs -> [(Perform.Event, Perform.Channel)]
     -> [LEvent.LEvent (Perform.Event, Instrument.Addr)]
 allot configs events = fst $
-    Perform.allot Perform.empty_allot_state (inst_addrs configs)
+    Perform.allot Perform.empty_allot_state (mk_inst_addrs configs)
         (map LEvent.Event events)
 
 -- * setup
 
-inst_addrs :: Instrument.Configs -> Perform.InstAddrs
-inst_addrs = Map.map Instrument.config_addrs
+mk_inst_addrs :: Instrument.Configs -> Perform.InstAddrs
+mk_inst_addrs = Map.map Instrument.config_addrs
 
 secs :: Double -> RealTime
 secs = RealTime.seconds
@@ -737,6 +770,7 @@ midi_config1 = Instrument.configs
     [(Instrument.inst_score inst1, [(dev1, 0), (dev1, 1)])]
 
 -- Also includes inst2.
+midi_config2 :: Instrument.Configs
 midi_config2 = Instrument.configs
     [ (Instrument.inst_score inst1, [(dev1, 0), (dev1, 1)])
     , (Instrument.inst_score inst2, [(dev2, 2)])

@@ -103,21 +103,29 @@ modify_config_ inst modify = modify_config inst (\c -> (modify c, ()))
 -- | Deallocate the old allocation, and set it to the new one.  Meant for
 -- interactive use.
 alloc :: Text -> Text -> [Midi.Channel] -> Cmd.CmdL ()
-alloc inst_name wdev chans = do
+alloc inst_name wdev chans =
+    alloc_voices inst_name wdev (map (flip (,) Nothing) chans)
+
+-- | Like 'alloc', but you can also give maximum voices per channel.
+alloc_voices :: Text -> Text -> [(Midi.Channel, Maybe Instrument.Voices)]
+    -> Cmd.CmdL ()
+alloc_voices inst_name wdev chan_voices = do
     let inst = Score.Instrument inst_name
     dealloc_instrument inst
-    alloc_instrument inst [(Midi.write_device wdev, c) | c <- chans]
+    let dev = Midi.write_device wdev
+    alloc_instrument inst [((dev, c), v) | (c, v) <- chan_voices]
 
 dealloc :: Text -> Cmd.CmdL ()
 dealloc = dealloc_instrument . Score.Instrument
 
 -- | Allocate the given channels for the instrument using its default device.
-alloc_default :: Text -> [Midi.Channel] -> Cmd.CmdL ()
+alloc_default :: Text -> [(Midi.Channel, Maybe Instrument.Voices)]
+    -> Cmd.CmdL ()
 alloc_default inst_name chans = do
     let inst = Score.Instrument inst_name
     wdev <- maybe (Cmd.throw $ "inst not in db: " ++ Pretty.pretty inst) return
         =<< device_of inst
-    alloc_instrument inst [(wdev, c) | c <- chans]
+    alloc_instrument inst [((wdev, c), v) | (c, v) <- chans]
 
 -- | Merge the given configs into the existing one.
 merge :: Instrument.Configs -> Cmd.CmdL ()
@@ -154,7 +162,7 @@ load inst_name = do
 
     dev <- Cmd.require_msg ("no device for " ++ show inst) =<< device_of inst
     chan <- find_chan_for dev
-    alloc_instrument inst [(dev, chan)]
+    alloc_instrument inst [((dev, chan), Nothing)]
 
     State.set_track_title track_id (TrackInfo.instrument_to_title inst)
     initialize inst chan
@@ -165,11 +173,12 @@ load inst_name = do
 
 -- ** implementation
 
+-- | Find an unallocated channel on the given device.
 find_chan_for :: Midi.WriteDevice -> Cmd.CmdL Midi.Channel
 find_chan_for dev = do
     config <- State.get_midi_config
     let addrs = map ((,) dev) [0..15]
-        taken = concatMap Instrument.config_addrs (Map.elems config)
+        taken = concatMap (map fst . Instrument.config_addrs) (Map.elems config)
     let match = fmap snd $ List.find (not . (`elem` taken)) addrs
     Cmd.require_msg ("couldn't find free channel for " ++ show dev) match
 
@@ -192,9 +201,10 @@ send_initialization init inst dev chan = case init of
         Log.warn $ "initialize instrument " ++ show inst ++ ": " ++ untxt msg
     Instrument.NoInitialization -> return ()
 
-alloc_instrument :: Score.Instrument -> [Instrument.Addr] -> Cmd.CmdL ()
+alloc_instrument :: Score.Instrument
+    -> [(Instrument.Addr, Maybe Instrument.Voices)] -> Cmd.CmdL ()
 alloc_instrument inst addrs = State.modify $
-    State.config # State.midi # Lens.map inst #= Just (Instrument.config addrs)
+    State.config#State.midi#Lens.map inst #= Just (Instrument.config addrs)
 
 dealloc_instrument :: Score.Instrument -> Cmd.CmdL ()
 dealloc_instrument inst = State.modify $

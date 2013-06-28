@@ -94,7 +94,7 @@ UNSORTED
     oracle utils yet?
   convert to Text:
     - Util.Log.Stack
-    - Util.Log
+    - Log.msg
     * TimeStep.show_time_step
     - Pretty.pretty
       For this I need to extend Util.Format to be a simplified prettyprinter:
@@ -986,8 +986,18 @@ Perform:
       some busywork on the user which should be left to the performer, but
       since the solution is fairly complicated I think I'll leave it be for
       now.
-    - But could I set an addr to just one voice?  That way it doesn't matter
+    * But could I set an addr to just one voice?  That way it doesn't matter
       if I used up the polyphony on one addr, if there's a note there, I did.
+      . The problem is that channelize picks a channel, regardless of
+        allocation, and then allot tries to fit the channels into the
+        allocation.  Voices introduce a restriction on channelize which
+        depends on the addr, so it messes up the nice division of labor.
+      . Why not put it in allot?  This means one Channel goes to one addr,
+        until that addr runs out, then pick another addr.  But allot doesn't
+        know about overlaps, so it doesn't know when an addr becomes
+        re-usable.  But that's easy, it just has to check.
+        In fact, it has to be in allot, or later, because that's when I know
+        the addr.
 
 Instrument DB / browser:
   - browser has lots of empty space on the bottom

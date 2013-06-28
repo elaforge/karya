@@ -178,11 +178,16 @@ inst_decay = fromMaybe default_decay . inst_maybe_decay
 type Configs = Map.Map Score.Instrument Config
 
 configs :: [(Score.Instrument, [Addr])] -> Configs
-configs inst_addrs = Map.fromList
-    [(inst, config addrs) | (inst, addrs) <- inst_addrs]
+configs inst_addrs =
+    Map.fromList [(inst, config (map (flip (,) Nothing) addrs))
+        | (inst, addrs) <- inst_addrs]
+
+voice_configs :: [(Score.Instrument, [(Addr, Maybe Voices)])] -> Configs
+voice_configs inst_addrs =
+    Map.fromList [(inst, config addrs) | (inst, addrs) <- inst_addrs]
 
 get_addrs :: Score.Instrument -> Configs -> [Addr]
-get_addrs inst = maybe [] config_addrs . Map.lookup inst
+get_addrs inst = maybe [] (map fst . config_addrs) . Map.lookup inst
 
 data Config = Config {
     -- | An instrument may have multiple addresses assigned to it, which means
@@ -191,7 +196,10 @@ data Config = Config {
     -- how keyswitches work; each one is considered a separate instrument.  An
     -- instrument wishing to use an address will emit an appropriate message to
     -- configure it (probably a keyswitch, possibly a program change).
-    config_addrs :: ![Addr]
+    --
+    -- Each Addr has a count of how many simultaneous voices the addr can
+    -- handle.  Nothing means there's no limit.
+    config_addrs :: ![(Addr, Maybe Voices)]
     -- | Default controls for this instrument, will always be set unless
     -- explicitly replaced.  This hopefully avoids the problem where
     -- a synthesizer starts in an undefined state.
@@ -208,7 +216,7 @@ controls = Lens.lens config_controls (\v r -> r { config_controls = v })
 mute = Lens.lens config_mute (\v r -> r { config_mute = v })
 solo = Lens.lens config_solo (\v r -> r { config_solo = v })
 
-config :: [Addr] -> Config
+config :: [(Addr, Maybe Voices)] -> Config
 config addrs = Config
     { config_addrs = addrs
     , config_controls = mempty
@@ -228,6 +236,8 @@ instance Pretty.Pretty Config where
 -- | Midi instruments are addressed by a (device, channel) pair, allocated in
 -- 'Config'.
 type Addr = (Midi.WriteDevice, Midi.Channel)
+-- | Number of simultaneous voices a certain Addr supports, aka polyphony.
+type Voices = Int
 
 -- | Key to activate a keyswitch.
 data Keyswitch =

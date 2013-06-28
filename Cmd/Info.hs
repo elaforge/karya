@@ -165,7 +165,8 @@ show_instrument_info config info = fields
     [ ("keyswitches", maybe ""
         (show_keyswitch_map . Instrument.patch_keyswitches . MidiDb.info_patch)
         info)
-    , ("addrs", maybe "" show_addrs (Instrument.config_addrs <$> config))
+    , ("addrs", maybe "" show_addrs
+        (map fst . Instrument.config_addrs <$> config))
     , ("flags", Text.unwords $ ["mute" | get Instrument.config_mute]
         ++ ["solo" | get Instrument.config_solo])
     ]
@@ -183,12 +184,13 @@ show_addrs addrs = semicolon_list
     ]
 
 show_keyswitch_map :: Instrument.KeyswitchMap -> Text
-show_keyswitch_map (Instrument.KeyswitchMap attr_ks) = comma_list $
-    map (ShowVal.show_val . fst) attr_ks
+show_keyswitch_map (Instrument.KeyswitchMap attr_ks) =
+    comma_list $ map (ShowVal.show_val . fst) attr_ks
 
 comma_list, semicolon_list :: [Text] -> Text
 comma_list [] = "[]"
 comma_list xs = Text.intercalate ", " xs
+
 semicolon_list [] = "[]"
 semicolon_list xs = Text.intercalate "; " xs
 
@@ -229,7 +231,8 @@ get_track_status block_id tracknum = do
             State.get_midi_config
         let title = TrackInfo.instrument_to_title inst
         return $ txt $ Printf.printf "%s at %d: %s -- [%s]" (untxt title)
-            note_tracknum (untxt (show_addrs addrs)) (Seq.join ", " track_descs)
+            note_tracknum (untxt (show_addrs (map fst addrs)))
+            (Seq.join ", " track_descs)
 
 -- | Given a tracknum, find the note track associated with it.  Since there
 -- may be multiple ones, pick the first one.  First try children, then

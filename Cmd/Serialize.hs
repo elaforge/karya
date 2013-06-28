@@ -444,7 +444,7 @@ instance Serialize Configs where
             _ -> Serialize.bad_version "Instrument.Configs" v
 
 instance Serialize Instrument.Config where
-    put (Instrument.Config a b c d) = Serialize.put_version 2
+    put (Instrument.Config a b c d) = Serialize.put_version 3
         >> put a >> put b >> put c >> put d
     get = do
         v <- Serialize.get_version
@@ -453,9 +453,17 @@ instance Serialize Instrument.Config where
                 addrs :: [Instrument.Addr] <- get
                 mute :: Bool <- get
                 solo :: Bool <- get
-                return $ Instrument.Config addrs mempty mute solo
+                return $ Instrument.Config (map (flip (,) Nothing) addrs)
+                    mempty mute solo
             2 -> do
                 addrs :: [Instrument.Addr] <- get
+                controls :: Score.ControlValMap <- get
+                mute :: Bool <- get
+                solo :: Bool <- get
+                return $ Instrument.Config (map (flip (,) Nothing) addrs)
+                    controls mute solo
+            3 -> do
+                addrs :: [(Instrument.Addr, Maybe Instrument.Voices)] <- get
                 controls :: Score.ControlValMap <- get
                 mute :: Bool <- get
                 solo :: Bool <- get
