@@ -264,7 +264,7 @@ derive_event st tinfo prev_sample repeat_call prev event next
     | otherwise =
         case ParseBs.parse_expr (substitute_repeat repeat_call text) of
             Left err ->
-                (Right mempty, [parse_error err], Derive.state_collect st)
+                (Right mempty, [parse_error (txt err)], Derive.state_collect st)
             Right expr -> run_call expr
     where
     text = Event.event_bytestring event

@@ -21,8 +21,8 @@ import qualified Derive.Stack as Stack
 type ConvertT state a =
     (Error.ErrorT Error (State.StateT state (Log.LogT Identity.Identity)) a)
 
-newtype Error = Error (Maybe String) deriving (Show)
-instance Error.Error Error where strMsg = Error . Just
+newtype Error = Error (Maybe Text) deriving (Show)
+instance Error.Error Error where strMsg = Error . Just . txt
 
 convert :: state
     -> (Score.Event -> ConvertT state (a, [Score.Event]))

@@ -107,8 +107,8 @@ derive_control_tree block_end tree = do
     -- also be visible, and they might have something interesting.
     complain events = Log.initialized_msg Log.Warn $
         "control call should have emitted a single call to "
-        ++ show capture_null_control ++ " which produces a single event, but "
-        ++ "got events: " ++ show events
+        <> showt capture_null_control <> " which produces a single event, but "
+        <> "got events: " <> showt events
 
 -- ** implementation
 

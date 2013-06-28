@@ -23,6 +23,7 @@ import qualified Control.DeepSeq as DeepSeq
 import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
+import qualified Data.Text as Text
 
 import Util.Control
 import qualified Util.Log as Log
@@ -151,21 +152,22 @@ channelize_event inst_addrs overlapping event =
     chan = fromMaybe (maximum (-1 : map snd overlapping) + 1) maybe_chan
     (maybe_chan, reasons) = shareable_chan overlapping event
     logs = map (Log.msg Log.Warn (Just stack)) $
-        ("found chan " ++ show maybe_chan ++ ", picked " ++ show chan)
+        ("found chan " <> showt maybe_chan <> ", picked " <> showt chan)
         : map mkmsg reasons
     stack = Stack.to_strings (event_stack event)
     mkmsg (chan, reason) =
-        Pretty.pretty inst_name ++ " at " ++ Pretty.pretty (event_start event)
-            ++ " can't share with " ++ show chan ++ ": " ++ reason
+        Pretty.prettytxt inst_name <> " at "
+            <> Pretty.prettytxt (event_start event)
+            <> " can't share with " <> showt chan <> ": " <> reason
 
 -- | Find a channel from the list of overlapping (Event, Channel) all of whose
 -- events can share with the given event.  Return the rest of the channels and
 -- the reason why they can't be used.
 shareable_chan :: [(Event, Channel)] -> Event
-    -> (Maybe Channel, [(Channel, String)])
+    -> (Maybe Channel, [(Channel, Text)])
 shareable_chan overlapping event =
     (fst <$> List.find (null . snd) unshareable_reasons,
-        map (second (Seq.join "; ")) $
+        map (second (Text.intercalate "; ")) $
             filter (not . null . snd) unshareable_reasons)
     where
     unshareable_reasons = [(chan, reasons evts) | (chan, evts) <- by_chan]
@@ -178,21 +180,22 @@ shareable_chan overlapping event =
 --
 -- This is by far the most finicky function in the whole module, because
 -- this is the core decision when multiplexing channels.
-can_share_chan :: Event -> Event -> Maybe String
+can_share_chan :: Event -> Event -> Maybe Text
 can_share_chan old new = case (initial_pitch old, initial_pitch new) of
         _ | start >= end -> Nothing
         _ | event_instrument old /= event_instrument new ->
             Just $ "instruments differ: "
-                ++ Pretty.pretty (event_instrument old)
+                <> Pretty.prettytxt (event_instrument old)
         (Just (initial_old, _), Just (initial_new, _))
             | not (Signal.pitches_share in_decay start end
                 initial_old (event_pitch old) initial_new (event_pitch new)) ->
                     Just $ "pitch signals incompatible: "
-                        ++ Pretty.pretty (event_pitch old) ++ " /= "
-                        ++ Pretty.pretty (event_pitch new)
+                        <> Pretty.prettytxt (event_pitch old) <> " /= "
+                        <> Pretty.prettytxt (event_pitch new)
             | not c_equal ->
-                Just $ "controls differ: " ++ Pretty.pretty (event_controls old)
-                    ++ " /= " ++ Pretty.pretty (event_controls new)
+                Just $ "controls differ: "
+                    <> Pretty.prettytxt (event_controls old)
+                    <> " /= " <> Pretty.prettytxt (event_controls new)
             | otherwise -> Nothing
         _ -> Nothing
     where
@@ -317,7 +320,7 @@ allot_event inst_addrs state (event, ichan) =
     inst = event_instrument event
     update = update_allot_state (inst, ichan) (event_end event)
     no_alloc = event_warning event
-        ("no allocation for " ++ Pretty.pretty (Instrument.inst_score inst))
+        ("no allocation for " <> Pretty.prettytxt (Instrument.inst_score inst))
 
 -- | Record this addr as now being allotted, and add its voice allocation.
 update_allot_state :: (Instrument.Instrument, Channel) -> RealTime
@@ -429,16 +432,17 @@ adjust_chan_state addr_inst addr event =
 -- | TODO support program change, I'll have to get ahold of patch_initialize.
 chan_state_msgs :: Instrument.Addr -> RealTime
     -> Maybe Instrument.Instrument -> Instrument.Instrument
-    -> Either String [Midi.WriteMessage]
+    -> Either Text [Midi.WriteMessage]
 chan_state_msgs addr@(wdev, chan) start maybe_old_inst new_inst
-    | not same_synth = Left $ "two synths on " ++ show addr ++ ": " ++ inst_desc
+    | not same_synth =
+        Left $ "two synths on " <> showt addr <> ": " <> inst_desc
     | not same_inst = Left $ "program change not supported yet on "
-        ++ show addr ++ ": " ++ inst_desc
+        <> showt addr <> ": " <> inst_desc
     | not same_ks = Right $
         keyswitch_messages maybe_old_inst new_inst wdev chan start
     | otherwise = Right []
     where
-    inst_desc = show (fmap extract maybe_old_inst, extract new_inst)
+    inst_desc = showt (fmap extract maybe_old_inst, extract new_inst)
     extract inst = (Instrument.inst_synth inst, Instrument.inst_score inst)
 
     same_synth = case maybe_old_inst of
@@ -602,8 +606,8 @@ clip_val low high val
 type ClipRange = (RealTime, RealTime)
 make_clip_warnings :: Event -> (Control.Control, [ClipRange]) -> [Log.Msg]
 make_clip_warnings event (control, clip_warns) =
-    [event_warning event (Pretty.pretty control ++ " clipped: "
-        ++ Pretty.pretty (s, e)) | (s, e) <- clip_warns]
+    [event_warning event (Pretty.prettytxt control <> " clipped: "
+        <> Pretty.prettytxt (s, e)) | (s, e) <- clip_warns]
 
 control_at :: Event -> Control.Control -> RealTime -> Maybe Signal.Y
 control_at event control pos = do
@@ -783,7 +787,7 @@ overlap_map initial = go initial
         log_events = if logging then map LEvent.Log logs else []
         (vals, final_state) = go ((e, val) : overlapping) f events
 
-event_warning :: Event -> String -> Log.Msg
+event_warning :: Event -> Text -> Log.Msg
 event_warning event msg =
     Log.msg Log.Warn (Just (Stack.to_strings (event_stack event)))
-        ("Perform: " ++ msg)
+        ("Perform: " <> msg)

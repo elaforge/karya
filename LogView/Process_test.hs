@@ -5,8 +5,10 @@
 module LogView.Process_test where
 import qualified Data.Map as Map
 
+import Util.Control
 import qualified Util.Log as Log
 import Util.Test
+
 import qualified LogView.Process as Process
 
 
@@ -29,7 +31,7 @@ test_process_msg = do
 
     -- test catch patterns
     let set_status key val = Log.initialized_msg Log.Debug $
-            "global status: " ++ key ++ " -- " ++ val
+            "global status: " <> key <> " -- " <> val
     msg <- set_status "key" "val2"
     equal (Process.state_status $ snd $ Process.process_msg state msg)
         (Map.fromList [("key", "val2")])

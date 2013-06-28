@@ -525,7 +525,7 @@ synth_to_convert_lookup = make_convert_lookup . synth_to_db
 
 synth_to_db :: [Cmd.SynthDesc] -> Cmd.InstrumentDb
 synth_to_db synth_descs =
-    trace_logs (map (Log.msg Log.Warn Nothing . untxt) warns) $
+    trace_logs (map (Log.msg Log.Warn Nothing) warns) $
         Instrument.Db.db midi_db
     where (midi_db, warns) = MidiDb.midi_db synth_descs
 

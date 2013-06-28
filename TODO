@@ -93,8 +93,8 @@ UNSORTED
   - shakefile should use typesafe oracle calls, is there newtype based
     oracle utils yet?
   convert to Text:
-    - Util.Log.Stack
-    - Log.msg
+    - Log.debug etc.
+    * Log.msg
     * TimeStep.show_time_step
     - Pretty.pretty
       For this I need to extend Util.Format to be a simplified prettyprinter:

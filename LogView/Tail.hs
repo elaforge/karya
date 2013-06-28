@@ -16,7 +16,6 @@ import qualified System.FilePath as FilePath
 import System.FilePath ((</>))
 import qualified System.IO as IO
 import qualified System.Posix as Posix
-import qualified System.Posix.Files as Posix.Files
 import qualified System.Process as Process
 
 import Util.Control
@@ -84,7 +83,7 @@ deserialize_line line = do
     err_msg <- Log.deserialize_msg line
     case err_msg of
         Left exc -> Log.initialized_msg Log.Error $ "error parsing: "
-            ++ show exc ++ ", line was: " ++ show line
+            <> showt exc <> ", line was: " <> showt line
         Right msg -> return msg
 
 type TailState = (IO.Handle, Integer)
@@ -126,6 +125,6 @@ file_renamed :: FilePath -> Integer -> IO Bool
 file_renamed filename size = do
     -- I should really use inode, but ghc's crummy IO libs make that a pain,
     -- since handleToFd closes the handle.
-    file_size <- maybe 0 Posix.Files.fileSize <$>
-        File.ignoreEnoent (Posix.Files.getFileStatus filename)
+    file_size <- maybe 0 Posix.fileSize <$>
+        File.ignoreEnoent (Posix.getFileStatus filename)
     return $ fromIntegral file_size /= size && file_size /= 0

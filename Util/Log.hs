@@ -140,35 +140,33 @@ data Prio =
 
 -- | Create a msg without initializing it, so it doesn't have to be in
 -- LogMonad.
-msg :: Prio -> Maybe Stack -> String -> Msg
+msg :: Prio -> Maybe Stack -> Text -> Msg
 msg = msg_srcpos Nothing
 
 -- | Create a msg without initializing it.
-msg_srcpos :: SrcPos.SrcPos -> Prio -> Maybe Stack -> String -> Msg
-msg_srcpos srcpos prio stack text =
-    Msg no_date_yet srcpos prio stack (Text.pack text)
+msg_srcpos :: SrcPos.SrcPos -> Prio -> Maybe Stack -> Text -> Msg
+msg_srcpos = Msg no_date_yet
 
 -- | Create a msg with the give prio and text.
-initialized_msg_srcpos :: (LogMonad m) => SrcPos.SrcPos -> Prio -> String
-    -> m Msg
+initialized_msg_srcpos :: (LogMonad m) => SrcPos.SrcPos -> Prio -> Text -> m Msg
 initialized_msg_srcpos srcpos prio = make_msg srcpos prio Nothing
 
-initialized_msg :: (LogMonad m) => Prio -> String -> m Msg
+initialized_msg :: (LogMonad m) => Prio -> Text -> m Msg
 initialized_msg = initialized_msg_srcpos Nothing
 
 -- | This is the main way to construct a Msg since 'initialize_msg' is called.
 make_msg :: (LogMonad m) =>
-    SrcPos.SrcPos -> Prio -> Maybe Stack -> String -> m Msg
+    SrcPos.SrcPos -> Prio -> Maybe Stack -> Text -> m Msg
 make_msg srcpos prio stack text =
     initialize_msg (msg_srcpos srcpos prio stack text)
 
 log :: (LogMonad m) => Prio -> SrcPos.SrcPos -> String -> m ()
-log prio srcpos text = write =<< make_msg srcpos prio Nothing text
+log prio srcpos text = write =<< make_msg srcpos prio Nothing (txt text)
 
 log_stack :: (LogMonad m) => Prio -> SrcPos.SrcPos -> Stack -> String
     -> m ()
 log_stack prio srcpos stack text =
-    write =<< make_msg srcpos prio (Just stack) text
+    write =<< make_msg srcpos prio (Just stack) (txt text)
 
 debug_srcpos, notice_srcpos, warn_srcpos, error_srcpos
     :: (LogMonad m) => SrcPos.SrcPos -> String -> m ()
