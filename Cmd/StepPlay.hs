@@ -111,13 +111,23 @@ initialize view_id block_id play_tracks = do
     perf <- Cmd.get_performance block_id
     let events = filter_tracks play_track_ids $ Cmd.perf_events perf
         reals = group_edges eta events
-        scores = real_to_score block_id (Cmd.perf_inv_tempo perf) reals
+        scores = real_to_score block_id (Cmd.perf_inv_tempo perf)
+            -- Subtract a tiny eta, otherwise the last event end is right on
+            -- the end of the score and has no ScoreTime.
+            (map (subtract RealTime.eta) reals)
         steps = [(s, r) | (Just s, r) <- zip scores reals]
     msgs <- fmap LEvent.events_of $ PlayUtil.perform_events events
-    Cmd.modify_play_state $ \st -> st { Cmd.state_step = Just $
-        Cmd.StepState view_id play_tracks []
-            (zip (map fst steps) (make_states (map ((+eta) . snd) steps) msgs)) }
-    where eta = RealTime.seconds 0.1
+    Cmd.modify_play_state $ \st -> st
+        { Cmd.state_step = Just $ Cmd.StepState
+            { Cmd.step_view_id = view_id
+            , Cmd.step_tracknums = play_tracks
+            , Cmd.step_before = []
+            , Cmd.step_after =
+                zip (map fst steps)
+                    (make_states (map ((+eta) . snd) steps) msgs)
+            }
+        }
+    where eta = RealTime.seconds 0.01
 
 real_to_score :: BlockId -> Transport.InverseTempoFunction -> [RealTime]
     -> [Maybe ScoreTime]
@@ -139,7 +149,8 @@ group_edges :: RealTime -> Cmd.Events -> [RealTime]
 group_edges eta = group . edges . Vector.toList
     where
     edges events = Seq.merge (map Score.event_start events)
-        (map Score.event_end events)
+        -- The starts should be in order, but the ends have no such guarantee.
+        (List.sort (map Score.event_end events))
     group [] = []
     group (t : ts) = t : group (dropWhile (<= t + eta) ts)
 

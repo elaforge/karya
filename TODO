@@ -35,7 +35,7 @@ UNSORTED
   * cmd-a when something is selected should extend the bottom of the selection
   * hjkl kind of needs selecting to be useful
   * play from prev should have a larger default
-  - step play still not working right
+  * step play still not working right
   * If I turn on track rendering for a pitch track, it extracts and concats
     an event control and shows that, so I can see the final value.
     But tempo.  If tempo is id I can pull the signal after the note track

@@ -1,3 +1,4 @@
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 -- Copyright 2013 Evan Laforge
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
@@ -19,11 +20,13 @@ import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 
 import qualified Util.Map as Map
+import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
+
 import qualified Midi.Midi as Midi
 
 
-newtype State = State (Map.Map Addr Channel) deriving (Eq, Show)
+newtype State = State (Map.Map Addr Channel) deriving (Eq, Show, Pretty.Pretty)
 
 empty :: State
 empty = State Map.empty
@@ -37,10 +40,22 @@ data Channel = Channel {
 empty_channel :: Channel
 empty_channel = Channel Map.empty 0 Map.empty
 
+instance Pretty.Pretty Channel where
+    format (Channel notes pb controls) = Pretty.record_title "Channel"
+        [ ("notes", Pretty.format notes)
+        , ("pb", Pretty.format pb)
+        , ("controls", Pretty.format controls)
+        ]
+
 data Control = CC Midi.Control | Aftertouch Midi.Key | Pressure
     deriving (Eq, Ord, Show)
 type Addr = (Midi.WriteDevice, Midi.Channel)
 type Message = (Midi.WriteDevice, Midi.Message)
+
+instance Pretty.Pretty Control where
+    pretty (CC cc) = Pretty.pretty cc
+    pretty (Aftertouch key) = "at:" ++ Pretty.pretty key
+    pretty Pressure = "pressure"
 
 cc_msg :: Control -> Midi.ControlValue -> Midi.ChannelMessage
 cc_msg (CC cc) val = Midi.ControlChange cc val
