@@ -92,14 +92,14 @@ profile_size = derive_size $ make_nested_controls 10 3 60
 -- TODO the save file should be checked in, but let's wait until they're
 -- compressed
 profile_bloom_derive =
-    profile_saved False "prof/bloom" (UiTest.bid "bloom/order")
+    profile_saved False "prof/bloom.gz" (UiTest.bid "bloom/score")
 profile_bloom_perform =
-    profile_saved True "prof/bloom" (UiTest.bid "bloom/order")
+    profile_saved True "prof/bloom.gz" (UiTest.bid "bloom/score")
 
 profile_pnovla_derive =
-    profile_saved False "prof/pnovla.state" (UiTest.bid "pnovla2/b1")
+    profile_saved False "prof/pnovla.gz" (UiTest.bid "pnovla/b1")
 profile_pnovla_perform =
-    profile_saved True "prof/pnovla.state" (UiTest.bid "pnovla2/b1")
+    profile_saved True "prof/pnovla.gz" (UiTest.bid "pnovla/b1")
 
 -- * make states
 
@@ -186,7 +186,8 @@ derive_profile :: State.StateId a -> IO ()
 derive_profile create = replicateM_ 6 $
     run_profile Nothing UiTest.default_block_id (UiTest.exec State.empty create)
 
-run_profile :: Maybe Convert.Lookup -> BlockId -> State.State -> IO ()
+run_profile :: Maybe Convert.Lookup -- ^ If given, also run a perform.
+    -> BlockId -> State.State -> IO ()
 run_profile maybe_lookup block_id ui_state = do
     start_cpu <- CPUTime.getCPUTime
     start <- now
@@ -201,6 +202,7 @@ run_profile maybe_lookup block_id ui_state = do
     when_just maybe_lookup $ \lookup -> section "midi" $ do
         let mmsgs = snd $ DeriveTest.perform_stream lookup
                 (State.config_midi (State.state_config ui_state)) events
+        -- mapM_ Log.write (LEvent.logs_of mmsgs)
         force mmsgs
         return ((), mmsgs)
 

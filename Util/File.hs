@@ -11,6 +11,7 @@ import qualified Control.Exception as Exception
 import qualified Data.ByteString as ByteString
 import qualified Data.ByteString.Lazy as Lazy
 import qualified System.Directory as Directory
+import qualified System.FilePath as FilePath
 import System.FilePath ((</>))
 import qualified System.IO.Error as IO.Error
 import qualified System.Process as Process
@@ -22,6 +23,9 @@ import Util.Control
 -- without decompressing.
 readGz :: FilePath -> IO ByteString.ByteString
 readGz fn = do
+    -- Otherwise, if you pass fn.gz it will read it uncompressed.
+    fn <- return $ if FilePath.takeExtension fn == ".gz"
+        then FilePath.dropExtension fn else fn
     maybe_bytes <- ignoreEnoent $ Lazy.readFile (fn ++ ".gz")
     case maybe_bytes of
         Nothing -> ByteString.readFile fn
