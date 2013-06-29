@@ -18,8 +18,6 @@ import qualified Util.Thread as Thread
 
 import qualified Midi.Interface as Interface
 import qualified Midi.Midi as Midi
-import qualified Midi.StubMidi as StubMidi
-
 import qualified Ui.Diff as Diff
 import qualified Ui.Key as Key
 import qualified Ui.State as State
@@ -34,12 +32,10 @@ import qualified Cmd.Msg as Msg
 import qualified Cmd.Perf as Perf
 import qualified Cmd.Performance as Performance
 
-import qualified Derive.Call.All as Call.All
 import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Environ as Environ
 import qualified Derive.LEvent as LEvent
-import qualified Derive.Scale.All as Scale.All
 import qualified Derive.Score as Score
 import qualified Derive.TrackLang as TrackLang
 
@@ -194,16 +190,7 @@ default_cmd_state = (Cmd.initial_state cmd_config)
     }
 
 cmd_config :: Cmd.Config
-cmd_config = Cmd.Config
-    { Cmd.state_app_dir = "."
-    , Cmd.state_midi_interface = Unsafe.unsafePerformIO StubMidi.interface
-    , Cmd.state_rdev_map = mempty
-    , Cmd.state_wdev_map = mempty
-    , Cmd.state_instrument_db = DeriveTest.default_db
-    , Cmd.state_global_scope = Call.All.scope
-    , Cmd.state_lookup_scale = Cmd.LookupScale $
-        \scale_id -> Map.lookup scale_id Scale.All.scales
-    }
+cmd_config = DeriveTest.cmd_config_no_inst
 
 default_play_state :: Cmd.PlayState
 default_play_state =

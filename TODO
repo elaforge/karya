@@ -3,18 +3,8 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
-  things for expressive music
-    There needs to be some way for notes to affect surrounding notes.  For
-    example
-      . A trill might want to push the next note back a bit so it can complete
-        its cycle.
-      . Portamento might want to put controls points on a curve, so the speed
-        a distance between pitches affects how quickly they approach, and
-        quick notes will have less accurate pitch.
-      . Gender tick affects the damping of the previous note.
-    Other ideas:
-      . Switch samples when played quickly.
-      . Drum thing where successive strokes lose some energy.
+  * DeriveTest.derive should use StateConfig.Defaults
+  - try writing criterion tests for midi performance and derivation
   - If I want to draw multiple signals together, I need a line or polygon
     + gradient function.  Maybe I can get ahold of the OS X graphics context
     and directly call cocoa functions.  For that to work on linux, I think I'd
@@ -56,6 +46,10 @@ UNSORTED
   * control call for sawtooth, for e.g. bow tremolo
   * maybe use ^hjkl to move selection
   - is StateConfig.Default obsolete now that there is global transform?
+    In fact it's confusing since there are multiple invisible ways to get an
+    instrument.
+    - If the places that want defaults could get them from the perf, then
+      I think I can get rid of Default.  Check to see if this is true.
   - Make talas work with LRuler.  The problem is that they include label
     information, and Meter.Meter doesn't support that.
   - need an easy way to create IDs for debugging, so I can copy paste
@@ -78,30 +72,12 @@ UNSORTED
     What is the point of a 0 dur note?  The score has no explicit duration,
     and the eventual performance has some arbitrary short duration.  This
     corresponds to midi instruments whose envelope ignores NoteOff.
-  Format2
-    . Rethink how indent breaking happens.
-      Maybe indent should be a flag on SoftBreak
-      If pre is null, then maybe I should indent to the next level, e.g.
-      [(0, ("", "a")), (2, ("", "b"))]
   - add edit and windows menu to all apps
     There must be special OS X support for these
     Apparently not?  iTerms is defined in English.lproj/MainMenu.xib
     https://developer.apple.com/library/mac/#documentation/Cocoa/Conceptual/WinPanel/Tasks/UsingWindowsMenu.html
     But it doesn't say how to add the Window menu.
 
-  - update shakefile to use new system calls and logging levels
-  - shakefile should use typesafe oracle calls, is there newtype based
-    oracle utils yet?
-  convert to Text:
-    - Log.debug etc.
-    * Log.msg
-    * TimeStep.show_time_step
-    - Pretty.pretty
-      For this I need to extend Util.Format to be a simplified prettyprinter:
-      - monoidal interface, not monadic
-      - write text, set indent for expression, insert soft break
-    - Derive.throw
-    - Ui.Id
   - %sus-abs=-.x is not quite right for detached, because it should scale
     a bit for shorter notes.  E.g. it's absolute but scales down to 0 below
     a certain threshold.
@@ -142,7 +118,6 @@ UNSORTED
     playing the second time doesn't happen
   - maybe new control tracks should start with line render?
 
-  - can I cache long blocks by slicing them if they're >n?
   - I have a feeling like FM8 doesn't obey ResetAllControls
     Maybe I should extend Midi.Interface.note_tracker to keep track of
     used CCs to issue resets for them.  Some reset to 1, e.g. cc2 and cc7,
@@ -414,6 +389,25 @@ plugins:
     map.
 
 cleanup:
+  - update shakefile to use new system calls and logging levels
+  - shakefile should use typesafe oracle calls, is there newtype based
+    oracle utils yet?
+  Format2
+    . Converting Pretty to Text is blocked on this.
+    . Rethink how indent breaking happens.
+      Maybe indent should be a flag on SoftBreak
+      If pre is null, then maybe I should indent to the next level, e.g.
+      [(0, ("", "a")), (2, ("", "b"))]
+  convert to Text:
+    - Log.debug etc.
+    * Log.msg
+    * TimeStep.show_time_step
+    - Pretty.pretty
+      For this I need to extend Util.Format to be a simplified prettyprinter:
+      - monoidal interface, not monadic
+      - write text, set indent for expression, insert soft break
+    - Derive.throw
+    - Ui.Id
   - I could make the fltk interface clearer by putting c_interface.cc into
     fltk, and then putting all the types it depends on in one header.
   - There's a lot of duplication between State.TrackEvents, Call.TrackInfo,
@@ -494,8 +488,10 @@ performance:
         event should modify the chunk or split it depending on if the inserted
         event is a set call or not.
   cache
-    - see if the cache filtering logs is causing significant copying and
-      remove
+    - can I cache long blocks by slicing them if they're >n?
+    / see if the cache filtering logs is causing significant copying and
+      remove.
+      . It is, but I can't think of a way to remove it.
   Cmd
     - If a msg aborts or doesn't run any cmds, don't bother to run diff.
       Except that hardly ever happens if I do shortcut thru.
@@ -1063,6 +1059,34 @@ misc ideas:
     It would be interesting to get rid of track types entirely though.
 
 planning / research
+  things for expressive music
+    There needs to be some way for notes to affect surrounding notes.  For
+    example
+      . A trill might want to push the next note back a bit so it can complete
+        its cycle.
+      . Portamento might want to put controls points on a curve, so the speed
+        a distance between pitches affects how quickly they approach, and
+        quick notes will have less accurate pitch.
+      . Gender tick affects the damping of the previous note.
+    Other ideas:
+      . Switch samples when played quickly.
+      . Drum thing where successive strokes lose some energy.
+    . Randomization is a first step, but true variation in playing is not
+      random.  Things to study:
+      . Tempo variation.  This is related to intentional tempo variation, but
+        there should be slight tempo variations all the time.  This also has
+        to do with higher level controls like rushing or lagging, and slight
+        amounts of swing.
+        E.g. some instruments may tend to rush when they want to be more
+        prominent, or get louder.
+      . Start / duration variation.  Related to tempo but at a lower level and
+        less systematic.  Interpretation of staccato depends on surrounding
+        tempo.
+      . Dynamic variation.  Many instruments tend to get louder at higher
+        pitches.  Tempo speed up tends to increase volume.
+      . Pitch variation.  Some instruments tend to attack inaccurately and
+        then correct.  Higher dynamics and tempo could make pitch less
+        accurate.
   Composition of score fragments.  I think I want to display subderived
   notes within the call event.  And then some way to put edits on top of it.
   - spline curve interpolator: evoral/Curve.cpp, www.korf.co.uk/spline.pdf

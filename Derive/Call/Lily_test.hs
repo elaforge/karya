@@ -36,7 +36,7 @@ test_when_ly = do
     equal (run_normal tracks) ([((0, 1, "4a"), "+a")], [])
 
 test_ly_track = do
-    let run_normal = DeriveTest.extract ex . DeriveTest.linear_derive_tracks id
+    let run_normal = DeriveTest.extract ex . DeriveTest.derive_tracks_linear
             where ex e = (DeriveTest.e_pitch e, DeriveTest.e_attributes e)
         run_ly = LilypondTest.extract extract . LilypondTest.derive_linear
             where

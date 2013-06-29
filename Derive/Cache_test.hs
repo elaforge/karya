@@ -266,10 +266,9 @@ test_collect = do
                 , ("cont", [(0, 0, "1")])
                 ])
             ]
-    let create = do
-            bid <- blocks
-            State.set_render_style (Track.Line Nothing) (UiTest.tid "sub.t1")
-            return bid
+        -- with_tsig = State.unsafe_modify DeriveTest.with_tsig
+    let create = blocks
+            <* State.set_render_style (Track.Line Nothing) (UiTest.tid "sub.t2")
     let (_, cached, _) = compare_cached create $ insert_event "top.t1" 1 1 ""
     -- pprint (r_cache_collect cached)
     let root : _ = r_cache_collect cached
@@ -664,24 +663,27 @@ compare_cached create modify = (result, cached, uncached)
     cached = run_cached result state1 modify
     -- 'run_cached' already did this once, but it doesn't return it.
     (_, state2, _) = run state1 modify
-    uncached = DeriveTest.derive_block_cache mempty mempty state2
-        (root_id state2)
+    uncached = derive_block_cache mempty mempty state2 (root_id state2)
 
 run_first :: State.StateId a -> (State.State, Derive.Result)
 run_first create =
-    (state, DeriveTest.derive_block_cache mempty mempty state (root_id state))
+    (state, derive_block_cache mempty mempty state (root_id state))
     where state = UiTest.exec State.empty create
 
 -- | Run a derive after some modifications with the cache from a previous
 -- derive.
 run_cached :: Derive.Result -> State.State -> State.StateId a -> Derive.Result
 run_cached result state1 modify =
-    DeriveTest.derive_block_cache (Derive.r_cache result) damage state2
-        (root_id state2)
+    derive_block_cache (Derive.r_cache result) damage state2 (root_id state2)
     where
     (_, state2, cmd_updates) = run state1 modify
     (updates, _) = Diff.diff cmd_updates state1 state2
     damage = Diff.derive_diff state1 state2 updates
+
+derive_block_cache :: Derive.Cache -> Derive.ScoreDamage -> State.State
+    -> BlockId -> Derive.Result
+derive_block_cache cache damage =
+    DeriveTest.derive_block_standard cache damage id
 
 insert_event :: (State.M m) => String -> ScoreTime -> ScoreTime -> String
     -> m ()

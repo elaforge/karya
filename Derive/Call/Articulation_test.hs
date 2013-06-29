@@ -17,7 +17,7 @@ import qualified Perform.Lilypond.LilypondTest as LilypondTest
 
 
 test_legato = do
-    let run = DeriveTest.extract extract . DeriveTest.linear_derive_tracks id
+    let run = DeriveTest.extract extract . DeriveTest.derive_tracks_linear
         extract e = (s, d, p, a)
             where
             ((s, d, p), a) = (DeriveTest.e_note e, DeriveTest.e_attributes e)
@@ -49,7 +49,8 @@ test_legato = do
         ]
 
 test_attr_legato = do
-    let run = DeriveTest.extract extract . DeriveTest.linear_derive_tracks with
+    let run = DeriveTest.extract extract
+            . DeriveTest.derive_tracks_with_ui with DeriveTest.with_linear
         with = CallTest.with_note_call "(" Articulation.c_attr_legato
             . CallTest.with_note_call "" (Note.note_call "" "" mempty
                 (Note.default_note note_config))

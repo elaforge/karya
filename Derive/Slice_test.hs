@@ -229,9 +229,8 @@ extract_notes :: (TrackTree.EventsTree -> a)
 extract_notes f = map $ map $ \(s, e, t) -> (s, e, f t)
 
 test_slur = do
-    let run tracks = DeriveTest.extract extract $
-            DeriveTest.derive_tracks_with_ui with
-                (DeriveTest.linear_skel tracks) tracks
+    let run = DeriveTest.extract extract
+            . DeriveTest.derive_tracks_with_ui with DeriveTest.with_linear
         extract e =
             ( DeriveTest.e_note e
             , DeriveTest.e_environ ("ly-" `List.isPrefixOf`) e
@@ -252,7 +251,7 @@ test_slur = do
     equal logs []
 
 test_overlaps = do
-    let run = DeriveTest.extract extract . DeriveTest.linear_derive_tracks id
+    let run = DeriveTest.extract extract . DeriveTest.derive_tracks_linear
         extract e = ( DeriveTest.e_note e, DeriveTest.e_attributes e)
         overlapping_log = "slice has overlaps"
 

@@ -74,7 +74,7 @@ test_c_equal = do
 
 test_c_equal_note_transformer = do
     let run events = DeriveTest.extract e_inst $
-            DeriveTest.linear_derive_tracks id
+            DeriveTest.derive_tracks_linear
                 [ (">", events)
                 , (">", [(0, 1, ""), (1, 1, ""), (2, 1, "")])
                 ]

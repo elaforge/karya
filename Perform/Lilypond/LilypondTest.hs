@@ -215,8 +215,7 @@ derive :: [UiTest.TrackSpec] -> Derive.Result
 derive = derive_tracks_with_ui id id
 
 derive_linear :: [UiTest.TrackSpec] -> Derive.Result
-derive_linear tracks =
-    derive_tracks_with_ui id (DeriveTest.linear_skel tracks) tracks
+derive_linear = derive_tracks_with_ui id DeriveTest.with_linear
 
 derive_tracks_with_ui :: (Derive.EventDeriver -> Derive.EventDeriver)
     -> (State.State -> State.State) -> [UiTest.TrackSpec] -> Derive.Result

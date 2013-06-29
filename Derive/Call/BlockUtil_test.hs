@@ -58,8 +58,8 @@ test_compile = do
 
 test_extract_orphans = do
     let extract = fst . DeriveTest.extract Score.event_start
-    let run tracks = extract $
-            DeriveTest.linear_derive_tracks with_calls tracks
+    let run = extract
+            . DeriveTest.derive_tracks_with_ui with_calls DeriveTest.with_linear
         with_calls = CallTest.with_note_call "show" show_subs
     -- uncovered events are still played
     equal (run
@@ -95,7 +95,7 @@ test_extract_orphans = do
 
 test_record_empty_tracks = do
     -- Ensure that TrackWarps and TrackDynamics are collected for empty tracks.
-    let run tracks = DeriveTest.linear_derive_tracks id tracks
+    let run = DeriveTest.derive_tracks_linear
         track_warps = concatMap (Set.toList . TrackWarp.tw_tracks)
             . Derive.r_track_warps
         track_dyn = Map.keys . Derive.r_track_dynamic
@@ -108,7 +108,7 @@ test_record_empty_tracks = do
 test_two_level_orphans = do
     -- Orphan extraction should be recursive, in case there are multiple
     -- intervening empty tracks.
-    let run = DeriveTest.extract extract . DeriveTest.linear_derive_tracks id
+    let run = DeriveTest.extract extract . DeriveTest.derive_tracks_linear
         extract e = (DeriveTest.e_note e, DeriveTest.e_attributes e)
     equal (run
         [ (">inst", [(0, 1, "+a")])
@@ -123,7 +123,7 @@ test_two_level_orphans = do
 test_empty_parent_track = do
     -- Ensure orphan tracks pick the instrument up from the parent.
     -- Well, the absentee parent, since they're orphans.
-    let run = DeriveTest.extract extract . DeriveTest.linear_derive_tracks id
+    let run = DeriveTest.extract extract . DeriveTest.derive_tracks_linear
         extract e = (Score.event_start e, DeriveTest.e_inst e)
     equal (run [(">i1", [(0, 1, "t")]), (">", [(0, 1, "")])]) ([(0, "i1")], [])
     equal (run [(">i1", []), (">", [(0, 1, "")])]) ([(0, "i1")], [])

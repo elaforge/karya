@@ -9,6 +9,8 @@ import qualified Data.Map as Map
 import qualified Data.Set as Set
 import qualified Data.Text as Text
 
+import qualified System.IO.Unsafe as Unsafe
+
 import Util.Control
 import qualified Util.Log as Log
 import qualified Util.Num as Num
@@ -17,6 +19,9 @@ import qualified Util.Ranges as Ranges
 import qualified Util.Seq as Seq
 
 import qualified Midi.Midi as Midi
+import qualified Midi.StubMidi as StubMidi
+import qualified Ui.Block as Block
+import qualified Ui.Color as Color
 import qualified Ui.Ruler as Ruler
 import qualified Ui.Skeleton as Skeleton
 import qualified Ui.State as State
@@ -24,6 +29,7 @@ import qualified Ui.Track as Track
 import qualified Ui.UiTest as UiTest
 
 import qualified Cmd.Cmd as Cmd
+import qualified Cmd.PlayUtil as PlayUtil
 import qualified Derive.Call as Call
 import qualified Derive.Call.All as Call.All
 import qualified Derive.Call.Block as Call.Block
@@ -103,12 +109,8 @@ run_events f = extract_run $
 default_constant :: State.State -> Derive.Cache -> Derive.ScoreDamage
     -> Derive.Constant
 default_constant ui_state cache damage =
-    Derive.initial_constant ui_state track_ids
+    Derive.initial_constant ui_state mempty
         default_lookup_scale (const Nothing) cache damage
-    where track_ids = Set.fromList $ Map.keys $ State.state_tracks ui_state
-    -- Get track signals for all tracks by default.  This is a bit less
-    -- efficient for tests that don't want them, but more convenient for those
-    -- that do.
 
 eval :: State.State -> Derive.Deriver a -> Either String a
 eval ui_state m = extract_run id (run ui_state m)
@@ -158,7 +160,6 @@ perform_inst synths config =
 -- * derive
 
 type Transform a = Derive.Deriver a -> Derive.Deriver a
-type TransformUi = State.State -> State.State
 
 derive_tracks :: [UiTest.TrackSpec] -> Derive.Result
 derive_tracks = derive_tracks_with id
@@ -170,11 +171,16 @@ derive_tracks_with with = derive_tracks_with_ui with id
 -- | Variant that lets you modify both the Deriver state and the UI state.
 -- Technically I could modify Derive.State's state_ui, but that's not supposed
 -- to be modified, and it's too late for e.g. the initial environ anyway.
-derive_tracks_with_ui :: Transform Derive.Events -> TransformUi
+derive_tracks_with_ui :: Transform Derive.Events -> (State.State -> State.State)
     -> [UiTest.TrackSpec] -> Derive.Result
 derive_tracks_with_ui with transform_ui tracks =
     derive_blocks_with_ui with transform_ui
         [(UiTest.default_block_name, tracks)]
+
+-- ** derive block variations
+
+-- These are all built on 'derive_block_standard', with various things
+-- specialized.
 
 -- | Create multiple blocks, and derive the first one.
 derive_blocks :: [UiTest.BlockSpec] -> Derive.Result
@@ -184,7 +190,7 @@ derive_blocks_with :: Transform Derive.Events -> [UiTest.BlockSpec]
     -> Derive.Result
 derive_blocks_with with = derive_blocks_with_ui with id
 
-derive_blocks_with_ui :: Transform Derive.Events -> TransformUi
+derive_blocks_with_ui :: Transform Derive.Events -> (State.State -> State.State)
     -> [UiTest.BlockSpec] -> Derive.Result
 derive_blocks_with_ui with transform_ui block_tracks =
     derive_block_with with (transform_ui ui_state) bid
@@ -193,66 +199,89 @@ derive_blocks_with_ui with transform_ui block_tracks =
 derive_block :: State.State -> BlockId -> Derive.Result
 derive_block = derive_block_with id
 
-derive_block_with :: Transform Derive.Events -> State.State
-    -> BlockId -> Derive.Result
-derive_block_with with ui_state block_id = derive ui_state deriver
+-- | Derive a block with the testing environ.
+derive_block_with :: Transform Derive.Events -> State.State -> BlockId
+    -> Derive.Result
+derive_block_with with =
+    derive_block_standard mempty mempty (with . with_environ default_environ)
+
+-- | Derive tracks but with a linear skeleton.  Good for testing note
+-- transformers since the default skeleton parsing won't create those.
+derive_tracks_linear :: [UiTest.TrackSpec] -> Derive.Result
+derive_tracks_linear = derive_tracks_with_ui id with_linear
+
+-- | Derive a block in the same way that the app does.
+derive_block_standard :: Derive.Cache -> Derive.ScoreDamage
+    -> Transform Derive.Events -> State.State -> BlockId -> Derive.Result
+derive_block_standard cache damage with ui_state block_id = case result of
+        Right (Just result, _, _) -> result
+        Right (Nothing, _, _) -> error "derive_block_with: Cmd aborted"
+        Left err -> error $ "derive_block_with: Cmd error: " ++ show err
     where
-    global = State.config#State.global_transform #$ ui_state
-    deriver = with (Call.Block.eval_root_block global block_id)
+    cmd_state = Cmd.initial_state cmd_config_no_inst
+    global_transform = State.config#State.global_transform #$ ui_state
+    deriver = with $ Call.Block.eval_root_block global_transform block_id
+    (_cstate, _midi_msgs, _logs, result) = Cmd.run_id ui_state cmd_state $
+        Derive.extract_result <$> PlayUtil.run cache damage deriver
+
+-- * misc
 
 derive :: State.State -> Derive.EventDeriver -> Derive.Result
 derive ui_state deriver = Derive.extract_result $
     Derive.derive (default_constant ui_state mempty mempty) default_scope
         default_environ deriver
 
+-- | Config to initialize the Cmd.State, without the instrument db.
+cmd_config_no_inst :: Cmd.Config
+cmd_config_no_inst = Cmd.Config
+    { Cmd.state_app_dir = "."
+    , Cmd.state_midi_interface = Unsafe.unsafePerformIO StubMidi.interface
+    , Cmd.state_rdev_map = mempty
+    , Cmd.state_wdev_map = mempty
+    , Cmd.state_instrument_db = default_db
+    , Cmd.state_global_scope = Call.All.scope
+    , Cmd.state_lookup_scale = Cmd.LookupScale $
+        \scale_id -> Map.lookup scale_id Scale.All.scales
+    }
+
 -- | Turn BlockSpecs into a state.
 mkblocks :: [UiTest.BlockSpec] -> ([BlockId], State.State)
 mkblocks block_tracks = UiTest.run State.empty $
     set_defaults >> UiTest.mkblocks block_tracks
 
--- ** derive with ui
+-- * transform ui
 
+-- | Set the skeleton of the tracks to be linear, i.e. each track is the child
+-- of the one to the left.  This overrides the default behaviour of figuring
+-- out a skeleton by making note tracks start their own branches.
+with_linear :: State.State -> State.State
+with_linear = with_linear_block UiTest.default_block_id
 
--- | Derive tracks but with a linear skeleton.  Good for testing note
--- transformers since the default skeleton parsing won't create those.
-linear_derive_tracks :: Transform Derive.Events -> [UiTest.TrackSpec]
-    -> Derive.Result
-linear_derive_tracks with tracks =
-    derive_tracks_with_ui with (linear_skel tracks) tracks
+with_linear_block :: BlockId -> State.State -> State.State
+with_linear_block block_id state = with_skel_block block_id skel state
+    where
+    -- Start at 1 to exclude the ruler.
+    skel = [(x, y) | (x, Just y) <- Seq.zip_next [1..ntracks-1]]
+    ntracks = length $ maybe [] Block.block_tracks $
+        Map.lookup block_id (State.state_blocks state)
 
-linear_skel :: [UiTest.TrackSpec] -> State.State -> State.State
-linear_skel tracks =
-    set_skel [(x, y) | (x, Just y) <- Seq.zip_next [1..length tracks]]
+with_skel :: [Skeleton.Edge] -> State.State -> State.State
+with_skel = with_skel_block UiTest.default_block_id
 
-set_skel :: [Skeleton.Edge] -> State.State -> State.State
-set_skel skel state = UiTest.exec state $
-    State.set_skeleton UiTest.default_block_id (Skeleton.make skel)
+with_skel_block :: BlockId -> [Skeleton.Edge] -> State.State -> State.State
+with_skel_block block_id skel state = UiTest.exec state $
+    State.set_skeleton block_id (Skeleton.make skel)
 
 set_ruler :: Ruler.Ruler -> State.State -> State.State
 set_ruler ruler = State.rulers %= Map.insert UiTest.default_ruler_id ruler
 
--- ** derive with cache
+with_tsig :: State.State -> State.State
+with_tsig = State.tracks %= Map.map enable
+    where
+    enable track = track { Track.track_render =
+        Track.RenderConfig (Track.Line Nothing) Color.blue }
 
-derive_block_cache :: Derive.Cache -> Derive.ScoreDamage -> State.State
-    -> BlockId -> Derive.Result
-derive_block_cache cache damage ui_state block_id =
-    derive_cache cache damage ui_state deriver
-    where deriver = Call.Block.eval_root_block "" block_id
-
-derive_cache :: Derive.Cache -> Derive.ScoreDamage -> State.State
-    -> Derive.EventDeriver -> Derive.Result
-derive_cache cache damage ui_state deriver = Derive.extract_result $
-    Derive.derive constant default_scope default_environ deriver
-    where constant = default_constant ui_state cache damage
-
-make_damage :: String -> TrackNum -> ScoreTime -> ScoreTime
-    -> Derive.ScoreDamage
-make_damage block tracknum s e = Derive.ScoreDamage
-    (Map.singleton (UiTest.mk_tid_name block tracknum) (Ranges.range s e))
-    (Set.singleton (UiTest.bid block)) mempty
-
-
--- ** defaults
+-- * transform derive
 
 set_default_instrument :: State.State -> State.State
 set_default_instrument state =
@@ -268,12 +297,17 @@ set_default_instrument state =
 with_key :: Text -> Derive.Deriver a -> Derive.Deriver a
 with_key key = Derive.with_val Environ.key key
 
+with_environ :: TrackLang.Environ -> Derive.Deriver a -> Derive.Deriver a
+with_environ env = Internal.local $ \st -> st { Derive.state_environ = env }
+
 -- | Set UI state defaults that every derivation should have.
 set_defaults :: (State.M m) => m ()
 set_defaults = do
     State.modify set_default_instrument
     State.modify_default $ \st -> st
         { State.default_key = Just (Pitch.Key "c-maj") }
+
+-- ** defaults
 
 default_lookup_scale :: Derive.LookupScale
 default_lookup_scale scale_id = Map.lookup scale_id Scale.All.scales
@@ -632,3 +666,12 @@ fake_stack = Stack.from_outermost
     , Stack.Track (UiTest.tid "faketrack")
     , Stack.Region 42 43
     ]
+
+-- * create misc
+
+make_damage :: String -> TrackNum -> ScoreTime -> ScoreTime
+    -> Derive.ScoreDamage
+make_damage block tracknum s e = Derive.ScoreDamage
+    (Map.singleton (UiTest.mk_tid_name block tracknum) (Ranges.range s e))
+    (Set.singleton (UiTest.bid block)) mempty
+

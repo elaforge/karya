@@ -57,7 +57,6 @@ cached_derive :: (Cmd.M m) => BlockId -> m Derive.Result
 cached_derive block_id = do
     (cache, damage) <- get_derive_cache block_id <$>
         Cmd.lookup_performance block_id
-    -- Log.debug $ "rederiving with score damage: " ++ show damage
     derive cache damage block_id
 
 uncached_derive :: (Cmd.M m) => BlockId -> m Derive.Result

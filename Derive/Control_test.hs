@@ -43,7 +43,7 @@ test_control_track = do
     equal (derive ("cont", events)) ([[(0, 1), (1, 2)]], [])
 
 test_split_control = do
-    let run = DeriveTest.derive_tracks
+    let run = DeriveTest.derive_tracks_with_ui id DeriveTest.with_tsig
         e_controls = DeriveTest.extract $ \event ->
             let e name = DeriveTest.e_control name event
             in ('a', e "a", 'b', e "b")
@@ -184,7 +184,7 @@ test_stash_signal = do
     let itrack = (">i", [])
         ctrack = ("cont", [(0, 0, "1"), (1, 0, "0")])
         csig = Signal.signal [(0, 1), (1, 0)]
-    let run = e_tsigs . DeriveTest.derive_tracks
+    let run = e_tsigs . DeriveTest.derive_tracks_with_ui id DeriveTest.with_tsig
     let tsig samples p x = (Signal.signal samples, p, x)
 
     equal (run [ctrack, itrack]) [(csig, 0, 1)]
@@ -218,7 +218,8 @@ test_stash_signal = do
 
 test_signal_default_tempo = do
     -- Signal is stretched by the default tempo.
-    let r = e_tsigs $ DeriveTest.derive_tracks_with_ui id set_tempo
+    let r = e_tsigs $ DeriveTest.derive_tracks_with_ui id
+            (DeriveTest.with_tsig . set_tempo)
             [("*", [(0, 0, "4c"), (10, 0, "4d"), (20, 0, "4c")])]
         set_tempo = State.config#State.default_#State.tempo #= 2
     equal r [(Signal.signal [(0, 60), (5, 62), (10, 60)], 0, 0.5)]
@@ -256,7 +257,9 @@ test_derive_track_signals = do
         ]
 
     -- Not fooled by two levels of note tracks.
-    equal (e_ts $ DeriveTest.linear_derive_tracks id
+    let run_lin = DeriveTest.derive_tracks_with_ui id
+            (DeriveTest.with_tsig . DeriveTest.with_linear)
+    equal (e_ts $ run_lin $
             [ (">vln", [(1, 1, "+pizz")])
             , (">vln", [(0, 1, ""), (1, 1, "")])
             , ("*", [(0, 0, "4c")])

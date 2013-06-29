@@ -74,7 +74,7 @@ test_chord_tremolo = do
             DeriveTest.derive_tracks_with_ui id skel $
                 (">", [(0, dur, "trem 1s")])
                 : concatMap UiTest.note_track [notes1, notes2]
-        skel = DeriveTest.set_skel [(1, 2), (1, 4), (2, 3), (4, 5)]
+        skel = DeriveTest.with_skel [(1, 2), (1, 4), (2, 3), (4, 5)]
         extract = DeriveTest.extract DeriveTest.e_pitch
     equal (run 2 [(0, 2, "4c")] [(0, 2, "4d")])
         (["4c", "4d"], [])

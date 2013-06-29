@@ -7,7 +7,6 @@
 -- This module is about performance, correctness is tested in
 -- "Derive.Cache_test".
 module Derive.Cache_profile where
-import qualified Data.Monoid as Monoid
 import qualified Data.Time as Time
 import qualified System.CPUTime as CPUTime
 
@@ -26,6 +25,8 @@ import qualified Derive.Derive_profile as Derive_profile
 
 import Types
 
+
+-- TODO this has an endless loop somewhere, since it seems to take forever
 
 profile_normal = do
     let ui_state = UiTest.exec State.empty
@@ -64,8 +65,8 @@ rederive initial_state modifications = do
             eval_derivation cache state1 state2 cmd_updates
 
         uncached <- section "uncached" $ do
-            let result = DeriveTest.derive_block_cache mempty
-                    Monoid.mempty state2 (UiTest.bid "b1")
+            let result = DeriveTest.derive_block_standard mempty mempty id
+                    state2 (UiTest.bid "b1")
             let events = Derive.r_events result
             force events
             return (result, events)
@@ -81,7 +82,7 @@ eval_derivation cache state1 state2 cmd_updates = do
     where
     (ui_updates, _) = Diff.diff cmd_updates state1 state2
     damage = Diff.derive_diff state1 state2 ui_updates
-    result = DeriveTest.derive_block_cache cache damage state2
+    result = DeriveTest.derive_block_standard cache damage id state2
         (UiTest.bid "b1")
     events = Derive.r_events result
 

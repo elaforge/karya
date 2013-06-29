@@ -63,7 +63,8 @@ test_sub_tracks = do
 --     return []
 
 test_derive_track_signals = do
-    let run = extract . DeriveTest.linear_derive_tracks id
+    let run = extract . DeriveTest.derive_tracks_with_ui id
+            (DeriveTest.with_tsig . DeriveTest.with_linear)
         extract = Map.toList
             . Map.map (Signal.unsignal . Track.ts_signal)
             . Derive.r_track_signals

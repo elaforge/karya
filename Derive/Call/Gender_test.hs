@@ -14,7 +14,7 @@ test_tick = do
     let extract = DeriveTest.extract $ \e ->
             (Score.event_start e, Score.event_duration e,
                 DeriveTest.e_pitch e, Score.initial_dynamic e)
-    let run = extract . DeriveTest.linear_derive_tracks id
+    let run = extract . DeriveTest.derive_tracks_linear
     let dyn = Derive.default_dynamic
         c_to_e evt1 evt2 =
             [ (">", [(0, 1, evt1), (2, 1, evt2)])

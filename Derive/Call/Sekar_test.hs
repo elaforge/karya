@@ -9,7 +9,7 @@ import qualified Derive.DeriveTest as DeriveTest
 
 test_sekar = do
     let extract = DeriveTest.extract DeriveTest.e_note
-        run sekar_event notes = extract $ DeriveTest.linear_derive_tracks id
+        run sekar_event notes = extract $ DeriveTest.derive_tracks_linear
             [ (">", [sekar_event])
             , (">", [(start, dur, "") | (start, dur, _) <- notes])
             , ("*twelve", [(start, 0, p) | (start, _, p) <- notes])
