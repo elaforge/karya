@@ -339,10 +339,13 @@ print_timer msg show_val op = do
     start <- now
     printf "%s - " msg
     IO.hFlush IO.stdout
-    (val, secs) <- timer op
+    (!(val, showed), secs) <- timer $ do
+        val <- op
+        let showed = show_val val
+        force showed
+        return (val, showed)
     end <- now
-    printf "time: %.2fcpu / %.2fs - %s\n" secs (double (end-start))
-        (show_val val)
+    printf "time: %.2fcpu / %.2fs - %s\n" secs (double (end-start)) showed
     IO.hFlush IO.stdout
     return val
     where
