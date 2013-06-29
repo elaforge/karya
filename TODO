@@ -83,7 +83,7 @@ UNSORTED
     a certain threshold.
   - now that I have tevents_around, can I get rid of slice_around and the
     require_previous hack?
-  - I can have regression tests that assert a score still derives the same way.
+  * I can have regression tests that assert a score still derives the same way.
   calls:
     - Sometimes tick makes more sense as at attribute of the previous note, or
       perhaps a freestanding ornament, since it can happen or not on a repeat.

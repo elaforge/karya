@@ -89,17 +89,15 @@ profile_nested_nocontrol = derive_profile $
 
 profile_size = derive_size $ make_nested_controls 10 3 60
 
--- TODO the save file should be checked in, but let's wait until they're
--- compressed
 profile_bloom_derive =
-    profile_saved False "prof/bloom.gz" (UiTest.bid "bloom/score")
+    profile_saved False "data/bloom.gz" (UiTest.bid "bloom/score")
 profile_bloom_perform =
-    profile_saved True "prof/bloom.gz" (UiTest.bid "bloom/score")
+    profile_saved True "data/bloom.gz" (UiTest.bid "bloom/score")
 
 profile_pnovla_derive =
-    profile_saved False "prof/pnovla.gz" (UiTest.bid "pnovla/b1")
+    profile_saved False "data/pnovla.gz" (UiTest.bid "pnovla/b1")
 profile_pnovla_perform =
-    profile_saved True "prof/pnovla.gz" (UiTest.bid "pnovla/b1")
+    profile_saved True "data/pnovla.gz" (UiTest.bid "pnovla/b1")
 
 -- * make states
 
