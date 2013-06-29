@@ -3,7 +3,6 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
-  * DeriveTest.derive should use StateConfig.Defaults
   - try writing criterion tests for midi performance and derivation
   - If I want to draw multiple signals together, I need a line or polygon
     + gradient function.  Maybe I can get ahold of the OS X graphics context
@@ -13,38 +12,6 @@ UNSORTED
   - rename i>> to s for slide, or p for porta
     Well, don't forget about i<< and e>>
     Maybe add 'p' and 'p<'
-  * I need some way to set initial inst state, so it doesn't wind up relying
-    on previous state.
-  * Analysis for all controls that are used for that instrument, along with
-    initial and final values.
-  * Automatic new pitch tracks should just be '*', not '*twelve'.
-  * if play step goes before the start of the block it gets stuck for a bit
-  * cmd-] to toggle kbd entry
-  * instead of shorten/lengethen ,., it should apply staccato
-  * trill in b2 ending clashes with next note
-  * cmd-a when something is selected should extend the bottom of the selection
-  * hjkl kind of needs selecting to be useful
-  * play from prev should have a larger default
-  * step play still not working right
-  * If I turn on track rendering for a pitch track, it extracts and concats
-    an event control and shows that, so I can see the final value.
-    But tempo.  If tempo is id I can pull the signal after the note track
-    derive.  Otherwise, I rederive in realtime.
-    . This is also a place to use the pos+intensity signal render idea.
-    * But I need some place to say what control I want to render.
-    * Has to be post-slicing, in BlockUtil.
-    * support pitch signals
-    * support non-id tempo
-  * rename Score.TypedSignal to TypedControl, ControlModification to ControlMod
-  * just scale: make major and minor into keys, and add some more keys
-  - Make just scale support keys with greater or less than 7 degrees
-    But then I can wind up putting bp under just?  Well, maybe not, since it
-    has its own notion of keys.
-    . It has to go in layout, otherwise input doesn't know how to work.
-      So just changing the ratios doesn't work.
-  * Should be able to set block tempo with '%tempo = 4'
-  * control call for sawtooth, for e.g. bow tremolo
-  * maybe use ^hjkl to move selection
   - is StateConfig.Default obsolete now that there is global transform?
     In fact it's confusing since there are multiple invisible ways to get an
     instrument.
@@ -54,16 +21,8 @@ UNSORTED
     information, and Meter.Meter doesn't support that.
   - need an easy way to create IDs for debugging, so I can copy paste
     (bid "xyz") stuff
-  * Cmd.Instrument.Util and Derive.Instrument.Util need better names
   - key TrackSignals on (BlockId, TrackId).  I'll need to put BlockId in
     TrackTree.TrackEvents, I think.
-  * If a control track depends on a previous control track,
-    Derive.Control.track_signal can't derive it properly if the previous
-    control isn't derived.  One way to fix this is to get track signals for
-    all controls below a note that themselves have children.  The other option
-    is to abandon track_signal and rely on merging fragments from the
-    inversions.  Meanwhile it just doesn't work, reverse the #ratio-source and
-    >i1 tracks in Ratio_test to demonstrate.
   - After a rederive, it still takes a Cmd to free up the memory.  Who is
     holding on to it?
   - parallelize derivation
@@ -83,7 +42,6 @@ UNSORTED
     a certain threshold.
   - now that I have tevents_around, can I get rid of slice_around and the
     require_previous hack?
-  * I can have regression tests that assert a score still derives the same way.
   calls:
     - Sometimes tick makes more sense as at attribute of the previous note, or
       perhaps a freestanding ornament, since it can happen or not on a repeat.
@@ -123,9 +81,6 @@ UNSORTED
     used CCs to issue resets for them.  Some reset to 1, e.g. cc2 and cc7,
     the rest reset to 0.
     But filtering the midi shows dyn controls mixed into both channels.
-  * It seems confusing that in val edit the note track doesn't need cmd-x but
-    the control track does.
-    Maybe I should get rid of the optional cmd- thing?
   - Pretty on a lot of events causes a stack overflow
     Need a reproduction.
     I should extend Util.Format so I can use it for Util.Pretty.
@@ -187,9 +142,7 @@ MILESTONES
 ----------------------------------------------------------------------
 
 documentation
-  * INSTALL should say how to build
   + doc/derivation.md
-  * integrate doc/tracklang into derivation.md
   - split up derivation.md into separate files
   + doc/ui.md
   - doc/performance.md
@@ -400,8 +353,6 @@ cleanup:
       [(0, ("", "a")), (2, ("", "b"))]
   convert to Text:
     - Log.debug etc.
-    * Log.msg
-    * TimeStep.show_time_step
     - Pretty.pretty
       For this I need to extend Util.Format to be a simplified prettyprinter:
       - monoidal interface, not monadic
@@ -798,12 +749,6 @@ Cmd:
     StateT, or directly.  I supposed Dynamic wouldn't be so bad for that.  What
     happens when the module is reloaded?
 
-  vi style keymap:
-    * movement: hjkl, HJKL to move timestep+1 or skip to
-      next inst track, bf to move timestep at block section rank, BF to move to
-      top and bottom of block
-    * esc and i for edit mode
-    / number prefixed cmds?
   Cmd.Edit
     - alternate finale-like note entry: hold down step key to set step and
       turn on edit mode, but only while the key is down
@@ -888,13 +833,17 @@ Derive:
   control calls:
     - signal transformations: +, *, max, min
     - saturation limit, e.g. flatten sine wave but without clipping
-    * sine
     - continuous tempo warping for signals
       tempo: "2" -> "1", "2", cont: "2" -> "i, 1", should emit a bent line
 
 pitch / scales
   scales / Derive.Scale:
     just intonation
+      - Make just scale support keys with greater or less than 7 degrees
+        But then I can wind up putting bp under just?  Well, maybe not, since
+        it has its own notion of keys.
+        . It has to go in layout, otherwise input doesn't know how to work.
+          So just changing the ratios doesn't work.
       - interpolate between just scales in different keys
       display:
         - Show ratio relationships between sounding pitches.
@@ -904,25 +853,8 @@ pitch / scales
     - meantone
     - Interpolate between two scales.  The main thing is to establish a note
       to note correspondance.
-    * document Monad.scale_input_to_nn
     bohlen-pierce
-      * Replace pitch-producing bits in ChromaticScales with just variants.
-        . I think I just need to let note_to_call support something other than
-          id for degree -> NoteNumber.
-        . If I move the just pitch stuff to JustScales then I should be able
-          to mix ChromaticScales and JustScales.
-        * move pitch_nn and pitch_note to a common place so bp can reuse them
-        * ScaleMap.smap_note_to_degree is unused for just scales
-      * Figure out how to inputs line up with c4
-        . I think for that to work, I have to be able to customize the
-          note-entry layout.  This will make the relative entry work correctly
-          as well, and for twelve-r as well.
-        . I think this can be done with a way to tell the MIDI and letter kbd
-          which keys to skip.  For twelve, MIDI skips nothing, but letter
-          skips a bunch of keys.  For bp, MIDI skips the top of the 2nd octave,
-          and letter skips fewer keys.  A continuum just inputs straight NNs,
-          though, so none of this applies.
-        - make it work with MIDI kbd
+      - make input work with MIDI kbd
       - Make relative scale.
     - Make twelve-r and bp-r work right.  The letter kbd skips different keys
       since the black keys moved, and the MIDI kbd is always absolute.
@@ -931,7 +863,6 @@ pitch / scales
       I think this has to be postproc.
     - parser for scala .scl files
     - support scales that are different ascending vs. descending
-    * twelve, but relative to key and using numbers, aka jianpu
     - letter and jianpu but with implicit accidentals based on the key
   + It's a bit unpleasant how I have TwelveUtils for accidental and key using
     scales, then Scale.Util for simple scales, and then Just is its own thing.
@@ -982,18 +913,6 @@ Perform:
       some busywork on the user which should be left to the performer, but
       since the solution is fairly complicated I think I'll leave it be for
       now.
-    * But could I set an addr to just one voice?  That way it doesn't matter
-      if I used up the polyphony on one addr, if there's a note there, I did.
-      . The problem is that channelize picks a channel, regardless of
-        allocation, and then allot tries to fit the channels into the
-        allocation.  Voices introduce a restriction on channelize which
-        depends on the addr, so it messes up the nice division of labor.
-      . Why not put it in allot?  This means one Channel goes to one addr,
-        until that addr runs out, then pick another addr.  But allot doesn't
-        know about overlaps, so it doesn't know when an addr becomes
-        re-usable.  But that's easy, it just has to check.
-        In fact, it has to be in allot, or later, because that's when I know
-        the addr.
 
 Instrument DB / browser:
   - browser has lots of empty space on the bottom
