@@ -14,8 +14,7 @@ import qualified Derive.Score as Score
 import Derive.TestInstances ()
 import qualified Derive.TrackLang as TrackLang
 import Derive.TrackLang
-       (ControlRef(..), Symbol(..), Val(..), Call(..), Term(..),
-        RelativeAttrs(..))
+       (ControlRef(..), Symbol(..), Val(..), Call(..), Term(..))
 
 import qualified Perform.Pitch as Pitch
 
@@ -67,22 +66,11 @@ test_parse_expr = do
         [Call (Symbol "a") [Literal (VSymbol (Symbol "b -- c"))]]
 
 test_parse_val = do
-    let rel mode = Just . VRelativeAttrs . mode . Score.attrs
+    let attrs = Just . VAttributes . Score.attrs
         sym = Just . VSymbol . Symbol
     let invertible =
             [ (">", Just $ VInstrument (Score.Instrument ""))
             , (">fu/nny^*", Just $ VInstrument (Score.Instrument "fu/nny^*"))
-
-            , ("+-", rel Add [])
-            , ("+a", rel Add ["a"])
-            , ("+a+b", rel Add ["a", "b"])
-            , ("--", rel Remove [])
-            , ("-a", rel Remove ["a"])
-            , ("-a+b", rel Remove ["a", "b"])
-            , ("=-", rel Set [])
-            , ("=a", rel Set ["a"])
-            , ("=a+b", rel Set ["a", "b"])
-            , ("+aB", Nothing)
 
             , ("0", Just (VNum (Score.untyped 0)))
             , ("0.", Nothing)
@@ -92,7 +80,13 @@ test_parse_val = do
             , ("-.5d", Just (VNum (Score.Typed Score.Diatonic (-0.5))))
             , ("1q", Nothing)
 
+            , ("+", attrs [])
+            , ("+a", attrs ["a"])
+            , ("+a+b", attrs ["a", "b"])
+
             , ("sym", sym "sym")
+            , ("-sym", sym "-sym")
+            , ("-", sym "-")
             , ("'space sym'", sym "space sym")
             , ("'23'", sym "23")
             , ("'quinn''s hat'", sym "quinn's hat")
@@ -116,11 +110,10 @@ test_parse_val = do
                     (TrackLang.Note (Pitch.Note "0") []))
 
             , ("$bad", Nothing)
-            , ("-", Nothing)
             , ("_", Just VNotGiven)
             ]
     let noninvertible =
-            [ ("+3/2", Just (VNum (Score.untyped 1.5)))
+            [ ("3/2", Just (VNum (Score.untyped 1.5)))
             , ("-3/2", Just (VNum (Score.untyped (-1.5))))
             , ("3/2d", Just (VNum (Score.Typed Score.Diatonic 1.5)))
             ]
@@ -161,12 +154,7 @@ test_p_equal = do
     left_like (f "a=") "not enough bytes"
     left_like (f "a=b") "not enough bytes"
 
-    equal (f "a = =b") (eq (sym "a")
-        (Literal (VRelativeAttrs (Set (Score.attr "b")))))
-
     let parse = fmap NonEmpty.toList . Parse.parse_expr
-    equal (parse "a =b") $ Right [Call (Symbol "a")
-        [Literal (VRelativeAttrs (Set (Score.attr "b")))]]
     equal (parse "a= b") $ Right [Call (Symbol "a=") [Literal (symbol "b")]]
     equal (parse "a=b") $ Right [Call (Symbol "a=b") []]
 

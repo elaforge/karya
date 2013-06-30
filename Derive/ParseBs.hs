@@ -87,7 +87,7 @@ parse_val = Parse.parse_all (lexeme p_val) . from_text
 
 -- | Parse attributes in the form +a+b.
 parse_attrs :: String -> Either String Score.Attributes
-parse_attrs = parse (A.option '+' (A.char '+') *> p_attrs) . from_string
+parse_attrs = parse p_attrs . from_string
 
 -- | Parse a number or hex code, without a type suffix.
 parse_num :: Text.Text -> Either String Signal.Y
@@ -228,10 +228,7 @@ p_sub_call = Parse.between (A.char '(') (A.char ')') (p_call False)
 p_val :: A.Parser TrackLang.Val
 p_val =
     TrackLang.VInstrument <$> p_instrument
-    -- RelativeAttrs and Num can both start with a '-', but an RelativeAttrs
-    -- has to have a letter afterwards, while a Num is a '.' or digit, so
-    -- they're not ambiguous.
-    <|> TrackLang.VRelativeAttrs <$> A.try p_rel_attrs
+    <|> TrackLang.VAttributes <$> p_attrs
     <|> TrackLang.VNum . Score.untyped <$> p_hex
     <|> TrackLang.VNum <$> p_num
     <|> TrackLang.VSymbol <$> p_string
@@ -289,17 +286,9 @@ p_single_string = do
 
 -- There's no particular reason to restrict attrs to idents, but this will
 -- force some standardization on the names.
-p_rel_attrs :: A.Parser TrackLang.RelativeAttrs
-p_rel_attrs =
-    TrackLang.Add <$> (A.char '+' *> p_attrs)
-    <|> TrackLang.Remove <$> (A.char '-' *> p_attrs)
-    <|> TrackLang.Set <$> (A.char '=' *> p_attrs)
-    <?> "relative attr"
-
 p_attrs :: A.Parser Score.Attributes
-p_attrs =
-    Score.attrs . map to_text <$> A.sepBy1 (p_identifier "+") (A.char '+')
-    <|> A.char '-' *> return mempty
+p_attrs = A.char '+' *> (attrs <$> A.sepBy (p_identifier "+") (A.char '+'))
+    where attrs = Score.attrs . map to_text
 
 p_control :: A.Parser TrackLang.ValControl
 p_control = do
@@ -343,7 +332,7 @@ p_instrument = A.char '>' >> (Score.Instrument . to_text) <$> p_null_word
 -- places too.
 p_symbol :: A.Parser TrackLang.Symbol
 p_symbol = do
-    c <- A.satisfy (\c -> A.isAlpha_ascii c || c == '*')
+    c <- A.satisfy (\c -> A.isAlpha_ascii c || c == '-' || c == '*')
     rest <- p_null_word
     return $ TrackLang.Symbol $ Text.cons c (to_text rest)
 

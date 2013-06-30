@@ -25,14 +25,14 @@ test_when_ly = do
             , ("> | unless-ly", [(1, 1, "")])
             , ("*", [(1, 0, "4b")])
             ]
-    equal (run_ly tracks) ([((0, 1, "4a"), "-")], [])
-    equal (run_normal tracks) ([((1, 1, "4b"), "-")], [])
+    equal (run_ly tracks) ([((0, 1, "4a"), "+")], [])
+    equal (run_normal tracks) ([((1, 1, "4b"), "+")], [])
 
     let tracks = UiTest.note_track [(0, 1, "when-ly +a | -- 4a")]
     equal (run_ly tracks) ([((0, 1, "4a"), "+a")], [])
-    equal (run_normal tracks) ([((0, 1, "4a"), "-")], [])
+    equal (run_normal tracks) ([((0, 1, "4a"), "+")], [])
     let tracks = UiTest.note_track [(0, 1, "unless-ly +a | -- 4a")]
-    equal (run_ly tracks) ([((0, 1, "4a"), "-")], [])
+    equal (run_ly tracks) ([((0, 1, "4a"), "+")], [])
     equal (run_normal tracks) ([((0, 1, "4a"), "+a")], [])
 
 test_ly_track = do
@@ -49,9 +49,9 @@ test_ly_track = do
             , ("> | not-ly-track", [(1, 1, "+no1"), (2, 1, "+no2")])
             ] ++ UiTest.regular_notes 4
     equal (run_normal tracks)
-        ([("3c", "-"), ("3d", "+always+no1"), ("3e", "+no2"), ("3f", "-")], [])
+        ([("3c", "+"), ("3d", "+always+no1"), ("3e", "+no2"), ("3f", "+")], [])
     equal (run_ly tracks)
-        ([("c", "+ly1"), ("d", "+always+ly2"), ("e", "-"), ("f", "-")], [])
+        ([("c", "+ly1"), ("d", "+always+ly2"), ("e", "+"), ("f", "+")], [])
 
 test_if_ly = do
     let run = LilypondTest.derive_measures [] . UiTest.note_track

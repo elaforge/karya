@@ -37,7 +37,6 @@ module Derive.TrackLang (
     module Derive.TrackLang, module Derive.BaseTypes, show_val
 ) where
 import qualified Control.DeepSeq as DeepSeq
-import qualified Data.List as List
 import qualified Data.List.NonEmpty as NonEmpty
 import qualified Data.Map as Map
 import qualified Data.Text as Text
@@ -49,9 +48,8 @@ import qualified Derive.BaseTypes as Score
 import qualified Derive.BaseTypes as PitchSignal
 import Derive.BaseTypes
        (Environ, make_environ, environ_to_list, insert_val, delete_val,
-        lookup_val, null_environ, ValName, Val(..), Symbol(..),
-        RelativeAttrs(..), ControlRef(..), PitchControl, ValControl, Note(..),
-        show_call_val)
+        lookup_val, null_environ, ValName, Val(..), Symbol(..), ControlRef(..),
+        PitchControl, ValControl, Note(..), show_call_val)
 import qualified Derive.Environ as Environ
 import Derive.ShowVal (ShowVal(..))
 
@@ -62,15 +60,6 @@ import Types
 
 -- | Symbols used in function call position.
 type CallId = Symbol
-
-apply_attr :: RelativeAttrs -> Score.Attributes -> Score.Attributes
-apply_attr rel attrs = case rel of
-    Add as -> attrs <> as
-    Remove as -> Score.attrs_diff attrs as
-    Set as -> as
-
-apply_attrs :: [RelativeAttrs] -> Score.Attributes -> Score.Attributes
-apply_attrs = List.foldl' (.) id . map apply_attr
 
 -- | An empty instrument literal is a no-op, see 'VInstrument'.
 is_null_instrument :: Score.Instrument -> Bool
@@ -150,8 +139,7 @@ instance ShowVal RealOrScore where
 -- * types
 
 data Type = TNum NumType
-    | TRelativeAttrs | TAttributes
-    | TControl | TPitchControl | TPitch | TInstrument | TSymbol
+    | TAttributes | TControl | TPitchControl | TPitch | TInstrument | TSymbol
     | TNotGiven | TMaybe Type | TEither Type Type | TVal
     deriving (Eq, Ord, Show)
 
@@ -192,7 +180,6 @@ type_of val = case val of
     -- promising to not evaluate the value seems even more hacky than just
     -- 'to_type' making that promise.
     VNum num -> TNum (to_num_type (Score.type_of num))
-    VRelativeAttrs {} -> TRelativeAttrs
     VAttributes {} -> TAttributes
     VControl {} -> TControl
     VPitchControl {} -> TPitchControl
@@ -327,12 +314,6 @@ instance Typecheck DefaultScore where
     to_val (DefaultScore a) = to_val a
     to_type _ = TNum TDefaultScore
 
-instance Typecheck RelativeAttrs where
-    from_val (VRelativeAttrs a) = Just a
-    from_val _ = Nothing
-    to_val = VRelativeAttrs
-    to_type _ = TRelativeAttrs
-
 instance Typecheck Score.Attributes where
     from_val (VAttributes a) = Just a
     from_val _ = Nothing
@@ -383,35 +364,19 @@ instance Typecheck Text where
 -- ever be overwritten by a Val of the same type.  The idea is that being
 -- inconsistent with types will just lead to confusion.
 --
--- 'RelativeAttrs's are never inserted, they combine with existing Attributes or
--- create new ones.
---
 -- 'VNotGiven' is another special case, it deletes the given key.
 put_val :: (Typecheck val) => ValName -> val -> Environ -> Either Type Environ
 put_val name val environ
     | VNotGiven <- to_val val = Right $ delete_val name environ
-    | otherwise = case maybe_old of
+    | otherwise = case lookup_val name environ of
         Nothing -> case Map.lookup name hardcoded_types of
             Just expected | type_of new_val /= expected -> Left expected
             _ -> Right $ insert_val name new_val environ
         Just old_val
             | type_of old_val == type_of new_val ->
-                Right $ insert_val name (environ_val name val environ) environ
+                Right $ insert_val name new_val environ
             | otherwise -> Left (type_of old_val)
-    where
-    maybe_old = lookup_val name environ
-    new_val = case to_val val of
-        VRelativeAttrs rel_attr -> VAttributes $
-            case maybe_old of
-                Just (VAttributes attrs) -> apply_attr rel_attr attrs
-                _ -> apply_attr rel_attr Score.no_attrs
-        _ -> to_val val
-    environ_val name val environ = case to_val val of
-        VRelativeAttrs rel_attr -> VAttributes $
-            case lookup_val name environ of
-                Just (VAttributes attrs) -> apply_attr rel_attr attrs
-                _ -> apply_attr rel_attr Score.no_attrs
-        new_val -> new_val
+    where new_val = to_val val
 
 -- | If a standard val gets set to the wrong type, it will cause confusing
 -- errors later on.

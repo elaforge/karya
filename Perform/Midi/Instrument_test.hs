@@ -34,4 +34,4 @@ test_overlapping_keyswitches = do
             [(mkattrs "", 0), (mkattrs "a b", 1)]
     let f = Instrument.overlapping_keyswitches
     equal (f ksmap) []
-    equal (f overlapping) ["keyswitch attrs +a+b shadowed by -"]
+    equal (f overlapping) ["keyswitch attrs +a+b shadowed by +"]

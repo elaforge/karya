@@ -246,7 +246,7 @@ test_slur = do
             ] ++ UiTest.regular_notes 2
     equal events
         [ ((0, 1, "3c"), [(Constants.v_ly_append_first, "'('")], "+a")
-        , ((1, 1, "3d"), [(Constants.v_ly_append_last, "')'")], "-")
+        , ((1, 1, "3d"), [(Constants.v_ly_append_last, "')'")], "+")
         ]
     equal logs []
 

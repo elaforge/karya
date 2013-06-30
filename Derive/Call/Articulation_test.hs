@@ -29,11 +29,11 @@ test_legato = do
             ]
     equal logs []
     equal evts
-        [ (0, 1, "4a", "-")
+        [ (0, 1, "4a", "+")
         , (1, 1.5, "4b", "+legato")
         , (2, 1.5, "4c", "+legato")
-        , (3, 1, "4d", "-")
-        , (4, 1, "4e", "-")
+        , (3, 1, "4d", "+")
+        , (4, 1, "4e", "+")
         ]
 
     -- Legato events are extended to always overlap.
@@ -44,8 +44,8 @@ test_legato = do
     equal logs []
     equal evts
         [ (0, 2.1, "?", "+legato")
-        , (2, 1, "?", "-")
-        , (4, 1, "?", "-")
+        , (2, 1, "?", "+")
+        , (4, 1, "?", "+")
         ]
 
 test_attr_legato = do
@@ -62,7 +62,7 @@ test_attr_legato = do
     equal logs []
     equal events
         [ (0, 1, "3c", "+legato"), (1, 0.5, "3d", "+legato")
-        , (2, 1, "3e", "-")
+        , (2, 1, "3e", "+")
         ]
 
 test_legato_ly = do

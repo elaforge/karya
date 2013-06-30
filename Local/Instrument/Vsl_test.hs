@@ -16,11 +16,11 @@ import qualified Local.Instrument.Vsl as Vsl
 test_strip_attrs = do
     let f = map ShowVal.show_val . Vsl.strip_attrs . map Score.attrs
     -- Strip them.
-    equal (f [["sus"], ["vib", "marcato"]]) ["-", "+marcato"]
+    equal (f [["sus"], ["vib", "marcato"]]) ["+", "+marcato"]
     -- Can't strip if it would be non-unique.
     equal (f [["a", "sus"], ["a"]]) ["+a+sus", "+a"]
     -- Or if it's non-unique with an already stripped one.
-    equal (f [["sus"], ["vib"]]) ["-", "+vib"]
+    equal (f [["sus"], ["vib"]]) ["+", "+vib"]
 
 test_natural_harmonic = do
     let run inst attrs pitch = DeriveTest.extract extract $

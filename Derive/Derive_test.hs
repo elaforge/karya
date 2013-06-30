@@ -15,6 +15,7 @@ import qualified Util.Log as Log
 import qualified Util.Seq as Seq
 import Util.Test
 
+import qualified Midi.Key as Key
 import qualified Midi.Midi as Midi
 import qualified Ui.ScoreTime as ScoreTime
 import qualified Ui.Skeleton as Skeleton
@@ -95,8 +96,7 @@ test_attributes = do
             ]
         keymap = [(Score.attr "km", 42)]
     let res = DeriveTest.derive_tracks
-            [ (">s/ks +a1",
-                [(0, 1, "n +a0"), (1, 1, "n +a2"), (2, 1, "n -a1 +km")])
+            [ (">s/ks +a1", [(0, 1, "n +a0"), (1, 1, "n +a2")])
             , ("*twelve", [(0, 0, "4c")])
             ]
         attrs = fst $
@@ -105,13 +105,12 @@ test_attributes = do
             (UiTest.midi_config [("s/ks", [0])]) (Derive.r_events res)
 
     -- Attribute inheritance thing works.
-    equal attrs [["a0", "a1"], ["a1", "a2"], ["km"]]
+    equal attrs [["a0", "a1"], ["a1", "a2"]]
     -- TODO re-enable when Convert.warn_unused_attributes is configurable
     -- equal (map DeriveTest.show_log logs)
     --     ["attrs have no match in keyswitches or keymap of >s/ks: +a1"]
     -- Attrs get the proper keyswitches and keymap keys.
-    equal (note_on_keys mmsgs)
-        [1, 60, 0, 60, 42]
+    equal (note_on_keys mmsgs) [1, Key.c4, 0, Key.c4]
 
 note_on_keys :: [(Integer, Midi.Message)] -> [Midi.Key]
 note_on_keys msgs =

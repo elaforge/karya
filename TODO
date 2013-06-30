@@ -3,6 +3,13 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
+  * leading hyphen on symbols is taken up by subtract attr, but that's
+    practically useless.  I haven't ever used = either, maybe I should
+    have + just be attrs, and have explicit calls to set or subtract, if ever
+    necessary.
+    . What's worse, show_val gets it wrong, since it checks for parseable, not
+      if it would have parsed as something else.
+  - support poly aftertouch for dyn
   - try writing criterion tests for midi performance and derivation
   - If I want to draw multiple signals together, I need a line or polygon
     + gradient function.  Maybe I can get ahold of the OS X graphics context
@@ -42,6 +49,13 @@ UNSORTED
     a certain threshold.
   - now that I have tevents_around, can I get rid of slice_around and the
     require_previous hack?
+    . For this to work, the call itself has to influence how many previous
+      events are evaluated.  So if it doesn't have a prev val already, it
+      can go evaluate the prev event itself, which must be able to continue
+      recursively until there really isn't a prev event.
+    . I should clear out the next events so it doesn't get in a loop if it
+      wants the next event.  Actually it's fine if it wants to look at it, it
+      just can't want to evaluate it.
   calls:
     - Sometimes tick makes more sense as at attribute of the previous note, or
       perhaps a freestanding ornament, since it can happen or not on a repeat.
@@ -647,6 +661,8 @@ plugin host freeze audio
     - in any case, I can't do daw stuff, so I think I don't want this
 
 test:
+  - run tests in parallel
+    Start thread for each processor, then have them take work from a queue.
   complete quickcheck derive testing
     I switched back to Double for RealTime, but this means the roundoff errors
     are back.  Use quickcheck to repro them.

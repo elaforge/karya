@@ -125,7 +125,7 @@ c_note_track =
     (Sig.callt parser note_transform)
     where parser = Sig.many "attribute" "Change the instrument or attributes."
 
-note_transform :: [Either Score.Instrument TrackLang.RelativeAttrs]
+note_transform :: [Either Score.Instrument Score.Attributes]
     -> Derive.PassedArgs d -> Derive.EventDeriver -> Derive.EventDeriver
 note_transform vals _ deriver = transform_note vals deriver
 
@@ -274,16 +274,14 @@ trimmed_controls start end = Map.map (fmap trim)
 
 -- ** transform
 
-transform_note :: [Either Score.Instrument TrackLang.RelativeAttrs]
+transform_note :: [Either Score.Instrument Score.Attributes]
     -> Derive.EventDeriver -> Derive.EventDeriver
-transform_note vals deriver = with_inst (with_attrs deriver)
+transform_note vals deriver =
+    with_inst (Util.add_attrs (mconcat attrs) deriver)
     where
-    (insts, rel_attrs) = Seq.partition_either vals
+    (insts, attrs) = Seq.partition_either vals
     with_inst = maybe id Derive.with_instrument $
         Seq.last $ filter (/=Score.empty_inst) insts
-    with_attrs
-        | null rel_attrs = id
-        | otherwise = Util.with_attrs (TrackLang.apply_attrs rel_attrs)
 
 
 -- * c_equal

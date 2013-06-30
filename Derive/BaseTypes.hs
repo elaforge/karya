@@ -135,10 +135,7 @@ newtype Attributes = Attributes (Set.Set Attribute)
 
 instance Pretty.Pretty Attributes where pretty = untxt . ShowVal.show_val
 instance ShowVal.ShowVal Attributes where
-    show_val attrs
-        | null alist = "-"
-        | otherwise = "+" <> Text.intercalate "+" alist
-        where alist = attrs_list attrs
+    show_val = ("+"<>) . Text.intercalate "+" . attrs_list
 
 attr :: Text -> Attributes
 attr = Attributes . Set.singleton
@@ -238,16 +235,9 @@ data Val =
     --
     -- Literal: @42.23@, @-.4@, @1c@, @-2.4d@, @3/2@, @-3/2@.
     VNum !TypedVal
-
-    -- | Relative attribute adjustment.
+    -- | A set of Attributes for an instrument.
     --
-    -- This is a bit of a hack, but means I can do attr adjustment without +=
-    -- or -= operators.
-    --
-    -- Literal: @+attr@, @-attr@, @=attr@, @=-@ (to clear attributes).
-    | VRelativeAttrs !RelativeAttrs
-    -- | A set of Attributes for an instrument.  No literal, since you can use
-    -- VRelativeAttrs.
+    -- Literal: @+attr@, @+attr1+attr2@.
     | VAttributes !Attributes
 
     -- | A control name.  An optional value gives a default if the control
@@ -291,7 +281,6 @@ data Val =
 instance ShowVal.ShowVal Val where
     show_val val = case val of
         VNum d -> ShowVal.show_val d
-        VRelativeAttrs rel -> ShowVal.show_val rel
         VAttributes attrs -> ShowVal.show_val attrs
         VControl control -> ShowVal.show_val control
         VPitchControl control -> ShowVal.show_val control
@@ -327,7 +316,7 @@ instance ShowVal.ShowVal Symbol where
         -- This should be the same as ParseBs.p_symbol.  I can't use it
         -- directly because that would be a circular import.
         parseable = case Text.uncons s of
-            Just (c, cs) -> (Char.isAlpha c || c == '*')
+            Just (c, cs) -> (Char.isAlpha c || c == '-' || c == '*')
                 && Text.all (\c -> c /= ' ' && c /= ')') cs
             Nothing -> False
         quote '\'' = "''"
@@ -341,20 +330,6 @@ show_call_val val = ShowVal.show_val val
 
 instance ShowVal.ShowVal Text where
     show_val = ShowVal.show_val . Symbol
-
-data RelativeAttrs = Add Attributes | Remove Attributes | Set Attributes
-    deriving (Eq, Show)
-
-instance ShowVal.ShowVal RelativeAttrs where
-    show_val rel = case rel of
-            Add attrs -> "+" <> str attrs
-            Remove attrs -> "-" <> str attrs
-            Set attrs -> "=" <> str attrs
-        where
-        str attrs = case attrs_list attrs of
-            [] -> "-"
-            as -> Text.intercalate "+" as
-
 
 data ControlRef val =
     -- | A constant signal.  For 'Control', this is coerced from a VNum

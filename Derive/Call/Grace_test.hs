@@ -124,7 +124,7 @@ test_grace_attr = do
         ([("4b", "+down+half")], [])
     -- Notes when it can't.
     equal (run [(">", [(0, 1, "g (4a)")]), ("*", [(0, 0, "4c")])])
-        ([("4a", "-"), ("4c", "-")], [])
+        ([("4a", "+"), ("4c", "+")], [])
 
 graces :: Map.Map Int Score.Attributes
 graces = Map.fromList

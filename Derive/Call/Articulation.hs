@@ -43,12 +43,12 @@ lookup_attr = Derive.pattern_lookup "attribute starting with `+`" doc $
     where
     parse_symbol sym = case Text.uncons sym of
         Just (c, _) | c == '+' || c == '=' -> case ParseBs.parse_val sym of
-            Right (TrackLang.VRelativeAttrs rel) -> return $ Just $ call rel
+            Right (TrackLang.VAttributes attrs) -> return $ Just $ call attrs
             _ -> return Nothing
         _ -> return Nothing
-    call rel = Make.transform_notes ("relative attrs: " <> ShowVal.show_val rel)
+    call attrs = Make.transform_notes ("add attrs: " <> ShowVal.show_val attrs)
         Tags.attr "Doc unused." Sig.no_args
-        (\() -> Util.with_attrs (TrackLang.apply_attr rel))
+        (\() -> Util.add_attrs attrs)
     doc = Derive.extract_doc $ Make.attributed_note (Score.attr "example-attr")
 
 note_calls :: Derive.NoteCallMap
