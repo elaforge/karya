@@ -12,11 +12,13 @@ import qualified Data.Text as Text
 
 import Util.Control
 import qualified Util.Seq as Seq
+import qualified Midi.CC as CC
 import qualified Midi.Key as Key
 import qualified Midi.Midi as Midi
+
 import qualified Cmd.Cmd as Cmd
-import qualified Cmd.Instrument.Drums as Drums
 import qualified Cmd.Instrument.CUtil as CUtil
+import qualified Cmd.Instrument.Drums as Drums
 import qualified Cmd.Keymap as Keymap
 
 import Derive.Attrs
@@ -47,25 +49,34 @@ synth :: Instrument.SynthName
 synth = "kkt"
 
 patches :: [MidiInst.Patch]
-patches = concat [hang, wayang, kendang_patches, mridangam_patches]
-    where
-    hang = MidiInst.with_code hang_code [inst "hang" hang_ks]
-    wayang =
-        [ (Instrument.set_scale wayang_umbang $ inst "wayang-umbang" wayang_ks,
-            with_tuning "umbang" <> wayang_code)
-        , (Instrument.set_scale wayang_isep $ inst "wayang-isep" wayang_ks,
-            with_tuning "isep" <> wayang_code)
-        ]
-    with_tuning tuning =
-        MidiInst.default_scale Wayang.scale_id
-        <> MidiInst.environ Environ.tuning (tuning :: Text)
-    inst name ks = Instrument.set_keyswitches ks $
-        Instrument.patch $ Instrument.instrument name [] pb_range
+patches = concat
+    [ misc_patches
+    , hang_patches, wayang_patches, kendang_patches, mridangam_patches
+    ]
 
+ks_patch :: Instrument.InstrumentName -> [(Attributes, Midi.Key)]
+    -> Instrument.Patch
+ks_patch name ks = Instrument.set_keyswitches ks $
+    Instrument.patch $ Instrument.instrument name [] pb_range
+
+-- One pitch bend modulator can only do +-12, but if you put two on you get
+-- +-24.
 pb_range :: Instrument.PbRange
-pb_range = (-12, 12)
+pb_range = (-24, 24)
+
+-- * misc
+
+misc_patches :: [MidiInst.Patch]
+misc_patches = MidiInst.with_empty_code
+    -- From the McGill sample library.
+    [ MidiInst.pressure $ Instrument.patch $
+        Instrument.instrument "viol" [(CC.cc14, "fc"), (CC.cc15, "q")] pb_range
+    ]
 
 -- * hang
+
+hang_patches :: [MidiInst.Patch]
+hang_patches = MidiInst.with_code hang_code [ks_patch "hang" hang_ks]
 
 hang_code :: MidiInst.Code
 hang_code = MidiInst.empty_code
@@ -101,6 +112,18 @@ hang_ks = [(attrs, key) | (attrs, key, _, _) <- hang_strokes]
 
 
 -- * gender wayang
+
+wayang_patches :: [MidiInst.Patch]
+wayang_patches =
+    [ (Instrument.set_scale wayang_umbang $ ks_patch "wayang-umbang" wayang_ks,
+        with_tuning "umbang" <> wayang_code)
+    , (Instrument.set_scale wayang_isep $ ks_patch "wayang-isep" wayang_ks,
+        with_tuning "isep" <> wayang_code)
+    ]
+    where
+    with_tuning tuning =
+        MidiInst.default_scale Wayang.scale_id
+        <> MidiInst.environ Environ.tuning (tuning :: Text)
 
 wayang_code :: MidiInst.Code
 wayang_code =

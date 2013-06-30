@@ -3,6 +3,11 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
+  - recent tends to collect pitches added via edit input
+    But since they have a specific pitch they're not useful.
+    Maybe I should have a separate recent queue only for transformers, and
+    the generator recent is only one slot.  That way I can still repeat the
+    last note call.
   * leading hyphen on symbols is taken up by subtract attr, but that's
     practically useless.  I haven't ever used = either, maybe I should
     have + just be attrs, and have explicit calls to set or subtract, if ever
