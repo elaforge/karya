@@ -32,6 +32,7 @@ import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 
 import qualified Midi.Midi as Midi
+import qualified Derive.Controls as Controls
 import qualified Derive.LEvent as LEvent
 import qualified Derive.Score as Score
 import qualified Derive.Stack as Stack
@@ -545,7 +546,7 @@ perform_note_msgs event (dev, chan) midi_nn = (events, note_off)
     tweaked_note_off = max (note_on + adjacent_note_gap)
         (note_off - adjacent_note_gap)
     (on_vel, off_vel, vel_clip_warns) = note_velocity event note_on note_off
-    warns = make_clip_warnings event (Control.c_velocity, vel_clip_warns)
+    warns = make_clip_warnings event (Controls.velocity, vel_clip_warns)
     chan_msg pos msg = Midi.WriteMessage dev pos (Midi.ChannelMessage chan msg)
 
 -- | Perform control change messages.
@@ -557,7 +558,7 @@ perform_control_msgs prev_note_off next_note_on event (dev, chan) midi_nn =
     trim = maybe id (\t -> takeWhile ((<t) . Midi.wmsg_ts)) next_note_on
     control_msgs = merge_messages $
         map (map chan_msg) (pitch_pos_msgs : control_pos_msgs)
-    control_sigs = Map.assocs (event_controls event)
+    control_sigs = Map.toList (event_controls event)
     cmap = Instrument.inst_control_map (event_instrument event)
     (control_pos_msgs, clip_warns) = unzip $
         map (perform_control cmap prev_note_off note_on midi_nn) control_sigs
@@ -589,9 +590,9 @@ note_velocity event note_on note_off =
     (clipped_vel on_sig, clipped_vel off_sig, clip_warns)
     where
     on_sig = fromMaybe default_velocity $
-        control_at event Control.c_velocity note_on
+        control_at event Controls.velocity note_on
     off_sig = fromMaybe default_velocity $
-        control_at event Control.c_velocity note_off
+        control_at event Controls.velocity note_off
     clipped_vel val = Control.val_to_cc (fst (clip_val 0 1 val))
     clip_warns =
         if snd (clip_val 0 1 on_sig) || snd (clip_val 0 1 off_sig)
@@ -604,12 +605,12 @@ clip_val low high val
     | otherwise = (val, False)
 
 type ClipRange = (RealTime, RealTime)
-make_clip_warnings :: Event -> (Control.Control, [ClipRange]) -> [Log.Msg]
+make_clip_warnings :: Event -> (Score.Control, [ClipRange]) -> [Log.Msg]
 make_clip_warnings event (control, clip_warns) =
     [event_warning event (Pretty.prettytxt control <> " clipped: "
         <> Pretty.prettytxt (s, e)) | (s, e) <- clip_warns]
 
-control_at :: Event -> Control.Control -> RealTime -> Maybe Signal.Y
+control_at :: Event -> Score.Control -> RealTime -> Maybe Signal.Y
 control_at event control pos = do
     sig <- Map.lookup control (event_controls event)
     return (Signal.at pos sig)
@@ -628,7 +629,7 @@ perform_pitch pb_range nn prev_note_off start sig =
 -- | Return the (pos, msg) pairs, and whether the signal value went out of the
 -- allowed control range, 0--1.
 perform_control :: Control.ControlMap -> RealTime -> RealTime -> Midi.Key
-    -> (Control.Control, Signal.Control)
+    -> (Score.Control, Signal.Control)
     -> ([(RealTime, Midi.ChannelMessage)], [ClipRange])
 perform_control cmap prev_note_off start midi_key (control, sig) =
     case Control.control_constructor cmap control midi_key of
@@ -746,7 +747,7 @@ note_end event =
 -- | This isn't directly the midi channel, since it goes higher than 15, but
 -- will later be mapped to midi channels.
 type Channel = Integer
-type ControlMap = Map.Map Control.Control Signal.Control
+type ControlMap = Map.Map Score.Control Signal.Control
 
 
 -- * util

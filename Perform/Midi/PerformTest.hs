@@ -13,7 +13,6 @@ import qualified Util.ParseBs as ParseBs
 
 import qualified Derive.Score as Score
 import qualified Derive.Stack as Stack
-import qualified Perform.Midi.Control as Control
 import qualified Perform.Midi.Instrument as Instrument
 import qualified Perform.Midi.Perform as Perform
 import qualified Perform.Signal as Signal
@@ -43,7 +42,8 @@ type Event = (Text, RealTime, RealTime, [(Text, [(RealTime, Signal.Y)])],
 show_perf_event :: Perform.Event -> Event
 show_perf_event (Perform.Event inst start dur controls pitch stack) =
     ( Score.inst_name (Instrument.inst_score inst), start, dur
-    , [(k, Signal.unsignal v) | (Control.Control k, v) <- Map.toList controls]
+    , [(Score.control_name k, Signal.unsignal v)
+        | (k, v) <- Map.toList controls]
     , Signal.unsignal pitch
     , Stack.to_strings stack
     )
@@ -66,4 +66,4 @@ make_perf_event lookup_inst (inst, start, dur, controls, pitch, stack) = do
 
 make_controls :: [(Text, [(RealTime, Signal.Y)])] -> Perform.ControlMap
 make_controls kvs =
-    Map.fromList [(Control.Control k, Signal.signal v) | (k, v) <- kvs]
+    Map.fromList [(Score.control k, Signal.signal v) | (k, v) <- kvs]

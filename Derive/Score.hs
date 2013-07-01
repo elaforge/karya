@@ -153,12 +153,13 @@ set_duration = duration . const
 
 -- *** control
 
-control_at :: RealTime -> TypedControl -> TypedVal
-control_at t = fmap (Signal.at t)
+control_val_at :: RealTime -> TypedControl -> TypedVal
+control_val_at t = fmap (Signal.at t)
 
 -- | Get control value at the given time.
-control :: ControlMap -> Control -> RealTime -> TypedVal
-control controls c t = maybe (untyped 0) (control_at t) (Map.lookup c controls)
+control_at :: ControlMap -> Control -> RealTime -> TypedVal
+control_at controls c t =
+    maybe (untyped 0) (control_val_at t) (Map.lookup c controls)
 
 move_controls :: RealTime -> Event -> Event
 move_controls shift event
@@ -171,8 +172,9 @@ move_controls shift event
 
 event_control_at :: RealTime -> Control -> Maybe TypedVal -> Event
     -> Maybe TypedVal
-event_control_at pos cont deflt event = maybe deflt (Just . control_at pos) $
-    Map.lookup cont (event_controls event)
+event_control_at pos cont deflt event =
+    maybe deflt (Just . control_val_at pos) $
+        Map.lookup cont (event_controls event)
 
 initial_dynamic :: Event -> Signal.Y
 initial_dynamic event = maybe 0 typed_val $
@@ -197,7 +199,7 @@ event_controls_at :: RealTime -> Event -> ControlValMap
 event_controls_at t = controls_at t .  event_controls
 
 controls_at :: RealTime -> ControlMap -> ControlValMap
-controls_at p = Map.map (typed_val . control_at p)
+controls_at p = Map.map (typed_val . control_val_at p)
 
 -- *** pitch
 
@@ -354,70 +356,19 @@ split_inst :: Instrument -> (Text, Text)
 split_inst (Instrument inst) = (synth, Text.drop 1 inst_name)
     where (synth, inst_name) = Text.break (=='/') inst
 
--- * controls
+-- * util
 
--- | Used as the default control by control block calls.  This is because
--- a ControlCall produces a Signal, but for it to be derived in a block it
--- needs a temporary name.
-c_null :: Control
-c_null = Control ""
+-- | Use this control constructor instead of directly calling "Control", though
+-- that's not enforced yet.
+control :: Text -> Control
+control = Control
 
--- | The tempo track is handled differently than other controls, and winds up
--- in the warp rather than the 'ControlMap'.
-c_tempo :: Control
-c_tempo = Control "tempo"
+control_name :: Control -> Text
+control_name (Control text) = text
 
 -- | Converted into velocity or breath depending on the instrument.
 c_dynamic :: Control
 c_dynamic = Control "dyn"
-
--- ** generally understood by the note deriver
-
--- | Scale note duration.  This is multiplicative, so 1 is no change.
---
--- Note duration is documented in 'Derive.Call.Note.duration_attributes'.
-c_sustain :: Control
-c_sustain = Control "sus"
-
--- | Amount of note overlap that @+legato@ implies.  This is additive, in
--- RealTime.
-c_legato_overlap :: Control
-c_legato_overlap = Control "legato-overlap"
-
--- | Add an absolute amount of real time to the duration of each note.
-c_sustain_abs :: Control
-c_sustain_abs = Control "sus-abs"
-
--- | Offset the start time of each note by a value between - start-rnd/2 and
--- start-rnd/2.  The start and end are shifted by the same amount, so the
--- duration of the note is unaffected.
-c_start_rnd :: Control
-c_start_rnd = Control "start-rnd"
-
--- | Shorten each note by a value between 0 and dur-rnd.  Shortening makes it
--- less likely that this will cause notes to become overlapping, which MIDI
--- doesn't like when they have the same pitch.
-c_dur_rnd :: Control
-c_dur_rnd = Control "dur-rnd"
-
--- | MIDI velocity and breath.  Generally you should use 'c_dynamic', which
--- will emit velocity or breath depending on the instrument.
-c_velocity, c_breath :: Control
-c_velocity = Control "vel"
-c_breath = Control "breath"
-
--- ** transposition
-
-c_chromatic :: Control
-c_chromatic = Control "t-chromatic"
-
-c_diatonic :: Control
-c_diatonic = Control "t-diatonic"
-
-c_hz :: Control
-c_hz = Control "t-hz"
-
--- * util
 
 to_real :: ScoreTime -> RealTime
 to_real = RealTime.score

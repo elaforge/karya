@@ -60,6 +60,10 @@ instance Pretty.Pretty Instrument where pretty = untxt . ShowVal.show_val
 instance ShowVal.ShowVal Instrument where
     show_val (Instrument inst) = Text.cons '>' inst
 
+-- | A control is an abstract parameter that influences derivation.  Some of
+-- them affect performance and will be rendered as MIDI controls or note
+-- parameters or whatever, while others may affect derivation (e.g. tempo) and
+-- won't be seen by the backend at all.
 newtype Control = Control Text
     deriving (Eq, Ord, Read, Show, DeepSeq.NFData, Serialize.Serialize)
 

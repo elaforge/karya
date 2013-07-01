@@ -29,6 +29,7 @@ import qualified Midi.CC as CC
 import qualified Midi.Midi as Midi
 import qualified Midi.Parse
 
+import qualified Derive.Score as Score
 import qualified Perform.Midi.Control as Control
 import qualified Perform.Midi.Instrument as Instrument
 import qualified Instrument.MidiDb as MidiDb
@@ -208,7 +209,7 @@ checksum bytes = (2^7 - val) .&. 0x7f
 
 -- | Each voice has two elements, each with their own PbRange, name, and
 -- controls.
-type ElementInfo = (Control.PbRange, Text, [(Midi.Control, [Text])])
+type ElementInfo = (Control.PbRange, Text, [(Midi.Control, [Score.Control])])
 
 record_to_patch :: Sysex.RMap -> Either String Instrument.Patch
 record_to_patch rmap = do
@@ -238,9 +239,10 @@ vl1_patch name elt1 maybe_elt2 =
     -- Optimistically take the widest range.
     Just pb_range = Seq.maximum_on (\(low, high) -> max (abs low) (abs high))
         pb_ranges
-    cmap = Map.assocs $ Map.mapMaybe highest_prio $
+    cmap = Map.toList $ Map.mapMaybe highest_prio $
         Map.unionsWith (++) (map Map.fromList cc_groups)
-    highest_prio cs = List.find (`elem` cs) (map fst vl1_control_map)
+    highest_prio cs = List.find (`elem` cs)
+        (map (Score.Control . fst) vl1_control_map)
 
 extract_element :: Int -> Sysex.RMap -> Either String ElementInfo
 extract_element n rmap = do
@@ -267,12 +269,15 @@ extract_element n rmap = do
     clean = Text.map $ \c -> if c == ' ' then '-' else c
 
     process_controls :: [(Text, Midi.Control, [Word8])]
-        -> [(Midi.Control, [Text])]
+        -> [(Midi.Control, [Score.Control])]
     process_controls controls =
         [(cc, map snd grp) | (cc, grp) <- Seq.keyed_group_on fst by_cc]
         where
-        by_cc = [(cc, name) | (name, cc, depths) <- controls, valid_control cc,
-            maximum (map abs depths) >= 32]
+        by_cc =
+            [ (cc, Score.control name)
+            | (name, cc, depths) <- controls, valid_control cc
+            , maximum (map abs depths) >= 32
+            ]
 
 -- | Vaguely \"more audible\" controls come first.  Having more than one seq
 -- control affecting the same vl1 control is confusing, so when a control is

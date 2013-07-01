@@ -19,6 +19,7 @@ import qualified Util.Log as Log
 import qualified Util.Pretty as Pretty
 
 import qualified Midi.Midi as Midi
+import qualified Derive.Controls as Controls
 import qualified Derive.Derive as Derive
 import qualified Derive.LEvent as LEvent
 import qualified Derive.PitchSignal as PitchSignal
@@ -81,7 +82,7 @@ convert_event lookup event_ = do
                 `Map.union` lookup_default_controls lookup score_inst)
     when_just overridden $ \sig ->
         Log.warn $ "non-null control overridden by "
-            ++ Pretty.pretty Score.c_dynamic ++ ": " ++ Pretty.pretty sig
+            ++ Pretty.pretty Controls.dynamic ++ ": " ++ Pretty.pretty sig
     let converted = Perform.Event midi_inst
             (Score.event_start event) (Score.event_duration event)
             controls pitch (Score.event_stack event)
@@ -165,22 +166,20 @@ convert_controls :: Bool -- ^ True if the @p@ control should become breath.
     -> Score.ControlMap -- ^ Controls to convert.
     -> (Perform.ControlMap, Maybe (Score.Control, Score.TypedControl))
 convert_controls pressure_inst inst_cmap =
-    first (Map.fromAscList . map (\(k, v) -> (cc k, Score.typed_val v))
-        . Map.toAscList
+    first (Map.fromAscList . map (second Score.typed_val) . Map.toAscList
         . Map.filterWithKey (\k _ -> Control.is_midi_control inst_cmap k))
     . resolve_dyn
     where
-    resolve_dyn cmap = case Map.lookup Score.c_dynamic cmap of
+    resolve_dyn cmap = case Map.lookup Controls.dynamic cmap of
         Nothing -> (cmap, Nothing)
         Just sig -> insert_dyn sig cmap
     insert_dyn sig cmap = (Map.insert cont sig cmap, overridden)
         where
-        cont = if pressure_inst then Score.c_breath else Score.c_velocity
+        cont = if pressure_inst then Controls.breath else Controls.velocity
         overridden = case Map.lookup cont cmap of
             Just sig | not (Signal.null (Score.typed_val sig))
                 -> Just (cont, sig)
             _ -> Nothing
-    cc (Score.Control c) = Control.Control c
 
 convert_pitch :: Instrument.PatchScale -> Score.ControlMap
     -> PitchSignal.Signal -> ConvertT Signal.NoteNumber

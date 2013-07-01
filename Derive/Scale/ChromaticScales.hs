@@ -12,6 +12,7 @@ import qualified Data.Text as Text
 import Util.Control
 import qualified Util.Pretty as Pretty
 import qualified Derive.Call.ScaleDegree as ScaleDegree
+import qualified Derive.Controls as Controls
 import qualified Derive.Derive as Derive
 import qualified Derive.Environ as Environ
 import qualified Derive.PitchSignal as PitchSignal
@@ -117,8 +118,8 @@ pitch_note smap pitch env controls =
                 return $ Theory.transpose_chromatic key c $
                     Theory.transpose_diatonic key d pitch
     where
-    chromatic = Map.findWithDefault 0 Score.c_chromatic controls
-    diatonic = Map.findWithDefault 0 Score.c_diatonic controls
+    chromatic = Map.findWithDefault 0 Controls.chromatic controls
+    diatonic = Map.findWithDefault 0 Controls.diatonic controls
 
 pitch_nn :: ScaleMap
     -> (TrackLang.Environ -> Score.ControlValMap -> Double -> Pitch.NoteNumber)
@@ -137,8 +138,8 @@ pitch_nn smap degree_to_nn pitch env controls =
         if 1 <= nn && nn <= 127 then Right nn
             else Left Scale.InvalidTransposition
     where
-    chromatic = Map.findWithDefault 0 Score.c_chromatic controls
-    diatonic = Map.findWithDefault 0 Score.c_diatonic controls
+    chromatic = Map.findWithDefault 0 Controls.chromatic controls
+    diatonic = Map.findWithDefault 0 Controls.diatonic controls
 
 input_to_note :: ScaleMap -> Maybe Pitch.Key -> Pitch.InputKey
     -> Maybe Pitch.Note

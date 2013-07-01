@@ -18,6 +18,7 @@ import System.FilePath ((</>))
 import Util.Control
 import Util.Pretty (pprint)
 import qualified Midi.Midi as Midi
+import qualified Derive.Score as Score
 import qualified Perform.Midi.Instrument as Instrument
 import qualified Instrument.Sysex as Sysex
 import Local.Instrument.Z1Spec
@@ -53,8 +54,8 @@ make_db dir = do
 synth :: Instrument.Synth
 synth = Instrument.synth (txt synth_name) "Korg Z1" synth_controls
 
-synth_controls :: [(Midi.Control, Text)]
-synth_controls =
+synth_controls :: [(Midi.Control, Score.Control)]
+synth_controls = map (second Score.control)
     -- The PE controls are the "performance expression" knobs whose effect
     -- depends on the instrument.
     [ (19, "knob1"), (20, "knob2"), (21, "knob3"), (22, "knob4"), (23, "knob5")

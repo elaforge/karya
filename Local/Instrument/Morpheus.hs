@@ -8,6 +8,7 @@ import System.FilePath ((</>))
 
 import Util.Control
 import qualified Midi.Midi as Midi
+import qualified Derive.Score as Score
 import qualified Perform.Midi.Instrument as Instrument
 import qualified Instrument.Parse as Parse
 import qualified App.MidiInst as MidiInst
@@ -30,8 +31,8 @@ make_db dir = do
 synth :: Instrument.Synth
 synth = Instrument.synth (txt synth_name) "E-mu Morpheus" synth_controls
 
-synth_controls :: [(Midi.Control, Text)]
-synth_controls =
+synth_controls :: [(Midi.Control, Score.Control)]
+synth_controls = map (second Score.control)
     -- Definitions depend on the preset.
     [ (1, "a"), (2, "b"), (3, "c"), (4, "d")
     , (64, "switch1"), (65, "switch2"), (66, "switch3")

@@ -12,12 +12,10 @@ module Instrument.Serialize (serialize, unserialize) where
 import qualified Data.Map as Map
 import qualified Data.Time as Time
 
-import Util.Serialize
-       (Serialize, get, put, get_tag, put_tag, bad_tag)
+import Util.Serialize (Serialize, get, put, get_tag, put_tag, bad_tag)
 import qualified Cmd.Serialize
 import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Score as Score
-import qualified Perform.Midi.Control as Control
 import qualified Perform.Midi.Instrument as Instrument
 import qualified Instrument.MidiDb as MidiDb
 import qualified Instrument.Search as Search
@@ -81,10 +79,6 @@ instance Serialize Instrument.Synth where
     put (Instrument.Synth a b c) = put a >> put b >> put c
     get = get >>= \a -> get >>= \b -> get >>= \c ->
         return (Instrument.Synth a b c)
-
-instance Serialize Control.Control where
-    put (Control.Control a) = put a
-    get = get >>= \a -> return (Control.Control a)
 
 instance Serialize (MidiDb.PatchMap ()) where
     put (MidiDb.PatchMap a) = put a

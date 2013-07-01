@@ -39,6 +39,7 @@ import qualified Util.Map as Map
 import qualified Util.Num as Num
 
 import qualified Midi.Midi as Midi
+import qualified Derive.Controls as Controls
 import qualified Derive.Score as Score
 import qualified Perform.Midi.Control as Control
 import qualified Perform.Pitch as Pitch
@@ -111,9 +112,9 @@ from_midi state rdev (Midi.ChannelMessage chan chan_msg) = case maybe_input of
         Midi.PitchBend val -> with_last_id $ \last_id ->
             PitchChange last_id (to_pitch val (id_to_key last_id))
         Midi.Aftertouch key val -> Just $
-            Control (key_to_id key) c_aftertouch (to_val val)
+            Control (key_to_id key) Controls.aftertouch (to_val val)
         Midi.ChannelPressure val -> with_last_id $ \last_id ->
-            Control last_id c_pressure (to_val val)
+            Control last_id Controls.pressure (to_val val)
         _ -> Nothing
     to_pitch = pb_to_input (state_pb_range state)
     to_val v = fromIntegral v / 127
@@ -153,20 +154,7 @@ cc_control :: Map.Map Midi.Control Score.Control
 cc_control = Map.invert control_cc
 
 control_cc :: Map.Map Score.Control Midi.Control
-control_cc = Map.mapKeys convert_control Control.universal_control_map
-
-c_aftertouch :: Score.Control
-c_aftertouch = convert_control Control.c_aftertouch
-
-c_pressure :: Score.Control
-c_pressure = convert_control Control.c_pressure
-
-convert_control :: Control.Control -> Score.Control
-convert_control (Control.Control s) = Score.Control s
-
--- Just for testing.
-c_mod :: Score.Control
-c_mod = Score.Control Control.c_mod
+control_cc = Control.universal_control_map
 
 -- * from key
 

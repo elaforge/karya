@@ -31,7 +31,6 @@ import qualified Derive.Stack as Stack
 import qualified Derive.TrackLang as TrackLang
 import qualified Derive.TrackWarp as TrackWarp
 
-import qualified Perform.Midi.Control as Midi.Control
 import qualified Perform.Midi.Convert as Midi.Convert
 import qualified Perform.Midi.Instrument as Instrument
 import qualified Perform.Midi.Perform as Perform
@@ -90,7 +89,7 @@ get_realtime root = do
 -- * analysis
 
 type ControlVals =
-    Map.Map Midi.Control.Control ((RealTime, Signal.Y), (RealTime, Signal.Y))
+    Map.Map Score.Control ((RealTime, Signal.Y), (RealTime, Signal.Y))
 
 -- | Get the first and last values for each instrument.  This can be used to
 -- show which controls the each instrument uses, which in turn can be used

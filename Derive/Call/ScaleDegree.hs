@@ -20,6 +20,7 @@ import qualified Data.Text as Text
 import Util.Control
 import qualified Derive.Args as Args
 import qualified Derive.Call.Tags as Tags
+import qualified Derive.Controls as Controls
 import qualified Derive.Derive as Derive
 import qualified Derive.Deriver.Internal as Internal
 import qualified Derive.ParseBs as ParseBs
@@ -52,11 +53,11 @@ scale_degree pitch_nn pitch_note = Derive.val_call
     call frac hz environ controls =
         Pitch.add_hz (hz + get_hz controls) <$> pitch_nn environ
             (if frac == 0 then controls
-                else Map.insertWith' (+) Score.c_chromatic (frac / 100)
+                else Map.insertWith' (+) Controls.chromatic (frac / 100)
                     controls)
 
 get_hz :: Score.ControlValMap -> Pitch.Hz
-get_hz = Map.findWithDefault 0 Score.c_hz
+get_hz = Map.findWithDefault 0 Controls.hz
 
 -- | Convert a note and @frac@ arg into a tracklang expression representing
 -- that note.

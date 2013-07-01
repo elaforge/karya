@@ -17,6 +17,7 @@ import qualified Data.Text as Text
 
 import Util.Control
 import qualified Util.Pretty as Pretty
+import qualified Derive.Controls as Controls
 import qualified Derive.ParseBs as Parse
 import qualified Derive.Score as Score
 import qualified Derive.TrackLang as TrackLang
@@ -81,15 +82,15 @@ parse_control_vals vals = case vals of
     -- only one way to do it, so only allow it for "".
     --
     -- The empty scale * defaults to the current scale id, because there's no
-    -- real meaning to an empty scale id.  However, Score.c_null is a valid
+    -- real meaning to an empty scale id.  However, Controls.null is a valid
     -- control like any other and is simply used as a special name by the
     -- control block call hack in "Derive.Call.Block".
     [TrackLang.VControl (TrackLang.LiteralControl (Score.Control ""))] ->
-        Right $ Control Nothing (Score.untyped Score.c_null)
+        Right $ Control Nothing (Score.untyped Controls.null)
     -- add % -> relative default control
     [TrackLang.VSymbol call, TrackLang.VControl
             (TrackLang.LiteralControl (Score.Control ""))] ->
-        Right $ Control (Just call) (Score.untyped Score.c_null)
+        Right $ Control (Just call) (Score.untyped Controls.null)
     _ -> Left $ untxt $ "control track must be one of [\"tempo\", control,\
         \ op control, %, op %, *scale, *scale #name, op #, op #name],\
         \ got: " <> Text.unwords (map TrackLang.show_val vals)
@@ -106,7 +107,7 @@ parse_control_vals vals = case vals of
 
     pitch_control :: TrackLang.Val -> Maybe (Maybe Score.Control)
     pitch_control (TrackLang.VPitchControl (TrackLang.LiteralControl cont))
-        | cont == Score.c_null = Just Nothing
+        | cont == Controls.null = Just Nothing
         | otherwise = Just (Just cont)
     pitch_control _ = Nothing
 
@@ -138,9 +139,9 @@ unparse_control_vals ctype = case ctype of
     where
     pitch_control = TrackLang.VPitchControl . TrackLang.LiteralControl
     control_val c
-        | c == Score.untyped Score.c_null = empty_control
+        | c == Score.untyped Controls.null = empty_control
         | otherwise = TrackLang.VSymbol $ TrackLang.Symbol (unparse_typed c)
-    empty_control = TrackLang.VControl $ TrackLang.LiteralControl Score.c_null
+    empty_control = TrackLang.VControl $ TrackLang.LiteralControl Controls.null
 
 -- * note tracks
 

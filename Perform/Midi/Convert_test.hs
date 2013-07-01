@@ -14,14 +14,14 @@ import Util.Test
 import qualified Midi.Key as Key
 import qualified Midi.Midi as Midi
 import qualified Ui.UiTest as UiTest
-import qualified Cmd.Instrument.Drums as Drums
 import qualified Cmd.Instrument.CUtil as CUtil
+import qualified Cmd.Instrument.Drums as Drums
+import qualified Derive.Controls as Controls
 import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.LEvent as LEvent
 import qualified Derive.Score as Score
 
-import qualified Perform.Midi.Control as Control
 import qualified Perform.Midi.Convert as Convert
 import qualified Perform.Midi.Instrument as Instrument
 import qualified Perform.Midi.Perform as Perform
@@ -59,18 +59,18 @@ test_convert_controls = do
             . Convert.convert_controls pressure Map.empty
             . DeriveTest.mkcontrols
     equal (f False [("dyn", [(0, 0.5)])])
-        ([(Control.c_velocity, Signal.constant 0.5)], Nothing)
+        ([(Controls.velocity, Signal.constant 0.5)], Nothing)
     equal (f True [("dyn", [(0, 0.5)])])
-        ([(Control.c_breath, Signal.constant 0.5)], Nothing)
+        ([(Controls.breath, Signal.constant 0.5)], Nothing)
     -- If both vel and dyn are present, dyn wins.  This is because calls
     -- should tend to use dyn, since its more generic.  But if the track is
     -- using vel directly, the the dyn information will be shadowed.
     equal (f False [("vel", [(0, 1)]), ("dyn", [(0, 0.5)])])
-        ([(Control.c_velocity, Signal.constant 0.5)],
-            Just (Score.Control "vel", Score.untyped (Signal.signal [(0, 1)])))
+        ([(Controls.velocity, Signal.constant 0.5)],
+            Just (Score.control "vel", Score.untyped (Signal.signal [(0, 1)])))
     -- No warning if it was null.
     equal (f False [("vel", []), ("dyn", [(0, 0.5)])])
-        ([(Control.c_velocity, Signal.constant 0.5)], Nothing)
+        ([(Controls.velocity, Signal.constant 0.5)], Nothing)
 
 noinst n = mkevent n "4c" "noinst"
 nopitch n = (mkevent n "4c" "s/1") { Score.event_pitch = mempty }

@@ -167,8 +167,8 @@ show_keyswitches (Instrument.KeyswitchMap keyswitches) = Text.unlines
 
 show_control_map :: Control.ControlMap -> Text
 show_control_map cmap =
-    Text.intercalate ", " [cont <> " (" <> showt num <> ")"
-        | (Control.Control cont, num) <- Map.assocs cmap]
+    Text.intercalate ", " [Score.control_name cont <> " (" <> showt num <> ")"
+        | (cont, num) <- Map.toList cmap]
 
 show_cmds :: [Cmd.Cmd] -> Text
 show_cmds [] = ""

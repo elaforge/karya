@@ -7,6 +7,9 @@ module Local.Instrument.Reaktor where
 import Util.Control
 import qualified Midi.CC as CC
 import qualified Derive.Attrs as Attrs
+import qualified Derive.Controls as Controls
+import qualified Derive.Score as Score
+
 import qualified Perform.Midi.Instrument as Instrument
 import qualified App.MidiInst as MidiInst
 
@@ -21,20 +24,31 @@ pb_range = (-96, 96)
 patches :: [Instrument.Patch]
 patches =
     -- My own patches.
-    [ MidiInst.pressure $ MidiInst.patch pb_range "fm1" [(4, "depth")]
+    [ MidiInst.pressure $ MidiInst.patch pb_range "fm1" [(4, c "depth")]
     , Instrument.text #= "Tunable comb filter that processes an audio signal." $
-        MidiInst.patch pb_range "comb" [(1, "mix"), (4, "fbk")]
+        MidiInst.patch pb_range "comb" [(1, c "mix"), (4, c "fbk")]
+
+    -- Factory patches.
+    , MidiInst.patch pb_range "lazerbass"
+        -- In 'parameter', replace bend input of 'Basic Pitch prepare' with 96,
+        -- replace 'M.tr' input of 'Global P/G' with 0.
+        -- Rebind ccs for c1 and c2.
+        [ (CC.cc14, Controls.mc1), (CC.cc15, Controls.mc2)
+        ]
+    , MidiInst.patch pb_range "steam"
+        -- Steampipe2, set pitch bend range to 96.
+        []
 
     -- Commercial patches.
 
     , MidiInst.patch pb_range "spark"
-        [ (4, "mc1"), (11, "mc2"), (1, "mc3")
-        , (CC.cc14, "cutoff")
-        , (CC.cc15, "q")
+        [ (4, Controls.mc1), (11, Controls.mc2), (1, Controls.mc3)
+        , (CC.cc14, Controls.fc)
+        , (CC.cc15, Controls.q)
         ]
     , MidiInst.patch pb_range "prism"
-        [ (1, "mc1")
-        , (11, "mc2")
+        [ (1, Controls.mc1)
+        , (11, Controls.mc2)
         ]
 
     -- Downloaded patches.
@@ -42,8 +56,8 @@ patches =
     , MidiInst.patch pb_range "shark"
         -- Downloaded from NI, Shark.ens.
         -- Modifications: pitchbend to 96, signal smoothers from 100ms to 10ms.
-        [ (4, "cutoff1"), (3, "q") -- 1st filter
-        , (10, "color")
+        [ (4, Controls.fc), (3, Controls.q) -- 1st filter
+        , (10, c "color")
         ]
 
     , Instrument.text #= "Herald brass physical model." $
@@ -53,18 +67,18 @@ patches =
         -- Flutter and vib are just macros for air and emb controls, but seem
         -- useful.
         MidiInst.pressure $ MidiInst.patch pb_range "herald"
-            [ (CC.mod, "vib")
-            , (CC.vib_speed, "vib-speed")
-            , (CC.cc14, "atk") -- tongue attack
-            , (CC.cc15, "buzz") -- tongue buzz
-            , (CC.cc16, "buzz-len") -- tongue buzz length
-            , (CC.cc17, "emb") -- lips embouchure
-            , (CC.cc18, "stiff") -- lips stiffness
-            -- , (CC.cc19, "noise") -- lips noise, not implemented
-            , (CC.cc20, "finger") -- bore finger time
+            [ (CC.mod, Controls.vib)
+            , (CC.vib_speed, Controls.vib_speed)
+            , (CC.cc14, c "atk") -- tongue attack
+            , (CC.cc15, c "buzz") -- tongue buzz
+            , (CC.cc16, c "buzz-len") -- tongue buzz length
+            , (CC.cc17, c "emb") -- lips embouchure
+            , (CC.cc18, c "stiff") -- lips stiffness
+            -- , (CC.cc19, c "noise") -- lips noise, not implemented
+            , (CC.cc20, c "finger") -- bore finger time
 
-            , (CC.cc21, "flut") -- flutter tongue
-            , (CC.cc22, "flut-speed") -- flutter tongue speed
+            , (CC.cc21, c "flut") -- flutter tongue
+            , (CC.cc22, c "flut-speed") -- flutter tongue speed
             ]
 
     , Instrument.text #= "Serenade bowed string physical model." $
@@ -83,15 +97,16 @@ patches =
         Instrument.keyswitches #=
             Instrument.cc_keyswitches CC.cc20 [(Attrs.pizz, 127), (mempty, 0)] $
         MidiInst.pressure $ MidiInst.patch (-24, 24) "serenade"
-            [ (CC.mod, "vib")
-            , (CC.vib_speed, "vib-speed")
-            , (CC.cc14, "bow-speed")
-            , (CC.cc15, "bow-force")
-            , (CC.cc16, "bow-pos")
-            , (CC.cc17, "string-jitter")
-            , (CC.cc18, "string-buzz")
-            , (CC.cc21, "pizz-tone")
-            , (CC.cc22, "pizz-time")
-            , (CC.cc23, "pizz-level")
+            [ (CC.mod, Controls.vib)
+            , (CC.vib_speed, Controls.vib_speed)
+            , (CC.cc14, c "bow-speed")
+            , (CC.cc15, c "bow-force")
+            , (CC.cc16, c "bow-pos")
+            , (CC.cc17, c "string-jitter")
+            , (CC.cc18, c "string-buzz")
+            , (CC.cc21, c "pizz-tone")
+            , (CC.cc22, c "pizz-time")
+            , (CC.cc23, c "pizz-level")
             ]
     ]
+    where c = Score.control

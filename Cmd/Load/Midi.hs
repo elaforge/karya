@@ -225,10 +225,9 @@ key_to_pitch (Midi.Key key) =
 -- dependency.
 cc_to_control :: Midi.Control -> Score.Control
 cc_to_control cc =
-    fromMaybe (Score.Control ("cc" <> showt cc)) (Map.lookup cc cc_control)
+    fromMaybe (Score.control ("cc" <> showt cc)) (Map.lookup cc cc_control)
     where
-    cc_control = Map.map convert $ Map.invert Control.universal_control_map
-    convert (Control.Control s) = Score.Control s
+    cc_control = Map.invert Control.universal_control_map
 
 show_val :: Word.Word8 -> Text -- the Midi types are aliases for Word8
 show_val val = ShowVal.show_hex_val $ d / 0x7f

@@ -6,12 +6,11 @@ module Cmd.InputNote_test where
 import qualified Data.Map as Map
 
 import Util.Test
-
 import qualified Midi.Midi as Midi
-
-import qualified Perform.Pitch as Pitch
 import qualified Cmd.CmdTest as CmdTest
 import qualified Cmd.InputNote as InputNote
+import qualified Derive.Controls as Controls
+import qualified Perform.Pitch as Pitch
 
 
 test_from_midi = do
@@ -43,7 +42,7 @@ test_from_midi = do
             Midi.ChannelPressure 127, Midi.ControlChange 1 127]
     equal (thread state (map chan msgs))
         [ Nothing
-        , Just (InputNote.Control (nid 10) InputNote.c_aftertouch 1)
+        , Just (InputNote.Control (nid 10) Controls.aftertouch 1)
         -- note id not remembered after aftertouch
         , Nothing, Nothing
         ]
@@ -51,9 +50,9 @@ test_from_midi = do
     equal (thread state (map chan (Midi.NoteOn 20 127 : msgs)))
         [ Just (InputNote.NoteOn (nid 20) (input 20) 1)
         , Just (InputNote.PitchChange (nid 20) (input 22))
-        , Just (InputNote.Control (nid 10) InputNote.c_aftertouch 1)
-        , Just (InputNote.Control (nid 20) InputNote.c_pressure 1)
-        , Just (InputNote.Control (nid 20) InputNote.c_mod 1)
+        , Just (InputNote.Control (nid 10) Controls.aftertouch 1)
+        , Just (InputNote.Control (nid 20) Controls.pressure 1)
+        , Just (InputNote.Control (nid 20) Controls.mod 1)
         ]
 
 test_to_midi = do

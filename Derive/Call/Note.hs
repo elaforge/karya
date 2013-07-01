@@ -38,6 +38,7 @@ import qualified Derive.Attrs as Attrs
 import qualified Derive.Call.BlockUtil as BlockUtil
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Call.Util as Util
+import qualified Derive.Controls as Controls
 import qualified Derive.Derive as Derive
 import qualified Derive.Deriver.Internal as Internal
 import qualified Derive.Environ as Environ
@@ -189,11 +190,11 @@ default_note config args = do
 --
 -- - Zero-duration notes ignore all this.
 --
--- - Legato notes last until the next note plus 'Score.c_legato_overlap'.
+-- - Legato notes last until the next note plus 'Controls.legato_overlap'.
 --
 -- - Staccato notes divide their duration by 2.
 --
--- - Normal notes multiply 'Score.c_sustain' and add 'Score.c_duration_abs',
+-- - Normal notes multiply 'Controls.sustain' and add 'Controls.duration_abs',
 -- which could be negative.  They clip at a minimum duration to keep from going
 -- negative.
 duration_attributes :: Config -> Score.ControlMap -> Score.Attributes
@@ -201,7 +202,7 @@ duration_attributes :: Config -> Score.ControlMap -> Score.Attributes
 duration_attributes config controls attrs start end next
     | start >= end = end -- don't mess with 0 dur or negative notes
     | config_legato config && has Attrs.legato =
-        next + lookup_time 0.1 Score.c_legato_overlap
+        next + lookup_time 0.1 Controls.legato_overlap
     | otherwise = start + max min_duration (dur * sustain + sustain_abs)
     where
     has = Score.attrs_contain attrs
@@ -209,9 +210,9 @@ duration_attributes config controls attrs start end next
     staccato = config_staccato config && has Attrs.staccato
     sustain = if staccato then sustain_ * 0.5 else sustain_
     sustain_abs = if staccato || not (config_sustain config)
-        then 0 else lookup_time 0 Score.c_sustain_abs
+        then 0 else lookup_time 0 Controls.sustain_abs
     sustain_ = if config_sustain config
-        then lookup_time 1 Score.c_sustain else 1
+        then lookup_time 1 Controls.sustain else 1
     lookup_time deflt control = maybe deflt
         (RealTime.seconds . Signal.at start . Score.typed_val)
         (Map.lookup control controls)
@@ -238,9 +239,9 @@ randomized controls start end
             end + RealTime.seconds (Num.restrict (-dur_r) 0 r2))
     where
     start_r = Score.typed_val $
-        Score.control controls Score.c_start_rnd start
+        Score.control_at controls Controls.start_rnd start
     dur_r = Score.typed_val $
-        Score.control controls Score.c_dur_rnd start
+        Score.control_at controls Controls.dur_rnd start
 
 -- | In a note track, the pitch signal for each note is constant as soon as
 -- the next note begins.  Otherwise, it looks like each note changes pitch

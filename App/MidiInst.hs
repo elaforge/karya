@@ -32,6 +32,7 @@ import qualified Cmd.Cmd as Cmd
 import Cmd.Cmd (SynthDesc)
 import qualified Derive.Derive as Derive
 import qualified Derive.Environ as Environ
+import qualified Derive.Score as Score
 import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.Midi.Control as Control
@@ -49,7 +50,7 @@ data Softsynth = Softsynth {
     name :: Instrument.SynthName
     , synth_doc :: Text
     , pb_range :: Control.PbRange
-    , controls :: [(Midi.Control, Text)]
+    , controls :: [(Midi.Control, Score.Control)]
     -- | Add explicit non-wildcard patches.
     , extra_patches :: [Patch]
     -- | Configure the wildcard patch.
@@ -64,7 +65,7 @@ type Patch = (Instrument.Patch, Code)
 -- patch, which can be modified if necessary by a passed in function.  In case
 -- some patches are special, you can also pass named patches in to be merged.
 softsynth :: Instrument.SynthName -> Text -> Control.PbRange
-    -> [(Midi.Control, Text)] -> Softsynth
+    -> [(Midi.Control, Score.Control)] -> Softsynth
 softsynth name doc pb_range controls =
     Softsynth name doc pb_range controls [] id empty_code
 
@@ -135,7 +136,7 @@ default_scale = environ Environ.scale . TrackLang.scale_id_to_sym
 
 -- | Make a patch, with a few parameters that tend to be unique per patch.
 patch :: Control.PbRange -> Instrument.InstrumentName
-    -> [(Midi.Control, Text)] -> Instrument.Patch
+    -> [(Midi.Control, Score.Control)] -> Instrument.Patch
 patch pb_range name controls =
     Instrument.patch (Instrument.instrument name controls pb_range)
 

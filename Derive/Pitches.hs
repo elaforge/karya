@@ -10,10 +10,10 @@
 module Derive.Pitches where
 import qualified Util.Num as Num
 import qualified Util.Pretty as Pretty
+import qualified Derive.Controls as Controls
 import qualified Derive.Derive as Derive
 import qualified Derive.PitchSignal as PitchSignal
 import qualified Derive.Scale as Scale
-import qualified Derive.Score as Score
 
 import qualified Perform.Pitch as Pitch
 import Types
@@ -36,9 +36,9 @@ interpolated low high dist = PitchSignal.pitch nn note
 -- | Transpose a pitch.
 transpose :: Pitch.Transpose -> PitchSignal.Pitch -> PitchSignal.Pitch
 transpose (Pitch.Chromatic v) =
-    PitchSignal.add_control Score.c_chromatic v
+    PitchSignal.add_control Controls.chromatic v
 transpose (Pitch.Diatonic v) =
-    PitchSignal.add_control Score.c_diatonic v
+    PitchSignal.add_control Controls.diatonic v
 
 -- | Convert a Pitch to a NoteNumber, throwing an exception if the pitch
 -- failed.

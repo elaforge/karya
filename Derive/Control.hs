@@ -18,7 +18,7 @@
     a warp, which is then combined via composition.  Pitch tracks always
     replace each other because adding together absolute pitches is undefined.
     Relative pitches can be added or multiplied, and this is expressed via
-    normal controls using transposition signals like 'Score.c_chromatic'.
+    normal controls using transposition signals like 'Controls.chromatic'.
 -}
 module Derive.Control where
 import qualified Data.ByteString.Char8 as Char8
@@ -41,6 +41,7 @@ import qualified Ui.TrackTree as TrackTree
 import qualified Derive.Cache as Cache
 import qualified Derive.Call as Call
 import qualified Derive.Call.Util as Util
+import qualified Derive.Controls as Controls
 import qualified Derive.Derive as Derive
 import qualified Derive.Deriver.Internal as Internal
 import qualified Derive.Environ as Environ
@@ -141,7 +142,7 @@ eval_track :: TrackTree.TrackEvents -> [TrackLang.Call]
 eval_track track expr ctype deriver = case ctype of
     TrackInfo.Tempo -> ifM Derive.is_lilypond_derive deriver $
         tempo_call track
-            (with_control_env Score.c_tempo $
+            (with_control_env Controls.tempo $
                 derive_control True True tempo_track expr)
             deriver
     TrackInfo.Control maybe_op control -> do
@@ -165,7 +166,7 @@ eval_track track expr ctype deriver = case ctype of
         evts = TrackTree.tevents_events track
 
 -- | Get the combining operator for this track.  Controls multiply by default,
--- unless they use the @set@ operator.  The exception is 'Score.c_null', which
+-- unless they use the @set@ operator.  The exception is 'Controls.null', which
 -- is used by control calls.  Since the control call emits signal which then
 -- goes in a control track, it would lead to multiplication being applied
 -- twice.  In addition, applying a relative signal tends to create a leading
@@ -174,7 +175,7 @@ lookup_op :: Score.Typed Score.Control -> Maybe TrackLang.CallId
     -> Derive.Deriver (Maybe Derive.ControlOp)
 lookup_op control op = case op of
     Nothing
-        | control == Score.untyped Score.c_null -> return Nothing
+        | control == Score.untyped Controls.null -> return Nothing
         | otherwise -> return $ Just Derive.op_mul
     Just sym
         | sym == TrackLang.Symbol "set" -> return Nothing
@@ -469,7 +470,7 @@ eval_signal track expr ctype subs
     -- They should all have TrackIds because of 'signal_wanted'.
     | Just track_id <- TrackTree.tevents_track_id track = case ctype of
         TrackInfo.Tempo -> do
-            (signal, logs) <- with_stack $ with_control_env Score.c_tempo $
+            (signal, logs) <- with_stack $ with_control_env Controls.tempo $
                 derive_control False True track expr
             write logs
             sub_sigs <- track_signal_ subs

@@ -9,6 +9,7 @@ import qualified System.IO as IO
 import Util.Control
 import Util.Test
 import qualified Midi.Midi as Midi
+import qualified Derive.Controls as Controls
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.LEvent as LEvent
 import qualified Derive.Score as Score
@@ -42,7 +43,7 @@ profile_control = do
     let len = 150 * 1000
     let sig = signal (zip [0, 0.25 .. len] (cycle vals))
         vals = map (/10) ([0..10] ++ [10, 9 .. 1])
-    let cont = (Control.Control Control.c_mod, sig)
+    let cont = (Controls.mod, sig)
     run_multiple cont $ \arg -> do
         let (msgs, warns) = Perform.perform_control
                 Control.empty_map 0 0 42 arg
@@ -54,10 +55,9 @@ profile_complex = do
     -- notes with pitches and multiple controls, but no multiplexing
     let pitch_at n = signal [(n, fromIntegral (floor n `mod` 64 + 32))]
         mod_sig = signal [(n, n) | n <- [0, 1/16 .. 15/16]]
-        mod_at n = (Control.Control Control.c_mod,
-            Signal.shift (RealTime.seconds n) mod_sig)
+        mod_at n = (Controls.mod, Signal.shift (RealTime.seconds n) mod_sig)
         velocity_at n = fromIntegral (floor n `mod` 64) / 64 + 1/8
-        vel_at n = (Control.c_velocity, signal [(n, velocity_at n)])
+        vel_at n = (Controls.velocity, signal [(n, velocity_at n)])
     let event n = mkevent n 1 [mod_at n, vel_at n] (pitch_at n)
     -- 16 ccs + 2 notes = 18
     let evts = take (event_count 18) (map event [0,4..])
@@ -80,10 +80,13 @@ profile_multiplex = do
         return $ show (length msgs) ++ " msgs"
 
 
+-- * implementation
+
 perform :: [Perform.Event] -> ([Midi.WriteMessage], [String])
 perform = split_logs . fst
     . Perform.perform Perform.initial_state midi_config . map LEvent.Event
 
+split_logs :: LEvent.LEvents d -> ([d], [String])
 split_logs = second (map DeriveTest.show_log) . LEvent.partition
 
 run_multiple :: a -> (a -> IO String) -> IO ()
@@ -92,8 +95,7 @@ run_multiple arg action = forM_ [1..6] $ \n -> do
     IO.hFlush IO.stdout
     print_timer (show n) id (action arg)
 
-
-mkevent :: Double -> Double -> [(Control.Control, Signal.Control)]
+mkevent :: Double -> Double -> [(Score.Control, Signal.Control)]
     -> Signal.NoteNumber -> Perform.Event
 mkevent start dur controls pitch_sig =
     Perform.Event inst1 (RealTime.seconds start)

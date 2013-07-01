@@ -42,16 +42,16 @@ t_all_insts :: [Text]
 t_all_insts = map Score.inst_name (Map.keys (Search.idx_instrument_tags index))
 
 z1_synth :: Instrument.Synth
-z1_synth = Instrument.synth "z1" "Korg Z1" [(13, "pe 1")]
+z1_synth = Instrument.synth "z1" "Korg Z1" [(13, Score.Control "pe 1")]
 
 z1_patches :: MidiDb.PatchMap Cmd.InstrumentCode
 z1_patches = fst $ MidiDb.patch_map $ map mkpatch
-    [ ("Mr. Delgado", "synth-lead", [(14, "delgado")])
+    [ ("Mr. Delgado", "synth-lead", [(14, Score.Control "delgado")])
     , ("Studio E.P.", "epiano", [])
     , ("Square Hollow", "synth-soft", [])
     , ("Dyna Expressive", "epiano", [])
     , ("Digi-Clear E.P.", "epiano", [])
-    , ("Comb Clav", "keyboard", [(15, "comb")])
+    , ("Comb Clav", "keyboard", [(15, Score.Control "comb")])
     , ("Pulse Clav", "keyboard", [])
     ]
 
@@ -61,7 +61,7 @@ fm8_synth = Instrument.synth "fm8" "NI FM8" []
 fm8_patches :: MidiDb.PatchMap Cmd.InstrumentCode
 fm8_patches = MidiDb.wildcard_patch_map (mkpatch ("none", "fm", []))
 
-mkpatch :: (Text, Text, [(Midi.Control, Text)])
+mkpatch :: (Text, Text, [(Midi.Control, Score.Control)])
     -> MidiDb.PatchCode Cmd.InstrumentCode
 mkpatch (name, cat, conts) = (patch, Cmd.empty_code)
     where

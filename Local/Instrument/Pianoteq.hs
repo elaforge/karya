@@ -4,6 +4,9 @@
 
 -- | Modartt's amazing Pianoteq softsynth.
 module Local.Instrument.Pianoteq where
+import qualified Midi.Midi as Midi
+import qualified Derive.Controls as Controls
+import qualified Derive.Score as Score
 import qualified App.MidiInst as MidiInst
 
 
@@ -11,10 +14,11 @@ load :: FilePath -> IO [MidiInst.SynthDesc]
 load _dir = return $ MidiInst.make $
     MidiInst.softsynth "ptq" "Modartt Pianoteq" (-24, 24) controls
 
+controls :: [(Midi.Control, Score.Control)]
 controls =
-    [ (64, "sustain-pedal") -- TODO should be a general control
-    , (67, "soft-pedal")
-    , (66, "sost-pedal")
-    , (69, "harmonic-pedal")
+    [ (64, Controls.pedal)
+    , (67, c "soft-pedal")
+    , (66, c "sost-pedal")
+    , (69, c "harmonic-pedal")
     -- whole bunch more
-    ]
+    ] where c = Score.control

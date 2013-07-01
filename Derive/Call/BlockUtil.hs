@@ -27,6 +27,7 @@ import qualified Ui.TrackTree as TrackTree
 
 import qualified Derive.Cache as Cache
 import qualified Derive.Control as Control
+import qualified Derive.Controls as Controls
 import qualified Derive.Derive as Derive
 import qualified Derive.Deriver.Internal as Internal
 import qualified Derive.LEvent as LEvent
@@ -91,10 +92,10 @@ derive_control_tree block_end tree = do
     -- There are an awful lot of things that can go wrong.  I guess that's why
     -- this is a hack.
     events <- derive_tree block_end tree
-    let lookup_control = Map.lookup Score.c_null . Score.event_controls
+    let lookup_control = Map.lookup Controls.null . Score.event_controls
     case LEvent.partition events of
         ([event], logs) -> case lookup_control event of
-            Nothing -> Derive.throw "control call didn't emit Score.c_null"
+            Nothing -> Derive.throw "control call didn't emit Controls.null"
             Just signal -> return $
                 -- The calling control itself will be providing the type since
                 -- types are at the level of the signal as a whole.

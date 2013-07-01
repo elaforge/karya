@@ -36,8 +36,8 @@ synth_name = "spicy"
 pb_range = (-3, 3)
 
 -- | WARNING: changing these while playing tends to crash the VST.
-controls :: [(Midi.Control, Text)]
-controls =
+controls :: [(Midi.Control, Score.Control)]
+controls = map (second Score.control)
     [ (20, "position") -- 0 for bridge, 1 for middle
     , (21, "finger") -- 0 for finger plucking, 1 for pick
     , (22, "inharmonicity")

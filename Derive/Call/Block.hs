@@ -24,6 +24,7 @@ import qualified Derive.Call as Call
 import qualified Derive.Call.BlockUtil as BlockUtil
 import qualified Derive.Call.Note as Note
 import qualified Derive.Call.Tags as Tags
+import qualified Derive.Controls as Controls
 import qualified Derive.Derive as Derive
 import qualified Derive.Deriver.Internal as Internal
 import qualified Derive.LEvent as LEvent
@@ -191,9 +192,9 @@ c_capture_null_control = Derive.generator1 BlockUtil.capture_null_control
     \ bottom of a control block."
     ) $ Sig.call0 $ \_ -> do
         sig <- Derive.require "no null control to capture"
-            =<< Derive.get_control Score.c_null
+            =<< Derive.get_control Controls.null
         stack <- Derive.get_stack
         return $! Score.empty_event
-            { Score.event_controls = Map.singleton Score.c_null sig
+            { Score.event_controls = Map.singleton Controls.null sig
             , Score.event_stack = stack
             }

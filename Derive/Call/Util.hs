@@ -33,6 +33,7 @@ import qualified Cmd.TimeStep as TimeStep
 import qualified Derive.Args as Args
 import qualified Derive.Call as Call
 import qualified Derive.Call.Tags as Tags
+import qualified Derive.Controls as Controls
 import qualified Derive.Derive as Derive
 import qualified Derive.Deriver.Internal as Internal
 import qualified Derive.Environ as Environ
@@ -165,9 +166,9 @@ to_transpose_signal default_type control = do
     Score.Typed typ sig <- to_signal control
     case typ of
         Score.Untyped -> return (sig, case default_type of
-            Diatonic -> Score.c_diatonic; Chromatic -> Score.c_chromatic)
-        Score.Chromatic -> return (sig, Score.c_chromatic)
-        Score.Diatonic -> return (sig, Score.c_diatonic)
+            Diatonic -> Controls.diatonic; Chromatic -> Controls.chromatic)
+        Score.Chromatic -> return (sig, Controls.chromatic)
+        Score.Diatonic -> return (sig, Controls.diatonic)
         _ -> Derive.throw $ "expected transpose type for "
             <> untxt (TrackLang.show_val control) <> " but got "
             <> Pretty.pretty typ
@@ -246,7 +247,7 @@ get_pitch pos = Derive.require ("pitch at " ++ Pretty.pretty pos)
 
 dynamic :: RealTime -> Derive.Deriver Signal.Y
 dynamic pos = maybe Derive.default_dynamic Score.typed_val <$>
-    Derive.control_at Score.c_dynamic pos
+    Derive.control_at Controls.dynamic pos
 
 with_pitch :: PitchSignal.Pitch -> Derive.Deriver a -> Derive.Deriver a
 with_pitch pitch deriver = do
@@ -260,7 +261,7 @@ with_symbolic_pitch note pos deriver = do
     with_pitch pitch deriver
 
 with_dynamic :: Signal.Y -> Derive.Deriver a -> Derive.Deriver a
-with_dynamic = with_constant Score.c_dynamic
+with_dynamic = with_constant Controls.dynamic
 
 with_constant :: Score.Control -> Signal.Y -> Derive.Deriver a
     -> Derive.Deriver a
@@ -497,7 +498,7 @@ equal_transformer args deriver = case Derive.passed_vals args of
         sig <- to_signal val
         Derive.with_control assignee sig deriver
     [control -> Just assignee, TrackLang.VNum val]
-        | assignee == Score.c_tempo -> set_tempo val
+        | assignee == Controls.tempo -> set_tempo val
         | otherwise ->
             Derive.with_control assignee (fmap Signal.constant val) deriver
     [pitch -> Just assignee, TrackLang.VPitchControl val] -> do
@@ -516,7 +517,7 @@ equal_transformer args deriver = case Derive.passed_vals args of
     control (TrackLang.VControl (TrackLang.LiteralControl c)) = Just c
     control _ = Nothing
     pitch (TrackLang.VPitchControl (TrackLang.LiteralControl c))
-        | c == Score.c_null = Just Nothing
+        | c == Controls.null = Just Nothing
         | otherwise = Just (Just c)
     pitch _ = Nothing
 

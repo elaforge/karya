@@ -263,7 +263,7 @@ get_controls = Internal.get_dynamic state_controls
 control_at :: Score.Control -> RealTime -> Deriver (Maybe Score.TypedVal)
 control_at cont pos = do
     controls <- get_controls
-    return $ fmap (Score.control_at pos) (Map.lookup cont controls)
+    return $ fmap (Score.control_val_at pos) (Map.lookup cont controls)
 
 untyped_control_at :: Score.Control -> RealTime -> Deriver (Maybe Signal.Y)
 untyped_control_at cont = fmap (fmap Score.typed_val) . control_at cont

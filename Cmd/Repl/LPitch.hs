@@ -19,6 +19,7 @@ import qualified Cmd.ModifyEvents as ModifyEvents
 import qualified Cmd.Perf as Perf
 import qualified Cmd.PitchTrack as PitchTrack
 
+import qualified Derive.Controls as Controls
 import qualified Derive.Scale as Scale
 import qualified Derive.Scale.Theory as Theory
 import qualified Derive.Scale.Twelve as Twelve
@@ -78,7 +79,7 @@ to_relative diatonic note_s =
                 scale <- Cmd.get_scale "LPitch.to_relative" scale_id
                 m_key <- Perf.get_key block_id (Just track_id)
                 State.set_track_title track_id $ add_control $
-                    if diatonic then Score.c_diatonic else Score.c_chromatic
+                    if diatonic then Controls.diatonic else Controls.chromatic
                 ModifyEvents.failable_texts
                     (relative_event diatonic scale m_key base)
                     block_id track_id events

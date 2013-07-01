@@ -16,6 +16,7 @@ import qualified Util.Seq as Seq
 
 import qualified Derive.Call as Call
 import qualified Derive.Call.ScaleDegree as ScaleDegree
+import qualified Derive.Controls as Controls
 import qualified Derive.Derive as Derive
 import qualified Derive.Environ as Environ
 import qualified Derive.PitchSignal as PitchSignal
@@ -117,7 +118,7 @@ non_transposing _ _ _ _ = Left Scale.InvalidTransposition
 
 standard_transposers :: Set.Set Score.Control
 standard_transposers = Set.fromList
-    [Score.c_chromatic, Score.c_diatonic, Score.c_hz]
+    [Controls.chromatic, Controls.diatonic, Controls.hz]
 
 -- ** note_to_call
 
@@ -149,8 +150,8 @@ note_to_call dmap degree_to_nn note =
             to_note (fromIntegral degree + chromatic + diatonic)
                 env controls
         where
-        chromatic = Map.findWithDefault 0 Score.c_chromatic controls
-        diatonic = Map.findWithDefault 0 Score.c_diatonic controls
+        chromatic = Map.findWithDefault 0 Controls.chromatic controls
+        diatonic = Map.findWithDefault 0 Controls.diatonic controls
     to_note degree env controls
         | frac == 0 = to_nn int
         | otherwise = do
@@ -166,8 +167,8 @@ note_to_call dmap degree_to_nn note =
         err = invalid_transposition diatonic chromatic
         transposed = Pitch.Degree $ round $
             fromIntegral degree + chromatic + diatonic
-        chromatic = Map.findWithDefault 0 Score.c_chromatic controls
-        diatonic = Map.findWithDefault 0 Score.c_diatonic controls
+        chromatic = Map.findWithDefault 0 Controls.chromatic controls
+        diatonic = Map.findWithDefault 0 Controls.diatonic controls
 
 lookup_key :: TrackLang.Environ -> Maybe Pitch.Key
 lookup_key = fmap Pitch.Key . TrackLang.maybe_val Environ.key

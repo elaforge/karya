@@ -24,6 +24,7 @@ import qualified Cmd.Keymap as Keymap
 import Derive.Attrs
 import qualified Derive.Call.Make as Make
 import qualified Derive.Call.Tags as Tags
+import qualified Derive.Controls as Controls
 import qualified Derive.Derive as Derive
 import qualified Derive.Environ as Environ
 import qualified Derive.Instrument.DUtil as DUtil
@@ -70,7 +71,8 @@ misc_patches :: [MidiInst.Patch]
 misc_patches = MidiInst.with_empty_code
     -- From the McGill sample library.
     [ MidiInst.pressure $ Instrument.patch $
-        Instrument.instrument "viol" [(CC.cc14, "fc"), (CC.cc15, "q")] pb_range
+        Instrument.instrument "viol"
+            [(CC.cc14, Controls.fc), (CC.cc15, Controls.q)] pb_range
     ]
 
 -- * hang

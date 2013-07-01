@@ -12,6 +12,7 @@ import qualified Data.Vector as Vector
 import Util.Control
 import qualified Util.Num as Num
 import qualified Derive.Call.ScaleDegree as ScaleDegree
+import qualified Derive.Controls as Controls
 import qualified Derive.Derive as Derive
 import qualified Derive.Environ as Environ
 import qualified Derive.Scale as Scale
@@ -169,8 +170,8 @@ pitch_nn fmt pitch env controls =
         if Num.in_range 0 127 nn then Right nn
             else Left Scale.InvalidTransposition
     where
-    chromatic = Map.findWithDefault 0 Score.c_chromatic controls
-    diatonic = Map.findWithDefault 0 Score.c_diatonic controls
+    chromatic = Map.findWithDefault 0 Controls.chromatic controls
+    diatonic = Map.findWithDefault 0 Controls.diatonic controls
     base_hz = Map.lookup just_base_control controls
 
 pitch_note :: TheoryFormat.Format -> Theory.Pitch -> Scale.PitchNote
@@ -182,8 +183,8 @@ pitch_note fmt pitch env controls =
                 (round (chromatic + diatonic)) pitch
         Right $ TheoryFormat.show_pitch fmt key transposed
     where
-    chromatic = Map.findWithDefault 0 Score.c_chromatic controls
-    diatonic = Map.findWithDefault 0 Score.c_diatonic controls
+    chromatic = Map.findWithDefault 0 Controls.chromatic controls
+    diatonic = Map.findWithDefault 0 Controls.diatonic controls
 
 scale_degree :: Pitch.Hz -> Scale.PitchNn -> Scale.PitchNote -> Derive.ValCall
 scale_degree = ScaleDegree.scale_degree_just named_intervals

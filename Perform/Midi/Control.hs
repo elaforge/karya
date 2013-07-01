@@ -6,41 +6,23 @@
 {- | Support for MIDI controls.
 -}
 module Perform.Midi.Control where
-import qualified Control.DeepSeq as DeepSeq
 import qualified Data.Map as Map
-import qualified Data.Text as Text
 
 import Util.Control
 import qualified Util.Num as Num
-import qualified Util.Pretty as Pretty
 import qualified Midi.Midi as Midi
+import qualified Derive.Controls as Controls
 import qualified Derive.Score as Score
 import qualified Perform.Signal as Signal
 
 
--- | A control is an abstract parameter that influences derivation.  Some of
--- them affect performance and will be rendered as MIDI controls or note
--- parameters or whatever, while others may affect derivation (e.g. tempo) and
--- won't be seen by the backend at all.
---
--- This is the MIDI performer's version of Control.  The more general
--- Score.Control is converted along with Score.Events in
--- Perform.Midi.Convert.
-newtype Control = Control Text deriving (Eq, Ord, Show, Read, DeepSeq.NFData)
+type ControlMap = Map.Map Score.Control Midi.Control
 
-instance Pretty.Pretty Control where
-    pretty (Control s) = untxt $ Text.cons '%' s
-
-type ControlMap = Map.Map Control Midi.Control
-
-control_map :: [(Midi.Control, Text)] -> ControlMap
-control_map cmap = Map.fromList [(Control c, fromIntegral n) | (n, c) <- cmap]
+control_map :: [(Midi.Control, Score.Control)] -> ControlMap
+control_map cmap = Map.fromList [(c, fromIntegral n) | (n, c) <- cmap]
 
 empty_map :: ControlMap
 empty_map = control_map []
-
-control_map_names :: ControlMap -> [Text]
-control_map_names cmap = [name | Control name <- Map.keys cmap]
 
 
 -- | Pitchbend range in tempered semitones below and above unity.  The first
@@ -48,33 +30,33 @@ control_map_names cmap = [name | Control name <- Map.keys cmap]
 type PbRange = (Int, Int)
 
 -- | Convert from a control to a function that creates its MIDI message.
-control_constructor :: ControlMap -> Control -> Midi.Key
+control_constructor :: ControlMap -> Score.Control -> Midi.Key
     -> Maybe (Signal.Y -> Midi.ChannelMessage)
 control_constructor cmap cont key
     | Just cc <- Map.lookup cont cmap =
         Just $ Midi.ControlChange cc . val_to_cc
     | Just cc <- Map.lookup cont universal_control_map =
         Just $ Midi.ControlChange cc . val_to_cc
-    | cont == c_pressure = Just $ Midi.ChannelPressure . val_to_cc
-    | cont == c_aftertouch = Just $ Midi.Aftertouch key . val_to_cc
+    | cont == Controls.pressure = Just $ Midi.ChannelPressure . val_to_cc
+    | cont == Controls.aftertouch = Just $ Midi.Aftertouch key . val_to_cc
     | otherwise = Nothing
 
 -- | True if the given control will be used by the MIDI performer.
 -- Takes a Score.Control because being a MIDI control is a precondition for
 -- conversion into 'Control'.
 is_midi_control :: ControlMap -> Score.Control -> Bool
-is_midi_control cmap control = cont == c_velocity
-    || Map.member cont universal_control_map
-    || Map.member cont cmap
-    || cont == c_pressure || cont == c_aftertouch
-    where cont = convert_control control
+is_midi_control cmap control = control == Controls.velocity
+    || Map.member control universal_control_map
+    || Map.member control cmap
+    || control == Controls.pressure || control == Controls.aftertouch
 
 -- | True for controls that must have a channel to themselves.
 -- Midi controls are a subset of what I consider controls, since
 -- I include all variable note parameters.
-is_channel_control :: Control -> Bool
+is_channel_control :: Score.Control -> Bool
     -- Don't include c_pitch because that is checked for sharing separately.
-is_channel_control cont = cont `notElem` [c_velocity, c_aftertouch]
+is_channel_control cont =
+    cont `notElem` [Controls.velocity, Controls.aftertouch]
 
 control_range :: (Signal.Y, Signal.Y)
 control_range = (0, 1)
@@ -98,22 +80,6 @@ pb_from_nn pb_range key val
     (low, high) = (fromIntegral (fst pb_range), fromIntegral (snd pb_range))
     bend = Num.clamp low high (val - Midi.from_key key)
 
--- * built in controls
-
-convert_control :: Score.Control -> Control
-convert_control (Score.Control c) = Control c
-
--- ** non-cc controls
-
-c_velocity :: Control
-c_velocity = convert_control Score.c_velocity
-
-c_aftertouch :: Control
-c_aftertouch = Control "aftertouch"
-
-c_pressure :: Control
-c_pressure = Control "pressure"
-
 -- ** cc controls
 
 -- | This map is used by both input and outpt.  On input, InputNote maps
@@ -128,7 +94,8 @@ c_pressure = Control "pressure"
 -- that every instrument will respond to.  Of course it may override some of
 -- these names if it wishes.
 universal_control_map :: ControlMap
-universal_control_map = control_map $ [(n, "cc" <> showt n) | n <- [0..127]] ++
+universal_control_map = control_map $ map (second Score.Control) $
+    [(n, "cc" <> showt n) | n <- [0..127]] ++
     [ (1, "mod")
     , (2, "breath")
     , (4, "foot")
@@ -140,13 +107,6 @@ universal_control_map = control_map $ [(n, "cc" <> showt n) | n <- [0..127]] ++
     , (66, "sost-pedal")
     , (67, "soft-pedal")
     ]
-
-c_breath :: Control
-c_breath = Control "breath"
-
--- Pull one out as a symbol for tests.
-c_mod :: Text
-c_mod = "mod"
 
 -- * util
 

@@ -25,6 +25,7 @@ import qualified Derive.Call.Make as Make
 import qualified Derive.Call.Note as Note
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Call.Util as Util
+import qualified Derive.Controls as Controls
 import qualified Derive.Derive as Derive
 import qualified Derive.ParseBs as ParseBs
 import qualified Derive.Score as Score
@@ -71,7 +72,7 @@ c_legato :: Derive.NoteCall
 c_legato = Derive.stream_generator "legato" (Tags.attr <> Tags.subs <> Tags.ly)
     ("Play the transformed notes legato.  This sets `+legato` on all notes\
     \ except the last one. The default note deriver will respond to `+legato`\
-    \ and " <> ShowVal.doc_val Score.c_legato_overlap <> "."
+    \ and " <> ShowVal.doc_val Controls.legato_overlap <> "."
     ) $ Sig.call0 $ init_attr Attrs.legato
 
 c_ly_slur :: Derive.NoteCall
@@ -106,7 +107,7 @@ attr_legato detach = Note.place . concat . map apply <=< Note.sub_events
         Just (pre, post) -> Note.map_events (Util.add_attrs Attrs.legato) $
             pre ++ [Note.map_event shorten post]
         Nothing -> []
-    shorten = Util.with_constant Score.c_sustain_abs
+    shorten = Util.with_constant Controls.sustain_abs
         (- RealTime.to_seconds detach)
 
 -- | Apply the attributes to the init of the sub-events, i.e. every one but the
@@ -124,6 +125,6 @@ init_attr attr = Note.place . concatMap add <=< Note.sub_events
 c_detach :: Derive.NoteCall
 c_detach = Make.transform_notes "detach" mempty
     ("Detach the notes slightly, by setting "
-        <> ShowVal.show_val Score.c_sustain_abs <> ".")
+        <> ShowVal.show_val Controls.sustain_abs <> ".")
     (defaulted "time" 0.15 "Set control to `-time`.") $ \time ->
-        Util.with_constant Score.c_sustain_abs (-time)
+        Util.with_constant Controls.sustain_abs (-time)

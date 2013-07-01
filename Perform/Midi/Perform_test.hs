@@ -18,6 +18,7 @@ import qualified Midi.Key as Key
 import qualified Midi.Midi as Midi
 import Midi.Midi (ChannelMessage(..))
 
+import qualified Derive.Controls as Controls
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.LEvent as LEvent
 import qualified Derive.Score as Score
@@ -95,7 +96,7 @@ test_perform = do
         ]
 
     -- velocity curve shows up in NoteOns and NoteOffs
-    let c_vel = (Control.c_velocity, linear_interp [(0, 1), (4, 0)])
+    let c_vel = (Controls.velocity, linear_interp [(0, 1), (4, 0)])
     msgs <- f
         [ (inst1, "a", 0, 2, [c_vel])
         , (inst1, "b", 2, 2, [c_vel])
@@ -147,7 +148,7 @@ test_aftertouch = do
                 . Seq.sort_on Perform.event_start . map event
         event (pitch, start, dur, aftertouch) = mkevent
             (inst1, pitch, start, dur,
-                [(Control.c_aftertouch, Signal.signal aftertouch)])
+                [(Controls.aftertouch, Signal.signal aftertouch)])
     equal (f [("a", 0, 1, [(0, 1)]), ("b", 0, 1, [(0, 0)])])
         [ (0, 0, PitchBend 0)
         , (0, 0, Aftertouch Key.c4 127)
@@ -164,7 +165,7 @@ test_controls_after_note_off = do
     let f = map extract . fst . perform midi_config2 . map mkevent
         extract msg = (start, m)
             where (start, _, m) = extract_msg msg
-        sig xs = [(vol_cc, Signal.signal xs)]
+        sig xs = [(Controls.vol, Signal.signal xs)]
     let msgs = f
             [ (inst2, "a", 0, 1, sig [(0, 1), (1.95, 0.5)])
             , (inst2, "b", 2, 1, sig [(2, 1)])
@@ -219,7 +220,7 @@ test_control_lead_time = do
         , (8 - gap, 1, NoteOff 61 100)
         ], [])
 
-    let vol start = (vol_cc, linear_interp [(start, 0), (start + 2, 1)])
+    let vol start = (Controls.vol, linear_interp [(start, 0), (start + 2, 1)])
     equal (f [("a", 0, 4, []), ("b", 2, 4, [vol 2])])
         ([(0, 0, PitchBend 0)
         , (0, 0, NoteOn 60 100)
@@ -271,25 +272,25 @@ test_control_lead_time = do
         ], [])
 
 -- Bad signal that goes over 1 at 1 and 3.
-badsig :: Control.Control -> (Control.Control, Signal.Control)
+badsig :: Score.Control -> (Score.Control, Signal.Control)
 badsig cont = (cont, linear_interp [(0, 0), (1.5, 1.5), (2.5, 0.5), (4, 2)])
 
 test_clip_warns = do
-    let events = [mkevent (inst1, "a", 0, 4, [badsig vol_cc])]
+    let events = [mkevent (inst1, "a", 0, 4, [badsig Controls.vol])]
         (msgs, warns) = perform midi_config1 events
     -- TODO check that warnings came at the right places
     -- check that the clips happen at the same places as the warnings
     equal warns
-        [ "Perform: %cc7 clipped: (1.5s, 2.5s)"
+        [ "Perform: %vol clipped: (1.5s, 2.5s)"
         -- TODO this used to be (3.5, 4) but I can't be bothered to find out
         -- why it changed when RealTime became integral
-        , "Perform: %cc7 clipped: (4s, 4s)"
+        , "Perform: %vol clipped: (4s, 4s)"
         ]
     check (all_msgs_valid msgs)
 
 test_vel_clip_warns = do
     let (msgs, warns) = perform midi_config1 $ mkevents_inst
-            [("a", 0, 4, [badsig Control.c_velocity])]
+            [("a", 0, 4, [badsig Controls.velocity])]
     equal warns ["Perform: %vel clipped: (0s, 4s)"]
     check (all_msgs_valid msgs)
 
@@ -515,7 +516,7 @@ test_drop_dup_controls = do
 
 test_perform_control = do
     -- Bad signal that goes over 1 in two places.
-    let sig = (vol_cc, linear_interp
+    let sig = (Controls.vol, linear_interp
             [(0, 0), (1, 1.5), (2, 0), (2.5, 0), (3, 2)])
         (msgs, warns) = Perform.perform_control Control.empty_map
             (secs 0) (secs 0) 42 sig
@@ -707,7 +708,7 @@ secs = RealTime.seconds
 --
 -- (inst, text, start, dur, controls)
 type EventSpec = (Instrument.Instrument, String, RealTime, RealTime, [Control])
-type Control = (Control.Control, Signal.Control)
+type Control = (Score.Control, Signal.Control)
 
 mkevent :: EventSpec -> Perform.Event
 mkevent (inst, pitch, start, dur, controls) =
@@ -738,7 +739,7 @@ set_inst inst event = event { Perform.event_instrument = inst }
 
 mkcontrols :: [(Text, [(Signal.X, Signal.Y)])] -> Perform.ControlMap
 mkcontrols csigs = Map.fromList
-    [(Control.Control c, Signal.signal sig) | (c, sig) <- csigs]
+    [(Score.control c, Signal.signal sig) | (c, sig) <- csigs]
 
 -- | Make a signal with linear interpolation between the points.
 linear_interp :: [(Signal.X, Signal.Y)] -> Signal.Control
@@ -750,9 +751,6 @@ linear_interp = Signal.signal . interpolate
         | otherwise = [(x, TimeVector.y_at x0 y0 x1 y1 x)
             | x <- Seq.range_end x0 (x1-1) 1] ++ interpolate rest
     interpolate val = val
-
-vol_cc :: Control.Control
-vol_cc = Control.Control "cc7"
 
 inst1 = mkinst "inst1"
 inst2 = mkinst "inst2"

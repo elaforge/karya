@@ -151,4 +151,4 @@ normalize_tags =
     Seq.drop_dups id . List.sort . map (Text.toLower *** Text.toLower)
 
 control_tags :: Control.ControlMap -> [Instrument.Tag]
-control_tags = map ((,) Tag.control) . Control.control_map_names
+control_tags = map ((,) Tag.control) . map Score.control_name . Map.keys

@@ -24,7 +24,7 @@ import qualified Cmd.InputNote as InputNote
 import qualified Cmd.Keymap as Keymap
 import qualified Cmd.Msg as Msg
 
-import qualified Derive.Score as Score
+import qualified Derive.Controls as Controls
 import qualified Perform.Midi.Instrument as Instrument
 import qualified Perform.Pitch as Pitch
 
@@ -138,7 +138,7 @@ key_to_input (KbdMap note_map per_octave) is_pressure octave is_down
             input -> [input]
         where
         adjusted = input + fromIntegral (octave + octave_offset) * per_octave
-    breath note_id val = InputNote.Control note_id Score.c_breath val
+    breath note_id val = InputNote.Control note_id Controls.breath val
 key_to_input _ _ _ _ _ = Nothing
 
 kbd_input_keys :: Set.Set Char
