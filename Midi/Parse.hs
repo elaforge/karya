@@ -3,7 +3,6 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 module Midi.Parse (decode, encode) where
-import Data.Bits
 import qualified Data.ByteString as B
 import qualified Data.ByteString.Unsafe as Unsafe
 import Data.Word (Word8)
@@ -25,7 +24,7 @@ decode bytes = case B.length bytes of
 decode3 :: Word8 -> Word8 -> Word8 -> B.ByteString -> Message
 decode3 status d1 d2 bytes
     | st == 0xf && chan < 0x8 = CommonMessage common_msg
-    | st == 0xf = RealtimeMessage realtime_msg
+    | st == 0xf = RealtimeMessage (realtime_msg d1)
     | st == 0xb && d1 >= 0x78 = ChannelMessage chan channel_mode_msg
     | st >= 0x8 = ChannelMessage chan channel_msg
     | otherwise = UnknownMessage status d1 d2
@@ -41,7 +40,7 @@ decode3 status d1 d2 bytes
         0xc -> ProgramChange d1
         0xd -> ChannelPressure d1
         0xe -> PitchBend (decode_pb d1 d2)
-        _ -> error $ "not reached: " ++ show st
+        _ -> error $ "Midi decode: not reached: " ++ show st
     channel_mode_msg = case d1 of
         0x78 -> AllSoundOff
         0x79 -> ResetAllControls
@@ -56,8 +55,8 @@ decode3 status d1 d2 bytes
         0x6 -> TuneRequest
         0x7 -> EOX -- this shouldn't happen by itself
         _ -> UndefinedCommon chan
-    realtime_msg = case chan of
-        0x8 -> TimingClock
+    realtime_msg byte = case chan of
+        0x8 -> TimingClock (decode_timing byte)
         0xa -> Start
         0xb -> Continue
         0xc -> Stop
@@ -79,21 +78,24 @@ encode (ChannelMessage chan msg) = B.pack $ join1 $ case msg of
         ResetAllControls -> [0xb, 0x79, 0]
         LocalControl on -> [0xb, 0x7a, if on then 0xff else 0]
         AllNotesOff -> [0xb, 0x7b, 0]
-        _ -> error $ "unknown ChannelMessage " ++ show msg
+        _ -> error $ "Midi encode: unknown ChannelMessage " ++ show msg
     where
     join1 (b:bs) = join4 b chan : bs
     join1 [] = []
 
+encode (RealtimeMessage (TimingClock timing)) =
+    B.pack [0xf8, encode_timing timing]
 encode (RealtimeMessage msg) = B.pack [join4 0xf st]
     where
     st = case msg of
-        TimingClock -> 0x8
+        TimingClock _ -> 0x8 -- unreached due to match above
         Start -> 0xa
         Continue -> 0xb
         Stop -> 0xc
         ActiveSense -> 0xe
         Reset -> 0xf
-        _ -> error $ "unknown RealtimeMessage " ++ show msg
+        UndefinedRealtime _ ->
+            error $ "Midi encode: unknown RealtimeMessage " ++ show msg
 
 encode (CommonMessage msg) = case msg of
     SystemExclusive manuf bytes -> B.append (B.pack [0xf0, manuf]) bytes
@@ -102,10 +104,19 @@ encode (CommonMessage msg) = case msg of
     SongSelect d -> B.pack [0xf3, d]
     TuneRequest -> B.pack [0xf6]
     EOX -> B.pack [0xf7] -- this should have been in SystemExclusive
-    _ -> error $ "unknown CommonMessage " ++ show msg
+    _ -> error $ "Midi encode: unknown CommonMessage " ++ show msg
 
 encode (UnknownMessage st d1 d2) =
-    error $ "UnknownMessage: " ++ show (st, d1, d2)
+    error $ "Midi encode: UnknownMessage: " ++ show (st, d1, d2)
+
+-- * util
+
+decode_timing :: Word8 -> Timing
+decode_timing byte = Timing (toEnum (fromIntegral frag)) val
+    where (frag, val) = split4 byte
+
+encode_timing :: Timing -> Word8
+encode_timing (Timing frag val) = join4 (fromIntegral (fromEnum frag)) val
 
 -- | I map a 2s complement range to inclusive -1--1, so this is a little
 -- tricky.
@@ -118,11 +129,3 @@ decode_pb d1 d2
 encode_pb :: PitchBendValue -> (Word8, Word8)
 encode_pb v = split14 (floor (v*m + 0x2000))
     where m = if v < 0 then 0x2000 else 0x2000 - 1
-
--- | Split a Word8 into (msb, lsb) nibbles, and join back.
-split4 :: Word8 -> (Word8, Word8)
-split4 word = (shiftR word 4 .&. 0xf, word .&. 0xf)
-
--- | Join msb and lsb into a Word8.
-join4 :: Word8 -> Word8 -> Word8
-join4 d1 d2 = (shiftL d1 4 .&. 0xf0) .|. (d2 .&. 0x0f)

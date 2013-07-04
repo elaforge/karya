@@ -32,9 +32,11 @@ module Midi.Midi (
     , PitchBendValue, Manufacturer
     , Key(..), from_key, to_key
     , ChannelMessage(..), CommonMessage(..), RealtimeMessage(..)
+    , Timing(..), TimingRate(..), SmpteFragment(..), Smpte(..)
+    , mtc_sync, mtc_fragments
 
     -- * util
-    , join14, split14
+    , join14, split14, join4, split4
     -- ** manufacturer
     , manufacturer_name
     , yamaha_code, korg_code
@@ -310,8 +312,8 @@ data CommonMessage =
     | UndefinedCommon !Word8
     deriving (Eq, Ord, Show, Read, Generics.Typeable)
 
-data RealtimeMessage = TimingClock | Start | Continue | Stop | ActiveSense
-    | Reset | UndefinedRealtime !Word8
+data RealtimeMessage = TimingClock !Timing | Start | Continue | Stop
+    | ActiveSense | Reset | UndefinedRealtime !Word8
     deriving (Eq, Ord, Show, Read, Generics.Typeable)
 
 instance DeepSeq.NFData Message where rnf _ = ()
@@ -326,6 +328,48 @@ instance Pretty.Pretty ChannelMessage where
         Aftertouch key vel -> "Aftertouch" <+> format key <+> format vel
         _ -> Pretty.text (show msg)
 
+-- ** MTC
+
+data Timing = Timing !SmpteFragment !Word8 -- actually Word4
+    deriving (Eq, Ord, Show, Read)
+data TimingRate = Frame24 | Frame25 | Frame29 | Frame30
+    deriving (Enum, Show)
+data SmpteFragment = FrameLsb | FrameMsb | SecondLsb | SecondMsb
+    | MinuteLsb | MinuteMsb | HourLsb | RateHourMsb
+    deriving (Enum, Eq, Ord, Show, Read)
+
+data Smpte = Smpte {
+    hours :: !Word8
+    , minutes :: !Word8
+    , seconds :: !Word8
+    , frames :: !Word8
+    , subframes :: !Word8
+    } deriving (Eq, Show)
+
+-- | Sent full MTC sync code.
+mtc_sync :: Smpte -> Message
+mtc_sync (Smpte hours mins secs frames _ ) =
+    CommonMessage $ SystemExclusive 0x7f $
+        ByteString.pack [chan, 01, 01, hours, mins, secs, frames, eox_byte]
+    where
+    chan = 0x7f -- send to all devices
+
+-- | These should be transmitted once each quarter frame, so 96--120 times per
+-- second.
+mtc_fragments :: TimingRate -> Smpte -> [Timing]
+mtc_fragments rate (Smpte hours minutes seconds frames _) = map (uncurry Timing)
+    [ (FrameLsb, frame_lsb), (FrameMsb, frame_msb)
+    , (SecondLsb, sec_lsb), (SecondMsb, sec_msb)
+    , (MinuteLsb, min_lsb), (MinuteMsb, min_msb)
+    , (HourLsb, hour_lsb), (RateHourMsb, rate_code .|. hour_msb)
+    ]
+    where
+    (frame_msb, frame_lsb) = split4 frames
+    (sec_msb, sec_lsb) = split4 seconds
+    (min_msb, min_lsb) = split4 minutes
+    (hour_msb, hour_lsb) = split4 hours
+    rate_code = shiftL (fromIntegral (fromEnum rate)) 1
+
 -- * util
 
 -- | Split an Int into two 7 bit words.
@@ -336,6 +380,14 @@ split14 i = (fromIntegral (i .&. 0x7f), fromIntegral (shiftR i 7 .&. 0x7f))
 join14 :: Word8 -> Word8 -> Int
 join14 lsb msb =
     shiftL (fromIntegral msb .&. 0x7f) 7 .|. (fromIntegral lsb .&. 0x7f)
+
+-- | Split a Word8 into (msb, lsb) nibbles, and join back.
+split4 :: Word8 -> (Word8, Word8)
+split4 word = (shiftR word 4 .&. 0xf, word .&. 0xf)
+
+-- | Join msb and lsb into a Word8.
+join4 :: Word8 -> Word8 -> Word8
+join4 d1 d2 = (shiftL d1 4 .&. 0xf0) .|. (d2 .&. 0x0f)
 
 -- ** manufacturer
 
