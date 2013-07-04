@@ -6,6 +6,8 @@
 -- | Cmds to modify cmd state.
 module Cmd.Repl.LCmd where
 import Util.Control
+import qualified Midi.Midi as Midi
+import qualified Midi.Mmc as Mmc
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.TimeStep as TimeStep
 import qualified Perform.RealTime as RealTime
@@ -48,6 +50,15 @@ set_play_step = do
 set_play_multiplier :: Double -> Cmd.CmdL ()
 set_play_multiplier d = Cmd.modify_play_state $ \st ->
     st { Cmd.state_play_multiplier = RealTime.seconds d }
+
+-- * mmc
+
+set_mmc :: Text -> Mmc.DeviceId -> Cmd.CmdL ()
+set_mmc dev dev_id = Cmd.modify_play_state $ \st ->
+    st { Cmd.state_mmc = Just $ Cmd.MmcConfig (Midi.write_device dev) dev_id }
+
+unset_mmc :: Cmd.CmdL ()
+unset_mmc = Cmd.modify_play_state $ \st -> st { Cmd.state_mmc = Nothing }
 
 -- * undo
 

@@ -8,6 +8,7 @@ module Midi.TestMidi where
 import qualified Control.Concurrent as Concurrent
 import qualified Control.Concurrent.STM as STM
 import Control.Monad
+import qualified Numeric
 
 import qualified Data.ByteString as ByteString
 import qualified Data.Time as Time
@@ -30,6 +31,7 @@ import qualified Midi.JackMidi as MidiDriver
 
 import qualified Midi.Interface as Interface
 import qualified Midi.Midi as Midi
+import qualified Midi.Mmc as Mmc
 import qualified Midi.Parse
 
 import qualified Perform.RealTime as RealTime
@@ -81,9 +83,13 @@ test_midi (Right interface) = do
             putStrLn "playing melody + thru"
             (write_msg, read_msg) <- open True rdevs (Just out_dev)
             thru_melody interface write_msg read_msg
+        ["mmc", msg, out_dev] -> do
+            (write_msg, _) <- open True [] (Just out_dev)
+            mmc write_msg msg
         ("monitor" : mdevs@(_:_)) -> do
             putStrLn $ "monitoring: " ++ Seq.join ", " mdevs
-            (_, read_msg) <- open True (map Midi.read_device mdevs) Nothing
+            (_, read_msg) <-
+                open True (map (Midi.read_device . txt) mdevs) Nothing
             monitor read_msg
         ["spam", out_dev, n_str] -> do
             putStrLn $ "spamming " ++ n_str ++ " msgs"
@@ -96,7 +102,7 @@ test_midi (Right interface) = do
             uncurry program_change =<< open False [] (Just out_dev)
         ["test", loopback] -> do
             (write_msg, read_msg) <- open False
-                [Midi.read_device loopback] (Just loopback)
+                [Midi.read_device (txt loopback)] (Just loopback)
             run_tests interface write_msg read_msg
         ["thru", out_dev] -> do
             putStrLn "playing thru"
@@ -114,7 +120,7 @@ test_midi (Right interface) = do
             putStrLn $ "rdev not found: " ++ show missing
         let read_msg = (if blocking then blocking_get else nonblocking_get)
                 (Interface.read_channel interface)
-        case Midi.write_device <$> maybe_wdev of
+        case Midi.write_device . txt <$> maybe_wdev of
             Nothing -> return
                 (const (error "write device not opened"), read_msg)
             Just wdev -> do
@@ -163,7 +169,7 @@ record_sysex :: ReadMsg -> IO ()
 record_sysex read_msg = loop 0
     where
     loop n = do
-        Just (Midi.ReadMessage (Midi.ReadDevice _) _ msg) <- read_msg
+        Just (Midi.ReadMessage _ _ msg) <- read_msg
         wrote <- case msg of
             Midi.CommonMessage (Midi.SystemExclusive manuf bytes) -> do
                 let fn = "record-sysex" ++ show n ++ ".syx"
@@ -187,7 +193,7 @@ send_sysex write_msg fname = do
 
 monitor :: ReadMsg -> IO ()
 monitor read_msg = forever $ do
-    Just (Midi.ReadMessage (Midi.ReadDevice dev) ts msg) <- read_msg
+    Just (Midi.ReadMessage dev ts msg) <- read_msg
     print (ts, dev, msg)
 
 
@@ -219,6 +225,26 @@ notes start_ts = concat
     [[(ts, note_on nn), (ts + RealTime.seconds 0.4, note_off nn)]
         | (ts, nn) <- zip (Seq.range_ start_ts (RealTime.seconds 0.5)) score]
     where score = [53, 55 .. 61]
+
+-- * mmc
+
+mmc :: WriteMsg -> String -> IO ()
+mmc write_msg msg = write_msg (0, Mmc.encode 127 mmc_msg)
+    where
+    mmc_msg
+        | Just smpte <- parse_smpte msg = Mmc.Goto smpte
+        | msg == "play" = Mmc.Play
+        | msg == "stop" = Mmc.Stop
+        | otherwise = error $ "unknown msg: " ++ msg
+
+parse_smpte :: String -> Maybe Mmc.Smpte
+parse_smpte txt = do
+    [h, m, s] <- Just $ Seq.split ":" txt
+    Mmc.Smpte <$> int h <*> int m <*> int s <*> return 0 <*> return 0
+    where
+    int s = case Numeric.readDec s of
+        (n, "") : _ -> Just n
+        _ -> Nothing
 
 
 -- * spam

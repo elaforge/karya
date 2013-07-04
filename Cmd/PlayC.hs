@@ -99,9 +99,9 @@ set_all_play_boxes color =
 play :: State.State -> Transport.Info -> Cmd.PlayMidiArgs
     -> IO Transport.PlayControl
 play ui_state transport_info
-        (Cmd.PlayMidiArgs name msgs maybe_inv_tempo repeat_at) = do
+        (Cmd.PlayMidiArgs mmc name msgs maybe_inv_tempo repeat_at) = do
     (play_ctl, monitor_ctl) <-
-        Midi.Play.play transport_info name msgs repeat_at
+        Midi.Play.play transport_info mmc name msgs repeat_at
     -- Pass the current state in the MVar.  ResponderSync will keep it up
     -- to date afterwards, but only if blocks are added or removed.
     MVar.modifyMVar_ (Transport.info_state transport_info) $

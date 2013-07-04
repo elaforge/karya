@@ -7,13 +7,18 @@
 -- OS's MIDI driver.
 module Perform.Midi.Play (play, cycle_messages) where
 import qualified Control.Exception as Exception
+import qualified Data.Maybe as Maybe
 
+import Util.Control
 import qualified Util.Log as Log
 import qualified Util.Seq as Seq
 import qualified Util.Thread as Thread
 
 import qualified Midi.Interface as Interface
 import qualified Midi.Midi as Midi
+import qualified Midi.Mmc as Mmc
+
+import qualified Cmd.Cmd as Cmd
 import qualified Derive.LEvent as LEvent
 import qualified Perform.RealTime as RealTime
 import qualified Perform.Transport as Transport
@@ -24,28 +29,40 @@ type Messages = [LEvent.LEvent Midi.WriteMessage]
 
 -- | Start a thread to stream a list of WriteMessages, and return
 -- a Transport.Control which can be used to stop and restart the player.
-play :: Transport.Info -> String -> Messages -> Maybe RealTime
+play :: Transport.Info -> Maybe Cmd.MmcConfig -> String -> Messages
+    -> Maybe RealTime
     -- ^ If given, loop back to the beginning when this time is reached.
     -> IO (Transport.PlayControl, Transport.PlayMonitorControl)
-play transport_info name msgs repeat_at = do
+play transport_info mmc name msgs repeat_at = do
     state <- make_state transport_info
     now <- Transport.info_get_current_time transport_info
     Thread.start_logged "render midi" $
-        player_thread name state (process now repeat_at msgs)
+        -- Don't send MMC if I'm repeating, it'll just confuse the DAW.
+        player_thread (if Maybe.isJust repeat_at then Nothing else mmc) now
+            name state (process now repeat_at msgs)
     return (state_play_control state, state_monitor_control state)
     where
     -- Catch msgs up to realtime and cycle them if I'm repeating.
     process now repeat_at = shift_messages now . cycle_messages repeat_at
 
-player_thread :: String -> State -> Messages -> IO ()
-player_thread name state msgs = do
+player_thread :: Maybe Cmd.MmcConfig -> RealTime -> String -> State
+    -> Messages -> IO ()
+player_thread maybe_mmc start name state msgs = do
     Log.debug $ "play start: " ++ name
+    when_just maybe_mmc $ \mmc ->
+        state_write_midi state $ make_mmc mmc start Mmc.Play
     play_msgs state msgs
         `Exception.catch` \(exc :: Exception.SomeException) ->
             Transport.info_send_status (state_info state)
                 (Transport.Died (show exc))
+    when_just maybe_mmc $ \mmc ->
+        state_write_midi state $ make_mmc mmc 0 Mmc.Stop
     Transport.player_stopped (state_monitor_control state)
     Log.debug $ "play complete: " ++ name
+
+make_mmc :: Cmd.MmcConfig -> RealTime -> Mmc.Mmc -> Midi.WriteMessage
+make_mmc mmc start msg = Midi.WriteMessage (Cmd.mmc_device mmc) start $
+    Mmc.encode (Cmd.mmc_device_id mmc) msg
 
 cycle_messages :: Maybe RealTime -> Messages -> Messages
 cycle_messages _ [] = []
@@ -87,13 +104,16 @@ make_state info = do
 write_ahead :: RealTime
 write_ahead = RealTime.seconds 1
 
+state_write :: State -> Interface.Message -> IO ()
+state_write state = Transport.info_midi_writer (state_info state)
+
+state_write_midi :: State -> Midi.WriteMessage -> IO ()
+state_write_midi state = state_write state . Interface.Midi
+
 -- | @devs@ keeps track of devices that have been seen, so I know which devices
 -- to reset.
 play_msgs :: State -> Messages -> IO ()
 play_msgs state msgs = do
-    let write_midi = Transport.info_midi_writer (state_info state)
-        write_msg = LEvent.either (write_midi . Interface.Midi) Log.write
-
     -- This should make the buffer always be between write_ahead*2 and
     -- write_ahead ahead of now.
     now <- Transport.info_get_current_time (state_info state)
@@ -101,7 +121,7 @@ play_msgs state msgs = do
     let (chunk, rest) =
             span (LEvent.either ((<until) . Midi.wmsg_ts) (const True)) msgs
     -- Log.debug $ "play at " ++ show now ++ " chunk: " ++ show (length chunk)
-    mapM_ write_msg chunk
+    mapM_ (LEvent.either (state_write_midi state) Log.write) chunk
 
     -- Don't quit until all events have been played.
     let timeout = if null rest
@@ -110,7 +130,7 @@ play_msgs state msgs = do
             else write_ahead
     stop <- Transport.poll_stop_player (RealTime.to_seconds timeout)
             (state_play_control state)
-    let reset_midi = mapM_ write_midi
+    let reset_midi = mapM_ (state_write state)
             [Interface.AllNotesOff now, Interface.reset_controls now]
     case (stop, rest) of
         (True, _) -> do

@@ -90,6 +90,7 @@ import qualified Util.Log as Log
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 
+import qualified Midi.Mmc as Mmc
 import qualified Ui.Id as Id
 import qualified Ui.State as State
 import qualified Ui.Types as Types
@@ -103,6 +104,7 @@ import qualified Cmd.TimeStep as TimeStep
 
 import qualified Derive.Cache as Cache
 import qualified Derive.Stack as Stack
+import qualified Perform.RealTime as RealTime
 import qualified Perform.Transport as Transport
 import Types
 
@@ -310,8 +312,12 @@ from_realtime block_id repeat_at start_ = do
     start <- let mstart = PlayUtil.first_time msgs
         in return $ if start == 0 && mstart < 0 then mstart else start
     msgs <- return $ PlayUtil.shift_messages multiplier start msgs
+    maybe_mmc <- gets Cmd.state_mmc
+    when_just maybe_mmc $ \mmc ->
+        Cmd.midi (Cmd.mmc_device mmc) $ Mmc.encode (Cmd.mmc_device_id mmc) $
+            Mmc.Goto $ Mmc.seconds_to_smpte (RealTime.to_seconds start)
     -- See doc for "Cmd.PlayC".
-    return $ Cmd.PlayMidiArgs (Pretty.pretty block_id) msgs
+    return $ Cmd.PlayMidiArgs maybe_mmc (Pretty.pretty block_id) msgs
         (Just (Cmd.perf_inv_tempo perf . (+start) . (/multiplier)))
         ((*multiplier) . subtract start <$> repeat_at)
 

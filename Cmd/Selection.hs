@@ -32,6 +32,7 @@ import qualified Ui.UiMsg as UiMsg
 
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Internal as Internal
+import qualified Cmd.Mmc as Mmc
 import qualified Cmd.Msg as Msg
 import qualified Cmd.Perf as Perf
 import qualified Cmd.TimeStep as TimeStep
@@ -49,7 +50,7 @@ import Types
 -- This is the Cmd level of State.set_selection and should be called by
 -- any Cmd that wants to set the selection.
 set :: (Cmd.M m) => ViewId -> Maybe Types.Selection -> m ()
-set view_id maybe_sel = set_selnum view_id Config.insert_selnum maybe_sel
+set view_id = set_selnum view_id Config.insert_selnum
 
 set_selnum :: (Cmd.M m) => ViewId -> Types.SelNum -> Maybe Types.Selection
     -> m ()
@@ -57,8 +58,17 @@ set_selnum view_id selnum maybe_sel = do
     State.set_selection view_id selnum maybe_sel
     when (selnum == Config.insert_selnum) $ do
         case maybe_sel of
-            Just sel | Types.sel_is_point sel -> set_subs view_id sel
+            Just sel | Types.sel_is_point sel -> do
+                set_subs view_id sel
+                whenJustM (Cmd.gets (Cmd.state_mmc . Cmd.state_play)) $
+                    mmc_goto view_id sel
             _ -> return ()
+
+mmc_goto :: (Cmd.M m) => ViewId -> Types.Selection -> Cmd.MmcConfig -> m ()
+mmc_goto view_id sel config = do
+    block_id <- State.block_id_of view_id
+    maybe_track_id <- State.event_track_at block_id (Types.sel_cur_track sel)
+    Mmc.goto config block_id maybe_track_id (Types.sel_cur_pos sel)
 
 -- | Set a selection in the current view.
 set_current :: (Cmd.M m) => Types.SelNum -> Maybe Types.Selection -> m ()
@@ -93,8 +103,7 @@ set_block block_id ((_, pos) : _) = do
 --
 -- Anyone who wants to set a selection and automatically scroll the window to
 -- follow the selection should use this function.
-set_and_scroll :: (Cmd.M m) => ViewId -> Types.SelNum -> Types.Selection
-    -> m ()
+set_and_scroll :: (Cmd.M m) => ViewId -> Types.SelNum -> Types.Selection -> m ()
 set_and_scroll view_id selnum sel = do
     set_selnum view_id selnum (Just sel)
     auto_scroll view_id sel

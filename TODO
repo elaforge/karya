@@ -3,6 +3,8 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
+  - rename when_just to whenJust
+  - rename Midi.Parse to Midi.Encode
   - recent tends to collect pitches added via edit input
     But since they have a specific pitch they're not useful.
     Maybe I should have a separate recent queue only for transformers, and
@@ -35,6 +37,7 @@ UNSORTED
     (bid "xyz") stuff
   - key TrackSignals on (BlockId, TrackId).  I'll need to put BlockId in
     TrackTree.TrackEvents, I think.
+    . First write a test that demonstrates how it's currently broken.
   - After a rederive, it still takes a Cmd to free up the memory.  Who is
     holding on to it?
   - parallelize derivation
@@ -61,6 +64,16 @@ UNSORTED
     . I should clear out the next events so it doesn't get in a loop if it
       wants the next event.  Actually it's fine if it wants to look at it, it
       just can't want to evaluate it.
+    . Alternately, I could give calls a way to declare they want the previous
+      val.  Then slice has to look up the symbol.
+    . Best of all, I could carry over the prev val from the end of the last
+      slice.  That would serialize slice evaluation, but that doesn't seem
+      like a big deal.
+    . But I think for this to work, each track would have to save its last
+      sample so it can be looked up later.  Fortunately, it already kind of
+      does that, in the TrackSignal.  But I'd have to get rid of the separate
+      TrackSignal collecting thing in favor of piecing together sliced output,
+      and I'm not sure I want to do that.
   calls:
     - Sometimes tick makes more sense as at attribute of the previous note, or
       perhaps a freestanding ornament, since it can happen or not on a repeat.
@@ -91,6 +104,11 @@ UNSORTED
       &env-literal, could also use it to apply an env value as an argument
       explicitly.  But that means all default setting becomes '&call-val = 2'.
       Or bind calls with &call = sym.
+    . Or I could use '*call = sym', reusing the hack where * is accepted as
+      the first letter of a symbol.  Does that make it look like a pitch
+      track?
+    . Otherwise I could start it with -, that doesn't require any parser
+      hacks.
   - network midi doesn't seem to handle abort?
     playing the second time doesn't happen
   - maybe new control tracks should start with line render?
@@ -113,8 +131,12 @@ UNSORTED
     . But it calls SymbolC and I ran into a problem where linux ghci can't
       link FFI-using functions.  Ask on glasgow-haskell-users.
     - I can either have a separate app, or use the special Status trick.
-  - test sending mtc to reapaer
-    also test some mmc commands.  How does reaper support control surfaces?
+  mmc/mtc support
+    * Try sending MMC to reaper and see what happens.  Nothing.
+      + ask on forum: http://forum.cockos.com/forumdisplay.php?f=21
+    * Try cubase.  Works fine.
+    * Hook set selection, play, and stop to send the appropriate mmc cmds.
+    - send MTC fragments on play
   - Playback should have multiple lines when a block is derived multiple
     times. Have a set of playback selnums?
 
@@ -140,7 +162,7 @@ MILESTONES
     * derive cache
     * symbolic score
     + save undo history / incremental save - more extensive testing
-    - solution for audio, plugins, track bouncing, etc.  ardour / reaper?
+    + solution for audio, plugins, track bouncing, etc.  ardour / reaper?
     + jack support on linux
     / simple csound backend
     * lilypond backend: good enough to render viola-sonata

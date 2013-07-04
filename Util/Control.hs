@@ -9,7 +9,7 @@ module Util.Control (
     , first, second, (***)
     , (<>), mempty, mconcat
     , while, while_
-    , whenM, unlessM, when_just, if_just, ifM, andM, orM, findM
+    , whenM, unlessM, when_just, whenJustM, if_just, ifM, andM, orM, findM
     , concatMapM, mapMaybeM
     , mapMaybe, fromMaybe
 
@@ -87,6 +87,9 @@ unlessM cond op = do
 
 when_just :: (Monad m) => Maybe a -> (a -> m ()) -> m ()
 when_just val f = maybe (return ()) f val
+
+whenJustM :: (Monad m) => m (Maybe a) -> (a -> m ()) -> m ()
+whenJustM mval f = mval >>= \val -> when_just val f
 
 -- | 'maybe' with arguments juggled around to be convenient in a do block.
 if_just :: Maybe a -> (a -> b) -> b -> b

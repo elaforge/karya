@@ -74,6 +74,7 @@ import qualified Util.Seq as Seq
 
 import qualified Midi.Interface
 import qualified Midi.Midi as Midi
+import qualified Midi.Mmc as Mmc
 import qualified Midi.State
 
 import qualified Ui.Block as Block
@@ -142,10 +143,11 @@ merge_status s1 s2 = if prio s1 >= prio s2 then s1 else s2
 
 -- | Arguments for "Cmd.PlayC.play".
 --
--- Descriptive name, events, tempo func to display play position, optional time
--- to repeat at.
-data PlayMidiArgs = PlayMidiArgs !String !Midi.Perform.MidiEvents
-    !(Maybe Transport.InverseTempoFunction) !(Maybe RealTime)
+-- Mmc config, descriptive name, events, tempo func to display play position,
+-- optional time to repeat at.
+data PlayMidiArgs = PlayMidiArgs !(Maybe MmcConfig) !String
+    !Midi.Perform.MidiEvents !(Maybe Transport.InverseTempoFunction)
+    !(Maybe RealTime)
 instance Show PlayMidiArgs where show _ = "((PlayMidiArgs))"
 
 data EditInput =
@@ -456,6 +458,9 @@ data PlayState = PlayState {
     -- timestamps by the reciprocal of this amount, so 2 will play double
     -- speed, and 0.5 will play half speed.
     , state_play_multiplier :: RealTime
+    -- | If set, synchronize with a DAW when the selection is set, and on play
+    -- and stop.  For this to work, the DAW has to support MMC slave.
+    , state_mmc :: !(Maybe MmcConfig)
     } deriving (Show, Generics.Typeable)
 
 initial_play_state :: PlayState
@@ -468,6 +473,7 @@ initial_play_state = PlayState
         TimeStep.time_step $ TimeStep.RelativeMark TimeStep.AllMarklists 0
     , state_step = Nothing
     , state_play_multiplier = RealTime.seconds 1
+    , state_mmc = Nothing
     }
 
 -- | Step play is a way of playing back the performance in non-realtime.
@@ -486,6 +492,17 @@ data StepState = StepState {
     -- | MIDI states after the step play position, in asceding order.
     , step_after :: ![(ScoreTime, Midi.State.State)]
     } deriving (Show, Generics.Typeable)
+
+data MmcConfig = MmcConfig {
+    mmc_device :: !Midi.WriteDevice
+    , mmc_device_id :: !Mmc.DeviceId
+    } deriving (Show)
+
+instance Pretty.Pretty MmcConfig where
+    format (MmcConfig dev dev_id) = Pretty.record_title "MmcConfig"
+        [ ("device", Pretty.format dev)
+        , ("devide_id", Pretty.format dev_id)
+        ]
 
 -- ** EditState
 
