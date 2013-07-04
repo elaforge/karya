@@ -33,7 +33,6 @@ import qualified Util.Rect as Rect
 import qualified Util.Serialize as Serialize
 import Util.Serialize (Serialize, get, put, get_tag, put_tag, bad_tag)
 
-import qualified Midi.Midi as Midi
 import qualified Ui.Block as Block
 import qualified Ui.Color as Color
 import qualified Ui.Events as Events
@@ -473,96 +472,6 @@ instance Serialize Instrument.Config where
 instance Serialize Score.Instrument where
     put (Score.Instrument a) = put a
     get = fmap Score.Instrument get
-
--- ** Midi
-
-instance Serialize Midi.Message where
-    put (Midi.ChannelMessage a b) = put_tag 0 >> put a >> put b
-    put (Midi.CommonMessage a) = put_tag 1 >> put a
-    put (Midi.RealtimeMessage a) = put_tag 2 >> put a
-    put (Midi.UnknownMessage a b c) = put_tag 3 >> put a >> put b >> put c
-    get = do
-        tag <- get_tag
-        case tag of
-            0 -> get >>= \a -> get >>= \b -> return (Midi.ChannelMessage a b)
-            1 -> get >>= \a -> return (Midi.CommonMessage a)
-            2 -> get >>= \a -> return (Midi.RealtimeMessage a)
-            3 -> get >>= \a -> get >>= \b -> get >>= \c ->
-                return (Midi.UnknownMessage a b c)
-            _ -> bad_tag "Midi.Message" tag
-
-instance Serialize Midi.ChannelMessage where
-    put (Midi.NoteOff a b) = put_tag 0 >> put a >> put b
-    put (Midi.NoteOn a b) = put_tag 1 >> put a >> put b
-    put (Midi.Aftertouch a b) = put_tag 2 >> put a >> put b
-    put (Midi.ControlChange a b) = put_tag 3 >> put a >> put b
-    put (Midi.ProgramChange a) = put_tag 4 >> put a
-    put (Midi.ChannelPressure a) = put_tag 5 >> put a
-    put (Midi.PitchBend a) = put_tag 6 >> put a
-    put Midi.AllSoundOff = put_tag 7
-    put Midi.ResetAllControls = put_tag 8
-    put (Midi.LocalControl a) = put_tag 9 >> put a
-    put Midi.AllNotesOff = put_tag 10
-    put (Midi.UndefinedChannelMode a b) = put_tag 11 >> put a >> put b
-    get = do
-        tag <- get_tag
-        case tag of
-            0 -> get >>= \a -> get >>= \b -> return (Midi.NoteOff a b)
-            1 -> get >>= \a -> get >>= \b -> return (Midi.NoteOn a b)
-            2 -> get >>= \a -> get >>= \b -> return (Midi.Aftertouch a b)
-            3 -> get >>= \a -> get >>= \b -> return (Midi.ControlChange a b)
-            4 -> get >>= \a -> return (Midi.ProgramChange a)
-            5 -> get >>= \a -> return (Midi.ChannelPressure a)
-            6 -> get >>= \a -> return (Midi.PitchBend a)
-            7 -> return Midi.AllSoundOff
-            8 -> return Midi.ResetAllControls
-            9 -> get >>= \a -> return (Midi.LocalControl a)
-            10 -> return Midi.AllNotesOff
-            11 -> get >>= \a -> get >>= \b ->
-                return (Midi.UndefinedChannelMode a b)
-            _ -> bad_tag "Midi.ChannelMessage" tag
-
-instance Serialize Midi.CommonMessage where
-    put (Midi.SystemExclusive a b) = put_tag 0 >> put a >> put b
-    put (Midi.SongPositionPointer a) = put_tag 1 >> put a
-    put (Midi.SongSelect a) = put_tag 2 >> put a
-    put Midi.TuneRequest = put_tag 3
-    put Midi.EOX = put_tag 4
-    put (Midi.UndefinedCommon a) = put_tag 5 >> put a
-    get = do
-        tag <- get_tag
-        case tag of
-            0 -> get >>= \a -> get >>= \b -> return (Midi.SystemExclusive a b)
-            1 -> get >>= \a -> return (Midi.SongPositionPointer a)
-            2 -> get >>= \a -> return (Midi.SongSelect a)
-            3 -> return Midi.TuneRequest
-            4 -> return Midi.EOX
-            5 -> get >>= \a -> return (Midi.UndefinedCommon a)
-            _ -> bad_tag "Midi.CommonMessage" tag
-
-instance Serialize Midi.RealtimeMessage where
-    put Midi.TimingClock = put_tag 0
-    put Midi.Start = put_tag 1
-    put Midi.Continue = put_tag 2
-    put Midi.Stop = put_tag 3
-    put Midi.ActiveSense = put_tag 4
-    put Midi.Reset = put_tag 5
-    put (Midi.UndefinedRealtime a) = put_tag 6 >> put a
-    get = do
-        tag <- get_tag
-        case tag of
-            0 -> return Midi.TimingClock
-            1 -> return Midi.Start
-            2 -> return Midi.Continue
-            3 -> return Midi.Stop
-            4 -> return Midi.ActiveSense
-            5 -> return Midi.Reset
-            6 -> get >>= \a -> return (Midi.UndefinedRealtime a)
-            _ -> bad_tag "Midi.RealtimeMessage" tag
-
-instance Serialize Midi.Key where
-    put (Midi.Key a) = put a
-    get = Midi.Key <$> get
 
 -- ** lilypond
 

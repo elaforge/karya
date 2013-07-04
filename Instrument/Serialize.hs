@@ -13,6 +13,7 @@ import qualified Data.Map as Map
 import qualified Data.Time as Time
 
 import Util.Serialize (Serialize, get, put, get_tag, put_tag, bad_tag)
+import Midi.Instances ()
 import qualified Cmd.Serialize
 import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Score as Score

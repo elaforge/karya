@@ -23,3 +23,7 @@ instance Serialize.Serialize Midi.WriteMessage where
 instance Serialize.Serialize Midi.Message where
     put = Serialize.put . Parse.encode
     get = Parse.decode <$> Serialize.get
+
+instance Serialize.Serialize Midi.Key where
+    put (Midi.Key a) = Serialize.put a
+    get = Midi.Key <$> Serialize.get
