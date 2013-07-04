@@ -397,7 +397,7 @@ get_total_block_dur block_id = do
 -- a track ID except tempo tracks should call this.
 track_setup :: TrackTree.TrackEvents -> Deriver d -> Deriver d
 track_setup track deriver = do
-    when_just (TrackTree.tevents_track_id track) add_track_warp
+    whenJust (TrackTree.tevents_track_id track) add_track_warp
     deriver
 
 -- | This is a version of 'track_setup' for the tempo track.  It doesn't

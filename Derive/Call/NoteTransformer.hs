@@ -96,7 +96,7 @@ emit_lily_tuplet args not_lily = Lily.when_lilypond_config lily not_lily
             (Either.left $ Just $ msg ++ " duration must be simple")
             return (Lily.is_duration config t)
     err msg = do
-        when_just msg $ Log.warn . ("can't convert to ly tuplet: "++)
+        whenJust msg $ Log.warn . ("can't convert to ly tuplet: "++)
         not_lily
 
 tuplet_code :: Lilypond.Duration -> Lilypond.Duration -> Int -> [Lily.Note]

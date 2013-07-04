@@ -63,7 +63,7 @@ main = SendCmd.initialize $ do
         where
         go hdl = do
             (msg, hdl) <- Tail.tail hdl
-            when_just (save_dir_of (Log.msg_string msg)) $ \dir -> do
+            whenJust (save_dir_of (Log.msg_string msg)) $ \dir -> do
                 changed <- MVar.modifyMVar current_history $ \current ->
                     return (Just dir, current /= Just dir)
                 when changed $
@@ -102,7 +102,7 @@ input_loop current_history settings action = outer_loop settings
     where
     outer_loop settings = do
         x <- Haskeline.runInputT settings (Haskeline.withInterrupt action_loop)
-        when_just x $ \maybe_fname -> do
+        whenJust x $ \maybe_fname -> do
             putStrLn $ "loading history from " ++ show maybe_fname
             outer_loop $ settings { Haskeline.historyFile = maybe_fname }
 

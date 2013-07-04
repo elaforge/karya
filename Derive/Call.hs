@@ -417,7 +417,7 @@ require_call call_id name Nothing = do
     -- block depends on it, otherwise it won't be rederived and hence won't
     -- realize that the bad call is now valid.
     block_id <- symbol_to_block_id call_id
-    when_just block_id Internal.add_block_dep
+    whenJust block_id Internal.add_block_dep
     Derive.throw $ untxt (unknown_call_id name call_id)
 
 unknown_call_id :: Text -> TrackLang.CallId -> Text

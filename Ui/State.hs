@@ -710,7 +710,7 @@ modify_skeleton block_id f = do
 toggle_skeleton_edge :: (M m) => BlockId -> Skeleton.Edge -> m Bool
 toggle_skeleton_edge block_id edge = do
     block <- get_block block_id
-    when_just (edges_in_range block edge) (throw . ("toggle: " ++))
+    whenJust (edges_in_range block edge) (throw . ("toggle: " ++))
     let skel = Block.block_skeleton block
     case Skeleton.toggle_edge edge skel of
         Nothing -> return False
@@ -723,7 +723,7 @@ add_edges :: (M m) => BlockId -> [Skeleton.Edge] -> m ()
 add_edges block_id edges = do
     skel <- get_skeleton block_id
     block <- get_block block_id
-    when_just (msum (map (edges_in_range block) edges))
+    whenJust (msum (map (edges_in_range block) edges))
         (throw . ("add_edges: " ++))
     maybe (throw $ "add_edges " ++ show edges ++ " to " ++ show skel
             ++ " would have caused a cycle")
@@ -747,7 +747,7 @@ splice_skeleton_below = _splice_skeleton False
 _splice_skeleton :: (M m) => Bool -> BlockId -> TrackNum -> TrackNum -> m ()
 _splice_skeleton above block_id new to = do
     block <- get_block block_id
-    when_just (msum (map (edge_in_range block) [new, to]))
+    whenJust (msum (map (edge_in_range block) [new, to]))
         (throw . ("splice: " ++))
     let splice = if above then Skeleton.splice_above else Skeleton.splice_below
     maybe (throw $ "splice_skeleton: " ++ show (new, to)
@@ -778,7 +778,7 @@ insert_track :: (M m) => BlockId -> TrackNum -> Block.Track -> m ()
 insert_track block_id tracknum track = do
     block <- get_block block_id
     views <- views_of block_id
-    when_just (Block.track_id_of (Block.tracklike_id track)) $ \track_id -> do
+    whenJust (Block.track_id_of (Block.tracklike_id track)) $ \track_id -> do
         track_ids <- track_ids_of block_id
         when (track_id `elem` track_ids) $
             throw $ "insert_track: block " ++ show block_id

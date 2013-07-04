@@ -120,7 +120,7 @@ suppress_last msg process = do
             return Nothing
         _ -> do
             result <- process
-            when_just result $ \_ -> State.modify $ \st ->
+            whenJust result $ \_ -> State.modify $ \st ->
                 st { state_last_displayed = Just (msg, 0) }
             return result
     where matches m1 m2 = Log.msg_text m1 == Log.msg_text m2
@@ -185,10 +185,10 @@ format_msg msg = run_formatter $ do
     with_plain "\t"
     let style = if Log.msg_prio msg < Log.Warn
             then style_plain else style_warn
-    when_just (Log.msg_caller msg) $ \caller -> do
+    whenJust (Log.msg_caller msg) $ \caller -> do
         emit_srcpos caller
         with_plain " "
-    when_just (Log.msg_stack msg) $ \stack -> do
+    whenJust (Log.msg_stack msg) $ \stack -> do
         emit_stack (Stack.from_strings stack)
         with_plain " "
     regex_style style msg_text_regexes (Log.msg_string msg)
@@ -213,7 +213,7 @@ emit_srcpos (file, func_name, line) = do
 emit_stack :: Stack.Stack -> Formatter
 emit_stack stack = do
     with_style style_clickable $ Seq.join "/" (map fmt (Stack.to_ui stack))
-    when_just (last_call stack) $ \call ->
+    whenJust (last_call stack) $ \call ->
         with_plain $ ' ' : untxt call ++ ": "
     where
     fmt frame = "{s " ++ show (Stack.unparse_ui_frame frame) ++ "}"

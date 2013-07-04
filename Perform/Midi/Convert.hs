@@ -80,7 +80,7 @@ convert_event lookup event_ = do
             (Instrument.inst_control_map midi_inst)
             (Score.event_controls event
                 `Map.union` lookup_default_controls lookup score_inst)
-    when_just overridden $ \sig ->
+    whenJust overridden $ \sig ->
         Log.warn $ "non-null control overridden by "
             ++ Pretty.pretty Controls.dynamic ++ ": " ++ Pretty.pretty sig
     let converted = Perform.Event midi_inst

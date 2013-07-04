@@ -182,8 +182,8 @@ revert maybe_ref = do
         =<< Cmd.gets Cmd.state_save_file
     case save_file of
         Cmd.SaveState fn -> do
-            when_just maybe_ref $ Cmd.throw .
-                ("can't revert to a commit when the save file isn't git: " ++)
+            whenJust maybe_ref $ Cmd.throw
+                .  ("can't revert to a commit when the save file isn't git: "++)
             load fn
         Cmd.SaveRepo repo -> revert_git repo
     Log.notice $ "revert to " ++ show save_file
@@ -293,7 +293,7 @@ set_state save_file clear_history state = do
         Nothing -> return Nothing
         Just root -> Seq.head . Map.keys <$> State.views_of root
     let focused = msum [root, Seq.head (Map.keys (State.state_views state))]
-    when_just focused ViewConfig.bring_to_front
+    whenJust focused ViewConfig.bring_to_front
 
 cmd_save_midi_config :: FilePath -> Cmd.CmdT IO ()
 cmd_save_midi_config fname = do

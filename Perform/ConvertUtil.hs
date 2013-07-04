@@ -45,7 +45,7 @@ convert state convert_event = go state Nothing
             Just (event, additional) -> ([LEvent.Event event], additional)
     convert1 maybe_prev event = do
         -- Sorted is a postcondition of the deriver.
-        when_just maybe_prev $ \prev -> when (Score.event_start event < prev) $
+        whenJust maybe_prev $ \prev -> when (Score.event_start event < prev) $
             Log.warn $ "start time " ++ Pretty.pretty (Score.event_start event)
                 ++ " less than previous of " ++ Pretty.pretty prev
         convert_event event

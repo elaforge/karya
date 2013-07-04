@@ -81,7 +81,7 @@ cmd_open_block = do
     let call_of = NoteTrack.block_call ns
     sel <- Selection.events
     forM_ sel $ \(_, _, events) -> forM_ events $ \event ->
-        when_just (call_of (Event.event_text event)) $ \block_id ->
+        whenJust (call_of (Event.event_text event)) $ \block_id ->
             whenM (Maybe.isJust <$> State.lookup_block block_id) $ do
                 views <- State.views_of block_id
                 maybe (Create.view block_id >> return ())
@@ -184,7 +184,7 @@ cmd_move_tracks msg = do
     move_tracks block_id tracknums clicked
     -- Shift from the max tracknum or the minimum tracknum, depending on
     -- the move direction.
-    when_just (Seq.minimum_on abs $ map (clicked-) tracknums) $
+    whenJust (Seq.minimum_on abs $ map (clicked-) tracknums) $
         Selection.shift False
 
 move_tracks :: (State.M m) => BlockId -> [TrackNum] -> TrackNum -> m ()

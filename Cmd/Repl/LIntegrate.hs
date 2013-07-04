@@ -32,7 +32,7 @@ block block_id = do
         map LEvent.Event $ Vector.toList $ Cmd.perf_events perf
     tracks <- Convert.convert block_id events
     (new_block_id, dests) <- Merge.create_block block_id tracks
-    when_just (NonEmpty.nonEmpty dests) $ \dests ->
+    whenJust (NonEmpty.nonEmpty dests) $ \dests ->
         State.set_integrated_block new_block_id $ Just (block_id, dests)
     Cmd.derive_immediately [new_block_id]
     Create.view new_block_id

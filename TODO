@@ -3,7 +3,7 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
-  - rename when_just to whenJust
+  * rename when_just to whenJust
   - rename Midi.Parse to Midi.Encode
   - recent tends to collect pitches added via edit input
     But since they have a specific pitch they're not useful.

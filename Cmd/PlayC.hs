@@ -61,7 +61,7 @@ cmd_play_msg msg = do
             set_all_play_boxes Config.box_color
         Transport.Died err_msg -> Log.warn ("player died: " ++ err_msg)
     derive_status_msg block_id status = do
-        when_just (derive_status_color status) (State.set_play_box block_id)
+        whenJust (derive_status_color status) (State.set_play_box block_id)
         case status of
             Msg.OutOfDate perf ->
                 -- It's important that this Map.insert is lazy in the value.

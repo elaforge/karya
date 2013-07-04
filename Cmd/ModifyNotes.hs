@@ -335,7 +335,7 @@ write_tracks block_id track_ids tracks = do
                 zip [tracknum..] [tracknum+1..]
             parent <- maybe (return Nothing) (parent_of block_id)
                 (Seq.head track_ids)
-            when_just parent $ \p ->
+            whenJust parent $ \p ->
                 State.add_edges block_id [(State.track_tracknum p, tracknum)]
             create (tracknum + length tracks) rest
 
@@ -358,7 +358,7 @@ merge_controls block_id note_track_id tree controls = do
             Create.track block_id tracknum (control_to_title control) events
             -- Link the new track into the skeleton below the bottom control.
             parent <- bottom_track block_id note_track_id
-            when_just parent $ \p ->
+            whenJust parent $ \p ->
                 State.add_edges block_id [(State.track_tracknum p, tracknum)]
             go (tracknum+1) controls
     find control =

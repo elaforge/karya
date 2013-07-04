@@ -188,7 +188,7 @@ tempo_call :: TrackTree.TrackEvents
     -> Derive.EventDeriver -> Derive.EventDeriver
 tempo_call track sig_deriver deriver = do
     (signal, logs) <- Internal.setup_without_warp sig_deriver
-    when_just maybe_track_id $ \track_id ->
+    whenJust maybe_track_id $ \track_id ->
         unless (TrackTree.tevents_sliced track) $
             -- I don't need stash_signal because this is definitely in
             -- TrackTime.

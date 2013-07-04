@@ -122,7 +122,7 @@ compile_lys title movements = do
     (result, logs) <- liftIO $
         Cmd.Lilypond.compile_lys filename config title movements
     mapM_ Log.write logs
-    when_just result $ \err ->
+    whenJust result $ \err ->
         Log.warn $ "compile_ly: " <> err
 
 title_of :: BlockId -> Lilypond.Title

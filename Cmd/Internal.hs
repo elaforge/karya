@@ -46,7 +46,7 @@ import Types
 
 -- | Record keydowns into the 'State' modifier map.
 cmd_record_keys :: Cmd.Cmd
-cmd_record_keys msg = cont $ when_just (msg_to_mod msg) $ \(down, mb_mod) -> do
+cmd_record_keys msg = cont $ whenJust (msg_to_mod msg) $ \(down, mb_mod) -> do
     mods <- Cmd.keys_down
     -- The kbd model is that absolute sets of modifiers are sent over, but the
     -- other modifiers take downs and ups and incrementally modify the state.
@@ -57,7 +57,7 @@ cmd_record_keys msg = cont $ when_just (msg_to_mod msg) $ \(down, mb_mod) -> do
         (True, Just mod) -> insert mod mods2
         (False, Just mod) -> delete mod mods2
         _ -> return mods2
-    -- when_just mb_mod $ \m ->
+    -- whenJust mb_mod $ \m ->
     --     Log.warn $ (if down then "keydown " else "keyup ")
     --         ++ show (strip_modifier m) ++ " in " ++ show (Map.keys mods)
     Cmd.modify $ \st -> st { Cmd.state_keys_down = mods3 }
@@ -265,7 +265,7 @@ sync_status ui_from cmd_from = do
     when (not (null new_views) || Cmd.state_edit cmd_from /= edit_state) $
         sync_edit_state edit_state
     sync_play_state =<< Cmd.gets Cmd.state_play
-    flip when_just sync_save_file =<< Cmd.gets Cmd.state_save_file
+    flip whenJust sync_save_file =<< Cmd.gets Cmd.state_save_file
 
     when (State.state_config ui_from /= State.state_config ui_to) $
         sync_ui_config (State.state_config ui_to)

@@ -122,7 +122,7 @@ cmd_val_edit msg = Cmd.suppress_history Cmd.ValEdit "note track val edit" $ do
                 (EditUtil.Pos block_id sel_tracknum pos 0) False
             -- Clear out the pitch track too.
             maybe_pitch <- Info.pitch_of_note block_id sel_tracknum
-            when_just maybe_pitch $ \pitch -> EditUtil.remove_event_at
+            whenJust maybe_pitch $ \pitch -> EditUtil.remove_event_at
                 (EditUtil.Pos block_id (State.track_tracknum pitch) pos 0) False
             Selection.advance
         _ -> Cmd.abort

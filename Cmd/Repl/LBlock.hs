@@ -182,7 +182,7 @@ undivide = do
     tracks <- Block.block_tracks <$> State.get_block block_id
     let found = List.find ((==Block.divider) . snd)
             (drop tracknum (zip [0..] tracks))
-    when_just found $ \(n, _) -> State.remove_track block_id n
+    whenJust found $ \(n, _) -> State.remove_track block_id n
 
 collapse_children :: (Cmd.M m) => m ()
 collapse_children = do

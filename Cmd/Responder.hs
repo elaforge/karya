@@ -162,7 +162,7 @@ run_setup_cmd cmd state = fmap snd $ run_responder state $ do
                 }
             }
         return Cmd.Continue
-    when_just result $ \(_, ui_state, cmd_state) -> do
+    whenJust result $ \(_, ui_state, cmd_state) -> do
         Monad.State.modify $ \st ->
             st { rstate_ui_to = ui_state, rstate_cmd_to = cmd_state }
         run_sync_status
@@ -351,7 +351,7 @@ record_keys :: Msg.Msg -> ResponderM ()
 record_keys msg = do
     result <- run_continue "record_keys" $ Left $
         Internal.cmd_record_keys msg
-    when_just result $ \(_, _, cmd_state) -> Monad.State.modify $ \st ->
+    whenJust result $ \(_, _, cmd_state) -> Monad.State.modify $ \st ->
         st { rstate_cmd_from = cmd_state, rstate_cmd_to = cmd_state }
 
 -- | Record 'UiMsg.UiUpdate's from the UI.  Like normal cmds it can abort
@@ -382,7 +382,7 @@ run_sync_status = do
     result <- run_continue "sync_status" $ Left $
         Internal.sync_status (rstate_ui_from rstate)
             (rstate_cmd_from rstate)
-    when_just result $ \(_, ui_state, cmd_state) -> Monad.State.modify $ \st ->
+    whenJust result $ \(_, ui_state, cmd_state) -> Monad.State.modify $ \st ->
         st { rstate_ui_to = ui_state, rstate_cmd_to = cmd_state }
 
 -- ** core cmds

@@ -126,7 +126,7 @@ record_if_wanted :: TrackTree.TrackEvents -> [TrackTree.EventsNode]
     -> Derive.Events -> Derive.Deriver ()
 record_if_wanted track subs events
     | Control.should_render True track =
-        render_of track >>= flip when_just
+        render_of track >>= flip whenJust
             (stash_signal rederive (LEvent.events_of events))
     | otherwise = return ()
     where rederive = d_note_track $ fmap strip_track_id (Tree.Node track subs)

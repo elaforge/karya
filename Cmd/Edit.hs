@@ -123,7 +123,7 @@ move_event get_event = do
     (_, _, track_ids, pos, _) <- Selection.tracks
     forM_ track_ids $ \track_id -> do
         events <- Track.track_events <$> State.get_track track_id
-        when_just (get_event pos events) $ \event -> do
+        whenJust (get_event pos events) $ \event -> do
             State.remove_event track_id (Event.start event)
             State.insert_event track_id $ Event.move (const pos) event
 
@@ -153,7 +153,7 @@ modify_prev modify = do
         forM_ track_ids $ \track_id -> do
             prev <- Seq.head . fst . Events.split sel_pos . Track.track_events
                 <$> State.get_track track_id
-            when_just prev $ State.insert_event track_id . modify sel_pos
+            whenJust prev $ State.insert_event track_id . modify sel_pos
 
 -- | Toggle duration between zero and non-zero.
 --
@@ -483,7 +483,7 @@ record_recent_note :: (Cmd.M m) => m ()
 record_recent_note = do
     (_, _, track_id, pos) <- Selection.get_insert
     maybe_event <- State.get_event track_id pos
-    when_just (recent_note =<< maybe_event) $ \note ->
+    whenJust (recent_note =<< maybe_event) $ \note ->
         Cmd.modify_edit_state $ \st -> st { Cmd.state_recent_notes =
             record_recent note (Cmd.state_recent_notes st) }
 

@@ -197,7 +197,7 @@ run_profile maybe_lookup block_id ui_state = do
     section "derive" $ do
         force events
         return ((), events)
-    when_just maybe_lookup $ \lookup -> section "midi" $ do
+    whenJust maybe_lookup $ \lookup -> section "midi" $ do
         let mmsgs = snd $ DeriveTest.perform_stream lookup
                 (State.config_midi (State.state_config ui_state)) events
         -- mapM_ Log.write (LEvent.logs_of mmsgs)

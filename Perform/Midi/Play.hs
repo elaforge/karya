@@ -49,13 +49,13 @@ player_thread :: Maybe Cmd.MmcConfig -> RealTime -> String -> State
     -> Messages -> IO ()
 player_thread maybe_mmc start name state msgs = do
     Log.debug $ "play start: " ++ name
-    when_just maybe_mmc $ \mmc ->
+    whenJust maybe_mmc $ \mmc ->
         state_write_midi state $ make_mmc mmc start Mmc.Play
     play_msgs state msgs
         `Exception.catch` \(exc :: Exception.SomeException) ->
             Transport.info_send_status (state_info state)
                 (Transport.Died (show exc))
-    when_just maybe_mmc $ \mmc ->
+    whenJust maybe_mmc $ \mmc ->
         state_write_midi state $ make_mmc mmc 0 Mmc.Stop
     Transport.player_stopped (state_monitor_control state)
     Log.debug $ "play complete: " ++ name

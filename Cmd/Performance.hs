@@ -58,10 +58,10 @@ update_performance send_status ui_pre ui_to cmd_state updates = do
             kill_threads
             insert_score_damage damage
         focused <- Cmd.lookup_focused_block
-        when_just focused $ \block_id ->
+        whenJust focused $ \block_id ->
             regenerate_performance (derive_wait cmd_state block_id)
                 send_status block_id
-        when_just (State.config_root (State.state_config ui_to)) $ \block_id ->
+        whenJust (State.config_root (State.state_config ui_to)) $ \block_id ->
             regenerate_performance (derive_wait cmd_state block_id)
                 send_status block_id
         return Cmd.Done
@@ -135,7 +135,7 @@ generate_performance :: Thread.Seconds -> SendStatus -> BlockId
     -> Cmd.CmdT IO ()
 generate_performance wait send_status block_id = do
     old_thread <- lookup_thread block_id
-    when_just old_thread (liftIO . Concurrent.killThread)
+    whenJust old_thread (liftIO . Concurrent.killThread)
     ui_state <- State.get
     cmd_state <- Cmd.get
     th <- liftIO $ Thread.start $

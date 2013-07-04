@@ -158,7 +158,7 @@ load inst_name = do
     -- Deallocate the old instrument.
     title <- State.get_track_title
         =<< State.get_event_track_at block_id tracknum
-    when_just (TrackInfo.title_to_instrument title) dealloc_instrument
+    whenJust (TrackInfo.title_to_instrument title) dealloc_instrument
 
     dev <- Cmd.require_msg ("no device for " ++ show inst) =<< device_of inst
     chan <- find_chan_for dev

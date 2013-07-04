@@ -391,7 +391,7 @@ voices_to_ly voices = do
     (states, voice_lys) <- unzip <$> mapM (convert max_dur state) voices
     -- Since I pad with rests to the longest voice, I also want the State from
     -- that one.
-    when_just (Seq.maximum_on state_time states) State.put
+    whenJust (Seq.maximum_on state_time states) State.put
     return voice_lys
     where
     convert max_dur state (v, events) = do

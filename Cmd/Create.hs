@@ -474,7 +474,7 @@ destroy_track block_id tracknum = do
     tracklike <- State.require ("invalid tracknum: " ++ show tracknum)
         =<< State.track_at block_id tracknum
     State.remove_track block_id tracknum
-    when_just (Block.track_id_of tracklike) $ \track_id ->
+    whenJust (Block.track_id_of tracklike) $ \track_id ->
         whenM (orphan_track track_id) $
             State.destroy_track track_id
 

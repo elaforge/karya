@@ -96,7 +96,7 @@ set_track_signals block_id state track_signals =
         Right tracks -> Ui.send_action $ forM_ tracks set_tsig
     where
     set_tsig (view_id, track_id, tracknum) =
-        when_just (Map.lookup track_id track_signals) $ \tsig ->
+        whenJust (Map.lookup track_id track_signals) $ \tsig ->
             set_track_signal view_id tracknum tsig
 
     -- | Get the tracks of this block which want to render a signal.

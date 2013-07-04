@@ -69,7 +69,7 @@ selection f = do
     block_id <- Cmd.get_focused_block
     forM_ selected $ \(track_id, (start, end), events) -> do
         maybe_new_events <- f block_id track_id events
-        when_just maybe_new_events $ \new_events -> do
+        whenJust maybe_new_events $ \new_events -> do
             State.remove_events track_id start end
             State.insert_block_events block_id track_id new_events
 
@@ -89,9 +89,9 @@ overlapping f = do
     forM_ track_ids $ \track_id -> do
         maybe_event <- Events.overlapping pos . Track.track_events <$>
             State.get_track track_id
-        when_just maybe_event $ \event -> do
+        whenJust maybe_event $ \event -> do
             maybe_new_events <- f block_id track_id [event]
-            when_just maybe_new_events $ \new_events -> do
+            whenJust maybe_new_events $ \new_events -> do
                 State.remove_event track_id pos
                 State.insert_block_events block_id track_id new_events
 

@@ -114,19 +114,20 @@ import Types
 -- | Context sensitive stop that stops whatever is going on.  First it stops
 -- realtime play, then step play, and then it just sends all notes off.
 cmd_context_stop :: Cmd.CmdIO
-cmd_context_stop = do
-    maybe_ctl <- gets Cmd.state_play_control
-    if_just maybe_ctl (done . liftIO . Transport.stop_player) $ do
-    step_playing <- Cmd.gets (Maybe.isJust . Cmd.state_step . Cmd.state_play)
-    if step_playing then done StepPlay.cmd_clear
-        else done Cmd.all_notes_off
-    where
-    done = (>> return Cmd.Done)
+cmd_context_stop = gets Cmd.state_play_control >>= \x -> case x of
+    Just ctl -> do
+        liftIO $ Transport.stop_player ctl
+        return Cmd.Done
+    Nothing -> do
+        step_playing <- Cmd.gets $
+            Maybe.isJust . Cmd.state_step . Cmd.state_play
+        if step_playing then StepPlay.cmd_clear else Cmd.all_notes_off
+        return Cmd.Done
 
 cmd_stop :: Cmd.CmdIO
 cmd_stop = do
     maybe_ctl <- gets Cmd.state_play_control
-    when_just maybe_ctl (void . liftIO . Transport.stop_player)
+    whenJust maybe_ctl (void . liftIO . Transport.stop_player)
     return Cmd.Done
 
 -- * play
@@ -298,7 +299,7 @@ from_realtime block_id repeat_at start_ = do
     -- play to seem to wedge for a moment.
     let start = max 0 start_
     play_control <- gets Cmd.state_play_control
-    when_just play_control $ \_ -> Cmd.throw "player already running"
+    whenJust play_control $ \_ -> Cmd.throw "player already running"
 
     perf <- Cmd.require_msg ("no performance for block " ++ show block_id)
         =<< lookup_current_performance block_id
@@ -313,7 +314,7 @@ from_realtime block_id repeat_at start_ = do
         in return $ if start == 0 && mstart < 0 then mstart else start
     msgs <- return $ PlayUtil.shift_messages multiplier start msgs
     maybe_mmc <- gets Cmd.state_mmc
-    when_just maybe_mmc $ \mmc ->
+    whenJust maybe_mmc $ \mmc ->
         Cmd.midi (Cmd.mmc_device mmc) $ Mmc.encode (Cmd.mmc_device_id mmc) $
             Mmc.Goto $ Mmc.seconds_to_smpte (RealTime.to_seconds start)
     -- See doc for "Cmd.PlayC".

@@ -49,7 +49,7 @@ block_integrate events = do
     -- I can get integrating blocks called from many places and who knows which
     -- one is supposed to be integrated.
     maybe_block_id <- frame_of Stack.block_of <$> Internal.get_stack
-    when_just maybe_block_id $ \block_id -> do
+    whenJust maybe_block_id $ \block_id -> do
         events <- Derive.eval_ui "c_block_integrate" $ unwarp block_id events
         let integrated = Derive.Integrated (Left block_id) events
         Internal.merge_collect $ mempty

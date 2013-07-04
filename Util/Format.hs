@@ -81,7 +81,7 @@ write :: Text -> FormatM ()
 write text = do
     let (lines, last_line) = split_lines text
     mapM_ write_line lines
-    when_just last_line write_chunk
+    whenJust last_line write_chunk
     where
     write_line text = modify $ \state -> state
         { state_col = 0

@@ -159,7 +159,7 @@ move_focus dir = do
             West -> Seq.last $ get_rects (<) Rect.rx
             South -> Seq.head $ get_rects (>) Rect.ry
             North -> Seq.last $ get_rects (<) Rect.ry
-    when_just next $ \(view_id, _) ->
+    whenJust next $ \(view_id, _) ->
         State.update $ Update.CmdBringToFront view_id
 
 -- * misc

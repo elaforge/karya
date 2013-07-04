@@ -52,7 +52,7 @@ sync sync_func send_status ui_pre ui_from ui_to cmd_state cmd_updates
     let tsigs = get_track_signals
             (State.config_root (State.state_config ui_to)) cmd_state
     err <- sync_func tsigs Internal.set_style ui_to display_updates
-    when_just err $ \err ->
+    whenJust err $ \err ->
         Log.error $ "syncing updates: " ++ Pretty.pretty err
 
     -- Kick off the background derivation threads.
@@ -73,7 +73,7 @@ get_track_signals maybe_root st = fromMaybe Map.empty $ do
 --
 -- If there were a need, Cmd.State verification could go here too.
 verify_state :: State.State -> IO ()
-verify_state state = when_just (State.quick_verify state) $ \err ->
+verify_state state = whenJust (State.quick_verify state) $ \err ->
     Log.error $ "state error while verifying: " ++ Pretty.pretty err
 
 modified_view :: Update.UiUpdate -> Bool

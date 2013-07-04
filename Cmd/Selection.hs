@@ -86,7 +86,7 @@ set_subs view_id sel = do
         State.set_selection vid Config.play_position_selnum Nothing
     block_id <- State.block_id_of view_id
     maybe_track_id <- State.event_track_at block_id (Types.sel_cur_track sel)
-    when_just maybe_track_id $ \track_id ->
+    whenJust maybe_track_id $ \track_id ->
         mapM_ (uncurry set_block) =<<
             Perf.sub_pos block_id track_id (Types.sel_cur_pos sel)
 

@@ -132,7 +132,7 @@ selection_at maybe_name block_id tracknums track_ids start end = do
     clipped_skeleton block_id to_block_id tracknums
     -- Clear selected range and put in a call to the new block.
     Edit.clear_range track_ids start end
-    when_just (Seq.head track_ids) $ \track_id ->
+    whenJust (Seq.head track_ids) $ \track_id ->
         State.insert_event track_id $ Event.event start (end-start)
             (Id.ident_name to_block_id)
     -- Create a clipped ruler.

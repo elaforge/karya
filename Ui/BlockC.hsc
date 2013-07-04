@@ -195,7 +195,7 @@ foreign import ccall "set_track_scroll"
 set_selection :: Bool -> ViewId -> Types.SelNum -> Maybe CSelection -> Fltk ()
 set_selection fail_on_view view_id selnum maybe_sel
     | fail_on_view = set =<< get_ptr view_id
-    | otherwise = flip when_just set =<< lookup_ptr view_id
+    | otherwise = flip whenJust set =<< lookup_ptr view_id
     where
     set viewp = maybeWith with maybe_sel $ \selp ->
         c_set_selection viewp (Util.c_int selnum) selp
@@ -206,7 +206,7 @@ set_track_selection :: Bool -> ViewId -> Types.SelNum -> TrackNum
     -> Maybe CSelection -> Fltk ()
 set_track_selection fail_on_view view_id selnum tracknum maybe_sel
     | fail_on_view = set =<< get_ptr view_id
-    | otherwise = flip when_just set =<< lookup_ptr view_id
+    | otherwise = flip whenJust set =<< lookup_ptr view_id
     where
     set viewp = maybeWith with maybe_sel $ \selp ->
         c_set_track_selection viewp (Util.c_int selnum)
@@ -339,7 +339,7 @@ foreign import ccall "update_track"
 set_track_signal :: ViewId -> TrackNum -> Track.TrackSignal -> Fltk ()
 set_track_signal view_id tracknum tsig = do
     maybe_viewp <- lookup_ptr view_id
-    when_just maybe_viewp $ \viewp -> with tsig $ \tsigp ->
+    whenJust maybe_viewp $ \viewp -> with tsig $ \tsigp ->
         c_set_track_signal viewp (Util.c_int tracknum) tsigp
 foreign import ccall "set_track_signal"
     c_set_track_signal :: Ptr CView -> CInt -> Ptr Track.TrackSignal -> IO ()

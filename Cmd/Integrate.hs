@@ -76,7 +76,7 @@ integrate_block block_id tracks = do
     Log.notice $ "integrated " ++ show block_id ++ " to: "
         ++ Pretty.pretty (map fst new_blocks)
     forM_ new_blocks $ \(new_block_id, track_dests) ->
-        when_just (NonEmpty.nonEmpty track_dests) $ \dests ->
+        whenJust (NonEmpty.nonEmpty track_dests) $ \dests ->
             State.set_integrated_block new_block_id $ Just (block_id, dests)
     Cmd.derive_immediately (map fst new_blocks)
     where

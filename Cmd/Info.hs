@@ -210,7 +210,7 @@ show_runs = concatMap show_run . Seq.split_between (\a b -> a+1 < b)
 set_inst_status :: (Cmd.M m) => BlockId -> TrackNum -> m ()
 set_inst_status block_id tracknum = do
     status <- get_track_status block_id tracknum
-    when_just status $ Cmd.set_global_status "inst"
+    whenJust status $ Cmd.set_global_status "inst"
 
 -- | Looks like:
 -- title (tracknum): inst_name, allocation, [control tracks]
