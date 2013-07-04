@@ -35,7 +35,7 @@ import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 
 import qualified Midi.Midi as Midi
-import qualified Midi.Parse
+import qualified Midi.Encode
 import qualified Ui.Util
 import qualified Perform.Midi.Instrument as Instrument
 import qualified Instrument.Tag as Tag
@@ -93,7 +93,7 @@ initialize_program bank n =
 initialize_sysex :: ByteString -> Instrument.Patch -> Instrument.Patch
 initialize_sysex bytes =
     Instrument.initialize #= Instrument.InitializeMidi
-        [Midi.Parse.decode bytes]
+        [Midi.Encode.decode bytes]
 
 add_file :: FilePath -> Instrument.Patch -> Instrument.Patch
 add_file fn patch = patch

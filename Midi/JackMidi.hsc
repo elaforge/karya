@@ -21,7 +21,7 @@ import Foreign hiding (void)
 import qualified Util.Log as Log
 import qualified Util.Thread as Thread
 import qualified Midi.Midi as Midi
-import qualified Midi.Parse as Parse
+import qualified Midi.Encode as Encode
 import qualified Midi.Interface as Interface
 import qualified Perform.RealTime as RealTime
 import Types
@@ -100,7 +100,7 @@ read_event client = do
         bytes <- ByteString.packCStringLen (bytesp, fromIntegral size)
         rdev <- Midi.peek_rdev =<< peek portp
         time <- decode_time <$> peek timep
-        return $ Midi.ReadMessage rdev time (Parse.decode bytes)
+        return $ Midi.ReadMessage rdev time (Encode.decode bytes)
 
 foreign import ccall "read_event"
     c_read_event :: Ptr CClient -> Ptr CString -> Ptr CJackTime
@@ -173,7 +173,7 @@ foreign import ccall "create_write_port"
 write_message :: Client -> Midi.WriteMessage -> IO Bool
 write_message client (Midi.WriteMessage dev time msg) =
     Midi.with_wdev dev $ \devp ->
-    ByteString.useAsCStringLen (Parse.encode msg) $ \(bytesp, len) ->
+    ByteString.useAsCStringLen (Encode.encode msg) $ \(bytesp, len) ->
     check ("write_message " ++ show (dev, time, msg))
         =<< c_write_message (client_ptr client) devp
             (fromIntegral (RealTime.to_microseconds time))

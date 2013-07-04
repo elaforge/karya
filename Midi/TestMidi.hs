@@ -32,7 +32,7 @@ import qualified Midi.JackMidi as MidiDriver
 import qualified Midi.Interface as Interface
 import qualified Midi.Midi as Midi
 import qualified Midi.Mmc as Mmc
-import qualified Midi.Parse
+import qualified Midi.Encode
 
 import qualified Perform.RealTime as RealTime
 
@@ -176,14 +176,14 @@ record_sysex read_msg = loop 0
                 putStrLn $ "sysex " ++ Num.hex manuf ++ " "
                     ++ show (ByteString.length bytes) ++ " bytes -> "
                     ++ fn
-                ByteString.writeFile fn (Midi.Parse.encode msg)
+                ByteString.writeFile fn (Midi.Encode.encode msg)
                 return True
             _ -> return False
         loop (if wrote then n+1 else n)
 
 send_sysex :: WriteMsg -> FilePath -> IO ()
 send_sysex write_msg fname = do
-    msg <- Midi.Parse.decode <$> ByteString.readFile fname
+    msg <- Midi.Encode.decode <$> ByteString.readFile fname
     write_msg (0, msg)
     putStrLn "sending asynchronously, hit return when the blinkenlights stop"
     _ <- getLine

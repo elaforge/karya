@@ -27,7 +27,7 @@ import Foreign.C
 import qualified Util.Log as Log
 import qualified Midi.Interface as Interface
 import qualified Midi.Midi as Midi
-import qualified Midi.Parse as Parse
+import qualified Midi.Encode as Encode
 
 import qualified Ui.Util
 import qualified Perform.RealTime as RealTime
@@ -117,7 +117,7 @@ read_callback want_message chan sourcep ctimestamp len bytesp = do
     -- wants CChar.
     bytes <- ByteString.packCStringLen (castPtr bytesp, fromIntegral len)
     rdev <- deRefStablePtr sourcep
-    let msg = Parse.decode bytes
+    let msg = Encode.decode bytes
     when (want_message msg) $ STM.atomically $ STM.writeTChan chan $
         Midi.ReadMessage rdev (decode_time ctimestamp) msg
 
@@ -242,7 +242,7 @@ write_message client (Midi.WriteMessage dev ts msg) = do
     -- will take forever to send anyway.
     writes <- IORef.readIORef (client_writes client)
     case Map.lookup dev writes of
-        Just (Just dev_id) -> ByteString.useAsCStringLen (Parse.encode msg) $
+        Just (Just dev_id) -> ByteString.useAsCStringLen (Encode.encode msg) $
             \(bytesp, len) -> check =<< c_write_message dev_id
                 (encode_time ts) (fromIntegral len) (castPtr bytesp)
         _ -> return False

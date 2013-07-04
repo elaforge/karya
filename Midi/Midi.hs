@@ -171,7 +171,7 @@ reset_channel chan =
 -- * constants
 
 -- | These aren't used here, but even though I'd like to constrain all midi
--- parsing to Midi.Parse, other places wind up dealing with raw sysex msgs.
+-- parsing to "Midi.Encode", other places wind up dealing with raw sysex msgs.
 sox_byte, eox_byte :: Word8
 sox_byte = 0xf0
 eox_byte = 0xf7

@@ -27,7 +27,7 @@ import qualified Util.Seq as Seq
 
 import qualified Midi.CC as CC
 import qualified Midi.Midi as Midi
-import qualified Midi.Parse
+import qualified Midi.Encode
 
 import qualified Derive.Score as Score
 import qualified Perform.Midi.Control as Control
@@ -129,7 +129,7 @@ combine :: FilePath -> Text -> ByteString -> Instrument.Patch
 combine fn txt syx patch = Sysex.add_file fn $ patch
     { Instrument.patch_text = Text.strip txt
     , Instrument.patch_initialize =
-        Instrument.InitializeMidi [Midi.Parse.decode syx]
+        Instrument.InitializeMidi [Midi.Encode.decode syx]
     }
 
 decode_sysex :: ByteString -> Either String Sysex.RMap

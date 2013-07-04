@@ -2,7 +2,7 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
-module Midi.Parse (decode, encode) where
+module Midi.Encode (decode, encode) where
 import qualified Data.ByteString as B
 import qualified Data.ByteString.Unsafe as Unsafe
 import Data.Word (Word8)
