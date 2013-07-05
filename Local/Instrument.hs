@@ -8,6 +8,7 @@
 -- TODO the 'load' and 'make_dbs' calls should be automatically generated from
 -- the contents of the Local/Instrument/ dir.
 module Local.Instrument where
+import qualified Data.List as List
 import System.FilePath ((</>))
 
 import Util.Control
@@ -77,6 +78,10 @@ make_dbs app_dir = mapM_ ($ Config.make_path app_dir Config.instrument_dir)
     [Morpheus.make_db, Vl1.make_db, Z1.make_db]
 
 make_named_dbs :: [String] -> FilePath -> IO ()
-make_named_dbs names app_dir =
-    mapM_ ($ Config.make_path app_dir Config.instrument_dir)
-        [make | (name, make) <- dbs, name `elem` names]
+make_named_dbs names app_dir
+    | null unmatched =
+        mapM_ ($ Config.make_path app_dir Config.instrument_dir)
+            [make | (name, make) <- dbs, name `elem` names]
+    | otherwise = errorIO $ "unmatched dbs: " ++ show unmatched
+        ++ ", understood dbs: " ++ show (map fst dbs)
+    where unmatched = names List.\\ map fst dbs
