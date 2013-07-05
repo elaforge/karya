@@ -32,7 +32,9 @@ module Midi.Midi (
     , PitchBendValue, Manufacturer
     , Key(..), from_key, to_key
     , ChannelMessage(..), CommonMessage(..), RealtimeMessage(..)
-    , Timing(..), TimingRate(..), SmpteFragment(..), Smpte(..)
+    , Mtc(..), FrameRate(..), SmpteFragment(..), Smpte(..)
+    , seconds_to_frame, frame_to_seconds, frame_to_smpte, seconds_to_smpte
+    , generate_mtc
     , mtc_sync, mtc_fragments
 
     -- * util
@@ -55,8 +57,10 @@ import qualified Foreign.C
 import qualified Text.Printf as Printf
 
 import Util.Control
+import qualified Util.Num as Num
 import qualified Util.Pretty as Pretty
 import Util.Pretty (pretty, format, (<+>))
+import qualified Util.Seq as Seq
 import qualified Util.Serialize as Serialize
 
 import qualified Midi.CC as CC
@@ -315,8 +319,8 @@ data CommonMessage =
     | UndefinedCommon !Word8
     deriving (Eq, Ord, Show, Read, Generics.Typeable)
 
-data RealtimeMessage = TimingClock !Timing | Start | Continue | Stop
-    | ActiveSense | Reset | UndefinedRealtime !Word8
+data RealtimeMessage = MtcQuarterFrame !Mtc | TimingClock | Start | Continue
+    | Stop | ActiveSense | Reset | UndefinedRealtime !Word8
     deriving (Eq, Ord, Show, Read, Generics.Typeable)
 
 instance DeepSeq.NFData Message where rnf _ = ()
@@ -333,34 +337,96 @@ instance Pretty.Pretty ChannelMessage where
 
 -- ** MTC
 
-data Timing = Timing !SmpteFragment !Word8 -- actually Word4
+data Mtc = Mtc !SmpteFragment !Word8 -- actually Word4
     deriving (Eq, Ord, Show, Read)
-data TimingRate = Frame24 | Frame25 | Frame29 | Frame30
+data FrameRate = Frame24 | Frame25 | Frame29_97df | Frame30
     deriving (Enum, Show)
 data SmpteFragment = FrameLsb | FrameMsb | SecondLsb | SecondMsb
     | MinuteLsb | MinuteMsb | HourLsb | RateHourMsb
     deriving (Enum, Eq, Ord, Show, Read)
 
+rate_fps :: FrameRate -> Double
+rate_fps Frame24 = 24
+rate_fps Frame25 = 25
+rate_fps Frame29_97df = 29.97
+rate_fps Frame30 = 30
+
 data Smpte = Smpte {
-    hours :: !Word8
-    , minutes :: !Word8
-    , seconds :: !Word8
-    , frames :: !Word8
-    , subframes :: !Word8
+    smpte_hours :: !Word8
+    , smpte_minutes :: !Word8
+    , smpte_seconds :: !Word8
+    , smpte_frames :: !Word8
     } deriving (Eq, Show)
 
--- | Sent full MTC sync code.
-mtc_sync :: Smpte -> Message
-mtc_sync (Smpte hours mins secs frames _ ) =
+type Seconds = Double
+type Frames = Int
+
+seconds_to_frame :: FrameRate -> Seconds -> Frames
+seconds_to_frame rate = floor . (* rate_fps rate)
+
+frame_to_seconds :: FrameRate -> Frames -> Seconds
+frame_to_seconds rate = (/ rate_fps rate) . fromIntegral
+
+frame_to_smpte :: FrameRate -> Frames -> Smpte
+frame_to_smpte rate frame = Smpte (w7 hours) (w7 mins) (w7 secs) (w7 t3)
+    where
+    fps = case rate of
+        Frame29_97df -> 30
+        _ -> floor (rate_fps rate)
+    (hours, t1) = undrop_frames rate frame `divMod` (60 * 60 * fps)
+    (mins, t2) = t1 `divMod` (60 * fps)
+    (secs, t3) = t2 `divMod` fps
+    w7 :: Int -> Word8
+    w7 = fromIntegral . Num.clamp 0 0x7f
+
+seconds_to_smpte :: FrameRate -> Seconds -> Smpte
+seconds_to_smpte rate = frame_to_smpte rate . seconds_to_frame rate
+
+-- | Add dropped frames back in.  When converted back into SMPTE the effect is
+-- that the dropped frames are skipped.
+undrop_frames :: FrameRate -> Frames -> Frames
+undrop_frames Frame29_97df frames =
+    frames + 2 * (frames `div` (30 * 60)) - 2 * (frames `div` (10 * 30 * 60))
+undrop_frames _ frames = frames
+
+-- Cubase only sends every other frame.  So it's 8x less information.
+-- So does reaper, that must be normal.
+
+-- | Send full MTC sync code.  This is supposed to happen every time there is
+-- a time dicontinuity.
+mtc_sync :: FrameRate -> Smpte -> Message
+mtc_sync rate (Smpte hours mins secs frames) =
     CommonMessage $ SystemExclusive 0x7f $
-        ByteString.pack [chan, 01, 01, hours, mins, secs, frames, eox_byte]
+        ByteString.pack [chan, 01, 01, rate_code .|. hours,
+            mins, secs, frames, eox_byte]
     where
     chan = 0x7f -- send to all devices
+    rate_code = shiftL (fromIntegral (fromEnum rate)) 5
+    -- TODO is chan the same as DeviceId?
+
+-- | Generate MTC starting at the given time and going on until the well of
+-- time runs dry.  Or 7 bits overflow.
+--
+-- Since MTC can only start on a frame, the first returned time might be
+-- slightly before the requested time.
+--
+-- One MtcQuarterFrame is transmitted per quarter frame.  Since it takes 8
+-- to make a complete SMPTE frame, you wind up getting every other frame.
+generate_mtc :: FrameRate -> Frames -> [(Double, Message)]
+generate_mtc rate frame = zip times (concatMap msgs (Seq.range_ frame 2))
+    where
+    -- Round up to the previous whole frame, then step forward frames and time
+    -- together.  frame_to_smpte will take care of drop frame.
+    msgs frame = map (RealtimeMessage . MtcQuarterFrame) $
+        mtc_fragments rate (frame_to_smpte rate frame)
+    times = Seq.range_ start fragment
+    start = fromIntegral frame / rate_fps rate
+    fragment = 1 / rate_fps rate / 4
 
 -- | These should be transmitted once each quarter frame, so 96--120 times per
 -- second.
-mtc_fragments :: TimingRate -> Smpte -> [Timing]
-mtc_fragments rate (Smpte hours minutes seconds frames _) = map (uncurry Timing)
+mtc_fragments :: FrameRate -> Smpte -> [Mtc]
+mtc_fragments rate (Smpte hours minutes seconds frames) = map (uncurry Mtc)
     [ (FrameLsb, frame_lsb), (FrameMsb, frame_msb)
     , (SecondLsb, sec_lsb), (SecondMsb, sec_msb)
     , (MinuteLsb, min_lsb), (MinuteMsb, min_msb)

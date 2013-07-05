@@ -56,7 +56,8 @@ decode3 status d1 d2 bytes
         0x7 -> EOX -- this shouldn't happen by itself
         _ -> UndefinedCommon chan
     realtime_msg byte = case chan of
-        0x8 -> TimingClock (decode_timing byte)
+        0x1 -> MtcQuarterFrame (decode_mtc byte)
+        0x8 -> TimingClock
         0xa -> Start
         0xb -> Continue
         0xc -> Stop
@@ -83,12 +84,13 @@ encode (ChannelMessage chan msg) = B.pack $ join1 $ case msg of
     join1 (b:bs) = join4 b chan : bs
     join1 [] = []
 
-encode (RealtimeMessage (TimingClock timing)) =
-    B.pack [0xf8, encode_timing timing]
+encode (RealtimeMessage (MtcQuarterFrame timing)) =
+    B.pack [0xf1, encode_mtc timing]
 encode (RealtimeMessage msg) = B.pack [join4 0xf st]
     where
     st = case msg of
-        TimingClock _ -> 0x8 -- unreached due to match above
+        MtcQuarterFrame _ -> 0x1 -- not reached, due to pattern match above
+        TimingClock -> 0x8
         Start -> 0xa
         Continue -> 0xb
         Stop -> 0xc
@@ -111,12 +113,12 @@ encode (UnknownMessage st d1 d2) =
 
 -- * util
 
-decode_timing :: Word8 -> Timing
-decode_timing byte = Timing (toEnum (fromIntegral frag)) val
+decode_mtc :: Word8 -> Mtc
+decode_mtc byte = Mtc (toEnum (fromIntegral frag)) val
     where (frag, val) = split4 byte
 
-encode_timing :: Timing -> Word8
-encode_timing (Timing frag val) = join4 (fromIntegral (fromEnum frag)) val
+encode_mtc :: Mtc -> Word8
+encode_mtc (Mtc frag val) = join4 (fromIntegral (fromEnum frag)) val
 
 -- | I map a 2s complement range to inclusive -1--1, so this is a little
 -- tricky.

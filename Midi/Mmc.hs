@@ -10,37 +10,22 @@ import qualified Data.ByteString as B
 import Data.Monoid ((<>))
 import Data.Word (Word8)
 
-import qualified Util.Num as Num
 import qualified Midi.Midi as Midi
 
 
 -- | There are more, but I only support the ones I use.
 data Mmc = Stop | Play | FastForward | Rewind | Pause
-    | Goto !Smpte -- aka Locate
+    | Goto !Midi.Smpte !SubFrames -- aka Locate
     deriving (Eq, Show)
 
-data Smpte = Smpte {
-    hours :: !Word8
-    , minutes :: !Word8
-    , seconds :: !Word8
-    , frames :: !Word8
-    , subframes :: !Word8
-    } deriving (Eq, Show)
-
-seconds_to_smpte :: Double -> Smpte
-seconds_to_smpte t = Smpte (w7 hours) (w7 mins) (w7 secs) (w7 frames) 0
-    where
-    (t1, frac) = properFraction t
-    (hours, t2) = t1 `divMod` (60 * 60)
-    (mins, secs) = t2 `divMod` 60
-    frames = floor (frac * fps)
-    fps = 30
-    w7 :: Int -> Word8
-    w7 = fromIntegral . Num.clamp 0 0x7f
+-- TODO how many subframes per frame?
+goto_seconds :: Midi.FrameRate -> Double -> Mmc
+goto_seconds rate secs = Goto (Midi.seconds_to_smpte rate secs) 0
 
 -- | This is just an arbitrary number that evidentally selects which device
 -- should pay attention to the msg.  0x7f sometimes means all devices.
 type DeviceId = Word8
+type SubFrames = Word8
 
 -- | Encode an Mmc msg into a SystemExclusive.
 encode :: DeviceId -> Mmc -> Midi.Message
@@ -55,5 +40,5 @@ encode_msg mmc = B.pack $ case mmc of
     FastForward -> [0x4]
     Rewind -> [0x5]
     Pause -> [0x9]
-    Goto (Smpte hours mins secs frames subframes) ->
+    Goto (Midi.Smpte hours mins secs frames) subframes ->
         [0x44, 0x06, 0x01, hours, mins, secs, frames, subframes]
