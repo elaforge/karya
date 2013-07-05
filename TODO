@@ -133,10 +133,11 @@ UNSORTED
     - I can either have a separate app, or use the special Status trick.
   mmc/mtc support
     * Try sending MMC to reaper and see what happens.  Nothing.
-      + ask on forum: http://forum.cockos.com/forumdisplay.php?f=21
+      * ask on forum: http://forum.cockos.com/forumdisplay.php?f=21
+      . Looks like reaper only supports MTC.
     * Try cubase.  Works fine.
     * Hook set selection, play, and stop to send the appropriate mmc cmds.
-    - send MTC fragments on play
+    * send MTC on play
   - Playback should have multiple lines when a block is derived multiple
     times. Have a set of playback selnums?
 

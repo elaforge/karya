@@ -20,6 +20,8 @@ import qualified Data.Map as Map
 
 import Util.Control
 import qualified Util.Seq as Seq
+import qualified Midi.Midi as Midi
+import qualified Midi.Mmc as Mmc
 import qualified Ui.Block as Block
 import qualified Ui.Event as Event
 import qualified Ui.Events as Events
@@ -32,12 +34,12 @@ import qualified Ui.UiMsg as UiMsg
 
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Internal as Internal
-import qualified Cmd.Mmc as Mmc
 import qualified Cmd.Msg as Msg
 import qualified Cmd.Perf as Perf
 import qualified Cmd.TimeStep as TimeStep
 
 import qualified Derive.Score as Score
+import qualified Perform.RealTime as RealTime
 import qualified Perform.Transport as Transport
 import qualified App.Config as Config
 import Types
@@ -60,15 +62,20 @@ set_selnum view_id selnum maybe_sel = do
         case maybe_sel of
             Just sel | Types.sel_is_point sel -> do
                 set_subs view_id sel
-                whenJustM (Cmd.gets (Cmd.state_mmc . Cmd.state_play)) $
-                    mmc_goto view_id sel
+                whenJustM (Cmd.gets (Cmd.state_sync . Cmd.state_play)) $
+                    mmc_goto_sel view_id sel
             _ -> return ()
 
-mmc_goto :: (Cmd.M m) => ViewId -> Types.Selection -> Cmd.MmcConfig -> m ()
-mmc_goto view_id sel config = do
+mmc_goto_sel :: (Cmd.M m) => ViewId -> Types.Selection -> Cmd.SyncConfig -> m ()
+mmc_goto_sel view_id sel sync = do
     block_id <- State.block_id_of view_id
     maybe_track_id <- State.event_track_at block_id (Types.sel_cur_track sel)
-    Mmc.goto config block_id maybe_track_id (Types.sel_cur_pos sel)
+    whenJustM (root_realtime block_id maybe_track_id (Types.sel_cur_pos sel)) $
+        Cmd.midi (Cmd.sync_device sync) . mmc_goto sync
+
+mmc_goto :: Cmd.SyncConfig -> RealTime -> Midi.Message
+mmc_goto sync pos = Mmc.encode (Cmd.sync_device_id sync) $
+    Mmc.goto_seconds (Cmd.sync_frame_rate sync) (RealTime.to_seconds pos)
 
 -- | Set a selection in the current view.
 set_current :: (Cmd.M m) => Types.SelNum -> Maybe Types.Selection -> m ()
@@ -519,6 +526,15 @@ realtime = do
         Just root_id -> do
             (s, e) <- relative_realtime root_id
             return (root_id, s, e)
+
+-- | RealTime of the given ScoreTime, relative to the root block.  This is
+-- the closest we get to an absolute real time.
+root_realtime :: (Cmd.M m) => BlockId -> Maybe TrackId -> ScoreTime
+    -> m (Maybe RealTime)
+root_realtime block_id maybe_track_id pos =
+    State.get_root_id >>= \root_block ->
+    justm (Cmd.lookup_performance root_block) $ \perf ->
+    Perf.lookup_realtime perf block_id maybe_track_id pos
 
 -- | This is like 'get_insert', except get the selection on the root block,
 -- falling back to the current one if there is none.

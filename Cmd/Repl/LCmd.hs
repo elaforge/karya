@@ -7,7 +7,6 @@
 module Cmd.Repl.LCmd where
 import Util.Control
 import qualified Midi.Midi as Midi
-import qualified Midi.Mmc as Mmc
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.TimeStep as TimeStep
 import qualified Perform.RealTime as RealTime
@@ -53,12 +52,18 @@ set_play_multiplier d = Cmd.modify_play_state $ \st ->
 
 -- * mmc
 
-set_mmc :: Text -> Mmc.DeviceId -> Cmd.CmdL ()
-set_mmc dev dev_id = Cmd.modify_play_state $ \st ->
-    st { Cmd.state_mmc = Just $ Cmd.MmcConfig (Midi.write_device dev) dev_id }
+set_sync :: Text -> Bool -> Cmd.CmdL ()
+set_sync dev mtc = Cmd.modify_play_state $ \st -> st
+    { Cmd.state_sync = Just $ Cmd.SyncConfig
+        { Cmd.sync_device = Midi.write_device dev
+        , Cmd.sync_device_id = 0x7f -- all devices
+        , Cmd.sync_mtc = mtc
+        , Cmd.sync_frame_rate = Midi.Frame30
+        }
+    }
 
-unset_mmc :: Cmd.CmdL ()
-unset_mmc = Cmd.modify_play_state $ \st -> st { Cmd.state_mmc = Nothing }
+unset_sync :: Cmd.CmdL ()
+unset_sync = Cmd.modify_play_state $ \st -> st { Cmd.state_sync = Nothing }
 
 -- * undo
 

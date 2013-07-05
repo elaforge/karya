@@ -406,7 +406,7 @@ _perform_note (addr_inst, note_off_map) next_note_on (event, addr) =
     (note_msgs, note_off) = perform_note
         (Map.findWithDefault 0 addr note_off_map) next_note_on event addr
     (chan_state_msgs, addr_inst2) = adjust_chan_state addr_inst addr event
-    msgs = Seq.merge_on levent_start chan_state_msgs note_msgs
+    msgs = merge_events chan_state_msgs note_msgs
 
 -- | Figure out of any msgs need to be emitted to convert the channel state to
 -- the given event on the given addr.

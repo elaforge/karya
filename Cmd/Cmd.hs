@@ -145,7 +145,7 @@ merge_status s1 s2 = if prio s1 >= prio s2 then s1 else s2
 --
 -- Mmc config, descriptive name, events, tempo func to display play position,
 -- optional time to repeat at.
-data PlayMidiArgs = PlayMidiArgs !(Maybe MmcConfig) !String
+data PlayMidiArgs = PlayMidiArgs !(Maybe SyncConfig) !String
     !Midi.Perform.MidiEvents !(Maybe Transport.InverseTempoFunction)
     !(Maybe RealTime)
 instance Show PlayMidiArgs where show _ = "((PlayMidiArgs))"
@@ -459,8 +459,8 @@ data PlayState = PlayState {
     -- speed, and 0.5 will play half speed.
     , state_play_multiplier :: RealTime
     -- | If set, synchronize with a DAW when the selection is set, and on play
-    -- and stop.  For this to work, the DAW has to support MMC slave.
-    , state_mmc :: !(Maybe MmcConfig)
+    -- and stop.
+    , state_sync :: !(Maybe SyncConfig)
     } deriving (Show, Generics.Typeable)
 
 initial_play_state :: PlayState
@@ -473,7 +473,7 @@ initial_play_state = PlayState
         TimeStep.time_step $ TimeStep.RelativeMark TimeStep.AllMarklists 0
     , state_step = Nothing
     , state_play_multiplier = RealTime.seconds 1
-    , state_mmc = Nothing
+    , state_sync = Nothing
     }
 
 -- | Step play is a way of playing back the performance in non-realtime.
@@ -493,16 +493,33 @@ data StepState = StepState {
     , step_after :: ![(ScoreTime, Midi.State.State)]
     } deriving (Show, Generics.Typeable)
 
-data MmcConfig = MmcConfig {
-    mmc_device :: !Midi.WriteDevice
-    , mmc_device_id :: !Mmc.DeviceId
+-- | Configure synchronization.  MMC is used to set the play position and
+-- start and stop playing.  Unfortunately, it's sysexes which presumably means
+-- it's not precise, and Reaper doesn't support it.
+data SyncConfig = SyncConfig {
+    sync_device :: !Midi.WriteDevice
+    -- | Send MMC to this device.
+    , sync_device_id :: !Mmc.DeviceId
+    -- | If true, send MTC on the 'sync_device'.  If this is set, MMC play and
+    -- stop will be omitted, since the presence of MTC should be enough to get
+    -- the DAW started, provided it's in external sync mode.
+    --
+    -- DAWs tend to spend a long time synchronizing, presumably because
+    -- hardware devices take time to spin up.  That's unnecessary in software,
+    -- so in Cubase you can set \"lock frames\" to 2, and in Reaper you can set
+    -- \"synchronize by seeking ahead\" to 67ms.
+    , sync_mtc :: !Bool
+    , sync_frame_rate :: !Midi.FrameRate
     } deriving (Show)
 
-instance Pretty.Pretty MmcConfig where
-    format (MmcConfig dev dev_id) = Pretty.record_title "MmcConfig"
-        [ ("device", Pretty.format dev)
-        , ("devide_id", Pretty.format dev_id)
-        ]
+instance Pretty.Pretty SyncConfig where
+    format (SyncConfig dev dev_id mtc rate) =
+        Pretty.record_title "SyncConfig"
+            [ ("device", Pretty.format dev)
+            , ("device_id", Pretty.format dev_id)
+            , ("mtc", Pretty.format mtc)
+            , ("frame_rate", Pretty.text (show rate))
+            ]
 
 -- ** EditState
 

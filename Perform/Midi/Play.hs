@@ -9,7 +9,6 @@ module Perform.Midi.Play (play, cycle_messages) where
 import qualified Control.Exception as Exception
 import qualified Data.Maybe as Maybe
 
-import Util.Control
 import qualified Util.Log as Log
 import qualified Util.Seq as Seq
 import qualified Util.Thread as Thread
@@ -29,40 +28,44 @@ type Messages = [LEvent.LEvent Midi.WriteMessage]
 
 -- | Start a thread to stream a list of WriteMessages, and return
 -- a Transport.Control which can be used to stop and restart the player.
-play :: Transport.Info -> Maybe Cmd.MmcConfig -> String -> Messages
+play :: Transport.Info -> Maybe Cmd.SyncConfig -> String -> Messages
     -> Maybe RealTime
     -- ^ If given, loop back to the beginning when this time is reached.
     -> IO (Transport.PlayControl, Transport.PlayMonitorControl)
-play transport_info mmc name msgs repeat_at = do
+play transport_info sync name msgs repeat_at = do
     state <- make_state transport_info
     now <- Transport.info_get_current_time transport_info
     Thread.start_logged "render midi" $
         -- Don't send MMC if I'm repeating, it'll just confuse the DAW.
-        player_thread (if Maybe.isJust repeat_at then Nothing else mmc) now
+        player_thread (if Maybe.isJust repeat_at then Nothing else sync) now
             name state (process now repeat_at msgs)
     return (state_play_control state, state_monitor_control state)
     where
     -- Catch msgs up to realtime and cycle them if I'm repeating.
     process now repeat_at = shift_messages now . cycle_messages repeat_at
 
-player_thread :: Maybe Cmd.MmcConfig -> RealTime -> String -> State
+player_thread :: Maybe Cmd.SyncConfig -> RealTime -> String -> State
     -> Messages -> IO ()
-player_thread maybe_mmc start name state msgs = do
+player_thread maybe_sync start name state msgs = do
     Log.debug $ "play start: " ++ name
-    whenJust maybe_mmc $ \mmc ->
-        state_write_midi state $ make_mmc mmc start Mmc.Play
+    case maybe_sync of
+        Just sync | not (Cmd.sync_mtc sync) ->
+            state_write_midi state $ make_mmc sync start Mmc.Play
+        _ -> return ()
     play_msgs state msgs
         `Exception.catch` \(exc :: Exception.SomeException) ->
             Transport.info_send_status (state_info state)
                 (Transport.Died (show exc))
-    whenJust maybe_mmc $ \mmc ->
-        state_write_midi state $ make_mmc mmc 0 Mmc.Stop
+    case maybe_sync of
+        Just sync | not (Cmd.sync_mtc sync) ->
+            state_write_midi state $ make_mmc sync start Mmc.Stop
+        _ -> return ()
     Transport.player_stopped (state_monitor_control state)
     Log.debug $ "play complete: " ++ name
 
-make_mmc :: Cmd.MmcConfig -> RealTime -> Mmc.Mmc -> Midi.WriteMessage
-make_mmc mmc start msg = Midi.WriteMessage (Cmd.mmc_device mmc) start $
-    Mmc.encode (Cmd.mmc_device_id mmc) msg
+make_mmc :: Cmd.SyncConfig -> RealTime -> Mmc.Mmc -> Midi.WriteMessage
+make_mmc sync start msg = Midi.WriteMessage (Cmd.sync_device sync) start $
+    Mmc.encode (Cmd.sync_device_id sync) msg
 
 cycle_messages :: Maybe RealTime -> Messages -> Messages
 cycle_messages _ [] = []

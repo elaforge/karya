@@ -90,7 +90,7 @@ import qualified Util.Log as Log
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 
-import qualified Midi.Mmc as Mmc
+import qualified Midi.Midi as Midi
 import qualified Ui.Id as Id
 import qualified Ui.State as State
 import qualified Ui.Types as Types
@@ -103,7 +103,9 @@ import qualified Cmd.StepPlay as StepPlay
 import qualified Cmd.TimeStep as TimeStep
 
 import qualified Derive.Cache as Cache
+import qualified Derive.LEvent as LEvent
 import qualified Derive.Stack as Stack
+
 import qualified Perform.RealTime as RealTime
 import qualified Perform.Transport as Transport
 import Types
@@ -305,6 +307,19 @@ from_realtime block_id repeat_at start_ = do
         =<< lookup_current_performance block_id
     multiplier <- gets (recip . Cmd.state_play_multiplier)
 
+    maybe_sync <- gets Cmd.state_sync
+    case maybe_sync of
+        -- Don't bother with a MMC Goto if I'm going to send MTC.
+        Just sync | not (Cmd.sync_mtc sync) ->
+            Cmd.midi (Cmd.sync_device sync) $ Selection.mmc_goto sync start
+        _ -> return ()
+    -- MTC rounds up to the previous whole frame, so the mtc might start
+    -- slightly before the notes.
+    -- TODO actually DAWs need a bit of time to sync, so maybe I should start
+    -- further in advance.
+    let mtc = PlayUtil.shift_messages 1 start $ map LEvent.Event $
+            generate_mtc maybe_sync start
+
     -- Events can wind up before 0, say if there's a grace note on a note at 0.
     -- To have them play correctly, perform_from will give me negative events
     -- when starting from 0, and then I have to shift the start time back to
@@ -313,14 +328,37 @@ from_realtime block_id repeat_at start_ = do
     start <- let mstart = PlayUtil.first_time msgs
         in return $ if start == 0 && mstart < 0 then mstart else start
     msgs <- return $ PlayUtil.shift_messages multiplier start msgs
-    maybe_mmc <- gets Cmd.state_mmc
-    whenJust maybe_mmc $ \mmc ->
-        Cmd.midi (Cmd.mmc_device mmc) $ Mmc.encode (Cmd.mmc_device_id mmc) $
-            Mmc.Goto $ Mmc.seconds_to_smpte (RealTime.to_seconds start)
-    -- See doc for "Cmd.PlayC".
-    return $ Cmd.PlayMidiArgs maybe_mmc (Pretty.pretty block_id) msgs
+    -- See doc for "Cmd.PlayC" for why I return a magic value.
+    return $ Cmd.PlayMidiArgs maybe_sync (Pretty.pretty block_id)
+        (merge_midi msgs mtc)
         (Just (Cmd.perf_inv_tempo perf . (+start) . (/multiplier)))
         ((*multiplier) . subtract start <$> repeat_at)
+
+-- | Merge a finite list of notes with an infinite list of MTC.
+merge_midi :: [LEvent.LEvent Midi.WriteMessage]
+    -> [LEvent.LEvent Midi.WriteMessage] -> [LEvent.LEvent Midi.WriteMessage]
+merge_midi = merge_until (LEvent.either Midi.wmsg_ts (const 0))
+
+-- | Merge until the leftmost list runs out.
+merge_until :: (Ord k) => (a -> k) -> [a] -> [a] -> [a]
+merge_until key xs ys = go xs ys
+    where
+    go xs [] = xs
+    go [] _ = []
+    go (x:xs) (y:ys)
+        | key x <= key y = x : go xs (y:ys)
+        | otherwise = y : go (x:xs) ys
+
+generate_mtc :: Maybe Cmd.SyncConfig -> RealTime -> [Midi.WriteMessage]
+generate_mtc (Just sync) start | Cmd.sync_mtc sync =
+    map make $ (0, Midi.mtc_sync rate smpte) : Midi.generate_mtc rate frame
+    where
+    smpte = Midi.frame_to_smpte rate frame
+    frame = Midi.seconds_to_frame rate (RealTime.to_seconds start)
+    rate = Cmd.sync_frame_rate sync
+    make (secs, msg) =
+        Midi.WriteMessage (Cmd.sync_device sync) (RealTime.seconds secs) msg
+generate_mtc _ _ = []
 
 lookup_current_performance :: (Cmd.M m) => BlockId -> m (Maybe Cmd.Performance)
 lookup_current_performance block_id = Map.lookup block_id <$>
