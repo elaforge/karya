@@ -104,7 +104,7 @@ c_set = Derive.generator1 "set" Tags.prelude
 -- also automatically set by the control track deriver for the hack described
 -- in 'Perform.Signal.integrate'.
 c_set_prev :: Derive.ControlCall
-c_set_prev = Derive.generator "set-prev" Tags.prelude
+c_set_prev = Derive.generator "set-prev" (Tags.prelude <> Tags.prev)
     ("Re-set the previous value.  This can be used to extend a breakpoint,\
     \ and is also automatically set by the control track deriver for\
     \ the hack described in 'Perform.Signal.integrate'."

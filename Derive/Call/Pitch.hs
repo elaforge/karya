@@ -74,9 +74,9 @@ c_set = Derive.generator1 "set" mempty "Emit a pitch with no interpolation." $
 
 -- | Re-set the previous val.  This can be used to extend a breakpoint.
 c_set_prev :: Derive.PitchCall
-c_set_prev = Derive.generator "set-prev" Tags.prelude
-    ("Re-set the previous pitch.  This can be used to extend a breakpoint."
-    ) $ Sig.call0 $ \args -> case Args.prev_val args of
+c_set_prev = Derive.generator "set-prev" (Tags.prelude <> Tags.prev)
+    "Re-set the previous pitch.  This can be used to extend a breakpoint."
+    $ Sig.call0 $ \args -> case Args.prev_val args of
         Nothing -> return []
         Just (prev_x, prev_y) -> do
             pos <- Args.real_start args

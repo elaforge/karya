@@ -466,9 +466,13 @@ sub_events args =
     -- The events have been shifted back to 0 by 'Slice.slice_notes', but
     -- are still their original lengths.  Stretch them back to 1 so Events
     -- are normalized.
-    mkevent (shift, stretch, tree) = Event shift stretch $
-        Derive.d_stretch (if stretch == 0 then 1 else recip stretch)
+    mkevent (shift, stretch, tree) = Event
+        { event_start = shift
+        , event_duration = stretch
+        , event_deriver = Derive.d_stretch
+            (if stretch == 0 then 1 else recip stretch)
             (BlockUtil.derive_tracks tree)
+        }
 
 -- | Place and merge a list of Events.
 place :: [Event] -> Derive.EventDeriver

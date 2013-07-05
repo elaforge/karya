@@ -200,8 +200,9 @@ data TrackInfo = TrackInfo {
 --
 -- Technically only the last sample part varies, this signature allows note
 -- calls to avoid the work in 'get_last'.
-type GetLastSample d = forall x.  Maybe (RealTime, Derive.Elem d)
-    -> Either x (LEvent.LEvents d) -> Maybe (RealTime, Derive.Elem d)
+type GetLastSample d = forall x.  LastSample d -> Either x (LEvent.LEvents d)
+    -> LastSample d
+type LastSample d = Maybe (RealTime, Derive.Elem d)
 
 pitch_last_sample :: GetLastSample PitchSignal.Signal
 pitch_last_sample =
@@ -233,8 +234,8 @@ derive_track state tinfo get_last_sample events =
     where
     -- This threads the collect through each event.  I would prefer to map and
     -- mconcat, but it's also quite a bit slower.
-    go :: Derive.Collect -> Maybe (RealTime, Derive.Elem d)
-        -> B.ByteString -> [Event.Event] -> [Event.Event]
+    go :: Derive.Collect -> LastSample d -> B.ByteString
+        -> [Event.Event] -> [Event.Event]
         -> ([LEvent.LEvents d], Derive.Collect)
     go collect _ _ _ [] = ([], collect)
     go collect prev_sample repeat_call prev (cur : rest) =
@@ -253,7 +254,7 @@ derive_track state tinfo get_last_sample events =
             repeat_call_of repeat_call (Event.event_bytestring cur)
 
 derive_event :: (Derive.Derived d) =>
-    Derive.State -> TrackInfo -> Maybe (RealTime, Derive.Elem d)
+    Derive.State -> TrackInfo -> LastSample d
     -> B.ByteString -- ^ repeat call, substituted with @\"@
     -> [Event.Event] -- ^ previous events, in reverse order
     -> Event.Event -- ^ cur event
@@ -283,16 +284,16 @@ derive_event st tinfo prev_sample repeat_call prev event next
         , Derive.info_event = event
         -- Augment prev and next with the unevaluated "around" notes from
         -- 'State.tevents_around'.
-        , Derive.info_prev_events = fst around ++ prev
-        , Derive.info_next_events = next ++ snd around
-        , Derive.info_event_end = case next ++ snd around of
+        , Derive.info_prev_events = tprev ++ prev
+        , Derive.info_next_events = next ++ tnext
+        , Derive.info_event_end = case next ++ tnext of
             [] -> events_end
             event : _ -> Event.start event
         , Derive.info_track_range = track_range
         , Derive.info_sub_tracks = subs
         , Derive.info_track_type = Just ttype
         }
-    TrackInfo events_end track_range shifted subs around ttype = tinfo
+    TrackInfo events_end track_range shifted subs (tprev, tnext) ttype = tinfo
 
 -- | Replace @\"@ with the previous non-@\"@ call, if there was one.
 --
