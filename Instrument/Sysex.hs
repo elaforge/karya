@@ -59,7 +59,13 @@ parse_dir parsers dir = do
 parse_file :: [Parser [Instrument.Patch]] -> FilePath -> ByteString
     -> Either String [Instrument.Patch]
 parse_file parsers fn bytes =
-    map (initialize_sysex bytes . add_file fn) <$> try_parsers parsers bytes
+    map (initialize bytes . add_file fn) <$> try_parsers parsers bytes
+    where
+    -- Only add the sysex if the parser hasn't already added one.  This is
+    -- because some parsers may parse things that aren't actually sysexes.
+    initialize bytes patch = case Instrument.initialize #$ patch of
+        Instrument.NoInitialization -> initialize_sysex bytes patch
+        _ -> patch
 
 -- | Parse a file just like 'parse_file'.  But this file is expected to be
 -- the dump of the patches currently loaded in the synthesizer, and will be

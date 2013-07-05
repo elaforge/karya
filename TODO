@@ -3,6 +3,7 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
+  * make_db is creating 0b z1.db.gz
   * rename when_just to whenJust
   * rename Midi.Parse to Midi.Encode
   - recent tends to collect pitches added via edit input
@@ -633,61 +634,6 @@ Ui:
       - efficient storage, preferably as a Signal so no conversion is necessary
       - display dense signals: omit text and trigger lines when zoomed out
 
-plugin host freeze audio
-  features:
-    3 load synth plugins: ardour3, reaper
-    1 programmatically configure them, e.g. load 4 fm8s each with poly of 2
-      and loading inst X, or switch them all to inst Y
-      - dunno?  can reascript do it?  osc on ardour?
-    3 sync play position seq, sync start time
-      - I think mmc can do this
-      - or maybe the control surface support can do this
-    3 start record too
-      - control surface support should do this
-    2 sync from daw back to seq
-      - Can I have the DAW also emit MMC?
-
-  features needed:
-    - host synth plugins: programmatically load and configure plugins
-    - route midi: associate each plugin with its own midi ports
-      It would also be nice to split by midi channel, and route each chan to
-      its own plugin.
-
-      On OS X this means creating an IAC port for each synth, presumably
-      multiple ones for multiple instances of the synth.  Then I need to
-      route each synth to the right midi input and keep them configured.  This
-      seems like a bit of a hassle.
-
-      Can I use JACK midi to address a specific synth?  It's one midi stream
-      per jack port, so I need an association between insts and jack ports.
-
-    - audio graph config: configure the audio graph, placing synth plugins,
-      filter plugins, track record / fader / etc. daw stuff, and outputs
-      at various places
-    - DAW: Need to sync play position and send current cursor position when
-      it changes.
-    - track freezer: Record plugin output, sync play position.
-  rpc
-    - osc, but no good for two way
-    - thrift?
-  ardour
-    - ardour3 supports synth plugins, but doesn't compile on OS X yet
-      wait for paul to post his updated build instructions, try again then
-
-  reaper
-    it can sync to mmc
-    - route multiple plugins to the same bus?  can this be scripted?
-      Probably, but to use apple IAC I need to create a bunch of IAC ports and
-      make sure they are configured the same way on both sides.
-    - can it send cursor position?
-      I can poll.
-
-  impromptu
-    - mac only
-    - can programmatically create a au graph
-    ? can it record audio?  yes, but maybe not from an au?
-    - in any case, I can't do daw stuff, so I think I don't want this
-
 test:
   - run tests in parallel
     Start thread for each processor, then have them take work from a queue.
@@ -754,16 +700,6 @@ Cmd:
     - timestep 64*2 skips two 's', because 's' is the minimum match
       skip should be ignored when the match is a larger rank than exists, or
       maybe step should fail.
-    / use NE list for TimeStep
-    / TimeStep should support negative skip as a fractional skip
-    / points use vector instead of list
-      But then I lose laziness.  Maybe only worth it if I cache.
-    / cache points by returning CachedTimeStep = Points
-    / TimeStep.snap should optimize steps that don't do any snapping when
-      prev_val is Nothing, e.g. RelativeMark and Absolute
-  / step play StepPlay could work even when notes were moved by annotating
-    the midi output with the UI event that produced it.  This might be useful
-    for debugging too.
   - Can I give Cmds their own state without putting it in Cmd.State every time?
     At worst I can have 'Map.Map String Dynamic'.
 

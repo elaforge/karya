@@ -16,7 +16,6 @@ import Data.Word (Word8)
 import System.FilePath ((</>))
 
 import Util.Control
-import Util.Pretty (pprint)
 import qualified Midi.Midi as Midi
 import qualified Derive.Score as Score
 import qualified Perform.Midi.Instrument as Instrument
@@ -45,7 +44,6 @@ make_db dir = do
     current_program_dump =
         fmap (:[]) . (rmap_to_patch <=< decode_current_program)
     program_dump = mapM rmap_to_patch <=< decode_program_dump
-    sysex_manager = mapM rmap_to_patch <=< decode_sysex_manager
     -- Each patch has its own pb range, but you can override them in the
     -- multiset.
     override_pb =
@@ -77,14 +75,6 @@ synth_controls = map (second Score.control)
 
 -- * decode sysex
 
-decode_sysex :: ByteString -> Either String [Sysex.RMap]
-decode_sysex = Sysex.try_parsers parsers
-    where
-    parsers =
-        [ fmap (:[]) . decode_current_program, decode_program_dump
-        , decode_sysex_manager
-        ]
-
 decode_current_program :: ByteString -> Either String Sysex.RMap
 decode_current_program bytes = do
     (header, bytes) <- decode current_program_dump_header bytes
@@ -103,12 +93,14 @@ decode_program_dump bytes = do
             (spec_bytes patch_spec) (dekorg bytes)
     mapM (fmap ((rmap <>) . fst) . decode patch_spec) syxs
 
-decode_sysex_manager :: ByteString -> Either String [Sysex.RMap]
-decode_sysex_manager bytes = do
+sysex_manager :: ByteString -> Either String [Instrument.Patch]
+sysex_manager bytes = do
     bytes <- Sysex.expect_bytes bytes $ Char8.pack "Sysex Manager"
-    let sysexes = Sysex.extract_sysex bytes
     -- The first sysex is something else.
-    mapM decode_current_program (drop 1 sysexes)
+    let sysexes = drop 1 $ Sysex.extract_sysex bytes
+    patches <- mapM (rmap_to_patch <=< decode_current_program) sysexes
+    -- Add the initialize here, since 'bytes' isn't actually a valid sysex.
+    return $ zipWith Sysex.initialize_sysex sysexes patches
 
 test_decode = do
     -- let fn = "inst_db/z1/sysex/lib2/apollo44.syx"
