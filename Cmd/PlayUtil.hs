@@ -103,7 +103,7 @@ make_constant ui_state cache damage = do
         ui_state wants_signal lookup_scale lookup_inst cache damage
 
 -- | Get the set of tracks that want to render a signal.
-get_wants_track_signal :: (Cmd.M m) => m (Set.Set TrackId)
+get_wants_track_signal :: (Cmd.M m) => m (Set.Set (BlockId, TrackId))
 get_wants_track_signal = do
     block_ids <- State.all_block_ids
     mconcat <$> mapM get block_ids
@@ -114,7 +114,8 @@ get_wants_track_signal = do
             . Block.block_tracks <$> State.get_block block_id
         tracks <- mapM (State.get_track . fst) track_flags
         return $ Set.fromList
-            [ track_id | ((track_id, flags), track) <- zip track_flags tracks
+            [ (block_id, track_id)
+            | ((track_id, flags), track) <- zip track_flags tracks
             , Block.wants_track_signal flags track
             ]
 

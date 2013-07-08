@@ -137,20 +137,20 @@ strip_track_id :: TrackTree.TrackEvents -> TrackTree.TrackEvents
 strip_track_id track = track { TrackTree.tevents_track_id = Nothing }
 
 stash_signal :: Derive.EventDeriver -> [Score.Event]
-    -> (TrackId, Track.RenderSource) -> Derive.Deriver ()
-stash_signal rederive events (track_id, source) =
+    -> ((BlockId, TrackId), Track.RenderSource) -> Derive.Deriver ()
+stash_signal rederive events ((block_id, track_id), source) =
     Control.linear_tempo >>= \x -> case x of
         -- This is super inefficient but there's not much that can be done.
         Nothing ->
-            put_track_signal track_id source 0 1 . LEvent.events_of
+            put_track_signal block_id track_id source 0 1 . LEvent.events_of
                 =<< Derive.in_real_time rederive
         Just (shift, stretch) ->
-            put_track_signal track_id source shift stretch events
+            put_track_signal block_id track_id source shift stretch events
 
-put_track_signal :: TrackId -> Track.RenderSource -> ScoreTime -> ScoreTime
-    -> [Score.Event] -> Derive.Deriver ()
-put_track_signal track_id source shift stretch events =
-    Control.put_track_signal track_id $ extract shift stretch
+put_track_signal :: BlockId -> TrackId -> Track.RenderSource -> ScoreTime
+    -> ScoreTime -> [Score.Event] -> Derive.Deriver ()
+put_track_signal block_id track_id source shift stretch events =
+    Control.put_track_signal block_id track_id $ extract shift stretch
     where
     extract shift stretch =
         Track.TrackSignal (Signal.coerce sig) shift stretch is_pitch
@@ -172,11 +172,11 @@ put_track_signal track_id source shift stretch events =
 -- | Wait, if I can just look at the Track, why do I need
 -- Derive.state_wanted_track_signals?
 render_of :: TrackTree.TrackEvents
-    -> Derive.Deriver (Maybe (TrackId, Track.RenderSource))
-render_of track = case TrackTree.tevents_track_id track of
+    -> Derive.Deriver (Maybe ((BlockId, TrackId), Track.RenderSource))
+render_of track = case TrackTree.tevents_block_track_id track of
     Nothing -> return Nothing
-    Just track_id -> fmap ((,) track_id) . extract . Track.render_style
-        . Track.track_render <$> Derive.get_track track_id
+    Just (block_id, track_id) -> fmap ((,) (block_id, track_id)) . extract
+        . Track.render_style . Track.track_render <$> Derive.get_track track_id
     where
     extract (Track.Line (Just source)) = Just source
     extract (Track.Filled (Just source)) = Just source

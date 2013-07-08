@@ -69,11 +69,13 @@ test_derive_track_signals = do
             . Map.map (Signal.unsignal . Track.ts_signal)
             . Derive.r_track_signals
     equal (run $ (">", [(1, 2, "(")]) : UiTest.regular_notes 4)
-        [(UiTest.mk_tid 3, [(0, 48), (1, 50), (2, 52), (3, 53)])]
+        [((UiTest.default_block_id, UiTest.mk_tid 3),
+            [(0, 48), (1, 50), (2, 52), (3, 53)])]
 
 test_stash_signal = do
     let run wanted tempo tracks =
-            lookup (UiTest.mk_tid 2) $ DeriveTest.e_tsigs $
+            lookup (UiTest.default_block_id, UiTest.mk_tid 2) $
+            DeriveTest.e_tsigs $
             DeriveTest.derive_tracks_with_ui id (want wanted) $
                 ("tempo", tempo) : (">", [(0, 1, ""), (1, 1, "")]) : tracks
         want control state = UiTest.exec state $

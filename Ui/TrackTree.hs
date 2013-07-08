@@ -175,6 +175,12 @@ track_events title events end = TrackEvents
     , tevents_shifted = 0
     }
 
+tevents_block_track_id :: TrackEvents -> Maybe (BlockId, TrackId)
+tevents_block_track_id track = do
+    bid <- tevents_block_id track
+    tid <- tevents_track_id track
+    return (bid, tid)
+
 events_tree_of :: (State.M m) => BlockId -> m EventsTree
 events_tree_of block_id = do
     info_tree <- get_track_tree block_id

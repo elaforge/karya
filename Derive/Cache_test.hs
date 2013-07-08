@@ -295,7 +295,7 @@ test_collect = do
           , ("top top.t1 0-1: sub sub.t1 *", track "sub.t1")
           , ("top top.t1 0-1: sub sub.t2 *", track "sub.t2")
           ]
-        , Map.fromList [(UiTest.tid "sub.t2", tsig)]
+        , Map.fromList [((UiTest.bid "sub", UiTest.tid "sub.t2"), tsig)]
         , mk_block_deps ["top", "sub"]
         ))
 

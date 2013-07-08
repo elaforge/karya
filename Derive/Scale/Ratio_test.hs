@@ -10,8 +10,11 @@ import qualified Derive.DeriveTest as DeriveTest
 
 test_ratio = do
     let e_nns = DeriveTest.extract DeriveTest.e_nns
-        e_tsig r = (lookup (UiTest.mk_tid 3) (DeriveTest.e_tsigs r),
-            DeriveTest.e_tsig_logs r)
+        e_tsig r =
+            ( lookup (UiTest.default_block_id, UiTest.mk_tid 3)
+                (DeriveTest.e_tsigs r)
+            , DeriveTest.e_tsig_logs r
+            )
     let run ratio base = DeriveTest.derive_tracks_with_ui
             id DeriveTest.with_tsig
             [ (">i1", [(0, 1, "")])

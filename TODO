@@ -37,9 +37,8 @@ UNSORTED
     information, and Meter.Meter doesn't support that.
   - need an easy way to create IDs for debugging, so I can copy paste
     (bid "xyz") stuff
-  - key TrackSignals on (BlockId, TrackId).  I'll need to put BlockId in
+  * key TrackSignals on (BlockId, TrackId).  I'll need to put BlockId in
     TrackTree.TrackEvents, I think.
-    . First write a test that demonstrates how it's currently broken.
   - After a rederive, it still takes a Cmd to free up the memory.  Who is
     holding on to it?
   - parallelize derivation

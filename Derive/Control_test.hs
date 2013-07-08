@@ -8,6 +8,7 @@ import qualified Data.Set as Set
 
 import Util.Control
 import Util.Test
+import qualified Ui.Block as Block
 import qualified Ui.Events as Events
 import qualified Ui.State as State
 import qualified Ui.Track as Track
@@ -229,10 +230,11 @@ test_derive_track_signals = do
             [(">", [(0, 8, "+a")]), t2, t3]
         set_wanted wanted = DeriveTest.modify_constant $ \st -> st
             { Derive.state_wanted_track_signals =
-                Set.fromList $ map UiTest.mk_tid wanted
+                Set.fromList $
+                    map (((,) UiTest.default_block_id) . UiTest.mk_tid) wanted
             }
         e_ts r = [(tid, Signal.unsignal sig)
-            | (tid, (sig, _, _)) <- e_tsig_tracks r]
+            | ((_, tid), (sig, _, _)) <- e_tsig_tracks r]
 
     equal (e_ts $ run [] ("c1", [(0, 0, "1")]) ("c2", [(0, 0, "2")])) []
     -- Child track causes both to get signals.
@@ -276,6 +278,23 @@ test_derive_track_signals = do
     --     , (UiTest.mk_tid 3, [(0, 0.5), (2, 0.5), (3, 0.25), (4, 0)])
     --     ]
 
+test_track_signal_multiple = do
+    -- If a track shows up in multiple blocks, it should get multiple
+    -- TrackSignals.
+    let (bid, state) = UiTest.run State.empty $ do
+            (bid1, [tid, _]) <- UiTest.mkblock
+                ("b1", [("c", [(0, 0, "1")]), (">", [(0, 1, "b2")])])
+            (bid2, _) <- UiTest.mkblock ("b2", [(">", [(0, 1, "")])])
+            State.insert_track bid2 2 $ Block.track
+                (Block.TId tid UiTest.default_ruler_id) 20
+            return bid1
+    let tsigs = map fst $ e_tsig_tracks $ DeriveTest.derive_block
+            (DeriveTest.with_tsig state) bid
+    equal tsigs
+        [ (UiTest.bid "b1", UiTest.mk_tid_name "b1" 1)
+        , (UiTest.bid "b2", UiTest.mk_tid_name "b1" 1)
+        ]
+
 test_prev_val = do
     let run ex tracks = DeriveTest.extract ex $ DeriveTest.derive_tracks $
             (">", [(0, 1, ""), (1, 1, ""), (2, 1, "")]) : tracks
@@ -288,7 +307,7 @@ e_tsigs :: Derive.Result -> [(Signal.Display, ScoreTime, ScoreTime)]
 e_tsigs = map snd . e_tsig_tracks
 
 e_tsig_tracks :: Derive.Result
-    -> [(TrackId, (Signal.Display, ScoreTime, ScoreTime))]
+    -> [((BlockId, TrackId), (Signal.Display, ScoreTime, ScoreTime))]
 e_tsig_tracks = map (second extract) . Map.toList . Derive.r_track_signals
     where
     extract (Track.TrackSignal sig shift stretch _) = (sig, shift, stretch)

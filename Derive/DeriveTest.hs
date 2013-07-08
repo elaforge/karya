@@ -441,7 +441,7 @@ e_environ f event =
     , f (untxt k)
     ]
 
-e_tsigs :: Derive.Result -> [(TrackId, [(Signal.X, Signal.Y)])]
+e_tsigs :: Derive.Result -> [((BlockId, TrackId), [(Signal.X, Signal.Y)])]
 e_tsigs =
     filter (not . null . snd) . Map.toList . Map.map tsig
         . Derive.r_track_signals

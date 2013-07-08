@@ -53,7 +53,7 @@ track_signals :: Cmd.CmdL (Maybe Track.TrackSignal)
 track_signals = do
     (block_id, _, track_id, _) <- Selection.get_insert
     perf <- get block_id
-    return $ Map.lookup track_id (Cmd.perf_track_signals perf)
+    return $ Map.lookup (block_id, track_id) (Cmd.perf_track_signals perf)
 
 -- * info
 

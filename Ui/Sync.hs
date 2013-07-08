@@ -96,7 +96,7 @@ set_track_signals block_id state track_signals =
         Right tracks -> Ui.send_action $ forM_ tracks set_tsig
     where
     set_tsig (view_id, track_id, tracknum) =
-        whenJust (Map.lookup track_id track_signals) $ \tsig ->
+        whenJust (Map.lookup (block_id, track_id) track_signals) $ \tsig ->
             set_track_signal view_id tracknum tsig
 
     -- | Get the tracks of this block which want to render a signal.
@@ -376,7 +376,7 @@ insert_track state set_style block_id view_id tracknum dtrack tlike_id tlike
         (Block.T t _, Block.TId tid _) -> do
             unless (Text.null (Track.track_title t)) $
                 BlockC.set_track_title view_id tracknum (Track.track_title t)
-            case Map.lookup tid track_signals of
+            case Map.lookup (block_id, tid) track_signals of
                 Just tsig | wants_tsig flags t ->
                     BlockC.set_track_signal view_id tracknum tsig
                 _ -> return ()

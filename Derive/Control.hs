@@ -188,11 +188,11 @@ tempo_call :: TrackTree.TrackEvents
     -> Derive.EventDeriver -> Derive.EventDeriver
 tempo_call track sig_deriver deriver = do
     (signal, logs) <- Internal.setup_without_warp sig_deriver
-    whenJust maybe_track_id $ \track_id ->
+    whenJust maybe_block_track_id $ \(block_id, track_id) ->
         unless (TrackTree.tevents_sliced track) $
             -- I don't need stash_signal because this is definitely in
             -- TrackTime.
-            put_track_signal track_id $
+            put_track_signal block_id track_id $
                 Track.TrackSignal (Signal.coerce signal) 0 1 False
     -- 'with_damage' must be applied *inside* 'd_tempo'.  If it were outside,
     -- it would get the wrong RealTimes when it tried to create the
@@ -200,7 +200,8 @@ tempo_call track sig_deriver deriver = do
     merge_logs logs $ Internal.d_tempo (snd track_range) maybe_track_id
         (Signal.coerce signal) (with_damage deriver)
     where
-    maybe_track_id = TrackTree.tevents_track_id track
+    maybe_block_track_id = TrackTree.tevents_block_track_id track
+    maybe_track_id = snd <$> maybe_block_track_id
     with_damage = maybe id get_damage maybe_track_id
     get_damage track_id deriver = do
         damage <- Cache.get_tempo_damage track_id track_range
@@ -375,17 +376,17 @@ stash_signal :: TrackTree.TrackEvents
     -- ^ True if this is a pitch signal.
     -> Derive.Deriver ()
 stash_signal track sig derive_sig is_pitch = whenM (signal_wanted track) $
-    case TrackTree.tevents_track_id track of
-        Just track_id | not (TrackTree.tevents_sliced track) ->
-            stash track_id =<< linear_tempo
+    case TrackTree.tevents_block_track_id track of
+        Just (block_id, track_id) | not (TrackTree.tevents_sliced track) ->
+            stash block_id track_id =<< linear_tempo
         _ -> return ()
     where
-    stash track_id (Just (shift, stretch)) =
-        put_track_signal track_id $
+    stash block_id track_id (Just (shift, stretch)) =
+        put_track_signal block_id track_id $
             Track.TrackSignal (Signal.coerce sig) shift stretch is_pitch
-    stash track_id Nothing = do
+    stash block_id track_id Nothing = do
         sig <- Derive.in_real_time derive_sig
-        put_track_signal track_id $ Track.TrackSignal sig 0 1 is_pitch
+        put_track_signal block_id track_id $ Track.TrackSignal sig 0 1 is_pitch
 
 -- | Return (shift, stretch) if the tempo is linear.  This relies on an
 -- optimization in 'Derive.d_tempo' to notice when the tempo is constant and
@@ -397,10 +398,12 @@ linear_tempo = do
         then Just (Score.warp_shift warp, Score.warp_stretch warp)
         else Nothing
 
-put_track_signal :: TrackId -> Track.TrackSignal -> Derive.Deriver ()
-put_track_signal track_id tsig = put_track_signals [(track_id, tsig)]
+put_track_signal :: BlockId -> TrackId -> Track.TrackSignal -> Derive.Deriver ()
+put_track_signal block_id track_id tsig =
+    put_track_signals [((block_id, track_id), tsig)]
 
-put_track_signals :: [(TrackId, Track.TrackSignal)] -> Derive.Deriver ()
+put_track_signals :: [((BlockId, TrackId), Track.TrackSignal)]
+    -> Derive.Deriver ()
 put_track_signals [] = return ()
 put_track_signals tracks = Internal.merge_collect $ mempty
     { Derive.collect_track_signals =
@@ -408,10 +411,10 @@ put_track_signals tracks = Internal.merge_collect $ mempty
     }
 
 signal_wanted :: TrackTree.TrackEvents -> Derive.Deriver Bool
-signal_wanted track = case TrackTree.tevents_track_id track of
-    Nothing -> return False
-    Just track_id -> Set.member track_id <$>
-        Internal.get_constant Derive.state_wanted_track_signals
+signal_wanted track = case TrackTree.tevents_block_track_id track of
+        Just (block_id, track_id) -> Set.member (block_id, track_id) <$>
+            Internal.get_constant Derive.state_wanted_track_signals
+        Nothing -> return False
 
 -- * track_signal
 
@@ -449,7 +452,7 @@ should_render note_track track =
     where title = TrackTree.tevents_title track
 
 track_signal_ :: TrackTree.EventsTree
-    -> Derive.Deriver [(TrackId, Track.TrackSignal)]
+    -> Derive.Deriver [((BlockId, TrackId), Track.TrackSignal)]
 track_signal_ = concatMapM go
     where
     go (Tree.Node track subs) = do
@@ -463,16 +466,16 @@ track_signal_ = concatMapM go
 
 eval_signal :: TrackTree.TrackEvents -> [TrackLang.Call]
     -> TrackInfo.ControlType -> [TrackTree.EventsNode]
-    -> Derive.Deriver [(TrackId, Track.TrackSignal)]
+    -> Derive.Deriver [((BlockId, TrackId), Track.TrackSignal)]
 eval_signal track expr ctype subs
     -- They should all have TrackIds because of 'signal_wanted'.
-    | Just track_id <- TrackTree.tevents_track_id track = case ctype of
+    | Just (block_id, track_id) <- track_block_id = case ctype of
         TrackInfo.Tempo -> do
             (signal, logs) <- with_stack $ with_control_env Controls.tempo $
                 derive_control False True track expr
             write logs
             sub_sigs <- track_signal_ subs
-            return $ (track_id, track_sig signal False) : sub_sigs
+            return $ ((block_id, track_id), track_sig signal False) : sub_sigs
         TrackInfo.Control maybe_op control -> do
             op <- lookup_op control maybe_op
             (signal, logs) <- with_stack $
@@ -490,7 +493,7 @@ eval_signal track expr ctype subs
             -- supposed to be the output of the track, not what the signal
             -- eventually becomes, so maybe not applying mods is the right
             -- thing.
-            return $ (track_id, track_sig signal False) : sub_sigs
+            return $ ((block_id, track_id), track_sig signal False) : sub_sigs
         TrackInfo.Pitch scale_id maybe_name -> do
             scale <- get_scale scale_id
             (signal, logs) <- with_stack $ Derive.with_scale scale $
@@ -502,9 +505,10 @@ eval_signal track expr ctype subs
             (nn_signal, _) <- pitch_signal_to_nn signal
             sub_sigs <- Derive.apply_control_mods $
                 Derive.with_pitch maybe_name signal $ track_signal_ subs
-            return $ (track_id, track_sig nn_signal True) : sub_sigs
+            return $ ((block_id, track_id), track_sig nn_signal True) : sub_sigs
     | otherwise = return []
     where
+    track_block_id = TrackTree.tevents_block_track_id track
     -- Normally the TrackId is added to the stack by 'BlockUtil.derive_track',
     -- but I'm bypassing the usual track derivation so I need to add it myself.
     with_stack = case TrackTree.tevents_track_id track of
