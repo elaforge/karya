@@ -158,19 +158,6 @@ test_recursive_call = do
     recursive = Derive.stream_generator "recursive" mempty "doc" $ Sig.call0 $
         \args -> Call.reapply_call args (TrackLang.call "recur" [])
 
-test_repeat = do
-    let run events = DeriveTest.r_log_strings $
-            DeriveTest.derive_tracks_with with_show [(">", events)]
-        with_show = CallTest.with_note_call "show" c_show
-    equal (run [(0, 1, "\"")]) ["Error: note call not found: \""]
-    equal (run [(0, 1, "show 1"), (1, 1, "\""), (2, 1, "\" 2")])
-        ["[1]", "[1]", "[2]"]
-    where
-    c_show = Derive.stream_generator "show" mempty "doc" $
-        Sig.parsed_manually "doc" $ \args -> do
-            Log.warn $ Pretty.pretty (Derive.passed_vals args)
-            return []
-
 test_events_around = do
     -- Ensure sliced inverting notes still have access to prev and next events
     -- via the tevents_around hackery.

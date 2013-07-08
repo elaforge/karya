@@ -3,7 +3,7 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
-  - remove repeat previous feature in Derive.Call
+  * remove repeat previous feature in Derive.Call
   * make_db is creating 0b z1.db.gz
   * rename when_just to whenJust
   * rename Midi.Parse to Midi.Encode

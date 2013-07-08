@@ -229,40 +229,36 @@ derive_track :: forall d. (Derive.Derived d) =>
     Derive.State -> TrackInfo -> GetLastSample d
     -> [Event.Event] -> ([LEvent.LEvents d], Derive.Collect)
 derive_track state tinfo get_last_sample events =
-    go (Internal.record_track_dynamic state) Nothing "" [] events
+    go (Internal.record_track_dynamic state) Nothing [] events
     where
     -- This threads the collect through each event.  I would prefer to map and
-    -- mconcat, but it's also quite a bit slower.
-    go :: Derive.Collect -> PrevVal d -> B.ByteString
-        -> [Event.Event] -> [Event.Event]
+    -- mconcat, but profiling showed that to be quite a bit slower.
+    go :: Derive.Collect -> PrevVal d -> [Event.Event] -> [Event.Event]
         -> ([LEvent.LEvents d], Derive.Collect)
-    go collect _ _ _ [] = ([], collect)
-    go collect prev_sample repeat_call prev (cur : rest) =
+    go collect _ _ [] = ([], collect)
+    go collect prev_sample prev (cur : rest) =
         (events : rest_events, final_collect)
         where
         (result, logs, next_collect) =
             derive_event (state { Derive.state_collect = collect })
-                tinfo prev_sample repeat_call prev cur rest
+                tinfo prev_sample prev cur rest
         (rest_events, final_collect) =
-            go next_collect next_sample next_repeat_call (cur : prev) rest
+            go next_collect next_sample (cur : prev) rest
         events = map LEvent.Log logs ++ case result of
             Right stream -> stream
             Left err -> [LEvent.Log (Derive.error_to_warn err)]
         next_sample = get_last_sample prev_sample result
-        next_repeat_call =
-            repeat_call_of repeat_call (Event.event_bytestring cur)
 
 derive_event :: (Derive.Derived d) =>
     Derive.State -> TrackInfo -> PrevVal d
-    -> B.ByteString -- ^ repeat call, substituted with @\"@
     -> [Event.Event] -- ^ previous events, in reverse order
     -> Event.Event -- ^ cur event
     -> [Event.Event] -- ^ following events
     -> (Either Derive.Error (LEvent.LEvents d), [Log.Msg], Derive.Collect)
-derive_event st tinfo prev_sample repeat_call prev event next
+derive_event st tinfo prev_sample prev event next
     | text == "--" = (Right mempty, [], Derive.state_collect st)
     | otherwise =
-        case ParseBs.parse_expr (substitute_repeat repeat_call text) of
+        case ParseBs.parse_expr text of
             Left err ->
                 (Right mempty, [parse_error (txt err)], Derive.state_collect st)
             Right expr -> run_call expr
@@ -293,19 +289,6 @@ derive_event st tinfo prev_sample repeat_call prev event next
         , Derive.info_track_type = Just ttype
         }
     TrackInfo events_end track_range shifted subs (tprev, tnext) ttype = tinfo
-
--- | Replace @\"@ with the previous non-@\"@ call, if there was one.
---
--- Another approach would be to have @\"@ as a plain call that looks at
--- previous events.  However I would have to unparse the args to re-eval,
--- and would have to do the same macro expansion stuff as I do here.
-substitute_repeat :: B.ByteString -> B.ByteString -> B.ByteString
-substitute_repeat prev text
-    | B.null prev = text
-    | text == B.singleton '"' = prev
-    | B.takeWhile (/=' ') text == "\"" =
-        B.takeWhile (/=' ') prev <> B.drop 1 text
-    | otherwise = text
 
 repeat_call_of :: B.ByteString -> B.ByteString -> B.ByteString
 repeat_call_of prev cur
