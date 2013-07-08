@@ -664,7 +664,14 @@ getHaddockInterfaces = do
     -- packages.
     interfaces <- forM packages $ \package -> Process.readProcess "ghc-pkg"
         ["field", package, "haddock-interfaces"] ""
-    return $ map (filter (/='\n') . drop 1 . dropWhile (/=' ')) interfaces
+    return $ map extract interfaces
+    where
+    -- If multiple versions are installed, this will return multiple lines.
+    -- I should probably make sure to get the latest non-hidden one as the
+    -- -package flag does by default, but ghc-pkg is too primitive so I'll
+    -- just pick the first one for now.
+    extract = drop 1 . dropWhile (/=' ') . takeWhile (/='\n')
+
 
 -- | Should this module have haddock documentation generated?
 haddock :: FilePath -> Bool
