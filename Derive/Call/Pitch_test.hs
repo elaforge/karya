@@ -3,6 +3,7 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 module Derive.Call.Pitch_test where
+import qualified Util.Seq as Seq
 import Util.Test
 import qualified Ui.UiTest as UiTest
 import qualified Derive.Call.CallTest as CallTest
@@ -97,6 +98,12 @@ test_linear_next = do
     equal (run [(0, "4c"), (4, "i> -4"), (6, "4c")])
         [(0, 60), (5, 58), (6, 60)]
 
+    -- Test with slicing.
+    let run2 = DeriveTest.extract_events DeriveTest.e_nns
+            . DeriveTest.derive_tracks . UiTest.note_track
+    equal (run2 [(0, 1, "4c"), (1, 1, "i> (4d)"), (3, 1, "4e")])
+        [[(0, 60)], [(1, 60), (2, 61)], [(3, 64)]]
+
 test_drop = do
     let run pitches = extract . run_ 1 pitches
         extract = head . (DeriveTest.extract_events $ \e ->
@@ -124,7 +131,11 @@ run = run_tempo 1
 
 run_tempo :: Int -> [(ScoreTime, String)] -> [(RealTime, Pitch.NoteNumber)]
 run_tempo tempo pitches = extract $ run_ tempo pitches []
-    where extract = head . DeriveTest.extract_events DeriveTest.e_nns
+    where
+    -- Slicing implementation details can make dups, but they don't matter for
+    -- performance.
+    extract = Seq.drop_dups snd . head
+        . DeriveTest.extract_events DeriveTest.e_nns
 
 run_ :: Int -> [(ScoreTime, String)] -> [UiTest.TrackSpec] -> Derive.Result
 run_ tempo pitches tracks = DeriveTest.derive_tracks $

@@ -110,8 +110,7 @@ put_line s = Trans.liftIO $ do
 
 with_msg :: String -> String -> String
 with_msg msg text_ =
-    prefix ++ msg ++ (if multiline then ":\n" else ": ")
-    ++ text ++ (if multiline then "\n" else "")
+    prefix ++ msg ++ (if multiline then ":\n" else ": ") ++ text
     where
     text = Seq.strip text_
     multiline = Seq.count '\n' text > 2

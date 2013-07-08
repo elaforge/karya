@@ -76,7 +76,7 @@ c_set = Derive.generator1 "set" mempty "Emit a pitch with no interpolation." $
 c_set_prev :: Derive.PitchCall
 c_set_prev = Derive.generator "set-prev" (Tags.prelude <> Tags.prev)
     "Re-set the previous pitch.  This can be used to extend a breakpoint."
-    $ Sig.call0 $ \args -> case Args.prev_val args of
+    $ Sig.call0 $ \args -> Args.prev_val args >>= \x -> case x of
         Nothing -> return []
         Just (prev_x, prev_y) -> do
             pos <- Args.real_start args
@@ -191,7 +191,7 @@ approach :: Derive.PitchArgs -> RealTime -> RealTime
     -> Derive.Deriver PitchSignal.Signal
 approach args start end = do
     maybe_next <- next_pitch args
-    case (Args.prev_val args, maybe_next) of
+    Args.prev_val args >>= \x -> case (x, maybe_next) of
         (Just (_, prev), Just next) ->
             make_interpolator id True start prev end next
         _ -> Util.pitch_signal []
@@ -218,7 +218,7 @@ slope :: Text -> Double -> Derive.WithArgDoc
 slope word sign =
     Sig.call (defaulted "speed" (Pitch.Chromatic 1)
         (word <> " this many steps per second.")) $
-    \speed args -> case Args.prev_val args of
+    \speed args -> Args.prev_val args >>= \x -> case x of
         Nothing -> Util.pitch_signal []
         Just (_, prev_pitch) -> do
             start <- Args.real_start args
@@ -242,7 +242,7 @@ c_drop = Derive.generator1 "drop" Tags.cmod "Drop pitch and `dyn`." $
     <*> defaulted "time" (TrackLang.real 0.25)
         "Time to drop the given interval and fade to nothing."
     ) $ \(interval, TrackLang.DefaultReal time) args ->
-        case Args.prev_val args of
+        Args.prev_val args >>= \x -> case x of
             Nothing -> Util.pitch_signal []
             Just (_, prev_pitch) -> do
                 (start, end) <- Util.duration_from_start args time
@@ -285,12 +285,14 @@ interpolate :: (Double -> Double) -> Derive.PitchArgs
     -> Derive.Deriver PitchSignal.Signal
 interpolate f args pitch_transpose dur = do
     (start, end) <- Util.duration_from_start args dur
-    case Args.prev_val args of
+    Args.prev_val args >>= \x -> case x of
         Nothing -> case pitch_transpose of
             Left pitch -> Util.pitch_signal [(start, pitch)]
             Right _ -> Util.pitch_signal []
         Just (_, prev) -> do
-            make_interpolator f False (min start end) prev (max start end) $
+            -- I always set include_initial.  It might be redundant, but if the
+            -- previous call was sliced off, it won't be.
+            make_interpolator f True (min start end) prev (max start end) $
                 either id (flip Pitches.transpose prev) pitch_transpose
 
 make_interpolator :: (Double -> Double)

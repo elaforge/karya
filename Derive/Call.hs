@@ -200,17 +200,16 @@ data TrackInfo = TrackInfo {
 --
 -- Technically only the last sample part varies, this signature allows note
 -- calls to avoid the work in 'get_last'.
-type GetLastSample d = forall x.  LastSample d -> Either x (LEvent.LEvents d)
-    -> LastSample d
-type LastSample d = Maybe (RealTime, Derive.Elem d)
+type GetLastSample d = forall x.  PrevVal d -> Either x (LEvent.LEvents d)
+    -> PrevVal d
+type PrevVal d = Maybe (RealTime, Derive.Elem d)
 
 pitch_last_sample :: GetLastSample PitchSignal.Signal
 pitch_last_sample =
     get_last (\prev chunk -> PitchSignal.last chunk `mplus` prev)
 
 control_last_sample :: GetLastSample Signal.Control
-control_last_sample =
-    get_last (\prev chunk -> Signal.last chunk `mplus` prev)
+control_last_sample = get_last (\prev chunk -> Signal.last chunk `mplus` prev)
 
 get_last :: (val -> d -> val) -> val -> Either x [LEvent.LEvent d] -> val
 get_last _ prev (Left _) = prev
@@ -227,14 +226,14 @@ get_last f prev (Right derived) =
 -- auxiliary data in 'Derive.CallInfo'.
 derive_track :: forall d. (Derive.Derived d) =>
     -- forall and ScopedTypeVariables needed for the inner 'go' signature
-    Derive.State -> TrackInfo -> GetLastSample d -> [Event.Event]
-    -> ([LEvent.LEvents d], Derive.Collect)
+    Derive.State -> TrackInfo -> GetLastSample d
+    -> [Event.Event] -> ([LEvent.LEvents d], Derive.Collect)
 derive_track state tinfo get_last_sample events =
     go (Internal.record_track_dynamic state) Nothing "" [] events
     where
     -- This threads the collect through each event.  I would prefer to map and
     -- mconcat, but it's also quite a bit slower.
-    go :: Derive.Collect -> LastSample d -> B.ByteString
+    go :: Derive.Collect -> PrevVal d -> B.ByteString
         -> [Event.Event] -> [Event.Event]
         -> ([LEvent.LEvents d], Derive.Collect)
     go collect _ _ _ [] = ([], collect)
@@ -254,7 +253,7 @@ derive_track state tinfo get_last_sample events =
             repeat_call_of repeat_call (Event.event_bytestring cur)
 
 derive_event :: (Derive.Derived d) =>
-    Derive.State -> TrackInfo -> LastSample d
+    Derive.State -> TrackInfo -> PrevVal d
     -> B.ByteString -- ^ repeat call, substituted with @\"@
     -> [Event.Event] -- ^ previous events, in reverse order
     -> Event.Event -- ^ cur event

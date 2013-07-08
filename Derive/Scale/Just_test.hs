@@ -25,8 +25,8 @@ import qualified Perform.Pitch as Pitch
 
 test_note_to_call = do
     let run key ps = DeriveTest.extract extract $ DeriveTest.derive_tracks
-            [ ("*just | key = " <> key, [(t, 0, p) | (t, p) <- times ps])
-            , (">", [(t, 1, "") | (t, _) <- times ps])
+            [ (">", [(t, 1, "") | (t, _) <- times ps])
+            , ("*just | key = " <> key, [(t, 0, p) | (t, p) <- times ps])
             ]
             where times = zip (Seq.range_ 0 1)
         extract = fmap Pitch.nn_to_hz . Score.initial_nn

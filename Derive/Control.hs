@@ -307,10 +307,10 @@ derive_control cache is_tempo track expr = do
         let (stream, collect) = Call.derive_track state tinfo
                 Call.control_last_sample (tevents track)
         Internal.merge_collect collect
-        -- I can use concat instead of merge_asc_events because the signals
-        -- will be merged with Signal.merge and the logs extracted.
         return $ compact (concat stream)
     -- Merge the signal here so it goes in the cache as one signal event.
+    -- I can use concat instead of merge_asc_events because the signals
+    -- will be merged with Signal.merge and the logs extracted.
     compact events = LEvent.Event (mconcat sigs) : map LEvent.Log logs
         where (sigs, logs) = LEvent.partition events
     tinfo = Call.TrackInfo
@@ -318,8 +318,7 @@ derive_control cache is_tempo track expr = do
         , Call.tinfo_track_range = TrackTree.tevents_range track
         , Call.tinfo_shifted = TrackTree.tevents_shifted track
         , Call.tinfo_sub_tracks = []
-        -- TODO provide events around for control tracks?
-        , Call.tinfo_events_around = ([], [])
+        , Call.tinfo_events_around = TrackTree.tevents_around track
         , Call.tinfo_type =
             if is_tempo then TrackInfo.TempoTrack else TrackInfo.ControlTrack
         }
@@ -349,8 +348,7 @@ derive_pitch cache track expr = do
         , Call.tinfo_track_range = TrackTree.tevents_range track
         , Call.tinfo_shifted = TrackTree.tevents_shifted track
         , Call.tinfo_sub_tracks = []
-        -- TODO provide events around for control tracks?
-        , Call.tinfo_events_around = ([], [])
+        , Call.tinfo_events_around = TrackTree.tevents_around track
         , Call.tinfo_type = TrackInfo.PitchTrack
         }
 

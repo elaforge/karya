@@ -166,6 +166,7 @@ slice exclusive around start end insert_event = map do_slice
             , TrackTree.tevents_events =
                 Events.singleton (Event.event start dur text)
             , TrackTree.tevents_track_id = track_id
+            , TrackTree.tevents_block_id = Nothing
             , TrackTree.tevents_end = end
             , TrackTree.tevents_range = trange
             , TrackTree.tevents_sliced = True
@@ -243,14 +244,13 @@ extract_control_events is_pitch_track (before, after) start end events =
     (pre_within, pre2) = take_pre before pre1
     (within, post2) = Then.span ((<end) . Event.start) (splitAt after) post1
 
-    -- This is an icky hack.  The problem is that some calls rely on the
-    -- previous value.  So slicing back to them doesn't do any good, I need the
-    -- event before.  The problem is that this low level machinery isn't
-    -- supposed to depend on implementation details of specific calls.
-    -- TODO I would have to make the event evaluation lazy in a way that a call
-    -- wanting the previous value will cause the previous value to be
-    -- evaluated, and at that point I could get rid of slicing entirely.  But
-    -- I can't think of how to do that at the moment.
+    -- Some calls rely on the previous val.  'Derive.Args.prev_val' will
+    -- evaluate it in that case, but if I know that the call will want the
+    -- previous val for sure it's probably more efficient to extend the slice
+    -- back a bit and let 'Derive.info_prev_val' provide the previous val.
+    -- This way the previous call will only be evaluated once.  However, this
+    -- hacky check is unreliable because it doesn't really know what calls are
+    -- in scope, and doesn't work for val calls at all.
     call_of = Maybe.fromMaybe "" . ParseBs.parse_call . Event.event_bytestring
     take_pre before = Then.span ((`Set.member` require_previous) . call_of)
         (splitAt before)

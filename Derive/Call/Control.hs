@@ -108,7 +108,7 @@ c_set_prev = Derive.generator "set-prev" (Tags.prelude <> Tags.prev)
     ("Re-set the previous value.  This can be used to extend a breakpoint,\
     \ and is also automatically set by the control track deriver for\
     \ the hack described in 'Perform.Signal.integrate'."
-    ) $ Sig.call0 $ \args -> case Args.prev_val args of
+    ) $ Sig.call0 $ \args -> Args.prev_val args >>= \x -> case x of
         Nothing -> return []
         Just (prev_x, prev_y) -> do
             pos <- Args.real_start args
@@ -119,11 +119,13 @@ c_set_prev = Derive.generator "set-prev" (Tags.prelude <> Tags.prev)
 -- * linear
 
 linear_interpolation :: (TrackLang.Typecheck time) =>
-    Text -> time -> Text
+    Text -> Tags.Tags -> time -- ^ arg for duration function
+    -> Text -- ^ doc for time arg
     -> (Derive.ControlArgs -> time -> Derive.Deriver TrackLang.RealOrScore)
+    -- ^ function from the time arg to the desired duration
     -> Derive.ControlCall
-linear_interpolation name time_default time_default_doc get_time =
-    Derive.generator1 name (Tags.prelude <> Tags.prev) doc $ Sig.call ((,)
+linear_interpolation name tags time_default time_default_doc get_time =
+    Derive.generator1 name (Tags.prelude <> tags) doc $ Sig.call ((,)
     <$> required "val" "Destination value."
     <*> defaulted "time" time_default time_doc
     ) $ \(val, time) args ->
@@ -134,33 +136,34 @@ linear_interpolation name time_default time_default_doc get_time =
     time_doc = "Time to reach destination. " <> time_default_doc
 
 c_linear_prev :: Derive.ControlCall
-c_linear_prev = linear_interpolation "linear" Nothing
+c_linear_prev = linear_interpolation "linear" Tags.prev Nothing
     "If not given, start from the previous sample." default_prev
 
-default_prev :: Derive.PassedArgs d -> Maybe TrackLang.DefaultReal
-    -> Derive.Deriver TrackLang.RealOrScore
-default_prev args Nothing = TrackLang.Real <$> case Args.prev_val args of
-    Nothing -> Args.real_start args
-    Just (prev, _) -> do
-        start <- Args.real_start args
-        return $ prev - start
+default_prev :: (Args.EvalPrev d) => Derive.PassedArgs d
+    -> Maybe TrackLang.DefaultReal -> Derive.Deriver TrackLang.RealOrScore
+default_prev args Nothing =
+    fmap TrackLang.Real $ Args.prev_val args >>= \x -> case x of
+        Nothing -> Args.real_start args
+        Just (prev, _) -> do
+            start <- Args.real_start args
+            return $ prev - start
 default_prev _ (Just (TrackLang.DefaultReal t)) = return t
 
 c_linear_prev_const :: Derive.ControlCall
 c_linear_prev_const =
-    linear_interpolation "linear-prev-const" (TrackLang.real (-0.1)) "" $
+    linear_interpolation "linear-prev-const" mempty (TrackLang.real (-0.1)) "" $
         \_ -> return . default_real
 
 c_linear_next :: Derive.ControlCall
 c_linear_next =
-    linear_interpolation "linear-next" Nothing
+    linear_interpolation "linear-next" mempty Nothing
         "If not given, default to the start of the next event." $
     \args maybe_time -> return $ maybe (next_dur args) default_real maybe_time
     where next_dur args = TrackLang.Score $ Args.next args - Args.start args
 
 c_linear_next_const :: Derive.ControlCall
 c_linear_next_const =
-    linear_interpolation "linear-next-const" (TrackLang.real 0.1) "" $
+    linear_interpolation "linear-next-const" mempty (TrackLang.real 0.1) "" $
         \_ -> return . default_real
 
 
@@ -168,11 +171,11 @@ c_linear_next_const =
 
 -- | Exponential interpolation, with different start times.
 exponential_interpolation :: (TrackLang.Typecheck time) =>
-    Text -> time -> Text
+    Text -> Tags.Tags -> time -> Text
     -> (Derive.ControlArgs -> time -> Derive.Deriver TrackLang.RealOrScore)
     -> Derive.ControlCall
-exponential_interpolation name time_default time_default_doc get_time =
-    Derive.generator1 name (Tags.prelude <> Tags.prev) doc $ Sig.call ((,,)
+exponential_interpolation name tags time_default time_default_doc get_time =
+    Derive.generator1 name (Tags.prelude <> tags) doc $ Sig.call ((,,)
     <$> required "val" "Destination value."
     <*> defaulted "exp" 2 exp_doc
     <*> defaulted "time" time_default time_doc
@@ -189,24 +192,22 @@ exp_doc = "Slope of an exponential curve. Positive `n` is taken as `x^n`\
     \ rapidly departing and slowly approaching curve."
 
 c_exp_prev :: Derive.ControlCall
-c_exp_prev = exponential_interpolation "exp-prev" Nothing
+c_exp_prev = exponential_interpolation "exp-prev" Tags.prev Nothing
     "If not given, start from the previous sample." default_prev
 
 c_exp_prev_const :: Derive.ControlCall
-c_exp_prev_const =
-    exponential_interpolation "exp-prev-const" (TrackLang.real (-0.1)) "" $
-        \_ -> return . default_real
+c_exp_prev_const = exponential_interpolation "exp-prev-const" mempty
+    (TrackLang.real (-0.1)) "" $ \_ -> return . default_real
 
 c_exp_next :: Derive.ControlCall
-c_exp_next = exponential_interpolation "exp-next" Nothing
+c_exp_next = exponential_interpolation "exp-next" mempty Nothing
         "If not given default to the start of the next event." $
     \args maybe_time -> return $ maybe (next_dur args) default_real maybe_time
     where next_dur args = TrackLang.Score $ Args.next args - Args.start args
 
 c_exp_next_const :: Derive.ControlCall
-c_exp_next_const =
-    exponential_interpolation "exp-next-const" (TrackLang.real 0.1) "" $
-        \_ -> return . default_real
+c_exp_next_const = exponential_interpolation "exp-next-const" mempty
+    (TrackLang.real 0.1) "" $ \_ -> return . default_real
 
 
 -- * misc
@@ -248,7 +249,7 @@ c_up = Derive.generator1 "up" (Tags.prelude <> Tags.prev)
 slope :: Derive.ControlArgs
     -> (RealTime -> RealTime -> Signal.Y -> (RealTime, Signal.Y))
     -> Derive.Deriver Signal.Control
-slope args f = case Args.prev_val args of
+slope args f = Args.prev_val args >>= \x -> case x of
     Nothing -> return Signal.empty
     Just (_, prev_y) -> do
         start <- Args.real_start args
@@ -265,7 +266,7 @@ c_pedal = Derive.generator1 "pedal" mempty
     ) $ Sig.call (defaulted "val" 1 "Set to this value.") $
     \val args -> do
         (start, end) <- Args.real_range args
-        let prev = maybe 0 snd (Args.prev_val args)
+        prev <- maybe 0 snd <$> Args.prev_val args
         return $ Signal.signal [(start, val), (end, prev)]
 
 -- * util
@@ -285,11 +286,11 @@ interpolate :: (Double -> Double) -> Derive.ControlArgs
 interpolate f args val dur = do
     (start, end) <- Util.duration_from_start args dur
     srate <- Util.get_srate
-    return $ case Args.prev_val args of
-        -- This can happen a lot when the control track is sliced, and is
-        -- nothing to worry about.
+    Args.prev_val args >>= \x -> return $ case x of
         Nothing -> Signal.signal [(start, val)]
-        Just (_, prev_val) -> interpolator srate f False
+        -- I always set include_initial.  It might be redundant, but if the
+        -- previous call was sliced off, it won't be.
+        Just (_, prev_val) -> interpolator srate f True
             (min start end) prev_val (max start end) val
 
 interpolator :: RealTime -> (Double -> Double) -> Interpolator

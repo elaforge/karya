@@ -65,12 +65,10 @@ c_next_val = Derive.val_call "next-val" Tags.next
 
 c_prev_val :: Derive.ValCall
 c_prev_val = Derive.val_call "prev-val" Tags.prev
-    "Return the previous value. Only works on pitch and control tracks.\
-    \ Also, this wont work across slice boundaries, so if you want to use it\
-    \ you should probably put the control track above the note track."
-    $ Sig.call0 $ \args -> case Args.prev_val args of
-        Just (_, Derive.TagPitch v) -> return $ TrackLang.VPitch v
-        Just (_, Derive.TagControl v) -> return $ TrackLang.num v
+    "Return the previous value. Only works on pitch and control tracks."
+    $ Sig.call0 $ \args -> Args.prev_val args >>= \x -> case x of
+        Just (_, Derive.TagControl y) -> return $ TrackLang.num y
+        Just (_, Derive.TagPitch y) -> return $ TrackLang.VPitch y
         _ -> Derive.throw "no previous value"
 
 eval_pitch :: Event.Event -> Derive.Deriver (Maybe PitchSignal.Pitch)

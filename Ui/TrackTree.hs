@@ -111,6 +111,9 @@ data TrackEvents = TrackEvents {
     -- as it actually is when the notes are evaluated, rather than its
     -- pre-invert value, which is likely to not have the right scale.
     , tevents_track_id :: !(Maybe TrackId)
+    -- | The block these events came from.  A track can appear in multiple
+    -- blocks, but can only appear once in each block.
+    , tevents_block_id :: !(Maybe BlockId)
 
     -- | The relative end of this slice of track.  This is different from @snd
     -- . tevents_range@ because it gets shifted after slicing to be relative to
@@ -164,6 +167,7 @@ track_events title events end = TrackEvents
     { tevents_title = title
     , tevents_events = events
     , tevents_track_id = Nothing
+    , tevents_block_id = Nothing
     , tevents_end = end
     , tevents_range = (0, end)
     , tevents_sliced = False
@@ -175,17 +179,19 @@ events_tree_of :: (State.M m) => BlockId -> m EventsTree
 events_tree_of block_id = do
     info_tree <- get_track_tree block_id
     end <- State.block_ruler_end block_id
-    events_tree end info_tree
+    events_tree block_id end info_tree
 
-events_tree :: (State.M m) => ScoreTime -> TrackTree -> m EventsTree
-events_tree end = mapM resolve
+events_tree :: (State.M m) => BlockId -> ScoreTime -> TrackTree -> m EventsTree
+events_tree block_id end = mapM resolve
     where
     resolve (Tree.Node (State.TrackInfo title track_id _) subs) =
         Tree.Node <$> make title track_id <*> mapM resolve subs
     make title track_id = do
         track <- State.get_track track_id
         return $ (track_events title (Track.track_events track) end)
-            { tevents_track_id = Just track_id }
+            { tevents_track_id = Just track_id
+            , tevents_block_id = Just block_id
+            }
 
 -- | All the children of this EventsNode with TrackIds.
 tevents_children :: EventsNode -> Set.Set TrackId

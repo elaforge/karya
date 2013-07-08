@@ -276,6 +276,13 @@ test_derive_track_signals = do
     --     , (UiTest.mk_tid 3, [(0, 0.5), (2, 0.5), (3, 0.25), (4, 0)])
     --     ]
 
+test_prev_val = do
+    let run ex tracks = DeriveTest.extract ex $ DeriveTest.derive_tracks $
+            (">", [(0, 1, ""), (1, 1, ""), (2, 1, "")]) : tracks
+    equal (run (DeriveTest.e_control "c")
+            [("c", [(0, 0, ".5"), (1, 0, "'"), (2, 0, "'")])])
+        ([[(0, 0.5)], [(1, 0.5)], [(2, 0.5)]], [])
+
 
 e_tsigs :: Derive.Result -> [(Signal.Display, ScoreTime, ScoreTime)]
 e_tsigs = map snd . e_tsig_tracks

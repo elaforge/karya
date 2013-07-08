@@ -76,7 +76,7 @@ module Derive.Deriver.Monad (
 
     -- * calls
     , NoteCallMap, ControlCallMap, PitchCallMap, ValCallMap
-    , CallInfo(..), dummy_call_info
+    , CallInfo(..), coerce_call_info, dummy_call_info
     , Call(..)
     , CallDoc(..), ArgDoc(..), ArgParser(..), ArgDocs(..)
     , NoteCall, ControlCall, PitchCall
@@ -737,8 +737,8 @@ op_min = ControlOp "min" Signal.sig_min (2^32)
 -- ** collect
 
 -- | These are things that collect throughout derivation, and are cached in
--- addition to the derived values.  Effectively they are return values
--- alongside the values.
+-- addition to the derived values.  Effectively they are extra return values,
+-- which are combined with mappend.
 data Collect = Collect {
     -- | Remember the warp signal for each track.  A warp usually applies to
     -- a set of tracks, so remembering them together will make the play monitor
@@ -857,6 +857,14 @@ data CallInfo val = CallInfo {
 
     -- | Hack so control calls have access to the previous sample, since
     -- they tend to want to interpolate from that value.
+    --
+    -- This used to be the only way a call could get the previous value, but
+    -- now if the prev val is unset, then "Derive.Args.prev_val" will evaluate
+    -- 'info_prev_events'.  But checking info_prev_val is cheaper, so I'll keep
+    -- it around.  The evaluation fallback has to exist because track slicing
+    -- may snip off the previous event.
+    --
+    -- See note [prev-val] in "Derive.Args" for details.
     , info_prev_val :: !(Maybe (RealTime, val))
 
     , info_event :: !Event.Event
@@ -900,6 +908,9 @@ instance (Pretty.Pretty val) => Pretty.Pretty (CallInfo val) where
             , ("sub_tracks", Pretty.format sub_tracks)
             , ("track_type", Pretty.format track_type)
             ]
+
+coerce_call_info :: CallInfo a -> CallInfo b
+coerce_call_info cinfo = cinfo { info_prev_val = Nothing }
 
 -- | Transformer calls don't necessarily apply to any particular event, and
 -- neither to generators for that matter.
@@ -1255,7 +1266,7 @@ data ScaleError =
         -- The Text should be TrackLang.Val except that makes Eq not work.
     deriving (Eq, Show)
 
-{- note control-modification
+{- note [control-modification]
     . Control tracks return a single control, and how that merges into the
       environ is up to the track.
     . It would be convenient to do it in an existing track, e.g. the pitch

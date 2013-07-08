@@ -119,7 +119,7 @@ relative_scale_degree named_intervals initial_interval =
     Sig.call (intervals_arg named_intervals) $ \intervals args -> do
         interval <- (initial_interval*) <$>
             resolve_intervals named_intervals intervals
-        case Args.prev_val args of
+        Args.prev_val args >>= \x -> case x of
             Just (_, Derive.TagPitch prev) ->
                 return $ TrackLang.VPitch (modify interval prev)
             _ -> Derive.throw "relative interval requires a previous pitch"

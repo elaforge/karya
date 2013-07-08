@@ -187,6 +187,11 @@ instance Eq Pitch where
 instance Show Pitch where
     show (Pitch p _) = show (p Map.empty)
 
+-- | It can't be reduced since it has lambdas, but at least this way you can
+-- easily rnf things that contain it.
+instance DeepSeq.NFData Pitch where
+    rnf _ = ()
+
 -- | This is just for debugging convenience, since it doesn't preserve the
 -- structure of the pitch.
 instance Read Pitch where
