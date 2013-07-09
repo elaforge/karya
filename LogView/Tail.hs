@@ -9,6 +9,7 @@ module LogView.Tail (
     , rotate_logs
     -- * tail
     , Handle, open, tail
+    , deserialize_line
 ) where
 import Prelude hiding (read, tail)
 import qualified System.Directory as Directory

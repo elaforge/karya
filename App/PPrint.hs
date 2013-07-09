@@ -3,6 +3,7 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 -- | Standalone pretty printer for debugging.
+module App.PPrint where
 import qualified Util.PPrint as PPrint
 
 main :: IO ()

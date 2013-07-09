@@ -585,8 +585,7 @@ dispatch modeConfig targets = do
 
 hlint :: Config -> Shake.Action ()
 hlint config = do
-    hscs <- filter haddock <$> Util.findHs "*.hsc" "."
-    hs <- filter haddock <$> Util.findHs "*.hs" "."
+    (hs, hscs) <- getAllHaddock
     need $ map (hscToHs (hscDir config)) hscs
     Util.staunchSystem "hlint" $ mkIgnore hlintIgnore ++ hs
     Util.staunchSystem "hlint" $ mkIgnore
@@ -611,8 +610,7 @@ hlintIgnore =
 -- | Make all documentation.
 makeAllDocumentation :: Config -> Shake.Action ()
 makeAllDocumentation config = do
-    hscs <- filter haddock <$> Util.findHs "*.hsc" "."
-    hs <- filter haddock <$> Util.findHs "*.hs" "."
+    (hs, hscs) <- getAllHaddock
     docs <- getMarkdown
     need $ extractableDocs
         ++ map (hscToHs (hscDir config)) hscs ++ map docToHtml docs
@@ -637,8 +635,7 @@ getMarkdown = map ("doc"</>) <$> Shake.getDirectoryFiles "doc" ["*.md"]
 
 makeHaddock :: Config -> Shake.Action ()
 makeHaddock config = do
-    hscs <- filter haddock <$> Util.findHs "*.hsc" "."
-    hs <- filter haddock <$> Util.findHs "*.hs" "."
+    (hs, hscs) <- getAllHaddock
     need $ (buildDir config </> "hsconfig.h")
         : map (hscToHs (hscDir config)) hscs
     let flags = configFlags config
@@ -672,19 +669,26 @@ getHaddockInterfaces = do
     -- just pick the first one for now.
     extract = drop 1 . dropWhile (/=' ') . takeWhile (/='\n')
 
+getAllHaddock :: Shake.Action ([FilePath], [FilePath])
+getAllHaddock = do
+    hs <- filter wantsHaddock <$> Util.findHs "*.hs" "."
+    hscs <- filter wantsHaddock <$> Util.findHs "*.hsc" "."
+    return (hs, hscs)
 
 -- | Should this module have haddock documentation generated?
-haddock :: FilePath -> Bool
-haddock hs = not $ hs `elem` map hsMain hsBinaries
-    || "_test.hs" `List.isSuffixOf` hs
-    || "_profile.hs" `List.isSuffixOf` hs
+wantsHaddock :: FilePath -> Bool
+wantsHaddock hs = not $ or
+    [ hs `elem` map hsMain hsBinaries
+    , "_test.hs" `List.isSuffixOf` hs
+    , "_profile.hs" `List.isSuffixOf` hs
     -- TODO Actually I would like to haddock these, but they rely on TESTING
     -- being set.  Apparently haddock has no way to set CPP defines, so I
     -- either have to add a way or stop using CPP for conditional exports.
-    || "Test.hs" `List.isSuffixOf` hs
+    , "Test.hs" `List.isSuffixOf` hs
     -- This will crash haddock on OS X since jack.h is likely not present.
     -- TODO sorta hacky
-    || hs == "Midi/JackMidi.hsc"
+    , hs == "Midi/JackMidi.hsc"
+    ]
 
 -- * cabal
 

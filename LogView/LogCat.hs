@@ -5,12 +5,13 @@
 -- | Format and display log msgs.
 --
 -- TODO: formatting options
+module LogView.LogCat where
 import Control.Monad
 import qualified System.Environment as Environment
 import qualified System.IO as IO
 
 import qualified Util.Log as Log
-import qualified LogView.Process as Process
+import qualified LogView.Tail as Tail
 
 
 main :: IO ()
@@ -23,5 +24,5 @@ main = do
     IO.hSetBuffering hdl IO.LineBuffering
     forever $ do
         line <- IO.hGetLine hdl
-        msg <- Process.deserialize_line line
+        msg <- Tail.deserialize_line line
         putStrLn (Log.format_msg msg)
