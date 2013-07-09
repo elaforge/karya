@@ -33,6 +33,13 @@ The control tracks can either be above the note track and possibly apply to
 multiple note tracks, or below a note track and apply only to that note track,
 through a processes called [slicing and inversion](#slicing-and-inversion).
 
+So for example, a common configuration is a note track `>inst`, which sets the
+instrument to `inst`, with a pitch track `*` and control track `dyn` below it.
+`*` establishes a pitch track, but doesn't set the scale, so it'll be
+inherited from the environment, and `dyn` is a dynamics track.  Though they
+appear below the note track, by the time inversion gets done with them they
+are actually above it, establishing pitch and dynamics for each note.
+
 The events in a control track are generally numbers which set the control
 signal at that point in time, or possibly calls which interpolate to create
 lines or curves, the events of a pitch track will be names of scale degrees and
@@ -81,27 +88,6 @@ transformed by `t1`.
 Note tracks can have children, by virtue of a complicated process called
 [slicing and inversion](#slicing-and-inversion).
 
-### control track
-
-Control tracks look like `control`, `add control` or `%`.  If a control with
-the same name is already in scope, the new track will multiply with it by
-default.  This behaviour can be changed with the leading "operator", e.g.  `set
-c` will replace `c`, or `add c` will add to it.  The complete set of operators
-is listed in 'Derive.Deriver.Monad.default_control_op_map'.  `%` is an unnamed
-control track and is used only by [control block calls](#control-block-calls).
-
-As with note tracks, you can append a transformer pipeline.
-
-Control tracks put their control into scope for their children, so a control
-track should always have children (a control track below a note track may not look like it has children, but in fact it does, courtesy of inversion).
-
-### tempo track
-
-Tempo tracks are just titled `tempo`.  The track is just a normal control
-track, but the generated signal will be composed with the warp signal in scope.
-Normally a single tempo track will have scope over all the tracks in a module,
-but it's also possible to have multiple tempo tracks.
-
 ### pitch track
 
 Pitch tracks look like `*`, `*scale` or `*scale #name`.  They set the scale to
@@ -117,6 +103,33 @@ depends on the scale, but the defaults are 'Derive.Score.c_chromatic',
 can append a transformer pipeline.  Pitch tracks are highly related to
 [scales](#scales).
 
+### control track
+
+Control tracks look like `control`, `add control` or `%`.  If a control with
+the same name is already in scope, the new track will multiply with it by
+default.  This behaviour can be changed with the leading "operator", e.g.  `set
+c` will replace `c`, or `add c` will add to it.  The complete set of operators
+is listed in 'Derive.Deriver.Monad.default_control_op_map'.  `%` is an unnamed
+control track and is used only by [control block calls](#control-block-calls).
+
+As with note tracks, you can append a transformer pipeline.
+
+Control tracks put their control into scope for their children, so a control
+track should always have children (a control track below a note track may not
+look like it has children, but in fact it does, courtesy of inversion).
+
+Control track titles can have a [type suffix](#number-types), if which case
+they indicate the type of they generate.  For instance, `delay-time:s` will
+create a control which the `delay` call will interpret as being in RealTime
+seconds.
+
+### tempo track
+
+Tempo tracks are just titled `tempo`.  The track is just a normal control
+track, but the generated signal will be composed with the warp signal in scope.
+Normally a single tempo track will have scope over all the tracks in a module,
+but it's also possible to have multiple tempo tracks.
+
 ### Slicing and inversion
 
 [Slicing and inversion](slicing-inverting.md.html) is a score level
@@ -124,6 +137,7 @@ transformation that happens at when a track is derived.
 
 ### Note Transformers
 
+TODO
 
 ## Dynamic environment
 
@@ -269,6 +283,8 @@ The intent of the restrictive rules are that they relieve me of the burden of
 remembering a naming scheme (e.g. '.' vs. '-' vs. '_') and leave room for
 flexibility in other places, e.g. @-macros in the [REPL](repl.md.html).
 
+#### number types
+
 TODO document literal suffixes, e.g. 1s 1t 1d 1c, control track suffixes
 
 Numeric values can have a type suffix.  For instance, 3d means that the number
@@ -287,7 +303,7 @@ calls.  For example, it would be awkward to include all combinations of trills
 on diatonic or chromatic neighbors, and in score time or real time.  It's
 easier to have one control that can be passed a diatonic or chromatic neighbor.
 
-All type codes are enumerated in Derive.BaseTypes.Type.
+The types and their codes are enumerated in 'Derive.BaseTypes.Type'.
 
 The interaction between typed controls and arguments is also documented in
 'Derive.CallSig'.

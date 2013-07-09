@@ -1,8 +1,8 @@
-repl is a simple command line interface.  It uses haskeline for input editing,
-which is similar to readline, only with different bugs.  Haskeline can be
-configured in ~/.haskeline, but basically what you want in there is
+`repl` is a simple command line interface.  It uses haskeline for input
+editing, which is similar to readline, only with different bugs.  Haskeline
+can be configured in ~/.haskeline, but basically what you want in there is
 `editMode: Vi` and `historyDuplicates: IgnoreConsecutive`.  Full documentation
-is at [http://trac.haskell.org/haskeline](http://trac.haskell.org/haskeline).
+is at [[http://trac.haskell.org/haskeline]].
 
 The repl accepts haskell which is evaluated in a 'Cmd.Cmd.CmdL' monad, which is
 just a synonym for `CmdT IO a`.  The result is displayed directly if it's a

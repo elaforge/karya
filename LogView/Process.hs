@@ -132,7 +132,7 @@ suppress_last msg process = do
 -- has one group, that group is used.  If it has two groups, the first group
 -- will replace the key.  >2 groups is an error.
 --
--- If the value is "", then the key is removed.
+-- If the value is \"\", then the key is removed.
 catch_regexes :: [CatchPattern] -> Catch
 catch_regexes patterns msg = Map.filter (not . null) . Map.union status
     where

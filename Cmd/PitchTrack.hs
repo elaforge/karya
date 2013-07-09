@@ -39,6 +39,11 @@ cmd_raw_edit :: Cmd.Cmd
 cmd_raw_edit = Cmd.suppress_history Cmd.RawEdit "pitch track raw edit"
     . EditUtil.raw_edit True
 
+-- | Val edit turns 'Msg.InputNote's into the appropriate scale degree call
+-- for the scale in scope.
+--
+-- Like control tracks, @'@ will add a @'@ call, which repeats the last value.
+-- This is useful to extend a constant pitch value to the desired breakpoint.
 cmd_val_edit :: Cmd.Cmd
 cmd_val_edit msg = Cmd.suppress_history Cmd.ValEdit "pitch track val edit" $ do
     EditUtil.fallthrough msg
@@ -58,6 +63,9 @@ cmd_val_edit msg = Cmd.suppress_history Cmd.ValEdit "pitch track val edit" $ do
         _ -> Cmd.abort
     return Cmd.Done
 
+-- | Method edit directs keystrokes to the (optional) call around the pitch
+-- call.  Pitches by themselves simply set a constant pitch by default, but
+-- a call can create an interpolated curve, or a trill, or anything really.
 cmd_method_edit :: Cmd.Cmd
 cmd_method_edit msg = Cmd.suppress_history Cmd.MethodEdit
         "pitch track method edit" $ do

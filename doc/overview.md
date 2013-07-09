@@ -52,7 +52,7 @@ signals.  The MIDI backend can automatically multiplex an instrument across
 multiple channels to keep control changes isolated to their intended notes.
 
 - Scales.  Scales can use custom symbols and can take arguments for per-note
-pitch variations.  Scale pitches can depend on signals (e.g. a gradually
+pitch variations.  Scale pitches can depend on signals (e.g. gradually
 retuning a scale) or on other instruments (e.g. the intonation of one part is
 defined relative to another).  For example, you can write the melody in
 mean-tone, and define the harmony in just intervals relative to the melody.
@@ -169,7 +169,8 @@ Don't hesitate to look at [haddock documentation](../haddock/index.html) or
 the [source](../hscolour/).  Since using karya probably involves writing code
 that interacts with the internal APIs, you'll need to be familiar with the
 code.  Sometimes the documentation isn't exported as haddock, so if the haddock
-seems sparse try the "source" link.
+seems sparse try the "source" link.  Whenever possible, I try to keep
+documentation in the haddock, since it's generally easier to keep up to date.
 
 [My blog](http://elaforge.blogspot.com/) has notes I have taken during
 development.  It's mostly just notes to myself, but it may give some
@@ -230,6 +231,8 @@ includes the [global keymap](keymap.html), [builtin calls](calls.html), and
 [builtin scales](scales.html).
 
 ## karya
+
+The [quickstart](quickstart.md.html) covers configuration.
 
 For the purposes of documentation, there are three major layers:
 

@@ -153,24 +153,28 @@ mouse_select = 1
 
 -- * selnums
 
--- | SelNum of the insertion selection.
+-- | The insertion selection is what just about all Cmds should look at to
+-- know where to apply any score changes they are supposed to make.  Generally
+-- if a Cmd doesn't have specific BlockId, TrackId, and ScoreTime arguments,
+-- it probably defaults to the insert_selnum.
 insert_selnum :: Types.SelNum
+-- | Temporary insert point,  to indicate insert position when it's not the
+-- insert_selnum.
+temporary_insert_selnum :: Types.SelNum
+-- | Highlight errors, possibly reported internally but probably sent by
+-- logview when you click on a stack trace.
 error_selnum :: Types.SelNum
+-- | Display current "Cmd.StepPlay" position.
 step_play_selnum :: Types.SelNum
--- | SelNum of the play position indicator.
+-- | Display current play position, managed by play monitor thread.
 play_position_selnum :: Types.SelNum
 
 [ (insert_selnum, _)
     -- Unused.  Secondary select?
     , _
-    -- Temporary insert point,  to indicate insert position when it's not the
-    -- insert_selnum.
     , (temporary_insert_selnum, _)
-    -- Highlight errors.
     , (error_selnum, _)
-    -- Display current play position, managed by play monitor thread.
     , (play_position_selnum, play_selection_color)
-    -- Display current step play position.
     , (step_play_selnum, _)
     ] = zip [0..] selection_colors
 

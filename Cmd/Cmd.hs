@@ -544,7 +544,7 @@ data EditState = EditState {
     -- 'InputNote.Input' velocity, similar to how a pitch track is edited and
     -- created.
     , state_record_velocity :: Bool
-    -- | Use the alphanumeric keys to enter notes instead of midi input.
+    -- | Use the alphanumeric keys to enter notes in addition to midi input.
     , state_kbd_entry :: !Bool
     -- | Default time step for cursor movement.
     , state_time_step :: !TimeStep.TimeStep

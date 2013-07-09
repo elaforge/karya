@@ -256,6 +256,7 @@ find_pitch_track note_id = do
 
 -- * method edit
 
+-- | Method edit is redirected to the pitch track, creating one if necessary.
 cmd_method_edit :: Cmd.Cmd
 cmd_method_edit msg = Cmd.suppress_history Cmd.MethodEdit
         "note track method edit" $ do

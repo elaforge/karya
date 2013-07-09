@@ -169,9 +169,10 @@ MILESTONES
 ----------------------------------------------------------------------
 
 documentation
+  - make haddocks for the various main modules, e.g. LogView.LogView
   + doc/derivation.md
   - split up derivation.md into separate files
-  + doc/ui.md
+  * doc/ui.md
   - doc/performance.md
   - doc/symbols.md
   - make sure core state types and their dependents have good haddock

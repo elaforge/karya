@@ -28,7 +28,14 @@ cmd_raw_edit = Cmd.suppress_history Cmd.RawEdit "control track raw edit"
 
 -- | Accept keystrokes and modify the val field of the event.  Also accept
 -- 'InputNote.NoteOn' or 'InputNote.Control' msgs and enter a value based on
--- their velocity or value, respectively.
+-- their velocity or value, respectively.  So you can use a MIDI knob to set
+-- arbitrary control values.
+--
+-- Since control vals are typically normalized between 0 and 1, this accepts
+-- hexadecimal higits and modifies the event text with 'modify_hex'.
+--
+-- The @'@ key will enter a @'@ call, which repeats the last value.  This is
+-- useful to extend a constant pitch value to the desired breakpoint.
 cmd_val_edit :: Cmd.Cmd
 cmd_val_edit msg = suppress "control track val edit" $ do
     EditUtil.fallthrough msg
@@ -50,6 +57,8 @@ cmd_val_edit msg = suppress "control track val edit" $ do
                 Cmd.gets (Cmd.state_advance . Cmd.state_edit)])
             Selection.advance
 
+-- | Editing a tempo track is just like editing a normal control track, except
+-- that it doesn't do the hex entry thing.
 cmd_tempo_val_edit :: Cmd.Cmd
 cmd_tempo_val_edit msg = suppress "tempo track val edit" $ do
     EditUtil.fallthrough msg
@@ -70,7 +79,8 @@ modify_num key event =
 -- the val is hex or not.
 --
 -- If it's hex or null, expect higits and rotate them into the value, always
--- staying in the form `0x`##.  If it's not hex, act like 'cmd_tempo_val_edit'.
+-- staying in the form @`0x`##@.  If it's not hex, act like
+-- 'cmd_tempo_val_edit'.
 --
 -- The one difference is that 'cmd_val_edit' catches all alphanum keys since it
 -- is expecting a-f, and will then ignore them if they are other letters, while

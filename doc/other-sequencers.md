@@ -1,3 +1,69 @@
+## other sequencers
+
+### mainstream
+
+These
+
+- Cubase - Recent versions of cubase actually support per-note articulation
+and pitch, along with a fancy editor for them.  The latest version of VST3
+supports per-note signals.  When using MIDI it can multiplex channels like
+karya does by default.  However, it appears no one except Steinberg
+writes VST3s, so in practice it's equivalent to writing your own
+synthesizers.  I haven't experimented with the channel multiplexing to see
+how clever it is.  It also supports keyswitches 
+
+- logic, sonar, digital performer, ...
+
+- Ableton Live, ...
+
+- ardour, qtractor, non-timeline, non-sequencer - These are basically free
+versions of the commercial programs.
+
+- rosegarden
+
+### notation
+
+- Finale, sibelius
+
+### composition
+
+These are programs that are similar to karya in that they treat music in a
+higher-level way.  As far as I can tell, they're all restricted to 18th
+century style tonal western music.  Being specialized, they can understand
+the music better, and so as they get fancier they start resembling
+automatic music generation and harmonization systems.
+
+- synfire - Commercial, very expensive.  It only supports western tonal
+music, and seems basically non-extendable.  Appears to have pretty
+elaborate understanding of that kind of harmony, but the website is all
+marketing fluff so it's hard to tell.
+
+- Rapid Composer - [[http://www.musicdevelopments.com/]]
+
+### tracker
+
+- Renoise - Classical tracker extended with VST support.
+
+- Buzztrax, Beast
+
+### language
+
+- nyquist, csound, clm, 
+
+- supercollider, max, reaktor - These are languages with a focus on sound
+synthesis, rather than composition.  They tend to be more focused on
+designing instruments rather than writing music.
+
+#### livecoding
+
+Livecoding languages focus on writing a kind of score in realtime.
+
+- chuck - [[http://chuck.cs.princeton.edu/]]
+
+- overtone - [[https://github.com/overtone/overtone]]
+
+- Conductive - [[http://www.renickbell.net/conductive/doku.php/start]].
+
 ## Relation to other sequencers
 
 - There is a family of "academic" music programming languages: csound, clm,

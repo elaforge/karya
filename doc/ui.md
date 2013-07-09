@@ -9,6 +9,24 @@ and becomes music is the business of the deriver.  So the UI elements described
 here have links to the relevant bits of the
 [derivation doc.](derivation.md.html)
 
+One important thing to know about the UI is that it is, like the rest of the
+program, organized in many layers.  The lowest layer is the C++ API, which
+just opens windows, changes colors, etc. but has no idea what any of that
+means.  This is represented mostly by the API exposed in 'Ui.Block.BlockC',
+which is a direct wrapper around the C++ API.  The medium level is mostly
+dumb, in that you alter haskell data structures and the UI then changes to
+reflect the changes, but you are still free to alter them in just about any
+way you see fit.  This level is what you see if you directly manipulate
+'Ui.State.State', which you could do if you wanted, or slightly higher level
+if you use the functions in 'Ui.State', which is what you should probably do.
+The high level is defined by what Cmds are available, and it is at this level
+that UI changes have "meaning", for example where a "K" in the edit box means
+that kbd entry is enabled.  This is all to say that most of what is described
+here are simply the conventions established by the default set of Cmds, and if
+you write your own Cmds or override the defaults you can change things
+arbitrarily.  You could put other letters in the edit mode box if you wrote a
+Cmd to do that.
+
 Each block is named by a [BlockId](#ids), and the name part of
 the ID is in the window title, followed by the [ViewId](#ids).
 
@@ -19,14 +37,16 @@ clicking on the skeleton display.
 The [skeleton display](derivation.md.html#derivation) has arrows from track to
 track.
 
-To the left of a the skeleton is an empty box that displays the [edit
+To the left of a the skeleton is a blank gray box that displays the [edit
 mode](#editmode), and below that is the [ruler](#ruler).
 
 To the right of the ruler are vertical [tracks](#tracks), which is the bulk of
 the window.  The tracks have [events](#events), each of which has a red line at
-its trigger point, a duration, and a bit of text.  Tracks and events are color
-coded based on their type.  This doesn't have any semantic meaning, and is
-analogous to syntax highlighting.  The tracks may also have any number of
+its trigger point, a duration, and a bit of text.  Some events (for instance,
+most events on control or pitch tracks) have a 0 duration, so they're just a
+red trigger line and a bit of text.  Tracks and events are color coded based on
+their type.  This doesn't have any semantic meaning, and is analogous to syntax
+highlighting.  The tracks may also have any number of
 [selections](#selections).
 
 The bottom of the window has a status display, which displays some highly
@@ -76,9 +96,9 @@ means a Cmd is a function that can modify the score or the app state.
 
 Bound Cmds are just functions that take a 'Cmd.Msg.Msg' and decide whether or
 not to do something based on that: 'Cmd.Cmd.Cmd'.  Most of them are bound in
-'Ui.GlobalKeymap' and track-specific ones are bound from 'Cmd.Track'.  The
+'Cmd.GlobalKeymap' and track-specific ones are bound from 'Cmd.Track'.  The
 keymap bound cmds are summarized in [the keymap doc](keymap.html), and the
-track commands mostly have to do with the EditMode.
+track commands mostly depend on the EditMode.
 
 However, the vast majority of Cmds are accessible only from the
 [REPL](repl.md.html).
@@ -145,19 +165,92 @@ Event tracks have 'Ui.Event.Event's.  They are divided into several types,
 differentiated by their titles.  Details in the [derivation
 doc](derivation.md.html#track-evaluation).
 
-TODO collapsed tracks
+Of course, to be visible, a track has to live in a block.  The same track,
+identified by its TrackId, can be in multiple blocks at once, but it can only
+appear once in each block.  This restriction is for convenience, since
+otherwise just a (BlockId, TrackId) pair wouldn't be enough to identify a
+track.
 
-TODO merged tracks
+The data inherent to a track is in 'Ui.Track.Track', and data which may vary
+per-block is in 'Ui.Block.Track'.  The most interesting is a set of
+'Ui.Block.TrackFlag's, which affect display, derivation, or performance.
 
-TODO soloed, muted, disabled
+One special case is merged tracks.  Since note calls frequently have no text
+and just mark a start time and duration, and control calls frequently have
+text but no duration, you can save space by merging the neighbor pitch or
+control track into the note track.  Merging is a purely display feature, where
+the text from the events in one track will be displayed right-aligned in
+another track.  By convention (i.e. what the default keybindings do), the
+merged track is the adjacent pitch track, which is then collapsed.
+
+#### note track
+
+[Note tracks](derivation.md.html#note-track) actually produce score events.
+The cmds are implemented and documented in 'Cmd.NoteTrack'.
+
+Because most instruments are pitched, note track cmds listen for pitches
+(either from the MIDI keyboard or kbd entry) and enter pitches on a
+neighboring pitch track, or create one if it doesn't exist.  So they mostly
+act like pitch tracks.  But ValEdit on note tracks also supports
+'Cmd.Cmd.state_chord' to enter chords easily, and
+'Cmd.Cmd.state_record_velocity'.
+
+#### pitch track
+
+[Pitch tracks](derivation.md.html#pitch-track) produce a pitch signal, and the
+cmds are in 'Cmd.PitchTrack'.  They're mostly concerned with turning pitch
+input into the named pitch for the scale in scope.
+
+#### control track
+
+[Control tracks](derivation.md.html#control-track) generate controls, which
+are numbers that vary in time.  The cmds are in 'Cmd.ControlTrack'.  By
+convention they are normalized between 0 and 1, which makes them multiply
+together nicely, which is convenient, because that in fact is what they do by
+default.  But they are not restricted, and for example a control indicating
+the amount of delay, or the depth of a trill would have no reason to stay
+within that range.
+
+But since they mostly are normalized, the default call to set a control value
+is a bit weird, though it may be familiar if you've used a tracker.  ValEdit
+will accept hex "higits" and replace any existing number.  The value is
+superscripted with an `x` to indicate that it's in hex, and is divided by 0xff
+to normalize it.  This makes it fast and convenient to type normalized
+numbers, makes them all the same physical width, and doesn't rely on a tiny
+decimal point to determine their magnitude.  But you can still use [raw
+input](#raw-input) enter decimal numbers if you like them, or need numbers
+outside the 0--1 range.
+
+#### tempo track
+
+[Tempo tracks](derivation.md.html#tempo-track), also implemented in
+'Cmd.ControlTrack', are in most respects normal control tracks, except of
+course they are treated differently by the deriver.  One wrinkle is that
+they're not normalized between 0--1, so they don't do the hex input thing.
 
 ### Signal render
 
-TODO
+Tracks can display a visual representation of a signal, namely the signal
+which that particular track generates.  You have your choice of
+'Ui.Track.RenderConfig's, and it works on pitch tracks too.  Note tracks are
+handled separately, as documented in RenderConfig.
 
 ## selections
 
-TODO
+Selections are differently-colored transparent rectangles that are drawn in
+event or ruler tracks, starting at some time and ending at some other time.
+At the lowest level, that's all they are, but of course cmds establish some
+conventional meanings for them.  The most frequently used is the insert
+selection, which corresponds to the "edit point selection" found in most
+programs, but there are others, configured and documented in
+'App.Config.insert_selnum'.
+
+Selections can have zero duration, at which point they're called "point
+selections" and in the case of the insert selection, some cmds may behave
+slightly differently, e.g. act upon an overlapping or previous event rather
+than the events strictly contained within.  It's all rather ad-hoc and
+complicated, but is hopefully what you expect, as long as you're
+sufficiently like me.
 
 ## TimeStep
 
@@ -191,8 +284,11 @@ example, you would turn on ValEdit, type a number like `1`, then switch to
 MethodEdit (tab, by default) and type `i` to wind up with `i 1`.  What that
 means, of course, is documented in [control calls](calls.html).
 
-RawEdit just appends whatever text you type directly to the event.  It's mostly
-made obsolete by edit input, so it might go away someday.
+### raw input
+
+RawEdit just appends whatever text you type directly to the event, so it's the
+only edit mode which acts the same on all tracks.  It's mostly made obsolete by
+edit input, so it might go away someday.
 
 Edit input is technically not a edit mode at all, but it's used to enter or
 alter text.  For example, the "append text" cmd (bound to 'a' by default),

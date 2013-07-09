@@ -1,53 +1,19 @@
-## HOW TO GET SOUND TO COME OUT
-
-In 12 complicated confusing steps, each with many sub-steps:
+## INSTALLATION
 
 - Install dependencies, documented below.
 
 - On OS X, run 'defaults write -g ApplePressAndHoldEnabled -bool false' to
-re-enable key repeats globally.
-
-- Set up some internal MIDI devices.  On OS X this means going to "Audio MIDI
-Setup" and adding some IAC ports.
-
-- Add your machine's name to 'Local.Config.get_midi_config', and add make a
-config for it.  This is just optional aliases for MIDI device names, and a list
-of MIDI inputs to pay attention to.
-
-- Configure a synthesizer.  There are lots of fancy features, but if you ignore
-them all the configuration is basically just synth name and pitch bend range.
-Copy an existing soft synth, e.g. 'Local.Instrument.Fm8', and add the new
-module's `load` function to 'Local.Instrument.synths'.  If you use
-'MidiInst.softsynth' then you don't have to have any explicit patch names.
+re-enable key repeats globally.  Provided you want them to work sanely, and
+note iphone-ly.
 
 - Build shakefile: bin/mkmk
 
-- Build optimized binaries and documentation: 'repl=t bin/mk binaries doc'
-The repl=t part enables the REPL, which you want, but will make linking take a
-lot longer.  It will try to link to CoreMIDI on the mac and to JACK on linux.
-If for some reason you don't have one of those, you can pass midi=stub to link
-the stub MIDI driver, but don't expect any interesting music to come out.
-
-- Start `build/opt/logview` in the background, and the app `build/opt/seq` from
-one terminal, and the REPL `build/opt/repl` from another.
-
-- The default block has a tempo track, note track, and pitch track.  Note tracks
-start with `>`, rename it `>synth-name/patch-name`, where `synth-name` is
-whatever you named the new synth, and `patch-name` is whatever you want.
-
-- Type in the REPL: `LInst.alloc "synth-name/patch-name" "loop1" [0]`  `loop1`
-should be the name of one of the internal MIDI devices you created, or its
-alias if you configured one in 'Local.Config'.  This allocates MIDI channel 0
-on loop1 to that instrument.  You can see allocation with `pp LInst.configs`.
-
-- Turn on edit mode with `^[` and note entry with `^]', the edit box should be
-red and have a `K`.  If you have a MIDI keyboard you don't have to turn on note
-entry.  Play a few notes, either on the MIDI keyboard or the computer keyboard.
-If things are configured correctly, you should get MIDI thru on loop1, channel
-0.
-
-- Press enter to play, or cmd-enter to play from the start of the block, and
-space to stop.
+- Build optimized binaries and documentation: 'repl=t bin/mk binaries doc' The
+repl=t part enables the REPL, which you want, but will make linking take a lot
+longer, which is why it's off by default..  It will try to link to CoreMIDI on
+the mac and to JACK on linux.  If for some reason you don't have one of those,
+you can pass midi=stub to link the stub MIDI driver, but don't expect any
+interesting music to come out.
 
 
 ## HASKELL DEPENDENCIES
@@ -64,6 +30,15 @@ pandoc builds the documentation, but isn't in the cabal file because it ha a
 zillion dependencies and I just need the binary.  Or just read the markdown
 directly, that's what it's for.  So many dependencies just to convert text to
 HTML.
+
+One weakness of the shake build system as opposed to cabal is that it doesn't
+have the full constraint solver to figure out which versions of the various
+dependent packages to use.  The result is that it just uses the latest version
+of everything, which will be a problem if another package was compiled against
+an older version.  It might be possible to use just the constraint solver from
+the Cabal library, but it would probably need some refactoring to be usable.
+Meanwhile, I haven't had any real trouble with dependency hell, despite not
+using cabal-dev or anything like that.
 
 ## INSTALLED SEPARATELY
 
