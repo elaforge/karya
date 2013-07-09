@@ -9,6 +9,7 @@
 module Derive.Instrument.DUtil where
 import Util.Control
 import qualified Derive.Call as Call
+import qualified Derive.Call.Articulation as Articulation
 import qualified Derive.Call.Note as Note
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Call.Util as Util
@@ -17,6 +18,8 @@ import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Sig as Sig
 import qualified Derive.TrackLang as TrackLang
+
+import qualified App.MidiInst as MidiInst
 
 
 -- | Make a call that simply calls the default note call with the given attrs.
@@ -66,3 +69,16 @@ postproc_generator name doc call f = Derive.Call
     postproc (Derive.GeneratorCall func (Derive.CallDoc tags gdoc args_doc)) =
         Derive.GeneratorCall (f . func)
         (Derive.CallDoc tags (doc <> "\n" <> gdoc) args_doc)
+
+-- * code
+
+-- | Instruments that support legato samples should replace the @(@ call
+-- with an attribute-setting one, and disable the default note call's +legato
+-- behaviour.
+legato_samples :: [(Text, Derive.NoteCall)]
+legato_samples =
+        ("(", Articulation.c_attr_legato)
+        : MidiInst.null_call note_call
+    where
+    note_call = Note.note_call "" "" mempty $ Note.default_note $
+        Note.use_attributes { Note.config_legato = False }

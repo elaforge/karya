@@ -107,11 +107,11 @@ instance Pretty.Pretty Event where
     format (Event start dur bytes controls pitch pitches stack inst env) =
         Pretty.record (Pretty.text "Event" Pretty.<+> Pretty.format (start, dur)
                 Pretty.<+> Pretty.format bytes)
-            [ ("controls", Pretty.format controls)
+            [ ("instrument", Pretty.format inst)
             , ("pitch", Pretty.format pitch)
             , ("pitches", Pretty.format pitches)
+            , ("controls", Pretty.format controls)
             , ("stack", Pretty.format stack)
-            , ("instrument", Pretty.format inst)
             , ("environ", Pretty.format env)
             ]
 

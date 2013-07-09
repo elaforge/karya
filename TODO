@@ -3,6 +3,8 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
+  - lower dynamic for subsequent legato notes
+  - mordent and other grace notes can use legato
   * remove repeat previous feature in Derive.Call
   * make_db is creating 0b z1.db.gz
   * rename when_just to whenJust
@@ -170,6 +172,7 @@ MILESTONES
 
 documentation
   - make haddocks for the various main modules, e.g. LogView.LogView
+    Need CPP support for haddock.
   + doc/derivation.md
   - split up derivation.md into separate files
   * doc/ui.md

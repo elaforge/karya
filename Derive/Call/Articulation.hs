@@ -95,7 +95,8 @@ c_attr_legato :: Derive.NoteCall
 c_attr_legato = Derive.stream_generator "legato" (Tags.attr <> Tags.subs)
     "This is for instruments that understand the `+legato` attribute,\
     \ for instance with a keyswitch for transition samples.\
-    \\nIf you use this, you should definitely turn off `Note.config_legato`."
+    \\nIf you use this, you should definitely turn off `Note.config_legato`.\
+    \ Otherwise, the detach argument won't work."
     $ Sig.call (defaulted "detach" 0.05 "Shorten the final note by this amount.\
         \ This is to avoid triggering legato from the previous note.")
     attr_legato
@@ -105,10 +106,11 @@ attr_legato detach = Note.place . concat . map apply <=< Note.sub_events
     where
     apply notes = case Seq.viewr notes of
         Just (pre, post) -> Note.map_events (Util.add_attrs Attrs.legato) $
-            pre ++ [Note.map_event shorten post]
+            -- Legato samples tend to need a little bit of overlap to trigger.
+            map (Note.map_event (dur 0.02)) pre
+            ++ [Note.map_event (dur (-detach)) post]
         Nothing -> []
-    shorten = Util.with_constant Controls.sustain_abs
-        (- RealTime.to_seconds detach)
+    dur = Util.with_constant Controls.sustain_abs . RealTime.to_seconds
 
 -- | Apply the attributes to the init of the sub-events, i.e. every one but the
 -- last.

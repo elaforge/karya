@@ -21,6 +21,7 @@ import qualified Cmd.Instrument.CUtil as CUtil
 import qualified Cmd.Instrument.Drums as Drums
 import qualified Cmd.Keymap as Keymap
 
+import qualified Derive.Attrs as Attrs
 import Derive.Attrs
 import qualified Derive.Call.Make as Make
 import qualified Derive.Call.Tags as Tags
@@ -68,12 +69,45 @@ pb_range = (-24, 24)
 -- * misc
 
 misc_patches :: [MidiInst.Patch]
-misc_patches = MidiInst.with_empty_code
-    -- From the McGill sample library.
-    [ MidiInst.pressure $ Instrument.patch $
-        Instrument.instrument "viol"
-            [(CC.cc14, Controls.fc), (CC.cc15, Controls.q)] pb_range
+misc_patches = concat [balalaika, mcgill]
+
+-- | From the McGill sample library.
+mcgill :: [MidiInst.Patch]
+mcgill = MidiInst.with_empty_code
+    [ pressure "viol", pressure "shawm", pressure "crumhorn"
+    , plucked "lute"
     ]
+    where
+    plucked name = Instrument.patch $ Instrument.instrument name [] pb_range
+    pressure name = MidiInst.pressure $ Instrument.patch $
+        Instrument.instrument name
+            [(CC.cc14, Controls.fc), (CC.cc15, Controls.q)] pb_range
+
+-- | Ilya Efimov Bailalaika Prima
+balalaika :: [MidiInst.Patch]
+balalaika =
+    with_code $ (:[]) $ Instrument.set_keyswitches ks $
+        Instrument.patch $ (Instrument.hold_keyswitch #= True) $
+        Instrument.instrument "balalaika" controls pb_range
+    where
+    with_code = MidiInst.with_code (MidiInst.note_calls DUtil.legato_samples)
+    -- g6 strum, a6 solo, b6 harmony
+    controls = map (second Score.control)
+        [ (1, "trem-dyn")
+        , (2, "trem-speed")
+        ]
+    ks =
+        [ (Score.attr "str2", Key.ds4)
+        , (Attrs.gliss, Key.c4)
+        , (Attrs.legato, Key.as3)
+        , (Attrs.vib, Key.d4)
+        , (Attrs.harm, Key.gs3)
+        , (Attrs.staccato, Key.cs4)
+        -- These are just pressed, not held, but hold_keyswitch is
+        -- per-patch, not per-keyswitch.
+        , (Attrs.trem, Key.a3)
+        , (mempty, Key.b3)
+        ]
 
 -- * hang
 
