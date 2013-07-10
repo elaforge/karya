@@ -35,6 +35,7 @@ import Derive.Sig (defaulted)
 import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.RealTime as RealTime
+import qualified Perform.Signal as Signal
 import Types
 
 
@@ -97,12 +98,17 @@ c_attr_legato = Derive.stream_generator "legato" (Tags.attr <> Tags.subs)
     \ for instance with a keyswitch for transition samples.\
     \\nIf you use this, you should definitely turn off `Note.config_legato`.\
     \ Otherwise, the detach argument won't work."
-    $ Sig.call (defaulted "detach" 0.05 "Shorten the final note by this amount.\
-        \ This is to avoid triggering legato from the previous note.")
-    attr_legato
+    $ Sig.call ((,)
+    <$> defaulted "detach" 0.05 "Shorten the final note by this amount.\
+        \ This is to avoid triggering legato from the previous note."
+    <*> defaulted "dyn" 0.75 "Scale dyn for notes after the first one by this\
+        \ amount. Otherwise, transition samples can be too loud."
+    ) attr_legato
 
-attr_legato :: RealTime -> Derive.PassedArgs d -> Derive.EventDeriver
-attr_legato detach = Note.place . concat . map apply <=< Note.sub_events
+attr_legato :: (RealTime, Signal.Y) -> Derive.PassedArgs d
+    -> Derive.EventDeriver
+attr_legato (detach, dyn) =
+    Note.place . concat . map multiply_dyn . map apply <=< Note.sub_events
     where
     apply notes = case Seq.viewr notes of
         Just (pre, post) -> Note.map_events (Util.add_attrs Attrs.legato) $
@@ -111,6 +117,11 @@ attr_legato detach = Note.place . concat . map apply <=< Note.sub_events
             ++ [Note.map_event (dur (-detach)) post]
         Nothing -> []
     dur = Util.with_constant Controls.sustain_abs . RealTime.to_seconds
+    multiply_dyn = map_tail (Note.map_event (Util.multiply_dynamic dyn))
+
+map_tail :: (a -> a) -> [a] -> [a]
+map_tail f (x:xs) = x : map f xs
+map_tail _ [] = []
 
 -- | Apply the attributes to the init of the sub-events, i.e. every one but the
 -- last.

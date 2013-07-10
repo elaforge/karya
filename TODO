@@ -3,8 +3,10 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
-  - lower dynamic for subsequent legato notes
+  * lower dynamic for subsequent legato notes
   - mordent and other grace notes can use legato
+  - I can reapply normal calls easily, but I need some way to reapply a note
+    transformer.  That basically means override Note.sub_events
   * remove repeat previous feature in Derive.Call
   * make_db is creating 0b z1.db.gz
   * rename when_just to whenJust

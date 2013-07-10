@@ -61,7 +61,7 @@ test_attr_legato = do
     let (events, logs) = run $ (">", [(0, 2, "( .5")]) : UiTest.regular_notes 3
     equal logs []
     equal events
-        [ (0, 1, "3c", "+legato"), (1, 0.5, "3d", "+legato")
+        [ (0, 1.02, "3c", "+legato"), (1, 0.5, "3d", "+legato")
         , (2, 1, "3e", "+")
         ]
 

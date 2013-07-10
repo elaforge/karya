@@ -90,7 +90,7 @@ balalaika =
         Instrument.patch $ (Instrument.hold_keyswitch #= True) $
         Instrument.instrument "balalaika" controls pb_range
     where
-    with_code = MidiInst.with_code (MidiInst.note_calls DUtil.legato_samples)
+    with_code = MidiInst.with_code $ MidiInst.note_calls DUtil.legato_samples
     -- g6 strum, a6 solo, b6 harmony
     controls = map (second Score.control)
         [ (1, "trem-dyn")
