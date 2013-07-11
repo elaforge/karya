@@ -156,7 +156,7 @@ test_recursive_call = do
     where
     recursive :: Derive.NoteCall
     recursive = Derive.stream_generator "recursive" mempty "doc" $ Sig.call0 $
-        \args -> Call.reapply_call args (TrackLang.call "recur" [])
+        \args -> Call.reapply_call args "recur" []
 
 test_events_around = do
     -- Ensure sliced inverting notes still have access to prev and next events

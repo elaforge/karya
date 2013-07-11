@@ -150,9 +150,10 @@ reapply_string args s = case ParseBs.parse_expr (ParseBs.from_text s) of
     Left err -> Derive.throw $ "parse error: " ++ err
     Right expr -> reapply args expr
 
-reapply_call :: (Derive.Derived d) => PassedArgs d -> TrackLang.Call
+reapply_call :: (Derive.Derived d) => PassedArgs d -> Text -> [TrackLang.Term]
     -> Derive.LogsDeriver d
-reapply_call args call = reapply args (call :| [])
+reapply_call args call_id call_args =
+    reapply args (TrackLang.call call_id call_args :| [])
 
 -- | A version of 'eval' specialized to evaluate pitch calls.
 eval_pitch :: ScoreTime -> TrackLang.Note -> Derive.Deriver PitchSignal.Pitch
@@ -328,7 +329,11 @@ apply_generator cinfo (TrackLang.Call call_id args) = do
             call <- get_call fallback_call_id
             return (call, [val])
 
-    let args = Derive.PassedArgs vals (Derive.call_name call) cinfo
+    let args = Derive.PassedArgs
+            { Derive.passed_vals = vals
+            , Derive.passed_call_name = Derive.call_name call
+            , Derive.passed_info = cinfo
+            }
         with_stack = Internal.with_stack_call (Derive.call_name call)
     with_stack $ case Derive.call_generator call of
         Just gen -> Derive.generator_func gen args
@@ -345,13 +350,17 @@ apply_transformer _ [] deriver = deriver
 apply_transformer cinfo (TrackLang.Call call_id args : calls) deriver = do
     vals <- mapM (eval cinfo) args
     call <- get_call call_id
-    let args = Derive.PassedArgs vals (Derive.call_name call) cinfo
+    let args = Derive.PassedArgs
+            { Derive.passed_vals = vals
+            , Derive.passed_call_name = Derive.call_name call
+            , Derive.passed_info = cinfo
+            }
         with_stack = Internal.with_stack_call (Derive.call_name call)
     with_stack $ case Derive.call_transformer call of
         Just trans -> Derive.transformer_func trans args $
             apply_transformer cinfo calls deriver
         Nothing -> Derive.throw $ "non-transformer in transformer position: "
-            ++ untxt (Derive.call_name call)
+            <> untxt (Derive.call_name call)
 
 eval :: (Derive.ToTagged a) => Derive.CallInfo a -> TrackLang.Term
     -> Derive.Deriver TrackLang.Val
@@ -364,7 +373,11 @@ apply :: Derive.CallInfo Derive.Tagged -> Derive.ValCall
     -> [TrackLang.Term] -> Derive.Deriver TrackLang.Val
 apply cinfo call args = do
     vals <- mapM (eval cinfo) args
-    let passed = Derive.PassedArgs vals (Derive.vcall_name call) cinfo
+    let passed = Derive.PassedArgs
+            { Derive.passed_vals = vals
+            , Derive.passed_call_name = Derive.vcall_name call
+            , Derive.passed_info = cinfo
+            }
     Derive.with_msg ("val call " <> Derive.vcall_name call) $
         Derive.vcall_call call passed
 
