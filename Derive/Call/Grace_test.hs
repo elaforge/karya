@@ -13,7 +13,6 @@ import qualified Derive.Call.Util as Util
 import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Score as Score
-import qualified Derive.ShowVal as ShowVal
 import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.Lilypond.LilypondTest as LilypondTest
@@ -69,7 +68,7 @@ test_mordent = do
 test_grace = do
     let run = DeriveTest.extract extract . DeriveTest.derive_tracks
         extract e = (DeriveTest.e_note e, Score.initial_dynamic e)
-        title = "> | grace-dur = 1 | grace-overlap = .5"
+        title = "> | grace-dur = 1 | %legato-overlap = .5"
         dur = 1
         overlap = 0.5
     equal (run
@@ -95,6 +94,12 @@ test_grace = do
         ])
         ([((0, 1.5, "4b"), 1), ((1, 1, "4c"), 1)], [])
 
+    -- Ensure they get +legato.
+    let runa = DeriveTest.extract DeriveTest.e_attributes
+            . DeriveTest.derive_tracks
+    equal (runa [(title, [(0, 1, "g (4a) (4b)")]), ("*", [(0, 0, "4c")])])
+        (["+legato", "+legato", "+"], [])
+
 test_grace_ly = do
     let run = LilypondTest.derive_measures ["acciaccatura"]
     equal (run
@@ -114,8 +119,7 @@ test_grace_ly = do
 test_grace_attr = do
     let run = DeriveTest.extract extract
             . DeriveTest.derive_tracks_with with_call
-        extract e = (DeriveTest.e_pitch e,
-            ShowVal.show_val $ Score.event_attributes e)
+        extract e = (DeriveTest.e_pitch e, DeriveTest.e_attributes e)
         with_call = CallTest.with_note_call "g" (Grace.c_grace_attr graces)
     -- Attrs when it can.
     equal (run [(">", [(0, 1, "g (4a)")]), ("*", [(0, 0, "4b")])])
@@ -124,7 +128,7 @@ test_grace_attr = do
         ([("4b", "+down+half")], [])
     -- Notes when it can't.
     equal (run [(">", [(0, 1, "g (4a)")]), ("*", [(0, 0, "4c")])])
-        ([("4a", "+"), ("4c", "+")], [])
+        ([("4a", "+legato"), ("4c", "+")], [])
 
 graces :: Map.Map Int Score.Attributes
 graces = Map.fromList

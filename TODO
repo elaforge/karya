@@ -9,7 +9,7 @@ UNSORTED
   - ( should be a transformer too
   - Derive.Call.Gamakam, with janta, s-g-r, and r-s ornaments.
   * lower dynamic for subsequent legato notes
-  - mordent and other grace notes can use legato
+  * mordent and other grace notes can use legato
   * I can reapply normal calls easily, but I need some way to reapply a note
     transformer.  That basically means override Note.sub_events
   * remove repeat previous feature in Derive.Call

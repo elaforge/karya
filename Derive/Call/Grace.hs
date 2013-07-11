@@ -59,8 +59,8 @@ mordent (start, dur) dyn_scale neighbor = do
     pos <- Derive.real start
     pitch <- Util.get_pitch pos
     dyn <- (*dyn_scale) <$> Util.dynamic pos
-    (grace_dur, overlap) <- grace_dur_overlap
-    notes <- grace_notes pos grace_dur overlap
+    grace_dur <- get_grace_dur
+    notes <- grace_notes pos grace_dur
         [ Util.pitched_note pitch dyn
         , Util.pitched_note (Pitches.transpose neighbor pitch) dyn
         ]
@@ -81,7 +81,7 @@ c_grace = Derive.stream_generator "grace" (Tags.ornament <> Tags.ly)
     ) $ \(dyn, pitches) -> Sub.inverting $ \args -> do
         (_, pitches) <- resolve_pitches args pitches
         Lily.when_lilypond (lily_grace args pitches) $
-            grace (Args.extent args) (fromMaybe 0.5 dyn) pitches
+            grace_call args dyn pitches
 
 lily_grace :: Derive.PassedArgs d -> [PitchSignal.Pitch] -> Derive.EventDeriver
 lily_grace args pitches = do
@@ -95,27 +95,31 @@ lily_grace args pitches = do
     -- it stays with the note's voice.
     Lily.prepend_code code $ Util.place args Util.note
 
-grace :: (ScoreTime, ScoreTime) -> Signal.Y -> [PitchSignal.Pitch]
+grace_call :: Derive.EventArgs -> Maybe Signal.Y -> [PitchSignal.Pitch]
     -> Derive.EventDeriver
-grace (start, dur) dyn_scale pitches = do
+grace_call args dyn pitches = do
+    notes <- get_grace_notes (Args.extent args) (fromMaybe 0.5 dyn) pitches
+    Sub.reapply_call args "(" [] [notes]
+
+get_grace_notes :: (ScoreTime, ScoreTime) -> Signal.Y -> [PitchSignal.Pitch]
+    -> Derive.Deriver [Sub.Event]
+get_grace_notes (start, dur) dyn_scale pitches = do
     pos <- Derive.real start
     dyn <- (*dyn_scale) <$> Util.dynamic pos
-    (grace_dur, overlap) <- grace_dur_overlap
-    notes <- grace_notes pos grace_dur overlap $
+    grace_dur <- get_grace_dur
+    notes <- grace_notes pos grace_dur $
         map (flip Util.pitched_note dyn) pitches
-    Sub.place notes <> Derive.d_place start dur Util.note
+    return $ notes ++ [Sub.Event start dur Util.note]
 
 grace_notes :: RealTime -- ^ note start time, grace notes fall before this
     -> RealTime -- ^ duration of each grace note
-    -> RealTime -- ^ overlap between each grace note and the next
-    -> [Derive.EventDeriver]
-    -> Derive.Deriver [Sub.Event]
-grace_notes start dur overlap notes = mapM note $ zip starts notes
+    -> [Derive.EventDeriver] -> Derive.Deriver [Sub.Event]
+grace_notes start dur notes = mapM note $ zip starts notes
     where
     starts = Seq.range_ (start - dur * fromIntegral (length notes)) dur
     note (start, d) = do
         s_start <- Derive.score start
-        s_end <- Derive.score (start + dur + overlap)
+        s_end <- Derive.score (start + dur)
         return $ Sub.Event s_start (s_end - s_start) d
 
 resolve_pitches :: Derive.PassedArgs d
@@ -126,26 +130,20 @@ resolve_pitches args pitches = do
         =<< Args.real_start args
     return (base, map (either id (flip Pitches.transpose base)) pitches)
 
-grace_dur_overlap :: Derive.Deriver (RealTime, RealTime)
-grace_dur_overlap = (,) <$> dur <*> overlap
-    where
-    dur = fromMaybe (RealTime.seconds (1/12)) <$>
-        Derive.lookup_val (TrackLang.Symbol "grace-dur")
-    overlap = fromMaybe (RealTime.seconds (1/24)) <$>
-        Derive.lookup_val (TrackLang.Symbol "grace-overlap")
+get_grace_dur :: Derive.Deriver RealTime
+get_grace_dur = fromMaybe grace_dur_default <$>
+    Derive.lookup_val (TrackLang.Symbol "grace-dur")
 
-grace_dur_default, grace_overlap_default :: RealTime
-grace_dur_default = RealTime.seconds 0.8
-grace_overlap_default = grace_dur_default / 2
+grace_dur_default :: RealTime
+grace_dur_default = RealTime.seconds (1/12)
 
 grace_doc :: Text
-grace_doc = "This variant of grace note doesn't affect the start time of the\
+grace_doc = "This kind of grace note doesn't affect the start time of the\
     \ destination note, and is of a uniform speed, regardless of the tempo.\
     \ Grace note duration is set by `grace-dur` in the environment and\
-    \ defaults to " <> txt (Pretty.pretty grace_dur_default)
-    <> ", overlap time is `grace-overlap` and defaults to "
-    <> txt (Pretty.pretty grace_overlap_default)
-    <> "."
+    \ defaults to " <> Pretty.prettytxt grace_dur_default <> ". The grace\
+    \ notes go through the `(` call, so they will overlap or apply a\
+    \ keyswitch, or whatever `(` does."
 
 c_grace_attr :: Map.Map Int Score.Attributes
     -- ^ Map intervals in semitones (positive or negative) to attrs.
@@ -165,9 +163,8 @@ c_grace_attr supported =
             maybe_attrs <- grace_attrs supported pitches base
             case maybe_attrs of
                 Just attrs -> Util.add_attrs attrs (Util.placed_note args)
-                -- Fall back on normal grace.  TODO I might want to stick
-                -- a legato attr on that or something.
-                Nothing -> grace (Args.extent args) (fromMaybe 0.5 dyn) pitches
+                -- Fall back on normal grace.
+                Nothing -> grace_call args dyn pitches
 
 grace_attrs :: Map.Map Int Score.Attributes -> [PitchSignal.Pitch]
     -> PitchSignal.Pitch -> Derive.Deriver (Maybe Score.Attributes)
