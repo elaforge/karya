@@ -22,7 +22,7 @@ import qualified Util.Seq as Seq
 import qualified Derive.Attrs as Attrs
 import qualified Derive.Call.Lily as Lily
 import qualified Derive.Call.Make as Make
-import qualified Derive.Call.Note as Note
+import qualified Derive.Call.Sub as Sub
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Call.Util as Util
 import qualified Derive.Controls as Controls
@@ -103,21 +103,19 @@ c_attr_legato = Derive.stream_generator "legato" (Tags.attr <> Tags.subs)
         \ This is to avoid triggering legato from the previous note."
     <*> defaulted "dyn" 0.75 "Scale dyn for notes after the first one by this\
         \ amount. Otherwise, transition samples can be too loud."
-    ) attr_legato
+    ) $ \(detach, dyn) -> attr_legato detach dyn <=< Sub.sub_events
 
-attr_legato :: (RealTime, Signal.Y) -> Derive.PassedArgs d
-    -> Derive.EventDeriver
-attr_legato (detach, dyn) =
-    Note.place . concat . map multiply_dyn . map apply <=< Note.sub_events
+attr_legato :: RealTime -> Signal.Y -> [[Sub.Event]] -> Derive.EventDeriver
+attr_legato detach dyn = Sub.place . concat . map multiply_dyn . map apply
     where
     apply notes = case Seq.viewr notes of
-        Just (pre, post) -> Note.map_events (Util.add_attrs Attrs.legato) $
+        Just (pre, post) -> Sub.map_events (Util.add_attrs Attrs.legato) $
             -- Legato samples tend to need a little bit of overlap to trigger.
-            map (Note.map_event (dur 0.02)) pre
-            ++ [Note.map_event (dur (-detach)) post]
+            map (Sub.map_event (dur 0.02)) pre
+            ++ [Sub.map_event (dur (-detach)) post]
         Nothing -> []
     dur = Util.with_constant Controls.sustain_abs . RealTime.to_seconds
-    multiply_dyn = map_tail (Note.map_event (Util.multiply_dynamic dyn))
+    multiply_dyn = map_tail (Sub.map_event (Util.multiply_dynamic dyn))
 
 map_tail :: (a -> a) -> [a] -> [a]
 map_tail f (x:xs) = x : map f xs
@@ -126,11 +124,11 @@ map_tail _ [] = []
 -- | Apply the attributes to the init of the sub-events, i.e. every one but the
 -- last.
 init_attr :: Score.Attributes -> Derive.PassedArgs d -> Derive.EventDeriver
-init_attr attr = Note.place . concatMap add <=< Note.sub_events
+init_attr attr = Sub.place . concatMap add <=< Sub.sub_events
     where
     add notes = case Seq.viewr notes of
         Just (notes, last) ->
-            Note.map_events (Util.add_attrs attr) notes ++ [last]
+            Sub.map_events (Util.add_attrs attr) notes ++ [last]
         Nothing -> []
 
 -- * misc

@@ -14,7 +14,7 @@ import qualified Util.Seq as Seq
 
 import qualified Derive.Args as Args
 import qualified Derive.Call.Lily as Lily
-import qualified Derive.Call.Note as Note
+import qualified Derive.Call.Sub as Sub
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Call.Util as Util
 import qualified Derive.Derive as Derive
@@ -49,7 +49,7 @@ c_mordent default_neighbor = Derive.stream_generator "mordent" Tags.ornament
     Sig.call ((,)
     <$> defaulted "neighbor" default_neighbor "Neighbor pitch."
     <*> defaulted "dyn" 0.5 "Scale the dyn of the generated grace notes."
-    ) $ \(neighbor, dyn) -> Note.inverting $ \args ->
+    ) $ \(neighbor, dyn) -> Sub.inverting $ \args ->
         Lily.when_lilypond (lily_mordent args neighbor) $
             mordent (Args.extent args) dyn neighbor
 
@@ -60,11 +60,11 @@ mordent (start, dur) dyn_scale neighbor = do
     pitch <- Util.get_pitch pos
     dyn <- (*dyn_scale) <$> Util.dynamic pos
     (grace_dur, overlap) <- grace_dur_overlap
-    grace_notes pos grace_dur overlap
+    notes <- grace_notes pos grace_dur overlap
         [ Util.pitched_note pitch dyn
         , Util.pitched_note (Pitches.transpose neighbor pitch) dyn
         ]
-        <> Derive.d_place start dur Util.note
+    Sub.place notes <> Derive.d_place start dur Util.note
 
 lily_mordent :: Derive.PassedArgs d -> Pitch.Transpose -> Derive.EventDeriver
 lily_mordent args neighbor = do
@@ -78,7 +78,7 @@ c_grace = Derive.stream_generator "grace" (Tags.ornament <> Tags.ly)
     ("Emit grace notes.\n" <> grace_doc) $ Sig.call ((,)
     <$> optional "dyn" "Scale the dyn of the grace notes."
     <*> many "pitch" "Grace note pitches."
-    ) $ \(dyn, pitches) -> Note.inverting $ \args -> do
+    ) $ \(dyn, pitches) -> Sub.inverting $ \args -> do
         (_, pitches) <- resolve_pitches args pitches
         Lily.when_lilypond (lily_grace args pitches) $
             grace (Args.extent args) (fromMaybe 0.5 dyn) pitches
@@ -101,9 +101,22 @@ grace (start, dur) dyn_scale pitches = do
     pos <- Derive.real start
     dyn <- (*dyn_scale) <$> Util.dynamic pos
     (grace_dur, overlap) <- grace_dur_overlap
-    let notes = map (flip Util.pitched_note dyn) pitches
-    grace_notes pos grace_dur overlap notes
-        <> Derive.d_place start dur Util.note
+    notes <- grace_notes pos grace_dur overlap $
+        map (flip Util.pitched_note dyn) pitches
+    Sub.place notes <> Derive.d_place start dur Util.note
+
+grace_notes :: RealTime -- ^ note start time, grace notes fall before this
+    -> RealTime -- ^ duration of each grace note
+    -> RealTime -- ^ overlap between each grace note and the next
+    -> [Derive.EventDeriver]
+    -> Derive.Deriver [Sub.Event]
+grace_notes start dur overlap notes = mapM note $ zip starts notes
+    where
+    starts = Seq.range_ (start - dur * fromIntegral (length notes)) dur
+    note (start, d) = do
+        s_start <- Derive.score start
+        s_end <- Derive.score (start + dur + overlap)
+        return $ Sub.Event s_start (s_end - s_start) d
 
 resolve_pitches :: Derive.PassedArgs d
     -> [Either PitchSignal.Pitch Pitch.Transpose]
@@ -112,22 +125,6 @@ resolve_pitches args pitches = do
     base <- Derive.require "no pitch" =<< Derive.pitch_at
         =<< Args.real_start args
     return (base, map (either id (flip Pitches.transpose base)) pitches)
-
-grace_notes :: RealTime -- ^ note start time, grace notes fall before this
-    -> RealTime -- ^ duration of each grace note
-    -> RealTime -- ^ overlap between each grace note and the next
-    -> [Derive.EventDeriver]
-    -> Derive.EventDeriver
-grace_notes start dur overlap notes = Derive.d_merge placed
-    where
-    placed = zipWith (flip place (dur + overlap)) starts notes
-    starts = Seq.range_ (start - dur * fromIntegral (length notes)) dur
-
-place :: RealTime -> RealTime -> Derive.Deriver d -> Derive.Deriver d
-place start dur d = do
-    rstart <- Derive.score start
-    rend <- Derive.score (start + dur)
-    Derive.d_place rstart (rend - rstart) d
 
 grace_dur_overlap :: Derive.Deriver (RealTime, RealTime)
 grace_dur_overlap = (,) <$> dur <*> overlap
@@ -162,7 +159,7 @@ c_grace_attr supported =
     ) $ Sig.call ((,)
     <$> optional "dyn" "Scale the dyn of the grace notes."
     <*> many "pitch" "Grace note pitches."
-    ) $ \(dyn, pitches) -> Note.inverting $ \args -> do
+    ) $ \(dyn, pitches) -> Sub.inverting $ \args -> do
         (base, pitches) <- resolve_pitches args pitches
         Lily.when_lilypond (lily_grace args pitches) $ do
             maybe_attrs <- grace_attrs supported pitches base

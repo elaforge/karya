@@ -6,7 +6,7 @@
 -- creating calls.
 module Derive.Call.Make where
 import Util.Control
-import qualified Derive.Call.Note as Note
+import qualified Derive.Call.Sub as Sub
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Call.Util as Util
 import qualified Derive.Derive as Derive
@@ -40,9 +40,8 @@ transform_notes name tags transform_doc sig transform = Derive.Call
         \ transformation to them. Otherwise apply transformation to the null\
         \ note call."
     generator = Sig.call sig $ \params args ->
-        Note.sub_events args >>= \x -> case x of
-            [] -> transform params $ Note.inverting Util.placed_note args
-            subs -> Note.place $
-                Note.map_events (transform params) (concat subs)
+        Sub.sub_events args >>= \x -> case x of
+            [] -> transform params $ Sub.inverting Util.placed_note args
+            subs -> Sub.place $ Sub.map_events (transform params) (concat subs)
     transformer = Sig.callt sig $ \params _args deriver ->
         transform params deriver

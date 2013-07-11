@@ -15,7 +15,7 @@ import qualified Derive.Args as Args
 import qualified Derive.Call as Call
 import qualified Derive.Call.BlockUtil as BlockUtil
 import qualified Derive.Call.Make as Make
-import qualified Derive.Call.Note as Note
+import qualified Derive.Call.Sub as Sub
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Call.Util as Util
 import qualified Derive.Derive as Derive
@@ -90,18 +90,18 @@ first_note_code code args = when_lilypond $
 notes_around :: Code -> Code -> Derive.PassedArgs d
     -> Derive.EventDeriver -> Derive.EventDeriver
 notes_around start end args = when_lilypond $
-    mconcat . map around =<< Note.sub_events args
+    mconcat . map around =<< Sub.sub_events args
     where
     around notes = first_last
-        (add_event_code start) (add_event_code end) <$> Note.place notes
+        (add_event_code start) (add_event_code end) <$> Sub.place notes
 
 -- | Like 'notes_around', but for use when you already know you're in lilypond
 -- mode.
 notes_around_ly :: Code -> Code -> Derive.PassedArgs d -> Derive.EventDeriver
-notes_around_ly start end = mconcat . map around <=< Note.sub_events
+notes_around_ly start end = mconcat . map around <=< Sub.sub_events
     where
     around notes = first_last
-        (add_event_code start) (add_event_code end) <$> Note.place notes
+        (add_event_code start) (add_event_code end) <$> Sub.place notes
 
 -- | Like 'notes_around', but when I'm not in lilypond mode just derive the
 -- sub events unchanged.
@@ -116,10 +116,10 @@ notes_with :: (Derive.EventDeriver -> Derive.EventDeriver)
     -> Derive.PassedArgs d
     -> Derive.EventDeriver -> Derive.EventDeriver
 notes_with f args = when_lilypond $
-    Note.place . Note.map_events f . concat =<< Note.sub_events args
+    Sub.place . Sub.map_events f . concat =<< Sub.sub_events args
 
 place_notes :: Derive.PassedArgs d -> Derive.EventDeriver
-place_notes = Note.place . concat <=< Note.sub_events
+place_notes = Sub.place . concat <=< Sub.sub_events
 
 -- ** events around
 
@@ -250,11 +250,11 @@ to_time = Types.real_to_time . Types.config_quarter_duration
 
 -- ** eval
 
-eval :: Types.Config -> Derive.PassedArgs d -> [Note.Event]
+eval :: Types.Config -> Derive.PassedArgs d -> [Sub.Event]
     -> Derive.Deriver [Note]
 eval config args notes = do
     start <- Args.real_start args
-    (events, logs) <- LEvent.partition <$> Note.place notes
+    (events, logs) <- LEvent.partition <$> Sub.place notes
     mapM_ Log.write logs
     eval_events config start events
 

@@ -3,7 +3,7 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 -- | Note calls that transform other note calls.  They rely on track slicing
--- via 'Note.sub_events'.
+-- via 'Sub.sub_events'.
 module Derive.Call.NoteTransformer where
 import qualified Control.Monad.Trans.Either as Either
 import qualified Data.Text as Text
@@ -14,7 +14,7 @@ import qualified Util.Seq as Seq
 
 import qualified Derive.Args as Args
 import qualified Derive.Call.Lily as Lily
-import qualified Derive.Call.Note as Note
+import qualified Derive.Call.Sub as Sub
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Call.Util as Util
 import qualified Derive.Derive as Derive
@@ -42,7 +42,7 @@ c_ap :: Derive.NoteCall
 c_ap = Derive.stream_generator "ap" Tags.subs
     "Derive sub events with no changes.  This is used to apply a transformer\
     \ to sub events."
-    $ Sig.call0 $ Note.place . concat <=< Note.sub_events
+    $ Sig.call0 $ Sub.place . concat <=< Sub.sub_events
 
 -- * tuplet
 
@@ -53,7 +53,7 @@ c_tuplet = Derive.stream_generator "tuplet" Tags.subs
     \\nIf there are multiple note tracks, they will all be stretched\
     \ the same amount."
     $ Sig.call0 $ \args -> emit_lily_tuplet args $
-        Note.place_at (Args.range args) . concat =<< Note.sub_events args
+        Sub.place_at (Args.range args) . concat =<< Sub.sub_events args
 
 -- | 'c_tuplet' works by lengthening notes to fit in its range, but staff
 -- notation tuplets work by shortening notes.  So I double the duration
@@ -70,7 +70,7 @@ emit_lily_tuplet :: Derive.PassedArgs d -> Derive.EventDeriver
 emit_lily_tuplet args not_lily = Lily.when_lilypond_config lily not_lily
     where
     lily config = either err return =<< Either.runEitherT . check config
-        =<< Note.sub_events args
+        =<< Sub.sub_events args
     check config notes = do
         (note, notes) <- case filter (not . null) notes of
             [] -> Either.left $ Just "no sub events"
@@ -78,17 +78,17 @@ emit_lily_tuplet args not_lily = Lily.when_lilypond_config lily not_lily
             _ : _ : _ -> Either.left $ Just ">1 non-empty sub track"
             [[_]] -> Either.left Nothing
             [n : ns]
-                | not $ all ((== Note.event_duration n) . Note.event_duration)
+                | not $ all ((== Sub.event_duration n) . Sub.event_duration)
                         ns ->
                     Either.left $ Just "all event durations must be equal"
                 | otherwise -> Either.right (n, ns)
         (start, end) <- lift $ Args.real_range args
         tuplet_dur <- is_dur "tuplet" (end - start)
         real_dur <- lift $
-            Util.real_dur (Args.start args) (Note.event_duration note)
+            Util.real_dur (Args.start args) (Sub.event_duration note)
         note_dur <- is_dur "note" (real_dur * 2)
         ly_notes <- lift $ Lily.eval config args $
-            map (Note.stretch (Args.start args) 2) (note : notes)
+            map (Sub.stretch (Args.start args) 2) (note : notes)
         lift $ Lily.code (Args.extent args) $
             tuplet_code tuplet_dur note_dur (length notes + 1) ly_notes
         where
@@ -111,7 +111,7 @@ tuplet_code tuplet_dur note_dur note_count notes =
 -- | Direction in which to arpeggiate.  This is a general arpeggiation that
 -- just makes each track slightly delayed with regard to its neighbor.
 --
--- Since I can't know the pitch of things (and a 'Note.Event' may not have
+-- Since I can't know the pitch of things (and a 'Sub.Event' may not have
 -- a single pitch), the arpeggiation is by track position, not pitch.
 data Arpeggio = ToRight | ToLeft | Random deriving (Show)
 
@@ -129,7 +129,7 @@ c_real_arpeggio arp = Derive.stream_generator "arpeggio"
     <*> defaulted "random" 0.5
         "Each note can vary randomly by `+- time/2 * random`."
     ) $ \(time, random) args -> lily_code args $
-        arpeggio arp (RealTime.seconds time) random =<< Note.sub_events args
+        arpeggio arp (RealTime.seconds time) random =<< Sub.sub_events args
     where
     lily_code = Lily.notes_with
         (Lily.prepend_code prefix . Lily.add_code (Lily.SuffixFirst, suffix))
@@ -140,15 +140,15 @@ c_real_arpeggio arp = Derive.stream_generator "arpeggio"
     suffix = "\\arpeggio"
 
 -- | Shift each track of notes by a successive amount.
-arpeggio :: Arpeggio -> RealTime -> Double -> [[Note.Event]]
+arpeggio :: Arpeggio -> RealTime -> Double -> [[Sub.Event]]
     -> Derive.EventDeriver
 arpeggio arp time random tracks = do
     delay_tracks <- jitter . zip (Seq.range_ 0 time) =<< sort tracks
     events <- fmap concat $ forM delay_tracks $ \(delay, track) ->
-        forM track $ \(Note.Event start dur d) -> do
+        forM track $ \(Sub.Event start dur d) -> do
             new_start <- Util.delay start delay
-            return $ Note.Event new_start (dur - (new_start - start)) d
-    Note.place events
+            return $ Sub.Event new_start (dur - (new_start - start)) d
+    Sub.place events
     where
     jitter tracks
         | random == 0 = return tracks

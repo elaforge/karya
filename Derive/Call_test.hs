@@ -18,7 +18,7 @@ import qualified Derive.Args as Args
 import qualified Derive.Attrs as Attrs
 import qualified Derive.Call as Call
 import qualified Derive.Call.CallTest as CallTest
-import qualified Derive.Call.Note as Note
+import qualified Derive.Call.Sub as Sub
 import qualified Derive.Call.Util as Util
 import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
@@ -171,7 +171,7 @@ test_events_around = do
 
     where
     c_around = Derive.stream_generator "around" mempty "doc" $ Sig.call0 $
-        Note.inverting $ \args -> do
+        Sub.inverting $ \args -> do
             Log.warn $ "prev: "
                 ++ show (map Event.start (Args.prev_events args))
             Log.warn $ "next: "
@@ -191,7 +191,7 @@ test_inverting_around = do
     equal logs []
     where
     c_next = Derive.stream_generator "next" mempty "doc" $ Sig.call0 $
-        Note.inverting_around (2, 2) $ \args -> do
+        Sub.inverting_around (2, 2) $ \args -> do
             next <- Derive.require "next event" $ Args.next_start args
             next_pitch <- Derive.require "next pitch"
                 =<< Derive.pitch_at =<< Derive.real next

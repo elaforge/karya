@@ -7,7 +7,7 @@
 module Derive.Call.Gender where
 import Util.Control
 import qualified Derive.Args as Args
-import qualified Derive.Call.Note as Note
+import qualified Derive.Call.Sub as Sub
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Call.Util as Util
 import qualified Derive.Derive as Derive
@@ -45,7 +45,8 @@ c_tick transpose = Derive.stream_generator "tick" (Tags.idiom <> Tags.prev)
         \ end of the current note."
     <*> defaulted "dyn" (control "ngoret-dyn" 0.75)
         "The grace note's dyn will be this multiplier of the current dyn."
-    ) $ \(time, damp, dyn_scale) -> Note.inverting_around (2, 1) $ \args -> do
+    ) $ \(time, damp, dyn_scale) ->
+    Sub.inverting_around (2, 1) $ \args -> do
         start <- Args.real_start args
         transpose <- maybe (infer_transpose args start) return transpose
         time <- Util.real_time =<< Util.time_control_at Util.Real time start

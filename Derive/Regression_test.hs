@@ -1,3 +1,7 @@
+-- Copyright 2013 Evan Laforge
+-- This program is distributed under the terms of the GNU General Public
+-- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
+
 -- | Perform some scores and compare them against a saved version of what they
 -- used to output.
 module Derive.Regression_test where
@@ -85,7 +89,7 @@ diff_performances expected got =
 
 wmsgs_equal :: Midi.WriteMessage -> Midi.WriteMessage -> Bool
 wmsgs_equal (Midi.WriteMessage dev1 t1 m1) (Midi.WriteMessage dev2 t2 m2) =
-    dev1 == dev2 && t1 == t2 && msgs_equal m1 m2
+    dev1 == dev2 && ApproxEq.approx_eq 0.001 t1 t2 && msgs_equal m1 m2
 
 msgs_equal :: Midi.Message -> Midi.Message -> Bool
 msgs_equal (Midi.ChannelMessage chan1 m1) (Midi.ChannelMessage chan2 m2) =

@@ -298,7 +298,7 @@ place = uncurry Derive.d_place . Args.extent
 placed_note :: Derive.PassedArgs d -> Derive.EventDeriver
 placed_note args = place args note
 
--- * call transformers
+-- * transformer notes
 
 -- | Derive with transformed Attributes.
 with_attrs :: (Score.Attributes -> Score.Attributes) -> Derive.Deriver d

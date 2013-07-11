@@ -16,7 +16,7 @@ import qualified Data.Text as Text
 import Util.Control
 import qualified Util.Seq as Seq
 import qualified Derive.Args as Args
-import qualified Derive.Call.Note as Note
+import qualified Derive.Call.Sub as Sub
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Derive as Derive
 import qualified Derive.Sig as Sig
@@ -36,8 +36,8 @@ c_sekar = Derive.stream_generator "sekar" (Tags.idiom <> Tags.subs)
         \ documented by 'Derive.Call.Sekar.make_pattern'."
     ) $ \pattern args -> do
         pattern <- make_pattern pattern
-        notes <- Note.sub_events args
-        Note.place_at (Args.range args) $ sekar (concat notes) pattern
+        notes <- Sub.sub_events args
+        Sub.place_at (Args.range args) $ sekar (concat notes) pattern
 
 -- | [(index of note, is rest)]
 type Pattern = [(Int, Bool)]
@@ -52,13 +52,13 @@ make_pattern pattern = do
         | c <- Text.unpack pattern]
     where a_to_z c = 'a' <= c && c <= 'z'
 
-sekar :: [Note.Event] -> Pattern -> [Note.Event]
+sekar :: [Sub.Event] -> Pattern -> [Sub.Event]
 sekar notes = mapMaybe place . add_starts . mapMaybe resolve
     where
-    place (start, (dur, Just note)) = Just $ Note.Event start dur note
+    place (start, (dur, Just note)) = Just $ Sub.Event start dur note
     place (_, (_, Nothing)) = Nothing
     add_starts notes = zip (scanl (+) 0 (map fst notes)) notes
     resolve (i, is_rest) = case Seq.at notes i of
         Nothing -> Nothing
-        Just (Note.Event _ dur note) ->
+        Just (Sub.Event _ dur note) ->
             Just (dur, if is_rest then Nothing else Just note)

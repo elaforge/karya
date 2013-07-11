@@ -11,6 +11,7 @@ import Util.Control
 import qualified Derive.Call as Call
 import qualified Derive.Call.Articulation as Articulation
 import qualified Derive.Call.Note as Note
+import qualified Derive.Call.Sub as Sub
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Call.Util as Util
 import qualified Derive.Derive as Derive
@@ -38,7 +39,7 @@ note_call :: Text -> (Derive.EventDeriver -> Derive.EventDeriver)
     -> Derive.NoteCall
 note_call name transform = Derive.stream_generator name mempty
     "Invoke the default note call with a certain transform." $
-    Sig.call0 $ \args -> Note.when_under_inversion args transform $
+    Sig.call0 $ \args -> Sub.when_under_inversion args transform $
         Call.reapply_call args (TrackLang.call "" [])
 
 -- | Make a note and add the attribute if it's 0 duration.

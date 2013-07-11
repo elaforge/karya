@@ -22,7 +22,7 @@ import qualified Derive.Args as Args
 import qualified Derive.Cache as Cache
 import qualified Derive.Call as Call
 import qualified Derive.Call.BlockUtil as BlockUtil
-import qualified Derive.Call.Note as Note
+import qualified Derive.Call.Sub as Sub
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Controls as Controls
 import qualified Derive.Derive as Derive
@@ -78,7 +78,7 @@ lookup_note_block = Derive.pattern_lookup "block id"
 c_block :: BlockId -> Derive.NoteCall
 c_block block_id = Derive.stream_generator ("block " <> showt block_id)
         Tags.prelude "Substitute the named block into the score." $
-    Sig.call0 $ Note.inverting $ \args ->
+    Sig.call0 $ Sub.inverting $ \args ->
         -- I have to put the block on the stack before calling 'd_block'
         -- because 'Cache.block' relies on on the block id already being
         -- on the stack.
@@ -135,8 +135,7 @@ c_clip = Derive.stream_generator "clip" Tags.prelude
     ( required "block_id" $
         "Derive this block. If it doesn't contain a /, the default namespace\
         \ is applied."
-    ) $
-    \sym -> Note.inverting $ \args -> do
+    ) $ \sym -> Sub.inverting $ \args -> do
         block_id <- maybe
             (Derive.throw $ untxt $
                 "block not found: " <> TrackLang.show_val sym)

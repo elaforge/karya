@@ -50,7 +50,7 @@ import qualified Derive.Attrs as Attrs
 import qualified Derive.Call.Control as Control
 import qualified Derive.Call.Lily as Lily
 import qualified Derive.Call.Make as Make
-import qualified Derive.Call.Note as Note
+import qualified Derive.Call.Sub as Sub
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Call.Util as Util
 import qualified Derive.Derive as Derive
@@ -85,7 +85,7 @@ c_note_trill = Derive.stream_generator "trill" (Tags.ornament <> Tags.ly)
     <$> defaulted "neighbor" (typed_control "trill-neighbor" 1 Score.Diatonic)
         "Alternate with a pitch at this interval."
     <*> trill_speed_arg
-    ) $ \(neighbor, speed) -> Note.inverting $ \args ->
+    ) $ \(neighbor, speed) -> Sub.inverting $ \args ->
     Lily.note_code (Lily.SuffixFirst, "\\trill") args $ do
         mode <- get_mode
         (transpose, control) <- trill_from_controls
@@ -95,9 +95,9 @@ c_note_trill = Derive.stream_generator "trill" (Tags.ornament <> Tags.ly)
         let notes = do
                 (x, maybe_next) <- Seq.zip_next xs
                 let next = fromMaybe end maybe_next
-                return $ Note.Event x (next-x) Util.note
+                return $ Sub.Event x (next-x) Util.note
         Derive.with_added_control control (Score.untyped transpose) $
-            Note.place notes
+            Sub.place notes
 
 c_attr_trill :: Derive.NoteCall
 c_attr_trill = Derive.stream_generator "attr-trill" (Tags.ornament <> Tags.attr)
@@ -136,9 +136,9 @@ c_tremolo = Derive.Call
         simple_tremolo starts [Args.normalized args deriver]
     generator = Sig.call speed_arg $ \speed args -> do
         starts <- tremolo_starts speed (Args.range_or_next args)
-        notes <- Note.sub_events args
+        notes <- Sub.sub_events args
         case filter (not . null) notes of
-            [] -> Note.inverting_args args $ Lily.note_code code args $
+            [] -> Sub.inverting_args args $ Lily.note_code code args $
                 simple_tremolo starts [Util.note]
             notes -> Lily.notes_code code args $ chord_tremolo starts notes
     code = (Lily.SuffixAll, ":32")
@@ -165,28 +165,28 @@ tremolo_starts speed range = do
 -- you can have multiple tremolo events.
 --
 -- TODO Optionally, extend each note to the next time that note occurs.
-chord_tremolo :: [ScoreTime] -> [[Note.Event]] -> Derive.EventDeriver
+chord_tremolo :: [ScoreTime] -> [[Sub.Event]] -> Derive.EventDeriver
 chord_tremolo starts note_tracks =
-    Note.place $ concat $ snd $
+    Sub.place $ concat $ snd $
         List.mapAccumL emit (-1, by_track) $ zip starts (drop 1 starts)
     where
     emit (tracknum, notes_) (pos, next_pos) = case chosen of
             Nothing -> ((tracknum, notes), [])
             Just (tracknum, note) -> ((tracknum, notes),
-                [Note.Event pos (next_pos-pos) (Note.event_deriver note)])
+                [Sub.Event pos (next_pos-pos) (Sub.event_deriver note)])
         where
         chosen = Seq.minimum_on fst (filter ((>tracknum) . fst) overlapping)
             `mplus` Seq.minimum_on fst overlapping
-        overlapping = filter (Note.event_overlaps pos . snd) notes
-        notes = dropWhile ((<=pos) . Note.event_end . snd) notes_
-    by_track = Seq.sort_on (Note.event_end . snd)
+        overlapping = filter (Sub.event_overlaps pos . snd) notes
+        notes = dropWhile ((<=pos) . Sub.event_end . snd) notes_
+    by_track = Seq.sort_on (Sub.event_end . snd)
         [(tracknum, note) | (tracknum, track) <- zip [0..] note_tracks,
             note <- track]
 
 -- | Just cycle the given notes.
 simple_tremolo :: [ScoreTime] -> [Derive.EventDeriver] -> Derive.EventDeriver
 simple_tremolo starts notes =
-    Note.place [Note.Event start (end - start) note
+    Sub.place [Sub.Event start (end - start) note
         | (start, end, note) <- zip3 starts (drop 1 starts)
             (if null notes then [] else cycle notes)]
 
