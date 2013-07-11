@@ -121,20 +121,18 @@ note_transform vals _ deriver = transform_note vals deriver
 type GenerateNote = Derive.PassedArgs Score.Event -> Derive.EventDeriver
 
 data Config = Config {
-    -- | Note duration is affected by +legato.
-    config_legato :: !Bool
     -- | Note duration is affected by +staccato.
-    , config_staccato :: !Bool
+    config_staccato :: !Bool
     -- | Note duration can depend on %sustain and %sustain-abs.
     , config_sustain :: !Bool
     } deriving (Show)
 
 use_attributes :: Config
-use_attributes = Config True True True
+use_attributes = Config True True
 
 -- | Don't observe any of the duration affecting attributes.
 no_duration_attributes :: Config
-no_duration_attributes = Config False False False
+no_duration_attributes = Config False False
 
 default_note :: Config -> GenerateNote
 default_note config args = do
@@ -153,7 +151,7 @@ default_note config args = do
     let controls = trimmed_controls start real_next (Derive.state_controls st)
         pitch_sig = trimmed_pitch start real_next (Derive.state_pitch st)
     (start, end) <- randomized controls start $
-        duration_attributes config controls attrs start end real_next
+        duration_attributes config controls attrs start end
     return $! LEvent.one $! LEvent.Event $! Score.Event
         { Score.event_start = start
         , Score.event_duration = end - start
@@ -174,19 +172,15 @@ default_note config args = do
 --
 -- - Zero-duration notes ignore all this.
 --
--- - Legato notes last until the next note plus 'Controls.legato_overlap'.
---
 -- - Staccato notes divide their duration by 2.
 --
 -- - Normal notes multiply 'Controls.sustain' and add 'Controls.duration_abs',
 -- which could be negative.  They clip at a minimum duration to keep from going
 -- negative.
 duration_attributes :: Config -> Score.ControlMap -> Score.Attributes
-    -> RealTime -> RealTime -> RealTime -> RealTime -- ^ new end time
-duration_attributes config controls attrs start end next
+    -> RealTime -> RealTime -> RealTime -- ^ new end time
+duration_attributes config controls attrs start end
     | start >= end = end -- don't mess with 0 dur or negative notes
-    | config_legato config && has Attrs.legato =
-        next + lookup_time 0.1 Controls.legato_overlap
     | otherwise = start + max min_duration (dur * sustain + sustain_abs)
     where
     has = Score.attrs_contain attrs

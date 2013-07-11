@@ -34,11 +34,6 @@ dynamic = Score.c_dynamic
 sustain :: Control
 sustain = Control "sus"
 
--- | Amount of note overlap that @+legato@ implies.  This is additive, in
--- RealTime.
-legato_overlap :: Control
-legato_overlap = Control "legato-overlap"
-
 -- | Add an absolute amount of real time to the duration of each note.
 sustain_abs :: Control
 sustain_abs = Control "sus-abs"

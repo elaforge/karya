@@ -90,6 +90,25 @@ map_filter f = go
         Just b -> (b, a) : go as
         Nothing -> go as
 
+map_head :: (a -> a) -> [a] -> [a]
+map_head _ [] = []
+map_head f (x:xs) = f x : xs
+
+map_tail :: (a -> a) -> [a] -> [a]
+map_tail f (x:xs) = x : map f xs
+map_tail _ [] = []
+
+map_init :: (a -> a) -> [a] -> [a]
+map_init _ [] = []
+map_init _ [x] = [x]
+map_init f (x:xs) = f x : map_init f xs
+
+map_last :: (a -> a) -> [a] -> [a]
+map_last _ [] = []
+map_last f [x] = [f x]
+map_last f (x:xs) = x : map_last f xs
+
+
 -- * permutations
 
 -- | The cartesian product of a list of lists.  E.g.

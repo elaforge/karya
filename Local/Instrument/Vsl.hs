@@ -139,9 +139,7 @@ note_calls maybe_hmap patch =
         maybe (Note.default_note config) (natural_harmonic config) maybe_hmap
         where config = note_config patch
     note_config patch = Note.use_attributes
-        { Note.config_legato = not $ has_attr Attrs.legato patch
-        , Note.config_staccato = not $ has_attr Attrs.staccato patch
-        }
+        { Note.config_staccato = not $ has_attr Attrs.staccato patch }
 
 patch_attrs :: Instrument.Patch -> [Score.Attributes]
 patch_attrs = Instrument.keyswitch_attributes . Instrument.patch_keyswitches

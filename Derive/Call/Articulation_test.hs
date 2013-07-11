@@ -3,14 +3,10 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 module Derive.Call.Articulation_test where
-import Util.Control
-import qualified Util.Seq as Seq
 import Util.Test
-
 import qualified Ui.UiTest as UiTest
 import qualified Derive.Call.Articulation as Articulation
 import qualified Derive.Call.CallTest as CallTest
-import qualified Derive.Call.Note as Note
 import qualified Derive.DeriveTest as DeriveTest
 
 import qualified Perform.Lilypond.LilypondTest as LilypondTest
@@ -18,43 +14,19 @@ import qualified Perform.Lilypond.LilypondTest as LilypondTest
 
 test_legato = do
     let run = DeriveTest.extract extract . DeriveTest.derive_tracks_linear
-        extract e = (s, d, p, a)
-            where
-            ((s, d, p), a) = (DeriveTest.e_note e, DeriveTest.e_attributes e)
-    let (evts, logs) = run
-            [ ("> | %legato-overlap = .5", [(1, 3, "(")])
-            , (">", [(n, 1, "") | n <- Seq.range 0 4 1])
-            , ("*", [(n, 0, p) | (n, p) <-
-                zip (Seq.range_ 0 1) ["4a", "4b", "4c", "4d", "4e"]])
-            ]
+        extract = DeriveTest.e_note
+    let (evts, logs) = run $ (">", [(1, 3, "( .5 .5")]) : UiTest.regular_notes 5
     equal logs []
     equal evts
-        [ (0, 1, "4a", "+")
-        , (1, 1.5, "4b", "+legato")
-        , (2, 1.5, "4c", "+legato")
-        , (3, 1, "4d", "+")
-        , (4, 1, "4e", "+")
-        ]
-
-    -- Legato events are extended to always overlap.
-    let (evts, logs) = run
-            [ (">", [(0, 4, "(")])
-            , (">", [(0, 1, ""), (2, 1, ""), (4, 1, "")])
-            ]
-    equal logs []
-    equal evts
-        [ (0, 2.1, "?", "+legato")
-        , (2, 1, "?", "+")
-        , (4, 1, "?", "+")
+        [ (0, 1, "3c")
+        , (1, 1.5, "3d"), (2, 1.5, "3e"), (3, 0.5, "3f")
+        , (4, 1, "3g")
         ]
 
 test_attr_legato = do
     let run = DeriveTest.extract extract
             . DeriveTest.derive_tracks_with_ui with DeriveTest.with_linear
         with = CallTest.with_note_call "(" Articulation.c_attr_legato
-            . CallTest.with_note_call "" (Note.note_call "" "" mempty
-                (Note.default_note note_config))
-        note_config = Note.use_attributes { Note.config_legato = False }
         extract e = (s, d, p, a)
             where
             ((s, d, p), a) = (DeriveTest.e_note e, DeriveTest.e_attributes e)

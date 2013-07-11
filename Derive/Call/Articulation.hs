@@ -19,6 +19,7 @@ import qualified Data.Text as Text
 
 import Util.Control
 import qualified Util.Seq as Seq
+import qualified Derive.Args as Args
 import qualified Derive.Attrs as Attrs
 import qualified Derive.Call.Lily as Lily
 import qualified Derive.Call.Make as Make
@@ -71,10 +72,34 @@ note_calls = Derive.make_calls
 
 c_legato :: Derive.NoteCall
 c_legato = Derive.stream_generator "legato" (Tags.attr <> Tags.subs <> Tags.ly)
-    ("Play the transformed notes legato.  This sets `+legato` on all notes\
-    \ except the last one. The default note deriver will respond to `+legato`\
-    \ and " <> ShowVal.doc_val Controls.legato_overlap <> "."
-    ) $ Sig.call0 $ init_attr Attrs.legato
+    "Play the transformed notes legato."
+    $ Sig.call ((,,)
+    <$> defaulted "overlap" (Sig.typed_control "legato-overlap" 0.1 Score.Real)
+        "All notes but the last have their durations extended by this amount."
+    <*> defaulted "detach" 0.05 "Shorten the final note by this amount."
+    <*> defaulted "dyn" 0.75 "Scale dyn for notes after the first one by this\
+        \ amount."
+    ) $ \(overlap, detach, dyn) args -> do
+        overlap <- Util.real_time_at overlap =<< Args.real_start args
+        note_legato overlap detach dyn =<< Sub.sub_events args
+    -- Note [legato]
+    -- Previously, it would set @+legato@, and the default note deriver would
+    -- then respond by overlapping with the next note.  The theory was that it
+    -- would allow more flexibility since I could then swap out the default
+    -- note deriver.  However, in practice, the note deriver doesn't know about
+    -- the extent of the legato phrase, so it would need @+legato@ on all but
+    -- the last note.  And I wound up swapping out the legato call itself since
+    -- samplers with legato samples need the legato keyswitch on all notes, not
+    -- just all-but-the-last, so I'd have to swap out both the legato call and
+    -- the note call.  In addition, I added features like @detach@ and @dyn@
+    -- and delegating note overlap to the note didn't make so much sense.
+
+note_legato :: RealTime -> RealTime -> Signal.Y -> [[Sub.Event]]
+    -> Derive.EventDeriver
+note_legato overlap detach dyn = Sub.place . concat . map apply
+    where
+    apply = Seq.map_init (Sub.map_event (set_sustain overlap))
+        . apply_legato detach dyn
 
 c_ly_slur :: Derive.NoteCall
 c_ly_slur = Derive.stream_generator "ly-slur" (Tags.subs <> Tags.ly_only)
@@ -94,8 +119,9 @@ c_ly_slur_down = Derive.stream_generator "ly-slur-down"
 
 c_attr_legato :: Derive.NoteCall
 c_attr_legato = Derive.stream_generator "legato" (Tags.attr <> Tags.subs)
-    "This is for instruments that understand the `+legato` attribute,\
-    \ for instance with a keyswitch for transition samples.\
+    "Make a phrase legato by applying the `+legato` attribute. This is for\
+    \ instruments that understand it, for instance with a keyswitch for\
+    \ transition samples.\
     \\nIf you use this, you should definitely turn off `Note.config_legato`.\
     \ Otherwise, the detach argument won't work."
     $ Sig.call ((,)
@@ -106,30 +132,22 @@ c_attr_legato = Derive.stream_generator "legato" (Tags.attr <> Tags.subs)
     ) $ \(detach, dyn) -> attr_legato detach dyn <=< Sub.sub_events
 
 attr_legato :: RealTime -> Signal.Y -> [[Sub.Event]] -> Derive.EventDeriver
-attr_legato detach dyn = Sub.place . concat . map multiply_dyn . map apply
+attr_legato detach dyn = Sub.place . concatMap apply
     where
-    apply notes = case Seq.viewr notes of
-        Just (pre, post) -> Sub.map_events (Util.add_attrs Attrs.legato) $
-            -- Legato samples tend to need a little bit of overlap to trigger.
-            map (Sub.map_event (dur 0.02)) pre
-            ++ [Sub.map_event (dur (-detach)) post]
-        Nothing -> []
-    dur = Util.with_constant Controls.sustain_abs . RealTime.to_seconds
-    multiply_dyn = map_tail (Sub.map_event (Util.multiply_dynamic dyn))
+    apply = add_attr . add_overlap . apply_legato detach dyn
+    add_attr = Sub.map_events (Util.add_attrs Attrs.legato)
+    add_overlap = Seq.map_init (Sub.map_event (set_sustain 0.02))
 
-map_tail :: (a -> a) -> [a] -> [a]
-map_tail f (x:xs) = x : map f xs
-map_tail _ [] = []
+-- | Apply detach and dyn arguments.  This sets 'Controls.sustain_abs' instead
+-- of adding to it because it feels like legato should override any sustain
+-- environment in place.
+apply_legato :: RealTime -> Signal.Y -> [Sub.Event] -> [Sub.Event]
+apply_legato detach dyn =
+    Seq.map_tail (Sub.map_event (Util.multiply_dynamic dyn))
+    . Seq.map_last (Sub.map_event (set_sustain (-detach)))
 
--- | Apply the attributes to the init of the sub-events, i.e. every one but the
--- last.
-init_attr :: Score.Attributes -> Derive.PassedArgs d -> Derive.EventDeriver
-init_attr attr = Sub.place . concatMap add <=< Sub.sub_events
-    where
-    add notes = case Seq.viewr notes of
-        Just (notes, last) ->
-            Sub.map_events (Util.add_attrs attr) notes ++ [last]
-        Nothing -> []
+set_sustain :: RealTime -> Derive.Deriver a -> Derive.Deriver a
+set_sustain = Util.with_constant Controls.sustain_abs . RealTime.to_seconds
 
 -- * misc
 

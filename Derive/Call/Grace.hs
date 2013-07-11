@@ -98,7 +98,10 @@ grace_call :: Derive.EventArgs -> Maybe Signal.Y -> [PitchSignal.Pitch]
     -> Derive.EventDeriver
 grace_call args dyn pitches = do
     notes <- get_grace_notes (Args.extent args) (fromMaybe 0.5 dyn) pitches
-    Sub.reapply_call args "(" [] [notes]
+    -- Normally legato notes emphasize the first note, but that's not
+    -- appropriate for grace notes.
+    Derive.with_val "legato-dyn" (1 :: Double) $
+        Sub.reapply_call args "(" [] [notes]
 
 get_grace_notes :: (ScoreTime, ScoreTime) -> Signal.Y -> [PitchSignal.Pitch]
     -> Derive.Deriver [Sub.Event]

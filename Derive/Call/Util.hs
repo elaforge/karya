@@ -94,9 +94,6 @@ with_controls args controls f = do
 control_at :: TrackLang.ValControl -> RealTime -> Derive.Deriver Signal.Y
 control_at control pos = Score.typed_val <$> typed_control_at control pos
 
-real_time_at :: TrackLang.ValControl -> RealTime -> Derive.Deriver RealTime
-real_time_at control pos = RealTime.seconds <$> control_at control pos
-
 typed_control_at :: TrackLang.ValControl -> RealTime
     -> Derive.Deriver Score.TypedVal
 typed_control_at control pos = case control of
@@ -122,6 +119,15 @@ time_control_at default_type control pos = do
     return $ case time_type of
         Real -> TrackLang.Real (RealTime.seconds val)
         Score -> TrackLang.Score (ScoreTime.double val)
+
+real_time_at :: TrackLang.ValControl -> RealTime -> Derive.Deriver RealTime
+real_time_at control pos = do
+    val <- time_control_at Real control pos
+    case val of
+        TrackLang.Real t -> return t
+        TrackLang.Score t -> Derive.throw $ "expected RealTime for "
+            <> untxt (TrackLang.show_val control) <> " but got "
+            <> untxt (TrackLang.show_val t)
 
 transpose_control_at :: TransposeType -> TrackLang.ValControl -> RealTime
     -> Derive.Deriver (Signal.Y, TransposeType)

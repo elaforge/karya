@@ -3,6 +3,9 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
+  * make ( set sustain-abs instead of +legato
+    This way I don't have to turn off config_legato when I switch to attr
+    legato.
   - it's confusing how some calls expect env vals like 'x = 1' and some expect
     controls like '%x = 1'.
   * instance Symbol IsString

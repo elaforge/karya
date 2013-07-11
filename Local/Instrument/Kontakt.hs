@@ -23,6 +23,7 @@ import qualified Cmd.Keymap as Keymap
 
 import qualified Derive.Attrs as Attrs
 import Derive.Attrs
+import qualified Derive.Call.Articulation as Articulation
 import qualified Derive.Call.Make as Make
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Controls as Controls
@@ -90,7 +91,8 @@ balalaika =
         Instrument.patch $ (Instrument.hold_keyswitch #= True) $
         Instrument.instrument "balalaika" controls pb_range
     where
-    with_code = MidiInst.with_code $ MidiInst.note_calls DUtil.legato_samples
+    with_code = MidiInst.with_code $ MidiInst.note_calls
+        [("(", Articulation.c_attr_legato)]
     -- g6 strum, a6 solo, b6 harmony
     controls = map (second Score.control)
         [ (1, "trem-dyn")

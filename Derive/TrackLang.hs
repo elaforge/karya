@@ -70,6 +70,8 @@ is_null_instrument _ = False
 c_equal :: CallId
 c_equal = "="
 
+-- * make literals
+
 -- | Make an untyped VNum.
 num :: Double -> Val
 num = to_val
@@ -97,6 +99,10 @@ sym_to_scale_id (Symbol s) = Pitch.ScaleId s
 
 scale_id_to_sym :: Pitch.ScaleId -> Symbol
 scale_id_to_sym (Pitch.ScaleId s) = Symbol s
+
+real_control :: Score.Control -> RealTime -> ValControl
+real_control c deflt =
+    DefaultedControl c (Score.untyped (RealTime.to_seconds deflt))
 
 -- * time
 

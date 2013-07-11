@@ -7,6 +7,7 @@ import qualified Data.Map as Map
 
 import Util.Test
 import qualified Ui.State as State
+import qualified Derive.Call.Articulation as Articulation
 import qualified Derive.Call.CallTest as CallTest
 import qualified Derive.Call.Grace as Grace
 import qualified Derive.Call.Util as Util
@@ -67,7 +68,7 @@ test_mordent = do
 test_grace = do
     let run = DeriveTest.extract extract . DeriveTest.derive_tracks
         extract e = (DeriveTest.e_note e, Score.initial_dynamic e)
-        title = "> | grace-dur = 1 | %legato-overlap = .5"
+        title = "> | legato-detach = .25 | grace-dur = 1 | %legato-overlap = .5"
         dur = 1
         overlap = 0.5
     equal (run
@@ -76,7 +77,7 @@ test_grace = do
         ])
         ( [ ((0-dur*2, dur+overlap, "4a"), 0.5)
           , ((0-dur, dur+overlap, "4b"), 0.5)
-          , ((0, 1, "4c"), 1)
+          , ((0, 0.75, "4c"), 1)
           ]
         , []
         )
@@ -84,20 +85,21 @@ test_grace = do
         [ (title, [(1, 1, "g 1 (4b)")])
         , ("*", [(1, 0, "4c")])
         ])
-        ([((1-dur, dur+overlap, "4b"), 1), ((1, 1, "4c"), 1)], [])
+        ([((1-dur, dur+overlap, "4b"), 1), ((1, 0.75, "4c"), 1)], [])
 
     -- Ensure the grace-dyn default is picked up too.
     equal (run
         [ (title ++ "| grace-dyn = 1", [(1, 1, "g (4b)")])
         , ("*", [(0, 0, "4c")])
         ])
-        ([((0, 1.5, "4b"), 1), ((1, 1, "4c"), 1)], [])
+        ([((0, 1.5, "4b"), 1), ((1, 0.75, "4c"), 1)], [])
 
-    -- Ensure they get +legato.
+    -- Ensure grace works with attr legato.
     let runa = DeriveTest.extract DeriveTest.e_attributes
-            . DeriveTest.derive_tracks
+            . DeriveTest.derive_tracks_with with
+        with = CallTest.with_note_call "(" Articulation.c_attr_legato
     equal (runa [(title, [(0, 1, "g (4a) (4b)")]), ("*", [(0, 0, "4c")])])
-        (["+legato", "+legato", "+"], [])
+        (["+legato", "+legato", "+legato"], [])
 
 test_grace_ly = do
     let run = LilypondTest.derive_measures ["acciaccatura"]
@@ -127,7 +129,7 @@ test_grace_attr = do
         ([("4b", "+down+half")], [])
     -- Notes when it can't.
     equal (run [(">", [(0, 1, "g (4a)")]), ("*", [(0, 0, "4c")])])
-        ([("4a", "+legato"), ("4c", "+")], [])
+        ([("4a", "+"), ("4c", "+")], [])
 
 graces :: Map.Map Int Score.Attributes
 graces = Map.fromList
