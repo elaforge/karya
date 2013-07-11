@@ -888,6 +888,11 @@ data CallInfo val = CallInfo {
 
     -- | The track tree below note tracks.  Not given for control tracks.
     , info_sub_tracks :: !TrackTree.EventsTree
+    -- | If present, 'Derive.Sub.sub_events' will directly return these sub
+    -- events instead of slicing sub-tracks.  Track evaluation will never set
+    -- this, but calls can set this to reapply a note transformer.  It should
+    -- be 'Derive.Sub.Event's, but isn't to avoid circular imports.
+    , info_sub_events :: !(Maybe [[(ScoreTime, ScoreTime, EventDeriver)]])
     -- | This is needed by val calls that want to evaluate events around them.
     -- Since val calls are the same on all track types, they need to know
     -- explicitly what the track type is to evaluate events on it.
@@ -896,7 +901,7 @@ data CallInfo val = CallInfo {
 
 instance (Pretty.Pretty val) => Pretty.Pretty (CallInfo val) where
     format (CallInfo expr prev_val event prev_events next_events event_end
-            track_range sub_tracks track_type) =
+            track_range sub_tracks sub_events track_type) =
         Pretty.record_title "CallInfo"
             [ ("expr", Pretty.format expr)
             , ("prev_val", Pretty.format prev_val)
@@ -906,6 +911,8 @@ instance (Pretty.Pretty val) => Pretty.Pretty (CallInfo val) where
             , ("event_end", Pretty.format event_end)
             , ("track_range", Pretty.format track_range)
             , ("sub_tracks", Pretty.format sub_tracks)
+            , ("sub_events", Pretty.format $
+                map (map (\(s, d, _) -> (s, d))) <$> sub_events)
             , ("track_type", Pretty.format track_type)
             ]
 
@@ -924,6 +931,7 @@ dummy_call_info start dur text = CallInfo
     , info_event_end = start + dur
     , info_track_range = (start, start + dur)
     , info_sub_tracks = []
+    , info_sub_events = Nothing
     , info_track_type = Nothing
     } where s = if null text then "<no-event>" else "<" ++ text ++ ">"
 

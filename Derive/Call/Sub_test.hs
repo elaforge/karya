@@ -58,6 +58,7 @@ mkargs text subs = Derive.PassedArgs [] "call" info
         , Derive.info_event_end = event_end
         , Derive.info_track_range = (0, event_end)
         , Derive.info_sub_tracks = Slice_test.make_tree subs
+        , Derive.info_sub_events = Nothing
         , Derive.info_track_type = Nothing
         }
     prev = []

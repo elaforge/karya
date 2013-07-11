@@ -163,6 +163,10 @@ lookup_val name = do
     environ <- Internal.get_dynamic state_environ
     either throw return (TrackLang.checked_val name environ)
 
+is_val_set :: TrackLang.ValName -> Deriver Bool
+is_val_set name = Maybe.isJust . TrackLang.lookup_val name <$>
+    Internal.get_dynamic state_environ
+
 -- | Like 'lookup_val', but throw if the value isn't present.
 get_val :: (TrackLang.Typecheck a) => TrackLang.ValName -> Deriver a
 get_val name = do

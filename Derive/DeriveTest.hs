@@ -486,8 +486,11 @@ e_state = Derive.state_ui . Derive.state_constant . Derive.r_state
 -- * call
 
 passed_args :: Text -> [TrackLang.Val] -> Derive.PassedArgs derived
-passed_args name vals =
-    Derive.PassedArgs vals name (Derive.dummy_call_info 0 1 "DeriveTest")
+passed_args name vals = Derive.PassedArgs
+    { Derive.passed_vals = vals
+    , Derive.passed_call_name = name
+    , Derive.passed_info = Derive.dummy_call_info 0 1 "DeriveTest"
+    }
 
 c_note :: ScoreTime -> ScoreTime -> Derive.EventDeriver
 c_note s_start dur = do

@@ -14,6 +14,8 @@ module Derive.Call.Sub (
     , stretch
     , has_sub_events, sub_events
     , place, place_at
+    -- * reapply
+    , reapply, reapply_call
 ) where
 import qualified Data.List.NonEmpty as NonEmpty
 import qualified Data.Tree as Tree
@@ -198,8 +200,9 @@ has_sub_events args =
 -- note track.  This is the top-level utility for note calls that take other
 -- note calls as arguments.
 sub_events :: Derive.PassedArgs d -> Derive.Deriver [[Event]]
-sub_events args =
-    map (map mkevent) <$> Slice.checked_slice_notes start end subs
+sub_events args = case Derive.info_sub_events (Derive.passed_info args) of
+    Nothing -> map (map mkevent) <$> Slice.checked_slice_notes start end subs
+    Just events -> return $ map (map (\(s, d, n) -> Event s d n)) events
     where
     (start, end) = Args.range args
     subs = Derive.info_sub_tracks (Derive.passed_info args)
@@ -216,8 +219,7 @@ sub_events args =
 
 -- | Place and merge a list of Events.
 place :: [Event] -> Derive.EventDeriver
-place = Derive.d_merge
-    . map (\(Event start dur d) -> Derive.d_place start dur d)
+place = Derive.d_merge . map (\(Event s d n) -> Derive.d_place s d n)
 
 -- | Fit the given events into a time range.  Any leading space (time between
 -- the start of the range and the first Event) and trailing space is
@@ -229,3 +231,26 @@ place_at (start, end) notes = Derive.d_place start factor $
     factor = (end - start) / (note_end - note_start)
     note_end = fromMaybe 1 $ Seq.maximum (map event_end notes)
     note_start = fromMaybe 1 $ Seq.minimum (map event_start notes)
+
+-- * reapply
+
+-- | Call a note transformer with sub-events.  While you can easily call other
+-- kinds of calls with 'Call.reapply', note transformers are more tricky
+-- because they expect a track structure in 'Derive.info_sub_tracks'.  This
+-- bypasses that and directly passes 'Event's to the note transformer, courtesy
+-- of 'Derive.info_sub_events'.
+reapply :: Derive.EventArgs -> TrackLang.Expr -> [[Event]]
+    -> Derive.EventDeriver
+reapply args expr notes = Call.reapply subs expr
+    where
+    subs = args
+        { Derive.passed_info = (Derive.passed_info args)
+            { Derive.info_sub_events =
+                Just $ map (map (\(Event s d n) -> (s, d, n))) notes
+            }
+        }
+
+reapply_call :: Derive.EventArgs -> Text
+    -> [TrackLang.Term] -> [[Event]] -> Derive.EventDeriver
+reapply_call args call_id call_args =
+    reapply args (TrackLang.call call_id call_args :| [])

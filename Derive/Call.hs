@@ -287,6 +287,7 @@ derive_event st tinfo prev_sample prev event next
             event : _ -> Event.start event
         , Derive.info_track_range = track_range
         , Derive.info_sub_tracks = subs
+        , Derive.info_sub_events = Nothing
         , Derive.info_track_type = Just ttype
         }
     TrackInfo events_end track_range shifted subs (tprev, tnext) ttype = tinfo
