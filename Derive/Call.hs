@@ -422,13 +422,13 @@ unknown_call_id name (TrackLang.Symbol sym) =
     name <> " call not found: " <> sym
 
 fallback_call_id :: TrackLang.CallId
-fallback_call_id = TrackLang.Symbol ""
+fallback_call_id = ""
 
 -- | Given a CallId, try to come up with the BlockId of the block it could be
 -- a call for.
 symbol_to_block_id :: TrackLang.CallId -> Derive.Deriver (Maybe BlockId)
 symbol_to_block_id sym
-    | sym == TrackLang.Symbol "" = return Nothing
+    | sym == "" = return Nothing
     | otherwise = do
         ui_state <- Derive.get_ui_state id
         let ns = State.config_namespace (State.state_config ui_state)

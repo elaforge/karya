@@ -68,7 +68,7 @@ is_null_instrument _ = False
 
 -- | Call used by the infix @=@ syntax.
 c_equal :: CallId
-c_equal = Symbol "="
+c_equal = "="
 
 -- | Make an untyped VNum.
 num :: Double -> Val

@@ -355,7 +355,7 @@ data Mode = UnisonFirst | NeighborFirst deriving (Show)
 
 get_mode :: Derive.Deriver Mode
 get_mode = do
-    mode_name :: Maybe Text <- Derive.lookup_val (TrackLang.Symbol "trill-mode")
+    mode_name :: Maybe Text <- Derive.lookup_val "trill-mode"
     case mode_name of
         Nothing -> return UnisonFirst
         Just name

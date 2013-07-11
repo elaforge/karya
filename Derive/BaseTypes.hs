@@ -32,6 +32,7 @@ import qualified Data.Char as Char
 import qualified Data.Map.Strict as Map
 import qualified Data.Monoid as Monoid
 import qualified Data.Set as Set
+import qualified Data.String as String
 import qualified Data.Text as Text
 
 import qualified Text.Read as Read
@@ -309,7 +310,8 @@ instance ShowVal.ShowVal Pitch where
 
 instance Pretty.Pretty Val where pretty = untxt . ShowVal.show_val
 
-newtype Symbol = Symbol Text deriving (Eq, Ord, Show, DeepSeq.NFData)
+newtype Symbol = Symbol Text
+    deriving (Eq, Ord, Show, DeepSeq.NFData, String.IsString)
 instance Pretty.Pretty Symbol where pretty = untxt . ShowVal.show_val
 
 instance ShowVal.ShowVal Symbol where

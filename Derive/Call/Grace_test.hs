@@ -13,7 +13,6 @@ import qualified Derive.Call.Util as Util
 import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Score as Score
-import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.Lilypond.LilypondTest as LilypondTest
 import qualified Perform.Pitch as Pitch
@@ -44,8 +43,8 @@ test_mordent = do
             . DeriveTest.run State.empty
             . Util.with_pitch (DeriveTest.mkpitch12 "4c")
             . Util.with_dynamic 1
-            . Derive.with_val (TrackLang.Symbol "grace-dur") (1 :: Double)
-            . Derive.with_val (TrackLang.Symbol "grace-overlap") (0.5 :: Double)
+            . Derive.with_val "grace-dur" (1 :: Double)
+            . Derive.with_val "grace-overlap" (0.5 :: Double)
         extract e = (Score.event_start e, DeriveTest.e_pitch e,
             DeriveTest.e_control "dyn" e)
     equal (run (f (4, 1) 0.25 (Pitch.Chromatic 1))) $ Right

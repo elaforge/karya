@@ -208,7 +208,7 @@ p_call toplevel =
     TrackLang.Call <$> lexeme (p_call_symbol toplevel) <*> A.many p_term
 
 p_null_call :: A.Parser TrackLang.Call
-p_null_call = return (TrackLang.Call (TrackLang.Symbol "") []) <?> "null call"
+p_null_call = return (TrackLang.Call "" []) <?> "null call"
 
 -- | Any word in call position is considered a Symbol.  This means that
 -- you can have calls like @4@ and @>@, which are useful names for notes or

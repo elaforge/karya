@@ -24,7 +24,6 @@ import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Sig as Sig
 import Derive.Sig (optional, defaulted, many)
-import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.Lilypond.Lilypond as Lilypond
 import qualified Perform.Pitch as Pitch
@@ -131,8 +130,7 @@ resolve_pitches args pitches = do
     return (base, map (either id (flip Pitches.transpose base)) pitches)
 
 get_grace_dur :: Derive.Deriver RealTime
-get_grace_dur = fromMaybe grace_dur_default <$>
-    Derive.lookup_val (TrackLang.Symbol "grace-dur")
+get_grace_dur = fromMaybe grace_dur_default <$> Derive.lookup_val "grace-dur"
 
 grace_dur_default :: RealTime
 grace_dur_default = RealTime.seconds (1/12)

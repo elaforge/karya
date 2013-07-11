@@ -16,7 +16,7 @@ ly_global = Score.Instrument "ly-global"
 
 -- | String: @right@, @r@,  @left@, or @l@.
 v_hand :: TrackLang.ValName
-v_hand = TrackLang.Symbol "hand"
+v_hand = "hand"
 
 -- | Number: should be an integer from 1 to 4.
 v_voice :: TrackLang.ValName
@@ -30,7 +30,7 @@ v_voice = Environ.voice
 -- pitch then its also considered a freestanding code fragment, but will
 -- occupy the given amount of duration.
 v_ly_prepend :: TrackLang.ValName
-v_ly_prepend = TrackLang.Symbol "ly-prepend"
+v_ly_prepend = "ly-prepend"
 
 -- | String: like 'v_ly_prepend' but append the code to all the notes in a tied
 -- sequence.  This is the only append variant accepted for zero-dur notes.
@@ -40,37 +40,37 @@ v_ly_prepend = TrackLang.Symbol "ly-prepend"
 -- variations for consistency, though I don't have examples of where they would
 -- be useful.
 v_ly_append_all :: TrackLang.ValName
-v_ly_append_all = TrackLang.Symbol "ly-append-all"
+v_ly_append_all = "ly-append-all"
 
 -- | String: append code to the first note in a tied sequence.
 v_ly_append_first :: TrackLang.ValName
-v_ly_append_first = TrackLang.Symbol "ly-append-first"
+v_ly_append_first = "ly-append-first"
 
 -- | String: append code to the last note in a tied sequence.
 v_ly_append_last :: TrackLang.ValName
-v_ly_append_last = TrackLang.Symbol "ly-append-last"
+v_ly_append_last = "ly-append-last"
 
 -- | String: append after the pitch, and before the duration.  This is for
 -- pitch modifiers like reminder accidentals (!) and cautionary accidentals
 -- (?).
 v_ly_append_pitch :: TrackLang.ValName
-v_ly_append_pitch = TrackLang.Symbol "ly-append-pitch"
+v_ly_append_pitch = "ly-append-pitch"
 
 -- | String: \"^\" or \"_\", manually sets tie direction, if this note is
 -- tied.
 v_ly_tie_direction :: TrackLang.ValName
-v_ly_tie_direction = TrackLang.Symbol "ly-tie-direction"
+v_ly_tie_direction = "ly-tie-direction"
 
 -- * ly-global
 
 -- | String: should be parseable by 'Meter.parse_meter',
 -- e.g. @\'3/4\'@.  Used only on @>ly-global@ events.
 v_meter :: TrackLang.ValName
-v_meter = TrackLang.Symbol "meter"
+v_meter = "meter"
 
 -- | Gives the title of a new movement.
 v_movement :: TrackLang.ValName
-v_movement = TrackLang.Symbol "movement"
+v_movement = "movement"
 
 -- * common code
 

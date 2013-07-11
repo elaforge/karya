@@ -25,7 +25,6 @@ import qualified Derive.Scale.Theory as Theory
 import qualified Derive.Scale.Twelve as Twelve
 import qualified Derive.Score as Score
 import qualified Derive.TrackInfo as TrackInfo
-import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.Pitch as Pitch
 import Types
@@ -103,7 +102,7 @@ scale_diff = undefined
 -- | Make a control track title.
 add_control :: Score.Control -> Text
 add_control control = TrackInfo.unparse_control $
-    TrackInfo.Control (Just (TrackLang.Symbol "add")) (Score.untyped control)
+    TrackInfo.Control (Just "add") (Score.untyped control)
 
 set_note :: Pitch.Note -> Event.Event -> Event.Event
 set_note note = PitchTrack.modify f

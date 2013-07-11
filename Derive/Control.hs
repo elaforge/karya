@@ -178,7 +178,7 @@ lookup_op control op = case op of
         | control == Score.untyped Controls.null -> return Nothing
         | otherwise -> return $ Just Derive.op_mul
     Just sym
-        | sym == TrackLang.Symbol "set" -> return Nothing
+        | sym == "set" -> return Nothing
         | otherwise -> Just <$> Derive.get_control_op sym
 
 -- | A tempo track is derived like other signals, but in absolute time.

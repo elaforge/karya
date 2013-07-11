@@ -5,7 +5,7 @@ LEGEND
 UNSORTED
   - it's confusing how some calls expect env vals like 'x = 1' and some expect
     controls like '%x = 1'.
-  - instance Symbol IsString
+  * instance Symbol IsString
   - ( should be a transformer too
   - Derive.Call.Gamakam, with janta, s-g-r, and r-s ornaments.
   * lower dynamic for subsequent legato notes

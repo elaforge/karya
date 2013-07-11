@@ -135,7 +135,7 @@ unparse_control_vals ctype = case ctype of
     Pitch (Pitch.ScaleId scale_id) name ->
         TrackLang.VSymbol (TrackLang.Symbol (Text.cons '*' scale_id))
             : maybe [] ((:[]) . pitch_control) name
-    Tempo -> [TrackLang.VSymbol $ TrackLang.Symbol "tempo"]
+    Tempo -> [TrackLang.VSymbol "tempo"]
     where
     pitch_control = TrackLang.VPitchControl . TrackLang.LiteralControl
     control_val c
