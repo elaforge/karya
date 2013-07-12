@@ -15,8 +15,8 @@
     1. Pass it explicitly.
 
     2. If it is omitted, or @_@ is passed explicitly, it will be sought in the
-    dynamic environ, under the name @<call_name>-<arg_name>@.  E.g. given
-    a call @generator "name" $ \args -> call1 (required "arg1") ...@ then
+    dynamic environ, under the name @\<call_name>-\<arg_name>@.  E.g. given
+    a call @generator \"name\" $ \\args -> call (required \"arg1\") ...@ then
     @name-arg1 = 42 | call _@ will get 42.  Note that it uses the call name,
     and not the symbol it happens to bound to in this scope.  This is because,
     while you may bind different kinds of trills to @tr@ depending on the needs

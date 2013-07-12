@@ -38,7 +38,7 @@ music, and seems basically non-extendable.  Appears to have pretty
 elaborate understanding of that kind of harmony, but the website is all
 marketing fluff so it's hard to tell.
 
-- Rapid Composer - [[http://www.musicdevelopments.com/]]
+- Rapid Composer - <http://www.musicdevelopments.com/>
 
 ### tracker
 
@@ -54,15 +54,18 @@ marketing fluff so it's hard to tell.
 synthesis, rather than composition.  They tend to be more focused on
 designing instruments rather than writing music.
 
+- hackage temporal-music-notation, temporal-music-notation-demo,
+temporal-music-notation-western
+
 #### livecoding
 
 Livecoding languages focus on writing a kind of score in realtime.
 
-- chuck - [[http://chuck.cs.princeton.edu/]]
+- chuck - <http://chuck.cs.princeton.edu/>
 
-- overtone - [[https://github.com/overtone/overtone]]
+- overtone - <https://github.com/overtone/overtone>
 
-- Conductive - [[http://www.renickbell.net/conductive/doku.php/start]].
+- Conductive - <http://www.renickbell.net/conductive/doku.php/start>
 
 ## Relation to other sequencers
 

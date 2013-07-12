@@ -67,7 +67,11 @@ import Types
 
 -- * types
 
--- These are boxed, I want unboxed.
+-- | A Signal is a 'V.Unboxed' "Util.TimeVector" of 'Y' values, which are just
+-- Doubles.  It takes a phantom type parameter to make the signal's intended
+-- uses a little clearer.  There are type aliases for the various flavors of
+-- signal below, but it really is just documentation and anyone who wants to
+-- operate on a generic signal can take a @Signal y@.
 newtype Signal y = Signal { sig_vec :: V.Unboxed }
     deriving (DeepSeq.NFData, Pretty.Pretty, Eq)
 

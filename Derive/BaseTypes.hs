@@ -276,8 +276,8 @@ data Val =
     -- spaces or parens: 'Derive.ParseBs.p_call_symbol'.  If it's in the
     -- argument position, it can be surrounded with single quotes and contain
     -- anything, and a single quote is encoded as two single quotes:
-    -- 'Derive.ParseBs.p_string'.  Or if it starts with a letter and has no
-    -- spaces it can be written bare: 'Derive.ParseBs.p_symbol'.
+    -- 'Derive.ParseBs.p_string'.  Or if it starts with a hyphen, letter, or
+    -- @*@, it doesn't need quotes at all: 'Derive.ParseBs.p_symbol'.
     --
     -- Literal: @func@, @\'hello\'@, @\'quinn\'\'s hat\'@
     | VSymbol !Symbol

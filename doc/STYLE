@@ -16,6 +16,13 @@ in it.
 Large comments use {- -} and their contents are indented.  This way
 indentation based folding can get them out of the way.
 
+Long explanations (typically of why something is the way it is) are in a
+separate comment that starts off 'Note [something-or-other]', and other
+comments that want to reference it mention 'see Note [something-or-other]'.
+Make sure to capitalize the Note, otherwise there are way too many things
+named "note" in the source!  This is borrowed from GHC and it seems to work
+for them.
+
 Modules are imported like 'import qualified A.B.C as C', with very few
 exceptions.  Therefore, names should generally not repeat the module name.
 Preferably no two modules have the same file name, but if they do, they can be
@@ -29,7 +36,8 @@ also often have a functional constructor with the lower cased name of the type
 which may provide default arguments and whatnot.  Even though I don't
 generally restrict the "real" constructor from the module export list, you
 should use the functional constructor when possible to insulate against
-changes to the type.
+changes to the type.  I prefer functional accessors rather than record pattern
+matching for the same reason.
 
 All modules that call C end with "C", and are split up such that as few
 modules as possible import them.  This is because ghci won't work if it has to
@@ -38,7 +46,8 @@ give it the object files but since it's the entire GUI library and associated
 system libraries I've never been able to get that to work.
 
 Record fields are named rec_xyz, where 'rec' is an abbreviation of the record
-type name.
+type name.  Yeah, it's annoying.  The lenses, if there are any, omit the
+leading 'rec_'.  I write lenses by hand, no TH, because TH is a hassle.
 
 Cmds begin with cmd_.  But not always.  I'm not very convinced of the value of
 this convention.  The idea with cmd_ is that the cmd_* version can be directly

@@ -1,3 +1,5 @@
+[back to overview](overview.md.html#karya)
+
 Derivation is the process that turns the UI level score of blocks, tracks, and
 events into a stream of score events, which is input for the
 [performer](performance.md.html).  While a UI event ('Ui.Event.Event')
@@ -9,14 +11,19 @@ everything else that's needed by the performer.
 ## Derivation
 
 Derivation starts from a root block.  You can derive from any block, but for
-convenience one block is marked as the root, and derivation normally starts
-from there.  The eventual output of derivation is a stream of
-'Derive.Score.Event's.
+convenience one block is marked as the root with 'Ui.State.config_root', and
+derivation normally starts from there.  The eventual output of derivation is a
+stream of 'Derive.Score.Event's.
 
 Tracks are arranged hierarchically, as expressed by the lines and arrows in
 the "skeleton", which is graphically displayed above the track titles.  A
 parent track has scope over its children, which means it sets the environment
 in which the children evaluate.
+
+There is a lot of talk about "inheriting such and such from the environment".
+There's a detailed explanation of the [dynamic
+environment](#dynamic-environment) below, but the short version is that it's
+a dynamically scoped set of variables.
 
 Tracks are divided into two kinds: note tracks, and control tracks.  Control
 tracks are further divided into tempo, control, and pitch.  The type of a track
@@ -26,30 +33,28 @@ controls of that name.  Full details are in 'Derive.TrackInfo'.  Note tracks
 generate events, and control tracks generate a control signal and put it into
 the dynamic environment.  What all of that means will be defined later.
 
-A block may optionally have a tempo track that scopes over the toplevel tracks.
-Note tracks will set an instrument or inherit one, and each have an optional
-pitch track, `dyn` dynamic control track, and possibly other control tracks.
-The control tracks can either be above the note track and possibly apply to
-multiple note tracks, or below a note track and apply only to that note track,
-through a processes called [slicing and inversion](#slicing-and-inversion).
+<img align=right width=180 src="../../doc/img/example-tracks.png">
 
-So for example, a common configuration is a note track `>inst`, which sets the
-instrument to `inst`, with a pitch track `*` and control track `dyn` below it.
-`*` establishes a pitch track, but doesn't set the scale, so it'll be
+For example, a common block configuration is one tempo track which is parent to
+the toplevel tracks.  Below that are a note tracks `>inst`, which set the
+instrument to `inst`, each with a pitch track `*` and control track `dyn` below
+it.  `*` establishes a pitch track, but doesn't set the scale, so it'll be
 inherited from the environment, and `dyn` is a dynamics track.  Though they
-appear below the note track, by the time inversion gets done with them they
-are actually above it, establishing pitch and dynamics for each note.
+appear as children to the note track, by the time
+[inversion](#slicing-and-inversion) gets done with them they are actually above
+it, establishing pitch and dynamics for each note.
 
 The events in a control track are generally numbers which set the control
-signal at that point in time, or possibly calls which interpolate to create
-lines or curves, the events of a pitch track will be names of scale degrees and
-possible arguments, and the events of a note track will generally be empty to
-generate a single note, or have an ornament name to do something fancier.  If a
-note track event has the name of another block, that block will be substituted
-in the place of the event---this is one way to construct scores hierarchically,
-write repeats, factor out common phrases, etc.  If a sub-block has a tempo
-track the tempos will compose, so a phrase with rubato built-in will also
-accelerate if the calling block has an accelerating tempo.
+signal at that point in time (e.g. `x80` in the screenshot), or possibly calls
+which interpolate to create lines or curves (`i xe0` in the screenshot), the
+events of a pitch track will be names of scale degrees and possible arguments,
+and the events of a note track will generally be empty to generate a single
+note, or have an ornament name (`tr`) to do something fancier.  If a note track
+event has the name of another block (`sub-block`), that block will be
+substituted in the place of the event---this is one way to construct scores
+hierarchically, write repeats, factor out common phrases, etc.  If a sub-block
+has a tempo track the tempos will compose, so a phrase with rubato built-in
+will also accelerate if the calling block has an accelerating tempo.
 
 Since control and pitch track calls are usually points in a curve, they tend
 to be zero duration, while note track events tend to have a duration.  There
@@ -78,10 +83,10 @@ as arguments to a `note-track` transformer whose default behaviour is to set
 the current instrument and possibly attributes, the same as the [default null
 note call](#call-docs).  Similar to scales, setting the instrument will bring
 the instrument's calls into scope, as documented under
-[Instruments](#instruments).
+[instruments](#instruments).
 
-You can optionally append a pipeline expression, and the
-expressions will be called as a transformer around the whole track.  So
+You can optionally append a [expression pipeline](#expression-pipeline), and
+the expressions will be called as a transformer around the whole track.  So
 `>inst | t1 | x = 42` will evaluate the track with `x` set to `42` and
 transformed by `t1`.
 
@@ -93,15 +98,15 @@ Note tracks can have children, by virtue of a complicated process called
 Pitch tracks look like `*`, `*scale` or `*scale #name`.  They set the scale to
 `scale` and evaluate the track as a pitch track.  A plain `*` will use the
 scale currently in scope.  Setting a scale also has the effect of bringing the
-scale's calls into scope, as documented under Scales.  The generated pitch
-signal will replace the default unnamed pitch signal in scope, unless you give
-a `#name`.  There is no facility for combining pitch tracks as there is for
-control tracks.  Relative pitch signals are instead implemented by a control
-signal that represents chromatic or diatonic transposition.  What those are
-depends on the scale, but the defaults are 'Derive.Score.c_chromatic',
+scale's calls into scope, as documented under [scales](#scales).  The generated
+pitch signal will replace the default unnamed pitch signal in scope, unless you
+give a `#name`.  There is no facility for combining pitch tracks as there is
+for control tracks.  Relative pitch signals are instead implemented by a
+control signal that represents chromatic or diatonic transposition.  What those
+are depends on the scale, but the defaults are 'Derive.Score.c_chromatic',
 'Derive.Score.c_diatonic' and 'Derive.Score.c_hz'.  As with control tracks, you
-can append a transformer pipeline.  Pitch tracks are highly related to
-[scales](#scales).
+can append a [transformer pipeline](#expression-pipeline).  Pitch tracks are
+highly related to [scales](#scales).
 
 ### control track
 
@@ -112,7 +117,8 @@ c` will replace `c`, or `add c` will add to it.  The complete set of operators
 is listed in 'Derive.Deriver.Monad.default_control_op_map'.  `%` is an unnamed
 control track and is used only by [control block calls](#control-block-calls).
 
-As with note tracks, you can append a transformer pipeline.
+As with note tracks, you can append a [transformer
+pipeline](#expression-pipeline).
 
 Control tracks put their control into scope for their children, so a control
 track should always have children (a control track below a note track may not
@@ -145,16 +151,18 @@ The dynamic environment concept is core to derivation.  The idea is that
 instead of manipulating output of music generating functions (that's score
 events or signals), the various score constructs may manipulate the
 environment, though they may also directly manipulate the derived output if
-they choose.  This is so that high level transformations can put the decision
+they choose.  This is so that high level transformations can delay the decision
 of what exactly that transformation means to a lower level bit of score or
 instrument that may then interpret it in its own way.
 
 For instance, to reduce the volume of a phrase, instead of generating the notes
-and then modifying their "dyn" signal (for "dynamics", pun not intended), you
-can modify the dyn signal in the environment, and when the notes are eventually
-generated they will inherit the dyn signal.  But any function in between (or
-the eventual event generating function) can intercept that signal and treat it
-specially, e.g. by resetting the dyn signal and reducing instrument doubling.
+and then modifying their "dyn" signal (for "dynamics"), you can modify the dyn
+signal in the environment, and when the notes are eventually generated they
+will inherit the dyn signal.  But any function in between (or the eventual
+event generating function) can intercept that signal and treat it specially,
+e.g. by resetting the dyn signal and reducing instrument doubling.  Or the
+instrument itself could respond to the dyn signal, e.g. by making intonation
+less accurate when playing loudly.
 
 The dynamic environment ('Derive.Deriver.Monad.Dynamic') consists of a scope,
 control signals, pitch signals, a warp signal, and a map of scalar values
@@ -162,44 +170,103 @@ called the "environment".  As its name suggests, it implements dynamic scope:
 while values may not be mutated, they can be rebound within the dynamic scope
 of a call.
 
-Control signals are floating point values that change in time, normally ranging
-from 0--1.  Pitch signals are similar, except the values are abstract objects
-that can have other values applied to them, for instance chromatic or diatonic
-transposition, and later evaluated to a normal control signal representing
-frequency.  The warp signal is the same as a control signal, except it's used
-to control [ScoreTime to RealTime mapping](#scoretime-and-realtime).  The
-environ ('Derive.TrackLang.Environ') is different: it holds constant
-[vals](#vals) ('Derive.TrackLang.Val' or 'Derive.BaseTypes.Val' thanks to
-haddock bugs), but they they may be typed.  For instance, the key of a section
-of music is stored as a string, or the current instrument or scale in scope is
-stored as a instrument or scale respectively.  As documented in
-[Calls](#calls), the environ is also used for argument defaulting.
+### controls
 
-Actually, control signals may also carry types also, for instance to document
-whether a transposition signal is in chromatic or diatonic steps, or whether a
-delay signal is in ScoreTime or RealTime, as in 'Derive.Score.TypedVal' and
+Control signals are floating point values that change in time, by convention
+ranging from 0--1.  Pitch signals are similar, except the values are abstract
+objects that can have numeric controls applied to them, for instance chromatic
+or diatonic transposition, and later evaluated to a normal control signal
+representing frequency.  The warp signal is the same as a control signal,
+except it's used to control [ScoreTime to RealTime
+mapping](#scoretime-and-realtime).
+
+Control signals may carry types also, for instance to document whether a
+transposition signal is in chromatic or diatonic steps, or whether a delay
+signal is in ScoreTime or RealTime, as in 'Derive.Score.TypedVal' and
 'Derive.Score.Type' ('Derive.BaseTypes.TypedVal' and 'Derive.BaseTypes.Type',
 haddock bug).
+
+### environ
+
+The environ ('Derive.TrackLang.Environ') is different: it holds constant
+[vals](#vals) ('Derive.TrackLang.Val' or 'Derive.BaseTypes.Val' thanks to
+haddock bugs), but they they may be typed.  For instance, the key of a section
+of music is a string, the current instrument is an instrument type, and a
+`trill-depth` value might be a typed number, e.g.  `2d` for 2 diatonic steps.
+As documented in [Calls](#calls), the environ is also used for argument
+defaulting.
+
+Controls and environ vals are separate!  This can be a bit confusing, because
+a call may expect default values in the environ, which you would set like
+`legato-detach = .1`, while it may get another value from a control, which you
+would set like `%legato-overlap = .5`.  If you leave off the `%`, you wind up
+setting an env val instead of a control, and nothing happens!
+
+Environ keys are arbitrary strings, but there is a set of standard ones, which
+are understood by the built-in derivation functions or scales, documneted in
+'Derive.Environ'.
 
 TODO: it would probably be possible to unify all the environ types into a
 single map of typed signals.
 
-The dynamic scope determines the calls in scope, and maps names to the
-functions implementing the call.  Calls are documented in more detail
-elsewhere, but the fact that they are in 'Derive.Deriver.Monad.Dynamic' means
-that the set of calls in scope can also be modified within a dynamic scope.
-There are separate namespaces for note tracks, control tracks, and pitch tracks
-since the calls in each track return different types.  This is what allows an
-instrument to bring into scope instrument-specific calls, or a scale to bring
-into scope calls that emit its scale degrees.
+### scopes
+
+The dynamic 'Derive.Deriver.Monad.Scope' determines the calls in scope, and
+maps names to the functions implementing the call.  Calls are documented in
+more detail elsewhere, but the fact that they are in
+'Derive.Deriver.Monad.Dynamic' means that the set of calls in scope can also
+be modified within a dynamic scope.  There are separate namespaces for note
+tracks, control tracks, and pitch tracks since the calls in each track return
+different types.  This is what allows an instrument to bring into scope
+instrument-specific calls, or a scale to bring into scope calls that emit its
+scale degrees.
+
+### Attributes
+
+Score events can also have attributes attached to them.  Attributes are just a
+set of strings, that are intended to be interpreted by the performer based on
+the instrument.  They are written separated with `+`s like `+trem+cresc`.  For
+instance, `+pizz` may cause an instrument that understands it to emit a
+keyswitch to play the affected notes as pizzicato.  Attributes can also be
+used by percussion, e.g. `+sn` for a snare, or `+hh` for high-hat.  Drums are
+also likely to support combinations of attributes, such as `+hh+open`.
+Attributes can be any string, but a set of standard names is in
+'Derive.Attrs'.
+
+Attributes are a set, so they can be combined piecemeal.  For example, there
+is a built-in note call that matches calls starting with `+`, so if you write
+`+trem | x`, then `+trem` will be added to the attribute set for `x`, which
+will presumably cause everything under it to play as tremolo.  If one of the
+notes underneath has a `+cresc`, then the instrument will get `+trem+cresc`,
+which it might have a special sample for, or it might decide which one to
+apply based on priority.  Details are in
+'Perform.Midi.Instrument.KeyswitchMap'.
+
+Note that there are two different approaches here: a tremolo could be realized
+as the `+trem` attribute, which delays the realization to the instrument.  Or
+it could be realized in the deriver by repeating the note rapidly, or rolling
+a chord, or whatever.  The attribute approach is much less flexible, but can
+sound better if you're using one of those fancy sample libraries.  Usually an
+instrument should configure its scopes appropriately, for instance if the
+instrument has a tremolo keyswitch it can replace the `trem` call with one
+that sets an attribute, or if it has canned grace note samples it might use
+attributes for the intervals which are available, or realize manually for
+intervals that don't have samples.
+
+To the deriver, attributes are just a set of strings, the actual realization
+is at the [performance](performance.md.html) level, and therefore dependent on
+the backend.  The various fancy ways instruments can respond to attributes are
+documented with [instruments](instrument.md.html).
+
+### events
 
 When a 'Derive.Score.Event' is generated, it inherits the controls, pitch,
-instrument, and [attributes](#attributes) in scope.  After that it's up to the
-performer to interpret those values, which are likely also dependent on the
-instrument.  Since an instrument has the power to modify the calls in scope
-when it comes into scope, it may also modify the default note call (which is
-the empty call "", also called the null call, documented below) to have some
-special behaviour.
+instrument, and attributes in scope.  After that it's up to the performer to
+interpret those values, which are likely also dependent on the instrument.
+Since an instrument has the power to modify the calls in scope when it itself
+comes into scope, it may also modify the default note call (which is the empty
+call "", also called the null call, documented below) to have some special
+behaviour.
 
 ## ScoreTime and RealTime
 
@@ -222,10 +289,11 @@ duration regardless of the tempo.
 
 ## TrackLang syntax
 
-The text that appears in the block title, track titles, and events is in a
+The text that appears in the block title, track titles, and events is a
 simple expression oriented language.  It has the usual literals such as
 `'strings'`, and numbers, but also has music-related literals such as
-`*scales`, `>instruments` or `+attributes`.  See [vals](#vals).
+`*scales`, `>instruments` or `+attributes`.  See [vals](#vals) and
+'Derive.BaseTypes.Val'.
 
 A call expression consists of literals separated by spaces, and the first word
 is a "call", which is like a function call.  So `f 4 'hi'` is a call to `f`
@@ -238,7 +306,9 @@ might represent a slur.  Call names also frequently contain
 
 A full expression, as allowed in a title or event, is multiple expressions
 separated by `|`.  As described in [calls](#calls), the last one is called the
-"generator call" and the ones before it are called "transformer calls".
+"generator call" and the ones before it are called "transformer calls".  This
+is not true in track titles though!  They just have the transformer part of the
+pipeline, since the track itself is the generator.
 
 Details on the syntax are in in 'Derive.TrackLang' and 'Derive.ParseBs'.
 
@@ -253,69 +323,57 @@ Notice that you can't actually pass arguments to the null call, because as soon
 as you add a character it looks like a call name itself.  Well, except for the
 control track hack below.
 
-- Comments start with `--`.  As a special hack, an event containing only `--`
-is completely ignored rather than considered a null call.  This can be useful
-to mark an event boundary but not actually produce a value.  For instance, some
-calls may extend to the next event, and this can make them end earlier.
+- Comments start with `--`.  As a special hack, an event starting with `--` is
+completely ignored rather than considered a null call.  This can be useful to
+mark an event boundary but not actually produce a value.  For instance, some
+calls may extend to the next event, and this can make them end earlier.  Or you could use it as a comment.
 
 - An expression with an infix `=` such as `x = 42` will be parsed the same as
 the prefix application `= x 42`.  The default behaviour of this call is a
 transformer that sets the given value in the dynamic environ of its generator.
-
-- Control track num expr: control track events are actually parsed slightly
-differently.  Namely, an expression that starts with a number is parsed as a
-null call with a number argument rather than a call.  E.g. `42` is parsed as an
-application of the `42` val to "", rather than the application of a call called
-`42`.  The result is that a bare number in a control track is interpreted as
-passing that number to "", similar to how pitch tracks work.
+It's not really necessary, but I think infix looks a little nicer.
 
 ### Vals
 
-TODO blah blah 'Derive.TrackLang.Val' or 'Derive.BaseTypes.Val' thanks to
-haddock bugs.
-
-Identifier naming is more strict than most languages.  Only lowercase letters
-a-z, digits 0-9, period and hyphen are allowed.  IDs also allow \`s so BlockIds
-can embed symbols.  This enforces a lowercase-with-hyphens naming scheme.  The
-exact definition is in 'Derive.ParseBs.p_identifier'.
-
-The intent of the restrictive rules are that they relieve me of the burden of
-remembering a naming scheme (e.g. '.' vs. '-' vs. '_') and leave room for
-flexibility in other places, e.g. @-macros in the [REPL](repl.md.html).
+These are your basic types.  They are defined in 'Derive.TrackLang.Val' (or
+'Derive.BaseTypes.Val' thanks to haddock bugs).  Most of them have a literal
+syntax so they can written as call arguments.
 
 #### number types
 
-TODO document literal suffixes, e.g. 1s 1t 1d 1c, control track suffixes
+Chromatic: `c`, diatonic: `d`, ScoreTime: `t`, RealTime: `s`.
 
 Numeric values can have a type suffix.  For instance, 3d means that the number
 is intended to be interpreted as a transposition of 3 diatonic steps, and `2s`
 is 2 seconds of RealTime.  Similarly, control names can have a type suffix,
-such as `delay:s`.  This means that the values of the control are intended to be
-interpreted as 3 RealTime seconds.
+such as `delay:s`.  This means that the values of the control are intended to
+be interpreted as 3 RealTime seconds.
 
 Of course, whether or not they are so interpreted depends on the call that
 winds up receiving them.  Calls that expect an amount of transposition will
 accept `d` and `c`, and untyped numbers will be interpreted as `c` (chromatic).
 
 Many numbers and controls are untyped and will ignore any type on a value or
-control.  The type mechanism is intended only as a way of overloading certain
-calls.  For example, it would be awkward to include all combinations of trills
-on diatonic or chromatic neighbors, and in score time or real time.  It's
-easier to have one control that can be passed a diatonic or chromatic neighbor.
+control.  The type mechanism is intended as a way of overloading certain calls.
+For example, it would be awkward to include all combinations of trills on
+diatonic or chromatic neighbors, and in score time or real time.  It's easier
+to have one control that can be passed a diatonic or chromatic neighbor.
 
 The types and their codes are enumerated in 'Derive.BaseTypes.Type'.
 
 The interaction between typed controls and arguments is also documented in
-'Derive.CallSig'.
+'Derive.Sig'.
 
 ## Calls
 
 Calls are the tracklang version of functions.  Almost every bit of text in the
 score is a call expression.  Calls are classified by the type of value they
-return: a NoteCall returns score events, a ControlCall returns a control
-signal, a PitchCall returns pitch signal, and a ValCall returns a tracklang
-Val.  Each of note, control, and pitch calls are only in scope in their
-relevant tracks, but val calls are in scope in all tracks.
+return: a 'Derive.Deriver.Monad.NoteCall' returns score events, a
+'Derive.Deriver.Monad.ControlCall' returns a control signal, a
+'Derive.Deriver.Monad.PitchCall' returns pitch signal, and a
+'Derive.Deriver.Monad.ValCall' returns a tracklang Val.  Each of note, control,
+and pitch calls are only in scope in their relevant tracks, but val calls are
+in scope in all tracks.
 
 Notice that NoteCall is inconsistently named, it should probably be named
 EventCall along with EventDeriver.  The root of the inconsistency is that at
@@ -330,11 +388,43 @@ A call may have zero or more arguments, which are parsed as
 'Derive.TrackLang.Val's.  Argument parsing and the defaulting scheme (which
 uses the dynamic environ) is documented in 'Derive.CallSig'.
 
+### ValCall
+
+ValCalls are special in that they're in scope on every track, and they can be
+nested in expressions.  Just like a normal programming language!  So given an
+expression like `a (b (c 1)) (d)`, `b`, `c`, and `d` are all val calls by
+virtue of not being at the front of the expression, while `a` is whatever call
+is relevant for the track.
+
+There's another wrinkle for val calls: if "normal" call isn't found for a
+symbol in generator call position, 'Derive.Call.apply_generator' will search
+for a val call.  If one is found, its result will be passed to the null
+generator call.  So e.g. given an expression `4c` on a pitch track, if there
+is no PitchCall called `4c`, but there is such a ValCall, the result of `(4c)`
+will be passed to the null call.  In fact, this is how pitch tracks usually
+work, since scale degrees are implemented as ValCalls.
+
+There's another wrinkle for val calls: If a generator call is not found in the
+appropriate scope for the track (note, control, or pitch), the evaluator looks
+for a val call with that name.  If one is found, it is evaluated and the
+result is passed to the null call.  This is used to implement pitches: a pitch
+like `4c` is actually a val call that returns the appropriate
+`Derive.PitchSignal.Pitch`.  Therefore it can be passed as an argument to
+another call (e.g. `tr (4c)`), but if it occurs alone in a pitch track its
+Pitch is passed to the null call, which for pitch tracks just sets the pitch
+signal to that pitch.
+
+### expression pipeline
+
 The syntax of a call expression is documented in
 [tracklang syntax](#tracklang-syntax), but the gist is that it looks like this:
 `t1 | t2 (v1 1) | g 'arg'`.  `t1` and `t2` are transform calls since they come
 before a pipe and `g` is a generator since it occurs at the end.  `v1` is a val
-call whose result is passed to `t2`.
+call whose result is passed to `t2`.  So really the pipe operator is
+effectively function application.  The reason it isn't literally function
+application is for syntactical convenience, so generators and transformers can
+have their own namespaces, and so the calls themselves can have separate types
+at the haskell level.  Gory details in 'Derive.Call'.
 
 Furthermore, calls are divided into generator and transform calls.  Generator
 calls produce values of their appropriate type, while transform calls are
@@ -354,37 +444,43 @@ they are implemented differently, since they evaluate a signal and put it in
 the dynamic environment of the tracks below them.
 
 Transform calls and generator calls live in their own namespaces, though they
-are bound to their names together (i.e. a call is a (Maybe TransformCall,
-Maybe GeneratorCall) pair: 'Derive.Deriver.Monad.Call'.  The exception is
-'Derive.Deriver.Monad.ValCall's, which don't have transformer and generator
-versions.
-
-In addition to the syntax hacks, call evaluation also has one:
-
-- ValCall fallback: If a generator call is not found in the appropriate scope
-for the track (note, control, or pitch), the evaluator looks for a val call
-with that name.  If one is found, it is evaluated and the result is passed to
-the null call.  This is used to implement pitches: a pitch like `4c` is
-actually a val call that returns the appropriate `Derive.PitchSignal.Pitch`.
-Therefore it can be passed as an argument to another call (e.g. `tr (4c)`),
-but if it occurs alone in a pitch track its Pitch is passed to the null call,
-which for pitch tracks just sets the pitch signal to that pitch.
+are bound to their names together (i.e. a 'Derive.Deriver.Monad.Call' is
+effectively a `(Maybe TransformCall, Maybe GeneratorCall)` pair.
+'Derive.Deriver.Monad.ValCall's don't have transformer and generator versions.
 
 Evaluation is implemented by 'Derive.Call.apply_toplevel'.
 
 ### call docs
 
-[Documentation for individual calls](calls.html) is included in the calls
-themselves, and is extracted and formatted by 'Cmd.CallDoc'.  'Cmd.Repl.LBlock'
-provides some functions to emit documentation for the calls in scope at the
-cursor.
+Many calls are built-in, and are brought into scope depending on the track
+type.  But scales and instruments can also bring calls into scope.  Also you
+can dynamically rebind calls to configure how called blocks derive, e.g. pick
+one of several signature-compatible calls to bind to `tr`.  So getting the
+documentation for the calls in scope under the selection can be very useful.
+
+'Cmd.CallDoc' has functions for introspecting the calls in scope on a certain
+track and printing out documentation, most conveniently used through the
+REPL functions in 'Cmd.Repl.LBlock'.  In addition to the "online" docs,
+[Builtin call documentation](calls.html) is extracted separately, as is [scale
+documentation](scales.html).  Instrument calls can be viewed in the
+[instrument browser](browser.md.html).
 
 ### Block calls
 
-As mentioned in the overview, a note call with the same name as another block
-will substitute the contents of that block, stretching and shifting it into
-place.  If the sub-block uses relative pitches and controls the generated
-notes will wind up depending on the calling environment.
+A note call with the same name as another block will substitute the contents
+of that block, stretching and shifting it into place.  If the sub-block uses
+relative pitches and controls the generated notes will wind up depending on
+the calling environment.
+
+This is the main way to structure a score, and scales from the large scale
+structure with one event per movement, down to individual phrases.  Whether
+you want to deeply nest your score or simply dump everything into one giant
+master block is up to you, but the cache works at the block level, so if you
+take the one giant block route you will probably see significantly longer
+rederive times.
+
+'Cmd.Refactor' has cmds for easily splitting bits of score into their own
+blocks.
 
 ### Control block calls
 
@@ -392,50 +488,54 @@ Block calls are note calls and go on a note track, but there's also a variant
 for control tracks.  The sub-block is expected to have a control track titled
 `%` whose signal will be substituted into the signal of the calling track.
 
-### Integration
-
-TODO
+You can use this to create an ad-hoc signal type, for instance to emit dynamic
+spikes in a certain rhythm, to impose that rhythmic feel on a melody.
 
 ## Instruments
 
-TODO
+A 'Derive.Score.Instrument' at the derive level is just an arbitrary string.
+Well, not totally arbitrary, since it should conform to the lowercase letters
+and hyphens naming scheme.  But the deriver doesn't do much special with
+instruments.  Instruments bring their calls into scope, and the default note
+deriver will inherit 'Derive.Environ.instrument', but that's about it.
 
-### Attributes
-
-Score events can also have attributes attached to them.  Attributes are just a
-set of strings, that are intended to be interpreted by the performer based on
-the instrument.  For instance, a "pizz" attribute may cause an instrument that
-understands it to emit a keyswitch to play the affected notes as pizzicato.
-Attributes can also be used by percussion, e.g. +sn for a snare, or +hh for
-high-hat.  Drums are also likely to support combinations of attributes, such as
-+hh+open.  Attributes can be any string, but a set of standard names is in
-'Derive.Attrs'.
-
-Attributes are a set, so you can add and remove individual attributes.  For
-instance, `+pizz` is a literal representing the addition of the "pizz"
-attribute, and putting it around a call will presumably cause everything that
-can play pizz to play as pizz, unless it's cancelled out with a `-pizz`.  If
-`+tremolo` is already in effect, the instrument can apply them both
-simultaneously (unlikely in the case of +pizz+tremolo, but many sample
-libraries do have combinations like +cresc+tremolo), or decide based on
-priority which one to apply.  Details are in
-'Perform.Midi.Instrument.KeyswitchMap'.
-
-### Local.Instrument
-
-TODO
-
-[doc/local](local.md.html)
+All the interesting stuff about instruments is [documented
+separately](instruments.html).
 
 ## Scales
 
-TODO
+A 'Derive.Scale.Scale' is somewhat complicated.  Much of the complication is
+[Cmd layer support](cmd.md.html#scales).  From the deriver's point of view,
+the important part of a scale is the set of [ValCalls](#valcall) it brings
+into scope.  Those in turn are expected to return a 'Derive.BaseTypes.VPitch'
+val, which is assembled into a 'Derive.PitchSignal.Signal', analogous to a
+'Perform.Signal.Control'.
 
-talk about how abstract transposition works
+Scale degree val calls are defined within the scale, but should typically use
+the calls defined in 'Derive.Call.ScaleDegree'.  The built-in scales along
+with their calls are also [documented separately](scales.html).
 
-caveat about how you can't write `%t-chromatic = 1 | 4c`
+The reason a pitch signal is different is that pitches are actually abstract
+objects that can respond to chromatic, diatonic, and hz transposition (at
+least that's the default set, you're free to define your own kinds of
+transposition for your own scales).  This is because diatonic transposition
+can depend on the key in scope, and transposition in any non-equal-tempered
+scale must be done in relation to the original spelling of the pitch.
 
-[Scale docs](scales.html)
+This is also how pitches can retune themselves in time.  Since a pitch call
+can depend on signals in scope, you could have a scale retune itself according
+to a certain signal, and then cause that signal to gradually change over the
+course of the piece.  This is handy for flexibility, but it means that pitches
+must be dealt with symbolically, since their relation to a concrete frequency
+might depend on a lot of context.
+
+At performance time, a pitch signal is flattened into a
+'Perform.Control.NoteNumber' signal, and any transposition signals in scope
+are applied.  The transposition signals, along with all the other signals, are
+attached to the note when the note itself is generated, probably by the
+null note call, so if you write `%t-chromatic = 1 | 4c` in a pitch track,
+you won't get the effect you expect.  You should instead put `%t-chromatic = 1
+|` in the note track.
 
 ## Logging
 
@@ -447,14 +547,23 @@ TODO
 random, but if you get something you like, you want to fix it to that version.
 
 Calls that want randomness can use the various calls in 'Derive.Call.Util' to
-get a pseudo-random number.  The number depends soley on the random seed, so if
-the seed is the same, the number will always be the same.  The seed is hashed
-with each stack frame as it is added, so that each event should get a unique
-stream of random numbers.  However, the seed is an environ value, and if you
-manually set it to a constant the derivation underneath should always derive
-the same way, provided you don't change the stack underneath the point where it
-gets set.  So you can freeze a derivation by inspecting the seed and hardcoding
-it manually, or you can ask for a different variation by setting a new seed.
+get a pseudo-random number.  The number depends soley on the random
+'Derive.Environ.seed', so if the seed is the same, the number will always be
+the same.  The seed is hashed with each stack frame as it is added, so
+each event should get a unique stream of random numbers.  However, the seed is
+an environ value, and if you manually set it to a constant the derivation
+underneath should always derive the same way, provided you don't change the
+stack underneath the point where it gets set.  So you can freeze a derivation
+by inspecting the seed and hardcoding it manually, or you can ask for a
+different variation by setting a new seed.
 
 Because the seed depends on the stack, two calls on the same event will get the
 same random sequence.  Hopefully that's not a problem.
+
+'Derive.Call.Random' has some randomness-using calls.
+
+## local config
+
+TODO
+
+[doc/local](local.md.html)

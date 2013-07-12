@@ -211,10 +211,10 @@ The karya GUI doesn't have a place for global information, so logview serves
 this purpose too.  When log messages display stack traces, you can click on
 them to highlight their positions in the score.
 
-- browser - 'Instrument.Browser' is a simple browser for the instrument
-database.  To the UI and Derive layers, an instrument is just a text string,
-but they have quite a bit of extra information associated with them which is
-important to the performer.
+- [browser](browser.md.html) - 'Instrument.Browser' is a simple browser for
+the instrument database.  To the UI and Derive layers, an instrument is just a
+text string, but they have quite a bit of extra information associated with
+them which is important to the performer.
 
 - make_db - If the instruments involve expensive operations like parsing
 directories full of sysex messages, they can serialize the parsed instruments
@@ -234,11 +234,13 @@ includes the [global keymap](keymap.html), [builtin calls](calls.html), and
 
 The [quickstart](quickstart.md.html) covers configuration.
 
-For the purposes of documentation, there are three major layers:
+For the purposes of documentation, there are several major layers:
 
-- [UI](ui.md.html) handles user interaction, score editing, the GUI, and the
-REPL.  It's divided into UI which is just the GUI part, and Cmd, which is the
-infrastructure to turn user actions into score edits.
+- [UI](ui.md.html) documents the visible UI.  If Karya is a language, then the
+UI is the concrete syntax.
+
+- [Cmd](cmd.md.html) is intimately tied to the UI, since it's the way user
+actions on the UI get turned into score edits.
 
 - [Derivation](derivation.md.html) is the process of converting the UI-level
 score into medium-level score events.  This is where the complexity of score
@@ -249,9 +251,15 @@ the low level output that can directly produce sound.  What this is depends on
 the backend.  For example, the MIDI backend converts score events to MIDI
 messages, while the lilypond backend converts them to a lilypond score. Unlike
 derivation, there's likely nothing user-configurable here.  The idea is that
-score events are basically backend-independent, but there are various hacks due
-to the different capabilities of backends, and a certain amount of tangle due
-to instruments.  Conceptually, an instrument is just a string at the derivation
-level, but in practice they have various attributes which affect the derivation
-level, e.g. a default scale, or even affect the Cmd layer by bringing custom
-Cmds into scope.
+score events are basically backend-independent, but there are various hacks
+due to the different capabilities of backends, and a certain amount of tangle
+due to instruments.  Conceptually, an [instrument](instrument.md.html) is just
+a string at the derivation level, but in practice they have various attributes
+which affect the derivation level, e.g. a default scale, or even affect the
+Cmd layer by bringing custom Cmds into scope.
+
+- [Local](local.md.html) configuration reaches into all the layers, since you
+can configure all of them.  Karya's configuration is "self-hosted", i.e.
+written in Haskell along with the rest of the app, so there's really no firm
+line between configuring it and modifying its code.  However, there is support
+to make certain things easier to modify locally.

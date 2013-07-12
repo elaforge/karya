@@ -864,7 +864,7 @@ data CallInfo val = CallInfo {
     -- it around.  The evaluation fallback has to exist because track slicing
     -- may snip off the previous event.
     --
-    -- See note [prev-val] in "Derive.Args" for details.
+    -- See Note [prev-val] in "Derive.Args" for details.
     , info_prev_val :: !(Maybe (RealTime, val))
 
     , info_event :: !Event.Event
@@ -1274,7 +1274,7 @@ data ScaleError =
         -- The Text should be TrackLang.Val except that makes Eq not work.
     deriving (Eq, Show)
 
-{- note [control-modification]
+{- Note [control-modification]
     . Control tracks return a single control, and how that merges into the
       environ is up to the track.
     . It would be convenient to do it in an existing track, e.g. the pitch

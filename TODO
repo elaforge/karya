@@ -9,7 +9,7 @@ UNSORTED
   - it's confusing how some calls expect env vals like 'x = 1' and some expect
     controls like '%x = 1'.
   * instance Symbol IsString
-  - ( should be a transformer too
+  / ( should be a transformer too
   - Derive.Call.Gamakam, with janta, s-g-r, and r-s ornaments.
   * lower dynamic for subsequent legato notes
   * mordent and other grace notes can use legato
@@ -30,7 +30,6 @@ UNSORTED
     necessary.
     . What's worse, show_val gets it wrong, since it checks for parseable, not
       if it would have parsed as something else.
-  - support poly aftertouch for dyn
   - try writing criterion tests for midi performance and derivation
   - If I want to draw multiple signals together, I need a line or polygon
     + gradient function.  Maybe I can get ahold of the OS X graphics context
@@ -184,10 +183,13 @@ documentation
   - make haddocks for the various main modules, e.g. LogView.LogView
     Need CPP support for haddock.
   + doc/derivation.md
-  - split up derivation.md into separate files
+  / split up derivation.md into separate files
   * doc/ui.md
   - doc/performance.md
-  - doc/symbols.md
+  - doc/local.md
+  - doc/instrument.md
+  - doc/browser.md, or just use the haddock
+  + doc/symbols.md, link from ui
   - make sure core state types and their dependents have good haddock
   call doc:
     - I could go look through arg docs for controls and list all the controls
