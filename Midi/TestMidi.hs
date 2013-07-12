@@ -232,15 +232,15 @@ mmc :: WriteMsg -> String -> IO ()
 mmc write_msg msg = write_msg (0, Mmc.encode 127 mmc_msg)
     where
     mmc_msg
-        | Just smpte <- parse_smpte msg = Mmc.Goto smpte
+        | Just smpte <- parse_smpte msg = Mmc.Goto smpte 0
         | msg == "play" = Mmc.Play
         | msg == "stop" = Mmc.Stop
         | otherwise = error $ "unknown msg: " ++ msg
 
-parse_smpte :: String -> Maybe Mmc.Smpte
+parse_smpte :: String -> Maybe Midi.Smpte
 parse_smpte txt = do
     [h, m, s] <- Just $ Seq.split ":" txt
-    Mmc.Smpte <$> int h <*> int m <*> int s <*> return 0 <*> return 0
+    Midi.Smpte <$> int h <*> int m <*> int s <*> return 0
     where
     int s = case Numeric.readDec s of
         (n, "") : _ -> Just n

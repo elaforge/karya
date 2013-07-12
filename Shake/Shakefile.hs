@@ -537,12 +537,13 @@ dispatch modeConfig targets = do
     Shake.want [target | (False, target) <- zip handled targets]
     where
     hardcoded target = case target of
+        -- I should probably run this in staunch mode, -k.
         "checkin" -> do
             let debug = (modeToDir Debug </>)
             Shake.want $
                 [ debug "browser", debug "logview", debug "make_db"
                 , debug "seq", debug "update", debug "dump", debug "repl"
-                , modeToDir Profile </> "RunProfile"
+                , debug "test_midi", modeToDir Profile </> "RunProfile"
                 , "karya.cabal"
                 ] ++ extractableDocs
             dispatch modeConfig ["tests"]
@@ -551,7 +552,7 @@ dispatch modeConfig targets = do
             return True
         "binaries" -> do
             Shake.want $ map (modeToDir Opt </>)
-                ["browser", "logview", "make_db", "seq", "repl"]
+                ["browser", "logview", "make_db", "seq", "repl", "test_midi"]
             return True
         "clean" -> action $ do
             -- The shake database will remain because shake creates it after the
