@@ -561,9 +561,9 @@ dispatch modeConfig targets = do
             -- shakefile runs, but that's probably ok.
             system "rm" ["-rf", build]
             system "mkdir" [build]
-        "doc" -> action $ makeAllDocumentation config
-        "haddock" -> action $ makeHaddock config
-        "hlint" -> action $ hlint config
+        "doc" -> action $ makeAllDocumentation (modeConfig Test)
+        "haddock" -> action $ makeHaddock (modeConfig Test)
+        "hlint" -> action $ hlint (modeConfig Debug)
         "md" -> action $ need . map docToHtml =<< getMarkdown
         "profile" -> action $ do
             need [modeToDir Profile </> "RunProfile"]
@@ -571,7 +571,10 @@ dispatch modeConfig targets = do
                     `elem` hcFlags (configFlags (modeConfig Profile))
             system "tools/summarize_profile.py"
                 [if with_scc then "scc" else "no-scc"]
-        "show-config" -> action $ Trans.liftIO $ PPrint.pprint config
+        "show-debug" -> action $
+            Trans.liftIO $ PPrint.pprint (modeConfig Debug)
+        "show-opt" -> action $
+            Trans.liftIO $ PPrint.pprint (modeConfig Opt)
         "tests" -> action $ do
             need [runTests Nothing]
             system "test/run_tests" [runTests Nothing]
@@ -584,7 +587,6 @@ dispatch modeConfig targets = do
         _ -> return False
     action act = Shake.action act >> return True
     runTests tests = modeToDir Test </> ("RunTests" ++ maybe "" ('-':) tests)
-    config = modeConfig Debug
 
 hlint :: Config -> Shake.Action ()
 hlint config = do
@@ -681,16 +683,8 @@ getAllHaddock = do
 -- | Should this module have haddock documentation generated?
 wantsHaddock :: FilePath -> Bool
 wantsHaddock hs = not $ or
-    -- Unfortunately haddock doesn't understand LANGUAGE CPP.  I could pass
-    -- --opt-ghc=-cpp, but that runs CPP on everything, which crashes on other
-    -- modules.
-    [ hs `elem` cppFiles
-    , "_test.hs" `List.isSuffixOf` hs
+    [ "_test.hs" `List.isSuffixOf` hs
     , "_profile.hs" `List.isSuffixOf` hs
-    -- TODO Actually I would like to haddock these, but they rely on TESTING
-    -- being set.  Apparently haddock has no way to set CPP defines, so I
-    -- either have to add a way or stop using CPP for conditional exports.
-    , "Test.hs" `List.isSuffixOf` hs
     -- This will crash haddock on OS X since jack.h is likely not present.
     -- TODO sorta hacky
     , hs == "Midi/JackMidi.hsc"

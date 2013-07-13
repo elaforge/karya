@@ -166,7 +166,7 @@ convert_measures wanted = fmap staff1 . convert_staves wanted
 -- | Convert events to lilypond score.
 convert_staves ::
     [String] -- ^ Only include lilypond backslash commands listed here.
-    -- Or ["ALL"] to see them all, for debugging.
+    -- Or [\"ALL\"] to see them all, for debugging.
     -> [Lilypond.Event] -> Either String [StaffGroup]
 convert_staves wanted events =
     map extract_staves <$> Lilypond.convert_staff_groups default_config 0 events
