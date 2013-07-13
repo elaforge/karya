@@ -111,7 +111,7 @@ get_html_state haddock_dir app_dir = do
 
 -- | Convert a Document to HTML.
 doc_html :: HtmlState -> Document -> Text
-doc_html hstate = un_html . (html_header <>) . mconcatMap section
+doc_html hstate = un_html . (html_header hstate <>) . mconcatMap section
     where
     section (call_kind, scope_docs) =
         tag "h2" (html call_kind) <> "\n\n"
@@ -121,8 +121,8 @@ doc_html hstate = un_html . (html_header <>) . mconcatMap section
         <> mconcatMap (call_bindings_html hstate call_kind) calls
         <> "</dl>\n"
 
-html_header :: Html
-html_header =
+html_header :: HtmlState -> Html
+html_header hstate =
     "<meta charset=utf-8>\n"
     <> "<style type=text/css>\n" <> css <> "</style>\n"
     <> "<script>\n" <> javascript <> "</script>\n"
@@ -137,7 +137,9 @@ html_header =
         <> "\" onchange=\"search(this.value)\">\n\
         \<br>You can also search by <code>%control</code>, arg default\n\
         \(<code>name-arg</code>), and call kind (<code>note</code>,\n\
-        \<code>control</code>, ...)\n"
+        \<code>control</code>, ...)\n\
+        \<br>" <> html_doc hstate
+            "Common tags are documneted at 'Derive.Call.Tags'.\n"
     where default_search = "-internal -ly-only"
 
 css :: Html
@@ -289,7 +291,7 @@ html_link text url =
 type Scale = [CallBindings]
 
 scales_html :: HtmlState -> [Scale] -> Text
-scales_html hstate scales = un_html $ html_header
+scales_html hstate scales = un_html $ html_header hstate
         <> "<h2> Scales </h2>\n"
         <> "<dl class=main>\n" <> mconcatMap scale_html scales
         <> "</dl>\n"
