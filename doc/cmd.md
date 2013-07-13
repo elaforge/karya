@@ -245,5 +245,5 @@ tracks, and there are utilities for their definition in
 drum maps.
 
 Unfortunately, cmds are not yet introspectable for documentation like deriver
-calls are, so while the [browser](browser.md.html) can reveal their presence,
+calls are, so while the 'Instrument.Browser' can reveal their presence,
 you'll have to look at the instrument's source to know what they are.

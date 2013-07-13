@@ -6,8 +6,6 @@ UNSORTED
   * make ( set sustain-abs instead of +legato
     This way I don't have to turn off config_legato when I switch to attr
     legato.
-  - it's confusing how some calls expect env vals like 'x = 1' and some expect
-    controls like '%x = 1'.
   * instance Symbol IsString
   / ( should be a transformer too
   - Derive.Call.Gamakam, with janta, s-g-r, and r-s ornaments.
@@ -19,18 +17,17 @@ UNSORTED
   * make_db is creating 0b z1.db.gz
   * rename when_just to whenJust
   * rename Midi.Parse to Midi.Encode
-  - recent tends to collect pitches added via edit input
-    But since they have a specific pitch they're not useful.
-    Maybe I should have a separate recent queue only for transformers, and
-    the generator recent is only one slot.  That way I can still repeat the
-    last note call.
+  - recent tends to collect pitches added via edit input, but since they have
+    a specific pitch they're not useful.
+    . Maybe I should have a separate recent queue only for transformers, and
+      the generator recent is only one slot.  That way I can still repeat the
+      last note call.
   * leading hyphen on symbols is taken up by subtract attr, but that's
     practically useless.  I haven't ever used = either, maybe I should
     have + just be attrs, and have explicit calls to set or subtract, if ever
     necessary.
     . What's worse, show_val gets it wrong, since it checks for parseable, not
       if it would have parsed as something else.
-  - try writing criterion tests for midi performance and derivation
   - If I want to draw multiple signals together, I need a line or polygon
     + gradient function.  Maybe I can get ahold of the OS X graphics context
     and directly call cocoa functions.  For that to work on linux, I think I'd
@@ -305,6 +302,8 @@ lilypond:
   - use Util.Format in ly output
 
 negative duration / arrival beats:
+  - Get the pitch at the trigger point, then apply that pitch to the extent of
+    the event.
   - trill or trem with negative duration lines the integral number up to the
     end.
     It's not too practical since I can't have a note start where the negative
@@ -635,6 +634,7 @@ Ui:
       - display dense signals: omit text and trigger lines when zoomed out
 
 test:
+  - try writing criterion tests for midi performance and derivation
   - run tests in parallel
     Start thread for each processor, then have them take work from a queue.
   complete quickcheck derive testing
@@ -767,6 +767,10 @@ Cmd:
 
 Derive:
   tracklang:
+    - it's confusing how some calls expect env vals like 'x = 1' and some
+      expect controls like '%x = 1'.
+      . The obvious way to solve this would be to merge env vals and controls,
+        but that's a big change.
     - Track caching is too fragile, if I add a track with scope over everything
       then I get no caching.  Instead I should cache the bottom note track, or
       perhaps every note track.  But that doesn't work because they're all

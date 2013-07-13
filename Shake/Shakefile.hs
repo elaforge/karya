@@ -172,15 +172,18 @@ hsBinaries =
     gui name path deps icon = HsBinary name path deps (Just icon)
 
 -- | Hardcoded list of files that should be processed with CPP when chasing
--- deps.  It would be more robust to generate this dynamically by looking
--- for 'LANGUAGE .*CPP' but there aren't many.
+-- deps.
 cppFlags :: Config -> FilePath -> Maybe [String]
 cppFlags config fn
     | fn `elem` cppFiles = Just $
         cInclude (configFlags config) ++ define (configFlags config)
     | otherwise = Nothing
-    where
-    cppFiles = ["App/Main.hs", "Cmd/Repl.hs", "Midi/TestMidi.hs", "Ui/Sync.hs"]
+
+-- | Hardcoded list of modules that use CPP.  It would be more robust to
+-- generate this dynamically by looking for 'LANGUAGE .*CPP' but there aren't
+-- many.
+cppFiles :: [FilePath]
+cppFiles = ["App/Main.hs", "Cmd/Repl.hs", "Midi/TestMidi.hs", "Ui/Sync.hs"]
 
 -- | Module that define 'main' and should get linked to their own binaries,
 -- and the names of their eventual binaries.
@@ -678,7 +681,10 @@ getAllHaddock = do
 -- | Should this module have haddock documentation generated?
 wantsHaddock :: FilePath -> Bool
 wantsHaddock hs = not $ or
-    [ hs `elem` map hsMain hsBinaries
+    -- Unfortunately haddock doesn't understand LANGUAGE CPP.  I could pass
+    -- --opt-ghc=-cpp, but that runs CPP on everything, which crashes on other
+    -- modules.
+    [ hs `elem` cppFiles
     , "_test.hs" `List.isSuffixOf` hs
     , "_profile.hs" `List.isSuffixOf` hs
     -- TODO Actually I would like to haddock these, but they rely on TESTING

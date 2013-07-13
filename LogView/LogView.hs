@@ -3,18 +3,27 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 {-# LANGUAGE ScopedTypeVariables #-} -- for pattern type sig in catch
-{- | This module reads lines and streams them to the GUI, which displays them
-    in a scrolling box.  Clickable text is marked and will be highlighted in
-    the GUI.  When it's clicked, the GUI sends the tag back, much like an HTML
-    href.
+{- | This is a standalone program to monitor the log file.
 
-    This also maintains a filter.  The filter is a custom little language that
-    will filter out messages that don't match.
+    It reads lines and streams them to the GUI, which displays them in
+    a scrolling box.  Clickable text is surrounded by @{}@s and will be
+    highlighted blue in the GUI.  When it's clicked, the GUI sends the tag
+    back, much like an HTML href.  For example, stack traces are formatted as
+    a REPL cmd that will highlight that location on the score.
 
-    In addition, there is a concept of "catch patterns".  These are regexes
-    which are matched against msg text.  When one matches, the matched groups
-    are kept in a status line.  That way, events reported in the log can be
-    collected together.
+    The top line is the status bar, which extracts and remembers bits of
+    specially formatted log msgs.  This effectively functions as the app's
+    global status bar, since otherwise it has no place for this kind of
+    information.  The configuration is 'default_catch_patterns'.
+
+    This also maintains a filter.  The filter is a little language that will
+    filter out messages that don't match, documented by
+    'Process.compile_filter'.
+
+    In addition, there is a concept of 'Process.CatchPattern's.  These are
+    regexes which are matched against msg text.  When one matches, the matched
+    groups are kept in a status line.  That way, events reported in the log can
+    be collected together.
 -}
 module LogView.LogView where
 import qualified Control.Concurrent as Concurrent
@@ -51,13 +60,16 @@ initial_filter = "**"
 initial_size :: (Int, Int)
 initial_size = (900, 300)
 
+-- | Built-in list of catch patterns.
+--
+-- I wound up having the app emit catch patterns explicitly instead of putting
+-- the smarts in logview, so now the only CatchPattern is
+-- 'Process.global_status_pattern'.  But it still seems conceivable that
+-- someday I may want logview to catch things the app didn't explicitly mean to
+-- be caught, so I'll leave this functionality in for now.
 default_catch_patterns :: [Process.CatchPattern]
 default_catch_patterns =
     [ Process.global_status_pattern
-    -- I wound up having the app emit catch patterns explicitly instead of
-    -- putting the smarts in logview.  But it still seems conceivable that
-    -- I may want logview to catch things the app didn't explicitly mean to
-    -- be caught, so I'll leave this functionality in.
     ]
 
 -- | Remember this many log msgs.

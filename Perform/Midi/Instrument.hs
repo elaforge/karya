@@ -265,20 +265,17 @@ data Patch = Patch {
     patch_instrument :: !Instrument
     , patch_scale :: !PatchScale
     , patch_flags :: !(Set.Set Flag)
-    -- | Some midi instruments, like drum kits, have a different sound on each
-    -- key.  If there is a match in this map, the pitch will be replaced with
-    -- the given key.
     , patch_keymap :: !Keymap
     , patch_composite :: ![Composite]
     , patch_initialize :: !InitializePatch
-    -- | Keyswitches available to this instrument, if any.  Each of these is
-    -- considered its own instrument, like synth\/inst\/ks.  A keyswitch key
-    -- may occur more than once, and a name of \"\" is used when the
-    -- instrument is looked up without a keyswitch.
+    -- | Keyswitches available to this instrument, if any.  A keyswitch key
+    -- may occur more than once, and a name of \"\" is used when the instrument
+    -- is looked up without a keyswitch.
     , patch_keyswitches :: !KeyswitchMap
     , patch_attribute_map :: !AttributeMap
     -- | Key-value pairs used to index the patch.  A key may appear more than
-    -- once with different values.
+    -- once with different values.  Tags are free-form, but there is a list of
+    -- standard tags in "Instrument.Tag".
     , patch_tags :: ![Tag]
     -- | Some free form text about the patch.
     , patch_text :: !Text
@@ -286,7 +283,11 @@ data Patch = Patch {
     , patch_file :: !FilePath
     } deriving (Eq, Show)
 
--- | (low_key, high_key, pitch of low_key)
+-- | Some midi instruments, like drum kits, have a different sound on each
+-- key.  If there is a match in this map, the pitch will be replaced with
+-- the given key.
+--
+-- (low_key, high_key, pitch of low_key)
 type Keymap =
     Map.Map Score.Attributes (Midi.Key, Midi.Key, Maybe Pitch.NoteNumber)
 
@@ -444,11 +445,11 @@ instance Pretty.Pretty Flag where pretty = show
 -- ** keyswitch map
 
 -- | A KeyswitchMap maps a set of attributes to a keyswitch and gives
--- a piority for those mapping.  For example, if {pizz} is before {cresc}, then
--- {pizz, cresc} will map to {pizz}, unless, of course, {pizz, cresc} comes
--- before either.  So if a previous attr set is a subset of a later one, the
--- later one will never be selected.  'overlapping_keyswitches' will check for
--- that.
+-- a piority for those mapping.  For example, if @+pizz@ is before @+cresc@,
+-- then @+pizz+cresc@ will map to @+pizz@, unless, of course, @+pizz+cresc@
+-- comes before either.  So if a previous attr set is a subset of a later one,
+-- the later one will never be selected.  'overlapping_keyswitches' will check
+-- for that.
 --
 -- Two keyswitches with the same key will act as aliases for each other.
 newtype KeyswitchMap = KeyswitchMap [(Score.Attributes, [Keyswitch])]

@@ -211,7 +211,7 @@ The karya GUI doesn't have a place for global information, so logview serves
 this purpose too.  When log messages display stack traces, you can click on
 them to highlight their positions in the score.
 
-- [browser](browser.md.html) - 'Instrument.Browser' is a simple browser for
+- browser - 'Instrument.Browser' is a simple browser for
 the instrument database.  To the UI and Derive layers, an instrument is just a
 text string, but they have quite a bit of extra information associated with
 them which is important to the performer.
@@ -232,7 +232,7 @@ includes the [global keymap](keymap.html), [builtin calls](calls.html), and
 
 ## karya
 
-The [quickstart](quickstart.md.html) covers configuration.
+The [quickstart](quickstart.md.html) covers basic configuration.
 
 For the purposes of documentation, there are several major layers:
 

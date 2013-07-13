@@ -6,7 +6,19 @@
 {- | The instrument browser is a standalone program to browse the instrument
     database.
 
-    The query syntax is documented at 'Search.Query'.
+    Instruments are in the left pane, and the right pane has information on the
+    selected instrument.  A search box above the instrument list accepts
+    a simple query language, documneted at 'Search.Query'.
+
+    If you double click on an instrument name, 'choose_instrument' is called on
+    the instrument.
+
+    The instrument info is basically just a pretty-printed version of the
+    contents of 'Instrument.Patch'.  The 'Instrument.patch_tags' field is
+    especially relevant, since that's what 'Search.Query' uses.
+
+    Some parts of the instrument db may be generated offline, by
+    "Instrument.MakeDb".
 -}
 module Instrument.Browser where
 import qualified Control.Concurrent as Concurrent
@@ -195,7 +207,8 @@ quote s
     | Text.any Char.isSpace s = "\"" <> s <> "\""
     | otherwise = s
 
--- | Send the chosen instrument to the sequencer.
+-- | Send the chosen instrument to the sequencer.  This will send
+-- @load_instrument \"synth/inst\"@ to the REPL port.
 choose_instrument :: Score.Instrument -> IO ()
 choose_instrument inst = do
     let cmd = "load_instrument " ++ show (Score.inst_name inst)

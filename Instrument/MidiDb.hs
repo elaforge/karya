@@ -183,7 +183,7 @@ type PatchCode code = (Instrument.Patch, code)
 
 -- | This is a name for a synth with a generic \"main\" patch.  Typically this
 -- is a soft-synth that must be configured by its own UI.  Normally you'd
--- create an alias from a score-specific name to @>synth/*@, but if you look up
+-- create an alias from a score-specific name to @>synth/\*@, but if you look up
 -- a patch and it isn't found, the wildcard patch will be copied and returned.
 -- This is sort of a shorthand for explicitly creating an alias.
 -- TODO I could remove the feature if the complication outweighs the

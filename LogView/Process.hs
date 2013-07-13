@@ -56,11 +56,15 @@ state_msgs = Foldable.toList . state_cached_msgs
 
 -- | Transform the status line based on each msg.
 type Catch = Log.Msg -> Status -> Status
+
+-- | Extract text from a log msg and put it in 'state_status', via
+-- 'catch_regexes'.
 type CatchPattern = (String, Regex.Regex)
 
 -- ** status
 
 type Status = Map.Map String String
+
 render_status :: Status -> StyledText
 render_status status = run_formatter $
     sequence_ $ List.intersperse (with_style style_divider " || ")
@@ -146,6 +150,7 @@ catch_start msg status
     | Log.msg_string msg == "app starting" = Map.empty
     | otherwise = status
 
+-- | This catches msgs emitted by 'Cmd.Cmd.set_global_status'.
 global_status_pattern :: CatchPattern
 global_status_pattern = ("_", Regex.make "^global status: (.*?) -- (.*)")
 
@@ -159,12 +164,14 @@ match_pattern (title, reg) = Map.fromList . map extract . Regex.find_groups reg
 
 -- ** filter
 
--- | Filter language.
+-- | Filter language, created by 'compile_filter'.
 data Filter = Filter String (Log.Msg -> String -> Bool)
 instance Show Filter where
     show (Filter src _) = "compile_filter " ++ show src
 
--- TODO implement a better language
+-- | Compile a simple filter language.  A log msg matches if all of the words
+-- in the filter occur within its 'Log.msg_text', and none of the words
+-- prefixed by @-@ occur.
 compile_filter :: String -> Filter
 compile_filter s = Filter s f
     where

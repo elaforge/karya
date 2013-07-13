@@ -463,7 +463,7 @@ track and printing out documentation, most conveniently used through the
 REPL functions in 'Cmd.Repl.LBlock'.  In addition to the "online" docs,
 [Builtin call documentation](calls.html) is extracted separately, as is [scale
 documentation](scales.html).  Instrument calls can be viewed in the
-[instrument browser](browser.md.html).
+'Instrument.Browser'.
 
 ### Block calls
 

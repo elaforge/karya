@@ -6,7 +6,7 @@
 -- definitions.
 --
 -- TODO the 'load' and 'make_dbs' calls should be automatically generated from
--- the contents of the Local/Instrument/ dir.
+-- the contents of the Local\/Instrument\/ dir.
 module Local.Instrument where
 import qualified Data.List as List
 import System.FilePath ((</>))
