@@ -138,7 +138,7 @@ html_header =
         \<br>You can also search by <code>%control</code>, arg default\n\
         \(<code>name-arg</code>), and call kind (<code>note</code>,\n\
         \<code>control</code>, ...)\n"
-    where default_search = "-internal -ly"
+    where default_search = "-internal -ly-only"
 
 css :: Html
 css = ".main dl { border-bottom: 1px solid #999 }\n\
