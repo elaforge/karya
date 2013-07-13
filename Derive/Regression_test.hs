@@ -36,8 +36,21 @@ import qualified App.StaticConfig as StaticConfig
 import Types
 
 
-test_bloom = check =<< compare_performance "data/bloom-perf" "data/bloom.gz"
-test_pnovla = check =<< compare_performance "data/pnovla-perf" "data/pnovla.gz"
+-- | Perform the input score and save the midi msgs to the output file.
+-- This creates the -perf files.
+save_performance :: FilePath -> FilePath -> IO ()
+save_performance input output = do
+    msgs <- perform_file input
+    Serialize.serialize magic output msgs
+
+test_bloom = check =<< compare_performance
+    "data/bloom-perf.gz" "data/bloom.gz"
+test_pnovla = check =<< compare_performance
+    "data/pnovla-perf.gz" "data/pnovla.gz"
+test_viola_sonata = check =<< compare_performance
+    "data/viola-sonata-perf.gz" "data/viola-sonata.gz"
+
+-- * implementation
 
 compare_performance :: FilePath -> FilePath -> IO Bool
 compare_performance saved score = timeout score $ do
@@ -64,12 +77,6 @@ perform_file fname = do
             perform cmd_config state events
     mapM_ Log.write logs
     return msgs
-
--- | Perform the input score and save the midi msgs to the output file.
-save_performance :: FilePath -> FilePath -> IO ()
-save_performance input output = do
-    msgs <- perform_file input
-    Serialize.serialize magic output msgs
 
 load_midi :: FilePath -> IO [Midi.WriteMessage]
 load_midi fname = Serialize.unserialize magic fname >>= \x -> case x of
