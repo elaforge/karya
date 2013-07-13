@@ -143,14 +143,15 @@ test_stack = do
         ]
 
 test_simple_subderive = do
-    let (events, msgs) = extract_events $ DeriveTest.derive_blocks
+    let (events, msgs) = DeriveTest.extract DeriveTest.e_note $
+            DeriveTest.derive_blocks
             [ ("parent", [(">i1", [(0, 2, "sub"), (2, 1, "sub")])])
-            , ("sub=ruler", [(">", [(0, 1, "--1"), (1, 1, "--2")])])
+            , ("sub=ruler", UiTest.regular_notes 2)
             ]
     equal msgs []
     equal events
-        [ (0, 1, "--1"), (1, 1, "--2")
-        , (2, 0.5, "--1"), (2.5, 0.5, "--2")
+        [ (0, 1, "3c"), (1, 1, "3d")
+        , (2, 0.5, "3c"), (2.5, 0.5, "3d")
         ]
 
 test_subderive = do
@@ -159,25 +160,25 @@ test_subderive = do
                 [ ("tempo", [(0, 0, "2")])
                 , (">i1", evts)
                 ])
-            , ("sub=ruler", [(">i2", [(1, 1, "--sub1")])])
+            , ("sub=ruler", [(">i2", [(1, 1, "n --sub1")])])
             , ("empty", [(">i", [])])
             ]
     -- I used to test recursive call, but now that the block call doesn't
     -- catch that explicitly it means I get random crap before it finally
     -- aborts due to the call stack limit.
     let (events, msgs) = DeriveTest.r_split $ run
-            [(0, 1, "nosuch"), (1, 1, "empty"), (3, 1, "--x")]
+            [(0, 1, "nosuch"), (1, 1, "empty"), (3, 1, "n --x")]
     -- errors don't stop derivation, and an empty sub-block is ignored
-    equal (map DeriveTest.e_event events) [(1.5, 0.5, "--x")]
+    equal (map DeriveTest.e_event events) [(1.5, 0.5, "n --x")]
     strings_like (map DeriveTest.show_log msgs) ["call not found: nosuch"]
 
     equal (map (DeriveTest.show_stack . Log.msg_stack) msgs)
         ["b0 b0.t2 0-1"]
 
-    let res = run [(0, 8, "--b1"), (8, 8, "sub"), (16, 1, "--b2")]
+    let res = run [(0, 8, "n --b1"), (8, 8, "sub"), (16, 1, "n --b2")]
         (events, msgs) = DeriveTest.r_split res
     equal (map DeriveTest.e_event events)
-        [(0, 4, "--b1"), (6, 2, "--sub1"), (8, 0.5, "--b2")]
+        [(0, 4, "n --b1"), (6, 2, "n --sub1"), (8, 0.5, "n --b2")]
     equal (map Score.event_instrument events)
         (map Score.Instrument ["i1", "i2", "i1"])
     equal msgs []
@@ -226,9 +227,9 @@ test_subderive_multiple = do
                 , (inst_title, [(0, 8, "sub")])
                 ])
             , ("sub=ruler",
-                [ (">", [(0, 1, "--1-1"), (1, 1, "--1-2")])
+                [ (">", [(0, 1, ""), (1, 1, "")])
                 , ("*twelve", [(0, 0, "4c"), (1, 0, "4d")])
-                , (">", [(0, 1, "--2-1"), (1, 1, "--2-2")])
+                , (">", [(0, 1, ""), (1, 1, "")])
                 , ("*twelve", [(0, 0, "5c"), (1, 0, "5d")])
                 ])
             ]
@@ -243,10 +244,10 @@ test_multiple_subderive = do
     -- make sure a sequence of sub calls works
     let res = DeriveTest.derive_blocks
             [ ("b0", [(">i1", [(0, 2, "sub"), (2, 2, "sub"), (4, 2, "sub")])])
-            , ("sub=ruler", [(">", [(0, 1, "--sub1")])])
+            , ("sub=ruler", [(">", [(0, 1, "n --sub1")])])
             ]
     equal (extract_events res)
-        ([(0, 2, "--sub1"), (2, 2, "--sub1"), (4, 2, "--sub1")], [])
+        ([(0, 2, "n --sub1"), (2, 2, "n --sub1"), (4, 2, "n --sub1")], [])
 
     -- Empty inst inherits calling inst.
     equal (fst (DeriveTest.extract Score.event_instrument res))
@@ -278,9 +279,9 @@ test_tempo_compose = do
         ([(2, 1, ""), (3, 1, "")], [])
 
     -- Make sure the top level block doesn't get stretched.
-    equal (run [(0, 0, "2")] [(0, 2, "--1"), (2, 2, "sub"), (4, 2, "--2")]
+    equal (run [(0, 0, "2")] [(0, 2, "n --1"), (2, 2, "sub"), (4, 2, "n --2")]
             [(0, 0, ".5")]) $
-        ([(0, 1, "--1"), (1, 0.5, ""), (1.5, 0.5, ""), (2, 1, "--2")], [])
+        ([(0, 1, "n --1"), (1, 0.5, ""), (1.5, 0.5, ""), (2, 1, "n --2")], [])
 
     equal (run [(0, 0, "1"), (2, 0, "2")] [(0, 2, "sub")] [(0, 0, "1")]) $
         ([(0, 1, ""), (1, 1, "")], [])
@@ -538,26 +539,27 @@ test_tempo = do
             DeriveTest.extract extract $ DeriveTest.derive_tracks
                 [ ("tempo", tempo_track)
                 , ("*twelve", [(0, 10, "5a"), (10, 10, "5b"), (20, 10, "5c")])
-                , (">", [(0, 10, "--1"), (10, 10, "--2"), (20, 10, "--3")])
+                , (">", [(0, 10, "n --1"), (10, 10, "n --2"),
+                    (20, 10, "n --3")])
                 ]
 
     equal (f [(0, 0, "2")]) $
-        ([(0, 5, "--1"), (5, 5, "--2"), (10, 5, "--3")], [])
+        ([(0, 5, "n --1"), (5, 5, "n --2"), (10, 5, "n --3")], [])
 
     -- Slow down.
     equal (f [(0, 0, "2"), (20, 0, "i 1")]) $
-        ([(0, 5, "--1"), (5, 7, "--2"), (13, 10, "--3")], [])
+        ([(0, 5, "n --1"), (5, 7, "n --2"), (13, 10, "n --3")], [])
     equal (f [(0, 0, "2"), (20, 0, "i 0")]) $
-        ([(0, 6, "--1"), (6, 29, "--2"), (35, 10000, "--3")], [])
+        ([(0, 6, "n --1"), (6, 29, "n --2"), (35, 10000, "n --3")], [])
     -- Speed up.
     equal (f [(0, 0, "1"), (20, 0, "i 2")]) $
-        ([(0, 8, "--1"), (8, 5, "--2"), (14, 5, "--3")], [])
+        ([(0, 8, "n --1"), (8, 5, "n --2"), (14, 5, "n --3")], [])
     equal (f [(0, 0, "0"), (20, 0, "i 2")]) $
-        ([(0, 1028, "--1"), (1028, 7, "--2"), (1035, 5, "--3")], [])
+        ([(0, 1028, "n --1"), (1028, 7, "n --2"), (1035, 5, "n --3")], [])
 
     -- Change tempo.
     equal (f [(0, 0, "1"), (10, 0, "2")]) $
-        ([(0, 10, "--1"), (10, 5, "--2"), (15, 5, "--3")], [])
+        ([(0, 10, "n --1"), (10, 5, "n --2"), (15, 5, "n --3")], [])
 
 test_named_pitch = do
     let pname = Score.Control "psig"

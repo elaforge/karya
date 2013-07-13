@@ -257,7 +257,8 @@ derive_event :: (Derive.Derived d) =>
     -> [Event.Event] -- ^ following events
     -> (Either Derive.Error (LEvent.LEvents d), [Log.Msg], Derive.Collect)
 derive_event st tinfo prev_sample prev event next
-    | "--" `B.isPrefixOf` text = (Right mempty, [], Derive.state_collect st)
+    | "--" `B.isPrefixOf` B.dropWhile (==' ') text =
+        (Right mempty, [], Derive.state_collect st)
     | otherwise =
         case ParseBs.parse_expr text of
             Left err ->

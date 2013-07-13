@@ -23,13 +23,11 @@ test_sub_tracks = do
     let extract_c e = (DeriveTest.e_event e, DeriveTest.e_control "c1" e,
             DeriveTest.e_control "c2" e)
     let (events, logs) = DeriveTest.extract extract_c $ run
-            [ (">", [(0, 2, "--1"), (2, 2, "--2")])
+            [ (">", [(0, 2, ""), (2, 2, "")])
             , ("c1", [(0, 0, "0"), (1, 0, "1"), (2, 0, "2")])
             , ("c2", [(0, 0, "3"), (6, 0, "4")])
             ]
     equal logs []
-    -- Unfortunately the comment is lost since the expression is recreated
-    -- from the parsed version.
     equal events
         [ ((0, 2, ""), [(0, 0), (1, 1)], [(0, 3)])
         , ((2, 2, ""), [(2, 2)], [(0, 3), (6, 4)])
