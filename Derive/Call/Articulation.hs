@@ -70,36 +70,49 @@ note_calls = Derive.make_calls
 
 -- * legato
 
+-- | I'm not really sure how fancy calls should be.  On one hand, high level
+-- calls should get a nice result automatically.  On the other hand, they're
+-- not very composable if they override things like %sus-abs.
 c_legato :: Derive.NoteCall
 c_legato = Derive.stream_generator "legato" (Tags.attr <> Tags.subs <> Tags.ly)
-    "Play the transformed notes legato."
+    "Play the transformed notes legato.  This just makes all but the last\
+    \ overlap slightly.\
+    \\nYou can combine this with other controls to get fancier phrasing.\
+    \ For example, you can be detached by default but have legato connect\
+    \ notes, by setting `%legato-overlap = .05 | %sus-abs = -.05`.\
+    \\nOtherwise, you can use the `detach` and `dyn` args."
     $ Sig.call ((,,)
     <$> defaulted "overlap" (Sig.typed_control "legato-overlap" 0.1 Score.Real)
         "All notes but the last have their durations extended by this amount."
-    <*> defaulted "detach" 0.05 "Shorten the final note by this amount."
-    <*> defaulted "dyn" 0.75 "Scale dyn for notes after the first one by this\
+    <*> defaulted "detach" Nothing "Shorten the final note by this amount,\
+        \ by setting `%sus-abs`.\
+        \ The distinction between not given and 0 is important, because 0\
+        \ will still override `%sus-abs`, which you may not want."
+    <*> defaulted "dyn" 1 "Scale dyn for notes after the first one by this\
         \ amount."
-    ) $ \(overlap, detach, dyn) args -> do
+    ) $ \(overlap, maybe_detach, dyn) args -> do
         overlap <- Util.real_time_at overlap =<< Args.real_start args
-        note_legato overlap detach dyn =<< Sub.sub_events args
-    -- Note [legato]
-    -- Previously, it would set @+legato@, and the default note deriver would
-    -- then respond by overlapping with the next note.  The theory was that it
-    -- would allow more flexibility since I could then swap out the default
-    -- note deriver.  However, in practice, the note deriver doesn't know about
-    -- the extent of the legato phrase, so it would need @+legato@ on all but
-    -- the last note.  And I wound up swapping out the legato call itself since
-    -- samplers with legato samples need the legato keyswitch on all notes, not
-    -- just all-but-the-last, so I'd have to swap out both the legato call and
-    -- the note call.  In addition, I added features like @detach@ and @dyn@
-    -- and delegating note overlap to the note didn't make so much sense.
+        note_legato overlap maybe_detach dyn =<< Sub.sub_events args
 
-note_legato :: RealTime -> RealTime -> Signal.Y -> [[Sub.Event]]
+note_legato :: RealTime -> Maybe RealTime -> Signal.Y -> [[Sub.Event]]
     -> Derive.EventDeriver
-note_legato overlap detach dyn = Sub.place . concat . map apply
+note_legato overlap maybe_detach dyn = Sub.place . concat . map apply
     where
     apply = Seq.map_init (Sub.map_event (set_sustain overlap))
-        . apply_legato detach dyn
+        . apply_dyn dyn . maybe id apply_detach maybe_detach
+
+{- Note [legato]
+    Previously, it would set @+legato@, and the default note deriver would
+    then respond by overlapping with the next note.  The theory was that it
+    would allow more flexibility since I could then swap out the default
+    note deriver.  However, in practice, the note deriver doesn't know about
+    the extent of the legato phrase, so it would need @+legato@ on all but
+    the last note.  And I wound up swapping out the legato call itself since
+    samplers with legato samples need the legato keyswitch on all notes, not
+    just all-but-the-last, so I'd have to swap out both the legato call and
+    the note call.  In addition, I added features like @detach@ and @dyn@
+    and delegating note overlap to the note didn't make so much sense.
+-}
 
 c_ly_slur :: Derive.NoteCall
 c_ly_slur = Derive.stream_generator "ly-slur" (Tags.subs <> Tags.ly_only)
@@ -121,28 +134,27 @@ c_attr_legato :: Derive.NoteCall
 c_attr_legato = Derive.stream_generator "legato" (Tags.attr <> Tags.subs)
     "Make a phrase legato by applying the `+legato` attribute. This is for\
     \ instruments that understand it, for instance with a keyswitch for\
-    \ transition samples.\
-    \\nIf you use this, you should definitely turn off `Note.config_legato`.\
-    \ Otherwise, the detach argument won't work."
+    \ transition samples."
     $ Sig.call ((,)
-    <$> defaulted "detach" 0.05 "Shorten the final note by this amount.\
-        \ This is to avoid triggering legato from the previous note."
-    <*> defaulted "dyn" 0.75 "Scale dyn for notes after the first one by this\
-        \ amount. Otherwise, transition samples can be too loud."
-    ) $ \(detach, dyn) -> attr_legato detach dyn <=< Sub.sub_events
+    <$> defaulted "detach" Nothing "If set, shorten the final note by this\
+        \ amount. This is to avoid triggering legato from the previous note."
+    <*> defaulted "dyn" 1 "Scale dyn for notes after the first one by\
+        \ this amount. Otherwise, transition samples can be too loud."
+    ) $ \(detach, dyn) ->
+        Util.add_attrs Attrs.legato . note_legato 0.02 detach dyn
+            <=< Sub.sub_events
 
-attr_legato :: RealTime -> Signal.Y -> [[Sub.Event]] -> Derive.EventDeriver
-attr_legato detach dyn = Sub.place . concatMap apply
-    where
-    apply = add_attr . add_overlap . apply_legato detach dyn
-    add_attr = Sub.map_events (Util.add_attrs Attrs.legato)
-    add_overlap = Seq.map_init (Sub.map_event (set_sustain 0.02))
+apply_detach :: RealTime -> [Sub.Event] -> [Sub.Event]
+apply_detach detach = Seq.map_last (Sub.map_event (set_sustain (-detach)))
+
+apply_dyn :: Signal.Y -> [Sub.Event] -> [Sub.Event]
+apply_dyn dyn = Seq.map_tail (Sub.map_event (Util.multiply_dynamic dyn))
 
 -- | Apply detach and dyn arguments.  This sets 'Controls.sustain_abs' instead
 -- of adding to it because it feels like legato should override any sustain
 -- environment in place.
-apply_legato :: RealTime -> Signal.Y -> [Sub.Event] -> [Sub.Event]
-apply_legato detach dyn =
+apply_phrase :: RealTime -> Signal.Y -> [Sub.Event] -> [Sub.Event]
+apply_phrase detach dyn =
     Seq.map_tail (Sub.map_event (Util.multiply_dynamic dyn))
     . Seq.map_last (Sub.map_event (set_sustain (-detach)))
 
