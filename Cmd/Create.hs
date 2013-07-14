@@ -264,7 +264,9 @@ splice_below = do
     block <- State.get_block block_id
     let tracknum = track_after block sel_tracknum
     track_id <- focused_track block_id tracknum
-    State.splice_skeleton_below block_id tracknum sel_tracknum
+    -- If you create from track 0, it'll be (1, 1) here.
+    when (tracknum /= sel_tracknum) $
+        State.splice_skeleton_below block_id tracknum sel_tracknum
     return track_id
 
 splice_above :: (Cmd.M m) => m TrackId

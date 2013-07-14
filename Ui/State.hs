@@ -415,7 +415,7 @@ instance Pretty.Pretty Error where
     pretty Abort = "(abort)"
 
 require :: (M m) => String -> Maybe a -> m a
-require err = maybe (throw err) return
+require err = maybe (throw $ "required: " <> err) return
 
 require_right :: (M m) => (err -> String) -> Either err a -> m a
 require_right fmt_err = either (throw . fmt_err) return
