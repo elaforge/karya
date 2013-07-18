@@ -69,6 +69,9 @@ range_ start step = go 0
 key_on :: (a -> k) -> [a] -> [(k, a)]
 key_on f xs = zip (map f xs) xs
 
+key_on_maybe :: (a -> Maybe k) -> [a] -> [(k, a)]
+key_on_maybe f xs = [(k, a) | (Just k, a) <- key_on f xs]
+
 -- | Apply a function to the first and last elements.  Middle elements are
 -- unchanged.  A null or singleton list is also unchanged.
 first_last :: (a -> a) -> (a -> a) -> [a] -> [a]

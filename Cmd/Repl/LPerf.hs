@@ -7,14 +7,21 @@
 module Cmd.Repl.LPerf where
 import qualified Data.List as List
 import qualified Data.Map as Map
+import qualified Data.Ratio as Ratio
+import Data.Ratio ((%))
+import qualified Data.Text as Text
 
 import Util.Control
 import qualified Util.Log as Log
+import qualified Util.Num as Num
 import qualified Util.Seq as Seq
 
 import qualified Midi.Midi as Midi
 import qualified Ui.Id as Id
+import qualified Ui.State as State
 import qualified Ui.Track as Track
+import qualified Ui.Types as Types
+
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Perf as Perf
 import qualified Cmd.Performance as Performance
@@ -34,18 +41,20 @@ import qualified Derive.TrackWarp as TrackWarp
 import qualified Perform.Midi.Convert as Midi.Convert
 import qualified Perform.Midi.Instrument as Instrument
 import qualified Perform.Midi.Perform as Perform
+import qualified Perform.Pitch as Pitch
 import qualified Perform.Signal as Signal
 
+import qualified App.Config as Config
 import Types
 
 
-get_root :: Cmd.CmdL Cmd.Performance
-get_root = Cmd.require =<< Perf.lookup_root
+get_root :: (Cmd.M m) => m Cmd.Performance
+get_root = Perf.get_root
 
-get :: BlockId -> Cmd.CmdL Cmd.Performance
+get :: (Cmd.M m) => BlockId -> m Cmd.Performance
 get = Cmd.get_performance
 
-get_current :: BlockId -> Cmd.CmdL Cmd.Performance
+get_current :: (Cmd.M m) => BlockId -> m Cmd.Performance
 get_current block_id = Cmd.require =<< Map.lookup block_id <$>
     Cmd.gets (Cmd.state_current_performance . Cmd.state_play)
 
@@ -80,7 +89,7 @@ sel_to_real = do
     tempo <- Cmd.perf_tempo <$> get block_id
     return $ tempo block_id track_id pos
 
-get_realtime :: Bool -> Cmd.CmdL RealTime
+get_realtime :: (Cmd.M m) => Bool -> m RealTime
 get_realtime root = do
     (block_id, _, track_id, pos) <- Selection.get_insert
     perf <- if root then get_root else get block_id
@@ -359,3 +368,81 @@ entry_events entry = case entry of
     Derive.CachedEvents (Derive.CallType _ events) -> length events
     Derive.CachedControl (Derive.CallType _ events) -> length events
     Derive.CachedPitch (Derive.CallType _ events) -> length events
+
+
+-- * pitches
+
+type Ratio = Ratio.Ratio Int
+
+-- | Show chord ratios at current selection.
+chord :: Cmd.CmdL Text
+chord = do
+    (view_id, sel) <- Selection.get
+    show_chord <$> chord_at_sel view_id sel
+
+show_chord :: [(Pitch.NoteNumber, Pitch.Note, Ratio)] -> Text
+show_chord = Text.intercalate ", " . map pretty
+    where
+    pretty (_, note, ratio) = Pitch.note_text note <> ":"
+        <> showt (Ratio.numerator ratio)
+        <> "/" <> showt (Ratio.denominator ratio)
+
+set_chord_status :: (Cmd.M m) => ViewId -> Maybe Types.Selection -> m ()
+set_chord_status view_id maybe_sel = case maybe_sel of
+    Nothing -> set Nothing
+    Just sel -> set . Just . show_chord =<< chord_at_sel view_id sel
+    where set = Cmd.set_view_status view_id Config.status_chord
+
+-- | Show the ratios of the frequencies of the notes at the time of the current
+-- selection.  They are sorted by their track-order, and the track with the
+-- selection is considered unity.
+chord_at_sel :: (Cmd.M m) => ViewId -> Types.Selection
+    -> m [(Pitch.NoteNumber, Pitch.Note, Ratio)]
+chord_at_sel view_id sel = do
+    block_id <- State.block_id_of view_id
+    maybe_track_id <- State.event_track_at block_id (Selection.point_track sel)
+    perf <- Perf.get_root
+    pos <- Perf.get_realtime perf block_id maybe_track_id (Selection.point sel)
+    events <- PlayUtil.overlapping_events pos . Cmd.perf_events <$> get block_id
+    events <- sort_by_track block_id events
+    let selected = do
+            track_id <- maybe_track_id
+            List.find (on_track track_id) events
+    let nns = mapMaybe (Score.nn_at pos) events
+        notes = mapMaybe (Score.note_at pos) events
+    return $ List.zip3 nns notes (nn_ratios (Score.nn_at pos =<< selected) nns)
+    where
+    on_track track_id = (== Just track_id) . fmap snd . Stack.block_track_of
+        . Score.event_stack
+
+-- | Sort events by the tracknum of the tracks they fall on.  Filter out
+-- events that don't directly originate from a track on the given block.
+--
+-- TODO I should look for the block anywhere in the stack, and sort it by the
+-- corresponding track.
+sort_by_track :: (State.M m) => BlockId -> [Score.Event] -> m [Score.Event]
+sort_by_track block_id events = do
+    let by_track = Seq.key_on_maybe
+            (fmap snd . Stack.block_track_of . Score.event_stack) events
+    tracknums <- mapM (State.tracknum_of block_id . fst) by_track
+    let by_tracknum = [(tracknum, event)
+            | (Just tracknum, event) <- zip tracknums (map snd by_track)]
+    return $ map snd $ Seq.sort_on fst by_tracknum
+
+nn_ratios :: Maybe Pitch.NoteNumber -> [Pitch.NoteNumber] -> [Ratio]
+nn_ratios unity nns = case (unity, nns) of
+    (Just unity, nns) -> ratios unity nns
+    (Nothing, nn : nns) -> ratios nn nns
+    (_, []) -> []
+    where
+    ratios unity nns =
+        map (uncurry (%) . Num.ratio_of 100 . (/ hz unity) . hz) nns
+    hz = Pitch.nn_to_hz
+
+overlapping_events :: Bool -> Cmd.CmdL (RealTime, [Score.Event])
+overlapping_events from_root = do
+    (block_id, start, _) <-
+        if from_root then Selection.realtime else Selection.local_realtime
+    events <- PlayUtil.overlapping_events start . Cmd.perf_events <$>
+        get block_id
+    return (start, events)

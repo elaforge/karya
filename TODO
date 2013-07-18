@@ -3,12 +3,16 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
+  - add a hook for cmds run when the selection changes
+    It would include setting pos status, setting realtime pos status,
+    setting chord, mmc goto.
   * make ( set sustain-abs instead of +legato
     This way I don't have to turn off config_legato when I switch to attr
     legato.
   * instance Symbol IsString
   / ( should be a transformer too
   - Derive.Call.Gamakam, with janta, s-g-r, and r-s ornaments.
+    Also there's a slight lift at the end of notes.
   * lower dynamic for subsequent legato notes
   * mordent and other grace notes can use legato
   * I can reapply normal calls easily, but I need some way to reapply a note
@@ -820,7 +824,7 @@ Derive:
     - continuous tempo warping for signals
       tempo: "2" -> "1", "2", cont: "2" -> "i, 1", should emit a bent line
 
-pitch / scales
+pitch: scales: scale:
   scales / Derive.Scale:
     just intonation
       - Make just scale support keys with greater or less than 7 degrees
@@ -830,9 +834,9 @@ pitch / scales
           So just changing the ratios doesn't work.
       - interpolate between just scales in different keys
       display:
-        - Show ratio relationships between sounding pitches.
+        * Show ratio relationships between sounding pitches.
           Reduce float to ratio: denom from [1..n]
-        - Optionally select one pitch as 1/1, and show the others relative to
+        * Optionally select one pitch as 1/1, and show the others relative to
           it.  Otherwise, they're relative to the key.
     - meantone
     - Interpolate between two scales.  The main thing is to establish a note

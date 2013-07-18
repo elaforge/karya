@@ -98,3 +98,27 @@ d2i d = floor (clamp min_int max_int d)
     where
     max_int = fromIntegral (maxBound :: Int)
     min_int = fromIntegral (minBound :: Int)
+
+-- * misc
+
+-- | Figure out closest ratio to the given double, whose denominator is up
+-- to the given precision.
+ratio_of :: Int -> Double -> (Int, Int)
+ratio_of precision d = (int * floor denom + round (frac * denom), floor denom)
+    where
+    denom = min_or_0 error_of 2 [3 .. fromIntegral precision]
+    (int, frac) = properFraction d
+    error_of denom = abs (frac - fromIntegral (round (frac * denom)) / denom)
+
+-- | This is like 'Seq.minimum_on' except it returns as soon as it sees 0.
+min_or_0 :: (Num key, Ord key) => (a -> key) -> a -> [a] -> a
+min_or_0 key x xs
+    | key x == 0 = x
+    | otherwise = go (key x) x xs
+    where
+    go _ low [] = low
+    go low_k low (x:xs)
+        | k == 0 = x
+        | k < low_k = go k x xs
+        | otherwise = go low_k low xs
+        where k = key x
