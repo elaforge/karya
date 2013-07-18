@@ -86,14 +86,21 @@ save_dir = RelativePath "save"
 
 -- ** per-view
 
+status_chord :: (Int, Text)
+status_chord = (7, "chord")
+
 -- | Selection start and range.  This goes at the end because it changes width
 -- a lot.
 status_selection :: (Int, Text)
 status_selection = (8, "s")
 
+-- | Selection start in RealTime.
+status_realtime :: (Int, Text)
+status_realtime = (9, "sec")
+
 -- | Zoom and scroll of the visible area.
 status_zoom :: (Int, Text)
-status_zoom = (9, "z")
+status_zoom = (10, "z")
 
 -- ** per block
 

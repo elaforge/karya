@@ -3,7 +3,7 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
-  - add a hook for cmds run when the selection changes
+  * add a hook for cmds run when the selection changes
     It would include setting pos status, setting realtime pos status,
     setting chord, mmc goto.
   * make ( set sustain-abs instead of +legato

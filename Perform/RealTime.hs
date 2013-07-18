@@ -42,6 +42,7 @@
 -}
 module Perform.RealTime (
     RealTime, div, mul, large, suffix
+    , show_units
     -- * convert from
     , seconds, milliseconds, microseconds, score
     -- * convert to
@@ -120,6 +121,16 @@ large = RealTime (2^32)
 
 suffix :: Char
 suffix = 's'
+
+-- | Show RealTime as hours, minutes, seconds.
+show_units :: RealTime -> Text
+show_units t = units <> Pretty.prettytxt (seconds (fromIntegral secs + frac))
+    where
+    units = mconcat $ map (\(a, b) -> showt a <> b) $
+        filter ((>0) . fst) [(hours, "h"), (mins, "m")]
+    (t1, frac) = properFraction (to_seconds t)
+    (hours, t2) = t1 `divMod` (60 * 60)
+    (mins, secs) = t2 `divMod` 60
 
 -- * convert from
 

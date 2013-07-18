@@ -374,6 +374,10 @@ entry_events entry = case entry of
 
 type Ratio = Ratio.Ratio Int
 
+-- | A hook for 'Cmd.hooks_selection'.
+chord_hook :: [(ViewId, Maybe Types.Selection)] -> Cmd.CmdId ()
+chord_hook = mapM_ (uncurry set_chord_status)
+
 -- | Show chord ratios at current selection.
 chord :: Cmd.CmdL Text
 chord = do

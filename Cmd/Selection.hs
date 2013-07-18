@@ -33,7 +33,6 @@ import qualified Ui.Types as Types
 import qualified Ui.UiMsg as UiMsg
 
 import qualified Cmd.Cmd as Cmd
-import qualified Cmd.Internal as Internal
 import qualified Cmd.Msg as Msg
 import qualified Cmd.Perf as Perf
 import qualified Cmd.TimeStep as TimeStep
@@ -292,7 +291,7 @@ mouse_drag btn msg = do
     -- The button down should be the same one as expected.
     when (msg_btn /= btn) Cmd.abort
     keys_down <- Cmd.keys_down
-    let mouse_down = Map.lookup (Internal.strip_modifier mod) keys_down
+    let mouse_down = Map.lookup (Cmd.strip_modifier mod) keys_down
     let down_at = case (is_down, mouse_down) of
             (False, Just (Cmd.MouseMod _ (Just track))) -> track
             -- If it's not already held down, it starts here.

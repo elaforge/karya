@@ -28,7 +28,7 @@ import Types
 track_cmd :: Cmd.Cmd
 track_cmd msg = do
     cmds <- get_track_cmds
-    Cmd.run_subs cmds msg
+    Cmd.sequence_cmds cmds msg
 
 -- | Get cmds according to the currently focused block and track.
 get_track_cmds :: Cmd.CmdId [Cmd.Cmd]

@@ -32,12 +32,15 @@ import qualified Ui.Update as Update
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Info as Info
 import qualified Cmd.Msg as Msg
+import qualified Cmd.Perf as Perf
+import qualified Cmd.Selection as Selection
 import qualified Cmd.TimeStep as TimeStep
 
 import qualified Derive.ParseBs as ParseBs
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.TrackInfo as TrackInfo
 
+import qualified Perform.RealTime as RealTime
 import qualified App.Config as Config
 import Types
 
@@ -59,17 +62,17 @@ cmd_record_keys msg = cont $ whenJust (msg_to_mod msg) $ \(down, mb_mod) -> do
         _ -> return mods2
     -- whenJust mb_mod $ \m ->
     --     Log.warn $ (if down then "keydown " else "keyup ")
-    --         ++ show (strip_modifier m) ++ " in " ++ show (Map.keys mods)
+    --         ++ show (Cmd.strip_modifier m) ++ " in " ++ show (Map.keys mods)
     Cmd.modify $ \st -> st { Cmd.state_keys_down = mods3 }
     where
     cont = (>> return Cmd.Continue)
     insert mod mods = do
-        let key = strip_modifier mod
+        let key = Cmd.strip_modifier mod
         when (key `Map.member` mods) $
             Log.warn $ "keydown for " ++ show mod ++ " already in modifiers"
         return $ Map.insert key mod mods
     delete mod mods = do
-        let key = strip_modifier mod
+        let key = Cmd.strip_modifier mod
         when (key `Map.notMember` mods) $
             Log.warn $ "keyup for " ++ show key ++ " not in modifiers "
                 ++ show (Map.keys mods)
@@ -81,13 +84,6 @@ cmd_record_keys msg = cont $ whenJust (msg_to_mod msg) $ \(down, mb_mod) -> do
         Nothing -> mods
     not_key_mod (Cmd.KeyMod _) = False
     not_key_mod _ = True
-
-
--- | Take a modifier to its key in the modifier map which has extra info like
--- mouse down position stripped.
-strip_modifier :: Cmd.Modifier -> Cmd.Modifier
-strip_modifier (Cmd.MouseMod btn _) = Cmd.MouseMod btn Nothing
-strip_modifier mod = mod
 
 modifier_key :: Cmd.Modifier -> Maybe Key.Modifier
 modifier_key (Cmd.KeyMod m) = Just m
@@ -256,7 +252,7 @@ track_bg track
 
 -- * sync
 
-sync_status :: (Cmd.M m) => State.State -> Cmd.State -> m Cmd.Status
+sync_status :: State.State -> Cmd.State -> Cmd.CmdId Cmd.Status
 sync_status ui_from cmd_from = do
     edit_state <- Cmd.gets Cmd.state_edit
     ui_to <- State.get
@@ -269,7 +265,7 @@ sync_status ui_from cmd_from = do
 
     when (State.state_config ui_from /= State.state_config ui_to) $
         sync_ui_config (State.state_config ui_to)
-    forM_ (mapMaybe selection_update updates) (uncurry sync_selection)
+    selection_hooks (mapMaybe selection_update updates)
     forM_ (new_views ++ mapMaybe zoom_update updates) sync_zoom_status
     return Cmd.Continue
     where
@@ -285,6 +281,20 @@ view_updates :: State.State -> State.State -> [Update.UiUpdate]
 view_updates ui_from ui_to = fst $ Diff.run $
     Diff.diff_views ui_from ui_to
         (State.state_views ui_from) (State.state_views ui_to)
+
+-- ** hooks
+
+default_selection_hooks :: [[(ViewId, Maybe Types.Selection)] -> Cmd.CmdId ()]
+default_selection_hooks =
+    [ mapM_ (uncurry sync_selection)
+    , mapM_ (uncurry realtime_selection)
+    ]
+
+selection_hooks :: [(ViewId, Maybe Types.Selection)] -> Cmd.CmdId ()
+selection_hooks [] = return ()
+selection_hooks sels = do
+    hooks <- Cmd.gets (Cmd.hooks_selection . Cmd.state_hooks)
+    mapM_ ($ sels) hooks
 
 
 -- ** sync
@@ -391,6 +401,7 @@ sync_selection view_id maybe_sel = do
             set $ Just (selection_status ns sel tid)
             Info.set_inst_status block_id (Types.sel_cur_track sel)
 
+
 selection_status :: Id.Namespace -> Types.Selection -> Maybe TrackId -> Text
 selection_status ns sel maybe_track_id =
     Pretty.prettytxt start
@@ -401,3 +412,17 @@ selection_status ns sel maybe_track_id =
     where
     (start, end) = Types.sel_range sel
     (tstart, tend) = Types.sel_track_range sel
+
+realtime_selection :: (Cmd.M m) => ViewId -> Maybe Types.Selection -> m ()
+realtime_selection view_id maybe_sel = case maybe_sel of
+    Nothing -> set Nothing
+    Just sel ->
+        set . Just . RealTime.show_units =<< realtime_at_selection view_id sel
+    where set = Cmd.set_view_status view_id Config.status_realtime
+
+realtime_at_selection :: (Cmd.M m) => ViewId -> Types.Selection -> m RealTime
+realtime_at_selection view_id sel = do
+    block_id <- State.block_id_of view_id
+    track_id <- State.event_track_at block_id (Selection.point_track sel)
+    perf <- Perf.get_root
+    Perf.get_realtime perf block_id track_id (Selection.point sel)

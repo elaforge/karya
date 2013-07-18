@@ -69,7 +69,7 @@ cmds_with_note kbd_map kbd_entry maybe_patch cmds msg = do
         else return Nothing
     new_msgs <- maybe (midi_input msg) (return . Just) new_msgs
     case new_msgs of
-        Nothing -> Cmd.run_subs cmds msg
+        Nothing -> Cmd.sequence_cmds cmds msg
         Just msgs -> foldr Cmd.merge_status Cmd.Done <$> mapM send msgs
     where
     send msg = do
@@ -78,7 +78,7 @@ cmds_with_note kbd_map kbd_entry maybe_patch cmds msg = do
                 Cmd.modify_wdev_state $ \wdev -> wdev
                     { Cmd.wdev_last_note_id = Just note_id }
             _ -> return ()
-        Cmd.run_subs cmds msg
+        Cmd.sequence_cmds cmds msg
 
 are_modifiers_down :: (Cmd.M m) => m Bool
 are_modifiers_down = fmap (not . Set.null) Keymap.mods_down

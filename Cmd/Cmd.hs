@@ -59,6 +59,7 @@ import qualified Control.Monad.Trans as Trans
 
 import qualified Data.Generics as Generics
 import qualified Data.Map as Map
+import qualified Data.Monoid as Monoid
 import qualified Data.Set as Set
 import qualified Data.Text as Text
 
@@ -197,13 +198,13 @@ run_id ui_state cmd_state cmd =
 
 -- | Run a set of Cmds as a single Cmd.  The first one to return non-Continue
 -- will return.  Cmds can use this to dispatch to other Cmds.
-run_subs :: [Cmd] -> Cmd
-run_subs [] _ = return Continue
-run_subs (cmd:cmds) msg = do
+sequence_cmds :: [Cmd] -> Cmd
+sequence_cmds [] _ = return Continue
+sequence_cmds (cmd:cmds) msg = do
     status <- catch_abort (cmd msg)
     case status of
-        Nothing -> run_subs cmds msg
-        Just Continue -> run_subs cmds msg
+        Nothing -> sequence_cmds cmds msg
+        Just Continue -> sequence_cmds cmds msg
         Just status -> return status
 
 -- * CmdT and operations
@@ -315,6 +316,7 @@ data State = State {
     -- spam.
     , state_global_status :: !(Map.Map Text Text)
     , state_play :: !PlayState
+    , state_hooks :: !Hooks
 
     -- External device tracking.
     -- | MIDI state of WriteDevices.
@@ -358,6 +360,7 @@ initial_state config = State
     , state_screens = []
     , state_global_status = Map.empty
     , state_play = initial_play_state
+    , state_hooks = mempty
 
     , state_wdev_state = empty_wdev_state
     , state_rdev_state = Map.empty
@@ -520,6 +523,21 @@ instance Pretty.Pretty SyncConfig where
             , ("mtc", Pretty.format mtc)
             , ("frame_rate", Pretty.text (show rate))
             ]
+
+-- ** hooks
+
+-- | Hooks are Cmds that run after some event.
+data Hooks = Hooks {
+    -- | Run when the selection changes.
+    hooks_selection :: [[(ViewId, Maybe Types.Selection)] -> CmdId ()]
+    }
+
+instance Show Hooks where
+    show (Hooks sel) = "((Hooks " ++ show (length sel) ++ "))"
+
+instance Monoid.Monoid Hooks where
+    mempty = Hooks []
+    mappend (Hooks sel1) (Hooks sel2) = Hooks (sel1 <> sel2)
 
 -- ** EditState
 
@@ -829,6 +847,13 @@ data Modifier = KeyMod Key.Modifier
 mouse_mod_btn :: Modifier -> Maybe Types.MouseButton
 mouse_mod_btn (MouseMod btn _) = Just btn
 mouse_mod_btn _ = Nothing
+
+
+-- | Take a modifier to its key in the modifier map which has extra info like
+-- mouse down position stripped.
+strip_modifier :: Modifier -> Modifier
+strip_modifier (MouseMod btn _) = MouseMod btn Nothing
+strip_modifier mod = mod
 
 
 -- ** state access

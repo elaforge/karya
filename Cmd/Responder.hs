@@ -130,6 +130,9 @@ setup_state state = state
         { Cmd.state_time_step = TimeStep.time_step $
             TimeStep.AbsoluteMark TimeStep.AllMarklists Meter.r_4
         }
+    , Cmd.state_hooks = (Cmd.state_hooks state)
+        { Cmd.hooks_selection = Internal.default_selection_hooks
+        }
     }
 
 -- | Create a 'Cmd.Config'.  It would be nicer in "Cmd.Cmd", but that would

@@ -161,6 +161,17 @@ events_from start events
     where
     i = Vector.lowest_index Score.event_start (start - RealTime.eta) events
 
+-- | How to know far back to go?  Impossible to know!  Well, I could look
+-- up overlapping ui events, then map the earliest time to RealTime, and start
+-- searching there.
+overlapping_events :: RealTime -> Cmd.Events -> [Score.Event]
+overlapping_events pos = Vector.foldl' collect []
+    where
+    collect overlap event
+        | Score.event_end event <= pos || Score.event_start event > pos =
+            overlap
+        | otherwise = event : overlap
+
 -- | Filter events according to the Solo and Mute flags in the tracks of the
 -- given blocks.
 --
