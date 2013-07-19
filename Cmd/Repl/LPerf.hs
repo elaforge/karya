@@ -387,9 +387,18 @@ chord = do
 show_chord :: [(Pitch.NoteNumber, Pitch.Note, Ratio)] -> Text
 show_chord = Text.intercalate ", " . map pretty
     where
-    pretty (_, note, ratio) = Pitch.note_text note <> ":"
-        <> showt (Ratio.numerator ratio)
-        <> "/" <> showt (Ratio.denominator ratio)
+    pretty (_, note, ratio) = Pitch.note_text note <> ":" <> show_ratio ratio
+
+show_ratio :: Ratio -> Text
+show_ratio = go 0
+    where
+    go oct ratio
+        | ratio >= 2 = go (oct+1) (ratio/2)
+        | ratio <= 1%2 = go (oct-1) (ratio*2)
+        | oct == 0 = pretty ratio
+        | otherwise = showt oct <> "+" <> pretty ratio
+    pretty ratio =
+        showt (Ratio.numerator ratio) <> "/" <> showt (Ratio.denominator ratio)
 
 set_chord_status :: (Cmd.M m) => ViewId -> Maybe Types.Selection -> m ()
 set_chord_status view_id maybe_sel = case maybe_sel of
