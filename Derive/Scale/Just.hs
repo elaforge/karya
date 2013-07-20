@@ -99,29 +99,29 @@ input_to_note show_pitch _key (Pitch.InputKey nn) =
 layout :: Theory.Layout
 layout = Theory.layout TheoryFormat.piano_intervals
 
--- | Since just scales don't really have key signatures or even accidentals,
--- this only even produces sharps.
-degree_note :: TheoryFormat.ShowPitch -> Maybe Pitch.Key -> Double -> Pitch.Note
-degree_note show_pitch key degreef =
-    -- TODO pitch_expr makes a call to scale_degree, so I think this is wrong!
-    Pitch.Note $ ScaleDegree.pitch_expr note frac
-    where
-    (degree, frac) = properFraction degreef
-    (octave, pc) = degree `divMod` pc_per_octave
-    note = show_pitch key $ Theory.Pitch octave (Theory.Note pc 0)
-
 -- | Unused, but still here in case I don't like accidentals.
-input_to_note_no_acc :: TheoryFormat.ShowPitch -> Maybe Pitch.Key
+input_to_note_no_acc :: TheoryFormat.Format -> Maybe Pitch.Key
     -> Pitch.InputKey -> Maybe Pitch.Note
-input_to_note_no_acc show_pitch key (Pitch.InputKey nn) =
+input_to_note_no_acc fmt key (Pitch.InputKey nn) =
     case (degree1, degree2) of
-        (Just d1, Just d2) ->
-            Just $ degree_note show_pitch key (Num.scale d1 d2 frac)
+        (Just d1, Just d2) -> Just $ degree_note fmt key (Num.scale d1 d2 frac)
         _ -> Nothing
     where
     degree1 = nn_to_degree Vector.!? input_degree
     degree2 = nn_to_degree Vector.!? (input_degree + 1)
     (input_degree, frac) = properFraction nn
+
+-- | Since just scales don't really have key signatures or even accidentals,
+-- this only even produces sharps.
+degree_note :: TheoryFormat.Format -> Maybe Pitch.Key -> Double -> Pitch.Note
+degree_note fmt key degreef =
+    -- TODO pitch_expr makes a call to scale_degree, so I think this is wrong!
+    Pitch.Note $ ScaleDegree.pitch_expr note frac
+    where
+    (degree, frac) = properFraction degreef
+    (octave, pc) = degree `divMod` TheoryFormat.fmt_pc_per_octave fmt
+    note = TheoryFormat.show_pitch fmt key $
+        Theory.Pitch octave (Theory.Note pc 0)
 
 nn_to_degree :: Vector.Vector Double
 nn_to_degree = Vector.fromList $ take 127 $
@@ -143,10 +143,8 @@ transpose fmt key oct transpose note = do
             Pitch.Chromatic steps -> steps
             Pitch.Diatonic steps -> steps
     Right $ TheoryFormat.show_pitch fmt key $
-        Theory.transpose_pitch pc_per_octave (oct * pc_per_octave + steps) pitch
-
-pc_per_octave :: Theory.PitchClass
-pc_per_octave = Theory.layout_max_pc layout
+        Theory.transpose_pitch per_oct (oct * per_oct + steps) pitch
+    where per_oct = TheoryFormat.fmt_pc_per_octave fmt
 
 -- * note_to_call
 
@@ -168,7 +166,8 @@ pitch_nn fmt pitch env controls =
     Util.scale_to_pitch_error chromatic diatonic $ do
         key <- read_key env
         pitch <- TheoryFormat.fmt_to_absolute fmt (Util.lookup_key env) pitch
-        let hz = transpose_to_hz base_hz key (chromatic + diatonic) pitch
+        let hz = transpose_to_hz (TheoryFormat.fmt_pc_per_octave fmt) base_hz
+                key (chromatic + diatonic) pitch
             nn = Pitch.hz_to_nn hz
         if Num.in_range 0 127 nn then Right nn
             else Left Scale.InvalidTransposition
@@ -182,7 +181,8 @@ pitch_note fmt pitch env controls =
     Util.scale_to_pitch_error chromatic diatonic $ do
         let key = Util.lookup_key env
         pitch <- TheoryFormat.fmt_to_absolute fmt key pitch
-        let transposed = Theory.transpose_pitch pc_per_octave
+        let transposed = Theory.transpose_pitch
+                (TheoryFormat.fmt_pc_per_octave fmt)
                 (round (chromatic + diatonic)) pitch
         Right $ TheoryFormat.show_pitch fmt key transposed
     where
@@ -199,8 +199,10 @@ just_base_control = Score.Control "just-base"
 
 -- ** implementation
 
-transpose_to_hz :: Maybe Pitch.Hz -> Key -> Double -> Theory.Pitch -> Pitch.Hz
-transpose_to_hz base_hz key frac_steps pitch = Num.scale hz1 hz2 frac
+transpose_to_hz :: Theory.PitchClass -> Maybe Pitch.Hz -> Key -> Double
+    -> Theory.Pitch -> Pitch.Hz
+transpose_to_hz pc_per_octave base_hz key frac_steps pitch =
+    Num.scale hz1 hz2 frac
     where
     (steps, frac) = properFraction frac_steps
     pitch1 = Theory.transpose_pitch pc_per_octave steps pitch
