@@ -70,8 +70,8 @@ test_note_to_call_relative = do
 c_hz :: Pitch.Hz
 c_hz = Pitch.nn_to_hz NN.middle_c
 
-show_abs = TheoryFormat.show_pitch Just.absolute_format
-show_rel = TheoryFormat.show_pitch Just.relative_format
+show_abs = TheoryFormat.show_pitch Just.absolute_fmt
+show_rel = TheoryFormat.show_pitch (TheoryFormat.sargam Just.relative_fmt)
 
 test_input_to_note = do
     let f = Just.input_to_note show_abs Nothing
@@ -108,14 +108,14 @@ test_input_to_nn_relative = do
     equalf 0.01 (run "a-maj" Pitch.middle_c) $ Right (Just 69)
 
 test_transpose = do
-    let f = Just.transpose Just.absolute_format Nothing
+    let f = Just.transpose Just.absolute_fmt Nothing
     equal [f 0 (Pitch.Chromatic n) (Pitch.Note "4a") | n <- [0..2]] $
         map (Right . Pitch.Note) ["4a", "4b", "5c"]
     equal [f n (Pitch.Chromatic 0) (Pitch.Note "4a") | n <- [0..2]] $
         map (Right . Pitch.Note) ["4a", "5a", "6a"]
 
 test_transpose_relative = do
-    let f = Just.transpose Just.relative_format Nothing
+    let f = Just.transpose (TheoryFormat.sargam Just.relative_fmt) Nothing
     equal [f 0 (Pitch.Chromatic n) (Pitch.Note "4s") | n <- [0..2]] $
         map (Right . Pitch.Note) ["4s", "4r", "4g"]
 
@@ -165,4 +165,4 @@ ratios (x:xs) = map (/x) (x:xs)
 
 read_note :: Text -> Theory.Pitch
 read_note s = either (const $ error $ "can't parse pitch: " ++ show s) id $
-    Just.read_note Just.absolute_format Nothing (Pitch.Note s)
+    Just.read_note Just.absolute_fmt Nothing (Pitch.Note s)

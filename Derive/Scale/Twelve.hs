@@ -47,23 +47,33 @@ scale_map = ChromaticScales.scale_map layout fmt all_keys default_theory_key
 fmt :: TheoryFormat.Format
 fmt = TheoryFormat.absolute_c
 
-relative_scale_map :: ChromaticScales.ScaleMap
-relative_scale_map =
-    ChromaticScales.scale_map layout fmt all_keys default_theory_key
+-- TODO Notice that this is circular.  'relative_fmt' refers to
+-- 'relative_scale_map', which refers back to it.
+--
+-- This is because 'fmt_show' needs to parse keys for a relative scale, so
+-- in needs the scales.  But the scales use fmt via 'TheoryFormat.show_key'
+-- to format the tonic to make the key name.  It works out because the key fmts
+-- with a key of Nothing and that shouldn't need the keys.  But still it's
+-- confusing, so I should make show_key use a separate fmt_show that show the
+-- key tonic.
+
+relative_fmt :: TheoryFormat.RelativeFormat Theory.Key
+relative_fmt = TheoryFormat.RelativeFormat
+    { TheoryFormat.rel_acc_fmt = TheoryFormat.ascii_accidentals
+    , TheoryFormat.rel_parse_key = parse_key
+    , TheoryFormat.rel_default_key = default_theory_key
+    , TheoryFormat.rel_show_note = TheoryFormat.show_note_chromatic
+    , TheoryFormat.rel_to_absolute = TheoryFormat.chromatic_to_absolute
+    }
     where
-    fmt = TheoryFormat.sargam parse_key default_theory_key
-        TheoryFormat.show_note_chromatic TheoryFormat.adjust_chromatic
     parse_key maybe_key =
         ChromaticScales.read_key relative_scale_map maybe_key
 
--- Making the keys needs fmt, 'fmt_show fmt Nothing key_tonic'
--- But fmt_show needs the keys if it wants to display relative scales that need
--- to parse the key.
--- It's not circular because the key fmts with Nothing and that shouldn't need
--- the keys.  But still it's confusing, so I should make show_key use
--- a separate fmt_show that show the key tonic.
--- In the case of relative, what does it actually mean?  They keys must use
--- absolute notation.
+relative_scale_map :: ChromaticScales.ScaleMap
+relative_scale_map =
+    ChromaticScales.scale_map layout (TheoryFormat.sargam relative_fmt)
+        all_keys default_theory_key
+
 
 -- * scales
 
@@ -142,7 +152,7 @@ exotic_keys = make_keys "hijaz" [1, 3, 1, 2, 1, 2, 2]
 
 -- | The layout of keys on everyone's favorite boxed harp.
 layout :: Theory.Layout
-layout = Theory.layout TheoryFormat.absolute_c_intervals
+layout = TheoryFormat.piano_layout
 
 all_notes :: [Theory.Note]
 all_notes = [Theory.Note pc accs | pc <- [0..6], accs <- [-2..2]]

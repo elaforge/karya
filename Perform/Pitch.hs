@@ -21,7 +21,7 @@ module Perform.Pitch (
     , InputKey(..), Octave, middle_c, middle_octave
 
     -- * NoteNumber
-    , NoteNumber(..), nn
+    , NoteNumber(..), nn, nn_to_double
 
     -- * Hz
     , Hz, add_hz, modify_hz, nn_to_hz, hz_to_nn, middle_c_hz
@@ -73,15 +73,6 @@ middle_c = InputKey 60
 middle_octave :: Octave
 middle_octave = 5
 
--- * Degree
-
--- -- | For consistency, scales should roughly center themselves around this
--- -- degree.  This way you don't need to know the scale to know a good
--- -- representative note for it, for example for a default pitch.
--- middle_int_degree :: Integer
--- middle_int_degree = 60
--- middle_degree = Degree (fromIntegral middle_int_degree)
-
 -- * NoteNumber
 
 -- | This is equal tempered scale notes with the same definition as MIDI, so
@@ -110,6 +101,9 @@ instance Pretty.Pretty NoteNumber where
 
 nn :: (Real a) => a -> NoteNumber
 nn = NoteNumber . realToFrac
+
+nn_to_double :: NoteNumber -> Double
+nn_to_double (NoteNumber nn) = nn
 
 -- * Hz
 

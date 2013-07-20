@@ -197,8 +197,9 @@ invalid_transposition diatonic chromatic =
 
 -- ** input
 
-input_to_note :: InputMap
-    -> DegreeMap -> Maybe Pitch.Key -> Pitch.InputKey -> Maybe Pitch.Note
+type InputToNote = Maybe Pitch.Key -> Pitch.InputKey -> Maybe Pitch.Note
+
+input_to_note :: InputMap -> DegreeMap -> InputToNote
 input_to_note input_map dmap _key input = do
     (degree, frac) <- lookup_input input input_map
     note <- Map.lookup degree (dm_to_note dmap)
@@ -232,8 +233,7 @@ direct_input_to_nn _ (Pitch.InputKey nn) = return $ Just (Pitch.NoteNumber nn)
 
 -- | Convert input to nn by going through note_to_call.  This works for
 -- complicated scales that retune based on the environment but is more work.
-computed_input_to_nn :: (Maybe Pitch.Key -> Pitch.InputKey -> Maybe Pitch.Note)
-    -> (Pitch.Note -> Maybe Derive.ValCall)
+computed_input_to_nn :: InputToNote -> (Pitch.Note -> Maybe Derive.ValCall)
     -> ScoreTime -> Pitch.InputKey -> Derive.Deriver (Maybe Pitch.NoteNumber)
 computed_input_to_nn input_to_note note_to_call pos input
     | Just note <- input_to_note Nothing input, Just call <- note_to_call note =

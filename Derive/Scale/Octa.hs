@@ -38,15 +38,20 @@ absolute_fmt =
     degrees = TheoryFormat.make_degrees ["a", "b", "c", "d", "e", "f", "g", "h"]
 
 relative_fmt :: ChromaticScales.Keys -> TheoryFormat.Format
-relative_fmt keys =
-    TheoryFormat.make_relative_format (TheoryFormat.make_pattern degrees)
-        degrees TheoryFormat.ascii_accidentals parse_key default_tkey
-        TheoryFormat.show_note_chromatic TheoryFormat.adjust_chromatic
+relative_fmt keys = make $ TheoryFormat.RelativeFormat
+    { TheoryFormat.rel_acc_fmt = TheoryFormat.ascii_accidentals
+    , TheoryFormat.rel_parse_key = parse_key
+    , TheoryFormat.rel_default_key = default_tkey
+    , TheoryFormat.rel_show_note = TheoryFormat.show_note_chromatic
+    , TheoryFormat.rel_to_absolute = TheoryFormat.chromatic_to_absolute
+    }
     where
-    degrees = TheoryFormat.make_degrees
-        ["一", "二", "三", "四", "五", "六", "七", "八"]
     parse_key = ChromaticScales.lookup_key default_tkey keys
     Just default_tkey = Map.lookup default_key keys
+    make = TheoryFormat.make_relative_format (TheoryFormat.make_pattern degrees)
+        degrees
+    degrees = TheoryFormat.make_degrees
+        ["一", "二", "三", "四", "五", "六", "七", "八"]
 
 make_scale :: Pitch.ScaleId -> Theory.Layout -> ChromaticScales.Keys
     -> TheoryFormat.Format -> Scale.Scale

@@ -126,7 +126,7 @@ pitch_nn :: ScaleMap
     -> Theory.Pitch -> Scale.PitchNn
 pitch_nn smap degree_to_nn pitch env controls =
     Util.scale_to_pitch_error diatonic chromatic $ do
-        pitch <- TheoryFormat.fmt_adjust (smap_fmt smap)
+        pitch <- TheoryFormat.fmt_to_absolute (smap_fmt smap)
             (Util.lookup_key env) pitch
         dsteps <- if diatonic == 0 then Right 0 else do
             key <- read_env_key smap env
@@ -175,7 +175,7 @@ call_doc transposers smap doc =
 read_note :: ScaleMap -> Maybe Pitch.Key -> Pitch.Note
     -> Either Scale.ScaleError Theory.Pitch
 read_note smap key =
-    TheoryFormat.fmt_adjust fmt key <=< TheoryFormat.read_pitch fmt
+    TheoryFormat.fmt_to_absolute fmt key <=< TheoryFormat.read_pitch fmt
     where fmt = smap_fmt smap
 
 show_pitch :: ScaleMap -> Maybe Pitch.Key -> Theory.Pitch

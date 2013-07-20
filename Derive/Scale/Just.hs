@@ -27,17 +27,21 @@ import qualified Perform.Pitch as Pitch
 
 scales :: [Scale.Scale]
 scales =
-    [ make_scale (Pitch.ScaleId "just") absolute_format
-    , make_scale (Pitch.ScaleId "just-r") relative_format
+    [ make_scale (Pitch.ScaleId "just") absolute_fmt
+    , make_scale (Pitch.ScaleId "just-r") (TheoryFormat.sargam relative_fmt)
     ]
 
-absolute_format :: TheoryFormat.Format
-absolute_format = TheoryFormat.absolute_c
+absolute_fmt :: TheoryFormat.Format
+absolute_fmt = TheoryFormat.absolute_c
 
-relative_format :: TheoryFormat.Format
-relative_format =
-    TheoryFormat.sargam (fmap key_tonic . lookup_key) 0
-        TheoryFormat.show_note_diatonic TheoryFormat.adjust_diatonic
+relative_fmt :: TheoryFormat.RelativeFormat Theory.PitchClass
+relative_fmt = TheoryFormat.RelativeFormat
+    { TheoryFormat.rel_acc_fmt = TheoryFormat.ascii_accidentals
+    , TheoryFormat.rel_parse_key = fmap key_tonic . lookup_key
+    , TheoryFormat.rel_default_key = 0
+    , TheoryFormat.rel_show_note = TheoryFormat.show_note_diatonic
+    , TheoryFormat.rel_to_absolute = TheoryFormat.diatonic_to_absolute
+    }
 
 -- | Each accidental adds or subtracts this interval.
 accidental_interval :: Double
@@ -55,8 +59,7 @@ make_scale scale_id fmt = Scale.Scale
     , Scale.scale_input_to_note = input_to_note (TheoryFormat.show_pitch fmt)
     , Scale.scale_input_to_nn =
         Util.computed_input_to_nn
-            (input_to_note (TheoryFormat.show_pitch fmt))
-            (note_to_call fmt)
+            (input_to_note (TheoryFormat.show_pitch fmt)) (note_to_call fmt)
     , Scale.scale_call_doc = Util.annotate_call_doc Util.standard_transposers
         ("Just scales are tuned by ratios from a base frequency.\
         \ That frequency is taken from the `%just-base` control and the key.\
@@ -73,7 +76,7 @@ make_scale scale_id fmt = Scale.Scale
 read_note :: TheoryFormat.Format -> Maybe Pitch.Key -> Pitch.Note
     -> Either Scale.ScaleError Theory.Pitch
 read_note fmt key =
-    TheoryFormat.fmt_adjust fmt key <=< TheoryFormat.read_pitch fmt
+    TheoryFormat.fmt_to_absolute fmt key <=< TheoryFormat.read_pitch fmt
 
 
 -- * input_to_note
@@ -94,7 +97,7 @@ input_to_note show_pitch _key (Pitch.InputKey nn) =
         Theory.nn_to_semis $ floor nn
 
 layout :: Theory.Layout
-layout = Theory.layout TheoryFormat.absolute_c_intervals
+layout = Theory.layout TheoryFormat.piano_intervals
 
 -- | Since just scales don't really have key signatures or even accidentals,
 -- this only even produces sharps.
@@ -122,7 +125,7 @@ input_to_note_no_acc show_pitch key (Pitch.InputKey nn) =
 
 nn_to_degree :: Vector.Vector Double
 nn_to_degree = Vector.fromList $ take 127 $
-    to_steps (zip [0..] (cycle TheoryFormat.absolute_c_intervals))
+    to_steps (zip [0..] (cycle TheoryFormat.piano_intervals))
     where
     to_steps [] = []
     to_steps ((n, step) : steps)
@@ -164,7 +167,7 @@ pitch_nn :: TheoryFormat.Format -> Theory.Pitch -> Scale.PitchNn
 pitch_nn fmt pitch env controls =
     Util.scale_to_pitch_error chromatic diatonic $ do
         key <- read_key env
-        pitch <- TheoryFormat.fmt_adjust fmt (Util.lookup_key env) pitch
+        pitch <- TheoryFormat.fmt_to_absolute fmt (Util.lookup_key env) pitch
         let hz = transpose_to_hz base_hz key (chromatic + diatonic) pitch
             nn = Pitch.hz_to_nn hz
         if Num.in_range 0 127 nn then Right nn
@@ -178,7 +181,7 @@ pitch_note :: TheoryFormat.Format -> Theory.Pitch -> Scale.PitchNote
 pitch_note fmt pitch env controls =
     Util.scale_to_pitch_error chromatic diatonic $ do
         let key = Util.lookup_key env
-        pitch <- TheoryFormat.fmt_adjust fmt key pitch
+        pitch <- TheoryFormat.fmt_to_absolute fmt key pitch
         let transposed = Theory.transpose_pitch pc_per_octave
                 (round (chromatic + diatonic)) pitch
         Right $ TheoryFormat.show_pitch fmt key transposed

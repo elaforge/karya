@@ -21,6 +21,15 @@ import qualified Derive.Scale.Theory as Theory
 import qualified Perform.Pitch as Pitch
 
 
+-- * absolute
+
+-- | Make an absolute scale starting at @a@.
+letters :: Theory.PitchClass -> Format
+letters pc_per_octave =
+    make_absolute_format (make_pattern degrees) degrees ascii_accidentals
+    where
+    degrees = make_degrees $ map Text.singleton $ take pc_per_octave ['a'..'z']
+
 -- | The usual 7 note scale, which wraps around at @c@ instead of @a@.
 absolute_c :: Format
 absolute_c =
@@ -30,27 +39,45 @@ absolute_c =
 absolute_c_degrees :: [Text]
 absolute_c_degrees = ["c", "d", "e", "f", "g", "a", "b"]
 
-absolute_c_intervals :: [Int]
-absolute_c_intervals = [2, 2, 1, 2, 2, 2, 1]
+piano_intervals :: [Int]
+piano_intervals = [2, 2, 1, 2, 2, 2, 1]
 
-type MakeRelativeFormat key = ParseKey key -> key -> ShowNote key -> Adjust key
-    -> Format
+-- | The layout of keys on everyone's favorite boxed harp.
+piano_layout :: Theory.Layout
+piano_layout = Theory.layout piano_intervals
 
-sargam :: MakeRelativeFormat key
-sargam = make_relative_format (make_pattern degrees) degrees ascii_accidentals
+-- * relative
+
+-- | Args for a relative scale format.
+data RelativeFormat key = RelativeFormat {
+    rel_acc_fmt :: AccidentalFormat
+    , rel_parse_key :: ParseKey key
+    -- Default key if there is none, or it's not parseable.  Otherwise, a bad
+    -- or missing key would mean you couldn't even display notes.
+    , rel_default_key :: key
+    , rel_show_note :: ShowNote key
+    , rel_to_absolute :: ToAbsolute key
+    }
+
+sargam :: RelativeFormat key -> Format
+sargam = make_relative_format (make_pattern degrees) degrees
     where degrees = make_degrees ["s", "r", "g", "m", "p", "d", "n"]
 
-cipher :: MakeRelativeFormat key
-cipher = make_relative_format "/[1-7]" degrees ascii_accidentals
-    where degrees = make_degrees ["/1", "/2", "/3", "/4", "/5", "/6", "/7"]
+cipher :: Theory.PitchClass -> RelativeFormat key -> Format
+cipher pc_per_octave = make_relative_format pattern degrees
+    where
+    degrees = make_degrees ["/" <> showt pc | pc <- [1..pc_per_octave]]
+    pattern = "/[1-" <> showt pc_per_octave <> "]"
 
-zh_cipher :: MakeRelativeFormat key
-zh_cipher =
-    make_relative_format (make_pattern degrees) degrees ascii_accidentals
-    where degrees = make_degrees ["一", "二", "三", "四", "五", "六", "七"]
+zh_cipher :: Theory.PitchClass -> RelativeFormat key -> Format
+zh_cipher pc_per_octave =
+    make_relative_format (make_pattern degrees) degrees
+    where
+    degrees = make_degrees $ take pc_per_octave ds
+    ds = ["一", "二", "三", "四", "五", "六", "七", "八", "九", "十"]
 
-gongche :: MakeRelativeFormat key
-gongche = make_relative_format (make_pattern degrees) degrees ascii_accidentals
+gongche :: RelativeFormat key -> Format
+gongche = make_relative_format (make_pattern degrees) degrees
     where degrees = make_degrees ["士", "下", "ㄨ", "工", "六"]
 
 make_pattern :: Degrees -> Text
@@ -62,14 +89,15 @@ data Format = Format {
     -- | Return the note and a possible adjustment for the octave.
     fmt_show :: Maybe Pitch.Key -> Theory.Note -> (Theory.Octave, Text)
     -- | This doesn't need the key because that work is split off to
-    -- 'AdjustPitch'.
+    -- 'fmt_to_absolute'.
     , fmt_read :: A.Parser Theory.Note
     -- | I need the key to parse the pitch, but that can't happen unless I want
     -- to give all pattern_lookup calls access to the env in scope.  But
     -- I don't need the env to recognize if it's a valid call or not.
-    , fmt_adjust :: Maybe Pitch.Key -> Theory.Pitch
+    , fmt_to_absolute :: Maybe Pitch.Key -> Theory.Pitch
         -> Either Scale.ScaleError Theory.Pitch
     , fmt_pattern :: !Text
+    , fmt_pc_per_octave :: Theory.PitchClass
     }
 type ParseKey key = Maybe Pitch.Key -> Either Scale.ScaleError key
 type Degrees = Vector.Vector Text
@@ -148,33 +176,36 @@ make_absolute_format :: Text -> Degrees -> AccidentalFormat -> Format
 make_absolute_format pattern degrees acc_fmt = Format
     { fmt_show = const $ show_note_absolute degrees acc_fmt
     , fmt_read = p_pitch_absolute degrees acc_fmt
-    , fmt_adjust = const Right
+    , fmt_to_absolute = const Right
     , fmt_pattern = octave_pattern <> pattern <> acc_pattern
+    , fmt_pc_per_octave = Vector.length degrees
     }
 
-make_relative_format :: Text -> Degrees -> AccidentalFormat
-    -> ParseKey key -> key
-    -- ^ Default key if there is none, or it's not parseable.  Otherwise, a bad
-    -- or missing key would mean you couldn't even display notes.
-    -> ShowNote key -> Adjust key -> Format
-make_relative_format pattern degrees acc_fmt parse_key default_key show_note
-        adjust = Format
-    { fmt_show = p_show
-    , fmt_read = p_read
-    , fmt_adjust = p_adjust
-    , fmt_pattern = octave_pattern <> pattern <> acc_pattern
-    }
+make_relative_format :: Text -> Degrees -> RelativeFormat key -> Format
+make_relative_format pattern degrees
+        (RelativeFormat acc_fmt parse_key default_key show_note to_abs) =
+    Format
+        { fmt_show = p_show
+        , fmt_read = p_read
+        , fmt_to_absolute = p_absolute
+        , fmt_pattern = octave_pattern <> pattern <> acc_pattern
+        , fmt_pc_per_octave = Vector.length degrees
+        }
     where
     p_show key = show_note degrees acc_fmt
         (either (const default_key) id (parse_key key))
     p_read = p_pitch_relative degrees acc_fmt
-    p_adjust maybe_key pitch = do
+    p_absolute maybe_key pitch = do
         key <- parse_key maybe_key
-        return $ adjust degrees key pitch
+        return $ to_abs degrees key pitch
 
 type ShowNote key = Degrees -> AccidentalFormat -> key -> Theory.Note
     -> (Theory.Octave, Text)
-type Adjust key = Degrees -> key -> Theory.Pitch -> Theory.Pitch
+
+-- | Given a relative pitch relative to the default key, adjust it to
+-- be absolute.  This is so I can figure out if a relative pitch is valid
+-- without knowing the key, as described in 'fmt_to_absolute'.
+type ToAbsolute key = Degrees -> key -> Theory.Pitch -> Theory.Pitch
 
 acc_pattern :: Text
 acc_pattern = "(#|x|b|bb)?"
@@ -204,8 +235,8 @@ show_note_chromatic degrees acc_fmt key (Theory.Note pc acc) =
     (oct, text) = show_degree degrees (Theory.note_pc tonic) pc
     tonic = Theory.key_tonic key
 
-adjust_chromatic :: Adjust Theory.Key
-adjust_chromatic degrees key (Theory.Pitch octave (Theory.Note pc acc)) =
+chromatic_to_absolute :: ToAbsolute Theory.Key
+chromatic_to_absolute degrees key (Theory.Pitch octave (Theory.Note pc acc)) =
     Theory.Pitch (octave + oct) (Theory.Note pc2 acc2)
     where
     (oct, pc2) = (pc + Theory.note_pc tonic) `divMod` Vector.length degrees
@@ -228,8 +259,8 @@ show_degree :: Degrees -> Theory.PitchClass -> Theory.PitchClass
 show_degree degrees key pc = (oct, degrees Vector.! degree)
     where (oct, degree) = (pc - key) `divMod` Vector.length degrees
 
-adjust_diatonic :: Adjust Theory.PitchClass
-adjust_diatonic degrees key (Theory.Pitch octave (Theory.Note pc acc)) =
+diatonic_to_absolute :: ToAbsolute Theory.PitchClass
+diatonic_to_absolute degrees key (Theory.Pitch octave (Theory.Note pc acc)) =
     Theory.Pitch (octave + oct) (Theory.Note pc2 acc)
     where (oct, pc2) = (pc + key) `divMod` Vector.length degrees
 
