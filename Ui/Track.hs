@@ -45,7 +45,7 @@ track title events = Track
     { track_title = title
     , track_events = events
     , track_bg = Config.track_bg
-    , track_render = no_render
+    , track_render = line_render
     }
 
 empty :: Track
@@ -81,12 +81,18 @@ data RenderConfig = RenderConfig {
 no_render :: RenderConfig
 no_render = RenderConfig NoRender Config.render_color
 
+line_render :: RenderConfig
+line_render = RenderConfig (Line Nothing) Config.render_color
+
 instance Pretty.Pretty RenderConfig where
     pretty (RenderConfig style color) = Pretty.pretty (style, color)
 
 -- | RenderStyles can take an optional source which says which control the
 -- signal comes from.  This is only for note tracks, and will extract the
 -- final signal from the events and display that.
+--
+-- Non-note tracks will ignore the RenderSource, and note tracks will ignore
+-- a RenderStyle without a RenderSource.
 data RenderStyle = NoRender | Line !(Maybe RenderSource)
     | Filled !(Maybe RenderSource)
     deriving (Eq, Read, Show)

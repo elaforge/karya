@@ -3,6 +3,17 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
+  - if I say 'x = .5' then a val call (x) is .5
+    I can use it to figure out certain filter settings and give them names.
+  - call lifts pitch to some frequency at the end of notes
+  - how to do a chopper, e.g. 10 05 20 10 40 10 80 20 ff 40
+  - to do per-score code, I can put it in Local.Score.<namespace>
+    Convert to module name by replacing -x with (upper x) and capitalizing the
+    first letter.
+    Then when you load a score, incorporate the static config from that
+    module.  Shakefile can link in the local modules under the right name.
+    . If it gets to be too much overhead to link on every single build, then
+      I can load dynamically at runtime.
   * add a hook for cmds run when the selection changes
     It would include setting pos status, setting realtime pos status,
     setting chord, mmc goto.
@@ -108,7 +119,7 @@ UNSORTED
       hacks.
   - network midi doesn't seem to handle abort?
     playing the second time doesn't happen
-  - maybe new control tracks should start with line render?
+  * maybe new control tracks should start with line render?
 
   - I have a feeling like FM8 doesn't obey ResetAllControls
     Maybe I should extend Midi.Interface.note_tracker to keep track of
