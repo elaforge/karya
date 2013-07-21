@@ -416,13 +416,15 @@ selection_status ns sel maybe_track_id =
 realtime_selection :: (Cmd.M m) => ViewId -> Maybe Types.Selection -> m ()
 realtime_selection view_id maybe_sel = case maybe_sel of
     Nothing -> set Nothing
-    Just sel ->
-        set . Just . RealTime.show_units =<< realtime_at_selection view_id sel
+    Just sel -> do
+        whenJustM (realtime_at_selection view_id sel) $
+            set . Just . RealTime.show_units
     where set = Cmd.set_view_status view_id Config.status_realtime
 
-realtime_at_selection :: (Cmd.M m) => ViewId -> Types.Selection -> m RealTime
+realtime_at_selection :: (Cmd.M m) => ViewId -> Types.Selection
+    -> m (Maybe RealTime)
 realtime_at_selection view_id sel = do
     block_id <- State.block_id_of view_id
     track_id <- State.event_track_at block_id (Selection.point_track sel)
-    perf <- Perf.get_root
-    Perf.get_realtime perf block_id track_id (Selection.point sel)
+    justm (Perf.lookup_root) $ \perf ->
+        Just <$> Perf.get_realtime perf block_id track_id (Selection.point sel)
