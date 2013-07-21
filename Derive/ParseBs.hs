@@ -37,7 +37,6 @@ import qualified Data.ByteString.UTF8 as UTF8
 import qualified Data.List as List
 import qualified Data.List.NonEmpty as NonEmpty
 import qualified Data.Text as Text
-import qualified Data.Text.Encoding as Text.Encoding
 import qualified Data.Text.Encoding as Encoding
 
 import Util.Control hiding (Text)
@@ -46,8 +45,6 @@ import qualified Util.Seq as Seq
 
 import qualified Ui.Event as Event
 import qualified Ui.Id as Id
-import qualified Ui.Util
-
 import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.TrackLang as TrackLang
@@ -65,10 +62,10 @@ to_string :: Text -> String
 to_string = UTF8.toString
 
 from_text :: Text.Text -> Text
-from_text = Text.Encoding.encodeUtf8
+from_text = Parse.from_text
 
 to_text :: Text -> Text.Text
-to_text = Ui.Util.decodeUtf8
+to_text = Parse.to_text
 
 parse_expr :: Text -> Either String TrackLang.Expr
 parse_expr = parse p_pipeline

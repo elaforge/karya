@@ -322,6 +322,10 @@ read_environ read_val deflt name env = case TrackLang.get_val name env of
     parse val = maybe (unparseable (ShowVal.show_val val)) Right (read_val val)
     unparseable = Left . Scale.UnparseableEnviron name
 
+maybe_key :: Pitch.Key -> Maybe a -> Either Scale.ScaleError a
+maybe_key (Pitch.Key txt) =
+    maybe (Left $ Scale.UnparseableEnviron Environ.key txt) Right
+
 -- | Symbolic names for input keys.
 [i_c, i_cs, i_d, i_ds, i_e, i_f, i_fs, i_g, i_gs, i_a, i_as, i_b]
     = map Pitch.InputKey (Seq.range 0 11 1) :: [Pitch.InputKey]

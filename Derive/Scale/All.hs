@@ -15,6 +15,7 @@ import qualified Util.Seq as Seq
 
 import qualified Derive.Scale as Scale
 import qualified Derive.Scale.BohlenPierce as BohlenPierce
+import qualified Derive.Scale.Hex as Hex
 import qualified Derive.Scale.Just as Just
 import qualified Derive.Scale.Legong as Legong
 import qualified Derive.Scale.Octa as Octa
@@ -31,5 +32,11 @@ scales :: Map.Map Pitch.ScaleId Scale.Scale
 shadowed :: [Pitch.ScaleId]
 (scales, shadowed) = mk $
     [ Ratio.scale, Legong.scale, Wayang.scale
-    ] ++ BohlenPierce.scales ++ Twelve.scales ++ Octa.scales ++ Just.scales
+    ] ++ concat
+    [ BohlenPierce.scales
+    , Hex.scales
+    , Just.scales
+    , Octa.scales
+    , Twelve.scales
+    ]
     where mk = second (map fst) . Map.unique . Seq.key_on Scale.scale_id

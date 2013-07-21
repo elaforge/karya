@@ -21,6 +21,7 @@ import qualified Data.Text.Encoding as Text.Encoding
 
 import Util.Control
 import qualified Util.Seq as Seq
+import qualified Ui.Util
 
 
 type Parser a = A.Parser a
@@ -61,6 +62,14 @@ float = maybe_parse_string p_float
 
 int :: String -> Maybe Int
 int = maybe_parse_string p_int
+
+-- * Text
+
+from_text :: Text -> B.ByteString
+from_text = Text.Encoding.encodeUtf8
+
+to_text :: B.ByteString -> Text
+to_text = Ui.Util.decodeUtf8
 
 -- * combinators
 

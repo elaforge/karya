@@ -27,8 +27,10 @@ import qualified Perform.Pitch as Pitch
 letters :: Theory.PitchClass -> Format
 letters pc_per_octave =
     make_absolute_format (make_pattern degrees) degrees ascii_accidentals
-    where
-    degrees = make_degrees $ map Text.singleton $ take pc_per_octave ['a'..'z']
+    where degrees = make_degrees $ take pc_per_octave letter_degrees
+
+letter_degrees :: [Text]
+letter_degrees = map Text.singleton ['a'..'z']
 
 -- | The usual 7 note scale, which wraps around at @c@ instead of @a@.
 absolute_c :: Format
@@ -66,8 +68,8 @@ sargam = make_relative_format (make_pattern degrees) degrees
 cipher :: Theory.PitchClass -> RelativeFormat key -> Format
 cipher pc_per_octave = make_relative_format pattern degrees
     where
-    degrees = make_degrees ["/" <> showt pc | pc <- [1..pc_per_octave]]
-    pattern = "/[1-" <> showt pc_per_octave <> "]"
+    degrees = make_degrees ["-" <> showt pc | pc <- [1..pc_per_octave]]
+    pattern = "-[1-" <> showt pc_per_octave <> "]"
 
 zh_cipher :: Theory.PitchClass -> RelativeFormat key -> Format
 zh_cipher pc_per_octave =
@@ -108,8 +110,8 @@ make_degrees = Vector.fromList
 -- ** show keys
 
 show_key :: Format -> Theory.Key -> Pitch.Key
-show_key fmt key = Pitch.Key $
-    tonic <> (if Text.null name then "" else "-" <> name)
+show_key fmt key =
+    Pitch.Key $ tonic <> (if Text.null name then "" else "-" <> name)
     where
     tonic = snd $ fmt_show fmt Nothing (Theory.key_tonic key)
     name = Theory.key_name key
@@ -207,6 +209,8 @@ type ShowNote key = Degrees -> AccidentalFormat -> key -> Theory.Note
 -- without knowing the key, as described in 'fmt_to_absolute'.
 type ToAbsolute key = Degrees -> key -> Theory.Pitch -> Theory.Pitch
 
+type Tonic = Theory.PitchClass
+
 acc_pattern :: Text
 acc_pattern = "(#|x|b|bb)?"
 
@@ -249,20 +253,19 @@ chromatic_to_absolute degrees key (Theory.Pitch octave (Theory.Note pc acc)) =
             Just acc -> acc
     tonic = Theory.key_tonic key
 
-show_note_diatonic :: ShowNote Theory.PitchClass
-show_note_diatonic degrees acc_fmt key (Theory.Note pc acc) =
+show_note_diatonic :: ShowNote Tonic
+show_note_diatonic degrees acc_fmt tonic (Theory.Note pc acc) =
     (oct, text <> show_accidentals acc_fmt acc)
-    where (oct, text) = show_degree degrees key pc
+    where (oct, text) = show_degree degrees tonic pc
 
-show_degree :: Degrees -> Theory.PitchClass -> Theory.PitchClass
-    -> (Theory.Octave, Text)
-show_degree degrees key pc = (oct, degrees Vector.! degree)
-    where (oct, degree) = (pc - key) `divMod` Vector.length degrees
+show_degree :: Degrees -> Tonic -> Theory.PitchClass -> (Theory.Octave, Text)
+show_degree degrees tonic pc = (oct, degrees Vector.! degree)
+    where (oct, degree) = (pc - tonic) `divMod` Vector.length degrees
 
-diatonic_to_absolute :: ToAbsolute Theory.PitchClass
-diatonic_to_absolute degrees key (Theory.Pitch octave (Theory.Note pc acc)) =
+diatonic_to_absolute :: ToAbsolute Tonic
+diatonic_to_absolute degrees tonic (Theory.Pitch octave (Theory.Note pc acc)) =
     Theory.Pitch (octave + oct) (Theory.Note pc2 acc)
-    where (oct, pc2) = (pc + key) `divMod` Vector.length degrees
+    where (oct, pc2) = (pc + tonic) `divMod` Vector.length degrees
 
 p_pitch_relative :: Degrees -> AccidentalFormat -> A.Parser Theory.Note
 p_pitch_relative degrees acc_fmt =

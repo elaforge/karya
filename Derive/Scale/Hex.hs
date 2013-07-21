@@ -1,10 +1,4 @@
--- Copyright 2013 Evan Laforge
--- This program is distributed under the terms of the GNU General Public
--- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
-
--- | A version of a just intonation diatonic scale that is tuned based on
--- a pitch signal.
-module Derive.Scale.Just where
+module Derive.Scale.Hex where
 import qualified Data.Map as Map
 import Data.Ratio ((%))
 import qualified Data.Vector as Vector
@@ -19,12 +13,14 @@ import qualified Perform.NN as NN
 import qualified Perform.Pitch as Pitch
 
 
+-- TODO reduce duplication with Scale.Just
+
 scales :: [Scale.Scale]
 scales =
-    [ JustScales.make_scale (Pitch.ScaleId "just")
-        (scale_map TheoryFormat.absolute_c)
-    , JustScales.make_scale (Pitch.ScaleId "just-r")
-        (scale_map (TheoryFormat.sargam relative_fmt))
+    [ JustScales.make_scale (Pitch.ScaleId "hex")
+        (scale_map (TheoryFormat.letters 6))
+    , JustScales.make_scale (Pitch.ScaleId "hex-r")
+        (scale_map (TheoryFormat.cipher 6 relative_fmt))
     ]
 
 scale_map :: TheoryFormat.Format -> JustScales.ScaleMap
@@ -51,19 +47,17 @@ lookup_key Nothing = Right default_key
 lookup_key (Just key) = Util.maybe_key key (Map.lookup key keys)
 
 default_key :: JustScales.Key
-Just default_key = Map.lookup (Pitch.Key "c-maj") keys
+Just default_key = Map.lookup (Pitch.Key "a-h2357") keys
 
 keys :: Map.Map Pitch.Key JustScales.Key
 keys = Map.fromList
     [ (Pitch.Key $ degree <> "-" <> name, JustScales.Key tonic ratios)
     | (name, ratios) <- key_ratios
-    , (degree, tonic) <- zip TheoryFormat.absolute_c_degrees [0..]
+    , (degree, tonic) <- zip TheoryFormat.letter_degrees [0..5]
     ]
 
 key_ratios :: [(Text, JustScales.Ratios)]
 key_ratios = map (second Vector.fromList)
-    [ ("maj", [1, 9%8, 5%4, 4%3, 3%2, 5%3, 15%8])
-    , ("min", [1, 9%8, 6%5, 4%3, 3%2, 8%5, 9%5])
-    , ("legong", [1, 10%9, 6%5, 4%3, 3%2, 25%16, 9%5])
-    , ("hemavathi", [1, 10%9, 6%5, (3%2) / (16%15), 3%2, 5%3, 9%5])
+    -- hexany based on 2-3-5-7
+    [ ("h2357", [1, 8%7, 6%5, 48%35, 8%5, 12%7])
     ]

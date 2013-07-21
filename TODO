@@ -3,6 +3,29 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
+  - need to catch errors from select hooks, otherwise realtime logs to stderr
+    when it fails
+    In fact, it fails whenever I'm not a block not linked from the root.
+  - unmerging a pitch track should have a minimum width to display 3 chars
+    Figure out under which circumstances the collapsed track forgets its size.
+    . Looks like it happens when I create a new block from a template block
+      with collapsed tracks.  It probably needs to use logical rather than
+      physical size.
+  generic just scale support
+    * I should do keys differently: key just sets the ratios.  You set the
+      base freq manually, e.g. 'just-base = (hz (4c))'.
+    * pass named intervals in ScaleMap
+    * re-implement Just and test
+    * add Scale.Hex
+    - separate documentation for Scale.Hex
+    - reduce duplication between Scale.Hex and Scale.Just
+    - make it clear that length ratios == pc_per_octave
+    - put keys and their ratios into the scale doc
+    - just scales should have a 'repeat 2' layout
+      . The issue is that input kbd layout is separate from scale layout.
+        Just scales should have a 'repeat 2' layout, and the input also
+        accepts black notes between every note.
+    - 'just-base = (4c)' should be equivalent to (hz (4c))
   - if I say 'x = .5' then a val call (x) is .5
     I can use it to figure out certain filter settings and give them names.
   - call lifts pitch to some frequency at the end of notes
@@ -843,6 +866,27 @@ pitch: scales: scale:
         it has its own notion of keys.
         . It has to go in layout, otherwise input doesn't know how to work.
           So just changing the ratios doesn't work.
+        . Other scales do this by just looking up InputKey in a map.
+          Just does it with Theory.semis_to_pitch_sharps.
+        . In addition, it has piano keyboard layout artifacts, so you can't
+          put in e#.
+        . I want to put an arbitrary number of degrees, and have both kbd and
+          MIDI entry adapt automatically.
+          . On kbd input, that becomes white keys up to 10 degrees per octave.
+            Black keys are available between each white key.
+          . On MIDI input, white keys are available up to 7 per octave, with
+            black keys only in certain places.
+          . But I also want to adjust MIDI input specially.  Kbd input adjusts
+            for relative scales based on the key, but for scales with
+            accidentals, MIDI kbd is absolute, since otherwise the black keys
+            don't line up.  If there are no accidentals, then MIDI can align
+            to C.
+          . Basically, kbd is a 10-note octave with black keys, while MIDI is
+            a 7 note octave with piano layout.  So I need functions to map
+            each one to a scale degree.
+          . So InputKey becomes (Midi | Kbd, Degree, Accidentals)
+            or: Midi NoteNumber | Kbd Octave Degree WhiteBlack
+          . Write input_to_note for just, just-r, bp, bp-r
       - interpolate between just scales in different keys
       display:
         * Show ratio relationships between sounding pitches.
