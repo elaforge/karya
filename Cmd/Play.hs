@@ -233,7 +233,7 @@ write_logs block_id perf = unless (Cmd.perf_logs_written perf) $ do
     -- anyway so I can filter them out.
     mapM_ Log.write $ filter (not . Cache.is_cache_log) (Cmd.perf_logs perf)
     -- Logview can only display one set of stats, so only show the root block.
-    whenM ((==block_id) <$> State.get_root_id) $
+    whenM ((== Just block_id) <$> State.lookup_root_id) $
         record_cache_stats (Cmd.perf_logs perf)
     Cmd.modify_play_state $ \st -> st
         { Cmd.state_current_performance = Map.insert block_id
@@ -361,8 +361,8 @@ generate_mtc (Just sync) start | Cmd.sync_mtc sync =
 generate_mtc _ _ = []
 
 lookup_current_performance :: (Cmd.M m) => BlockId -> m (Maybe Cmd.Performance)
-lookup_current_performance block_id = Map.lookup block_id <$>
-    gets Cmd.state_current_performance
+lookup_current_performance block_id =
+    Map.lookup block_id <$> gets Cmd.state_current_performance
 
 -- * implementation
 

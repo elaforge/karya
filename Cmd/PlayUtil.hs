@@ -161,9 +161,10 @@ events_from start events
     where
     i = Vector.lowest_index Score.event_start (start - RealTime.eta) events
 
--- | How to know far back to go?  Impossible to know!  Well, I could look
+-- | How to know how far back to go?  Impossible to know!  Well, I could look
 -- up overlapping ui events, then map the earliest time to RealTime, and start
--- searching there.
+-- searching there.  But for now scanning from the beginning should be fast
+-- enough.
 overlapping_events :: RealTime -> Cmd.Events -> [Score.Event]
 overlapping_events pos = Vector.foldl' collect []
     where
@@ -178,7 +179,7 @@ overlapping_events pos = Vector.foldl' collect []
 -- Solo only applies to the block on which the track is soloed.  So if you solo
 -- a track on one block, other blocks will still play.
 --
--- Solo always takes priority over Mute.
+-- Solo takes priority over Mute.
 filter_track_muted :: [(BlockId, Block.Block)] -> [Score.Event] -> [Score.Event]
 filter_track_muted blocks
     | not (Set.null soloed) = filter track_soloed
