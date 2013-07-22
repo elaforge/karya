@@ -36,7 +36,7 @@ absolute_scale =
         "Bohlen-Pierce is for when you want a scale which is systematically\
         \ different in every way from all those other scales, but with its\
         \ own peculiar internal consistency. TODO: MIDI input is\
-        \ not properly implemented.")
+        \ not properly implemented.\n")
     { Scale.scale_note_to_call = note_to_call scale_map
     , Scale.scale_input_to_nn = Util.computed_input_to_nn
         (ChromaticScales.input_to_note scale_map) (note_to_call scale_map)

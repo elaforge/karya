@@ -11,6 +11,8 @@ import qualified Data.Text as Text
 
 import Util.Control
 import qualified Util.Pretty as Pretty
+import qualified Util.Seq as Seq
+
 import qualified Derive.Call.ScaleDegree as ScaleDegree
 import qualified Derive.Controls as Controls
 import qualified Derive.Derive as Derive
@@ -162,13 +164,30 @@ call_doc transposers smap doc =
     where
     call = ScaleDegree.scale_degree err err
         where err _ _ = Left $ PitchSignal.PitchError "it was just an example!"
-    extra_doc = doc <> "\n" <> twelve_doc
+    extra_doc = doc <> twelve_doc
     fields =
         [ ("default key", Pretty.prettytxt $
             TheoryFormat.show_key (smap_fmt smap) (smap_default_key smap))
-        , ("keys", Text.intercalate ", " $
-            map Pretty.prettytxt (Map.keys (smap_keys smap)))
+        , ("keys", format_keys $ Map.keys (smap_keys smap))
         ]
+
+format_keys :: [Pitch.Key] -> Text
+format_keys keys
+    | any (("-" `Text.isInfixOf`) . name) keys =
+        Text.intercalate ", " $ map fst $ group_keys $ map (flip (,) ()) keys
+    | otherwise = Text.intercalate ", " $ map name keys
+    where name (Pitch.Key k) = k
+
+-- | Assuming keys are formatted @tonic-mode@, group keys by mode and replace
+-- the tonics with a pattern.
+group_keys :: [(Pitch.Key, a)] -> [(Text, a)]
+group_keys = map extract . Seq.keyed_group_on key . map (first split)
+    where
+    extract (mode, group) = (fmt mode (map (fst . fst) group), snd (head group))
+    key ((_, mode), _) = mode
+    split (Pitch.Key t) = (pre, Text.drop 1 post)
+        where (pre, post) = Text.break (=='-') t
+    fmt mode keys = "(" <> Text.intercalate "|" keys <> ")-" <> mode
 
 -- * implementation
 

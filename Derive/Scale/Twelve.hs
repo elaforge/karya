@@ -36,7 +36,7 @@ import qualified Perform.Pitch as Pitch
 
 scale :: Scale.Scale
 scale = ChromaticScales.make_scale scale_map scale_id
-    "The world-famous equal tempered twelve note scale."
+    "The world-famous equal tempered twelve note scale.\n"
 
 scale_id :: Pitch.ScaleId
 scale_id = Pitch.ScaleId "twelve"
@@ -88,7 +88,7 @@ scales =
         \ input layout is still in C major, so the black keys are in the wrong\
         \ place. TODO to fix this I'd have to either abandon the relative\
         \ input, or reconfigure the input layout. The latter would be really\
-        \ confusing, and incompatible with a piano keyboard."
+        \ confusing, and incompatible with a piano keyboard.\n"
     ]
 
 default_key :: Pitch.Key

@@ -12,16 +12,16 @@ UNSORTED
     . Looks like it happens when I create a new block from a template block
       with collapsed tracks.  It probably needs to use logical rather than
       physical size.
+    . Nope, wrong.
   generic just scale support
     * I should do keys differently: key just sets the ratios.  You set the
       base freq manually, e.g. 'just-base = (hz (4c))'.
     * pass named intervals in ScaleMap
     * re-implement Just and test
     * add Scale.Hex
-    - separate documentation for Scale.Hex
-    - reduce duplication between Scale.Hex and Scale.Just
-    - make it clear that length ratios == pc_per_octave
-    - put keys and their ratios into the scale doc
+    * separate documentation for Scale.Hex
+    * reduce duplication between Scale.Hex and Scale.Just
+    * put keys and their ratios into the scale doc
     - just scales should have a 'repeat 2' layout
       . The issue is that input kbd layout is separate from scale layout.
         Just scales should have a 'repeat 2' layout, and the input also

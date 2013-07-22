@@ -2,21 +2,26 @@ module Derive.Scale.JustScales where
 import qualified Data.Map as Map
 import qualified Data.Ratio as Ratio
 import Data.Ratio ((%))
+import qualified Data.Text as Text
 import qualified Data.Vector as Vector
 
 import Util.Control
 import qualified Util.Num as Num
+import qualified Util.Pretty as Pretty
+
 import qualified Derive.Call.ScaleDegree as ScaleDegree
 import qualified Derive.Controls as Controls
 import qualified Derive.Derive as Derive
 import qualified Derive.Environ as Environ
 import qualified Derive.Scale as Scale
+import qualified Derive.Scale.ChromaticScales as ChromaticScales
 import qualified Derive.Scale.Theory as Theory
 import qualified Derive.Scale.TheoryFormat as TheoryFormat
 import qualified Derive.Scale.Util as Util
 import qualified Derive.Score as Score
 import qualified Derive.TrackLang as TrackLang
 
+import qualified Perform.NN as NN
 import qualified Perform.Pitch as Pitch
 
 
@@ -29,7 +34,7 @@ just_base_control = Score.Control "just-base"
 -- | Bundle up data needed to construct a just scale.
 data ScaleMap = ScaleMap {
     smap_fmt :: TheoryFormat.Format
-    , smap_keys :: Map.Map Pitch.Key Key
+    , smap_keys :: Keys
     , smap_default_key :: Key
     -- | Previously I would default to the 12TET of the tonic when just-base
     -- isn't set, but that doesn't work when the scale doesn't use 12TET names.
@@ -45,14 +50,31 @@ data ScaleMap = ScaleMap {
     , smap_accidental_interval :: Double
     }
 
+type Keys = Map.Map Pitch.Key Key
+
+-- | Make a just scale with the given set of keys.  A \"key\" in a just scale
+-- is the set of ratios and the tonic.  The number of ratios should be the same
+-- as the number of scale degrees as defined by the 'TheoryFormat.Format'.  If
+-- there are too many, the extras will never be reached, if too few, they'll
+-- wrap around.
+scale_map :: Keys -> Key -> TheoryFormat.Format -> ScaleMap
+scale_map keys default_key fmt = ScaleMap
+    { smap_fmt = fmt
+    , smap_keys = keys
+    , smap_default_key = default_key
+    , smap_default_base_hz = Pitch.nn_to_hz NN.middle_c
+    , smap_named_intervals = named_intervals
+    , smap_accidental_interval = 16 / 15
+    }
+
 -- | TODO this should be 'repeat 2', but as long as this is also controlling
 -- the input layout, it has to be piano layout, or it won't work properly with
 -- kbd and midi entry.
 layout :: Theory.Layout
 layout = TheoryFormat.piano_layout
 
-make_scale :: Pitch.ScaleId -> ScaleMap -> Scale.Scale
-make_scale scale_id smap = Scale.Scale
+make_scale :: Pitch.ScaleId -> ScaleMap -> Text -> Scale.Scale
+make_scale scale_id smap doc = Scale.Scale
     { Scale.scale_id = scale_id
     , Scale.scale_pattern = TheoryFormat.fmt_pattern fmt
     , Scale.scale_symbols = []
@@ -64,13 +86,22 @@ make_scale scale_id smap = Scale.Scale
     , Scale.scale_input_to_nn =
         Util.computed_input_to_nn input2note (note_to_call smap)
     , Scale.scale_call_doc =
-        Util.annotate_call_doc Util.standard_transposers just_doc [] dummy_call
+        Util.annotate_call_doc Util.standard_transposers (doc <> just_doc)
+            keys_doc dummy_call
     }
     where
     dummy_call = Util.scale_degree_doc $
         ScaleDegree.scale_degree_just (smap_named_intervals smap) 0
     input2note = input_to_note (TheoryFormat.show_pitch fmt)
     fmt = smap_fmt smap
+    keys_doc =
+        [ (name, show_ratios (key_ratios key))
+        | (name, key) <- ChromaticScales.group_keys $
+            Map.toList (smap_keys smap)
+        ]
+
+show_ratios :: Ratios -> Text
+show_ratios = Text.intercalate ", " . map Pretty.prettytxt . Vector.toList
 
 just_doc :: Text
 just_doc =
@@ -78,8 +109,7 @@ just_doc =
     \ That frequency is taken from the `%just-base` control and the key.\
     \ For example, `%just-base = 440 | key = a-maj` means that A in the\
     \ middle octave is 440hz and is considered 1/1, and uses the `maj`\
-    \ set of ratios. If the base hz isn't given, it defaults to the\
-    \ 12TET tuning of the key.\
+    \ set of ratios. If the base hz isn't given, it defaults to 12TET 4c.\
     \nThe key looks like `c-maj`, where `c` is the tonic and `maj` selects\
     \ the ratios to use. For absolute notation, the tonic determines where\
     \ the scale starts, while for relative notation, the tonic determines\
@@ -252,6 +282,28 @@ read_key :: ScaleMap -> TrackLang.Environ -> Either Scale.ScaleError Key
 read_key smap = Util.read_environ
     (\k -> Map.lookup (Pitch.Key k) (smap_keys smap))
     (smap_default_key smap) Environ.key
+
+make_keys :: [Text] -> [(Text, Ratios)] -> Keys
+make_keys degrees key_ratios = Map.fromList
+    [ (Pitch.Key $ degree <> "-" <> name, Key tonic ratios)
+    | (name, ratios) <- key_ratios
+    , (degree, tonic) <- zip degrees [0..]
+    ]
+
+-- * format
+
+make_relative_fmt :: Keys -> Key
+    -> TheoryFormat.RelativeFormat TheoryFormat.Tonic
+make_relative_fmt keys default_key = TheoryFormat.RelativeFormat
+    { TheoryFormat.rel_acc_fmt = TheoryFormat.ascii_accidentals
+    , TheoryFormat.rel_parse_key = fmap key_tonic . lookup_key
+    , TheoryFormat.rel_default_key = 0
+    , TheoryFormat.rel_show_note = TheoryFormat.show_note_diatonic
+    , TheoryFormat.rel_to_absolute = TheoryFormat.diatonic_to_absolute
+    }
+    where
+    lookup_key Nothing = Right default_key
+    lookup_key (Just key) = Util.maybe_key key (Map.lookup key keys)
 
 -- * named intervals
 
