@@ -427,4 +427,4 @@ realtime_at_selection view_id sel = do
     block_id <- State.block_id_of view_id
     track_id <- State.event_track_at block_id (Selection.point_track sel)
     justm (Perf.lookup_root) $ \perf ->
-        Just <$> Perf.get_realtime perf block_id track_id (Selection.point sel)
+        Perf.lookup_realtime perf block_id track_id (Selection.point sel)

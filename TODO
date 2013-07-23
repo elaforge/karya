@@ -7,6 +7,7 @@ UNSORTED
   * need to catch errors from select hooks, otherwise realtime logs to stderr
     when it fails
     In fact, it fails whenever I'm not a block not linked from the root.
+    * still get error when there's an empty track: no tempo information
   - unmerging a pitch track should have a minimum width to display 3 chars
     Figure out under which circumstances the collapsed track forgets its size.
     . Looks like it happens when I create a new block from a template block
@@ -29,8 +30,15 @@ UNSORTED
     - 'just-base = (4c)' should be equivalent to (hz (4c))
   - if I say 'x = .5' then a val call (x) is .5
     I can use it to figure out certain filter settings and give them names.
+    A val call lookup can make it fallback on the env, so (x) is like (env x)
   - call lifts pitch to some frequency at the end of notes
   - how to do a chopper, e.g. 10 05 20 10 40 10 80 20 ff 40
+    It's like a trill, where bottom and top can move.
+    In general, it could be two signals which are crosscut.  But that seems
+    like overkill for the common case where one is constant, or is linear.
+    'cut .1 14 | i> 1'
+  - resample control call, but why not just set srate?  Could be in score time
+    to step in rhythm.
   - to do per-score code, I can put it in Local.Score.<namespace>
     Convert to module name by replacing -x with (upper x) and capitalizing the
     first letter.
