@@ -290,16 +290,15 @@ html_link text url =
 
 type Scale = [CallBindings]
 
-scales_html :: HtmlState -> [Scale] -> Text
+scales_html :: HtmlState -> [CallBindings] -> Text
 scales_html hstate scales = un_html $ html_header hstate
         <> "<h2> Scales </h2>\n"
-        <> "<dl class=main>\n" <> mconcatMap scale_html scales
+        <> "<dl class=main>\n" <> scale_html scales
         <> "</dl>\n"
     where scale_html = mconcatMap (call_bindings_html hstate "scale")
 
-scale_doc :: Scale.Scale -> Scale
-scale_doc scale =
-    lookup_docs [Derive.lookup_docs $ Derive.scale_to_lookup scale]
+scale_docs :: [Scale.Scale] -> [CallBindings]
+scale_docs = lookup_docs . map (Derive.lookup_docs . Derive.scale_to_lookup)
 
 -- * doc
 

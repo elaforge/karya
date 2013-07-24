@@ -38,7 +38,7 @@ main = do
         ["scales"] -> do
             hstate <- CallDoc.get_html_state "../haddock" "."
             Text.IO.putStr $ CallDoc.scales_html hstate $
-                map CallDoc.scale_doc $ Map.elems Scale.All.scales
+                CallDoc.scale_docs $ Map.elems Scale.All.scales
         _ -> error $ "usage: extract_doc [ keymap | calls | scales ]"
 
 -- * extract keymap
