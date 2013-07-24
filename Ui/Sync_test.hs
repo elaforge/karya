@@ -42,6 +42,7 @@ import qualified Ui.Ruler as Ruler
 import qualified Ui.Skeleton as Skeleton
 import qualified Ui.State as State
 import qualified Ui.Sync as Sync
+import qualified Ui.Track as Track
 import qualified Ui.Transform as Transform
 import qualified Ui.Types as Types
 import qualified Ui.Ui as Ui
@@ -165,7 +166,7 @@ test_set_status = do
 test_set_track_flags = do
     state <- run State.empty $ do
         setup_state
-        t2 <- create_track "b1.t2" UiTest.event_track_2
+        t2 <- create_track "b1.t2" track_with_events
         insert_track t_block_id 1 (Block.TId t2 t_ruler_id) 30
     state <- io_human "track1 is muted" $ run state $
         State.toggle_track_flag t_block_id 1 Block.Mute
@@ -304,7 +305,7 @@ test_update_track = do
 test_update_two_tracks = do
     state <- run State.empty $ do
         setup_state
-        t2 <- create_track "b1.t2" UiTest.event_track_2
+        t2 <- create_track "b1.t2" track_with_events
         insert_track t_block_id 1 (Block.TId t2 t_ruler_id) 30
         return ()
     io_human "1st track deleted, 2nd track gets wider" $ run state $ do
@@ -373,9 +374,9 @@ test_selection_change_tracks = do
 test_insert_into_selection = do
     state <- run State.empty $ do
         v1 <- setup_state
-        t2 <- create_track "b1.t2" UiTest.event_track_2
+        t2 <- create_track "b1.t2" track_with_events
         insert_track t_block_id 1 (Block.TId t2 t_ruler_id) 60
-        create_track "b1.t3" UiTest.event_track_2
+        create_track "b1.t3" track_with_events
         insert_track t_block_id 2 (Block.TId t2 t_ruler_id) 60
         set_selection v1 (Types.selection 0 10 2 60)
     state <- io_human "insert into sel, gets bigger" $ run state $ do
@@ -433,6 +434,9 @@ parse_dump :: String -> Dump.Dump
 parse_dump = either (error . ("failed to parse dump: "++)) id . Dump.parse
 
 -- * util
+
+track_with_events :: Track.Track
+track_with_events = UiTest.make_track ("2", [(16, 10, "ho"), (30, 32, "eyo")])
 
 set_selection :: (State.M m) => ViewId -> Types.Selection -> m ()
 set_selection view_id sel = State.set_selection view_id 0 (Just sel)

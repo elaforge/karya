@@ -24,13 +24,15 @@ import Types
 
 -- * block
 
--- | Save state in a format that can be copy-pasted into a test.
+-- | Save state in a format that can be copy-pasted into a test, and loaded
+-- with 'UiTest.read_blocks'.
 dump_blocks :: FilePath -> Cmd.CmdL ()
 dump_blocks fname = do
     state <- State.get
     liftIO $ UiTest.dump_blocks fname state
 
--- | Save the given block in a format that can be copy-pasted into a test.
+-- | Save a block in a format that can be copy-pasted into a test, and loaded
+-- with 'UiTest.read_blocks'.
 dump_block :: FilePath -> BlockId -> Cmd.CmdL ()
 dump_block fname block_id = do
     st <- State.get

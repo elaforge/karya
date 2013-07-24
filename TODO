@@ -3,6 +3,7 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
+  * why are scale and scale-r not grouped in the call doc?
   * why does play from local require a root_id?
   * need to catch errors from select hooks, otherwise realtime logs to stderr
     when it fails
@@ -23,11 +24,24 @@ UNSORTED
     * separate documentation for Scale.Hex
     * reduce duplication between Scale.Hex and Scale.Just
     * put keys and their ratios into the scale doc
+    * for a key in just scales, it is a better analogy to set 1/1 to another
+      scale degree.  This means for a-maj it's no longer maj, so that's
+      not quite right.  Maybe another field
+        a-1-h1357
+
+        I feel like the 'a' doesn't belong, because it's just note entry, not
+        notation.  Well, except for absolute.  But maybe just scales don't
+        need absolute?  Except it might be nice if it corresponds to the MIDI
+        kbd.
+        It's also weird that in relative notation it has no effect on the
+        music but has to be specified anyway.
+
     - just scales should have a 'repeat 2' layout
       . The issue is that input kbd layout is separate from scale layout.
         Just scales should have a 'repeat 2' layout, and the input also
         accepts black notes between every note.
-    - 'just-base = (4c)' should be equivalent to (hz (4c))
+    / '%just-base = (4c)' should be equivalent to (hz (4c))
+      That means pitches get coerced to hz, but why not nn?
   - if I say 'x = .5' then a val call (x) is .5
     I can use it to figure out certain filter settings and give them names.
     A val call lookup can make it fallback on the env, so (x) is like (env x)
@@ -391,9 +405,10 @@ external
     Can't get attoparsec to consistently report an error.  Kind of hard when
     it always backtracks.
     - Need to add <||> to attoparsec.
-  - chorded keys are not getting the proper pitch bend
+  + chorded keys are not getting the proper pitch bend
     It's a pianoteq problem.
     Track it down and send it to them?
+    - wait for response
   - problem with pianoteq: if the same note occurs on two channels, one
     will be dropped.  Report to pianoteq.  I could work around, but it won't
     occur with real multitimbral instruments anyway.

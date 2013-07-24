@@ -205,6 +205,13 @@ derive_block_with :: Transform Derive.Events -> State.State -> BlockId
 derive_block_with with =
     derive_block_standard mempty mempty (with . with_environ default_environ)
 
+-- | Like 'derive_block_with', but exec the StateId.
+derive_block_with_m :: Transform Derive.Events -> State.StateId a -> BlockId
+    -> Derive.Result
+derive_block_with_m with create =
+    derive_block_standard mempty mempty (with . with_environ default_environ)
+        (UiTest.exec State.empty create)
+
 -- | Derive tracks but with a linear skeleton.  Good for testing note
 -- transformers since the default skeleton parsing won't create those.
 derive_tracks_linear :: [UiTest.TrackSpec] -> Derive.Result

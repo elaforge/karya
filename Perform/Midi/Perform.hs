@@ -107,10 +107,6 @@ perform state configs events = (final_msgs, final_state)
     (event_allotted, allot_state) =
         allot (state_allot state) inst_addrs event_channels
     (msgs, perform_state) = perform_notes (state_perform state) event_allotted
-    -- PostprocState is used to drop redundant msgs.  But I can't do that
-    -- across chunk boundaries since earlier chunks may not have been played.
-    -- Emitting a few redundant control messages is simpler than trying to
-    -- reset state based on the previous chunk.
     (final_msgs, _) = post_process mempty msgs
 
 -- | Map each instrument to its allocated Addrs.

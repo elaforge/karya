@@ -162,8 +162,11 @@ main = initialize $ \repl_socket midi_interface -> do
 -- | Do one-time startup tasks.
 startup_initialization :: IO ()
 startup_initialization = do
-    LoadConfig.symbols $ Call.Symbols.symbols ++ Scale.Symbols.symbols
-        ++ Instrument.Symbols.symbols
+    LoadConfig.symbols $ concat
+        [ Call.Symbols.symbols
+        , Scale.Symbols.symbols
+        , Instrument.Symbols.symbols
+        ]
     LoadConfig.styles Config.styles
     -- Report keymap and call overlaps.
     mapM_ Log.warn GlobalKeymap.cmd_map_errors

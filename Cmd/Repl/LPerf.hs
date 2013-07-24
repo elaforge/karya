@@ -229,7 +229,7 @@ in_tracks event_stack track_ids =
 
 in_range :: (Ord k) => (d -> k) -> k -> k -> Events d -> Events d
 in_range start_of start end =
-    takeWhile (is_event ((<=end) . start_of))
+    takeWhile (is_event ((<end) . start_of))
         . dropWhile (is_event ((<start) . start_of))
     where is_event f = LEvent.either f (const True)
 

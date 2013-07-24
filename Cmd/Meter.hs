@@ -9,8 +9,8 @@
     measure, and only at one level, while the ruler has arbitrary divisions.
     However, in practice, it's convenient to use a similar organization to
     staff notation's meter.  So by convention the ranks are for section,
-    measure, half note, etc., and "Cmd.TimeStep" uses these as mnemonics for
-    the various ruler ranks it can snap to.
+    measure, half note, etc., and "Cmd.TimeStep" uses abbreviated mnemonics of
+    these durations for the various ruler ranks it can snap to.
 
     However, rank 'r_2', which corresponds to TimeStep's @'h'@, doesn't
     necessarily correspond to a half note.  It actually corresponds to the

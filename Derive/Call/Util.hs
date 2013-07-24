@@ -515,14 +515,15 @@ equal_transformer args deriver = case Derive.passed_vals args of
         | assignee == Controls.tempo -> set_tempo val
         | otherwise ->
             Derive.with_control assignee (fmap Signal.constant val) deriver
-    [pitch -> Just assignee, TrackLang.VPitchControl val] -> do
-        sig <- to_pitch_signal val
-        Derive.with_pitch assignee sig deriver
     [pitch -> Just assignee, TrackLang.VPitch val] -> do
         scale <- get_scale
         Derive.with_pitch assignee (constant_pitch scale val) deriver
+    [pitch -> Just assignee, TrackLang.VPitchControl val] -> do
+        sig <- to_pitch_signal val
+        Derive.with_pitch assignee sig deriver
     _ -> Derive.throw_arg_error
-        "equal call expected 'sym = val' or 'sig = sig' args"
+        "equal call expected 'sym = val', '%control = number',\
+        \ '%control1 = %control2', '#pitch = (pitch)', or '#pitch1 = #pitch2'."
     where
     set_tempo val =
         Internal.d_warp warp $ Internal.add_new_track_warp Nothing >> deriver
