@@ -151,7 +151,7 @@ named_block_from_template template_id name = do
     State.set_skeleton block_id =<< State.get_skeleton template_id
     return block_id
 
--- | BlockIds look like \"ns/b0\", \"ns/b1\", etc.
+-- | BlockIds look like \"ns\/b0\", \"ns\/b1\", etc.
 block :: (State.M m) => RulerId -> m BlockId
 block ruler_id = do
     ns <- State.get_namespace
@@ -161,7 +161,7 @@ block ruler_id = do
         [Block.track (Block.RId ruler_id) Config.ruler_width]
 
 -- | Create a block with the given ID name.  Useful for blocks meant to be
--- sub-derived.  If the name doesn't contain a @/@, it gets the current
+-- sub-derived.  If the name doesn't contain a @\/@, it gets the current
 -- namespace.
 named_block :: (State.M m) => Text -> RulerId -> m BlockId
 named_block name ruler_id = do
@@ -202,7 +202,17 @@ sized_view block_id rect = do
     view_id <- require "view id" . generate_view_id block_id
         =<< State.gets State.state_views
     block <- State.get_block block_id
-    State.create_view view_id $ Block.view block block_id rect Config.zoom
+    view_id <- State.create_view view_id $
+        Block.view block block_id rect Config.zoom
+    -- Automatically set the selection on a new view, so it has focus.
+    let maybe_tracknum = case Block.block_tracks block of
+            [] -> Nothing
+            [_] -> Just 0
+            _ -> Just 1
+    whenJust maybe_tracknum $ \tracknum ->
+        State.set_selection view_id Config.insert_selnum $
+            Just $ Types.point_selection tracknum 0
+    return view_id
 
 -- | This is like 'unfitted_view', but tries to fit the view size to its
 -- contents.
