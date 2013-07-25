@@ -254,9 +254,10 @@ p_ratio = do
     return $ (if sign == '-' then -1 else 1)
         * fromIntegral num / fromIntegral denom
 
+-- | Parse numbers of the form @`0x`00@ or @0x00@.
 p_hex :: A.Parser Signal.Y
 p_hex = do
-    A.string prefix
+    A.string prefix <|> A.string "0x"
     let higit c = '0' <= c && c <= '9' || 'a' <= c && c <= 'f'
     c1 <- A.satisfy higit
     c2 <- A.satisfy higit

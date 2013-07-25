@@ -3,7 +3,7 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
-  - add 0x00 literals
+  * add 0x00 literals
   - Events can be slightly out of order!  The problem is that 'perfom_notes'
     uses Seq.merge_asc_lists, but 'create_leading_cc' can violate the ascending
     assumption by moving an event forward due to a previous event.

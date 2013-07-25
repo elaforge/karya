@@ -112,10 +112,13 @@ test_parse_val = do
             , ("$bad", Nothing)
             , ("_", Just VNotGiven)
             ]
+    let num = Just . VNum
     let noninvertible =
-            [ ("3/2", Just (VNum (Score.untyped 1.5)))
-            , ("-3/2", Just (VNum (Score.untyped (-1.5))))
-            , ("3/2d", Just (VNum (Score.Typed Score.Diatonic 1.5)))
+            [ ("3/2", num (Score.untyped 1.5))
+            , ("-3/2", num (Score.untyped (-1.5)))
+            , ("3/2d", num (Score.Typed Score.Diatonic 1.5))
+            , ("0x00", num (Score.untyped 0))
+            , ("0xff", num (Score.untyped 1))
             ]
     let exprs = map ((,) True) invertible ++ map ((,) False) noninvertible
     forM_ exprs $ \(invertible, (expr, expected)) -> do
