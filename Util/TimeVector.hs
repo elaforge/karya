@@ -226,18 +226,20 @@ drop_after x vec
     | x <= 0 = V.takeWhile ((<=0) . sx) vec
     | otherwise = V.take (lowest_index (x - RealTime.eta) vec) vec
 
--- | The reverse of 'drop_after'.  Trim a signal's head up until, but not
--- including, the given X.  If there is no sample at @x@, keep one sample
--- before it to preserve the value at @x@.
---
--- As with 'drop_after', this doesn't do any copying.
+-- | Like 'drop_before_strict', except if there is no sample at @x@, keep one
+-- sample before it to preserve the value at @x@.
 {-# SPECIALIZE drop_before :: X -> Unboxed -> Unboxed #-}
 drop_before :: (V.Vector v (Sample y)) => X -> v (Sample y) -> v (Sample y)
 drop_before x vec
-    | i < V.length vec && sx (V.unsafeIndex vec i) == x =
-        snd $ V.splitAt i vec
-    | otherwise = snd $ V.splitAt (i-1) vec
+    | i < V.length vec && sx (V.unsafeIndex vec i) == x = V.drop i vec
+    | otherwise = V.drop (i-1) vec
     where i = lowest_index x vec
+
+-- | The reverse of 'drop_after': trim a signal's head up until, but not
+-- including, the given X.
+drop_before_strict :: (V.Vector v (Sample y)) => X -> v (Sample y)
+    -> v (Sample y)
+drop_before_strict x vec = V.drop (lowest_index x vec) vec
 
 -- | Return samples within a range.  This is a combination of 'drop_before'
 -- and 'drop_after'.

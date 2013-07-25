@@ -38,7 +38,7 @@ module Perform.Signal (
     , sig_max, sig_min, scalar_max, scalar_min, clip_bounds
     , scalar_add, scalar_subtract, scalar_multiply, scalar_divide
     , shift, scale
-    , take, within, drop_after, drop_before
+    , take, within, drop_after, drop_before, drop_before_strict
     , map_x, map_y
 
     -- ** special functions
@@ -288,6 +288,9 @@ drop_after = modify_vec . V.drop_after
 
 drop_before :: X -> Signal y -> Signal y
 drop_before = modify_vec . V.drop_before
+
+drop_before_strict :: X -> Signal y -> Signal y
+drop_before_strict = modify_vec . V.drop_before_strict
 
 map_x :: (X -> X) -> Signal y -> Signal y
 map_x = modify_vec . V.map_x

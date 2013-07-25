@@ -89,7 +89,7 @@ module Derive.Sig (
     , parsed_manually, no_args
     , required, defaulted, optional, many, many1
     -- ** defaults
-    , control, typed_control, required_control
+    , control, typed_control, required_control, pitch
     , arg_environ_default
     -- * call
     , call, call0, callt, call0t
@@ -279,6 +279,10 @@ typed_control name deflt typ =
 
 required_control :: Text -> TrackLang.ValControl
 required_control name = TrackLang.LiteralControl (Score.Control name)
+
+-- | Pitch signal.  There's no default because that would depend on the scale.
+pitch :: Text -> TrackLang.PitchControl
+pitch name = TrackLang.LiteralControl (Score.Control name)
 
 -- ** util
 

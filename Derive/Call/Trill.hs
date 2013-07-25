@@ -58,7 +58,7 @@ import qualified Derive.PitchSignal as PitchSignal
 import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Sig as Sig
-import Derive.Sig (defaulted, required, typed_control, control)
+import Derive.Sig (defaulted, required, typed_control, control, pitch)
 import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.RealTime as RealTime
@@ -214,6 +214,8 @@ pitch_calls = Derive.make_calls
     , ("`tr`", c_pitch_trill Nothing)
     , ("`tr`1", c_pitch_trill (Just UnisonFirst))
     , ("`tr`2", c_pitch_trill (Just NeighborFirst))
+    , ("xcut", c_xcut_pitch False)
+    , ("xcut-h", c_xcut_pitch True)
     ]
 
 c_pitch_trill :: Maybe Mode -> Derive.PitchCall
@@ -235,6 +237,36 @@ c_pitch_trill maybe_mode = Derive.generator1 "pitch-trill" Tags.ornament
         PitchSignal.apply_control control (Score.untyped transpose) <$>
             Util.pitch_signal [(start, note)]
 
+c_xcut_pitch :: Bool -> Derive.PitchCall
+c_xcut_pitch hold = Derive.generator1 "xcut" mempty
+    "Cross-cut between two pitches.  The `-h` variant holds the value at the\
+    \ beginning of each transition."
+    $ Sig.call ((,,)
+    <$> defaulted "val1" (pitch "xcut1") "First pitch."
+    <*> defaulted "val2" (pitch "xcut2") "Second pitch."
+    <*> defaulted "speed" (typed_control "xcut-speed" 14 Score.Real) "Speed."
+    ) $ \(val1, val2, speed) args -> do
+        transitions <- speed_starts speed (Args.range_or_next args)
+        val1 <- Util.to_pitch_signal val1
+        val2 <- Util.to_pitch_signal val2
+        return $ xcut_pitch hold val1 val2 transitions
+
+xcut_pitch :: Bool -> PitchSignal.Signal -> PitchSignal.Signal -> [RealTime]
+    -> PitchSignal.Signal
+xcut_pitch hold val1 val2 =
+    mconcat . snd . List.mapAccumL slice (val1, val2) . Seq.zip_next
+    where
+    slice (val1, val2) (t, next_t)
+        | hold = (next, initial)
+        | otherwise = (next, initial <> chunk)
+        where
+        chopped = PitchSignal.drop_before_strict t val1
+        chunk = maybe chopped (\n -> PitchSignal.drop_after n chopped) next_t
+        next = (val2, PitchSignal.drop_before t val1)
+        initial = case PitchSignal.at t val1 of
+            Nothing -> mempty
+            Just p -> PitchSignal.signal (PitchSignal.sig_scale val1) [(t, p)]
+
 
 -- * control calls
 
@@ -249,6 +281,8 @@ control_calls = Derive.make_calls
     , ("sine", c_sine Bipolar)
     , ("sine+", c_sine Positive)
     , ("sine-", c_sine Negative)
+    , ("xcut", c_xcut_control False)
+    , ("xcut-h", c_xcut_control True)
     ]
 
 -- | The control version of 'c_pitch_trill'.  It generates a signal of values
@@ -274,7 +308,8 @@ trill_speed_arg = defaulted "speed" (typed_control "trill-speed" 14 Score.Real)
     \ cycles per second, which will be unaffected by the tempo. If it's\
     \ a ScoreTime, the value is the number of cycles per ScoreTime\
     \ unit, and will stretch along with tempo changes. In either case,\
-    \ this will emit an integral number of cycles."
+    \ this will emit only whole notes, i.e. a note will not be cut short sooner\
+    \ than it should according to the speed."
 
 c_sawtooth :: Derive.ControlCall
 c_sawtooth = Derive.generator1 "sawtooth" Tags.ornament
@@ -348,6 +383,36 @@ speed_starts speed range = do
             starts <- score_pos_at_speed speed_sig start end
             mapM Derive.real $ takeWhile (<=end) starts
 
+
+-- ** xcut
+
+c_xcut_control :: Bool -> Derive.ControlCall
+c_xcut_control hold = Derive.generator1 "xcut" mempty
+    "Cross-cut between two signals.  The `-h` variant holds the value at the\
+    \ beginning of each transition."
+    $ Sig.call ((,,)
+    <$> defaulted "val1" (control "xcut1" 1) "First value."
+    <*> defaulted "val2" (control "xcut2" 0) "Second value."
+    <*> defaulted "speed" (typed_control "xcut-speed" 14 Score.Real) "Speed."
+    ) $ \(val1, val2, speed) args -> do
+        transitions <- speed_starts speed (Args.range_or_next args)
+        val1 <- Util.to_untyped_signal val1
+        val2 <- Util.to_untyped_signal val2
+        return $ xcut_control hold val1 val2 transitions
+
+xcut_control :: Bool -> Signal.Control -> Signal.Control -> [RealTime]
+    -> Signal.Control
+xcut_control hold val1 val2 =
+    mconcat . snd . List.mapAccumL slice (val1, val2) . Seq.zip_next
+    where
+    slice (val1, val2) (t, next_t)
+        | hold = (next, initial)
+        | otherwise = (next, initial <> chunk)
+        where
+        chopped = Signal.drop_before_strict t val1
+        chunk = maybe chopped (\n -> Signal.drop_after n chopped) next_t
+        next = (val2, Signal.drop_before t val1)
+        initial = Signal.signal [(t, Signal.at t val1)]
 
 -- * util
 

@@ -11,7 +11,7 @@ module Derive.PitchSignal (
     , apply_controls, apply_control, controls_at
     -- * signal functions
     , null, at, shift, last
-    , take, drop_after, drop_before
+    , take, drop_after, drop_before, drop_before_strict
     -- * Pitch
     , Pitch, PitchError(..)
     , pitch, apply, add_control, eval_pitch, eval_note, pitch_nn, pitch_note
@@ -173,10 +173,13 @@ take :: Int -> Signal -> Signal
 take = modify_vector . TimeVector.take
 
 drop_after :: RealTime -> Signal -> Signal
-drop_after x = modify_vector (TimeVector.drop_after x)
+drop_after = modify_vector . TimeVector.drop_after
+
+drop_before_strict :: RealTime -> Signal -> Signal
+drop_before_strict = modify_vector . TimeVector.drop_before_strict
 
 drop_before :: RealTime -> Signal -> Signal
-drop_before x = modify_vector (TimeVector.drop_before x)
+drop_before = modify_vector . TimeVector.drop_before
 
 -- * Pitch
 

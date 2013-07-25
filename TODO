@@ -3,6 +3,12 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
+  - add 0x00 literals
+  - Events can be slightly out of order!  The problem is that 'perfom_notes'
+    uses Seq.merge_asc_lists, but 'create_leading_cc' can violate the ascending
+    assumption by moving an event forward due to a previous event.
+    . really it's the note ons that are ascending, not the fluff beforehand
+      maybe I can put that in its own group?
   * why are scale and scale-r not grouped in the call doc?
   * why does play from local require a root_id?
   * need to catch errors from select hooks, otherwise realtime logs to stderr
@@ -46,11 +52,24 @@ UNSORTED
     I can use it to figure out certain filter settings and give them names.
     A val call lookup can make it fallback on the env, so (x) is like (env x)
   - call lifts pitch to some frequency at the end of notes
-  - how to do a chopper, e.g. 10 05 20 10 40 10 80 20 ff 40
+  * how to do a chopper, e.g. 10 05 20 10 40 10 80 20 ff 40
     It's like a trill, where bottom and top can move.
     In general, it could be two signals which are crosscut.  But that seems
     like overkill for the common case where one is constant, or is linear.
     'cut .1 14 | i> 1'
+    examples:
+      xcut %t1 %t2 14
+      xcut-h ... -- for sample-hold
+      xcut 1 %t2 -- constant
+      xcut (i> .1 .3) (i> .1 1) -- if I add signal literals
+  - should be able to coerce a VPitch to a constant PitchControl, just like
+    numbers
+  - signal literals
+    I can replace 'ConstantControl val' with 'SignalControl sig'
+    Numbers are coerced to 'SignalControl (Signal.constant x)', but val calls
+    can return more complicated ones
+  - val calls to return signals: i>, e>
+    . Could I import all the control calls?
   - resample control call, but why not just set srate?  Could be in score time
     to step in rhythm.
   - to do per-score code, I can put it in Local.Score.<namespace>

@@ -183,6 +183,15 @@ test_pitch_trill = do
     equal (CallTest.run_pitch [(0, "tr (4e) 2 2"), (2.8, "4c")]) $
         zip [0, 0.5, 1, 1.5, 2] (cycle [64, 67]) ++ [(2.8, 60)]
 
+test_xcut_pitch = do
+    let f = DeriveTest.extract DeriveTest.e_nns $ DeriveTest.derive_tracks_linear
+                [ (">", [(0, 4, "")])
+                , ("* #xcut1", [(0, 0, "4c")])
+                , ("* #xcut2", [(0, 0, "5c")])
+                , ("*", [(0, 0, "xcut _ _ 1"), (4, 0, "--")])
+                ]
+    equal f ([[(0, 60), (1, 72), (2, 60), (3, 72), (4, 60)]], [])
+
 
 -- * control calls
 
@@ -201,3 +210,17 @@ test_control_trill = do
     equal (run 0.5 "tr 1 1t") ([trill [0, 2, 4, 6]], [])
     equal (run 1 "tr 1 1d")
         ([[(0, 0)]], ["Error: expected time type for 1d but got Diatonic"])
+
+test_xcut_control = do
+    let f hold val1 val2 = Signal.unsignal
+            . Trill.xcut_control hold (Signal.signal val1) (Signal.signal val2)
+    let sig1 = [(0, 0.25), (1, 0.5), (2, 0.75), (3, 1)]
+        sig2 = [(0, 0)]
+    equal (f False sig1 sig2 [1, 2]) [(1, 0.5), (2, 0)]
+    -- You get the rest of the signal after the last transition.
+    equal (f False sig2 sig1 [1, 2]) [(1, 0), (2, 0.75), (3, 1)]
+    -- Hold a changing signal.
+    equal (f True sig1 sig2 [0, 2]) [(0, 0.25), (2, 0)]
+
+    equal (f False [(0, 0)] [(0, 1)] [0, 1, 2, 3, 4])
+        [(0, 0), (1, 1), (2, 0), (3, 1), (4, 0)]

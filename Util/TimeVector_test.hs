@@ -104,6 +104,13 @@ test_drop_before = do
     equal (f 900 vec) [(4, 1)]
     equal (f 1 []) []
 
+test_drop_before_strict = do
+    let f x = unsignal $ V.drop_before_strict x (signal [(2, 0), (4, 1)])
+    equal (f 0) [(2, 0), (4, 1)]
+    equal (f 2) [(2, 0), (4, 1)]
+    equal (f 3) [(4, 1)]
+    equal (f 5) []
+
 test_sig_op = do
     let f vec0 vec1 = unsignal $ V.sig_op 0 (+) (signal vec0) (signal vec1)
     equal (f [(1, 1)] []) [(1, 1)]
