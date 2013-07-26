@@ -74,12 +74,12 @@ parse_expr = parse p_pipeline
 -- parsed simply as a list of values, not a Call.  Control track titles don't
 -- follow the normal calling process but pattern match directly on vals.
 parse_control_title :: Text.Text
-    -> Either String ([TrackLang.Val], [TrackLang.Call])
+    -> Either String ([TrackLang.RawVal], [TrackLang.Call])
 parse_control_title = Parse.parse_all p_control_title . from_text
 
 -- | Parse a single Val.  This takes a String since it's used with Notes and
 -- Symbols, which are still Strings.
-parse_val :: Text.Text -> Either String TrackLang.Val
+parse_val :: Text.Text -> Either String TrackLang.RawVal
 parse_val = Parse.parse_all (lexeme p_val) . from_text
 
 -- | Parse attributes in the form +a+b.
@@ -172,7 +172,7 @@ p_hs_string = fmap (\s -> "\"" <> s <> "\"") $
 -- * toplevel parsers
 
 -- | See 'parse_control_title'.
-p_control_title :: A.Parser ([TrackLang.Val], [TrackLang.Call])
+p_control_title :: A.Parser ([TrackLang.RawVal], [TrackLang.Call])
 p_control_title = do
     vals <- A.many (lexeme $ TrackLang.VSymbol <$> p_scale_id <|> p_val)
     expr <- A.option [] (p_pipe >> NonEmpty.toList <$> p_pipeline)
@@ -222,7 +222,7 @@ p_term = lexeme $
 p_sub_call :: A.Parser TrackLang.Call
 p_sub_call = Parse.between (A.char '(') (A.char ')') (p_call False)
 
-p_val :: A.Parser TrackLang.Val
+p_val :: A.Parser TrackLang.RawVal
 p_val =
     TrackLang.VInstrument <$> p_instrument
     <|> TrackLang.VAttributes <$> p_attrs
@@ -298,7 +298,7 @@ p_control = do
         Just val -> TrackLang.DefaultedControl control val
     <?> "control"
 
-p_pitch_control :: A.Parser TrackLang.PitchControl
+p_pitch_control :: A.Parser TrackLang.RawPitchControl
 p_pitch_control = do
     A.char '#'
     control <- Score.Control . to_text <$> A.option "" (p_identifier ",")

@@ -48,8 +48,9 @@ import qualified Derive.BaseTypes as Score
 import qualified Derive.BaseTypes as PitchSignal
 import Derive.BaseTypes
        (Environ, make_environ, environ_to_list, insert_val, delete_val,
-        lookup_val, null_environ, ValName, Val(..), Symbol(..), ControlRef(..),
-        PitchControl, ValControl, Note(..), show_call_val)
+        lookup_val, null_environ, ValName, RawVal, Val, ValType(..), Symbol(..),
+        ControlRef(..), PitchControl, RawPitchControl, ValControl, Note(..),
+        show_call_val)
 import qualified Derive.Environ as Environ
 import Derive.ShowVal (ShowVal(..))
 
@@ -438,7 +439,7 @@ checked_val2 name environ = case checked_val name environ of
 -- | The only operator is @|@, so a list suffices for an AST.
 type Expr = NonEmpty Call
 data Call = Call CallId [Term] deriving (Show)
-data Term = ValCall Call | Literal Val deriving (Show)
+data Term = ValCall Call | Literal RawVal deriving (Show)
 
 instance ShowVal Expr where
     show_val expr = Text.intercalate " | " (map show_val (NonEmpty.toList expr))
@@ -470,7 +471,7 @@ map_symbol f = fmap call
 
 -- | Transform the arguments in an expression.  This affects only vals in
 -- argument position.
-map_args :: (Val -> Val) -> Expr -> Expr
+map_args :: (RawVal -> RawVal) -> Expr -> Expr
 map_args f = fmap call
     where
     call (Call sym terms) = Call sym (map term terms)
@@ -484,10 +485,10 @@ call sym = Call (Symbol sym)
 inst :: Text -> Term
 inst = Literal . VInstrument . Score.Instrument
 
-val_call :: Text -> [Val] -> Term
+val_call :: Text -> [RawVal] -> Term
 val_call sym args = ValCall (Call (Symbol sym) (map Literal args))
 
-note :: Text -> [Val] -> Note
+note :: Text -> [RawVal] -> Note
 note sym args = Note (Pitch.Note sym) args
 
 note_call :: Note -> Term

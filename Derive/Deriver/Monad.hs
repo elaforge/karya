@@ -260,6 +260,8 @@ instance Pretty.Pretty ErrorVal where
 
 data CallError =
     -- | arg number, arg name, expected type, received val
+    --
+    -- The arg number starts at 0.
     TypeError Int Text TrackLang.Type (Maybe TrackLang.Val)
     -- | Couldn't even call the thing because the name was not found.
     | CallNotFound TrackLang.CallId
@@ -270,7 +272,7 @@ data CallError =
 instance Pretty.Pretty CallError where
     pretty err = case err of
         TypeError argno name expected received ->
-            "TypeError: arg " <> show argno <> "/" <> untxt name
+            "TypeError: arg " <> show (argno+1) <> "/" <> untxt name
             <> ": expected " <> Pretty.pretty expected <> " but got "
             <> Pretty.pretty (TrackLang.type_of <$> received)
             <> ": " <> Pretty.pretty received

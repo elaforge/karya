@@ -61,7 +61,7 @@ apply_transform name expr_str deriver = do
         Left err -> Derive.throw $ name ++ ": " ++ err
         Right expr -> return expr
     let transform = if Text.null expr_str then id
-            else Call.apply_transformer info (NonEmpty.toList expr)
+            else Call.apply_transformers info (NonEmpty.toList expr)
         info = Derive.dummy_call_info 0 1 name
     transform deriver
 

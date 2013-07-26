@@ -59,7 +59,7 @@ parse_control_expr title = do
     ctrack <- parse_control_vals vals
     return (ctrack, expr)
 
-parse_control_vals :: [TrackLang.Val] -> Either String ControlType
+parse_control_vals :: [TrackLang.RawVal] -> Either String ControlType
 parse_control_vals vals = case vals of
     --  *twelve -> default pitch track in twelve
     [scale -> Just scale_id] -> Right $ Pitch scale_id Nothing
@@ -105,7 +105,7 @@ parse_control_vals vals = case vals of
             <> TrackLang.show_val sym)
         Right (parse_control_type sym)
 
-    pitch_control :: TrackLang.Val -> Maybe (Maybe Score.Control)
+    pitch_control :: TrackLang.RawVal -> Maybe (Maybe Score.Control)
     pitch_control (TrackLang.VPitchControl (TrackLang.LiteralControl cont))
         | cont == Controls.null = Just Nothing
         | otherwise = Just (Just cont)
@@ -161,7 +161,7 @@ title_to_instrument title = case Text.uncons title of
 
 -- | Convert from an instrument to the title of its instrument track.
 instrument_to_title :: Score.Instrument -> Text
-instrument_to_title = TrackLang.show_val . TrackLang.VInstrument
+instrument_to_title = TrackLang.show_val
 
 is_note_track :: Text -> Bool
 is_note_track = Maybe.isJust . title_to_instrument

@@ -14,7 +14,7 @@ import qualified Derive.Score as Score
 import Derive.TestInstances ()
 import qualified Derive.TrackLang as TrackLang
 import Derive.TrackLang
-       (ControlRef(..), Symbol(..), Val(..), Call(..), Term(..))
+       (ControlRef(..), Symbol(..), ValType(..), Call(..), Term(..))
 
 import qualified Perform.Pitch as Pitch
 
@@ -175,7 +175,7 @@ test_lex1 = do
 val_call :: Text -> [Term] -> Term
 val_call sym args = ValCall (Call (Symbol sym) args)
 
-symbol :: Text -> Val
+symbol :: Text -> TrackLang.RawVal
 symbol sym = VSymbol (Symbol sym)
 
 

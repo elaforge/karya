@@ -331,12 +331,11 @@ when_ly :: Bool -> Derive.PassedArgs Score.Event -> Derive.EventDeriver
     -> Derive.EventDeriver
 when_ly inverted args deriver = case Derive.passed_vals args of
     [] -> when deriver mempty
-    call : vals -> when (apply args (make_call call vals) deriver) deriver
+    call : vals -> when (apply args (to_sym call) vals deriver) deriver
     where
+    to_sym = TrackLang.Symbol . TrackLang.show_call_val
     when = if inverted then flip when_lilypond else when_lilypond
-    make_call call vals = TrackLang.call (TrackLang.show_call_val call)
-        (map TrackLang.Literal vals)
-    apply args call = Call.apply_transformer (Derive.passed_info args) [call]
+    apply args = Call.reapply_transformer (Derive.passed_info args)
 
 c_ly_global :: Derive.NoteCall
 c_ly_global = Derive.transformer "ly-global" Tags.ly_only

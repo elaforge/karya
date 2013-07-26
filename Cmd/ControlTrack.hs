@@ -216,4 +216,4 @@ modify_val f text = case ParseBs.parse_val (event_val event) of
     show_val num
         | Score.Typed Score.Untyped n <- num,
             ShowVal.is_hex_val (event_val event) = ShowVal.show_hex_val n
-        | otherwise = ShowVal.show_val $ TrackLang.VNum num
+        | otherwise = ShowVal.show_val (TrackLang.VNum num :: TrackLang.RawVal)

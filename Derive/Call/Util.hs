@@ -197,10 +197,10 @@ to_time_signal default_type control = do
 pitch_at :: RealTime -> TrackLang.PitchControl
     -> Derive.Deriver PitchSignal.Pitch
 pitch_at pos control = case control of
-    TrackLang.ConstantControl deflt -> Call.eval_pitch 0 deflt
+    TrackLang.ConstantControl deflt -> return deflt
     TrackLang.DefaultedControl cont deflt -> do
         maybe_pitch <- Derive.named_pitch_at cont pos
-        maybe (Call.eval_pitch 0 deflt) return maybe_pitch
+        maybe (return deflt) return maybe_pitch
     TrackLang.LiteralControl cont -> do
         maybe_pitch <- Derive.named_pitch_at cont pos
         maybe (Derive.throw $ "pitch not found and no default given: "
@@ -209,16 +209,17 @@ pitch_at pos control = case control of
 to_pitch_signal :: TrackLang.PitchControl -> Derive.Deriver PitchSignal.Signal
 to_pitch_signal control = case control of
     TrackLang.ConstantControl deflt -> constant deflt
-    TrackLang.DefaultedControl cont deflt -> do
-        sig <- Derive.get_named_pitch cont
-        maybe (constant deflt) return sig
+    TrackLang.DefaultedControl cont deflt ->
+        maybe (constant deflt) return =<< Derive.get_named_pitch cont
     TrackLang.LiteralControl cont ->
         maybe (Derive.throw $ "not found: " ++ show cont) return
             =<< Derive.get_named_pitch cont
     where
-    constant note = do
+    constant pitch = do
+        -- TODO may be wrong but I'll fix this when ConstantControl becomes
+        -- a signal
         scale <- get_scale
-        constant_pitch scale <$> Call.eval_pitch 0 note
+        return $ constant_pitch scale pitch
 
 nn_at :: RealTime -> TrackLang.PitchControl
     -> Derive.Deriver (Maybe Pitch.NoteNumber)

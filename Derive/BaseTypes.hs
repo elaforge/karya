@@ -238,12 +238,19 @@ type ValName = Symbol
 
 -- ** Val
 
-data Val =
+-- | Pitches have to be evaluated, but the parser has to return something
+-- unevaluated.
+type RawVal = ValType RawPitchControl
+
+-- | Val with VPitchControl evaluated.
+type Val = ValType PitchControl
+
+data ValType pitch =
     -- | A number with an optional type suffix.  It also has a ratio style
     -- literal, though the output is still a floating point value, not a true
     -- ratio.
     --
-    -- Literal: @42.23@, @-.4@, @1c@, @-2.4d@, @3/2@, @-3/2@.
+    -- Literal: @42.23@, @-.4@, @1c@, @-2.4d@, @3/2@, @-3/2@, @0x7f@.
     VNum !TypedVal
     -- | A set of Attributes for an instrument.
     --
@@ -260,7 +267,7 @@ data Val =
     -- string is a valid signal name and means the default pitch signal.
     --
     -- Literal: @\#pitch,4c@, @\#,4@, @\#@
-    | VPitchControl !PitchControl
+    | VPitchControl !pitch
 
     -- | No literal, but is returned from val calls, notably scale calls.
     | VPitch !Pitch
@@ -288,7 +295,12 @@ data Val =
     | VNotGiven
     deriving (Show)
 
-instance ShowVal.ShowVal Val where
+-- | This instance is actually invalid due to showing VPitch, which has no
+-- literal, and for 'Val', showing 'PitchControl', which amounts to the same
+-- thing.  I use this to treat any Val as a Symbol to re-evaluate it.  Being
+-- invalid means that a VPitch or VPitchControl with a default will cause
+-- a parse failure, but I'll have to see if this becomes a problem in practice.
+instance (ShowVal.ShowVal pitch) => ShowVal.ShowVal (ValType pitch) where
     show_val val = case val of
         VNum d -> ShowVal.show_val d
         VAttributes attrs -> ShowVal.show_val attrs
@@ -299,7 +311,10 @@ instance ShowVal.ShowVal Val where
         VSymbol sym -> ShowVal.show_val sym
         VNotGiven -> "_"
 
-instance DeepSeq.NFData Val where
+instance (ShowVal.ShowVal pitch) => Pretty.Pretty (ValType pitch) where
+    pretty = untxt . ShowVal.show_val
+
+instance DeepSeq.NFData (ValType pitch) where
     rnf (VNum d) = DeepSeq.rnf d
     rnf (VSymbol (Symbol s)) = DeepSeq.rnf s
     rnf _ = ()
@@ -307,8 +322,6 @@ instance DeepSeq.NFData Val where
 -- | Pitchas have no literal syntax, but I have to print something.
 instance ShowVal.ShowVal Pitch where
     show_val pitch = "<pitch: " <> txt (Pretty.pretty pitch) <> ">"
-
-instance Pretty.Pretty Val where pretty = untxt . ShowVal.show_val
 
 newtype Symbol = Symbol Text
     deriving (Eq, Ord, Show, DeepSeq.NFData, String.IsString)
@@ -352,13 +365,25 @@ data ControlRef val =
     | LiteralControl Control
     deriving (Eq, Show)
 
-type PitchControl = ControlRef Note
+type PitchControl = ControlRef Pitch
+-- | Pitches have to be evaluated, but the parser has to return something
+-- unevaluated.
+type RawPitchControl = ControlRef Note
 type ValControl = ControlRef TypedVal
 
 instance Pretty.Pretty PitchControl where pretty = untxt . ShowVal.show_val
+
+-- | There's no way to convert a pitch back into the expression that produced
+-- it, so this is the best I can do.
 instance ShowVal.ShowVal PitchControl where
-    -- The PitchControl syntax doesn't support args for the signal default yet.
-    show_val = show_control '#' (Pitch.note_text . note_sym)
+    show_val = show_control '#' Pretty.prettytxt
+
+instance ShowVal.ShowVal RawPitchControl where
+    show_val = show_control '#' $ \(Note note args) ->
+        -- "(" <>
+        Pitch.note_text note <> (if null args then "" else " ")
+        <> Text.unwords (map ShowVal.show_val args)
+        -- <> ")"
 
 instance Pretty.Pretty ValControl where pretty = untxt . ShowVal.show_val
 instance ShowVal.ShowVal ValControl where
@@ -376,7 +401,15 @@ show_control prefix val_text control = case control of
 
 -- | Pitch.Note is just the name of the pitch, but the TrackLang Note carries
 -- args, and should be used in preference to Pitch.Note where appropriate.
+--
+-- This is effectively just a 'TrackLang.Call', except it can't contain
+-- sub-expressions.  In fact, I should probably just replace this with Call.
 data Note = Note {
     note_sym :: Pitch.Note
-    , note_args :: [Val]
+    , note_args :: [RawVal]
     } deriving (Show)
+
+instance ShowVal.ShowVal Note where
+    show_val (Note note args) = "(" <> Pitch.note_text note
+        <> (if null args then "" else " ")
+        <> Text.unwords (map ShowVal.show_val args) <> ")"

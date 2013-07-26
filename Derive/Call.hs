@@ -93,14 +93,18 @@ import qualified Ui.Types as Types
 
 import qualified Derive.Derive as Derive
 import qualified Derive.Deriver.Internal as Internal
+import qualified Derive.Environ as Environ
 import qualified Derive.LEvent as LEvent
 import qualified Derive.ParseBs as ParseBs
 import qualified Derive.PitchSignal as PitchSignal
+import qualified Derive.Scale as Scale
+import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Sig as Sig
 import qualified Derive.Stack as Stack
 import qualified Derive.TrackInfo as TrackInfo
 import qualified Derive.TrackLang as TrackLang
 
+import qualified Perform.Pitch as Pitch
 import qualified Perform.Signal as Signal
 import Types
 
@@ -125,7 +129,7 @@ eval_one_at start dur expr = eval_expr cinfo expr
     -- Set the event start and duration instead of using Derive.d_place since
     -- this way I can have zero duration events.
     cinfo = Derive.dummy_call_info start dur $
-        untxt $ "eval_one: " <> TrackLang.show_val expr
+        untxt $ "eval_one: " <> ShowVal.show_val expr
 
 -- | Like 'derive_event' but evaluate the event outside of its track context.
 -- This is useful if you want to evaluate things out of order, i.e. evaluate
@@ -259,11 +263,10 @@ derive_event :: (Derive.Derived d) =>
 derive_event st tinfo prev_sample prev event next
     | "--" `B.isPrefixOf` B.dropWhile (==' ') text =
         (Right mempty, [], Derive.state_collect st)
-    | otherwise =
-        case ParseBs.parse_expr text of
-            Left err ->
-                (Right mempty, [parse_error (txt err)], Derive.state_collect st)
-            Right expr -> run_call expr
+    | otherwise = case ParseBs.parse_expr text of
+        Left err ->
+            (Right mempty, [parse_error (txt err)], Derive.state_collect st)
+        Right expr -> run_call expr
     where
     text = Event.event_bytestring event
     parse_error = Log.msg Log.Warn $
@@ -303,7 +306,7 @@ apply_toplevel :: (Derive.Derived d) => Derive.State
     -> CallInfo d -> TrackLang.Expr
     -> (Either Derive.Error (LEvent.LEvents d), [Log.Msg], Derive.Collect)
 apply_toplevel state cinfo expr =
-    run $ apply_transformer cinfo transform_calls $
+    run $ apply_transformers cinfo transform_calls $
         apply_generator cinfo generator_call
     where
     (transform_calls, generator_call) = Seq.ne_viewr expr
@@ -331,45 +334,93 @@ apply_generator cinfo (TrackLang.Call call_id args) = do
             call <- get_call fallback_call_id
             return (call, [val])
 
-    let args = Derive.PassedArgs
+    let passed = Derive.PassedArgs
             { Derive.passed_vals = vals
             , Derive.passed_call_name = Derive.call_name call
             , Derive.passed_info = cinfo
             }
         with_stack = Internal.with_stack_call (Derive.call_name call)
     with_stack $ case Derive.call_generator call of
-        Just gen -> Derive.generator_func gen args
+        Just gen -> Derive.generator_func gen passed
         Nothing -> Derive.throw $ "non-generator in generator position: "
             <> untxt (Derive.call_name call)
     where
     name = Derive.callable_name
         (error "Derive.callable_name shouldn't evaluate its argument." :: d)
 
-apply_transformer :: (Derive.Derived d) => CallInfo d
+apply_transformers :: (Derive.Derived d) => CallInfo d
     -> [TrackLang.Call] -> Derive.LogsDeriver d
     -> Derive.LogsDeriver d
-apply_transformer _ [] deriver = deriver
-apply_transformer cinfo (TrackLang.Call call_id args : calls) deriver = do
+apply_transformers _ [] deriver = deriver
+apply_transformers cinfo (TrackLang.Call call_id args : calls) deriver = do
     vals <- mapM (eval cinfo) args
     call <- get_call call_id
-    let args = Derive.PassedArgs
+    let passed = Derive.PassedArgs
             { Derive.passed_vals = vals
             , Derive.passed_call_name = Derive.call_name call
             , Derive.passed_info = cinfo
             }
         with_stack = Internal.with_stack_call (Derive.call_name call)
     with_stack $ case Derive.call_transformer call of
-        Just trans -> Derive.transformer_func trans args $
-            apply_transformer cinfo calls deriver
+        Just trans -> Derive.transformer_func trans passed $
+            apply_transformers cinfo calls deriver
+        Nothing -> Derive.throw $ "non-transformer in transformer position: "
+            <> untxt (Derive.call_name call)
+
+-- | Like 'apply_transformers', but apply only one, and apply to already
+-- evaluated 'TrackLang.Val's.  This is useful when you want to re-apply an
+-- already parsed set of vals.
+--
+-- TODO yuck, can I do it with less copy-paste?
+reapply_transformer :: (Derive.Derived d) => CallInfo d
+    -> TrackLang.CallId -> [TrackLang.Val] -> Derive.LogsDeriver d
+    -> Derive.LogsDeriver d
+reapply_transformer cinfo call_id vals deriver = do
+    call <- get_call call_id
+    let passed = Derive.PassedArgs
+            { Derive.passed_vals = vals
+            , Derive.passed_call_name = Derive.call_name call
+            , Derive.passed_info = cinfo
+            }
+        with_stack = Internal.with_stack_call (Derive.call_name call)
+    with_stack $ case Derive.call_transformer call of
+        Just trans -> Derive.transformer_func trans passed deriver
         Nothing -> Derive.throw $ "non-transformer in transformer position: "
             <> untxt (Derive.call_name call)
 
 eval :: (Derive.ToTagged a) => Derive.CallInfo a -> TrackLang.Term
     -> Derive.Deriver TrackLang.Val
-eval _ (TrackLang.Literal val) = return val
+eval cinfo (TrackLang.Literal val) = eval_val cinfo val
 eval cinfo (TrackLang.ValCall (TrackLang.Call call_id terms)) = do
     call <- get_val_call call_id
     apply (tag_call_info cinfo) call terms
+
+eval_val :: (Derive.ToTagged a) => Derive.CallInfo a -> TrackLang.RawVal
+    -> Derive.Deriver TrackLang.Val
+eval_val cinfo val = case val of
+    TrackLang.VPitchControl p ->
+        TrackLang.VPitchControl <$> eval_pitch_control cinfo p
+    -- Ack, I wish there were a better way.
+    TrackLang.VNum a -> return $ TrackLang.VNum a
+    TrackLang.VAttributes a -> return $ TrackLang.VAttributes a
+    TrackLang.VControl a -> return $ TrackLang.VControl a
+    TrackLang.VPitch a -> return $ TrackLang.VPitch a
+    TrackLang.VInstrument a -> return $ TrackLang.VInstrument a
+    TrackLang.VSymbol a -> return $ TrackLang.VSymbol a
+    TrackLang.VNotGiven -> return $ TrackLang.VNotGiven
+
+eval_pitch_control :: (Derive.ToTagged a) => Derive.CallInfo a
+    -> TrackLang.RawPitchControl -> Derive.Deriver TrackLang.PitchControl
+eval_pitch_control cinfo c = case c of
+    TrackLang.ConstantControl note ->
+        TrackLang.ConstantControl <$> eval_note note
+    TrackLang.DefaultedControl ctl note ->
+        TrackLang.DefaultedControl ctl <$> eval_note note
+    TrackLang.LiteralControl ctl -> return $ TrackLang.LiteralControl ctl
+    where
+    eval_note note =
+        Sig.cast ("eval_pitch_control " <> untxt (ShowVal.show_val note))
+            =<< eval cinfo (TrackLang.note_call note)
 
 apply :: Derive.CallInfo Derive.Tagged -> Derive.ValCall
     -> [TrackLang.Term] -> Derive.Deriver TrackLang.Val

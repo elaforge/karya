@@ -189,7 +189,7 @@ with_title subs (start, end) title deriver
     | otherwise = do
         track_expr <- either (Derive.throw . ("track title: "++)) return
             (TrackInfo.parse_note title)
-        Call.apply_transformer info (NonEmpty.toList track_expr) deriver
+        Call.apply_transformers info (NonEmpty.toList track_expr) deriver
     where
     info = (Derive.dummy_call_info start (end - start) "note track")
         { Derive.info_sub_tracks = subs }

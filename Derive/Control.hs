@@ -295,7 +295,7 @@ derive_control :: Bool -> Bool -> TrackTree.TrackEvents -> [TrackLang.Call]
     -> Derive.Deriver (TrackResults Signal.Control)
 derive_control cache is_tempo track expr = do
     let (start, end) = TrackTree.tevents_range track
-    stream <- Call.apply_transformer
+    stream <- Call.apply_transformers
         (Derive.dummy_call_info start (end-start) "control track") expr deriver
     let (signal_chunks, logs) = LEvent.partition stream
         -- I just did it in 'compact', so this should just convert [x] to x.
@@ -328,7 +328,7 @@ derive_pitch :: Bool -> TrackTree.TrackEvents -> [TrackLang.Call]
     -> Derive.Deriver (TrackResults Pitch)
 derive_pitch cache track expr = do
     let (start, end) = TrackTree.tevents_range track
-    stream <- Call.apply_transformer
+    stream <- Call.apply_transformers
         (Derive.dummy_call_info start (end-start) "pitch track") expr deriver
     let (signal_chunks, logs) = LEvent.partition stream
         -- I just did it in 'compact', so this should just convert [x] to x.

@@ -62,8 +62,17 @@ UNSORTED
       xcut-h ... -- for sample-hold
       xcut 1 %t2 -- constant
       xcut (i> .1 .3) (i> .1 1) -- if I add signal literals
+  - Sig.many ArgErrors start at 0, others start at 1
+  - pitch control default should be an expression, e.g. #name,(4c 50)
   - should be able to coerce a VPitch to a constant PitchControl, just like
     numbers
+    * For this to work I have to change PitchControl from Note to Pitch, which
+      is probably the right thing to do anyway.  But then I need to evaluate
+      the pitch when it gets parsed.
+    * Need 'type RawVal = ValType Pitch.Note'
+    * Then Derive.Call.eval turns RawVal into Val.
+      Should RawVal be the default?  All the parser stuff deals with raw vals,
+      who deals with cooked ones?  PassedArgs, Environ, ...
   - signal literals
     I can replace 'ConstantControl val' with 'SignalControl sig'
     Numbers are coerced to 'SignalControl (Signal.constant x)', but val calls

@@ -3,6 +3,7 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 {-# LANGUAGE CPP, StandaloneDeriving #-}
+{-# LANGUAGE TypeSynonymInstances, FlexibleInstances #-}
 -- | Instances that are not safe but very useful for testing.
 module Derive.TestInstances where
 
@@ -17,6 +18,7 @@ import qualified Cmd.Cmd as Cmd
 -- Normally Vals aren't comparable for equality because of the pesky VPitch,
 -- but it's too convenient for testing to lose.
 deriving instance Eq TrackLang.Val
+deriving instance Eq TrackLang.RawVal
 deriving instance Eq TrackLang.Call
 deriving instance Eq TrackLang.Term
 deriving instance Eq TrackLang.Note -- needed by Eq Val
