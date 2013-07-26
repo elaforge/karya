@@ -109,12 +109,7 @@ just_doc =
     \ That frequency is taken from the `%just-base` control and the key.\
     \ For example, `%just-base = 440 | key = a-maj` means that A in the\
     \ middle octave is 440hz and is considered 1/1, and uses the `maj`\
-    \ set of ratios. If the base hz isn't given, it defaults to 12TET 4c.\
-    \nThe key looks like `c-maj`, where `c` is the tonic and `maj` selects\
-    \ the ratios to use. For absolute notation, the tonic determines where\
-    \ the scale starts, while for relative notation, the tonic determines\
-    \ only which MIDI key maps to the first scale degree. So for the ascii kbd\
-    \ where the input is also relative, the tonic is irrelevant.\
+    \ set of ratios.\
     \\nJust scales recognize accidentals as an offset by a fixed ratio,\
     \ but are inherently diatonic, so chromatic transposition is the same\
     \ as diatonic transposition."

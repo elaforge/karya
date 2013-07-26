@@ -20,10 +20,19 @@ import qualified Perform.Pitch as Pitch
 scales :: [Scale.Scale]
 scales =
     [ JustScales.make_scale (Pitch.ScaleId "just")
-        (scale_map TheoryFormat.absolute_c) ""
+        (scale_map TheoryFormat.absolute_c) doc
     , JustScales.make_scale (Pitch.ScaleId "just-r")
-        (scale_map (TheoryFormat.sargam relative_fmt)) ""
+        (scale_map (TheoryFormat.sargam relative_fmt)) doc
     ]
+
+doc :: Text
+doc =
+    "7-note Western style scales tuned in just intonation.\
+    \\nKeys look like `c-maj`, where `c` is the tonic and `maj` selects\
+    \ the ratios to use. For absolute notation, the tonic determines where\
+    \ the scale starts, while for relative notation, the tonic determines\
+    \ only which MIDI key maps to the first scale degree. So for the ASCII kbd\
+    \ where the input is also relative, the tonic is irrelevant."
 
 scale_map :: TheoryFormat.Format -> JustScales.ScaleMap
 scale_map = JustScales.scale_map keys default_key

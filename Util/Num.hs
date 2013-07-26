@@ -28,6 +28,14 @@ binary b = map extract [bits-1, bits-2 .. 0]
 hex :: (Integral a, Show a) => a -> String
 hex n = Numeric.showHex n ""
 
+show_higit :: Int -> Maybe Char
+show_higit c = case c of
+    0 -> Just '0'; 1 -> Just '1'; 2 -> Just '2'; 3 -> Just '3'
+    4 -> Just '4'; 5 -> Just '5'; 6 -> Just '6'; 7 -> Just '7'
+    8 -> Just '8'; 9 -> Just '9'; 10 -> Just 'a'; 11 -> Just 'b'
+    12 -> Just 'c'; 13 -> Just 'd'; 14 -> Just 'e'; 15 -> Just 'f'
+    _ -> Nothing
+
 -- * read
 
 read_digit :: Char -> Maybe Int
