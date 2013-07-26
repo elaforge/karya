@@ -168,8 +168,8 @@ required :: forall a. (TrackLang.Typecheck a) => Text -> Text -> Parser a
 required name doc = parser arg_doc $ \state -> case get_val state name of
     Nothing -> Left $ Derive.ArgError $
         "expected another argument at: " <> showt name
-    Just (state, val) -> case TrackLang.from_val val of
-        Just a -> Right (state, a)
+    Just (state2, val) -> case TrackLang.from_val val of
+        Just a -> Right (state2, a)
         Nothing -> Left $ Derive.TypeError (state_argnum state) name expected
             (Just val)
     where
@@ -187,9 +187,9 @@ defaulted :: forall a. (TrackLang.Typecheck a) => Text -> a -> Text
     -> Parser a
 defaulted name deflt doc = parser arg_doc $ \state -> case get_val state name of
     Nothing -> Right (state, deflt)
-    Just (state, TrackLang.VNotGiven) -> Right (state, deflt)
-    Just (state, val) -> case TrackLang.from_val val of
-        Just a -> Right (state, a)
+    Just (state2, TrackLang.VNotGiven) -> Right (state2, deflt)
+    Just (state2, val) -> case TrackLang.from_val val of
+        Just a -> Right (state2, a)
         Nothing -> Left $ Derive.TypeError (state_argnum state) name expected
             (Just val)
     where
@@ -228,7 +228,7 @@ optional name doc = parser arg_doc $ \state -> case get_val state name of
 -- | Collect the rest of the arguments.
 many :: forall a. (TrackLang.Typecheck a) => Text -> Text -> Parser [a]
 many name doc = parser arg_doc $ \state -> do
-    vals <- mapM typecheck (zip [state_argnum state..] (state_vals state))
+    vals <- mapM typecheck (zip [state_argnum state ..] (state_vals state))
     Right (state { state_vals = [] }, vals)
     where
     typecheck (argnum, val) = case TrackLang.from_val val of

@@ -12,6 +12,19 @@ import qualified Derive.Sig as Sig
 import qualified Derive.TrackLang as TrackLang
 
 
+test_type_error = do
+    let ints :: Sig.Parser [Int]
+        ints = Sig.many "ints" ""
+        int_sym :: Sig.Parser (Int, TrackLang.Symbol)
+        int_sym = (,) <$> Sig.required "int" "" <*> Sig.defaulted "sym" "" ""
+        str = TrackLang.str "hi"
+        int = TrackLang.num 42
+    left_like (call ints [str])
+        "arg 1/ints: expected Num (integral) but got Symbol: hi"
+    left_like (call int_sym [str]) "arg 1/int: expected Num"
+    left_like (call int_sym [int, int]) "arg 2/sym: expected Symbol"
+
+
 test_not_given = do
     let int :: Sig.Parser (Maybe Int)
         int = Sig.optional "int" ""
