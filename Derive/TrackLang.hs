@@ -336,6 +336,7 @@ instance Typecheck ValControl where
 
 instance Typecheck PitchControl where
     from_val (VPitchControl a) = Just a
+    from_val (VPitch a) = Just $ ConstantControl a
     from_val _ = Nothing
     to_val = VPitchControl
     to_type _ = TPitchControl

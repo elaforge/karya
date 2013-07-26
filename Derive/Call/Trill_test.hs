@@ -184,13 +184,17 @@ test_pitch_trill = do
         zip [0, 0.5, 1, 1.5, 2] (cycle [64, 67]) ++ [(2.8, 60)]
 
 test_xcut_pitch = do
-    let f = DeriveTest.extract DeriveTest.e_nns $ DeriveTest.derive_tracks_linear
-                [ (">", [(0, 4, "")])
-                , ("* #xcut1", [(0, 0, "4c")])
-                , ("* #xcut2", [(0, 0, "5c")])
-                , ("*", [(0, 0, "xcut _ _ 1"), (4, 0, "--")])
-                ]
-    equal f ([[(0, 60), (1, 72), (2, 60), (3, 72), (4, 60)]], [])
+    let f tracks = DeriveTest.extract DeriveTest.e_nns $
+            DeriveTest.derive_tracks_linear $
+            (">", [(0, 4, "")]) : tracks
+    equal (f
+            [ ("* #xcut1", [(0, 0, "4c")])
+            , ("* #xcut2", [(0, 0, "5c")])
+            , ("*", [(0, 0, "xcut _ _ 1"), (4, 0, "--")])
+            ])
+        ([[(0, 60), (1, 72), (2, 60), (3, 72), (4, 60)]], [])
+    equal (f [("*", [(0, 0, "xcut (4c) (5c) 1"), (4, 0, "--")])])
+        ([[(0, 60), (1, 72), (2, 60), (3, 72), (4, 60)]], [])
 
 
 -- * control calls
