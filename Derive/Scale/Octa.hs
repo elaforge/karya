@@ -6,10 +6,11 @@ module Derive.Scale.Octa where
 import qualified Data.Map as Map
 import qualified Data.Vector.Unboxed as Vector
 
+import qualified Derive.PitchSignal as PitchSignal
 import qualified Derive.Scale as Scale
+import qualified Derive.Scale.ChromaticScales as ChromaticScales
 import qualified Derive.Scale.Theory as Theory
 import qualified Derive.Scale.TheoryFormat as TheoryFormat
-import qualified Derive.Scale.ChromaticScales as ChromaticScales
 import qualified Derive.Scale.Util as Util
 
 import qualified Perform.Pitch as Pitch
@@ -62,7 +63,7 @@ make_scale scale_id layout keys fmt = Scale.Scale
     , Scale.scale_transposers = Util.standard_transposers
     , Scale.scale_transpose = ChromaticScales.transpose scale_map
     , Scale.scale_enharmonics = ChromaticScales.enharmonics scale_map
-    , Scale.scale_note_to_call = ChromaticScales.note_to_call scale_map
+    , Scale.scale_note_to_call = ChromaticScales.note_to_call scale scale_map
     , Scale.scale_input_to_note = ChromaticScales.input_to_note scale_map
     , Scale.scale_input_to_nn = Util.direct_input_to_nn
     , Scale.scale_call_doc = ChromaticScales.call_doc Util.standard_transposers
@@ -73,6 +74,7 @@ make_scale scale_id layout keys fmt = Scale.Scale
     }
     where
     scale_map = ChromaticScales.scale_map layout fmt keys default_tkey
+    scale = PitchSignal.Scale scale_id Util.standard_transposers
     Just default_tkey = Map.lookup default_key keys
 
 default_key :: Pitch.Key

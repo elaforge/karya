@@ -275,7 +275,8 @@ control name deflt = typed_control name deflt Score.Untyped
 -- | Like 'control', but the default can have a type.
 typed_control :: Text -> Signal.Y -> Score.Type -> TrackLang.ValControl
 typed_control name deflt typ =
-    TrackLang.DefaultedControl (Score.Control name) (Score.Typed typ deflt)
+    TrackLang.DefaultedControl (Score.Control name)
+        (Score.Typed typ (Signal.constant deflt))
 
 required_control :: Text -> TrackLang.ValControl
 required_control name = TrackLang.LiteralControl (Score.Control name)

@@ -45,7 +45,7 @@ import Util.Control
 import qualified Util.Pretty as Pretty
 import qualified Ui.ScoreTime as ScoreTime
 import qualified Derive.BaseTypes as Score
-import qualified Derive.BaseTypes as PitchSignal
+import qualified Derive.PitchSignal as PitchSignal
 import Derive.BaseTypes
        (Environ, make_environ, environ_to_list, insert_val, delete_val,
         lookup_val, null_environ, ValName, RawVal, Val, ValType(..), Symbol(..),
@@ -56,6 +56,8 @@ import Derive.ShowVal (ShowVal(..))
 
 import qualified Perform.Pitch as Pitch
 import qualified Perform.RealTime as RealTime
+import qualified Perform.Signal as Signal
+
 import Types
 
 
@@ -101,9 +103,14 @@ sym_to_scale_id (Symbol s) = Pitch.ScaleId s
 scale_id_to_sym :: Pitch.ScaleId -> Symbol
 scale_id_to_sym (Pitch.ScaleId s) = Symbol s
 
+-- | Constant control from a RealTime.
 real_control :: Score.Control -> RealTime -> ValControl
 real_control c deflt =
-    DefaultedControl c (Score.untyped (RealTime.to_seconds deflt))
+    DefaultedControl c $
+        Score.untyped (Signal.constant (RealTime.to_seconds deflt))
+
+constant_control :: Signal.Y -> ValControl
+constant_control = ControlSignal . Score.untyped . Signal.constant
 
 -- * time
 
@@ -329,14 +336,14 @@ instance Typecheck Score.Attributes where
 
 instance Typecheck ValControl where
     from_val (VControl a) = Just a
-    from_val (VNum a) = Just $ ConstantControl a
+    from_val (VNum a) = Just $ ControlSignal $ Signal.constant <$> a
     from_val _ = Nothing
     to_val = VControl
     to_type _ = TControl
 
 instance Typecheck PitchControl where
     from_val (VPitchControl a) = Just a
-    from_val (VPitch a) = Just $ ConstantControl a
+    from_val (VPitch a) = Just $ ControlSignal $ PitchSignal.constant a
     from_val _ = Nothing
     to_val = VPitchControl
     to_type _ = TPitchControl

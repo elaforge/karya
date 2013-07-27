@@ -97,9 +97,9 @@ control_at control pos = Score.typed_val <$> typed_control_at control pos
 typed_control_at :: TrackLang.ValControl -> RealTime
     -> Derive.Deriver Score.TypedVal
 typed_control_at control pos = case control of
-    TrackLang.ConstantControl deflt -> return deflt
+    TrackLang.ControlSignal sig -> return $ Signal.at pos <$> sig
     TrackLang.DefaultedControl cont deflt ->
-        fromMaybe deflt <$> Derive.control_at cont pos
+        fromMaybe (Signal.at pos <$> deflt) <$> Derive.control_at cont pos
     TrackLang.LiteralControl cont ->
         maybe (Derive.throw $ "not found and no default: "
                 <> untxt (TrackLang.show_val cont)) return
@@ -149,11 +149,11 @@ transpose_control_at default_type control pos = do
 -- a certain type.
 to_signal :: TrackLang.ValControl -> Derive.Deriver Score.TypedControl
 to_signal control = case control of
-    TrackLang.ConstantControl deflt -> return $ fmap Signal.constant deflt
+    TrackLang.ControlSignal sig -> return sig
     TrackLang.DefaultedControl cont deflt -> do
         maybe_sig <- Derive.get_control cont
         return $ case maybe_sig of
-            Nothing -> Signal.constant <$> deflt
+            Nothing -> deflt
             Just sig -> sig
                 { Score.type_of = Score.type_of sig <> Score.type_of deflt }
     TrackLang.LiteralControl cont ->
@@ -197,48 +197,32 @@ to_time_signal default_type control = do
 pitch_at :: RealTime -> TrackLang.PitchControl
     -> Derive.Deriver PitchSignal.Pitch
 pitch_at pos control = case control of
-    TrackLang.ConstantControl deflt -> return deflt
+    TrackLang.ControlSignal sig -> require sig
     TrackLang.DefaultedControl cont deflt -> do
         maybe_pitch <- Derive.named_pitch_at cont pos
-        maybe (return deflt) return maybe_pitch
+        maybe (require deflt) return maybe_pitch
     TrackLang.LiteralControl cont -> do
         maybe_pitch <- Derive.named_pitch_at cont pos
         maybe (Derive.throw $ "pitch not found and no default given: "
             ++ show cont) return maybe_pitch
+    where
+    require = Derive.require ("ControlSignal pitch at " <> Pretty.pretty pos)
+        . PitchSignal.at pos
 
 to_pitch_signal :: TrackLang.PitchControl -> Derive.Deriver PitchSignal.Signal
 to_pitch_signal control = case control of
-    TrackLang.ConstantControl deflt -> constant deflt
+    TrackLang.ControlSignal sig -> return sig
     TrackLang.DefaultedControl cont deflt ->
-        maybe (constant deflt) return =<< Derive.get_named_pitch cont
+        maybe (return deflt) return =<< Derive.get_named_pitch cont
     TrackLang.LiteralControl cont ->
         maybe (Derive.throw $ "not found: " ++ show cont) return
             =<< Derive.get_named_pitch cont
-    where
-    constant pitch = do
-        -- TODO may be wrong but I'll fix this when ConstantControl becomes
-        -- a signal
-        scale <- get_scale
-        return $ constant_pitch scale pitch
 
 nn_at :: RealTime -> TrackLang.PitchControl
     -> Derive.Deriver (Maybe Pitch.NoteNumber)
 nn_at pos control = -- TODO throw exception?
     Derive.logged_pitch_nn ("Util.nn_at " ++ Pretty.pretty (pos, control))
         =<< pitch_at pos control
-
-pitch_signal :: [(RealTime, PitchSignal.Pitch)]
-    -> Derive.Deriver PitchSignal.Signal
-pitch_signal xs = do
-    scale <- get_scale
-    return $ signal scale xs
-
--- | More convenient constructors for PitchSignals.
-constant_pitch :: Scale.Scale -> PitchSignal.Pitch -> PitchSignal.Signal
-constant_pitch = PitchSignal.constant . Derive.pitch_signal_scale
-
-signal :: Scale.Scale -> [(RealTime, PitchSignal.Pitch)] -> PitchSignal.Signal
-signal = PitchSignal.signal . Derive.pitch_signal_scale
 
 -- * note
 
@@ -257,9 +241,7 @@ dynamic pos = maybe Derive.default_dynamic Score.typed_val <$>
     Derive.control_at Controls.dynamic pos
 
 with_pitch :: PitchSignal.Pitch -> Derive.Deriver a -> Derive.Deriver a
-with_pitch pitch deriver = do
-    scale <- get_scale
-    Derive.with_constant_pitch Nothing scale pitch deriver
+with_pitch = Derive.with_constant_pitch Nothing
 
 with_symbolic_pitch :: TrackLang.Note -> ScoreTime -> Derive.Deriver a
     -> Derive.Deriver a
@@ -516,9 +498,8 @@ equal_transformer args deriver = case Derive.passed_vals args of
         | assignee == Controls.tempo -> set_tempo val
         | otherwise ->
             Derive.with_control assignee (fmap Signal.constant val) deriver
-    [pitch -> Just assignee, TrackLang.VPitch val] -> do
-        scale <- get_scale
-        Derive.with_pitch assignee (constant_pitch scale val) deriver
+    [pitch -> Just assignee, TrackLang.VPitch val] ->
+        Derive.with_pitch assignee (PitchSignal.constant val) deriver
     [pitch -> Just assignee, TrackLang.VPitchControl val] -> do
         sig <- to_pitch_signal val
         Derive.with_pitch assignee sig deriver

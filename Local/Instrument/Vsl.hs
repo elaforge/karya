@@ -176,7 +176,7 @@ natural_harmonic config (strings, hmap) args = do
             Nothing -> Derive.throw $ Pretty.pretty pitch <> " unplayable on "
                 <> maybe (Pretty.pretty strings) Pretty.pretty maybe_string
             Just key -> return $
-                Util.with_pitch (Pitches.constant_pitch (Midi.from_key key))
+                Util.with_pitch (Pitches.constant (Midi.from_key key))
 
 -- * keyswitches
 

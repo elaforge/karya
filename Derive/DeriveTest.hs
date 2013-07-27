@@ -640,8 +640,7 @@ mkevent_scale scale (start, dur, pitch, controls, inst) = Score.Event
     , Score.event_duration = dur
     , Score.event_bs = B.pack pitch
     , Score.event_controls = mkcontrols controls
-    , Score.event_pitch = PitchSignal.signal
-        (Derive.pitch_signal_scale scale) [(start, mkpitch scale pitch)]
+    , Score.event_pitch = PitchSignal.signal [(start, mkpitch scale pitch)]
     , Score.event_pitches = mempty
     , Score.event_stack = fake_stack
     , Score.event_instrument = inst
@@ -649,8 +648,7 @@ mkevent_scale scale (start, dur, pitch, controls, inst) = Score.Event
     }
 
 pitch_signal :: [(RealTime, String)] -> PitchSignal.Signal
-pitch_signal = PitchSignal.signal scale . map (second mkpitch12)
-    where scale = Derive.pitch_signal_scale Twelve.scale
+pitch_signal = PitchSignal.signal . map (second mkpitch12)
 
 mkcontrols :: Controls -> Score.ControlMap
 mkcontrols csigs = Map.fromList

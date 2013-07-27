@@ -155,7 +155,7 @@ test_nn_to_semis = do
 
 key :: Text -> Theory.Key
 key name = either (error $ "can't parse key: " ++ show name) id $
-    ChromaticScales.read_key Twelve.scale_map (Just (Pitch.Key name))
+    ChromaticScales.read_key Twelve.absolute_scale_map (Just (Pitch.Key name))
 
 p :: Text -> Theory.Pitch
 p s = either (const $ error $ "can't parse pitch: " ++ show s) id $

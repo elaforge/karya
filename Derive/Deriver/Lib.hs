@@ -390,10 +390,9 @@ with_pitch :: Maybe Score.Control -> PitchSignal.Signal
     -> Deriver a -> Deriver a
 with_pitch cont = modify_pitch cont . const
 
-with_constant_pitch :: Maybe Score.Control -> Scale -> PitchSignal.Pitch
+with_constant_pitch :: Maybe Score.Control -> PitchSignal.Pitch
     -> Deriver a -> Deriver a
-with_constant_pitch maybe_name scale = with_pitch maybe_name
-    . PitchSignal.constant (pitch_signal_scale scale)
+with_constant_pitch maybe_name = with_pitch maybe_name . PitchSignal.constant
 
 with_no_pitch :: Deriver a -> Deriver a
 with_no_pitch = modify_pitch Nothing (const mempty)

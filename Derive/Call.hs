@@ -409,13 +409,13 @@ eval_val cinfo val = case val of
 eval_pitch_control :: (Derive.ToTagged a) => Derive.CallInfo a
     -> TrackLang.RawPitchControl -> Derive.Deriver TrackLang.PitchControl
 eval_pitch_control cinfo c = case c of
-    TrackLang.ConstantControl note ->
-        TrackLang.ConstantControl <$> eval_note note
+    TrackLang.ControlSignal note ->
+        TrackLang.ControlSignal <$> eval_note note
     TrackLang.DefaultedControl ctl note ->
         TrackLang.DefaultedControl ctl <$> eval_note note
     TrackLang.LiteralControl ctl -> return $ TrackLang.LiteralControl ctl
     where
-    eval_note note =
+    eval_note note = fmap PitchSignal.constant $
         Sig.cast ("eval_pitch_control " <> untxt (ShowVal.show_val note))
             =<< eval cinfo (TrackLang.note_call note)
 

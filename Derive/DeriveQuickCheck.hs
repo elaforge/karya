@@ -4,6 +4,9 @@
 
 {- | Quickcheck tests for derive.
 
+    This has never been used because it's not done yet.  Maybe I should some
+    day...
+
     TODO complete
 
     * make Arbitrary for BlockSpecs
@@ -159,11 +162,11 @@ state_control_map :: State -> Score.ControlMap
 state_control_map = Map.map (Score.untyped . Signal.constant) . state_controls
 
 state_pitch_signal :: State -> PitchSignal.Signal
-state_pitch_signal = PitchSignal.constant scale . mknote . state_pitch
+state_pitch_signal = PitchSignal.constant . mknote . state_pitch
     where
     scale = PitchSignal.Scale Twelve.scale_id
         (Scale.scale_transposers Twelve.scale)
-    mknote nn = PitchSignal.pitch (const (return nn))
+    mknote nn = PitchSignal.pitch scale (const (return nn))
         (const $ return $ Pitch.Note $ showt nn)
 
 update_state :: [Sample] -> RealTime -> State -> (State, [Sample])

@@ -35,11 +35,10 @@ import qualified Data.Set as Set
 import qualified Data.String as String
 import qualified Data.Text as Text
 
-import qualified Text.Read as Read
-
 import Util.Control
 import qualified Util.Pretty as Pretty
 import qualified Util.Serialize as Serialize
+import qualified Util.TimeVector as TimeVector
 
 import qualified Ui.ScoreTime as ScoreTime
 import qualified Derive.ShowVal as ShowVal
@@ -174,36 +173,63 @@ no_attrs = Attributes Set.empty
 
 -- * Derive.PitchSignal
 
+-- | A pitch signal is similar to a 'Signal.Control', except that its values
+-- are 'Pitch'es instead of plain floating point values.
+newtype Signal = Signal { sig_vec :: TimeVector.Boxed Pitch }
+    deriving (Show, Pretty.Pretty)
+
+instance DeepSeq.NFData Signal where
+    rnf (Signal vec) = vec `seq` ()
+
 -- | A pitch is an abstract value that can turn a map of values into
 -- a NoteNumber.  The values are expected to contain transpositions that this
 -- Pitch understands, for example 'Derive.Score.c_chromatic' and
 -- 'Derive.Score.c_diatonic'.
-data Pitch = Pitch !(PitchCall Pitch.NoteNumber) !(PitchCall Pitch.Note)
-type PitchCall a = ControlValMap -> Either PitchError a
+data Pitch = Pitch {
+    pitch_eval_nn :: !(ControlValMap -> Either PitchError Pitch.NoteNumber)
+    , pitch_eval_note :: !(ControlValMap -> Either PitchError Pitch.Note)
+    , pitch_scale :: !Scale
+    }
+
+-- | Signal can't take a Scale because that would be a circular import.
+-- Fortunately it only needs a few fields.  However, because of the
+-- circularity, the Scale.Scale -> PitchSignal.Scale constructor is in
+-- "Derive.Derive".
+data Scale = Scale {
+    -- | It can be useful to see the scale of a pitch, e.g. to create more
+    -- pitches in the same scale as an existing pitch.
+    pscale_scale_id :: !Pitch.ScaleId
+    -- | The set of transposer signals for this scale, as documented in
+    -- 'Derive.Scale.scale_transposers'.
+    --
+    -- They are stored here because they're needed by 'to_nn'.  I could
+    -- store them separately, e.g. in the 'Score.Event' alongside the
+    -- event_pitch, but the scale at event creation time is not guaranteed to
+    -- be the same as the one when the pitch was created, so the safest thing
+    -- to do is keep it with the pitch itself.
+    , pscale_transposers :: !(Set.Set Control)
+    } deriving (Show)
+
+instance Pretty.Pretty Scale where
+    pretty = Pretty.pretty . pscale_scale_id
+
 type ControlValMap = Map.Map Control Signal.Y
 
-instance Eq Pitch where
-    Pitch p1 _ == Pitch p2 _ = p1 Map.empty == p2 Map.empty
-
-instance Show Pitch where
-    show (Pitch p _) = show (p Map.empty)
+instance Show Pitch where show = Pretty.pretty
 
 -- | It can't be reduced since it has lambdas, but at least this way you can
 -- easily rnf things that contain it.
 instance DeepSeq.NFData Pitch where
     rnf _ = ()
 
--- | This is just for debugging convenience, since it doesn't preserve the
--- structure of the pitch.
-instance Read Pitch where
-    readPrec = mk <$> Read.readPrec
-        where
-        mk nn = Pitch (const (Right nn)) $
-            const $ Right $ Pitch.Note $ showt nn
-
 instance Pretty.Pretty Pitch where
-    pretty (Pitch p n) = either show Pretty.pretty (p Map.empty)
-        <> "(" <> either show (untxt . Pitch.note_text) (n Map.empty) <> ")"
+    pretty p = either show Pretty.pretty (pitch_eval_nn p Map.empty) <> ","
+        <> either show (untxt . Pitch.note_text) (pitch_eval_note p Map.empty)
+        <> "(" <> Pretty.pretty (pitch_scale p) <> ")"
+
+-- | Pitches have no literal syntax, but I have to print something.
+instance ShowVal.ShowVal Pitch where
+    show_val pitch = "<pitch: " <> txt (Pretty.pretty pitch) <> ">"
 
 newtype PitchError = PitchError Text deriving (Eq, Ord, Read, Show)
 instance Pretty.Pretty PitchError where pretty (PitchError s) = untxt s
@@ -319,10 +345,6 @@ instance DeepSeq.NFData (ValType pitch) where
     rnf (VSymbol (Symbol s)) = DeepSeq.rnf s
     rnf _ = ()
 
--- | Pitchas have no literal syntax, but I have to print something.
-instance ShowVal.ShowVal Pitch where
-    show_val pitch = "<pitch: " <> txt (Pretty.pretty pitch) <> ">"
-
 newtype Symbol = Symbol Text
     deriving (Eq, Ord, Show, DeepSeq.NFData, String.IsString)
 instance Pretty.Pretty Symbol where pretty = untxt . ShowVal.show_val
@@ -356,27 +378,33 @@ instance ShowVal.ShowVal Text where
     show_val = ShowVal.show_val . Symbol
 
 data ControlRef val =
-    -- | A constant signal.  For 'Control', this is coerced from a VNum
-    -- literal.
-    ConstantControl val
+    -- | A signal literal.
+    ControlSignal val
     -- | If the control isn't present, use the constant.
     | DefaultedControl Control val
     -- | Throw an exception if the control isn't present.
     | LiteralControl Control
     deriving (Eq, Show)
 
-type PitchControl = ControlRef Pitch
+type PitchControl = ControlRef Signal
 -- | Pitches have to be evaluated, but the parser has to return something
 -- unevaluated.
 type RawPitchControl = ControlRef Note
-type ValControl = ControlRef TypedVal
+type ValControl = ControlRef TypedControl
 
 instance Pretty.Pretty PitchControl where pretty = untxt . ShowVal.show_val
 
 -- | There's no way to convert a pitch back into the expression that produced
 -- it, so this is the best I can do.
+--
+-- Similar to ShowVal 'ValControl', there's no signal literal so I use the
+-- value at 0.  A pitch can be turned into an expression, but not necessarily
+-- accurately since it doesn't take things like pitch interpolation into
+-- account.
 instance ShowVal.ShowVal PitchControl where
-    show_val = show_control '#' Pretty.prettytxt
+    show_val = show_control '#' $ \sig -> case TimeVector.at 0 (sig_vec sig) of
+        Nothing -> "<none>"
+        Just p -> ShowVal.show_val p
 
 instance ShowVal.ShowVal RawPitchControl where
     show_val = show_control '#' $ \(Note note args) ->
@@ -386,13 +414,17 @@ instance ShowVal.ShowVal RawPitchControl where
         -- <> ")"
 
 instance Pretty.Pretty ValControl where pretty = untxt . ShowVal.show_val
+
+-- | This can only represent constant signals, since there's no literal for an
+-- arbitrary signal.  Non-constant signals will turn into a constant of
+-- whatever was at 0.
 instance ShowVal.ShowVal ValControl where
-    show_val = show_control '%' $ \(Typed typ num) ->
-        ShowVal.show_val num <> txt (type_to_code typ)
+    show_val = show_control '%' $ \(Typed typ sig) ->
+        ShowVal.show_val (Signal.at 0 sig) <> txt (type_to_code typ)
 
 show_control :: Char -> (val -> Text) -> ControlRef val -> Text
 show_control prefix val_text control = case control of
-    ConstantControl val -> val_text val
+    ControlSignal val -> val_text val
     DefaultedControl (Control cont) deflt -> mconcat
         [Text.singleton prefix, cont, ",", val_text deflt]
     LiteralControl (Control cont) -> Text.cons prefix cont

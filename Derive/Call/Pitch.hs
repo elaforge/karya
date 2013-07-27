@@ -20,7 +20,6 @@ import qualified Derive.Derive as Derive
 import qualified Derive.LEvent as LEvent
 import qualified Derive.PitchSignal as PitchSignal
 import qualified Derive.Pitches as Pitches
-import qualified Derive.Scale as Scale
 import qualified Derive.Sig as Sig
 import Derive.Sig (defaulted, required)
 import qualified Derive.TrackLang as TrackLang
@@ -70,7 +69,7 @@ c_set = Derive.generator1 "set" mempty "Emit a pitch with no interpolation." $
     -- numbers, and it's not clearly useful.
     Sig.call (required "pitch" "Destination pitch.") $ \pitch args -> do
         pos <- Args.real_start args
-        Util.pitch_signal [(pos, pitch)]
+        return $ PitchSignal.signal [(pos, pitch)]
 
 -- | Re-set the previous val.  This can be used to extend a breakpoint.
 c_set_prev :: Derive.PitchCall
@@ -80,8 +79,9 @@ c_set_prev = Derive.generator "set-prev" (Tags.prelude <> Tags.prev)
         Nothing -> return []
         Just (prev_x, prev_y) -> do
             pos <- Args.real_start args
-            if pos > prev_x then (:[]) <$> Util.pitch_signal [(pos, prev_y)]
-                else return []
+            return $ if pos > prev_x
+                then [PitchSignal.signal [(pos, prev_y)]]
+                else []
 
 -- * linear
 
@@ -194,7 +194,7 @@ approach args start end = do
     Args.prev_val args >>= \x -> case (x, maybe_next) of
         (Just (_, prev), Just next) ->
             make_interpolator id True start prev end next
-        _ -> Util.pitch_signal []
+        _ -> return mempty
 
 next_pitch :: Derive.PassedArgs d -> Derive.Deriver (Maybe PitchSignal.Pitch)
 next_pitch = maybe (return Nothing) eval_pitch . Seq.head . Args.next_events
@@ -219,7 +219,7 @@ slope word sign =
     Sig.call (defaulted "speed" (Pitch.Chromatic 1)
         (word <> " this many steps per second.")) $
     \speed args -> Args.prev_val args >>= \x -> case x of
-        Nothing -> Util.pitch_signal []
+        Nothing -> return mempty
         Just (_, prev_pitch) -> do
             start <- Args.real_start args
             next <- Derive.real (Args.next args)
@@ -243,7 +243,7 @@ c_drop = Derive.generator1 "drop" Tags.cmod "Drop pitch and `dyn`." $
         "Time to drop the given interval and fade to nothing."
     ) $ \(interval, TrackLang.DefaultReal time) args ->
         Args.prev_val args >>= \x -> case x of
-            Nothing -> Util.pitch_signal []
+            Nothing -> return mempty
             Just (_, prev_pitch) -> do
                 (start, end) <- Util.duration_from_start args time
                 drop_call start end prev_pitch interval
@@ -286,9 +286,9 @@ interpolate :: (Double -> Double) -> Derive.PitchArgs
 interpolate f args pitch_transpose dur = do
     (start, end) <- Util.duration_from_start args dur
     Args.prev_val args >>= \x -> case x of
-        Nothing -> case pitch_transpose of
-            Left pitch -> Util.pitch_signal [(start, pitch)]
-            Right _ -> Util.pitch_signal []
+        Nothing -> return $ case pitch_transpose of
+            Left pitch -> PitchSignal.signal [(start, pitch)]
+            Right _ -> PitchSignal.signal []
         Just (_, prev) -> do
             -- I always set include_initial.  It might be redundant, but if the
             -- previous call was sliced off, it won't be.
@@ -300,18 +300,16 @@ make_interpolator :: (Double -> Double)
     -> RealTime -> PitchSignal.Pitch -> RealTime -> PitchSignal.Pitch
     -> Derive.Deriver PitchSignal.Signal
 make_interpolator f include_initial x1 note1 x2 note2 = do
-    scale <- Util.get_scale
     srate <- Util.get_srate
-    return $ interpolator scale srate f include_initial x1 note1 x2 note2
+    return $ interpolator srate f include_initial x1 note1 x2 note2
 
 -- | Create samples according to an interpolator function.  The function is
 -- passed values from 0--1 representing position in time and is expected to
 -- return values from 0--1 representing the Y position at that time.  So linear
 -- interpolation is simply @id@.
-interpolator :: Scale.Scale -> RealTime -> (Double -> Double)
-    -> Interpolator
-interpolator scale srate f include_initial x1 note1 x2 note2 =
-    Util.signal scale $ (if include_initial then id else drop 1)
+interpolator :: RealTime -> (Double -> Double) -> Interpolator
+interpolator srate f include_initial x1 note1 x2 note2 =
+    PitchSignal.signal $ (if include_initial then id else drop 1)
         [(x, pitch_of x) | x <- Seq.range_end x1 x2 srate]
     where
     pitch_of = Pitches.interpolated note1 note2

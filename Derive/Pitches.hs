@@ -16,16 +16,17 @@ import qualified Derive.PitchSignal as PitchSignal
 import qualified Derive.Scale as Scale
 
 import qualified Perform.Pitch as Pitch
-import Types
 
 
-signal :: Scale.Scale -> [(RealTime, PitchSignal.Pitch)] -> PitchSignal.Signal
-signal scale = PitchSignal.signal (Derive.pitch_signal_scale scale)
+scale :: Scale.Scale -> PitchSignal.Scale
+scale scale =
+    PitchSignal.Scale (Scale.scale_id scale) (Scale.scale_transposers scale)
 
 -- | A pitch interpolated a certain distance between two other pitches.
 interpolated :: PitchSignal.Pitch -> PitchSignal.Pitch -> Double
     -> PitchSignal.Pitch
-interpolated low high dist = PitchSignal.pitch nn note
+interpolated low high dist =
+    PitchSignal.pitch (PitchSignal.pitch_scale low) nn note
     where
     nn controls = do
         low_nn <- PitchSignal.eval_pitch low controls
@@ -46,6 +47,6 @@ pitch_nn :: PitchSignal.Pitch -> Derive.Deriver Pitch.NoteNumber
 pitch_nn = either (Derive.throw . ("evaluating pitch: " ++) . Pretty.pretty)
     return . PitchSignal.pitch_nn
 
-constant_pitch :: Pitch.NoteNumber -> PitchSignal.Pitch
-constant_pitch nn = PitchSignal.pitch (const (Right nn))
-    (const $ Right $ Pitch.Note $ Pretty.prettytxt nn)
+constant :: Pitch.NoteNumber -> PitchSignal.Pitch
+constant nn = PitchSignal.pitch PitchSignal.no_scale
+    (const (Right nn)) (const $ Right $ Pitch.Note $ Pretty.prettytxt nn)

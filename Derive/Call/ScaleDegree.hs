@@ -39,15 +39,16 @@ import qualified Perform.Pitch as Pitch
 -- | Create a pitch val call for the given scale degree.  This is intended to
 -- be used by scales to generate their calls, but of course each scale may
 -- define calls in its own way.
-scale_degree :: Scale.PitchNn -> Scale.PitchNote -> Derive.ValCall
-scale_degree pitch_nn pitch_note = Derive.val_call
+scale_degree :: PitchSignal.Scale -> Scale.PitchNn -> Scale.PitchNote
+    -> Derive.ValCall
+scale_degree scale pitch_nn pitch_note = Derive.val_call
     "pitch" Tags.scale "Emit the pitch of a scale degree." $ Sig.call ((,)
     <$> defaulted "frac" 0
         "Add this many hundredths of a scale degree to the output."
     <*> defaulted "hz" 0 "Add an absolute hz value to the output."
     ) $ \(frac, hz) _ -> do
         environ <- Internal.get_dynamic Derive.state_environ
-        return $! TrackLang.VPitch $ PitchSignal.pitch
+        return $! TrackLang.VPitch $ PitchSignal.pitch scale
             (call frac hz environ) (pitch_note environ)
     where
     call frac hz environ controls =
@@ -72,16 +73,16 @@ pitch_expr (Pitch.Note note) frac
 type NamedIntervals = Map.Map Text Ratio.Rational
 
 -- | A fancier version of 'scale_degree' that takes interval arguments.
-scale_degree_just :: NamedIntervals
+scale_degree_just :: PitchSignal.Scale -> NamedIntervals
     -> Pitch.Hz -- ^ add an arbitrary extra interval to the output
     -> Scale.PitchNn -> Scale.PitchNote -> Derive.ValCall
-scale_degree_just named_intervals extra_interval pitch_nn pitch_note =
+scale_degree_just scale named_intervals extra_interval pitch_nn pitch_note =
     Derive.val_call "pitch" Tags.scale
     "Emit the pitch of a scale degree." $
     Sig.call (intervals_arg named_intervals) $ \intervals _ -> do
         interval <- resolve_intervals named_intervals intervals
         environ <- Internal.get_dynamic Derive.state_environ
-        return $! TrackLang.VPitch $ PitchSignal.pitch
+        return $! TrackLang.VPitch $ PitchSignal.pitch scale
             (call (extra_interval * interval) environ) (pitch_note environ)
     where
     call interval environ controls = modify interval (get_hz controls) <$>
@@ -90,11 +91,13 @@ scale_degree_just named_intervals extra_interval pitch_nn pitch_note =
         | interval == 1 && hz == 0 = id
         | otherwise = Pitch.modify_hz ((+hz) . (*interval))
 
-scale_degree_interval :: NamedIntervals -> Pitch.Note -> Maybe Derive.ValCall
-scale_degree_interval named_intervals note =
+scale_degree_interval :: PitchSignal.Scale -> NamedIntervals -> Pitch.Note
+    -> Maybe Derive.ValCall
+scale_degree_interval scale named_intervals note =
     case parse_relative_interval named_intervals note of
         Nothing -> Nothing
-        Just interval -> Just $ relative_scale_degree named_intervals interval
+        Just interval ->
+            Just $ relative_scale_degree scale named_intervals interval
 
 intervals_arg :: NamedIntervals -> Sig.Parser [Either Pitch.Hz Text]
 intervals_arg named_intervals = Sig.many "interval" $
@@ -113,8 +116,9 @@ parse_relative_interval named_intervals note =
         _ -> Nothing
     unsign val = if val < 0 then recip (abs val) else val
 
-relative_scale_degree :: NamedIntervals -> Pitch.Hz -> Derive.ValCall
-relative_scale_degree named_intervals initial_interval =
+relative_scale_degree :: PitchSignal.Scale -> NamedIntervals -> Pitch.Hz
+    -> Derive.ValCall
+relative_scale_degree scale named_intervals initial_interval =
     Derive.val_call "pitch" Tags.scale "doc doc" $
     Sig.call (intervals_arg named_intervals) $ \intervals args -> do
         interval <- (initial_interval*) <$>
@@ -125,7 +129,7 @@ relative_scale_degree named_intervals initial_interval =
             _ -> Derive.throw "relative interval requires a previous pitch"
     where
     modify interval pitch =
-        PitchSignal.pitch (pitch_nn interval pitch)
+        PitchSignal.pitch scale (pitch_nn interval pitch)
             (PitchSignal.eval_note pitch)
     pitch_nn interval pitch controls = do
         nn <- PitchSignal.eval_pitch pitch controls

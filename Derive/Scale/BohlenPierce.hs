@@ -13,6 +13,8 @@ import Util.Control
 import qualified Util.Num as Num
 import qualified Derive.Call.ScaleDegree as ScaleDegree
 import qualified Derive.Derive as Derive
+import qualified Derive.PitchSignal as PitchSignal
+import qualified Derive.Pitches as Pitches
 import qualified Derive.Scale as Scale
 import qualified Derive.Scale.ChromaticScales as ChromaticScales
 import qualified Derive.Scale.Theory as Theory
@@ -47,6 +49,9 @@ absolute_scale =
 scale_map :: ChromaticScales.ScaleMap
 scale_map = ChromaticScales.scale_map layout fmt all_keys default_key
 
+pscale :: PitchSignal.Scale
+pscale = Pitches.scale absolute_scale
+
 fmt :: TheoryFormat.Format
 fmt = TheoryFormat.make_absolute_format
         (TheoryFormat.make_pattern degrees) degrees
@@ -58,7 +63,7 @@ fmt = TheoryFormat.make_absolute_format
 note_to_call :: ChromaticScales.ScaleMap -> Pitch.Note -> Maybe Derive.ValCall
 note_to_call smap note =
     case TheoryFormat.read_pitch (ChromaticScales.smap_fmt smap) note of
-        Left _ -> ScaleDegree.scale_degree_interval named_intervals note
+        Left _ -> ScaleDegree.scale_degree_interval pscale named_intervals note
         Right pitch ->
             Just $ scale_degree
                 (ChromaticScales.pitch_nn smap degree_to_nn pitch)
@@ -94,15 +99,11 @@ middle_a = Pitch.Degree 60 -- Pitch.middle_degree
 default_base_hz :: Pitch.Hz
 default_base_hz = Pitch.middle_c_hz
 
-    -- its degrees, but the degrees have to be tuned based on the 1/1 hz
-    -- So I do have pitch->degree, but it needs base-hz too
-    -- What do I start at?  How about just base-hz, set to 440
-
 just_base_control :: Score.Control
 just_base_control = Score.Control "just-base"
 
 scale_degree :: Scale.PitchNn -> Scale.PitchNote -> Derive.ValCall
-scale_degree = ScaleDegree.scale_degree_just named_intervals 1
+scale_degree = ScaleDegree.scale_degree_just pscale named_intervals 1
 
 -- **
 

@@ -234,8 +234,8 @@ c_pitch_trill maybe_mode = Derive.generator1 "pitch-trill" Tags.ornament
         (transpose, control) <- trill_from_controls
             (Args.start args, Args.next args) mode neighbor speed
         start <- Args.real_start args
-        PitchSignal.apply_control control (Score.untyped transpose) <$>
-            Util.pitch_signal [(start, note)]
+        return $ PitchSignal.apply_control control (Score.untyped transpose) $
+            PitchSignal.signal [(start, note)]
 
 c_xcut_pitch :: Bool -> Derive.PitchCall
 c_xcut_pitch hold = Derive.generator1 "xcut" mempty
@@ -265,7 +265,7 @@ xcut_pitch hold val1 val2 =
         next = (val2, PitchSignal.drop_before t val1)
         initial = case PitchSignal.at t val1 of
             Nothing -> mempty
-            Just p -> PitchSignal.signal (PitchSignal.sig_scale val1) [(t, p)]
+            Just p -> PitchSignal.signal [(t, p)]
 
 
 -- * control calls

@@ -28,13 +28,14 @@ test_apply_controls = do
         [(0, Right 2), (1, Right 1), (2, Right 2)]
 
 mksignal :: [(RealTime, Pitch.NoteNumber)] -> PitchSignal.Signal
-mksignal = PitchSignal.signal
-    (PitchSignal.Scale (Pitch.ScaleId "test") (Set.fromList [c_trans]))
-    . map (second mkpitch)
+mksignal = PitchSignal.signal . map (second mkpitch)
+
+default_scale :: PitchSignal.Scale
+default_scale = PitchSignal.Scale (Pitch.ScaleId "test") (Set.fromList [c_trans])
 
 mkpitch :: Pitch.NoteNumber -> PitchSignal.Pitch
 mkpitch nn =
-    PitchSignal.pitch note (const $ Right $ Pitch.Note $ showt nn)
+    PitchSignal.pitch default_scale note (const $ Right $ Pitch.Note $ showt nn)
     where
     note controls
         | nn + t >= 4 = Left (PitchSignal.PitchError "bad transpose")

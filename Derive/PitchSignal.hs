@@ -4,7 +4,8 @@
 
 {-# LANGUAGE TypeFamilies, RankNTypes #-}
 module Derive.PitchSignal (
-    Signal, sig_scale_id, sig_scale, Scale(Scale)
+    Signal, sig_scale_id
+    , Scale(Scale), no_scale
     -- * construct and convert
     , constant, signal, unsignal, to_nn
     -- * apply controls
@@ -13,86 +14,68 @@ module Derive.PitchSignal (
     , null, at, shift, last
     , take, drop_after, drop_before, drop_before_strict
     -- * Pitch
-    , Pitch, PitchError(..)
-    , pitch, apply, add_control, eval_pitch, eval_note, pitch_nn, pitch_note
+    , Pitch, pitch_scale_id, pitch_transposers
+    , PitchError(..)
+    , pitch, pitch_scale
+    , apply, add_control, eval_pitch, eval_note, pitch_nn, pitch_note
 ) where
 import Prelude hiding (take, last, null)
-import qualified Control.DeepSeq as DeepSeq
-import qualified Data.List as List
 import qualified Data.Map.Strict as Map
 import qualified Data.Monoid as Monoid
 import qualified Data.Set as Set
 import qualified Data.Vector as V
 
 import Util.Control
-import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 import qualified Util.TimeVector as TimeVector
 
 import qualified Derive.BaseTypes as Score
-import Derive.BaseTypes (Pitch(..), PitchCall, ControlValMap, PitchError(..))
+import Derive.BaseTypes
+       (Signal(..), Pitch(..), Scale(..), ControlValMap, PitchError(..))
 import qualified Perform.Pitch as Pitch
 import qualified Perform.Signal as Signal
 import Types
 
 
--- | A pitch signal is similar to a 'Signal.Control', except that its values
--- are 'Pitch'es instead of plain floating point values.
-data Signal = Signal {
-    -- | The set of transposer signals for this scale, as documented in
-    -- 'Derive.Scale.scale_transposers'.
-    --
-    -- They are stored here because they're needed by 'to_nn'.  I could
-    -- store them separately, e.g. in the 'Score.Event' alongside the
-    -- event_pitch, but the scale at event creation time is not guaranteed to
-    -- be the same, so the safest thing to do is keep it with the signal
-    -- itself.
-    sig_transposers :: !(Set.Set Score.Control)
+-- Signal imported from BaseTypes.
 
-    -- | This is not technically needed, but it seems useful to be able to
-    -- see the scale of a signal.  If signals of different scales are
-    -- combined it will be just one of them.  TODO if multi-scale signals is
-    -- ever something I do a lot it might behoove me to make this a Set.
-    , sig_scale_id :: !Pitch.ScaleId
-    , sig_vec :: !(TimeVector.Boxed Pitch)
-    } deriving (Read, Show)
+-- | Set of transposers for the signal.  Transposers are documented in
+-- 'pscale_transposers'.
+--
+-- A Signal can contain pitches from multiple scales, though I don't think this
+-- should ever happen.  But if it does, the first pitch wins.
+sig_transposers :: Signal -> Set.Set Score.Control
+sig_transposers = pscale_transposers . sig_scale
+
+-- | Get the scale id of the signal.
+--
+-- A Signal can contain pitches from multiple scales, though I don't think this
+-- should ever happen.  But if it does, the first pitch wins.
+sig_scale_id :: Signal -> Pitch.ScaleId
+sig_scale_id = pscale_scale_id . sig_scale
 
 sig_scale :: Signal -> Scale
-sig_scale sig = Scale (sig_scale_id sig) (sig_transposers sig)
+sig_scale = maybe no_scale (pitch_scale . TimeVector.sy)
+    . TimeVector.head . sig_vec
 
 modify_vector :: (TimeVector.Boxed Pitch -> TimeVector.Boxed Pitch)
     -> Signal -> Signal
 modify_vector f sig = sig { sig_vec = f (sig_vec sig) }
 
--- | Signal can't take a Scale because that would be a circular import.
--- Fortunately it only needs a few fields.  However, because of the
--- circularity, the Scale.Scale -> PitchSignal.Scale constructor is in
--- "Derive.Derive".
-data Scale = Scale Pitch.ScaleId (Set.Set Score.Control) deriving (Show)
+no_scale :: Scale
+no_scale = Scale (Pitch.ScaleId "no-scale") mempty
 
 instance Monoid.Monoid Signal where
-    mempty = Signal mempty Pitch.empty_scale mempty
+    mempty = Signal mempty
     mappend s1 s2 = Monoid.mconcat [s1, s2]
     mconcat [] = mempty
-    mconcat sigs = Signal (mconcat (map sig_transposers sigs))
-        (fromMaybe Pitch.empty_scale
-            (List.find (/=Pitch.empty_scale) (map sig_scale_id sigs)))
-        (TimeVector.merge (map sig_vec sigs))
+    mconcat sigs = Signal (TimeVector.merge (map sig_vec sigs))
 
-instance DeepSeq.NFData Signal where
-    rnf (Signal _ _ v) = v `seq` ()
+constant :: Pitch -> Signal
+constant  = Signal . TimeVector.constant
 
-instance Pretty.Pretty Signal where
-    format (Signal _ scale_id vec) = Pretty.fsep
-        [Pretty.text "Pitch", Pretty.format scale_id, Pretty.format vec]
-
-constant :: Scale -> Pitch -> Signal
-constant (Scale scale_id transposers) =
-    Signal transposers scale_id . TimeVector.constant
-
-signal :: Scale -> [(RealTime, Pitch)] -> Signal
-signal (Scale scale_id transposers) =
-    Signal transposers scale_id . TimeVector.signal
+signal :: [(RealTime, Pitch)] -> Signal
+signal = Signal . TimeVector.signal
 
 unsignal :: Signal -> [(RealTime, Pitch)]
 unsignal = TimeVector.unsignal . sig_vec
@@ -183,29 +166,44 @@ drop_before = modify_vector . TimeVector.drop_before
 
 -- * Pitch
 
--- newtype Pitch = Pitch PitchCall
--- type PitchCall = ControlValMap -> Either PitchError Pitch.NoteNumber
--- type ControlValMap = Map.Map Score.Control Signal.Y
+pitch :: Scale
+    -> (ControlValMap -> Either PitchError Pitch.NoteNumber)
+    -> (ControlValMap -> Either PitchError Pitch.Note)
+    -> Pitch
+pitch scale nn note = Pitch
+    { pitch_eval_nn = nn
+    , pitch_eval_note = note
+    , pitch_scale = scale
+    }
 
-pitch :: PitchCall Pitch.NoteNumber -> PitchCall Pitch.Note -> Pitch
-pitch = Pitch
+pitch_scale_id :: Pitch -> Pitch.ScaleId
+pitch_scale_id = pscale_scale_id . pitch_scale
+
+pitch_transposers :: Pitch -> Set.Set Score.Control
+pitch_transposers = pscale_transposers . pitch_scale
 
 -- | Apply controls to a pitch.
 apply :: ControlValMap -> Pitch -> Pitch
-apply controls (Pitch nn note) = Pitch
-    (\controls2 -> nn $! Map.unionWith (+) controls2 controls)
-    (\controls2 -> note $! Map.unionWith (+) controls2 controls)
+apply controls pitch = pitch
+    { pitch_eval_nn = \controls2 ->
+        pitch_eval_nn pitch $! Map.unionWith (+) controls2 controls
+    , pitch_eval_note = \controls2 ->
+        pitch_eval_note pitch $! Map.unionWith (+) controls2 controls
+    }
 
 add_control :: Score.Control -> Double -> Pitch -> Pitch
-add_control control val (Pitch nn note) = Pitch
-    (\controls -> nn $! Map.insertWith (+) control val controls)
-    (\controls -> note $! Map.insertWith (+) control val controls)
+add_control control val pitch = pitch
+    { pitch_eval_nn = \controls ->
+        pitch_eval_nn pitch $! Map.insertWith (+) control val controls
+    , pitch_eval_note = \controls ->
+        pitch_eval_note pitch $! Map.insertWith (+) control val controls
+    }
 
-eval_pitch :: Pitch -> PitchCall Pitch.NoteNumber
-eval_pitch (Pitch p _) = p
+eval_pitch :: Pitch -> ControlValMap -> Either PitchError Pitch.NoteNumber
+eval_pitch = pitch_eval_nn
 
-eval_note :: Pitch -> PitchCall Pitch.Note
-eval_note (Pitch _ n) = n
+eval_note :: Pitch -> ControlValMap -> Either PitchError Pitch.Note
+eval_note = pitch_eval_note
 
 pitch_nn :: Pitch -> Either PitchError Pitch.NoteNumber
 pitch_nn p = eval_pitch p Map.empty

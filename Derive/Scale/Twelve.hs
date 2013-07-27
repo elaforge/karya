@@ -24,25 +24,40 @@ import qualified Data.Vector.Unboxed as Unboxed
 
 import Util.Control
 import qualified Derive.Scale as Scale
+import qualified Derive.Scale.ChromaticScales as ChromaticScales
 import qualified Derive.Scale.Theory as Theory
 import qualified Derive.Scale.TheoryFormat as TheoryFormat
-import qualified Derive.Scale.ChromaticScales as ChromaticScales
 import qualified Derive.Scale.Util as Util
 
 import qualified Perform.Pitch as Pitch
 
 
--- Twelve is a popular default, so export these directly.
+scales :: [Scale.Scale]
+scales = [scale, relative_scale]
 
 scale :: Scale.Scale
-scale = ChromaticScales.make_scale scale_map scale_id
-    "The world-famous equal tempered twelve note scale.\n"
+scale =
+    (ChromaticScales.make_scale absolute_scale_map scale_id
+        "The world-famous equal tempered twelve note scale.\n")
+    { Scale.scale_input_to_nn = Util.direct_input_to_nn }
+
+relative_scale :: Scale.Scale
+relative_scale = ChromaticScales.make_scale relative_scale_map
+    (Pitch.ScaleId "twelve-r")
+    "This is 12TET, but spelled relative to the current key and mode.\
+    \ It behaves oddly around accidentals. This is because the input is\
+    \ taken to be relative, so the key is at C on the input. But the\
+    \ input layout is still in C major, so the black keys are in the wrong\
+    \ place. TODO to fix this I'd have to either abandon the relative\
+    \ input, or reconfigure the input layout. The latter would be really\
+    \ confusing, and incompatible with a piano keyboard.\n"
 
 scale_id :: Pitch.ScaleId
 scale_id = Pitch.ScaleId "twelve"
 
-scale_map :: ChromaticScales.ScaleMap
-scale_map = ChromaticScales.scale_map layout fmt all_keys default_theory_key
+absolute_scale_map :: ChromaticScales.ScaleMap
+absolute_scale_map =
+    ChromaticScales.scale_map layout fmt all_keys default_theory_key
 
 fmt :: TheoryFormat.Format
 fmt = TheoryFormat.absolute_c
@@ -70,26 +85,11 @@ relative_fmt = TheoryFormat.RelativeFormat
         ChromaticScales.read_key relative_scale_map maybe_key
 
 relative_scale_map :: ChromaticScales.ScaleMap
-relative_scale_map =
-    ChromaticScales.scale_map layout (TheoryFormat.sargam relative_fmt)
-        all_keys default_theory_key
+relative_scale_map = ChromaticScales.scale_map
+    layout (TheoryFormat.sargam relative_fmt) all_keys default_theory_key
 
 
 -- * scales
-
-scales :: [Scale.Scale]
-scales =
-    [ scale { Scale.scale_input_to_nn = Util.direct_input_to_nn }
-    , ChromaticScales.make_scale relative_scale_map
-        (Pitch.ScaleId "twelve-r")
-        "This is 12TET, but spelled relative to the current key and mode.\
-        \ It behaves oddly around accidentals. This is because the input is\
-        \ taken to be relative, so the key is at C on the input. But the\
-        \ input layout is still in C major, so the black keys are in the wrong\
-        \ place. TODO to fix this I'd have to either abandon the relative\
-        \ input, or reconfigure the input layout. The latter would be really\
-        \ confusing, and incompatible with a piano keyboard.\n"
-    ]
 
 default_key :: Pitch.Key
 default_key = Pitch.Key "c-maj"
@@ -99,14 +99,15 @@ Just default_theory_key = Map.lookup default_key all_keys
 
 show_pitch :: Theory.Pitch -> Maybe Pitch.Note
 show_pitch = either (const Nothing) Just
-    . ChromaticScales.show_pitch scale_map Nothing
+    . ChromaticScales.show_pitch absolute_scale_map Nothing
 
 show_nn :: Pitch.NoteNumber -> Maybe Pitch.Note
 show_nn = show_pitch . Theory.semis_to_pitch_sharps layout
     . Theory.nn_to_semis . floor
 
 read_pitch :: Pitch.Note -> Maybe Theory.Pitch
-read_pitch = either (const Nothing) Just . ChromaticScales.read_pitch scale_map
+read_pitch =
+    either (const Nothing) Just . ChromaticScales.read_pitch absolute_scale_map
 
 -- * constants
 

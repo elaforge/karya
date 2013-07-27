@@ -11,8 +11,6 @@ import qualified Ui.UiTest as UiTest
 import qualified Cmd.Integrate.Convert as Convert
 import qualified Derive.Attrs as Attrs
 import qualified Derive.DeriveTest as DeriveTest
-import qualified Derive.Pitches as Pitches
-import qualified Derive.Scale.Twelve as Twelve
 import qualified Derive.Score as Score
 
 import qualified Perform.Pitch as Pitch
@@ -65,7 +63,7 @@ test_integrate = do
     where
     no_pitch (start, dur, controls) =
         (event (start, dur, "4c", controls, inst))
-        { Score.event_pitch = Pitches.signal Twelve.scale [] }
+        { Score.event_pitch = mempty }
     pitches (start, dur, pitches) = (event (start, dur, "4c", [], inst))
         { Score.event_pitch = DeriveTest.pitch_signal pitches }
     event = DeriveTest.mkevent

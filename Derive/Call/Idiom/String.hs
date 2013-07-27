@@ -61,8 +61,7 @@ c_guzheng strings = Derive.transformer "guzheng" (Tags.postproc <> Tags.idiom)
         string_pitches <- mapM (Call.eval_pitch 0) strings
         srate <- Util.get_srate
         events <- deriver
-        scale <- Util.get_scale
-        let linear = Call.Pitch.interpolator scale srate id
+        let linear = Call.Pitch.interpolator srate id
         string_idiom linear linear string_pitches attack delay release events
 
 -- | A string idiom in the style of stopped strings like the violin family.
@@ -76,10 +75,9 @@ c_violin strings = Derive.transformer "violin" (Tags.postproc <> Tags.idiom)
         string_pitches <- mapM (Call.eval_pitch 0) strings
         srate <- Util.get_srate
         events <- deriver
-        scale <- Util.get_scale
-        let attack = TrackLang.ConstantControl (Score.untyped 0)
-            release = TrackLang.ConstantControl (Score.untyped 0)
-        let linear = Call.Pitch.interpolator scale srate id
+        let attack = TrackLang.constant_control 0
+            release = TrackLang.constant_control 0
+        let linear = Call.Pitch.interpolator srate id
         string_idiom linear linear string_pitches attack delay release events
 
 -- | Post-process events to play them in a monophonic string-like idiom.
@@ -167,11 +165,11 @@ process attack_interpolator release_interpolator
     start = Score.event_start event
     emit pitch string
         -- Re-use an already sounding string.
-        | string == sounding_string = attack attack_interpolator
+        | fst string == fst sounding_string = attack attack_interpolator
             attack_time pitch start prev
         -- Sounding string is no longer used, so it can be released.
         | otherwise = release release_interpolator delay_time release_time
-            sounding_string start prev
+            (snd sounding_string) start prev
 
 -- | Bend the event up to the next note.
 attack :: Call.Pitch.Interpolator -> RealTime -> PitchSignal.Pitch -> RealTime
@@ -195,27 +193,27 @@ release interpolator delay time pitch next_event event = do
 
 merge_curve :: Call.Pitch.Interpolator -> RealTime -> PitchSignal.Pitch
     -> RealTime -> PitchSignal.Pitch -> Score.Event -> Score.Event
-merge_curve interpolator x0 y0 x1 y1 event
-    | y0 == y1 = event
-    | otherwise = event { Score.event_pitch = new_pitch }
+merge_curve interpolator x0 y0 x1 y1 event =
+    event { Score.event_pitch = new_pitch }
     where
     curve = interpolator False x0 y0 x1 y1
     new_pitch = Score.event_pitch event <> curve
 
 find_string :: Pitch.NoteNumber -> Map.Map Pitch.NoteNumber PitchSignal.Pitch
-    -> Maybe PitchSignal.Pitch
-find_string nn m = case Map.lookup_below nn m of
-    Nothing -> Nothing
-    Just (_, a) -> Just a
+    -> Maybe (Pitch.NoteNumber, PitchSignal.Pitch)
+find_string = Map.lookup_below
 
 -- | Keep track of the current string state.
 data State = State {
-    -- | Since the strings are NoteNumbers, it means they can't retune based
-    -- on context as 'PitchSignal.Pitch's can.  I can think about supporting
-    -- this later if I need it.
+    -- | The strings are tuned to Pitches, but to compare Pitches I have to
+    -- evaluate them to NoteNumbers first.
+    --
+    -- Since the strings are NoteNumbers, it means they can't retune based on
+    -- context as 'PitchSignal.Pitch's can.  I can think about supporting this
+    -- later if I need it.
     state_strings :: !(Map.Map Pitch.NoteNumber PitchSignal.Pitch)
     -- | The string that is currently sounding.  This is the /open/ pitch.
-    , state_sounding :: !PitchSignal.Pitch
+    , state_sounding :: !(Pitch.NoteNumber, PitchSignal.Pitch)
     -- | The previous event.  Since each event is modified based on the next
     -- pitch, each 'process' call is one event ahead of the actual event
     -- emitted.
@@ -227,6 +225,10 @@ initial_state :: [(Pitch.NoteNumber, PitchSignal.Pitch)] -> Score.Event
 initial_state open_strings event = do
     nn <- Score.initial_nn event
     string <- find_string nn strings
-    return $ State strings string event
+    return $ State
+        { state_strings = strings
+        , state_sounding = string
+        , state_event = event
+        }
     where
     strings = Map.fromList open_strings

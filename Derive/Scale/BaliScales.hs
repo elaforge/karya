@@ -9,6 +9,7 @@ import qualified Data.Map as Map
 
 import Util.Control
 import qualified Derive.Environ as Environ
+import qualified Derive.PitchSignal as PitchSignal
 import qualified Derive.Scale as Scale
 import qualified Derive.Scale.Symbols as Symbols
 import qualified Derive.Scale.Util as Util
@@ -25,14 +26,15 @@ data ScaleMap = ScaleMap {
     , scale_nn_map :: !NoteNumberMap
     } deriving (Show)
 
-scale_map :: Int -> [Pitch.NoteNumber] -> [Pitch.NoteNumber] -> ScaleMap
+scale_map :: Int -> [Pitch.NoteNumber]
+    -> [Pitch.NoteNumber] -> ScaleMap
 scale_map align_with_ding umbang isep = ScaleMap
     { scale_degree_map = Util.degree_map (align all_notes)
     , scale_input_map = Map.fromList (zip (align all_inputs) [0..])
     , scale_nn_map = make_nn_map umbang isep
     }
-    -- Line a list starting with ding up with the note numbers.
     where
+    -- Line a list starting with ding up with the note numbers.
     align = take (length umbang) . drop align_with_ding
 
 all_notes :: [Pitch.Note]
@@ -61,8 +63,9 @@ scale scale_id (ScaleMap degree_map input_map nn_map) = Scale.Scale
         Util.call_doc Util.standard_transposers degree_map input_map doc
     }
     where
-    note_to_call = Util.note_to_call degree_map (degree_to_nn nn_map)
+    note_to_call = Util.note_to_call scale degree_map (degree_to_nn nn_map)
     input_to_note = Util.input_to_note input_map degree_map
+    scale = PitchSignal.Scale scale_id Util.standard_transposers
     doc =
         "Balinese scales come in detuned pairs. They use the `tuning` env var\
         \ to select between pengumbang and pengisep tuning. The env var\

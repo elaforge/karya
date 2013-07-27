@@ -3,6 +3,7 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 module Derive.Call.Idiom.String_test where
+import qualified Util.Seq as Seq
 import Util.Test
 import qualified Derive.Call.CallTest as CallTest
 import qualified Derive.Call.Idiom.String as String
@@ -13,10 +14,12 @@ import qualified Derive.TrackLang as TrackLang
 
 test_string = do
     let extract = DeriveTest.extract e_event
-        e_event e = (Score.event_start e, DeriveTest.e_nns e)
+        -- 'merge_curve' can't see that pitches are the same, so it can produce
+        -- duplicate pitches.
+        e_event e = (Score.event_start e, Seq.drop_dups snd $ DeriveTest.e_nns e)
     let run p1 p2 p3 = extract $ DeriveTest.derive_tracks_with with_call
             [ ("> | guzheng 2 2 1", [(0, 5, ""), (5, 5, ""), (10, 5, "")])
-            , ("*twelve", [(0, 0, p1), (5, 0, p2), (10, 0, p3)])
+            , ("*", [(0, 0, p1), (5, 0, p2), (10, 0, p3)])
             ]
     let (res, logs) = run "4c" "2d" "2e"
     equal res [(0, [(0, 60)])]

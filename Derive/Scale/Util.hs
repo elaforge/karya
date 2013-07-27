@@ -9,6 +9,7 @@ import qualified Data.Set as Set
 import qualified Data.Text as Text
 
 import Util.Control
+import qualified Util.Debug as Debug
 import qualified Util.Map as Map
 import qualified Util.Num as Num
 import qualified Util.Pretty as Pretty
@@ -41,13 +42,14 @@ simple_scale doc per_octave note_pattern scale_id inputs notes nns = Scale.Scale
     , Scale.scale_transposers = standard_transposers
     , Scale.scale_transpose = transpose dmap per_octave
     , Scale.scale_enharmonics = no_enharmonics
-    , Scale.scale_note_to_call = mapped_note_to_call nn_map dmap
+    , Scale.scale_note_to_call = mapped_note_to_call scale nn_map dmap
     , Scale.scale_input_to_note = input_to_note input_map dmap
     , Scale.scale_input_to_nn = mapped_input_to_nn input_map nn_map
     , Scale.scale_call_doc = call_doc standard_transposers dmap input_map doc
     }
     where
     dmap = degree_map notes
+    scale = PitchSignal.Scale scale_id standard_transposers
     nn_map = note_number_map nns
     input_map = Map.fromList (zip inputs [0..])
 
@@ -81,9 +83,10 @@ data DegreeMap = DegreeMap {
     } deriving (Show)
 
 degree_map :: [Pitch.Note] -> DegreeMap
-degree_map notes =
-    DegreeMap (Map.fromList (zip notes degrees))
-        (Map.fromList (zip degrees notes))
+degree_map notes = DegreeMap
+    { dm_to_degree = Map.fromList (zip notes degrees)
+    , dm_to_note = Map.fromList (zip degrees notes)
+    }
     where
     degrees = [0 .. fromIntegral (length notes)]
 
@@ -125,9 +128,9 @@ standard_transposers = Set.fromList
 -- | A specialization of 'note_to_call' that operates on scales with
 -- a ScaleMap, i.e. a static map from notes to degrees, and from degrees to
 -- NNs.
-mapped_note_to_call :: NoteNumberMap -> DegreeMap
+mapped_note_to_call :: PitchSignal.Scale -> NoteNumberMap -> DegreeMap
     -> Pitch.Note -> Maybe Derive.ValCall
-mapped_note_to_call nn_map dmap = note_to_call dmap to_nn
+mapped_note_to_call scale nn_map dmap = note_to_call scale dmap to_nn
     where
     to_nn _env _controls degree =
         maybe (Left Scale.InvalidTransposition) Right $
@@ -136,13 +139,13 @@ mapped_note_to_call nn_map dmap = note_to_call dmap to_nn
 -- | Create a note call that respects chromatic and diatonic transposition.
 -- However, diatonic transposition is mapped to chromatic transposition,
 -- so this is for scales that don't distinguish.
-note_to_call :: DegreeMap -> DegreeToNoteNumber -> Pitch.Note
-    -> Maybe Derive.ValCall
-note_to_call dmap degree_to_nn note =
+note_to_call :: PitchSignal.Scale -> DegreeMap -> DegreeToNoteNumber
+    -> Pitch.Note -> Maybe Derive.ValCall
+note_to_call scale dmap degree_to_nn note =
     case Map.lookup note (dm_to_degree dmap) of
         Nothing -> Nothing
-        Just degree -> Just $ ScaleDegree.scale_degree (pitch_nn degree)
-            (pitch_note degree)
+        Just degree -> Just $ ScaleDegree.scale_degree scale
+            (pitch_nn degree) (pitch_note degree)
     where
     pitch_nn :: Pitch.Degree -> Scale.PitchNn
     pitch_nn (Pitch.Degree degree) env controls =
@@ -286,9 +289,11 @@ call_doc transposers dmap imap doc =
 default_scale_degree_doc :: Derive.DocumentedCall
 default_scale_degree_doc = scale_degree_doc ScaleDegree.scale_degree
 
-scale_degree_doc :: (Scale.PitchNn -> Scale.PitchNote -> Derive.ValCall)
+scale_degree_doc ::
+    (PitchSignal.Scale -> Scale.PitchNn -> Scale.PitchNote -> Derive.ValCall)
     -> Derive.DocumentedCall
-scale_degree_doc scale_degree = Derive.extract_val_doc $ scale_degree err err
+scale_degree_doc scale_degree =
+    Derive.extract_val_doc $ scale_degree PitchSignal.no_scale err err
     where err _ _ = Left $ PitchSignal.PitchError "it was just an example!"
 
 annotate_call_doc :: Set.Set Score.Control -> Text -> [(Text, Text)]

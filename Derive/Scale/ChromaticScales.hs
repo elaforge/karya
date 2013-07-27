@@ -73,12 +73,14 @@ make_scale scale_map scale_id doc = Scale.Scale
     , Scale.scale_transposers = Util.standard_transposers
     , Scale.scale_transpose = transpose scale_map
     , Scale.scale_enharmonics = enharmonics scale_map
-    , Scale.scale_note_to_call = note_to_call scale_map
+    , Scale.scale_note_to_call = note_to_call scale scale_map
     , Scale.scale_input_to_note = input_to_note scale_map
     , Scale.scale_input_to_nn = Util.computed_input_to_nn
-        (input_to_note scale_map) (note_to_call scale_map)
+        (input_to_note scale_map) (note_to_call scale scale_map)
     , Scale.scale_call_doc = call_doc Util.standard_transposers scale_map doc
     }
+    where
+    scale = PitchSignal.Scale scale_id Util.standard_transposers
 
 -- * functions
 
@@ -99,11 +101,12 @@ enharmonics smap maybe_key note = do
     return $ Either.rights $ map (show_pitch smap maybe_key) $
         Theory.enharmonics_of (Theory.key_layout key) pitch
 
-note_to_call :: ScaleMap -> Pitch.Note -> Maybe Derive.ValCall
-note_to_call smap note = case TheoryFormat.read_pitch (smap_fmt smap) note of
-    Left _ -> Nothing
-    Right pitch ->
-        Just $ ScaleDegree.scale_degree
+note_to_call :: PitchSignal.Scale -> ScaleMap -> Pitch.Note
+    -> Maybe Derive.ValCall
+note_to_call scale smap note =
+    case TheoryFormat.read_pitch (smap_fmt smap) note of
+        Left _ -> Nothing
+        Right pitch -> Just $ ScaleDegree.scale_degree scale
             (pitch_nn smap to_nn pitch) (pitch_note smap pitch)
     where
     to_nn _env _controls degree = Pitch.NoteNumber degree
@@ -162,7 +165,7 @@ call_doc transposers smap doc =
     Util.annotate_call_doc transposers extra_doc fields $
         Derive.extract_val_doc call
     where
-    call = ScaleDegree.scale_degree err err
+    call = ScaleDegree.scale_degree PitchSignal.no_scale err err
         where err _ _ = Left $ PitchSignal.PitchError "it was just an example!"
     extra_doc = doc <> twelve_doc
     fields =

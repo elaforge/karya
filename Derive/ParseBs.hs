@@ -295,7 +295,7 @@ p_control = do
     deflt <- Parse.optional (A.char ',' >> p_num)
     return $ case deflt of
         Nothing -> TrackLang.LiteralControl control
-        Just val -> TrackLang.DefaultedControl control val
+        Just val -> TrackLang.DefaultedControl control (Signal.constant <$> val)
     <?> "control"
 
 p_pitch_control :: A.Parser TrackLang.RawPitchControl

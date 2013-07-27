@@ -13,6 +13,7 @@ import qualified Derive.Call.ScaleDegree as ScaleDegree
 import qualified Derive.Controls as Controls
 import qualified Derive.Derive as Derive
 import qualified Derive.Environ as Environ
+import qualified Derive.PitchSignal as PitchSignal
 import qualified Derive.Scale as Scale
 import qualified Derive.Scale.ChromaticScales as ChromaticScales
 import qualified Derive.Scale.Theory as Theory
@@ -81,17 +82,18 @@ make_scale scale_id smap doc = Scale.Scale
     , Scale.scale_transposers = Util.standard_transposers
     , Scale.scale_transpose = transpose fmt
     , Scale.scale_enharmonics = enharmonics layout fmt
-    , Scale.scale_note_to_call = note_to_call smap
+    , Scale.scale_note_to_call = note_to_call scale smap
     , Scale.scale_input_to_note = input2note
     , Scale.scale_input_to_nn =
-        Util.computed_input_to_nn input2note (note_to_call smap)
+        Util.computed_input_to_nn input2note (note_to_call scale smap)
     , Scale.scale_call_doc =
         Util.annotate_call_doc Util.standard_transposers (doc <> just_doc)
             keys_doc dummy_call
     }
     where
-    dummy_call = Util.scale_degree_doc $
-        ScaleDegree.scale_degree_just (smap_named_intervals smap) 0
+    scale = PitchSignal.Scale scale_id Util.standard_transposers
+    dummy_call = Util.scale_degree_doc $ \scale ->
+        ScaleDegree.scale_degree_just scale (smap_named_intervals smap) 0
     input2note = input_to_note (TheoryFormat.show_pitch fmt)
     fmt = smap_fmt smap
     keys_doc =
@@ -193,11 +195,12 @@ transpose fmt key oct transpose note = do
 -- | To modulate to another scale: @just-base = (hz (4g)) | key = g-maj@
 -- The order is important, so the @(hz (4g))@ happens in the context of the old
 -- key.
-note_to_call :: ScaleMap -> Pitch.Note -> Maybe Derive.ValCall
-note_to_call smap note =
+note_to_call :: PitchSignal.Scale -> ScaleMap -> Pitch.Note
+    -> Maybe Derive.ValCall
+note_to_call scale smap note =
     case TheoryFormat.read_pitch fmt note of
-        Left _ ->
-            ScaleDegree.scale_degree_interval (smap_named_intervals smap) note
+        Left _ -> ScaleDegree.scale_degree_interval
+            scale (smap_named_intervals smap) note
         Right pitch_ ->
             let pitch = pitch_
                     { Theory.pitch_note = (Theory.pitch_note pitch_)
@@ -205,7 +208,7 @@ note_to_call smap note =
                     }
                 accs = Theory.pitch_accidentals pitch_
             in Just $ ScaleDegree.scale_degree_just
-                (smap_named_intervals smap)
+                scale (smap_named_intervals smap)
                 (smap_accidental_interval smap ^^ accs)
                 (pitch_nn smap pitch) (pitch_note fmt pitch)
     where fmt = smap_fmt smap

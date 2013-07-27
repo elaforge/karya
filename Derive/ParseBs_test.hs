@@ -17,6 +17,7 @@ import Derive.TrackLang
        (ControlRef(..), Symbol(..), ValType(..), Call(..), Term(..))
 
 import qualified Perform.Pitch as Pitch
+import qualified Perform.Signal as Signal
 
 
 test_parse_expr = do
@@ -96,10 +97,11 @@ test_parse_val = do
             , ("%", Just $ VControl $ LiteralControl (Score.Control ""))
             , ("%sig", Just $ VControl $ LiteralControl (Score.Control "sig"))
             , ("%sig,0", Just $ VControl $
-                DefaultedControl (Score.Control "sig") (Score.untyped 0))
+                DefaultedControl (Score.Control "sig")
+                    (Score.untyped (Signal.constant 0)))
             , ("%sig,4s", Just $ VControl $
                 DefaultedControl (Score.Control "sig")
-                (Score.Typed Score.Real 4))
+                (Score.Typed Score.Real (Signal.constant 4)))
             , ("%sig,4q", Nothing)
             , ("%sig,", Nothing)
 

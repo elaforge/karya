@@ -566,7 +566,7 @@ test_named_pitch = do
         run op = DeriveTest.eval State.empty (op $ Derive.named_nn_at pname 2)
         pitch = DeriveTest.mkpitch12 "4c"
         with_const pname = Derive.with_constant_pitch
-            (Just (Score.Control pname)) DeriveTest.default_scale pitch
+            (Just (Score.Control pname)) pitch
     equal (run (with_const "psig")) (Right (Just 60))
     equal (run (with_const "bad")) (Right Nothing)
     -- I don't have relative pitch signals anymore.  There's no reason
