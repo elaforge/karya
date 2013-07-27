@@ -4,6 +4,8 @@
 
 -- | Native Instruments' Reaktor softsynth.
 module Local.Instrument.Reaktor where
+import qualified Data.Set as Set
+
 import Util.Control
 import qualified Midi.CC as CC
 import qualified Derive.Attrs as Attrs
@@ -21,12 +23,24 @@ load _dir = return $ MidiInst.make
 
 pb_range = (-96, 96)
 
+filter_composite :: Instrument.Composite
+filter_composite = (Score.instrument "reak" "filter", Just (c "res"),
+        Set.fromList $ map c ["mix", "q", "lp-hp", "2-4-pole"])
+    where c = Score.control
+
 patches :: [Instrument.Patch]
 patches =
     -- My own patches.
     [ MidiInst.pressure $ MidiInst.patch pb_range "fm1" [(4, c "depth")]
     , Instrument.text #= "Tunable comb filter that processes an audio signal." $
         MidiInst.patch pb_range "comb" [(1, c "mix"), (4, c "fbk")]
+    , Instrument.text #= "Tunable filter that processes an audio signal." $
+        MidiInst.patch pb_range "filter"
+            [ (1, c "mix")
+            , (CC.cc14, c "q")
+            , (CC.cc15, c "lp-hp")
+            , (CC.cc16, c "2-4-pole")
+            ]
 
     -- Factory patches.
     , MidiInst.patch pb_range "lazerbass"

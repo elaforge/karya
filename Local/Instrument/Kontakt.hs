@@ -37,6 +37,7 @@ import qualified Derive.Sig as Sig
 
 import qualified Perform.Midi.Instrument as Instrument
 import qualified Perform.NN as NN
+import qualified Local.Instrument.Reaktor as Reaktor
 import qualified App.MidiInst as MidiInst
 
 
@@ -72,19 +73,32 @@ pb_range = (-24, 24)
 misc_patches :: [MidiInst.Patch]
 misc_patches = concat [balalaika, mcgill]
 
+library :: [MidiInst.Patch]
+library = MidiInst.with_empty_code
+    [ inst "choir"
+        [ (1, c "vowel") ]
+    ]
+    where
+    inst name controls = Instrument.patch $
+        Instrument.instrument name controls pb_range
+    c = Score.control
+
 -- | From the McGill sample library.
 mcgill :: [MidiInst.Patch]
 mcgill = MidiInst.with_empty_code
     [ pressure "viol", pressure "shawm", pressure "crumhorn"
     , plucked "lute"
+    , filtered (pressure "filtered")
     ]
     where
     plucked name = Instrument.patch $ Instrument.instrument name [] pb_range
     pressure name = MidiInst.pressure $ Instrument.patch $
         Instrument.instrument name
             [(CC.cc14, Controls.fc), (CC.cc15, Controls.q)] pb_range
+    filtered = Instrument.composite #= [Reaktor.filter_composite]
 
 -- | Ilya Efimov Bailalaika Prima
+-- I changed it to support (-24, 24) pb range.
 balalaika :: [MidiInst.Patch]
 balalaika =
     with_code $ (:[]) $ Instrument.set_keyswitches ks $
@@ -110,6 +124,20 @@ balalaika =
         , (Attrs.trem, Key.a3)
         , (mempty, Key.b3)
         ]
+
+sonic_couture :: [MidiInst.Patch]
+sonic_couture = MidiInst.with_empty_code
+    [ inst "ebow"
+        [ (1, c "harm")
+        , (21, c "lpf")
+        , (22, c "q")
+        , (23, c "hpf")
+        ]
+    ]
+    where
+    inst name controls = Instrument.patch $
+        Instrument.instrument name controls pb_range
+    c = Score.control
 
 -- * hang
 
