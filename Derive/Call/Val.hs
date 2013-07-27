@@ -3,6 +3,8 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 module Derive.Call.Val where
+import qualified Data.Monoid as Monoid
+
 import Util.Control
 import qualified Util.Num as Num
 import qualified Util.Seq as Seq
@@ -11,6 +13,7 @@ import qualified Ui.Event as Event
 import qualified Derive.Args as Args
 import qualified Derive.Call as Call
 import qualified Derive.Call.Control as Control
+import qualified Derive.Call.Pitch as Call.Pitch
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Call.Util as Util
 import qualified Derive.Derive as Derive
@@ -134,11 +137,8 @@ c_hz = Derive.val_call "hz" mempty
 c_linear_next :: Derive.ValCall
 c_linear_next = Derive.val_call "linear-next" mempty
     "Create straight lines between the given breakpoints."
-    $ Sig.call breakpoints_arg $ \vals args -> do
-        (start, end) <- Args.real_range_or_next args
-        srate <- Util.get_srate
-        return $ TrackLang.VControl $ TrackLang.ControlSignal $ Score.untyped $
-            interpolate_breakpoints srate id start end vals
+    $ Sig.call breakpoints_arg $ \vals args ->
+        c_breakpoints 0 id vals args
 
 c_exp_next :: Derive.ValCall
 c_exp_next = Derive.val_call "exp-next" mempty
@@ -147,25 +147,65 @@ c_exp_next = Derive.val_call "exp-next" mempty
     <$> defaulted "exp" 2 Control.exp_doc
     <*> breakpoints_arg
     ) $ \(exp, vals) args -> do
-        (start, end) <- Args.real_range_or_next args
-        srate <- Util.get_srate
-        return $ TrackLang.VControl $ TrackLang.ControlSignal $ Score.untyped $
-            interpolate_breakpoints srate (Control.expon exp) start end vals
+        c_breakpoints 1 (Control.expon exp) vals args
 
-breakpoints_arg :: Sig.Parser [Signal.Y]
-breakpoints_arg = Sig.many "val" "Breakpoints are distributed evenly between the\
-    \ event start and the next event."
+breakpoints_arg :: Sig.Parser (NonEmpty TrackLang.Val)
+breakpoints_arg = Sig.many1 "bp" "Breakpoints are distributed evenly between\
+    \ the event start and the next event."
 
-interpolate_breakpoints :: RealTime -> (Double -> Double) -> RealTime
-    -> RealTime -> [Signal.Y] -> Signal.Control
-interpolate_breakpoints srate f start end =
+-- ** implementation
+
+c_breakpoints :: Int -> (Double -> Double) -> NonEmpty TrackLang.Val
+    -> Derive.PassedArgs a -> Derive.Deriver TrackLang.Val
+c_breakpoints argnum f vals args = do
+    (start, end) <- Args.real_range_or_next args
+    srate <- Util.get_srate
+    vals <- num_or_pitch argnum vals
+    let pitch_breakpoints = make_segments PitchSignal.signal
+            (Call.Pitch.interpolate_segment False srate f)
+        control_breakpoints = make_segments Signal.signal
+            (Control.interpolate_segment False srate f)
+    return $ case vals of
+        Left nums -> TrackLang.VControl $ TrackLang.ControlSignal $
+            Score.untyped $ control_breakpoints start end nums
+        Right pitches -> TrackLang.VPitchControl $ TrackLang.ControlSignal $
+            pitch_breakpoints start end pitches
+
+-- | Insist that the vals be either all numbers or pitches.
+--
+-- TODO If 'Sig.Parser' supported Alternative, maybe I could build this as
+-- a parser and get both shorter code and documentation.
+num_or_pitch :: Int -> NonEmpty TrackLang.Val
+    -> Derive.Deriver (Either [Signal.Y] [PitchSignal.Pitch])
+num_or_pitch argnum (val :| vals) = case val of
+    TrackLang.VNum num -> do
+        vals <- mapM (expect tnum) (zip [argnum + 1 ..] vals)
+        return $ Left (Score.typed_val num : vals)
+    TrackLang.VPitch pitch -> do
+        vals <- mapM (expect TrackLang.TPitch) (zip [argnum + 1 ..] vals)
+        return $ Right (pitch : vals)
+    _ -> type_error argnum "bp" (TrackLang.TEither tnum TrackLang.TPitch) val
+    where
+    tnum = TrackLang.TNum TrackLang.TUntyped
+    expect typ (argnum, val) = maybe (type_error argnum "bp" typ val) return $
+        TrackLang.from_val val
+
+type_error :: Int -> Text -> TrackLang.Type -> TrackLang.Val -> Derive.Deriver a
+type_error argnum name expected received =
+    Derive.throw_error $ Derive.CallError $
+        Derive.TypeError argnum name expected (Just received)
+
+make_segments :: (Monoid.Monoid sig) =>
+    ([(RealTime, y)] -> sig)
+    -> (RealTime -> y -> RealTime -> y -> sig)
+    -> RealTime -> RealTime -> [y] -> sig
+make_segments make_signal segment start end =
     mconcat . map line . Seq.zip_next . make_breakpoints start end
     where
-    line ((x1, y1), Just (x2, y2)) =
-        Control.interpolate_segment srate f x1 y1 x2 y2
-    line ((x1, y1), Nothing) = Signal.signal [(x1, y1)]
+    line ((x1, y1), Just (x2, y2)) = segment x1 y1 x2 y2
+    line ((x1, y2), Nothing) = make_signal [(x1, y2)]
 
-make_breakpoints :: RealTime -> RealTime -> [Signal.Y] -> [(RealTime, Signal.Y)]
+make_breakpoints :: RealTime -> RealTime -> [a] -> [(RealTime, a)]
 make_breakpoints start end vals = case vals of
     [] -> []
     [x] -> [(start, x)]

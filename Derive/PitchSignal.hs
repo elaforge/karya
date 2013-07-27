@@ -8,18 +8,19 @@ module Derive.PitchSignal (
     , Scale(Scale), no_scale
     -- * construct and convert
     , constant, signal, unsignal, to_nn
+    , unfoldr
     -- * apply controls
     , apply_controls, apply_control, controls_at
     -- * signal functions
     , null, at, shift, last
-    , take, drop_after, drop_before, drop_before_strict
+    , take, drop, drop_after, drop_before, drop_before_strict
     -- * Pitch
     , Pitch, pitch_scale_id, pitch_transposers
     , PitchError(..)
     , pitch, pitch_scale
     , apply, add_control, eval_pitch, eval_note, pitch_nn, pitch_note
 ) where
-import Prelude hiding (take, last, null)
+import Prelude hiding (take, drop, last, null)
 import qualified Data.Map.Strict as Map
 import qualified Data.Monoid as Monoid
 import qualified Data.Set as Set
@@ -91,6 +92,9 @@ to_nn sig = (Signal.signal nns, Set.toList errs)
             Right (Pitch.NoteNumber nn) -> (errs, (x, nn) : nns)
         where (errs, nns) = split rest
 
+unfoldr :: (state -> Maybe ((RealTime, Pitch), state)) -> state -> Signal
+unfoldr f st = Signal $ TimeVector.unfoldr f st
+
 type ControlMap = Map.Map Score.Control Score.TypedControl
 
 -- | Resample the signal according to the 'sig_transposers' and apply the
@@ -154,6 +158,9 @@ last sig
 
 take :: Int -> Signal -> Signal
 take = modify_vector . TimeVector.take
+
+drop :: Int -> Signal -> Signal
+drop = modify_vector . TimeVector.drop
 
 drop_after :: RealTime -> Signal -> Signal
 drop_after = modify_vector . TimeVector.drop_after

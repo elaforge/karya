@@ -296,17 +296,18 @@ interpolate f args val dur = do
 interpolator :: RealTime -> (Double -> Double) -> Interpolator
 interpolator srate f include_initial x1 y1 x2 y2 =
     (if include_initial then id else Signal.drop 1)
-        (interpolate_segment srate f x1 y1 x2 y2)
+        (interpolate_segment True srate f x1 y1 x2 y2)
 
 -- | Interpolate between the given points.
-interpolate_segment :: RealTime
+interpolate_segment :: Bool -> RealTime
     -> (Double -> Double) -- ^ Map a straight line to the desired curve.
     -> RealTime -> Signal.Y -> RealTime -> Signal.Y -> Signal.Control
-interpolate_segment srate f x1 y1 x2 y2 = Signal.unfoldr go (Seq.range_ x1 srate)
+interpolate_segment include_end srate f x1 y1 x2 y2 =
+    Signal.unfoldr go (Seq.range_ x1 srate)
     where
     go [] = Nothing
     go (x:xs)
-        | x >= x2 = Nothing
+        | x >= x2 = if include_end then Just ((x2, y2), []) else Nothing
         | otherwise = Just ((x, y_of x), xs)
     y_of = Num.scale y1 y2 . f . Num.normalize (secs x1) (secs x2) . secs
     secs = RealTime.to_seconds

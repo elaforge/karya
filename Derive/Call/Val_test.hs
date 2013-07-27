@@ -7,6 +7,7 @@ import Util.Test
 import qualified Ui.Ruler as Ruler
 import qualified Ui.UiTest as UiTest
 import qualified Cmd.Meter as Meter
+import qualified Derive.Call.Control as Control
 import qualified Derive.Call.Val as Val
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Score as Score
@@ -71,17 +72,31 @@ test_prev_next_val = do
         ([(0, 1, "4a"), (1, 1, "4a")], [])
 
 test_linear_next = do
-    let result = DeriveTest.extract DeriveTest.e_dyn $ DeriveTest.derive_tracks
-            [ (">", [(0, 4, "")])
-            , ("dyn", [(0, 0, "xcut (i> 0 1) (i> 1 0) 2"), (4, 0, "--")])
-            ]
-    equal result ([[(0, 0), (0.5, 1), (1, 0.25), (1.5, 0.75), (2, 0.5),
-        (2.5, 0.5), (3, 0.75), (3.5, 0.25), (4, 1)]], [])
+    let f extract track =
+            DeriveTest.extract extract $ DeriveTest.derive_tracks
+                [(">", [(0, 4, "")]), track]
+    let (result, logs) = f DeriveTest.e_dyn
+            ("dyn", [(0, 0, "xcut (i> 0 1) (i> 1 0) 2"), (4, 0, "--")])
+    equal logs []
+    equal result [[(0, 0), (0.5, 1), (1, 0.25), (1.5, 0.75),
+        (2, 0.5), (2.5, 0.5), (3, 0.75), (3.5, 0.25), (4, 1)]]
+
+    let (result, logs) = f DeriveTest.e_nns
+            ("*", [(0, 0, "xcut (i> (4c) (5c)) (i> (5c) (4c)) 2"), (4, 0, "--")])
+    equal logs []
+    equal result [[(0, 60), (0.5, 72), (1, 63), (1.5, 69),
+        (2, 66), (2.5, 66), (3, 69), (3.5, 63), (4, 72)]]
+
+    strings_like (snd $ f DeriveTest.e_dyn ("dyn", [(0, 0, "xcut (i> 0 (4c))")]))
+        ["arg 2/bp: expected Num but got Pitch"]
+    strings_like (snd $ f DeriveTest.e_dyn ("*", [(0, 0, "xcut (i> >hi)")]))
+        ["arg 1/bp: expected Num or Pitch"]
 
 
-test_interpolate_breakpoints = do
-    let f start end = Signal.unsignal
-            . Val.interpolate_breakpoints 1 id start end
+test_make_segments = do
+    let make = Val.make_segments Signal.signal
+            (Control.interpolate_segment False 1 id)
+    let f start end = Signal.unsignal . make start end
     equal (f 4 8  []) []
     equal (f 4 8  [1]) [(4, 1)]
     equal (f 4 8  [0, 1, 0]) [(4, 0), (5, 0.5), (6, 1), (7, 0.5), (8, 0)]

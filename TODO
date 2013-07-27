@@ -487,6 +487,9 @@ cleanup:
   - update shakefile to use new system calls and logging levels
   - shakefile should use typesafe oracle calls, is there newtype based
     oracle utils yet?
+  - if I add an Alternative instance to Sig.Parser I can write arg parsers
+    like 'Sig.many xs <|> Sig.many ys'.  I think.  If I wind up with something
+    else like Derive.Call.Val.num_or_pitch it would be worth trying out.
   Format2
     . Converting Pretty to Text is blocked on this.
     . Rethink how indent breaking happens.

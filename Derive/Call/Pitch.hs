@@ -295,23 +295,37 @@ interpolate f args pitch_transpose dur = do
             make_interpolator f True (min start end) prev (max start end) $
                 either id (flip Pitches.transpose prev) pitch_transpose
 
-make_interpolator :: (Double -> Double)
-    -> Bool -- ^ include the initial sample or not
-    -> RealTime -> PitchSignal.Pitch -> RealTime -> PitchSignal.Pitch
-    -> Derive.Deriver PitchSignal.Signal
-make_interpolator f include_initial x1 note1 x2 note2 = do
-    srate <- Util.get_srate
-    return $ interpolator srate f include_initial x1 note1 x2 note2
-
 -- | Create samples according to an interpolator function.  The function is
 -- passed values from 0--1 representing position in time and is expected to
 -- return values from 0--1 representing the Y position at that time.  So linear
 -- interpolation is simply @id@.
+make_interpolator :: (Double -> Double)
+    -> Bool -- ^ include the initial sample or not
+    -> RealTime -> PitchSignal.Pitch -> RealTime -> PitchSignal.Pitch
+    -> Derive.Deriver PitchSignal.Signal
+make_interpolator f include_initial x1 y1 x2 y2 = do
+    srate <- Util.get_srate
+    return $ (if include_initial then id else PitchSignal.drop 1)
+        (interpolate_segment True srate f x1 y1 x2 y2)
+
+-- | This is bundled into 'make_interpolator', but calls still use this to
+-- create interpolations.
 interpolator :: RealTime -> (Double -> Double) -> Interpolator
-interpolator srate f include_initial x1 note1 x2 note2 =
-    PitchSignal.signal $ (if include_initial then id else drop 1)
-        [(x, pitch_of x) | x <- Seq.range_end x1 x2 srate]
+interpolator srate f include_initial x1 y1 x2 y2 =
+    (if include_initial then id else PitchSignal.drop 1)
+        (interpolate_segment True srate f x1 y1 x2 y2)
+
+-- | Interpolate between the given points.
+interpolate_segment :: Bool -> RealTime -> (Double -> Double)
+    -> RealTime -> PitchSignal.Pitch -> RealTime -> PitchSignal.Pitch
+    -> PitchSignal.Signal
+interpolate_segment include_end srate f x1 y1 x2 y2 =
+    PitchSignal.unfoldr go (Seq.range_ x1 srate)
     where
-    pitch_of = Pitches.interpolated note1 note2
+    go [] = Nothing
+    go (x:xs)
+        | x >= x2 = if include_end then Just ((x2, y2), []) else Nothing
+        | otherwise = Just ((x, y_of x), xs)
+    y_of = Pitches.interpolated y1 y2
         . f . Num.normalize (secs x1) (secs x2) . secs
     secs = RealTime.to_seconds

@@ -329,7 +329,8 @@ sawtooth :: RealTime -> [RealTime] -> Double -> Double -> Signal.Control
 sawtooth srate starts from to =
     mconcat $ map saw (zip starts (drop 1 starts))
     where
-    saw (t1, t2) = Control.interpolate_segment srate id t1 from (t2-srate) to
+    saw (t1, t2) = Control.interpolate_segment
+        True srate id t1 from (t2-srate) to
 
 data SineMode = Bipolar | Negative | Positive deriving (Show)
 
