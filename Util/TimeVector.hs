@@ -48,7 +48,7 @@ import Prelude hiding (head, last, take)
 import qualified Data.DList as DList
 import qualified Data.Vector as Vector
 import qualified Data.Vector.Generic as V
-import Data.Vector.Generic (length, null, all, foldl', unsafeIndex)
+import Data.Vector.Generic (take, drop, length, null, all, foldl', unsafeIndex)
 import qualified Data.Vector.Storable as Storable
 import qualified Foreign
 
@@ -210,9 +210,6 @@ shift :: (V.Vector v (Sample y)) => X -> v (Sample y) -> v (Sample y)
 shift offset vec
     | offset == 0 = vec
     | otherwise = map_x (+offset) vec
-
-take :: (V.Vector v a) => Int -> v a -> v a
-take = V.take
 
 -- | Truncate a signal so it doesn't include the given X.  It's just a view of
 -- the old signal, so it doesn't allocate a new signal.

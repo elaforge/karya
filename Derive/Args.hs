@@ -136,9 +136,9 @@ prev_events = Derive.info_prev_events . info
 
 -- ** range
 
--- | Range of the called event.  Note that range is the minimum to maximum,
--- which is not the same as the start and end if the event has negative
--- duration.
+-- | Range of the called event, i.e. (start, end).  Note that range is the
+-- minimum to maximum, which is not the same as the start and end if the event
+-- has negative duration.
 range :: PassedArgs a -> (ScoreTime, ScoreTime)
 range = Event.range . event
 

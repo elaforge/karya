@@ -182,7 +182,7 @@ exponential_interpolation name tags time_default time_default_doc get_time =
     ) $ \(pitch, exp, time) args ->
         interpolate (expon exp) args pitch =<< get_time args time
     where
-    doc = "Interpolate from the previous pitch to the given one in a curve."
+    doc = "Interpolate from the previous value to the given one in a curve."
     time_doc = "Time to reach destination. " <> time_default_doc
 
 exp_doc :: Text
@@ -295,14 +295,19 @@ interpolate f args val dur = do
 
 interpolator :: RealTime -> (Double -> Double) -> Interpolator
 interpolator srate f include_initial x1 y1 x2 y2 =
-    Signal.signal $ (if include_initial then id else drop 1)
-        (interpolate_list srate f x1 y1 x2 y2)
+    (if include_initial then id else Signal.drop 1)
+        (interpolate_segment srate f x1 y1 x2 y2)
 
-interpolate_list :: RealTime -> (Double -> Double)
-    -> RealTime -> Signal.Y -> RealTime -> Signal.Y -> [(RealTime, Signal.Y)]
-interpolate_list srate f x1 y1 x2 y2 =
-    [(x, y_of x) | x <- Seq.range_end x1 x2 srate]
+-- | Interpolate between the given points.
+interpolate_segment :: RealTime
+    -> (Double -> Double) -- ^ Map a straight line to the desired curve.
+    -> RealTime -> Signal.Y -> RealTime -> Signal.Y -> Signal.Control
+interpolate_segment srate f x1 y1 x2 y2 = Signal.unfoldr go (Seq.range_ x1 srate)
     where
+    go [] = Nothing
+    go (x:xs)
+        | x >= x2 = Nothing
+        | otherwise = Just ((x, y_of x), xs)
     y_of = Num.scale y1 y2 . f . Num.normalize (secs x1) (secs x2) . secs
     secs = RealTime.to_seconds
 

@@ -85,8 +85,10 @@ UNSORTED
       I think for it to work, I need to move sig_transposers and sig_scale_id
       into Pitch.  I think this is the right thing anyway, because otherwise
       there's the possibility of geting the wrong scale on the pitches.
-  - val calls to return signals: i>, e>
+  * val calls to return signals: i>, e>
     . Could I import all the control calls?
+      I don't think so, because prev ones make no sense, and they need both
+      start and end vals.
   - resample control call, but why not just set srate?  Could be in score time
     to step in rhythm.
   - to do per-score code, I can put it in Local.Score.<namespace>

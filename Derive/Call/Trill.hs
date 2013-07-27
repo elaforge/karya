@@ -327,8 +327,9 @@ c_sawtooth = Derive.generator1 "sawtooth" Tags.ornament
 
 sawtooth :: RealTime -> [RealTime] -> Double -> Double -> Signal.Control
 sawtooth srate starts from to =
-    Signal.signal $ concatMap saw (zip starts (drop 1 starts))
-    where saw (t1, t2) = Control.interpolate_list srate id t1 from (t2-srate) to
+    mconcat $ map saw (zip starts (drop 1 starts))
+    where
+    saw (t1, t2) = Control.interpolate_segment srate id t1 from (t2-srate) to
 
 data SineMode = Bipolar | Negative | Positive deriving (Show)
 

@@ -4,10 +4,13 @@
 
 module Derive.Call.Val where
 import Util.Control
+import qualified Util.Num as Num
 import qualified Util.Seq as Seq
+
 import qualified Ui.Event as Event
 import qualified Derive.Args as Args
 import qualified Derive.Call as Call
+import qualified Derive.Call.Control as Control
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Call.Util as Util
 import qualified Derive.Derive as Derive
@@ -22,6 +25,7 @@ import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.Pitch as Pitch
 import qualified Perform.Signal as Signal
+import Types
 
 
 val_calls :: Derive.ValCallMap
@@ -33,6 +37,10 @@ val_calls = Derive.make_calls
     , ("1/", c_reciprocal)
     , ("nn", c_nn)
     , ("hz", c_hz)
+
+    -- signals
+    , ("i>", c_linear_next)
+    , ("e>", c_exp_next)
     ]
 
 c_next_val :: Derive.ValCall
@@ -120,3 +128,47 @@ c_hz = Derive.val_call "hz" mempty
         Left pitch -> TrackLang.num . Pitch.nn_to_hz <$> Pitches.pitch_nn pitch
         Right nn ->
             return $ TrackLang.num $ Pitch.nn_to_hz (Pitch.NoteNumber nn)
+
+-- * signals
+
+c_linear_next :: Derive.ValCall
+c_linear_next = Derive.val_call "linear-next" mempty
+    "Create straight lines between the given breakpoints."
+    $ Sig.call breakpoints_arg $ \vals args -> do
+        (start, end) <- Args.real_range_or_next args
+        srate <- Util.get_srate
+        return $ TrackLang.VControl $ TrackLang.ControlSignal $ Score.untyped $
+            interpolate_breakpoints srate id start end vals
+
+c_exp_next :: Derive.ValCall
+c_exp_next = Derive.val_call "exp-next" mempty
+    "Create curved lines between the given breakpoints."
+    $ Sig.call ((,)
+    <$> defaulted "exp" 2 Control.exp_doc
+    <*> breakpoints_arg
+    ) $ \(exp, vals) args -> do
+        (start, end) <- Args.real_range_or_next args
+        srate <- Util.get_srate
+        return $ TrackLang.VControl $ TrackLang.ControlSignal $ Score.untyped $
+            interpolate_breakpoints srate (Control.expon exp) start end vals
+
+breakpoints_arg :: Sig.Parser [Signal.Y]
+breakpoints_arg = Sig.many "val" "Breakpoints are distributed evenly between the\
+    \ event start and the next event."
+
+interpolate_breakpoints :: RealTime -> (Double -> Double) -> RealTime
+    -> RealTime -> [Signal.Y] -> Signal.Control
+interpolate_breakpoints srate f start end =
+    mconcat . map line . Seq.zip_next . make_breakpoints start end
+    where
+    line ((x1, y1), Just (x2, y2)) =
+        Control.interpolate_segment srate f x1 y1 x2 y2
+    line ((x1, y1), Nothing) = Signal.signal [(x1, y1)]
+
+make_breakpoints :: RealTime -> RealTime -> [Signal.Y] -> [(RealTime, Signal.Y)]
+make_breakpoints start end vals = case vals of
+    [] -> []
+    [x] -> [(start, x)]
+    _ -> [(Num.scale start end (n / (len - 1)), x)
+        | (n, x) <- zip (Seq.range_ 0 1) vals]
+    where len = fromIntegral (length vals)
