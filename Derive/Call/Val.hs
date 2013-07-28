@@ -151,7 +151,8 @@ c_exp_next = Derive.val_call "exp-next" mempty
 
 breakpoints_arg :: Sig.Parser (NonEmpty TrackLang.Val)
 breakpoints_arg = Sig.many1 "bp" "Breakpoints are distributed evenly between\
-    \ the event start and the next event."
+    \ the event start and the next event. They can be all numbers, or all\
+    \ pitches."
 
 -- ** implementation
 

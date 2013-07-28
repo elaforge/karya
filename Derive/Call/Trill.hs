@@ -277,7 +277,7 @@ control_calls = Derive.make_calls
     , ("tr2", c_control_trill (Just NeighborFirst))
     , ("tr1", c_control_trill (Just UnisonFirst))
     , ("tr2", c_control_trill (Just NeighborFirst))
-    , ("saw", c_sawtooth)
+    , ("saw", c_saw)
     , ("sine", c_sine Bipolar)
     , ("sine+", c_sine Positive)
     , ("sine-", c_sine Negative)
@@ -311,8 +311,8 @@ trill_speed_arg = defaulted "speed" (typed_control "trill-speed" 14 Score.Real)
     \ this will emit only whole notes, i.e. a note will not be cut short sooner\
     \ than it should according to the speed."
 
-c_sawtooth :: Derive.ControlCall
-c_sawtooth = Derive.generator1 "sawtooth" Tags.ornament
+c_saw :: Derive.ControlCall
+c_saw = Derive.generator1 "saw" Tags.ornament
     "Emit a sawtooth.  By default it has a downward slope, but you can make\
     \ an upward slope by setting `from` and `to`."
     $ Sig.call ((,,)
@@ -323,10 +323,10 @@ c_sawtooth = Derive.generator1 "sawtooth" Tags.ornament
     ) $ \(speed, from, to) args -> do
         starts <- speed_starts speed (Args.range_or_next args)
         srate <- Util.get_srate
-        return $ sawtooth srate starts from to
+        return $ saw srate starts from to
 
-sawtooth :: RealTime -> [RealTime] -> Double -> Double -> Signal.Control
-sawtooth srate starts from to =
+saw :: RealTime -> [RealTime] -> Double -> Double -> Signal.Control
+saw srate starts from to =
     mconcat $ map saw (zip starts (drop 1 starts))
     where
     saw (t1, t2) = Control.interpolate_segment
