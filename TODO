@@ -3,7 +3,14 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
+  - there's still a cache bug: change the tempo on the score block, and the
+    cached version of a following block isn't invalidated
+  * rename inst: change in alias and allocation together
+  - bug/render-slope brass1 dyn forgets about the i 0x30 sometimes
   - do something about Derive.Derive_test.test_roundoff, is it solved now?
+  - Need to fix StepPlay_test, I think I want to make the tempo valid at ends,
+    rather than tweak the step points.  But haven't I done something like this
+    before?
   * add 0x00 literals
   - Events can be slightly out of order!  The problem is that 'perfom_notes'
     uses Seq.merge_asc_lists, but 'create_leading_cc' can violate the ascending

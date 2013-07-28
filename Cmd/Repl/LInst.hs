@@ -23,7 +23,9 @@ import qualified Ui.TrackTree as TrackTree
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Info as Info
 import qualified Derive.Score as Score
+import qualified Derive.ShowVal as ShowVal
 import qualified Derive.TrackInfo as TrackInfo
+
 import qualified Perform.Midi.Instrument as Instrument
 import qualified Instrument.MidiDb as MidiDb
 import Types
@@ -46,18 +48,64 @@ info_all = do
 
 -- * config
 
-configs :: (State.M m) => m Instrument.Configs
-configs = State.get_midi_config
+-- | Print out instrument configs all purty-like.
+configs :: (State.M m) => m Text
+configs = do
+    config <- State.get_midi_config
+    alias_map <- aliases
+    return $ Text.intercalate "\n" $
+        map (show_config alias_map) (Map.toList config)
+    where
+    show_config alias_map (inst, config) = ShowVal.show_val inst <> " - "
+        <> Info.show_addrs (map fst (Instrument.config_addrs config))
+        <> show_alias alias_map inst
+        <> show_flags config
+        <> show_controls (Instrument.config_controls config)
+    show_alias alias_map inst = case Map.lookup inst alias_map of
+        Nothing -> ""
+        Just source -> " (source: " <> ShowVal.show_val source <> ")"
+    show_flags config
+        | null flags = ""
+        | otherwise = " {" <> Text.intercalate ", " flags <> "}"
+        where
+        flags = ["mute" | Instrument.config_mute config]
+            ++ ["solo" | Instrument.config_solo config]
+    show_controls controls
+        | Map.null controls = ""
+        | otherwise = " " <> Pretty.prettytxt controls
 
-aliases :: Cmd.CmdL (Map.Map Score.Instrument Score.Instrument)
+-- | The not-so-purty version.
+midi_config :: (State.M m) => m Instrument.Configs
+midi_config = State.get_midi_config
+
+aliases :: (State.M m) => m (Map.Map Score.Instrument Score.Instrument)
 aliases = State.config#State.aliases <#> State.get
+
+-- | Rename an instrument, in both aliases and allocations.
+rename :: (State.M m) => Text -> Text -> m ()
+rename from_ to_ =
+    State.modify $ (State.config#State.midi %= rename_alloc)
+        . (State.config#State.aliases %= rename_alias)
+    where
+    rename_alloc configs = case Map.lookup from configs of
+        Nothing -> configs
+        Just config -> Map.insert to config $ Map.delete from configs
+    rename_alias aliases = case Map.lookup from aliases of
+        Just source -> Map.insert to source $ Map.delete from aliases
+        Nothing -> aliases
+    -- rename_alias aliases =
+    --     case List.find ((==from) . snd) (Map.toList aliases) of
+    --         Nothing -> aliases
+    --         Just (source, _) -> Map.insert source to $ Map.delete source aliases
+    from = Score.Instrument from_
+    to = Score.Instrument to_
 
 -- | Add a new instrument, copied from an existing one.  Argument order
 -- mnemonic: same as @ln@.
 add_alias :: Text -> Text -> Cmd.CmdL ()
-add_alias inst new = State.modify $
-    State.config#State.aliases %= Map.insert (Score.Instrument new)
-        (Score.Instrument inst)
+add_alias source dest = State.modify $
+    State.config#State.aliases %= Map.insert (Score.Instrument dest)
+        (Score.Instrument source)
 
 remove_alias :: Text -> Cmd.CmdL ()
 remove_alias inst = State.modify $
@@ -82,13 +130,13 @@ set_controls inst controls = modify_config_ (Score.Instrument inst) $
     Instrument.controls #= Map.fromList (map (first Score.Control) controls)
 
 get_controls :: (State.M m) => m (Map.Map Score.Instrument Score.ControlValMap)
-get_controls = Map.map Instrument.config_controls <$> configs
+get_controls = Map.map Instrument.config_controls <$> State.get_midi_config
 
 modify_config :: (State.M m) => Score.Instrument
     -> (Instrument.Config -> (Instrument.Config, a)) -> m a
 modify_config inst modify = do
     config <- State.require ("no config for " <> Pretty.pretty inst)
-        . Map.lookup inst =<< configs
+        . Map.lookup inst =<< State.get_midi_config
     let (new, result) = modify config
     State.modify $ State.config # State.midi # Lens.map inst #= Just new
     return result
@@ -208,7 +256,7 @@ alloc_instrument inst addrs = State.modify $
 
 dealloc_instrument :: Score.Instrument -> Cmd.CmdL ()
 dealloc_instrument inst = State.modify $
-    State.config # State.midi # Lens.map inst #= Nothing
+    State.config#State.midi#Lens.map inst #= Nothing
 
 block_instruments :: BlockId -> Cmd.CmdL [Score.Instrument]
 block_instruments block_id = do
