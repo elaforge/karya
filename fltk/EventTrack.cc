@@ -462,24 +462,28 @@ find_linear(const TrackSignal &sig, int i)
     // Samples at this distance are likely intended to sound smooth, so they
     // should look smooth too.
     static const double time_threshold = 0.05;
-    static const double slope_threshold = 1;
     static const double eta = 0.0001;
 
     if (i + 1 >= sig.length)
         return i;
-
     double prev_t = sig.time_at(i);
     double prev_val = sig.val_at(i);
     double t = sig.time_at(i+1);
     double val = sig.val_at(i+1);
+
+    // Avoid divide by zero when two samples occur together.
+    if (t == prev_t) {
+        // DEBUG("coincident samples: " << i << " " << t);
+        return i;
+    }
     double expected_slope = (val - prev_val) / (t - prev_t);
     // DEBUG(i << ": slope " << val << "-" << prev_val << " = "
     //     << expected_slope << " time " << fabs(t-prev_t));
     if (fabs(t - prev_t) >= time_threshold)
         return i;
-    if (fabs(expected_slope) >= slope_threshold)
-        return i;
 
+    // DEBUG("expected: " << expected_slope << ": " << val << "-" << prev_val
+    //         << " / " << t << "-" << prev_t);
     i += 2;
     for (; i < sig.length; i++) {
         prev_t = t;
@@ -487,6 +491,13 @@ find_linear(const TrackSignal &sig, int i)
         prev_val = val;
         val = sig.val_at(i);
         double slope = (val - prev_val) / (t - prev_t);
+        if (t == prev_t) {
+            if (val == prev_val)
+                slope = 0;
+            else
+                break;
+        }
+        // DEBUG(i << ": slope " << slope);
         if (fabs(t - prev_t) >= time_threshold
             || fabs(slope - expected_slope) > eta)
         {
