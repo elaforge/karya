@@ -156,8 +156,8 @@ merge vecs = V.unfoldrN len go $ Seq.sort_on (fmap sx . head) vecs
         Nothing -> go vecs
         Just (Sample x y, cur_tl) -> case viewL next of
             Nothing -> go (cur : rest)
-            Just (Sample next_x next_y, next_tl)
-                | next_x <= x -> Just (Sample next_x next_y, next_tl : rest)
+            Just (Sample next_x _, _)
+                | next_x <= x -> go vecs
                 | otherwise -> Just (Sample x y, cur_tl : vecs)
 
 -- | Merge two vectors, interleaving their samples.

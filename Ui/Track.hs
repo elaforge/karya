@@ -149,6 +149,11 @@ instance DeepSeq.NFData TrackSignal where
 
 -- | Not a monoid because there's no mempty and since I take shift and stretch
 -- from the first TrackSignal it's not really commutative.
+--
+-- TODO I forget now exactly why I had to do this instead of just using (<>)
+-- like normal, but I think it was because the signal chunks are not
+-- necessarily merged together in track time order, and they may wind up with
+-- extra samples at 0.
 merge_signals :: TrackSignal -> TrackSignal -> TrackSignal
 merge_signals tsig1 tsig2 = tsig1
     { ts_signal = Signal.interleave (ts_signal tsig1) (ts_signal tsig2) }
