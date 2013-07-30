@@ -28,29 +28,25 @@ import qualified Derive.TrackLang as TrackLang
 import qualified Perform.Midi.Convert as Convert
 import qualified Perform.Midi.Instrument as Instrument
 import qualified Perform.Midi.Perform as Perform
-import qualified Perform.Pitch as Pitch
 import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
 
 import qualified Instrument.MidiDb as MidiDb
+import qualified App.Config as Config
 import Types
 
 
 -- | There are a few environ values that almost everything relies on.
-initial_environ :: Pitch.ScaleId -> Maybe Score.Instrument -> TrackLang.Environ
-initial_environ scale_id maybe_inst = TrackLang.make_environ $
-    inst ++
+initial_environ :: TrackLang.Environ
+initial_environ = TrackLang.make_environ $
     -- Control interpolators rely on this.
     [ (Environ.srate, TrackLang.num 0.02)
     -- Looking up any val call relies on having a scale in scope.
-    , (Environ.scale, TrackLang.VSymbol (TrackLang.scale_id_to_sym scale_id))
+    , (Environ.scale, TrackLang.VSymbol
+        (TrackLang.Symbol Config.default_scale_id))
     , (Environ.attributes, TrackLang.VAttributes Score.no_attrs)
     , (Environ.seed, TrackLang.num 0)
     ]
-    where
-    inst = case maybe_inst of
-        Just inst -> [(Environ.instrument, TrackLang.VInstrument inst)]
-        Nothing -> []
 
 -- | Derive with the cache.
 cached_derive :: (Cmd.M m) => BlockId -> m Derive.Result
@@ -84,14 +80,7 @@ run cache damage deriver = do
     ui_state <- State.get
     scope <- Cmd.gets (Cmd.state_global_scope . Cmd.state_config)
     constant <- make_constant ui_state cache damage
-    env <- make_environ
-    return $ Derive.derive constant scope env deriver
-
-make_environ :: (State.M m) => m TrackLang.Environ
-make_environ = do
-    deflt <- State.get_default id
-    return $ initial_environ (State.default_scale deflt)
-        (State.default_instrument deflt)
+    return $ Derive.derive constant scope initial_environ deriver
 
 make_constant :: (Cmd.M m) => State.State -> Derive.Cache -> Derive.ScoreDamage
     -> m Derive.Constant

@@ -21,7 +21,6 @@ import qualified Ui.Id as Id
 import qualified Derive.Score as Score
 import qualified Perform.Lilypond.Types as Lilypond
 import qualified Perform.Midi.Instrument as Instrument
-import qualified Perform.Pitch as Pitch
 import qualified Perform.Signal as Signal
 
 import Types
@@ -79,23 +78,16 @@ creation = Lens.lens meta_creation (\v r -> r { meta_creation = v })
 notes = Lens.lens meta_notes (\v r -> r { meta_notes = v })
 
 -- | Initial values for derivation.
+--
+-- This used to have other fields, but they were replaced by
+-- 'config_global_transform'.  I haven't removed tempo yet because it's the
+-- only way to change the speed for tempo-less blocks, and doesn't affect
+-- (or rather, is undone automatically) for integrated blocks.
 data Default = Default {
-    -- | Automatically created pitch tracks will have this scale.  MIDI thru
-    -- will also use it when a scale can't be derived from focus.
-    default_scale :: !Pitch.ScaleId
-    -- | A key doesn't apply to every scale, but for the ones where it does,
-    -- it may be necessary to decide between different enharmonics.
-    , default_key :: !(Maybe Pitch.Key)
-    -- | This instrument is present in the initial environment, so it will be
-    -- the instrument in scope in abscence of any others.
-    , default_instrument :: !(Maybe Score.Instrument)
     -- | A toplevel block without a tempo track will get this tempo.
-    , default_tempo :: !Signal.Y
+    default_tempo :: !Signal.Y
     } deriving (Eq, Read, Show, Generics.Typeable)
 
-scale = Lens.lens default_scale (\v r -> r { default_scale = v })
-key = Lens.lens default_key (\v r -> r { default_key = v })
-instrument = Lens.lens default_instrument (\v r -> r { default_instrument = v })
 tempo = Lens.lens default_tempo (\v r -> r { default_tempo = v })
 
 instance Pretty.Pretty Config where
@@ -119,14 +111,9 @@ instance Pretty.Pretty Meta where
         ]
 
 instance Pretty.Pretty Default where
-    format (Default scale key instrument tempo) =
+    format (Default tempo) =
         Pretty.record_title "Default"
-            [ ("scale", Pretty.format scale)
-            , ("key", Pretty.format key)
-            , ("instrument", Pretty.format instrument)
-            , ("tempo", Pretty.format tempo)
-            ]
+            [ ("tempo", Pretty.format tempo) ]
 
 instance DeepSeq.NFData Default where
-    rnf (Default scale key inst tempo) =
-        scale `seq` key `seq` inst `seq` tempo `seq` ()
+    rnf (Default tempo) = tempo `seq` ()

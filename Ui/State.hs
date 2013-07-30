@@ -31,7 +31,7 @@ module Ui.State (
     , default_
     , Meta(..), creation, notes
     , Default(..)
-    , scale, key, instrument, tempo
+    , tempo
     , empty_config, empty_meta, empty_default
     -- * address types
     , Track(..), Range(..), TrackInfo(..)
@@ -163,7 +163,6 @@ import qualified Ui.Update as Update
 import qualified Derive.Stack as Stack
 import qualified Perform.Lilypond.Types as Lilypond
 import qualified Perform.Midi.Instrument as Instrument
-import qualified Perform.Pitch as Pitch
 
 import qualified App.Config as Config
 import Types
@@ -253,12 +252,7 @@ empty_config = Config
     }
 
 empty_default :: Default
-empty_default = Default {
-    default_scale = Pitch.ScaleId Config.default_scale_id
-    , default_key = Nothing
-    , default_instrument = Nothing
-    , default_tempo = 1
-    }
+empty_default = Default { default_tempo = 1 }
 
 -- * address types
 

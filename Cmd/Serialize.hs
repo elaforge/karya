@@ -173,17 +173,19 @@ instance Serialize State.Meta where
         _ -> Serialize.bad_version "State.Meta" v
 
 instance Serialize State.Default where
-    put (State.Default a b c d) =
-        Serialize.put_version 3 >> put a >> put b >> put c >> put d
+    put (State.Default a) = Serialize.put_version 4 >> put a
     get = do
         v <- Serialize.get_version
         case v of
             3 -> do
-                scale :: Pitch.ScaleId <- get
-                key :: Maybe Pitch.Key <- get
-                inst :: Maybe Score.Instrument <- get
+                _scale :: Pitch.ScaleId <- get
+                _key :: Maybe Pitch.Key <- get
+                _inst :: Maybe Score.Instrument <- get
                 tempo :: Signal.Y <- get
-                return $ State.Default scale key inst tempo
+                return $ State.Default tempo
+            4 -> do
+                tempo :: Signal.Y <- get
+                return $ State.Default tempo
             _ -> Serialize.bad_version "State.Default" v
 
 -- ** Block

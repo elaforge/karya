@@ -290,17 +290,6 @@ with_tsig = State.tracks %= Map.map enable
 
 -- * transform derive
 
-set_default_instrument :: State.State -> State.State
-set_default_instrument state =
-    state { State.state_config = set (State.state_config state) }
-    where
-    set config = config
-        { State.config_midi = default_midi_config
-        , State.config_default = (State.config_default config)
-            { State.default_instrument = Just (Score.Instrument "s/1")
-            }
-        }
-
 with_key :: Text -> Derive.Deriver a -> Derive.Deriver a
 with_key key = Derive.with_val Environ.key key
 
@@ -309,10 +298,10 @@ with_environ env = Internal.local $ \st -> st { Derive.state_environ = env }
 
 -- | Set UI state defaults that every derivation should have.
 set_defaults :: (State.M m) => m ()
-set_defaults = do
-    State.modify set_default_instrument
-    State.modify_default $ \st -> st
-        { State.default_key = Just (Pitch.Key "c-maj") }
+set_defaults = State.modify set_default_instrument
+
+set_default_instrument :: State.State -> State.State
+set_default_instrument = State.config#State.midi #= default_midi_config
 
 -- ** defaults
 

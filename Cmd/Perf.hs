@@ -23,7 +23,9 @@ import qualified Cmd.Cmd as Cmd
 import qualified Cmd.PlayUtil as PlayUtil
 import qualified Derive.Call as Call
 import qualified Derive.Derive as Derive
+import qualified Derive.Deriver.Internal as Internal
 import qualified Derive.Environ as Environ
+import qualified Derive.LEvent as LEvent
 import qualified Derive.PitchSignal as PitchSignal
 import qualified Derive.Scale as Scale
 import qualified Derive.Score as Score
@@ -32,6 +34,7 @@ import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.Pitch as Pitch
 import qualified Perform.Transport as Transport
+import qualified App.Config as Config
 import Types
 
 
@@ -117,7 +120,7 @@ get_scale_id block_id maybe_track_id = first_just
     , fmap (TrackLang.sym_to_scale_id) <$>
         lookup_val block_id maybe_track_id Environ.scale
     ]
-    (State.get_default State.default_scale)
+    (return (Pitch.ScaleId Config.default_scale_id))
 
 -- | Try a bunch of actions, and return the first one that is Just, or
 -- fall back on a default.
@@ -143,14 +146,12 @@ scale_from_titles block_id track_id = do
 -- | As with 'get_scale_id' but for the Key.
 get_key :: (Cmd.M m) => BlockId -> Maybe TrackId -> m (Maybe Pitch.Key)
 get_key block_id maybe_track_id =
-    maybe (State.get_default State.default_key) (return . Just . Pitch.Key)
-        =<< lookup_val block_id maybe_track_id Environ.key
+    fmap Pitch.Key <$> lookup_val block_id maybe_track_id Environ.key
 
 lookup_instrument :: (Cmd.M m) => BlockId -> Maybe TrackId
     -> m (Maybe Score.Instrument)
 lookup_instrument block_id maybe_track_id =
-    maybe (State.get_default State.default_instrument) return
-        =<< lookup_val block_id maybe_track_id Environ.instrument
+    lookup_val block_id maybe_track_id Environ.instrument
 
 -- | Lookup value from the deriver's Environ at the given block and (possibly)
 -- track.  See 'Derive.TrackDynamic' for details on the limitations here.
@@ -194,6 +195,46 @@ lookup_dynamic block_id maybe_track_id = do
                 (Map.toAscList track_dyns)
             return dyn
         Just track_id -> Map.lookup (block_id, track_id) track_dyns
+
+-- * default
+
+-- | Get defaults set by 'State.config_global_transform'.
+lookup_default_environ :: (TrackLang.Typecheck a, Cmd.M m) =>
+    TrackLang.ValName -> m (Maybe a)
+lookup_default_environ name = do
+    global <- State.config#State.global_transform <#> State.get
+    let apply = Call.apply_transform caller global
+    -- Call.apply_transform only applies to things in Derived, so I have to do
+    -- this gross hack where I stash the result in a Score.Event.  Ultimately
+    -- it's because I use the return type to infer the lookup function, and
+    -- I want to use Score.Event transformers.  It might be a better design to
+    -- figure out the lookup function separately, but meanwhile this hack
+    -- should be safe.
+    result <- derive $ apply $ do
+        environ <- Internal.get_dynamic Derive.state_environ
+        return $ LEvent.one $ LEvent.Event $
+            Score.empty_event { Score.event_environ = environ }
+    environ <- case result of
+        Left err -> Cmd.throw $ caller <> ": " <> err
+        Right val -> case LEvent.events_of val of
+            [] -> Cmd.throw $ caller <> " didn't get the fake event it wanted"
+            event : _ -> return $ Score.event_environ event
+    either Cmd.throw return (TrackLang.checked_val name environ)
+    where
+    caller = "Perf.lookup_default_environ"
+
+get_default_environ :: (TrackLang.Typecheck a, Cmd.M m) =>
+    TrackLang.ValName -> m a
+get_default_environ name =
+    Cmd.require_msg ("no default val for " <> Pretty.pretty name)
+        =<< lookup_default_environ name
+
+-- | The default scale established by 'State.config_global_transform', or
+-- 'Config.default_scale_id' if there is none.
+default_scale_id :: (Cmd.M m) => m Pitch.ScaleId
+default_scale_id =
+    maybe (Pitch.ScaleId Config.default_scale_id) TrackLang.sym_to_scale_id <$>
+        lookup_default_environ Environ.scale
 
 
 -- * play

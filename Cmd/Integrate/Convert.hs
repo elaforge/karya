@@ -15,6 +15,7 @@ import qualified Util.Seq as Seq
 import qualified Ui.Event as Event
 import qualified Ui.State as State
 import qualified Cmd.Cmd as Cmd
+import qualified Cmd.Perf as Perf
 import qualified Derive.Derive as Derive
 import qualified Derive.Environ as Environ
 import qualified Derive.LEvent as LEvent
@@ -52,7 +53,7 @@ convert source_block levents = do
     let lookup_attrs = fromMaybe mempty
             . fmap (Instrument.patch_attribute_map . MidiDb.info_patch)
             . lookup_inst
-    default_scale_id <- State.get_default State.default_scale
+    default_scale_id <- Perf.default_scale_id
     tracknums <- Map.fromList <$> State.tracknums_of source_block
     let (events, logs) = LEvent.partition levents
         (tracks, errs) = integrate (lookup_attrs, default_scale_id)

@@ -72,9 +72,9 @@ test_hands = do
         ]
     -- If there are code events for the hand, they get emitted.
     equal (run ["clef"]
-            [ ("> | hand = r", [(0, 4, "")])
+            [ (">s/1 | hand = r", [(0, 4, "")])
             , ("*", [(0, 0, "3c")])
-            , ("> | hand = l", [(0, 0, "clef bass")])
+            , (">s/1 | hand = l", [(0, 0, "clef bass")])
             ])
         (Right [("1", ["c1", "\\clef bass R4*4"])], [])
 

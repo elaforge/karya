@@ -35,9 +35,7 @@ import qualified Cmd.Meters as Meters
 import qualified Cmd.RulerUtil as RulerUtil
 
 import qualified Derive.ParseSkeleton as ParseSkeleton
-import qualified Derive.Score as Score
 import qualified Derive.TrackLang as TrackLang
-
 import Types
 
 
@@ -58,8 +56,6 @@ create name ui_blocks = do
     block_ids <- zipWithM (create_block mkid rid "") [0..] ui_blocks
     root <- create_order_block mkid block_ids
     State.set_root_id root
-    State.modify_default $ \d ->
-        d { State.default_instrument = Just (Score.Instrument "ptq/c1") }
     Create.unfitted_view root
     return ()
 

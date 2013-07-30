@@ -12,16 +12,22 @@ import Midi.Midi (ChannelMessage(..))
 import qualified Ui.UiTest as UiTest
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.CmdTest as CmdTest
-import qualified Cmd.Instrument.Drums as Drums
 import qualified Cmd.Instrument.CUtil as CUtil
+import qualified Cmd.Instrument.Drums as Drums
 
 import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
+import qualified Derive.Score as Score
+
 import qualified App.MidiInst as MidiInst
 
 
 test_keymaps = do
-    let f = CUtil.keymaps [('a', "anote", 1), ('b', "bnote", 2)]
+    -- 'CUtil.keymaps' sets the inst to Nothing, which means to use the current
+    -- one.  But since in the test there's no valid performance, that winds up
+    -- being nothing.
+    let f = CUtil.inst_keymaps [('a', "anote", 1, inst), ('b', "bnote", 2, inst)]
+        inst = Just (Score.Instrument "s/1")
         empty = [(">", [])]
         run = run_tracks empty
         msg = Midi.ChannelMessage 0

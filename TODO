@@ -52,7 +52,6 @@ UNSORTED
         kbd.
         It's also weird that in relative notation it has no effect on the
         music but has to be specified anyway.
-
     - just scales should have a 'repeat 2' layout
       . The issue is that input kbd layout is separate from scale layout.
         Just scales should have a 'repeat 2' layout, and the input also
@@ -101,13 +100,6 @@ UNSORTED
       start and end vals.
   - resample control call, but why not just set srate?  Could be in score time
     to step in rhythm.
-  - to do per-score code, I can put it in Local.Score.<namespace>
-    Convert to module name by replacing -x with (upper x) and capitalizing the
-    first letter.
-    Then when you load a score, incorporate the static config from that
-    module.  Shakefile can link in the local modules under the right name.
-    . If it gets to be too much overhead to link on every single build, then
-      I can load dynamically at runtime.
   * add a hook for cmds run when the selection changes
     It would include setting pos status, setting realtime pos status,
     setting chord, mmc goto.
@@ -145,11 +137,25 @@ UNSORTED
   - rename i>> to s for slide, or p for porta
     Well, don't forget about i<< and e>>
     Maybe add 'p' and 'p<'
-  - is StateConfig.Default obsolete now that there is global transform?
+  * is StateConfig.Default obsolete now that there is global transform?
     In fact it's confusing since there are multiple invisible ways to get an
     instrument.
-    - If the places that want defaults could get them from the perf, then
+    * If the places that want defaults could get them from the perf, then
       I think I can get rid of Default.  Check to see if this is true.
+    * apply_transformers requires a Derived d, which means Score.Event.
+      Shouldn't I be able to apply a transformer to anything?
+      . needs Derive.lookup_callable to find the lookup function
+        Because there are different transformers!  So I want to select
+        Score.Event one, but I don't want the return value to be
+        a Score.Event.
+      . If I get rid of default tempo, I can't have a block at a different
+        speed and integrate it.  Of course why not just change the tempo of
+        the integrated version?  Well, what if I want to hear the original?
+      . But default tempo is not very good, because it's global.
+        I can set playback speed temporarily, but that's different from
+        setting tempo.
+      . Still it seems useful to set default tempo, otherwise there's no way
+        to control the default speed of a top level block.
   - Make talas work with LRuler.  The problem is that they include label
     information, and Meter.Meter doesn't support that.
   - need an easy way to create IDs for debugging, so I can copy paste
@@ -453,10 +459,9 @@ external
     Can't get attoparsec to consistently report an error.  Kind of hard when
     it always backtracks.
     - Need to add <||> to attoparsec.
-  + chorded keys are not getting the proper pitch bend
+  chorded keys are not getting the proper pitch bend
     It's a pianoteq problem.
-    Track it down and send it to them?
-    - wait for response
+    + Reported to pianoteq, said they'd fix it in the next release.
   - problem with pianoteq: if the same note occurs on two channels, one
     will be dropped.  Report to pianoteq.  I could work around, but it won't
     occur with real multitimbral instruments anyway.
@@ -468,7 +473,14 @@ external
     - ask ghc-users if it's a good idea
     - figure out how to implement pragmas in ghc
 
-plugins:
+local: plugins:
+  - to do per-score code, I can put it in Local.Score.<namespace>
+    Convert to module name by replacing -x with (upper x) and capitalizing the
+    first letter.
+    Then when you load a score, incorporate the static config from that
+    module.  Shakefile can link in the local modules under the right name.
+    . If it gets to be too much overhead to link on every single build, then
+      I can load dynamically at runtime.
   - Either dynamically load local inst definitions and local StaticConfig, or
     auto-generate the link file Local/Instrument.hs.
   - come up with plan for reloading inst config and static config

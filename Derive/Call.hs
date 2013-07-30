@@ -80,6 +80,8 @@
 -}
 module Derive.Call where
 import qualified Data.ByteString.Char8 as B
+import qualified Data.List.NonEmpty as NonEmpty
+import qualified Data.Text as Text
 
 import Util.Control
 import qualified Util.Log as Log
@@ -182,6 +184,18 @@ eval_expr cinfo expr = do
     -- but I think this is the same with less work.
     Derive.modify $ \st -> st { Derive.state_collect = collect }
     return $ Derive.merge_logs res logs
+
+-- | Parse and apply a transform expression.
+apply_transform :: (Derive.Derived d) => String -> Text
+    -> Derive.LogsDeriver d -> Derive.LogsDeriver d
+apply_transform name expr_str deriver = do
+    expr <- case ParseBs.parse_expr (ParseBs.from_text expr_str) of
+        Left err -> Derive.throw $ name ++ ": " ++ err
+        Right expr -> return expr
+    let transform = if Text.null expr_str then id
+            else apply_transformers info (NonEmpty.toList expr)
+        info = Derive.dummy_call_info 0 1 name
+    transform deriver
 
 -- * derive_track
 

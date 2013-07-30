@@ -182,8 +182,6 @@ setup_big = do
     State.insert_events t1_p (take 100 (mkdyn (cycle (reverse vels))))
 
     State.set_midi_config (make_midi_config "fm8" [("fm8/bass", [0..2])])
-    State.modify_default $ \d ->
-        d { State.default_instrument = Just (Score.Instrument "fm8/bass") }
     vid <- Create.view b
     Selection.set vid (Just (Types.point_selection 0 0))
     return Cmd.Done

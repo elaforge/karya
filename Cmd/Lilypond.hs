@@ -80,10 +80,9 @@ derive deriver = do
     state <- (State.config#State.default_#State.tempo #= 1) <$> State.get
     scope <- Cmd.gets (Cmd.state_global_scope . Cmd.state_config)
     constant <- PlayUtil.make_constant state mempty mempty
-    env <- PlayUtil.make_environ
     return $ Derive.extract_result $ Derive.derive
         (constant { Derive.state_lilypond = Just config })
-        (lilypond_scope scope) env deriver
+        (lilypond_scope scope) PlayUtil.initial_environ deriver
 
 lilypond_scope :: Derive.Scope -> Derive.Scope
 lilypond_scope = Scope.add_override_note_lookup lookup

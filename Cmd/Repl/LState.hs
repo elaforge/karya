@@ -26,8 +26,6 @@ import qualified Cmd.Repl.LEvent as LEvent
 import qualified Cmd.Repl.LTrack as LTrack
 import qualified Cmd.Save as Save
 
-import qualified Derive.Score as Score
-import qualified Perform.Pitch as Pitch
 import qualified Perform.Signal as Signal
 import qualified App.Config as Config
 import Types
@@ -59,14 +57,6 @@ get_default_tempo = State.config#State.default_#State.tempo <#> State.get
 
 set_default_tempo :: Signal.Y -> Cmd.CmdL ()
 set_default_tempo t = modify_config $ State.default_#State.tempo #= t
-
-set_default_inst :: Text -> Cmd.CmdL ()
-set_default_inst inst = modify_config $
-    State.default_#State.instrument #= Just (Score.Instrument inst)
-
-set_default_scale :: Text -> Cmd.CmdL ()
-set_default_scale scale = modify_config $
-    State.default_#State.scale #= Pitch.ScaleId scale
 
 modify_config :: (State.Config -> State.Config) -> Cmd.CmdL ()
 modify_config f = State.modify_config f >> Cmd.invalidate_performances
