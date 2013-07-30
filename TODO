@@ -10,7 +10,6 @@ UNSORTED
     * why do I get two coincident samples?
       2s:.941, 2s:.941
       sd: .375, set: .941, i>: .941
-  - do something about Derive.Derive_test.test_roundoff, is it solved now?
   - Need to fix StepPlay_test, I think I want to make the tempo valid at ends,
     rather than tweak the step points.  But haven't I done something like this
     before?

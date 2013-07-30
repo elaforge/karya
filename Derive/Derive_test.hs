@@ -648,32 +648,6 @@ test_regress_event_end2 = do
         ]),
       [(1, 2), (2, 3)])]
 
--- TODO do something about this, probably have to use quickcheck since
--- the values are so fiddly, but until then this is documentation for the
--- problem.
-test_roundoff = do
-    let res = derive_blocks blocks
-    pprint $ first head (DeriveTest.extract id res)
-    pprint (DeriveTest.extract DeriveTest.e_note res)
-    let (_perf_events, mmsgs, _logs) =
-            DeriveTest.perform_defaults (Derive.r_events res)
-    pprint mmsgs
-    where
-    blocks = [b9, b28]
-    b9 = (("b9",
-       [("tempo", [(0, 0, "1.5")]),
-        (">s/1", [(10.0, 0.0, "`arp-up`")]),
-        (">s/1", [(10.0, 3.5, "b28")]),
-        ("*", [(10.0, 0.0, "5c")])]),
-      [(1, 2), (2, 3), (3, 4)])
-    b28 = (("b28",
-       [("tempo", [(0.0, 0.0, "1"), (3.5, 0.0, "i 15")]),
-        (">",
-         [(0.0, 0.5, ""), (0.5, 0.5, ""), (1.0, 0.5, ""), (1.5, 0.5, ""),
-          (2.0, 0.5, ""), (2.5, 0.5, ""), (3.0, 0.5, ""), (3.5, 0.5, ""),
-          (4.0, 0.5, ""), (4.5, 0.5, ""), (5.0, 0.5, "")])]),
-      [(1, 2)])
-
 derive_blocks :: [(UiTest.BlockSpec, [Skeleton.Edge])] -> Derive.Result
 derive_blocks blocks = DeriveTest.derive_block state (UiTest.bid block_name)
     where
