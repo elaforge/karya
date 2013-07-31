@@ -15,12 +15,12 @@
     is a higher level concept.  The harmonic scope of of a departing note
     extends after the note in the pitch context established by that note, while
     the scope of an arriving note precedes the sounding of the note, preparing
-    for its arriving.  A note whose harmonic scope precedes the sounding of the
+    for its arrival.  A note whose harmonic scope precedes the sounding of the
     note itself is naturally represented as an event with negative duration.
 
     However, since the physical sounding duration (which of course must always
     be positive) and harmonic scope of a note no longer coincide, the sounding
-    duration of an arriving note is somewhat more implicit.  The rule is such:
+    duration of an arriving note is implicit.
 
     If the event lines up with the following event then the note will sound
     until the next note begins:

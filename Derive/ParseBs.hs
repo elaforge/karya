@@ -49,7 +49,6 @@ import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.TrackLang as TrackLang
 
-import qualified Perform.Pitch as Pitch
 import qualified Perform.Signal as Signal
 
 
@@ -302,12 +301,10 @@ p_pitch_control :: A.Parser TrackLang.RawPitchControl
 p_pitch_control = do
     A.char '#'
     control <- Score.Control . to_text <$> A.option "" (p_identifier ",")
-    deflt <- Parse.optional (A.char ',' >> p_word)
+    deflt <- Parse.optional (A.char ',' >> p_sub_call)
     return $ case deflt of
         Nothing -> TrackLang.LiteralControl control
-        Just val ->
-            TrackLang.DefaultedControl control $
-                TrackLang.Note (Pitch.Note (to_text val)) []
+        Just call -> TrackLang.DefaultedControl control call
     <?> "pitch control"
 
 -- | This is special syntax that's only allowed in control track titles.

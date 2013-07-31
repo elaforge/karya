@@ -22,7 +22,6 @@ deriving instance Eq TrackLang.Val
 deriving instance Eq TrackLang.RawVal
 deriving instance Eq TrackLang.Call
 deriving instance Eq TrackLang.Term
-deriving instance Eq TrackLang.Note -- needed by Eq Val
 
 instance Eq PitchSignal.Signal where
     sig1 == sig2 = PitchSignal.unsignal sig1 == PitchSignal.unsignal sig2

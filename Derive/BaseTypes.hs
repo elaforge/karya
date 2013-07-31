@@ -29,6 +29,7 @@
 module Derive.BaseTypes where
 import qualified Control.DeepSeq as DeepSeq
 import qualified Data.Char as Char
+import qualified Data.List.NonEmpty as NonEmpty
 import qualified Data.Map.Strict as Map
 import qualified Data.Monoid as Monoid
 import qualified Data.Set as Set
@@ -389,7 +390,7 @@ data ControlRef val =
 type PitchControl = ControlRef Signal
 -- | Pitches have to be evaluated, but the parser has to return something
 -- unevaluated.
-type RawPitchControl = ControlRef Note
+type RawPitchControl = ControlRef PitchCall
 type ValControl = ControlRef TypedControl
 
 instance Pretty.Pretty PitchControl where pretty = untxt . ShowVal.show_val
@@ -407,11 +408,7 @@ instance ShowVal.ShowVal PitchControl where
         Just p -> ShowVal.show_val p
 
 instance ShowVal.ShowVal RawPitchControl where
-    show_val = show_control '#' $ \(Note note args) ->
-        -- "(" <>
-        Pitch.note_text note <> (if null args then "" else " ")
-        <> Text.unwords (map ShowVal.show_val args)
-        -- <> ")"
+    show_val = show_control '#' (\c -> "(" <> ShowVal.show_val c <> ")")
 
 instance Pretty.Pretty ValControl where pretty = untxt . ShowVal.show_val
 
@@ -429,19 +426,36 @@ show_control prefix val_text control = case control of
         [Text.singleton prefix, cont, ",", val_text deflt]
     LiteralControl (Control cont) -> Text.cons prefix cont
 
--- ** Note
+-- ** Call
 
--- | Pitch.Note is just the name of the pitch, but the TrackLang Note carries
--- args, and should be used in preference to Pitch.Note where appropriate.
---
--- This is effectively just a 'TrackLang.Call', except it can't contain
--- sub-expressions.  In fact, I should probably just replace this with Call.
-data Note = Note {
-    note_sym :: Pitch.Note
-    , note_args :: [RawVal]
-    } deriving (Show)
+-- | Symbols used in function call position.  This is just to document that
+-- a symbol is expected to be looked up in the scope.
+type CallId = Symbol
 
-instance ShowVal.ShowVal Note where
-    show_val (Note note args) = "(" <> Pitch.note_text note
-        <> (if null args then "" else " ")
-        <> Text.unwords (map ShowVal.show_val args) <> ")"
+-- | The only operator is @|@, so a list suffices for an AST.
+type Expr = NonEmpty Call
+data Call = Call CallId [Term] deriving (Show)
+data Term = ValCall Call | Literal RawVal deriving (Show)
+
+-- | This is just a 'Call', but it's expected to return a VPitch.
+type PitchCall = Call
+
+instance ShowVal.ShowVal Expr where
+    show_val expr =
+        Text.intercalate " | " (map ShowVal.show_val (NonEmpty.toList expr))
+instance ShowVal.ShowVal Call where
+    show_val (Call (Symbol sym) terms) =
+        sym <> if null terms then ""
+            else " " <> Text.unwords (map ShowVal.show_val terms)
+instance ShowVal.ShowVal Term where
+    show_val (ValCall call) = "(" <> ShowVal.show_val call <> ")"
+    show_val (Literal val) = ShowVal.show_val val
+
+instance Pretty.Pretty Call where
+    pretty = untxt . ShowVal.show_val
+
+instance DeepSeq.NFData Call where
+    rnf (Call call_id terms) = call_id `seq` DeepSeq.rnf terms
+instance DeepSeq.NFData Term where
+    rnf (ValCall call) = DeepSeq.rnf call
+    rnf (Literal val) = DeepSeq.rnf val

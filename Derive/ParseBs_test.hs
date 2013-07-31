@@ -16,7 +16,6 @@ import qualified Derive.TrackLang as TrackLang
 import Derive.TrackLang
        (ControlRef(..), Symbol(..), ValType(..), Call(..), Term(..))
 
-import qualified Perform.Pitch as Pitch
 import qualified Perform.Signal as Signal
 
 
@@ -107,9 +106,8 @@ test_parse_val = do
 
             , ("#", Just $ VPitchControl $
                 LiteralControl (Score.Control ""))
-            , ("#sig,0", Just $ VPitchControl $
-                DefaultedControl (Score.Control "sig")
-                    (TrackLang.Note (Pitch.Note "0") []))
+            , ("#sig,(0)", Just $ VPitchControl $
+                DefaultedControl (Score.Control "sig") (TrackLang.call "0" []))
 
             , ("$bad", Nothing)
             , ("_", Just VNotGiven)

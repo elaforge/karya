@@ -243,10 +243,10 @@ dynamic pos = maybe Derive.default_dynamic Score.typed_val <$>
 with_pitch :: PitchSignal.Pitch -> Derive.Deriver a -> Derive.Deriver a
 with_pitch = Derive.with_constant_pitch Nothing
 
-with_symbolic_pitch :: TrackLang.Note -> ScoreTime -> Derive.Deriver a
+with_symbolic_pitch :: TrackLang.PitchCall -> ScoreTime -> Derive.Deriver a
     -> Derive.Deriver a
-with_symbolic_pitch note pos deriver = do
-    pitch <- Call.eval_pitch pos note
+with_symbolic_pitch call pos deriver = do
+    pitch <- Call.eval_pitch pos call
     with_pitch pitch deriver
 
 with_dynamic :: Signal.Y -> Derive.Deriver a -> Derive.Deriver a

@@ -36,22 +36,19 @@
 module Derive.TrackLang (
     module Derive.TrackLang, module Derive.BaseTypes, show_val
 ) where
-import qualified Control.DeepSeq as DeepSeq
-import qualified Data.List.NonEmpty as NonEmpty
 import qualified Data.Map as Map
-import qualified Data.Text as Text
 
 import Util.Control
 import qualified Util.Pretty as Pretty
 import qualified Ui.ScoreTime as ScoreTime
 import qualified Derive.BaseTypes as Score
-import qualified Derive.PitchSignal as PitchSignal
 import Derive.BaseTypes
        (Environ, make_environ, environ_to_list, insert_val, delete_val,
         lookup_val, null_environ, ValName, RawVal, Val, ValType(..), Symbol(..),
-        ControlRef(..), PitchControl, RawPitchControl, ValControl, Note(..),
-        show_call_val)
+        ControlRef(..), PitchControl, RawPitchControl, ValControl,
+        show_call_val, CallId, Expr, Call(..), PitchCall, Term(..))
 import qualified Derive.Environ as Environ
+import qualified Derive.PitchSignal as PitchSignal
 import Derive.ShowVal (ShowVal(..))
 
 import qualified Perform.Pitch as Pitch
@@ -60,9 +57,6 @@ import qualified Perform.Signal as Signal
 
 import Types
 
-
--- | Symbols used in function call position.
-type CallId = Symbol
 
 -- | An empty instrument literal is a no-op, see 'VInstrument'.
 is_null_instrument :: Score.Instrument -> Bool
@@ -440,32 +434,7 @@ checked_val2 name environ = case checked_val name environ of
     Left err -> Just (Left err)
 
 
-
-
 -- * expressions
-
--- | The only operator is @|@, so a list suffices for an AST.
-type Expr = NonEmpty Call
-data Call = Call CallId [Term] deriving (Show)
-data Term = ValCall Call | Literal RawVal deriving (Show)
-
-instance ShowVal Expr where
-    show_val expr = Text.intercalate " | " (map show_val (NonEmpty.toList expr))
-instance ShowVal Call where
-    show_val (Call (Symbol sym) terms) = sym
-        <> if null terms then "" else " " <> Text.unwords (map show_val terms)
-instance ShowVal Term where
-    show_val (ValCall call) = "(" <> show_val call <> ")"
-    show_val (Literal val) = show_val val
-
-instance Pretty.Pretty Call where
-    pretty = untxt . show_val
-
-instance DeepSeq.NFData Call where
-    rnf (Call call_id terms) = call_id `seq` DeepSeq.rnf terms
-instance DeepSeq.NFData Term where
-    rnf (ValCall call) = DeepSeq.rnf call
-    rnf (Literal val) = DeepSeq.rnf val
 
 -- | Transform the Symbols in an expression.  This affects both symbols in call
 -- position, and argument symbols.
@@ -495,9 +464,3 @@ inst = Literal . VInstrument . Score.Instrument
 
 val_call :: Text -> [RawVal] -> Term
 val_call sym args = ValCall (Call (Symbol sym) (map Literal args))
-
-note :: Text -> [RawVal] -> Note
-note sym args = Note (Pitch.Note sym) args
-
-note_call :: Note -> Term
-note_call (Note note args) = val_call (Pitch.note_text note) args

@@ -74,7 +74,7 @@ UNSORTED
   * Sig.many ArgErrors start at 0, others start at 1
   - there should be a character that triggers a parse failure, which is used
     by invalid ShowVal instances like ShowVal Pitch
-  - pitch control default should be an expression, e.g. #name,(4c 50)
+  * pitch control default should be an expression, e.g. #name,(4c 50)
   * should be able to coerce a VPitch to a constant PitchControl, just like
     numbers
     * For this to work I have to change PitchControl from Note to Pitch, which

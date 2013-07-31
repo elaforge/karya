@@ -159,14 +159,15 @@ reapply_call args call_id call_args =
     reapply args (TrackLang.call call_id call_args :| [])
 
 -- | A version of 'eval' specialized to evaluate pitch calls.
-eval_pitch :: ScoreTime -> TrackLang.Note -> Derive.Deriver PitchSignal.Pitch
-eval_pitch pos note =
-    Sig.cast ("eval note " ++ show note)
-        =<< eval cinfo (TrackLang.note_call note)
+eval_pitch :: ScoreTime -> TrackLang.PitchCall
+    -> Derive.Deriver PitchSignal.Pitch
+eval_pitch pos call =
+    Sig.cast ("eval pitch " <> ShowVal.show_val call)
+        =<< eval cinfo (TrackLang.ValCall call)
     where
     cinfo :: Derive.CallInfo PitchSignal.Pitch
     cinfo = Derive.dummy_call_info pos 0 "<eval_pitch>"
-    -- Note calls shouldn't care about their pos.
+    -- Pitch calls shouldn't care about their pos.
 
 -- | This is like 'eval_pitch' when you already know the call, presumably
 -- because you asked 'Derive.scale_note_to_call'.
@@ -424,14 +425,14 @@ eval_pitch_control :: (Derive.ToTagged a) => Derive.CallInfo a
     -> TrackLang.RawPitchControl -> Derive.Deriver TrackLang.PitchControl
 eval_pitch_control cinfo c = case c of
     TrackLang.ControlSignal note ->
-        TrackLang.ControlSignal <$> eval_note note
+        TrackLang.ControlSignal <$> eval_pitch note
     TrackLang.DefaultedControl ctl note ->
-        TrackLang.DefaultedControl ctl <$> eval_note note
+        TrackLang.DefaultedControl ctl <$> eval_pitch note
     TrackLang.LiteralControl ctl -> return $ TrackLang.LiteralControl ctl
     where
-    eval_note note = fmap PitchSignal.constant $
-        Sig.cast ("eval_pitch_control " <> untxt (ShowVal.show_val note))
-            =<< eval cinfo (TrackLang.note_call note)
+    eval_pitch call = fmap PitchSignal.constant $
+        Sig.cast ("eval_pitch_control " <> ShowVal.show_val call)
+            =<< eval cinfo (TrackLang.ValCall call)
 
 apply :: Derive.CallInfo Derive.Tagged -> Derive.ValCall
     -> [TrackLang.Term] -> Derive.Deriver TrackLang.Val

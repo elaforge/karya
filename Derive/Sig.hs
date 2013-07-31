@@ -351,13 +351,13 @@ run_call parser args = do
 -- * misc
 
 -- | Cast a Val to a haskell val, or throw if it's the wrong type.
-cast :: forall a. (TrackLang.Typecheck a) => String -> TrackLang.Val
+cast :: forall a. (TrackLang.Typecheck a) => Text -> TrackLang.Val
     -> Derive.Deriver a
 cast name val = case TrackLang.from_val val of
-        Nothing -> Derive.throw $
-            name <> ": expected " <> Pretty.pretty return_type
-            <> " but val was " <> Pretty.pretty (TrackLang.type_of val)
-            <> " " <> untxt (TrackLang.show_val val)
+        Nothing -> Derive.throw $ untxt $
+            name <> ": expected " <> Pretty.prettytxt return_type
+            <> " but val was " <> Pretty.prettytxt (TrackLang.type_of val)
+            <> " " <> TrackLang.show_val val
         Just a -> return a
     where return_type = TrackLang.to_type (error "cast" :: a)
 
