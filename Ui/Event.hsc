@@ -199,8 +199,6 @@ modify_end :: (ScoreTime -> ScoreTime) -> Event -> Event
 modify_end f evt =
     modify_duration (\dur -> f (start evt + dur) - start evt) evt
 
--- | 0 is considered both positive and negative because they're ambiguous.
--- For example, Track._split_range which includes them in both ends.
 positive, negative :: Event -> Bool
 positive = not . negative
 negative = negative_duration . duration

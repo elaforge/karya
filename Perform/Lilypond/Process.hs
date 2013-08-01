@@ -370,7 +370,7 @@ span_voices events
         | otherwise = case get event of
             Nothing -> Nothing
             Just voice -> Just $ Right (voice, event)
-        where get = TrackLang.checked_val2 Constants.v_voice . event_environ
+        where get = TrackLang.checked_val2 Environ.voice . event_environ
     -- Previously I tried to only split voices where necessary by only spanning
     -- overlapping notes, or notes with differing voices.  But even when it
     -- worked as intended, joining voices this aggressively led to oddities

@@ -19,8 +19,8 @@ import qualified Derive.Call.Lily as Lily
 import qualified Derive.Call.Note as Note
 import qualified Derive.Call.NoteTransformer as NoteTransformer
 import qualified Derive.Call.Pitch as Pitch
+import qualified Derive.Call.Post.ArrivalNote as Post.ArrivalNote
 import qualified Derive.Call.Post.Idiom as Post.Idiom
-import qualified Derive.Call.Post.NegativeDur as Post.NegativeDur
 import qualified Derive.Call.Post.Reverse as Post.Reverse
 import qualified Derive.Call.Random as Random
 import qualified Derive.Call.Reyong as Reyong
@@ -72,7 +72,7 @@ note_calls :: Derive.NoteCallMap
     , Lily.note_calls
     , Note.note_calls, NoteTransformer.note_calls
     , Grace.note_calls
-    , Post.Idiom.note_calls, Post.NegativeDur.note_calls
+    , Post.Idiom.note_calls, Post.ArrivalNote.note_calls
     , Post.Reverse.note_calls
     , Reyong.note_calls
     , Random.note_calls

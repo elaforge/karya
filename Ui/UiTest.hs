@@ -4,8 +4,10 @@
 
 module Ui.UiTest where
 import qualified Control.Monad.Identity as Identity
+import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
+
 import qualified System.IO as IO
 
 import Util.Control
@@ -250,14 +252,14 @@ note_spec (inst, pitches, controls) =
 note_track :: [EventSpec] -> [TrackSpec]
 note_track track =
     [ (">", [(t, dur, s) | (t, dur, (s, _)) <- track2])
-    , ("*", [(t, 0, s) | (t, _, (_, s)) <- track2])
+    , ("*", [(t, 0, s) | (t, _, (_, s)) <- track2, not (null s)])
     ]
     where
     track2 = [(t, d, split s) | (t, d, s) <- track]
     split s
-        | null post = ("", pre)
-        | otherwise = (pre, post)
-        where (pre, post) = Seq.split1 " -- " s
+        | "--" `List.isInfixOf` s = let (pre, post) = Seq.split1 "--" s
+            in (Seq.strip pre, Seq.strip post)
+        | otherwise = ("", s)
 
 regular_notes :: Int -> [TrackSpec]
 regular_notes n = note_track $ take n

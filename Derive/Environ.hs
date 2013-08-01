@@ -51,3 +51,8 @@ tuning = "tuning"
 -- their own voices.  Should be an integer from 1 to 4.
 voice :: ValName
 voice = "v"
+
+-- | VString: @right@, @r@,  @left@, or @l@.  Used by the lilypond backend, and
+-- also by any call that relies on an instrument's parts being divided by hand.
+hand :: ValName
+hand = "hand"

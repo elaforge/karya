@@ -12,6 +12,7 @@ import qualified Data.Map as Map
 
 import Util.Control
 import qualified Ui.Block as Block
+import qualified Ui.Event as Event
 import qualified Ui.Id as Id
 import qualified Ui.State as State
 import qualified Ui.Types as Types
@@ -26,11 +27,13 @@ import qualified Derive.Controls as Controls
 import qualified Derive.Derive as Derive
 import qualified Derive.Deriver.Internal as Internal
 import qualified Derive.LEvent as LEvent
+import qualified Derive.PitchSignal as PitchSignal
 import qualified Derive.Score as Score
 import qualified Derive.Sig as Sig
 import Derive.Sig (required)
 import qualified Derive.TrackLang as TrackLang
 
+import qualified Perform.Signal as Signal
 import Types
 
 
@@ -71,8 +74,34 @@ c_block block_id = Derive.stream_generator ("block " <> showt block_id)
         -- on the stack.
         Internal.with_stack_block block_id (Cache.block run args)
     where
-    run args = Derive.d_place start (end-start) (d_block block_id)
+    run args = Derive.d_place start (end-start)
+            (mangle_controls args (d_block block_id))
         where (start, end) = Args.range args
+    mangle_controls args
+        | Event.positive (Args.event args) = id
+        | otherwise = constant_controls_at
+
+-- | Replace all controls and pitches with constants from ScoreTime 1.
+-- This is to support arrival notes.  If a block call has negative duration,
+-- then its controls should be taken from its start time, which is the end of
+-- the event, time-wise.  Since d_place has already been called, that's
+-- ScoreTime 1.
+--
+-- Details in "Derive.Call.Post.ArrivalNote".
+constant_controls_at :: Derive.Deriver a -> Derive.Deriver a
+constant_controls_at deriver = do
+    start <- Derive.real 1
+    Internal.local (constant start) deriver
+    where
+    constant start dyn = dyn
+        { Derive.state_controls =
+            Map.map (fmap (Signal.constant . Signal.at start))
+                (Derive.state_controls dyn)
+        , Derive.state_pitch = pitch_at start (Derive.state_pitch dyn)
+        , Derive.state_pitches =
+            Map.map (pitch_at start) (Derive.state_pitches dyn)
+        }
+    pitch_at p = maybe mempty PitchSignal.constant . PitchSignal.at p
 
 d_block :: BlockId -> Derive.EventDeriver
 d_block block_id = do

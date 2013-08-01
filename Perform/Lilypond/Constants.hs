@@ -4,7 +4,6 @@
 
 module Perform.Lilypond.Constants where
 import Util.Control
-import qualified Derive.Environ as Environ
 import qualified Derive.Score as Score
 import qualified Derive.TrackLang as TrackLang
 
@@ -13,14 +12,6 @@ import qualified Derive.TrackLang as TrackLang
 -- lilypond directives.  E.g., meter changes, page breaks, movement titles.
 ly_global :: Score.Instrument
 ly_global = Score.Instrument "ly-global"
-
--- | String: @right@, @r@,  @left@, or @l@.
-v_hand :: TrackLang.ValName
-v_hand = "hand"
-
--- | Number: should be an integer from 1 to 4.
-v_voice :: TrackLang.ValName
-v_voice = Environ.voice
 
 -- * code fragments
 

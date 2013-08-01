@@ -7,6 +7,7 @@ import qualified Data.Text as Text
 
 import Util.Control
 import Util.Test
+import qualified Derive.Environ as Environ
 import qualified Derive.TrackLang as TrackLang
 import qualified Perform.Lilypond.Constants as Constants
 import qualified Perform.Lilypond.LilypondTest as LilypondTest
@@ -193,7 +194,7 @@ test_simplify_voices = do
 test_voices_and_code = do
     let f wanted = LilypondTest.extract_lys (Just wanted)
             . LilypondTest.process . map LilypondTest.environ_event
-        v n = (Constants.v_voice, TrackLang.num n)
+        v n = (Environ.voice, TrackLang.num n)
         append text = (Constants.v_ly_append_all, TrackLang.str text)
 
     -- Code events are assigned to the first voice.

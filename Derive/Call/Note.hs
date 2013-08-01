@@ -9,6 +9,7 @@ module Derive.Call.Note (
     , c_note, transformed_note, note_call
     , Config(..), use_attributes, no_duration_attributes
     , GenerateNote, default_note
+    , adjust_duration
 #ifdef TESTING
     , trimmed_controls
 #endif
@@ -134,35 +135,58 @@ use_attributes = Config True True
 no_duration_attributes :: Config
 no_duration_attributes = Config False False
 
+-- | The actual note generator.
 default_note :: Config -> GenerateNote
 default_note config args = do
     start <- Args.real_start args
     end <- Args.real_end args
     real_next <- Derive.real (Args.next args)
-    -- Note that due to negative durations, the end could be before the start.
-    -- What this really means is that the sounding duration of the note depends
-    -- on the next one, which should be sorted out later by post processing.
-    inst <- fromMaybe Score.empty_inst <$>
-        Derive.lookup_val Environ.instrument
+    (end, is_arrival) <- adjust_end start end (Seq.head (Args.next_events args))
+    inst <- fromMaybe Score.empty_inst <$> Derive.lookup_val Environ.instrument
     environ <- Internal.get_dynamic Derive.state_environ
     let attrs = either (const Score.no_attrs) id $
             TrackLang.get_val Environ.attributes environ
     st <- Derive.gets Derive.state_dynamic
     let controls = trimmed_controls start real_next (Derive.state_controls st)
-        pitch_sig = trimmed_pitch start real_next (Derive.state_pitch st)
+        pitch = trimmed_pitch start real_next (Derive.state_pitch st)
     (start, end) <- randomized controls start $
         duration_attributes config controls attrs start end
-    return $! LEvent.one $! LEvent.Event $! Score.Event
+    -- Add a attribute to get the arrival-note postproc to figure out the
+    -- duration.  Details in "Derive.Call.Post.ArrivalNote".
+    let make = if is_arrival then Score.add_attributes Attrs.arrival_note else id
+    return $! LEvent.one $! LEvent.Event $! make $! Score.Event
         { Score.event_start = start
         , Score.event_duration = end - start
         , Score.event_bs = Event.event_bytestring (Args.event args)
         , Score.event_controls = controls
-        , Score.event_pitch = pitch_sig
+        , Score.event_pitch = pitch
         , Score.event_pitches = Derive.state_pitches st
         , Score.event_stack = Derive.state_stack st
         , Score.event_instrument = inst
         , Score.event_environ = environ
         }
+
+adjust_end :: RealTime -> RealTime -> Maybe Event.Event
+    -> Derive.Deriver (RealTime, Bool)
+adjust_end start end _ | end >= start = return (end, False)
+adjust_end _ end Nothing = return (end, True)
+adjust_end start end (Just next) = do
+    next_start <- Derive.real (Event.start next)
+    next_dur <- subtract start <$> Derive.real (Event.end next)
+    let end2 = start + adjust_duration start (end-start) next_start next_dur
+    return (end2, False)
+
+adjust_duration :: RealTime -> RealTime -> RealTime -> RealTime -> RealTime
+adjust_duration cur_pos cur_dur next_pos next_dur
+        -- Departing notes are not changed.
+    | cur_dur > 0 = cur_dur
+        -- Arriving followed by arriving with a rest in between extends to
+        -- the arrival of the rest.
+    | next_dur <= 0 && rest > 0 = rest
+        -- Arriving followed by arriving with no rest, or an arriving note
+        -- followed by a departing note will sound until the next note.
+    | otherwise = next_pos - cur_pos
+    where rest = next_pos + next_dur - cur_pos
 
 -- | Interpret attributes and controls that effect the note's duration.
 --
@@ -221,12 +245,15 @@ randomized controls start end
     dur_r = Score.typed_val $
         Score.control_at controls Controls.dur_rnd start
 
+-- ** controls
+
 -- | In a note track, the pitch signal for each note is constant as soon as
 -- the next note begins.  Otherwise, it looks like each note changes pitch
 -- during its decay.
 trimmed_pitch :: RealTime -> RealTime -> PitchSignal.Signal
     -> PitchSignal.Signal
 trimmed_pitch start end
+    | end < start = maybe mempty PitchSignal.constant . PitchSignal.at start
     | start == end = PitchSignal.take 1 . PitchSignal.drop_before start
     | otherwise = PitchSignal.drop_after end . PitchSignal.drop_before start
 
@@ -235,21 +262,24 @@ trimmed_pitch start end
 -- Trims will almost all be increasing in time.  Can I save indices or
 -- something to make them faster?  That would only work with linear search
 -- though.
---
--- It would be nice to strip out deriver-only controls, but without specific
--- annotation I can't know which ones those are.  Presumably laziness will
--- do its thing?
 trimmed_controls :: RealTime -> RealTime -> Score.ControlMap
     -> Score.ControlMap
 trimmed_controls start end = Map.map (fmap trim)
     where
-    trim = if start == end
+    trim
+        -- An arrival note at the end of a block doesn't know how long it should
+        -- be, so it remains negative.  Since it doesn't have its final
+        -- duration, it doesn't know it can't get the proper controls.  In
+        -- any case, those controls are in the next block, so they're
+        -- unavailable.
+        | end < start = Signal.constant . Signal.at start
         -- Otherwise 0 dur events tend to get no controls.
         -- I'm not sure exactly when this happens because 'generate_note' trims
         -- until the start of the next note, but I think it did because
         -- I added this fix for it...
-        then Signal.take 1 . Signal.drop_before start
-        else Signal.drop_after end . Signal.drop_before start
+        -- TODO figure it out, add a test
+        | start == end = Signal.take 1 . Signal.drop_before start
+        | otherwise = Signal.drop_after end . Signal.drop_before start
 
 -- ** transform
 

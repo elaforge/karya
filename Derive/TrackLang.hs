@@ -411,6 +411,8 @@ get_val name environ = case lookup_val name environ of
         Nothing -> Left (WrongType (type_of val))
         Just v -> Right v
 
+-- | Like 'get_val', except that type errors and not found both turn into
+-- Nothing.
 maybe_val :: (Typecheck a) => ValName -> Environ -> Maybe a
 maybe_val name = either (const Nothing) Just . get_val name
 

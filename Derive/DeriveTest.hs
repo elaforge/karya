@@ -288,6 +288,9 @@ with_tsig = State.tracks %= Map.map enable
     enable track = track { Track.track_render =
         Track.RenderConfig (Track.Line Nothing) Color.blue }
 
+with_transform :: Text -> State.State -> State.State
+with_transform = (State.config#State.global_transform #=)
+
 -- * transform derive
 
 with_key :: Text -> Derive.Deriver a -> Derive.Deriver a

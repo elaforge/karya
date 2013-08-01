@@ -73,6 +73,11 @@ empty_event = Event
     , event_environ = mempty
     }
 
+-- ** environ
+
+modify_environ :: (BaseTypes.Environ -> BaseTypes.Environ) -> Event -> Event
+modify_environ f event = event { event_environ = f (event_environ event) }
+
 -- ** attributes
 
 event_attributes :: Event -> Attributes
@@ -87,16 +92,20 @@ environ_attributes environ =
         Just (BaseTypes.VAttributes attrs) -> attrs
         _ -> mempty
 
-modify_environ :: (BaseTypes.Environ -> BaseTypes.Environ) -> Event -> Event
-modify_environ f event = event { event_environ = f (event_environ event) }
-
 modify_attributes :: (Attributes -> Attributes) -> Event -> Event
 modify_attributes modify = modify_environ $ \env ->
     BaseTypes.insert_val Environ.attributes
         (BaseTypes.VAttributes (modify (environ_attributes env))) env
 
+add_attributes :: Attributes -> Event -> Event
+add_attributes attrs
+    | attrs == mempty = id
+    | otherwise = modify_attributes (<>attrs)
+
 remove_attributes :: Attributes -> Event -> Event
-remove_attributes attrs = modify_attributes (attrs_remove attrs)
+remove_attributes attrs
+    | attrs == mempty = id
+    | otherwise = modify_attributes (attrs_remove attrs)
 
 instance DeepSeq.NFData Event where
     rnf (Event start dur text controls pitch pitches _ _ _) =

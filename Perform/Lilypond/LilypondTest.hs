@@ -17,11 +17,11 @@ import qualified Cmd.Lilypond
 import qualified Derive.Call.Block as Call.Block
 import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
+import qualified Derive.Environ as Environ
 import qualified Derive.LEvent as LEvent
 import qualified Derive.Score as Score
 import qualified Derive.TrackLang as TrackLang
 
-import qualified Perform.Lilypond.Constants as Constants
 import qualified Perform.Lilypond.Convert as Convert
 import qualified Perform.Lilypond.Lilypond as Lilypond
 import qualified Perform.Lilypond.Meter as Meter
@@ -132,8 +132,7 @@ environ_event (start, dur, pitch, env) =
 voice_event :: (RealTime, RealTime, String, Maybe Int) -> Types.Event
 voice_event (start, dur, pitch, maybe_voice) =
     mkevent start dur pitch default_inst $
-        maybe [] ((:[]) . ((,) Constants.v_voice) . TrackLang.to_val)
-            maybe_voice
+        maybe [] ((:[]) . ((,) Environ.voice) . TrackLang.to_val) maybe_voice
 
 mkevent :: RealTime -> RealTime -> String -> Score.Instrument
     -> [(TrackLang.ValName, TrackLang.Val)] -> Types.Event

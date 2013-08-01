@@ -416,21 +416,19 @@ lilypond:
   - use Util.Format in ly output
 
 negative duration / arrival beats:
-  - Get the pitch at the trigger point, then apply that pitch to the extent of
-    the event.
-  - trill or trem with negative duration lines the integral number up to the
-    end.
-    It's not too practical since I can't have a note start where the negative
-    note ends.  Though maybe I could if I put the "start" at the low end.
+  - negative dur event at pos 0 should put the text below so you can see it
+  - cache not being invalidated for negative block calls
+  * The underlying problem is that the actual duration is based on the onset
+    of the next note.  So I need a way to find that.
+    It would be fine to use the score, but there's a problem of the last note
+    in a block.  I have to somehow match it up to the next note for this
+    "part", which is impossible in general.  So it needs extra info, e.g.
+    (instrument, hand, voice).
+    * So set duration in the score based on the next event.  If there is no
+      next event, then set a tag for postproc.  Postproc looks for
+      (inst, hand, voice).
 
-    Events have a flag which says whether they are end-weighted or not.  If
-    so, the trigger line is drawn at the end, and text goes above the trigger,
-    but they are otherwise the same.  The duration is still positive, but the
-    flag is available to calls to do with what they will.
-
-    This simplifies the editing stuff quite a bit, all of the special negative
-    event handling goes away.
-  - Figure out how arrival works with controls.  It's most natural for
+  * Figure out how arrival works with controls.  It's most natural for
     a pitch for a call to go at the end of the call, but for that to work
     negative dur controls have to extend to their *previous* note.  Seems
     like this requires a flag on the control to use a different Signal.at.
@@ -448,6 +446,32 @@ negative duration / arrival beats:
     extend backwards to the note's end.  That means I can't write anything
     other than a straight pitch because the actual sounding note is implicit.
     So it has to be via integration
+  * Get the pitch at the trigger point, then apply that pitch to the extent of
+    the event.
+
+  represent arrival notes differently
+    . Instead of representing arrival notes as the sounding time plus
+      a negative duration, I could represent them as a start time plus a flag.
+      If the flag is set, it's considered an arrival note and the trigger line
+      is drawn at the bottom instead of the top.
+    pros:
+      1 Cmds work the same for negative and positive durations, I don't have
+        to do any special checks for overlapping with a following negative
+        event.
+      2 I can have a note arrive and another depart from the same point, e.g.
+        trill up to a note.
+    cons:
+      3 The encoding seems not as elegant.  I can still do it with negative
+        durations, but now the negative is just a flag, rather than
+        representing the actual extent of the duration.
+    4 This means that cmds work spatially rather than logically,
+      i.e. I'll need a separate "set beginning" cmd since it becomes set
+      duration for negative events.  I don't know if that's a pro or con, but
+      it feels like a con since I need more cmds.
+    #1 might not be compelling if I've already done the work to get them to
+    work, but if it's buggy or turns into continual for for every cmd then it
+    becomes a big deal.
+
   - ensure inversion works (it should slice >start <=end)
   - ensure redraw works
     I have to make SymbolTable wrap text above too.

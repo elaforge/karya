@@ -19,6 +19,7 @@ import Util.Control
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 
+import qualified Derive.Environ as Environ
 import qualified Derive.Score as Score
 import qualified Derive.Stack as Stack
 import qualified Derive.TrackLang as TrackLang
@@ -242,7 +243,7 @@ split_events events =
         | (inst, events) <- by_inst]
     where
     by_inst = Seq.keyed_group_on event_instrument events
-    lookup_hand environ = case TrackLang.get_val Constants.v_hand environ of
+    lookup_hand environ = case TrackLang.get_val Environ.hand environ of
         Right (val :: Text)
             | val == "r" || val == "right" -> 0
             | val == "l" || val == "left" -> 1
