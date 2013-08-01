@@ -124,9 +124,9 @@ inst_controls block_id =
 
 -- These are mostly for testing, to find problems in performer output.
 
--- | Clear out all caches and rederive from scratch for the given block.
-rederive :: BlockId -> Cmd.CmdL ()
-rederive = PlayUtil.clear_cache
+-- | Clear out all caches and rederive from scratch.
+rederive :: Cmd.CmdL ()
+rederive = PlayUtil.clear_all_caches
 
 compare_cached_events :: BlockId
     -> Cmd.CmdL [Either Simple.ScoreEvent Simple.ScoreEvent]

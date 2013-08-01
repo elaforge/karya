@@ -66,6 +66,12 @@ clear_cache block_id = Cmd.modify_play_state $ \st -> st
         Map.delete block_id (Cmd.state_performance_threads st)
     }
 
+clear_all_caches :: (Cmd.M m) => m ()
+clear_all_caches = Cmd.modify_play_state $ \st -> st
+    { Cmd.state_performance = mempty
+    , Cmd.state_performance_threads = mempty
+    }
+
 -- | Derive the contents of the given block to score events.
 derive :: (Cmd.M m) => Derive.Cache -> Derive.ScoreDamage -> BlockId
     -> m Derive.Result
