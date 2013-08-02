@@ -682,6 +682,10 @@ EventTrackView::draw_upper_layer(int offset, const Event &event, int rank,
         }
     }
 
+    // Negative events at the top of the track wind up with text above the top.
+    text_rect.y = std::max(
+        this->track_start() - zoom.to_pixels(zoom.offset), text_rect.y);
+
     // The various pixel tweaks in here were determined by zooming in and
     // squinting.
 
