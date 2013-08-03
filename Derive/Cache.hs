@@ -62,21 +62,28 @@ data Type = Block
 block :: (Derive.PassedArgs d -> Derive.EventDeriver)
     -> (Derive.PassedArgs d -> Derive.EventDeriver)
 block call args = caching_deriver Block range (call args)
-    where range = uncurry Ranges.range (Args.range_on_track args)
+    where
+    range = Ranges (uncurry Ranges.range (Args.range_on_track args))
+        (Event.negative (Args.event args))
+
+-- | If True, these are the ranges of a negative event, which affects how
+-- control damage works.
+data Ranges = Ranges !(Ranges.Ranges ScoreTime) !Bool deriving (Show)
 
 -- | Cache a track, but only if it's not sliced and has a TrackId.
 track :: (Derive.Derived d) => TrackTree.TrackEvents -> Set.Set TrackId
     -- ^ Children, as documented in 'Track'.
     -> Derive.LogsDeriver d -> Derive.LogsDeriver d
 track track children
-    | should_cache track = caching_deriver (Track children) Ranges.everything
+    | should_cache track = caching_deriver (Track children)
+        (Ranges Ranges.everything False)
     | otherwise = id
 
 should_cache :: TrackTree.TrackEvents -> Bool
 should_cache track = not (TrackTree.tevents_sliced track)
     && Maybe.isJust (TrackTree.tevents_track_id track)
 
-caching_deriver :: (Derive.Derived d) => Type -> Ranges.Ranges ScoreTime
+caching_deriver :: (Derive.Derived d) => Type -> Ranges
     -> Derive.LogsDeriver d -> Derive.LogsDeriver d
 caching_deriver typ range call = do
     st <- Derive.get
@@ -139,10 +146,10 @@ with_empty_collect expand_control_damage deriver = do
     return (result, collect)
 
 find_generator_cache :: (Derive.Derived derived) => Type
-    -> Stack.Stack -> Ranges.Ranges ScoreTime -> ScoreDamage -> ControlDamage
+    -> Stack.Stack -> Ranges -> ScoreDamage -> ControlDamage
     -> Cache -> Either (Bool, String) (Derive.Collect, LEvent.LEvents derived)
-find_generator_cache typ stack event_range score (ControlDamage control)
-        (Cache cache) = do
+find_generator_cache typ stack (Ranges event_range is_negative) score
+        (ControlDamage control) (Cache cache) = do
     cached <- maybe (Left (False, "not in cache")) Right $
         Map.lookup stack cache
     Derive.CallType collect stream <- case cached of
@@ -163,7 +170,11 @@ find_generator_cache typ stack event_range score (ControlDamage control)
             | otherwise -> return ()
     unless (Set.null (Set.intersection damaged_blocks block_deps)) $
         Left (False, "sub-block damage")
-    when (Ranges.overlapping control event_range) $
+    -- Negative duration indicates an arrival note.  The block deriver then
+    -- takes the controls from the bottom of event (which is the start),
+    -- see "Derive.Call.Block".
+    when ((if is_negative then Ranges.overlapping_closed else Ranges.overlapping)
+            control event_range) $
         Left (True, "control damage")
     return (collect, stream)
 

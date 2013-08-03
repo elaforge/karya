@@ -34,3 +34,10 @@ test_invert = do
     equal (f (0, 5) [(0, 3)]) $ Just [(3, 5)]
     equal (f (0, 5) [(0, 5)]) $ Just []
     equal (f (0, 5) [(1, 2), (2, 3)]) $ Just [(0, 1), (3, 5)]
+
+test_overlapping = do
+    let closed r1 r2 = Ranges.overlapping_closed
+            (Ranges.ranges r1) (Ranges.ranges r2)
+        open r1 r2 = Ranges.overlapping (Ranges.ranges r1) (Ranges.ranges r2)
+    equal (closed [(0, 1)] [(1, 2)]) True
+    equal (open [(0, 1)] [(1, 2)]) False

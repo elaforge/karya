@@ -417,7 +417,7 @@ lilypond:
 
 negative duration / arrival beats:
   * negative dur event at pos 0 should put the text below so you can see it
-  - cache not being invalidated for negative block calls
+  * cache not being invalidated for negative block calls
   * The underlying problem is that the actual duration is based on the onset
     of the next note.  So I need a way to find that.
     It would be fine to use the score, but there's a problem of the last note

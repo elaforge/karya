@@ -163,6 +163,21 @@ test_extend_control_damage = do
             (Ranges.ranges [(2, 5)]))
         (Ranges.ranges [(0, 3)])
 
+test_arrival_notes = do
+    -- Arrival block calls look at the control at the the bottom, not the top,
+    -- so ensure that control damage works for them too.
+    let create = mkblocks
+            [ ("top",
+                [ (">", [(2, -2, "sub")])
+                , ("*", [(2, 0, "4c")])
+                ])
+            , ("sub=ruler", [(">", [(1, -1, "")])])
+            ]
+    let (_, cached, uncached) = compare_cached create $
+            insert_event "top.t2" 2 0 "4d"
+    equal (diff_events cached uncached) []
+
+
 -- | Extract cache logs so I can tell who rederived and who used the cache.
 -- I use strings instead of parsing it into structured data because strings
 -- make more informative errors when they don't match.

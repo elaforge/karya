@@ -6,7 +6,7 @@
 module Util.Ranges (
     Ranges, fmap, extract
     , ranges, sorted_ranges, merge_sorted, range, point, everything, nothing
-    , overlapping, intersection, invert
+    , overlapping, overlapping_closed, intersection, invert
 ) where
 import Prelude hiding (fmap)
 import qualified Control.DeepSeq as DeepSeq
@@ -78,9 +78,17 @@ nothing = Ranges []
 -- * functions
 
 overlapping :: (Ord n) => Ranges n -> Ranges n -> Bool
-overlapping Everything r2 = r2 /= nothing
-overlapping r1 Everything = r1 /= nothing
-overlapping (Ranges r1) (Ranges r2) = go r1 r2
+overlapping = check_overlapping False
+
+-- | This is like 'overlapping', except the ranges are closed instead of
+-- half-open.
+overlapping_closed :: (Ord n) => Ranges n -> Ranges n -> Bool
+overlapping_closed = check_overlapping True
+
+check_overlapping :: (Ord n) => Bool -> Ranges n -> Ranges n -> Bool
+check_overlapping _ Everything r2 = r2 /= nothing
+check_overlapping _ r1 Everything = r1 /= nothing
+check_overlapping closed (Ranges r1) (Ranges r2) = go r1 r2
     where
     go [] _ = False
     go _ [] = False
@@ -88,9 +96,10 @@ overlapping (Ranges r1) (Ranges r2) = go r1 r2
         -- It's important that zero width ranges can still overlap, otherwise
         -- zero width track damage won't invalidate any caches.
         | s1 == s2 = True
-        | e1 <= s2 = go rest1 r2
-        | e2 <= s1 = go r1 rest2
+        | e1 `lt` s2 = go rest1 r2
+        | e2 `lt` s1 = go r1 rest2
         | otherwise = True
+        where lt = if closed then (<) else (<=)
 
 intersection :: (Ord n) => Ranges n -> Ranges n -> Ranges n
 intersection Everything r2 = r2
