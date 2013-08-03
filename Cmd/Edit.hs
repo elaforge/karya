@@ -458,7 +458,7 @@ cmd_insert_recent num = do
     insert_recent =<< Cmd.require (lookup num recent)
 
 insert_recent :: (Cmd.M m) => Cmd.RecentNote -> m ()
-insert_recent (Cmd.RecentNote recent zero_dur) =
+insert_recent (Cmd.RecentGenerator recent zero_dur) =
     EditUtil.modify_event zero_dur True (const (Just recent, True))
 insert_recent (Cmd.RecentTransform recent zero_dur) = do
     pos <- EditUtil.get_pos
@@ -490,7 +490,8 @@ record_recent_note = do
 recent_note :: Event.Event -> Maybe Cmd.RecentNote
 recent_note event
     | Text.null post =
-        if Text.null pre then Nothing else Just $ Cmd.RecentNote pre zero_dur
+        if Text.null pre then Nothing
+            else Just $ Cmd.RecentGenerator pre zero_dur
     | otherwise = if Text.null pre then Nothing
         else Just $ Cmd.RecentTransform pre zero_dur
     where
@@ -498,19 +499,33 @@ recent_note event
         (Event.event_text event)
     zero_dur = Event.duration event == 0
 
+
+-- | Put a RecentNote into the FIFO.  RecentGenerators always go in slot 1,
+-- with a queue size of 1.  RecentTransforms go in slots 2..4, and the least
+-- recently used gets bumped off.  If this transform's first word matches an
+-- old one, then the key of the old one is reused, and it is moved to the
+-- front.
 record_recent :: Cmd.RecentNote -> [(Int, Cmd.RecentNote)]
     -> [(Int, Cmd.RecentNote)]
-record_recent note recent0 = (key, note) : recent
+record_recent recent old_recents =
+    (key, recent) : take max_recent (filter ((/=key) . fst) old_recents)
     where
-    recent = take (max_recent - 1) (filter (not . match note . snd) recent0)
-    key = fromMaybe (length recent) $
-        (fst <$> List.find ((==note) . snd) recent0)
-        `mplus`
-        Seq.head (filter (`notElem` map fst recent) [1..max_recent])
+    key = case recent of
+        Cmd.RecentGenerator {} -> 1
+        Cmd.RecentTransform {} -> fromMaybe (length old_recents) $
+            -- Try to reuse an existing number, otherwise find the minimum
+            -- not-present number after dropping.
+            (fst <$> List.find (match recent . snd) old_recents)
+            `mplus` find_number stripped
+    stripped = take (max_recent - 2) $ filter ((/=1) . fst) old_recents
+    find_number recents =
+        Seq.head $ filter (`notElem` map fst recents) [2..max_recent]
+    match (Cmd.RecentGenerator t1 _) (Cmd.RecentGenerator t2 _) =
+        Seq.head (Text.words t1) == Seq.head (Text.words t2)
+    match (Cmd.RecentTransform t1 _) (Cmd.RecentTransform t2 _) =
+        Seq.head (Text.words t1) == Seq.head (Text.words t2)
+    match _ _ = False
     max_recent = 4
-    match (Cmd.RecentNote n1 _) (Cmd.RecentNote n2 _) =
-        Seq.head (Text.words n1) == Seq.head (Text.words n2)
-    match n1 n2 = n1 == n2
 
 
 -- ** edit input

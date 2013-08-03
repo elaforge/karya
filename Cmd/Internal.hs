@@ -355,7 +355,7 @@ sync_recent st = do
         Text.intercalate ", " (map show_recent (Seq.sort_on fst recent))
     where
     show_recent (num, note) = showt num <> ": " <> case note of
-        Cmd.RecentNote s zero_dur -> s <> zero zero_dur
+        Cmd.RecentGenerator s zero_dur -> s <> zero zero_dur
         Cmd.RecentTransform s zero_dur -> s <> "|" <> zero zero_dur
     zero True = " (0 dur)"
     zero False = ""

@@ -3,7 +3,6 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 module Cmd.Edit_test where
-import Util.Control
 import Util.Test
 import qualified Ui.UiTest as UiTest
 import qualified Cmd.Cmd as Cmd
@@ -39,23 +38,28 @@ run_sel track_specs cmd tracknum pos = CmdTest.run_tracks track_specs $ do
     cmd
 
 test_record_recent = do
-    let f note recent = map (second unnote) $ Edit.record_recent
-            (Cmd.RecentTransform note True)
-            (map (second (flip Cmd.RecentTransform True)) recent)
-        unnote (Cmd.RecentNote s _) = s
-        unnote (Cmd.RecentTransform s _) = s
-    equal (f "a" []) [(1, "a")]
-    equal (f "b" [(1, "a")]) [(2, "b"), (1, "a")]
-    equal (f "b" [(2, "a")]) [(1, "b"), (2, "a")]
-    equal (f "z" [(1, "a"), (2, "b"), (3, "c"), (4, "d")])
-        [(4, "z"), (1, "a"), (2, "b"), (3, "c")]
-    -- adding an existing one brings it to the front, retains old key
-    equal (f "b" [(1, "a"), (4, "b")]) [(4, "b"), (1, "a")]
+    let f recent = Edit.record_recent recent
+        n txt = Cmd.RecentGenerator txt False
+        t txt = Cmd.RecentTransform txt False
+    -- Generators get replaced, and are always in slot 1.
+    equal (f (n "a") []) [(1, n "a")]
+    equal (f (n "b") [(1, n "a"), (2, t "t")]) [(1, n "b"), (2, t "t")]
+
+    -- Transformers go in 2..4 and cycle.
+    equal (f (t "a") []) [(2, t "a")]
+    equal (f (t "b") [(2, t "a")]) [(3, t "b"), (2, t "a")]
+
+    -- The oldest one is bumped off, and its key reused.
+    equal (f (t "a") [(4, t "x"), (3, t "y"), (2, t "z")])
+        [(2, t "a"), (4, t "x"), (3, t "y")]
+    -- Unless an existing one matches.
+    equal (f (t "a 2") [(4, t "x"), (3, t "a 1"), (2, t "z")])
+        [(3, t "a 2"), (4, t "x"), (2, t "z")]
 
 test_record_recent_replace = do
     -- "similar" recent notes should replace existing ones
     let f = Edit.record_recent
-    let note = Cmd.RecentNote
+    let note = Cmd.RecentGenerator
     equal (f (note "a" False) [(1, (note "a" True))])
         [(1, (note "a" False))]
     equal (f (note "a .2" True) [(1, (note "a .5" True))])

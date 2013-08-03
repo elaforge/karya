@@ -616,7 +616,7 @@ instance Pretty.Pretty EditMode where pretty = show
 data RecentNote =
     -- | Bool is true if the event was zero dur.  This is needed if
     -- 'cmd_insert_recent' winds up creating a new event.
-    RecentNote !Text !Bool
+    RecentGenerator !Text !Bool
     | RecentTransform !Text !Bool
     deriving (Show, Eq)
 
