@@ -111,10 +111,7 @@ initialize view_id block_id play_tracks = do
     perf <- Cmd.get_performance block_id
     let events = filter_tracks play_track_ids $ Cmd.perf_events perf
         reals = group_edges eta events
-        scores = real_to_score block_id (Cmd.perf_inv_tempo perf)
-            -- Subtract a tiny eta, otherwise the last event end is right on
-            -- the end of the score and has no ScoreTime.
-            (map (subtract RealTime.eta) reals)
+        scores = real_to_score block_id (Cmd.perf_inv_tempo perf) reals
         steps = [(s, r) | (Just s, r) <- zip scores reals]
     msgs <- fmap LEvent.events_of $ PlayUtil.perform_events events
     Cmd.modify_play_state $ \st -> st
@@ -131,9 +128,8 @@ initialize view_id block_id play_tracks = do
 
 real_to_score :: BlockId -> Transport.InverseTempoFunction -> [RealTime]
     -> [Maybe ScoreTime]
-real_to_score block_id inv = map convert
-    where
-    convert t = case Seq.head $ filter ((==block_id) . fst) (inv t) of
+real_to_score block_id inv = map $ \t ->
+    case Seq.head $ filter ((==block_id) . fst) (inv t) of
         -- If this block is being played multiple times then just pick the
         -- first one and the first track.  That's basically what the playback
         -- monitor does anyway.

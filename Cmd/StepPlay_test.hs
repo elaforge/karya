@@ -75,6 +75,10 @@ test_move = do
     equal (e_midi res) [Midi.NoteOff Key.e4 0, Midi.NoteOn Key.f4 127]
     equal (CmdTest.extract_ui get_sel res) $ Right (Just 3, [])
 
+    res <- return $ CmdTest.run_again res StepPlay.cmd_advance
+    equal (e_midi res) [Midi.NoteOff Key.f4 0]
+    equal (CmdTest.extract_ui get_sel res) $ Right (Just 4, [])
+
     -- Ran out of notes.
     res <- return $ CmdTest.run_again res StepPlay.cmd_advance
     equal (e_midi res) []
@@ -82,13 +86,13 @@ test_move = do
 
     -- Rewind
     res <- return $ CmdTest.run_again res StepPlay.cmd_rewind
-    equal (e_midi res) [Midi.NoteOn Key.e4 127, Midi.NoteOff Key.f4 0]
-    equal (CmdTest.extract_ui get_sel res) $ Right (Just 2, [])
+    equal (e_midi res) [Midi.NoteOn Key.f4 127]
+    equal (CmdTest.extract_ui get_sel res) $ Right (Just 3, [])
 
     -- Go back forward to make sure zipping is zipping properly.
     res <- return $ CmdTest.run_again res StepPlay.cmd_advance
-    equal (e_midi res) [Midi.NoteOff Key.e4 0, Midi.NoteOn Key.f4 127]
-    equal (CmdTest.extract_ui get_sel res) $ Right (Just 3, [])
+    equal (e_midi res) [Midi.NoteOff Key.f4 0]
+    equal (CmdTest.extract_ui get_sel res) $ Right (Just 4, [])
 
 test_move_tracks = do
     res <- prepare_blocks UiTest.default_block_name

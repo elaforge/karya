@@ -148,8 +148,11 @@ inverse_tempo_func track_warps time = do
     -- time.  But if this function returns [] the play monitor thread will take
     -- that to mean the performance is over.
     ts = max 0 time
+    -- ts <= tw_end means that you can get the ScoreTime for the end of
+    -- a block.  This is useful because then "Cmd.StepPlay" can step to the
+    -- very end.
     track_pos = [(tw_block tw, tw_tracks tw, Score.unwarp_pos ts (tw_warp tw))
-        | tw <- track_warps, tw_start tw <= ts && ts < tw_end tw]
+        | tw <- track_warps, tw_start tw <= ts && ts <= tw_end tw]
 
     -- TODO Comment is obsolete, but I may want to add it back in if I go
     -- back to using 'Perf.find_play_pos' for the step playback.

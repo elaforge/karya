@@ -186,8 +186,8 @@ test_subderive = do
     let b0 pos = (UiTest.bid "b0", [(UiTest.mk_tid_name "b0" 1, pos),
             (UiTest.mk_tid_name "b0" 2, pos)])
         sub pos = (UiTest.bid "sub", [(UiTest.mk_tid_name "sub" 1, pos)])
-    equal (map (inv_tempo res) [0, 2 .. 8])
-        [[b0 0], [b0 4], [b0 8, sub 0], [b0 12, sub 1], [b0 16]]
+    equal (map (inv_tempo res) [0, 2 .. 10])
+        [[b0 0], [b0 4], [b0 8, sub 0], [b0 12, sub 1], [b0 16, sub 2], []]
 
     -- For eyeball verification.
     -- pprint (r_events res)
@@ -257,8 +257,9 @@ test_multiple_subderive = do
     let b0 pos = (UiTest.bid "b0", [(UiTest.mk_tid_name "b0" 1, pos)])
         sub pos = (UiTest.bid "sub", [(UiTest.mk_tid_name "sub" 1, pos)])
     equal (map List.sort pos)
-        [ [b0 0, sub 0], [b0 1, sub 0.5], [b0 2, sub 0], [b0 3, sub 0.5]
-        , [b0 4, sub 0], [b0 5, sub 0.5], []
+        [ [b0 0, sub 0], [b0 1, sub 0.5], [b0 2, sub 0, sub 1]
+        , [b0 3, sub 0.5] , [b0 4, sub 0, sub 1]
+        , [b0 5, sub 0.5], [b0 6, sub 1]
         ]
 
 test_tempo_compose = do
@@ -511,9 +512,9 @@ test_make_inverse_tempo_func = do
     let f = TrackWarp.inverse_tempo_func track_warps
         with_block pos = [(UiTest.default_block_id, [(track_id, pos)])]
     -- Fast tempo means ScoreTime passes quickly relative to Timestamps.
-    -- Second 2 at tempo 2 is trackpos 4, which is past the end of the block.
-    equal (map (f . RealTime.seconds) [0..2])
-        [with_block 0, with_block 2, []]
+    -- Second 2 at tempo 2 is trackpos 4, which is at the end of the block.
+    equal (map (f . RealTime.seconds) [0..3])
+        [with_block 0, with_block 2, with_block 4, []]
 
 test_tempo_roundtrip = do
     let track_id = Types.TrackId (UiTest.mkid "warp")
