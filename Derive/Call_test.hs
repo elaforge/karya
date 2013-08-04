@@ -167,7 +167,7 @@ test_events_around = do
             ]
         with_call = CallTest.with_note_call "around" c_around
         extract = DeriveTest.r_log_strings
-    equal logs ["prev: [0.0t]", "next: [2.0t]"]
+    equal logs ["prev: [0.0]", "next: [2.0]"]
 
     where
     c_around = Derive.stream_generator "around" mempty "doc" $ Sig.call0 $

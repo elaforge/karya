@@ -8,12 +8,11 @@ module Ui.ScoreTime (
 ) where
 import qualified Control.DeepSeq as DeepSeq
 import qualified Data.Digest.CRC32 as CRC32
-import qualified Text.ParserCombinators.ReadP as ReadP
 import qualified Text.Read as Read
 
 import qualified Util.ApproxEq as ApproxEq
-import Util.Crc32Instances ()
 import Util.Control
+import Util.Crc32Instances ()
 import qualified Util.ForeignC as C
 import qualified Util.Pretty as Pretty
 import qualified Util.Serialize as Serialize
@@ -55,15 +54,8 @@ instance C.CStorable ScoreTime where
     poke p (ScoreTime d) = C.poke (C.castPtr p) (Util.c_double d)
     peek p = ScoreTime . Util.hs_double <$> C.peek (C.castPtr p)
 
-instance Show ScoreTime where
-    show (ScoreTime n) = show n ++ [suffix]
-
-instance Read.Read ScoreTime where
-    readPrec = do
-        n <- Read.readPrec
-        Read.lift ReadP.skipSpaces
-        't' <- Read.get
-        return (ScoreTime n)
+instance Show ScoreTime where show (ScoreTime n) = show n
+instance Read.Read ScoreTime where readPrec = ScoreTime <$> Read.readPrec
 
 instance Pretty.Pretty ScoreTime where
     pretty (ScoreTime p) = Pretty.show_float 3 p ++ [suffix]
