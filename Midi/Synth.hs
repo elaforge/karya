@@ -12,6 +12,7 @@ import qualified Control.Monad.Reader as Reader
 import qualified Control.Monad.State.Strict as State
 
 import qualified Data.Map as Map
+import qualified Data.Text as Text
 import qualified Text.Printf as Printf
 
 import Util.Control
@@ -24,18 +25,27 @@ import qualified Perform.RealTime as RealTime
 import Types
 
 
+report :: [Midi.WriteMessage] -> Text
+report = pretty_state . run empty_state
+
 data State = State {
     -- | Notes still sounding.
     state_active :: Map.Map Addr [Note]
     -- | Notes already complete.  I suppose I should take the Maybe off
     -- the duration but can't be bothered.
     , state_notes :: [Note]
-    , state_warns :: [(Midi.WriteMessage, String)]
+    , state_warns :: [(Midi.WriteMessage, Text)]
     -- | Decay time of instruments by addr.
     , state_decay :: Map.Map Addr RealTime
     -- | Pitch bend range for instruments by addr.
     , state_pb_range :: Map.Map Addr (Double, Double)
     } deriving (Show)
+
+data Control = CC Midi.Control | Aftertouch | Pressure deriving (Eq, Ord, Show)
+type Addr = (Midi.WriteDevice, Midi.Channel)
+type ControlMap = Map.Map Control [(RealTime, Midi.ControlValue)]
+
+empty_state :: State
 empty_state = State mempty [] [] mempty mempty
 
 default_decay = RealTime.seconds 1
@@ -58,11 +68,6 @@ make_note addr start key vel =
 
 note_end :: Note -> Maybe RealTime
 note_end n = (+ note_start n) <$> note_duration n
-
-data Control = CC Midi.Control | Aftertouch | Pressure deriving (Eq, Ord, Show)
-
-type Addr = (Midi.WriteDevice, Midi.Channel)
-type ControlMap = Map.Map Control [(RealTime, Midi.ControlValue)]
 
 type SynthM a = Reader.ReaderT Midi.WriteMessage
     (State.StateT State Identity.Identity) a
@@ -90,11 +95,10 @@ postproc st0 = state
         }
 
 run_msg :: RealTime -> Midi.WriteMessage -> SynthM ()
-run_msg prev_ts (Midi.WriteMessage dev ts (Midi.ChannelMessage chan msg))
-        = do
+run_msg prev_ts (Midi.WriteMessage dev ts (Midi.ChannelMessage chan msg)) = do
     State.modify $ deactivate ts
     when (ts < prev_ts) $
-        warn $ "timestamp less than previous: " ++ Pretty.pretty prev_ts
+        warn $ "timestamp less than previous: " <> Pretty.prettytxt prev_ts
     case msg of
         Midi.NoteOff key _ -> ifM (is_active addr key)
             (note_off addr ts key)
@@ -138,7 +142,7 @@ control addr ts control val = modify_notes (Just warning) addr (map insert)
     where
     insert note = note { note_controls =
         Map.insertWith (++) control [(ts, val)] (note_controls note) }
-    warning = show control ++ " without note"
+    warning = showt control <> " without note"
 
 pitch_bend :: Addr -> RealTime -> Midi.PitchBendValue -> SynthM ()
 pitch_bend addr ts val = do
@@ -150,7 +154,7 @@ pitch_bend addr ts val = do
     insert rel_pitch note = note { note_pitch =
         (ts, Midi.from_key (note_key note) + rel_pitch) : note_pitch note }
 
-modify_notes :: Maybe String -> Addr -> ([Note] -> [Note]) -> SynthM ()
+modify_notes :: Maybe Text -> Addr -> ([Note] -> [Note]) -> SynthM ()
 modify_notes maybe_msg addr f = do
     active <- State.gets state_active
     let notes = Map.findWithDefault [] addr active
@@ -159,7 +163,7 @@ modify_notes maybe_msg addr f = do
         _ -> State.modify $ \state -> state
             { state_active = Map.insert addr (f notes) (state_active state) }
 
-warn :: String -> SynthM ()
+warn :: Text -> SynthM ()
 warn msg = do
     wmsg <- Reader.ask
     State.modify $ \state ->
@@ -181,32 +185,30 @@ deactivate ts state = state
 -- * pretty
 
 -- | Format synth state in an easier to read way.
-pretty_state :: State -> String
-pretty_state (State active notes warns _ _) = Seq.join "\n" $
-    ["active:"]
-    ++ map Pretty.pretty (concat (Map.elems active))
-    ++ ["", "warns:"]
-    ++ map pretty_warn warns
-    ++ ["", "notes:"]
-    ++ map Pretty.pretty notes
+pretty_state :: State -> Text
+pretty_state (State active notes warns _ _) = Text.intercalate "\n" $ concat
+    [ ["active:"], map Pretty.prettytxt (concat (Map.elems active))
+    , ["", "warns:"], map pretty_warn warns
+    , ["", "notes:"], map Pretty.prettytxt notes
+    ]
 
 pretty_controls :: ControlMap -> String
 pretty_controls controls = Seq.join "\n\t"
     [show cont ++ ":" ++ Pretty.pretty vals
         | (cont, vals) <- Map.assocs controls]
 
-pretty_warn :: (Midi.WriteMessage, String) -> String
+pretty_warn :: (Midi.WriteMessage, Text) -> Text
 pretty_warn (Midi.WriteMessage dev ts (Midi.ChannelMessage chan msg), warn) =
-    Pretty.pretty ts ++ " " ++ Pretty.pretty dev ++ ":" ++ show chan ++ " "
-        ++ show msg ++ ": " ++ warn
+    Pretty.prettytxt ts <> " " <> Pretty.prettytxt dev <> ":" <> showt chan
+        <> " " <> showt msg <> ": " <> warn
 pretty_warn (Midi.WriteMessage dev ts msg, warn) =
-    Pretty.pretty ts ++ " " ++ Pretty.pretty dev ++ ":" ++ show msg
-        ++ ": " ++ warn
+    Pretty.prettytxt ts <> " " <> Pretty.prettytxt dev <> ":" <> showt msg
+        <> ": " <> warn
 
 instance Pretty.Pretty Note where
-    pretty (Note start dur _key vel pitch controls (dev, chan)) =
-        Printf.printf "%s %s--%s: %s V:%x C: %s" addr_s (Pretty.pretty start)
-            (maybe "" Pretty.pretty dur) (Pretty.pretty pitch)
-            vel (pretty_controls controls)
+    pretty (Note start dur key vel pitch controls (dev, chan)) =
+        Printf.printf "%s %s %s--%s: %s V:%x C: %s" addr_s (Pretty.pretty key)
+            (Pretty.pretty start) (maybe "" Pretty.pretty dur)
+            (Pretty.pretty pitch) vel (pretty_controls controls)
         where
         addr_s = Pretty.pretty dev ++ ":" ++ show chan

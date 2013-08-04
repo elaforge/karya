@@ -4,8 +4,9 @@
 
 module Midi.Synth_test where
 import qualified Data.Map as Map
-import Util.Test
 
+import Util.Control
+import Util.Test
 import qualified Midi.Midi as Midi
 import Midi.Midi (ChannelMessage(..))
 import qualified Midi.Synth as Synth
@@ -29,7 +30,8 @@ test_run = do
             , (20, 0, ControlChange 2 100)
             , (30, 0, ControlChange 2 50)
             ]
-    putStrLn $ Synth.pretty_state state
+    match (untxt (Synth.pretty_state state))
+        "active:*dev:0 e4*warns:*double note on*notes:*dev:0 e4*"
 
 test_control = do
     let f = extract (Map.assocs . Synth.note_controls) . run . map mkmsg
@@ -94,7 +96,7 @@ run = Synth.run Synth.empty_state
 ts = RealTime.milliseconds
 
 extract :: (Synth.Note -> a) -> Synth.State
-    -> ([a], [a], [(RealTime.RealTime, String)])
+    -> ([a], [a], [(RealTime.RealTime, Text)])
 extract extract_note state =
     ( map extract_note (concat (Map.elems (Synth.state_active state)))
     , map extract_note (Synth.state_notes state)
