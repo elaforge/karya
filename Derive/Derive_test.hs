@@ -112,9 +112,9 @@ test_attributes = do
     -- Attrs get the proper keyswitches and keymap keys.
     equal (note_on_keys mmsgs) [1, Key.c4, 0, Key.c4]
 
-note_on_keys :: [(Integer, Midi.Message)] -> [Midi.Key]
+note_on_keys :: [Midi.WriteMessage] -> [Midi.Key]
 note_on_keys msgs =
-    [nn | Midi.ChannelMessage _ (Midi.NoteOn nn _) <- map snd msgs]
+    [nn | Midi.ChannelMessage _ (Midi.NoteOn nn _) <- map Midi.wmsg_msg msgs]
 
 test_stack = do
     let extract = fst . DeriveTest.extract Score.event_stack
@@ -477,7 +477,7 @@ test_fractional_pitch = do
 
     equal logs []
     equal [(chan, nn) | Midi.ChannelMessage chan (Midi.NoteOn nn _)
-            <- map snd mmsgs]
+            <- map Midi.wmsg_msg mmsgs]
         [(0, 72), (1, 73)]
 
 e_control :: Text -> Score.Event -> Maybe [(Signal.X, Signal.Y)]
@@ -500,7 +500,7 @@ test_control = do
     equal (length perf_events) 2
 
     -- Just make sure it did in fact emit ccs.
-    check $ any Midi.is_cc (map snd mmsgs)
+    check $ any Midi.is_cc (map Midi.wmsg_msg mmsgs)
 
 test_make_inverse_tempo_func = do
     -- This is actually also tested in test_subderive.
@@ -603,9 +603,12 @@ test_regress_pedal = do
     let res = derive_blocks blocks
     let (_perf_events, mmsgs, _logs) =
             DeriveTest.perform_defaults (Derive.r_events res)
-    let pedal_on = [(ts, c)
-            | (ts, Midi.ChannelMessage _ (Midi.ControlChange 64 c)) <- mmsgs
-            , c /= 0]
+    let pedal_on =
+            [ (ts, c)
+            | (ts, Midi.ChannelMessage _ (Midi.ControlChange 64 c))
+                <- DeriveTest.extract_midi mmsgs
+            , c /= 0
+            ]
     equal pedal_on [(12500, 127)]
     where
     blocks = [(("b10",

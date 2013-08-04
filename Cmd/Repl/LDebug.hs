@@ -5,10 +5,9 @@
 {-# LANGUAGE NoMonomorphismRestriction #-}
 -- | Debugging utilities.
 module Cmd.Repl.LDebug where
-import qualified System.IO as IO
+import qualified Data.Map as Map
 
 import Util.Control
-import qualified Util.PPrint as PPrint
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 
@@ -29,14 +28,16 @@ import Types
 dump_blocks :: FilePath -> Cmd.CmdL ()
 dump_blocks fname = do
     state <- State.get
-    liftIO $ UiTest.dump_blocks fname state
+    liftIO $ UiTest.write_dump fname state
 
--- | Save a block in a format that can be copy-pasted into a test, and loaded
--- with 'UiTest.read_blocks'.
+-- | Like 'dump_blocks', but only dump a single block.
 dump_block :: FilePath -> BlockId -> Cmd.CmdL ()
 dump_block fname block_id = do
-    st <- State.get
-    liftIO $ IO.writeFile fname $ PPrint.pshow [UiTest.show_block block_id st]
+    state <- State.get
+    block <- State.get_block block_id
+    liftIO $ UiTest.write_dump fname $ state
+        { State.state_blocks = Map.singleton block_id block
+        }
 
 -- * perf events
 

@@ -64,6 +64,6 @@ test_event_echo = do
             (2000, 60, 51), (5000, 62, 51), (9000, 62, 20)]
 
 perform :: (String, [UiTest.EventSpec]) -> [UiTest.TrackSpec]
-     -> ([(Integer, Midi.Message)], [String])
-perform (title, events) tracks = DeriveTest.perform_block
-    (tracks ++ [(DeriveTest.default_inst_title ++ " | " ++ title, events)])
+     -> ([Midi.WriteMessage], [String])
+perform (title, events) tracks = DeriveTest.perform_block $
+    tracks ++ [(DeriveTest.default_inst_title ++ " | " ++ title, events)]

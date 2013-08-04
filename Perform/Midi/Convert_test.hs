@@ -163,7 +163,7 @@ test_keymap = do
 
 perform :: (Instrument.Patch -> Instrument.Patch, MidiInst.Code)
     -> [(Text, [Midi.Channel])] -> [UiTest.TrackSpec]
-    -> ([Perform.Event], [DeriveTest.Midi], [Log.Msg])
+    -> ([Perform.Event], [Midi.WriteMessage], [Log.Msg])
 perform (set_patch, code) alloc tracks =
     DeriveTest.perform_inst synth alloc (Derive.r_events result)
     where

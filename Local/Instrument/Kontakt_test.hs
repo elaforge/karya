@@ -70,7 +70,7 @@ test_mridangam = do
     let (_events, midi, logs) = run "3b" right
     equal logs []
     equal (mapMaybe Midi.channel_message $ filter Midi.is_note_on $
-            map snd midi)
+            map snd (DeriveTest.extract_midi midi))
         [ Midi.NoteOn Key.d3 127, Midi.NoteOn Key.d4 127
         , Midi.NoteOn Key.d5 127, Midi.NoteOn Key.d6 127
         , Midi.NoteOn Key.d7 127, Midi.NoteOn Key.d8 127
@@ -81,5 +81,5 @@ derive = DeriveTest.derive_tracks_with
     (DeriveTest.with_inst_db Kontakt.synth_descs)
 
 perform :: Text -> Derive.Events
-    -> ([Perform.Event], [DeriveTest.Midi], [Log.Msg])
+    -> ([Perform.Event], [Midi.WriteMessage], [Log.Msg])
 perform inst = DeriveTest.perform_inst Kontakt.synth_descs [(inst, [0])]

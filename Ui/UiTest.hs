@@ -268,23 +268,39 @@ regular_notes n = note_track $ take n
 
 -- * state to spec
 
+-- | Dump a score, or part of a score, to paste into a test.
+-- (global_transform, midi_config, aliases, blocks)
+type Dump = (Text, MidiConfig, Aliases, [(BlockSpec, [Skeleton.Edge])])
+type Aliases = [(Text, Text)]
+
 -- | These can be used from 'Cmd.Repl.LDebug.dump_blocks' to dump state in
 -- a form that can be pasted into a test, trimmed down by hand, and passed to
--- 'read_blocks'.  This way problems that show up in the app can be pasted
+-- 'read_dump'.  This way problems that show up in the app can be pasted
 -- into a test.
-dump_blocks :: FilePath -> State.State -> IO ()
-dump_blocks fname state =
-    IO.writeFile fname $ PPrint.pshow (show_blocks state)
+write_dump :: FilePath -> State.State -> IO ()
+write_dump fname = IO.writeFile fname . PPrint.pshow . dump_blocks
 
-read_blocks :: (State.M m) => [(BlockSpec, [Skeleton.Edge])] -> m ()
-read_blocks = mkblocks_skel
+read_dump :: Dump -> State.State
+read_dump (global_transform, midi, aliases, blocks) = exec State.empty $ do
+    mkblocks_skel blocks
+    State.modify $
+        (State.config#State.global_transform #= global_transform)
+        . (State.config#State.midi #= midi_config midi)
+        . (State.config#State.aliases #=
+            Map.fromList (map (Score.Instrument *** Score.Instrument) aliases))
 
-show_blocks :: State.State -> [(BlockSpec, [Skeleton.Edge])]
-show_blocks state = map (flip show_block state)
-    (Map.keys (State.state_blocks state))
+dump_blocks :: State.State -> Dump
+dump_blocks state =
+    ( State.config#State.global_transform #$ state
+    , dump_midi_config $ State.config#State.midi #$ state
+    , map (Score.inst_name *** Score.inst_name) . Map.toList $
+        State.config#State.aliases #$ state
+    , map (flip dump_block state) (Map.keys (State.state_blocks state))
+    )
+    where
 
-show_block :: BlockId -> State.State -> (BlockSpec, [Skeleton.Edge])
-show_block block_id state = ((block_name, map dump_track tracks), skel)
+dump_block :: BlockId -> State.State -> (BlockSpec, [Skeleton.Edge])
+dump_block block_id state = ((block_name, map dump_track tracks), skel)
     where
     (id_str, _, tracks, skel) = eval state (Simple.dump_block block_id)
     block_name = snd $ Id.un_id $ Id.read_id id_str
@@ -292,10 +308,10 @@ show_block block_id state = ((block_name, map dump_track tracks), skel)
     convert (start, dur, text) =
         (ScoreTime.double start, ScoreTime.double dur, untxt text)
 
--- | Like 'show_block' but strip out everything but the tracks.
+-- | Like 'dump_block' but strip out everything but the tracks.
 extract_tracks_of :: BlockId -> State.State -> [TrackSpec]
 extract_tracks_of block_id state = tracks
-    where ((_, tracks), _) = show_block block_id state
+    where ((_, tracks), _) = dump_block block_id state
 
 -- | Get the names and tracks of the default block.
 extract_tracks :: State.State -> [TrackSpec]
@@ -416,7 +432,15 @@ mark name = Ruler.Mark 0 3 (Color.rgba 0.4 0 0.4 0.4) name 0 0
 set_midi_config :: Instrument.Configs -> State.State -> State.State
 set_midi_config = flip exec . State.set_midi_config
 
-midi_config :: [(Text, [Midi.Channel])] -> Instrument.Configs
+type MidiConfig = [(Text, [Midi.Channel])]
+
+dump_midi_config :: Instrument.Configs -> MidiConfig
+dump_midi_config configs =
+    [(Score.inst_name inst, chans_of config)
+        | (inst, config) <- Map.toList configs]
+    where chans_of = map (snd . fst) . Instrument.config_addrs
+
+midi_config :: MidiConfig -> Instrument.Configs
 midi_config config = Instrument.configs
     [(Score.Instrument inst, map mkaddr chans) | (inst, chans) <- config]
     where mkaddr chan = (Midi.write_device "s", chan)

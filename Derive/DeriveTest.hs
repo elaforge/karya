@@ -118,12 +118,10 @@ eval ui_state m = extract_run id (run ui_state m)
 
 -- * perform
 
-type Midi = (Integer, Midi.Message)
-
-perform_block :: [UiTest.TrackSpec] -> ([Midi], [String])
+perform_block :: [UiTest.TrackSpec] -> ([Midi.WriteMessage], [String])
 perform_block tracks = perform_blocks [(UiTest.default_block_name, tracks)]
 
-perform_blocks :: [UiTest.BlockSpec] -> ([Midi], [String])
+perform_blocks :: [UiTest.BlockSpec] -> ([Midi.WriteMessage], [String])
 perform_blocks blocks = (mmsgs, map show_log (filter interesting_log logs))
     where
     (_, mmsgs, logs) = perform default_convert_lookup default_midi_config
@@ -131,31 +129,29 @@ perform_blocks blocks = (mmsgs, map show_log (filter interesting_log logs))
     result = derive_blocks blocks
 
 perform :: Convert.Lookup -> Instrument.Configs -> Derive.Events
-    -> ([Perform.Event], [Midi], [Log.Msg])
+    -> ([Perform.Event], [Midi.WriteMessage], [Log.Msg])
 perform lookup midi_config events =
     (fst (LEvent.partition perf_events), mmsgs, filter interesting_log logs)
     where
     (perf_events, perf) = perform_stream lookup midi_config events
     (mmsgs, logs) = LEvent.partition perf
 
-perform_defaults :: Derive.Events -> ([Perform.Event], [Midi], [Log.Msg])
+perform_defaults :: Derive.Events
+    -> ([Perform.Event], [Midi.WriteMessage], [Log.Msg])
 perform_defaults = perform default_convert_lookup default_midi_config
 
 perform_stream :: Convert.Lookup -> Instrument.Configs -> Derive.Events
-    -> ([LEvent.LEvent Perform.Event], [LEvent.LEvent Midi])
-perform_stream lookup midi_config events = (perf_events, mmsgs)
+    -> ([LEvent.LEvent Perform.Event], [LEvent.LEvent Midi.WriteMessage])
+perform_stream lookup midi_config events = (perf_events, midi)
     where
     perf_events = Convert.convert lookup (LEvent.events_of events)
     (midi, _) = Perform.perform Perform.initial_state midi_config perf_events
-    mmsgs = map (fmap extract_m) midi
-    extract_m wmsg =
-        (RealTime.to_milliseconds (Midi.wmsg_ts wmsg), Midi.wmsg_msg wmsg)
 
 -- | Perform events with the given instrument config.
 perform_inst :: [Cmd.SynthDesc] -> [(Text, [Midi.Channel])] -> Derive.Events
-    -> ([Perform.Event], [Midi], [Log.Msg])
+    -> ([Perform.Event], [Midi.WriteMessage], [Log.Msg])
 perform_inst synths config =
-    perform (synth_to_convert_lookup synths) (UiTest.midi_config config)
+    perform (synth_to_convert_lookup mempty synths) (UiTest.midi_config config)
 
 -- * derive
 
@@ -230,6 +226,20 @@ derive_block_standard cache damage with ui_state block_id = case result of
     deriver = with $ Call.Block.eval_root_block global_transform block_id
     (_cstate, _midi_msgs, _logs, result) = Cmd.run_id ui_state cmd_state $
         Derive.extract_result <$> PlayUtil.run cache damage deriver
+
+-- | Derive the results of a "Cmd.Repl.LDebug".dump_block.
+derive_dump :: UiTest.Dump -> BlockId -> Derive.Result
+derive_dump = derive_block . UiTest.read_dump
+
+perform_dump :: [MidiInst.SynthDesc] -> UiTest.Dump -> Derive.Result
+    -> ([Perform.Event], [Midi.WriteMessage], [Log.Msg])
+perform_dump synths (_, midi, aliases, _) =
+    perform lookup config . Derive.r_events
+    where
+    lookup = synth_to_convert_lookup
+        (Map.fromList (map (Score.Instrument *** Score.Instrument) aliases))
+        synths
+    config = UiTest.midi_config midi
 
 -- * misc
 
@@ -468,14 +478,14 @@ show_log = Log.msg_string
 
 -- ** extract midi msgs
 
-note_on_times :: [(Integer, Midi.Message)]
-    -> [(Integer, Midi.Key, Midi.Velocity)]
+note_on_times :: [Midi.WriteMessage] -> [(Integer, Midi.Key, Midi.Velocity)]
 note_on_times mmsgs =
-    [(ts, nn, vel) | (ts, Midi.ChannelMessage _ (Midi.NoteOn nn vel)) <- mmsgs]
+    [(ts, nn, vel) | (ts, Midi.ChannelMessage _ (Midi.NoteOn nn vel))
+        <- extract_midi mmsgs]
 
-extract_midi :: Perform.MidiEvents -> [(Integer, Midi.Message)]
+extract_midi :: [Midi.WriteMessage] -> [(Integer, Midi.Message)]
 extract_midi events = [(RealTime.to_milliseconds ts, msg)
-    | Midi.WriteMessage _ ts msg <- LEvent.events_of events]
+    | Midi.WriteMessage _ ts msg <- events]
 
 -- ** ui state
 
@@ -556,8 +566,10 @@ synth_to_derive_instrument synth_descs inst =
     fmap Cmd.derive_instrument $ Instrument.Db.db_lookup db inst
     where db = synth_to_db synth_descs
 
-synth_to_convert_lookup :: [MidiInst.SynthDesc] -> Convert.Lookup
-synth_to_convert_lookup = make_convert_lookup . synth_to_db
+synth_to_convert_lookup :: Map.Map Score.Instrument Score.Instrument
+    -> [MidiInst.SynthDesc] -> Convert.Lookup
+synth_to_convert_lookup aliases =
+    make_convert_lookup . Instrument.Db.with_aliases aliases . synth_to_db
 
 synth_to_db :: [Cmd.SynthDesc] -> Cmd.InstrumentDb
 synth_to_db synth_descs =

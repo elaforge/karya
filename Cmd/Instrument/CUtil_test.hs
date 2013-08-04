@@ -61,7 +61,9 @@ test_drum_instrument = do
     let (_, midi, logs) = DeriveTest.perform_inst drum_synth [("synth/x", [0])]
             (Derive.r_events result)
     equal logs []
-    equal (mapMaybeSnd Midi.channel_message (filter (Midi.is_note . snd) midi))
+    let e_midi = mapMaybeSnd Midi.channel_message . filter (Midi.is_note . snd)
+            . DeriveTest.extract_midi
+    equal (e_midi midi)
         [ (0, NoteOn Key.c2 127), (10, NoteOff Key.c2 127)
         , (1000, NoteOn Key.d2 127), (1010, NoteOff Key.d2 127)
         ]
