@@ -4,6 +4,7 @@
 
 module Perform.Midi.Perform_test where
 import qualified Control.Concurrent as Concurrent
+import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 
@@ -137,8 +138,8 @@ test_perform_voices = do
         ([(0, (0, Key.c4)), (1, (0, Key.cs4))], [])
     -- First voice gets stolen because they both ran out.
     equal (f config12 [("a", 0), ("b", 0.5), ("c", 0.5), ("d", 0.5)])
-        ([(0, (0, Key.c4)), (0.5, (1, Key.cs4)), (0.5, (1, Key.d4)),
-            (0.5, (0, Key.ds4))], [])
+        ([(0, (0, Key.c4)), (0.5, (0, Key.ds4)), (0.5, (1, Key.cs4)),
+            (0.5, (1, Key.d4))], [])
     -- Infinite voices means the second channel is never chosen.
     equal (f [(0, Nothing), (1, Just 1)] [("a", 0), ("b", 0), ("c", 0)])
         ([(0, (0, Key.c4)), (0, (0, Key.cs4)), (0, (0, Key.d4))], [])
@@ -150,11 +151,11 @@ test_aftertouch = do
             (inst1, pitch, start, dur,
                 [(Controls.aftertouch, Signal.signal aftertouch)])
     equal (f [("a", 0, 1, [(0, 1)]), ("b", 0, 1, [(0, 0)])])
-        [ (0, 0, PitchBend 0)
-        , (0, 0, Aftertouch Key.c4 127)
-        , (0, 0, NoteOn Key.c4 100)
-        , (0, 0, Aftertouch Key.cs4 0)
+        [ (0, 0, NoteOn Key.c4 100)
         , (0, 0, NoteOn Key.cs4 100)
+        , (0, 0, Aftertouch Key.c4 127)
+        , (0, 0, Aftertouch Key.cs4 0)
+        , (0, 0, PitchBend 0)
         , (1 - gap, 0, NoteOff Key.c4 100)
         , (1 - gap, 0, NoteOff Key.cs4 100)
         ]
@@ -172,7 +173,7 @@ test_controls_after_note_off = do
             ]
     -- Signal at 1.95 dropped because of the next note on.
     equal msgs
-        [ (0, PitchBend 0), (0, ControlChange 7 127), (0, NoteOn 60 100)
+        [ (0, NoteOn 60 100), (0, ControlChange 7 127), (0, PitchBend 0)
         , (1 - gap, NoteOff 60 100)
         , (2, NoteOn 61 100), (3 - gap, NoteOff 61 100)
         ]
@@ -183,10 +184,10 @@ test_controls_after_note_off = do
             ]
     -- But not this time.
     equal msgs
-        [ (0, PitchBend 0), (0, ControlChange 7 127), (0, NoteOn 60 100)
+        [ (0, NoteOn 60 100), (0, ControlChange 7 127), (0, PitchBend 0)
         , (1.95, ControlChange 7 64)
         , (2 - gap, NoteOff 60 100)
-        , (2, ControlChange 7 127), (2, NoteOn 61 100)
+        , (2, NoteOn 61 100), (2, ControlChange 7 127)
         , (3 - gap, NoteOff 61 100)
         ]
 
@@ -196,7 +197,7 @@ test_controls_after_note_off = do
             ]
     -- Room enough for both.
     equal msgs
-        [ (0, PitchBend 0), (0, ControlChange 7 127), (0, NoteOn 60 100)
+        [ (0, NoteOn 60 100), (0, ControlChange 7 127), (0, PitchBend 0)
         , (1 - gap, NoteOff 60 100)
         , (1.5, ControlChange 7 64)
         , (1.9, ControlChange 7 127)
@@ -207,12 +208,12 @@ test_control_lead_time = do
     -- verify that controls are given lead time if they are on their own
     -- channels, and not if they aren't
     let lead = Perform.control_lead_time
-        extract (msgs, warns) = (map extract_msg msgs, warns)
     let f = extract . perform midi_config2 . mkevents_inst
+        extract (msgs, warns) = (map extract_msg msgs, warns)
 
     equal (f [("a", 0, 4, []), ("b2", 4, 4, [])])
-        ([ (0, 0, PitchBend 0)
-        , (0, 0, NoteOn 60 100)
+        ([(0, 0, NoteOn 60 100)
+        , (0, 0, PitchBend 0)
 
         , (4 - lead, 1, PitchBend 0.5)
         , (4 - gap, 0, NoteOff 60 100)
@@ -222,11 +223,11 @@ test_control_lead_time = do
 
     let vol start = (Controls.vol, linear_interp [(start, 0), (start + 2, 1)])
     equal (f [("a", 0, 4, []), ("b", 2, 4, [vol 2])])
-        ([(0, 0, PitchBend 0)
-        , (0, 0, NoteOn 60 100)
+        ([(0, 0, NoteOn 60 100)
+        , (0, 0, PitchBend 0)
 
-        , (2 - lead, 1, PitchBend 0)
         , (2 - lead, 1, ControlChange 7 0)
+        , (2 - lead, 1, PitchBend 0)
 
         , (2, 1, NoteOn 61 100)
         , (3, 1, ControlChange 7 64)
@@ -238,11 +239,11 @@ test_control_lead_time = do
     -- Non-overlapping notes means they go on the same channel, but there's no
     -- room for control lead.
     equal (f [("a", 0, 4, []), ("b", 4, 4, [vol 4])])
-        ([(0, 0, PitchBend 0)
-        , (0, 0, NoteOn 60 100)
+        ([(0, 0, NoteOn 60 100)
+        , (0, 0, PitchBend 0)
         , (4 - gap, 0, NoteOff 60 100)
-        , (4, 0, ControlChange 7 0)
         , (4, 0, NoteOn 61 100)
+        , (4, 0, ControlChange 7 0)
         , (5, 0, ControlChange 7 64)
         , (6, 0, ControlChange 7 127)
         , (8 - gap, 0, NoteOff 61 100)
@@ -252,24 +253,35 @@ test_control_lead_time = do
     -- control lead.
     let f2 = extract . perform midi_config2 . mkevents
     equal (f2 [(inst2, "a", 0, 4, []), (inst2, "b2", 4, 4, [])])
-        ([ (0, 2, PitchBend 0)
-        , (0, 2, NoteOn 60 100)
+        ([(0, 2, NoteOn 60 100)
+        , (0, 2, PitchBend 0)
         , (4 - gap, 2, NoteOff 60 100)
-        , (4, 2, PitchBend 0.5)
         , (4, 2, NoteOn 61 100)
+        , (4, 2, PitchBend 0.5)
         , (8 - gap, 2, NoteOff 61 100)
         ], [])
 
     equal (f2 [(inst2, "a", 0, 4, []), (inst2, "b", 4, 4, [vol 4])])
-        ([ (0, 2, PitchBend 0)
-        , (0, 2, NoteOn 60 100)
+        ([(0, 2, NoteOn 60 100)
+        , (0, 2, PitchBend 0)
         , (4 - gap, 2, NoteOff 60 100)
-        , (4, 2, ControlChange 7 0)
         , (4, 2, NoteOn 61 100)
+        , (4, 2, ControlChange 7 0)
         , (5, 2, ControlChange 7 64)
         , (6, 2, ControlChange 7 127)
         , (8 - gap, 2, NoteOff 61 100)
         ], [])
+
+test_msgs_sorted = do
+    -- Ensure that msgs are in order, even after control lead time.
+    let f = extract . perform midi_config1 . map mkevent
+        mkevent (s, dur, pitch) = mkpevent (s, dur, [(s, pitch)], [])
+        extract = first (map extract_msg)
+    let (msgs, logs) = f [(0, 1, 40.5), (1, 1, 40.5), (1, 1, 42.75)]
+        ts = map (\(ts, _, _) -> ts) msgs
+    equal logs []
+    equal ts (List.sort ts)
+    -- pprint msgs
 
 -- Bad signal that goes over 1 at 1 and 3.
 badsig :: Score.Control -> (Score.Control, Signal.Control)
@@ -471,8 +483,18 @@ note_key _ = Nothing
 
 perform :: Instrument.Configs -> [Perform.Event]
     -> ([Midi.WriteMessage], [String])
-perform midi_config = split_logs . fst
+perform midi_config = first consistent_order . split_logs . fst
     . Perform.perform Perform.initial_state midi_config . map LEvent.Event
+
+sort_groups :: (Eq k, Ord a) => (a -> k) -> [a] -> [a]
+sort_groups key = concatMap List.sort . List.groupBy (\a b -> key a == key b)
+
+-- | 'Perform.resort' scrambles msgs that have the same timestamp.  That should
+-- be fine, so tests that rely on their ordering are being overspecific.  So
+-- put them in a consistent order so tests don't break every time I mess with
+-- postproc.
+consistent_order :: [Midi.WriteMessage] -> [Midi.WriteMessage]
+consistent_order = sort_groups Midi.wmsg_ts
 
 perform_notes :: [(Perform.Event, Instrument.Addr)]
     -> ([Midi.WriteMessage], [String])
@@ -720,10 +742,11 @@ mkevent (inst, pitch, start, dur, controls) =
     pitch_map = zip (map (:"") ['a'..'z']) [60..]
         ++ zip (map (:"2") ['a'..'z']) [60.5..]
 
+type PEvent = (RealTime, RealTime, [(Signal.X, Signal.Y)],
+    [(Text, [(Signal.X, Signal.Y)])])
+
 -- | Similar to mkevent, but allow a pitch curve.
-mkpevent :: (RealTime, RealTime, [(Signal.X, Signal.Y)],
-        [(Text, [(Signal.X, Signal.Y)])])
-    -> Perform.Event
+mkpevent :: PEvent -> Perform.Event
 mkpevent (start, dur, psig, conts) =
     Perform.Event inst1 start dur (mkcontrols conts) (Signal.signal psig)
         Stack.empty

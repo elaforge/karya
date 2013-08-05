@@ -224,8 +224,11 @@ maximum xs = Just (List.maximum xs)
 
 -- * ordered lists
 
+insert_on :: (Ord k) => (a -> k) -> a -> [a] -> [a]
+insert_on key = List.insertBy (\a b -> compare (key a) (key b))
+
 -- | Stable sort on a cheap key function.
-sort_on :: (Ord b) => (a -> b) -> [a] -> [a]
+sort_on :: (Ord k) => (a -> k) -> [a] -> [a]
 sort_on = Ordered.sortOn'
 
 -- | Like 'sort_on', but sort highest-to-lowest.

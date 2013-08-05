@@ -634,7 +634,7 @@ perform_control cmap prev_note_off start midi_key (control, sig) =
     where
     -- The signal should already be trimmed to the event range, except that,
     -- as per the behaviour of Signal.drop_before, it may have a leading
-    -- sample.  I can drop that since it's handled specially be
+    -- sample.  I can drop that since it's handled specially by
     -- 'create_leading_cc'.
     pos_vals = create_leading_cc prev_note_off start sig $
         trim (Signal.unsignal clipped)
@@ -665,7 +665,7 @@ type AddrState =
 
 -- | Some context free post-processing on the midi stream.
 post_process :: PostprocState -> MidiEvents -> (MidiEvents, PostprocState)
-post_process = drop_dup_controls
+post_process state = first resort . drop_dup_controls state
 
 -- | Having to deal with Log is ugly... can't I get that out with fmap?
 drop_dup_controls :: PostprocState -> MidiEvents -> (MidiEvents, PostprocState)
@@ -696,6 +696,28 @@ analyze_msg (Just (pb_val, cmap)) msg = case msg of
         | Just v == Map.lookup c cmap -> (False, Nothing)
         | otherwise -> (True, Just (pb_val, Map.insert c v cmap))
     _ -> (True, Nothing)
+
+-- | Sort almost-sorted MidiEvents.  Events may be out of order by
+-- as much as control_lead_time.  This happens because 'create_leading_cc' adds
+-- events between 0--control_lead_time before the note, which can violate the
+-- precondition of 'Seq.merge_asc_lists'.
+--
+-- I tried to come up with a way for the events to come out sorted even with
+-- 'create_leading_cc', but creativity failed me, so I resorted to this hammer.
+resort :: MidiEvents -> MidiEvents
+resort = go mempty
+    where
+    go collect [] = map LEvent.Event collect
+    go collect (LEvent.Log log : events) = LEvent.Log log : go collect events
+    go collect (LEvent.Event event : events) =
+        map LEvent.Event pre ++ go post events
+        where
+        -- In the common sorted case, this means copying 'collect' every single
+        -- time.  Presumably I could go find a priority queue on hackage, but
+        -- lists are pretty fast...
+        (pre, post) = break ((> Midi.wmsg_ts event - interval) . Midi.wmsg_ts)
+            (Seq.insert_on Midi.wmsg_ts event collect)
+    interval = control_lead_time
 
 
 -- * data
@@ -754,9 +776,6 @@ merge_messages = Seq.merge_lists Midi.wmsg_ts
 
 merge_events :: MidiEvents -> MidiEvents -> MidiEvents
 merge_events = Seq.merge_on levent_start
-
-merge_sorted_events :: [MidiEvents] -> MidiEvents
-merge_sorted_events = Seq.merge_asc_lists levent_start
 
 levent_start :: LEvent.LEvent Midi.WriteMessage -> RealTime
 levent_start (LEvent.Log _) = 0
