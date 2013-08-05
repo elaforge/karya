@@ -60,7 +60,7 @@ test_control = do
 
 test_warns = do
     let f = extract Synth.note_start . run . map mkmsg
-    let (active, notes, ws) = f
+    let (active, notes, warns) = f
             [ (0, 0, NoteOn 64 38)
             , (100, 1, ControlChange 2 100)
             , (200, 2, PitchBend 1)
@@ -68,15 +68,18 @@ test_warns = do
             ]
     equal active []
     equal notes [ts 0]
-    equal ws
+    equal warns
         [(ts 100, "CC 2 without note"), (ts 200, "pitch bend without note")]
     -- pprint $ (extract id . run . map mkmsg)
-    equal (f
+    let (active, notes, warns) = f
             [ (0, 0, NoteOn 64 38)
             , (100, 0, NoteOn 64 100)
             , (200, 0, NoteOff 64 0)
-            ])
-        ([], [ts 0, ts 100], [(ts 100, "double note on")])
+            ]
+    equal active []
+    equal notes [ts 0, ts 100]
+    equal warns
+        [(ts 100, "double note on: dev:0 e4 0s--: [(0s, 64)] V:26 C: ")]
 
     equal (f [(100, 0, NoteOn 64 10), (0, 0, NoteOn 68 10)])
         ([ts 0, ts 100], [], [(ts 0, "timestamp less than previous: .1s")])

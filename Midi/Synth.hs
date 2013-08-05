@@ -11,8 +11,11 @@ import qualified Control.Monad.Identity as Identity
 import qualified Control.Monad.Reader as Reader
 import qualified Control.Monad.State.Strict as State
 
+import qualified Data.List as List
 import qualified Data.Map as Map
+import qualified Data.Maybe as Maybe
 import qualified Data.Text as Text
+
 import qualified Text.Printf as Printf
 
 import Util.Control
@@ -21,7 +24,6 @@ import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 
 import qualified Midi.Midi as Midi
-import qualified Perform.RealTime as RealTime
 import Types
 
 
@@ -36,6 +38,8 @@ data State = State {
     , state_notes :: [Note]
     , state_warns :: [(Midi.WriteMessage, Text)]
     -- | Decay time of instruments by addr.
+    -- TODO this is unused, but the intent was to find cases where notes
+    -- interfere due to decay
     , state_decay :: Map.Map Addr RealTime
     -- | Pitch bend range for instruments by addr.
     , state_pb_range :: Map.Map Addr (Double, Double)
@@ -48,7 +52,7 @@ type ControlMap = Map.Map Control [(RealTime, Midi.ControlValue)]
 empty_state :: State
 empty_state = State mempty [] [] mempty mempty
 
-default_decay = RealTime.seconds 1
+default_pb_range :: (Double, Double)
 default_pb_range = (-1, 1)
 
 data Note = Note {
@@ -88,7 +92,7 @@ postproc st0 = state
     , state_warns = reverse (state_warns state)
     }
     where
-    state = deactivate (RealTime.seconds 10000) st0
+    state = deactivate st0
     postproc_note note = note
         { note_controls = Map.map reverse (note_controls note)
         , note_pitch = reverse (note_pitch note)
@@ -96,18 +100,19 @@ postproc st0 = state
 
 run_msg :: RealTime -> Midi.WriteMessage -> SynthM ()
 run_msg prev_ts (Midi.WriteMessage dev ts (Midi.ChannelMessage chan msg)) = do
-    State.modify $ deactivate ts
+    State.modify deactivate
     when (ts < prev_ts) $
         warn $ "timestamp less than previous: " <> Pretty.prettytxt prev_ts
     case msg of
         Midi.NoteOff key _ -> ifM (is_active addr key)
             (note_off addr ts key)
             (warn "note off not preceded by note on")
-        Midi.NoteOn key vel -> ifM (is_active addr key)
-            (do warn "double note on"
+        Midi.NoteOn key vel -> active_key addr key >>= \x -> case x of
+            Nothing -> note_on addr ts key vel
+            Just old -> do
+                warn $ "double note on: " <> Pretty.prettytxt old
                 note_off addr ts key
-                note_on addr ts key vel)
-            (note_on addr ts key vel)
+                note_on addr ts key vel
         Midi.Aftertouch _ _ -> warn "aftertouch not supported"
         Midi.ControlChange c val -> control addr ts (CC c) val
         Midi.ProgramChange _ -> warn "program change not supported"
@@ -119,12 +124,13 @@ run_msg prev_ts (Midi.WriteMessage dev ts (Midi.ChannelMessage chan msg)) = do
     where addr = (dev, chan)
 run_msg _ _ = return ()
 
-is_active :: Addr -> Midi.Key -> SynthM Bool
-is_active addr key = do
+active_key :: Addr -> Midi.Key -> SynthM (Maybe Note)
+active_key addr key = do
     active <- State.gets state_active
-    return $ case Map.lookup addr active of
-        Just notes -> any ((==key) . note_key) notes
-        Nothing -> False
+    return $ List.find ((==key) . note_key) =<< Map.lookup addr active
+
+is_active :: Addr -> Midi.Key -> SynthM Bool
+is_active addr = fmap Maybe.isJust . active_key addr
 
 note_on :: Addr -> RealTime -> Midi.Key -> Midi.Velocity -> SynthM ()
 note_on addr ts key vel =
@@ -169,17 +175,17 @@ warn msg = do
     State.modify $ \state ->
         state { state_warns = (wmsg, msg) : state_warns state }
 
-deactivate :: RealTime -> State -> State
-deactivate ts state = state
-    { state_active = Map.map (filter (not . decayed)) (state_active state)
-    , state_notes = decayed_notes ++ state_notes state
+deactivate :: State -> State
+deactivate state = state
+    { state_active = still_active
+    , state_notes = concat done ++ state_notes state
     }
     where
-    decayed_notes = filter decayed (concat (Map.elems (state_active state)))
-    decayed n = case note_end n of
-        Nothing -> False
-        Just end -> end + decay_of (note_addr n) <= ts
-    decay_of addr = Map.findWithDefault default_decay addr (state_decay state)
+    (addrs, (done, active)) = second unzip $ unzip $
+        map (second (List.partition note_done)) $
+        Map.toList (state_active state)
+    still_active = Map.fromList $ filter (not . null . snd) $ zip addrs active
+    note_done = Maybe.isJust . note_duration
 
 
 -- * pretty
