@@ -77,7 +77,6 @@ adjacent_note_gap = RealTime.milliseconds 10
 
 -- * perform
 
--- | These may later become a more efficient type.
 type Events = [LEvent.LEvent Event]
 type MidiEvents = [LEvent.LEvent Midi.WriteMessage]
 
@@ -137,7 +136,7 @@ channelize_event :: InstAddrs -> [(Event, Channel)] -> Event
     -> (Channel, [Log.Msg])
 channelize_event inst_addrs overlapping event =
     case Map.lookup inst_name inst_addrs of
-        Just (_:_:_) -> (chan, logs)
+        Just (_:_:_) -> (chan, [log])
         -- If the event has 0 or 1 addrs I can just give a constant channel.
         -- 'allot' will assign the correct addr, or drop the event if there
         -- are none.
@@ -148,14 +147,20 @@ channelize_event inst_addrs overlapping event =
     -- maximum channel in use.
     chan = fromMaybe (maximum (-1 : map snd overlapping) + 1) maybe_chan
     (maybe_chan, reasons) = shareable_chan overlapping event
-    logs = map (Log.msg Log.Warn (Just stack)) $
-        ("found chan " <> showt maybe_chan <> ", picked " <> showt chan)
+    log = Log.msg Log.Warn (Just stack) $ Text.unlines $
+        (log_prefix event <> ": found chan " <> showt maybe_chan <> ", picked "
+            <> showt chan)
         : map mkmsg reasons
     stack = Stack.to_strings (event_stack event)
-    mkmsg (chan, reason) =
-        Pretty.prettytxt inst_name <> " at "
-            <> Pretty.prettytxt (event_start event)
-            <> " can't share with " <> showt chan <> ": " <> reason
+    mkmsg (chan, reason) = "can't share with " <> showt chan <> ": " <> reason
+
+-- | This is redundant since log msgs have a stack, but it's convenient for
+-- filtering.
+log_prefix :: Event -> Text
+log_prefix event =
+    Pretty.prettytxt inst <> " at " <> Pretty.prettytxt (event_start event)
+        <> ": "
+    where inst = Instrument.inst_score (event_instrument event)
 
 -- | Find a channel from the list of overlapping (Event, Channel) all of whose
 -- events can share with the given event.  Return the rest of the channels and
@@ -181,8 +186,7 @@ can_share_chan :: Event -> Event -> Maybe Text
 can_share_chan old new = case (initial_pitch old, initial_pitch new) of
         _ | start >= end -> Nothing
         _ | event_instrument old /= event_instrument new ->
-            Just $ "instruments differ: "
-                <> Pretty.prettytxt (event_instrument old)
+            Just $ "instruments differ"
         (Just (initial_old, _), Just (initial_new, _))
             | not (Signal.pitches_share in_decay start end
                 initial_old (event_pitch old) initial_new (event_pitch new)) ->
@@ -271,13 +275,18 @@ allot state inst_addrs events = (event_addrs, final_state)
 data AllotState = AllotState {
     -- | Allocated addresses, and when they were last used.
     -- This is used by the voice stealer to figure out which voice is ripest
-    -- for plunder.
-    ast_available :: !(Map.Map Instrument.Addr RealTime)
+    -- for plunder.  It also has the AllotKey so the previous allotment can be
+    -- deleted.
+    ast_available :: !(Map.Map Instrument.Addr (RealTime, AllotKey))
     -- | Map input channels to an instrument address in the allocated range.
     -- Once an (inst, chan) pair has been allotted to a particular Addr, it
     -- should keep going to that Addr, as long as voices remain.
-    , ast_allotted :: !(Map.Map (Instrument.Instrument, Channel) Allotted)
+    , ast_allotted :: !(Map.Map AllotKey Allotted)
     } deriving (Eq, Show)
+
+-- | Channelize makes sure that a (inst, ichan) key identifies events that can
+-- share channels.
+type AllotKey = (Instrument.Instrument, Channel)
 
 data Allotted = Allotted {
     allotted_addr :: !Instrument.Addr
@@ -292,24 +301,31 @@ empty_allot_state = AllotState Map.empty Map.empty
 
 -- | Try to find an Addr for the given Event.  If that's impossible, return
 -- a log msg.
+--
+-- If channelize decided that two events have the same channel, then they can
+-- go to the same addr, as long as it has voices left.  Otherwise, take over
+-- another channel.
 allot_event :: InstAddrs -> AllotState -> (Event, Channel)
     -> (AllotState, LEvent.LEvent (Event, Instrument.Addr))
 allot_event inst_addrs state (event, ichan) =
     case expire_voices <$> Map.lookup (inst, ichan) (ast_allotted state) of
         -- If there is an already allotted addr with a free voice, add this
         -- event to it.
-        Just (Allotted addr voices voice_count)
-            | length voices < voice_count ->
-                (update Nothing addr voices state, LEvent.Event (event, addr))
+        Just (Allotted addr voices voice_count) | length voices < voice_count ->
+            (update Nothing addr voices state, LEvent.Event (event, addr))
         -- Otherwise, steal the oldest already allotted voice.
+        -- Delete the old (inst, chan) mapping.
         _ -> case steal_addr inst_addrs inst state of
-            Just (addr, voice_count) ->
-                (update (Just voice_count) addr [] state,
+            Just (addr, voice_count, old_key) ->
+                (update (Just (voice_count, old_key)) addr [] state,
                     LEvent.Event (event, addr))
             -- This will return lots of msgs if an inst has no allocation.
             -- A higher level should filter out the duplicates.
             Nothing -> (state, LEvent.Log no_alloc)
     where
+    -- log = LEvent.Log
+    --     . Log.msg Log.Warn (Just (Stack.to_strings (event_stack event)))
+    --     . (log_prefix event <>)
     expire_voices allotted = allotted
         { allotted_voices =
             filter (> event_start event) (allotted_voices allotted)
@@ -321,14 +337,14 @@ allot_event inst_addrs state (event, ichan) =
 
 -- | Record this addr as now being allotted, and add its voice allocation.
 update_allot_state :: (Instrument.Instrument, Channel) -> RealTime
-    -> Maybe Instrument.Voices -> Instrument.Addr -> [RealTime]
-    -> AllotState -> AllotState
-update_allot_state inst_chan end maybe_voice_count addr voices state = state
-    { ast_available = Map.insert addr end (ast_available state)
-    , ast_allotted = case maybe_voice_count of
-        Just voice_count ->
-            Map.insert inst_chan (Allotted addr [end] voice_count)
-                (ast_allotted state)
+    -> Maybe (Instrument.Voices, Maybe AllotKey) -> Instrument.Addr
+    -> [RealTime] -> AllotState -> AllotState
+update_allot_state inst_chan end maybe_new_allot addr voices state = state
+    { ast_available = Map.insert addr (end, inst_chan) (ast_available state)
+    , ast_allotted = case maybe_new_allot of
+        Just (voice_count, old_key) ->
+            Map.insert inst_chan (Allotted addr [end] voice_count) $
+                maybe id Map.delete old_key (ast_allotted state)
         Nothing -> Map.adjust adjust inst_chan (ast_allotted state)
     }
     where adjust allotted = allotted { allotted_voices = end : voices }
@@ -341,17 +357,20 @@ update_allot_state inst_chan end maybe_voice_count addr voices state = state
 -- addrs with no limitation, but profiling revealed no detectable difference.
 -- So either it's not important or my profiles are broken.
 steal_addr :: InstAddrs -> Instrument.Instrument -> AllotState
-    -> Maybe (Instrument.Addr, Instrument.Voices)
+    -> Maybe (Instrument.Addr, Instrument.Voices, Maybe AllotKey)
 steal_addr inst_addrs inst state =
     case Map.lookup (Instrument.inst_score inst) inst_addrs of
         Just addr_voices ->
             let avail = zip addr_voices (map (mlookup . fst) addr_voices)
-            in case Seq.minimum_on snd avail of
-                Just ((addr, voices), _) -> Just (addr, fromMaybe 10000 voices)
+            in case Seq.minimum_on (fst . snd) avail of
+                Just ((addr, voices), (_, maybe_inst_chan)) ->
+                    Just (addr, fromMaybe 10000 voices, maybe_inst_chan)
                 Nothing -> Nothing
         _ -> Nothing
     where
-    mlookup addr = Map.findWithDefault 0 addr (ast_available state)
+    mlookup addr = case Map.lookup addr (ast_available state) of
+        Nothing -> (0, Nothing)
+        Just (end, inst_chan) -> (end, Just inst_chan)
 
 
 -- * perform notes

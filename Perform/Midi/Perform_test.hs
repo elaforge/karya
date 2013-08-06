@@ -9,6 +9,7 @@ import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 
 import Util.Control
+import qualified Util.Log as Log
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 import Util.Test
@@ -682,21 +683,25 @@ channelize inst_addrs events = LEvent.events_of $ fst $
 test_allot = do
     let mk inst chan start = (mkevent (inst, "a", start, 1, []), chan)
         mk1 = mk inst1
+        f = map (snd . snd) . LEvent.events_of . allot midi_config1 . in_time
         in_time mks = zipWith ($) mks (Seq.range_ 0 1)
-        allot_chans events = map (snd . snd) $ fst $ LEvent.partition $
-            allot midi_config1 events
 
     -- They should alternate channels, according to LRU.
-    equal (allot_chans (in_time [mk1 0, mk1 1, mk1 2, mk1 3]))
-        [0, 1, 0, 1]
+    equal (f [mk1 0, mk1 1, mk1 2, mk1 3]) [0, 1, 0, 1]
 
     -- Repeated chans get reused.
-    equal (allot_chans (in_time [mk1 3, mk1 2, mk1 2, mk1 3]))
-        [0, 1, 1, 0]
+    equal (f [mk1 3, mk1 2, mk1 2, mk1 3]) [0, 1, 1, 0]
 
     -- Instruments with no allocation get filtered out.
-    equal (allot_chans (in_time [mk1 1, mk inst2 1, mk1 2]))
-        [0, 1]
+    equal (f [mk1 1, mk inst2 1, mk1 2]) [0, 1]
+
+test_allot_steal = do
+    let f = extract . allot midi_config1 . map mk . zip (Seq.range_ 0 1)
+        extract = first (map (snd . snd)) . LEvent.partition
+        mk (start, chan) = (mkevent (inst1, "a", start, 1, []), chan)
+    -- 0->0, 1->1, 2->steal 0, 0 -> should go to 1, becasue 0 was stolen
+    let (chans, _logs) = f [0, 1, 2, 0]
+    equal chans [0, 1, 0, 1]
 
 test_allot_warn = do
     let extract (LEvent.Event (e, (dev, chan))) = Left

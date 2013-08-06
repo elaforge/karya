@@ -3,6 +3,16 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
+  * why does hex use a clearly bad channel when others are free?
+    It only does it when playing from the beginning, so turn on logging and
+    filter logs within the suspect time range.
+    at 44.16s to 45s, 3-1 is merged with 6-6
+    3-1 and 6-6 at 10t / 44.16s
+    3-1 ends at 10.25t / 44.41s
+    winds up on loop1:5
+      >vib at 44.16s: found chan Nothing, picked 21   <-- trill
+      >vib at 44.16s: found chan Just 5, picked 5     <-- note
+    So the problem is in allot, which maps 21 to 5.
   - there's still a cache bug: change the tempo on the score block, and the
     cached version of a following block isn't invalidated
   * rename inst: change in alias and allocation together
