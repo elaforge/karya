@@ -8,6 +8,7 @@ module Derive.Stack (
     , block, call, add, member, outermost, innermost
     , block_of, track_of, region_of, call_of
     , block_track_of
+    , match
     , Frame(..)
     , format_ui, show_ui, show_ui_
     , to_strings, from_strings
@@ -23,6 +24,8 @@ import Prelude hiding (length)
 import qualified Control.DeepSeq as DeepSeq
 import qualified Data.ByteString.Char8 as B
 import qualified Data.Digest.CRC32 as CRC32
+import qualified Data.Set as Set
+
 import qualified Text.Read as Read
 
 import Util.Control
@@ -115,6 +118,17 @@ block_track_of = go Nothing . innermost
     go (Just track_id) (Block block_id : _) = Just (block_id, track_id)
     go track_id (_ : rest) = go track_id rest
 
+-- | Nothing is a wildcard, and matches anything, but if a field is set then it
+-- only matches frames where the corresponding field is set, and is equal (or
+-- overlaps in the case of range).
+type Pattern =
+    (Maybe BlockId, Maybe (Set.Set TrackId), Maybe (TrackTime, TrackTime))
+
+match :: Pattern -> Stack -> Bool
+match pattern = any (ui_match pattern) . to_ui
+
+-- ** frames
+
 data Frame =
     Block !BlockId
     | Track !TrackId
@@ -206,6 +220,20 @@ track_regions stack track_id =
     -- find [track, call*, region] where the region overlaps
 
 -- * ui
+
+ui_match :: Pattern -> UiFrame -> Bool
+ui_match (bid_pattern, tids_pattern, range_pattern) (bid, tid, range) = and
+    [ maybe True ((==bid) . Just) bid_pattern
+    , case (tids_pattern, tid) of
+        (Just tids, Just tid) -> Set.member tid tids
+        (Nothing, _) -> True
+        (_, Nothing) -> False
+    , maybe True overlaps range_pattern
+    ]
+    where
+    overlaps (s, e) = case range of
+        Nothing -> False
+        Just (start, end) -> not (end <= s || start >= e)
 
 -- | This is an abbreviation of the stack that only has elements that are
 -- visible in the UI.

@@ -27,7 +27,7 @@ instance Functor LEvent where
     fmap _ (Log a) = Log a
 
 instance (Pretty.Pretty d) => Pretty.Pretty (LEvent d) where
-    format (Log msg) = format_msg msg
+    format (Log msg) = format_log msg
     format (Event event) = Pretty.format event
 
 instance (Eq d) => Eq (LEvent d) where
@@ -36,8 +36,9 @@ instance (Eq d) => Eq (LEvent d) where
     Log _ == Event _ = False
     Event _ == Log _ = False
 
-format_msg :: Log.Msg -> Pretty.Doc
-format_msg msg = Pretty.fsep
+-- | A variation on 'Log.format_msg', except this can format the stack nicely.
+format_log :: Log.Msg -> Pretty.Doc
+format_log msg = Pretty.fsep
     [Pretty.text stars <+> Pretty.text srcpos <+> Pretty.format stack,
         Pretty.nest 2 $ Pretty.text (Log.msg_string msg)]
     where

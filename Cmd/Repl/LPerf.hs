@@ -9,11 +9,13 @@ import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Ratio as Ratio
 import Data.Ratio ((%))
+import qualified Data.Set as Set
 import qualified Data.Text as Text
 
 import Util.Control
 import qualified Util.Log as Log
 import qualified Util.Num as Num
+import qualified Util.Regex as Regex
 import qualified Util.Seq as Seq
 
 import qualified Midi.Midi as Midi
@@ -258,6 +260,25 @@ sel_midi = do
     events <- block_midi block_id
     return $ takeWhile (LEvent.log_or $ (<=end) . Midi.wmsg_ts) $
         dropWhile (LEvent.log_or $ (<start) . Midi.wmsg_ts) events
+
+-- | Get all logs whose 'Log.msg_text' matches a regex.
+logs_like :: BlockId -> String -> Cmd.CmdL [Log.Msg]
+logs_like block_id regex = do
+    logs <- LEvent.logs_of <$> block_midi block_id
+    let reg = Regex.make regex
+    return $ filter (Regex.matches reg . Log.msg_string) logs
+
+-- | Get logs that include a stack frame that matches the given block, tracks,
+-- and range.
+logs_matching :: BlockId -> BlockId -> [TrackId] -> TrackTime -> TrackTime
+    -> Cmd.CmdL [Log.Msg]
+logs_matching perf_block block_id track_ids start end = do
+    logs <- LEvent.logs_of <$> block_midi perf_block
+    let pattern = (Just block_id, Just (Set.fromList track_ids),
+            Just (start, end))
+        match = maybe False (Stack.match pattern . Stack.from_strings)
+            . Log.msg_stack
+    return $ filter match logs
 
 play_midi :: Perform.MidiEvents -> Cmd.CmdL ()
 play_midi msgs = do

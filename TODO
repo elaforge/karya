@@ -159,6 +159,7 @@ UNSORTED
         to control the default speed of a top level block.
   - Make talas work with LRuler.  The problem is that they include label
     information, and Meter.Meter doesn't support that.
+  - rendekalai adi talam: 00112233XXOOXXOO
   - need an easy way to create IDs for debugging, so I can copy paste
     (bid "xyz") stuff
   * key TrackSignals on (BlockId, TrackId).  I'll need to put BlockId in
