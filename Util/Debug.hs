@@ -38,19 +38,19 @@ fullM f msg val
 
 -- * forced by evaluation
 
--- | Print a showable value.
+-- | Print a showable value en passant.
 trace :: (Show a) => String -> a -> a
-trace msg val = Trace.trace (with_msg msg (pshow val)) val
+trace msg val = traces msg val val
 
--- | Pretty print the returned value.
+-- | Pretty print a value en passant.
 tracep :: (Pretty.Pretty a) => String -> a -> a
 tracep msg val = Trace.trace (with_msg msg (Pretty.formatted val)) val
 
--- | Print a string.
-traces :: String -> a -> a
-traces = Trace.trace . (prefix++)
+-- | Print a showable value.
+traces :: (Show b) => String -> b -> a -> a
+traces msg val = Trace.trace (with_msg msg (pshow val))
 
--- | Pretty print an arbitrary value.
+-- | Pretty print a value.
 traceps :: (Pretty.Pretty b) => String -> b -> a -> a
 traceps msg traced = Trace.trace (with_msg msg (Pretty.formatted traced))
 
@@ -63,18 +63,23 @@ tracefp msg f val = Trace.trace (with_msg msg (Pretty.pretty (f val))) val
 
 -- | Trace input and output of a function.
 trace_ret :: (Show a, Show b) => String -> a -> b -> b
-trace_ret function a ret = traces (function ++ " " ++ pa ++ arrow ++ pret) ret
+trace_ret function a ret =
+    trace_str (function ++ " " ++ pa ++ arrow ++ pret) ret
     where
     arrow = if '\n' `elem` pa || '\n' `elem` pret then "\t\t=>\n" else " => "
     pa = pshow a
     pret = pshow ret
 
 trace_retp :: (Pretty.Pretty a, Pretty.Pretty b) => String -> a -> b -> b
-trace_retp function a ret = traces (function ++ " " ++ pa ++ arrow ++ pret) ret
+trace_retp function a ret =
+    trace_str (function ++ " " ++ pa ++ arrow ++ pret) ret
     where
     arrow = if '\n' `elem` pa || '\n' `elem` pret then "\t\t=>\n" else " => "
     pa = Pretty.formatted a
     pret = Pretty.formatted ret
+
+trace_str :: String -> a -> a
+trace_str = Trace.trace . (prefix++)
 
 -- * forced by monad
 
