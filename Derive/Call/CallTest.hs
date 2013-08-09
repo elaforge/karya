@@ -61,7 +61,7 @@ run_control events = extract $ DeriveTest.derive_tracks
 with_note_call :: Text -> Derive.NoteCall
     -> Derive.Deriver a -> Derive.Deriver a
 with_note_call name call =
-    Derive.with_scope $ Scope.add_note_lookup (single_lookup name call)
+    Derive.with_scope $ Scope.add_note (single_lookup name call)
 
 with_control_call :: Text -> Derive.ControlCall
     -> Derive.Deriver a -> Derive.Deriver a
@@ -69,12 +69,12 @@ with_control_call name call = with_control_lookup (single_lookup name call)
 
 with_control_lookup :: Derive.LookupCall Derive.ControlCall
     -> Derive.Deriver a -> Derive.Deriver a
-with_control_lookup = Derive.with_scope . Scope.add_control_lookup
+with_control_lookup = Derive.with_scope . Scope.add_control
 
 with_val_call :: Text -> Derive.ValCall
     -> Derive.Deriver a -> Derive.Deriver a
 with_val_call name call =
-    Derive.with_scope $ Scope.add_val_lookup (single_val_lookup name call)
+    Derive.with_scope $ Scope.add_val (single_val_lookup name call)
 
 single_lookup :: Text -> Derive.Call d -> Derive.LookupCall (Derive.Call d)
 single_lookup name call =

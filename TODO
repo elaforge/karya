@@ -226,9 +226,10 @@ UNSORTED
 
   - Can I bind symbol names with =, e.g. 'arp = arp-manual .3 .2 .1'
     That's actually two things, one is binding the symbol, the other is
-    partially applying args.  The latter overlaps with setting default in
-    the env, but is more concise.  It can also set Sig.many args, where env
-    can't.
+    partially applying args.
+  * bind calls
+    This overlaps with setting default in the env, but is more concise.  It
+    can also set Sig.many args, where env can't.
     . How then do a tell 'env-var = 42' from 'call = call2'?
       &env-literal, could also use it to apply an env value as an argument
       explicitly.  But that means all default setting becomes '&call-val = 2'.

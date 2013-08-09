@@ -84,5 +84,21 @@ test_c_equal_note_transformer = do
     equal (run [(0, 1, "inst = >i1"), (1, 1, "inst = >i2")])
         ([(0, "i1"), (1, "i2"), (2, "")], [])
 
+test_c_equal_call = do
+    let run = DeriveTest.extract DeriveTest.e_note . DeriveTest.derive_tracks
+
+    -- Rebind a note call.
+    equal (run [(">", [(0, 1, ">zzz = n | zzz")])]) ([(0, 1, "?")], [])
+    -- One with a non-symbol name needs quoting.
+    equal (run [(">", [(0, 1, "'>1' = n | 1")])]) ([(0, 1, "?")], [])
+
+    equal (run [("> | *zzz = set", [(0, 1, "")]), ("*", [(0, 0, "zzz (4c)")])])
+        ([(0, 1, "4c")], [])
+    equal (run [("> | '*4' = set", [(0, 1, "")]), ("*", [(0, 0, "4 (4c)")])])
+        ([(0, 1, "4c")], [])
+    equal (run [("> | -zzz = e | p = (4c)", [(0, 1, "")]),
+            ("*", [(0, 0, "zzz p")])])
+        ([(0, 1, "4c")], [])
+
 e_inst :: Score.Event -> (RealTime, Text)
 e_inst e = (Score.event_start e, Score.inst_name (Score.event_instrument e))

@@ -58,7 +58,7 @@ module Derive.Deriver.Monad (
     , LookupCall(lookup_call, lookup_docs)
     , map_lookup, map_val_lookup, pattern_lookup
     , extract_doc, extract_val_doc
-    , lookup_val_call
+    , lookup_val_call, lookup_with
 
     -- ** constant
     , Constant(..), initial_constant

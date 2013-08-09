@@ -17,6 +17,7 @@ import qualified Data.FixedList as FixedList
 import Data.FixedList (Nil(..))
 import qualified Data.List as List
 import qualified Data.List.NonEmpty as NonEmpty
+import qualified Data.Text as Text
 import qualified Data.Traversable as Traversable
 
 import qualified System.Random.Mersenne.Pure64 as Pure64
@@ -36,6 +37,7 @@ import qualified Derive.Call.Tags as Tags
 import qualified Derive.Controls as Controls
 import qualified Derive.Derive as Derive
 import qualified Derive.Deriver.Internal as Internal
+import qualified Derive.Deriver.Scope as Scope
 import qualified Derive.Environ as Environ
 import qualified Derive.LEvent as LEvent
 import qualified Derive.PitchSignal as PitchSignal
@@ -475,7 +477,11 @@ equal_arg_doc =
     \ `#pitch-name`. The right hand side is anything when binding\
     \ a symbol, a number or `%control-name` when binding a `%control`, or\
     \ a pitch or `#pitch-name` when binding a `#pitch`.\
-    \ As a special case, assigning to `%tempo` to a number will compose \
+    \\nIf the symbol starts with `>`, `*`, or `-`, it will bind a note, pitch,\
+    \ or val call, respectively. Assigning to an instrument e.g. `>i = x` also\
+    \ binds a note call. You need quoting if the assignee doesn't look like\
+    \ a symbol: `'*4c' = '5c'`.\
+    \\nAs a special case, assigning to `%tempo` to a number will compose \
     \ the warp with the given tempo.\n\
     \ Setting a symbol to `_` will unset an env var."
 
@@ -489,8 +495,20 @@ equal_doc =
 equal_transformer :: Derive.PassedArgs derived -> Derive.Deriver a
     -> Derive.Deriver a
 equal_transformer args deriver = case Derive.passed_vals args of
-    [TrackLang.VSymbol assignee, val] ->
-        Derive.with_val assignee val deriver
+    -- Bind calls.
+    [TrackLang.VSymbol (TrackLang.Symbol assignee), TrackLang.VSymbol val]
+        | Just new <- Text.stripPrefix ">" assignee ->
+            with_scope (note_scope new val) deriver
+        | Just new <- Text.stripPrefix "*" assignee ->
+            with_scope (pitch_scope new val) deriver
+        | Just new <- Text.stripPrefix "-" assignee ->
+            with_scope (val_scope new val) deriver
+    -- If you don't quote >sym, it parses as an instrument.
+    [TrackLang.VInstrument sym, TrackLang.VSymbol val] ->
+        with_scope (note_scope (Score.inst_name sym) val) deriver
+
+    -- Bind environ values.
+    [TrackLang.VSymbol assignee, val] -> Derive.with_val assignee val deriver
     [control -> Just assignee, TrackLang.VControl val] -> do
         sig <- to_signal val
         Derive.with_control assignee sig deriver
@@ -517,6 +535,34 @@ equal_transformer args deriver = case Derive.passed_vals args of
         | c == Controls.null = Just Nothing
         | otherwise = Just (Just c)
     pitch _ = Nothing
+
+with_scope :: Derive.Deriver (Derive.Scope -> Derive.Scope)
+    -> Derive.Deriver a -> Derive.Deriver a
+with_scope get_scope deriver = do
+    scope <- get_scope
+    Derive.with_scope scope deriver
+
+note_scope :: Text -> TrackLang.CallId
+    -> Derive.Deriver (Derive.Scope -> Derive.Scope)
+note_scope new old = do
+    call <- maybe (Derive.throw $ untxt $ Call.unknown_call_id "note" old)
+        return =<< Derive.lookup_with Derive.scope_note old
+    return $ Scope.add_note $
+        Scope.single_lookup (TrackLang.Symbol new) call
+
+pitch_scope :: Text -> TrackLang.CallId
+    -> Derive.Deriver (Derive.Scope -> Derive.Scope)
+pitch_scope new old = do
+    call <- maybe (Derive.throw $ untxt $ Call.unknown_call_id "pitch" old)
+        return =<< Derive.lookup_with Derive.scope_pitch old
+    return $ Scope.add_pitch $ Scope.single_lookup (TrackLang.Symbol new) call
+
+val_scope :: Text -> TrackLang.CallId
+    -> Derive.Deriver (Derive.Scope -> Derive.Scope)
+val_scope new old = do
+    call <- maybe (Derive.throw $ untxt $ Call.unknown_call_id "val" old)
+        return =<< Derive.lookup_val_call old
+    return $ Scope.add_val $ Scope.single_val_lookup (TrackLang.Symbol new) call
 
 -- * postproc utils
 

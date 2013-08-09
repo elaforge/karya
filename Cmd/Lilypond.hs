@@ -85,7 +85,7 @@ derive deriver = do
         (lilypond_scope scope) PlayUtil.initial_environ deriver
 
 lilypond_scope :: Derive.Scope -> Derive.Scope
-lilypond_scope = Scope.add_override_note_lookup lookup
+lilypond_scope = Scope.add_note lookup
     where
     lookup = Derive.map_lookup $ Derive.make_calls
         [ ("", note), ("n", note)
