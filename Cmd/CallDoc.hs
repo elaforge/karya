@@ -212,7 +212,9 @@ call_bindings_html hstate call_kind bindings@(binds, sections) =
     arg_doc (Derive.ArgDoc name typ parser doc) =
         "<li>" <> tag "code" (html name) <> show_char char
         <> " :: " <> tag "em" (html (txt (Pretty.pretty typ)))
-        <> show_default deflt <> " &mdash; " <> html_doc hstate doc <> "\n"
+        <> show_default deflt
+        <> (if Text.null doc then "" else " &mdash; " <> html_doc hstate doc)
+        <> "\n"
         where (char, deflt) = show_parser parser
     show_default = maybe "" ((" = " <>) . tag "code" . html)
     show_char = maybe "" (tag "sup" . html)
