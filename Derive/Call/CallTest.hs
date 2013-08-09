@@ -10,6 +10,7 @@ import qualified Util.Log as Log
 import qualified Util.Seq as Seq
 
 import qualified Ui.State as State
+import qualified Derive.Call.Util as Util
 import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Deriver.Scope as Scope
@@ -85,6 +86,20 @@ single_val_lookup name call =
     Derive.map_val_lookup (Map.singleton (TrackLang.Symbol name) call)
 
 -- * calls
+
+-- | Run a val call, and return what it returned.
+run_val :: Maybe String -> String -> (Maybe TrackLang.Val, [String])
+run_val transform call = extract $ DeriveTest.derive_tracks_with
+        (with_note_call "capture" c_capture)
+        [(">", [(0, 1, maybe "" (<> " | ") transform
+            <> "capture (" <> call <> ")")])]
+    where
+    extract = first (join . Seq.head) . DeriveTest.extract
+        (TrackLang.lookup_val "capture" . Score.event_environ)
+    c_capture :: Derive.NoteCall
+    c_capture = Derive.stream_generator "capture" mempty "Capture env." $
+        Sig.call (Sig.required "val" "Val.") $ \val _args ->
+            Derive.with_val "capture" (val :: TrackLang.Val) Util.note
 
 c_show_args :: (Derive.Derived d) => Derive.Call d
 c_show_args = Derive.generator "show-args" mempty "doc" $

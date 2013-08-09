@@ -7,6 +7,7 @@ import qualified Data.Monoid as Monoid
 
 import Util.Control
 import qualified Util.Num as Num
+import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 
 import qualified Ui.Event as Event
@@ -35,6 +36,7 @@ val_calls :: Derive.ValCallMap
 val_calls = Derive.make_calls
     [ (">", c_next_val)
     , ("<", c_prev_val)
+    , ("e", c_env)
     , ("t", c_timestep)
     , ("ts", c_timestep_reciprocal)
     , ("1/", c_reciprocal)
@@ -82,11 +84,25 @@ c_prev_val = Derive.val_call "prev-val" Tags.prev
         Just (_, Derive.TagPitch y) -> return $ TrackLang.VPitch y
         _ -> Derive.throw "no previous value"
 
-eval_pitch :: Event.Event -> Derive.Deriver (Maybe PitchSignal.Pitch)
-eval_pitch event =
-    justm (either (const Nothing) Just <$> Call.eval_event event) $ \strm -> do
-    start <- Derive.real (Event.start event)
-    return $ PitchSignal.at start $ mconcat $ LEvent.events_of strm
+c_env :: Derive.ValCall
+c_env = Derive.val_call "env" mempty
+    "Look up the given val in the environ."
+    $ Sig.call ((,)
+    <$> required "name" "Look up the value of this key."
+    <*> defaulted "default" Nothing "If given, this is the default value when\
+        \ the key isn't present. If not given, a missing key will throw an\
+        \ exception. The presence of a default will also make the lookup\
+        \ expect the same type as the default."
+    ) $ \(name, maybe_deflt) _args -> case maybe_deflt of
+        Nothing -> Derive.get_val name
+        Just deflt -> check name deflt =<< Derive.lookup_val name
+    where
+    check _ deflt Nothing = return deflt
+    check name deflt (Just val)
+        | TrackLang.type_of val == TrackLang.type_of deflt = return val
+        | otherwise = Derive.throw $ "env " <> Pretty.pretty name
+            <> " expected " <> Pretty.pretty (TrackLang.type_of deflt)
+            <> " but got " <> Pretty.pretty (TrackLang.type_of val)
 
 c_timestep :: Derive.ValCall
 c_timestep = Derive.val_call "timestep" mempty

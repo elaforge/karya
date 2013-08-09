@@ -67,10 +67,9 @@ UNSORTED
         accepts black notes between every note.
     / '%just-base = (4c)' should be equivalent to (hz (4c))
       That means pitches get coerced to hz, but why not nn?
-  - if I say 'x = .5' then a val call (x) is .5
+  * if I say 'x = .5' then a val call (x) is .5
     I can use it to figure out certain filter settings and give them names.
     A val call lookup can make it fallback on the env, so (x) is like (env x)
-  - call lifts pitch to some frequency at the end of notes
   * how to do a chopper, e.g. 10 05 20 10 40 10 80 20 ff 40
     It's like a trill, where bottom and top can move.
     In general, it could be two signals which are crosscut.  But that seems
@@ -119,6 +118,8 @@ UNSORTED
   / ( should be a transformer too
   - Derive.Call.Gamakam, with janta, s-g-r, and r-s ornaments.
     Also there's a slight lift at the end of notes.
+    - call lifts pitch to some frequency at the end of notes
+    - copy from kaushik's recording
   * lower dynamic for subsequent legato notes
   * mordent and other grace notes can use legato
   * I can reapply normal calls easily, but I need some way to reapply a note
@@ -169,6 +170,14 @@ UNSORTED
         to control the default speed of a top level block.
   - Make talas work with LRuler.  The problem is that they include label
     information, and Meter.Meter doesn't support that.
+    . I think I wind up with 3 levels of rulers:
+      . Ruler.Ruler - has everything, but hard to work with
+      . Tala - [(rank, dur, label)]
+      . Meter.Meter - [(rank, dur)]
+      . clip, double, append, delete - should all work
+      Or make Meter [(rank, dur, Maybe Label)]  That's not good because they'd
+      be either all Just or all Nothing.  Would have to be
+        data Meter a = [(rank, dur, a)]
   - rendekalai adi talam: 00112233XXOOXXOO
   - need an easy way to create IDs for debugging, so I can copy paste
     (bid "xyz") stuff
@@ -229,6 +238,7 @@ UNSORTED
       track?
     . Otherwise I could start it with -, that doesn't require any parser
       hacks.
+      >note = xyz | *pitch = abc | -val = abc
   - network midi doesn't seem to handle abort?
     playing the second time doesn't happen
   * maybe new control tracks should start with line render?
@@ -553,6 +563,10 @@ cleanup:
       Maybe indent should be a flag on SoftBreak
       If pre is null, then maybe I should indent to the next level, e.g.
       [(0, ("", "a")), (2, ("", "b"))]
+    . The problem is that 'text <+/> indent 2 (...)' behaves unintuitively:
+      the indent happens after the newline.  But if I put indent around
+      the whole expression, then because indent is also break priority, the
+      breaking is wrong.  So I want to say break + indent in one word.
   convert to Text:
     - Log.debug etc.
     - Pretty.pretty
