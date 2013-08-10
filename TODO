@@ -3,38 +3,8 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
-  * why does hex use a clearly bad channel when others are free?
-    It only does it when playing from the beginning, so turn on logging and
-    filter logs within the suspect time range.
-    at 44.16s to 45s, 3-1 is merged with 6-6
-    3-1 and 6-6 at 10t / 44.16s
-    3-1 ends at 10.25t / 44.41s
-    winds up on loop1:5
-      >vib at 44.16s: found chan Nothing, picked 21   <-- trill
-      >vib at 44.16s: found chan Just 5, picked 5     <-- note
-    So the problem is in allot, which maps 21 to 5.
   - there's still a cache bug: change the tempo on the score block, and the
     cached version of a following block isn't invalidated
-  * rename inst: change in alias and allocation together
-  * bug/render-slope brass1 dyn forgets about the i 0x30 sometimes
-    * why do I get two coincident samples?
-      2s:.941, 2s:.941
-      sd: .375, set: .941, i>: .941
-  * Need to fix StepPlay_test, I think I want to make the tempo valid at ends,
-    rather than tweak the step points.  But haven't I done something like this
-    before?
-  * add 0x00 literals
-  * Events can be slightly out of order!  The problem is that 'perfom_notes'
-    uses Seq.merge_asc_lists, but 'create_leading_cc' can violate the ascending
-    assumption by moving an event forward due to a previous event.
-    . really it's the note ons that are ascending, not the fluff beforehand
-      maybe I can put that in its own group?
-  * why are scale and scale-r not grouped in the call doc?
-  * why does play from local require a root_id?
-  * need to catch errors from select hooks, otherwise realtime logs to stderr
-    when it fails
-    In fact, it fails whenever I'm not a block not linked from the root.
-    * still get error when there's an empty track: no tempo information
   - unmerging a pitch track should have a minimum width to display 3 chars
     Figure out under which circumstances the collapsed track forgets its size.
     . Looks like it happens when I create a new block from a template block
@@ -42,92 +12,18 @@ UNSORTED
       physical size.
     . Nope, wrong.
   generic just scale support
-    * I should do keys differently: key just sets the ratios.  You set the
-      base freq manually, e.g. 'just-base = (hz (4c))'.
-    * pass named intervals in ScaleMap
-    * re-implement Just and test
-    * add Scale.Hex
-    * separate documentation for Scale.Hex
-    * reduce duplication between Scale.Hex and Scale.Just
-    * put keys and their ratios into the scale doc
-    * for a key in just scales, it is a better analogy to set 1/1 to another
-      scale degree.  This means for a-maj it's no longer maj, so that's
-      not quite right.  Maybe another field
-        a-1-h1357
-
-        I feel like the 'a' doesn't belong, because it's just note entry, not
-        notation.  Well, except for absolute.  But maybe just scales don't
-        need absolute?  Except it might be nice if it corresponds to the MIDI
-        kbd.
-        It's also weird that in relative notation it has no effect on the
-        music but has to be specified anyway.
     - just scales should have a 'repeat 2' layout
       . The issue is that input kbd layout is separate from scale layout.
         Just scales should have a 'repeat 2' layout, and the input also
         accepts black notes between every note.
-    / '%just-base = (4c)' should be equivalent to (hz (4c))
-      That means pitches get coerced to hz, but why not nn?
-  * if I say 'x = .5' then a val call (x) is .5
-    I can use it to figure out certain filter settings and give them names.
-    A val call lookup can make it fallback on the env, so (x) is like (env x)
-  * how to do a chopper, e.g. 10 05 20 10 40 10 80 20 ff 40
-    It's like a trill, where bottom and top can move.
-    In general, it could be two signals which are crosscut.  But that seems
-    like overkill for the common case where one is constant, or is linear.
-    'cut .1 14 | i> 1'
-    examples:
-      xcut %t1 %t2 14
-      xcut-h ... -- for sample-hold
-      xcut 1 %t2 -- constant
-      xcut (i> .1 .3) (i> .1 1) -- if I add signal literals
-  * Sig.many ArgErrors start at 0, others start at 1
   - there should be a character that triggers a parse failure, which is used
     by invalid ShowVal instances like ShowVal Pitch
-  * pitch control default should be an expression, e.g. #name,(4c 50)
-  * should be able to coerce a VPitch to a constant PitchControl, just like
-    numbers
-    * For this to work I have to change PitchControl from Note to Pitch, which
-      is probably the right thing to do anyway.  But then I need to evaluate
-      the pitch when it gets parsed.
-    * Need 'type RawVal = ValType Pitch.Note'
-    * Then Derive.Call.eval turns RawVal into Val.
-      Should RawVal be the default?  All the parser stuff deals with raw vals,
-      who deals with cooked ones?  PassedArgs, Environ, ...
-  * signal literals
-    I can replace 'ConstantControl val' with 'SignalControl sig'
-    Numbers are coerced to 'SignalControl (Signal.constant x)', but val calls
-    can return more complicated ones
-    * This doesn't work for pitches because a pitch signal needs scale info,
-      which is not available when just coercing a pitch.
-      I think for it to work, I need to move sig_transposers and sig_scale_id
-      into Pitch.  I think this is the right thing anyway, because otherwise
-      there's the possibility of geting the wrong scale on the pitches.
-  * val calls to return signals: i>, e>
-    . Could I import all the control calls?
-      I don't think so, because prev ones make no sense, and they need both
-      start and end vals.
   - resample control call, but why not just set srate?  Could be in score time
     to step in rhythm.
-  * add a hook for cmds run when the selection changes
-    It would include setting pos status, setting realtime pos status,
-    setting chord, mmc goto.
-  * make ( set sustain-abs instead of +legato
-    This way I don't have to turn off config_legato when I switch to attr
-    legato.
-  * instance Symbol IsString
-  / ( should be a transformer too
   - Derive.Call.Gamakam, with janta, s-g-r, and r-s ornaments.
     Also there's a slight lift at the end of notes.
     - call lifts pitch to some frequency at the end of notes
     - copy from kaushik's recording
-  * lower dynamic for subsequent legato notes
-  * mordent and other grace notes can use legato
-  * I can reapply normal calls easily, but I need some way to reapply a note
-    transformer.  That basically means override Note.sub_events
-  * remove repeat previous feature in Derive.Call
-  * make_db is creating 0b z1.db.gz
-  * rename when_just to whenJust
-  * rename Midi.Parse to Midi.Encode
   + recent tends to collect pitches added via edit input, but since they have
     a specific pitch they're not useful.
     . Maybe I should have a separate recent queue only for transformers, and
@@ -135,12 +31,6 @@ UNSORTED
       last note call.
     - I'm still not sure I want this, since it seems like I want to repeat
       generators too.  But how to tell wanted ones from unwanted pitch ones?
-  * leading hyphen on symbols is taken up by subtract attr, but that's
-    practically useless.  I haven't ever used = either, maybe I should
-    have + just be attrs, and have explicit calls to set or subtract, if ever
-    necessary.
-    . What's worse, show_val gets it wrong, since it checks for parseable, not
-      if it would have parsed as something else.
   - If I want to draw multiple signals together, I need a line or polygon
     + gradient function.  Maybe I can get ahold of the OS X graphics context
     and directly call cocoa functions.  For that to work on linux, I think I'd
@@ -149,25 +39,6 @@ UNSORTED
   - rename i>> to s for slide, or p for porta
     Well, don't forget about i<< and e>>
     Maybe add 'p' and 'p<'
-  * is StateConfig.Default obsolete now that there is global transform?
-    In fact it's confusing since there are multiple invisible ways to get an
-    instrument.
-    * If the places that want defaults could get them from the perf, then
-      I think I can get rid of Default.  Check to see if this is true.
-    * apply_transformers requires a Derived d, which means Score.Event.
-      Shouldn't I be able to apply a transformer to anything?
-      . needs Derive.lookup_callable to find the lookup function
-        Because there are different transformers!  So I want to select
-        Score.Event one, but I don't want the return value to be
-        a Score.Event.
-      . If I get rid of default tempo, I can't have a block at a different
-        speed and integrate it.  Of course why not just change the tempo of
-        the integrated version?  Well, what if I want to hear the original?
-      . But default tempo is not very good, because it's global.
-        I can set playback speed temporarily, but that's different from
-        setting tempo.
-      . Still it seems useful to set default tempo, otherwise there's no way
-        to control the default speed of a top level block.
   - Make talas work with LRuler.  The problem is that they include label
     information, and Meter.Meter doesn't support that.
     . I think I wind up with 3 levels of rulers:
@@ -181,8 +52,6 @@ UNSORTED
   - rendekalai adi talam: 00112233XXOOXXOO
   - need an easy way to create IDs for debugging, so I can copy paste
     (bid "xyz") stuff
-  * key TrackSignals on (BlockId, TrackId).  I'll need to put BlockId in
-    TrackTree.TrackEvents, I think.
   - After a rederive, it still takes a Cmd to free up the memory.  Who is
     holding on to it?
   - parallelize derivation
@@ -200,7 +69,6 @@ UNSORTED
   - %sus-abs=-.x is not quite right for detached, because it should scale
     a bit for shorter notes.  E.g. it's absolute but scales down to 0 below
     a certain threshold.
-  * get rid of slice_around and the require_previous hack
   - add Args.next_val to match Args.prev_val, but it has to be careful about
     endless loops
   calls:
@@ -227,23 +95,8 @@ UNSORTED
   - Can I bind symbol names with =, e.g. 'arp = arp-manual .3 .2 .1'
     That's actually two things, one is binding the symbol, the other is
     partially applying args.
-  * bind calls
-    This overlaps with setting default in the env, but is more concise.  It
-    can also set Sig.many args, where env can't.
-    . How then do a tell 'env-var = 42' from 'call = call2'?
-      &env-literal, could also use it to apply an env value as an argument
-      explicitly.  But that means all default setting becomes '&call-val = 2'.
-      Or bind calls with &call = sym.
-    . Or I could use '*call = sym', reusing the hack where * is accepted as
-      the first letter of a symbol.  Does that make it look like a pitch
-      track?
-    . Otherwise I could start it with -, that doesn't require any parser
-      hacks.
-      >note = xyz | *pitch = abc | -val = abc
   - network midi doesn't seem to handle abort?
     playing the second time doesn't happen
-  * maybe new control tracks should start with line render?
-
   - I have a feeling like FM8 doesn't obey ResetAllControls
     Maybe I should extend Midi.Interface.note_tracker to keep track of
     used CCs to issue resets for them.  Some reset to 1, e.g. cc2 and cc7,
@@ -262,13 +115,6 @@ UNSORTED
     . But it calls SymbolC and I ran into a problem where linux ghci can't
       link FFI-using functions.  Ask on glasgow-haskell-users.
     - I can either have a separate app, or use the special Status trick.
-  mmc/mtc support
-    * Try sending MMC to reaper and see what happens.  Nothing.
-      * ask on forum: http://forum.cockos.com/forumdisplay.php?f=21
-      . Looks like reaper only supports MTC.
-    * Try cubase.  Works fine.
-    * Hook set selection, play, and stop to send the appropriate mmc cmds.
-    * send MTC on play
   - Playback should have multiple lines when a block is derived multiple
     times. Have a set of playback selnums?
 
@@ -319,7 +165,6 @@ documentation
     Need CPP support for haddock.
   + doc/derivation.md
   / split up derivation.md into separate files
-  * doc/ui.md
   - doc/performance.md
   - doc/local.md
   - doc/instrument.md
@@ -440,38 +285,6 @@ lilypond:
   - use Util.Format in ly output
 
 negative duration / arrival beats:
-  * negative dur event at pos 0 should put the text below so you can see it
-  * cache not being invalidated for negative block calls
-  * The underlying problem is that the actual duration is based on the onset
-    of the next note.  So I need a way to find that.
-    It would be fine to use the score, but there's a problem of the last note
-    in a block.  I have to somehow match it up to the next note for this
-    "part", which is impossible in general.  So it needs extra info, e.g.
-    (instrument, hand, voice).
-    * So set duration in the score based on the next event.  If there is no
-      next event, then set a tag for postproc.  Postproc looks for
-      (inst, hand, voice).
-  * Figure out how arrival works with controls.  It's most natural for
-    a pitch for a call to go at the end of the call, but for that to work
-    negative dur controls have to extend to their *previous* note.  Seems
-    like this requires a flag on the control to use a different Signal.at.
-    But that's not right for normal notes, whose pitch really does extend
-    afterwards.
-
-    Currently, if I want to set pitch or control for a call, I have to put the
-    control slightly after the start of the call, so it encompasses the call
-    but not the note before.  That's awkward.
-
-    If -0 dur control points go from >start <=end, then the pitch has to go
-    at the end of the event (earlier in time), which is even more awkward.
-
-    I think the controls have to go at the note's start, and have to logically
-    extend backwards to the note's end.  That means I can't write anything
-    other than a straight pitch because the actual sounding note is implicit.
-    So it has to be via integration
-  * Get the pitch at the trigger point, then apply that pitch to the extent of
-    the event.
-
   represent arrival notes differently
     . Instead of representing arrival notes as the sounding time plus
       a negative duration, I could represent them as a start time plus a flag.
@@ -1026,11 +839,6 @@ pitch: scales: scale:
             or: Midi NoteNumber | Kbd Octave Degree WhiteBlack
           . Write input_to_note for just, just-r, bp, bp-r
       - interpolate between just scales in different keys
-      display:
-        * Show ratio relationships between sounding pitches.
-          Reduce float to ratio: denom from [1..n]
-        * Optionally select one pitch as 1/1, and show the others relative to
-          it.  Otherwise, they're relative to the key.
     - meantone
     - Interpolate between two scales.  The main thing is to establish a note
       to note correspondance.
