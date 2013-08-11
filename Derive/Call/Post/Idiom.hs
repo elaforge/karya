@@ -11,6 +11,7 @@ import Util.Control
 import qualified Util.Seq as Seq
 import qualified Derive.Attrs as Attrs
 import qualified Derive.Call.Lily as Lily
+import qualified Derive.Call.Post as Post
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Call.Util as Util
 import qualified Derive.Derive as Derive
@@ -91,7 +92,7 @@ c_avoid_overlap = Derive.transformer "avoid-overlap"
         avoid_overlap time =<< deriver
 
 avoid_overlap :: RealTime -> Derive.Events -> Derive.EventDeriver
-avoid_overlap time = return . Util.map_around go
+avoid_overlap time = return . Post.map_around go
     where
     go _ event future = case List.find same (takeWhile overlaps future) of
         Nothing -> event

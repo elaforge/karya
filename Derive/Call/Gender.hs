@@ -7,6 +7,7 @@
 module Derive.Call.Gender where
 import Util.Control
 import qualified Derive.Args as Args
+import qualified Derive.Call.Post as Post
 import qualified Derive.Call.Sub as Sub
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Call.Util as Util
@@ -90,10 +91,10 @@ c_realize_damp = Derive.transformer "realize-damp" (Tags.idiom <> Tags.postproc)
     \ TODO: Since there's no correspondence between tracks in different\
     \ blocks, the damping can't extend across block boundaries. I'd need\
     \ something like a 'hand' attribute to fix this."
-    ) $ Sig.call0t $ \_ deriver -> Util.map_around realize <$> deriver
+    ) $ Sig.call0t $ \_ deriver -> Post.map_around realize <$> deriver
     where
     realize _prev event next = Score.remove_attributes damped_tag $
-        case Util.filter_next_in_track event next of
+        case Post.filter_next_in_track event next of
             next : _ | Score.has_attribute damped_tag next ->
                 Score.set_duration
                     (Score.event_end next - Score.event_start event) event

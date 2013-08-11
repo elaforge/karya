@@ -14,6 +14,7 @@ import qualified Util.Pretty as Pretty
 
 import qualified Derive.Call as Call
 import qualified Derive.Call.Pitch as Call.Pitch
+import qualified Derive.Call.Post as Post
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Call.Util as Util
 import qualified Derive.Derive as Derive
@@ -116,13 +117,13 @@ string_idiom ::
     -> TrackLang.ValControl -- ^ Time for string to return to its open pitch.
     -> Derive.Events -> Derive.EventDeriver
 string_idiom attack_interpolator release_interpolator open_strings attack delay
-        release all_events = Util.event_head all_events $ \event events -> do
+        release all_events = Post.event_head all_events $ \event events -> do
     open_nns <- mapM Pitches.pitch_nn open_strings
     case initial_state (zip open_nns open_strings) event of
         Nothing -> Derive.throw $ "initial pitch below lowest string: "
             ++ show (Score.initial_nn event)
         Just state -> do
-            (final, result) <- Util.map_controls
+            (final, result) <- Post.map_controls
                 (attack :. delay :. release :. Nil) state
                 (\(attack :. delay :. rel :. Nil) -> go attack delay rel)
                 events

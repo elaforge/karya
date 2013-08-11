@@ -15,6 +15,7 @@ import qualified Derive.Args as Args
 import qualified Derive.Call as Call
 import qualified Derive.Call.BlockUtil as BlockUtil
 import qualified Derive.Call.Make as Make
+import qualified Derive.Call.Post as Post
 import qualified Derive.Call.Sub as Sub
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Call.Util as Util
@@ -68,7 +69,7 @@ note_code code args = when_lilypond $
 -- | Add code to the first event.
 add_first :: Code -> Derive.EventDeriver -> Derive.EventDeriver
 add_first code deriver =
-    Util.map_first (return . add_event_code code) =<< deriver
+    Post.map_first (return . add_event_code code) =<< deriver
 
 -- ** note transformer
 
