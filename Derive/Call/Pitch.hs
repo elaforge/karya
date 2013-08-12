@@ -53,6 +53,7 @@ pitch_calls = Derive.make_calls
     , ("d", c_down)
 
     , ("drop", c_drop)
+    , ("lift", c_lift)
     , ("ad", c_approach_dyn)
     ]
 
@@ -236,9 +237,19 @@ slope word sign =
 -- names, while high level calls have words or abbreviated words.
 
 c_drop :: Derive.PitchCall
-c_drop = Derive.generator1 "drop" Tags.cmod "Drop pitch and `dyn`." $
+c_drop = make_drop "drop" "Drop pitch and `dyn`." True
+
+c_lift :: Derive.PitchCall
+c_lift = make_drop "lift"
+    "Lift pitch and drop `dyn`. This is the same as `drop`, except that it\
+    \ defaults to going up instead of down."
+    False
+
+make_drop :: Text -> Text -> Bool -> Derive.PitchCall
+make_drop name doc down = Derive.generator1 name Tags.cmod doc $
     Sig.call ((,)
-    <$> defaulted "interval" (Pitch.Chromatic 7) "Drop interval."
+    <$> defaulted "interval" (Left (Pitch.Chromatic 7))
+        "Interval or destination pitch."
     <*> defaulted "time" (TrackLang.real 0.25)
         "Time to drop the given interval and fade to nothing."
     ) $ \(interval, TrackLang.DefaultReal time) args ->
@@ -246,13 +257,17 @@ c_drop = Derive.generator1 "drop" Tags.cmod "Drop pitch and `dyn`." $
             Nothing -> return mempty
             Just (_, prev_pitch) -> do
                 (start, end) <- Util.duration_from_start args time
-                drop_call start end prev_pitch interval
+                drop_call start end prev_pitch interval down
 
-drop_call :: RealTime -> RealTime -> PitchSignal.Pitch -> Pitch.Transpose
+drop_call :: RealTime -> RealTime -> PitchSignal.Pitch
+    -> Either Pitch.Transpose PitchSignal.Pitch -> Bool
     -> Derive.Deriver PitchSignal.Signal
-drop_call start end prev_pitch interval = do
-    let dest = Pitches.transpose
-            (Pitch.modify_transpose negate interval) prev_pitch
+drop_call start end prev_pitch interval down = do
+    let dest = case interval of
+            Left degrees -> Pitches.transpose
+                (if down then Pitch.modify_transpose negate degrees else degrees)
+                prev_pitch
+            Right pitch -> pitch
     Control.multiply_dyn id start 1 end 0
     make_interpolator id False start prev_pitch end dest
 
