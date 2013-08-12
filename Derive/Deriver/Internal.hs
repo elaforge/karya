@@ -231,13 +231,33 @@ get_stack = get_dynamic state_stack
 
 -- * warp
 
-real :: ScoreTime -> Deriver RealTime
-real pos = do
+-- | Times are types that can be converted to RealTime and ScoreTime.
+class Time t where
+    real :: t -> Deriver RealTime
+    score :: t -> Deriver ScoreTime
+
+instance Time ScoreTime where
+    real = score_to_real
+    score = return
+
+instance Time RealTime where
+    real = return
+    score = real_to_score
+
+-- | This should go in TrackLang, but can't due to circular imports.
+instance Time TrackLang.RealOrScore where
+    real (TrackLang.Real t) = real t
+    real (TrackLang.Score t) = real t
+    score (TrackLang.Real t) = score t
+    score (TrackLang.Score t) = score t
+
+score_to_real :: ScoreTime -> Deriver RealTime
+score_to_real pos = do
     warp <- get_dynamic state_warp
     return (Score.warp_pos pos warp)
 
-score :: RealTime -> Deriver ScoreTime
-score pos = do
+real_to_score :: RealTime -> Deriver ScoreTime
+real_to_score pos = do
     warp <- get_dynamic state_warp
     maybe (throw $ "score: out of range: " ++ show pos) return
         (Score.unwarp_pos pos warp)
@@ -364,7 +384,7 @@ add_new_track_warp :: Maybe TrackId -> Deriver ()
 add_new_track_warp track_id = do
     stack <- get_stack
     block_id <- get_current_block_id
-    start <- real 0
+    start <- score_to_real 0
     -- Use get_total_block_dur instead get_block_dur.  Otherwise, the play
     -- monitor can't go past the end of the ruler, while the player is
     -- perfectly happy to do so.

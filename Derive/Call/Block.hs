@@ -90,7 +90,7 @@ c_block block_id = Derive.stream_generator ("block " <> showt block_id)
 -- Details in "Derive.Call.Post.ArrivalNote".
 constant_controls_at :: Derive.Deriver a -> Derive.Deriver a
 constant_controls_at deriver = do
-    start <- Derive.real 1
+    start <- Derive.real (1 :: ScoreTime)
     Internal.local (constant start) deriver
     where
     constant start dyn = dyn

@@ -318,8 +318,8 @@ test_initial_environ = do
 test_warp_ops = do
     let run op = DeriveTest.eval State.empty (op record)
         record = do
-            x0 <- Derive.real 0
-            x1 <- Derive.real 2
+            x0 <- Derive.real (0 :: ScoreTime)
+            x1 <- Derive.real (2 :: ScoreTime)
             return [x0, x1]
 
     equal (run id) $ Right [0, 2]
@@ -371,7 +371,7 @@ test_warp_ops = do
 
 test_real_to_score = do
     let f do_warp pos = DeriveTest.eval State.empty $
-            do_warp (Derive.score =<< Derive.real pos)
+            do_warp (Derive.real_to_score =<< Derive.score_to_real pos)
     equal (f id 1) (Right 1)
     equal (f (Derive.d_at 5) 1) (Right 1)
     equal (f (Derive.d_stretch 5) 1) (Right 1)
