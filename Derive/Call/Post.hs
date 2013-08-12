@@ -143,7 +143,7 @@ control_range :: Derive.ControlDeriver
     -> Derive.Deriver (Signal.Control, (RealTime, RealTime), [Log.Msg])
 control_range deriver = do
     (sig, logs) <- first mconcat . LEvent.partition <$> deriver
-    let range = case (Signal.first sig, Signal.last sig) of
+    let range = case (Signal.head sig, Signal.last sig) of
             (Just (s, _), Just (e, _)) -> (s, e)
             _ -> (0, 0)
     return (sig, range, logs)

@@ -29,7 +29,7 @@ module Perform.Signal (
 
     -- * access
     , at, at_linear, is_constant
-    , first, last
+    , head, last
 
     -- * transformation
     , merge, interleave
@@ -46,13 +46,13 @@ module Perform.Signal (
     , pitches_share
 ) where
 import qualified Prelude
-import Prelude hiding (last, length, null, take, drop)
+import Prelude hiding (head, last, length, null, take, drop)
 import qualified Control.DeepSeq as DeepSeq
 import qualified Data.Monoid as Monoid
 import qualified Foreign
 import qualified Text.Read as Read
 
-import Util.Control hiding (first)
+import Util.Control
 import qualified Util.Num as Num
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
@@ -210,8 +210,8 @@ at_linear x sig =
 is_constant :: Signal y -> Bool
 is_constant = V.is_constant . sig_vec
 
-first :: Signal y -> Maybe (X, Y)
-first = fmap V.to_pair . V.head . sig_vec
+head :: Signal y -> Maybe (X, Y)
+head = fmap V.to_pair . V.head . sig_vec
 
 last :: Signal y -> Maybe (X, Y)
 last = fmap V.to_pair . V.last . sig_vec

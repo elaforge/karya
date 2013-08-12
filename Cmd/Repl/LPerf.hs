@@ -115,7 +115,7 @@ inst_controls block_id =
             (control_vals (Perform.event_controls event))
             insts
     control_vals = Map.mapMaybe $ \sig ->
-        case (Signal.first sig, Signal.last sig) of
+        case (Signal.head sig, Signal.last sig) of
             (Just a, Just b) -> Just (a, b)
             _ -> Nothing
     merge1 (start1, end1) (start2, end2) =

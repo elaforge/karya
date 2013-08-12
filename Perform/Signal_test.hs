@@ -75,7 +75,7 @@ test_integrate = do
 
 test_pitches_share = do
     let sample0 sig = fromIntegral (floor y)
-            where Just (_, y) = Signal.first sig
+            where Just (_, y) = Signal.head sig
     let f start end sig0 sig1 = Signal.pitches_share False start end
             (sample0 sig0) sig0 (sample0 sig1) sig1
 

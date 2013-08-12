@@ -365,7 +365,7 @@ sample_hold :: [RealTime] -> Signal.Control -> Signal.Control
 sample_hold points sig = Signal.unfoldr go (0, points, sig)
     where
     go (_, [], _) = Nothing
-    go (prev, x : xs, sig_) = case Signal.first sig of
+    go (prev, x : xs, sig_) = case Signal.head sig of
             Just (_, y) -> Just ((x, y), (y, xs, sig))
             Nothing -> Just ((x, prev), (prev, xs, sig))
         where sig = Signal.drop_before x sig_
