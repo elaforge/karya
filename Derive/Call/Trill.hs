@@ -50,10 +50,12 @@ import qualified Derive.Attrs as Attrs
 import qualified Derive.Call.Control as Control
 import qualified Derive.Call.Lily as Lily
 import qualified Derive.Call.Make as Make
+import qualified Derive.Call.Post as Post
 import qualified Derive.Call.Sub as Sub
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Call.Util as Util
 import qualified Derive.Derive as Derive
+import qualified Derive.LEvent as LEvent
 import qualified Derive.PitchSignal as PitchSignal
 import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
@@ -129,8 +131,6 @@ c_tremolo = Derive.Call
         \ them to fit." transformer
     }
     where
-    speed_arg = defaulted "speed" (typed_control "tremolo-speed" 10 Score.Real)
-        "Tremolo at this speed. Its meaning is the same as the trill speed."
     transformer = Sig.callt speed_arg $ \speed args deriver -> do
         starts <- tremolo_starts speed (Args.range_or_next args)
         simple_tremolo starts [Args.normalized args deriver]
@@ -214,6 +214,7 @@ pitch_calls = Derive.make_calls
     , ("`tr`", c_pitch_trill Nothing)
     , ("`tr`1", c_pitch_trill (Just UnisonFirst))
     , ("`tr`2", c_pitch_trill (Just NeighborFirst))
+    , ("sh", c_sh_pitch)
     , ("xcut", c_xcut_pitch False)
     , ("xcut-h", c_xcut_pitch True)
     ]
@@ -236,6 +237,26 @@ c_pitch_trill maybe_mode = Derive.generator1 "pitch-trill" Tags.ornament
         start <- Args.real_start args
         return $ PitchSignal.apply_control control (Score.untyped transpose) $
             PitchSignal.signal [(start, note)]
+
+c_sh_pitch :: Derive.PitchCall
+c_sh_pitch = Derive.transformer "sh" mempty
+    "Sample & hold. Hold values at the given speed."
+    $ Sig.callt speed_arg $ \speed _args deriver -> do
+        (sig, (start, end), logs) <- Post.pitch_range deriver
+        starts <- speed_starts speed (start, end)
+        return $ LEvent.Event (sample_hold_pitch starts sig)
+            : map LEvent.Log logs
+
+sample_hold_pitch :: [RealTime] -> PitchSignal.Signal -> PitchSignal.Signal
+sample_hold_pitch points sig = PitchSignal.unfoldr go (Nothing, points, sig)
+    where
+    go (_, [], _) = Nothing
+    go (prev, x : xs, sig_) = case PitchSignal.head sig of
+            Just (_, y) -> Just ((x, y), (Just y, xs, sig))
+            Nothing -> case prev of
+                Nothing -> go (prev, xs, sig)
+                Just p -> Just ((x, p), (prev, xs, sig))
+        where sig = PitchSignal.drop_before x sig_
 
 c_xcut_pitch :: Bool -> Derive.PitchCall
 c_xcut_pitch hold = Derive.generator1 "xcut" mempty
@@ -278,6 +299,7 @@ control_calls = Derive.make_calls
     , ("tr1", c_control_trill (Just UnisonFirst))
     , ("tr2", c_control_trill (Just NeighborFirst))
     , ("saw", c_saw)
+    , ("sh", c_sh_control)
     , ("sine", c_sine Bipolar)
     , ("sine+", c_sine Positive)
     , ("sine-", c_sine Negative)
@@ -316,8 +338,7 @@ c_saw = Derive.generator1 "saw" Tags.ornament
     "Emit a sawtooth.  By default it has a downward slope, but you can make\
     \ an upward slope by setting `from` and `to`."
     $ Sig.call ((,,)
-    <$> defaulted "speed" (typed_control "saw-speed" 10 Score.Real)
-        "Repeat at this speed. Its meaning is the same as the trill speed."
+    <$> speed_arg
     <*> defaulted "from" 1 "Start from this value."
     <*> defaulted "to" 0 "End at this value."
     ) $ \(speed, from, to) args -> do
@@ -331,6 +352,32 @@ saw srate starts from to =
     where
     saw (t1, t2) = Control.interpolate_segment
         True srate id t1 from (t2-srate) to
+
+c_sh_control :: Derive.ControlCall
+c_sh_control = Derive.transformer "sh" mempty
+    "Sample & hold. Hold values at the given speed."
+    $ Sig.callt speed_arg $ \speed _args deriver -> do
+        (sig, (start, end), logs) <- Post.control_range deriver
+        starts <- speed_starts speed (start, end)
+        return $ LEvent.Event (sample_hold starts sig) : map LEvent.Log logs
+
+sample_hold :: [RealTime] -> Signal.Control -> Signal.Control
+sample_hold points sig = Signal.unfoldr go (0, points, sig)
+    where
+    go (_, [], _) = Nothing
+    go (prev, x : xs, sig_) = case Signal.first sig of
+            Just (_, y) -> Just ((x, y), (y, xs, sig))
+            Nothing -> Just ((x, prev), (prev, xs, sig))
+        where sig = Signal.drop_before x sig_
+
+speed_arg :: Sig.Parser TrackLang.ValControl
+speed_arg = defaulted "speed" (typed_control "speed" 10 Score.Real)
+    "Repeat at this speed.  If it's a RealTime, the value is the number of\
+    \ repeats per second, which will be unaffected by the tempo. If it's\
+    \ a ScoreTime, the value is the number of repeats per ScoreTime\
+    \ unit, and will stretch along with tempo changes."
+
+-- ** sine
 
 data SineMode = Bipolar | Negative | Positive deriving (Show)
 
@@ -370,18 +417,17 @@ sine srate start end freq_sig = Signal.unfoldr go (start, 0)
         next_phase = phase + RealTime.to_seconds srate * 2*pi * freq
 
 -- | Get start times before the end of the range, at the given speed.
-speed_starts :: TrackLang.ValControl -> (ScoreTime, ScoreTime)
+speed_starts :: (Derive.Time t) => TrackLang.ValControl -> (t, t)
     -> Derive.Deriver [RealTime]
-speed_starts speed range = do
+speed_starts speed (start, end) = do
     (speed_sig, time_type) <- Util.to_time_signal Util.Real speed
     case time_type of
         Util.Real -> do
-            start <- Derive.real (fst range)
-            end <- Derive.real (snd range)
+            (start, end) <- (,)  <$> Derive.real start <*> Derive.real end
             return $ takeWhile (<=end) $
                 real_pos_at_speed speed_sig start
         Util.Score -> do
-            let (start, end) = range
+            (start, end) <- (,)  <$> Derive.score start <*> Derive.score end
             starts <- score_pos_at_speed speed_sig start end
             mapM Derive.real $ takeWhile (<=end) starts
 

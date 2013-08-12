@@ -7,9 +7,11 @@
 module Derive.Call.Post where
 import qualified Data.FixedList as FixedList
 import Data.FixedList (Nil(..))
+import qualified Data.Monoid as Monoid
 import qualified Data.Traversable as Traversable
 
 import Util.Control
+import qualified Util.Log as Log
 import qualified Derive.Call.Util as Util
 import qualified Derive.Derive as Derive
 import qualified Derive.LEvent as LEvent
@@ -17,6 +19,9 @@ import qualified Derive.PitchSignal as PitchSignal
 import qualified Derive.Score as Score
 import qualified Derive.Stack as Stack
 import qualified Derive.TrackLang as TrackLang
+
+import qualified Perform.Signal as Signal
+import Types
 
 
 -- Functions here force a Deriver into its LEvent.LEvents and process them
@@ -130,3 +135,31 @@ next_in_track (s1@(bid1, tid1, r1) : stack1) (s2@(bid2, tid2, r2) : stack2)
     before (Just (s1, _)) (Just (s2, _)) = s1 < s2
     before _ _ = False
 next_in_track _ _ = True
+
+
+-- * signal
+
+control_range :: Derive.ControlDeriver
+    -> Derive.Deriver (Signal.Control, (RealTime, RealTime), [Log.Msg])
+control_range deriver = do
+    (sig, logs) <- first mconcat . LEvent.partition <$> deriver
+    let range = case (Signal.first sig, Signal.last sig) of
+            (Just (s, _), Just (e, _)) -> (s, e)
+            _ -> (0, 0)
+    return (sig, range, logs)
+
+pitch_range :: Derive.PitchDeriver
+    -> Derive.Deriver (PitchSignal.Signal, (RealTime, RealTime), [Log.Msg])
+pitch_range deriver = do
+    (sig, logs) <- first mconcat . LEvent.partition <$> deriver
+    let range = case (PitchSignal.head sig, PitchSignal.last sig) of
+            (Just (s, _), Just (e, _)) -> (s, e)
+            _ -> (0, 0)
+    return (sig, range, logs)
+
+-- | Transform a pitch or control signal.
+signal :: (Monoid.Monoid sig) => (sig -> sig)
+    -> Derive.LogsDeriver sig -> Derive.LogsDeriver sig
+signal f deriver = do
+    (chunks, logs) <- LEvent.partition <$> deriver
+    return $ LEvent.Event (f (mconcat chunks)) : map LEvent.Log logs

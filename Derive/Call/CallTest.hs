@@ -31,7 +31,7 @@ transform trans = DeriveTest.derive State.empty $
         (DeriveTest.mkpitch12 "4c") (trans (DeriveTest.c_note 0 1))
 
 run_pitch :: [(ScoreTime, String)] -> [(RealTime, Pitch.NoteNumber)]
-run_pitch = run_with_scale "twelve"
+run_pitch = run_with_scale ""
 
 run_with_scale :: String -> [(ScoreTime, String)]
     -> [(RealTime, Pitch.NoteNumber)]

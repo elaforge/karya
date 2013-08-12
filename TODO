@@ -18,7 +18,7 @@ UNSORTED
         accepts black notes between every note.
   - there should be a character that triggers a parse failure, which is used
     by invalid ShowVal instances like ShowVal Pitch
-  - resample control call, but why not just set srate?  Could be in score time
+  * resample control call, but why not just set srate?  Could be in score time
     to step in rhythm.
   - Derive.Call.Gamakam, with janta, s-g-r, and r-s ornaments.
     Also there's a slight lift at the end of notes.

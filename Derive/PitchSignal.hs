@@ -12,7 +12,7 @@ module Derive.PitchSignal (
     -- * apply controls
     , apply_controls, apply_control, controls_at
     -- * signal functions
-    , null, at, shift, last
+    , null, at, shift, head, last
     , take, drop, drop_after, drop_before, drop_before_strict
     -- * Pitch
     , Pitch, pitch_scale_id, pitch_transposers
@@ -20,7 +20,7 @@ module Derive.PitchSignal (
     , pitch, pitch_scale
     , apply, add_control, eval_pitch, eval_note, pitch_nn, pitch_note
 ) where
-import Prelude hiding (take, drop, last, null)
+import Prelude hiding (head, take, drop, last, null)
 import qualified Data.Map.Strict as Map
 import qualified Data.Monoid as Monoid
 import qualified Data.Set as Set
@@ -150,11 +150,11 @@ at x = TimeVector.at x . sig_vec
 shift :: RealTime -> Signal -> Signal
 shift x = modify_vector (TimeVector.shift x)
 
+head :: Signal -> Maybe (RealTime, Pitch)
+head = fmap TimeVector.to_pair . TimeVector.head . sig_vec
+
 last :: Signal -> Maybe (RealTime, Pitch)
-last sig
-    | V.null (sig_vec sig) = Nothing
-    | otherwise = case V.unsafeLast (sig_vec sig) of
-        TimeVector.Sample x pitch -> Just (x, pitch)
+last = fmap TimeVector.to_pair . TimeVector.last . sig_vec
 
 take :: Int -> Signal -> Signal
 take = modify_vector . TimeVector.take
