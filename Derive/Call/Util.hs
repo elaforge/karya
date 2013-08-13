@@ -396,12 +396,22 @@ score_time (TrackLang.Real t) = Derive.score t
 
 -- | A time range from the event start until a given duration.
 duration_from_start :: Derive.PassedArgs d -> TrackLang.RealOrScore
-    -> Derive.Deriver (RealTime, RealTime)
+    -> Derive.Deriver (RealTime, RealTime) -- ^ (start, start + dur)
 duration_from_start args duration = do
     start <- Args.real_start args
     case duration of
         TrackLang.Real t -> return (start, start + t)
         TrackLang.Score t -> (,) start <$> Derive.real (Args.start args + t)
+
+-- | Like 'duration_from_start', but subtract a duration from the end.
+duration_from_end :: Derive.PassedArgs d -> TrackLang.RealOrScore
+    -> Derive.Deriver (RealTime, RealTime) -- ^ (end - dur, end)
+duration_from_end args duration = do
+    end <- Args.real_end args
+    case duration of
+        TrackLang.Real t -> return (end - t, end)
+        TrackLang.Score t ->
+            (,) <$> Derive.real (Args.end args - t) <*> return end
 
 -- | This is 'real_dur', but fancied up to take a TypedVal.
 real_duration :: TimeType -> ScoreTime -> Score.TypedVal

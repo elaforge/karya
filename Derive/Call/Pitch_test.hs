@@ -117,6 +117,13 @@ test_drop = do
         , [(0, 0.5), (1, 0.5), (2, 0.25), (3, 0)]
         )
 
+test_drop_lift_note = do
+    let run note = DeriveTest.extract DeriveTest.e_nns $ DeriveTest.derive_tracks
+            [("*", [(0, 0, "4c")]), (">", [(0, 4, note)])]
+    equal (run "drop 2 2 |") ([[(0, 60), (3, 59), (4, 58)]], [])
+    equal (run "lift 2 2 |") ([[(0, 60), (3, 61), (4, 62)]], [])
+    equal (run "lift (5c) 2 |") ([[(0, 60), (3, 66), (4, 72)]], [])
+
 test_approach_dyn = do
     let run pitches = extract . run_ 1 pitches
         extract = head . (DeriveTest.extract_events $ \e ->

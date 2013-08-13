@@ -22,8 +22,25 @@ UNSORTED
     to step in rhythm.
   - Derive.Call.Gamakam, with janta, s-g-r, and r-s ornaments.
     Also there's a slight lift at the end of notes.
-    - call lifts pitch to some frequency at the end of notes
+    * call lifts pitch to some frequency at the end of notes
+      lift and drop for violin can reduce pressure instead of speed (dyn)
     - copy from kaushik's recording
+  - drop pitch call isn't usable non-inverted because the dyn drop extends to
+    the end of the track.  It should stop at the next note.
+  - implement pitch subtraction: Pitch - Pitch = Chromatic, so I can make lift
+    and drop work inverted
+    . How would this actually work?  It needs two pitches from the same scale.
+      I think I get Pitch.Note and parse it according to the scale of one of
+      them.  So the scale needs
+      scale_chromatic_difference
+        :: Pitch.Note -> Pitch.Note -> Maybe Pitch.Chromatic
+      scale_diatonic_difference
+        :: Pitch.Note -> Pitch.Note -> Maybe Pitch.Diatonic
+
+  . If pitches were objects I could down-cast them to get at their
+    implementation.
+
+  * I might need Controls.nn to transpose by nn, for vibrato type things.
   + recent tends to collect pitches added via edit input, but since they have
     a specific pitch they're not useful.
     . Maybe I should have a separate recent queue only for transformers, and

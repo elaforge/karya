@@ -326,7 +326,7 @@ interpolate_segment include_end srate f x1 y1 x2 y2 =
     y_of = Num.scale y1 y2 . f . Num.normalize (secs x1) (secs x2) . secs
     secs = RealTime.to_seconds
 
--- | Negative exponents produce a curve that jumps from the "starting point"
+-- | Negative exponents produce a curve that jumps from the \"starting point\"
 -- which doesn't seem too useful, so so hijack the negatives as an easier way
 -- to write 1/n.  That way n is smoothly departing, while -n is smoothly
 -- approaching.

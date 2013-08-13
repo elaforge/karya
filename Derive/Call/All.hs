@@ -71,6 +71,7 @@ note_calls :: Derive.NoteCallMap
     , Gender.note_calls, Integrate.note_calls
     , Lily.note_calls
     , Note.note_calls, NoteTransformer.note_calls
+    , Pitch.note_calls
     , Grace.note_calls
     , Post.Idiom.note_calls, Post.ArrivalNote.note_calls
     , Post.Reverse.note_calls

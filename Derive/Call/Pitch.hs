@@ -17,6 +17,7 @@ import qualified Derive.Call.Control as Control
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Call.Util as Util
 import qualified Derive.Derive as Derive
+import qualified Derive.Deriver.Internal as Internal
 import qualified Derive.LEvent as LEvent
 import qualified Derive.PitchSignal as PitchSignal
 import qualified Derive.Pitches as Pitches
@@ -30,6 +31,12 @@ import Types
 
 
 -- * pitch
+
+note_calls :: Derive.NoteCallMap
+note_calls = Derive.make_calls
+    [ ("lift", c_lift_note)
+    , ("drop", c_drop_note)
+    ]
 
 pitch_calls :: Derive.PitchCallMap
 pitch_calls = Derive.make_calls
@@ -257,12 +264,46 @@ make_drop name doc down = Derive.generator1 name Tags.cmod doc $
             Nothing -> return mempty
             Just (_, prev_pitch) -> do
                 (start, end) <- Util.duration_from_start args time
-                drop_call start end prev_pitch interval down
+                drop_signal start end prev_pitch interval down
 
-drop_call :: RealTime -> RealTime -> PitchSignal.Pitch
+c_drop_note :: Derive.NoteCall
+c_drop_note = make_drop_note "drop"
+    "Drop pitch and `dyn` at the end of the note.\
+    \\nSince this starts its pitch from the note's existing pitch,\
+    \ and it's a transformer, it can't work under inversion, because the\
+    \ pitch doesn't exist yet.  I could fix it by emitting a transposition\
+    \ instead of a signal, but to have that work with an absolute\
+    \ destination pitch I'd need to be able to subtract absolute pitches for\
+    \ a transposition, which isn't implemented.  TODO but maybe it should be."
+    True
+
+c_lift_note :: Derive.NoteCall
+c_lift_note = make_drop_note "lift"
+    "Raise pitch and drop `dyn` at the end of the note. Same as the `drop`\
+    \ note call, except it defaults to going up instead of down."
+    False
+
+make_drop_note :: Text -> Text -> Bool -> Derive.NoteCall
+make_drop_note name doc down = Derive.transformer name mempty doc
+    $ Sig.callt ((,)
+    <$> defaulted "interval" (Left (Pitch.Chromatic 7))
+        "Interval or destination pitch."
+    <*> defaulted "time" (TrackLang.real 0.25)
+        "Time to drop the given interval and fade to nothing."
+    ) $ \(interval, TrackLang.DefaultReal time) args deriver -> do
+        -- if I used transpose this could work under inversion too
+        (start, end) <- Util.duration_from_end args time
+        Derive.pitch_at start >>= \x -> case x of
+            Nothing -> deriver
+            Just pitch -> do
+                slide <- drop_signal start end pitch interval down
+                pitch <- Internal.get_dynamic Derive.state_pitch
+                Derive.with_pitch Nothing (pitch <> slide) deriver
+
+drop_signal :: RealTime -> RealTime -> PitchSignal.Pitch
     -> Either Pitch.Transpose PitchSignal.Pitch -> Bool
     -> Derive.Deriver PitchSignal.Signal
-drop_call start end prev_pitch interval down = do
+drop_signal start end prev_pitch interval down = do
     let dest = case interval of
             Left degrees -> Pitches.transpose
                 (if down then Pitch.modify_transpose negate degrees else degrees)

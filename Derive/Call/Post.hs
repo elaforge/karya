@@ -60,9 +60,9 @@ event_head (LEvent.Event event : rest) f = f event rest
 
 map_events_asc :: state
     -> (state -> Score.Event -> Derive.Deriver (state, [Score.Event]))
-    -> Derive.Events -> Derive.EventDeriver
-map_events_asc state f events = do
-    (_, result) <- map_controls Nil state (\Nil -> f) events
+    -> Derive.EventDeriver -> Derive.EventDeriver
+map_events_asc state f deriver = do
+    (_, result) <- map_controls Nil state (\Nil -> f) =<< deriver
     return $ Derive.merge_asc_events result
 
 -- | Specialization of 'map_controls' where the transformation will return
