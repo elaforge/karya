@@ -184,8 +184,7 @@ instance DeepSeq.NFData Signal where
 
 -- | A pitch is an abstract value that can turn a map of values into
 -- a NoteNumber.  The values are expected to contain transpositions that this
--- Pitch understands, for example 'Derive.Score.c_chromatic' and
--- 'Derive.Score.c_diatonic'.
+-- Pitch understands, for example 'Controls.chromatic' and 'Controls.diatonic'.
 data Pitch = Pitch {
     pitch_eval_nn :: !(ControlValMap -> Either PitchError Pitch.NoteNumber)
     , pitch_eval_note :: !(ControlValMap -> Either PitchError Pitch.Note)

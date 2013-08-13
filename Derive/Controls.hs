@@ -73,12 +73,22 @@ mod = Control "mod"
 
 -- ** transposition
 
+-- | Pitches respond to this with chromatic transposition.  This is stepwise
+-- transposition for scales with no distinction between chromatic and diatonic.
 chromatic :: Control
 chromatic = Control "t-chromatic"
 
+-- | Pitches respond to this with diatonic transposition, which generally
+-- requires a key.  This is stepwise transposition for scales with no
+-- distinction between chromatic and diatonic.
 diatonic :: Control
 diatonic = Control "t-diatonic"
 
+-- | Transpose by NoteNumber, which is cents \/ 100.
+nn :: Control
+nn = Control "t-hz"
+
+-- | Transpose in absolute hz.
 hz :: Control
 hz = Control "t-hz"
 

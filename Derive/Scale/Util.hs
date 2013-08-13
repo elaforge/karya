@@ -123,7 +123,7 @@ non_transposing _ _ _ _ = Left Scale.InvalidTransposition
 
 standard_transposers :: Set.Set Score.Control
 standard_transposers = Set.fromList
-    [Controls.chromatic, Controls.diatonic, Controls.hz]
+    [Controls.chromatic, Controls.diatonic, Controls.nn, Controls.hz]
 
 -- ** note_to_call
 
