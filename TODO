@@ -25,7 +25,7 @@ UNSORTED
     * call lifts pitch to some frequency at the end of notes
       lift and drop for violin can reduce pressure instead of speed (dyn)
     - copy from kaushik's recording
-  - drop pitch call isn't usable non-inverted because the dyn drop extends to
+  * drop pitch call isn't usable non-inverted because the dyn drop extends to
     the end of the track.  It should stop at the next note.
   - implement pitch subtraction: Pitch - Pitch = Chromatic, so I can make lift
     and drop work inverted

@@ -263,8 +263,9 @@ make_drop name doc down = Derive.generator1 name Tags.cmod doc $
         Args.prev_val args >>= \x -> case x of
             Nothing -> return mempty
             Just (_, prev_pitch) -> do
+                next <- Derive.real (Args.next args)
                 (start, end) <- Util.duration_from_start args time
-                drop_signal start end prev_pitch interval down
+                drop_signal start end next prev_pitch interval down
 
 c_drop_note :: Derive.NoteCall
 c_drop_note = make_drop_note "drop"
@@ -296,20 +297,21 @@ make_drop_note name doc down = Derive.transformer name mempty doc
         Derive.pitch_at start >>= \x -> case x of
             Nothing -> deriver
             Just pitch -> do
-                slide <- drop_signal start end pitch interval down
+                next <- Derive.real (Args.next args)
+                slide <- drop_signal start end next pitch interval down
                 pitch <- Internal.get_dynamic Derive.state_pitch
                 Derive.with_pitch Nothing (pitch <> slide) deriver
 
-drop_signal :: RealTime -> RealTime -> PitchSignal.Pitch
+drop_signal :: RealTime -> RealTime -> RealTime -> PitchSignal.Pitch
     -> Either Pitch.Transpose PitchSignal.Pitch -> Bool
     -> Derive.Deriver PitchSignal.Signal
-drop_signal start end prev_pitch interval down = do
+drop_signal start end next prev_pitch interval down = do
     let dest = case interval of
             Left degrees -> Pitches.transpose
                 (if down then Pitch.modify_transpose negate degrees else degrees)
                 prev_pitch
             Right pitch -> pitch
-    Control.multiply_dyn id start 1 end 0
+    Control.multiply_dyn next id start 1 end 0
     make_interpolator id False start prev_pitch end dest
 
 c_approach_dyn :: Derive.PitchCall
@@ -321,7 +323,7 @@ c_approach_dyn = Derive.generator1 "approach-dyn" (Tags.cmod <> Tags.next)
     <*> defaulted "dyn" 0.25 "Drop `dyn` by this factor."
     ) $ \(TrackLang.DefaultReal time, dyn) args -> do
         (start, end) <- Util.duration_from_start args time
-        Control.multiply_dyn id start 1 end dyn
+        Control.multiply_dyn end id start 1 end dyn
         approach args start end
 
 -- * util

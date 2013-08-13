@@ -117,6 +117,13 @@ test_drop = do
         , [(0, 0.5), (1, 0.5), (2, 0.25), (3, 0)]
         )
 
+test_drop_noninverted = do
+    let run ps ns = DeriveTest.extract DeriveTest.e_dyn $
+            DeriveTest.derive_tracks [("*", ps), (">", ns)]
+    equal (run [(0, 0, "4c"), (1, 0, "drop 2 2"), (4, 4, "4c")]
+            [(0, 4, ""), (4, 4, "")])
+        ([[(0, 1), (1, 1), (2, 0.5), (3, 0)], [(4, 1)]], [])
+
 test_drop_lift_note = do
     let run note = DeriveTest.extract DeriveTest.e_nns $ DeriveTest.derive_tracks
             [("*", [(0, 0, "4c")]), (">", [(0, 4, note)])]
