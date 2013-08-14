@@ -36,9 +36,8 @@ UNSORTED
         :: Pitch.Note -> Pitch.Note -> Maybe Pitch.Chromatic
       scale_diatonic_difference
         :: Pitch.Note -> Pitch.Note -> Maybe Pitch.Diatonic
-
-  . If pitches were objects I could down-cast them to get at their
-    implementation.
+    . If pitches were objects I could down-cast them to get at their
+      implementation.
 
   * I might need Controls.nn to transpose by nn, for vibrato type things.
   + recent tends to collect pitches added via edit input, but since they have
@@ -109,9 +108,9 @@ UNSORTED
       +cresc or +dim on a note.
     - Figure out how to map continuous controls, and crossfade.
 
-  - Can I bind symbol names with =, e.g. 'arp = arp-manual .3 .2 .1'
-    That's actually two things, one is binding the symbol, the other is
-    partially applying args.
+  - Partial application, e.g.: '>arp = arp-manual .3 .2 .1'
+    Normal args could use the environ defaulting, but repeated args can't do
+    that.
   - network midi doesn't seem to handle abort?
     playing the second time doesn't happen
   - I have a feeling like FM8 doesn't obey ResetAllControls
@@ -643,6 +642,12 @@ test:
   - try writing criterion tests for midi performance and derivation
   - run tests in parallel
     Start thread for each processor, then have them take work from a queue.
+    . I need to separate the outputs, which means I either can't use stdout,
+      or I need to run subprocesses and have some way so they don't do the same
+      tests.
+    . To capture: maybe 'MVar (Map ThreadId (Chan String))'
+    . For subprocesses: they can wait on stdin for a test name, and print
+      a magic string on stdout when they're done.
   complete quickcheck derive testing
     I switched back to Double for RealTime, but this means the roundoff errors
     are back.  Use quickcheck to repro them.
