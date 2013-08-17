@@ -43,7 +43,7 @@ doCmdline staunch (abbr, output, cmd_:args) = do
     let cmd = FilePath.toNative cmd_
     let desc = abbr ++ if null output then "" else ": " ++ output
     putQuietNormal desc (unwords (cmd:args))
-    res <- Shake.traced (crunch ("cmdline: " ++ desc)) $
+    res <- Shake.traced ("cmdline: " ++ desc) $
         Cmd.rawSystem "nice" (cmd : args)
     when (not staunch && res /= Exit.ExitSuccess) $
         error $ "Failed:\n" ++ unwords (cmd : args)
@@ -60,12 +60,9 @@ staunchSystem cmd args = doCmdline True (unwords (cmd:args), "", cmd:args)
 shell :: String -> Shake.Action ()
 shell cmd = do
     Shake.putQuiet cmd
-    res <- Shake.traced (crunch ("shell: " ++ cmd)) $ Cmd.system cmd
+    res <- Shake.traced ("shell: " ++ cmd) $ Cmd.system cmd
     when (res /= Exit.ExitSuccess) $
         error $ "Failed:\n" ++ cmd
-
--- Work around shake bug where only the first word is taken.
-crunch = filter (/=' ')
 
 -- | Log one thing at quiet, and another at normal or above.
 putQuietNormal :: String -> String -> Shake.Action ()

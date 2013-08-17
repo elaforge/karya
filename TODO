@@ -24,6 +24,8 @@ UNSORTED
     Also there's a slight lift at the end of notes.
     * call lifts pitch to some frequency at the end of notes
       lift and drop for violin can reduce pressure instead of speed (dyn)
+    - janta is neighbor from below, or fingered is sr, or if you're moving
+      up: r-sg
     - copy from kaushik's recording
   * drop pitch call isn't usable non-inverted because the dyn drop extends to
     the end of the track.  It should stop at the next note.
@@ -382,7 +384,7 @@ local: plugins:
 
 cleanup:
   - update shakefile to use new system calls and logging levels
-  - shakefile should use typesafe oracle calls, is there newtype based
+  * shakefile should use typesafe oracle calls, is there newtype based
     oracle utils yet?
   - if I add an Alternative instance to Sig.Parser I can write arg parsers
     like 'Sig.many xs <|> Sig.many ys'.  I think.  If I wind up with something
