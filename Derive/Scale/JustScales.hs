@@ -8,6 +8,7 @@ import qualified Data.Vector as Vector
 import Util.Control
 import qualified Util.Num as Num
 import qualified Util.Pretty as Pretty
+import qualified Util.Seq as Seq
 
 import qualified Derive.Call.ScaleDegree as ScaleDegree
 import qualified Derive.Controls as Controls
@@ -15,7 +16,6 @@ import qualified Derive.Derive as Derive
 import qualified Derive.Environ as Environ
 import qualified Derive.PitchSignal as PitchSignal
 import qualified Derive.Scale as Scale
-import qualified Derive.Scale.ChromaticScales as ChromaticScales
 import qualified Derive.Scale.Theory as Theory
 import qualified Derive.Scale.TheoryFormat as TheoryFormat
 import qualified Derive.Scale.Util as Util
@@ -74,8 +74,8 @@ scale_map keys default_key fmt = ScaleMap
 layout :: Theory.Layout
 layout = TheoryFormat.piano_layout
 
-make_scale :: Pitch.ScaleId -> ScaleMap -> Text -> Scale.Scale
-make_scale scale_id smap doc = Scale.Scale
+make_scale :: Pitch.ScaleId -> ScaleMap -> Text -> [(Text, Text)] -> Scale.Scale
+make_scale scale_id smap doc doc_fields = Scale.Scale
     { Scale.scale_id = scale_id
     , Scale.scale_pattern = TheoryFormat.fmt_pattern fmt
     , Scale.scale_symbols = []
@@ -88,7 +88,7 @@ make_scale scale_id smap doc = Scale.Scale
         Util.computed_input_to_nn input2note (note_to_call scale smap)
     , Scale.scale_call_doc =
         Util.annotate_call_doc Util.standard_transposers (doc <> just_doc)
-            keys_doc dummy_call
+            doc_fields dummy_call
     }
     where
     scale = PitchSignal.Scale scale_id Util.standard_transposers
@@ -96,18 +96,23 @@ make_scale scale_id smap doc = Scale.Scale
         ScaleDegree.scale_degree_just scale (smap_named_intervals smap) 0
     input2note = input_to_note (TheoryFormat.show_pitch fmt)
     fmt = smap_fmt smap
-    keys_doc =
-        [ (name, show_ratios (key_ratios key))
-        | (name, key) <- ChromaticScales.group_keys $
-            Map.toList (smap_keys smap)
-        ]
+
+-- | Group keys and format them into fields suitable to pass to 'make_scale'.
+-- The 'Key's are expected to be relative, so their 'key_tonic's are ignored.
+group_relative_keys :: [(Pitch.Key, Key)] -> [(Text, Text)]
+group_relative_keys = mapMaybe fmt . Seq.group_eq_on snd
+    where
+    fmt [] = Nothing -- not reached, due to 'Seq.group_eq_on' postcondition.
+    fmt ((name, key) : rest) =
+        Just (fmt_names (name : map fst rest), show_ratios (key_ratios key))
+    fmt_names = Text.intercalate ", " . map Pitch.key_text
 
 show_ratios :: Ratios -> Text
 show_ratios = Text.intercalate ", " . map Pretty.prettytxt . Vector.toList
 
 just_doc :: Text
 just_doc =
-    "Just scales are tuned by ratios from a base frequency.\
+    "\nJust scales are tuned by ratios from a base frequency.\
     \ That frequency is taken from the `%just-base` control and the key.\
     \ For example, `%just-base = 440 | key = a-maj` means that A in the\
     \ middle octave is 440hz and is considered 1/1, and uses the `maj`\
@@ -274,7 +279,7 @@ index_mod v i = Vector.unsafeIndex v (i `mod` Vector.length v)
 data Key = Key {
     key_tonic :: TheoryFormat.Tonic
     , key_ratios :: Ratios
-    } deriving (Show)
+    } deriving (Eq, Show)
 
 read_key :: ScaleMap -> TrackLang.Environ -> Either Scale.ScaleError Key
 read_key smap = Util.read_environ

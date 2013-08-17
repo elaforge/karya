@@ -11,6 +11,7 @@ import qualified Data.Vector as Vector
 
 import Util.Control
 import qualified Derive.Scale as Scale
+import qualified Derive.Scale.ChromaticScales as ChromaticScales
 import qualified Derive.Scale.JustScales as JustScales
 import qualified Derive.Scale.TheoryFormat as TheoryFormat
 
@@ -20,9 +21,9 @@ import qualified Perform.Pitch as Pitch
 scales :: [Scale.Scale]
 scales =
     [ JustScales.make_scale (Pitch.ScaleId "just")
-        (scale_map TheoryFormat.absolute_c) doc
+        (scale_map TheoryFormat.absolute_c) doc doc_fields
     , JustScales.make_scale (Pitch.ScaleId "just-r")
-        (scale_map (TheoryFormat.sargam relative_fmt)) doc
+        (scale_map (TheoryFormat.sargam relative_fmt)) doc doc_fields
     ]
 
 doc :: Text
@@ -33,6 +34,12 @@ doc =
     \ the scale starts, while for relative notation, the tonic determines\
     \ only which MIDI key maps to the first scale degree. So for the ASCII kbd\
     \ where the input is also relative, the tonic is irrelevant."
+
+doc_fields :: [(Text, Text)]
+doc_fields =
+    [ (name, JustScales.show_ratios (JustScales.key_ratios key))
+    | (name, key) <- ChromaticScales.group_tonic_mode (Map.toList keys)
+    ]
 
 scale_map :: TheoryFormat.Format -> JustScales.ScaleMap
 scale_map = JustScales.scale_map keys default_key

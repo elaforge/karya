@@ -8,6 +8,7 @@ import qualified Data.Vector as Vector
 import Util.Control
 import qualified Util.Num as Num
 import qualified Derive.Scale as Scale
+import qualified Derive.Scale.ChromaticScales as ChromaticScales
 import qualified Derive.Scale.JustScales as JustScales
 import qualified Derive.Scale.TheoryFormat as TheoryFormat
 
@@ -17,9 +18,11 @@ import qualified Perform.Pitch as Pitch
 scales :: [Scale.Scale]
 scales =
     [ JustScales.make_scale (Pitch.ScaleId "hex")
-        (scale_map (TheoryFormat.letters pc_per_octave)) doc
+        (scale_map (TheoryFormat.letters pc_per_octave))
+        doc doc_fields
     , JustScales.make_scale (Pitch.ScaleId "hex-r")
-        (scale_map (TheoryFormat.cipher pc_per_octave relative_fmt)) doc
+        (scale_map (TheoryFormat.cipher pc_per_octave relative_fmt))
+        doc doc_fields
     ]
 
 doc :: Text
@@ -30,6 +33,12 @@ doc = "This is a family of 6 note just scales, based on Erv Wilson's hexanies.\
     \ assigned to the first ratio produced. For example, if you modulate to the\
     \ 5th scale degree, you would change the key to `a-159b-6` and set\
     \ `%just-base` accordingly.\n"
+
+doc_fields :: [(Text, Text)]
+doc_fields =
+    [ (name, JustScales.show_ratios (JustScales.key_ratios key))
+    | (name, key) <- ChromaticScales.group_tonic_mode (Map.toList keys)
+    ]
 
 pc_per_octave :: Int
 pc_per_octave = 6

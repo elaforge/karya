@@ -3,6 +3,22 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
+  Raga
+    - Using the "official" ratios for r1-4 and d1-4 doesn't sound like what
+      people actually play.  What's going on?
+    - Support arohana and avarohana by treating them as enharmonics
+      Is this really a good idea, since they aren't anything like enharmonics?
+      Maybe I should just use the flip-enharmonic key, but keep the concept
+      separate.
+      . I could keep it at the Cmd level by remembering the last entered pitch
+        and defaulting this one based on it, or I could try to put it at the
+        Derive level too by having the pitch itself be based on the previous
+        one.
+      . Putting it at the derive level seems really hard and unreliable, so I
+        should have separate symbols, e.g. 4r^ and 4r. for up and down variants.
+        For western modes this isn't necessary since the notation is already
+        absolute.
+  - fix doc for just scales, most of JustScales.just_doc isn't appropriate
   - there's still a cache bug: change the tempo on the score block, and the
     cached version of a following block isn't invalidated
   - unmerging a pitch track should have a minimum width to display 3 chars

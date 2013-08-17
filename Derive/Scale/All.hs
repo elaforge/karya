@@ -19,6 +19,7 @@ import qualified Derive.Scale.Hex as Hex
 import qualified Derive.Scale.Just as Just
 import qualified Derive.Scale.Legong as Legong
 import qualified Derive.Scale.Octa as Octa
+import qualified Derive.Scale.Raga as Raga
 import qualified Derive.Scale.Ratio as Ratio
 import qualified Derive.Scale.Twelve as Twelve
 import qualified Derive.Scale.Wayang as Wayang
@@ -37,6 +38,7 @@ shadowed :: [Pitch.ScaleId]
     , Hex.scales
     , Just.scales
     , Octa.scales
+    , Raga.scales
     , Twelve.scales
     ]
     where mk = second (map fst) . Map.unique . Seq.key_on Scale.scale_id

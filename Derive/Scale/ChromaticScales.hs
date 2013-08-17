@@ -176,15 +176,15 @@ call_doc transposers smap doc =
 
 format_keys :: [Pitch.Key] -> Text
 format_keys keys
-    | any (("-" `Text.isInfixOf`) . name) keys =
-        Text.intercalate ", " $ map fst $ group_keys $ map (flip (,) ()) keys
+    | any (("-" `Text.isInfixOf`) . name) keys = Text.intercalate ", " $
+        map fst $ group_tonic_mode $ map (flip (,) ()) keys
     | otherwise = Text.intercalate ", " $ map name keys
     where name (Pitch.Key k) = k
 
 -- | Assuming keys are formatted @tonic-mode@, group keys by mode and replace
 -- the tonics with a pattern.
-group_keys :: [(Pitch.Key, a)] -> [(Text, a)]
-group_keys = map extract . Seq.keyed_group_on key . map (first split)
+group_tonic_mode :: [(Pitch.Key, a)] -> [(Text, a)]
+group_tonic_mode = map extract . Seq.keyed_group_on key . map (first split)
     where
     extract (mode, group) = (fmt mode (map (fst . fst) group), snd (head group))
     key ((_, mode), _) = mode
