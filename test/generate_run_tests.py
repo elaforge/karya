@@ -12,12 +12,7 @@ they should presumably be compiled separately since they required different
 flags.
 
 If a module has a function called 'initialize', it will be called as 'IO ()'
-prior to the tests.  Since there is no tear down function, each test requiring
-initialization will be called in its own subprocess. (TODO)
-
-The generated haskell module takes a set of regexes, and will run tests that
-match any regex.  If given a '--list' flag, it will just print the tests
-instead of running them.
+prior to the tests.
 
 Tests are divided into interactive and auto variants.  Interactive tests want
 to have a conversation with the user, so they're not appropriate to run
