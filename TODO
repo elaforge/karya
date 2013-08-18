@@ -24,7 +24,7 @@ UNSORTED
     cached version of a following block isn't invalidated
     . To reproduce: save/mridangam, change thani3 '%tempo = 1', block calls
       don't update.
-  - Mute and solo isn't working for block calls.
+  * Mute and solo isn't working for block calls.
   - unmerging a pitch track should have a minimum width to display 3 chars
     Figure out under which circumstances the collapsed track forgets its size.
     . Looks like it happens when I create a new block from a template block

@@ -2,6 +2,15 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
+-- | Operations on 'Skeleton's.
+--
+-- A skeleton is a tree, but it's stored as a "Data.Graph" and converted to
+-- a tree when needed.  This seems weird, but at the time it seemed overly
+-- awkward to add and remove edges to a tree, and to detect cycles, while
+-- graphs have those operations built in.  In retrospect, dealing with
+-- Data.Graph was probably more of a pain, so maybe someday if I have a lot of
+-- extra time and feel like some aggravation I'll see about redoing Skeleton as
+-- a Tree.  I could also maybe clean up "Ui.TrackTree".
 module Ui.Skeleton where
 import qualified Data.Array.IArray as IArray
 import qualified Data.Graph as Graph

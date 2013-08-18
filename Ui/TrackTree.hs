@@ -57,6 +57,13 @@ children_of block_id track_id =
         Just (_, _ : children) -> Just children
         _ -> Nothing
 
+-- | Combine the skeleton with the tracks to create a TrackTree.
+--
+-- TODO this is pretty complicated.  If I stored the tracks as a tree in the
+-- first place and generated the skeleton from that then this would all go
+-- away.  But that would mean redoing all the "Ui.Skeleton" operations for
+-- trees, which would be a huge pain.  And the reason I didn't do it in the
+-- first place was the hassle of graph operations on a Data.Tree.
 get_track_tree :: (State.M m) => BlockId -> m TrackTree
 get_track_tree block_id = do
     skel <- State.get_skeleton block_id

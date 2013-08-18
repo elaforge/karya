@@ -11,11 +11,14 @@ import qualified Data.Vector as Vector
 
 import Util.Control
 import qualified Util.Seq as Seq
+import qualified Util.Tree as Tree
 import qualified Util.Vector as Vector
 
 import qualified Midi.Midi as Midi
 import qualified Ui.Block as Block
 import qualified Ui.State as State
+import qualified Ui.TrackTree as TrackTree
+
 import qualified Cmd.Cmd as Cmd
 import qualified Derive.Call.Block as Call.Block
 import qualified Derive.Derive as Derive
@@ -175,17 +178,18 @@ overlapping_events pos = Vector.foldl' collect []
 -- a track on one block, other blocks will still play.
 --
 -- Solo takes priority over Mute.
-filter_track_muted :: [(BlockId, Block.Block)] -> [Score.Event] -> [Score.Event]
-filter_track_muted blocks
-    | not (Set.null soloed) = filter track_soloed
+filter_track_muted :: TrackTree.TrackTree -> [(BlockId, Block.Block)]
+    -> [Score.Event] -> [Score.Event]
+filter_track_muted tree blocks
+    | not (Set.null soloed) = filter (not . stack_contains solo_muted)
     | not (Set.null muted) = filter (not . stack_contains muted)
     | otherwise = id
     where
     stack_contains track_ids = any (`Set.member` track_ids) . stack_tracks
     stack_tracks = mapMaybe Stack.track_of . Stack.innermost . Score.event_stack
-    stack_blocks = mapMaybe Stack.block_of . Stack.innermost . Score.event_stack
     soloed = with_flag Block.Solo
     muted = with_flag Block.Mute
+    solo_muted = solo_to_mute tree blocks soloed
     with_flag flag = Set.fromList
         [ track_id
         | (_, block) <- blocks
@@ -194,14 +198,34 @@ filter_track_muted blocks
         , flag `Set.member` Block.track_flags track
         ]
 
-    -- Solo is trickier than it seems.  Firstly, it doesn't work to just mute
-    -- non-soloed tracks, because that winds up muting the parent track.
-    -- Secondly, if I just filter out non-soloed events then other blocks are
-    -- totally muted, and I'd like to leave them alone.  So always emit events
-    -- on blocks that don't have any solo tracks.
-    track_soloed e = block_not_soloed e || stack_contains soloed e
-    block_not_soloed = maybe True (`Set.notMember` soloed_blocks)
-        . Seq.head . stack_blocks
+-- | Solo is surprisingly tricky.  Solo means non soloed-tracks are muted,
+-- unless there is no solo on the block, or the track is the parent of a soloed
+-- track.
+--
+-- I've already rewritten this a bunch of times, hopefully this is the last
+-- time.
+solo_to_mute :: TrackTree.TrackTree -- ^ All the trees of the whole score,
+    -- concatenated.  This is because I just need to know who is a child of
+    -- who, and I don't care what block they're in.
+    -> [(BlockId, Block.Block)]
+    -> Set.Set TrackId -> Set.Set TrackId
+solo_to_mute tree blocks soloed = Set.fromList
+    [ track_id
+    | (block_id, block) <- blocks
+    , track <- Block.block_tracks block
+    , Just track_id <- [Block.track_id track]
+    , track_id `Set.notMember` soloed
+    , block_id `Set.member` soloed_blocks
+    , track_id `Set.notMember` has_soloed_children
+    ]
+    where
+    has_soloed_children = Set.fromList (mapMaybe get (Tree.flat_paths tree))
+        where
+        get (track, _, children)
+            | any (`Set.member` soloed) (map State.track_id children) =
+                Just (State.track_id track)
+            | otherwise = Nothing
+            where
     soloed_blocks = Set.fromList
         [ block_id
         | (block_id, block) <- blocks
@@ -229,8 +253,9 @@ perform_events events = do
     midi_config <- State.get_midi_config
     lookup <- get_convert_lookup
     blocks <- State.gets (Map.toList . State.state_blocks)
+    tree <- concat <$> mapM (TrackTree.get_track_tree . fst) blocks
     return $ fst $ Perform.perform Perform.initial_state midi_config $
-        Convert.convert lookup $ filter_track_muted blocks $
+        Convert.convert lookup $ filter_track_muted tree blocks $
         filter_instrument_muted midi_config $
         -- Performance should be lazy, so converting to a list here means I can
         -- avoid doing work for the notes that never get played.
