@@ -303,8 +303,9 @@ annotate_call_doc :: Set.Set Score.Control -> Text -> [(Text, Text)]
 annotate_call_doc transposers doc fields = Derive.prepend_doc extra_doc
     where
     extra_doc = doc <> "\n\n" <> join (transposers_field <> fields)
-    transposers_field = if Set.null transposers then []
-        else [("transposers", txt $ Pretty.pretty transposers)]
+    transposers_field =
+        [("transposers", txt $ Pretty.pretty transposers)
+            | not (Set.null transposers)]
     join = Text.unlines
         . map (\(k, v) -> k <> ": " <> v) . filter (not . Text.null . snd)
 

@@ -86,7 +86,7 @@ diatonic = Control "t-diatonic"
 
 -- | Transpose by NoteNumber, which is cents \/ 100.
 nn :: Control
-nn = Control "t-hz"
+nn = Control "t-nn"
 
 -- | Transpose in absolute hz.
 hz :: Control
