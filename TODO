@@ -19,7 +19,9 @@ UNSORTED
         For western modes this isn't necessary since the notation is already
         absolute.
   steal some wendy carlos scales
-  - fix doc for just scales, most of JustScales.just_doc isn't appropriate
+    - alpha, beta, gamma
+    - overtones
+  * fix doc for just scales, most of JustScales.just_doc isn't appropriate
   - there's still a cache bug: change the tempo on the score block, and the
     cached version of a following block isn't invalidated
     . To reproduce: save/mridangam, change thani3 '%tempo = 1', block calls

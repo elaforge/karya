@@ -112,11 +112,9 @@ show_ratios = Text.intercalate ", " . map Pretty.prettytxt . Vector.toList
 
 just_doc :: Text
 just_doc =
-    "\nJust scales are tuned by ratios from a base frequency.\
-    \ That frequency is taken from the `%just-base` control and the key.\
-    \ For example, `%just-base = 440 | key = a-maj` means that A in the\
-    \ middle octave is 440hz and is considered 1/1, and uses the `maj`\
-    \ set of ratios.\
+    "\nJust scales are tuned by ratios from a base frequency, taken from the\
+    \ `%just-base` control, as hz. Typically the \"key\" will select the set\
+    \ of ratios used, dependent on the scale.\
     \\nJust scales recognize accidentals as an offset by a fixed ratio,\
     \ but are inherently diatonic, so chromatic transposition is the same\
     \ as diatonic transposition."
