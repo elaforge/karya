@@ -89,7 +89,7 @@ integrate_skeleton block =
         Just $ map ((,) source)
             (mapMaybe (tracknum_of . fst . dest_note) (NonEmpty.toList dests))
     tracknum_of track_id = List.elemIndex (Just track_id) track_ids
-    track_ids = map (track_id_of . tracklike_id) (block_tracks block)
+    track_ids = map track_id (block_tracks block)
 
 block_tracklike_ids :: Block -> [TracklikeId]
 block_tracklike_ids = map tracklike_id . block_tracks
@@ -150,6 +150,9 @@ data Track = Track {
     -- track into its note track.
     , track_merged :: ![TrackId]
     } deriving (Eq, Show, Read, Generics.Typeable)
+
+track_id :: Track -> Maybe TrackId
+track_id = track_id_of . tracklike_id
 
 instance Pretty.Pretty Track where
     pretty (Track tid width flags merged) =

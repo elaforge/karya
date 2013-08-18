@@ -105,7 +105,7 @@ get_wants_track_signal = do
     where
     get block_id = do
         track_flags <- map (second Block.track_flags)
-            . Seq.map_filter (Block.track_id_of . Block.tracklike_id)
+            . Seq.map_filter Block.track_id
             . Block.block_tracks <$> State.get_block block_id
         tracks <- mapM (State.get_track . fst) track_flags
         return $ Set.fromList
@@ -190,7 +190,7 @@ filter_track_muted blocks
         [ track_id
         | (_, block) <- blocks
         , track <- Block.block_tracks block
-        , Just track_id <- [Block.track_id_of (Block.tracklike_id track)]
+        , Just track_id <- [Block.track_id track]
         , flag `Set.member` Block.track_flags track
         ]
 

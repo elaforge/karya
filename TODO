@@ -18,9 +18,13 @@ UNSORTED
         should have separate symbols, e.g. 4r^ and 4r. for up and down variants.
         For western modes this isn't necessary since the notation is already
         absolute.
+  steal some wendy carlos scales
   - fix doc for just scales, most of JustScales.just_doc isn't appropriate
   - there's still a cache bug: change the tempo on the score block, and the
     cached version of a following block isn't invalidated
+    . To reproduce: save/mridangam, change thani3 '%tempo = 1', block calls
+      don't update.
+  - Mute and solo isn't working for block calls.
   - unmerging a pitch track should have a minimum width to display 3 chars
     Figure out under which circumstances the collapsed track forgets its size.
     . Looks like it happens when I create a new block from a template block
@@ -1007,6 +1011,10 @@ misc ideas:
     It would be interesting to get rid of track types entirely though.
 
 planning / research
+  cmj:
+    - bezier-spline-modeling-of-pitch-continuous-melodic-expression.pdf
+      Contact Bret Battey about PICACS: http://www.mti.dmu.ac.uk/~bbattey/
+    - Wendy Carlos' tuning article: "Tuning at the crossroads", CMJ 11/1
   things for expressive music
     There needs to be some way for notes to affect surrounding notes.  For
     example
@@ -1016,6 +1024,8 @@ planning / research
         a distance between pitches affects how quickly they approach, and
         quick notes will have less accurate pitch.
       . Gender tick affects the damping of the previous note.
+      . If I control uses bezier curves, the curve is determined by the last
+        control point of the previous and the first point of the current call.
     Other ideas:
       . Switch samples when played quickly.
       . Drum thing where successive strokes lose some energy.

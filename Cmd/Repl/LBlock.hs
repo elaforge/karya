@@ -65,7 +65,7 @@ like match = do
         track t = Pretty.pretty (Block.tracklike_id t)
             ++ " (" ++ show (track_events t) ++ " events)"
         views = Seq.count block_id view_blocks
-        get = flip Map.lookup tracks <=< Block.track_id_of . Block.tracklike_id
+        get = flip Map.lookup tracks <=< Block.track_id
         track_events = maybe 0 (Events.length . Track.track_events) . get
 
 find :: Text -> Cmd.CmdL [(BlockId, Text)]

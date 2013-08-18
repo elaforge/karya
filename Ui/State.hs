@@ -772,7 +772,7 @@ insert_track :: (M m) => BlockId -> TrackNum -> Block.Track -> m ()
 insert_track block_id tracknum track = do
     block <- get_block block_id
     views <- views_of block_id
-    whenJust (Block.track_id_of (Block.tracklike_id track)) $ \track_id -> do
+    whenJust (Block.track_id track) $ \track_id -> do
         track_ids <- track_ids_of block_id
         when (track_id `elem` track_ids) $
             throw $ "insert_track: block " ++ show block_id
@@ -864,7 +864,7 @@ get_event_track_at block_id tracknum = do
     track <- get_block_track_at block_id tracknum
     require ("track " ++ Pretty.pretty (Track block_id tracknum)
             ++ " not an event track") $
-        Block.track_id_of (Block.tracklike_id track)
+        Block.track_id track
 
 -- | Get the RulerId of an event or ruler track, or Nothing if the tracknum is
 -- out of range or doesn't have a ruler.
@@ -887,9 +887,7 @@ track_ids_of block_id = Block.block_track_ids <$> get_block block_id
 tracknums_of :: (M m) => BlockId -> m [(TrackId, TrackNum)]
 tracknums_of block_id = extract <$> get_block block_id
     where
-    extract = justs . flip zip [0..]
-        . map (Block.track_id_of . Block.tracklike_id)
-        . Block.block_tracks
+    extract = justs . flip zip [0..] . map Block.track_id . Block.block_tracks
     justs pairs = [(track_id, tracknum) | (Just track_id, tracknum) <- pairs]
 
 -- | There can only be one TrackId per block, which allows TrackNums and
@@ -1576,9 +1574,7 @@ fix_track_destination track_ids (Block.TrackDestination note controls) =
 block_event_tracknums :: Block.Block -> [(TrackNum, TrackId)]
 block_event_tracknums block =
     [(tracknum, track_id) | (tracknum, Just track_id) <- zip [0..] track_ids]
-    where
-    track_ids = map (Block.track_id_of . Block.tracklike_id)
-        (Block.block_tracks block)
+    where track_ids = map Block.track_id (Block.block_tracks block)
 
 -- * IDs
 

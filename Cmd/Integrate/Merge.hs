@@ -87,8 +87,7 @@ merge_tracks block_id tracks dests = do
 
 all_block_tracks :: (State.M m) => BlockId -> m [Maybe TrackId]
 all_block_tracks block_id =
-    map (Block.track_id_of . Block.tracklike_id) . Block.block_tracks <$>
-        State.get_block block_id
+    map Block.track_id . Block.block_tracks <$> State.get_block block_id
 
 -- | Merge together TrackPairs, modifying the underlying tracks, and return
 -- a TrackDestination.  The head of the TrackPairs is assumed to be the note
