@@ -199,8 +199,8 @@ filter_track_muted tree blocks
         ]
 
 -- | Solo is surprisingly tricky.  Solo means non soloed-tracks are muted,
--- unless there is no solo on the block, or the track is the parent of a soloed
--- track.
+-- unless there is no solo on the block, or the track is the parent or child of
+-- a soloed track.
 --
 -- I've already rewritten this a bunch of times, hopefully this is the last
 -- time.
@@ -216,16 +216,16 @@ solo_to_mute tree blocks soloed = Set.fromList
     , Just track_id <- [Block.track_id track]
     , track_id `Set.notMember` soloed
     , block_id `Set.member` soloed_blocks
-    , track_id `Set.notMember` has_soloed_children
+    , track_id `Set.notMember` has_soloed_relatives
     ]
     where
-    has_soloed_children = Set.fromList (mapMaybe get (Tree.flat_paths tree))
+    has_soloed_relatives = Set.fromList (mapMaybe get (Tree.flat_paths tree))
         where
-        get (track, _, children)
-            | any (`Set.member` soloed) (map State.track_id children) =
+        get (track, parents, children)
+            | any (`Set.member` soloed) (map State.track_id children)
+                    || any (`Set.member` soloed) (map State.track_id parents) =
                 Just (State.track_id track)
             | otherwise = Nothing
-            where
     soloed_blocks = Set.fromList
         [ block_id
         | (block_id, block) <- blocks
