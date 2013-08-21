@@ -26,6 +26,7 @@ import qualified Derive.Score as Score
 import qualified Derive.Stack as Stack
 
 import qualified Perform.Midi.Control as Control
+import qualified Perform.Midi.Convert as Convert
 import qualified Perform.Midi.Instrument as Instrument
 import qualified Perform.Midi.Perform as Perform
 import qualified Perform.RealTime as RealTime
@@ -752,7 +753,8 @@ type PEvent = (RealTime, RealTime, [(Signal.X, Signal.Y)],
 -- | Similar to mkevent, but allow a pitch curve.
 mkpevent :: PEvent -> Perform.Event
 mkpevent (start, dur, psig, conts) =
-    Perform.Event inst1 start dur (mkcontrols conts) (Signal.signal psig)
+    Perform.Event inst1 start dur (mkcontrols conts)
+        (Signal.map_y Convert.round_pitch (Signal.signal psig))
         Stack.empty
 
 mkevents_inst :: [(String, RealTime, RealTime, [Control])] -> [Perform.Event]

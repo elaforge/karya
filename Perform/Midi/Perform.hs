@@ -83,6 +83,9 @@ type MidiEvents = [LEvent.LEvent Midi.WriteMessage]
 -- | Performance state.  This is a snapshot of the state of the various
 -- functions in the performance pipeline.  You should be able to resume
 -- performance at any point given a RealTime and a State.
+--
+-- I don't do that anymore, and this is left over from when I cached the
+-- performance.  I removed the cache but left the state visible.
 data State = State {
     state_channelize :: !ChannelizeState
     , state_allot :: !AllotState
@@ -597,7 +600,7 @@ event_pb_range = Instrument.inst_pitch_bend_range . event_instrument
 event_pitch_at :: Control.PbRange -> Event -> RealTime
     -> Maybe (Midi.Key, Midi.PitchBendValue)
 event_pitch_at pb_range event pos =
-    Control.pitch_to_midi pb_range (Signal.at pos (event_pitch event))
+    Control.pitch_to_midi pb_range $ Signal.at pos (event_pitch event)
 
 note_velocity :: Event -> RealTime -> RealTime
     -> (Midi.Velocity, Midi.Velocity, [ClipRange])
@@ -620,6 +623,7 @@ clip_val low high val
     | otherwise = (val, False)
 
 type ClipRange = (RealTime, RealTime)
+
 make_clip_warnings :: Event -> (Score.Control, [ClipRange]) -> [Log.Msg]
 make_clip_warnings event (control, clip_warns) =
     [event_warning event (Pretty.prettytxt control <> " clipped: "

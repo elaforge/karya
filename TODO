@@ -3,6 +3,16 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
+  * save/mridangam: If I set global transform to
+    "%just-base = 207.65 | scale = just-r | key = c-min"
+    why does 4s produce pitchbend 341 + G4, while 3s produces pb 6 + D#4?
+    Also '%just-base = (hz (3g#))' should have pb0 but doesn't.
+    . It's 10.999... when it should be 11.  MIDI perform should be able to
+      round up when a pitch is almost a whole number, otherwise it feels
+      obliged to use a pitch bend.
+  - UiTest.Dump should put in the block titles
+  - DeriveTest.derive_dump also needs the synths to know about putting
+    instrument calls into scope.
   Raga
     - Using the "official" ratios for r1-4 and d1-4 doesn't sound like what
       people actually play.  What's going on?
@@ -165,7 +175,6 @@ MILESTONES
       (e.g. octatonic a-h)
     * record chords
     + integration
-    - record continuum
     + just scales, and other ratio-oriented scales that use letters and
       accidentals
     - complete Idiom.Wind, experiment with the Idiom postprocs
@@ -175,8 +184,8 @@ MILESTONES
     + efficient thru
     * tracklang complete with set of basic calls
     * better REPL situation
-    - midi record
-    - dense / efficient control signals
+    / midi record
+    / dense / efficient control signals
     * derive cache
     * symbolic score
     + save undo history / incremental save - more extensive testing
@@ -201,14 +210,13 @@ MILESTONES
 ----------------------------------------------------------------------
 
 documentation
-  - make haddocks for the various main modules, e.g. LogView.LogView
-    Need CPP support for haddock.
+  * make haddocks for the various main modules, e.g. LogView.LogView
   + doc/derivation.md
   / split up derivation.md into separate files
   - doc/performance.md
   - doc/local.md
   - doc/instrument.md
-  - doc/browser.md, or just use the haddock
+  * doc/browser.md, or just use the haddock
   + doc/symbols.md, link from ui
   - make sure core state types and their dependents have good haddock
   call doc:
@@ -411,7 +419,7 @@ cleanup:
   - if I add an Alternative instance to Sig.Parser I can write arg parsers
     like 'Sig.many xs <|> Sig.many ys'.  I think.  If I wind up with something
     else like Derive.Call.Val.num_or_pitch it would be worth trying out.
-  Format2
+  Format3
     . Converting Pretty to Text is blocked on this.
     . Rethink how indent breaking happens.
       Maybe indent should be a flag on SoftBreak
@@ -436,10 +444,12 @@ cleanup:
   - Update.BlockSkeleton sets Block.Status, and so does Update.BlockTrack.  If
     I merge status update into skeleton updates I can take Status out of
     Block.DisplayTrack.
-  - move src into src subdir.  Then I don't have to do hacks in the shakefile
-    where I only recurse into [A-Z]* dirs.
-  - split Ui.State into separate modules for views, blocks, tracks, etc.
+  / move src into src subdir.  Then I don't have to do hacks in the shakefile
+    where I only recurse into [A-Z]* dirs.  That's not exactly a big deal
+    though.
+  / split Ui.State into separate modules for views, blocks, tracks, etc.
     put into Ui.State.* and re-export from Ui.State
+    . Actually the giant module isn't so bad and it's stopped growing.
   - split up CallInfo depending on type
     I got started but was discouraged when it came time to write
     GetLastSample, maybe I should make another go.

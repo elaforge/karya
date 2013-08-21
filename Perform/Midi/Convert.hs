@@ -185,9 +185,16 @@ convert_pitch :: Instrument.PatchScale -> Score.ControlMap
     -> PitchSignal.Signal -> ConvertT Signal.NoteNumber
 convert_pitch scale controls psig = do
     unless (null errs) $ Log.warn $ "pitch: " ++ Pretty.pretty errs
-    return $ convert_scale scale sig
+    return $ convert_scale scale (Signal.map_y round_pitch sig)
     where
     (sig, errs) = PitchSignal.to_nn $ PitchSignal.apply_controls controls psig
+
+-- | Round pitches to the nearest tenth of a cent.  Differences below this are
+-- probably imperceptible.  Due to floating point inaccuracy, pitches can wind
+-- up being slightly off of integral, leading to pitch bending where there
+-- should be none.
+round_pitch :: Signal.Y -> Signal.Y
+round_pitch nn = fromIntegral (round (nn * 1000)) / 1000
 
 convert_scale :: Instrument.PatchScale -> Signal.NoteNumber -> Signal.NoteNumber
 convert_scale Nothing = id

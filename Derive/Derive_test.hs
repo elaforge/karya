@@ -81,6 +81,14 @@ test_basic = do
         (Instrument.inst_name inst,
             RealTime.to_seconds start, RealTime.to_seconds dur, stack)
 
+test_round_pitch = do
+    -- A note sufficiently close to 4c becomes 4c.
+    let res = DeriveTest.derive_tracks
+            [(inst_title, [(0, 1, "")]), ("*", [(0, 0, "3b 99.99")])]
+    let (_, mmsgs, _) =
+            DeriveTest.perform_defaults (Derive.r_events res)
+    equal (DeriveTest.note_on_times mmsgs) [(0, Key.c4, 127)]
+
 test_attributes = do
     -- Test that attributes work, through derivation and performance.
     let convert_lookup = DeriveTest.make_convert_lookup $
