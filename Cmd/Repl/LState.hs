@@ -63,11 +63,11 @@ modify_config f = State.modify_config f >> Cmd.invalidate_performances
 
 -- | 'State.config_global_transform' is an expression that's applied to the
 -- output of derivation.
-set_global_transform :: Text -> Cmd.CmdL ()
-set_global_transform = State.modify . (State.config#State.global_transform #=)
+transform :: Text -> Cmd.CmdL ()
+transform = State.modify . (State.config#State.global_transform #=)
 
-get_global_transform :: Cmd.CmdL Text
-get_global_transform = State.config#State.global_transform <#> State.get
+get_transform :: Cmd.CmdL Text
+get_transform = State.config#State.global_transform <#> State.get
 
 -- ** meta
 

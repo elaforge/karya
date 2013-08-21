@@ -36,8 +36,7 @@ dump_block fname block_id = do
     state <- State.get
     block <- State.get_block block_id
     liftIO $ UiTest.write_dump fname $ state
-        { State.state_blocks = Map.singleton block_id block
-        }
+        { State.state_blocks = Map.singleton block_id block }
 
 -- * perf events
 

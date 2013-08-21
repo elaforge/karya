@@ -177,6 +177,9 @@ block_midi block_id = do
 sel_events :: Cmd.CmdL Derive.Events
 sel_events = get_sel_events False block_events
 
+sel_pevents :: Cmd.CmdL (Events Perform.Event)
+sel_pevents = convert . LEvent.events_of =<< sel_events
+
 -- | Like 'sel_events' but take the root derivation.
 root_sel_events :: Cmd.CmdL Derive.Events
 root_sel_events = get_sel_events True block_events
