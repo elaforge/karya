@@ -247,7 +247,7 @@ test_callee_damage = do
             insert_event "sub.t1" 0 0.5 ""
     equal (diff_events cached uncached) []
     strings_like (r_block_logs cached)
-        [ "top.t1 1-3: * rederived * because of block"
+        [ "top.t1 1-3: * rederived * because of track block"
         , "sub.t1 1-2: * using cache"
         , toplevel_rederived False
         ]
@@ -445,7 +445,7 @@ test_get_control_damage = do
         let set c = c { Derive.state_score_damage = score_damage }
         Derive.modify $ \st ->
             st { Derive.state_constant = set (Derive.state_constant st) }
-        Cache.get_control_damage (UiTest.mk_tid 1) range
+        Cache.get_control_damage UiTest.default_block_id (UiTest.mk_tid 1) range
     extract = DeriveTest.extract_run $
         \(Derive.ControlDamage r) -> Ranges.extract r
     run events d = extract $ DeriveTest.run
@@ -548,6 +548,18 @@ test_extend_tempo_damage = do
             ]
     let (_, cached, uncached) = compare_cached create $
             State.insert_event (mk_tid 1) (Event.event 1 0 "2")
+    equal (diff_events cached uncached) []
+
+test_block_title_damage = do
+    -- Changing tempo in the block title invalidates the caches.
+    let create =
+            mkblocks
+                [ ("top", [(">", [(0, 2, "sub")])])
+                , ("sub=ruler", UiTest.regular_notes 2)
+                ]
+            <* State.set_block_title (UiTest.bid "top") "%tempo = 2"
+    let (_, cached, uncached) = compare_cached create $
+            State.set_block_title (UiTest.bid "top") "%tempo = 1"
     equal (diff_events cached uncached) []
 
 test_track_cache = do

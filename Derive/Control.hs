@@ -202,9 +202,9 @@ tempo_call track sig_deriver deriver = do
     where
     maybe_block_track_id = TrackTree.tevents_block_track_id track
     maybe_track_id = snd <$> maybe_block_track_id
-    with_damage = maybe id get_damage maybe_track_id
-    get_damage track_id deriver = do
-        damage <- Cache.get_tempo_damage track_id track_range
+    with_damage = maybe id get_damage maybe_block_track_id
+    get_damage (block_id, track_id) deriver = do
+        damage <- Cache.get_tempo_damage block_id track_id track_range
             (TrackTree.tevents_events track)
         Internal.with_control_damage damage deriver
     track_range = TrackTree.tevents_range track
@@ -225,9 +225,8 @@ control_call track control maybe_op control_deriver deriver = do
     -- from the end of 'control_deriver'.  To make these parallelize, I need to
     -- run control_deriver as a sub-derive, then mappend the Collect.
     where
-    maybe_track_id = TrackTree.tevents_track_id track
-    with_damage = with_control_damage maybe_track_id
-        (TrackTree.tevents_range track)
+    with_damage = with_control_damage
+        (TrackTree.tevents_block_track_id track) (TrackTree.tevents_range track)
 
 with_control_op :: Score.Typed Score.Control -> Maybe Derive.ControlOp
     -> Signal.Control -> Derive.Deriver a -> Derive.Deriver a
@@ -263,8 +262,7 @@ pitch_call track maybe_name scale_id expr deriver =
             Derive.apply_control_mods $ merge_logs logs $ with_damage $
                 Derive.with_pitch maybe_name signal deriver
     where
-    maybe_track_id = TrackTree.tevents_track_id track
-    with_damage = with_control_damage maybe_track_id
+    with_damage = with_control_damage (TrackTree.tevents_block_track_id track)
         (TrackTree.tevents_range track)
     to_psig derive = do
         (sig, _) <- derive
@@ -275,13 +273,13 @@ get_scale scale_id
     | scale_id == Pitch.empty_scale = Util.get_scale
     | otherwise = Derive.get_scale scale_id
 
-with_control_damage :: Maybe TrackId -> TrackRange
+with_control_damage :: Maybe (BlockId, TrackId) -> TrackRange
     -> Derive.Deriver d -> Derive.Deriver d
-with_control_damage maybe_track_id track_range =
-    maybe id get_damage maybe_track_id
+with_control_damage maybe_block_track_id track_range =
+    maybe id get_damage maybe_block_track_id
     where
-    get_damage track_id deriver = do
-        damage <- Cache.get_control_damage track_id track_range
+    get_damage (block_id, track_id) deriver = do
+        damage <- Cache.get_control_damage block_id track_id track_range
         Internal.with_control_damage damage deriver
 
 

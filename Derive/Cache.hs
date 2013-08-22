@@ -99,8 +99,8 @@ caching_deriver typ range call = do
         -- had been actually derived.
         Internal.merge_collect collect
         return cached
-    generate stack (Left (was_control_damage, reason)) = do
-        (result, collect) <- with_collect was_control_damage call
+    generate stack (Left (inflict_control_damage, reason)) = do
+        (result, collect) <- with_collect inflict_control_damage call
         Log.debug $ rederived_msg reason
         Internal.merge_collect $
             mempty { Derive.collect_cache = make_cache stack collect result }
@@ -109,12 +109,12 @@ caching_deriver typ range call = do
     -- To get the deps of just the deriver below me, I have to clear out
     -- the local deps.  But this call is itself collecting deps for another
     -- call, so I have to merge the sub-deps back in before returning.
-    with_collect was_control_damage deriver = do
+    with_collect inflict_control_damage deriver = do
         -- TODO Do I want to run deriver a sub derivation so I can put an
         -- empty cache if it failed?  Otherwise I think maybe a failed
         -- event will continue to produce its old value.
         (result, collect) <- with_empty_collect
-            (typ == Block && was_control_damage) deriver
+            (typ == Block && inflict_control_damage) deriver
         Derive.modify $ \st ->
             st { Derive.state_collect = collect <> Derive.state_collect st }
         return (result, collect)
@@ -129,11 +129,11 @@ with_empty_collect :: Bool
     -- ControlDamage touches a block call then it likely invalidates everything
     -- within that block.
     -> Derive.Deriver a -> Derive.Deriver (a, Derive.Collect)
-with_empty_collect expand_control_damage deriver = do
+with_empty_collect inflict_control_damage deriver = do
     old <- Derive.get
     Derive.modify $ \st -> st
         { Derive.state_collect = mempty
-        , Derive.state_dynamic = if expand_control_damage
+        , Derive.state_dynamic = if inflict_control_damage
             then (Derive.state_dynamic st)
                 { Derive.state_control_damage =
                     Derive.ControlDamage Ranges.everything
@@ -152,6 +152,22 @@ find_generator_cache typ stack (Ranges event_range is_negative) score
         (ControlDamage control) (Cache cache) = do
     cached <- maybe (Left (False, "not in cache")) Right $
         Map.lookup stack cache
+    -- Look for block damage before looking for Invalid, because if there is
+    -- block damage I inflict control damage too.  This is because block damage
+    -- means things like a block title change, or skeleton change, and those
+    -- can invalidate all blocks called from this one.
+    case typ of
+        Block -> case msum (map Stack.block_of (Stack.innermost stack)) of
+            Just this_block
+                | this_block `Set.member` sdamage_blocks score ->
+                    Left (True, "direct block damage")
+                | this_block `Set.member` sdamage_track_blocks score ->
+                    Left (False, "track block damage")
+            _ -> return ()
+        Track children
+            | any (`Set.member` children) (Map.keys (sdamage_tracks score)) ->
+                Left (False, "track damage")
+            | otherwise -> return ()
     Derive.CallType collect stream <- case cached of
         Invalid -> Left (False, "cache invalidated by score damage")
         Cached entry -> maybe (Left (False, "cache has wrong type")) Right $
@@ -159,15 +175,6 @@ find_generator_cache typ stack (Ranges event_range is_negative) score
     let Derive.BlockDeps block_deps = Derive.collect_block_deps collect
     let damaged_blocks = Set.union
             (sdamage_track_blocks score) (sdamage_blocks score)
-    case typ of
-        Block -> case msum (map Stack.block_of (Stack.innermost stack)) of
-            Just this_block | this_block `Set.member` damaged_blocks ->
-                Left (False, "block damage")
-            _ -> return ()
-        Track children
-            | any (`Set.member` children) (Map.keys (sdamage_tracks score)) ->
-                Left (False, "track damage")
-            | otherwise -> return ()
     unless (Set.null (Set.intersection damaged_blocks block_deps)) $
         Left (False, "sub-block damage")
     -- Negative duration indicates an arrival note.  The block deriver then
@@ -252,17 +259,17 @@ extract_rederived_msg = Text.stripPrefix "rederived generator because of "
 --
 -- If a block call is touched by control damage, the the control damage expands
 -- to cover the entire block.
-get_control_damage :: TrackId
+get_control_damage :: BlockId -> TrackId
     -> (ScoreTime, ScoreTime) -- ^ track_range must be passed explicitly
     -- because the event may have been sliced and shifted, but ControlDamage
     -- should be relative to the start of the track at ScoreTime 0.
     -> Derive.Deriver ControlDamage
-get_control_damage track_id track_range = do
+get_control_damage block_id track_id track_range = do
     st <- Derive.get
     let control = Derive.state_control_damage (Derive.state_dynamic st)
         score = Derive.state_score_damage (Derive.state_constant st)
     extend_damage track_id track_range $
-        control <> score_to_control track_id score
+        control <> score_to_control block_id track_id score
 
 -- | Since the warp is the integral of the tempo track, damage on the tempo
 -- track will affect all events after it.  Actually, the damage extends from
@@ -273,13 +280,13 @@ get_control_damage track_id track_range = do
 -- seems like editing a score at the end is a common case, and it would be
 -- a shame to rederive the entire score on each edit when only the very end has
 -- changed.
-get_tempo_damage :: TrackId -> (ScoreTime, ScoreTime) -> Events.Events
-    -> Derive.Deriver ControlDamage
-get_tempo_damage track_id track_range events = do
+get_tempo_damage :: BlockId -> TrackId -> (ScoreTime, ScoreTime)
+    -> Events.Events -> Derive.Deriver ControlDamage
+get_tempo_damage block_id track_id track_range events = do
     st <- Derive.get
     let control = Derive.state_control_damage (Derive.state_dynamic st)
         score = Derive.state_score_damage (Derive.state_constant st)
-    return $ extend $ control <> score_to_control track_id score
+    return $ extend $ control <> score_to_control block_id track_id score
     where
     extend (Derive.ControlDamage ranges) = Derive.ControlDamage $
         case Ranges.extract ranges of
@@ -291,10 +298,11 @@ get_tempo_damage track_id track_range events = do
                 ([], _) -> Ranges.range s (snd track_range)
 
 -- | Convert score damage directly to ControlDamage on a given track.
-score_to_control :: TrackId -> ScoreDamage -> ControlDamage
-score_to_control track_id score =
-    ControlDamage $ fromMaybe Ranges.nothing $
-        Map.lookup track_id (Derive.sdamage_tracks score)
+score_to_control :: BlockId -> TrackId -> ScoreDamage -> ControlDamage
+score_to_control block_id track_id score = ControlDamage $
+    (if block_id `Set.member` Derive.sdamage_blocks score
+        then Ranges.everything else Ranges.nothing)
+    <> Map.findWithDefault Ranges.nothing track_id (Derive.sdamage_tracks score)
 
 -- | Extend the given ControlDamage as described in 'get_control_damage'.
 -- Somewhat tricky because I also want to clip the damage to the track range,
