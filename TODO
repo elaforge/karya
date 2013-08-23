@@ -3,6 +3,11 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
+  - 'd' mridangam call collides with delay transformer
+    '+' looks like add zero attrs, 'o' looks like harmonic
+    Maybe transformers and generators should be in independent namespaces so
+    'd' can still be used as a transformer.  Or maybe I should have naming
+    conventions so prelude calls don't get overridden.
   * save/mridangam: If I set global transform to
     "%just-base = 207.65 | scale = just-r | key = c-min"
     why does 4s produce pitchbend 341 + G4, while 3s produces pb 6 + D#4?
@@ -10,7 +15,7 @@ UNSORTED
     . It's 10.999... when it should be 11.  MIDI perform should be able to
       round up when a pitch is almost a whole number, otherwise it feels
       obliged to use a pitch bend.
-  - UiTest.Dump should put in the block titles
+  * UiTest.Dump should put in the block titles
   - DeriveTest.derive_dump also needs the synths to know about putting
     instrument calls into scope.
   Raga

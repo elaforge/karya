@@ -7,6 +7,7 @@ import qualified Control.Monad.Identity as Identity
 import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
+import qualified Data.Text as Text
 
 import qualified System.IO as IO
 
@@ -55,8 +56,9 @@ default_divider = Block.Divider Color.blue
 -- state
 
 test_ns = Id.unsafe_namespace "test"
-mkid name = fromMaybe (error $ "invalid characters in " ++ show name) $
-    Id.read_short test_ns name
+mkid name =
+    fromMaybe (error $ "UiTest.mkid: invalid characters in " ++ show name) $
+        Id.read_short test_ns name
 bid = Types.BlockId . mkid
 vid = Types.ViewId . mkid
 tid = Types.TrackId . mkid
@@ -72,12 +74,17 @@ save = Save.write_state
 -- * monadic mk- functions
 
 -- | (block_id, tracks)
+--
 -- If the name ends with @=ruler@, then the length of the ruler is derived from
 -- the events inside, rather than being hardcoded.  This is convenient for
 -- tests and lets them avoid hardcoding the default_ruler end.
+--
+-- Also, if the name contains @--@, the text after it becomes the block title.
 type BlockSpec = (String, [TrackSpec])
+
 -- | (track_title, events)
 type TrackSpec = (String, [EventSpec])
+
 -- | (start, dur, text)
 type EventSpec = (ScoreTime, ScoreTime, String)
 
@@ -137,7 +144,8 @@ mkviews blocks = mapM mkview =<< mkblocks blocks
 
 mkblock :: (State.M m) => BlockSpec -> m (BlockId, [TrackId])
 mkblock (block_name, tracks) = do
-    let (block_id, has_ruler) = spec_block_id block_name
+    let (name, title) = (Seq.strip *** Seq.strip) $ Seq.split1 "--" block_name
+    let (block_id, has_ruler) = spec_block_id name
     ruler_id <- if has_ruler
         then do
             let len = event_end tracks
@@ -149,29 +157,34 @@ mkblock (block_name, tracks) = do
             (State.create_ruler (Id.unpack_id default_ruler_id) default_ruler)
             (const (return default_ruler_id))
                 =<< State.lookup_ruler default_ruler_id
-    mkblock_ruler ruler_id (Id.ident_name block_id, tracks)
+    mkblock_ruler ruler_id (Id.ident_name block_id ++ "--" ++ title, tracks)
     where
     event_end :: [TrackSpec] -> Int
     event_end = ceiling . ScoreTime.to_double . maximum . (0:)
         . concatMap (map (\(s, d, _) -> max s (s+d)) . snd)
 
 mkblocks_skel :: (State.M m) => [(BlockSpec, [Skeleton.Edge])] -> m ()
-mkblocks_skel blocks = forM_ blocks $ \(block, skel) ->
-    mkblock block <* State.set_skeleton (bid (fst block)) (Skeleton.make skel)
+mkblocks_skel blocks = forM_ blocks $ \(block, skel) -> do
+    (block_id, track_ids) <- mkblock block
+    State.set_skeleton block_id (Skeleton.make skel)
+    return (block_id, track_ids)
 
 -- | Like 'mkblock', but uses the provided ruler instead of creating its
 -- own.  Important if you are creating multiple blocks and don't want
 -- a separate ruler for each.
 mkblock_ruler :: (State.M m) => RulerId -> BlockSpec -> m (BlockId, [TrackId])
 mkblock_ruler ruler_id (block_name, tracks) = do
-    let block_id = bid block_name
+    let (name, title) = (Seq.strip *** Seq.strip) $ Seq.split1 "--" block_name
+    let block_id = bid name
     State.set_namespace test_ns
     -- Start at 1 because track 0 is the ruler.
     tids <- forM (zip [1..] tracks) $ \(i, track) ->
         State.create_track (Id.unpack_id (mk_tid_block block_id i))
             (make_track track)
-    create_block block_name "" $ (Block.RId ruler_id, 20)
+    create_block name "" $ (Block.RId ruler_id, 20)
         : [(Block.TId tid ruler_id, 40) | tid <- tids]
+    unless (null title) $
+        State.set_block_title block_id (txt title)
     State.set_skeleton block_id =<< parse_skeleton block_id
     return (block_id, tids)
 
@@ -300,10 +313,12 @@ dump_blocks state =
     where
 
 dump_block :: BlockId -> State.State -> (BlockSpec, [Skeleton.Edge])
-dump_block block_id state = ((block_name, map dump_track tracks), skel)
+dump_block block_id state =
+    ((name ++ if Text.null title then "" else " -- " ++ untxt title,
+        map dump_track tracks), skel)
     where
-    (id_str, _, tracks, skel) = eval state (Simple.dump_block block_id)
-    block_name = snd $ Id.un_id $ Id.read_id id_str
+    (id_str, title, tracks, skel) = eval state (Simple.dump_block block_id)
+    name = snd $ Id.un_id $ Id.read_id id_str
     dump_track (_, title, events) = (untxt title, map convert events)
     convert (start, dur, text) =
         (ScoreTime.double start, ScoreTime.double dur, untxt text)
