@@ -410,12 +410,12 @@ e_everything e =
 e_inst :: Score.Event -> Text
 e_inst = Score.inst_name . Score.event_instrument
 
-e_control :: Text -> Score.Event -> [(RealTime, Signal.Y)]
+e_control :: Score.Control -> Score.Event -> [(RealTime, Signal.Y)]
 e_control cont event = maybe [] (Signal.unsignal . Score.typed_val) $
-    Map.lookup (Score.Control cont) (Score.event_controls event)
+    Map.lookup cont (Score.event_controls event)
 
 e_dyn :: Score.Event -> [(RealTime, Signal.Y)]
-e_dyn = e_control ((\(Score.Control c) -> c) Score.c_dynamic)
+e_dyn = e_control Score.c_dynamic
 
 e_nns :: Score.Event -> [(RealTime, Pitch.NoteNumber)]
 e_nns e = signal_to_nn $
@@ -630,7 +630,7 @@ default_inst_title = ">s/1"
 
 -- | (start, dur, pitch12, controls, inst)
 type EventSpec = (RealTime, RealTime, String, Controls, Score.Instrument)
-type Controls = [(Text, [(RealTime, Signal.Y)])]
+type Controls = [(Score.Control, [(RealTime, Signal.Y)])]
 
 mkevent :: EventSpec -> Score.Event
 mkevent = mkevent_scale Twelve.scale
@@ -656,7 +656,7 @@ pitch_signal = PitchSignal.signal . map (second mkpitch12)
 
 mkcontrols :: Controls -> Score.ControlMap
 mkcontrols csigs = Map.fromList
-    [(Score.Control c, Score.untyped (Signal.signal sig)) | (c, sig) <- csigs]
+    [(c, Score.untyped (Signal.signal sig)) | (c, sig) <- csigs]
 
 mkpitch12 :: String -> PitchSignal.Pitch
 mkpitch12 = mkpitch Twelve.scale

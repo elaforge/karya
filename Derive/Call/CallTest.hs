@@ -52,7 +52,7 @@ run_control events = extract $ DeriveTest.derive_tracks
     -- performance.
     extract = Seq.drop_dups snd . head . DeriveTest.extract_events
         (Signal.unsignal . Score.typed_val . get . Score.event_controls)
-    get fm = case Map.lookup (Score.Control "cont") fm of
+    get fm = case Map.lookup "cont" fm of
         Nothing -> error "expected a 'cont' control"
         Just c -> c
 

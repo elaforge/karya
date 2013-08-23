@@ -94,8 +94,8 @@ pb_from_nn pb_range key val
 -- that every instrument will respond to.  Of course it may override some of
 -- these names if it wishes.
 universal_control_map :: ControlMap
-universal_control_map = control_map $ map (second Score.Control) $
-    [(n, "cc" <> showt n) | n <- [0..127]] ++
+universal_control_map = control_map $
+    [(n, Score.control $ "cc" <> showt n) | n <- [0..127]] ++
     [ (1, "mod")
     , (2, "breath")
     , (4, "foot")

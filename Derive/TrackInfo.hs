@@ -85,11 +85,12 @@ parse_control_vals vals = case vals of
     -- real meaning to an empty scale id.  However, Controls.null is a valid
     -- control like any other and is simply used as a special name by the
     -- control block call hack in "Derive.Call.Block".
-    [TrackLang.VControl (TrackLang.LiteralControl (Score.Control ""))] ->
-        Right $ Control Nothing (Score.untyped Controls.null)
+    [TrackLang.VControl (TrackLang.LiteralControl control)]
+        | control == Controls.null ->
+            Right $ Control Nothing (Score.untyped Controls.null)
     -- add % -> relative default control
     [TrackLang.VSymbol call, TrackLang.VControl
-            (TrackLang.LiteralControl (Score.Control ""))] ->
+            (TrackLang.LiteralControl control)] | control == Controls.null ->
         Right $ Control (Just call) (Score.untyped Controls.null)
     _ -> Left $ untxt $ "control track must be one of [\"tempo\", control,\
         \ op control, %, op %, *scale, *scale #name, op #, op #name],\
@@ -114,14 +115,14 @@ parse_control_vals vals = case vals of
 parse_control_type :: TrackLang.Symbol -> Maybe (Score.Typed Score.Control)
 parse_control_type (TrackLang.Symbol name) = case Text.uncons post of
         Just (':', c) -> Score.Typed <$>
-            Score.code_to_type (untxt c) <*> return (Score.Control pre)
-        Nothing -> Just $ Score.untyped $ Score.Control name
+            Score.code_to_type (untxt c) <*> return (Score.control pre)
+        Nothing -> Just $ Score.untyped $ Score.control name
         _ -> Nothing
     where (pre, post) = Text.break (==':') name
 
 unparse_typed :: Score.Typed Score.Control -> Text
-unparse_typed (Score.Typed typ (Score.Control c)) =
-    c <> case Score.type_to_code typ of
+unparse_typed (Score.Typed typ c) =
+    Score.control_name c <> case Score.type_to_code typ of
         "" -> ""
         code -> txt $ ':' : code
 
@@ -191,7 +192,7 @@ title_to_control title = case parse_control title of
     _ -> Nothing
 
 control_to_title :: Score.Control -> Text
-control_to_title (Score.Control cont) = cont
+control_to_title = Score.control_name
 
 -- | A pitch track is also considered a control track.
 is_control_track :: Text -> Bool

@@ -17,9 +17,9 @@ load _dir = return $ MidiInst.make $
         { MidiInst.extra_patches = MidiInst.with_empty_code patches }
 
 controls :: [(Midi.Control, Score.Control)]
-controls = map (second Score.control) $
+controls =
     [ (1, "macro1")
-    ] ++ [(18 + n, "macro" <> showt n) | n <- [2..8]]
+    ] ++ [(18 + n, Score.control $ "macro" <> showt n) | n <- [2..8]]
 
 patches :: [Instrument.Patch]
 patches = []

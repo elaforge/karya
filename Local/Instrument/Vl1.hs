@@ -242,7 +242,7 @@ vl1_patch name elt1 maybe_elt2 =
     cmap = Map.toList $ Map.mapMaybe highest_prio $
         Map.unionsWith (++) (map Map.fromList cc_groups)
     highest_prio cs = List.find (`elem` cs)
-        (map (Score.Control . fst) vl1_control_map)
+        (map (Score.control . fst) vl1_control_map)
 
 extract_element :: Int -> Sysex.RMap -> Either String ElementInfo
 extract_element n rmap = do

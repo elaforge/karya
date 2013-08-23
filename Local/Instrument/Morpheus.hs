@@ -32,7 +32,7 @@ synth :: Instrument.Synth
 synth = Instrument.synth (txt synth_name) "E-mu Morpheus" synth_controls
 
 synth_controls :: [(Midi.Control, Score.Control)]
-synth_controls = map (second Score.control)
+synth_controls =
     -- Definitions depend on the preset.
     [ (1, "a"), (2, "b"), (3, "c"), (4, "d")
     , (64, "switch1"), (65, "switch2"), (66, "switch3")

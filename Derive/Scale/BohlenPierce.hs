@@ -100,7 +100,7 @@ default_base_hz :: Pitch.Hz
 default_base_hz = Pitch.middle_c_hz
 
 just_base_control :: Score.Control
-just_base_control = Score.Control "just-base"
+just_base_control = "just-base"
 
 scale_degree :: Scale.PitchNn -> Scale.PitchNote -> Derive.ValCall
 scale_degree = ScaleDegree.scale_degree_just pscale named_intervals 1

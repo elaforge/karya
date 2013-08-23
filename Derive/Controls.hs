@@ -8,19 +8,19 @@ import Prelude hiding (null)
 
 import Util.Control
 import qualified Derive.Score as Score
-import Derive.Score (Control(..))
+import Derive.Score (Control)
 
 
 -- | Used as the default control by control block calls.  This is because
 -- a ControlCall produces a Signal, but for it to be derived in a block it
 -- needs a temporary name.
 null :: Control
-null = Control ""
+null = ""
 
 -- | The tempo track is handled differently than other controls, and winds up
 -- in the warp rather than the 'ControlMap'.
 tempo :: Control
-tempo = Control "tempo"
+tempo = "tempo"
 
 -- | Converted into velocity or breath depending on the instrument.
 dynamic :: Control
@@ -32,93 +32,93 @@ dynamic = Score.c_dynamic
 --
 -- Note duration is documented in 'Derive.Call.Note.duration_attributes'.
 sustain :: Control
-sustain = Control "sus"
+sustain = "sus"
 
 -- | Add an absolute amount of real time to the duration of each note.
 sustain_abs :: Control
-sustain_abs = Control "sus-abs"
+sustain_abs = "sus-abs"
 
 -- | Offset the start time of each note by a value between - start-rnd/2 and
 -- start-rnd/2.  The start and end are shifted by the same amount, so the
 -- duration of the note is unaffected.
 start_rnd :: Control
-start_rnd = Control "start-rnd"
+start_rnd = "start-rnd"
 
 -- | Shorten each note by a value between 0 and dur-rnd.  Shortening makes it
 -- less likely that this will cause notes to become overlapping, which MIDI
 -- doesn't like when they have the same pitch.
 dur_rnd :: Control
-dur_rnd = Control "dur-rnd"
+dur_rnd = "dur-rnd"
 
 -- ** understood by MIDI performer
 
 -- | MIDI velocity and breath.  Generally you should use 'dynamic', which
 -- will emit velocity or breath depending on the instrument.
 velocity, breath :: Control
-velocity = Control "vel"
-breath = Control "breath"
+velocity = "vel"
+breath = "breath"
 
 -- | Channel pressure.
 pressure :: Control
-pressure = Control "pressure"
+pressure = "pressure"
 
 -- | Polyphonic aftertouch.  Unlike other controls, this one can share
 -- channels.
 aftertouch :: Control
-aftertouch = Control "at"
+aftertouch = "at"
 
 -- | Modulation wheel.
 mod :: Control
-mod = Control "mod"
+mod = "mod"
 
 -- ** transposition
 
 -- | Pitches respond to this with chromatic transposition.  This is stepwise
 -- transposition for scales with no distinction between chromatic and diatonic.
 chromatic :: Control
-chromatic = Control "t-chromatic"
+chromatic = "t-chromatic"
 
 -- | Pitches respond to this with diatonic transposition, which generally
 -- requires a key.  This is stepwise transposition for scales with no
 -- distinction between chromatic and diatonic.
 diatonic :: Control
-diatonic = Control "t-diatonic"
+diatonic = "t-diatonic"
 
 -- | Transpose by NoteNumber, which is cents \/ 100.
 nn :: Control
-nn = Control "t-nn"
+nn = "t-nn"
 
 -- | Transpose in absolute hz.
 hz :: Control
-hz = Control "t-hz"
+hz = "t-hz"
 
 -- * conventional control names
 
 -- | Volume control, conventionally mapped to CC 7.
 vol :: Control
-vol = Control "vol"
+vol = "vol"
 
 -- | Sustain pedal.
 pedal :: Control
-pedal = Control "pedal"
+pedal = "pedal"
 
 -- | Filter cutoff.
 fc :: Control
-fc = Control "fc"
+fc = "fc"
 
 -- | Filter resonance.
 q :: Control
-q = Control "q"
+q = "q"
 
 -- | Often 'mod' is mapped to vibrato, but when it's more specifically vibrato
 -- depth rather than general modulation, whatever that is, it's nicer to use
 -- a more specific name.
 vib, vib_speed :: Control
-vib = Control "vib"
-vib_speed = Control "vib-speed"
+vib = "vib"
+vib_speed = "vib-speed"
 
 mc :: Int -> Control
-mc = Control . ("mc"<>) . showt
+mc = Score.control . ("mc"<>) . showt
 
 -- | Macro controls.  Many synths have general-purpose "change the timbre"
 -- knobs.

@@ -30,7 +30,7 @@ type Ratios = Vector.Vector (Ratio.Ratio Int)
 
 -- | Hz frequency of 1/1.
 just_base_control :: Score.Control
-just_base_control = Score.Control "just-base"
+just_base_control = "just-base"
 
 -- | Bundle up data needed to construct a just scale.
 data ScaleMap = ScaleMap {

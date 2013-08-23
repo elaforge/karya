@@ -423,8 +423,8 @@ set_decay secs = instrument_#maybe_decay #= Just secs
 add_composite :: Score.Instrument -> Maybe Text -> [Text] -> Patch -> Patch
 add_composite inst pitch controls = composite %= (comp:)
     where
-    comp = (inst, Score.Control <$> pitch,
-        Set.fromList $ map Score.Control controls)
+    comp = (inst, Score.control <$> pitch,
+        Set.fromList $ map Score.control controls)
 
 -- | Various instrument flags.
 data Flag =

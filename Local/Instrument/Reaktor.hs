@@ -24,22 +24,21 @@ load _dir = return $ MidiInst.make
 pb_range = (-96, 96)
 
 filter_composite :: Instrument.Composite
-filter_composite = (Score.instrument "reak" "filter", Just (c "res"),
-        Set.fromList $ map c ["mix", "q", "lp-hp", "2-4-pole"])
-    where c = Score.control
+filter_composite = (Score.instrument "reak" "filter", Just "res",
+        Set.fromList ["mix", "q", "lp-hp", "2-4-pole"])
 
 patches :: [Instrument.Patch]
 patches =
     -- My own patches.
-    [ MidiInst.pressure $ MidiInst.patch pb_range "fm1" [(4, c "depth")]
+    [ MidiInst.pressure $ MidiInst.patch pb_range "fm1" [(4, "depth")]
     , Instrument.text #= "Tunable comb filter that processes an audio signal." $
-        MidiInst.patch pb_range "comb" [(1, c "mix"), (4, c "fbk")]
+        MidiInst.patch pb_range "comb" [(1, "mix"), (4, "fbk")]
     , Instrument.text #= "Tunable filter that processes an audio signal." $
         MidiInst.patch pb_range "filter"
-            [ (1, c "mix")
-            , (CC.cc14, c "q")
-            , (CC.cc15, c "lp-hp")
-            , (CC.cc16, c "2-4-pole")
+            [ (1, "mix")
+            , (CC.cc14, "q")
+            , (CC.cc15, "lp-hp")
+            , (CC.cc16, "2-4-pole")
             ]
 
     -- Factory patches.
@@ -71,7 +70,7 @@ patches =
         -- Downloaded from NI, Shark.ens.
         -- Modifications: pitchbend to 96, signal smoothers from 100ms to 10ms.
         [ (4, Controls.fc), (3, Controls.q) -- 1st filter
-        , (10, c "color")
+        , (10, "color")
         ]
 
     , Instrument.text #= "Herald brass physical model." $
@@ -83,16 +82,16 @@ patches =
         MidiInst.pressure $ MidiInst.patch pb_range "herald"
             [ (CC.mod, Controls.vib)
             , (CC.vib_speed, Controls.vib_speed)
-            , (CC.cc14, c "atk") -- tongue attack
-            , (CC.cc15, c "buzz") -- tongue buzz
-            , (CC.cc16, c "buzz-len") -- tongue buzz length
-            , (CC.cc17, c "emb") -- lips embouchure
-            , (CC.cc18, c "stiff") -- lips stiffness
-            -- , (CC.cc19, c "noise") -- lips noise, not implemented
-            , (CC.cc20, c "finger") -- bore finger time
+            , (CC.cc14, "atk") -- tongue attack
+            , (CC.cc15, "buzz") -- tongue buzz
+            , (CC.cc16, "buzz-len") -- tongue buzz length
+            , (CC.cc17, "emb") -- lips embouchure
+            , (CC.cc18, "stiff") -- lips stiffness
+            -- , (CC.cc19, "noise") -- lips noise, not implemented
+            , (CC.cc20, "finger") -- bore finger time
 
-            , (CC.cc21, c "flut") -- flutter tongue
-            , (CC.cc22, c "flut-speed") -- flutter tongue speed
+            , (CC.cc21, "flut") -- flutter tongue
+            , (CC.cc22, "flut-speed") -- flutter tongue speed
             ]
 
     , Instrument.text #= "Serenade bowed string physical model." $
@@ -113,14 +112,14 @@ patches =
         MidiInst.pressure $ MidiInst.patch (-24, 24) "serenade"
             [ (CC.mod, Controls.vib)
             , (CC.vib_speed, Controls.vib_speed)
-            , (CC.cc14, c "bow-speed")
-            , (CC.cc15, c "bow-force")
-            , (CC.cc16, c "bow-pos")
-            , (CC.cc17, c "string-jitter")
-            , (CC.cc18, c "string-buzz")
-            , (CC.cc21, c "pizz-tone")
-            , (CC.cc22, c "pizz-time")
-            , (CC.cc23, c "pizz-level")
+            , (CC.cc14, "bow-speed")
+            , (CC.cc15, "bow-force")
+            , (CC.cc16, "bow-pos")
+            , (CC.cc17, "string-jitter")
+            , (CC.cc18, "string-buzz")
+            , (CC.cc21, "pizz-tone")
+            , (CC.cc22, "pizz-time")
+            , (CC.cc23, "pizz-level")
             ]
     ]
     where c = Score.control

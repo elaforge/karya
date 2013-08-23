@@ -34,8 +34,7 @@ test_compile = do
     strings_like logs ["get_scale: unknown \\*c2"]
 
     let mkcont vals = Map.union Derive.initial_controls
-            (Map.singleton (Score.Control "c1")
-            (Score.untyped (Signal.signal vals)))
+            (Map.singleton "c1" (Score.untyped (Signal.signal vals)))
         no_pitch = []
 
     let (events, logs) = derive ("*twelve", [(0, 0, ".1")])

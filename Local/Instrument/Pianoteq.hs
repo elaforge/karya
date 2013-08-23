@@ -17,8 +17,8 @@ load _dir = return $ MidiInst.make $
 controls :: [(Midi.Control, Score.Control)]
 controls =
     [ (64, Controls.pedal)
-    , (67, c "soft-pedal")
-    , (66, c "sost-pedal")
-    , (69, c "harmonic-pedal")
+    , (67, "soft-pedal")
+    , (66, "sost-pedal")
+    , (69, "harmonic-pedal")
     -- whole bunch more
-    ] where c = Score.control
+    ]

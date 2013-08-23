@@ -44,7 +44,7 @@ test_parse_expr = do
         , Call (Symbol "=") (map Literal [symbol "b", vnum 4])
         , Call (Symbol ".") (map Literal
             [VInstrument (Score.Instrument "inst"),
-                VControl (LiteralControl (Score.Control "sig"))])
+                VControl (LiteralControl "sig")])
         ]
 
     -- Symbols can have anything in them as long as they start with a letter.
@@ -93,21 +93,19 @@ test_parse_val = do
             , ("s!$_", sym "s!$_")
             , ("'bad string", Nothing)
 
-            , ("%", Just $ VControl $ LiteralControl (Score.Control ""))
-            , ("%sig", Just $ VControl $ LiteralControl (Score.Control "sig"))
+            , ("%", Just $ VControl $ LiteralControl "")
+            , ("%sig", Just $ VControl $ LiteralControl "sig")
             , ("%sig,0", Just $ VControl $
-                DefaultedControl (Score.Control "sig")
-                    (Score.untyped (Signal.constant 0)))
+                DefaultedControl "sig" (Score.untyped (Signal.constant 0)))
             , ("%sig,4s", Just $ VControl $
-                DefaultedControl (Score.Control "sig")
+                DefaultedControl "sig"
                 (Score.Typed Score.Real (Signal.constant 4)))
             , ("%sig,4q", Nothing)
             , ("%sig,", Nothing)
 
-            , ("#", Just $ VPitchControl $
-                LiteralControl (Score.Control ""))
+            , ("#", Just $ VPitchControl $ LiteralControl "")
             , ("#sig,(0)", Just $ VPitchControl $
-                DefaultedControl (Score.Control "sig") (TrackLang.call "0" []))
+                DefaultedControl "sig" (TrackLang.call "0" []))
 
             , ("$bad", Nothing)
             , ("_", Just VNotGiven)

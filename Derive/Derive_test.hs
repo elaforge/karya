@@ -392,8 +392,8 @@ test_real_to_score = do
         (Right 1)
 
 test_shift_control = do
-    let controls = Map.fromList [(Score.Control "cont",
-            Score.untyped $ Signal.signal [(0, 1), (2, 2), (4, 0)])]
+    let controls = Map.fromList
+            [("cont", Score.untyped $ Signal.signal [(0, 1), (2, 2), (4, 0)])]
         psig = DeriveTest.pitch_signal [(0, "4c")]
     let set_controls = DeriveTest.modify_dynamic $ \st -> st
             { Derive.state_controls = controls
@@ -488,9 +488,9 @@ test_fractional_pitch = do
             <- map Midi.wmsg_msg mmsgs]
         [(0, 72), (1, 73)]
 
-e_control :: Text -> Score.Event -> Maybe [(Signal.X, Signal.Y)]
+e_control :: Score.Control -> Score.Event -> Maybe [(Signal.X, Signal.Y)]
 e_control cont = fmap (Signal.unsignal . Score.typed_val)
-    . Map.lookup (Score.Control cont) . Score.event_controls
+    . Map.lookup cont . Score.event_controls
 
 test_control = do
     let res = DeriveTest.derive_tracks
@@ -571,20 +571,11 @@ test_tempo = do
         ([(0, 10, "n --1"), (10, 5, "n --2"), (15, 5, "n --3")], [])
 
 test_named_pitch = do
-    let pname = Score.Control "psig"
-        run op = DeriveTest.eval State.empty (op $ Derive.named_nn_at pname 2)
+    let run op = DeriveTest.eval State.empty (op $ Derive.named_nn_at "psig" 2)
         pitch = DeriveTest.mkpitch12 "4c"
-        with_const pname = Derive.with_constant_pitch
-            (Just (Score.Control pname)) pitch
+        with_const pname = Derive.with_constant_pitch (Just pname) pitch
     equal (run (with_const "psig")) (Right (Just 60))
     equal (run (with_const "bad")) (Right Nothing)
-    -- I don't have relative pitch signals anymore.  There's no reason
-    -- I couldn't add them back, but now that transposition is handled by
-    -- separate control signals I don't need it so much anymore.
-    -- let add1 = Derive.with_relative_pitch (Just pname) (??)
-    --         (PitchSignal.constant Pitch.relative 1)
-    -- equal (run (with_const . add1))
-    --     (Right (Just (Pitch.Degree 43)))
 
 test_block_end = do
     -- Make sure the pitch for the sub block event is trimmed to the end

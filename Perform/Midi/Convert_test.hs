@@ -67,7 +67,7 @@ test_convert_controls = do
     -- using vel directly, the the dyn information will be shadowed.
     equal (f False [("vel", [(0, 1)]), ("dyn", [(0, 0.5)])])
         ([(Controls.velocity, Signal.constant 0.5)],
-            Just (Score.control "vel", Score.untyped (Signal.signal [(0, 1)])))
+            Just ("vel", Score.untyped (Signal.signal [(0, 1)])))
     -- No warning if it was null.
     equal (f False [("vel", []), ("dyn", [(0, 0.5)])])
         ([(Controls.velocity, Signal.constant 0.5)], Nothing)
@@ -132,10 +132,10 @@ test_composite_instrument = do
         , ("i", 1, [(0, 62)]), ("x", 1, [(0.5, 50)])
         ]
 
-set_composite :: Maybe Text -> [Text] -> Instrument.Patch -> Instrument.Patch
-set_composite pitch controls =
-    Instrument.composite #= [(Score.Instrument "s/x", Score.Control <$> pitch,
-        Set.fromList (map Score.Control controls))]
+set_composite :: Maybe Score.Control -> [Score.Control] -> Instrument.Patch
+    -> Instrument.Patch
+set_composite pitch controls = Instrument.composite
+    #= [(Score.Instrument "s/x", pitch, Set.fromList controls)]
 
 -- * keymap
 

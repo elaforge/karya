@@ -143,10 +143,10 @@ note_render mode control_name = do
     mapM_ (State.set_render_style (mode (Just control))) track_ids
     where
     control = case Text.stripPrefix "#" control_name of
-        Nothing -> Track.Control $ Score.Control control_name
+        Nothing -> Track.Control $ Score.control control_name
         Just s
             | Text.null s -> Track.Pitch Nothing
-            | otherwise -> Track.Pitch $ Just (Score.Control s)
+            | otherwise -> Track.Pitch $ Just (Score.control s)
     is_note = fmap TrackInfo.is_note_track . State.get_track_title
 
 no_render :: Cmd.CmdL ()

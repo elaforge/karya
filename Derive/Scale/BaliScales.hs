@@ -86,7 +86,7 @@ read_tuning t
 -- | If ombak is unset, use the hardcoded tunings.  Otherwise, create new
 -- umbang and isep tunings based on the given number.
 c_ombak :: Score.Control
-c_ombak = Score.Control "ombak"
+c_ombak = "ombak"
 
 type NoteNumberMap =
     (Util.NoteNumberMap, Util.NoteNumberMap, Util.NoteNumberMap)

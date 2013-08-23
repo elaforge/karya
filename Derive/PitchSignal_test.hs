@@ -43,8 +43,8 @@ mkpitch nn =
         where t = Pitch.NoteNumber $ Map.findWithDefault 0 c_trans controls
 
 c_normal, c_trans :: Score.Control
-c_normal = Score.Control "normal"
-c_trans = Score.Control "trans"
+c_normal = "normal"
+c_trans = "trans"
 
 unsignal :: PitchSignal.Signal -> [(RealTime, Either String Pitch.NoteNumber)]
 unsignal = map (second (unerror . PitchSignal.pitch_nn)) . PitchSignal.unsignal

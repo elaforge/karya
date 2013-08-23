@@ -4,7 +4,6 @@
 
 -- | Native Instruments' FM8 softsynth.
 module Local.Instrument.Fm8 where
-import Util.Control
 import qualified Midi.Midi as Midi
 import qualified Derive.Score as Score
 import qualified Perform.Midi.Instrument as Instrument
@@ -19,7 +18,7 @@ load _dir = return $ MidiInst.make $
 pb_range = (-96, 96)
 
 controls :: [(Midi.Control, Score.Control)]
-controls = map (second Score.control)
+controls =
     [ (4, "fm8-control-1"), (11, "fm8-control-2")
     , (16, "morph-x"), (17, "morph-y")
     ]

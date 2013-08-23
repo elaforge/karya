@@ -365,8 +365,7 @@ make_midi chan_msg = Msg.Midi $
 note_on note_id nn vel =
     InputNote.NoteOn (nid note_id) (Pitch.InputKey nn) (vel / 127)
 note_off note_id vel = InputNote.NoteOff (nid note_id) (vel / 127)
-control note_id cont val =
-    InputNote.Control (nid note_id) (Score.Control cont) (val / 127)
+control note_id cont val = InputNote.Control (nid note_id) cont (val / 127)
 pitch note_id nn = InputNote.PitchChange (nid note_id) (Pitch.InputKey nn)
 nid = InputNote.NoteId
 
@@ -376,7 +375,7 @@ m_note_on note_id nn vel = Msg.InputNote (note_on note_id nn vel)
 m_note_off :: Int -> Signal.Y -> Msg.Msg
 m_note_off note_id vel = Msg.InputNote (note_off note_id vel)
 
-m_control :: Int -> Text -> Signal.Y -> Msg.Msg
+m_control :: Int -> Score.Control -> Signal.Y -> Msg.Msg
 m_control note_id cont val = Msg.InputNote (control note_id cont val)
 
 m_pitch :: Int -> Double -> Msg.Msg

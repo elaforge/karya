@@ -522,7 +522,7 @@ eval_signal track expr ctype subs
         }
 
 with_control_env :: Score.Control -> Derive.Deriver a -> Derive.Deriver a
-with_control_env (Score.Control c) = Derive.with_val Environ.control c
+with_control_env = Derive.with_val Environ.control . Score.control_name
 
 
 -- * util

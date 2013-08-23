@@ -22,7 +22,6 @@ import qualified Derive.PitchSignal as PitchSignal
 import qualified Derive.Pitches as Pitches
 import qualified Derive.Scale as Scale
 import qualified Derive.Scale.Util as Util
-import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Sig as Sig
 import Derive.Sig (defaulted)
@@ -73,7 +72,7 @@ note_call note ratio = Derive.val_call "ratio" Tags.scale
             pscale (const $ return out_nn) (const $ return note)
     where
     pitch_control = TrackLang.LiteralControl control :: TrackLang.PitchControl
-    control = Score.Control "ratio-source"
+    control = "ratio-source"
     pscale = Pitches.scale scale
 
 -- | Ratios look like @2/5@, @-4/3@.  A negative ratio divides, a positive one

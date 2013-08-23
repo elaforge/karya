@@ -121,13 +121,13 @@ toggle_solo inst = modify_config (Score.Instrument inst) $ \config ->
     let solo = not $ Instrument.config_solo config
     in (config { Instrument.config_solo = solo }, solo)
 
-set_control :: (State.M m) => Text -> Text -> Double -> m ()
+set_control :: (State.M m) => Text -> Score.Control -> Double -> m ()
 set_control inst control val = modify_config_ (Score.Instrument inst) $
-    Instrument.controls#Lens.map (Score.Control control) #= Just val
+    Instrument.controls#Lens.map control #= Just val
 
-set_controls :: (State.M m) => Text -> [(Text, Double)] -> m ()
+set_controls :: (State.M m) => Text -> [(Score.Control, Double)] -> m ()
 set_controls inst controls = modify_config_ (Score.Instrument inst) $
-    Instrument.controls #= Map.fromList (map (first Score.Control) controls)
+    Instrument.controls #= Map.fromList controls
 
 get_controls :: (State.M m) => m (Map.Map Score.Instrument Score.ControlValMap)
 get_controls = Map.map Instrument.config_controls <$> State.get_midi_config

@@ -53,7 +53,7 @@ lookup_number = Derive.pattern_lookup "numbers and hex" doc $
                 Nothing -> return 0
                 Just cname -> do
                     rnd_max <- fromMaybe 0 <$> Derive.untyped_control_at
-                        (Score.Control $ cname <> "-rnd") pos
+                        (Score.control $ cname <> "-rnd") pos
                     Util.random_in 0 rnd_max
             return $! Signal.signal [(pos, val + rnd)]
     doc = Derive.extract_doc (set 0)

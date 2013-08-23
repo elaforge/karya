@@ -53,7 +53,7 @@ synth :: Instrument.Synth
 synth = Instrument.synth (txt synth_name) "Korg Z1" synth_controls
 
 synth_controls :: [(Midi.Control, Score.Control)]
-synth_controls = map (second Score.control)
+synth_controls =
     -- The PE controls are the "performance expression" knobs whose effect
     -- depends on the instrument.
     [ (19, "knob1"), (20, "knob2"), (21, "knob3"), (22, "knob4"), (23, "knob5")

@@ -66,7 +66,8 @@ instance ShowVal.ShowVal Instrument where
 -- parameters or whatever, while others may affect derivation (e.g. tempo) and
 -- won't be seen by the backend at all.
 newtype Control = Control Text
-    deriving (Eq, Ord, Read, Show, DeepSeq.NFData, Serialize.Serialize)
+    deriving (Eq, Ord, Read, Show, DeepSeq.NFData, Serialize.Serialize,
+        String.IsString)
 
 -- | Tag for the type of the values in a control signal.
 data Type = Untyped | Chromatic | Diatonic | Score | Real

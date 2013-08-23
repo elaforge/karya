@@ -24,7 +24,7 @@ import qualified Util.Pretty as Pretty
 import qualified Ui.ScoreTime as ScoreTime
 import qualified Derive.BaseTypes as BaseTypes
 import Derive.BaseTypes
-       (Instrument(..), Control(..), Type(..), Typed(..), ControlValMap,
+       (Instrument(..), Control, Type(..), Typed(..), ControlValMap,
         untyped, merge_typed, type_to_code, code_to_type, TypedControl,
         TypedVal, Attributes, Attribute, attr, attrs, set_to_attrs, attrs_diff,
         attrs_contain, attrs_remove, attrs_set, attrs_list, no_attrs)
@@ -370,14 +370,14 @@ split_inst (Instrument inst) = (synth, Text.drop 1 inst_name)
 -- | Use this control constructor instead of directly calling "Control", though
 -- that's not enforced yet.
 control :: Text -> Control
-control = Control
+control = BaseTypes.Control
 
 control_name :: Control -> Text
-control_name (Control text) = text
+control_name (BaseTypes.Control text) = text
 
 -- | Converted into velocity or breath depending on the instrument.
 c_dynamic :: Control
-c_dynamic = Control "dyn"
+c_dynamic = "dyn"
 
 to_real :: ScoreTime -> RealTime
 to_real = RealTime.score

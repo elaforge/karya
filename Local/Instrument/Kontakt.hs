@@ -76,12 +76,11 @@ misc_patches = concat [balalaika, mcgill]
 library :: [MidiInst.Patch]
 library = MidiInst.with_empty_code
     [ inst "choir"
-        [ (1, c "vowel") ]
+        [ (1, "vowel") ]
     ]
     where
     inst name controls = Instrument.patch $
         Instrument.instrument name controls pb_range
-    c = Score.control
 
 -- | From the McGill sample library.
 mcgill :: [MidiInst.Patch]
@@ -108,7 +107,7 @@ balalaika =
     with_code = MidiInst.with_code $ MidiInst.note_calls
         [("(", Articulation.c_attr_legato)]
     -- g6 strum, a6 solo, b6 harmony
-    controls = map (second Score.control)
+    controls =
         [ (1, "trem-dyn")
         , (2, "trem-speed")
         ]
@@ -128,16 +127,15 @@ balalaika =
 sonic_couture :: [MidiInst.Patch]
 sonic_couture = MidiInst.with_empty_code
     [ inst "ebow"
-        [ (1, c "harm")
-        , (21, c "lpf")
-        , (22, c "q")
-        , (23, c "hpf")
+        [ (1, "harm")
+        , (21, "lpf")
+        , (22, "q")
+        , (23, "hpf")
         ]
     ]
     where
     inst name controls = Instrument.patch $
         Instrument.instrument name controls pb_range
-    c = Score.control
 
 -- * hang
 
@@ -333,7 +331,6 @@ mridangam_patches :: [MidiInst.Patch]
 mridangam_patches = [(inst, code)]
     where
     inst = Instrument.triggered $
-        -- Instrument.set_attribute_map $
         Instrument.keymap #= mridangam_keymap $
         Instrument.patch $ Instrument.instrument "mridangam" [] pb_range
     code =
