@@ -52,8 +52,7 @@ run_tracks tracks val_edit cmd = extract $ CmdTest.run_sel 0 tracks $ do
         (CmdTest.trace_logs (CmdTest.e_tracks res), CmdTest.e_midi res)
 
 test_drum_instrument = do
-    let run = DeriveTest.derive_tracks_with
-            (DeriveTest.with_inst_db drum_synth)
+    let run = DeriveTest.derive_tracks_with (DeriveTest.with_inst_db drum_synth)
         extract = DeriveTest.extract $ \e -> DeriveTest.e_attributes e
     let result = run [(">synth/x", [(0, 0, "bd"), (1, 0, "sn")])]
     equal (extract result) (["+bd", "+snare"], [])

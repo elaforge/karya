@@ -221,24 +221,24 @@ derive_block_standard cache damage with ui_state block_id = case result of
         Right (Nothing, _, _) -> error "derive_block_with: Cmd aborted"
         Left err -> error $ "derive_block_with: Cmd error: " ++ show err
     where
-    cmd_state = Cmd.initial_state cmd_config_no_inst
+    cmd_state = Cmd.initial_state (cmd_config default_db)
     global_transform = State.config#State.global_transform #$ ui_state
     deriver = with $ Call.Block.eval_root_block global_transform block_id
     (_cstate, _midi_msgs, _logs, result) = Cmd.run_id ui_state cmd_state $
         Derive.extract_result <$> PlayUtil.run cache damage deriver
 
 -- | Derive the results of a "Cmd.Repl.LDebug".dump_block.
-derive_dump :: UiTest.Dump -> BlockId -> Derive.Result
-derive_dump = derive_block . UiTest.read_dump
+derive_dump :: [MidiInst.SynthDesc] -> UiTest.Dump -> BlockId -> Derive.Result
+derive_dump synths dump@(_, _, aliases, _) =
+    derive_block_with (with_inst_db_aliases aliases synths)
+        (UiTest.read_dump dump)
 
 perform_dump :: [MidiInst.SynthDesc] -> UiTest.Dump -> Derive.Result
     -> ([Perform.Event], [Midi.WriteMessage], [Log.Msg])
 perform_dump synths (_, midi, aliases, _) =
     perform lookup config . Derive.r_events
     where
-    lookup = synth_to_convert_lookup
-        (Map.fromList (map (Score.Instrument *** Score.Instrument) aliases))
-        synths
+    lookup = synth_to_convert_lookup aliases synths
     config = UiTest.midi_config midi
 
 -- * misc
@@ -249,13 +249,13 @@ derive ui_state deriver = Derive.extract_result $
         default_environ deriver
 
 -- | Config to initialize the Cmd.State, without the instrument db.
-cmd_config_no_inst :: Cmd.Config
-cmd_config_no_inst = Cmd.Config
+cmd_config :: Cmd.InstrumentDb -> Cmd.Config
+cmd_config inst_db = Cmd.Config
     { Cmd.state_app_dir = "."
     , Cmd.state_midi_interface = Unsafe.unsafePerformIO StubMidi.interface
     , Cmd.state_rdev_map = mempty
     , Cmd.state_wdev_map = mempty
-    , Cmd.state_instrument_db = default_db
+    , Cmd.state_instrument_db = inst_db
     , Cmd.state_global_scope = Call.All.scope
     , Cmd.state_lookup_scale = Cmd.LookupScale $
         \scale_id -> Map.lookup scale_id Scale.All.scales
@@ -556,26 +556,34 @@ mkscale name notes =
 
 -- | Derive with a bit of the real instrument db.  Useful for testing
 -- instrument calls.
+with_inst_db_aliases :: UiTest.Aliases -> [Cmd.SynthDesc] -> Derive.Deriver a
+    -> Derive.Deriver a
+with_inst_db_aliases aliases synth_descs = modify_constant $ \const -> const
+    { Derive.state_lookup_instrument =
+        synth_to_derive_instrument aliases synth_descs
+    }
+
 with_inst_db :: [Cmd.SynthDesc] -> Derive.Deriver a -> Derive.Deriver a
-with_inst_db synth_descs = modify_constant $ \const -> const
-    { Derive.state_lookup_instrument = synth_to_derive_instrument synth_descs }
+with_inst_db = with_inst_db_aliases mempty
 
-synth_to_derive_instrument :: [Cmd.SynthDesc] -> Score.Instrument
-    -> Maybe Derive.Instrument
-synth_to_derive_instrument synth_descs inst =
+synth_to_derive_instrument :: UiTest.Aliases -> [Cmd.SynthDesc]
+    -> Score.Instrument -> Maybe Derive.Instrument
+synth_to_derive_instrument aliases synth_descs inst =
     fmap Cmd.derive_instrument $ Instrument.Db.db_lookup db inst
-    where db = synth_to_db synth_descs
+    where db = synth_to_db aliases synth_descs
 
-synth_to_convert_lookup :: Map.Map Score.Instrument Score.Instrument
-    -> [MidiInst.SynthDesc] -> Convert.Lookup
-synth_to_convert_lookup aliases =
-    make_convert_lookup . Instrument.Db.with_aliases aliases . synth_to_db
+synth_to_convert_lookup :: UiTest.Aliases -> [MidiInst.SynthDesc]
+    -> Convert.Lookup
+synth_to_convert_lookup aliases = make_convert_lookup . synth_to_db aliases
 
-synth_to_db :: [Cmd.SynthDesc] -> Cmd.InstrumentDb
-synth_to_db synth_descs =
-    trace_logs (map (Log.msg Log.Warn Nothing) warns) $
+synth_to_db :: UiTest.Aliases -> [Cmd.SynthDesc] -> Cmd.InstrumentDb
+synth_to_db aliases synth_descs =
+    with_aliases $ trace_logs (map (Log.msg Log.Warn Nothing) warns) $
         Instrument.Db.db midi_db
-    where (midi_db, warns) = MidiDb.midi_db synth_descs
+    where
+    (midi_db, warns) = MidiDb.midi_db synth_descs
+    with_aliases = Instrument.Db.with_aliases
+        (Map.fromList $ map (Score.Instrument *** Score.Instrument) aliases)
 
 -- ** older patch creating functions
 

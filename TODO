@@ -16,7 +16,7 @@ UNSORTED
       round up when a pitch is almost a whole number, otherwise it feels
       obliged to use a pitch bend.
   * UiTest.Dump should put in the block titles
-  - DeriveTest.derive_dump also needs the synths to know about putting
+  * DeriveTest.derive_dump also needs the synths to know about putting
     instrument calls into scope.
   Raga
     - Using the "official" ratios for r1-4 and d1-4 doesn't sound like what

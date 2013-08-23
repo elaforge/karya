@@ -154,5 +154,4 @@ load_score fname = do
 load_cmd_config :: IO Cmd.Config
 load_cmd_config = do
     config <- Local.Config.load_static_config
-    return $ DeriveTest.cmd_config_no_inst
-        { Cmd.state_instrument_db = StaticConfig.instrument_db config }
+    return $ DeriveTest.cmd_config (StaticConfig.instrument_db config)

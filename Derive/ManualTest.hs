@@ -13,7 +13,7 @@ import qualified Local.Instrument.Kontakt as Kontakt
 
 run :: IO ()
 run = do
-    let res = DeriveTest.derive_dump dump (UiTest.bid "thani-s")
+    let res = DeriveTest.derive_dump synths dump (UiTest.bid "thani-s")
         (pevents, msgs, logs) = DeriveTest.perform_dump synths dump res
     prettyp $ DeriveTest.extract id res
     prettyp pevents

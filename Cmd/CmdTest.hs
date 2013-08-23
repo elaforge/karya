@@ -190,7 +190,7 @@ default_cmd_state = (Cmd.initial_state cmd_config)
     }
 
 cmd_config :: Cmd.Config
-cmd_config = DeriveTest.cmd_config_no_inst
+cmd_config = DeriveTest.cmd_config DeriveTest.default_db
 
 default_play_state :: Cmd.PlayState
 default_play_state =
