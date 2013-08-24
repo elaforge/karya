@@ -3,7 +3,8 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 module Util.Debug (
-    full, fullM
+    activate, deactivate
+    , full, fullM
     -- * forced by evaluation
     , trace, tracep, traces, traceps
     , tracef, tracefp, trace_ret, trace_retp
@@ -13,7 +14,10 @@ module Util.Debug (
     , puts, put, putp
 ) where
 import qualified Control.Monad.Trans as Trans
+import qualified System.IO.Unsafe as Unsafe
+import qualified Data.IORef as IORef
 import qualified Data.Monoid as Monoid
+
 import qualified Debug.Trace as Trace
 import qualified System.IO as IO
 
@@ -21,6 +25,16 @@ import qualified Util.PPrint as PPrint
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 
+
+active :: IORef.IORef Bool
+{-# NOINLINE active #-}
+active = Unsafe.unsafePerformIO (IORef.newIORef True)
+
+activate :: IO ()
+activate = IORef.writeIORef active True
+
+deactivate :: IO ()
+deactivate = IORef.writeIORef active False
 
 -- | Only apply the function if the val is non-mempty.  Useful for the trace
 -- family.
@@ -44,22 +58,22 @@ trace msg val = traces msg val val
 
 -- | Pretty print a value en passant.
 tracep :: (Pretty.Pretty a) => String -> a -> a
-tracep msg val = Trace.trace (with_msg msg (Pretty.formatted val)) val
+tracep msg val = write (with_msg msg (Pretty.formatted val)) val
 
 -- | Print a showable value.
 traces :: (Show b) => String -> b -> a -> a
-traces msg val = Trace.trace (with_msg msg (pshow val))
+traces msg val = write (with_msg msg (pshow val))
 
 -- | Pretty print a value.
 traceps :: (Pretty.Pretty b) => String -> b -> a -> a
-traceps msg traced = Trace.trace (with_msg msg (Pretty.formatted traced))
+traceps msg traced = write (with_msg msg (Pretty.formatted traced))
 
 -- | Print a value after applying a function to it.
 tracef :: (Show b) => String -> (a -> b) -> a -> a
-tracef msg f val = Trace.trace (with_msg msg (pshow (f val))) val
+tracef msg f val = write (with_msg msg (pshow (f val))) val
 
 tracefp :: (Pretty.Pretty b) => String -> (a -> b) -> a -> a
-tracefp msg f val = Trace.trace (with_msg msg (Pretty.pretty (f val))) val
+tracefp msg f val = write (with_msg msg (Pretty.pretty (f val))) val
 
 -- | Trace input and output of a function.
 trace_ret :: (Show a, Show b) => String -> a -> b -> b
@@ -79,19 +93,19 @@ trace_retp function a ret =
     pret = Pretty.formatted ret
 
 trace_str :: String -> a -> a
-trace_str = Trace.trace . (prefix++)
+trace_str = write . (prefix++)
 
 -- * forced by monad
 
 -- | Print a value in a monad.  The monad will force it to be printed.
 traceM :: (Show a, Monad m) => String -> a -> m ()
-traceM msg val = Trace.trace (with_msg msg (pshow val)) (return ())
+traceM msg val = write (with_msg msg (pshow val)) (return ())
 
 tracepM :: (Pretty.Pretty a, Monad m) => String -> a -> m ()
-tracepM msg val = Trace.trace (with_msg msg (Pretty.formatted val)) (return ())
+tracepM msg val = write (with_msg msg (Pretty.formatted val)) (return ())
 
 tracesM :: (Monad m) => String -> m ()
-tracesM msg = Trace.trace msg (return ())
+tracesM msg = write msg (return ())
 
 -- * in IO
 -- These are like putStrLn, but more easily greppable.
@@ -112,6 +126,11 @@ put_line s = Trans.liftIO $ do
 
 
 -- * implementation
+
+write :: String -> a -> a
+write msg val
+    | Unsafe.unsafePerformIO (IORef.readIORef active) = Trace.trace msg val
+    | otherwise = val
 
 with_msg :: String -> String -> String
 with_msg msg text_ =
