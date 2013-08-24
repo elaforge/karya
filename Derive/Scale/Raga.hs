@@ -62,67 +62,50 @@ melakarta_keys =
     , alias <- name : aliases_of name
     ]
 
--- | TODO this produces results that actually sound like what people play.
--- So why is it different from the "official" ratios?
 melakarta_ratios :: [(Text, JustScales.Ratios)]
 melakarta_ratios = zip melakarta_names $ map Vector.fromList $ do
     ma <- [ma1, ma2]
-    ri <- [ri2, ri3, ri4]
+    ri <- [ri1, ri2, ri3]
     ga <- [ga1, ga2, ga3]
-    dha <- [dha2, dha3, dha4]
+    dha <- [dha1, dha2, dha3]
     ni <- [ni1, ni2, ni3]
-    guard $ dha == dha3 |- ni /= ni1
-    guard $ dha == dha4 |- ni == ni3
-    guard $ ri == ri3 |- ga /= ga1
-    guard $ ri == ri4 |- ga == ga3
+    guard $ dha == dha2 |- ni /= ni1
+    guard $ dha == dha3 |- ni == ni3
+    guard $ ri == ri2 |- ga /= ga1
+    guard $ ri == ri3 |- ga == ga3
     return [sa, ri, ga, ma, pa, dha, ni]
     where
     infixr 3 |-
     x |- y = if x then y else True
 
--- melakarta_ratios :: [(Text, JustScales.Ratios)]
--- melakarta_ratios = zip melakarta_names $ map Vector.fromList $ do
---     ma <- [ma1, ma2]
---     ri <- [ri1, ri2, ri3]
---     ga <- [ga1, ga2, ga3]
---     dha <- [dha1, dha2, dha3]
---     ni <- [ni1, ni2, ni3]
---     guard $ dha == dha2 |- ni /= ni1
---     guard $ dha == dha3 |- ni == ni3
---     guard $ ri == ri2 |- ga /= ga1
---     guard $ ri == ri3 |- ga == ga3
---     return [sa, ri, ga, ma, pa, dha, ni]
---     where
---     infixr 3 |-
---     x |- y = if x then y else True
-
 type Ratio = Ratio.Ratio Int
 
-sa, ri1, ri2, ri3, ri4, ga1, ga2, ga3, ga4, ma1, ma2, ma3, ma4 :: Ratio
-sa = 1
-ri1 = 32 % 31
-ri2 = 16 % 15
-ri3 = 10 % 9
-ri4 = 9 % 8
-ga1 = 32 % 27
-ga2 = 6 % 5
-ga3 = 5 % 4
-ga4 = 81 % 64
-ma1 = 4 % 3
-ma2 = 27 % 20
-ma3 = 45 % 32
-ma4 = 64 % 45
+{- | I don't think there is any official definition, so I use a 7-limit scale:
 
-pa, dha1, dha2, dha3, dha4, ni1, ni2, ni3, ni4 :: Ratio
+    > 1     2m    2M    3m    3M    4P    4A    5P    6m    6M    7m    7M
+    > s     r1    r2    r3                      p     d1    d2    d3
+    >             g1    g2    g3    m1    m2                n1    n2    n3
+-}
+
+sa, ri1, ri2, ri3, ga1, ga2, ga3, ma1, ma2 :: Ratio
+sa = 1
+ri1 = 16 % 15
+ri2 = 8 % 7
+ri3 = 6 % 5
+ga1 = ri1
+ga2 = ri2
+ga3 = 5 % 4
+ma1 = 4 % 3
+ma2 = 7 % 5
+
+pa, dha1, dha2, dha3, ni1, ni2, ni3 :: Ratio
 pa = 3 % 2
-dha1 = 128 % 81
-dha2 = 8 % 5
-dha3 = 5 % 3
-dha4 = 27 % 16
-ni1 = 16 % 9
-ni2 = 9 % 5
+dha1 = 8 % 5
+dha2 = 5 % 3
+dha3 = 7 % 4
+ni1 = dha2
+ni2 = dha3
 ni3 = 15 % 8
-ni4 = 31 % 16
 
 aliases_of :: Text -> [Text]
 aliases_of = flip (Map.findWithDefault []) aliases
@@ -159,32 +142,3 @@ melakarta_names =
     , "mechakalyani", "chitrambhari", "sucharitra", "jyotiswarupini"
     , "dhatuvardhini", "nasikabhusani", "kosalam", "rasikapriya"
     ]
-
--- [ ("maj", [1, 9/8, 5/4, 4/3, 3/2, 5/3, 15/8])
--- , ("min", [1, 9/8, 6/5, 4/3, 3/2, 8/5, 9/5])
---
--- R2 G3 M1 P D2 N3 -> 1, 1b, 3, 4, 5, 6b, 7
-{-
-    Sa             1               240      1
-    Ri 1         32/31             252.8
-    Ri 2         16/15             256      1b
-    Ri 3         10/9              266.6
-    Ri 4         9/8               270      2
-    Ga 1         32/27             284.4
-    Ga 2          6/5              288      3b
-    Ga 3          5/4              300      3
-    Ga 4          81/64            303.7
-    Ma 1          4/3              320      4
-    Ma 2          27/20            324
-    Ma 3          45/32            337.5
-    Ma 4          64/45            341.3
-    Pa             3/2             360      5
-    Dha 1         128/81           379
-    Dha 2          8/5             384      6b
-    Dha 3          5/3             400      6
-    Dha 4         27/16            405
-    Ni 1           16/9            426.6
-    Ni 2            9/5            432      7b
-    Ni 3           15/8            450      7
-    Ni 4           31/16           465
--}

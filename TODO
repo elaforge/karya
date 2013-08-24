@@ -166,10 +166,6 @@ UNSORTED
     Do some logging to track them down.
   / key not applied in inner blocks, local play should take the root play's
     env as a starting point
-  some way to get symbol feedback instantly to make it easier to compose them
-    . But it calls SymbolC and I ran into a problem where linux ghci can't
-      link FFI-using functions.  Ask on glasgow-haskell-users.
-    - I can either have a separate app, or use the special Status trick.
   - Playback should have multiple lines when a block is derived multiple
     times. Have a set of playback selnums?
 
@@ -386,6 +382,8 @@ external
     - figure out how to implement pragmas in ghc
 
 local: plugins:
+  - ghc can now unload code: http://ghc.haskell.org/trac/ghc/ticket/8039
+  - might be relevant: http://hackage.haskell.org/package/dynamic-loader
   - to do per-score code, I can put it in Local.Score.<namespace>
     Convert to module name by replacing -x with (upper x) and capitalizing the
     first letter.
@@ -584,6 +582,10 @@ performance:
         peak for 246114 msgs: 46mb for int, 38.7 for int, 38.7 for w64
 
 symbolic score
+  some way to get symbol feedback instantly to make it easier to compose them
+    . But it calls SymbolC and I ran into a problem where linux ghci can't
+      link FFI-using functions.  Ask on glasgow-haskell-users.
+    - I can either have a separate app, or use the special Status trick.
   - namespacing?  don't worry about it for now, if I need it later it can be
     entirely at the haskell level, I can use the per-song config to import
     namespaces
@@ -912,7 +914,15 @@ pitch: scales: scale:
       when playing quickly)
       I think this has to be postproc.
     - parser for scala .scl files
-    - support scales that are different ascending vs. descending
+    support scales that are different ascending vs. descending
+      . Scales have two versions of each degree.
+      - scale_input_to_note takes a previous Note arg, which it can use to
+        guess the appropriate variant.
+      - Variants have to have unambiguous names though, maybe 4n^ and 4n.
+      - Use scale_alternate to switch a note between alternates, bind to the
+        same key as enharmonic.  If there are no enharmonics, then fall back
+        on alternate.
+
     - letter and jianpu but with implicit accidentals based on the key
   + It's a bit unpleasant how I have TwelveUtils for accidental and key using
     scales, then Scale.Util for simple scales, and then Just is its own thing.
