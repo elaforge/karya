@@ -106,7 +106,7 @@ test_patch_scale = do
     where
     db = DeriveTest.make_db [("s", [patch])]
     pscale = Instrument.make_patch_scale [(1, 60), (2, 62), (3, 63)]
-    patch = Instrument.set_scale pscale $
+    patch = Instrument.scale #= pscale $
         Instrument.patch $ Instrument.instrument "inst" [] (-12, 12)
     config = UiTest.midi_config [("s/inst", [0])]
 

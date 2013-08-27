@@ -3,6 +3,15 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
+  wayang samples:
+    * the layout has changed, so how does the scale mapping work?
+    * +mute should shift -2 octave: a0 -> 80 seems about right: 0.8
+  - DUtil.note0_attrs should be able to scale dyn
+  - using 12356 for gender wayang is pretty bogus.
+    It should probably be 12345
+  - add ioeua to legong scale
+  - merge KeyswitchMap and Keymap into AttributeMap
+    Ensure that keyswitches cause channel splits, but keymaps don't.
   - 'd' mridangam call collides with delay transformer
     '+' looks like add zero attrs, 'o' looks like harmonic
     Maybe transformers and generators should be in independent namespaces so
@@ -384,6 +393,7 @@ external
 local: plugins:
   - ghc can now unload code: http://ghc.haskell.org/trac/ghc/ticket/8039
   - might be relevant: http://hackage.haskell.org/package/dynamic-loader
+    http://codeutopia.net/blog/2011/08/20/adventures-in-haskell-dynamic-loading-and-compiling-of-modules/
   - to do per-score code, I can put it in Local.Score.<namespace>
     Convert to module name by replacing -x with (upper x) and capitalizing the
     first letter.

@@ -239,18 +239,6 @@ type Addr = (Midi.WriteDevice, Midi.Channel)
 -- | Number of simultaneous voices a certain Addr supports, aka polyphony.
 type Voices = Int
 
--- | Key to activate a keyswitch.
-data Keyswitch =
-    Keyswitch !Midi.Key
-    -- | This keyswitch is triggered by a control change.
-    | ControlSwitch !Midi.Control !Midi.ControlValue
-    deriving (Eq, Ord, Show, Read)
-
-instance Pretty.Pretty Keyswitch where
-    format (Keyswitch key) = "key:" <> Pretty.format key
-    format (ControlSwitch cc val) =
-        "cc:" <> Pretty.format cc <> "/" <> Pretty.format val
-
 -- * instrument db types
 
 -- When there are multiple backends, this will have to move to a more general
@@ -401,9 +389,6 @@ set_keymap :: [(Score.Attributes, Midi.Key)] -> Patch -> Patch
 set_keymap kmap =
     keymap #= Map.fromList [(attr, (key, key, Nothing)) | (attr, key) <- kmap]
 
-set_scale :: PatchScale -> Patch -> Patch
-set_scale = (scale #=)
-
 set_flag :: Flag -> Patch -> Patch
 set_flag flag = flags %= Set.insert flag
 
@@ -454,6 +439,18 @@ instance Pretty.Pretty Flag where pretty = show
 -- Two keyswitches with the same key will act as aliases for each other.
 newtype KeyswitchMap = KeyswitchMap [(Score.Attributes, [Keyswitch])]
     deriving (Eq, Show, Pretty.Pretty)
+
+-- | Key to activate a keyswitch.
+data Keyswitch =
+    Keyswitch !Midi.Key
+    -- | This keyswitch is triggered by a control change.
+    | ControlSwitch !Midi.Control !Midi.ControlValue
+    deriving (Eq, Ord, Show, Read)
+
+instance Pretty.Pretty Keyswitch where
+    format (Keyswitch key) = "key:" <> Pretty.format key
+    format (ControlSwitch cc val) =
+        "cc:" <> Pretty.format cc <> "/" <> Pretty.format val
 
 -- | Make a 'KeyswitchMap'.
 --
