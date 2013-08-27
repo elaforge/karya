@@ -51,7 +51,6 @@ import qualified Derive.Environ as Environ
 import qualified Derive.LEvent as LEvent
 import qualified Derive.PitchSignal as PitchSignal
 import qualified Derive.Score as Score
-import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Stack as Stack
 import qualified Derive.TrackLang as TrackLang
 import qualified Derive.TrackWarp as TrackWarp
@@ -147,7 +146,7 @@ get_stack = gets (state_stack . state_dynamic)
 -- | Lookup a scale_id or throw.
 get_scale :: Pitch.ScaleId -> Deriver Scale
 get_scale scale_id = maybe
-    (throw $ "get_scale: unknown " ++ untxt (ShowVal.show_val scale_id))
+    (throw $ "get_scale: unknown " <> Pretty.pretty scale_id)
     return =<< lookup_scale scale_id
 
 lookup_scale :: Pitch.ScaleId -> Deriver (Maybe Scale)
@@ -227,7 +226,7 @@ scale_to_lookup scale =
     pattern_lookup name (scale_call_doc scale)
         (\call_id -> return $ scale_note_to_call scale (to_note call_id))
     where
-    name = ShowVal.show_val (scale_id scale) <> ": " <> scale_pattern scale
+    name = Pretty.prettytxt (scale_id scale) <> ": " <> scale_pattern scale
     to_note (TrackLang.Symbol sym) = Pitch.Note sym
 
 with_instrument :: Score.Instrument -> Deriver d -> Deriver d

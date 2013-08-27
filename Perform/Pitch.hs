@@ -31,7 +31,6 @@ module Perform.Pitch (
     , Degree(..), Transpose(..), modify_transpose
     , Key(Key), key_text
 ) where
-import qualified Data.Text as Text
 import qualified Text.ParserCombinators.ReadP as ReadP
 import qualified Text.Read as Read
 
@@ -160,11 +159,8 @@ newtype ScaleId = ScaleId Text
     deriving (Eq, Ord, Read, Show, Serialize.Serialize)
 
 instance Pretty.Pretty ScaleId where
-    -- This mirrors TrackLang scale id syntax.
+    -- This is the pitch track syntax.
     pretty (ScaleId s) = '*' : untxt s
-
-instance ShowVal.ShowVal ScaleId where
-    show_val (ScaleId s) = Text.cons '*' s
 
 -- | Usually this means to use the scale currently in scope.
 empty_scale :: ScaleId
