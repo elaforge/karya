@@ -27,6 +27,7 @@ import Derive.Attrs
 import qualified Derive.Call.Articulation as Articulation
 import qualified Derive.Call.Make as Make
 import qualified Derive.Call.Tags as Tags
+import qualified Derive.Call.Util as Util
 import qualified Derive.Controls as Controls
 import qualified Derive.Derive as Derive
 import qualified Derive.Environ as Environ
@@ -206,11 +207,13 @@ wayang_patches =
     with_tuning tuning =
         MidiInst.default_scale Wayang.scale_id
         <> MidiInst.environ Environ.tuning (tuning :: Text)
-    doc = "Gender wayang. A zero-duration note will get a `+mute` attribute."
+    doc = "Gender wayang. These set the scale and tuning automatically.\
+        \ There are variants for patches with natural tuning and 12TET."
 
 wayang_code :: MidiInst.Code
-wayang_code =
-    MidiInst.note_calls $ MidiInst.null_call (DUtil.note0_attrs Attrs.mute)
+wayang_code = MidiInst.note_calls $ MidiInst.null_call $
+    DUtil.zero_duration "Add `+mute` attribute and scale dyn by 0.75." $
+        Util.add_attrs Attrs.mute . Util.multiply_dynamic 0.75
 
 wayang_umbang :: Instrument.PatchScale
 wayang_umbang = Instrument.make_patch_scale $ zip (wayang_keys 0) Wayang.umbang

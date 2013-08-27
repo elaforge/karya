@@ -6,12 +6,14 @@ UNSORTED
   wayang samples:
     * the layout has changed, so how does the scale mapping work?
     * +mute should shift -2 octave: a0 -> 80 seems about right: 0.8
-  - DUtil.note0_attrs should be able to scale dyn
+  * DUtil.note0_attrs should be able to scale dyn
   - using 12356 for gender wayang is pretty bogus.
     It should probably be 12345
   - add ioeua to legong scale
   - merge KeyswitchMap and Keymap into AttributeMap
     Ensure that keyswitches cause channel splits, but keymaps don't.
+  - Call docs in browser strip out the newlines, they should start a new
+    paragraph.
   - 'd' mridangam call collides with delay transformer
     '+' looks like add zero attrs, 'o' looks like harmonic
     Maybe transformers and generators should be in independent namespaces so

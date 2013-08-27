@@ -8,6 +8,7 @@
 -- I need a better name than \"Util\" for everything.
 module Derive.Instrument.DUtil where
 import Util.Control
+import qualified Derive.Args as Args
 import qualified Derive.Call as Call
 import qualified Derive.Call.Note as Note
 import qualified Derive.Call.Sub as Sub
@@ -38,12 +39,11 @@ note_call name transform = Derive.stream_generator name mempty
     Sig.call0 $ \args -> Sub.when_under_inversion args transform $
         Call.reapply_call args "" []
 
--- | Make a note and add the attribute if it's 0 duration.
-note0_attrs :: Score.Attributes -> Derive.NoteCall
-note0_attrs attrs = postproc_note ("note0 " <> ShowVal.show_val attrs)
-    "Invoke the default note call, but add attrs if it has a zero duration." $
-    \evt -> if Score.event_duration evt /= 0 then evt
-        else Score.modify_attributes (attrs<>) evt
+zero_duration :: Text -> (Derive.EventDeriver -> Derive.EventDeriver)
+    -> Derive.NoteCall
+zero_duration doc transform = Note.transformed_note
+    ("A normal note, but modified when it has zero duration: " <> doc) mempty $
+    \args deriver -> (if Args.duration args == 0 then transform else id) deriver
 
 -- | Just like the default note call, except apply a function to the output.
 postproc_note :: Text -> Text -> (Score.Event -> Score.Event)

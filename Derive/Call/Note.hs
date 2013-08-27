@@ -58,9 +58,11 @@ c_note :: Derive.NoteCall
 c_note = note_call "" "" Tags.prelude (default_note use_attributes)
 
 transformed_note :: Text -> Tags.Tags
-    -> (Derive.EventDeriver -> Derive.EventDeriver) -> Derive.NoteCall
+    -> (Derive.EventArgs -> Derive.EventDeriver -> Derive.EventDeriver)
+    -> Derive.NoteCall
 transformed_note prepend_doc tags transform =
-    note_call "" prepend_doc tags (transform . default_note use_attributes)
+    note_call "" prepend_doc tags $ \args ->
+        transform args (default_note use_attributes args)
 
 -- | Create a note call, configuring it with the actual note generating
 -- function.  The generator is called with the usual note arguments, and
@@ -119,7 +121,7 @@ note_transform vals _ deriver = transform_note vals deriver
 
 -- | Generate a single note.  This is intended to be used as the lowest level
 -- null call for some instrument.
-type GenerateNote = Derive.PassedArgs Score.Event -> Derive.EventDeriver
+type GenerateNote = Derive.EventArgs -> Derive.EventDeriver
 
 data Config = Config {
     -- | Note duration is affected by +staccato.
