@@ -18,12 +18,10 @@ import qualified Perform.Pitch as Pitch
 
 scales :: [Scale.Scale]
 scales =
-    [ make_scale (Pitch.ScaleId "octa21") layout21 keys21 absolute_fmt
-    , make_scale (Pitch.ScaleId "octa12") layout12 keys12 absolute_fmt
-    , make_scale (Pitch.ScaleId "octa21-r") layout21 keys21
-        (relative_fmt keys21)
-    , make_scale (Pitch.ScaleId "octa12-r") layout12 keys12
-        (relative_fmt keys12)
+    [ make_scale "octa21" layout21 keys21 absolute_fmt
+    , make_scale "octa12" layout12 keys12 absolute_fmt
+    , make_scale "octa21-r" layout21 keys21 (relative_fmt keys21)
+    , make_scale "octa12-r" layout12 keys12 (relative_fmt keys12)
     ]
     where
     layout21 = Theory.layout [2, 1, 2, 1, 2, 1, 2, 1]

@@ -31,6 +31,7 @@ module Perform.Pitch (
     , Degree(..), Transpose(..), modify_transpose
     , Key(Key), key_text
 ) where
+import qualified Data.String as String
 import qualified Text.ParserCombinators.ReadP as ReadP
 import qualified Text.Read as Read
 
@@ -156,7 +157,7 @@ middle_c_hz = nn_to_hz 60
 -- * scale
 
 newtype ScaleId = ScaleId Text
-    deriving (Eq, Ord, Read, Show, Serialize.Serialize)
+    deriving (Eq, Ord, Read, Show, String.IsString, Serialize.Serialize)
 
 instance Pretty.Pretty ScaleId where
     -- This is the pitch track syntax.
@@ -164,10 +165,10 @@ instance Pretty.Pretty ScaleId where
 
 -- | Usually this means to use the scale currently in scope.
 empty_scale :: ScaleId
-empty_scale = ScaleId ""
+empty_scale = ""
 
 twelve :: ScaleId
-twelve = ScaleId "twelve"
+twelve = "twelve"
 
 -- | Scale steps.  What this means is internal to each scale, but is intended
 -- to correspond to chromatic steps in the scale.

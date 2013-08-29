@@ -14,7 +14,7 @@ UNSORTED
     spell the same scale, e.g. pemade vs. kantilan.
     . Perhaps environ should go in inst config?
   - why can't I write 'a #= b . c #= d'?
-  - IsString ScaleId instance
+  * IsString ScaleId instance
   * using 12356 for gender wayang is pretty bogus.
     It should probably be 12345.
     One absolute scale, then versions for pemade and kantilan.

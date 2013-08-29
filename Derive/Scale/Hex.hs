@@ -17,10 +17,10 @@ import qualified Perform.Pitch as Pitch
 
 scales :: [Scale.Scale]
 scales =
-    [ JustScales.make_scale (Pitch.ScaleId "hex")
+    [ JustScales.make_scale "hex"
         (scale_map (TheoryFormat.letters pc_per_octave))
         doc doc_fields
-    , JustScales.make_scale (Pitch.ScaleId "hex-r")
+    , JustScales.make_scale "hex-r"
         (scale_map (TheoryFormat.cipher pc_per_octave relative_fmt))
         doc doc_fields
     ]

@@ -42,8 +42,7 @@ scale =
     { Scale.scale_input_to_nn = Util.direct_input_to_nn }
 
 relative_scale :: Scale.Scale
-relative_scale = ChromaticScales.make_scale relative_scale_map
-    (Pitch.ScaleId "twelve-r")
+relative_scale = ChromaticScales.make_scale relative_scale_map "twelve-r"
     "This is 12TET, but spelled relative to the current key and mode.\
     \ It behaves oddly around accidentals. This is because the input is\
     \ taken to be relative, so the key is at C on the input. But the\
@@ -53,7 +52,7 @@ relative_scale = ChromaticScales.make_scale relative_scale_map
     \ confusing, and incompatible with a piano keyboard.\n"
 
 scale_id :: Pitch.ScaleId
-scale_id = Pitch.ScaleId "twelve"
+scale_id = "twelve"
 
 absolute_scale_map :: ChromaticScales.ScaleMap
 absolute_scale_map =

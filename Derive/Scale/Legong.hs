@@ -16,7 +16,7 @@ import qualified Perform.Pitch as Pitch
 
 
 scale_id :: Pitch.ScaleId
-scale_id = Pitch.ScaleId "legong"
+scale_id = "legong"
 
 scale :: Scale.Scale
 scale = Util.add_doc "Saih pelegongan. Tuning from my gender rambat."

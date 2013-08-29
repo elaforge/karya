@@ -30,7 +30,7 @@ scales :: [Scale.Scale]
 scales = [absolute_scale]
 
 scale_id :: Pitch.ScaleId
-scale_id = Pitch.ScaleId "bp"
+scale_id = "bp"
 
 absolute_scale :: Scale.Scale
 absolute_scale =

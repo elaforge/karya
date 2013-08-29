@@ -31,7 +31,7 @@ mksignal :: [(RealTime, Pitch.NoteNumber)] -> PitchSignal.Signal
 mksignal = PitchSignal.signal . map (second mkpitch)
 
 default_scale :: PitchSignal.Scale
-default_scale = PitchSignal.Scale (Pitch.ScaleId "test") (Set.fromList [c_trans])
+default_scale = PitchSignal.Scale "test" (Set.fromList [c_trans])
 
 mkpitch :: Pitch.NoteNumber -> PitchSignal.Pitch
 mkpitch nn =

@@ -14,17 +14,17 @@ import qualified Perform.Pitch as Pitch
 scales :: [Scale.Scale]
 scales =
     [ Util.add_doc "Saih gender wayang." $
-        BaliScales.scale (Pitch.ScaleId "wayang") absolute_scale
+        BaliScales.scale scale_id absolute_scale
     , Util.add_doc "Pemade scale. This can be used to give the the same score\
             \ to both pemade and kantilan." $
-        BaliScales.scale (Pitch.ScaleId "wayang-p") pemade_scale
+        BaliScales.scale "wayang-p" pemade_scale
     , Util.add_doc "Kantilan scale. This can be used to give the the same score\
             \ to both pemade and kantilan." $
-        BaliScales.scale (Pitch.ScaleId "wayang-k") kantilan_scale
+        BaliScales.scale "wayang-k" kantilan_scale
     ]
 
 scale_id :: Pitch.ScaleId
-scale_id = Pitch.ScaleId "wayang"
+scale_id = "wayang"
 
 -- | Use ding deng dong dang dung.  I don't know if this is ever actually used
 -- for gender, but the notation is compact.

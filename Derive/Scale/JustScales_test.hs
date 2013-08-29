@@ -117,9 +117,7 @@ test_transpose_relative = do
 -- * implementation
 
 just_scale :: Scale.Scale
-Just just_scale =
-    List.find ((== Pitch.ScaleId "just") . Scale.scale_id) Just.scales
+Just just_scale = List.find ((== "just") . Scale.scale_id) Just.scales
 
 just_scale_rel :: Scale.Scale
-Just just_scale_rel =
-    List.find ((== Pitch.ScaleId "just-r") . Scale.scale_id) Just.scales
+Just just_scale_rel = List.find ((== "just-r") . Scale.scale_id) Just.scales

@@ -32,7 +32,7 @@ import qualified Perform.Pitch as Pitch
 
 scale :: Scale.Scale
 scale = Scale.Scale
-    { Scale.scale_id = scale_id
+    { Scale.scale_id = "ratio"
     , Scale.scale_pattern = "[+-]?\\d+/\\d+ e.g. 2/5 or -4/3"
     , Scale.scale_symbols = []
     , Scale.scale_transposers = mempty
@@ -47,9 +47,6 @@ scale = Scale.Scale
     , Scale.scale_call_doc = Derive.extract_val_doc $
         note_call (Pitch.Note "1/1") id
     }
-
-scale_id :: Pitch.ScaleId
-scale_id = Pitch.ScaleId "ratio"
 
 note_to_call :: Pitch.Note -> Maybe Derive.ValCall
 note_to_call note = note_call note <$>

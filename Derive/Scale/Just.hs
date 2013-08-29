@@ -20,9 +20,9 @@ import qualified Perform.Pitch as Pitch
 
 scales :: [Scale.Scale]
 scales =
-    [ JustScales.make_scale (Pitch.ScaleId "just")
+    [ JustScales.make_scale "just"
         (scale_map TheoryFormat.absolute_c) doc doc_fields
-    , JustScales.make_scale (Pitch.ScaleId "just-r")
+    , JustScales.make_scale "just-r"
         (scale_map (TheoryFormat.sargam relative_fmt)) doc doc_fields
     ]
 

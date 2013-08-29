@@ -64,7 +64,7 @@ modify_vector :: (TimeVector.Boxed Pitch -> TimeVector.Boxed Pitch)
 modify_vector f sig = sig { sig_vec = f (sig_vec sig) }
 
 no_scale :: Scale
-no_scale = Scale (Pitch.ScaleId "no-scale") mempty
+no_scale = Scale "no-scale" mempty
 
 instance Monoid.Monoid Signal where
     mempty = Signal mempty

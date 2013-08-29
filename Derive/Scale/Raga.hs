@@ -19,7 +19,7 @@ import qualified Perform.Pitch as Pitch
 
 scales :: [Scale.Scale]
 scales =
-    [ JustScales.make_scale (Pitch.ScaleId "raga")
+    [ JustScales.make_scale "raga"
         (scale_map (TheoryFormat.sargam relative_fmt)) doc doc_fields
     ]
 
