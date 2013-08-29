@@ -309,8 +309,8 @@ annotate_call_doc transposers doc fields = Derive.prepend_doc extra_doc
     join = Text.unlines
         . map (\(k, v) -> k <> ": " <> v) . filter (not . Text.null . snd)
 
-add_doc :: Scale.Scale -> Text -> Scale.Scale
-add_doc scale doc = scale
+add_doc :: Text -> Scale.Scale -> Scale.Scale
+add_doc doc scale = scale
     { Scale.scale_call_doc = Derive.prepend_doc doc (Scale.scale_call_doc scale)
     }
 

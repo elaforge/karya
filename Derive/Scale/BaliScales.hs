@@ -26,20 +26,35 @@ data ScaleMap = ScaleMap {
     , scale_nn_map :: !NoteNumberMap
     } deriving (Show)
 
-scale_map :: Int -> [Pitch.NoteNumber]
+-- | (umbang, isep, average)
+type NoteNumberMap =
+    (Util.NoteNumberMap, Util.NoteNumberMap, Util.NoteNumberMap)
+
+scale_map :: Int
+    -- ^ Line a list starting with ding up with the note numbers.
+    -- So this is how much to drop from the Notes in order to get to ding.
+    -> [Pitch.Note] -> [Pitch.NoteNumber]
     -> [Pitch.NoteNumber] -> ScaleMap
-scale_map align_with_ding umbang isep = ScaleMap
-    { scale_degree_map = Util.degree_map (align all_notes)
+scale_map align_with_ding notes umbang isep = ScaleMap
+    { scale_degree_map = Util.degree_map (align notes)
     , scale_input_map = Map.fromList (zip (align all_inputs) [0..])
     , scale_nn_map = make_nn_map umbang isep
     }
     where
-    -- Line a list starting with ding up with the note numbers.
     align = take (length umbang) . drop align_with_ding
 
-all_notes :: [Pitch.Note]
-all_notes =
+cipher12356 :: [Pitch.Note]
+cipher12356 =
     [Symbols.dotted_number num oct | oct <- [-2..2], num <- [1, 2, 3, 5, 6]]
+
+cipher12345 :: [Pitch.Note]
+cipher12345 =
+    [Symbols.dotted_number num oct | oct <- [-2..2], num <- [1, 2, 3, 4, 5]]
+
+ioeua :: Pitch.Octave -> [Pitch.Note]
+ioeua octave =
+    [Pitch.Note $ showt oct <> vowel
+        | oct <- [octave..], vowel <- ["i", "o", "e", "u", "a"]]
 
 all_inputs :: [Pitch.InputKey]
 all_inputs =
@@ -87,9 +102,6 @@ read_tuning t
 -- umbang and isep tunings based on the given number.
 c_ombak :: Score.Control
 c_ombak = "ombak"
-
-type NoteNumberMap =
-    (Util.NoteNumberMap, Util.NoteNumberMap, Util.NoteNumberMap)
 
 make_nn_map :: [Pitch.NoteNumber] -> [Pitch.NoteNumber] -> NoteNumberMap
 make_nn_map umbang isep =

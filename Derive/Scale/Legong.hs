@@ -19,14 +19,14 @@ scale_id :: Pitch.ScaleId
 scale_id = Pitch.ScaleId "legong"
 
 scale :: Scale.Scale
-scale = Util.add_doc (BaliScales.scale scale_id scale_map)
-    "Saih pelegongan. Tuning from my gender rambat."
+scale = Util.add_doc "Saih pelegongan. Tuning from my gender rambat."
+    (BaliScales.scale scale_id scale_map)
 
 scale_map :: BaliScales.ScaleMap
-scale_map = BaliScales.scale_map 1 umbang isep
+scale_map = BaliScales.scale_map 1 BaliScales.cipher12356 umbang isep
 
 umbang :: [Pitch.NoteNumber]
-umbang = map Pitch.nn
+umbang =
     [ 50.8 -- 2.., ugal begin
     , 51.82 -- 3.., rambat begin
     , 55.7

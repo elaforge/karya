@@ -32,7 +32,7 @@ import qualified Perform.Pitch as Pitch
 scales :: Map.Map Pitch.ScaleId Scale.Scale
 shadowed :: [Pitch.ScaleId]
 (scales, shadowed) = mk $
-    [ Ratio.scale, Legong.scale, Wayang.scale
+    [ Ratio.scale, Legong.scale
     ] ++ concat
     [ BohlenPierce.scales
     , Hex.scales
@@ -40,5 +40,6 @@ shadowed :: [Pitch.ScaleId]
     , Octa.scales
     , Raga.scales
     , Twelve.scales
+    , Wayang.scales
     ]
     where mk = second (map fst) . Map.unique . Seq.key_on Scale.scale_id

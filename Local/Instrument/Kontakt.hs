@@ -64,8 +64,10 @@ patches = concat
 
 ks_patch :: Instrument.InstrumentName -> [(Attributes, Midi.Key)]
     -> Instrument.Patch
-ks_patch name ks = Instrument.set_keyswitches ks $
-    Instrument.patch $ Instrument.instrument name [] pb_range
+ks_patch name ks = Instrument.set_keyswitches ks (patch name)
+
+patch :: Instrument.InstrumentName -> Instrument.Patch
+patch name = Instrument.patch $ Instrument.instrument name [] pb_range
 
 -- One pitch bend modulator can only do +-12, but if you put two on you get
 -- +-24.
@@ -181,63 +183,52 @@ hang_ks = [(attrs, key) | (attrs, key, _, _) <- hang_strokes]
 
 -- * gender wayang
 
--- | Instead of using a keyswitch, I map mute to the lower range: (g_1, e1),
--- open to upper range: (g2, e5).  This way I can play mute and open notes
--- simultaneously.
+-- | Instead of using a keyswitch, I map mute to the lower range:
+--
+-- > pemade: mute (g_2, e0), open (g2, e5)
+-- > kantilan: mute (g_1, e1), open (g3, e6)
+--
+-- This way I can play mute and open notes simultaneously.  There is a big gap
+-- between the mute range and the open range so that pemade and kantilan can
+-- use the same ranges, and still have an octave of space in between them.
 --
 -- Directory structure is wayang/{pemade,kantil}/{isep,umbang}/{calung,panggul}
 --
 -- Set round-robins, pitch bend to 2 oct, and amp to velocity 90%.
---
--- Also have 12TET variant.
 wayang_patches :: [MidiInst.Patch]
 wayang_patches =
-    [ wayang 0 Wayang.umbang "umbang" "wayang-pemade-umbang"
-    , wayang 0 Wayang.isep "isep" "wayang-pemade-isep"
-    , wayang 1 Wayang.umbang "umbang" "wayang-kantil-umbang"
-    , wayang 1 Wayang.isep "isep" "wayang-kantil-isep"
+    [ (scale Wayang.umbang $ patch "wayang-umbang",
+        set_tuning "umbang" <> wayang_code)
+    , (scale Wayang.isep $ patch "wayang-isep",
+        set_tuning "isep" <> wayang_code)
+    , (Instrument.text #= "Tuned to 12TET." $ patch "wayang", wayang_code)
     ]
     where
-    wayang octave scale tuning name =
-        ( Instrument.text #= doc $
-            Instrument.scale #= wayang_scale octave scale $
-            Instrument.keymap #= wayang_keymap octave $ ks_patch name []
-        , with_tuning tuning <> wayang_code
-        )
-    with_tuning tuning =
-        MidiInst.default_scale Wayang.scale_id
+    scale scale = (Instrument.text #= doc)
+        . (Instrument.scale #= wayang_scale scale)
+        . (Instrument.keymap #= wayang_keymap)
+    set_tuning tuning = MidiInst.default_scale Wayang.scale_id
         <> MidiInst.environ Environ.tuning (tuning :: Text)
-    doc = "Gender wayang. These set the scale and tuning automatically.\
-        \ There are variants for patches with natural tuning and 12TET."
+    doc = "These set the scale and tuning automatically, and expect the patch\
+        \ to be tuned to its natural scale."
 
 wayang_code :: MidiInst.Code
 wayang_code = MidiInst.note_calls $ MidiInst.null_call $
     DUtil.zero_duration "Add `+mute` attribute and scale dyn by 0.75." $
         Util.add_attrs Attrs.mute . Util.multiply_dynamic 0.75
 
-wayang_umbang :: Instrument.PatchScale
-wayang_umbang = Instrument.make_patch_scale $ zip (wayang_keys 0) Wayang.umbang
+wayang_scale :: [Pitch.NoteNumber] -> Instrument.PatchScale
+wayang_scale scale = Instrument.make_patch_scale $ zip wayang_keys scale
 
-wayang_isep :: Instrument.PatchScale
-wayang_isep = Instrument.make_patch_scale $ zip (wayang_keys 0) Wayang.isep
+wayang_keys :: [Midi.Key]
+wayang_keys = take (5*3 - 1) $ drop 1 $ concatMap keys [0..]
+    where
+    keys oct = map (Midi.to_key (oct * 12) +)
+        [Key2.e2, Key2.f2, Key2.a2, Key2.b2, Key2.c3]
 
-wayang_scale :: Pitch.Octave -> [Pitch.NoteNumber] -> Instrument.PatchScale
-wayang_scale octave scale = Instrument.make_patch_scale $
-    zip (wayang_keys octave) (drop (octave * 5) scale)
-
-wayang_keys :: Pitch.Octave -> [Midi.Key]
-wayang_keys octave = map (+ Midi.to_key (octave * 12))
-    [ Key2.g2, Key2.a2, Key2.b2, Key2.c3 -- 2345
-    , Key2.e3, Key2.f3, Key2.a3, Key2.b3, Key2.c4 -- 12345
-    , Key2.e4 -- 1
-    ]
-
-wayang_keymap :: Pitch.Octave -> Instrument.Keymap
-wayang_keymap octave = Map.fromList
-    [ (Attrs.mute, (Key2.g_1 + n, Key2.e1 + n,
-        Just $ Midi.from_key (Key2.g2 + n)))
-    ]
-    where n = Midi.to_key (octave * 12)
+wayang_keymap :: Instrument.Keymap
+wayang_keymap = Map.fromList
+    [(Attrs.mute, (Key2.f_2, Key2.e1, Just $ Midi.from_key Key2.f2))]
 
 
 -- * kendang

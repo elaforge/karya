@@ -11,56 +11,87 @@ import qualified Derive.Scale.Util as Util
 import qualified Perform.Pitch as Pitch
 
 
+scales :: [Scale.Scale]
+scales =
+    [ Util.add_doc "Saih gender wayang." $
+        BaliScales.scale (Pitch.ScaleId "wayang") absolute_scale
+    , Util.add_doc "Pemade scale. This can be used to give the the same score\
+            \ to both pemade and kantilan." $
+        BaliScales.scale (Pitch.ScaleId "wayang-p") pemade_scale
+    , Util.add_doc "Kantilan scale. This can be used to give the the same score\
+            \ to both pemade and kantilan." $
+        BaliScales.scale (Pitch.ScaleId "wayang-k") kantilan_scale
+    ]
+
 scale_id :: Pitch.ScaleId
 scale_id = Pitch.ScaleId "wayang"
 
-scale :: Scale.Scale
-scale = Util.add_doc (BaliScales.scale scale_id scale_map)
-    "Saih gender wayang."
+-- | Use ding deng dong dang dung.  I don't know if this is ever actually used
+-- for gender, but the notation is compact.
+--
+-- > 2o  2e  2u  2a  3i  3o  3e  3u  3a  4i  4o  4e  4u  4a  5i
+-- > pemade -------------------------------
+-- >                     kantilan -----------------------------
+absolute_scale :: BaliScales.ScaleMap
+absolute_scale = BaliScales.scale_map 0 (BaliScales.ioeua 0)
+    (extend umbang) (extend isep)
 
-scale_map :: BaliScales.ScaleMap
-scale_map = BaliScales.scale_map 4 umbang isep
+pemade_scale :: BaliScales.ScaleMap
+pemade_scale = BaliScales.scale_map 1 (BaliScales.ioeua 1) umbang isep
+
+kantilan_scale :: BaliScales.ScaleMap
+kantilan_scale = BaliScales.scale_map 1 (BaliScales.ioeua 1)
+    (drop 5 umbang) (drop 5 isep)
+
+-- | pemade starts at 2o--3i--4i, kanti is 3o--4i--5i
+extend :: [Pitch.NoteNumber] -> [Pitch.NoteNumber]
+extend nns =
+    ding - 36 : map (subtract 24) low ++ map (subtract 12) low
+        ++ nns ++ map (+12) high ++ map (+24) high
+    where
+    ding = nns !! 4
+    low = take 5 nns -- oeuai
+    high = drop (length nns - 5) nns -- oeuai
 
 umbang :: [Pitch.NoteNumber]
-umbang = map Pitch.nn
-    [ 53 -- 6.., pemade begin, dong
-
-    , 55.15 -- 1.
+umbang =
+    [ 53 -- pemade begin
+    , 55.15
     , 57.73
     , 60.4
-    , 62.95 -- 5., pemade middle, ding
-    , 64.7 -- 6., kantilan begin
 
-    , 67.57 -- 1 -- "middle C", deng
+    , 62.95 -- pemade middle
+    , 64.7 -- kantilan begin
+    , 67.57
     , 69.45
     , 72.1
-    , 74.83 -- 5, pemade end, ding
-    , 76.85
 
-    , 79.48 -- deng
+    , 74.83 -- pemade end, kantilan middle
+    , 76.85
+    , 79.48
     , 81.63
     , 84.12
-    , 86.88 -- 5^, kantilan end, ding
+    , 86.88 -- kantilan end
     ]
 
 isep :: [Pitch.NoteNumber]
-isep = map Pitch.nn
-    [ 52.3 -- dong
+isep =
+    [ 52.3 -- pemade begin
 
     , 54.55
     , 57.35
     , 59.85
-    , 62.5 -- ding
-    , 64.45 -- 6., kantilan begin
+    , 62.5 -- pemade middle
+    , 64.45 -- kantilan begin
 
     , 67.26
     , 69.25
     , 71.81
-    , 74.63 -- 5, pemade end, ding
+    , 74.63 -- pemade end, kantilan middle
     , 76.73
 
-    , 79.35 -- deng
+    , 79.35
     , 81.51
     , 84
-    , 86.78 -- 5^, kantilan end, ding
+    , 86.78 -- kantilan end
     ]
