@@ -13,7 +13,10 @@ UNSORTED
     a different scale with that instrument, but there are different ways to
     spell the same scale, e.g. pemade vs. kantilan.
     . Perhaps environ should go in inst config?
-  - why can't I write 'a #= b . c #= d'?
+    . Or just have wayang set tuning, and get the scale from the environment.
+      I don't need more invisible ways to modify the environment.
+  / why can't I write 'a #= b . c #= d'?
+    (.) has the highest precedence.
   * IsString ScaleId instance
   * using 12356 for gender wayang is pretty bogus.
     It should probably be 12345.
@@ -22,8 +25,9 @@ UNSORTED
   - add ioeua to legong scale
   - merge KeyswitchMap and Keymap into AttributeMap
     Ensure that keyswitches cause channel splits, but keymaps don't.
-  - Call docs in browser strip out the newlines, they should start a new
+  / Call docs in browser strip out the newlines, they should start a new
     paragraph.
+    . Should happen automatically when I finish Util.Format3
   - 'd' mridangam call collides with delay transformer
     '+' looks like add zero attrs, 'o' looks like harmonic
     Maybe transformers and generators should be in independent namespaces so

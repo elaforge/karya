@@ -395,7 +395,7 @@ qwerty_lower
 qwerty_upper
     = "!@#$%^&*()_+"
     ++ "QWERTYUIOP{}|"
-    ++ "ASDFGHJKL;\""
+    ++ "ASDFGHJKL:\""
     ++ "ZXCVBNM<>?"
 
 -- | Not just dvorak, but my slightly modified version.
