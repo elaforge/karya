@@ -108,6 +108,8 @@ plak = attr "plak"
 de = attr "de"
 tut = attr "tut"
 ka = attr "ka" -- neutral stroke
+dag = attr "dag" -- de with panggul
+tek = attr "tek"
 
 -- left
 pak = attr "pak"

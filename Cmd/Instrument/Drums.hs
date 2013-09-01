@@ -63,10 +63,14 @@ kendang_composite = map resolve
     , ("Ø", Lanang, tut <> left, 't', 1)
     -- kenawan
     , ("+", Wadon, de, 'z', 1) -- de
-    , ("-", Wadon, de <> soft, 'x', 0.3) -- de
-    , ("o", Lanang, de, 'c', 1) -- tut
-    , ("u", Wadon, tut, 'v', 1) -- kum
-    , ("U", Lanang, tut, 'b', 1) -- pung
+    , ("-", Wadon, de <> soft, 'a', 0.3) -- de
+    , ("o", Lanang, de, 'x', 1) -- tut
+    , ("u", Wadon, tut, 'c', 1) -- kum
+    , ("U", Lanang, tut, 'v', 1) -- pung
+    , ("<", Wadon, dag, 'm', 1) -- dag
+    , (">", Lanang, dag, ',', 1) -- dug
+    , ("[", Wadon, tek, '.', 1) -- tak
+    , ("]", Lanang, tek, '/', 1) -- tek
     -- kebot
     , ("k", Wadon, pak, 'q', 1) -- ka
     , ("P", Lanang, pak, 'w', 1) -- pak
@@ -89,19 +93,22 @@ kendang_tunggal =
     map (flip (,) Kenawan)
     [ (Note "PL" plak            'b' 1.0, Key.g1)
     , (Note "+"  de              'z' 1.0, Key.c2)
-    , (Note "-"  (de <> soft)    'x' 0.3, Key.c2)
-    , (Note "+." (de <> thumb)   'c' 1.0, Key.f2)
-    , (Note "o"  tut             'v' 1.0, Key.c3)
-    , (Note "."  (ka <> soft)    'b' 0.3, Key.g3)
+    , (Note "-"  (de <> soft)    'a' 0.3, Key.c2)
+    , (Note "+." (de <> thumb)   's' 1.0, Key.f2)
+    , (Note "+/" (de <> mute)    'd' 1.0, Key.c1)
+    , (Note "o"  tut             'x' 1.0, Key.c3)
+    , (Note "."  (ka <> soft)    'c' 0.3, Key.g3)
     -- This should be rarely used, but '.' should definitely be soft, but
     -- if it is there is no way to emit a normal 'ka'.
-    , (Note ".."  ka             'n' 1.0, Key.g3)
-    , (Note "+/" (de <> mute)    'm' 1.0, Key.c1)
+    , (Note ".."  ka             'f' 1.0, Key.g3)
+    , (Note "<" dag              '.' 1.0, Key.c2) -- TODO
+    , (Note "-<" (dag <> soft)   'l' 0.3, Key.c2) -- TODO
+    , (Note "-[" (tek <> soft)   ';' 0.3, Key.c1) -- TODO
+    , (Note "[" tek              '/' 1.0, Key.c1) -- TODO
     ] ++ map (flip (,) Kebot)
     [ (Note "T"  pang            'q' 1.0, Key.g4)
     , (Note "P"  pak             'w' 1.0, Key.c5)
     , (Note "^"  (pak <> soft)   'e' 0.3, Key.c5)
     , (Note "`O+`" (de <> left)  'r' 1.0, Key.d4)
     , (Note "Ø"  (tut <> left)   't' 1.0, Key.c4)
-    -- TODO cedugan
     ]
