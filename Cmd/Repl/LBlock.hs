@@ -68,12 +68,24 @@ like match = do
         get = flip Map.lookup tracks <=< Block.track_id
         track_events = maybe 0 (Events.length . Track.track_events) . get
 
+-- | Find all blocks with the given text in their titles.
 find :: Text -> Cmd.CmdL [(BlockId, Text)]
 find search = do
     block_ids <- State.all_block_ids
     titles <- mapM State.get_block_title block_ids
     return [(block_id, title) | (block_id, title) <- zip block_ids titles,
         search `Text.isInfixOf` title]
+
+-- | Transform all block titles.
+map_titles :: (Text -> Text) -> Cmd.CmdL ()
+map_titles modify = do
+    block_ids <- State.all_block_ids
+    titles <- mapM State.get_block_title block_ids
+    forM_ (zip block_ids titles) $ \(block_id, title) ->
+        State.set_block_title block_id (modify title)
+
+replace_titles :: Text -> Text -> Cmd.CmdL ()
+replace_titles from to = map_titles $ Text.replace from to
 
 -- * doc
 
