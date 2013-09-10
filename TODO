@@ -3,6 +3,9 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
+  - Select all of a track and then extend selection right or left, it scrolls
+    to the bottom of the block.  Perhaps if the TrackTime didn't change it
+    shouldn't autoscroll.
   new input note
     * change scales input_to_note to new diatonic_input_to_note
     * move Util.Input over to Pitch
@@ -19,8 +22,11 @@ UNSORTED
       they are both the same, so the inconsistency gets pushed out to
       the Pitch -> NN conversion.
     * I put the octave into Theory.nn_to_semis and semis_to_nn, document
+    - ascii thru is an octave too low
+    - pc 6, 7, 8 emit the same note
+    - test twelve relative and bp
   - get rid of Theory.layout_max_pc
-  - change 'Note [xyz]' to 'NOTE [xyz]', there are too many things called Note
+  * change 'Note [xyz]' to 'NOTE [xyz]', there are too many things called Note
   - fix circular RelativeFormat definition, details in Derive.Scale.Twelve
   wayang samples:
     * the layout has changed, so how does the scale mapping work?

@@ -17,11 +17,11 @@ Large comments use {- -} and their contents are indented.  This way
 indentation based folding can get them out of the way.
 
 Long explanations (typically of why something is the way it is) are in a
-separate comment that starts off 'Note [something-or-other]', and other
-comments that want to reference it mention 'see Note [something-or-other]'.
-Make sure to capitalize the Note, otherwise there are way too many things
-named "note" in the source!  This is borrowed from GHC and it seems to work
-for them.
+separate comment that starts off 'NOTE [something-or-other]', and other
+comments that want to reference it mention 'see NOTE [something-or-other]'.
+Make sure to capitalize the NOTE, otherwise there are way too many things
+named "note" or "Note" in the source!  This is borrowed from GHC and it seems
+to work for them.
 
 Modules are imported like 'import qualified A.B.C as C', with very few
 exceptions.  Therefore, names should generally not repeat the module name.

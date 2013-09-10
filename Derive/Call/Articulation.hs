@@ -101,7 +101,7 @@ note_legato overlap maybe_detach dyn = Sub.place . concat . map apply
     apply = Seq.map_init (Sub.map_event (set_sustain overlap))
         . apply_dyn dyn . maybe id apply_detach maybe_detach
 
-{- Note [legato]
+{- NOTE [legato]
     Previously, it would set @+legato@, and the default note deriver would
     then respond by overlapping with the next note.  The theory was that it
     would allow more flexibility since I could then swap out the default

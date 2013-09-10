@@ -187,7 +187,7 @@ normalized args = Derive.d_place (- (start / dur)) (1 / dur)
     (start, dur_) = extent args
     dur = if dur_ == 0 then 1 else dur_
 
-{- Note [prev-val]
+{- NOTE [prev-val]
 
     Many control calls rely on the last value emitted by the previous call.
     I can't think of a way around that, because it's really fundamental to how
