@@ -3,6 +3,25 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
+  new input note
+    * change scales input_to_note to new diatonic_input_to_note
+    * move Util.Input over to Pitch
+    * change Cmd.InputNote
+    * update scales
+    * remove Pitch.InputKey
+    * tests
+    * make sure octaves are consistent
+      Previously, octaves went from 0.., and TheoryFormat would subtract and
+      add 1.  Now, input explicitly sets the octave, and it seemed confusing
+      for notes to appear with -1 octave.  Unfortunately, NNs still start
+      at octave -1, so everything that goes to NNs has to adjust.
+      Previously, Theory.Pitch started at 0 while NN started at -1.  Now
+      they are both the same, so the inconsistency gets pushed out to
+      the Pitch -> NN conversion.
+    * I put the octave into Theory.nn_to_semis and semis_to_nn, document
+  - get rid of Theory.layout_max_pc
+  - change 'Note [xyz]' to 'NOTE [xyz]', there are too many things called Note
+  - fix circular RelativeFormat definition, details in Derive.Scale.Twelve
   wayang samples:
     * the layout has changed, so how does the scale mapping work?
     * +mute should shift -2 octave: a0 -> 80 seems about right: 0.8

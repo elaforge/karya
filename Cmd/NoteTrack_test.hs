@@ -14,18 +14,20 @@ import qualified Ui.UiTest as UiTest
 
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.CmdTest as CmdTest
+import qualified Cmd.InputNote as InputNote
 import qualified Cmd.Msg as Msg
 import qualified Cmd.NoteTrack as NoteTrack
 import qualified Cmd.Selection as Selection
 
 import qualified Derive.TrackInfo as TrackInfo
+import qualified Perform.NN as NN
 import Types
 
 
 test_cmd_raw_edit = do
     let f = NoteTrack.cmd_raw_edit
     -- Created event has dur according to ruler.
-    equal (run [(">i", [])] (f (CmdTest.m_note_on 60 60 127))) $
+    equal (run [(">i", [])] (f (CmdTest.m_note_on NN.middle_c))) $
         Right [(">i", [(0, 1, "(4c)")])]
     -- Space creates a zero-dur note.
     equal (run [(">i", [])] (f (mkkey (Key.Char ' ')))) $
@@ -41,7 +43,7 @@ test_cmd_raw_edit = do
 
 test_cmd_val_edit_create = do
     let f = NoteTrack.cmd_val_edit
-        note = CmdTest.m_note_on 60 60 127
+        note = CmdTest.m_note_on NN.middle_c
     -- creates a new pitch track
     equal (run [(">i", [])] (f note)) $
         Right [(">i", [(0, 1, "")]), ("*", [(0, 0, "4c")])]
@@ -56,7 +58,7 @@ test_cmd_val_edit_simple = do
     equal (run note_tracks (f (mkkey Key.Backspace))) $
         Right [(">i", []), ("*", [])]
     -- pitch is changed, note text remains
-    equal (run note_tracks (f (CmdTest.m_note_on 60 60 127))) $
+    equal (run note_tracks (f (CmdTest.m_note_on NN.middle_c))) $
         Right [(">i", [(0, 1, "x")]), ("*", [(0, 0, "4c")])]
 
 test_cmd_val_edit_advance = do
@@ -64,8 +66,8 @@ test_cmd_val_edit_advance = do
     let f advance = extract . val_edit advance False [">i", "*"]
         extract (Right result) = (simplify result, extract_sel result)
         extract (Left err) = error $ "left: " ++ err
-    let on nn = CmdTest.m_note_on nn (fromIntegral nn) 127
-        off nn = CmdTest.m_note_off nn 127
+    let on = CmdTest.m_note_on
+        off = CmdTest.m_note_off
 
     -- selection advances after each key
     equal (f True [on 60, off 60])
@@ -80,12 +82,12 @@ test_cmd_val_edit_advance = do
         ([(">i", [(0, 1, "4c#")])], (1, 0))
 
     -- pitch changes retune the entered note
-    let pitch nn = CmdTest.m_pitch (floor nn) nn
-    equal (f False [on 60, pitch 60.5]) $
+    let pitch = CmdTest.m_pitch_change
+    equal (f False [on 60, pitch 60 60.5]) $
         ([(">i", [(0, 1, "4c 50")])], (1, 0))
 
     -- even if it advanced
-    equal (f True [on 60, pitch 60.5]) $
+    equal (f True [on 60, pitch 60 60.5]) $
         ([(">i", [(0, 1, "4c 50")])], (1, 1))
 
 test_cmd_val_edit_chord = do
@@ -93,8 +95,8 @@ test_cmd_val_edit_chord = do
         e_sel (Right result) = (simplify result, extract_sel result)
         e_sel (Left err) = error $ "left: " ++ err
         e_events = fmap simplify
-    let on nn = CmdTest.m_note_on nn (fromIntegral nn) 127
-        off nn = CmdTest.m_note_off nn 127
+    let on = CmdTest.m_note_on
+        off = CmdTest.m_note_off
 
     -- chord mode advances on note off
     equal (e_sel $ f True [">", "*"] [on 60])
@@ -135,16 +137,17 @@ test_cmd_val_edit_dyn = do
         set_dyn st = st { Cmd.state_edit = (Cmd.state_edit st)
             { Cmd.state_record_velocity = True } }
         extract = UiTest.extract_tracks . fst
-    let on vel = CmdTest.m_note_on 60 60 vel
-    equal (f [">"] [on 127]) $ Right
+    let on vel = Msg.InputNote $ InputNote.NoteOn (InputNote.NoteId 60)
+            (InputNote.nn_to_input 60) vel
+    equal (f [">"] [on 1]) $ Right
         [ (">", [(0, 1, "")])
         , ("dyn", [(0, 0, "`0x`ff")])
         , ("*", [(0, 0, "4c")])
         ]
-    equal (f [">", "dyn"] [on 64]) $ Right
+    equal (f [">", "dyn"] [on 0.5]) $ Right
         [ (">", [(0, 1, "")])
         , ("*", [(0, 0, "4c")])
-        , ("dyn", [(0, 0, "`0x`81")])
+        , ("dyn", [(0, 0, "`0x`80")])
         ]
 
 val_edit :: Bool -> Bool -> [String] -> [Msg.Msg] -> Either String States

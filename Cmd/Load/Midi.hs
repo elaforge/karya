@@ -32,7 +32,6 @@ import qualified Ui.State as State
 
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Create as Create
-import qualified Derive.Scale as Scale
 import qualified Derive.Scale.Twelve as Twelve
 import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
@@ -215,11 +214,7 @@ convert_controls cs =
             | (start, (_, val)) <- midi_controls]
 
 key_to_pitch :: Midi.Key -> Text
-key_to_pitch (Midi.Key key) =
-    case Scale.scale_input_to_note Twelve.scale Nothing input of
-        Just note -> Pitch.note_text note
-        Nothing -> "?"
-    where input = Pitch.InputKey (fromIntegral key)
+key_to_pitch = maybe "?" Pitch.note_text . Twelve.show_nn . Midi.from_key
 
 -- | This is the same as 'Cmd.InputNote.cc_to_control', but I don't want the
 -- dependency.

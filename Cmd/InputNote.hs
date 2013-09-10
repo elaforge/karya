@@ -40,16 +40,23 @@ import qualified Util.Num as Num
 
 import qualified Midi.Midi as Midi
 import qualified Derive.Controls as Controls
+import qualified Derive.Scale.Theory as Theory
 import qualified Derive.Score as Score
+
 import qualified Perform.Midi.Control as Control
 import qualified Perform.Pitch as Pitch
 import qualified Perform.Signal as Signal
 
 
-data Input =
-    -- | The InputKey and val (velocity) could be sent separately, but that
+type Input = GenericInput Pitch.Input
+
+-- | An input with a plain NoteNumber pitch instead of a 'Pitch.Input'.
+type InputNn = GenericInput Pitch.NoteNumber
+
+data GenericInput pitch =
+    -- | The Input and val (velocity) could be sent separately, but that
     -- would make converting this back into midi for thru harder.
-    NoteOn NoteId Pitch.InputKey Signal.Y
+    NoteOn NoteId pitch Signal.Y
     | NoteOff NoteId Signal.Y
     -- | Controls coming from MIDI are mapped to control names, since this is
     -- a superset of MIDI CC numbers, and may include non-MIDI as well.  But
@@ -58,10 +65,10 @@ data Input =
     -- 'control_to_cc' provide.
     | Control NoteId Score.Control Signal.Y
     -- | Pitch could also be a Control, but this way the pitch is typed.
-    | PitchChange NoteId Pitch.InputKey
+    | PitchChange NoteId pitch
     deriving (Eq, Show)
 
-input_id :: Input -> NoteId
+input_id :: GenericInput x -> NoteId
 input_id input = case input of
     NoteOn note_id _ _ -> note_id
     NoteOff note_id _ -> note_id
@@ -136,12 +143,23 @@ update_state addr chan_msg state = state
     id_of (Midi.NoteOff key _) = Just (key_to_id key)
     id_of _ = Nothing
 
-pb_to_input :: Control.PbRange -> Midi.PitchBendValue -> Midi.Key
-    -> Pitch.InputKey
+pb_to_input :: Control.PbRange -> Midi.PitchBendValue -> Midi.Key -> Pitch.Input
 pb_to_input (low, high) pb key =
-    Pitch.InputKey (Num.f2d (Midi.from_key key + offset))
+    nn_to_input $ Midi.from_key key + Pitch.nn offset
     where
-    offset = if pb < 0 then -pb * fromIntegral low else pb * fromIntegral high
+    offset = Num.f2d $
+        if pb < 0 then -pb * fromIntegral low else pb * fromIntegral high
+
+nn_to_input :: Pitch.NoteNumber -> Pitch.Input
+nn_to_input nn = Pitch.Input Pitch.PianoKbd pitch frac
+    where
+    pitch = Theory.semis_to_pitch_sharps Theory.piano_layout $
+        Theory.nn_to_semis key
+    (key, frac) = properFraction (Pitch.nn_to_double nn)
+
+input_to_nn :: Pitch.Input -> Pitch.NoteNumber
+input_to_nn (Pitch.Input _ pitch frac) = nn + Pitch.nn frac + 12
+    where nn = fromIntegral (Theory.pitch_to_semis Theory.piano_layout pitch)
 
 cc_to_control :: Midi.Control -> Score.Control
 cc_to_control cc = fromMaybe (Score.control ("cc" <> showt cc))
@@ -156,29 +174,27 @@ cc_control = Map.invert control_cc
 control_cc :: Map.Map Score.Control Midi.Control
 control_cc = Control.universal_control_map
 
--- * from key
+-- * from ascii
 
-from_key :: Pitch.Octave -> Bool -> Pitch.InputKey -> Input
-from_key oct down (Pitch.InputKey nn)
-    | down = NoteOn note_id (Pitch.InputKey nn2) vel
-    | otherwise = NoteOff note_id vel
-    where
-    nn2 = nn + 12 * fromIntegral oct
-    note_id = NoteId (floor nn2)
-    vel = 100 / 127
+from_ascii :: Bool -> Theory.Pitch -> Input
+from_ascii down pitch
+    | down = NoteOn note_id (Pitch.Input Pitch.AsciiKbd pitch 0) 1
+    | otherwise = NoteOff note_id 1
+    where note_id = NoteId $ Theory.pitch_to_semis Theory.piano_layout pitch
 
 -- * to midi
 
--- | Convert an Input to MIDI.
+-- | Convert an InputNn to MIDI.
 to_midi :: Control.PbRange -> Midi.PitchBendValue
-    -> Map.Map NoteId Midi.Key -> Input
+    -> Map.Map NoteId Midi.Key -> InputNn
     -> ([Midi.ChannelMessage], Map.Map NoteId Midi.Key)
 to_midi pb_range prev_pb id_to_key input = case input of
-        NoteOn note_id (Pitch.InputKey nn) vel -> note_on note_id nn vel
+        NoteOn note_id nn vel -> note_on note_id nn vel
         NoteOff note_id vel -> with_key note_id $ \key ->
             ([Midi.NoteOff key (from_val vel)], Map.delete note_id id_to_key)
-        PitchChange note_id (Pitch.InputKey nn) -> with_key note_id $ \key ->
-            (cons_pb (Control.pb_from_nn pb_range key nn) [], id_to_key)
+        PitchChange note_id nn -> with_key note_id $ \key ->
+            (cons_pb (Control.pb_from_nn pb_range key nn) [],
+                id_to_key)
         Control _ control val -> case control_to_cc control of
             Nothing -> ([], id_to_key)
             Just cc -> ([Midi.ControlChange cc (from_val val)], id_to_key)

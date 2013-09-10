@@ -47,13 +47,13 @@ absolute_scale =
     -- a scale but specify my own pitch aspect.
 
 scale_map :: ChromaticScales.ScaleMap
-scale_map = ChromaticScales.scale_map layout fmt all_keys default_key
+scale_map = ChromaticScales.scale_map layout absolute_fmt all_keys default_key
 
 pscale :: PitchSignal.Scale
 pscale = Pitches.scale absolute_scale
 
-fmt :: TheoryFormat.Format
-fmt = TheoryFormat.make_absolute_format
+absolute_fmt :: TheoryFormat.Format
+absolute_fmt = TheoryFormat.make_absolute_format
         (TheoryFormat.make_pattern degrees) degrees
         TheoryFormat.ascii_accidentals
     where
@@ -142,7 +142,7 @@ print_intervals =
     interleave (x:xs) (y:ys) = x : y : interleave xs ys
     interleave xs [] = xs
     interleave [] ys = ys
-    notes = TheoryFormat.key_notes default_key fmt
+    notes = TheoryFormat.key_notes default_key absolute_fmt
     intervals = zipWith interval bp_ratios (drop 1 bp_ratios)
     interval low high = fromMaybe ("no interval: " <> showt (high/low)) $
         Map.lookup (high / low) names
@@ -151,7 +151,7 @@ print_intervals =
 -- | Display the keys and their signatures.
 print_scales :: IO ()
 print_scales = mapM_ (putStrLn . untxt) $
-    map (TheoryFormat.show_key_signature fmt) $
+    map (TheoryFormat.show_key_signature absolute_fmt) $
     filter ((== Theory.Note 0 0) . Theory.key_tonic) $ Map.elems all_keys
 
 pc_per_octave :: Theory.PitchClass
@@ -161,7 +161,8 @@ semis_per_octave :: Int
 semis_per_octave = sum lambda_intervals
 
 all_keys :: ChromaticScales.Keys
-all_keys = ChromaticScales.make_keys fmt $ concatMap (uncurry make_keys) modes
+all_keys = ChromaticScales.make_keys absolute_fmt $
+    concatMap (uncurry make_keys) modes
 
 default_key :: Theory.Key
 Just default_key = Map.lookup (Pitch.Key "a-lambda") all_keys

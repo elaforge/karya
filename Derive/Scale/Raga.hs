@@ -126,7 +126,7 @@ melakarta_names =
     [ "kanakanki", "ratnangi", "ganamurti", "vanaspati"
     , "manavati", "tanarupi", "senavati", "hanumatodi"
     , "dhenuka", "natakapriya", "kokilapriya", "rupavati"
-    , "gayakapriya", "vakulabharanam", "mayamalavagoulai", "chakravaham"
+    , "gayakapriya", "vakulabharanam", "mayamalavagoula", "chakravaham"
     , "suryakantam", "hatakambhari", "jhankaradhwani", "natabhairavi"
     , "keeravani", "kharaharapriya", "gourimanohari", "varunapriya"
     , "mararanjani", "charukesi", "sarasangi", "harikambhoji"

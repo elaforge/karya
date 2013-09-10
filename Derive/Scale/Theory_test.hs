@@ -6,13 +6,11 @@ module Derive.Scale.Theory_test where
 import qualified Data.Vector.Unboxed as Vector
 
 import Util.Control
-import qualified Util.Pretty as Pretty
 import Util.Test
-
+import qualified Derive.Scale.ChromaticScales as ChromaticScales
 import qualified Derive.Scale.Theory as Theory
 import qualified Derive.Scale.TheoryFormat as TheoryFormat
 import qualified Derive.Scale.Twelve as Twelve
-import qualified Derive.Scale.ChromaticScales as ChromaticScales
 
 import qualified Perform.Pitch as Pitch
 
@@ -78,26 +76,26 @@ test_transpose_diatonic = do
         ["1bb", "2c", "2db", "2eb", "2e", "2gb", "2g", "2a", "2bb"]
 
 test_pitch_to_semis = do
-    let semis = Theory.semis_to_nn . Theory.pitch_to_semis Twelve.layout
-        pitch k = Theory.semis_to_pitch (key k) . Theory.nn_to_semis
-    equal (map (semis . p) ["0c", "0c#", "0cx"]) [12, 13, 14]
-    equal (map (semis . p) ["0c", "0cb", "0cbb"]) [12, 11, 10]
+    let semis = Theory.pitch_to_semis Twelve.layout
+        pitch k = Theory.semis_to_pitch (key k)
+    equal (map (semis . p) ["0c", "0c#", "0cx"]) [0, 1, 2]
+    equal (map (semis . p) ["0c", "0cb", "0cbb"]) [0, -1, -2]
     equal (map (semis . p) ["1c", "1d", "1e", "1f", "1g", "1a"])
-        [24, 26, 28, 29, 31, 33]
-    equal (map (semis . p) ["1c", "1d", "2c"]) [24, 26, 36]
+        [12, 14, 16, 17, 19, 21]
+    equal (map (semis . p) ["1c", "1d", "2c"]) [12, 14, 24]
 
     let notes = map p ["1a", "1a#", "1ax", "1ab", "1abb"]
     equal (map (show_pitch . pitch "c-maj" . semis) notes)
         ["1a", "1a#", "1b", "1g#", "1g"]
 
-    equal (map (show_pitch . pitch "a-maj") [24..36])
+    equal (map (show_pitch . pitch "a-maj") [12..24])
         ["1c", "1c#", "1d", "1d#", "1e", "1f", "1f#", "1g", "1g#", "1a",
             "1a#", "1b", "2c"]
-    equal (map (show_pitch . pitch "cb-maj") [23..35])
+    equal (map (show_pitch . pitch "cb-maj") [11..23])
         ["1cb", "1c", "1db", "1d", "1eb", "1fb", "1f", "1gb", "1g", "1ab",
             "1a", "1bb", "2cb"]
     -- hijaz has both a flat and a sharp in D
-    equal (map (show_pitch . pitch "d-hijaz") [26, 27, 28, 29, 30, 31])
+    equal (map (show_pitch . pitch "d-hijaz") [14..19])
         ["1d", "1eb", "1e", "1f", "1f#", "1g"]
 
 test_calculate_signature = do
@@ -143,12 +141,6 @@ test_degree_of = do
         [0, 0, 0, 1]
     equal (map (f "a-octa21") ["c", "d", "eb", "f", "f#"])
         [0, 1, 2, 3, 4]
-
-test_nn_to_semis = do
-    let f = Theory.semis_to_pitch (key "c-maj") . Theory.nn_to_semis
-    equal (Pretty.pretty (f 0)) "0-0"
-    equal (Pretty.pretty (f 60)) "5-0"
-    equal (Pretty.pretty (f 59)) "4-6"
 
 
 -- * util

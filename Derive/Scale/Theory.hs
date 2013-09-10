@@ -21,23 +21,27 @@
     @
 -}
 module Derive.Scale.Theory (
-    diatonic_to_chromatic
+    -- * constants
+    piano_intervals, piano_layout
+    -- * NoteNumber diatonic transposition
+    , diatonic_to_chromatic
     -- * symbolic transposition
     , transpose_diatonic, transpose_chromatic
     -- * input
     , enharmonics_of
-    , pitch_to_semis, note_to_semis, semis_to_pitch, semis_to_pitch_sharps
+    , pitch_to_semis, note_to_semis
+    , semis_to_pitch, pick_enharmonic, semis_to_pitch_sharps
     , semis_to_nn, nn_to_semis
     -- * types
     , PitchClass, Degree, Semi, Octave, Accidentals
-    , Pitch(..), pitch_accidentals
+    , Pitch(..), pitch_accidentals, pitch_pc
     , modify_octave, transpose_pitch
     , Note(..), note_in_layout
     -- ** key
     , Key(key_tonic, key_name, key_intervals, key_signature, key_layout), key
     , Signature
     , layout
-    , layout_max_pc, key_degrees_per_octave, layout_semis_per_octave
+    , layout_max_pc, layout_pc_per_octave, key_degrees_per_octave, layout_semis_per_octave
     -- * util
     , diatonic_degree_of
 #ifndef TESTING
@@ -57,6 +61,16 @@ import qualified Util.Num as Num
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 import qualified Util.Vector as Vector
+
+
+-- * constants
+
+piano_intervals :: [Int]
+piano_intervals = [2, 2, 1, 2, 2, 2, 1]
+
+-- | The layout of keys on everyone's favorite boxed harp.
+piano_layout :: Layout
+piano_layout = layout piano_intervals
 
 
 -- * NoteNumber diatonic transposition
@@ -124,7 +138,7 @@ note_to_semis :: Layout -> Note -> Semi
 note_to_semis layout (Note pc accs) =
     Vector.sum (Vector.take pc (layout_intervals layout)) + accs
 
--- | Convert an absolute semitones values to a pitch.  This is a bit
+-- | Convert an absolute semitones value to a pitch.  This is a bit
 -- complicated because it wants to find the best spelling for the given key.
 semis_to_pitch :: Key -> Semi -> Pitch
 semis_to_pitch key semis = mkpitch $ case key_signature key of
@@ -153,8 +167,35 @@ semis_to_pitch key semis = mkpitch $ case key_signature key of
     sharp_signature sig = Vector.count (>0) sig >= Vector.count (<0) sig
     sharp_tonic = (>=0) . note_accidentals . key_tonic
 
--- | Like 'semis_to_pitch', but only ever emits sharps, so it doesn't require
--- a key.
+-- | Pick the most sensible enharmonic for the given pitch.
+pick_enharmonic :: Key -> Pitch -> Pitch
+pick_enharmonic key pitch = mkpitch $ case key_signature key of
+    Just sig -> case List.find (in_scale sig) enharmonics of
+        Nothing -> pick_enharmonic (sharp_signature sig) enharmonics
+        Just note -> note
+    Nothing -> pick_enharmonic (sharp_tonic key) enharmonics
+    where
+    mkpitch (oct, note) = Pitch (pitch_octave pitch + oct) note
+    -- The (Note (-1) 0) error value is icky, but here's why it should never
+    -- happen: It happens when enharmonics is empty.  Since the values of
+    -- layout_enharmonics are never [] as per the definition of 'layout', it
+    -- means the mod of semis is out of range for the array, which means the
+    -- sum of the intervals is larger than the length of layout_enharmonics.
+    -- That shouldn't happen because layout_enharmonics is initialized to
+    -- [..  | i <- intervals, a <- [0..i-1]].
+    pick_enharmonic use_sharps notes = fromMaybe (0, Note (-1) 0) $
+        Seq.minimum_on (key . note_accidentals . snd) notes
+        where key accs = (if use_sharps then accs < 0 else accs > 0, abs accs)
+    in_scale sig (_, note) =
+        sig Vector.!? degree_of key note == Just (note_accidentals note)
+    enharmonics = fromMaybe [] $ layout_enharmonics layout Boxed.!? steps
+    steps = note_to_semis layout (pitch_note pitch)
+    layout = key_layout key
+    -- Sharpish looking key signatures favor sharps.
+    sharp_signature sig = Vector.count (>0) sig >= Vector.count (<0) sig
+    sharp_tonic = (>=0) . note_accidentals . key_tonic
+
+-- | Like 'semis_to_pitch', but only emits sharps, so it doesn't require a key.
 semis_to_pitch_sharps :: Layout -> Semi -> Pitch
 semis_to_pitch_sharps layout semis = Pitch (octave + oct) note
     where
@@ -162,14 +203,28 @@ semis_to_pitch_sharps layout semis = Pitch (octave + oct) note
     (oct, note) = head $ enharmonics Boxed.! steps
     enharmonics = layout_enharmonics layout
 
--- | Convert Semis to integral NNs.  It doesn't return 'Pitch.NoteNumber'
--- because these values are specifically integral, and are likely going to be
--- turned into an integral flavor of NoteNumbers, like 'Pitch.Degree'.
+-- | Convert Semis to integral NNs.  This is only valid for 12TET, which is the
+-- only scale where Semis correspond directly to NNs.
+--
+-- It doesn't return 'Pitch.NoteNumber' because these values are specifically
+-- integral.
+--
+-- NOTE [middle-c] Middle C is 5 octaves above NN 0, but is conventially called
+-- 4c.  Therefore, a 'Pitch' with octave 0 actually starts at NN 12 (in 12TET),
+-- and I have to add an octave when converting from NNs and subtract an octave
+-- when converting from NNs.
+--
+-- Previously I considered the octave offset a part of formatting, and added
+-- an octave in 'TheoryFormat.p_octave' and subtracted an octave in
+-- 'TheoryFormat.show_octave'.  But I was unsatisfied because it applied to
+-- all scales, and it seemed confusing to ask for a Pitch with octave 4 and get
+-- a note with octave 3.  TODO maybe the add/subtract octave should just go in
+-- TheoryFormat.absolute_c?
 semis_to_nn :: Semi -> Int
-semis_to_nn = id
+semis_to_nn = (+12)
 
 nn_to_semis :: Int -> Semi
-nn_to_semis = id
+nn_to_semis = subtract 12
 
 -- * input
 
@@ -230,6 +285,9 @@ instance Pretty.Pretty Pitch where
 
 pitch_accidentals :: Pitch -> Accidentals
 pitch_accidentals = note_accidentals . pitch_note
+
+pitch_pc :: Pitch -> PitchClass
+pitch_pc = note_pc . pitch_note
 
 modify_octave :: (Octave -> Octave) -> Pitch -> Pitch
 modify_octave f (Pitch octave note) = Pitch (f octave) note
@@ -353,6 +411,10 @@ layout_semis_per_octave = Vector.sum . layout_intervals
 -- | One greater than the maximum pitch class defined for this key.
 layout_max_pc :: Layout -> PitchClass
 layout_max_pc = Vector.length . layout_intervals
+
+-- TODO get rid of 'layout_max_pc'
+layout_pc_per_octave :: Layout -> PitchClass
+layout_pc_per_octave = Vector.length . layout_intervals
 
 -- | Figure out the scale degree of a note in the given key.
 degree_of :: Key -> Note -> Degree

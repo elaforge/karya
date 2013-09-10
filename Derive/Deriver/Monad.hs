@@ -1235,7 +1235,7 @@ data Scale = Scale {
     , scale_note_to_call :: !(Pitch.Note -> Maybe ValCall)
 
     -- | Used by note input.
-    , scale_input_to_note :: !(Maybe Pitch.Key -> Pitch.InputKey
+    , scale_input_to_note :: !(Maybe Pitch.Key -> Pitch.Input
         -> Maybe Pitch.Note)
     -- | Used by MIDI thru.  This is a shortcut for
     -- @eval . note_to_call . input_to_note@ but can often be implemented more
@@ -1249,7 +1249,7 @@ data Scale = Scale {
     -- If controls had (shift, stretch) I could normalize them efficiently
     -- and the pitch would just always look at time 0.  But they don't.
     , scale_input_to_nn ::
-        !(ScoreTime -> Pitch.InputKey -> Deriver (Maybe Pitch.NoteNumber))
+        !(ScoreTime -> Pitch.Input -> Deriver (Maybe Pitch.NoteNumber))
 
     -- | Documentation for all of the ValCalls that 'scale_note_to_call' can
     -- return.

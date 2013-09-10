@@ -14,11 +14,13 @@
     longer be diatonically transposed since the scale information is lost.
 -}
 module Perform.Pitch (
+    Octave
     -- * Pitch
-    Note(..), note_text
+    , Note(..), note_text
 
     -- * InputKey
-    , InputKey(..), Octave, middle_c, middle_octave
+    , Input(..), KbdType(..), Frac
+    , middle_octave, middle_c
 
     -- * NoteNumber
     , NoteNumber(..), nn, nn_to_double
@@ -40,11 +42,16 @@ import Util.Control
 import qualified Util.Pretty as Pretty
 import qualified Util.Serialize as Serialize
 
+import qualified Derive.Scale.Theory as Theory
 import qualified Derive.ShowVal as ShowVal
+
 
 -- There are many representations for pitch.  The types here are ordered
 -- from abstract to concrete.  'Degree', 'NoteNumber', and 'Hz' can be relative
 -- or absolute, but at the moment no distinctions are made at the type level.
+
+-- | Just a way to label an octave, either relative or absolute.
+type Octave = Int
 
 -- * Note
 
@@ -57,21 +64,59 @@ note_text (Note s) = s
 instance Pretty.Pretty Note where
     pretty (Note n) = untxt n
 
--- * InputKey
+-- * Input
 
--- | A physically played key that hasn't been mapped to a scale yet.
-newtype InputKey = InputKey Double
-    deriving (Num, Eq, Ord, Real, Show, Pretty.Pretty)
-type Octave = Int
+-- | A physically played note on some input device.  This hasn't been mapped to
+-- a scale yet, so the Pitch is in the context of the device's layout.
+--
+-- I have 3 kinds of kbds:
+--
+-- ASCII has 10 white keys, and black keys between each one.  It should be
+-- relative, so that C or sa is always on Q and Z, and if the octave is <10
+-- then it will wrap on the same row.
+--
+-- MIDI has the usual layout.  It's absolute, so that a relative scale can
+-- start at keys other than C, if that would be convenient for the layout.
+-- The octave is rounded up to the nearest multiple of 7, and the extra keys
+-- are unused, so the octave always starts at C.
+--
+-- Continuum has no keys, just NNs.  So it gets the scale degree that's
+-- closest to the given NN.  That's different from the MIDI kbd because the
+-- MIDI kbd never wants a key to emit something between notes.  TODO not
+-- supported yet
+data Input = Input !KbdType !Theory.Pitch !Frac
+    deriving (Eq, Show)
 
--- | Useful to orient scales around a common center.
-middle_c :: InputKey
-middle_c = InputKey 60
+data KbdType =
+    -- | An absolute kbd maps the same key to the same absolute pitch,
+    -- regardless of the key.  This is the case for a piano style kbd.
+    -- This is consistent with convention, but also the piano kbd has a fixed
+    -- layout of white and black keys.  So if you e.g. transpose A-major to
+    -- start on C, then you have a mysterious black key in between B and C, and
+    -- no way to play C#.
+    PianoKbd
+    -- | A relative kbd always maps the same key to the same relative pitch.
+    -- This is appropriate for the ASCII kbd, because it has \"black keys\"
+    -- between every white key, so scales can be transposed freely.
+    | AsciiKbd
+    deriving (Eq, Show)
+
+-- | A number between -1 and 1 exclusive, representing the portion of the way
+-- between two scale degrees.  I could have used \"Cents\" for this, but that
+-- implies equal temperedness.
+type Frac = Double
+
+instance Pretty.Pretty Input where
+    pretty (Input kbd pitch frac) = show kbd <> ":" <> Pretty.pretty pitch
+        <> if frac == 0 then "" else "+" <> Pretty.pretty frac
 
 -- | The middle octave.  The \"center\" of a scale should be oriented around
 -- this.
 middle_octave :: Octave
-middle_octave = 5
+middle_octave = 4
+
+middle_c :: Theory.Pitch
+middle_c = Theory.Pitch middle_octave (Theory.Note 0 0)
 
 -- * NoteNumber
 

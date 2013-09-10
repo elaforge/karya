@@ -41,13 +41,6 @@ absolute_c =
 absolute_c_degrees :: [Text]
 absolute_c_degrees = ["c", "d", "e", "f", "g", "a", "b"]
 
-piano_intervals :: [Int]
-piano_intervals = [2, 2, 1, 2, 2, 2, 1]
-
--- | The layout of keys on everyone's favorite boxed harp.
-piano_layout :: Theory.Layout
-piano_layout = Theory.layout piano_intervals
-
 -- * relative
 
 -- | Args for a relative scale format.
@@ -59,6 +52,7 @@ data RelativeFormat key = RelativeFormat {
     , rel_default_key :: key
     , rel_show_note :: ShowNote key
     , rel_to_absolute :: ToAbsolute key
+    , rel_key_tonic :: key -> Theory.PitchClass
     }
 
 sargam :: RelativeFormat key -> Format
@@ -98,6 +92,7 @@ data Format = Format {
     -- I don't need the env to recognize if it's a valid call or not.
     , fmt_to_absolute :: Maybe Pitch.Key -> Theory.Pitch
         -> Either Scale.ScaleError Theory.Pitch
+    , fmt_key_tonic :: Maybe Pitch.Key -> Maybe Theory.PitchClass
     , fmt_pattern :: !Text
     , fmt_pc_per_octave :: Theory.PitchClass
     }
@@ -164,13 +159,11 @@ read_pitch fmt = maybe (Left Scale.UnparseableNote) Right
 read_note :: Format -> Text -> Maybe Theory.Note
 read_note fmt = ParseBs.maybe_parse_text (fmt_read fmt)
 
--- | This subtracts 1 from the octave so middle C winds up at octave 4, as per
--- 'Theory.Octave'.
 show_octave :: Theory.Octave -> Text
-show_octave = showt . (subtract 1)
+show_octave = showt
 
 p_octave :: A.Parser Theory.Octave
-p_octave = (+1) <$> ParseBs.p_int
+p_octave = ParseBs.p_int
 
 -- ** make
 
@@ -179,17 +172,19 @@ make_absolute_format pattern degrees acc_fmt = Format
     { fmt_show = const $ show_note_absolute degrees acc_fmt
     , fmt_read = p_pitch_absolute degrees acc_fmt
     , fmt_to_absolute = const Right
+    , fmt_key_tonic = const Nothing
     , fmt_pattern = octave_pattern <> pattern <> acc_pattern
     , fmt_pc_per_octave = Vector.length degrees
     }
 
 make_relative_format :: Text -> Degrees -> RelativeFormat key -> Format
-make_relative_format pattern degrees
-        (RelativeFormat acc_fmt parse_key default_key show_note to_abs) =
+make_relative_format pattern degrees (RelativeFormat acc_fmt parse_key
+        default_key show_note to_abs key_tonic) =
     Format
         { fmt_show = p_show
         , fmt_read = p_read
         , fmt_to_absolute = p_absolute
+        , fmt_key_tonic = p_tonic
         , fmt_pattern = octave_pattern <> pattern <> acc_pattern
         , fmt_pc_per_octave = Vector.length degrees
         }
@@ -200,6 +195,8 @@ make_relative_format pattern degrees
     p_absolute maybe_key pitch = do
         key <- parse_key maybe_key
         return $ to_abs degrees key pitch
+    p_tonic maybe_key =
+        key_tonic <$> either (const Nothing) Just (parse_key maybe_key)
 
 type ShowNote key = Degrees -> AccidentalFormat -> key -> Theory.Note
     -> (Theory.Octave, Text)

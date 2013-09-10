@@ -64,10 +64,11 @@ add_absolute_transposers controls nn =
 
 -- | Convert a note and @frac@ arg into a tracklang expression representing
 -- that note.
-pitch_expr :: Pitch.Note -> Double -> Text
-pitch_expr (Pitch.Note note) frac
+pitch_expr :: Double -> Pitch.Note -> Pitch.Note
+pitch_expr frac note
     | frac == 0 = note
-    | otherwise = note <> " " <> showt (floor (frac * 100))
+    | otherwise = Pitch.Note $
+        Pitch.note_text note <> " " <> showt (floor (frac * 100))
 
 -- * just
 

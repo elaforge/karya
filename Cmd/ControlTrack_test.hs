@@ -33,10 +33,10 @@ test_unparse = do
 test_cmd_val_edit = do
     let f = fmap extract . thread [] ControlTrack.cmd_val_edit
         extract = UiTest.extract_tracks . fst
-    equal (f [CmdTest.m_note_on 60 60 100]) $ Right
-        [("c", [(0, 0, "`0x`c9")])]
-    equal (f [CmdTest.m_control 60 "c" 100]) $ Right
-        [("c", [(0, 0, "`0x`c9")])]
+    equal (f [CmdTest.m_note_on 60]) $ Right
+        [("c", [(0, 0, "`0x`ff")])]
+    equal (f [CmdTest.m_control 60 "c" 0.5]) $ Right
+        [("c", [(0, 0, "`0x`80")])]
 
 test_cmd_tempo_val_edit = do
     let f events = fmap extract . thread events ControlTrack.cmd_tempo_val_edit

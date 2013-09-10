@@ -36,6 +36,7 @@ import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Environ as Environ
 import qualified Derive.LEvent as LEvent
+import qualified Derive.Scale.Theory as Theory
 import qualified Derive.Score as Score
 import qualified Derive.TrackLang as TrackLang
 
@@ -362,24 +363,44 @@ make_midi chan_msg = Msg.Midi $
     Midi.ReadMessage (Midi.read_device "test") 0
         (Midi.ChannelMessage 0 chan_msg)
 
-note_on note_id nn vel =
-    InputNote.NoteOn (nid note_id) (Pitch.InputKey nn) (vel / 127)
-note_off note_id vel = InputNote.NoteOff (nid note_id) (vel / 127)
-control note_id cont val = InputNote.Control (nid note_id) cont (val / 127)
-pitch note_id nn = InputNote.PitchChange (nid note_id) (Pitch.InputKey nn)
-nid = InputNote.NoteId
+note_on :: Int -> Theory.Pitch -> InputNote.Input
+note_on note_id pitch = InputNote.NoteOn (InputNote.NoteId note_id)
+    (Pitch.Input Pitch.AsciiKbd pitch 0) 1
 
-m_note_on :: Int -> Double -> Signal.Y -> Msg.Msg
-m_note_on note_id nn vel = Msg.InputNote (note_on note_id nn vel)
+note_on_nn :: Pitch.NoteNumber -> InputNote.Input
+note_on_nn nn = InputNote.NoteOn note_id (InputNote.nn_to_input nn) 1
+    where note_id = InputNote.NoteId $ floor nn
 
-m_note_off :: Int -> Signal.Y -> Msg.Msg
-m_note_off note_id vel = Msg.InputNote (note_off note_id vel)
+note_off :: Int -> InputNote.GenericInput a
+note_off note_id = InputNote.NoteOff (InputNote.NoteId note_id) 1
+
+pitch_change :: Int -> Theory.Pitch -> InputNote.Input
+pitch_change note_id pitch = InputNote.PitchChange (InputNote.NoteId note_id)
+    (Pitch.Input Pitch.AsciiKbd pitch 0)
+
+pitch_change_nn :: Int -> Pitch.NoteNumber -> InputNote.Input
+pitch_change_nn note_id nn =
+    InputNote.PitchChange (InputNote.NoteId note_id) (InputNote.nn_to_input nn)
+
+control :: Int -> Score.Control -> Signal.Y -> InputNote.GenericInput a
+control note_id cont val =
+    InputNote.Control (InputNote.NoteId note_id) cont val
+
+pitch :: Theory.Octave -> Theory.PitchClass -> Theory.Accidentals
+    -> Theory.Pitch
+pitch oct pc accs = Theory.Pitch oct (Theory.Note pc accs)
+
+m_note_on :: Pitch.NoteNumber -> Msg.Msg
+m_note_on = Msg.InputNote . note_on_nn
+
+m_note_off :: Int -> Msg.Msg
+m_note_off = Msg.InputNote . note_off
 
 m_control :: Int -> Score.Control -> Signal.Y -> Msg.Msg
 m_control note_id cont val = Msg.InputNote (control note_id cont val)
 
-m_pitch :: Int -> Double -> Msg.Msg
-m_pitch note_id nn = Msg.InputNote (pitch note_id nn)
+m_pitch_change :: Int -> Pitch.NoteNumber -> Msg.Msg
+m_pitch_change nid = Msg.InputNote . pitch_change_nn nid
 
 
 -- * setup cmds

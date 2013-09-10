@@ -19,11 +19,12 @@ scale_id :: Pitch.ScaleId
 scale_id = "legong"
 
 scale :: Scale.Scale
-scale = Util.add_doc "Saih pelegongan. Tuning from my gender rambat."
-    (BaliScales.scale scale_id scale_map)
+scale = Util.add_doc "Saih pelegongan. Tuning from my gender rambat." $
+    BaliScales.make_scale "[12356]" scale_id scale_map
 
 scale_map :: BaliScales.ScaleMap
-scale_map = BaliScales.scale_map 1 BaliScales.cipher12356 umbang isep
+scale_map =
+    BaliScales.scale_map 5 2 1 (drop 1 BaliScales.cipher12356) umbang isep
 
 umbang :: [Pitch.NoteNumber]
 umbang =

@@ -39,6 +39,7 @@ import qualified Derive.Stack as Stack
 
 import qualified Perform.Midi.Control as Control
 import qualified Perform.Midi.Instrument as Instrument
+import qualified Perform.Pitch as Pitch
 import qualified Perform.RealTime as RealTime
 import Perform.RealTime (RealTime)
 import qualified Perform.Signal as Signal
@@ -600,7 +601,8 @@ event_pb_range = Instrument.inst_pitch_bend_range . event_instrument
 event_pitch_at :: Control.PbRange -> Event -> RealTime
     -> Maybe (Midi.Key, Midi.PitchBendValue)
 event_pitch_at pb_range event pos =
-    Control.pitch_to_midi pb_range $ Signal.at pos (event_pitch event)
+    Control.pitch_to_midi pb_range $
+        Pitch.NoteNumber $ Signal.at pos (event_pitch event)
 
 note_velocity :: Event -> RealTime -> RealTime
     -> (Midi.Velocity, Midi.Velocity, [ClipRange])
@@ -637,7 +639,7 @@ control_at event control pos = do
 perform_pitch :: Control.PbRange -> Midi.Key -> RealTime
     -> RealTime -> Signal.NoteNumber -> [(RealTime, Midi.ChannelMessage)]
 perform_pitch pb_range nn prev_note_off start sig =
-    [(x, Midi.PitchBend (Control.pb_from_nn pb_range nn y))
+    [(x, Midi.PitchBend (Control.pb_from_nn pb_range nn (Pitch.NoteNumber y)))
         | (x, y) <- pos_vals]
     where
     -- As per 'perform_control', there shouldn't be much to drop here.

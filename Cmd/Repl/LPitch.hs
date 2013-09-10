@@ -32,8 +32,7 @@ import Types
 
 -- | Turn an nn back to a human-readable note name.
 nn_to_note :: Int -> Maybe Pitch.Note
-nn_to_note key = Scale.scale_input_to_note Twelve.scale Nothing
-    (Pitch.InputKey (fromIntegral key))
+nn_to_note = Twelve.show_nn . fromIntegral
 
 -- * invert
 

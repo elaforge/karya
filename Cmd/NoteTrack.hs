@@ -62,8 +62,8 @@ cmd_raw_edit msg = Cmd.suppress_history Cmd.RawEdit "note track raw edit" $ do
     EditUtil.fallthrough msg
     pos <- EditUtil.get_pos
     case msg of
-        Msg.InputNote (InputNote.NoteOn _ key _) -> do
-            note <- EditUtil.parse_key key
+        Msg.InputNote (InputNote.NoteOn _ input _) -> do
+            note <- EditUtil.input_to_note input
             modify_event_at pos False False $ \txt ->
                 (EditUtil.modify_text_note note (fromMaybe "" txt), False)
         (EditUtil.raw_key -> Just (mods, key)) -> do
@@ -97,14 +97,14 @@ cmd_val_edit msg = Cmd.suppress_history Cmd.ValEdit "note track val edit" $ do
     EditUtil.Pos block_id sel_tracknum pos dur <- EditUtil.get_pos
     case msg of
         Msg.InputNote input_note -> case input_note of
-            InputNote.NoteOn note_id key vel -> do
-                note <- EditUtil.parse_key key
+            InputNote.NoteOn note_id input vel -> do
+                note <- EditUtil.input_to_note input
                 note_on block_id sel_tracknum pos dur note_id note vel
-            InputNote.PitchChange note_id key -> do
+            InputNote.PitchChange note_id input -> do
                 (pitch_tracknum, track_id) <- Cmd.require_msg
                     ("no track for note_id " ++ show note_id)
                     =<< find_pitch_track note_id
-                note <- EditUtil.parse_key key
+                note <- EditUtil.input_to_note input
                 -- If advance is set, the selection may have advanced past
                 -- the pitch's position, so look for a previous event.
                 pos <- event_at_or_before track_id pos

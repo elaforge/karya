@@ -29,7 +29,6 @@ import qualified Cmd.RulerUtil as RulerUtil
 import qualified Cmd.Selection as Selection
 
 import qualified Derive.Derive_profile as Derive_profile
-import qualified Derive.Scale as Scale
 import qualified Derive.Scale.Twelve as Twelve
 import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
@@ -163,10 +162,9 @@ setup_big = do
         mknotes notes = map UiTest.make_event
             [(i*0.25, 0.2, to_str (oct*12 + n))
                 | (i, (oct, n)) <- zip (Seq.range_ 0 1) notes]
-        to_str n = case Scale.scale_input_to_note Twelve.scale Nothing
-                (Pitch.InputKey n) of
+        to_str nn = case Twelve.show_nn nn of
             Just (Pitch.Note s) -> untxt s
-            Nothing -> error $ "converting " ++ show n
+            Nothing -> error $ "converting " ++ show nn
         mkdyn vels = map UiTest.make_event
             [(i*0.25, 0, show vel) | (i, vel) <- zip (Seq.range_ 0 1) vels]
 

@@ -10,6 +10,7 @@ import qualified Data.Map as Map
 import qualified Data.Text as Text
 
 import Util.Control
+import qualified Util.Pretty as Pretty
 import qualified Ui.Event as Event
 import qualified Ui.Events as Events
 import qualified Ui.Key as Key
@@ -48,8 +49,8 @@ raw_edit :: Bool -> Cmd.Cmd
 raw_edit zero_dur msg = do
     fallthrough msg
     case msg of
-        Msg.InputNote (InputNote.NoteOn _ key _) -> do
-            note <- parse_key key
+        Msg.InputNote (InputNote.NoteOn _ input _) -> do
+            note <- input_to_note input
             modify_event zero_dur False $ \txt ->
                 (modify_text_note note (fromMaybe "" txt), False)
         (raw_key -> Just (mods, key)) ->
@@ -206,13 +207,14 @@ fallthrough msg = do
 --
 -- Due to enharmonics this can depend on the current key and even be
 -- ambiguous.
-parse_key :: (Cmd.M m) => Pitch.InputKey -> m Pitch.Note
-parse_key input = do
+input_to_note :: (Cmd.M m) => Pitch.Input -> m Pitch.Note
+input_to_note input = do
     scale_id <- get_scale_id
-    let me = "EditUtil.parse_key"
+    let me = "EditUtil.input_to_note"
     scale <- Cmd.get_scale me scale_id
     key <- get_key
-    let msg = me ++ ": " ++ show input ++ " out of range for " ++ show scale_id
+    let msg = me <> ": " <> Pretty.pretty input <> " out of range for "
+            <> show scale_id
     maybe (Cmd.throw msg) return (Scale.scale_input_to_note scale key input)
 
 

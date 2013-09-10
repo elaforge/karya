@@ -13,13 +13,14 @@ import qualified Cmd.Cmd as Cmd
 import qualified Cmd.CmdTest as CmdTest
 import qualified Cmd.PitchTrack as PitchTrack
 
+import qualified Perform.NN as NN
 import qualified Perform.Pitch as Pitch
 import Types
 
 
 test_cmd_val_edit = do
     let run track_specs cmd = run_tracks track_specs 0 0 cmd
-        note = CmdTest.m_note_on 60 60 127
+        note = CmdTest.m_note_on NN.middle_c
         f = PitchTrack.cmd_val_edit
 
     equal (run [("*", [])] (f note)) $

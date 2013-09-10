@@ -14,14 +14,19 @@ import qualified Perform.Pitch as Pitch
 scales :: [Scale.Scale]
 scales =
     [ Util.add_doc "Saih gender wayang." $
-        BaliScales.scale scale_id absolute_scale
+        make_scale scale_id absolute_scale
     , Util.add_doc "Pemade scale. This can be used to give the the same score\
             \ to both pemade and kantilan." $
-        BaliScales.scale "wayang-p" pemade_scale
+        make_scale "wayang-p" pemade_scale
     , Util.add_doc "Kantilan scale. This can be used to give the the same score\
             \ to both pemade and kantilan." $
-        BaliScales.scale "wayang-k" kantilan_scale
+        make_scale "wayang-k" kantilan_scale
     ]
+
+make_scale :: Pitch.ScaleId -> BaliScales.ScaleMap -> Scale.Scale
+make_scale = BaliScales.make_scale "[0-9]ioeua"
+    -- TODO I should be able to get the scale pattern directly from the format.
+    -- That would come for free if I switched to TheoryFormat
 
 scale_id :: Pitch.ScaleId
 scale_id = "wayang"
@@ -33,14 +38,15 @@ scale_id = "wayang"
 -- > pemade -------------------------------
 -- >                     kantilan -----------------------------
 absolute_scale :: BaliScales.ScaleMap
-absolute_scale = BaliScales.scale_map 0 (BaliScales.ioeua 0)
+absolute_scale = BaliScales.scale_map 5 0 0 (BaliScales.ioeua 0)
     (extend umbang) (extend isep)
 
 pemade_scale :: BaliScales.ScaleMap
-pemade_scale = BaliScales.scale_map 1 (BaliScales.ioeua 1) umbang isep
+pemade_scale =
+    BaliScales.scale_map 5 2 1 (drop 1 (BaliScales.ioeua 2)) umbang isep
 
 kantilan_scale :: BaliScales.ScaleMap
-kantilan_scale = BaliScales.scale_map 1 (BaliScales.ioeua 1)
+kantilan_scale = BaliScales.scale_map 5 3 1 (drop 1 (BaliScales.ioeua 3))
     (drop 5 umbang) (drop 5 isep)
 
 -- | pemade starts at 2o--3i--4i, kanti is 3o--4i--5i

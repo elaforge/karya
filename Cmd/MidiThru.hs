@@ -94,28 +94,31 @@ cmd_midi_thru msg = do
     mapM_ (uncurry Cmd.midi) thru_msgs
     return Cmd.Continue
 
+-- | Realize the Input as a pitch in the given scale.
 map_scale :: (Cmd.M m) => Instrument.PatchScale -> Scale.Scale
-    -> InputNote.Input -> m (Maybe InputNote.Input)
+    -> InputNote.Input -> m (Maybe InputNote.InputNn)
 map_scale patch_scale scale input = case input of
-        InputNote.NoteOn note_id key vel -> do
-            maybe_nn <- convert key
-            return $ fmap (\k -> InputNote.NoteOn note_id k vel) maybe_nn
-        InputNote.PitchChange note_id key -> do
-            maybe_nn <- convert key
-            return $ fmap (InputNote.PitchChange note_id) maybe_nn
-        _ -> return $ Just input
+    InputNote.NoteOn note_id input vel -> do
+        maybe_nn <- convert input
+        return $ fmap (\k -> InputNote.NoteOn note_id k vel) maybe_nn
+    InputNote.PitchChange note_id input -> do
+        maybe_nn <- convert input
+        return $ fmap (InputNote.PitchChange note_id) maybe_nn
+    InputNote.NoteOff note_id vel ->
+        return $ Just $ InputNote.NoteOff note_id vel
+    InputNote.Control note_id control val ->
+        return $ Just $ InputNote.Control note_id control val
     where
-    convert input_key = do
+    convert input = do
         (block_id, _, track_id, pos) <- Selection.get_insert
         maybe_nn <- Perf.derive_at block_id track_id $
-            Scale.scale_input_to_nn scale pos input_key
+            Scale.scale_input_to_nn scale pos input
         case maybe_nn of
             Left err -> Cmd.throw $
                 "error deriving input key's nn: " ++ show err
             Right Nothing -> return Nothing
             Right (Just nn) ->
-                return $ nn_to_input <$> map_patch_scale patch_scale nn
-    nn_to_input (Pitch.NoteNumber nn) = Pitch.InputKey nn
+                return $ map_patch_scale patch_scale nn
 
 map_patch_scale :: Instrument.PatchScale -> Pitch.NoteNumber
     -> Maybe Pitch.NoteNumber
@@ -126,7 +129,7 @@ map_patch_scale (Just scale) nn
     where nn2 = Instrument.convert_patch_scale scale nn
 
 input_to_midi :: Control.PbRange -> Cmd.WriteDeviceState
-    -> [Addr] -> InputNote.Input
+    -> [Addr] -> InputNote.InputNn
     -> ([(Midi.WriteDevice, Midi.Message)], Maybe Cmd.WriteDeviceState)
 input_to_midi pb_range wdev_state addrs input = case alloc addrs input of
     (Nothing, _) -> ([], Nothing)
@@ -159,14 +162,14 @@ merge_state new_state addr pb old = case new_state of
 -- there is no free one, pick the oldest one.  Update the wdev state and assign
 -- the note id to the addr.
 alloc_addr :: Map.Map NoteId Addr -> Map.Map Addr Integer -> Integer
-    -> [Addr] -> InputNote.Input
+    -> [Addr] -> InputNote.InputNn
     -> (Maybe Addr, Maybe (Map.Map NoteId Addr, Map.Map Addr Integer))
 alloc_addr note_addr addr_serial serial addrs input
     | Just addr <- Map.lookup note_id note_addr = case input of
         InputNote.NoteOff _ _ -> (Just addr, unassign addr)
         _ -> (Just addr, Nothing)
     | not (new_note input) = (Nothing, Nothing)
-    | addr:_ <- free = (Just addr, assign addr)
+    | addr : _ <- free = (Just addr, assign addr)
     | Just addr <- old_addr = (Just addr, assign addr)
     | otherwise = (Nothing, Nothing) -- addrs must be null
     where

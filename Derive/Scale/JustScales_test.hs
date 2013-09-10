@@ -4,6 +4,8 @@
 
 module Derive.Scale.JustScales_test where
 import qualified Data.List as List
+import qualified Data.Map as Map
+import qualified Data.Text as Text
 
 import Util.Control
 import qualified Util.Seq as Seq
@@ -14,9 +16,11 @@ import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Scale as Scale
 import qualified Derive.Scale.Just as Just
 import qualified Derive.Scale.JustScales as JustScales
+import qualified Derive.Scale.Theory as Theory
 import qualified Derive.Scale.TheoryFormat as TheoryFormat
 import qualified Derive.Score as Score
 
+import qualified Perform.NN as NN
 import qualified Perform.Pitch as Pitch
 
 
@@ -64,42 +68,80 @@ test_note_to_call_relative = do
     equalf 0.001 (run "a-maj" "4s") ([Just 440], [])
     equalf 0.001 (run "a-maj" "4p") ([Just (440 * 3/2)], [])
 
-show_abs = TheoryFormat.show_pitch TheoryFormat.absolute_c
-show_rel = TheoryFormat.show_pitch (TheoryFormat.sargam Just.relative_fmt)
-
 test_input_to_note = do
-    let f = JustScales.input_to_note show_abs Nothing
-        n = Just . Pitch.Note
+    let f smap key = maybe "" Pitch.note_text <$>
+            JustScales.input_to_note smap (Just (Pitch.Key key))
+        rel = make_scale_map True
+        abs = make_scale_map False
+    let notes empty n = map (("0-"<>) . showt) [1..n] ++ replicate empty ""
+            ++ map (("1-"<>) . showt) [1..6] ++ replicate empty ""
 
-    equal (map f (map Pitch.InputKey [0..5])) $
-        map n ["-1c", "-1c#", "-1d", "-1d#", "-1e", "-1f"]
-    equal (f Pitch.middle_c) (n "4c")
+    -- The key doesn't matter for ascii.
+    equal (f (rel 7) "a" (ascii 0 0)) "0-1"
+    equal (f (rel 7) "a" (ascii 1 1)) "1-2"
+    equal (f (rel 7) "b" (ascii 0 0)) "0-1"
+    equal (f (rel 7) "b" (ascii 1 1)) "1-2"
+    equal (f (abs 7) "a" (ascii 0 0)) "0a"
+    equal (f (abs 7) "a" (ascii 1 1)) "1b"
+    equal (f (abs 7) "b" (ascii 0 0)) "0a"
+    equal (f (abs 7) "b" (ascii 1 1)) "1b"
 
-    let f2 = JustScales.input_to_note show_rel Nothing
-    equal (map f2 [0, 1, 2, 11, 12, 14]) $
-        map n ["-1s", "-1s#", "-1r", "-1n", "0s", "0r"]
-    equal (f2 Pitch.middle_c) (Just (Pitch.Note "4s"))
+    -- A short scale will wrap early.
+    equal [f (abs 6) "a" (ascii 0 pc) | pc <- [0..6]]
+        ["0a", "0b", "0c", "0d", "0e", "0f", "1a"]
+    equal [f (rel 6) "a" (ascii 0 pc) | pc <- [0..6]] (take 7 (notes 0 6))
+    equal [f (rel 9) "a" (ascii 0 pc) | pc <- [0..9]] (take 10 (notes 0 9))
 
-test_input_to_note_relative = do
-    let f = JustScales.input_to_note show_rel Nothing
-        n = Just . Pitch.Note
-    equal (f Pitch.middle_c) (n "4s")
-    equal (f (Pitch.middle_c - 1)) (n "3n")
+    -- PianoKbd is absolute, so degree 1 depends on the key.
+    equal (f (rel 7) "a" (piano 0 0)) "0-1"
+    equal (f (rel 7) "a" (piano 1 1)) "1-2"
+    equal (f (rel 7) "b" (piano 0 0)) "-1-7"
+    equal (f (rel 7) "b" (piano 1 1)) "1-1"
+    equal (f (rel 7) "b" (piano 1 2)) "1-2"
+
+    -- If the scale has less than 7 notes, it still starts at the tonic:
+    equal (f (rel 6) "a" (piano 0 0)) "0-1"
+    equal (f (rel 6) "a" (piano 0 6)) ""
+    equal (f (rel 6) "b" (piano 0 0)) ""
+
+    equal [f (rel 6) "a" (piano 0 pc) | pc <- [0..8]] (take 9 (notes 1 6))
+    equal [f (rel 6) "b" (piano 0 pc) | pc <- [0..8]] ("" : take 8 (notes 1 6))
+    equal [f (rel 6) "c" (piano 0 pc) | pc <- [0..8]]
+        ("-1-6" : "" : take 7 (notes 1 6))
+
+    equal [f (rel 9) "a" (piano 0 pc) | pc <- [0..14]]
+        (take 15 (notes 5 9))
+    equal [f (rel 9) "b" (piano 0 pc) | pc <- [0..14]]
+        ("" : take 14 (notes 5 9))
+    equal [f (rel 9) "c" (piano 0 pc) | pc <- [0..14]]
+        ("" : "" : take 13 (notes 5 9))
+    equal [f (rel 9) "h" (piano 0 pc) | pc <- [0..14]]
+        (["-1-8", "-1-9", "", "", "", "", ""] ++ take 8 (notes 5 9))
+
+make_scale_map :: Bool -> Int -> JustScales.ScaleMap
+make_scale_map relative per_oct =
+    JustScales.scale_map keys default_key fmt
+    where
+    fmt = if relative
+        then TheoryFormat.make_relative_format "" degrees
+            (JustScales.make_relative_fmt keys default_key)
+        else TheoryFormat.letters per_oct
+    degrees =
+        TheoryFormat.make_degrees ["-" <> showt pc | pc <- [1..per_oct]]
+    default_key = JustScales.Key 0 mempty
+    keys = Map.fromList $ take per_oct
+        [ (Pitch.Key (Text.singleton c), JustScales.Key pc mempty)
+        | (c, pc) <- zip "abcdefghijklmnopq" [0..]
+        ]
 
 test_input_to_nn = do
-    let f = DeriveTest.with_key "c-maj" . Scale.scale_input_to_nn just_scale 0
-    equalf 0.01 (DeriveTest.eval State.empty $ f Pitch.middle_c) $
-        Right (Just (Pitch.nn Pitch.middle_c))
-    equalf 0.01 (DeriveTest.eval State.empty $ f (Pitch.middle_c + 2)) $
-        Right $ Just $ Pitch.modify_hz (* (9/8)) (Pitch.nn Pitch.middle_c)
-
-test_input_to_nn_relative = do
-    let to_nn key = DeriveTest.with_key key
-            . Scale.scale_input_to_nn just_scale_rel 0
-        run key input = DeriveTest.eval State.empty (to_nn key input)
-    equalf 0.01 (run "c-maj" Pitch.middle_c) $ Right (Just 60)
-    -- TODO for now, input is always relative, so middle_c is always sa
-    -- equalf 0.01 (run "a-maj" Pitch.middle_c) $ Right (Just 69)
+    let Just scale = List.find ((== "just") . Scale.scale_id) Just.scales
+    let f = DeriveTest.with_key "c-maj" . Scale.scale_input_to_nn scale 0
+        input = ascii Pitch.middle_octave
+    equalf 0.01 (DeriveTest.eval State.empty $ f (input 0)) $
+        Right (Just NN.middle_c)
+    equalf 0.01 (DeriveTest.eval State.empty $ f (input 1)) $
+        Right $ Just $ Pitch.modify_hz (* (9/8)) NN.middle_c
 
 test_transpose = do
     let f = JustScales.transpose TheoryFormat.absolute_c Nothing
@@ -113,11 +155,10 @@ test_transpose_relative = do
     equal [f 0 (Pitch.Chromatic n) (Pitch.Note "4s") | n <- [0..2]] $
         map (Right . Pitch.Note) ["4s", "4r", "4g"]
 
+ascii :: Theory.Octave -> Theory.PitchClass -> Pitch.Input
+ascii oct pc = Pitch.Input Pitch.AsciiKbd
+    (Theory.Pitch oct (Theory.Note pc 0)) 0
 
--- * implementation
-
-just_scale :: Scale.Scale
-Just just_scale = List.find ((== "just") . Scale.scale_id) Just.scales
-
-just_scale_rel :: Scale.Scale
-Just just_scale_rel = List.find ((== "just-r") . Scale.scale_id) Just.scales
+piano :: Theory.Octave -> Theory.PitchClass -> Pitch.Input
+piano oct pc = Pitch.Input Pitch.PianoKbd
+    (Theory.Pitch oct (Theory.Note pc 0)) 0

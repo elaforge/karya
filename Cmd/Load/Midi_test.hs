@@ -50,8 +50,7 @@ test_split_track = do
     equal (f [(0, on Key.c4), (1, off Key.c4)])
         [ (notes [(0, 1)], pitches [(0, "4c")], dyn [0])
         ]
-    equal (f [(0, on Key.c4), (0, on Key.d4), (1, off Key.c4),
-            (1, off Key.d4)])
+    equal (f [(0, on Key.c4), (0, on Key.d4), (1, off Key.c4), (1, off Key.d4)])
         [ (notes [(0, 1)], pitches [(0, "4c")], dyn [0])
         , (notes [(0, 1)], pitches [(0, "4d")], dyn [0])
         ]

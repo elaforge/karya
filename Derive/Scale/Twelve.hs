@@ -43,13 +43,7 @@ scale =
 
 relative_scale :: Scale.Scale
 relative_scale = ChromaticScales.make_scale relative_scale_map "twelve-r"
-    "This is 12TET, but spelled relative to the current key and mode.\
-    \ It behaves oddly around accidentals. This is because the input is\
-    \ taken to be relative, so the key is at C on the input. But the\
-    \ input layout is still in C major, so the black keys are in the wrong\
-    \ place. TODO to fix this I'd have to either abandon the relative\
-    \ input, or reconfigure the input layout. The latter would be really\
-    \ confusing, and incompatible with a piano keyboard.\n"
+    "This is 12TET, but spelled relative to the current key and mode."
 
 scale_id :: Pitch.ScaleId
 scale_id = "twelve"
@@ -78,6 +72,7 @@ relative_fmt = TheoryFormat.RelativeFormat
     , TheoryFormat.rel_default_key = default_theory_key
     , TheoryFormat.rel_show_note = TheoryFormat.show_note_chromatic
     , TheoryFormat.rel_to_absolute = TheoryFormat.chromatic_to_absolute
+    , TheoryFormat.rel_key_tonic = Theory.note_pc . Theory.key_tonic
     }
     where
     parse_key maybe_key =
@@ -152,7 +147,7 @@ exotic_keys = make_keys "hijaz" [1, 3, 1, 2, 1, 2, 2]
 
 -- | The layout of keys on everyone's favorite boxed harp.
 layout :: Theory.Layout
-layout = TheoryFormat.piano_layout
+layout = Theory.piano_layout
 
 all_notes :: [Theory.Note]
 all_notes = [Theory.Note pc accs | pc <- [0..6], accs <- [-2..2]]

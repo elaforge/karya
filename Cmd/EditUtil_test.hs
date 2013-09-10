@@ -27,15 +27,16 @@ test_backspace = do
     equal (f "") Nothing
     equal (f "a") (Just "")
 
-test_parse_key = do
+test_input_to_note = do
     let run cmd = CmdTest.extract id $ CmdTest.run_sel 1 note_tracks cmd
         note_tracks = [(">i", [(0, 1, "")]), ("*", [(0, 0, "4d")])]
 
     -- Fake up a Performance that overrides the default *twelve.
     let set_env = CmdTest.set_scale UiTest.default_block_id
             UiTest.default_block_id (UiTest.mk_tid 2) Legong.scale_id
-    let f = EditUtil.parse_key
-    equal (run (f (Pitch.InputKey 60)))
+    let f = EditUtil.input_to_note
+    let input = Pitch.Input Pitch.PianoKbd Pitch.middle_c 0
+    equal (run (f input))
         (Right (Just (Pitch.Note "4c"), []))
-    equal (run (set_env >> f (Pitch.InputKey 60)))
+    equal (run (set_env >> f input))
         (Right (Just (Pitch.Note "1"), []))

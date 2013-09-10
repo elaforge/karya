@@ -6,6 +6,7 @@ module Cmd.InputNote_test where
 import qualified Data.Map as Map
 
 import Util.Test
+import qualified Midi.Key as Key
 import qualified Midi.Midi as Midi
 import qualified Cmd.CmdTest as CmdTest
 import qualified Cmd.InputNote as InputNote
@@ -14,11 +15,11 @@ import qualified Perform.Pitch as Pitch
 
 
 test_from_midi = do
-    let state = InputNote.empty_state (-2, 2)
+    let state = InputNote.empty_state (-1, 2)
         rdev = Midi.read_device "rdev"
         chan = Midi.ChannelMessage 0
         nid = InputNote.NoteId
-        input = Pitch.InputKey
+        input oct pc = Pitch.Input Pitch.PianoKbd (CmdTest.pitch oct pc 0) 0
     let f st = InputNote.from_midi st rdev
         thread st (msg:msgs) = case f st msg of
             Just (input, state) -> Just input : thread state msgs
@@ -26,18 +27,23 @@ test_from_midi = do
         thread _ [] = []
 
     equal (f state (Midi.RealtimeMessage Midi.Start)) Nothing
-    let msgs = [Midi.NoteOn 10 127, Midi.PitchBend 1, Midi.PitchBend (-1),
-            Midi.NoteOn 20 127, Midi.NoteOff 10 0]
+    let msgs =
+            [ Midi.NoteOn Key.c4 127
+            , Midi.PitchBend 1, Midi.PitchBend (-1)
+            , Midi.NoteOn Key.ds4 127
+            , Midi.NoteOff Key.c4 0
+            ]
     equal (thread state (map chan msgs))
-        [ Just (InputNote.NoteOn (nid 10) (input 10) 1)
+        [ Just $ InputNote.NoteOn (nid 60) (input 4 0) 1
         -- picks up previous note id, and range works
-        , Just (InputNote.PitchChange (nid 10) (input 12))
-        , Just (InputNote.PitchChange (nid 10) (input 8))
-        -- picks up previous pb
-        , Just (InputNote.NoteOn (nid 20) (input 18) 1)
-        , Just (InputNote.NoteOff (nid 10) 0)
+        , Just $ InputNote.PitchChange (nid 60) (input 4 1)
+        , Just $ InputNote.PitchChange (nid 60) (input 3 6)
+        -- remembers the previous pb, so ds4 becomes d4
+        , Just $ InputNote.NoteOn (nid 63) (input 4 1) 1
+        , Just $ InputNote.NoteOff (nid 60) 0
         ]
 
+    -- Just controls, with no note.
     let msgs = [Midi.PitchBend 1, Midi.Aftertouch 10 127,
             Midi.ChannelPressure 127, Midi.ControlChange 1 127]
     equal (thread state (map chan msgs))
@@ -47,28 +53,31 @@ test_from_midi = do
         , Nothing, Nothing
         ]
 
-    equal (thread state (map chan (Midi.NoteOn 20 127 : msgs)))
-        [ Just (InputNote.NoteOn (nid 20) (input 20) 1)
-        , Just (InputNote.PitchChange (nid 20) (input 22))
+    -- Give those controls a note.
+    equal (thread state (map chan (Midi.NoteOn Key.c4 127 : msgs)))
+        [ Just (InputNote.NoteOn (nid 60) (input 4 0) 1)
+        , Just (InputNote.PitchChange (nid 60) (input 4 1))
         , Just (InputNote.Control (nid 10) Controls.aftertouch 1)
-        , Just (InputNote.Control (nid 20) Controls.pressure 1)
-        , Just (InputNote.Control (nid 20) Controls.mod 1)
+        , Just (InputNote.Control (nid 60) Controls.pressure 1)
+        , Just (InputNote.Control (nid 60) Controls.mod 1)
         ]
 
 test_to_midi = do
     let id_to_key ns = Map.fromList
             [(InputNote.NoteId nid, key) | (nid, key) <- ns]
     let f pb = InputNote.to_midi (-1, 1) pb Map.empty
+        note_on note_id nn = InputNote.NoteOn (InputNote.NoteId note_id) nn 1
 
     let n = Midi.NoteOn 64 127
-    equal (f 0 (CmdTest.note_on 60 64 127)) ([n], id_to_key [(60, 64)])
-    equal (f 0 (CmdTest.note_on 64 64.5 127))
+    equal (f 0 (note_on 60 64)) ([n], id_to_key [(60, 64)])
+    equal (f 0 (note_on 64 64.5))
         ([Midi.PitchBend 0.5, n], id_to_key [(64, 64)])
-    equal (f 0.5 (CmdTest.note_on 64 64.5 127)) ([n], id_to_key [(64, 64)])
-    equal (f 0 (CmdTest.pitch 64 64)) ([], Map.empty)
+    equal (f 0.5 (note_on 64 64.5)) ([n], id_to_key [(64, 64)])
+    -- NoteOffs remove from the state.
     equal (InputNote.to_midi (-1, 1) 0 (id_to_key [(60, 70)])
-            (CmdTest.note_off 60 127))
+            (CmdTest.note_off 60))
         ([Midi.NoteOff 70 127], Map.empty)
-    equal (f 0 (CmdTest.control 64 "cc1" 127))
+    equal (f 0 (CmdTest.control 64 "cc1" 1))
         ([Midi.ControlChange 1 127], Map.empty)
-    equal (f 0 (CmdTest.control 64 "blahblah" 127)) ([], Map.empty)
+    -- Unrecognized cc.
+    equal (f 0 (CmdTest.control 64 "blahblah" 1)) ([], Map.empty)

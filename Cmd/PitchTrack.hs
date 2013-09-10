@@ -48,15 +48,15 @@ cmd_val_edit :: Cmd.Cmd
 cmd_val_edit msg = Cmd.suppress_history Cmd.ValEdit "pitch track val edit" $ do
     EditUtil.fallthrough msg
     case msg of
-        Msg.InputNote (InputNote.NoteOn _ key _) -> do
+        Msg.InputNote (InputNote.NoteOn _ input _) -> do
             pos <- EditUtil.get_pos
-            note <- EditUtil.parse_key key
+            note <- EditUtil.input_to_note input
             val_edit_at pos note
             whenM (Cmd.gets (Cmd.state_advance . Cmd.state_edit))
                 Selection.advance
-        Msg.InputNote (InputNote.PitchChange _ key) -> do
+        Msg.InputNote (InputNote.PitchChange _ input) -> do
             pos <- EditUtil.get_pos
-            note <- EditUtil.parse_key key
+            note <- EditUtil.input_to_note input
             val_edit_at pos note
         (Msg.key_down -> Just (Key.Char '\'')) -> EditUtil.soft_insert "'"
         (Msg.key_down -> Just Key.Backspace) -> EditUtil.remove_event True
@@ -91,8 +91,8 @@ method_edit_at pos key = modify_event_at pos $ \event ->
 cmd_record_note_status :: Cmd.Cmd
 cmd_record_note_status msg = do
     case msg of
-        Msg.InputNote (InputNote.NoteOn _ key _) -> do
-            note <- EditUtil.parse_key key
+        Msg.InputNote (InputNote.NoteOn _ input _) -> do
+            note <- EditUtil.input_to_note input
             Cmd.set_status Config.status_note $ Just $ Pitch.note_text note
         _ -> return ()
     return Cmd.Continue

@@ -72,7 +72,7 @@ scale_map keys default_key fmt = ScaleMap
 -- the input layout, it has to be piano layout, or it won't work properly with
 -- kbd and midi entry.
 layout :: Theory.Layout
-layout = TheoryFormat.piano_layout
+layout = Theory.piano_layout
 
 make_scale :: Pitch.ScaleId -> ScaleMap -> Text -> [(Text, Text)] -> Scale.Scale
 make_scale scale_id smap doc doc_fields = Scale.Scale
@@ -83,9 +83,9 @@ make_scale scale_id smap doc doc_fields = Scale.Scale
     , Scale.scale_transpose = transpose fmt
     , Scale.scale_enharmonics = enharmonics layout fmt
     , Scale.scale_note_to_call = note_to_call scale smap
-    , Scale.scale_input_to_note = input2note
+    , Scale.scale_input_to_note = input_to_note smap
     , Scale.scale_input_to_nn =
-        Util.computed_input_to_nn input2note (note_to_call scale smap)
+        Util.computed_input_to_nn (input_to_note smap) (note_to_call scale smap)
     , Scale.scale_call_doc =
         Util.annotate_call_doc Util.standard_transposers (doc <> just_doc)
             doc_fields dummy_call
@@ -94,7 +94,6 @@ make_scale scale_id smap doc doc_fields = Scale.Scale
     scale = PitchSignal.Scale scale_id Util.standard_transposers
     dummy_call = Util.scale_degree_doc $ \scale ->
         ScaleDegree.scale_degree_just scale (smap_named_intervals smap) 0
-    input2note = input_to_note (TheoryFormat.show_pitch fmt)
     fmt = smap_fmt smap
 
 -- | Group keys and format them into fields suitable to pass to 'make_scale'.
@@ -132,52 +131,16 @@ enharmonics layout fmt key note = do
     return $ map (TheoryFormat.show_pitch fmt key) $
         Theory.enharmonics_of layout pitch
 
--- TODO the layout here is the input kbd layout!  So it should be piano_layout
--- until I get that sorted out.
-input_to_note :: TheoryFormat.ShowPitch -> Maybe Pitch.Key
-    -> Pitch.InputKey -> Maybe Pitch.Note
-input_to_note show_pitch _key (Pitch.InputKey nn) =
-    -- I ignore the key on input.  Otherwise, a InputKey on middle C will be
-    -- adjusted for the key, but I want middle C to be the sa of a relative
-    -- scale.
-    Just $ show_pitch Nothing $
-        Theory.semis_to_pitch_sharps TheoryFormat.piano_layout $
-        Theory.nn_to_semis $ floor nn
-
--- ** input_to_note_no_acc
-
--- | Unused, but still here in case I don't like accidentals.
-input_to_note_no_acc :: TheoryFormat.Format -> Maybe Pitch.Key
-    -> Pitch.InputKey -> Maybe Pitch.Note
-input_to_note_no_acc fmt key (Pitch.InputKey nn) =
-    case (degree1, degree2) of
-        (Just d1, Just d2) -> Just $ degree_note fmt key (Num.scale d1 d2 frac)
-        _ -> Nothing
+input_to_note :: ScaleMap -> Maybe Pitch.Key -> Pitch.Input -> Maybe Pitch.Note
+input_to_note smap maybe_key (Pitch.Input kbd pitch _frac) = do
+    pitch <- Util.kbd_to_scale kbd pc_per_octave tonic pitch
+    return $ TheoryFormat.show_pitch (smap_fmt smap) Nothing pitch
     where
-    degree1 = nn_to_degree Vector.!? input_degree
-    degree2 = nn_to_degree Vector.!? (input_degree + 1)
-    (input_degree, frac) = properFraction nn
-
--- | Since just scales don't really have key signatures or even accidentals,
--- this only even produces sharps.
-degree_note :: TheoryFormat.Format -> Maybe Pitch.Key -> Double -> Pitch.Note
-degree_note fmt key degreef =
-    -- TODO pitch_expr makes a call to scale_degree, so I think this is wrong!
-    Pitch.Note $ ScaleDegree.pitch_expr note frac
-    where
-    (degree, frac) = properFraction degreef
-    (octave, pc) = degree `divMod` TheoryFormat.fmt_pc_per_octave fmt
-    note = TheoryFormat.show_pitch fmt key $
-        Theory.Pitch octave (Theory.Note pc 0)
-
-nn_to_degree :: Vector.Vector Double
-nn_to_degree = Vector.fromList $ take 127 $
-    to_steps (zip [0..] (cycle TheoryFormat.piano_intervals))
-    where
-    to_steps [] = []
-    to_steps ((n, step) : steps)
-        | step == 2 = n : n + 0.5 : to_steps steps
-        | otherwise = n : to_steps steps
+    pc_per_octave = TheoryFormat.fmt_pc_per_octave (smap_fmt smap)
+    -- Default to a key because otherwise you couldn't enter notes in an
+    -- empty score!
+    tonic = key_tonic $ fromMaybe (smap_default_key smap) $
+        flip Map.lookup (smap_keys smap) =<< maybe_key
 
 
 -- * transpose
@@ -266,7 +229,8 @@ degree_to_hz ratios base_hz pitch = base * realToFrac ratio
     where
     base = adjusted_base * 2 ^^ Theory.pitch_octave pitch
     -- Normalize the base_hz to lie within the first octave.
-    adjusted_base = Pitch.nn_to_hz $ Pitch.hz_to_nn base_hz `Num.fmod` 12
+    -- Add an octave because of NOTE [middle-c].
+    adjusted_base = Pitch.nn_to_hz $ Pitch.hz_to_nn base_hz `Num.fmod` 12 + 12
     ratio = index_mod ratios $ Theory.note_pc (Theory.pitch_note pitch)
 
 index_mod :: Vector.Vector a -> Int -> a
@@ -301,6 +265,7 @@ make_relative_fmt keys default_key = TheoryFormat.RelativeFormat
     , TheoryFormat.rel_default_key = 0
     , TheoryFormat.rel_show_note = TheoryFormat.show_note_diatonic
     , TheoryFormat.rel_to_absolute = TheoryFormat.diatonic_to_absolute
+    , TheoryFormat.rel_key_tonic = id
     }
     where
     lookup_key Nothing = Right default_key

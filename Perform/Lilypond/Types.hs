@@ -237,7 +237,7 @@ show_pitch (Theory.Pitch octave note) = (<> oct_mark) <$> show_pitch_note note
     oct_mark
         | oct >= 0 = Text.replicate oct "'"
         | otherwise = Text.replicate (abs oct) ","
-        where oct = octave - 4
+        where oct = octave - 3
 
 show_pitch_note :: Theory.Note -> Either String Text
 show_pitch_note (Theory.Note pc accs) = do

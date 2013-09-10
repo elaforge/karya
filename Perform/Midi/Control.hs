@@ -13,6 +13,7 @@ import qualified Util.Num as Num
 import qualified Midi.Midi as Midi
 import qualified Derive.Controls as Controls
 import qualified Derive.Score as Score
+import qualified Perform.Pitch as Pitch
 import qualified Perform.Signal as Signal
 
 
@@ -61,24 +62,25 @@ is_channel_control cont =
 control_range :: (Signal.Y, Signal.Y)
 control_range = (0, 1)
 
--- | Given a pitch val, return the midi note number and pitch bend amount to
+-- | Given a NoteNumber, return the midi note number and pitch bend amount to
 -- sound at the pitch.
-pitch_to_midi :: PbRange -> Signal.Y -> Maybe (Midi.Key, Midi.PitchBendValue)
-pitch_to_midi pb_range val
+pitch_to_midi :: PbRange -> Pitch.NoteNumber
+    -> Maybe (Midi.Key, Midi.PitchBendValue)
+pitch_to_midi pb_range nn
     -- A NoteOn at 0 is actually a NoteOff.  In addition, signals default to
     -- 0 so 0 here probably means the pitch signal was empty.
-    | val <= 0 || val > 127 = Nothing
-    | otherwise = Just (key, pb_from_nn pb_range key val)
-    where key = Midi.to_key (floor val)
+    | nn <= 0 || nn > 127 = Nothing
+    | otherwise = Just (key, pb_from_nn pb_range key nn)
+    where key = Midi.to_key (floor nn)
 
-pb_from_nn :: PbRange -> Midi.Key -> Signal.Y -> Midi.PitchBendValue
-pb_from_nn pb_range key val
+pb_from_nn :: PbRange -> Midi.Key -> Pitch.NoteNumber -> Midi.PitchBendValue
+pb_from_nn pb_range key (Pitch.NoteNumber nn)
     | bend == 0 = 0
     | bend > 0 = Num.d2f $ bend / high
     | otherwise = Num.d2f $ bend / (-low)
     where
     (low, high) = (fromIntegral (fst pb_range), fromIntegral (snd pb_range))
-    bend = Num.clamp low high (val - Midi.from_key key)
+    bend = Num.clamp low high (nn - Midi.from_key key)
 
 -- ** cc controls
 

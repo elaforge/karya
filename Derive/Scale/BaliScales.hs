@@ -22,26 +22,23 @@ import qualified Perform.Pitch as Pitch
 
 data ScaleMap = ScaleMap {
     scale_degree_map :: !Util.DegreeMap
-    , scale_input_map :: !Util.InputMap
     , scale_nn_map :: !NoteNumberMap
-    } deriving (Show)
+    }
 
--- | (umbang, isep, average)
-type NoteNumberMap =
-    (Util.NoteNumberMap, Util.NoteNumberMap, Util.NoteNumberMap)
+-- | umbang, isep
+data NoteNumberMap = NoteNumberMap !ToNn !ToNn deriving (Show)
+type ToNn = Map.Map Pitch.Degree Pitch.NoteNumber
 
-scale_map :: Int
-    -- ^ Line a list starting with ding up with the note numbers.
-    -- So this is how much to drop from the Notes in order to get to ding.
-    -> [Pitch.Note] -> [Pitch.NoteNumber]
-    -> [Pitch.NoteNumber] -> ScaleMap
-scale_map align_with_ding notes umbang isep = ScaleMap
-    { scale_degree_map = Util.degree_map (align notes)
-    , scale_input_map = Map.fromList (zip (align all_inputs) [0..])
-    , scale_nn_map = make_nn_map umbang isep
+scale_map :: Pitch.Degree -> Pitch.Octave -> Pitch.Degree
+    -> [Pitch.Note] -> [Pitch.NoteNumber] -> [Pitch.NoteNumber] -> ScaleMap
+scale_map per_oct start_oct start_degree notes umbang isep = ScaleMap
+    { scale_degree_map =
+        Util.degree_map per_oct start_oct start_degree notes avg
+    , scale_nn_map = NoteNumberMap (make_to_nn umbang) (make_to_nn isep)
     }
     where
-    align = take (length umbang) . drop align_with_ding
+    avg = zipWith (\a b -> (a+b) / 2) umbang isep
+    make_to_nn = Map.fromList . zip [0..]
 
 cipher12356 :: [Pitch.Note]
 cipher12356 =
@@ -56,30 +53,29 @@ ioeua octave =
     [Pitch.Note $ showt oct <> vowel
         | oct <- [octave..], vowel <- ["i", "o", "e", "u", "a"]]
 
-all_inputs :: [Pitch.InputKey]
-all_inputs =
-    [Pitch.middle_c + fromIntegral (o*12) + d | o <- [-2..2], d <- keys]
-    where keys = [Util.i_c, Util.i_d, Util.i_e, Util.i_f, Util.i_g]
-
-scale :: Pitch.ScaleId -> ScaleMap -> Scale.Scale
-scale scale_id (ScaleMap degree_map input_map nn_map) = Scale.Scale
+make_scale :: Text -> Pitch.ScaleId -> ScaleMap -> Scale.Scale
+make_scale scale_pattern scale_id (ScaleMap dmap nn_map) = Scale.Scale
     { Scale.scale_id = scale_id
-    , Scale.scale_pattern = "[12356](\\.*|\\^*)"
+    , Scale.scale_pattern = scale_pattern
     -- loaded from Derive.Scale.Symbols
     , Scale.scale_symbols = []
+    -- I don't put %ombak into the transposers, this means changes in ombak
+    -- take effect at the beginning of each note, but won't retune a sounding
+    -- one.
     , Scale.scale_transposers = Util.standard_transposers
-    , Scale.scale_transpose = Util.transpose degree_map 5
+    , Scale.scale_transpose = Util.transpose dmap
     , Scale.scale_enharmonics = Util.no_enharmonics
     , Scale.scale_note_to_call = note_to_call
     , Scale.scale_input_to_note = input_to_note
     , Scale.scale_input_to_nn =
         Util.computed_input_to_nn input_to_note note_to_call
     , Scale.scale_call_doc =
-        Util.call_doc Util.standard_transposers degree_map input_map doc
+        Util.call_doc Util.standard_transposers dmap doc
     }
     where
-    note_to_call = Util.note_to_call scale degree_map (degree_to_nn nn_map)
-    input_to_note = Util.input_to_note input_map degree_map
+    note_to_call = Util.note_to_call scale dmap $
+        degree_to_nn (Util.dm_to_nn dmap) nn_map
+    input_to_note = Util.input_to_note dmap
     scale = PitchSignal.Scale scale_id Util.standard_transposers
     doc =
         "Balinese scales come in detuned pairs. They use the `tuning` env var\
@@ -103,25 +99,20 @@ read_tuning t
 c_ombak :: Score.Control
 c_ombak = "ombak"
 
-make_nn_map :: [Pitch.NoteNumber] -> [Pitch.NoteNumber] -> NoteNumberMap
-make_nn_map umbang isep =
-    (Util.note_number_map umbang, Util.note_number_map isep,
-        Util.note_number_map center)
-    where center = zipWith (\a b -> (a+b) / 2) umbang isep
-
-degree_to_nn :: NoteNumberMap
+degree_to_nn :: ToNn -> NoteNumberMap
     -> TrackLang.Environ -> Score.ControlValMap -> Pitch.Degree
     -> Either Scale.ScaleError Pitch.NoteNumber
-degree_to_nn (umbang_nns, isep_nns, center_nns) = \env controls degree -> do
-    tuning <- Util.read_environ read_tuning Umbang Environ.tuning env
-    let lookup_nn =
-            maybe (Left Scale.InvalidTransposition) Right . Map.lookup degree
-    case Map.lookup c_ombak controls of
-        Nothing -> case tuning of
-            Umbang -> lookup_nn umbang_nns
-            Isep -> lookup_nn isep_nns
-        Just ombak -> do
-            nn <- lookup_nn center_nns
-            return $ case tuning of
-                Umbang -> Pitch.add_hz (- (ombak / 2)) nn
-                Isep -> Pitch.add_hz (ombak / 2) nn
+degree_to_nn to_avg (NoteNumberMap to_umbang to_isep) =
+    \env controls degree -> do
+        tuning <- Util.read_environ read_tuning Umbang Environ.tuning env
+        let lookup_nn = maybe (Left Scale.InvalidTransposition) Right
+                . Map.lookup degree
+        case Map.lookup c_ombak controls of
+            Nothing -> case tuning of
+                Umbang -> lookup_nn to_umbang
+                Isep -> lookup_nn to_isep
+            Just ombak -> do
+                nn <- lookup_nn to_avg
+                return $ case tuning of
+                    Umbang -> Pitch.add_hz (- (ombak / 2)) nn
+                    Isep -> Pitch.add_hz (ombak / 2) nn

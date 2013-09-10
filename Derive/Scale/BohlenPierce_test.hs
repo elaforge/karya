@@ -3,14 +3,13 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 module Derive.Scale.BohlenPierce_test where
-import Util.Control
 import qualified Util.Seq as Seq
 import Util.Test
-
 import qualified Ui.State as State
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Scale as Scale
 import qualified Derive.Scale.BohlenPierce as BP
+import qualified Derive.Scale.Theory as Theory
 import qualified Derive.Score as Score
 
 import qualified Perform.NN as NN
@@ -31,26 +30,27 @@ test_note_to_call = do
     equalf 0.001 (run ["5a"]) ([Just (c * 3)], [])
 
 test_input_to_note = do
-    let f key input = Pitch.note_text
-            <$> Scale.scale_input_to_note BP.absolute_scale
-                (Pitch.Key <$> key) input
-    -- equal (map (f Nothing) (Seq.range 0 5 1)) $
-    --     map Just ["-1a", "-1a#", "-1b", "-1c", "-1d", "-1d#"]
-    -- equal (f Nothing 0) (Just "4a")
-    equal (f Nothing middle_a) (Just "4a")
-    equal (f Nothing (middle_a + 2)) (Just "4b")
-    -- equal (f Nothing (Pitch.middle_c + 1)) (Just "4a")
+    let f = maybe "" Pitch.note_text
+            . Scale.scale_input_to_note BP.absolute_scale Nothing
+    equal [f (ascii 4 pc) | pc <- [0..9]]
+        ["4a", "4b", "4c", "4d", "4e", "4f", "4g", "4h", "4i", "5a"]
+    equal [f (piano 4 pc) | pc <- [0..6]]
+        ["2a", "2b", "2c", "2d", "2e", "2f", "2g"]
+    equal [f (piano 5 pc) | pc <- [0..6]]
+        ["2h", "2i", "", "", "", "", ""]
 
+ascii :: Theory.Octave -> Theory.PitchClass -> Pitch.Input
+ascii oct pc = Pitch.Input Pitch.AsciiKbd
+    (Theory.Pitch oct (Theory.Note pc 0)) 0
 
--- TODO should be middle_c, but I need to rework NoteEntry to get tritaves to
--- line up.
-middle_a :: Pitch.InputKey
-middle_a = Pitch.middle_c + 5
+piano :: Theory.Octave -> Theory.PitchClass -> Pitch.Input
+piano oct pc = Pitch.Input Pitch.PianoKbd
+    (Theory.Pitch oct (Theory.Note pc 0)) 0
 
 test_input_to_nn = do
     let f input = DeriveTest.eval State.empty $
             Scale.scale_input_to_nn BP.absolute_scale 0 input
-    equalf 0.001 (f middle_a) $ Right (Just NN.middle_c)
+    equalf 0.001 (f (ascii 4 0)) $ Right (Just NN.middle_c)
     let ratio = 25/21
-    equalf 0.001 (f (middle_a + 2)) $
+    equalf 0.001 (f (ascii 4 1)) $
         Right $ Just $ Pitch.modify_hz (*ratio) NN.middle_c

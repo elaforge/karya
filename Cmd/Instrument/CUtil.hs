@@ -8,7 +8,6 @@
 -- I need a better name than \"Util\" for everything.
 module Cmd.Instrument.CUtil where
 import qualified Data.Map as Map
-import qualified Data.Set as Set
 
 import Util.Control
 import qualified Midi.Midi as Midi
@@ -63,7 +62,7 @@ inst_keymaps inputs = \msg -> do
         -- Only swallow keys that note entry would have caught, otherwise
         -- space would be swallowed here.
         Nothing
-            | Set.member char NoteEntry.kbd_input_keys -> return Cmd.Done
+            | Map.member char NoteEntry.kbd_map -> return Cmd.Done
             | otherwise -> return Cmd.Continue
         Just (note, key, maybe_inst) -> do
             case kstate of

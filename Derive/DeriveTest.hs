@@ -544,11 +544,12 @@ with_scale scale = modify_constant $ \st ->
     st { Derive.state_lookup_scale = \scale_id -> Map.lookup scale_id
         (Map.insert (Scale.scale_id scale) scale Scale.All.scales) }
 
-mkscale :: Text -> [(Text, Pitch.NoteNumber)] -> Scale.Scale
-mkscale name notes =
-    Scale.Util.simple_scale "simple test scale" 5 "test" (Pitch.ScaleId name)
-        inputs (map (Pitch.Note . fst) notes) (map snd notes)
-    where inputs = [Scale.Util.i_c + Pitch.InputKey n | n <- [0..]]
+mkscale :: Pitch.ScaleId -> [(Text, Pitch.NoteNumber)] -> Scale.Scale
+mkscale scale_id notes =
+    Scale.Util.make_scale dmap scale_id "pattern" "simple test scale"
+    where
+    dmap = Scale.Util.degree_map 8 0 0 (map (Pitch.Note . fst) notes)
+        (map snd notes)
 
 -- * inst
 

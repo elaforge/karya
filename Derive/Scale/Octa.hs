@@ -43,6 +43,7 @@ relative_fmt keys = make $ TheoryFormat.RelativeFormat
     , TheoryFormat.rel_default_key = default_tkey
     , TheoryFormat.rel_show_note = TheoryFormat.show_note_chromatic
     , TheoryFormat.rel_to_absolute = TheoryFormat.chromatic_to_absolute
+    , TheoryFormat.rel_key_tonic = Theory.note_pc . Theory.key_tonic
     }
     where
     parse_key = ChromaticScales.lookup_key default_tkey keys
