@@ -3,7 +3,7 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
-  - Select all of a track and then extend selection right or left, it scrolls
+  * Select all of a track and then extend selection right or left, it scrolls
     to the bottom of the block.  Perhaps if the TrackTime didn't change it
     shouldn't autoscroll.
   new input note
@@ -53,11 +53,9 @@ UNSORTED
   / Call docs in browser strip out the newlines, they should start a new
     paragraph.
     . Should happen automatically when I finish Util.Format3
-  - 'd' mridangam call collides with delay transformer
-    '+' looks like add zero attrs, 'o' looks like harmonic
-    Maybe transformers and generators should be in independent namespaces so
-    'd' can still be used as a transformer.  Or maybe I should have naming
-    conventions so prelude calls don't get overridden.
+  - split transformers and generators into their own namespaces
+    . 'd' mridangam call collides with delay transformer
+      '+' looks like add zero attrs, 'o' looks like harmonic
   * save/mridangam: If I set global transform to
     "%just-base = 207.65 | scale = just-r | key = c-min"
     why does 4s produce pitchbend 341 + G4, while 3s produces pb 6 + D#4?

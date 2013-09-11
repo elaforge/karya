@@ -111,8 +111,9 @@ set_block block_id ((_, pos) : _) = do
 -- follow the selection should use this function.
 set_and_scroll :: (Cmd.M m) => ViewId -> Types.SelNum -> Types.Selection -> m ()
 set_and_scroll view_id selnum sel = do
+    old <- State.get_selection view_id selnum
     set_selnum view_id selnum (Just sel)
-    auto_scroll view_id sel
+    auto_scroll view_id old sel
 
 -- ** modify existing selection
 
@@ -309,30 +310,34 @@ mouse_drag btn msg = do
 
 -- ** auto scroll
 
--- | If @new@ has scrolled off the edge of the window, automatically scroll
--- it so that the selection is in view.
-auto_scroll :: (Cmd.M m) => ViewId -> Types.Selection -> m ()
-auto_scroll view_id sel = do
+-- | If the selection has scrolled off the edge of the window, automatically
+-- scroll it so that the \"current\" end of the selection is in view.
+auto_scroll :: (Cmd.M m) => ViewId -> Maybe Types.Selection -> Types.Selection
+    -> m ()
+auto_scroll view_id old new = do
     view <- State.get_view view_id
     block <- State.get_block (Block.view_block view)
-    let zoom_offset = auto_time_scroll view sel
-        track_offset = auto_track_scroll block view sel
+    let zoom_offset = auto_time_scroll view
+            (Types.sel_cur_pos <$> old) (Types.sel_cur_pos new)
+        track_offset = auto_track_scroll block view new
     State.set_zoom view_id $
         (Block.view_zoom view) { Types.zoom_offset = zoom_offset }
     State.set_track_scroll view_id track_offset
 
 -- TODO this scrolls too fast when dragging.  Detect a drag and scroll at
 -- a rate determined by how far past the bottom the pointer is.
-auto_time_scroll :: Block.View -> Types.Selection -> TrackTime
-auto_time_scroll view sel
-    | scroll_to >= view_end = scroll_to - visible + space
-    | scroll_to < view_start = scroll_to - space
+auto_time_scroll :: Block.View -> Maybe TrackTime -> TrackTime -> TrackTime
+auto_time_scroll view prev_pos pos
+    -- Don't scroll if the cur pos hasn't changed.  Otherwise, selecting the
+    -- whole track and shifting tracks scrolls the block down to the bottom.
+    | Just pos == prev_pos = view_start
+    | pos >= view_end = pos - visible + space
+    | pos < view_start = pos - space
     | otherwise = view_start
     where
     visible = Block.visible_time view
     view_start = Types.zoom_offset (Block.view_zoom view)
     view_end = view_start + visible
-    scroll_to = Types.sel_cur_pos sel
     space = ScoreTime.double
         (visible_pixels / Types.zoom_factor (Block.view_zoom view))
     visible_pixels = 30
