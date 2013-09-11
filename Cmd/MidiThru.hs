@@ -117,8 +117,7 @@ map_scale patch_scale scale input = case input of
             Left err -> Cmd.throw $
                 "error deriving input key's nn: " ++ show err
             Right Nothing -> return Nothing
-            Right (Just nn) ->
-                return $ map_patch_scale patch_scale nn
+            Right (Just nn) -> return $ map_patch_scale patch_scale nn
 
 map_patch_scale :: Instrument.PatchScale -> Pitch.NoteNumber
     -> Maybe Pitch.NoteNumber

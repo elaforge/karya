@@ -22,7 +22,7 @@ UNSORTED
       they are both the same, so the inconsistency gets pushed out to
       the Pitch -> NN conversion.
     * I put the octave into Theory.nn_to_semis and semis_to_nn, document
-    - ascii thru is an octave too low
+    * ascii thru is an octave too low
     - pc 6, 7, 8 emit the same note
     - test twelve relative and bp
   - get rid of Theory.layout_max_pc
@@ -97,7 +97,7 @@ UNSORTED
       physical size.
     . Nope, wrong.
   generic just scale support
-    - just scales should have a 'repeat 2' layout
+    * just scales should have a 'repeat 2' layout
       . The issue is that input kbd layout is separate from scale layout.
         Just scales should have a 'repeat 2' layout, and the input also
         accepts black notes between every note.

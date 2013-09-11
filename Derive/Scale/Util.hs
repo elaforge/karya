@@ -226,7 +226,9 @@ direct_input_to_nn :: ScoreTime -> Pitch.Input
     -> Derive.Deriver (Maybe Pitch.NoteNumber)
 direct_input_to_nn _pos (Pitch.Input _ pitch frac) =
     return $ Just $ nn + Pitch.nn frac
-    where nn = fromIntegral (Theory.pitch_to_semis Theory.piano_layout pitch)
+    where
+    nn = fromIntegral $ Theory.semis_to_nn $
+        Theory.pitch_to_semis Theory.piano_layout pitch
 
 -- | Convert input to nn by going through note_to_call.  This works for
 -- complicated scales that retune based on the environment but is more work.

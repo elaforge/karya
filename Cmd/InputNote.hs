@@ -158,8 +158,8 @@ nn_to_input nn = Pitch.Input Pitch.PianoKbd pitch frac
     (key, frac) = properFraction (Pitch.nn_to_double nn)
 
 input_to_nn :: Pitch.Input -> Pitch.NoteNumber
-input_to_nn (Pitch.Input _ pitch frac) = nn + Pitch.nn frac + 12
-    where nn = fromIntegral (Theory.pitch_to_semis Theory.piano_layout pitch)
+input_to_nn (Pitch.Input _ pitch frac) = nn + Pitch.nn frac
+    where nn = fromIntegral (pitch_to_nn pitch)
 
 cc_to_control :: Midi.Control -> Score.Control
 cc_to_control cc = fromMaybe (Score.control ("cc" <> showt cc))
@@ -180,7 +180,10 @@ from_ascii :: Bool -> Theory.Pitch -> Input
 from_ascii down pitch
     | down = NoteOn note_id (Pitch.Input Pitch.AsciiKbd pitch 0) 1
     | otherwise = NoteOff note_id 1
-    where note_id = NoteId $ Theory.pitch_to_semis Theory.piano_layout pitch
+    where note_id = NoteId (pitch_to_nn pitch)
+
+pitch_to_nn :: Theory.Pitch -> Int
+pitch_to_nn = Theory.semis_to_nn . Theory.pitch_to_semis Theory.piano_layout
 
 -- * to midi
 

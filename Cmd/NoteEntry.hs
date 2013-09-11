@@ -94,14 +94,13 @@ kbd_input :: Bool -- ^ Whether this is a Pressure instrument or not.
     -- kbd entry is for quick and easy input and breath control gets in the way
     -- of that.
     -> Pitch.Octave -> Msg.Msg -> Maybe [Msg.Msg]
-kbd_input is_pressure octave (Msg.key -> Just (down, key)) =
-    case down of
-        UiMsg.KeyRepeat
-            -- Just [] makes the repeats get eaten here, but make sure to only
-            -- suppress them if this key would have generated a note.
-            | Maybe.isJust msg -> Just []
-            | otherwise -> Nothing
-        _ -> msg
+kbd_input is_pressure octave (Msg.key -> Just (down, key)) = case down of
+    UiMsg.KeyRepeat
+        -- Just [] makes the repeats get eaten here, but make sure to only
+        -- suppress them if this key would have generated a note.
+        | Maybe.isJust msg -> Just []
+        | otherwise -> Nothing
+    _ -> msg
     where
     msg = (fmap . fmap) Msg.InputNote $
         key_to_input is_pressure octave (down == UiMsg.KeyDown) key
@@ -125,14 +124,16 @@ key_to_input _ _ _ _ = Nothing
 kbd_map :: Map.Map Char Theory.Pitch
 kbd_map = Map.fromList $ concat
     -- I leave '-' free since it's mapped to change octave.
-    [ keys 1 "1234567890" (\c -> if c == '1' then -1 else 1)
-    , keys 1 "qwertyuiop" (const 0)
-    , keys 0 "asdfghjkl;'" (\c -> if c == 'a' then -1 else 1)
-    , keys 0 "zxcvbnm,./" (const 0)
+    [ [('1', Theory.Pitch 1 (Theory.Note 0 (-1)))]
+    , keys 1 "234567890" 1
+    , keys 1 "qwertyuiop" 0
+    , [('a', Theory.Pitch 0 (Theory.Note 0 (-1)))]
+    , keys 0 "sdfghjkl;'" 1
+    , keys 0 "zxcvbnm,./" 0
     ]
     where
-    keys oct letters accs_of =
-        [ (c, Theory.Pitch oct $ Theory.Note pc (accs_of c))
+    keys oct letters accs =
+        [ (c, Theory.Pitch oct $ Theory.Note pc accs)
         | (pc, c) <- zip [0..] (physical_key letters)
         ]
 
