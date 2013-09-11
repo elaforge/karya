@@ -23,7 +23,7 @@ UNSORTED
       the Pitch -> NN conversion.
     * I put the octave into Theory.nn_to_semis and semis_to_nn, document
     * ascii thru is an octave too low
-    - pc 6, 7, 8 emit the same note
+    * pc 6, 7, 8 emit the same note
     - test twelve relative and bp
   - get rid of Theory.layout_max_pc
   * change 'Note [xyz]' to 'NOTE [xyz]', there are too many things called Note

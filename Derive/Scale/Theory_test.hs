@@ -78,6 +78,11 @@ test_transpose_diatonic = do
 test_pitch_to_semis = do
     let semis = Theory.pitch_to_semis Twelve.layout
         pitch k = Theory.semis_to_pitch (key k)
+        mkp oct pc accs = Theory.Pitch oct (Theory.Note pc accs)
+
+    -- If the pc is too high, it wraps the octave.
+    equal [semis (mkp 4 pc 0) | pc <- [6, 7, 8, 9]] [59, 60, 62, 64]
+
     equal (map (semis . p) ["0c", "0c#", "0cx"]) [0, 1, 2]
     equal (map (semis . p) ["0c", "0cb", "0cbb"]) [0, -1, -2]
     equal (map (semis . p) ["1c", "1d", "1e", "1f", "1g", "1a"])

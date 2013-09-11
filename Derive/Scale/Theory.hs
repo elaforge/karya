@@ -135,8 +135,10 @@ pitch_to_semis layout (Pitch oct note) =
     oct * layout_semis_per_octave layout + note_to_semis layout note
 
 note_to_semis :: Layout -> Note -> Semi
-note_to_semis layout (Note pc accs) =
+note_to_semis layout (Note pc_ accs) =
     Vector.sum (Vector.take pc (layout_intervals layout)) + accs
+        + oct * layout_semis_per_octave layout
+    where (oct, pc) = pc_ `divMod` layout_pc_per_octave layout
 
 -- | Convert an absolute semitones value to a pitch.  This is a bit
 -- complicated because it wants to find the best spelling for the given key.
