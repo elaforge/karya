@@ -41,7 +41,7 @@ module Derive.Scale.Theory (
     , Key(key_tonic, key_name, key_intervals, key_signature, key_layout), key
     , Signature
     , layout
-    , layout_max_pc, layout_pc_per_octave, key_degrees_per_octave, layout_semis_per_octave
+    , layout_pc_per_octave, key_degrees_per_octave, layout_semis_per_octave
     -- * util
     , diatonic_degree_of
 #ifndef TESTING
@@ -294,7 +294,7 @@ instance Pretty.Pretty Note where
 
 note_in_layout :: Layout -> Note -> Bool
 note_in_layout layout note =
-    0 <= note_pc note && note_pc note < layout_max_pc layout
+    0 <= note_pc note && note_pc note < layout_pc_per_octave layout
 
 -- * Key
 
@@ -389,11 +389,6 @@ key_degrees_per_octave = Vector.length . key_intervals
 layout_semis_per_octave :: Layout -> Semi
 layout_semis_per_octave = Vector.sum . layout_intervals
 
--- | One greater than the maximum pitch class defined for this key.
-layout_max_pc :: Layout -> PitchClass
-layout_max_pc = Vector.length . layout_intervals
-
--- TODO get rid of 'layout_max_pc'
 layout_pc_per_octave :: Layout -> PitchClass
 layout_pc_per_octave = Vector.length . layout_intervals
 
