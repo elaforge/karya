@@ -77,20 +77,32 @@ tracefp msg f val = write (with_msg msg (Pretty.pretty (f val))) val
 
 -- | Trace input and output of a function.
 trace_ret :: (Show a, Show b) => String -> a -> b -> b
-trace_ret function a ret =
-    trace_str (function ++ " " ++ pa ++ arrow ++ pret) ret
+trace_ret function a ret = trace_str text ret
     where
-    arrow = if '\n' `elem` pa || '\n' `elem` pret then "\t\t=>\n" else " => "
+    text = concat
+        [ function
+        , if multiline then "\n" else " "
+        , pa
+        , if multiline then "\n\t\t=>\n" else " => "
+        , pret
+        ]
+    multiline = '\n' `elem` pa || '\n' `elem` pret
     pa = pshow a
     pret = pshow ret
 
 trace_retp :: (Pretty.Pretty a, Pretty.Pretty b) => String -> a -> b -> b
-trace_retp function a ret =
-    trace_str (function ++ " " ++ pa ++ arrow ++ pret) ret
+trace_retp function a ret = trace_str text ret
     where
-    arrow = if '\n' `elem` pa || '\n' `elem` pret then "\t\t=>\n" else " => "
-    pa = Pretty.formatted a
-    pret = Pretty.formatted ret
+    text = concat
+        [ function
+        , if multiline then "\n" else " "
+        , pa
+        , if multiline then "\n\t\t=>\n" else " => "
+        , pret
+        ]
+    multiline = '\n' `elem` pa || '\n' `elem` pret
+    pa = Seq.strip $ Pretty.formatted a
+    pret = Seq.strip $ Pretty.formatted ret
 
 trace_str :: String -> a -> a
 trace_str = write . (prefix++)
