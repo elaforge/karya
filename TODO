@@ -29,7 +29,7 @@ UNSORTED
     - test MIDI kbd
   * get rid of Theory.layout_max_pc
   * change 'Note [xyz]' to 'NOTE [xyz]', there are too many things called Note
-  - fix circular RelativeFormat definition, details in Derive.Scale.Twelve
+  * fix circular RelativeFormat definition, details in Derive.Scale.Twelve
   wayang samples:
     * the layout has changed, so how does the scale mapping work?
     * +mute should shift -2 octave: a0 -> 80 seems about right: 0.8

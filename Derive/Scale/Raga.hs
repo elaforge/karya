@@ -27,7 +27,7 @@ doc :: Text
 doc =
     "Carnatic ragas, from the melakarta system.\
     \\nThe \"key\" is actually the raga, e.g.\
-    \ `key = sankarabharanam`. I can't represent arohana and avarohana since I\
+    \ `key = shankarabharanam`. I can't represent arohana and avarohana since I\
     \ can't always know in the notation whether the previous note was higher or\
     \ lower, so these are represented as \"enharmonics\". Also, these scales\
     \ deal only with pitches, and don't\
@@ -47,7 +47,7 @@ relative_fmt :: TheoryFormat.RelativeFormat TheoryFormat.Tonic
 relative_fmt = JustScales.make_relative_fmt keys default_key
 
 default_key :: JustScales.Key
-Just default_key = Map.lookup (Pitch.Key "sankarabharanam") keys
+Just default_key = Map.lookup (Pitch.Key "shankarabharanam") keys
 
 keys :: Map.Map Pitch.Key JustScales.Key
 keys = Map.fromList melakarta_keys
@@ -112,7 +112,7 @@ aliases_of = flip (Map.findWithDefault []) aliases
 
 aliases :: Map.Map Text [Text]
 aliases = Map.fromList
-    [ ("dheerasankarabharanam", ["sankarabharanam"])
+    [ ("dheerashankarabharanam", ["shankarabharanam"])
     , ("mechakalyani", ["kalyani"])
     , ("hanumatodi", ["todi"])
 
@@ -130,7 +130,7 @@ melakarta_names =
     , "suryakantam", "hatakambhari", "jhankaradhwani", "natabhairavi"
     , "keeravani", "kharaharapriya", "gourimanohari", "varunapriya"
     , "mararanjani", "charukesi", "sarasangi", "harikambhoji"
-    , "dheerasankarabharanam", "naganandini", "yagapriya", "ragavardhini"
+    , "dheerashankarabharanam", "naganandini", "yagapriya", "ragavardhini"
     , "gangeyabhusani", "vagadheeswari", "sulini", "chalanattai"
     , "salagam", "jalarnavam", "jhalavarali", "navaneetam"
     , "pavani", "raghupriya", "gavambodhi", "bhavapriya"

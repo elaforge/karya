@@ -55,35 +55,23 @@ absolute_scale_map =
 fmt :: TheoryFormat.Format
 fmt = TheoryFormat.absolute_c
 
--- TODO Notice that this is circular.  'relative_fmt' refers to
--- 'relative_scale_map', which refers back to it.
---
--- This is because 'fmt_show' needs to parse keys for a relative scale, so
--- in needs the scales.  But the scales use fmt via 'TheoryFormat.show_key'
--- to format the tonic to make the key name.  It works out because the key fmts
--- with a key of Nothing and that shouldn't need the keys.  But still it's
--- confusing, so I should make show_key use a separate fmt_show that show the
--- key tonic.
+relative_scale_map :: ChromaticScales.ScaleMap
+relative_scale_map = ChromaticScales.scale_map
+    layout (TheoryFormat.sargam relative_fmt) all_keys default_theory_key
 
 relative_fmt :: TheoryFormat.RelativeFormat Theory.Key
 relative_fmt = TheoryFormat.RelativeFormat
     { TheoryFormat.rel_acc_fmt = TheoryFormat.ascii_accidentals
-    , TheoryFormat.rel_parse_key = parse_key
+    , TheoryFormat.rel_parse_key =
+        ChromaticScales.lookup_key default_theory_key all_keys
     , TheoryFormat.rel_default_key = default_theory_key
     , TheoryFormat.rel_show_note = TheoryFormat.show_note_chromatic
     , TheoryFormat.rel_to_absolute = TheoryFormat.chromatic_to_absolute
     , TheoryFormat.rel_key_tonic = Theory.note_pc . Theory.key_tonic
     }
-    where
-    parse_key maybe_key =
-        ChromaticScales.read_key relative_scale_map maybe_key
-
-relative_scale_map :: ChromaticScales.ScaleMap
-relative_scale_map = ChromaticScales.scale_map
-    layout (TheoryFormat.sargam relative_fmt) all_keys default_theory_key
 
 
--- * scales
+-- * keys
 
 default_key :: Pitch.Key
 default_key = Pitch.Key "c-maj"
