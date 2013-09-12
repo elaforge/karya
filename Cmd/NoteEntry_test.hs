@@ -26,21 +26,21 @@ test_key_to_input = do
     let f = NoteEntry.key_to_input False
 
     -- This is assuming dvorak input.
-    equal (f 4 True (k '\'')) (Just [note_on 60 5 0 0])
-    equal (f 4 True (k ',')) (Just [note_on 62 5 1 0])
-    equal (f 4 True (k ';')) (Just [note_on 48 4 0 0])
-    equal (f 0 True (k ';')) (Just [note_on 0 0 0 0])
+    equal (f 4 True (k '\'')) (Just [note_on 72 5 0 0])
+    equal (f 4 True (k ',')) (Just [note_on 74 5 1 0])
+    equal (f 4 True (k ';')) (Just [note_on 60 4 0 0])
+    equal (f 0 True (k ';')) (Just [note_on 12 0 0 0])
 
-    equal (f 4 False (k '\'')) (Just [CmdTest.note_off 60])
+    equal (f 4 False (k '\'')) (Just [CmdTest.note_off 72])
     -- This is one of the few flat notes on the ascii kbd.
-    equal (f 4 True (k 'a')) (Just [note_on 47 4 0 (-1)])
+    equal (f 4 True (k 'a')) (Just [note_on 59 4 0 (-1)])
     equal (f 4 True (k '[')) Nothing
     equal (f 4 True Key.Backspace) Nothing
 
     let pressure = NoteEntry.key_to_input True
     equal (pressure 4 True (k '\'')) $ Just
-        [ note_on 60 5 0 0
-        , CmdTest.control 60 "breath" (100 / 127)
+        [ note_on 72 5 0 0
+        , CmdTest.control 72 "breath" (100 / 127)
         ]
 
 test_cmds_with_note = do

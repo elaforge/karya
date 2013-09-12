@@ -95,6 +95,8 @@ data Format = Format {
     , fmt_key_tonic :: Maybe Pitch.Key -> Maybe Theory.PitchClass
     , fmt_pattern :: !Text
     , fmt_pc_per_octave :: Theory.PitchClass
+    -- | True if this scale is relative to the key.
+    , fmt_relative :: !Bool
     }
 type ParseKey key = Maybe Pitch.Key -> Either Scale.ScaleError key
 type Degrees = Vector.Vector Text
@@ -175,6 +177,7 @@ make_absolute_format pattern degrees acc_fmt = Format
     , fmt_key_tonic = const Nothing
     , fmt_pattern = octave_pattern <> pattern <> acc_pattern
     , fmt_pc_per_octave = Vector.length degrees
+    , fmt_relative = False
     }
 
 make_relative_format :: Text -> Degrees -> RelativeFormat key -> Format
@@ -187,6 +190,7 @@ make_relative_format pattern degrees (RelativeFormat acc_fmt parse_key
         , fmt_key_tonic = p_tonic
         , fmt_pattern = octave_pattern <> pattern <> acc_pattern
         , fmt_pc_per_octave = Vector.length degrees
+        , fmt_relative = True
         }
     where
     p_show key = show_note degrees acc_fmt

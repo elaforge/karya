@@ -6,6 +6,7 @@ module Derive.Scale.BohlenPierce_test where
 import qualified Util.Seq as Seq
 import Util.Test
 import qualified Ui.State as State
+import qualified Cmd.CmdTest as CmdTest
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Scale as Scale
 import qualified Derive.Scale.BohlenPierce as BP
@@ -32,6 +33,8 @@ test_note_to_call = do
 test_input_to_note = do
     let f = maybe "" Pitch.note_text
             . Scale.scale_input_to_note BP.absolute_scale Nothing
+    let ascii oct = CmdTest.ascii_kbd . CmdTest.oct_pc oct
+        piano oct = CmdTest.piano_kbd . CmdTest.oct_pc oct
     equal [f (ascii 4 pc) | pc <- [0..9]]
         ["4a", "4b", "4c", "4d", "4e", "4f", "4g", "4h", "4i", "5a"]
     equal [f (piano 4 pc) | pc <- [0..6]]
@@ -50,6 +53,7 @@ piano oct pc = Pitch.Input Pitch.PianoKbd
 test_input_to_nn = do
     let f input = DeriveTest.eval State.empty $
             Scale.scale_input_to_nn BP.absolute_scale 0 input
+    let ascii oct = CmdTest.ascii_kbd . CmdTest.oct_pc oct
     equalf 0.001 (f (ascii 4 0)) $ Right (Just NN.middle_c)
     let ratio = 25/21
     equalf 0.001 (f (ascii 4 1)) $

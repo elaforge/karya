@@ -12,11 +12,11 @@ import qualified Util.Seq as Seq
 import Util.Test
 
 import qualified Ui.State as State
+import qualified Cmd.CmdTest as CmdTest
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Scale as Scale
 import qualified Derive.Scale.Just as Just
 import qualified Derive.Scale.JustScales as JustScales
-import qualified Derive.Scale.Theory as Theory
 import qualified Derive.Scale.TheoryFormat as TheoryFormat
 import qualified Derive.Score as Score
 
@@ -73,6 +73,8 @@ test_input_to_note = do
             JustScales.input_to_note smap (Just (Pitch.Key key))
         rel = make_scale_map True
         abs = make_scale_map False
+        ascii oct = CmdTest.ascii_kbd . CmdTest.oct_pc oct
+        piano oct = CmdTest.piano_kbd . CmdTest.oct_pc oct
     let notes empty n = map (("0-"<>) . showt) [1..n] ++ replicate empty ""
             ++ map (("1-"<>) . showt) [1..6] ++ replicate empty ""
 
@@ -137,7 +139,7 @@ make_scale_map relative per_oct =
 test_input_to_nn = do
     let Just scale = List.find ((== "just") . Scale.scale_id) Just.scales
     let f = DeriveTest.with_key "c-maj" . Scale.scale_input_to_nn scale 0
-        input = ascii Pitch.middle_octave
+        input = CmdTest.ascii_kbd . CmdTest.oct_pc Pitch.middle_octave
     equalf 0.01 (DeriveTest.eval State.empty $ f (input 0)) $
         Right (Just NN.middle_c)
     equalf 0.01 (DeriveTest.eval State.empty $ f (input 1)) $
@@ -154,11 +156,3 @@ test_transpose_relative = do
     let f = JustScales.transpose (TheoryFormat.sargam Just.relative_fmt) Nothing
     equal [f 0 (Pitch.Chromatic n) (Pitch.Note "4s") | n <- [0..2]] $
         map (Right . Pitch.Note) ["4s", "4r", "4g"]
-
-ascii :: Theory.Octave -> Theory.PitchClass -> Pitch.Input
-ascii oct pc = Pitch.Input Pitch.AsciiKbd
-    (Theory.Pitch oct (Theory.Note pc 0)) 0
-
-piano :: Theory.Octave -> Theory.PitchClass -> Pitch.Input
-piano oct pc = Pitch.Input Pitch.PianoKbd
-    (Theory.Pitch oct (Theory.Note pc 0)) 0

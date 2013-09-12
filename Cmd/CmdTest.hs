@@ -386,10 +386,6 @@ control :: Int -> Score.Control -> Signal.Y -> InputNote.GenericInput a
 control note_id cont val =
     InputNote.Control (InputNote.NoteId note_id) cont val
 
-pitch :: Theory.Octave -> Theory.PitchClass -> Theory.Accidentals
-    -> Theory.Pitch
-pitch oct pc accs = Theory.Pitch oct (Theory.Note pc accs)
-
 m_note_on :: Pitch.NoteNumber -> Msg.Msg
 m_note_on = Msg.InputNote . note_on_nn
 
@@ -402,6 +398,20 @@ m_control note_id cont val = Msg.InputNote (control note_id cont val)
 m_pitch_change :: Int -> Pitch.NoteNumber -> Msg.Msg
 m_pitch_change nid = Msg.InputNote . pitch_change_nn nid
 
+-- * Pitch.Input
+
+ascii_kbd :: Theory.Pitch -> Pitch.Input
+ascii_kbd pitch = Pitch.Input Pitch.AsciiKbd pitch 0
+
+piano_kbd :: Theory.Pitch -> Pitch.Input
+piano_kbd pitch = Pitch.Input Pitch.PianoKbd pitch 0
+
+pitch :: Theory.Octave -> Theory.PitchClass -> Theory.Accidentals
+    -> Theory.Pitch
+pitch oct pc accs = Theory.Pitch oct (Theory.Note pc accs)
+
+oct_pc :: Theory.Octave -> Theory.PitchClass -> Theory.Pitch
+oct_pc oct pc = pitch oct pc 0
 
 -- * setup cmds
 

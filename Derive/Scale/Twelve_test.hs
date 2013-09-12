@@ -24,7 +24,7 @@ test_note_to_nn = do
     equal (f "9g") ([Just 127], [])
     equal (f "9g#") ([Nothing], [])
 
-test_relative = do
+test_note_to_call_relative = do
     let f key p = DeriveTest.extract extract $ DeriveTest.derive_tracks
             [(">", [(0, 1, "")]), ("*twelve-r" ++ key, [(0, 0, p)])]
         extract = Score.initial_nn

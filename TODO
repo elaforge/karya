@@ -24,7 +24,9 @@ UNSORTED
     * I put the octave into Theory.nn_to_semis and semis_to_nn, document
     * ascii thru is an octave too low
     * pc 6, 7, 8 emit the same note
-    - test twelve relative and bp
+    * d-min has some notes that can't be played
+      2# should be g# but is m
+    - test MIDI kbd
   - get rid of Theory.layout_max_pc
   * change 'Note [xyz]' to 'NOTE [xyz]', there are too many things called Note
   - fix circular RelativeFormat definition, details in Derive.Scale.Twelve

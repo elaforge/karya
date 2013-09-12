@@ -140,6 +140,13 @@ note_to_semis layout (Note pc_ accs) =
         + oct * layout_semis_per_octave layout
     where (oct, pc) = pc_ `divMod` layout_pc_per_octave layout
 
+-- | Pick the most sensible enharmonic for the given pitch.
+--
+-- TODO I reduce to semis and then pick an enharmonic, so 5b# becomes 6c.  But
+-- if they asked for 5b# they should get it.
+pick_enharmonic :: Key -> Pitch -> Pitch
+pick_enharmonic key = semis_to_pitch key . pitch_to_semis (key_layout key)
+
 -- | Convert an absolute semitones value to a pitch.  This is a bit
 -- complicated because it wants to find the best spelling for the given key.
 semis_to_pitch :: Key -> Semi -> Pitch
@@ -164,34 +171,6 @@ semis_to_pitch key semis = mkpitch $ case key_signature key of
         sig Vector.!? degree_of key note == Just (note_accidentals note)
     enharmonics = fromMaybe [] $ layout_enharmonics layout Boxed.!? steps
     (octave, steps) = semis `divMod` layout_semis_per_octave layout
-    layout = key_layout key
-    -- Sharpish looking key signatures favor sharps.
-    sharp_signature sig = Vector.count (>0) sig >= Vector.count (<0) sig
-    sharp_tonic = (>=0) . note_accidentals . key_tonic
-
--- | Pick the most sensible enharmonic for the given pitch.
-pick_enharmonic :: Key -> Pitch -> Pitch
-pick_enharmonic key pitch = mkpitch $ case key_signature key of
-    Just sig -> case List.find (in_scale sig) enharmonics of
-        Nothing -> pick_enharmonic (sharp_signature sig) enharmonics
-        Just note -> note
-    Nothing -> pick_enharmonic (sharp_tonic key) enharmonics
-    where
-    mkpitch (oct, note) = Pitch (pitch_octave pitch + oct) note
-    -- The (Note (-1) 0) error value is icky, but here's why it should never
-    -- happen: It happens when enharmonics is empty.  Since the values of
-    -- layout_enharmonics are never [] as per the definition of 'layout', it
-    -- means the mod of semis is out of range for the array, which means the
-    -- sum of the intervals is larger than the length of layout_enharmonics.
-    -- That shouldn't happen because layout_enharmonics is initialized to
-    -- [..  | i <- intervals, a <- [0..i-1]].
-    pick_enharmonic use_sharps notes = fromMaybe (0, Note (-1) 0) $
-        Seq.minimum_on (key . note_accidentals . snd) notes
-        where key accs = (if use_sharps then accs < 0 else accs > 0, abs accs)
-    in_scale sig (_, note) =
-        sig Vector.!? degree_of key note == Just (note_accidentals note)
-    enharmonics = fromMaybe [] $ layout_enharmonics layout Boxed.!? steps
-    steps = note_to_semis layout (pitch_note pitch)
     layout = key_layout key
     -- Sharpish looking key signatures favor sharps.
     sharp_signature sig = Vector.count (>0) sig >= Vector.count (<0) sig
