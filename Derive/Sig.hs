@@ -307,9 +307,11 @@ arg_environ_default call_name arg_name =
 
 -- * call
 
-type Generator y result = Derive.PassedArgs y -> Derive.Deriver result
-type Transformer y result =
-    Derive.PassedArgs y -> Derive.Deriver result -> Derive.Deriver result
+-- | Similar to 'Derive.GeneratorFunc', but leaves the PassedArgs prev val
+-- type free.  This is important for val calls, which used Tagged.
+type Generator y d = Derive.PassedArgs y -> Derive.Deriver d
+type Transformer y d =
+    Derive.PassedArgs y -> Derive.Deriver d -> Derive.Deriver d
 
 call :: Parser a -> (a -> Generator y d) -> Derive.WithArgDoc (Generator y d)
 call parser f = (go, Derive.ArgDocs (parser_docs parser))

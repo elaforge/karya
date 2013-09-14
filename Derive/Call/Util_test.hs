@@ -54,7 +54,8 @@ test_c_equal = do
     -- eval in general.
     let run title evts = DeriveTest.extract e_inst $
             DeriveTest.derive_tracks [(title, evts)]
-
+    strings_like (snd $ run ">" [(0, 1, "1 = >i |")])
+        ["unexpected arg types: Num, Instrument"]
     -- log stack should be at the track level
     let (evts, logs) = run "> | inst = inst" [(0, 1, "")]
     equal evts []

@@ -27,6 +27,7 @@ import qualified Util.Num as Num
 import qualified Util.Parse as Parse
 import qualified Util.Pretty as Pretty
 import qualified Util.Random as Random
+import qualified Util.Seq as Seq
 
 import qualified Ui.Ruler as Ruler
 import qualified Ui.ScoreTime as ScoreTime
@@ -479,25 +480,23 @@ c_equal = Derive.transformer "equal" (Tags.prelude <> Tags.subs) equal_doc
     (Sig.parsed_manually equal_arg_doc equal_transformer)
 
 equal_arg_doc :: Text
-equal_arg_doc =
-    "The left hand side can be a symbol, `%control-name`, or\
-    \ `#pitch-name`. The right hand side is anything when binding\
-    \ a symbol, a number or `%control-name` when binding a `%control`, or\
-    \ a pitch or `#pitch-name` when binding a `#pitch`.\
-    \\nIf the symbol starts with `>`, `*`, or `-`, it will bind a note, pitch,\
-    \ or val call, respectively. Assigning to an instrument e.g. `>i = x` also\
-    \ binds a note call. You need quoting if the assignee doesn't look like\
-    \ a symbol: `'*4c' = '5c'`.\
-    \\nAs a special case, assigning to `%tempo` to a number will compose \
-    \ the warp with the given tempo.\n\
-    \ Setting a symbol to `_` will unset an env var."
+equal_arg_doc = "Many types."
 
 equal_doc :: Text
 equal_doc =
-    "Evaluate the deriver with a value set. Set environ vals with `x = 42`,\
-    \ a constant control signal with `%c = .5` or a pitch signal with\
-    \ `#pitch = (4c)`. `# = (4c)` sets the default pitch signal.\
-    \\nA special parsing rule means that this call can be written infix."
+    "Evaluate the deriver with a value set. A special rule means this can be\
+    \ called infix.  The arguments can take many forms to set different kinds\
+    \ of values.\
+    \\nSet environ values by setting a plain symbol or unset it by assigning\
+    \ to `_`: `x = 42` or `x = _`.\
+    \\nIf the symbol is prefixed with `>`, `*`, `.`, or `-`, it will set a\
+    \ note, pitch, control, or val call, respectively. It sets the generator\
+    \ by default, but will set the transformer if you add another `-`.  You\
+    \ need quoting for symbols that don't match 'Derive.ParseBs.p_symbol'.\
+    \ E.g.: set note generator: `>x = some-block`, note transformer: `>-x = t`,\
+    \ control transfomrer: `'.-i' = t`, pitch val call: `'-4c' = 5c`.\
+    \\nSet constant signals by assigning to a signal literal: `%c = .5` or\
+    \ pitch: `#p = (4c)`.  `# = (4c)` sets the default pitch signal."
 
 equal_transformer :: Derive.PassedArgs derived -> Derive.Deriver a
     -> Derive.Deriver a
@@ -506,19 +505,23 @@ equal_transformer args deriver = case Derive.passed_vals args of
     [TrackLang.VSymbol (TrackLang.Symbol assignee), TrackLang.VSymbol val]
         | Just new <- Text.stripPrefix ">" assignee ->
             override_call new val deriver "note"
-                (Derive.s_transformer#Derive.s_note)
                 (Derive.s_generator#Derive.s_note)
+                (Derive.s_transformer#Derive.s_note)
         | Just new <- Text.stripPrefix "*" assignee ->
             override_call new val deriver "pitch"
-                (Derive.s_transformer#Derive.s_pitch)
                 (Derive.s_generator#Derive.s_pitch)
+                (Derive.s_transformer#Derive.s_pitch)
+        | Just new <- Text.stripPrefix "." assignee ->
+            override_call new val deriver "control"
+                (Derive.s_generator#Derive.s_control)
+                (Derive.s_transformer#Derive.s_control)
         | Just new <- Text.stripPrefix "-" assignee ->
             override_val_call new val deriver
     -- If you don't quote >sym, it parses as an instrument.
     [TrackLang.VInstrument sym, TrackLang.VSymbol val] ->
         override_call (Score.inst_name sym) val deriver "note"
-            (Derive.s_transformer#Derive.s_note)
             (Derive.s_generator#Derive.s_note)
+            (Derive.s_transformer#Derive.s_note)
 
     -- Bind environ values.
     [TrackLang.VSymbol assignee, val] -> Derive.with_val assignee val deriver
@@ -534,9 +537,8 @@ equal_transformer args deriver = case Derive.passed_vals args of
     [pitch -> Just assignee, TrackLang.VPitchControl val] -> do
         sig <- to_pitch_signal val
         Derive.with_pitch assignee sig deriver
-    _ -> Derive.throw_arg_error
-        "equal call expected 'sym = val', '%control = number',\
-        \ '%control1 = %control2', '#pitch = (pitch)', or '#pitch1 = #pitch2'."
+    args -> Derive.throw_arg_error $ "unexpected arg types: "
+        <> Seq.join ", " (map (Pretty.pretty . TrackLang.type_of) args)
     where
     set_tempo val =
         Internal.d_warp warp $ Internal.add_new_track_warp Nothing >> deriver
@@ -557,7 +559,7 @@ override_call :: Text -> TrackLang.CallId -> Derive.Deriver a
     -> Lens Derive.Scopes (Derive.ScopeType (Derive.Call d1))
     -> Lens Derive.Scopes (Derive.ScopeType (Derive.Call d2))
     -> Derive.Deriver a
-override_call assignee source deriver name transformer generator
+override_call assignee source deriver name generator transformer
     | Just stripped <- Text.stripPrefix "-" assignee =
         override_scope stripped (name <> " transformer") transformer
     | otherwise = override_scope assignee (name <> " generator") generator

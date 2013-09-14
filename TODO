@@ -3,8 +3,8 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
-  - Derive.Sig could use Derive.Generator
-  - I forgot to add a way to override control calls.  What should the prefix
+  / Derive.Sig could use Derive.Generator
+  * I forgot to add a way to override control calls.  What should the prefix
     be?  '.call = xyz'?
   - Clean up the Derived class.  It seems like I should be able to get by with
     a tag for 'd' and a to_tag for (Elem d)
@@ -63,7 +63,7 @@ UNSORTED
   * split transformers and generators into their own namespaces
     . 'd' mridangam call collides with delay transformer
       '+' looks like add zero attrs, 'o' looks like harmonic
-    - no need to display ValCall in CallDoc
+    / no need to display ValCall in CallDoc
   * save/mridangam: If I set global transform to
     "%just-base = 207.65 | scale = just-r | key = c-min"
     why does 4s produce pitchbend 341 + G4, while 3s produces pb 6 + D#4?
