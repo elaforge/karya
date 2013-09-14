@@ -39,8 +39,7 @@ profile_edits_middle = do
 
     let wait = [(CmdTest.make_key UiMsg.KeyDown Key.ShiftL, 0.1),
             (CmdTest.make_key UiMsg.KeyUp Key.ShiftL, 4)]
-        alter_note = [(CmdTest.m_note_on 0 64 127, 1),
-            (CmdTest.m_note_off 0 127, 1)]
+        alter_note = [(CmdTest.m_note_on 64, 1), (CmdTest.m_note_off 64, 1)]
         keys = concat $ replicate 4 alter_note
     ResponderTest.thread_delay True (ui_state, cmd_state) (wait ++ keys)
     return ()
