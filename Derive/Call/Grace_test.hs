@@ -97,7 +97,7 @@ test_grace = do
     -- Ensure grace works with attr legato.
     let runa = DeriveTest.extract DeriveTest.e_attributes
             . DeriveTest.derive_tracks_with with
-        with = CallTest.with_note_call "(" Articulation.c_attr_legato
+        with = CallTest.with_note_generator "(" Articulation.c_attr_legato
     equal (runa [(title, [(0, 1, "g (4a) (4b)")]), ("*", [(0, 0, "4c")])])
         (["+legato", "+legato", "+legato"], [])
 
@@ -121,7 +121,7 @@ test_grace_attr = do
     let run = DeriveTest.extract extract
             . DeriveTest.derive_tracks_with with_call
         extract e = (DeriveTest.e_pitch e, DeriveTest.e_attributes e)
-        with_call = CallTest.with_note_call "g" (Grace.c_grace_attr graces)
+        with_call = CallTest.with_note_generator "g" (Grace.c_grace_attr graces)
     -- Attrs when it can.
     equal (run [(">", [(0, 1, "g (4a)")]), ("*", [(0, 0, "4b")])])
         ([("4b", "+up+whole")], [])

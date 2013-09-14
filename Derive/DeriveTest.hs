@@ -91,7 +91,7 @@ run_ ui_state m = case Derive.run derive_state m of
         (Left err, _, _logs) -> Left (Pretty.pretty err)
         (Right val, state, logs) -> Right (val, state, logs)
     where
-    derive_state = Derive.initial_state default_scope
+    derive_state = Derive.initial_state default_scopes
         default_environ (default_constant ui_state mempty mempty)
 
 extract_run :: (a -> b) -> Either String (a, Derive.State, [Log.Msg])
@@ -245,7 +245,7 @@ perform_dump synths (_, midi, aliases, _) =
 
 derive :: State.State -> Derive.EventDeriver -> Derive.Result
 derive ui_state deriver = Derive.extract_result $
-    Derive.derive (default_constant ui_state mempty mempty) default_scope
+    Derive.derive (default_constant ui_state mempty mempty) default_scopes
         default_environ deriver
 
 -- | Config to initialize the Cmd.State, without the instrument db.
@@ -256,7 +256,7 @@ cmd_config inst_db = Cmd.Config
     , Cmd.state_rdev_map = mempty
     , Cmd.state_wdev_map = mempty
     , Cmd.state_instrument_db = inst_db
-    , Cmd.state_global_scope = Call.All.scope
+    , Cmd.state_global_scopes = Call.All.scopes
     , Cmd.state_lookup_scale = Cmd.LookupScale $
         \scale_id -> Map.lookup scale_id Scale.All.scales
     }
@@ -321,8 +321,8 @@ set_default_instrument = State.config#State.midi #= default_midi_config
 default_lookup_scale :: Derive.LookupScale
 default_lookup_scale scale_id = Map.lookup scale_id Scale.All.scales
 
-default_scope :: Derive.Scope
-default_scope = Call.All.scope
+default_scopes :: Derive.Scopes
+default_scopes = Call.All.scopes
 
 default_environ :: TrackLang.Environ
 default_environ = TrackLang.make_environ

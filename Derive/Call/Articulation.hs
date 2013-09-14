@@ -40,41 +40,54 @@ import qualified Perform.Signal as Signal
 import Types
 
 
-lookup_attr :: Derive.LookupCall Derive.NoteCall
-lookup_attr = Derive.pattern_lookup "attribute starting with `+`" doc $
-    \(TrackLang.Symbol sym) -> parse_symbol sym
+lookup_attr_generator :: Derive.LookupCall (Derive.Generator Derive.Note)
+lookup_attr_generator = make_lookup_attr $ \attrs ->
+    fst $ Make.transform_notes ("add attrs: " <> ShowVal.show_val attrs)
+        Tags.attr "Doc unused." Sig.no_args
+        (\() -> Util.add_attrs attrs)
+
+lookup_attr_transformer :: Derive.LookupCall (Derive.Transformer Derive.Note)
+lookup_attr_transformer = make_lookup_attr $ \attrs ->
+    snd $ Make.transform_notes ("add attrs: " <> ShowVal.show_val attrs)
+        Tags.attr "Doc unused." Sig.no_args
+        (\() -> Util.add_attrs attrs)
+
+make_lookup_attr :: (Score.Attributes -> call) -> Derive.LookupCall call
+make_lookup_attr call =
+    Derive.pattern_lookup "attribute starting with `+`" doc $
+        \(TrackLang.Symbol sym) -> parse_symbol sym
     where
     parse_symbol sym = case Text.uncons sym of
         Just (c, _) | c == '+' || c == '=' -> case ParseBs.parse_val sym of
-            Right (TrackLang.VAttributes attrs) -> return $ Just $ call attrs
+            Right (TrackLang.VAttributes attrs) -> return $ Just (call attrs)
             _ -> return Nothing
         _ -> return Nothing
-    call attrs = Make.transform_notes ("add attrs: " <> ShowVal.show_val attrs)
-        Tags.attr "Doc unused." Sig.no_args
-        (\() -> Util.add_attrs attrs)
-    doc = Derive.extract_doc $ Make.attributed_note (Score.attr "example-attr")
+    doc = Derive.extract_doc $ fst $
+        Make.attributed_note (Score.attr "example-attr")
 
-note_calls :: Derive.NoteCallMap
-note_calls = Derive.make_calls
+note_calls :: Derive.CallMaps Derive.Note
+note_calls = Make.call_maps
     [ ("o", Make.attributed_note Attrs.harm)
     , ("m", Make.attributed_note Attrs.mute)
     , (".", Make.attributed_note Attrs.staccato)
-    , ("(", c_legato)
+    , ("{", Make.attributed_note Attrs.porta)
+    , ("D", c_detach) -- for symmetry with 'd', which delays the start
+    ]
+    [ ("(", c_legato)
     -- These do different things in lilypond mode, but in normal performance
     -- they are just the same as a slur.
     , ("^(", c_legato)
     , ("_(", c_legato)
-    , ("{", Make.attributed_note Attrs.porta)
-    , ("D", c_detach) -- for symmetry with 'd', which delays the start
     ]
+    []
 
 -- * legato
 
 -- | I'm not really sure how fancy calls should be.  On one hand, high level
 -- calls should get a nice result automatically.  On the other hand, they're
 -- not very composable if they override things like %sus-abs.
-c_legato :: Derive.NoteCall
-c_legato = Derive.stream_generator "legato" (Tags.attr <> Tags.subs <> Tags.ly)
+c_legato :: Derive.Generator Derive.Note
+c_legato = Derive.make_call "legato" (Tags.attr <> Tags.subs <> Tags.ly)
     "Play the transformed notes legato.  This just makes all but the last\
     \ overlap slightly.\
     \\nYou can combine this with other controls to get fancier phrasing.\
@@ -114,24 +127,24 @@ note_legato overlap maybe_detach dyn = Sub.place . concat . map apply
     and delegating note overlap to the note didn't make so much sense.
 -}
 
-c_ly_slur :: Derive.NoteCall
-c_ly_slur = Derive.stream_generator "ly-slur" (Tags.subs <> Tags.ly_only)
+c_ly_slur :: Derive.Generator Derive.Note
+c_ly_slur = Derive.make_call "ly-slur" (Tags.subs <> Tags.ly_only)
     "Add a lilypond slur." $ Sig.call0 $
         Lily.notes_around_ly (Lily.SuffixFirst, "(") (Lily.SuffixLast, ")")
 
-c_ly_slur_up :: Derive.NoteCall
-c_ly_slur_up = Derive.stream_generator "ly-slur-up" (Tags.subs <> Tags.ly_only)
+c_ly_slur_up :: Derive.Generator Derive.Note
+c_ly_slur_up = Derive.make_call "ly-slur-up" (Tags.subs <> Tags.ly_only)
     "Add a lilypond slur, forced to be above." $ Sig.call0 $
         Lily.notes_around_ly (Lily.SuffixFirst, "^(") (Lily.SuffixLast, ")")
 
-c_ly_slur_down :: Derive.NoteCall
-c_ly_slur_down = Derive.stream_generator "ly-slur-down"
+c_ly_slur_down :: Derive.Generator Derive.Note
+c_ly_slur_down = Derive.make_call "ly-slur-down"
     (Tags.subs <> Tags.ly_only)
     "Add a lilypond slur, forced to be below." $ Sig.call0 $
         Lily.notes_around_ly (Lily.SuffixFirst, "_(") (Lily.SuffixLast, ")")
 
-c_attr_legato :: Derive.NoteCall
-c_attr_legato = Derive.stream_generator "legato" (Tags.attr <> Tags.subs)
+c_attr_legato :: Derive.Generator Derive.Note
+c_attr_legato = Derive.make_call "legato" (Tags.attr <> Tags.subs)
     "Make a phrase legato by applying the `+legato` attribute. This is for\
     \ instruments that understand it, for instance with a keyswitch for\
     \ transition samples."
@@ -163,7 +176,7 @@ set_sustain = Util.with_constant Controls.sustain_abs . RealTime.to_seconds
 
 -- * misc
 
-c_detach :: Derive.NoteCall
+c_detach :: Make.Calls Derive.Note
 c_detach = Make.transform_notes "detach" mempty
     ("Detach the notes slightly, by setting "
         <> ShowVal.show_val Controls.sustain_abs <> ".")

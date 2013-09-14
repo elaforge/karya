@@ -15,6 +15,7 @@ import qualified Control.Concurrent.STM.TChan as TChan
 import qualified Control.Exception as Exception
 import qualified Data.Map as Map
 import qualified Data.Set as Set
+import qualified Data.Text as Text
 import qualified Network
 import qualified System.Environment
 import qualified System.IO as IO
@@ -170,17 +171,12 @@ startup_initialization = do
     LoadConfig.styles Config.styles
     -- Report keymap and call overlaps.
     mapM_ Log.warn GlobalKeymap.cmd_map_errors
-    forM_ shadows $ \(name, shadowed) ->
-        Log.warn $ name ++ " calls shadowed: " ++ Pretty.pretty shadowed
+    forM_ Call.All.shadowed $ \(sym, tags) ->
+        Log.warn $ "call shadowed: "
+            <> untxt (Text.intercalate "." tags)
+            <> " " <> Pretty.pretty sym
     unless (null Scale.All.shadowed) $
         Log.warn $ "scales shadowed: " ++ Pretty.pretty Scale.All.shadowed
-    where
-    shadows = filter (not . null . snd)
-        [ ("note", Call.All.shadowed_notes)
-        , ("control", Call.All.shadowed_controls)
-        , ("pitch", Call.All.shadowed_pitches)
-        , ("val", Call.All.shadowed_vals)
-        ]
 
 {-
 midi_thru remap_rmsg midi_chan write_midi = forever $ do

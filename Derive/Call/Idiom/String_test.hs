@@ -38,5 +38,5 @@ test_string = do
         , (10, [(10, 62)])
         ], [])
 
-with_call = CallTest.with_note_call "guzheng" $ String.c_guzheng $
+with_call = CallTest.with_note_transformer "guzheng" $ String.c_guzheng $
     map (flip TrackLang.call []) ["4c", "4d", "4e", "4g", "4a"]

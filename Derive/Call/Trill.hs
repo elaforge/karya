@@ -70,15 +70,16 @@ import Types
 
 -- * note calls
 
-note_calls :: Derive.NoteCallMap
-note_calls = Derive.make_calls
+note_calls :: Derive.CallMaps Derive.Note
+note_calls = Derive.call_maps
     [ ("tr", c_note_trill)
     , ("`tr`", c_note_trill)
-    , ("trem", c_tremolo)
+    , ("trem", c_tremolo_generator)
     ]
+    [ ("trem", c_tremolo_transformer) ]
 
-c_note_trill :: Derive.NoteCall
-c_note_trill = Derive.stream_generator "trill" (Tags.ornament <> Tags.ly)
+c_note_trill :: Derive.Generator Derive.Note
+c_note_trill = Derive.make_call "trill" (Tags.ornament <> Tags.ly)
     ("Generate a note with a trill.\
     \\nUnlike a trill on a pitch track, this generates events for each\
     \ note of the trill. This is more appropriate for fingered trills,\
@@ -101,8 +102,8 @@ c_note_trill = Derive.stream_generator "trill" (Tags.ornament <> Tags.ly)
         Derive.with_added_control control (Score.untyped transpose) $
             Sub.place notes
 
-c_attr_trill :: Derive.NoteCall
-c_attr_trill = Derive.stream_generator "attr-trill" (Tags.ornament <> Tags.attr)
+c_attr_trill :: Derive.Generator Derive.Note
+c_attr_trill = Derive.make_call "attr-trill" (Tags.ornament <> Tags.attr)
     "Generate a trill by adding a `+trill` attribute. Presumably this is a\
     \ sampled instrument that has a trill keyswitch."
     $ Sig.call
@@ -119,29 +120,25 @@ c_attr_trill = Derive.stream_generator "attr-trill" (Tags.ornament <> Tags.attr)
                 <> untxt (ShowVal.show_val neighbor)
         Util.add_attrs (Attrs.trill <> width_attr) (Util.placed_note args)
 
-c_tremolo :: Derive.NoteCall
-c_tremolo = Derive.Call
-    { Derive.call_name = "tremolo"
-    , Derive.call_generator = Just $ Derive.generator_call
-        (Tags.ornament <> Tags.ly) "Repeat a single note." generator
-    , Derive.call_transformer = Just $ Derive.transformer_call
-        (Tags.ornament <> Tags.subs)
-        "Repeat the transformed note. The generator is creating the notes so it\
-        \ can set them to the appropriate duration, but this one has to stretch\
-        \ them to fit." transformer
-    }
-    where
-    transformer = Sig.callt speed_arg $ \speed args deriver -> do
-        starts <- tremolo_starts speed (Args.range_or_next args)
-        simple_tremolo starts [Args.normalized args deriver]
-    generator = Sig.call speed_arg $ \speed args -> do
+c_tremolo_generator :: Derive.Generator Derive.Note
+c_tremolo_generator = Derive.make_call "tremolo" (Tags.ornament <> Tags.ly)
+    "Repeat a single note." $ Sig.call speed_arg $ \speed args -> do
         starts <- tremolo_starts speed (Args.range_or_next args)
         notes <- Sub.sub_events args
         case filter (not . null) notes of
             [] -> Sub.inverting_args args $ Lily.note_code code args $
                 simple_tremolo starts [Util.note]
             notes -> Lily.notes_code code args $ chord_tremolo starts notes
-    code = (Lily.SuffixAll, ":32")
+    where code = (Lily.SuffixAll, ":32")
+
+c_tremolo_transformer :: Derive.Transformer Derive.Note
+c_tremolo_transformer = Derive.transformer "tremolo"
+    (Tags.ornament <> Tags.subs)
+    "Repeat the transformed note. The generator is creating the notes so it\
+    \ can set them to the appropriate duration, but this one has to stretch\
+    \ them to fit." $ Sig.callt speed_arg $ \speed args deriver -> do
+        starts <- tremolo_starts speed (Args.range_or_next args)
+        simple_tremolo starts [Args.normalized args deriver]
 
 tremolo_starts :: TrackLang.ValControl -> (ScoreTime, ScoreTime)
     -> Derive.Deriver [ScoreTime]
@@ -192,7 +189,7 @@ simple_tremolo starts notes =
 
 -- | Only over here instead of in "Derive.Call.Attribute" so it can be next to
 -- 'c_tremolo'.
-c_attr_tremolo :: Derive.NoteCall
+c_attr_tremolo :: Make.Calls Derive.Note
 c_attr_tremolo = Make.attributed_note Attrs.trem
 
 take_full_notes :: (Ord a) => a -> [a] -> [a]
@@ -206,20 +203,20 @@ take_full_notes end (t:ts) = t : go ts
 
 -- * pitch calls
 
-pitch_calls :: Derive.PitchCallMap
-pitch_calls = Derive.make_calls
+pitch_calls :: Derive.CallMaps Derive.Pitch
+pitch_calls = Derive.call_maps
     [ ("tr", c_pitch_trill Nothing)
     , ("tr1", c_pitch_trill (Just UnisonFirst))
     , ("tr2", c_pitch_trill (Just NeighborFirst))
     , ("`tr`", c_pitch_trill Nothing)
     , ("`tr`1", c_pitch_trill (Just UnisonFirst))
     , ("`tr`2", c_pitch_trill (Just NeighborFirst))
-    , ("sh", c_sh_pitch)
     , ("xcut", c_xcut_pitch False)
     , ("xcut-h", c_xcut_pitch True)
     ]
+    [ ("sh", c_sh_pitch) ]
 
-c_pitch_trill :: Maybe Mode -> Derive.PitchCall
+c_pitch_trill :: Maybe Mode -> Derive.Generator Derive.Pitch
 c_pitch_trill maybe_mode = Derive.generator1 "pitch-trill" Tags.ornament
     ("Generate a pitch signal of alternating pitches. `tr1` will start with\
     \ the unison, while `tr2` will start with the neighbor. `tr` will\
@@ -238,7 +235,7 @@ c_pitch_trill maybe_mode = Derive.generator1 "pitch-trill" Tags.ornament
         return $ PitchSignal.apply_control control (Score.untyped transpose) $
             PitchSignal.signal [(start, note)]
 
-c_sh_pitch :: Derive.PitchCall
+c_sh_pitch :: Derive.Transformer Derive.Pitch
 c_sh_pitch = Derive.transformer "sh" mempty
     "Sample & hold. Hold values at the given speed."
     $ Sig.callt speed_arg $ \speed _args deriver -> do
@@ -258,7 +255,7 @@ sample_hold_pitch points sig = PitchSignal.unfoldr go (Nothing, points, sig)
                 Just p -> Just ((x, p), (prev, xs, sig))
         where sig = PitchSignal.drop_before x sig_
 
-c_xcut_pitch :: Bool -> Derive.PitchCall
+c_xcut_pitch :: Bool -> Derive.Generator Derive.Pitch
 c_xcut_pitch hold = Derive.generator1 "xcut" mempty
     "Cross-cut between two pitches.  The `-h` variant holds the value at the\
     \ beginning of each transition."
@@ -291,27 +288,27 @@ xcut_pitch hold val1 val2 =
 
 -- * control calls
 
-control_calls :: Derive.ControlCallMap
-control_calls = Derive.make_calls
+control_calls :: Derive.CallMaps Derive.Control
+control_calls = Derive.call_maps
     [ ("tr", c_control_trill Nothing)
     , ("tr1", c_control_trill (Just UnisonFirst))
     , ("tr2", c_control_trill (Just NeighborFirst))
     , ("tr1", c_control_trill (Just UnisonFirst))
     , ("tr2", c_control_trill (Just NeighborFirst))
     , ("saw", c_saw)
-    , ("sh", c_sh_control)
     , ("sine", c_sine Bipolar)
     , ("sine+", c_sine Positive)
     , ("sine-", c_sine Negative)
     , ("xcut", c_xcut_control False)
     , ("xcut-h", c_xcut_control True)
     ]
+    [ ("sh", c_sh_control) ]
 
 -- | The control version of 'c_pitch_trill'.  It generates a signal of values
 -- alternating with 0, and can be used in a transposition signal.
 --
 -- Args are the same as 'c_pitch_trill'.
-c_control_trill :: Maybe Mode -> Derive.ControlCall
+c_control_trill :: Maybe Mode -> Derive.Generator Derive.Control
 c_control_trill maybe_mode = Derive.generator1 "control-trill" Tags.ornament
     ("The control version of the pitch trill.  It generates a signal of values\
     \ alternating with 0, which can be used as a transposition signal."
@@ -333,7 +330,7 @@ trill_speed_arg = defaulted "speed" (typed_control "trill-speed" 14 Score.Real)
     \ this will emit only whole notes, i.e. a note will not be cut short sooner\
     \ than it should according to the speed."
 
-c_saw :: Derive.ControlCall
+c_saw :: Derive.Generator Derive.Control
 c_saw = Derive.generator1 "saw" Tags.ornament
     "Emit a sawtooth.  By default it has a downward slope, but you can make\
     \ an upward slope by setting `from` and `to`."
@@ -353,7 +350,7 @@ saw srate starts from to =
     saw (t1, t2) = Control.interpolate_segment
         True srate id t1 from (t2-srate) to
 
-c_sh_control :: Derive.ControlCall
+c_sh_control :: Derive.Transformer Derive.Control
 c_sh_control = Derive.transformer "sh" mempty
     "Sample & hold. Hold values at the given speed."
     $ Sig.callt speed_arg $ \speed _args deriver -> do
@@ -383,7 +380,7 @@ data SineMode = Bipolar | Negative | Positive deriving (Show)
 
 -- | This is probably not terribly convenient to use on its own, I should
 -- have some more specialized calls based on this.
-c_sine :: SineMode -> Derive.ControlCall
+c_sine :: SineMode -> Derive.Generator Derive.Control
 c_sine mode = Derive.generator1 "sine" Tags.ornament
     "Emit a sine wave. The default version is centered on the `offset`,\
     \ and the `+` and `-` variants are above and below it, respectively."
@@ -434,7 +431,7 @@ speed_starts speed (start, end) = do
 
 -- ** xcut
 
-c_xcut_control :: Bool -> Derive.ControlCall
+c_xcut_control :: Bool -> Derive.Generator Derive.Control
 c_xcut_control hold = Derive.generator1 "xcut" mempty
     "Cross-cut between two signals.  The `-h` variant holds the value at the\
     \ beginning of each transition."

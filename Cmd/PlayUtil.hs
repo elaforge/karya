@@ -87,9 +87,9 @@ run :: (Cmd.M m) => Derive.Cache -> Derive.ScoreDamage
     -> Derive.Deriver a -> m (Derive.RunResult a)
 run cache damage deriver = do
     ui_state <- State.get
-    scope <- Cmd.gets (Cmd.state_global_scope . Cmd.state_config)
+    scopes <- Cmd.gets (Cmd.state_global_scopes . Cmd.state_config)
     constant <- make_constant ui_state cache damage
-    return $ Derive.derive constant scope initial_environ deriver
+    return $ Derive.derive constant scopes initial_environ deriver
 
 make_constant :: (Cmd.M m) => State.State -> Derive.Cache -> Derive.ScoreDamage
     -> m Derive.Constant

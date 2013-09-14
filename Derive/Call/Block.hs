@@ -37,11 +37,12 @@ import qualified Perform.Signal as Signal
 import Types
 
 
-note_calls :: Derive.NoteCallMap
-note_calls = Derive.make_calls
+note_calls :: Derive.CallMaps Derive.Note
+note_calls = Derive.call_maps
     [ ("clip", c_clip)
     , (BlockUtil.capture_null_control, c_capture_null_control)
     ]
+    []
 
 -- * root block
 
@@ -57,7 +58,7 @@ eval_root_block global_transform block_id =
 
 -- * note block calls
 
-lookup_note_block :: Derive.LookupCall Derive.NoteCall
+lookup_note_block :: Derive.LookupCall (Derive.Generator Derive.Note)
 lookup_note_block = Derive.pattern_lookup "block id"
     (Derive.extract_doc fake_call)
     (\sym -> fmap c_block <$> symbol_to_block_id sym)
@@ -65,8 +66,8 @@ lookup_note_block = Derive.pattern_lookup "block id"
     -- Not evaluated, so it doesn't matter if the BlockId is invalid.
     fake_call = c_block (Types.BlockId (Id.read_id "example/block"))
 
-c_block :: BlockId -> Derive.NoteCall
-c_block block_id = Derive.stream_generator ("block " <> showt block_id)
+c_block :: BlockId -> Derive.Generator Derive.Note
+c_block block_id = Derive.make_call ("block " <> showt block_id)
         Tags.prelude "Substitute the named block into the score." $
     Sig.call0 $ Sub.inverting $ \args ->
         -- I have to put the block on the stack before calling 'd_block'
@@ -135,8 +136,8 @@ symbol_to_block_id sym = Call.symbol_to_block_id sym >>= \x -> case x of
 
 -- ** clip
 
-c_clip :: Derive.NoteCall
-c_clip = Derive.stream_generator "clip" Tags.prelude
+c_clip :: Derive.Generator Derive.Note
+c_clip = Derive.make_call "clip" Tags.prelude
     ("Like the normal block call, this will substitute the named block into\
     \ the score. But instead of stretching the block to fit the event\
     \ length, the block will be substituted with no stretching. Any\
@@ -169,7 +170,7 @@ c_clip = Derive.stream_generator "clip" Tags.prelude
 
 -- * control call
 
-lookup_control_block :: Derive.LookupCall Derive.ControlCall
+lookup_control_block :: Derive.LookupCall (Derive.Generator Derive.Control)
 lookup_control_block = Derive.pattern_lookup "block id"
     (Derive.extract_doc fake_call)
     (\sym -> fmap c_control_block <$> symbol_to_block_id sym)
@@ -177,8 +178,8 @@ lookup_control_block = Derive.pattern_lookup "block id"
     -- Not evaluated, so it doesn't matter if the BlockId is invalid.
     fake_call = c_control_block (Types.BlockId (Id.read_id "fake/block"))
 
-c_control_block :: BlockId -> Derive.ControlCall
-c_control_block block_id = Derive.stream_generator "control-block" Tags.prelude
+c_control_block :: BlockId -> Derive.Generator Derive.Control
+c_control_block block_id = Derive.make_call "control-block" Tags.prelude
     ("Substitute the control signal from the named control block.\
     \ A control block should consist of a single branch ending in\
     \ a track named `%`.  The signal from that track will be\
@@ -200,7 +201,7 @@ d_control_block block_id = Internal.with_stack_block block_id $ do
         (BlockUtil.control_deriver block_id)
     deriver
 
-c_capture_null_control :: Derive.NoteCall
+c_capture_null_control :: Derive.Generator Derive.Note
 c_capture_null_control = Derive.generator1 BlockUtil.capture_null_control
     Tags.internal
     ("This is an internal call used to capture the control signal at the\

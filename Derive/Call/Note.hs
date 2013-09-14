@@ -20,6 +20,7 @@ import qualified Data.Text as Text
 import Util.Control
 import qualified Util.Num as Num
 import qualified Util.Seq as Seq
+import qualified Util.TextUtil as TextUtil
 
 import qualified Ui.Event as Event
 import qualified Derive.Args as Args
@@ -42,24 +43,30 @@ import qualified Perform.Signal as Signal
 import Types
 
 
-note_calls :: Derive.NoteCallMap
-note_calls = Derive.make_calls
+note_calls :: Derive.CallMaps Derive.Note
+note_calls = Derive.call_maps
     [ ("", c_note)
     -- Since you can never call "" with arguments, I need a non-null form
     -- to handle the args version.
     , ("n", c_note)
-    , ("=", c_equal)
-    , ("note-track", c_note_track)
+    , ("=", c_equal_generator)
+    ]
+    [ ("n", c_note_attributes "note-attributes")
+    -- Called implicitly for note track titles, e.g. '>foo +bar' becomes
+    -- 'note-track >foo +bar'.  It has a different name so the stack shows
+    -- track calls.
+    , ("note-track", c_note_attributes "note-track")
+    , ("=", c_equal_transformer)
     ]
 
 -- * note
 
-c_note :: Derive.NoteCall
+c_note :: Derive.Generator Derive.Note
 c_note = note_call "" "" Tags.prelude (default_note use_attributes)
 
 transformed_note :: Text -> Tags.Tags
     -> (Derive.EventArgs -> Derive.EventDeriver -> Derive.EventDeriver)
-    -> Derive.NoteCall
+    -> Derive.Generator Derive.Note
 transformed_note prepend_doc tags transform =
     note_call "" prepend_doc tags $ \args ->
         transform args (default_note use_attributes args)
@@ -74,17 +81,14 @@ note_call :: Text
     -- the name is then no longer a valid identifier, it can't be used to set
     -- default arguments.  That's not really a big deal for the note call,
     -- though.
-    -> Text -> Tags.Tags -> GenerateNote -> Derive.NoteCall
-note_call append_name prepend_doc tags generate = Derive.Call
-    { Derive.call_name = "note"
-        <> (if Text.null append_name then "" else Text.cons ' ' append_name)
-    , Derive.call_generator = Just $ Derive.generator_call tags prepended
-        (Sig.call parser (note_generate generate))
-    , Derive.call_transformer = Just $ Derive.transformer_call
-        (tags <> Tags.subs) transformer_doc (Sig.callt parser note_transform)
-    }
+    -> Text -> Tags.Tags -> GenerateNote -> Derive.Generator Derive.Note
+note_call append_name prepend_doc tags generate =
+    Derive.make_call (TextUtil.join2 "note" append_name) tags prepended $
+        Sig.call parser (note_generate generate)
     where
     parser = Sig.many "attribute" "Change the instrument or attributes."
+    note_generate generate_note vals = Sub.inverting generate
+        where generate args = transform_note vals $ generate_note args
     prepended
         | Text.null prepend_doc = generator_doc
         | otherwise = "Modified note call: " <> prepend_doc <> "\n"
@@ -95,23 +99,13 @@ note_call append_name prepend_doc tags generate = Derive.Call
         <> " setting those fields of the event.  This is bound to the"
         <> " null call, \"\", but any potential arguments would wind up"
         <> " looking like a different call, so it's bound to `n` as well."
-    transformer_doc =
-        "This takes the same arguments as the generator and instead sets"
-        <> " those values in the transformed score, similar to the `=`"
-        <> " call."
-    note_generate generate_note vals = Sub.inverting generate
-        where generate args = transform_note vals $ generate_note args
 
--- | This is implicitly the call for note track titles---the \">...\" will be
--- the first argument.
-c_note_track :: Derive.NoteCall
-c_note_track =
-    Derive.transformer "note-track" Tags.internal
-        ("This is used internally as the implicit"
-        <> " call for note track titles. Similar to the note transformer, it"
-        <> " takes `>inst` and `+attr` args and sets them in the environment.")
+c_note_attributes :: Text -> Derive.Transformer Derive.Note
+c_note_attributes name = Derive.transformer name Tags.prelude
+    ("This is similar to to `=`, but it takes any number of `>inst` and"
+        <> " `+attr` args and sets the `inst` or `attr` environ.")
     (Sig.callt parser note_transform)
-    where parser = Sig.many "attribute" "Change the instrument or attributes."
+    where parser = Sig.many "attribute" "Set instrument or attributes."
 
 note_transform :: [Either Score.Instrument Score.Attributes]
     -> Derive.PassedArgs d -> Derive.EventDeriver -> Derive.EventDeriver
@@ -155,7 +149,8 @@ default_note config args = do
         duration_attributes config controls attrs start end
     -- Add a attribute to get the arrival-note postproc to figure out the
     -- duration.  Details in "Derive.Call.Post.ArrivalNote".
-    let make = if is_arrival then Score.add_attributes Attrs.arrival_note else id
+    let make = if is_arrival
+            then Score.add_attributes Attrs.arrival_note else id
     return $! LEvent.one $! LEvent.Event $! make $! Score.Event
         { Score.event_start = start
         , Score.event_duration = end - start
@@ -297,18 +292,16 @@ transform_note vals deriver =
 
 -- * c_equal
 
-c_equal :: Derive.NoteCall
-c_equal = Derive.Call
-    { Derive.call_name = "equal"
-    , Derive.call_generator = Just $ Derive.generator_call Tags.prelude
-        ("Similar to the transformer, this will evaluate the notes below in"
-            <> " a transformed environ.")
-        (Sig.parsed_manually Util.equal_arg_doc generate)
-    , Derive.call_transformer = Just $ Derive.transformer_call
-        (Tags.prelude <> Tags.subs) Util.equal_doc
-        (Sig.parsed_manually Util.equal_arg_doc Util.equal_transformer)
-    }
+c_equal_generator :: Derive.Generator Derive.Note
+c_equal_generator = Derive.make_call "equal" (Tags.prelude <> Tags.subs)
+    ("Similar to the transformer, this will evaluate the notes below in"
+        <> " a transformed environ.")
+    (Sig.parsed_manually Util.equal_arg_doc generate)
     where
     generate args =
         Sub.place . map (Sub.map_event (Util.equal_transformer args))
         . concat =<< Sub.sub_events args
+
+c_equal_transformer :: Derive.Transformer Derive.Note
+c_equal_transformer = Derive.transformer "equal" Tags.prelude Util.equal_doc
+    (Sig.parsed_manually Util.equal_arg_doc Util.equal_transformer)

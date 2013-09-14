@@ -21,9 +21,9 @@ import qualified Derive.Sig as Sig
 
 
 -- | Make a call that simply calls the default note call with the given attrs.
-attrs_note :: Score.Attributes -> Derive.NoteCall
+attrs_note :: Score.Attributes -> Derive.Generator Derive.Note
 attrs_note attrs =
-    Derive.stream_generator ("attrs_note " <> ShowVal.show_val attrs)
+    Derive.make_call ("attrs_note " <> ShowVal.show_val attrs)
         Tags.attr
         "Invoke the default note call with the given attrs." $
     Sig.call0 $ \args ->
@@ -33,36 +33,31 @@ attrs_note attrs =
 -- However, it's more direct and probably clearer to directly create
 -- a transformed note call via 'Note.transformed_note' or 'Note.note_call'.
 note_call :: Text -> (Derive.EventDeriver -> Derive.EventDeriver)
-    -> Derive.NoteCall
-note_call name transform = Derive.stream_generator name mempty
+    -> Derive.Generator Derive.Note
+note_call name transform = Derive.make_call name mempty
     "Invoke the default note call with a certain transform." $
     Sig.call0 $ \args -> Sub.when_under_inversion args transform $
         Call.reapply_call args "" []
 
 zero_duration :: Text -> (Derive.EventDeriver -> Derive.EventDeriver)
-    -> Derive.NoteCall
+    -> Derive.Generator Derive.Note
 zero_duration doc transform = Note.transformed_note
     ("A normal note, but modified when it has zero duration: " <> doc) mempty $
     \args deriver -> (if Args.duration args == 0 then transform else id) deriver
 
 -- | Just like the default note call, except apply a function to the output.
 postproc_note :: Text -> Text -> (Score.Event -> Score.Event)
-    -> Derive.NoteCall
+    -> Derive.Generator Derive.Note
 postproc_note name doc f = postproc_generator name doc Note.c_note apply
     where apply d = map (fmap f) <$> d
 
--- | Transform the generator of an existing call by applying a function to it.
--- It gets a new name and the documentation is prepended to the documentation
--- of the original call.
-postproc_generator :: Text -> Text -> Derive.Call d
-    -> (Derive.LogsDeriver d -> Derive.LogsDeriver d)
-    -> Derive.Call d
-postproc_generator name doc call f = Derive.Call
-    { Derive.call_name = name
-    , Derive.call_generator = postproc <$> Derive.call_generator call
-    , Derive.call_transformer = Derive.call_transformer call
-    }
+-- | Transform an existing call by applying a function to it.  It gets a new
+-- name and the documentation is prepended to the documentation of the original
+-- call.
+postproc_generator :: Text -> Text -> Derive.Call (a -> b) -> (b -> c)
+    -> Derive.Call (a -> c)
+postproc_generator name new_doc (Derive.Call _ old_doc func) f =
+    Derive.Call name (append_doc new_doc old_doc) (f . func)
     where
-    postproc (Derive.GeneratorCall func (Derive.CallDoc tags gdoc args_doc)) =
-        Derive.GeneratorCall (f . func)
-        (Derive.CallDoc tags (doc <> "\n" <> gdoc) args_doc)
+    append_doc text (Derive.CallDoc tags doc args) =
+        Derive.CallDoc tags (doc <> "\n" <> text) args

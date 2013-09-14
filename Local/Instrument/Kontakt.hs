@@ -110,7 +110,7 @@ balalaika =
         Instrument.patch $ (Instrument.hold_keyswitch #= True) $
         Instrument.instrument "balalaika" controls pb_range
     where
-    with_code = MidiInst.with_code $ MidiInst.note_calls
+    with_code = MidiInst.with_code $ MidiInst.note_generators
         [("(", Articulation.c_attr_legato)]
     -- g6 strum, a6 solo, b6 harmony
     controls =
@@ -149,18 +149,14 @@ hang_patches :: [MidiInst.Patch]
 hang_patches = MidiInst.with_code hang_code [ks_patch "hang" hang_ks]
 
 hang_code :: MidiInst.Code
-hang_code = MidiInst.empty_code
-    { MidiInst.code_note_calls = [Derive.map_lookup hang_calls]
-    , MidiInst.code_cmds = [hang_cmd]
-    }
-
-hang_calls :: Derive.NoteCallMap
-hang_calls = Derive.make_calls
-    [ (text, Make.attributed_note attrs)
-    | (attrs, _, Just text, _) <- hang_strokes
-    -- Make sure to not shadow the default "" call.
-    , not (Text.null text)
-    ]
+hang_code =
+    MidiInst.note_calls
+        [ MidiInst.both text (Make.attributed_note attrs)
+        | (attrs, _, Just text, _) <- hang_strokes
+        -- Make sure to not shadow the default "" call.
+        , not (Text.null text)
+        ]
+    <> MidiInst.cmd hang_cmd
 
 hang_cmd :: Cmd.Cmd
 hang_cmd = CUtil.keyswitches [(Keymap.physical_key char, text, key)
@@ -252,8 +248,9 @@ kendang_patches =
 
 kendang_composite_code :: (Score.Instrument, Score.Instrument) -> MidiInst.Code
 kendang_composite_code insts@(wadon, lanang) =
-    MidiInst.note_calls (("realize", c_realize_kendang insts)
-        : CUtil.drum_calls (map (fst . fst) Drums.kendang_composite))
+    MidiInst.note_transformers [("realize", c_realize_kendang insts)]
+    <> MidiInst.note_generators
+        (CUtil.drum_calls (map (fst . fst) Drums.kendang_composite))
     <> MidiInst.cmd (CUtil.inst_drum_cmd note_insts)
     where
     note_insts = [(note, key, inst_of kendang)
@@ -261,7 +258,8 @@ kendang_composite_code insts@(wadon, lanang) =
     inst_of Drums.Wadon = wadon
     inst_of Drums.Lanang = lanang
 
-c_realize_kendang :: (Score.Instrument, Score.Instrument) -> Derive.NoteCall
+c_realize_kendang :: (Score.Instrument, Score.Instrument)
+    -> Derive.Transformer Derive.Note
 c_realize_kendang insts = Derive.transformer "realize-kendang"
     (Tags.idiom <> Tags.postproc)
     ("Realize a composite kendang score into separate lanang and wadon parts."
@@ -356,7 +354,8 @@ mridangam_patches = [(inst, code)]
         Instrument.keymap #= mridangam_keymap $
         Instrument.patch $ Instrument.instrument "mridangam" [] pb_range
     code =
-        MidiInst.note_calls (CUtil.drum_calls (concatMap fst mridangam_notes))
+        MidiInst.note_generators
+            (CUtil.drum_calls (concatMap fst mridangam_notes))
         <> MidiInst.cmd (CUtil.drum_cmd note_keys)
     note_keys = map (first head) mridangam_notes
 

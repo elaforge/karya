@@ -16,14 +16,14 @@ import qualified Derive.Stack as Stack
 import Types
 
 
-note_calls :: Derive.NoteCallMap
-note_calls = Derive.make_calls
+note_calls :: Derive.CallMaps Derive.Note
+note_calls = Derive.call_maps []
     [ ("reverse", c_reverse)
     ]
 
 -- * reverse
 
-c_reverse :: Derive.NoteCall
+c_reverse :: Derive.Transformer Derive.Note
 c_reverse = Derive.transformer "reverse" Tags.postproc "Reverse the events." $
     Sig.call0t $ \args deriver -> do
         start <- Args.real_start args

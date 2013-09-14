@@ -23,13 +23,14 @@ import qualified Derive.Sig as Sig
 import Derive.Sig (required)
 
 
-note_calls :: Derive.NoteCallMap
-note_calls = Derive.make_calls
+note_calls :: Derive.CallMaps Derive.Note
+note_calls = Derive.call_maps
     [ ("sekar", c_sekar)
     ]
+    []
 
-c_sekar :: Derive.NoteCall
-c_sekar = Derive.stream_generator "sekar" (Tags.idiom <> Tags.subs)
+c_sekar :: Derive.Generator Derive.Note
+c_sekar = Derive.make_call "sekar" (Tags.idiom <> Tags.subs)
     "Plain sekaran derivation." $ Sig.call
     ( required "pattern"
         "Apply this pattern to the encompassed notes. The pattern is\

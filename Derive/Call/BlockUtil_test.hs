@@ -38,7 +38,7 @@ test_compile = do
         no_pitch = []
 
     let (events, logs) = derive ("*twelve", [(0, 0, ".1")])
-    strings_like logs ["call not found: .1"]
+    strings_like logs ["not found: .1"]
     equal (controls events)
         [mkcont [(0, 3)], mkcont [(0.5, 2)], mkcont [(1, 1)]]
     equal (pitches events) [no_pitch, no_pitch, no_pitch]
@@ -59,7 +59,7 @@ test_extract_orphans = do
     let extract = fst . DeriveTest.extract Score.event_start
     let run = extract
             . DeriveTest.derive_tracks_with_ui with_calls DeriveTest.with_linear
-        with_calls = CallTest.with_note_call "show" show_subs
+        with_calls = CallTest.with_note_generator "show" show_subs
     -- uncovered events are still played
     equal (run
             [ (">1", [(1, 1, "show")])
@@ -85,8 +85,8 @@ test_extract_orphans = do
             ])
         [0, 1, 2]
     where
-    show_subs :: Derive.NoteCall
-    show_subs = Derive.stream_generator "show" mempty "doc" $
+    show_subs :: Derive.Generator Derive.Note
+    show_subs = Derive.make_call "show" mempty "doc" $
         Sig.call0 $ \_ -> do
             -- let subs = Derive.info_sub_tracks (Derive.passed_info args)
             -- Log.warn $ show (Slice_test.extract_tree subs)

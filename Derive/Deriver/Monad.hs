@@ -43,8 +43,9 @@ module Derive.Deriver.Monad (
     , Derived(..), Elem, Tagged(..), ToTagged(..)
     , LogsDeriver
 
-    , EventDeriver, Events, EventArgs
-    , ControlDeriver, ControlArgs, PitchDeriver, PitchArgs
+    , Note, EventDeriver, Events, EventArgs
+    , Control, ControlDeriver, ControlArgs
+    , Pitch, PitchDeriver, PitchArgs
 
     -- * state
     , State(..), initial_state
@@ -52,7 +53,10 @@ module Derive.Deriver.Monad (
     , initial_controls, default_dynamic
 
     -- ** scope
-    , Scope(..), empty_scope, ScopeType(..), empty_scope_type
+    , Scopes(..), empty_scopes, s_generator, s_transformer, s_val
+    , Scope(..), s_note, s_control, s_pitch
+    , empty_scope
+    , ScopeType(..), s_override, s_instrument, s_scale, s_builtin
     , DocumentedCall(..), prepend_doc
     , LookupDocs(..)
     , LookupCall(lookup_call, lookup_docs)
@@ -75,21 +79,21 @@ module Derive.Deriver.Monad (
     , TrackDynamic
 
     -- * calls
-    , NoteCallMap, ControlCallMap, PitchCallMap, ValCallMap
+    , CallMap, ValCallMap
+    , CallMaps, make_calls, call_maps
     , CallInfo(..), coerce_call_info, dummy_call_info
-    , Call(..)
+    , Call(..), make_call
     , CallDoc(..), ArgDoc(..), ArgParser(..), ArgDocs(..)
-    , NoteCall, ControlCall, PitchCall
     , WithArgDoc
     , PassedArgs(..)
 
     -- ** generator
-    , GeneratorCall(..), GeneratorFunc
-    , generator, generator1, stream_generator, generator_call
+    , Generator, GeneratorFunc
+    , generator, generator1
 
     -- ** transformer
-    , TransformerCall(..), TransformerFunc
-    , transformer, transformer_call
+    , Transformer, TransformerFunc
+    , transformer
 
     -- ** val
     , ValCall(..), val_call
@@ -117,12 +121,12 @@ import qualified Control.DeepSeq as DeepSeq
 import Control.DeepSeq (rnf)
 
 import qualified Data.Map.Strict as Map
-import qualified Data.Maybe as Maybe
 import qualified Data.Monoid as Monoid
 import qualified Data.Set as Set
 import qualified Data.Text as Text
 
 import Util.Control
+import qualified Util.Lens as Lens
 import qualified Util.Log as Log
 import qualified Util.Map as Map
 import qualified Util.Pretty as Pretty
@@ -317,7 +321,8 @@ class (Show d, ToTagged (Elem d)) => Derived d where
     -- this a class method, I can figure out which scope to look in just from
     -- the type.  TODO this is redundant with 'to_cache_entry', I could replace
     -- them both with a generic to_tagged, but for d not Elem d.
-    lookup_callable :: TrackLang.CallId -> Deriver (Maybe (Call d))
+    lookup_generator :: TrackLang.CallId -> Deriver (Maybe (Generator d))
+    lookup_transformer :: TrackLang.CallId -> Deriver (Maybe (Transformer d))
     callable_name :: d -> Text
 
 -- | This converts the deriver return type to the scalar value used by
@@ -336,6 +341,9 @@ instance ToTagged Tagged where to_tagged = id
 
 -- ** event
 
+-- | For note calls.  The event and note naming split is unfortunate.  TODO
+-- maybe I should fix that.
+type Note = Score.Event
 type EventDeriver = LogsDeriver Score.Event
 type EventArgs = PassedArgs Score.Event
 
@@ -354,11 +362,13 @@ instance Derived Score.Event where
     from_cache_entry (CachedEvents ctype) = Just ctype
     from_cache_entry _ = Nothing
     to_cache_entry = CachedEvents
-    lookup_callable = lookup_with scope_note
+    lookup_generator = lookup_with (scope_note . scopes_generator)
+    lookup_transformer = lookup_with (scope_note . scopes_transformer)
     callable_name _ = "note"
 
 -- ** control
 
+type Control = Signal.Control
 type ControlDeriver = LogsDeriver Signal.Control
 type ControlArgs = PassedArgs Signal.Y
 
@@ -369,11 +379,13 @@ instance Derived Signal.Control where
     from_cache_entry (CachedControl ctype) = Just ctype
     from_cache_entry _ = Nothing
     to_cache_entry = CachedControl
-    lookup_callable = lookup_with scope_control
+    lookup_generator = lookup_with (scope_control . scopes_generator)
+    lookup_transformer = lookup_with (scope_control . scopes_transformer)
     callable_name _ = "control"
 
 -- ** pitch
 
+type Pitch = PitchSignal.Signal
 type PitchDeriver = LogsDeriver PitchSignal.Signal
 type PitchArgs = PassedArgs PitchSignal.Pitch
 
@@ -384,7 +396,8 @@ instance Derived PitchSignal.Signal where
     from_cache_entry (CachedPitch ctype) = Just ctype
     from_cache_entry _ = Nothing
     to_cache_entry = CachedPitch
-    lookup_callable = lookup_with scope_pitch
+    lookup_generator = lookup_with (scope_pitch . scopes_generator)
+    lookup_transformer = lookup_with (scope_pitch . scopes_transformer)
     callable_name _ = "pitch"
 
 
@@ -400,9 +413,9 @@ data State = State {
     , state_constant :: !Constant
     }
 
-initial_state :: Scope -> TrackLang.Environ -> Constant -> State
-initial_state scope environ constant = State
-    { state_dynamic = initial_dynamic scope environ
+initial_state :: Scopes -> TrackLang.Environ -> Constant -> State
+initial_state scopes environ constant = State
+    { state_dynamic = initial_dynamic scopes environ
     , state_collect = mempty
     , state_constant = constant
     }
@@ -423,7 +436,7 @@ data Dynamic = Dynamic {
     , state_environ :: !TrackLang.Environ
     , state_warp :: !Score.Warp
     -- | Calls currently in scope.
-    , state_scope :: !Scope
+    , state_scopes :: !Scopes
     , state_control_damage :: !ControlDamage
 
     -- | This is the call stack for events.  It's used for error reporting,
@@ -435,14 +448,14 @@ data Dynamic = Dynamic {
     , state_log_context :: ![Text]
     } deriving (Show)
 
-initial_dynamic :: Scope -> TrackLang.Environ -> Dynamic
-initial_dynamic scope environ = Dynamic
+initial_dynamic :: Scopes -> TrackLang.Environ -> Dynamic
+initial_dynamic scopes environ = Dynamic
     { state_controls = initial_controls
     , state_pitches = Map.empty
     , state_pitch = mempty
     , state_environ = environ
     , state_warp = Score.id_warp
-    , state_scope = scope
+    , state_scopes = scopes
     , state_control_damage = mempty
     , state_stack = Stack.empty
     , state_log_context = []
@@ -461,49 +474,80 @@ default_dynamic :: Signal.Y
 default_dynamic = 1
 
 instance Pretty.Pretty Dynamic where
-    format (Dynamic controls pitches pitch environ warp scope damage stack _) =
+    format (Dynamic controls pitches pitch environ warp scopes damage stack _) =
         Pretty.record_title "Dynamic"
             [ ("controls", Pretty.format controls)
             , ("pitches", Pretty.format pitches)
             , ("pitch", Pretty.format pitch)
             , ("environ", Pretty.format environ)
             , ("warp", Pretty.format warp)
-            , ("scope", Pretty.format scope)
+            , ("scopes", Pretty.format scopes)
             , ("damage", Pretty.format damage)
             , ("stack", Pretty.format stack)
             ]
 
 instance DeepSeq.NFData Dynamic where
-    rnf (Dynamic controls pitches pitch environ warp scope damage stack _) =
+    rnf (Dynamic controls pitches pitch environ warp _scopes damage stack _) =
         rnf controls `seq` rnf pitches `seq` rnf pitch `seq` rnf environ
-        `seq` rnf warp `seq` rnf scope `seq` rnf damage `seq` rnf stack
+        `seq` rnf warp `seq` rnf damage `seq` rnf stack
 
 -- ** scope
 
 -- | This represents all calls in scope.  Different types of calls are in scope
 -- depending on the track type, except ValCalls, which are in scope everywhere.
 -- This is dynamic scope, not lexical scope.
-data Scope = Scope {
-    scope_note :: !(ScopeType NoteCall)
-    , scope_control :: !(ScopeType ControlCall)
-    , scope_pitch :: !(ScopeType PitchCall)
-    , scope_val :: !(ScopeType ValCall)
+--
+-- Perhaps this should be called Namespaces, but Id.Namespace is already taken
+-- and Scopes is shorter.
+data Scopes = Scopes {
+    scopes_generator :: !GeneratorScope
+    , scopes_transformer :: !TransformerScope
+    , scopes_val :: !(ScopeType ValCall)
     } deriving (Show)
 
-empty_scope :: Scope
-empty_scope = Scope empty_scope_type empty_scope_type empty_scope_type
-    empty_scope_type
+empty_scopes :: Scopes
+empty_scopes = Scopes empty_scope empty_scope mempty
 
-instance Pretty.Pretty Scope where
-    format (Scope note control pitch val) = Pretty.record_title "Scope"
+s_generator = Lens.lens scopes_generator (\v r -> r { scopes_generator = v })
+s_transformer =
+    Lens.lens scopes_transformer (\v r -> r { scopes_transformer = v })
+s_val = Lens.lens scopes_val (\v r -> r { scopes_val = v })
+
+instance Pretty.Pretty Scopes where
+    format (Scopes g t v) = Pretty.record_title "Scopes"
+        [ ("generator", Pretty.format g)
+        , ("transformer", Pretty.format t)
+        , ("val", Pretty.format v)
+        ]
+
+type GeneratorScope =
+    Scope (Generator Note) (Generator Control) (Generator Pitch)
+type TransformerScope =
+    Scope (Transformer Note) (Transformer Control) (Transformer Pitch)
+
+data Scope note control pitch = Scope {
+    scope_note :: !(ScopeType note)
+    , scope_control :: !(ScopeType control)
+    , scope_pitch :: !(ScopeType pitch)
+    } deriving (Show)
+
+s_note = Lens.lens scope_note (\v r -> r { scope_note = v })
+s_control = Lens.lens scope_control (\v r -> r { scope_control = v })
+s_pitch = Lens.lens scope_pitch (\v r -> r { scope_pitch = v })
+
+empty_scope :: Scope a b c
+empty_scope = Scope mempty mempty mempty
+
+instance (Pretty.Pretty note, Pretty.Pretty control, Pretty.Pretty pitch) =>
+        Pretty.Pretty (Scope note control pitch) where
+    format (Scope note control pitch) = Pretty.record_title "Scope"
         [ ("note", Pretty.format note)
         , ("control", Pretty.format control)
         , ("pitch", Pretty.format pitch)
-        , ("val", Pretty.format val)
         ]
 
-instance DeepSeq.NFData Scope where
-    rnf (Scope _ _ _ _) = ()
+instance DeepSeq.NFData (Scope a b c) where
+    rnf (Scope _ _ _) = ()
 
 -- | An instrument or scale may put calls into scope.  If that instrument
 -- or scale is replaced with another, the old calls must be replaced with
@@ -526,8 +570,15 @@ data ScopeType call = ScopeType {
     , stype_builtin :: ![LookupCall call]
     }
 
-empty_scope_type :: ScopeType call
-empty_scope_type = ScopeType [] [] [] []
+s_override = Lens.lens stype_override (\v r -> r { stype_override = v })
+s_instrument = Lens.lens stype_instrument (\v r -> r { stype_instrument = v })
+s_scale = Lens.lens stype_scale (\v r -> r { stype_scale = v })
+s_builtin = Lens.lens stype_builtin (\v r -> r { stype_builtin = v })
+
+instance Monoid.Monoid (ScopeType call) where
+    mempty = ScopeType [] [] [] []
+    mappend (ScopeType a1 b1 c1 d1) (ScopeType a2 b2 c2 d2) =
+        ScopeType (a1<>a2) (b1<>b2) (c1<>c2) (d1<>d2)
 
 instance Show (ScopeType call) where show = Pretty.pretty
 instance Pretty.Pretty (ScopeType call) where
@@ -566,20 +617,14 @@ instance Pretty.Pretty (LookupCall call) where
         LookupPattern doc _ -> Pretty.text (untxt doc)
 
 -- | This is like 'Call', but with only documentation.
-data DocumentedCall =
-    -- Name (Maybe GeneratorDoc) (Maybe TransformerDoc)
-    DocumentedCall !Text !(Maybe CallDoc) !(Maybe CallDoc)
-    | DocumentedValCall !Text !CallDoc
+data DocumentedCall = DocumentedCall !Text !CallDoc
 
 -- | Prepend a bit of text to the documentation.
 prepend_doc :: Text -> DocumentedCall -> DocumentedCall
 prepend_doc text = modify_doc (text <> "\n" <>)
 
 modify_doc :: (Text -> Text) -> DocumentedCall -> DocumentedCall
-modify_doc modify doc = case doc of
-    DocumentedCall name generator transformer ->
-        DocumentedCall name (annotate <$> generator) (annotate <$> transformer)
-    DocumentedValCall name cdoc -> DocumentedValCall name (annotate cdoc)
+modify_doc modify (DocumentedCall name doc) = DocumentedCall name (annotate doc)
     where annotate (CallDoc tags cdoc args) = CallDoc tags (modify cdoc) args
 
 -- | In the common case, a lookup is simply a static map.
@@ -605,27 +650,26 @@ pattern_lookup :: Text -> DocumentedCall
 pattern_lookup name doc lookup = LookupCall lookup (LookupPattern name doc)
 
 extract_doc :: Call d -> DocumentedCall
-extract_doc (Call name generator transformer) = DocumentedCall name
-    (generator_doc <$> generator) (transformer_doc <$> transformer)
+extract_doc call = DocumentedCall (call_name call) (call_doc call)
 
 extract_val_doc :: ValCall -> DocumentedCall
-extract_val_doc vcall = DocumentedValCall (vcall_name vcall) (vcall_doc vcall)
+extract_val_doc vcall = DocumentedCall (vcall_name vcall) (vcall_doc vcall)
 
 -- ** lookup
 
 lookup_val_call :: TrackLang.CallId -> Deriver (Maybe ValCall)
-lookup_val_call = lookup_with scope_val
+lookup_val_call = lookup_with scopes_val
 
-lookup_with :: (Scope -> ScopeType call)
+lookup_with :: (Scopes -> ScopeType call)
     -> (TrackLang.CallId -> Deriver (Maybe call))
 lookup_with get call_id = do
     lookups <- get_scopes get
     lookup_scopes lookups call_id
 
-get_scopes :: (Scope -> ScopeType call) -> Deriver [LookupCall call]
+get_scopes :: (Scopes -> ScopeType call) -> Deriver [LookupCall call]
 get_scopes get = do
     ScopeType override inst scale builtin <-
-        get <$> gets (state_scope . state_dynamic)
+        gets $ get . state_scopes . state_dynamic
     return $ override ++ inst ++ scale ++ builtin
 
 -- | Convert a list of lookups into a single lookup by returning the first
@@ -686,17 +730,21 @@ data Instrument = Instrument {
 -- can bring a set of note calls and val calls into scope, via the 'Scope'
 -- type.
 data InstrumentCalls =
-    InstrumentCalls [LookupCall NoteCall] [LookupCall ValCall]
+    InstrumentCalls [LookupCall (Generator Note)]
+        [LookupCall (Transformer Note)] [LookupCall ValCall]
 
 instance Show InstrumentCalls where
-    show (InstrumentCalls nlookups vlookups) = "((InstrumentCalls note "
-        ++ show (length nlookups) ++ " val " ++ show (length vlookups) ++ "))"
+    show (InstrumentCalls gen trans val) =
+        "((InstrumentCalls " <> show (length gen, length trans, length val)
+            <> "))"
 
 instance Pretty.Pretty InstrumentCalls where
-    format (InstrumentCalls note val) = Pretty.record_title "InstrumentCalls"
-        [ ("note", Pretty.format note)
-        , ("val", Pretty.format val)
-        ]
+    format (InstrumentCalls gen trans val) =
+        Pretty.record_title "InstrumentCalls"
+            [ ("generator", Pretty.format gen)
+            , ("transformer", Pretty.format trans)
+            , ("val", Pretty.format val)
+            ]
 
 
 -- ** control
@@ -819,10 +867,25 @@ type TrackDynamic = Map.Map (BlockId, TrackId) Dynamic
 
 -- ** calls
 
-type NoteCallMap = Map.Map TrackLang.CallId NoteCall
-type ControlCallMap = Map.Map TrackLang.CallId ControlCall
-type PitchCallMap = Map.Map TrackLang.CallId PitchCall
+type CallMap call = Map.Map TrackLang.CallId call
 type ValCallMap = Map.Map TrackLang.CallId ValCall
+
+-- | Previously, a single Call contained both generator and transformer.
+-- This turned out to not be flexible enough, because an instrument that
+-- wanted to override a generator meant you couldn't use a transformer that
+-- happened to have the same name.  However, there are a number of calls that
+-- want both generator and transformer versions, and it's convenient to be
+-- able to deal with those together.
+type CallMaps d = (CallMap (Generator d), CallMap (Transformer d))
+
+-- | Make a call map.
+make_calls :: [(Text, call)] -> Map.Map TrackLang.CallId call
+make_calls = Map.fromList . map (first TrackLang.Symbol)
+
+-- | Bundle generators and transformers up together for convenience.
+call_maps :: [(Text, Generator d)] -> [(Text, Transformer d)] -> CallMaps d
+call_maps generators transformers =
+    (make_calls generators, make_calls transformers)
 
 -- | Data passed to a 'Call'.
 data PassedArgs val = PassedArgs {
@@ -943,20 +1006,20 @@ dummy_call_info start dur text = CallInfo
 -- in @a | b@, @a@ is a transformer and @b@ is a generator.
 --
 -- More details on this strange setup are in the "Derive.Call" haddock.
-data Call derived = Call {
+data Call func = Call {
     -- | Since call IDs may be rebound dynamically, each call has its own name
     -- so that error msgs are unambiguous.
     call_name :: !Text
-    , call_generator :: !(Maybe (GeneratorCall derived))
-    , call_transformer :: !(Maybe (TransformerCall derived))
+    , call_doc :: !CallDoc
+    , call_func :: func
     }
+type Generator d = Call (GeneratorFunc d)
+type Transformer d = Call (TransformerFunc d)
 
 instance Show (Call derived) where
-    show (Call name gen trans) =
-        "((Call " ++ show name ++ " " ++ Seq.join " " tags ++ "))"
-        where
-        tags = [t | (t, True) <- [("generator", Maybe.isJust gen),
-            ("transformer", Maybe.isJust trans)]]
+    show (Call name _ _) = "((Call " <> show name <> "))"
+instance Pretty.Pretty (Call derived) where
+    pretty (Call name _ _) = untxt name
 
 -- | Documentation for a call.  The documentation is in markdown format, except
 -- that a single newline will be replaced with two, so a single \n is enough
@@ -985,76 +1048,45 @@ data ArgDoc = ArgDoc {
 data ArgParser = Required | Defaulted !Text | Optional | Many | Many1
     deriving (Eq, Ord, Show)
 
-type NoteCall = Call Score.Event
-type ControlCall = Call Signal.Control
-type PitchCall = Call PitchSignal.Signal
-
 -- | A value annotated with argument docs.  This is returned by the functions
 -- in "Derive.Sig", and accepted by the Call constructors here.
 type WithArgDoc f = (f, ArgDocs)
 
--- ** generator
+-- ** make calls
 
-data GeneratorCall d = GeneratorCall
-    { generator_func :: GeneratorFunc d
-    , generator_doc :: CallDoc
-    }
 type GeneratorFunc d = PassedArgs (Elem d) -> LogsDeriver d
+-- | args -> deriver -> deriver
+type TransformerFunc d = PassedArgs (Elem d) -> LogsDeriver d -> LogsDeriver d
+
+make_call :: Text -> Tags.Tags -> Text -> WithArgDoc func -> Call func
+make_call name tags doc (func, arg_docs) = Call
+    { call_name = name
+    , call_doc = CallDoc tags doc arg_docs
+    , call_func = func
+    }
 
 -- | Create a generator that expects a list of derived values (e.g. Score.Event
 -- or Signal.Control), with no logs mixed in.  The result is wrapped in
 -- LEvent.Event.
-generator :: (Derived d) => Text -> Tags.Tags -> Text
-    -> WithArgDoc (PassedArgs (Elem d) -> Deriver (LEvent.Stream d)) -> Call d
+generator :: (Functor m) => Text -> Tags.Tags -> Text
+    -> WithArgDoc (a -> m [d]) -> Call (a -> m [LEvent.LEvent d])
 generator name tags doc (func, arg_docs) =
-    stream_generator name tags doc ((map LEvent.Event <$>) . func, arg_docs)
+    make_call name tags doc ((map LEvent.Event <$>) . func, arg_docs)
 
 -- | Since Signals themselves are collections, there's little reason for a
 -- signal generator to return a Stream of events.  So wrap the generator result
 -- in a Stream singleton.
-generator1 :: (Derived d) => Text -> Tags.Tags -> Text
-    -> WithArgDoc (PassedArgs (Elem d) -> Deriver d) -> Call d
+generator1 :: (Functor m) => Text -> Tags.Tags -> Text -> WithArgDoc (a -> m d)
+    -> Call (a -> m [LEvent.LEvent d])
 generator1 name tags doc (func, arg_docs) =
     generator name tags doc ((LEvent.one <$>) . func, arg_docs)
 
--- | Like 'generator', but the deriver returns 'LEvent.LEvents' which already
--- have logs mixed in.  Useful if the generator calls a sub-deriver which will
--- already have merged the logs into the output.
-stream_generator :: (Derived d) => Text -> Tags.Tags -> Text
-    -> WithArgDoc (PassedArgs (Elem d) -> LogsDeriver d) -> Call d
-stream_generator name tags doc with_docs = Call
-    { call_name = name
-    , call_generator = Just $ generator_call tags doc with_docs
-    , call_transformer = Nothing
-    }
-
-generator_call :: Tags.Tags -> Text -> WithArgDoc (GeneratorFunc d)
-    -> GeneratorCall d
-generator_call tags doc (func, arg_docs) =
-    GeneratorCall func (CallDoc tags doc arg_docs)
-
 -- ** transformer
 
--- | args -> deriver -> deriver
-data TransformerCall d = TransformerCall
-    { transformer_func :: TransformerFunc d
-    , transformer_doc :: CallDoc
-    }
-type TransformerFunc d = PassedArgs (Elem d) -> LogsDeriver d -> LogsDeriver d
-
+-- | Just 'make_call' with a more specific signature.
 transformer :: (Derived d) => Text -> Tags.Tags -> Text
-    -> WithArgDoc (PassedArgs (Elem d) -> LogsDeriver d -> LogsDeriver d)
-    -> Call d
-transformer name tags doc with_docs = Call
-    { call_name = name
-    , call_generator = Nothing
-    , call_transformer = Just $ transformer_call tags doc with_docs
-    }
-
-transformer_call :: Tags.Tags -> Text
-    -> WithArgDoc (TransformerFunc d) -> TransformerCall d
-transformer_call tags doc (func, arg_docs) =
-    TransformerCall func (CallDoc tags doc arg_docs)
+    -> WithArgDoc (TransformerFunc d) -> Call (TransformerFunc d)
+transformer = make_call
 
 -- ** val
 

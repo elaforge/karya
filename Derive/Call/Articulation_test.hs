@@ -26,7 +26,7 @@ test_legato = do
 test_attr_legato = do
     let run = DeriveTest.extract extract
             . DeriveTest.derive_tracks_with_ui with DeriveTest.with_linear
-        with = CallTest.with_note_call "(" Articulation.c_attr_legato
+        with = CallTest.with_note_generator "(" Articulation.c_attr_legato
         extract e = (s, d, p, a)
             where
             ((s, d, p), a) = (DeriveTest.e_note e, DeriveTest.e_attributes e)

@@ -13,7 +13,6 @@ import qualified Ui.State as State
 import qualified Derive.Call.Util as Util
 import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
-import qualified Derive.Deriver.Scope as Scope
 import qualified Derive.ParseBs as ParseBs
 import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
@@ -58,30 +57,28 @@ run_control events = extract $ DeriveTest.derive_tracks
 
 -- * call map
 
-with_note_call :: Text -> Derive.NoteCall
+with_note_generator :: Text -> Derive.Generator Derive.Note
     -> Derive.Deriver a -> Derive.Deriver a
-with_note_call name call =
-    Derive.with_scope $ Scope.add_note (single_lookup name call)
+with_note_generator name call = Derive.with_scopes $
+    Derive.s_generator#Derive.s_note#Derive.s_override
+        %= (single_lookup name call :)
 
-with_control_call :: Text -> Derive.ControlCall
+with_note_transformer :: Text -> Derive.Transformer Derive.Note
     -> Derive.Deriver a -> Derive.Deriver a
-with_control_call name call = with_control_lookup (single_lookup name call)
-
-with_control_lookup :: Derive.LookupCall Derive.ControlCall
-    -> Derive.Deriver a -> Derive.Deriver a
-with_control_lookup = Derive.with_scope . Scope.add_control
+with_note_transformer name call = Derive.with_scopes $
+    Derive.s_transformer#Derive.s_note#Derive.s_override
+        %= (single_lookup name call :)
 
 with_val_call :: Text -> Derive.ValCall
     -> Derive.Deriver a -> Derive.Deriver a
-with_val_call name call =
-    Derive.with_scope $ Scope.add_val (single_val_lookup name call)
+with_val_call name call = Derive.with_scopes $
+    Derive.s_val#Derive.s_override %= (single_val_lookup name call :)
 
 single_lookup :: Text -> Derive.Call d -> Derive.LookupCall (Derive.Call d)
 single_lookup name call =
     Derive.map_lookup (Map.singleton (TrackLang.Symbol name) call)
 
-single_val_lookup :: Text -> Derive.ValCall
-    -> Derive.LookupCall Derive.ValCall
+single_val_lookup :: Text -> Derive.ValCall -> Derive.LookupCall Derive.ValCall
 single_val_lookup name call =
     Derive.map_val_lookup (Map.singleton (TrackLang.Symbol name) call)
 
@@ -90,28 +87,26 @@ single_val_lookup name call =
 -- | Run a val call, and return what it returned.
 run_val :: Maybe String -> String -> (Maybe TrackLang.Val, [String])
 run_val transform call = extract $ DeriveTest.derive_tracks_with
-        (with_note_call "capture" c_capture)
+        (with_note_generator "capture" c_capture)
         [(">", [(0, 1, maybe "" (<> " | ") transform
             <> "capture (" <> call <> ")")])]
     where
     extract = first (join . Seq.head) . DeriveTest.extract
         (TrackLang.lookup_val "capture" . Score.event_environ)
-    c_capture :: Derive.NoteCall
-    c_capture = Derive.stream_generator "capture" mempty "Capture env." $
+    c_capture :: Derive.Generator Derive.Note
+    c_capture = Derive.make_call "capture" mempty "Capture env." $
         Sig.call (Sig.required "val" "Val.") $ \val _args ->
             Derive.with_val "capture" (val :: TrackLang.Val) Util.note
 
-c_show_args :: (Derive.Derived d) => Derive.Call d
+c_show_args :: (Derive.Derived d) => Derive.Generator d
 c_show_args = Derive.generator "show-args" mempty "doc" $
     Sig.parsed_manually "doc" $ \args -> do
         Log.warn $ Seq.join ", " $
             map (untxt . ShowVal.show_val) (Derive.passed_vals args)
         return []
 
-generator :: (Derive.Derived d) =>
-    (Derive.PassedArgs (Derive.Elem d) -> Derive.LogsDeriver d)
-    -> Derive.Call d
-generator = Derive.stream_generator "test" mempty "test doc" . Sig.call0
+generator :: Sig.Generator y d -> Derive.Call (Sig.Generator y d)
+generator = Derive.make_call "test" mempty "test doc" . Sig.call0
 
 -- * PassedArgs
 

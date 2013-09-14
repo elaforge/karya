@@ -24,8 +24,8 @@ import qualified Perform.Signal as Signal
 import Types
 
 
-note_calls :: Derive.NoteCallMap
-note_calls = Derive.make_calls
+note_calls :: Derive.CallMaps Derive.Note
+note_calls = Derive.call_maps []
     [ ("d", c_delay)
     , ("echo", c_echo)
     , ("e-echo", c_event_echo)
@@ -33,7 +33,7 @@ note_calls = Derive.make_calls
 
 -- * note calls
 
-c_delay :: Derive.NoteCall
+c_delay :: Derive.Transformer Derive.Note
 c_delay = Derive.transformer "delay" Tags.ly
     ("Simple abstract delay. As with `echo`, abstract means it happens in the\
     \ score, so events may not be delayed evenly if the tempo is changing."
@@ -46,7 +46,7 @@ c_delay = Derive.transformer "delay" Tags.ly
         Derive.d_at delay deriver
 
 -- TODO typed delay time
-c_echo :: Derive.NoteCall
+c_echo :: Derive.Transformer Derive.Note
 c_echo = Derive.transformer "echo" mempty
     ("Abstract echo. This means the echoes happen in score time, so they will\
     \ change tempo with the rest of the score, and their derivation may\
@@ -80,7 +80,7 @@ scale_dyn = Derive.multiply_control Score.c_dynamic
 --
 -- Args are the same as 'c_echo', except that their signals are sampled at
 -- every event, so parameters can vary over the course of the effect.
-c_event_echo :: Derive.NoteCall
+c_event_echo :: Derive.Transformer Derive.Note
 c_event_echo = Derive.transformer "event echo" Tags.postproc
     ("Concrete echo.  All events are delayed by the same amount.  Also, the\
     \ parameter signals are sampled at every event, so they can vary\

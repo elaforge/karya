@@ -34,7 +34,7 @@ load_static_config = do
         , StaticConfig.local_repl_dirs =
             [Config.make_path app_dir Config.repl_dir]
         , StaticConfig.global_cmds = []
-        , StaticConfig.global_scope = Call.All.scope
+        , StaticConfig.global_scopes = Call.All.scopes
         , StaticConfig.setup_cmd = parse_args
         , StaticConfig.midi = midi
         }

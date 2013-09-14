@@ -33,14 +33,14 @@ import Types
 -- | This is just a placeholder.  Any real use will want to put the
 -- appropriate degrees from the appropriate scale in here, either via the
 -- static config or some kind of tracklang list literal.
-note_calls :: Derive.NoteCallMap
-note_calls = Derive.make_calls
+note_calls :: Derive.CallMaps Derive.Note
+note_calls = Derive.call_maps []
     [ ("string-guzheng", c_guzheng $ notes ["4c", "4d", "4e", "4g", "4a"])
     , ("string-viola", c_violin $ notes ["4c", "4g", "5d", "5a"])
     ]
     where notes = map (flip TrackLang.call [])
 
-c_guzheng :: [TrackLang.PitchCall] -> Derive.NoteCall
+c_guzheng :: [TrackLang.PitchCall] -> Derive.Transformer Derive.Note
 c_guzheng strings = Derive.transformer "guzheng" (Tags.postproc <> Tags.idiom)
     ("Post-process events to play in a monophonic string-like idiom, where\
     \ strings must be bent or stopped to reach non-open pitches.\
@@ -67,7 +67,7 @@ c_guzheng strings = Derive.transformer "guzheng" (Tags.postproc <> Tags.idiom)
 
 -- | A string idiom in the style of stopped strings like the violin family.
 -- Strings instantly jump to their pitches.
-c_violin :: [TrackLang.PitchCall] -> Derive.NoteCall
+c_violin :: [TrackLang.PitchCall] -> Derive.Transformer Derive.Note
 c_violin strings = Derive.transformer "violin" (Tags.postproc <> Tags.idiom)
     "A specialization of `string-guzheng` for stopped strings." $
     Sig.callt

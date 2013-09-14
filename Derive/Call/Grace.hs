@@ -33,15 +33,16 @@ import qualified Perform.Signal as Signal
 import Types
 
 
-note_calls :: Derive.NoteCallMap
-note_calls = Derive.make_calls
+note_calls :: Derive.CallMaps Derive.Note
+note_calls = Derive.call_maps
     [ ("`mordent`", c_mordent (Pitch.Diatonic 1))
     , ("`rmordent`", c_mordent (Pitch.Diatonic (-1)))
     , ("g", c_grace)
     ]
+    []
 
-c_mordent :: Pitch.Transpose -> Derive.NoteCall
-c_mordent default_neighbor = Derive.stream_generator "mordent" Tags.ornament
+c_mordent :: Pitch.Transpose -> Derive.Generator Derive.Note
+c_mordent default_neighbor = Derive.make_call "mordent" Tags.ornament
     ("Generate some grace notes for a mordent, similar to a brief trill.\
     \ The grace notes fall before the onset of the main note, and\
     \ are in absolute RealTime, unaffected by tempo changes.\n" <> grace_doc) $
@@ -72,8 +73,8 @@ lily_mordent args neighbor = do
 
 type Pitch = Either PitchSignal.Pitch Pitch.Transpose
 
-c_grace :: Derive.NoteCall
-c_grace = Derive.stream_generator "grace" (Tags.ornament <> Tags.ly)
+c_grace :: Derive.Generator Derive.Note
+c_grace = Derive.make_call "grace" (Tags.ornament <> Tags.ly)
     ("Emit grace notes.\n" <> grace_doc) $ Sig.call ((,)
     <$> optional "dyn" "Scale the dyn of the grace notes."
     <*> many "pitch" "Grace note pitches."
@@ -148,9 +149,9 @@ grace_doc = "This kind of grace note doesn't affect the start time of the\
 
 c_grace_attr :: Map.Map Int Score.Attributes
     -- ^ Map intervals in semitones (positive or negative) to attrs.
-    -> Derive.NoteCall
+    -> Derive.Generator Derive.Note
 c_grace_attr supported =
-    Derive.stream_generator "grace" (Tags.ornament <> Tags.ly)
+    Derive.make_call "grace" (Tags.ornament <> Tags.ly)
     ("Emit grace notes as attrs, given a set of possible interval attrs.\
     \ If the grace note can't be expressed by the supported attrs, then emit\
     \ notes like the normal grace call.\nSupported: "

@@ -100,12 +100,12 @@ note_to_string (Note ps _) = case Set.toList ps of
 
 -- * realize
 
-note_calls :: Derive.NoteCallMap
-note_calls = Derive.make_calls
+note_calls :: Derive.CallMaps Derive.Note
+note_calls = Derive.call_maps []
     [ ("realize-kilitan", c_realize)
     ]
 
-c_realize :: Derive.NoteCall
+c_realize :: Derive.Transformer Derive.Note
 c_realize = Derive.transformer "realize-kilitan" (Tags.idiom <> Tags.postproc)
     "Realize reyong kilitan.  Pitch-less events with +byut, +byong, or\
     \ +cek attrs, and are transformed into +mute, -, or +cek attributed notes\

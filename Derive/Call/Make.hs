@@ -16,25 +16,48 @@ import qualified Derive.Sig as Sig
 import qualified Derive.TrackLang as TrackLang
 
 
-attributed_note :: Score.Attributes -> Derive.NoteCall
+-- | Bundle a generator and transformer together, so I can define them
+-- together.  The rationale is described in 'Derive.CallMaps'.
+type Calls d = (Derive.Generator d, Derive.Transformer d)
+
+call_maps :: [(Text, Calls d)] -> [(Text, Derive.Generator d)]
+    -> [(Text, Derive.Transformer d)] -> Derive.CallMaps d
+call_maps calls generators transformers =
+    Derive.call_maps (gs ++ generators) (ts ++ transformers)
+    where
+    gs = zip (map fst calls) (map (fst . snd) calls)
+    ts = zip (map fst calls) (map (snd . snd) calls)
+
+attributed_note :: Score.Attributes -> Calls Derive.Note
 attributed_note attrs = transform_notes
     ("note with " <> ShowVal.show_val attrs) Tags.attr
     "Add attributes to the notes." Sig.no_args (\() -> Util.add_attrs attrs)
 
 environ_note :: (TrackLang.Typecheck a) => Text -> Tags.Tags -> Text
-    -> TrackLang.ValName -> a -> Derive.NoteCall
+    -> TrackLang.ValName -> a -> Calls Derive.Note
 environ_note name tags doc key val =
     transform_notes name tags doc Sig.no_args (\() -> Derive.with_val key val)
 
 transform_notes :: Text -> Tags.Tags -> Text -> Sig.Parser a
-    -> (a -> Derive.EventDeriver -> Derive.EventDeriver) -> Derive.NoteCall
-transform_notes name tags transform_doc sig transform = Derive.Call
-    { Derive.call_name = name
-    , Derive.call_generator = Just $
-        Derive.generator_call (tags <> Tags.subs) generator_doc generator
-    , Derive.call_transformer = Just $
-        Derive.transformer_call tags transform_doc transformer
-    }
+    -> (a -> Derive.EventDeriver -> Derive.EventDeriver)
+    -> Calls Derive.Note
+transform_notes name tags transform_doc sig transform = (generator, transformer)
+    where
+    generator = Derive.make_call name (tags <> Tags.subs) generator_doc $
+        Sig.call sig $ \params args -> Sub.sub_events args >>= \x -> case x of
+            [] -> transform params $ Sub.inverting Util.placed_note args
+            subs -> Sub.place $ Sub.map_events (transform params) (concat subs)
+    generator_doc = "If there are notes in child tracks, apply the\
+        \ transformation to them. Otherwise apply transformation to the null\
+        \ note call."
+    transformer = Derive.transformer name tags transform_doc $ Sig.callt sig $
+        \params _args deriver -> transform params deriver
+
+transform_notes_subevents :: Text -> Tags.Tags -> Sig.Parser a
+    -> (a -> Derive.EventDeriver -> Derive.EventDeriver)
+    -> Derive.Generator Derive.Note
+transform_notes_subevents name tags sig transform =
+    Derive.make_call name (tags <> Tags.subs) generator_doc generator
     where
     generator_doc = "If there are notes in child tracks, apply the\
         \ transformation to them. Otherwise apply transformation to the null\
@@ -43,5 +66,3 @@ transform_notes name tags transform_doc sig transform = Derive.Call
         Sub.sub_events args >>= \x -> case x of
             [] -> transform params $ Sub.inverting Util.placed_note args
             subs -> Sub.place $ Sub.map_events (transform params) (concat subs)
-    transformer = Sig.callt sig $ \params _args deriver ->
-        transform params deriver

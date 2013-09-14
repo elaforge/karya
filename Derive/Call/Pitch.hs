@@ -32,16 +32,15 @@ import Types
 
 -- * pitch
 
-note_calls :: Derive.NoteCallMap
-note_calls = Derive.make_calls
+note_calls :: Derive.CallMaps Derive.Note
+note_calls = Derive.call_maps []
     [ ("lift", c_lift_note)
     , ("drop", c_drop_note)
     ]
 
-pitch_calls :: Derive.PitchCallMap
-pitch_calls = Derive.make_calls
-    [ ("=", Util.c_equal)
-    , ("", c_set)
+pitch_calls :: Derive.CallMaps Derive.Pitch
+pitch_calls = Derive.call_maps
+    [ ("", c_set)
     , ("set", c_set)
     , ("'", c_set_prev)
 
@@ -63,6 +62,7 @@ pitch_calls = Derive.make_calls
     , ("lift", c_lift)
     , ("ad", c_approach_dyn)
     ]
+    [ ("=", Util.c_equal) ]
 
 -- | This should contain the calls that require the previous value.  It's used
 -- by a hack in 'Derive.Slice.slice'.
@@ -70,7 +70,7 @@ require_previous :: Set.Set Text
 require_previous = Set.fromList
     ["'", "i>", "i>>", "i<<", "e>", "e>>", "e<<", "a", "u", "d"]
 
-c_set :: Derive.PitchCall
+c_set :: Derive.Generator Derive.Pitch
 c_set = Derive.generator1 "set" mempty "Emit a pitch with no interpolation." $
     -- This could take a transpose too, but then set has to be in
     -- 'require_previous', it gets shadowed for "" because of scales that use
@@ -80,7 +80,7 @@ c_set = Derive.generator1 "set" mempty "Emit a pitch with no interpolation." $
         return $ PitchSignal.signal [(pos, pitch)]
 
 -- | Re-set the previous val.  This can be used to extend a breakpoint.
-c_set_prev :: Derive.PitchCall
+c_set_prev :: Derive.Generator Derive.Pitch
 c_set_prev = Derive.generator "set-prev" (Tags.prelude <> Tags.prev)
     "Re-set the previous pitch.  This can be used to extend a breakpoint."
     $ Sig.call0 $ \args -> Args.prev_val args >>= \x -> case x of
@@ -98,7 +98,7 @@ type Transpose = Either PitchSignal.Pitch Pitch.Transpose
 -- | Linear interpolation, with different start times.
 linear_interpolation :: (TrackLang.Typecheck time) => Text -> time -> Text
     -> (Derive.PitchArgs -> time -> Derive.Deriver TrackLang.RealOrScore)
-    -> Derive.PitchCall
+    -> Derive.Generator Derive.Pitch
 linear_interpolation name time_default time_default_doc get_time =
     Derive.generator1 name Tags.prev doc $ Sig.call
         ((,) <$> pitch_arg <*> defaulted "time" time_default time_doc) $
@@ -108,23 +108,23 @@ linear_interpolation name time_default time_default_doc get_time =
         \ line."
     time_doc = "Time to reach destination. " <> time_default_doc
 
-c_linear_prev :: Derive.PitchCall
+c_linear_prev :: Derive.Generator Derive.Pitch
 c_linear_prev = linear_interpolation "linear-prev" Nothing
     "If not given, start from the previous sample." Control.default_prev
 
-c_linear_prev_const :: Derive.PitchCall
+c_linear_prev_const :: Derive.Generator Derive.Pitch
 c_linear_prev_const =
     linear_interpolation "linear-prev-const" (TrackLang.real (-0.1)) "" $
         \_ -> return . default_real
 
-c_linear_next :: Derive.PitchCall
+c_linear_next :: Derive.Generator Derive.Pitch
 c_linear_next =
     linear_interpolation "linear-next" Nothing
         "If not given, default to the start of the next event." $
     \args maybe_time -> return $ maybe (next_dur args) default_real maybe_time
     where next_dur args = TrackLang.Score $ Args.next args - Args.start args
 
-c_linear_next_const :: Derive.PitchCall
+c_linear_next_const :: Derive.Generator Derive.Pitch
 c_linear_next_const =
     linear_interpolation "linear-next-const" (TrackLang.real 0.1) "" $
         \_ -> return . default_real
@@ -136,7 +136,7 @@ c_linear_next_const =
 exponential_interpolation :: (TrackLang.Typecheck time) =>
     Text -> time -> Text
     -> (Derive.PitchArgs -> time -> Derive.Deriver TrackLang.RealOrScore)
-    -> Derive.PitchCall
+    -> Derive.Generator Derive.Pitch
 exponential_interpolation name time_default time_default_doc get_time =
     Derive.generator1 name Tags.prev doc $ Sig.call ((,,)
     <$> pitch_arg
@@ -148,22 +148,22 @@ exponential_interpolation name time_default time_default_doc get_time =
     doc = "Interpolate from the previous pitch to the given one in a curve."
     time_doc = "Time to reach destination. " <> time_default_doc
 
-c_exp_prev :: Derive.PitchCall
+c_exp_prev :: Derive.Generator Derive.Pitch
 c_exp_prev = exponential_interpolation "exp-prev" Nothing
     "If not given, start from the previous sample." Control.default_prev
 
-c_exp_prev_const :: Derive.PitchCall
+c_exp_prev_const :: Derive.Generator Derive.Pitch
 c_exp_prev_const =
     exponential_interpolation "exp-prev-const" (TrackLang.real (-0.1)) "" $
         \_ -> return . default_real
 
-c_exp_next :: Derive.PitchCall
+c_exp_next :: Derive.Generator Derive.Pitch
 c_exp_next = exponential_interpolation "exp-next" Nothing
         "If not given default to the start of the next event." $
     \args maybe_time -> return $ maybe (next_dur args) default_real maybe_time
     where next_dur args = TrackLang.Score $ Args.next args - Args.start args
 
-c_exp_next_const :: Derive.PitchCall
+c_exp_next_const :: Derive.Generator Derive.Pitch
 c_exp_next_const =
     exponential_interpolation "exp-next-const" (TrackLang.real 0.1) "" $
         \_ -> return . default_real
@@ -174,7 +174,7 @@ pitch_arg = required "pitch"
 
 -- * misc
 
-c_neighbor :: Derive.PitchCall
+c_neighbor :: Derive.Generator Derive.Pitch
 c_neighbor = Derive.generator1 "neighbor" mempty
     ("Emit a slide from a neighboring pitch to the given one."
     ) $ Sig.call ((,,)
@@ -187,7 +187,7 @@ c_neighbor = Derive.generator1 "neighbor" mempty
         let pitch1 = Pitches.transpose neighbor pitch
         make_interpolator id True start pitch1 end pitch
 
-c_approach :: Derive.PitchCall
+c_approach :: Derive.Generator Derive.Pitch
 c_approach = Derive.generator1 "approach" Tags.next
     "Slide to the next pitch." $ Sig.call
     ( defaulted "time" (TrackLang.real 0.2) "Time to get to destination pitch."
@@ -213,11 +213,11 @@ eval_pitch event =
     start <- Derive.real (Event.start event)
     return $ PitchSignal.at start $ mconcat $ LEvent.events_of strm
 
-c_up :: Derive.PitchCall
+c_up :: Derive.Generator Derive.Pitch
 c_up = Derive.generator1 "up" Tags.prev
     "Ascend at the given speed until the next event." $ slope "Ascend" 1
 
-c_down :: Derive.PitchCall
+c_down :: Derive.Generator Derive.Pitch
 c_down = Derive.generator1 "down" Tags.prev
     "Descend at the given speed until the next event." $ slope "Descend" (-1)
 
@@ -243,16 +243,16 @@ slope word sign =
 -- The convention is that low level calls have single-letter or letter+symbol
 -- names, while high level calls have words or abbreviated words.
 
-c_drop :: Derive.PitchCall
+c_drop :: Derive.Generator Derive.Pitch
 c_drop = make_drop "drop" "Drop pitch and `dyn`." True
 
-c_lift :: Derive.PitchCall
+c_lift :: Derive.Generator Derive.Pitch
 c_lift = make_drop "lift"
     "Lift pitch and drop `dyn`. This is the same as `drop`, except that it\
     \ defaults to going up instead of down."
     False
 
-make_drop :: Text -> Text -> Bool -> Derive.PitchCall
+make_drop :: Text -> Text -> Bool -> Derive.Generator Derive.Pitch
 make_drop name doc down = Derive.generator1 name Tags.cmod doc $
     Sig.call ((,)
     <$> defaulted "interval" (Left (Pitch.Chromatic 7))
@@ -267,7 +267,7 @@ make_drop name doc down = Derive.generator1 name Tags.cmod doc $
                 (start, end) <- Util.duration_from_start args time
                 drop_signal start end next prev_pitch interval down
 
-c_drop_note :: Derive.NoteCall
+c_drop_note :: Derive.Transformer Derive.Note
 c_drop_note = make_drop_note "drop"
     "Drop pitch and `dyn` at the end of the note.\
     \\nSince this starts its pitch from the note's existing pitch,\
@@ -278,13 +278,13 @@ c_drop_note = make_drop_note "drop"
     \ a transposition, which isn't implemented.  TODO but maybe it should be."
     True
 
-c_lift_note :: Derive.NoteCall
+c_lift_note :: Derive.Transformer Derive.Note
 c_lift_note = make_drop_note "lift"
     "Raise pitch and drop `dyn` at the end of the note. Same as the `drop`\
     \ note call, except it defaults to going up instead of down."
     False
 
-make_drop_note :: Text -> Text -> Bool -> Derive.NoteCall
+make_drop_note :: Text -> Text -> Bool -> Derive.Transformer Derive.Note
 make_drop_note name doc down = Derive.transformer name mempty doc
     $ Sig.callt ((,)
     <$> defaulted "interval" (Left (Pitch.Chromatic 7))
@@ -308,13 +308,14 @@ drop_signal :: RealTime -> RealTime -> RealTime -> PitchSignal.Pitch
 drop_signal start end next prev_pitch interval down = do
     let dest = case interval of
             Left degrees -> Pitches.transpose
-                (if down then Pitch.modify_transpose negate degrees else degrees)
+                (if down then Pitch.modify_transpose negate degrees
+                    else degrees)
                 prev_pitch
             Right pitch -> pitch
     Control.multiply_dyn next id start 1 end 0
     make_interpolator id False start prev_pitch end dest
 
-c_approach_dyn :: Derive.PitchCall
+c_approach_dyn :: Derive.Generator Derive.Pitch
 c_approach_dyn = Derive.generator1 "approach-dyn" (Tags.cmod <> Tags.next)
     "Like `approach`, slide to the next pitch, but also drop the `dyn`."
     $ Sig.call ((,)

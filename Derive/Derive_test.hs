@@ -178,7 +178,7 @@ test_subderive = do
             [(0, 1, "nosuch"), (1, 1, "empty"), (3, 1, "n --x")]
     -- errors don't stop derivation, and an empty sub-block is ignored
     equal (map DeriveTest.e_event events) [(1.5, 0.5, "n --x")]
-    strings_like (map DeriveTest.show_log msgs) ["call not found: nosuch"]
+    strings_like (map DeriveTest.show_log msgs) ["not found: nosuch"]
 
     equal (map (DeriveTest.show_stack . Log.msg_stack) msgs)
         ["b0 b0.t2 0-1"]
@@ -309,7 +309,8 @@ test_initial_environ = do
     -- picks up scale from initial environ
     equal (run "*" "3c") ([[(0, 48)]], [])
     -- calls replaced by legong calls
-    equal (run "*legong" "3c") ([[]], ["Error: pitch call not found: 3c"])
+    equal (run "*legong" "3c")
+        ([[]], ["Error: pitch generator or val not found: 3c"])
     -- just make sure legong actually works
     equal (run "*legong" "1") ([[(0, 72.46)]], [])
 

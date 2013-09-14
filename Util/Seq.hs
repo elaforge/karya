@@ -5,6 +5,7 @@
 module Util.Seq where
 import Prelude hiding (head, tail, last)
 import Control.Applicative ((<$>))
+import qualified Control.Arrow as Arrow
 import qualified Data.Char as Char
 import Data.Function
 import qualified Data.List as List
@@ -263,6 +264,10 @@ merge_asc_lists key = foldr go []
 -- after @key@ is applied to them.  List is returned in sorted order.
 keyed_group_on :: (Ord key) => (a -> key) -> [a] -> [(key, NonNull a)]
 keyed_group_on key = map (\gs -> (key (List.head gs), gs)) . group_on key
+
+-- | Similar to 'keyed_group_on', but it strips the key out of the groups.
+group_fst :: (Ord a) => [(a, b)] -> [(a, [b])]
+group_fst = map (Arrow.second (map snd)) . keyed_group_on fst
 
 -- | Like 'groupBy', but the list doesn't need to be sorted, and use a key
 -- function instead of equality.  The list is returned in sorted order.

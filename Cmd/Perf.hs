@@ -100,7 +100,7 @@ derive_at block_id track_id deriver = do
     (val, _, _) <- PlayUtil.run_with_dynamic dynamic deriver
     return $ either (Left . Pretty.pretty) Right val
     where
-    empty_dynamic = Derive.initial_dynamic Derive.empty_scope mempty
+    empty_dynamic = Derive.initial_dynamic Derive.empty_scopes mempty
 
 
 -- * environ

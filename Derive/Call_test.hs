@@ -88,13 +88,14 @@ test_environ_across_tracks = do
 
 test_call_errors = do
     let derive = extract . DeriveTest.derive_tracks_with with_trans
-        with_trans = CallTest.with_note_call "test-t" trans
+        with_trans = CallTest.with_note_transformer "test-t" trans
         extract r = case DeriveTest.extract DeriveTest.e_event r of
             (val, []) -> Right val
             (_, logs) -> Left $ Seq.join "\n" logs
 
     let run_title title = derive [(title, [(0, 1, "--1")])]
-    left_like (run_title ">i | no-such-call") "call not found: no-such-call"
+    left_like (run_title ">i | no-such-call")
+        "note transformer not found: no-such-call"
     left_like (run_title ">i | test-t *bad-arg") "expected Control but got"
     left_like (run_title ">i | test-t 1 2 3 4") "too many arguments"
     left_like (run_title ">i | test-t") "not found and no default"
@@ -103,9 +104,7 @@ test_call_errors = do
 
     let run_evt evt = derive [(">i", [(0, 1, evt)])]
     left_like (run_evt "no-such-call")
-        "call not found: no-such-call"
-    left_like (run_evt "test-t")
-        "non-generator in generator position: trans"
+        "note generator or val not found: no-such-call"
     let tr_result = extract $ DeriveTest.derive_tracks
             [(">", [(0, 4, "")]), ("*twelve", [(0, 0, "tr")])]
     left_like tr_result "ArgError: expected another argument"
@@ -124,7 +123,7 @@ test_val_call = do
             [(">", [(0, 1, "")]), ("cont", [(0, 0, evt)])]
         with_add1 = CallTest.with_val_call "add1" add_one
     equal (run "foobar")
-        ([[(0, 0)]], ["Error: control call not found: foobar"])
+        ([[(0, 0)]], ["Error: control generator or val not found: foobar"])
     equal (run "set 1") ([[(0, 1)]], [])
     equal (run "set (add1 1)") ([[(0, 2)]], [])
     equal (run "set (add1 (add1 1))") ([[(0, 3)]], [])
@@ -143,7 +142,7 @@ test_inst_call = do
             (set_lookup_inst lookup_inst)
             [(inst, [(0, 1, "sn")])]
     equal (run ">s/1")
-        ([], ["Error: note call not found: sn"])
+        ([], ["Error: note generator or val not found: sn"])
     equal (run ">s/with-call")
         ([["snare"]], [])
 
@@ -151,11 +150,11 @@ test_recursive_call = do
     let extract = DeriveTest.extract DeriveTest.e_event
     let result = extract $ DeriveTest.derive_tracks_with with_recur
             [(">", [(0, 1, "recur")])]
-        with_recur = CallTest.with_note_call "recur" recursive
+        with_recur = CallTest.with_note_generator "recur" recursive
     equal result ([], ["Error: call stack too deep: recursive"])
     where
-    recursive :: Derive.NoteCall
-    recursive = Derive.stream_generator "recursive" mempty "doc" $ Sig.call0 $
+    recursive :: Derive.Generator Derive.Note
+    recursive = Derive.make_call "recursive" mempty "doc" $ Sig.call0 $
         \args -> Call.reapply_call args "recur" []
 
 test_events_around = do
@@ -165,12 +164,12 @@ test_events_around = do
             [ (">", [(0, 1, ""), (1, 1, "around"), (2, 1, "")])
             , ("*twelve", [(0, 0, "4c"), (2, 0, "4d")])
             ]
-        with_call = CallTest.with_note_call "around" c_around
+        with_call = CallTest.with_note_generator "around" c_around
         extract = DeriveTest.r_log_strings
     equal logs ["prev: [0.0]", "next: [2.0]"]
 
     where
-    c_around = Derive.stream_generator "around" mempty "doc" $ Sig.call0 $
+    c_around = Derive.make_call "around" mempty "doc" $ Sig.call0 $
         Sub.inverting $ \args -> do
             Log.warn $ "prev: "
                 ++ show (map Event.start (Args.prev_events args))
@@ -185,12 +184,12 @@ test_inverting_around = do
             [ (">", [(0, 1, ""), (1, 1, "next"), (2, 1, "")])
             , ("*twelve", [(0, 0, "4c"), (2, 0, "4d")])
             ]
-        with_call = CallTest.with_note_call "next" c_next
+        with_call = CallTest.with_note_generator "next" c_next
         extract = DeriveTest.extract DeriveTest.e_note
     equal evts [(0, 1, "4c"), (1, 1, "4d"), (2, 1, "4d")]
     equal logs []
     where
-    c_next = Derive.stream_generator "next" mempty "doc" $ Sig.call0 $
+    c_next = Derive.make_call "next" mempty "doc" $ Sig.call0 $
         Sub.inverting_around (2, 2) $ \args -> do
             next <- Derive.require "next event" $ Args.next_start args
             next_pitch <- Derive.require "next pitch"
@@ -243,7 +242,7 @@ midi_db :: MidiDb.MidiDb Cmd.InstrumentCode
     where
     sdescs = MidiInst.make $ (MidiInst.softsynth "s" "test synth" (-2, 2) [])
         { MidiInst.extra_patches = [(patch, code)] }
-    code = MidiInst.note_calls [("sn", DUtil.attrs_note Attrs.snare)]
+    code = MidiInst.note_generators [("sn", DUtil.attrs_note Attrs.snare)]
 
 lookup_inst :: Score.Instrument -> Maybe Derive.Instrument
 lookup_inst = fmap Cmd.derive_instrument . MidiDb.lookup_instrument midi_db

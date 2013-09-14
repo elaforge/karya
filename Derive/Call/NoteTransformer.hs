@@ -28,26 +28,27 @@ import qualified Perform.RealTime as RealTime
 import Types
 
 
-note_calls :: Derive.NoteCallMap
-note_calls = Derive.make_calls
+note_calls :: Derive.CallMaps Derive.Note
+note_calls = Derive.call_maps
     [ ("ap", c_ap)
     , ("t", c_tuplet)
     , ("`arp-up`", c_real_arpeggio ToRight)
     , ("`arp-down`", c_real_arpeggio ToLeft)
     , ("`arp-rnd`", c_real_arpeggio Random)
     ]
+    []
 
 
-c_ap :: Derive.NoteCall
-c_ap = Derive.stream_generator "ap" Tags.subs
+c_ap :: Derive.Generator Derive.Note
+c_ap = Derive.make_call "ap" Tags.subs
     "Derive sub events with no changes.  This is used to apply a transformer\
     \ to sub events."
     $ Sig.call0 $ Sub.place . concat <=< Sub.sub_events
 
 -- * tuplet
 
-c_tuplet :: Derive.NoteCall
-c_tuplet = Derive.stream_generator "tuplet" Tags.subs
+c_tuplet :: Derive.Generator Derive.Note
+c_tuplet = Derive.make_call "tuplet" Tags.subs
     "A generalized tuplet. The notes within its scope are stretched so that\
     \ their collective duration is the same as the tuplet's duration.\
     \\nIf there are multiple note tracks, they will all be stretched\
@@ -115,8 +116,8 @@ tuplet_code tuplet_dur note_dur note_count notes =
 -- a single pitch), the arpeggiation is by track position, not pitch.
 data Arpeggio = ToRight | ToLeft | Random deriving (Show)
 
-c_real_arpeggio :: Arpeggio -> Derive.NoteCall
-c_real_arpeggio arp = Derive.stream_generator "arpeggio"
+c_real_arpeggio :: Arpeggio -> Derive.Generator Derive.Note
+c_real_arpeggio arp = Derive.make_call "arpeggio"
     (Tags.subs <> Tags.ornament)
     ("Arpeggiate the transformed notes. This shifts each note's start time\
     \ by a different amount, increasing to the right for `arp-up`,\

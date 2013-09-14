@@ -76,7 +76,7 @@ drum_synth = MidiInst.make $
     (MidiInst.softsynth "synth" "Synth" (-24, 24) [])
     { MidiInst.modify_wildcard = CUtil.drum_instrument notes
     , MidiInst.code =
-        MidiInst.note_calls (CUtil.drum_calls (map fst notes))
+        MidiInst.note_generators (CUtil.drum_calls (map fst notes))
         <> MidiInst.cmd (CUtil.drum_cmd notes)
     }
     where notes = [(Drums.c_bd, Key.c2), (Drums.c_sn, Key.d2)]

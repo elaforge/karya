@@ -116,8 +116,10 @@ info_of db score_inst (MidiDb.Info synth patch code) =
             else Pretty.prettytxt (Instrument.patch_keymap patch))
         -- code
         , ("Cmds", show_cmds (Cmd.inst_cmds code))
-        , ("Note calls", show_calls note_calls)
-        , ("Val calls", show_calls val_calls)
+        , ("Note generators", show_calls CallDoc.GeneratorCall note_generators)
+        , ("Note transformers",
+            show_calls CallDoc.TransformerCall note_transformers)
+        , ("Val calls", show_calls CallDoc.ValCall val_calls)
         , ("Environ", if TrackLang.null_environ (Cmd.inst_environ code) then ""
             else Pretty.prettytxt (Cmd.inst_environ code))
 
@@ -148,7 +150,8 @@ info_of db score_inst (MidiDb.Info synth patch code) =
     flags = map showt (Set.toList pflags)
     name = let n = Instrument.inst_name inst in if Text.null n then "*" else n
     inst_cmap = Instrument.inst_control_map inst
-    Derive.InstrumentCalls note_calls val_calls = Cmd.inst_calls code
+    Derive.InstrumentCalls note_generators note_transformers val_calls =
+        Cmd.inst_calls code
     tags = maybe "" show_tags $ Search.tags_of (db_index db) score_inst
 
 show_composite :: Instrument.Composite -> Text
@@ -186,11 +189,11 @@ show_cmds :: [Cmd.Cmd] -> Text
 show_cmds [] = ""
 show_cmds cmds = showt (length cmds) <> " cmds (cmds can't be introspected yet)"
 
-show_calls :: [Derive.LookupCall call] -> Text
-show_calls lookups =
+show_calls :: CallDoc.CallType -> [Derive.LookupCall call] -> Text
+show_calls ctype lookups =
     -- Pass a Nothing for width because I should let fltk do the wrapping.
-    Format.run Nothing $ mapM_ CallDoc.call_bindings_text call_bindings
-    where call_bindings = CallDoc.lookup_docs (map Derive.lookup_docs lookups)
+    Format.run Nothing $ mapM_ CallDoc.call_bindings_text bindings
+    where bindings = CallDoc.lookup_docs ctype (map Derive.lookup_docs lookups)
 
 show_tags :: [(Text, Text)] -> Text
 show_tags tags =

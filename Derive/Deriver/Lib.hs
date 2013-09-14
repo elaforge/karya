@@ -88,10 +88,10 @@ data Result = Result {
 --
 -- The derivation state is quite involved, so there are a lot of arguments
 -- here.
-derive :: Constant -> Scope -> TrackLang.Environ -> Deriver a -> RunResult a
-derive constant scope environ deriver =
+derive :: Constant -> Scopes -> TrackLang.Environ -> Deriver a -> RunResult a
+derive constant scopes environ deriver =
     run state (with_initial_scope environ deriver)
-    where state = initial_state scope environ constant
+    where state = initial_state scopes environ constant
 
 extract_result :: RunResult Events -> Result
 extract_result (result, state, logs) = Result
@@ -217,7 +217,7 @@ modify_val name modify = Internal.localm $ \st -> do
 with_scale :: Scale -> Deriver d -> Deriver d
 with_scale scale =
     with_val_raw Environ.scale (TrackLang.scale_id_to_sym (scale_id scale))
-    . with_scope (\scope -> scope { scope_val = set (scope_val scope) })
+    . with_scopes (\scope -> scope { scopes_val = set (scopes_val scope) })
     where
     set stype = stype { stype_scale = [scale_to_lookup scale] }
 
@@ -232,18 +232,23 @@ scale_to_lookup scale =
 with_instrument :: Score.Instrument -> Deriver d -> Deriver d
 with_instrument inst deriver = do
     lookup_inst <- gets (state_lookup_instrument . state_constant)
-    let maybe_inst = lookup_inst inst
-        calls = maybe (InstrumentCalls [] []) inst_calls maybe_inst
-        environ = maybe mempty inst_environ maybe_inst
-    with_val_raw Environ.instrument inst $
-        with_scope (set_scope calls) $ with_environ environ deriver
+    let with_inst = with_val_raw Environ.instrument inst
+    case lookup_inst inst of
+        Nothing -> with_inst deriver
+        Just (Instrument calls environ) -> with_inst $
+            with_scopes (set_scopes calls) $ with_environ environ deriver
     where
     -- Replace the calls in the instrument scope type.
-    set_scope (InstrumentCalls notes vals) scope = scope
-        { scope_val = set_inst vals (scope_val scope)
-        , scope_note = set_inst notes (scope_note scope)
-        }
-    set_inst notes stype = stype { stype_instrument = notes }
+    set_scopes (InstrumentCalls inst_gen inst_trans inst_val)
+            (Scopes gen trans val) =
+        Scopes
+            { scopes_generator = set_note inst_gen gen
+            , scopes_transformer = set_note inst_trans trans
+            , scopes_val = set_inst inst_val val
+            }
+    set_note lookups scope =
+        scope { scope_note = set_inst lookups (scope_note scope) }
+    set_inst lookups stype = stype { stype_instrument = lookups }
 
 -- | Merge the given environ into the environ in effect.
 with_environ :: TrackLang.Environ -> Deriver a -> Deriver a
@@ -408,18 +413,10 @@ modify_pitch Nothing f = Internal.local $ \st ->
 modify_pitch (Just name) f = Internal.local $ \st ->
     st { state_pitches = Map.alter (Just . f) name (state_pitches st) }
 
--- ** with_scope
-
 -- | Run the derivation with a modified scope.
-with_scope :: (Scope -> Scope) -> Deriver a -> Deriver a
-with_scope modify_scope = Internal.local $ \st ->
-    st { state_scope = modify_scope (state_scope st) }
-
--- * calls
-
--- | Make a call map.
-make_calls :: [(Text, call)] -> Map.Map TrackLang.CallId call
-make_calls = Map.fromList . map (first TrackLang.Symbol)
+with_scopes :: (Scopes -> Scopes) -> Deriver a -> Deriver a
+with_scopes modify = Internal.local $ \st ->
+    st { state_scopes = modify (state_scopes st) }
 
 -- * postproc
 

@@ -122,12 +122,13 @@ keyswitches inputs = \msg -> do
 -- interpret the stroke names, and the cmds to enter them.
 drum_code :: [(Drums.Note, Midi.Key)] -> MidiInst.Code
 drum_code note_keys =
-    MidiInst.note_calls (drum_calls (map fst note_keys))
+    MidiInst.note_generators (drum_calls (map fst note_keys))
     <> MidiInst.cmd (drum_cmd note_keys)
 
+-- | Same as 'drum_code', but ignore an instrument too.
 inst_drum_code :: [(Drums.Note, Midi.Key, Score.Instrument)] -> MidiInst.Code
 inst_drum_code note_keys =
-    MidiInst.note_calls (drum_calls [note | (note, _, _) <- note_keys])
+    MidiInst.note_generators (drum_calls [note | (note, _, _) <- note_keys])
     <> MidiInst.cmd (inst_drum_cmd note_keys)
 
 drum_instrument :: [(Drums.Note, Midi.Key)] -> Instrument.Patch
@@ -138,8 +139,8 @@ drum_instrument note_keys = Instrument.triggered
     . Instrument.set_keymap
         [(Drums.note_attrs note, key) | (note, key) <- note_keys]
 
--- | Create a LookupCall for the given Notes.
-drum_calls :: [Drums.Note] -> [(Note, Derive.NoteCall)]
+-- | Create calls for the given Notes.
+drum_calls :: [Drums.Note] -> [(Note, Derive.Generator Derive.Note)]
 drum_calls notes =
     [(Drums.note_name n, note_call (Drums.note_dynamic n) (Drums.note_attrs n))
         | n <- notes]

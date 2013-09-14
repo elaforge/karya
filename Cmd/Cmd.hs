@@ -399,7 +399,7 @@ data Config = Config {
     , state_wdev_map :: !(Map.Map Midi.WriteDevice Midi.WriteDevice)
     , state_instrument_db :: !InstrumentDb
     -- | Global namespace for deriver.
-    , state_global_scope :: !Derive.Scope
+    , state_global_scopes :: !Derive.Scopes
     -- | Turn 'Pitch.ScaleId's into 'Scale.Scale's.
     , state_lookup_scale :: !LookupScale
     } deriving (Show, Generics.Typeable)
@@ -704,7 +704,7 @@ derive_instrument info = Derive.Instrument
     }
 
 empty_code :: InstrumentCode
-empty_code = InstrumentCode (Derive.InstrumentCalls [] []) mempty []
+empty_code = InstrumentCode (Derive.InstrumentCalls [] [] []) mempty []
 
 -- | Instantiate the MidiDb with the code types.  The only reason the MidiDb
 -- types have the type parameter is so I can define them in their own module

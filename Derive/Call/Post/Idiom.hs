@@ -25,15 +25,15 @@ import qualified Perform.RealTime as RealTime
 import Types
 
 
-note_calls :: Derive.NoteCallMap
-note_calls = Derive.make_calls
+note_calls :: Derive.CallMaps Derive.Note
+note_calls = Derive.call_maps []
     [ ("pizz-arp", c_pizz_arp)
     , ("avoid-overlap", c_avoid_overlap)
     ]
 
 -- * pizz arp
 
-c_pizz_arp :: Derive.NoteCall
+c_pizz_arp :: Derive.Transformer Derive.Note
 c_pizz_arp = Derive.transformer "pizz-arp" (Tags.postproc <> Tags.idiom)
     "Arpeggiate simultaneous notes with `+pizz`. The order is arbitrary but\
     \ probably in track order.  TODO sort by pitch?" $
@@ -79,7 +79,7 @@ map_simultaneous eta accept f = go
 
 -- * avoid overlap
 
-c_avoid_overlap :: Derive.NoteCall
+c_avoid_overlap :: Derive.Transformer Derive.Note
 c_avoid_overlap = Derive.transformer "avoid-overlap"
     (Tags.postproc <> Tags.idiom)
     "Notes with the same starting pitch are shortened so they don't overlap\

@@ -33,13 +33,13 @@ import Types
 -- Formerly, control tracks used a slightly different parser to enable the same
 -- thing, but that turned out to be awkward when I wanted to implement
 -- 'Call.eval_event'.
-lookup_number :: Derive.LookupCall Derive.ControlCall
+lookup_number :: Derive.LookupCall (Derive.Generator Derive.Control)
 lookup_number = Derive.pattern_lookup "numbers and hex" doc $
     \(TrackLang.Symbol sym) -> return $! case ParseBs.parse_num sym of
         Left _ -> Nothing
         Right val -> Just $ set val
     where
-    set :: Signal.Y -> Derive.ControlCall
+    set :: Signal.Y -> Derive.Generator Derive.Control
     set val = Derive.generator1 "self-eval" Tags.prelude
         "Emit a sample with no interpolation. This accepts either decimal\
         \ numbers or hex numbers that look like `\\`0x\\`xx`.  The hex\
@@ -60,11 +60,9 @@ lookup_number = Derive.pattern_lookup "numbers and hex" doc $
 
 -- * call map
 
-control_calls :: Derive.ControlCallMap
-control_calls = Derive.make_calls
-    [ ("=", Util.c_equal)
-    -- Fallback call will take val-call output.
-    , ("", c_set)
+control_calls :: Derive.CallMaps Derive.Control
+control_calls = Derive.call_maps
+    [ ("", c_set) -- Fallback call will take val-call output.
     , ("set", c_set)
     , ("set-prev", c_set_prev)
     , ("'", c_set_prev)
@@ -87,6 +85,7 @@ control_calls = Derive.make_calls
     , ("`ped`", c_pedal)
     , ("h", c_pedal)
     ]
+    [("=", Util.c_equal)]
 
 -- | This should contain the calls that require the previous value.  It's used
 -- by a hack in 'Derive.Slice.slice'.
@@ -94,7 +93,7 @@ require_previous :: Set.Set Text
 require_previous = Set.fromList
     ["'", "i>", "i>>", "i<<", "e>", "e>>", "e<<", "u", "d"]
 
-c_set :: Derive.ControlCall
+c_set :: Derive.Generator Derive.Control
 c_set = Derive.generator1 "set" Tags.prelude
     "Emit a sample with no interpolation." $
     Sig.call (required "val" "Destination value.") $ \val args -> do
@@ -104,7 +103,7 @@ c_set = Derive.generator1 "set" Tags.prelude
 -- | Re-set the previous val.  This can be used to extend a breakpoint, and is
 -- also automatically set by the control track deriver for the hack described
 -- in 'Perform.Signal.integrate'.
-c_set_prev :: Derive.ControlCall
+c_set_prev :: Derive.Generator Derive.Control
 c_set_prev = Derive.generator "set-prev" (Tags.prelude <> Tags.prev)
     ("Re-set the previous value.  This can be used to extend a breakpoint,\
     \ and is also automatically set by the control track deriver for\
@@ -124,7 +123,7 @@ linear_interpolation :: (TrackLang.Typecheck time) =>
     -> Text -- ^ doc for time arg
     -> (Derive.ControlArgs -> time -> Derive.Deriver TrackLang.RealOrScore)
     -- ^ function from the time arg to the desired duration
-    -> Derive.ControlCall
+    -> Derive.Generator Derive.Control
 linear_interpolation name tags time_default time_default_doc get_time =
     Derive.generator1 name (Tags.prelude <> tags) doc $ Sig.call ((,)
     <$> required "val" "Destination value."
@@ -136,7 +135,7 @@ linear_interpolation name tags time_default time_default_doc get_time =
         \ line."
     time_doc = "Time to reach destination. " <> time_default_doc
 
-c_linear_prev :: Derive.ControlCall
+c_linear_prev :: Derive.Generator Derive.Control
 c_linear_prev = linear_interpolation "linear" Tags.prev Nothing
     "If not given, start from the previous sample." default_prev
 
@@ -150,19 +149,19 @@ default_prev args Nothing =
             return $ prev - start
 default_prev _ (Just (TrackLang.DefaultReal t)) = return t
 
-c_linear_prev_const :: Derive.ControlCall
+c_linear_prev_const :: Derive.Generator Derive.Control
 c_linear_prev_const =
     linear_interpolation "linear-prev-const" mempty (TrackLang.real (-0.1)) "" $
         \_ -> return . default_real
 
-c_linear_next :: Derive.ControlCall
+c_linear_next :: Derive.Generator Derive.Control
 c_linear_next =
     linear_interpolation "linear-next" mempty Nothing
         "If not given, default to the start of the next event." $
     \args maybe_time -> return $ maybe (next_dur args) default_real maybe_time
     where next_dur args = TrackLang.Score $ Args.next args - Args.start args
 
-c_linear_next_const :: Derive.ControlCall
+c_linear_next_const :: Derive.Generator Derive.Control
 c_linear_next_const =
     linear_interpolation "linear-next-const" mempty (TrackLang.real 0.1) "" $
         \_ -> return . default_real
@@ -174,7 +173,7 @@ c_linear_next_const =
 exponential_interpolation :: (TrackLang.Typecheck time) =>
     Text -> Tags.Tags -> time -> Text
     -> (Derive.ControlArgs -> time -> Derive.Deriver TrackLang.RealOrScore)
-    -> Derive.ControlCall
+    -> Derive.Generator Derive.Control
 exponential_interpolation name tags time_default time_default_doc get_time =
     Derive.generator1 name (Tags.prelude <> tags) doc $ Sig.call ((,,)
     <$> required "val" "Destination value."
@@ -192,28 +191,28 @@ exp_doc = "Slope of an exponential curve. Positive `n` is taken as `x^n`\
     \ curve. Negative `-n` is taken as `x^1/n`, which will generate a\
     \ rapidly departing and slowly approaching curve."
 
-c_exp_prev :: Derive.ControlCall
+c_exp_prev :: Derive.Generator Derive.Control
 c_exp_prev = exponential_interpolation "exp-prev" Tags.prev Nothing
     "If not given, start from the previous sample." default_prev
 
-c_exp_prev_const :: Derive.ControlCall
+c_exp_prev_const :: Derive.Generator Derive.Control
 c_exp_prev_const = exponential_interpolation "exp-prev-const" mempty
     (TrackLang.real (-0.1)) "" $ \_ -> return . default_real
 
-c_exp_next :: Derive.ControlCall
+c_exp_next :: Derive.Generator Derive.Control
 c_exp_next = exponential_interpolation "exp-next" mempty Nothing
         "If not given default to the start of the next event." $
     \args maybe_time -> return $ maybe (next_dur args) default_real maybe_time
     where next_dur args = TrackLang.Score $ Args.next args - Args.start args
 
-c_exp_next_const :: Derive.ControlCall
+c_exp_next_const :: Derive.Generator Derive.Control
 c_exp_next_const = exponential_interpolation "exp-next-const" mempty
     (TrackLang.real 0.1) "" $ \_ -> return . default_real
 
 
 -- * misc
 
-c_neighbor :: Derive.ControlCall
+c_neighbor :: Derive.Generator Derive.Control
 c_neighbor = Derive.generator1 "neighbor" Tags.prelude
     ("Emit a slide from a value to 0 in absolute time. This is the control\
     \ equivalent of the neighbor pitch call."
@@ -225,14 +224,14 @@ c_neighbor = Derive.generator1 "neighbor" Tags.prelude
         srate <- Util.get_srate
         return $! interpolator srate id True start neighbor end 0
 
-c_down :: Derive.ControlCall
+c_down :: Derive.Generator Derive.Control
 c_down = Derive.generator1 "down" (Tags.prelude <> Tags.prev)
     "Descend at the given speed until the value reaches 0 or the next event."
     $ Sig.call (defaulted "speed" 1 "Descend this amount per second.") $
     \speed args -> slope args $ \start next prev_y ->
         slope_down speed start next prev_y
 
-c_up :: Derive.ControlCall
+c_up :: Derive.Generator Derive.Control
 c_up = Derive.generator1 "up" (Tags.prelude <> Tags.prev)
     "Ascend at the given speed until the value reaches 1 or the next event."
     $ Sig.call (defaulted "speed" 1 "Ascend this amount per second.") $
@@ -260,7 +259,7 @@ slope args f = Args.prev_val args >>= \x -> case x of
         let (end, dest) = f start next prev_y
         return $ interpolator srate id True start prev_y end dest
 
-c_sd :: Derive.ControlCall
+c_sd :: Derive.Generator Derive.Control
 c_sd = Derive.generator1 "sd" Tags.prelude
     "A combination of `set` and `down`: set to the given value, and descend."
     $ Sig.call ((,)
@@ -272,7 +271,7 @@ c_sd = Derive.generator1 "sd" Tags.prelude
         let (end, dest) = slope_down speed x1 x2 val
         return $ interpolator srate id True x1 val end dest
 
-c_pedal :: Derive.ControlCall
+c_pedal :: Derive.Generator Derive.Control
 c_pedal = Derive.generator1 "pedal" mempty
     ("Unlike most control events, this uses a duration. Set the control to\
     \ the given value for the event's duration, and reset to the old\

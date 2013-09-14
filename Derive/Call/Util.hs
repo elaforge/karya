@@ -16,6 +16,7 @@ module Derive.Call.Util where
 import qualified Data.FixedList as FixedList
 import qualified Data.List as List
 import qualified Data.List.NonEmpty as NonEmpty
+import qualified Data.Map as Map
 import qualified Data.Text as Text
 import qualified Data.Traversable as Traversable
 
@@ -36,7 +37,6 @@ import qualified Derive.Call.Tags as Tags
 import qualified Derive.Controls as Controls
 import qualified Derive.Derive as Derive
 import qualified Derive.Deriver.Internal as Internal
-import qualified Derive.Deriver.Scope as Scope
 import qualified Derive.Environ as Environ
 import qualified Derive.PitchSignal as PitchSignal
 import qualified Derive.Scale as Scale
@@ -474,7 +474,7 @@ parsed_meter_duration start rank steps = do
 
 -- * c_equal
 
-c_equal :: (Derive.Derived derived) => Derive.Call derived
+c_equal :: (Derive.Derived derived) => Derive.Transformer derived
 c_equal = Derive.transformer "equal" (Tags.prelude <> Tags.subs) equal_doc
     (Sig.parsed_manually equal_arg_doc equal_transformer)
 
@@ -505,14 +505,20 @@ equal_transformer args deriver = case Derive.passed_vals args of
     -- Bind calls.
     [TrackLang.VSymbol (TrackLang.Symbol assignee), TrackLang.VSymbol val]
         | Just new <- Text.stripPrefix ">" assignee ->
-            with_scope (note_scope new val) deriver
+            override_call new val deriver "note"
+                (Derive.s_transformer#Derive.s_note)
+                (Derive.s_generator#Derive.s_note)
         | Just new <- Text.stripPrefix "*" assignee ->
-            with_scope (pitch_scope new val) deriver
+            override_call new val deriver "pitch"
+                (Derive.s_transformer#Derive.s_pitch)
+                (Derive.s_generator#Derive.s_pitch)
         | Just new <- Text.stripPrefix "-" assignee ->
-            with_scope (val_scope new val) deriver
+            override_val_call new val deriver
     -- If you don't quote >sym, it parses as an instrument.
     [TrackLang.VInstrument sym, TrackLang.VSymbol val] ->
-        with_scope (note_scope (Score.inst_name sym) val) deriver
+        override_call (Score.inst_name sym) val deriver "note"
+            (Derive.s_transformer#Derive.s_note)
+            (Derive.s_generator#Derive.s_note)
 
     -- Bind environ values.
     [TrackLang.VSymbol assignee, val] -> Derive.with_val assignee val deriver
@@ -543,30 +549,43 @@ equal_transformer args deriver = case Derive.passed_vals args of
         | otherwise = Just (Just c)
     pitch _ = Nothing
 
-with_scope :: Derive.Deriver (Derive.Scope -> Derive.Scope)
-    -> Derive.Deriver a -> Derive.Deriver a
-with_scope get_scope deriver = do
-    scope <- get_scope
-    Derive.with_scope scope deriver
+-- | Look up a call with the given CallId and add it as an override to the
+-- scope given by the lenses.  I wanted to pass just one lens, but apparently
+-- they're not sufficiently polymorphic.
+override_call :: Text -> TrackLang.CallId -> Derive.Deriver a
+    -> Text
+    -> Lens Derive.Scopes (Derive.ScopeType (Derive.Call d1))
+    -> Lens Derive.Scopes (Derive.ScopeType (Derive.Call d2))
+    -> Derive.Deriver a
+override_call assignee source deriver name transformer generator
+    | Just stripped <- Text.stripPrefix "-" assignee =
+        override_scope stripped (name <> " transformer") transformer
+    | otherwise = override_scope assignee (name <> " generator") generator
+    where
+    override_scope assignee name lens = do
+        call <- get_call name (lens #$) source
+        let modify = lens#Derive.s_override %= (single_lookup assignee call :)
+        Derive.with_scopes modify deriver
 
-note_scope :: Text -> TrackLang.CallId
-    -> Derive.Deriver (Derive.Scope -> Derive.Scope)
-note_scope new old = do
-    call <- maybe (Derive.throw $ untxt $ Call.unknown_call_id "note" old)
-        return =<< Derive.lookup_with Derive.scope_note old
-    return $ Scope.add_note $
-        Scope.single_lookup (TrackLang.Symbol new) call
+override_val_call :: Text -> TrackLang.CallId -> Derive.Deriver a
+    -> Derive.Deriver a
+override_val_call assignee source deriver = do
+    call <- get_call "val" (Derive.s_val #$) source
+    let modify = Derive.s_val#Derive.s_override
+            %= (single_val_lookup assignee call :)
+    Derive.with_scopes modify deriver
 
-pitch_scope :: Text -> TrackLang.CallId
-    -> Derive.Deriver (Derive.Scope -> Derive.Scope)
-pitch_scope new old = do
-    call <- maybe (Derive.throw $ untxt $ Call.unknown_call_id "pitch" old)
-        return =<< Derive.lookup_with Derive.scope_pitch old
-    return $ Scope.add_pitch $ Scope.single_lookup (TrackLang.Symbol new) call
+get_call :: Text -> (Derive.Scopes -> Derive.ScopeType call)
+    -> TrackLang.CallId -> Derive.Deriver call
+get_call name get call_id =
+    maybe (Derive.throw $ untxt $ Call.unknown_call_id name call_id)
+        return =<< Derive.lookup_with get call_id
 
-val_scope :: Text -> TrackLang.CallId
-    -> Derive.Deriver (Derive.Scope -> Derive.Scope)
-val_scope new old = do
-    call <- maybe (Derive.throw $ untxt $ Call.unknown_call_id "val" old)
-        return =<< Derive.lookup_val_call old
-    return $ Scope.add_val $ Scope.single_val_lookup (TrackLang.Symbol new) call
+single_lookup :: Text -> Derive.Call d
+    -> Derive.LookupCall (Derive.Call d)
+single_lookup name = Derive.map_lookup . Map.singleton (TrackLang.Symbol name)
+
+single_val_lookup :: Text -> Derive.ValCall
+    -> Derive.LookupCall Derive.ValCall
+single_val_lookup name =
+    Derive.map_val_lookup . Map.singleton (TrackLang.Symbol name)

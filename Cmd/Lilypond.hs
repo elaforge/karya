@@ -28,7 +28,6 @@ import qualified Derive.Call.Articulation as Articulation
 import qualified Derive.Call.Block as Call.Block
 import qualified Derive.Call.Note as Note
 import qualified Derive.Derive as Derive
-import qualified Derive.Deriver.Scope as Scope
 import qualified Derive.Environ as Environ
 import qualified Derive.LEvent as LEvent
 import qualified Derive.Scale.Twelve as Twelve
@@ -78,14 +77,14 @@ derive :: (Cmd.M m) => Derive.EventDeriver -> m Derive.Result
 derive deriver = do
     config <- State.config#State.lilypond <#> State.get
     state <- (State.config#State.default_#State.tempo #= 1) <$> State.get
-    scope <- Cmd.gets (Cmd.state_global_scope . Cmd.state_config)
+    scopes <- Cmd.gets (Cmd.state_global_scopes . Cmd.state_config)
     constant <- PlayUtil.make_constant state mempty mempty
     return $ Derive.extract_result $ Derive.derive
         (constant { Derive.state_lilypond = Just config })
-        (lilypond_scope scope) PlayUtil.initial_environ deriver
+        (lilypond_scope scopes) PlayUtil.initial_environ deriver
 
-lilypond_scope :: Derive.Scope -> Derive.Scope
-lilypond_scope = Scope.add_note lookup
+lilypond_scope :: Derive.Scopes -> Derive.Scopes
+lilypond_scope = Derive.s_generator#Derive.s_note#Derive.s_override %= (lookup:)
     where
     lookup = Derive.map_lookup $ Derive.make_calls
         [ ("", note), ("n", note)

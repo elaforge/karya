@@ -34,7 +34,7 @@ main = do
         ["calls"] -> do
             hstate <- CallDoc.get_html_state "../haddock" "."
             Text.IO.putStr $ CallDoc.doc_html hstate $ CallDoc.all_sections
-                Call.All.scope
+                Call.All.scopes
         ["scales"] -> do
             hstate <- CallDoc.get_html_state "../haddock" "."
             Text.IO.putStr $ CallDoc.scales_html hstate $

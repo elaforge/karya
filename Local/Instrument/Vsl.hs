@@ -122,15 +122,16 @@ solo_string_instruments = map (second Just)
 
 -- | Add various note calls, depending on the attributes that the patch
 -- understands.
-note_calls :: Maybe HarmonicMap -> Instrument.Patch -> [(Text, Derive.NoteCall)]
+note_calls :: Maybe HarmonicMap -> Instrument.Patch -> [MidiInst.NoteCall]
 note_calls maybe_hmap patch =
     with_attr Attrs.trill
-        [("tr", Trill.c_attr_trill), ("`tr`", Trill.c_attr_trill)]
-    <> with_attr Attrs.trem [("trem", Trill.c_attr_tremolo)]
-    <> with_attr VslInst.grace [("g", grace_call (patch_attrs patch))]
-    <> with_attr VslInst.legato [("(", Articulation.c_attr_legato)]
-    <> (MidiInst.null_call (note_call patch))
+        [g "tr" Trill.c_attr_trill, g "`tr`" Trill.c_attr_trill]
+    <> with_attr Attrs.trem [MidiInst.both "trem" Trill.c_attr_tremolo]
+    <> with_attr VslInst.grace [g "g" (grace_call (patch_attrs patch))]
+    <> with_attr VslInst.legato [g "(" Articulation.c_attr_legato]
+    <> MidiInst.null_call (note_call patch)
     where
+    g = MidiInst.generator
     with_attr attr calls = if has_attr attr patch then calls else []
 
     -- Like the standard note call, but ignore attrs that are already handled
@@ -147,7 +148,7 @@ patch_attrs = Instrument.keyswitch_attributes . Instrument.patch_keyswitches
 has_attr :: Score.Attributes -> Instrument.Patch -> Bool
 has_attr attr = any (`Score.attrs_contain` attr) . patch_attrs
 
-grace_call :: [Score.Attributes] -> Derive.NoteCall
+grace_call :: [Score.Attributes] -> Derive.Generator Derive.Note
 grace_call attrs =
     Grace.c_grace_attr (Map.filter (`elem` attrs) grace_intervals)
 

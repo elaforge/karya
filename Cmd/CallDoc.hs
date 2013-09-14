@@ -47,22 +47,16 @@ doc_text = Format.run (Just 75) . mapM_ section
         mapM_ call_bindings_text calls
 
 call_bindings_text :: CallBindings -> Format.FormatM ()
-call_bindings_text (binds, sections) = do
+call_bindings_text (binds, ctype, call_doc) = do
         mapM_ show_bind binds
-        Format.indented 2 $ show_sections sections
+        Format.indented 2 $ show_call_doc call_doc
         Format.newline
     where
     show_bind (shadowed, sym, name) = do
         Format.write $ if shadowed then strikeout sym else sym
-        Format.write $ " -- " <> name <> ":\n"
+        Format.write $ " -- " <> name <> ": (" <> show_call_type ctype <> ")\n"
     strikeout sym = "~~" <> sym <> "~~ (shadowed)"
-    show_sections [(ValCall, Derive.CallDoc tags doc args)] = do
-        write_doc doc
-        write_tags tags
-        Format.indented 2 $ arg_docs args
-    show_sections sections = mapM_ call_section sections
-    call_section (call_type, Derive.CallDoc tags doc args) = do
-        Format.write $ show_call_type call_type <> ": "
+    show_call_doc (Derive.CallDoc tags doc args) = do
         write_doc doc
         write_tags tags
         Format.indented 2 $ arg_docs args
@@ -186,26 +180,26 @@ javascript =
     \};\n"
 
 call_bindings_html :: HtmlState -> Text -> CallBindings -> Html
-call_bindings_html hstate call_kind bindings@(binds, sections) =
+call_bindings_html hstate call_kind bindings@(binds, ctype, call_doc) =
     "<div tags=\"" <> html (Text.unwords tags) <> "\">"
-    <> mconcatMap show_bind binds <> show_sections sections
+    <> mconcatMap show_bind (zip (True : repeat False) binds)
+        <> show_call_doc call_doc
     <> "</div>\n\n"
     where
     tags = call_kind : binding_tags bindings
-    show_bind (shadowed, sym, name) =
+    show_bind (first, (shadowed, sym, name)) =
         "<dt>" <> (if shadowed then strikeout sym else tag "code" (html sym))
-        <> " &mdash; " <> tag "b" (html name) <> ":\n"
+        <> " &mdash; " <> tag "b" (html name) <> ": "
+        <> (if first then show_ctype else "") <> "\n"
+    show_ctype = "<div style='float:right'>"
+        <> tag "em" (html (show_call_type ctype)) <> "</div>"
     strikeout sym = tag "strike" (tag "code" (html sym))
         <> tag "em" "(shadowed)"
-    show_sections [(ValCall, Derive.CallDoc tags doc args)] =
-        "<dd>" <> html_doc hstate doc <> write_tags tags <> "\n<dd>"
+    show_call_doc (Derive.CallDoc tags doc args) =
+        "<dd> <dl class=compact>\n"
+        <> html_doc hstate doc <> write_tags tags <> "\n"
         <> tag "ul" (arg_docs args)
-    show_sections sections = "<dd> <dl class=compact>\n"
-        <> mconcatMap call_section sections <> "</dl>\n"
-    call_section (call_type, Derive.CallDoc tags doc args) =
-        "<dt>" <> tag "em" (html (show_call_type call_type)) <> ": "
-        <> "<dd>" <> html_doc hstate doc <> write_tags tags <> "\n<dd>"
-        <> tag "ul" (arg_docs args)
+        <> "</dl>\n"
     arg_docs (Derive.ArgsParsedSpecially doc) =
         "\n<li><b>Args parsed by call:</b> " <> html_doc hstate doc
     arg_docs (Derive.ArgDocs args) = mconcatMap arg_doc args
@@ -229,10 +223,11 @@ call_bindings_html hstate call_kind bindings@(binds, sections) =
 -- keys that default the arguments, and @note@, @control@, @pitch@, or @val@ for
 -- the call kind.
 binding_tags :: CallBindings -> [Text]
-binding_tags (binds, dcall) = Seq.unique (concatMap extract dcall)
+binding_tags (binds, ctype, call_doc) =
+    Seq.unique (show_call_type ctype : extract call_doc)
     where
     names = [name | (_, _, name) <- binds]
-    extract (_, call_doc) =
+    extract call_doc =
         cdoc_tags call_doc ++ args_tags (Derive.cdoc_args call_doc)
     cdoc_tags = Tags.untag . Derive.cdoc_tags
     args_tags (Derive.ArgDocs args) = concatMap arg_tags args
@@ -300,7 +295,8 @@ scales_html hstate scales = un_html $ html_header hstate
     where scale_html = mconcatMap (call_bindings_html hstate "scale")
 
 scale_docs :: [Scale.Scale] -> [CallBindings]
-scale_docs = lookup_docs . map (Derive.lookup_docs . Derive.scale_to_lookup)
+scale_docs =
+    lookup_docs ValCall . map (Derive.lookup_docs . Derive.scale_to_lookup)
 
 -- * doc
 
@@ -310,23 +306,24 @@ type Document = [Section]
 
 -- | Emit docs for all calls in the default scope.
 builtin :: (Cmd.M m) => m Document
-builtin = all_sections <$> Cmd.gets (Cmd.state_global_scope . Cmd.state_config)
+builtin = all_sections <$> Cmd.gets (Cmd.state_global_scopes . Cmd.state_config)
 
-all_sections :: Derive.Scope -> [Section]
-all_sections (Derive.Scope note control pitch val) =
-    [ ("note", scope_doc note)
-    , ("control", scope_doc control)
-    , ("pitch", scope_doc pitch)
-    , ("val", scope_doc val)
+all_sections :: Derive.Scopes -> [Section]
+all_sections (Derive.Scopes (Derive.Scope gnote gcontrol gpitch)
+        (Derive.Scope tnote tcontrol tpitch) val) =
+    [ ("note", merged_scope_docs gnote tnote)
+    , ("control", merged_scope_docs gcontrol tcontrol)
+    , ("pitch", merged_scope_docs gpitch tpitch)
+    , ("val", scope_doc ValCall val)
     ]
 
 -- ** instrument doc
 
 -- | Get docs for the calls introduced by an instrument.
 instrument_calls :: Derive.InstrumentCalls -> [ScopeDoc]
-instrument_calls (Derive.InstrumentCalls notes vals) =
-    [ ("note", lookup_docs (map Derive.lookup_docs notes))
-    , ("val", lookup_docs (map Derive.lookup_docs vals))
+instrument_calls (Derive.InstrumentCalls gs ts vals) =
+    [ ("note", lookup_calls GeneratorCall gs ++ lookup_calls TransformerCall ts)
+    , ("val", lookup_calls ValCall vals)
     ]
 
 -- ** track doc
@@ -337,7 +334,7 @@ track block_id track_id = do
     dynamic <- Cmd.require_msg "dynamic for doc"
         =<< Perf.lookup_dynamic block_id (Just track_id)
     ttype <- TrackInfo.track_type <$> State.get_track_title track_id
-    return $ track_sections ttype (Derive.state_scope dynamic)
+    return $ track_sections ttype (Derive.state_scopes dynamic)
 
 -- | (call kind, docs)
 --
@@ -345,56 +342,74 @@ track block_id track_id = do
 -- transformer.
 type Section = (Text, [ScopeDoc])
 
-track_sections :: TrackInfo.Type -> Derive.Scope -> [Section]
-track_sections ttype (Derive.Scope note control pitch val) =
-    (\d -> [d, ("val", scope_doc val)]) $ case ttype of
-        TrackInfo.NoteTrack -> ("note", scope_doc note)
-        TrackInfo.ControlTrack -> ("control", scope_doc control)
-        TrackInfo.TempoTrack -> ("tempo", scope_doc control)
-        TrackInfo.PitchTrack -> ("pitch", scope_doc pitch)
+track_sections :: TrackInfo.Type -> Derive.Scopes -> [Section]
+track_sections ttype (Derive.Scopes (Derive.Scope gnote gcontrol gpitch)
+        (Derive.Scope tnote tcontrol tpitch) val) =
+    (\d -> [d, ("val", scope_doc ValCall val)]) $ case ttype of
+        TrackInfo.NoteTrack -> ("note", merged_scope_docs gnote tnote)
+        TrackInfo.ControlTrack ->
+            ("control", merged_scope_docs gcontrol tcontrol)
+        TrackInfo.TempoTrack -> ("tempo", merged_scope_docs gcontrol tcontrol)
+        TrackInfo.PitchTrack -> ("pitch", merged_scope_docs gpitch tpitch)
 
 -- | Documentation for one type of scope: (scope_source, calls)
 type ScopeDoc = (Text, [CallBindings])
 
+-- | Create docs for generator and transformer calls, and merge and sort them.
+merged_scope_docs :: Derive.ScopeType (Derive.Generator d)
+    -> Derive.ScopeType (Derive.Transformer d) -> [ScopeDoc]
+merged_scope_docs generator transformer = merge_scope_docs $
+    scope_doc GeneratorCall generator ++ scope_doc TransformerCall transformer
+
+merge_scope_docs :: [ScopeDoc] -> [ScopeDoc]
+merge_scope_docs = map (second (sort . concat)) . Seq.group_fst
+    where
+    sort = Seq.sort_on $ \(binds, _, _) ->
+        (\(_, sym, _) -> sym) <$> Seq.head binds
+
 -- | Walk up the scopes, keeping track of shadowed names.
-scope_doc :: Derive.ScopeType call -> [ScopeDoc]
-scope_doc (Derive.ScopeType override inst scale builtin) =
+scope_doc :: CallType -> Derive.ScopeType call -> [ScopeDoc]
+scope_doc ctype (Derive.ScopeType override inst scale builtin) =
     filter (not . null . snd)
-    [ ("override", lookup_docs (map Derive.lookup_docs override))
-    , ("instrument", lookup_docs (map Derive.lookup_docs inst))
-    , ("scale", lookup_docs (map Derive.lookup_docs scale))
-    , ("builtins", lookup_docs (map Derive.lookup_docs builtin))
+    [ ("override", lookup_calls ctype override)
+    , ("instrument", lookup_calls ctype inst)
+    , ("scale", lookup_calls ctype scale)
+    , ("builtin", lookup_calls ctype builtin)
     ]
 
 -- | Multiple bound symbols with the same DocumentedCall are grouped together:
--- ([(is_shadowed, bound_symbol, call_name)], doc)
-type CallBindings = ([(Bool, SymbolName, CallName)], DocumentedCall)
+type CallBindings = ([Binding], CallType, Derive.CallDoc)
+-- | (is_shadowed, bound_symbol, call_name, call_type)
+type Binding = (Bool, SymbolName, CallName)
 type CallName = Text
 type SymbolName = Text
 
-lookup_docs :: [Derive.LookupDocs] -> [CallBindings]
-lookup_docs = group . snd . List.mapAccumL go Set.empty . concatMap flatten
+lookup_calls :: CallType -> [Derive.LookupCall call] -> [CallBindings]
+lookup_calls ctype scope = lookup_docs ctype (map Derive.lookup_docs scope)
+
+lookup_docs :: CallType -> [Derive.LookupDocs] -> [CallBindings]
+lookup_docs ctype =
+    group . map extract . snd . List.mapAccumL go Set.empty . concatMap flatten
     where
     flatten (Derive.LookupPattern pattern call) = [(Left pattern, call)]
     flatten (Derive.LookupMap cmap) =
         [(Right sym, call) | (sym, call) <- Map.toAscList cmap]
     go shadowed (Left pattern, call) =
         -- There's no way to know if a programmatic lookup shadows.
-        (shadowed, ((False, "lookup: " <> pattern),
-            documented_call call))
-    go shadowed (Right sym, call) = (Set.insert sym shadowed,
-        ((sym `Set.member` shadowed, show_sym sym), documented_call call))
+        (shadowed, ((False, "lookup: " <> pattern), call))
+    go shadowed (Right sym, call) =
+        (Set.insert sym shadowed,
+            ((sym `Set.member` shadowed, show_sym sym), call))
     show_sym (TrackLang.Symbol sym)
         | Text.null sym = "\"\""
         | otherwise = sym
-    group :: [((Bool, SymbolName), (CallName, DocumentedCall))]
-        -> [CallBindings]
-    group pairs = [(extract names, doc_call)
-        | (doc_call, names) <- Seq.keyed_group_on (snd . snd) pairs]
-    extract names =
-        [(shadowed, name, cname) | ((shadowed, name), (cname, _)) <- names]
+    extract ((shadowed, sym), Derive.DocumentedCall name doc) =
+        ((shadowed, sym, name), doc)
+    -- Group calls with the same CallDoc.
+    group docs =
+        [(map fst group, ctype, doc)
+            | (doc, group) <- Seq.keyed_group_on snd docs]
 
-type DocumentedCall = [(CallType, Derive.CallDoc)]
 data CallType = ValCall | GeneratorCall | TransformerCall
     deriving (Eq, Ord, Show)
 
@@ -402,9 +417,3 @@ show_call_type :: CallType -> Text
 show_call_type ValCall = "val"
 show_call_type GeneratorCall = "generator"
 show_call_type TransformerCall = "transformer"
-
-documented_call :: Derive.DocumentedCall -> (CallName, DocumentedCall)
-documented_call (Derive.DocumentedCall name generator transformer) =
-    (name, doc GeneratorCall generator ++ doc TransformerCall transformer)
-    where doc typ = maybe [] ((:[]) . (,) typ)
-documented_call (Derive.DocumentedValCall name cdoc) = (name, [(ValCall, cdoc)])

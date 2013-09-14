@@ -65,10 +65,10 @@ import qualified Derive.TrackLang as TrackLang
 import Types
 
 
-note_calls :: Derive.NoteCallMap
-note_calls = Derive.make_calls [("arrival-note", c_arrival_note)]
+note_calls :: Derive.CallMaps Derive.Note
+note_calls = Derive.call_maps [] [("arrival-note", c_arrival_note)]
 
-c_arrival_note :: Derive.NoteCall
+c_arrival_note :: Derive.Transformer Derive.Note
 c_arrival_note = Derive.transformer "arrival-note" Tags.postproc
     "Postprocess events to replace negative durations with postive ones.\
     \ See 'Derive.Call.Post.ArrivalNote' for details.\

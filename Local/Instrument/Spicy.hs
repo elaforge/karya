@@ -56,7 +56,7 @@ keyswitches =
     , (Attrs.harm, Key.cs3)
     ]
 
-note_call :: Derive.NoteCall
+note_call :: Derive.Generator Derive.Note
 note_call = Note.transformed_note
     ("If given a string-name attribute in " <> attrs_doc <> ", suffix the"
         <> " instrument with the string name.  When combined with the proper"

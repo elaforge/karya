@@ -328,7 +328,7 @@ apply_toplevel state cinfo expr =
 apply_generator :: forall d. (Derive.Derived d) => CallInfo d
     -> TrackLang.Call -> Derive.LogsDeriver d
 apply_generator cinfo (TrackLang.Call call_id args) = do
-    maybe_call <- Derive.lookup_callable call_id
+    maybe_call <- Derive.lookup_generator call_id
     (call, vals) <- case maybe_call of
         Just call -> do
             vals <- mapM (eval cinfo) args
@@ -339,11 +339,11 @@ apply_generator cinfo (TrackLang.Call call_id args) = do
         Nothing -> do
             -- Use the outer name, not val call's "val", otherwise every failed
             -- lookup says it's a failed val lookup.
-            vcall <- require_call call_id name
+            vcall <- require_call call_id (name <> " generator or val")
                 =<< Derive.lookup_val_call call_id
             val <- apply (tag_call_info cinfo) vcall args
             -- We only do this fallback thing once.
-            call <- get_call fallback_call_id
+            call <- get_generator fallback_call_id
             return (call, [val])
 
     let passed = Derive.PassedArgs
@@ -351,11 +351,8 @@ apply_generator cinfo (TrackLang.Call call_id args) = do
             , Derive.passed_call_name = Derive.call_name call
             , Derive.passed_info = cinfo
             }
-        with_stack = Internal.with_stack_call (Derive.call_name call)
-    with_stack $ case Derive.call_generator call of
-        Just gen -> Derive.generator_func gen passed
-        Nothing -> Derive.throw $ "non-generator in generator position: "
-            <> untxt (Derive.call_name call)
+    Internal.with_stack_call (Derive.call_name call) $
+        Derive.call_func call passed
     where
     name = Derive.callable_name
         (error "Derive.callable_name shouldn't evaluate its argument." :: d)
@@ -366,18 +363,14 @@ apply_transformers :: (Derive.Derived d) => CallInfo d
 apply_transformers _ [] deriver = deriver
 apply_transformers cinfo (TrackLang.Call call_id args : calls) deriver = do
     vals <- mapM (eval cinfo) args
-    call <- get_call call_id
+    call <- get_transformer call_id
     let passed = Derive.PassedArgs
             { Derive.passed_vals = vals
             , Derive.passed_call_name = Derive.call_name call
             , Derive.passed_info = cinfo
             }
-        with_stack = Internal.with_stack_call (Derive.call_name call)
-    with_stack $ case Derive.call_transformer call of
-        Just trans -> Derive.transformer_func trans passed $
-            apply_transformers cinfo calls deriver
-        Nothing -> Derive.throw $ "non-transformer in transformer position: "
-            <> untxt (Derive.call_name call)
+    Internal.with_stack_call (Derive.call_name call) $
+        Derive.call_func call passed $ apply_transformers cinfo calls deriver
 
 -- | Like 'apply_transformers', but apply only one, and apply to already
 -- evaluated 'TrackLang.Val's.  This is useful when you want to re-apply an
@@ -388,17 +381,14 @@ reapply_transformer :: (Derive.Derived d) => CallInfo d
     -> TrackLang.CallId -> [TrackLang.Val] -> Derive.LogsDeriver d
     -> Derive.LogsDeriver d
 reapply_transformer cinfo call_id vals deriver = do
-    call <- get_call call_id
+    call <- get_transformer call_id
     let passed = Derive.PassedArgs
             { Derive.passed_vals = vals
             , Derive.passed_call_name = Derive.call_name call
             , Derive.passed_info = cinfo
             }
-        with_stack = Internal.with_stack_call (Derive.call_name call)
-    with_stack $ case Derive.call_transformer call of
-        Just trans -> Derive.transformer_func trans passed deriver
-        Nothing -> Derive.throw $ "non-transformer in transformer position: "
-            <> untxt (Derive.call_name call)
+    Internal.with_stack_call (Derive.call_name call) $
+        Derive.call_func call passed deriver
 
 eval :: (Derive.ToTagged a) => Derive.CallInfo a -> TrackLang.Term
     -> Derive.Deriver TrackLang.Val
@@ -463,9 +453,20 @@ get_val_call :: TrackLang.CallId -> Derive.Deriver Derive.ValCall
 get_val_call call_id =
     require_call call_id "val" =<< Derive.lookup_val_call call_id
 
-get_call :: forall d. (Derive.Derived d) =>
-    TrackLang.CallId -> Derive.Deriver (Derive.Call d)
-get_call call_id = require_call call_id name =<< Derive.lookup_callable call_id
+get_generator :: forall d. (Derive.Derived d) =>
+    TrackLang.CallId -> Derive.Deriver (Derive.Generator d)
+get_generator call_id =
+    require_call call_id (name <> " generator")
+        =<< Derive.lookup_generator call_id
+    where
+    name = Derive.callable_name
+        (error "Derive.callable_name shouldn't evaluate its argument." :: d)
+
+get_transformer :: forall d. (Derive.Derived d) =>
+    TrackLang.CallId -> Derive.Deriver (Derive.Transformer d)
+get_transformer call_id =
+    require_call call_id (name <> " transformer")
+        =<< Derive.lookup_transformer call_id
     where
     name = Derive.callable_name
         (error "Derive.callable_name shouldn't evaluate its argument." :: d)
@@ -484,7 +485,7 @@ require_call call_id name Nothing = do
 
 unknown_call_id :: Text -> TrackLang.CallId -> Text
 unknown_call_id name (TrackLang.Symbol sym) =
-    name <> " call not found: " <> sym
+    name <> " not found: " <> sym
 
 fallback_call_id :: TrackLang.CallId
 fallback_call_id = ""

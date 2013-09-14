@@ -22,16 +22,16 @@ import qualified Perform.Pitch as Pitch
 import Types
 
 
-note_calls :: Derive.NoteCallMap
-note_calls = Derive.make_calls
+note_calls :: Derive.CallMaps Derive.Note
+note_calls = Derive.call_maps
     [ ("'", c_tick Nothing)
     , ("'^", c_tick (Just (Pitch.Diatonic (-1))))
     , ("'v", c_tick (Just (Pitch.Diatonic 1)))
-    , ("realize-damp", c_realize_damp)
     ]
+    [ ("realize-damp", c_realize_damp) ]
 
-c_tick :: Maybe Pitch.Transpose -> Derive.NoteCall
-c_tick transpose = Derive.stream_generator "tick" (Tags.idiom <> Tags.prev)
+c_tick :: Maybe Pitch.Transpose -> Derive.Generator Derive.Note
+c_tick transpose = Derive.make_call "tick" (Tags.idiom <> Tags.prev)
     ("Insert an intermediate grace note in the \"ngoret\" rambat style.\
     \ The grace note moves up for `'^`, down for `'v`, or is based\
     \ on the previous note's pitch for `'`."
@@ -82,7 +82,7 @@ infer_transpose args start = do
     ifM ((<=) <$> Pitches.pitch_nn prev_pitch <*> Pitches.pitch_nn this_pitch)
         (return (Pitch.Diatonic (-1))) (return (Pitch.Diatonic 1))
 
-c_realize_damp :: Derive.NoteCall
+c_realize_damp :: Derive.Transformer Derive.Note
 c_realize_damp = Derive.transformer "realize-damp" (Tags.idiom <> Tags.postproc)
     ("Extend the duration of events preceding one with a "
     <> ShowVal.show_val damped_tag

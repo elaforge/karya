@@ -40,7 +40,7 @@ test_control_track = do
 
     let (val, logs) = derive ("cont", [(0, 0, "abc"), (1, 0, "def")])
     equal val [[(0, 0)]]
-    strings_like logs ["call not found: abc", "call not found: def"]
+    strings_like logs ["not found: abc", "not found: def"]
     equal (derive ("cont", events)) ([[(0, 1), (1, 2)]], [])
 
 test_split_control = do
@@ -116,10 +116,10 @@ test_derive_control = do
 
     -- evaluation continues after an error
     equal (derive [(0, 0, "1"), (1, 0, "def")])
-        (Right ([(0, 1)], ["Error: control call not found: def"]))
+        (Right ([(0, 1)], ["Error: control generator or val not found: def"]))
     equal (derive [(0, 0, "1"), (1, 0, "def"), (2, 0, "i 2")])
         (Right ([(0, 1), (1, 1.5), (2, 2)],
-            ["Error: control call not found: def"]))
+            ["Error: control generator or val not found: def"]))
 
 mktrack :: ScoreTime -> (ScoreTime, ScoreTime) -> [UiTest.EventSpec]
     -> TrackTree.TrackEvents
@@ -137,11 +137,11 @@ test_pitch_track = do
 
     let (val, logs) = derive ("*twelve", [(0, 0, "1"), (1, 0, "2")])
     equal val [[]]
-    strings_like logs ["call not found: 1", "call not found: 2"]
+    strings_like logs ["not found: 1", "not found: 2"]
     let (val, logs) = derive
             ("*twelve", [(0, 0, "4c"), (1, 0, "4d"), (2, 0, "4hc")])
     equal val [[(0, 60), (1, 62)]]
-    strings_like logs ["call not found: 4hc"]
+    strings_like logs ["not found: 4hc"]
     equal (derive ("*twelve", [(0, 0, "4c"), (1, 0, "4d")]))
         ([[(0, 60), (1, 62)]], [])
     equal (derive ("*twelve", [(0, 0, "4c"), (2, 0, "i (4d)")]))

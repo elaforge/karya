@@ -26,15 +26,15 @@ import qualified Perform.RealTime as RealTime
 import Types
 
 
-note_calls :: Derive.NoteCallMap
-note_calls = Derive.make_calls
+note_calls :: Derive.CallMaps Derive.Note
+note_calls = Derive.call_maps []
     [ ("<<", c_block_integrate)
     , ("<", c_track_integrate)
     ]
 
 -- * block integrate
 
-c_block_integrate :: Derive.NoteCall
+c_block_integrate :: Derive.Transformer Derive.Note
 c_block_integrate = Derive.transformer "block-integrate" Tags.prelude
     ("Integrate the output into a new block. The events are returned as-is\
     \ so the block can still be played normally."
@@ -76,7 +76,7 @@ uses_default_tempo block_id =
 
 -- * track integrate
 
-c_track_integrate :: Derive.NoteCall
+c_track_integrate :: Derive.Transformer Derive.Note
 c_track_integrate = Derive.transformer "track-integrate" Tags.prelude
     ("Integrate the output into new tracks. Events will be split into tracks\
     \ based on source track, instrument, and scale, as documented in\
