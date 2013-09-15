@@ -3,11 +3,14 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
+  - keys to turn play speed up and down
   / Derive.Sig could use Derive.Generator
   * I forgot to add a way to override control calls.  What should the prefix
     be?  '.call = xyz'?
   - Clean up the Derived class.  It seems like I should be able to get by with
     a tag for 'd' and a to_tag for (Elem d)
+    . Not quite.  lookup_generator needs to dispatch on return type, but I
+      get Could not deduce (d ~ Score.Event) from the context (Derived d)
   * Select all of a track and then extend selection right or left, it scrolls
     to the bottom of the block.  Perhaps if the TrackTime didn't change it
     shouldn't autoscroll.
@@ -53,7 +56,7 @@ UNSORTED
   * using 12356 for gender wayang is pretty bogus.
     It should probably be 12345.
     One absolute scale, then versions for pemade and kantilan.
-  - wayang scale should line up to 8ve EditState
+  * wayang scale should line up to 8ve EditState
   - add ioeua to legong scale
   - merge KeyswitchMap and Keymap into AttributeMap
     Ensure that keyswitches cause channel splits, but keymaps don't.

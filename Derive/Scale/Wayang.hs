@@ -43,10 +43,10 @@ absolute_scale = BaliScales.scale_map 5 0 0 (BaliScales.ioeua 0)
 
 pemade_scale :: BaliScales.ScaleMap
 pemade_scale =
-    BaliScales.scale_map 5 2 1 (drop 1 (BaliScales.ioeua 2)) umbang isep
+    BaliScales.scale_map 5 2 1 (drop 1 (BaliScales.ioeua 1)) umbang isep
 
 kantilan_scale :: BaliScales.ScaleMap
-kantilan_scale = BaliScales.scale_map 5 3 1 (drop 1 (BaliScales.ioeua 3))
+kantilan_scale = BaliScales.scale_map 5 3 1 (drop 1 (BaliScales.ioeua 1))
     (drop 5 umbang) (drop 5 isep)
 
 -- | pemade starts at 2o--3i--4i, kanti is 3o--4i--5i
