@@ -11,6 +11,7 @@ import qualified Derive.Derive as Derive
 import qualified Derive.LEvent as LEvent
 import qualified Derive.PitchSignal as PitchSignal
 import qualified Derive.Sig as Sig
+import Derive.Sig (required)
 
 import qualified Perform.Signal as Signal
 import Types
@@ -46,7 +47,9 @@ sample_hold_pitch points sig = PitchSignal.unfoldr go (Nothing, points, sig)
 
 control_calls :: Derive.CallMaps Derive.Control
 control_calls = Derive.call_maps []
-    [ ("sh", c_sh_control) ]
+    [ ("quantize", c_quantize)
+    , ("sh", c_sh_control)
+    ]
 
 c_sh_control :: Derive.Transformer Derive.Control
 c_sh_control = Derive.transformer "sh" mempty
@@ -65,3 +68,14 @@ sample_hold_control points sig = Signal.unfoldr go (0, points, sig)
             Just (_, y) -> Just ((x, y), (y, xs, sig))
             Nothing -> Just ((x, prev), (prev, xs, sig))
         where sig = Signal.drop_before x sig_
+
+c_quantize :: Derive.Transformer Derive.Control
+c_quantize = Derive.transformer "quantize" mempty
+    "Quantize a control signal."
+    $ Sig.callt (required "val" "Quantize to multiples of this value.") $
+    \val _args -> Post.signal (quantize val)
+
+quantize :: Signal.Y -> Signal.Control -> Signal.Control
+quantize val
+    | val == 0 = id
+    | otherwise = Signal.map_y $ \y -> fromIntegral (round (y / val)) * val

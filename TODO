@@ -92,9 +92,12 @@ UNSORTED
         should have separate symbols, e.g. 4r^ and 4r. for up and down variants.
         For western modes this isn't necessary since the notation is already
         absolute.
-  steal some wendy carlos scales
-    - alpha, beta, gamma
-    - overtones
+  more scales
+    - wendy carlos' alpha, beta, gamma
+    - overtone series
+    - add ratio transpose single, that multiplies hz
+    * quantize control transformer, e.g. 'quantize .25' to constrain to
+      multiples of .25.
   * fix doc for just scales, most of JustScales.just_doc isn't appropriate
   * there's still a cache bug: change the tempo on the score block, and the
     cached version of a following block isn't invalidated

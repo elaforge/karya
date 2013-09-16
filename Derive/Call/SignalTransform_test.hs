@@ -19,3 +19,8 @@ test_sh_control = do
     equal (run [(0, "0"), (4, "sh .5 | i 4")]) [(0, 0), (2, 2), (4, 4)]
     equal (run [(0, "0"), (4, "sh 1 | i 4")])
         [(0, 0), (1, 1), (2, 2), (3, 3), (4, 4)]
+
+test_quantize = do
+    let run = CallTest.run_control
+    equal (run [(0, "0"), (4, "quantize .25 | i .5")])
+        [(0, 0), (2, 0.25), (3, 0.5)]
