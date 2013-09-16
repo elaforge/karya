@@ -11,6 +11,7 @@ UNSORTED
     a tag for 'd' and a to_tag for (Elem d)
     . Not quite.  lookup_generator needs to dispatch on return type, but I
       get Could not deduce (d ~ Score.Event) from the context (Derived d)
+    . Or make separate classes for cache and lookup
   * Select all of a track and then extend selection right or left, it scrolls
     to the bottom of the block.  Perhaps if the TrackTime didn't change it
     shouldn't autoscroll.
@@ -78,7 +79,7 @@ UNSORTED
   * DeriveTest.derive_dump also needs the synths to know about putting
     instrument calls into scope.
   Raga
-    - Using the "official" ratios for r1-4 and d1-4 doesn't sound like what
+    * Using the "official" ratios for r1-4 and d1-4 doesn't sound like what
       people actually play.  What's going on?
     - Support arohana and avarohana by treating them as enharmonics
       Is this really a good idea, since they aren't anything like enharmonics?
@@ -139,6 +140,7 @@ UNSORTED
         :: Pitch.Note -> Pitch.Note -> Maybe Pitch.Diatonic
     . If pitches were objects I could down-cast them to get at their
       implementation.
+    . Instead I should have a generic way to parse a note to Theory.Pitch
 
   * I might need Controls.nn to transpose by nn, for vibrato type things.
   + recent tends to collect pitches added via edit input, but since they have

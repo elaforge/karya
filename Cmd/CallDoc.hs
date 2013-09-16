@@ -295,8 +295,8 @@ scales_html hstate scales = un_html $ html_header hstate
     where scale_html = mconcatMap (call_bindings_html hstate "scale")
 
 scale_docs :: [Scale.Scale] -> [CallBindings]
-scale_docs =
-    lookup_docs ValCall . map (Derive.lookup_docs . Derive.scale_to_lookup)
+scale_docs = sort_calls . lookup_docs ValCall
+    . map (Derive.lookup_docs . Derive.scale_to_lookup)
 
 -- * doc
 
@@ -362,10 +362,11 @@ merged_scope_docs generator transformer = merge_scope_docs $
     scope_doc GeneratorCall generator ++ scope_doc TransformerCall transformer
 
 merge_scope_docs :: [ScopeDoc] -> [ScopeDoc]
-merge_scope_docs = map (second (sort . concat)) . Seq.group_fst
-    where
-    sort = Seq.sort_on $ \(binds, _, _) ->
-        (\(_, sym, _) -> sym) <$> Seq.head binds
+merge_scope_docs = map (second (sort_calls . concat)) . Seq.group_fst
+
+sort_calls :: [CallBindings] -> [CallBindings]
+sort_calls = Seq.sort_on $ \(binds, _, _) ->
+    (\(_, sym, _) -> sym) <$> Seq.head binds
 
 -- | Walk up the scopes, keeping track of shadowed names.
 scope_doc :: CallType -> Derive.ScopeType call -> [ScopeDoc]
