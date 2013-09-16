@@ -4,7 +4,7 @@
 
 -- | Saih Pelegongan.
 --
--- Tuning for my gender rambat.
+-- Tuning from my gender rambat.
 --
 -- TODO: pengisep and pengumbang
 module Derive.Scale.Legong where
@@ -14,45 +14,85 @@ import qualified Derive.Scale.Util as Util
 
 import qualified Perform.Pitch as Pitch
 
+scales :: [Scale.Scale]
+scales =
+    [ Util.add_doc "Saih pelegongan, from my instruments." $
+        make_scale scale_id absolute_scale
+    , Util.add_doc "Pemade scale. This can be used to give the the same score\
+            \ to both pemade and kantilan." $
+        make_scale "legong-p" pemade_scale
+    , Util.add_doc "Kantilan scale. This can be used to give the the same score\
+            \ to both pemade and kantilan." $
+        make_scale "legong-k" kantilan_scale
+    ]
 
 scale_id :: Pitch.ScaleId
 scale_id = "legong"
 
-scale :: Scale.Scale
-scale = Util.add_doc "Saih pelegongan. Tuning from my gender rambat." $
-    BaliScales.make_scale "[12356]" scale_id scale_map
+make_scale :: Pitch.ScaleId -> BaliScales.ScaleMap -> Scale.Scale
+make_scale = BaliScales.make_scale "[0-9]ioeua"
+    -- TODO I should be able to get the scale pattern directly from the format.
+    -- That would come for free if I switched to TheoryFormat
 
-scale_map :: BaliScales.ScaleMap
-scale_map =
-    BaliScales.scale_map 5 2 1 (drop 1 BaliScales.cipher12356) umbang isep
+absolute_scale :: BaliScales.ScaleMap
+absolute_scale = BaliScales.scale_map 5 1 0 BaliScales.ioeua umbang isep
 
+pemade_scale :: BaliScales.ScaleMap
+pemade_scale = BaliScales.scale_map 5 2 1 BaliScales.ioeua
+    (drop 11 umbang) (drop 11 isep)
+
+kantilan_scale :: BaliScales.ScaleMap
+kantilan_scale = BaliScales.scale_map 5 3 1 BaliScales.ioeua
+    (drop 16 umbang) (drop 16 isep)
+
+{- | Extended scale.
+
+ @
+  1i 1o 1e 1u 1a 2i 2o 2e 2u 2a 3i 3o 3e 3u 3a 4i 4o 4e 4u 4a 5i 5o 5e 5u 5a 6i
+  jegog---------
+                 calung--------
+                    ugal-------------------------
+                       rambat-----------------------------------
+  11 12 13 15 16 21 22 23 25 26 31 32 33 35 36 41 42 43 45 46 51 52 53 55 56 61
+                             trompong---------------------
+                                      reyong------------------------------
+                                   pemade-----------------------
+                                                  kantilan---------------------
+  1i 1o 1e 1u 1a 2i 2o 2e 2u 2a 3i 3o 3e 3u 3a 4i 4o 4e 4u 4a 5i 5o 5e 5u 5a 6i
+ @
+-}
 umbang :: [Pitch.NoteNumber]
-umbang =
-    [ 50.8 -- 2.., ugal begin
-    , 51.82 -- 3.., rambat begin
+umbang = extend
+    [ 51.82 -- deng, rambat begin
     , 55.7
-    , 56.82 -- 6.., trompong begin
+    , 56.82 -- dang, trompong begin
 
     , 60.73
-    , 62.8 -- 2., pemade begin
-    , 63.35 -- 3., reyong begin
+    , 62.8 -- dong, pemade begin
+    , 63.35 -- deng, reyong begin
     , 67.7
     , 68.2
 
-    , 72.46 -- 1
-    , 73.9 -- 2, kantilan begin
+    , 72.46 -- ding
+    , 73.9 -- dong, kantilan begin
     , 75.5
-    , 79.4 -- 5, trompong end
+    , 79.4 -- dung, trompong end
     , 80.5
 
-    , 84.46 -- 1^, rambat end, pemade end
+    , 84.46 -- ding, rambat end, pemade end
     , 86
     , 87.67
-    , 91.74 -- 5^, reyong end
+    , 91.74 -- dung, reyong end
     , 92.5
 
-    , 96.46 -- 1^^, kantilan end
+    , 96.46 -- ding, kantilan end
     ]
+
+extend :: [Pitch.NoteNumber] -> [Pitch.NoteNumber]
+extend nns = map (subtract 12) low ++ ding ++ nns
+    where
+    ding = map (subtract 12) (take 2 (drop 3 nns))
+    low = take 5 (ding ++ nns)
 
 isep :: [Pitch.NoteNumber]
 isep = umbang -- TODO

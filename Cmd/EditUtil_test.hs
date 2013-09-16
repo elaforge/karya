@@ -7,7 +7,7 @@ import Util.Test
 import qualified Ui.UiTest as UiTest
 import qualified Cmd.CmdTest as CmdTest
 import qualified Cmd.EditUtil as EditUtil
-import qualified Derive.Scale.Legong as Legong
+import qualified Derive.Scale.Wayang as Wayang
 import qualified Perform.Pitch as Pitch
 
 
@@ -33,10 +33,10 @@ test_input_to_note = do
 
     -- Fake up a Performance that overrides the default *twelve.
     let set_env = CmdTest.set_scale UiTest.default_block_id
-            UiTest.default_block_id (UiTest.mk_tid 2) Legong.scale_id
+            UiTest.default_block_id (UiTest.mk_tid 2) Wayang.scale_id
     let f = EditUtil.input_to_note
     let input = Pitch.Input Pitch.PianoKbd Pitch.middle_c 0
     equal (run (f input))
         (Right (Just (Pitch.Note "4c"), []))
     equal (run (set_env >> f input))
-        (Right (Just (Pitch.Note "1"), []))
+        (Right (Just (Pitch.Note "4i"), []))

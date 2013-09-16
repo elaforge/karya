@@ -300,30 +300,6 @@ test_tempo_compose = do
 
     -- TODO test when the subblock has a tempo too
 
-test_initial_environ = do
-    let extract = DeriveTest.extract DeriveTest.e_nns
-    let run title pitch = extract $ DeriveTest.derive_tracks
-            [ (">", [(0, 1, "")])
-            , (title, [(0, 0, pitch)])
-            ]
-    -- picks up scale from initial environ
-    equal (run "*" "3c") ([[(0, 48)]], [])
-    -- calls replaced by legong calls
-    equal (run "*legong" "3c")
-        ([[]], ["Error: pitch generator or val not found: 3c"])
-    -- just make sure legong actually works
-    equal (run "*legong" "1") ([[(0, 72.46)]], [])
-
-    -- I'd like to test inst, but it's just too hard.  I would have to get
-    -- DeriveTest.default_constant to get the inst lookup like
-    -- Cmd.PlayUtil.get_lookup_inst_calls
-    -- let env inst = Map.insert TrackLang.v_instrument
-    --         (TrackLang.VInstrument (Score.Instrument inst))
-    --         (DeriveTest.default_environ)
-    -- DeriveTest.derive_tracks_with (Derive.with_inital_scope (env "dmx/x"))
-    --         [ (">", [(0, 1, "sn")])
-    --         ]
-
 test_warp_ops = do
     let run op = DeriveTest.eval State.empty (op record)
         record = do
@@ -479,7 +455,7 @@ test_fractional_pitch = do
     -- Note.trim_pitches.
     let res = DeriveTest.derive_tracks
             [ (inst_title, [(0, 16, ""), (16, 16, "")])
-            , ("*legong", [(0, 16, "1"), (16, 16, "2")])
+            , ("*just", [(0, 16, "4c"), (16, 16, "4d")])
             ]
     let (_perf_events, mmsgs, logs) =
             DeriveTest.perform_defaults (Derive.r_events res)
@@ -487,7 +463,7 @@ test_fractional_pitch = do
     equal logs []
     equal [(chan, nn) | Midi.ChannelMessage chan (Midi.NoteOn nn _)
             <- map Midi.wmsg_msg mmsgs]
-        [(0, 72), (1, 73)]
+        [(0, Key.c4), (1, Key.d4)]
 
 e_control :: Score.Control -> Score.Event -> Maybe [(Signal.X, Signal.Y)]
 e_control cont = fmap (Signal.unsignal . Score.typed_val)

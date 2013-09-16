@@ -33,25 +33,27 @@ scale_map :: Pitch.Degree -> Pitch.Octave -> Pitch.Degree
     -> [Pitch.Note] -> [Pitch.NoteNumber] -> [Pitch.NoteNumber] -> ScaleMap
 scale_map per_oct start_oct start_degree notes umbang isep = ScaleMap
     { scale_degree_map =
-        Util.degree_map per_oct start_oct start_degree notes avg
+        Util.degree_map per_oct start_oct start_degree
+            (drop notes_offset notes) avg
     , scale_nn_map = NoteNumberMap (make_to_nn umbang) (make_to_nn isep)
     }
     where
+    notes_offset = fromIntegral per_oct * (start_oct - 1)
+        + fromIntegral start_degree
     avg = zipWith (\a b -> (a+b) / 2) umbang isep
     make_to_nn = Map.fromList . zip [0..]
 
-cipher12356 :: [Pitch.Note]
-cipher12356 =
+dotted12356 :: [Pitch.Note]
+dotted12356 =
     [Symbols.dotted_number num oct | oct <- [-2..2], num <- [1, 2, 3, 5, 6]]
 
-cipher12345 :: [Pitch.Note]
-cipher12345 =
-    [Symbols.dotted_number num oct | oct <- [-2..2], num <- [1, 2, 3, 4, 5]]
+octave12356 :: [Pitch.Note]
+octave12356 = [Pitch.Note $ showt oct <> "-" <> showt d
+    | oct <- [1..], d <- [1, 2, 3, 5, 6]]
 
-ioeua :: Pitch.Octave -> [Pitch.Note]
-ioeua octave =
-    [Pitch.Note $ showt oct <> vowel
-        | oct <- [octave..], vowel <- ["i", "o", "e", "u", "a"]]
+ioeua :: [Pitch.Note]
+ioeua = [Pitch.Note $ showt oct <> vowel
+    | oct <- [1..], vowel <- ["i", "o", "e", "u", "a"]]
 
 make_scale :: Text -> Pitch.ScaleId -> ScaleMap -> Scale.Scale
 make_scale scale_pattern scale_id (ScaleMap dmap nn_map) = Scale.Scale

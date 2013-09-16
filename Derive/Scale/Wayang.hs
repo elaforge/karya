@@ -34,22 +34,21 @@ scale_id = "wayang"
 -- | Use ding deng dong dang dung.  I don't know if this is ever actually used
 -- for gender, but the notation is compact.
 --
--- > 2o  2e  2u  2a  3i  3o  3e  3u  3a  4i  4o  4e  4u  4a  5i
+-- > 3o  3e  3u  3a  4i  4o  4e  4u  4a  5i  5o  5e  5u  5a  6i
 -- > pemade -------------------------------
 -- >                     kantilan -----------------------------
 absolute_scale :: BaliScales.ScaleMap
-absolute_scale = BaliScales.scale_map 5 0 0 (BaliScales.ioeua 0)
+absolute_scale = BaliScales.scale_map 5 1 0 BaliScales.ioeua
     (extend umbang) (extend isep)
 
 pemade_scale :: BaliScales.ScaleMap
-pemade_scale =
-    BaliScales.scale_map 5 2 1 (drop 1 (BaliScales.ioeua 1)) umbang isep
+pemade_scale = BaliScales.scale_map 5 3 1 BaliScales.ioeua umbang isep
 
 kantilan_scale :: BaliScales.ScaleMap
-kantilan_scale = BaliScales.scale_map 5 3 1 (drop 1 (BaliScales.ioeua 1))
+kantilan_scale = BaliScales.scale_map 5 4 1 BaliScales.ioeua
     (drop 5 umbang) (drop 5 isep)
 
--- | pemade starts at 2o--3i--4i, kanti is 3o--4i--5i
+-- | pemade starts at 3o - 4i - 5i, kanti is 4o - 5i - 6i
 extend :: [Pitch.NoteNumber] -> [Pitch.NoteNumber]
 extend nns =
     ding - 36 : map (subtract 24) low ++ map (subtract 12) low

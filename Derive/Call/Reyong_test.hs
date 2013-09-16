@@ -3,6 +3,7 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 module Derive.Call.Reyong_test where
+import qualified Data.Char as Char
 import qualified Data.Set as Set
 
 import Util.Control
@@ -30,19 +31,19 @@ test_integrate = do
             . CmdTest.result_ui_state
         e_logs = map DeriveTest.show_log . CmdTest.result_logs
 
-    let (val, tracks, logs) = run [(0, 2, "+byong", "1")]
+    let (val, tracks, logs) = run [(0, 2, "+byong", "4i")]
     equal val (Right (Just ())) -- no error
     equal (take 6 tracks)
         [ ("> | < | realize-kilitan 1", [(0, 2, "+byong")])
-        , ("*legong", [(0, 0, "1")])
-        , (">", [(0, 2, "")]), ("*legong", [(0, 0, "`3.`")])
-        , (">", [(0, 2, "")]), ("*legong", [(0, 0, "`6.`")])
+        , ("*legong", [(0, 0, "4i")])
+        , (">", [(0, 2, "")]), ("*legong", [(0, 0, "3e")])
+        , (">", [(0, 2, "")]), ("*legong", [(0, 0, "3a")])
         ]
     strings_like logs ["integrated *"]
 
     -- I just want to ascertain that the tracks were generated, not assert a
     -- bunch of specific stuff about what exactly was generated.
-    prettyp (run [(0, 4, "", "1"), (4, 4, "", "2")])
+    -- prettyp (run [(0, 4, "", "4i"), (4, 4, "", "4o")])
     -- let (_val, tracks, _logs) = (run [(0, 4, "", "1"), (4, 4, "", "2")])
     -- equal (take 4 tracks)
     --     [ ("> | < | realize-kilitan 1", [(0, 1, ""), (4, 1, "")])
@@ -50,8 +51,8 @@ test_integrate = do
     --     , (">"
     --     ]
 
-    prettyp (run [(0, 4, "", "1"), (8, 4, "", "2"), (12, 1, "+cek", ""),
-        (13, 1, "+byut", ""), (14, 1, "+byong", "")])
+    -- prettyp (run [(0, 4, "", "4i"), (8, 4, "", "4o"), (12, 1, "+cek", ""),
+    --     (13, 1, "+byut", ""), (14, 1, "+byong", "")])
 
 integrate :: [UiTest.BlockSpec] -> (Derive.Result, CmdTest.Result ())
 integrate [] = error "integrate got [] blocks"
@@ -75,22 +76,23 @@ block_damage blocks = DeriveTest.modify_constant $ \state -> state
 test_realize = do
     let run pitches = DeriveTest.derive_blocks (mktracks False pitches)
         extract voice = first (extract_v voice) . DeriveTest.extract id
-        extract_v voice = unwords . Seq.chunked 4 . concat
-                . map DeriveTest.e_pitch . filter ((==voice) . event_voice)
+        extract_v voice = unwords . Seq.chunked 4 . filter (not . Char.isDigit)
+                . concat . map DeriveTest.e_pitch
+                . filter ((==voice) . event_voice)
         run1 = DeriveTest.extract
                 (\e -> (DeriveTest.e_note e, event_voice e)) . run
         run2 voice = extract voice . run
 
-    let (evts, logs) = run1 [(0, 4, "", "1")]
+    let (evts, logs) = run1 [(0, 4, "", "4i")]
     equal (take 4 evts)
-        [ ((1, 1, "`6.`"), 0), ((1, 1, "2"), 1)
-        , ((1, 1, "6"), 2), ((1, 1, "`2^`"), 3)
+        [ ((1, 1, "3a"), 0), ((1, 1, "4o"), 1)
+        , ((1, 1, "4a"), 2), ((1, 1, "5o"), 3)
         ]
     equal logs []
-    equal (run2 1 [(0, 4, "", "1"), (4, 4, "", "2")])
-        ("2232 3232", [])
-    equal (run2 1 [(0, 8, "", "1"), (8, 4, "", "2")])
-        ("2121 2232 3232", [])
+    equal (run2 1 [(0, 4, "", "4i"), (4, 4, "", "4o")])
+        ("ooeo eoeo", [])
+    equal (run2 1 [(0, 8, "", "4i"), (8, 4, "", "4o")])
+        ("oioi ooeo eoeo", [])
 
 event_voice :: Score.Event -> Int
 event_voice = fromMaybe 0 . TrackLang.maybe_val Environ.voice

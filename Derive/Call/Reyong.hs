@@ -3,6 +3,7 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 module Derive.Call.Reyong where
+import qualified Data.Char as Char
 import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
@@ -22,7 +23,7 @@ import qualified Derive.Derive as Derive
 import qualified Derive.Deriver.Internal as Internal
 import qualified Derive.Environ as Environ
 import qualified Derive.LEvent as LEvent
-import qualified Derive.Scale.Symbols as Symbols
+import qualified Derive.Scale.BaliScales as BaliScales
 import qualified Derive.Score as Score
 import qualified Derive.Sig as Sig
 import Derive.Sig (required)
@@ -73,18 +74,17 @@ num_degree n = case n of
     1 -> Just I; 2 -> Just O; 3 -> Just E; 5 -> Just U; 6 -> Just A
     _ -> Nothing
 
-from_pitch :: Pitch -> Pitch.Note
-from_pitch (Pitch oct d) = Symbols.dotted_number (degree_num d) oct
-
+-- | TODO this is too hardcoded to the specific representation of the
+-- scale.  I need a generic way to parse and unparse symbolic pitches.
 read_pitch :: Pitch.Note -> Maybe Pitch
 read_pitch n = Map.lookup n to_pitch
     where
-    to_pitch = Map.fromList
-        [(Symbols.dotted_number (degree_num d) oct, Pitch oct d)
-            | oct <- [-2..2], d <- [I .. A]]
+    to_pitch = Map.fromList $ zip (take 30 BaliScales.ioeua)
+        [Pitch oct d | oct <- [1..], d <- [I .. A]]
 
 show_pitch :: Pitch -> Pitch.Note
-show_pitch (Pitch oct d) = Symbols.dotted_number (degree_num d) oct
+show_pitch (Pitch oct d) =
+    Pitch.Note $ showt oct <> txt (map Char.toLower (show d))
 
 note_to_string :: Note -> String
 note_to_string (Note _ Cek) = "/"
@@ -276,8 +276,8 @@ position1 = make $ \d -> case d of
         U -> p ("5565", "6565")
         A -> p ("6636", "3636")
     where
-    make = make_position (Pitch (-1) U) [Pitch (-1) E, Pitch (-1) A]
-    p = read_both [('3', -1), ('5', -1), ('6', -1), ('1', 0)]
+    make = make_position (Pitch 3 U) [Pitch 3 E, Pitch 3 A]
+    p = read_both [('3', 3), ('5', 3), ('6', 3), ('1', 4)]
 
 -- I O E -- 1 2 3
 position2 :: Position
@@ -288,8 +288,8 @@ position2 = make $ \d -> case d of
         U -> p ("123-", "323-")
         A -> p ("3313", "1313")
     where
-    make = make_position (Pitch 0 O) [Pitch 0 I, Pitch 0 E]
-    p = read_both [('1', 0), ('2', 0), ('3', 0)]
+    make = make_position (Pitch 4 O) [Pitch 4 I, Pitch 4 E]
+    p = read_both [('1', 4), ('2', 4), ('3', 4)]
 
 -- U A -- 5 6
 position3 :: Position
@@ -300,8 +300,8 @@ position3 = make $ \d -> case d of
         U -> p ("5565", "6565")
         A -> p ("66-6", "-6-6")
     where
-    make = make_position (Pitch 0 A) [Pitch 0 U, Pitch 1 I]
-    p = read_both [('3', 0), ('5', 0), ('6', 0), ('1', 1)]
+    make = make_position (Pitch 4 A) [Pitch 4 U, Pitch 5 I]
+    p = read_both [('3', 4), ('5', 4), ('6', 4), ('1', 5)]
 
 -- I O E U -- 1 2 3 5
 position4 :: Position
@@ -312,14 +312,8 @@ position4 = make $ \d -> case d of
         U -> p ("123-", "323-")
         A -> p ("3313", "1313")
     where
-    make = make_position (Pitch 1 E) [Pitch 1 O, Pitch 1 U]
-    p = read_both [('6', 0), ('1', 1), ('2', 1), ('3', 1), ('5', 1)]
-
-parse_octaves :: [(Char, Pitch.Octave)] -> Char -> Maybe Note
-parse_octaves table c = do
-    oct <- lookup c table
-    d <- num_degree =<< Num.read_digit c
-    return $ note [Pitch oct d]
+    make = make_position (Pitch 5 E) [Pitch 5 O, Pitch 5 U]
+    p = read_both [('6', 4), ('1', 5), ('2', 5), ('3', 5), ('5', 5)]
 
 read_both :: [(Char, Pitch.Octave)] -> ([Char], [Char]) -> ([Note], [Note])
 read_both octaves (xs, ys) = (map f xs, map f ys)
@@ -330,7 +324,7 @@ read_both octaves (xs, ys) = (map f xs, map f ys)
 char_to_note :: [(Char, Pitch.Octave)] -> Char -> Maybe Note
 char_to_note octaves c = case c of
     '-' -> Just $ note []
-    ':' -> Just $ note [Pitch (-1) E, Pitch 0 I]
+    ':' -> Just $ note [Pitch 3 E, Pitch 4 I]
     _ -> case lookup c octaves of
         Just oct ->
             note . (:[]) . Pitch oct <$> (num_degree =<< Num.read_digit c)

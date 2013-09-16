@@ -57,7 +57,7 @@ UNSORTED
     It should probably be 12345.
     One absolute scale, then versions for pemade and kantilan.
   * wayang scale should line up to 8ve EditState
-  - add ioeua to legong scale
+  * add ioeua to legong scale
   - merge KeyswitchMap and Keymap into AttributeMap
     Ensure that keyswitches cause channel splits, but keymaps don't.
   / Call docs in browser strip out the newlines, they should start a new
