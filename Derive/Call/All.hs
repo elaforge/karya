@@ -26,6 +26,7 @@ import qualified Derive.Call.Post.Reverse as Post.Reverse
 import qualified Derive.Call.Random as Random
 import qualified Derive.Call.Reyong as Reyong
 import qualified Derive.Call.Sekar as Sekar
+import qualified Derive.Call.SignalTransform as SignalTransform
 import qualified Derive.Call.Trill as Trill
 import qualified Derive.Call.Val as Val
 import qualified Derive.Derive as Derive
@@ -100,16 +101,21 @@ note_maps :: Derive.CallMaps Derive.Note
     , Post.Reverse.note_calls
     , Reyong.note_calls
     , Random.note_calls
-    , Sekar.note_calls, String.note_calls, Trill.note_calls
+    , Sekar.note_calls, String.note_calls
+    , Trill.note_calls
     ]
 
 control_maps :: Derive.CallMaps Derive.Control
 (control_maps, shadowed_controls) = union_calls
-    [Control.control_calls, Random.control_calls, Trill.control_calls]
+    [ Control.control_calls, Random.control_calls
+    , SignalTransform.control_calls, Trill.control_calls
+    ]
 
 pitch_maps :: Derive.CallMaps Derive.Pitch
 (pitch_maps, shadowed_pitches) = union_calls
-    [Pitch.pitch_calls, Random.pitch_calls, Trill.pitch_calls]
+    [ Pitch.pitch_calls, Random.pitch_calls, SignalTransform.pitch_calls
+    , Trill.pitch_calls
+    ]
 
 val_calls :: Derive.ValCallMap
 (val_calls, shadowed_vals) = fmap (map (flip (,) [])) $ unions

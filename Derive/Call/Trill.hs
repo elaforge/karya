@@ -50,12 +50,11 @@ import qualified Derive.Attrs as Attrs
 import qualified Derive.Call.Control as Control
 import qualified Derive.Call.Lily as Lily
 import qualified Derive.Call.Make as Make
-import qualified Derive.Call.Post as Post
+import qualified Derive.Call.Speed as Speed
 import qualified Derive.Call.Sub as Sub
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Call.Util as Util
 import qualified Derive.Derive as Derive
-import qualified Derive.LEvent as LEvent
 import qualified Derive.PitchSignal as PitchSignal
 import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
@@ -122,7 +121,7 @@ c_attr_trill = Derive.make_call "attr-trill" (Tags.ornament <> Tags.attr)
 
 c_tremolo_generator :: Derive.Generator Derive.Note
 c_tremolo_generator = Derive.make_call "tremolo" (Tags.ornament <> Tags.ly)
-    "Repeat a single note." $ Sig.call speed_arg $ \speed args -> do
+    "Repeat a single note." $ Sig.call Speed.arg $ \speed args -> do
         starts <- tremolo_starts speed (Args.range_or_next args)
         notes <- Sub.sub_events args
         case filter (not . null) notes of
@@ -136,7 +135,7 @@ c_tremolo_transformer = Derive.transformer "tremolo"
     (Tags.ornament <> Tags.subs)
     "Repeat the transformed note. The generator is creating the notes so it\
     \ can set them to the appropriate duration, but this one has to stretch\
-    \ them to fit." $ Sig.callt speed_arg $ \speed args deriver -> do
+    \ them to fit." $ Sig.callt Speed.arg $ \speed args deriver -> do
         starts <- tremolo_starts speed (Args.range_or_next args)
         simple_tremolo starts [Args.normalized args deriver]
 
@@ -149,10 +148,10 @@ tremolo_starts speed range = do
             start <- Derive.real (fst range)
             end <- Derive.real (snd range)
             mapM Derive.score $ take_full_notes end $
-                real_pos_at_speed speed_sig start
+                Speed.real_starts speed_sig start
         Util.Score -> do
             let (start, end) = range
-            starts <- score_pos_at_speed speed_sig start end
+            starts <- Speed.score_starts speed_sig start end
             return $ take_full_notes end starts
 
 -- | Alternate each note with the other notes within its range, in order from
@@ -214,7 +213,7 @@ pitch_calls = Derive.call_maps
     , ("xcut", c_xcut_pitch False)
     , ("xcut-h", c_xcut_pitch True)
     ]
-    [ ("sh", c_sh_pitch) ]
+    []
 
 c_pitch_trill :: Maybe Mode -> Derive.Generator Derive.Pitch
 c_pitch_trill maybe_mode = Derive.generator1 "pitch-trill" Tags.ornament
@@ -235,26 +234,6 @@ c_pitch_trill maybe_mode = Derive.generator1 "pitch-trill" Tags.ornament
         return $ PitchSignal.apply_control control (Score.untyped transpose) $
             PitchSignal.signal [(start, note)]
 
-c_sh_pitch :: Derive.Transformer Derive.Pitch
-c_sh_pitch = Derive.transformer "sh" mempty
-    "Sample & hold. Hold values at the given speed."
-    $ Sig.callt speed_arg $ \speed _args deriver -> do
-        (sig, (start, end), logs) <- Post.pitch_range deriver
-        starts <- speed_starts speed (start, end)
-        return $ LEvent.Event (sample_hold_pitch starts sig)
-            : map LEvent.Log logs
-
-sample_hold_pitch :: [RealTime] -> PitchSignal.Signal -> PitchSignal.Signal
-sample_hold_pitch points sig = PitchSignal.unfoldr go (Nothing, points, sig)
-    where
-    go (_, [], _) = Nothing
-    go (prev, x : xs, sig_) = case PitchSignal.head sig of
-            Just (_, y) -> Just ((x, y), (Just y, xs, sig))
-            Nothing -> case prev of
-                Nothing -> go (prev, xs, sig)
-                Just p -> Just ((x, p), (prev, xs, sig))
-        where sig = PitchSignal.drop_before x sig_
-
 c_xcut_pitch :: Bool -> Derive.Generator Derive.Pitch
 c_xcut_pitch hold = Derive.generator1 "xcut" mempty
     "Cross-cut between two pitches.  The `-h` variant holds the value at the\
@@ -264,7 +243,7 @@ c_xcut_pitch hold = Derive.generator1 "xcut" mempty
     <*> defaulted "val2" (pitch "xcut2") "Second pitch."
     <*> defaulted "speed" (typed_control "xcut-speed" 14 Score.Real) "Speed."
     ) $ \(val1, val2, speed) args -> do
-        transitions <- speed_starts speed (Args.range_or_next args)
+        transitions <- Speed.starts speed (Args.range_or_next args)
         val1 <- Util.to_pitch_signal val1
         val2 <- Util.to_pitch_signal val2
         return $ xcut_pitch hold val1 val2 transitions
@@ -302,7 +281,7 @@ control_calls = Derive.call_maps
     , ("xcut", c_xcut_control False)
     , ("xcut-h", c_xcut_control True)
     ]
-    [ ("sh", c_sh_control) ]
+    []
 
 -- | The control version of 'c_pitch_trill'.  It generates a signal of values
 -- alternating with 0, and can be used in a transposition signal.
@@ -335,11 +314,11 @@ c_saw = Derive.generator1 "saw" Tags.ornament
     "Emit a sawtooth.  By default it has a downward slope, but you can make\
     \ an upward slope by setting `from` and `to`."
     $ Sig.call ((,,)
-    <$> speed_arg
+    <$> Speed.arg
     <*> defaulted "from" 1 "Start from this value."
     <*> defaulted "to" 0 "End at this value."
     ) $ \(speed, from, to) args -> do
-        starts <- speed_starts speed (Args.range_or_next args)
+        starts <- Speed.starts speed (Args.range_or_next args)
         srate <- Util.get_srate
         return $ saw srate starts from to
 
@@ -349,30 +328,6 @@ saw srate starts from to =
     where
     saw (t1, t2) = Control.interpolate_segment
         True srate id t1 from (t2-srate) to
-
-c_sh_control :: Derive.Transformer Derive.Control
-c_sh_control = Derive.transformer "sh" mempty
-    "Sample & hold. Hold values at the given speed."
-    $ Sig.callt speed_arg $ \speed _args deriver -> do
-        (sig, (start, end), logs) <- Post.control_range deriver
-        starts <- speed_starts speed (start, end)
-        return $ LEvent.Event (sample_hold starts sig) : map LEvent.Log logs
-
-sample_hold :: [RealTime] -> Signal.Control -> Signal.Control
-sample_hold points sig = Signal.unfoldr go (0, points, sig)
-    where
-    go (_, [], _) = Nothing
-    go (prev, x : xs, sig_) = case Signal.head sig of
-            Just (_, y) -> Just ((x, y), (y, xs, sig))
-            Nothing -> Just ((x, prev), (prev, xs, sig))
-        where sig = Signal.drop_before x sig_
-
-speed_arg :: Sig.Parser TrackLang.ValControl
-speed_arg = defaulted "speed" (typed_control "speed" 10 Score.Real)
-    "Repeat at this speed.  If it's a RealTime, the value is the number of\
-    \ repeats per second, which will be unaffected by the tempo. If it's\
-    \ a ScoreTime, the value is the number of repeats per ScoreTime\
-    \ unit, and will stretch along with tempo changes."
 
 -- ** sine
 
@@ -413,21 +368,6 @@ sine srate start end freq_sig = Signal.unfoldr go (start, 0)
         freq = Signal.at pos freq_sig
         next_phase = phase + RealTime.to_seconds srate * 2*pi * freq
 
--- | Get start times before the end of the range, at the given speed.
-speed_starts :: (Derive.Time t) => TrackLang.ValControl -> (t, t)
-    -> Derive.Deriver [RealTime]
-speed_starts speed (start, end) = do
-    (speed_sig, time_type) <- Util.to_time_signal Util.Real speed
-    case time_type of
-        Util.Real -> do
-            (start, end) <- (,)  <$> Derive.real start <*> Derive.real end
-            return $ takeWhile (<=end) $
-                real_pos_at_speed speed_sig start
-        Util.Score -> do
-            (start, end) <- (,)  <$> Derive.score start <*> Derive.score end
-            starts <- score_pos_at_speed speed_sig start end
-            mapM Derive.real $ takeWhile (<=end) starts
-
 
 -- ** xcut
 
@@ -440,7 +380,7 @@ c_xcut_control hold = Derive.generator1 "xcut" mempty
     <*> defaulted "val2" (control "xcut2" 0) "Second value."
     <*> defaulted "speed" (typed_control "xcut-speed" 14 Score.Real) "Speed."
     ) $ \(val1, val2, speed) args -> do
-        transitions <- speed_starts speed (Args.range_or_next args)
+        transitions <- Speed.starts speed (Args.range_or_next args)
         val1 <- Util.to_untyped_signal val1
         val2 <- Util.to_untyped_signal val2
         return $ xcut_control hold val1 val2 transitions
@@ -495,26 +435,10 @@ real_trill mode (start, end) neighbor speed = do
 score_trill :: Mode -> (ScoreTime, ScoreTime) -> Signal.Control
     -> Signal.Control -> Derive.Deriver Signal.Control
 score_trill mode (start, end) neighbor speed = do
-    all_transitions <- score_pos_at_speed speed start end
+    all_transitions <- Speed.score_starts speed start end
     let transitions = full_cycles ScoreTime.eta end all_transitions
     real_transitions <- mapM Derive.real transitions
     return $ trill_from_transitions mode real_transitions neighbor
-
--- | Emit ScoreTimes at the given speed, which may change over time.  The
--- ScoreTimes are emitted as the reciprocal of the signal at the given point
--- in time.
---
--- The result is that the speed of the emitted samples should depend on the
--- tempo in effect.
-score_pos_at_speed :: Signal.Control -> ScoreTime -> ScoreTime
-    -> Derive.Deriver [ScoreTime]
-score_pos_at_speed sig start end
-    | start > end = return []
-    | otherwise = do
-        real <- Derive.real start
-        let speed = Signal.y_to_score (Signal.at real sig)
-        rest <- score_pos_at_speed sig (start + recip speed) end
-        return (start : rest)
 
 -- | Make a trill transposition signal.
 make_trill :: Mode -> RealTime -> RealTime -> Signal.Control -> Signal.Control
@@ -523,14 +447,7 @@ make_trill mode start end neighbor speed =
     trill_from_transitions mode transitions neighbor
     where
     transitions = full_cycles RealTime.eta end
-        (real_pos_at_speed speed start)
-
--- | Emit an infinite list of RealTimes at the given speed, which may change
--- over time.  The speed is taken as hertz in real time.
-real_pos_at_speed :: Signal.Control -> RealTime -> [RealTime]
-real_pos_at_speed sig start =
-    start : real_pos_at_speed sig (start + Signal.y_to_real (recip speed))
-    where speed = Signal.at start sig
+        (Speed.real_starts speed start)
 
 -- | Make a trill signal from a list of transition times.
 trill_from_transitions :: Mode -> [RealTime] -> Signal.Control -> Signal.Control
@@ -541,9 +458,6 @@ trill_from_transitions mode transitions neighbor =
     ts = case mode of
         UnisonFirst -> [False, True]
         NeighborFirst -> [True, False]
-
-make_square :: [RealTime] -> Signal.Control
-make_square xs = Signal.signal (zip xs (cycle [0, 1]))
 
 -- | Given a list of trill transition times, take only ones with a complete
 -- duration.  Otherwise a trill can wind up with a short note at the end, which

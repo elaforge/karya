@@ -183,13 +183,6 @@ test_pitch_trill = do
     equal (CallTest.run_pitch [(0, "tr (4e) 2 2"), (2.8, "4c")]) $
         zip [0, 0.5, 1, 1.5, 2] (cycle [64, 67]) ++ [(2.8, 60)]
 
-test_sh_pitch = do
-    let run = CallTest.run_pitch
-    equal (run [(0, "4c"), (4, "sh .5 | i (5c)")])
-        [(0, 60), (2, 66), (4, 72)]
-    equal (run [(0, "4c"), (4, "sh 1 | i (5c)")])
-        [(0, 60), (1, 63), (2, 66), (3, 69), (4, 72)]
-
 test_xcut_pitch = do
     let f tracks = DeriveTest.extract DeriveTest.e_nns $
             DeriveTest.derive_tracks_linear $
@@ -221,12 +214,6 @@ test_control_trill = do
     equal (run 0.5 "tr 1 1t") ([trill [0, 2, 4, 6]], [])
     equal (run 1 "tr 1 1d")
         ([[(0, 0)]], ["Error: expected time type for 1d but got Diatonic"])
-
-test_sh_control = do
-    let run = CallTest.run_control
-    equal (run [(0, "0"), (4, "sh .5 | i 4")]) [(0, 0), (2, 2), (4, 4)]
-    equal (run [(0, "0"), (4, "sh 1 | i 4")])
-        [(0, 0), (1, 1), (2, 2), (3, 3), (4, 4)]
 
 test_xcut_control = do
     let f hold val1 val2 = Signal.unsignal
