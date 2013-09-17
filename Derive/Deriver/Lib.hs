@@ -460,7 +460,7 @@ with_event event deriver = do
 
 -- | The EventDerivers run as sub-derivers and the results are mappended, which
 -- lets them to interleave their work or run in parallel.
-d_merge :: [EventDeriver] -> EventDeriver
+d_merge :: [NoteDeriver] -> NoteDeriver
 d_merge [] = mempty
 d_merge [d] = d
 d_merge derivers = do
@@ -476,7 +476,7 @@ d_merge derivers = do
 -- non-decreasing in time, so the merge can be more efficient.  It also assumes
 -- each deriver is small, so it threads collect instead of making them
 -- independent.
-d_merge_asc :: [EventDeriver] -> EventDeriver
+d_merge_asc :: [NoteDeriver] -> NoteDeriver
 d_merge_asc = fmap merge_asc_events . sequence
 
 type PureResult d = (LEvent.LEvents d, Collect)
@@ -507,7 +507,7 @@ _event_start :: LEvent.LEvent Score.Event -> RealTime
 _event_start (LEvent.Log _) = 0
 _event_start (LEvent.Event event) = Score.event_start event
 
-instance Monoid.Monoid EventDeriver where
+instance Monoid.Monoid NoteDeriver where
     mempty = return []
     mappend d1 d2 = d_merge [d1, d2]
     mconcat = d_merge

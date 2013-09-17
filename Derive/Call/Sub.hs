@@ -73,18 +73,18 @@ under_inversion = null . Derive.info_sub_tracks . Derive.passed_info
 --
 -- If there are no sub-tracks then the call is performed as-is.  Otherwise
 -- the expression must be broken up and re-evaluated.
-inverting :: (Derive.PassedArgs d -> Derive.EventDeriver)
-    -> (Derive.PassedArgs d -> Derive.EventDeriver)
+inverting :: (Derive.PassedArgs d -> Derive.NoteDeriver)
+    -> (Derive.PassedArgs d -> Derive.NoteDeriver)
 inverting = inverting_around (1, 1)
 
-inverting_args :: Derive.PassedArgs d -> Derive.EventDeriver
-    -> Derive.EventDeriver
+inverting_args :: Derive.PassedArgs d -> Derive.NoteDeriver
+    -> Derive.NoteDeriver
 inverting_args args f = inverting (const f) args
 
 inverting_around :: (Int, Int) -- ^ Capture this many control points at+before
     -- and after the slice boundary.  Also documented in 'Slice.slice'.
-    -> (Derive.PassedArgs d -> Derive.EventDeriver)
-    -> (Derive.PassedArgs d -> Derive.EventDeriver)
+    -> (Derive.PassedArgs d -> Derive.NoteDeriver)
+    -> (Derive.PassedArgs d -> Derive.NoteDeriver)
 inverting_around around call args =
     -- If I can invert, the call isn't actually called.  Instead I make a track
     -- with event text that will result in this being called again, and at
@@ -157,14 +157,14 @@ non_bottom_note_track tree = Seq.head (concatMap go tree)
 -- ** note slice
 
 -- | Sliced sub-events are represented as a start, duration, and opaque
--- deriver.  This is a compromise between a plain EventDeriver, which is fully
+-- deriver.  This is a compromise between a plain NoteDeriver, which is fully
 -- abstract but also fully opaque, and some kind of note data structure, which
 -- is fully concrete (and thus inflexible), but also transparent to
 -- modification.
 data Event = Event {
     event_start :: !ScoreTime
     , event_duration :: !ScoreTime
-    , event_deriver :: !Derive.EventDeriver
+    , event_deriver :: !Derive.NoteDeriver
     }
 
 event_end :: Event -> ScoreTime
@@ -175,10 +175,10 @@ event_overlaps pos (Event start dur _)
     | dur == 0 = pos == start
     | otherwise = start <= pos && pos < start + dur
 
-map_event :: (Derive.EventDeriver -> Derive.EventDeriver) -> Event -> Event
+map_event :: (Derive.NoteDeriver -> Derive.NoteDeriver) -> Event -> Event
 map_event f event = event { event_deriver = f (event_deriver event) }
 
-map_events :: (Derive.EventDeriver -> Derive.EventDeriver) -> [Event] -> [Event]
+map_events :: (Derive.NoteDeriver -> Derive.NoteDeriver) -> [Event] -> [Event]
 map_events f = map (map_event f)
 
 stretch :: ScoreTime -> ScoreTime -> Event -> Event
@@ -218,13 +218,13 @@ sub_events args = case Derive.info_sub_events (Derive.passed_info args) of
         }
 
 -- | Place and merge a list of Events.
-place :: [Event] -> Derive.EventDeriver
+place :: [Event] -> Derive.NoteDeriver
 place = Derive.d_merge . map (\(Event s d n) -> Derive.d_place s d n)
 
 -- | Fit the given events into a time range.  Any leading space (time between
 -- the start of the range and the first Event) and trailing space is
 -- eliminated.
-place_at :: (ScoreTime, ScoreTime) -> [Event] -> Derive.EventDeriver
+place_at :: (ScoreTime, ScoreTime) -> [Event] -> Derive.NoteDeriver
 place_at (start, end) notes = Derive.d_place start factor $
     place [note { event_start = event_start note - note_start } | note <- notes]
     where
@@ -239,8 +239,7 @@ place_at (start, end) notes = Derive.d_place start factor $
 -- because they expect a track structure in 'Derive.info_sub_tracks'.  This
 -- bypasses that and directly passes 'Event's to the note transformer, courtesy
 -- of 'Derive.info_sub_events'.
-reapply :: Derive.EventArgs -> TrackLang.Expr -> [[Event]]
-    -> Derive.EventDeriver
+reapply :: Derive.NoteArgs -> TrackLang.Expr -> [[Event]] -> Derive.NoteDeriver
 reapply args expr notes = Call.reapply subs expr
     where
     subs = args
@@ -250,7 +249,7 @@ reapply args expr notes = Call.reapply subs expr
             }
         }
 
-reapply_call :: Derive.EventArgs -> Text
-    -> [TrackLang.Term] -> [[Event]] -> Derive.EventDeriver
+reapply_call :: Derive.NoteArgs -> Text
+    -> [TrackLang.Term] -> [[Event]] -> Derive.NoteDeriver
 reapply_call args call_id call_args =
     reapply args (TrackLang.call call_id call_args :| [])

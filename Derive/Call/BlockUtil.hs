@@ -40,7 +40,7 @@ import qualified Perform.Signal as Signal
 import Types
 
 
-note_deriver :: BlockId -> State.StateId Derive.EventDeriver
+note_deriver :: BlockId -> State.StateId Derive.NoteDeriver
 note_deriver block_id = do
     (tree, block_end) <- get_tree block_id
     return $ derive_tree block_end (Control.split_control_tracks tree)
@@ -121,7 +121,7 @@ get_tree block_id = do
     tree <- TrackTree.events_tree block_id ruler_end info_tree
     return (tree, ruler_end)
 
-derive_tree :: ScoreTime -> TrackTree.EventsTree -> Derive.EventDeriver
+derive_tree :: ScoreTime -> TrackTree.EventsTree -> Derive.NoteDeriver
 derive_tree block_end tree = with_default_tempo (derive_tracks tree)
     where
     -- d_tempo sets up some stuff that every block needs, so add one if a block
@@ -137,11 +137,11 @@ derive_tree block_end tree = with_default_tempo (derive_tracks tree)
         | otherwise = deriver
 
 -- | Derive an EventsTree.
-derive_tracks :: TrackTree.EventsTree -> Derive.EventDeriver
+derive_tracks :: TrackTree.EventsTree -> Derive.NoteDeriver
 derive_tracks = mconcat . map derive_track
 
 -- | Derive a single track node and any tracks below it.
-derive_track :: TrackTree.EventsNode -> Derive.EventDeriver
+derive_track :: TrackTree.EventsNode -> Derive.NoteDeriver
 derive_track node@(Tree.Node track subs)
     | TrackInfo.is_note_track (TrackTree.tevents_title track) = do
         let (orphans, underivable) = Slice.extract_orphans track subs
@@ -157,7 +157,7 @@ derive_track node@(Tree.Node track subs)
     where
     record = Internal.record_empty_tracks
     derive_orphans title orphans deriver
-        -- If d_merge could tell when an EventDeriver was mempty and not
+        -- If d_merge could tell when an NoteDeriver was mempty and not
         -- evaluate it I wouldn't need this little optimization.
         | null orphans = deriver
         -- The orphans still get evaluated under the track title, otherwise

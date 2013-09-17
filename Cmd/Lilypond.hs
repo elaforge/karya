@@ -73,7 +73,7 @@ derive_block block_id = do
 
 -- | Run a derivation in lilypond context, which will cause certain calls to
 -- behave differently.
-derive :: (Cmd.M m) => Derive.EventDeriver -> m Derive.Result
+derive :: (Cmd.M m) => Derive.NoteDeriver -> m Derive.Result
 derive deriver = do
     config <- State.config#State.lilypond <#> State.get
     state <- (State.config#State.default_#State.tempo #= 1) <$> State.get

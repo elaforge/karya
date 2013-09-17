@@ -43,7 +43,7 @@ module Derive.Deriver.Monad (
     , Callable(..), Elem, Tagged(..), ToTagged(..)
     , LogsDeriver
 
-    , Note, EventDeriver, Events, EventArgs
+    , Note, NoteDeriver, NoteArgs, Events
     , Control, ControlDeriver, ControlArgs
     , Pitch, PitchDeriver, PitchArgs
 
@@ -331,11 +331,9 @@ instance ToTagged Tagged where to_tagged = id
 
 -- ** event
 
--- | For note calls.  The event and note naming split is unfortunate.  TODO
--- maybe I should fix that.
 type Note = Score.Event
-type EventDeriver = LogsDeriver Score.Event
-type EventArgs = PassedArgs Score.Event
+type NoteDeriver = LogsDeriver Score.Event
+type NoteArgs = PassedArgs Score.Event
 
 type instance Elem Score.Event = Score.Event
 instance ToTagged Score.Event where to_tagged = TagEvent
@@ -938,7 +936,7 @@ data CallInfo val = CallInfo {
     -- events instead of slicing sub-tracks.  Track evaluation will never set
     -- this, but calls can set this to reapply a note transformer.  It should
     -- be 'Derive.Sub.Event's, but isn't to avoid circular imports.
-    , info_sub_events :: !(Maybe [[(ScoreTime, ScoreTime, EventDeriver)]])
+    , info_sub_events :: !(Maybe [[(ScoreTime, ScoreTime, NoteDeriver)]])
     -- | This is needed by val calls that want to evaluate events around them.
     -- Since val calls are the same on all track types, they need to know
     -- explicitly what the track type is to evaluate events on it.

@@ -83,8 +83,8 @@ data Type = Block
 -- I can reuse the cached values for it.  This is effectively a kind of
 -- memoization.  If the generator is called, the results will be put in the
 -- cache before being returned.
-block :: (Derive.PassedArgs d -> Derive.EventDeriver)
-    -> (Derive.PassedArgs d -> Derive.EventDeriver)
+block :: (Derive.PassedArgs d -> Derive.NoteDeriver)
+    -> (Derive.PassedArgs d -> Derive.NoteDeriver)
 block call args = caching_deriver Block range (call args)
     where
     range = Ranges (uncurry Ranges.range (Args.range_on_track args))

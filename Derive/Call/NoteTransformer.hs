@@ -66,8 +66,8 @@ c_tuplet = Derive.make_call "tuplet" Tags.subs
 -- be a 'Lilypond.Duration', and all the notes must be the same duration.  So
 -- I don't support tuplets with ties and whatnot inside.  It's theoretically
 -- possible, but seems hard.
-emit_lily_tuplet :: Derive.PassedArgs d -> Derive.EventDeriver
-    -> Derive.EventDeriver
+emit_lily_tuplet :: Derive.PassedArgs d -> Derive.NoteDeriver
+    -> Derive.NoteDeriver
 emit_lily_tuplet args not_lily = Lily.when_lilypond_config lily not_lily
     where
     lily config = either err return =<< Either.runEitherT . check config
@@ -142,7 +142,7 @@ c_real_arpeggio arp = Derive.make_call "arpeggio"
 
 -- | Shift each track of notes by a successive amount.
 arpeggio :: Arpeggio -> RealTime -> Double -> [[Sub.Event]]
-    -> Derive.EventDeriver
+    -> Derive.NoteDeriver
 arpeggio arp time random tracks = do
     delay_tracks <- jitter . zip (Seq.range_ 0 time) =<< sort tracks
     events <- fmap concat $ forM delay_tracks $ \(delay, track) ->
@@ -170,8 +170,8 @@ arpeggio arp time random tracks = do
 --
 -- It's also buggy for events after the start since it will make their
 -- duration negative.
-arpeggio_by_note :: Arpeggio -> RealTime -> Derive.EventDeriver
-    -> Derive.EventDeriver
+arpeggio_by_note :: Arpeggio -> RealTime -> Derive.NoteDeriver
+    -> Derive.NoteDeriver
 arpeggio_by_note arp time deriver = do
     (events, logs) <- LEvent.partition <$> deriver
     let sort = case arp of

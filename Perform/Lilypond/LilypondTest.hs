@@ -216,7 +216,7 @@ derive = derive_tracks_with_ui id id
 derive_linear :: [UiTest.TrackSpec] -> Derive.Result
 derive_linear = derive_tracks_with_ui id DeriveTest.with_linear
 
-derive_tracks_with_ui :: (Derive.EventDeriver -> Derive.EventDeriver)
+derive_tracks_with_ui :: (Derive.NoteDeriver -> Derive.NoteDeriver)
     -> (State.State -> State.State) -> [UiTest.TrackSpec] -> Derive.Result
 derive_tracks_with_ui with transform_ui tracks =
     derive_lilypond (transform_ui state) (with deriver)
@@ -225,7 +225,7 @@ derive_tracks_with_ui with transform_ui tracks =
     global_transform = State.config#State.global_transform #$ state
     (bid:_, state) = DeriveTest.mkblocks [(UiTest.default_block_name, tracks)]
 
-derive_lilypond :: State.State -> Derive.EventDeriver -> Derive.Result
+derive_lilypond :: State.State -> Derive.NoteDeriver -> Derive.Result
 derive_lilypond state deriver =
     extract $ CmdTest.result_val $
         CmdTest.run state CmdTest.default_cmd_state $

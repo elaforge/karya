@@ -8,7 +8,7 @@
     The convention for calls is that there is a function @c_something@ which
     is type NoteCall or ControlCall or whatever.  It then extracts what is
     needed from the PassedArgs and passes those values to a function
-    @something@ which is of type EventDeriver or ControlDeriver or whatever.
+    @something@ which is of type NoteDeriver or ControlDeriver or whatever.
     The idea is that PassedArgs is a large dependency and it should be reduced
     immediately to what is needed.
 -}
@@ -266,25 +266,25 @@ multiply_constant control = Derive.with_multiplied_control control
     . Score.untyped . Signal.constant
 
 -- | Generate a single note, from 0 to 1.
-note :: Derive.EventDeriver
+note :: Derive.NoteDeriver
 note = Call.eval_one_call $ TrackLang.call "" []
 
 -- | Override the pitch signal and generate a single note.
-pitched_note :: PitchSignal.Pitch -> Signal.Y -> Derive.EventDeriver
+pitched_note :: PitchSignal.Pitch -> Signal.Y -> Derive.NoteDeriver
 pitched_note pitch dynamic = with_pitch pitch $ with_dynamic dynamic note
 
 -- | Add an attribute and generate a single note.
-attr_note :: Score.Attributes -> Derive.EventDeriver
+attr_note :: Score.Attributes -> Derive.NoteDeriver
 attr_note attrs = add_attrs attrs note
 
 -- | A zero-duration 'note'.
-triggered_note :: Derive.EventDeriver
+triggered_note :: Derive.NoteDeriver
 triggered_note = Call.eval_one_at 0 0 $ TrackLang.call "" [] :| []
 
 place :: Derive.PassedArgs d -> Derive.Deriver a -> Derive.Deriver a
 place = uncurry Derive.d_place . Args.extent
 
-placed_note :: Derive.PassedArgs d -> Derive.EventDeriver
+placed_note :: Derive.PassedArgs d -> Derive.NoteDeriver
 placed_note args = place args note
 
 -- * transformer notes

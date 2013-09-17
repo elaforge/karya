@@ -243,7 +243,7 @@ perform_dump synths (_, midi, aliases, _) =
 
 -- * misc
 
-derive :: State.State -> Derive.EventDeriver -> Derive.Result
+derive :: State.State -> Derive.NoteDeriver -> Derive.Result
 derive ui_state deriver = Derive.extract_result $
     Derive.derive (default_constant ui_state mempty mempty) default_scopes
         default_environ deriver
@@ -501,7 +501,7 @@ passed_args name vals = Derive.PassedArgs
     , Derive.passed_info = Derive.dummy_call_info 0 1 "DeriveTest"
     }
 
-c_note :: ScoreTime -> ScoreTime -> Derive.EventDeriver
+c_note :: ScoreTime -> ScoreTime -> Derive.NoteDeriver
 c_note s_start dur = do
     start <- Derive.real s_start
     end <- Derive.real (s_start + dur)

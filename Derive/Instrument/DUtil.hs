@@ -32,14 +32,14 @@ attrs_note attrs =
 -- | This re-applies the default note call and wraps it in a transformer.
 -- However, it's more direct and probably clearer to directly create
 -- a transformed note call via 'Note.transformed_note' or 'Note.note_call'.
-note_call :: Text -> (Derive.EventDeriver -> Derive.EventDeriver)
+note_call :: Text -> (Derive.NoteDeriver -> Derive.NoteDeriver)
     -> Derive.Generator Derive.Note
 note_call name transform = Derive.make_call name mempty
     "Invoke the default note call with a certain transform." $
     Sig.call0 $ \args -> Sub.when_under_inversion args transform $
         Call.reapply_call args "" []
 
-zero_duration :: Text -> (Derive.EventDeriver -> Derive.EventDeriver)
+zero_duration :: Text -> (Derive.NoteDeriver -> Derive.NoteDeriver)
     -> Derive.Generator Derive.Note
 zero_duration doc transform = Note.transformed_note
     ("A normal note, but modified when it has zero duration: " <> doc) mempty $

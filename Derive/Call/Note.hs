@@ -65,7 +65,7 @@ c_note :: Derive.Generator Derive.Note
 c_note = note_call "" "" Tags.prelude (default_note use_attributes)
 
 transformed_note :: Text -> Tags.Tags
-    -> (Derive.EventArgs -> Derive.EventDeriver -> Derive.EventDeriver)
+    -> (Derive.NoteArgs -> Derive.NoteDeriver -> Derive.NoteDeriver)
     -> Derive.Generator Derive.Note
 transformed_note prepend_doc tags transform =
     note_call "" prepend_doc tags $ \args ->
@@ -108,14 +108,14 @@ c_note_attributes name = Derive.transformer name Tags.prelude
     where parser = Sig.many "attribute" "Set instrument or attributes."
 
 note_transform :: [Either Score.Instrument Score.Attributes]
-    -> Derive.PassedArgs d -> Derive.EventDeriver -> Derive.EventDeriver
+    -> Derive.PassedArgs d -> Derive.NoteDeriver -> Derive.NoteDeriver
 note_transform vals _ deriver = transform_note vals deriver
 
 -- ** generate
 
 -- | Generate a single note.  This is intended to be used as the lowest level
 -- null call for some instrument.
-type GenerateNote = Derive.EventArgs -> Derive.EventDeriver
+type GenerateNote = Derive.NoteArgs -> Derive.NoteDeriver
 
 data Config = Config {
     -- | Note duration is affected by +staccato.
@@ -281,7 +281,7 @@ trimmed_controls start end = Map.map (fmap trim)
 -- ** transform
 
 transform_note :: [Either Score.Instrument Score.Attributes]
-    -> Derive.EventDeriver -> Derive.EventDeriver
+    -> Derive.NoteDeriver -> Derive.NoteDeriver
 transform_note vals deriver =
     with_inst (Util.add_attrs (mconcat attrs) deriver)
     where

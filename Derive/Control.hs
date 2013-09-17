@@ -66,7 +66,7 @@ type TrackRange = (ScoreTime, ScoreTime)
 
 -- | Top level deriver for control tracks.
 d_control_track :: TrackTree.EventsNode
-    -> Derive.EventDeriver -> Derive.EventDeriver
+    -> Derive.NoteDeriver -> Derive.NoteDeriver
 d_control_track (Tree.Node track _) deriver = do
     let title = TrackTree.tevents_title track
     if Text.all Char.isSpace title then deriver else do
@@ -138,7 +138,7 @@ split_control track = extract $ split $ TrackTree.tevents_events track
 -- * eval_track
 
 eval_track :: TrackTree.TrackEvents -> [TrackLang.Call]
-    -> TrackInfo.ControlType -> Derive.EventDeriver -> Derive.EventDeriver
+    -> TrackInfo.ControlType -> Derive.NoteDeriver -> Derive.NoteDeriver
 eval_track track expr ctype deriver = case ctype of
     TrackInfo.Tempo -> ifM Derive.is_lilypond_derive deriver $
         tempo_call track
@@ -185,7 +185,7 @@ lookup_op control op = case op of
 -- Otherwise it would wind up being composed with the environmental warp twice.
 tempo_call :: TrackTree.TrackEvents
     -> Derive.Deriver (TrackResults Signal.Control)
-    -> Derive.EventDeriver -> Derive.EventDeriver
+    -> Derive.NoteDeriver -> Derive.NoteDeriver
 tempo_call track sig_deriver deriver = do
     (signal, logs) <- Internal.setup_without_warp sig_deriver
     whenJust maybe_block_track_id $ \(block_id, track_id) ->
@@ -214,7 +214,7 @@ control_call :: TrackTree.TrackEvents -> Score.Typed Score.Control
     -> (Bool -> Derive.Deriver (TrackResults Signal.Control))
     -- ^ The deriver takes a switch to prevent caching if 'stash_signal' runs
     -- it again.
-    -> Derive.EventDeriver -> Derive.EventDeriver
+    -> Derive.NoteDeriver -> Derive.NoteDeriver
 control_call track control maybe_op control_deriver deriver = do
     (signal, logs) <- Internal.track_setup track (control_deriver True)
     stash_signal track signal (to_display <$> control_deriver False) False
@@ -241,13 +241,13 @@ to_display (sig, _) = Signal.coerce sig
     -- I discard the logs since I think if there is anything interesting it
     -- will be logged in the "real" derivation.
 
-merge_logs :: [Log.Msg] -> Derive.EventDeriver -> Derive.EventDeriver
+merge_logs :: [Log.Msg] -> Derive.NoteDeriver -> Derive.NoteDeriver
 merge_logs logs deriver = do
     events <- deriver
     return $ Derive.merge_events (map LEvent.Log logs) events
 
 pitch_call :: TrackTree.TrackEvents -> Maybe Score.Control -> Pitch.ScaleId
-    -> [TrackLang.Call] -> Derive.EventDeriver -> Derive.EventDeriver
+    -> [TrackLang.Call] -> Derive.NoteDeriver -> Derive.NoteDeriver
 pitch_call track maybe_name scale_id expr deriver =
     Internal.track_setup track $ do
         scale <- get_scale scale_id

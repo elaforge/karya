@@ -115,7 +115,7 @@ string_idiom ::
     -> TrackLang.ValControl -- ^ Attack time.
     -> TrackLang.ValControl -- ^ Release delay.
     -> TrackLang.ValControl -- ^ Time for string to return to its open pitch.
-    -> Derive.Events -> Derive.EventDeriver
+    -> Derive.Events -> Derive.NoteDeriver
 string_idiom attack_interpolator release_interpolator open_strings attack delay
         release all_events = Post.event_head all_events $ \event events -> do
     open_nns <- mapM Pitches.pitch_nn open_strings

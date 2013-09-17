@@ -54,7 +54,7 @@ c_mordent default_neighbor = Derive.make_call "mordent" Tags.ornament
             mordent (Args.extent args) dyn neighbor
 
 mordent :: (ScoreTime, ScoreTime) -> Signal.Y -> Pitch.Transpose
-    -> Derive.EventDeriver
+    -> Derive.NoteDeriver
 mordent (start, dur) dyn_scale neighbor = do
     pos <- Derive.real start
     pitch <- Util.get_pitch pos
@@ -66,7 +66,7 @@ mordent (start, dur) dyn_scale neighbor = do
         ]
     Sub.place notes <> Derive.d_place start dur Util.note
 
-lily_mordent :: Derive.PassedArgs d -> Pitch.Transpose -> Derive.EventDeriver
+lily_mordent :: Derive.PassedArgs d -> Pitch.Transpose -> Derive.NoteDeriver
 lily_mordent args neighbor = do
     pitch <- Util.get_pitch =<< Args.real_start args
     lily_grace args [pitch, Pitches.transpose neighbor pitch]
@@ -83,7 +83,7 @@ c_grace = Derive.make_call "grace" (Tags.ornament <> Tags.ly)
         Lily.when_lilypond (lily_grace args pitches) $
             grace_call args dyn pitches
 
-lily_grace :: Derive.PassedArgs d -> [PitchSignal.Pitch] -> Derive.EventDeriver
+lily_grace :: Derive.PassedArgs d -> [PitchSignal.Pitch] -> Derive.NoteDeriver
 lily_grace args pitches = do
     pitches <- mapM Lily.pitch_to_lily pitches
     let ly_notes = map (<> Lilypond.to_lily Lilypond.D8) pitches
@@ -95,8 +95,8 @@ lily_grace args pitches = do
     -- it stays with the note's voice.
     Lily.prepend_code code $ Util.place args Util.note
 
-grace_call :: Derive.EventArgs -> Maybe Signal.Y -> [PitchSignal.Pitch]
-    -> Derive.EventDeriver
+grace_call :: Derive.NoteArgs -> Maybe Signal.Y -> [PitchSignal.Pitch]
+    -> Derive.NoteDeriver
 grace_call args dyn pitches = do
     notes <- get_grace_notes (Args.extent args) (fromMaybe 0.5 dyn) pitches
     -- Normally legato notes emphasize the first note, but that's not
@@ -116,7 +116,7 @@ get_grace_notes (start, dur) dyn_scale pitches = do
 
 grace_notes :: RealTime -- ^ note start time, grace notes fall before this
     -> RealTime -- ^ duration of each grace note
-    -> [Derive.EventDeriver] -> Derive.Deriver [Sub.Event]
+    -> [Derive.NoteDeriver] -> Derive.Deriver [Sub.Event]
 grace_notes start dur notes = mapM note $ zip starts notes
     where
     starts = Seq.range_ (start - dur * fromIntegral (length notes)) dur

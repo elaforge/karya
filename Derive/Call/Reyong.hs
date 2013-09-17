@@ -119,7 +119,7 @@ c_realize = Derive.transformer "realize-kilitan" (Tags.idiom <> Tags.postproc)
             return maybe_beat
         realize (Args.start args) beat deriver
 
-realize :: ScoreTime -> ScoreTime -> Derive.EventDeriver -> Derive.EventDeriver
+realize :: ScoreTime -> ScoreTime -> Derive.NoteDeriver -> Derive.NoteDeriver
 realize start beat deriver = do
     -- I need a regular beat, that only happens in score time.  So I should
     -- do it all in score time, that way it moves with the tempo.
@@ -202,7 +202,7 @@ output_melody pos beat = concatMap play
     play (start, ds) = [(t, beat, pitch) | (t, pitch)
         <- zip (Seq.range_ start beat) (realize_melody pos ds)]
 
-play_output :: Int -> [Output] -> Derive.EventDeriver
+play_output :: Int -> [Output] -> Derive.NoteDeriver
 play_output voice = Derive.d_merge_asc . concatMap go
     where
     go (start, dur, Note ps strike) =

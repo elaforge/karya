@@ -113,7 +113,7 @@ import Types
 -- * note track
 
 -- | Top level deriver for note tracks.
-d_note_track :: TrackTree.EventsNode -> Derive.EventDeriver
+d_note_track :: TrackTree.EventsNode -> Derive.NoteDeriver
 d_note_track (Tree.Node track subs) = do
     Control.derive_track_signals subs
     title $ derive_notes (track_info track subs)
@@ -136,7 +136,7 @@ record_if_wanted track subs events
 strip_track_id :: TrackTree.TrackEvents -> TrackTree.TrackEvents
 strip_track_id track = track { TrackTree.tevents_track_id = Nothing }
 
-stash_signal :: Derive.EventDeriver -> [Score.Event]
+stash_signal :: Derive.NoteDeriver -> [Score.Event]
     -> ((BlockId, TrackId), Track.RenderSource) -> Derive.Deriver ()
 stash_signal rederive events ((block_id, track_id), source) =
     Control.linear_tempo >>= \x -> case x of
@@ -183,7 +183,7 @@ render_of track = case TrackTree.tevents_block_track_id track of
     extract _ = Nothing
 
 with_title :: TrackTree.EventsTree -> (ScoreTime, ScoreTime) -> Text
-    -> Derive.EventDeriver -> Derive.EventDeriver
+    -> Derive.NoteDeriver -> Derive.NoteDeriver
 with_title subs (start, end) title deriver
     | Text.all Char.isSpace title = deriver
     | otherwise = do
@@ -194,7 +194,7 @@ with_title subs (start, end) title deriver
     info = (Derive.dummy_call_info start (end - start) "note track")
         { Derive.info_sub_tracks = subs }
 
-derive_notes :: Call.TrackInfo -> [Event.Event] -> Derive.EventDeriver
+derive_notes :: Call.TrackInfo -> [Event.Event] -> Derive.NoteDeriver
 derive_notes tinfo events = do
     state <- Derive.get
     let (event_groups, collect) = Call.derive_track state tinfo

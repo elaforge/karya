@@ -60,7 +60,7 @@ event_head (LEvent.Event event : rest) f = f event rest
 
 map_events_asc :: state
     -> (state -> Score.Event -> Derive.Deriver (state, [Score.Event]))
-    -> Derive.EventDeriver -> Derive.EventDeriver
+    -> Derive.NoteDeriver -> Derive.NoteDeriver
 map_events_asc state f deriver = do
     (_, result) <- map_controls Nil state (\Nil -> f) =<< deriver
     return $ Derive.merge_asc_events result
@@ -71,7 +71,7 @@ map_controls_asc :: (FixedList.FixedList cs) => cs TrackLang.ValControl
     -> state
     -> (cs Score.TypedVal -> state -> Score.Event
         -> Derive.Deriver (state, [Score.Event]))
-    -> Derive.EventDeriver -> Derive.EventDeriver
+    -> Derive.NoteDeriver -> Derive.NoteDeriver
 map_controls_asc controls state f deriver = do
     (_, result) <- map_controls controls state f =<< deriver
     return $ Derive.merge_asc_events result

@@ -161,7 +161,7 @@ tremolo_starts speed range = do
 -- you can have multiple tremolo events.
 --
 -- TODO Optionally, extend each note to the next time that note occurs.
-chord_tremolo :: [ScoreTime] -> [[Sub.Event]] -> Derive.EventDeriver
+chord_tremolo :: [ScoreTime] -> [[Sub.Event]] -> Derive.NoteDeriver
 chord_tremolo starts note_tracks =
     Sub.place $ concat $ snd $
         List.mapAccumL emit (-1, by_track) $ zip starts (drop 1 starts)
@@ -180,7 +180,7 @@ chord_tremolo starts note_tracks =
             note <- track]
 
 -- | Just cycle the given notes.
-simple_tremolo :: [ScoreTime] -> [Derive.EventDeriver] -> Derive.EventDeriver
+simple_tremolo :: [ScoreTime] -> [Derive.NoteDeriver] -> Derive.NoteDeriver
 simple_tremolo starts notes =
     Sub.place [Sub.Event start (end - start) note
         | (start, end, note) <- zip3 starts (drop 1 starts)

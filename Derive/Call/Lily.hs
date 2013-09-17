@@ -55,19 +55,19 @@ when_lilypond_config lily not_lily =
     maybe not_lily lily =<< Derive.lookup_lilypond_config
 
 -- | Only emit the deriver if I'm in lilypond mode.
-only_lilypond :: Derive.EventDeriver -> Derive.EventDeriver
+only_lilypond :: Derive.NoteDeriver -> Derive.NoteDeriver
 only_lilypond deriver = ifM Derive.is_lilypond_derive deriver mempty
 
 -- | When in lilypond mode, generate a note with the given Code.
-note_code :: Code -> Derive.PassedArgs d -> Derive.EventDeriver
-    -> Derive.EventDeriver
+note_code :: Code -> Derive.PassedArgs d -> Derive.NoteDeriver
+    -> Derive.NoteDeriver
 note_code code args = when_lilypond $
     add_code code $ Util.place args Util.note
 
 -- ** transformer
 
 -- | Add code to the first event.
-add_first :: Code -> Derive.EventDeriver -> Derive.EventDeriver
+add_first :: Code -> Derive.NoteDeriver -> Derive.NoteDeriver
 add_first code deriver =
     Post.map_first (return . add_event_code code) =<< deriver
 
@@ -76,20 +76,20 @@ add_first code deriver =
 -- | Replace a note transformer with one that derives its sub-events as-is
 -- and adds lilypond code to them.
 notes_code :: Code -> Derive.PassedArgs d
-    -> Derive.EventDeriver -> Derive.EventDeriver
+    -> Derive.NoteDeriver -> Derive.NoteDeriver
 notes_code code = notes_with (add_code code)
 
 -- | Like 'notes_code', but only apply the code to the first event, not all of
 -- them.
 first_note_code :: Code -> Derive.PassedArgs d
-    -> Derive.EventDeriver -> Derive.EventDeriver
+    -> Derive.NoteDeriver -> Derive.NoteDeriver
 first_note_code code args = when_lilypond $
     add_first code $ place_notes args
 
 -- | This is like 'notes_code', but the first event in each track gets the
 -- start code, and the last event in each track gets the end code.
 notes_around :: Code -> Code -> Derive.PassedArgs d
-    -> Derive.EventDeriver -> Derive.EventDeriver
+    -> Derive.NoteDeriver -> Derive.NoteDeriver
 notes_around start end args = when_lilypond $
     mconcat . map around =<< Sub.sub_events args
     where
@@ -98,7 +98,7 @@ notes_around start end args = when_lilypond $
 
 -- | Like 'notes_around', but for use when you already know you're in lilypond
 -- mode.
-notes_around_ly :: Code -> Code -> Derive.PassedArgs d -> Derive.EventDeriver
+notes_around_ly :: Code -> Code -> Derive.PassedArgs d -> Derive.NoteDeriver
 notes_around_ly start end = mconcat . map around <=< Sub.sub_events
     where
     around notes = first_last
@@ -106,20 +106,20 @@ notes_around_ly start end = mconcat . map around <=< Sub.sub_events
 
 -- | Like 'notes_around', but when I'm not in lilypond mode just derive the
 -- sub events unchanged.
-code_around :: Code -> Code -> Derive.PassedArgs d -> Derive.EventDeriver
+code_around :: Code -> Code -> Derive.PassedArgs d -> Derive.NoteDeriver
 code_around start end args = when_lilypond
     (code0 (Args.start args) start
         <> place_notes args <> code0 (Args.end args) end)
     (place_notes args)
 
 -- | Transform and evaluate the sub events.
-notes_with :: (Derive.EventDeriver -> Derive.EventDeriver)
+notes_with :: (Derive.NoteDeriver -> Derive.NoteDeriver)
     -> Derive.PassedArgs d
-    -> Derive.EventDeriver -> Derive.EventDeriver
+    -> Derive.NoteDeriver -> Derive.NoteDeriver
 notes_with f args = when_lilypond $
     Sub.place . Sub.map_events f . concat =<< Sub.sub_events args
 
-place_notes :: Derive.PassedArgs d -> Derive.EventDeriver
+place_notes :: Derive.PassedArgs d -> Derive.NoteDeriver
 place_notes = Sub.place . concat <=< Sub.sub_events
 
 -- ** events around
@@ -174,10 +174,10 @@ position_env c = case c of
     SuffixLast -> Constants.v_ly_append_last
     SuffixAll -> Constants.v_ly_append_all
 
-prepend_code :: Ly -> Derive.EventDeriver -> Derive.EventDeriver
+prepend_code :: Ly -> Derive.NoteDeriver -> Derive.NoteDeriver
 prepend_code = add_code . (,) Prefix
 
-add_code :: Code -> Derive.EventDeriver -> Derive.EventDeriver
+add_code :: Code -> Derive.NoteDeriver -> Derive.NoteDeriver
 add_code (pos, code) = Derive.modify_val (position_env pos) $
     (<>code) . fromMaybe ""
 
@@ -185,13 +185,13 @@ add_code (pos, code) = Derive.modify_val (position_env pos) $
 -- literally, and assumed to have the duration of the event.  The event's pitch
 -- is ignored.  This can be used to emit lilypond that doesn't fit into
 -- a 'Types.Event'.
-code :: (ScoreTime, ScoreTime) -> Ly -> Derive.EventDeriver
+code :: (ScoreTime, ScoreTime) -> Ly -> Derive.NoteDeriver
 code (start, dur) code = Derive.with_val Constants.v_ly_prepend code $
     Derive.with_no_pitch $ Derive.d_place start dur Util.note
 
 -- | Like 'code', but for 0 duration code fragments, and can either put them
 -- before or after notes that occur at the same time.
-code0 :: ScoreTime -> Code -> Derive.EventDeriver
+code0 :: ScoreTime -> Code -> Derive.NoteDeriver
 code0 start (pos_, code) = with (Derive.d_place start 0 Util.note)
     where
     -- SuffixFirst and SuffixLast are not used for 0 dur events, so make it
@@ -202,7 +202,7 @@ code0 start (pos_, code) = with (Derive.d_place start 0 Util.note)
         _ -> pos_
     with = Derive.with_val (position_env pos) code
 
-global_code0 :: ScoreTime -> Code -> Derive.EventDeriver
+global_code0 :: ScoreTime -> Code -> Derive.NoteDeriver
 global_code0 start = global . code0 start
 
 -- ** convert
@@ -221,7 +221,7 @@ is_duration config t = case is_note_duration config t of
     Just (Types.NoteDuration dur False) -> Just dur
     _ -> Nothing
 
-note_pitch :: Derive.EventDeriver -> Derive.Deriver Note
+note_pitch :: Derive.NoteDeriver -> Derive.Deriver Note
 note_pitch deriver = do
     events <- deriver
     event <- require "had no event" $ Seq.head (LEvent.events_of events)
@@ -330,8 +330,8 @@ c_unless_ly = Derive.transformer "unless-ly" Tags.ly_only
     \ not in lilypond mode."
     $ Sig.parsed_manually "Any number of arguments of any type." (when_ly True)
 
-when_ly :: Bool -> Derive.PassedArgs Score.Event -> Derive.EventDeriver
-    -> Derive.EventDeriver
+when_ly :: Bool -> Derive.PassedArgs Score.Event -> Derive.NoteDeriver
+    -> Derive.NoteDeriver
 when_ly inverted args deriver = case Derive.passed_vals args of
     [] -> when deriver mempty
     call : vals -> when (apply args (to_sym call) vals deriver) deriver
@@ -375,7 +375,7 @@ c_if_ly = Derive.make_call "if-ly" Tags.ly_only
         (Call.reapply_string args (TrackLang.show_call_val is_ly))
         (Call.reapply_string args (TrackLang.show_call_val not_ly))
 
-derive_subtracks :: Derive.PassedArgs d -> Derive.EventDeriver
+derive_subtracks :: Derive.PassedArgs d -> Derive.NoteDeriver
 derive_subtracks =
     BlockUtil.derive_tracks . Derive.info_sub_tracks . Derive.passed_info
 
@@ -454,7 +454,7 @@ c_diminuendo = make_code_call "ly-diminuendo"
     \ next hairpin or dynamic marking." Sig.no_args $
     \() -> crescendo_diminuendo "\\>"
 
-crescendo_diminuendo :: Ly -> Derive.PassedArgs d -> Derive.EventDeriver
+crescendo_diminuendo :: Ly -> Derive.PassedArgs d -> Derive.NoteDeriver
 crescendo_diminuendo hairpin args
     -- TODO or is a transformer, I think I should set transformer duration to 0
     | Args.end args > Args.start args = start <> end
@@ -565,7 +565,7 @@ code0_call name doc sig make_code =
 -- | Just like 'code0_call', but the code uses the 'Constants.ly_global'
 -- instrument.
 global_code0_call :: Text -> Text -> Sig.Parser a
-    -> (a -> Derive.EventDeriver -> Derive.EventDeriver)
+    -> (a -> Derive.NoteDeriver -> Derive.NoteDeriver)
     -> Make.Calls Derive.Note
 global_code0_call name doc sig call =
     make_code_call name doc sig $ \val args ->
@@ -573,7 +573,7 @@ global_code0_call name doc sig call =
 
 -- | Emit a free-standing fragment of lilypond code.
 make_code_call :: Text -> Text -> Sig.Parser a
-    -> (a -> Derive.PassedArgs Score.Event -> Derive.EventDeriver)
+    -> (a -> Derive.PassedArgs Score.Event -> Derive.NoteDeriver)
     -> Make.Calls Derive.Note
 make_code_call name doc sig call = (generator, transformer)
     where

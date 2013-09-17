@@ -42,7 +42,7 @@ c_pizz_arp = Derive.transformer "pizz-arp" (Tags.postproc <> Tags.idiom)
     \time _args deriver -> Lily.when_lilypond deriver $
         pizz_arp time =<< deriver
 
-pizz_arp :: TrackLang.ValControl -> Derive.Events -> Derive.EventDeriver
+pizz_arp :: TrackLang.ValControl -> Derive.Events -> Derive.NoteDeriver
 pizz_arp time = map_simultaneous 0.025 (Score.has_attribute Attrs.pizz) $
     \(event :| chord) -> do
         let start = Score.event_start event
@@ -56,7 +56,7 @@ map_simultaneous :: RealTime
     -- ^ only process events that pass this predicate
     -> (NonEmpty Score.Event -> Derive.Deriver [Score.Event])
     -- ^ process simultaneous events
-    -> Derive.Events -> Derive.EventDeriver
+    -> Derive.Events -> Derive.NoteDeriver
 map_simultaneous eta accept f = go
     where
     go [] = return []
@@ -91,7 +91,7 @@ c_avoid_overlap = Derive.transformer "avoid-overlap"
     $ \time _args deriver -> Lily.when_lilypond deriver $
         avoid_overlap time =<< deriver
 
-avoid_overlap :: RealTime -> Derive.Events -> Derive.EventDeriver
+avoid_overlap :: RealTime -> Derive.Events -> Derive.NoteDeriver
 avoid_overlap time = return . Post.map_around go
     where
     go _ event future = case List.find same (takeWhile overlaps future) of

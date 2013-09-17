@@ -39,7 +39,7 @@ environ_note name tags doc key val =
     transform_notes name tags doc Sig.no_args (\() -> Derive.with_val key val)
 
 transform_notes :: Text -> Tags.Tags -> Text -> Sig.Parser a
-    -> (a -> Derive.EventDeriver -> Derive.EventDeriver)
+    -> (a -> Derive.NoteDeriver -> Derive.NoteDeriver)
     -> Calls Derive.Note
 transform_notes name tags transform_doc sig transform = (generator, transformer)
     where
@@ -54,7 +54,7 @@ transform_notes name tags transform_doc sig transform = (generator, transformer)
         \params _args deriver -> transform params deriver
 
 transform_notes_subevents :: Text -> Tags.Tags -> Sig.Parser a
-    -> (a -> Derive.EventDeriver -> Derive.EventDeriver)
+    -> (a -> Derive.NoteDeriver -> Derive.NoteDeriver)
     -> Derive.Generator Derive.Note
 transform_notes_subevents name tags sig transform =
     Derive.make_call name (tags <> Tags.subs) generator_doc generator

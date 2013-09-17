@@ -65,14 +65,13 @@ c_echo = Derive.transformer "echo" mempty
             \(delay :. feedback :. times :. Nil) ->
                 echo (Signal.y_to_score delay) feedback (floor times) deriver
 
-echo :: ScoreTime -> Double -> Int -> Derive.EventDeriver
-    -> Derive.EventDeriver
+echo :: ScoreTime -> Double -> Int -> Derive.NoteDeriver -> Derive.NoteDeriver
 echo delay feedback times deriver
     | times <= 0 = deriver
     | otherwise = deriver <> Derive.shift_control delay (Derive.d_at delay
         (scale_dyn feedback $ echo delay feedback (times - 1) deriver))
 
-scale_dyn :: Signal.Y -> Derive.EventDeriver -> Derive.EventDeriver
+scale_dyn :: Signal.Y -> Derive.NoteDeriver -> Derive.NoteDeriver
 scale_dyn = Derive.multiply_control Score.c_dynamic
 
 

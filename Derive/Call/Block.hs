@@ -48,7 +48,7 @@ note_calls = Derive.call_maps
 
 -- | Evaluate the root block in a performance.  Making this an ordinary call
 -- means it participates in the derive cache just like all other calls.
-eval_root_block :: Text -> BlockId -> Derive.EventDeriver
+eval_root_block :: Text -> BlockId -> Derive.NoteDeriver
     -- Derive.d_tempo does a bit of magic to stretch all blocks to length 1,
     -- except the root one.  The root block should operate in real time, so
     -- no stretching here.  Otherwise, a tempo of '2' is the same as '1'.
@@ -104,7 +104,7 @@ constant_controls_at deriver = do
         }
     pitch_at p = maybe mempty PitchSignal.constant . PitchSignal.at p
 
-d_block :: BlockId -> Derive.EventDeriver
+d_block :: BlockId -> Derive.NoteDeriver
 d_block block_id = do
     blocks <- Derive.get_ui_state State.state_blocks
     -- Do some error checking.  These are all caught later, but if I throw here

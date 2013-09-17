@@ -108,7 +108,7 @@ c_legato = Derive.make_call "legato" (Tags.attr <> Tags.subs <> Tags.ly)
         note_legato overlap maybe_detach dyn =<< Sub.sub_events args
 
 note_legato :: RealTime -> Maybe RealTime -> Signal.Y -> [[Sub.Event]]
-    -> Derive.EventDeriver
+    -> Derive.NoteDeriver
 note_legato overlap maybe_detach dyn = Sub.place . concat . map apply
     where
     apply = Seq.map_init (Sub.map_event (set_sustain overlap))

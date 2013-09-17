@@ -24,7 +24,7 @@ import qualified Perform.Signal as Signal
 import Types
 
 
-transform :: (Derive.EventDeriver -> Derive.EventDeriver) -> Derive.Result
+transform :: (Derive.NoteDeriver -> Derive.NoteDeriver) -> Derive.Result
 transform trans = DeriveTest.derive State.empty $
     Derive.with_constant_pitch Nothing
         (DeriveTest.mkpitch12 "4c") (trans (DeriveTest.c_note 0 1))
