@@ -5,7 +5,7 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE TypeSynonymInstances, FlexibleInstances #-}
 {-# LANGUAGE TypeFamilies #-}
-{-# LANGUAGE FlexibleContexts #-} -- for super-classes of Derived
+{-# LANGUAGE FlexibleContexts #-} -- for super-classes of Callable
 {-# LANGUAGE UndecidableInstances #-}
 {-# LANGUAGE Rank2Types, BangPatterns #-}
 {- | Implementation for the Deriver monad.
@@ -40,7 +40,7 @@ module Derive.Deriver.Monad (
     , throw_error, throw_error_srcpos
 
     -- * derived types
-    , Derived(..), Elem, Tagged(..), ToTagged(..)
+    , Callable(..), Elem, Tagged(..), ToTagged(..)
     , LogsDeriver
 
     , Note, EventDeriver, Events, EventArgs
@@ -307,20 +307,10 @@ throw_error_srcpos srcpos err = do
 
 -- * derived types
 
--- | The various types of calls have different haskell types, which improves
--- type safety and reduces the need for tagging.  However, sometimes
--- a polymorphic type is inconvenient and I need to reify the type to the value
--- level.
-class (Show d, ToTagged (Elem d)) => Derived d where
-    -- | I would prefer to have a function to a generic reified type and then
-    -- use that value to index the CacheEntry, but I can't think of how to do
-    -- that right now.
-    from_cache_entry :: CacheEntry -> Maybe (CallType d)
-    to_cache_entry :: CallType d -> CacheEntry
-    -- | Each kind of deriver looks a different scope for its calls.  By making
-    -- this a class method, I can figure out which scope to look in just from
-    -- the type.  TODO this is redundant with 'to_cache_entry', I could replace
-    -- them both with a generic to_tagged, but for d not Elem d.
+-- | Each kind of deriver looks a different scope for its calls.  By making
+-- this a class method, I can figure out which scope to look in just from
+-- the type.
+class (Show d, ToTagged (Elem d)) => Callable d where
     lookup_generator :: TrackLang.CallId -> Deriver (Maybe (Generator d))
     lookup_transformer :: TrackLang.CallId -> Deriver (Maybe (Transformer d))
     callable_name :: d -> Text
@@ -358,10 +348,7 @@ instance ToTagged Score.Event where to_tagged = TagEvent
 -- hard to avoid if I want to merge streams.
 type Events = LEvent.LEvents Score.Event
 
-instance Derived Score.Event where
-    from_cache_entry (CachedEvents ctype) = Just ctype
-    from_cache_entry _ = Nothing
-    to_cache_entry = CachedEvents
+instance Callable Score.Event where
     lookup_generator = lookup_with (scope_note . scopes_generator)
     lookup_transformer = lookup_with (scope_note . scopes_transformer)
     callable_name _ = "note"
@@ -375,10 +362,7 @@ type ControlArgs = PassedArgs Signal.Y
 type instance Elem Signal.Control = Signal.Y
 instance ToTagged Signal.Y where to_tagged = TagControl
 
-instance Derived Signal.Control where
-    from_cache_entry (CachedControl ctype) = Just ctype
-    from_cache_entry _ = Nothing
-    to_cache_entry = CachedControl
+instance Callable Signal.Control where
     lookup_generator = lookup_with (scope_control . scopes_generator)
     lookup_transformer = lookup_with (scope_control . scopes_transformer)
     callable_name _ = "control"
@@ -392,10 +376,7 @@ type PitchArgs = PassedArgs PitchSignal.Pitch
 type instance Elem PitchSignal.Signal = PitchSignal.Pitch
 instance ToTagged PitchSignal.Pitch where to_tagged = TagPitch
 
-instance Derived PitchSignal.Signal where
-    from_cache_entry (CachedPitch ctype) = Just ctype
-    from_cache_entry _ = Nothing
-    to_cache_entry = CachedPitch
+instance Callable PitchSignal.Signal where
     lookup_generator = lookup_with (scope_pitch . scopes_generator)
     lookup_transformer = lookup_with (scope_pitch . scopes_transformer)
     callable_name _ = "pitch"
@@ -1084,8 +1065,8 @@ generator1 name tags doc (func, arg_docs) =
 -- ** transformer
 
 -- | Just 'make_call' with a more specific signature.
-transformer :: (Derived d) => Text -> Tags.Tags -> Text
-    -> WithArgDoc (TransformerFunc d) -> Call (TransformerFunc d)
+transformer :: Text -> Tags.Tags -> Text -> WithArgDoc (TransformerFunc d)
+    -> Call (TransformerFunc d)
 transformer = make_call
 
 -- ** val

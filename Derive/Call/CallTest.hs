@@ -98,7 +98,7 @@ run_val transform call = extract $ DeriveTest.derive_tracks_with
         Sig.call (Sig.required "val" "Val.") $ \val _args ->
             Derive.with_val "capture" (val :: TrackLang.Val) Util.note
 
-c_show_args :: (Derive.Derived d) => Derive.Generator d
+c_show_args :: (Derive.Callable d) => Derive.Generator d
 c_show_args = Derive.generator "show-args" mempty "doc" $
     Sig.parsed_manually "doc" $ \args -> do
         Log.warn $ Seq.join ", " $

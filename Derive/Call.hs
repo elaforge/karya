@@ -115,13 +115,13 @@ type PassedArgs d = Derive.PassedArgs (Derive.Elem d)
 
 -- | Evaluate a single note as a generator.  Fake up an event with no prev or
 -- next lists.
-eval_one :: (Derive.Derived d) => TrackLang.Expr -> Derive.LogsDeriver d
+eval_one :: (Derive.Callable d) => TrackLang.Expr -> Derive.LogsDeriver d
 eval_one = eval_one_at 0 1
 
-eval_one_call :: (Derive.Derived d) => TrackLang.Call -> Derive.LogsDeriver d
+eval_one_call :: (Derive.Callable d) => TrackLang.Call -> Derive.LogsDeriver d
 eval_one_call = eval_one . (:| [])
 
-eval_one_at :: (Derive.Derived d) => ScoreTime -> ScoreTime -> TrackLang.Expr
+eval_one_at :: (Derive.Callable d) => ScoreTime -> ScoreTime -> TrackLang.Expr
     -> Derive.LogsDeriver d
 eval_one_at start dur expr = eval_expr cinfo expr
     where
@@ -133,7 +133,7 @@ eval_one_at start dur expr = eval_expr cinfo expr
 -- | Like 'derive_event' but evaluate the event outside of its track context.
 -- This is useful if you want to evaluate things out of order, i.e. evaluate
 -- the /next/ pitch.
-eval_event :: (Derive.Derived d) => Event.Event
+eval_event :: (Derive.Callable d) => Event.Event
     -> Derive.Deriver (Either String (LEvent.LEvents d))
 eval_event event = case ParseBs.parse_expr (Event.event_bytestring event) of
     Left err -> return $ Left err
@@ -142,18 +142,18 @@ eval_event event = case ParseBs.parse_expr (Event.event_bytestring event) of
         eval_one_at (Event.start event) (Event.duration event) expr
 
 -- | Apply an expr with the current call info.
-reapply :: (Derive.Derived d) => PassedArgs d -> TrackLang.Expr
+reapply :: (Derive.Callable d) => PassedArgs d -> TrackLang.Expr
     -> Derive.LogsDeriver d
 reapply args = eval_expr (Derive.passed_info args)
 
 -- | Like 'reapply', but parse the string first.
-reapply_string :: (Derive.Derived d) => PassedArgs d -> Text
+reapply_string :: (Derive.Callable d) => PassedArgs d -> Text
     -> Derive.LogsDeriver d
 reapply_string args s = case ParseBs.parse_expr (ParseBs.from_text s) of
     Left err -> Derive.throw $ "parse error: " ++ err
     Right expr -> reapply args expr
 
-reapply_call :: (Derive.Derived d) => PassedArgs d -> Text -> [TrackLang.Term]
+reapply_call :: (Derive.Callable d) => PassedArgs d -> Text -> [TrackLang.Term]
     -> Derive.LogsDeriver d
 reapply_call args call_id call_args =
     reapply args (TrackLang.call call_id call_args :| [])
@@ -176,7 +176,7 @@ apply_pitch pos call = apply cinfo call []
     where cinfo = Derive.dummy_call_info pos 0 "<apply_pitch>"
 
 -- | Evaluate a single expression.
-eval_expr :: (Derive.Derived d) => CallInfo d -> TrackLang.Expr
+eval_expr :: (Derive.Callable d) => CallInfo d -> TrackLang.Expr
     -> Derive.LogsDeriver d
 eval_expr cinfo expr = do
     state <- Derive.get
@@ -187,7 +187,7 @@ eval_expr cinfo expr = do
     return $ Derive.merge_logs res logs
 
 -- | Parse and apply a transform expression.
-apply_transform :: (Derive.Derived d) => String -> Text
+apply_transform :: (Derive.Callable d) => String -> Text
     -> Derive.LogsDeriver d -> Derive.LogsDeriver d
 apply_transform name expr_str deriver = do
     expr <- case ParseBs.parse_expr (ParseBs.from_text expr_str) of
@@ -241,7 +241,7 @@ get_last f prev (Right derived) =
 -- There's a certain amount of hairiness in here because note and control
 -- tracks are mostly but not quite the same and because calls get a lot of
 -- auxiliary data in 'Derive.CallInfo'.
-derive_track :: forall d. (Derive.Derived d) =>
+derive_track :: forall d. (Derive.Callable d) =>
     -- forall and ScopedTypeVariables needed for the inner 'go' signature
     Derive.State -> TrackInfo -> GetLastSample d
     -> [Event.Event] -> ([LEvent.LEvents d], Derive.Collect)
@@ -266,7 +266,7 @@ derive_track state tinfo get_last_sample events =
             Left err -> [LEvent.Log (Derive.error_to_warn err)]
         next_sample = get_last_sample prev_sample result
 
-derive_event :: (Derive.Derived d) =>
+derive_event :: (Derive.Callable d) =>
     Derive.State -> TrackInfo -> PrevVal d
     -> [Event.Event] -- ^ previous events, in reverse order
     -> Event.Event -- ^ cur event
@@ -314,7 +314,7 @@ repeat_call_of prev cur
     | otherwise = prev
 
 -- | Apply a toplevel expression.
-apply_toplevel :: (Derive.Derived d) => Derive.State
+apply_toplevel :: (Derive.Callable d) => Derive.State
     -> CallInfo d -> TrackLang.Expr
     -> (Either Derive.Error (LEvent.LEvents d), [Log.Msg], Derive.Collect)
 apply_toplevel state cinfo expr =
@@ -325,7 +325,7 @@ apply_toplevel state cinfo expr =
     run d = case Derive.run state d of
         (result, state, logs) -> (result, logs, Derive.state_collect state)
 
-apply_generator :: forall d. (Derive.Derived d) => CallInfo d
+apply_generator :: forall d. (Derive.Callable d) => CallInfo d
     -> TrackLang.Call -> Derive.LogsDeriver d
 apply_generator cinfo (TrackLang.Call call_id args) = do
     maybe_call <- Derive.lookup_generator call_id
@@ -357,7 +357,7 @@ apply_generator cinfo (TrackLang.Call call_id args) = do
     name = Derive.callable_name
         (error "Derive.callable_name shouldn't evaluate its argument." :: d)
 
-apply_transformers :: (Derive.Derived d) => CallInfo d
+apply_transformers :: (Derive.Callable d) => CallInfo d
     -> [TrackLang.Call] -> Derive.LogsDeriver d
     -> Derive.LogsDeriver d
 apply_transformers _ [] deriver = deriver
@@ -377,7 +377,7 @@ apply_transformers cinfo (TrackLang.Call call_id args : calls) deriver = do
 -- already parsed set of vals.
 --
 -- TODO yuck, can I do it with less copy-paste?
-reapply_transformer :: (Derive.Derived d) => CallInfo d
+reapply_transformer :: (Derive.Callable d) => CallInfo d
     -> TrackLang.CallId -> [TrackLang.Val] -> Derive.LogsDeriver d
     -> Derive.LogsDeriver d
 reapply_transformer cinfo call_id vals deriver = do
@@ -453,7 +453,7 @@ get_val_call :: TrackLang.CallId -> Derive.Deriver Derive.ValCall
 get_val_call call_id =
     require_call call_id "val" =<< Derive.lookup_val_call call_id
 
-get_generator :: forall d. (Derive.Derived d) =>
+get_generator :: forall d. (Derive.Callable d) =>
     TrackLang.CallId -> Derive.Deriver (Derive.Generator d)
 get_generator call_id =
     require_call call_id (name <> " generator")
@@ -462,7 +462,7 @@ get_generator call_id =
     name = Derive.callable_name
         (error "Derive.callable_name shouldn't evaluate its argument." :: d)
 
-get_transformer :: forall d. (Derive.Derived d) =>
+get_transformer :: forall d. (Derive.Callable d) =>
     TrackLang.CallId -> Derive.Deriver (Derive.Transformer d)
 get_transformer call_id =
     require_call call_id (name <> " transformer")

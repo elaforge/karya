@@ -4,10 +4,13 @@ LEGEND
 
 UNSORTED
   - keys to turn play speed up and down
+  - the Event/Note nomenclature split is annoying.  I think there are too many
+    things called "Note" to change, so get rid of: Derive.EventDerive,
+    Derive.EventArgs
   / Derive.Sig could use Derive.Generator
   * I forgot to add a way to override control calls.  What should the prefix
     be?  '.call = xyz'?
-  - Clean up the Derived class.  It seems like I should be able to get by with
+  * Clean up the Derived class.  It seems like I should be able to get by with
     a tag for 'd' and a to_tag for (Elem d)
     . Not quite.  lookup_generator needs to dispatch on return type, but I
       get Could not deduce (d ~ Score.Event) from the context (Derived d)

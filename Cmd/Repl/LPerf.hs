@@ -362,14 +362,14 @@ get_cache block_id = do
         Cmd.get_performance block_id
     return cache
 
-get_cache_events :: (Derive.Derived d, Cmd.M m) => BlockId
+get_cache_events :: (Cache.Cacheable d, Cmd.M m) => BlockId
     -> m (Map.Map Stack.Stack (LEvent.LEvents d))
 get_cache_events block_id = do
     cache <- get_cache block_id
     return $ Map.mapMaybe get cache
     where
     get Derive.Invalid = Nothing
-    get (Derive.Cached c) = case Derive.from_cache_entry c of
+    get (Derive.Cached c) = case Cache.from_cache_entry c of
         Nothing -> Nothing
         Just (Derive.CallType _ events) -> Just events
 

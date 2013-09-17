@@ -31,7 +31,7 @@ pitch_calls = Derive.call_maps
     [("alt", c_alternate)]
     [("omit", c_omit)]
 
-c_omit :: (Derive.Derived d) => Derive.Transformer d
+c_omit :: (Derive.Callable d) => Derive.Transformer d
 c_omit = Derive.transformer "omit" Tags.random
     "Omit the derived call a certain percentage of the time."
     $ Sig.callt
@@ -39,7 +39,7 @@ c_omit = Derive.transformer "omit" Tags.random
         "Chance, from 0 to 1, that the transformed note will be omitted."
     ) $ \omit _args deriver -> ifM (Util.chance omit) (return mempty) deriver
 
-c_alternate :: (Derive.Derived d) => Derive.Generator d
+c_alternate :: (Derive.Callable d) => Derive.Generator d
 c_alternate = Derive.make_call "alternate" Tags.random
     ("Pick one of several expressions and evaluate it.\
     \ They have to be strings since calls themselves are not first class."

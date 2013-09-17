@@ -3,8 +3,10 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 {-# LANGUAGE CPP #-}
+{-# LANGUAGE TypeSynonymInstances, FlexibleInstances #-}
 module Derive.Cache (
-    block, track
+    Cacheable(..)
+    , block, track
     , get_control_damage, get_tempo_damage
     , is_cache_log, extract_cached_msg, extract_rederived_msg
 
@@ -35,10 +37,32 @@ import qualified Derive.Derive as Derive
 import Derive.Derive (Cache(..), Cached(..), ScoreDamage(..), ControlDamage(..))
 import qualified Derive.Deriver.Internal as Internal
 import qualified Derive.LEvent as LEvent
+import qualified Derive.PitchSignal as PitchSignal
+import qualified Derive.Score as Score
 import qualified Derive.Stack as Stack
 
+import qualified Perform.Signal as Signal
 import Types
 
+
+class Cacheable d where
+    from_cache_entry :: Derive.CacheEntry -> Maybe (Derive.CallType d)
+    to_cache_entry :: Derive.CallType d -> Derive.CacheEntry
+
+instance Cacheable Score.Event where
+    from_cache_entry (Derive.CachedEvents ctype) = Just ctype
+    from_cache_entry _ = Nothing
+    to_cache_entry = Derive.CachedEvents
+
+instance Cacheable Signal.Control where
+    from_cache_entry (Derive.CachedControl ctype) = Just ctype
+    from_cache_entry _ = Nothing
+    to_cache_entry = Derive.CachedControl
+
+instance Cacheable PitchSignal.Signal where
+    from_cache_entry (Derive.CachedPitch ctype) = Just ctype
+    from_cache_entry _ = Nothing
+    to_cache_entry = Derive.CachedPitch
 
 -- * block
 
@@ -71,7 +95,7 @@ block call args = caching_deriver Block range (call args)
 data Ranges = Ranges !(Ranges.Ranges ScoreTime) !Bool deriving (Show)
 
 -- | Cache a track, but only if it's not sliced and has a TrackId.
-track :: (Derive.Derived d) => TrackTree.TrackEvents -> Set.Set TrackId
+track :: (Cacheable d) => TrackTree.TrackEvents -> Set.Set TrackId
     -- ^ Children, as documented in 'Track'.
     -> Derive.LogsDeriver d -> Derive.LogsDeriver d
 track track children
@@ -83,7 +107,7 @@ should_cache :: TrackTree.TrackEvents -> Bool
 should_cache track = not (TrackTree.tevents_sliced track)
     && Maybe.isJust (TrackTree.tevents_track_id track)
 
-caching_deriver :: (Derive.Derived d) => Type -> Ranges
+caching_deriver :: (Cacheable d) => Type -> Ranges
     -> Derive.LogsDeriver d -> Derive.LogsDeriver d
 caching_deriver typ range call = do
     st <- Derive.get
@@ -145,7 +169,7 @@ with_empty_collect inflict_control_damage deriver = do
     Derive.put old
     return (result, collect)
 
-find_generator_cache :: (Derive.Derived derived) => Type
+find_generator_cache :: (Cacheable derived) => Type
     -> Stack.Stack -> Ranges -> ScoreDamage -> ControlDamage
     -> Cache -> Either (Bool, String) (Derive.Collect, LEvent.LEvents derived)
 find_generator_cache typ stack (Ranges event_range is_negative) score
@@ -171,7 +195,7 @@ find_generator_cache typ stack (Ranges event_range is_negative) score
     Derive.CallType collect stream <- case cached of
         Invalid -> Left (False, "cache invalidated by score damage")
         Cached entry -> maybe (Left (False, "cache has wrong type")) Right $
-            Derive.from_cache_entry entry
+            from_cache_entry entry
     let Derive.BlockDeps block_deps = Derive.collect_block_deps collect
     let damaged_blocks = Set.union
             (sdamage_track_blocks score) (sdamage_blocks score)
@@ -185,7 +209,7 @@ find_generator_cache typ stack (Ranges event_range is_negative) score
         Left (True, "control damage")
     return (collect, stream)
 
-make_cache :: (Derive.Derived d) => Stack.Stack -> Derive.Collect
+make_cache :: (Cacheable d) => Stack.Stack -> Derive.Collect
     -> LEvent.LEvents d -> Cache
 make_cache stack collect stream = Cache $ Map.singleton stack (Cached entry)
     where
@@ -197,7 +221,7 @@ make_cache stack collect stream = Cache $ Map.singleton stack (Cached entry)
         -- So this reduces unnecessary integration as well.
         , Derive.collect_integrated = []
         }
-    entry = Derive.to_cache_entry $
+    entry = to_cache_entry $
         Derive.CallType stripped $ filter (not . cache_log) stream
     -- I do want a cached chunk to retain its log msgs, since those include
     -- errors deriving.  However, it's confusing if it also includes cache

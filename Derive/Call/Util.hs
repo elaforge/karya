@@ -475,7 +475,7 @@ parsed_meter_duration start rank steps = do
 
 -- * c_equal
 
-c_equal :: (Derive.Derived derived) => Derive.Transformer derived
+c_equal :: (Derive.Callable d) => Derive.Transformer d
 c_equal = Derive.transformer "equal" (Tags.prelude <> Tags.subs) equal_doc
     (Sig.parsed_manually equal_arg_doc equal_transformer)
 
@@ -498,8 +498,7 @@ equal_doc =
     \\nSet constant signals by assigning to a signal literal: `%c = .5` or\
     \ pitch: `#p = (4c)`.  `# = (4c)` sets the default pitch signal."
 
-equal_transformer :: Derive.PassedArgs derived -> Derive.Deriver a
-    -> Derive.Deriver a
+equal_transformer :: Derive.PassedArgs d -> Derive.Deriver a -> Derive.Deriver a
 equal_transformer args deriver = case Derive.passed_vals args of
     -- Bind calls.
     [TrackLang.VSymbol (TrackLang.Symbol assignee), TrackLang.VSymbol val]
