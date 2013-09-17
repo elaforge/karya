@@ -4,6 +4,8 @@
 
 -- | Meters for Carnatic music.
 module Cmd.Tala where
+import qualified Data.List as List
+
 import qualified Ui.Ruler as Ruler
 import qualified Cmd.Meter as Meter
 import Cmd.Meter (AbstractMeter(..))
@@ -62,7 +64,11 @@ unlabelled_ranks :: [Ruler.Rank]
 unlabelled_ranks =
     [Meter.r_section, Meter.r_2, Meter.r_16, Meter.r_64, Meter.r_128]
 
-make_ruler :: Int -> Int -> Int -> ScoreTime -> Tala -> Ruler.Ruler
+-- adi_ruler = make_ruler 2 4 1 1 adi_tala
+-- rendekalai_adi_ruler = make_ruler 2 4 2 1 adi_tala
+
+make_ruler :: Int -> Int -> Int -> ScoreTime -- ^ Duration of each clap.
+    -> Tala -> Ruler.Ruler
 make_ruler sections avartas nadai dur (Tala angas jati) =
     mkruler $ meter_marklist (make_labels labels) meter
     where
@@ -96,14 +102,16 @@ angas_to_labels jati = concatMap $ \anga -> case anga of
 --     . Map.toList . Ruler.ruler_marklists
 
 meter_marklist :: [[Meter.Label]] -> Meter.Meter -> Ruler.Marklist
-meter_marklist labels =
-    Meter.meter_marklist_labels (Meter.text_labels 2 labels
-        . Meter.collapse_ranks unlabelled_ranks)
+meter_marklist labels meter =
+    Meter.make_marklist $ List.zip3 ranks ps all_labels
+    where
+    (ranks, ps) = unzip (meter ++ [(0, 0)])
+    all_labels = Meter.text_labels 2 labels $
+        Meter.collapse_ranks unlabelled_ranks ranks
 
 make_labels :: [Meter.Label] -> [[Meter.Label]]
 make_labels aksharas =
     [ numbers -- avarta
-    -- , numbers -- anga
     , aksharas -- akshara
     , numbers -- nadai / gati
     , numbers, numbers, numbers, numbers

@@ -84,7 +84,8 @@ create_order_block mkid block_ids = do
         ]
 
 order_meter :: [BlockRows] -> Ruler.Marklist
-order_meter = Meter.make_marklist 1 . (:[]) . Meter.D . map mkd
+order_meter =
+    Meter.meter_marklist . Meter.make_meter 1 . (:[]) . Meter.D . map mkd
     where mkd dur = Meter.D (replicate dur Meter.T)
 
 make_block :: (State.M m) => (String -> Id.Id) -> RulerId -> String

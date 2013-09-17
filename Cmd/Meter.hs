@@ -201,13 +201,16 @@ fit_meter :: ScoreTime -> [AbstractMeter] -> Meter
 fit_meter dur meters = make_meter stretch meters
     where stretch = dur / sum (map meter_length meters)
 
-make_marklist :: ScoreTime -> [AbstractMeter] -> Ruler.Marklist
-make_marklist stretch = meter_marklist . make_meter stretch
-
 -- | Convert a Meter into a Marklist using the default labels.
 meter_marklist :: Meter -> Ruler.Marklist
-meter_marklist = meter_marklist_labels
-    (text_labels 1 count1_labels . collapse_ranks unlabelled_ranks)
+meter_marklist = make_marklist . label_meter
+
+label_meter :: Meter -> [(Ruler.Rank, ScoreTime, Label)]
+label_meter meter = List.zip3 ranks ps labels
+    where
+    (ranks, ps) = unzip meter
+    labels = text_labels 1 count1_labels $
+        collapse_ranks unlabelled_ranks ranks
 
 count0 :: [Label]
 count0 = map showt [0..]
@@ -221,17 +224,15 @@ count0_labels = List.repeat count0
 count1_labels :: [[Label]]
 count1_labels = List.repeat count1
 
--- | Convert a Meter into a Marklist, using labels provided by the function,
--- which is probably 'text_labels'.
-meter_marklist_labels :: ([Ruler.Rank] -> [Text]) -> Meter -> Ruler.Marklist
-meter_marklist_labels make_labels meter_ = Ruler.marklist
-    [(pos, mark rank_dur rank name) | ((rank, _), pos, rank_dur, name)
-        <- List.zip4 meter mark_pos (rank_durs meter)
-            (make_labels (map fst meter))]
+-- | Create a Marklist from a labelled Meter.
+make_marklist :: [(Ruler.Rank, ScoreTime, Label)] -> Ruler.Marklist
+make_marklist meter = Ruler.marklist
+    [ (pos, mark dur rank label)
+    | (rank, pos, label, dur) <- List.zip4 ranks (scanl (+) 0 ps) labels durs
+    ]
     where
-    -- By convention, the block ends with a rank 0 mark.
-    meter = meter_ ++ [(0, 0)]
-    mark_pos = scanl (+) 0 (map snd meter)
+    durs = rank_durs (zip ranks ps)
+    (ranks, ps, labels) = List.unzip3 meter
     mark rank_dur rank name =
         let (color, width, pixels) = meter_ranks !! min rank ranks_len
             zoom = pixels_to_zoom rank_dur pixels

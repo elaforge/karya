@@ -25,6 +25,12 @@ m24 = regular_subdivision [1, 2, 2, 2, 2]
 m44_4 :: AbstractMeter
 m44_4 = Meter.repeat 4 m44
 
+-- | 4 sections of 4/4 bars.
+--
+-- @LRuler.modify =<< LRuler.fit_to_end Meters.m44_block block_id@
+m44_block :: [AbstractMeter]
+m44_block = replicate 4 m44_4
+
 m3p3p2_8 :: AbstractMeter
 m3p3p2_8 = Meter.repeat 1 $ Meter.subdivides [2, 2, 2, 2] $
     D [D [T, T, T], D [T, T, T], D [T, T]]
