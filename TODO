@@ -4,48 +4,6 @@ LEGEND
 
 UNSORTED
   - keys to turn play speed up and down
-  * the Event/Note nomenclature split is annoying.  I think there are too many
-    things called "Note" to change, so get rid of: Derive.EventDerive,
-    Derive.EventArgs
-  / Derive.Sig could use Derive.Generator
-  * I forgot to add a way to override control calls.  What should the prefix
-    be?  '.call = xyz'?
-  * Clean up the Derived class.  It seems like I should be able to get by with
-    a tag for 'd' and a to_tag for (Elem d)
-    . Not quite.  lookup_generator needs to dispatch on return type, but I
-      get Could not deduce (d ~ Score.Event) from the context (Derived d)
-    . Or make separate classes for cache and lookup
-  * Select all of a track and then extend selection right or left, it scrolls
-    to the bottom of the block.  Perhaps if the TrackTime didn't change it
-    shouldn't autoscroll.
-  new input note
-    * change scales input_to_note to new diatonic_input_to_note
-    * move Util.Input over to Pitch
-    * change Cmd.InputNote
-    * update scales
-    * remove Pitch.InputKey
-    * tests
-    * make sure octaves are consistent
-      Previously, octaves went from 0.., and TheoryFormat would subtract and
-      add 1.  Now, input explicitly sets the octave, and it seemed confusing
-      for notes to appear with -1 octave.  Unfortunately, NNs still start
-      at octave -1, so everything that goes to NNs has to adjust.
-      Previously, Theory.Pitch started at 0 while NN started at -1.  Now
-      they are both the same, so the inconsistency gets pushed out to
-      the Pitch -> NN conversion.
-    * I put the octave into Theory.nn_to_semis and semis_to_nn, document
-    * ascii thru is an octave too low
-    * pc 6, 7, 8 emit the same note
-    * d-min has some notes that can't be played
-      2# should be g# but is m
-    - test MIDI kbd
-  * get rid of Theory.layout_max_pc
-  * change 'Note [xyz]' to 'NOTE [xyz]', there are too many things called Note
-  * fix circular RelativeFormat definition, details in Derive.Scale.Twelve
-  wayang samples:
-    * the layout has changed, so how does the scale mapping work?
-    * +mute should shift -2 octave: a0 -> 80 seems about right: 0.8
-  * DUtil.note0_attrs should be able to scale dyn
   - The problem with Derive.inst_environ to set scale is that you can't really
     override it.  So if >wayang wants *wayang, then you can't easily say you
     want *wayang-k.  The reason I set the scale is that there's no point using
@@ -54,36 +12,9 @@ UNSORTED
     . Perhaps environ should go in inst config?
     . Or just have wayang set tuning, and get the scale from the environment.
       I don't need more invisible ways to modify the environment.
-  / why can't I write 'a #= b . c #= d'?
-    (.) has the highest precedence.
-  * IsString ScaleId instance
-  * using 12356 for gender wayang is pretty bogus.
-    It should probably be 12345.
-    One absolute scale, then versions for pemade and kantilan.
-  * wayang scale should line up to 8ve EditState
-  * add ioeua to legong scale
   - merge KeyswitchMap and Keymap into AttributeMap
     Ensure that keyswitches cause channel splits, but keymaps don't.
-  / Call docs in browser strip out the newlines, they should start a new
-    paragraph.
-    . Should happen automatically when I finish Util.Format3
-  * split transformers and generators into their own namespaces
-    . 'd' mridangam call collides with delay transformer
-      '+' looks like add zero attrs, 'o' looks like harmonic
-    / no need to display ValCall in CallDoc
-  * save/mridangam: If I set global transform to
-    "%just-base = 207.65 | scale = just-r | key = c-min"
-    why does 4s produce pitchbend 341 + G4, while 3s produces pb 6 + D#4?
-    Also '%just-base = (hz (3g#))' should have pb0 but doesn't.
-    . It's 10.999... when it should be 11.  MIDI perform should be able to
-      round up when a pitch is almost a whole number, otherwise it feels
-      obliged to use a pitch bend.
-  * UiTest.Dump should put in the block titles
-  * DeriveTest.derive_dump also needs the synths to know about putting
-    instrument calls into scope.
   Raga
-    * Using the "official" ratios for r1-4 and d1-4 doesn't sound like what
-      people actually play.  What's going on?
     - Support arohana and avarohana by treating them as enharmonics
       Is this really a good idea, since they aren't anything like enharmonics?
       Maybe I should just use the flip-enharmonic key, but keep the concept
@@ -100,29 +31,14 @@ UNSORTED
     - wendy carlos' alpha, beta, gamma
     - overtone series
     - add ratio transpose single, that multiplies hz
-    * quantize control transformer, e.g. 'quantize .25' to constrain to
-      multiples of .25.
-  * fix doc for just scales, most of JustScales.just_doc isn't appropriate
-  * there's still a cache bug: change the tempo on the score block, and the
-    cached version of a following block isn't invalidated
-    . To reproduce: save/mridangam, change thani3 '%tempo = 1', block calls
-      don't update.
-  * Mute and solo isn't working for block calls.
   - unmerging a pitch track should have a minimum width to display 3 chars
     Figure out under which circumstances the collapsed track forgets its size.
     . Looks like it happens when I create a new block from a template block
       with collapsed tracks.  It probably needs to use logical rather than
       physical size.
     . Nope, wrong.
-  generic just scale support
-    * just scales should have a 'repeat 2' layout
-      . The issue is that input kbd layout is separate from scale layout.
-        Just scales should have a 'repeat 2' layout, and the input also
-        accepts black notes between every note.
   - there should be a character that triggers a parse failure, which is used
     by invalid ShowVal instances like ShowVal Pitch
-  * resample control call, but why not just set srate?  Could be in score time
-    to step in rhythm.
   - Derive.Call.Gamakam, with janta, s-g-r, and r-s ornaments.
     Also there's a slight lift at the end of notes.
     * call lifts pitch to some frequency at the end of notes
@@ -130,8 +46,6 @@ UNSORTED
     - janta is neighbor from below, or fingered is sr, or if you're moving
       up: r-sg
     - copy from kaushik's recording
-  * drop pitch call isn't usable non-inverted because the dyn drop extends to
-    the end of the track.  It should stop at the next note.
   - implement pitch subtraction: Pitch - Pitch = Chromatic, so I can make lift
     and drop work inverted
     . How would this actually work?  It needs two pitches from the same scale.
@@ -145,7 +59,6 @@ UNSORTED
       implementation.
     . Instead I should have a generic way to parse a note to Theory.Pitch
 
-  * I might need Controls.nn to transpose by nn, for vibrato type things.
   + recent tends to collect pitches added via edit input, but since they have
     a specific pitch they're not useful.
     . Maybe I should have a separate recent queue only for transformers, and
@@ -163,28 +76,6 @@ UNSORTED
     Maybe add 'p' and 'p<'
   / Fix talas: 1.0.1.2 should be 1.0.2, there's an extra level in there
     Shouldn't set nadai to 1 then.
-  * Make talas work with LRuler.  The problem is that they include label
-    information, and Meter.Meter doesn't support that.
-    . I think I wind up with 3 levels of rulers:
-      . Ruler.Ruler - has everything, but hard to work with
-      . Tala - [(rank, dur, label)]
-      . Meter.Meter - [(rank, dur)]
-      . clip, double, append, delete - should all work
-      Or make Meter [(rank, dur, Maybe Label)]  That's not good because they'd
-      be either all Just or all Nothing.  Would have to be
-        data Meter a = [(rank, dur, a)]
-    . LRuler.Modify should be LabeledMeter -> LabeledMeter
-      Numbers know how to generate more, but not arbitrary labels.
-      If I just add more LabeledMeter then I wind up copying the counts.
-      I want to do that with the X O but not with the numbers.
-      I could put claps on a different marklist, but still Meter->Meter
-      doesn't say which bits it copied.
-    . How about [(Rank, Dur, Count | Literal Text)]?  Count is renumbered.
-      That doesn't work because of 1.O or 2.X.  So it needs to be
-      [(Rank, Dur, [Count | Literal Text])]
-    . This is all too complicated.  If I want to, say, double the ruler, I
-      should be able to just regenerate.
-  / rendekalai adi talam: 00112233XXOOXXOO
   - need an easy way to create IDs for debugging, so I can copy paste
     (bid "xyz") stuff
   - After a rederive, it still takes a Cmd to free up the memory.  Who is
@@ -290,13 +181,11 @@ MILESTONES
 ----------------------------------------------------------------------
 
 documentation
-  * make haddocks for the various main modules, e.g. LogView.LogView
   + doc/derivation.md
   / split up derivation.md into separate files
   - doc/performance.md
   - doc/local.md
   - doc/instrument.md
-  * doc/browser.md, or just use the haddock
   + doc/symbols.md, link from ui
   - make sure core state types and their dependents have good haddock
   call doc:
@@ -497,8 +386,6 @@ local: plugins:
 
 cleanup:
   - update shakefile to use new system calls and logging levels
-  * shakefile should use typesafe oracle calls, is there newtype based
-    oracle utils yet?
   - if I add an Alternative instance to Sig.Parser I can write arg parsers
     like 'Sig.many xs <|> Sig.many ys'.  I think.  If I wind up with something
     else like Derive.Call.Val.num_or_pitch it would be worth trying out.
