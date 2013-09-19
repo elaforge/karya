@@ -136,8 +136,9 @@ data Marklist = Marklist
 type MarklistVector = TimeVector.Boxed Mark
 
 instance Show Marklist where
-    show m = "((" <> show (TimeVector.length (marklist_vec m)) <> " marks))"
-instance Pretty.Pretty Marklist where pretty = show
+    show m = "Ruler.marklist " ++ show (ascending 0 m)
+instance Pretty.Pretty Marklist where
+    pretty m = "((" <> show (TimeVector.length (marklist_vec m)) <> " marks))"
 
 -- | This should be opaque, but it needs to be exported for RulerC.  Don't look
 -- inside if you're not RulerC, OK?
