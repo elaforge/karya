@@ -50,8 +50,8 @@ type LookupAttrs = Score.Instrument -> Instrument.AttributeMap
 convert :: (Cmd.M m) => BlockId -> Derive.Events -> m Tracks
 convert source_block levents = do
     lookup_inst <- Cmd.get_lookup_instrument
-    let lookup_attrs = fromMaybe mempty
-            . fmap (Instrument.patch_attribute_map . MidiDb.info_patch)
+    let lookup_attrs =
+            maybe mempty (Instrument.patch_attribute_map . MidiDb.info_patch)
             . lookup_inst
     default_scale_id <- Perf.default_scale_id
     tracknums <- Map.fromList <$> State.tracknums_of source_block

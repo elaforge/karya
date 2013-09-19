@@ -22,7 +22,7 @@ module Util.ForeignC (
 ) where
 import Data.Int
 import Data.Word
-import qualified Foreign as Foreign
+import qualified Foreign
 import Foreign.C
 import Foreign.Ptr
 import Foreign.StablePtr

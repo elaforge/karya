@@ -131,8 +131,7 @@ symbol_to_block_id sym = Call.symbol_to_block_id sym >>= \x -> case x of
     Nothing -> return Nothing
     Just block_id -> do
         blocks <- Derive.get_ui_state State.state_blocks
-        if Map.member block_id blocks
-            then return (Just block_id) else return Nothing
+        return $ if Map.member block_id blocks then Just block_id else Nothing
 
 -- ** clip
 

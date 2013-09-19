@@ -79,7 +79,7 @@ set_staves staves config =
 
 blocks :: Lilypond.Title -> [(Lilypond.Title, BlockId)] -> Cmd.CmdL ()
 blocks title movements = do
-    events <- mapM (LEvent.write_logs <=< derive) (map snd movements)
+    events <- mapM ((LEvent.write_logs <=< derive) . snd) movements
     compile_lys title (zip (map fst movements) events)
 
 -- | Compile the given block as lilypond.

@@ -35,11 +35,13 @@ copy_marklist name from_ruler_id to_ruler_id = do
 
 -- | Modify the meter locally to a block, i.e. the ruler will be copied if it
 -- is shared with other blocks.
-local_meter :: (State.M m) => BlockId -> (Meter.Meter -> Meter.Meter) -> m ()
+local_meter :: (State.M m, Meter.Meterlike meter) =>
+    BlockId -> (meter -> meter) -> m ()
 local_meter block_id f = local_block block_id (Meter.modify_meter f)
 
 -- | Modify a meter destructively.
-modify_meter :: (State.M m) => BlockId -> (Meter.Meter -> Meter.Meter) -> m ()
+modify_meter :: (State.M m, Meter.Meterlike meter) =>
+    BlockId -> (meter -> meter) -> m ()
 modify_meter block_id f = do
     ruler_id <- State.ruler_of block_id
     State.modify_ruler ruler_id (Meter.modify_meter f)

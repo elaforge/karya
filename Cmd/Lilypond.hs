@@ -101,7 +101,7 @@ compile_lys :: FilePath -> Lilypond.Config -> Lilypond.Title
     -> [(Lilypond.Title, [Score.Event])] -> IO (Maybe String, [Log.Msg])
 compile_lys filename config title movements = do
     let (result, logs) = make_lys config title movements
-    (flip (,) logs) <$> case result of
+    flip (,) logs <$> case result of
         Left err -> return $ Just err
         Right output -> do
             Directory.createDirectoryIfMissing True

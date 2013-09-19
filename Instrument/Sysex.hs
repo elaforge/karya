@@ -358,7 +358,7 @@ encode_spec config path rmap (name, spec) = case spec of
         records <- lookup_field name >>= \x -> case x of
             RMap rmap
                 | Map.size rmap == elts ->
-                    mapM (\k -> lookup_map k rmap) (map show [0..elts-1])
+                    mapM (\k -> lookup_map (show k) rmap) [0..elts-1]
                 | otherwise -> throw $ "expected RMap list of length "
                     ++ show elts ++ " but got length "
                     ++ show (Map.size rmap)
@@ -418,7 +418,7 @@ encode_byte rmap bits = do
     bs <- zipWithM encode1 (zip names fields) vals
     return $ encode_bits (map fst fields) bs
     where
-    add_name name = either (Left . ((,) name)) Right
+    add_name name = either (Left . (,) name) Right
     encode1 (name, (width, range)) rec = add_name name $ do
         num <- encode_range range rec
         return $ if range_signed range then from_signed width num
@@ -461,7 +461,7 @@ decode config = decode_from []
         Num range -> do
             bytes <- Get.getBytes $ range_bytes config (num_range range)
             let num = decode_num config (num_range range) bytes
-            either throw (return . (:[]) . ((,) name)) $ decode_range num range
+            either throw (return . (:[]) . (,) name) $ decode_range num range
         Str chars -> do
             str <- Get.getByteString chars
             return [(name, RStr $ Text.strip $ Ui.Util.decodeUtf8 str)]
@@ -621,7 +621,7 @@ validate specs = msum (map check specs)
     where
     -- TODO assert each name is unique
     -- names can't have dots
-    check (_, (Bits bits))
+    check (_, Bits bits)
         | total /= 8 = Just $
             show (map fst bits) ++ " - bits should sum to 8: " ++ show total
         | otherwise = Nothing

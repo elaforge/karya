@@ -39,7 +39,7 @@ main = do
             hstate <- CallDoc.get_html_state "../haddock" "."
             Text.IO.putStr $ CallDoc.scales_html hstate $
                 CallDoc.scale_docs $ Map.elems Scale.All.scales
-        _ -> error $ "usage: extract_doc [ keymap | calls | scales ]"
+        _ -> error "usage: extract_doc [ keymap | calls | scales ]"
 
 -- * extract keymap
 
@@ -47,7 +47,7 @@ keymap_doc :: String
 keymap_doc = unlines
     [ "<html> <head> <title> keymaps </title> </head> <body>"
     , html_fmt "global" $ extract GlobalKeymap.all_cmd_map
-    , html_fmt "note track" $ extract $ fst $ NoteTrackKeymap.make_keymap
+    , html_fmt "note track" $ extract $ fst NoteTrackKeymap.make_keymap
     , "</body> </html>"
     ]
 

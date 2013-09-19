@@ -304,9 +304,10 @@ apply deletes adds_edits = make . mapMaybe edit
     make events = Events.from_list (events ++ adds)
     edit event
         | Event.start event `Set.member` deletes = Nothing
-        | Just mods <- Map.lookup (Event.start event) edit_map = if null mods
-            then Just (unmodified event)
-            else Just (apply_modifications mods event)
+        | Just mods <- Map.lookup (Event.start event) edit_map =
+            Just $ if null mods
+                then unmodified event
+                else apply_modifications mods event
         -- A new event from the integrate.
         | otherwise = Just (unmodified event)
     edit_map = Map.fromList edits

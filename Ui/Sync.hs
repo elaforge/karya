@@ -299,7 +299,7 @@ update_block track_signals set_style block_id update = do
                     ++ "tracks: " ++ show update
                 return mempty
             Just btrack -> return (Block.track_flags btrack)
-        return $ forM_ view_ids $ \view_id -> do
+        return $ forM_ view_ids $ \view_id ->
             insert_track state set_style block_id view_id tracknum dtrack
                 tlike_id tlike track_signals flags
 

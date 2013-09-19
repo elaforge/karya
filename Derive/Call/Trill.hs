@@ -324,9 +324,9 @@ c_saw = Derive.generator1 "saw" Tags.ornament
 
 saw :: RealTime -> [RealTime] -> Double -> Double -> Signal.Control
 saw srate starts from to =
-    mconcat $ map saw (zip starts (drop 1 starts))
+    mconcat $ zipWith saw starts (drop 1 starts)
     where
-    saw (t1, t2) = Control.interpolate_segment
+    saw t1 t2 = Control.interpolate_segment
         True srate id t1 from (t2-srate) to
 
 -- ** sine

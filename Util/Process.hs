@@ -56,4 +56,4 @@ logged create = do
     where
     binaryOf create = case Process.cmdspec create of
         Process.RawCommand fn _ -> fn
-        Process.ShellCommand cmd -> fst $ break (==' ') cmd
+        Process.ShellCommand cmd -> takeWhile (/=' ') cmd

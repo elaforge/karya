@@ -234,7 +234,7 @@ notes_from_range note_trees start end = do
     return $ extract_notes event_tracks
     where
     get_events start end track =
-        ((,) track) . Events.in_range_point start end . Track.track_events <$>
+        (,) track . Events.in_range_point start end . Track.track_events <$>
             State.get_track (State.track_id track)
 
 extract_note_trees :: (State.M m) => BlockId -> [TrackId]

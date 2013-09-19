@@ -57,13 +57,12 @@ set_selnum :: (Cmd.M m) => ViewId -> Types.SelNum -> Maybe Types.Selection
     -> m ()
 set_selnum view_id selnum maybe_sel = do
     State.set_selection view_id selnum maybe_sel
-    when (selnum == Config.insert_selnum) $ do
-        case maybe_sel of
-            Just sel | Types.sel_is_point sel -> do
-                set_subs view_id sel
-                whenJustM (Cmd.gets (Cmd.state_sync . Cmd.state_play)) $
-                    mmc_goto_sel view_id sel
-            _ -> return ()
+    when (selnum == Config.insert_selnum) $ case maybe_sel of
+        Just sel | Types.sel_is_point sel -> do
+            set_subs view_id sel
+            whenJustM (Cmd.gets (Cmd.state_sync . Cmd.state_play)) $
+                mmc_goto_sel view_id sel
+        _ -> return ()
 
 mmc_goto_sel :: (Cmd.M m) => ViewId -> Types.Selection -> Cmd.SyncConfig -> m ()
 mmc_goto_sel view_id sel sync = do

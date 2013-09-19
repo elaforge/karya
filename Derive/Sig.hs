@@ -372,5 +372,5 @@ modify_vcall vcall name doc f = vcall
         , Derive.cdoc_doc = doc
         , Derive.cdoc_args = Derive.cdoc_args (Derive.vcall_doc vcall)
         }
-    , Derive.vcall_call = fmap f . (Derive.vcall_call vcall)
+    , Derive.vcall_call = fmap f . Derive.vcall_call vcall
     }

@@ -112,9 +112,7 @@ c_set_prev = Derive.generator "set-prev" (Tags.prelude <> Tags.prev)
         Nothing -> return []
         Just (prev_x, prev_y) -> do
             pos <- Args.real_start args
-            return $ if pos > prev_x
-                then [Signal.signal [(pos, prev_y)]]
-                else []
+            return [Signal.signal [(pos, prev_y)] | pos > prev_x]
 
 -- * linear
 

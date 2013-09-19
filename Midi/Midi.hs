@@ -86,10 +86,8 @@ data ReadMessage = ReadMessage {
 
 -- Midi msgs are already strict so deepseq is unnecessary, but an NFData
 -- instance will make deepseq work on things that contain msgs.
-instance DeepSeq.NFData WriteMessage where
-    rnf (WriteMessage _ _ _) = ()
-instance DeepSeq.NFData ReadMessage where
-    rnf (ReadMessage _ _ _) = ()
+instance DeepSeq.NFData WriteMessage where rnf _ = ()
+instance DeepSeq.NFData ReadMessage where rnf _ = ()
 
 instance Pretty.Pretty ReadMessage where
     pretty (ReadMessage dev ts msg) = Printf.printf "%s %s: %s"

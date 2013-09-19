@@ -3,7 +3,6 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 {-# LANGUAGE ScopedTypeVariables #-} -- needed for SomeException
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {- | Serialize and unserialize all the data types used by Ui.State.State.
 
     Types that I think might change have versions.  If the type changes,

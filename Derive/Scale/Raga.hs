@@ -76,7 +76,7 @@ melakarta_ratios = zip melakarta_names $ map Vector.fromList $ do
     return [sa, ri, ga, ma, pa, dha, ni]
     where
     infixr 3 |-
-    x |- y = if x then y else True
+    x |- y = not x || y
 
 type Ratio = Ratio.Ratio Int
 

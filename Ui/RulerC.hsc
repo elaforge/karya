@@ -21,7 +21,7 @@ import Types
 
 with_ruler :: Ruler.Ruler
     -> (Ptr Ruler.Ruler -> Ptr (Ptr Ruler.Marklist) -> CInt -> IO a) -> IO a
-with_ruler ruler f = do
+with_ruler ruler f =
     with ruler $ \rulerp -> with_marklists marklists $ \len mlists ->
         f rulerp mlists (Util.c_int len)
     where marklists = Map.elems (Ruler.ruler_marklists ruler)

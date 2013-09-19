@@ -512,7 +512,7 @@ eval_signal track expr ctype subs
     with_stack = case TrackTree.tevents_track_id track of
         Nothing -> id
         Just track_id -> Internal.with_stack_track track_id
-    write = mapM_ Log.write . map prio . Log.add_prefix "Track signal"
+    write = mapM_ (Log.write . prio) . Log.add_prefix "Track signal"
     prio msg = msg { Log.msg_prio = Log.Debug }
     track_sig signal is_pitch = Track.TrackSignal
         { Track.ts_signal = Signal.coerce signal

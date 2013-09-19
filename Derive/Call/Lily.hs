@@ -466,7 +466,7 @@ crescendo_diminuendo hairpin args
 c_ly_text_above :: Make.Calls Derive.Note
 c_ly_text_above = code_call "ly-text-above" "Attach text above the note."
     (required "text" "Text to attach.  Double quotes can be omitted.") $
-    (return . (,) SuffixFirst . ("^"<>) . lily_str)
+    return . (,) SuffixFirst . ("^"<>) . lily_str
 
 c_ly_text_below :: Make.Calls Derive.Note
 c_ly_text_below = code_call "ly-text-below" "Attach text below the note."

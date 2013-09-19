@@ -2,7 +2,6 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE ScopedTypeVariables, TupleSections #-}
 -- | Convert from Score events to a lilypond score.
 module Perform.Lilypond.Lilypond (
@@ -86,7 +85,7 @@ ly_file config title movements = run_output $ do
         mapM_ write_staff_group $
             sort_staves (config_staves config) staff_groups
         output ">>\n"
-        when (not (Text.null title)) $
+        unless (Text.null title) $
             output $ "\\header { piece =" <+> str title <+> "}\n"
         output "}\n\n"
     write_staff_group (StaffGroup _ staves, config)
@@ -132,7 +131,7 @@ write_voice_ly (Left (Process.Voices voices)) = do
     start <- State.gets output_bar
     bars <- mapM (\v -> set_bar start >> write_voice v) voices
     output ">> \\oneVoice\n  "
-    when (not (all_equal bars)) $
+    unless (all_equal bars) $
         -- Lilypond will also complain.
         output $ "% WARNING: voices have different numbers of bars: "
             <> Text.pack (show bars)

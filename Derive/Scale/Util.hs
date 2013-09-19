@@ -146,9 +146,8 @@ note_to_call scale dmap degree_to_nn note =
         diatonic = Map.findWithDefault 0 Controls.diatonic controls
     to_note degree env controls
         | frac == 0 = to_nn int
-        | otherwise = do
-            Num.scale <$> to_nn int <*> to_nn (int+1)
-                <*> return (Pitch.NoteNumber frac)
+        | otherwise = Num.scale <$> to_nn int <*> to_nn (int+1)
+            <*> return (Pitch.NoteNumber frac)
         where
         (int, frac) = properFraction degree
         to_nn = degree_to_nn env controls . Pitch.Degree . fromIntegral
@@ -295,17 +294,6 @@ kbd_to_scale kbd pc_per_octave tonic pitch = case kbd of
 piano_kbd_pitch :: Theory.PitchClass -> Theory.PitchClass -> Theory.Pitch
     -> Maybe Theory.Pitch
 piano_kbd_pitch tonic pc_per_octave (Theory.Pitch oct (Theory.Note pc accs))
-    | relative_pc >= pc_per_octave = Nothing
-    | otherwise =
-        Just $ Theory.Pitch (oct1 + oct_diff) (Theory.Note relative_pc accs)
-    where
-    (oct1, pc1) = adjust_octave pc_per_octave 7 oct pc
-    (oct_diff, relative_pc) = (pc1 - tonic) `divMod` max_pc
-    max_pc = ceiling (fromIntegral pc_per_octave / 7) * 7
-
-absolute_to_pitch_ :: Theory.PitchClass -> Theory.PitchClass -> Pitch.Octave
-    -> Theory.PitchClass -> Theory.Accidentals -> Maybe Theory.Pitch
-absolute_to_pitch_ tonic pc_per_octave oct pc accs
     | relative_pc >= pc_per_octave = Nothing
     | otherwise =
         Just $ Theory.Pitch (oct1 + oct_diff) (Theory.Note relative_pc accs)

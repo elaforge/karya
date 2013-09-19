@@ -282,7 +282,7 @@ foreign import ccall "edit_open"
         -> IO ()
 
 edit_append :: [ViewId] -> Text -> Fltk ()
-edit_append view_ids text = do
+edit_append view_ids text =
     Util.withText text $ \textp -> forM_ view_ids $ \view_id -> do
         viewp <- get_ptr view_id
         c_edit_append viewp textp

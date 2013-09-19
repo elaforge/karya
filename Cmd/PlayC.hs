@@ -192,4 +192,4 @@ monitor_loop state = do
     wait_for_stop ctl = do
         Thread.delay 0.1
         stopped <- ctl
-        if stopped then return () else wait_for_stop ctl
+        unless stopped $ wait_for_stop ctl

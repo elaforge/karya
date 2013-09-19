@@ -162,7 +162,7 @@ c_exp_next = Derive.val_call "exp-next" mempty
     $ Sig.call ((,)
     <$> defaulted "exp" 2 Control.exp_doc
     <*> breakpoints_arg
-    ) $ \(exp, vals) args -> do
+    ) $ \(exp, vals) args ->
         c_breakpoints 1 (Control.expon exp) vals args
 
 breakpoints_arg :: Sig.Parser (NonEmpty TrackLang.Val)

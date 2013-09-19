@@ -310,7 +310,7 @@ configure midi = do
     where
     setConfigFlags fltkCs fltkLds mode flags bindingsInclude = flags
         { define = define osFlags
-            ++ (if mode `elem` [Test, Profile] then ["-DTESTING"] else [])
+            ++ ["-DTESTING" | mode `elem` [Test, Profile]]
             ++ ["-DBUILD_DIR=\"" ++ modeToDir mode ++ "\""]
         , cInclude = ["-I.", "-I" ++ modeToDir mode, "-Ifltk",
             "-I" ++ bindingsInclude]
@@ -324,8 +324,8 @@ configure midi = do
                 Test -> ["-fhpc"]
                 Profile -> ["-O", "-prof", "-auto-all", "-caf-all"]
         , hLinkFlags = libs ++ ["-rtsopts", "-threaded"]
-            ++ (if mode == Profile then ["-prof"] else [])
-            ++ (if useEkg then ["-with-rtsopts=-T"] else [])
+            ++ ["-prof" | mode == Profile]
+            ++ ["-with-rtsopts=-T" | useEkg]
         -- Hackery, make sure ghci gets link flags, otherwise it wants to
         -- load everything as bytecode and fails on missing symbols.  Actually,
         -- these only apply to loading the modules for the main app.  But
@@ -671,7 +671,7 @@ wantsHaddock hs = not $ or
 makeCabal :: FilePath -> Shake.Action ()
 makeCabal fn = do
     template <- Shake.readFile' "doc/karya.cabal.template"
-    Shake.writeFile' fn $ (template ++ buildDepends ++ "\n")
+    Shake.writeFile' fn $ template ++ buildDepends ++ "\n"
     where
     indent = replicate 8 ' '
     buildDepends = (indent++) $ List.intercalate (",\n" ++ indent) $
@@ -705,8 +705,7 @@ makeBundle binary has_icon
         need icon
         system "tools/make_bundle" (binary : icon)
     | otherwise = return ()
-    where
-    icon = if has_icon then [build </> replaceExt binary "icns"] else []
+    where icon = [build </> replaceExt binary "icns" | has_icon]
 
 -- * tests and profiles
 
@@ -728,7 +727,7 @@ profileRules :: Config -> Shake.Rules ()
 profileRules config = do
     let binPrefix = modeToDir Profile </> "RunProfile"
     binPrefix ++ "*.hs" *> generateTestHs "_profile"
-    hasPrefix binPrefix ?> \fn -> do
+    hasPrefix binPrefix ?> \fn ->
         buildHs config [oDir config </> "fltk/fltk.a"] (fn ++ ".hs") fn
 
 -- | Match any filename that starts with the given prefix but doesn't have
@@ -945,7 +944,7 @@ includesOf :: String -> Config -> FilePath -> Shake.Action [FilePath]
 includesOf caller config fn = do
     let dirs = [dir | '-':'I':dir <- cInclude (configFlags config)]
     (includes, not_found) <- CcDeps.transitiveIncludesOf dirs fn
-    when (not (null not_found)) $
+    unless (null not_found) $
         Trans.liftIO $ putStrLn $ caller
             ++ ": WARNING: c includes not found: " ++ show not_found
             ++ " (looked in " ++ show dirs ++ ")"

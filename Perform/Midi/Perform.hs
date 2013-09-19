@@ -190,7 +190,7 @@ can_share_chan :: Event -> Event -> Maybe Text
 can_share_chan old new = case (initial_pitch old, initial_pitch new) of
         _ | start >= end -> Nothing
         _ | event_instrument old /= event_instrument new ->
-            Just $ "instruments differ"
+            Just "instruments differ"
         (Just (initial_old, _), Just (initial_new, _))
             | not (Signal.pitches_share in_decay start end
                 initial_old (event_pitch old) initial_new (event_pitch new)) ->

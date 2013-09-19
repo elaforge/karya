@@ -30,7 +30,7 @@ main = do
     case args of
         [haddock_dir] ->
             Text.IO.putStr =<< linkify haddock_dir =<< Text.IO.getContents
-        _ -> putStrLn $ "usage: linkify path/to/haddock/dir <doc/text"
+        _ -> putStrLn "usage: linkify path/to/haddock/dir <doc/text"
 
 linkify :: FilePath -> Text -> IO Text
 linkify haddock_dir text = do

@@ -349,7 +349,7 @@ collapse_ranks omit = map (\r -> r - sub r)
 -- labels, not just the visible ones.
 strip_prefixes :: Text -> [Label] -> [Label]
 strip_prefixes replacement =
-    map (Text.intercalate ".") . map strip . Seq.zip_prev
+    map (Text.intercalate "." . strip) . Seq.zip_prev
         . map (Text.splitOn ".")
     where
     strip (prev, cur) =

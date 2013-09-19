@@ -409,7 +409,7 @@ eval_val cinfo val = case val of
     TrackLang.VPitch a -> return $ TrackLang.VPitch a
     TrackLang.VInstrument a -> return $ TrackLang.VInstrument a
     TrackLang.VSymbol a -> return $ TrackLang.VSymbol a
-    TrackLang.VNotGiven -> return $ TrackLang.VNotGiven
+    TrackLang.VNotGiven -> return TrackLang.VNotGiven
 
 eval_pitch_control :: (Derive.ToTagged a) => Derive.CallInfo a
     -> TrackLang.RawPitchControl -> Derive.Deriver TrackLang.PitchControl

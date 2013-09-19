@@ -499,12 +499,12 @@ advance_measure time = advance =<< State.get
         | time < state_measure_end state = do
             State.put $ state { state_time = time }
             return Nothing
-        | time == state_measure_end state = do
+        | time == state_measure_end state =
             case state_meters state of
                 prev_meter : meters -> advance1 prev_meter meters
                 _ -> throw $ "out of meters, can't advance time to "
                     <> Pretty.pretty time
-        | otherwise = do
+        | otherwise =
             throw $ "can't advance time past barline: " ++ Pretty.pretty time
                 <> " > " <> Pretty.pretty (state_measure_end state)
     advance1 prev_meter meters = do
@@ -762,7 +762,7 @@ clip_event end e
     where left = event_end e - end
 
 attrs_to_code :: Score.Attributes -> Score.Attributes -> Code
-attrs_to_code prev_attrs attrs = mconcat $ mconcat $
+attrs_to_code prev_attrs attrs = mconcat $ mconcat
     [ [code | (attr, code) <- simple_articulations, has attr]
     , [start | (attr, start, _) <- modal_articulations,
         has attr, not (prev_has attr)]

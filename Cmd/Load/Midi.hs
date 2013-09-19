@@ -97,7 +97,7 @@ extract_track per_sec (Z.MidiTrack msgs) =
 
 extract_message :: (RealTime, Z.MidiEvent) -> [Midi]
 extract_message (time, msg) = case msg of
-    Z.VoiceEvent _ midi -> (:[]) . ((,) time) $ case midi of
+    Z.VoiceEvent _ midi -> (:[]) . (,) time $ case midi of
         Z.NoteOff chan key vel ->
             Midi.ChannelMessage chan (Midi.NoteOff (Midi.Key key) vel)
         Z.NoteOn chan key vel ->
@@ -241,7 +241,7 @@ collect_notes :: [Midi] -> ([MidiNote], [(RealTime, Midi.Key)])
 collect_notes msgs = (Maybe.catMaybes notes, map (second fst) stuck_on)
     where
     ((_, stuck_on), notes) = List.mapAccumL go ([], []) msgs
-    go (controls, note_ons) (time, (Midi.ChannelMessage _ msg)) = case msg of
+    go (controls, note_ons) (time, Midi.ChannelMessage _ msg) = case msg of
         Midi.ControlChange cc val ->
             (((time, (cc, val)) : controls, note_ons), Nothing)
         Midi.NoteOn key vel ->

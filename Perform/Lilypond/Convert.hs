@@ -82,7 +82,7 @@ convert_event quarter event = do
             "zero duration event must have one of "
             <> Seq.join ", " (map (untxt . ShowVal.show_val) code_attrs)
             <> "; had " <> Pretty.pretty (Score.event_environ event)
-        | has_prepend && has_append = throw $
+        | has_prepend && has_append = throw
             "zero duration event with both prepend and append is ambiguous"
         | otherwise = return ()
     is_ly_global = Score.event_instrument event == Constants.ly_global
