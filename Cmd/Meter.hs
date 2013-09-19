@@ -2,6 +2,7 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
+{-# LANGUAGE TypeSynonymInstances, FlexibleInstances #-}
 {- | Functions to construct meter rulers.
 
     A meter ruler divides up a block analogous to a staff notation meter.  It's
@@ -41,29 +42,67 @@ import Types
 meter :: Ruler.Name
 meter = "meter"
 
-type Meter = [(Ruler.Rank, ScoreTime)] -- (rank, duration)
+-- | If a meter's labels are just number counts, they can be generated from
+-- a 'Meter'.  However, if they have a more complicated structure, as with
+-- "Cmd.Tala", I can't actually generate new meter without knowing the rules.
+-- That means generic modification is not possible, unless it's just deleting
+-- things (and even then it may be wrong if it should have renumbered).
+--
+-- I considered some schemes for a mid-level representation, but eventually
+-- decided that they were all too complicated, and if you want to modify
+-- a complicated ruler, you should just recreate it from scratch, presumably
+-- using whatever mid-level representation was appropriate for the function
+-- that created it in the first place.
+--
+-- Except that deletion can still be implemented generically, and 'clip' is
+-- still very useful.  So modification works on a Meterlike, and the delete
+-- functions can work directly on a LabaledMeter, while the rest work on
+-- a Meter.  This means they will renumber and thus mess up fancy meters like
+-- talas.
+--
+-- An alternate approach, perhaps suitable for colotomic patterns, would be
+-- a separate Marklist, but I'd run into the same modification problems.  I'll
+-- probably have to come up with a better solution once I have more experience
+-- with what operations I'll want to perform.
+class Meterlike a where
+    modify_meterlike :: (a -> a) -> Ruler.Marklist -> Ruler.Marklist
 
-modify_meter :: (Meter -> Meter) -> Ruler.Ruler -> Ruler.Ruler
-modify_meter f = Ruler.modify_marklist meter $
-    meter_marklist . f . marklist_meter
+instance Meterlike Meter where
+    modify_meterlike f = meter_marklist . f . marklist_meter
+
+instance Meterlike LabeledMeter where
+    modify_meterlike f = make_marklist . f . marklist_labeled
+
+type Meter = [(Ruler.Rank, ScoreTime)] -- (rank, duration)
+type LabeledMeter = [(Ruler.Rank, ScoreTime, Label)]
+
+meter_durations :: LabeledMeter -> [ScoreTime]
+meter_durations = scanl (+) 0 . map (\(_, d, _) -> d)
+
+modify_meter :: (Meterlike m) => (m -> m) -> Ruler.Ruler -> Ruler.Ruler
+modify_meter f = Ruler.modify_marklist meter (modify_meterlike f)
 
 ruler_meter :: Ruler.Ruler -> Meter
 ruler_meter = marklist_meter . Ruler.get_marklist meter
 
--- | Extract the helf-open range from start to end.
-clip :: ScoreTime -> ScoreTime -> Meter -> Meter
+-- | Extract the half-open range from start to end.
+clip :: ScoreTime -> ScoreTime -> LabeledMeter -> LabeledMeter
 clip start end meter =
+    map snd $ takeWhile ((<=end) . fst) $ dropWhile ((<start) . fst) $
+        zip (meter_durations meter) meter
+
+-- | Ack.  The Meter \/ LabeledMeter division is not very ideal.
+clipm :: ScoreTime -> ScoreTime -> Meter -> Meter
+clipm start end meter =
     map snd $ takeWhile ((<end) . fst) $ dropWhile ((<start) . fst) $
-        zip durs meter
-    where durs = scanl (+) 0 (map snd meter)
+        zip (scanl (+) 0 (map snd meter)) meter
 
 -- | Remove the half-open range.
-remove :: ScoreTime -> ScoreTime -> Meter -> Meter
-remove start end meter = map snd pre ++ map snd post
+delete :: ScoreTime -> ScoreTime -> LabeledMeter -> LabeledMeter
+delete start end meter = map snd pre ++ map snd post
     where
-    (pre, within) = break ((>=start) . fst) (zip durs meter)
+    (pre, within) = break ((>=start) . fst) (zip (meter_durations meter) meter)
     post = dropWhile ((<end) . fst) within
-    durs = scanl (+) 0 (map snd meter)
 
 scale :: ScoreTime -> Meter -> Meter
 scale dur meter = map (second (*factor)) meter
@@ -192,7 +231,7 @@ make_meter stretch meters = group0 marks
     group0 dur_rank = case span ((==0) . snd) dur_rank of
         (zeros, (rank, dur) : rest) ->
             (minimum (rank : map fst zeros), dur) : group0 rest
-        (_, []) -> []
+        (_, []) -> [(0, 0)]
     convert rank T = [(rank, stretch)]
     convert rank (D m) = (rank, 0) : concatMap (convert (rank+1)) m
 
@@ -205,7 +244,7 @@ fit_meter dur meters = make_meter stretch meters
 meter_marklist :: Meter -> Ruler.Marklist
 meter_marklist = make_marklist . label_meter
 
-label_meter :: Meter -> [(Ruler.Rank, ScoreTime, Label)]
+label_meter :: Meter -> LabeledMeter
 label_meter meter = List.zip3 ranks ps labels
     where
     (ranks, ps) = unzip meter
@@ -225,15 +264,17 @@ count1_labels :: [[Label]]
 count1_labels = List.repeat count1
 
 -- | Create a Marklist from a labelled Meter.
-make_marklist :: [(Ruler.Rank, ScoreTime, Label)] -> Ruler.Marklist
+make_marklist :: LabeledMeter -> Ruler.Marklist
 make_marklist meter = Ruler.marklist
-    [ (pos, mark dur rank label)
-    | (rank, pos, label, dur) <- List.zip4 ranks (scanl (+) 0 ps) labels durs
+    [ (pos, mark is_edge dur rank label)
+    | (rank, pos, label, dur, is_edge) <-
+        List.zip5 ranks (scanl (+) 0 ps) labels durs edges
     ]
     where
+    edges = True : map null (drop 2 (List.tails ranks))
     durs = rank_durs (zip ranks ps)
     (ranks, ps, labels) = List.unzip3 meter
-    mark rank_dur rank name =
+    mark is_edge rank_dur rank name =
         let (color, width, pixels) = meter_ranks !! min rank ranks_len
             zoom = pixels_to_zoom rank_dur pixels
         in Ruler.Mark
@@ -241,8 +282,8 @@ make_marklist meter = Ruler.marklist
             , Ruler.mark_width = width
             , Ruler.mark_color = color
             , Ruler.mark_name = name
-            , Ruler.mark_name_zoom_level = zoom * 2
-            , Ruler.mark_zoom_level = zoom
+            , Ruler.mark_name_zoom_level = if is_edge then 0 else zoom * 2
+            , Ruler.mark_zoom_level = if is_edge then 0 else zoom
             }
     ranks_len = length meter_ranks
 
@@ -263,16 +304,28 @@ pixels_to_zoom dur pixels
     | otherwise = fromIntegral pixels / ScoreTime.to_double dur
 
 marklist_meter :: Ruler.Marklist -> Meter
-marklist_meter mlist = zipWith to_dur marks (drop 1 marks)
-    where
-    marks = Ruler.ascending 0 mlist
-    -- This drops the last mark, but by convention that's a rank 0 mark intended
-    -- to delemit the duration of the second-to-last mark.
-    to_dur (p, m) (next_p, _) = (Ruler.mark_rank m, next_p - p)
+marklist_meter = map (\(rank, dur, _) -> (rank, dur)) . marklist_labeled
+
+-- | The last mark gets a 0 duration.
+marklist_labeled :: Ruler.Marklist -> LabeledMeter
+marklist_labeled mlist =
+    [ (Ruler.mark_rank m, maybe 0 (subtract p . fst) maybe_next,
+        Ruler.mark_name m)
+    | ((p, m), maybe_next) <- Seq.zip_next marks
+    ]
+    where marks = Ruler.ascending 0 mlist
 
 -- * labels
 
 type Label = Text
+
+data Labelled =
+    -- | The mark gets this text.
+    Literal Label
+    -- | The mark gets a number
+    | Count deriving (Show)
+
+type LabelledMeter = [(Ruler.Rank, ScoreTime, Labelled)]
 
 text_labels :: Int -> [[Label]] -> [Ruler.Rank] -> [Label]
 text_labels min_depth labels ranks =

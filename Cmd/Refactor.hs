@@ -69,7 +69,7 @@ split_time_at from_block_id pos block_name = do
         State.insert_events track_id events
     -- Trim rulers on each.
     RulerUtil.local_meter from_block_id $ Meter.clip 0 pos
-    RulerUtil.local_meter to_block_id $ Meter.remove 0 pos
+    RulerUtil.local_meter to_block_id $ Meter.delete 0 pos
     return to_block_id
 
 split_names :: BlockId -> (Text, Text)

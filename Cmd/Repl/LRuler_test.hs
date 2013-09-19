@@ -39,6 +39,7 @@ test_extract = do
     equal (e_ruler bid (CmdTest.result_ui_state res))
         [ (0, 2.5), (1, 2.5), (1, 2.5), (1, 2.5)
         , (0, 2), (1, 2), (1, 2)
+        , (0, 0)
         ]
 
 e_ruler :: BlockId -> State.State -> Meter.Meter

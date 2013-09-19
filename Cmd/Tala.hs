@@ -12,6 +12,14 @@ import Cmd.Meter (AbstractMeter(..))
 import Types
 
 
+-- * presets
+
+-- | 2 Sections of 4 avartanams of everyone's favorite talam.
+adi_ruler :: Ruler.Ruler
+adi_ruler = make_ruler 2 4 4 1 adi_tala
+
+-- * implementation
+
 data Tala = Tala ![Anga] !Jati
 data Anga = Clap !Int | Wave !Int
     -- | laghu, drutam, anudrutam
@@ -64,9 +72,6 @@ unlabelled_ranks :: [Ruler.Rank]
 unlabelled_ranks =
     [Meter.r_section, Meter.r_2, Meter.r_16, Meter.r_64, Meter.r_128]
 
--- adi_ruler = make_ruler 2 4 1 1 adi_tala
--- rendekalai_adi_ruler = make_ruler 2 4 2 1 adi_tala
-
 make_ruler :: Int -> Int -> Int -> ScoreTime -- ^ Duration of each clap.
     -> Tala -> Ruler.Ruler
 make_ruler sections avartas nadai dur (Tala angas jati) =
@@ -98,14 +103,11 @@ angas_to_labels jati = concatMap $ \anga -> case anga of
     O -> ["X", "O"]
     U -> ["X"]
 
--- extract = map (Ruler.mark_name . snd) . Ruler.ascending 0 . snd . head
---     . Map.toList . Ruler.ruler_marklists
-
 meter_marklist :: [[Meter.Label]] -> Meter.Meter -> Ruler.Marklist
 meter_marklist labels meter =
     Meter.make_marklist $ List.zip3 ranks ps all_labels
     where
-    (ranks, ps) = unzip (meter ++ [(0, 0)])
+    (ranks, ps) = unzip meter
     all_labels = Meter.text_labels 2 labels $
         Meter.collapse_ranks unlabelled_ranks ranks
 

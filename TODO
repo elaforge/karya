@@ -161,7 +161,9 @@ UNSORTED
   - rename i>> to s for slide, or p for porta
     Well, don't forget about i<< and e>>
     Maybe add 'p' and 'p<'
-  - Make talas work with LRuler.  The problem is that they include label
+  / Fix talas: 1.0.1.2 should be 1.0.2, there's an extra level in there
+    Shouldn't set nadai to 1 then.
+  * Make talas work with LRuler.  The problem is that they include label
     information, and Meter.Meter doesn't support that.
     . I think I wind up with 3 levels of rulers:
       . Ruler.Ruler - has everything, but hard to work with
@@ -171,7 +173,18 @@ UNSORTED
       Or make Meter [(rank, dur, Maybe Label)]  That's not good because they'd
       be either all Just or all Nothing.  Would have to be
         data Meter a = [(rank, dur, a)]
-  - rendekalai adi talam: 00112233XXOOXXOO
+    . LRuler.Modify should be LabeledMeter -> LabeledMeter
+      Numbers know how to generate more, but not arbitrary labels.
+      If I just add more LabeledMeter then I wind up copying the counts.
+      I want to do that with the X O but not with the numbers.
+      I could put claps on a different marklist, but still Meter->Meter
+      doesn't say which bits it copied.
+    . How about [(Rank, Dur, Count | Literal Text)]?  Count is renumbered.
+      That doesn't work because of 1.O or 2.X.  So it needs to be
+      [(Rank, Dur, [Count | Literal Text])]
+    . This is all too complicated.  If I want to, say, double the ruler, I
+      should be able to just regenerate.
+  / rendekalai adi talam: 00112233XXOOXXOO
   - need an easy way to create IDs for debugging, so I can copy paste
     (bid "xyz") stuff
   - After a rederive, it still takes a Cmd to free up the memory.  Who is

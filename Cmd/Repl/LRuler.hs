@@ -104,14 +104,27 @@ replace_ruler_id old new = do
     forM_ (map fst blocks) $ \block_id ->
         State.replace_ruler_id block_id old new
 
+-- * query
+
+get_meter :: (State.M m) => BlockId -> m Meter.Meter
+get_meter block_id =
+    Meter.ruler_meter <$> (State.get_ruler =<< State.ruler_of block_id)
+
+get_marks :: (State.M m) => BlockId -> m [Ruler.PosMark]
+get_marks block_id =
+    Ruler.ascending 0 . Ruler.get_marklist Meter.meter <$>
+        (State.get_ruler =<< State.ruler_of block_id)
+
+-- * Modify
+
 -- | Double the meter of the current block. You can then trim it down to size.
 double :: (Cmd.M m) => m Modify
 double = do
     block_id <- Cmd.get_focused_block
     return (block_id, \meter -> meter <> meter)
 
--- | Clip the meter to the selection.
-clip :: (Cmd.M m) => m Modify
+-- | Clip the meter to end at the selection.
+clip :: (Cmd.M m) => m DeleteModify
 clip = do
     (block_id, _, _, pos) <- Selection.get_insert
     return (block_id, Meter.clip 0 pos)
@@ -120,7 +133,7 @@ clip = do
 append :: (Cmd.M m) => m Modify
 append = do
     (block_id, _, _, start, end) <- Selection.tracks
-    return (block_id, \meter -> meter <> Meter.clip start end meter)
+    return (block_id, \meter -> meter <> Meter.clipm start end meter)
 
 append_ruler_id :: (Cmd.M m) => RulerId -> m Modify
 append_ruler_id ruler_id = do
@@ -129,10 +142,10 @@ append_ruler_id ruler_id = do
     return (block_id, (<> other))
 
 -- | Remove the selected range of the ruler and shift the rest up.
-delete :: (Cmd.M m) => m Modify
+delete :: (Cmd.M m) => m DeleteModify
 delete = do
     (block_id, _, _, start, end) <- Selection.tracks
-    return (block_id, Meter.remove start end)
+    return (block_id, Meter.delete start end)
 
 -- | Set the ruler to a number of measures of the given meter, where each
 -- measure is the given amount of time.
@@ -163,10 +176,6 @@ fit_to_pos pos meters = do
     block_id <- Cmd.get_focused_block
     return (block_id, const $ Meter.fit_meter pos meters)
 
-get_meter :: (State.M m) => BlockId -> m Meter.Meter
-get_meter block_id =
-    Meter.ruler_meter <$> (State.get_ruler =<< State.ruler_of block_id)
-
 set_local :: (Cmd.M m) => Ruler.Ruler -> m ()
 set_local ruler = do
     block_id <- Cmd.get_focused_block
@@ -186,9 +195,11 @@ extract_meters :: (Cmd.M m) => TrackId -> m Meter.Meter
 extract_meters track_id = do
     subs <- extract_calls track_id
     ruler_ids <- mapM State.ruler_of [bid | (_, _, bid) <- subs]
-    meters <- mapM RulerUtil.get_meter ruler_ids
-    return $ concat [Meter.scale dur meter
-        | ((_start, dur, _), meter) <- zip subs meters]
+    -- Strip the last 0-dur mark off of each meter before concatenating.
+    meters <- map (Seq.rdrop 1) <$> mapM RulerUtil.get_meter ruler_ids
+    return $ concat $
+        [Meter.scale dur meter | ((_start, dur, _), meter) <- zip subs meters]
+        ++ [[(0, 0)]]
 
 extract_calls :: (State.M m) => TrackId -> m [(ScoreTime, ScoreTime, BlockId)]
 extract_calls track_id = do
@@ -203,7 +214,16 @@ extract_calls track_id = do
 
 -- * modify
 
-type Modify = (BlockId, Meter.Meter -> Meter.Meter)
+-- | A modification of a simple numbered meter.  It regenerates the mark
+-- numbers, so if you had anything more fancy in there it will be destroyed.
+-- 'Meter.Meterlike' has details.
+type Modify = ModifyM Meter.Meter
+
+-- | A modification that only deletes marks and doesn't generate new ones,
+-- so it can work on a LabeledMeter.  See 'Meter.Meterlike' for details.
+type DeleteModify = ModifyM Meter.LabeledMeter
+
+type ModifyM m = (BlockId, m -> m)
 
 -- | Just like 'RulerUtil.local_meter' but invalidate performances.  Since
 -- block calls use the ruler length to determine the duration of the block,
@@ -211,10 +231,10 @@ type Modify = (BlockId, Meter.Meter -> Meter.Meter)
 --
 -- I don't add this directly to 'RulerUtil.local_meter' because that would make
 -- it be in Cmd and IO.
-local :: Modify -> Cmd.CmdL ()
+local :: (Meter.Meterlike m) => ModifyM m -> Cmd.CmdL ()
 local (block_id, f) = RulerUtil.local_meter block_id f
 
-modify :: Modify -> Cmd.CmdL ()
+modify :: (Meter.Meterlike m) => ModifyM m -> Cmd.CmdL ()
 modify (block_id, f) = RulerUtil.modify_meter block_id f
 
 
