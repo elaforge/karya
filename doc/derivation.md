@@ -141,10 +141,6 @@ but it's also possible to have multiple tempo tracks.
 [Slicing and inversion](slicing-inverting.md.html) is a score level
 transformation that happens at when a track is derived.
 
-### Note Transformers
-
-TODO
-
 ## Dynamic environment
 
 The dynamic environment concept is core to derivation.  The idea is that
@@ -211,11 +207,11 @@ single map of typed signals.
 
 ### scopes
 
-The dynamic 'Derive.Deriver.Monad.Scope' determines the calls in scope, and
-maps names to the functions implementing the call.  Calls are documented in
-more detail elsewhere, but the fact that they are in
-'Derive.Deriver.Monad.Dynamic' means that the set of calls in scope can also
-be modified within a dynamic scope.  There are separate namespaces for note
+The dynamic value 'Derive.Deriver.Monad.Scopes' determines the calls in scope,
+and maps names to the functions implementing the call.  [Calls](#calls) are
+documented in more detail elsewhere, but the fact that they are in
+'Derive.Deriver.Monad.Dynamic' means that the set of calls in scope can also be
+modified within a dynamic scope.  There are separate namespaces for note
 tracks, control tracks, and pitch tracks since the calls in each track return
 different types.  This is what allows an instrument to bring into scope
 instrument-specific calls, or a scale to bring into scope calls that emit its
@@ -343,21 +339,23 @@ syntax so they can written as call arguments.
 
 Chromatic: `c`, diatonic: `d`, ScoreTime: `t`, RealTime: `s`.
 
-Numeric values can have a type suffix.  For instance, 3d means that the number
-is intended to be interpreted as a transposition of 3 diatonic steps, and `2s`
-is 2 seconds of RealTime.  Similarly, control names can have a type suffix,
-such as `delay:s`.  This means that the values of the control are intended to
-be interpreted as 3 RealTime seconds.
+Numeric values can have a type suffix.  For instance, `3d` means that the
+number is intended to be interpreted as a transposition of three diatonic
+steps, and `2s` is two seconds of RealTime.  Similarly, control names can have
+a type suffix, such as `delay:s`.  This means that the values of the control
+are intended to be interpreted as RealTime seconds.
 
 Of course, whether or not they are so interpreted depends on the call that
 winds up receiving them.  Calls that expect an amount of transposition will
-accept `d` and `c`, and untyped numbers will be interpreted as `c` (chromatic).
+accept `d` and `c`, untyped numbers will be interpreted as `c` (chromatic), and
+hopefully numbers of other types will cause an exception.
 
 Many numbers and controls are untyped and will ignore any type on a value or
-control.  The type mechanism is intended as a way of overloading certain calls.
+control.  The type mechanism can be seen as a way of overloading certain calls.
 For example, it would be awkward to include all combinations of trills on
 diatonic or chromatic neighbors, and in score time or real time.  It's easier
-to have one control that can be passed a diatonic or chromatic neighbor.
+to have one control that can be passed a diatonic or chromatic neighbor, and a
+score time or real time speed.
 
 The types and their codes are enumerated in 'Derive.BaseTypes.Type'.
 
@@ -373,20 +371,12 @@ return: a 'Derive.Deriver.Monad.NoteCall' returns score events, a
 'Derive.Deriver.Monad.PitchCall' returns pitch signal, and a
 'Derive.Deriver.Monad.ValCall' returns a tracklang Val.  Each of note, control,
 and pitch calls are only in scope in their relevant tracks, but val calls are
-in scope in all tracks.
-
-Notice that NoteCall is inconsistently named, it should probably be named
-EventCall along with EventDeriver.  The root of the inconsistency is that at
-the UI level event track means any track with events in it, while the
-derivation level distinguishes between event tracks that emit signals and those
-that emit score events.  Since calling a track that emits score events an
-"event track" would be confusing since it's more specific than UI's "event
-track", I call it a "note track" and the name of the call found on that track
-follows suit.  Phew.
+in scope in all tracks.  Since each call except val calls also has generator
+and transformer namespaces, that's a total of seven separate namespaces.
 
 A call may have zero or more arguments, which are parsed as
 'Derive.TrackLang.Val's.  Argument parsing and the defaulting scheme (which
-uses the dynamic environ) is documented in 'Derive.CallSig'.
+uses the dynamic environ) is documented in 'Derive.Sig'.
 
 ### ValCall
 
@@ -414,41 +404,69 @@ another call (e.g. `tr (4c)`), but if it occurs alone in a pitch track its
 Pitch is passed to the null call, which for pitch tracks just sets the pitch
 signal to that pitch.
 
-### expression pipeline
+### generators and transformers
 
-The syntax of a call expression is documented in
-[tracklang syntax](#tracklang-syntax), but the gist is that it looks like this:
-`t1 | t2 (v1 1) | g 'arg'`.  `t1` and `t2` are transform calls since they come
-before a pipe and `g` is a generator since it occurs at the end.  `v1` is a val
-call whose result is passed to `t2`.  So really the pipe operator is
-effectively function application.  The reason it isn't literally function
-application is for syntactical convenience, so generators and transformers can
-have their own namespaces, and so the calls themselves can have separate types
-at the haskell level.  Gory details in 'Derive.Call'.
-
-Furthermore, calls are divided into generator and transform calls.  Generator
-calls produce values of their appropriate type, while transform calls are
-applied to other calls.  The call they are applied to is actually unevaluated
-at the time of application, so the transformer can modify the environment in
-which the transformee is evaluated, or evaluate it and transform its output,
-or even not evaluate it at all.  For example, a echo transformer could
-evaluate its generator multiple times with shifted warps and merge the
-results, or it could evaluate the generator itself and directly modify the
-produced score events.  The former is like a musical echo and will stretch
-with tempo changes and allow the notes to change their derivation based on the
-reduced dynamic, while the latter is like a physical echo and will produce
-notes at the given interval regardless of the tempo.
+Non-val calls are divided into generator and transformer.  Generator calls
+produce values of their appropriate type, while transform calls are applied to
+other calls.  The call they are applied to is actually unevaluated at the time
+of application, so the transformer can modify the environment in which the
+transformee is evaluated, or evaluate it and transform its output, or even not
+evaluate it at all.  For example, a echo transformer could evaluate its
+generator multiple times with shifted warps and merge the results, or it could
+evaluate the generator itself and directly modify the produced score events.
+The former is like a musical echo and will stretch with tempo changes and allow
+the notes to change their derivation based on the reduced dynamic, while the
+latter is like a physical echo and will produce notes at the given interval
+regardless of the tempo.
 
 All tracks except note tracks are analogous to transform calls even though
 they are implemented differently, since they evaluate a signal and put it in
 the dynamic environment of the tracks below them.
 
-Transform calls and generator calls live in their own namespaces, though they
-are bound to their names together (i.e. a 'Derive.Deriver.Monad.Call' is
-effectively a `(Maybe TransformCall, Maybe GeneratorCall)` pair.
-'Derive.Deriver.Monad.ValCall's don't have transformer and generator versions.
+Transform and generator calls live in their own namespaces, though there are
+often related calls bound to the same name.  E.g., the generator version emits
+a note with some attribute, and the transformer version adds that attribute to
+its transformed events.
 
-Evaluation is implemented by 'Derive.Call.apply_toplevel'.
+### note transformers
+
+A note transformer is a note call that effectively takes other notes as
+arguments.  This happens when a note track is the child of another note track.
+Thanks to [slicing and inversion](slicing-inverting.md.html), a call on the
+parent track can then extract the events below it, and do with them what it
+will.  What many do, courtesy of 'Derive.Call.Sub.sub_events', is evaluate them
+as little derivers and then manipulate them as the call sees fit.  The result
+is much like a transformer in that the call has opaque derivers to manipulate,
+but is more flexible since each sub-note becomes a separate deriver, and their
+original start and duration are available.  This additional power is useful to
+implement ornaments that involve multiple notes, such as tuplets or arpeggios.
+It's also useful purely syntactically to apply a transformation to bunch of
+notes at once without having to bundle them into a block call.
+
+Note transformers are actually analogous to macros, since they receive their
+arguments in unevaluated form.  So one could evaluate sub-events in its own
+idiosyncratic way, thus implementing a kind of sub-notation.
+
+It's worth noting that a note transformer is a generator, even if it seems
+somewhat transformer-like.  Unlike generators and transformers, a note
+transformer is just a plain generator that happens to call sub_events.  In
+fact, some generators may check for the existence of sub events and either
+generate or transform notes accordingly.
+
+### expression pipeline
+
+The syntax of a full call expression is documented in
+[tracklang syntax](#tracklang-syntax), but the gist is that it looks like this:
+`t1 | t2 (v1 1) | g 'arg'`.  `t1` and `t2` are transform calls since they come
+before a pipe and `g` is a generator since it occurs at the end.  `v1` is a val
+call whose result is passed to `t2`.  So the pipe operator is effectively
+function application.  The reason it isn't literally function application is
+for syntactical convenience, so generators and transformers can have their own
+namespaces, and so the calls themselves can have separate types at the haskell
+level.  I actually tried it once and it was all kinds of inconvenient.
+
+Gory details in 'Derive.Call', and evaluation is implemented by
+'Derive.Call.apply_toplevel'.
 
 ### call docs
 
@@ -516,13 +534,13 @@ the calls defined in 'Derive.Call.ScaleDegree'.  The built-in scales along
 with their calls are also [documented separately](scales.html).
 
 The reason a pitch signal is different is that pitches are actually abstract
-objects that can respond to chromatic, diatonic, and hz transposition (at
-least that's the default set, you're free to define your own kinds of
-transposition for your own scales).  This is because diatonic transposition
-can depend on the key in scope, and transposition in any non-equal-tempered
-scale must be done in relation to the original spelling of the pitch.
+objects that can respond to various forms of transposition (which is dependent
+on the scale, but the conventional set is in 'Derive.Controls').  This is
+because diatonic transposition can depend on the key in scope, and
+transposition in any non-equal-tempered scale must be done in relation to the
+original spelling of the pitch.
 
-This is also how pitches can retune themselves in time.  Since a pitch call
+This is also how pitches can retune themselves over time.  Since a pitch call
 can depend on signals in scope, you could have a scale retune itself according
 to a certain signal, and then cause that signal to gradually change over the
 course of the piece.  This is handy for flexibility, but it means that pitches
@@ -539,7 +557,13 @@ you won't get the effect you expect.  You should instead put `%t-chromatic = 1
 
 ## Logging
 
-TODO
+If a call is unhappy, it can throw an exception.  The entire expression will
+produce no events, and a warning will come out in the log file.  Typically it
+would then show up in 'LogView.LogView'.  These log msgs are decorated with
+the "stack trace" of the call that emitted them, which is to say the series of
+blocks, tracks, and calls that lie above them.  Logview will then format that
+in such a way that you can click on it, which should put an error selection
+on the relevant bit of track.
 
 ## Randomness
 
@@ -561,9 +585,3 @@ Because the seed depends on the stack, two calls on the same event will get the
 same random sequence.  Hopefully that's not a problem.
 
 'Derive.Call.Random' has some randomness-using calls.
-
-## local config
-
-TODO
-
-[doc/local](local.md.html)
