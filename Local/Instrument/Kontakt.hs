@@ -181,16 +181,20 @@ hang_ks = [(attrs, key) | (attrs, key, _, _) <- hang_strokes]
 
 -- | Instead of using a keyswitch, I map mute to the lower range:
 --
--- > pemade: mute (g_2, e0), open (g2, e5)
--- > kantilan: mute (g_1, e1), open (g3, e6)
+-- > pemade: open (f_2, e0), mute (f2, e5)
+-- > kantilan: mute (f_1, e1), open (g3, e6)
 --
--- This way I can play mute and open notes simultaneously.  There is a big gap
--- between the mute range and the open range so that pemade and kantilan can
--- use the same ranges, and still have an octave of space in between them.
+-- This way I can play mute and open notes simultaneously.  There is an octave
+-- gap between the ranges so that pemade and kantilan can use the same
+-- instruments.
 --
--- Directory structure is wayang/{pemade,kantil}/{isep,umbang}/{calung,panggul}
+-- - Directory structure is
+-- wayang/{pemade,kantil}/{isep,umbang}/{calung,panggul}/
 --
--- Set round-robins, pitch bend to 2 oct, and amp to velocity 90%.
+-- - Set round-robins, pitch bend to 2 oct with lag 10, and amp to velocity 90%.
+--
+-- - Loose and mute groups get a -9dB Amp, since they are naturally quieter.
+-- They also get AHD Only envelope, with Hold set to max.
 wayang_patches :: [MidiInst.Patch]
 wayang_patches =
     [ (scale Wayang.umbang $ patch "wayang-umbang",
@@ -224,7 +228,10 @@ wayang_keys = take (5*3 - 1) $ drop 1 $ concatMap keys [0..]
 
 wayang_keymap :: Instrument.Keymap
 wayang_keymap = Map.fromList
-    [(Attrs.mute, (Key2.f_2, Key2.e1, Just $ Midi.from_key Key2.f2))]
+    [ (Attrs.mute, (Key2.f6, Key2.e8, base))
+    , (Attrs.mute <> Attrs.loose, (Key2.f_2, Key2.e0, base))
+    ]
+    where base = Just $ Midi.from_key Key2.f2
 
 
 -- * kendang

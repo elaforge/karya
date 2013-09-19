@@ -159,6 +159,9 @@ slow = attr "slow"
 light = attr "light"
 heavy = attr "heavy"
 
+loose = attr "loose"
+tight = attr "tight"
+
 -- * misc
 
 -- Many of these attributes are meant to be combined with others.
