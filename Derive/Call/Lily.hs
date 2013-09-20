@@ -153,7 +153,8 @@ type Code = (CodePosition, Ly)
 data CodePosition =
     -- | Code goes before the note.
     Prefix
-    -- | Code goes after all the notes in a tied sequence.
+    -- | Code goes after each note in a tied sequence, so it could get
+    -- duplicated several times.
     | SuffixAll
     -- | Code goes after only the first note in a tied sequence.
     | SuffixFirst

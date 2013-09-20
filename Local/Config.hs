@@ -3,7 +3,7 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 -- | Setup StaticConfig.
-module Local.Config where
+module Local.Config (load_static_config) where
 import qualified Control.Monad.Trans as Trans
 import qualified Network.BSD
 

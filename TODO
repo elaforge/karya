@@ -187,7 +187,7 @@ documentation
   + doc/symbols.md, link from ui
   - doc/external-configuration.md
   - make sure core state types and their dependents have good haddock
-  - update outdated module haddock: Derive.TrackLang
+  * update outdated module haddock: Derive.TrackLang
   - update screenshots: doc/img/ly-example.png
   call doc:
     - I could go look through arg docs for controls and list all the controls

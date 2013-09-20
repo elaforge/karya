@@ -2,11 +2,8 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
-{-| Re-export DeriveInternal and DeriveLib.  Derivers should probably be
-    importing this module rather than the lower level ones.
-
-    "Derive.DeriveInternal" contains an explanation of the split, and
-    "Derive.DeriveLib" an overview of derivation in general.
+{-| Re-export the core deriver library.  Most calls should import this module
+    rather than the lower level ones.
 -}
 module Derive.Derive (
     module Derive.Deriver.Monad

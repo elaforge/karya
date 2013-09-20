@@ -12,16 +12,18 @@
     The Cmd monad has two kinds of exception: abort or throw.  Abort means
     that the Cmd decided that it's not the proper Cmd for this Msg (keystroke,
     mouse movement, whatever) and another Cmd should get a crack at it.  Throw
-    means that the Cmd failed.  When an exception is thrown, the ui and cmd
-    states are rolled back and midi output is discarded.
+    means that the Cmd failed and there is nothing to be done but log an error.
+    When an exception is thrown, the ui and cmd states are rolled back and midi
+    output is discarded.
 
     Cmds should be in the monad @(Cmd.M m) => m ...@.
 
     They have to be polymorphic because they run in both IO and Identity.  IO
     because some cmds such saving and loading files require IO, and Identity
-    because the rest don't.  REPL cmds run in IO so they can load and save,
-    and the result is that any cmd that wants to be used from both Identity
-    cmds (bound to keystrokes) and the REPL must be polymorphic in the monad.
+    because the majority of cmds don't.  REPL cmds run in IO so they can load
+    and save, and the result is that any cmd that wants to be used from both
+    Identity cmds (bound to keystrokes) and the REPL must be polymorphic in the
+    monad.
 
     Formerly this was @(Monad m) => CmdT m ...@, but with the upgrade to mtl2
     Functor would have to be added to the class context, but only for cmds
@@ -45,6 +47,7 @@
     a single cmd.
 
     Unfortunately cmds also use getDirectoryContents, forkIO, killThread, etc.
+    So I think what I have is the only reasonable solution.
 -}
 module Cmd.Cmd (
     module Cmd.Cmd, Performance(..), Events

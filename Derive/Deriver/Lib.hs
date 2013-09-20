@@ -3,35 +3,9 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 {-# LANGUAGE TypeSynonymInstances, FlexibleInstances #-}
-{- | Main module for the deriver monad.
-
-    TODO update Derive\/README, move it to doc\/, and link from here
-
-    The convention is to prepend deriver names with @d_@, so if the deriver is
-    normally implemented purely, a d_ version can be made simply by composing
-    'return'.
-
-    I have a similar sort of setup to nyquist, with a \"transformation
-    environment\" that functions can look at to implement behavioral
-    abstraction.  The main differences are that I don't actually generate audio
-    signal, but my \"ugens\" eventually render down to MIDI or OSC (or even
-    nyquist or csound source!).
-
-    \"Stack\" handling here is kind of confusing.
-
-    The end goal is that log messages and exceptions are tagged with the place
-    they occurred.  This is called the stack, and is described in
-    'Perform.Warning.Stack'.  Since the stack elements indicate positions on
-    the screen, they should be in unwarped score time, not real time.
-
-    The current stack is stored in 'state_stack' and will be added to by
-    'with_stack_block', 'with_stack_track', and 'with_stack_pos' as the deriver
-    processes a block, a track, and individual events respectively.
-    Log msgs and 'throw' will pick the current stack out of 'state_stack'.
-
-    When 'Derive.Score.Event's are emitted they are also given the stack at the
-    time of their derivation.  If there is a problem in performance, log msgs
-    still have access to the stack.
+{- | This has the higher level parts of the deriver library.  That is,
+    functions where are considered basic but can be defined outside of
+    "Derive.Deriver.Monad".
 -}
 module Derive.Deriver.Lib where
 import Prelude hiding (error)

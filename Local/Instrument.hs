@@ -7,7 +7,7 @@
 --
 -- TODO the 'load' and 'make_dbs' calls should be automatically generated from
 -- the contents of the Local\/Instrument\/ dir.
-module Local.Instrument where
+module Local.Instrument (load, make_dbs, make_named_dbs) where
 import qualified Data.List as List
 import System.FilePath ((</>))
 

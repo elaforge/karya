@@ -3,35 +3,15 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 {-# LANGUAGE TypeSynonymInstances, FlexibleInstances, ScopedTypeVariables #-}
-{- | The event text in a note track forms a simple language.
+{- | This module exports the basic types for \"tracklang\", which is the
+    language parsed by "Derive.ParseBs" and interpreted by "Derive.Call".
 
-    Notes with text are interpreted as function calls.  The function will be
-    sought in a function namespace which has global defaults merged with static
-    config.  Also, each block defines a function with its name, and may be
-    called without the namespace from a block in the same namespace.
+    It also defines 'Typecheck', which is used along with "Derive.Sig" to
+    infer type signatures for calls.
 
-    Type checking: functions must be defined with a type signature.  Since this
-    is a first-order language, signatures are simply lists of types.
-
-    Type inference: look at the positions of variables in the block and figure
-    out what the type of the block is.
-
-    Function arguments:
-
-    - The only automatic coercion is from a number to a constant signal of that
-    value.
-
-    - An argument of @_@ is treated as not given, so you can pass positional
-    arguments after it.
-
-    Control track: @+, cont@ is the same as @cont | add %cont2@
-
-    call syntax:
-    echo delay=%echo-delay,1 feedback=.4 times=1
-
-    echo _ %echo-delay,1
-
-    %note-pitch,*5c
+    To avoid circular imports, many of the types are actually defined in
+    "Derive.BasicTypes", but they should be imported as if they were defined
+    here.
 -}
 module Derive.TrackLang (
     module Derive.TrackLang, module Derive.BaseTypes, show_val

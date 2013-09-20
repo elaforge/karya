@@ -4,7 +4,7 @@
 
 {- | This module is sister to "Derive.Deriver.Lib", except that it contains
     functions which are normally only used by the built-in track derivation
-    scheme, and are not so useful when writing calls.
+    scheme, and are not used when writing most normal calls.
 -}
 module Derive.Deriver.Internal where
 import qualified Data.Digest.CRC32 as CRC32
