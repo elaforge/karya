@@ -26,7 +26,7 @@ TODO link to music page, link to scores
 
 ## Features:
 
-<img align=right width=180 src="../../doc/img/ss-vla.png">
+<img align=right width=180 src="../../doc/img/ly-example.png">
 
 - Ornaments.  There is a library of musical ornaments, such as grace notes,
 tuplets, trills of various flavor, arpeggio, echo, delay, etc.  These are

@@ -15,7 +15,7 @@ Copy an existing soft synth, e.g. 'Local.Instrument.Fm8', and add the new
 module's `load` function to 'Local.Instrument.synths'.  If you use
 'App.MidiInst.softsynth' then you don't have to have any explicit patch names.
 
-- Recompile because you edited stuff: `repl=t mk binaries`
+- Recompile because you edited stuff: `repl=t bin/mk binaries`
 
 - Start `build/opt/logview` in the background, and the app `build/opt/seq` from
 one terminal, and the REPL `build/opt/repl` from another.
@@ -28,8 +28,8 @@ whatever you named the new synth, and `patch-name` is whatever you want.
 
     `loop1` should be the name of one of the internal MIDI devices you created,
 or its alias if you configured one in 'Local.Config'.  This allocates MIDI
-channel 0 on loop1 to that instrument.  You can see allocation with `pp
-LInst.configs`.
+channel 0 on loop1 to that instrument.  You can see allocation with
+`LInst.configs`.
 
 - Click in the note track to set the selection, and turn on edit mode with `^[`
 and kbd entry with `^]`.  The edit box should turn red and get a `K`.  If you

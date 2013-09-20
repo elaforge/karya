@@ -42,7 +42,7 @@ UNSORTED
   - Derive.Call.Gamakam, with janta, s-g-r, and r-s ornaments.
     Also there's a slight lift at the end of notes.
     * call lifts pitch to some frequency at the end of notes
-      lift and drop for violin can reduce pressure instead of speed (dyn)
+    - lift and drop for violin can reduce pressure instead of speed (dyn)
     - janta is neighbor from below, or fingered is sr, or if you're moving
       up: r-sg
     - copy from kaushik's recording
@@ -148,7 +148,7 @@ MILESTONES
     - complete Idiom.Wind, experiment with the Idiom postprocs
     + bring back negative duration / arrival beats
     * scales and keyswitches
-    + efficient thru
+    / efficient thru
     * tracklang complete with set of basic calls
     * better REPL situation
     / midi record
@@ -181,11 +181,14 @@ documentation
   derivation
     * NoteTransformers
     * logging
-  - doc/performance.md
-  - doc/local.md
+  * doc/performance.md
+  * doc/local.md
   - doc/instrument.md
   + doc/symbols.md, link from ui
+  - doc/external-configuration.md
   - make sure core state types and their dependents have good haddock
+  - update outdated module haddock: Derive.TrackLang
+  - update screenshots: doc/img/ly-example.png
   call doc:
     - I could go look through arg docs for controls and list all the controls
       that have someone listening to them in a certain scope.
