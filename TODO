@@ -71,9 +71,7 @@ UNSORTED
     and directly call cocoa functions.  For that to work on linux, I think I'd
     have to do the same for cairo.
     . Or perhaps I should just switch to OpenGL?
-  - rename i>> to s for slide, or p for porta
-    Well, don't forget about i<< and e>>
-    Maybe add 'p' and 'p<'
+  * rename i>> to s for slide, or p for porta
   - need an easy way to create IDs for debugging, so I can copy paste
     (bid "xyz") stuff
   - After a rederive, it still takes a Cmd to free up the memory.  Who is

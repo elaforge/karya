@@ -53,6 +53,7 @@ pitch_calls = Derive.call_maps
     , ("a", c_approach)
     , ("u", c_up)
     , ("d", c_down)
+    , ("p", c_porta)
     ]
     [ ("=", Util.c_equal) ]
 
@@ -226,6 +227,14 @@ slope word sign =
                 dest = Pitches.transpose (Util.join_transpose diff typ)
                     prev_pitch
             make_interpolator id True start prev_pitch next dest
+
+c_porta :: Derive.Generator Derive.Pitch
+c_porta = linear_interpolation "porta" (TrackLang.real 0.1)
+    "Emit a linear slide from the previous pitch to the given one.\
+    \ This is the same as i>>, but intended to be higher level, in that\
+    \ instruments or scores can override it to represent an idiomatic\
+    \ portamento." $
+    \_ -> return . default_real
 
 -- * util
 
