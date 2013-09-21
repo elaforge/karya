@@ -183,7 +183,7 @@ documentation
     * logging
   * doc/performance.md
   * doc/local.md
-  - doc/instrument.md
+  / doc/instrument.md
   + doc/symbols.md, link from ui
   - doc/external-configuration.md
   - make sure core state types and their dependents have good haddock

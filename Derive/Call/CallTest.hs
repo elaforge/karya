@@ -29,15 +29,14 @@ transform trans = DeriveTest.derive State.empty $
     Derive.with_constant_pitch Nothing
         (DeriveTest.mkpitch12 "4c") (trans (DeriveTest.c_note 0 1))
 
-run_pitch :: [(ScoreTime, String)] -> [(RealTime, Pitch.NoteNumber)]
-run_pitch = run_with_scale ""
-
-run_with_scale :: String -> [(ScoreTime, String)]
-    -> [(RealTime, Pitch.NoteNumber)]
-run_with_scale scale events = extract $ DeriveTest.derive_tracks $
+run_pitch_ :: [(ScoreTime, String)] -> Derive.Result
+run_pitch_ events = DeriveTest.derive_tracks
     [ (">", [(0, 10, "")])
-    , ('*' : scale, [(start, 0, text) | (start, text) <- events])
+    , ("*", [(start, 0, text) | (start, text) <- events])
     ]
+
+run_pitch :: [(ScoreTime, String)] -> [(RealTime, Pitch.NoteNumber)]
+run_pitch = extract . run_pitch_
     where extract = head . DeriveTest.extract_events DeriveTest.e_nns
 
 -- | Run a control track and extract the control signal it produces.

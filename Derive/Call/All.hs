@@ -19,6 +19,7 @@ import qualified Derive.Call.Integrate as Integrate
 import qualified Derive.Call.Lily as Lily
 import qualified Derive.Call.Note as Note
 import qualified Derive.Call.NoteTransformer as NoteTransformer
+import qualified Derive.Call.PitchHigh as PitchHigh
 import qualified Derive.Call.Pitch as Pitch
 import qualified Derive.Call.Post.ArrivalNote as Post.ArrivalNote
 import qualified Derive.Call.Post.Idiom as Post.Idiom
@@ -95,7 +96,7 @@ note_maps :: Derive.CallMaps Derive.Note
     , Gender.note_calls, Integrate.note_calls
     , Lily.note_calls
     , Note.note_calls, NoteTransformer.note_calls
-    , Pitch.note_calls
+    , PitchHigh.note_calls
     , Grace.note_calls
     , Post.Idiom.note_calls, Post.ArrivalNote.note_calls
     , Post.Reverse.note_calls
@@ -113,7 +114,8 @@ control_maps :: Derive.CallMaps Derive.Control
 
 pitch_maps :: Derive.CallMaps Derive.Pitch
 (pitch_maps, shadowed_pitches) = union_calls
-    [ Pitch.pitch_calls, Random.pitch_calls, SignalTransform.pitch_calls
+    [ Pitch.pitch_calls, PitchHigh.pitch_calls
+    , Random.pitch_calls, SignalTransform.pitch_calls
     , Trill.pitch_calls
     ]
 
