@@ -215,10 +215,8 @@ make_cache stack collect stream = Cache $ Map.singleton stack (Cached entry)
     where
     stripped = collect
         { Derive.collect_cache = mempty
-        -- Integration only happens for toplevel blocks, so there's no point
-        -- returning it from a cached block call.  Also, integration shouldn't
-        -- happen if the cache is reused, since that means nothing changed.
-        -- So this reduces unnecessary integration as well.
+        -- integration shouldn't happen if the cache is reused, since that
+        -- means nothing changed.  So this reduces unnecessary reintegration.
         , Derive.collect_integrated = []
         }
     entry = to_cache_entry $

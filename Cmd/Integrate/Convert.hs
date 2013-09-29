@@ -105,7 +105,7 @@ split_overlapping events = track : split_overlapping rest
         (overlapping, rest) =
             break ((>= Score.event_end event) . Score.event_start) events
 
-event_voice :: Score.Event -> Int
+event_voice :: Score.Event -> Voice
 event_voice =
     fromMaybe 0 . TrackLang.maybe_val Environ.voice . Score.event_environ
 
@@ -113,7 +113,10 @@ track_of :: Score.Event -> Maybe TrackId
 track_of = Seq.head . mapMaybe Stack.track_of . Stack.innermost
     . Score.event_stack
 
-type TrackKey = (Maybe TrackNum, Score.Instrument, Pitch.ScaleId, Int)
+-- | This determines how tracks are split when integration recreates track
+-- structure.
+type TrackKey = (Maybe TrackNum, Score.Instrument, Pitch.ScaleId, Voice)
+type Voice = Int
 
 integrate_track :: Config -> (TrackKey, [Score.Event])
     -> Either String (Track, [Track])

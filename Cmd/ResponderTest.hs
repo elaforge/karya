@@ -100,13 +100,10 @@ result_cmd_state = CmdTest.result_cmd_state . result_cmd
 result_ui_state :: Result -> State.State
 result_ui_state = CmdTest.result_ui_state . result_cmd
 
--- | Get the performance from a Result.
+-- | Wait for a DeriveComplete and get the performance from it.
 --
 -- TODO error-prone because if you call this on a Result that didn't
 -- regenerate the performance this will hang forever
---
--- TODO there should also be a way to pass 0 to Performance.update_performance
--- so tests don't waste time sleeping.
 result_perf :: Result -> IO (BlockId, Cmd.Performance)
 result_perf = get_perf . result_loopback
 

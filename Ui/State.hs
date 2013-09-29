@@ -66,7 +66,7 @@ module Ui.State (
     , block_of, block_id_of, views_of
     , get_block_title, set_block_title
     , modify_block_meta
-    , set_integrated_block, set_integrated_tracks
+    , set_integrated_block, modify_integrated_tracks
     , set_block_config
     , set_edit_box, set_play_box
     , block_ruler_end, block_event_end, block_end
@@ -133,7 +133,6 @@ import qualified Control.Monad.Trans as Trans
 
 import qualified Data.Generics as Generics
 import qualified Data.List as List
-import qualified Data.List.NonEmpty as NonEmpty
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 import qualified Data.Set as Set
@@ -163,7 +162,6 @@ import qualified Ui.Update as Update
 import qualified Derive.Stack as Stack
 import qualified Perform.Lilypond.Types as Lilypond
 import qualified Perform.Midi.Instrument as Instrument
-
 import qualified App.Config as Config
 import Types
 
@@ -622,20 +620,23 @@ modify_block_meta block_id f = modify_block block_id $ \block ->
     block { Block.block_meta = f (Block.block_meta block) }
 
 set_integrated_block :: (M m) => BlockId
-    -> Maybe (BlockId, NonEmpty Block.TrackDestination) -> m ()
+    -> Maybe (BlockId, [Block.TrackDestination]) -> m ()
 set_integrated_block block_id integrated = do
     modify_block block_id $ \block ->
         block { Block.block_integrated = integrated }
     block <- get_block block_id
     validate "set_integrated_block" (fix_integrated_block block_id block)
 
-set_integrated_tracks :: (M m) => BlockId
-    -> [(TrackId, NonEmpty Block.TrackDestination)] -> m ()
-set_integrated_tracks block_id tracks = do
+modify_integrated_tracks :: (M m) => BlockId
+    -> ([(TrackId, [Block.TrackDestination])]
+        -> [(TrackId, [Block.TrackDestination])])
+    -> m ()
+modify_integrated_tracks block_id modify = do
     modify_block block_id $ \block ->
-        block { Block.block_integrated_tracks = tracks }
+        block { Block.block_integrated_tracks =
+            modify (Block.block_integrated_tracks block) }
     block <- get_block block_id
-    validate "set_integrated_tracks" (fix_integrated_tracks block_id block)
+    validate "modify_integrated_tracks" (fix_integrated_tracks block_id block)
 
 set_block_config :: (M m) => BlockId -> Block.Config -> m ()
 set_block_config block_id config =
@@ -1532,10 +1533,10 @@ fix_integrated_block block_id block = do
     fix block_ids (Just (iblock, dests))
         | iblock `notElem` block_ids =
             (Nothing, ["removed invalid integrated block: " ++ show iblock])
-        | otherwise = ((,) iblock <$> NonEmpty.nonEmpty valid, errs)
+        | otherwise = (Just (iblock, valid), errs)
         where
         (valid, invalid) = List.partition
-            (fix_track_destination track_ids) (NonEmpty.toList dests)
+            (fix_track_destination track_ids) dests
         errs = ["integrated block of " ++ show iblock
             ++ ": track destination has track ids not in this block: "
             ++ Pretty.pretty dest | dest <- invalid]
@@ -1559,10 +1560,10 @@ fix_integrated_tracks block_id block = do
     fix (track_id, dests)
         | track_id `notElem` track_ids =
             (Nothing, ["removed invalid integrated track: " ++ show track_id])
-        | otherwise = ((,) track_id <$> NonEmpty.nonEmpty valid, errs)
+        | otherwise = (Just (track_id, valid), errs)
         where
         (valid, invalid) = List.partition
-            (fix_track_destination track_ids) (NonEmpty.toList dests)
+            (fix_track_destination track_ids) dests
         errs = ["integrated track of " ++ show track_id
             ++ ": track destination has track ids not in this block: "
             ++ Pretty.pretty dest | dest <- invalid]

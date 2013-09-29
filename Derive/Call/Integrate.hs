@@ -5,15 +5,9 @@
 module Derive.Call.Integrate (
     note_calls, unwarp
 ) where
-import qualified Data.List.NonEmpty as NonEmpty
-import qualified Data.Map as Map
-import qualified Data.Set as Set
-
 import Util.Control
-import qualified Ui.Block as Block
 import qualified Ui.State as State
 import qualified Ui.TrackTree as TrackTree
-
 import qualified Derive.Call.BlockUtil as BlockUtil
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Derive as Derive
@@ -101,36 +95,13 @@ c_track_integrate = Derive.transformer "track-integrate" Tags.prelude
                 -- twice, once during integration and again during derivation
                 -- of the integrated output.
                 events <- Internal.in_real_time deriver
-                unlessM (only_destinations_damaged block_id track_id) $
-                    track_integrate block_id track_id events
+                -- I originally guarded this with a hack that would not emit
+                -- track integrates if only the destinations had received
+                -- damage.  But the track cache now serves this purpose, since
+                -- it intentionally doesn't retain 'Derive.collect_integrated'.
+                track_integrate block_id track_id events
             _ -> return ()
         return []
-
--- | If damage is only on the destination tracks of the track I am
--- integrating, then I can take a shortcut and skip integration.  This is
--- very common because integration itself will result in damage on those
--- tracks.
---
--- Without this, every integration has to happen twice, once to modify the
--- destination tracks, and again to discover there was no further change.
---
--- However, blocks with no previous derivation are derived even though they
--- have no damage, so I need another little hack to make this work: blocks
--- deriving for the first time get block damage.
-only_destinations_damaged :: BlockId -> TrackId -> Derive.Deriver Bool
-only_destinations_damaged block_id track_id = do
-    damage <- Internal.get_constant Derive.state_score_damage
-    -- TODO why not block_id `member` sdamage_blocks?
-    if not (Set.null (Derive.sdamage_blocks damage)) then return False else do
-        tracks <- Block.block_integrated_tracks <$> Derive.get_block block_id
-        let damaged = Map.keysSet (Derive.sdamage_tracks damage)
-        return $ Set.null $ damaged `Set.difference` destinations tracks
-    where
-    destinations tracks = Set.fromList $ concat
-        [concatMap dest_ids (NonEmpty.toList dests)
-            | (source_id, dests) <- tracks, source_id == track_id]
-    dest_ids (Block.TrackDestination (track_id, _) controls) =
-        track_id : map fst (Map.elems controls)
 
 track_integrate :: BlockId -> TrackId -> Derive.Events -> Derive.Deriver ()
 track_integrate block_id track_id events = do

@@ -17,6 +17,7 @@ module Cmd.Serialize where
 import qualified Control.Exception as Exception
 import qualified Data.ByteString as B
 import qualified Data.ByteString.Char8 as Char8
+import qualified Data.List.NonEmpty as NonEmpty
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 import qualified Data.Time as Time
@@ -192,7 +193,7 @@ instance Serialize State.Default where
 instance Serialize Block.Block where
     -- Config is not serialized because everything in the block config is
     -- either derived from the Cmd.State or is hardcoded.
-    put (Block.Block a _config b c d e f) = Serialize.put_version 9
+    put (Block.Block a _config b c d e f) = Serialize.put_version 10
         >> put a >> put b >> put c >> put d >> put e >> put f
     get = do
         v <- Serialize.get_version
@@ -204,6 +205,16 @@ instance Serialize Block.Block where
                 integrated ::
                     Maybe (BlockId, NonEmpty Block.TrackDestination) <- get
                 itracks :: [(TrackId, NonEmpty Block.TrackDestination)] <- get
+                meta :: Map.Map Text Text <- get
+                return $ Block.Block title Block.default_config tracks skel
+                    (second NonEmpty.toList <$> integrated)
+                    (map (second NonEmpty.toList) itracks) meta
+            10 -> do
+                title :: Text <- get
+                tracks :: [Block.Track] <- get
+                skel :: Skeleton.Skeleton <- get
+                integrated :: Maybe (BlockId, [Block.TrackDestination]) <- get
+                itracks :: [(TrackId, [Block.TrackDestination])] <- get
                 meta :: Map.Map Text Text <- get
                 return $ Block.Block title Block.default_config tracks skel
                     integrated itracks meta

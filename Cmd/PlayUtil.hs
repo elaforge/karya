@@ -54,8 +54,9 @@ initial_environ = TrackLang.make_environ $
 -- | Derive with the cache.
 cached_derive :: (Cmd.M m) => BlockId -> m Derive.Result
 cached_derive block_id = do
-    (cache, damage) <- get_derive_cache block_id <$>
+    cache <- maybe mempty Cmd.perf_derive_cache <$>
         Cmd.lookup_performance block_id
+    damage <- Cmd.gets $ Cmd.state_damage . Cmd.state_play
     derive cache damage block_id
 
 uncached_derive :: (Cmd.M m) => BlockId -> m Derive.Result
@@ -276,14 +277,3 @@ get_convert_lookup = do
         , Convert.lookup_default_controls = \inst ->
             Map.findWithDefault mempty inst defaults
         }
-
--- * util
-
-get_derive_cache :: BlockId -> Maybe Cmd.Performance
-    -> (Derive.Cache, Derive.ScoreDamage)
-get_derive_cache block_id Nothing =
-    -- If a block is being derived the first time, its considered damaged.
-    -- Hack needed by 'Derive.Call.Integrate.only_destinations_damaged '.
-    (mempty, mempty { Derive.sdamage_blocks = Set.singleton block_id })
-get_derive_cache _ (Just perf) =
-    (Cmd.perf_derive_cache perf, Cmd.perf_score_damage perf)

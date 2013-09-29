@@ -3,8 +3,6 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 module Cmd.Integrate.Merge_test where
-import qualified Data.List.NonEmpty as NonEmpty
-
 import Util.Control
 import qualified Util.Seq as Seq
 import Util.Test
@@ -136,9 +134,9 @@ integrate :: State.State -> [(UiTest.TrackSpec, [UiTest.TrackSpec])]
 integrate state integrated = UiTest.exec state $ do
     itracks <- Block.block_integrated_tracks <$> State.get_block block_id
     dests <- Merge.merge_tracks block_id (mktracks integrated)
-        (maybe [] (NonEmpty.toList . snd) (Seq.head itracks))
-    whenJust (NonEmpty.nonEmpty dests) $ \dests ->
-        State.set_integrated_tracks block_id [(UiTest.mk_tid 1, dests)]
+        (maybe [] snd (Seq.head itracks))
+    State.modify_integrated_tracks block_id $
+        const [(UiTest.mk_tid 1, dests)]
     where block_id = UiTest.default_block_id
 
 modify :: State.StateId a -> State.State -> State.State

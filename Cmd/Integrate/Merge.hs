@@ -124,7 +124,7 @@ merge_pair block_id pair = case pair of
 -- whom.
 --
 -- Note tracks are simply zipped up, so if a note track is added at the
--- beginning it will look like everything change and the diff won't work
+-- beginning it will look like everything changed and the diff won't work
 -- correctly.  But control tracks are matched based on name, so they should be
 -- robust against controls appearing or disappearing.
 --

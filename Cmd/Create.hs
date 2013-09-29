@@ -194,8 +194,7 @@ unfitted_view block_id = do
     (x, y) <- State.gets $ find_rect Nothing Config.view_size
         . map Block.view_rect . Map.elems . State.state_views
     let (w, h) = Config.view_size
-    let rect = Rect.xywh x y w h
-    sized_view block_id rect
+    sized_view block_id (Rect.xywh x y w h)
 
 sized_view :: (State.M m) => BlockId -> Rect.Rect -> m ViewId
 sized_view block_id rect = do
