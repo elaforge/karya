@@ -2,9 +2,8 @@
 sequencer.  It's purely a sequencer, so it doesn't deal with actual audio at
 all.  It doesn't record audio, host VSTs, or produce any kind of sound.  It
 produces MIDI (there is also a Lilypond backend) and relies on external
-synthesizers to turn that into sound.  There is some limited integration with
-DAWs so you can combine recorded audio and written score, but Karya is
-oriented around score writing, not audio.
+synthesizers to turn that into sound.  It can sync with DAWs using MTC and MMC
+so you can combine recorded audio and written score.
 
 It uses its own score format.  It's visually similar to a tracker
 ([Renoise](http://www.renoise.com) is a modern example), and the editing style
@@ -66,14 +65,17 @@ tempo, or that one is swung but another is straight, or swung in a different
 way.  Tempos compose, so a rubato can be composed with an accelerando for the
 expected effect.  Calls can ignore tempo and play in absolute time, so a
 trill can choose to either stretch with a tempo change or remain at a constant
-speed and add cycles.
+speed and add cycles.  They can also change based on tempo, so ornaments can
+change how they are realized, or pitches become less precise, as the tempo
+increases.
 
 - Integration.  The derived output of a bit of score can be integrated back
 into another score to produce derived parts.  The generated score can then be
 further edited, and changes to the original source will be merged into the
 modifications, to a limited degree.  For instance, a part that mirrors another
-with added idiomatic ornaments plus hand tweaks, or a whole section which is
-the reverse of another section, edited to sound better.
+with added idiomatic ornaments plus hand tweaks, a series of repeats which all
+have individual variations, or a whole section which is the reverse of another
+section, edited to sound better.
 
 - [REPL](repl.md.html).  All non-GUI interaction is through a command-line
 interface, so you can do complicated transformations by writing a function.
@@ -136,9 +138,9 @@ route MIDI to a plugin host, which likely requires a bunch of virtual MIDI
 ports.  If you route to a DAW like Reaper or Ardour you can then bounce or
 "freeze" tracks by recording in the DAW, but since neither of these programs
 provide much remote control ability you likely have to set up the routing
-yourself.  I can do some limited integration with syncing plays and stops, but
-closer integration is harder given that JACK is only supported by Ardour and
-Rewire is proprietary.
+yourself.  I can do some limited integration with MMC and MTC sync, but closer
+integration is harder given that JACK is only supported by Ardour and Rewire is
+aggressively proprietary.
 
 - MIDI limitations. Due to the general wretchedness of MIDI, you'll need a lot
 of MIDI ports and channels, and will be limited to low resolution controls, on
@@ -195,9 +197,9 @@ features supported.  The UI state plus the Cmd state is all the state in the
 app, except the GUI state stashed in C++, so if you have a handle on those two
 then you have a good handle on the whole program.
 
-- Derive - The [deriver](derivation.md.html) interprets the Ui State and turns
-into into a stream of lower level events.  It implements the "tracklang"
-language described below.
+- Derive - The deriver interprets the Ui State and turns into into a stream of
+lower level events.  It implements the "tracklang" language documented in the
+[derivation docs](derivation.md.html).
 
 - Perform - The perform layer turns Derive output into a backend specific
 format, e.g. MIDI messages or lilypond score.  It's also responsible for
@@ -224,7 +226,7 @@ Local/Instrument/.  `make_db` just runs each instrument's `make_db` function.
 - [repl](repl.md.html) - This connects to a running sequencer and lets you
 interact at the programmatic level by sending haskell expressions to be
 evaluated in the Cmd context.  `send` is a one-off version of repl that can be
-used to send a single command from shell scripts.
+used to send a single command.
 
 - extract_doc - This extracts documentation and saves it as HTML.  That
 includes the [global keymap](keymap.html), [builtin calls](calls.html), and

@@ -2,7 +2,7 @@
 
 ## GUI
 
-<img align=right width=180 src="../../doc/img/ss-vla.png">
+<img align=right width=180 src="../../doc/img/ly-example.png">
 
 The GUI only has one kind of window, and that is a view on a block, which is
 the top level of score organization.  All blocks have the same physical
