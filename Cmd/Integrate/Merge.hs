@@ -6,7 +6,7 @@
 {- | Merge integrated tracks into existing, possibly hand-edited tracks, using
     the index of the previous integration to figure out which edits were made.
 
-    This proceeds it two steps: first the tracks are matched up.  This takes
+    This proceeds in two steps: first the tracks are matched up.  This takes
     advantage of the two-level (note, controls) hierarchy emitted by
     "Cmd.Integrate.Convert", since each control track is uniquely identified by
     its title, it's safe to just match them up by title.

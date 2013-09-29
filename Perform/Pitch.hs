@@ -18,7 +18,7 @@ module Perform.Pitch (
     -- * Pitch
     , Note(..), note_text
 
-    -- * InputKey
+    -- * Input
     , Input(..), KbdType(..), Frac
     , middle_octave, middle_c
 

@@ -154,8 +154,8 @@ zero = signal [(0, 0)]
 -- srate.  Since 'integrate' is the way to generate 'Warp's, ensure they are
 -- at this srate by passing this to integrate.
 --
--- 0.05 = 50 Hz = 800b/sec = 47kb/min
--- 0.01 = 100 Hz = 1600b/sec = 94kb/min
+-- 0.05 = 50 Hz = 800b\/sec = 47kb\/min
+-- 0.01 = 100 Hz = 1600b\/sec = 94kb\/min
 tempo_srate :: X
 tempo_srate = RealTime.seconds 0.1
 

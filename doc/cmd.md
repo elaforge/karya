@@ -15,67 +15,75 @@ track commands mostly depend on the EditMode.
 However, the vast majority of Cmds are accessible only from the
 [REPL](repl.md.html).
 
-### EditMode
-
-The edit modes are somewhat analogous to vi's modes.  Basically, they enable
-certain editing oriented cmds.
-
-The current edit mode is displayed in the edit box, above the ruler.  The
-mapping is in 'Cmd.Internal.sync_edit_box', but basically red means you're in
-edit mode, and gray means you're in command mode.
-
-The effect of each edit mode depends on the track, so its documented below with
-each track type.
-
 ## Tracks
 
-Tracks are indexed by 'Ui.Types.TrackNum', starting at 0 on the far left.  So a
-track can be addressed either by a (BlockId, TrackNum) pair, or directly by a
-TrackId or RulerId.
+Tracks are indexed by 'Ui.Types.TrackNum', starting at 0 on the far left.  In
+practice though, the 0th track is usually the ruler, so the "real" tracks start
+at 1.
+
+A track can be addressed either by a (BlockId, TrackNum) pair, or directly by a
+TrackId or RulerId.  The functions in 'Ui.State' enforce that a given TrackId
+can only appear in a block once, so you can convert between TrackId and
+TrackNum.  The TrackNum is actually more general, in that it may address a
+ruler or divider, so functions that expect an event track will generally take a
+TrackId.
 
 The actual meaning of the tracks is defined by
 [derivation](derivation.md.html#derivation), the documentation
 here is just the low level, without reference to what it means.  This is
 analogous to syntax in a normal language.
 
-The lowest level is the score format, which is analogous to syntax in a normal
-language.
-
 There are three kinds of tracks: divider, ruler, and event.
 
 ### divider track
 
 'Ui.Block.Divider's are just visual spacers.  All they have is a color and a
-width.  You can place them manually to provide visual separation between
-tracks, and they are used automatically to represent collapsed tracks.
+width.  You can add one by hand with 'Cmd.Repl.LBlock.divide' to visually
+separate tracks, and they are used automatically to represent collapsed tracks.
 
 ### ruler track
 
 The ruler by convention is in TrackNum 0, which on the far left, and is special
 in that it stays put and doesn't scroll right to left like the other tracks.
 It provides a visual reference for the rhythmic structure and is analogous to
-the meter.
+the meter.  If you are so inclined, you could put an event track in TrackNum 0,
+perhaps as a reference.  Or you could have multiple rulers, which is analogous
+to multiple simultaneous meters.  However, cmds that deal with rulers generally
+expect only one ruler per block, and that it be in TrackNum 0, so you might
+have to make those smarter.
 
 A 'Ui.Ruler.Ruler' has 'Ui.Ruler.Marklist's, which is just a list of
 'Ui.Ruler.Mark's.
 
 Technically a ruler can have marks in any kind of arbitrary pattern, but
-typically you'd want them dividing up time according to a meter or tala.
-'Cmd.Meter' has utilities to describe Western-style meters, while 'Cmd.Tala'
-has Carnatic talas.  Normally you'd use the functions in 'Cmd.Repl.LRuler' to
-modify the ruler or create new rulers.
+typically you'd want them dividing up time according to a meter or tala or
+whatever system you use to organize time.  'Cmd.Meter' has utilities to
+describe Western-style meters, while 'Cmd.Tala' has Carnatic talas.  Normally
+you'd use the functions in 'Cmd.Repl.LRuler' to modify the ruler or create new
+rulers.
 
 While ruler tracks have a ruler only, event tracks have rulers too, which show
 up as transparent lines.  Normally all tracks in a block have the same ruler,
-but if you want you can set up different meters for different tracks.  You can
-also add multiple rulers, but most cmds assume all tracks have the same ruler,
-and that there's one ruler track at tracknum 0.
+but if you want you can set up different meters for different tracks, in the
+same way you can have multiple ruler tracks.
+
+Since rulers are addressed by RulerId, they have an identity and are shared.
+So you need to be aware if you are modifying an existing ruler, which will
+change all blocks with that ruler, or if you are creating a local copy.  The
+'Cmd.Repl.LRuler.modify' and 'Cmd.Repl.LRuler.local' functions apply a ruler
+modification destructively or to a local copy, respectively.  Remember to
+'Cmd.Repl.LRuler.gc' to delete orphaned rulers.
 
 ### event track
 
 Event tracks have 'Ui.Event.Event's.  They are divided into several types,
 differentiated by their titles.  Details are in the [derivation
-doc](derivation.md.html#track-evaluation).
+doc](derivation.md.html#track-evaluation).  Since this is the track that
+actually holds score data, and which you spend most of your time editing,
+"track" usually means an event track, not a ruler.  Usually I say "note track"
+or "pitch track" or "control track", all of which are event tracks at the low
+level, but are distinguished by their titles and treated differently by cmds
+and derivation.
 
 Of course, to be visible, a track has to live in a block.  The same track,
 identified by its TrackId, can be in multiple blocks at once, but it can only
@@ -103,9 +111,9 @@ merged track is the adjacent pitch track, which is then collapsed.
 The cmds are implemented and documented in 'Cmd.NoteTrack'.
 
 Because most instruments are pitched, note track cmds listen for pitches
-(either from the MIDI keyboard or kbd entry) and enter pitches on a
-neighboring pitch track, or create one if it doesn't exist.  So they mostly
-act like pitch tracks.  But ValEdit on note tracks also supports
+(either from the MIDI keyboard or [kbd entry](#note-entry)) and enter pitches
+on a neighboring pitch track, or create one if it doesn't exist.  So they
+mostly act like pitch tracks.  But ValEdit on note tracks also supports
 'Cmd.Cmd.state_chord' to enter chords easily, and
 'Cmd.Cmd.state_record_velocity'.
 
@@ -117,13 +125,13 @@ input into the named pitch for the scale in scope.
 
 #### control track
 
-[Control tracks](derivation.md.html#control-track) generate controls, which
-are numbers that vary in time.  The cmds are in 'Cmd.ControlTrack'.  By
-convention they are normalized between 0 and 1, which makes them multiply
-together nicely, which is convenient, because that in fact is what they do by
-default.  But they are not restricted, and for example a control indicating
-the amount of delay, or the depth of a trill would have no reason to stay
-within that range.
+[Control tracks](derivation.md.html#control-track) generate
+'Perform.Signal.Control's, which are numbers that vary in time.  The cmds are
+in 'Cmd.ControlTrack'.  By convention they are normalized between 0 and 1,
+which makes them multiply together nicely, which is convenient, because that in
+fact is what they do by default.  But they are not restricted, and for example
+a control indicating the amount of delay, or the depth of a trill would have no
+reason to stay within that range.
 
 But since they mostly are normalized, the default call to set a control value
 is a bit weird, though it may be familiar if you've used a tracker.  ValEdit
@@ -181,10 +189,14 @@ notes, but not necessarily exactly, as documented in 'Cmd.Meter'.
 
 ## EditMode
 
-Note entry mode ('Cmd.NoteEntry') turns the computer keyboard into a music
-keyboard by remapping the keys to emit pitched notes.  It's often more
-convenient to use a MIDI keyboard, though, because then you get to keep the
-computer keyboard for cmds.
+'Cmd.Cmd.EditMode' is a global mode setting, which is somewhat analogous to
+vi's modes.  Basically, each mode enables different editing oriented cmds.
+
+The current edit mode is displayed in the edit box, above the ruler.  The
+mapping is in 'Cmd.Internal.sync_edit_box', but basically a color means you're
+in some edit mode, and gray means you're in command mode.
+
+The precise effect of each edit mode depends on the track:
 
 In ValEdit mode, number keys on a control track will enter numbers.  A pitch
 track will listen for notes, either from a MIDI keyboard or from kbd input, and
@@ -213,9 +225,83 @@ Events on a note track will use the duration of the current TimeStep, but if
 you select a range of time and then create an event, the event will be exactly
 that duration.
 
+### note entry
+
+Note entry mode ('Cmd.NoteEntry') is actually orthogonal to EditMode, in that
+it can be enabled and disabled independently, but is conceptually also a mode.
+It turns the ASCII keyboard into a music keyboard by remapping the keys to
+emit pitched notes.  It's often more convenient to use a MIDI keyboard, though,
+because then you get to keep the computer keyboard for cmds.
+
+But since the ASCII keyboard is actually analogous to a 10-key per octave
+keyboard with black keys in between each white key, it can be more convenient
+for scales with non-piano layouts.  This also allows it to behave slightly
+differently, for example relative scales always start at `z` and `q` (the
+"middle c" of the ASCII keyboard), even for the piano style scales, because
+the ASCII keyboard allows black keys to be anywhere.
+
+An input note, whether via MIDI or ASCII keyboard, is represented by a
+'Perform.Pitch.Input', which has more information about how they're
+represented.
+
 ## Integration
 
-TODO
+The key to having a high level score is to factor out repeated aspects.
+There turn out to be a lot of different ways things are repeated in music, and
+most of the complexity in Karya is concerned with different ways to factor out
+repetition.
+
+Calls are one approach.  A single ornament or idiomatic phrase can be factored
+into a call, and parameterized with arguments and signals.  Similarly, a
+section and a whole score is factored into a block call, and can still be
+varied by means of different signals, tempo, etc.  If factoring fails, there's
+always copy and paste, and since music often has repeats with small
+idiosyncratic differences, factoring fails often.
+
+Integration is a middle ground.  It takes the output of derivation and
+integrates it back into the score.  It also keeps track of the source, and
+when that changes will reintegrate back into the destination.  There is a
+simplistic merge algorithm described in 'Cmd.Integrate.Merge'.  Each event
+keeps track of its source, and can detect position, duration, and text changes,
+but it's probably not terribly difficult to confuse it.
+
+Since track structure is lost during derivation, integration has to recreate
+it.  It's described by 'Cmd.Integrate.Convert.TrackKey', but basically it
+tries to keep the source tracks and their order, while splitting overlapping
+events and differing instruments.  It also splits on the 'Derive.Environ.voice'
+variable, and calls that expect their output will be integrated can set this
+to explicitly divide their output events into separate tracks.
+
+As a visual reminder, events that were integrated from a source have their text
+in italics, and it will be bold if the event hasn't been changed.
+
+### block integration
+
+Block integration is triggered by adding a `<<` as a note transformer.
+It only works if you add it to a block title, because
+'Ui.Block.block_integrated' keeps track of block integration by BlockId.
+
+This will automatically create a new block with its contents as seen by the
+transformer.  You can create another block manually with
+'Cmd.Repl.LIntegrate.block'.
+
+As a visual reminder, the status bar of an integrated block will have a red
+background.
+
+### track integration
+
+Track integration allows one track to act as the source for other tracks on the
+same block.  It's basically the same story as block integration, except you add
+the `<` transformer to a note track title, and it will create a set of
+integrated tracks on the same block.  Unlike block integrate, the `<`
+transformer will not pass the events through, so the integrated track itself
+won't sound when you play it.
+
+Similar to block integration, adding the track integrate transformer
+automatically creates new tracks if there were none, and
+'Cmd.Repl.LIntegrate.track' will create additional tracks.
+
+The integrated tracks are linked back to their source with red arrows.
 
 ## Scales
 
