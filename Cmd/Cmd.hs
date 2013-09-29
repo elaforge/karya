@@ -73,6 +73,7 @@ import Util.Control
 import qualified Util.Log as Log
 import qualified Util.Logger as Logger
 import qualified Util.Pretty as Pretty
+import qualified Util.Ranges as Ranges
 import qualified Util.Rect as Rect
 import qualified Util.Seq as Seq
 
@@ -292,9 +293,11 @@ data State = State {
     -- | If set, the current 'State.State' was loaded from this file.
     -- This is so save can keep saving to the same file.
     , state_save_file :: !(Maybe SaveFile)
-    -- | Omit the usual derive delay for these blocks.  This is set by
-    -- integration, which modifies a block in response to another block being
-    -- derived.  This is cleared after every cmd.
+    -- | Omit the usual derive delay for these blocks, and trigger a derive.
+    -- This is set by integration, which modifies a block in response to
+    -- another block being derived.  Blocks set to derive immediately are also
+    -- considered to have block damage, if they didn't already.  This is
+    -- cleared after every cmd.
     , state_derive_immediately :: !(Set.Set BlockId)
     -- | History.
     , state_history :: !History
@@ -449,6 +452,9 @@ data PlayState = PlayState {
     -- even if they have to wait for it.  This map will be updated
     -- immediately.
     , state_current_performance :: !(Map.Map BlockId Performance)
+    -- | ScoreDamage is normally calculated automatically from the UI diff,
+    -- but Cmds can also intentionally inflict damage to cause a rederive.
+    , state_damage :: !Derive.ScoreDamage
     -- | Keep track of current thread working on each performance.  If a
     -- new performance is needed before the old one is complete, it can be
     -- killed off.
@@ -474,6 +480,7 @@ initial_play_state = PlayState
     , state_performance = Map.empty
     , state_current_performance = Map.empty
     , state_performance_threads = Map.empty
+    , state_damage = mempty
     , state_play_step =
         TimeStep.time_step $ TimeStep.RelativeMark TimeStep.AllMarklists 0
     , state_step = Nothing
@@ -886,7 +893,7 @@ get_screen point = do
 
 lookup_performance :: (M m) => BlockId -> m (Maybe Performance)
 lookup_performance block_id =
-    Map.lookup block_id <$> gets (state_performance . state_play)
+    gets $ Map.lookup block_id . state_performance . state_play
 
 get_performance :: (M m) => BlockId -> m Performance
 get_performance block_id = require =<< lookup_performance block_id
@@ -1026,6 +1033,22 @@ modify_wdev_state f = modify $ \st ->
 derive_immediately :: (M m) => [BlockId] -> m ()
 derive_immediately block_ids = modify $ \st -> st { state_derive_immediately =
     Set.fromList block_ids <> state_derive_immediately st }
+
+inflict_damage :: (M m) => Derive.ScoreDamage -> m ()
+inflict_damage damage = modify_play_state $ \st ->
+    st { state_damage = damage <> state_damage st }
+
+-- | Cause a block to rederive even if there haven't been any edits on it.
+inflict_block_damage :: (M m) => BlockId -> m ()
+inflict_block_damage block_id = inflict_damage $ mempty
+    { Derive.sdamage_blocks = Set.singleton block_id }
+
+-- | Cause a track to rederive even if there haven't been any edits on it.
+inflict_track_damage :: (M m) => BlockId -> TrackId -> m ()
+inflict_track_damage block_id track_id = inflict_damage $ mempty
+    { Derive.sdamage_tracks = Map.singleton track_id Ranges.everything
+    , Derive.sdamage_track_blocks = Set.singleton block_id
+    }
 
 -- *** EditState
 

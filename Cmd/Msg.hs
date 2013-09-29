@@ -96,10 +96,6 @@ data Performance = Performance {
     , perf_logs_written :: !Bool
     , perf_track_dynamic :: !Derive.TrackDynamic
     , perf_integrated :: ![Derive.Integrated]
-    -- | Score damage on top of the Performance, used by the derive cache.
-    -- This is empty when the Performance is first created and collects
-    -- thereafter.
-    , perf_score_damage :: !Derive.ScoreDamage
     , perf_warps :: ![TrackWarp.Collection]
     , perf_track_signals :: !Track.TrackSignals
     }
@@ -117,7 +113,6 @@ instance Pretty.Pretty Performance where
             [ ("cache", Pretty.format (Map.keys c))
             , ("events", Pretty.format (Vector.length (perf_events perf)))
             , ("integrated", Pretty.format (perf_integrated perf))
-            , ("score_damage", Pretty.format (perf_score_damage perf))
             , ("warps", Pretty.format (perf_warps perf))
             ]
         where Derive.Cache c = perf_derive_cache perf
