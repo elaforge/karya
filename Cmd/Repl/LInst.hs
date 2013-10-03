@@ -93,12 +93,20 @@ rename from_ to_ =
     rename_alias aliases = case Map.lookup from aliases of
         Just source -> Map.insert to source $ Map.delete from aliases
         Nothing -> aliases
-    -- rename_alias aliases =
-    --     case List.find ((==from) . snd) (Map.toList aliases) of
-    --         Nothing -> aliases
-    --         Just (source, _) -> Map.insert source to $ Map.delete source aliases
     from = Score.Instrument from_
     to = Score.Instrument to_
+
+-- | Allocate a new instrument and create an alias for it.
+create :: Text -> Text -> Text -> [Midi.Channel] -> Cmd.CmdL ()
+create alias inst_name wdev chans = do
+    alloc inst_name wdev chans
+    add_alias inst_name alias
+
+-- | Remove both an alias and its allocation.
+remove :: Text -> Cmd.CmdL ()
+remove alias = do
+    remove_alias alias
+    dealloc alias
 
 -- | Add a new instrument, copied from an existing one.  Argument order
 -- mnemonic: same as @ln@.
