@@ -249,30 +249,28 @@ remove_event = remove_event_in default_block_name
 -- note track, but in exchange it's easier to write than full TrackSpecs.
 --
 -- @(inst, [(t, dur, pitch)], [(control, [(t, val)])])@
+--
+-- If the pitch looks like \"a -- b\" then \"a\" is the note track's event and
+-- \"b\" is the pitch track's event.
 type NoteSpec = (String, [EventSpec], [(String, [(ScoreTime, String)])])
 
 note_spec :: NoteSpec -> [TrackSpec]
 note_spec (inst, pitches, controls) =
-    [note_track, pitch_track] ++ map control_track controls
+    note_track : pitch_track : map control_track controls
     where
-    note_track = ('>' : inst, [(t, dur, "") | (t, dur, _) <- pitches])
-    pitch_track = ("*", [(t, 0, pitch) | (t, _, pitch) <- pitches])
+    note_track = ('>' : inst, [(t, dur, s) | (t, dur, (s, _)) <- track])
+    pitch_track = ("*", [(t, 0, s) | (t, _, (_, s)) <- track, not (null s)])
     control_track (title, events) = (title, [(t, 0, val) | (t, val) <- events])
 
--- | Take a track like @[(start, dur, pitch)]@ and emit a note and pitch track.
--- If the pitch looks like \"a -- b\" then \"a\" is the note track's event and
--- \"b\" is the pitch track's event.
-note_track :: [EventSpec] -> [TrackSpec]
-note_track track =
-    [ (">", [(t, dur, s) | (t, dur, (s, _)) <- track2])
-    , ("*", [(t, 0, s) | (t, _, (_, s)) <- track2, not (null s)])
-    ]
-    where
-    track2 = [(t, d, split s) | (t, d, s) <- track]
+    track = [(t, d, split s) | (t, d, s) <- pitches]
     split s
         | "--" `List.isInfixOf` s = let (pre, post) = Seq.split1 "--" s
             in (Seq.strip pre, Seq.strip post)
         | otherwise = ("", s)
+
+-- | Abbreviation for 'note_spec' where the inst and controls are empty.
+note_track :: [EventSpec] -> [TrackSpec]
+note_track pitches = note_spec ("", pitches, [])
 
 regular_notes :: Int -> [TrackSpec]
 regular_notes n = note_track $ take n
