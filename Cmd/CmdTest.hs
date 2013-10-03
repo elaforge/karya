@@ -303,8 +303,7 @@ make_inst_db inst_names = Instrument.Db.empty
     { Instrument.Db.db_lookup_midi = make_lookup inst_names }
 
 make_lookup :: [Text] -> MidiDb.LookupMidiInstrument
-make_lookup inst_names _attrs (Score.Instrument inst) =
-    fmap (\inst -> (inst, Score.no_attrs)) (Map.lookup inst inst_map)
+make_lookup inst_names (Score.Instrument inst) = Map.lookup inst inst_map
     where inst_map = Map.fromList $ zip inst_names (map make_inst inst_names)
 
 make_inst :: Instrument.InstrumentName -> Instrument.Instrument

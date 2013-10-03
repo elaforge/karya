@@ -24,7 +24,6 @@ import qualified Derive.Derive as Derive
 import qualified Derive.LEvent as LEvent
 import qualified Derive.PitchSignal as PitchSignal
 import qualified Derive.Score as Score
-import qualified Derive.ShowVal as ShowVal
 
 import qualified Perform.ConvertUtil as ConvertUtil
 import Perform.ConvertUtil (require)
@@ -36,13 +35,6 @@ import qualified Perform.Signal as Signal
 
 import qualified Instrument.MidiDb as MidiDb
 
-
--- | If true, warn if an instrument still has attributes left over after
--- selecting a keymap or keyswitch.  I'm using attributes rather freely, so
--- this can happen a lot, but it still seems like a useful check for debugging.
--- TODO come up with a better way to enable and disable this.
-warn_unused_attributes :: Bool
-warn_unused_attributes = False
 
 type ConvertT a = ConvertUtil.ConvertT State a
 
@@ -69,12 +61,11 @@ convert_event lookup event_ = do
     patch <- get_patch score_inst $ lookup_patch lookup score_inst
     let (event, additional) =
             split_composite (Instrument.patch_composite patch) event_
-    let attrs = Score.event_attributes event
-    (midi_inst, ks_attrs) <- require
-        ("instrument in db: " <> Pretty.pretty score_inst) $
-            lookup_inst lookup attrs score_inst
-    pitch <- convert_midi_pitch score_inst patch
-        (Score.attrs_diff attrs ks_attrs) event
+    midi_inst <- require ("instrument in db: " <> Pretty.pretty score_inst) $
+        lookup_inst lookup score_inst
+    (midi_inst, pitch) <- convert_midi_pitch midi_inst
+        (Instrument.patch_scale patch)
+        (Instrument.patch_attribute_map patch) event
     let (controls, overridden) = convert_controls
             (Instrument.has_flag Instrument.Pressure patch)
             (Instrument.inst_control_map midi_inst)
@@ -112,8 +103,7 @@ split_composite composite event = (stripped, map extract composite)
         { Score.event_pitch =
             if any Maybe.isNothing [p | (_, p, _) <- composite]
                 then mempty else Score.event_pitch event
-        , Score.event_controls =
-            filter_key (`Set.notMember` split_controls)
+        , Score.event_controls = filter_key (`Set.notMember` split_controls)
         }
     split_controls = mconcat [cs | (_, _, cs) <- composite]
     extract (inst, maybe_pitch, controls) = event
@@ -128,35 +118,37 @@ split_composite composite event = (stripped, map extract composite)
 -- | If the Event has an attribute matching its keymap, use the pitch from the
 -- keymap.  Otherwise convert the pitch signal.  Possibly warn if there are
 -- attributes that didn't match anything.
-convert_midi_pitch :: Score.Instrument -> Instrument.Patch -> Score.Attributes
-    -> Score.Event -> ConvertT Signal.NoteNumber
-convert_midi_pitch inst patch attrs event = do
-    let kmap = Instrument.patch_keymap patch
-    let maybe_key = Map.lookup attrs kmap
-    when warn_unused_attributes $ case maybe_key of
-        Nothing | attrs /= mempty ->
-            Log.warn $ untxt $
-                "attrs have no match in keyswitches or keymap of "
-                <> ShowVal.show_val inst <> ": " <> ShowVal.show_val attrs
-        -- If there was a keymap and lookup succeeded then all the attributes
-        -- are accounted for.
-        _ -> return ()
-    case maybe_key of
-        Nothing -> pitch_signal
-        Just (low_key, _, Nothing) ->
-            return $ Signal.constant (Midi.from_key low_key)
-        Just (low_key, high_key, Just low_pitch) ->
-            convert_keymap (Midi.from_key low_key) (Midi.from_key high_key)
-                low_pitch =<< pitch_signal
+--
+-- TODO this used to warn about unmatched attributes, but it got annoying
+-- because I use attributes freely.  It still seems like it could be useful,
+-- so maybe I want to put it back in again someday.
+convert_midi_pitch :: Instrument.Instrument -> Instrument.PatchScale
+    -> Instrument.AttributeMap -> Score.Event
+    -> ConvertT (Instrument.Instrument, Signal.NoteNumber)
+convert_midi_pitch inst patch_scale attr_map event =
+    case Instrument.lookup_attribute (Score.event_attributes event) attr_map of
+        Nothing -> (,) inst <$> pitch_signal
+        Just (keyswitches, maybe_keymap) ->
+            (,) (set_keyswitches keyswitches inst)
+                <$> maybe pitch_signal set_keymap maybe_keymap
     where
+    set_keyswitches [] inst = inst
+    set_keyswitches keyswitches inst = inst
+        { Instrument.inst_keyswitch = keyswitches }
+    set_keymap (Instrument.UnpitchedKeymap key) =
+        return $ Signal.constant (Midi.from_key key)
+    set_keymap (Instrument.PitchedKeymap low high low_nn) =
+        convert_keymap (Midi.from_key low) (Midi.from_key high) low_nn
+            =<< pitch_signal
     convert_keymap :: Signal.Y -> Signal.Y -> Pitch.NoteNumber
         -> Signal.NoteNumber -> ConvertT Signal.NoteNumber
     convert_keymap low high low_pitch sig = return clipped
         where
+        -- TODO warn about out_of_range
         (clipped, out_of_range) = Signal.clip_bounds low high $
             Signal.scalar_add (low - un_nn low_pitch) sig
     un_nn (Pitch.NoteNumber nn) = nn
-    pitch_signal = convert_pitch (Instrument.patch_scale patch)
+    pitch_signal = convert_pitch patch_scale
         (Score.event_controls event) (Score.event_pitch event)
 
 -- | Convert deriver controls to performance controls.  Drop all non-MIDI

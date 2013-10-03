@@ -162,8 +162,9 @@ inst_info inst = do
 
 show_instrument_info :: Maybe Instrument.Config -> Maybe Cmd.MidiInfo -> Text
 show_instrument_info config info = fields
-    [ ("keyswitches", maybe ""
-        (show_keyswitch_map . Instrument.patch_keyswitches . MidiDb.info_patch)
+    [ ("attribute map", maybe ""
+        (show_attribute_map . Instrument.patch_attribute_map
+            . MidiDb.info_patch)
         info)
     , ("addrs", maybe "" show_addrs
         (map fst . Instrument.config_addrs <$> config))
@@ -183,9 +184,9 @@ show_addrs addrs = semicolon_list
     | (wdev, addrs) <- Seq.keyed_group_on fst addrs
     ]
 
-show_keyswitch_map :: Instrument.KeyswitchMap -> Text
-show_keyswitch_map (Instrument.KeyswitchMap attr_ks) =
-    comma_list $ map (ShowVal.show_val . fst) attr_ks
+show_attribute_map :: Instrument.AttributeMap -> Text
+show_attribute_map =
+    comma_list . map ShowVal.show_val . Instrument.mapped_attributes
 
 comma_list, semicolon_list :: [Text] -> Text
 comma_list [] = "[]"

@@ -43,14 +43,14 @@ test_echo = do
     let (mmsgs, logs) = perform ("echo 2", [(0, 1, "n --1"), (1, 1, "n --2")])
             [("*twelve", [(0, 0, "4c"), (1, 0, "4d")])]
     equal logs []
-    equal (DeriveTest.note_on_times mmsgs)
+    equal (DeriveTest.note_on_vel mmsgs)
         [(0, 60, 127), (1000, 62, 127), (2000, 60, 51), (3000, 62, 51)]
 
 test_event_echo = do
     let (mmsgs, logs) = perform ("e-echo 2", [(0, 1, "n --1"), (1, 1, "n --2")])
             [("*twelve", [(0, 0, "4c"), (1, 0, "4d")])]
     equal logs []
-    equal (DeriveTest.note_on_times mmsgs)
+    equal (DeriveTest.note_on_vel mmsgs)
         [(0, 60, 127), (1000, 62, 127), (2000, 60, 51), (3000, 62, 51)]
 
     let (mmsgs, logs) = perform
@@ -59,7 +59,7 @@ test_event_echo = do
                     ("edelay", [(0, 0, "2"), (1, 0, "4")]),
                     ("echo-times", [(0, 0, "1"), (1, 0, "2")])]
     equal logs []
-    equal (DeriveTest.note_on_times mmsgs)
+    equal (DeriveTest.note_on_vel mmsgs)
         [(0, 60, 127), (1000, 62, 127),
             (2000, 60, 51), (5000, 62, 51), (9000, 62, 20)]
 

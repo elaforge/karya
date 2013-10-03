@@ -253,14 +253,10 @@ data Patch = Patch {
     patch_instrument :: !Instrument
     , patch_scale :: !PatchScale
     , patch_flags :: !(Set.Set Flag)
-    , patch_keymap :: !Keymap
     , patch_composite :: ![Composite]
     , patch_initialize :: !InitializePatch
-    -- | Keyswitches available to this instrument, if any.  A keyswitch key
-    -- may occur more than once, and a name of \"\" is used when the instrument
-    -- is looked up without a keyswitch.
-    , patch_keyswitches :: !KeyswitchMap
     , patch_attribute_map :: !AttributeMap
+    , patch_call_map :: !CallMap
     -- | Key-value pairs used to index the patch.  A key may appear more than
     -- once with different values.  Tags are free-form, but there is a list of
     -- standard tags in "Instrument.Tag".
@@ -270,14 +266,6 @@ data Patch = Patch {
     -- | The patch was read from this file.
     , patch_file :: !FilePath
     } deriving (Eq, Show)
-
--- | Some midi instruments, like drum kits, have a different sound on each
--- key.  If there is a match in this map, the pitch will be replaced with
--- the given key.
---
--- (low_key, high_key, pitch of low_key)
-type Keymap =
-    Map.Map Score.Attributes (Midi.Key, Midi.Key, Maybe Pitch.NoteNumber)
 
 -- | A composite patch corresponds to multiple underlying midi patches.
 -- At conversion time, a single event with a composite patch will be split
@@ -299,11 +287,10 @@ patch inst = Patch
     { patch_instrument = inst
     , patch_scale = Nothing
     , patch_flags = Set.empty
-    , patch_keymap = Map.empty
     , patch_composite = []
     , patch_initialize = NoInitialization
-    , patch_keyswitches = KeyswitchMap []
-    , patch_attribute_map = Map.empty
+    , patch_attribute_map = AttributeMap []
+    , patch_call_map = Map.empty
     , patch_tags = []
     , patch_text = ""
     , patch_file = ""
@@ -312,12 +299,11 @@ patch inst = Patch
 instrument_ = Lens.lens patch_instrument (\v r -> r { patch_instrument = v })
 scale = Lens.lens patch_scale (\v r -> r { patch_scale = v })
 flags = Lens.lens patch_flags (\v r -> r { patch_flags = v })
-keymap = Lens.lens patch_keymap (\v r -> r { patch_keymap = v })
 composite = Lens.lens patch_composite (\v r -> r { patch_composite = v })
 initialize = Lens.lens patch_initialize (\v r -> r { patch_initialize = v })
-keyswitches = Lens.lens patch_keyswitches (\v r -> r { patch_keyswitches = v })
-attribute_map =
-    Lens.lens patch_attribute_map (\v r -> r { patch_attribute_map = v })
+attribute_map = Lens.lens patch_attribute_map
+    (\v r -> r { patch_attribute_map = v })
+call_map = Lens.lens patch_call_map (\v r -> r { patch_call_map = v })
 tags = Lens.lens patch_tags (\v r -> r { patch_tags = v })
 text = Lens.lens patch_text (\v r -> r { patch_text = v })
 file = Lens.lens patch_file (\v r -> r { patch_file = v })
@@ -360,17 +346,16 @@ convert_patch_scale scale (Pitch.NoteNumber nn) =
 
 -- | A Pretty instance is useful because InitializeMidi tends to be huge.
 instance Pretty.Pretty Patch where
-    format (Patch inst scale flags keymap composite init ks attr_map tags text
+    format (Patch inst scale flags composite init attr_map call_map tags text
             file) =
         Pretty.record_title "Patch"
             [ ("instrument", Pretty.format inst)
             , ("scale", Pretty.format scale)
             , ("flags", Pretty.format flags)
-            , ("keymap", Pretty.format keymap)
             , ("composite", Pretty.format composite)
             , ("initialize", Pretty.format init)
-            , ("keyswitches", Pretty.format ks)
             , ("attribute_map", Pretty.format attr_map)
+            , ("call_map", Pretty.format call_map)
             , ("tags", Pretty.format tags)
             , ("text", Pretty.format text)
             , ("file", Pretty.format file)
@@ -379,15 +364,8 @@ instance Pretty.Pretty Patch where
 patch_name :: Patch -> InstrumentName
 patch_name = inst_name . patch_instrument
 
-set_keyswitches :: [(Score.Attributes, Midi.Key)] -> Patch -> Patch
-set_keyswitches ks = keyswitches #= simple_keyswitches ks
-
-set_attribute_map :: [(Score.Attributes, Text)] -> Patch -> Patch
-set_attribute_map attrs = attribute_map #= Map.fromList attrs
-
-set_keymap :: [(Score.Attributes, Midi.Key)] -> Patch -> Patch
-set_keymap kmap =
-    keymap #= Map.fromList [(attr, (key, key, Nothing)) | (attr, key) <- kmap]
+set_call_map :: [(Score.Attributes, Text)] -> Patch -> Patch
+set_call_map attrs = call_map #= Map.fromList attrs
 
 set_flag :: Flag -> Patch -> Patch
 set_flag flag = flags %= Set.insert flag
@@ -427,20 +405,46 @@ data Flag =
 
 instance Pretty.Pretty Flag where pretty = show
 
--- ** keyswitch map
+-- ** attribute map
 
--- | A KeyswitchMap maps a set of attributes to a keyswitch and gives
--- a piority for those mapping.  For example, if @+pizz@ is before @+cresc@,
--- then @+pizz+cresc@ will map to @+pizz@, unless, of course, @+pizz+cresc@
--- comes before either.  So if a previous attr set is a subset of a later one,
--- the later one will never be selected.  'overlapping_keyswitches' will check
--- for that.
+-- | This determines what Attributes the instrument can respond to.  Each
+-- set of Attributes is mapped to optional Keyswitches and maybe a Keymap.
+-- The attributes are matched by subset in order, so their order gives a
+-- priority.
 --
--- Two keyswitches with the same key will act as aliases for each other.
-newtype KeyswitchMap = KeyswitchMap [(Score.Attributes, [Keyswitch])]
+-- For example, if @+pizz@ is before @+cresc@, then @+pizz+cresc@ will map to
+-- @+pizz@, unless, of course, @+pizz+cresc@ comes before either (provided such
+-- an articulation was possible).  So if a previous attr set is a subset of
+-- a later one, the later one will never be selected.  'overlapping_attributes'
+-- will check for that.
+newtype AttributeMap =
+    AttributeMap [(Score.Attributes, [Keyswitch], Maybe Keymap)]
     deriving (Eq, Show, Pretty.Pretty)
 
--- | Key to activate a keyswitch.
+-- | A Keymap corresponds to a timbre selected by MIDI key range, rather than
+-- keyswitches.  Unlike a keyswitch, this doesn't change the state of the MIDI
+-- channel, so multiple keymapped notes can coexist, and keymap replaces the
+-- pitch of the note.
+data Keymap =
+    -- | This ignores the event's pitch and instead emits the given MIDI key.
+    -- This is appropriate for drumkit style patches, with a separate unpitched
+    -- timbre on each key.
+    UnpitchedKeymap !Midi.Key
+    -- | The timbre is mapped over the inclusive MIDI key range from low to
+    -- high, where the pitch of the low end of the range is given by the
+    -- NoteNumber.  So this transposes the event's pitch and clips it to the
+    -- given range.
+    | PitchedKeymap !Midi.Key !Midi.Key !Pitch.NoteNumber
+    deriving (Eq, Show)
+
+instance Pretty.Pretty Keymap where
+    pretty (UnpitchedKeymap k) = Pretty.pretty k
+    pretty (PitchedKeymap low high nn) = Pretty.pretty low <> "--"
+        <> Pretty.pretty high <> "(" <> Pretty.pretty nn <> ")"
+
+-- | A Keyswitch changes the timbre of a patch, but does so in a channel-global
+-- way.  So overlapping notes with different keyswitches will be split into
+-- different channels, if possible.
 data Keyswitch =
     Keyswitch !Midi.Key
     -- | This keyswitch is triggered by a control change.
@@ -452,50 +456,68 @@ instance Pretty.Pretty Keyswitch where
     format (ControlSwitch cc val) =
         "cc:" <> Pretty.format cc <> "/" <> Pretty.format val
 
--- | Make a 'KeyswitchMap'.
---
--- An empty string will be the empty set keyswitch, which is used for notes
--- with no attrs.
-simple_keyswitches :: [(Score.Attributes, Midi.Key)] -> KeyswitchMap
-simple_keyswitches attr_keys =
-    KeyswitchMap [(attrs, [Keyswitch key]) | (attrs, key) <- attr_keys]
+-- | Look up keyswitches and keymap according to the attribute priorities as
+-- described in 'AttributeMap'.
+lookup_attribute :: Score.Attributes -> AttributeMap
+    -> Maybe ([Keyswitch], Maybe Keymap)
+lookup_attribute attrs (AttributeMap table) =
+    (\(_, ks, km) -> (ks, km)) <$> List.find is_subset table
+    where
+    is_subset (inst_attrs, _, _) = Score.attrs_set inst_attrs
+        `Set.isSubsetOf` Score.attrs_set attrs
 
--- | Create a KeyswitchMap of 'ControlChanges', one for each attribute.
--- Remember the attribute still have to go in specific to general order.
-cc_keyswitches :: Midi.Control -> [(Score.Attributes, Midi.ControlValue)]
-    -> KeyswitchMap
-cc_keyswitches cc attrs =
-    KeyswitchMap [(attr, [ControlSwitch cc val]) | (attr, val) <- attrs]
-
-overlapping_keyswitches :: KeyswitchMap -> [Text]
-overlapping_keyswitches (KeyswitchMap attr_ks) =
+-- | Figured out if any attributes shadow other attributes.  I think this
+-- shouldn't happen if you called 'sort_attributes', or used any of the
+-- constructors other than 'AttributeMap'.
+overlapping_attributes :: AttributeMap -> [Text]
+overlapping_attributes attr_map =
     Maybe.catMaybes $ zipWith check (List.inits attrs) attrs
     where
-    attrs = map fst attr_ks
+    attrs = mapped_attributes attr_map
     check prevs attr = case List.find (Score.attrs_contain attr) prevs of
-        Just other_attr -> Just $ "keyswitch attrs "
+        Just other_attr -> Just $ "attrs "
             <> ShowVal.show_val attr <> " shadowed by "
             <> ShowVal.show_val other_attr
         Nothing -> Nothing
 
--- | Implement attribute priorities as described in 'KeyswitchMap'.  Return
--- the attributes matched in addition to the Keyswitch.
-get_keyswitch :: KeyswitchMap -> Score.Attributes
-    -> Maybe ([Keyswitch], Score.Attributes)
-get_keyswitch (KeyswitchMap attr_ks) attrs =
-    fmap (uncurry (flip (,))) (List.find is_subset attr_ks)
-    where
-    is_subset (inst_attrs, _) = Score.attrs_set inst_attrs
-        `Set.isSubsetOf` Score.attrs_set attrs
+-- | An AttributeMap with just keyswitches.
+keyswitches :: [(Score.Attributes, [Keyswitch])] -> AttributeMap
+keyswitches attr_ks = sort_attributes $
+    AttributeMap [(attrs, ks, Nothing) | (attrs, ks) <- attr_ks]
 
-keyswitch_attributes :: KeyswitchMap -> [Score.Attributes]
-keyswitch_attributes (KeyswitchMap attrs) = map fst attrs
+simple_keyswitches :: [(Score.Attributes, Midi.Key)] -> AttributeMap
+simple_keyswitches = keyswitches . map (second ((:[]) . Keyswitch))
+
+cc_keyswitches :: Midi.Control -> [(Score.Attributes, Midi.ControlValue)]
+    -> AttributeMap
+cc_keyswitches cc = keyswitches . map (second ((:[]) . ControlSwitch cc))
+
+keymap :: [(Score.Attributes, Keymap)] -> AttributeMap
+keymap table = sort_attributes $
+    AttributeMap [(attr, [], Just keymap) | (attr, keymap) <- table]
+
+-- | An AttributeMap with just unpitched keymaps.
+simple_keymap :: [(Score.Attributes, Midi.Key)] -> AttributeMap
+simple_keymap = keymap . map (second UnpitchedKeymap)
+
+mapped_attributes :: AttributeMap -> [Score.Attributes]
+mapped_attributes (AttributeMap attrs) = map (\(a, _, _) -> a) attrs
+
+-- | 'lookup_attribute' looks for the first subset, which means that a smaller
+-- set of attributes can shadow a larger set.  Since it's annoying to have to
+-- worry about order, sort larger sets to the back.
+--
+-- The sort is stable, so it shouldn't destroy the priority implicit in the
+-- order.
+sort_attributes :: AttributeMap -> AttributeMap
+sort_attributes (AttributeMap table) = AttributeMap (sort table)
+    where sort = Seq.sort_on (\(a, _, _) -> - Set.size (Score.attrs_set a))
 
 -- ** misc
 
 -- | Map attributes to the names of the calls they should map to.  This
 -- is used by the integrator to turn score events into UI events.
-type AttributeMap = Map.Map Score.Attributes Text
+type CallMap = Map.Map Score.Attributes Text
 
 type Tag = (TagKey, TagVal)
 type TagKey = Text

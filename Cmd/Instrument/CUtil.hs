@@ -134,10 +134,10 @@ inst_drum_code note_keys =
 drum_instrument :: [(Drums.Note, Midi.Key)] -> Instrument.Patch
     -> Instrument.Patch
 drum_instrument note_keys = Instrument.triggered
-    . Instrument.set_attribute_map
+    . Instrument.set_call_map
         [(Drums.note_attrs note, Drums.note_name note) | (note, _) <- note_keys]
-    . Instrument.set_keymap
-        [(Drums.note_attrs note, key) | (note, key) <- note_keys]
+    . (Instrument.attribute_map #= Instrument.simple_keymap
+        [(Drums.note_attrs note, key) | (note, key) <- note_keys])
 
 -- | Create calls for the given Notes.
 drum_calls :: [Drums.Note] -> [(Note, Derive.Generator Derive.Note)]

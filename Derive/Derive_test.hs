@@ -60,7 +60,7 @@ test_basic = do
         ]
 
     -- 3: performance to midi protocol events
-    equal (DeriveTest.note_on_times mmsgs) [(0, 60, 127), (16000, 61, 64)]
+    equal (DeriveTest.note_on_vel mmsgs) [(0, 60, 127), (16000, 61, 64)]
     equal logs []
     where
     mkstack (s, e) = Stack.from_outermost
@@ -87,22 +87,23 @@ test_round_pitch = do
             [(inst_title, [(0, 1, "")]), ("*", [(0, 0, "3b 99.99")])]
     let (_, mmsgs, _) =
             DeriveTest.perform_defaults (Derive.r_events res)
-    equal (DeriveTest.note_on_times mmsgs) [(0, Key.c4, 127)]
+    equal (DeriveTest.note_on_vel mmsgs) [(0, Key.c4, 127)]
 
 test_attributes = do
     -- Test that attributes work, through derivation and performance.
     let convert_lookup = DeriveTest.make_convert_lookup $
             DeriveTest.make_db [("s", [patch])]
-        patch = Instrument.set_keymap keymap $
-            Instrument.set_keyswitches keyswitches $ Instrument.patch $
-                Instrument.instrument "ks" [] (-1, 1)
-        keyswitches = map (first Score.attrs)
+        patch = Instrument.attribute_map #= attr_map $ Instrument.patch $
+            Instrument.instrument "ks" [] (-1, 1)
+        keyswitches = Instrument.simple_keyswitches $ map (first Score.attrs)
             [ (["a1", "a2"], 0)
             , (["a0"], 1)
             , (["a1"], 2)
             , (["a2"], 3)
             ]
-        keymap = [(Score.attr "km", 42)]
+        keymap = Instrument.simple_keymap [(Score.attr "km", 42)]
+        attr_map = Instrument.AttributeMap $ case (keyswitches, keymap) of
+            (Instrument.AttributeMap a, Instrument.AttributeMap b) -> a ++ b
     let res = DeriveTest.derive_tracks
             [ (">s/ks +a1", [(0, 1, "n +a0"), (1, 1, "n +a2")])
             , ("*twelve", [(0, 0, "4c")])
@@ -242,7 +243,7 @@ test_subderive_multiple = do
                 ])
             ]
     let (_, mmsgs, logs) = DeriveTest.perform_defaults (Derive.r_events res)
-    equal (DeriveTest.note_on_times mmsgs)
+    equal (DeriveTest.note_on_vel mmsgs)
         [ (0, Key.c5, 127), (0, Key.c4, 127)
         , (2000, Key.d5, 64), (2000, Key.d4, 64)
         ]

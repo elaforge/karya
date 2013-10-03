@@ -12,6 +12,7 @@ module Instrument.Serialize (serialize, unserialize) where
 import qualified Data.Map as Map
 import qualified Data.Time as Time
 
+import Util.Control
 import Util.Serialize (Serialize, get, put, get_tag, put_tag, bad_tag)
 import Midi.Instances ()
 import qualified Cmd.Serialize
@@ -86,12 +87,11 @@ instance Serialize (MidiDb.PatchMap ()) where
     get = get >>= \a -> return (MidiDb.PatchMap a)
 
 instance Serialize Instrument.Patch where
-    put (Instrument.Patch a b c d e f g h i j k) = put a >> put b >> put c
-        >> put d >> put e >> put f >> put g >> put h >> put i >> put j >> put k
+    put (Instrument.Patch a b c d e f g h i j) = put a >> put b >> put c
+        >> put d >> put e >> put f >> put g >> put h >> put i >> put j
     get = get >>= \a -> get >>= \b -> get >>= \c -> get >>= \d -> get >>= \e ->
         get >>= \f -> get >>= \g -> get >>= \h -> get >>= \i -> get >>= \j ->
-        get >>= \k ->
-            return (Instrument.Patch a b c d e f g h i j k)
+            return (Instrument.Patch a b c d e f g h i j)
 
 instance Serialize Instrument.Flag where
     put Instrument.Triggered = put_tag 0
@@ -122,9 +122,19 @@ instance Serialize Instrument.InitializePatch where
             2 -> return Instrument.NoInitialization
             _ -> bad_tag "Instrument.InitializePatch" tag
 
-instance Serialize Instrument.KeyswitchMap where
-    put (Instrument.KeyswitchMap a) = put a
-    get = get >>= \a -> return (Instrument.KeyswitchMap a)
+instance Serialize Instrument.AttributeMap where
+    put (Instrument.AttributeMap a) = put a
+    get = get >>= \a -> return (Instrument.AttributeMap a)
+
+instance Serialize Instrument.Keymap where
+    put (Instrument.UnpitchedKeymap a) = put_tag 0 >> put a
+    put (Instrument.PitchedKeymap a b c) = put_tag 1 >> put a >> put b >> put c
+    get = do
+        tag <- get_tag
+        case tag of
+            0 -> Instrument.UnpitchedKeymap <$> get
+            1 -> Instrument.PitchedKeymap <$> get <*> get <*> get
+            _ -> bad_tag "Instrument.Keymap" tag
 
 instance Serialize Instrument.Keyswitch where
     put (Instrument.Keyswitch a) = put_tag 0 >> put a
@@ -132,11 +142,10 @@ instance Serialize Instrument.Keyswitch where
     get = do
         tag <- get_tag
         case tag of
-            0 -> get >>= \a -> return (Instrument.Keyswitch a)
-            1 -> get >>= \a -> get >>= \b ->
-                return (Instrument.ControlSwitch a b)
+            0 -> Instrument.Keyswitch <$> get
+            1 -> Instrument.ControlSwitch <$> get <*> get
             _ -> bad_tag "Instrument.Keyswitch" tag
 
 instance Serialize Score.Attributes where
     put = put . Score.attrs_set
-    get = fmap BaseTypes.set_to_attrs get
+    get = BaseTypes.set_to_attrs <$> get

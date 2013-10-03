@@ -26,7 +26,8 @@ load _dir = return $ MidiInst.make $
         pb_range controls)
     { MidiInst.modify_wildcard =
         (Instrument.instrument_#Instrument.hold_keyswitch #= True)
-        . Instrument.set_keyswitches keyswitches
+        . (Instrument.attribute_map #=
+            Instrument.simple_keyswitches keyswitches)
     , MidiInst.code = MidiInst.note_calls (MidiInst.null_call note_call)
     }
 

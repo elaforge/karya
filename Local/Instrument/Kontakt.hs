@@ -62,10 +62,6 @@ patches = concat
     , hang_patches, wayang_patches, kendang_patches, mridangam_patches
     ]
 
-ks_patch :: Instrument.InstrumentName -> [(Attributes, Midi.Key)]
-    -> Instrument.Patch
-ks_patch name ks = Instrument.set_keyswitches ks (patch name)
-
 patch :: Instrument.InstrumentName -> Instrument.Patch
 patch name = Instrument.patch $ Instrument.instrument name [] pb_range
 
@@ -106,7 +102,8 @@ mcgill = MidiInst.with_empty_code
 -- I changed it to support (-24, 24) pb range.
 balalaika :: [MidiInst.Patch]
 balalaika =
-    with_code $ (:[]) $ Instrument.set_keyswitches ks $
+    with_code $ (:[]) $
+        Instrument.attribute_map #= Instrument.simple_keyswitches ks $
         Instrument.patch $ (Instrument.hold_keyswitch #= True) $
         Instrument.instrument "balalaika" controls pb_range
     where
@@ -146,7 +143,10 @@ sonic_couture = MidiInst.with_empty_code
 -- * hang
 
 hang_patches :: [MidiInst.Patch]
-hang_patches = MidiInst.with_code hang_code [ks_patch "hang" hang_ks]
+hang_patches = MidiInst.with_code hang_code
+    [ Instrument.attribute_map #= Instrument.simple_keyswitches hang_ks $
+        patch "hang"
+    ]
 
 hang_code :: MidiInst.Code
 hang_code =
@@ -179,34 +179,35 @@ hang_ks = [(attrs, key) | (attrs, key, _, _) <- hang_strokes]
 
 -- * gender wayang
 
--- | Instead of using a keyswitch, I map mute to the lower range:
---
--- > pemade: open (f_2, e0), mute (f2, e5)
--- > kantilan: mute (f_1, e1), open (g3, e6)
---
--- This way I can play mute and open notes simultaneously.  There is an octave
--- gap between the ranges so that pemade and kantilan can use the same
--- instruments.
---
--- - Directory structure is
--- wayang/{pemade,kantil}/{isep,umbang}/{calung,panggul}/
---
--- - Set round-robins, pitch bend to 2 oct with lag 10, and amp to velocity 90%.
---
--- - Loose and mute groups get a -9dB Amp, since they are naturally quieter.
--- They also get AHD Only envelope, with Hold set to max.
+{- |
+    Layout:
+
+    > 0         10        20        30        40        50        60        70        80        90        100       110       120    127
+    > 01234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567
+    > c-2         c-1         c0          c1          c2          c3          c4          c5          c6          c7          c8     g8
+    >                  p----------------------|
+    >                              k----------------------|
+    >          X X|-----------------------------------------------|
+    >                                                                  p----------------------|
+    >                                                                              k----------------------|
+    >                                                             |-----------------------------------------------|
+
+    > pemade mute: (f_1, e1), open: (f3, e5)
+    > kantil mute: (f0, e2), open: (f4, e6)
+    > mute keyswitch: a_2, b_2
+-}
 wayang_patches :: [MidiInst.Patch]
 wayang_patches =
-    [ (scale Wayang.umbang $ patch "wayang-umbang",
+    [ (scale Wayang.umbang $ wayang "wayang-umbang",
         set_tuning "umbang" <> wayang_code)
-    , (scale Wayang.isep $ patch "wayang-isep",
+    , (scale Wayang.isep $ wayang "wayang-isep",
         set_tuning "isep" <> wayang_code)
-    , (Instrument.text #= "Tuned to 12TET." $ patch "wayang", wayang_code)
+    , (Instrument.text #= "Tuned to 12TET." $ wayang "wayang", wayang_code)
     ]
     where
+    wayang = (Instrument.attribute_map #= wayang_keymap) . patch
     scale scale = (Instrument.text #= doc)
         . (Instrument.scale #= wayang_scale scale)
-        . (Instrument.keymap #= wayang_keymap)
     set_tuning tuning = MidiInst.default_scale Wayang.scale_id
         <> MidiInst.environ Environ.tuning (tuning :: Text)
     doc = "These set the scale and tuning automatically, and expect the patch\
@@ -214,8 +215,8 @@ wayang_patches =
 
 wayang_code :: MidiInst.Code
 wayang_code = MidiInst.note_calls $ MidiInst.null_call $
-    DUtil.zero_duration "Add `+mute` attribute and scale dyn by 0.75." $
-        Util.add_attrs Attrs.mute . Util.multiply_dynamic 0.75
+    DUtil.zero_duration "Add `+mute+loose` attribute and scale dyn by 0.75." $
+        Util.add_attrs (Attrs.mute <> Attrs.loose) . Util.multiply_dynamic 0.75
 
 wayang_scale :: [Pitch.NoteNumber] -> Instrument.PatchScale
 wayang_scale scale = Instrument.make_patch_scale $ zip wayang_keys scale
@@ -224,14 +225,16 @@ wayang_keys :: [Midi.Key]
 wayang_keys = take (5*3 - 1) $ drop 1 $ concatMap keys [0..]
     where
     keys oct = map (Midi.to_key (oct * 12) +)
-        [Key2.e2, Key2.f2, Key2.a2, Key2.b2, Key2.c3]
+        [Key2.e3, Key2.f3, Key2.a3, Key2.b3, Key2.c4]
 
-wayang_keymap :: Instrument.Keymap
-wayang_keymap = Map.fromList
-    [ (Attrs.mute, (Key2.f6, Key2.e8, base))
-    , (Attrs.mute <> Attrs.loose, (Key2.f_2, Key2.e0, base))
+wayang_keymap :: Instrument.AttributeMap
+wayang_keymap = Instrument.AttributeMap
+    [ (Attrs.mute <> Attrs.loose, [Instrument.Keyswitch Key2.a_2], keymap)
+    , (Attrs.mute, [Instrument.Keyswitch Key2.b_2], keymap)
     ]
-    where base = Just $ Midi.from_key Key2.f2
+    where
+    keymap = Just $
+        Instrument.PitchedKeymap Key2.c_1 Key2.b2 (Midi.from_key Key2.c3)
 
 
 -- * kendang
@@ -358,7 +361,7 @@ mridangam_patches :: [MidiInst.Patch]
 mridangam_patches = [(inst, code)]
     where
     inst = Instrument.triggered $
-        Instrument.keymap #= mridangam_keymap $
+        Instrument.attribute_map #= mridangam_keymap $
         Instrument.patch $ Instrument.instrument "mridangam" [] pb_range
     code =
         MidiInst.note_generators
@@ -373,9 +376,9 @@ mridangam_notes = map mk mridangam
         where
         notes = [Drums.Note name attr char 1 | attr <- attrs]
 
-mridangam_keymap :: Instrument.Keymap
-mridangam_keymap = Map.fromList
-    [ (attr, (low, high, Just NN.e3))
+mridangam_keymap :: Instrument.AttributeMap
+mridangam_keymap = Instrument.keymap
+    [ (attr, Instrument.PitchedKeymap low high NN.e3)
     | (_, attrs, _, (low, _, high)) <- mridangam
     , attr <- attrs
     ]

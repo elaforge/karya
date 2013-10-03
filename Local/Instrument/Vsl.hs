@@ -43,10 +43,10 @@ import qualified App.MidiInst as MidiInst
 -- | For interactive use, find keyswitches with the given attributes.
 find_attrs :: Instrument.InstrumentName -> String -> [Text]
 find_attrs inst with_attrs =
-    map ShowVal.show_val $ filter (`Score.attrs_contain` search) attrs
+    map ShowVal.show_val $ filter (`Score.attrs_contain` search)
+        (patch_attrs patch)
     where
     search = either error id (ParseBs.parse_attrs with_attrs)
-    attrs = Instrument.keyswitch_attributes (Instrument.patch_keyswitches patch)
     patch = fromMaybe (error $ "patch not found: " ++ show inst) $
         List.find ((==inst) . Instrument.patch_name) (map fst patches)
 
@@ -143,7 +143,7 @@ note_calls maybe_hmap patch =
         { Note.config_staccato = not $ has_attr Attrs.staccato patch }
 
 patch_attrs :: Instrument.Patch -> [Score.Attributes]
-patch_attrs = Instrument.keyswitch_attributes . Instrument.patch_keyswitches
+patch_attrs = Instrument.mapped_attributes . Instrument.patch_attribute_map
 
 has_attr :: Score.Attributes -> Instrument.Patch -> Bool
 has_attr attr = any (`Score.attrs_contain` attr) . patch_attrs
@@ -192,15 +192,14 @@ make_patch inst category =
 instrument_patch :: Text -> Instrument -> Instrument.Patch
 instrument_patch category (name, keyswitches) =
     Instrument.add_tag (Tag.category, category) $
-    (Instrument.keyswitches #= keyswitch_map keyswitches) $
+    (Instrument.attribute_map #= keyswitch_map keyswitches) $
         MidiInst.patch (-2, 2) name []
 
 make_instrument :: VslInst.Instrument -> Instrument
 make_instrument (name, keys, attrs) = (name, matrix keys attrs)
 
-keyswitch_map :: [Keyswitch] -> Instrument.KeyswitchMap
-keyswitch_map =
-    Instrument.KeyswitchMap . Seq.sort_on (attr_key . fst) . process
+keyswitch_map :: [Keyswitch] -> Instrument.AttributeMap
+keyswitch_map = Instrument.keyswitches . Seq.sort_on (attr_key . fst) . process
     where
     process keyswitches = zip attrs ks
         where (attrs, ks) = unzip (drop_dups keyswitches)

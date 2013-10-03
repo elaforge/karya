@@ -54,7 +54,7 @@ read_perf_event lookup_inst =
 
 make_perf_event :: MidiDb.LookupMidiInstrument -> Event -> Maybe Perform.Event
 make_perf_event lookup_inst (inst, start, dur, controls, pitch, stack) = do
-    (inst, _) <- lookup_inst Score.no_attrs (Score.Instrument inst)
+    inst <- lookup_inst (Score.Instrument inst)
     return $ Perform.Event
         { Perform.event_instrument = inst
         , Perform.event_start = start

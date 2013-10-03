@@ -234,7 +234,8 @@ test_track_dynamic_invert = do
 -- * implementation
 
 patch :: Instrument.Patch
-patch = Instrument.set_keymap [(Attrs.snare, 42)] $
+patch =
+    Instrument.attribute_map #= Instrument.simple_keymap [(Attrs.snare, 42)] $
     Instrument.patch (Instrument.instrument "with-call" [] (-1, 1))
 
 midi_db :: MidiDb.MidiDb Cmd.InstrumentCode

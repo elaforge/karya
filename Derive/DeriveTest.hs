@@ -478,10 +478,13 @@ show_log = Log.msg_string
 
 -- ** extract midi msgs
 
-note_on_times :: [Midi.WriteMessage] -> [(Integer, Midi.Key, Midi.Velocity)]
-note_on_times mmsgs =
+note_on_vel :: [Midi.WriteMessage] -> [(Integer, Midi.Key, Midi.Velocity)]
+note_on_vel msgs =
     [(ts, nn, vel) | (ts, Midi.ChannelMessage _ (Midi.NoteOn nn vel))
-        <- extract_midi mmsgs]
+        <- extract_midi msgs]
+
+note_on :: [Midi.WriteMessage] -> [Midi.Key]
+note_on msgs = [nn | (_, nn, _) <- note_on_vel msgs]
 
 extract_midi :: [Midi.WriteMessage] -> [(Integer, Midi.Message)]
 extract_midi events = [(RealTime.to_milliseconds ts, msg)

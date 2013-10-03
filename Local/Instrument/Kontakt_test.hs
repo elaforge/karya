@@ -10,7 +10,9 @@ import qualified Util.Seq as Seq
 import Util.Test
 
 import qualified Midi.Key as Key
+import qualified Midi.Key2 as Key2
 import qualified Midi.Midi as Midi
+
 import qualified Ui.UiTest as UiTest
 import Derive.Attrs
 import qualified Derive.Derive as Derive
@@ -20,6 +22,14 @@ import qualified Derive.Score as Score
 import qualified Perform.Midi.Perform as Perform
 import qualified Local.Instrument.Kontakt as Kontakt
 
+
+test_wayang = do
+    let run notes = extract $ perform "kkt/wayang-umbang" $ Derive.r_events $
+            derive $ UiTest.note_spec ("kkt/wayang-umbang", notes, [])
+        extract (_, midi, logs) = (DeriveTest.note_on midi, logs)
+    equal (run [(0, 1, "4i")]) ([Key2.e4], [])
+    equal (run [(1, 1, "+mute -- 4i")]) ([Key2.b_2, Key2.e0], [])
+    equal (run [(2, 1, "+mute+loose -- 4i")]) ([Key2.a_2, Key2.e0], [])
 
 test_kendang = do
     let e_attrs = DeriveTest.extract $ \e ->
@@ -66,8 +76,7 @@ test_mridangam = do
             , (">kkt/mridangam",
                 [(t, 0, n) | (t, n) <- zip (Seq.range_ 0 1) notes])
             ]
-    let right = ["k", "t", "n", "d", "d2", "m"]
-    let (_events, midi, logs) = run "3b" right
+    let (_events, midi, logs) = run "3b" ["k", "t", "n", "d", "d2", "m"]
     equal logs []
     equal (mapMaybe Midi.channel_message $ filter Midi.is_note_on $
             map snd (DeriveTest.extract_midi midi))

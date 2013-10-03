@@ -44,19 +44,19 @@ data Track = Track {
 
 -- | (note track, control tracks)
 type Tracks = [(Track, [Track])]
-type Config = (LookupAttrs, Pitch.ScaleId)
-type LookupAttrs = Score.Instrument -> Instrument.AttributeMap
+type Config = (LookupCall, Pitch.ScaleId)
+type LookupCall = Score.Instrument -> Instrument.CallMap
 
 convert :: (Cmd.M m) => BlockId -> Derive.Events -> m Tracks
 convert source_block levents = do
     lookup_inst <- Cmd.get_lookup_instrument
-    let lookup_attrs =
-            maybe mempty (Instrument.patch_attribute_map . MidiDb.info_patch)
+    let lookup_call =
+            maybe mempty (Instrument.patch_call_map . MidiDb.info_patch)
             . lookup_inst
     default_scale_id <- Perf.default_scale_id
     tracknums <- Map.fromList <$> State.tracknums_of source_block
     let (events, logs) = LEvent.partition levents
-        (tracks, errs) = integrate (lookup_attrs, default_scale_id)
+        (tracks, errs) = integrate (lookup_call, default_scale_id)
             tracknums events
     mapM_ Log.write (Log.add_prefix "integrate" logs)
     -- If something failed to derive I shouldn't integrate that into the block.
@@ -120,28 +120,28 @@ type Voice = Int
 
 integrate_track :: Config -> (TrackKey, [Score.Event])
     -> Either String (Track, [Track])
-integrate_track (lookup_attrs, default_scale_id)
+integrate_track (lookup_call, default_scale_id)
         ((_, inst, scale_id, _), events) = do
     pitch_track <- if no_pitch_signals events then return []
         else case pitch_events default_scale_id scale_id events of
             (track, []) -> return [track]
             (_, errs) -> Left $ Seq.join "; " errs
-    return (note_events inst (lookup_attrs inst) events,
+    return (note_events inst (lookup_call inst) events,
         pitch_track ++ control_events events)
 
 -- ** note
 
-note_events :: Score.Instrument -> Instrument.AttributeMap -> [Score.Event]
+note_events :: Score.Instrument -> Instrument.CallMap -> [Score.Event]
     -> Track
-note_events inst attr_map events =
-    make_track note_title (map (note_event attr_map) events)
+note_events inst call_map events =
+    make_track note_title (map (note_event call_map) events)
     where note_title = TrackInfo.instrument_to_title inst
 
-note_event :: Instrument.AttributeMap -> Score.Event -> Event.Event
-note_event attr_map event = ui_event (Score.event_stack event)
+note_event :: Instrument.CallMap -> Score.Event -> Event.Event
+note_event call_map event = ui_event (Score.event_stack event)
     (RealTime.to_score (Score.event_start event))
     (RealTime.to_score (Score.event_duration event))
-    (Map.findWithDefault "" (Score.event_attributes event) attr_map)
+    (Map.findWithDefault "" (Score.event_attributes event) call_map)
 
 -- ** pitch
 

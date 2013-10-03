@@ -3,6 +3,10 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
+  kotekan ornaments
+    - automatic norot, noltol depending on speed
+    - given a single melody, split every other note between polos and sangsih,
+      optionally with noltol in between.
   - keys to turn play speed up and down
   - The problem with Derive.inst_environ to set scale is that you can't really
     override it.  So if >wayang wants *wayang, then you can't easily say you
@@ -12,8 +16,13 @@ UNSORTED
     . Perhaps environ should go in inst config?
     . Or just have wayang set tuning, and get the scale from the environment.
       I don't need more invisible ways to modify the environment.
-  - merge KeyswitchMap and Keymap into AttributeMap
+  * merge KeyswitchMap and Keymap into AttributeMap
     Ensure that keyswitches cause channel splits, but keymaps don't.
+    ? How does that happen?
+      Keyswitches are handled in the inst db, so it can return a differently
+      named inst, keymap is handled during conversion.  Both could be handled
+      in conversion, making patch lookup simpler.
+    . I need to do this to support keyswitch + octave offset for wayang.
   Raga
     - Support arohana and avarohana by treating them as enharmonics
       Is this really a good idea, since they aren't anything like enharmonics?

@@ -19,24 +19,16 @@ import qualified Local.Instrument.Kontakt as Kontakt
 test_lookup_midi = do
     synth_descs <- Kontakt.load ""
     let midi_db = fst $ MidiDb.midi_db synth_descs
-    let f inst attrs = MidiDb.lookup_midi midi_db
-            (Score.attrs attrs) (Score.Instrument inst)
+    let f inst = MidiDb.lookup_midi midi_db (Score.Instrument inst)
 
-    let ks = (:[]) . Instrument.Keyswitch
     let kkt_inst name = (Instrument.instrument name [] Kontakt.pb_range)
             { Instrument.inst_score = Score.Instrument ("kkt/" <> name)
             , Instrument.inst_synth = "kkt"
             }
         hang = kkt_inst "hang"
-    equal (f "kkt/hang" ["slap"]) $
-        Just (hang { Instrument.inst_keyswitch = ks 38 }, Score.attrs ["slap"])
-    equal (f "kkt/hang" []) $
-        Just (hang { Instrument.inst_keyswitch = ks 36 },
-            Score.no_attrs)
-
-    -- wildcard allows any other name, but ks is not allowed
-    equal (f "kkt/none" []) $ Just (kkt_inst "none", Score.no_attrs)
-    equal (f "kkt/none" ["slap"]) $ Just (kkt_inst "none", Score.no_attrs)
+    equal (f "kkt/hang") (Just hang)
+    -- wildcard allows any other name
+    equal (f "kkt/none") $ Just (kkt_inst "none")
 
 test_patch_map = do
     let f = first extract . MidiDb.patch_map . mkpatches

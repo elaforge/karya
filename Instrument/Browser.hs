@@ -112,8 +112,6 @@ info_of db score_inst (MidiDb.Info synth patch code) =
             Instrument.patch_composite patch)
         , ("Instrument controls", show_control_map inst_cmap)
         , ("Synth controls", show_control_map synth_cmap)
-        , ("Keymap", if Map.null (Instrument.patch_keymap patch) then ""
-            else Pretty.prettytxt (Instrument.patch_keymap patch))
         -- code
         , ("Cmds", show_cmds (Cmd.inst_cmds code))
         , ("Note generators", show_calls CallDoc.GeneratorCall note_generators)
@@ -124,11 +122,9 @@ info_of db score_inst (MidiDb.Info synth patch code) =
             else Pretty.prettytxt (Cmd.inst_environ code))
 
         -- implementation details
-        , ("Keyswitches", show_keyswitches keyswitches)
+        , ("Attribute map", show_attribute_map attr_map)
         , ("Pitchbend range", showt (Instrument.inst_pitch_bend_range inst))
         , ("Scale", maybe "" Pretty.prettytxt scale)
-        , ("Attribute map",
-            if Map.null attr_map then "" else Pretty.prettytxt attr_map)
         , ("Initialization", show_initialize initialize)
         -- info
         , ("Text", text)
@@ -142,7 +138,6 @@ info_of db score_inst (MidiDb.Info synth patch code) =
         , Instrument.patch_scale = scale
         , Instrument.patch_flags = pflags
         , Instrument.patch_initialize = initialize
-        , Instrument.patch_keyswitches = keyswitches
         , Instrument.patch_attribute_map = attr_map
         , Instrument.patch_text = text
         , Instrument.patch_file = file
@@ -171,14 +166,18 @@ field (title, raw_text)
     | otherwise = "\t" <> title <> ":\n" <> text <> "\n"
     where text = Text.strip raw_text
 
-show_keyswitches :: Instrument.KeyswitchMap -> Text
-show_keyswitches (Instrument.KeyswitchMap keyswitches) = Text.unlines
-    -- Still not quite right for lining up columns.
-    [txt $ printf "%-*s\t%s" longest attr ks | (attr, ks) <- zip attrs kss]
+show_attribute_map :: Instrument.AttributeMap -> Text
+show_attribute_map (Instrument.AttributeMap table) =
+    Text.unlines (map fmt table)
     where
-    attrs = map (Pretty.pretty . fst) keyswitches
-    kss = map (Pretty.pretty . snd) keyswitches
+    attrs = map (\(a, _, _) -> Pretty.pretty a) table
     longest = fromMaybe 0 $ Seq.maximum (map length attrs)
+
+    fmt (attrs, keyswitches, maybe_keymap) =
+        -- Still not quite right for lining up columns.
+        txt (printf "%-*s\t" longest (Pretty.pretty attrs))
+            <> Pretty.prettytxt keyswitches
+            <> maybe "" ((" "<>) . Pretty.prettytxt) maybe_keymap
 
 show_control_map :: Control.ControlMap -> Text
 show_control_map cmap =

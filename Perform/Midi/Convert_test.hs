@@ -113,9 +113,7 @@ test_patch_scale = do
 -- * composite instrument
 
 test_composite_instrument = do
-    let patch =
-            (set_composite Nothing [] . CUtil.drum_instrument notes,
-                mempty)
+    let patch = (set_composite Nothing [] . CUtil.drum_instrument notes, mempty)
         notes = [(Drums.c_bd, Key.c4), (Drums.c_sn, Key.d4)]
     let (events, _, logs) = perform patch [("s/i", [0]), ("s/x", [1])]
             [ (">s/i", [(0, 1, "+bd"), (1, 1, "+snare")])
@@ -124,12 +122,12 @@ test_composite_instrument = do
         extract e =
             ( Instrument.inst_name $ Perform.event_instrument e
             , Perform.event_start e
-            , Signal.unsignal $ Perform.event_pitch e
+            , nn_signal (Perform.event_pitch e)
             )
     equal logs []
     equal (map extract events)
-        [ ("i", 0, [(0, 60)]), ("x", 0, [(0, 48), (0.5, 50)])
-        , ("i", 1, [(0, 62)]), ("x", 1, [(0.5, 50)])
+        [ ("i", 0, [(0, NN.c4)]), ("x", 0, [(0, NN.c3), (0.5, NN.d3)])
+        , ("i", 1, [(0, NN.d4)]), ("x", 1, [(0.5, NN.d3)])
         ]
 
 set_composite :: Maybe Score.Control -> [Score.Control] -> Instrument.Patch
@@ -140,19 +138,19 @@ set_composite pitch controls = Instrument.composite
 -- * keymap
 
 test_keymap = do
-    let patch = (set_keymap [("bd", (Key.c2, Key.c3, Just NN.c4))], mempty)
-        set_keymap kmap = Instrument.keymap
-            #= Map.fromList (map (first Score.attr) kmap)
+    let patch = (set_keymap [bd], mempty)
+        bd = ("bd", Instrument.PitchedKeymap Key.c2 Key.c3 NN.c4)
+        set_keymap kmap = Instrument.attribute_map #=
+            Instrument.keymap (map (first Score.attr) kmap)
         mktracks ps =
             [ (">s/i", [(n, 1, "+bd") | (n, _) <- vals])
             , ("*", [(n, 0, p) | (n, p) <- vals])
             ]
             where vals = zip (Seq.range_ 0 1) ps
-        unsig = map (second Pitch.nn) . Signal.unsignal
     let (events, _, logs) = perform patch [("s/i", [0])]
             (mktracks ["3c", "4c", "5c", "6c"])
     equal logs []
-    equal (map (unsig . Perform.event_pitch) events)
+    equal (map (nn_signal . Perform.event_pitch) events)
         [ [(0, NN.c2)]
         , [(1, NN.c2)]
         , [(2, NN.c3)]
@@ -160,6 +158,9 @@ test_keymap = do
         ]
 
 -- * implementation
+
+nn_signal :: Signal.NoteNumber -> [(Signal.X, Pitch.NoteNumber)]
+nn_signal = map (second Pitch.nn) . Signal.unsignal
 
 perform :: (Instrument.Patch -> Instrument.Patch, MidiInst.Code)
     -> [(Text, [Midi.Channel])] -> [UiTest.TrackSpec]

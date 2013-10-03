@@ -107,7 +107,7 @@ patches =
         -- probably has minimal affect on the sound.  If dropping to
         -- 0 momentarily sounds like a direction change then that's good
         -- enough.
-        Instrument.keyswitches #=
+        Instrument.attribute_map #=
             Instrument.cc_keyswitches CC.cc20 [(Attrs.pizz, 127), (mempty, 0)] $
         MidiInst.pressure $ MidiInst.patch (-24, 24) "serenade"
             [ (CC.mod, Controls.vib)

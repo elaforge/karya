@@ -37,7 +37,7 @@ data Db code = Db {
 
 empty :: Db code
 empty = Db {
-    db_lookup_midi = \_ _ -> Nothing
+    db_lookup_midi = const Nothing
     , db_lookup = const Nothing
     , db_midi_db = MidiDb.empty
     }
@@ -68,13 +68,11 @@ synths = Map.keys . MidiDb.midi_db_map . db_midi_db
 -- multiple times.
 with_aliases :: Map.Map Score.Instrument Score.Instrument -> Db code -> Db code
 with_aliases aliases (Db midi lookup midi_db) = Db
-    { db_lookup_midi = \attrs inst ->
-        set_inst inst <$> midi attrs (resolve inst)
+    { db_lookup_midi = \inst -> set_name inst <$> midi (resolve inst)
     , db_lookup = \inst -> set_info inst <$> lookup (resolve inst)
     , db_midi_db = midi_db
     }
     where
-    set_inst alias (inst, attrs) = (set_name alias inst, attrs)
     set_info alias info = info
         { MidiDb.info_patch = Instrument.instrument_ %= set_name alias $
             MidiDb.info_patch info

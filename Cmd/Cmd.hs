@@ -987,12 +987,10 @@ get_midi_patch inst = do
         =<< lookup_instrument inst
     return $ MidiDb.info_patch info
 
-get_midi_instrument :: (M m) => Score.Attributes -> Score.Instrument
-    -> m Instrument.Instrument
-get_midi_instrument attrs inst = do
+get_midi_instrument :: (M m) => Score.Instrument -> m Instrument.Instrument
+get_midi_instrument inst = do
     lookup <- get_lookup_midi_instrument
-    require_msg ("get_midi_instrument " ++ Pretty.pretty inst)
-        (fst <$> lookup attrs inst)
+    require_msg ("get_midi_instrument " ++ Pretty.pretty inst) $ lookup inst
 
 get_lookup_scale :: (M m) => m Derive.LookupScale
 get_lookup_scale = do
