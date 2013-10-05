@@ -708,9 +708,10 @@ data Instrument = Instrument {
 -- | Some ornaments only apply to a particular instrument, so each instrument
 -- can bring a set of note calls and val calls into scope, via the 'Scope'
 -- type.
-data InstrumentCalls =
-    InstrumentCalls [LookupCall (Generator Note)]
-        [LookupCall (Transformer Note)] [LookupCall ValCall]
+data InstrumentCalls = InstrumentCalls
+    [LookupCall (Generator Note)]
+    [LookupCall (Transformer Note)]
+    [LookupCall ValCall]
 
 instance Show InstrumentCalls where
     show (InstrumentCalls gen trans val) =
@@ -724,6 +725,11 @@ instance Pretty.Pretty InstrumentCalls where
             , ("transformer", Pretty.format trans)
             , ("val", Pretty.format val)
             ]
+
+instance Monoid.Monoid InstrumentCalls where
+    mempty = InstrumentCalls mempty mempty mempty
+    mappend (InstrumentCalls a1 b1 c1) (InstrumentCalls a2 b2 c2) =
+        InstrumentCalls (a1<>a2) (b1<>b2) (c1<>c2)
 
 
 -- ** control

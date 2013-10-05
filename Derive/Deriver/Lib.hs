@@ -205,13 +205,14 @@ scale_to_lookup scale =
 
 with_instrument :: Score.Instrument -> Deriver d -> Deriver d
 with_instrument inst deriver = do
-    lookup_inst <- gets (state_lookup_instrument . state_constant)
+    lookup_inst <- gets $ state_lookup_instrument . state_constant
     let with_inst = with_val_raw Environ.instrument inst
-    case lookup_inst inst of
-        Nothing -> with_inst deriver
-        Just (Instrument calls environ) -> with_inst $
-            with_scopes (set_scopes calls) $ with_environ environ deriver
+    -- If the instrument is not found, make sure to clear the last instrument's
+    -- calls out of scope.
+    let Instrument calls environ = fromMaybe empty_instrument (lookup_inst inst)
+    with_inst $ with_scopes (set_scopes calls) $ with_environ environ deriver
     where
+    empty_instrument = Instrument mempty mempty
     -- Replace the calls in the instrument scope type.
     set_scopes (InstrumentCalls inst_gen inst_trans inst_val)
             (Scopes gen trans val) =
