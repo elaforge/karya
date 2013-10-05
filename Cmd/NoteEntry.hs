@@ -146,10 +146,10 @@ physical_key = map Keymap.physical_key
 -- | Convert a 'Msg.Midi' msg into a 'Msg.InputNote'.
 midi_input :: (Cmd.M m) => Msg.Msg -> m (Maybe [Msg.Msg])
 midi_input (Msg.Midi (Midi.ReadMessage rdev _ midi_msg)) = do
-    rstate <- Cmd.get_rdev_state rdev
+    rstate <- Cmd.gets Cmd.state_rdev_state
     case InputNote.from_midi rstate rdev midi_msg of
         Just (input, rstate2) -> do
-            Cmd.set_rdev_state rdev rstate2
+            Cmd.modify $ \st -> st { Cmd.state_rdev_state = rstate2 }
             return $ Just [Msg.InputNote input]
         Nothing -> return (Just [])
 midi_input _ = return Nothing

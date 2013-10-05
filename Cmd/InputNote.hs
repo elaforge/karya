@@ -37,6 +37,7 @@ import qualified Data.Map as Map
 import Util.Control
 import qualified Util.Map as Map
 import qualified Util.Num as Num
+import qualified Util.Pretty as Pretty
 
 import qualified Midi.Midi as Midi
 import qualified Derive.Controls as Controls
@@ -46,6 +47,8 @@ import qualified Derive.Score as Score
 import qualified Perform.Midi.Control as Control
 import qualified Perform.Pitch as Pitch
 import qualified Perform.Signal as Signal
+
+import qualified App.Config as Config
 
 
 type Input = GenericInput Pitch.Input
@@ -68,6 +71,12 @@ data GenericInput pitch =
     | PitchChange NoteId pitch
     deriving (Eq, Show)
 
+instance (Show pitch, Pretty.Pretty pitch) =>
+        Pretty.Pretty (GenericInput pitch) where
+    pretty (NoteOn id pitch vel) =
+        unwords ["NoteOn", show id, Pretty.pretty pitch, Pretty.pretty vel]
+    pretty input = show input
+
 input_id :: GenericInput x -> NoteId
 input_id input = case input of
     NoteOn note_id _ _ -> note_id
@@ -81,6 +90,10 @@ input_id input = case input of
 -- could store the original key separately, but it's convenient to put them
 -- both into NoteId, and I can't think of any instances where I'd want them
 -- to be different.
+--
+-- In addition, when a MIDI NoteOff comes in I have to know what NoteId it
+-- applies to.  Since MIDI's NoteId is the key number, I have no choice but to
+-- use that.
 newtype NoteId = NoteId Int deriving (Eq, Ord, Show)
 key_to_id :: Midi.Key -> NoteId
 key_to_id = NoteId . Midi.from_key
@@ -91,24 +104,46 @@ id_to_key (NoteId key) = Midi.to_key key
 
 type Addr = (Midi.ReadDevice, Midi.Channel)
 
+-- | Keep track of the state of each 'Midi.ReadDevice'.
+newtype ReadDeviceState = ReadDeviceState (Map.Map Midi.ReadDevice ControlState)
+    deriving (Eq, Show)
+
+empty_rdev_state :: ReadDeviceState
+empty_rdev_state = ReadDeviceState mempty
+
+next_state :: Midi.ReadDevice -> ControlState -> ReadDeviceState
+    -> ReadDeviceState
+next_state rdev cstate (ReadDeviceState state) =
+    ReadDeviceState $ Map.insert rdev cstate state
+
+-- | The state of one 'Midi.ReadDevice'.
 data ControlState = ControlState
     { state_note_id :: Map.Map Addr NoteId -- ^ last note_id
     , state_pb :: Map.Map Addr Midi.PitchBendValue -- ^ last pb
     , state_pb_range :: Control.PbRange
     } deriving (Eq, Show)
 
-empty_state :: Control.PbRange -> ControlState
-empty_state = ControlState Map.empty Map.empty
+empty_control_state :: Control.PbRange -> ControlState
+empty_control_state pb_range = ControlState
+    { state_note_id = Map.empty
+    , state_pb = Map.empty
+    , state_pb_range = pb_range
+    }
 
-from_midi :: ControlState -> Midi.ReadDevice -> Midi.Message
-    -> Maybe (Input, ControlState)
-from_midi state rdev (Midi.ChannelMessage chan chan_msg) = case maybe_input of
+from_midi :: ReadDeviceState -> Midi.ReadDevice -> Midi.Message
+    -> Maybe (Input, ReadDeviceState)
+from_midi (ReadDeviceState state) rdev (Midi.ChannelMessage chan chan_msg) =
+    case maybe_input of
         Nothing -> Nothing
-        Just input -> Just (input, update_state addr chan_msg state)
+        Just input -> Just (input, next_state)
     where
+    next_state = ReadDeviceState $
+        Map.insert rdev (update_control_state addr chan_msg cstate) state
+    cstate = Map.findWithDefault
+        (empty_control_state Config.read_device_pb_range) rdev state
     addr = (rdev, chan)
-    last_pb = Map.get 0 addr (state_pb state)
-    with_last_id f = fmap f (Map.lookup addr (state_note_id state))
+    last_pb = Map.get 0 addr (state_pb cstate)
+    with_last_id f = fmap f (Map.lookup addr (state_note_id cstate))
     maybe_input = case chan_msg of
         Midi.NoteOn key vel -> Just $
             NoteOn (key_to_id key) (to_pitch last_pb key) (to_val vel)
@@ -123,12 +158,13 @@ from_midi state rdev (Midi.ChannelMessage chan chan_msg) = case maybe_input of
         Midi.ChannelPressure val -> with_last_id $ \last_id ->
             Control last_id Controls.pressure (to_val val)
         _ -> Nothing
-    to_pitch = pb_to_input (state_pb_range state)
+    to_pitch = pb_to_input (state_pb_range cstate)
     to_val v = fromIntegral v / 127
 from_midi _ _ _ = Nothing
 
-update_state :: Addr -> Midi.ChannelMessage -> ControlState -> ControlState
-update_state addr chan_msg state = state
+update_control_state :: Addr -> Midi.ChannelMessage -> ControlState
+    -> ControlState
+update_control_state addr chan_msg state = state
     { state_note_id = case id_of chan_msg of
         Nothing -> state_note_id state
         Just note_id -> Map.insert addr note_id (state_note_id state)

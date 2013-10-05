@@ -103,7 +103,6 @@ import qualified Derive.Stack as Stack
 import qualified Derive.TrackLang as TrackLang
 import qualified Derive.TrackWarp as TrackWarp
 
-import qualified Perform.Midi.Control as Control
 import qualified Perform.Midi.Instrument as Instrument
 import qualified Perform.Midi.Perform as Midi.Perform
 import qualified Perform.Pitch as Pitch
@@ -329,7 +328,7 @@ data State = State {
 
     -- | MIDI state of ReadDevices, including configuration like pitch bend
     -- range.
-    , state_rdev_state :: !ReadDeviceState
+    , state_rdev_state :: !InputNote.ReadDeviceState
     , state_edit :: !EditState
     -- | The status return for this Cmd.  This is used only by the REPL, since
     -- non-REPL cmds simply return Status as their return value.  REPL cmds
@@ -368,7 +367,7 @@ initial_state config = State
     , state_hooks = mempty
 
     , state_wdev_state = empty_wdev_state
-    , state_rdev_state = Map.empty
+    , state_rdev_state = InputNote.empty_rdev_state
     , state_edit = initial_edit_state
     , state_repl_status = Continue
     }
@@ -642,8 +641,9 @@ data WriteDeviceState = WriteDeviceState {
     , wdev_note_key :: !(Map.Map InputNote.NoteId Midi.Key)
     -- | Map an addr to a number that increases when it's assigned a note.
     -- This is used along with 'wdev_serial' to implement addr round-robin.
-    , wdev_addr_serial :: !(Map.Map Instrument.Addr Integer)
-    , wdev_serial :: !Integer
+    , wdev_addr_serial :: !(Map.Map Instrument.Addr Serial)
+    -- | This is incremented every time
+    , wdev_serial :: !Serial
     -- | Last NoteId seen.  This is needed to emit controls (rather than just
     -- mapping them from MIDI input) because otherwise there's no way to know
     -- to which note they should be assigned.
@@ -661,6 +661,8 @@ data WriteDeviceState = WriteDeviceState {
     , wdev_addr_inst :: !(Map.Map Instrument.Addr Instrument.Instrument)
     } deriving (Eq, Show, Generics.Typeable)
 
+type Serial = Int
+
 empty_wdev_state :: WriteDeviceState
 empty_wdev_state = WriteDeviceState
     { wdev_pb = Map.empty
@@ -672,8 +674,6 @@ empty_wdev_state = WriteDeviceState
     , wdev_pitch_track = Map.empty
     , wdev_addr_inst = Map.empty
     }
-
-type ReadDeviceState = Map.Map Midi.ReadDevice InputNote.ControlState
 
 -- *** performance
 
@@ -1003,23 +1003,6 @@ get_scale caller scale_id = do
     lookup_scale <- get_lookup_scale
     maybe (throw $ caller <> ": get_scale: unknown " <> Pretty.pretty scale_id)
         return (lookup_scale scale_id)
-
-get_rdev_state :: (M m) => Midi.ReadDevice -> m InputNote.ControlState
-get_rdev_state rdev = do
-    cmap <- gets state_rdev_state
-    return $ fromMaybe (InputNote.empty_state Config.control_pb_range)
-        (Map.lookup rdev cmap)
-
-set_rdev_state :: (M m) => Midi.ReadDevice -> InputNote.ControlState -> m ()
-set_rdev_state rdev state = do
-    st <- get
-    put $ st { state_rdev_state =
-        Map.insert rdev state (state_rdev_state st) }
-
-set_pitch_bend_range :: (M m) => Control.PbRange -> Midi.ReadDevice -> m ()
-set_pitch_bend_range range rdev = do
-    state <- get_rdev_state rdev
-    set_rdev_state rdev (state { InputNote.state_pb_range = range })
 
 get_wdev_state :: (M m) => m WriteDeviceState
 get_wdev_state = gets state_wdev_state

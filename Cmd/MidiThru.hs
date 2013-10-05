@@ -74,6 +74,13 @@ cmd_midi_thru msg = do
         Msg.InputNote input -> return input
         _ -> Cmd.abort
     score_inst <- Cmd.require =<< EditUtil.lookup_instrument
+    midi_thru_instrument score_inst input
+    return Cmd.Continue
+
+midi_thru_instrument :: (Cmd.M m) => Score.Instrument -> InputNote.Input -> m ()
+midi_thru_instrument score_inst input = do
+    addrs <- Instrument.get_addrs score_inst <$> State.get_midi_config
+    if null addrs then return () else do
     scale_id <- EditUtil.get_scale_id
     patch <- Cmd.get_midi_patch score_inst
 
@@ -82,17 +89,13 @@ cmd_midi_thru msg = do
         (Pretty.pretty scale_id ++ " doesn't have " ++ show input)
         =<< map_scale (Instrument.patch_scale patch) scale input
 
-    addrs <- Instrument.get_addrs score_inst <$> State.get_midi_config
     wdev_state <- Cmd.get_wdev_state
     let (thru_msgs, maybe_wdev_state) =
             input_to_midi pb_range wdev_state addrs input
         pb_range = Instrument.inst_pitch_bend_range
             (Instrument.patch_instrument patch)
-    case maybe_wdev_state of
-        Just wdev_state -> Cmd.modify_wdev_state (const wdev_state)
-        Nothing -> return ()
+    whenJust maybe_wdev_state $ Cmd.modify_wdev_state . const
     mapM_ (uncurry Cmd.midi) thru_msgs
-    return Cmd.Continue
 
 -- | Realize the Input as a pitch in the given scale.
 map_scale :: (Cmd.M m) => Instrument.PatchScale -> Scale.Scale
@@ -143,7 +146,7 @@ input_to_midi pb_range wdev_state addrs input = case alloc addrs input of
     alloc = alloc_addr (Cmd.wdev_note_addr wdev_state)
         (Cmd.wdev_addr_serial wdev_state) (Cmd.wdev_serial wdev_state)
 
-merge_state :: Maybe (Map.Map NoteId Addr, Map.Map Addr Integer)
+merge_state :: Maybe (Map.Map NoteId Addr, Map.Map Addr Cmd.Serial)
     -> Addr -> Midi.PitchBendValue -> Cmd.WriteDeviceState
     -> Cmd.WriteDeviceState
 merge_state new_state addr pb old = case new_state of
@@ -160,13 +163,14 @@ merge_state new_state addr pb old = case new_state of
 -- if it's not NoteOn or NoteOff, abort.  If it is, pick a free addr, and if
 -- there is no free one, pick the oldest one.  Update the wdev state and assign
 -- the note id to the addr.
-alloc_addr :: Map.Map NoteId Addr -> Map.Map Addr Integer -> Integer
+alloc_addr :: Map.Map NoteId Addr -> Map.Map Addr Cmd.Serial -> Cmd.Serial
     -> [Addr] -> InputNote.InputNn
-    -> (Maybe Addr, Maybe (Map.Map NoteId Addr, Map.Map Addr Integer))
+    -> (Maybe Addr, Maybe (Map.Map NoteId Addr, Map.Map Addr Cmd.Serial))
 alloc_addr note_addr addr_serial serial addrs input
-    | Just addr <- Map.lookup note_id note_addr = case input of
-        InputNote.NoteOff _ _ -> (Just addr, unassign addr)
-        _ -> (Just addr, Nothing)
+    | Just addr <- Map.lookup note_id note_addr, addr `elem` addrs =
+        case input of
+            InputNote.NoteOff _ _ -> (Just addr, unassign addr)
+            _ -> (Just addr, Nothing)
     | not (new_note input) = (Nothing, Nothing)
     | addr : _ <- free = (Just addr, assign addr)
     | Just addr <- old_addr = (Just addr, assign addr)

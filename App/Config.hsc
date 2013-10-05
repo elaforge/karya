@@ -261,9 +261,9 @@ default_keep_history = 20
 default_scale_id :: Text
 default_scale_id = "twelve"
 
--- | Default range for instruments that don't say otherwise.
-control_pb_range :: Control.PbRange
-control_pb_range = (-2, 2)
+-- | Default range for input devices (e.g. MIDI keyboards).
+read_device_pb_range :: Control.PbRange
+read_device_pb_range = (-2, 2)
 
 -- | Default size of new views.
 view_size :: (Int, Int)

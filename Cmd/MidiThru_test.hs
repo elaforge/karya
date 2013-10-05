@@ -18,8 +18,9 @@ import qualified Perform.Midi.Instrument as Instrument
 test_input_to_midi = do
     let wdev = Midi.write_device "wdev"
         addrs = [(wdev, 0), (wdev, 1), (wdev, 2)]
-    let f = map (extract_msg . snd) . fst
-            . thread_inputs addrs Cmd.empty_wdev_state
+    let f = extract . thread . map ((,) addrs)
+        extract = map (extract_msg . snd) . fst
+        thread = thread_inputs Cmd.empty_wdev_state
     let pitch = CmdTest.pitch_change_nn
         note_on = CmdTest.note_on_nn
 
@@ -35,7 +36,7 @@ test_input_to_midi = do
         ]
 
     -- null addrs discards msgs
-    equal (thread_inputs [] Cmd.empty_wdev_state [note_on 1])
+    equal (thread [([], note_on 1)])
         ([], Cmd.empty_wdev_state)
 
     -- round-robin works
@@ -56,16 +57,23 @@ test_input_to_midi = do
         , (0, Midi.ControlChange 1 127), (1, Midi.ControlChange 2 63)
         ]
 
+    -- Not misled by the same note on a different addr.
+    equal (extract $ thread
+            [ ([(wdev, 2)], note_on 64)
+            , ([(wdev, 3)], note_on 64)
+            ])
+        [(2, Midi.NoteOn 64 127), (3, Midi.NoteOn 64 127)]
+
 
 extract_msg :: Midi.Message -> (Midi.Channel, Midi.ChannelMessage)
 extract_msg (Midi.ChannelMessage chan msg) = (chan, msg)
 extract_msg msg = error $ "bad msg: " ++ show msg
 
-thread_inputs :: [Instrument.Addr] -> Cmd.WriteDeviceState -> [InputNote.Input]
+thread_inputs :: Cmd.WriteDeviceState -> [([Instrument.Addr], InputNote.Input)]
     -> ([(Midi.WriteDevice, Midi.Message)], Cmd.WriteDeviceState)
-thread_inputs addrs initial_state inputs = foldl go ([], initial_state) inputs
+thread_inputs initial_state = foldl go ([], initial_state)
     where
-    go (prev_msgs, state) input = case next_state of
+    go (prev_msgs, state) (addrs, input) = case next_state of
             Nothing -> (next_msgs, state)
             Just next_state -> (next_msgs, next_state)
         where

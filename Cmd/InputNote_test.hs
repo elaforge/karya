@@ -15,7 +15,8 @@ import qualified Perform.Pitch as Pitch
 
 
 test_from_midi = do
-    let state = InputNote.empty_state (-1, 2)
+    let state = InputNote.ReadDeviceState $ Map.fromList
+            [(rdev, InputNote.empty_control_state (-1, 2))]
         rdev = Midi.read_device "rdev"
         chan = Midi.ChannelMessage 0
         nid = InputNote.NoteId
