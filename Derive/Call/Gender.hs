@@ -31,7 +31,8 @@ note_calls = Derive.call_maps
     [ ("realize-damp", c_realize_damp) ]
 
 c_tick :: Maybe Pitch.Transpose -> Derive.Generator Derive.Note
-c_tick transpose = Derive.make_call "tick" (Tags.idiom <> Tags.prev)
+c_tick transpose = Derive.make_call "tick"
+    (Tags.idiom <> Tags.bali <> Tags.prev)
     ("Insert an intermediate grace note in the \"ngoret\" rambat style.\
     \ The grace note moves up for `'^`, down for `'v`, or is based\
     \ on the previous note's pitch for `'`."

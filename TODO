@@ -5,8 +5,20 @@ LEGEND
 UNSORTED
   kotekan ornaments
     - automatic norot, noltol depending on speed
-    - given a single melody, split every other note between polos and sangsih,
-      optionally with noltol in between.
+    * given a single melody, split every other note between polos and sangsih
+    - optional noltol for nyogcag
+    - I need a combined instrument that emits polos and sangsih by default,
+      but only emits one if part=polos or part=sangsih.
+    - Make midi thru work for pasang instruments
+      - Make instrument cmds get Input
+      . Thru is unprepared for the same note twice because it takes NoteId from
+        the MIDI key.  I need NoteId to be independent, perhaps a serial number,
+        but aren't there things that rely on being able to map back to key?
+      . Not going to work for MIDI because when I get a Midi.NoteOff I have
+        no way of knowinng which one it was for.  But I really want it to
+        work for synthesized
+      . The thing is, I call midi_thru_instrument twice for the same input.
+        Can't do that, I need different NoteIds.
   - keys to turn play speed up and down
   - The problem with Derive.inst_environ to set scale is that you can't really
     override it.  So if >wayang wants *wayang, then you can't easily say you
@@ -16,6 +28,9 @@ UNSORTED
     . Perhaps environ should go in inst config?
     . Or just have wayang set tuning, and get the scale from the environment.
       I don't need more invisible ways to modify the environment.
+    . What about >wayang, which introduces inst-sangsih and inst-polos?
+      It can't do that anyway, because it can't know what the correct insts
+      are, given that they are probably aliases.
   * merge KeyswitchMap and Keymap into AttributeMap
     Ensure that keyswitches cause channel splits, but keymaps don't.
     ? How does that happen?

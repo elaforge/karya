@@ -2,11 +2,18 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
--- | Post-processing utils.  These are transformers that directly modify the
--- output of a deriver, as opposed to simply modifying the 'Derive.Dynamic'.
+{- | Post-processing utils.  These are transformers that directly modify the
+    output of a deriver, as opposed to simply modifying the 'Derive.Dynamic'.
+
+    Unfortunately things are complicated by the presence of 'LEvent.Log's in
+    the output stream.  I haven't been able to figure out how to cleanly
+    abstract that away, so I wind up with a collection of functions to handle
+    specific kinds of maps.
+-}
 module Derive.Call.Post where
 import qualified Data.FixedList as FixedList
 import Data.FixedList (Nil(..))
+import qualified Data.List as List
 import qualified Data.Monoid as Monoid
 import qualified Data.Traversable as Traversable
 
@@ -24,26 +31,21 @@ import qualified Perform.Signal as Signal
 import Types
 
 
--- Functions here force a Deriver into its LEvent.LEvents and process them
--- directly, and then repackage them as a Deriver.  This can accomplish
--- concrete post-processing type effects but has the side-effect of collapsing
--- the Deriver, which will no longer respond to the environment.
-
--- Generators can mostly forget about LEvents and emit plain Events since
--- 'Derive.generator' applies the fmap.  Unfortunately the story is not so
--- simple for transformers.  Hopefully functions here can mostly hide LEvents
--- from transformers.
-
+-- | Map over events with no state, but with access to previous and following
+-- events.
 map_around :: ([Score.Event] -> Score.Event -> [Score.Event] -> Score.Event)
     -> Derive.Events -> Derive.Events
-map_around f events = go [] events
+map_around f events = snd $ map_state go ([], LEvent.events_of events) events
+    where go (prev, next) event = ((event:prev, drop 1 next), f prev event next)
+
+-- | This is basically 'List.mapAccumL' over 'Derive.Events', for a transformer
+-- that doesn't need to be in 'Derive.Deriver.'.
+map_state :: (state -> Score.Event -> (state, Score.Event)) -> state
+    -> Derive.Events -> (state, Derive.Events)
+map_state f state = List.mapAccumL go state
     where
-    go prev (event : events) = case event of
-        LEvent.Log log -> LEvent.Log log : go prev events
-        LEvent.Event event ->
-            let out = f prev event (LEvent.events_of events)
-            in LEvent.Event out : go (out : prev) events
-    go _ [] = []
+    go state e@(LEvent.Log _) = (state, e)
+    go state (LEvent.Event event) = LEvent.Event <$> f state event
 
 -- | Apply a function on the first Event of an LEvent stream.
 map_first :: (a -> Derive.Deriver a) -> LEvent.LEvents a -> Derive.LogsDeriver a

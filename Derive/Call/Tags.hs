@@ -85,6 +85,14 @@ ly = tag "ly"
 ly_only :: Tags
 ly_only = ly <> tag "ly-only"
 
+-- * idioms
+
+bali :: Tags
+bali = tag "bali"
+
+india :: Tags
+india = tag "india"
+
 
 -- * automatically applied
 
