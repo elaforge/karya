@@ -216,13 +216,16 @@ instance Pretty.Pretty Scale where
 
 type ControlValMap = Map.Map Control Signal.Y
 
-instance Show Pitch where show = Pretty.pretty
-
 -- | It can't be reduced since it has lambdas, but at least this way you can
 -- easily rnf things that contain it.
 instance DeepSeq.NFData Pitch where
     rnf _ = ()
 
+instance Show Pitch where
+    -- Show just the NN, so this is parseable by Util.PPrint.
+    show p = either show Pretty.pretty (pitch_eval_nn p Map.empty)
+
+-- | Will look like: 62.95nn,4i(*wayang)
 instance Pretty.Pretty Pitch where
     pretty p = either show Pretty.pretty (pitch_eval_nn p Map.empty) <> ","
         <> either show (untxt . Pitch.note_text) (pitch_eval_note p Map.empty)
