@@ -12,6 +12,7 @@ import qualified Data.Text as Text
 
 import Util.Control
 import qualified Util.Seq as Seq
+
 import qualified Midi.CC as CC
 import qualified Midi.Key as Key
 import qualified Midi.Key2 as Key2
@@ -21,10 +22,16 @@ import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Instrument.CUtil as CUtil
 import qualified Cmd.Instrument.Drums as Drums
 import qualified Cmd.Keymap as Keymap
+import qualified Cmd.MidiThru as MidiThru
+import qualified Cmd.Msg as Msg
+import qualified Cmd.Perf as Perf
+import qualified Cmd.Selection as Selection
 
 import qualified Derive.Attrs as Attrs
 import Derive.Attrs
+import qualified Derive.Call as Call
 import qualified Derive.Call.Articulation as Articulation
+import qualified Derive.Call.Bali.Kotekan as Kotekan
 import qualified Derive.Call.Make as Make
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Call.Util as Util
@@ -179,8 +186,7 @@ hang_ks = [(attrs, key) | (attrs, key, _, _) <- hang_strokes]
 
 -- * gender wayang
 
-{- |
-    Layout:
+{- | Layout:
 
     > 0         10        20        30        40        50        60        70        80        90        100       110       120    127
     > 01234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567
@@ -202,7 +208,8 @@ wayang_patches =
         set_tuning "umbang" <> wayang_code)
     , (scale Wayang.isep $ wayang "wayang-isep",
         set_tuning "isep" <> wayang_code)
-    , (Instrument.text #= "Tuned to 12TET." $ wayang "wayang", wayang_code)
+    , (wayang "wayang", pasang_code)
+    , (Instrument.text #= "Tuned to 12TET." $ wayang "wayang12", wayang_code)
     ]
     where
     wayang = (Instrument.attribute_map #= wayang_keymap) . patch
@@ -217,6 +224,19 @@ wayang_code :: MidiInst.Code
 wayang_code = MidiInst.note_calls $ MidiInst.null_call $
     DUtil.zero_duration "Add `+mute+loose` attribute and scale dyn by 0.75." $
         Util.add_attrs (Attrs.mute <> Attrs.loose) . Util.multiply_dynamic 0.75
+
+-- | Emit events for both polos and sangsih.
+pasang_code :: MidiInst.Code
+pasang_code = MidiInst.note_calls (MidiInst.null_call pasang_call)
+
+pasang_call :: Derive.Generator Derive.Note
+pasang_call = Derive.make_call "note" mempty doc $
+    Sig.parsed_manually "dispatched" $ \args -> do
+        (polos, sangsih) <- Kotekan.get_pasang
+        Derive.with_instrument polos (Call.reapply_gen args "")
+            <> Derive.with_instrument sangsih (Call.reapply_gen args "")
+    where doc = "Dispatch to `inst-polos` and `inst-sangsih`, which should\
+        \ should have already set."
 
 wayang_scale :: [Pitch.NoteNumber] -> Instrument.PatchScale
 wayang_scale scale = Instrument.make_patch_scale $ zip wayang_keys scale

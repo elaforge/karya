@@ -31,6 +31,13 @@ test_wayang = do
     equal (run [(1, 1, "+mute -- 4i")]) ([Key2.b_2, Key2.e0], [])
     equal (run [(2, 1, "+mute+loose -- 4i")]) ([Key2.a_2, Key2.e0], [])
 
+test_wayang_pasang = do
+    let run notes = DeriveTest.extract extract $
+            derive $ UiTest.note_spec (title, notes, [])
+        extract = Score.inst_name . Score.event_instrument
+        title = "kkt/wayang | inst-polos = >p | inst-sangsih = >s"
+    equal (run [(0, 1, "")]) (["p", "s"], [])
+
 test_kendang = do
     let e_attrs = DeriveTest.extract $ \e ->
             (Score.event_start e, DeriveTest.e_inst e, Score.event_attributes e)

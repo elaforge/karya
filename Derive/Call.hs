@@ -141,7 +141,15 @@ eval_event event = case ParseBs.parse_expr (Event.event_bytestring event) of
         -- TODO eval it separately to catch any exception?
         eval_one_at (Event.start event) (Event.duration event) expr
 
--- | Apply an expr with the current call info.
+-- | Evaluate a generator with the args given.  Generators can use this to
+-- delegate to other generators.
+reapply_gen :: (Derive.Callable d) => PassedArgs d -> TrackLang.CallId
+    -> Derive.LogsDeriver d
+reapply_gen args call_id = reapply_generator (Derive.passed_info args)
+    call_id (Derive.passed_vals args)
+
+-- | Apply an expr with the current call info.  This discards the parsed
+-- arguments in the 'PassedArgs' since it gets args from the 'TrackLang.Expr'.
 reapply :: (Derive.Callable d) => PassedArgs d -> TrackLang.Expr
     -> Derive.LogsDeriver d
 reapply args = eval_expr (Derive.passed_info args)
@@ -372,18 +380,33 @@ apply_transformers cinfo (TrackLang.Call call_id args : calls) deriver = do
     Internal.with_stack_call (Derive.call_name call) $
         Derive.call_func call passed $ apply_transformers cinfo calls deriver
 
--- | Like 'apply_transformers', but apply only one, and apply to already
+-- | Like 'apply_generator', but for when the args are already parsed and
+-- evaluated.  This is useful when one generator wants to dispatch to another.
+reapply_generator :: (Derive.Callable d) => CallInfo d
+    -> TrackLang.CallId -> [TrackLang.Val] -> Derive.LogsDeriver d
+reapply_generator cinfo call_id args = do
+    call <- get_generator call_id
+    -- The duplicated code can be factored out, but I tried and found the
+    -- results less readable.
+    let passed = Derive.PassedArgs
+            { Derive.passed_vals = args
+            , Derive.passed_call_name = Derive.call_name call
+            , Derive.passed_info = cinfo
+            }
+    Internal.with_stack_call (Derive.call_name call) $
+        Derive.call_func call passed
+
+-- | The transformer version of 'reapply_generator'.  Like
+-- 'apply_transformers', but apply only one, and apply to already
 -- evaluated 'TrackLang.Val's.  This is useful when you want to re-apply an
 -- already parsed set of vals.
---
--- TODO yuck, can I do it with less copy-paste?
 reapply_transformer :: (Derive.Callable d) => CallInfo d
     -> TrackLang.CallId -> [TrackLang.Val] -> Derive.LogsDeriver d
     -> Derive.LogsDeriver d
-reapply_transformer cinfo call_id vals deriver = do
+reapply_transformer cinfo call_id args deriver = do
     call <- get_transformer call_id
     let passed = Derive.PassedArgs
-            { Derive.passed_vals = vals
+            { Derive.passed_vals = args
             , Derive.passed_call_name = Derive.call_name call
             , Derive.passed_info = cinfo
             }
