@@ -39,19 +39,18 @@ get_track_cmds = do
     maybe_track_id <- State.event_track_at block_id tracknum
     track <- Cmd.require =<< Info.lookup_track_type block_id tracknum
 
-    maybe_inst <- maybe (return Nothing) (lookup_instrument block_id)
+    maybe_info <- maybe (return Nothing) (lookup_midi_info block_id)
         maybe_track_id
     track_title <- maybe (return Nothing) (fmap Just . State.get_track_title)
         maybe_track_id
-    let icmds = case (track_title, maybe_inst) of
+    let icmds = case (track_title, maybe_info) of
             (Just title, Just inst) | TrackInfo.is_note_track title ->
                 Cmd.inst_cmds $ MidiDb.info_code inst
             _ -> []
     edit_state <- Cmd.gets Cmd.state_edit
     let edit_mode = Cmd.state_edit_mode edit_state
-    let note_cmd = NoteEntry.cmds_with_note
-            (Cmd.state_kbd_entry edit_state) (MidiDb.info_patch <$> maybe_inst)
-            (note_cmds edit_mode track)
+    let with_input = NoteEntry.cmds_with_input
+            (Cmd.state_kbd_entry edit_state) (MidiDb.info_patch <$> maybe_info)
         tcmds = track_cmds edit_mode track
     let edit_input_cmd = Edit.edit_input $ case Info.track_type track of
             Info.Note {} -> False
@@ -67,23 +66,24 @@ get_track_cmds = do
     --
     -- - Keymap cmds are "background" and only apply if no more special mode is
     -- active, so they go last.
-    return $ icmds ++ edit_input_cmd : note_cmd : tcmds ++ kcmds
+    --
+    -- Instrument cmds aren't under 'NoteEntry.cmds_with_input' so they don't
+    -- get 'Pitch.Input's.  This is because if they are creating their own
+    -- kbd entry then they will want the underlying keystrokes, as drum
+    -- mappings do.  If they want 'Pitch.Input's, they can call
+    -- 'NoteEntry.cmds_with_input'.
+    return $ icmds ++ edit_input_cmd : with_input (input_cmds edit_mode track)
+        : tcmds ++ kcmds
 
-instrument_cmds :: (Cmd.M m) => TrackId -> Cmd.MidiInfo -> m (Maybe [Cmd.Cmd])
-instrument_cmds track_id inst =
-    ifM (not . TrackInfo.is_note_track <$> State.get_track_title track_id)
-        (return Nothing)
-        (return $ Just $ Cmd.inst_cmds $ MidiDb.info_code inst)
-
-lookup_instrument :: (Cmd.M m) => BlockId -> TrackId -> m (Maybe Cmd.MidiInfo)
-lookup_instrument block_id track_id =
+lookup_midi_info :: (Cmd.M m) => BlockId -> TrackId -> m (Maybe Cmd.MidiInfo)
+lookup_midi_info block_id track_id =
     justm (Perf.lookup_instrument block_id (Just track_id)) $ \inst ->
     Cmd.lookup_instrument inst
 
 -- | Cmds that use InputNotes, and hence must be called with
--- 'NoteEntry.cmds_with_note'.
-note_cmds :: Cmd.EditMode -> Info.Track -> [Cmd.Cmd]
-note_cmds edit_mode track = universal ++ case Info.track_type track of
+-- 'NoteEntry.cmds_with_input'.
+input_cmds :: Cmd.EditMode -> Info.Track -> [Cmd.Cmd]
+input_cmds edit_mode track = universal ++ case Info.track_type track of
     Info.Note {} -> case edit_mode of
         Cmd.RawEdit -> [NoteTrack.cmd_raw_edit]
         Cmd.ValEdit -> [NoteTrack.cmd_val_edit]

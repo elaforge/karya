@@ -27,6 +27,7 @@ import qualified Derive.Controls as Controls
 import qualified Derive.Scale.Theory as Theory
 import qualified Perform.Midi.Instrument as Instrument
 import qualified Perform.Pitch as Pitch
+import qualified Instrument.MidiDb as MidiDb
 
 
 -- * with_note
@@ -49,25 +50,10 @@ import qualified Perform.Pitch as Pitch
 -- would either require a privileged position for the transformer, or an
 -- additional Cmd feature to re-emits a new Msg.  In addition, it would
 -- preclude the ability to shadow it and catch MIDI msgs for other purposes.
---
--- TODO it might be nicer to do the scale mapping here.  It would mean one
--- extra mapping here and one less mapping in MidiThru.  The scale lookup would
--- become a little messier since I'd need to lookup input to mapped input and
--- then mapped input to note.  PitchTrack would still need the scale.  I could
--- reduce the scope of InputKey or eliminate it entirely for the more universal
--- NoteNumber.  It seems like a wash at the moment.
-cmds_with_note :: Bool -> Maybe Instrument.Patch -> [Cmd.Cmd] -> Cmd.Cmd
-cmds_with_note kbd_entry maybe_patch cmds msg = do
-    has_mods <- are_modifiers_down
-    new_msgs <- if kbd_entry && not has_mods
-        then do
-            octave <- Cmd.gets (Cmd.state_kbd_entry_octave . Cmd.state_edit)
-            let is_pressure = maybe False
-                    (Instrument.has_flag Instrument.Pressure) maybe_patch
-            return $ kbd_input is_pressure octave msg
-        else return Nothing
-    new_msgs <- maybe (midi_input msg) (return . Just) new_msgs
-    case new_msgs of
+cmds_with_input :: (Cmd.M m) => Bool -> Maybe Instrument.Patch
+    -> [Msg.Msg -> m Cmd.Status] -> (Msg.Msg -> m Cmd.Status)
+cmds_with_input kbd_entry maybe_patch cmds msg =
+    msg_to_inputs kbd_entry maybe_patch msg >>= \x -> case x of
         Nothing -> Cmd.sequence_cmds cmds msg
         Just msgs -> foldr Cmd.merge_status Cmd.Done <$> mapM send msgs
     where
@@ -78,6 +64,34 @@ cmds_with_note kbd_entry maybe_patch cmds msg = do
                     { Cmd.wdev_last_note_id = Just note_id }
             _ -> return ()
         Cmd.sequence_cmds cmds msg
+
+-- | Like 'cmds_with_input', but figure out kbd_entry and patch on my own.
+run_cmds_with_input :: (Cmd.M m) => [Msg.Msg -> m Cmd.Status]
+    -> (Msg.Msg -> m Cmd.Status)
+run_cmds_with_input cmds msg = do
+    kbd_entry <- Cmd.gets $ Cmd.state_kbd_entry . Cmd.state_edit
+    maybe_patch <-
+        justm EditUtil.lookup_instrument $ \inst ->
+        justm (Cmd.lookup_instrument inst) $ \info ->
+            return $ Just (MidiDb.info_patch info)
+    cmds_with_input kbd_entry maybe_patch cmds msg
+
+-- | Convert a Msg to 'Msg.InputNote's, if applicable.  Returns Nothing if
+-- the Msg is not convertible to InputNotes (and therefore other cmds should
+-- get it), and Just [] if it is but didn't emit any InputNotes (and therefore
+-- this other cmds shouldn't get it).
+msg_to_inputs :: (Cmd.M m) => Bool -> Maybe Instrument.Patch -> Msg.Msg
+    -> m (Maybe [Msg.Msg])
+msg_to_inputs kbd_entry maybe_patch msg = do
+    has_mods <- are_modifiers_down
+    new_msgs <- if kbd_entry && not has_mods
+        then do
+            octave <- Cmd.gets (Cmd.state_kbd_entry_octave . Cmd.state_edit)
+            let is_pressure = maybe False
+                    (Instrument.has_flag Instrument.Pressure) maybe_patch
+            return $ kbd_input is_pressure octave msg
+        else return Nothing
+    maybe (midi_input msg) (return . Just) new_msgs
 
 are_modifiers_down :: (Cmd.M m) => m Bool
 are_modifiers_down = fmap (not . Set.null) Keymap.mods_down

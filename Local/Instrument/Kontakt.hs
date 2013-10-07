@@ -12,18 +12,19 @@ import qualified Data.Text as Text
 
 import Util.Control
 import qualified Util.Seq as Seq
-
 import qualified Midi.CC as CC
 import qualified Midi.Key as Key
 import qualified Midi.Key2 as Key2
 import qualified Midi.Midi as Midi
 
 import qualified Cmd.Cmd as Cmd
+import qualified Cmd.InputNote as InputNote
 import qualified Cmd.Instrument.CUtil as CUtil
 import qualified Cmd.Instrument.Drums as Drums
 import qualified Cmd.Keymap as Keymap
 import qualified Cmd.MidiThru as MidiThru
 import qualified Cmd.Msg as Msg
+import qualified Cmd.NoteEntry as NoteEntry
 import qualified Cmd.Perf as Perf
 import qualified Cmd.Selection as Selection
 
@@ -227,7 +228,7 @@ wayang_code = MidiInst.note_calls $ MidiInst.null_call $
 
 -- | Emit events for both polos and sangsih.
 pasang_code :: MidiInst.Code
-pasang_code = MidiInst.note_calls (MidiInst.null_call pasang_call)
+pasang_code = MidiInst.cmd pasang_thru
 
 pasang_call :: Derive.Generator Derive.Note
 pasang_call = Derive.make_call "note" mempty doc $
@@ -237,6 +238,36 @@ pasang_call = Derive.make_call "note" mempty doc $
             <> Derive.with_instrument sangsih (Call.reapply_gen args "")
     where doc = "Dispatch to `inst-polos` and `inst-sangsih`, which should\
         \ should have already set."
+
+-- | Dispatch MIDI through to both polos and sangsih instruments.
+pasang_thru :: Cmd.Cmd
+pasang_thru = NoteEntry.run_cmds_with_input [cmd]
+    where
+    cmd msg = do
+        input <- case msg of
+            Msg.InputNote input -> return input
+            _ -> Cmd.abort
+        (block_id, _, track_id, _) <- Selection.get_insert
+        polos <- Perf.lookup_val block_id (Just track_id) Kotekan.inst_polos
+        sangsih <- Perf.lookup_val block_id (Just track_id) Kotekan.inst_sangsih
+        -- TODO This is still not quite right.  The problem is that
+        -- midi_thru_instrument will look up the scale and pitch to map it
+        -- through the 'Instrument.patch_scale'.  But since it doesn't apply
+        -- the instrument, it doesn't set the tuning variable, so one winds up
+        -- with a pitch bend to "correct" the tuning.  To fix this, I'd have to
+        -- get more elaborate to evaluate the pitch in the actual context it
+        -- winds up on the score, but for the moment it's too much bother for
+        -- too little gain.  In any case, when played back the instruments have
+        -- the correct tuning.
+        --
+        -- Why do I get the feeling like I'm making things much more complicated
+        -- than they need to be?
+        whenJust polos $ \inst ->
+            MidiThru.midi_thru_instrument inst input
+        whenJust sangsih $ \inst ->
+            MidiThru.midi_thru_instrument inst $
+                InputNote.multiply_note_id 1 input
+        return Cmd.Continue
 
 wayang_scale :: [Pitch.NoteNumber] -> Instrument.PatchScale
 wayang_scale scale = Instrument.make_patch_scale $ zip wayang_keys scale

@@ -24,7 +24,7 @@ import qualified Local.Instrument.Kontakt as Kontakt
 
 
 test_wayang = do
-    let run notes = extract $ perform "kkt/wayang-umbang" $ Derive.r_events $
+    let run notes = extract $ perform ["kkt/wayang-umbang"] $ Derive.r_events $
             derive $ UiTest.note_spec ("kkt/wayang-umbang", notes, [])
         extract (_, midi, logs) = (DeriveTest.note_on midi, logs)
     equal (run [(0, 1, "4i")]) ([Key2.e4], [])
@@ -32,11 +32,26 @@ test_wayang = do
     equal (run [(2, 1, "+mute+loose -- 4i")]) ([Key2.a_2, Key2.e0], [])
 
 test_wayang_pasang = do
-    let run notes = DeriveTest.extract extract $
-            derive $ UiTest.note_spec (title, notes, [])
+    let run notes = derive $ UiTest.note_spec (title, notes, [])
         extract = Score.inst_name . Score.event_instrument
-        title = "kkt/wayang | inst-polos = >p | inst-sangsih = >s"
-    equal (run [(0, 1, "")]) (["p", "s"], [])
+        title = "kkt/wayang | scale = wayang\
+            \ | inst-polos = >kkt/wayang-umbang\
+            \ | inst-sangsih = >kkt/wayang-isep | unison"
+    equal (DeriveTest.extract extract $ run [(0, 1, "")])
+        (["kkt/wayang-umbang", "kkt/wayang-isep"], [])
+    let result = run [(0, 1, "4i")]
+    equal (DeriveTest.extract extract result)
+        (["kkt/wayang-umbang", "kkt/wayang-isep"], [])
+
+    let (_events, midi, logs) = perform ["kkt/wayang-umbang", "kkt/wayang-isep"]
+            (Derive.r_events result)
+    equal logs []
+    -- Note no PitchBend, which means the split instruments applied
+    -- tuning=umbang and tuning=isep to their pitches.
+    equal (DeriveTest.midi_channel midi)
+        [ (1, Midi.NoteOn Key.e5 127), (0, Midi.NoteOn Key.e5 127)
+        , (1, Midi.NoteOff Key.e5 127), (0, Midi.NoteOff Key.e5 127)
+        ]
 
 test_kendang = do
     let e_attrs = DeriveTest.extract $ \e ->
@@ -78,7 +93,7 @@ test_kendang = do
             (3, "+pak", 1), (4, "+pak+soft", 0.3)], [])
 
 test_mridangam = do
-    let run pitch notes = perform "kkt/mridangam" $ Derive.r_events $ derive
+    let run pitch notes = perform ["kkt/mridangam"] $ Derive.r_events $ derive
             [ ("*", [(0, 0, pitch)])
             , (">kkt/mridangam",
                 [(t, 0, n) | (t, n) <- zip (Seq.range_ 0 1) notes])
@@ -96,6 +111,7 @@ derive :: [UiTest.TrackSpec] -> Derive.Result
 derive = DeriveTest.derive_tracks_with
     (DeriveTest.with_inst_db Kontakt.synth_descs)
 
-perform :: Text -> Derive.Events
+perform :: [Text] -> Derive.Events
     -> ([Perform.Event], [Midi.WriteMessage], [Log.Msg])
-perform inst = DeriveTest.perform_inst Kontakt.synth_descs [(inst, [0])]
+perform insts = DeriveTest.perform_inst Kontakt.synth_descs
+    [(inst, [n]) | (n, inst) <- zip [0..] insts]

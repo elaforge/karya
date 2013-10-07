@@ -52,7 +52,7 @@ test_cmds_with_note = do
         input = Msg.InputNote
         -- key passed through to cmd_dummy
         through msg = Right (Just Cmd.Done, [show msg])
-    let f kbd_entry msg = NoteEntry.cmds_with_note kbd_entry Nothing
+    let f kbd_entry msg = NoteEntry.cmds_with_input kbd_entry Nothing
             [cmd_dummy] msg
     let st = CmdTest.default_cmd_state
 

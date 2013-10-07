@@ -74,7 +74,8 @@ data GenericInput pitch =
 instance (Show pitch, Pretty.Pretty pitch) =>
         Pretty.Pretty (GenericInput pitch) where
     pretty (NoteOn id pitch vel) =
-        unwords ["NoteOn", show id, Pretty.pretty pitch, Pretty.pretty vel]
+        unwords ["NoteOn", "(" <> show id <> ")", Pretty.pretty pitch,
+            Pretty.pretty vel]
     pretty input = show input
 
 input_id :: GenericInput x -> NoteId
@@ -83,6 +84,25 @@ input_id input = case input of
     NoteOff note_id _ -> note_id
     Control note_id _ _ -> note_id
     PitchChange note_id _ -> note_id
+
+-- | Modify the NodeId so that it won't collide with other NodeIds.
+--
+-- NoteIds are supposed to be unique for each Input.  However, in practice they
+-- wind up being the MIDI NoteOn 'Midi.Key', for reasons described in 'NoteId'.
+-- So if you want to emit MIDI thru for two notes with the same pitch (e.g.
+-- dispatch a single pitch to two instruments), you need to give them different
+-- NoteIds.  This function multiplies them such that they won't collide.
+--
+-- TODO This is a grody hack.  A better solution might be to make NoteId into
+-- a (Channel, Int) pair.
+multiply_note_id :: Int -> GenericInput x -> GenericInput x
+multiply_note_id multiplier input = case input of
+    NoteOn note_id pitch vel -> NoteOn (modify note_id) pitch vel
+    NoteOff note_id vel -> NoteOff (modify note_id) vel
+    Control note_id control val -> Control (modify note_id) control val
+    PitchChange note_id pitch -> PitchChange (modify note_id) pitch
+    where
+    modify (NoteId n) = NoteId (n + 1000 * multiplier)
 
 -- | In theory, NoteId is an arbitrary ID, but in practice it's the same as
 -- the initial note on Midi.Key.  The reason is that pitch bend needs to

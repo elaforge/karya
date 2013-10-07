@@ -3,14 +3,26 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
+  - change Cmd.Cmd to 'type Cmd m = Msg.Msg -> m Status'
+  - replace all that Internal.get_dynamic Derive.state_environ with
+    a Derive.get_environ.
+  - I need to wrap the block title
   kotekan ornaments
-    - automatic norot, noltol depending on speed
+    - norot, plus noltol depending on speed
     * given a single melody, split every other note between polos and sangsih
+      Doesn't work because >wayang already split the notes
+    - Tuning is incorrect if postproc changes the instrument, because the new
+      instrument doesn't bring its tuning along with it.  I could fix that by
+      having the instrument bring its environ into scope during conversion as
+      well as derivation.
+      - input on >mridangam is broken, it wants to add pitches
+    - implement kempyung:
+      Needs to transpose +3 steps, but also know the top range of the
+      instrument.
     - optional noltol for nyogcag
     * I need a combined instrument that emits polos and sangsih by default,
       but only emits one if part=polos or part=sangsih.
-    - Make midi thru work for pasang instruments
-      - Make instrument cmds get Input
+    * Make midi thru work for pasang instruments
       . Thru is unprepared for the same note twice because it takes NoteId from
         the MIDI key.  I need NoteId to be independent, perhaps a serial number,
         but aren't there things that rely on being able to map back to key?
@@ -19,6 +31,20 @@ UNSORTED
         work for synthesized
       . The thing is, I call midi_thru_instrument twice for the same input.
         Can't do that, I need different NoteIds.
+      . I get
+        NoteOn  2 e6    NoteOn  3 e6
+        Pitch   2 32    Pitch   3 283
+        NoteOff 2 e6    NoteOff 3 d5
+      * I get 3 outputs because >wayang with [] alloc still maps NoteId 72
+      * Why pitchbend on chan 2?
+        . Because the patch scale map realizes the pitch without passing
+          the proper tuning.
+          Does Perf.derive_at set environ?  Yes, but it doesn't know tuning.
+          The instrument sets the tuning, so I need to evaluate the pitch
+          under the instrument.
+        ? Why 88nn and 88.095 nn when neither is in the scale?
+          That's after patch scale map!
+  - can I have browser display instrument environ?
   - keys to turn play speed up and down
   - The problem with Derive.inst_environ to set scale is that you can't really
     override it.  So if >wayang wants *wayang, then you can't easily say you
