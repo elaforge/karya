@@ -22,7 +22,6 @@ import qualified Derive.Args as Args
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Controls as Controls
 import qualified Derive.Derive as Derive
-import qualified Derive.Deriver.Internal as Internal
 import qualified Derive.ParseBs as ParseBs
 import qualified Derive.PitchSignal as PitchSignal
 import qualified Derive.Scale as Scale
@@ -45,16 +44,14 @@ scale_degree scale pitch_nn pitch_note = Derive.val_call
     "pitch" Tags.scale "Emit the pitch of a scale degree." $ Sig.call
     (defaulted "frac" 0
         "Add this many hundredths of a scale degree to the output.")
-    $ \frac _ -> do
-        environ <- Internal.get_dynamic Derive.state_environ
-        return $! TrackLang.VPitch $ PitchSignal.pitch scale
-            (call frac environ) (pitch_note environ)
+    $ \frac _args -> return $! TrackLang.VPitch $
+        PitchSignal.pitch scale (call frac) pitch_note
     where
-    call frac environ controls =
-        add_absolute_transposers controls <$> pitch_nn environ
-            (if frac == 0 then controls
-                else Map.insertWith' (+) Controls.chromatic (frac / 100)
-                    controls)
+    call frac config = add config <$>
+        pitch_nn (if frac == 0 then config else chromatic_config frac <> config)
+    add = add_absolute_transposers . PitchSignal.pitch_controls
+    chromatic_config frac = PitchSignal.PitchConfig mempty
+        (Map.singleton Controls.chromatic (frac / 100))
 
 add_absolute_transposers :: Score.ControlValMap -> Pitch.NoteNumber
     -> Pitch.NoteNumber
@@ -84,12 +81,11 @@ scale_degree_just scale named_intervals extra_interval pitch_nn pitch_note =
     "Emit the pitch of a scale degree." $
     Sig.call (intervals_arg named_intervals) $ \intervals _ -> do
         interval <- resolve_intervals named_intervals intervals
-        environ <- Internal.get_dynamic Derive.state_environ
         return $! TrackLang.VPitch $ PitchSignal.pitch scale
-            (call (extra_interval * interval) environ) (pitch_note environ)
+            (call (extra_interval * interval)) pitch_note
     where
-    call interval environ controls = modify interval controls <$>
-        pitch_nn environ controls
+    call interval config =
+        modify interval (PitchSignal.pitch_controls config) <$> pitch_nn config
     modify interval controls =
         add_absolute_transposers controls . Pitch.modify_hz (*interval)
 

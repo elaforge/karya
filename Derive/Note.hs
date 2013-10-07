@@ -167,7 +167,8 @@ put_track_signal block_id track_id source shift stretch events =
         fmap (convert event) $ Map.lookup control $ Score.event_pitches event
     convert event psig =
         Signal.coerce $ fst $ PitchSignal.to_nn $
-            PitchSignal.apply_controls (Score.event_controls event) psig
+            PitchSignal.apply_controls (Score.event_environ event)
+                (Score.event_controls event) psig
 
 -- | Wait, if I can just look at the Track, why do I need
 -- Derive.state_wanted_track_signals?

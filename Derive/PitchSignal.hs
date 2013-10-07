@@ -10,12 +10,13 @@ module Derive.PitchSignal (
     , constant, signal, unsignal, to_nn
     , unfoldr
     -- * apply controls
-    , apply_controls, apply_control, controls_at
+    , apply_controls, apply_control
     -- * signal functions
     , null, at, shift, head, last
     , take, drop, drop_after, drop_before, drop_before_strict
     -- * Pitch
-    , Pitch, pitch_scale_id, pitch_transposers
+    , Pitch, PitchConfig(..), pitch_scale_id, pitch_transposers
+    , pitch_controls
     , PitchError(..)
     , pitch, pitch_scale
     , apply, add_control, eval_pitch, eval_note, pitch_nn, pitch_note
@@ -31,8 +32,11 @@ import qualified Util.Seq as Seq
 import qualified Util.TimeVector as TimeVector
 
 import qualified Derive.BaseTypes as Score
+import qualified Derive.BaseTypes as TrackLang
 import Derive.BaseTypes
-       (Signal(..), Pitch(..), Scale(..), ControlValMap, PitchError(..))
+       (Signal(..), Pitch(..), Scale(..), PitchConfig(..), ControlValMap,
+        PitchError(..))
+
 import qualified Perform.Pitch as Pitch
 import qualified Perform.Signal as Signal
 import Types
@@ -105,14 +109,13 @@ type ControlMap = Map.Map Score.Control Score.TypedControl
 -- additive so it'll be ok as long as you only apply transposing signals
 -- and only apply the complete ControlMap once at the end (i.e.
 -- "Perform.Midi.Convert").
-apply_controls :: ControlMap -> Signal -> Signal
-apply_controls controls sig
+apply_controls :: TrackLang.Environ -> ControlMap -> Signal -> Signal
+apply_controls environ controls sig
     | V.null (sig_vec sig) = sig
     | otherwise = sig { sig_vec = resampled }
     where
     resampled = TimeVector.sig_op2 initial_controls initial_pitch
-        apply
-        (sample_controls controls (sig_transposers sig))
+        (apply environ) (sample_controls controls (sig_transposers sig))
         (sig_vec sig)
     TimeVector.Sample start initial_pitch = V.unsafeHead (sig_vec sig)
     initial_controls = controls_at start controls
@@ -134,8 +137,9 @@ sample_controls controls transposers =
 
 -- | 'apply_controls' specialized for a single control.
 apply_control :: Score.Control -> Score.TypedControl -> Signal -> Signal
-apply_control cont sig = apply_controls (Map.singleton cont sig)
+apply_control cont sig = apply_controls mempty (Map.singleton cont sig)
 
+-- | Not exported, use the one in Derive.Score instead.
 controls_at :: RealTime -> ControlMap -> ControlValMap
 controls_at t = Map.map (Signal.at t . Score.typed_val)
 
@@ -173,9 +177,10 @@ drop_before = modify_vector . TimeVector.drop_before
 
 -- * Pitch
 
+-- | Make an abstract Pitch.
 pitch :: Scale
-    -> (ControlValMap -> Either PitchError Pitch.NoteNumber)
-    -> (ControlValMap -> Either PitchError Pitch.Note)
+    -> (PitchConfig -> Either PitchError Pitch.NoteNumber)
+    -> (PitchConfig -> Either PitchError Pitch.Note)
     -> Pitch
 pitch scale nn note = Pitch
     { pitch_eval_nn = nn
@@ -189,31 +194,31 @@ pitch_scale_id = pscale_scale_id . pitch_scale
 pitch_transposers :: Pitch -> Set.Set Score.Control
 pitch_transposers = pscale_transposers . pitch_scale
 
+pitch_controls :: PitchConfig -> ControlValMap
+pitch_controls (PitchConfig _ controls) = controls
+
 -- | Apply controls to a pitch.
-apply :: ControlValMap -> Pitch -> Pitch
-apply controls pitch = pitch
-    { pitch_eval_nn = \controls2 ->
-        pitch_eval_nn pitch $! Map.unionWith (+) controls2 controls
-    , pitch_eval_note = \controls2 ->
-        pitch_eval_note pitch $! Map.unionWith (+) controls2 controls
-    }
+apply :: TrackLang.Environ -> ControlValMap -> Pitch -> Pitch
+apply environ controls pitch = pitch
+    { pitch_eval_nn = \config2 -> pitch_eval_nn pitch $! config2 <> config
+    , pitch_eval_note = \config2 -> pitch_eval_note pitch $! config2 <> config
+    } where config = PitchConfig environ controls
 
 add_control :: Score.Control -> Double -> Pitch -> Pitch
 add_control control val pitch = pitch
-    { pitch_eval_nn = \controls ->
-        pitch_eval_nn pitch $! Map.insertWith (+) control val controls
-    , pitch_eval_note = \controls ->
-        pitch_eval_note pitch $! Map.insertWith (+) control val controls
+    { pitch_eval_nn = \config2 -> pitch_eval_nn pitch $! config2 <> config
+    , pitch_eval_note = \config2 -> pitch_eval_note pitch $! config2 <> config
     }
+    where config = PitchConfig mempty (Map.singleton control val)
 
-eval_pitch :: Pitch -> ControlValMap -> Either PitchError Pitch.NoteNumber
+eval_pitch :: Pitch -> PitchConfig -> Either PitchError Pitch.NoteNumber
 eval_pitch = pitch_eval_nn
 
-eval_note :: Pitch -> ControlValMap -> Either PitchError Pitch.Note
+eval_note :: Pitch -> PitchConfig -> Either PitchError Pitch.Note
 eval_note = pitch_eval_note
 
 pitch_nn :: Pitch -> Either PitchError Pitch.NoteNumber
-pitch_nn p = eval_pitch p Map.empty
+pitch_nn p = eval_pitch p mempty
 
 pitch_note :: Pitch -> Either PitchError Pitch.Note
-pitch_note p = eval_note p Map.empty
+pitch_note p = eval_note p mempty

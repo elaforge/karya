@@ -252,6 +252,8 @@ map_y f = V.map $ \(Sample x y) -> Sample x (f y)
 {-# SPECIALIZE sig_op :: Double -> (Double -> Double -> Double)
     -> Unboxed -> Unboxed -> Unboxed #-}
 {-# INLINEABLE sig_op #-}
+-- | Combine two vectors with the given function.  They will be resampled so
+-- they have samples at the same time.
 sig_op :: (V.Vector v (Sample y)) =>
     y -- ^ the implicit y value of a vector before its first sample
     -> (y -> y -> y) -> v (Sample y) -> v (Sample y) -> v (Sample y)

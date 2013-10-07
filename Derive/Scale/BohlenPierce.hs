@@ -21,7 +21,6 @@ import qualified Derive.Scale.Theory as Theory
 import qualified Derive.Scale.TheoryFormat as TheoryFormat
 import qualified Derive.Scale.Util as Util
 import qualified Derive.Score as Score
-import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.Pitch as Pitch
 
@@ -69,9 +68,9 @@ note_to_call smap note =
                 (ChromaticScales.pitch_note smap pitch)
 
 -- TODO frac should always be 0, right?
-degree_to_nn :: TrackLang.Environ -> Score.ControlValMap -> Double
-    -> Pitch.NoteNumber
-degree_to_nn env controls degreef = Pitch.hz_to_nn $ Num.scale hz1 hz2 frac
+degree_to_nn :: PitchSignal.PitchConfig -> Double -> Pitch.NoteNumber
+degree_to_nn (PitchSignal.PitchConfig env controls) degreef =
+    Pitch.hz_to_nn $ Num.scale hz1 hz2 frac
     where
     hz1 = degree_to_hz base_hz tonic (Pitch.Degree degree)
     hz2 = degree_to_hz base_hz tonic (Pitch.Degree (degree + 1))

@@ -318,6 +318,9 @@ get_scale_id = TrackLang.sym_to_scale_id <$> Derive.get_val Environ.scale
 lookup_key :: Derive.Deriver (Maybe Pitch.Key)
 lookup_key = fmap Pitch.Key <$> Derive.lookup_val Environ.key
 
+get_instrument :: Derive.Deriver Score.Instrument
+get_instrument = Derive.get_val Environ.instrument
+
 lookup_instrument :: Derive.Deriver (Maybe Score.Instrument)
 lookup_instrument = Derive.lookup_val Environ.instrument
 

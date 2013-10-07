@@ -228,7 +228,7 @@ note_pitch deriver = do
     event <- require "had no event" $ Seq.head (LEvent.events_of events)
     pitch <- require "note had no pitch" $ Score.initial_pitch event
     let controls = Score.event_controls_at (Score.event_start event) event
-    pitch_to_lily $ PitchSignal.apply controls pitch
+    pitch_to_lily $ PitchSignal.apply (Score.event_environ event) controls pitch
     -- Wow, there are a lot of ways to fail.
     where
     require = Derive.require . (prefix <>)

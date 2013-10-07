@@ -15,7 +15,6 @@ import qualified Derive.Scale.Symbols as Symbols
 import qualified Derive.Scale.Util as Util
 import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
-import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.Pitch as Pitch
 
@@ -101,11 +100,9 @@ read_tuning t
 c_ombak :: Score.Control
 c_ombak = "ombak"
 
-degree_to_nn :: ToNn -> NoteNumberMap
-    -> TrackLang.Environ -> Score.ControlValMap -> Pitch.Degree
-    -> Either Scale.ScaleError Pitch.NoteNumber
+degree_to_nn :: ToNn -> NoteNumberMap -> Util.DegreeToNoteNumber
 degree_to_nn to_avg (NoteNumberMap to_umbang to_isep) =
-    \env controls degree -> do
+    \(PitchSignal.PitchConfig env controls) degree -> do
         tuning <- Util.read_environ read_tuning Umbang Environ.tuning env
         let lookup_nn = maybe (Left Scale.InvalidTransposition) Right
                 . Map.lookup degree

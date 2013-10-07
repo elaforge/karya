@@ -104,11 +104,11 @@ note_to_call scale smap note =
         Left _ -> Nothing
         Right pitch -> Just $ ScaleDegree.scale_degree scale
             (pitch_nn smap degree_to_nn pitch) (pitch_note smap pitch)
-    where degree_to_nn _env _controls degree = Pitch.NoteNumber degree + 12
+    where degree_to_nn _config degree = Pitch.NoteNumber degree + 12
     -- Add an octave becasue of NOTE [middle-c].
 
 pitch_note :: ScaleMap -> Theory.Pitch -> Scale.PitchNote
-pitch_note smap pitch env controls =
+pitch_note smap pitch (PitchSignal.PitchConfig env controls) =
     Util.scale_to_pitch_error diatonic chromatic $ do
         let d = round diatonic
             c = round chromatic
@@ -123,9 +123,9 @@ pitch_note smap pitch env controls =
     diatonic = Map.findWithDefault 0 Controls.diatonic controls
 
 pitch_nn :: ScaleMap
-    -> (TrackLang.Environ -> Score.ControlValMap -> Double -> Pitch.NoteNumber)
+    -> (PitchSignal.PitchConfig -> Double -> Pitch.NoteNumber)
     -> Theory.Pitch -> Scale.PitchNn
-pitch_nn smap degree_to_nn pitch env controls =
+pitch_nn smap degree_to_nn pitch config@(PitchSignal.PitchConfig env controls) =
     Util.scale_to_pitch_error diatonic chromatic $ do
         pitch <- TheoryFormat.fmt_to_absolute (smap_fmt smap)
             (Util.lookup_key env) pitch
@@ -135,7 +135,7 @@ pitch_nn smap degree_to_nn pitch env controls =
                 (Theory.pitch_note pitch) diatonic
         let semis = Theory.pitch_to_semis (smap_layout smap) pitch
             degree = fromIntegral semis + chromatic + dsteps
-            nn = degree_to_nn env controls degree
+            nn = degree_to_nn config degree
         if 1 <= nn && nn <= 127 then Right nn
             else Left Scale.InvalidTransposition
     where
@@ -166,7 +166,7 @@ call_doc transposers smap doc =
         Derive.extract_val_doc call
     where
     call = ScaleDegree.scale_degree PitchSignal.no_scale err err
-        where err _ _ = Left $ PitchSignal.PitchError "it was just an example!"
+        where err _ = Left $ PitchSignal.PitchError "it was just an example!"
     extra_doc = doc <> twelve_doc
     fields =
         [ ("default key", Pretty.prettytxt $

@@ -183,12 +183,28 @@ newtype Signal = Signal { sig_vec :: TimeVector.Boxed Pitch }
 instance DeepSeq.NFData Signal where
     rnf (Signal vec) = vec `seq` ()
 
+-- | A PitchConfig is the data that can continue to influence the pitch's
+-- frequency.
+--
+-- The ControlValMap could be embedded in the Environ, but firstly they come
+-- from different places, and secondly the ControlValMap is combined
+-- additively.
+data PitchConfig = PitchConfig !Environ !ControlValMap
+    deriving (Show)
+
+type ControlValMap = Map.Map Control Signal.Y
+
+instance Monoid.Monoid PitchConfig where
+    mempty = PitchConfig mempty mempty
+    mappend (PitchConfig env1 c1) (PitchConfig env2 c2) =
+        PitchConfig (env1 <> env2) (Map.unionWith (+) c1 c2)
+
 -- | A pitch is an abstract value that can turn a map of values into
 -- a NoteNumber.  The values are expected to contain transpositions that this
 -- Pitch understands, for example 'Controls.chromatic' and 'Controls.diatonic'.
 data Pitch = Pitch {
-    pitch_eval_nn :: !(ControlValMap -> Either PitchError Pitch.NoteNumber)
-    , pitch_eval_note :: !(ControlValMap -> Either PitchError Pitch.Note)
+    pitch_eval_nn :: !(PitchConfig -> Either PitchError Pitch.NoteNumber)
+    , pitch_eval_note :: !(PitchConfig -> Either PitchError Pitch.Note)
     , pitch_scale :: !Scale
     }
 
@@ -214,8 +230,6 @@ data Scale = Scale {
 instance Pretty.Pretty Scale where
     pretty = Pretty.pretty . pscale_scale_id
 
-type ControlValMap = Map.Map Control Signal.Y
-
 -- | It can't be reduced since it has lambdas, but at least this way you can
 -- easily rnf things that contain it.
 instance DeepSeq.NFData Pitch where
@@ -223,12 +237,12 @@ instance DeepSeq.NFData Pitch where
 
 instance Show Pitch where
     -- Show just the NN, so this is parseable by Util.PPrint.
-    show p = either show Pretty.pretty (pitch_eval_nn p Map.empty)
+    show p = either show Pretty.pretty (pitch_eval_nn p mempty)
 
 -- | Will look like: 62.95nn,4i(*wayang)
 instance Pretty.Pretty Pitch where
-    pretty p = either show Pretty.pretty (pitch_eval_nn p Map.empty) <> ","
-        <> either show (untxt . Pitch.note_text) (pitch_eval_note p Map.empty)
+    pretty p = either show Pretty.pretty (pitch_eval_nn p mempty) <> ","
+        <> either show (untxt . Pitch.note_text) (pitch_eval_note p mempty)
         <> "(" <> Pretty.pretty (pitch_scale p) <> ")"
 
 -- | Pitches have no literal syntax, but I have to print something.

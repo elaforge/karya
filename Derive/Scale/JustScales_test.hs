@@ -26,11 +26,12 @@ import qualified Perform.Pitch as Pitch
 
 test_note_to_call = do
     let run key base ps = DeriveTest.extract extract $ DeriveTest.derive_tracks
-            [ ("> | %just-base = " <> base, [(t, 1, "") | (t, _) <- times ps])
-            , ("*just | key = " <> key,
-                [(t, 0, p) | (t, p) <- times ps])
+            [ (title, [(t, 1, "") | (t, _) <- times ps])
+            , ("*just", [(t, 0, p) | (t, p) <- times ps])
             ]
-            where times = zip (Seq.range_ 0 1)
+            where
+            times = zip (Seq.range_ 0 1)
+            title = "> | %just-base = " <> base <> " | key = " <> key
         extract = fmap Pitch.nn_to_hz . Score.initial_nn
 
     -- Scale starts at 4c by default, and tunes to %just-base.

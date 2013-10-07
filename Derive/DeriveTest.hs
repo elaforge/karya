@@ -419,7 +419,8 @@ e_dyn = e_control Score.c_dynamic
 
 e_nns :: Score.Event -> [(RealTime, Pitch.NoteNumber)]
 e_nns e = signal_to_nn $
-    PitchSignal.apply_controls (Score.event_controls e) (Score.event_pitch e)
+    PitchSignal.apply_controls (Score.event_environ e) (Score.event_controls e)
+        (Score.event_pitch e)
 
 signal_to_nn :: PitchSignal.Signal -> [(RealTime, Pitch.NoteNumber)]
 signal_to_nn psig
@@ -486,9 +487,23 @@ note_on_vel msgs =
 note_on :: [Midi.WriteMessage] -> [Midi.Key]
 note_on msgs = [nn | (_, nn, _) <- note_on_vel msgs]
 
+midi_channel :: [Midi.WriteMessage] -> [(Midi.Channel, Midi.ChannelMessage)]
+midi_channel midi =
+    [ (chan, msg)
+    | Midi.ChannelMessage chan msg <- map Midi.wmsg_msg (interesting_midi midi)
+    ]
+
 extract_midi :: [Midi.WriteMessage] -> [(Integer, Midi.Message)]
-extract_midi events = [(RealTime.to_milliseconds ts, msg)
-    | Midi.WriteMessage _ ts msg <- events]
+extract_midi midi =
+    [ (RealTime.to_milliseconds ts, msg)
+    | Midi.WriteMessage _ ts msg <- interesting_midi midi
+    ]
+
+-- | Filter out boring msgs that I don't want tests to rely on.
+interesting_midi :: [Midi.WriteMessage] -> [Midi.WriteMessage]
+interesting_midi = filter $ \wmsg -> case Midi.wmsg_msg wmsg of
+    Midi.ChannelMessage _ (Midi.PitchBend 0) -> False
+    _ -> True
 
 -- ** ui state
 
@@ -600,7 +615,9 @@ make_convert_lookup midi_db = Convert.Lookup
     }
     where
     lookup_inst = Instrument.Db.db_lookup_midi midi_db
-    lookup_patch = fmap MidiDb.info_patch . Instrument.Db.db_lookup midi_db
+    lookup_patch = fmap extract . Instrument.Db.db_lookup midi_db
+    extract info = (MidiDb.info_patch info,
+        Cmd.inst_environ (MidiDb.info_code info))
 
 make_db :: [(Text, [Instrument.Patch])] -> Cmd.InstrumentDb
 make_db synth_patches = Instrument.Db.db midi_db

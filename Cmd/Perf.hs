@@ -79,7 +79,8 @@ note_to_transposed_pitch scale_id block_id track_id pos note = do
             Call.apply_pitch pos call >>= \val -> case val of
                 TrackLang.VPitch pitch -> do
                     controls <- Derive.controls_at =<< Derive.real pos
-                    return $ PitchSignal.apply controls pitch
+                    environ <- Internal.get_dynamic Derive.state_environ
+                    return $ PitchSignal.apply environ controls pitch
                 _ -> Derive.throw $
                     "note call returned non-pitch: " <> show val
 

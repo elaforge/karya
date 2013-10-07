@@ -24,6 +24,7 @@ import qualified Derive.Derive as Derive
 import qualified Derive.LEvent as LEvent
 import qualified Derive.PitchSignal as PitchSignal
 import qualified Derive.Score as Score
+import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.ConvertUtil as ConvertUtil
 import Perform.ConvertUtil (require)
@@ -32,8 +33,6 @@ import qualified Perform.Midi.Instrument as Instrument
 import qualified Perform.Midi.Perform as Perform
 import qualified Perform.Pitch as Pitch
 import qualified Perform.Signal as Signal
-
-import qualified Instrument.MidiDb as MidiDb
 
 
 type ConvertT a = ConvertUtil.ConvertT State a
@@ -44,8 +43,9 @@ type State = Set.Set Score.Instrument
 
 data Lookup = Lookup {
     lookup_scale :: Derive.LookupScale
-    , lookup_inst :: MidiDb.LookupMidiInstrument
-    , lookup_patch :: Score.Instrument -> Maybe Instrument.Patch
+    , lookup_inst :: Score.Instrument -> Maybe Instrument.Instrument
+    , lookup_patch :: Score.Instrument
+        -> Maybe (Instrument.Patch, TrackLang.Environ)
     , lookup_default_controls :: Score.Instrument -> Score.ControlMap
     }
 
@@ -58,12 +58,13 @@ convert_event :: Lookup -> Score.Event
     -> ConvertT (Perform.Event, [Score.Event])
 convert_event lookup event_ = do
     let score_inst = Score.event_instrument event_
-    patch <- get_patch score_inst $ lookup_patch lookup score_inst
+    (patch, environ) <- require_patch score_inst $
+        lookup_patch lookup score_inst
     let (event, additional) =
             split_composite (Instrument.patch_composite patch) event_
     midi_inst <- require ("instrument in db: " <> Pretty.pretty score_inst) $
         lookup_inst lookup score_inst
-    (midi_inst, pitch) <- convert_midi_pitch midi_inst
+    (midi_inst, pitch) <- convert_midi_pitch midi_inst environ
         (Instrument.patch_scale patch)
         (Instrument.patch_attribute_map patch) event
     let (controls, overridden) = convert_controls
@@ -74,18 +75,22 @@ convert_event lookup event_ = do
     whenJust overridden $ \sig ->
         Log.warn $ "non-null control overridden by "
             ++ Pretty.pretty Controls.dynamic ++ ": " ++ Pretty.pretty sig
-    let converted = Perform.Event midi_inst
-            (Score.event_start event) (Score.event_duration event)
-            controls pitch (Score.event_stack event)
+    let converted = Perform.Event
+            { Perform.event_instrument = midi_inst
+            , Perform.event_start = Score.event_start event
+            , Perform.event_duration = Score.event_duration event
+            , Perform.event_controls = controls
+            , Perform.event_pitch = pitch
+            , Perform.event_stack = Score.event_stack event
+            }
     return (converted, additional)
 
 -- | Abort if the patch wasn't found.  If it wasn't found the first time, it
 -- won't be found the second time either, so avoid spamming the log by throwing
 -- Nothing after the first time.
-get_patch :: Score.Instrument -> Maybe Instrument.Patch
-    -> ConvertT Instrument.Patch
-get_patch _ (Just v) = return v
-get_patch inst Nothing = do
+require_patch :: Score.Instrument -> Maybe a -> ConvertT a
+require_patch _ (Just v) = return v
+require_patch inst Nothing = do
     not_found <- State.get
     if Set.member inst not_found then ConvertUtil.abort
         else do
@@ -122,10 +127,12 @@ split_composite composite event = (stripped, map extract composite)
 -- TODO this used to warn about unmatched attributes, but it got annoying
 -- because I use attributes freely.  It still seems like it could be useful,
 -- so maybe I want to put it back in again someday.
-convert_midi_pitch :: Instrument.Instrument -> Instrument.PatchScale
+convert_midi_pitch :: Instrument.Instrument -> TrackLang.Environ
+    -- ^ The environ that the instrument itself implies.
+    -> Instrument.PatchScale
     -> Instrument.AttributeMap -> Score.Event
     -> ConvertT (Instrument.Instrument, Signal.NoteNumber)
-convert_midi_pitch inst patch_scale attr_map event =
+convert_midi_pitch inst inst_environ patch_scale attr_map event =
     case Instrument.lookup_attribute (Score.event_attributes event) attr_map of
         Nothing -> (,) inst <$> pitch_signal
         Just (keyswitches, maybe_keymap) ->
@@ -149,6 +156,7 @@ convert_midi_pitch inst patch_scale attr_map event =
             Signal.scalar_add (low - un_nn low_pitch) sig
     un_nn (Pitch.NoteNumber nn) = nn
     pitch_signal = convert_pitch patch_scale
+        (inst_environ <> Score.event_environ event)
         (Score.event_controls event) (Score.event_pitch event)
 
 -- | Convert deriver controls to performance controls.  Drop all non-MIDI
@@ -173,13 +181,14 @@ convert_controls pressure_inst inst_cmap =
                 -> Just (cont, sig)
             _ -> Nothing
 
-convert_pitch :: Instrument.PatchScale -> Score.ControlMap
+convert_pitch :: Instrument.PatchScale -> TrackLang.Environ -> Score.ControlMap
     -> PitchSignal.Signal -> ConvertT Signal.NoteNumber
-convert_pitch scale controls psig = do
+convert_pitch scale environ controls psig = do
     unless (null errs) $ Log.warn $ "pitch: " ++ Pretty.pretty errs
     return $ convert_scale scale (Signal.map_y round_pitch sig)
     where
-    (sig, errs) = PitchSignal.to_nn $ PitchSignal.apply_controls controls psig
+    (sig, errs) = PitchSignal.to_nn $
+        PitchSignal.apply_controls environ controls psig
 
 -- | Round pitches to the nearest tenth of a cent.  Differences below this are
 -- probably imperceptible.  Due to floating point inaccuracy, pitches can wind

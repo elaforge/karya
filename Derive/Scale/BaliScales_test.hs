@@ -13,8 +13,8 @@ test_ombak = do
             DeriveTest.derive_tracks
                 [("> " ++ trans, [(0, 1, "")]), ("*wayang", [(0, 0, pitch)])]
     equal (run "" "4e") ([Just 67.57], [])
-    equal (run "" "tuning = 'umbang' | 4e") ([Just 67.57], [])
-    equal (run "" "tuning = 'isep' | 4e") ([Just 67.26], [])
+    equal (run "| tuning = umbang" "4e") ([Just 67.57], [])
+    equal (run "| tuning = isep" "4e") ([Just 67.26], [])
 
     equalf 0.01 (run "| %ombak = 5" "4e") ([Just 67.306], [])
     equalf 0.01 (run "| %ombak = 10" "4e") ([Just 67.198], [])

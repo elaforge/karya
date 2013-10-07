@@ -11,7 +11,7 @@ UNSORTED
     - norot, plus noltol depending on speed
     * given a single melody, split every other note between polos and sangsih
       Doesn't work because >wayang already split the notes
-    - Tuning is incorrect if postproc changes the instrument, because the new
+    * Tuning is incorrect if postproc changes the instrument, because the new
       instrument doesn't bring its tuning along with it.  I could fix that by
       having the instrument bring its environ into scope during conversion as
       well as derivation.

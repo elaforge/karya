@@ -17,7 +17,7 @@ import Types
 
 test_apply_controls = do
     let f cont sig psig = unsignal $ PitchSignal.apply_controls
-            (Map.singleton cont (Score.untyped (Signal.signal sig)))
+            mempty (Map.singleton cont (Score.untyped (Signal.signal sig)))
             (mksignal psig)
         err = Left "bad transpose"
     -- No effect.
@@ -37,10 +37,12 @@ mkpitch :: Pitch.NoteNumber -> PitchSignal.Pitch
 mkpitch nn =
     PitchSignal.pitch default_scale note (const $ Right $ Pitch.Note $ showt nn)
     where
-    note controls
+    note config
         | nn + t >= 4 = Left (PitchSignal.PitchError "bad transpose")
         | otherwise = Right (nn + t)
-        where t = Pitch.NoteNumber $ Map.findWithDefault 0 c_trans controls
+        where
+        t = Pitch.NoteNumber $ Map.findWithDefault 0 c_trans
+            (PitchSignal.pitch_controls config)
 
 c_normal, c_trans :: Score.Control
 c_normal = "normal"

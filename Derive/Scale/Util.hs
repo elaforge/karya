@@ -17,6 +17,7 @@ import qualified Derive.Call as Call
 import qualified Derive.Call.ScaleDegree as ScaleDegree
 import qualified Derive.Controls as Controls
 import qualified Derive.Derive as Derive
+import qualified Derive.Deriver.Internal as Internal
 import qualified Derive.Environ as Environ
 import qualified Derive.PitchSignal as PitchSignal
 import qualified Derive.Scale as Scale
@@ -84,8 +85,8 @@ pitch_to_degree (Pitch.Degree per_octave) start_octave start
         (Theory.Pitch octave (Theory.Note pc accs)) =
     Pitch.Degree ((octave - start_octave) * per_octave + pc + accs) - start
 
-type DegreeToNoteNumber = TrackLang.Environ -> Score.ControlValMap
-    -> Pitch.Degree -> Either Scale.ScaleError Pitch.NoteNumber
+type DegreeToNoteNumber = PitchSignal.PitchConfig -> Pitch.Degree
+    -> Either Scale.ScaleError Pitch.NoteNumber
 
 -- * scale functions
 
@@ -121,7 +122,7 @@ mapped_note_to_call :: DegreeMap -> PitchSignal.Scale
     -> Pitch.Note -> Maybe Derive.ValCall
 mapped_note_to_call dmap scale = note_to_call scale dmap to_nn
     where
-    to_nn _env _controls degree =
+    to_nn _config degree =
         maybe (Left Scale.InvalidTransposition) Right $
             Map.lookup degree (dm_to_nn dmap)
 
@@ -137,22 +138,22 @@ note_to_call scale dmap degree_to_nn note =
             (pitch_nn degree) (pitch_note degree)
     where
     pitch_nn :: Pitch.Degree -> Scale.PitchNn
-    pitch_nn (Pitch.Degree degree) env controls =
+    pitch_nn (Pitch.Degree degree) config =
         scale_to_pitch_error diatonic chromatic $
-            to_note (fromIntegral degree + chromatic + diatonic)
-                env controls
+            to_note (fromIntegral degree + chromatic + diatonic) config
         where
+        controls = PitchSignal.pitch_controls config
         chromatic = Map.findWithDefault 0 Controls.chromatic controls
         diatonic = Map.findWithDefault 0 Controls.diatonic controls
-    to_note degree env controls
+    to_note degree config
         | frac == 0 = to_nn int
         | otherwise = Num.scale <$> to_nn int <*> to_nn (int+1)
             <*> return (Pitch.NoteNumber frac)
         where
         (int, frac) = properFraction degree
-        to_nn = degree_to_nn env controls . Pitch.Degree . fromIntegral
+        to_nn = degree_to_nn config . Pitch.Degree . fromIntegral
     pitch_note :: Pitch.Degree -> Scale.PitchNote
-    pitch_note (Pitch.Degree degree) _env controls =
+    pitch_note (Pitch.Degree degree) config =
         maybe (Left err) Right $ Map.lookup transposed (dm_to_note dmap)
         where
         err = invalid_transposition diatonic chromatic
@@ -160,6 +161,7 @@ note_to_call scale dmap degree_to_nn note =
             fromIntegral degree + chromatic + diatonic
         chromatic = Map.findWithDefault 0 Controls.chromatic controls
         diatonic = Map.findWithDefault 0 Controls.diatonic controls
+        controls = PitchSignal.pitch_controls config
 
 lookup_key :: TrackLang.Environ -> Maybe Pitch.Key
 lookup_key = fmap Pitch.Key . TrackLang.maybe_val Environ.key
@@ -238,8 +240,10 @@ computed_input_to_nn input_to_note note_to_call pos input
         Call.apply_pitch pos call >>= \val -> case val of
             TrackLang.VPitch pitch -> do
                 controls <- Derive.controls_at =<< Derive.real pos
+                environ <- Internal.get_dynamic Derive.state_environ
                 return $ either (const Nothing) Just $
-                    PitchSignal.eval_pitch pitch controls
+                    PitchSignal.eval_pitch pitch
+                        (PitchSignal.PitchConfig environ controls)
             _ -> return Nothing
     | otherwise = return Nothing
 
@@ -351,7 +355,7 @@ scale_degree_doc ::
     -> Derive.DocumentedCall
 scale_degree_doc scale_degree =
     Derive.extract_val_doc $ scale_degree PitchSignal.no_scale err err
-    where err _ _ = Left $ PitchSignal.PitchError "it was just an example!"
+    where err _ = Left $ PitchSignal.PitchError "it was just an example!"
 
 annotate_call_doc :: Set.Set Score.Control -> Text -> [(Text, Text)]
     -> Derive.DocumentedCall -> Derive.DocumentedCall

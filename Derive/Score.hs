@@ -205,7 +205,7 @@ modify_event_control control f event = case Map.lookup control controls of
     where controls = event_controls event
 
 event_controls_at :: RealTime -> Event -> ControlValMap
-event_controls_at t = controls_at t .  event_controls
+event_controls_at t = controls_at t . event_controls
 
 controls_at :: RealTime -> ControlMap -> ControlValMap
 controls_at p = Map.map (typed_val . control_val_at p)
@@ -226,7 +226,8 @@ nn_at :: RealTime -> Event -> Maybe Pitch.NoteNumber
 nn_at pos event = do
     pitch <- pitch_at pos event
     either (const Nothing) Just $ PitchSignal.pitch_nn $
-        PitchSignal.apply (event_controls_at pos event) pitch
+        PitchSignal.apply (event_environ event) (event_controls_at pos event)
+            pitch
 
 initial_nn :: Event -> Maybe Pitch.NoteNumber
 initial_nn event = nn_at (event_start event) event
@@ -235,7 +236,8 @@ note_at :: RealTime -> Event -> Maybe Pitch.Note
 note_at pos event = do
     pitch <- pitch_at pos event
     either (const Nothing) Just $ PitchSignal.pitch_note $
-        PitchSignal.apply (event_controls_at pos event) pitch
+        PitchSignal.apply (event_environ event) (event_controls_at pos event)
+            pitch
 
 initial_note :: Event -> Maybe Pitch.Note
 initial_note event = note_at (event_start event) event

@@ -7,13 +7,10 @@
 module Derive.Scale (Scale(..), ScaleError(..), module Derive.Scale) where
 import Derive.Derive (Scale(..), ScaleError(..))
 import qualified Derive.PitchSignal as PitchSignal
-import qualified Derive.Score as Score
-import qualified Derive.TrackLang as TrackLang
-
 import qualified Perform.Pitch as Pitch
 
 
-type PitchNn = TrackLang.Environ -> Score.ControlValMap
+type PitchNn = PitchSignal.PitchConfig
     -> Either PitchSignal.PitchError Pitch.NoteNumber
-type PitchNote = TrackLang.Environ -> Score.ControlValMap
+type PitchNote = PitchSignal.PitchConfig
     -> Either PitchSignal.PitchError Pitch.Note

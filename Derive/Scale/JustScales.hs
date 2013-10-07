@@ -180,7 +180,7 @@ note_to_call scale smap note =
     where fmt = smap_fmt smap
 
 pitch_nn :: ScaleMap -> Theory.Pitch -> Scale.PitchNn
-pitch_nn smap pitch env controls =
+pitch_nn smap pitch (PitchSignal.PitchConfig env controls) =
     Util.scale_to_pitch_error chromatic diatonic $ do
         key <- read_key smap env
         pitch <- TheoryFormat.fmt_to_absolute (smap_fmt smap)
@@ -198,7 +198,7 @@ pitch_nn smap pitch env controls =
         just_base_control controls
 
 pitch_note :: TheoryFormat.Format -> Theory.Pitch -> Scale.PitchNote
-pitch_note fmt pitch env controls =
+pitch_note fmt pitch (PitchSignal.PitchConfig env controls) =
     Util.scale_to_pitch_error chromatic diatonic $ do
         let key = Util.lookup_key env
         pitch <- TheoryFormat.fmt_to_absolute fmt key pitch

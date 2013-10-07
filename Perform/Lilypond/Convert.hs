@@ -54,8 +54,7 @@ convert quarter = ConvertUtil.convert () (convert_event quarter)
 convert_event :: RealTime -> Score.Event -> ConvertT (Types.Event, [a])
 convert_event quarter event = do
     let dur = Types.real_to_time quarter (Score.event_duration event)
-    maybe_pitch <- convert_pitch (Score.event_start event)
-        (Score.event_controls event) (Score.event_pitch event)
+    maybe_pitch <- convert_pitch event
     pitch <- case (dur, maybe_pitch) of
         (0, _) -> check_0dur >> return ""
         (_, Nothing)
@@ -92,16 +91,18 @@ convert_event quarter event = do
         TrackLang.lookup_val v (Score.event_environ event)
     code_attrs = [Constants.v_ly_prepend, Constants.v_ly_append_all]
 
-convert_pitch :: RealTime -> Score.ControlMap -> PitchSignal.Signal
-    -> ConvertT (Maybe Theory.Pitch)
-convert_pitch start controls psig = case PitchSignal.at start psig of
+convert_pitch :: Score.Event -> ConvertT (Maybe Theory.Pitch)
+convert_pitch event = case PitchSignal.at start (Score.event_pitch event) of
     Nothing -> return Nothing
     Just pitch -> Just <$> go pitch
     where
+    start = Score.event_start event
     go pitch = do
         note <- either (throw . ("convert_pitch: "++) . show) return $
-            PitchSignal.pitch_note $
-                PitchSignal.apply (PitchSignal.controls_at start controls) pitch
+            PitchSignal.pitch_note $ PitchSignal.apply
+                (Score.event_environ event)
+                (Score.event_controls_at start event)
+                pitch
         require ("parseable note: " ++ Pretty.pretty note) $
             Twelve.read_pitch note
 
