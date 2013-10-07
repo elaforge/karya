@@ -9,6 +9,7 @@ import qualified Data.Map as Map
 import Util.Control
 import qualified Util.Map as Map
 import qualified Derive.Call.Articulation as Articulation
+import qualified Derive.Call.Bali.Kotekan as Kotekan
 import qualified Derive.Call.Block as Block
 import qualified Derive.Call.Control as Control
 import qualified Derive.Call.Echo as Echo
@@ -19,8 +20,8 @@ import qualified Derive.Call.Integrate as Integrate
 import qualified Derive.Call.Lily as Lily
 import qualified Derive.Call.Note as Note
 import qualified Derive.Call.NoteTransformer as NoteTransformer
-import qualified Derive.Call.PitchHigh as PitchHigh
 import qualified Derive.Call.Pitch as Pitch
+import qualified Derive.Call.PitchHigh as PitchHigh
 import qualified Derive.Call.Post.ArrivalNote as Post.ArrivalNote
 import qualified Derive.Call.Post.Idiom as Post.Idiom
 import qualified Derive.Call.Post.Reverse as Post.Reverse
@@ -92,17 +93,24 @@ maps_lookup = (mk *** mk)
 
 note_maps :: Derive.CallMaps Derive.Note
 (note_maps, shadowed_notes) = union_calls
-    [ Articulation.note_calls, Block.note_calls, Echo.note_calls
-    , Gender.note_calls, Integrate.note_calls
-    , Lily.note_calls
-    , Note.note_calls, NoteTransformer.note_calls
-    , PitchHigh.note_calls
+    [ Articulation.note_calls
+    , Block.note_calls
+    , Echo.note_calls
+    , Gender.note_calls
     , Grace.note_calls
-    , Post.Idiom.note_calls, Post.ArrivalNote.note_calls
+    , Integrate.note_calls
+    , Kotekan.note_calls
+    , Lily.note_calls
+    , Note.note_calls
+    , NoteTransformer.note_calls
+    , PitchHigh.note_calls
+    , Post.ArrivalNote.note_calls
+    , Post.Idiom.note_calls
     , Post.Reverse.note_calls
-    , Reyong.note_calls
     , Random.note_calls
-    , Sekar.note_calls, String.note_calls
+    , Reyong.note_calls
+    , Sekar.note_calls
+    , String.note_calls
     , Trill.note_calls
     ]
 
