@@ -9,11 +9,12 @@ import qualified Data.Map as Map
 import Util.Control
 import qualified Util.Map as Map
 import qualified Derive.Call.Articulation as Articulation
+import qualified Derive.Call.Bali.Gender as Gender
 import qualified Derive.Call.Bali.Kotekan as Kotekan
+import qualified Derive.Call.Bali.Reyong as Reyong
 import qualified Derive.Call.Block as Block
 import qualified Derive.Call.Control as Control
 import qualified Derive.Call.Echo as Echo
-import qualified Derive.Call.Gender as Gender
 import qualified Derive.Call.Grace as Grace
 import qualified Derive.Call.Idiom.String as String
 import qualified Derive.Call.Integrate as Integrate
@@ -26,7 +27,6 @@ import qualified Derive.Call.Post.ArrivalNote as Post.ArrivalNote
 import qualified Derive.Call.Post.Idiom as Post.Idiom
 import qualified Derive.Call.Post.Reverse as Post.Reverse
 import qualified Derive.Call.Random as Random
-import qualified Derive.Call.Reyong as Reyong
 import qualified Derive.Call.Sekar as Sekar
 import qualified Derive.Call.SignalTransform as SignalTransform
 import qualified Derive.Call.Trill as Trill

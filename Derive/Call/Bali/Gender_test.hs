@@ -2,7 +2,7 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
-module Derive.Call.Gender_test where
+module Derive.Call.Bali.Gender_test where
 import Util.Test
 import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest

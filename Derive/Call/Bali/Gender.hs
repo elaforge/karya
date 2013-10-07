@@ -4,7 +4,7 @@
 
 -- | Ornaments for gender.  The unique thing about gender technique is the
 -- delayed damping, so these calls deal with delayed damping.
-module Derive.Call.Gender where
+module Derive.Call.Bali.Gender where
 import Util.Control
 import qualified Derive.Args as Args
 import qualified Derive.Call.Post as Post
