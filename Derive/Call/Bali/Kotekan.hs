@@ -54,9 +54,9 @@ inst_sangsih = "inst-sangsih"
 -}
 
 nyogcag :: Score.Instrument -> Score.Instrument -> (Bool, [Score.Event])
-    -> Score.Event -> ((Bool, [Score.Event]), Score.Event)
+    -> Score.Event -> ((Bool, [Score.Event]), [Score.Event])
 nyogcag polos sangsih (is_polos, next) event =
-    ((not is_polos, drop 1 next), with_inst)
+    ((not is_polos, drop 1 next), [with_inst])
     where
     with_inst = event
         { Score.event_instrument = if is_polos then polos else sangsih }

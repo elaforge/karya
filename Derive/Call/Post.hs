@@ -33,19 +33,23 @@ import Types
 
 -- | Map over events with no state, but with access to previous and following
 -- events.
-map_around :: ([Score.Event] -> Score.Event -> [Score.Event] -> Score.Event)
+map_around :: ([Score.Event] -> Score.Event -> [Score.Event] -> [Score.Event])
     -> Derive.Events -> Derive.Events
-map_around f events = snd $ map_state go ([], LEvent.events_of events) events
+map_around f events =
+    snd $ map_state go ([], drop 1 $ LEvent.events_of events) events
     where go (prev, next) event = ((event:prev, drop 1 next), f prev event next)
 
--- | This is basically 'List.mapAccumL' over 'Derive.Events', for a transformer
--- that doesn't need to be in 'Derive.Deriver.'.
-map_state :: (state -> Score.Event -> (state, Score.Event)) -> state
+-- | This is basically a concatMap 'List.mapAccumL' over 'Derive.Events'.
+-- It's only for transformers that doesn't need to be in 'Derive.Deriver'.
+map_state :: (state -> Score.Event -> (state, [Score.Event])) -> state
     -> Derive.Events -> (state, Derive.Events)
-map_state f state = List.mapAccumL go state
+map_state f state = second concat . List.mapAccumL go state
     where
-    go state e@(LEvent.Log _) = (state, e)
-    go state (LEvent.Event event) = LEvent.Event <$> f state event
+    go state e@(LEvent.Log _) = (state, [e])
+    go state (LEvent.Event event) = map LEvent.Event <$> f state event
+
+concat_map :: (Score.Event -> [Score.Event]) -> Derive.Events -> Derive.Events
+concat_map f = snd . map_state (\() event -> ((), f event)) ()
 
 -- | Apply a function on the first Event of an LEvent stream.
 map_first :: (a -> Derive.Deriver a) -> LEvent.LEvents a -> Derive.LogsDeriver a

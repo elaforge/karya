@@ -94,7 +94,7 @@ c_realize_damp = Derive.transformer "realize-damp" (Tags.idiom <> Tags.postproc)
     \ something like a 'hand' attribute to fix this."
     ) $ Sig.call0t $ \_ deriver -> Post.map_around realize <$> deriver
     where
-    realize _prev event next = Score.remove_attributes damped_tag $
+    realize _prev event next = (:[]) $ Score.remove_attributes damped_tag $
         case Post.filter_next_in_track event next of
             next : _ | Score.has_attribute damped_tag next ->
                 Score.set_duration
