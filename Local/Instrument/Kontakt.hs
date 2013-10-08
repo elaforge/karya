@@ -241,7 +241,11 @@ pasang_call = Derive.make_call "note" mempty doc $
 
 -- | Dispatch MIDI through to both polos and sangsih instruments.
 pasang_thru :: Cmd.Cmd
-pasang_thru = NoteEntry.run_cmds_with_input [cmd]
+pasang_thru msg = do
+    NoteEntry.run_cmds_with_input [cmd] msg
+    -- This cmd just does midi thru, so I don't want it to return Done and
+    -- prevent track editing cmds from happening.
+    return Cmd.Continue
     where
     cmd msg = do
         input <- case msg of
