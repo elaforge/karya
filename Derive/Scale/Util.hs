@@ -240,7 +240,7 @@ computed_input_to_nn input_to_note note_to_call pos input
         Call.apply_pitch pos call >>= \val -> case val of
             TrackLang.VPitch pitch -> do
                 controls <- Derive.controls_at =<< Derive.real pos
-                environ <- Internal.get_dynamic Derive.state_environ
+                environ <- Internal.get_environ
                 return $ either (const Nothing) Just $
                     PitchSignal.eval_pitch pitch
                         (PitchSignal.PitchConfig environ controls)

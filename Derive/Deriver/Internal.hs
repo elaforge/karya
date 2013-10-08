@@ -85,6 +85,9 @@ modify_collect f = modify $ \st -> st { state_collect = f (state_collect st) }
 
 -- * environ
 
+get_environ :: Deriver TrackLang.Environ
+get_environ = get_dynamic state_environ
+
 insert_environ :: (TrackLang.Typecheck val) => TrackLang.ValName
     -> val -> TrackLang.Environ -> Deriver TrackLang.Environ
 insert_environ name val environ =

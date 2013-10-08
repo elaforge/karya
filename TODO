@@ -3,8 +3,13 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
+  - sub-notes mess up the stack since they put in a 0-n range.  This makes
+    later errors not useful.  The should either be not emitted, or should
+    be shifted so they are in TrackTime.
+  - Why does a transpose out of range result in 'Perform: no pitch signal'
+    from the performer, and not a more informative transpose error?
   - change Cmd.Cmd to 'type Cmd m = Msg.Msg -> m Status'
-  - replace all that Internal.get_dynamic Derive.state_environ with
+  * replace all that Internal.get_dynamic Derive.state_environ with
     a Derive.get_environ.
   - I need to wrap the block title
   kotekan ornaments
@@ -44,7 +49,6 @@ UNSORTED
           under the instrument.
         ? Why 88nn and 88.095 nn when neither is in the scale?
           That's after patch scale map!
-  - can I have browser display instrument environ?
   - keys to turn play speed up and down
   - The problem with Derive.inst_environ to set scale is that you can't really
     override it.  So if >wayang wants *wayang, then you can't easily say you
@@ -1052,6 +1056,9 @@ misc ideas:
     a transformer to them.  I'm not sure that will coexist with the curve
     description language that control tracks currently implement.
     It would be interesting to get rid of track types entirely though.
+  darcs to git:
+    . https://github.com/purcell/darcs-to-git
+    . http://darcs.net/DarcsBridgeUsage
 
 planning / research
   cmj:

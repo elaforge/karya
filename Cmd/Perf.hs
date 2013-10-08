@@ -79,7 +79,7 @@ note_to_transposed_pitch scale_id block_id track_id pos note = do
             Call.apply_pitch pos call >>= \val -> case val of
                 TrackLang.VPitch pitch -> do
                     controls <- Derive.controls_at =<< Derive.real pos
-                    environ <- Internal.get_dynamic Derive.state_environ
+                    environ <- Internal.get_environ
                     return $ PitchSignal.apply environ controls pitch
                 _ -> Derive.throw $
                     "note call returned non-pitch: " <> show val
@@ -212,7 +212,7 @@ lookup_default_environ name = do
     -- figure out the lookup function separately, but meanwhile this hack
     -- should be safe.
     result <- derive $ apply $ do
-        environ <- Internal.get_dynamic Derive.state_environ
+        environ <- Internal.get_environ
         return $ LEvent.one $ LEvent.Event $
             Score.empty_event { Score.event_environ = environ }
     environ <- case result of

@@ -139,7 +139,7 @@ default_note config args = do
     real_next <- Derive.real (Args.next args)
     (end, is_arrival) <- adjust_end start end (Seq.head (Args.next_events args))
     inst <- fromMaybe Score.empty_inst <$> Derive.lookup_val Environ.instrument
-    environ <- Internal.get_dynamic Derive.state_environ
+    environ <- Internal.get_environ
     let attrs = either (const Score.no_attrs) id $
             TrackLang.get_val Environ.attributes environ
     st <- Derive.gets Derive.state_dynamic

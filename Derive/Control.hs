@@ -533,5 +533,5 @@ pitch_signal_to_nn :: PitchSignal.Signal
     -> Derive.Deriver (Signal.NoteNumber, [PitchSignal.PitchError])
 pitch_signal_to_nn sig = do
     controls <- Internal.get_dynamic Derive.state_controls
-    environ <- Internal.get_dynamic Derive.state_environ
+    environ <- Internal.get_environ
     return $ PitchSignal.to_nn $ PitchSignal.apply_controls environ controls sig

@@ -524,7 +524,7 @@ c_note s_start dur = do
     start <- Derive.real s_start
     end <- Derive.real (s_start + dur)
     inst <- Derive.get_val Environ.instrument
-    environ <- Internal.get_dynamic Derive.state_environ
+    environ <- Internal.get_environ
     st <- Derive.gets Derive.state_dynamic
     let controls = Derive.state_controls st
         pitch_sig = Derive.state_pitch st

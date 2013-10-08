@@ -133,12 +133,12 @@ lookup_scale scale_id = do
 
 lookup_val :: (TrackLang.Typecheck a) => TrackLang.ValName -> Deriver (Maybe a)
 lookup_val name = do
-    environ <- Internal.get_dynamic state_environ
+    environ <- Internal.get_environ
     either throw return (TrackLang.checked_val name environ)
 
 is_val_set :: TrackLang.ValName -> Deriver Bool
-is_val_set name = Maybe.isJust . TrackLang.lookup_val name <$>
-    Internal.get_dynamic state_environ
+is_val_set name =
+    Maybe.isJust . TrackLang.lookup_val name <$> Internal.get_environ
 
 -- | Like 'lookup_val', but throw if the value isn't present.
 get_val :: (TrackLang.Typecheck a) => TrackLang.ValName -> Deriver a
@@ -339,7 +339,7 @@ named_pitch_at name pos = do
 nn_at :: RealTime -> Deriver (Maybe Pitch.NoteNumber)
 nn_at pos = do
     controls <- controls_at pos
-    environ <- Internal.get_dynamic state_environ
+    environ <- Internal.get_environ
     justm (pitch_at pos) $ \pitch -> do
     logged_pitch_nn ("nn " ++ Pretty.pretty pos) $
         PitchSignal.apply environ controls pitch
@@ -350,7 +350,7 @@ get_named_pitch name = Map.lookup name <$> Internal.get_dynamic state_pitches
 named_nn_at :: Score.Control -> RealTime -> Deriver (Maybe Pitch.NoteNumber)
 named_nn_at name pos = do
     controls <- controls_at pos
-    environ <- Internal.get_dynamic state_environ
+    environ <- Internal.get_environ
     justm (named_pitch_at name pos) $ \pitch -> do
     logged_pitch_nn ("named_nn " ++ Pretty.pretty (name, pos)) $
         PitchSignal.apply environ controls pitch
