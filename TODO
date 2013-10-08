@@ -3,7 +3,7 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
-  - sub-notes mess up the stack since they put in a 0-n range.  This makes
+  * sub-notes mess up the stack since they put in a 0-n range.  This makes
     later errors not useful.  The should either be not emitted, or should
     be shifted so they are in TrackTime.
   - Why does a transpose out of range result in 'Perform: no pitch signal'

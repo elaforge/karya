@@ -171,7 +171,7 @@ slice exclusive around start end insert_event = map do_slice
             , TrackTree.tevents_range = trange
             , TrackTree.tevents_sliced = True
             , TrackTree.tevents_around = around
-            , TrackTree.tevents_shifted = 0
+            , TrackTree.tevents_shifted = fst trange
             }
     slice_t track = track
         { TrackTree.tevents_events = within
@@ -199,7 +199,7 @@ slice exclusive around start end insert_event = map do_slice
 -- | Strip out tracks with no events.  This is necessary because otherwise they
 -- would cause evaluation to stop, or in the case of inversion, cause the
 -- \"inverting below a note track will cause an endless loop\" error from
--- 'Derive.Call.Note.invert'.  I used to do it inside 'slice', but I need to
+-- 'Derive.Call.Sub.invert'.  I used to do it inside 'slice', but I need to
 -- keep them around until 'find_overlapping' has done its thing.
 strip_empty_tracks :: TrackTree.EventsNode -> TrackTree.EventsTree
 strip_empty_tracks (Tree.Node track subs)

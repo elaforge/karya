@@ -27,6 +27,7 @@ import qualified Derive.Instrument.DUtil as DUtil
 import qualified Derive.Scale.Legong as Legong
 import qualified Derive.Score as Score
 import qualified Derive.Sig as Sig
+import qualified Derive.Stack as Stack
 import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.Midi.Instrument as Instrument
@@ -230,6 +231,19 @@ test_track_dynamic_invert = do
         [ ((UiTest.default_block_id, UiTest.mk_tid 1), (">inst", "legong"))
         , ((UiTest.default_block_id, UiTest.mk_tid 2), (">inst", "legong"))
         ]
+
+test_note_transformer_stack = do
+    -- The stack should be correct even in the presence of slicing and
+    -- inversion.
+    let (stacks, logs) = DeriveTest.extract Score.event_stack $
+            DeriveTest.derive_tracks_linear
+                [ (">", [(1, 1, "ap")])
+                , (">", [(1, 1, "")])
+                , ("*", [(0, 0, "4c")])
+                ]
+    equal logs []
+    equal (map Stack.to_ui stacks)
+        [[(Just UiTest.default_block_id, Just (UiTest.mk_tid 2), Just (1, 2))]]
 
 -- * implementation
 
