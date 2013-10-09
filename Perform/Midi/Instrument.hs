@@ -44,8 +44,6 @@ import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
 import qualified Perform.Midi.Control as Control
 import qualified Perform.Pitch as Pitch
-import qualified Perform.Signal as Signal
-
 import Types
 
 
@@ -337,12 +335,12 @@ make_patch_scale keys =
     interpolate xs = xs
 
 convert_patch_scale :: Vector.Vector Double -> Pitch.NoteNumber
-    -> Pitch.NoteNumber
+    -> Maybe Pitch.NoteNumber
 convert_patch_scale scale (Pitch.NoteNumber nn) =
     case Util.Vector.bracketing scale nn of
-        Just (i, low, high) | low /= 0 -> Pitch.NoteNumber $
+        Just (i, low, high) | low /= 0 -> Just $ Pitch.NoteNumber $
             fromIntegral i + Num.normalize low high nn
-        _ -> Pitch.NoteNumber Signal.invalid_pitch
+        _ -> Nothing
 
 -- | A Pretty instance is useful because InitializeMidi tends to be huge.
 instance Pretty.Pretty Patch where

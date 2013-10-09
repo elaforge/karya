@@ -39,7 +39,7 @@ module Perform.Signal (
     , scalar_add, scalar_subtract, scalar_multiply, scalar_divide
     , shift, scale
     , take, drop, within, drop_after, drop_before, drop_before_strict
-    , map_x, map_y
+    , map_x, map_y, map_err
 
     -- ** special functions
     , inverse_at, compose, integrate
@@ -300,6 +300,10 @@ map_x = modify_vec . V.map_x
 
 map_y :: (Y -> Y) -> Signal y -> Signal y
 map_y = modify_vec . V.map_y
+
+map_err :: (V.Sample Y -> Either err (V.Sample Y))
+    -> Signal y -> (Signal y, [err])
+map_err f = first Signal . V.map_err f . sig_vec
 
 sig_op :: (Y -> Y -> Y) -> Signal y -> Signal y -> Signal y
 sig_op op sig1 sig2 = Signal $ V.sig_op 0 op (sig_vec sig1) (sig_vec sig2)

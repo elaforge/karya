@@ -6,8 +6,9 @@ UNSORTED
   * sub-notes mess up the stack since they put in a 0-n range.  This makes
     later errors not useful.  The should either be not emitted, or should
     be shifted so they are in TrackTime.
-  - Why does a transpose out of range result in 'Perform: no pitch signal'
+  * Why does a transpose out of range result in 'Perform: no pitch signal'
     from the performer, and not a more informative transpose error?
+    Because it transposes ok, just the patch_scale doesn't have it.
   - change Cmd.Cmd to 'type Cmd m = Msg.Msg -> m Status'
   * replace all that Internal.get_dynamic Derive.state_environ with
     a Derive.get_environ.

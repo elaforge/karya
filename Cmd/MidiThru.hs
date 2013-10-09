@@ -64,7 +64,6 @@ import qualified Perform.Midi.Control as Control
 import qualified Perform.Midi.Instrument as Instrument
 import Perform.Midi.Instrument (Addr)
 import qualified Perform.Pitch as Pitch
-import qualified Perform.Signal as Signal
 
 
 -- | Send midi thru, addressing it to the given Instrument.
@@ -124,11 +123,8 @@ map_scale patch_scale scale input = case input of
 
 map_patch_scale :: Instrument.PatchScale -> Pitch.NoteNumber
     -> Maybe Pitch.NoteNumber
-map_patch_scale Nothing nn = Just nn
-map_patch_scale (Just scale) nn
-    | nn2 == Pitch.NoteNumber Signal.invalid_pitch = Nothing
-    | otherwise = Just nn2
-    where nn2 = Instrument.convert_patch_scale scale nn
+map_patch_scale Nothing = Just
+map_patch_scale (Just scale) = Instrument.convert_patch_scale scale
 
 input_to_midi :: Control.PbRange -> Cmd.WriteDeviceState
     -> [Addr] -> InputNote.InputNn

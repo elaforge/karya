@@ -17,6 +17,7 @@ import qualified Data.Set as Set
 import Util.Control
 import qualified Util.Log as Log
 import qualified Util.Pretty as Pretty
+import qualified Util.TimeVector as TimeVector
 
 import qualified Midi.Midi as Midi
 import qualified Derive.Controls as Controls
@@ -185,7 +186,10 @@ convert_pitch :: Instrument.PatchScale -> TrackLang.Environ -> Score.ControlMap
     -> PitchSignal.Signal -> ConvertT Signal.NoteNumber
 convert_pitch scale environ controls psig = do
     unless (null errs) $ Log.warn $ "pitch: " ++ Pretty.pretty errs
-    return $ convert_scale scale (Signal.map_y round_pitch sig)
+    let (nn_sig, errs) = convert_scale scale (Signal.map_y round_pitch sig)
+    unless (null errs) $
+        Log.warn $ "out of range for patch scale: " <> Pretty.pretty errs
+    return nn_sig
     where
     (sig, errs) = PitchSignal.to_nn $
         PitchSignal.apply_controls environ controls psig
@@ -197,8 +201,10 @@ convert_pitch scale environ controls psig = do
 round_pitch :: Signal.Y -> Signal.Y
 round_pitch nn = fromIntegral (round (nn * 1000)) / 1000
 
-convert_scale :: Instrument.PatchScale -> Signal.NoteNumber -> Signal.NoteNumber
-convert_scale Nothing = id
-convert_scale (Just scale) = Signal.map_y $
-    un . Instrument.convert_patch_scale scale . Pitch.NoteNumber
-    where un (Pitch.NoteNumber nn) = nn
+convert_scale :: Instrument.PatchScale -> Signal.NoteNumber
+    -> (Signal.NoteNumber, [(Signal.X, Signal.Y)])
+convert_scale Nothing = flip (,) []
+convert_scale (Just scale) = Signal.map_err $ \(TimeVector.Sample x y) ->
+    case Instrument.convert_patch_scale scale (Pitch.NoteNumber y) of
+        Just (Pitch.NoteNumber nn) -> Right (TimeVector.Sample x nn)
+        Nothing -> Left (x, y)

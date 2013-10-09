@@ -51,6 +51,7 @@ import qualified Data.Vector.Generic as V
 import Data.Vector.Generic (take, drop, length, null, all, foldl', unsafeIndex)
 import qualified Data.Vector.Storable as Storable
 import qualified Foreign
+import qualified Control.Monad.State.Strict as State
 
 import Util.Control
 import qualified Util.Pretty as Pretty
@@ -248,6 +249,16 @@ map_x f = V.map $ \(Sample x y) -> Sample (f x) y
 
 map_y :: (V.Vector v (Sample y)) => (y -> y) -> v (Sample y) -> v (Sample y)
 map_y f = V.map $ \(Sample x y) -> Sample x (f y)
+
+{-# SPECIALIZE map_err :: (Sample Double -> Either err (Sample Double))
+    -> Unboxed -> (Unboxed, [err]) #-}
+{-# INLINEABLE map_err #-}
+-- | A map that can return error msgs.
+map_err :: (V.Vector v a) => (a -> Either err a) -> v a -> (v a, [err])
+map_err f vec = second reverse $ State.runState (V.mapM go vec) []
+    where
+    go sample =
+        either (\err -> State.modify (err:) >> return sample) return (f sample)
 
 {-# SPECIALIZE sig_op :: Double -> (Double -> Double -> Double)
     -> Unboxed -> Unboxed -> Unboxed #-}
