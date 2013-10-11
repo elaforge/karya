@@ -3,6 +3,7 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
+  * why does kanti not go up to 6i?
   * sub-notes mess up the stack since they put in a 0-n range.  This makes
     later errors not useful.  The should either be not emitted, or should
     be shifted so they are in TrackTime.
@@ -13,6 +14,11 @@ UNSORTED
   * replace all that Internal.get_dynamic Derive.state_environ with
     a Derive.get_environ.
   - I need to wrap the block title
+    . Just like SeqInput, only expand vertically on wrap.  This means going
+      back to displaying the beginning of the text field though.
+    . Look into what Fl_Multiline_Input does and either use it, or implement
+      the same thing in SeqInput.
+    . Looks like it just puts newlines in.
   kotekan ornaments
     - norot, plus noltol depending on speed
     * given a single melody, split every other note between polos and sangsih

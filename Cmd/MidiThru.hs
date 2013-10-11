@@ -58,8 +58,11 @@ import qualified Cmd.Msg as Msg
 import qualified Cmd.Perf as Perf
 import qualified Cmd.Selection as Selection
 
+import qualified Derive.Derive as Derive
 import qualified Derive.Scale as Scale
 import qualified Derive.Score as Score
+import qualified Derive.TrackLang as TrackLang
+
 import qualified Perform.Midi.Control as Control
 import qualified Perform.Midi.Instrument as Instrument
 import Perform.Midi.Instrument (Addr)
@@ -81,12 +84,12 @@ midi_thru_instrument score_inst input = do
     addrs <- Instrument.get_addrs score_inst <$> State.get_midi_config
     if null addrs then return () else do
     scale_id <- EditUtil.get_scale_id
-    patch <- Cmd.get_midi_patch score_inst
+    (patch, environ) <- Cmd.get_midi_patch score_inst
 
     scale <- Cmd.get_scale "cmd_midi_thru" scale_id
     input <- Cmd.require_msg
-        (Pretty.pretty scale_id ++ " doesn't have " ++ show input)
-        =<< map_scale (Instrument.patch_scale patch) scale input
+        (Pretty.pretty scale_id <> " doesn't have " <> Pretty.pretty input)
+        =<< map_scale (Instrument.patch_scale patch) scale environ input
 
     wdev_state <- Cmd.get_wdev_state
     let (thru_msgs, maybe_wdev_state) =
@@ -98,8 +101,10 @@ midi_thru_instrument score_inst input = do
 
 -- | Realize the Input as a pitch in the given scale.
 map_scale :: (Cmd.M m) => Instrument.PatchScale -> Scale.Scale
+    -> TrackLang.Environ -- ^ Evaluate the pitch in this environ.  This is
+    -- important because some scales change pitch based on environ.
     -> InputNote.Input -> m (Maybe InputNote.InputNn)
-map_scale patch_scale scale input = case input of
+map_scale patch_scale scale environ input = case input of
     InputNote.NoteOn note_id input vel -> do
         maybe_nn <- convert input
         return $ fmap (\k -> InputNote.NoteOn note_id k vel) maybe_nn
@@ -114,6 +119,7 @@ map_scale patch_scale scale input = case input of
     convert input = do
         (block_id, _, track_id, pos) <- Selection.get_insert
         maybe_nn <- Perf.derive_at block_id track_id $
+            Derive.with_environ environ $
             Scale.scale_input_to_nn scale pos input
         case maybe_nn of
             Left err -> Cmd.throw $

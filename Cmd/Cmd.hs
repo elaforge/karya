@@ -981,11 +981,13 @@ get_lookup_instrument = do
         . Instrument.Db.with_aliases aliases . state_instrument_db
         . state_config
 
-get_midi_patch :: (M m) => Score.Instrument -> m Instrument.Patch
+-- | Lookup a detailed patch along with the environ that it likes.
+get_midi_patch :: (M m) => Score.Instrument
+    -> m (Instrument.Patch, TrackLang.Environ)
 get_midi_patch inst = do
     info <- require_msg ("get_midi_patch " ++ Pretty.pretty inst)
         =<< lookup_instrument inst
-    return $ MidiDb.info_patch info
+    return (MidiDb.info_patch info, inst_environ (MidiDb.info_code info))
 
 get_midi_instrument :: (M m) => Score.Instrument -> m Instrument.Instrument
 get_midi_instrument inst = do

@@ -30,7 +30,6 @@ import qualified Cmd.Selection as Selection
 
 import qualified Derive.Attrs as Attrs
 import Derive.Attrs
-import qualified Derive.Call as Call
 import qualified Derive.Call.Articulation as Articulation
 import qualified Derive.Call.Bali.Kotekan as Kotekan
 import qualified Derive.Call.Make as Make
@@ -41,6 +40,7 @@ import qualified Derive.Derive as Derive
 import qualified Derive.Environ as Environ
 import qualified Derive.Instrument.DUtil as DUtil
 import qualified Derive.LEvent as LEvent
+import qualified Derive.Pitches as Pitches
 import qualified Derive.Scale.Wayang as Wayang
 import qualified Derive.Score as Score
 import qualified Derive.Sig as Sig
@@ -230,15 +230,6 @@ wayang_code = MidiInst.note_calls $ MidiInst.null_call $
 pasang_code :: MidiInst.Code
 pasang_code = MidiInst.cmd pasang_thru
 
-pasang_call :: Derive.Generator Derive.Note
-pasang_call = Derive.make_call "note" mempty doc $
-    Sig.parsed_manually "dispatched" $ \args -> do
-        (polos, sangsih) <- Kotekan.get_pasang
-        Derive.with_instrument polos (Call.reapply_gen args "")
-            <> Derive.with_instrument sangsih (Call.reapply_gen args "")
-    where doc = "Dispatch to `inst-polos` and `inst-sangsih`, which should\
-        \ should have already set."
-
 -- | Dispatch MIDI through to both polos and sangsih instruments.
 pasang_thru :: Cmd.Cmd
 pasang_thru msg = do
@@ -254,18 +245,6 @@ pasang_thru msg = do
         (block_id, _, track_id, _) <- Selection.get_insert
         polos <- Perf.lookup_val block_id (Just track_id) Kotekan.inst_polos
         sangsih <- Perf.lookup_val block_id (Just track_id) Kotekan.inst_sangsih
-        -- TODO This is still not quite right.  The problem is that
-        -- midi_thru_instrument will look up the scale and pitch to map it
-        -- through the 'Instrument.patch_scale'.  But since it doesn't apply
-        -- the instrument, it doesn't set the tuning variable, so one winds up
-        -- with a pitch bend to "correct" the tuning.  To fix this, I'd have to
-        -- get more elaborate to evaluate the pitch in the actual context it
-        -- winds up on the score, but for the moment it's too much bother for
-        -- too little gain.  In any case, when played back the instruments have
-        -- the correct tuning.
-        --
-        -- Why do I get the feeling like I'm making things much more complicated
-        -- than they need to be?
         whenJust polos $ \inst ->
             MidiThru.midi_thru_instrument inst input
         whenJust sangsih $ \inst ->
@@ -277,7 +256,7 @@ wayang_scale :: [Pitch.NoteNumber] -> Instrument.PatchScale
 wayang_scale scale = Instrument.make_patch_scale $ zip wayang_keys scale
 
 wayang_keys :: [Midi.Key]
-wayang_keys = take (5*3 - 1) $ drop 1 $ concatMap keys [0..]
+wayang_keys = take (5*3) $ drop 1 $ concatMap keys [0..]
     where
     keys oct = map (Midi.to_key (oct * 12) +)
         [Key2.e3, Key2.f3, Key2.a3, Key2.b3, Key2.c4]
