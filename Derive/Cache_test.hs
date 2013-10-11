@@ -82,8 +82,8 @@ test_no_damage = do
 test_cached_track = do
     -- If one track is damaged, it rederives and the other is cached.
     let create = mkblock
-            [ (">1", [(0, 1, "")])
-            , (">2", [(1, 1, "")])
+            [ (">i1", [(0, 1, "")])
+            , (">i2", [(1, 1, "")])
             ]
     let (_, cached, uncached) = compare_cached create $
             insert_event "top.t2" 4 1 ""
@@ -710,7 +710,7 @@ run_cached result state1 modify =
 derive_block_cache :: Derive.Cache -> Derive.ScoreDamage -> State.State
     -> BlockId -> Derive.Result
 derive_block_cache cache damage =
-    DeriveTest.derive_block_standard cache damage id
+    DeriveTest.derive_block_standard DeriveTest.default_db cache damage id
 
 insert_event :: (State.M m) => String -> ScoreTime -> ScoreTime -> String
     -> m ()

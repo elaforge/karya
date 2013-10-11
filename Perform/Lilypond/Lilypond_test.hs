@@ -44,11 +44,12 @@ test_staff_configs = do
             , Types.staff_short = "vla"
             , Types.staff_code = ["viola code"]
             }
-        staves = [(Score.Instrument "v", viola), (Score.Instrument "p", piano)]
+        staves =
+            [(Score.Instrument "i2", viola), (Score.Instrument "i1", piano)]
         config = Types.default_config { Types.config_staves = staves }
     let (text, logs) = make_ly config
-            [ (">p", [(0, 1, "")]), ("*", [(0, 0, "3c")])
-            , (">v", [(0, 1, "")]), ("*", [(0, 0, "3d")])
+            [ (">i1", [(0, 1, "")]), ("*", [(0, 0, "3c")])
+            , (">i2", [(0, 1, "")]), ("*", [(0, 0, "3d")])
             ]
     equal logs []
     -- Viola goes first, has correct long and short names and code.
@@ -60,9 +61,9 @@ test_staff_configs = do
 test_hands = do
     let run = LilypondTest.derive_staves
     let (events, logs) = run [] $ concatMap UiTest.note_spec
-            [ (">s/1 | hand = r", [(0, 4, "4c")], [])
-            , (">s/1 | hand = l", [(0, 4, "4d")], [])
-            , (">s/2", [(0, 4, "4e")], [])
+            [ ("s/1 | hand = r", [(0, 4, "4c")], [])
+            , ("s/1 | hand = l", [(0, 4, "4d")], [])
+            , ("s/2", [(0, 4, "4e")], [])
             ]
     equal logs []
     -- Right hand goes in first.
@@ -147,7 +148,7 @@ test_ly_code = do
 
 test_meter = do
     let run meter notes = LilypondTest.derive_measures ["time"] $
-            (">ly-global", meter) : UiTest.note_track notes
+            (">", meter) : UiTest.note_track notes
     equal (run [(0, 0, "meter '2/4'"), (2, 0, "meter '4/4'")]
             [(0, 3, "4a"), (3, 3, "4b")])
         (Right "\\time 2/4 a'2~ | \\time 4/4 a'4 b'2.", [])
@@ -225,21 +226,21 @@ test_voices = do
 
 test_movements = do
     -- let (text, logs) = make_ly $
-    --         (">ly-global", [(4, 0, "movement 'number 2'")])
+    --         (">", [(4, 0, "movement 'number 2'")])
     --         : UiTest.regular_notes 8
     -- equal logs []
     -- -- The movement with e'4 gets the header.
     -- match text "score *a'4 *score *e'4 *header *number 2"
 
     -- let (text, logs) = make_ly $
-    --         [ (">ly-global", [(4, 0, "movement 'number 2'")])
+    --         [ (">", [(4, 0, "movement 'number 2'")])
     --         , (">", [(5, 8, "t")])
     --         ] ++ UiTest.regular_notes 8
     -- equal logs []
     -- prettyp text
 
     let (text, logs) = make_ly Types.default_config $
-            [ (">ly-global", [(4, 0, "movement 'number 2'")])
+            [ (">", [(4, 0, "movement 'number 2'")])
             -- , (">", [(4, 4, "t")])
             ] ++ UiTest.regular_notes 6
     equal logs []

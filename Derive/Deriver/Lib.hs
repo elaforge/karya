@@ -25,6 +25,7 @@ import qualified Derive.Environ as Environ
 import qualified Derive.LEvent as LEvent
 import qualified Derive.PitchSignal as PitchSignal
 import qualified Derive.Score as Score
+import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Stack as Stack
 import qualified Derive.TrackLang as TrackLang
 import qualified Derive.TrackWarp as TrackWarp
@@ -207,12 +208,14 @@ with_instrument :: Score.Instrument -> Deriver d -> Deriver d
 with_instrument inst deriver = do
     lookup_inst <- gets $ state_lookup_instrument . state_constant
     let with_inst = with_val_raw Environ.instrument inst
-    -- If the instrument is not found, make sure to clear the last instrument's
-    -- calls out of scope.
-    let Instrument calls environ = fromMaybe empty_instrument (lookup_inst inst)
+    -- Previously, I would just substitute an empty instrument, but it turned
+    -- out to be error prone, since a misspelled instrument would derive
+    -- anyway, only without the right calls and environ.
+    Instrument calls environ <-
+        require ("allocation for " <> untxt (ShowVal.show_val inst))
+        (lookup_inst inst)
     with_inst $ with_scopes (set_scopes calls) $ with_environ environ deriver
     where
-    empty_instrument = Instrument mempty mempty
     -- Replace the calls in the instrument scope type.
     set_scopes (InstrumentCalls inst_gen inst_trans inst_val)
             (Scopes gen trans val) =

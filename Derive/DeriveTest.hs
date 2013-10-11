@@ -199,14 +199,15 @@ derive_block = derive_block_with id
 derive_block_with :: Transform Derive.Events -> State.State -> BlockId
     -> Derive.Result
 derive_block_with with =
-    derive_block_standard mempty mempty (with . with_environ default_environ)
+    derive_block_standard default_db mempty mempty
+        (with . with_environ default_environ)
 
 -- | Like 'derive_block_with', but exec the StateId.
 derive_block_with_m :: Transform Derive.Events -> State.StateId a -> BlockId
     -> Derive.Result
 derive_block_with_m with create =
-    derive_block_standard mempty mempty (with . with_environ default_environ)
-        (UiTest.exec State.empty create)
+    derive_block_standard default_db mempty mempty
+        (with . with_environ default_environ) (UiTest.exec State.empty create)
 
 -- | Derive tracks but with a linear skeleton.  Good for testing note
 -- transformers since the default skeleton parsing won't create those.
@@ -214,14 +215,15 @@ derive_tracks_linear :: [UiTest.TrackSpec] -> Derive.Result
 derive_tracks_linear = derive_tracks_with_ui id with_linear
 
 -- | Derive a block in the same way that the app does.
-derive_block_standard :: Derive.Cache -> Derive.ScoreDamage
+derive_block_standard :: Cmd.InstrumentDb -> Derive.Cache -> Derive.ScoreDamage
     -> Transform Derive.Events -> State.State -> BlockId -> Derive.Result
-derive_block_standard cache damage with ui_state block_id = case result of
+derive_block_standard inst_db cache damage with ui_state block_id =
+    case result of
         Right (Just result, _, _) -> result
         Right (Nothing, _, _) -> error "derive_block_with: Cmd aborted"
         Left err -> error $ "derive_block_with: Cmd error: " ++ show err
     where
-    cmd_state = Cmd.initial_state (cmd_config default_db)
+    cmd_state = Cmd.initial_state (cmd_config inst_db)
     global_transform = State.config#State.global_transform #$ ui_state
     deriver = with $ Call.Block.eval_root_block global_transform block_id
     (_cstate, _midi_msgs, _logs, result) = Cmd.run_id ui_state cmd_state $
@@ -626,7 +628,8 @@ make_db synth_patches = Instrument.Db.db midi_db
     make (synth, patches) = MidiInst.make
         (MidiInst.softsynth synth "Test Synth" (-2, 2) [])
         { MidiInst.extra_patches =
-            map (\p -> (p, MidiInst.empty_code)) patches }
+            map (\p -> (p, MidiInst.empty_code)) patches
+        }
 
 lookup_from_insts :: [Score.Instrument] -> Convert.Lookup
 lookup_from_insts = make_convert_lookup . make_db . convert
@@ -644,7 +647,12 @@ default_convert_lookup :: Convert.Lookup
 default_convert_lookup = make_convert_lookup default_db
 
 default_db :: Cmd.InstrumentDb
-default_db = make_db [("s", map make_patch ["1", "2"])]
+default_db = Instrument.Db.with_aliases aliases $ make_db
+    [("s", map make_patch ["1", "2", "3"])]
+    where
+    -- Lots of tests use >i and >i1, so let's not break them.
+    aliases = Map.fromList $ map (Score.Instrument *** Score.Instrument)
+        [("i", "s/1"), ("i1", "s/1"), ("i2", "s/2"), ("i3", "s/3")]
 
 make_patch :: Text -> Instrument.Patch
 make_patch name = Instrument.patch $ Instrument.instrument name [] (-2, 2)

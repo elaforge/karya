@@ -33,14 +33,14 @@ test_orphan_notes = do
     let run = DeriveTest.extract extract . DeriveTest.derive_tracks_linear
         extract e = (DeriveTest.e_note e, DeriveTest.e_attributes e)
     equal (run
-        [ (">inst", [(0, 2, "a = b")])
+        [ (">i", [(0, 2, "a = b")])
         , (">", [])
         , (">", [(0, 1, ""), (1, 1, "")])
         , ("*", [(0, 0, "4c"), (1, 0, "4d")])
         ])
         ([((0, 1, "4c"), "+"), ((1, 1, "4d"), "+")], [])
     equal (run
-        [ (">inst", [(0, 2, "a = b")])
+        [ (">i", [(0, 2, "a = b")])
         , (">", [(0, 1, "+a")])
         , (">", [(0, 1, ""), (1, 1, "")])
         , ("*", [(0, 0, "4c"), (1, 0, "4d")])

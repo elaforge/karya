@@ -227,9 +227,9 @@ test_track_dynamic_invert = do
         e_env e = (lookup Environ.instrument e, lookup Environ.scale e)
         lookup val = Pretty.pretty . TrackLang.lookup_val val
     -- Both tracks get *legong, even though >inst has to be inverted to see it.
-    equal (run [(">inst", [(0, 0, "")]), ("*legong", [(0, 0, "1")])])
-        [ ((UiTest.default_block_id, UiTest.mk_tid 1), (">inst", "legong"))
-        , ((UiTest.default_block_id, UiTest.mk_tid 2), (">inst", "legong"))
+    equal (run [(">i", [(0, 0, "")]), ("*legong", [(0, 0, "1")])])
+        [ ((UiTest.default_block_id, UiTest.mk_tid 1), (">i", "legong"))
+        , ((UiTest.default_block_id, UiTest.mk_tid 2), (">i", "legong"))
         ]
 
 test_note_transformer_stack = do

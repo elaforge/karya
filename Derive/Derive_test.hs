@@ -128,7 +128,7 @@ note_on_keys msgs =
 test_stack = do
     let extract = fst . DeriveTest.extract Score.event_stack
     let stacks = extract $ DeriveTest.derive_blocks
-            [ ("b0", [(">i1", [(0, 1, ""), (1, 1, "sub")])])
+            [ ("b0", [(">s/1", [(0, 1, ""), (1, 1, "sub")])])
             , ("sub", [(">", [(0, 1, ""), (1, 1, "")])])
             ]
     let block = Stack.Block . UiTest.bid
@@ -154,7 +154,7 @@ test_stack = do
 test_simple_subderive = do
     let (events, msgs) = DeriveTest.extract DeriveTest.e_note $
             DeriveTest.derive_blocks
-            [ ("parent", [(">i1", [(0, 2, "sub"), (2, 1, "sub")])])
+            [ ("parent", [(">s/1", [(0, 2, "sub"), (2, 1, "sub")])])
             , ("sub=ruler", UiTest.regular_notes 2)
             ]
     equal msgs []
@@ -167,10 +167,10 @@ test_subderive = do
     let run evts = DeriveTest.derive_blocks
             [ ("b0",
                 [ ("tempo", [(0, 0, "2")])
-                , (">i1", evts)
+                , (">s/1", evts)
                 ])
-            , ("sub=ruler", [(">i2", [(1, 1, "n --sub1")])])
-            , ("empty", [(">i", [])])
+            , ("sub=ruler", [(">s/2", [(1, 1, "n --sub1")])])
+            , ("empty", [(">s/1", [])])
             ]
     -- I used to test recursive call, but now that the block call doesn't
     -- catch that explicitly it means I get random crap before it finally
@@ -189,7 +189,7 @@ test_subderive = do
     equal (map DeriveTest.e_event events)
         [(0, 4, "n --b1"), (6, 2, "n --sub1"), (8, 0.5, "n --b2")]
     equal (map Score.event_instrument events)
-        (map Score.Instrument ["i1", "i2", "i1"])
+        (map Score.Instrument ["s/1", "s/2", "s/1"])
     equal msgs []
 
     let b0 pos = (UiTest.bid "b0", [(UiTest.mk_tid_name "b0" 1, pos),
@@ -208,9 +208,9 @@ test_subderive_timing = do
     let (events, logs) = extract_events $ DeriveTest.derive_blocks
             [ ("p",
                 [ ("tempo", [(0, 0, ".5")])
-                , (">i", [(0, 2, "sub"), (5, 1, "sub")])
+                , (">s/1", [(0, 2, "sub"), (5, 1, "sub")])
                 ])
-            , ("sub=ruler", [(">i", [(0, 1, ""), (1, 1, "")])])
+            , ("sub=ruler", [(">s/1", [(0, 1, ""), (1, 1, "")])])
             ]
     equal events
         [ (0, 2, ""), (2, 2, "")
@@ -220,7 +220,7 @@ test_subderive_timing = do
 
 test_subderive_error = do
     let run evts = extract_events $ DeriveTest.derive_blocks
-            [ ("b0", [ (">i1", evts) ])
+            [ ("b0", [ (">s/1", evts) ])
             , ("sub", [("blah *error syntax", [(1, 1, "--sub1")]), (">", [])])
             ]
     let (events, logs) = run [(0, 1, "sub")]
@@ -252,7 +252,7 @@ test_subderive_multiple = do
 test_multiple_subderive = do
     -- make sure a sequence of sub calls works
     let res = DeriveTest.derive_blocks
-            [ ("b0", [(">i1", [(0, 2, "sub"), (2, 2, "sub"), (4, 2, "sub")])])
+            [ ("b0", [(">s/1", [(0, 2, "sub"), (2, 2, "sub"), (4, 2, "sub")])])
             , ("sub=ruler", [(">", [(0, 1, "n --sub1")])])
             ]
     equal (extract_events res)
@@ -260,7 +260,7 @@ test_multiple_subderive = do
 
     -- Empty inst inherits calling inst.
     equal (fst (DeriveTest.extract Score.event_instrument res))
-        (replicate 3 (Score.Instrument "i1"))
+        (replicate 3 (Score.Instrument "s/1"))
 
     let pos = map (inv_tempo res) [0..6]
     let b0 pos = (UiTest.bid "b0", [(UiTest.mk_tid_name "b0" 1, pos)])
@@ -273,7 +273,7 @@ test_multiple_subderive = do
 
 test_tempo_compose = do
     let run tempo events sub_tempo = extract_events $ DeriveTest.derive_blocks
-            [ ("b0", [("tempo", tempo), (">i1", events)])
+            [ ("b0", [("tempo", tempo), (">s/1", events)])
             , ("sub=ruler",
                 [ ("tempo", sub_tempo)
                 , (">", [(0, 1, ""), (1, 1, "")])
@@ -396,7 +396,7 @@ test_shift_control = do
 track_specs :: [UiTest.TrackSpec]
 track_specs =
     [ ("tempo", [(0, 0, "2")])
-    , (">i1", [(0, 8, "--b1"), (8, 8, "--b2"), (16, 1, "--b3")])
+    , (">s/1", [(0, 8, "--b1"), (8, 8, "--b2"), (16, 1, "--b3")])
     ]
 
 test_tempo_funcs1 = do
@@ -417,7 +417,7 @@ test_tempo_funcs2 = do
     let ((bid, [t_tid1, tid1, t_tid2, tid2]), ui_state) =
             UiTest.run State.empty $ UiTest.mkblock ("b0", track_specs
                 ++ [ ("tempo", [(0, 0, "1")])
-                , (">i2", [(0, 16, "--2b1")])
+                , (">s/2", [(0, 16, "--2b1")])
                 ])
     let res = DeriveTest.derive_block ui_state bid
     equal (DeriveTest.r_log_strings res) []
@@ -443,8 +443,8 @@ inv_tempo res = map (second List.sort) . List.sort . r_inv_tempo res
 test_tempo_funcs_multiple_subblocks = do
     -- A single score time can imply multiple real times.
     let res = DeriveTest.derive_blocks
-            [ ("parent", [(">i", [(0, 1, "sub"), (1, 1, "sub")])])
-            , ("sub=ruler", [(">i", [(0, 1, "")])])
+            [ ("parent", [(">s/1", [(0, 1, "sub"), (1, 1, "sub")])])
+            , ("sub=ruler", [(">s/1", [(0, 1, "")])])
             ]
     equal (r_tempo res (UiTest.bid "sub") (UiTest.mk_tid_name "sub" 1) 0.5)
         [0.5, 1.5]
@@ -560,7 +560,7 @@ test_block_end = do
     -- of the block, since there's no next event for it.
     let res = DeriveTest.extract DeriveTest.e_nns $ DeriveTest.derive_blocks
             [ ("p",
-                [ (">i1", [(0, 1, "sub"), (1, 1, "")])
+                [ (">s/1", [(0, 1, "sub"), (1, 1, "")])
                 , ("*twelve", [(0, 0, "5d"), (1, 0, "5e")])
                 ])
             , ("sub", [(">", [(0, 1, "")])])

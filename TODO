@@ -3,6 +3,9 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
+  * If I have an unallocated inst, like >wayang or >wayang-k, it's not an
+    error if it can't be found, but then its environ isn't applied.  Maybe the
+    deriver should complain.
   * why does kanti not go up to 6i?
   * sub-notes mess up the stack since they put in a 0-n range.  This makes
     later errors not useful.  The should either be not emitted, or should

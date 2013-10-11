@@ -62,8 +62,8 @@ test_extract_orphans = do
         with_calls = CallTest.with_note_generator "show" show_subs
     -- uncovered events are still played
     equal (run
-            [ (">1", [(1, 1, "show")])
-            , (">2", [(0, 1, ""), (1, 1, ""), (2, 1, "")])
+            [ (">i1", [(1, 1, "show")])
+            , (">i2", [(0, 1, ""), (1, 1, ""), (2, 1, "")])
             ])
         [0, 2]
     -- as above, but with tuplet, verify it gets the correct subs
@@ -99,7 +99,7 @@ test_record_empty_tracks = do
             . Derive.r_track_warps
         track_dyn = Map.keys . Derive.r_track_dynamic
 
-    let tracks = [(">a", []), (">b", []), (">c", [(0, 1, "")])]
+    let tracks = [(">i1", []), (">i2", []), (">i3", [(0, 1, "")])]
     equal (track_warps (run tracks)) (map UiTest.mk_tid [1, 2, 3])
     equal (track_dyn (run tracks))
         (map (((,) UiTest.default_block_id) . UiTest.mk_tid) [1, 2, 3])
@@ -110,7 +110,7 @@ test_two_level_orphans = do
     let run = DeriveTest.extract extract . DeriveTest.derive_tracks_linear
         extract e = (DeriveTest.e_note e, DeriveTest.e_attributes e)
     equal (run
-        [ (">inst", [(0, 1, "+a")])
+        [ (">i", [(0, 1, "+a")])
         , (">", [(1, 1, "+b")])
         , (">", [(2, 1, "+c")])
         , (">", [(0, 1, ""), (1, 1, ""), (2, 1, "")])

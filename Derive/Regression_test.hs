@@ -10,6 +10,8 @@ import qualified Data.Text as Text
 import qualified Data.Text.IO as Text.IO
 import qualified Data.Vector as Vector
 
+import qualified System.IO.Unsafe as Unsafe
+
 import qualified Util.ApproxEq as ApproxEq
 import Util.Control
 import qualified Util.Log as Log
@@ -32,6 +34,11 @@ import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.LEvent as LEvent
 
 import qualified Local.Config
+import qualified Local.Instrument.Fm8 as Fm8
+import qualified Local.Instrument.Kontakt as Kontakt
+import qualified Local.Instrument.Pianoteq as Pianoteq
+import qualified Local.Instrument.Vsl as Vsl
+
 import qualified App.StaticConfig as StaticConfig
 import Types
 
@@ -127,7 +134,16 @@ derive name state = do
         || "Track signal" `Text.isPrefixOf` Log.msg_text msg
 
 derive_block :: State.State -> BlockId -> Derive.Result
-derive_block = DeriveTest.derive_block_standard mempty mempty id
+derive_block = DeriveTest.derive_block_standard instrument_db mempty mempty id
+
+instrument_db :: Cmd.InstrumentDb
+instrument_db = DeriveTest.synth_to_db mempty synths
+
+-- | These are synths that I happen to know are pure, and are used in the saved
+-- performances.
+synths :: [Cmd.SynthDesc]
+synths = concat $ Unsafe.unsafePerformIO $
+    sequence $ map ($"") [Fm8.load, Kontakt.load, Pianoteq.load, Vsl.load]
 
 perform :: Cmd.Config -> State.State -> Cmd.Events
     -> ([Midi.WriteMessage], [Log.Msg])
