@@ -14,6 +14,7 @@ module Derive.PitchSignal (
     -- * signal functions
     , null, at, shift, head, last
     , take, drop, drop_after, drop_before, drop_before_strict
+    , map_y
     -- * Pitch
     , Pitch, PitchConfig(..), pitch_scale_id, pitch_transposers
     , pitch_controls
@@ -92,6 +93,7 @@ to_nn sig = (Signal.signal nns, Set.toList errs)
     (errs, nns) = split (unsignal sig)
     split [] = (Set.empty, [])
     split ((x, pitch) : rest) = case pitch_nn pitch of
+            -- TODO does this make a giant stack of thunks?
             Left err -> (Set.insert err errs, nns)
             Right (Pitch.NoteNumber nn) -> (errs, (x, nn) : nns)
         where (errs, nns) = split rest
@@ -174,6 +176,9 @@ drop_before_strict = modify_vector . TimeVector.drop_before_strict
 
 drop_before :: RealTime -> Signal -> Signal
 drop_before = modify_vector . TimeVector.drop_before
+
+map_y :: (Pitch -> Pitch) -> Signal -> Signal
+map_y = modify_vector . TimeVector.map_y
 
 -- * Pitch
 

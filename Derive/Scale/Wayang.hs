@@ -100,3 +100,9 @@ isep =
     , 84
     , 86.78 -- kantilan end
     ]
+
+pemade_top :: Pitch.NoteNumber
+pemade_top = max (umbang !! 9) (isep !! 9)
+
+kantilan_top :: Pitch.NoteNumber
+kantilan_top = max (last umbang) (last isep)

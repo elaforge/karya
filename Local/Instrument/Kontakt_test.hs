@@ -33,10 +33,8 @@ test_wayang = do
 
 test_wayang_pasang = do
     let run notes = derive $ UiTest.note_spec (title, notes, [])
-        extract = Score.inst_name . Score.event_instrument
-        title = "kkt/wayang | scale = wayang\
-            \ | inst-polos = >kkt/wayang-umbang\
-            \ | inst-sangsih = >kkt/wayang-isep | unison"
+        extract = DeriveTest.e_inst
+        title = wayang_title "" <> " | unison"
     equal (DeriveTest.extract extract $ run [(0, 1, "")])
         (["kkt/wayang-umbang", "kkt/wayang-isep"], [])
     let result = run [(0, 1, "4i")]
@@ -52,6 +50,33 @@ test_wayang_pasang = do
         [ (1, Midi.NoteOn Key.e5 127), (0, Midi.NoteOn Key.e5 127)
         , (1, Midi.NoteOff Key.e5 127), (0, Midi.NoteOff Key.e5 127)
         ]
+
+test_wayang_kempyung = do
+    let run suffix append notes = DeriveTest.extract extract $ derive $
+            UiTest.note_spec
+                (wayang_title suffix <> append <> " | kempyung", notes, [])
+        extract e = (DeriveTest.e_inst e, DeriveTest.e_note e)
+        umbang = "kkt/wayang-umbang"
+        isep = "kkt/wayang-isep"
+    -- Top note is 6i.
+    equal (run "-k" "" [(0, 1, "5e"), (1, 1, "5u")])
+        ([ (umbang, (0, 1, "5e")), (isep, (0, 1, "6i"))
+         , (umbang, (1, 1, "5u")), (isep, (1, 1, "5u"))
+         ], [])
+    equal (run "-p" "" [(0, 1, "4e"), (1, 1, "4u")])
+        ([ (umbang, (0, 1, "4e")), (isep, (0, 1, "5i"))
+         , (umbang, (1, 1, "4u")), (isep, (1, 1, "4u"))
+         ], [])
+    equal (run "-p" " | kempyung-top = (4a)" [(0, 1, "4o"), (1, 1, "4e")])
+        ([ (umbang, (0, 1, "4o")), (isep, (0, 1, "4a"))
+         , (umbang, (1, 1, "4e")), (isep, (1, 1, "4e"))
+         ], [])
+
+wayang_title :: String -> String
+wayang_title suffix =
+    " | scale = wayang | n >kkt/wayang" <> suffix <> " | scale = wayang\
+    \ | inst-polos = >kkt/wayang-umbang | inst-sangsih = >kkt/wayang-isep"
+
 
 test_kendang = do
     let e_attrs = DeriveTest.extract $ \e ->

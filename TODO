@@ -22,6 +22,10 @@ UNSORTED
     . Look into what Fl_Multiline_Input does and either use it, or implement
       the same thing in SeqInput.
     . Looks like it just puts newlines in.
+    . So, block title gets SeqInput::expand_vertical.  On text entry or
+      resize, it wraps text.
+      Actually, it should expand and stay expanded.  Should I have a separate
+      class?  It needs a callback so the parent can do the actual resizing.
   kotekan ornaments
     - norot, plus noltol depending on speed
     * given a single melody, split every other note between polos and sangsih
@@ -31,7 +35,7 @@ UNSORTED
       having the instrument bring its environ into scope during conversion as
       well as derivation.
       - input on >mridangam is broken, it wants to add pitches
-    - implement kempyung:
+    * implement kempyung:
       Needs to transpose +3 steps, but also know the top range of the
       instrument.
     - optional noltol for nyogcag
