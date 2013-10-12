@@ -14,7 +14,7 @@
 
     TrackTile________________
        |           \         \
-    title_input  EventTrack  SeqInput (edit_input, temporary)
+    title_input  EventTrack  ExpandInput (edit_input, temporary)
 */
 
 #ifndef __TRACK_TILE_H
@@ -29,7 +29,7 @@
 
 #include "MoveTile.h"
 #include "Track.h"
-#include "SeqInput.h"
+#include "ExpandInput.h"
 
 
 class TrackTile : public MoveTile {
@@ -87,7 +87,7 @@ private:
     ZoomInfo zoom;
     Fl_Box track_pad; // box to take up space not covered by tracks
     // Created and destroyed when 'edit_open' is called.
-    SeqInput *edit_input;
+    ExpandInput *edit_input;
 
     void update_sizes();
 };

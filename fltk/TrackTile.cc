@@ -10,7 +10,7 @@
 #include "config.h"
 
 #include "TrackTile.h"
-#include "SeqInput.h"
+#include "ExpandInput.h"
 #include "MsgCollector.h"
 
 
@@ -32,12 +32,12 @@ TrackTile::TrackTile(int X, int Y, int W, int H, Color bg_color,
 static bool
 raised_widget(Fl_Widget *w)
 {
-    SeqInput *input = dynamic_cast<SeqInput *>(w);
+    ExpandInput *input = dynamic_cast<ExpandInput *>(w);
     return input && input->is_expanded();
 }
 
 
-// HACK: See comment on SeqInput::is_expanded.
+// HACK: See comment on ExpandInput::is_expanded.
 int
 TrackTile::handle(int evt)
 {
@@ -136,7 +136,7 @@ TrackTile::edit_open(int tracknum, ScoreTime pos, const char *text,
     ypos += y() + title_height + 3;
     width -= 3;
     xpos += 2;
-    this->edit_input = new SeqInput(
+    this->edit_input = new ExpandInput(
         xpos, ypos, width, Config::View::track_title_height, true, false);
     edit_input->set_callback2(edit_input_cb, static_cast<void *>(this));
     edit_input->show();
@@ -159,12 +159,12 @@ void
 TrackTile::edit_close()
 {
     // Return or escape makes the input defocus itself.  Then it gets
-    // FL_UNFOCUS, which calls SeqInput::contract and then
-    // SeqInput::redraw_neighbors.  Then it invokes the 'edit_input_cb', which
-    // then calls 'edit_close'.  edit_close then deletes the SeqInput, which
-    // causes it to be removed from the TrackTile.  But since it's still inside
-    // the callback, it has to use Fl::delete_widget, which delays the delete
-    // until after I'm safely outside of the widget's callback.
+    // FL_UNFOCUS, which calls ExpandInput::contract and then
+    // ExpandInput::redraw_neighbors.  Then it invokes the 'edit_input_cb',
+    // which then calls 'edit_close'.  edit_close then deletes the ExpandInput,
+    // which causes it to be removed from the TrackTile.  But since it's still
+    // inside the callback, it has to use Fl::delete_widget, which delays the
+    // delete until after I'm safely outside of the widget's callback.
     if (!this->edit_input)
         return;
     MsgCollector::get()->edit_input(this, edit_input->value());
@@ -330,7 +330,7 @@ TrackTile::get_dragged_track() const
 }
 
 
-// HACK: See comment on SeqInput::is_expanded.
+// HACK: See comment on ExpandInput::is_expanded.
 void
 TrackTile::draw()
 {

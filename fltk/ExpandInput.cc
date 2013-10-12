@@ -3,25 +3,26 @@
 // License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 #include <FL/Fl.H>
-#include <FL/Fl_Window.H>
 
 #include "f_util.h"
 #include "config.h"
 
 #include "MsgCollector.h"
-#include "SeqInput.h"
+#include "ExpandInput.h"
 
 
-SeqInput::SeqInput(int X, int Y, int W, int H, bool do_expansion,
+static const Color focus_color(255, 240, 220);
+
+ExpandInput::ExpandInput(int X, int Y, int W, int H, bool do_expansion,
         bool strip_text) :
-    Fl_Input(X, Y, W, H), focus_color(255, 240, 220),
+    Fl_Input(X, Y, W, H),
     proper_size(W, H), expanded(false), do_expansion(do_expansion),
     strip_text(strip_text), callback2(NULL), callback2_arg(NULL)
 {
     this->color(FL_WHITE);
     this->textsize(Config::font_size::input);
     this->box(FL_THIN_DOWN_BOX);
-    this->callback(SeqInput::changed_cb, static_cast<void *>(this));
+    this->callback(ExpandInput::changed_cb, static_cast<void *>(this));
     // FL_WHEN_RELEASE is documented as firing whenever focus leaves the input.
     // But that's not true, it doesn't fire if the text hasn't changed.
     // So I have to call 'do_callback' on FL_UNFOCUS myself.
@@ -30,7 +31,7 @@ SeqInput::SeqInput(int X, int Y, int W, int H, bool do_expansion,
 
 
 void
-SeqInput::resize(int x, int y, int w, int h)
+ExpandInput::resize(int x, int y, int w, int h)
 {
     if (!this->expanded)
         this->proper_size = IPoint(w, h);
@@ -39,7 +40,7 @@ SeqInput::resize(int x, int y, int w, int h)
 
 
 void
-SeqInput::set_text(const char *text)
+ExpandInput::set_text(const char *text)
 {
     this->value(text);
     // So inputs consistently display the same part of text.
@@ -48,7 +49,7 @@ SeqInput::set_text(const char *text)
 
 
 void
-SeqInput::insert_text(const char *text)
+ExpandInput::insert_text(const char *text)
 {
     this->insert(text, 0);
     this->expand();
@@ -140,7 +141,7 @@ forward_token(const char *end, const char *pos)
 }
 
 static void
-move_backward(SeqInput *w, bool shift)
+move_backward(ExpandInput *w, bool shift)
 {
     const char *text = w->value();
     const char *p = backward_token(text, text + w->position());
@@ -152,7 +153,7 @@ move_backward(SeqInput *w, bool shift)
 
 
 static void
-move_forward(SeqInput *w, bool shift)
+move_forward(ExpandInput *w, bool shift)
 {
     const char *text = w->value();
     const char *p = forward_token(text + w->size(), text + w->position());
@@ -164,7 +165,7 @@ move_forward(SeqInput *w, bool shift)
 
 
 static void
-backspace_token(SeqInput *w)
+backspace_token(ExpandInput *w)
 {
     const char *text = w->value();
     const char *p = backward_token(text, text + w->position());
@@ -173,7 +174,7 @@ backspace_token(SeqInput *w)
 
 
 int
-SeqInput::handle(int evt)
+ExpandInput::handle(int evt)
 {
     // This is a crazy delicate mess because I have to apply my own key
     // bindings but fall back on the Fl_Input ones otherwise.
@@ -238,7 +239,7 @@ SeqInput::handle(int evt)
         handled = true;
         break;
     case FL_FOCUS:
-        this->color(color_to_fl(this->focus_color));
+        this->color(color_to_fl(focus_color));
         this->redraw();
         // Don't set handled, because Fl_Input still needs to get this.
         break;
@@ -284,7 +285,7 @@ SeqInput::handle(int evt)
 // This doesn't necessarily make the input larger, it could make it smaller
 // if a character was deleted.
 void
-SeqInput::expand()
+ExpandInput::expand()
 {
     if (!this->do_expansion)
         return;
@@ -300,7 +301,7 @@ SeqInput::expand()
     // nothing, but have no way of knowing when it is later scrolled into the
     // window.  The edge of the window will clip me anyway.
     size.x = std::max(size.x, this->proper_size.x);
-    // SeqInput doesn't wrap so I don't use 'y', but who knows, maybe it will
+    // ExpandInput doesn't wrap so I don't use 'y', but who knows, maybe it will
     // someday.
     size.y = this->proper_size.y;
     this->expanded = true;
@@ -316,7 +317,7 @@ SeqInput::expand()
 
 
 void
-SeqInput::contract()
+ExpandInput::contract()
 {
     if (!do_expansion || !expanded)
         return;
@@ -331,7 +332,7 @@ SeqInput::contract()
 
 
 void
-SeqInput::redraw_neighbors()
+ExpandInput::redraw_neighbors()
 {
     // Since expand() can inconsiderately walk all over its neighbors, I have
     // to redraw them when I contract() again.
@@ -374,13 +375,13 @@ strip_value(Fl_Input *w)
 
 
 void
-SeqInput::changed_cb(Fl_Widget *w, void *vp)
+ExpandInput::changed_cb(Fl_Widget *w, void *vp)
 {
-    SeqInput *self = static_cast<SeqInput *>(vp);
+    ExpandInput *self = static_cast<ExpandInput *>(vp);
     if (self->strip_text)
         strip_value(self);
 
-    // I only put SeqInputs in BlockViewWindows, so this should be safe.
+    // I only put ExpandInputs in BlockViewWindows, so this should be safe.
     BlockViewWindow *view = dynamic_cast<BlockViewWindow *>(self->window());
     for (int i = 0; i < view->block.tracks(); i++) {
         if (&view->block.track_at(i)->title_widget() == self) {

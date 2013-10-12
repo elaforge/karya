@@ -13,14 +13,14 @@
 
 /* UiMsgs are how the fltk layer communicates with the haskell layer.
 
-   Some events are handled directly by fltk widgets, but the rest are
-   sent as fltk events.  There is also a set of msgs that are not fltk
-   events and carry their own event-specific data with them.
+    Some events are handled directly by fltk widgets, but the rest are
+    sent as fltk events.  There is also a set of msgs that are not fltk
+    events and carry their own event-specific data with them.
 
-   Various fltk event handlers will call the various MsgCollector msgs
-   to put a msg in the global queue.  Every time the haskell side of the UI
-   event loop cycles, it will drain the queue and forward those to the Cmd
-   event loop (responder).
+    Various fltk event handlers will call the various MsgCollector msgs
+    to put a msg in the global queue.  Every time the haskell side of the UI
+    event loop cycles, it will drain the queue and forward those to the Cmd
+    event loop (responder).
 
     Msgs:
 

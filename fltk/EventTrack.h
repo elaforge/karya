@@ -12,7 +12,7 @@
 
 #include "types.h"
 
-#include "SeqInput.h"
+#include "ExpandInput.h"
 #include "Ruler.h"
 #include "Track.h"
 #include "Event.h"
@@ -122,7 +122,7 @@ public:
     // Y position of the track start.  Use this instead of y() to avoid
     // colliding with the track bevel.
     int track_start() { return overlay_ruler.track_start(); }
-    virtual SeqInput &title_widget() { return *this->title_input; }
+    virtual ExpandInput &title_widget() { return *this->title_input; }
     virtual const char *get_title() const {
         return this->title_input->value();
     }
@@ -157,9 +157,9 @@ private:
     double brightness;
     Color bg_color;
 
-    SeqInput *title_input;
+    ExpandInput *title_input;
     // Created and destroyed when 'edit_open' is called.
-    SeqInput *edit_input;
+    ExpandInput *edit_input;
     Fl_Box bg_box;
     OverlayRuler overlay_ruler;
 };

@@ -267,11 +267,12 @@ ccBinaries =
 
 fltkDeps :: Config -> [FilePath]
 fltkDeps config = map (srcToObj config . ("fltk"</>))
-    [ "Block.cc", "EventTrack.cc", "MoveTile.cc", "MsgCollector.cc"
-    , "P9Scrollbar.cc", "Ruler.cc", "SeqInput.cc", "SimpleScroll.cc"
+    [ "Block.cc", "EventTrack.cc", "ExpandInput.cc", "MoveTile.cc"
+    , "MsgCollector.cc", "P9Scrollbar.cc", "Ruler.cc", "SimpleScroll.cc"
     , "SkeletonDisplay.cc", "StyleTable.cc", "SymbolOutput.cc"
-    , "SymbolTable.cc", "Track.cc", "TrackTile.cc"
-    , "alpha_draw.cc", "config.cc", "f_util.cc", "types.cc", "util.cc"
+    , "SymbolTable.cc", "Track.cc", "TrackTile.cc",
+    , "alpha_draw.cc", "config.cc", "f_util.cc", "test_block.cc", "types.cc"
+    , "util.cc"
     ]
 
 -- * mode
