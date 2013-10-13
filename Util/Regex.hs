@@ -54,6 +54,7 @@ find_groups reg str =
         (h:rest) -> Just (h, rest)
         [] -> Nothing
 
+-- | Half-open ranges of where the regex matches.
 find_ranges :: Regex -> String -> [(Int, Int)]
 find_ranges reg str = concatMap extract (PCRE.matchAll (regex reg) str)
     where extract arr = [(i, i+n) | (i, n) <- IArray.elems arr]

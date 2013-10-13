@@ -174,8 +174,8 @@ handle_new_msg win msg = do
     let (styled, new_state) = Process.process_msg state msg
     State.put new_state
     case styled of
-        Just styled -> let (log_s, style_s) = Process.extract_style styled
-            in send_action $ LogViewC.append_log win log_s style_s
+        Just (Process.StyledText txt style) -> send_action $
+            LogViewC.append_log win txt style
         Nothing -> return ()
     let new_status = Process.state_status new_state
     when (Process.state_status state /= new_status) $ do

@@ -5,11 +5,17 @@
 module LogView.Process where
 import qualified Control.Monad.Trans.State as State
 import qualified Control.Monad.Trans.Writer as Writer
+import qualified Data.ByteString.Lazy as Lazy
+import qualified Data.ByteString as B
+import qualified Data.ByteString.Lazy.Builder as Builder
+import qualified Data.ByteString.UTF8 as UTF8
 import qualified Data.Foldable as Foldable
 import qualified Data.Functor.Identity as Identity
 import qualified Data.List as List
 import qualified Data.Map as Map
+import qualified Data.Monoid as Monoid
 import qualified Data.Sequence as Sequence
+import qualified Data.Word as Word
 
 import Util.Control
 import qualified Util.Log as Log
@@ -82,12 +88,11 @@ clickable_braces =
     ]
 
 data StyledText = StyledText {
-    style_text :: String
-    , style_style :: String
+    -- | UTF8-encoded text.
+    style_text :: B.ByteString
+    -- | 'Style' characters, same length as style_text.
+    , style_style :: B.ByteString
     } deriving (Show)
-
-extract_style :: StyledText -> (String, String)
-extract_style (StyledText text style) = (text, style)
 
 type ProcessM = State.StateT State Identity.Identity
 
@@ -99,7 +104,9 @@ process_msg state msg = run $ do -- suppress_last msg $ do
     filt <- State.gets state_filter
     process_catch
     let styled = format_msg msg
-    return $ if eval_filter filt msg (style_text styled)
+    -- I match the filter on the styled output so that the filter is on
+    -- the msg as actually displayed.
+    return $ if eval_filter filt msg (UTF8.toString (style_text styled))
         then Just styled else Nothing
     where
     run = flip State.runState state
@@ -206,10 +213,19 @@ format_msg msg = run_formatter $ do
 
 -- | Pair together text along with the magic Style characters.  The Styles
 -- should be the same length as the string.
-type Formatter = Writer.Writer [(String, [Style])] ()
+type Formatter = Writer.Writer Builder ()
+
+data Builder = Builder !Builder.Builder !Builder.Builder
+
+instance Monoid.Monoid Builder where
+    mempty = Builder mempty mempty
+    mappend (Builder a1 b1) (Builder a2 b2) = Builder (a1 <> a2) (b1 <> b2)
 
 run_formatter :: Formatter -> StyledText
-run_formatter = render_styles . Writer.execWriter
+run_formatter = build . Writer.execWriter
+    where
+    build (Builder txt styles) = StyledText (b txt) (b styles)
+    b = Lazy.toStrict . Builder.toLazyByteString
 
 emit_srcpos :: (String, Maybe String, Int) -> Formatter
 emit_srcpos (file, func_name, line) = do
@@ -236,34 +252,54 @@ msg_text_regexes = map (first Regex.make)
 
 regex_style :: Style -> [(Regex.Regex, Style)] -> String -> Formatter
 regex_style default_style regex_styles txt =
-    literal_style (map go [0..length txt - 1]) txt
+    sequence_ emits >> with_style default_style rest
     where
-    ranges = [(range, style) | (reg, style) <- regex_styles,
-        range <- Regex.find_ranges reg txt]
-    go i = maybe default_style snd $ List.find ((i `within`) . fst) ranges
-    within i (lo, hi) = lo <= i && i < hi
+    (rest, emits) = List.mapAccumL emit txt ranges
+    emit txt (chars, style) = (post, with_style style pre)
+        where (pre, post) = splitAt chars txt
+    ranges = flatten_ranges default_style
+        [ (range, style)
+        | (reg, style) <- regex_styles
+        , range <- Regex.find_ranges reg txt
+        ]
+
+flatten_ranges :: a -> [((Int, Int), a)] -> [(Int, a)]
+flatten_ranges deflt = filter ((>0) . fst) . snd . go 0 . Seq.sort_on fst
+    where
+    go n [] = (n, [])
+    go n (((s, e), style) : ranges) = (,) (max last_n e) $
+        (s - n, deflt)
+        : (min e next - s, style)
+        : rest ++ if last_n < e then [(e - last_n, style)] else []
+        where
+        next = maybe e (fst . fst) (Seq.head ranges)
+        (last_n, rest) = go e ranges
 
 with_plain :: String -> Formatter
 with_plain = with_style style_plain
 
 with_style :: Style -> String -> Formatter
-with_style style text = Writer.tell [(text, replicate (length text) style)]
+with_style _ "" = return ()
+with_style style text = Writer.tell $
+    Builder (Builder.byteString utf8)
+        (Builder.byteString (B.replicate (B.length utf8) style))
+    where utf8 = UTF8.fromString text
 
-literal_style :: [Style] -> String -> Formatter
-literal_style style text = Writer.tell [(text, style)]
+type Style = Word.Word8
 
-type Style = Char
-
-render_styles :: [(String, [Style])] -> StyledText
-render_styles styles =
-    StyledText (concatMap fst styles) (concatMap snd styles)
+render_styles :: [(B.ByteString, B.ByteString)] -> StyledText
+render_styles style_pairs = StyledText (mconcat texts) (mconcat styles)
+    where (texts, styles) = unzip style_pairs
 
 style_plain, style_warn, style_clickable, style_emphasis, style_divider,
     style_func_name, style_filename :: Style
-style_plain = 'A'
-style_warn = 'B'
-style_clickable = 'C'
-style_emphasis = 'D'
-style_divider = 'E'
-style_func_name = 'F'
-style_filename = 'G'
+style_plain = word 'A'
+style_warn = word 'B'
+style_clickable = word 'C'
+style_emphasis = word 'D'
+style_divider = word 'E'
+style_func_name = word 'F'
+style_filename = word 'G'
+
+word :: Char -> Word.Word8
+word = toEnum . fromEnum

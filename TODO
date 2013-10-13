@@ -3,6 +3,20 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
+  - logview and browser should use Util.ForeignC
+  * utf8 in the log crashes logview
+  - If I want randomized signals, maybe I should have
+    Derive.randomized_control_at that looks for a corresponding <>"-rnd"
+    signal for range.  E.g., each instrument should switch to noltol at
+    a different time.
+  Clean up Derive.Call.Post.
+    - I can't think of a way to compose states, but it seems cleaner to
+      replace map_controls etc. with the pure versions.
+    - Mapping nexts and signals should zip to express that they are not
+      dependent on previous state.  If I zip, can I compose firsts to compose
+      them?
+  - noltol moves events with Score.move, which is really inefficient.  Think
+    more about making event signals relative.
   * If I have an unallocated inst, like >wayang or >wayang-k, it's not an
     error if it can't be found, but then its environ isn't applied.  Maybe the
     deriver should complain.
