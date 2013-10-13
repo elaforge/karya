@@ -35,11 +35,15 @@ parse_all p text = go (A.parse p text)
     go (Attoparsec.Done rest val)
         | B.null rest = Right val
         | otherwise = Left $ err rest ++ "expected eof"
-    err rest = "parse error on byte " ++ column rest ++ " of " ++ show text
-        ++ ": "
+    err rest = "parse error on byte " ++ maybe "?" show (column rest) ++ " of "
+        ++ show_expr (column rest) text ++ ": "
+    show_expr Nothing expr = "\"" ++ B.unpack expr ++ "\""
+    show_expr (Just byte) expr = "\"" ++ pre ++ "»" ++ post ++ "\""
+        where (pre, post) = splitAt (byte - 1) (B.unpack expr)
+            -- byte starts at 1.  Use a unicode char so it's visually distinct.
     column t
-        | t `B.isSuffixOf` text = show $ B.length text - B.length t + 1
-        | otherwise = "?"
+        | t `B.isSuffixOf` text = Just $ B.length text - B.length t + 1
+        | otherwise = Nothing
 
 -- * casual parsing
 
