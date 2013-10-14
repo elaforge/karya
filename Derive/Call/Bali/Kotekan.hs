@@ -5,12 +5,14 @@
 -- | Calls that generate notes for instruments that come in polos and sangsih
 -- pairs.
 module Derive.Call.Bali.Kotekan where
+import qualified Data.List as List
+
 import Util.Control
+import qualified Derive.Attrs as Attrs
 import qualified Derive.Call.Post as Post
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Call.Util as Util
 import qualified Derive.Derive as Derive
-import qualified Derive.LEvent as LEvent
 import qualified Derive.PitchSignal as PitchSignal
 import qualified Derive.Pitches as Pitches
 import qualified Derive.Score as Score
@@ -18,6 +20,7 @@ import qualified Derive.Sig as Sig
 import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.Pitch as Pitch
+import Types
 
 
 note_calls :: Derive.CallMaps Derive.Note
@@ -25,6 +28,7 @@ note_calls = Derive.call_maps []
     [ ("nyog", c_nyogcag)
     , ("unison", c_unison)
     , ("kempyung", c_kempyung)
+    , ("noltol", c_noltol)
     ]
 
 -- Similar to reyong, extract a pokok from the events and generate from
@@ -41,7 +45,7 @@ c_unison = Derive.transformer "unison" postproc
     $ Sig.call0t $ \_args deriver -> do
         inst <- Util.get_instrument
         (polos, sangsih) <- get_pasang
-        Post.concat_map (unison inst polos sangsih) <$> deriver
+        Post.map_asc (unison inst polos sangsih) <$> deriver
     where
     unison inst polos sangsih event
         | Score.event_instrument event == inst =
@@ -70,7 +74,7 @@ c_kempyung = Derive.transformer "kempyung" postproc
             Nothing -> return Nothing
             Just pitch -> Just <$>
                 Derive.with_instrument sangsih (Pitches.pitch_nn pitch)
-        Post.concat_map (kempyung maybe_top inst polos sangsih) <$> deriver
+        Post.map_asc (kempyung maybe_top inst polos sangsih) <$> deriver
     where
     kempyung maybe_top inst polos sangsih event
         | Score.event_instrument event == inst =
@@ -96,19 +100,49 @@ c_nyogcag = Derive.transformer "nyog" postproc
     $ Sig.call0t $ \_args deriver -> do
         events <- deriver
         (polos, sangsih) <- get_pasang
-        return $ snd $ Post.map_state (nyogcag polos sangsih)
-            (True, LEvent.events_of events) events
+        return $ snd $ Post.map_state_asc (nyogcag polos sangsih) True events
 
--- How about the case where I want each part to switch out noltol around
--- the same point, but slightly different?
-
-nyogcag :: Score.Instrument -> Score.Instrument -> (Bool, [Score.Event])
-    -> Score.Event -> ((Bool, [Score.Event]), [Score.Event])
-nyogcag polos sangsih (is_polos, next) event =
-    ((not is_polos, drop 1 next), [with_inst])
+nyogcag :: Score.Instrument -> Score.Instrument
+    -> Bool -> Score.Event -> (Bool, [Score.Event])
+nyogcag polos sangsih is_polos event = (not is_polos, [with_inst])
     where
     with_inst = event
         { Score.event_instrument = if is_polos then polos else sangsih }
+
+c_noltol :: Derive.Transformer Derive.Note
+c_noltol = Derive.transformer "noltol" postproc
+    "Play the transformed notes in noltol style. If the distance between each\
+    \ note and the next note of the same instrument is above a threshold,\
+    \ end the note with a `+mute`d copy of itself."
+    $ Sig.callt
+    (Sig.defaulted "time" (Sig.control "noltol" 0.25)
+        "Play noltol if the time available exceeds this threshold.")
+    $ \time _args deriver -> do
+        time <- Util.to_signal time
+        (<$> deriver) $ Post.map_next_asc $ \nexts event ->
+            noltol (Post.time_at time event) nexts event
+
+-- Postproc is seems like the wrong time to be doing this, I can't even change
+-- the dyn conveniently.  However, postproc is the only time I reliably know
+-- when the next note is.  Could I create the note with a reapply instead?
+-- Then I can configure the noltol mute attributes and dynamic change in one
+-- place.
+
+-- | If the next note of the same instrument is below a threshold, the note's
+-- off time is replaced with a +mute.
+noltol :: RealTime -> [Score.Event] -> Score.Event -> [Score.Event]
+noltol threshold nexts event
+    | maybe False ((>=threshold) . subtract (Score.event_start event)) next =
+        [event, muted]
+    | otherwise = [event]
+    where
+    muted = Score.add_attributes (Attrs.mute <> Attrs.loose) $
+        -- TODO this should probably be configurable
+        Score.modify_dynamic (*0.65) $
+        Score.move (+ Score.event_duration event) event
+    next = Score.event_start <$>
+        List.find ((== Score.event_instrument event) . Score.event_instrument)
+            nexts
 
 get_pasang :: Derive.Deriver (Score.Instrument, Score.Instrument)
 get_pasang = (,) <$> Derive.get_val inst_polos <*> Derive.get_val inst_sangsih

@@ -450,7 +450,7 @@ d_merge derivers = do
     let (streams, collects) = unzip (map (run_sub cleared) derivers)
     modify $ \st -> st
         { state_collect = Monoid.mconcat (state_collect state : collects) }
-    return (Seq.merge_lists _event_start streams)
+    return (Seq.merge_lists event_start streams)
 
 -- | Like 'd_merge', but the derivers are assumed to return events that are
 -- non-decreasing in time, so the merge can be more efficient.  It also assumes
@@ -476,16 +476,16 @@ merge_logs result logs = case result of
 -- I can produce output without scanning the entire input list, so this should
 -- be more efficient for a large input list than 'merge_events'.
 merge_asc_events :: [Events] -> Events
-merge_asc_events = Seq.merge_asc_lists _event_start
+merge_asc_events = Seq.merge_asc_lists event_start
 
 merge_events :: Events -> Events -> Events
-merge_events = Seq.merge_on _event_start
+merge_events = Seq.merge_on event_start
 
 -- | This will make logs always merge ahead of score events, but that should
 -- be ok.
-_event_start :: LEvent.LEvent Score.Event -> RealTime
-_event_start (LEvent.Log _) = 0
-_event_start (LEvent.Event event) = Score.event_start event
+event_start :: LEvent.LEvent Score.Event -> RealTime
+event_start (LEvent.Log _) = 0
+event_start (LEvent.Event event) = Score.event_start event
 
 instance Monoid.Monoid NoteDeriver where
     mempty = return []

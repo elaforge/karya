@@ -202,6 +202,9 @@ hang_ks = [(attrs, key) | (attrs, key, _, _) <- hang_strokes]
     > pemade mute: (f_1, e1), open: (f3, e5)
     > kantil mute: (f0, e2), open: (f4, e6)
     > mute keyswitch: a_2, b_2
+
+    TODO if I want to support both +mute and +mute+loose, perhaps null_call
+    should add just +mute, and can inherit +loose if it's set.
 -}
 wayang_patches :: [MidiInst.Patch]
 wayang_patches =

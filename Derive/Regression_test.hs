@@ -64,7 +64,8 @@ compare_performance saved score = timeout score $ do
     expected <- load_midi saved
     got <- perform_file score
     let diffs = diff_performances expected got
-    mapM_ Text.IO.putStrLn diffs
+    -- Too many diffs aren't useful.
+    mapM_ Text.IO.putStrLn (take 500 diffs)
     return $ null diffs
 
 timeout :: String -> IO a -> IO a

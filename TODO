@@ -41,7 +41,7 @@ UNSORTED
       Actually, it should expand and stay expanded.  Should I have a separate
       class?  It needs a callback so the parent can do the actual resizing.
   kotekan ornaments
-    - norot, plus noltol depending on speed
+    - norot
     * given a single melody, split every other note between polos and sangsih
       Doesn't work because >wayang already split the notes
     * Tuning is incorrect if postproc changes the instrument, because the new
@@ -52,7 +52,7 @@ UNSORTED
     * implement kempyung:
       Needs to transpose +3 steps, but also know the top range of the
       instrument.
-    - optional noltol for nyogcag
+    * optional noltol for nyogcag
     * I need a combined instrument that emits polos and sangsih by default,
       but only emits one if part=polos or part=sangsih.
     * Make midi thru work for pasang instruments
