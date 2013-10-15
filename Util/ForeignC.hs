@@ -225,8 +225,6 @@ copyArray = doCopy undefined
 
 -- ** Foreign.Marshal.Utils
 
-
-
 with :: (CStorable a) => a -> (Ptr a -> IO b) -> IO b
 with val f = alloca $ \ptr -> do
     poke ptr val

@@ -3,7 +3,10 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
-  - logview and browser should use Util.ForeignC
+  - rename a block then undo, leads to
+    state error while verifying: State.lookup: unknown (bid "untitled/mvt1")
+  - 'b' and 'w' should work when there is no ruler
+  * logview and browser should use Util.ForeignC
   * utf8 in the log crashes logview
   - If I want randomized signals, maybe I should have
     Derive.randomized_control_at that looks for a corresponding <>"-rnd"
@@ -16,7 +19,8 @@ UNSORTED
       dependent on previous state.  If I zip, can I compose firsts to compose
       them?
   - noltol moves events with Score.move, which is really inefficient.  Think
-    more about making event signals relative.
+    more about making event signals relative.  It also means I don't have to
+    move signals that are never used.
   * If I have an unallocated inst, like >wayang or >wayang-k, it's not an
     error if it can't be found, but then its environ isn't applied.  Maybe the
     deriver should complain.
@@ -40,6 +44,8 @@ UNSORTED
       resize, it wraps text.
       Actually, it should expand and stay expanded.  Should I have a separate
       class?  It needs a callback so the parent can do the actual resizing.
+    . Never break a word, that way I can always get unwrapped text by
+      converting newlines to spaces.
   kotekan ornaments
     - norot
     * given a single melody, split every other note between polos and sangsih

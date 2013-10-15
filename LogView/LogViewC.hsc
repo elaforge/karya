@@ -5,9 +5,8 @@
 module LogView.LogViewC where
 import qualified Data.ByteString as B
 import qualified Data.ByteString.UTF8 as UTF8
-import Foreign
-import Foreign.C
 
+import Util.ForeignC
 import qualified Util.Fltk as Fltk
 
 #include "LogView/interface.h"
