@@ -44,7 +44,9 @@ modify_meter :: (State.M m, Meter.Meterlike meter) =>
     BlockId -> (meter -> meter) -> m ()
 modify_meter block_id f = do
     ruler_id <- State.ruler_of block_id
-    State.modify_ruler ruler_id (Meter.modify_meter f)
+    if ruler_id == State.no_ruler
+        then local_meter block_id f
+        else State.modify_ruler ruler_id (Meter.modify_meter f)
 
 get_meter :: (State.M m) => RulerId -> m Meter.Meter
 get_meter = fmap Meter.ruler_meter . State.get_ruler
