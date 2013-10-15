@@ -5,7 +5,7 @@ LEGEND
 UNSORTED
   - rename a block then undo, leads to
     state error while verifying: State.lookup: unknown (bid "untitled/mvt1")
-  - 'b' and 'w' should work when there is no ruler
+  * 'b' and 'w' should work when there is no ruler
   * logview and browser should use Util.ForeignC
   * utf8 in the log crashes logview
   - If I want randomized signals, maybe I should have
