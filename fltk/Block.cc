@@ -36,7 +36,7 @@ BlockView::BlockView(int X, int Y, int W, int H,
         const BlockModelConfig &model_config) :
     Fl_Group(X, Y, W, H),
 
-    title(0, 0, 1, 1, false),
+    title(0, 0, 1, 1),
     status_line(0, 0, 1, 1),
     body(0, 0, 1, 1),
         body_resize_group(0, 0, 1, 1, "resize group"),
@@ -55,7 +55,7 @@ BlockView::BlockView(int X, int Y, int W, int H,
                         Config::View::track_title_height)
 {
     // The sizes of 1 are so that groups realize that their children are inside
-    // of them.  The real resizing will be done in set_view_config
+    // of them.  The real resizing will be done in set_widget_sizes
     current(0); // done adding widgets
     // fltk's automatic group stuff gets most of the hierarchy above, but not
     // all of it.
@@ -66,7 +66,7 @@ BlockView::BlockView(int X, int Y, int W, int H,
     body_resize_group.hide();
 
     // Insert a placeholder for the ruler.  The size will be set again by
-    // set_view_config, but that's ok.
+    // set_widget_sizes, but that's ok.
     this->no_ruler = new DividerView(DividerConfig(Color::black));
     this->replace_ruler_track(no_ruler, 0);
 
@@ -88,13 +88,13 @@ BlockView::BlockView(int X, int Y, int W, int H,
     body.resizable(body_resize_group);
     track_group.resizable(track_scroll);
 
-    title.set_callback2(BlockView::title_cb, static_cast<void *>(this));
+    title.callback(BlockView::title_cb, static_cast<void *>(this));
     title.hide(); // It starts with no text.
 
-    this->set_view_config();
+    this->set_widget_sizes();
     this->set_model_config(model_config, true);
 
-    // See dummy_ruler_size in set_view_config.
+    // See dummy_ruler_size in set_widget_sizes.
     this->set_ruler_width(0);
 
     // Initialize zoom to default.  This will cause zooming children to
@@ -150,13 +150,13 @@ BlockView::resize(int X, int Y, int W, int H)
 
 
 void
-BlockView::set_view_config()
+BlockView::set_widget_sizes()
 {
     // I update everything, even if update_all is false.  It's probably not
     // worth trying to skip things that haven't changed for this.
     //
     // If I resize from parent to child, then children get a lot of spurious
-    // resizes as their parents move them around.  on the other hand, if
+    // resizes as their parents move them around.  On the other hand, if
     // we go the other way, parents mess up their children.
     // Spurious resizes it is.
     //
@@ -171,31 +171,32 @@ BlockView::set_view_config()
     int wx = 0, wy = 0;
     this->position(0, 0);
 
-    title.resize(wx, wy, w(), Config::View::block_title_height);
-    int title_h;
-    if (title.visible()) {
-        title_h = title.h();
-    } else {
-        title_h = 0;
-    }
-    status_line.resize(wx, h() - Config::View::status_size,
-            w() - mac_resizer_width, Config::View::status_size);
+    int title_h = title.visible() ? title.text_height() : 0;
+    title.resize(wx, wy, w(), title_h);
+
+    status_line.resize(
+        wx, h() - Config::View::status_size,
+        w() - mac_resizer_width, Config::View::status_size);
     body.resize(wx, wy + title_h, w(), h() - title_h - status_line.h());
-    body_resize_group.resize(body.x() + Config::View::sb_size, body.y(),
-            body.w() - Config::View::sb_size, body.h());
+    body_resize_group.resize(
+        body.x() + Config::View::sb_size, body.y(),
+        body.w() - Config::View::sb_size, body.h());
 
     int ruler_group_w = Config::View::sb_size + ruler_track->w();
-    skel_box.resize(body.x(), body.y(),
-            ruler_group_w, Config::View::skel_height);
-    skel_display_scroll.resize(skel_box.x() + skel_box.w(), skel_box.y(),
-            body.w() - ruler_group_w, Config::View::skel_height);
+    skel_box.resize(
+        body.x(), body.y(),
+        ruler_group_w, Config::View::skel_height);
+    skel_display_scroll.resize(
+        skel_box.x() + skel_box.w(), skel_box.y(),
+        body.w() - ruler_group_w, Config::View::skel_height);
     IRect p = rect(skel_display_scroll);
     skel_display.resize(p.x, p.y, p.w, p.h);
 
     // Re-use the existing ruler_track width so it is maintained across calls
-    // to set_view_config.  It has to be at least 1, or else the 'body' Fl_Tile
+    // to set_widget_sizes.  It has to be at least 1, or else the 'body' Fl_Tile
     // won't resize properly.
-    ruler_group.resize(wx, body.y() + Config::View::skel_height,
+    ruler_group.resize(
+        wx, body.y() + Config::View::skel_height,
         ruler_group_w, body.h() - Config::View::skel_height);
     p = rect(ruler_group);
     track_group.resize(p.r(), p.y, body.w() - p.w, p.h);
@@ -203,7 +204,8 @@ BlockView::set_view_config()
     // The track_box looks taller than just the track titles because it's
     // always the same color as the skel_box.
     track_box.resize(p.x, p.y, p.w, Config::View::track_title_height);
-    sb_box.resize(p.x, p.b() - Config::View::sb_size,
+    sb_box.resize(
+        p.x, p.b() - Config::View::sb_size,
         p.w, Config::View::sb_size);
 
     time_sb.set_orientation(P9Scrollbar::vertical);
@@ -695,19 +697,25 @@ BlockView::title_cb(Fl_Widget *_w, void *vp)
 {
     BlockView *self = static_cast<BlockView *>(vp);
     BlockViewWindow *view = static_cast<BlockViewWindow *>(self->window());
-    MsgCollector::get()->view(UiMsg::msg_input, view);
+
+    if (Fl::event() == FL_UNFOCUS)
+        MsgCollector::get()->view(UiMsg::msg_input, view);
+    bool changed = false;
     if (strlen(self->title.value()) == 0) {
         if (self->title.visible()) {
+            changed = true;
             self->title.hide();
-            self->set_view_config();
-            MsgCollector::get()->block(UiMsg::msg_resize, self);
         }
     } else {
         if (!self->title.visible()) {
+            changed = true;
             self->title.show();
-            self->set_view_config();
-            MsgCollector::get()->block(UiMsg::msg_resize, self);
         }
+    }
+    changed = changed || self->title.h() != self->title.text_height();
+    if (changed) {
+        self->set_widget_sizes();
+        MsgCollector::get()->block(UiMsg::msg_resize, self);
     }
 }
 
@@ -760,6 +768,8 @@ BlockViewWindow::resize(int X, int Y, int W, int H)
     // Don't make the window taller than will fit on the screen.
     H = std::min(H, sh - titlebar);
     Fl_Window::resize(X, Y, W, H);
+    // This sends tons of resize msgs, and I'd rather just send one on
+    // mouse up.
     MsgCollector::get()->view(UiMsg::msg_resize, this);
 }
 

@@ -41,6 +41,7 @@ skel_box  skel_display  ruler_group _____________        track_group
 #include "SeqScrollbar.h"
 #include "ExpandInput.h"
 #include "SymbolOutput.h"
+#include "WrappedInput.h"
 
 #include "config.h"
 #include "types.h"
@@ -94,7 +95,7 @@ public:
     int handle(int evt);
     void resize(int X, int Y, int W, int H);
 private:
-    void set_view_config();
+    void set_widget_sizes();
 public:
     void set_model_config(const BlockModelConfig &config,
             bool update_all=false);
@@ -125,7 +126,7 @@ public:
     void set_track_selection(int selnum, int tracknum, const Selection &sel);
 
     void set_title(const char *s);
-    const char *get_title() const { return title.value(); }
+    const char *get_title() const { return title.get_text(); }
     void set_status(const char *s, const Color &color) {
         status_line.value(s);
         status_line.color(color_to_fl(color));
@@ -188,7 +189,7 @@ private:
     // The ruler track gets this when there's "nothing" in it.
     TrackView *no_ruler;
 
-    ExpandInput title;
+    WrappedInput title;
     SymbolOutput status_line;
     Fl_Tile body;
         // Dummy group to limit body tile drag to the ruler track.
