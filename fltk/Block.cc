@@ -140,8 +140,15 @@ BlockView::handle(int evt)
 void
 BlockView::resize(int X, int Y, int W, int H)
 {
+    int old_w = this->w();
     Fl_Group::resize(X, Y, W, H);
     status_line.size(w() - mac_resizer_width, status_line.h());
+
+    // Only check for title height changes if width has changed.  Otherwise,
+    // the position(0, 0) call in set_widget_sizes causes recursion.
+    if (old_w != W && title.visible() && title.h() != title.text_height())
+        set_widget_sizes();
+
     // If I'm growing, I will have changed the visible area, so recalculate
     // the scroll boundaries.
     this->set_track_scroll(this->get_track_scroll());

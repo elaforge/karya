@@ -34,28 +34,16 @@ WrappedInput::WrappedInput(int X, int Y, int W, int H) :
 }
 
 
-static void
-invoke_callback(void *vp)
-{
-    Fl_Widget *self = static_cast<Fl_Widget *>(vp);
-    self->do_callback();
-}
-
 void
 WrappedInput::resize(int x, int y, int w, int h) // , bool no_wrap)
 {
     int old_w = this->w();
     Fl_Multiline_Input::resize(x, y, w, h);
-    // Only a horizontal change can affect wrapping.  Since a rewrap can cause
-    // a vertical resize, this also avoids recursion.
-    if (this->w() != old_w) {
-        // If I call it synchronously, widgets don't resize properly.  As far
-        // as I can tell, this is due to re-entrantly calling resize functions.
-        // Using a timeout fixes the problem, but only when the mouse goes up,
-        // which is a bit ugly.
-        if (this->wrap_text())
-            Fl::add_timeout(0, invoke_callback, this);
-    }
+    // Only a horizontal change can affect wrapping.  Previously I called
+    // do_callback(), but this causes a call to BlockView::set_widget_sizes()
+    // which winds up calling resize()s re-entrantly, which is just trouble.
+    if (this->w() != old_w)
+        this->wrap_text();
 }
 
 void

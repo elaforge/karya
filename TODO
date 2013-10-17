@@ -46,6 +46,11 @@ UNSORTED
       class?  It needs a callback so the parent can do the actual resizing.
     . Never break a word, that way I can always get unwrapped text by
       converting newlines to spaces.
+    . Resize is called on block, which then triggers resize on the
+      WrappedInput, which then triggers set_widget_sizes().  This triggers
+      resize of children, in the middle of the children being resized by the
+      Fl_Group::resize.
+    . Instead, I should do it from Block::resize.
   kotekan ornaments
     - norot
     * given a single melody, split every other note between polos and sangsih
@@ -263,7 +268,7 @@ MILESTONES
 ----------------------------------------------------------------------
 
 documentation
-  - cmd: integration
+  * cmd: integration
   derivation
     * NoteTransformers
     * logging
