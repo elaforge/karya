@@ -75,6 +75,33 @@ it should just be a word.  Holding shift extends the selection as usual.
 Control-backspace deletes a token.  Otherwise, they use the shortcuts
 documented on fltk's Fl_Input.
 
+## symbols
+
+Scores can look nice with specialized symbols.  There are two ways to do this.
+One way is to just enter the symbol directly, using an IME or character
+palette.  You should be able to bind a call to any unicode word without spaces.
+The disadvantages are it can be an awkward way to type, you can't specify the
+font, it's unreadable if you don't have the right fonts installed, and it can
+only represent glyphs that you can directly emit via unicode.
+
+Symbols are an alternate approach.  Any text surrounded by backticks \`like
+this\` is looked up in a static symbol table, and if found, replaced with the
+rendered symbol.  'Ui.Symbol.Symbol's are registered in the table at startup.
+They are a composition of multiple unicode glyphs, with individual fonts, size,
+alignment, and rotation.  The name to glyph map is declared statically in the
+source, although it's spread around based on who is using it:
+'Derive.Call.Symbols', 'Derive.Scale.Symbols', and 'Derive.Instrument.Symbols'.
+They are collected at startup time and loaded by 'App.LoadConfig'.  If the
+fonts don't exist, it warns at startup, and the symbols fall back on a readable
+if not so pretty representation.  The major disadvantage of this approach is
+that you have to declare every symbol explicitly in the source, and remember
+its name.
+
+All this said, I've wound up not using symbols very often.  You can still
+express quite a lot with ASCII and it's easier to type.  For example, I'm not
+yet sure whether I prefer a plain `tr` or a fancy trill symbol, though in the
+case of sharps and flats I've decided on plain ASCII `#` and `b`.
+
 ## IDs
 
 IDs are names for the major score elements.  ViewIds name 'Ui.Block.View's,

@@ -183,7 +183,7 @@ MILESTONES
 ----------------------------------------------------------------------
 
 documentation
-  + doc/symbols.md, link from ui
+  * doc/symbols.md, link from ui
   - doc/external-configuration.md
   - make sure core state types and their dependents have good haddock
   - update screenshots: doc/img/ly-example.png
