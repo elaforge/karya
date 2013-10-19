@@ -11,6 +11,7 @@ import qualified Data.Map as Map
 import Util.Control
 import qualified Util.Log as Log
 import qualified Util.Pretty as Pretty
+import qualified Util.Seq as Seq
 
 import qualified Ui.Diff as Diff
 import qualified Ui.State as State
@@ -39,9 +40,15 @@ sync :: Sync -> Performance.SendStatus
     -> IO ([Update.UiUpdate], State.State, Cmd.State)
 sync sync_func send_status ui_pre ui_from ui_to cmd_state cmd_updates
         play_monitor_state = do
-    -- I'd catch problems closer to their source if I did this from run_cmds,
-    -- but it's nice to see that it's definitely happening before syncs.
-    verify_state ui_to
+    ui_to <- case State.quick_verify ui_to of
+        Left err -> do
+            Log.error $ "cmd caused a verify error, rejecting state change: "
+                ++ err
+            return ui_from
+        Right (state, warns) -> do
+            unless (null warns) $
+                Log.warn $ "verify fixed issues: " ++ Seq.join "; " warns
+            return state
 
     let (ui_updates, display_updates) = Diff.diff cmd_updates ui_from ui_to
     -- Debug.fullM Debug.putp "ui_updates" ui_updates
@@ -66,15 +73,6 @@ get_track_signals maybe_root st = fromMaybe Map.empty $ do
     root <- maybe_root
     Cmd.perf_track_signals <$>
         Map.lookup root (Cmd.state_performance (Cmd.state_play st))
-
--- | This should be run before every sync, since if errors get to sync they'll
--- result in bad UI display, a C++ exception, or maybe even a segfault (but C++
--- args should be protected by ASSERTs).
---
--- If there were a need, Cmd.State verification could go here too.
-verify_state :: State.State -> IO ()
-verify_state state = whenJust (State.quick_verify state) $ \err ->
-    Log.error $ "state error while verifying: " ++ Pretty.pretty err
 
 modified_view :: Update.UiUpdate -> Bool
 modified_view (Update.View _ update) = case update of

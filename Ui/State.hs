@@ -1416,28 +1416,6 @@ validate caller verify = do
                 put state
                 throw $ caller ++ ": error validating: " ++ Seq.join "; " errs
 
--- | Unfortunately there are some invariants to protect within State.  This
--- will check the invariants and return an error if it's broken.
---
--- 'verify' is better, but more expensive, so I'm reluctant to run it on every
--- single cmd.  If I run 'verify' before unsafe puts and trust this module to
--- maintain invariants then I don't need to, but I don't fully trust this
--- module.
---
--- TODO a better approach would be to make sure Sync can't be broken by State.
-quick_verify :: State -> Maybe Error
-quick_verify state = either Just (const Nothing) (exec state do_verify)
-    where
-    do_verify = do
-        views <- gets (Map.elems . state_views)
-        mapM_ (get_block . Block.view_block) views
-        block_ids <- Map.keys <$> gets state_blocks
-        blocks <- mapM get_block block_ids
-        mapM_ verify_block blocks
-    verify_block block = do
-        mapM_ get_track (Block.block_track_ids block)
-        mapM_ get_ruler (Block.block_ruler_ids block)
-
 -- | Unfortunately there are some invariants to protect within State.
 -- They can all be fixed by dropping things, so this will fix them and return
 -- a list of warnings.
@@ -1445,6 +1423,32 @@ verify :: State -> (State, [String])
 verify state = case run_id state fix_state of
     Left err -> (state, ["exception: " ++ Pretty.pretty err])
     Right (errs, state, _) -> (state, errs)
+
+-- | This is like 'verify', but less complete.  It returns Left if it wants
+-- you to reject the new state entirely.
+--
+-- 'verify' is better, but more expensive, so I'm reluctant to run it on every
+-- single cmd.  If I run 'verify' before unsafe puts and trust this module to
+-- maintain invariants then I don't need to, but I don't fully trust this
+-- module.
+--
+-- TODO a better approach would be to make sure Sync can't be broken by State.
+quick_verify :: State -> Either String (State, [String])
+quick_verify state = case run_id state quick_fix of
+    Left err -> Left $ Pretty.pretty err
+    Right (errs, state, _) -> Right (state, errs)
+    where
+    quick_fix = do
+        mapM_ verify_block =<< gets (Map.elems . state_blocks)
+        -- Disappearing views can happen if you undo past a block rename.
+        -- In that case I should track the rename rather than disappearing
+        -- the view, but in any case I don' want dangling ViewIds and
+        -- disappearing the view is relatively harmless.
+        views <- gets (Map.toList . state_views)
+        concatMapM (uncurry verify_view) views
+    verify_block block = do
+        mapM_ get_track (Block.block_track_ids block)
+        mapM_ get_ruler (Block.block_ruler_ids block)
 
 fix_state :: StateId [String]
 fix_state = do

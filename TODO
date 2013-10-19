@@ -3,7 +3,7 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
-  - rename a block then undo, leads to
+  * rename a block then undo, leads to
     state error while verifying: State.lookup: unknown (bid "untitled/mvt1")
     . Presumably undo undoes the name change but keeps the old view, which
       still refers to the new bid.

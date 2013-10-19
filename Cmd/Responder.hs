@@ -295,11 +295,10 @@ run_responder state m = do
             cmd_to <- handle_special_status
                 ui_to cmd_to (state_transport_info state) status
             cmd_to <- return $ fix_cmd_state ui_to cmd_to
-            (updates, ui_to, cmd_to) <-
-                ResponderSync.sync (state_sync state)
-                    (send_derive_status (state_loopback state))
-                    (state_ui state) ui_from ui_to cmd_to cmd_updates
-                    (Transport.info_state (state_transport_info state))
+            (updates, ui_to, cmd_to) <- ResponderSync.sync (state_sync state)
+                (send_derive_status (state_loopback state))
+                (state_ui state) ui_from ui_to cmd_to cmd_updates
+                (Transport.info_state (state_transport_info state))
             cmd_to <- Undo.maintain_history ui_to cmd_to updates
             when (is_quit status) $
                 Save.save_views cmd_to ui_to
