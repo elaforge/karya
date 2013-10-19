@@ -3,14 +3,6 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
-  * rename a block then undo, leads to
-    state error while verifying: State.lookup: unknown (bid "untitled/mvt1")
-    . Presumably undo undoes the name change but keeps the old view, which
-      still refers to the new bid.
-    . make State.quick_verify like verify and return Maybe (State, [Error])
-  * 'b' and 'w' should work when there is no ruler
-  * logview and browser should use Util.ForeignC
-  * utf8 in the log crashes logview
   - If I want randomized signals, maybe I should have
     Derive.randomized_control_at that looks for a corresponding <>"-rnd"
     signal for range.  E.g., each instrument should switch to noltol at
@@ -24,73 +16,8 @@ UNSORTED
   - noltol moves events with Score.move, which is really inefficient.  Think
     more about making event signals relative.  It also means I don't have to
     move signals that are never used.
-  * If I have an unallocated inst, like >wayang or >wayang-k, it's not an
-    error if it can't be found, but then its environ isn't applied.  Maybe the
-    deriver should complain.
-  * why does kanti not go up to 6i?
-  * sub-notes mess up the stack since they put in a 0-n range.  This makes
-    later errors not useful.  The should either be not emitted, or should
-    be shifted so they are in TrackTime.
-  * Why does a transpose out of range result in 'Perform: no pitch signal'
-    from the performer, and not a more informative transpose error?
-    Because it transposes ok, just the patch_scale doesn't have it.
-  / change Cmd.Cmd to 'type Cmd m = Msg.Msg -> m Status'
-  * replace all that Internal.get_dynamic Derive.state_environ with
-    a Derive.get_environ.
-  * I need to wrap the block title
-    . Just like SeqInput, only expand vertically on wrap.  This means going
-      back to displaying the beginning of the text field though.
-    . Look into what Fl_Multiline_Input does and either use it, or implement
-      the same thing in SeqInput.
-    . Looks like it just puts newlines in.
-    . So, block title gets SeqInput::expand_vertical.  On text entry or
-      resize, it wraps text.
-      Actually, it should expand and stay expanded.  Should I have a separate
-      class?  It needs a callback so the parent can do the actual resizing.
-    . Never break a word, that way I can always get unwrapped text by
-      converting newlines to spaces.
-    . Resize is called on block, which then triggers resize on the
-      WrappedInput, which then triggers set_widget_sizes().  This triggers
-      resize of children, in the middle of the children being resized by the
-      Fl_Group::resize.
-    . Instead, I should do it from Block::resize.
   kotekan ornaments
     - norot
-    * given a single melody, split every other note between polos and sangsih
-      Doesn't work because >wayang already split the notes
-    * Tuning is incorrect if postproc changes the instrument, because the new
-      instrument doesn't bring its tuning along with it.  I could fix that by
-      having the instrument bring its environ into scope during conversion as
-      well as derivation.
-      - input on >mridangam is broken, it wants to add pitches
-    * implement kempyung:
-      Needs to transpose +3 steps, but also know the top range of the
-      instrument.
-    * optional noltol for nyogcag
-    * I need a combined instrument that emits polos and sangsih by default,
-      but only emits one if part=polos or part=sangsih.
-    * Make midi thru work for pasang instruments
-      . Thru is unprepared for the same note twice because it takes NoteId from
-        the MIDI key.  I need NoteId to be independent, perhaps a serial number,
-        but aren't there things that rely on being able to map back to key?
-      . Not going to work for MIDI because when I get a Midi.NoteOff I have
-        no way of knowinng which one it was for.  But I really want it to
-        work for synthesized
-      . The thing is, I call midi_thru_instrument twice for the same input.
-        Can't do that, I need different NoteIds.
-      . I get
-        NoteOn  2 e6    NoteOn  3 e6
-        Pitch   2 32    Pitch   3 283
-        NoteOff 2 e6    NoteOff 3 d5
-      * I get 3 outputs because >wayang with [] alloc still maps NoteId 72
-      * Why pitchbend on chan 2?
-        . Because the patch scale map realizes the pitch without passing
-          the proper tuning.
-          Does Perf.derive_at set environ?  Yes, but it doesn't know tuning.
-          The instrument sets the tuning, so I need to evaluate the pitch
-          under the instrument.
-        ? Why 88nn and 88.095 nn when neither is in the scale?
-          That's after patch scale map!
   - keys to turn play speed up and down
   - The problem with Derive.inst_environ to set scale is that you can't really
     override it.  So if >wayang wants *wayang, then you can't easily say you
@@ -103,13 +30,6 @@ UNSORTED
     . What about >wayang, which introduces inst-sangsih and inst-polos?
       It can't do that anyway, because it can't know what the correct insts
       are, given that they are probably aliases.
-  * merge KeyswitchMap and Keymap into AttributeMap
-    Ensure that keyswitches cause channel splits, but keymaps don't.
-    ? How does that happen?
-      Keyswitches are handled in the inst db, so it can return a differently
-      named inst, keymap is handled during conversion.  Both could be handled
-      in conversion, making patch lookup simpler.
-    . I need to do this to support keyswitch + octave offset for wayang.
   Raga
     - Support arohana and avarohana by treating them as enharmonics
       Is this really a good idea, since they aren't anything like enharmonics?
@@ -162,12 +82,6 @@ UNSORTED
       last note call.
     - I'm still not sure I want this, since it seems like I want to repeat
       generators too.  But how to tell wanted ones from unwanted pitch ones?
-  - If I want to draw multiple signals together, I need a line or polygon
-    + gradient function.  Maybe I can get ahold of the OS X graphics context
-    and directly call cocoa functions.  For that to work on linux, I think I'd
-    have to do the same for cairo.
-    . Or perhaps I should just switch to OpenGL?
-  * rename i>> to s for slide, or p for porta
   - need an easy way to create IDs for debugging, so I can copy paste
     (bid "xyz") stuff
   - After a rederive, it still takes a Cmd to free up the memory.  Who is
@@ -187,8 +101,6 @@ UNSORTED
   - %sus-abs=-.x is not quite right for detached, because it should scale
     a bit for shorter notes.  E.g. it's absolute but scales down to 0 below
     a certain threshold.
-  / add Args.next_val to match Args.prev_val, but it has to be careful about
-    endless loops
   calls:
     - Sometimes tick makes more sense as at attribute of the previous note, or
       perhaps a freestanding ornament, since it can happen or not on a repeat.
@@ -210,7 +122,7 @@ UNSORTED
       +cresc or +dim on a note.
     - Figure out how to map continuous controls, and crossfade.
 
-  - Partial application, e.g.: '>arp = arp-manual .3 .2 .1'
+  / Partial application, e.g.: '>arp = arp-manual .3 .2 .1'
     Normal args could use the environ defaulting, but repeated args can't do
     that.
   - network midi doesn't seem to handle abort?
@@ -271,17 +183,9 @@ MILESTONES
 ----------------------------------------------------------------------
 
 documentation
-  * cmd: integration
-  derivation
-    * NoteTransformers
-    * logging
-  * doc/performance.md
-  * doc/local.md
-  / doc/instrument.md
   + doc/symbols.md, link from ui
   - doc/external-configuration.md
   - make sure core state types and their dependents have good haddock
-  * update outdated module haddock: Derive.TrackLang
   - update screenshots: doc/img/ly-example.png
   call doc:
     - I could go look through arg docs for controls and list all the controls
@@ -350,12 +254,6 @@ integrate / integration:
   - bug: create tracks, remove <, re-add <, does it work?
     Removing < should break the integrate links.
 
-  / Optimize block integration: similar to only_destinations_damaged,
-    if only the destination blocks are damaged, don't rederive the source.
-    Actually, this doesn't seem to be necessary.
-  / single track mode that doesn't split tracks
-  / integrate not logging means that integrate errors only show up on play
-  / It may be possible to parallelize multiple integrations.
   - Convert.Tracks should mirror TrackDestination structure.  Or
     parameterize TrackDestination?
   - Figure out how multiple levels of track integration work.
@@ -519,8 +417,6 @@ cleanup:
     I got started but was discouraged when it came time to write
     GetLastSample, maybe I should make another go.
     Note tracks can't get a GetLastSample at all.
-  / as above, Derived could be called Cacheable, and Elem should be a separate
-    type family
   - It would be more efficient to move events around if their controls were
     normalized to start from their beginning, so that you never have to modify
     the signals.  Of course, it's only worth it if events tend to get moved
@@ -541,21 +437,6 @@ cleanup:
     no-overlap invariant easier.  E.g. have explicit 'off' events, otherwise
     each event extends to the next one.  It means after merging I have to
     clear redundant offs, but that's easier right?
-  / instead of building log dup suppressing logic into various functions,
-    e.g.  allot, maybe I can add 'key' field to Log.Msg and suppress dup
-    keys?  Who else produces dups?  Convert does.  But isn't it more
-    efficient to just not emit?
-    - convert and perform want to suppress the same msgs for the current
-      derivation
-    - Perform.Midi.Cache.is_splice_failure is just a better way to identify
-      the msg than text
-    - cache wants to suppress all cache msgs until end of cached block
-    The problem is that it's hard to know the boundaries of the current
-    derivation, especially if there are multiple blocks being derived
-    simultaneously.  I would have to put a block id key.  On the other hand,
-    filtering in place knows that.  The extra copy is actually no worse than
-    the filter at perform time, maybe better for cache since it only happens
-    once.
 
 performance:
   - Do profiles again with Event.event_text :: Data.Text instead of ByteString.
@@ -585,9 +466,6 @@ performance:
         event is a set call or not.
   cache
     - can I cache long blocks by slicing them if they're >n?
-    / see if the cache filtering logs is causing significant copying and
-      remove.
-      . It is, but I can't think of a way to remove it.
   Cmd
     - If a msg aborts or doesn't run any cmds, don't bother to run diff.
       Except that hardly ever happens if I do shortcut thru.
@@ -630,9 +508,6 @@ performance:
       chunks, which is then all forced at once since merge needs them all.
     - Parallelize derivation with strategies.  Can I spark subderivations?
   Perform
-    / use a lazy storeable vector for [Score.Event] and [Midi.Message] to save
-      memory?  If I make Messages a storable vector, I'd have to hash the wdev
-      or something.
     packed midi, encode to storable vector
       - last step of performer is to compact into vector
       but I'm not sure this will much help
@@ -656,6 +531,11 @@ symbolic score
   - find or make a font with gong che pu
 
 fltk:
+  - If I want to draw multiple signals together, I need a line or polygon
+    + gradient function.  Maybe I can get ahold of the OS X graphics context
+    and directly call cocoa functions.  For that to work on linux, I think I'd
+    have to do the same for cairo.
+    . Or perhaps I should just switch to OpenGL?
   drawing artifacts on retina:
     . Some of this may be fltk bugs.
     - tops of tracks and the tops of track text boxes still get gunk, visible
@@ -1018,7 +898,7 @@ Perform:
     - some basic midi instrument defs for generic midi (dev, patch)
   Midi:
     - see if synths support the set pitchbend range controller
-    / inst has a notion of polyphony so I can avoid overloading a channel, say
+    * inst has a notion of polyphony so I can avoid overloading a channel, say
       if I limit it to 2 voices
 
       The problem is 'allot' doesn't know which channels are going to have
