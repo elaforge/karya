@@ -5,6 +5,9 @@ LEGEND
 UNSORTED
   - rename a block then undo, leads to
     state error while verifying: State.lookup: unknown (bid "untitled/mvt1")
+    . Presumably undo undoes the name change but keeps the old view, which
+      still refers to the new bid.
+    . make State.quick_verify like verify and return Maybe (State, [Error])
   * 'b' and 'w' should work when there is no ruler
   * logview and browser should use Util.ForeignC
   * utf8 in the log crashes logview

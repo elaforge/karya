@@ -4,6 +4,8 @@
 
 -- | Get track-specific Cmds.
 module Cmd.Track where
+import qualified Control.Monad.Error as Error
+
 import Util.Control
 import qualified Util.Log as Log
 import qualified Ui.State as State
@@ -26,7 +28,11 @@ import Types
 
 track_cmd :: Cmd.Cmd
 track_cmd msg = do
-    cmds <- get_track_cmds
+    cmds <- get_track_cmds `Error.catchError` \exc -> do
+        case exc of
+            State.Abort -> return ()
+            State.Error msg -> Log.warn $ "getting track cmds: " ++ msg
+        return []
     Cmd.sequence_cmds cmds msg
 
 -- | Get cmds according to the currently focused block and track.
