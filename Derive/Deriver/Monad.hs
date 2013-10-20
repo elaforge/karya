@@ -382,6 +382,11 @@ instance Callable PitchSignal.Signal where
 
 -- * state
 
+-- | All the state available during derivation.  It has three parts: Dynamic is
+-- scoped to sub-computations like Reader, Collect is written to with
+-- 'mappend', and Constant is constant.  This means that in principle
+-- derivation of siblings could be parallelized.  However, events on a track
+-- (except a note track) still must be serialized, thanks to 'info_prev_val'.
 data State = State {
     -- | This data is modified in a dynamically scoped way, for
     -- sub-derivations.

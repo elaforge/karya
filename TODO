@@ -3,6 +3,8 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
+  - ruler: it should be possible to get rid of this hack entirely by making the
+    vector a ForeignPtr and passing it directly to C.
   - If I want randomized signals, maybe I should have
     Derive.randomized_control_at that looks for a corresponding <>"-rnd"
     signal for range.  E.g., each instrument should switch to noltol at
@@ -185,7 +187,10 @@ MILESTONES
 documentation
   * doc/symbols.md, link from ui
   - doc/external-configuration.md
-  - make sure core state types and their dependents have good haddock
+  * make sure core state types and their dependents have good haddock
+    * Ui.State
+    * Cmd.State
+    * Derive.State
   - update screenshots: doc/img/ly-example.png
   call doc:
     - I could go look through arg docs for controls and list all the controls

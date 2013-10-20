@@ -44,6 +44,7 @@ import Types
 
 -- * Ruler
 
+-- | A Ruler contains all the data to display a ruler.
 data Ruler = Ruler {
     ruler_marklists :: !Marklists
     , ruler_bg :: !Color.Color
@@ -57,11 +58,8 @@ data Ruler = Ruler {
 
 -- | Each ruler can have multiple named marklists.  This means a ruler can
 -- have multiple simultaneous meters, or a separate list of ad-hoc cue points.
--- All marks are flattened before display, and are drawn in order. Since it's
--- a map, that means they are sorted by their names.
---
--- The name is used only to differentiate the marklists, and has meaning only
--- by convention.
+-- All marks are flattened before display, and are drawn in the sort order of
+-- their Names.
 type Marklists = Map.Map Name Marklist
 type Name = Text
 
@@ -145,6 +143,14 @@ instance Pretty.Pretty Marklist where
 --
 -- The Left value is actually not used, but prevents the unsafePerformIO from
 -- being floated out of the lambda.
+--
+-- I used to just copy the ruler each time, but it was actually pretty big.
+-- Rulers can have lots of marks, there are many rulers per block since each
+-- track has one.  But many tracks share the same ruler, and they change
+-- rarely.  All of these differences from 'Events.Events' push for passing
+-- by pointer rather than copying over the whole thing each time (as with the
+-- signal), or passing a callback that fetches the required range (as with
+-- events).
 --
 -- TODO it should be possible to get rid of this hack entirely by making the
 -- vector a ForeignPtr and passing it directly to C.

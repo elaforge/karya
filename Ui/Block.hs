@@ -30,6 +30,7 @@ import Types
 
 -- * block model
 
+-- | This is the data behind a single block.
 data Block = Block {
     block_title :: !Text
     , block_config :: !Config
@@ -128,6 +129,7 @@ instance Pretty.Pretty Config where
     format (Config skel track sb) = Pretty.constructor "Config"
         [Pretty.format skel, Pretty.format track, Pretty.format sb]
 
+-- | One of those colored boxes wedged into the corners of the block window.
 data Box = Box { box_color :: !Color.Color, box_char :: !Char }
     deriving (Eq, Show, Read)
 
@@ -317,10 +319,10 @@ newtype Divider = Divider Color.Color deriving (Eq, Ord, Show, Read)
 
 -- * block view
 
+-- | A view is a single window on screen.  Views are destroyed when the window
+-- is closed.
 data View = View {
     -- | view_block should never change.
-    -- TODO Views that point to a BlockId not in state_blocks should be
-    -- destroyed.
     view_block :: !BlockId
     , view_rect :: !Rect.Rect
 

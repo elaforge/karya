@@ -26,6 +26,7 @@ import qualified Perform.Signal as Signal
 import Types
 
 
+-- | Miscellaneous config data.
 data Config = Config {
     -- | The default namespace is used for automatically created IDs, so each
     -- project can import other projects without clashes.

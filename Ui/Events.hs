@@ -8,9 +8,6 @@
 
     This is the largest part of the score and also the part most often
     modified, so there is a plethora of access functions.
-
-    It's implemented as a plain "Data.Map", but no one outside this module
-    should have direct contact with that.
 -}
 module Ui.Events (
     -- * events
@@ -245,27 +242,17 @@ split_at_before pos events
 
 -- * implementation
 
-{- TODO I probably need a more efficient data structure here.  Requirements:
-    1 Sparse mapping from ScoreTime -> Event.
-    1 Non-destructive updates share memory related to size of change, not size
-    of map.
-    1 Repeatedly inserting ascending elements is efficient.
-    1 Getting ascending and descending lists from a given ScoreTime is
-    efficient.
-
-    2 Space efficient, contiguous storage.  If I am storing Doubles, they
-    should be unboxed.
-
-    2 Diff one map with another takes time relative to size of difference, not
-    size of maps.  This is also important for storing snapshots, since I'd like
-    to store a diff in the common case.
-
-    IntMap claims to be much faster than Map, but uses Ints.  It looks like
-    I can change the types to Word64 to store ScoreTime's.  Then maybe I can
-    implement toDescList with foldl?
--}
+-- | This is the underlying storage for a sequence of events.  The invariant
+-- is that events start + duration don't overlap.
+--
+-- This type should remain abstract, and you should manipulate events using
+-- functions in this model.
 newtype Events = Events EventMap
     deriving (DeepSeq.NFData, Eq, Show, Read)
+
+-- | The ScoreTime is redundant since it's also stored in the Event itself.
+-- I used to have them separate, but then I had to pass (ScoreTime, Event)
+-- pairs around everywhere.
 type EventMap = Map.Map ScoreTime Event.Event
 
 to_asc_list :: EventMap -> [Event.Event]

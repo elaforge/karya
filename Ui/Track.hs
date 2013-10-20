@@ -21,6 +21,8 @@ import Types
 
 -- * track
 
+-- | An event track, which contains some configuration, and the actual
+-- events that make up the score.
 data Track = Track {
     track_title :: !Text
     , track_events :: !Events.Events
@@ -72,6 +74,7 @@ type TrackBg = Track -> Color.Color
 
 -- * track signal
 
+-- | Whether to draw a 'Signal.Display' on this track, and if so, how.
 data RenderConfig = RenderConfig {
     render_style :: !RenderStyle
     , render_color :: !Color.Color
@@ -92,10 +95,15 @@ instance Pretty.Pretty RenderConfig where
 --
 -- Non-note tracks will ignore the RenderSource, and note tracks will ignore
 -- a RenderStyle without a RenderSource.
+--
+-- This has no effect on the actual rendering, since it just draws a signal and
+-- doesn't know where it came from, but is configuration for the code that goes
+-- and looks for that signal.
 data RenderStyle = NoRender | Line !(Maybe RenderSource)
     | Filled !(Maybe RenderSource)
     deriving (Eq, Read, Show)
 
+-- | Pitch Nothing is the defaulted unnamed pitch signal.
 data RenderSource = Control Score.Control | Pitch (Maybe Score.Control)
     deriving (Eq, Read, Show)
 

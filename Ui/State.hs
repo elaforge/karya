@@ -168,6 +168,7 @@ import Types
 
 -- * types
 
+-- | Score state.  When you save a score, this is what is saved to disk.
 data State = State {
     state_views :: Map.Map ViewId Block.View
     , state_blocks :: Map.Map BlockId Block.Block
