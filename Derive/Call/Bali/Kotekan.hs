@@ -120,7 +120,7 @@ c_noltol = Derive.transformer "noltol" postproc
     $ \time _args deriver -> do
         events <- deriver
         times <- Post.time_control time events
-        return $ Post.map_events_asc_ (\(t, ns, e) -> noltol t ns e)
+        return $ Post.map_events_asc_ (Post.uncurry3 noltol)
             (LEvent.zip3 times (Post.nexts events) events)
 
 -- Postproc is seems like the wrong time to be doing this, I can't even change

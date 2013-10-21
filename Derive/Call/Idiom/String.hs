@@ -4,7 +4,6 @@
 
 -- | Post-processing to apply a string idiom.
 module Derive.Call.Idiom.String where
-import Data.FixedList (Cons(..), Nil(..))
 import qualified Data.Map as Map
 
 import Util.Control
@@ -123,14 +122,14 @@ string_idiom attack_interpolator release_interpolator open_strings attack delay
         Nothing -> Derive.throw $ "initial pitch below lowest string: "
             ++ show (Score.initial_nn event)
         Just state -> do
-            (final, result) <- Post.map_controls
-                (attack :. delay :. release :. Nil) state
-                (\(attack :. delay :. rel :. Nil) -> go attack delay rel)
-                events
-            return $! Derive.merge_asc_events result
-                ++ [LEvent.Event $ state_event final]
+            attack <- Post.control id attack events
+            delay <- Post.control id delay events
+            release <- Post.control id release events
+            (final, result) <- Post.map_events_asc_m go state
+                (LEvent.zip4 attack delay release events)
+            return $! result ++ [LEvent.Event $ state_event final]
     where
-    go attack delay release state event = do
+    go state (attack, delay, release, event) = do
         start <- Derive.score (Score.event_start event)
         let dur = Util.real_duration Util.Real start
         attack <- dur attack

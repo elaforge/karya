@@ -13,12 +13,10 @@
     immediately to what is needed.
 -}
 module Derive.Call.Util where
-import qualified Data.FixedList as FixedList
 import qualified Data.List as List
 import qualified Data.List.NonEmpty as NonEmpty
 import qualified Data.Map as Map
 import qualified Data.Text as Text
-import qualified Data.Traversable as Traversable
 
 import qualified System.Random.Mersenne.Pure64 as Pure64
 
@@ -78,16 +76,6 @@ split_transpose (Pitch.Diatonic c) = (c, Diatonic)
 join_transpose :: Double -> TransposeType -> Pitch.Transpose
 join_transpose c Chromatic = Pitch.Chromatic c
 join_transpose c Diatonic = Pitch.Diatonic c
-
--- | This is just a shorthand way to look up a bunch of controls at once.
--- TODO Now that lots of controls are typed it may not be so useful, unless
--- I add type annotations to the controls list.
-with_controls :: (FixedList.FixedList list) => Derive.PassedArgs d
-    -> list TrackLang.ValControl -> (list Signal.Y -> Derive.Deriver a)
-    -> Derive.Deriver a
-with_controls args controls f = do
-    now <- Args.real_start args
-    f =<< Traversable.mapM (flip control_at now) controls
 
 -- | To accomodate both normal calls, which are in score time, and post
 -- processing calls, which are in real time, these functions take RealTimes.

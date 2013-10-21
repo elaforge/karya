@@ -13,7 +13,7 @@ UNSORTED
     * Mapping nexts and signals should zip to express that they are not
       dependent on previous state.  If I zip, can I compose firsts to compose
       them?
-    - remove old uses of Post.map_controls
+    * remove old uses of Post.map_controls
   - noltol moves events with Score.move, which is really inefficient.  Think
     more about making event signals relative.  It also means I don't have to
     move signals that are never used.

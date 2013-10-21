@@ -229,7 +229,6 @@ libraryDependencies = concat $
     , w "transformers mtl deepseq data-ordlist cereal text stm network"
     , w "vector either utf8-string semigroups"
     , w "attoparsec" -- Derive: tracklang parsing
-    , [("fixed-list", ">=0.1.5")] -- Derive.Call.Util: for typesafe mapping
     -- Derive: score randomization
     , w "mersenne-random-pure64 digest random-shuffle"
     , w "dlist" -- Util.TimeVector

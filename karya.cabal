@@ -47,7 +47,6 @@ library
         utf8-string,
         semigroups,
         attoparsec,
-        fixed-list >=0.1.5,
         mersenne-random-pure64,
         digest,
         random-shuffle,

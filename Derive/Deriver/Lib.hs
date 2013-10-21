@@ -398,6 +398,20 @@ with_scopes :: (Scopes -> Scopes) -> Deriver a -> Deriver a
 with_scopes modify = Internal.local $ \st ->
     st { state_scopes = modify (state_scopes st) }
 
+-- | If the deriver throws, log the error and return Nothing.
+catch :: Deriver a -> Deriver (Maybe a)
+catch deriver = do
+    st <- get
+    let (result, st2, logs) = run st deriver
+    mapM_ Log.write logs
+    case result of
+        Left err -> do
+            Log.write $ error_to_warn err
+            return Nothing
+        Right val -> do
+            Internal.merge_collect (state_collect st2)
+            return $ Just val
+
 -- * postproc
 
 -- | Shift the controls of a deriver.  You're supposed to apply the warp
@@ -409,32 +423,12 @@ shift_control shift deriver = do
     Internal.local
         (\st -> st
             { state_controls = nudge real (state_controls st)
-            , state_pitch = nudge_pitch real (state_pitch st) })
+            , state_pitch = nudge_pitch real (state_pitch st)
+            })
         deriver
     where
     nudge delay = Map.map (fmap (Signal.shift delay))
     nudge_pitch = PitchSignal.shift
-
-
--- * utils
-
--- | Run a computation in a logging context of a certain event.  Catch and
--- log any exception thrown.
---
--- When events are created, they are assigned their stack based on the current
--- event_stack, which is set by the with_stack_* functions.  Then, when they
--- are processed, the stack is used to *set* event_stack, which is what
--- 'Log.warn' and 'throw' will look at.
-with_event :: Score.Event -> Deriver a -> Deriver (Maybe a)
-with_event event deriver = do
-    result <- Internal.detached_local
-        (\st -> st { state_stack = Score.event_stack event }) deriver
-    case result of
-        Left err -> do
-            Log.write $ error_to_warn err
-            return Nothing
-        Right val -> return (Just val)
-
 
 -- ** merge
 
