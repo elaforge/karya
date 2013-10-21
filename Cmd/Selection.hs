@@ -382,7 +382,8 @@ step_from :: (Cmd.M m) => TrackNum -> TrackTime -> Int -> TimeStep.TimeStep
     -> m TrackTime
 step_from tracknum pos steps step = do
     block_id <- Cmd.get_focused_block
-    end <- State.block_event_end block_id
+    end <- max <$> State.block_ruler_end block_id
+        <*> State.block_event_end block_id
     next <- TimeStep.step_from steps step block_id tracknum pos
     return $ case next of
         Just next | 0 <= next && next <= end -> next
