@@ -13,6 +13,7 @@ import qualified Derive.Call.Post as Post
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Call.Util as Util
 import qualified Derive.Derive as Derive
+import qualified Derive.LEvent as LEvent
 import qualified Derive.PitchSignal as PitchSignal
 import qualified Derive.Pitches as Pitches
 import qualified Derive.Score as Score
@@ -45,7 +46,7 @@ c_unison = Derive.transformer "unison" postproc
     $ Sig.call0t $ \_args deriver -> do
         inst <- Util.get_instrument
         (polos, sangsih) <- get_pasang
-        Post.map_asc (unison inst polos sangsih) <$> deriver
+        Post.map_events_asc_ (unison inst polos sangsih) <$> deriver
     where
     unison inst polos sangsih event
         | Score.event_instrument event == inst =
@@ -74,7 +75,7 @@ c_kempyung = Derive.transformer "kempyung" postproc
             Nothing -> return Nothing
             Just pitch -> Just <$>
                 Derive.with_instrument sangsih (Pitches.pitch_nn pitch)
-        Post.map_asc (kempyung maybe_top inst polos sangsih) <$> deriver
+        Post.map_events_asc_ (kempyung maybe_top inst polos sangsih) <$> deriver
     where
     kempyung maybe_top inst polos sangsih event
         | Score.event_instrument event == inst =
@@ -98,9 +99,8 @@ c_nyogcag = Derive.transformer "nyog" postproc
     "Split a single part into polos and sangsih parts by assigning\
     \ `inst-polos` and `inst-sangsih` to alternating notes."
     $ Sig.call0t $ \_args deriver -> do
-        events <- deriver
         (polos, sangsih) <- get_pasang
-        return $ snd $ Post.map_state_asc (nyogcag polos sangsih) True events
+        snd . Post.map_events_asc (nyogcag polos sangsih) True <$> deriver
 
 nyogcag :: Score.Instrument -> Score.Instrument
     -> Bool -> Score.Event -> (Bool, [Score.Event])
@@ -118,9 +118,10 @@ c_noltol = Derive.transformer "noltol" postproc
     (Sig.defaulted "time" (Sig.control "noltol" 0.25)
         "Play noltol if the time available exceeds this threshold.")
     $ \time _args deriver -> do
-        time <- Util.to_signal time
-        (<$> deriver) $ Post.map_next_asc $ \nexts event ->
-            noltol (Post.time_at time event) nexts event
+        events <- deriver
+        times <- Post.time_control time events
+        return $ Post.map_events_asc_ (\(t, ns, e) -> noltol t ns e)
+            (LEvent.zip3 times (Post.nexts events) events)
 
 -- Postproc is seems like the wrong time to be doing this, I can't even change
 -- the dyn conveniently.  However, postproc is the only time I reliably know

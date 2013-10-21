@@ -49,8 +49,7 @@ marklist_fptr :: Ruler.Marklist -> IO (ForeignPtr Ruler.Marklist)
 marklist_fptr mlist = MVar.modifyMVar (extract mlist) create
     where
     extract = (\(Ruler.MarklistPtr a) -> a) . Ruler.marklist_fptr
-    create (Right fptr) =
-        return (Right fptr, fptr)
+    create (Right fptr) = return (Right fptr, fptr)
     create (Left _) = do
         fptr <- create_marklist mlist
         return (Right fptr, fptr)

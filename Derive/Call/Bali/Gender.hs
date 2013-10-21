@@ -12,6 +12,7 @@ import qualified Derive.Call.Sub as Sub
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Call.Util as Util
 import qualified Derive.Derive as Derive
+import qualified Derive.LEvent as LEvent
 import qualified Derive.Pitches as Pitches
 import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
@@ -92,10 +93,13 @@ c_realize_damp = Derive.transformer "realize-damp" (Tags.idiom <> Tags.postproc)
     \ TODO: Since there's no correspondence between tracks in different\
     \ blocks, the damping can't extend across block boundaries. I'd need\
     \ something like a 'hand' attribute to fix this."
-    ) $ Sig.call0t $ \_ deriver -> Post.map_around realize <$> deriver
+    ) $ Sig.call0t $ \_ deriver -> do
+        events <- deriver
+        return $ Post.map_events_asc_ realize $
+            LEvent.zip (Post.nexts events) events
     where
-    realize _prev event next = (:[]) $ Score.remove_attributes damped_tag $
-        case Post.filter_next_in_track event next of
+    realize (nexts, event) = (:[]) $ Score.remove_attributes damped_tag $
+        case Post.filter_next_in_track event nexts of
             next : _ | Score.has_attribute damped_tag next ->
                 Score.set_duration
                     (Score.event_end next - Score.event_start event) event

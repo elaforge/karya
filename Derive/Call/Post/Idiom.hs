@@ -92,10 +92,12 @@ c_avoid_overlap = Derive.transformer "avoid-overlap"
         avoid_overlap time =<< deriver
 
 avoid_overlap :: RealTime -> Derive.Events -> Derive.NoteDeriver
-avoid_overlap time = return . Post.map_around go
+avoid_overlap time events =
+    return $ Post.map_events_asc_ go $
+        LEvent.zip (Post.nexts events) events
     where
-    go _ event future =
-        (:[]) $ case List.find same (takeWhile overlaps future) of
+    go (nexts, event) =
+        (:[]) $ case List.find same (takeWhile overlaps nexts) of
             Nothing -> event
             Just next -> Score.set_duration
                 (Score.event_start next - time - Score.event_start event) event

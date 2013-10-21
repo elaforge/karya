@@ -3,18 +3,17 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
-  - ruler: it should be possible to get rid of this hack entirely by making the
-    vector a ForeignPtr and passing it directly to C.
   - If I want randomized signals, maybe I should have
     Derive.randomized_control_at that looks for a corresponding <>"-rnd"
     signal for range.  E.g., each instrument should switch to noltol at
     a different time.
   Clean up Derive.Call.Post.
-    - I can't think of a way to compose states, but it seems cleaner to
+    * I can't think of a way to compose states, but it seems cleaner to
       replace map_controls etc. with the pure versions.
-    - Mapping nexts and signals should zip to express that they are not
+    * Mapping nexts and signals should zip to express that they are not
       dependent on previous state.  If I zip, can I compose firsts to compose
       them?
+    - remove old uses of Post.map_controls
   - noltol moves events with Score.move, which is really inefficient.  Think
     more about making event signals relative.  It also means I don't have to
     move signals that are never used.

@@ -152,8 +152,10 @@ instance Pretty.Pretty Marklist where
 -- signal), or passing a callback that fetches the required range (as with
 -- events).
 --
--- TODO it should be possible to get rid of this hack entirely by making the
--- vector a ForeignPtr and passing it directly to C.
+-- TODO I could share the memory by making MarklistVector into Vector.Storable
+-- PosMark.  It's otherwise equivalant though, and the number of distinct
+-- rulers is probably small, so the memory savings doesn't seem that
+-- compelling.
 newtype MarklistPtr = MarklistPtr
     (MVar.MVar (Either MarklistVector (Foreign.ForeignPtr Marklist)))
 type PosMark = (ScoreTime, Mark)

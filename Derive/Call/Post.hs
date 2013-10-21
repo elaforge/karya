@@ -39,8 +39,6 @@ import qualified Data.Traversable as Traversable
 
 import Util.Control
 import qualified Util.Log as Log
-import qualified Util.Seq as Seq
-
 import qualified Derive.Call.Util as Util
 import qualified Derive.Derive as Derive
 import qualified Derive.LEvent as LEvent
@@ -55,49 +53,47 @@ import Types
 
 
 type Event = Score.Event
-type Events = Derive.Events
+type Events = [LEvent.LEvent Score.Event]
 
-
--- * pure maps
-
--- | This is basically a concatMap 'List.mapAccumL' over 'Derive.Events'.
--- It's only for transformers that doesn't need to be in 'Derive.Deriver'.
-map_state_asc :: (state -> Event -> (state, [Event])) -> state
-    -> Events -> (state, Events)
-map_state_asc f state = second Derive.merge_asc_events . List.mapAccumL go state
+map_events :: (state -> event -> (state, [Score.Event])) -> state
+    -> [LEvent.LEvent event] -> (state, [Events])
+map_events f = List.mapAccumL go
     where
-    go state e@(LEvent.Log _) = (state, [e])
+    go state (LEvent.Log log) = (state, [LEvent.Log log])
     go state (LEvent.Event event) = map LEvent.Event <$> f state event
 
-map_asc :: (Event -> [Event]) -> Events -> Events
-map_asc f = snd . map_state_asc (\() event -> ((), f event)) ()
+map_events_asc :: (state -> event -> (state, [Score.Event])) -> state
+    -> [LEvent.LEvent event] -> (state, Events)
+map_events_asc f state = second Derive.merge_asc_events . map_events f state
 
--- | Map over events with no state, but with access to previous and following
--- events.
-map_around :: ([Event] -> Event -> [Event] -> [Event]) -> Events -> Events
-map_around f events =
-    snd $ map_state_asc go ([], drop 1 $ LEvent.events_of events) events
-    where go (prev, next) event = ((event:prev, drop 1 next), f prev event next)
+-- | 'map_events_asc' without state.
+map_events_asc_ :: (event -> [Score.Event]) -> [LEvent.LEvent event] -> Events
+map_events_asc_ f = snd . map_events_asc (\() event -> ((), f event)) ()
 
--- | Provide following events.
-map_next_asc :: ([Event] -> Event -> [Event]) -> Events -> Events
-map_next_asc f events =
-    snd $ map_state_asc go (drop 1 $ LEvent.events_of events) events
-    where
-    go nexts event = (drop 1 nexts, f nexts event)
+-- * unthreaded state
 
+-- Use the LEvent.zipn functions to zip this state up with the events.
 
--- * extract state
+control :: TrackLang.ValControl -> Events -> Derive.Deriver [Score.TypedVal]
+control c events = do
+    sig <- Util.to_signal c
+    return $ map (signal_at sig . Score.event_start) (LEvent.events_of events)
 
-next_start :: [Event] -> Maybe RealTime
-next_start = fmap Score.event_start . Seq.head
+time_control :: TrackLang.ValControl -> Events -> Derive.Deriver [RealTime]
+time_control c events =
+    map (RealTime.seconds . Score.typed_val) <$> control c events
 
-time_at :: Score.TypedControl -> Event -> RealTime
-time_at sig = RealTime.seconds . Score.typed_val . signal_at sig
+signal_at :: Score.TypedControl -> RealTime -> Score.TypedVal
+signal_at sig t = Score.Typed (Score.type_of sig) $
+    Signal.at t (Score.typed_val sig)
 
-signal_at :: Score.TypedControl -> Score.Event -> Score.TypedVal
-signal_at sig event = Score.Typed (Score.type_of sig) $
-    Signal.at (Score.event_start event) (Score.typed_val sig)
+-- | Extract subsequent events.
+nexts :: [LEvent.LEvent e] -> [[e]]
+nexts = drop 1 . List.tails . LEvent.events_of
+
+-- | Extract previous events.
+prevs :: [LEvent.LEvent e] -> [[e]]
+prevs = scanl (flip (:)) [] . LEvent.events_of
 
 -- ** next in track
 
@@ -135,13 +131,7 @@ event_head [] _ = return []
 event_head (log@(LEvent.Log _) : rest) f = (log:) <$> event_head rest f
 event_head (LEvent.Event event : rest) f = f event rest
 
--- | Specialization of 'map_controls_asc' but with no controls.
-map_events_asc :: state
-    -> (state -> Event -> Derive.Deriver (state, [Event]))
-    -> Derive.NoteDeriver -> Derive.NoteDeriver
-map_events_asc state f deriver = do
-    (_, result) <- map_controls Nil state (\Nil -> f) =<< deriver
-    return $ Derive.merge_asc_events result
+-- * monadic map
 
 -- | Specialization of 'map_controls' where the transformation will return
 -- events in ascending order.

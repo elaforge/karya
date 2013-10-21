@@ -3,7 +3,7 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 module Derive.LEvent where
-import Prelude hiding (length, either)
+import Prelude hiding (length, either, zip, zip3)
 import qualified Control.DeepSeq as DeepSeq
 import qualified Data.List as List
 
@@ -104,7 +104,7 @@ instance (DeepSeq.NFData a) => DeepSeq.NFData (LEvent a) where
 map_accum :: (state -> a -> [a] -> (state, [b])) -> state -> [LEvent a]
     -> (state, [[LEvent b]])
 map_accum f state events =
-    List.mapAccumL process state (zip events (drop 1 (List.tails events)))
+    List.mapAccumL process state (List.zip events (drop 1 (List.tails events)))
     where
     process st (Event event, future_events) =
         second (map Event) (f st event (events_of future_events))
@@ -114,6 +114,27 @@ map_accum f state events =
 map_around :: ([a] -> a -> [a] -> [b]) -> [LEvent a] -> [[LEvent b]]
 map_around f =
     snd . map_accum (\prev event next -> (event : prev, f prev event next)) []
+
+zip :: [a] -> [LEvent x] -> [LEvent (a, x)]
+zip as (Log x : xs) = Log x : zip as xs
+zip (a:as) (Event x : xs) = Event (a, x) : zip as xs
+zip [] _ = []
+zip _ [] = []
+
+zip3 :: [a] -> [b] -> [LEvent x] -> [LEvent (a, b, x)]
+zip3 as bs (Log x : xs) = Log x : zip3 as bs xs
+zip3 (a:as) (b:bs) (Event x : xs) = Event (a, b, x) : zip3 as bs xs
+zip3 [] _ _ = []
+zip3 _ [] _ = []
+zip3 _ _ [] = []
+
+zip4 :: [a] -> [b] -> [c] -> [LEvent x] -> [LEvent (a, b, c, x)]
+zip4 as bs cs (Log x : xs) = Log x : zip4 as bs cs xs
+zip4 (a:as) (b:bs) (c:cs) (Event x : xs) = Event (a, b, c, x) : zip4 as bs cs xs
+zip4 [] _ _ _ = []
+zip4 _ [] _ _ = []
+zip4 _ _ [] _ = []
+zip4 _ _ _ [] = []
 
 -- * stream
 
