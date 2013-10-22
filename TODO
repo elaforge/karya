@@ -3,6 +3,8 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
+  * if I delete text in the block title and it causes it to rewrap, the cursor
+    goes to the end
   - If I want randomized signals, maybe I should have
     Derive.randomized_control_at that looks for a corresponding <>"-rnd"
     signal for range.  E.g., each instrument should switch to noltol at
@@ -588,7 +590,6 @@ fltk:
     http://oleb.net/blog/2011/07/whats-new-for-developers-in-lion-part-1/
     http://developer.apple.com/library/mac/#documentation/General/Conceptual/MOSXAppProgrammingGuide/CoreAppDesign/CoreAppDesign.html#//apple_ref/doc/uid/TP40010543-CH3-SW26
     Can then re-enable ~/Library/Saved Application State.
-  - remove RawEdit?
 
   control track, render signal
     - render option: solid with color gradient
@@ -656,7 +657,7 @@ test:
     - inversion: as 'basic pitches' and 'basic controls', but controls are
       below the note tracks, results should be the same
     - stack: generate nested events, check that stack is as expected
-  - tests count number of tests in addition to checks within each test
+  - count number of tests in addition to checks within each test
   - use generics or Foldable or something to write a generic StructEqual
 
 midi record:
@@ -694,6 +695,7 @@ tempo
     and sustain.
 
 Cmd:
+  - remove RawEdit?
   meter / timestep
     - timestep 64*2 skips two 's', because 's' is the minimum match
       skip should be ignored when the match is a larger rank than exists, or
@@ -840,7 +842,7 @@ Derive:
 pitch: scales: scale:
   scales / Derive.Scale:
     just intonation
-      - Make just scale support keys with greater or less than 7 degrees
+      * Make just scale support keys with greater or less than 7 degrees
         But then I can wind up putting bp under just?  Well, maybe not, since
         it has its own notion of keys.
         . It has to go in layout, otherwise input doesn't know how to work.
@@ -871,9 +873,9 @@ pitch: scales: scale:
     - Interpolate between two scales.  The main thing is to establish a note
       to note correspondance.
     bohlen-pierce
-      - make input work with MIDI kbd
+      * make input work with MIDI kbd
       - Make relative scale.
-    - Make twelve-r and bp-r work right.  The letter kbd skips different keys
+    * Make twelve-r and bp-r work right.  The letter kbd skips different keys
       since the black keys moved, and the MIDI kbd is always absolute.
     - retune a note depending on the previous interval (e.g. sloppy pitches
       when playing quickly)

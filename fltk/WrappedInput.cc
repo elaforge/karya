@@ -197,7 +197,12 @@ WrappedInput::wrap_text()
         }
     }
 
-    if (changed)
+    if (changed) {
+        int pos = this->position();
+        int mark = this->mark();
         this->value(text);
+        // Setting value will destroy the selection, so restore it.
+        this->position(pos, mark);
+    }
     return changed;
 }
