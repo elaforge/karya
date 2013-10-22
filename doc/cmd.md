@@ -10,7 +10,7 @@ Bound Cmds are just functions that take a 'Cmd.Msg.Msg' and decide whether or
 not to do something based on that: 'Cmd.Cmd.Cmd'.  Most of them are bound in
 'Cmd.GlobalKeymap' and track-specific ones are bound from 'Cmd.Track'.  The
 keymap bound cmds are summarized in [the keymap doc](keymap.html), and the
-track commands mostly depend on the EditMode.
+track commands mostly depend on the [EditMode](#editmode).
 
 However, the vast majority of Cmds are accessible only from the
 [REPL](repl.md.html).
@@ -25,8 +25,8 @@ A track can be addressed either by a (BlockId, TrackNum) pair, or directly by a
 TrackId or RulerId.  The functions in 'Ui.State' enforce that a given TrackId
 can only appear in a block once, so you can convert between TrackId and
 TrackNum.  The TrackNum is actually more general, in that it may address a
-ruler or divider, so functions that expect an event track will generally take a
-TrackId.
+ruler or divider, so functions that expect an event track or don't care where a
+track is on a block will generally take a TrackId.
 
 The actual meaning of the tracks is defined by
 [derivation](derivation.md.html#derivation), the documentation
@@ -72,7 +72,7 @@ So you need to be aware if you are modifying an existing ruler, which will
 change all blocks with that ruler, or if you are creating a local copy.  The
 'Cmd.Repl.LRuler.modify' and 'Cmd.Repl.LRuler.local' functions apply a ruler
 modification destructively or to a local copy, respectively.  Remember to
-'Cmd.Repl.LRuler.gc' to delete orphaned rulers.
+occasionally call 'Cmd.Repl.LRuler.gc' to delete orphaned rulers.
 
 ### event track
 
@@ -117,6 +117,11 @@ mostly act like pitch tracks.  But ValEdit on note tracks also supports
 'Cmd.Cmd.state_chord' to enter chords easily, and
 'Cmd.Cmd.state_record_velocity'.
 
+Instruments can carry their own Cmds, which come into scope on the relative
+note track.  So for instance an unpitched drum instrument may override the note
+track Cmds so that entering notes creates drum strokes rather than pitched
+notes.
+
 #### pitch track
 
 [Pitch tracks](derivation.md.html#pitch-track) produce a pitch signal, and the
@@ -127,8 +132,8 @@ input into the named pitch for the scale in scope.
 
 [Control tracks](derivation.md.html#control-track) generate
 'Perform.Signal.Control's, which are numbers that vary in time.  The cmds are
-in 'Cmd.ControlTrack'.  By convention they are normalized between 0 and 1,
-which makes them multiply together nicely, which is convenient, because that in
+in 'Cmd.ControlTrack'.  By convention they are normalized between 0 and 1.
+This makes them multiply together nicely, which is convenient, because that in
 fact is what they do by default.  But they are not restricted, and for example
 a control indicating the amount of delay, or the depth of a trill would have no
 reason to stay within that range.
@@ -152,10 +157,11 @@ they're not normalized between 0--1, so they don't do the hex input thing.
 
 ### Signal render
 
-Tracks can display a visual representation of a signal, namely the signal
-which that particular track generates.  You have your choice of
+Tracks can display a visual representation of a signal, namely the signal which
+that particular track generates.  You have your choice of
 'Ui.Track.RenderConfig's, and it works on pitch tracks too.  Note tracks are
-handled separately, as documented in RenderConfig.
+handled separately, as documented in RenderConfig.  Cmds in 'Cmd.Repl.LTrack'
+turn signal render on and off.
 
 ## selections
 
@@ -333,3 +339,10 @@ drum maps.
 Unfortunately, cmds are not yet introspectable for documentation like deriver
 calls are, so while the 'Instrument.Browser' can reveal their presence,
 you'll have to look at the instrument's source to know what they are.
+
+## DAW synchronization
+
+Since Karya doesn't host VSTs or record audio, you'll need a DAW to do those
+things.  Apparently the only way to do this is MTC, which sends a continuous
+stream of SMPTE time frames.  Karya can also use MMC to set the play head
+position.  See 'Cmd.Cmd.state_sync' for how to set this up on the Karya end.

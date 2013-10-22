@@ -387,9 +387,6 @@ undrop_frames Frame29_97df frames =
     frames + 2 * (frames `div` (30 * 60)) - 2 * (frames `div` (10 * 30 * 60))
 undrop_frames _ frames = frames
 
--- Cubase only sends every other frame.  So it's 8x less information.
--- So does reaper, that must be normal.
-
 -- | Send full MTC sync code.  This is supposed to happen every time there is
 -- a time dicontinuity.
 mtc_sync :: FrameRate -> Smpte -> Message
@@ -400,7 +397,7 @@ mtc_sync rate (Smpte hours mins secs frames) =
     where
     chan = 0x7f -- send to all devices
     rate_code = shiftL (fromIntegral (fromEnum rate)) 5
-    -- TODO is chan the same as DeviceId?
+    -- TODO is chan the same as MMC DeviceId?
 
 -- | Generate MTC starting at the given time and going on until the well of
 -- time runs dry.  Or 7 bits overflow.
@@ -421,8 +418,6 @@ generate_mtc rate frame = zip times (concatMap msgs (Seq.range_ frame 2))
     start = fromIntegral frame / rate_fps rate
     fragment = 1 / rate_fps rate / 4
 
--- | These should be transmitted once each quarter frame, so 96--120 times per
--- second.
 mtc_fragments :: FrameRate -> Smpte -> [Mtc]
 mtc_fragments rate (Smpte hours minutes seconds frames) = map (uncurry Mtc)
     [ (FrameLsb, frame_lsb), (FrameMsb, frame_msb)

@@ -163,11 +163,11 @@ MILESTONES
     * derive cache
     * symbolic score
     + save undo history / incremental save - more extensive testing
-    + solution for audio, plugins, track bouncing, etc.  ardour / reaper?
+    + solution for audio, plugins, track bouncing, etc.  ardour / reaper + MTC
     + jack support on linux
     / simple csound backend
     * lilypond backend: good enough to render viola-sonata
-    + documentation
+    * documentation
   1.0
     - stable api
     - solution for local data / code
@@ -185,7 +185,7 @@ MILESTONES
 
 documentation
   * doc/symbols.md, link from ui
-  - doc/external-configuration.md
+  / doc/external-configuration.md
   * make sure core state types and their dependents have good haddock
     * Ui.State
     * Cmd.State
@@ -806,6 +806,25 @@ Derive:
         I draw symbols reversed? 入 兩
       - various numpuk
       kilitan
+        . What is the "core" of what kilitan is?
+          Take a melody, and split it into multiple parts.  Each part has
+          a limited pitch range, and when the melody is out of range, play
+          harmonizing intervals, or move in contrary motion.
+          Also, the melody is at a slow tempo, and kilitan elaborates at some
+          integral multiple, using norot style patterns.
+        . So I decide on how many parts, and steady state patterns for each
+          part.  The patterns may have alternatives, or internal variations.
+        . Patterns also have transitions to a new melody note, which occur
+          before the melody note arrives.  The transitions may vary depending
+          on the source and destination melody notes.
+        . There are also cross-part variations, where neighbors must pick
+          cooperating variations.
+        . Also there may be ornaments that affect all the parts, e.g.
+          232321612.  These are similar to cross-part variations, except that
+          they should be signalled explicitly in the notation rather than
+          being random.
+
+        - extend to work other scales
         - more graceful transitions between pitches
         - variant patterns
         - coordination across parts
