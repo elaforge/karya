@@ -2,6 +2,7 @@
 // This program is distributed under the terms of the GNU General Public
 // License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
+#include <memory>
 #include <FL/Fl.H>
 
 #include "f_util.h"
@@ -113,7 +114,7 @@ WrappedInput::handle(int evt)
 
 
 static char *
-find_space(const char *s, char *end)
+find_space(char *s, char *end)
 {
     char *space = strchr(s, ' ');
     if (space == NULL)

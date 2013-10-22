@@ -271,7 +271,7 @@ fltkDeps config = map (srcToObj config . ("fltk"</>))
     , "SkeletonDisplay.cc", "StyleTable.cc", "SymbolOutput.cc"
     , "SymbolTable.cc", "Track.cc", "TrackTile.cc", "WrappedInput.cc"
     , "alpha_draw.cc", "config.cc", "f_util.cc", "input_util.cc"
-    , "test_block.cc", "types.cc", "util.cc"
+    , "types.cc", "util.cc"
     ]
 
 -- * mode
