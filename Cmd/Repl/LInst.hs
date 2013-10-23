@@ -99,7 +99,7 @@ rename from_ to_ =
 -- | Allocate a new instrument and create an alias for it.
 create :: Text -> Text -> Text -> [Midi.Channel] -> Cmd.CmdL ()
 create alias inst_name wdev chans = do
-    alloc inst_name wdev chans
+    alloc alias wdev chans
     add_alias inst_name alias
 
 -- | Remove both an alias and its allocation.

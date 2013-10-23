@@ -52,7 +52,8 @@ data Config = Config {
     -- it multiple times.
     , config_global_transform :: !Text
     -- | Local instrument aliases.  Map instruments through this map before
-    -- setting them.
+    -- setting them, so this goes from instrument alias to underlying
+    -- instrument.
     , config_aliases :: !(Map.Map Score.Instrument Score.Instrument)
     , config_lilypond :: !Lilypond.Config
     , config_default :: !Default
