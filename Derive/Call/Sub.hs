@@ -17,7 +17,6 @@ module Derive.Call.Sub (
     -- * reapply
     , reapply, reapply_call
 ) where
-import qualified Data.List.NonEmpty as NonEmpty
 import qualified Data.Tree as Tree
 
 import Util.Control
@@ -31,7 +30,6 @@ import qualified Derive.Call as Call
 import qualified Derive.Call.BlockUtil as BlockUtil
 import qualified Derive.Derive as Derive
 import qualified Derive.Deriver.Internal as Internal
-import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Slice as Slice
 import qualified Derive.Stack as Stack
 import qualified Derive.TrackInfo as TrackInfo
@@ -45,8 +43,11 @@ import Types
 -- | Apply the function (likely a transformer) only when at the bottom of
 -- the inversion.  This is useful for transforming an inverted call because
 -- otherwise the transformation happens twice: once before inversion and once
--- after.  Track calls avoid this because they only invert the last part of
--- the pipeline, but transformers applied directly in haskell can't do that.
+-- after.
+--
+-- Track calls avoid this because they skip applying transformers if
+-- 'Derive.info_inverted' is true, so transformers applied directly in haskell
+-- need to emulate that.
 when_under_inversion :: Derive.PassedArgs d -> (a -> a) -> a -> a
 when_under_inversion args transform deriver
     | under_inversion args = transform deriver
@@ -96,19 +97,15 @@ invert_call :: (Int, Int)
 invert_call around args = case Derive.info_sub_tracks info of
     [] -> return Nothing
     subs -> Just <$> invert around (Derive.info_track_range info) subs
-        (Event.start event) (Event.end event) (Args.next args) expr
+        (Event.start event) (Event.end event) (Args.next args)
+        (Derive.info_expr info)
         (Derive.info_prev_events info, Derive.info_next_events info)
     where
     event = Derive.info_event info
-    -- It may seem surprising that only the final call is retained, and any
-    -- transformers are discarded.  But 'inverting' only applies to generators
-    -- so those transformers should have already done their thing.
-    -- See comment above and on ShowVal typeclass.
-    expr = untxt $ ShowVal.show_val $ NonEmpty.last (Derive.info_expr info)
     info = Derive.passed_info args
 
 invert :: (Int, Int) -> (ScoreTime, ScoreTime) -> TrackTree.EventsTree
-    -> ScoreTime -> ScoreTime -> ScoreTime -> String
+    -> ScoreTime -> ScoreTime -> ScoreTime -> Event.Text
     -> ([Event.Event], [Event.Event])
     -> Derive.Deriver TrackTree.EventsTree
 invert around (track_start, _) subs start end next_start text events_around = do

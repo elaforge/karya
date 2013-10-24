@@ -902,8 +902,8 @@ instance (Pretty.Pretty val) => Pretty.Pretty (PassedArgs val) where
 -- TODO make separate types so the irrelevent data need not be passed?
 data CallInfo val = CallInfo {
     -- | The expression currently being evaluated.  Why I need this is
-    -- documented in 'Derive.Call.Note.inverting'.
-    info_expr :: !TrackLang.Expr
+    -- documented in 'Derive.Call.Sub.invert_call'.
+    info_expr :: !Event.Text
 
     -- The below is not used at all for val calls, and the events are not
     -- used for transform calls.  It might be cleaner to split those out, but
@@ -940,6 +940,10 @@ data CallInfo val = CallInfo {
     -- for 'Stack.Region' entries.
     , info_track_range :: !(ScoreTime, ScoreTime)
 
+    -- | If true, this call is being run under inversion.  This means that
+    -- it's the second time it's been seen, though not necessarily executed.
+    , info_inverted :: !Bool
+
     -- | The track tree below note tracks.  Not given for control tracks.
     , info_sub_tracks :: !TrackTree.EventsTree
     -- | If present, 'Derive.Sub.sub_events' will directly return these sub
@@ -955,7 +959,7 @@ data CallInfo val = CallInfo {
 
 instance (Pretty.Pretty val) => Pretty.Pretty (CallInfo val) where
     format (CallInfo expr prev_val event prev_events next_events event_end
-            track_range sub_tracks sub_events track_type) =
+            track_range inverted sub_tracks sub_events track_type) =
         Pretty.record_title "CallInfo"
             [ ("expr", Pretty.format expr)
             , ("prev_val", Pretty.format prev_val)
@@ -964,6 +968,7 @@ instance (Pretty.Pretty val) => Pretty.Pretty (CallInfo val) where
             , ("next_events", Pretty.format next_events)
             , ("event_end", Pretty.format event_end)
             , ("track_range", Pretty.format track_range)
+            , ("inverted", Pretty.format inverted)
             , ("sub_tracks", Pretty.format sub_tracks)
             , ("sub_events", Pretty.format $
                 map (map (\(s, d, _) -> (s, d))) <$> sub_events)
@@ -977,7 +982,8 @@ coerce_call_info cinfo = cinfo { info_prev_val = Nothing }
 -- neither to generators for that matter.
 dummy_call_info :: ScoreTime -> ScoreTime -> String -> CallInfo a
 dummy_call_info start dur text = CallInfo
-    { info_expr = TrackLang.Call (TrackLang.Symbol "") [] :| []
+    { info_expr = ""
+    , info_inverted = False
     , info_prev_val = Nothing
     , info_event = Event.event start dur s
     , info_prev_events = []

@@ -24,6 +24,22 @@ test_drop_noninverted = do
             [(0, 4, ""), (4, 4, "")])
         ([[(0, 1), (1, 1), (2, 0.5), (3, 0)], [(4, 1)]], [])
 
+test_drop_lift_note_inverted = do
+    let run note = DeriveTest.extract extract $ DeriveTest.derive_tracks
+            [(">", [(0, 4, note)]), ("*", [(0, 0, "4c")])]
+        extract e = (DeriveTest.e_nns e, DeriveTest.e_dyn e)
+    let (events, logs) = run "drop 2 2 2 |"
+    equal events
+        [([(0, 60), (3, 59), (4, 58)],
+            [(0, 1), (2, 1), (3, 0.5), (4, 0)])]
+    equal logs []
+
+    let (events, logs) = run "d 1 | drop 2 2 2 |"
+    equal events
+        [([(1, 60), (4, 59), (5, 58)],
+            [(0, 1), (3, 1), (4, 0.5), (5, 0)])]
+    equal logs []
+
 test_drop_lift_note = do
     let run note = DeriveTest.extract extract $ DeriveTest.derive_tracks
             [("*", [(0, 0, "4c")]), (">", [(0, 4, note)])]
@@ -46,6 +62,8 @@ test_drop_lift_note = do
             [(0, 1), (2, 1), (3, 0.5), (4, 0)])]
     equal logs []
 
-    equal (run "drop 2 2 |") ([[(0, 60), (3, 59), (4, 58)]], [])
-    equal (run "lift 2 2 |") ([[(0, 60), (3, 61), (4, 62)]], [])
-    equal (run "lift (5c) 2 |") ([[(0, 60), (3, 66), (4, 72)]], [])
+    let (events, logs) = run "drop (5c) 2 2 |"
+    equal events
+        [([(0, 60), (3, 66), (4, 72)],
+            [(0, 1), (2, 1), (3, 0.5), (4, 0)])]
+    equal logs []

@@ -77,7 +77,7 @@ eval cinfo event prev = case ParseBs.parse_expr bs of
     Left err -> Derive.throw $ "parse error: " ++ err
     Right expr ->
         let prev_cinfo = cinfo
-                { Derive.info_expr = expr
+                { Derive.info_expr = bs
                 , Derive.info_prev_val = Nothing
                 , Derive.info_event = event
                 , Derive.info_prev_events = prev

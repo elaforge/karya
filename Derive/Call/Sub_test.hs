@@ -10,7 +10,6 @@ import qualified Ui.Event as Event
 import qualified Ui.ScoreTime as ScoreTime
 import qualified Ui.State as State
 
-import qualified Derive.Call.CallTest as CallTest
 import qualified Derive.Call.Sub as Sub
 import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
@@ -33,12 +32,12 @@ test_invert_call = do
     equal (run (mkargs "" [Node (control [0..4]) []])) $ Right $
         Just [Node (control [0..4]) [Node (note "") []]]
     equal (run (mkargs "x | y" [Node (control [0..4]) []])) $ Right $
-        Just [Node (control [0..4]) [Node (note "y") []]]
+        Just [Node (control [0..4]) [Node (note "x | y") []]]
     -- if there are multiple subs, it gets inverted below all of them
     equal (run (mkargs "x | y"
         [Node (control [0]) [], Node (control [0..4]) []])) $ Right $ Just
-            [ Node (control [0]) [Node (note "y") []]
-            , Node (control [0..4]) [Node (note "y") []]
+            [ Node (control [0]) [Node (note "x | y") []]
+            , Node (control [0..4]) [Node (note "x | y") []]
             ]
 
 make_controls :: String -> [Int] -> (String, [Slice_test.Event])
@@ -50,13 +49,14 @@ mkargs text subs = Derive.PassedArgs [] "call" info
     where
     event = Event.event 0 1 text
     info = Derive.CallInfo
-        { Derive.info_expr = CallTest.expr (Event.event_string event)
+        { Derive.info_expr = Event.event_bytestring event
         , Derive.info_prev_val = Nothing
         , Derive.info_event = event
         , Derive.info_prev_events = prev
         , Derive.info_next_events = next
         , Derive.info_event_end = event_end
         , Derive.info_track_range = (0, event_end)
+        , Derive.info_inverted = False
         , Derive.info_sub_tracks = Slice_test.make_tree subs
         , Derive.info_sub_events = Nothing
         , Derive.info_track_type = Nothing

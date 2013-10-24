@@ -68,15 +68,7 @@ make_drop name doc down = Derive.generator1 name Tags.cmod doc $
 
 c_drop_note :: Derive.Transformer Derive.Note
 c_drop_note = make_drop_note "drop"
-    "Drop pitch and `dyn` at the end of the note.\
-    \\nSince this starts its pitch from the note's existing pitch,\
-    \ and it's a transformer, it can't work under inversion, because the\
-    \ pitch doesn't exist yet.  I could fix it by emitting a transposition\
-    \ instead of a signal, but to have that work with an absolute\
-    \ destination pitch I'd need to be able to subtract absolute pitches for\
-    \ a transposition, which isn't implemented.  TODO but maybe it should be."
-    True
-
+    "Drop pitch and `dyn` at the end of the note." True
 
 c_lift_note :: Derive.Transformer Derive.Note
 c_lift_note = make_drop_note "lift"
@@ -85,23 +77,21 @@ c_lift_note = make_drop_note "lift"
     False
 
 make_drop_note :: Text -> Text -> Bool -> Derive.Transformer Derive.Note
-make_drop_note name doc down = Derive.transformer name mempty doc
+make_drop_note name doc down = Derive.transformer name Tags.under_invert doc
     $ Sig.callt ((,,)
     <$> defaulted "interval" (Left (Pitch.Chromatic 7))
         "Interval or destination pitch."
     <*> defaulted "time" (TrackLang.real 0.25) "Time to drop by the interval."
-    <*> defaulted "fade" (TrackLang.real 0.25) "Time to fade to nothing."
+    <*> defaulted "fade" (TrackLang.real 0.25) "Time to fade to nothing.\
+        \ If the fade is longer than the pitch time, the pitch will finish\
+        \ moving before the dyn has faded out."
     ) $ \(interval, TrackLang.DefaultReal time, TrackLang.DefaultReal fade)
-    args deriver -> do
+            args deriver -> do
         (dyn_start, end) <- Util.duration_from_end args fade
         let dyn_end = end
-
-        -- dur is the same, start is min dyn_start (end-t), or end is
-        -- min dyn_end (start+t)
         pitch_dur <- Util.real_dur' (Args.end args) time
         let pitch_start = min dyn_start (end - pitch_dur)
             pitch_end = min (dyn_start + pitch_dur) end
-
         Derive.pitch_at pitch_start >>= \x -> case x of
             Nothing -> deriver
             Just pitch -> do

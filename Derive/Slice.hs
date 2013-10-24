@@ -114,7 +114,7 @@ event_gaps end ranges = reverse $
 -- the sliced tree.
 -- Event text, duration, tevents_range, tevents_around
 data InsertEvent = InsertEvent {
-    ins_text :: String
+    ins_text :: Event.Text
     , ins_duration :: ScoreTime
     , ins_range :: (ScoreTime, ScoreTime)
     , ins_around :: ([Event.Event], [Event.Event])
@@ -164,12 +164,13 @@ slice exclusive around start end insert_event = map do_slice
         TrackTree.TrackEvents
             { TrackTree.tevents_title = ">"
             , TrackTree.tevents_events =
-                Events.singleton (Event.event start dur text)
+                Events.singleton (Event.bs_event start dur text)
             , TrackTree.tevents_track_id = track_id
             , TrackTree.tevents_block_id = Nothing
             , TrackTree.tevents_end = end
             , TrackTree.tevents_range = trange
             , TrackTree.tevents_sliced = True
+            , TrackTree.tevents_inverted = True
             , TrackTree.tevents_around = around
             , TrackTree.tevents_shifted = fst trange
             }

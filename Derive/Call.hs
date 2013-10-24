@@ -93,6 +93,7 @@ import qualified Ui.State as State
 import qualified Ui.TrackTree as TrackTree
 import qualified Ui.Types as Types
 
+import qualified Derive.Call.Tags as Tags
 import qualified Derive.Derive as Derive
 import qualified Derive.Deriver.Internal as Internal
 import qualified Derive.LEvent as LEvent
@@ -218,6 +219,7 @@ data TrackInfo = TrackInfo {
     , tinfo_sub_tracks :: !TrackTree.EventsTree
     , tinfo_events_around :: !([Event.Event], [Event.Event])
     , tinfo_type :: !TrackInfo.Type
+    , tinfo_inverted :: !Bool
     } deriving (Show)
 
 -- | Given the previous sample and derivation results, get the last sample from
@@ -291,15 +293,15 @@ derive_event st tinfo prev_sample prev event next
     text = Event.event_bytestring event
     parse_error = Log.msg Log.Warn $
         Just (Stack.to_strings (Derive.state_stack (Derive.state_dynamic st)))
-    run_call expr = apply_toplevel state (cinfo expr) expr
+    run_call expr = apply_toplevel state cinfo expr
     state = st
         { Derive.state_dynamic = Internal.add_stack_frame
             region (Derive.state_dynamic st)
         }
     region = Stack.Region (shifted + Event.min event)
         (shifted + Event.max event)
-    cinfo expr = Derive.CallInfo
-        { Derive.info_expr = expr
+    cinfo = Derive.CallInfo
+        { Derive.info_expr = text
         , Derive.info_prev_val = prev_sample
         , Derive.info_event = event
         -- Augment prev and next with the unevaluated "around" notes from
@@ -310,11 +312,13 @@ derive_event st tinfo prev_sample prev event next
             [] -> events_end
             event : _ -> Event.start event
         , Derive.info_track_range = track_range
+        , Derive.info_inverted = inverted
         , Derive.info_sub_tracks = subs
         , Derive.info_sub_events = Nothing
         , Derive.info_track_type = Just ttype
         }
-    TrackInfo events_end track_range shifted subs (tprev, tnext) ttype = tinfo
+    TrackInfo events_end track_range shifted subs (tprev, tnext) ttype
+        inverted = tinfo
 
 repeat_call_of :: B.ByteString -> B.ByteString -> B.ByteString
 repeat_call_of prev cur
@@ -372,13 +376,22 @@ apply_transformers _ [] deriver = deriver
 apply_transformers cinfo (TrackLang.Call call_id args : calls) deriver = do
     vals <- mapM (eval cinfo) args
     call <- get_transformer call_id
+    let under_invert = Derive.cdoc_tags (Derive.call_doc call)
+            `Tags.contains` Tags.under_invert
+        inverted = Derive.info_inverted cinfo
+        -- If there are no subs and I'm not inverted, then inversion won't
+        -- happen, so I'd better run it anyway.
+        skip = not $ inverted == under_invert
+            || null (Derive.info_sub_tracks cinfo) && not inverted
     let passed = Derive.PassedArgs
             { Derive.passed_vals = vals
             , Derive.passed_call_name = Derive.call_name call
             , Derive.passed_info = cinfo
             }
-    Internal.with_stack_call (Derive.call_name call) $
-        Derive.call_func call passed $ apply_transformers cinfo calls deriver
+    let rest = apply_transformers cinfo calls deriver
+    if skip then rest
+        else Internal.with_stack_call (Derive.call_name call) $
+            Derive.call_func call passed rest
 
 -- | Like 'apply_generator', but for when the args are already parsed and
 -- evaluated.  This is useful when one generator wants to dispatch to another.

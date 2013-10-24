@@ -21,6 +21,9 @@ UNSORTED
     move signals that are never used.
   kotekan ornaments
     - norot
+  wayang in octaves
+    . I could do it with >wayang-both that emits >wayang-p and >wayang-k. Or
+      just call the score twice, once with transpose +1 oct.
   - keys to turn play speed up and down
   - The problem with Derive.inst_environ to set scale is that you can't really
     override it.  So if >wayang wants *wayang, then you can't easily say you
@@ -65,18 +68,58 @@ UNSORTED
     - janta is neighbor from below, or fingered is sr, or if you're moving
       up: r-sg
     - copy from kaushik's recording
-  - implement pitch subtraction: Pitch - Pitch = Chromatic, so I can make lift
-    and drop work inverted
-    . How would this actually work?  It needs two pitches from the same scale.
-      I think I get Pitch.Note and parse it according to the scale of one of
-      them.  So the scale needs
-      scale_chromatic_difference
-        :: Pitch.Note -> Pitch.Note -> Maybe Pitch.Chromatic
-      scale_diatonic_difference
-        :: Pitch.Note -> Pitch.Note -> Maybe Pitch.Diatonic
-    . If pitches were objects I could down-cast them to get at their
-      implementation.
-    . Instead I should have a generic way to parse a note to Theory.Pitch
+  * make lift note transformer work under inversion
+    . To make lift to an absolute pitch work outside of inversion, I'd need
+      an abstract way (e.g. like a transpose signal) to say "pitch midway to
+      (4c)"
+    . It's better to have the lift under the pitch.  The only reason it isn't
+      is that inversion assumes all transformers go above.  So either make it
+      a generator (at which point it can't compose), or have some way to put
+      transformers under the inversion, e.g. 'delay | Drop $ lift $ gen' under
+      inversion is 'delay' -> 'Drop' 'lift' 'gen'.
+    . Another way would be to put that in the call itself, so 'lift' has a flag
+      that says it likes to be under the inversion.  Then the invert function
+      has to go look all those up.  But that can't work, because invert is
+      called by a generator, and that's too late.
+    . So call all the transformers pre and post invert.  Normally they check
+      if they're under inversion, and if so do nothing, but ones that would
+      rather be inverted do the inverse.
+
+    Cons:
+      1. Instead of transformers always happening before inversion, they can
+      now vary internally, which is one more subtle thing about inversion.
+      I'll need to expose it in documentation at least, via a tag.
+
+      2. Call stacks get even messier in the presence of inversion, since
+      every transformer appears twice.
+
+      3. Transformers can have their order change, e.g. given
+      'below | above | gen', below is actually called below above, if it
+      wants to be under inversion.
+
+    . It seems like I could improve these by driving them from a tag.  E.g.
+      if the call has a under-inversion tag, Call.apply_transformers will skip
+      or not skip, as appropriate.  This solves #1 and #2, but not #3.
+
+    . This is all just to get lift working under inversion.  Is it that
+      important?
+      . Everything should work under inversion.  It's a hassle to suddenly
+        have to rearrange the pitch track, and now 'd' doesn't work.
+      . This will come up for every note transformer that wants to know the
+        pitch.
+
+    * add under-invert tag
+    * make Call.apply_transformers understand it
+    * under_inversion is inaccurate because you can be uninverted but still
+      not have children.  So I need an explicit flag saying I'm under
+      inversion.  tevents_sliced has that, so I need to propagate that to
+      CallInfo.  Actually, I think tevents_sliced is not enough because
+      its set for anything sliced.
+
+    . Except I still want to run it if there is no inversion.  So if it says
+      under-inversion, but there are no tracks underneath, run it anyway.
+
+  - generic way to parse a note to a Theory.Pitch, and back
 
   + recent tends to collect pitches added via edit input, but since they have
     a specific pitch they're not useful.

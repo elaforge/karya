@@ -211,4 +211,5 @@ track_info track subs = Call.TrackInfo
     , Call.tinfo_sub_tracks = subs
     , Call.tinfo_events_around = TrackTree.tevents_around track
     , Call.tinfo_type = TrackInfo.NoteTrack
+    , Call.tinfo_inverted = TrackTree.tevents_inverted track
     }

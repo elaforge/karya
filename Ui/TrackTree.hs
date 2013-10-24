@@ -142,6 +142,9 @@ data TrackEvents = TrackEvents {
     -- a track and so certain track-level things, like recording a track
     -- signal, should be skipped.
     , tevents_sliced :: !Bool
+    -- | True if this was created as a result of inversion.  It's just here
+    -- to hand off to 'Derive.info_inverted'.
+    , tevents_inverted :: !Bool
     -- | These events are not evaluated, but go in the
     -- 'Derive.Derive.info_prev_events' and info_next_events.  This is so that
     -- sliced calls (such as inverting calls) can see previous and following
@@ -178,6 +181,7 @@ track_events title events end = TrackEvents
     , tevents_end = end
     , tevents_range = (0, end)
     , tevents_sliced = False
+    , tevents_inverted = False
     , tevents_around = ([], [])
     , tevents_shifted = 0
     }

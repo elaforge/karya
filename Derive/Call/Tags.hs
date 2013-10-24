@@ -21,6 +21,24 @@ tag = Set.singleton . Tag
 untag :: Tags -> [Text]
 untag = map (\(Tag t) -> t) . Set.toList
 
+contains :: Tags -> Tags -> Bool
+contains super sub = Set.isSubsetOf sub super
+
+-- * special
+
+-- | This is a siganl that this transformer wants to run under inversion.
+--
+-- Normally when a call is inverted, the transformers run outside the
+-- inversion, while only the generator runs underneath.  However, some
+-- transformers rely on per-note controls, such as pitch and dyn, and therefore
+-- need to go under the invert.  A special hack in
+-- 'Derive.Call.apply_transformers' notices the presence of this tag, and
+-- delays a transformer to run under inversion if present.
+under_invert :: Tags
+under_invert = tag "under-invert"
+
+-- * normal
+
 -- | Internal calls are used to implement the basic track calls.  You should
 -- never need to call them directly, and they can probably be omitted from the
 -- documentation.

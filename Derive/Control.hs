@@ -320,6 +320,7 @@ derive_control cache is_tempo track expr = do
         , Call.tinfo_events_around = TrackTree.tevents_around track
         , Call.tinfo_type =
             if is_tempo then TrackInfo.TempoTrack else TrackInfo.ControlTrack
+        , Call.tinfo_inverted = TrackTree.tevents_inverted track
         }
 
 derive_pitch :: Bool -> TrackTree.TrackEvents -> [TrackLang.Call]
@@ -349,6 +350,7 @@ derive_pitch cache track expr = do
         , Call.tinfo_sub_tracks = []
         , Call.tinfo_events_around = TrackTree.tevents_around track
         , Call.tinfo_type = TrackInfo.PitchTrack
+        , Call.tinfo_inverted = TrackTree.tevents_inverted track
         }
 
 tevents :: TrackTree.TrackEvents -> [Event.Event]
