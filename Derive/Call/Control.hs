@@ -345,7 +345,7 @@ multiply_control :: Score.Control -> RealTime
     -> RealTime -> Signal.Y -> RealTime -> Signal.Y -> Derive.Deriver ()
 multiply_control control end f x1 y1 x2 y2 = do
     sig <- make_signal f x1 y1 x2 y2
-    -- Since signals are impliitly 0 before the first sample, the modification
+    -- Since signals are implicitly 0 before the first sample, the modification
     -- will zero out the control before 'x1'.  That's usually not what I want,
     -- so assume it's 'y1' before that.
     Derive.modify_control Derive.op_mul control $

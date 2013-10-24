@@ -18,11 +18,13 @@ import qualified Derive.Derive as Derive
 import qualified Derive.Deriver.Internal as Internal
 import qualified Derive.PitchSignal as PitchSignal
 import qualified Derive.Pitches as Pitches
+import qualified Derive.Score as Score
 import qualified Derive.Sig as Sig
 import Derive.Sig (defaulted)
 import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.Pitch as Pitch
+import qualified Perform.Signal as Signal
 import Types
 
 
@@ -75,6 +77,7 @@ c_drop_note = make_drop_note "drop"
     \ a transposition, which isn't implemented.  TODO but maybe it should be."
     True
 
+
 c_lift_note :: Derive.Transformer Derive.Note
 c_lift_note = make_drop_note "lift"
     "Raise pitch and drop `dyn` at the end of the note. Same as the `drop`\
@@ -83,21 +86,41 @@ c_lift_note = make_drop_note "lift"
 
 make_drop_note :: Text -> Text -> Bool -> Derive.Transformer Derive.Note
 make_drop_note name doc down = Derive.transformer name mempty doc
-    $ Sig.callt ((,)
+    $ Sig.callt ((,,)
     <$> defaulted "interval" (Left (Pitch.Chromatic 7))
         "Interval or destination pitch."
-    <*> defaulted "time" (TrackLang.real 0.25)
-        "Time to drop the given interval and fade to nothing."
-    ) $ \(interval, TrackLang.DefaultReal time) args deriver -> do
-        -- if I used transpose this could work under inversion too
-        (start, end) <- Util.duration_from_end args time
-        Derive.pitch_at start >>= \x -> case x of
+    <*> defaulted "time" (TrackLang.real 0.25) "Time to drop by the interval."
+    <*> defaulted "fade" (TrackLang.real 0.25) "Time to fade to nothing."
+    ) $ \(interval, TrackLang.DefaultReal time, TrackLang.DefaultReal fade)
+    args deriver -> do
+        (dyn_start, end) <- Util.duration_from_end args fade
+        let dyn_end = end
+
+        -- dur is the same, start is min dyn_start (end-t), or end is
+        -- min dyn_end (start+t)
+        pitch_dur <- Util.real_dur' (Args.end args) time
+        let pitch_start = min dyn_start (end - pitch_dur)
+            pitch_end = min (dyn_start + pitch_dur) end
+
+        Derive.pitch_at pitch_start >>= \x -> case x of
             Nothing -> deriver
             Just pitch -> do
                 next <- Derive.real (Args.next args)
-                slide <- drop_signal start end next pitch interval down
+                slide <- drop_signal pitch_start pitch_end next pitch interval
+                    down
                 pitch <- Internal.get_dynamic Derive.state_pitch
-                Derive.with_pitch Nothing (pitch <> slide) deriver
+                dyn <- segment id dyn_start 1 dyn_end 0
+                multiply_dyn dyn $
+                    Derive.with_pitch Nothing (pitch <> slide) deriver
+
+multiply_dyn :: Signal.Control -> Derive.Deriver a -> Derive.Deriver a
+multiply_dyn = Derive.with_multiplied_control Score.c_dynamic . Score.untyped
+
+segment :: (Double -> Double) -> RealTime -> Signal.Y -> RealTime
+    -> Signal.Y -> Derive.Deriver Signal.Control
+segment f x1 y1 x2 y2 = do
+    sig <- Control.make_signal f x1 y1 x2 y2
+    return $ Signal.signal [(0, y1)] <> sig
 
 drop_signal :: RealTime -> RealTime -> RealTime -> PitchSignal.Pitch
     -> Either Pitch.Transpose PitchSignal.Pitch -> Bool

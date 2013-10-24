@@ -426,6 +426,12 @@ real_dur from dur = do
     end <- Derive.real (from + dur)
     return (end - start)
 
+-- | Like 'real_dur', but take a RealOrScore.  Surely there's a more organized
+-- way to go about this.
+real_dur' :: ScoreTime -> TrackLang.RealOrScore -> Derive.Deriver RealTime
+real_dur' _ (TrackLang.Real t) = return t
+real_dur' from (TrackLang.Score t) = real_dur from t
+
 -- | Add a RealTime to a ScoreTime.
 delay :: ScoreTime -> RealTime -> Derive.Deriver ScoreTime
 delay start time = do
