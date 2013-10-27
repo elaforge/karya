@@ -135,6 +135,10 @@ selection_at maybe_name block_id tracknums track_ids start end = do
     whenJust (Seq.head track_ids) $ \track_id ->
         State.insert_event track_id $ Event.event start (end-start)
             (Id.ident_name to_block_id)
+    -- It's easier to create all the tracks and then delete the empty ones.
+    -- If I tried to just not create those tracks then 'clipped_skeleton' would
+    -- have to get more complicated.
+    delete_empty_tracks to_block_id
     -- Create a clipped ruler.
     RulerUtil.local_meter to_block_id $ Meter.clip start end
     return to_block_id
@@ -149,6 +153,13 @@ block_from_template = do
         then void $ Create.view =<< Create.block_from_template
             =<< Cmd.get_focused_block
         else void block_template_from_selection
+
+delete_empty_tracks :: (State.M m) => BlockId -> m ()
+delete_empty_tracks block_id = do
+    let empty = Events.null . Track.track_events
+    track_ids <- filterM (fmap empty . State.get_track)
+        =<< State.track_ids_of block_id
+    mapM_ State.destroy_track track_ids
 
 -- * named block
 

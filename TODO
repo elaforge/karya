@@ -3,6 +3,9 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
+  - add a call and size the event according to the size of the called block
+    Or I could have a separate keystroke that fixes the size of a call.
+  * Refactor.selection should clear empty tracks out of the destination
   * if I delete text in the block title and it causes it to rewrap, the cursor
     goes to the end
   - If I want randomized signals, maybe I should have
@@ -557,7 +560,7 @@ performance:
       chunks, which is then all forced at once since merge needs them all.
     - Parallelize derivation with strategies.  Can I spark subderivations?
   Perform
-    packed midi, encode to storable vector
+    / packed midi, encode to storable vector
       - last step of performer is to compact into vector
       but I'm not sure this will much help
       The main thing is how to encode the device.  I think I can hash it.  Or
@@ -843,7 +846,7 @@ Derive:
 
   note calls:
     trills
-      - hybrid where the initial part stretches, final part is absolute
+      / hybrid where the initial part stretches, final part is absolute
     trompong / reyong:
       - trompong ngoret, actually I can use rambat tick
         But damping on reyong is different, you can just forget some notes.
@@ -868,6 +871,8 @@ Derive:
           232321612.  These are similar to cross-part variations, except that
           they should be signalled explicitly in the notation rather than
           being random.
+
+        . Eval transformed deriver in flat time, to get events in ScoreTime.
 
         - extend to work other scales
         - more graceful transitions between pitches
@@ -923,7 +928,7 @@ pitch: scales: scale:
     - retune a note depending on the previous interval (e.g. sloppy pitches
       when playing quickly)
       I think this has to be postproc.
-    - parser for scala .scl files
+    / parser for scala .scl files
     support scales that are different ascending vs. descending
       . Scales have two versions of each degree.
       - scale_input_to_note takes a previous Note arg, which it can use to
