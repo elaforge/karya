@@ -320,11 +320,6 @@ derive_event st tinfo prev_sample prev event next
     TrackInfo events_end track_range shifted subs (tprev, tnext) ttype
         inverted = tinfo
 
-repeat_call_of :: B.ByteString -> B.ByteString -> B.ByteString
-repeat_call_of prev cur
-    | not (B.null cur) && B.takeWhile (/=' ') cur /= "\"" = cur
-    | otherwise = prev
-
 -- | Apply a toplevel expression.
 apply_toplevel :: (Derive.Callable d) => Derive.State
     -> CallInfo d -> TrackLang.Expr

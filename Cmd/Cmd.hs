@@ -518,9 +518,11 @@ data StepState = StepState {
     , step_after :: ![(ScoreTime, Midi.State.State)]
     } deriving (Show, Generics.Typeable)
 
--- | Configure synchronization.  MMC is used to set the play position and
--- start and stop playing.  Unfortunately, it's sysexes which presumably means
--- it's not precise, and Reaper doesn't support it.
+-- | Configure synchronization.  MMC is used to set the play position and MTC
+-- is used to start and stop playing.
+--
+-- MMC has start and stop msgs, but they seem useless, since they're sysexes,
+-- which are not delivered precisely.
 data SyncConfig = SyncConfig {
     sync_device :: !Midi.WriteDevice
     -- | Send MMC to this device.

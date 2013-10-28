@@ -115,7 +115,7 @@ c_noltol = Derive.transformer "noltol" postproc
     \ note and the next note of the same instrument is above a threshold,\
     \ end the note with a `+mute`d copy of itself."
     $ Sig.callt
-    (Sig.defaulted "time" (Sig.control "noltol" 0.25)
+    (Sig.defaulted "time" (Sig.control "noltol" 0.1)
         "Play noltol if the time available exceeds this threshold.")
     $ \time _args deriver -> do
         events <- deriver

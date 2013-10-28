@@ -1229,7 +1229,6 @@ newtype ControlDamage = ControlDamage (Ranges.Ranges ScoreTime)
 
 -- * scale
 
--- $scale_doc
 -- Like the cache types, this is supposed to be defined in "Derive.Scale", but
 -- must be here due to circular dependencies.
 
