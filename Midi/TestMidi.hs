@@ -98,6 +98,10 @@ test_midi (Right interface) = do
             spam interface write_msg n
             getChar
             return ()
+        ["pb-range", out_dev, semis] -> do
+            semis <- readIO semis
+            (write_msg, _) <- open True rdevs (Just out_dev)
+            pitch_bend_range write_msg semis
         ["program", out_dev] ->
             uncurry program_change =<< open False [] (Just out_dev)
         ["test", loopback] -> do
@@ -149,6 +153,7 @@ usage = unlines
     , "melody <out>         play a melody on <out>, also relaying msgs thru"
     , "spam <out> n         spam <out> with 'n' msgs in rapid succession"
     , "test                 run some semi-automatic tests"
+    , "pb-range <out> n     send pitch bend sensitivity"
     ]
 
 
@@ -257,6 +262,14 @@ spam interface write_msg n = do
     where
     msgs = take n [Midi.ChannelMessage 0 msg | nn <- cycle [0..127],
         msg <- [Midi.NoteOn nn 127, Midi.NoteOff nn 127]]
+
+-- * pitch bend range
+
+pitch_bend_range :: WriteMsg -> Double -> IO ()
+pitch_bend_range write_msg semis = do
+    let msgs = map (Midi.ChannelMessage 0) (Midi.pitch_bend_sensitivity semis)
+    pprint msgs
+    mapM_ (write_msg . ((,) 0)) msgs
 
 -- * tests
 

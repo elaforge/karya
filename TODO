@@ -123,6 +123,11 @@ UNSORTED
       under-inversion, but there are no tracks underneath, run it anyway.
 
   - generic way to parse a note to a Theory.Pitch, and back
+    . If I add
+      scale_parse :: Pitch.Note -> Maybe Theory.Pitch
+      scale_show :: Theory.Pitch -> Maybe Theory.Note
+    . Do I need the key?  This may have problems transposing octatonic in
+      *twelve.
 
   + recent tends to collect pitches added via edit input, but since they have
     a specific pitch they're not useful.
@@ -873,6 +878,33 @@ Derive:
           being random.
 
         . Eval transformed deriver in flat time, to get events in ScoreTime.
+        . Simplify notes to 'Melody Theory.Pitch | Ornament (Byong | DownUp)'
+        . Ornaments become set patterns at the given time, different for each
+          part.
+        . Start with part 1 and for each note:
+          . If it's an Ornament, emit the relevant notes verbatim relative to
+            the current time, e.g.
+              Ornament -> Part -> Time -> [(RelativeTime, Note)]
+            Clip anything that would overlap the previous event, or the next
+            note.
+          . If it's Melody, generate harmonic points until the next
+            non-Melody.  They are relative to the start of the call.
+          . Start assembling notes from fragments.  Get the transition
+            fragments based on the Part and the next Melody note, and if any
+            line up to now, pick and emit one.  Otherwise, pick a continuation
+            fragment based on the current Melody.  If it's a coordinated one,
+            emit that separately.
+          . Do the same for each part, except that the fragments that are
+            chosen can be influenced by previous coordinated fragments.
+        . Just emit open notes.  Damping is done with a separate postproc.
+
+        . type RelativeTime = Int -- at harmonic rhythm
+        . type RelativePitch = (Diatonic, Chromatic)
+        . type Fragment = [(RelativeTime, RelativePitch)]
+        . type Coordination = Char -- anything, just a key
+        . type Fragments = [(Maybe Coordination, Probability, Fragment)]
+        . type Part = Part
+          { transition :: Pitch -> Fragments, continuation :: Fragments }
 
         - extend to work other scales
         - more graceful transitions between pitches
@@ -970,7 +1002,7 @@ Perform:
     - some kind of organized way to manage instruments and instrument config
     - some basic midi instrument defs for generic midi (dev, patch)
   Midi:
-    - see if synths support the set pitchbend range controller
+    * see if synths support the set pitchbend range controller
     * inst has a notion of polyphony so I can avoid overloading a channel, say
       if I limit it to 2 voices
 
