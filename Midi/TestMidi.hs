@@ -22,11 +22,13 @@ import qualified Util.Seq as Seq
 import Util.Test
 
 #include "hsconfig.h"
-#ifdef CORE_MIDI
+#if defined(CORE_MIDI)
 import qualified Midi.CoreMidi as MidiDriver
-#endif
-#ifdef JACK_MIDI
+#elif defined(JACK_MIDI)
 import qualified Midi.JackMidi as MidiDriver
+#else
+-- Not much point, but at least lets it compile.
+import qualified Midi.StubMidi as MidiDriver
 #endif
 
 import qualified Midi.Interface as Interface
