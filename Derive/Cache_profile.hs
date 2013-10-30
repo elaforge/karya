@@ -65,8 +65,9 @@ rederive initial_state modifications = do
             eval_derivation cache state1 state2 cmd_updates
 
         uncached <- section "uncached" $ do
-            let result = DeriveTest.derive_block_standard mempty mempty id
-                    state2 (UiTest.bid "b1")
+            let result = DeriveTest.derive_block_standard
+                    DeriveTest.default_db mempty mempty id state2
+                    (UiTest.bid "b1")
             let events = Derive.r_events result
             force events
             return (result, events)
@@ -82,8 +83,8 @@ eval_derivation cache state1 state2 cmd_updates = do
     where
     (ui_updates, _) = Diff.diff cmd_updates state1 state2
     damage = Diff.derive_diff state1 state2 ui_updates
-    result = DeriveTest.derive_block_standard cache damage id state2
-        (UiTest.bid "b1")
+    result = DeriveTest.derive_block_standard DeriveTest.default_db cache
+        damage id state2 (UiTest.bid "b1")
     events = Derive.r_events result
 
 now = fmap Time.utctDayTime Time.getCurrentTime
