@@ -4,10 +4,11 @@
 
 module Derive.Call.Block_test where
 import Util.Test
+import qualified Ui.UiTest as UiTest
 import qualified Derive.DeriveTest as DeriveTest
 
 
-test_c_block = do
+test_block = do
     -- This also tests Derive.Call.Block.lookup_note_call
     let run evts = DeriveTest.extract DeriveTest.e_everything $
             DeriveTest.derive_blocks
@@ -28,7 +29,7 @@ test_c_block = do
         , (1, 2, "", "i", ["a"])
         ]
 
-test_c_clip = do
+test_clip = do
     let extract = DeriveTest.extract DeriveTest.e_event
         run tracks = extract $ DeriveTest.derive_blocks tracks
     equal (run [("b1", [(">", [(0, 1, "clip b2")])])])
@@ -46,7 +47,23 @@ test_c_clip = do
         ])
         ([(1, 1, ""), (2, 1, "")], [])
 
-test_c_control_block = do
+test_clip_start = do
+    let extract = DeriveTest.extract DeriveTest.e_note
+        run tracks = extract $ DeriveTest.derive_blocks tracks
+    -- Aligned to the end.
+    equal (run
+        [ ("b1", [(">", [(0, 2, "Clip b2")])])
+        , ("b2=ruler", UiTest.regular_notes 1)
+        ])
+        ([(1, 1, "3c")], [])
+    -- Get the last two notes.
+    equal (run
+        [ ("b1", [(">", [(0, 2, "Clip b2")])])
+        , ("b2=ruler", UiTest.regular_notes 3)
+        ])
+        ([(0, 1, "3d"), (1, 1, "3e")], [])
+
+test_control_block = do
     let extract = DeriveTest.e_control "cont"
         derive caller callee = DeriveTest.extract extract $
             DeriveTest.derive_blocks
@@ -62,7 +79,7 @@ test_c_control_block = do
     equal (derive [(0, 0, "0"), (1, 2, "sub"), (3, 0, "3")] sub)
         ([[(0, 0), (1, 1), (2, 2), (3, 3)]], [])
 
-test_c_control_block_stack = do
+test_control_block_stack = do
     -- Ensure the stack is correct for control block calls.
     let blocks = [("top", top), ("sub", sub)]
         top =

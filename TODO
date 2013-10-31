@@ -9,7 +9,7 @@ UNSORTED
   * can't type H or L in text entry!
   - add a call and size the event according to the size of the called block
     Or I could have a separate keystroke that fixes the size of a call.
-  - like 'clip' block call, except align to the end, I think I can use this
+  * like 'clip' block call, except align to the end, I think I can use this
     for thani4
   * Refactor.selection should clear empty tracks out of the destination
   * if I delete text in the block title and it causes it to rewrap, the cursor

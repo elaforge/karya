@@ -40,6 +40,7 @@ import Types
 note_calls :: Derive.CallMaps Derive.Note
 note_calls = Derive.call_maps
     [ ("clip", c_clip)
+    , ("Clip", c_clip_start)
     , (BlockUtil.capture_null_control, c_capture_null_control)
     ]
     []
@@ -136,8 +137,8 @@ symbol_to_block_id sym = Call.symbol_to_block_id sym >>= \x -> case x of
 -- ** clip
 
 c_clip :: Derive.Generator Derive.Note
-c_clip = Derive.make_call "clip" Tags.prelude
-    ("Like the normal block call, this will substitute the named block into\
+c_clip = make_clip_call "clip"
+    "Like the normal block call, this will substitute the named block into\
     \ the score. But instead of stretching the block to fit the event\
     \ length, the block will be substituted with no stretching. Any\
     \ events that lie beyond the end of the event will be clipped off.\
@@ -147,7 +148,30 @@ c_clip = Derive.make_call "clip" Tags.prelude
     \ may not be in the same time scale as the calling block."
     -- TODO wait until I actually start using this to see if it's worth
     -- coming up with a solution for that.
-    ) $ Sig.call
+    $ \block_id args -> do
+        sub_dur <- Derive.get_block_dur block_id
+        end <- Derive.real (snd (Args.range args))
+        takeWhile (before end) <$>
+            Derive.d_place (Args.start args) sub_dur (d_block block_id)
+    where
+    before t = LEvent.either ((<t) . Score.event_start) (const True)
+
+c_clip_start :: Derive.Generator Derive.Note
+c_clip_start = make_clip_call "clip-start"
+    "Like `clip`, but align the named block to the end of the event instead\
+    \ of the beginning. Events that then lie before the start are clipped."
+    $ \block_id args -> do
+        sub_dur <- Derive.get_block_dur block_id
+        start <- Args.real_start args
+        dropWhile (before start) <$>
+            Derive.d_place (Args.end args - sub_dur) sub_dur (d_block block_id)
+    where
+    before t = LEvent.either ((<t) . Score.event_start) (const True)
+
+make_clip_call :: Text -> Text
+    -> (BlockId -> Derive.NoteArgs -> Derive.NoteDeriver)
+    -> Derive.Generator Derive.Note
+make_clip_call name doc call = Derive.make_call name Tags.prelude doc $ Sig.call
     ( required "block_id" $
         "Derive this block. If it doesn't contain a /, the default namespace\
         \ is applied."
@@ -157,14 +181,7 @@ c_clip = Derive.make_call "clip" Tags.prelude
                 "block not found: " <> TrackLang.show_val sym)
             return =<< symbol_to_block_id sym
         Internal.with_stack_block block_id $
-            Cache.block (clip_call block_id) args
-    where
-    clip_call block_id args = do
-        sub_dur <- Derive.get_block_dur block_id
-        end <- Derive.real (snd (Args.range args))
-        takeWhile (before end) <$>
-            Derive.d_place (Args.start args) sub_dur (d_block block_id)
-    before end = LEvent.either ((<end) . Score.event_start) (const True)
+            Cache.block (call block_id) args
 
 
 -- * control call
