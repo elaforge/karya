@@ -366,7 +366,7 @@ merge_scope_docs = map (second (sort_calls . concat)) . Seq.group_fst
 
 sort_calls :: [CallBindings] -> [CallBindings]
 sort_calls = Seq.sort_on $ \(binds, _, _) ->
-    (\(_, sym, _) -> sym) <$> Seq.head binds
+    (\(_, sym, _) -> Text.toLower sym) <$> Seq.head binds
 
 -- | Walk up the scopes, keeping track of shadowed names.
 scope_doc :: CallType -> Derive.ScopeType call -> [ScopeDoc]
