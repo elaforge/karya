@@ -171,13 +171,13 @@ handle(Fl_Input *input, int evt)
             handled = true;
             break;
         case 'h':
-            if (state & (FL_SHIFT | FL_META | FL_CTRL)) {
+            if (state & (FL_META | FL_CTRL)) {
                 move_backward(input, state & FL_SHIFT);
                 handled = true;
             }
             break;
         case 'l':
-            if (state & (FL_SHIFT | FL_META | FL_CTRL)) {
+            if (state & (FL_META | FL_CTRL)) {
                 move_forward(input, state & FL_SHIFT);
                 handled = true;
             }

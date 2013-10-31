@@ -6,7 +6,7 @@ UNSORTED
   - in Derive.Call.Trill_test.test_xcut_pitch, the call is evaluated twice
     when inverted, why?
   - make drop and lift's fade arg default to time arg
-  - can't type H or L in text entry!
+  * can't type H or L in text entry!
   - add a call and size the event according to the size of the called block
     Or I could have a separate keystroke that fixes the size of a call.
   - like 'clip' block call, except align to the end, I think I can use this
