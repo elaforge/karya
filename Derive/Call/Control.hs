@@ -13,6 +13,7 @@ import qualified Util.Seq as Seq
 import qualified Derive.Args as Args
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Call.Util as Util
+import qualified Derive.Controls as Controls
 import qualified Derive.Derive as Derive
 import qualified Derive.Environ as Environ
 import qualified Derive.ParseBs as ParseBs
@@ -333,23 +334,24 @@ expon n x = x**exp
 
 -- ** control modification
 
-multiply_dyn :: RealTime -> (Double -> Double) -> RealTime
-    -> Signal.Y -> RealTime -> Signal.Y -> Derive.Deriver ()
-multiply_dyn = multiply_control Score.c_dynamic
+multiply_dyn :: RealTime -> Signal.Control -> Derive.Deriver ()
+multiply_dyn = multiply_signal Controls.dynamic
 
 -- | Emit a multiplying modify control.
-multiply_control :: Score.Control -> RealTime
+multiply_signal :: Score.Control -> RealTime
     -- ^ End time, after which the signal becomes 1.  This should be set to the
     -- next event, otherwise, all subsequent events will be zeroed.
-    -> (Double -> Double)
-    -> RealTime -> Signal.Y -> RealTime -> Signal.Y -> Derive.Deriver ()
-multiply_control control end f x1 y1 x2 y2 = do
-    sig <- make_signal f x1 y1 x2 y2
+    -> Signal.Control -> Derive.Deriver ()
+multiply_signal control end sig = do
     -- Since signals are implicitly 0 before the first sample, the modification
     -- will zero out the control before 'x1'.  That's usually not what I want,
     -- so assume it's 'y1' before that.
     Derive.modify_control Derive.op_mul control $
-        Signal.signal [(0, y1)] <> sig <> Signal.signal [(end, 1)]
+        initial <> sig <> Signal.signal [(end, 1)]
+    where
+    initial = case Signal.head sig of
+        Nothing -> mempty
+        Just (_, y) -> Signal.signal [(0, y)]
 
 add_control :: Score.Control -> (Double -> Double)
     -> RealTime -> Signal.Y -> RealTime -> Signal.Y -> Derive.Deriver ()

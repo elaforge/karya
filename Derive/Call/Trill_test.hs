@@ -14,7 +14,6 @@ import qualified Derive.DeriveTest as DeriveTest
 import qualified Perform.Signal as Signal
 
 
-
 test_note_trill = do
     let run tempo notes pitches = extract $ DeriveTest.derive_tracks
             [("tempo", [(0, 0, show tempo)]), (">", notes), ("*", pitches)]

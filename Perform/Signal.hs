@@ -32,7 +32,7 @@ module Perform.Signal (
     , head, last
 
     -- * transformation
-    , merge, interleave
+    , merge, interleave, prepend
     , sig_add, sig_subtract, sig_multiply
     -- ** scalar transformation
     , sig_max, sig_min, scalar_max, scalar_min, clip_bounds
@@ -85,7 +85,10 @@ instance Read.Read (Signal y) where
 
 instance Monoid.Monoid (Signal y) where
     mempty = empty
-    mappend s1 s2 = Monoid.mconcat [s1, s2]
+    mappend s1 s2
+        | null s1 = s2
+        | null s2 = s1
+        | otherwise = Monoid.mconcat [s1, s2]
     mconcat = merge
 
 type X = V.X
@@ -224,6 +227,9 @@ merge = Signal . V.merge . map sig_vec
 
 interleave :: Signal y -> Signal y -> Signal y
 interleave sig1 sig2 = Signal $ V.interleave (sig_vec sig1) (sig_vec sig2)
+
+prepend :: Signal y -> Signal y -> Signal y
+prepend s1 s2 = Signal $ V.prepend (sig_vec s1) (sig_vec s2)
 
 sig_add, sig_subtract, sig_multiply :: Control -> Control -> Control
 sig_add = sig_op (+)

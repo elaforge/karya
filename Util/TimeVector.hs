@@ -179,6 +179,16 @@ interleave vec1 vec2 = V.unfoldrN (len1 + len2) go (0, 0)
         s1 = V.unsafeIndex vec1 i1
         s2 = V.unsafeIndex vec2 i2
 
+-- | When signals are 'merge'd, the later one overrides the first one.  This
+-- is the other way: the first one will override the second.
+{-# SPECIALIZE prepend :: Unboxed -> Unboxed -> Unboxed #-}
+prepend :: (V.Vector v (Sample y)) => v (Sample y) -> v (Sample y)
+    -> v (Sample y)
+prepend vec1 vec2 = case last vec1 of
+    Nothing -> vec2
+    Just v ->
+        vec1 V.++ V.dropWhile ((<= sx v) . sx) (drop_before_strict (sx v) vec2)
+
 -- | Find the value of the signal at the X value.  Nothing if the X is before
 -- the first sample.  However, any sample within 'RealTime.eta' is considered
 -- a match.

@@ -15,6 +15,7 @@ module Derive.PitchSignal (
     , null, at, shift, head, last
     , take, drop, drop_after, drop_before, drop_before_strict
     , map_y
+    , prepend
     -- * Pitch
     , Pitch, PitchConfig(..), pitch_scale_id, pitch_transposers
     , pitch_controls
@@ -73,7 +74,10 @@ no_scale = Scale "no-scale" mempty
 
 instance Monoid.Monoid Signal where
     mempty = Signal mempty
-    mappend s1 s2 = Monoid.mconcat [s1, s2]
+    mappend s1 s2
+        | null s1 = s2
+        | null s2 = s1
+        | otherwise = Monoid.mconcat [s1, s2]
     mconcat [] = mempty
     mconcat sigs = Signal (TimeVector.merge (map sig_vec sigs))
 
@@ -179,6 +183,9 @@ drop_before = modify_vector . TimeVector.drop_before
 
 map_y :: (Pitch -> Pitch) -> Signal -> Signal
 map_y = modify_vector . TimeVector.map_y
+
+prepend :: Signal -> Signal -> Signal
+prepend s1 s2 = Signal $ TimeVector.prepend (sig_vec s1) (sig_vec s2)
 
 -- * Pitch
 
