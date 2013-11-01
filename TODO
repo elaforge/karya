@@ -5,7 +5,7 @@ LEGEND
 UNSORTED
   - in Derive.Call.Trill_test.test_xcut_pitch, the call is evaluated twice
     when inverted, why?
-  - make drop and lift's fade arg default to time arg
+  * make drop and lift's fade arg default to time arg
   * can't type H or L in text entry!
   - add a call and size the event according to the size of the called block
     Or I could have a separate keystroke that fixes the size of a call.
@@ -309,6 +309,8 @@ incremental save / git:
   Git docs: http://progit.org/book/ch9-2.html
 
 integrate / integration:
+  - attrs that the instrument understands can turn into +attr calls, if
+    they're not in the CallMap, e.g. save/test/wayang
   - adding a +soft stroke means it gets both less dyn and +soft again, so
     it's extra soft
   - bug: can't delete a derived track, it just gets regenerated

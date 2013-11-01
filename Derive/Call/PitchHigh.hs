@@ -78,8 +78,10 @@ make_note_fade :: Text -> Text -> PitchDirection -> Align -> Align
 make_note_fade name doc pitch_dir align align_fade =
     Derive.transformer name Tags.under_invert doc
     $ Sig.callt fade_args
-    $ \(interval, TrackLang.DefaultReal time, TrackLang.DefaultReal fade)
-            args deriver -> do
+    $ \(interval, TrackLang.DefaultReal time, mb_fade) args deriver -> do
+        let fade = case mb_fade of
+                Nothing -> time
+                Just (TrackLang.DefaultReal t) -> t
         ranges@((pitch_start, _), _) <- pitch_fade_ranges align align_fade
             fade time (Args.start args) (Args.end args)
         Derive.pitch_at pitch_start >>= \x -> case x of
@@ -98,12 +100,12 @@ multiply_dyn :: Signal.Control -> Derive.Deriver a -> Derive.Deriver a
 multiply_dyn = Derive.with_multiplied_control Score.c_dynamic . Score.untyped
 
 fade_args :: Sig.Parser (Either Pitch.Transpose PitchSignal.Pitch,
-    TrackLang.DefaultReal, TrackLang.DefaultReal)
+    TrackLang.DefaultReal, Maybe TrackLang.DefaultReal)
 fade_args = ((,,)
     <$> defaulted "interval" (Left (Pitch.Chromatic 7))
         "Interval or destination pitch."
     <*> defaulted "time" (TrackLang.real 0.25) "Time to the destination pitch."
-    <*> defaulted "fade" (TrackLang.real 0.25)
+    <*> defaulted "fade" Nothing
         "Time to fade from or to nothing. If the fade is longer than the pitch\
         \ time, the pitch will finish moving before the dyn has faded out."
     )
@@ -123,8 +125,10 @@ make_pitch_fade :: Text -> Text -> PitchDirection
     -> Derive.Generator Derive.Pitch
 make_pitch_fade name doc pitch_dir = Derive.generator1 name Tags.cmod doc
     $ Sig.call fade_args
-    $ \(interval, TrackLang.DefaultReal time, TrackLang.DefaultReal fade)
-            args -> do
+    $ \(interval, TrackLang.DefaultReal time, mb_fade) args -> do
+        let fade = case mb_fade of
+                Nothing -> time
+                Just (TrackLang.DefaultReal t) -> t
         Args.prev_val args >>= \x -> case x of
             Nothing -> return mempty
             Just (_, prev_pitch) -> do

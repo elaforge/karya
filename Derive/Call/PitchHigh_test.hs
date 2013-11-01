@@ -30,14 +30,14 @@ test_drop_lift_note_inverted = do
         extract e = (DeriveTest.e_nns e, DeriveTest.e_dyn e)
     -- This verifies that Tags.under_invert works, so that 'drop' goes under
     -- the inversion, while other calls, such as 'd', go above it.
-    let ([event], logs) = run "drop 2 2 2 |"
+    let ([event], logs) = run "drop 2 2 |"
     equal event
         ( [(0, 60), (3, 59), (4, 58)]
         , [(0, 1), (2, 1), (3, 0.5), (4, 0)]
         )
     equal logs []
 
-    let ([event], logs) = run "d 1 | drop 2 2 2 |"
+    let ([event], logs) = run "d 1 | drop 2 2 |"
     equal event
         ( [(1, 60), (4, 59), (5, 58)]
         , [(0, 1), (3, 1), (4, 0.5), (5, 0)]
@@ -49,7 +49,7 @@ test_drop_lift_note = do
             [("*", [(0, 0, "4c")]), (">", [(0, 4, note)])]
         extract e = (DeriveTest.e_nns e, DeriveTest.e_dyn e)
 
-    let (events, logs) = run "drop 2 2 2 |"
+    let (events, logs) = run "drop 2 2 |"
     equal events
         [([(0, 60), (3, 59), (4, 58)],
             [(0, 1), (2, 1), (3, 0.5), (4, 0)])]
