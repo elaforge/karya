@@ -7,7 +7,6 @@
 module Cmd.BlockConfig where
 import qualified Data.List as List
 import qualified Data.Map as Map
-import qualified Data.Maybe as Maybe
 import qualified Data.Set as Set
 import qualified Data.Text as Text
 
@@ -77,12 +76,10 @@ track_merged block_id tracknum = not . null . Block.track_merged <$>
 
 cmd_open_block :: (Cmd.M m) => m ()
 cmd_open_block = do
-    ns <- State.get_namespace
-    let call_of = NoteTrack.block_call ns
     sel <- Selection.events
     forM_ sel $ \(_, _, events) -> forM_ events $ \event ->
-        whenJust (call_of (Event.event_text event)) $ \block_id ->
-            whenM (Maybe.isJust <$> State.lookup_block block_id) $ do
+        whenJustM (NoteTrack.block_call (Event.event_text event)) $
+            \block_id -> do
                 views <- State.views_of block_id
                 maybe (Create.view block_id >> return ())
                     ViewConfig.bring_to_front (Seq.head (Map.keys views))

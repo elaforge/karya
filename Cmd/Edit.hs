@@ -24,6 +24,7 @@ import qualified Cmd.Cmd as Cmd
 import qualified Cmd.EditUtil as EditUtil
 import qualified Cmd.ModifyEvents as ModifyEvents
 import qualified Cmd.Msg as Msg
+import qualified Cmd.NoteTrack as NoteTrack
 import qualified Cmd.Selection as Selection
 import qualified Cmd.TimeStep as TimeStep
 
@@ -140,7 +141,7 @@ cmd_set_duration = modify_prev $ \sel_pos event ->
 
 -- | Similar to 'ModifyEvents.event', but if the selection is a point, modify
 -- the previous event.  Also, pass the end of the selection.
-modify_prev :: (Cmd.M m) => (ScoreTime -> ModifyEvents.Event) -> m ()
+modify_prev :: (Cmd.M m) => (ScoreTime -> Event.Event -> Event.Event) -> m ()
 modify_prev modify = do
     (_, sel) <- Selection.get
     (if Types.sel_is_point sel then modify_prev else modify_events)
@@ -443,6 +444,47 @@ toggle_note_duration = do
     Cmd.modify_edit_state $ \st ->
         st { Cmd.state_note_duration = if dur == to_end then step else to_end }
     where to_end = TimeStep.time_step TimeStep.BlockEdge
+
+-- * fancier edits
+
+-- | This is a hybrid of 'cmd_toggle_zero_duration' and
+-- 'set_block_call_duration': if it looks like a block call, then set its
+-- duration accordingly.  Otherwise, toggle zero duration.
+--
+-- This is because it's never useful to set a block call to zero duration.
+-- Actually that's not entirely true, I can imagine a zero dur block for
+-- percussion.  But that doesn't seem very common.
+cmd_toggle_zero_or_block_call_duration :: (Cmd.M m) => m ()
+cmd_toggle_zero_or_block_call_duration = do
+    (_, sel) <- Selection.get
+    let point = Selection.point sel
+    (_, end) <- expand_range [Selection.point_track sel] point point
+    ModifyEvents.selection $ ModifyEvents.events $ mapM (toggle end point)
+    where
+    toggle end point event = fromMaybe (toggle_zero end point event) <$>
+        set_block_call_duration event
+    toggle_zero end point event
+        | Event.duration event /= 0 = Event.set_duration 0 event
+        | pos == point = Event.set_duration (end - pos) event
+        | otherwise = Event.set_duration (point - pos) event
+        where pos = Event.start event
+
+cmd_set_block_call_duration :: (Cmd.M m) => m ()
+cmd_set_block_call_duration =
+    ModifyEvents.selection $ ModifyEvents.events $ mapM $ \event ->
+        fromMaybe event <$> set_block_call_duration event
+
+-- | If the event is a block call, set its duration to the duration of the
+-- called block.
+set_block_call_duration :: (State.M m) => Event.Event -> m (Maybe Event.Event)
+set_block_call_duration event =
+    NoteTrack.block_call (Event.event_text event) >>= \x -> case x of
+        Nothing -> return Nothing
+        Just block_id -> do
+            -- The same as Derive.get_block_dur, TODO should I have
+            -- a State.block_derive_end?
+            dur <- State.block_ruler_end block_id
+            return $ Just $ Event.set_duration dur event
 
 -- * modify text
 

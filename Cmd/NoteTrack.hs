@@ -19,9 +19,10 @@
 module Cmd.NoteTrack where
 import qualified Data.List as List
 import qualified Data.Map as Map
-import qualified Data.Text as Text
+import qualified Data.Maybe as Maybe
 
 import Util.Control
+import qualified Util.Seq as Seq
 import qualified Ui.Event as Event
 import qualified Ui.Events as Events
 import qualified Ui.Id as Id
@@ -40,8 +41,10 @@ import qualified Cmd.Msg as Msg
 import qualified Cmd.PitchTrack as PitchTrack
 import qualified Cmd.Selection as Selection
 
+import qualified Derive.ParseBs as ParseBs
 import qualified Derive.Score as Score
 import qualified Derive.TrackInfo as TrackInfo
+
 import qualified Perform.Midi.Instrument as Instrument
 import qualified Instrument.MidiDb as MidiDb
 import qualified App.Config as Config
@@ -281,12 +284,20 @@ cmd_method_edit msg = Cmd.suppress_history Cmd.MethodEdit
 --
 -- This doesn't use the full Derive.Parse machinery, but is simple and doesn't
 -- require the text to be fully parseable.
-block_call :: Id.Namespace -> Text -> Maybe BlockId
-block_call ns expr = Types.BlockId <$> Id.read_short ns (untxt call)
-    where call = generator_of expr
+block_call :: (State.M m) => Text -> m (Maybe BlockId)
+block_call expr = do
+    ns <- State.get_namespace
+    case block_id_of ns expr of
+        Just block_id -> ifM (valid block_id)
+            (return (Just block_id)) (return Nothing)
+        Nothing -> return Nothing
+    where valid = (Maybe.isJust <$>) . State.lookup_block
 
-generator_of :: Text -> Text
-generator_of = Text.strip . last . Text.splitOn "|"
+-- | Assume the last word of the last call is the block id.  This will catch
+-- both normal block calls and ones like @clip someblock@.
+block_id_of :: Id.Namespace -> Text -> Maybe BlockId
+block_id_of ns = fmap Types.BlockId . Id.read_short ns . untxt <=< Seq.last
+    <=< Seq.last . ParseBs.split_pipeline
 
 -- * implementation
 

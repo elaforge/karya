@@ -25,15 +25,11 @@ import Types
 type Track m = BlockId -> TrackId -> [Event.Event] -> m (Maybe [Event.Event])
 
 -- | Map a function over a set of events.
-type Events m = [Event.Event] -> m [Event.Event]
-
-type Event = Event.Event -> Event.Event
-
-events :: (Monad m) => Events m -> Track m
+events :: (Monad m) => ([Event.Event] -> m [Event.Event]) -> Track m
 events f _ _ = liftM Just . f
 
--- | Many transforms don't need the generality of 'Track' or 'Events'.
-event :: (Monad m) => Event -> Track m
+-- | Map a function over a single event.
+event :: (Monad m) => (Event.Event -> Event.Event) -> Track m
 event f = events (return . map f)
 
 text :: (Monad m) => (Text -> Text) -> Track m

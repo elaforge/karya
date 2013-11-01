@@ -202,15 +202,13 @@ extract_meters track_id = do
         ++ [[(0, 0)]]
 
 extract_calls :: (State.M m) => TrackId -> m [(ScoreTime, ScoreTime, BlockId)]
-extract_calls track_id = do
-    events <- Events.ascending . Track.track_events <$>
+extract_calls track_id =
+    mapMaybeM extract =<< Events.ascending . Track.track_events <$>
         State.get_track track_id
-    ns <- State.get_namespace
-    let call = NoteTrack.block_call ns . Event.event_text
-    return $ do
-        event <- events
-        Just block_id <- return (call event)
-        return (Event.start event, Event.duration event, block_id)
+    where
+    extract event =
+        fmap (range event) <$> NoteTrack.block_call (Event.event_text event)
+    range event block_id = (Event.start event, Event.duration event, block_id)
 
 -- * modify
 

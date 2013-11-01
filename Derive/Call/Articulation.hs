@@ -163,14 +163,6 @@ apply_detach detach = Seq.map_last (Sub.map_event (set_sustain (-detach)))
 apply_dyn :: Signal.Y -> [Sub.Event] -> [Sub.Event]
 apply_dyn dyn = Seq.map_tail (Sub.map_event (Util.multiply_dynamic dyn))
 
--- | Apply detach and dyn arguments.  This sets 'Controls.sustain_abs' instead
--- of adding to it because it feels like legato should override any sustain
--- environment in place.
-apply_phrase :: RealTime -> Signal.Y -> [Sub.Event] -> [Sub.Event]
-apply_phrase detach dyn =
-    Seq.map_tail (Sub.map_event (Util.multiply_dynamic dyn))
-    . Seq.map_last (Sub.map_event (set_sustain (-detach)))
-
 set_sustain :: RealTime -> Derive.Deriver a -> Derive.Deriver a
 set_sustain = Util.with_constant Controls.sustain_abs . RealTime.to_seconds
 

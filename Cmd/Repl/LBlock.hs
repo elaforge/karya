@@ -227,5 +227,5 @@ stretch_block :: ScoreTime -> BlockId -> Cmd.CmdL ()
 stretch_block factor block_id = ModifyEvents.block block_id $
     ModifyEvents.event (stretch factor)
 
-stretch :: ScoreTime -> ModifyEvents.Event
+stretch :: ScoreTime -> Event.Event -> Event.Event
 stretch factor = Event.move (*factor) . Event.modify_duration (*factor)

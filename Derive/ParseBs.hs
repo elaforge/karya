@@ -118,6 +118,8 @@ lex text
     (pre, post) = lex1 text
     rstrip = fst . B.spanEnd (==' ')
 
+-- | Take an expression and lex it into words, where each sublist corresponds
+-- to one expression in the pipeline.
 split_pipeline :: Text.Text -> [[Text.Text]]
 split_pipeline = map (map to_text) . Seq.split_null ["|"] . lex . from_text
 
