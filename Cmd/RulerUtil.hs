@@ -15,7 +15,7 @@ import Types
 -- * constructors
 
 -- | Create a ruler with a meter of the given duration.
-meter_ruler :: ScoreTime -> [Meter.AbstractMeter] -> Ruler.Ruler
+meter_ruler :: Meter.Duration -> [Meter.AbstractMeter] -> Ruler.Ruler
 meter_ruler dur meters = Ruler.ruler
     [(Meter.meter, Meter.meter_marklist (Meter.fit_meter dur meters))]
 

@@ -2,18 +2,36 @@ module Cmd.Tala_test where
 import qualified Data.Map as Map
 
 import Util.Control
+import qualified Util.Seq as Seq
 import Util.Test
+
 import qualified Ui.Ruler as Ruler
 import qualified Cmd.Tala as Tala
+import Types
 
 
 test_make_ruler = do
-    let adi = Tala.make_ruler 1 1 4 1 Tala.adi_tala
+    let adi = Tala.make_ruler Tala.adi_tala 1 1 4 1
+        extract zoom = map snd . extract_marklist zoom . snd . head
+            . Map.toList . Ruler.ruler_marklists
     equal (extract 20 adi)
         ["1.0", "1.1", "1.2", "1.3", "1.X", "1.O", "1.X", "1.O", "2.0"]
 
-extract :: Double -> Ruler.Ruler -> [Text]
-extract zoom =
-    map Ruler.mark_name . filter ((<=zoom) . Ruler.mark_name_zoom_level)
-    . map snd . Ruler.ascending 0 . snd . head
-    . Map.toList . Ruler.ruler_marklists
+test_rulers_marklist = do
+    let f = extract_marklist 20 . Tala.rulers_marklist
+        chatusra = Tala.Ruler Tala.adi_tala 1 1 4 1
+        tisra = Tala.Ruler Tala.adi_tala 1 1 3 1
+    let labels = [showt n <> "." <> o | n <- [1, 2, 3],
+            o <- ["0", "1", "2", "3", "X", "O", "X", "O"]]
+    -- Ensure that concatenated marklists get the right labelling, and that
+    -- rulers with 1/3 divisions still wind up at integral points.  Previously,
+    -- Meter.Meter used ScoreTime, which got inaccurate after consecutive
+    -- additions.
+    equal (f [chatusra, tisra]) (zip (Seq.range 0 16 1) labels)
+
+extract_marklist :: Double -> Ruler.Marklist -> [(ScoreTime, Text)]
+extract_marklist zoom = mapMaybe name_of . Ruler.ascending 0
+    where
+    name_of (t, m)
+        | Ruler.mark_name_zoom_level m <= zoom = Just (t, Ruler.mark_name m)
+        | otherwise = Nothing

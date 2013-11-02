@@ -3,6 +3,25 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
+  - I think Util.Num.ratio_of is redundant with Ratio.approxRational
+  - make sure concatenating Meters works in Cmd.Meters as well as Cmd.Tala
+  - 3 avartanams adi chatusra + 4 avartanams adi tisram
+    * compound ruler is crunched up at the merge point
+    * also has roundoff error later on
+      chatusra -> 8/1024 = 0.0078125
+      tirsa -> 8 / 768 = 0.010416666666666666
+      So the real problem is that I can't represent 3rds, so triple meters
+      will be inaccurate.  I could instead make
+        type Meter = [(Ruler.Rank, Rational)]
+    . The problem is that ScoreTime is still a float, so if marks are rational
+      then I have to convert, losing precision.
+      But ruler operations are likely performed from a selection snapped to
+      a ruler, so it should already be on a rational point.
+      I just want to avoid situations where e.g. a ruler slice misses a mark
+      because of imprecision.
+    - I need to propagate the Rational all the way to Ruler.Mark, otherwise
+      I can't accurately convert Marklist -> Meter
+  - din+thom symbol
   - in Derive.Call.Trill_test.test_xcut_pitch, the call is evaluated twice
     when inverted, why?
   * make drop and lift's fade arg default to time arg

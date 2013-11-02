@@ -49,6 +49,7 @@ import qualified Cmd.Meter as Meter
 import qualified Cmd.NoteTrack as NoteTrack
 import qualified Cmd.RulerUtil as RulerUtil
 import qualified Cmd.Selection as Selection
+import qualified Cmd.Tala as Tala
 
 import Types
 
@@ -127,13 +128,15 @@ double = do
 clip :: (Cmd.M m) => m DeleteModify
 clip = do
     (block_id, _, _, pos) <- Selection.get_insert
-    return (block_id, Meter.clip 0 pos)
+    return (block_id, Meter.clip 0 (Meter.time_to_duration pos))
 
 -- | Copy the meter under the selection and append it to the end of the ruler.
 append :: (Cmd.M m) => m Modify
 append = do
     (block_id, _, _, start, end) <- Selection.tracks
-    return (block_id, \meter -> meter <> Meter.clipm start end meter)
+    return (block_id, \meter ->
+        meter <> Meter.clipm (Meter.time_to_duration start)
+            (Meter.time_to_duration end) meter)
 
 append_ruler_id :: (Cmd.M m) => RulerId -> m Modify
 append_ruler_id ruler_id = do
@@ -145,7 +148,8 @@ append_ruler_id ruler_id = do
 delete :: (Cmd.M m) => m DeleteModify
 delete = do
     (block_id, _, _, start, end) <- Selection.tracks
-    return (block_id, Meter.delete start end)
+    return (block_id, Meter.delete
+        (Meter.time_to_duration start) (Meter.time_to_duration end))
 
 -- | Set the ruler to a number of measures of the given meter, where each
 -- measure is the given amount of time.
@@ -174,7 +178,8 @@ fit_to_pos pos meters = do
     when (pos <= 0) $
         Cmd.throw "can't set ruler for block with 0 duration"
     block_id <- Cmd.get_focused_block
-    return (block_id, const $ Meter.fit_meter pos meters)
+    return (block_id,
+        const $ Meter.fit_meter (Meter.time_to_duration pos) meters)
 
 set_local :: (Cmd.M m) => Ruler.Ruler -> m ()
 set_local ruler = do
@@ -198,8 +203,9 @@ extract_meters track_id = do
     -- Strip the last 0-dur mark off of each meter before concatenating.
     meters <- map (Seq.rdrop 1) <$> mapM RulerUtil.get_meter ruler_ids
     return $ concat $
-        [Meter.scale dur meter | ((_start, dur, _), meter) <- zip subs meters]
-        ++ [[(0, 0)]]
+        [ Meter.scale (Meter.time_to_duration dur) meter
+        | ((_start, dur, _), meter) <- zip subs meters
+        ] ++ [[(0, 0)]]
 
 extract_calls :: (State.M m) => TrackId -> m [(ScoreTime, ScoreTime, BlockId)]
 extract_calls track_id =

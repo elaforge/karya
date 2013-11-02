@@ -24,13 +24,13 @@
 module Cmd.Meter where
 import Prelude hiding (repeat)
 import qualified Data.List as List
+import qualified Data.Ratio as Ratio
 import qualified Data.Text as Text
 
 import Util.Control
 import qualified Util.Seq as Seq
 import qualified Ui.Color as Color
 import qualified Ui.Ruler as Ruler
-import qualified Ui.ScoreTime as ScoreTime
 
 import Types
 
@@ -73,10 +73,23 @@ instance Meterlike Meter where
 instance Meterlike LabeledMeter where
     modify_meterlike f = make_marklist . f . marklist_labeled
 
-type Meter = [(Ruler.Rank, ScoreTime)] -- (rank, duration)
-type LabeledMeter = [(Ruler.Rank, ScoreTime, Label)]
+type Meter = [(Ruler.Rank, Duration)]
+type LabeledMeter = [(Ruler.Rank, Duration, Label)]
 
-meter_durations :: LabeledMeter -> [ScoreTime]
+-- | A Meter Duration is a rational, instead of a ScoreTime.  This is because
+-- durations are added up, and if you're in a triple time, or something else
+-- not exactly representable, the inaccuracy will add up.
+--
+-- Another way to solve this would be to use multiplication instead of
+-- addition, but I think I'd need a higher level Meter for that to work.
+type Duration = Ratio.Rational
+
+-- TODO this will lose precision, I think I have to put the rational all the
+-- way down to the mark
+time_to_duration :: ScoreTime -> Duration
+time_to_duration d = Ratio.approxRational d 0.0001
+
+meter_durations :: LabeledMeter -> [Duration]
 meter_durations = scanl (+) 0 . map (\(_, d, _) -> d)
 
 modify_meter :: (Meterlike m) => (m -> m) -> Ruler.Ruler -> Ruler.Ruler
@@ -86,29 +99,29 @@ ruler_meter :: Ruler.Ruler -> Meter
 ruler_meter = marklist_meter . Ruler.get_marklist meter
 
 -- | Extract the half-open range from start to end.
-clip :: ScoreTime -> ScoreTime -> LabeledMeter -> LabeledMeter
+clip :: Duration -> Duration -> LabeledMeter -> LabeledMeter
 clip start end meter =
     map snd $ takeWhile ((<=end) . fst) $ dropWhile ((<start) . fst) $
         zip (meter_durations meter) meter
 
 -- | Ack.  The Meter \/ LabeledMeter division is not very ideal.
-clipm :: ScoreTime -> ScoreTime -> Meter -> Meter
+clipm :: Duration -> Duration -> Meter -> Meter
 clipm start end meter =
     map snd $ takeWhile ((<end) . fst) $ dropWhile ((<start) . fst) $
         zip (scanl (+) 0 (map snd meter)) meter
 
 -- | Remove the half-open range.
-delete :: ScoreTime -> ScoreTime -> LabeledMeter -> LabeledMeter
+delete :: Duration -> Duration -> LabeledMeter -> LabeledMeter
 delete start end meter = map snd pre ++ map snd post
     where
     (pre, within) = break ((>=start) . fst) (zip (meter_durations meter) meter)
     post = dropWhile ((<end) . fst) within
 
-scale :: ScoreTime -> Meter -> Meter
+scale :: Duration -> Meter -> Meter
 scale dur meter = map (second (*factor)) meter
     where factor = if dur == 0 then 1 else dur / time_end meter
 
-time_end :: Meter -> ScoreTime
+time_end :: Meter -> Duration
 time_end = sum . map snd
 
 
@@ -213,7 +226,7 @@ replace_t :: AbstractMeter -> AbstractMeter -> AbstractMeter
 replace_t val (D ts) = D (map (replace_t val) ts)
 replace_t val T = val
 
-meter_length :: AbstractMeter -> ScoreTime
+meter_length :: AbstractMeter -> Duration
 meter_length (D ms) = sum (map meter_length ms)
 meter_length T = 1
 
@@ -222,7 +235,7 @@ meter_length T = 1
 
 -- | Convert AbstractMeters into a Meter.  The AbstractMeters are concatenated,
 -- and each one defines a rank 0.
-make_meter :: ScoreTime -> [AbstractMeter] -> Meter
+make_meter :: Duration -> [AbstractMeter] -> Meter
 make_meter stretch meters = group0 marks
     where
     marks = concatMap (convert 0) meters
@@ -236,7 +249,7 @@ make_meter stretch meters = group0 marks
     convert rank (D m) = (rank, 0) : concatMap (convert (rank+1)) m
 
 -- | Like 'make_meter', but stretch the meter to fit in the given duration.
-fit_meter :: ScoreTime -> [AbstractMeter] -> Meter
+fit_meter :: Duration -> [AbstractMeter] -> Meter
 fit_meter dur meters = make_meter stretch meters
     where stretch = dur / sum (map meter_length meters)
 
@@ -266,7 +279,8 @@ count1_labels = List.repeat count1
 -- | Create a Marklist from a labelled Meter.
 make_marklist :: LabeledMeter -> Ruler.Marklist
 make_marklist meter = Ruler.marklist
-    [ (pos, mark is_edge dur rank label)
+    -- TODO probably have to keep it as a ratio
+    [ (realToFrac pos, mark is_edge dur rank label)
     | (rank, pos, label, dur, is_edge) <-
         List.zip5 ranks (scanl (+) 0 ps) labels durs edges
     ]
@@ -289,7 +303,7 @@ make_marklist meter = Ruler.marklist
 
 -- | The rank duration is the duration until the next mark of equal or greater
 -- (lower) rank.
-rank_durs :: Meter -> [ScoreTime]
+rank_durs :: Meter -> [Duration]
 rank_durs = map rank_dur . List.tails
     where
     rank_dur [] = 0
@@ -298,10 +312,10 @@ rank_durs = map rank_dur . List.tails
 
 -- | Given a mark duration and the number of pixels it needs to display,
 -- return the appropriate zoom factor.
-pixels_to_zoom :: ScoreTime -> Int -> Double
+pixels_to_zoom :: Duration -> Int -> Double
 pixels_to_zoom dur pixels
     | dur == 0 = 0
-    | otherwise = fromIntegral pixels / ScoreTime.to_double dur
+    | otherwise = fromIntegral pixels / realToFrac dur
 
 marklist_meter :: Ruler.Marklist -> Meter
 marklist_meter = map (\(rank, dur, _) -> (rank, dur)) . marklist_labeled
@@ -309,7 +323,8 @@ marklist_meter = map (\(rank, dur, _) -> (rank, dur)) . marklist_labeled
 -- | The last mark gets a 0 duration.
 marklist_labeled :: Ruler.Marklist -> LabeledMeter
 marklist_labeled mlist =
-    [ (Ruler.mark_rank m, maybe 0 (subtract p . fst) maybe_next,
+    [ (Ruler.mark_rank m,
+        maybe 0 (time_to_duration . subtract p . fst) maybe_next,
         Ruler.mark_name m)
     | ((p, m), maybe_next) <- Seq.zip_next marks
     ]

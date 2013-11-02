@@ -68,8 +68,9 @@ split_time_at from_block_id pos block_name = do
         track_id <- State.get_event_track_at to_block_id tracknum
         State.insert_events track_id events
     -- Trim rulers on each.
-    RulerUtil.local_meter from_block_id $ Meter.clip 0 pos
-    RulerUtil.local_meter to_block_id $ Meter.delete 0 pos
+    let dur = Meter.time_to_duration pos
+    RulerUtil.local_meter from_block_id $ Meter.clip 0 dur
+    RulerUtil.local_meter to_block_id $ Meter.delete 0 dur
     return to_block_id
 
 split_names :: BlockId -> (Text, Text)
@@ -140,7 +141,8 @@ selection_at maybe_name block_id tracknums track_ids start end = do
     -- have to get more complicated.
     delete_empty_tracks to_block_id
     -- Create a clipped ruler.
-    RulerUtil.local_meter to_block_id $ Meter.clip start end
+    RulerUtil.local_meter to_block_id $
+        Meter.clip (Meter.time_to_duration start) (Meter.time_to_duration end)
     return to_block_id
 
 -- | If there's a point selection, create a new empty block based on the
@@ -183,7 +185,8 @@ block_template block_id track_ids start end = do
     clipped_skeleton block_id to_block_id
         =<< mapM (State.get_tracknum_of block_id) track_ids
     -- Create a clipped ruler.
-    RulerUtil.local_meter to_block_id $ Meter.clip start end
+    RulerUtil.local_meter to_block_id $
+        Meter.clip (Meter.time_to_duration start) (Meter.time_to_duration end)
     return to_block_id
 
 clipped_skeleton :: (State.M m) => BlockId -> BlockId -> [TrackNum] -> m ()
@@ -215,7 +218,7 @@ order_track :: (State.M m) => BlockId -> [BlockId] -> m TrackId
 order_track block_id sub_blocks = do
     ruler_ids <- mapM State.ruler_of sub_blocks
     meters <- mapM RulerUtil.get_meter ruler_ids
-    let durs = map Meter.time_end meters
+    let durs = map (realToFrac . Meter.time_end) meters
         starts = scanl (+) 0 durs
         events = [Event.text_event start dur (block_id_to_call block_id)
             | (start, dur, block_id) <- zip3 starts durs sub_blocks]
