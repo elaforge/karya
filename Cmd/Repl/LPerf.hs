@@ -14,7 +14,6 @@ import qualified Data.Text as Text
 
 import Util.Control
 import qualified Util.Log as Log
-import qualified Util.Num as Num
 import qualified Util.Regex as Regex
 import qualified Util.Seq as Seq
 
@@ -396,7 +395,7 @@ entry_events entry = case entry of
 
 -- * pitches
 
-type Ratio = Ratio.Ratio Int
+type Ratio = Ratio.Rational
 
 -- | A hook for 'Cmd.hooks_selection'.
 chord_hook :: [(ViewId, Maybe Types.Selection)] -> Cmd.CmdId ()
@@ -472,8 +471,7 @@ nn_ratios unity nns = case (unity, nns) of
     (Nothing, nn : nns) -> ratios nn nns
     (_, []) -> []
     where
-    ratios unity nns =
-        map (uncurry (%) . Num.ratio_of 100 . (/ hz unity) . hz) nns
+    ratios unity = map (flip Ratio.approxRational 0.01 . (/ hz unity) . hz)
     hz = Pitch.nn_to_hz
 
 overlapping_events :: Bool -> Cmd.CmdL (RealTime, [Score.Event])
