@@ -15,12 +15,11 @@ report progress = void $ Concurrent.forkIO (loop "")
     where
     loop prev = do
         cur <- progress
-        when (Shake.isRunning cur) $ do
-            let msg = Maybe.fromMaybe "" (format cur)
-            when (not (null msg) && msg /= prev) $
-                putStrLn msg
-            Concurrent.threadDelay $ 4 * 10^6
-            loop msg
+        let msg = Maybe.fromMaybe "" (format cur)
+        when (not (null msg) && msg /= prev) $
+            putStrLn msg
+        Concurrent.threadDelay $ 4 * 10^6
+        loop msg
     format cur
         | Shake.countTodo cur == 0 = Nothing
         | otherwise = Just $ Printf.printf

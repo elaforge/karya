@@ -241,7 +241,7 @@ libraryDependencies = concat $
     , w "haskell-src" -- Util.PPrint
     , [("regex-pcre", ""), ("Diff", ">=0.2")] -- Util.Test
     , w "QuickCheck" -- Derive.DeriveQuickCheck
-    , [("shake", ">=0.6"), ("binary", ""), ("syb", "")] -- build system
+    , [("shake", ">=0.10.8"), ("binary", ""), ("syb", "")] -- build system
     , w "ekg" -- removed if not useEkg, but is here so the cabal file has it
     , w "hashable zlib"
     , [("zmidi-core", ">=0.6")] -- for Cmd.Load.Midi

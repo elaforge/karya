@@ -62,7 +62,7 @@ library
         regex-pcre,
         Diff >=0.2,
         QuickCheck,
-        shake >=0.6,
+        shake >=0.10.8,
         binary,
         syb,
         ekg,
