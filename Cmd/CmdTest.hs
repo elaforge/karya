@@ -71,7 +71,7 @@ result_failed res = case result_val res of
 -- | Run cmd with the given tracks.
 run_tracks :: [UiTest.TrackSpec] -> Cmd.CmdId a -> Result a
 run_tracks track_specs =
-    run (DeriveTest.set_default_instrument ustate) default_cmd_state
+    run (DeriveTest.set_default_midi_config ustate) default_cmd_state
     where (_, ustate) = UiTest.run_mkview track_specs
 
 -- | Run a cmd and return everything you could possibly be interested in.
@@ -117,6 +117,7 @@ run_sel tracknum track_specs cmd = run_tracks track_specs $ do
 run_again :: Result a -> Cmd.CmdId b -> Result b
 run_again res = run (result_ui_state res) (result_cmd_state res)
 
+-- | Update performances after running a Cmd and getting its Result.
 update_perf :: State.State -> Result val -> IO (Result val)
 update_perf ui_from res = do
     cmd_state <- update_performance ui_from (result_ui_state res)
@@ -143,6 +144,9 @@ extract_derive_result res =
         return $ Derive.Result devents cache warps tsigs track_dyn integrated
             (error "can't fake a Derive.State for an extracted Result")
 
+-- | Update the performances based on the UI state change and updates.  This
+-- manually runs that part of the responder, and is needed for tests that rely
+-- on the performances.
 update_performance :: State.State -> State.State -> Cmd.State
     -> [Update.CmdUpdate] -> IO Cmd.State
 update_performance ui_from ui_to cmd_state cmd_updates = do
@@ -150,7 +154,7 @@ update_performance ui_from ui_to cmd_state cmd_updates = do
     chan <- Chan.newChan
     cstate <- Performance.update_performance
         (\bid status -> Chan.writeChan chan (bid, status))
-        ui_from ui_to cmd_state cupdates
+        ui_from ui_to (set_immediate cmd_state) cupdates
     -- This will delay until the perform thread has derived enough of the
     -- performance to hand over.
     (block_id, perf) <- read_perf chan
@@ -158,6 +162,10 @@ update_performance ui_from ui_to cmd_state cmd_updates = do
             (Cmd.state_performance st) }
     return $ cstate { Cmd.state_play = insert (Cmd.state_play cstate) }
     where
+    -- Get rid of the derive wait to avoid making tests slow.
+    set_immediate state = state
+        { Cmd.state_derive_immediately = Map.keysSet (State.state_blocks ui_to)
+        }
     read_perf chan = do
         (block_id, status) <- Chan.readChan chan
         case status of
