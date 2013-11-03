@@ -118,7 +118,7 @@ map_scale patch_scale scale environ input = case input of
     where
     convert input = do
         (block_id, _, track_id, pos) <- Selection.get_insert
-        maybe_nn <- Perf.derive_at block_id track_id $
+        (maybe_nn, _logs) <- Perf.derive_at block_id track_id $
             Derive.with_environ environ $
             Scale.scale_input_to_nn scale pos input
         case maybe_nn of

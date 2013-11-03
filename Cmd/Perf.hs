@@ -12,6 +12,7 @@ import qualified Data.List as List
 import qualified Data.Map as Map
 
 import Util.Control
+import qualified Util.Log as Log
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 
@@ -26,8 +27,6 @@ import qualified Derive.Derive as Derive
 import qualified Derive.Deriver.Internal as Internal
 import qualified Derive.Environ as Environ
 import qualified Derive.LEvent as LEvent
-import qualified Derive.PitchSignal as PitchSignal
-import qualified Derive.Scale as Scale
 import qualified Derive.Score as Score
 import qualified Derive.TrackInfo as TrackInfo
 import qualified Derive.TrackLang as TrackLang
@@ -38,51 +37,18 @@ import qualified App.Config as Config
 import Types
 
 
--- * notes
+-- * derive
 
-note_to_nn :: (Cmd.M m) => Pitch.ScaleId -> Pitch.Note
-    -> m (Either String Pitch.NoteNumber)
-note_to_nn scale_id note = either Left eval <$> note_to_pitch scale_id note
+-- | Run an ad-hoc derivation in the context of the given track.
+derive_at :: (Cmd.M m) => BlockId -> TrackId
+    -> Derive.Deriver a -> m (Either String a, [Log.Msg])
+derive_at block_id track_id deriver = do
+    dynamic <- fromMaybe empty_dynamic <$>
+        lookup_dynamic block_id (Just track_id)
+    (val, _, logs) <- PlayUtil.run_with_dynamic dynamic deriver
+    return (either (Left . Pretty.pretty) Right val, logs)
     where
-    eval p = either (Left . Pretty.pretty) Right $
-        PitchSignal.eval_pitch p mempty
-
--- | Convert a note to a note number by running a mini derivation just for it.
---
--- This doesn't apply any of the fancy context-sensitive tuning stuff, so any
--- scales that change tuning will emit their default pitch.  It also doesn't
--- apply any transpositions in scope, so in reflects the pitch of the note as
--- written in the score.
-note_to_pitch :: (Cmd.M m) => Pitch.ScaleId -> Pitch.Note
-    -> m (Either String PitchSignal.Pitch)
-note_to_pitch scale_id note = do
-    scale <- Cmd.get_scale "Perf.note_to_pitch" scale_id
-    case Scale.scale_note_to_call scale note of
-        Nothing -> return $ Left $ "no call for " <> show note
-        Just call -> derive $ Call.apply_pitch 0 call >>= \val -> case val of
-            TrackLang.VPitch pitch -> return pitch
-            _ -> Derive.throw $ "note call returned non-pitch: " <> show val
-
--- | Like 'note_to_pitch', but supply enough context to get the actual
--- performed pitch.
---
--- I'm not sure if this is actually useful, since if you want the real derived
--- pitch you are probably better off asking 'get_nn_at'.
-note_to_transposed_pitch :: (Cmd.M m) => Pitch.ScaleId -> BlockId -> TrackId
-    -> ScoreTime -- ^ some scales retune over time
-    -> Pitch.Note -> m (Either String PitchSignal.Pitch)
-note_to_transposed_pitch scale_id block_id track_id pos note = do
-    scale <- Cmd.get_scale "Perf.note_to_pitch" scale_id
-    case Scale.scale_note_to_call scale note of
-        Nothing -> return $ Left $ "no call for " <> show note
-        Just call -> derive_at block_id track_id $
-            Call.apply_pitch pos call >>= \val -> case val of
-                TrackLang.VPitch pitch -> do
-                    controls <- Derive.controls_at =<< Derive.real pos
-                    environ <- Internal.get_environ
-                    return $ PitchSignal.apply environ controls pitch
-                _ -> Derive.throw $
-                    "note call returned non-pitch: " <> show val
+    empty_dynamic = Derive.initial_dynamic Derive.empty_scopes mempty
 
 -- | A cheap quick derivation that sets up the correct initial state, but
 -- runs without the cache and throws away any logs.
@@ -92,16 +58,6 @@ derive deriver = do
     return $ case val of
         Left err -> Left $ Pretty.pretty err
         Right val -> Right val
-
-derive_at :: (Cmd.M m) => BlockId -> TrackId
-    -> Derive.Deriver a -> m (Either String a)
-derive_at block_id track_id deriver = do
-    dynamic <- fromMaybe empty_dynamic <$>
-        lookup_dynamic block_id (Just track_id)
-    (val, _, _) <- PlayUtil.run_with_dynamic dynamic deriver
-    return $ either (Left . Pretty.pretty) Right val
-    where
-    empty_dynamic = Derive.initial_dynamic Derive.empty_scopes mempty
 
 
 -- * environ
