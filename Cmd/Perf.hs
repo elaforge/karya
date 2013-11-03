@@ -10,12 +10,14 @@
 module Cmd.Perf where
 import qualified Data.List as List
 import qualified Data.Map as Map
+import qualified Data.Vector as Vector
 
 import Util.Control
 import qualified Util.Log as Log
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 
+import qualified Midi.Midi as Midi
 import qualified Ui.Block as Block
 import qualified Ui.State as State
 import qualified Ui.TrackTree as TrackTree
@@ -39,6 +41,22 @@ import Types
 
 -- * derive
 
+-- | Specialized version of 'derive_expr' for note calls with no arguments.
+derive_note_call :: (Cmd.M m) => BlockId -> TrackId -> TrackTime
+    -> TrackLang.CallId -> m (Either String [Score.Event], [Log.Msg])
+derive_note_call block_id track_id pos call =
+    derive_expr block_id track_id pos (TrackLang.Call call [] :| [])
+
+-- | Derive an expression.
+derive_expr :: (Cmd.M m, Derive.Callable d) => BlockId -> TrackId -> TrackTime
+    -> TrackLang.Expr -> m (Either String [d], [Log.Msg])
+derive_expr block_id track_id pos expr = do
+    (result, logs) <- derive_at block_id track_id (Call.eval_one_at pos 1 expr)
+    return $ case result of
+        Left err -> (Left err, logs)
+        Right levents -> (Right events, derive_logs ++ logs)
+            where (events, derive_logs) = LEvent.partition levents
+
 -- | Run an ad-hoc derivation in the context of the given track.
 derive_at :: (Cmd.M m) => BlockId -> TrackId
     -> Derive.Deriver a -> m (Either String a, [Log.Msg])
@@ -59,6 +77,10 @@ derive deriver = do
         Left err -> Left $ Pretty.pretty err
         Right val -> Right val
 
+-- * perform
+
+perform :: (Cmd.M m) => [Score.Event] -> m ([Midi.WriteMessage], [Log.Msg])
+perform = (LEvent.partition <$>) . PlayUtil.perform_events . Vector.fromList
 
 -- * environ
 

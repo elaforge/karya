@@ -3,7 +3,8 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
-  - I think Util.Num.ratio_of is redundant with Ratio.approxRational
+  - Seems like LEvent.quantize_sel doesn't understand changing rulers
+  * I think Util.Num.ratio_of is redundant with Ratio.approxRational
   - make sure concatenating Meters works in Cmd.Meters as well as Cmd.Tala
   - 3 avartanams adi chatusra + 4 avartanams adi tisram
     * compound ruler is crunched up at the merge point
@@ -21,7 +22,14 @@ UNSORTED
       because of imprecision.
     - I need to propagate the Rational all the way to Ruler.Mark, otherwise
       I can't accurately convert Marklist -> Meter
-  - din+thom symbol
+    . Another approach would be to keep Meter durations as ScoreTime, but
+      approxRational them when adding together, under the assumption that they
+      are rationals.
+  * din+thom symbol
+    * CUtil.drum_cmd should evaluate the call instead of hardcoding a midi key
+    - test Perf.derive_expr and CUtil.expr_to_midi
+    - I think CUtil.keymaps and inst_keymaps are obsolete now, convert callers
+      to insert_call
   - in Derive.Call.Trill_test.test_xcut_pitch, the call is evaluated twice
     when inverted, why?
   * make drop and lift's fade arg default to time arg

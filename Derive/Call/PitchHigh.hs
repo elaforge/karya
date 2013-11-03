@@ -7,6 +7,8 @@
 -- High level calls do something a little more abstract and \"musical\"
 -- than the low level calls in "Derive.Call.Pitch".  Generally they have
 -- complete-word names, while low level calls are just single letters.
+--
+-- TODO this module has a dumb name.  What would be better?
 module Derive.Call.PitchHigh where
 import Util.Control
 import qualified Derive.Args as Args

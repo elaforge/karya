@@ -4,6 +4,24 @@
 
 {- | Implement midi thru by mapping InputNotes to MIDI messages.
 
+    This is effectively a recreation of the deriver and MIDI performer, but
+    geared to producing a single note immediately rather than deriving and
+    performing an entire score.  But since derivation and performance are both
+    very complicated, it's doomed to be complicated and inaccurate.
+
+    The rationale is that the performer is oriented around a stream of events
+    when their durations are known, while this must derive a single key, and in
+    real time.  However, it's also due to history (derivation used to be much
+    simpler), and concerns about efficiency, so in the future I'll probably
+    move towards reusing as much of the deriver and performer as possible.
+
+    Note that actually much of the deriver is already reused, courtesy of
+    'Perf.derive_at'.  Also, 'Scale.scale_input_to_nn' may have a shortcut
+    implementation, but for complicated scales falls back on derivation.
+
+    An implementation that fully reuses deriver and performer is in
+    "Cmd.Instrument.CUtil".insert_expr.
+
     This is a very complicated thru and might be too slow.  It has to deal
     with:
 
