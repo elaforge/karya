@@ -346,7 +346,7 @@ apply_generator cinfo (TrackLang.Call call_id args) = do
         Nothing -> do
             -- Use the outer name, not val call's "val", otherwise every failed
             -- lookup says it's a failed val lookup.
-            vcall <- require_call call_id (name <> " generator or val")
+            vcall <- require_call call_id (name <> " generator or val call")
                 =<< Derive.lookup_val_call call_id
             val <- apply (tag_call_info cinfo) vcall args
             -- We only do this fallback thing once.
@@ -482,7 +482,7 @@ event_start = Event.start . Derive.info_event
 
 get_val_call :: TrackLang.CallId -> Derive.Deriver Derive.ValCall
 get_val_call call_id =
-    require_call call_id "val" =<< Derive.lookup_val_call call_id
+    require_call call_id "val call" =<< Derive.lookup_val_call call_id
 
 get_generator :: forall d. (Derive.Callable d) =>
     TrackLang.CallId -> Derive.Deriver (Derive.Generator d)

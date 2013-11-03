@@ -105,7 +105,7 @@ test_call_errors = do
 
     let run_evt evt = derive [(">i", [(0, 1, evt)])]
     left_like (run_evt "no-such-call")
-        "note generator or val not found: no-such-call"
+        "note generator or val call not found: no-such-call"
     let tr_result = extract $ DeriveTest.derive_tracks
             [(">", [(0, 4, "")]), ("*twelve", [(0, 0, "tr")])]
     left_like tr_result "ArgError: expected another argument"
@@ -124,7 +124,7 @@ test_val_call = do
             [(">", [(0, 1, "")]), ("cont", [(0, 0, evt)])]
         with_add1 = CallTest.with_val_call "add1" add_one
     equal (run "foobar")
-        ([[(0, 0)]], ["Error: control generator or val not found: foobar"])
+        ([[(0, 0)]], ["Error: control generator or val call not found: foobar"])
     equal (run "set 1") ([[(0, 1)]], [])
     equal (run "set (add1 1)") ([[(0, 2)]], [])
     equal (run "set (add1 (add1 1))") ([[(0, 3)]], [])
@@ -143,7 +143,7 @@ test_inst_call = do
             (set_lookup_inst lookup_inst)
             [(inst, [(0, 1, "sn")])]
     equal (run ">s/1")
-        ([], ["Error: note generator or val not found: sn"])
+        ([], ["Error: note generator or val call not found: sn"])
     equal (run ">s/with-call")
         ([["snare"]], [])
 

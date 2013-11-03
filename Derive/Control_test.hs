@@ -116,10 +116,11 @@ test_derive_control = do
 
     -- evaluation continues after an error
     equal (derive [(0, 0, "1"), (1, 0, "def")])
-        (Right ([(0, 1)], ["Error: control generator or val not found: def"]))
+        (Right ([(0, 1)],
+            ["Error: control generator or val call not found: def"]))
     equal (derive [(0, 0, "1"), (1, 0, "def"), (2, 0, "i 2")])
         (Right ([(0, 1), (1, 1.5), (2, 2)],
-            ["Error: control generator or val not found: def"]))
+            ["Error: control generator or val call not found: def"]))
 
 mktrack :: ScoreTime -> (ScoreTime, ScoreTime) -> [UiTest.EventSpec]
     -> TrackTree.TrackEvents
