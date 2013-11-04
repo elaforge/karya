@@ -3,14 +3,36 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 module Cmd.Perf_test where
+import Util.Control
+import qualified Util.Log as Log
 import Util.Test
-import qualified Cmd.Cmd as Cmd
+
+import qualified Ui.UiTest as UiTest
 import qualified Cmd.CmdTest as CmdTest
 import qualified Cmd.Perf as Perf
+import qualified Derive.DeriveTest as DeriveTest
+import qualified Derive.ParseBs as ParseBs
+import qualified Derive.Score as Score
 
-import qualified Derive.Scale.Twelve as Twelve
-import qualified Perform.Pitch as Pitch
+import qualified Perform.Signal as Signal
 
 
-run :: Cmd.CmdId val -> Either String (Maybe val, [String])
-run = CmdTest.extract id . CmdTest.run_tracks []
+test_derive_expr = do
+    let run extract tracks cmd = CmdTest.extract (extract_events extract) <$>
+            CmdTest.run_perf_tracks tracks cmd
+        f tracknum pos expr = Perf.derive_expr UiTest.default_block_id
+            (UiTest.mk_tid tracknum) pos
+            (expect_right "parse" (ParseBs.parse_expr expr))
+        note_call e = (Score.event_start e, DeriveTest.e_attributes e)
+    io_equal (run note_call [(">s/1", [])] (f 1 0 "+b | n +a"))
+        (Right (Just (Right [(0, "+a+b")], []), []))
+
+    let control_call :: Signal.Control -> [(Signal.X, Signal.Y)]
+        control_call = Signal.unsignal :: Signal.Control
+            -> [(Signal.X, Signal.Y)]
+    io_equal (run control_call [("c", []), (">", [])] (f 1 0 ".5"))
+        (Right (Just (Right [[(0, 0.5)]], []), []))
+
+extract_events :: (d -> e) -> (Either String [d], [Log.Msg])
+    -> (Either String [e], [String])
+extract_events f (val, logs) = (map f <$> val, map DeriveTest.show_log logs)

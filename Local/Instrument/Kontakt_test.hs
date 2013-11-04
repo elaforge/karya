@@ -77,7 +77,6 @@ wayang_title suffix =
     " | scale = wayang | n >kkt/wayang" <> suffix <> " | scale = wayang\
     \ | inst-polos = >kkt/wayang-umbang | inst-sangsih = >kkt/wayang-isep"
 
-
 test_kendang = do
     let e_attrs = DeriveTest.extract $ \e ->
             (Score.event_start e, DeriveTest.e_inst e, Score.event_attributes e)

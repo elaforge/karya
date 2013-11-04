@@ -24,11 +24,13 @@ UNSORTED
       I can't accurately convert Marklist -> Meter
     . Another approach would be to keep Meter durations as ScoreTime, but
       approxRational them when adding together, under the assumption that they
-      are rationals.
+      are rationals.  Or use only if the denominator is below some limit.
+    - Same for selection display: if the denominator is below a limit, display
+      as unicode fraction glyphs?  Glyphs only exist up to 1/8.
   * din+thom symbol
     * CUtil.drum_cmd should evaluate the call instead of hardcoding a midi key
-    - test Perf.derive_expr and CUtil.expr_to_midi
-    - I think CUtil.keymaps and inst_keymaps are obsolete now, convert callers
+    * test Perf.derive_expr and CUtil.expr_to_midi
+    * I think CUtil.keymaps and inst_keymaps are obsolete now, convert callers
       to insert_call
   - in Derive.Call.Trill_test.test_xcut_pitch, the call is evaluated twice
     when inverted, why?

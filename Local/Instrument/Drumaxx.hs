@@ -18,7 +18,7 @@ import qualified App.MidiInst as MidiInst
 load :: FilePath -> IO [MidiInst.SynthDesc]
 load _dir = return $ MidiInst.make $
     (MidiInst.softsynth "dmx" "Image-Line Drumaxx" pb_range [])
-    { MidiInst.modify_wildcard = CUtil.drum_instrument notes
+    { MidiInst.modify_wildcard = CUtil.drum_instrument note_keys
     , MidiInst.code = code
     , MidiInst.extra_patches = patches
     }
@@ -26,8 +26,7 @@ load _dir = return $ MidiInst.make $
 pb_range = (-24, 24)
 
 code :: MidiInst.Code
-code = MidiInst.note_generators (CUtil.drum_calls (map fst notes))
-    <> MidiInst.cmd (CUtil.drum_cmd notes)
+code = CUtil.drum_code note_keys
 
 patches :: [MidiInst.Patch]
 patches = MidiInst.with_code code $ map make_patch
@@ -40,15 +39,15 @@ patches = MidiInst.with_code code $ map make_patch
     -- Since this drum has pitches and continuous controls, its notes need to
     -- have duration.
     make_patch = Instrument.unset_flag Instrument.Triggered
-        . CUtil.drum_instrument notes
+        . CUtil.drum_instrument note_keys
     composite = Instrument.add_composite (Score.instrument "reak" "comb")
         Nothing ["mix", "fbk"]
 
 -- | The octave numbers on the drumaxx are one greater than the standard
 -- usage.  This is for \"Acoustic 2 FG\".  I'll have to come up with
 -- a standard mapping later.
-notes :: [(Drums.Note, Midi.Key)]
-notes =
+note_keys :: [(Drums.Note, Midi.Key)]
+note_keys =
     [ (Drums.c_bd, c2)
     , (Drums.c_bd2, b1)
     , (Drums.c_sn, d2)

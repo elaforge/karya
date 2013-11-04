@@ -47,6 +47,7 @@ import qualified Perform.Signal as Signal
 import qualified Instrument.Db
 import qualified Instrument.MidiDb as MidiDb
 import qualified App.Config as Config
+import qualified App.MidiInst as MidiInst
 import Types
 
 
@@ -70,9 +71,19 @@ result_failed res = case result_val res of
 
 -- | Run cmd with the given tracks.
 run_tracks :: [UiTest.TrackSpec] -> Cmd.CmdId a -> Result a
-run_tracks track_specs =
-    run (DeriveTest.set_default_midi_config ustate) default_cmd_state
-    where (_, ustate) = UiTest.run_mkview track_specs
+run_tracks tracks = run (make_tracks tracks) default_cmd_state
+
+-- | Derive the tracks and then run the cmd with the performance available.
+run_perf_tracks :: [UiTest.TrackSpec] -> Cmd.CmdId val -> IO (Result val)
+run_perf_tracks tracks = run_perf (make_tracks tracks) default_cmd_state
+
+run_perf :: State.State -> Cmd.State -> Cmd.CmdId val -> IO (Result val)
+run_perf ustate cstate cmd = do
+    cstate <- update_performance State.empty ustate cstate []
+    return $ run ustate cstate cmd
+
+make_tracks :: [UiTest.TrackSpec] -> State.State
+make_tracks = DeriveTest.set_default_midi_config . snd . UiTest.run_mkview
 
 -- | Run a cmd and return everything you could possibly be interested in.
 run :: State.State -> Cmd.State -> Cmd.CmdId a -> Result a
@@ -303,8 +314,22 @@ set_insts insts ustate cstate =
         cstate { Cmd.state_config = set_db (Cmd.state_config cstate) })
     where
     set_db config = config { Cmd.state_instrument_db = make_inst_db insts }
-    config = UiTest.midi_config [(inst, [chan])
-        | (inst, chan) <- zip insts [0..]]
+    config = UiTest.midi_config
+        [(inst, [chan]) | (inst, chan) <- zip insts [0..]]
+
+-- | Like 'set_insts', but with the provided synths.
+set_synths :: [MidiInst.SynthDesc] -> [Text] -> State.State -> Cmd.State
+    -> (State.State, Cmd.State)
+set_synths synths insts ustate cstate =
+    (UiTest.set_midi_config config ustate,
+        cstate { Cmd.state_config = set_db (Cmd.state_config cstate) })
+    where
+    set_db config = config
+        { Cmd.state_instrument_db = Instrument.Db.db $
+            fst $ MidiDb.midi_db synths
+        }
+    config = UiTest.midi_config
+        [(inst, [chan]) | (inst, chan) <- zip insts [0..]]
 
 make_inst_db :: [Text] -> Instrument.Db.Db code
 make_inst_db inst_names = Instrument.Db.empty

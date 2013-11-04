@@ -14,42 +14,51 @@ import qualified Cmd.Cmd as Cmd
 import qualified Cmd.CmdTest as CmdTest
 import qualified Cmd.Instrument.CUtil as CUtil
 import qualified Cmd.Instrument.Drums as Drums
+import qualified Cmd.Msg as Msg
 
 import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Score as Score
 
 import qualified App.MidiInst as MidiInst
+import Types
 
 
-test_keymaps = do
-    -- 'CUtil.keymaps' sets the inst to Nothing, which means to use the current
-    -- one.  But since in the test there's no valid performance, that winds up
-    -- being nothing.
-    let f = CUtil.inst_keymaps [('a', "anote", 1, inst), ('b', "bnote", 2, inst)]
-        inst = Just (Score.Instrument "s/1")
-        empty = [(">", [])]
-        run = run_tracks empty
-        msg = Midi.ChannelMessage 0
+test_insert_call = do
+    let note_on key = Midi.ChannelMessage 0 (Midi.NoteOn key 127)
+        note_off key = Midi.ChannelMessage 0 (Midi.NoteOff key 127)
+        empty_tracks = [(">synth/1", [])]
     -- NoEdit means midi but no note.
-    equal (run False (f (CmdTest.key_down 'a')))
-        (Right empty, [msg (Midi.NoteOn 1 64)])
-    equal (run True (f (CmdTest.key_down 'a')))
-        (Right [(">", [(0, 1, "anote")])], [msg (Midi.NoteOn 1 64)])
-    equal (run True (f (CmdTest.key_up 'a')))
-        (Right empty, [msg (Midi.NoteOff 1 64)])
+    io_equal (insert_call empty_tracks 1 False (CmdTest.key_down 'a'))
+        (Right empty_tracks, [note_on Key.c2])
+    io_equal (insert_call empty_tracks 1 True (CmdTest.key_down 'a'))
+        (Right [(">synth/1", [(0, 0, "anote")])], [note_on Key.c2])
+    io_equal (insert_call empty_tracks 1 True (CmdTest.key_up 'a'))
+        (Right [(">synth/1", [])], [note_off Key.c2])
 
-run_tracks :: [UiTest.TrackSpec] -> Bool -> Cmd.CmdId a
-    -> (Either String [UiTest.TrackSpec], [Midi.Message])
-run_tracks tracks val_edit cmd = extract $ CmdTest.run_sel 0 tracks $ do
-    Cmd.modify_edit_state $ \st -> st
-        { Cmd.state_edit_mode = if val_edit then Cmd.ValEdit else Cmd.NoEdit
-        , Cmd.state_kbd_entry = True
-        }
-    cmd
+insert_call :: [UiTest.TrackSpec] -> TrackNum -> Bool -> Msg.Msg
+    -> IO (Either String [UiTest.TrackSpec], [Midi.Message])
+insert_call tracks tracknum val_edit msg =
+    fmap extract $ CmdTest.run_perf ustate cstate $ do
+        Cmd.modify_edit_state (set_edit_mode val_edit)
+        CmdTest.set_sel tracknum 0 tracknum 0
+        CUtil.insert_call char_to_call msg
     where
-    extract res =
-        (CmdTest.trace_logs (CmdTest.e_tracks res), CmdTest.e_midi res)
+    (ustate, cstate) = CmdTest.set_synths (make_synth note_keys)
+        ["synth/1"] (CmdTest.make_tracks tracks)
+        CmdTest.default_cmd_state
+    char_to_call = CUtil.notes_to_calls (map fst note_keys)
+    note_keys =
+        [ (Drums.Note "anote" (Score.attr "a") 'a' 1, Key.c2)
+        , (Drums.Note "bnote" (Score.attr "b") 'b' 1, Key.d2)
+        ]
+    extract r = (CmdTest.trace_logs (CmdTest.e_tracks r), CmdTest.e_midi r)
+
+set_edit_mode :: Bool -> Cmd.EditState -> Cmd.EditState
+set_edit_mode val_edit state = state
+    { Cmd.state_edit_mode = if val_edit then Cmd.ValEdit else Cmd.NoEdit
+    , Cmd.state_kbd_entry = True
+    }
 
 test_drum_instrument = do
     let run = DeriveTest.derive_tracks_with (DeriveTest.with_inst_db drum_synth)
@@ -71,12 +80,16 @@ test_drum_instrument = do
 mapMaybeSnd :: (b -> Maybe c) -> [(a, b)] -> [(a, c)]
 mapMaybeSnd f xs = [(a, b) | (a, Just b) <- map (second f) xs]
 
+synth :: MidiInst.Softsynth
+synth = MidiInst.softsynth "synth" "Synth" (-24, 24) []
+
 drum_synth :: [MidiInst.SynthDesc]
-drum_synth = MidiInst.make $
-    (MidiInst.softsynth "synth" "Synth" (-24, 24) [])
-    { MidiInst.modify_wildcard = CUtil.drum_instrument notes
+drum_synth = make_synth [(Drums.c_bd, Key.c2), (Drums.c_sn, Key.d2)]
+
+make_synth :: [(Drums.Note, Midi.Key)] -> [MidiInst.SynthDesc]
+make_synth note_keys = MidiInst.make $ synth
+    { MidiInst.modify_wildcard = CUtil.drum_instrument note_keys
     , MidiInst.code =
-        MidiInst.note_generators (CUtil.drum_calls (map fst notes))
-        <> MidiInst.cmd (CUtil.drum_cmd notes)
+        MidiInst.note_generators (CUtil.drum_calls (map fst note_keys))
+        <> MidiInst.cmd (CUtil.drum_cmd (map fst note_keys))
     }
-    where notes = [(Drums.c_bd, Key.c2), (Drums.c_sn, Key.d2)]

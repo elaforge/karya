@@ -300,16 +300,11 @@ kendang_patches =
     lanang_name = "kendang-lanang"
 
 kendang_composite_code :: (Score.Instrument, Score.Instrument) -> MidiInst.Code
-kendang_composite_code insts@(wadon, lanang) =
+kendang_composite_code insts =
     MidiInst.note_transformers [("realize", c_realize_kendang insts)]
     <> MidiInst.note_generators
         (CUtil.drum_calls (map (fst . fst) Drums.kendang_composite))
-    <> MidiInst.cmd (CUtil.inst_drum_cmd note_insts)
-    where
-    note_insts = [(note, key, inst_of kendang)
-        | ((note, key), (_, kendang)) <- Drums.kendang_composite]
-    inst_of Drums.Wadon = wadon
-    inst_of Drums.Lanang = lanang
+    <> MidiInst.cmd (CUtil.drum_cmd (map (fst . fst) Drums.kendang_composite))
 
 c_realize_kendang :: (Score.Instrument, Score.Instrument)
     -> Derive.Transformer Derive.Note
@@ -409,8 +404,8 @@ mridangam_patches = [(inst, code)]
     code = MidiInst.note_generators call_code
         <> MidiInst.cmd (CUtil.insert_call char_to_call)
     call_code =
-        CUtil.drum_calls [Drums.Note call attrs char 1 |
-            (call, attrs, char, _) <- mridangam]
+        CUtil.drum_calls
+            [Drums.Note call attrs char 1 | (call, attrs, char, _) <- mridangam]
         ++ CUtil.multiple_calls
             [(call, subcalls) | (call, subcalls, _) <- mridangam_both]
     char_to_call = Map.fromList $

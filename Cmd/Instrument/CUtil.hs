@@ -49,6 +49,10 @@ insert_call = insert_expr . Map.fromList . map (Keymap.physical_key *** to_expr)
         . Map.toList
     where to_expr call = TrackLang.call call [] :| []
 
+notes_to_calls :: [Drums.Note] -> Map.Map Char Call
+notes_to_calls notes =
+    Map.fromList [(Drums.note_char n, Drums.note_name n) | n <- notes]
+
 -- | Create a custom kbd entry cmd that inserts tracklang expressions at
 -- the insertion point.  It also attempts to evaluate the expression to produce
 -- MIDI thru.
@@ -123,59 +127,6 @@ expr_to_midi block_id track_id pos expr = do
     mapM_ Log.write logs
     return msgs
 
--- * keymap
-
-keymaps :: (Cmd.M m) => [(Char, Call, Midi.Key)] -> Msg.Msg -> m Cmd.Status
-keymaps inputs = inst_keymaps [(c, n, k, Nothing) | (c, n, k) <- inputs]
-
--- | Create a note entry Cmd for a keymapped instrument.
---
--- Like NoteEntry, if kbd entry is on but ValEdit is not, then play the sound
--- but don't enter the note.
-inst_keymaps :: (Cmd.M m) => [(Char, Call, Midi.Key, Maybe Score.Instrument)]
-    -- ^ (kbd key mapped to note, text to insert, midi key to emit for thru,
-    -- emit thru on this instrument or current inst if Nothing)
-    -> Msg.Msg -> m Cmd.Status
-inst_keymaps inputs = \msg -> do
-    unlessM Cmd.is_kbd_entry Cmd.abort
-    EditUtil.fallthrough msg
-    (kstate, char) <- Cmd.require $ Msg.char msg
-    -- Do nothing but return Done if there is no mapping for this key.  That
-    -- way this cmd captures all keystrokes and completely shadows the normal
-    -- kbd entry.  Otherwise, it's confusing when some keys fall through and
-    -- create pitches.
-    --
-    -- TODO another way to accomplish this would be to put the NoteEntry stuff
-    -- in as a default instrument cmd, so I could just replace it entirely.
-    case Map.lookup char to_note of
-        -- Only swallow keys that note entry would have caught, otherwise
-        -- space would be swallowed here.
-        Nothing
-            | Map.member char NoteEntry.kbd_map -> return Cmd.Done
-            | otherwise -> return Cmd.Continue
-        Just (note, key, maybe_inst) -> do
-            case kstate of
-                UiMsg.KeyRepeat -> return ()
-                UiMsg.KeyDown -> keymap_down maybe_inst note key
-                UiMsg.KeyUp -> keymap_up maybe_inst key
-            return Cmd.Done
-    where
-    to_note = Map.fromList
-        [(char, (note, key, inst)) | (char, note, key, inst) <- inputs]
-
-keymap_down :: (Cmd.M m) => Maybe Score.Instrument -> Call -> Midi.Key -> m ()
-keymap_down maybe_inst note key = do
-    whenM Cmd.is_val_edit $ suppressed $ do
-        pos <- EditUtil.get_pos
-        NoteTrack.modify_event_at pos False True $ const (Just note, True)
-    MidiThru.channel_messages maybe_inst True [Midi.NoteOn key 64]
-    where
-    suppressed = Cmd.suppress_history Cmd.ValEdit (untxt $ "keymap: " <> note)
-
-keymap_up :: (Cmd.M m) => Maybe Score.Instrument -> Midi.Key -> m ()
-keymap_up maybe_inst key =
-    MidiThru.channel_messages maybe_inst True [Midi.NoteOff key 64]
-
 -- * keyswitch
 
 -- | Create a Cmd to set keyswitches.
@@ -212,13 +163,10 @@ keyswitches inputs = \msg -> do
 drum_code :: [(Drums.Note, Midi.Key)] -> MidiInst.Code
 drum_code note_keys =
     MidiInst.note_generators (drum_calls (map fst note_keys))
-    <> MidiInst.cmd (drum_cmd note_keys)
+    <> MidiInst.cmd (drum_cmd (map fst note_keys))
 
--- | Same as 'drum_code', but ignore an instrument too.
-inst_drum_code :: [(Drums.Note, Midi.Key, Score.Instrument)] -> MidiInst.Code
-inst_drum_code note_keys =
-    MidiInst.note_generators (drum_calls [note | (note, _, _) <- note_keys])
-    <> MidiInst.cmd (inst_drum_cmd note_keys)
+drum_cmd :: [Drums.Note] -> Cmd.Cmd
+drum_cmd = insert_call . notes_to_calls
 
 drum_instrument :: [(Drums.Note, Midi.Key)] -> Instrument.Patch
     -> Instrument.Patch
@@ -244,22 +192,9 @@ multiple_calls :: [(Call, [Call])] -> [(Call, Derive.Generator Derive.Note)]
 multiple_calls calls =
     [(call, multiple_call call subcalls) | (call, subcalls) <- calls]
 
+-- | Create a call that just dispatches to other calls.
 multiple_call :: Call -> [Call] -> Derive.Generator Derive.Note
 multiple_call name calls = Derive.make_call name mempty
     ("Dispatch to multiple calls: " <> Text.intercalate ", " calls)
     $ Sig.call0 $ \args ->
         mconcat $ map (Call.reapply_gen args . TrackLang.Symbol) calls
-
--- | Create keymap Cmd for the given Notes.  This should be paired with
--- 'drum_calls' so the Cmd will create calls that the deriver understands.
-drum_cmd :: (Cmd.M m) => [(Drums.Note, Midi.Key)] -> Msg.Msg -> m Cmd.Status
-drum_cmd note_keys = keymaps
-    [(Keymap.physical_key (Drums.note_char n), Drums.note_name n, key)
-        | (n, key) <- note_keys]
-
-inst_drum_cmd :: (Cmd.M m) => [(Drums.Note, Midi.Key, Score.Instrument)]
-    -> Msg.Msg -> m Cmd.Status
-inst_drum_cmd note_keys = inst_keymaps
-    [(Keymap.physical_key (Drums.note_char n), Drums.note_name n, key,
-            Just inst)
-        | (n, key, inst) <- note_keys]
