@@ -25,7 +25,10 @@ UNSORTED
     . Another approach would be to keep Meter durations as ScoreTime, but
       approxRational them when adding together, under the assumption that they
       are rationals.  Or use only if the denominator is below some limit.
-    - Same for selection display: if the denominator is below a limit, display
+    . It seems like it would be simpler, but then I am manipulating Meters
+      as imprecise floats.  Isn't it better to have precise rationals?
+      Well, no, not if I'm manipulating with selections, aka ScoreTimes.
+    * Same for selection display: if the denominator is below a limit, display
       as unicode fraction glyphs?  Glyphs only exist up to 1/8.
   * din+thom symbol
     * CUtil.drum_cmd should evaluate the call instead of hardcoding a midi key

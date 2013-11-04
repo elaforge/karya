@@ -7,6 +7,8 @@
 module Cmd.Internal where
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
+import qualified Data.Ratio as Ratio
+import Data.Ratio ((%))
 import qualified Data.Text as Text
 
 import Util.Control
@@ -398,11 +400,10 @@ sync_selection view_id maybe_sel = do
             set $ Just (selection_status ns sel tid)
             Info.set_inst_status block_id (Types.sel_cur_track sel)
 
-
 selection_status :: Id.Namespace -> Types.Selection -> Maybe TrackId -> Text
 selection_status ns sel maybe_track_id =
-    Pretty.prettytxt start
-        <> (if start == end then "" else Text.cons '-' (Pretty.prettytxt end))
+    pretty_rational start
+        <> (if start == end then "" else Text.cons '-' (pretty_rational end))
     <> " " <> showt tstart
         <> (if tstart == tend then "" else Text.cons '-' (showt tend))
     <> maybe "" (txt . (' ':) . Id.show_short ns . Id.unpack_id) maybe_track_id
@@ -424,3 +425,25 @@ realtime_at_selection view_id sel = do
     track_id <- State.event_track_at block_id (Selection.point_track sel)
     justm Perf.lookup_root $ \perf ->
         Perf.lookup_realtime perf block_id track_id (Selection.point sel)
+
+-- | If a ScoreTime looks like a low fraction, display it thus, rather than as
+-- a decimal.  This is useful because e.g. meters in three will have lots of
+-- repeating decimals.  I also use fractions for power of two denominators
+-- which are just fine in decimal, but the fraction still takes up less space.
+pretty_rational :: ScoreTime -> Text
+pretty_rational d
+    | Ratio.denominator ratio <= 12 =
+        Text.strip $ (if int == 0 then "" else showt int) <> pretty
+    | otherwise = Pretty.prettytxt d
+    where
+    (int, frac) = properFraction d
+    ratio = Ratio.approxRational frac 0.0001
+    pretty = Map.findWithDefault (" " <> Pretty.prettytxt ratio) ratio fractions
+    fractions = Map.fromList
+        [ (0 % 1, "")
+        , (1 % 4, "¼"), (1 % 2, "½"), (3 % 4, "¾")
+        , (1 % 3, "⅓"), (2 % 3, "⅔")
+        , (1 % 5, "⅕"), (2 % 5, "⅖"), (3 % 5, "⅗"), (4 % 5, "⅘")
+        , (1 % 6, "⅙"), (5 % 6, "⅚")
+        , (1 % 8, "⅛"), (3 % 8, "⅜"), (5 % 8, "⅝"), (7 % 8, "⅞")
+        ]
