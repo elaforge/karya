@@ -6,13 +6,15 @@
 -- @test/generate_run_tests.py@.
 module Util.RunTests where
 import Control.Monad
+import qualified Data.IORef as IORef
 import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
-import qualified Data.IORef as IORef
+
+import qualified System.Console.GetOpt as GetOpt
 import qualified System.Environment
 import qualified System.Exit
-import qualified System.Console.GetOpt as GetOpt
+import qualified System.Posix as Posix
 import qualified System.Process as Process
 
 import qualified Util.Regex as Regex
@@ -64,11 +66,11 @@ run argv0 tests = do
 
 runTests :: String -> [Test] -> [Flag] -> [String] -> IO ()
 runTests argv0 tests flags args
-    | List `elem` flags = printTests
+    | List `elem` flags = printTests True
     | otherwise = do
         when (NonInteractive `elem` flags) $
             IORef.writeIORef Test.skip_human True
-        printTests
+        printTests False
         let (initTests, nonInitTests) =
                 List.partition (Maybe.isJust . testInitialize) matches
         mapM_ runTest nonInitTests
@@ -77,9 +79,13 @@ runTests argv0 tests flags args
             _ -> mapM_ (runSubprocess argv0) initTests
     where
     matches = matchingTests args tests
-    printTests
+    printTests printOnly
         | null matches = putStrLn $ "no tests match: " ++ show args
-        | otherwise = mapM_ putStrLn (List.sort (map testName matches))
+        | otherwise = do
+            unless printOnly $ do
+                pid <- Posix.getProcessID
+                putStrLn $ "\nRunTests: " ++ show pid
+            mapM_ putStrLn (List.sort (map testName matches))
 
 runSubprocess :: String -> Test -> IO ()
 runSubprocess argv0 test = do
@@ -102,9 +108,13 @@ matchingTests regexes tests = concatMap match regexes
 
 runTest :: Test -> IO ()
 runTest test = do
-    putStrLn $ "---------- run test "
+    pid <- Posix.getProcessID
+    putStrLn $ divider pid ++ "run test "
         ++ testFilename test ++ ": " ++ testName test
     let name = last (Seq.split "." (testName test))
     maybe id id (testInitialize test) $ Test.catch_srcpos
         (Just (testFilename test, Just name, testLine test)) (testRun test)
     return ()
+
+divider :: Posix.ProcessID -> String
+divider pid = replicate 10 '-' ++ " " ++ show pid ++ ": "

@@ -17,6 +17,13 @@ if [[ -z $run_tests ]]; then
     exit 1
 fi
 
+# Run tests in parallel.
+if which parallel >/dev/null; then
+    parallel=t
+else
+    echo parallel command not found, running tests in serial.
+fi
+
 # This is appended to.  It should be reset along with the coverage data every
 # time test_obj/RunTests is built.
 test_output=build/test.output
@@ -34,13 +41,25 @@ function run {
     fi
 }
 
+# Some tests are more expensive than others.  Scramble them around to try
+# to distribute them evenly.
+function scramble {
+    python -c 'import sys, random
+x=list(sys.stdin); random.shuffle(x); sys.stdout.writelines(x)'
+}
 
 # Tests will recreate this if they need to.
 rm -rf build/test/tmp
 
-# Debug.Trace.trace prints to stderr, apparently there's no way to change
-# that.
-run $run_tests --noninteractive $prefixes >$test_output 2>&1
+# I capture stderr as well because Debug.Trace.trace prints to stderr,
+# and apparently there's no way to change that.
+if [[ -n $parallel ]]; then
+    $run_tests --list $prefixes | scramble \
+        | parallel -j$(tools/ncpus) --max-args=50 -m $run_tests \
+            --noninteractive '{}' >$test_output 2>&1
+else
+    run $run_tests --noninteractive $prefixes >$test_output 2>&1
+fi
 
 echo -n '\nTests complete.  Failures:\n'
 test/extract_failures.py <$test_output

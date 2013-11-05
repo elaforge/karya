@@ -719,7 +719,7 @@ Ui:
 
 test:
   - try writing criterion tests for midi performance and derivation
-  - run tests in parallel
+  * run tests in parallel
     Start thread for each processor, then have them take work from a queue.
     . I need to separate the outputs, which means I either can't use stdout,
       or I need to run subprocesses and have some way so they don't do the same
