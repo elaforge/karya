@@ -39,6 +39,9 @@ module Util.Test (
     , plist, pslist, pmlist
     , prettyp, PPrint.pprint
 
+    -- * filesystem
+    , tmp_dir
+
     -- * debugging
     , module Debug
 ) where
@@ -53,9 +56,11 @@ import qualified Data.List as List
 import qualified Data.Time as Time
 
 import qualified System.CPUTime as CPUTime
+import qualified System.Directory as Directory
 import qualified System.IO as IO
 import qualified System.IO.Unsafe as Unsafe
 import qualified System.Posix.IO as IO
+import qualified System.Posix.Temp as Temp
 import qualified System.Posix.Terminal as Terminal
 
 import Text.Printf
@@ -436,3 +441,11 @@ human_getch = do
             IO.hSetBuffering IO.stdin IO.NoBuffering
             do { c <- getChar; putChar ' '; return c}
                 `Exception.finally` IO.hSetBuffering IO.stdin mode
+
+
+-- * filesystem
+
+tmp_dir :: String -> IO FilePath
+tmp_dir prefix = do
+    Directory.createDirectoryIfMissing True "build/test/tmp"
+    Temp.mkdtemp $ "build/test/tmp/" ++ prefix ++ "-"

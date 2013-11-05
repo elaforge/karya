@@ -4,10 +4,8 @@
 
 module Util.Git.Git2_test where
 import qualified Data.Map as Map
-import qualified System.Directory as Directory
 
 import Util.Control
-import qualified Util.File as File
 import qualified Util.Git.Git2 as Git
 import Util.Git.Git2 (Modification(..))
 import Util.Test
@@ -109,8 +107,8 @@ test_modifications_to_dir = do
 
 -- * implementation
 
+new_repo :: IO FilePath
 new_repo = do
-    let repo = "build/test/test.git"
-    File.ignoreEnoent $ Directory.removeDirectoryRecursive repo
+    repo <- tmp_dir "git"
     io_equal (Git.init repo) False
     return repo

@@ -3,10 +3,7 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 module Cmd.SaveGit_test where
-import qualified System.Directory as Directory
-
 import Util.Control
-import qualified Util.File as File
 import qualified Util.Git as Git
 import Util.Test
 
@@ -150,7 +147,5 @@ diff state modify = (state2, ui_updates)
 mkview :: [UiTest.TrackSpec] -> State.StateId ()
 mkview tracks = void $ UiTest.mkblock_view (UiTest.default_block_name, tracks)
 
-new_repo = do
-    let repo = "build/test/test.git"
-    File.ignoreEnoent $ Directory.removeDirectoryRecursive repo
-    return repo
+new_repo :: IO FilePath
+new_repo = tmp_dir "git"

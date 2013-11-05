@@ -9,7 +9,7 @@ test_generate_mtc = do
     let msgs = take (one_sec 30 + 1) (f f30 2)
     check (is_sorted $ map fst msgs)
     equal (fst (last msgs)) 3
-    pprint msgs
+    -- pprint msgs
 
 is_sorted :: (Ord a) => [a] -> Bool
 is_sorted xs = all (uncurry (<=)) (zip xs (drop 1 xs))

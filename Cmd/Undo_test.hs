@@ -140,8 +140,9 @@ track_update tracknum from to = Update.Track (UiTest.mk_tid tracknum)
     (Update.TrackEvents from to)
 
 test_load_previous_history = do
+    repo <- get_repo
     -- Load a git repo and make sure its history comes with it.
-    res <- save_git $ ResponderTest.mkstates [(">", [(0, 1, "1")])]
+    res <- save_git repo $ ResponderTest.mkstates [(">", [(0, 1, "1")])]
     res <- next res $ Cmd.name "+x" $ insert_event 0 "x"
     res <- next res $ Cmd.name "+y" $ insert_event 1 "y"
     -- pprint (e_commits res)
@@ -177,7 +178,8 @@ test_load_previous_history = do
     equal (e_updates res) [track_update 1 1 2]
 
 test_load_next_history = do
-    res <- save_git $ ResponderTest.mkstates [(">", [(0, 1, "1")])]
+    repo <- get_repo
+    res <- save_git repo $ ResponderTest.mkstates [(">", [(0, 1, "1")])]
     res <- next res $ Cmd.name "+x" $ insert_event 0 "x"
     res <- next res $ Cmd.name "+y" $ insert_event 1 "y"
     pprint (e_commits res)
@@ -210,7 +212,8 @@ test_load_next_history = do
     equal (e_updates res) [track_update 1 0 1]
 
 test_branching_history = do
-    res <- save_git $ ResponderTest.mkstates [(">", [(0, 1, "1")])]
+    repo <- get_repo
+    res <- save_git repo $ ResponderTest.mkstates [(">", [(0, 1, "1")])]
     res <- next res $ Cmd.name "+x" $ insert_event 0 "x"
     res <- next res $ Cmd.name "+y" $ insert_event 1 "y"
     res <- next res $ Cmd.name "save" Save.save_git
@@ -225,29 +228,29 @@ test_branching_history = do
     equal (Map.keys refs) ["heads/master", "tags/0", "tags/1", "tags/1.0"]
 
     -- Each branch has its own history.
-    io_equal (read_log =<< Git.read_log repo "tags/1.0")
+    io_equal (read_log repo =<< Git.read_log repo "tags/1.0")
         ["+b", "+a", "save"]
-    io_equal (read_log =<< Git.read_log_head repo)
+    io_equal (read_log repo =<< Git.read_log_head repo)
         ["+b", "+a", "save"]
-    io_equal (read_log =<< Git.read_log repo "tags/1")
+    io_equal (read_log repo =<< Git.read_log repo "tags/1")
         ["+y", "+x", "save"]
 
     equal (extract_ui res) "ab"
     res <- next res $ Cmd.name "revert" $ Save.revert (Just "1")
     equal (extract_ui res) "xy"
 
-read_log :: [SaveGit.Commit] -> IO [String]
-read_log commits = do
+read_log :: SaveGit.Repo -> [SaveGit.Commit] -> IO [String]
+read_log repo commits = do
     texts <- mapM (fmap Git.commit_text . Git.read_commit repo) commits
     mapM (fmap head . SaveGit.parse_names) texts
 
-save_git :: ResponderTest.States -> IO ResponderTest.Result
-save_git states = do
+save_git :: SaveGit.Repo -> ResponderTest.States -> IO ResponderTest.Result
+save_git repo states = do
     File.rmDirRecursive repo
     ResponderTest.respond_cmd states (Save.save_git_as repo)
 
-repo :: SaveGit.Repo
-repo = "build/test/save.git"
+get_repo :: IO SaveGit.Repo
+get_repo = tmp_dir "git"
 
 -- * implementation
 

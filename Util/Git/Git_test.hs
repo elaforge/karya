@@ -4,9 +4,7 @@
 
 module Util.Git.Git_test where
 import qualified Data.Map as Map
-import qualified System.Directory as Directory
 
-import qualified Util.File as File
 import qualified Util.Git.Git as Git
 import Util.Test
 
@@ -60,7 +58,6 @@ test_modify_tree = do
     io_equal (Git.read_dir repo tree) $ Map.fromList [("c", Git.File "qqq")]
 
 new_repo = do
-    let repo = "build/test/test.git"
-    File.ignoreEnoent $ Directory.removeDirectoryRecursive repo
+    repo <- tmp_dir "git"
     io_equal (Git.init repo) False
     return repo

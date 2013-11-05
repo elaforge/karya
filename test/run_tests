@@ -23,16 +23,20 @@ test_output=build/test.output
 
 prefixes=("$@")
 if [[ -z $prefixes ]]; then
-    prefixes=('normal-')
+    prefixes=('^normal-')
 fi
 
-function run() {
+function run {
     "$@"
     local r=$?
     if [[ $r -ne 0 ]]; then
         echo '__->' cmd returned $r: "$@"
     fi
 }
+
+
+# Tests will recreate this if they need to.
+rm -rf build/test/tmp
 
 # Debug.Trace.trace prints to stderr, apparently there's no way to change
 # that.
