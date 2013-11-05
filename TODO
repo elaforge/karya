@@ -6,7 +6,7 @@ UNSORTED
   - Seems like LEvent.quantize_sel doesn't understand changing rulers
   * I think Util.Num.ratio_of is redundant with Ratio.approxRational
   - make sure concatenating Meters works in Cmd.Meters as well as Cmd.Tala
-  - 3 avartanams adi chatusra + 4 avartanams adi tisram
+  * 3 avartanams adi chatusra + 4 avartanams adi tisram
     * compound ruler is crunched up at the merge point
     * also has roundoff error later on
       chatusra -> 8/1024 = 0.0078125

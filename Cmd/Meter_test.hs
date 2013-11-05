@@ -12,6 +12,7 @@ import Util.Test
 import qualified Ui.Ruler as Ruler
 import qualified Cmd.Meter as Meter
 import qualified Cmd.Meters as Meters
+import Types
 
 
 test_make_meter = do
@@ -22,11 +23,34 @@ test_make_meter = do
     equal (map fst marks) (Seq.range 0 16 1)
 
 test_meter_marklist = do
-    let f = extract . Meter.meter_marklist . Meter.fit_meter 64 . replicate 4
-        extract = filter ((<=2) . fst) . map (extract_mark . snd)
-            . Ruler.ascending 0
-        extract_mark m = (Ruler.mark_rank m, Ruler.mark_name m)
-    pprint (take 9 $ f Meters.m44_4)
+    let f = extract_marklist 20 . Meter.meter_marklist . Meter.fit_meter 64
+            . replicate 4
+    equal (take 9 $ f Meters.m44_4) $ zip (Seq.range_ 0 1)
+        [ "1", "1.1.2", "1.1.3", "1.1.4"
+        , "1.2", "1.2.2", "1.2.3", "1.2.4"
+        , "1.3"
+        ]
+
+test_rational_meter = do
+    let f = Meter.meter_marklist . Meter.fit_meter 4
+        extract = extract_marklist 20
+        round_trip = Meter.meter_marklist . Meter.marklist_meter
+        meter = [Meter.repeat 4 Meters.m34]
+    equal (extract $ f meter)
+        (zip (Seq.range_ 0 1) ["1", "1.2", "1.3", "1.4", "2"])
+    equal (extract $ round_trip $ f meter)
+        (zip (Seq.range_ 0 1) ["1", "1.2", "1.3", "1.4", "2"])
+    let modify :: Meter.Meter -> Meter.Meter
+        modify = dropWhile ((>=2) . fst) . drop 1
+    equal (extract $ Meter.modify_meterlike modify $ f meter)
+        (zip (Seq.range_ 0 1) ["1.1", "1.2", "1.3", "2"])
+
+extract_marklist :: Double -> Ruler.Marklist -> [(ScoreTime, Text)]
+extract_marklist zoom = mapMaybe name_of . Ruler.ascending 0
+    where
+    name_of (t, m)
+        | Ruler.mark_name_zoom_level m <= zoom = Just (t, Ruler.mark_name m)
+        | otherwise = Nothing
 
 test_apply_labels = do
     let f labels = map (Text.intercalate ".") . Meter.apply_labels labels

@@ -6,6 +6,7 @@ import qualified Util.Seq as Seq
 import Util.Test
 
 import qualified Ui.Ruler as Ruler
+import qualified Cmd.Meter as Meter
 import qualified Cmd.Tala as Tala
 import Types
 
@@ -18,16 +19,22 @@ test_make_ruler = do
         ["1.0", "1.1", "1.2", "1.3", "1.X", "1.O", "1.X", "1.O", "2.0"]
 
 test_rulers_marklist = do
-    let f = extract_marklist 20 . Tala.rulers_marklist
+    let f = Tala.rulers_marklist
+        extract = extract_marklist 20
         chatusra = Tala.Ruler Tala.adi_tala 1 1 4 1
         tisra = Tala.Ruler Tala.adi_tala 1 1 3 1
+        round_trip = Meter.make_marklist . Meter.marklist_labeled
     let labels = [showt n <> "." <> o | n <- [1, 2, 3],
             o <- ["0", "1", "2", "3", "X", "O", "X", "O"]]
     -- Ensure that concatenated marklists get the right labelling, and that
     -- rulers with 1/3 divisions still wind up at integral points.  Previously,
     -- Meter.Meter used ScoreTime, which got inaccurate after consecutive
     -- additions.
-    equal (f [chatusra, tisra]) (zip (Seq.range 0 16 1) labels)
+    equal (extract $ f [chatusra, tisra]) (zip (Seq.range 0 16 1) labels)
+    equal (extract $ round_trip $ f [chatusra, tisra])
+        (zip (Seq.range 0 16 1) labels)
+
+-- ex2 = take 40 . map (second Ruler.mark_name) . Ruler.ascending 0
 
 extract_marklist :: Double -> Ruler.Marklist -> [(ScoreTime, Text)]
 extract_marklist zoom = mapMaybe name_of . Ruler.ascending 0

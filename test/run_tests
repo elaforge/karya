@@ -53,6 +53,7 @@ rm -rf build/test/tmp
 
 # I capture stderr as well because Debug.Trace.trace prints to stderr,
 # and apparently there's no way to change that.
+time (
 if [[ -n $parallel ]]; then
     $run_tests --list $prefixes | scramble \
         | parallel -j$(tools/ncpus) --max-args=50 -m $run_tests \
@@ -60,6 +61,7 @@ if [[ -n $parallel ]]; then
 else
     run $run_tests --noninteractive $prefixes >$test_output 2>&1
 fi
+)
 
 echo -n '\nTests complete.  Failures:\n'
 test/extract_failures.py <$test_output

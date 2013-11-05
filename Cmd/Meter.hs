@@ -76,18 +76,27 @@ instance Meterlike LabeledMeter where
 type Meter = [(Ruler.Rank, Duration)]
 type LabeledMeter = [(Ruler.Rank, Duration, Label)]
 
--- | A Meter Duration is a rational, instead of a ScoreTime.  This is because
--- durations are added up, and if you're in a triple time, or something else
--- not exactly representable, the inaccuracy will add up.
+-- | Previously I made a Duration a rational, instead of ScoreTime, so that
+-- durations don't get inaccurate when they're added up incrementally.
+-- But it seems to be just as good to convert to a rational when I do the
+-- actual adding, in 'make_marklist'.
 --
--- Another way to solve this would be to use multiplication instead of
--- addition, but I think I'd need a higher level Meter for that to work.
-type Duration = Ratio.Rational
+-- Converting from ScoreTime seems like it would destroy precision, and
+-- actually it does.  It rounds times to the nearest rational.  I think this is
+-- ok because it just means that rulers have less precision, and you shouldn't
+-- be making those tiny anyway.
+type Duration = ScoreTime
+-- type Duration = Ratio.Rational
 
--- TODO this will lose precision, I think I have to put the rational all the
--- way down to the mark
 time_to_duration :: ScoreTime -> Duration
-time_to_duration d = Ratio.approxRational d 0.0001
+time_to_duration d = d
+-- time_to_duration d = Ratio.approxRational d 0.00001
+
+duration_to_rational :: ScoreTime -> Ratio.Rational
+duration_to_rational d = Ratio.approxRational d 0.0000000001
+-- 1/128 is 0.0078125, 1/1024 is 0.0009765625.  1/128 already comes up in
+-- rulers, 1/1024 is probably overkill, but I don't think more precision has
+-- much downside.
 
 meter_durations :: LabeledMeter -> [Duration]
 meter_durations = scanl (+) 0 . map (\(_, d, _) -> d)
@@ -279,15 +288,15 @@ count1_labels = List.repeat count1
 -- | Create a Marklist from a labelled Meter.
 make_marklist :: LabeledMeter -> Ruler.Marklist
 make_marklist meter = Ruler.marklist
-    -- TODO probably have to keep it as a ratio
     [ (realToFrac pos, mark is_edge dur rank label)
-    | (rank, pos, label, dur, is_edge) <-
-        List.zip5 ranks (scanl (+) 0 ps) labels durs edges
+    | (rank, pos, label, dur, is_edge)
+        <- List.zip5 ranks (scanl (+) 0 ps) labels durs edges
     ]
     where
     edges = True : map null (drop 2 (List.tails ranks))
-    durs = rank_durs (zip ranks ps)
-    (ranks, ps, labels) = List.unzip3 meter
+    durs = rank_durs (zip ranks ps_)
+    (ranks, ps_, labels) = List.unzip3 meter
+    ps = map duration_to_rational ps_
     mark is_edge rank_dur rank name =
         let (color, width, pixels) = meter_ranks !! min rank ranks_len
             zoom = pixels_to_zoom rank_dur pixels
