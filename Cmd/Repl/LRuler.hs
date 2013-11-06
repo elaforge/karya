@@ -113,7 +113,7 @@ get_meter block_id =
 
 get_marks :: (State.M m) => BlockId -> m [Ruler.PosMark]
 get_marks block_id =
-    Ruler.ascending 0 . Ruler.get_marklist Meter.meter <$>
+    Ruler.ascending 0 . Ruler.get_marklist Ruler.meter <$>
         (State.get_ruler =<< State.ruler_of block_id)
 
 -- * Modify

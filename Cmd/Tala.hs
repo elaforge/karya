@@ -86,7 +86,7 @@ make_ruler tala sections avartanams nadai dur =
     make_rulers [Ruler tala sections avartanams nadai dur]
 
 make_rulers :: [Ruler] -> Ruler.Ruler
-make_rulers rulers = Ruler.ruler [(Meter.meter, rulers_marklist rulers)]
+make_rulers = Ruler.meter_ruler . rulers_marklist
 
 -- | Create a marklist from multiple rulers concatenated.
 rulers_marklist :: [Ruler] -> Ruler.Marklist
@@ -139,7 +139,7 @@ angas_to_labels jati = concatMap $ \anga -> case anga of
 
 meter_marklist :: [[Meter.Label]] -> Meter.Meter -> Ruler.Marklist
 meter_marklist labels meter =
-    Meter.make_marklist $ List.zip3 ranks ps all_labels
+    Meter.labeled_marklist $ List.zip3 ranks ps all_labels
     where
     (ranks, ps) = unzip (clean meter)
     all_labels = Meter.text_labels 2 labels $

@@ -4,7 +4,8 @@
 
 module Ui.Ruler (
     -- * Ruler
-    Ruler(..), Marklists, Name, ruler, no_ruler
+    Ruler(..), Marklists, Name, ruler, meter_ruler, meter
+    , no_ruler
     , lookup_marklist, get_marklist, set_marklist, remove_marklist
     , modify_marklist, modify_marklists, map_marklists
     , time_end
@@ -82,6 +83,15 @@ ruler marklists = Ruler
     , ruler_show_names = False
     , ruler_align_to_bottom = False
     }
+
+-- | Create a ruler with just a 'meter' marklist.
+meter_ruler :: Marklist -> Ruler
+meter_ruler marklist = ruler [(meter, marklist)]
+
+-- | The meter marklist by convention has marks corresponding to the meter of
+-- the piece.  Other commands may use this to find out where beats are.
+meter :: Name
+meter = "meter"
 
 -- | Empty ruler.
 no_ruler :: Ruler

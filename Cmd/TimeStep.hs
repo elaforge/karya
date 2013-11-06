@@ -74,7 +74,7 @@ modify_rank f = from_list . map modify . to_list
 
 -- | Match on the meter marklist, which is the usual thing to do.
 match_meter :: MarklistMatch
-match_meter = NamedMarklists [Meter.meter]
+match_meter = NamedMarklists [Ruler.meter]
 
 -- | The possible matchers for a TimeStep.
 data Step =

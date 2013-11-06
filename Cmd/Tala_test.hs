@@ -23,7 +23,7 @@ test_rulers_marklist = do
         extract = extract_marklist 20
         chatusra = Tala.Ruler Tala.adi_tala 1 1 4 1
         tisra = Tala.Ruler Tala.adi_tala 1 1 3 1
-        round_trip = Meter.make_marklist . Meter.marklist_labeled
+        round_trip = Meter.labeled_marklist . Meter.marklist_labeled
     let labels = [showt n <> "." <> o | n <- [1, 2, 3],
             o <- ["0", "1", "2", "3", "X", "O", "X", "O"]]
     -- Ensure that concatenated marklists get the right labelling, and that
@@ -33,8 +33,6 @@ test_rulers_marklist = do
     equal (extract $ f [chatusra, tisra]) (zip (Seq.range 0 16 1) labels)
     equal (extract $ round_trip $ f [chatusra, tisra])
         (zip (Seq.range 0 16 1) labels)
-
--- ex2 = take 40 . map (second Ruler.mark_name) . Ruler.ascending 0
 
 extract_marklist :: Double -> Ruler.Marklist -> [(ScoreTime, Text)]
 extract_marklist zoom = mapMaybe name_of . Ruler.ascending 0

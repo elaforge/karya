@@ -6,7 +6,6 @@ module Derive.Call.Val_test where
 import Util.Test
 import qualified Ui.Ruler as Ruler
 import qualified Ui.UiTest as UiTest
-import qualified Cmd.Meter as Meter
 import qualified Derive.Call.CallTest as CallTest
 import qualified Derive.Call.Control as Control
 import qualified Derive.Call.Val as Val
@@ -76,7 +75,7 @@ test_timestep = do
             DeriveTest.derive_tracks_with_ui id (DeriveTest.set_ruler ruler)
                 [(">", [(start, 0, ("d (t " ++ vcall ++ ") |"))])]
         extract = Score.event_start
-        ruler = UiTest.ruler [(Meter.meter, mlist)]
+        ruler = UiTest.ruler [(Ruler.meter, mlist)]
         mlist = Ruler.marklist (zip [0, 1, 2, 3, 4, 6, 8, 10, 12] UiTest.m44)
     let (evts, logs) = run 0 "'r:z'"
     equal evts []

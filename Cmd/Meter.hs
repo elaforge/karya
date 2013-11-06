@@ -37,11 +37,6 @@ import Types
 
 -- * meter marklist
 
--- | The meter marklist by convention has marks corresponding to the meter of
--- the piece.  Other commands may use this to find out where beats are.
-meter :: Ruler.Name
-meter = "meter"
-
 -- | If a meter's labels are just number counts, they can be generated from
 -- a 'Meter'.  However, if they have a more complicated structure, as with
 -- "Cmd.Tala", I can't actually generate new meter without knowing the rules.
@@ -71,7 +66,7 @@ instance Meterlike Meter where
     modify_meterlike f = meter_marklist . f . marklist_meter
 
 instance Meterlike LabeledMeter where
-    modify_meterlike f = make_marklist . f . marklist_labeled
+    modify_meterlike f = labeled_marklist . f . marklist_labeled
 
 type Meter = [(Ruler.Rank, Duration)]
 type LabeledMeter = [(Ruler.Rank, Duration, Label)]
@@ -79,7 +74,7 @@ type LabeledMeter = [(Ruler.Rank, Duration, Label)]
 -- | Previously I made a Duration a rational, instead of ScoreTime, so that
 -- durations don't get inaccurate when they're added up incrementally.
 -- But it seems to be just as good to convert to a rational when I do the
--- actual adding, in 'make_marklist'.
+-- actual adding, in 'labeled_marklist'.
 --
 -- Converting from ScoreTime seems like it would destroy precision, and
 -- actually it does.  It rounds times to the nearest rational.  I think this is
@@ -102,10 +97,10 @@ meter_durations :: LabeledMeter -> [Duration]
 meter_durations = scanl (+) 0 . map (\(_, d, _) -> d)
 
 modify_meter :: (Meterlike m) => (m -> m) -> Ruler.Ruler -> Ruler.Ruler
-modify_meter f = Ruler.modify_marklist meter (modify_meterlike f)
+modify_meter f = Ruler.modify_marklist Ruler.meter (modify_meterlike f)
 
 ruler_meter :: Ruler.Ruler -> Meter
-ruler_meter = marklist_meter . Ruler.get_marklist meter
+ruler_meter = marklist_meter . Ruler.get_marklist Ruler.meter
 
 -- | Extract the half-open range from start to end.
 clip :: Duration -> Duration -> LabeledMeter -> LabeledMeter
@@ -262,9 +257,14 @@ fit_meter :: Duration -> [AbstractMeter] -> Meter
 fit_meter dur meters = make_meter stretch meters
     where stretch = dur / sum (map meter_length meters)
 
+-- ** marklist conversion
+
 -- | Convert a Meter into a Marklist using the default labels.
 meter_marklist :: Meter -> Ruler.Marklist
-meter_marklist = make_marklist . label_meter
+meter_marklist = labeled_marklist . label_meter
+
+marklist_meter :: Ruler.Marklist -> Meter
+marklist_meter = map (\(rank, dur, _) -> (rank, dur)) . marklist_labeled
 
 label_meter :: Meter -> LabeledMeter
 label_meter meter = List.zip3 ranks ps labels
@@ -273,21 +273,9 @@ label_meter meter = List.zip3 ranks ps labels
     labels = text_labels 1 count1_labels $
         collapse_ranks unlabelled_ranks ranks
 
-count0 :: [Label]
-count0 = map showt [0..]
-
-count1 :: [Label]
-count1 = drop 1 count0
-
-count0_labels :: [[Label]]
-count0_labels = List.repeat count0
-
-count1_labels :: [[Label]]
-count1_labels = List.repeat count1
-
 -- | Create a Marklist from a labelled Meter.
-make_marklist :: LabeledMeter -> Ruler.Marklist
-make_marklist meter = Ruler.marklist
+labeled_marklist :: LabeledMeter -> Ruler.Marklist
+labeled_marklist meter = Ruler.marklist
     [ (realToFrac pos, mark is_edge dur rank label)
     | (rank, pos, label, dur, is_edge)
         <- List.zip5 ranks (scanl (+) 0 ps) labels durs edges
@@ -310,6 +298,31 @@ make_marklist meter = Ruler.marklist
             }
     ranks_len = length meter_ranks
 
+-- | The last mark gets a 0 duration.
+marklist_labeled :: Ruler.Marklist -> LabeledMeter
+marklist_labeled mlist =
+    [ (Ruler.mark_rank m,
+        maybe 0 (time_to_duration . subtract p . fst) maybe_next,
+        Ruler.mark_name m)
+    | ((p, m), maybe_next) <- Seq.zip_next marks
+    ]
+    where marks = Ruler.ascending 0 mlist
+
+
+-- *** implementation
+
+count0 :: [Label]
+count0 = map showt [0..]
+
+count1 :: [Label]
+count1 = drop 1 count0
+
+count0_labels :: [[Label]]
+count0_labels = List.repeat count0
+
+count1_labels :: [[Label]]
+count1_labels = List.repeat count1
+
 -- | The rank duration is the duration until the next mark of equal or greater
 -- (lower) rank.
 rank_durs :: Meter -> [Duration]
@@ -325,19 +338,6 @@ pixels_to_zoom :: Duration -> Int -> Double
 pixels_to_zoom dur pixels
     | dur == 0 = 0
     | otherwise = fromIntegral pixels / realToFrac dur
-
-marklist_meter :: Ruler.Marklist -> Meter
-marklist_meter = map (\(rank, dur, _) -> (rank, dur)) . marklist_labeled
-
--- | The last mark gets a 0 duration.
-marklist_labeled :: Ruler.Marklist -> LabeledMeter
-marklist_labeled mlist =
-    [ (Ruler.mark_rank m,
-        maybe 0 (time_to_duration . subtract p . fst) maybe_next,
-        Ruler.mark_name m)
-    | ((p, m), maybe_next) <- Seq.zip_next marks
-    ]
-    where marks = Ruler.ascending 0 mlist
 
 -- * labels
 

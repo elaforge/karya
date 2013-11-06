@@ -45,6 +45,7 @@ import qualified Control.Monad.Identity as Identity
 import Util.Control
 import qualified Ui.Block as Block
 import qualified Ui.Key as Key
+import qualified Ui.Ruler as Ruler
 import qualified Ui.State as State
 
 import qualified Cmd.BlockConfig as BlockConfig
@@ -355,7 +356,7 @@ edit_state_bindings = concat
         ("set step: " ++ untxt (TimeStep.show_time_step step),
             Edit.set_step_rank step rank)
         where step = TimeStep.time_step (TimeStep.AbsoluteMark meter rank)
-    meter = TimeStep.NamedMarklists [Meter.meter]
+    meter = TimeStep.NamedMarklists [Ruler.meter]
 
 -- delete = remove events and move following events back
 -- clear = just remove events

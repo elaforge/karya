@@ -16,8 +16,8 @@ import Types
 
 -- | Create a ruler with a meter of the given duration.
 meter_ruler :: Meter.Duration -> [Meter.AbstractMeter] -> Ruler.Ruler
-meter_ruler dur meters = Ruler.ruler
-    [(Meter.meter, Meter.meter_marklist (Meter.fit_meter dur meters))]
+meter_ruler dur meters =
+    Ruler.meter_ruler $ Meter.meter_marklist (Meter.fit_meter dur meters)
 
 -- | Replace or add a marklist with the given name.
 set_marklist :: (State.M m) => RulerId -> Ruler.Name -> Ruler.Marklist -> m ()
