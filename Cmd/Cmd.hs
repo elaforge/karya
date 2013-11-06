@@ -269,7 +269,7 @@ instance (Functor m, Monad m) => State.M (CmdT m) where
 
 -- | This is the same as State.throw, but it feels like things in Cmd may not
 -- always want to reuse State's exceptions, so they should call this one.
-throw :: (M m) => String -> m a
+throw :: (State.M m) => String -> m a
 throw = State.throw
 
 -- | Run a subcomputation that is allowed to abort.
@@ -429,7 +429,7 @@ state_midi_writer state imsg = do
     let out = case imsg of
             Midi.Interface.Midi wmsg -> Midi.Interface.Midi $ map_wdev wmsg
             _ -> imsg
-    putStrLn $ "PLAY " ++ Pretty.pretty out
+    -- putStrLn $ "PLAY " ++ Pretty.pretty out
     ok <- Midi.Interface.write_message
         (state_midi_interface (state_config state)) out
     unless ok $ Log.warn $ "error writing " ++ Pretty.pretty out
@@ -1110,10 +1110,10 @@ require :: (M m) => Maybe a -> m a
 require = maybe abort return
 
 -- | Like 'require', but throw an exception with the given msg.
-require_msg :: (M m) => String -> Maybe a -> m a
+require_msg :: (State.M m) => String -> Maybe a -> m a
 require_msg msg = maybe (throw msg) return
 
-require_right :: (M m) => (err -> String) -> Either err a -> m a
+require_right :: (State.M m) => (err -> String) -> Either err a -> m a
 require_right mkmsg = either (throw . mkmsg) return
 
 -- | Turn off all sounding notes.

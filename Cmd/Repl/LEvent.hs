@@ -6,13 +6,13 @@
 -- | Repl cmds to deal with events.
 module Cmd.Repl.LEvent where
 import qualified Data.ByteString.Char8 as Char8
+import qualified Data.List as List
 import qualified Data.Text as Text
 
 import Util.Control
 import qualified Util.Seq as Seq
 import qualified Ui.Event as Event
 import qualified Ui.Events as Events
-import qualified Ui.ScoreTime as ScoreTime
 import qualified Ui.State as State
 import qualified Ui.Track as Track
 
@@ -57,37 +57,53 @@ replace from to = ModifyEvents.text (Text.replace from to)
 
 -- * quantize
 
+-- | Which end of the event to quantize.
 data Mode = Start | End | Both
 
 quantize_sel :: (Cmd.M m) => Text -> m ()
 quantize_sel = ModifyEvents.selection . quantize_timestep Both
 
--- | Quantize to a TimeStep's duration.  Actually it just takes the timestep at
--- time 0, so it won't be correct if the timestep changes.
-quantize_timestep :: (Cmd.M m) => Mode -> Text -> ModifyEvents.Track m
+-- | Quantize to a TimeStep's duration.  What this does is snap the edges of
+-- the event to the nearest timestep.
+quantize_timestep :: (State.M m) => Mode -> Text -> ModifyEvents.Track m
 quantize_timestep mode step block_id track_id events = do
     step <- Cmd.require_right ("parsing timestep: "++) $
         TimeStep.parse_time_step step
     tracknum <- State.get_tracknum_of block_id track_id
-    dur <- Cmd.require_msg
-        ("can't step: " <> untxt (TimeStep.show_time_step step))
-        =<< TimeStep.advance step block_id tracknum 0
-    return $ Just $ map (quantize_event mode dur) events
+    points <- TimeStep.get_points_from TimeStep.Advance block_id tracknum 0 step
+    return $ Just $ snd $ List.mapAccumL (quantize_event mode) points events
 
-quantize_event :: Mode -> ScoreTime -> Event.Event -> Event.Event
-quantize_event mode dur event = case mode of
-    Start -> Event.move (quantize dur) event
-    End -> Event.modify_end (quantize dur) event
-    Both -> quantize_event End dur $ quantize_event Start dur event
-
-quantize :: ScoreTime -> ScoreTime -> ScoreTime
-quantize dur time = ScoreTime.double (fromIntegral int) * dur
+-- | Zero-duration events will remain zero duration, and not be affected by
+-- End quantization.  Non-zero-duration events will never be quantized to zero
+-- duration.
+quantize_event :: Mode -> [TrackTime] -> Event.Event
+    -> ([TrackTime], Event.Event)
+quantize_event mode points_ event = (start_points, quantized)
     where
-    int :: Integer
-    int = round (time / dur)
+    quantized = case mode of
+        Start -> Event.move (quantize start_points) event
+        End
+            | zero -> event
+            | otherwise -> Event.modify_end (quantize end_points) event
+        Both
+            | zero -> Event.move (quantize start_points) event
+            | otherwise -> Event.modify_end (quantize end_points) $
+                Event.move (quantize start_points) event
+    zero = Event.duration event == 0
+    start_points = TimeStep.drop_before (Event.start event) points_
+    end_points = dropWhile (< Event.end event) start_points
+
+quantize :: [TrackTime] -> TrackTime -> TrackTime
+quantize points t = case points of
+    t1 : t2 : _
+        | abs (t - t1) <= abs (t2 - t) -> t1
+        | otherwise -> t2
+    [t1] -> t1
+    [] -> t
 
 -- * insert
 
+-- | Insert an event directly.
 insert :: (Cmd.M m) => [(ScoreTime, ScoreTime, Text)] -> m ()
 insert events = do
     (_, _, track_id, pos) <- Selection.get_insert

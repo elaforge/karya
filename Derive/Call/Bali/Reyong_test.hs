@@ -62,7 +62,7 @@ integrate blocks@((block_name, _) : _) =
     where
     result = DeriveTest.derive_blocks_with (block_damage blocks) blocks
     ui_state = Derive.state_ui $ Derive.state_constant $ Derive.r_state result
-    block_id = fst $ UiTest.spec_block_id block_name
+    block_id = name_to_id block_name
 
 -- | If there's no block damage the integrate call doesn't collect anything.
 block_damage :: [UiTest.BlockSpec] -> Derive.Deriver a -> Derive.Deriver a
@@ -70,8 +70,11 @@ block_damage blocks = DeriveTest.modify_constant $ \state -> state
     { Derive.state_score_damage = mempty
         { Derive.sdamage_blocks = Set.fromList block_ids }
     }
-    where block_ids = map (fst . UiTest.spec_block_id . fst) blocks
+    where block_ids = map (name_to_id . fst) blocks
 
+name_to_id :: String -> BlockId
+name_to_id name = block_id
+    where (block_id, _, _) = UiTest.parse_block_spec name
 
 test_realize = do
     let run pitches = DeriveTest.derive_blocks (mktracks False pitches)

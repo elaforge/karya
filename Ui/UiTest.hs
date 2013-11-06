@@ -88,8 +88,12 @@ type TrackSpec = (String, [EventSpec])
 -- | (start, dur, text)
 type EventSpec = (ScoreTime, ScoreTime, String)
 
-spec_block_id :: String -> (BlockId, Bool)
-spec_block_id = first bid . Seq.drop_suffix "=ruler"
+-- | Parse a block spec, which looks like @name[=ruler] [-- title]@
+parse_block_spec :: String -> (BlockId, String, Bool)
+parse_block_spec spec = (bid block_id, Seq.strip title, has_ruler)
+    where
+    (name, title) = Seq.split1 "--" spec
+    (block_id, has_ruler) = Seq.drop_suffix "=ruler" (Seq.strip name)
 
 -- | Often tests work with a single block, or a single view.  To make them
 -- less verbose, there is a default block and view so functions can omit the
@@ -143,25 +147,33 @@ mkviews :: (State.M m) => [BlockSpec] -> m [ViewId]
 mkviews blocks = mapM mkview =<< mkblocks blocks
 
 mkblock :: (State.M m) => BlockSpec -> m (BlockId, [TrackId])
-mkblock (block_name, tracks) = do
-    let (name, title) = (Seq.strip *** Seq.strip) $ Seq.split1 "--" block_name
-    let (block_id, has_ruler) = spec_block_id name
+mkblock (spec, tracks) = do
+    let (block_id, title, has_ruler) = parse_block_spec spec
     ruler_id <- if has_ruler
         then do
             let len = event_end tracks
                 rid = Id.unsafe_id test_ns ("r" ++ show len)
             ifM (Maybe.isJust <$> State.lookup_ruler (Types.RulerId rid))
                 (return (Types.RulerId rid))
-                (State.create_ruler rid (mkruler len 1))
+                (State.create_ruler rid (mkruler_44 len 1))
         else maybe
             (State.create_ruler (Id.unpack_id default_ruler_id) default_ruler)
             (const (return default_ruler_id))
                 =<< State.lookup_ruler default_ruler_id
-    mkblock_ruler ruler_id (Id.ident_name block_id ++ "--" ++ title, tracks)
+    mkblock_ruler ruler_id block_id title tracks
     where
     event_end :: [TrackSpec] -> Int
     event_end = ceiling . ScoreTime.to_double . maximum . (0:)
         . concatMap (map (\(s, d, _) -> max s (s+d)) . snd)
+
+mkblock_marklist :: (State.M m) => Ruler.Marklist -> BlockId -> String
+    -> [TrackSpec] -> m (BlockId, [TrackId])
+mkblock_marklist marklist block_id title tracks = do
+    ruler_id <- mkruler marklist
+    mkblock_ruler ruler_id block_id title tracks
+
+mkruler :: (State.M m) => Ruler.Marklist -> m RulerId
+mkruler = Create.ruler "r" . Ruler.meter_ruler
 
 mkblocks_skel :: (State.M m) => [(BlockSpec, [Skeleton.Edge])] -> m ()
 mkblocks_skel blocks = forM_ blocks $ \(block, skel) -> do
@@ -172,16 +184,15 @@ mkblocks_skel blocks = forM_ blocks $ \(block, skel) -> do
 -- | Like 'mkblock', but uses the provided ruler instead of creating its
 -- own.  Important if you are creating multiple blocks and don't want
 -- a separate ruler for each.
-mkblock_ruler :: (State.M m) => RulerId -> BlockSpec -> m (BlockId, [TrackId])
-mkblock_ruler ruler_id (block_name, tracks) = do
-    let (name, title) = (Seq.strip *** Seq.strip) $ Seq.split1 "--" block_name
-    let block_id = bid name
+mkblock_ruler :: (State.M m) => RulerId -> BlockId -> String -> [TrackSpec]
+    -> m (BlockId, [TrackId])
+mkblock_ruler ruler_id block_id title tracks = do
     State.set_namespace test_ns
     -- Start at 1 because track 0 is the ruler.
     tids <- forM (zip [1..] tracks) $ \(i, track) ->
         State.create_track (Id.unpack_id (mk_tid_block block_id i))
             (make_track track)
-    create_block name "" $ (Block.RId ruler_id, 20)
+    create_block (Id.unpack_id block_id) "" $ (Block.RId ruler_id, 20)
         : [(Block.TId tid ruler_id, 40) | tid <- tids]
     unless (null title) $
         State.set_block_title block_id (txt title)
@@ -358,9 +369,9 @@ select_point view_id tracknum pos =
 
 -- * pure make_- functions
 
-create_block :: (State.M m) => String -> String
+create_block :: (State.M m) => Id.Id -> String
     -> [(Block.TracklikeId, Types.Width)] -> m BlockId
-create_block block_name title tracks = State.create_block (mkid block_name)
+create_block block_id title tracks = State.create_block block_id
     (txt title) (map (uncurry Block.track) tracks)
 
 mkstack :: (TrackNum, ScoreTime, ScoreTime) -> Stack.Stack
@@ -392,13 +403,13 @@ extract_event event =
 -- ** ruler
 
 default_ruler :: Ruler.Ruler
-default_ruler = mkruler 32 1
+default_ruler = mkruler_44 32 1
 
 default_block_end :: ScoreTime
 default_block_end = Ruler.time_end default_ruler
 
 no_ruler :: Ruler.Ruler
-no_ruler = mkruler 0 0
+no_ruler = mkruler_44 0 0
 
 ruler_until :: ScoreTime -> Ruler.Ruler
 ruler_until pos = ruler [("until", Ruler.marklist [(pos, Ruler.null_mark)])]
@@ -412,8 +423,8 @@ step1 = TimeStep.time_step (TimeStep.AbsoluteMark TimeStep.AllMarklists r_4)
 --
 -- The end of the ruler should be at marks*dist.  An extra mark is created
 -- since marks start at 0.
-mkruler :: Int -> ScoreTime -> Ruler.Ruler
-mkruler marks dist = ruler [(Meter.meter, marklist (marks + 1) dist)]
+mkruler_44 :: Int -> ScoreTime -> Ruler.Ruler
+mkruler_44 marks dist = ruler [(Ruler.meter, marklist (marks + 1) dist)]
 
 ruler :: [(Ruler.Name, Ruler.Marklist)] -> Ruler.Ruler
 ruler marklists = Ruler.Ruler

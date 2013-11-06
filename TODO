@@ -3,7 +3,7 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
-  - Seems like LEvent.quantize_sel doesn't understand changing rulers
+  * Seems like LEvent.quantize_sel doesn't understand changing rulers
   * I think Util.Num.ratio_of is redundant with Ratio.approxRational
   - make sure concatenating Meters works in Cmd.Meters as well as Cmd.Tala
   * 3 avartanams adi chatusra + 4 avartanams adi tisram
@@ -30,6 +30,15 @@ UNSORTED
       Well, no, not if I'm manipulating with selections, aka ScoreTimes.
     * Same for selection display: if the denominator is below a limit, display
       as unicode fraction glyphs?  Glyphs only exist up to 1/8.
+    . Why does approxRational need so much more accuracy when it's on
+      time_to_duration rather than in make_marklist?
+      1. type Duration = Rational
+        . Create and add up with rational, convert to float when it becomes
+          marks.
+      2. type Duration = ScoreTime
+        . Create with ScoreTimes, convert to rational to add up, then back to
+          float.
+      So #2 goes ratio -> float, never float -> ratio.
   * din+thom symbol
     * CUtil.drum_cmd should evaluate the call instead of hardcoding a midi key
     * test Perf.derive_expr and CUtil.expr_to_midi

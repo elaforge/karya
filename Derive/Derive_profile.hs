@@ -122,14 +122,14 @@ make_nested bottom_tracks size depth bottom_size = do
     State.modify set_midi_config
     where
     go ruler_id block_name 1 = do
-        UiTest.mkblock_ruler ruler_id
-            (block_name, map (track_take bottom_size) bottom_tracks)
+        UiTest.mkblock_ruler ruler_id (UiTest.bid block_name) ""
+            (map (track_take bottom_size) bottom_tracks)
         return ()
     go ruler_id block_name depth = do
         let sub_bids = [block_name ++ "." ++ show sub | sub <- [0 .. size-1]]
             step = bottom_size * size^(depth-2)
-        UiTest.mkblock_ruler ruler_id (block_name,
-            map (track_take size) [ctrack (fromIntegral step) inst1 sub_bids])
+        UiTest.mkblock_ruler ruler_id (UiTest.bid block_name) ""
+            (map (track_take size) [ctrack (fromIntegral step) inst1 sub_bids])
         forM_ sub_bids $ \sub -> go ruler_id sub (depth-1)
 
 mkblock :: (State.M m) => [UiTest.TrackSpec] -> m ()

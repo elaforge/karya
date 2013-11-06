@@ -328,7 +328,7 @@ test_alter_track = do
     state <- io_human "track should get wider" $ run state $ do
         State.set_track_width t_block_id 1 100
     _ <- io_human "lose ruler and stay wide" $ run state $ do
-        rid <- create_ruler "r2" (UiTest.mkruler 0 0)
+        rid <- create_ruler "r2" (UiTest.mkruler_44 0 0)
         State.set_track_ruler t_block_id 1 rid
     return ()
 
@@ -452,7 +452,7 @@ run_setup = run State.empty setup_state
 
 setup_state :: (State.M m) => m ViewId
 setup_state = do
-    ruler <- create_ruler "r1" (UiTest.mkruler 20 1)
+    ruler <- create_ruler "r1" (UiTest.mkruler_44 20 1)
     t1 <- create_track "b1.t1" (UiTest.empty_track "t1")
     b1 <- create_block t_block "hi b1"
         [(Block.RId ruler, 20), (Block.TId t1 ruler, 30)]
@@ -463,10 +463,17 @@ make_view block_id rect zoom = do
     block <- State.get_block block_id
     return $ Block.view block block_id rect zoom
 
+create_view :: (State.M m) => String -> Block.View -> m ViewId
 create_view a b = State.create_view (mkid a) b
-create_block block_name title tracks =
-    UiTest.create_block block_name title tracks
+
+create_block :: (State.M m) => String -> String
+    -> [(Block.TracklikeId, Types.Width)] -> m BlockId
+create_block block_name = UiTest.create_block (UiTest.mkid block_name)
+
+create_track :: (State.M m) => String -> Track.Track -> m TrackId
 create_track a b = State.create_track (mkid a) b
+
+create_ruler :: (State.M m) => String -> Ruler.Ruler -> m RulerId
 create_ruler a b = State.create_ruler (mkid a) b
 
 run :: State.State -> State.StateT IO a -> IO State.State

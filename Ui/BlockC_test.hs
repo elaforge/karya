@@ -14,6 +14,7 @@ import qualified Ui.Block as Block
 import qualified Ui.BlockC as BlockC
 import qualified Ui.Color as Color
 import qualified Ui.Event as Event
+import qualified Ui.Ruler as Ruler
 import qualified Ui.Symbol as Symbol
 import qualified Ui.SymbolC as SymbolC
 import qualified Ui.Track as Track
@@ -68,7 +69,7 @@ test_scroll_zoom = do
 
 test_set_selection = do
     view <- create_empty_view
-    let ruler = UiTest.mkruler 20 10
+    let ruler = mkruler 20 10
     insert_track view 1 (Block.T event_track_1 ruler) 30
     let c = Color.brightness 1.5 Color.blue
     io_human "point selection appears" $
@@ -109,20 +110,20 @@ test_set_title = do
 
 test_update_track = do
     view <- create_empty_view
-    let ruler = UiTest.mkruler 20 10
+    let ruler = mkruler 20 10
     insert_track view 0 (Block.D UiTest.default_divider) 5
     insert_track view 1 (Block.R ruler) 30
     insert_track view 2 (Block.T event_track_1 ruler) 30
 
     io_human "ruler gets wider, both events change" $ do
         send $ BlockC.update_entire_track True view 1
-            (Block.R (UiTest.mkruler 20 16)) [] set_style
+            (Block.R (mkruler 20 16)) [] set_style
         send $ BlockC.update_track True view 2
             (Block.T event_track_2 ruler) [] set_style 0 60
 
 test_insert_remove_track = do
     view <- create_empty_view
-    let ruler = UiTest.mkruler 20 10
+    let ruler = mkruler 20 10
     io_human "new event track" $
         insert_track view 1 (Block.T event_track_1 ruler) 30
     send $ BlockC.set_zoom view (Types.Zoom 0 2)
@@ -172,8 +173,8 @@ test_set_ruler_width = do
     view_id <- create_empty_view
     io_human "insert wide then narrow rulers" $ do
         -- 50 width ruler bumps over the 10 width ruler.
-        insert_track view_id 0 (Block.R (UiTest.mkruler 10 10)) 10
-        insert_track view_id 0 (Block.R (UiTest.mkruler 10 5)) 50
+        insert_track view_id 0 (Block.R (mkruler 10 10)) 10
+        insert_track view_id 0 (Block.R (mkruler 10 5)) 50
     return ()
 
 -- TODO
@@ -183,6 +184,9 @@ test_set_ruler_width = do
 
 set_style :: Track.SetStyle
 set_style = (Track.track_bg, \_ event -> Event.style event)
+
+mkruler :: Int -> ScoreTime -> Ruler.Ruler
+mkruler = UiTest.mkruler_44
 
 insert_track :: ViewId -> TrackNum -> Block.Tracklike -> Types.Width -> IO ()
 insert_track view tracknum tracklike width = send $

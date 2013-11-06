@@ -82,7 +82,7 @@ unify = do
         State.gets (Map.toAscList . State.state_rulers)
     mapM_ unify groups
     gc
-    return $ map (map fst) groups
+    return $ filter ((>1) . length) $ map (map fst) groups
     where
     unify ((rid, _) : dups) = forM_ (map fst dups) $ \dup_rid ->
         replace_ruler_id dup_rid rid

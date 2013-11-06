@@ -21,10 +21,10 @@ module Cmd.TimeStep (
     -- * step
     , snap
     , step_from, rewind, advance, direction
+    , get_points_from, drop_before
 
 #ifdef TESTING
-    , get_points_from, ascending_points, descending_points
-    , find_before_equal
+    , ascending_points, descending_points
 #endif
 ) where
 import qualified Data.List.Ordered as Ordered
@@ -178,7 +178,7 @@ snap tstep block_id tracknum prev_pos pos =
     where
     snap_from p
         | pos > p = -- Advance p until one before pos.
-            find_before_equal pos <$>
+            Seq.head . drop_before pos <$>
                 get_points_from Advance block_id tracknum p tstep
         | otherwise = -- Rewind p until before pos.
             Seq.head . dropWhile (>pos) <$>
@@ -187,14 +187,14 @@ snap tstep block_id tracknum prev_pos pos =
     is_relative (RelativeMark {}) = True
     is_relative _ = False
 
--- | Find the first element from a list before or equal to the given element.
-find_before_equal :: (Ord a) => a -> [a] -> Maybe a
-find_before_equal _ [] = Nothing
-find_before_equal p (x:xs)
-    | p < x = Nothing
+-- | Drop until the last element before or equal to the given element.
+drop_before :: (Ord a) => a -> [a] -> [a]
+drop_before _ [] = []
+drop_before p (x:xs)
+    | p < x = x : xs
     | otherwise = case xs of
-        next : _ | p >= next -> find_before_equal p xs
-        _ -> Just x
+        next : _ | p >= next -> drop_before p xs
+        _ -> x : xs
 
 -- * step
 

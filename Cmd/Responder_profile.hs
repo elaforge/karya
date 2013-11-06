@@ -57,7 +57,7 @@ profile_selection = do
     Log.configure $ \st -> st { Log.state_log_level = Log.Warn }
     let (ui_state, cmd_state) = ResponderTest.mkstates [(">i", [(0, 0, "")])]
     let ui_state2 = ui_state { State.state_rulers =
-            Map.insert (UiTest.rid "b1.r0") (UiTest.mkruler 256 1)
+            Map.insert (UiTest.rid "b1.r0") (UiTest.mkruler_44 256 1)
                 (State.state_rulers ui_state) }
     let cmd_state2 = modify_edit_state cmd_state $ \st -> st
             { Cmd.state_time_step = TimeStep.time_step
