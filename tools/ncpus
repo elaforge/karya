@@ -1,0 +1,4 @@
+#!/bin/sh
+
+# TODO something different on linux: nproc, lscpu, /proc/cpuinfo
+exec /usr/sbin/sysctl -n hw.physicalcpu

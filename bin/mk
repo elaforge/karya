@@ -1,2 +1,2 @@
 #!/bin/sh
-exec build/opt/shakefile "$@"
+exec build/opt/shakefile -j$(tools/ncpus) "$@"
