@@ -1,4 +1,14 @@
 #!/bin/sh
+# How many CPUs do I have?
+# I use actual cores because hyperthreads seem to be useless.
 
-# TODO something different on linux: nproc, lscpu, /proc/cpuinfo
-exec /usr/sbin/sysctl -n hw.physicalcpu
+if [[ -r /proc/cpuinfo ]]; then
+    # Count unique (physical id, core id) pairs.
+    # Wow linux, seriously?
+    exec egrep 'core id|physical id' /proc/cpuinfo | tr -d '\n' \
+        | sed s/physical/\\nphysical/g | grep -v '^$' | sort | uniq | wc -l
+elif [[ -x /usr/sbin/sysctl ]]; then # OS X
+    exec /usr/sbin/sysctl -n hw.physicalcpu
+else
+    echo 1
+fi
