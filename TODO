@@ -3,6 +3,9 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
+  - relative block call: a call -xyz will prepend the current block
+  - I could use the stretch tempo thing for patterns with variable karvai
+  - can I implement the dinnaginna pattern with 4 interchangeable parts?
   * Seems like LEvent.quantize_sel doesn't understand changing rulers
   * I think Util.Num.ratio_of is redundant with Ratio.approxRational
   - make sure concatenating Meters works in Cmd.Meters as well as Cmd.Tala
@@ -20,7 +23,7 @@ UNSORTED
       a ruler, so it should already be on a rational point.
       I just want to avoid situations where e.g. a ruler slice misses a mark
       because of imprecision.
-    - I need to propagate the Rational all the way to Ruler.Mark, otherwise
+    / I need to propagate the Rational all the way to Ruler.Mark, otherwise
       I can't accurately convert Marklist -> Meter
     . Another approach would be to keep Meter durations as ScoreTime, but
       approxRational them when adding together, under the assumption that they

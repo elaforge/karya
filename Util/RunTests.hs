@@ -109,12 +109,11 @@ matchingTests regexes tests = concatMap match regexes
 runTest :: Test -> IO ()
 runTest test = do
     pid <- Posix.getProcessID
-    putStrLn $ divider pid ++ "run test "
-        ++ testFilename test ++ ": " ++ testName test
+    putStrLn $ divider pid ++ testFilename test ++ ": " ++ testName test
     let name = last (Seq.split "." (testName test))
     maybe id id (testInitialize test) $ Test.catch_srcpos
         (Just (testFilename test, Just name, testLine test)) (testRun test)
     return ()
 
 divider :: Posix.ProcessID -> String
-divider pid = replicate 10 '-' ++ " " ++ show pid ++ ": "
+divider pid = "===> run-test " ++ " " ++ show pid ++ ": "

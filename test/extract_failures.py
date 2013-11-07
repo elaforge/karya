@@ -1,19 +1,17 @@
 #!/usr/bin/env python
+"""Collect the text before a failure marker and print it with the failure.
+  This provides context for the failure.
+"""
+
 # Copyright 2013 Evan Laforge
 # This program is distributed under the terms of the GNU General Public
 # License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 import sys
 
-def any(iter):
-    for v in iter:
-        if v:
-            return True
-    return False
-
 failure = []
 for line in sys.stdin:
-    if any(line.startswith(pre) for pre in ['++-> ', '__-> ', '----']):
+    if any(map(line.startswith, ['++-> ', '__-> '])):
         if failure:
             sys.stdout.write(''.join(failure) + '\n')
             failure = []
