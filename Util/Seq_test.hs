@@ -9,6 +9,14 @@ import qualified Util.Seq as Seq
 import Util.Seq (Paired(..))
 
 
+test_range_end = do
+    let f = Seq.range_end
+    equal (f 0 1 0.4) [0, 0.4, 0.8, 1]
+    equal (f 0 1 0.5) [0, 0.5, 1]
+    equal (f 1 0 (-0.5)) [1, 0.5, 0]
+    equal (f 1 0 0.5) [0]
+    equal (f 0 1 (-0.5)) [1]
+
 test_keyed_group_on = do
     let f = Seq.keyed_group_on fst
     equal (f ([] :: [(Int, Char)])) []

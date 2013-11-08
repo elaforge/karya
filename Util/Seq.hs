@@ -56,7 +56,7 @@ range_end start end step = go 0
     where
     go i
         | step >= 0 && val >= end = [end]
-        | step < 0 && val < end = [end]
+        | step < 0 && val <= end = [end]
         | otherwise = val : go (i+1)
         where val = start + (i*step)
 
