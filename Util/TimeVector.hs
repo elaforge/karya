@@ -106,8 +106,8 @@ last v
     | V.null v = Nothing
     | otherwise = Just $ V.last v
 
-viewL :: (V.Vector v a) => v a -> Maybe (a, v a)
-viewL v
+uncons :: (V.Vector v a) => v a -> Maybe (a, v a)
+uncons v
     | V.null v = Nothing
     | otherwise = Just (V.unsafeHead v, V.unsafeTail v)
 
@@ -129,7 +129,7 @@ constant y = V.singleton (Sample 0 y)
     -- Constant starts at 0, as documented in the module haddock.
 
 is_constant :: Unboxed -> Bool
-is_constant vec = case viewL vec of
+is_constant vec = case uncons vec of
     Nothing -> True
     Just (Sample x0 y0, rest)
         | x0 <= 0 -> V.all ((==y0) . sy) rest
@@ -150,12 +150,12 @@ merge vecs = V.unfoldrN len go $ Seq.sort_on (fmap sx . head) vecs
     -- This will be too big if there's lots of overlap.
     len = sum (map V.length vecs) + 1
     go [] = Nothing
-    go [vec] = case viewL vec of
+    go [vec] = case uncons vec of
         Nothing -> Nothing
         Just (x, rest) -> Just (x, [rest])
-    go (cur : vecs@(next : rest)) = case viewL cur of
+    go (cur : vecs@(next : rest)) = case uncons cur of
         Nothing -> go vecs
-        Just (Sample x y, cur_tl) -> case viewL next of
+        Just (Sample x y, cur_tl) -> case uncons next of
             Nothing -> go (cur : rest)
             Just (Sample next_x _, _)
                 | next_x <= x -> go vecs
@@ -201,7 +201,7 @@ prepend vec1 vec2 = case last vec1 of
 at :: (V.Vector v (Sample y)) => X -> v (Sample y) -> Maybe y
 at x vec
     | i >= 0 = Just $ sy (V.unsafeIndex vec i)
-    | otherwise = case viewL vec of
+    | otherwise = case uncons vec of
         Just (Sample x y, _) | x <= 0 -> Just y
         _ -> Nothing
     where i = highest_index x vec

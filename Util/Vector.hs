@@ -35,11 +35,6 @@ bracketing vec a = case Generic.findIndex (>=a) vec of
             Just (i-1, Unboxed.unsafeIndex vec (i-1), Unboxed.unsafeIndex vec i)
     _ -> Nothing
 
-viewL :: V.Vector a -> Maybe (a, V.Vector a)
-viewL v
-    | V.null v = Nothing
-    | otherwise = Just (V.unsafeHead v, V.unsafeTail v)
-
 -- | Binary search for the lowest index of the given value, or where it would
 -- be if it were present.
 {-# SPECIALIZE lowest_index :: (Ord key) =>
