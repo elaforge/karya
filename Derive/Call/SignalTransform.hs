@@ -4,15 +4,20 @@
 
 -- | Transformers on control and pitch signals.
 module Derive.Call.SignalTransform where
+import qualified Data.List as List
+
 import Util.Control
+import qualified Util.Seq as Seq
 import qualified Derive.Call.Post as Post
 import qualified Derive.Call.Speed as Speed
+import qualified Derive.Call.Util as Util
 import qualified Derive.Derive as Derive
 import qualified Derive.LEvent as LEvent
 import qualified Derive.PitchSignal as PitchSignal
 import qualified Derive.Sig as Sig
 import Derive.Sig (required)
 
+import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
 import Types
 
@@ -49,6 +54,7 @@ control_calls :: Derive.CallMaps Derive.Control
 control_calls = Derive.call_maps []
     [ ("quantize", c_quantize)
     , ("sh", c_sh_control)
+    , ("slew", c_slew)
     ]
 
 c_sh_control :: Derive.Transformer Derive.Control
@@ -79,3 +85,50 @@ quantize :: Signal.Y -> Signal.Control -> Signal.Control
 quantize val
     | val == 0 = id
     | otherwise = Signal.map_y $ \y -> fromIntegral (round (y / val)) * val
+
+c_slew :: Derive.Transformer Derive.Control
+c_slew = Derive.transformer "slew" mempty
+    "Smooth a signal by interpolating such that it doesn't exceed the given\
+    \ slope."
+    $ Sig.callt (required "slope" "Maximum allowed slope, in RealTime.") $
+    \slope _args deriver -> do
+        srate <- Util.get_srate
+        Post.signal (slew_limiter srate slope) deriver
+
+-- | Smooth the signal by not allowing the signal to change faster than the
+-- given slope.
+slew_limiter :: RealTime -> Signal.Y -> Signal.Control -> Signal.Control
+slew_limiter srate slope =
+    Signal.concat . snd . List.mapAccumL go Nothing . Seq.zip_next
+        . Signal.unsignal
+    where
+    -- TODO I tried to think of a way to do this without converting the signal
+    -- to a list, and allocating a separate vector for each chunk.  But vector
+    -- doesn't have a builder.  unfoldr could do it, but awkwardly because
+    -- of the need to emit multiple samples.
+    go state ((x, y), next) = case state of
+        Nothing -> (Just y, Signal.signal [(x, y)])
+        Just prev_y -> ((snd <$> Signal.last segment) `mplus` Just y, segment)
+            where
+            segment = slope_segment srate srate_slope prev_y (x, y)
+                (fst <$> next)
+    srate_slope = slope * RealTime.to_seconds srate
+
+-- | Produce a segment up to but not including the next sample.
+slope_segment :: RealTime -> Signal.Y -> Signal.Y -> (RealTime, Signal.Y)
+    -> Maybe RealTime -> Signal.Control
+slope_segment srate slope prev_y (x, y) next = Signal.signal $ zip xs ys
+    where
+    xs = maybe id (\n -> takeWhile (<n)) next $ Seq.range_ x srate
+    -- Since the value is already prev_y, I can start moving immediately.
+    ys = drop 1 $ Seq.range_end prev_y y (if y >= prev_y then slope else -slope)
+
+-- | Use the function to create a segment between each point in the signal.
+-- smooth :: (Double -> Double) -> RealTime -> RealTime -> Signal.Control
+--     -> Signal.Control
+-- smooth f srate time = undefined
+
+-- min = y0, max = y1
+-- for each sample, make a line from
+-- (min x (x+time), y0) -> (max x (x+time), y)
+-- clip to

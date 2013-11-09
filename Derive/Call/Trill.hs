@@ -228,8 +228,8 @@ c_pitch_trill maybe_mode = Derive.generator1 "pitch-trill" Tags.ornament
     <*> trill_speed_arg
     ) $ \(note, neighbor, speed) args -> do
         mode <- maybe get_mode return maybe_mode
-        (transpose, control) <- trill_from_controls
-            (Args.start args, Args.next args) mode neighbor speed
+        (transpose, control) <- trill_from_controls (Args.range_or_next args)
+            mode neighbor speed
         start <- Args.real_start args
         return $ PitchSignal.apply_control control (Score.untyped transpose) $
             PitchSignal.signal [(start, note)]
@@ -417,37 +417,32 @@ get_mode = do
 trill_from_controls :: (ScoreTime, ScoreTime) -> Mode -> TrackLang.ValControl
     -> TrackLang.ValControl -> Derive.Deriver (Signal.Control, Score.Control)
 trill_from_controls range mode neighbor speed = do
-    (speed_sig, time_type) <- Util.to_time_signal Util.Real speed
+    transitions <- trill_transitions range speed
     (neighbor_sig, control) <- Util.to_transpose_signal Util.Diatonic neighbor
-    transpose <- time_trill time_type mode range neighbor_sig speed_sig
+    let transpose = trill_from_transitions mode transitions neighbor_sig
     return (transpose, control)
-    where
-    time_trill Util.Real = real_trill
-    time_trill Util.Score = score_trill
 
-real_trill :: Mode -> (ScoreTime, ScoreTime) -> Signal.Control
-    -> Signal.Control -> Derive.Deriver Signal.Control
-real_trill mode (start, end) neighbor speed = do
+-- | Create trill transition points from a speed.
+trill_transitions :: (ScoreTime, ScoreTime) -> TrackLang.ValControl
+    -> Derive.Deriver [RealTime]
+trill_transitions range speed = do
+    (speed_sig, time_type) <- Util.to_time_signal Util.Real speed
+    case time_type of
+        Util.Real -> real_transitions range speed_sig
+        Util.Score -> score_transitions range speed_sig
+
+real_transitions :: (ScoreTime, ScoreTime) -> Signal.Control
+    -> Derive.Deriver [RealTime]
+real_transitions (start, end) speed = do
     start <- Derive.real start
     end <- Derive.real end
-    return $ make_trill mode start end neighbor speed
+    return $ full_cycles RealTime.eta end (Speed.real_starts speed start)
 
-score_trill :: Mode -> (ScoreTime, ScoreTime) -> Signal.Control
-    -> Signal.Control -> Derive.Deriver Signal.Control
-score_trill mode (start, end) neighbor speed = do
+score_transitions :: (ScoreTime, ScoreTime) -> Signal.Control
+    -> Derive.Deriver [RealTime]
+score_transitions (start, end) speed = do
     all_transitions <- Speed.score_starts speed start end
-    let transitions = full_cycles ScoreTime.eta end all_transitions
-    real_transitions <- mapM Derive.real transitions
-    return $ trill_from_transitions mode real_transitions neighbor
-
--- | Make a trill transposition signal.
-make_trill :: Mode -> RealTime -> RealTime -> Signal.Control -> Signal.Control
-    -> Signal.Control
-make_trill mode start end neighbor speed =
-    trill_from_transitions mode transitions neighbor
-    where
-    transitions = full_cycles RealTime.eta end
-        (Speed.real_starts speed start)
+    mapM Derive.real $ full_cycles ScoreTime.eta end all_transitions
 
 -- | Make a trill signal from a list of transition times.
 trill_from_transitions :: Mode -> [RealTime] -> Signal.Control -> Signal.Control

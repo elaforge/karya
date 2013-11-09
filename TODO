@@ -8,7 +8,7 @@ UNSORTED
   - can I implement the dinnaginna pattern with 4 interchangeable parts?
   * Seems like LEvent.quantize_sel doesn't understand changing rulers
   * I think Util.Num.ratio_of is redundant with Ratio.approxRational
-  - make sure concatenating Meters works in Cmd.Meters as well as Cmd.Tala
+  / make sure concatenating Meters works in Cmd.Meters as well as Cmd.Tala
   * 3 avartanams adi chatusra + 4 avartanams adi tisram
     * compound ruler is crunched up at the merge point
     * also has roundoff error later on
@@ -114,13 +114,11 @@ UNSORTED
     . Nope, wrong.
   - there should be a character that triggers a parse failure, which is used
     by invalid ShowVal instances like ShowVal Pitch
-  - Derive.Call.Gamakam, with janta, s-g-r, and r-s ornaments.
+  + Derive.Call.Gamakam, with janta, and shankarabharanam gamakam
     Also there's a slight lift at the end of notes.
     * call lifts pitch to some frequency at the end of notes
     - lift and drop for violin can reduce pressure instead of speed (dyn)
-    - janta is neighbor from below, or fingered is sr, or if you're moving
-      up: r-sg
-    - copy from kaushik's recording
+    - write SignalTransform.smooth, and see if that produces better results
   * make lift note transformer work under inversion
     . To make lift to an absolute pitch work outside of inversion, I'd need
       an abstract way (e.g. like a transpose signal) to say "pitch midway to

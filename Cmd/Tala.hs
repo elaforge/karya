@@ -3,6 +3,9 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 -- | Meters for Carnatic music.
+--
+-- E.g., 3 avartanams of adi talam chatusra nadai followed by 4 avartanams of
+-- tisra nadai: @make_rulers [Ruler adi_tala 1 3 4 1, Ruler adi_tala 2 4 3 1]@
 module Cmd.Tala where
 import qualified Data.List as List
 

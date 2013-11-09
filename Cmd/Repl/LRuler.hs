@@ -49,7 +49,6 @@ import qualified Cmd.Meter as Meter
 import qualified Cmd.NoteTrack as NoteTrack
 import qualified Cmd.RulerUtil as RulerUtil
 import qualified Cmd.Selection as Selection
-import qualified Cmd.Tala as Tala
 
 import Types
 

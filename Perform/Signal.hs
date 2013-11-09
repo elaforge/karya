@@ -29,10 +29,10 @@ module Perform.Signal (
 
     -- * access
     , at, at_linear, is_constant
-    , head, last
+    , head, last, uncons
 
     -- * transformation
-    , merge, interleave, prepend
+    , merge, concat, interleave, prepend
     , sig_add, sig_subtract, sig_multiply
     -- ** scalar transformation
     , sig_max, sig_min, scalar_max, scalar_min, clip_bounds
@@ -46,9 +46,10 @@ module Perform.Signal (
     , pitches_share
 ) where
 import qualified Prelude
-import Prelude hiding (head, last, length, null, take, drop)
+import Prelude hiding (concat, head, last, length, null, take, drop)
 import qualified Control.DeepSeq as DeepSeq
 import qualified Data.Monoid as Monoid
+import qualified Data.Vector.Storable as Vector.Storable
 import qualified Foreign
 import qualified Text.Read as Read
 
@@ -219,11 +220,21 @@ head = fmap V.to_pair . V.head . sig_vec
 last :: Signal y -> Maybe (X, Y)
 last = fmap V.to_pair . V.last . sig_vec
 
+uncons :: Signal y -> Maybe ((X, Y), Signal y)
+uncons sig = case V.uncons (sig_vec sig) of
+    Nothing -> Nothing
+    Just (V.Sample x y, vec) -> Just ((x, y), Signal vec)
+
 
 -- * transformation
 
 merge :: [Signal y] -> Signal y
 merge = Signal . V.merge . map sig_vec
+
+-- | This is like 'merge', but directly concatenates the signals.  It should be
+-- more efficient when you know the signals don't overlap.
+concat :: [Signal y] -> Signal y
+concat = Signal . Vector.Storable.concat . map sig_vec
 
 interleave :: Signal y -> Signal y -> Signal y
 interleave sig1 sig2 = Signal $ V.interleave (sig_vec sig1) (sig_vec sig2)

@@ -5,6 +5,8 @@
 module Derive.Call.SignalTransform_test where
 import Util.Test
 import qualified Derive.Call.CallTest as CallTest
+import qualified Derive.Call.SignalTransform as SignalTransform
+import qualified Perform.Signal as Signal
 
 
 test_sh_pitch = do
@@ -24,3 +26,27 @@ test_quantize = do
     let run = CallTest.run_control
     equal (run [(0, "0"), (4, "quantize .25 | i .5")])
         [(0, 0), (2, 0.25), (3, 0.5)]
+
+test_slew_limiter = do
+    let f srate slope = Signal.unsignal
+            . SignalTransform.slew_limiter srate slope . Signal.signal
+    -- quickcheck: signal never moves faster than srate/slope
+    equal (f 1 1 [(0, 2)]) [(0, 2)]
+    equal (f 1 1 [(0, 2), (2, 0)]) [(0, 2), (2, 1), (3, 0)]
+    equal (f 1 1 [(0, 2), (2, 0), (4, 2)])
+        [(0, 2), (2, 1), (3, 0), (4, 1), (5, 2)]
+    equal (f 0.5 1 [(0, 2), (2, 0)])
+        [(0, 2), (2, 1.5), (2.5, 1), (3, 0.5), (3.5, 0)]
+    equal (f 1 1 [(0, 0), (1, 1)]) [(0, 0), (1, 1)]
+    equal (f 1 1 [(0, 0), (1, 1), (2, 3)]) [(0, 0), (1, 1), (2, 2), (3, 3)]
+
+    equal (f 1 1 [(0, 0), (2, 8), (4, 0)])
+        [(0, 0), (2, 1), (3, 2), (4, 1), (5, 0)]
+
+test_interpolate_slope = do
+    let f prev_y xy next = Signal.unsignal $
+            SignalTransform.slope_segment 1 0.5 prev_y xy next
+    equal (f 2 (0, 1) Nothing) [(0, 1.5), (1, 1.0)]
+    equal (f 2 (0, 1) (Just 2)) [(0, 1.5), (1, 1)]
+    equal (f 0 (0, 1) Nothing) [(0, 0.5), (1, 1.0)]
+    equal (f 0 (1, 1) Nothing) [(1, 0.5), (2, 1.0)]

@@ -3,6 +3,7 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 module Derive.Call.Trill_test where
+import Util.Control
 import Util.Test
 import qualified Ui.State as State
 import qualified Ui.UiTest as UiTest
@@ -10,6 +11,8 @@ import qualified Derive.Call.CallTest as CallTest
 import qualified Derive.Call.Trill as Trill
 import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
+import qualified Derive.Score as Score
+import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.Signal as Signal
 
@@ -143,7 +146,9 @@ test_moving_trill = do
         ([[(0, 69), (1, 70.5), (2, 70), (3, 71.5), (4, 71), (5, 72)]], [])
 
 test_real_trill = do
-    let f = Trill.real_trill Trill.UnisonFirst (0, 1)
+    let f neighbor speed = fst <$> Trill.trill_from_controls (0, 1)
+            Trill.UnisonFirst (mkcontrol Score.Chromatic neighbor)
+            (mkcontrol Score.Real speed)
         run = extract . DeriveTest.run State.empty
         extract = DeriveTest.extract_run Signal.unsignal
         cnst = Signal.constant
@@ -163,7 +168,9 @@ test_real_trill = do
         Right [(0, 0), (0.5, 1), (0.75, 0)]
 
 test_score_trill = do
-    let f dur = Trill.score_trill Trill.UnisonFirst (0, dur)
+    let f dur neighbor speed = fst <$> Trill.trill_from_controls (0, dur)
+            Trill.UnisonFirst (mkcontrol Score.Chromatic neighbor)
+            (mkcontrol Score.Score speed)
         run = extract . DeriveTest.run State.empty
         extract = DeriveTest.extract_run Signal.unsignal
         cnst = Signal.constant
@@ -177,6 +184,9 @@ test_score_trill = do
     -- Trill speed affected by stretch.
     equal (run $ Derive.d_stretch 2 $ f 1 (cnst 1) (cnst 2)) $
         Right [(0, 0), (1, 1), (2, 0)]
+
+mkcontrol :: Score.Type -> Signal.Control -> TrackLang.ValControl
+mkcontrol typ = TrackLang.ControlSignal . Score.Typed typ
 
 test_pitch_trill = do
     equal (CallTest.run_pitch [(0, "tr (4e) 2 2"), (2.8, "4c")]) $

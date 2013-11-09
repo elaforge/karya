@@ -15,6 +15,7 @@ import qualified Derive.Call.Bali.Reyong as Reyong
 import qualified Derive.Call.Block as Block
 import qualified Derive.Call.Control as Control
 import qualified Derive.Call.Echo as Echo
+import qualified Derive.Call.Gamakam as Gamakam
 import qualified Derive.Call.Grace as Grace
 import qualified Derive.Call.Idiom.String as String
 import qualified Derive.Call.Integrate as Integrate
@@ -122,7 +123,7 @@ control_maps :: Derive.CallMaps Derive.Control
 
 pitch_maps :: Derive.CallMaps Derive.Pitch
 (pitch_maps, shadowed_pitches) = union_calls
-    [ Pitch.pitch_calls, PitchHigh.pitch_calls
+    [ Gamakam.pitch_calls, Pitch.pitch_calls, PitchHigh.pitch_calls
     , Random.pitch_calls, SignalTransform.pitch_calls
     , Trill.pitch_calls
     ]
