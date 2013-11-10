@@ -210,7 +210,8 @@ num_or_pitch argnum (val :| vals) = case val of
 type_error :: Int -> Text -> TrackLang.Type -> TrackLang.Val -> Derive.Deriver a
 type_error argnum name expected received =
     Derive.throw_error $ Derive.CallError $
-        Derive.TypeError argnum name expected (Just received)
+        Derive.TypeError (Derive.TypeErrorArg argnum) name expected
+            (Just received)
 
 make_segments :: (Monoid.Monoid sig) =>
     ([(RealTime, y)] -> sig)

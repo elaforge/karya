@@ -3,7 +3,7 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
-  - Some calls want to take an arg only from the environ.  I can just put
+  * Some calls want to take an arg only from the environ.  I can just put
     Environ.get_val directly in the call, but if I put it in the sig as
     consuming 0 args, it's more concise and gets documented.
   - namespaces for calls

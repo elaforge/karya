@@ -81,12 +81,14 @@ write_doc text = do
     Format.newline
 
 show_parser :: Derive.ArgParser -> (Maybe Text, Maybe Text)
+    -- ^ (superscript to mark this arg, default value)
 show_parser p = case p of
     Derive.Required -> (Nothing, Nothing)
     Derive.Defaulted deflt -> (Nothing, Just deflt)
     Derive.Optional -> (Just "?", Nothing)
     Derive.Many -> (Just "*", Nothing)
     Derive.Many1 -> (Just "+", Nothing)
+    Derive.Environ deflt -> (Just "env", deflt)
 
 -- ** html output
 
@@ -125,6 +127,7 @@ html_header hstate =
         , "<code>arg<sup>?</sup></code> &mdash; optional arg"
         , "<code>arg<sup>*</sup></code> &mdash; zero or more args"
         , "<code>arg<sup>+</sup></code> &mdash; one or more args"
+        , "<code>arg<sup>env</sup></code> &mdash; looked up in the environ"
         ])
     <> "<br> <code>word</code> to include a tag, <code>-word</code> to\n\
         \exclude: <input id=input type=text size=60 value=\"" <> default_search

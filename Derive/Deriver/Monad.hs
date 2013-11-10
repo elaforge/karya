@@ -35,7 +35,7 @@ module Derive.Deriver.Monad (
     , modify, get, gets, put, run
 
     -- * error
-    , Error(..), ErrorVal(..), CallError(..)
+    , Error(..), ErrorVal(..), CallError(..), ErrorPlace(..)
     , throw, throw_srcpos, throw_arg_error, throw_arg_error_srcpos
     , throw_error, throw_error_srcpos
 
@@ -262,25 +262,33 @@ instance Pretty.Pretty ErrorVal where
     pretty (CallError err) = Pretty.pretty err
 
 data CallError =
-    -- | arg number, arg name, expected type, received val
+    -- | ErrorPlace, arg name, expected type, received val
     --
     -- The arg number starts at 0.
-    TypeError Int Text TrackLang.Type (Maybe TrackLang.Val)
+    TypeError !ErrorPlace !Text !TrackLang.Type !(Maybe TrackLang.Val)
     -- | Couldn't even call the thing because the name was not found.
-    | CallNotFound TrackLang.CallId
+    | CallNotFound !TrackLang.CallId
     -- | Calling error that doesn't fit into the above categories.
-    | ArgError Text
+    | ArgError !Text
     deriving (Show)
+
+-- | Where a type error came from.
+data ErrorPlace = TypeErrorArg !Int | TypeErrorEnviron !TrackLang.Symbol
+    deriving (Eq, Show)
 
 instance Pretty.Pretty CallError where
     pretty err = case err of
-        TypeError argno name expected received ->
-            "TypeError: arg " <> show (argno+1) <> "/" <> untxt name
+        TypeError place name expected received ->
+            "TypeError: arg " <> Pretty.pretty place <> "/" <> untxt name
             <> ": expected " <> Pretty.pretty expected <> " but got "
             <> Pretty.pretty (TrackLang.type_of <$> received)
             <> ": " <> Pretty.pretty received
         ArgError err -> "ArgError: " <> untxt err
         CallNotFound call_id -> "CallNotFound: " <> Pretty.pretty call_id
+
+instance Pretty.Pretty ErrorPlace where
+    pretty (TypeErrorArg num) = show (num + 1)
+    pretty (TypeErrorEnviron key) = "environ:" <> Pretty.pretty key
 
 throw :: String -> Deriver a
 throw msg = throw_error (GenericError msg)
@@ -1041,6 +1049,7 @@ data ArgDoc = ArgDoc {
 -- | These enumerate the different ways an argumnt can be parsed, and
 -- correspond to parsers in "Derive.Sig".
 data ArgParser = Required | Defaulted !Text | Optional | Many | Many1
+    | Environ !(Maybe Text)
     deriving (Eq, Ord, Show)
 
 -- | A value annotated with argument docs.  This is returned by the functions

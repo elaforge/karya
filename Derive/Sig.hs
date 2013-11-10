@@ -87,7 +87,7 @@ module Derive.Sig (
     Parser, Generator, Transformer
     -- * parsers
     , parsed_manually, no_args
-    , required, defaulted, optional, many, many1
+    , required, defaulted, environ, required_environ, optional, many, many1
     -- ** defaults
     , control, typed_control, required_control, pitch
     , arg_environ_default
@@ -170,7 +170,7 @@ required name doc = parser arg_doc $ \state -> case get_val state name of
         "expected another argument at: " <> showt name
     Just (state2, val) -> case TrackLang.from_val val of
         Just a -> Right (state2, a)
-        Nothing -> Left $ Derive.TypeError (state_argnum state) name expected
+        Nothing -> Left $ Derive.TypeError (arg_error state) name expected
             (Just val)
     where
     expected = TrackLang.to_type (error "Sig.required" :: a)
@@ -183,21 +183,63 @@ required name doc = parser arg_doc $ \state -> case get_val state name of
 
 -- | The argument is not required to be present, but if it is, it has to have
 -- either the right type or be VNotGiven.
-defaulted :: forall a. (TrackLang.Typecheck a) => Text -> a -> Text
-    -> Parser a
+defaulted :: forall a. (TrackLang.Typecheck a) => Text -> a -> Text -> Parser a
 defaulted name deflt doc = parser arg_doc $ \state -> case get_val state name of
     Nothing -> Right (state, deflt)
     Just (state2, TrackLang.VNotGiven) -> Right (state2, deflt)
     Just (state2, val) -> case TrackLang.from_val val of
         Just a -> Right (state2, a)
-        Nothing -> Left $ Derive.TypeError (state_argnum state) name expected
+        Nothing -> Left $ Derive.TypeError (arg_error state) name expected
             (Just val)
     where
-    expected = TrackLang.to_type (error "Sig.defaulted" :: a)
+    expected = TrackLang.to_type deflt
     arg_doc = Derive.ArgDoc
         { Derive.arg_name = name
         , Derive.arg_type = expected
         , Derive.arg_parser = Derive.Defaulted (ShowVal.show_val deflt)
+        , Derive.arg_doc = doc
+        }
+
+-- | This is a phantom argument which is not actually parsed from the argument
+-- list.  Instead it's looked up it the environ according to the normal
+-- defaulting rules.
+--
+-- Of course, the call could just look in the environ itself, but this way it's
+-- uniform and automatically documented.
+environ :: forall a. (TrackLang.Typecheck a) => Text -> a -> Text -> Parser a
+environ name deflt doc = parser arg_doc $ \state ->
+    case lookup_default state name of
+        Nothing -> Right (state, deflt)
+        Just val -> case TrackLang.from_val val of
+            Nothing -> Left $ Derive.TypeError (environ_error state name)
+                name expected (Just val)
+            Just a -> Right (state, a)
+    where
+    expected = TrackLang.to_type deflt
+    arg_doc = Derive.ArgDoc
+        { Derive.arg_name = name
+        , Derive.arg_type = expected
+        , Derive.arg_parser = Derive.Environ (Just (ShowVal.show_val deflt))
+        , Derive.arg_doc = doc
+        }
+
+-- | This is like 'environ', but without a default.
+required_environ :: forall a. (TrackLang.Typecheck a) => Text -> Text
+    -> Parser a
+required_environ name doc = parser arg_doc $ \state ->
+    case lookup_default state name of
+        Nothing -> Left $ Derive.TypeError (environ_error state name)
+            name expected Nothing
+        Just val -> case TrackLang.from_val val of
+            Nothing -> Left $ Derive.TypeError (environ_error state name)
+                name expected (Just val)
+            Just a -> Right (state, a)
+    where
+    expected = TrackLang.to_type (error "Sig.required_environ" :: a)
+    arg_doc = Derive.ArgDoc
+        { Derive.arg_name = name
+        , Derive.arg_type = expected
+        , Derive.arg_parser = Derive.Environ Nothing
         , Derive.arg_doc = doc
         }
 
@@ -213,8 +255,8 @@ optional name doc = parser arg_doc $ \state -> case get_val state name of
         Nothing -> case lookup_default state name of
             Nothing -> Right (state, Nothing)
             Just val -> case TrackLang.from_val val of
-                Nothing -> Left $ Derive.TypeError (state_argnum state) name
-                    expected (Just val)
+                Nothing -> Left $ Derive.TypeError
+                    (arg_error state) name expected (Just val)
                 Just a -> Right (state, Just a)
     where
     expected = TrackLang.to_type (error "Sig.optional" :: a)
@@ -233,7 +275,8 @@ many name doc = parser arg_doc $ \state -> do
     where
     typecheck (argnum, val) = case TrackLang.from_val val of
         Just a -> Right a
-        Nothing -> Left $ Derive.TypeError argnum name expected (Just val)
+        Nothing -> Left $ Derive.TypeError (Derive.TypeErrorArg argnum) name
+            expected (Just val)
     expected = TrackLang.to_type (error "Sig.many" :: a)
     arg_doc = Derive.ArgDoc
         { Derive.arg_name = name
@@ -256,7 +299,8 @@ many1 name doc = parser arg_doc $ \state ->
     where
     typecheck (argnum, val) = case TrackLang.from_val val of
         Just a -> Right a
-        Nothing -> Left $ Derive.TypeError argnum name expected (Just val)
+        Nothing -> Left $ Derive.TypeError (Derive.TypeErrorArg argnum) name
+            expected (Just val)
     expected = TrackLang.to_type (error "Sig.many1" :: a)
     arg_doc = Derive.ArgDoc
         { Derive.arg_name = name
@@ -264,6 +308,13 @@ many1 name doc = parser arg_doc $ \state ->
         , Derive.arg_parser = Derive.Many1
         , Derive.arg_doc = doc
         }
+
+arg_error :: State -> Derive.ErrorPlace
+arg_error = Derive.TypeErrorArg . state_argnum
+
+environ_error :: State -> Text -> Derive.ErrorPlace
+environ_error state name =
+    Derive.TypeErrorEnviron (arg_environ_default (state_call_name state) name )
 
 -- ** defaults
 

@@ -73,17 +73,17 @@ c_jaru :: Derive.Generator Derive.Pitch
 c_jaru = Derive.generator1 "jaru" Tags.india
     "This is a series of grace notes whose pitches are relative to the given\
     \ base pitch."
-    $ Sig.call ((,)
+    $ Sig.call ((,,,)
     <$> required "pitch" "Base pitch."
     <*> Sig.many1 "interval" "Intervals from base pitch."
-    ) $ \(pitch, intervals) args -> do
+    <*> Sig.environ "time" jaru_time_default "Time for each note."
+    <*> Sig.environ "transition" Nothing
+        "Time for each slide, defaults to `time`."
+    ) $ \(pitch, intervals, time, maybe_transition) args -> do
         start <- Args.real_start args
         srate <- Util.get_srate
         (intervals, control) <- parse intervals
-        time <- fromMaybe 0.15 <$>
-            Derive.lookup_val (Sig.arg_environ_default "jaru" "time")
-        transition <- fromMaybe time <$>
-            Derive.lookup_val (Sig.arg_environ_default "jaru" "transition")
+        let transition = fromMaybe time maybe_transition
         let sig = jaru srate start time transition (NonEmpty.toList intervals)
         return $ PitchSignal.apply_control control
             (Score.untyped sig) $ PitchSignal.signal [(start, pitch)]
@@ -104,7 +104,7 @@ c_jaru_intervals transpose intervals = Derive.generator1 "jaru" Tags.india
     ("This is `jaru` hardcoded to " <> Pretty.prettytxt intervals <> ".")
     $ Sig.call ((,,)
     <$> required "pitch" "Base pitch."
-    <*> defaulted "time" 0.15 "Time for each note."
+    <*> defaulted "time" jaru_time_default "Time for each note."
     <*> defaulted "transition" Nothing
         "Time for each slide, defaults to `time`."
     ) $ \(pitch, time, maybe_transition) args -> do
@@ -114,6 +114,9 @@ c_jaru_intervals transpose intervals = Derive.generator1 "jaru" Tags.india
                 intervals
         return $ PitchSignal.apply_control (Util.transpose_control transpose)
             (Score.untyped sig) $ PitchSignal.signal [(start, pitch)]
+
+jaru_time_default :: RealTime
+jaru_time_default = 0.15
 
 jaru :: RealTime -> RealTime -> RealTime -> RealTime -> [Signal.Y]
     -> Signal.Control
