@@ -14,3 +14,10 @@ test_wobble = do
                 [(">", [(0, 4, "")]), ("*", [(0, 0, call), (end, 0, "3c")])]
     equal (run "wobble (4c) 1 1 1" 3)
         ([[(0, NN.c4), (1, NN.cs4), (2, NN.c4), (3, NN.c3)]], [])
+
+test_jaru = do
+    let run call = DeriveTest.extract DeriveTest.e_nns $
+            DeriveTest.derive_tracks
+                [(">", [(0, 4, "")]), ("*", [(0, 0, call)])]
+    equal (run "sgr (3c) 2")
+        ([[(0, 47), (1, 48), (2, 50), (3, 49), (4, 48)]], [])

@@ -50,3 +50,17 @@ test_interpolate_slope = do
     equal (f 2 (0, 1) (Just 2)) [(0, 1.5), (1, 1)]
     equal (f 0 (0, 1) Nothing) [(0, 0.5), (1, 1.0)]
     equal (f 0 (1, 1) Nothing) [(1, 0.5), (2, 1.0)]
+
+test_smooth = do
+    let f time = Signal.unsignal
+            . SignalTransform.smooth id 1 time . Signal.signal
+    equal (f 2 [(0, 0), (2, 2)]) [(0, 0), (3, 1), (4, 2)]
+    equal (f 2 [(0, 0), (2, 2), (4, 0)])
+        [(0, 0), (3, 1), (4, 2), (5, 1), (6, 0)]
+    equal (f (-2) [(0, 0), (2, 2), (4, 0)])
+        [(0, 0), (1, 1), (2, 2), (3, 1), (4, 0)]
+    -- Not enough room.
+    equal (f 4 [(0, 0), (2, 2), (4, 0)])
+        [(0, 0), (3, 1), (4, 2), (5, 1.5), (6, 1), (7, 0.5), (8, 0)]
+    equal (f (-4) [(0, 0), (2, 2), (4, 0)])
+        [(0, 0), (1, 1), (2, 2), (3, 1), (4, 0)]

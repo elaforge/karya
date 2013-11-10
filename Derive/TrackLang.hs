@@ -94,6 +94,10 @@ data RealOrScore = Real RealTime | Score ScoreTime deriving (Eq, Show)
 -- | Normally Transpose will default to Chromatic if the val is untyped,
 -- but some calls would prefer to default to Diatonic.
 newtype DefaultDiatonic = DefaultDiatonic Pitch.Transpose deriving (Show)
+
+default_diatonic :: DefaultDiatonic -> Pitch.Transpose
+default_diatonic (DefaultDiatonic x) = x
+
 -- | Either RealTime or ScoreTime, but untyped defaults to RealTime.
 newtype DefaultReal = DefaultReal RealOrScore deriving (Eq, Show)
 newtype DefaultScore = DefaultScore RealOrScore deriving (Eq, Show)

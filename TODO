@@ -3,9 +3,17 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
+  - Some calls want to take an arg only from the environ.  I can just put
+    Environ.get_val directly in the call, but if I put it in the sig as
+    consuming 0 args, it's more concise and gets documented.
+  - namespaces for calls
+    As there gets to be more calls, I may need to have a 'import x' which
+    brings the namespace into scope.  Namespace could use tags, but perhaps
+    tags should instead be derived from the namespace, e.g. prelude, bali,
+    india.
+  - make a test that just prints out call docs, to mark all the docs covered
   - relative block call: a call -xyz will prepend the current block
   - I could use the stretch tempo thing for patterns with variable karvai
-  - can I implement the dinnaginna pattern with 4 interchangeable parts?
   * Seems like LEvent.quantize_sel doesn't understand changing rulers
   * I think Util.Num.ratio_of is redundant with Ratio.approxRational
   / make sure concatenating Meters works in Cmd.Meters as well as Cmd.Tala
@@ -115,10 +123,21 @@ UNSORTED
   - there should be a character that triggers a parse failure, which is used
     by invalid ShowVal instances like ShowVal Pitch
   + Derive.Call.Gamakam, with janta, and shankarabharanam gamakam
-    Also there's a slight lift at the end of notes.
+    . I could also write the pitch track separate, and the gamakam as an
+      interpolation signal.
+    . What about sequencing ornaments, so they follow each other naturally?
+      I think I would need something more sophisticated than just overwriting
+      parts of the signal.  Also I would want more natural transitions.
     * call lifts pitch to some frequency at the end of notes
+    * write SignalTransform.smooth, and see if that produces better results
+    - janta
+    configurable curves for jaru:
+      - linear = i
+      - smooth depart = e2 e3
+      - smooth approach = 2e 3e
+      - smooth depart and approach = 2e2 3e3
+      - overshoot destination = over
     - lift and drop for violin can reduce pressure instead of speed (dyn)
-    - write SignalTransform.smooth, and see if that produces better results
   * make lift note transformer work under inversion
     . To make lift to an absolute pitch work outside of inversion, I'd need
       an abstract way (e.g. like a transpose signal) to say "pitch midway to

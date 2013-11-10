@@ -63,7 +63,7 @@ import Types
 -- transpose types.  Surely there's a better way?  Maybe put the two kinds into
 -- a typeclass?
 
-data TransposeType = Diatonic | Chromatic deriving (Show)
+data TransposeType = Diatonic | Chromatic deriving (Eq, Show)
 data TimeType = Real | Score deriving (Eq, Show)
 
 instance Pretty.Pretty TransposeType where pretty = show
@@ -76,6 +76,10 @@ split_transpose (Pitch.Diatonic c) = (c, Diatonic)
 join_transpose :: Double -> TransposeType -> Pitch.Transpose
 join_transpose c Chromatic = Pitch.Chromatic c
 join_transpose c Diatonic = Pitch.Diatonic c
+
+transpose_control :: TransposeType -> Score.Control
+transpose_control Diatonic = Controls.diatonic
+transpose_control Chromatic = Controls.chromatic
 
 -- | To accomodate both normal calls, which are in score time, and post
 -- processing calls, which are in real time, these functions take RealTimes.
@@ -159,8 +163,7 @@ to_transpose_signal :: TransposeType -> TrackLang.ValControl
 to_transpose_signal default_type control = do
     Score.Typed typ sig <- to_signal control
     case typ of
-        Score.Untyped -> return (sig, case default_type of
-            Diatonic -> Controls.diatonic; Chromatic -> Controls.chromatic)
+        Score.Untyped -> return (sig, transpose_control default_type)
         Score.Chromatic -> return (sig, Controls.chromatic)
         Score.Diatonic -> return (sig, Controls.diatonic)
         _ -> Derive.throw $ "expected transpose type for "

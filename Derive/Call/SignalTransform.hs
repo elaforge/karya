@@ -8,6 +8,8 @@ import qualified Data.List as List
 
 import Util.Control
 import qualified Util.Seq as Seq
+import qualified Derive.Args as Args
+import qualified Derive.Call.Control as Control
 import qualified Derive.Call.Post as Post
 import qualified Derive.Call.Speed as Speed
 import qualified Derive.Call.Util as Util
@@ -16,6 +18,7 @@ import qualified Derive.LEvent as LEvent
 import qualified Derive.PitchSignal as PitchSignal
 import qualified Derive.Sig as Sig
 import Derive.Sig (required)
+import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
@@ -55,6 +58,7 @@ control_calls = Derive.call_maps []
     [ ("quantize", c_quantize)
     , ("sh", c_sh_control)
     , ("slew", c_slew)
+    , ("smooth-i", c_smooth_linear)
     ]
 
 c_sh_control :: Derive.Transformer Derive.Control
@@ -90,8 +94,8 @@ c_slew :: Derive.Transformer Derive.Control
 c_slew = Derive.transformer "slew" mempty
     "Smooth a signal by interpolating such that it doesn't exceed the given\
     \ slope."
-    $ Sig.callt (required "slope" "Maximum allowed slope, in RealTime.") $
-    \slope _args deriver -> do
+    $ Sig.callt (required "slope" "Maximum allowed slope, per second.")
+    $ \slope _args deriver -> do
         srate <- Util.get_srate
         Post.signal (slew_limiter srate slope) deriver
 
@@ -123,12 +127,31 @@ slope_segment srate slope prev_y (x, y) next = Signal.signal $ zip xs ys
     -- Since the value is already prev_y, I can start moving immediately.
     ys = drop 1 $ Seq.range_end prev_y y (if y >= prev_y then slope else -slope)
 
--- | Use the function to create a segment between each point in the signal.
--- smooth :: (Double -> Double) -> RealTime -> RealTime -> Signal.Control
---     -> Signal.Control
--- smooth f srate time = undefined
+c_smooth_linear :: Derive.Transformer Derive.Control
+c_smooth_linear = Derive.transformer "smooth-i" mempty
+    "Smooth a signal by replacing each each sample pair with a linear segment."
+    $ Sig.callt (required "time" "Amount of time to reach to the next sample.\
+        \ If negative, it will end on the destination sample rather than\
+        \ start on it. The time will be compressed if the samples are too\
+        \ close, so unlike `slew`, this will always reach the samples in the\
+        \ source.")
+    $ \(TrackLang.DefaultReal time) args deriver -> do
+        srate <- Util.get_srate
+        time <- Util.real_dur' (Args.start args) time
+        Post.signal (smooth id srate time) deriver
 
--- min = y0, max = y1
--- for each sample, make a line from
--- (min x (x+time), y0) -> (max x (x+time), y)
--- clip to
+-- | Use the function to create a segment between each point in the signal.
+-- The only tricky part is when points are too close together.
+smooth :: (Double -> Double) -> RealTime -> RealTime -> Signal.Control
+    -> Signal.Control
+smooth f srate time =
+    Signal.concat . snd . List.mapAccumL go Nothing . Seq.zip_next
+        . Signal.unsignal
+    where
+    go state ((x, y), next) = case state of
+        Nothing -> (Just (x, y), Signal.signal [(x, y)])
+        Just (x0, y0) -> (Signal.last segment `mplus` Just (x, y), segment)
+            where
+            segment = Signal.drop 1 $ Control.interpolate_segment True srate f
+                (max x0 (min x (x+time))) y0
+                (maybe id (min . fst) next (max x (x+time))) y
