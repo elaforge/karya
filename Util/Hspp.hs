@@ -65,7 +65,7 @@ global_macros = map (SrcposMacro (Just "Util.Log") ["Log"])
 test_macros :: [Macro]
 test_macros = map (SrcposMacro Nothing [])
     [ "equal", "equalf", "io_equal", "strings_like", "check_right", "left_like"
-    , "io_human", "throws", "check" , "check_msg"
+    , "io_human", "throws", "check"
     ]
 
 

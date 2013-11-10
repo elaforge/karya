@@ -9,7 +9,7 @@ module Util.Test (
     skip_human
     -- * tests
     -- ** pure checks
-    , check, check_srcpos, check_msg, check_msg_srcpos
+    , check, check_srcpos
     , equal, equal_srcpos
     , equalf, equalf_srcpos
     , strings_like, strings_like_srcpos
@@ -80,20 +80,12 @@ import qualified Util.SrcPos as SrcPos
 skip_human :: IORef.IORef Bool
 skip_human = Unsafe.unsafePerformIO (IORef.newIORef False)
 
--- "Asserts" abort computation if they are false.  "Checks" print an unhappy
--- msg and keep going.
-
+check :: Bool -> IO Bool
 check = check_srcpos Nothing
+
+check_srcpos :: SrcPos.SrcPos -> Bool -> IO Bool
 check_srcpos srcpos False = failure_srcpos srcpos "assertion false"
 check_srcpos srcpos True = success_srcpos srcpos "assertion true"
-
-check_msg :: Bool -> String -> IO Bool
-check_msg = check_msg_srcpos Nothing
-
-check_msg_srcpos :: SrcPos.SrcPos -> Bool -> String -> IO Bool
-check_msg_srcpos srcpos ok msg
-    | ok = success_srcpos srcpos ("assertion true: " ++ msg)
-    | otherwise = failure_srcpos srcpos ("assertion false: " ++ msg)
 
 -- * equal and diff
 
