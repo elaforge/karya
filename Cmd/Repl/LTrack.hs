@@ -36,11 +36,11 @@ list = do
     counts <- map length <$> mapM State.blocks_with_track_id track_ids
     return $ zip track_ids counts
 
-gc :: Cmd.CmdL Int
+gc :: Cmd.CmdL [TrackId]
 gc = do
     tids <- orphans
     mapM_ State.destroy_track tids
-    return $ length tids
+    return tids
 
 -- | Tracks that don't appear in any block.
 orphans :: Cmd.CmdL [TrackId]

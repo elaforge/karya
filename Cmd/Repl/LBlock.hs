@@ -46,16 +46,19 @@ list = do
         map Block.view_block . Map.elems . State.state_views
     return [(block_id, Seq.count block_id view_blocks) | block_id <- block_ids]
 
--- | Show blocks that match the string, along with their tracks and event
--- counts.
-like :: (State.M m) => String -> m String
-like match = do
+-- | Find BlockIds that match the string.
+match_id :: (State.M m) => String -> m [BlockId]
+match_id match = filter (Util.match_id match) <$>
+    State.gets (Map.keys . State.state_blocks)
+
+pretty :: (State.M m) => BlockId -> m String
+pretty block_id = do
+    block <- State.get_block block_id
     tracks <- State.gets State.state_tracks
     view_blocks <- State.gets $
         map Block.view_block . Map.elems . State.state_views
-    blocks <- State.gets State.state_blocks
-    return $ Pretty.formatted $ Map.mapWithKey
-        (pretty_tracks view_blocks tracks) (Util.match_map match blocks)
+    return $ Pretty.formatted $
+        pretty_tracks view_blocks tracks block_id block
     where
     pretty_tracks view_blocks tracks block_id block =
         Pretty.format (Block.block_title block)
