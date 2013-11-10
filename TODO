@@ -3,17 +3,17 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
+  - I want to use a library of basic patterns in multiple scores.  Rather than
+    just hardcoding a bunch of global calls, I should be able to load
+    a namespace, and have block calls dispatch to it.  This is different
+    from just loading a copy: it loads it anew each time, and doesn't save
+    it with the score.  This is like the 'import' idea, except the library is
+    in score, not code.
   * Some calls want to take an arg only from the environ.  I can just put
     Environ.get_val directly in the call, but if I put it in the sig as
     consuming 0 args, it's more concise and gets documented.
-  - namespaces for calls
-    As there gets to be more calls, I may need to have a 'import x' which
-    brings the namespace into scope.  Namespace could use tags, but perhaps
-    tags should instead be derived from the namespace, e.g. prelude, bali,
-    india.
   * make a test that just prints out call docs, to mark all the docs covered
   - relative block call: a call -xyz will prepend the current block
-  - I could use the stretch tempo thing for patterns with variable karvai
   * Seems like LEvent.quantize_sel doesn't understand changing rulers
   * I think Util.Num.ratio_of is redundant with Ratio.approxRational
   / make sure concatenating Meters works in Cmd.Meters as well as Cmd.Tala
@@ -813,6 +813,7 @@ tempo
   - Magic marker in tempo track that causes a section to be absolute, e.g.
     when the block stretches, only the non-absolute bits stretch ala attack
     and sustain.
+  - I could use the stretch tempo thing for patterns with variable karvai
 
 Cmd:
   - remove RawEdit?
@@ -886,6 +887,11 @@ Cmd:
       separately
 
 Derive:
+  - namespaces for calls
+    As there gets to be more calls, I may need to have a 'import x' which
+    brings the namespace into scope.  Namespace could use tags, but perhaps
+    tags should instead be derived from the namespace, e.g. prelude, bali,
+    india.
   tracklang:
     - it's confusing how some calls expect env vals like 'x = 1' and some
       expect controls like '%x = 1'.
