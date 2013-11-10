@@ -346,8 +346,9 @@ apply_generator cinfo (TrackLang.Call call_id args) = do
         Nothing -> do
             -- Use the outer name, not val call's "val", otherwise every failed
             -- lookup says it's a failed val lookup.
-            vcall <- require_call call_id (name <> " generator or val call")
-                =<< Derive.lookup_val_call call_id
+            vcall <- require_call True call_id
+                (name <> " generator or val call")
+                    =<< Derive.lookup_val_call call_id
             val <- apply (tag_call_info cinfo) vcall args
             -- We only do this fallback thing once.
             call <- get_generator fallback_call_id
@@ -482,12 +483,12 @@ event_start = Event.start . Derive.info_event
 
 get_val_call :: TrackLang.CallId -> Derive.Deriver Derive.ValCall
 get_val_call call_id =
-    require_call call_id "val call" =<< Derive.lookup_val_call call_id
+    require_call False call_id "val call" =<< Derive.lookup_val_call call_id
 
 get_generator :: forall d. (Derive.Callable d) =>
     TrackLang.CallId -> Derive.Deriver (Derive.Generator d)
 get_generator call_id =
-    require_call call_id (name <> " generator")
+    require_call True call_id (name <> " generator")
         =<< Derive.lookup_generator call_id
     where
     name = Derive.callable_name
@@ -496,22 +497,22 @@ get_generator call_id =
 get_transformer :: forall d. (Derive.Callable d) =>
     TrackLang.CallId -> Derive.Deriver (Derive.Transformer d)
 get_transformer call_id =
-    require_call call_id (name <> " transformer")
+    require_call False call_id (name <> " transformer")
         =<< Derive.lookup_transformer call_id
     where
     name = Derive.callable_name
         (error "Derive.callable_name shouldn't evaluate its argument." :: d)
 
-require_call :: TrackLang.CallId -> Text -> Maybe a -> Derive.Deriver a
-require_call _ _ (Just a) = return a
-require_call call_id name Nothing = do
+require_call :: Bool -> TrackLang.CallId -> Text -> Maybe a -> Derive.Deriver a
+require_call _ _ _ (Just a) = return a
+require_call is_generator call_id name Nothing = do
     -- If the call wasn't found, it can be seen as a block call whose block
     -- doesn't exist yet.  If it is created later, I have to know that this
     -- block depends on it, otherwise it won't be rederived and hence won't
     -- realize that the bad call is now valid.
-    -- TODO but just for note calls!
-    block_id <- symbol_to_block_id call_id
-    whenJust block_id Internal.add_block_dep
+    when is_generator $ do
+        block_id <- symbol_to_block_id call_id
+        whenJust block_id Internal.add_block_dep
     Derive.throw $ untxt (unknown_call_id name call_id)
 
 unknown_call_id :: Text -> TrackLang.CallId -> Text
