@@ -11,7 +11,7 @@ UNSORTED
     brings the namespace into scope.  Namespace could use tags, but perhaps
     tags should instead be derived from the namespace, e.g. prelude, bali,
     india.
-  - make a test that just prints out call docs, to mark all the docs covered
+  * make a test that just prints out call docs, to mark all the docs covered
   - relative block call: a call -xyz will prepend the current block
   - I could use the stretch tempo thing for patterns with variable karvai
   * Seems like LEvent.quantize_sel doesn't understand changing rulers
