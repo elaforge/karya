@@ -133,6 +133,7 @@ block_from_template :: (State.M m) => BlockId -> m BlockId
 block_from_template template_id =
     named_block_from_template template_id =<< block_name
 
+-- | Create a block which is a copy of another, minus its events.
 named_block_from_template :: (State.M m) => BlockId -> Text -> m BlockId
 named_block_from_template template_id name = do
     ruler_id <- State.block_ruler template_id

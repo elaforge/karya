@@ -182,10 +182,10 @@ can_create name
             Nothing -> return False
 
 -- | Create a named block with the same structure as the focused one.
-copy :: Text -> Cmd.CmdL BlockId
+copy :: Text -> Cmd.CmdL ViewId
 copy name = do
     block_id <- Cmd.get_focused_block
-    Create.named_block_from_template block_id name
+    Create.view =<< Create.named_block_from_template block_id name
 
 -- * dividers
 
