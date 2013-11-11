@@ -91,6 +91,7 @@ import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 
 import qualified Midi.Midi as Midi
+import qualified Ui.Block as Block
 import qualified Ui.Id as Id
 import qualified Ui.State as State
 import qualified Ui.Types as Types
@@ -150,12 +151,24 @@ local_selection = do
             else Just <$> Types.sel_range sel
     from_score block_id (Just track_id) pos repeat_at
 
+-- | Play the current block's performance from the previous
+-- 'Cmd.state_play_step'.
 local_previous :: (Cmd.M m) => m Cmd.PlayMidiArgs
 local_previous = do
     step <- gets Cmd.state_play_step
     (block_id, tracknum, track_id, pos) <- Selection.get_insert
     prev <- TimeStep.rewind step block_id tracknum pos
-    from_score block_id (Just track_id) (fromMaybe 0 prev) Nothing
+    local_from block_id track_id (fromMaybe 0 prev)
+
+-- | Play the current block's performance from the top of the window.
+local_top :: (Cmd.M m) => m Cmd.PlayMidiArgs
+local_top = do
+    (block_id, track_id, top) <- top_of_block
+    local_from block_id track_id top
+
+local_from :: (Cmd.M m) => BlockId -> TrackId -> TrackTime -> m Cmd.PlayMidiArgs
+local_from block_id track_id pos =
+    from_score block_id (Just track_id) pos Nothing
 
 -- | Play the root block from the beginning.
 root_block :: (Cmd.M m) => m Cmd.PlayMidiArgs
@@ -188,10 +201,27 @@ root_previous = do
     (block_id, tracknum, track_id, pos) <- Selection.get_insert
     step <- gets Cmd.state_play_step
     prev <- fromMaybe pos <$> TimeStep.rewind step block_id tracknum pos
+    root_from block_id track_id prev
+
+-- | Like 'root_previous', but play from the top of the selected block.
+root_top :: (Cmd.M m) => m Cmd.PlayMidiArgs
+root_top = do
+    (block_id, track_id, top) <- top_of_block
+    root_from block_id track_id top
+
+top_of_block :: (Cmd.M m) => m (BlockId, TrackId, TrackTime)
+top_of_block = do
+    (block_id, _, track_id, _) <- Selection.get_insert
+    view_id <- Cmd.get_focused_view
+    top <- Types.zoom_offset . Block.view_zoom <$> State.get_view view_id
+    return (block_id, track_id, top)
+
+root_from :: (Cmd.M m) => BlockId -> TrackId -> TrackTime -> m Cmd.PlayMidiArgs
+root_from block_id track_id pos = do
     root_id <- State.get_root_id
     perf <- get_performance root_id
-    maybe local_previous (from_realtime root_id Nothing)
-        =<< Perf.lookup_realtime perf block_id (Just track_id) prev
+    maybe (local_from block_id track_id pos) (from_realtime root_id Nothing)
+        =<< Perf.lookup_realtime perf block_id (Just track_id) pos
 
 from_score :: (Cmd.M m) => BlockId
     -> Maybe TrackId -- ^ Track to play from.  Since different tracks can have

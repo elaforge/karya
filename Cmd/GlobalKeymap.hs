@@ -141,7 +141,8 @@ player_bindings = concat
     -- the key says whether it's the local block or from the root block.
     [ bind block local "play local block" Play.local_block
     , bind sel local "play or loop local selection" Play.local_selection
-    , bind prev local "play local previous step" Play.local_previous
+    -- See if playing from the top is more useful than the previous step.
+    , bind prev local "play local top" Play.local_top
     , bind block root "play root block" Play.root_block
     , bind sel root "play root from local selection"
         Play.root_from_local_selection
@@ -150,11 +151,11 @@ player_bindings = concat
     -- a play starting point on the root.
     , bind (block ++ sel) root "play root from root selection"
         Play.root_from_root_selection
-    , bind prev root "play root previous step" Play.root_previous
+    , bind prev root "play root top" Play.root_top
     ]
     where
-    bind smods key desc cmd = bind_key_status smods key desc
-        (Cmd.PlayMidi <$> cmd)
+    bind smods key desc cmd =
+        bind_key_status smods key desc (Cmd.PlayMidi <$> cmd)
     block = [PrimaryCommand]
     sel = [Shift]
     prev = []

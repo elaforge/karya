@@ -260,8 +260,6 @@ UNSORTED
     error msg when an exception is caught.
   - There are still some cmds without names, who are they?
     Do some logging to track them down.
-  - Playback should have multiple lines when a block is derived multiple
-    times. Have a set of playback selnums?
 
 MILESTONES
   0.1
@@ -859,7 +857,9 @@ Cmd:
     - an aux data input for the lang socket might be useful, to paste in data
       without having to quote it
   Cmd.Play
-    - start playing from top of displayed area
+    * start playing from top of displayed area
+    - Playback should have multiple lines when a block is derived multiple
+      times. Have a set of playback selnums?
   copy / paste / Clip
     - clip block should use the ruler, just to make it easier to look at
     - clip could also copy over the skeleton
