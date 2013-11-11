@@ -60,7 +60,7 @@ eval_root_block global_transform block_id =
 -- * note block calls
 
 lookup_note_block :: Derive.LookupCall (Derive.Generator Derive.Note)
-lookup_note_block = Derive.pattern_lookup "block id"
+lookup_note_block = Derive.pattern_lookup block_call_doc
     (Derive.extract_doc fake_call)
     (\sym -> fmap c_block <$> symbol_to_block_id sym)
     where
@@ -68,9 +68,9 @@ lookup_note_block = Derive.pattern_lookup "block id"
     fake_call = c_block (Types.BlockId (Id.read_id "example/block"))
 
 c_block :: BlockId -> Derive.Generator Derive.Note
-c_block block_id = Derive.make_call ("block " <> showt block_id)
-        Tags.prelude "Substitute the named block into the score." $
-    Sig.call0 $ Sub.inverting $ \args ->
+c_block block_id = Derive.make_call ("block " <> showt block_id) Tags.prelude
+    "Substitute the named block into the score."
+    $ Sig.call0 $ Sub.inverting $ \args ->
         -- I have to put the block on the stack before calling 'd_block'
         -- because 'Cache.block' relies on on the block id already being
         -- on the stack.
@@ -82,6 +82,12 @@ c_block block_id = Derive.make_call ("block " <> showt block_id)
     mangle_controls args
         | Event.positive (Args.event args) = id
         | otherwise = constant_controls_at
+
+block_call_doc :: Text
+block_call_doc =
+    "Derive this block. If the symbol doesn't contain a `/`, the default\
+    \ namespace is applied. If it starts with a `.`, the calling block's\
+    \ namespace and name are prepended."
 
 -- | Replace all controls and pitches with constants from ScoreTime 1.
 -- This is to support arrival notes.  If a block call has negative duration,
@@ -125,14 +131,17 @@ call_from_block_id :: BlockId -> TrackLang.Call
 call_from_block_id block_id =
     TrackLang.call (txt $ Id.show_id $ Id.unpack_id block_id) []
 
--- | Like 'Call.symbol_to_block_id' but return Nothing if the block doesn't
--- exist.
+-- | Like 'Call.symbol_to_block_id' but make sure the block exists.
 symbol_to_block_id :: TrackLang.CallId -> Derive.Deriver (Maybe BlockId)
-symbol_to_block_id sym = Call.symbol_to_block_id sym >>= \x -> case x of
-    Nothing -> return Nothing
-    Just block_id -> do
-        blocks <- Derive.get_ui_state State.state_blocks
-        return $ if Map.member block_id blocks then Just block_id else Nothing
+symbol_to_block_id sym = do
+    caller <- Internal.lookup_current_block_id
+    ns <- Derive.get_ui_state $ State.config_namespace . State.state_config
+    case Call.symbol_to_block_id ns caller sym of
+        Nothing -> return Nothing
+        Just block_id -> do
+            blocks <- Derive.get_ui_state State.state_blocks
+            return $ if Map.member block_id blocks then Just block_id
+                else Nothing
 
 -- ** clip
 
@@ -172,10 +181,7 @@ make_clip_call :: Text -> Text
     -> (BlockId -> Derive.NoteArgs -> Derive.NoteDeriver)
     -> Derive.Generator Derive.Note
 make_clip_call name doc call = Derive.make_call name Tags.prelude doc $ Sig.call
-    ( required "block_id" $
-        "Derive this block. If it doesn't contain a /, the default namespace\
-        \ is applied."
-    ) $ \sym -> Sub.inverting $ \args -> do
+    (required "block_id" block_call_doc) $ \sym -> Sub.inverting $ \args -> do
         block_id <- maybe
             (Derive.throw $ untxt $
                 "block not found: " <> TrackLang.show_val sym)

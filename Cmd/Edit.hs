@@ -1,3 +1,4 @@
+{-# LANGUAGE LambdaCase #-}
 -- Copyright 2013 Evan Laforge
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
@@ -476,9 +477,10 @@ cmd_set_block_call_duration =
 
 -- | If the event is a block call, set its duration to the duration of the
 -- called block.
-set_block_call_duration :: (State.M m) => Event.Event -> m (Maybe Event.Event)
-set_block_call_duration event =
-    NoteTrack.block_call (Event.event_text event) >>= \x -> case x of
+set_block_call_duration :: (Cmd.M m) => Event.Event -> m (Maybe Event.Event)
+set_block_call_duration event = do
+    block_id <- Cmd.get_focused_block
+    NoteTrack.block_call (Just block_id) (Event.event_text event) >>= \case
         Nothing -> return Nothing
         Just block_id -> do
             -- The same as Derive.get_block_dur, TODO should I have

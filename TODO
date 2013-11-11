@@ -13,7 +13,7 @@ UNSORTED
     Environ.get_val directly in the call, but if I put it in the sig as
     consuming 0 args, it's more concise and gets documented.
   * make a test that just prints out call docs, to mark all the docs covered
-  - relative block call: a call -xyz will prepend the current block
+  * relative block call: a call .xyz will prepend the current block
   * Seems like LEvent.quantize_sel doesn't understand changing rulers
   * I think Util.Num.ratio_of is redundant with Ratio.approxRational
   / make sure concatenating Meters works in Cmd.Meters as well as Cmd.Tala
@@ -136,7 +136,7 @@ UNSORTED
       - smooth depart = e2 e3
       - smooth approach = 2e 3e
       - smooth depart and approach = 2e2 3e3
-      - overshoot destination = over
+      - overshoot destination = over2 over3, depending how far over
     - lift and drop for violin can reduce pressure instead of speed (dyn)
   * make lift note transformer work under inversion
     . To make lift to an absolute pitch work outside of inversion, I'd need

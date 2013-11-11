@@ -77,12 +77,13 @@ track_merged block_id tracknum = not . null . Block.track_merged <$>
 cmd_open_block :: (Cmd.M m) => m ()
 cmd_open_block = do
     sel <- Selection.events
+    block_id <- Cmd.get_focused_block
+    let block_call = NoteTrack.block_call (Just block_id) . Event.event_text
     forM_ sel $ \(_, _, events) -> forM_ events $ \event ->
-        whenJustM (NoteTrack.block_call (Event.event_text event)) $
-            \block_id -> do
-                views <- State.views_of block_id
-                maybe (Create.view block_id >> return ())
-                    ViewConfig.bring_to_front (Seq.head (Map.keys views))
+        whenJustM (block_call event) $ \block_id -> do
+            views <- State.views_of block_id
+            maybe (Create.view block_id >> return ())
+                ViewConfig.bring_to_front (Seq.head (Map.keys views))
 
 cmd_add_block_title :: (Cmd.M m) => Msg.Msg -> m ()
 cmd_add_block_title _ = do

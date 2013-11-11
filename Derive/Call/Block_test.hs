@@ -29,6 +29,17 @@ test_block = do
         , (1, 2, "", "i", ["a"])
         ]
 
+test_relative_block = do
+    let run call = DeriveTest.extract DeriveTest.e_note $
+            DeriveTest.derive_blocks
+            [ ("top", [(">", [(0, 1, call)])])
+            , ("top.sub=ruler", UiTest.regular_notes 1)
+            ]
+    equal (run ".sub") ([(0, 1, "3c")], [])
+    equal (run "top.sub") ([(0, 1, "3c")], [])
+    equal (run "test/top.sub") ([(0, 1, "3c")], [])
+    strings_like (snd (run ".bub")) ["call not found"]
+
 test_clip = do
     let extract = DeriveTest.extract DeriveTest.e_event
         run tracks = extract $ DeriveTest.derive_blocks tracks

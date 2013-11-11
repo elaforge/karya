@@ -25,7 +25,6 @@ import Util.Control
 import qualified Util.Seq as Seq
 import qualified Ui.Event as Event
 import qualified Ui.Events as Events
-import qualified Ui.Id as Id
 import qualified Ui.Key as Key
 import qualified Ui.State as State
 import qualified Ui.Track as Track
@@ -41,9 +40,11 @@ import qualified Cmd.Msg as Msg
 import qualified Cmd.PitchTrack as PitchTrack
 import qualified Cmd.Selection as Selection
 
+import qualified Derive.Call as Call
 import qualified Derive.ParseBs as ParseBs
 import qualified Derive.Score as Score
 import qualified Derive.TrackInfo as TrackInfo
+import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.Midi.Instrument as Instrument
 import qualified Instrument.MidiDb as MidiDb
@@ -284,20 +285,22 @@ cmd_method_edit msg = Cmd.suppress_history Cmd.MethodEdit
 --
 -- This doesn't use the full Derive.Parse machinery, but is simple and doesn't
 -- require the text to be fully parseable.
-block_call :: (State.M m) => Text -> m (Maybe BlockId)
-block_call expr = do
-    ns <- State.get_namespace
-    case block_id_of ns expr of
-        Just block_id -> ifM (valid block_id)
-            (return (Just block_id)) (return Nothing)
-        Nothing -> return Nothing
+block_call :: (State.M m) => Maybe BlockId -> Text -> m (Maybe BlockId)
+block_call caller expr = case block_call_of expr of
+    Nothing -> return Nothing
+    Just sym -> do
+        ns <- State.get_namespace
+        case Call.symbol_to_block_id ns caller sym of
+            Nothing -> return Nothing
+            Just block_id -> ifM (valid block_id)
+                (return (Just block_id)) (return Nothing)
     where valid = (Maybe.isJust <$>) . State.lookup_block
 
 -- | Assume the last word of the last call is the block id.  This will catch
 -- both normal block calls and ones like @clip someblock@.
-block_id_of :: Id.Namespace -> Text -> Maybe BlockId
-block_id_of ns = fmap Types.BlockId . Id.read_short ns . untxt <=< Seq.last
-    <=< Seq.last . ParseBs.split_pipeline
+block_call_of :: Text -> Maybe TrackLang.CallId
+block_call_of = fmap TrackLang.Symbol . Seq.last <=< Seq.last
+    . ParseBs.split_pipeline
 
 -- * implementation
 

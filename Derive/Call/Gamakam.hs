@@ -3,6 +3,9 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 -- | Carnatic style pitch ornaments.
+--
+-- The names don't correspond directly with anything traditional, as far as
+-- I know, but are inspired by <http://www.gswift.com/article-2.html>.
 module Derive.Call.Gamakam where
 import qualified Data.List.NonEmpty as NonEmpty
 

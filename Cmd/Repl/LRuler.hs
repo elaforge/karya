@@ -190,14 +190,14 @@ set_local ruler = do
 extract :: (Cmd.M m) => m Modify
 extract = do
     (block_id, _, track_id, _) <- Selection.get_insert
-    all_meters <- extract_meters track_id
+    all_meters <- extract_meters block_id track_id
     return (block_id, const all_meters)
 
 -- | Extract the meter marklists from the sub-blocks called on the given
 -- track, concatenate them, and replace the current meter with it.
-extract_meters :: (Cmd.M m) => TrackId -> m Meter.Meter
-extract_meters track_id = do
-    subs <- extract_calls track_id
+extract_meters :: (Cmd.M m) => BlockId -> TrackId -> m Meter.Meter
+extract_meters block_id track_id = do
+    subs <- extract_calls block_id track_id
     ruler_ids <- mapM State.ruler_of [bid | (_, _, bid) <- subs]
     -- Strip the last 0-dur mark off of each meter before concatenating.
     meters <- map (Seq.rdrop 1) <$> mapM RulerUtil.get_meter ruler_ids
@@ -206,13 +206,14 @@ extract_meters track_id = do
         | ((_start, dur, _), meter) <- zip subs meters
         ] ++ [[(0, 0)]]
 
-extract_calls :: (State.M m) => TrackId -> m [(ScoreTime, ScoreTime, BlockId)]
-extract_calls track_id =
+extract_calls :: (State.M m) => BlockId -> TrackId
+    -> m [(ScoreTime, ScoreTime, BlockId)]
+extract_calls block_id track_id =
     mapMaybeM extract =<< Events.ascending . Track.track_events <$>
         State.get_track track_id
     where
-    extract event =
-        fmap (range event) <$> NoteTrack.block_call (Event.event_text event)
+    extract event = fmap (range event) <$>
+        NoteTrack.block_call (Just block_id) (Event.event_text event)
     range event block_id = (Event.start event, Event.duration event, block_id)
 
 -- * modify

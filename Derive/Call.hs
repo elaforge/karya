@@ -511,27 +511,27 @@ require_call is_generator call_id name Nothing = do
     -- block depends on it, otherwise it won't be rederived and hence won't
     -- realize that the bad call is now valid.
     when is_generator $ do
-        block_id <- symbol_to_block_id call_id
-        whenJust block_id Internal.add_block_dep
+        caller <- Internal.lookup_current_block_id
+        ns <- Derive.get_ui_state $ State.config_namespace . State.state_config
+        whenJust (symbol_to_block_id ns caller call_id) Internal.add_block_dep
     Derive.throw $ untxt (unknown_call_id name call_id)
 
 unknown_call_id :: Text -> TrackLang.CallId -> Text
-unknown_call_id name (TrackLang.Symbol sym) =
-    name <> " not found: " <> sym
+unknown_call_id name (TrackLang.Symbol sym) = name <> " not found: " <> sym
 
 fallback_call_id :: TrackLang.CallId
 fallback_call_id = ""
 
 -- | Given a CallId, try to come up with the BlockId of the block it could be
 -- a call for.
-symbol_to_block_id :: TrackLang.CallId -> Derive.Deriver (Maybe BlockId)
-symbol_to_block_id sym
-    | sym == "" = return Nothing
-    | otherwise = do
-        ui_state <- Derive.get_ui_state id
-        let ns = State.config_namespace (State.state_config ui_state)
-        return $ make_block_id ns sym
-
-make_block_id :: Id.Namespace -> TrackLang.Symbol -> Maybe BlockId
-make_block_id namespace (TrackLang.Symbol call) =
-    Types.BlockId <$> Id.read_short namespace (untxt call)
+symbol_to_block_id :: Id.Namespace -> Maybe BlockId
+    -- ^ If the symbol starts with ., this block is prepended to it.
+    -> TrackLang.CallId -> Maybe BlockId
+symbol_to_block_id ns maybe_caller (TrackLang.Symbol sym)
+    | sym == "" = Nothing
+    | otherwise = Types.BlockId <$> Id.read_short ns (untxt (relative sym))
+    where
+    relative sym
+        | Just caller <- maybe_caller,
+            "." `Text.isPrefixOf` sym = Id.ident_text caller <> sym
+        | otherwise = sym

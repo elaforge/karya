@@ -168,12 +168,17 @@ lookup_id key map = case Map.lookup key map of
 
 -- * stack
 
-get_current_block_id :: Deriver BlockId
-get_current_block_id = do
+lookup_current_block_id :: Deriver (Maybe BlockId)
+lookup_current_block_id = do
     stack <- get_stack
-    case [bid | Stack.Block bid <- Stack.innermost stack] of
-        [] -> throw "no blocks in stack"
-        bid : _ -> return bid
+    return $ case [bid | Stack.Block bid <- Stack.innermost stack] of
+        [] -> Nothing
+        bid : _ -> Just bid
+
+get_current_block_id :: Deriver BlockId
+get_current_block_id =
+    maybe (throw "get_current_block_id: no blocks in stack") return
+        =<< lookup_current_block_id
 
 get_current_tracknum :: Deriver (BlockId, TrackNum)
 get_current_tracknum = do
