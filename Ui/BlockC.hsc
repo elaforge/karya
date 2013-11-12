@@ -59,7 +59,7 @@ module Ui.BlockC (
     -- ** Track operations
     , insert_track, remove_track, update_track, update_entire_track
     , set_track_signal
-    , set_track_title, set_track_title_focus
+    , set_track_title, set_track_title_focus, set_block_title_focus
 
     -- * debugging
     , show_children, dump
@@ -379,6 +379,12 @@ set_track_title_focus view_id tracknum = do
     c_set_track_title_focus viewp (Util.c_int tracknum)
 foreign import ccall "set_track_title_focus"
     c_set_track_title_focus :: Ptr CView -> CInt -> IO ()
+
+set_block_title_focus :: ViewId -> Fltk ()
+set_block_title_focus view_id = c_set_block_title_focus =<< get_ptr view_id
+foreign import ccall "set_block_title_focus"
+    c_set_block_title_focus :: Ptr CView -> IO ()
+
 
 -- ** debugging
 

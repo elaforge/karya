@@ -50,7 +50,9 @@ data CmdUpdate =
     | CmdTrackAllEvents TrackId
     | CmdRuler RulerId
     | CmdBringToFront ViewId
-    | CmdTrackTitleFocus ViewId TrackNum
+    -- | If the TrackNum is set, set keyboard focus on that track's title.
+    -- Otherwise, focus on the block title.
+    | CmdTitleFocus ViewId (Maybe TrackNum)
     deriving (Eq, Show)
 
 data Update t u
@@ -75,7 +77,8 @@ data View =
     -- recorded directly and is not reflected in Ui.State.
     | BringToFront
     -- | Similar to BringToFront, but sets keyboard focus in a track title.
-    | TrackTitleFocus TrackNum
+    -- If the TrackNum is not given, focus on the block title.
+    | TitleFocus (Maybe TrackNum)
     deriving (Eq, Show)
 
 data Block t
@@ -152,8 +155,8 @@ instance Pretty.Pretty View where
         Selection selnum sel -> Pretty.constructor "Selection"
             [Pretty.format selnum, Pretty.format sel]
         BringToFront -> Pretty.text "BringToFront"
-        TrackTitleFocus tracknum ->
-            Pretty.constructor "TrackTitleFocus" [Pretty.format tracknum]
+        TitleFocus tracknum ->
+            Pretty.constructor "TitleFocus" [Pretty.format tracknum]
 
 instance (Pretty.Pretty t) => Pretty.Pretty (Block t) where
     format update = case update of
@@ -237,11 +240,10 @@ to_ui (CmdTrackEvents track_id s e) = Track track_id (TrackEvents s e)
 to_ui (CmdTrackAllEvents track_id) = Track track_id TrackAllEvents
 to_ui (CmdRuler ruler_id) = Ruler ruler_id
 to_ui (CmdBringToFront view_id) = View view_id BringToFront
-to_ui (CmdTrackTitleFocus view_id tracknum) =
-    View view_id (TrackTitleFocus tracknum)
+to_ui (CmdTitleFocus view_id tracknum) = View view_id (TitleFocus tracknum)
 
 -- | Pull the CmdUpdate out of a UiUpdate, if any.  Discard BringToFront and
--- TrackTitleFocus since they're just instructions to Sync and I don't need to
+-- TitleFocus since they're just instructions to Sync and I don't need to
 -- remember them.
 to_cmd :: UiUpdate -> Maybe CmdUpdate
 to_cmd (Track track_id (TrackEvents s e)) = Just $ CmdTrackEvents track_id s e
@@ -311,4 +313,6 @@ sort_key update = case update of
     -- and RemoveTrack, of course.
     Block _ (InsertTrack {}) -> 1
     Block _ (RemoveTrack {}) -> 1
+    -- Make sure to focus after creating it.
+    View _ (TitleFocus {}) -> 10
     _ -> 2

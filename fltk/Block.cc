@@ -708,7 +708,8 @@ BlockView::title_cb(Fl_Widget *_w, void *vp)
     if (Fl::event() == FL_UNFOCUS)
         MsgCollector::get()->view(UiMsg::msg_input, view);
     bool changed = false;
-    if (strlen(self->title.value()) == 0) {
+    if (!*self->title.value()) {
+        // Delay hiding the title until focus is lost.
         if (self->title.visible() && Fl::event() == FL_UNFOCUS) {
             changed = true;
             self->title.hide();

@@ -255,6 +255,12 @@ set_track_title_focus(BlockViewWindow *view, int tracknum)
     view->block.track_at(tracknum)->set_title_focus();
 }
 
+void
+set_block_title_focus(BlockViewWindow *view)
+{
+    view->block.set_title_focus();
+}
+
 
 // rulers
 

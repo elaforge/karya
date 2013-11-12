@@ -412,7 +412,7 @@ focused_track block_id tracknum = do
     view_id <- Cmd.get_focused_view
     embiggen view_id
     tracknum <- clip_tracknum block_id tracknum
-    State.update $ Update.CmdTrackTitleFocus view_id tracknum
+    State.update $ Update.CmdTitleFocus view_id (Just tracknum)
     return track_id
 
 -- | Hush now, this is the correct technical term.

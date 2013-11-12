@@ -19,6 +19,7 @@ import qualified Ui.Event as Event
 import qualified Ui.Skeleton as Skeleton
 import qualified Ui.State as State
 import qualified Ui.TrackTree as TrackTree
+import qualified Ui.Update as Update
 
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Create as Create
@@ -87,10 +88,12 @@ cmd_open_block = do
 
 cmd_add_block_title :: (Cmd.M m) => Msg.Msg -> m ()
 cmd_add_block_title _ = do
-    block_id <- Cmd.get_focused_block
+    view_id <- Cmd.get_focused_view
+    block_id <- Block.view_block <$> State.get_view view_id
     title <- State.get_block_title block_id
     when (Text.null title) $
         State.set_block_title block_id " "
+    State.update $ Update.CmdTitleFocus view_id Nothing
 
 -- * collapse / expand tracks
 
