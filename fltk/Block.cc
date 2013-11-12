@@ -106,7 +106,7 @@ BlockView::BlockView(int X, int Y, int W, int H,
 
 BlockView::~BlockView()
 {
-    delete no_ruler;
+    delete no_ruler; // drop no tea
 }
 
 
@@ -709,7 +709,7 @@ BlockView::title_cb(Fl_Widget *_w, void *vp)
         MsgCollector::get()->view(UiMsg::msg_input, view);
     bool changed = false;
     if (strlen(self->title.value()) == 0) {
-        if (self->title.visible()) {
+        if (self->title.visible() && Fl::event() == FL_UNFOCUS) {
             changed = true;
             self->title.hide();
         }
