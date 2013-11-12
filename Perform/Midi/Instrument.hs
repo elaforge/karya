@@ -478,6 +478,10 @@ overlapping_attributes attr_map =
             <> ShowVal.show_val other_attr
         Nothing -> Nothing
 
+make_attribute_map :: [(Score.Attributes, [Keyswitch], Maybe Keymap)]
+    -> AttributeMap
+make_attribute_map = sort_attributes . AttributeMap
+
 -- | An AttributeMap with just keyswitches.
 keyswitches :: [(Score.Attributes, [Keyswitch])] -> AttributeMap
 keyswitches attr_ks = sort_attributes $

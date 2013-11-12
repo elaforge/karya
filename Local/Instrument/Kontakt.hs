@@ -67,7 +67,8 @@ synth = "kkt"
 patches :: [MidiInst.Patch]
 patches = concat
     [ misc_patches
-    , hang_patches, wayang_patches, kendang_patches, mridangam_patches
+    , hang_patches, wayang_patches, kendang_patches
+    , mridangam_patches, mridangam2_patches
     ]
 
 patch :: Instrument.InstrumentName -> Instrument.Patch
@@ -395,6 +396,8 @@ attrs_to_inst =
 
 -- * mridangam
 
+-- ** 1
+
 mridangam_patches :: [MidiInst.Patch]
 mridangam_patches = [(inst, code)]
     where
@@ -415,11 +418,9 @@ mridangam_patches = [(inst, code)]
 mridangam_keymap :: Instrument.AttributeMap
 mridangam_keymap = Instrument.keymap
     [ (attrs, Instrument.PitchedKeymap low high NN.e3)
-    | (_, attrs, _, (low, _, high)) <- mridangam
+    | (_, attrs, _, (low, high)) <- mridangam
     ]
 
--- | Create calls for all simultaneous left and right hand combinations, and
--- key bindings for a few common ones.
 mridangam_both :: [(Text, [Text], Maybe Char)]
 mridangam_both =
     [(call, subcalls, lookup call keys) | (call, subcalls) <- pairs]
@@ -432,22 +433,98 @@ mridangam_both =
         , Text.length lcall == 1 && Text.length rcall == 1
         ]
 
-mridangam, mridangam_left, mridangam_right ::
-    [(Text, Score.Attributes, Char, (Midi.Key, Midi.Key, Midi.Key))]
+mridangam, mridangam_left, mridangam_right
+    :: [(Text, Score.Attributes, Char, (Midi.Key, Midi.Key))]
 mridangam = mridangam_left ++ mridangam_right
 mridangam_left =
-    [ ("+", a "tha",          'z', (Key.g_1, Key.c0, Key.e0))
-    , ("o", a "thom",         'x', (Key.g0, Key.c1, Key.e1))
-    , ("o/", a "thom" <> mute,'s', (Key.g1, Key.c2, Key.e2))
+    [ ("+", a "tha",          'z', (Key.g_1, Key.e0))
+    , ("o", a "thom",         'x', (Key.g0, Key.e1))
+    , ("o/", a "thom" <> mute,'s', (Key.g1, Key.e2))
     ] where a = Score.attr
 mridangam_right =
-    [ ("k", a "ki",           'q', (Key.g2, Key.c3, Key.e3))
-    , ("t", a "ta",           'w', (Key.g3, Key.c4, Key.e4))
-    , ("n", a "nam",          'e', (Key.g4, Key.c5, Key.e5))
-    , ("d", a "din",          'r', (Key.g5, Key.c6, Key.e6))
-    , ("d2", a "din" <> v2,   '4', (Key.g6, Key.c7, Key.e7))
-    , ("m", a "dheem",        't', (Key.g7, Key.c8, Key.e8))
-    , ("u", a "araichapu",    'y', (Key.g8, Key.c9, Key.e9))
-    , (">", a "muruchapu",    'u', (Key.g9, Key.g9, Key.g9))
+    [ ("k", a "ki",           'q', (Key.g2, Key.e3))
+    , ("t", a "ta",           'w', (Key.g3, Key.e4))
+    , ("n", a "nam",          'e', (Key.g4, Key.e5))
+    , ("d", a "din",          'r', (Key.g5, Key.e6))
+    , ("d2", a "din" <> v2,   '4', (Key.g6, Key.e7))
+    , ("m", a "dheem",        't', (Key.g7, Key.e8))
+    , ("u", a "araichapu",    'y', (Key.g8, Key.e9))
+    , ("v", a "muruchapu",    'u', (Key.g9, Key.g9))
     -- TODO out of keys!  Replace o/ and d2 with a keyswitch?
     ] where a = Score.attr
+
+-- ** 2
+
+-- | Alternate keymap.
+mridangam2_patches :: [MidiInst.Patch]
+mridangam2_patches = [(inst, code)]
+    where
+    inst = Instrument.triggered $
+        Instrument.attribute_map #= mridangam2_attribute_map $
+        Instrument.patch $ Instrument.instrument "mridangam2" [] pb_range
+    code = MidiInst.note_generators call_code
+        <> MidiInst.cmd (CUtil.insert_call char_to_call)
+    call_code =
+        CUtil.drum_calls
+            [ Drums.Note call attrs char 1
+            | (char, call, attrs) <- mridangam2_left ++ mridangam2_right
+            ]
+        ++ CUtil.multiple_calls
+            [(call, subcalls) | (call, subcalls, _) <- mridangam2_both]
+    char_to_call = Map.fromList $
+        [(char, call) | (char, call, _) <- mridangam2_left ++ mridangam2_right]
+        ++ [(char, call) | (call, _, Just char) <- mridangam2_both]
+
+mridangam2_attribute_map :: Instrument.AttributeMap
+mridangam2_attribute_map = Instrument.make_attribute_map
+    [ (attrs, [Instrument.Keyswitch ks],
+        Just (Instrument.PitchedKeymap low high NN.gs3))
+    | (attrs, (ks, low, high)) <- mridangam2_attributes
+    ]
+
+-- | Create calls for all simultaneous left and right hand combinations, and
+-- key bindings for a few common ones.
+mridangam2_both :: [(Text, [Text], Maybe Char)]
+mridangam2_both =
+    [(call, subcalls, lookup call keys) | (call, subcalls) <- pairs]
+    where
+    keys = [("do", 'c'), ("ko", 'v'), ("to", 'b')]
+    pairs =
+        [ (rcall <> lcall, [rcall, lcall])
+        | (_, lcall, _) <- mridangam2_left
+        , (_, rcall, _) <- mridangam2_right
+        , Text.length lcall == 1 && Text.length rcall == 1
+        ]
+
+mridangam2_left, mridangam2_right :: [(Char, Text, Attributes)]
+mridangam2_left = map (\(a, b, c) -> (a, b, Score.attr c))
+    [ ('z', "+", "tha")
+    , ('x', "o", "thom")
+    ]
+mridangam2_right = map (\(a, b, c) -> (a, b, Score.attr c))
+    [ ('q', "k", "ki")
+    , ('w', "t", "ta")
+    , ('e', "n", "nam")
+    , ('r', "d", "din")
+    , ('t', "m", "dheem")
+    , ('y', "u", "arai")
+    , ('u', "v", "muru")
+    ]
+
+mridangam2_attributes :: [(Attributes, (Midi.Key, Midi.Key, Midi.Key))]
+mridangam2_attributes = assign $ map (map (mconcat . map Score.attr))
+    [ [["tha"]]
+    , [["thom"], ["thom", "low"], ["thom", "open"]]
+    , [["tha"]], [["ki"]], [["nam"]], [["din"]]
+    , [["arai"], ["muru"]]
+    , [["dheem"], ["dheem", "stop"]]
+    , [["meetu"]]
+    ]
+    where
+    assign groups =
+        [ (attrs, (ks, low, low + 11))
+        | (group, low) <- zip groups [base_key, base_key+12 ..]
+        , (attrs, ks) <- zip group keyswitches
+        ]
+    base_key = Key2.c_1
+    keyswitches = [Key2.g_2 ..]
