@@ -332,6 +332,14 @@ expon :: Double -> Double -> Double
 expon n x = x**exp
     where exp = if n >= 0 then n else 1 / abs n
 
+-- | I could probably make a nicer curve of this general shape if I knew more
+-- math.
+expon2 :: Double -> Double -> Double -> Double
+expon2 a b x
+    | x >= 1 = 1
+    | x < 0.5 = expon a (x * 2) / 2
+    | otherwise = expon (-b) ((x-0.5) * 2) / 2 + 0.5
+
 -- ** control modification
 
 multiply_dyn :: RealTime -> Signal.Control -> Derive.Deriver ()

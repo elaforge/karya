@@ -7,7 +7,9 @@ module Derive.Call.SignalTransform where
 import qualified Data.List as List
 
 import Util.Control
+import qualified Util.Num as Num
 import qualified Util.Seq as Seq
+
 import qualified Derive.Args as Args
 import qualified Derive.Call.Control as Control
 import qualified Derive.Call.Post as Post
@@ -17,7 +19,7 @@ import qualified Derive.Derive as Derive
 import qualified Derive.LEvent as LEvent
 import qualified Derive.PitchSignal as PitchSignal
 import qualified Derive.Sig as Sig
-import Derive.Sig (required)
+import Derive.Sig (defaulted, required)
 import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.RealTime as RealTime
@@ -58,7 +60,7 @@ control_calls = Derive.call_maps []
     [ ("quantize", c_quantize)
     , ("sh", c_sh_control)
     , ("slew", c_slew)
-    , ("smooth-i", c_smooth_linear)
+    , ("smooth", c_smooth)
     ]
 
 c_sh_control :: Derive.Transformer Derive.Control
@@ -127,18 +129,34 @@ slope_segment srate slope prev_y (x, y) next = Signal.signal $ zip xs ys
     -- Since the value is already prev_y, I can start moving immediately.
     ys = drop 1 $ Seq.range_end prev_y y (if y >= prev_y then slope else -slope)
 
-c_smooth_linear :: Derive.Transformer Derive.Control
-c_smooth_linear = Derive.transformer "smooth-i" mempty
-    "Smooth a signal by replacing each each sample pair with a linear segment."
-    $ Sig.callt (required "time" "Amount of time to reach to the next sample.\
+c_smooth :: Derive.Transformer Derive.Control
+c_smooth = Derive.transformer "smooth" mempty
+    "Smooth a signal by interpolating between each sample."
+    $ Sig.callt ((,)
+    <$> required "time" "Amount of time to reach to the next sample.\
         \ If negative, it will end on the destination sample rather than\
         \ start on it. The time will be compressed if the samples are too\
         \ close, so unlike `slew`, this will always reach the samples in the\
-        \ source.")
-    $ \(TrackLang.DefaultReal time) args deriver -> do
+        \ source."
+    <*> defaulted "curve" "i" "Curve."
+    ) $ \(TrackLang.DefaultReal time, curve) args deriver -> do
         srate <- Util.get_srate
         time <- Util.real_dur' (Args.start args) time
-        Post.signal (smooth id srate time) deriver
+        f <- Derive.require "curve" (curve_function curve)
+        Post.signal (smooth f srate time) deriver
+
+curve_function :: Text -> Maybe (Double -> Double)
+curve_function curve = case untxt curve of
+    "i" -> Just id
+    ['e', n] | Just d <- digit n -> Just $ Control.expon (fromIntegral (-d))
+    [n, 'e'] | Just d <- digit n -> Just $ Control.expon (fromIntegral d)
+    [n1, 'e', n2] | Just d1 <- digit n1, Just d2 <- digit n2 ->
+        Just $ Control.expon2 (fromIntegral d1) (fromIntegral d2)
+    -- Overshoot the destination by a certain amount.
+    -- ['o', 'v', 'e', 'r', n] | Just d <- digit n -> undefined
+    _ -> Nothing
+    where
+    digit = Num.read_digit
 
 -- | Use the function to create a segment between each point in the signal.
 -- The only tricky part is when points are too close together.
