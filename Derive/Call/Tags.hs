@@ -34,6 +34,8 @@ contains super sub = Set.isSubsetOf sub super
 -- need to go under the invert.  A special hack in
 -- 'Derive.Call.apply_transformers' notices the presence of this tag, and
 -- delays a transformer to run under inversion if present.
+--
+-- See NOTE [under_invert].
 under_invert :: Tags
 under_invert = tag "under-invert"
 
@@ -121,3 +123,44 @@ note = tag "note"
 pitch = tag "pitch"
 control = tag "control"
 val = tag "val"
+
+{- NOTE [under_invert]
+    . To make lift to an absolute pitch work outside of inversion, I'd need
+      an abstract way (e.g. like a transpose signal) to say "pitch midway to
+      (4c)"
+    . It's better to have the lift under the pitch.  The only reason it isn't
+      is that inversion assumes all transformers go above.  So either make it
+      a generator (at which point it can't compose), or have some way to put
+      transformers under the inversion, e.g. 'delay | Drop $ lift $ gen' under
+      inversion is 'delay' -> 'Drop' 'lift' 'gen'.
+    . Another way would be to put that in the call itself, so 'lift' has a flag
+      that says it likes to be under the inversion.  Then the invert function
+      has to go look all those up.  But that can't work, because invert is
+      called by a generator, and that's too late.
+    . So call all the transformers pre and post invert.  Normally they check
+      if they're under inversion, and if so do nothing, but ones that would
+      rather be inverted do the inverse.
+
+    Cons:
+      1. Instead of transformers always happening before inversion, they can
+      now vary internally, which is one more subtle thing about inversion.
+      I'll need to expose it in documentation at least, via a tag.
+
+      2. Call stacks get even messier in the presence of inversion, since
+      every transformer appears twice.
+
+      3. Transformers can have their order change, e.g. given
+      'below | above | gen', below is actually called below above, if it
+      wants to be under inversion.
+
+    . It seems like I could improve these by driving them from a tag.  E.g.
+      if the call has a under-inversion tag, Call.apply_transformers will skip
+      or not skip, as appropriate.  This solves #1 and #2, but not #3.
+
+    . This is all just to get lift working under inversion.  Is it that
+      important?
+      . Everything should work under inversion.  It's a hassle to suddenly
+        have to rearrange the pitch track, and now 'd' doesn't work.
+      . This will come up for every note transformer that wants to know the
+        pitch.
+-}

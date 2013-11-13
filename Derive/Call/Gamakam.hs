@@ -31,40 +31,49 @@ import Types
 
 pitch_calls :: Derive.CallMaps Derive.Pitch
 pitch_calls = Derive.call_maps
-    [ ("wobble", c_wobble)
+    [ ("kam", c_kampita)
     , ("jaru", c_jaru)
     , ("sgr", c_jaru_intervals Util.Diatonic [-1, 1])
     ]
     []
 
 -- TODO note version that ends on up or down
-c_wobble :: Derive.Generator Derive.Pitch
-c_wobble = Derive.generator1 "wobble" Tags.india
-    "This is a kind of trill, but its interval is in NNs regardless of the\
+c_kampita :: Derive.Generator Derive.Pitch
+c_kampita = Derive.generator1 "kam" Tags.india
+    "This is a kind of trill, but its interval defaults to NNs\
     \ scale, and transitions between the notes are smooth.  It's intended for\
     \ the vocal microtonal trills common in Carnatic music."
     $ Sig.call ((,,,)
     <$> required "pitch" "Base pitch."
-    <*> defaulted "neighbor" (Sig.control "trill-neighbor" 1)
-        "Alternate with a pitch at this interval."
+    <*> defaulted "neighbor"
+        (Sig.typed_control "trill-neighbor" 1 Score.Untyped)
+        "Alternate with a pitch at this interval. If untyped, it's NNs,\
+        \ otherwise it can be chromatic or diatonic."
     <*> defaulted "speed" (Sig.typed_control "trill-speed" 6 Score.Real)
         "Alternate pitches at this speed."
     <*> defaulted "slope" 8
         "Pitch moves at a maximum of this many NNs per second."
     ) $ \(pitch, neighbor, speed, slope) args -> do
         srate <- Util.get_srate
+        neighbor <- Util.to_signal neighbor
+        control <- case Score.type_of neighbor of
+            Score.Untyped -> return Controls.nn
+            Score.Diatonic -> return Controls.diatonic
+            Score.Chromatic -> return Controls.chromatic
+            typ -> Derive.throw $
+                "expected untyped, diatonic, or chromatic: " ++ show typ
         transpose <- SignalTransform.slew_limiter srate slope <$>
-            trill_signal (Args.range_or_next args) neighbor speed
+            trill_signal (Args.range_or_next args) (Score.typed_val neighbor)
+                speed
         start <- Args.real_start args
-        return $ PitchSignal.apply_control Controls.nn
+        return $ PitchSignal.apply_control control
             (Score.untyped transpose) $ PitchSignal.signal [(start, pitch)]
 
-trill_signal :: (ScoreTime, ScoreTime) -> TrackLang.ValControl
+trill_signal :: (ScoreTime, ScoreTime) -> Signal.Control
     -> TrackLang.ValControl -> Derive.Deriver Signal.Control
 trill_signal range neighbor speed = do
     transitions <- Trill.trill_transitions range speed
-    neighbor_sig <- Util.to_untyped_signal neighbor
-    return $ trill_from_transitions transitions neighbor_sig
+    return $ trill_from_transitions transitions neighbor
 
 -- | Make a trill signal from a list of transition times.
 trill_from_transitions :: [RealTime] -> Signal.Control -> Signal.Control

@@ -4,7 +4,11 @@ LEGEND
 
 UNSORTED
   - I think things are still messed up in 1/3 meters, when events are moved
-    with delete/insert time.  Check with nadai tisra.
+    with delete/insert time.  Check with tisra nadai.
+    . Think about switching ScoreTime to integral ticks, e.g. 1/1920, still
+      run into trouble at 1/7.  7! = 5040.
+    . I could also keep Doubles and round to 1/n.
+    . Or how about switching ScoreTime to rational?  Would that be crazy?
   - I want to use a library of basic patterns in multiple scores.  Rather than
     just hardcoding a bunch of global calls, I should be able to load
     a namespace, and have block calls dispatch to it.  This is different
@@ -24,18 +28,17 @@ UNSORTED
   india
     + Derive.Call.Gamakam, with janta, and shankarabharanam gamakam
       . I could also write the pitch track separate, and the gamakam as an
-        interpolation signal.
+        interpolation signal.  But sometimes interpolation is diatonic, and
+        sometimes is nn.
       . What about sequencing ornaments, so they follow each other naturally?
         I think I would need something more sophisticated than just overwriting
         parts of the signal.  Also I would want more natural transitions.
       * call lifts pitch to some frequency at the end of notes
       * write SignalTransform.smooth, and see if that produces better results
+      - kampita should be able to take diatonic interval, and start from the
+        upper note
       - janta.  Isn't this just Lift?
       configurable curves for jaru:
-        * linear = i
-        * smooth depart = e2 e3
-        * smooth approach = 2e 3e
-        * smooth depart and approach = 2e2 3e3
         - overshoot destination = over2 over3, depending how far over
       - lift and drop for violin can reduce pressure instead of speed (dyn)
     Raga
@@ -427,6 +430,13 @@ cleanup:
     . noltol moves events with Score.move, which is really inefficient.  Think
       more about making event signals relative.  It also means I don't have to
       move signals that are never used.
+    . However, this is bad for global controls, currently they can just be
+      directly put in the event.  It seems a shame to have to copy a slice for
+      every event.
+    . Perhaps just store a control offset which the performer and signal
+      lookup functions then have to take into account.
+    . Maybe generalize to have a TransformedSignal !Control !Shift !Stretch
+      Don't I already do that in TrackWarp or something?
   - Think about some way to formalize the identifier restrictions, currently
     it's only enforced in the tracklang parser.
 

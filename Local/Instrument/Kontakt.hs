@@ -515,7 +515,7 @@ mridangam2_attributes :: [(Attributes, (Midi.Key, Midi.Key, Midi.Key))]
 mridangam2_attributes = assign $ map (map (mconcat . map Score.attr))
     [ [["tha"]]
     , [["thom"], ["thom", "low"], ["thom", "open"]]
-    , [["tha"]], [["ki"]], [["nam"]], [["din"]]
+    , [["ta"]], [["ki"]], [["nam"]], [["din"]]
     , [["arai"], ["muru"]]
     , [["dheem"], ["dheem", "stop"]]
     , [["meetu"]]

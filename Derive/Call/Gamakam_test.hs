@@ -8,11 +8,11 @@ import qualified Derive.DeriveTest as DeriveTest
 import qualified Perform.NN as NN
 
 
-test_wobble = do
+test_kampita = do
     let run call end = DeriveTest.extract DeriveTest.e_nns $
             DeriveTest.derive_tracks
                 [(">", [(0, 4, "")]), ("*", [(0, 0, call), (end, 0, "3c")])]
-    equal (run "wobble (4c) 1 1 1" 3)
+    equal (run "kam (4c) 1 1 1" 3)
         ([[(0, NN.c4), (1, NN.cs4), (2, NN.c4), (3, NN.c3)]], [])
 
 test_jaru = do
