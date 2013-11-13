@@ -135,12 +135,6 @@ at xs n
     _at (x:_) 0 = Just x
     _at (_:xs) n = at xs (n-1)
 
-at_err :: String -> [a] -> Int -> a
-at_err msg xs n = Maybe.fromMaybe
-    (error $ "Seq.at_err: " ++ msg ++ "; index " ++ show n ++ " out of range "
-        ++ show (length xs))
-    (at xs n)
-
 -- | Insert @x@ into @xs@ at index @i@.  If @i@ is out of range, insert at the
 -- beginning or end of the list.
 insert_at :: Int -> a -> [a] -> [a]

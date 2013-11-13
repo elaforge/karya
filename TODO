@@ -55,8 +55,9 @@ UNSORTED
     * test Perf.derive_expr and CUtil.expr_to_midi
     * I think CUtil.keymaps and inst_keymaps are obsolete now, convert callers
       to insert_call
-  - in Derive.Call.Trill_test.test_xcut_pitch, the call is evaluated twice
+  ? in Derive.Call.Trill_test.test_xcut_pitch, the call is evaluated twice
     when inverted, why?
+    . Because of track signal render.
   * make drop and lift's fade arg default to time arg
   * can't type H or L in text entry!
   * add a call and size the event according to the size of the called block
@@ -77,14 +78,43 @@ UNSORTED
       dependent on previous state.  If I zip, can I compose firsts to compose
       them?
     * remove old uses of Post.map_controls
-  - noltol moves events with Score.move, which is really inefficient.  Think
-    more about making event signals relative.  It also means I don't have to
-    move signals that are never used.
-  kotekan ornaments
-    - norot
-  wayang in octaves
-    . I could do it with >wayang-both that emits >wayang-p and >wayang-k. Or
-      just call the score twice, once with transpose +1 oct.
+  bali
+    kotekan ornaments
+      - norot
+    wayang in octaves
+      . I could do it with >wayang-both that emits >wayang-p and >wayang-k. Or
+        just call the score twice, once with transpose +1 oct.
+  india
+    + Derive.Call.Gamakam, with janta, and shankarabharanam gamakam
+      . I could also write the pitch track separate, and the gamakam as an
+        interpolation signal.
+      . What about sequencing ornaments, so they follow each other naturally?
+        I think I would need something more sophisticated than just overwriting
+        parts of the signal.  Also I would want more natural transitions.
+      * call lifts pitch to some frequency at the end of notes
+      * write SignalTransform.smooth, and see if that produces better results
+      - janta.  Isn't this just Lift?
+      configurable curves for jaru:
+        * linear = i
+        * smooth depart = e2 e3
+        * smooth approach = 2e 3e
+        * smooth depart and approach = 2e2 3e3
+        - overshoot destination = over2 over3, depending how far over
+      - lift and drop for violin can reduce pressure instead of speed (dyn)
+    Raga
+      - Support arohana and avarohana by treating them as enharmonics
+        Is this really a good idea, since they aren't anything like
+        enharmonics?  Maybe I should just use the flip-enharmonic key, but
+        keep the concept separate.
+        . I could keep it at the Cmd level by remembering the last entered
+          pitch and defaulting this one based on it, or I could try to put it
+          at the Derive level too by having the pitch itself be based on the
+          previous one.
+        . Putting it at the derive level seems really hard and unreliable, so
+          I should have separate symbols, e.g. 4r^ and 4r. for up and down
+          variants.  For western modes this isn't necessary since the notation
+          is already absolute.
+
   - keys to turn play speed up and down
   - The problem with Derive.inst_environ to set scale is that you can't really
     override it.  So if >wayang wants *wayang, then you can't easily say you
@@ -97,19 +127,6 @@ UNSORTED
     . What about >wayang, which introduces inst-sangsih and inst-polos?
       It can't do that anyway, because it can't know what the correct insts
       are, given that they are probably aliases.
-  Raga
-    - Support arohana and avarohana by treating them as enharmonics
-      Is this really a good idea, since they aren't anything like enharmonics?
-      Maybe I should just use the flip-enharmonic key, but keep the concept
-      separate.
-      . I could keep it at the Cmd level by remembering the last entered pitch
-        and defaulting this one based on it, or I could try to put it at the
-        Derive level too by having the pitch itself be based on the previous
-        one.
-      . Putting it at the derive level seems really hard and unreliable, so I
-        should have separate symbols, e.g. 4r^ and 4r. for up and down variants.
-        For western modes this isn't necessary since the notation is already
-        absolute.
   more scales
     - wendy carlos' alpha, beta, gamma
     - overtone series
@@ -120,24 +137,6 @@ UNSORTED
       with collapsed tracks.  It probably needs to use logical rather than
       physical size.
     . Nope, wrong.
-  - there should be a character that triggers a parse failure, which is used
-    by invalid ShowVal instances like ShowVal Pitch
-  + Derive.Call.Gamakam, with janta, and shankarabharanam gamakam
-    . I could also write the pitch track separate, and the gamakam as an
-      interpolation signal.
-    . What about sequencing ornaments, so they follow each other naturally?
-      I think I would need something more sophisticated than just overwriting
-      parts of the signal.  Also I would want more natural transitions.
-    * call lifts pitch to some frequency at the end of notes
-    * write SignalTransform.smooth, and see if that produces better results
-    - janta
-    configurable curves for jaru:
-      * linear = i
-      * smooth depart = e2 e3
-      * smooth approach = 2e 3e
-      * smooth depart and approach = 2e2 3e3
-      - overshoot destination = over2 over3, depending how far over
-    - lift and drop for violin can reduce pressure instead of speed (dyn)
   * make lift note transformer work under inversion
     . To make lift to an absolute pitch work outside of inversion, I'd need
       an abstract way (e.g. like a transpose signal) to say "pitch midway to
@@ -545,6 +544,9 @@ cleanup:
     normalized to start from their beginning, so that you never have to modify
     the signals.  Of course, it's only worth it if events tend to get moved
     more than once.
+    . noltol moves events with Score.move, which is really inefficient.  Think
+      more about making event signals relative.  It also means I don't have to
+      move signals that are never used.
   - Think about some way to formalize the identifier restrictions, currently
     it's only enforced in the tracklang parser.
 
@@ -893,6 +895,8 @@ Derive:
     tags should instead be derived from the namespace, e.g. prelude, bali,
     india.
   tracklang:
+    - there should be a character that triggers a parse failure, which is used
+      by invalid ShowVal instances like ShowVal Pitch
     - it's confusing how some calls expect env vals like 'x = 1' and some
       expect controls like '%x = 1'.
       . The obvious way to solve this would be to merge env vals and controls,

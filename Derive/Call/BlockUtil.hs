@@ -4,6 +4,16 @@
 
 {-# LANGUAGE CPP #-}
 {- | Utilities for "Derive.Call.Block".
+
+    Derivation of a block is much more complicated than it might first appear.
+    This can cause score code to be evaluated more times than you think it
+    should be.
+
+    One culprit is evaluating tracks for control signals for signal render.
+    Under some circumstances, the track's normal control output can be directly
+    reused as the signal render, but in many cases it has to be evaluated
+    again.  This is further complicated by the presence of inversion and
+    orphans.
 -}
 module Derive.Call.BlockUtil (
     note_deriver, control_deriver
@@ -145,7 +155,7 @@ derive_track :: TrackTree.EventsNode -> Derive.NoteDeriver
 derive_track node@(Tree.Node track subs)
     | TrackInfo.is_note_track (TrackTree.tevents_title track) = do
         let (orphans, underivable) = Slice.extract_orphans track subs
-        record underivable
+        Internal.record_empty_tracks underivable
         with_stack $ Cache.track track (TrackTree.tevents_children node) $ do
             events <- derive_orphans (TrackTree.tevents_title track) orphans $
                 Internal.track_setup track (Note.d_note_track node)
@@ -155,7 +165,6 @@ derive_track node@(Tree.Node track subs)
     -- differently, so it goes inside d_control_track.
     | otherwise = with_stack $ Control.d_control_track node (derive_tracks subs)
     where
-    record = Internal.record_empty_tracks
     derive_orphans title orphans deriver
         -- If d_merge could tell when an NoteDeriver was mempty and not
         -- evaluate it I wouldn't need this little optimization.
