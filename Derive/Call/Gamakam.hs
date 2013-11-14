@@ -31,15 +31,31 @@ import Types
 
 pitch_calls :: Derive.CallMaps Derive.Pitch
 pitch_calls = Derive.call_maps
-    [ ("kam", c_kampita)
+    [ ("kam", c_kampita Trill.UnisonFirst)
+    , ("kam^", c_kampita Trill.NeighborFirst)
     , ("jaru", c_jaru)
     , ("sgr", c_jaru_intervals Util.Diatonic [-1, 1])
     ]
     []
 
 -- TODO note version that ends on up or down
-c_kampita :: Derive.Generator Derive.Pitch
-c_kampita = Derive.generator1 "kam" Tags.india
+-- variations:
+-- start high or low
+-- end high or low - For this I need to know how when the note ends.  It can
+-- either adjust the speed of the trill, or adjust the length of the note.
+--
+-- It seems like it might be nice to have ornaments be able to adjust tempo,
+-- otherwise you have to coordinate changes in the tempo track.  But you can't
+-- do it if you don't want it to affect other instruments.
+--
+-- To lengthen the note, it's actually in a position to do that since it's
+-- above the note.  It could set a value which the note call will use for the
+-- end, like an absolute duration sustain.  But it needs to know what it
+-- originally was to round up, which requires peeking in the subs.
+--
+-- Or, tweak the speed to make it work out.
+c_kampita :: Trill.Mode -> Derive.Generator Derive.Pitch
+c_kampita mode = Derive.generator1 "kam" Tags.india
     "This is a kind of trill, but its interval defaults to NNs\
     \ scale, and transitions between the notes are smooth.  It's intended for\
     \ the vocal microtonal trills common in Carnatic music."
@@ -63,23 +79,28 @@ c_kampita = Derive.generator1 "kam" Tags.india
             typ -> Derive.throw $
                 "expected untyped, diatonic, or chromatic: " ++ show typ
         transpose <- SignalTransform.slew_limiter srate slope <$>
-            trill_signal (Args.range_or_next args) (Score.typed_val neighbor)
-                speed
+            trill_signal mode (Args.range_or_next args)
+                (Score.typed_val neighbor) speed
         start <- Args.real_start args
         return $ PitchSignal.apply_control control
             (Score.untyped transpose) $ PitchSignal.signal [(start, pitch)]
 
-trill_signal :: (ScoreTime, ScoreTime) -> Signal.Control
+trill_signal :: Trill.Mode -> (ScoreTime, ScoreTime) -> Signal.Control
     -> TrackLang.ValControl -> Derive.Deriver Signal.Control
-trill_signal range neighbor speed = do
+trill_signal mode range neighbor speed = do
     transitions <- Trill.trill_transitions range speed
-    return $ trill_from_transitions transitions neighbor
+    return $ trill_from_transitions mode transitions neighbor
 
 -- | Make a trill signal from a list of transition times.
-trill_from_transitions :: [RealTime] -> Signal.Control -> Signal.Control
-trill_from_transitions transitions neighbor =
+trill_from_transitions :: Trill.Mode -> [RealTime] -> Signal.Control
+    -> Signal.Control
+trill_from_transitions mode transitions neighbor =
     Signal.signal [(x, if t then Signal.at x neighbor else 0)
-        | (x, t) <- zip transitions (cycle [False, True])]
+        | (x, t) <- zip transitions (cycle ts)]
+    where
+    ts = case mode of
+        Trill.UnisonFirst -> [False, True]
+        Trill.NeighborFirst -> [True, False]
 
 c_jaru :: Derive.Generator Derive.Pitch
 c_jaru = Derive.generator1 "jaru" Tags.india
