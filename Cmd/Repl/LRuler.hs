@@ -97,6 +97,11 @@ set_ruler_id ruler_id block_id = do
     old <- State.block_ruler block_id
     State.replace_ruler_id block_id old ruler_id
 
+local_ruler :: (Cmd.M m) => Ruler.Ruler -> m ()
+local_ruler ruler = do
+    block_id <- Cmd.get_focused_block
+    RulerUtil.local_block block_id (const ruler)
+
 -- | Replace all occurrences of one RulerId with another.
 replace_ruler_id :: (State.M m) => RulerId -> RulerId -> m ()
 replace_ruler_id old new = do
@@ -179,11 +184,6 @@ fit_to_pos pos meters = do
     block_id <- Cmd.get_focused_block
     return (block_id,
         const $ Meter.fit_meter (Meter.time_to_duration pos) meters)
-
-set_local :: (Cmd.M m) => Ruler.Ruler -> m ()
-set_local ruler = do
-    block_id <- Cmd.get_focused_block
-    RulerUtil.local_block block_id (const ruler)
 
 -- * extract
 

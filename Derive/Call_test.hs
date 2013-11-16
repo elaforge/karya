@@ -20,6 +20,7 @@ import qualified Derive.Call as Call
 import qualified Derive.Call.CallTest as CallTest
 import qualified Derive.Call.Sub as Sub
 import qualified Derive.Call.Util as Util
+import qualified Derive.Controls as Controls
 import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Environ as Environ
@@ -31,6 +32,7 @@ import qualified Derive.Stack as Stack
 import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.Midi.Instrument as Instrument
+import qualified Perform.Signal as Signal
 import qualified Instrument.MidiDb as MidiDb
 import qualified App.MidiInst as MidiInst
 
@@ -198,8 +200,9 @@ test_inverting_around = do
             Derive.d_at (Args.start args) $ Util.pitched_note next_pitch 1
 
 test_track_dynamic = do
-    let extract = map extract1 . Map.assocs . Derive.r_track_dynamic
-        extract1 ((bid, tid), dyn) =
+    let extract ex = map ex . Map.assocs . (\(Derive.TrackDynamic d) -> d)
+            . Derive.r_track_dynamic
+        e_scale_inst ((bid, tid), dyn) =
             (bid, tid,
                 TrackLang.lookup_val Environ.scale env,
                 TrackLang.lookup_val Environ.instrument env)
@@ -211,11 +214,26 @@ test_track_dynamic = do
     let inst = Just $ TrackLang.VInstrument $ Score.Instrument "i1"
         scale = Just $ TrackLang.VSymbol $
             TrackLang.scale_id_to_sym Legong.scale_id
-    equal (extract res)
+    equal (extract e_scale_inst res)
         [ (UiTest.bid "b", UiTest.mk_tid_name "b" 1, scale, Nothing)
         , (UiTest.bid "b", UiTest.mk_tid_name "b" 2, scale, inst)
         , (UiTest.bid "sub", UiTest.mk_tid_name "sub" 1, scale, inst)
         , (UiTest.bid "sub", UiTest.mk_tid_name "sub" 2, scale, inst)
+        ]
+
+    let res = DeriveTest.derive_tracks
+            [ (">", [(0, 1, ""), (1, 1, ""), (2, 1, "")])
+            , ("dyn", [(0, 1, ".25"), (1, 0, ".5"), (2, 0, ".75")])
+            , ("dyn", [(0, 1, ".25"), (1, 0, ".5"), (2, 0, ".75")])
+            ]
+    let e_controls ((bid, tid), dyn) =
+            (bid, tid, (Signal.unsignal . Score.typed_val) <$>
+                (Map.lookup Controls.dynamic (Derive.state_controls dyn)))
+    equal (extract e_controls res)
+        [ (UiTest.bid "b1", UiTest.mk_tid 1, Just [(0, 1)])
+        , (UiTest.bid "b1", UiTest.mk_tid 2, Just [(0, 1)])
+        , (UiTest.bid "b1", UiTest.mk_tid 3,
+            Just [(0, 0.25), (1, 0.5), (2, 0.75)])
         ]
 
 test_track_dynamic_invert = do
@@ -223,7 +241,7 @@ test_track_dynamic_invert = do
     -- inversion.
     let run = extract . DeriveTest.derive_tracks
         extract = Map.toList . Map.map (e_env . Derive.state_environ)
-            . Derive.r_track_dynamic
+            . (\(Derive.TrackDynamic d) -> d) . Derive.r_track_dynamic
         e_env e = (lookup Environ.instrument e, lookup Environ.scale e)
         lookup val = Pretty.pretty . TrackLang.lookup_val val
     -- Both tracks get *legong, even though >inst has to be inverted to see it.

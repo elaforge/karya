@@ -97,11 +97,12 @@ test_record_empty_tracks = do
     let run = DeriveTest.derive_tracks_linear
         track_warps = concatMap (Set.toList . TrackWarp.tw_tracks)
             . Derive.r_track_warps
-        track_dyn = Map.keys . Derive.r_track_dynamic
+        track_dyn = Map.keys . (\(Derive.TrackDynamic d) -> d)
+            . Derive.r_track_dynamic
 
-    let tracks = [(">i1", []), (">i2", []), (">i3", [(0, 1, "")])]
-    equal (track_warps (run tracks)) (map UiTest.mk_tid [1, 2, 3])
-    equal (track_dyn (run tracks))
+    let result = run [(">i1", []), (">i2", []), (">i3", [(0, 1, "")])]
+    equal (track_warps result) (map UiTest.mk_tid [1, 2, 3])
+    equal (track_dyn result)
         (map (((,) UiTest.default_block_id) . UiTest.mk_tid) [1, 2, 3])
 
 test_two_level_orphans = do

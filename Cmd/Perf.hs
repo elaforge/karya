@@ -160,15 +160,13 @@ get_environ block_id = fmap (fromMaybe mempty) . lookup_environ block_id
 lookup_dynamic :: (Cmd.M m) => BlockId -> Maybe TrackId
     -> m (Maybe Derive.Dynamic)
 lookup_dynamic block_id maybe_track_id = do
-    maybe_dyn <- maybe Nothing (lookup . Cmd.perf_track_dynamic) <$>
-        lookup_root
+    maybe_dyn <- get <$> lookup_root
     case maybe_dyn of
         Just dyn -> return $ Just dyn
-        Nothing ->
-            maybe Nothing (lookup . Cmd.perf_track_dynamic) <$>
-                Cmd.lookup_performance block_id
+        Nothing -> get <$> Cmd.lookup_performance block_id
     where
-    lookup track_dyns = case maybe_track_id of
+    get = maybe Nothing (lookup . Cmd.perf_track_dynamic)
+    lookup (Derive.TrackDynamic track_dyns) = case maybe_track_id of
         Nothing -> do
             (_, dyn) <- List.find ((==block_id) . fst . fst)
                 (Map.toAscList track_dyns)

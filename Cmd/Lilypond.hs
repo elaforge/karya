@@ -58,8 +58,9 @@ ly_filename name = do
 lookup_key :: Cmd.Performance -> Pitch.Key
 lookup_key perf =
     fromMaybe Twelve.default_key $ msum $ map (lookup . Derive.state_environ) $
-        Map.elems (Msg.perf_track_dynamic perf)
+        Map.elems (extract (Msg.perf_track_dynamic perf))
     where
+    extract (Derive.TrackDynamic d) = d
     lookup environ = case TrackLang.get_val Environ.key environ of
         Right key -> Just (Pitch.Key key)
         Left _ -> Nothing

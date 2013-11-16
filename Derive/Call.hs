@@ -85,6 +85,7 @@ import qualified Data.Text as Text
 
 import Util.Control
 import qualified Util.Log as Log
+import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 
 import qualified Ui.Event as Event
@@ -209,10 +210,11 @@ apply_transform name expr_str deriver = do
 
 -- * derive_track
 
--- | Just a spot to stick all the per-track parameters.
+-- | This is a collection of per-track parameters.  Mostly it's just the
+-- subset of 'TrackTree.TrackEvents' which are needed to to evaluate and
+-- to construct a 'Derive.CallInfo', so the fields are documented in
+-- 'TrackTree.TrackEvents'.
 data TrackInfo = TrackInfo {
-    -- | Either the end of the block, or the next event after the slice.
-    -- These fields are take directly from 'State.TrackEvents'.
     tinfo_events_end :: !ScoreTime
     , tinfo_track_range :: !(ScoreTime, ScoreTime)
     , tinfo_shifted :: !ScoreTime
@@ -221,6 +223,18 @@ data TrackInfo = TrackInfo {
     , tinfo_type :: !TrackInfo.Type
     , tinfo_inverted :: !Bool
     } deriving (Show)
+
+instance Pretty.Pretty TrackInfo where
+    format (TrackInfo end range shifted subs around ttype inverted) =
+        Pretty.record_title "TrackInfo"
+            [ ("events_end", Pretty.format end)
+            , ("track_range", Pretty.format range)
+            , ("shifted", Pretty.format shifted)
+            , ("sub_tracks", Pretty.format subs)
+            , ("events_around", Pretty.format around)
+            , ("type", Pretty.format ttype)
+            , ("inverted", Pretty.format inverted)
+            ]
 
 -- | Given the previous sample and derivation results, get the last sample from
 -- the results.
@@ -256,6 +270,7 @@ derive_track :: forall d. (Derive.Callable d) =>
     Derive.State -> TrackInfo -> GetLastSample d
     -> [Event.Event] -> ([LEvent.LEvents d], Derive.Collect)
 derive_track state tinfo get_last_sample events =
+    -- Notes on recording TrackDynamic at NOTE [record-track-dynamics].
     go (Internal.record_track_dynamic state) Nothing [] events
     where
     -- This threads the collect through each event.  I would prefer to map and
@@ -317,8 +332,15 @@ derive_event st tinfo prev_sample prev event next
         , Derive.info_sub_events = Nothing
         , Derive.info_track_type = Just ttype
         }
-    TrackInfo events_end track_range shifted subs (tprev, tnext) ttype
-        inverted = tinfo
+    TrackInfo
+        { tinfo_events_end = events_end
+        , tinfo_track_range = track_range
+        , tinfo_shifted = shifted
+        , tinfo_sub_tracks = subs
+        , tinfo_events_around = (tprev, tnext)
+        , tinfo_type = ttype
+        , tinfo_inverted = inverted
+        } = tinfo
 
 -- | Apply a toplevel expression.
 apply_toplevel :: (Derive.Callable d) => Derive.State
