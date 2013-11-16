@@ -14,7 +14,6 @@ module Util.Control (
     , mapMaybe, fromMaybe
 
     , justm, errorIO
-    , fmap0
 
     -- * lens
     , Lens, (#)
@@ -42,7 +41,6 @@ import qualified Data.Monoid as Monoid
 import Data.Monoid (mempty, mconcat)
 import qualified Data.Text as Text
 
-import Util.Functor0 (fmap0)
 import Util.Lens
 
 

@@ -3,7 +3,7 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
-  - get rid of fmap0
+  * get rid of fmap0
   - cache not tracking changes: create a sub-block with Refactor.selection,
     then add a 'set dyn' track, or last note
   * why is kbd entry play now unreliable?
