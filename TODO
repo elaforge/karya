@@ -3,6 +3,11 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
+  - get rid of fmap0
+  - cache not tracking changes: create a sub-block with Refactor.selection,
+    then add a 'set dyn' track, or last note
+  - why is kbd entry play now unreliable?
+    . Because the track dynamic winds up with %dyn: < 0s:0, 35.35s:.564 >
   - I think things are still messed up in 1/3 meters, when events are moved
     with delete/insert time.  Check with tisra nadai.
     . Think about switching ScoreTime to integral ticks, e.g. 1/1920, still
@@ -19,6 +24,12 @@ UNSORTED
     Derive.randomized_control_at that looks for a corresponding <>"-rnd"
     signal for range.  E.g., each instrument should switch to noltol at
     a different time.
+  - If I don't allow = in calls, I could write assigns without whitespace: x=y
+    Is it worth it?
+  - Some control tracks are not normalized 0--1.  I could hardcode control
+    names, like tempo, or I could infer (if the first event is not 0x, then it's
+    not normalized), or I could use an explicit pragma in the track title,
+    e.g. '--# nonnorm'
   bali
     kotekan ornaments
       - norot
@@ -26,7 +37,7 @@ UNSORTED
       . I could do it with >wayang-both that emits >wayang-p and >wayang-k. Or
         just call the score twice, once with transpose +1 oct.
   india
-    + Derive.Call.Gamakam, with janta, and shankarabharanam gamakam
+    Derive.Call.Gamakam, with janta, and shankarabharanam gamakam
       . I could also write the pitch track separate, and the gamakam as an
         interpolation signal.  But sometimes interpolation is diatonic, and
         sometimes is nn.
@@ -35,12 +46,68 @@ UNSORTED
         parts of the signal.  Also I would want more natural transitions.
       * call lifts pitch to some frequency at the end of notes
       * write SignalTransform.smooth, and see if that produces better results
-      - kampita should be able to take diatonic interval, and start from the
-        upper note
+      * kampita should be able to take diatonic interval
+      * and start from the upper note
+      * kam should use smooth rather than slew_limiter, so it doesn't have
+        that delay.
+      - but sometimes I do want the delay, can I compose a delay on?
+        I want to have a general "hold initial pitch" call so I don't have
+        to hardcode an extra param for everything.
+        . E.g. 6s -> kam^ (5n) should just be kam^ (5n) with an initial delay.
+        . I could do direct signal stretching.  I could have a general signal
+          warp, which composes a warp signal with the x points.
+        . But if I just move the rest of the samples, I would mess up the call
+          knowing how long it is, e.g. trill wanting to fit integral cycles.
+        . I could shift it later, then duplicate its first sample.  Otherwise,
+          I could set an env var and make calls understand it.
+        . Instead of just a delay, I'd like to make it as if the call was
+          later on the track.  But I don't think shift/stretch can work like
+          that.
+        . seq x; y; z to sequence ornaments, does this make sense?
+        . The note call is for ornaments that decide their own scope.  The
+          control calls are for when you want to place them directly.
+
+      . It seems generally cleaner to have the ornaments on a separate
+        transpose track.
+        Pros:
+          . I can keep the pitches separate and clear and collapse the pitch
+            track.
+          . Don't have to repeat pitches in the ornaments.
+        Cons:
+          . I need two tracks for nn vs. diatonic transposition, can't just
+            tack a 'd' on the interval arg.
+
+      - there is a variant of kampita that avoids the base note
+        . also, it plays the low note more softly
+        . kam2 (5m) 1 -1
+        . transition-curve, transition-time, grace-speed are params to most of
+          the ornaments.  Effectively this is keyword args:
+            kam (4s) 1 8 .1 -> speed = 8 | transition = .1 | kam (4s) 1
+          This already works, but if they're generic they shouldn't have
+          a kam- prefix.  So args can take a generic flag that omits the
+          name prefix.
+          Also, I select start high vs. start low just with a different call
+          name, e.g. kam kam^
+        . defaulted "speed" (Sig.typed_control "trill-speed" 6 Score.Real)
+          Can set with %trill-speed, or name-speed = 6
       - janta.  Isn't this just Lift?
+      - if I am sequencing gamakam, I would want later ones to inherit the
+        pitch so I don't have to repeat it each time
+        . (<) should work but doesn't, what's up?
+        . Keeping the pitch track separate would also solve this problem,
+          don't need the base pitch arg.
+      - Separate gamakam control track that combines diatonic and nn
+        transposition.  I could make it primarily diatonic, and use
+        the secondary control thing to emit nn transposition.  The annoying
+        thing is it then doesn't show up in the signal render, but at least
+        it can go in the note track.
+      - Having to do everything twice for control and pitch signals is
+        annoying.
       configurable curves for jaru:
         - overshoot destination = over2 over3, depending how far over
       - lift and drop for violin can reduce pressure instead of speed (dyn)
+    - instead of hardcoding specific times, I should say short, medium, long,
+      which can vary and have some randomization
     Raga
       - Support arohana and avarohana by treating them as enharmonics
         Is this really a good idea, since they aren't anything like
@@ -91,7 +158,7 @@ UNSORTED
       last note call.
     - I'm still not sure I want this, since it seems like I want to repeat
       generators too.  But how to tell wanted ones from unwanted pitch ones?
-  - need an easy way to create IDs for debugging, so I can copy paste
+  * need an easy way to create IDs for debugging, so I can copy paste
     (bid "xyz") stuff
   - After a rederive, it still takes a Cmd to free up the memory.  Who is
     holding on to it?
@@ -191,6 +258,7 @@ MILESTONES
 
 documentation
   - update screenshots: doc/img/ly-example.png
+  - Publish haddock with http://documentup.com/feuerbach/standalone-haddock
   call doc:
     - I could go look through arg docs for controls and list all the controls
       that have someone listening to them in a certain scope.

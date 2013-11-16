@@ -1,0 +1,3 @@
+-- Make sure the D module is always in scope.
+:def! l (\args -> return $ ":load " ++ args ++ " D\n:module +D")
+

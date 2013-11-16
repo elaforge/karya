@@ -55,14 +55,25 @@ default_divider = Block.Divider Color.blue
 
 -- state
 
-test_ns = Id.unsafe_namespace "test"
-mkid name =
-    fromMaybe (error $ "UiTest.mkid: invalid characters in " ++ show name) $
-        Id.read_short test_ns name
+mkid :: String -> Id.Id
+mkid name = Maybe.fromMaybe
+    (error $ "UiTest.mkid: invalid characters in " ++ show name)
+    (Id.read_short test_ns name)
+
+bid :: String -> BlockId
 bid = Types.BlockId . mkid
+
+vid :: String -> ViewId
 vid = Types.ViewId . mkid
+
+tid :: String -> TrackId
 tid = Types.TrackId . mkid
+
+rid :: String -> RulerId
 rid = Types.RulerId . mkid
+
+test_ns :: Id.Namespace
+test_ns = Id.unsafe_namespace "test"
 
 default_zoom :: Types.Zoom
 default_zoom = Config.zoom
