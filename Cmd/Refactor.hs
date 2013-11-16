@@ -5,6 +5,8 @@
 -- | Cmds to do with \"refactoring\".  This basically means fancy
 -- copy-paste-like operations.
 module Cmd.Refactor where
+import qualified Data.List as List
+
 import Util.Control
 import qualified Util.Num as Num
 import qualified Util.Seq as Seq
@@ -110,9 +112,12 @@ split_track_at from_block_id split_at block_name = do
 
 -- | Copy the selection into a new block, and replace it with a call to that
 -- block.
-selection :: (Cmd.M m) => Text -> m BlockId
-selection name = do
+selection :: (Cmd.M m) => Bool -- ^ create dot-prefixed relative block call
+    -> Text -> m BlockId
+selection relative name = do
     (block_id, tracknums, track_ids, start, end) <- Selection.tracks
+    name <- return $ if relative
+        then txt (Id.ident_name block_id) <> "." <> name else name
     to_block_id <- selection_at (Just name) block_id tracknums track_ids
         start end
     Create.view to_block_id
@@ -135,7 +140,7 @@ selection_at maybe_name block_id tracknums track_ids start end = do
     Edit.clear_range track_ids start end
     whenJust (Seq.head track_ids) $ \track_id ->
         State.insert_event track_id $ Event.event start (end-start)
-            (Id.ident_name to_block_id)
+            (make_block_call block_id to_block_id)
     -- It's easier to create all the tracks and then delete the empty ones.
     -- If I tried to just not create those tracks then 'clipped_skeleton' would
     -- have to get more complicated.
@@ -144,6 +149,15 @@ selection_at maybe_name block_id tracknums track_ids start end = do
     RulerUtil.local_meter to_block_id $
         Meter.clip (Meter.time_to_duration start) (Meter.time_to_duration end)
     return to_block_id
+
+make_block_call :: BlockId -> BlockId -> String
+make_block_call parent block_id
+    | Id.ident_namespace parent == Id.ident_namespace block_id && is_sub =
+        dropWhile (/='.') child_name
+    | otherwise = child_name
+    where
+    child_name = Id.ident_name block_id
+    is_sub = Id.ident_name parent <> "." `List.isPrefixOf` child_name
 
 -- | If there's a point selection, create a new empty block based on the
 -- current one.  If the selection has time, then the new block will have only

@@ -125,7 +125,7 @@ map_track_titles f = do
 block_name :: (State.M m) => m Text
 block_name = do
     ns <- State.get_namespace
-    id <- require "block id" . generate_block_id ns
+    id <- require "block id" . generate_block_id Nothing ns
         =<< State.gets State.state_blocks
     return $ txt $ Id.id_name id
 
@@ -152,12 +152,18 @@ named_block_from_template template_id name = do
     State.set_skeleton block_id =<< State.get_skeleton template_id
     return block_id
 
--- | BlockIds look like \"ns\/b0\", \"ns\/b1\", etc.
+-- | BlockIds look like @ns\/b1@, @ns\/b2@, etc.
 block :: (State.M m) => RulerId -> m BlockId
-block ruler_id = do
+block = sub_block Nothing
+
+-- | Create a block whose BlockId is prefixed by another: @ns/parent.b1@.
+-- The relative block call mechanism supported by the default block call means
+-- you can call it from the parent by just writing @.b1@.
+sub_block :: (State.M m) => Maybe BlockId -> RulerId -> m BlockId
+sub_block maybe_parent ruler_id = do
     ns <- State.get_namespace
     block_id <- require "block id"
-        . generate_block_id ns =<< State.gets State.state_blocks
+        . generate_block_id maybe_parent ns =<< State.gets State.state_blocks
     State.create_block block_id ""
         [Block.track (Block.RId ruler_id) Config.ruler_width]
 
@@ -183,9 +189,11 @@ destroy_block block_id = do
 
 -- ** util
 
-generate_block_id :: Id.Namespace -> Map.Map BlockId _a -> Maybe Id.Id
-generate_block_id ns blocks = generate_id ns no_parent "b" Types.BlockId blocks
-    where no_parent = Id.global ""
+generate_block_id :: Maybe BlockId -> Id.Namespace -> Map.Map BlockId _a
+    -> Maybe Id.Id
+generate_block_id maybe_parent ns blocks =
+    generate_id ns parent "b" Types.BlockId blocks
+    where parent = maybe (Id.global "") Id.unpack_id maybe_parent
 
 -- * view
 
