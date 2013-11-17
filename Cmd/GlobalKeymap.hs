@@ -245,10 +245,10 @@ selection_bindings = concat
     , repeatable_char 'K' "move selection rewind" $
         Selection.step TimeStep.Rewind True
     -- Mnemonic: next, previous.
-    , repeatable_char 'n' "move selection right note track" $
+    , repeatable_char 'n' "move selection right to note track" $
         Selection.shift False
             =<< Selection.find_track Selection.R TrackInfo.is_note_track
-    , repeatable_char 'p' "move selection left note track" $
+    , repeatable_char 'p' "move selection left to note track" $
         Selection.shift False
             =<< Selection.find_track Selection.L TrackInfo.is_note_track
 

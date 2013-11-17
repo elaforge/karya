@@ -7,7 +7,11 @@ module Cmd.ControlTrack where
 import qualified Data.Text as Text
 
 import Util.Control
+import qualified Util.Seq as Seq
+import qualified Ui.Event as Event
 import qualified Ui.Key as Key
+import qualified Ui.State as State
+
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.EditUtil as EditUtil
 import qualified Cmd.InputNote as InputNote
@@ -20,6 +24,7 @@ import qualified Derive.ShowVal as ShowVal
 import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.Signal as Signal
+import Types
 
 
 cmd_raw_edit :: Cmd.Cmd
@@ -32,22 +37,50 @@ cmd_raw_edit = Cmd.suppress_history Cmd.RawEdit "control track raw edit"
 -- arbitrary control values.
 --
 -- Since control vals are typically normalized between 0 and 1, this accepts
--- hexadecimal higits and modifies the event text with 'modify_hex'.
+-- hexadecimal higits and modifies the event text with 'modify_hex'.  However,
+-- not all tracks are normalized, so this only happens if 'infer_normalized'
+-- thinks that it's normalized.
 --
 -- The @'@ key will enter a @'@ call, which repeats the last value.  This is
 -- useful to extend a constant pitch value to the desired breakpoint.
 cmd_val_edit :: Cmd.Cmd
 cmd_val_edit msg = suppress "control track val edit" $ do
     EditUtil.fallthrough msg
-    case msg of
-        (EditUtil.hex_key -> Just key) -> modify_event (modify_hex key)
-        (Msg.key_down -> Just (Key.Char '\'')) -> EditUtil.soft_insert "'"
-        Msg.InputNote (InputNote.NoteOn _ _ vel) -> insert_val False vel
-        Msg.InputNote (InputNote.Control _ _ val) -> insert_val True val
-        _ -> Cmd.abort
+    (_, _, track_id, _) <- Selection.get_insert
+    ifM (infer_normalized track_id)
+        (edit_normalized msg) (edit_non_normalized msg)
     return Cmd.Done
+    where suppress = Cmd.suppress_history Cmd.ValEdit
+
+-- | Editing a tempo track is just like editing a normal control track, except
+-- that it doesn't do the hex entry thing.
+cmd_tempo_val_edit :: Cmd.Cmd
+cmd_tempo_val_edit msg = suppress "tempo track val edit" $ do
+    EditUtil.fallthrough msg
+    edit_non_normalized msg
+    return Cmd.Done
+    where suppress = Cmd.suppress_history Cmd.ValEdit
+
+-- | A track is assumed to be normalized if its first event has a @`0x`@ in it.
+-- If the track has no first event, then it defaults to normalized.
+infer_normalized :: (State.M m) => TrackId -> m Bool
+infer_normalized = fmap (maybe True normal . Seq.head) . State.get_all_events
+    where normal event = "`0x`" `Text.isInfixOf` Event.event_text event
+
+edit_non_normalized :: (Cmd.M m) => Msg.Msg -> m ()
+edit_non_normalized msg = case msg of
+    (EditUtil.num_key -> Just key) -> modify_event (modify_num key)
+    (Msg.key_down -> Just (Key.Char '\'')) -> EditUtil.soft_insert "'"
+    _ -> Cmd.abort
+
+edit_normalized :: (Cmd.M m) => Msg.Msg -> m ()
+edit_normalized msg = case msg of
+    (EditUtil.hex_key -> Just key) -> modify_event (modify_hex key)
+    (Msg.key_down -> Just (Key.Char '\'')) -> EditUtil.soft_insert "'"
+    Msg.InputNote (InputNote.NoteOn _ _ vel) -> insert_val False vel
+    Msg.InputNote (InputNote.Control _ _ val) -> insert_val True val
+    _ -> Cmd.abort
     where
-    suppress = Cmd.suppress_history Cmd.ValEdit
     insert_val control_input val = do
         pos <- EditUtil.get_pos
         val_edit_at pos val
@@ -56,18 +89,6 @@ cmd_val_edit msg = suppress "control track val edit" $ do
         whenM (andM [return (not control_input),
                 Cmd.gets (Cmd.state_advance . Cmd.state_edit)])
             Selection.advance
-
--- | Editing a tempo track is just like editing a normal control track, except
--- that it doesn't do the hex entry thing.
-cmd_tempo_val_edit :: Cmd.Cmd
-cmd_tempo_val_edit msg = suppress "tempo track val edit" $ do
-    EditUtil.fallthrough msg
-    case msg of
-        (EditUtil.num_key -> Just key) -> modify_event (modify_num key)
-        (Msg.key_down -> Just (Key.Char '\'')) -> EditUtil.soft_insert "'"
-        _ -> Cmd.abort
-    return Cmd.Done
-    where suppress = Cmd.suppress_history Cmd.ValEdit
 
 modify_num :: EditUtil.Key -> Modify
 modify_num key event =

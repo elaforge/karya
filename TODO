@@ -4,8 +4,8 @@ LEGEND
 
 UNSORTED
   * get rid of fmap0
-  - cache not tracking changes: create a sub-block with Refactor.selection,
-    then add a 'set dyn' track, or last note
+  - block cache not being invalitated: create a sub-block with
+    Refactor.selection, then add a 'set dyn' track, or last note
   * why is kbd entry play now unreliable?
     . Because the track dynamic winds up with %dyn: < 0s:0, 35.35s:.564 >
     . It's trickier than I thought, because I want the environ from inverted
@@ -31,7 +31,7 @@ UNSORTED
     a different time.
   - If I don't allow = in calls, I could write assigns without whitespace: x=y
     Is it worth it?
-  - Some control tracks are not normalized 0--1.  I could hardcode control
+  * Some control tracks are not normalized 0--1.  I could hardcode control
     names, like tempo, or I could infer (if the first event is not 0x, then it's
     not normalized), or I could use an explicit pragma in the track title,
     e.g. '--# nonnorm'
