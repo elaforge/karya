@@ -818,11 +818,11 @@ instance Pretty.Pretty ControlMod where
 
 instance Monoid.Monoid Collect where
     mempty = Collect mempty mempty mempty mempty mempty mempty mempty
-    mappend (Collect warps1 tsigs1 env1 deps1 cache1 integrated1 cmods1)
-            (Collect warps2 tsigs2 env2 deps2 cache2 integrated2 cmods2) =
+    mappend (Collect warps1 tsigs1 trackdyn1 deps1 cache1 integrated1 cmods1)
+            (Collect warps2 tsigs2 trackdyn2 deps2 cache2 integrated2 cmods2) =
         Collect (warps1 <> warps2)
             (Map.unionWith Track.merge_signals tsigs1 tsigs2)
-            (env1 <> env2) (deps1 <> deps2) (cache1 <> cache2)
+            (trackdyn1 <> trackdyn2) (deps1 <> deps2) (cache1 <> cache2)
             (integrated1 <> integrated2) (cmods1 <> cmods2)
 
 instance DeepSeq.NFData Collect where
@@ -859,7 +859,40 @@ instance DeepSeq.NFData Integrated where
 --
 -- This is a much simpler solution which will hopefully work well enough in
 -- practice.
-type TrackDynamic = Map.Map (BlockId, TrackId) Dynamic
+--
+-- NOTE [record-track-dynamics] So it hasn't quite worked well enough in
+-- practice.  The problem is that if I get controls from sliced tracks, the
+-- controls are also sliced, which means they have zeroes where they shouldn't.
+-- However, I can't just not record TrackDynamic from sliced or inverted tracks
+-- because then in the very common case of [">i", "*scale"], >i won't get the
+-- *scale because that only happens post-inversion.  In addition, an orphan
+-- track is only seen in sliced form.
+--
+-- I really want to record the dynamic of each track as if there were no
+-- slicing, but that would require a whole new derive pass.  I think I could
+-- fix this by storing TrackDynamics by (BlockId, TrackId, Maybe TrackTime),
+-- and have the lookup function find the most specific one.
+--
+-- TODO That seems like an annoying bit of work that will probably bring its
+-- own complications, so I'm settling for another hack for the moment (those
+-- never go wrong, right?).  I generally want the controls from the
+-- pre-inversion track, since those aren't sliced.  But I want the environ from
+-- post-inversion, because of the *scale thing, and besides the environ can't
+-- be sliced anyway.  So TrackDynamics's mappend takes the environ from the
+-- first arg and the rest (including controls) from the second.  Since inverted
+-- tracks wind up being mappended on the right, this gets controls from
+-- non-inverted and environ from inverted.  Of course there are probably more
+-- ways that could go wrong, and inverted tracks mappending on the right is
+-- brittle and subtle, so I won't be too shocked if I have to come revisit this
+-- someday, and maybe implement the TrackTime thing.
+newtype TrackDynamic = TrackDynamic (Map.Map (BlockId, TrackId) Dynamic)
+    deriving (Show, DeepSeq.NFData, Pretty.Pretty)
+
+instance Monoid.Monoid TrackDynamic where
+    mempty = TrackDynamic mempty
+    mappend (TrackDynamic d1) (TrackDynamic d2) =
+        TrackDynamic $ Map.unionWith merge d1 d2
+        where merge d1 d2 = d2 { state_environ = state_environ d1 }
 
 
 -- ** calls
