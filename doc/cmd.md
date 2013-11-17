@@ -146,7 +146,8 @@ to normalize it.  This makes it fast and convenient to type normalized
 numbers, makes them all the same physical width, and doesn't rely on a tiny
 decimal point to determine their magnitude.  But you can still use [raw
 input](#raw-input) enter decimal numbers if you like them, or need numbers
-outside the 0--1 range.
+outside the 0--1 range.  As documented in 'Cmd.ControlTrack.cmd_val_edit', a
+track is only edited in normalized mode if it's inferred to be normalized.
 
 #### tempo track
 

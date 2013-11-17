@@ -43,7 +43,10 @@ val_calls = Derive.make_calls
     , ("nn", c_nn)
     , ("hz", c_hz)
 
-    -- signals
+    -- lookup
+    , ("#", c_pitch_signal)
+
+    -- generate signals
     , ("i>", c_linear_next)
     , ("e>", c_exp_next)
     ]
@@ -148,7 +151,20 @@ c_hz = Derive.val_call "hz" mempty
         Right nn ->
             return $ TrackLang.num $ Pitch.nn_to_hz (Pitch.NoteNumber nn)
 
--- * signals
+-- * lookup
+
+c_pitch_signal :: Derive.ValCall
+c_pitch_signal = Derive.val_call "pitch" mempty
+    "Get the current pitch." $ Sig.call (defaulted "control" ""
+        "The default pitch if empty, otherwise, get the named pitch.") $
+    \control args -> TrackLang.VPitch <$>
+        (Derive.require "pitch" =<< get control =<< Args.real_start args)
+    where
+    get control
+        | control == "" = Derive.pitch_at
+        | otherwise = Derive.named_pitch_at (Score.control control)
+
+-- * generate signals
 
 c_linear_next :: Derive.ValCall
 c_linear_next = Derive.val_call "linear-next" mempty
