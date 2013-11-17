@@ -76,14 +76,14 @@ module Derive.Deriver.Monad (
 
     -- ** collect
     , Collect(..), ControlMod(..), Integrated(..)
-    , TrackDynamic
+    , TrackDynamic(..)
 
     -- * calls
     , CallMap, ValCallMap
     , CallMaps, make_calls, call_maps
     , CallInfo(..), coerce_call_info, dummy_call_info
     , Call(..), make_call
-    , CallDoc(..), ArgDoc(..), ArgParser(..), ArgDocs(..)
+    , CallDoc(..), ArgDoc(..), ArgParser(..), EnvironDefault(..), ArgDocs(..)
     , WithArgDoc
     , PassedArgs(..)
 
@@ -1076,6 +1076,7 @@ data ArgDoc = ArgDoc {
     arg_name :: Text
     , arg_type :: TrackLang.Type
     , arg_parser :: ArgParser
+    , arg_environ_default :: !EnvironDefault
     , arg_doc :: Text
     } deriving (Eq, Ord, Show)
 
@@ -1083,6 +1084,19 @@ data ArgDoc = ArgDoc {
 -- correspond to parsers in "Derive.Sig".
 data ArgParser = Required | Defaulted !Text | Optional | Many | Many1
     | Environ !(Maybe Text)
+    deriving (Eq, Ord, Show)
+
+-- | This configures how an argument looks for a default in the environ.
+data EnvironDefault =
+    -- | Don't default from environ at all.
+    None
+    -- | Look for @callname-argname@.
+    | Prefixed
+    -- | Look for @argname@.  This is useful for generic parameters that
+    -- should configure many calls simultaneously.
+    | Unprefixed
+    -- | First look for a prefixed key, then for an unprefixed one.
+    | Both
     deriving (Eq, Ord, Show)
 
 -- | A value annotated with argument docs.  This is returned by the functions

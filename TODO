@@ -55,6 +55,27 @@ UNSORTED
       * and start from the upper note
       * kam should use smooth rather than slew_limiter, so it doesn't have
         that delay.
+      TODO
+        - A set of standard controls: speed, transition, curve.  Most
+          gamakam involve pitch transitions, so they should respond to
+          transition and curve.  Ones that alternate respond to speed, which
+          defaults to %trill-speed,n
+          . For this I think I need a flag for args where they first look for
+            "call-arg", and then look for "arg".
+        - Port the gamakam over to plain control signals so they can run on
+          t-diatonic.  Perhaps microtonal ones have to emit t-nn as
+          a control mod.
+        - If I'm standardizing on control calls, maybe they should extend by
+          default only to the end of the overlapping note.  They can look in
+          sub tracks for that.
+        - I still need a solution for the initial delay problem.
+          . Easiest is an environ-only arg.  This will work but every call
+            has to support it specifically.
+          . If I just delay, then the end gets moved forward too.  This might
+            not actually be a big deal for a lot of calls.  Try it?
+          . Can't I shift by a bit, then compress a bit?
+            Actually, I general continuous signal warp could do that: stretch
+            the beginning and compress the rest to make up.
       - but sometimes I do want the delay, can I compose a delay on?
         I want to have a general "hold initial pitch" call so I don't have
         to hardcode an extra param for everything.
@@ -68,16 +89,21 @@ UNSORTED
         . Instead of just a delay, I'd like to make it as if the call was
           later on the track.  But I don't think shift/stretch can work like
           that.
-        . seq x; y; z to sequence ornaments, does this make sense?
+        . seq x; y; z to sequence ornaments, does this make sense?  Or I could
+          see each note has having attack, middle, and release "slots".
         . The note call is for ornaments that decide their own scope.  The
           control calls are for when you want to place them directly.
 
       . It seems generally cleaner to have the ornaments on a separate
         transpose track.
+        . Really pitch calls are just for "halfway between pitch (a) and (b).
+          So I still need the pitch track to represent a slide anchored on
+          both ends.
         Pros:
           . I can keep the pitches separate and clear and collapse the pitch
             track.
-          . Don't have to repeat pitches in the ornaments.
+          . Don't have to repeat pitches in the ornaments.  Ornaments don't
+            need the pitch arg at all.
         Cons:
           . I need two tracks for nn vs. diatonic transposition, can't just
             tack a 'd' on the interval arg.
@@ -761,14 +787,19 @@ REPL: repl:
   - new ghc api lets log_action catch ghci msgs, e.g. "Compiling xyz", added
     in f81e14bb14e459cdd59ea232f7c711827be85dd6
 
-tempo
+tempo:
   - Create tempo by "stretching", i.e. select start and end, and create tempo
     mark that will cause the start point to be played where the end point used
     to be played.
   - Magic marker in tempo track that causes a section to be absolute, e.g.
     when the block stretches, only the non-absolute bits stretch ala attack
     and sustain.
-  - I could use the stretch tempo thing for patterns with variable karvai
+    . I could use the stretch tempo thing for patterns with variable karvai
+    . If a tempo track has a title "tempo abs" then it imposes
+      Internal.in_real_time on its deriver.
+      If it has non-zero-dur events with numbers, then those are "stretchy",
+      with weights given by their numbers.
+      I can tell the intended start and dur by looking at (0, 1).
 
 Cmd:
   - remove RawEdit?

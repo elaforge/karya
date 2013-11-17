@@ -64,9 +64,10 @@ call_bindings_text (binds, ctype, call_doc) = do
         Format.write "Args parsed by call: "
         write_doc doc
     arg_docs (Derive.ArgDocs args) = mapM_ arg_doc args
-    arg_doc (Derive.ArgDoc name typ parser doc) = do
+    arg_doc (Derive.ArgDoc name typ parser env_default doc) = do
         Format.write $ name <> fromMaybe mempty char <> " :: "
             <> txt (Pretty.pretty typ) <> maybe "" (" = "<>) deflt
+            <> " " <> environ_keys name env_default
             <> " -- "
         write_doc doc
         where (char, deflt) = show_parser parser
@@ -74,6 +75,11 @@ call_bindings_text (binds, ctype, call_doc) = do
         | tags == mempty = return ()
         | otherwise = Format.write $
             "Tags: " <> Text.intercalate ", " (Tags.untag tags) <> "\n"
+
+environ_keys :: Text -> Sig.EnvironDefault -> Text
+environ_keys name deflt =
+    "[" <> Text.unwords (map unsym (Sig.environ_keys "*" name deflt)) <> "]"
+    where unsym (TrackLang.Symbol sym) = sym
 
 write_doc :: Text -> Format.FormatM ()
 write_doc text = do
@@ -123,11 +129,14 @@ html_header hstate =
     <> "<style type=text/css>\n" <> css <> "</style>\n"
     <> "<script>\n" <> javascript <> "</script>\n"
     <> mconcat (List.intersperse "; "
-        [ "<code>arg = val</code> &mdash; arg with default"
-        , "<code>arg<sup>?</sup></code> &mdash; optional arg"
+        [ "<code>arg<sup>?</sup></code> &mdash; optional arg"
         , "<code>arg<sup>*</sup></code> &mdash; zero or more args"
         , "<code>arg<sup>+</sup></code> &mdash; one or more args"
         , "<code>arg<sup>env</sup></code> &mdash; looked up in the environ"
+        , "<code>arg = val</code> &mdash; arg with default"
+        , ":: <em>type</em> &mdash; argument type"
+        , "<code>[*-arg arg]</code> &mdash; default from environ values\
+            \ <code>name-arg</code> followed by <code>arg</code>"
         ])
     <> "<br> <code>word</code> to include a tag, <code>-word</code> to\n\
         \exclude: <input id=input type=text size=60 value=\"" <> default_search
@@ -206,10 +215,11 @@ call_bindings_html hstate call_kind bindings@(binds, ctype, call_doc) =
     arg_docs (Derive.ArgsParsedSpecially doc) =
         "\n<li><b>Args parsed by call:</b> " <> html_doc hstate doc
     arg_docs (Derive.ArgDocs args) = mconcatMap arg_doc args
-    arg_doc (Derive.ArgDoc name typ parser doc) =
+    arg_doc (Derive.ArgDoc name typ parser env_default doc) =
         "<li>" <> tag "code" (html name) <> show_char char
         <> " :: " <> tag "em" (html (txt (Pretty.pretty typ)))
         <> show_default deflt
+        <> " " <> tag "code" (html (environ_keys name env_default))
         <> (if Text.null doc then "" else " &mdash; " <> html_doc hstate doc)
         <> "\n"
         where (char, deflt) = show_parser parser
@@ -236,7 +246,7 @@ binding_tags (binds, ctype, call_doc) =
     args_tags (Derive.ArgDocs args) = concatMap arg_tags args
     args_tags (Derive.ArgsParsedSpecially {}) = []
     arg_tags arg =
-        [ unsym $ Sig.arg_environ_default name (Derive.arg_name arg)
+        [ unsym $ Sig.prefixed_environ name (Derive.arg_name arg)
         | name <- names
         ] ++ arg_control_tags (Derive.arg_parser arg)
     unsym (TrackLang.Symbol sym) = sym
@@ -383,7 +393,7 @@ scope_doc ctype (Derive.ScopeType override inst scale builtin) =
 
 -- | Multiple bound symbols with the same DocumentedCall are grouped together:
 type CallBindings = ([Binding], CallType, Derive.CallDoc)
--- | (is_shadowed, bound_symbol, call_name, call_type)
+-- | (is_shadowed, bound_symbol, call_name)
 type Binding = (Bool, SymbolName, CallName)
 type CallName = Text
 type SymbolName = Text

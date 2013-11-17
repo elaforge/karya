@@ -102,7 +102,7 @@ insert_environ name val environ =
 record_track_dynamic :: State -> Collect
 record_track_dynamic state = case stack of
         Stack.Track tid : Stack.Block bid : _ -> mempty
-            { collect_track_dynamic =
+            { collect_track_dynamic = TrackDynamic $
                 Map.singleton (bid, tid) (state_dynamic state)
             }
         _ -> mempty
@@ -122,7 +122,9 @@ record_track_dynamic_for :: BlockId -> TrackId -> Deriver ()
 record_track_dynamic_for block_id track_id = do
     dynamic <- gets state_dynamic
     merge_collect $ mempty
-        { collect_track_dynamic = Map.singleton (block_id, track_id) dynamic }
+        { collect_track_dynamic =
+            TrackDynamic $ Map.singleton (block_id, track_id) dynamic
+        }
 
 
 -- * cache
