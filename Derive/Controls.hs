@@ -9,6 +9,7 @@ import Prelude hiding (null)
 import Util.Control
 import qualified Derive.Score as Score
 import Derive.Score (Control)
+import qualified Perform.Pitch as Pitch
 
 
 -- | Used as the default control by control block calls.  This is because
@@ -72,6 +73,19 @@ mod :: Control
 mod = "mod"
 
 -- ** transposition
+
+transpose_control :: Pitch.Transpose -> (Double, Control)
+transpose_control t = case t of
+    Pitch.Diatonic d -> (d, diatonic)
+    Pitch.Chromatic d -> (d, chromatic)
+    Pitch.Nn d -> (d, nn)
+
+transpose_type :: Score.Type -> Maybe Control
+transpose_type t = case t of
+    Score.Diatonic -> Just diatonic
+    Score.Chromatic -> Just chromatic
+    Score.Nn -> Just nn
+    _ -> Nothing
 
 -- | Pitches respond to this with chromatic transposition.  This is stepwise
 -- transposition for scales with no distinction between chromatic and diatonic.

@@ -3,7 +3,7 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
-  - add Nn transposition to Chromatic and Diatonic
+  * add Nn transposition to Chromatic and Diatonic
   - note render has multiple signal lines in bug/note-render
   - note render on bug/note-render @b1 doesn't take pitch track ornaments into
     account

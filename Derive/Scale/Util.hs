@@ -99,6 +99,7 @@ transpose dmap = \_key octaves steps note -> do
     let degrees = case steps of
             Pitch.Diatonic steps -> d (floor steps)
             Pitch.Chromatic steps -> d (floor steps)
+            Pitch.Nn _ -> 0
     maybe (Left Scale.InvalidTransposition) Right $
         Map.lookup
             (note_degree + d octaves * dm_per_octave dmap + degrees)

@@ -70,16 +70,21 @@ newtype Control = Control Text
         String.IsString)
 
 -- | Tag for the type of the values in a control signal.
-data Type = Untyped | Chromatic | Diatonic | Score | Real
+data Type = Untyped | Chromatic | Diatonic | Nn | Score | Real
     deriving (Eq, Ord, Read, Show)
 
 instance Pretty.Pretty Type where pretty = show
+
+all_types :: [Type]
+all_types = [Chromatic, Diatonic, Nn, Score, Real, Untyped]
+    -- Untyped goes last because the parser tries them in order.
 
 type_to_code :: Type -> String
 type_to_code typ = case typ of
     Untyped -> ""
     Chromatic -> "c"
     Diatonic -> "d"
+    Nn -> "nn"
     Score -> ScoreTime.suffix : "" -- t for time
     Real -> RealTime.suffix : "" -- s for seconds
 
@@ -87,6 +92,7 @@ code_to_type :: String -> Maybe Type
 code_to_type s = case s of
     "c" -> Just Chromatic
     "d" -> Just Diatonic
+    "nn" -> Just Nn
     "t" -> Just Score
     "s" -> Just Real
     "" -> Just Untyped

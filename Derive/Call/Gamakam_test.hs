@@ -14,6 +14,8 @@ test_kampita = do
                 [(">", [(0, 4, "")]), ("*", [(0, 0, call), (end, 0, "3c")])]
     equal (run "kam (4c) 1 1 1" 3)
         ([[(0, NN.c4), (1, NN.cs4), (2, NN.c4), (3, NN.c3)]], [])
+    equal (run "kam (4c) 1d 1 1" 3)
+        ([[(0, NN.c4), (1, NN.d4), (2, NN.c4), (3, NN.c3)]], [])
 
 test_dip = do
     let run call end = DeriveTest.extract DeriveTest.e_nns $

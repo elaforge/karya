@@ -36,10 +36,8 @@ interpolated low high dist =
 
 -- | Transpose a pitch.
 transpose :: Pitch.Transpose -> PitchSignal.Pitch -> PitchSignal.Pitch
-transpose (Pitch.Chromatic v) =
-    PitchSignal.add_control Controls.chromatic v
-transpose (Pitch.Diatonic v) =
-    PitchSignal.add_control Controls.diatonic v
+transpose t = PitchSignal.add_control control val
+    where (val, control) = Controls.transpose_control t
 
 -- | Convert a Pitch to a NoteNumber, throwing an exception if the pitch
 -- failed.

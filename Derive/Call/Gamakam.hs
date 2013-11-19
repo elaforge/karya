@@ -79,14 +79,13 @@ c_kampita mode = Derive.generator1 "kam" Tags.india
     $ Sig.call ((,,,)
     <$> required "pitch" "Base pitch."
     <*> defaulted "neighbor"
-        (Sig.typed_control "trill-neighbor" 1 Score.Untyped)
-        "Alternate with a pitch at this interval. If untyped, it's NNs,\
-        \ otherwise it can be chromatic or diatonic."
+        (Sig.typed_control "trill-neighbor" 1 Score.Nn)
+        "Alternate with a pitch at this interval."
     <*> speed_arg
     <*> defaulted "transition" transition_default "Time for each slide."
     ) $ \(pitch, neighbor, speed, transition) args -> do
         srate <- Util.get_srate
-        (neighbor, control) <- get_interval =<< Util.to_signal neighbor
+        (neighbor, control) <- Util.to_transpose_signal Util.Nn neighbor
         let (val1, val2) = case mode of
                 Trill.UnisonFirst -> (Signal.constant 0, neighbor)
                 Trill.NeighborFirst -> (neighbor, Signal.constant 0)
@@ -95,19 +94,6 @@ c_kampita mode = Derive.generator1 "kam" Tags.india
         start <- Args.real_start args
         return $ PitchSignal.apply_control control
             (Score.untyped transpose) $ PitchSignal.signal [(start, pitch)]
-
--- | Gamakam tend to be either diatonic, or microtonal, which is to say some
--- interval narrower than diatonic.  There is no chromatic concept, but it
--- doesn't hurt to support that too.
-get_interval :: Score.Typed t -> Derive.Deriver (t, Score.Control)
-get_interval val = do
-    control <- case Score.type_of val of
-        Score.Untyped -> return Controls.nn
-        Score.Diatonic -> return Controls.diatonic
-        Score.Chromatic -> return Controls.chromatic
-        typ -> Derive.throw $
-            "expected untyped, diatonic, or chromatic: " ++ show typ
-    return (Score.typed_val val, control)
 
 trill_signal :: (ScoreTime, ScoreTime) -> TrackLang.ValControl
     -> Signal.Control -> Signal.Control -> Derive.Deriver Signal.Control
@@ -137,8 +123,7 @@ c_dip = Derive.generator1 "dip" Tags.india
     ) $ \(pitch, TrackLang.DefaultDiatonic high_, low, speed, transition)
             args -> do
         srate <- Util.get_srate
-        let (high, control) =
-                second Util.transpose_control $ Util.split_transpose high_
+        let (high, control) = Controls.transpose_control high_
         transitions <- Trill.trill_transitions (Args.range_or_next args) speed
         let transpose = SignalTransform.smooth id srate (-transition / 2) $
                 trill_from_transitions transitions
@@ -170,15 +155,13 @@ c_jaru = Derive.generator1 "jaru" Tags.india
         return $ PitchSignal.apply_control control
             (Score.untyped sig) $ PitchSignal.signal [(start, pitch)]
     where
-    -- Do you think this is too much work?  I think it's too much work.
     parse intervals
-        | all (==typ) types = return (xs, Util.transpose_control typ)
-        | otherwise =
-            Derive.throw "all intervals must be either diatonic or chromatic"
+        | all (==control) controls = return (xs, control)
+        | otherwise = Derive.throw "all intervals must have the same type"
         where
-        (xs, typ :| types) = NonEmpty.unzip $
-            NonEmpty.map (Util.split_transpose . TrackLang.defaulted_diatonic)
-                intervals
+        (xs, control :| controls) = NonEmpty.unzip $ NonEmpty.map
+            (Controls.transpose_control . TrackLang.defaulted_diatonic)
+            intervals
 
 c_jaru_intervals :: Util.TransposeType -> [Signal.Y]
     -> Derive.Generator Derive.Pitch

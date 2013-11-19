@@ -152,6 +152,7 @@ transpose fmt key oct transpose note = do
     let steps = floor $ case transpose of
             Pitch.Chromatic steps -> steps
             Pitch.Diatonic steps -> steps
+            Pitch.Nn _ -> 0
     Right $ TheoryFormat.show_pitch fmt key $
         Theory.transpose_pitch per_oct (oct * per_oct + steps) pitch
     where per_oct = TheoryFormat.fmt_pc_per_octave fmt

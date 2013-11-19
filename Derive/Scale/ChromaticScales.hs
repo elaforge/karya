@@ -89,6 +89,7 @@ transpose smap maybe_key octaves steps note = do
             Theory.transpose_chromatic key (floor steps) pitch
         Pitch.Diatonic steps -> show_pitch smap maybe_key $
             Theory.transpose_diatonic key (floor steps) pitch
+        Pitch.Nn _ -> Right note
 
 enharmonics :: ScaleMap -> Derive.Enharmonics
 enharmonics smap maybe_key note = do

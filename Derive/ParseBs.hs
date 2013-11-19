@@ -45,6 +45,7 @@ import qualified Util.Seq as Seq
 
 import qualified Ui.Event as Event
 import qualified Ui.Id as Id
+import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.TrackLang as TrackLang
@@ -238,10 +239,12 @@ p_val =
 p_num :: A.Parser Score.TypedVal
 p_num = do
     num <- p_untyped_num
-    suffix <- A.option "" ((:"") <$> A.letter_ascii)
-    case Score.code_to_type suffix of
-        Nothing -> fail $ "p_num expected suffix in [cdsr]: " ++ show suffix
-        Just typ -> return $ Score.Typed typ num
+    let suffix (typ, suf) = A.string suf >> return typ
+    typ <- A.choice $ map suffix codes
+    return $ Score.Typed typ num
+    where
+    codes = zip BaseTypes.all_types $
+        map (UTF8.fromString . Score.type_to_code) BaseTypes.all_types
 
 p_untyped_num :: A.Parser Signal.Y
 p_untyped_num = p_ratio <|> Parse.p_float

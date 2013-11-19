@@ -78,6 +78,7 @@ test_parse_val = do
             , ("1c", Just (VNum (Score.Typed Score.Chromatic 1)))
             , ("-1d", Just (VNum (Score.Typed Score.Diatonic (-1))))
             , ("-.5d", Just (VNum (Score.Typed Score.Diatonic (-0.5))))
+            , ("42nn", Just (VNum (Score.Typed Score.Nn 42)))
             , ("1q", Nothing)
 
             , ("+", attrs [])

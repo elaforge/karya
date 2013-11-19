@@ -63,8 +63,17 @@ real_time :: RealTime -> Val
 real_time = VNum . Score.Typed Score.Real . RealTime.to_seconds
 
 transposition :: Pitch.Transpose -> Val
-transposition (Pitch.Diatonic d) = VNum $ Score.Typed Score.Diatonic d
-transposition (Pitch.Chromatic d) = VNum $ Score.Typed Score.Chromatic d
+transposition t = VNum $ case t of
+    Pitch.Diatonic d -> Score.Typed Score.Diatonic d
+    Pitch.Chromatic d -> Score.Typed Score.Chromatic d
+    Pitch.Nn d -> Score.Typed Score.Nn d
+
+type_to_transpose :: Score.TypedVal -> Maybe Pitch.Transpose
+type_to_transpose (Score.Typed typ val) = case typ of
+    Score.Diatonic -> Just $ Pitch.Diatonic val
+    Score.Chromatic -> Just $ Pitch.Chromatic val
+    Score.Nn -> Just $ Pitch.Nn val
+    _ -> Nothing
 
 to_scale_id :: (Typecheck a) => a -> Maybe Pitch.ScaleId
 to_scale_id val
@@ -150,6 +159,7 @@ to_num_type typ = case typ of
     Score.Score -> TTime
     Score.Diatonic -> TTranspose
     Score.Chromatic -> TTranspose
+    Score.Nn -> TTranspose
 
 instance Pretty.Pretty Type where
     pretty (TMaybe typ) = "Maybe " ++ Pretty.pretty typ
@@ -240,10 +250,12 @@ instance Typecheck Pitch.Transpose where
         Score.Untyped -> Just (Pitch.Chromatic val)
         Score.Chromatic -> Just (Pitch.Chromatic val)
         Score.Diatonic -> Just (Pitch.Diatonic val)
+        Score.Nn -> Just (Pitch.Nn val)
         _ -> Nothing
     from_val _ = Nothing
     to_val (Pitch.Chromatic a) = to_val a
     to_val (Pitch.Diatonic a) = to_val a
+    to_val (Pitch.Nn a) = to_val a
     to_type _ = TNum TTranspose
 
 -- | But some calls want to default to diatonic, not chromatic.

@@ -223,19 +223,26 @@ newtype Degree = Degree Int
 instance Pretty.Pretty Degree where
     pretty (Degree n) = show n
 
--- | A generic transposition, for operations that can transpose either
--- diatonically or chromatically.
+-- | A generic transposition, for operations that can transpose diatonically,
+-- chromatically, or by absolute NoteNumber.
 data Transpose = Chromatic Double | Diatonic Double
+    -- | Nn is scale-independent, so it's not suitable for symbolic
+    -- transposition, but it's still useful for pitch transposition.
+    | Nn Double
     deriving (Eq, Ord, Show)
 
 instance Pretty.Pretty Transpose where pretty = untxt . ShowVal.show_val
 instance ShowVal.ShowVal Transpose where
+    -- TODO convert to a Score.TypedVal and use its ShowVal
     show_val (Chromatic d) = ShowVal.show_val d <> "c"
     show_val (Diatonic d) = ShowVal.show_val d <> "d"
+    show_val (Nn d) = ShowVal.show_val d <> "nn"
 
 modify_transpose :: (Double -> Double) -> Transpose -> Transpose
-modify_transpose f (Chromatic d) = Chromatic (f d)
-modify_transpose f (Diatonic d) = Diatonic (f d)
+modify_transpose f t = case t of
+    Chromatic d -> Chromatic (f d)
+    Diatonic d -> Diatonic (f d)
+    Nn d -> Nn (f d)
 
 -- | Diatonic transposition often requires a Key for context.
 --

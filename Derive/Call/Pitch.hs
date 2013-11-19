@@ -215,17 +215,16 @@ c_down = Derive.generator1 "down" Tags.prev
 slope :: Text -> Double -> Derive.WithArgDoc
     (Derive.PitchArgs -> Derive.Deriver PitchSignal.Signal)
 slope word sign =
-    Sig.call (defaulted "speed" (Pitch.Chromatic 1)
+    Sig.call (defaulted "slope" (Pitch.Chromatic 1)
         (word <> " this many steps per second.")) $
-    \speed args -> Args.prev_val args >>= \x -> case x of
+    \slope args -> Args.prev_val args >>= \x -> case x of
         Nothing -> return mempty
         Just (_, prev_pitch) -> do
             start <- Args.real_start args
             next <- Derive.real (Args.next args)
-            let diff = RealTime.to_seconds (next - start) * speed_val * sign
-                (speed_val, typ) = Util.split_transpose speed
-                dest = Pitches.transpose (Util.join_transpose diff typ)
-                    prev_pitch
+            let dest = Pitches.transpose transpose prev_pitch
+                transpose = Pitch.modify_transpose
+                    (* (RealTime.to_seconds (next - start) * sign)) slope
             make_interpolator id True start prev_pitch next dest
 
 c_porta :: Derive.Generator Derive.Pitch

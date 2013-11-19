@@ -63,23 +63,16 @@ import Types
 -- transpose types.  Surely there's a better way?  Maybe put the two kinds into
 -- a typeclass?
 
-data TransposeType = Diatonic | Chromatic deriving (Eq, Show)
+data TransposeType = Diatonic | Chromatic | Nn deriving (Eq, Show)
 data TimeType = Real | Score deriving (Eq, Show)
 
 instance Pretty.Pretty TransposeType where pretty = show
 instance Pretty.Pretty TimeType where pretty = show
 
-split_transpose :: Pitch.Transpose -> (Double, TransposeType)
-split_transpose (Pitch.Chromatic c) = (c, Chromatic)
-split_transpose (Pitch.Diatonic c) = (c, Diatonic)
-
-join_transpose :: Double -> TransposeType -> Pitch.Transpose
-join_transpose c Chromatic = Pitch.Chromatic c
-join_transpose c Diatonic = Pitch.Diatonic c
-
 transpose_control :: TransposeType -> Score.Control
 transpose_control Diatonic = Controls.diatonic
 transpose_control Chromatic = Controls.chromatic
+transpose_control Nn = Controls.nn
 
 -- | To accomodate both normal calls, which are in score time, and post
 -- processing calls, which are in real time, these functions take RealTimes.
@@ -164,11 +157,11 @@ to_transpose_signal default_type control = do
     Score.Typed typ sig <- to_signal control
     case typ of
         Score.Untyped -> return (sig, transpose_control default_type)
-        Score.Chromatic -> return (sig, Controls.chromatic)
-        Score.Diatonic -> return (sig, Controls.diatonic)
-        _ -> Derive.throw $ "expected transpose type for "
-            <> untxt (TrackLang.show_val control) <> " but got "
-            <> Pretty.pretty typ
+        _ -> case Controls.transpose_type typ of
+            Just control -> return (sig, control)
+            _ -> Derive.throw $ "expected transpose type for "
+                <> untxt (TrackLang.show_val control) <> " but got "
+                <> Pretty.pretty typ
 
 -- | Version of 'to_signal' that will complain if the control isn't a time
 -- type.
