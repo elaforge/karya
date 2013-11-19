@@ -78,8 +78,7 @@ c_kampita mode = Derive.generator1 "kam" Tags.india
     \ the vocal microtonal trills common in Carnatic music."
     $ Sig.call ((,,,)
     <$> required "pitch" "Base pitch."
-    <*> defaulted "neighbor"
-        (Sig.typed_control "trill-neighbor" 1 Score.Nn)
+    <*> defaulted "neighbor" (Sig.typed_control "trill-neighbor" 1 Score.Nn)
         "Alternate with a pitch at this interval."
     <*> speed_arg
     <*> defaulted "transition" transition_default "Time for each slide."
@@ -113,15 +112,16 @@ c_dip = Derive.generator1 "dip" Tags.india
     "Alternate two intervals, dropping `dyn` on the second. This is useful\
     \ when avoiding a swaram, since it doesn't necessarily emit the base\
     \ pitch."
-    $ Sig.call ((,,,,)
+    $ Sig.call ((,,,,,)
     <$> required "pitch" "Base pitch."
     <*> defaulted "high" (TrackLang.default_diatonic 1) "High interval."
     <*> defaulted "low" (-1) "Low interval."
     <*> speed_arg
+    <*> defaulted "dyn" 0.5 "Multiply dyn by this amount."
     <*> Sig.environ "transition" Sig.Both transition_default
         "Time for each slide."
-    ) $ \(pitch, TrackLang.DefaultDiatonic high_, low, speed, transition)
-            args -> do
+    ) $ \(pitch, TrackLang.DefaultDiatonic high_, low, speed, dyn_scale,
+            transition) args -> do
         srate <- Util.get_srate
         let (high, control) = Controls.transpose_control high_
         transitions <- Trill.trill_transitions (Args.range_or_next args) speed
@@ -130,8 +130,8 @@ c_dip = Derive.generator1 "dip" Tags.india
                     (Signal.constant high) (Signal.constant low)
             dyn = SignalTransform.smooth id srate (-transition / 2) $
                 trill_from_transitions transitions
-                    (Signal.constant 1) (Signal.constant 0.25)
-        (start, end) <- Args.real_range args
+                    (Signal.constant 1) (Signal.constant dyn_scale)
+        (start, end) <- Args.real_range_or_next args
         Control.multiply_dyn end dyn
         return $ PitchSignal.apply_control control
             (Score.untyped transpose) $ PitchSignal.signal [(start, pitch)]
@@ -224,21 +224,22 @@ c_dip_c = Derive.generator1 "dip" Tags.india
     "Alternate two intervals, dropping `dyn` on the second. This is useful\
     \ when avoiding a swaram, since it doesn't necessarily emit the base\
     \ pitch."
-    $ Sig.call ((,,,)
+    $ Sig.call ((,,,,)
     <$> defaulted "high" 1 "High interval."
     <*> defaulted "low" (-1) "Low interval."
     <*> speed_arg
+    <*> defaulted "dyn" 0.5 "Multiply dyn by this amount."
     <*> Sig.environ "transition" Sig.Both transition_default
         "Time for each slide."
-    ) $ \(high, low, speed, transition) args -> do
+    ) $ \(high, low, speed, dyn_scale, transition) args -> do
         srate <- Util.get_srate
         transitions <- Trill.trill_transitions (Args.range_or_next args) speed
         let smooth = SignalTransform.smooth id srate (-transition / 2)
             transpose = smooth $ trill_from_transitions transitions
                 (Signal.constant high) (Signal.constant low)
             dyn = smooth $ trill_from_transitions transitions
-                (Signal.constant 1) (Signal.constant 0.25)
-        end <- Args.real_end args
+                (Signal.constant 1) (Signal.constant dyn_scale)
+        end <- Derive.real (Args.next args)
         Control.multiply_dyn end dyn
         return transpose
 

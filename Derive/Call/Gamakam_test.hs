@@ -18,11 +18,12 @@ test_kampita = do
         ([[(0, NN.c4), (1, NN.d4), (2, NN.c4), (3, NN.c3)]], [])
 
 test_dip = do
-    let run call end = DeriveTest.extract DeriveTest.e_nns $
-            DeriveTest.derive_tracks
-                [(">", [(0, 4, "")]), ("*", [(0, 0, call), (end, 0, "3c")])]
-    equal (run "dip (4c) 1 -1 1" 4)
+    let run ex call end = DeriveTest.extract ex $ DeriveTest.derive_tracks
+            [(">", [(0, 4, "")]), ("*", [(0, 0, call), (end, 0, "3c")])]
+    equal (run DeriveTest.e_nns "dip (4c) 1 -1 1" 4)
         ([[(0, NN.d4), (1, NN.b3), (2, NN.d4), (3, NN.b3), (4, NN.c3)]], [])
+    equal (run DeriveTest.e_dyn "dip (4c) 1 -1 1 .5" 4)
+        ([[(0, 1), (1, 0.5), (2, 1), (3, 0.5), (4, 1)]], [])
 
 test_jaru = do
     let run call = DeriveTest.extract DeriveTest.e_nns $
