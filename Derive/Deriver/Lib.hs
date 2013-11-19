@@ -302,6 +302,7 @@ get_control_op c_op = do
     maybe (throw ("unknown control op: " ++ show c_op)) return
         (Map.lookup c_op op_map)
 
+-- | Emit a 'ControlMod'.
 modify_control :: ControlOp -> Score.Control -> Signal.Control -> Deriver ()
 modify_control op control signal = Internal.modify_collect $ \collect ->
     collect { collect_control_mods =

@@ -128,7 +128,7 @@ melakarta_names =
     , "dhenuka", "natakapriya", "kokilapriya", "rupavati"
     , "gayakapriya", "vakulabharanam", "mayamalavagoula", "chakravaham"
     , "suryakantam", "hatakambhari", "jhankaradhwani", "natabhairavi"
-    , "keeravani", "kharaharapriya", "gourimanohari", "varunapriya"
+    , "kiravani", "kharaharapriya", "gourimanohari", "varunapriya"
     , "mararanjani", "charukesi", "sarasangi", "harikambhoji"
     , "dheerashankarabharanam", "naganandini", "yagapriya", "ragavardhini"
     , "gangeyabhusani", "vagadheeswari", "sulini", "chalanattai"

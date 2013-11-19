@@ -117,7 +117,7 @@ note_maps :: Derive.CallMaps Derive.Note
 
 control_maps :: Derive.CallMaps Derive.Control
 (control_maps, shadowed_controls) = union_calls
-    [ Control.control_calls, Random.control_calls
+    [ Control.control_calls, Gamakam.control_calls, Random.control_calls
     , SignalTransform.control_calls, Trill.control_calls
     ]
 

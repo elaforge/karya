@@ -15,6 +15,13 @@ test_kampita = do
     equal (run "kam (4c) 1 1 1" 3)
         ([[(0, NN.c4), (1, NN.cs4), (2, NN.c4), (3, NN.c3)]], [])
 
+test_dip = do
+    let run call end = DeriveTest.extract DeriveTest.e_nns $
+            DeriveTest.derive_tracks
+                [(">", [(0, 4, "")]), ("*", [(0, 0, call), (end, 0, "3c")])]
+    equal (run "dip (4c) 1 -1 1" 4)
+        ([[(0, NN.d4), (1, NN.b3), (2, NN.d4), (3, NN.b3), (4, NN.c3)]], [])
+
 test_jaru = do
     let run call = DeriveTest.extract DeriveTest.e_nns $
             DeriveTest.derive_tracks

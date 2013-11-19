@@ -807,7 +807,7 @@ data Collect = Collect {
 -- The motivating case is pitch ornaments that also want to affect the
 -- dynamics.  The modifications are a secondary return value from control
 -- and pitch calls.  The track deriver will extract them and merge them into
--- the dynamic environment.  [note control-modification]
+-- the dynamic environment.  [NOTE control-modification]
 data ControlMod = ControlMod !Score.Control !Signal.Control !ControlOp
     deriving (Show)
 

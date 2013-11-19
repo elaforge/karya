@@ -66,7 +66,7 @@ UNSORTED
           defaults to %trill-speed,n
           . For this I think I need a flag for args where they first look for
             "call-arg", and then look for "arg".
-        - Port the gamakam over to plain control signals so they can run on
+        * Port the gamakam over to plain control signals so they can run on
           t-diatonic.  Perhaps microtonal ones have to emit t-nn as
           a control mod.  Or I could have a signal transform that sends its
           argument to a control mod: '-> t-nn | xyz'

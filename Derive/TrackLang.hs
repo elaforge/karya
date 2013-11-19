@@ -95,8 +95,11 @@ data RealOrScore = Real RealTime | Score ScoreTime deriving (Eq, Show)
 -- but some calls would prefer to default to Diatonic.
 newtype DefaultDiatonic = DefaultDiatonic Pitch.Transpose deriving (Show)
 
-default_diatonic :: DefaultDiatonic -> Pitch.Transpose
-default_diatonic (DefaultDiatonic x) = x
+defaulted_diatonic :: DefaultDiatonic -> Pitch.Transpose
+defaulted_diatonic (DefaultDiatonic x) = x
+
+default_diatonic :: Double -> DefaultDiatonic
+default_diatonic = DefaultDiatonic . Pitch.Diatonic
 
 -- | Either RealTime or ScoreTime, but untyped defaults to RealTime.
 newtype DefaultReal = DefaultReal RealOrScore deriving (Eq, Show)
