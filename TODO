@@ -3,6 +3,10 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
+  - add Nn transposition to Chromatic and Diatonic
+  - note render has multiple signal lines in bug/note-render
+  - note render on bug/note-render @b1 doesn't take pitch track ornaments into
+    account
   * get rid of fmap0
   - block cache not being invalitated: create a sub-block with
     Refactor.selection, then add a 'set dyn' track, or last note
@@ -56,7 +60,7 @@ UNSORTED
       * kam should use smooth rather than slew_limiter, so it doesn't have
         that delay.
       TODO
-        - A set of standard controls: speed, transition, curve.  Most
+        * A set of standard controls: speed, transition, curve.  Most
           gamakam involve pitch transitions, so they should respond to
           transition and curve.  Ones that alternate respond to speed, which
           defaults to %trill-speed,n
@@ -64,7 +68,20 @@ UNSORTED
             "call-arg", and then look for "arg".
         - Port the gamakam over to plain control signals so they can run on
           t-diatonic.  Perhaps microtonal ones have to emit t-nn as
-          a control mod.
+          a control mod.  Or I could have a signal transform that sends its
+          argument to a control mod: '-> t-nn | xyz'
+          . Really pitch calls are just for "halfway between pitch (a) and (b).
+            So I still need the pitch track to represent a slide anchored on
+            both ends.
+          Pros:
+            . I can keep the pitches separate and clear and collapse the pitch
+              track.
+            . Don't have to repeat pitches in the ornaments.  Ornaments don't
+              need the pitch arg at all.
+          Cons:
+            . I need two tracks for nn vs. diatonic transposition, can't just
+              tack a 'd' on the interval arg.
+
         - If I'm standardizing on control calls, maybe they should extend by
           default only to the end of the overlapping note.  They can look in
           sub tracks for that.
@@ -94,21 +111,7 @@ UNSORTED
         . The note call is for ornaments that decide their own scope.  The
           control calls are for when you want to place them directly.
 
-      . It seems generally cleaner to have the ornaments on a separate
-        transpose track.
-        . Really pitch calls are just for "halfway between pitch (a) and (b).
-          So I still need the pitch track to represent a slide anchored on
-          both ends.
-        Pros:
-          . I can keep the pitches separate and clear and collapse the pitch
-            track.
-          . Don't have to repeat pitches in the ornaments.  Ornaments don't
-            need the pitch arg at all.
-        Cons:
-          . I need two tracks for nn vs. diatonic transposition, can't just
-            tack a 'd' on the interval arg.
-
-      - there is a variant of kampita that avoids the base note
+      + there is a variant of kampita that avoids the base note
         . also, it plays the low note more softly
         . kam2 (5m) 1 -1
         . transition-curve, transition-time, grace-speed are params to most of
@@ -127,7 +130,7 @@ UNSORTED
         . (<) should work but doesn't, what's up?
         . Keeping the pitch track separate would also solve this problem,
           don't need the base pitch arg.
-      - Separate gamakam control track that combines diatonic and nn
+      * Separate gamakam control track that combines diatonic and nn
         transposition.  I could make it primarily diatonic, and use
         the secondary control thing to emit nn transposition.  The annoying
         thing is it then doesn't show up in the signal render, but at least

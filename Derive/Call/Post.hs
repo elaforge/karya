@@ -182,5 +182,11 @@ pitch_range deriver = do
 signal :: (Monoid.Monoid sig) => (sig -> sig)
     -> Derive.LogsDeriver sig -> Derive.LogsDeriver sig
 signal f deriver = do
+    (sig, logs) <- derive_signal deriver
+    return $ LEvent.Event (f sig) : map LEvent.Log logs
+
+derive_signal :: (Monoid.Monoid sig) => Derive.LogsDeriver sig
+    -> Derive.Deriver (sig, [Log.Msg])
+derive_signal deriver = do
     (chunks, logs) <- LEvent.partition <$> deriver
-    return $ LEvent.Event (f (mconcat chunks)) : map LEvent.Log logs
+    return (mconcat chunks, logs)

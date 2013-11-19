@@ -14,10 +14,12 @@ import qualified Derive.Args as Args
 import qualified Derive.Call.Control as Control
 import qualified Derive.Call.Post as Post
 import qualified Derive.Call.Speed as Speed
+import qualified Derive.Call.Tags as Tags
 import qualified Derive.Call.Util as Util
 import qualified Derive.Derive as Derive
 import qualified Derive.LEvent as LEvent
 import qualified Derive.PitchSignal as PitchSignal
+import qualified Derive.Score as Score
 import qualified Derive.Sig as Sig
 import Derive.Sig (defaulted, required)
 import qualified Derive.TrackLang as TrackLang
@@ -61,6 +63,9 @@ control_calls = Derive.call_maps []
     , ("sh", c_sh_control)
     , ("slew", c_slew)
     , ("smooth", c_smooth)
+    -- TODO should I set to 1 at start and end, like Control.multiply_signal?
+    , ("->", c_redirect Derive.op_mul "multiplication")
+    , ("->+", c_redirect Derive.op_add "addition")
     ]
 
 c_sh_control :: Derive.Transformer Derive.Control
@@ -173,3 +178,14 @@ smooth f srate time =
             segment = Signal.drop 1 $ Control.interpolate_segment True srate f
                 (max x0 (min x (x+time))) y0
                 (maybe id (min . fst) next (max x (x+time))) y
+
+c_redirect :: Derive.ControlOp -> Text -> Derive.Transformer Derive.Control
+c_redirect op op_name =
+    Derive.transformer "redirect" (Tags.prelude <> Tags.cmod)
+    ("Redirect a signal to another control, using the control modifier hack.\
+    \ The control is combined with " <> op_name <> ".")
+    $ Sig.callt (required "control" "Redirect to this control.")
+    $ \control _args deriver -> do
+        (sig, logs) <- Post.derive_signal deriver
+        Derive.modify_control op (Score.control control) sig
+        return $ map LEvent.Log logs
