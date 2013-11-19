@@ -212,10 +212,8 @@ instance (Typecheck a, Typecheck b) => Typecheck (Either a b) where
             Just right -> Just $ Right right
             Nothing -> Nothing
     to_val = either to_val to_val
-    to_type val = TEither (to_type left) (to_type right)
-        where
-        Right right = val
-        Left left = val
+    to_type _ = TEither (to_type (error "Either to_type" :: a))
+        (to_type (error "Either to_type" :: b))
 
 instance Typecheck Double where
     from_val (VNum (Score.Typed _ a)) = Just a
