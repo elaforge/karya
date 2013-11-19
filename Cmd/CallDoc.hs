@@ -78,7 +78,8 @@ call_bindings_text (binds, ctype, call_doc) = do
 
 environ_keys :: Text -> Sig.EnvironDefault -> Text
 environ_keys name deflt =
-    "[" <> Text.unwords (map unsym (Sig.environ_keys "*" name deflt)) <> "]"
+    "[" <> Text.intercalate ", " (map unsym (Sig.environ_keys "*" name deflt))
+        <> "]"
     where unsym (TrackLang.Symbol sym) = sym
 
 write_doc :: Text -> Format.FormatM ()

@@ -392,7 +392,7 @@ environ_keys call_name arg_name env_default = case env_default of
     Derive.None -> []
     Derive.Prefixed -> [prefixed]
     Derive.Unprefixed -> [unprefixed]
-    Derive.Both -> [unprefixed, prefixed]
+    Derive.Both -> [prefixed, unprefixed]
     where
     prefixed = prefixed_environ call_name arg_name
     unprefixed = TrackLang.Symbol arg_name
