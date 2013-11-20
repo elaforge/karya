@@ -132,7 +132,7 @@ sample_controls :: ControlMap -> Set.Set Score.Control
 sample_controls controls transposers =
     TimeVector.signal $ zip xs (map (flip controls_at controls) xs)
     where
-    xs = Seq.drop_dups id $ Seq.merge_asc_lists id (map xs_of sigs)
+    xs = Seq.drop_dups id $ Seq.merge_lists id (map xs_of sigs)
     sigs = mapMaybe (\c -> Map.lookup c controls)
         (Set.toList transposers)
     xs_of = map fst . Signal.unsignal . Score.typed_val

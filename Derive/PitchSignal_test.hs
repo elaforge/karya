@@ -16,22 +16,27 @@ import Types
 
 
 test_apply_controls = do
-    let f cont sig psig = unsignal $ PitchSignal.apply_controls
-            mempty (Map.singleton cont (Score.untyped (Signal.signal sig)))
-            (mksignal psig)
+    let f controls psig = unsignal $ PitchSignal.apply_controls
+            mempty (mkcontrols controls) (mksignal psig)
+        mkcontrols = Map.fromList . map (second (Score.untyped . Signal.signal))
         err = Left "bad transpose"
     -- No effect.
-    equal (f c_normal [(1, 1), (2, 2), (3, 3)] [(0, 1)]) [(0, Right 1)]
-    equal (f c_trans [(1, 1), (2, 2), (3, 3)] [(0, 2)])
+    equal (f [("normal", [(1, 1), (2, 2), (3, 3)])] [(0, 1)]) [(0, Right 1)]
+    equal (f [(trans1, [(1, 1), (2, 2), (3, 3)])] [(0, 2)])
         [(0, Right 2), (1, Right 3), (2, err), (3, err)]
-    equal (f c_trans [(0, 0), (1, -1), (2, 0)] [(0, 2)])
+    equal (f [(trans1, [(0, 0), (1, -1), (2, 0)])] [(0, 2)])
         [(0, Right 2), (1, Right 1), (2, Right 2)]
+
+    equal (f [(trans1, [(1, 1), (3, 3)]), (trans2, [(0, 0)])] [(1, 0)])
+        [(0, Right 0), (1, Right 1), (3, Right 3)]
+    equal (f [(trans1, [(1, 1), (3, 3)]), (trans2, [(0, 0), (2, 2)])] [(1, 0)])
+        [(0, Right 0), (1, Right 1), (2, Right 1), (3, Right 3)]
 
 mksignal :: [(RealTime, Pitch.NoteNumber)] -> PitchSignal.Signal
 mksignal = PitchSignal.signal . map (second mkpitch)
 
 default_scale :: PitchSignal.Scale
-default_scale = PitchSignal.Scale "test" (Set.fromList [c_trans])
+default_scale = PitchSignal.Scale "test" (Set.fromList [trans1, trans2])
 
 mkpitch :: Pitch.NoteNumber -> PitchSignal.Pitch
 mkpitch nn =
@@ -41,12 +46,12 @@ mkpitch nn =
         | nn + t >= 4 = Left (PitchSignal.PitchError "bad transpose")
         | otherwise = Right (nn + t)
         where
-        t = Pitch.NoteNumber $ Map.findWithDefault 0 c_trans
+        t = Pitch.NoteNumber $ Map.findWithDefault 0 trans1
             (PitchSignal.pitch_controls config)
 
-c_normal, c_trans :: Score.Control
-c_normal = "normal"
-c_trans = "trans"
+trans1, trans2 :: Score.Control
+trans1 = "trans1"
+trans2 = "trans2"
 
 unsignal :: PitchSignal.Signal -> [(RealTime, Either String Pitch.NoteNumber)]
 unsignal = map (second (unerror . PitchSignal.pitch_nn)) . PitchSignal.unsignal
