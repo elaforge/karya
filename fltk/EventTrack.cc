@@ -90,18 +90,32 @@ TrackSignal::pixel_time_at(const ZoomInfo &zoom, int i) const
 void
 TrackSignal::calculate_val_bounds() {
     // Only automatically scale the bounds for pitch signals.
+    RealTime last_time = -9999;
     if (this->is_pitch_signal) {
         val_min = 9999;
         val_max = 1;
         for (ControlSample *s = signal; s < signal + length; s++) {
             val_max = std::max(val_max, s->val);
             val_min = std::min(val_min, s->val);
+            // Since I'm iterating over the signal I might as well check this.
+            // Unsorted samples will cause drawing glitches.
+            if (s->time <= last_time) {
+                DEBUG("sample time decreased: " << s->time << " <= "
+                    << last_time);
+            }
+            last_time = s->time;
         }
     } else {
         val_min = 0;
         val_max = 1;
         for (ControlSample *s = signal; s < signal + length; s++) {
             val_max = std::max(val_max, s->val);
+            val_min = std::min(val_min, s->val);
+            if (s->time <= last_time) {
+                DEBUG("sample time decreased: " << s->time << " <= "
+                    << last_time);
+            }
+            last_time = s->time;
         }
     }
 }
