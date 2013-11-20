@@ -24,7 +24,7 @@ import qualified Derive.Derive as Derive
 import qualified Derive.PitchSignal as PitchSignal
 import qualified Derive.Score as Score
 import qualified Derive.Sig as Sig
-import Derive.Sig (defaulted, required)
+import Derive.Sig (defaulted, defaulted_env, required)
 import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.Signal as Signal
@@ -81,7 +81,8 @@ c_kampita mode = Derive.generator1 "kam" Tags.india
     <*> defaulted "neighbor" (Sig.typed_control "trill-neighbor" 1 Score.Nn)
         "Alternate with a pitch at this interval."
     <*> speed_arg
-    <*> defaulted "transition" transition_default "Time for each slide."
+    <*> defaulted_env "transition" Sig.Both transition_default
+        "Time for each slide."
     ) $ \(pitch, neighbor, speed, transition) args -> do
         srate <- Util.get_srate
         (neighbor, control) <- Util.to_transpose_signal Util.Nn neighbor
@@ -208,7 +209,8 @@ c_kampita_c mode = Derive.generator1 "kam" Tags.india
         (Sig.typed_control "trill-neighbor" 1 Score.Untyped)
         "Alternate between 0 and this value."
     <*> speed_arg
-    <*> defaulted "transition" transition_default "Time for each slide."
+    <*> defaulted_env "transition" Sig.Both transition_default
+        "Time for each slide."
     ) $ \(neighbor, speed, transition) args -> do
         srate <- Util.get_srate
         neighbor <- Util.to_untyped_signal neighbor

@@ -92,8 +92,8 @@ sa = 1
 ri1 = 16 % 15
 ri2 = 8 % 7
 ri3 = 6 % 5
-ga1 = ri1
-ga2 = ri2
+ga1 = ri2
+ga2 = ri3
 ga3 = 5 % 4
 ma1 = 4 % 3
 ma2 = 7 % 5
@@ -132,6 +132,7 @@ melakarta_names =
     , "mararanjani", "charukesi", "sarasangi", "harikambhoji"
     , "dheerashankarabharanam", "naganandini", "yagapriya", "ragavardhini"
     , "gangeyabhusani", "vagadheeswari", "sulini", "chalanattai"
+
     , "salagam", "jalarnavam", "jhalavarali", "navaneetam"
     , "pavani", "raghupriya", "gavambodhi", "bhavapriya"
     , "subhapantuvarali", "shadvigamargini", "suvarnangi", "divyamani"
