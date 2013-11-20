@@ -83,7 +83,8 @@ type Boxed y = Vector.Vector (Sample y)
 -- signals start at the same time.  But then, Data.Map's mappend isn't
 -- commutative either.
 
-type Unboxed = Storable.Vector (Sample Double)
+type Unboxed = Storable.Vector (Sample UnboxedY)
+type UnboxedY = Double
 
 to_foreign_ptr :: (Storable.Storable a) =>
     Storable.Vector a -> (Foreign.ForeignPtr a, Int)
@@ -114,16 +115,16 @@ uncons v
 -- ** TimeVector specific
 
 -- | Construct a TimeVector from a list.
+{-# SPECIALIZE signal :: [(X, UnboxedY)] -> Unboxed #-}
 {-# INLINEABLE signal #-}
-{-# SPECIALIZE signal :: [(X, Double)] -> Unboxed #-}
 signal :: (V.Vector v (Sample y)) => [(X, y)] -> v (Sample y)
 signal = V.fromList . map (uncurry Sample)
 
 unsignal :: (V.Vector v (Sample y)) => v (Sample y) -> [(X, y)]
 unsignal = map to_pair . V.toList
 
+{-# SPECIALIZE constant :: UnboxedY -> Unboxed #-}
 {-# INLINEABLE constant #-}
-{-# SPECIALIZE constant :: Double -> Unboxed #-}
 constant :: (V.Vector v (Sample y)) => y -> v (Sample y)
 constant y = V.singleton (Sample 0 y)
     -- Constant starts at 0, as documented in the module haddock.
@@ -144,6 +145,7 @@ instance (Pretty.Pretty y) => Pretty.Pretty (Sample y) where
 -- | Merge a list of vectors.  Samples are not interspersed, and if the vectors
 -- overlap the one with a later first sample wins.
 {-# SPECIALIZE merge :: [Unboxed] -> Unboxed #-}
+{-# INLINEABLE merge #-}
 merge :: (V.Vector v (Sample y)) => [v (Sample y)] -> v (Sample y)
 merge vecs = V.unfoldrN len go $ Seq.sort_on (fmap sx . head) vecs
     where
@@ -163,6 +165,7 @@ merge vecs = V.unfoldrN len go $ Seq.sort_on (fmap sx . head) vecs
 
 -- | Merge two vectors, interleaving their samples.
 {-# SPECIALIZE interleave :: Unboxed -> Unboxed -> Unboxed #-}
+{-# INLINEABLE interleave #-}
 interleave :: (V.Vector v (Sample y)) => v (Sample y) -> v (Sample y)
     -> v (Sample y)
 interleave vec1 vec2 = V.unfoldrN (len1 + len2) go (0, 0)
@@ -182,6 +185,7 @@ interleave vec1 vec2 = V.unfoldrN (len1 + len2) go (0, 0)
 -- | When signals are 'merge'd, the later one overrides the first one.  This
 -- is the other way: the first one will override the second.
 {-# SPECIALIZE prepend :: Unboxed -> Unboxed -> Unboxed #-}
+{-# INLINEABLE prepend #-}
 prepend :: (V.Vector v (Sample y)) => v (Sample y) -> v (Sample y)
     -> v (Sample y)
 prepend vec1 vec2 = case last vec1 of
@@ -196,8 +200,8 @@ prepend vec1 vec2 = case last vec1 of
 -- There is a special rule that says a sample at <=0 is considered to extend
 -- backwards indefinitely.  So @at (-1) [(1, 1)]@ is 0, but
 -- @at (-1) [(0, 1)]@ is 1.  More documentation in the module haddock.
+{-# SPECIALIZE at :: X -> Unboxed -> Maybe UnboxedY #-}
 {-# INLINEABLE at #-}
-{-# SPECIALIZE at :: X -> Unboxed -> Maybe Double #-}
 at :: (V.Vector v (Sample y)) => X -> v (Sample y) -> Maybe y
 at x vec
     | i >= 0 = Just $ sy (V.unsafeIndex vec i)
@@ -209,7 +213,9 @@ at x vec
 -- | Samples at and above the given time.
 ascending :: (V.Vector v (Sample y)) => X -> v (Sample y) -> [Sample y]
 ascending x vec =
-    [V.unsafeIndex vec i | i <- Seq.range' (lowest_index x vec) (V.length vec) 1]
+    [ V.unsafeIndex vec i
+    | i <- Seq.range' (lowest_index x vec) (V.length vec) 1
+    ]
 
 -- | Descending samples, starting below the time.
 descending :: (V.Vector v (Sample y)) => X -> v (Sample y) -> [Sample y]
@@ -229,6 +235,7 @@ shift offset vec
 -- because, as per the module haddock, a sample <=0 stands in for all values
 -- <=0.
 {-# SPECIALIZE drop_after :: X -> Unboxed -> Unboxed #-}
+{-# INLINEABLE drop_after #-}
 drop_after :: (V.Vector v (Sample y)) => X -> v (Sample y) -> v (Sample y)
 drop_after x vec
     | x <= 0 = V.takeWhile ((<=0) . sx) vec
@@ -237,6 +244,7 @@ drop_after x vec
 -- | Like 'drop_before_strict', except if there is no sample at @x@, keep one
 -- sample before it to preserve the value at @x@.
 {-# SPECIALIZE drop_before :: X -> Unboxed -> Unboxed #-}
+{-# INLINEABLE drop_before #-}
 drop_before :: (V.Vector v (Sample y)) => X -> v (Sample y) -> v (Sample y)
 drop_before x vec
     | i < V.length vec && sx (V.unsafeIndex vec i) == x = V.drop i vec
@@ -260,7 +268,7 @@ map_x f = V.map $ \(Sample x y) -> Sample (f x) y
 map_y :: (V.Vector v (Sample y)) => (y -> y) -> v (Sample y) -> v (Sample y)
 map_y f = V.map $ \(Sample x y) -> Sample x (f y)
 
-{-# SPECIALIZE map_err :: (Sample Double -> Either err (Sample Double))
+{-# SPECIALIZE map_err :: (Sample UnboxedY -> Either err (Sample UnboxedY))
     -> Unboxed -> (Unboxed, [err]) #-}
 {-# INLINEABLE map_err #-}
 -- | A map that can return error msgs.
@@ -270,7 +278,7 @@ map_err f vec = second reverse $ State.runState (V.mapM go vec) []
     go sample =
         either (\err -> State.modify (err:) >> return sample) return (f sample)
 
-{-# SPECIALIZE sig_op :: Double -> (Double -> Double -> Double)
+{-# SPECIALIZE sig_op :: UnboxedY -> (UnboxedY -> UnboxedY -> UnboxedY)
     -> Unboxed -> Unboxed -> Unboxed #-}
 {-# INLINEABLE sig_op #-}
 -- | Combine two vectors with the given function.  They will be resampled so
@@ -323,8 +331,22 @@ resample1 prev_ay prev_by len1 len2 i1 i2 vec1 vec2
 
 -- * util
 
+{-# SPECIALIZE find_nonascending :: Unboxed -> [(X, UnboxedY)] #-}
+{-# INLINEABLE find_nonascending #-}
+-- | Find samples whose 'sx' is <= the previous X.
+find_nonascending :: (V.Vector v (Sample y)) => v (Sample y) -> [(X, y)]
+find_nonascending vec = case uncons vec of
+    Nothing -> []
+    Just (x, xs) -> map to_pair $ reverse $ snd $ V.foldl' go (sx x, []) xs
+    where
+    go (prev, acc) s
+        | sx s <= prev = (sx s, s : acc)
+        | otherwise = (sx s, acc)
+
+{-# SPECIALIZE unfoldr :: (state -> Maybe ((X, UnboxedY), state)) -> state
+    -> Unboxed #-}
 {-# INLINEABLE unfoldr #-}
-unfoldr :: V.Vector v (Sample y) => (b -> Maybe ((X, y), b)) -> b
+unfoldr :: V.Vector v (Sample y) => (state -> Maybe ((X, y), state)) -> state
     -> v (Sample y)
 unfoldr f = V.unfoldr $ \st -> case f st of
     Nothing -> Nothing
@@ -384,12 +406,12 @@ bsearch_above x vec = go vec 0 (V.length vec)
         | otherwise = go vec low mid
         where mid = (low + high) `div` 2
 
-concat_map_accum :: (V.Vector v (Sample y)) => y
-    -> (accum -> X -> y -> X -> y -> (accum, [Sample y]))
+concat_map_accum :: UnboxedY
+    -> (accum -> X -> UnboxedY -> X -> UnboxedY -> (accum, [Sample UnboxedY]))
     -- ^ Take the previous accum, previous x and y, and current x and y.
-    -> (accum -> Sample y -> [Sample y])
+    -> (accum -> Sample UnboxedY -> [Sample UnboxedY])
     -- ^ Given the final @(accum, Sample)@, produce samples to append.
-    -> accum -> v (Sample y) -> v (Sample y)
+    -> accum -> Unboxed -> Unboxed
 concat_map_accum zero f final accum vec = V.fromList (DList.toList result)
     where
     (last_accum, _, dlist) =
