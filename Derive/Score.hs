@@ -73,6 +73,15 @@ empty_event = Event
     , event_environ = mempty
     }
 
+event_end :: Event -> RealTime
+event_end event = event_start event + event_duration event
+
+-- | Get minimum and maximum edges of the event.  'event_start' isn't
+-- necessarily the minimum because of negative durations.
+event_min, event_max :: Event -> RealTime
+event_min event = min (event_start event) (event_end event)
+event_max event = max (event_start event) (event_end event)
+
 -- ** environ
 
 modify_environ :: (BaseTypes.Environ -> BaseTypes.Environ) -> Event -> Event
@@ -129,9 +138,6 @@ type PitchMap = Map.Map Control PitchSignal.Signal
 
 event_string :: Event -> String
 event_string = UTF8.toString . event_bs
-
-event_end :: Event -> RealTime
-event_end event = event_start event + event_duration event
 
 event_scale_id :: Event -> Pitch.ScaleId
 event_scale_id = PitchSignal.sig_scale_id . event_pitch

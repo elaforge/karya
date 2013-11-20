@@ -129,6 +129,9 @@ they indicate the type of they generate.  For instance, `delay-time:s` will
 create a control which the `delay` call will interpret as being in RealTime
 seconds.
 
+Control tracks have another feature, which is experimental:
+'Derive.Control.split_control_tracks'.
+
 ### tempo track
 
 Tempo tracks are just titled `tempo`.  The track is just a normal control

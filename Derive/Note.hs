@@ -150,10 +150,14 @@ stash_signal rederive events ((block_id, track_id), source) =
 put_track_signal :: BlockId -> TrackId -> Track.RenderSource -> ScoreTime
     -> ScoreTime -> [Score.Event] -> Derive.Deriver ()
 put_track_signal block_id track_id source shift stretch events =
-    Control.put_track_signal block_id track_id $ extract shift stretch
+    Control.put_track_signal block_id track_id $
+        Track.TrackSignal signal shift stretch is_pitch
+    where (signal, is_pitch) = extract_track_signal source events
+
+extract_track_signal :: Track.RenderSource -> [Score.Event]
+    -> (Signal.Display, Bool)
+extract_track_signal source events = (Signal.coerce sig, is_pitch)
     where
-    extract shift stretch =
-        Track.TrackSignal (Signal.coerce sig) shift stretch is_pitch
     sig = mconcat $ case source of
         Track.Control control -> mapMaybe (extract_control control) events
         Track.Pitch control -> mapMaybe (extract_pitch control) events
@@ -165,10 +169,12 @@ put_track_signal block_id track_id source shift stretch events =
     extract_pitch Nothing event = Just $ convert event $ Score.event_pitch event
     extract_pitch (Just control) event =
         fmap (convert event) $ Map.lookup control $ Score.event_pitches event
-    convert event psig =
-        Signal.coerce $ fst $ PitchSignal.to_nn $
-            PitchSignal.apply_controls (Score.event_environ event)
-                (Score.event_controls event) psig
+    convert event psig = Signal.coerce $ fst $ PitchSignal.to_nn $
+        -- Since these signals will be mconcatted into one signal, I don't
+        -- want one event's control at 0 to wipe out the previous events.
+        PitchSignal.drop_before_strict (Score.event_min event) $
+        PitchSignal.apply_controls (Score.event_environ event)
+            (Score.event_controls event) psig
 
 -- | Wait, if I can just look at the Track, why do I need
 -- Derive.state_wanted_track_signals?
