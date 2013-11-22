@@ -35,10 +35,13 @@ test_modify_tempo = do
             State.modify_ruler UiTest.default_ruler_id (const ruler)
     let cstate = ResponderTest.mk_cmd_state ustate (UiTest.default_view_id)
     results <- ResponderTest.thread (ustate, cstate)
+        -- Delete the tempo and set it to 2.
         (CmdTest.keypresses [Key.Escape, Key.Backspace, Key.Char '2'])
     -- Icky.  If I don't pick exactly the right result it will hang fover
     -- because it's waiting on the loopback to emit a DeriveStatus.  I could
     -- fix it by simulating loopback more accurately.
+    --
+    -- 2 msgs for each key, key down and key up.  I want the '2' key down.
     let result = results !! 4
     (_, perf) <- ResponderTest.result_perf result
     equal (map Score.event_start $ Vector.toList $ Cmd.perf_events perf)

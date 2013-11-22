@@ -11,7 +11,7 @@ UNSORTED
   * note render on bug/note-render @b1 doesn't take pitch track ornaments into
     account
   * get rid of fmap0
-  - block cache not being invalitated: create a sub-block with
+  * block cache not being invalidated: create a sub-block with
     Refactor.selection, then add a 'set dyn' track, or last note
     . Happens when I change the call of a non-root block.
     . I think this is because by the time the non-root block is derived,

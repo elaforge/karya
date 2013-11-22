@@ -465,9 +465,6 @@ data PlayState = PlayState {
     -- even if they have to wait for it.  This map will be updated
     -- immediately.
     , state_current_performance :: !(Map.Map BlockId Performance)
-    -- | ScoreDamage is normally calculated automatically from the UI diff,
-    -- but Cmds can also intentionally inflict damage to cause a rederive.
-    , state_damage :: !Derive.ScoreDamage
     -- | Keep track of current thread working on each performance.  If a
     -- new performance is needed before the old one is complete, it can be
     -- killed off.
@@ -493,7 +490,6 @@ initial_play_state = PlayState
     , state_performance = Map.empty
     , state_current_performance = Map.empty
     , state_performance_threads = Map.empty
-    , state_damage = mempty
     , state_play_step =
         TimeStep.time_step $ TimeStep.RelativeMark TimeStep.AllMarklists 0
     , state_step = Nothing
@@ -1034,8 +1030,10 @@ derive_immediately block_ids = modify $ \st -> st { state_derive_immediately =
     Set.fromList block_ids <> state_derive_immediately st }
 
 inflict_damage :: (M m) => Derive.ScoreDamage -> m ()
-inflict_damage damage = modify_play_state $ \st ->
-    st { state_damage = damage <> state_damage st }
+inflict_damage damage = modify_play_state $ \st -> st
+    { state_current_performance = Map.map inflict (state_current_performance st)
+    }
+    where inflict perf = perf { perf_damage = damage <> perf_damage perf }
 
 -- | Cause a block to rederive even if there haven't been any edits on it.
 inflict_block_damage :: (M m) => BlockId -> m ()

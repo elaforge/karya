@@ -204,8 +204,9 @@ find_generator_cache typ stack (Ranges event_range is_negative) score
     -- Negative duration indicates an arrival note.  The block deriver then
     -- takes the controls from the bottom of event (which is the start),
     -- see "Derive.Call.Block".
-    when ((if is_negative then Ranges.overlapping_closed else Ranges.overlapping)
-            control event_range) $
+    let overlapping = if is_negative then Ranges.overlapping_closed
+            else Ranges.overlapping
+    when (overlapping control event_range) $
         Left (True, "control damage")
     return (collect, stream)
 

@@ -57,10 +57,9 @@ data DeriveStatus =
     -- | The current derivation is out of date, but work has not yet started
     -- on a replacement.  The new Performance is already in
     -- 'Cmd.state_current_performance' but not in 'Cmd.state_performance' yet.
-    OutOfDate Performance
+    OutOfDate
     | Deriving
     | DeriveComplete Performance
-    | Killed
     deriving (Show)
 
 instance Pretty.Pretty DeriveStatus where pretty = show
@@ -75,8 +74,8 @@ instance Pretty.Pretty DeriveStatus where pretty = show
 -- same, but Performance wasn't always the same and may not be the same in the
 -- future.
 data Performance = Performance {
-    perf_derive_cache :: !Derive.Cache
-    , perf_events :: !Events
+    perf_derive_cache :: Derive.Cache
+    , perf_events :: Events
     -- | Logs from the derivation are written separately, by the evaluation
     -- thread in "Cmd.Performance".  Evaluation may be triggered by either the
     -- evaluation thread (after a short delay), or by a Cmd that wants up to
@@ -88,17 +87,22 @@ data Performance = Performance {
     -- have a play fail, and only get the logs about why when the evaluation
     -- thread gets done waiting.  It doesn't wait long though, so that
     -- shouldn't be a big deal.
-    , perf_logs :: ![Log.Msg]
+    , perf_logs :: [Log.Msg]
     -- | The logs are only written on the first play, to minimize error spam.
     -- So there's a flag which says whether these logs have been written or
     -- not.  I don't clear the logs, so 'Cmd.Repl.LPerf.cache_stats' can
     -- inspect them.
-    , perf_logs_written :: !Bool
-    , perf_track_dynamic :: !Derive.TrackDynamic
-    , perf_integrated :: ![Derive.Integrated]
-    , perf_warps :: ![TrackWarp.Collection]
-    , perf_track_signals :: !Track.TrackSignals
+    , perf_logs_written :: Bool
+    , perf_track_dynamic :: Derive.TrackDynamic
+    , perf_integrated :: [Derive.Integrated]
+    -- | ScoreDamage is normally calculated automatically from the UI diff,
+    -- but Cmds can also intentionally inflict damage to cause a rederive.
+    , perf_damage :: Derive.ScoreDamage
+    , perf_warps :: [TrackWarp.Collection]
+    , perf_track_signals :: Track.TrackSignals
     }
+    -- The fields are intentionally not strict, since I need to modify
+    -- 'perf_damage' without forcing any of the others.
 
 -- | This is the forced result of a derivation.
 type Events = Vector.Vector Score.Event
@@ -113,6 +117,7 @@ instance Pretty.Pretty Performance where
             [ ("cache", Pretty.format (Map.keys c))
             , ("events", Pretty.format (Vector.length (perf_events perf)))
             , ("integrated", Pretty.format (perf_integrated perf))
+            , ("damage", Pretty.format (perf_damage perf))
             , ("warps", Pretty.format (perf_warps perf))
             ]
         where Derive.Cache c = perf_derive_cache perf

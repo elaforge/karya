@@ -159,11 +159,12 @@ result_states r = (result_ui_state r, result_cmd_state r)
 -- performance becomes available eventually.
 
 thread :: States -> [Msg.Msg] -> IO [Result]
-thread states msgs = thread_delay False states [(m, 0) | m <- msgs]
+thread states msgs = thread_delay True states [(m, 0) | m <- msgs]
 
 thread_delay :: Bool -> States -> [(Msg.Msg, Thread.Seconds)] -> IO [Result]
 thread_delay _ _ [] = return []
-thread_delay print_timing states ((msg, delay):msgs) = do
+thread_delay print_timing states ((msg, delay) : msgs) = do
+    Printf.printf "thread msg: %s\n" (Pretty.pretty msg)
     (result, secs) <- timer $ respond_msg states msg
     when print_timing $
         Printf.printf "%s -> lag: %.2fs\n" (Pretty.pretty msg) secs

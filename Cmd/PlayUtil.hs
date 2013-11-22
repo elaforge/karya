@@ -54,10 +54,11 @@ initial_environ = TrackLang.make_environ $
 -- | Derive with the cache.
 cached_derive :: (Cmd.M m) => BlockId -> m Derive.Result
 cached_derive block_id = do
-    cache <- maybe mempty Cmd.perf_derive_cache <$>
-        Cmd.lookup_performance block_id
-    damage <- Cmd.gets $ Cmd.state_damage . Cmd.state_play
-    derive cache damage block_id
+    maybe_perf <- Cmd.lookup_performance block_id
+    case maybe_perf of
+        Nothing -> uncached_derive block_id
+        Just perf -> derive (Cmd.perf_derive_cache perf) (Cmd.perf_damage perf)
+            block_id
 
 uncached_derive :: (Cmd.M m) => BlockId -> m Derive.Result
 uncached_derive = derive mempty mempty

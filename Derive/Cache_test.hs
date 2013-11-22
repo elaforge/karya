@@ -128,6 +128,22 @@ test_block_damage = do
             insert_event "sub.t1" 0 0.5 ""
     equal (diff_events cached uncached) []
 
+test_subblock_damage = do
+    let create = mkblocks
+            [ ("top", [(">i", [(0, 2, "sub")])])
+            , ("alt", [(">i", [(0, 4, "sub")])])
+            , ("sub=ruler", [(">", [(1, 1, "")])])
+            ]
+    let (_, cached, uncached) = compare_cached create $
+            insert_event "sub.t1" 0 1 ""
+    equal (diff_events cached uncached) []
+    equal (DeriveTest.extract Score.event_start cached) ([0, 1], [])
+
+    let (_, cached, uncached) = compare_cached_block (Just (UiTest.bid "alt"))
+            create $ insert_event "sub.t1" 0 1 ""
+    equal (diff_events cached uncached) []
+    equal (DeriveTest.extract Score.event_start cached) ([0, 2], [])
+
 test_logs = do
     let create = mkblocks
             [ ("top",
@@ -671,6 +687,7 @@ r_cache_stacks = map Stack.show_ui_ . Map.keys . Map.filter valid . uncache
     valid Derive.Invalid = False
     valid _ = True
 
+uncache :: Derive.Cache -> Map.Map Stack.Stack Derive.Cached
 uncache (Derive.Cache cache) = cache
 
 mkblocks :: (State.M m) => [UiTest.BlockSpec] -> m BlockId
@@ -684,24 +701,26 @@ mkblocks blocks = do
 -- logs.
 compare_cached :: State.StateId BlockId -> State.StateId a
     -> (Derive.Result, Derive.Result, Derive.Result)
-compare_cached create modify = (result, cached, uncached)
+compare_cached = compare_cached_block Nothing
+
+compare_cached_block :: Maybe BlockId -> State.StateId BlockId
+    -> State.StateId a -> (Derive.Result, Derive.Result, Derive.Result)
+compare_cached_block maybe_root_id create modify = (result, cached, uncached)
     where
-    (state1, result) = run_first create
-    cached = run_cached result state1 modify
+    state1 = UiTest.exec State.empty create
+    root_id = fromMaybe (get_root_id state1) maybe_root_id
+    result = derive_block_cache mempty mempty state1 root_id
+    cached = run_cached root_id result state1 modify
     -- 'run_cached' already did this once, but it doesn't return it.
     (_, state2, _) = run state1 modify
-    uncached = derive_block_cache mempty mempty state2 (root_id state2)
-
-run_first :: State.StateId a -> (State.State, Derive.Result)
-run_first create =
-    (state, derive_block_cache mempty mempty state (root_id state))
-    where state = UiTest.exec State.empty create
+    uncached = derive_block_cache mempty mempty state2 root_id
 
 -- | Run a derive after some modifications with the cache from a previous
 -- derive.
-run_cached :: Derive.Result -> State.State -> State.StateId a -> Derive.Result
-run_cached result state1 modify =
-    derive_block_cache (Derive.r_cache result) damage state2 (root_id state2)
+run_cached :: BlockId -> Derive.Result -> State.State -> State.StateId a
+    -> Derive.Result
+run_cached root_id result state1 modify =
+    derive_block_cache (Derive.r_cache result) damage state2 root_id
     where
     (_, state2, cmd_updates) = run state1 modify
     (updates, _) = Diff.diff cmd_updates state1 state2
@@ -717,8 +736,8 @@ insert_event :: (State.M m) => String -> ScoreTime -> ScoreTime -> String
 insert_event tid pos dur text =
     State.insert_event (UiTest.tid tid) (Event.event pos dur text)
 
-root_id :: State.State -> BlockId
-root_id state = UiTest.eval state State.get_root_id
+get_root_id :: State.State -> BlockId
+get_root_id state = UiTest.eval state State.get_root_id
 
 score_damage :: State.StateId a -> State.StateId b -> Derive.ScoreDamage
 score_damage create modify = Diff.derive_diff state1 state2 updates

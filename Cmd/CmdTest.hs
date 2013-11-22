@@ -149,7 +149,7 @@ extract_derive_result res =
     msg = "extract_derive_result: cmd failed so result is probably not right: "
     mkres = do
         Cmd.Performance cache events logs _logs_written track_dyn integrated
-            warps tsigs <- Perf.get_root
+            _damage warps tsigs <- Perf.get_root
         let devents = map LEvent.Log logs
                 ++ map LEvent.Event (Vector.toList events)
         return $ Derive.Result devents cache warps tsigs track_dyn integrated
@@ -477,6 +477,7 @@ empty_performance = Cmd.Performance
     , Cmd.perf_logs_written = True
     , Cmd.perf_track_dynamic = mempty
     , Cmd.perf_integrated = []
+    , Cmd.perf_damage = mempty
     , Cmd.perf_warps = []
     , Cmd.perf_track_signals = mempty
     }

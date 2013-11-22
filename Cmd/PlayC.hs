@@ -63,14 +63,6 @@ cmd_play_msg msg = do
     derive_status_msg block_id status = do
         whenJust (derive_status_color status) (State.set_play_box block_id)
         case status of
-            Msg.OutOfDate perf ->
-                -- It's important that this Map.insert is lazy in the value.
-                -- Otherwise, Performance, which is strict, will force its
-                -- contents, which defeats the point of the eval thread.
-                Cmd.modify_play_state $ \st -> st
-                    { Cmd.state_current_performance = Map.insert block_id
-                        perf (Cmd.state_current_performance st)
-                    }
             Msg.DeriveComplete perf -> do
                 Cmd.modify_play_state $ \st -> st
                     { Cmd.state_performance = Map.insert block_id
@@ -86,7 +78,6 @@ cmd_play_msg msg = do
         Msg.OutOfDate {} -> Just $ Color.brightness 1.5 Config.busy_color
         Msg.Deriving {} -> Just Config.busy_color
         Msg.DeriveComplete {} -> Just Config.box_color
-        Msg.Killed {} -> Just Config.box_color
 
 set_all_play_boxes :: (State.M m) => Color.Color -> m ()
 set_all_play_boxes color =
