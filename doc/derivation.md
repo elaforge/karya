@@ -111,11 +111,16 @@ highly related to [scales](#scales).
 ### control track
 
 Control tracks look like `control`, `add control` or `%`.  If a control with
-the same name is already in scope, the new track will multiply with it by
-default.  This behaviour can be changed with the leading "operator", e.g.  `set
-c` will replace `c`, or `add c` will add to it.  The complete set of operators
-is listed in 'Derive.Deriver.Monad.default_control_op_map'.  `%` is an unnamed
-control track and is used only by [control block calls](#control-block-calls).
+the same name is already in scope, the new track will be merged with it.
+The default merge depends on the signal: additive for controls which are
+'Derive.Controls.is_additive' and multiplicative for the rest.
+
+This behaviour can be changed with a leading "operator", e.g.  `set c` will
+replace `c`, or `add c` will add to it.  The complete set of operators is
+listed in 'Derive.Deriver.Monad.default_control_op_map'.
+
+`%` is an unnamed control track and is used only by [control block
+calls](#control-block-calls).
 
 As with note tracks, you can append a [transformer
 pipeline](#expression-pipeline).

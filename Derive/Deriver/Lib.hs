@@ -19,6 +19,7 @@ import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 
 import qualified Ui.Track as Track
+import qualified Derive.Controls as Controls
 import qualified Derive.Deriver.Internal as Internal
 import Derive.Deriver.Monad
 import qualified Derive.Environ as Environ
@@ -257,6 +258,17 @@ untyped_control_at cont = fmap (fmap Score.typed_val) . control_at cont
 controls_at :: RealTime -> Deriver Score.ControlValMap
 controls_at pos = Score.controls_at pos <$> get_controls
 
+with_merged_control :: Merge -> Score.Control -> Score.TypedControl
+    -> Deriver a -> Deriver a
+with_merged_control merge control = with control
+    where
+    with = case merge of
+        Set -> with_control
+        Default
+            | Controls.is_additive control -> with_relative_control op_add
+            | otherwise -> with_relative_control op_mul
+        Merge op -> with_relative_control op
+
 with_control :: Score.Control -> Score.TypedControl -> Deriver a -> Deriver a
 with_control cont signal = Internal.local $ \st ->
     st { state_controls = Map.insert cont signal (state_controls st) }
@@ -265,9 +277,9 @@ with_control cont signal = Internal.local $ \st ->
 --
 -- If both signals are typed, the existing type wins over the relative
 -- signal's type.  If one is untyped, the typed one wins.
-with_relative_control :: Score.Control -> ControlOp -> Score.TypedControl
+with_relative_control :: ControlOp -> Score.Control -> Score.TypedControl
     -> Deriver a -> Deriver a
-with_relative_control cont op signal deriver = do
+with_relative_control op cont signal deriver = do
     controls <- get_controls
     let new = apply_control_op op (Map.lookup cont controls) signal
     with_control cont new deriver
@@ -284,11 +296,11 @@ apply_control_op (ControlOp _ op ident) maybe_old new =
 
 with_added_control :: Score.Control -> Score.TypedControl -> Deriver a
     -> Deriver a
-with_added_control cont = with_relative_control cont op_add
+with_added_control = with_relative_control op_add
 
 with_multiplied_control :: Score.Control -> Score.TypedControl -> Deriver a
     -> Deriver a
-with_multiplied_control cont = with_relative_control cont op_mul
+with_multiplied_control = with_relative_control op_mul
 
 multiply_control :: Score.Control -> Signal.Y -> Deriver a -> Deriver a
 multiply_control cont val
@@ -303,10 +315,10 @@ get_control_op c_op = do
         (Map.lookup c_op op_map)
 
 -- | Emit a 'ControlMod'.
-modify_control :: ControlOp -> Score.Control -> Signal.Control -> Deriver ()
-modify_control op control signal = Internal.modify_collect $ \collect ->
+modify_control :: Merge -> Score.Control -> Signal.Control -> Deriver ()
+modify_control merge control signal = Internal.modify_collect $ \collect ->
     collect { collect_control_mods =
-        ControlMod control signal op : collect_control_mods collect }
+        ControlMod control signal merge : collect_control_mods collect }
 
 -- | Apply the collected control mods to the given deriver and clear them out.
 apply_control_mods :: Deriver a -> Deriver a
@@ -316,8 +328,8 @@ apply_control_mods deriver = do
         collect { collect_control_mods = [] }
     foldr ($) deriver (map apply mods)
     where
-    apply (ControlMod control signal op) =
-        with_relative_control control op (Score.untyped signal)
+    apply (ControlMod control signal merge) =
+        with_merged_control merge control (Score.untyped signal)
 
 -- ** pitch
 

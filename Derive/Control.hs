@@ -50,6 +50,7 @@ import qualified Derive.ParseBs as ParseBs
 import qualified Derive.PitchSignal as PitchSignal
 import qualified Derive.Scale as Scale
 import qualified Derive.Score as Score
+import qualified Derive.ShowVal as ShowVal
 import qualified Derive.TrackInfo as TrackInfo
 import qualified Derive.TrackLang as TrackLang
 
@@ -146,8 +147,8 @@ eval_track track expr ctype deriver = case ctype of
                 derive_control True True tempo_track expr)
             deriver
     TrackInfo.Control maybe_op control -> do
-        op <- lookup_op control maybe_op
-        control_call track control op
+        merge <- lookup_op (Score.typed_val control) maybe_op
+        control_call track control merge
             (\cache -> with_control_env (Score.typed_val control) $
                 derive_control cache False track expr)
             deriver
@@ -165,21 +166,22 @@ eval_track track expr ctype deriver = case ctype of
         track_range = TrackTree.tevents_range track
         evts = TrackTree.tevents_events track
 
--- | Get the combining operator for this track.  Controls multiply by default,
--- unless they use the @set@ operator.  The exception is 'Controls.null', which
--- is used by control calls.  Since the control call emits signal which then
+-- | Get the combining operator for this track.
+--
+-- 'Controls.null' is used by control calls, and uses 'Derive.Set' by default
+-- instead of 'Derive.Default'.  Since the control call emits signal which then
 -- goes in a control track, it would lead to multiplication being applied
 -- twice.  In addition, applying a relative signal tends to create a leading
 -- 0 sample, which then causes control calls to wipe out previous samples.
-lookup_op :: Score.Typed Score.Control -> Maybe TrackLang.CallId
-    -> Derive.Deriver (Maybe Derive.ControlOp)
+lookup_op :: Score.Control -> Maybe TrackLang.CallId
+    -> Derive.Deriver Derive.Merge
 lookup_op control op = case op of
     Nothing
-        | control == Score.untyped Controls.null -> return Nothing
-        | otherwise -> return $ Just Derive.op_mul
+        | control == Controls.null -> return Derive.Set
+        | otherwise -> return Derive.Default
     Just sym
-        | sym == "set" -> return Nothing
-        | otherwise -> Just <$> Derive.get_control_op sym
+        | sym == "set" -> return Derive.Set
+        | otherwise -> Derive.Merge <$> Derive.get_control_op sym
 
 -- | A tempo track is derived like other signals, but in absolute time.
 -- Otherwise it would wind up being composed with the environmental warp twice.
@@ -210,17 +212,16 @@ tempo_call track sig_deriver deriver = do
     track_range = TrackTree.tevents_range track
 
 control_call :: TrackTree.TrackEvents -> Score.Typed Score.Control
-    -> Maybe Derive.ControlOp
-    -> (Bool -> Derive.Deriver (TrackResults Signal.Control))
+    -> Derive.Merge -> (Bool -> Derive.Deriver (TrackResults Signal.Control))
     -- ^ The deriver takes a switch to prevent caching if 'stash_signal' runs
     -- it again.
     -> Derive.NoteDeriver -> Derive.NoteDeriver
-control_call track control maybe_op control_deriver deriver = do
+control_call track control merge control_deriver deriver = do
     (signal, logs) <- Internal.track_setup track (control_deriver True)
     stash_signal track signal (to_display <$> control_deriver False) False
     -- Apply and strip any control modifications made during the above derive.
     Derive.apply_control_mods $ merge_logs logs $ with_damage $
-        with_control_op control maybe_op signal deriver
+        with_control_op control merge signal deriver
     -- I think this forces sequentialness because 'deriver' runs in the state
     -- from the end of 'control_deriver'.  To make these parallelize, I need to
     -- run control_deriver as a sub-derive, then mappend the Collect.
@@ -228,13 +229,10 @@ control_call track control maybe_op control_deriver deriver = do
     with_damage = with_control_damage
         (TrackTree.tevents_block_track_id track) (TrackTree.tevents_range track)
 
-with_control_op :: Score.Typed Score.Control -> Maybe Derive.ControlOp
-    -> Signal.Control -> Derive.Deriver a -> Derive.Deriver a
-with_control_op (Score.Typed typ control) maybe_op signal deriver =
-    case maybe_op of
-        Nothing -> Derive.with_control control sig deriver
-        Just op -> Derive.with_relative_control control op sig deriver
-    where sig = Score.Typed typ signal
+with_control_op :: Score.Typed Score.Control -> Derive.Merge -> Signal.Control
+    -> Derive.Deriver a -> Derive.Deriver a
+with_control_op (Score.Typed typ control) merge signal =
+    Derive.with_merged_control merge control (Score.Typed typ signal)
 
 to_display :: TrackResults Signal.Control -> Signal.Display
 to_display (sig, _) = Signal.coerce sig
@@ -407,6 +405,8 @@ put_track_signals :: [((BlockId, TrackId), Track.TrackSignal)]
 put_track_signals [] = return ()
 put_track_signals tracks = Internal.merge_collect $ mempty
     { Derive.collect_track_signals =
+        -- This is needed for 'split_control_tracks' signals to merge together
+        -- as expected.
         Map.fromListWith Track.merge_signals tracks
     }
 
@@ -477,13 +477,13 @@ eval_signal track expr ctype subs
             sub_sigs <- track_signal_ subs
             return $ ((block_id, track_id), track_sig signal False) : sub_sigs
         TrackInfo.Control maybe_op control -> do
-            op <- lookup_op control maybe_op
+            merge <- lookup_op (Score.typed_val control) maybe_op
             (signal, logs) <- with_stack $
                 with_control_env (Score.typed_val control) $
                 derive_control False False track expr
             write logs
             sub_sigs <- Derive.apply_control_mods $
-                with_control_op control op signal $ track_signal_ subs
+                with_control_op control merge signal $ track_signal_ subs
             -- Signals are combined with control mods only when they go into
             -- the ControlMap, so they're not visible in the UI.  I originally
             -- wanted to apply control modifications to the output signal to

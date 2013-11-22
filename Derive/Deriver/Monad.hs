@@ -72,7 +72,7 @@ module Derive.Deriver.Monad (
     , Instrument(..), InstrumentCalls(..)
 
     -- ** control
-    , ControlOp(..)
+    , Merge(..), ControlOp(..)
 
     -- ** collect
     , Collect(..), ControlMod(..), Integrated(..)
@@ -746,6 +746,18 @@ instance Monoid.Monoid InstrumentCalls where
 
 -- ** control
 
+-- | How to merge a control into 'Dynamic'.
+data Merge =
+    -- | Replace the existing signal.
+    Set
+    -- | Merge according to the signal's default.
+    | Default
+    -- | Merge with a specific operator.
+    | Merge !ControlOp
+    deriving (Show)
+
+instance Pretty.Pretty Merge where pretty = show
+
 -- | This is a monoid used for combining two signals.  The identity value
 -- is only used when a relative signal is applied when no signal is in scope.
 -- This is useful for e.g. a transposition signal which shouldn't care if
@@ -808,13 +820,13 @@ data Collect = Collect {
 -- dynamics.  The modifications are a secondary return value from control
 -- and pitch calls.  The track deriver will extract them and merge them into
 -- the dynamic environment.  [NOTE control-modification]
-data ControlMod = ControlMod !Score.Control !Signal.Control !ControlOp
+data ControlMod = ControlMod !Score.Control !Signal.Control !Merge
     deriving (Show)
 
 instance Pretty.Pretty ControlMod where
-    format (ControlMod control signal op) =
+    format (ControlMod control signal merge) =
         Pretty.constructor "ControlMod"
-            [Pretty.format control, Pretty.format signal, Pretty.text (show op)]
+            [Pretty.format control, Pretty.format signal, Pretty.format merge]
 
 instance Monoid.Monoid Collect where
     mempty = Collect mempty mempty mempty mempty mempty mempty mempty

@@ -181,6 +181,16 @@ test_relative_control = do
     equal (run2 "cont" ".5" "cont" ".5") ([[(0, 0.25)]], [])
     equal (run2 "cont" ".5" "set cont" ".5") ([[(0, 0.5)]], [])
 
+test_default_merge = do
+    let run control = DeriveTest.extract (DeriveTest.e_control
+            (Score.control (txt control))) $ DeriveTest.derive_tracks
+                [ (">", [(0, 4, "")])
+                , (control, [(0, 0, ".5")])
+                , (control, [(0, 0, ".5")])
+                ]
+    equal (run "dyn") ([[(0, 0.25)]], [])
+    equal (run "t-diatonic") ([[(0, 1)]], [])
+
 test_stash_signal = do
     -- make sure that TrackSignals are recorded when control tracks are derived
     let itrack = (">i", [])

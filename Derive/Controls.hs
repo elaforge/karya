@@ -5,12 +5,21 @@
 -- names.
 module Derive.Controls where
 import Prelude hiding (null)
+import qualified Data.Set as Set
 
 import Util.Control
 import qualified Derive.Score as Score
 import Derive.Score (Control)
 import qualified Perform.Pitch as Pitch
 
+
+-- | Should the given control be combined with addition by default instead of
+-- multiplication?
+is_additive :: Control -> Bool
+is_additive = (`Set.member` additive_controls)
+
+additive_controls :: Set.Set Control
+additive_controls = Set.fromList [diatonic, chromatic, nn, hz]
 
 -- | Used as the default control by control block calls.  This is because
 -- a ControlCall produces a Signal, but for it to be derived in a block it
@@ -87,16 +96,16 @@ transpose_type t = case t of
     Score.Nn -> Just nn
     _ -> Nothing
 
--- | Pitches respond to this with chromatic transposition.  This is stepwise
--- transposition for scales with no distinction between chromatic and diatonic.
-chromatic :: Control
-chromatic = "t-chromatic"
-
 -- | Pitches respond to this with diatonic transposition, which generally
 -- requires a key.  This is stepwise transposition for scales with no
 -- distinction between chromatic and diatonic.
 diatonic :: Control
 diatonic = "t-diatonic"
+
+-- | Pitches respond to this with chromatic transposition.  This is stepwise
+-- transposition for scales with no distinction between chromatic and diatonic.
+chromatic :: Control
+chromatic = "t-chromatic"
 
 -- | Transpose by NoteNumber, which is cents \/ 100.
 nn :: Control

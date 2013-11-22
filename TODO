@@ -3,7 +3,7 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
-  - it's annoying to have to remember to add for additive controls lke t-nn,
+  * it's annoying to have to remember to add for additive controls lke t-nn,
     for both the control track and the '->' redirect.  Can I hardcode some
     controls that default to additive?
   * add Nn transposition to Chromatic and Diatonic
