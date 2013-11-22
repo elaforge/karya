@@ -139,7 +139,8 @@ instance Pretty.Pretty Box where
 -- | Like 'Track.Track', this has per-track data, but unlike Track.Track,
 -- this is data that can vary per-block.
 --
--- This is the higher level track that is visible at the haskell level.
+-- This is the higher level track that is visible at the haskell level, as
+-- opposed to 'DisplayTrack', which is what is visible in the UI.
 data Track = Track {
     tracklike_id :: !TracklikeId
     -- | Formerly the width was in the view since each view could have

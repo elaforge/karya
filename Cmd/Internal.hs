@@ -9,6 +9,7 @@ import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 import qualified Data.Ratio as Ratio
 import Data.Ratio ((%))
+import qualified Data.Set as Set
 import qualified Data.Text as Text
 
 import Util.Control
@@ -176,7 +177,13 @@ ui_update maybe_tracknum view_id update = case update of
     UiMsg.UpdateTrackWidth width -> case maybe_tracknum of
         Just tracknum -> do
             block_id <- State.block_id_of view_id
-            State.set_track_width block_id tracknum width
+            collapsed <- (Block.Collapse `Set.member`) <$>
+                State.track_flags block_id tracknum
+            -- fltk shouldn't send widths for collapsed tracks, but it does
+            -- anyway because otherwise it would have to cache the track sizes
+            -- to know which one changed.  See BlockView::track_tile_cb.
+            unless collapsed $
+                State.set_track_width block_id tracknum width
         Nothing -> State.throw $ "update with no track: " ++ show update
     -- Handled by 'ui_update_state'.
     UiMsg.UpdateClose -> return ()

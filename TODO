@@ -13,6 +13,12 @@ UNSORTED
   * get rid of fmap0
   - block cache not being invalitated: create a sub-block with
     Refactor.selection, then add a 'set dyn' track, or last note
+    . Happens when I change the call of a non-root block.
+    . I think this is because by the time the non-root block is derived,
+      there's no damage, because it was cleared when the first derive
+      completed.
+    . This is the problem with making damage global, it really should be
+      per-Performance as before.
   * why is kbd entry play now unreliable?
     . Because the track dynamic winds up with %dyn: < 0s:0, 35.35s:.564 >
     . It's trickier than I thought, because I want the environ from inverted
@@ -179,12 +185,12 @@ UNSORTED
     - wendy carlos' alpha, beta, gamma
     - overtone series
     - add ratio transpose single, that multiplies hz
-  - unmerging a pitch track should have a minimum width to display 3 chars
+  * unmerging a pitch track should have a minimum width to display 3 chars
     Figure out under which circumstances the collapsed track forgets its size.
-    . Looks like it happens when I create a new block from a template block
-      with collapsed tracks.  It probably needs to use logical rather than
-      physical size.
-    . Nope, wrong.
+    . Width is Block.track_width
+    . I wonder if the ui sends back track sizes.  Why do I get sizes for track
+      0 too?
+    . ignore UpdateTrackWidth for collapsed tracks
   - generic way to parse a note to a Theory.Pitch, and back
     . If I add
       scale_parse :: Pitch.Note -> Maybe Theory.Pitch
