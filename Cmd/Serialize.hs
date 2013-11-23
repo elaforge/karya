@@ -52,6 +52,8 @@ import qualified Perform.Signal as Signal
 import Types
 
 
+-- | This is a four byte prefix to identify a particular file type.  The Chars
+-- are just for syntactic convenience only, and must be ASCII.
 data Magic = Magic !Char !Char !Char !Char deriving (Show)
 
 magic_bytes :: Magic -> B.ByteString

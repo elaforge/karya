@@ -31,9 +31,12 @@ readGz fn = do
         Nothing -> ByteString.readFile fn
         Just bytes -> return $ Lazy.toStrict $ GZip.decompress bytes
 
--- | Append @.gz@ and write a gzipped file.
+-- | Append @.gz@ and write a gzipped file.  Try to do so atomically by writing
+-- to @.gz.write@ first and renaming it.
 writeGz :: FilePath -> ByteString.ByteString -> IO ()
-writeGz fn = Lazy.writeFile (fn ++ ".gz") . GZip.compress . Lazy.fromStrict
+writeGz fn bytes = do
+    Lazy.writeFile (fn ++ ".gz.write") $ GZip.compress $ Lazy.fromStrict bytes
+    Directory.renameFile (fn ++ ".gz.write") (fn ++ ".gz")
 
 -- | Like 'Directory.getDirectoryContents' except don't return dotfiles and
 -- it prepends the directory.

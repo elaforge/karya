@@ -42,8 +42,6 @@ UNSORTED
     Derive.randomized_control_at that looks for a corresponding <>"-rnd"
     signal for range.  E.g., each instrument should switch to noltol at
     a different time.
-  - If I don't allow = in calls, I could write assigns without whitespace: x=y
-    Is it worth it?
   * Some control tracks are not normalized 0--1.  I could hardcode control
     names, like tempo, or I could infer (if the first event is not 0x, then it's
     not normalized), or I could use an explicit pragma in the track title,
@@ -91,13 +89,11 @@ UNSORTED
             . I need two tracks for nn vs. diatonic transposition, can't just
               tack a 'd' on the interval arg.
               Unless I use ->, but that's more of a hassle than having the
-              call default to the appropriate thing.  Also, it's a hassle
-              having to remember to use ->+ for transpose signals, and worse,
-              -> works right as long as there isn't another transpose signal.
+              call default to the appropriate thing.
 
-        - If I'm standardizing on control calls, maybe they should extend by
-          default only to the end of the overlapping note.  They can look in
-          sub tracks for that.
+        - If I'm standardizing on transposition control calls, maybe they
+          should extend by default only to the end of the overlapping note.
+          They can look in sub tracks for that.
         - I still need a solution for the initial delay problem.
           . Easiest is an environ-only arg.  This will work but every call
             has to support it specifically.
@@ -107,22 +103,23 @@ UNSORTED
             Actually, I general continuous signal warp could do that: stretch
             the beginning and compress the rest to make up.
       - but sometimes I do want the delay, can I compose a delay on?
-        I want to have a general "hold initial pitch" call so I don't have
-        to hardcode an extra param for everything.
-        . E.g. 6s -> kam^ (5n) should just be kam^ (5n) with an initial delay.
+        E.g. 6s -> kam^ (5n) should just be kam^ (5n) with an initial delay.
+        . The simplest option is of course to just move the call down a bit.
+          This is precise, but low level, and it would be nice to have
+          a high level way.
         . I could do direct signal stretching.  I could have a general signal
           warp, which composes a warp signal with the x points.
-        . But if I just move the rest of the samples, I would mess up the call
+        . I could add a delay transformer, but it would mess up the call
           knowing how long it is, e.g. trill wanting to fit integral cycles.
-        . I could shift it later, then duplicate its first sample.  Otherwise,
-          I could set an env var and make calls understand it.
-        . Instead of just a delay, I'd like to make it as if the call was
+        . Instead of just a delay, I'd like to make it as if the call were
           later on the track.  But I don't think shift/stretch can work like
           that.
+      general plan for how to build ornaments abstractly
         . seq x; y; z to sequence ornaments, does this make sense?  Or I could
           see each note has having attack, middle, and release "slots".
         . The note call is for ornaments that decide their own scope.  The
           control calls are for when you want to place them directly.
+        . Many ornaments also depend on the previous pitch.
 
       * there is a variant of kampita that avoids the base note
         . also, it plays the low note more softly
@@ -138,6 +135,7 @@ UNSORTED
         . defaulted "speed" (Sig.typed_control "trill-speed" 6 Score.Real)
           Can set with %trill-speed, or name-speed = 6
       - janta.  Isn't this just Lift?
+        I think some ornaments are fingered on instruments that can do that.
       - if I am sequencing gamakam, I would want later ones to inherit the
         pitch so I don't have to repeat it each time
         . (<) should work but doesn't, what's up?
@@ -165,7 +163,7 @@ UNSORTED
           at the Derive level too by having the pitch itself be based on the
           previous one.
         . Putting it at the derive level seems really hard and unreliable, so
-          I should have separate symbols, e.g. 4r^ and 4r. for up and down
+          I should have separate symbols, e.g. 4r^ and 4r_ for up and down
           variants.  For western modes this isn't necessary since the notation
           is already absolute.
 
@@ -896,6 +894,8 @@ Derive:
     tags should instead be derived from the namespace, e.g. prelude, bali,
     india.
   tracklang:
+    - If I don't allow = in calls, I could write assigns without whitespace:
+      x=y Is it worth it?
     - there should be a character that triggers a parse failure, which is used
       by invalid ShowVal instances like ShowVal Pitch
     - it's confusing how some calls expect env vals like 'x = 1' and some

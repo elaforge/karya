@@ -229,7 +229,7 @@ load repo maybe_commit = try_e "load" $ do
     either_views <- load_views repo
     return $ do
         state <- undump dirs
-        views <- either_views
+        views <- with_msg "views" either_views
         return (state { State.state_views = views }, commit, names)
 
 -- | Try to go get the previous history entry.
@@ -501,6 +501,7 @@ delete_key k m
 decode :: (Serialize.Serialize a) => String -> ByteString -> Either String a
 decode msg = with_msg msg . Serialize.decode
 
+-- | Annotate a failable computation.
 with_msg :: String -> Either String a -> Either String a
 with_msg msg (Left err) = Left $ msg ++ ": " ++ err
 with_msg _ (Right val) = Right val
