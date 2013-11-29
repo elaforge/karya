@@ -85,6 +85,11 @@ set_notes = State.modify . (State.config#State.meta#State.notes #=)
 
 -- * transform
 
+set_namespace :: String -> Cmd.CmdL ()
+set_namespace ns = do
+    ns <- Cmd.require_msg ("invalid namespace: " ++ show ns) (Id.namespace ns)
+    Create.rename_project ns
+
 -- | Set the score namespace to the given one.  Also update the project_dir
 -- and move the actual directory.
 rename :: String -> Cmd.CmdL ()

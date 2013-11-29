@@ -3,6 +3,8 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
+  - Signal.inverse_at should take a Y, it's really confusing with a RealTime
+  - calling a block with a %tempo = x in the block title gets messed up timing
   * it's annoying to have to remember to add for additive controls lke t-nn,
     for both the control track and the '->' redirect.  Can I hardcode some
     controls that default to additive?
@@ -47,6 +49,9 @@ UNSORTED
     not normalized), or I could use an explicit pragma in the track title,
     e.g. '--# nonnorm'
   bali
+    - cipher scale is still more convenient than absolute when dealing with
+      one or two instruments.  Maybe I should use a base-octave var instead
+      of kantilan and pemade variations.
     kotekan ornaments
       - norot
     wayang in octaves
@@ -121,6 +126,7 @@ UNSORTED
           control calls are for when you want to place them directly.
         . Many ornaments also depend on the previous pitch.
 
+      - "eccentric" vibrato, weighted towards the back
       * there is a variant of kampita that avoids the base note
         . also, it plays the low note more softly
         . kam2 (5m) 1 -1
@@ -207,7 +213,6 @@ UNSORTED
     (bid "xyz") stuff
   - After a rederive, it still takes a Cmd to free up the memory.  Who is
     holding on to it?
-  - parallelize derivation
   - Composite 0 dur notes still not quite right, controls come too early.
     Maybe I should just abandon the idea of trying to make those 0 dur notes.
     What is the point of a 0 dur note?  The score has no explicit duration,
@@ -584,23 +589,22 @@ performance:
   - look into Debug.Trace.traceEventIO to see how long various things take as
     in http://www.yesodweb.com/blog/2012/10/future-work-warp
   efficient signals
-    control
-      - make Ui.Events into 'Map ScoreTime (Event | Chunk Signal)'
-      - collapse chunks of adjacent 'set' calls into a Chunk
-      - track_derive on a Chunk just returns the contents
-      - fltk event render should detect too dense events and omit them, rely
-        on the signal render
-      - UI edits should see the Chunk expanded out as Events.  Inserting an
-        event should modify the chunk or split it depending on if the inserted
-        event is a set call or not.
+    - make Ui.Events into 'Map ScoreTime (Event | Chunk Signal)'
+    - collapse chunks of adjacent 'set' calls into a Chunk
+    - track_derive on a Chunk just returns the contents
+    - fltk event render should detect too dense events and omit them, rely
+      on the signal render
+    - UI edits should see the Chunk expanded out as Events.  Inserting an
+      event should modify the chunk or split it depending on if the inserted
+      event is a set call or not.
   cache
-    - can I cache long blocks by slicing them if they're >n?
   Cmd
     - If a msg aborts or doesn't run any cmds, don't bother to run diff.
       Except that hardly ever happens if I do shortcut thru.
     - cache track cmds for each track, update when the track title or skeleton
       changes
   Derive
+    - parallelize derivation
     AppendList / MergeList for Derive.Stream
       - switch to AppendList and try to get garbage down
         Avoid copying sublists returned by block calls and cache hits
@@ -619,9 +623,10 @@ performance:
       make the 'set' control track call set from (prev, cur) instead of just
       cur.  It will make simultaneous samples, but they should be ok.
     derive cache
+      - can I cache long blocks by slicing them if they're >n?
       - c_block should only cache if the block has > a certain number of
         events.
-      - implement tracks as generators so they can be cached too
+      * implement tracks as generators so they can be cached too
       - I won't rederive cached generators if they have control damage outside
         of the event range.  But there's nothing stopping a generator from
         reading ahead or behind... come up with some kind of solution for this.
@@ -632,10 +637,6 @@ performance:
       this.  If I revert to linear search then none of this is necessary.
     - at_linear is called a lot by compose, by compose_warp, by d_warp
       can I make this more efficient?
-
-    - or maybe it's the control deriver creating a huge list of signal
-      chunks, which is then all forced at once since merge needs them all.
-    - Parallelize derivation with strategies.  Can I spark subderivations?
   Perform
     / packed midi, encode to storable vector
       - last step of performer is to compact into vector
@@ -814,6 +815,7 @@ tempo:
       If it has non-zero-dur events with numbers, then those are "stretchy",
       with weights given by their numbers.
       I can tell the intended start and dur by looking at (0, 1).
+  - entirely absolute tempo track
 
 Cmd:
   - remove RawEdit?
