@@ -302,9 +302,10 @@ d_warp warp deriver
     | Score.warp_stretch warp < 0 =
         throw $ "stretch < 0: " ++ Pretty.pretty (Score.warp_stretch warp)
             ++ " (shift: " ++ Pretty.pretty (Score.warp_shift warp) ++ ")"
-    | otherwise = local
-        (\st -> st { state_warp = Score.compose_warps (state_warp st) warp })
-        deriver
+    | otherwise = modify_warp (\w -> Score.compose_warps w warp) deriver
+
+modify_warp :: (Score.Warp -> Score.Warp) -> Deriver a -> Deriver a
+modify_warp modify = local $ \st -> st { state_warp = modify (state_warp st) }
 
 -- | Warp a block with the given deriver with the given signal.
 --
@@ -336,7 +337,7 @@ d_tempo block_dur maybe_track_id signal deriver = do
     let warp = tempo_to_warp signal
     root <- is_root_block
     stretch_to_1 <- if root then return id else do
-        real_dur <- with_warp (const warp) (real block_dur)
+        let real_dur = Score.warp_pos block_dur warp
         return $ if block_dur == 0 then id
             else if real_dur == 0
             then const $ throw $ "real time of block with dur "

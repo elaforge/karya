@@ -324,8 +324,7 @@ compose_warps
     -- f(g(t*sg + og)*sf + of)
     -- f((warp_to_signal g sf of)*sf + of)
     -- compose f (warp_to_signal g sf of)
-    compose warp1 (Warp sig2 shift2 stretch2) =
-        Warp fg shift2 stretch2
+    compose warp1 (Warp sig2 shift2 stretch2) = Warp fg shift2 stretch2
         where fg = Signal.compose (warp_to_signal warp1) sig2
 
 warp_to_signal :: Warp -> Signal.Warp

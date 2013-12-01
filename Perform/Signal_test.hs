@@ -44,21 +44,60 @@ test_inverse_at = do
     equal (f [(0, 0), (1, 1)] 5) Nothing
     equal (f [(0, 0), (1, 1)] (-1)) (Just (-1))
 
+test_inverse_at_extend = do
+    let f pos = Signal.inverse_at_extend pos (signal [(0, 0), (4, 2)])
+    equal (map f [0, 1, 2, 3, 4]) [0, 2, 4, 5, 6]
+
 test_compose = do
-    let sig0 = signal [(0, 0), (10, 20)]
-        sig1 = signal [(0, 0), (1, 0.5), (2, 1)]
-    let f = Signal.compose
+    let f s1 s2 = unsignal $ Signal.compose (signal s1) (signal s2)
     -- They cancel each other out.
-    equal (unsignal (f sig0 sig1)) [(0, 0), (1, 1), (2, 2)]
-    let lin = signal [(0, 0), (1, 1), (2, 2), (3, 3), (100, 100)]
-        slow = signal [(0, 0), (1, 2), (2, 4), (3, 6)]
+    equal (f [(0, 0), (10, 20)] [(0, 0), (1, 0.5), (2, 1)])
+        [(0, 0), (1, 1), (2, 2)]
+    let lin = [(0, 0), (1, 1), (2, 2), (3, 3), (100, 100)]
+        slow = [(0, 0), (1, 2), (2, 4), (3, 6)]
     equal (f lin lin) lin
     equal (f lin slow) slow
     -- Since the signals are not the same length it looks funny at the end.
     -- But this should never be audible since a sub-block's warp shouldn't
     -- be longer than its parent's.
-    equal (f slow lin) $
-        signal [(0, 0), (1, 2), (2, 4), (3, 6), (100, 6)]
+    equal (f slow lin) [(0, 0), (1, 2), (2, 4), (3, 6), (100, 6)]
+
+    equal (f (segments (-2) [(1, 6)]) (segments 0 [(1, 4)]))
+        [(0, 2), (1, 3), (2, 4), (3, 5), (4, 6)]
+
+test_compose_hybrid = do
+    let f start1 sig1 start2 sig2 = map snd $ Signal.unsignal $
+            Signal.compose_hybrid (Signal.signal (segments start1 sig1))
+                (Signal.signal (segments start2 sig2))
+
+    -- 2 with 2 results in 4
+    equal (f 0 [(2, 4)] 0 [(2, 2)]) [0, 4, 8]
+
+    -- 2 with 0 results in 1
+    equal (f 0 [(2, 4)] 0 [(0, 2)]) [0, 1, 2]
+
+    -- 2 with 0, 1 results in 1, 2
+    equal (f 0 [(2, 8)] 0 [(0, 2), (1, 2)]) [0, 1, 2, 4, 6]
+
+    -- 2 with 2, 0, 1 results in 4, 1, 2
+    equal (f 0 [(2, 8)] 0 [(2, 2), (0, 2), (1, 2)])
+        [0, 4, 8, 9, 10, 12, 14]
+    -- 0.5 with 2, 0, 1 results in 1, 1, 0.5
+    equal (f 0 [(0.5, 14)] 0 [(2, 2), (0, 3), (1, 2)])
+        [0, 1, 2, 3, 4, 5, 5.5, 6]
+
+    -- 2 with 1, 0, 1, 0 results in [2, 1, 2, 1]
+    equal (f 0 [(2, 8)] 0 [(1, 2), (0, 2), (1, 2), (0, 2)])
+        [0, 2, 4, 5, 6, 8, 10, 11, 12]
+
+    -- Offset
+    equal (f (-2) [(1, 10)] 0 [(1, 2)]) [2, 3, 4]
+    equal (f (-1) [(2, 10)] 0 [(1, 2), (0, 2)]) [2, 4, 6, 7, 8]
+    equal (f (-1) [(2, 10)] 0 [(0, 2), (1, 2)]) [2, 3, 4, 6, 8]
+
+segments :: Signal.X -> [(Signal.Y, Int)] -> [(Signal.X, Signal.Y)]
+segments start = zip (Seq.range_ start 1) . scanl (+) 0
+    . concatMap (uncurry (flip replicate))
 
 test_integrate = do
     let f = unsignal . Signal.integrate 1 . signal

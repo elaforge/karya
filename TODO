@@ -806,7 +806,7 @@ tempo:
   - Create tempo by "stretching", i.e. select start and end, and create tempo
     mark that will cause the start point to be played where the end point used
     to be played.
-  - Magic marker in tempo track that causes a section to be absolute, e.g.
+  * Magic marker in tempo track that causes a section to be absolute, e.g.
     when the block stretches, only the non-absolute bits stretch ala attack
     and sustain.
     . I could use the stretch tempo thing for patterns with variable karvai

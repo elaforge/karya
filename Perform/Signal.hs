@@ -42,14 +42,18 @@ module Perform.Signal (
     , map_x, map_y, map_err
 
     -- ** special functions
-    , inverse_at, compose, integrate
+    , inverse_at, inverse_at_extend
+    , compose, compose_hybrid, integrate
     , pitches_share
 ) where
 import qualified Prelude
 import Prelude hiding (concat, head, last, length, null, take, drop)
 import qualified Control.DeepSeq as DeepSeq
+import qualified Control.Monad.Identity as Identity
+import qualified Control.Monad.State.Strict as Monad.State
+
 import qualified Data.Monoid as Monoid
-import qualified Data.Vector.Storable as Vector.Storable
+import qualified Data.Vector.Storable as Vector
 import qualified Foreign
 import qualified Text.Read as Read
 
@@ -234,7 +238,7 @@ merge = Signal . V.merge . map sig_vec
 -- | This is like 'merge', but directly concatenates the signals.  It should be
 -- more efficient when you know the signals don't overlap.
 concat :: [Signal y] -> Signal y
-concat = Signal . Vector.Storable.concat . map sig_vec
+concat = Signal . Vector.concat . map sig_vec
 
 interleave :: Signal y -> Signal y -> Signal y
 interleave sig1 sig2 = Signal $ V.interleave (sig_vec sig1) (sig_vec sig2)
@@ -355,6 +359,18 @@ inverse_at pos sig
     V.Sample x0 y0 = if i <= 0 then V.Sample 0 0 else V.index vec (i-1)
     V.Sample x1 y1 = V.index vec i
 
+-- | This is like 'inverse_at', except that if the Y value is past the end
+-- of the signal, it extends the signal at 1:1 as far as necessary.  When
+-- used for warp composition or unwarping, this means that the parent warp
+-- is too small for the child.  Normally this shouldn't happen, but if it does
+-- it's sometimes better to make something up than crash.
+inverse_at_extend :: RealTime -> Warp -> X
+inverse_at_extend ypos sig = fromMaybe extended $ inverse_at ypos sig
+    where
+    extended = case last sig of
+        Nothing -> 0
+        Just (x, y) -> x + (ypos - y_to_real y)
+
 bsearch_y :: Y -> V.Unboxed -> Int
 bsearch_y y vec = go 0 (V.length vec)
     where
@@ -389,6 +405,54 @@ compose f g = Signal $ V.map_y go (sig_vec g)
     where go y = at_linear (y_to_real y) f
     -- TODO Walking down f would be more efficient, especially once Signal is
     -- lazy.
+
+-- | This is like 'compose', but implements a kind of \"semi-absolute\"
+-- composition.  The idea is that it's normal composition until the second
+-- signal has a slope of zero.  Normally this would be a discontinuity, but
+-- is special cased to force the output to a 1/1 line.  In effect, it's as
+-- if the flat segment were whatever slope is necessary to to generate a slope
+-- of 1 when composed with the first signal.
+compose_hybrid :: Warp -> Warp -> Warp
+compose_hybrid f g = Signal $ run initial (Vector.generateM (length g) genM)
+    where
+    -- If 'g' starts with a flat segment, I need to start the linear bit in the
+    -- right place.
+    initial = (at_linear (y_to_real y) f, 0)
+        where y = maybe 0 snd (head g)
+    run state m = Identity.runIdentity $ Monad.State.evalStateT m state
+    -- Where h = f•g:
+    -- If g(x_t) == g(x_t-1), then this is a flat segment.
+    -- h(x) is simply h(x_t-1) + (x_t - x_t-1), but I have to store an
+    -- offset that represents where the signal would be were just right to
+    -- produce a slope of 1, so I work backwards:
+    -- offset = f-1(h(x)) - g(x_t-1)
+    --
+    -- If g(x_t) > g(x_t-1), then this is a normal positive slope, and I
+    -- have to add the offset: h(x) = f(g(x + offset)).
+    --
+    -- So the state is (h(x_t-1), offset).
+    genM i = do
+        let V.Sample gx gy = Vector.unsafeIndex (sig_vec g) i
+            V.Sample gx0 gy0 = if i == 0 then V.Sample 0 0
+                else Vector.unsafeIndex (sig_vec g) (i-1)
+        -- st <- Monad.State.get
+        -- let ret s = Debug.trace_retp s ((gx0, gy0), (gx, gy), st)
+        if gy0 == gy
+            then do
+                (y0, _) <- Monad.State.get
+                let y = y0 + x_to_y (gx - gx0)
+                    offset = inverse_at_extend (y_to_real y) f - y_to_real gy0
+                Monad.State.put (y, offset)
+                return $ V.Sample gx y
+                -- return $ ret "lin" $ V.Sample gx y
+            else do
+                (_, offset) <- Monad.State.get
+                -- let y = Debug.trace_retp "f of" (gy, offset, f) $
+                --              at_linear (y_to_real gy + offset) f
+                let y = at_linear (y_to_real gy + offset) f
+                Monad.State.put (y, offset)
+                return $ V.Sample gx y
+                -- return $ ret "f  " $ V.Sample gx y
 
 -- | Integrate the signal.
 --

@@ -44,7 +44,8 @@ data ControlType =
     Control (Maybe TrackLang.CallId) (Score.Typed Score.Control)
     -- | Control is Nothing for default scale.
     | Pitch Pitch.ScaleId (Maybe Score.Control)
-    | Tempo
+    -- | Tempo track with an optional modifying symbol.
+    | Tempo (Maybe TrackLang.Symbol)
     deriving (Show)
 
 instance Pretty.Pretty ControlType where
@@ -68,7 +69,9 @@ parse_control_vals vals = case vals of
     [scale -> Just scale_id, pitch_control -> Just cont] ->
         Right $ Pitch scale_id cont
     -- "tempo"
-    [TrackLang.VSymbol (TrackLang.Symbol "tempo")] -> Right Tempo
+    [TrackLang.VSymbol (TrackLang.Symbol "tempo")] -> Right $ Tempo Nothing
+    [TrackLang.VSymbol (TrackLang.Symbol "tempo"), TrackLang.VSymbol sym] ->
+        Right $ Tempo (Just sym)
     -- control
     --
     -- It would be more regular to require \"%control\" and \"add %control\"
@@ -136,7 +139,8 @@ unparse_control_vals ctype = case ctype of
     Pitch (Pitch.ScaleId scale_id) name ->
         TrackLang.VSymbol (TrackLang.Symbol (Text.cons '*' scale_id))
             : maybe [] ((:[]) . pitch_control) name
-    Tempo -> [TrackLang.VSymbol "tempo"]
+    Tempo maybe_sym -> TrackLang.VSymbol "tempo"
+        : maybe [] ((:[]) . TrackLang.VSymbol)  maybe_sym
     where
     pitch_control = TrackLang.VPitchControl . TrackLang.LiteralControl
     control_val c
@@ -205,4 +209,6 @@ is_signal_track title = is_control_track title && case parse_control title of
     _ -> False
 
 is_tempo_track :: Text -> Bool
-is_tempo_track = (=="tempo")
+is_tempo_track title = case parse_control title of
+    Right (Tempo {}) -> True
+    _ -> False
