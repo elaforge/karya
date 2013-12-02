@@ -300,9 +300,10 @@ warp_pos pos (Warp sig shift stretch)
 -- | Unlike 'warp_pos', 'unwarp_pos' can fail.  This asymmetry is because
 -- at_linear will project a signal on forever, but inverse_at won't.
 unwarp_pos :: RealTime -> Warp -> Maybe ScoreTime
-unwarp_pos pos (Warp sig shift stretch) = case Signal.inverse_at pos sig of
-    Nothing -> Nothing
-    Just p -> Just $ (to_score p - shift) / stretch
+unwarp_pos pos (Warp sig shift stretch) =
+    case Signal.inverse_at (Signal.x_to_y pos) sig of
+        Nothing -> Nothing
+        Just p -> Just $ (to_score p - shift) / stretch
 
 -- | Compose two warps.  Warps with id signals are optimized.
 -- This is standard right to left composition

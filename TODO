@@ -3,7 +3,8 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
-  - Signal.inverse_at should take a Y, it's really confusing with a RealTime
+  - LRuler.inject, opposite of extract, replaces sub-block rulers
+  * Signal.inverse_at should take a Y, it's really confusing with a RealTime
   - calling a block with a %tempo = x in the block title gets messed up timing
   * it's annoying to have to remember to add for additive controls lke t-nn,
     for both the control track and the '->' redirect.  Can I hardcode some

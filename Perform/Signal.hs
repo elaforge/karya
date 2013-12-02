@@ -343,18 +343,17 @@ sig_op op sig1 sig2 = Signal $ V.sig_op 0 op (sig_vec sig1) (sig_vec sig2)
 --
 -- This uses a bsearch on the vector, which is only reasonable as long as
 -- its strict.  When I switch to lazy vectors, I'll have to thread the tails.
-inverse_at :: RealTime -> Warp -> Maybe X
-inverse_at pos sig
+inverse_at :: Y -> Warp -> Maybe X
+inverse_at y sig
     | i >= V.length vec = Nothing
-    -- This can happen if 'pos' is before the start of 'sig', which can happen
+    -- This can happen if 'y' is before the start of 'sig', which can happen
     -- if an events starts at a negative time.  Assume the signal is linear
     -- before the first sample.
-    | i <= 0 = Just pos
+    | i <= 0 = Just (y_to_real y)
     | y1 == y = Just x1
     | otherwise = V.x_at x0 y0 x1 y1 y
     where
     vec = sig_vec sig
-    y = x_to_y pos
     i = bsearch_y y vec
     V.Sample x0 y0 = if i <= 0 then V.Sample 0 0 else V.index vec (i-1)
     V.Sample x1 y1 = V.index vec i
@@ -364,12 +363,12 @@ inverse_at pos sig
 -- used for warp composition or unwarping, this means that the parent warp
 -- is too small for the child.  Normally this shouldn't happen, but if it does
 -- it's sometimes better to make something up than crash.
-inverse_at_extend :: RealTime -> Warp -> X
+inverse_at_extend :: Y -> Warp -> X
 inverse_at_extend ypos sig = fromMaybe extended $ inverse_at ypos sig
     where
     extended = case last sig of
         Nothing -> 0
-        Just (x, y) -> x + (ypos - y_to_real y)
+        Just (x, y) -> x + y_to_real (ypos - y)
 
 bsearch_y :: Y -> V.Unboxed -> Int
 bsearch_y y vec = go 0 (V.length vec)
@@ -413,7 +412,7 @@ compose f g = Signal $ V.map_y go (sig_vec g)
 -- if the flat segment were whatever slope is necessary to to generate a slope
 -- of 1 when composed with the first signal.
 compose_hybrid :: Warp -> Warp -> Warp
-compose_hybrid f g = Signal $ run initial (Vector.generateM (length g) genM)
+compose_hybrid f g = Signal $ run initial $ Vector.generateM (length g) genM
     where
     -- If 'g' starts with a flat segment, I need to start the linear bit in the
     -- right place.
@@ -441,7 +440,7 @@ compose_hybrid f g = Signal $ run initial (Vector.generateM (length g) genM)
             then do
                 (y0, _) <- Monad.State.get
                 let y = y0 + x_to_y (gx - gx0)
-                    offset = inverse_at_extend (y_to_real y) f - y_to_real gy0
+                    offset = inverse_at_extend y f - y_to_real gy0
                 Monad.State.put (y, offset)
                 return $ V.Sample gx y
                 -- return $ ret "lin" $ V.Sample gx y
