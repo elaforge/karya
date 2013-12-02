@@ -20,7 +20,7 @@ import Types
 
 -- * normal
 
--- | Warp a block with the given deriver with the given signal.
+-- | Warp a deriver with a tempo signal.
 --
 -- Tempo is the tempo signal, which is the standard musical definition of
 -- tempo: trackpos over time.  Warp is the time warping that the tempo
@@ -48,14 +48,10 @@ with_tempo :: ScoreTime
     -> Signal.Tempo -> Derive.Deriver a -> Derive.Deriver a
 with_tempo block_dur maybe_track_id signal deriver = do
     let warp = tempo_to_warp signal
-    root <- Internal.is_root_block
-    stretch_to_1 <- if root then return id else do
+    stretch_to_1 <- ifM Internal.is_root_block (return id) $ do
         let real_dur = Score.warp_pos block_dur warp
-        return $ if block_dur == 0 then id
-            else if real_dur == 0
-            then const $ Derive.throw $ "real time of block with dur "
-                ++ show block_dur ++ " was zero"
-            else Derive.d_stretch (1 / RealTime.to_score real_dur)
+        require_dur block_dur real_dur $
+            Derive.d_stretch (1 / RealTime.to_score real_dur)
     stretch_to_1 $ Internal.d_warp warp $ do
         Internal.add_new_track_warp maybe_track_id
         deriver
@@ -74,16 +70,46 @@ tempo_to_warp sig
 min_tempo :: Signal.Y
 min_tempo = 0.001
 
+require_dur :: ScoreTime -> RealTime -> (a -> a) -> Derive.Deriver (a -> a)
+require_dur block_dur real_dur ok
+    | block_dur == 0 = return id
+    | real_dur == 0 = Derive.throw $
+        "real time of block with dur " <> show block_dur <> " was zero"
+    | otherwise = return ok
+
+
+-- * absolute
+
+-- | Warp the deriver to have the given tempo like 'with_tempo', but override
+-- the existing warp instead of composing with it.
+--
+-- This can be used to isolate the tempo from any tempo effects that may be
+-- going on.
+with_absolute :: ScoreTime -> Maybe TrackId -> Signal.Tempo
+    -> Derive.Deriver a -> Derive.Deriver a
+with_absolute block_dur maybe_track_id signal deriver = do
+    let warp = tempo_to_warp signal
+    place <- ifM Internal.is_root_block (return id) $ do
+        start <- RealTime.to_score <$> Derive.real (0 :: ScoreTime)
+        end <- RealTime.to_score <$> Derive.real (1 :: ScoreTime)
+        let real_dur = Score.warp_pos block_dur warp
+        require_dur block_dur real_dur $
+            Internal.d_place start ((end - start) / RealTime.to_score real_dur)
+    Internal.in_real_time $ place $ Internal.d_warp warp $ do
+        Internal.add_new_track_warp maybe_track_id
+        deriver
 
 -- * hybrid
 
--- | This is like 'with_tempo', but
+-- | This is like 'with_tempo', but zero tempo segments are played in absolute
+-- time.  That is, they won't stretch along with the non-zero segments.  This
+-- means the output will always be at least as long as the absolute sections,
+-- so a block call may extend past the end of its event.
 with_hybrid :: ScoreTime -> Maybe TrackId -> Signal.Tempo
     -> Derive.Deriver a -> Derive.Deriver a
 with_hybrid block_dur maybe_track_id signal deriver = do
     let warp = tempo_to_score_warp signal
-    root <- Internal.is_root_block
-    place <- if root then return id else do
+    place <- ifM Internal.is_root_block (return id) $ do
         -- The special treatment of flat segments only works once: after that
         -- it's a normal warp and stretches like any other warp.  So I can't
         -- normalize to 0--1 expecting the caller to have stretched to the
@@ -102,10 +128,8 @@ with_hybrid block_dur maybe_track_id signal deriver = do
             stretch = if block_dur == absolute then 1
                 else max 0.001 $ (end - start - absolute)
                     / (block_dur - absolute)
-        return $ if block_dur == 0 then id else if real_dur == 0
-            then const $ Derive.throw $ "real time of non-zero block dur "
-                ++ show block_dur ++ " was zero"
-            else Internal.in_real_time . Internal.d_place start stretch
+        require_dur block_dur real_dur $
+            Internal.in_real_time . Internal.d_place start stretch
     place $ hybrid_warp warp $ do
         Internal.add_new_track_warp maybe_track_id
         deriver

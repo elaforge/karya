@@ -816,7 +816,7 @@ tempo:
       If it has non-zero-dur events with numbers, then those are "stretchy",
       with weights given by their numbers.
       I can tell the intended start and dur by looking at (0, 1).
-  - entirely absolute tempo track
+  * entirely absolute tempo track
 
 Cmd:
   - remove RawEdit?

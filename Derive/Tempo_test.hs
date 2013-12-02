@@ -10,8 +10,6 @@ import qualified Derive.Score as Score
 import qualified Perform.RealTime as RealTime
 
 
--- * with_tempo
-
 test_tempo = do
     let extract = e_floor . DeriveTest.e_event
         e_floor (start, dur, text) =
@@ -43,7 +41,21 @@ test_tempo = do
     equal (f [(0, 0, "1"), (10, 0, "2")]) $
         ([(0, 10, "n --1"), (10, 5, "n --2"), (15, 5, "n --3")], [])
 
--- * with_hybrid
+test_with_absolute = do
+    let run start dur tempo events = DeriveTest.extract Score.event_start $
+            DeriveTest.derive_blocks
+                [ ("top", [(">", [(start, dur, "sub")])])
+                , ("sub=ruler",
+                    [ ("tempo abs", tempo)
+                    , (">", [(n, 1, "") | n <- Seq.range' 0 events 1])
+                    ])
+                ]
+    equal (run 0 4 [(0, 0, "1")] 4) ([0, 1, 2, 3], [])
+    equal (run 0 8 [(0, 0, "1")] 4) ([0, 2, 4, 6], [])
+    equal (run 1 4 [(0, 0, "1")] 4) ([1, 2, 3, 4], [])
+    -- Stretches to 1 regardless of the tempo.
+    equal (run 1 4 [(0, 0, "2")] 4) ([1, 2, 3, 4], [])
+    equal (run 1 3 [(0, 0, "1"), (2, 0, "2")] 4) ([1, 2, 3, 3.5], [])
 
 test_with_hybrid = do
     let run start dur tempo events = DeriveTest.extract extent $

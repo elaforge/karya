@@ -219,6 +219,8 @@ dispatch_tempo sym block_dur maybe_track_id signal deriver = case sym of
     Just sym
         | sym == "hybrid" ->
             Tempo.with_hybrid block_dur maybe_track_id signal deriver
+        | sym == "abs" ->
+            Tempo.with_absolute block_dur maybe_track_id signal deriver
         | otherwise -> Derive.throw $
             "unknown tempo modifier: " <> untxt (ShowVal.show_val sym)
 

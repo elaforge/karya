@@ -139,10 +139,14 @@ Control tracks have another feature, which is experimental:
 
 ### tempo track
 
-Tempo tracks are just titled `tempo`.  The track is just a normal control
-track, but the generated signal will be composed with the warp signal in scope.
-Normally a single tempo track will have scope over all the tracks in a module,
-but it's also possible to have multiple tempo tracks.
+Tempo tracks are titled `tempo`, followed by an optional word.  The track is
+just a normal control track, but the generated signal will be composed with the
+warp signal in scope.  Normally a single tempo track will have scope over all
+the tracks in a module, but it's also possible to have multiple tempo tracks.
+
+The optional word can be `abs` or `hybrid`.  `abs` is implemented by
+'Derive.Tempo.with_absolute', and `hybrid` is implemented by
+'Derive.Tempo.with_hybrid'.
 
 ### Slicing and inversion
 
