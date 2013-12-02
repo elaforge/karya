@@ -42,6 +42,7 @@ import qualified Derive.Scale as Scale
 import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Sig as Sig
+import qualified Derive.Tempo as Tempo
 import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.Pitch as Pitch
@@ -534,8 +535,7 @@ equal_transformer args deriver = case Derive.passed_vals args of
     where
     set_tempo val =
         Internal.d_warp warp $ Internal.add_new_track_warp Nothing >> deriver
-        where
-        warp = Internal.tempo_to_warp $ Signal.constant (Score.typed_val val)
+        where warp = Tempo.tempo_to_warp $ Signal.constant (Score.typed_val val)
     control (TrackLang.VControl (TrackLang.LiteralControl c)) = Just c
     control _ = Nothing
     pitch (TrackLang.VPitchControl (TrackLang.LiteralControl c))

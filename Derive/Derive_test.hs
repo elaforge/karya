@@ -28,6 +28,7 @@ import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Deriver.Internal as Internal
 import qualified Derive.Score as Score
 import qualified Derive.Stack as Stack
+import qualified Derive.Tempo as Tempo
 import qualified Derive.TrackWarp as TrackWarp
 
 import qualified Perform.Midi.Instrument as Instrument
@@ -492,7 +493,7 @@ test_make_inverse_tempo_func = do
     -- This is actually also tested in test_subderive.
     -- TODO and it belongs in TrackWarp_test now
     let track_id = Types.TrackId (UiTest.mkid "warp")
-        warp = Internal.tempo_to_warp (Signal.constant 2)
+        warp = Tempo.tempo_to_warp (Signal.constant 2)
         track_warps = [TrackWarp.Collection
                 0 2 UiTest.default_block_id (Set.singleton track_id) warp]
     let f = TrackWarp.inverse_tempo_func track_warps
@@ -504,7 +505,7 @@ test_make_inverse_tempo_func = do
 
 test_tempo_roundtrip = do
     let track_id = Types.TrackId (UiTest.mkid "warp")
-        warp = Internal.tempo_to_warp (Signal.constant 0.987)
+        warp = Tempo.tempo_to_warp (Signal.constant 0.987)
         track_warps = [TrackWarp.Collection
                 0 10 UiTest.default_block_id (Set.singleton track_id) warp]
     let inv = TrackWarp.inverse_tempo_func track_warps
@@ -516,37 +517,6 @@ test_tempo_roundtrip = do
     pprint stimes
     -- expected failure
     -- equal (map snd (concatMap snd stimes)) [0..3]
-
-test_tempo = do
-    let extract = e_floor . DeriveTest.e_event
-        e_floor (start, dur, text) =
-            (floor (secs start), floor (secs dur), text)
-        secs = RealTime.to_seconds
-    let f tempo_track =
-            DeriveTest.extract extract $ DeriveTest.derive_tracks
-                [ ("tempo", tempo_track)
-                , ("*twelve", [(0, 10, "5a"), (10, 10, "5b"), (20, 10, "5c")])
-                , (">", [(0, 10, "n --1"), (10, 10, "n --2"),
-                    (20, 10, "n --3")])
-                ]
-
-    equal (f [(0, 0, "2")]) $
-        ([(0, 5, "n --1"), (5, 5, "n --2"), (10, 5, "n --3")], [])
-
-    -- Slow down.
-    equal (f [(0, 0, "2"), (20, 0, "i 1")]) $
-        ([(0, 5, "n --1"), (5, 7, "n --2"), (13, 10, "n --3")], [])
-    equal (f [(0, 0, "2"), (20, 0, "i 0")]) $
-        ([(0, 6, "n --1"), (6, 29, "n --2"), (35, 10000, "n --3")], [])
-    -- Speed up.
-    equal (f [(0, 0, "1"), (20, 0, "i 2")]) $
-        ([(0, 8, "n --1"), (8, 5, "n --2"), (14, 5, "n --3")], [])
-    equal (f [(0, 0, "0"), (20, 0, "i 2")]) $
-        ([(0, 1028, "n --1"), (1028, 7, "n --2"), (1035, 5, "n --3")], [])
-
-    -- Change tempo.
-    equal (f [(0, 0, "1"), (10, 0, "2")]) $
-        ([(0, 10, "n --1"), (10, 5, "n --2"), (15, 5, "n --3")], [])
 
 test_named_pitch = do
     let run op = DeriveTest.eval State.empty (op $ Derive.named_nn_at "psig" 2)

@@ -7,9 +7,7 @@ import qualified Data.Map as Map
 import qualified Data.Set as Set
 
 import Util.Control
-import qualified Util.Seq as Seq
 import Util.Test
-
 import qualified Ui.Block as Block
 import qualified Ui.Events as Events
 import qualified Ui.State as State
@@ -130,31 +128,6 @@ mktrack events_end track_range events =
     (TrackTree.track_events ">" evts events_end)
         { TrackTree.tevents_range = track_range }
     where evts = Events.from_list (map UiTest.make_event events)
-
-test_tempo_hybrid = do
-    let run start dur tempo events = DeriveTest.extract extent $
-            DeriveTest.derive_blocks
-                [ ("top", [(">", [(start, dur, "sub")])])
-                , ("sub=ruler", [("tempo hybrid", tempo),
-                    (">", [(n, 1, "") | n <- Seq.range' 0 events 1])])
-                ]
-        extent e = (Score.event_start e, Score.event_end e)
-    -- Tempo is cancelled out by stretch_to_1 as usual.
-    equal (run 0 2 [(0, 0, "1")] 4)
-        ([(0, 0.5), (0.5, 1), (1, 1.5), (1.5, 2)], [])
-    equal (run 0 2 [(0, 0, "2")] 4)
-        ([(0, 0.25), (0.25, 0.5), (0.5, 0.75), (0.75, 1)], [])
-
-    -- Absolute tempo, goes over event bounds.
-    equal (run 0 2 [(0, 0, "0")] 4)
-        ([(0, 1), (1, 2), (2, 3), (3, 4)], [])
-
-    let tempo = [(0, 0, "0"), (2, 0, "1")]
-    equalf 0.001 (run 0 3 tempo 4) ([(0, 1), (1, 2), (2, 2.5), (2.5, 3)], [])
-    equalf 0.001 (run 0 4 tempo 4) ([(0, 1), (1, 2), (2, 3), (3, 4)], [])
-    equalf 0.001 (run 0 6 tempo 4) ([(0, 1), (1, 2), (2, 4), (4, 6)], [])
-    equalf 0.001 (run 2 4 tempo 4) ([(2, 3), (3, 4), (4, 5), (5, 6)], [])
-    equalf 0.001 (run 2 6 tempo 4) ([(2, 3), (3, 4), (4, 6), (6, 8)], [])
 
 test_pitch_track = do
     let derive = do_derive DeriveTest.e_nns

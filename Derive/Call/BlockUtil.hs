@@ -44,6 +44,7 @@ import qualified Derive.LEvent as LEvent
 import qualified Derive.Note as Note
 import qualified Derive.Score as Score
 import qualified Derive.Slice as Slice
+import qualified Derive.Tempo as Tempo
 import qualified Derive.TrackInfo as TrackInfo
 
 import qualified Perform.Signal as Signal
@@ -143,7 +144,7 @@ derive_tree block_end tree = with_default_tempo (derive_tracks tree)
         | has_nontempo_track tree = do
             tempo <- Derive.get_ui_config
                 (State.default_tempo . State.config_default)
-            Internal.d_tempo block_end Nothing (Signal.constant tempo) deriver
+            Tempo.with_tempo block_end Nothing (Signal.constant tempo) deriver
         | otherwise = deriver
 
 -- | Derive an EventsTree.

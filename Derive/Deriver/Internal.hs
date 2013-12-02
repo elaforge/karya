@@ -29,8 +29,6 @@ import qualified Derive.Stack as Stack
 import qualified Derive.TrackLang as TrackLang
 import qualified Derive.TrackWarp as TrackWarp
 
-import qualified Perform.RealTime as RealTime
-import qualified Perform.Signal as Signal
 import Types
 
 
@@ -278,7 +276,7 @@ in_real_time = with_warp (const Score.id_warp)
 with_warp :: (Score.Warp -> Score.Warp) -> Deriver a -> Deriver a
 with_warp f = local $ \st -> st { state_warp = f (state_warp st) }
 
--- ** tempo
+-- ** warp
 
 d_at :: ScoreTime -> Deriver a -> Deriver a
 d_at shift = d_warp (Score.id_warp { Score.warp_shift = shift })
@@ -306,60 +304,6 @@ d_warp warp deriver
 
 modify_warp :: (Score.Warp -> Score.Warp) -> Deriver a -> Deriver a
 modify_warp modify = local $ \st -> st { state_warp = modify (state_warp st) }
-
--- | Warp a block with the given deriver with the given signal.
---
--- Tempo is the tempo signal, which is the standard musical definition of
--- tempo: trackpos over time.  Warp is the time warping that the tempo
--- implies, which is integral (1/tempo).
---
--- TODO what to do about blocks with multiple tempo tracks?  I think it would
--- be best to stretch the block to the first one.  I could break out
--- stretch_to_1 and have compile apply it to only the first tempo track.
-d_tempo :: ScoreTime
-    -- ^ Used to stretch the block to a length of 1, regardless of the tempo.
-    -- This means that when the calling block stretches it to the duration of
-    -- the event it winds up being the right length.  This is skipped for the
-    -- top level block or all pieces would last exactly 1 second.  This is
-    -- another reason every block must have a 'd_tempo' at the top.
-    --
-    -- TODO relying on the stack seems a little implicit, would it be better
-    -- to pass Maybe BlockId or Maybe ScoreTime?
-    --
-    -- 'Derive.Call.Block.d_block' might seem like a better place to do this,
-    -- but it doesn't have the local warp yet.
-    -> Maybe TrackId
-    -- ^ Needed to record this track in TrackWarps.  It's optional because if
-    -- there's no explicit tempo track there's an implicit tempo around the
-    -- whole block, but the implicit one doesn't have a track of course.
-    -> Signal.Tempo -> Deriver a -> Deriver a
-d_tempo block_dur maybe_track_id signal deriver = do
-    let warp = tempo_to_warp signal
-    root <- is_root_block
-    stretch_to_1 <- if root then return id else do
-        let real_dur = Score.warp_pos block_dur warp
-        return $ if block_dur == 0 then id
-            else if real_dur == 0
-            then const $ throw $ "real time of block with dur "
-                ++ show block_dur ++ " was zero"
-            else d_stretch (1 / RealTime.to_score real_dur)
-    stretch_to_1 $ d_warp warp $ do
-        add_new_track_warp maybe_track_id
-        deriver
-
-tempo_to_warp :: Signal.Tempo -> Score.Warp
-tempo_to_warp sig
-    -- Optimize for a constant (or missing) tempo.
-    | Signal.is_constant sig =
-        let stretch = 1 / max min_tempo (Signal.at 0 sig)
-        in Score.Warp Score.id_warp_signal 0 (Signal.y_to_score stretch)
-    | otherwise = Score.Warp warp_sig 0 1
-    where
-    warp_sig = Signal.integrate Signal.tempo_srate $ Signal.map_y (1/) $
-         Signal.scalar_min min_tempo sig
-
-min_tempo :: Signal.Y
-min_tempo = 0.001
 
 -- | Is this the toplevel block?
 is_root_block :: Deriver Bool
@@ -430,11 +374,6 @@ track_setup :: TrackTree.TrackEvents -> Deriver d -> Deriver d
 track_setup track deriver = do
     whenJust (TrackTree.tevents_track_id track) add_track_warp
     deriver
-
--- | This is a version of 'track_setup' for the tempo track.  It doesn't
--- record the track warp, see 'd_tempo' for why.
-setup_without_warp :: Deriver d -> Deriver d
-setup_without_warp = in_real_time
 
 -- | The deriver strips out tracks that can't be derived because they have no
 -- notes.  But that means the track warps and track dynamics aren't recorded,

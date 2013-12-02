@@ -2,7 +2,6 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
-{-# LANGUAGE BangPatterns #-}
 {- | Derivers for control tracks.  That means tempo, control, and pitch.
 
     Control tracks (specifically control tracks, not tempo or pitch) can have
@@ -29,12 +28,10 @@ import qualified Data.Maybe as Maybe
 import qualified Data.Set as Set
 import qualified Data.Text as Text
 import qualified Data.Tree as Tree
-import qualified Data.Vector.Storable as Vector
 
 import Util.Control
 import qualified Util.Log as Log
 import qualified Util.Seq as Seq
-import qualified Util.TimeVector as TimeVector
 
 import qualified Ui.Event as Event
 import qualified Ui.Events as Events
@@ -54,13 +51,12 @@ import qualified Derive.PitchSignal as PitchSignal
 import qualified Derive.Scale as Scale
 import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
+import qualified Derive.Tempo as Tempo
 import qualified Derive.TrackInfo as TrackInfo
 import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.Pitch as Pitch
-import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
-
 import Types
 
 
@@ -194,7 +190,7 @@ tempo_call :: Maybe TrackLang.Symbol -> TrackTree.TrackEvents
     -> Derive.Deriver (TrackResults Signal.Control)
     -> Derive.NoteDeriver -> Derive.NoteDeriver
 tempo_call sym track sig_deriver deriver = do
-    (signal, logs) <- Internal.setup_without_warp sig_deriver
+    (signal, logs) <- Internal.in_real_time sig_deriver
     whenJust maybe_block_track_id $ \(block_id, track_id) ->
         unless (TrackTree.tevents_sliced track) $
             -- I don't need stash_signal because this is definitely in
@@ -219,73 +215,12 @@ tempo_call sym track sig_deriver deriver = do
 dispatch_tempo :: Maybe TrackLang.Symbol -> ScoreTime -> Maybe TrackId
     -> Signal.Tempo -> Derive.Deriver a -> Derive.Deriver a
 dispatch_tempo sym block_dur maybe_track_id signal deriver = case sym of
-    Nothing -> Internal.d_tempo block_dur maybe_track_id signal deriver
+    Nothing -> Tempo.with_tempo block_dur maybe_track_id signal deriver
     Just sym
         | sym == "hybrid" ->
-            d_tempo_hybrid block_dur maybe_track_id signal deriver
+            Tempo.with_hybrid block_dur maybe_track_id signal deriver
         | otherwise -> Derive.throw $
             "unknown tempo modifier: " <> untxt (ShowVal.show_val sym)
-
-d_tempo_hybrid :: ScoreTime -> Maybe TrackId -> Signal.Tempo
-    -> Derive.Deriver a -> Derive.Deriver a
-d_tempo_hybrid block_dur maybe_track_id signal deriver = do
-    let warp = tempo_to_score_warp signal
-    root <- Internal.is_root_block
-    place <- if root then return id else do
-        -- The special treatment of flat segments only works once: after that
-        -- it's a normal warp and stretches like any other warp.  So I can't
-        -- normalize to 0--1 expecting the caller to have stretched to the
-        -- right placement, as 'Internal.d_tempo' does.  Instead, I have to
-        -- derive the whole thing in real time, and stretch and shift to the
-        -- expected time here.
-        start <- RealTime.to_score <$> Derive.real (0 :: ScoreTime)
-        end <- RealTime.to_score <$> Derive.real (1 :: ScoreTime)
-        let absolute = flat_duration (Score.warp_signal warp)
-            real_dur = max (RealTime.score absolute)
-                (Score.warp_pos block_dur warp)
-            -- If the block's absolute time is greater than the time allotted,
-            -- the non-absolute bits become infinitely fast.  Infinitely fast
-            -- is not very musically interesting, so I limit to very fast.
-            -- TODO This should be configurable.
-            stretch = if block_dur == absolute then 1
-                else max 0.001 $ (end - start - absolute)
-                    / (block_dur - absolute)
-        -- Debug.tracepM "extent, block, abs, real_dur, stretch"
-        --     ((start, end), block_dur, absolute, real_dur, stretch)
-        return $ if block_dur == 0 then id else if real_dur == 0
-            then const $ Derive.throw $ "real time of non-zero block dur "
-                ++ show block_dur ++ " was zero"
-            else Internal.in_real_time . Internal.d_place start stretch
-    place $ hybrid_warp warp $ do
-        Internal.add_new_track_warp maybe_track_id
-        deriver
-    where
-    hybrid_warp warp = Internal.modify_warp (\w -> compose w warp)
-    -- This is like 'Internal.tempo_to_warp', but replaces zero tempo with
-    -- zeroes instead of a minimum, as is expected by 'Signal.compose_hybrid'.
-    tempo_to_score_warp :: Signal.Tempo -> Score.Warp
-    tempo_to_score_warp sig = Score.Warp (tempo_to_warp sig) 0 1
-    tempo_to_warp :: Signal.Tempo -> Signal.Warp
-    tempo_to_warp = Signal.integrate Signal.tempo_srate
-        . Signal.map_y (\y -> if y == 0 then 0 else 1 / y)
-    -- Like 'Score.compose_warps', but use 'Signal.compose_hybrid'.  It also
-    -- can't use the id signal optimization, since that only works with normal
-    -- composition.
-    compose w1 w2 = Score.Warp (Signal.compose_hybrid s1 s2) 0 1
-        where
-        s1 = Score.warp_to_signal w1
-        s2 = Score.warp_to_signal w2
-
--- | Total duration of horizontal segments in the warp signal.  These are
--- the places where 'Signal.compose_hybrid' will
-flat_duration :: Signal.Warp -> ScoreTime
-flat_duration =
-    RealTime.to_score . fst . Vector.foldl' go (0, TimeVector.Sample 0 0)
-        . Signal.sig_vec
-    where
-    go (!acc, TimeVector.Sample x0 y0) sample@(TimeVector.Sample x y)
-        | y == y0 = (acc + (x - x0), sample)
-        | otherwise = (acc, sample)
 
 control_call :: TrackTree.TrackEvents -> Score.Typed Score.Control
     -> Derive.Merge -> (Bool -> Derive.Deriver (TrackResults Signal.Control))
