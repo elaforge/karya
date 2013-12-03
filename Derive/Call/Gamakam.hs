@@ -15,12 +15,14 @@ import qualified Util.Seq as Seq
 
 import qualified Derive.Args as Args
 import qualified Derive.Call.Control as Control
+import qualified Derive.Call.Make as Make
 import qualified Derive.Call.SignalTransform as SignalTransform
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Call.Trill as Trill
 import qualified Derive.Call.Util as Util
 import qualified Derive.Controls as Controls
 import qualified Derive.Derive as Derive
+import qualified Derive.Environ as Environ
 import qualified Derive.PitchSignal as PitchSignal
 import qualified Derive.Score as Score
 import qualified Derive.Sig as Sig
@@ -39,7 +41,24 @@ pitch_calls = Derive.call_maps
     , ("jaru", c_jaru)
     , ("sgr", c_jaru_intervals Util.Diatonic [-1, 1])
     ]
-    []
+    [ ("h", c_hold)
+    ]
+
+control_calls :: Derive.CallMaps Derive.Control
+control_calls = Derive.call_maps
+    [ ("kam", c_kampita_c Trill.UnisonFirst)
+    , ("kam^", c_kampita_c Trill.NeighborFirst)
+    , ("dip", c_dip_c)
+    , ("jaru", c_jaru_c)
+    , ("sgr", c_jaru_intervals_c [-1, 1])
+    ]
+    [ ("h", c_hold)
+    ]
+
+c_hold :: Derive.Transformer d
+c_hold = Make.with_environ "hold"
+    (defaulted "time" (TrackLang.real 1) "Hold first value for this long.")
+    TrackLang.defaulted_real
 
 -- * standard parameters
 
@@ -53,7 +72,8 @@ transition_default = 0.15
 jaru_time_default :: RealTime
 jaru_time_default = 0.15
 
--- * calls
+
+-- * pitch calls
 
 -- TODO note version that ends on up or down
 -- variations:
@@ -73,32 +93,38 @@ jaru_time_default = 0.15
 -- Or, tweak the speed to make it work out.
 c_kampita :: Trill.Mode -> Derive.Generator Derive.Pitch
 c_kampita mode = Derive.generator1 "kam" Tags.india
-    "This is a kind of trill, but its interval defaults to NNs\
-    \ scale, and transitions between the notes are smooth.  It's intended for\
+    "This is a kind of trill, but its interval defaults to NNs,\
+    \ and transitions between the notes are smooth.  It's intended for\
     \ the vocal microtonal trills common in Carnatic music."
-    $ Sig.call ((,,,)
+    $ Sig.call ((,,,,)
     <$> required "pitch" "Base pitch."
     <*> defaulted "neighbor" (Sig.typed_control "trill-neighbor" 1 Score.Nn)
         "Alternate with a pitch at this interval."
     <*> speed_arg
     <*> defaulted_env "transition" Sig.Both transition_default
         "Time for each slide."
-    ) $ \(pitch, neighbor, speed, transition) args -> do
+    <*> Sig.environ (TrackLang.unsym Environ.hold) Sig.Unprefixed
+        (TrackLang.real 0) "Time to hold the first pitch."
+    ) $ \(pitch, neighbor, speed, transition, TrackLang.DefaultReal hold)
+            args -> do
         srate <- Util.get_srate
         (neighbor, control) <- Util.to_transpose_signal Util.Nn neighbor
         let (val1, val2) = case mode of
                 Trill.UnisonFirst -> (Signal.constant 0, neighbor)
                 Trill.NeighborFirst -> (neighbor, Signal.constant 0)
-        transpose <- SignalTransform.smooth id srate (-transition / 2) <$>
-            trill_signal (Args.range_or_next args) speed val1 val2
+        hold <- Util.duration_from (Args.start args) hold
         start <- Args.real_start args
+        transpose <- SignalTransform.smooth id srate (-transition / 2) <$>
+            trill_signal (Args.range_or_next args) hold speed val1 val2
         return $ PitchSignal.apply_control control
             (Score.untyped transpose) $ PitchSignal.signal [(start, pitch)]
 
-trill_signal :: (ScoreTime, ScoreTime) -> TrackLang.ValControl
+trill_signal :: (ScoreTime, ScoreTime) -> ScoreTime -> TrackLang.ValControl
     -> Signal.Control -> Signal.Control -> Derive.Deriver Signal.Control
-trill_signal range speed val1 val2 = do
-    transitions <- Trill.trill_transitions range speed
+trill_signal (start, end) hold speed val1 val2 = do
+    transitions <- Trill.trill_transitions (start + hold, end) speed
+    transitions <- if hold > 0 then (: drop 1 transitions) <$> Derive.real start
+        else return transitions
     return $ trill_from_transitions transitions val1 val2
 
 -- | Make a trill signal from a list of transition times.
@@ -190,35 +216,28 @@ jaru srate start time transition intervals =
 
 -- * control calls
 
-control_calls :: Derive.CallMaps Derive.Control
-control_calls = Derive.call_maps
-    [ ("kam", c_kampita_c Trill.UnisonFirst)
-    , ("kam^", c_kampita_c Trill.NeighborFirst)
-    , ("dip", c_dip_c)
-    , ("jaru", c_jaru_c)
-    , ("sgr", c_jaru_intervals_c [-1, 1])
-    ]
-    []
-
 c_kampita_c :: Trill.Mode -> Derive.Generator Derive.Control
 c_kampita_c mode = Derive.generator1 "kam" Tags.india
     "This is a trill with smooth transitions between the notes.  It's intended\
     \ for the vocal microtonal trills common in Carnatic music."
-    $ Sig.call ((,,)
+    $ Sig.call ((,,,)
     <$> defaulted "neighbor"
         (Sig.typed_control "trill-neighbor" 1 Score.Untyped)
         "Alternate between 0 and this value."
     <*> speed_arg
     <*> defaulted_env "transition" Sig.Both transition_default
         "Time for each slide."
-    ) $ \(neighbor, speed, transition) args -> do
+    <*> Sig.environ (TrackLang.unsym Environ.hold) Sig.Unprefixed
+        (TrackLang.real 0) "Time to hold the first pitch."
+    ) $ \(neighbor, speed, transition, TrackLang.DefaultReal hold) args -> do
         srate <- Util.get_srate
         neighbor <- Util.to_untyped_signal neighbor
         let (val1, val2) = case mode of
                 Trill.UnisonFirst -> (Signal.constant 0, neighbor)
                 Trill.NeighborFirst -> (neighbor, Signal.constant 0)
+        hold <- Util.duration_from (Args.start args) hold
         SignalTransform.smooth id srate (-transition / 2) <$>
-            trill_signal (Args.range_or_next args) speed val1 val2
+            trill_signal (Args.range_or_next args) hold speed val1 val2
 
 -- | Ok, this name is terrible but what else is better?
 c_dip_c :: Derive.Generator Derive.Control

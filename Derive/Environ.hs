@@ -56,3 +56,8 @@ voice = "v"
 -- also by any call that relies on an instrument's parts being divided by hand.
 hand :: ValName
 hand = "hand"
+
+-- | VNum: hold the start of a call for a certain amount of ScoreTime or
+-- RealTime.
+hold :: ValName
+hold = "hold"

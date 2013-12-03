@@ -17,6 +17,19 @@ test_kampita = do
     equal (run "kam (4c) 1d 1 1" 3)
         ([[(0, NN.c4), (1, NN.d4), (2, NN.c4), (3, NN.c3)]], [])
 
+    equal (run "h | kam (4c) 1 1 1" 3)
+        ([[(0, NN.c4), (2, NN.cs4), (3, NN.c3)]], [])
+
+test_kampita_c = do
+    let run call end = DeriveTest.extract DeriveTest.e_nns $
+            DeriveTest.derive_tracks
+                [ (">", [(0, 4, "")])
+                , ("*", [(0, 0, "4c")])
+                , ("t-diatonic", [(0, 0, call), (end, 0, "--")])
+                ]
+    equal (run "kam 1 1 1" 3) ([[(0, NN.c4), (1, NN.d4), (2, NN.c4)]], [])
+    equal (run "h 1 | kam 1 1 1" 3) ([[(0, NN.c4), (2, NN.d4)]], [])
+
 test_dip = do
     let run ex call end = DeriveTest.extract ex $ DeriveTest.derive_tracks
             [(">", [(0, 4, "")]), ("*", [(0, 0, call), (end, 0, "3c")])]

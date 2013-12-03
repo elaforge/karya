@@ -427,18 +427,23 @@ real_dur from dur = do
 -- TODO Ugh.  Surely there's a more organized way to go about this.
 real_dur' :: ScoreTime -> TrackLang.RealOrScore -> Derive.Deriver RealTime
 real_dur' _ (TrackLang.Real t) = return t
-real_dur' from (TrackLang.Score t) = real_dur from t
+real_dur' from (TrackLang.Score t)
+    | t == 0 = return 0
+    | otherwise = real_dur from t
 
 -- | Add a RealTime to a ScoreTime.
 delay :: ScoreTime -> RealTime -> Derive.Deriver ScoreTime
-delay start time = do
-    real_start <- Derive.real start
-    Derive.score (real_start + time)
+delay start time
+    | time == 0 = return start
+    | otherwise = Derive.score . (+time) =<< Derive.real start
 
 -- | Get the amount of ScoreTime to add to a given ScoreTime to delay it
 -- by a certain amount.  If the delay amount is already ScoreTime then
 -- it's trivial, but if it's RealTime then the returned ScoreTime has to
 -- be relative to the given start time.
+--
+-- This is the ScoreTime version of 'real_dur''.  TODO so maybe it should be
+-- named like that?
 duration_from :: ScoreTime -> TrackLang.RealOrScore -> Derive.Deriver ScoreTime
 duration_from _ (TrackLang.Score t) = return t
 duration_from start (TrackLang.Real t) = do

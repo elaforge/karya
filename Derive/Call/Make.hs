@@ -66,3 +66,12 @@ transform_notes_subevents name tags sig transform =
         Sub.sub_events args >>= \x -> case x of
             [] -> transform params $ Sub.inverting Util.placed_note args
             subs -> Sub.place $ Sub.map_events (transform params) (concat subs)
+
+-- | Create a transformer that just sets an environ value.  This is higher
+-- level and more concise than using the @=@ transformer.
+with_environ :: (TrackLang.Typecheck val) =>
+    Text -> Sig.Parser a -> (a -> val) -> Derive.Transformer d
+with_environ name sig extract = Derive.transformer name mempty
+        ("Set `" <> name <> "` environ variable.")
+    $ Sig.callt sig $ \val _args ->
+        Derive.with_val (TrackLang.Symbol name) (extract val)

@@ -60,6 +60,16 @@ UNSORTED
         just call the score twice, once with transpose +1 oct.
   india
     Derive.Call.Gamakam, with janta, and shankarabharanam gamakam
+      - To start kampita on the lower note, `kam_ (-1)`  Or keep using kam^
+        for NeighborFirst even though it may be below.  This was the original
+        plan for trills, and that way I don't have to check if neighbor <0.
+        That's easy for control calls, but not for pitch calls.  Maybe use
+        prime to avoid the association ^ has with "above"?
+      - ^kam_ for start high, end low.
+          _kam^ for start low, end high.
+          kam for defaults.
+        . But then whether I start with neighbor or unison depends on whether
+          it's above or below.
       . I could also write the pitch track separate, and the gamakam as an
         interpolation signal.  But sometimes interpolation is diatonic, and
         sometimes is nn.
@@ -101,25 +111,26 @@ UNSORTED
           should extend by default only to the end of the overlapping note.
           They can look in sub tracks for that.
         - I still need a solution for the initial delay problem.
-          . Easiest is an environ-only arg.  This will work but every call
+          E.g. 6s -> kam^ (5n) should just be kam^ (5n) with an initial delay.
+          . I could add a delay transformer, but it would mess up the call
+            knowing how long it is, e.g. trill wanting to fit integral cycles.
+          . Instead of just a delay, I'd like to make it as if the call were
+            later on the track.  But I don't think shift/stretch can work like
+            that.  It would work for notes, but control calls look at the next
+            event rather than 'real 1', and a transformer can't modify the
+            CallInfo of the next call.
+          . Wait, but this is all just delay, I still need to extend
+            the initial value.  So, shift and stretch, then derive and extend
+            the first sample.  But isn't this violating the principle of
+            asking the call to do things?  Shouldn't I have a uniform way of
+            saying delay, which some calls may treat specially?
+          . Analogous to note calls, which have 'Controls.sustain_abs',
+            controls could look for a 'delay' env var, which is set by the 'd'
+            call.
+          * Easiest is an environ-only arg.  This will work but every call
             has to support it specifically.
           . If I just delay, then the end gets moved forward too.  This might
             not actually be a big deal for a lot of calls.  Try it?
-          . Can't I shift by a bit, then compress a bit?
-            Actually, I general continuous signal warp could do that: stretch
-            the beginning and compress the rest to make up.
-      - but sometimes I do want the delay, can I compose a delay on?
-        E.g. 6s -> kam^ (5n) should just be kam^ (5n) with an initial delay.
-        . The simplest option is of course to just move the call down a bit.
-          This is precise, but low level, and it would be nice to have
-          a high level way.
-        . I could do direct signal stretching.  I could have a general signal
-          warp, which composes a warp signal with the x points.
-        . I could add a delay transformer, but it would mess up the call
-          knowing how long it is, e.g. trill wanting to fit integral cycles.
-        . Instead of just a delay, I'd like to make it as if the call were
-          later on the track.  But I don't think shift/stretch can work like
-          that.
       general plan for how to build ornaments abstractly
         . seq x; y; z to sequence ornaments, does this make sense?  Or I could
           see each note has having attack, middle, and release "slots".
@@ -153,7 +164,7 @@ UNSORTED
         the secondary control thing to emit nn transposition.  The annoying
         thing is it then doesn't show up in the signal render, but at least
         it can go in the note track.
-      - Having to do everything twice for control and pitch signals is
+      . Having to do everything twice for control and pitch signals is
         annoying.
       configurable curves for jaru:
         - overshoot destination = over2 over3, depending how far over

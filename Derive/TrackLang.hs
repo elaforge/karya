@@ -95,6 +95,9 @@ real_control c deflt =
 constant_control :: Signal.Y -> ValControl
 constant_control = ControlSignal . Score.untyped . Signal.constant
 
+unsym :: Symbol -> Text
+unsym (Symbol sym) = sym
+
 -- * time
 
 -- | Some calls can operate in either RealTime or ScoreTime.
@@ -112,6 +115,7 @@ default_diatonic = DefaultDiatonic . Pitch.Diatonic
 
 -- | Either RealTime or ScoreTime, but untyped defaults to RealTime.
 newtype DefaultReal = DefaultReal RealOrScore deriving (Eq, Show)
+-- | Same as 'DefaultReal' but untyped defaults to ScoreTime.
 newtype DefaultScore = DefaultScore RealOrScore deriving (Eq, Show)
 
 -- | Create DefaultReal and DefaultScores for use in "Derive.Sig" signatures
@@ -123,6 +127,12 @@ real = DefaultReal . Real
 
 score :: ScoreTime -> DefaultScore
 score = DefaultScore . Score
+
+defaulted_real :: DefaultReal -> RealOrScore
+defaulted_real (DefaultReal t) = t
+
+defaulted_score :: DefaultScore -> RealOrScore
+defaulted_score (DefaultScore t) = t
 
 -- * show val
 
