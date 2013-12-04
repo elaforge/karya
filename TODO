@@ -60,22 +60,28 @@ UNSORTED
         just call the score twice, once with transpose +1 oct.
   india
     Derive.Call.Gamakam, with janta, and shankarabharanam gamakam
-      - To start kampita on the lower note, `kam_ (-1)`  Or keep using kam^
+      * To start kampita on the lower note, `kam_ (-1)`  Or keep using kam^
         for NeighborFirst even though it may be below.  This was the original
         plan for trills, and that way I don't have to check if neighbor <0.
         That's easy for control calls, but not for pitch calls.  Maybe use
         prime to avoid the association ^ has with "above"?
-      - ^kam_ for start high, end low.
-          _kam^ for start low, end high.
-          kam for defaults.
+      * ^kam_ for start high, end low.
+        . _kam^ for start low, end high.
         . But then whether I start with neighbor or unison depends on whether
           it's above or below.
-      . I could also write the pitch track separate, and the gamakam as an
-        interpolation signal.  But sometimes interpolation is diatonic, and
-        sometimes is nn.
-      . What about sequencing ornaments, so they follow each other naturally?
-        I think I would need something more sophisticated than just overwriting
-        parts of the signal.  Also I would want more natural transitions.
+        . However, neighbor is really a signal, so it could be both above and
+          below.
+        . If I do high and low then I have three starting states: low, high,
+          and unison, and three end states: low, high, and either.  If I do
+          neighbor, starting is unison, neighbor, and ending is unison,
+          neighbor, and either.
+        . But low/high seems more intuitive
+      . kam controls whether it ends high or low by shortening the trill.
+        I could also change speed, lengthen the note, or tweak the tempo.
+        Lengthening the note has a problem if there is another note
+        afterwards, should I move all notes?  At that point I'm basiaclly
+        changing the tempo.  It seems interesting to have ornaments that can
+        change the tempo, but I think I would need some magic for that.
       * call lifts pitch to some frequency at the end of notes
       * write SignalTransform.smooth, and see if that produces better results
       * kampita should be able to take diatonic interval
@@ -107,10 +113,10 @@ UNSORTED
               Unless I use ->, but that's more of a hassle than having the
               call default to the appropriate thing.
 
-        - If I'm standardizing on transposition control calls, maybe they
+        / If I'm standardizing on transposition control calls, maybe they
           should extend by default only to the end of the overlapping note.
           They can look in sub tracks for that.
-        - I still need a solution for the initial delay problem.
+        * I still need a solution for the initial delay problem.
           E.g. 6s -> kam^ (5n) should just be kam^ (5n) with an initial delay.
           . I could add a delay transformer, but it would mess up the call
             knowing how long it is, e.g. trill wanting to fit integral cycles.
@@ -134,11 +140,15 @@ UNSORTED
       general plan for how to build ornaments abstractly
         . seq x; y; z to sequence ornaments, does this make sense?  Or I could
           see each note has having attack, middle, and release "slots".
+          I might need something more sophisticated than just overwriting
+          parts of the signal.  Also I want more natural transitions.
+        . Many ornaments also depend on the previous pitch, or at least start
+          there.
         . The note call is for ornaments that decide their own scope.  The
           control calls are for when you want to place them directly.
-        . Many ornaments also depend on the previous pitch.
 
       - "eccentric" vibrato, weighted towards the back
+        'lilt' control for 'kam'
       * there is a variant of kampita that avoids the base note
         . also, it plays the low note more softly
         . kam2 (5m) 1 -1

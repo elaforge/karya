@@ -35,25 +35,40 @@ import Types
 
 pitch_calls :: Derive.CallMaps Derive.Pitch
 pitch_calls = Derive.call_maps
-    [ ("kam", c_kampita Trill.UnisonFirst)
-    , ("kam^", c_kampita Trill.NeighborFirst)
-    , ("dip", c_dip)
+    ([("dip", c_dip)
     , ("jaru", c_jaru)
     , ("sgr", c_jaru_intervals Util.Diatonic [-1, 1])
-    ]
+    ] ++ kampitas)
     [ ("h", c_hold)
     ]
+    where
+    kampitas =
+        [ (mode_affix s <> "kam" <> mode_affix e, c_kampita s e)
+        | s <- modes, e <- modes
+        ]
+    modes = [Nothing, Just Low, Just High]
 
 control_calls :: Derive.CallMaps Derive.Control
 control_calls = Derive.call_maps
-    [ ("kam", c_kampita_c Trill.UnisonFirst)
-    , ("kam^", c_kampita_c Trill.NeighborFirst)
-    , ("dip", c_dip_c)
+    ([("dip", c_dip_c)
     , ("jaru", c_jaru_c)
     , ("sgr", c_jaru_intervals_c [-1, 1])
-    ]
+    ] ++ kampitas)
     [ ("h", c_hold)
     ]
+    where
+    kampitas =
+        [ (mode_affix s <> "kam" <> mode_affix e, c_kampita_c s e)
+        | s <- modes, e <- modes
+        ]
+    modes = [Nothing, Just Low, Just High]
+
+mode_affix :: Maybe Mode -> Text
+mode_affix Nothing = ""
+mode_affix (Just High) = "^"
+mode_affix (Just Low) = "_"
+
+data Mode = High | Low deriving (Eq, Show)
 
 c_hold :: Derive.Transformer d
 c_hold = Make.with_environ "hold"
@@ -75,24 +90,8 @@ jaru_time_default = 0.15
 
 -- * pitch calls
 
--- TODO note version that ends on up or down
--- variations:
--- start high or low
--- end high or low - For this I need to know how when the note ends.  It can
--- either adjust the speed of the trill, or adjust the length of the note.
---
--- It seems like it might be nice to have ornaments be able to adjust tempo,
--- otherwise you have to coordinate changes in the tempo track.  But you can't
--- do it if you don't want it to affect other instruments.
---
--- To lengthen the note, it's actually in a position to do that since it's
--- above the note.  It could set a value which the note call will use for the
--- end, like an absolute duration sustain.  But it needs to know what it
--- originally was to round up, which requires peeking in the subs.
---
--- Or, tweak the speed to make it work out.
-c_kampita :: Trill.Mode -> Derive.Generator Derive.Pitch
-c_kampita mode = Derive.generator1 "kam" Tags.india
+c_kampita :: Maybe Mode -> Maybe Mode -> Derive.Generator Derive.Pitch
+c_kampita start_mode end_mode = Derive.generator1 "kam" Tags.india
     "This is a kind of trill, but its interval defaults to NNs,\
     \ and transitions between the notes are smooth.  It's intended for\
     \ the vocal microtonal trills common in Carnatic music."
@@ -109,23 +108,34 @@ c_kampita mode = Derive.generator1 "kam" Tags.india
             args -> do
         srate <- Util.get_srate
         (neighbor, control) <- Util.to_transpose_signal Util.Nn neighbor
-        let (val1, val2) = case mode of
-                Trill.UnisonFirst -> (Signal.constant 0, neighbor)
-                Trill.NeighborFirst -> (neighbor, Signal.constant 0)
-        hold <- Util.duration_from (Args.start args) hold
         start <- Args.real_start args
+        let ((val1, val2), even_transitions) = convert_modes start neighbor
+                start_mode end_mode
+        hold <- Util.duration_from (Args.start args) hold
         transpose <- SignalTransform.smooth id srate (-transition / 2) <$>
-            trill_signal (Args.range_or_next args) hold speed val1 val2
+            trill_signal even_transitions (Args.range_or_next args)
+                hold speed val1 val2
         return $ PitchSignal.apply_control control
             (Score.untyped transpose) $ PitchSignal.signal [(start, pitch)]
 
-trill_signal :: (ScoreTime, ScoreTime) -> ScoreTime -> TrackLang.ValControl
-    -> Signal.Control -> Signal.Control -> Derive.Deriver Signal.Control
-trill_signal (start, end) hold speed val1 val2 = do
+trill_signal :: Maybe Bool -> (ScoreTime, ScoreTime) -> ScoreTime
+    -> TrackLang.ValControl -> Signal.Control -> Signal.Control
+    -> Derive.Deriver Signal.Control
+trill_signal even_transitions (start, end) hold speed val1 val2 = do
     transitions <- Trill.trill_transitions (start + hold, end) speed
     transitions <- if hold > 0 then (: drop 1 transitions) <$> Derive.real start
         else return transitions
-    return $ trill_from_transitions transitions val1 val2
+    return $ trill_from_transitions (trim transitions) val1 val2
+    where
+    trim = case even_transitions of
+        Nothing -> id
+        Just even -> if even then take_even else take_odd
+    take_even (x:y:zs) = x : y : take_even zs
+    take_even _ = []
+    take_odd [x, _] = [x]
+    take_odd (x:y:zs) = x : y : take_odd zs
+    take_odd xs = xs
+
 
 -- | Make a trill signal from a list of transition times.
 trill_from_transitions :: [RealTime] -> Signal.Control -> Signal.Control
@@ -216,10 +226,14 @@ jaru srate start time transition intervals =
 
 -- * control calls
 
-c_kampita_c :: Trill.Mode -> Derive.Generator Derive.Control
-c_kampita_c mode = Derive.generator1 "kam" Tags.india
+c_kampita_c :: Maybe Mode -> Maybe Mode -> Derive.Generator Derive.Control
+c_kampita_c start_mode end_mode = Derive.generator1 "kam" Tags.india
     "This is a trill with smooth transitions between the notes.  It's intended\
-    \ for the vocal microtonal trills common in Carnatic music."
+    \ for the vocal microtonal trills common in Carnatic music.\
+    \ `^` is high and `_` is low, so `^kam_` starts on the upper note, and\
+    \ ends on the lower one. Otherwise, it starts on the unison note and ends\
+    \ on either. It determines the end note by shortening the trill if\
+    \ necessary."
     $ Sig.call ((,,,)
     <$> defaulted "neighbor"
         (Sig.typed_control "trill-neighbor" 1 Score.Untyped)
@@ -232,12 +246,36 @@ c_kampita_c mode = Derive.generator1 "kam" Tags.india
     ) $ \(neighbor, speed, transition, TrackLang.DefaultReal hold) args -> do
         srate <- Util.get_srate
         neighbor <- Util.to_untyped_signal neighbor
-        let (val1, val2) = case mode of
-                Trill.UnisonFirst -> (Signal.constant 0, neighbor)
-                Trill.NeighborFirst -> (neighbor, Signal.constant 0)
+        start <- Args.real_start args
+        let ((val1, val2), even_transitions) = convert_modes start neighbor
+                start_mode end_mode
         hold <- Util.duration_from (Args.start args) hold
         SignalTransform.smooth id srate (-transition / 2) <$>
-            trill_signal (Args.range_or_next args) hold speed val1 val2
+            trill_signal even_transitions (Args.range_or_next args)
+                hold speed val1 val2
+
+convert_modes :: RealTime -> Signal.Control -> Maybe Mode -> Maybe Mode
+    -> ((Signal.Control, Signal.Control), Maybe Bool)
+convert_modes start_t neighbor start end = (vals, even_transitions)
+    where
+    first = case start of
+        Nothing -> Trill.Unison
+        Just Low -> if neighbor_low then Trill.Neighbor else Trill.Unison
+        Just High -> if neighbor_low then Trill.Unison else Trill.Neighbor
+    vals = case first of
+        Trill.Unison -> (Signal.constant 0, neighbor)
+        Trill.Neighbor -> (neighbor, Signal.constant 0)
+    -- If I end Low, and neighbor is low, and I started with Unison, then val2
+    -- is low, so I want even transitions.  Why is it so complicated just to
+    -- get a trill to end high or low?
+    first_low = case first of
+        Trill.Unison -> not neighbor_low
+        Trill.Neighbor -> neighbor_low
+    even_transitions = case end of
+        Nothing -> Nothing
+        Just Low -> Just (not first_low)
+        Just High -> Just first_low
+    neighbor_low = Signal.at start_t neighbor < 0
 
 -- | Ok, this name is terrible but what else is better?
 c_dip_c :: Derive.Generator Derive.Control

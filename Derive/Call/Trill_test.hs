@@ -147,7 +147,7 @@ test_moving_trill = do
 
 test_real_trill = do
     let f neighbor speed = fst <$> Trill.trill_from_controls (0, 1)
-            Trill.UnisonFirst (mkcontrol Score.Chromatic neighbor)
+            Trill.Unison (mkcontrol Score.Chromatic neighbor)
             (mkcontrol Score.Real speed)
         run = extract . DeriveTest.run State.empty
         extract = DeriveTest.extract_run Signal.unsignal
@@ -169,7 +169,7 @@ test_real_trill = do
 
 test_score_trill = do
     let f dur neighbor speed = fst <$> Trill.trill_from_controls (0, dur)
-            Trill.UnisonFirst (mkcontrol Score.Chromatic neighbor)
+            Trill.Unison (mkcontrol Score.Chromatic neighbor)
             (mkcontrol Score.Score speed)
         run = extract . DeriveTest.run State.empty
         extract = DeriveTest.extract_run Signal.unsignal

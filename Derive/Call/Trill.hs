@@ -205,11 +205,11 @@ take_full_notes end (t:ts) = t : go ts
 pitch_calls :: Derive.CallMaps Derive.Pitch
 pitch_calls = Derive.call_maps
     [ ("tr", c_pitch_trill Nothing)
-    , ("tr1", c_pitch_trill (Just UnisonFirst))
-    , ("tr2", c_pitch_trill (Just NeighborFirst))
+    , ("tr1", c_pitch_trill (Just Unison))
+    , ("tr2", c_pitch_trill (Just Neighbor))
     , ("`tr`", c_pitch_trill Nothing)
-    , ("`tr`1", c_pitch_trill (Just UnisonFirst))
-    , ("`tr`2", c_pitch_trill (Just NeighborFirst))
+    , ("`tr`1", c_pitch_trill (Just Unison))
+    , ("`tr`2", c_pitch_trill (Just Neighbor))
     , ("xcut", c_xcut_pitch False)
     , ("xcut-h", c_xcut_pitch True)
     ]
@@ -270,10 +270,10 @@ xcut_pitch hold val1 val2 =
 control_calls :: Derive.CallMaps Derive.Control
 control_calls = Derive.call_maps
     [ ("tr", c_control_trill Nothing)
-    , ("tr1", c_control_trill (Just UnisonFirst))
-    , ("tr2", c_control_trill (Just NeighborFirst))
-    , ("tr1", c_control_trill (Just UnisonFirst))
-    , ("tr2", c_control_trill (Just NeighborFirst))
+    , ("tr1", c_control_trill (Just Unison))
+    , ("tr2", c_control_trill (Just Neighbor))
+    , ("tr1", c_control_trill (Just Unison))
+    , ("tr2", c_control_trill (Just Neighbor))
     , ("saw", c_saw)
     , ("sine", c_sine Bipolar)
     , ("sine+", c_sine Positive)
@@ -401,16 +401,16 @@ xcut_control hold val1 val2 =
 
 -- * util
 
-data Mode = UnisonFirst | NeighborFirst deriving (Show)
+data Mode = Unison | Neighbor deriving (Eq, Show)
 
 get_mode :: Derive.Deriver Mode
 get_mode = do
     mode_name :: Maybe Text <- Derive.lookup_val "trill-mode"
     case mode_name of
-        Nothing -> return UnisonFirst
+        Nothing -> return Unison
         Just name
-            | name == "unison" -> return UnisonFirst
-            | name == "neighbor" -> return NeighborFirst
+            | name == "unison" -> return Unison
+            | name == "neighbor" -> return Neighbor
             | otherwise -> Derive.throw $ "unknown trill mode: " ++ show name
 
 -- | Create a transposition signal from neighbor and speed controls.
@@ -451,8 +451,8 @@ trill_from_transitions mode transitions neighbor =
         | (x, t) <- zip transitions (cycle ts)]
     where
     ts = case mode of
-        UnisonFirst -> [False, True]
-        NeighborFirst -> [True, False]
+        Unison -> [False, True]
+        Neighbor -> [True, False]
 
 -- | Given a list of trill transition times, take only ones with a complete
 -- duration.  Otherwise a trill can wind up with a short note at the end, which
