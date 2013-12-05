@@ -3,6 +3,13 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
+  - Signal render is inaccurate when it depends on the tempo.
+    . This is because signal render uses in_real_time, which causes RealTime
+      using calls to derive differently.
+    . The only reason it works when the tempo is set once at the top is that
+      it then reuses the signal, just passing a constant stretch.
+    . To be accurate, I'd have to render with the tempo, and then unstretch
+      back to ScoreTime.
   - LRuler.inject, opposite of extract, replaces sub-block rulers
   * Signal.inverse_at should take a Y, it's really confusing with a RealTime
   - calling a block with a %tempo = x in the block title gets messed up timing
@@ -59,6 +66,15 @@ UNSORTED
       . I could do it with >wayang-both that emits >wayang-p and >wayang-k. Or
         just call the score twice, once with transpose +1 oct.
   india
+    - fingered grace notes
+      . The 'g' call is not quite right: it overlaps, and makes another note,
+        and goes before.  I want to do pitch only, and starting together.
+      . Also, I want to write it as relative.
+      . Actually, this is just like jaru with fast transitions.
+        Maybe js = jaru-slow, and jf = jaru-fast or jaru-fingered
+        Continuous/discrete?  jc/jd, or symbolic: j) j]
+    - semi-tone dip.  This is like 1 cycle kam.  In fact, it might be useful
+      to have a kam version where the speed is in number of cycles.
     Derive.Call.Gamakam, with janta, and shankarabharanam gamakam
       * To start kampita on the lower note, `kam_ (-1)`  Or keep using kam^
         for NeighborFirst even though it may be below.  This was the original
@@ -112,7 +128,6 @@ UNSORTED
               tack a 'd' on the interval arg.
               Unless I use ->, but that's more of a hassle than having the
               call default to the appropriate thing.
-
         / If I'm standardizing on transposition control calls, maybe they
           should extend by default only to the end of the overlapping note.
           They can look in sub tracks for that.
@@ -147,7 +162,7 @@ UNSORTED
         . The note call is for ornaments that decide their own scope.  The
           control calls are for when you want to place them directly.
 
-      - "eccentric" vibrato, weighted towards the back
+      * "eccentric" vibrato, weighted towards the back
         'lilt' control for 'kam'
       * there is a variant of kampita that avoids the base note
         . also, it plays the low note more softly
@@ -920,6 +935,8 @@ Derive:
   tracklang:
     - If I don't allow = in calls, I could write assigns without whitespace:
       x=y Is it worth it?
+      If I forbid = in call names, I can also bind defaults for calls with
+      symbols, e.g. j)-transition = .1
     - there should be a character that triggers a parse failure, which is used
       by invalid ShowVal instances like ShowVal Pitch
     - it's confusing how some calls expect env vals like 'x = 1' and some

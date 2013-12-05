@@ -10,6 +10,7 @@ module Derive.Call.Gamakam where
 import qualified Data.List.NonEmpty as NonEmpty
 
 import Util.Control
+import qualified Util.Num as Num
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 
@@ -29,6 +30,7 @@ import qualified Derive.Sig as Sig
 import Derive.Sig (defaulted, defaulted_env, required)
 import qualified Derive.TrackLang as TrackLang
 
+import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
 import Types
 
@@ -95,7 +97,7 @@ c_kampita start_mode end_mode = Derive.generator1 "kam" Tags.india
     "This is a kind of trill, but its interval defaults to NNs,\
     \ and transitions between the notes are smooth.  It's intended for\
     \ the vocal microtonal trills common in Carnatic music."
-    $ Sig.call ((,,,,)
+    $ Sig.call ((,,,,,)
     <$> required "pitch" "Base pitch."
     <*> defaulted "neighbor" (Sig.typed_control "trill-neighbor" 1 Score.Nn)
         "Alternate with a pitch at this interval."
@@ -104,7 +106,11 @@ c_kampita start_mode end_mode = Derive.generator1 "kam" Tags.india
         "Time for each slide."
     <*> Sig.environ (TrackLang.unsym Environ.hold) Sig.Unprefixed
         (TrackLang.real 0) "Time to hold the first pitch."
-    ) $ \(pitch, neighbor, speed, transition, TrackLang.DefaultReal hold)
+    <*> Sig.environ "lilt" Sig.Prefixed 0 "Lilt is a horizontal bias to the\
+        \ vibrato. A lilt of 1 would place each neighbor on top of the\
+        \ following unison, while -1 would place it on the previous one.\
+        \ So it should range from -1 < lilt < 1."
+    ) $ \(pitch, neighbor, speed, transition, TrackLang.DefaultReal hold, lilt)
             args -> do
         srate <- Util.get_srate
         (neighbor, control) <- Util.to_transpose_signal Util.Nn neighbor
@@ -112,22 +118,23 @@ c_kampita start_mode end_mode = Derive.generator1 "kam" Tags.india
         let ((val1, val2), even_transitions) = convert_modes start neighbor
                 start_mode end_mode
         hold <- Util.duration_from (Args.start args) hold
-        transpose <- SignalTransform.smooth id srate (-transition / 2) <$>
-            trill_signal even_transitions (Args.range_or_next args)
-                hold speed val1 val2
+        transpose <- SignalTransform.smooth id srate (-transition / 2)
+            . trill_from_transitions val1 val2
+            <$> trill_transitions even_transitions lilt hold speed
+                (Args.range_or_next args)
         return $ PitchSignal.apply_control control
             (Score.untyped transpose) $ PitchSignal.signal [(start, pitch)]
 
-trill_signal :: Maybe Bool -> (ScoreTime, ScoreTime) -> ScoreTime
-    -> TrackLang.ValControl -> Signal.Control -> Signal.Control
-    -> Derive.Deriver Signal.Control
-trill_signal even_transitions (start, end) hold speed val1 val2 = do
-    transitions <- Trill.trill_transitions (start + hold, end) speed
-    transitions <- if hold > 0 then (: drop 1 transitions) <$> Derive.real start
-        else return transitions
-    return $ trill_from_transitions (trim transitions) val1 val2
+trill_transitions :: Maybe Bool -> Double -> ScoreTime -> TrackLang.ValControl
+    -> (ScoreTime, ScoreTime) -> Derive.Deriver [RealTime]
+trill_transitions even lilt hold speed (start, end) =
+    (trim<$>) . add_hold . add_lilt lilt
+        =<< Trill.trill_transitions (start + hold, end) speed
     where
-    trim = case even_transitions of
+    add_hold transitions
+        | hold > 0 = (: drop 1 transitions) <$> Derive.real start
+        | otherwise = return transitions
+    trim = case even of
         Nothing -> id
         Just even -> if even then take_even else take_odd
     take_even (x:y:zs) = x : y : take_even zs
@@ -136,11 +143,23 @@ trill_signal even_transitions (start, end) hold speed val1 val2 = do
     take_odd (x:y:zs) = x : y : take_odd zs
     take_odd xs = xs
 
+add_lilt :: Double -> [RealTime] -> [RealTime]
+add_lilt _ [] = []
+add_lilt lilt (t:ts)
+    | lilt == 0 = t : ts
+    | lilt > 0 = t : positive (min 1 (RealTime.seconds lilt)) ts
+    | otherwise = negative (min 1 (RealTime.seconds (abs lilt))) (t:ts)
+    where
+    positive lilt (x:y:zs) = Num.scale x y lilt : y : positive lilt zs
+    positive _ xs = xs
+    negative lilt (x:y:zs) = x : Num.scale x y lilt : negative lilt zs
+    negative _ xs = xs
+
 
 -- | Make a trill signal from a list of transition times.
-trill_from_transitions :: [RealTime] -> Signal.Control -> Signal.Control
+trill_from_transitions :: Signal.Control -> Signal.Control -> [RealTime]
     -> Signal.Control
-trill_from_transitions transitions val1 val2 = Signal.signal
+trill_from_transitions val1 val2 transitions = Signal.signal
     [(x, Signal.at x sig) | (x, sig) <- zip transitions (cycle [val1, val2])]
 
 -- | Ok, this name is terrible but what else is better?
@@ -163,11 +182,11 @@ c_dip = Derive.generator1 "dip" Tags.india
         let (high, control) = Controls.transpose_control high_
         transitions <- Trill.trill_transitions (Args.range_or_next args) speed
         let transpose = SignalTransform.smooth id srate (-transition / 2) $
-                trill_from_transitions transitions
-                    (Signal.constant high) (Signal.constant low)
+                trill_from_transitions (Signal.constant high)
+                    (Signal.constant low) transitions
             dyn = SignalTransform.smooth id srate (-transition / 2) $
-                trill_from_transitions transitions
-                    (Signal.constant 1) (Signal.constant dyn_scale)
+                trill_from_transitions (Signal.constant 1)
+                    (Signal.constant dyn_scale) transitions
         (start, end) <- Args.real_range_or_next args
         Control.multiply_dyn end dyn
         return $ PitchSignal.apply_control control
@@ -234,7 +253,7 @@ c_kampita_c start_mode end_mode = Derive.generator1 "kam" Tags.india
     \ ends on the lower one. Otherwise, it starts on the unison note and ends\
     \ on either. It determines the end note by shortening the trill if\
     \ necessary."
-    $ Sig.call ((,,,)
+    $ Sig.call ((,,,,)
     <$> defaulted "neighbor"
         (Sig.typed_control "trill-neighbor" 1 Score.Untyped)
         "Alternate between 0 and this value."
@@ -243,16 +262,22 @@ c_kampita_c start_mode end_mode = Derive.generator1 "kam" Tags.india
         "Time for each slide."
     <*> Sig.environ (TrackLang.unsym Environ.hold) Sig.Unprefixed
         (TrackLang.real 0) "Time to hold the first pitch."
-    ) $ \(neighbor, speed, transition, TrackLang.DefaultReal hold) args -> do
+    <*> Sig.environ "lilt" Sig.Prefixed 0 "Lilt is a horizontal bias to the\
+        \ vibrato. A lilt of 1 would place each neighbor on top of the\
+        \ following unison, while -1 would place it on the previous one.\
+        \ So it should range from -1 < lilt < 1."
+    ) $ \(neighbor, speed, transition, TrackLang.DefaultReal hold, lilt)
+            args -> do
         srate <- Util.get_srate
         neighbor <- Util.to_untyped_signal neighbor
         start <- Args.real_start args
         let ((val1, val2), even_transitions) = convert_modes start neighbor
                 start_mode end_mode
         hold <- Util.duration_from (Args.start args) hold
-        SignalTransform.smooth id srate (-transition / 2) <$>
-            trill_signal even_transitions (Args.range_or_next args)
-                hold speed val1 val2
+        SignalTransform.smooth id srate (-transition / 2)
+            . trill_from_transitions val1 val2
+            <$> trill_transitions even_transitions lilt hold speed
+                (Args.range_or_next args)
 
 convert_modes :: RealTime -> Signal.Control -> Maybe Mode -> Maybe Mode
     -> ((Signal.Control, Signal.Control), Maybe Bool)
@@ -294,10 +319,10 @@ c_dip_c = Derive.generator1 "dip" Tags.india
         srate <- Util.get_srate
         transitions <- Trill.trill_transitions (Args.range_or_next args) speed
         let smooth = SignalTransform.smooth id srate (-transition / 2)
-            transpose = smooth $ trill_from_transitions transitions
-                (Signal.constant high) (Signal.constant low)
-            dyn = smooth $ trill_from_transitions transitions
-                (Signal.constant 1) (Signal.constant dyn_scale)
+            transpose = smooth $ trill_from_transitions (Signal.constant high)
+                (Signal.constant low) transitions
+            dyn = smooth $ trill_from_transitions (Signal.constant 1)
+                (Signal.constant dyn_scale) transitions
         end <- Derive.real (Args.next args)
         Control.multiply_dyn end dyn
         return transpose
