@@ -935,8 +935,6 @@ Derive:
   tracklang:
     - If I don't allow = in calls, I could write assigns without whitespace:
       x=y Is it worth it?
-      If I forbid = in call names, I can also bind defaults for calls with
-      symbols, e.g. j)-transition = .1
     - there should be a character that triggers a parse failure, which is used
       by invalid ShowVal instances like ShowVal Pitch
     - it's confusing how some calls expect env vals like 'x = 1' and some

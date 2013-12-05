@@ -9,6 +9,7 @@ Args:
     notest - exclude *_test.hs and *Test.hs
     hsc_as_hs - replace .hsc files with their .hs equivalents, in build/hsc
     nomain - exclude modules with no name, or named Main
+    dotted - emit names as dotted haskell modules instead of filenames
 """
 
 import sys, os
@@ -18,6 +19,7 @@ def main():
     notest = 'notest' in sys.argv
     hsc_as_hs = 'hsc_as_hs' in sys.argv
     nomain = 'nomain' in sys.argv
+    dotted = 'dotted' in sys.argv
     hs_files = []
     hsc_files = []
     def accum(_arg, dirname, fnames):
@@ -32,12 +34,13 @@ def main():
     if hsc_as_hs:
         hsc_files = [os.path.join('build/hsc', fn.replace('.hsc', '.hs'))
             for fn in hsc_files]
-    fns = [os.path.normpath(fn) for fn in hs_files + hsc_files]
-    fns.sort()
+    fns = sorted(os.path.normpath(fn) for fn in hs_files + hsc_files)
     if notest:
         fns = filter(lambda fn: not is_test(fn), fns)
     if nomain:
         fns = filter(lambda fn: not is_main(fn), fns)
+    if dotted:
+        fns = map(to_dotted, fns)
     print ' '.join(fns)
 
 def is_test(fn):
@@ -55,6 +58,9 @@ def is_main(fn):
         elif line.startswith('import '):
             break
     return True
+
+def to_dotted(fn):
+    return os.path.splitext(fn)[0].replace('/', '.')
 
 if __name__ == '__main__':
     main()
