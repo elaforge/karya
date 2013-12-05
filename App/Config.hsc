@@ -349,7 +349,7 @@ window_decoration_h = 0
 
 emmentaler :: String
 emmentaler = case platform of
-    Mac -> "Emmentaler 11"
+    Mac -> "Emmentaler-11"
     Linux -> " Emmentaler"
     -- I have no idea why the lilypond font names are inconsistent.
 

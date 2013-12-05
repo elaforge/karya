@@ -406,8 +406,8 @@ main(int argc, char **argv)
     Fl_Font tamil = t->font(" Lohit Tamil");
 #endif
 #ifdef __APPLE__
-    Fl_Font music = t->font("Emmentaler 11");
-    Fl_Font chinese = t->font("LiSong Pro");
+    Fl_Font music = t->font("Emmentaler-11");
+    Fl_Font chinese = t->font("LiSongPro");
     Fl_Font tamil = Config::font; // thanks to OS X font substitution I guess
 #endif
 
