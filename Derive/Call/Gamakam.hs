@@ -53,7 +53,10 @@ pitch_calls = Derive.call_maps
 control_calls :: Derive.CallMaps Derive.Control
 control_calls = Derive.call_maps
     ([("dip", c_dip_c)
-    , ("jaru", c_jaru_c)
+    , ("j)", jaru_transition_c "j)" Nothing
+        "Time for each slide, defaults to `time`.")
+    , ("j]", jaru_transition_c "j]" (Just (jaru_time_default / 2))
+        "Time for each slide.")
     , ("sgr", c_jaru_intervals_c [-1, 1])
     ] ++ kampitas)
     [ ("h", c_hold)
@@ -236,12 +239,6 @@ c_jaru_intervals transpose intervals = Derive.generator1 "jaru" Tags.india
         return $ PitchSignal.apply_control (Util.transpose_control transpose)
             (Score.untyped sig) $ PitchSignal.signal [(start, pitch)]
 
-jaru :: RealTime -> RealTime -> RealTime -> RealTime -> [Signal.Y]
-    -> Signal.Control
-jaru srate start time transition intervals =
-    SignalTransform.smooth id srate (-transition) $
-        Signal.signal (zip (Seq.range_ start time) (intervals ++ [0]))
-
 
 -- * control calls
 
@@ -327,15 +324,15 @@ c_dip_c = Derive.generator1 "dip" Tags.india
         Control.multiply_dyn end dyn
         return transpose
 
-c_jaru_c :: Derive.Generator Derive.Control
-c_jaru_c = Derive.generator1 "jaru" Tags.india
-    "This is a series of grace notes whose pitches are relative to the given\
-    \ base pitch."
+jaru_transition_c :: Text -> Maybe RealTime -> Text
+    -> Derive.Generator Derive.Control
+jaru_transition_c name default_transition transition_doc =
+    Derive.generator1 name Tags.india
+    "This is a series of grace notes with relative pitches."
     $ Sig.call ((,,)
     <$> Sig.many1 "interval" "Intervals from base pitch."
     <*> Sig.environ "time" Sig.Both jaru_time_default "Time for each note."
-    <*> Sig.environ "transition" Sig.Both Nothing
-        "Time for each slide, defaults to `time`."
+    <*> Sig.environ "transition" Sig.Both default_transition transition_doc
     ) $ \(intervals, time, maybe_transition) args -> do
         start <- Args.real_start args
         srate <- Util.get_srate
@@ -354,3 +351,9 @@ c_jaru_intervals_c intervals = Derive.generator1 "jaru" Tags.india
         srate <- Util.get_srate
         return $ jaru srate start time (fromMaybe time maybe_transition)
             intervals
+
+jaru :: RealTime -> RealTime -> RealTime -> RealTime -> [Signal.Y]
+    -> Signal.Control
+jaru srate start time transition intervals =
+    SignalTransform.smooth id srate (-transition) $
+        Signal.signal (zip (Seq.range_ start time) (intervals ++ [0]))
