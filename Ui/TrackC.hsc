@@ -22,8 +22,6 @@ import Types
 
 
 #include "Ui/c_interface.h"
--- See comment in BlockC.hsc.
-#let alignment t = "%lu", (unsigned long)offsetof(struct {char x__; t (y__); }, y__)
 
 -- | Since converting a Track requires both a track and merged events, poke
 -- needs two args.  So keep it out of Storable to prevent accidental use of
@@ -43,7 +41,7 @@ with_track track (track_bg, event_style) event_lists f =
         f trackp
     where
     size = #size EventTrackConfig
-    align = #{alignment EventTrackConfig}
+    align = alignment (0 :: CDouble)
 
 type EventStyle = Event.Event -> Style.StyleId
 
@@ -60,7 +58,7 @@ make_find_events event_style events = Util.make_fun_ptr "find_events" $
 
 instance CStorable Track.RenderConfig where
     sizeOf _ = #size RenderConfig
-    alignment _ = #{alignment RenderConfig}
+    alignment _ = alignment (0 :: CDouble)
     peek _ = error "RenderConfig peek unimplemented"
     poke = poke_render_config
 
@@ -71,7 +69,7 @@ poke_render_config configp (Track.RenderConfig style color) = do
 
 instance CStorable Track.TrackSignal where
     sizeOf _ = #size TrackSignal
-    alignment _ = #{alignment TrackSignal}
+    alignment _ = alignment (0 :: CDouble)
     peek _ = error "TrackSignal peek unimplemented"
     poke = poke_track_signal
 

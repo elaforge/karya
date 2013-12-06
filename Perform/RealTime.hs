@@ -82,8 +82,8 @@ newtype RealTime = RealTime Double deriving
 -- I could derive Storable, but technically speaking Double is not necessarily
 -- the same as CDouble.
 instance Foreign.Storable RealTime where
-    sizeOf _ = Foreign.sizeOf (undefined :: C.CDouble)
-    alignment _ = Foreign.alignment (undefined :: C.CDouble)
+    sizeOf _ = Foreign.sizeOf (0 :: C.CDouble)
+    alignment _ = Foreign.alignment (0 :: C.CDouble)
     poke p (RealTime d) = Foreign.poke (Foreign.castPtr p) (Util.c_double d)
     peek p = RealTime . Util.hs_double <$> Foreign.peek (Foreign.castPtr p)
 

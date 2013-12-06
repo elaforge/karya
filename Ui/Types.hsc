@@ -34,9 +34,6 @@ import qualified Ui.Util as Util
 
 
 #include "Ui/c_interface.h"
--- See comment in BlockC.hsc.
-#let alignment t = "%lu", (unsigned long)offsetof(struct {char x__; t (y__); }, y__)
-
 
 -- A few type synonyms for more descriptive signatures.
 
@@ -55,7 +52,7 @@ type MouseButton = Int
 -- just have it live here for now.
 instance CStorable Rect.Rect where
     sizeOf _ = #size IRect
-    alignment _ = #{alignment IRect}
+    alignment _ = alignment (0 :: CInt)
     poke = error "Rect poke unimplemented"
     peek rectp = do
         x <- (#peek IRect, x) rectp :: IO CInt
@@ -79,7 +76,7 @@ instance Pretty.Pretty Zoom where
 
 instance CStorable Zoom where
     sizeOf _ = #size ZoomInfo
-    alignment _ = #{alignment ZoomInfo}
+    alignment _ = alignment (0 :: CDouble)
     peek zoomp = do
         offset <- (#peek ZoomInfo, offset) zoomp
         factor <- (#peek ZoomInfo, factor) zoomp :: IO CDouble

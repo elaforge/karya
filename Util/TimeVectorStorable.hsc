@@ -17,8 +17,6 @@ import qualified Perform.RealTime as RealTime
 
 
 #include "Ui/c_interface.h"
--- See comment in BlockC.hsc.
-#let alignment t = "%lu", (unsigned long)offsetof(struct {char x__; t (y__); }, y__)
 
 data Sample y = Sample {
     sx :: {-# UNPACK #-} !X
@@ -29,7 +27,7 @@ type X = RealTime.RealTime
 
 instance Storable (Sample Double) where
     sizeOf _ = #size ControlSample
-    alignment _ = #{alignment ControlSample}
+    alignment _ = alignment (0 :: C.CDouble)
     poke sp (Sample time val) = do
         (#poke ControlSample, time) sp time
         (#poke ControlSample, val) sp (Util.c_double val)

@@ -96,7 +96,6 @@ import Types
 #include "Ui/c_interface.h"
 -- This is from http://haskell.org/haskellwiki/FFI_cook_book.  Is there a
 -- better way?  I dunno, but this is clever and looks like it should work.
-#let alignment t = "%lu", (unsigned long)offsetof(struct {char x__; t (y__); }, y__)
 
 withText :: Text -> (CString -> IO a) -> IO a
 withText = ByteString.useAsCString . Text.Encoding.encodeUtf8
@@ -409,13 +408,13 @@ foreign import ccall "dump_view" c_dump_view :: Ptr CView -> IO CString
 
 instance CStorable Block.Divider where
     sizeOf _ = #size DividerConfig
-    alignment _ = #{alignment DividerConfig}
+    alignment _ = alignment Color.black
     poke dividerp (Block.Divider color) =
         (#poke DividerConfig, color) dividerp color
 
 instance CStorable TracklikePtr where
     sizeOf _ = #size Tracklike
-    alignment _ = #{alignment Tracklike}
+    alignment _ = alignment nullPtr
     poke = poke_tracklike_ptr
 
 poke_tracklike_ptr tp tracklike_ptr = do
@@ -434,7 +433,7 @@ poke_tracklike_ptr tp tracklike_ptr = do
 
 instance CStorable Block.Config where
     sizeOf _ = #size BlockModelConfig
-    alignment _ = #{alignment BlockModelConfig}
+    alignment _ = alignment Color.black
     poke = poke_block_model_config
 
 poke_block_model_config configp
@@ -445,14 +444,14 @@ poke_block_model_config configp
 
 instance CStorable Block.Box where
     sizeOf _ = #size BlockBox
-    alignment _ = #{alignment BlockBox}
+    alignment _ = alignment Color.black
     poke boxp (Block.Box color char) = do
         (#poke BlockBox, color) boxp color
         (#poke BlockBox, c) boxp (Util.c_char char)
 
 instance CStorable Block.DisplayTrack where
     sizeOf _ = #size DisplayTrack
-    alignment _ = #{alignment DisplayTrack}
+    alignment _ = alignment (0 :: CDouble)
     peek = error "DisplayTrack peek unimplemented"
     poke = poke_display_track
 
@@ -497,14 +496,14 @@ with_skeleton_config edges statuses f =
 data SkeletonConfig
 instance CStorable SkeletonConfig where
     sizeOf _ = #size SkeletonConfig
-    alignment _ = #{alignment SkeletonConfig}
+    alignment _ = alignment nullPtr -- contains pointers and ints
 
 data SkeletonEdge = SkeletonEdge !TrackNum !TrackNum !Types.Width !Color.Color
     deriving (Show)
 
 instance CStorable SkeletonEdge where
     sizeOf _ = #size SkeletonEdge
-    alignment _ = #{alignment SkeletonEdge}
+    alignment _ = alignment Color.black
     peek _ = error "SkeletonEdge peek unimplemented"
     poke edgep (SkeletonEdge parent child width color) = do
         (#poke SkeletonEdge, parent) edgep (Util.c_int parent)
@@ -515,7 +514,7 @@ instance CStorable SkeletonEdge where
 newtype SkeletonStatus = SkeletonStatus Block.Status
 instance CStorable SkeletonStatus where
     sizeOf _ = #size SkeletonStatus
-    alignment _ = #{alignment SkeletonStatus}
+    alignment _ = alignment Color.black
     peek _ = error "SkeletonStatus peek unimplemented"
     poke edgep (SkeletonStatus status) = do
         let (c1 : c2 : _, color) = track_status status
@@ -531,7 +530,7 @@ data CSelection = CSelection Color.Color Types.Selection deriving (Show)
 
 instance CStorable CSelection where
     sizeOf _ = #size Selection
-    alignment _ = #{alignment Selection}
+    alignment _ = alignment Color.black
     peek = error "CSelection peek unimplemented"
     poke = poke_selection
 

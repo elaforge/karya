@@ -252,12 +252,10 @@ instance Serialize.Serialize Stack where
 -- * storable
 
 #include "Ui/c_interface.h"
--- See comment in BlockC.hsc.
-#let alignment t = "%lu", (unsigned long)offsetof(struct {char x__; t (y__); }, y__)
 
 instance CStorable Event where
     sizeOf _ = #size Event
-    alignment _ = #{alignment Event}
+    alignment _ = alignment (0 :: CDouble)
     poke = poke_event
     peek = error "Event peek unimplemented"
 

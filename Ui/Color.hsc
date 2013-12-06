@@ -13,7 +13,7 @@ import qualified Ui.Util as Util
 
 
 -- r, g, b, alpha, from 0--1
-data Color = Color Double Double Double Double
+data Color = Color !Double !Double !Double !Double
     deriving (Eq, Ord, Show, Read)
 
 instance Pretty.Pretty Color where
@@ -65,12 +65,10 @@ alpha a' (Color r g b _a) = rgba r g b a'
 -- Storable instance
 
 #include "Ui/c_interface.h"
--- See comment in BlockC.hsc.
-#let alignment t = "%lu", (unsigned long)offsetof(struct {char x__; t (y__); }, y__)
 
 instance CStorable Color where
     sizeOf _ = #size Color
-    alignment _ = 4 -- #{alignment Color}
+    alignment _ = alignment (0 :: CDouble)
     peek = peek_color
     poke = poke_color
 

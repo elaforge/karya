@@ -33,8 +33,6 @@ no_ruler f = f nullPtr nullPtr 0
 -- Storable
 
 #include "Ui/c_interface.h"
--- See comment in BlockC.hsc.
-#let alignment t = "%lu", (unsigned long)offsetof(struct {char x__; t (y__); }, y__)
 
 with_marklists :: [Ruler.Marklist] -> (Int -> Ptr (Ptr Ruler.Marklist) -> IO a)
     -> IO a
@@ -72,7 +70,7 @@ newtype PosMark = PosMark (ScoreTime, Ruler.Mark) deriving (Show)
 
 instance CStorable PosMark where
     sizeOf _ = #size PosMark
-    alignment _ = #{alignment PosMark}
+    alignment _ = alignment (0 :: CDouble)
     peek = error "PosMark peek unimplemented"
     poke posmarkp (PosMark (pos, mark)) = do
         (#poke PosMark, pos) posmarkp pos
@@ -80,7 +78,7 @@ instance CStorable PosMark where
 
 instance CStorable Ruler.Ruler where
     sizeOf _ = #size RulerConfig
-    alignment _ = #{alignment RulerConfig}
+    alignment _ = alignment (0 :: CDouble)
     peek = error "Ruler peek unimplemented"
     poke = poke_ruler
 
@@ -103,7 +101,7 @@ poke_ruler rulerp (Ruler.Ruler mlists bg show_names align_to_bottom) = do
 
 instance CStorable Ruler.Mark where
     sizeOf _ = #size Mark
-    alignment _ = #{alignment Mark}
+    alignment _ = alignment (0 :: CDouble)
     peek = error "Mark peek unimplemented"
     poke = poke_mark
 

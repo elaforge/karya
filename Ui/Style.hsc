@@ -41,12 +41,10 @@ newtype StyleId = StyleId Word.Word8
 -- * storable
 
 #include "Ui/c_interface.h"
--- See comment in BlockC.hsc.
-#let alignment t = "%lu", (unsigned long)offsetof(struct {char x__; t (y__); }, y__)
 
 instance CStorable Style where
     sizeOf _ = #size EventStyle
-    alignment _ = #{alignment EventStyle}
+    alignment = alignment . style_text_color
     peek = error "EventStyle peek unimplemented"
     poke = poke_text_style
 

@@ -13,9 +13,6 @@ import qualified Ui.Symbol as Symbol
 
 
 #include "Ui/c_interface.h"
--- See comment in BlockC.hsc.
-#let alignment t = "%lu", (unsigned long)offsetof(struct {char x__; t (y__); }, y__)
-
 
 -- | Get all the loaded fonts.  There is currently no way to load new fonts.
 get_fonts :: IO [Symbol.Font]
@@ -70,7 +67,7 @@ data GlyphC = GlyphC Text.Text CFont Int Double Double Int
 
 instance Storable GlyphC where
     sizeOf _ = #size SymbolTable::Glyph
-    alignment _ = #{alignment SymbolTable::Glyph}
+    alignment _ = alignment (0 :: CDouble)
     poke glyphp (GlyphC text font size align_x align_y rotate) = do
         encoded <- Util.textToCString0 text
         (#poke SymbolTable::Glyph, utf8) glyphp encoded

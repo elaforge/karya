@@ -49,8 +49,8 @@ type TrackTime = ScoreTime
 -- I could derive Storable, but technically speaking Double is not necessarily
 -- the same as CDouble.
 instance C.CStorable ScoreTime where
-    sizeOf _ = C.sizeOf (undefined :: C.CDouble)
-    alignment _ = C.alignment (undefined :: C.CDouble)
+    sizeOf _ = C.sizeOf (0 :: C.CDouble)
+    alignment _ = C.alignment (0 :: C.CDouble)
     poke p (ScoreTime d) = C.poke (C.castPtr p) (Util.c_double d)
     peek p = ScoreTime . Util.hs_double <$> C.peek (C.castPtr p)
 
