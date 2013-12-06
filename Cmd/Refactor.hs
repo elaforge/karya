@@ -157,7 +157,7 @@ make_block_call parent block_id
     | otherwise = child_name
     where
     child_name = Id.ident_name block_id
-    is_sub = Id.ident_name parent <> "." `List.isPrefixOf` child_name
+    is_sub = (Id.ident_name parent <> ".") `List.isPrefixOf` child_name
 
 -- | If there's a point selection, create a new empty block based on the
 -- current one.  If the selection has time, then the new block will have only

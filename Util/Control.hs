@@ -37,8 +37,7 @@ import Control.Monad.Trans (lift, liftIO)
 
 import Data.List.NonEmpty (NonEmpty(..))
 import Data.Maybe (mapMaybe, fromMaybe)
-import qualified Data.Monoid as Monoid
-import Data.Monoid (mempty, mconcat)
+import Data.Monoid (mempty, mconcat, (<>))
 import qualified Data.Text as Text
 
 import Util.Lens
@@ -54,9 +53,6 @@ second f (c, a) = (c, f a)
 
 (***) :: (a -> c) -> (b -> d) -> (a, b) -> (c, d)
 f *** g = \(x, y) -> (f x, g y)
-
-(<>) :: (Monoid.Monoid a) => a -> a -> a
-(<>) = Monoid.mappend
 
 while :: (Monad m) => m Bool -> m a -> m [a]
 while cond op = do

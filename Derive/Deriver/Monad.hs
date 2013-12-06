@@ -612,7 +612,7 @@ data DocumentedCall = DocumentedCall !Text !CallDoc
 
 -- | Prepend a bit of text to the documentation.
 prepend_doc :: Text -> DocumentedCall -> DocumentedCall
-prepend_doc text = modify_doc (text <> "\n" <>)
+prepend_doc text = modify_doc ((text <> "\n") <>)
 
 modify_doc :: (Text -> Text) -> DocumentedCall -> DocumentedCall
 modify_doc modify (DocumentedCall name doc) = DocumentedCall name (annotate doc)

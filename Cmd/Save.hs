@@ -149,7 +149,7 @@ save_git_as ::
     -> Cmd.CmdT IO ()
 save_git_as repo = do
     cmd_state <- Cmd.get
-    let rethrow = Cmd.require_right ("save git " <> repo <> ": " <>)
+    let rethrow = Cmd.require_right (("save git " <> repo <> ": ") <>)
     commit <- case Cmd.hist_last_commit $ Cmd.state_history_config cmd_state of
         Just commit -> return commit
         Nothing -> do

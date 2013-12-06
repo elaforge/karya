@@ -535,7 +535,7 @@ run_convert state = Identity.runIdentity . Error.runErrorT
 type ConvertM a = State.StateT State (Error.ErrorT String Identity.Identity) a
 
 error_context :: String -> ConvertM a -> ConvertM a
-error_context msg = map_error (msg <> ": " <>)
+error_context msg = map_error ((msg <> ": ") <>)
 
 map_error :: (String -> String) -> ConvertM a -> ConvertM a
 map_error f action = Error.catchError action $ \err -> Error.throwError (f err)

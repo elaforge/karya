@@ -381,7 +381,7 @@ eval state m = case result of
 
 eval_rethrow :: (M m) => String -> State -> StateId a -> m a
 eval_rethrow msg state =
-    require_right ((msg <> ": " <>) . Pretty.pretty) . eval state
+    require_right (((msg <> ": ") <>) . Pretty.pretty) . eval state
 
 exec :: State -> StateId a -> Either Error State
 exec state m = case result of
@@ -391,7 +391,7 @@ exec state m = case result of
 
 exec_rethrow :: (M m) => String -> State -> StateId a -> m State
 exec_rethrow msg state =
-    require_right ((msg <> ": " <>) . Pretty.pretty) . exec state
+    require_right (((msg <> ": ") <>) . Pretty.pretty) . exec state
 
 
 -- ** error

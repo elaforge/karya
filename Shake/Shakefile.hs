@@ -31,7 +31,7 @@ import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 import qualified Data.Monoid as Monoid
-import Data.Monoid (mempty)
+import Data.Monoid (mempty, (<>))
 
 import qualified Development.Shake as Shake
 import Development.Shake ((?==), (?>), (*>), need)
@@ -939,8 +939,6 @@ logDeps config stage fn deps = do
     need deps
     Shake.putLoud $ "***" ++ stage ++ ": " ++ fn ++ " <- "
         ++ unwords (map (dropDir (oDir config)) deps)
-
-(<>) = Monoid.mappend
 
 includesOf :: String -> Config -> FilePath -> Shake.Action [FilePath]
 includesOf caller config fn = do
