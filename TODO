@@ -3,7 +3,7 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
-  - clang's 'cpp was aborted' output is much noiser, that's from CcDeps, isn't
+  * clang's 'cpp was aborted' output is much noiser, that's from CcDeps, isn't
     it?
   - Signal render is inaccurate when it depends on the tempo.
     . This is because signal render uses in_real_time, which causes RealTime

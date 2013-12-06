@@ -168,9 +168,12 @@ cppFlags config fn
         cInclude (configFlags config) ++ define (configFlags config)
     | otherwise = Nothing
 
--- | Hardcoded list of modules that use CPP.  It would be more robust to
--- generate this dynamically by looking for 'LANGUAGE .*CPP' but there aren't
--- many.
+-- | Hardcoded list of modules that use CPP to determine their imports.  This
+-- means I need to CPP the file first before tracking the dependencies.
+--
+-- It would be more robust to always run CPP if the file includes
+-- 'LANGUAGE .*CPP' but there aren't many modules with CPP in their import
+-- lists so it should be faster to hardcode them.
 cppFiles :: [FilePath]
 cppFiles = ["App/Main.hs", "Cmd/Repl.hs", "Midi/TestMidi.hs", "Ui/Sync.hs"]
 

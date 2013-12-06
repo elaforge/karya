@@ -78,8 +78,11 @@ readImportBlock hdl = header
     where
     header = read [] $ \line ->
         if isImport line then imports [line] else header
-    imports accum = read accum $ \line ->
-        if postImports line then return accum else imports (line:accum)
+    imports accum = read accum $ \line -> if postImports line
+        -- Read and toss the rest of the data.  Otherwise clang's CPP has
+        -- a hissy fit when it gets SIGPIPE.
+        then B.hGetContents hdl >> return accum
+        else imports (line:accum)
     isImport = ("import " `B.isPrefixOf`)
     -- Icky, but if I see a type signature, I'm probably out of the imports.
     postImports = (" :: " `B.isInfixOf`)

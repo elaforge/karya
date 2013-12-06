@@ -44,11 +44,6 @@ enableDefines fn defines undefs = do
 
 -- * includes
 
--- -- | Find files this file includes.
--- includesOf :: [FilePath] -> FilePath -> Shake.Action ([FilePath], [FilePath])
---     -- ^ (found, not found)
--- includesOf dirs fn = Shake.need [fn] >> Trans.liftIO (includesOf_ dirs fn)
-
 -- | Find files this files includes, transitively.  Includes the given file.
 --
 -- Can also be used for .hsc files since it looks for @^#include@.
