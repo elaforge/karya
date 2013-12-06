@@ -146,16 +146,21 @@ test_parse_num = do
 
 test_p_equal = do
     let eq a b = Right (Call (Symbol "=") [Literal a, b])
-        sym = VSymbol . Symbol
+        num = Literal . VNum . Score.untyped
     let f = Util.Parse.parse_all Parse.p_equal
-    equal (f "a = b") (eq (sym "a") (Literal (VSymbol (Symbol "b"))))
-    equal (f "a = 10") (eq (sym "a") (Literal (VNum (Score.untyped 10))))
-    equal (f "a = (b c)") (eq (sym "a") (val_call "b" [Literal (symbol "c")]))
+    equal (f "a = b") (eq (symbol "a") (Literal (symbol "b")))
+    equal (f "a = 10") (eq (symbol "a") (num 10))
+    equal (f "a = (b c)") (eq (symbol "a")
+        (val_call "b" [Literal (symbol "c")]))
+    equal (f "a] = 1") (eq (symbol "a]") (num 1))
+    equal (f "a) = 1") (eq (symbol "a)") (num 1))
+    equal (f ">a = 1") (eq (symbol ">a") (num 1))
+
     left_like (f "a = ()") "parse error on byte 6"
-    left_like (f "(a) = b") "parse error on byte 1"
     left_like (f "a=") "not enough bytes"
     left_like (f "a=b") "not enough bytes"
 
+    -- Make suer it doesn't interfere with a call ending in =.
     let parse = fmap NonEmpty.toList . Parse.parse_expr
     equal (parse "a= b") $ Right [Call (Symbol "a=") [Literal (symbol "b")]]
     equal (parse "a=b") $ Right [Call (Symbol "a=b") []]
@@ -175,7 +180,7 @@ val_call :: Text -> [Term] -> Term
 val_call sym args = ValCall (Call (Symbol sym) args)
 
 symbol :: Text -> TrackLang.RawVal
-symbol sym = VSymbol (Symbol sym)
+symbol = VSymbol . Symbol
 
 
 test_expand_macros = do

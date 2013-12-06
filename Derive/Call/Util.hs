@@ -37,6 +37,7 @@ import qualified Derive.Controls as Controls
 import qualified Derive.Derive as Derive
 import qualified Derive.Deriver.Internal as Internal
 import qualified Derive.Environ as Environ
+import qualified Derive.ParseBs as ParseBs
 import qualified Derive.PitchSignal as PitchSignal
 import qualified Derive.Scale as Scale
 import qualified Derive.Score as Score
@@ -499,54 +500,63 @@ equal_doc =
 
 equal_transformer :: Derive.PassedArgs d -> Derive.Deriver a -> Derive.Deriver a
 equal_transformer args deriver = case Derive.passed_vals args of
-    -- Bind calls.
-    [TrackLang.VSymbol (TrackLang.Symbol assignee), TrackLang.VSymbol val]
-        | Just new <- Text.stripPrefix ">" assignee ->
-            override_call new val deriver "note"
-                (Derive.s_generator#Derive.s_note)
-                (Derive.s_transformer#Derive.s_note)
-        | Just new <- Text.stripPrefix "*" assignee ->
-            override_call new val deriver "pitch"
-                (Derive.s_generator#Derive.s_pitch)
-                (Derive.s_transformer#Derive.s_pitch)
-        | Just new <- Text.stripPrefix "." assignee ->
-            override_call new val deriver "control"
-                (Derive.s_generator#Derive.s_control)
-                (Derive.s_transformer#Derive.s_control)
-        | Just new <- Text.stripPrefix "-" assignee ->
-            override_val_call new val deriver
-    -- If you don't quote >sym, it parses as an instrument.
-    [TrackLang.VInstrument sym, TrackLang.VSymbol val] ->
-        override_call (Score.inst_name sym) val deriver "note"
-            (Derive.s_generator#Derive.s_note)
-            (Derive.s_transformer#Derive.s_note)
-
-    -- Bind environ values.
-    [TrackLang.VSymbol assignee, val] -> Derive.with_val assignee val deriver
-    [control -> Just assignee, TrackLang.VControl val] -> do
-        sig <- to_signal val
-        Derive.with_control assignee sig deriver
-    [control -> Just assignee, TrackLang.VNum val]
-        | assignee == Controls.tempo -> set_tempo val
-        | otherwise ->
-            Derive.with_control assignee (fmap Signal.constant val) deriver
-    [pitch -> Just assignee, TrackLang.VPitch val] ->
-        Derive.with_pitch assignee (PitchSignal.constant val) deriver
-    [pitch -> Just assignee, TrackLang.VPitchControl val] -> do
-        sig <- to_pitch_signal val
-        Derive.with_pitch assignee sig deriver
+    [TrackLang.VSymbol assignee, val] ->
+        case parse_equal assignee val deriver of
+            Left err -> Derive.throw_arg_error err
+            Right d -> d
     args -> Derive.throw_arg_error $ "unexpected arg types: "
         <> Seq.join ", " (map (Pretty.pretty . TrackLang.type_of) args)
+
+parse_equal :: TrackLang.Symbol -> TrackLang.Val -> Derive.Deriver a
+    -> Either String (Derive.Deriver a)
+parse_equal (TrackLang.Symbol assignee) (TrackLang.VSymbol sym) deriver
+    | Just new <- Text.stripPrefix ">" assignee = Right $
+        override_call new sym deriver "note"
+            (Derive.s_generator#Derive.s_note)
+            (Derive.s_transformer#Derive.s_note)
+    | Just new <- Text.stripPrefix "*" assignee = Right $
+        override_call new sym deriver "pitch"
+            (Derive.s_generator#Derive.s_pitch)
+            (Derive.s_transformer#Derive.s_pitch)
+    | Just new <- Text.stripPrefix "." assignee = Right $
+        override_call new sym deriver "control"
+            (Derive.s_generator#Derive.s_control)
+            (Derive.s_transformer#Derive.s_control)
+    | Just new <- Text.stripPrefix "-" assignee = Right $
+        override_val_call new sym deriver
+parse_equal (parse_val -> Just assignee) val deriver
+    | Just control <- is_control assignee = case val of
+        TrackLang.VControl val -> Right $ do
+            sig <- to_signal val
+            Derive.with_control control sig deriver
+        TrackLang.VNum val
+            | control == Controls.tempo -> Right $ set_tempo val
+            | otherwise -> Right $
+                Derive.with_control control (fmap Signal.constant val) deriver
+        _ -> Left $ "binding a control expects a control or num, but got "
+            <> Pretty.pretty (TrackLang.type_of val)
+    | Just control <- is_pitch assignee = case val of
+        TrackLang.VPitch val -> Right $
+            Derive.with_pitch control (PitchSignal.constant val) deriver
+        TrackLang.VPitchControl val -> Right $ do
+            sig <- to_pitch_signal val
+            Derive.with_pitch control sig deriver
+        _ -> Left $ "binding a pitch signal expects a pitch or pitch"
+            <> " control, but got " <> Pretty.pretty (TrackLang.type_of val)
     where
     set_tempo val =
         Internal.d_warp warp $ Internal.add_new_track_warp Nothing >> deriver
         where warp = Tempo.tempo_to_warp $ Signal.constant (Score.typed_val val)
-    control (TrackLang.VControl (TrackLang.LiteralControl c)) = Just c
-    control _ = Nothing
-    pitch (TrackLang.VPitchControl (TrackLang.LiteralControl c))
+    is_control (TrackLang.VControl (TrackLang.LiteralControl c)) = Just c
+    is_control _ = Nothing
+    is_pitch (TrackLang.VPitchControl (TrackLang.LiteralControl c))
         | c == Controls.null = Just Nothing
         | otherwise = Just (Just c)
-    pitch _ = Nothing
+    is_pitch _ = Nothing
+parse_equal assignee val deriver = Right $ Derive.with_val assignee val deriver
+
+parse_val :: TrackLang.Symbol -> Maybe TrackLang.RawVal
+parse_val = either (const Nothing) Just . ParseBs.parse_val . TrackLang.unsym
 
 -- | Look up a call with the given CallId and add it as an override to the
 -- scope given by the lenses.  I wanted to pass just one lens, but apparently

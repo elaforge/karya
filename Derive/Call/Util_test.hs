@@ -54,8 +54,8 @@ test_c_equal = do
     -- eval in general.
     let run title evts = DeriveTest.extract e_inst $
             DeriveTest.derive_tracks [(title, evts)]
-    strings_like (snd $ run ">" [(0, 1, "1 = >i |")])
-        ["unexpected arg types: Num, Instrument"]
+    strings_like (snd $ run ">" [(0, 1, "%c = >i |")])
+        ["expects a control or num, but got Instrument"]
     -- log stack should be at the track level
     let (evts, logs) = run "> | inst = inst" [(0, 1, "")]
     equal evts []
@@ -92,12 +92,9 @@ test_c_equal_call = do
 
     -- Rebind a note call.
     equal (run [(">", [(0, 1, ">zzz = n | zzz")])]) ([(0, 1, "?")], [])
-    -- One with a non-symbol name needs quoting.
-    equal (run [(">", [(0, 1, "'>1' = n | 1")])]) ([(0, 1, "?")], [])
-
     equal (run [("> | *zzz = set", [(0, 1, "")]), ("*", [(0, 0, "zzz (4c)")])])
         ([(0, 1, "4c")], [])
-    equal (run [("> | '*4' = set", [(0, 1, "")]), ("*", [(0, 0, "4 (4c)")])])
+    equal (run [("> | *4 = set", [(0, 1, "")]), ("*", [(0, 0, "4 (4c)")])])
         ([(0, 1, "4c")], [])
     equal (run [("> | -zzz = e | p = (4c)", [(0, 1, "")]),
             ("*", [(0, 0, "zzz p")])])

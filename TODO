@@ -938,7 +938,7 @@ Derive:
     tags should instead be derived from the namespace, e.g. prelude, bali,
     india.
   tracklang:
-    - Let the left of = be any any call, so I can write j) = xyz.  This means
+    * Let the left of = be any any call, so I can write j) = xyz.  This means
       I don't have to remember a separate text name for symbolic calls.
       And I don't need quotes for e.g. *4c = xyz
     - If I don't allow = in calls, I could write assigns without whitespace:

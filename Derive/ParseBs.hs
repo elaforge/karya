@@ -77,8 +77,7 @@ parse_control_title :: Text.Text
     -> Either String ([TrackLang.RawVal], [TrackLang.Call])
 parse_control_title = Parse.parse_all p_control_title . from_text
 
--- | Parse a single Val.  This takes a String since it's used with Notes and
--- Symbols, which are still Strings.
+-- | Parse a single Val.
 parse_val :: Text.Text -> Either String TrackLang.RawVal
 parse_val = Parse.parse_all (lexeme p_val) . from_text
 
@@ -194,7 +193,7 @@ p_pipe = void $ lexeme (A.char '|')
 
 p_equal :: A.Parser TrackLang.Call
 p_equal = do
-    a1 <- p_val
+    a1 <- TrackLang.VSymbol <$> p_call_symbol True
     spaces1
     A.char '='
     -- This ensures that "a =b" is not interpreted as an equal expression.
