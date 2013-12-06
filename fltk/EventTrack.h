@@ -25,7 +25,8 @@ struct ControlSample {
     ControlSample(RealTime time, double val) : time(time), val(val) {}
 };
 
-struct TrackSignal {
+class TrackSignal {
+public:
     TrackSignal() : signal(NULL), val_min(0), val_max(0), length(0),
         is_pitch_signal(false), shift(0), stretch(1)
     {}
@@ -86,7 +87,8 @@ struct RenderConfig {
 // TODO: as an optimization, I could cache the last set of found events plus
 // one before start and one after end.  Then if the next draw_area is within
 // that area (as it will be when scrolling smoothly) I can avoid the callback.
-struct EventTrackConfig {
+class EventTrackConfig {
+public:
     // Get events from start to end, ordered by pos.  Return the ScoreTime in
     // pos, the events in 'events', and the count.
     typedef int (*FindEvents)(ScoreTime *start_pos, ScoreTime *end_pos,

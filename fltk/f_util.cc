@@ -196,7 +196,6 @@ const char *
 show_widget(const Fl_Widget *w)
 {
     std::ostringstream out;
-    IRect r = rect(*w);
     out << typeid(*w).name() << ": ";
     out << rect(*w) << " label=";
     if (w->label())

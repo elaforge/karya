@@ -218,7 +218,7 @@ strip_value(Fl_Input *w)
 
     // Why am I still writing functions like this?
     int start = 0, end = strlen(s);
-    if (!(end > 0 && isspace(s[0]) || isspace(s[end-1])))
+    if (!((end > 0 && isspace(s[0])) || isspace(s[end-1])))
         return false;
     while (start < end && isspace(s[start]))
         start++;

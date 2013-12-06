@@ -42,7 +42,6 @@ public:
         Fl_Group(X, Y, W, H, label),
         minimum_size(10, 10),
         dragged_child(-1),
-        hmove(no_move), vmove(no_move),
         grab_area(3)
     {}
 
@@ -53,13 +52,6 @@ public:
 
     virtual int handle(int evt);
     void drag_tile(IPoint drag_from, IPoint drag_to);
-
-    /* unimplemented
-    void set_move_direction(MoveDirection horizontal, MoveDirection vertical) {
-        this->hmove = horizontal;
-        this->vmove = vertical;
-    }
-    */
 
     // Child won't resize, and its entire area is used for dragging.
     void set_stiff_child(int child) {
@@ -88,9 +80,7 @@ private:
     void handle_drag_tile(IPoint drag_from, IPoint drag_to, int dragged_child);
     int find_dragged_child(IPoint drag_from, BoolPoint *drag_state);
 
-    MoveDirection hmove, vmove;
     std::vector<bool> stiff_children;
-
     // Allow dragging of panes this many pixels from the widget edges.
     const int grab_area;
 };

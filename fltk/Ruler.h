@@ -54,7 +54,8 @@ struct PosMark {
 // Marklists are reference-counted because they are frequently large, but
 // change rarely.  Haskell uses a ForeignPtr to hold one reference.
 // More documentation in 'Ui.BlockC'.
-struct Marklist {
+class Marklist {
+public:
     Marklist(const PosMark *marks, int length)
         : references(1), length(length), marks(marks) {}
     void incref();
@@ -71,7 +72,8 @@ typedef std::vector<Marklist *> Marklists;
 
 // Markslists will be drawn in the order they are given, so later marklists
 // will draw over earlier ones.
-struct RulerConfig {
+class RulerConfig {
+public:
     // Initializing marklists by assignment is less convenient from c++, but
     // more convenient to serialize from haskell.
     RulerConfig(Color bg, bool show_names, bool use_alpha, bool full_width,
