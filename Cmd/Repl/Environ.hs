@@ -29,6 +29,7 @@ import qualified Ui.Color as Color
 import qualified Ui.Event as Event
 import qualified Ui.Id as Id
 import qualified Ui.Ruler as Ruler
+import qualified Ui.ScoreTime as ScoreTime
 import qualified Ui.State as State
 import qualified Ui.Skeleton as Skeleton
 import qualified Ui.Symbol as Symbol
@@ -82,12 +83,15 @@ import qualified Derive.Derive as Derive
 import qualified Derive.LEvent as LEvent
 import qualified Derive.PitchSignal as PitchSignal
 import qualified Derive.Score as Score
+
 import qualified Perform.Lilypond.Lilypond as Lilypond
 import qualified Perform.Pitch as Pitch
 import qualified Perform.Midi.Convert as Convert
 import qualified Perform.Midi.Instrument as Instrument
 import qualified Perform.Midi.Perform as Perform
 import qualified Perform.NN as NN
+import qualified Perform.RealTime as RealTime
+
 import qualified Instrument.Db as Db
 
 import Cmd.Repl.Global

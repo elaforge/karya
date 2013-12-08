@@ -88,12 +88,33 @@ bid = Types.BlockId . Id.read_id
 rid = Types.RulerId . Id.read_id
 tid = Types.TrackId . Id.read_id
 
+-- | Get the current focused block.
 block :: Cmd.CmdL BlockId
 block = Cmd.get_focused_block
 
+-- | Get the track under the selection.
+track :: Cmd.CmdL TrackId
+track = do
+    (_, _, track_id, _) <- Selection.get_insert
+    return track_id
+
+tracknum :: Cmd.CmdL TrackNum
+tracknum = do
+    (_, tracknum, _, _) <- Selection.get_insert
+    return tracknum
+
+-- | Get the current focused view.
 view :: Cmd.CmdL ViewId
 view = Cmd.get_focused_view
 
+-- | RulerId of the ruler under the selection.
+ruler :: Cmd.CmdL RulerId
+ruler = do
+    n <- tracknum
+    block_id <- block
+    Cmd.require =<< State.ruler_track_at block_id n
+
+-- | Get the root block.
 root :: Cmd.CmdL BlockId
 root = State.get_root_id
 
