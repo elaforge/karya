@@ -295,7 +295,8 @@ warp_pos :: ScoreTime -> Warp -> RealTime
 warp_pos pos (Warp sig shift stretch)
     | sig == id_warp_signal = pos1
     | otherwise = Signal.y_to_real $ Signal.at_linear pos1 sig
-    where pos1 = to_real $ pos * stretch + shift
+    where pos1 = to_real pos * to_real stretch + to_real shift
+    -- RealTime may be higher precision than ScoreTime, so convert early.
 
 -- | Unlike 'warp_pos', 'unwarp_pos' can fail.  This asymmetry is because
 -- at_linear will project a signal on forever, but inverse_at won't.
@@ -303,7 +304,7 @@ unwarp_pos :: RealTime -> Warp -> Maybe ScoreTime
 unwarp_pos pos (Warp sig shift stretch) =
     case Signal.inverse_at (Signal.x_to_y pos) sig of
         Nothing -> Nothing
-        Just p -> Just $ (to_score p - shift) / stretch
+        Just p -> Just $ to_score $ (p - to_real shift) / to_real stretch
 
 -- | Compose two warps.  Warps with id signals are optimized.
 -- This is standard right to left composition
@@ -344,15 +345,6 @@ warp_to_signal (Warp sig shift stretch)
 place_warp :: ScoreTime -> ScoreTime -> Warp -> Warp
 place_warp shift stretch warp = compose_warps warp
     (id_warp { warp_stretch = stretch, warp_shift = shift })
-
--- TODO this should be merged with warp_control, I need to use SignalBase.map_x
--- warp_pitch :: PitchSignal.PitchSignal -> Warp -> PitchSignal.PitchSignal
--- warp_pitch psig warp@(Warp sig shift stretch)
---     | is_id_warp warp = psig
---         -- optimization
---     | sig == id_warp_signal =
---         PitchSignal.map_x (\p -> (p + to_real shift) * to_real stretch) psig
---     | otherwise = PitchSignal.map_x (\x -> warp_pos (to_score x) warp) psig
 
 -- * instrument
 

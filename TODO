@@ -38,15 +38,41 @@ UNSORTED
       to pick up *scale from inversion.  But not the controls, since those are
       chopped up.  Or store (TrackTime, Dynamic), this way I could get the
       exact controls.
-  - I think things are still messed up in 1/3 meters, when events are moved
+
+  * I think things are still messed up in 1/3 meters, when events are moved
     with delete/insert time.  Check with tisra nadai.
     . Think about switching ScoreTime to integral ticks, e.g. 1/1920, still
       run into trouble at 1/7.  7! = 5040, *11 = 55440
       2^31 / *7 / 60 = 7101 hours, *11 = 645 hrs, hrs t13 = 49.66
       t13 works up to 16
-    . Of course I'm in 64 bit, which is huge.
     . I could also keep Doubles and round to 1/n.
-    . Or how about switching ScoreTime to rational?  Would that be crazy?
+    . Is there a problem with Warp?  Real -> score will lose precision, and
+      round trip won't be equal.  And I can't scale ScoreTime down to 0--1,
+      do I do that?  Slice just subtracts, that's ok.
+      But I probably go score -> real -> score in calls and it seems like it
+      might lose precision... but since it came from a score in the first
+      place, that might not.
+    . Maybe I should make TrackTime integral, and ScoreTime double.  But
+      that's a pain.  I think I would first have Ui.Events round ScoreTimes
+      before putting them in a track.  Actually, this is still not the
+      distinction I wanted with TrackTime, because I wanted it to reflect that
+      the ScoreTime is still in its original track position, e.g. not shifted.
+    . I lose -0 this way, so I have no way to represent control values that
+      are meant to apply to an arrival-beat track.  I'm not sure how much of
+      a loss this is, but if I really want it back I could do a hack with
+      -eta or something.  The cmd level needs to consider it negative for
+      cmds that care about that, and the UI level needs to get a -0 or
+      negative anything to draw the text above.
+    . Precision loss when scaling to 1: indeed, stretching to 1 means I have
+      to multiply by 1/22, which can't be represented, and hence loses
+      precision.  Only the values on the track should be rounded down,
+      all derive calculations should be done with Double.
+    . So now I think it's best to either round or have TrackTime be a totally
+      different type.  This would also enforce the TrackTime/ScoreTime
+      difference, because I'd have to convert to ScoreTime on derivation to
+      use it.  But it might be a big hassle to have to convert everything, and
+      not actually help since I can't keep mixed types.
+    . Then I could get rid of Meter.Duration
   - I want to use a library of basic patterns in multiple scores.  Rather than
     just hardcoding a bunch of global calls, I should be able to load
     a namespace, and have block calls dispatch to it.  This is different

@@ -54,6 +54,7 @@ import qualified Util.Seq as Seq
 import qualified Util.Serialize as Serialize
 
 import qualified Ui.Event as Event
+import qualified Ui.ScoreTime as ScoreTime
 import Types
 
 
@@ -119,7 +120,14 @@ insert [] events = events
 insert new_events events = merge clipped events
     where
     clipped = Events $ Map.fromAscList $ Seq.key_on Event.start $
-        clip_events (Seq.sort_on Event.start new_events)
+        clip_events (Seq.sort_on Event.start (map round_event new_events))
+
+-- | Round event times as described in 'ScoreTime.round'.
+round_event :: Event.Event -> Event.Event
+round_event event = event
+    { Event.start = ScoreTime.round (Event.start event)
+    , Event.duration = ScoreTime.round (Event.duration event)
+    }
 
 -- | Remove events in the half-open range.  Since the range is half-open, if
 -- start==end this will never remove any events.  Use 'remove_event' for that.

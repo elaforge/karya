@@ -26,6 +26,7 @@ import qualified Ui.Diff as Diff
 import qualified Ui.Event as Event
 import qualified Ui.Id as Id
 import qualified Ui.Key as Key
+import qualified Ui.ScoreTime as ScoreTime
 import qualified Ui.State as State
 import qualified Ui.Track as Track
 import qualified Ui.Types as Types
@@ -443,7 +444,7 @@ pretty_rational d
         Text.strip $ (if int == 0 then "" else showt int) <> pretty
     | otherwise = Pretty.prettytxt d
     where
-    (int, frac) = properFraction d
+    (int, frac) = properFraction (ScoreTime.to_double d)
     ratio = Ratio.approxRational frac 0.0001
     pretty = Map.findWithDefault (" " <> Pretty.prettytxt ratio) ratio fractions
     fractions = Map.fromList

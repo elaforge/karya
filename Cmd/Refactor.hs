@@ -232,7 +232,7 @@ order_track :: (State.M m) => BlockId -> [BlockId] -> m TrackId
 order_track block_id sub_blocks = do
     ruler_ids <- mapM State.ruler_of sub_blocks
     meters <- mapM RulerUtil.get_meter ruler_ids
-    let durs = map (realToFrac . Meter.time_end) meters
+    let durs = map Meter.time_end meters
         starts = scanl (+) 0 durs
         events = [Event.text_event start dur (block_id_to_call block_id)
             | (start, dur, block_id) <- zip3 starts durs sub_blocks]

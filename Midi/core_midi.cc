@@ -325,7 +325,7 @@ core_midi_write_message(DeviceId dev, Timestamp timestamp, int len,
 Error
 core_midi_abort()
 {
-    return MIDIFlushOutput(NULL);
+    return MIDIFlushOutput(0);
 }
 
 Timestamp

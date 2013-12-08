@@ -24,13 +24,13 @@
 module Cmd.Meter where
 import Prelude hiding (repeat)
 import qualified Data.List as List
-import qualified Data.Ratio as Ratio
 import qualified Data.Text as Text
 
 import Util.Control
 import qualified Util.Seq as Seq
 import qualified Ui.Color as Color
 import qualified Ui.Ruler as Ruler
+import qualified Ui.ScoreTime as ScoreTime
 
 import Types
 
@@ -71,27 +71,18 @@ instance Meterlike LabeledMeter where
 type Meter = [(Ruler.Rank, Duration)]
 type LabeledMeter = [(Ruler.Rank, Duration, Label)]
 
--- | Previously I made a Duration a rational, instead of ScoreTime, so that
--- durations don't get inaccurate when they're added up incrementally.
--- But it seems to be just as good to convert to a rational when I do the
--- actual adding, in 'labeled_marklist'.
+-- | The durations in a 'Meter' are summed together, which leads to
+-- accumulation of imprecision.  This means meters with unrepresentable
+-- fractions will get increasingly inaccurate.  To counteract I use
+-- 'ScoreTime.round' as "Ui.Events" does to round events to a likely rational
+-- location.
 --
--- Converting from ScoreTime seems like it would destroy precision, and
--- actually it does.  It rounds times to the nearest rational.  I think this is
--- ok because it just means that rulers have less precision, and you shouldn't
--- be making those tiny anyway.
+-- Previously I used a rational, but it seems to be just as good to round
+-- after every addition.
 type Duration = ScoreTime
--- type Duration = Ratio.Rational
 
 time_to_duration :: ScoreTime -> Duration
-time_to_duration d = d
--- time_to_duration d = Ratio.approxRational d 0.00001
-
-duration_to_rational :: ScoreTime -> Ratio.Rational
-duration_to_rational d = Ratio.approxRational d 0.0000000001
--- 1/128 is 0.0078125, 1/1024 is 0.0009765625.  1/128 already comes up in
--- rulers, 1/1024 is probably overkill, but I don't think more precision has
--- much downside.
+time_to_duration = id
 
 meter_durations :: LabeledMeter -> [Duration]
 meter_durations = scanl (+) 0 . map (\(_, d, _) -> d)
@@ -276,15 +267,16 @@ label_meter meter = List.zip3 ranks ps labels
 -- | Create a Marklist from a labelled Meter.
 labeled_marklist :: LabeledMeter -> Ruler.Marklist
 labeled_marklist meter = Ruler.marklist
-    [ (realToFrac pos, mark is_edge dur rank label)
+    [ (ScoreTime.round pos, mark is_edge dur rank label)
     | (rank, pos, label, dur, is_edge)
-        <- List.zip5 ranks (scanl (+) 0 ps) labels durs edges
+        <- List.zip5 ranks (scanl ((+) . ScoreTime.round) 0 ps)
+            labels durs edges
     ]
+    -- Round at every step to avoid accumulating error, as per 'Duration'.
     where
     edges = True : map null (drop 2 (List.tails ranks))
-    durs = rank_durs (zip ranks ps_)
-    (ranks, ps_, labels) = List.unzip3 meter
-    ps = map duration_to_rational ps_
+    durs = rank_durs (zip ranks ps)
+    (ranks, ps, labels) = List.unzip3 meter
     mark is_edge rank_dur rank name =
         let (color, width, pixels) = meter_ranks !! min rank ranks_len
             zoom = pixels_to_zoom rank_dur pixels
@@ -301,8 +293,7 @@ labeled_marklist meter = Ruler.marklist
 -- | The last mark gets a 0 duration.
 marklist_labeled :: Ruler.Marklist -> LabeledMeter
 marklist_labeled mlist =
-    [ (Ruler.mark_rank m,
-        maybe 0 (time_to_duration . subtract p . fst) maybe_next,
+    [ (Ruler.mark_rank m, maybe 0 (subtract p . fst) maybe_next,
         Ruler.mark_name m)
     | ((p, m), maybe_next) <- Seq.zip_next marks
     ]
@@ -337,7 +328,7 @@ rank_durs = map rank_dur . List.tails
 pixels_to_zoom :: Duration -> Int -> Double
 pixels_to_zoom dur pixels
     | dur == 0 = 0
-    | otherwise = fromIntegral pixels / realToFrac dur
+    | otherwise = fromIntegral pixels / ScoreTime.to_double dur
 
 -- * labels
 

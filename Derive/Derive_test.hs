@@ -181,7 +181,6 @@ test_subderive = do
     -- errors don't stop derivation, and an empty sub-block is ignored
     equal (map DeriveTest.e_event events) [(1.5, 0.5, "n --x")]
     strings_like (map DeriveTest.show_log msgs) ["not found: nosuch"]
-
     equal (map (DeriveTest.show_stack . Log.msg_stack) msgs)
         ["b0 b0.t2 0-1"]
 

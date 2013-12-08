@@ -3,6 +3,8 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 module Ui.Events_test where
+import qualified Data.Maybe as Maybe
+
 import Util.Test
 import qualified Ui.Event as Event
 import qualified Ui.Events as Events
@@ -100,6 +102,17 @@ test_remove = do
     -- missed entirely
     equal (extract $ f 4 10 te1) [(0, 0, "0"), (16, 1, "16")]
 
+test_round_events = do
+    let move events =
+            Events.insert [next] $ Events.remove_event (Event.start e) events
+            where
+            e = Maybe.fromJust $ Events.first events
+            next = Event.move (+ 1/3) e
+    -- If round_event is doing its thing, this won't fall victim to
+    -- imprecision.
+    equal (to_list $ iterate move (from_list [(0, 1, "a")]) !! (20 * 3))
+        [(20, 1, "a")]
+
 
 -- * util
 
@@ -107,6 +120,10 @@ type Event = (ScoreTime, ScoreTime, String)
 
 from_list :: [Event] -> Events.Events
 from_list = Events.from_list . pos_events
+
+to_list :: Events.Events -> [Event]
+to_list = map (\e -> (Event.start e, Event.duration e, Event.event_string e))
+    . Events.ascending
 
 pos_events :: [Event] -> [Event.Event]
 pos_events = map (\(pos, dur, text) -> Event.event pos dur text)
@@ -120,6 +137,7 @@ no_overlaps = check . not . events_overlap
 events_overlap track = any (uncurry overlaps)
     (zip (Events.ascending track) (drop 1 (Events.ascending track)))
 
+overlaps :: Event.Event -> Event.Event -> Bool
 overlaps evt1 evt2 =
     -- They don't overlap and they aren't simultaneous (the second condition is
     -- needed for zero duration events).

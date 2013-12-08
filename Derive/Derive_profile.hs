@@ -14,6 +14,7 @@ import Util.Control
 import qualified Util.Seq as Seq
 import Util.Test
 
+import qualified Ui.ScoreTime as ScoreTime
 import qualified Ui.State as State
 import qualified Ui.TrackTree as TrackTree
 import qualified Ui.UiTest as UiTest
@@ -66,7 +67,7 @@ make_shared_control size = mkblock $
 profile_nontempered = derive_profile $ make_nontempered 1000
     where
     make_nontempered size = mkblock $ map (track_until size)
-            [ make_tempo (floor size)
+            [ make_tempo (floor (ScoreTime.to_double size))
             , nontempered_pitch_track
             , vel_track
             , note_track inst1

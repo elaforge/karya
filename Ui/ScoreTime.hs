@@ -4,8 +4,10 @@
 
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 module Ui.ScoreTime (
-    ScoreTime, TrackTime, to_double, to_cdouble, double, suffix, eta, eq
+    ScoreTime, TrackTime, round, to_double, to_cdouble, double, suffix, eta, eq
 ) where
+import Prelude hiding (round)
+import qualified Prelude
 import qualified Control.DeepSeq as DeepSeq
 import qualified Data.Digest.CRC32 as CRC32
 import qualified Text.Read as Read
@@ -45,6 +47,27 @@ newtype ScoreTime = ScoreTime Double deriving
 -- Unless I work up the courage to do that someday, the least I can do is
 -- document the difference with a type synonym.
 type TrackTime = ScoreTime
+
+-- | Traditionally, time would be an integral type with a highly composite
+-- number as the unit.  This is so that common musical durations such as 1/3,
+-- 1/6, or 1/64 can be represented exactly.  However, while this is good enough
+-- for the score, it's insufficiently accurate for derivation, which uses
+-- ScoreTime to shift and stretch events.
+--
+-- A principled solution would probably be to use an integral type for
+-- UI events in "Events.Events" and convert to floating point on derivation.
+-- However, that seems like a hassle and simply rounding the event's start and
+-- durations when they go into the track should achieve the same effect.
+round :: ScoreTime -> ScoreTime
+round t
+    | isNegativeZero (to_double t) = t
+    | otherwise = double . (/divisor) . fromIntegral . to_int $ t
+    where
+    to_int :: ScoreTime -> Integer
+    to_int = Prelude.round . (*divisor) . to_double
+
+divisor :: Double
+divisor = 2^7 * 3^3 * 5^2 * 7
 
 -- I could derive Storable, but technically speaking Double is not necessarily
 -- the same as CDouble.
