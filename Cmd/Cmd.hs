@@ -706,6 +706,8 @@ perf_closest_warp = TrackWarp.closest_warp . perf_warps
 -- This has to be in Cmd.Cmd for circular import reasons.
 data InstrumentCode = InstrumentCode {
     inst_calls :: !Derive.InstrumentCalls
+    -- | When the instrument comes into scope during derivation, these
+    -- variables come into scope in addition to the InstrumentCalls.
     , inst_environ :: !TrackLang.Environ
     , inst_cmds :: ![Cmd]
     }

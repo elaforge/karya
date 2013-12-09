@@ -2,10 +2,40 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
--- | Carnatic style pitch ornaments.
---
--- The names don't correspond directly with anything traditional, as far as
--- I know, but are inspired by <http://www.gswift.com/article-2.html>.
+{- | Carnatic style pitch ornaments.
+
+    The names don't correspond directly with anything traditional, as far as
+    I know, but are inspired by <http://www.gswift.com/article-2.html>.
+
+    Pitch ornaments can be expressed either as pitch calls, or as control
+    calls meant for a transpose track.  They both have pros and cons:
+
+    Transposition control signal:
+
+    - I can keep the pitches separate and clear and collapse the pitch
+    track.  This correctly reflects the underlying sargam, with the gamakam
+    as separate ornamentation.
+
+    - Related to the above, each call doesn't need to repeat the the pitch arg,
+    so there's less redundancy.  Calls are also simpler with one fewer
+    argument.
+
+    Pitch signal:
+
+    - A pitch call can use absolute (@t-nn@) or scalar (@t-diatonic@)
+    transposition based on the type of its arguments, while the transpose
+    signal has to either use a separate track, or the somewhat awkward @->@
+    call.
+
+    - The pitch signal can represent an ornament involving multiple pitches,
+    e.g. a slide frome one pitch to another.  A transposition signal can only
+    represent offsets from an external pitch.
+
+    So the pitch signal is more powerful, but the transposition signal is often
+    more convenient, and can lead to less redundant notation.  Unless I can
+    think of a way to get the advantages of both, I might have to have both
+    around, with their own versions of the same calls.
+-}
 module Derive.Call.Gamakam where
 import qualified Data.List.NonEmpty as NonEmpty
 
@@ -242,6 +272,9 @@ c_jaru_intervals transpose intervals = Derive.generator1 "jaru" Tags.india
 
 -- * control calls
 
+-- | I had a lot of debate about whether I should use High and Low, or Unison
+-- and Neighbor.  Unison-Neighbor is more convenient for the implementation
+-- but High-Low I think is more musically intuitive.
 c_kampita_c :: Maybe Mode -> Maybe Mode -> Derive.Generator Derive.Control
 c_kampita_c start_mode end_mode = Derive.generator1 "kam" Tags.india
     "This is a trill with smooth transitions between the notes.  It's intended\

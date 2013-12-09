@@ -91,6 +91,8 @@ data Code = Code {
     , code_note_transformers ::
         [Derive.LookupCall (Derive.Transformer Derive.Note)]
     , code_val_calls :: [Derive.LookupCall Derive.ValCall]
+    -- | Bring environment variables into scope.  This is intended for
+    -- configuration which is inherent to the patch itself, e.g. scale tuning.
     , code_environ :: TrackLang.Environ
     , code_cmds :: [Cmd.Cmd]
     }

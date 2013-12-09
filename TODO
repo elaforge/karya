@@ -3,8 +3,6 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
-  * clang's 'cpp was aborted' output is much noiser, that's from CcDeps, isn't
-    it?
   - Signal render is inaccurate when it depends on the tempo.
     . This is because signal render uses in_real_time, which causes RealTime
       using calls to derive differently.
@@ -13,66 +11,7 @@ UNSORTED
     . To be accurate, I'd have to render with the tempo, and then unstretch
       back to ScoreTime.
   - LRuler.inject, opposite of extract, replaces sub-block rulers
-  * Signal.inverse_at should take a Y, it's really confusing with a RealTime
   - calling a block with a %tempo = x in the block title gets messed up timing
-  * it's annoying to have to remember to add for additive controls lke t-nn,
-    for both the control track and the '->' redirect.  Can I hardcode some
-    controls that default to additive?
-  * add Nn transposition to Chromatic and Diatonic
-  * note render has multiple signal lines in bug/note-render
-  * note render on bug/note-render @b1 doesn't take pitch track ornaments into
-    account
-  * get rid of fmap0
-  * block cache not being invalidated: create a sub-block with
-    Refactor.selection, then add a 'set dyn' track, or last note
-    . Happens when I change the call of a non-root block.
-    . I think this is because by the time the non-root block is derived,
-      there's no damage, because it was cleared when the first derive
-      completed.
-    . This is the problem with making damage global, it really should be
-      per-Performance as before.
-  * why is kbd entry play now unreliable?
-    . Because the track dynamic winds up with %dyn: < 0s:0, 35.35s:.564 >
-    . It's trickier than I thought, because I want the environ from inverted
-      events, but not the controls, e.g. given [">i", "*scale"], I want ">i"
-      to pick up *scale from inversion.  But not the controls, since those are
-      chopped up.  Or store (TrackTime, Dynamic), this way I could get the
-      exact controls.
-
-  * I think things are still messed up in 1/3 meters, when events are moved
-    with delete/insert time.  Check with tisra nadai.
-    . Think about switching ScoreTime to integral ticks, e.g. 1/1920, still
-      run into trouble at 1/7.  7! = 5040, *11 = 55440
-      2^31 / *7 / 60 = 7101 hours, *11 = 645 hrs, hrs t13 = 49.66
-      t13 works up to 16
-    . I could also keep Doubles and round to 1/n.
-    . Is there a problem with Warp?  Real -> score will lose precision, and
-      round trip won't be equal.  And I can't scale ScoreTime down to 0--1,
-      do I do that?  Slice just subtracts, that's ok.
-      But I probably go score -> real -> score in calls and it seems like it
-      might lose precision... but since it came from a score in the first
-      place, that might not.
-    . Maybe I should make TrackTime integral, and ScoreTime double.  But
-      that's a pain.  I think I would first have Ui.Events round ScoreTimes
-      before putting them in a track.  Actually, this is still not the
-      distinction I wanted with TrackTime, because I wanted it to reflect that
-      the ScoreTime is still in its original track position, e.g. not shifted.
-    . I lose -0 this way, so I have no way to represent control values that
-      are meant to apply to an arrival-beat track.  I'm not sure how much of
-      a loss this is, but if I really want it back I could do a hack with
-      -eta or something.  The cmd level needs to consider it negative for
-      cmds that care about that, and the UI level needs to get a -0 or
-      negative anything to draw the text above.
-    . Precision loss when scaling to 1: indeed, stretching to 1 means I have
-      to multiply by 1/22, which can't be represented, and hence loses
-      precision.  Only the values on the track should be rounded down,
-      all derive calculations should be done with Double.
-    . So now I think it's best to either round or have TrackTime be a totally
-      different type.  This would also enforce the TrackTime/ScoreTime
-      difference, because I'd have to convert to ScoreTime on derivation to
-      use it.  But it might be a big hassle to have to convert everything, and
-      not actually help since I can't keep mixed types.
-    . Then I could get rid of Meter.Duration
   - I want to use a library of basic patterns in multiple scores.  Rather than
     just hardcoding a bunch of global calls, I should be able to load
     a namespace, and have block calls dispatch to it.  This is different
@@ -83,10 +22,6 @@ UNSORTED
     Derive.randomized_control_at that looks for a corresponding <>"-rnd"
     signal for range.  E.g., each instrument should switch to noltol at
     a different time.
-  * Some control tracks are not normalized 0--1.  I could hardcode control
-    names, like tempo, or I could infer (if the first event is not 0x, then it's
-    not normalized), or I could use an explicit pragma in the track title,
-    e.g. '--# nonnorm'
   bali
     - cipher scale is still more convenient than absolute when dealing with
       one or two instruments.  Maybe I should use a base-octave var instead
@@ -97,136 +32,29 @@ UNSORTED
       . I could do it with >wayang-both that emits >wayang-p and >wayang-k. Or
         just call the score twice, once with transpose +1 oct.
   india
-    * fingered grace notes
-      . The 'g' call is not quite right: it overlaps, and makes another note,
-        and goes before.  I want to do pitch only, and starting together.
-      . Also, I want to write it as relative.
-      . Actually, this is just like jaru with fast transitions.
-        Maybe js = jaru-slow, and jf = jaru-fast or jaru-fingered
-        Continuous/discrete?  jc/jd, or symbolic: j) j]
     - semi-tone dip.  This is like 1 cycle kam.  In fact, it might be useful
       to have a kam version where the speed is in number of cycles.
-    Derive.Call.Gamakam, with janta, and shankarabharanam gamakam
-      * To start kampita on the lower note, `kam_ (-1)`  Or keep using kam^
-        for NeighborFirst even though it may be below.  This was the original
-        plan for trills, and that way I don't have to check if neighbor <0.
-        That's easy for control calls, but not for pitch calls.  Maybe use
-        prime to avoid the association ^ has with "above"?
-      * ^kam_ for start high, end low.
-        . _kam^ for start low, end high.
-        . But then whether I start with neighbor or unison depends on whether
-          it's above or below.
-        . However, neighbor is really a signal, so it could be both above and
-          below.
-        . If I do high and low then I have three starting states: low, high,
-          and unison, and three end states: low, high, and either.  If I do
-          neighbor, starting is unison, neighbor, and ending is unison,
-          neighbor, and either.
-        . But low/high seems more intuitive
-      . kam controls whether it ends high or low by shortening the trill.
-        I could also change speed, lengthen the note, or tweak the tempo.
-        Lengthening the note has a problem if there is another note
-        afterwards, should I move all notes?  At that point I'm basiaclly
-        changing the tempo.  It seems interesting to have ornaments that can
-        change the tempo, but I think I would need some magic for that.
-      * call lifts pitch to some frequency at the end of notes
-      * write SignalTransform.smooth, and see if that produces better results
-      * kampita should be able to take diatonic interval
-      * and start from the upper note
-      * kam should use smooth rather than slew_limiter, so it doesn't have
-        that delay.
-      TODO
-        * A set of standard controls: speed, transition, curve.  Most
-          gamakam involve pitch transitions, so they should respond to
-          transition and curve.  Ones that alternate respond to speed, which
-          defaults to %trill-speed,n
-          . For this I think I need a flag for args where they first look for
-            "call-arg", and then look for "arg".
-        * Port the gamakam over to plain control signals so they can run on
-          t-diatonic.  Perhaps microtonal ones have to emit t-nn as
-          a control mod.  Or I could have a signal transform that sends its
-          argument to a control mod: '-> t-nn | xyz'
-          . Really pitch calls are just for "halfway between pitch (a) and (b).
-            So I still need the pitch track to represent a slide anchored on
-            both ends.
-          Pros:
-            . I can keep the pitches separate and clear and collapse the pitch
-              track.
-            . Don't have to repeat pitches in the ornaments.  Ornaments don't
-              need the pitch arg at all.
-          Cons:
-            . I need two tracks for nn vs. diatonic transposition, can't just
-              tack a 'd' on the interval arg.
-              Unless I use ->, but that's more of a hassle than having the
-              call default to the appropriate thing.
-        / If I'm standardizing on transposition control calls, maybe they
-          should extend by default only to the end of the overlapping note.
-          They can look in sub tracks for that.
-        * I still need a solution for the initial delay problem.
-          E.g. 6s -> kam^ (5n) should just be kam^ (5n) with an initial delay.
-          . I could add a delay transformer, but it would mess up the call
-            knowing how long it is, e.g. trill wanting to fit integral cycles.
-          . Instead of just a delay, I'd like to make it as if the call were
-            later on the track.  But I don't think shift/stretch can work like
-            that.  It would work for notes, but control calls look at the next
-            event rather than 'real 1', and a transformer can't modify the
-            CallInfo of the next call.
-          . Wait, but this is all just delay, I still need to extend
-            the initial value.  So, shift and stretch, then derive and extend
-            the first sample.  But isn't this violating the principle of
-            asking the call to do things?  Shouldn't I have a uniform way of
-            saying delay, which some calls may treat specially?
-          . Analogous to note calls, which have 'Controls.sustain_abs',
-            controls could look for a 'delay' env var, which is set by the 'd'
-            call.
-          * Easiest is an environ-only arg.  This will work but every call
-            has to support it specifically.
-          . If I just delay, then the end gets moved forward too.  This might
-            not actually be a big deal for a lot of calls.  Try it?
-      general plan for how to build ornaments abstractly
-        . seq x; y; z to sequence ornaments, does this make sense?  Or I could
-          see each note has having attack, middle, and release "slots".
-          I might need something more sophisticated than just overwriting
-          parts of the signal.  Also I want more natural transitions.
-        . Many ornaments also depend on the previous pitch, or at least start
-          there.
-        . The note call is for ornaments that decide their own scope.  The
-          control calls are for when you want to place them directly.
-
-      * "eccentric" vibrato, weighted towards the back
-        'lilt' control for 'kam'
-      * there is a variant of kampita that avoids the base note
-        . also, it plays the low note more softly
-        . kam2 (5m) 1 -1
-        . transition-curve, transition-time, grace-speed are params to most of
-          the ornaments.  Effectively this is keyword args:
-            kam (4s) 1 8 .1 -> speed = 8 | transition = .1 | kam (4s) 1
-          This already works, but if they're generic they shouldn't have
-          a kam- prefix.  So args can take a generic flag that omits the
-          name prefix.
-          Also, I select start high vs. start low just with a different call
-          name, e.g. kam kam^
-        . defaulted "speed" (Sig.typed_control "trill-speed" 6 Score.Real)
-          Can set with %trill-speed, or name-speed = 6
-      - janta.  Isn't this just Lift?
-        I think some ornaments are fingered on instruments that can do that.
-      - if I am sequencing gamakam, I would want later ones to inherit the
-        pitch so I don't have to repeat it each time
-        . (<) should work but doesn't, what's up?
-        . Keeping the pitch track separate would also solve this problem,
-          don't need the base pitch arg.
-      * Separate gamakam control track that combines diatonic and nn
-        transposition.  I could make it primarily diatonic, and use
-        the secondary control thing to emit nn transposition.  The annoying
-        thing is it then doesn't show up in the signal render, but at least
-        it can go in the note track.
-      . Having to do everything twice for control and pitch signals is
-        annoying.
-      configurable curves for jaru:
-        - overshoot destination = over2 over3, depending how far over
-      - lift and drop for violin can reduce pressure instead of speed (dyn)
+    - It would be possible to implement a general purpose initial-hold
+      transformer by mapping the samples, to e.g. lengthen the first one and
+      compress the rest to compensate.
+    - kam^ and kam_ that tweak their speed instead of ending early
+    - Can I have ornaments that affect the tempo?  This would be another way
+      to control kam ending.  But it would require a whole separate pass to
+      first extract tempo modifications.
+    - janta.  Isn't this just Lift?  It's fingered, right?
+    - overshoot "curve" for 'smooth': over2 over3, depending how far over
+    - ornaments can use more controls than just 'dyn', e.g. bow pressure
     - instead of hardcoding specific times, I should say short, medium, long,
       which can vary and have some randomization
+    . Think about a way to sequence ornaments:
+      . seq x; y; z to sequence ornaments, does this make sense?  Or I could
+        see each note has having attack, middle, and release "slots".
+        I might need something more sophisticated than just overwriting
+        parts of the signal.  Also I want more natural transitions.
+      . Many ornaments also depend on the previous pitch, or at least start
+        there.
+      . The note call is for ornaments that decide their own scope.  The
+        control calls are for when you want to place them directly.
     Raga
       - Support arohana and avarohana by treating them as enharmonics
         Is this really a good idea, since they aren't anything like
@@ -242,27 +70,10 @@ UNSORTED
           is already absolute.
 
   - keys to turn play speed up and down
-  - The problem with Derive.inst_environ to set scale is that you can't really
-    override it.  So if >wayang wants *wayang, then you can't easily say you
-    want *wayang-k.  The reason I set the scale is that there's no point using
-    a different scale with that instrument, but there are different ways to
-    spell the same scale, e.g. pemade vs. kantilan.
-    . Perhaps environ should go in inst config?
-    . Or just have wayang set tuning, and get the scale from the environment.
-      I don't need more invisible ways to modify the environment.
-    . What about >wayang, which introduces inst-sangsih and inst-polos?
-      It can't do that anyway, because it can't know what the correct insts
-      are, given that they are probably aliases.
   more scales
     - wendy carlos' alpha, beta, gamma
     - overtone series
     - add ratio transpose single, that multiplies hz
-  * unmerging a pitch track should have a minimum width to display 3 chars
-    Figure out under which circumstances the collapsed track forgets its size.
-    . Width is Block.track_width
-    . I wonder if the ui sends back track sizes.  Why do I get sizes for track
-      0 too?
-    . ignore UpdateTrackWidth for collapsed tracks
   - generic way to parse a note to a Theory.Pitch, and back
     . If I add
       scale_parse :: Pitch.Note -> Maybe Theory.Pitch
@@ -277,8 +88,6 @@ UNSORTED
       last note call.
     - I'm still not sure I want this, since it seems like I want to repeat
       generators too.  But how to tell wanted ones from unwanted pitch ones?
-  * need an easy way to create IDs for debugging, so I can copy paste
-    (bid "xyz") stuff
   - After a rederive, it still takes a Cmd to free up the memory.  Who is
     holding on to it?
   - Composite 0 dur notes still not quite right, controls come too early.
@@ -316,9 +125,6 @@ UNSORTED
       +cresc or +dim on a note.
     - Figure out how to map continuous controls, and crossfade.
 
-  / Partial application, e.g.: '>arp = arp-manual .3 .2 .1'
-    Normal args could use the environ defaulting, but repeated args can't do
-    that.
   - network midi doesn't seem to handle abort?
     playing the second time doesn't happen
   - I have a feeling like FM8 doesn't obey ResetAllControls
@@ -694,7 +500,6 @@ performance:
       - can I cache long blocks by slicing them if they're >n?
       - c_block should only cache if the block has > a certain number of
         events.
-      * implement tracks as generators so they can be cached too
       - I won't rederive cached generators if they have control damage outside
         of the event range.  But there's nothing stopping a generator from
         reading ahead or behind... come up with some kind of solution for this.
@@ -707,7 +512,7 @@ performance:
       can I make this more efficient?
   Perform
     / packed midi, encode to storable vector
-      - last step of performer is to compact into vector
+      last step of performer is to compact into vector
       but I'm not sure this will much help
       The main thing is how to encode the device.  I think I can hash it.  Or
       use OS X persistent device ID?
@@ -874,16 +679,6 @@ tempo:
   - Create tempo by "stretching", i.e. select start and end, and create tempo
     mark that will cause the start point to be played where the end point used
     to be played.
-  * Magic marker in tempo track that causes a section to be absolute, e.g.
-    when the block stretches, only the non-absolute bits stretch ala attack
-    and sustain.
-    . I could use the stretch tempo thing for patterns with variable karvai
-    . If a tempo track has a title "tempo abs" then it imposes
-      Internal.in_real_time on its deriver.
-      If it has non-zero-dur events with numbers, then those are "stretchy",
-      with weights given by their numbers.
-      I can tell the intended start and dur by looking at (0, 1).
-  * entirely absolute tempo track
 
 Cmd:
   - remove RawEdit?
@@ -964,9 +759,6 @@ Derive:
     tags should instead be derived from the namespace, e.g. prelude, bali,
     india.
   tracklang:
-    * Let the left of = be any any call, so I can write j) = xyz.  This means
-      I don't have to remember a separate text name for symbolic calls.
-      And I don't need quotes for e.g. *4c = xyz
     - If I don't allow = in calls, I could write assigns without whitespace:
       x=y Is it worth it?
     - there should be a character that triggers a parse failure, which is used
