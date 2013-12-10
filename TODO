@@ -32,6 +32,7 @@ UNSORTED
       . I could do it with >wayang-both that emits >wayang-p and >wayang-k. Or
         just call the score twice, once with transpose +1 oct.
   india
+    - factor dip and dip_c?
     - semi-tone dip.  This is like 1 cycle kam.  In fact, it might be useful
       to have a kam version where the speed is in number of cycles.
     - It would be possible to implement a general purpose initial-hold
@@ -39,8 +40,8 @@ UNSORTED
       compress the rest to compensate.
     - kam^ and kam_ that tweak their speed instead of ending early
     - Can I have ornaments that affect the tempo?  This would be another way
-      to control kam ending.  But it would require a whole separate pass to
-      first extract tempo modifications.
+      to control kam ending.  But it would require a separate pass to extract
+      tempo modifications.
     - janta.  Isn't this just Lift?  It's fingered, right?
     - overshoot "curve" for 'smooth': over2 over3, depending how far over
     - ornaments can use more controls than just 'dyn', e.g. bow pressure

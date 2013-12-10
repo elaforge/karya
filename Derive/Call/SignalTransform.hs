@@ -164,8 +164,11 @@ curve_function curve = case untxt curve of
     digit = Num.read_digit
 
 -- | Use the function to create a segment between each point in the signal.
--- The only tricky part is when points are too close together.
-smooth :: (Double -> Double) -> RealTime -> RealTime -> Signal.Control
+smooth :: (Double -> Double) -> RealTime -- ^ If negative, each segment is from
+    -- this much before the original sample until the sample.  If positive, it
+    -- starts on the sample.  If samples are too close, the segments are
+    -- shortened correspondingly.
+    -> RealTime -> Signal.Control
     -> Signal.Control
 smooth f srate time =
     Signal.concat . snd . List.mapAccumL go Nothing . Seq.zip_next

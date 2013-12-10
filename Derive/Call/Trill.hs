@@ -417,32 +417,33 @@ get_mode = do
 trill_from_controls :: (ScoreTime, ScoreTime) -> Mode -> TrackLang.ValControl
     -> TrackLang.ValControl -> Derive.Deriver (Signal.Control, Score.Control)
 trill_from_controls range mode neighbor speed = do
-    transitions <- trill_transitions range speed
+    transitions <- trill_transitions range False speed
     (neighbor_sig, control) <- Util.to_transpose_signal Util.Diatonic neighbor
     let transpose = trill_from_transitions mode transitions neighbor_sig
     return (transpose, control)
 
 -- | Create trill transition points from a speed.
-trill_transitions :: (ScoreTime, ScoreTime) -> TrackLang.ValControl
+trill_transitions :: (ScoreTime, ScoreTime) -> Bool -> TrackLang.ValControl
     -> Derive.Deriver [RealTime]
-trill_transitions range speed = do
+trill_transitions range include_end speed = do
     (speed_sig, time_type) <- Util.to_time_signal Util.Real speed
     case time_type of
-        Util.Real -> real_transitions range speed_sig
-        Util.Score -> score_transitions range speed_sig
+        Util.Real -> real_transitions range include_end speed_sig
+        Util.Score -> score_transitions range include_end speed_sig
 
-real_transitions :: (ScoreTime, ScoreTime) -> Signal.Control
+real_transitions :: (ScoreTime, ScoreTime) -> Bool -> Signal.Control
     -> Derive.Deriver [RealTime]
-real_transitions (start, end) speed = do
+real_transitions (start, end) include_end speed = do
     start <- Derive.real start
     end <- Derive.real end
-    return $ full_cycles RealTime.eta end (Speed.real_starts speed start)
+    return $ full_cycles RealTime.eta end include_end
+        (Speed.real_starts speed start)
 
-score_transitions :: (ScoreTime, ScoreTime) -> Signal.Control
+score_transitions :: (ScoreTime, ScoreTime) -> Bool -> Signal.Control
     -> Derive.Deriver [RealTime]
-score_transitions (start, end) speed = do
+score_transitions (start, end) include_end speed = do
     all_transitions <- Speed.score_starts speed start end
-    mapM Derive.real $ full_cycles ScoreTime.eta end all_transitions
+    mapM Derive.real $ full_cycles ScoreTime.eta end include_end all_transitions
 
 -- | Make a trill signal from a list of transition times.
 trill_from_transitions :: Mode -> [RealTime] -> Signal.Control -> Signal.Control
@@ -458,11 +459,13 @@ trill_from_transitions mode transitions neighbor =
 -- duration.  Otherwise a trill can wind up with a short note at the end, which
 -- sounds funny.  However it's ok if the note is slightly too short, as tends
 -- to happen with floating point.
-full_cycles :: (Ord a, Num a) => a -> a -> [a] -> [a]
-full_cycles eta end vals = if null cycles then take 1 vals else cycles
+full_cycles :: (Ord a, Num a) => a -> a -> Bool -> [a] -> [a]
+full_cycles eta end include_end vals =
+    if null cycles then take 1 vals else cycles
     where
     cycles = go vals
     go (x1 : xs@(x2 : _))
         | x2 <= end + eta = x1 : go xs
+        | include_end && x1 - eta <= end = [x1]
         | otherwise = []
     go xs = take 1 xs
