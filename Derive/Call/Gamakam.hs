@@ -85,6 +85,7 @@ control_calls = Derive.call_maps gs ts
             "Time for each slide.")
         , ("sgr", c_jaru_intervals_c [-1, 1])
         ] ++ kampita_variations "kam" c_kampita_c
+        ++ kampita_variations "nkam" c_nkampita_c
     ts =
         [ ("h", c_hold)
         ]
@@ -349,6 +350,33 @@ convert_modes start_t neighbor start end = (vals, even_transitions)
         Just Low -> Just (not first_low)
         Just High -> Just first_low
     neighbor_low = Signal.at start_t neighbor < 0
+
+-- The whole idea is to not have to give the speed, so it should figure it out
+-- based on the next start.
+c_nkampita_c :: Maybe Mode -> Maybe Mode -> Derive.Generator Derive.Control
+c_nkampita_c start_mode end_mode = Derive.generator1 "nkam" Tags.india
+    "`kam` with a set number of cycles. The speed adjusts to fit the cycles in\
+    \ before the next event."
+    $ Sig.call ((,,,,)
+    <$> defaulted "cycles" 1 "Number of cycles."
+    <*> neighbor_arg
+    <*> lilt_arg <*> hold_arg
+    <*> Sig.environ "transition" Sig.Both transition_default
+        "Time for each slide."
+    ) $ \(cycles, neighbor, lilt, TrackLang.DefaultReal hold, transition)
+            args -> do
+        (start, end) <- Args.real_range_or_next args
+        neighbor <- Util.to_untyped_signal neighbor
+        let ((val1, val2), even_transitions) = convert_modes start neighbor
+                start_mode end_mode
+        hold <- Util.duration_from (Args.start args) hold
+        let num_transitions = cycles * 2
+                + (if even_transitions == Just True then 0 else 1)
+        let speed = TrackLang.constant_control $
+                (num_transitions - 1) / RealTime.to_seconds (end - start)
+        smooth_trill (-transition) val1 val2
+            =<< trill_transitions Nothing lilt hold speed
+                (Args.range_or_next args)
 
 -- | Ok, this name is terrible but what else is better?
 c_dip_c :: Derive.Generator Derive.Control

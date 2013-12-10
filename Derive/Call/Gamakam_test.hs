@@ -47,6 +47,18 @@ test_kampita_c = do
     equal (run2 "kam-lilt = -.5 | kam 1 1 1" 4)
         ([[(0, 60), (0.5, 62), (2, 60), (2.5, 62), (4, 60)]], [])
 
+test_nkampita_c = do
+    let run = run_diatonic DeriveTest.e_nns
+    equal (run "nkam 1 1" 2) ([[(0, 60), (1, 62), (2, 60)]], [])
+    equal (run "nkam 1 1" 6) ([[(0, 60), (3, 62), (6, 60)]], [])
+    equal (run "transition = 2 | nkam 1 1" 6)
+        ([[(0, 60), (2, 61), (3, 62), (5, 61), (6, 60)]], [])
+    equal (run "nkam 2 1" 4)
+        ([[(0, 60), (1, 62), (2, 60), (3, 62), (4, 60)]], [])
+    equal (run "nkam_ 2 1" 4)
+        ([[(0, 60), (1, 62), (2, 60), (3, 62), (4, 60)]], [])
+    equal (run "nkam^ 2 1" 3) ([[(0, 60), (1, 62), (2, 60), (3, 62)]], [])
+
 test_dip = do
     let run ex call end = DeriveTest.extract ex $ DeriveTest.derive_tracks
             [(">", [(0, 4, "")]), ("*", [(0, 0, call), (end, 0, "3c")])]
