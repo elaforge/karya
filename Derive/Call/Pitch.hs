@@ -17,6 +17,7 @@ import qualified Ui.Event as Event
 import qualified Derive.Args as Args
 import qualified Derive.Call as Call
 import qualified Derive.Call.Control as Control
+import qualified Derive.Call.Equal as Equal
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Call.Util as Util
 import qualified Derive.Derive as Derive
@@ -55,7 +56,7 @@ pitch_calls = Derive.call_maps
     , ("d", c_down)
     , ("p", c_porta)
     ]
-    [ ("=", Util.c_equal) ]
+    [ ("=", Equal.c_equal) ]
 
 -- | This should contain the calls that require the previous value.  It's used
 -- by a hack in 'Derive.Slice.slice'.

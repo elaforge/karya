@@ -4,16 +4,12 @@
 
 {-# LANGUAGE ScopedTypeVariables #-}
 module Derive.Call.Util_test where
-import Util.Control
 import Util.Test
 import qualified Ui.State as State
 import qualified Derive.Call.Util as Util
 import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Environ as Environ
-import qualified Derive.Score as Score
-
-import Types
 
 
 test_random = do
@@ -48,57 +44,3 @@ test_randoms_in = do
     equal (map round $ double 0 (-100) 100) [-68, 98, -92, 19]
     equal (int 0 0 100) [94, 51, 33, 62]
     equal (int 1 (-100) 100) [-72, 62, -70, 46]
-
-test_c_equal = do
-    -- Test the '=' call, but also test the special parsing Derive.Note deriver
-    -- eval in general.
-    let run title evts = DeriveTest.extract e_inst $
-            DeriveTest.derive_tracks [(title, evts)]
-    strings_like (snd $ run ">" [(0, 1, "%c = >i |")])
-        ["expects a control or num, but got Instrument"]
-    -- log stack should be at the track level
-    let (evts, logs) = run "> | inst = inst" [(0, 1, "")]
-    equal evts []
-    strings_like logs ["expected Instrument"]
-
-    -- only the event with the error is omitted
-    let (evts, logs) = run ">" [(0, 1, "inst = inst |"), (1, 1, "")]
-    equal evts [(1, "")]
-    strings_like logs ["expected Instrument"]
-
-    equal (run ">i" [(0, 1, ""), (1, 1, "inst = >i2 |"), (2, 1, "n >s/1 |")])
-        ([(0, "i"), (1, "i2"), (2, "s/1")], [])
-    equal (run ">" [(0, 1, "inst = >nonexistent |")])
-        ([], ["Error: required: allocation for >nonexistent"])
-
-    -- Unset a val.
-    equal (run ">i" [(0, 1, ""), (1, 1, "inst = _ |")])
-        ([(0, "i"), (1, "")], [])
-
-test_c_equal_note_transformer = do
-    let run events = DeriveTest.extract e_inst $
-            DeriveTest.derive_tracks_linear
-                [ (">", events)
-                , (">", [(0, 1, ""), (1, 1, ""), (2, 1, "")])
-                ]
-    equal (run []) ([(0, ""), (1, ""), (2, "")], [])
-    equal (run [(0, 2, "inst = >i")]) ([(0, "i"), (1, "i"), (2, "")], [])
-    equal (run [(0, 3, "inst = >i")]) ([(0, "i"), (1, "i"), (2, "i")], [])
-    equal (run [(0, 1, "inst = >i1"), (1, 1, "inst = >i2")])
-        ([(0, "i1"), (1, "i2"), (2, "")], [])
-
-test_c_equal_call = do
-    let run = DeriveTest.extract DeriveTest.e_note . DeriveTest.derive_tracks
-
-    -- Rebind a note call.
-    equal (run [(">", [(0, 1, ">zzz = n | zzz")])]) ([(0, 1, "?")], [])
-    equal (run [("> | *zzz = set", [(0, 1, "")]), ("*", [(0, 0, "zzz (4c)")])])
-        ([(0, 1, "4c")], [])
-    equal (run [("> | *4 = set", [(0, 1, "")]), ("*", [(0, 0, "4 (4c)")])])
-        ([(0, 1, "4c")], [])
-    equal (run [("> | -zzz = e | p = (4c)", [(0, 1, "")]),
-            ("*", [(0, 0, "zzz p")])])
-        ([(0, 1, "4c")], [])
-
-e_inst :: Score.Event -> (RealTime, Text)
-e_inst e = (Score.event_start e, Score.inst_name (Score.event_instrument e))

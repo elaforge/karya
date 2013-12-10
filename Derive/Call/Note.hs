@@ -25,6 +25,7 @@ import qualified Util.TextUtil as TextUtil
 import qualified Ui.Event as Event
 import qualified Derive.Args as Args
 import qualified Derive.Attrs as Attrs
+import qualified Derive.Call.Equal as Equal
 import qualified Derive.Call.Sub as Sub
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Call.Util as Util
@@ -296,12 +297,12 @@ c_equal_generator :: Derive.Generator Derive.Note
 c_equal_generator = Derive.make_call "equal" (Tags.prelude <> Tags.subs)
     ("Similar to the transformer, this will evaluate the notes below in"
         <> " a transformed environ.")
-    (Sig.parsed_manually Util.equal_arg_doc generate)
+    (Sig.parsed_manually Equal.equal_arg_doc generate)
     where
     generate args =
-        Sub.place . map (Sub.map_event (Util.equal_transformer args))
+        Sub.place . map (Sub.map_event (Equal.equal_transformer args))
         . concat =<< Sub.sub_events args
 
 c_equal_transformer :: Derive.Transformer Derive.Note
-c_equal_transformer = Derive.transformer "equal" Tags.prelude Util.equal_doc
-    (Sig.parsed_manually Util.equal_arg_doc Util.equal_transformer)
+c_equal_transformer = Derive.transformer "equal" Tags.prelude Equal.equal_doc
+    (Sig.parsed_manually Equal.equal_arg_doc Equal.equal_transformer)
