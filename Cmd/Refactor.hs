@@ -112,9 +112,17 @@ split_track_at from_block_id split_at block_name = do
 
 -- | Copy the selection into a new block, and replace it with a call to that
 -- block.
-selection :: (Cmd.M m) => Bool -- ^ create dot-prefixed relative block call
+selection :: (Cmd.M m) => Text -> m BlockId
+selection = selection_ False
+
+selection_relative :: (Cmd.M m) => Text -> m BlockId
+selection_relative = selection_ True
+
+-- | Copy the selection into a new block, and replace it with a call to that
+-- block.
+selection_ :: (Cmd.M m) => Bool -- ^ create dot-prefixed relative block call
     -> Text -> m BlockId
-selection relative name = do
+selection_ relative name = do
     (block_id, tracknums, track_ids, start, end) <- Selection.tracks
     name <- return $ if relative
         then txt (Id.ident_name block_id) <> "." <> name else name
