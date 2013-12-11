@@ -147,8 +147,8 @@ tremolo_starts speed range = do
         Util.Real -> do
             start <- Derive.real (fst range)
             end <- Derive.real (snd range)
-            mapM Derive.score $ take_full_notes end $
-                Speed.real_starts speed_sig start
+            mapM Derive.score . take_full_notes end
+                =<< Speed.real_starts speed_sig start end
         Util.Score -> do
             let (start, end) = range
             starts <- Speed.score_starts speed_sig start end
@@ -436,8 +436,8 @@ real_transitions :: (ScoreTime, ScoreTime) -> Bool -> Signal.Control
 real_transitions (start, end) include_end speed = do
     start <- Derive.real start
     end <- Derive.real end
-    return $ full_cycles RealTime.eta end include_end
-        (Speed.real_starts speed start)
+    full_cycles RealTime.eta end include_end <$>
+        Speed.real_starts speed start end
 
 score_transitions :: (ScoreTime, ScoreTime) -> Bool -> Signal.Control
     -> Derive.Deriver [RealTime]

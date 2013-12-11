@@ -31,7 +31,7 @@ starts speed (start, end) = do
     case time_type of
         Util.Real -> do
             (start, end) <- (,)  <$> Derive.real start <*> Derive.real end
-            return $ takeWhile (<=end) $ real_starts speed_sig start
+            real_starts speed_sig start end
         Util.Score -> do
             (start, end) <- (,)  <$> Derive.score start <*> Derive.score end
             starts <- score_starts speed_sig start end
@@ -39,7 +39,7 @@ starts speed (start, end) = do
 
 -- | Emit ScoreTimes at the given speed, which may change over time.  The
 -- ScoreTimes are emitted as the reciprocal of the signal at the given point
--- in time.
+-- in time, so it must be >0.
 --
 -- The result is that the speed of the emitted samples should depend on the
 -- tempo in effect.
@@ -50,12 +50,20 @@ score_starts sig start end
     | otherwise = do
         real <- Derive.real start
         let speed = Signal.y_to_score (Signal.at real sig)
+        when (speed <= 0) $
+            Derive.throw $ "Speed.score_starts: speed <= 0: " ++ show speed
         rest <- score_starts sig (start + recip speed) end
         return (start : rest)
 
--- | Emit an infinite list of RealTimes at the given speed, which may change
--- over time.  The speed is taken as hertz in real time.
-real_starts :: Signal.Control -> RealTime -> [RealTime]
-real_starts sig start =
-    start : real_starts sig (start + Signal.y_to_real (recip speed))
-    where speed = Signal.at start sig
+-- | Emit RealTimes at the given speed, which may change over time.  The speed
+-- is taken as hertz in real time, and must be >0.
+real_starts :: Signal.Control -> RealTime -> RealTime
+    -> Derive.Deriver [RealTime]
+real_starts sig start end
+    | start > end = return []
+    | otherwise = do
+        let speed = Signal.at start sig
+        when (speed <= 0) $
+            Derive.throw $ "Speed.real_starts: speed <= 0: " ++ show speed
+        (start:) <$> real_starts sig (start + Signal.y_to_real (recip speed))
+            end
