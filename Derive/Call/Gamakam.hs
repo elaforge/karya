@@ -114,7 +114,7 @@ c_hold = Make.with_environ "hold"
 -- * standard parameters
 
 transition_default :: RealTime
-transition_default = 0.15
+transition_default = 0.08
 
 jaru_time_default :: RealTime
 jaru_time_default = 0.15
@@ -223,18 +223,10 @@ c_dip = Derive.generator1 "dip" Tags.india
         "Time for each slide."
     ) $ \(pitch, TrackLang.DefaultDiatonic high_, low, speed, dyn_scale,
             transition) args -> do
-        srate <- Util.get_srate
         let (high, control) = Controls.transpose_control high_
-        transitions <- Trill.trill_transitions (Args.range_or_next args)
-            False speed
-        let transpose = SignalTransform.smooth id srate (-transition / 2) $
-                trill_from_transitions (Signal.constant high)
-                    (Signal.constant low) transitions
-            dyn = SignalTransform.smooth id srate (-transition / 2) $
-                trill_from_transitions (Signal.constant 1)
-                    (Signal.constant dyn_scale) transitions
-        (start, end) <- Args.real_range_or_next args
-        Control.multiply_dyn end dyn
+        transpose <- dip high low speed dyn_scale transition
+            (Args.range_or_next args)
+        start <- Args.real_start args
         return $ PitchSignal.apply_control control
             (Score.untyped transpose) $ PitchSignal.signal [(start, pitch)]
 
@@ -391,18 +383,22 @@ c_dip_c = Derive.generator1 "dip" Tags.india
     <*> defaulted "dyn" 0.5 "Multiply dyn by this amount."
     <*> Sig.environ "transition" Sig.Both transition_default
         "Time for each slide."
-    ) $ \(high, low, speed, dyn_scale, transition) args -> do
-        srate <- Util.get_srate
-        transitions <- Trill.trill_transitions (Args.range_or_next args) False
-            speed
-        let smooth = SignalTransform.smooth id srate (-transition / 2)
-            transpose = smooth $ trill_from_transitions (Signal.constant high)
-                (Signal.constant low) transitions
-            dyn = smooth $ trill_from_transitions (Signal.constant 1)
-                (Signal.constant dyn_scale) transitions
-        end <- Derive.real (Args.next args)
-        Control.multiply_dyn end dyn
-        return transpose
+    ) $ \(high, low, speed, dyn_scale, transition) args ->
+        dip high low speed dyn_scale transition (Args.range_or_next args)
+
+dip :: Double -> Double -> TrackLang.ValControl -> Double
+    -> RealTime -> (ScoreTime, ScoreTime) -> Derive.Deriver Signal.Control
+dip high low speed dyn_scale transition (start, end) = do
+    srate <- Util.get_srate
+    transitions <- Trill.trill_transitions (start, end) False speed
+    let smooth = SignalTransform.smooth id srate (-transition / 2)
+        transpose = smooth $ trill_from_transitions (Signal.constant high)
+            (Signal.constant low) transitions
+        dyn = smooth $ trill_from_transitions (Signal.constant 1)
+            (Signal.constant dyn_scale) transitions
+    end <- Derive.real end
+    Control.multiply_dyn end dyn
+    return transpose
 
 jaru_transition_c :: Text -> Maybe RealTime -> Text
     -> Derive.Generator Derive.Control

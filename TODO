@@ -32,7 +32,7 @@ UNSORTED
       . I could do it with >wayang-both that emits >wayang-p and >wayang-k. Or
         just call the score twice, once with transpose +1 oct.
   india
-    - factor dip and dip_c?
+    * factor dip and dip_c?
     * semi-tone dip.  This is like 1 cycle kam.  In fact, it might be useful
       to have a kam version where the speed is in number of cycles.
     - It would be possible to implement a general purpose initial-hold
