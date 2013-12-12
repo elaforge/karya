@@ -31,6 +31,7 @@ data Modifier = Shift | CapsLock | Control | Alt | NumLock | Meta | ScrollLock
     deriving (Eq, Ord, Read, Show)
 
 instance Pretty.Pretty Key where
+    pretty (Char ' ') = "␠" -- unicode space symbol
     pretty (Char c) = c : ""
     pretty key = map Char.toLower (show key)
 
