@@ -28,7 +28,7 @@ module Perform.Signal (
     , with_ptr
 
     -- * access
-    , at, at_linear, is_constant
+    , at, at_linear, constant_val
     , head, last, uncons
 
     -- * transformation
@@ -215,8 +215,9 @@ at_linear x sig =
         (x0, y0) = V.to_pair $ V.index vec i
         (x1, y1) = V.to_pair $ V.index vec (i+1)
 
-is_constant :: Signal y -> Bool
-is_constant = V.is_constant . sig_vec
+-- | Just if the signal is constant.
+constant_val :: Signal y -> Maybe Y
+constant_val = V.constant_val . sig_vec
 
 head :: Signal y -> Maybe (X, Y)
 head = fmap V.to_pair . V.head . sig_vec

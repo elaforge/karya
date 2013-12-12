@@ -11,13 +11,13 @@ import qualified Perform.Signal as Signal
 signal = Signal.signal
 unsignal = Signal.unsignal
 
-test_is_constant = do
-    let f = Signal.is_constant . signal
-    equal (f []) True
-    equal (f [(0, 0)]) True
-    equal (f [(3, 0)]) True
-    equal (f [(3, 2)]) False
-    equal (f [(0, 1), (3, 1)]) True
+test_constant_val = do
+    let f = Signal.constant_val . signal
+    equal (f []) (Just 0)
+    equal (f [(0, 0)]) (Just 0)
+    equal (f [(3, 0)]) (Just 0)
+    equal (f [(3, 2)]) Nothing
+    equal (f [(0, 1), (3, 1)]) (Just 1)
 
 test_at_linear = do
     let f vec x = Signal.at_linear x (signal vec)

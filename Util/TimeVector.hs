@@ -129,12 +129,13 @@ constant :: (V.Vector v (Sample y)) => y -> v (Sample y)
 constant y = V.singleton (Sample 0 y)
     -- Constant starts at 0, as documented in the module haddock.
 
-is_constant :: Unboxed -> Bool
-is_constant vec = case uncons vec of
-    Nothing -> True
+constant_val :: Unboxed -> Maybe UnboxedY
+constant_val vec = case uncons vec of
+    Nothing -> Just 0
     Just (Sample x0 y0, rest)
-        | x0 <= 0 -> V.all ((==y0) . sy) rest
-        | otherwise -> V.all ((==0) . sy) vec
+        | x0 <= 0 -> if V.all ((==y0) . sy) rest then Just y0 else Nothing
+        | V.all ((==0) . sy) vec -> Just 0
+        | otherwise -> Nothing
 
 to_pair :: Sample y -> (X, y)
 to_pair (Sample x y) = (x, y)

@@ -343,8 +343,6 @@ convert_modes start_t neighbor start end = (vals, even_transitions)
         Just High -> Just first_low
     neighbor_low = Signal.at start_t neighbor < 0
 
--- The whole idea is to not have to give the speed, so it should figure it out
--- based on the next start.
 c_nkampita_c :: Maybe Mode -> Maybe Mode -> Derive.Generator Derive.Control
 c_nkampita_c start_mode end_mode = Derive.generator1 "nkam" Tags.india
     "`kam` with a set number of cycles. The speed adjusts to fit the cycles in\

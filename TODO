@@ -3,7 +3,7 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
-  - why only one cycle in 'nkam 2' in test/gamakam?
+  * why only one cycle in 'nkam 2' in test/gamakam?
   * pitch-trill and control-trill should just be named trill, it's confusing
     to have to set different env values
   - use tr^ and tr_ starting high and low, instead of tr1 and tr2, starting

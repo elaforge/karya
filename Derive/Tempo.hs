@@ -59,9 +59,9 @@ with_tempo block_dur maybe_track_id signal deriver = do
 tempo_to_warp :: Signal.Tempo -> Score.Warp
 tempo_to_warp sig
     -- Optimize for a constant (or missing) tempo.
-    | Signal.is_constant sig =
-        let stretch = 1 / max min_tempo (Signal.at 0 sig)
-        in Score.Warp Score.id_warp_signal 0 (Signal.y_to_score stretch)
+    | Just y <- Signal.constant_val sig =
+        Score.Warp Score.id_warp_signal 0 $
+            Signal.y_to_score (1 / max min_tempo y)
     | otherwise = Score.Warp warp_sig 0 1
     where
     warp_sig = Signal.integrate Signal.tempo_srate $ Signal.map_y (1/) $

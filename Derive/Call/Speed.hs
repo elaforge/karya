@@ -5,6 +5,8 @@
 -- | Utilities dealing with speeds.
 module Derive.Call.Speed where
 import Util.Control
+import qualified Util.Seq as Seq
+import qualified Ui.ScoreTime as ScoreTime
 import qualified Derive.Call.Util as Util
 import qualified Derive.Derive as Derive
 import qualified Derive.Score as Score
@@ -12,6 +14,7 @@ import qualified Derive.Sig as Sig
 import Derive.Sig (defaulted, typed_control)
 import qualified Derive.TrackLang as TrackLang
 
+import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
 import Types
 
@@ -39,6 +42,24 @@ starts speed (start, end) include_end = do
             starts <- score_starts speed_sig start end
             mapM Derive.real $ take_until end starts
 
+-- | Emit RealTimes at the given speed, which may change over time.  The speed
+-- is taken as hertz in real time, and must be >0.
+--
+-- This returns samples up to and including the end.
+real_starts :: Signal.Control -> RealTime -> RealTime
+    -> Derive.Deriver [RealTime]
+real_starts sig start end
+    -- If the speed is constant, I can avoid loss of precision.
+    | Just speed <- Signal.constant_val sig, speed > 0 =
+        return $ Seq.range start end (Signal.y_to_real (1 / speed))
+    -- Otherwise, successive addition loses precision and I need eta.
+    | start - RealTime.eta > end = return []
+    | otherwise = do
+        let speed = Signal.at start sig
+        when (speed <= 0) $
+            Derive.throw $ "Speed.real_starts: speed <= 0: " ++ show speed
+        (start:) <$> real_starts sig (start + Signal.y_to_real (1 / speed)) end
+
 -- | Emit ScoreTimes at the given speed, which may change over time.  The
 -- ScoreTimes are emitted as the reciprocal of the signal at the given point
 -- in time, so it must be >0.
@@ -50,25 +71,13 @@ starts speed (start, end) include_end = do
 score_starts :: Signal.Control -> ScoreTime -> ScoreTime
     -> Derive.Deriver [ScoreTime]
 score_starts sig start end
-    | start > end = return []
+    -- Same deal as in 'real_starts'.
+    | Just speed <- Signal.constant_val sig, speed > 0 =
+        return $ Seq.range start end (ScoreTime.double (1 / speed))
+    | start - ScoreTime.eta > end = return []
     | otherwise = do
         real <- Derive.real start
         let speed = Signal.y_to_score (Signal.at real sig)
         when (speed <= 0) $
             Derive.throw $ "Speed.score_starts: speed <= 0: " ++ show speed
-        (start:) <$> score_starts sig (start + recip speed) end
-
--- | Emit RealTimes at the given speed, which may change over time.  The speed
--- is taken as hertz in real time, and must be >0.
---
--- This returns samples up to and including the end.
-real_starts :: Signal.Control -> RealTime -> RealTime
-    -> Derive.Deriver [RealTime]
-real_starts sig start end
-    | start > end = return []
-    | otherwise = do
-        let speed = Signal.at start sig
-        when (speed <= 0) $
-            Derive.throw $ "Speed.real_starts: speed <= 0: " ++ show speed
-        (start:) <$> real_starts sig (start + Signal.y_to_real (recip speed))
-            end
+        (start:) <$> score_starts sig (start + 1 / speed) end
