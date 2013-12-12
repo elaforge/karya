@@ -39,7 +39,7 @@ c_sh_pitch = Derive.transformer "sh" mempty
     "Sample & hold. Hold values at the given speed."
     $ Sig.callt Speed.arg $ \speed _args deriver -> do
         (sig, (start, end), logs) <- Post.pitch_range deriver
-        starts <- Speed.starts speed (start, end)
+        starts <- Speed.starts speed (start, end) True
         return $ LEvent.Event (sample_hold_pitch starts sig)
             : map LEvent.Log logs
 
@@ -73,7 +73,7 @@ c_sh_control = Derive.transformer "sh" mempty
     "Sample & hold. Hold values at the given speed."
     $ Sig.callt Speed.arg $ \speed _args deriver -> do
         (sig, (start, end), logs) <- Post.control_range deriver
-        starts <- Speed.starts speed (start, end)
+        starts <- Speed.starts speed (start, end) True
         return $ LEvent.Event (sample_hold_control starts sig)
             : map LEvent.Log logs
 

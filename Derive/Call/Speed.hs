@@ -23,19 +23,21 @@ arg = defaulted "speed" (typed_control "speed" 10 Score.Real)
     \ a ScoreTime, the value is the number of repeats per ScoreTime\
     \ unit, and will stretch along with tempo changes."
 
--- | Get start times before the end of the range, at the given speed.
+-- | Get start times until the end of the range, at the given speed.
 starts :: (Derive.Time t) => TrackLang.ValControl -> (t, t)
+    -> Bool -- ^ If True, include a sample at the end time.
     -> Derive.Deriver [RealTime]
-starts speed (start, end) = do
+starts speed (start, end) include_end = do
     (speed_sig, time_type) <- Util.to_time_signal Util.Real speed
+    let take_until end = if include_end then id else takeWhile (<end)
     case time_type of
         Util.Real -> do
             (start, end) <- (,)  <$> Derive.real start <*> Derive.real end
-            real_starts speed_sig start end
+            take_until end <$> real_starts speed_sig start end
         Util.Score -> do
             (start, end) <- (,)  <$> Derive.score start <*> Derive.score end
             starts <- score_starts speed_sig start end
-            mapM Derive.real $ takeWhile (<=end) starts
+            mapM Derive.real $ take_until end starts
 
 -- | Emit ScoreTimes at the given speed, which may change over time.  The
 -- ScoreTimes are emitted as the reciprocal of the signal at the given point
@@ -43,6 +45,8 @@ starts speed (start, end) = do
 --
 -- The result is that the speed of the emitted samples should depend on the
 -- tempo in effect.
+--
+-- This returns samples up to and including the end.
 score_starts :: Signal.Control -> ScoreTime -> ScoreTime
     -> Derive.Deriver [ScoreTime]
 score_starts sig start end
@@ -52,11 +56,12 @@ score_starts sig start end
         let speed = Signal.y_to_score (Signal.at real sig)
         when (speed <= 0) $
             Derive.throw $ "Speed.score_starts: speed <= 0: " ++ show speed
-        rest <- score_starts sig (start + recip speed) end
-        return (start : rest)
+        (start:) <$> score_starts sig (start + recip speed) end
 
 -- | Emit RealTimes at the given speed, which may change over time.  The speed
 -- is taken as hertz in real time, and must be >0.
+--
+-- This returns samples up to and including the end.
 real_starts :: Signal.Control -> RealTime -> RealTime
     -> Derive.Deriver [RealTime]
 real_starts sig start end

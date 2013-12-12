@@ -147,12 +147,12 @@ tremolo_starts speed range = do
         Util.Real -> do
             start <- Derive.real (fst range)
             end <- Derive.real (snd range)
-            mapM Derive.score . take_full_notes end
+            mapM Derive.score . full_notes end
                 =<< Speed.real_starts speed_sig start end
         Util.Score -> do
             let (start, end) = range
             starts <- Speed.score_starts speed_sig start end
-            return $ take_full_notes end starts
+            return $ full_notes end starts
 
 -- | Alternate each note with the other notes within its range, in order from
 -- the lowest track to the highest.
@@ -181,24 +181,34 @@ chord_tremolo starts note_tracks =
 
 -- | Just cycle the given notes.
 simple_tremolo :: [ScoreTime] -> [Derive.NoteDeriver] -> Derive.NoteDeriver
-simple_tremolo starts notes =
-    Sub.place [Sub.Event start (end - start) note
-        | (start, end, note) <- zip3 starts (drop 1 starts)
-            (if null notes then [] else cycle notes)]
+simple_tremolo starts notes = Sub.place
+    [ Sub.Event start (end - start) note
+    | (start, end, note) <- zip3 starts (drop 1 starts) $
+        if null notes then [] else cycle notes
+    ]
 
--- | Only over here instead of in "Derive.Call.Attribute" so it can be next to
--- 'c_tremolo'.
+-- | This is defined here instead of in "Derive.Call.Attribute" so it can be
+-- next to 'c_tremolo'.
 c_attr_tremolo :: Make.Calls Derive.Note
 c_attr_tremolo = Make.attributed_note Attrs.trem
 
-take_full_notes :: (Ord a) => a -> [a] -> [a]
-take_full_notes _ [] = []
-take_full_notes end (t:ts) = t : go ts
+-- | This is the tremolo analog to 'full_cycles'.  Unlike a trill, it emits
+-- both the starts and ends, and therefore the last sample will be at the end
+-- time, rather than before it.  It should always emit an even number of
+-- elements.
+full_notes :: (Ord a) => a -> [a] -> [a]
+full_notes end [t]
+    | t < end = [t, end]
+    | otherwise = []
+full_notes end ts = go ts
     where
-    go (t1 : ts@(t2:_))
-        | t2 > end = [end]
-        | otherwise = t1 : go ts
-    go ts = ts
+    go [] = []
+    go (t1:ts) = case ts of
+        t2 : _
+            | t2 > end -> [end]
+            | otherwise -> t1 : go ts
+        [] -> [end]
+    -- This is surprisingly tricky.
 
 -- * pitch calls
 
@@ -243,7 +253,7 @@ c_xcut_pitch hold = Derive.generator1 "xcut" mempty
     <*> defaulted "val2" (pitch "xcut2") "Second pitch."
     <*> defaulted "speed" (typed_control "xcut-speed" 14 Score.Real) "Speed."
     ) $ \(val1, val2, speed) args -> do
-        transitions <- Speed.starts speed (Args.range_or_next args)
+        transitions <- Speed.starts speed (Args.range_or_next args) False
         val1 <- Util.to_pitch_signal val1
         val2 <- Util.to_pitch_signal val2
         return $ xcut_pitch hold val1 val2 transitions
@@ -318,7 +328,7 @@ c_saw = Derive.generator1 "saw" Tags.ornament
     <*> defaulted "from" 1 "Start from this value."
     <*> defaulted "to" 0 "End at this value."
     ) $ \(speed, from, to) args -> do
-        starts <- Speed.starts speed (Args.range_or_next args)
+        starts <- Speed.starts speed (Args.range_or_next args) True
         srate <- Util.get_srate
         return $ saw srate starts from to
 
@@ -380,7 +390,7 @@ c_xcut_control hold = Derive.generator1 "xcut" mempty
     <*> defaulted "val2" (control "xcut2" 0) "Second value."
     <*> defaulted "speed" (typed_control "xcut-speed" 14 Score.Real) "Speed."
     ) $ \(val1, val2, speed) args -> do
-        transitions <- Speed.starts speed (Args.range_or_next args)
+        transitions <- Speed.starts speed (Args.range_or_next args) False
         val1 <- Util.to_untyped_signal val1
         val2 <- Util.to_untyped_signal val2
         return $ xcut_control hold val1 val2 transitions
@@ -460,12 +470,13 @@ trill_from_transitions mode transitions neighbor =
 -- sounds funny.  However it's ok if the note is slightly too short, as tends
 -- to happen with floating point.
 full_cycles :: (Ord a, Num a) => a -> a -> Bool -> [a] -> [a]
-full_cycles eta end include_end vals =
-    if null cycles then take 1 vals else cycles
+full_cycles eta end include_end vals
+    | null cycles = take 1 vals
+    | otherwise = cycles
     where
     cycles = go vals
-    go (x1 : xs@(x2 : _))
-        | x2 <= end + eta = x1 : go xs
-        | include_end && x1 - eta <= end = [x1]
-        | otherwise = []
-    go xs = take 1 xs
+    go (x1 : xs) = case xs of
+        x2 : _ | x2 <= end + eta -> x1 : go xs
+        _ | include_end && x1 - eta <= end -> [x1]
+        _ -> []
+    go [] = []

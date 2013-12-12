@@ -47,6 +47,13 @@ test_tremolo = do
     equal (run "1" [(2, 2, "trem 1t")]) ([(2, 1, "4c"), (3, 1, "4c")], [])
     equal (run "2" [(0, 2, "trem 1t")]) ([(0, 0.5, "4c"), (0.5, 0.5, "4c")], [])
 
+test_full_notes = do
+    let f = Trill.full_notes
+    equal (f 2.5 [0, 1, 2]) [0, 1, 2.5]
+    equal (f 2 [0, 1, 2]) [0, 1, 2]
+    equal (f 0.5 [0]) [0, 0.5]
+    equal (f 0.5 [1]) []
+
 test_tremolo_transformer = do
     let run notes = extract $ DeriveTest.derive_tracks $
             [ (">", notes)
@@ -93,7 +100,7 @@ test_trill = do
     let run text = extract $ DeriveTest.derive_tracks
             [(">", [(0, 3, "")]), ("*", [(0, 0, text), (3, 0, "--")])]
         extract = DeriveTest.extract DeriveTest.e_nns
-    -- -- Defaults to diatonic.
+    -- Defaults to diatonic.
     equal (run "tr (4c) 1 1")
         ([[(0, 60), (1, 62), (2, 60)]], [])
     equal (run "tr (4c) 1c 1")
@@ -122,9 +129,10 @@ test_trill = do
             , ("*", [(0, 0, "tr (4c) 1"), (3, 0, "--")])
             ]
         trill xs = [zip xs (cycle [60, 62])]
+    -- 3 at tempo 2 means the trill should end at 1.5.
     equal (run_speed "") (trill [0, 0.5, 1], [])
     equal (run_speed ":s") (trill [0, 0.5, 1], [])
-    equal (run_speed ":t") (trill [0, 0.25, 0.5, 0.75, 1, 1.25, 1.5], [])
+    equal (run_speed ":t") (trill [0, 0.25, 0.5, 0.75, 1, 1.25], [])
     equal (run_speed ":d") ([[]],
         ["Error: expected time type for %trill-speed,14s but got Diatonic"])
 
@@ -175,15 +183,15 @@ test_score_trill = do
         extract = DeriveTest.extract_run Signal.unsignal
         cnst = Signal.constant
     equal (run $ f 1 (cnst 1) (cnst 2)) $
-        Right [(0, 0), (0.5, 1), (1, 0)]
+        Right [(0, 0), (0.5, 1)]
 
     -- If the event was length 2 there should be 2 cycles
     equal (run $ f 2 (cnst 1) (cnst 2)) $
-        Right [(0, 0), (0.5, 1), (1, 0), (1.5, 1), (2, 0)]
+        Right [(0, 0), (0.5, 1), (1, 0), (1.5, 1)]
 
     -- Trill speed affected by stretch.
     equal (run $ Derive.d_stretch 2 $ f 1 (cnst 1) (cnst 2)) $
-        Right [(0, 0), (1, 1), (2, 0)]
+        Right [(0, 0), (1, 1)]
 
 mkcontrol :: Score.Type -> Signal.Control -> TrackLang.ValControl
 mkcontrol typ = TrackLang.ControlSignal . Score.Typed typ
@@ -201,9 +209,9 @@ test_xcut_pitch = do
             , ("* #xcut2", [(0, 0, "5c")])
             , ("*", [(0, 0, "xcut _ _ 1"), (4, 0, "--")])
             ])
-        ([[(0, 60), (1, 72), (2, 60), (3, 72), (4, 60)]], [])
+        ([[(0, 60), (1, 72), (2, 60), (3, 72)]], [])
     equal (f [("*", [(0, 0, "xcut (4c) (5c) 1"), (4, 0, "--")])])
-        ([[(0, 60), (1, 72), (2, 60), (3, 72), (4, 60)]], [])
+        ([[(0, 60), (1, 72), (2, 60), (3, 72)]], [])
 
 
 -- * control calls
@@ -220,7 +228,7 @@ test_control_trill = do
     -- Defaults to RealTime, but stretches with ScoreTime if asked.
     equal (run 0.5 "tr 1 1") ([trill [0, 1, 2, 3, 4, 5]], [])
     equal (run 0.5 "tr 1 1s") ([trill [0, 1, 2, 3, 4, 5]], [])
-    equal (run 0.5 "tr 1 1t") ([trill [0, 2, 4, 6]], [])
+    equal (run 0.5 "tr 1 1t") ([trill [0, 2, 4]], [])
     equal (run 1 "tr 1 1d")
         ([[(0, 0)]], ["Error: expected time type for 1d but got Diatonic"])
 
