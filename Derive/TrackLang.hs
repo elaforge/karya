@@ -3,6 +3,7 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 {-# LANGUAGE TypeSynonymInstances, FlexibleInstances, ScopedTypeVariables #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {- | This module exports the basic types for \"tracklang\", which is the
     language parsed by "Derive.ParseBs" and interpreted by "Derive.Call".
 
@@ -20,6 +21,8 @@ import qualified Data.Map as Map
 
 import Util.Control
 import qualified Util.Pretty as Pretty
+import qualified Util.Seq as Seq
+
 import qualified Ui.ScoreTime as ScoreTime
 import qualified Derive.BaseTypes as Score
 import Derive.BaseTypes
@@ -103,9 +106,14 @@ unsym (Symbol sym) = sym
 -- | Some calls can operate in either RealTime or ScoreTime.
 data RealOrScore = Real RealTime | Score ScoreTime deriving (Eq, Show)
 
+instance ShowVal RealOrScore where
+    show_val (Real x) = show_val x
+    show_val (Score x) = show_val x
+
 -- | Normally Transpose will default to Chromatic if the val is untyped,
 -- but some calls would prefer to default to Diatonic.
-newtype DefaultDiatonic = DefaultDiatonic Pitch.Transpose deriving (Show)
+newtype DefaultDiatonic = DefaultDiatonic Pitch.Transpose
+    deriving (Show, ShowVal)
 
 defaulted_diatonic :: DefaultDiatonic -> Pitch.Transpose
 defaulted_diatonic (DefaultDiatonic x) = x
@@ -114,9 +122,9 @@ default_diatonic :: Double -> DefaultDiatonic
 default_diatonic = DefaultDiatonic . Pitch.Diatonic
 
 -- | Either RealTime or ScoreTime, but untyped defaults to RealTime.
-newtype DefaultReal = DefaultReal RealOrScore deriving (Eq, Show)
+newtype DefaultReal = DefaultReal RealOrScore deriving (Eq, Show, ShowVal)
 -- | Same as 'DefaultReal' but untyped defaults to ScoreTime.
-newtype DefaultScore = DefaultScore RealOrScore deriving (Eq, Show)
+newtype DefaultScore = DefaultScore RealOrScore deriving (Eq, Show, ShowVal)
 
 -- | Create DefaultReal and DefaultScores for use in "Derive.Sig" signatures
 -- for default values.  It would be nice to use literals and let type
@@ -134,6 +142,12 @@ defaulted_real (DefaultReal t) = t
 defaulted_score :: DefaultScore -> RealOrScore
 defaulted_score (DefaultScore t) = t
 
+-- | An annotation that says this value must be >0.  Instances only exist
+-- for numeric types.
+newtype Positive a = Positive a deriving (Show, Eq, ShowVal)
+-- | Like 'Positive', but >=0.
+newtype Natural a = Natural a deriving (Show, Eq, ShowVal)
+
 -- * show val
 
 instance (ShowVal a) => ShowVal (Maybe a) where
@@ -143,16 +157,9 @@ instance (ShowVal a) => ShowVal (Maybe a) where
 instance (ShowVal a, ShowVal b) => ShowVal (Either a b) where
     show_val = either show_val show_val
 
-instance ShowVal DefaultReal where show_val (DefaultReal x) = show_val x
-instance ShowVal DefaultScore where show_val (DefaultScore x) = show_val x
-instance ShowVal DefaultDiatonic where show_val (DefaultDiatonic x) = show_val x
-instance ShowVal RealOrScore where
-    show_val (Real x) = show_val x
-    show_val (Score x) = show_val x
-
 -- * types
 
-data Type = TNum NumType
+data Type = TNum NumType NumValue
     | TAttributes | TControl | TPitchControl | TPitch | TInstrument | TSymbol
     | TNotGiven | TMaybe Type | TEither Type Type | TVal
     deriving (Eq, Ord, Show)
@@ -161,6 +168,8 @@ data NumType = TUntyped | TTranspose | TDefaultDiatonic | TDefaultChromatic
     | TTime | TDefaultReal | TDefaultScore | TRealTime | TScoreTime
     | TInt
     deriving (Eq, Ord, Show)
+
+data NumValue = TAny | TNatural | TPositive deriving (Eq, Ord, Show)
 
 to_num_type :: Score.Type -> NumType
 to_num_type typ = case typ of
@@ -174,7 +183,13 @@ to_num_type typ = case typ of
 instance Pretty.Pretty Type where
     pretty (TMaybe typ) = "Maybe " ++ Pretty.pretty typ
     pretty (TEither a b) = Pretty.pretty a ++ " or " ++ Pretty.pretty b
-    pretty (TNum typ) = join "Num" $ case typ of
+    pretty (TNum typ val) =
+        "Num" <> if null desc then "" else " (" <> desc <> ")"
+        where desc = Seq.join2 ", " (Pretty.pretty typ) (Pretty.pretty val)
+    pretty typ = drop 1 (show typ)
+
+instance Pretty.Pretty NumType where
+    pretty t = case t of
         TUntyped -> ""
         TInt -> "integral"
         TTranspose -> "transposition"
@@ -185,8 +200,12 @@ instance Pretty.Pretty Type where
         TDefaultScore -> "time, default score"
         TRealTime -> "realtime"
         TScoreTime -> "scoretime"
-        where join x y = if null y then x else x ++ " (" ++ y ++ ")"
-    pretty typ = drop 1 (show typ)
+
+instance Pretty.Pretty NumValue where
+    pretty t = case t of
+        TAny -> ""
+        TNatural -> ">=0"
+        TPositive -> ">0"
 
 type_of :: Val -> Type
 type_of val = case val of
@@ -194,7 +213,7 @@ type_of val = case val of
     -- a VMaybe and doing @type_of . to_val@, but 'to_val' and 'type_of' both
     -- promising to not evaluate the value seems even more hacky than just
     -- 'to_type' making that promise.
-    VNum num -> TNum (to_num_type (Score.type_of num))
+    VNum num -> TNum (to_num_type (Score.type_of num)) TAny
     VAttributes {} -> TAttributes
     VControl {} -> TControl
     VPitchControl {} -> TPitchControl
@@ -202,6 +221,8 @@ type_of val = case val of
     VInstrument {} -> TInstrument
     VSymbol {} -> TSymbol
     VNotGiven -> TNotGiven
+
+-- ** special types
 
 class (Show a, ShowVal a) => Typecheck a where
     from_val :: Val -> Maybe a
@@ -238,11 +259,13 @@ instance (Typecheck a, Typecheck b) => Typecheck (Either a b) where
     to_type _ = TEither (to_type (error "Either to_type" :: a))
         (to_type (error "Either to_type" :: b))
 
+-- ** numeric types
+
 instance Typecheck Double where
     from_val (VNum (Score.Typed _ a)) = Just a
     from_val _ = Nothing
     to_val = VNum . Score.untyped
-    to_type _ = TNum TUntyped
+    to_type = num_to_type
 
 instance Typecheck Int where
     from_val (VNum (Score.Typed _ a))
@@ -251,7 +274,7 @@ instance Typecheck Int where
         where (int, frac) = properFraction a
     from_val _ = Nothing
     to_val = VNum . Score.untyped . fromIntegral
-    to_type _ = TNum TInt
+    to_type = num_to_type
 
 -- | VNums can also be coerced into chromatic transposition, so you can write
 -- a plain number if you don't care about diatonic.
@@ -266,7 +289,7 @@ instance Typecheck Pitch.Transpose where
     to_val (Pitch.Chromatic a) = to_val a
     to_val (Pitch.Diatonic a) = to_val a
     to_val (Pitch.Nn a) = to_val a
-    to_type _ = TNum TTranspose
+    to_type = num_to_type
 
 -- | But some calls want to default to diatonic, not chromatic.
 instance Typecheck DefaultDiatonic where
@@ -277,7 +300,7 @@ instance Typecheck DefaultDiatonic where
         _ -> Nothing
     from_val _ = Nothing
     to_val (DefaultDiatonic a) = to_val a
-    to_type _ = TNum TDefaultDiatonic
+    to_type = num_to_type
 
 instance Typecheck ScoreTime where
     from_val (VNum (Score.Typed typ val)) = case typ of
@@ -286,7 +309,7 @@ instance Typecheck ScoreTime where
         _ -> Nothing
     from_val _ = Nothing
     to_val a = VNum $ Score.Typed Score.Score (ScoreTime.to_double a)
-    to_type _ = TNum TScoreTime
+    to_type = num_to_type
 
 instance Typecheck RealTime where
     from_val (VNum (Score.Typed typ val)) = case typ of
@@ -295,7 +318,7 @@ instance Typecheck RealTime where
         _ -> Nothing
     from_val _ = Nothing
     to_val a = VNum $ Score.Typed Score.Real (RealTime.to_seconds a)
-    to_type _ = TNum TRealTime
+    to_type = num_to_type
 
 instance Typecheck RealOrScore where
     from_val (VNum (Score.Typed typ val)) = case typ of
@@ -307,7 +330,7 @@ instance Typecheck RealOrScore where
     from_val _ = Nothing
     to_val (Score a) = to_val a
     to_val (Real a) = to_val a
-    to_type _ = TNum TTime
+    to_type = num_to_type
 
 instance Typecheck DefaultReal where
     from_val (VNum (Score.Typed typ val)) = case typ of
@@ -317,7 +340,7 @@ instance Typecheck DefaultReal where
         _ -> Nothing
     from_val _ = Nothing
     to_val (DefaultReal a) = to_val a
-    to_type _ = TNum TDefaultReal
+    to_type = num_to_type
 
 instance Typecheck DefaultScore where
     from_val (VNum (Score.Typed typ val)) = case typ of
@@ -327,7 +350,47 @@ instance Typecheck DefaultScore where
         _ -> Nothing
     from_val _ = Nothing
     to_val (DefaultScore a) = to_val a
-    to_type _ = TNum TDefaultScore
+    to_type = num_to_type
+
+-- *** refined numeric types
+
+num_to_type :: (TypecheckNum a) => a -> Type
+num_to_type undef = TNum (num_type undef) TAny
+
+class (Typecheck a) => TypecheckNum a where num_type :: a -> NumType
+instance TypecheckNum Double where num_type _ = TUntyped
+instance TypecheckNum Int where num_type _ = TInt
+instance TypecheckNum Pitch.Transpose where num_type _ = TTranspose
+instance TypecheckNum DefaultDiatonic where num_type _ = TDefaultDiatonic
+instance TypecheckNum ScoreTime where num_type _ = TScoreTime
+instance TypecheckNum RealTime where num_type _ = TRealTime
+instance TypecheckNum RealOrScore where num_type _ = TTime
+instance TypecheckNum DefaultReal where num_type _ = TDefaultReal
+instance TypecheckNum DefaultScore where num_type _ = TDefaultScore
+
+instance (TypecheckNum a) => Typecheck (Positive a) where
+    from_val v@(VNum val)
+        | Score.typed_val val > 0 = Positive <$> from_val v
+        | otherwise = Nothing
+    from_val _ = Nothing
+    to_val (Positive val) = to_val val
+    to_type _ = TNum (num_type result) TPositive
+        where
+        result :: a
+        result = error "TrackLang.Positive: unevaluated"
+
+instance (TypecheckNum a) => Typecheck (Natural a) where
+    from_val v@(VNum val)
+        | Score.typed_val val >= 0 = Natural <$> from_val v
+        | otherwise = Nothing
+    from_val _ = Nothing
+    to_val (Natural val) = to_val val
+    to_type _ = TNum (num_type result) TNatural
+        where
+        result :: a
+        result = error "TrackLang.Natural: unevaluated"
+
+-- ** other types
 
 instance Typecheck Score.Attributes where
     from_val (VAttributes a) = Just a
@@ -403,10 +466,10 @@ hardcoded_types = Map.fromList
     , (Environ.control, TSymbol)
     , (Environ.key, TSymbol)
     , (Environ.scale, TSymbol)
-    , (Environ.seed, TNum TUntyped)
-    , (Environ.srate, TNum TUntyped)
+    , (Environ.seed, TNum TUntyped TAny)
+    , (Environ.srate, TNum TUntyped TAny)
     , (Environ.tuning, TSymbol)
-    , (Environ.voice, TNum TUntyped)
+    , (Environ.voice, TNum TUntyped TAny)
     ]
 
 data LookupError = NotFound | WrongType Type deriving (Show)

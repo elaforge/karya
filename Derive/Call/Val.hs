@@ -219,7 +219,7 @@ num_or_pitch argnum (val :| vals) = case val of
         return $ Right (pitch : vals)
     _ -> type_error argnum "bp" (TrackLang.TEither tnum TrackLang.TPitch) val
     where
-    tnum = TrackLang.TNum TrackLang.TUntyped
+    tnum = TrackLang.TNum TrackLang.TUntyped TrackLang.TAny
     expect typ (argnum, val) = maybe (type_error argnum "bp" typ val) return $
         TrackLang.from_val val
 

@@ -350,13 +350,13 @@ c_nkampita_c start_mode end_mode = Derive.generator1 "nkam" Tags.india
     "`kam` with a set number of cycles. The speed adjusts to fit the cycles in\
     \ before the next event."
     $ Sig.call ((,,,,)
-    <$> defaulted "cycles" 1 "Number of cycles."
+    <$> defaulted "cycles" (TrackLang.Positive 1) "Number of cycles."
     <*> neighbor_arg
     <*> lilt_arg <*> hold_arg
     <*> Sig.environ "transition" Sig.Both transition_default
         "Time for each slide."
-    ) $ \(cycles, neighbor, lilt, TrackLang.DefaultReal hold, transition)
-            args -> do
+    ) $ \(TrackLang.Positive cycles, neighbor, lilt, TrackLang.DefaultReal hold,
+            transition) args -> do
         (start, end) <- Args.real_range_or_next args
         neighbor <- Util.to_untyped_signal neighbor
         let ((val1, val2), even_transitions) = convert_modes start neighbor

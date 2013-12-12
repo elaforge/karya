@@ -13,6 +13,7 @@ import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Score as Score
 import qualified Derive.TrackLang as TrackLang
 
+import qualified Perform.NN as NN
 import qualified Perform.Signal as Signal
 
 
@@ -53,16 +54,16 @@ test_linear_next = do
             DeriveTest.extract extract $ DeriveTest.derive_tracks
                 [(">", [(0, 4, "")]), track]
     let (result, logs) = f DeriveTest.e_dyn
-            ("dyn", [(0, 0, "xcut (i> 0 1) (i> 1 0) 2"), (4, 0, "--")])
+            ("dyn", [(0, 0, "xcut (i> 0 1) (i> 1 0) 2"), (4, 0, "0")])
     equal logs []
     equal result [[(0, 0), (0.5, 1), (1, 0.25), (1.5, 0.75),
-        (2, 0.5), (2.5, 0.5), (3, 0.75), (3.5, 0.25), (4, 1)]]
+        (2, 0.5), (2.5, 0.5), (3, 0.75), (3.5, 0.25), (4, 0)]]
 
-    let (result, logs) = f DeriveTest.e_nns
-            ("*", [(0, 0, "xcut (i> (4c) (5c)) (i> (5c) (4c)) 2"), (4, 0, "--")])
+    let (result, logs) = f DeriveTest.e_nns ("*",
+            [(0, 0, "xcut (i> (4c) (5c)) (i> (5c) (4c)) 2"), (4, 0, "2c")])
     equal logs []
     equal result [[(0, 60), (0.5, 72), (1, 63), (1.5, 69),
-        (2, 66), (2.5, 66), (3, 69), (3.5, 63), (4, 72)]]
+        (2, 66), (2.5, 66), (3, 69), (3.5, 63), (4, NN.c2)]]
 
     strings_like
         (snd $ f DeriveTest.e_dyn ("dyn", [(0, 0, "xcut (i> 0 (4c))")]))
