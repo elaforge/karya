@@ -120,7 +120,7 @@ c_attr_trill = Derive.make_call "attr-trill" (Tags.ornament <> Tags.attr)
         Util.add_attrs (Attrs.trill <> width_attr) (Util.placed_note args)
 
 c_tremolo_generator :: Derive.Generator Derive.Note
-c_tremolo_generator = Derive.make_call "tremolo" (Tags.ornament <> Tags.ly)
+c_tremolo_generator = Derive.make_call "trem" (Tags.ornament <> Tags.ly)
     "Repeat a single note." $ Sig.call Speed.arg $ \speed args -> do
         starts <- tremolo_starts speed (Args.range_or_next args)
         notes <- Sub.sub_events args
@@ -131,7 +131,7 @@ c_tremolo_generator = Derive.make_call "tremolo" (Tags.ornament <> Tags.ly)
     where code = (Lily.SuffixAll, ":32")
 
 c_tremolo_transformer :: Derive.Transformer Derive.Note
-c_tremolo_transformer = Derive.transformer "tremolo"
+c_tremolo_transformer = Derive.transformer "trem"
     (Tags.ornament <> Tags.subs)
     "Repeat the transformed note. The generator is creating the notes so it\
     \ can set them to the appropriate duration, but this one has to stretch\
@@ -226,7 +226,7 @@ pitch_calls = Derive.call_maps
     []
 
 c_pitch_trill :: Maybe Mode -> Derive.Generator Derive.Pitch
-c_pitch_trill maybe_mode = Derive.generator1 "pitch-trill" Tags.ornament
+c_pitch_trill maybe_mode = Derive.generator1 "trill" Tags.ornament
     ("Generate a pitch signal of alternating pitches. `tr1` will start with\
     \ the unison, while `tr2` will start with the neighbor. `tr` will\
     \ use the `trill-mode` env var, which should be either `'unison'`\
@@ -298,7 +298,7 @@ control_calls = Derive.call_maps
 --
 -- Args are the same as 'c_pitch_trill'.
 c_control_trill :: Maybe Mode -> Derive.Generator Derive.Control
-c_control_trill maybe_mode = Derive.generator1 "control-trill" Tags.ornament
+c_control_trill maybe_mode = Derive.generator1 "trill" Tags.ornament
     ("The control version of the pitch trill.  It generates a signal of values\
     \ alternating with 0, which can be used as a transposition signal."
     ) $ Sig.call ((,)
