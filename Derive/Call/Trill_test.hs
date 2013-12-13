@@ -136,6 +136,16 @@ test_trill = do
     equal (run_speed ":d") ([[]],
         ["Error: expected time type for %trill-speed,14s but got Diatonic"])
 
+test_trill_mode = do
+    let run text = extract $ DeriveTest.derive_tracks
+            [(">", [(0, 3, "")]), ("*", [(0, 0, text), (3, 0, "--")])]
+        extract = DeriveTest.extract (map snd . DeriveTest.e_nns)
+    equal (run "tr (4c) 1 1") ([[60, 62, 60]], [])
+    equal (run "trill-mode = neighbor | tr (4c) 1 1") ([[62, 60, 62]], [])
+    -- Default is ignored for tr1 and tr2 variants.
+    equal (run "trill-mode = neighbor | tr1 (4c) 1 1") ([[60, 62, 60]], [])
+    equal (run "trill-mode = neighbor | tr2 (4c) 1 1") ([[62, 60, 62]], [])
+
 test_moving_trill = do
     -- Ensure a diatonic trill on a moving base note remains correct.
     let run tracks = extract $ DeriveTest.derive_tracks $

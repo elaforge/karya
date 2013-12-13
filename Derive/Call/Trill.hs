@@ -40,6 +40,7 @@
     piece.
 -}
 module Derive.Call.Trill where
+import qualified Control.Applicative as Applicative
 import qualified Data.List as List
 
 import Util.Control
@@ -83,13 +84,13 @@ c_note_trill = Derive.make_call "trill" (Tags.ornament <> Tags.ly)
     \\nUnlike a trill on a pitch track, this generates events for each\
     \ note of the trill. This is more appropriate for fingered trills,\
     \ or monophonic instruments that use legato to play slurred notes."
-    ) $ Sig.call ((,)
+    ) $ Sig.call ((,,)
     <$> defaulted "neighbor" (typed_control "trill-neighbor" 1 Score.Diatonic)
         "Alternate with a pitch at this interval."
     <*> trill_speed_arg
-    ) $ \(neighbor, speed) -> Sub.inverting $ \args ->
+    <*> mode_arg Nothing
+    ) $ \(neighbor, speed, mode) -> Sub.inverting $ \args ->
     Lily.note_code (Lily.SuffixFirst, "\\trill") args $ do
-        mode <- get_mode
         (transpose, control) <- trill_from_controls
             (Args.start args, Args.end args) mode neighbor speed
         xs <- mapM (Derive.score . fst) (Signal.unsignal transpose)
@@ -218,8 +219,6 @@ pitch_calls = Derive.call_maps
     , ("tr1", c_pitch_trill (Just Unison))
     , ("tr2", c_pitch_trill (Just Neighbor))
     , ("`tr`", c_pitch_trill Nothing)
-    , ("`tr`1", c_pitch_trill (Just Unison))
-    , ("`tr`2", c_pitch_trill (Just Neighbor))
     , ("xcut", c_xcut_pitch False)
     , ("xcut-h", c_xcut_pitch True)
     ]
@@ -228,16 +227,15 @@ pitch_calls = Derive.call_maps
 c_pitch_trill :: Maybe Mode -> Derive.Generator Derive.Pitch
 c_pitch_trill maybe_mode = Derive.generator1 "trill" Tags.ornament
     ("Generate a pitch signal of alternating pitches. `tr1` will start with\
-    \ the unison, while `tr2` will start with the neighbor. `tr` will\
-    \ use the `trill-mode` env var, which should be either `'unison'`\
-    \ or `'neighbor'`, defaulting to unison."
-    ) $ Sig.call ((,,)
+    \ the unison, while `tr2` will start with the neighbor. `tr` is\
+    \ configurabled with the environment."
+    ) $ Sig.call ((,,,)
     <$> required "note" "Base pitch."
     <*> defaulted "neighbor" (typed_control "trill-neighbor" 1 Score.Diatonic)
         "Alternate with a pitch at this interval."
     <*> trill_speed_arg
-    ) $ \(note, neighbor, speed) args -> do
-        mode <- maybe get_mode return maybe_mode
+    <*> mode_arg maybe_mode
+    ) $ \(note, neighbor, speed, mode) args -> do
         (transpose, control) <- trill_from_controls (Args.range_or_next args)
             mode neighbor speed
         start <- Args.real_start args
@@ -282,8 +280,6 @@ control_calls = Derive.call_maps
     [ ("tr", c_control_trill Nothing)
     , ("tr1", c_control_trill (Just Unison))
     , ("tr2", c_control_trill (Just Neighbor))
-    , ("tr1", c_control_trill (Just Unison))
-    , ("tr2", c_control_trill (Just Neighbor))
     , ("saw", c_saw)
     , ("sine", c_sine Bipolar)
     , ("sine+", c_sine Positive)
@@ -301,12 +297,12 @@ c_control_trill :: Maybe Mode -> Derive.Generator Derive.Control
 c_control_trill maybe_mode = Derive.generator1 "trill" Tags.ornament
     ("The control version of the pitch trill.  It generates a signal of values\
     \ alternating with 0, which can be used as a transposition signal."
-    ) $ Sig.call ((,)
+    ) $ Sig.call ((,,)
     <$> defaulted "neighbor" (control "trill-neighbor" 1)
         "Alternate with this value."
     <*> trill_speed_arg
-    ) $ \(neighbor, speed) args -> do
-        mode <- maybe get_mode return maybe_mode
+    <*> mode_arg maybe_mode
+    ) $ \(neighbor, speed, mode) args ->
         fst <$> trill_from_controls (Args.start args, Args.next args)
             mode neighbor speed
 
@@ -413,15 +409,22 @@ xcut_control hold val1 val2 =
 
 data Mode = Unison | Neighbor deriving (Eq, Show)
 
-get_mode :: Derive.Deriver Mode
-get_mode = do
-    mode_name :: Maybe Text <- Derive.lookup_val "trill-mode"
-    case mode_name of
-        Nothing -> return Unison
-        Just name
-            | name == "unison" -> return Unison
-            | name == "neighbor" -> return Neighbor
-            | otherwise -> Derive.throw $ "unknown trill mode: " ++ show name
+instance ShowVal.ShowVal Mode where
+    show_val Unison = "unison"
+    show_val Neighbor = "neighbor"
+
+instance TrackLang.TypecheckSymbol Mode where
+    parse_symbol t
+        | t == ShowVal.show_val Unison = Just Unison
+        | t == ShowVal.show_val Neighbor = Just Neighbor
+        | otherwise = Nothing
+
+mode_arg :: Maybe Mode -> Sig.Parser Mode
+mode_arg (Just mode) = Applicative.pure mode
+mode_arg Nothing = TrackLang.get_s <$>
+    Sig.environ "trill-mode" Sig.Unprefixed (TrackLang.S Unison)
+    "This affects which note the trill starts with, and can be `unison` or\
+    \ `neighbor`, defaulting to `unison`."
 
 -- | Create a transposition signal from neighbor and speed controls.
 trill_from_controls :: (ScoreTime, ScoreTime) -> Mode -> TrackLang.ValControl

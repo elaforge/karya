@@ -3,12 +3,17 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
+  - Perhaps each score should also save the MIDI performance of the root
+    block, along with the date / patch.  That way I can run a diff on the last
+    good performance and if it's different, and know what version of the app
+    produced it.  Git-style commit IDs would be more suitable for this, but
+    dates should be good enough for now.  Or I need a darcs tag.
   * why only one cycle in 'nkam 2' in test/gamakam?
   * pitch-trill and control-trill should just be named trill, it's confusing
     to have to set different env values
   - use tr^ and tr_ starting high and low, instead of tr1 and tr2, starting
     unison and neighbor?
-  - also high and low should be an environ arg
+  * also high and low should be an environ arg
   * fix Speed starts mess:
     . Be more consistent about whether Derive.Call.Speed functions include
       the end time or not.
@@ -21,6 +26,15 @@ UNSORTED
       it then reuses the signal, just passing a constant stretch.
     . To be accurate, I'd have to render with the tempo, and then unstretch
       back to ScoreTime.
+    . If I do this, I might as well get rid of the separate track signal
+      derive, and piece together the sliced fragments.
+    - Signal.unwarp function to unwarp the x samples of a signal.
+    - update Derive.Control.put_track_signal and stash_signal to stash
+      a signal, unwarping if there's a non-id warp
+    - update Derive.Control.stash_signal to unwarp and stash signals for
+      sliced fragments.
+    - Collect mappend has to merge the fragments, and be careful to avoid
+      leading zero samples.
   - LRuler.inject, opposite of extract, replaces sub-block rulers
   - calling a block with a %tempo = x in the block title gets messed up timing
     . Perhaps because the block deriver then puts on another tempo=1 track,

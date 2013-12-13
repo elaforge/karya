@@ -390,6 +390,38 @@ instance (TypecheckNum a) => Typecheck (Natural a) where
         result :: a
         result = error "TrackLang.Natural: unevaluated"
 
+-- *** text types
+
+instance Typecheck Symbol where
+    from_val (VSymbol a) = Just a
+    from_val _ = Nothing
+    to_val = VSymbol
+    to_type _ = TSymbol
+
+instance Typecheck Text where
+    from_val (VSymbol (Symbol s)) = Just s
+    from_val _ = Nothing
+    to_val = VSymbol . Symbol
+    to_type _ = TSymbol
+
+-- | This is for text strings which are parsed to call-specific types.  You
+-- can declare an instance and the automatic Typecheck instance will allow you
+-- to incorporate the type directly into the signature of the call.
+class TypecheckSymbol a where
+    parse_symbol :: Text -> Maybe a
+
+-- | A wrapper type required to make the typeclass instance happy.
+newtype S a = S a deriving (Show, ShowVal)
+
+get_s :: S a -> a
+get_s (S a) = a
+
+instance (Show a, ShowVal a, TypecheckSymbol a) => Typecheck (S a) where
+    from_val (VSymbol (Symbol a)) = S <$> parse_symbol a
+    from_val _ = Nothing
+    to_val = VSymbol . Symbol . show_val . get_s
+    to_type _ = TSymbol
+
 -- ** other types
 
 instance Typecheck Score.Attributes where
@@ -423,18 +455,6 @@ instance Typecheck Score.Instrument where
     from_val _ = Nothing
     to_val = VInstrument
     to_type _ = TInstrument
-
-instance Typecheck Symbol where
-    from_val (VSymbol a) = Just a
-    from_val _ = Nothing
-    to_val = VSymbol
-    to_type _ = TSymbol
-
-instance Typecheck Text where
-    from_val (VSymbol (Symbol s)) = Just s
-    from_val _ = Nothing
-    to_val = VSymbol . Symbol
-    to_type _ = TSymbol
 
 -- * environ
 
