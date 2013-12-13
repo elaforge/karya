@@ -114,49 +114,29 @@ import Types
 
 -- | Top level deriver for note tracks.
 d_note_track :: TrackTree.EventsNode -> Derive.NoteDeriver
-d_note_track (Tree.Node track subs) = do
-    Control.derive_track_signals subs
+d_note_track (Tree.Node track subs) =
     title $ derive_notes (track_info track subs)
         (Events.ascending (TrackTree.tevents_events track))
     where
     title = with_title subs (TrackTree.tevents_range track)
         (TrackTree.tevents_title track)
 
-record_if_wanted :: TrackTree.TrackEvents -> [TrackTree.EventsNode]
-    -> Derive.Events -> Derive.Deriver ()
-record_if_wanted track subs events
-    | Control.should_render True track =
-        render_of track >>= flip whenJust
-            (stash_signal rederive (LEvent.events_of events))
-    | otherwise = return ()
-    where rederive = d_note_track $ fmap strip_track_id (Tree.Node track subs)
+record_if_wanted :: TrackTree.TrackEvents -> Derive.Events -> Derive.Deriver ()
+record_if_wanted track events =
+    whenJustM (render_of track) $ \((block_id, track_id), source) ->
+        stash_signal block_id track_id source events
 
--- | Clear out the TrackIds so the rederive doesn't wind up stashing its own
--- signals.
-strip_track_id :: TrackTree.TrackEvents -> TrackTree.TrackEvents
-strip_track_id track = track { TrackTree.tevents_track_id = Nothing }
-
-stash_signal :: Derive.NoteDeriver -> [Score.Event]
-    -> ((BlockId, TrackId), Track.RenderSource) -> Derive.Deriver ()
-stash_signal rederive events ((block_id, track_id), source) =
-    Control.linear_tempo >>= \x -> case x of
-        -- This is super inefficient but there's not much that can be done.
-        Nothing ->
-            put_track_signal block_id track_id source 0 1 . LEvent.events_of
-                =<< Derive.in_real_time rederive
-        Just (shift, stretch) ->
-            put_track_signal block_id track_id source shift stretch events
-
-put_track_signal :: BlockId -> TrackId -> Track.RenderSource -> ScoreTime
-    -> ScoreTime -> [Score.Event] -> Derive.Deriver ()
-put_track_signal block_id track_id source shift stretch events =
-    Control.put_track_signal block_id track_id $
-        Track.TrackSignal signal shift stretch is_pitch
-    where (signal, is_pitch) = extract_track_signal source events
+stash_signal :: BlockId -> TrackId -> Track.RenderSource -> Derive.Events
+    -> Derive.Deriver ()
+stash_signal block_id track_id source events = do
+    warp <- Internal.get_dynamic Derive.state_warp
+    Control.put_unwarped_signal block_id track_id warp signal is_pitch
+    where
+    (signal, is_pitch) = extract_track_signal source (LEvent.events_of events)
 
 extract_track_signal :: Track.RenderSource -> [Score.Event]
-    -> (Signal.Display, Bool)
-extract_track_signal source events = (Signal.coerce sig, is_pitch)
+    -> (Signal.Control, Bool)
+extract_track_signal source events = (sig, is_pitch)
     where
     sig = mconcat $ case source of
         Track.Control control -> mapMaybe (extract_control control) events
@@ -178,6 +158,7 @@ extract_track_signal source events = (Signal.coerce sig, is_pitch)
 
 -- | Wait, if I can just look at the Track, why do I need
 -- Derive.state_wanted_track_signals?
+-- TODO merge this with Control.signal_wanted.
 render_of :: TrackTree.TrackEvents
     -> Derive.Deriver (Maybe ((BlockId, TrackId), Track.RenderSource))
 render_of track = case TrackTree.tevents_block_track_id track of

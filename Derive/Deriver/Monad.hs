@@ -897,6 +897,12 @@ instance DeepSeq.NFData Integrated where
 -- ways that could go wrong, and inverted tracks mappending on the right is
 -- brittle and subtle, so I won't be too shocked if I have to come revisit this
 -- someday, and maybe implement the TrackTime thing.
+--
+-- One more hack: the controls on the second nesting of a slice are also sliced
+-- fragments.  I can't just merge them, since they have (0, 0) samples which
+-- would cause a later fragment to wipe out the earlier ones.  But I can merge
+-- them after I drop the initial 0, as in 'merge_controls'.  This only works
+-- because the slices are evaluated and mappended in order.
 newtype TrackDynamic = TrackDynamic (Map.Map (BlockId, TrackId) Dynamic)
     deriving (Show, DeepSeq.NFData, Pretty.Pretty)
 
@@ -904,7 +910,26 @@ instance Monoid.Monoid TrackDynamic where
     mempty = TrackDynamic mempty
     mappend (TrackDynamic d1) (TrackDynamic d2) =
         TrackDynamic $ Map.unionWith merge d1 d2
-        where merge d1 d2 = d2 { state_environ = state_environ d1 }
+        -- | dc1 /= mempty && dc2 /= mempty = TrackDynamic $
+        --     Debug.traceps "merge" (dc1, dc2) $ Map.unionWith merge d1 d2
+        -- | otherwise = TrackDynamic $ Map.unionWith merge d1 d2
+        where
+        merge d1 d2 = d2
+            { state_environ = state_environ d1
+            , state_controls = Map.unionWith merge_controls
+                (state_controls d1) (state_controls d2)
+            }
+        -- dc1 = Map.map state_controls d1
+        -- dc2 = Map.map state_controls d2
+
+merge_controls :: Score.TypedControl -> Score.TypedControl -> Score.TypedControl
+merge_controls (Score.Typed typ c1) (Score.Typed _ c2) =
+    -- c1 is the new one being merged in, c2 is the old one.
+    Score.Typed typ (c2 <> drop0 c1)
+    where
+    drop0 sig = case Signal.head sig of
+        Just (0, 0) -> Signal.drop 1 sig
+        _ -> sig
 
 
 -- ** calls

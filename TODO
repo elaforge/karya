@@ -19,7 +19,7 @@ UNSORTED
       the end time or not.
     . fixed bug where trill would create a transition on the end when it gets
       a score time speed.
-  - Signal render is inaccurate when it depends on the tempo.
+  * Signal render is inaccurate when it depends on the tempo.
     . This is because signal render uses in_real_time, which causes RealTime
       using calls to derive differently.
     . The only reason it works when the tempo is set once at the top is that
@@ -28,12 +28,13 @@ UNSORTED
       back to ScoreTime.
     . If I do this, I might as well get rid of the separate track signal
       derive, and piece together the sliced fragments.
-    - Signal.unwarp function to unwarp the x samples of a signal.
-    - update Derive.Control.put_track_signal and stash_signal to stash
+    * Signal.unwarp function to unwarp the x samples of a signal.
+    * update Derive.Control.put_track_signal and stash_signal to stash
       a signal, unwarping if there's a non-id warp
-    - update Derive.Control.stash_signal to unwarp and stash signals for
+    * update Derive.Control.stash_signal to unwarp and stash signals for
       sliced fragments.
-    - Collect mappend has to merge the fragments, and be careful to avoid
+    * note track signal
+    * Collect mappend has to merge the fragments, and be careful to avoid
       leading zero samples.
   - LRuler.inject, opposite of extract, replaces sub-block rulers
   - calling a block with a %tempo = x in the block title gets messed up timing

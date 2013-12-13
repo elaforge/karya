@@ -110,6 +110,26 @@ test_integrate = do
     equal (f [(0, 0), (1, -1), (2, -2), (3, -3)])
         [(0, 0), (1, 0), (2, -1), (3, -3)]
 
+test_unwarp = do
+    let f w sig = unsignal $ Signal.unwarp w (signal sig)
+    -- warp is score -> real
+    let lin = [(0, 0), (1, 1), (2, 2), (3, 3)]
+        slow = make_warp 10 0.5
+        fast = make_warp 10 2
+    equal (f (signal lin) lin) lin
+    -- If the tempo is fast, then the control will be too compressed, so it
+    -- should be stretched out.
+    equal (f fast lin) [(0, 0), (2, 1), (4, 2), (6, 3)]
+    -- Conversely...
+    equal (f slow lin) [(0, 0), (0.5, 1), (1, 2), (1.5, 3)]
+
+make_warp :: Signal.X -> Signal.Y -> Signal.Warp
+make_warp end tempo = tempo_to_warp (signal [(0, tempo), (end, tempo)])
+
+tempo_to_warp :: Signal.Tempo -> Signal.Warp
+tempo_to_warp = Signal.integrate 1 . Signal.map_y (1/)
+
+
 -- * comparison
 
 test_pitches_share = do

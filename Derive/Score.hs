@@ -329,6 +329,7 @@ compose_warps
     compose warp1 (Warp sig2 shift2 stretch2) = Warp fg shift2 stretch2
         where fg = Signal.compose (warp_to_signal warp1) sig2
 
+-- | Flatten a 'Warp' to a 'Signal.Warp'.
 warp_to_signal :: Warp -> Signal.Warp
 warp_to_signal (Warp sig shift stretch)
     | stretch == 1 && shift == 0 = sig

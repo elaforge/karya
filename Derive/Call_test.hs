@@ -203,9 +203,10 @@ test_track_dynamic = do
     let extract ex = map ex . Map.assocs . (\(Derive.TrackDynamic d) -> d)
             . Derive.r_track_dynamic
         e_scale_inst ((bid, tid), dyn) =
-            (bid, tid,
-                TrackLang.lookup_val Environ.scale env,
-                TrackLang.lookup_val Environ.instrument env)
+            ( bid, tid
+            , TrackLang.lookup_val Environ.scale env
+            , TrackLang.lookup_val Environ.instrument env
+            )
             where env = Derive.state_environ dyn
     let res = DeriveTest.derive_blocks
             [ ("b", [("*legong", [(0, 0, "1")]), (">i1", [(0, 1, "sub")])])
@@ -230,7 +231,8 @@ test_track_dynamic = do
             (bid, tid, (Signal.unsignal . Score.typed_val) <$>
                 (Map.lookup Controls.dynamic (Derive.state_controls dyn)))
     equal (extract e_controls res)
-        [ (UiTest.bid "b1", UiTest.mk_tid 1, Just [(0, 1)])
+        [ (UiTest.bid "b1", UiTest.mk_tid 1,
+            Just [(0, 0.25 * 0.25), (1, 0.5 * 0.5), (2, 0.75 * 0.75)])
         , (UiTest.bid "b1", UiTest.mk_tid 2, Just [(0, 1)])
         , (UiTest.bid "b1", UiTest.mk_tid 3,
             Just [(0, 0.25), (1, 0.5), (2, 0.75)])

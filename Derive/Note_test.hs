@@ -54,12 +54,6 @@ test_sub_tracks = do
         , ((2, 2, ""), [(2, 61), (3, 61.5), (4, 62)])
         ]
 
--- c_subs :: Derive.NoteCall
--- c_subs = Derive.generator "subs" $ \args -> do
---     let subs = Derive.info_sub_tracks (Derive.passed_info args)
---     Log.warn $ show subs
---     return []
-
 test_derive_track_signals = do
     let run = extract . DeriveTest.derive_tracks_with_ui id
             (DeriveTest.with_tsig . DeriveTest.with_linear)

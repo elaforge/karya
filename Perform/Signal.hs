@@ -44,6 +44,7 @@ module Perform.Signal (
     -- ** special functions
     , inverse_at, inverse_at_extend
     , compose, compose_hybrid, integrate
+    , unwarp, invert
     , pitches_share
 ) where
 import qualified Prelude
@@ -401,8 +402,7 @@ bsearch_y y vec = go 0 (V.length vec)
 --
 -- TODO Wait, what if the warps don't line up at 0?  Does that happen?
 compose :: Warp -> Warp -> Warp
-compose f g = Signal $ V.map_y go (sig_vec g)
-    where go y = at_linear (y_to_real y) f
+compose f = modify_vec $ V.map_y $ \y -> at_linear (y_to_real y) f
     -- TODO Walking down f would be more efficient, especially once Signal is
     -- lazy.
 
@@ -413,7 +413,7 @@ compose f g = Signal $ V.map_y go (sig_vec g)
 -- if the flat segment were whatever slope is necessary to to generate a slope
 -- of 1 when composed with the first signal.
 compose_hybrid :: Warp -> Warp -> Warp
-compose_hybrid f g = Signal $ run initial $ Vector.generateM (length g) genM
+compose_hybrid f g = Signal $ run initial $ Vector.generateM (length g) gen
     where
     -- If 'g' starts with a flat segment, I need to start the linear bit in the
     -- right place.
@@ -431,28 +431,25 @@ compose_hybrid f g = Signal $ run initial $ Vector.generateM (length g) genM
     -- have to add the offset: h(x) = f(g(x + offset)).
     --
     -- So the state is (h(x_t-1), offset).
-    genM i = do
-        let V.Sample gx gy = Vector.unsafeIndex (sig_vec g) i
-            V.Sample gx0 gy0 = if i == 0 then V.Sample 0 0
-                else Vector.unsafeIndex (sig_vec g) (i-1)
-        -- st <- Monad.State.get
-        -- let ret s = Debug.trace_retp s ((gx0, gy0), (gx, gy), st)
-        if gy0 == gy
-            then do
-                (y0, _) <- Monad.State.get
-                let y = y0 + x_to_y (gx - gx0)
-                    offset = inverse_at_extend y f - y_to_real gy0
-                Monad.State.put (y, offset)
-                return $ V.Sample gx y
-                -- return $ ret "lin" $ V.Sample gx y
-            else do
-                (_, offset) <- Monad.State.get
-                -- let y = Debug.trace_retp "f of" (gy, offset, f) $
-                --              at_linear (y_to_real gy + offset) f
-                let y = at_linear (y_to_real gy + offset) f
-                Monad.State.put (y, offset)
-                return $ V.Sample gx y
-                -- return $ ret "f  " $ V.Sample gx y
+    gen i
+        | gy0 == gy = gen_flat gx gx0 gy0
+        | otherwise = gen_normal gx gy
+        where
+        V.Sample gx gy = Vector.unsafeIndex (sig_vec g) i
+        V.Sample gx0 gy0
+            | i == 0 = V.Sample 0 0
+            | otherwise = Vector.unsafeIndex (sig_vec g) (i-1)
+    gen_flat gx gx0 gy0 = do
+        (y0, _) <- Monad.State.get
+        let y = y0 + x_to_y (gx - gx0)
+            offset = inverse_at_extend y f - y_to_real gy0
+        Monad.State.put (y, offset)
+        return $ V.Sample gx y
+    gen_normal gx gy = do
+        (_, offset) <- Monad.State.get
+        let y = at_linear (y_to_real gy + offset) f
+        Monad.State.put (y, offset)
+        return $ V.Sample gx y
 
 -- | Integrate the signal.
 --
@@ -481,6 +478,18 @@ integrate_segment srate accum x0 y0 x1 _y1
     where
     xs = Seq.range' x0 x1 srate
     y_at x = accum + x_to_y (x-x0) * y0
+
+warp :: Warp -> Control -> Control
+warp warp = modify_vec $ V.map_x $ \x -> y_to_real (at_linear x warp)
+
+-- | Take a Control in RealTime and unwarp it back to ScoreTime.  The only
+-- reason to do this is to display in the UI, so the return type is Display.
+unwarp :: Warp -> Control -> Display
+unwarp w = coerce . warp (invert w)
+
+invert :: Warp -> Warp
+invert = modify_vec $ Vector.map $ \(V.Sample x y) ->
+    V.Sample (y_to_real y) (x_to_y x)
 
 --- * comparison
 
