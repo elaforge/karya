@@ -2,12 +2,17 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
+-- | Utilities to deal with processes.
 module Util.Process where
 import qualified Control.Concurrent as Concurrent
 import qualified Control.Concurrent.MVar as MVar
+import qualified Control.Exception as Exception
+
 import qualified Data.ByteString as ByteString
 import qualified System.Exit as Exit
 import qualified System.IO as IO
+import qualified System.IO.Error as IO.Error
+import qualified System.Posix as Posix
 import qualified System.Process as Process
 
 import qualified Util.Log as Log
@@ -57,3 +62,7 @@ logged create = do
     binaryOf create = case Process.cmdspec create of
         Process.RawCommand fn _ -> fn
         Process.ShellCommand cmd -> takeWhile (/=' ') cmd
+
+isAlive :: Posix.ProcessID -> IO Bool
+isAlive pid = (Posix.signalProcess Posix.nullSignal pid >> return True)
+    `Exception.catch` (return . not . IO.Error.isDoesNotExistError)

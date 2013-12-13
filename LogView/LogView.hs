@@ -32,6 +32,7 @@ import qualified Control.Concurrent.STM.TChan as TChan
 import qualified Control.Exception as Exception
 import qualified Control.Monad.State as State
 
+import qualified Data.ByteString.Char8 as ByteString
 import qualified Data.List as List
 import qualified Data.Text as Text
 import qualified Data.Text.IO as Text.IO
@@ -40,10 +41,13 @@ import qualified System.Console.GetOpt as GetOpt
 import qualified System.Directory as Directory
 import qualified System.Environment
 import qualified System.Exit
+import qualified System.Posix as Posix
 
 import Util.Control
+import qualified Util.File as File
 import qualified Util.Fltk as Fltk
 import qualified Util.Log as Log
+import qualified Util.Process
 import qualified Util.Seq as Seq
 
 import qualified LogView.LogViewC as LogViewC
@@ -52,6 +56,10 @@ import qualified LogView.Tail as Tail
 
 import qualified App.SendCmd as SendCmd
 
+
+-- | I use this file to only start one logview at a time.
+pid_file :: FilePath
+pid_file = "log/logview.pid"
 
 -- | Initial contents of the filter field.
 initial_filter :: String
@@ -112,7 +120,18 @@ main = do
     unless (null args) $
         usage ("unparsed args: " ++ show args)
     when (Help `elem` flags) (usage "usage:")
+    whenJustM write_pid $ \pid -> do
+        putStrLn $ "logview already running with pid " ++ show pid
+        System.Exit.exitSuccess
+    logview flags `Exception.finally` Directory.removeFile pid_file
+    where
+    usage msg = do
+        putStrLn "usage: logview [ flags ]"
+        putStr (GetOpt.usageInfo msg options)
+        System.Exit.exitFailure
 
+logview :: [Flag] -> IO ()
+logview flags = do
     let seek = maybe (Just 0) id $ Seq.last [s | Seek s <- flags]
         history = maybe default_history id $ Seq.last [n | History n <- flags]
     filename <- maybe Tail.log_filename return $ Seq.last [n | File n <- flags]
@@ -127,10 +146,22 @@ main = do
         (msg, hdl) <- Tail.tail hdl
         STM.atomically $ TChan.writeTChan log_chan msg
         tail_loop log_chan hdl
-    usage msg = do
-        putStrLn "usage: logview [ flags ]"
-        putStr (GetOpt.usageInfo msg options)
-        System.Exit.exitFailure
+
+write_pid :: IO (Maybe Posix.ProcessID)
+write_pid = do
+    -- I have to use ByteString.readFile and writeFile to avoid GHC's obnoxious
+    -- file locking.
+    pid_str <- File.ignoreEnoent $ ByteString.readFile pid_file
+    existing <- case ByteString.readInt =<< pid_str of
+        Just (pid, _) -> ifM (Util.Process.isAlive p)
+            (return (Just p)) (return Nothing)
+            where p = fromIntegral pid
+        _ -> return Nothing
+    when (existing == Nothing) $ do
+        pid <- Posix.getProcessID
+        ByteString.writeFile pid_file (ByteString.pack (show pid) <> "\n")
+    return existing
+
 
 gui :: LogChan -> FilePath -> Int -> IO ()
 gui log_chan filename history = do

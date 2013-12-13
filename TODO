@@ -3,6 +3,10 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
+  * scripts 'debug' and 'opt' to compile logview and seq, and run seq
+    I need a way to tell if logview is running.
+  - If I merge Derive.Note.render_of with Derive.Control.signal_wanted, I
+    think I can get rid of Derive.state_wanted_track_signals.
   - Perhaps each score should also save the MIDI performance of the root
     block, along with the date / patch.  That way I can run a diff on the last
     good performance and if it's different, and know what version of the app

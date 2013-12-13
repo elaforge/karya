@@ -1,0 +1,6 @@
+#!/bin/sh
+# Run an opt seq.  First make sure it's built and logview is running.
+
+repl=t bin/mk build/opt/logview build/opt/seq
+build/opt/logview &
+build/opt/seq "$@"
