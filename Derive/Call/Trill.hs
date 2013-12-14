@@ -312,8 +312,8 @@ trill_speed_arg = defaulted "speed" (typed_control "trill-speed" 14 Score.Real)
     \ cycles per second, which will be unaffected by the tempo. If it's\
     \ a ScoreTime, the value is the number of cycles per ScoreTime\
     \ unit, and will stretch along with tempo changes. In either case,\
-    \ this will emit only whole notes, i.e. a note will not be cut short sooner\
-    \ than it should according to the speed."
+    \ this will emit only whole notes, i.e. it will end sooner to avoid\
+    \ emitting a cut-off note at the end."
 
 c_saw :: Derive.Generator Derive.Control
 c_saw = Derive.generator1 "saw" Tags.ornament
@@ -407,22 +407,15 @@ xcut_control hold val1 val2 =
 
 -- * util
 
-data Mode = Unison | Neighbor deriving (Eq, Show)
+data Mode = Unison | Neighbor deriving (Bounded, Eq, Enum, Show)
 
-instance ShowVal.ShowVal Mode where
-    show_val Unison = "unison"
-    show_val Neighbor = "neighbor"
-
-instance TrackLang.TypecheckSymbol Mode where
-    parse_symbol t
-        | t == ShowVal.show_val Unison = Just Unison
-        | t == ShowVal.show_val Neighbor = Just Neighbor
-        | otherwise = Nothing
+instance ShowVal.ShowVal Mode where show_val = TrackLang.default_show_val
+instance TrackLang.TypecheckEnum Mode
 
 mode_arg :: Maybe Mode -> Sig.Parser Mode
 mode_arg (Just mode) = Applicative.pure mode
-mode_arg Nothing = TrackLang.get_s <$>
-    Sig.environ "trill-mode" Sig.Unprefixed (TrackLang.S Unison)
+mode_arg Nothing = TrackLang.get_e <$>
+    Sig.environ "trill-mode" Sig.Unprefixed (TrackLang.E Unison)
     "This affects which note the trill starts with, and can be `unison` or\
     \ `neighbor`, defaulting to `unison`."
 

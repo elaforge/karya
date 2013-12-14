@@ -632,8 +632,9 @@ split1 sep xs = (pre, drop (length sep) post)
 join :: [a] -> [[a]] -> [a]
 join = List.intercalate
 
--- | Binary join, but drops null values.
+-- | Binary join, but the separator is only used if both joinees are non-null.
 join2 :: [a] -> [a] -> [a] -> [a]
+join2 _ [] [] = []
 join2 _ a [] = a
 join2 _ [] b = b
 join2 sep a b = a ++ sep ++ b

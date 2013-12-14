@@ -17,6 +17,7 @@
 module Derive.TrackLang (
     module Derive.TrackLang, module Derive.BaseTypes, show_val
 ) where
+import qualified Data.Char as Char
 import qualified Data.Map as Map
 
 import Util.Control
@@ -160,7 +161,9 @@ instance (ShowVal a, ShowVal b) => ShowVal (Either a b) where
 -- * types
 
 data Type = TNum NumType NumValue
-    | TAttributes | TControl | TPitchControl | TPitch | TInstrument | TSymbol
+    | TAttributes | TControl | TPitchControl | TPitch | TInstrument
+    -- | Text string, with enum values if it's an enum.
+    | TSymbol (Maybe [Text])
     | TNotGiven | TMaybe Type | TEither Type Type | TVal
     deriving (Eq, Ord, Show)
 
@@ -183,10 +186,16 @@ to_num_type typ = case typ of
 instance Pretty.Pretty Type where
     pretty (TMaybe typ) = "Maybe " ++ Pretty.pretty typ
     pretty (TEither a b) = Pretty.pretty a ++ " or " ++ Pretty.pretty b
-    pretty (TNum typ val) =
-        "Num" <> if null desc then "" else " (" <> desc <> ")"
-        where desc = Seq.join2 ", " (Pretty.pretty typ) (Pretty.pretty val)
+    pretty (TNum typ val) = append_parens "Num" $
+        Seq.join2 ", " (Pretty.pretty typ) (Pretty.pretty val)
+    pretty (TSymbol enums) =
+        append_parens "Symbol" $ maybe "" (Seq.join "/" . map untxt) enums
     pretty typ = drop 1 (show typ)
+
+append_parens :: String -> String -> String
+append_parens name desc
+    | null desc = name
+    | otherwise = name <> " (" <> desc <> ")"
 
 instance Pretty.Pretty NumType where
     pretty t = case t of
@@ -219,7 +228,7 @@ type_of val = case val of
     VPitchControl {} -> TPitchControl
     VPitch {} -> TPitch
     VInstrument {} -> TInstrument
-    VSymbol {} -> TSymbol
+    VSymbol {} -> TSymbol Nothing
     VNotGiven -> TNotGiven
 
 -- ** special types
@@ -390,23 +399,62 @@ instance (TypecheckNum a) => Typecheck (Natural a) where
         result :: a
         result = error "TrackLang.Natural: unevaluated"
 
--- *** text types
+-- *** text\/symbol types
 
 instance Typecheck Symbol where
     from_val (VSymbol a) = Just a
     from_val _ = Nothing
     to_val = VSymbol
-    to_type _ = TSymbol
+    to_type _ = TSymbol Nothing
 
 instance Typecheck Text where
     from_val (VSymbol (Symbol s)) = Just s
     from_val _ = Nothing
     to_val = VSymbol . Symbol
-    to_type _ = TSymbol
+    to_type _ = TSymbol Nothing
+
+-- *** enum
 
 -- | This is for text strings which are parsed to call-specific types.  You
 -- can declare an instance and the automatic Typecheck instance will allow you
 -- to incorporate the type directly into the signature of the call.
+--
+-- This is specialized to Bounded and Enum instances, but can use those
+-- to provide a default parser, and put the enum values in the 'TSymbol' so
+-- the docs can mention them.
+class (ShowVal a, Bounded a, Enum a) => TypecheckEnum a where
+    parse_enum :: Text -> Maybe a
+    parse_enum = make_parse_enum [minBound .. maxBound]
+
+make_parse_enum :: (ShowVal a) => [a] -> (Text -> Maybe a)
+make_parse_enum vals = flip Map.lookup m
+    where m = Map.fromList (zip (map show_val vals) vals)
+
+-- | Make a ShowVal from a Show instance.
+default_show_val :: (Show a) => a -> Text
+default_show_val = txt . Seq.map_head Char.toLower . show
+
+-- | A wrapper required to make the typeclass instance happy.
+newtype E a = E a deriving (Show, ShowVal)
+
+get_e :: E a -> a
+get_e (E a) = a
+
+instance (Show a, TypecheckEnum a) => Typecheck (E a) where
+    from_val (VSymbol (Symbol a)) = E <$> parse_enum a
+    from_val _ = Nothing
+    to_val = VSymbol . Symbol . show_val . get_e
+    to_type _ = TSymbol (Just (map show_val [minBound :: a .. maxBound]))
+
+data Mode2 = High | Low deriving (Eq, Enum, Bounded, Show)
+
+instance ShowVal Mode2 where show_val = default_show_val
+instance TypecheckEnum Mode2
+
+-- *** any symbol
+
+-- | This is like 'TypecheckEnum' but without the Enum constraint.  That
+-- means it can parse arbitrary text, but can't document its accepted values.
 class TypecheckSymbol a where
     parse_symbol :: Text -> Maybe a
 
@@ -420,7 +468,8 @@ instance (Show a, ShowVal a, TypecheckSymbol a) => Typecheck (S a) where
     from_val (VSymbol (Symbol a)) = S <$> parse_symbol a
     from_val _ = Nothing
     to_val = VSymbol . Symbol . show_val . get_s
-    to_type _ = TSymbol
+    to_type _ = TSymbol Nothing
+
 
 -- ** other types
 
@@ -483,12 +532,12 @@ hardcoded_types :: Map.Map ValName Type
 hardcoded_types = Map.fromList
     [ (Environ.attributes, TAttributes)
     , (Environ.instrument, TInstrument)
-    , (Environ.control, TSymbol)
-    , (Environ.key, TSymbol)
-    , (Environ.scale, TSymbol)
+    , (Environ.control, TSymbol Nothing)
+    , (Environ.key, TSymbol Nothing)
+    , (Environ.scale, TSymbol Nothing)
     , (Environ.seed, TNum TUntyped TAny)
     , (Environ.srate, TNum TUntyped TAny)
-    , (Environ.tuning, TSymbol)
+    , (Environ.tuning, TSymbol Nothing)
     , (Environ.voice, TNum TUntyped TAny)
     ]
 
