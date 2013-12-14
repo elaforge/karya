@@ -27,7 +27,7 @@ note_calls :: Derive.CallMaps Derive.Note
 note_calls = Derive.call_maps
     [ ("'", c_tick Nothing)
     , ("'^", c_tick (Just (Pitch.Diatonic (-1))))
-    , ("'v", c_tick (Just (Pitch.Diatonic 1)))
+    , ("'_", c_tick (Just (Pitch.Diatonic 1)))
     ]
     [ ("realize-damp", c_realize_damp) ]
 
@@ -35,7 +35,7 @@ c_tick :: Maybe Pitch.Transpose -> Derive.Generator Derive.Note
 c_tick transpose = Derive.make_call "tick"
     (Tags.idiom <> Tags.bali <> Tags.prev)
     ("Insert an intermediate grace note in the \"ngoret\" rambat style.\
-    \ The grace note moves up for `'^`, down for `'v`, or is based\
+    \ The grace note moves up for `'^`, down for `'_`, or is based\
     \ on the previous note's pitch for `'`."
     ) $ Sig.call ((,,)
     <$> defaulted "time" (typed_control "ngoret-time" 0.1 Score.Real)

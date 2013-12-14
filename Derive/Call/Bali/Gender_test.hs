@@ -69,7 +69,7 @@ test_tick = do
         ]
 
     -- Explicit down tick.
-    equal (run $ c_to_e "" "'v .5 .5 1")
+    equal (run $ c_to_e "" "'_ .5 .5 1")
         ([(0, 1, "4c", dyn), (1.5, 1, "4f", dyn), (2, 1, "4e", dyn)], [])
 
 test_tick_damp = do
