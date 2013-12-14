@@ -56,6 +56,7 @@ import qualified Derive.Derive as Derive
 import qualified Derive.Environ as Environ
 import qualified Derive.PitchSignal as PitchSignal
 import qualified Derive.Score as Score
+import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Sig as Sig
 import Derive.Sig (defaulted, defaulted_env, required)
 import qualified Derive.TrackLang as TrackLang
@@ -146,36 +147,34 @@ c_kampita start_mode end_mode = Derive.generator1 "kam" Tags.india
     "This is a kind of trill, but its interval defaults to NNs,\
     \ and transitions between the notes are smooth.  It's intended for\
     \ the vocal microtonal trills common in Carnatic music."
-    $ Sig.call ((,,,,,)
+    $ Sig.call ((,,,,,,)
     <$> required "pitch" "Base pitch."
     <*> defaulted "neighbor" (Sig.typed_control "trill-neighbor" 1 Score.Nn)
         "Alternate with a pitch at this interval."
     <*> speed_arg
     <*> defaulted_env "transition" Sig.Both transition_default
         "Time for each slide."
-    <*> Sig.environ (TrackLang.unsym Environ.hold) Sig.Unprefixed
-        (TrackLang.real 0) "Time to hold the first pitch."
-    <*> Sig.environ "lilt" Sig.Prefixed 0 "Lilt is a horizontal bias to the\
-        \ vibrato. A lilt of 1 would place each neighbor on top of the\
-        \ following unison, while -1 would place it on the previous one.\
-        \ So it should range from -1 < lilt < 1."
-    ) $ \(pitch, neighbor, speed, transition, hold, lilt) args -> do
+    <*> hold_arg <*> lilt_arg <*> adjust_arg
+    ) $ \(pitch, neighbor, speed, transition, hold, lilt, adjust) args -> do
         (neighbor, control) <- Util.to_transpose_signal Util.Nn neighbor
-        transpose <- kampita start_mode end_mode neighbor speed transition hold
-            lilt args
+        transpose <- kampita start_mode end_mode adjust neighbor speed
+            transition hold lilt args
         start <- Args.real_start args
         return $ PitchSignal.apply_control control
             (Score.untyped transpose) $ PitchSignal.signal [(start, pitch)]
 
-trill_transitions :: Maybe Bool -> Double -> ScoreTime -> TrackLang.ValControl
-    -> (ScoreTime, ScoreTime) -> Derive.Deriver [RealTime]
-trill_transitions even lilt hold speed (start, end) =
+trill_transitions :: Maybe Bool -> AdjustMode -> Double -> ScoreTime
+    -> TrackLang.ValControl -> (ScoreTime, ScoreTime)
+    -> Derive.Deriver [RealTime]
+trill_transitions even adjust lilt hold speed (start, end) = do
+    real_end <- Derive.real end
+    add_hold . add_lilt lilt . adjust_transitions real_end adjust . trim
+        =<< Trill.trill_transitions (start + hold, end) include_end speed
+    where
     -- Trills usually omit the transition that coincides with the end because
     -- that would create a zero duration note.  But these trills are smoothed
     -- and thus will still have a segment leading to the cut-off transition.
-    (trim<$>) . add_hold . add_lilt lilt
-        =<< Trill.trill_transitions (start + hold, end) True speed
-    where
+    include_end = True
     add_hold transitions
         | hold > 0 = (: drop 1 transitions) <$> Derive.real start
         | otherwise = return transitions
@@ -187,6 +186,15 @@ trill_transitions even lilt hold speed (start, end) =
     take_odd [x, _] = [x]
     take_odd (x:y:zs) = x : y : take_odd zs
     take_odd xs = xs
+
+adjust_transitions :: RealTime -> AdjustMode -> [RealTime] -> [RealTime]
+adjust_transitions _ Shorten ts = ts
+adjust_transitions end Stretch ts@(_:_:_) = zipWith (+) offsets ts
+    where
+    -- (_:_:_) above means both the last and division are safe.
+    stretch = max 0 (end - last ts) / fromIntegral (length ts - 1)
+    offsets = Seq.range_ 0 stretch
+adjust_transitions _ Stretch ts = ts
 
 add_lilt :: Double -> [RealTime] -> [RealTime]
 add_lilt _ [] = []
@@ -277,6 +285,22 @@ c_jaru_intervals transpose intervals = Derive.generator1 "jaru" Tags.india
 
 -- * control calls
 
+-- | How to adjust an ornament to fulfill its 'Mode' restrictions.
+data AdjustMode =
+    -- | Adjust by shortening the ornament.
+    Shorten
+    -- | Adjust by increasing the speed.
+    | Stretch
+    deriving (Bounded, Eq, Enum, Show)
+
+instance ShowVal.ShowVal AdjustMode where show_val = TrackLang.default_show_val
+instance TrackLang.TypecheckEnum AdjustMode
+
+adjust_arg :: Sig.Parser AdjustMode
+adjust_arg = TrackLang.get_e <$>
+    Sig.environ "adjust" Sig.Unprefixed (TrackLang.E Shorten)
+    "How to adjust an ornament to fulfill its mode restrictions."
+
 -- | I had a lot of debate about whether I should use High and Low, or Unison
 -- and Neighbor.  Unison-Neighbor is more convenient for the implementation
 -- but High-Low I think is more musically intuitive.
@@ -288,29 +312,29 @@ c_kampita_c start_mode end_mode = Derive.generator1 "kam" Tags.india
     \ ends on the lower one. Otherwise, it starts on the unison note and ends\
     \ on either. It determines the end note by shortening the trill if\
     \ necessary."
-    $ Sig.call ((,,,,)
+    $ Sig.call ((,,,,,)
     <$> neighbor_arg
     <*> speed_arg
     <*> defaulted_env "transition" Sig.Both transition_default
         "Time for each slide."
-    <*> hold_arg
-    <*> lilt_arg
-    ) $ \(neighbor, speed, transition, hold, lilt) args -> do
+    <*> hold_arg <*> lilt_arg <*> adjust_arg
+    ) $ \(neighbor, speed, transition, hold, lilt, adjust) args -> do
         neighbor <- Util.to_untyped_signal neighbor
-        kampita start_mode end_mode neighbor speed transition hold lilt args
+        kampita start_mode end_mode adjust neighbor speed transition hold lilt
+            args
 
 -- | You don't think there are too many arguments, do you?
-kampita :: Maybe Mode -> Maybe Mode -> Signal.Control
+kampita :: Maybe Mode -> Maybe Mode -> AdjustMode -> Signal.Control
     -> TrackLang.ValControl -> RealTime -> TrackLang.DefaultReal
     -> Double -> Derive.PassedArgs a -> Derive.Deriver Signal.Control
-kampita start_mode end_mode neighbor speed transition
+kampita start_mode end_mode adjust neighbor speed transition
         (TrackLang.DefaultReal hold) lilt args = do
     start <- Args.real_start args
     let ((val1, val2), even_transitions) = convert_modes start neighbor
             start_mode end_mode
     hold <- Util.duration_from (Args.start args) hold
     smooth_trill (-transition) val1 val2
-        =<< trill_transitions even_transitions lilt hold speed
+        =<< trill_transitions even_transitions adjust lilt hold speed
             (Args.range_or_next args)
 
 smooth_trill :: RealTime -> Signal.Control -> Signal.Control -> [RealTime]
@@ -365,7 +389,7 @@ c_nkampita_c start_mode end_mode = Derive.generator1 "nkam" Tags.india
         let speed = TrackLang.constant_control $
                 (num_transitions - 1) / RealTime.to_seconds (end - start)
         smooth_trill (-transition) val1 val2
-            =<< trill_transitions Nothing lilt hold speed
+            =<< trill_transitions Nothing Shorten lilt hold speed
                 (Args.range_or_next args)
 
 -- | Ok, this name is terrible but what else is better?

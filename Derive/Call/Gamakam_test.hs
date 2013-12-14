@@ -47,6 +47,10 @@ test_kampita_c = do
     equal (run2 "kam-lilt = -.5 | kam 1 1 1" 4)
         ([[(0, 60), (0.5, 62), (2, 60), (2.5, 62), (4, 60)]], [])
 
+    -- Adjust.
+    equal (run2 "adjust = shorten | kam^ 1 1 1" 2) ([[(0, 60), (1, 62)]], [])
+    equal (run2 "adjust = stretch | kam^ 1 1 1" 2) ([[(0, 60), (2, 62)]], [])
+
 test_nkampita_c = do
     let run = run_diatonic DeriveTest.e_nns
     strings_like (snd (run "nkam 0 1" 2)) ["cycles: expected Num (>0)"]
