@@ -3,7 +3,6 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 module Derive.Call.Speed_test where
-import Util.Control
 import Util.Test
 import qualified Ui.State as State
 import qualified Derive.Call.Speed as Speed
@@ -11,7 +10,6 @@ import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Score as Score
 import qualified Derive.TrackLang as TrackLang
 
-import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
 import Types
 

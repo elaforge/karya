@@ -43,9 +43,8 @@ postproc = Tags.idiom <> Tags.bali <> Tags.postproc
 c_unison :: Derive.Transformer Derive.Note
 c_unison = Derive.transformer "unison" postproc
     "Split part into unison polos and sangsih."
-    $ Sig.call0t $ \_args deriver -> do
+    $ Sig.callt pasang_arg $ \(polos, sangsih) _args deriver -> do
         inst <- Util.get_instrument
-        (polos, sangsih) <- get_pasang
         Post.map_events_asc_ (unison inst polos sangsih) <$> deriver
     where
     unison inst polos sangsih event
@@ -65,12 +64,13 @@ c_kempyung :: Derive.Transformer Derive.Note
 c_kempyung = Derive.transformer "kempyung" postproc
     "Split part into kempyung, with `polos-inst` below and `sangsih-inst`\
     \ above."
-    $ Sig.callt (Sig.defaulted "top" Nothing
+    $ Sig.callt ((,)
+    <$> Sig.defaulted "top" Nothing
         "Any pitches above this will be in unison. Normally the instrument\
-        \ sets it via the environ.")
-    $ \top_pitch _args deriver -> do
+        \ sets it via the environ."
+    <*> pasang_arg
+    ) $ \(top_pitch, (polos, sangsih)) _args deriver -> do
         inst <- Util.get_instrument
-        (polos, sangsih) <- get_pasang
         maybe_top <- case top_pitch of
             Nothing -> return Nothing
             Just pitch -> Just <$>
@@ -98,8 +98,7 @@ c_nyogcag :: Derive.Transformer Derive.Note
 c_nyogcag = Derive.transformer "nyog" postproc
     "Split a single part into polos and sangsih parts by assigning\
     \ `inst-polos` and `inst-sangsih` to alternating notes."
-    $ Sig.call0t $ \_args deriver -> do
-        (polos, sangsih) <- get_pasang
+    $ Sig.callt pasang_arg $ \(polos, sangsih) _args deriver ->
         snd . Post.map_events_asc (nyogcag polos sangsih) True <$> deriver
 
 nyogcag :: Score.Instrument -> Score.Instrument
@@ -145,8 +144,12 @@ noltol threshold nexts event
         List.find ((== Score.event_instrument event) . Score.event_instrument)
             nexts
 
-get_pasang :: Derive.Deriver (Score.Instrument, Score.Instrument)
-get_pasang = (,) <$> Derive.get_val inst_polos <*> Derive.get_val inst_sangsih
+pasang_arg :: Sig.Parser (Score.Instrument, Score.Instrument)
+pasang_arg = (,)
+    <$> Sig.required_environ (TrackLang.unsym inst_polos) Sig.Unprefixed
+        "Polos instrument."
+    <*> Sig.required_environ (TrackLang.unsym inst_sangsih) Sig.Unprefixed
+        "Sangsih instrument."
 
 inst_polos :: TrackLang.ValName
 inst_polos = "inst-polos"

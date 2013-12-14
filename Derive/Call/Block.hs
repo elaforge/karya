@@ -60,7 +60,7 @@ eval_root_block global_transform block_id =
 -- * note block calls
 
 lookup_note_block :: Derive.LookupCall (Derive.Generator Derive.Note)
-lookup_note_block = Derive.pattern_lookup block_call_doc
+lookup_note_block = Derive.pattern_lookup "block name"
     (Derive.extract_doc fake_call)
     (\sym -> fmap c_block <$> symbol_to_block_id sym)
     where
