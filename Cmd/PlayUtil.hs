@@ -10,7 +10,6 @@ import qualified Data.Set as Set
 import qualified Data.Vector as Vector
 
 import Util.Control
-import qualified Util.Seq as Seq
 import qualified Util.Tree as Tree
 import qualified Util.Vector as Vector
 
@@ -98,26 +97,8 @@ make_constant :: (Cmd.M m) => State.State -> Derive.Cache -> Derive.ScoreDamage
 make_constant ui_state cache damage = do
     lookup_scale <- Cmd.get_lookup_scale
     lookup_inst <- get_lookup_inst
-    wants_signal <- get_wants_track_signal
     return $ Derive.initial_constant
-        ui_state wants_signal lookup_scale lookup_inst cache damage
-
--- | Get the set of tracks that want to render a signal.
-get_wants_track_signal :: (Cmd.M m) => m (Set.Set (BlockId, TrackId))
-get_wants_track_signal = do
-    block_ids <- State.all_block_ids
-    mconcat <$> mapM get block_ids
-    where
-    get block_id = do
-        track_flags <- map (second Block.track_flags)
-            . Seq.map_filter Block.track_id
-            . Block.block_tracks <$> State.get_block block_id
-        tracks <- mapM (State.get_track . fst) track_flags
-        return $ Set.fromList
-            [ (block_id, track_id)
-            | ((track_id, flags), track) <- zip track_flags tracks
-            , Block.wants_track_signal flags track
-            ]
+        ui_state lookup_scale lookup_inst cache damage
 
 -- | Run a derivation when you already know the Dynamic.  This is the case when
 -- deriving at a certain point in the score via the TrackDynamic.
@@ -127,8 +108,8 @@ run_with_dynamic dynamic deriver = do
     ui_state <- State.get
     lookup_scale <- Cmd.get_lookup_scale
     lookup_inst <- get_lookup_inst
-    let constant = Derive.initial_constant ui_state mempty
-            lookup_scale lookup_inst mempty mempty
+    let constant = Derive.initial_constant ui_state lookup_scale lookup_inst
+            mempty mempty
     let state = Derive.State dynamic mempty constant
     return $ Derive.run state deriver
 

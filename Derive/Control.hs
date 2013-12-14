@@ -23,9 +23,9 @@
 module Derive.Control where
 import qualified Data.ByteString.Char8 as Char8
 import qualified Data.Char as Char
+import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
-import qualified Data.Set as Set
 import qualified Data.Text as Text
 import qualified Data.Tree as Tree
 
@@ -33,6 +33,7 @@ import Util.Control
 import qualified Util.Log as Log
 import qualified Util.Seq as Seq
 
+import qualified Ui.Block as Block
 import qualified Ui.Event as Event
 import qualified Ui.Events as Events
 import qualified Ui.Track as Track
@@ -368,12 +369,10 @@ tevents = Events.ascending . TrackTree.tevents_events
 -- unwarp the signal.
 stash_if_wanted :: TrackTree.TrackEvents -> Signal.Control -> Bool
     -> Derive.Deriver ()
-stash_if_wanted track sig is_pitch = whenM (signal_wanted track) $ do
-    warp <- Internal.get_dynamic Derive.state_warp
-    case TrackTree.tevents_block_track_id track of
-        Just (block_id, track_id) ->
-            put_unwarped_signal block_id track_id warp sig is_pitch
-        _ -> return ()
+stash_if_wanted track sig is_pitch =
+    whenJustM (render_of track) $ \(block_id, track_id, _) -> do
+        warp <- Internal.get_dynamic Derive.state_warp
+        put_unwarped_signal block_id track_id warp sig is_pitch
 
 put_unwarped_signal :: BlockId -> TrackId -> Score.Warp -> Signal.Control
     -> Bool -> Derive.Deriver ()
@@ -386,8 +385,6 @@ put_unwarped_signal block_id track_id warp sig is_pitch =
 unwarp :: Score.Warp -> Signal.Control -> (Signal.Display, ScoreTime, ScoreTime)
 unwarp warp control = case is_linear_warp warp of
     Just (shift, stretch) -> (Signal.coerce control, shift, stretch)
-    -- TODO if I teach Signal.unwarp about shift and stretch I can avoid
-    -- the intermediate warp signal
     Nothing -> (Signal.unwarp (Score.warp_to_signal warp) control, 0, 1)
 
 -- | Return (shift, stretch) if the tempo is linear.  This relies on an
@@ -403,11 +400,32 @@ put_track_signal :: BlockId -> TrackId -> Track.TrackSignal -> Derive.Deriver ()
 put_track_signal block_id track_id tsig = Internal.merge_collect $ mempty
     { Derive.collect_track_signals = Map.singleton (block_id, track_id) tsig }
 
-signal_wanted :: TrackTree.TrackEvents -> Derive.Deriver Bool
-signal_wanted track = case TrackTree.tevents_block_track_id track of
-    Just (block_id, track_id) -> Set.member (block_id, track_id) <$>
-        Internal.get_constant Derive.state_wanted_track_signals
-    Nothing -> return False
+-- | Get render information if this track wants a TrackSignal.
+render_of :: TrackTree.TrackEvents
+    -> Derive.Deriver (Maybe (BlockId, TrackId, Maybe Track.RenderSource))
+render_of track = case TrackTree.tevents_block_track_id track of
+    Nothing -> return Nothing
+    Just (block_id, track_id) -> do
+        (btrack, track) <- get_block_track block_id track_id
+        let flags = Block.track_flags btrack
+        return $ if Block.wants_track_signal flags track
+            then Just (block_id, track_id,
+                extract (Track.render_style (Track.track_render track)))
+            else Nothing
+    where
+    extract (Track.Line (Just source)) = Just source
+    extract (Track.Filled (Just source)) = Just source
+    extract _ = Nothing
+
+get_block_track :: BlockId -> TrackId
+    -> Derive.Deriver (Block.Track, Track.Track)
+get_block_track block_id track_id = do
+    track <- Derive.get_track track_id
+    block <- Derive.get_block block_id
+    btrack <- Derive.require (show block_id <> " has " <> show track_id) $
+        List.find ((== Just track_id) . Block.track_id)
+            (Block.block_tracks block)
+    return (btrack, track)
 
 
 -- * util

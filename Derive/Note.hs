@@ -123,8 +123,9 @@ d_note_track (Tree.Node track subs) =
 
 record_if_wanted :: TrackTree.TrackEvents -> Derive.Events -> Derive.Deriver ()
 record_if_wanted track events =
-    whenJustM (render_of track) $ \((block_id, track_id), source) ->
-        stash_signal block_id track_id source events
+    whenJustM (Control.render_of track) $ \(block_id, track_id, maybe_source) ->
+        whenJust maybe_source $ \source ->
+            stash_signal block_id track_id source events
 
 stash_signal :: BlockId -> TrackId -> Track.RenderSource -> Derive.Events
     -> Derive.Deriver ()
@@ -155,20 +156,6 @@ extract_track_signal source events = (sig, is_pitch)
         PitchSignal.drop_before_strict (Score.event_min event) $
         PitchSignal.apply_controls (Score.event_environ event)
             (Score.event_controls event) psig
-
--- | Wait, if I can just look at the Track, why do I need
--- Derive.state_wanted_track_signals?
--- TODO merge this with Control.signal_wanted.
-render_of :: TrackTree.TrackEvents
-    -> Derive.Deriver (Maybe ((BlockId, TrackId), Track.RenderSource))
-render_of track = case TrackTree.tevents_block_track_id track of
-    Nothing -> return Nothing
-    Just (block_id, track_id) -> fmap ((,) (block_id, track_id)) . extract
-        . Track.render_style . Track.track_render <$> Derive.get_track track_id
-    where
-    extract (Track.Line (Just source)) = Just source
-    extract (Track.Filled (Just source)) = Just source
-    extract _ = Nothing
 
 with_title :: TrackTree.EventsTree -> (ScoreTime, ScoreTime) -> Text
     -> Derive.NoteDeriver -> Derive.NoteDeriver

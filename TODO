@@ -5,7 +5,7 @@ LEGEND
 UNSORTED
   * scripts 'debug' and 'opt' to compile logview and seq, and run seq
     I need a way to tell if logview is running.
-  - If I merge Derive.Note.render_of with Derive.Control.signal_wanted, I
+  * If I merge Derive.Note.render_of with Derive.Control.signal_wanted, I
     think I can get rid of Derive.state_wanted_track_signals.
   - Perhaps each score should also save the MIDI performance of the root
     block, along with the date / patch.  That way I can run a diff on the last
@@ -66,8 +66,9 @@ UNSORTED
         just call the score twice, once with transpose +1 oct.
   india
     * factor dip and dip_c?
-    * semi-tone dip.  This is like 1 cycle kam.  In fact, it might be useful
-      to have a kam version where the speed is in number of cycles.
+    - semi-tone dip.  This is like 1 cycle kam.
+    * In fact, it might be useful to have a kam version where the speed is in
+      number of cycles.
     - It would be possible to implement a general purpose initial-hold
       transformer by mapping the samples, to e.g. lengthen the first one and
       compress the rest to compensate.

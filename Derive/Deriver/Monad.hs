@@ -675,8 +675,6 @@ lookup_scopes (lookup:rest) call_id =
 
 data Constant = Constant {
     state_ui :: !State.State
-    -- | Set of tracks that I want 'Track.TrackSignals' for.
-    , state_wanted_track_signals :: !(Set.Set (BlockId, TrackId))
     , state_control_op_map :: !(Map.Map TrackLang.CallId ControlOp)
     , state_lookup_scale :: !LookupScale
     -- | Get the calls and environ that should be in scope with a certain
@@ -691,13 +689,12 @@ data Constant = Constant {
     , state_lilypond :: !(Maybe Lilypond.Types.Config)
     }
 
-initial_constant :: State.State -> Set.Set (BlockId, TrackId) -> LookupScale
+initial_constant :: State.State -> LookupScale
     -> (Score.Instrument -> Maybe Instrument) -> Cache -> ScoreDamage
     -> Constant
-initial_constant ui_state track_signals lookup_scale lookup_inst cache
+initial_constant ui_state lookup_scale lookup_inst cache
         score_damage = Constant
     { state_ui = ui_state
-    , state_wanted_track_signals = track_signals
     , state_control_op_map = default_control_op_map
     , state_lookup_scale = lookup_scale
     , state_lookup_instrument = lookup_inst

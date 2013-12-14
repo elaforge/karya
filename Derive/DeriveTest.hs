@@ -108,9 +108,8 @@ run_events f = extract_run $
 
 default_constant :: State.State -> Derive.Cache -> Derive.ScoreDamage
     -> Derive.Constant
-default_constant ui_state cache damage =
-    Derive.initial_constant ui_state mempty
-        default_lookup_scale (const Nothing) cache damage
+default_constant ui_state cache damage = Derive.initial_constant ui_state
+    default_lookup_scale (const Nothing) cache damage
 
 eval :: State.State -> Derive.Deriver a -> Either String a
 eval ui_state m = extract_run id (run ui_state m)
