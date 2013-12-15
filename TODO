@@ -10,7 +10,7 @@ UNSORTED
   - but for loop to work for sarvalaghu, it has to have absolute time
     according to the calling block, so it doesn't always start at the
     beginning
-  - both loop and clip calls could take a duration which stretches the callee
+  * both loop and clip calls could take a duration which stretches the callee
     to that duration
   - save a set of views, and switch between them, so I can focus on one
     but not have to recreate everything again

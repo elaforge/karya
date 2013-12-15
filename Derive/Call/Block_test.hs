@@ -43,34 +43,34 @@ test_relative_block = do
 test_clip = do
     let extract = DeriveTest.extract DeriveTest.e_start_dur
         run tracks = extract $ DeriveTest.derive_blocks tracks
-    equal (run [("b1", [(">", [(0, 1, "clip b2")])])])
-        ([], ["Error: block not found: b2"])
+        sub = ("sub=ruler", [(">", [(0, 1, ""), (1, 1, "")])])
+    equal (run [("b1", [(">", [(0, 1, "clip sub")])])])
+        ([], ["Error: block not found: sub"])
     -- make sure out of range notes are clipped
-    equal (run
-        [ ("b1", [(">", [(0, 1, "clip b2")])])
-        , ("b2", [(">", [(0, 1, ""), (1, 1, "")])])
-        ])
+    equal (run [("b1", [(">", [(0, 1, "clip sub")])]), sub])
         ([(0, 1)], [])
     -- the tempo of the block is not affected by the duration of the event
-    equal (run
-        [ ("b1", [(">", [(1, 2, "clip b2")])])
-        , ("b2", [(">", [(0, 1, ""), (1, 1, "")])])
-        ])
+    equal (run [("b1", [(">", [(1, 2, "clip sub")])]), sub])
         ([(1, 1), (2, 1)], [])
+
+    equal (run [("b1", [(">", [(1, 2, "clip sub 1")])]), sub])
+        ([(1, 0.5), (1.5, 0.5)], [])
+    equal (run [("b1", [(">", [(1, 2, "clip sub .5")])]), sub])
+        ([(1, 0.25), (1.25, 0.25)], [])
 
 test_clip_start = do
     let extract = DeriveTest.extract DeriveTest.e_note
         run tracks = extract $ DeriveTest.derive_blocks tracks
     -- Aligned to the end.
     equal (run
-        [ ("b1", [(">", [(0, 2, "Clip b2")])])
-        , ("b2=ruler", UiTest.regular_notes 1)
+        [ ("b1", [(">", [(0, 2, "Clip sub")])])
+        , ("sub=ruler", UiTest.regular_notes 1)
         ])
         ([(1, 1, "3c")], [])
     -- Get the last two notes.
     equal (run
-        [ ("b1", [(">", [(0, 2, "Clip b2")])])
-        , ("b2=ruler", UiTest.regular_notes 3)
+        [ ("b1", [(">", [(0, 2, "Clip sub")])])
+        , ("sub=ruler", UiTest.regular_notes 3)
         ])
         ([(0, 1, "3d"), (1, 1, "3e")], [])
 
@@ -78,16 +78,16 @@ test_loop = do
     let extract = DeriveTest.extract DeriveTest.e_start_dur
         run tracks = extract $ DeriveTest.derive_blocks tracks
     equal (run
-        [ ("b1", [(">", [(0, 4, "loop b2")])])
-        , ("b2=ruler", [(">", [(0, 1, "")])])
+        [ ("b1", [(">", [(0, 4, "loop sub")])])
+        , ("sub=ruler", [(">", [(0, 1, "")])])
         ])
         ([(0, 1), (1, 1), (2, 1), (3, 1)], [])
     -- Cuts off the last event.
-    equal (run
-        [ ("b1", [(">", [(0, 4, "loop b2")])])
-        , ("b2=ruler", [(">", [(0, 1, ""), (1, 2, "")])])
-        ])
-        ([(0, 1), (1, 2), (3, 1)], [])
+    let sub = ("sub=ruler", [(">", [(0, 1, ""), (1, 3, "")])])
+    equal (run [("b1", [(">", [(0, 5, "loop sub")])]), sub])
+        ([(0, 1), (1, 3), (4, 1)], [])
+    equal (run [("b1", [(">", [(0, 4, "loop sub 2")])]), sub])
+        ([(0, 0.5), (0.5, 1.5), (2, 0.5), (2.5, 1.5)], [])
 
 test_control_block = do
     let extract = DeriveTest.e_control "cont"

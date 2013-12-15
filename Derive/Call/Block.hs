@@ -145,6 +145,12 @@ symbol_to_block_id sym = do
             return $ if Map.member block_id blocks then Just block_id
                 else Nothing
 
+require_block_id :: TrackLang.Symbol -> Derive.Deriver BlockId
+require_block_id sym = maybe
+    (Derive.throw $ untxt $
+        "block not found: " <> TrackLang.show_val sym)
+    return =<< symbol_to_block_id sym
+
 -- ** clip
 
 c_clip :: Derive.Generator Derive.Note
@@ -154,55 +160,54 @@ c_clip = make_block_call "clip"
     \ length, the block will be substituted with no stretching. Any\
     \ events that lie beyond the end of the event will be clipped off.\
     \ This can be used to cut a sequence short, for example to substitute\
-    \ a different ending.\
-    \\nIt's not necessarily easy to use because the callee block\
-    \ may not be in the same time scale as the calling block."
-    -- TODO wait until I actually start using this to see if it's worth
-    -- coming up with a solution for that.
-    $ \block_id args -> do
-        sub_dur <- Derive.get_block_dur block_id
+    \ a different ending."
+    $ \block_id dur args -> do
         end <- Derive.real (snd (Args.range args))
-        takeWhile (before end) <$>
-            Derive.d_place (Args.start args) sub_dur (d_block block_id)
-    where before t = LEvent.either ((<t) . Score.event_start) (const True)
+        takeWhile (event_before end) <$>
+            Derive.d_place (Args.start args) dur (d_block block_id)
 
 c_clip_start :: Derive.Generator Derive.Note
 c_clip_start = make_block_call "Clip"
     "Like `clip`, but align the named block to the end of the event instead\
     \ of the beginning. Events that then lie before the start are clipped."
-    $ \block_id args -> do
-        sub_dur <- Derive.get_block_dur block_id
+    $ \block_id dur args -> do
         start <- Args.real_start args
-        dropWhile (before start) <$>
-            Derive.d_place (Args.end args - sub_dur) sub_dur (d_block block_id)
-    where before t = LEvent.either ((<t) . Score.event_start) (const True)
+        dropWhile (event_before start) <$>
+            Derive.d_place (Args.end args - dur) dur (d_block block_id)
 
-make_block_call :: Text -> Text
-    -> (BlockId -> Derive.NoteArgs -> Derive.NoteDeriver)
-    -> Derive.Generator Derive.Note
-make_block_call name doc call = Derive.make_call name Tags.prelude doc $
-    Sig.call (required "block-id" block_call_doc) $ \sym -> Sub.inverting $
-    \args -> do
-        block_id <- require_block_id sym
-        Internal.with_stack_block block_id $
-            Cache.block (call block_id) args
-
--- * loop
+-- ** loop
 
 c_loop :: Derive.Generator Derive.Note
 c_loop = make_block_call "loop"
     "This is similar to `clip`, but when the called note runs out, it is\
     \ repeated."
-    $ \block_id args -> do
-        sub_dur <- Derive.get_block_dur block_id
+    $ \block_id dur args -> do
         let (start, end) = Args.range args
         real_end <- Derive.real end
-        let repeats = ceiling $ (end - start) / sub_dur
-            starts = take repeats $ Seq.range_ start sub_dur
-        takeWhile (before real_end) <$> mconcat
-            [Derive.d_place s sub_dur (d_block block_id) | s <- starts]
-    where before t = LEvent.either ((<t) . Score.event_start) (const True)
+        let repeats = ceiling $ (end - start) / dur
+            starts = take repeats $ Seq.range_ start dur
+        takeWhile (event_before real_end) <$> mconcat
+            [Derive.d_place s dur (d_block block_id) | s <- starts]
 
+-- ** util
+
+make_block_call :: Text -> Text
+    -> (BlockId -> ScoreTime -> Derive.NoteArgs -> Derive.NoteDeriver)
+    -> Derive.Generator Derive.Note
+make_block_call name doc call = Derive.make_call name Tags.prelude doc $
+    Sig.call ((,)
+    <$> required "block-id" block_call_doc
+    <*> Sig.defaulted "dur" Nothing "If given, the callee will be stretched to\
+        \ this duration. Otherwise, it retains its own duration."
+    ) $ \(sym, maybe_dur) -> Sub.inverting $ \args -> do
+        block_id <- require_block_id sym
+        sub_dur <- Derive.get_block_dur block_id
+        let dur = fromMaybe sub_dur maybe_dur
+        Internal.with_stack_block block_id $
+            Cache.block (call block_id dur) args
+
+event_before :: RealTime -> LEvent.LEvent Score.Event -> Bool
+event_before t = LEvent.either ((<t) . Score.event_start) (const True)
 
 -- * control call
 
