@@ -11,6 +11,7 @@ module Derive.Call.Block (
 import qualified Data.Map as Map
 
 import Util.Control
+import qualified Util.Seq as Seq
 import qualified Ui.Block as Block
 import qualified Ui.Event as Event
 import qualified Ui.Id as Id
@@ -41,6 +42,7 @@ note_calls :: Derive.CallMaps Derive.Note
 note_calls = Derive.call_maps
     [ ("clip", c_clip)
     , ("Clip", c_clip_start)
+    , ("loop", c_loop)
     , (BlockUtil.capture_null_control, c_capture_null_control)
     ]
     []
@@ -132,7 +134,7 @@ call_from_block_id block_id =
     TrackLang.call (txt $ Id.show_id $ Id.unpack_id block_id) []
 
 -- | Like 'Call.symbol_to_block_id' but make sure the block exists.
-symbol_to_block_id :: TrackLang.CallId -> Derive.Deriver (Maybe BlockId)
+symbol_to_block_id :: TrackLang.Symbol -> Derive.Deriver (Maybe BlockId)
 symbol_to_block_id sym = do
     caller <- Internal.lookup_current_block_id
     ns <- Derive.get_ui_state $ State.config_namespace . State.state_config
@@ -146,7 +148,7 @@ symbol_to_block_id sym = do
 -- ** clip
 
 c_clip :: Derive.Generator Derive.Note
-c_clip = make_clip_call "clip"
+c_clip = make_block_call "clip"
     "Like the normal block call, this will substitute the named block into\
     \ the score. But instead of stretching the block to fit the event\
     \ length, the block will be substituted with no stretching. Any\
@@ -162,11 +164,10 @@ c_clip = make_clip_call "clip"
         end <- Derive.real (snd (Args.range args))
         takeWhile (before end) <$>
             Derive.d_place (Args.start args) sub_dur (d_block block_id)
-    where
-    before t = LEvent.either ((<t) . Score.event_start) (const True)
+    where before t = LEvent.either ((<t) . Score.event_start) (const True)
 
 c_clip_start :: Derive.Generator Derive.Note
-c_clip_start = make_clip_call "clip-start"
+c_clip_start = make_block_call "Clip"
     "Like `clip`, but align the named block to the end of the event instead\
     \ of the beginning. Events that then lie before the start are clipped."
     $ \block_id args -> do
@@ -174,20 +175,33 @@ c_clip_start = make_clip_call "clip-start"
         start <- Args.real_start args
         dropWhile (before start) <$>
             Derive.d_place (Args.end args - sub_dur) sub_dur (d_block block_id)
-    where
-    before t = LEvent.either ((<t) . Score.event_start) (const True)
+    where before t = LEvent.either ((<t) . Score.event_start) (const True)
 
-make_clip_call :: Text -> Text
+make_block_call :: Text -> Text
     -> (BlockId -> Derive.NoteArgs -> Derive.NoteDeriver)
     -> Derive.Generator Derive.Note
-make_clip_call name doc call = Derive.make_call name Tags.prelude doc $ Sig.call
-    (required "block_id" block_call_doc) $ \sym -> Sub.inverting $ \args -> do
-        block_id <- maybe
-            (Derive.throw $ untxt $
-                "block not found: " <> TrackLang.show_val sym)
-            return =<< symbol_to_block_id sym
+make_block_call name doc call = Derive.make_call name Tags.prelude doc $
+    Sig.call (required "block-id" block_call_doc) $ \sym -> Sub.inverting $
+    \args -> do
+        block_id <- require_block_id sym
         Internal.with_stack_block block_id $
             Cache.block (call block_id) args
+
+-- * loop
+
+c_loop :: Derive.Generator Derive.Note
+c_loop = make_block_call "loop"
+    "This is similar to `clip`, but when the called note runs out, it is\
+    \ repeated."
+    $ \block_id args -> do
+        sub_dur <- Derive.get_block_dur block_id
+        let (start, end) = Args.range args
+        real_end <- Derive.real end
+        let repeats = ceiling $ (end - start) / sub_dur
+            starts = take repeats $ Seq.range_ start sub_dur
+        takeWhile (before real_end) <$> mconcat
+            [Derive.d_place s sub_dur (d_block block_id) | s <- starts]
+    where before t = LEvent.either ((<t) . Score.event_start) (const True)
 
 
 -- * control call
