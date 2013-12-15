@@ -16,7 +16,7 @@
 -- preserved, but most of the parsers insist on a restrictive character set.
 -- Special characters should probably be written with backticks anyway.
 module Derive.ParseBs (
-    from_string, to_string, from_text, to_text
+    from_text, to_text
     , parse_expr
     , parse_control_title
     , parse_val, parse_attrs, parse_num, parse_call

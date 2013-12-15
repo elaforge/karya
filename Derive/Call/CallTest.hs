@@ -117,9 +117,9 @@ generator = Derive.make_call "test" mempty "test doc" . Sig.call0
 
 -- * PassedArgs
 
-expr :: String -> TrackLang.Expr
+expr :: Text -> TrackLang.Expr
 expr = either (error . ("CallTest.expr: " ++)) id . ParseBs.parse_expr
-    . ParseBs.from_string
+    . ParseBs.from_text
 
 val :: Text -> TrackLang.RawVal
 val = either (error . ("CallTest.val: " ++)) id . ParseBs.parse_val

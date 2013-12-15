@@ -3,9 +3,11 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
-  - get rid of ParseBs.from_string? rename Call.eval_string to eval_text?
+  * get rid of ParseBs.from_string? rename Call.eval_string to eval_text?
   - loop call, like clip it doesn't stretch, but when the block runs out it
     starts again from the beginning, can use for sarvalaghu
+  - both loop and clip calls could take a duration which stretches the callee
+    to that duration
   - save a set of views, and switch between them, so I can focus on one
     but not have to recreate everything again
   * scripts 'debug' and 'opt' to compile logview and seq, and run seq
