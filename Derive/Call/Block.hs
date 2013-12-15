@@ -43,6 +43,7 @@ note_calls = Derive.call_maps
     [ ("clip", c_clip)
     , ("Clip", c_clip_start)
     , ("loop", c_loop)
+    , ("tile", c_tile)
     , (BlockUtil.capture_null_control, c_capture_null_control)
     ]
     []
@@ -183,11 +184,28 @@ c_loop = make_block_call "loop"
     \ repeated."
     $ \block_id dur args -> do
         let (start, end) = Args.range args
-        real_end <- Derive.real end
         let repeats = ceiling $ (end - start) / dur
             starts = take repeats $ Seq.range_ start dur
+        real_end <- Derive.real end
         takeWhile (event_before real_end) <$> mconcat
             [Derive.d_place s dur (d_block block_id) | s <- starts]
+
+c_tile :: Derive.Generator Derive.Note
+c_tile = make_block_call "tile"
+    "This is like `loop`, but it can start the looped sub-block in its middle\
+    \ instead of starting from 0. The effect is as if the loop is tiled from\
+    \ the beginning of the called block, and is only \"let through\" during\
+    \ the `tile` call. This is useful for patterns that are tied to the meter,\
+    \ but may be interrupted at arbitrary times, e.g. sarvalaghu patterns."
+    $ \block_id dur args -> do
+        let (start, end) = Args.range args
+        let sub_start = fromIntegral (floor (start / dur)) * dur
+        let repeats = ceiling $ (end - sub_start) / dur
+            starts = take repeats $ Seq.range_ sub_start dur
+        real_end <- Derive.real end
+        real_start <- Derive.real start
+        dropWhile (event_before real_start) . takeWhile (event_before real_end)
+            <$> mconcat [Derive.d_place s dur (d_block block_id) | s <- starts]
 
 -- ** util
 

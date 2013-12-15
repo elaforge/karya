@@ -399,6 +399,9 @@ r_log_strings = snd . extract id
 e_event :: Score.Event -> (RealTime, RealTime, String)
 e_event e = (Score.event_start e, Score.event_duration e, Score.event_string e)
 
+e_start_dur :: Score.Event -> (RealTime, RealTime)
+e_start_dur e = (Score.event_start e, Score.event_duration e)
+
 e_everything :: Score.Event -> (RealTime, RealTime, String, Text, [Text])
 e_everything e =
     ( Score.event_start e
@@ -433,9 +436,6 @@ signal_to_nn psig
 
 e_pitch :: Score.Event -> String
 e_pitch e = maybe "?" (untxt . Pitch.note_text) (Score.initial_note e)
-
-e_start_dur :: Score.Event -> (RealTime, RealTime)
-e_start_dur e = (Score.event_start e, Score.event_duration e)
 
 -- | (start, dur, pitch), the melodic essentials of a note.
 e_note :: Score.Event -> (RealTime, RealTime, String)
