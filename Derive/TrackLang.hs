@@ -596,6 +596,15 @@ map_args f = fmap call
     term (ValCall c) = ValCall (call c)
     term (Literal lit) = Literal (f lit)
 
+map_call_id :: (CallId -> CallId) -> Call -> Call
+map_call_id f (Call call args) = Call (f call) args
+
+-- | Transform only the CallId in the generator position.
+map_generator :: (CallId -> CallId) -> Expr -> Expr
+map_generator f (call1 :| calls) = case calls of
+    [] -> map_call_id f call1 :| []
+    _ : _ -> call1 :| Seq.map_last (map_call_id f) calls
+
 -- | Convenient constructor for Call.  Not to be confused with 'call0'--calln.
 call :: Text -> [Term] -> Call
 call sym = Call (Symbol sym)

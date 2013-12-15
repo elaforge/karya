@@ -14,6 +14,9 @@ import Util.Test
 import qualified Ui.Event as Event
 import qualified Ui.UiTest as UiTest
 import qualified Cmd.Cmd as Cmd
+import qualified Cmd.Instrument.CUtil as CUtil
+import qualified Cmd.Instrument.Drums as Drums
+
 import qualified Derive.Args as Args
 import qualified Derive.Attrs as Attrs
 import qualified Derive.Call as Call
@@ -264,6 +267,23 @@ test_note_transformer_stack = do
     equal logs []
     equal (map Stack.to_ui stacks)
         [[(Just UiTest.default_block_id, Just (UiTest.mk_tid 2), Just (1, 2))]]
+
+test_reapply_gen = do
+    let run = DeriveTest.extract DeriveTest.e_attributes .
+            DeriveTest.derive_tracks_with with
+        dyn = ("dyn", [(0, 0, "1")])
+    equal (run [(">", [(0, 0, "a")]), dyn]) (["+a"], [])
+    -- If Call.reapply_gen isn't replacing the info_expr, the inversion will
+    -- wind up with 'ab' as the call again, and 'ab' will be called multiple
+    -- times.
+    equal (run [(">", [(0, 0, "ab")]), dyn]) (["+a", "+b"], [])
+    where
+    with = CallTest.with_note_generators $
+        ("ab", CUtil.multiple_call "ab" ["a", "b"])
+        : CUtil.drum_calls
+            [ Drums.Note "a" (Score.attr "a") 'a' 1
+            , Drums.Note "b" (Score.attr "b") 'b' 1
+            ]
 
 -- * implementation
 

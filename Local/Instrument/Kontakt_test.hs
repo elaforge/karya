@@ -117,12 +117,14 @@ test_kendang = do
             (3, "+pak", 1), (4, "+pak+soft", 0.3)], [])
 
 test_mridangam = do
-    let run pitch notes = perform ["kkt/mridangam"] $ Derive.r_events $ derive
+    let run pitch notes tracks = derive $
             [ ("*", [(0, 0, pitch)])
             , (">kkt/mridangam",
                 [(t, 0, n) | (t, n) <- zip (Seq.range_ 0 1) notes])
-            ]
-    let (_events, midi, logs) = run "3b" ["k", "t", "n", "d", "d2", "m"]
+            ] ++ tracks
+        perf = perform ["kkt/mridangam"] . Derive.r_events
+    let (_events, midi, logs) =
+            perf $ run "3b" ["k", "t", "n", "d", "d2", "m"] []
     equal logs []
     equal (mapMaybe Midi.channel_message $ filter Midi.is_note_on $
             map snd (DeriveTest.extract_midi midi))
@@ -130,6 +132,11 @@ test_mridangam = do
         , Midi.NoteOn Key.d5 127, Midi.NoteOn Key.d6 127
         , Midi.NoteOn Key.d7 127, Midi.NoteOn Key.d8 127
         ]
+    -- Ensure multiple calls works.  This is already tested in
+    -- "Derive.Call_test", but here's another test.
+    equal (DeriveTest.extract DeriveTest.e_attributes $
+            run "3b" ["do"] [("dyn", [(0, 0, ".5")])])
+        (["+din", "+thom"], [])
 
 derive :: [UiTest.TrackSpec] -> Derive.Result
 derive = DeriveTest.derive_tracks_with

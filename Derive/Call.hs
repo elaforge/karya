@@ -143,12 +143,24 @@ eval_event event = case ParseBs.parse_expr (Event.event_bytestring event) of
         -- TODO eval it separately to catch any exception?
         eval_one_at (Event.start event) (Event.duration event) expr
 
--- | Evaluate a generator with the args given.  Generators can use this to
--- delegate to other generators.
+-- | Evaluate a generator, reusing the passed args but replacing the CallId.
+-- Generators can use this to delegate to other generators.
 reapply_gen :: (Derive.Callable d) => PassedArgs d -> TrackLang.CallId
     -> Derive.LogsDeriver d
-reapply_gen args call_id = reapply_generator (Derive.passed_info args)
-    call_id (Derive.passed_vals args)
+reapply_gen args call_id = do
+    let cinfo = Derive.passed_info args
+    -- As documented in 'reapply_generator', I need the expr that
+    -- (call_id, passed_vals) corresponds to.  Since I'm reusing an existing
+    -- call, it's probably safe to reuse its expr, swapping out the call_id.
+    expr <- Derive.require_right ("reapply_gen: unparseable info_expr: "<>) $
+        replace_generator call_id (Derive.info_expr cinfo)
+    reapply_generator cinfo call_id (Derive.passed_vals args) expr
+
+replace_generator :: TrackLang.CallId -> Event.Text -> Either String Event.Text
+replace_generator call_id = fmap replace . ParseBs.parse_expr
+    where
+    replace = ParseBs.from_text . ShowVal.show_val
+        . TrackLang.map_generator (const call_id)
 
 -- | Apply an expr with the current call info.  This discards the parsed
 -- arguments in the 'PassedArgs' since it gets args from the 'TrackLang.Expr'.
@@ -343,8 +355,8 @@ derive_event st tinfo prev_sample prev event next
         } = tinfo
 
 -- | Apply a toplevel expression.
-apply_toplevel :: (Derive.Callable d) => Derive.State
-    -> CallInfo d -> TrackLang.Expr
+apply_toplevel :: (Derive.Callable d) =>
+    Derive.State -> CallInfo d -> TrackLang.Expr
     -> (Either Derive.Error (LEvent.LEvents d), [Log.Msg], Derive.Collect)
 apply_toplevel state cinfo expr =
     run $ apply_transformers cinfo transform_calls $
@@ -387,6 +399,39 @@ apply_generator cinfo (TrackLang.Call call_id args) = do
     name = Derive.callable_name
         (error "Derive.callable_name shouldn't evaluate its argument." :: d)
 
+-- | Like 'apply_generator', but for when the args are already parsed and
+-- evaluated.  This is useful when one generator wants to dispatch to another.
+--
+-- In addition to a call and args, this also requires the expression that
+-- the call and args represents.  The reason is complicated and annoying:
+-- 'Derive.info_expr' must have the expression currently being evaluated,
+-- because it's used later by inversion.  Since I'm evaluating a new call_id
+-- and args, and the cinfo is likely reused from another call, the @info_expr@
+-- is probably wrong.  Unfortunately, I can't "unparse" a call_id and args back
+-- to an expr, because of the Val\/RawVal distinction.  That in turn is due to
+-- pitch signal expressions having an optional default pitch.  To turn a pitch
+-- signal back to a call, pitches would have to have enough information to
+-- recreate the call that created them.  The underlying problem is that, for
+-- flexibility, pitches are code, not data.  But that means that unlike all the
+-- other Vals, they can't be converted back to the expression that created
+-- them.
+--
+-- The reason @info_expr@ is unparsed text is also thanks to pitch signal
+-- expressions.  Maybe I should get rid of them?
+reapply_generator :: (Derive.Callable d) => CallInfo d
+    -> TrackLang.CallId -> [TrackLang.Val] -> Event.Text -> Derive.LogsDeriver d
+reapply_generator cinfo call_id args expr = do
+    call <- get_generator call_id
+    let passed = Derive.PassedArgs
+            { Derive.passed_vals = args
+            , Derive.passed_call_name = Derive.call_name call
+            , Derive.passed_info = cinfo { Derive.info_expr = expr  }
+            }
+    -- This duplicates code with 'apply_generator', I tried factoring it out
+    -- but found the results less readable.
+    Internal.with_stack_call (Derive.call_name call) $
+        Derive.call_func call passed
+
 apply_transformers :: (Derive.Callable d) => CallInfo d
     -> [TrackLang.Call] -> Derive.LogsDeriver d
     -> Derive.LogsDeriver d
@@ -410,22 +455,6 @@ apply_transformers cinfo (TrackLang.Call call_id args : calls) deriver = do
     if skip then rest
         else Internal.with_stack_call (Derive.call_name call) $
             Derive.call_func call passed rest
-
--- | Like 'apply_generator', but for when the args are already parsed and
--- evaluated.  This is useful when one generator wants to dispatch to another.
-reapply_generator :: (Derive.Callable d) => CallInfo d
-    -> TrackLang.CallId -> [TrackLang.Val] -> Derive.LogsDeriver d
-reapply_generator cinfo call_id args = do
-    call <- get_generator call_id
-    -- The duplicated code can be factored out, but I tried and found the
-    -- results less readable.
-    let passed = Derive.PassedArgs
-            { Derive.passed_vals = args
-            , Derive.passed_call_name = Derive.call_name call
-            , Derive.passed_info = cinfo
-            }
-    Internal.with_stack_call (Derive.call_name call) $
-        Derive.call_func call passed
 
 -- | The transformer version of 'reapply_generator'.  Like
 -- 'apply_transformers', but apply only one, and apply to already

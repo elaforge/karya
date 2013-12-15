@@ -62,6 +62,11 @@ with_note_generator name call = Derive.with_scopes $
     Derive.s_generator#Derive.s_note#Derive.s_override
         %= (single_lookup name call :)
 
+with_note_generators :: [(Text, Derive.Generator Derive.Note)]
+    -> Derive.Deriver a -> Derive.Deriver a
+with_note_generators calls = Derive.with_scopes $
+    Derive.s_generator#Derive.s_note#Derive.s_override %= (map_lookup calls :)
+
 with_note_transformer :: Text -> Derive.Transformer Derive.Note
     -> Derive.Deriver a -> Derive.Deriver a
 with_note_transformer name call = Derive.with_scopes $
@@ -76,6 +81,9 @@ with_val_call name call = Derive.with_scopes $
 single_lookup :: Text -> Derive.Call d -> Derive.LookupCall (Derive.Call d)
 single_lookup name call =
     Derive.map_lookup (Map.singleton (TrackLang.Symbol name) call)
+
+map_lookup :: [(Text, Derive.Call d)] -> Derive.LookupCall (Derive.Call d)
+map_lookup = Derive.map_lookup . Map.fromList . map (first TrackLang.Symbol)
 
 single_val_lookup :: Text -> Derive.ValCall -> Derive.LookupCall Derive.ValCall
 single_val_lookup name call =

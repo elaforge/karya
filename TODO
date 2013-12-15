@@ -3,6 +3,11 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
+  - get rid of ParseBs.from_string? rename Call.eval_string to eval_text?
+  - loop call, like clip it doesn't stretch, but when the block runs out it
+    starts again from the beginning, can use for sarvalaghu
+  - save a set of views, and switch between them, so I can focus on one
+    but not have to recreate everything again
   * scripts 'debug' and 'opt' to compile logview and seq, and run seq
     I need a way to tell if logview is running.
   * If I merge Derive.Note.render_of with Derive.Control.signal_wanted, I
@@ -65,6 +70,9 @@ UNSORTED
       . I could do it with >wayang-both that emits >wayang-p and >wayang-k. Or
         just call the score twice, once with transpose +1 oct.
   india
+    - nkam 1 1 should emit [0, 1, 0], instead it's more like [0, 1]
+    - flip args for nkam, all the others take the neighbor as the first arg
+    - nkam doesn't seem to interact correctly with 'h'
     * factor dip and dip_c?
     - semi-tone dip.  This is like 1 cycle kam.
     * In fact, it might be useful to have a kam version where the speed is in
