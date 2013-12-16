@@ -3,6 +3,7 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
+  - is there really no way to easily write a 1 cycle trill?
   * get rid of ParseBs.from_string? rename Call.eval_string to eval_text?
   * loop call, like clip it doesn't stretch, but when the block runs out it
     starts again from the beginning, can use for sarvalaghu
@@ -17,6 +18,9 @@ UNSORTED
     to that duration
   - save a set of views, and switch between them, so I can focus on one
     but not have to recreate everything again
+    - why does saving views cause damage on all tracks?
+  * creating a view with a non-existent BlockId crashes event loop:
+    (vid "untitled/b2.v1") not in displayed view list: []
   * scripts 'debug' and 'opt' to compile logview and seq, and run seq
     I need a way to tell if logview is running.
   * If I merge Derive.Note.render_of with Derive.Control.signal_wanted, I

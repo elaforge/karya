@@ -40,6 +40,7 @@ import qualified Data.Text as Text
 
 import Util.Control
 import qualified Util.Log as Log
+import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 
 import qualified Ui.Block as Block
@@ -67,8 +68,9 @@ import Types
 sync :: Track.TrackSignals -> Track.SetStyleHigh -> State.State
     -> [Update.DisplayUpdate] -> IO (Maybe State.Error)
 sync track_signals set_style state updates = do
-    result <- State.run state $ do_updates track_signals set_style $
+    updates <- check_updates state $
         Update.sort (Update.collapse_updates updates)
+    result <- State.run state $ do_updates track_signals set_style updates
     return $ case result of
         Left err -> Just err
         -- I reuse State.StateT for convenience, but run_update should
@@ -76,6 +78,24 @@ sync track_signals set_style state updates = do
         -- TODO Try to split StateT into ReadStateT and ReadWriteStateT to
         -- express this in the type?
         Right _ -> Nothing
+
+-- | Filter out updates that will cause the BlockC level to throw an exception,
+-- and log an error instead.  BlockC could log itself, but if BlockC gets a bad
+-- update then that indicates a bug in the program, while this is meant to
+-- filter out updates that could occur \"normally\".  I'm not sure the
+-- distinction is worth it.
+check_updates :: State.State -> [Update.DisplayUpdate]
+    -> IO [Update.DisplayUpdate]
+check_updates state = filterM $ \update -> case update of
+    Update.View view_id u -> case u of
+        -- Already destroyed, so I don't expect it to exist.
+        Update.DestroyView -> return True
+        _ | view_id `Map.member` State.state_views state -> return True
+        _ -> do
+            Log.warn $ "Update for nonexistent " <> show view_id <> ": "
+                <> Pretty.pretty u
+            return False
+    _ -> return True
 
 do_updates :: Track.TrackSignals -> Track.SetStyleHigh -> [Update.DisplayUpdate]
     -> State.StateT IO ()

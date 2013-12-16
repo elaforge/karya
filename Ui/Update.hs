@@ -55,8 +55,8 @@ data CmdUpdate =
     | CmdTitleFocus ViewId (Maybe TrackNum)
     deriving (Eq, Show)
 
-data Update t u
-    = View ViewId View
+data Update t u =
+    View ViewId View
     | Block BlockId (Block t)
     | Track TrackId Track
     -- | Since I expect rulers to be changed infrequently, the only kind of
@@ -81,8 +81,8 @@ data View =
     | TitleFocus (Maybe TrackNum)
     deriving (Eq, Show)
 
-data Block t
-    = BlockTitle Text
+data Block t =
+    BlockTitle Text
     | BlockConfig Block.Config
     -- | The second is the \"integrate skeleton\", which is drawn in the same
     -- place.  It could be Skeleton too, but since it never was a skeleton it
