@@ -9,6 +9,7 @@ import qualified Data.Map as Map
 import qualified Data.Tuple as Tuple
 
 import Util.Control
+import qualified Util.Lens as Lens
 import qualified Util.Num as Num
 import qualified Util.Rect as Rect
 import qualified Util.Seq as Seq
@@ -161,6 +162,25 @@ move_focus dir = do
             North -> Seq.last $ get_rects (<) Rect.ry
     whenJust next $ \(view_id, _) ->
         State.update $ Update.CmdBringToFront view_id
+
+-- * saved views
+
+-- | Save the current views under the given name.
+save_views :: (Cmd.M m) => Text -> m ()
+save_views name = do
+    views <- State.gets State.state_views
+    focused <- Cmd.lookup_focused_view
+    State.modify_config $ State.saved_views %= Map.insert name (views, focused)
+
+-- | Replace the current views with the saved ones.  The current one is first
+-- saved as \"prev\".
+restore_views :: (Cmd.M m) => Text -> m ()
+restore_views name = do
+    (views, focused) <- Cmd.require_msg ("no saved views named: " <> untxt name)
+        =<< State.config#State.saved_views # Lens.map name <#> State.get
+    save_views "prev"
+    State.put_views views
+    whenJust focused bring_to_front
 
 -- * misc
 

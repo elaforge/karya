@@ -17,6 +17,7 @@ import Util.Control
 import qualified Util.Lens as Lens
 import qualified Util.Pretty as Pretty
 
+import qualified Ui.Block as Block
 import qualified Ui.Id as Id
 import qualified Derive.Score as Score
 import qualified Perform.Lilypond.Types as Lilypond
@@ -57,6 +58,7 @@ data Config = Config {
     , config_aliases :: !(Map.Map Score.Instrument Score.Instrument)
     , config_lilypond :: !Lilypond.Config
     , config_default :: !Default
+    , config_saved_views :: !SavedViews
     } deriving (Eq, Read, Show, Generics.Typeable)
 
 namespace = Lens.lens config_namespace (\v r -> r { config_namespace = v })
@@ -66,9 +68,10 @@ midi = Lens.lens config_midi (\v r -> r { config_midi = v })
 global_transform = Lens.lens config_global_transform
     (\v r -> r { config_global_transform = v })
 aliases = Lens.lens config_aliases (\v r -> r { config_aliases = v })
-lilypond =
-    Lens.lens config_lilypond (\v r -> r { config_lilypond = v })
+lilypond = Lens.lens config_lilypond (\v r -> r { config_lilypond = v })
 default_ = Lens.lens config_default (\v r -> r { config_default = v })
+saved_views = Lens.lens config_saved_views
+    (\v r -> r { config_saved_views = v })
 
 -- | Extra data that doesn't have any effect on the score.
 data Meta = Meta {
@@ -94,7 +97,7 @@ tempo = Lens.lens default_tempo (\v r -> r { default_tempo = v })
 
 instance Pretty.Pretty Config where
     format (Config namespace meta root midi global_transform aliases lily
-            default_) =
+            default_ saved_views) =
         Pretty.record_title "Config"
             [ ("namespace", Pretty.format namespace)
             , ("meta", Pretty.format meta)
@@ -104,6 +107,7 @@ instance Pretty.Pretty Config where
             , ("aliases", Pretty.format aliases)
             , ("lilypond", Pretty.format lily)
             , ("default", Pretty.format default_)
+            , ("saved views", Pretty.format saved_views)
             ]
 
 instance Pretty.Pretty Meta where
@@ -119,3 +123,7 @@ instance Pretty.Pretty Default where
 
 instance DeepSeq.NFData Default where
     rnf (Default tempo) = tempo `seq` ()
+
+-- | This is a place to save sets of views so you can switch between them.
+-- The ViewId is the one with focus.
+type SavedViews = Map.Map Text (Map.Map ViewId Block.View, Maybe ViewId)

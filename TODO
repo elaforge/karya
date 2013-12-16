@@ -16,9 +16,9 @@ UNSORTED
     middle too.  Call it 'tile'?
   * both loop and clip calls could take a duration which stretches the callee
     to that duration
-  - save a set of views, and switch between them, so I can focus on one
+  * save a set of views, and switch between them, so I can focus on one
     but not have to recreate everything again
-    - why does saving views cause damage on all tracks?
+    * why does saving views cause damage on all tracks?
   * creating a view with a non-existent BlockId crashes event loop:
     (vid "untitled/b2.v1") not in displayed view list: []
   * scripts 'debug' and 'opt' to compile logview and seq, and run seq

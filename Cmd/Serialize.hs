@@ -147,10 +147,12 @@ instance Serialize State.State where
             _ -> Serialize.bad_version "State.State" v
 
 instance Serialize State.Config where
-    put (State.Config ns meta root midi transform instruments lilypond defaults)
-        =  Serialize.put_version 7
+    put (State.Config ns meta root midi transform instruments lilypond defaults
+            saved_views)
+        =  Serialize.put_version 8
             >> put ns >> put meta >> put root >> put (Configs midi)
             >> put transform >> put instruments >> put lilypond >> put defaults
+            >> put saved_views
     get = Serialize.get_version >>= \v -> case v of
         7 -> do
             ns :: Id.Namespace <- get
@@ -162,7 +164,19 @@ instance Serialize State.Config where
             lilypond :: Lilypond.Config <- get
             defaults :: State.Default <- get
             return $ State.Config ns meta root midi transform instruments
-                lilypond defaults
+                lilypond defaults mempty
+        8 -> do
+            ns :: Id.Namespace <- get
+            meta :: State.Meta <- get
+            root :: Maybe BlockId <- get
+            Configs midi :: Configs <- get
+            transform :: Text <- get
+            instruments :: Map.Map Score.Instrument Score.Instrument <- get
+            lilypond :: Lilypond.Config <- get
+            defaults :: State.Default <- get
+            saved_views :: State.SavedViews <- get
+            return $ State.Config ns meta root midi transform instruments
+                lilypond defaults saved_views
         _ -> Serialize.bad_version "State.Config" v
 
 instance Serialize State.Meta where

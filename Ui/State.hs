@@ -26,9 +26,9 @@ module Ui.State (
     State(..), views, blocks, tracks, rulers, config
     , empty, create, clear
     -- * config
-    , Config(..)
+    , Config(..), SavedViews
     , namespace, meta, root, midi, global_transform, aliases, lilypond
-    , default_
+    , default_, saved_views
     , Meta(..), creation, notes
     , Default(..)
     , tempo
@@ -51,7 +51,7 @@ module Ui.State (
 
     -- * view
     , get_view, lookup_view, all_view_ids
-    , create_view, destroy_view
+    , create_view, destroy_view, put_views
     , set_view_status
     -- ** zoom and track scroll
     , get_zoom, set_zoom, set_track_scroll, set_view_rect
@@ -248,6 +248,7 @@ empty_config = Config
     , config_aliases = mempty
     , config_lilypond = Lilypond.default_config
     , config_default = empty_default
+    , config_saved_views = mempty
     }
 
 empty_default :: Default
@@ -344,9 +345,14 @@ unsafe_modify f = do
     unsafe_put $! f state
 
 -- | TODO verify
+--
+-- This updates all tracks because I don't know what you modified in there.
 put :: (M m) => State -> m ()
 put state = unsafe_put state >> update_all_tracks
 
+-- | An arbitrary modify.  It's unsafe because it doesn't check internal
+-- invariants, and inefficient because it damages all tracks.  Use more
+-- specific modify_* functions, if possible.
 modify :: (M m) => (State -> State) -> m ()
 modify f = do
     state <- get
@@ -475,26 +481,36 @@ all_view_ids = gets (Map.keys . state_views)
 -- Throw if the ViewId already exists.
 create_view :: (M m) => Id.Id -> Block.View -> m ViewId
 create_view id view = do
-    block <- get_block (Block.view_block view)
-    insert (Types.ViewId id) (with_status block) state_views $
-        \views st -> st { state_views = views }
-    where
-    with_status block = case Block.block_integrated block of
-        Just (source_block, _) -> view
-            { Block.view_status = Map.insert Config.status_integrate_source
-                (Id.ident_text source_block) (Block.view_status view)
-            }
-        Nothing -> view
+    view <- _update_view_status view
+    insert (Types.ViewId id) view state_views $ \views st ->
+        st { state_views = views }
 
 destroy_view :: (M m) => ViewId -> m ()
 destroy_view view_id = unsafe_modify $ \st ->
     st { state_views = Map.delete view_id (state_views st) }
+
+put_views :: M m => Map.Map ViewId Block.View -> m ()
+put_views view_map = do
+    let (view_ids, views) = unzip (Map.toList view_map)
+    views <- mapM _update_view_status views
+    unsafe_modify $ \st -> st
+        { state_views = Map.fromList (zip view_ids views) }
 
 -- | Set a status variable on a view.
 set_view_status :: (M m) => ViewId -> (Int, Text) -> Maybe Text -> m ()
 set_view_status view_id key val =
     modify_view view_id $ \view -> view { Block.view_status =
         Map.alter (const val) key (Block.view_status view) }
+
+_update_view_status :: M m => Block.View -> m Block.View
+_update_view_status view = do
+    block <- get_block (Block.view_block view)
+    return $ case Block.block_integrated block of
+        Just (source_block, _) -> view
+            { Block.view_status = Map.insert Config.status_integrate_source
+                (Id.ident_text source_block) (Block.view_status view)
+            }
+        Nothing -> view
 
 -- ** zoom and track scroll
 
