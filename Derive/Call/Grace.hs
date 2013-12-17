@@ -21,7 +21,7 @@ import qualified Derive.Pitches as Pitches
 import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Sig as Sig
-import Derive.Sig (optional, defaulted, many)
+import Derive.Sig (defaulted, many)
 
 import qualified Perform.Lilypond.Lilypond as Lilypond
 import qualified Perform.Pitch as Pitch
@@ -73,7 +73,7 @@ type Pitch = Either PitchSignal.Pitch Pitch.Transpose
 c_grace :: Derive.Generator Derive.Note
 c_grace = Derive.make_call "grace" (Tags.ornament <> Tags.ly)
     ("Emit grace notes.\n" <> grace_doc) $ Sig.call ((,,)
-    <$> optional "dyn" "Scale the dyn of the grace notes."
+    <$> grace_dyn_arg
     <*> many "pitch" "Grace note pitches."
     <*> grace_dur_arg
     ) $ \(dyn, pitches, grace_dur) -> Sub.inverting $ \args -> do
@@ -93,11 +93,10 @@ lily_grace args pitches = do
     -- it stays with the note's voice.
     Lily.prepend_code code $ Util.place args Util.note
 
-grace_call :: Derive.NoteArgs -> Maybe Signal.Y -> [PitchSignal.Pitch]
+grace_call :: Derive.NoteArgs -> Signal.Y -> [PitchSignal.Pitch]
     -> RealTime -> Derive.NoteDeriver
 grace_call args dyn pitches grace_dur = do
-    notes <- make_grace_notes (Args.extent args) (fromMaybe 0.5 dyn) pitches
-        grace_dur
+    notes <- make_grace_notes (Args.extent args) dyn pitches grace_dur
     -- Normally legato notes emphasize the first note, but that's not
     -- appropriate for grace notes.
     Derive.with_val "legato-dyn" (1 :: Double) $
@@ -135,6 +134,9 @@ grace_dur_arg :: Sig.Parser RealTime
 grace_dur_arg = Sig.environ "grace-dur" Sig.Unprefixed (1/12)
     "Duration of grace notes."
 
+grace_dyn_arg :: Sig.Parser Double
+grace_dyn_arg = Sig.optional "dyn" 0.5 "Scale the dyn of the grace notes."
+
 grace_doc :: Text
 grace_doc = "This kind of grace note falls before the start of the \
     \ destination note, and is of a uniform speed, regardless of the tempo.\
@@ -151,7 +153,7 @@ c_grace_attr supported =
     \ notes like the normal grace call.\nSupported: "
     <> Text.intercalate ", " (map ShowVal.show_val (Map.elems supported))
     ) $ Sig.call ((,,)
-    <$> optional "dyn" "Scale the dyn of the grace notes."
+    <$> grace_dyn_arg
     <*> many "pitch" "Grace note pitches."
     <*> grace_dur_arg
     ) $ \(dyn, pitches, grace_dur) -> Sub.inverting $ \args -> do

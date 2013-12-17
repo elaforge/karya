@@ -24,10 +24,9 @@ test_type_error = do
     left_like (call int_sym [str]) "arg 1/int: expected Num"
     left_like (call int_sym [int, int]) "arg 2/sym: expected Symbol"
 
-
 test_not_given = do
     let int :: Sig.Parser (Maybe Int)
-        int = Sig.optional "int" ""
+        int = Sig.optional "int" Nothing ""
         ints :: Sig.Parser [Int]
         ints = Sig.many "ints" ""
     let num = TrackLang.num

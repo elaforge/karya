@@ -1116,7 +1116,7 @@ data ArgDoc = ArgDoc {
 
 -- | These enumerate the different ways an argumnt can be parsed, and
 -- correspond to parsers in "Derive.Sig".
-data ArgParser = Required | Defaulted !Text | Optional | Many | Many1
+data ArgParser = Required | Defaulted !Text | Optional !Text | Many | Many1
     | Environ !(Maybe Text)
     deriving (Eq, Ord, Show)
 

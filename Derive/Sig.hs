@@ -266,32 +266,32 @@ required_environ name env_default doc = parser arg_doc $ \state ->
         }
 
 -- | This is like 'defaulted', but if the argument is the wrong type return
--- Nothing instead of failing.  It's mostly useful with 'many' or 'many1',
--- because otherwise a 'defaulted' is less confusing.
-optional :: forall a. (TrackLang.Typecheck a) => Text -> Text
-    -> Parser (Maybe a)
+-- the default instead of failing.  It's mostly useful with 'many' or 'many1',
+-- where you can distinguish the arguments by type.
+optional :: forall a. (TrackLang.Typecheck a) => Text -> a -> Text
+    -> Parser a
 optional name = optional_env name Derive.Prefixed
 
 optional_env :: forall a. (TrackLang.Typecheck a) =>
-    Text -> Derive.EnvironDefault -> Text -> Parser (Maybe a)
-optional_env name env_default doc = parser arg_doc $ \state ->
+    Text -> Derive.EnvironDefault -> a -> Text -> Parser a
+optional_env name env_default deflt doc = parser arg_doc $ \state ->
     case get_val env_default state name of
-        Nothing -> Right (state, Nothing)
-        Just (state2, TrackLang.VNotGiven) -> Right (state2, Nothing)
+        Nothing -> Right (state, deflt)
+        Just (state2, TrackLang.VNotGiven) -> Right (state2, deflt)
         Just (state2, val) -> case TrackLang.from_val val of
-            Just a -> Right (state2, Just a)
+            Just a -> Right (state2, a)
             Nothing -> case lookup_default env_default state name of
-                Nothing -> Right (state, Nothing)
+                Nothing -> Right (state, deflt)
                 Just val -> case TrackLang.from_val val of
                     Nothing -> Left $ Derive.TypeError
                         (arg_error state) name expected (Just val)
-                    Just a -> Right (state, Just a)
+                    Just a -> Right (state, a)
     where
     expected = TrackLang.to_type (error "Sig.optional" :: a)
     arg_doc = Derive.ArgDoc
         { Derive.arg_name = name
         , Derive.arg_type = expected
-        , Derive.arg_parser = Derive.Optional
+        , Derive.arg_parser = Derive.Optional (ShowVal.show_val deflt)
         , Derive.arg_environ_default = env_default
         , Derive.arg_doc = doc
         }

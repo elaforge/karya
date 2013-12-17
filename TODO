@@ -3,6 +3,8 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
+  * why doesn't Sig.optional take the optional val and put in the doc?
+  - make grace dur into RealOrScore
   - is there really no way to easily write a 1 cycle trill?
     I should have grace note variants for relative intervals, before and on
     note start, and note/pitch
