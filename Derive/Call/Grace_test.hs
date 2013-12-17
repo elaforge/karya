@@ -134,3 +134,11 @@ graces = Map.fromList
     [ (-1, Score.attrs ["half", "down"])
     , (2, Score.attrs ["whole", "up"])
     ]
+
+
+test_grace_p = do
+    let run = CallTest.run_pitch
+    equal (run [(0, "grace-dur = 2 | g (4c) -2 -1"), (10, "--")])
+        [(0, 57), (2, 59), (4, 60)]
+    equal (run [(0, "grace-dur = 2 | g (4c) -2c -1"), (3, "--")])
+        [(0, 58), (1, 59), (2, 60)]

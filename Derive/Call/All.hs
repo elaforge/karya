@@ -123,8 +123,12 @@ control_maps :: Derive.CallMaps Derive.Control
 
 pitch_maps :: Derive.CallMaps Derive.Pitch
 (pitch_maps, shadowed_pitches) = union_calls
-    [ Gamakam.pitch_calls, Pitch.pitch_calls, PitchHigh.pitch_calls
-    , Random.pitch_calls, SignalTransform.pitch_calls
+    [ Gamakam.pitch_calls
+    , Grace.pitch_calls
+    , Pitch.pitch_calls
+    , PitchHigh.pitch_calls
+    , Random.pitch_calls
+    , SignalTransform.pitch_calls
     , Trill.pitch_calls
     ]
 

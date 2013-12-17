@@ -80,7 +80,7 @@ module Derive.Deriver.Monad (
 
     -- * calls
     , CallMap, ValCallMap
-    , CallMaps, make_calls, call_maps
+    , CallMaps, make_calls, call_maps, generator_call_map, transformer_call_map
     , CallInfo(..), coerce_call_info, dummy_call_info
     , Call(..), make_call
     , CallDoc(..), ArgDoc(..), ArgParser(..), EnvironDefault(..), ArgDocs(..)
@@ -950,6 +950,12 @@ make_calls = Map.fromList . map (first TrackLang.Symbol)
 call_maps :: [(Text, Generator d)] -> [(Text, Transformer d)] -> CallMaps d
 call_maps generators transformers =
     (make_calls generators, make_calls transformers)
+
+generator_call_map :: [(Text, Generator d)] -> CallMaps d
+generator_call_map = flip call_maps []
+
+transformer_call_map :: [(Text, Transformer d)] -> CallMaps d
+transformer_call_map = call_maps []
 
 -- | Data passed to a 'Call'.
 data PassedArgs val = PassedArgs {

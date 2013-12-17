@@ -9,7 +9,10 @@ import qualified Data.Map as Map
 import qualified Data.Text as Text
 
 import Util.Control
+import qualified Util.Debug as Debug
+import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
+
 import qualified Derive.Args as Args
 import qualified Derive.Call.Lily as Lily
 import qualified Derive.Call.Sub as Sub
@@ -22,21 +25,29 @@ import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Sig as Sig
 import Derive.Sig (defaulted, many)
+import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.Lilypond.Lilypond as Lilypond
 import qualified Perform.Pitch as Pitch
+import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
 
 import Types
 
 
 note_calls :: Derive.CallMaps Derive.Note
-note_calls = Derive.call_maps
+note_calls = Derive.generator_call_map
     [ ("`mordent`", c_mordent (Pitch.Diatonic 1))
     , ("`rmordent`", c_mordent (Pitch.Diatonic (-1)))
     , ("g", c_grace)
     ]
-    []
+
+pitch_calls :: Derive.CallMaps Derive.Pitch
+pitch_calls = Derive.generator_call_map
+    [ ("g", c_grace_p) ]
+
+
+-- * note calls
 
 c_mordent :: Pitch.Transpose -> Derive.Generator Derive.Note
 c_mordent default_neighbor = Derive.make_call "mordent" Tags.ornament
@@ -46,7 +57,7 @@ c_mordent default_neighbor = Derive.make_call "mordent" Tags.ornament
     Sig.call ((,,)
     <$> defaulted "neighbor" default_neighbor "Neighbor pitch."
     <*> defaulted "dyn" 0.5 "Scale the dyn of the generated grace notes."
-    <*> grace_dur_arg
+    <*> grace_dur_env
     ) $ \(neighbor, dyn, grace_dur) -> Sub.inverting $ \args ->
         Lily.when_lilypond (lily_mordent args neighbor) $
             mordent (Args.extent args) dyn neighbor grace_dur
@@ -75,11 +86,12 @@ c_grace = Derive.make_call "grace" (Tags.ornament <> Tags.ly)
     ("Emit grace notes.\n" <> grace_doc) $ Sig.call ((,,)
     <$> grace_dyn_arg
     <*> many "pitch" "Grace note pitches."
-    <*> grace_dur_arg
+    <*> grace_dur_env
     ) $ \(dyn, pitches, grace_dur) -> Sub.inverting $ \args -> do
-        (_, pitches) <- resolve_pitches args pitches
-        Lily.when_lilypond (lily_grace args pitches) $
-            grace_call args dyn pitches grace_dur
+        base <- get_pitch args
+        let ps = resolve_pitches base pitches
+        Lily.when_lilypond (lily_grace args ps) $
+            grace_call args dyn ps grace_dur
 
 lily_grace :: Derive.PassedArgs d -> [PitchSignal.Pitch] -> Derive.NoteDeriver
 lily_grace args pitches = do
@@ -122,16 +134,20 @@ grace_notes start dur notes = mapM note $ zip starts notes
         s_end <- Derive.score (start + dur)
         return $ Sub.Event s_start (s_end - s_start) d
 
-resolve_pitches :: Derive.PassedArgs d
-    -> [Either PitchSignal.Pitch Pitch.Transpose]
-    -> Derive.Deriver (PitchSignal.Pitch, [PitchSignal.Pitch])
-resolve_pitches args pitches = do
-    base <- Derive.require "no pitch" =<< Derive.pitch_at
-        =<< Args.real_start args
-    return (base, map (either id (flip Pitches.transpose base)) pitches)
+resolve_pitches :: PitchSignal.Pitch
+    -> [Either PitchSignal.Pitch TrackLang.DefaultDiatonic]
+    -> [PitchSignal.Pitch]
+resolve_pitches base = map $
+    either id (flip Pitches.transpose base . TrackLang.defaulted_diatonic)
 
-grace_dur_arg :: Sig.Parser RealTime
-grace_dur_arg = Sig.environ "grace-dur" Sig.Unprefixed (1/12)
+get_pitch :: Derive.PassedArgs a -> Derive.Deriver PitchSignal.Pitch
+get_pitch args = do
+    start <- Args.real_start args
+    Derive.require ("pitch at " ++ Pretty.pretty start)
+        =<< Derive.pitch_at start
+
+grace_dur_env :: Sig.Parser RealTime
+grace_dur_env = Sig.environ "grace-dur" Sig.Unprefixed (1/12)
     "Duration of grace notes."
 
 grace_dyn_arg :: Sig.Parser Double
@@ -155,15 +171,16 @@ c_grace_attr supported =
     ) $ Sig.call ((,,)
     <$> grace_dyn_arg
     <*> many "pitch" "Grace note pitches."
-    <*> grace_dur_arg
+    <*> grace_dur_env
     ) $ \(dyn, pitches, grace_dur) -> Sub.inverting $ \args -> do
-        (base, pitches) <- resolve_pitches args pitches
-        Lily.when_lilypond (lily_grace args pitches) $ do
-            maybe_attrs <- grace_attrs supported pitches base
+        base <- get_pitch args
+        let ps = resolve_pitches base pitches
+        Lily.when_lilypond (lily_grace args ps) $ do
+            maybe_attrs <- grace_attrs supported ps base
             case maybe_attrs of
                 Just attrs -> Util.add_attrs attrs (Util.placed_note args)
                 -- Fall back on normal grace.
-                Nothing -> grace_call args dyn pitches grace_dur
+                Nothing -> grace_call args dyn ps grace_dur
 
 grace_attrs :: Map.Map Int Score.Attributes -> [PitchSignal.Pitch]
     -> PitchSignal.Pitch -> Derive.Deriver (Maybe Score.Attributes)
@@ -171,3 +188,32 @@ grace_attrs supported [grace] base = do
     diff <- (-) <$> Pitches.pitch_nn base <*> Pitches.pitch_nn grace
     return $ Map.lookup (round diff) supported
 grace_attrs _ _ _ = return Nothing
+
+
+-- * pitch calls
+
+c_grace_p :: Derive.Generator Derive.Pitch
+c_grace_p = Derive.generator1 "grace" Tags.ornament
+    "Generate grace note pitches.  They start on the event and have the given\
+    \ duration, but are shortened if the available duration is too short.\
+    \ The destination pitch is first, even though it plays last, so\
+    \ `g (c) (a) (b)` produces `a b c`."
+    $ Sig.call ((,,)
+    <$> Sig.required "pitch" "Base pitch."
+    <*> Sig.many "pitch" "Grace note pitches."
+    <*> grace_dur_env
+    ) $ \(base, pitches, grace_dur) args -> do
+        let notes = resolve_pitches base pitches ++ [base]
+        (start, end) <- Args.real_range_or_next args
+        let starts = fit_grace start end (length notes) grace_dur
+        return $ PitchSignal.signal $ zip starts notes
+
+-- | Determine grace note starting times if they are to fit in the given time
+-- range.
+fit_grace :: RealTime -> RealTime -> Int -> RealTime -> [RealTime]
+fit_grace start end notes dur = take notes $ Seq.range_ start step
+    where
+    ndur = RealTime.seconds (fromIntegral notes)
+    step
+        | dur * ndur >= end - start = (end - start) / ndur
+        | otherwise = dur

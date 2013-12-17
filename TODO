@@ -4,6 +4,8 @@ LEGEND
 
 UNSORTED
   * why doesn't Sig.optional take the optional val and put in the doc?
+  - attr grace should move the note back, just like normal grace
+  - but moving the note back should respect the previous note
   - make grace dur into RealOrScore
   - is there really no way to easily write a 1 cycle trill?
     I should have grace note variants for relative intervals, before and on
