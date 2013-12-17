@@ -43,7 +43,7 @@ postproc = Tags.idiom <> Tags.bali <> Tags.postproc
 c_unison :: Derive.Transformer Derive.Note
 c_unison = Derive.transformer "unison" postproc
     "Split part into unison polos and sangsih."
-    $ Sig.callt pasang_arg $ \(polos, sangsih) _args deriver -> do
+    $ Sig.callt pasang_env $ \(polos, sangsih) _args deriver -> do
         inst <- Util.get_instrument
         Post.map_events_asc_ (unison inst polos sangsih) <$> deriver
     where
@@ -68,7 +68,7 @@ c_kempyung = Derive.transformer "kempyung" postproc
     <$> Sig.defaulted "top" Nothing
         "Any pitches above this will be in unison. Normally the instrument\
         \ sets it via the environ."
-    <*> pasang_arg
+    <*> pasang_env
     ) $ \(top_pitch, (polos, sangsih)) _args deriver -> do
         inst <- Util.get_instrument
         maybe_top <- case top_pitch of
@@ -98,7 +98,7 @@ c_nyogcag :: Derive.Transformer Derive.Note
 c_nyogcag = Derive.transformer "nyog" postproc
     "Split a single part into polos and sangsih parts by assigning\
     \ `inst-polos` and `inst-sangsih` to alternating notes."
-    $ Sig.callt pasang_arg $ \(polos, sangsih) _args deriver ->
+    $ Sig.callt pasang_env $ \(polos, sangsih) _args deriver ->
         snd . Post.map_events_asc (nyogcag polos sangsih) True <$> deriver
 
 nyogcag :: Score.Instrument -> Score.Instrument
@@ -144,8 +144,8 @@ noltol threshold nexts event
         List.find ((== Score.event_instrument event) . Score.event_instrument)
             nexts
 
-pasang_arg :: Sig.Parser (Score.Instrument, Score.Instrument)
-pasang_arg = (,)
+pasang_env :: Sig.Parser (Score.Instrument, Score.Instrument)
+pasang_env = (,)
     <$> Sig.required_environ (TrackLang.unsym inst_polos) Sig.Unprefixed
         "Polos instrument."
     <*> Sig.required_environ (TrackLang.unsym inst_sangsih) Sig.Unprefixed

@@ -129,14 +129,14 @@ neighbor_arg = defaulted "neighbor"
     (Sig.typed_control "trill-neighbor" 1 Score.Untyped)
     "Alternate between 0 and this value."
 
-lilt_arg :: Sig.Parser Double
-lilt_arg = Sig.environ "lilt" Sig.Both 0 "Lilt is a horizontal bias to the\
+lilt_env :: Sig.Parser Double
+lilt_env = Sig.environ "lilt" Sig.Both 0 "Lilt is a horizontal bias to the\
     \ vibrato. A lilt of 1 would place each neighbor on top of the\
     \ following unison, while -1 would place it on the previous one.\
     \ So it should range from -1 < lilt < 1."
 
-hold_arg :: Sig.Parser TrackLang.DefaultReal
-hold_arg = Sig.environ (TrackLang.unsym Environ.hold) Sig.Unprefixed
+hold_env :: Sig.Parser TrackLang.DefaultReal
+hold_env = Sig.environ (TrackLang.unsym Environ.hold) Sig.Unprefixed
     (TrackLang.real 0) "Time to hold the first pitch."
 
 
@@ -154,7 +154,7 @@ c_kampita start_mode end_mode = Derive.generator1 "kam" Tags.india
     <*> speed_arg
     <*> defaulted_env "transition" Sig.Both transition_default
         "Time for each slide."
-    <*> hold_arg <*> lilt_arg <*> adjust_arg
+    <*> hold_env <*> lilt_env <*> adjust_env
     ) $ \(pitch, neighbor, speed, transition, hold, lilt, adjust) args -> do
         (neighbor, control) <- Util.to_transpose_signal Util.Nn neighbor
         transpose <- kampita start_mode end_mode adjust neighbor speed
@@ -296,8 +296,8 @@ data AdjustMode =
 instance ShowVal.ShowVal AdjustMode where show_val = TrackLang.default_show_val
 instance TrackLang.TypecheckEnum AdjustMode
 
-adjust_arg :: Sig.Parser AdjustMode
-adjust_arg = TrackLang.get_e <$>
+adjust_env :: Sig.Parser AdjustMode
+adjust_env = TrackLang.get_e <$>
     Sig.environ "adjust" Sig.Unprefixed (TrackLang.E Shorten)
     "How to adjust an ornament to fulfill its mode restrictions."
 
@@ -317,7 +317,7 @@ c_kampita_c start_mode end_mode = Derive.generator1 "kam" Tags.india
     <*> speed_arg
     <*> defaulted_env "transition" Sig.Both transition_default
         "Time for each slide."
-    <*> hold_arg <*> lilt_arg <*> adjust_arg
+    <*> hold_env <*> lilt_env <*> adjust_env
     ) $ \(neighbor, speed, transition, hold, lilt, adjust) args -> do
         neighbor <- Util.to_untyped_signal neighbor
         kampita start_mode end_mode adjust neighbor speed transition hold lilt
@@ -374,7 +374,7 @@ c_nkampita_c start_mode end_mode = Derive.generator1 "nkam" Tags.india
     $ Sig.call ((,,,,)
     <$> neighbor_arg
     <*> defaulted "cycles" (TrackLang.Positive 1) "Number of cycles."
-    <*> lilt_arg <*> hold_arg
+    <*> lilt_env <*> hold_env
     <*> Sig.environ "transition" Sig.Both transition_default
         "Time for each slide."
     ) $ \(neighbor, TrackLang.Positive cycles, lilt, TrackLang.DefaultReal hold,

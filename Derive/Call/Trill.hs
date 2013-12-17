@@ -88,7 +88,7 @@ c_note_trill = Derive.make_call "trill" (Tags.ornament <> Tags.ly)
     <$> defaulted "neighbor" (typed_control "trill-neighbor" 1 Score.Diatonic)
         "Alternate with a pitch at this interval."
     <*> trill_speed_arg
-    <*> mode_arg Nothing
+    <*> mode_env Nothing
     ) $ \(neighbor, speed, mode) -> Sub.inverting $ \args ->
     Lily.note_code (Lily.SuffixFirst, "\\trill") args $ do
         (transpose, control) <- trill_from_controls
@@ -234,7 +234,7 @@ c_pitch_trill maybe_mode = Derive.generator1 "trill" Tags.ornament
     <*> defaulted "neighbor" (typed_control "trill-neighbor" 1 Score.Diatonic)
         "Alternate with a pitch at this interval."
     <*> trill_speed_arg
-    <*> mode_arg maybe_mode
+    <*> mode_env maybe_mode
     ) $ \(note, neighbor, speed, mode) args -> do
         (transpose, control) <- trill_from_controls (Args.range_or_next args)
             mode neighbor speed
@@ -301,7 +301,7 @@ c_control_trill maybe_mode = Derive.generator1 "trill" Tags.ornament
     <$> defaulted "neighbor" (control "trill-neighbor" 1)
         "Alternate with this value."
     <*> trill_speed_arg
-    <*> mode_arg maybe_mode
+    <*> mode_env maybe_mode
     ) $ \(neighbor, speed, mode) args ->
         fst <$> trill_from_controls (Args.start args, Args.next args)
             mode neighbor speed
@@ -412,9 +412,9 @@ data Mode = Unison | Neighbor deriving (Bounded, Eq, Enum, Show)
 instance ShowVal.ShowVal Mode where show_val = TrackLang.default_show_val
 instance TrackLang.TypecheckEnum Mode
 
-mode_arg :: Maybe Mode -> Sig.Parser Mode
-mode_arg (Just mode) = Applicative.pure mode
-mode_arg Nothing = TrackLang.get_e <$>
+mode_env :: Maybe Mode -> Sig.Parser Mode
+mode_env (Just mode) = Applicative.pure mode
+mode_env Nothing = TrackLang.get_e <$>
     Sig.environ "trill-mode" Sig.Unprefixed (TrackLang.E Unison)
     "This affects which note the trill starts with, and can be `unison` or\
     \ `neighbor`, defaulting to `unison`."
