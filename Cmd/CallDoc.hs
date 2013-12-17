@@ -144,9 +144,10 @@ html_header hstate =
         <> "\" onchange=\"search(this.value)\">\n\
         \<br>You can also search by <code>%control</code>, arg default\n\
         \(<code>name-arg</code>), and call kind (<code>note</code>,\n\
-        \<code>control</code>, ...)\n\
-        \<br>" <> html_doc hstate
-            "Common tags are documneted at 'Derive.Call.Tags'.\n"
+        \<code>control</code>, ...).\
+        \\n<br> Search for calls with the browser's text search, \"call --\"\
+        \ to search by binding, \"-- call\" to search by name.\n<br>"
+    <> html_doc hstate "Common tags are documneted at 'Derive.Call.Tags'.\n"
     where default_search = "-internal -ly-only"
 
 css :: Html
@@ -202,7 +203,8 @@ call_bindings_html hstate call_kind bindings@(binds, ctype, call_doc) =
     tags = call_kind : binding_tags bindings
     show_bind (first, (shadowed, sym, name)) =
         "<dt>" <> (if shadowed then strikeout sym else tag "code" (html sym))
-        <> " &mdash; " <> tag "b" (html name) <> ": "
+        -- This used to be &mdash;, but that's too hard to use text search on.
+        <> " -- " <> tag "b" (html name) <> ": "
         <> (if first then show_ctype else "") <> "\n"
     show_ctype = "<div style='float:right'>"
         <> tag "em" (html (show_call_type ctype)) <> "</div>"
