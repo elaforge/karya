@@ -384,13 +384,16 @@ c_nkampita_c start_mode end_mode = Derive.generator1 "nkam" Tags.india
         let ((val1, val2), even_transitions) = convert_modes start neighbor
                 start_mode end_mode
         hold <- Util.duration_from (Args.start args) hold
-        let num_transitions = cycles * 2
+        -- In order to hear the cycles clearly, I leave a one transition of
+        -- flat space at the end.  This means nkam can't transition into the
+        -- next note, but for now this seems more convenient.
+        let num_transitions = 1 + cycles * 2
                 + (if even_transitions == Just True then 0 else 1)
         let speed = TrackLang.constant_control $
                 (num_transitions - 1) / RealTime.to_seconds (end - start)
-        smooth_trill (-transition) val1 val2
-            =<< trill_transitions Nothing Shorten lilt hold speed
+        transitions <- trill_transitions Nothing Shorten lilt hold speed
                 (Args.range_or_next args)
+        smooth_trill (-transition) val1 val2 (Seq.rdrop 1 transitions)
 
 -- | Ok, this name is terrible but what else is better?
 c_dip_c :: Derive.Generator Derive.Control
