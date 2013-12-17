@@ -44,11 +44,9 @@ test_mordent = do
             . DeriveTest.run State.empty
             . Util.with_pitch (DeriveTest.mkpitch12 "4c")
             . Util.with_dynamic 1
-            . Derive.with_val "grace-dur" (1 :: Double)
-            . Derive.with_val "grace-overlap" (0.5 :: Double)
         extract e = (Score.event_start e, DeriveTest.e_pitch e,
-            DeriveTest.e_control "dyn" e)
-    equal (run (f (4, 1) 0.25 (Pitch.Chromatic 1))) $ Right
+            DeriveTest.e_dyn e)
+    equal (run (f (4, 1) 0.25 (Pitch.Chromatic 1) 1)) $ Right
         ( [ (2, "4c", [(0, 0.25)])
           , (3, "4c#", [(0, 0.25)])
           , (4, "4c", [(0, 1)])
@@ -56,7 +54,7 @@ test_mordent = do
         , []
         )
     -- It's in RealTime, so it's not affected by the tempo.
-    equal (run (Derive.d_stretch 2 (f (4, 1) 0.25 (Pitch.Chromatic (-1))))) $
+    equal (run (Derive.d_stretch 2 (f (4, 1) 0.25 (Pitch.Chromatic (-1)) 1))) $
         Right
             ( [ (6, "4c", [(0, 0.25)])
               , (7, "3b", [(0, 0.25)])
