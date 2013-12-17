@@ -220,7 +220,9 @@ make_block_call name doc call = Derive.make_call name Tags.prelude doc $
     ) $ \(sym, maybe_dur) -> Sub.inverting $ \args -> do
         block_id <- require_block_id sym
         sub_dur <- Derive.get_block_dur block_id
-        let dur = fromMaybe sub_dur maybe_dur
+        let dur = case maybe_dur of
+                Nothing -> sub_dur
+                Just (TrackLang.Positive dur) -> dur
         Internal.with_stack_block block_id $
             Cache.block (call block_id dur) args
 
