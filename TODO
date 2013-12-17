@@ -8,7 +8,7 @@ UNSORTED
     note start, and note/pitch
   - Double strokes for percussion, e.g. 'oo' could be thom thom with the first
     at 0.5 dyn.  Time would have to extend RealTime and ScoreTime with
-    TimeStep.  Or perhaps just 'double-time = (ts s/2)' or whatever, but then
+    TimeStep.  Or perhaps just 'double-time = (t s/2)' or whatever, but then
     I couldn't default it, and it doesn't adjust when the 's' timestep
     changes.
   - Perhaps TimeStep should have its own Typecheck instance.  Even make it
@@ -97,7 +97,7 @@ UNSORTED
     * nkam 1 1 should emit [0, 1, 0], instead it's more like [0, 1]
       However that would mean nkam always ends with a flat segment, is that
       ok?
-    - flip args for nkam, all the others take the neighbor as the first arg
+    * flip args for nkam, all the others take the neighbor as the first arg
     - nkam doesn't seem to interact correctly with 'h'
     * factor dip and dip_c?
     - semi-tone dip.  This is like 1 cycle kam.
