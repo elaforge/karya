@@ -54,9 +54,8 @@ c_mordent default_neighbor = Derive.make_call "mordent" Tags.ornament
     $ Sig.call ((,,)
     <$> Sig.defaulted "neighbor" (TrackLang.DefaultDiatonic default_neighbor)
         "Neighbor pitch."
-    <*> Sig.defaulted "dyn" 0.5 "Scale the dyn of the generated grace notes."
-    <*> grace_dur_env
-    ) $ \(TrackLang.DefaultDiatonic neighbor, dyn, grace_dur) ->
+    <*> grace_dur_env <*> grace_dyn_env
+    ) $ \(TrackLang.DefaultDiatonic neighbor, grace_dur, dyn) ->
     Sub.inverting $ \args ->
         Lily.when_lilypond (lily_mordent args neighbor) $ do
             pitch <- Util.get_pitch =<< Args.real_start args
@@ -71,10 +70,9 @@ lily_mordent args neighbor = do
 c_grace :: Derive.Generator Derive.Note
 c_grace = Derive.make_call "grace" (Tags.ornament <> Tags.ly)
     ("Emit grace notes.\n" <> grace_doc) $ Sig.call ((,,)
-    <$> grace_dyn_arg
-    <*> Sig.many "pitch" "Grace note pitches."
-    <*> grace_dur_env
-    ) $ \(dyn, pitches, grace_dur) -> Sub.inverting $ \args -> do
+    <$> Sig.many "pitch" "Grace note pitches."
+    <*> grace_dur_env <*> grace_dyn_env
+    ) $ \(pitches, grace_dur, dyn) -> Sub.inverting $ \args -> do
         base <- Util.get_pitch =<< Args.real_start args
         let ps = resolve_pitches base pitches
         Lily.when_lilypond (lily_grace args ps) $
@@ -131,9 +129,9 @@ grace_dur_env :: Sig.Parser RealTime
 grace_dur_env = Sig.environ "grace-dur" Sig.Unprefixed (1/12)
     "Duration of grace notes."
 
-grace_dyn_arg :: Sig.Parser Double
-grace_dyn_arg = TrackLang.positive <$>
-    Sig.optional "dyn" (TrackLang.Positive 0.5)
+grace_dyn_env :: Sig.Parser Double
+grace_dyn_env = TrackLang.positive <$>
+    Sig.environ "grace-dyn" Sig.Unprefixed (TrackLang.Positive 0.5)
         "Scale the dyn of the grace notes."
 
 grace_doc :: Text
@@ -152,10 +150,9 @@ c_grace_attr supported =
     \ notes like the normal grace call.\nSupported: "
     <> Text.intercalate ", " (map ShowVal.show_val (Map.elems supported))
     ) $ Sig.call ((,,)
-    <$> grace_dyn_arg
-    <*> Sig.many "pitch" "Grace note pitches."
-    <*> grace_dur_env
-    ) $ \(dyn, pitches, grace_dur) -> Sub.inverting $ \args -> do
+    <$> Sig.many "pitch" "Grace note pitches."
+    <*> grace_dur_env <*> grace_dyn_env
+    ) $ \(pitches, grace_dur, dyn) -> Sub.inverting $ \args -> do
         base <- Util.get_pitch =<< Args.real_start args
         let ps = resolve_pitches base pitches
         Lily.when_lilypond (lily_grace args ps) $ do

@@ -32,7 +32,7 @@ test_grace = do
         dur = 1
         overlap = 0.5
     equal (run
-        [ (title, [(0, 1, "g (4a) (4b)")])
+        [ (title, [(0, 1, "grace-dyn = .5 | g (4a) (4b)")])
         , ("*", [(0, 0, "4c")])
         ])
         ( [ ((0-dur*2, dur+overlap, "4a"), 0.5)
@@ -42,7 +42,7 @@ test_grace = do
         , []
         )
     equal (run
-        [ (title, [(1, 1, "g 1 (4b)")])
+        [ (title, [(1, 1, "grace-dyn = 1 | g (4b)")])
         , ("*", [(1, 0, "4c")])
         ])
         ([((1-dur, dur+overlap, "4b"), 1), ((1, 0.75, "4c"), 1)], [])
@@ -85,7 +85,7 @@ test_grace_attr = do
     -- Attrs when it can.
     equal (run [(">", [(0, 1, "g (4a)")]), ("*", [(0, 0, "4b")])])
         ([("4b", "+up+whole")], [])
-    equal (run [(">", [(0, 1, "g _ 1")]), ("*", [(0, 0, "4b")])])
+    equal (run [(">", [(0, 1, "g 1")]), ("*", [(0, 0, "4b")])])
         ([("4b", "+down+half")], [])
     -- Notes when it can't.
     equal (run [(">", [(0, 1, "g (4a)")]), ("*", [(0, 0, "4c")])])
