@@ -9,10 +9,7 @@ import qualified Data.Map as Map
 import qualified Data.Text as Text
 
 import Util.Control
-import qualified Util.Debug as Debug
-import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
-
 import qualified Derive.Args as Args
 import qualified Derive.Call.Lily as Lily
 import qualified Derive.Call.Sub as Sub
@@ -24,7 +21,6 @@ import qualified Derive.Pitches as Pitches
 import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Sig as Sig
-import Derive.Sig (defaulted, many)
 import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.Lilypond.Lilypond as Lilypond
@@ -37,58 +33,49 @@ import Types
 
 note_calls :: Derive.CallMaps Derive.Note
 note_calls = Derive.generator_call_map
-    [ ("`mordent`", c_mordent (Pitch.Diatonic 1))
+    [ ("g", c_grace)
+    , ("`mordent`", c_mordent (Pitch.Diatonic 1))
     , ("`rmordent`", c_mordent (Pitch.Diatonic (-1)))
-    , ("g", c_grace)
     ]
 
 pitch_calls :: Derive.CallMaps Derive.Pitch
 pitch_calls = Derive.generator_call_map
-    [ ("g", c_grace_p) ]
+    [ ("g", c_grace_p)
+    , ("`mordent`", c_mordent_p (Pitch.Diatonic 1))
+    , ("`rmordent`", c_mordent_p (Pitch.Diatonic (-1)))
+    ]
 
 
 -- * note calls
 
 c_mordent :: Pitch.Transpose -> Derive.Generator Derive.Note
 c_mordent default_neighbor = Derive.make_call "mordent" Tags.ornament
-    ("Generate some grace notes for a mordent, similar to a brief trill.\
-    \ The grace notes fall before the onset of the main note, and\
-    \ are in absolute RealTime, unaffected by tempo changes.\n" <> grace_doc) $
-    Sig.call ((,,)
-    <$> defaulted "neighbor" default_neighbor "Neighbor pitch."
-    <*> defaulted "dyn" 0.5 "Scale the dyn of the generated grace notes."
+    "Like `g`, but hardcoded to play pitch, neighbor, pitch."
+    $ Sig.call ((,,)
+    <$> Sig.defaulted "neighbor" (TrackLang.DefaultDiatonic default_neighbor)
+        "Neighbor pitch."
+    <*> Sig.defaulted "dyn" 0.5 "Scale the dyn of the generated grace notes."
     <*> grace_dur_env
-    ) $ \(neighbor, dyn, grace_dur) -> Sub.inverting $ \args ->
-        Lily.when_lilypond (lily_mordent args neighbor) $
-            mordent (Args.extent args) dyn neighbor grace_dur
-
-mordent :: (ScoreTime, ScoreTime) -> Signal.Y -> Pitch.Transpose
-    -> RealTime -> Derive.NoteDeriver
-mordent (start, dur) dyn_scale neighbor grace_dur = do
-    pos <- Derive.real start
-    pitch <- Util.get_pitch pos
-    dyn <- (*dyn_scale) <$> Util.dynamic pos
-    notes <- grace_notes pos grace_dur
-        [ Util.pitched_note pitch dyn
-        , Util.pitched_note (Pitches.transpose neighbor pitch) dyn
-        ]
-    Sub.place notes <> Derive.d_place start dur Util.note
+    ) $ \(TrackLang.DefaultDiatonic neighbor, dyn, grace_dur) ->
+    Sub.inverting $ \args ->
+        Lily.when_lilypond (lily_mordent args neighbor) $ do
+            pitch <- Util.get_pitch =<< Args.real_start args
+            grace_call args dyn [pitch, Pitches.transpose neighbor pitch]
+                grace_dur
 
 lily_mordent :: Derive.PassedArgs d -> Pitch.Transpose -> Derive.NoteDeriver
 lily_mordent args neighbor = do
     pitch <- Util.get_pitch =<< Args.real_start args
     lily_grace args [pitch, Pitches.transpose neighbor pitch]
 
-type Pitch = Either PitchSignal.Pitch Pitch.Transpose
-
 c_grace :: Derive.Generator Derive.Note
 c_grace = Derive.make_call "grace" (Tags.ornament <> Tags.ly)
     ("Emit grace notes.\n" <> grace_doc) $ Sig.call ((,,)
     <$> grace_dyn_arg
-    <*> many "pitch" "Grace note pitches."
+    <*> Sig.many "pitch" "Grace note pitches."
     <*> grace_dur_env
     ) $ \(dyn, pitches, grace_dur) -> Sub.inverting $ \args -> do
-        base <- get_pitch args
+        base <- Util.get_pitch =<< Args.real_start args
         let ps = resolve_pitches base pitches
         Lily.when_lilypond (lily_grace args ps) $
             grace_call args dyn ps grace_dur
@@ -140,18 +127,14 @@ resolve_pitches :: PitchSignal.Pitch
 resolve_pitches base = map $
     either id (flip Pitches.transpose base . TrackLang.defaulted_diatonic)
 
-get_pitch :: Derive.PassedArgs a -> Derive.Deriver PitchSignal.Pitch
-get_pitch args = do
-    start <- Args.real_start args
-    Derive.require ("pitch at " ++ Pretty.pretty start)
-        =<< Derive.pitch_at start
-
 grace_dur_env :: Sig.Parser RealTime
 grace_dur_env = Sig.environ "grace-dur" Sig.Unprefixed (1/12)
     "Duration of grace notes."
 
 grace_dyn_arg :: Sig.Parser Double
-grace_dyn_arg = Sig.optional "dyn" 0.5 "Scale the dyn of the grace notes."
+grace_dyn_arg = TrackLang.positive <$>
+    Sig.optional "dyn" (TrackLang.Positive 0.5)
+        "Scale the dyn of the grace notes."
 
 grace_doc :: Text
 grace_doc = "This kind of grace note falls before the start of the \
@@ -170,10 +153,10 @@ c_grace_attr supported =
     <> Text.intercalate ", " (map ShowVal.show_val (Map.elems supported))
     ) $ Sig.call ((,,)
     <$> grace_dyn_arg
-    <*> many "pitch" "Grace note pitches."
+    <*> Sig.many "pitch" "Grace note pitches."
     <*> grace_dur_env
     ) $ \(dyn, pitches, grace_dur) -> Sub.inverting $ \args -> do
-        base <- get_pitch args
+        base <- Util.get_pitch =<< Args.real_start args
         let ps = resolve_pitches base pitches
         Lily.when_lilypond (lily_grace args ps) $ do
             maybe_attrs <- grace_attrs supported ps base
@@ -192,6 +175,18 @@ grace_attrs _ _ _ = return Nothing
 
 -- * pitch calls
 
+c_mordent_p :: Pitch.Transpose -> Derive.Generator Derive.Pitch
+c_mordent_p default_neighbor = Derive.generator1 "mordent" Tags.ornament
+    "Like `g`, but hardcoded to play pitch, neighbor, pitch."
+    $ Sig.call ((,,)
+    <$> Sig.required "pitch" "Base pitch."
+    <*> Sig.defaulted "neighbor" (TrackLang.DefaultDiatonic default_neighbor)
+        "Neighbor pitch."
+    <*> grace_dur_env
+    ) $ \(pitch, TrackLang.DefaultDiatonic neighbor, grace_dur) args ->
+        grace_p grace_dur [pitch, Pitches.transpose neighbor pitch, pitch]
+            <$> Args.real_range_or_next args
+
 c_grace_p :: Derive.Generator Derive.Pitch
 c_grace_p = Derive.generator1 "grace" Tags.ornament
     "Generate grace note pitches.  They start on the event and have the given\
@@ -202,11 +197,14 @@ c_grace_p = Derive.generator1 "grace" Tags.ornament
     <$> Sig.required "pitch" "Base pitch."
     <*> Sig.many "pitch" "Grace note pitches."
     <*> grace_dur_env
-    ) $ \(base, pitches, grace_dur) args -> do
-        let notes = resolve_pitches base pitches ++ [base]
-        (start, end) <- Args.real_range_or_next args
-        let starts = fit_grace start end (length notes) grace_dur
-        return $ PitchSignal.signal $ zip starts notes
+    ) $ \(pitch, pitches, grace_dur) args -> do
+        let ps = resolve_pitches pitch pitches ++ [pitch]
+        grace_p grace_dur ps <$> Args.real_range_or_next args
+
+grace_p :: RealTime -> [PitchSignal.Pitch] -> (RealTime, RealTime)
+    -> PitchSignal.Signal
+grace_p grace_dur pitches (start, end) = PitchSignal.signal $ zip starts pitches
+    where starts = fit_grace start end (length pitches) grace_dur
 
 -- | Determine grace note starting times if they are to fit in the given time
 -- range.

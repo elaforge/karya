@@ -6,62 +6,24 @@ module Derive.Call.Grace_test where
 import qualified Data.Map as Map
 
 import Util.Test
-import qualified Ui.State as State
+import qualified Ui.UiTest as UiTest
 import qualified Derive.Call.Articulation as Articulation
 import qualified Derive.Call.CallTest as CallTest
 import qualified Derive.Call.Grace as Grace
-import qualified Derive.Call.Util as Util
 import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Score as Score
 
 import qualified Perform.Lilypond.LilypondTest as LilypondTest
-import qualified Perform.Pitch as Pitch
 
-
-test_track = do
-    equal (DeriveTest.extract DeriveTest.e_pitch $ DeriveTest.derive_tracks
-        [ (">", [(1, 1, "`mordent`")])
-        , ("*", [(0, 0, "4c")])
-        ])
-        (["4c", "4d", "4c"], [])
 
 test_mordent = do
-    let run = DeriveTest.extract DeriveTest.e_pitch . DeriveTest.derive_tracks
-    equal (run
-        [ (">", [(1, 1, "`mordent`")])
-        , ("*", [(0, 0, "4c")])
-        ])
-        (["4c", "4d", "4c"], [])
-    equal (run
-        [ (">", [(1, 1, "`mordent`")])
-        , ("*", [(0, 0, "4e")])
-        ])
-        (["4e", "4f", "4e"], [])
+    let run = DeriveTest.extract DeriveTest.e_pitch . run_note
+    equal (run (1, 1, "`mordent`")) (["4c", "4d", "4c"], [])
+    equal (run (1, 1, "`rmordent`")) (["4c", "3b", "4c"], [])
 
-    let f = Grace.mordent
-        run = DeriveTest.run_events extract
-            . DeriveTest.run State.empty
-            . Util.with_pitch (DeriveTest.mkpitch12 "4c")
-            . Util.with_dynamic 1
-        extract e = (Score.event_start e, DeriveTest.e_pitch e,
-            DeriveTest.e_dyn e)
-    equal (run (f (4, 1) 0.25 (Pitch.Chromatic 1) 1)) $ Right
-        ( [ (2, "4c", [(0, 0.25)])
-          , (3, "4c#", [(0, 0.25)])
-          , (4, "4c", [(0, 1)])
-          ]
-        , []
-        )
-    -- It's in RealTime, so it's not affected by the tempo.
-    equal (run (Derive.d_stretch 2 (f (4, 1) 0.25 (Pitch.Chromatic (-1)) 1))) $
-        Right
-            ( [ (6, "4c", [(0, 0.25)])
-              , (7, "3b", [(0, 0.25)])
-              , (8, "4c", [(0, 1)])
-              ]
-            , []
-            )
+run_note :: UiTest.EventSpec -> Derive.Result
+run_note note = DeriveTest.derive_tracks [(">", [note]), ("*", [(0, 0, "4c")])]
 
 test_grace = do
     let run = DeriveTest.extract extract . DeriveTest.derive_tracks
@@ -142,3 +104,8 @@ test_grace_p = do
         [(0, 57), (2, 59), (4, 60)]
     equal (run [(0, "grace-dur = 2 | g (4c) -2c -1"), (3, "--")])
         [(0, 58), (1, 59), (2, 60)]
+
+test_mordent_p = do
+    let run = CallTest.run_pitch
+    equal (run [(0, "grace-dur = 2 | `mordent` (4c)")])
+        [(0, 60), (2, 62), (4, 60)]

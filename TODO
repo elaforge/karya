@@ -4,10 +4,12 @@ LEGEND
 
 UNSORTED
   * why doesn't Sig.optional take the optional val and put in the doc?
+  - Tags.europe for european music?  Then I can get rid of Tags.ornament,
+    which is pretty vague.
   - attr grace should move the note back, just like normal grace
   - but moving the note back should respect the previous note
   - make grace dur into RealOrScore
-  - is there really no way to easily write a 1 cycle trill?
+  * is there really no way to easily write a 1 cycle trill?
     I should have grace note variants for relative intervals, before and on
     note start, and note/pitch
   - Double strokes for percussion, e.g. 'oo' could be thom thom with the first

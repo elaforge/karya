@@ -24,7 +24,7 @@ import Types
 
 
 note_calls :: Derive.CallMaps Derive.Note
-note_calls = Derive.call_maps []
+note_calls = Derive.transformer_call_map
     [ ("d", c_delay)
     , ("echo", c_echo)
     , ("e-echo", c_event_echo)
