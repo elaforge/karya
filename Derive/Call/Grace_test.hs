@@ -27,39 +27,48 @@ run_note :: UiTest.EventSpec -> Derive.Result
 run_note note = DeriveTest.derive_tracks [(">", [note]), ("*", [(0, 0, "4c")])]
 
 test_grace = do
-    let run = DeriveTest.extract extract . DeriveTest.derive_tracks
+    let run extract = DeriveTest.extract extract . DeriveTest.derive_tracks
+        run_n = run DeriveTest.e_note
         tracks notes = [(">", notes), ("*", [(0, 0, "4c")])]
-        extract e = (DeriveTest.e_note e, Score.initial_dynamic e)
+        e_dyn e = (DeriveTest.e_note e, Score.initial_dynamic e)
         prefix = "legato-detach = .25 | grace-dur = 1 | %legato-overlap = .5 | "
         dur = 1
         overlap = 0.5
-    equal (run $ tracks [(0, 1, prefix <> "grace-dyn = .5 | g (4a) (4b)")])
-        ( [ ((0-dur*2, dur+overlap, "4a"), 0.5)
-          , ((0-dur, dur+overlap, "4b"), 0.5)
-          , ((0, 0.75, "4c"), 1)
+    equal (run e_dyn $ tracks
+            [(2, 1, prefix <> "grace-dyn = .5 | g (4a) (4b)")])
+        ( [ ((2-dur*2, dur+overlap, "4a"), 0.5)
+          , ((2-dur, dur+overlap, "4b"), 0.5)
+          , ((2, 0.75, "4c"), 1)
           ]
         , []
         )
-    equal (run $ tracks [(1, 1, prefix <> "grace-dyn = 1 | g (4b)")])
-        ([((1-dur, dur+overlap, "4b"), 1), ((1, 0.75, "4c"), 1)], [])
 
     -- Ensure the grace-dyn default is picked up too.
-    equal (run $ tracks [(1, 1, prefix <> " grace-dyn = 1 | g (4b)")])
-        ([((0, 1.5, "4b"), 1), ((1, 0.75, "4c"), 1)], [])
+    equal (run e_dyn $ tracks [(1, 1, prefix <> "grace-dyn = 1 | g (4b)")])
+        ([((1-dur, dur+overlap, "4b"), 1), ((1, 0.75, "4c"), 1)], [])
+
+    -- -- TODO legato-overlap should be smarter and not make it overlap so much
+    -- equal (run_n $ tracks
+    --         [(1, 1, prefix <> "grace-dyn = .5 | g (4a) (4b)")])
+    --     ( [ (0, dur + overlap, "4a")
+    --       , (0.5, dur + overlap, "4b")
+    --       , (1, 0.75, "4c")
+    --       ]
+    --     , [])
 
     -- grace-dur defaults to RealTime, but can be ScoreTime.
     let tempo_tracks note = ("tempo", [(0, 0, "2")])
             : tracks [(4, 1, "%legato-overlap = 0 | " <> note)]
-    equal (first (map fst) $ run $ tempo_tracks "grace-dur = 1 | g (4b)")
+    equal (run_n $ tempo_tracks "grace-dur = 1 | g (4b)")
         ([(1, 1, "4b"), (2, 0.5, "4c")], [])
-    equal (first (map fst) $ run $ tempo_tracks "grace-dur = 1t | g (4b)")
+    equal (run_n $ tempo_tracks "grace-dur = 1t | g (4b)")
         ([(1.5, 0.5, "4b"), (2, 0.5, "4c")], [])
 
     -- Ensure grace works with attr legato.
-    let runa = DeriveTest.extract DeriveTest.e_attributes
+    let run_a = DeriveTest.extract DeriveTest.e_attributes
             . DeriveTest.derive_tracks_with with
         with = CallTest.with_note_generator "(" Articulation.c_attr_legato
-    equal (runa $ tracks [(0, 1, prefix <> "g (4a) (4b)")])
+    equal (run_a $ tracks [(0, 1, prefix <> "g (4a) (4b)")])
         (["+legato", "+legato", "+legato"], [])
 
 test_grace_ly = do

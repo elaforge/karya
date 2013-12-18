@@ -7,7 +7,7 @@ UNSORTED
   - Tags.europe for european music?  Then I can get rid of Tags.ornament,
     which is pretty vague.
   - attr grace should move the note back, just like normal grace
-  - but moving the note back should respect the previous note
+  / but moving the note back should respect the previous note
   * make grace dur into RealOrScore
   - nums should not default to chromatic, they should be symmetrical like Real
     and Score.

@@ -130,6 +130,9 @@ next_start = fmap Event.start . Seq.head . next_events
 prev_start :: PassedArgs a -> Maybe ScoreTime
 prev_start = fmap Event.start . Seq.head . prev_events
 
+prev_end :: PassedArgs a -> Maybe ScoreTime
+prev_end = fmap Event.end . Seq.head . prev_events
+
 prev_events, next_events :: PassedArgs a -> [Event.Event]
 next_events = Derive.info_next_events . info
 prev_events = Derive.info_prev_events . info

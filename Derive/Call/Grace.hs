@@ -67,6 +67,12 @@ lily_mordent args neighbor = do
     pitch <- Util.get_pitch =<< Args.real_start args
     lily_grace args [pitch, Pitches.transpose neighbor pitch]
 
+grace_doc :: Text
+grace_doc = "This kind of grace note falls before the start of the \
+    \ destination note, and is of a uniform speed, regardless of the tempo.\
+    \ The grace notes go through the `(` call, so they will overlap or apply a\
+    \ keyswitch, or whatever `(` does."
+
 c_grace :: Derive.Generator Derive.Note
 c_grace = Derive.make_call "grace" (Tags.ornament <> Tags.ly)
     ("Emit grace notes.\n" <> grace_doc) $ Sig.call ((,,)
@@ -93,21 +99,56 @@ lily_grace args pitches = do
 grace_call :: Derive.NoteArgs -> Signal.Y -> [PitchSignal.Pitch]
     -> TrackLang.RealOrScore -> Derive.NoteDeriver
 grace_call args dyn pitches grace_dur = do
-    notes <- make_grace_notes (Args.extent args) dyn pitches grace_dur
+    notes <- make_grace_notes (fromMaybe 0 (Args.prev_end args))
+        (Args.extent args) dyn pitches grace_dur
     -- Normally legato notes emphasize the first note, but that's not
     -- appropriate for grace notes.
     Derive.with_val "legato-dyn" (1 :: Double) $
         Sub.reapply_call args "(" [] [notes]
 
-make_grace_notes :: (ScoreTime, ScoreTime) -> Signal.Y -> [PitchSignal.Pitch]
-    -> TrackLang.RealOrScore -> Derive.Deriver [Sub.Event]
-make_grace_notes (start, dur) dyn_scale pitches grace_dur = do
-    pos <- Derive.real start
-    dyn <- (*dyn_scale) <$> Util.dynamic pos
-    real_dur <- Util.real_dur' start grace_dur
-    notes <- grace_notes pos real_dur $
-        map (flip Util.pitched_note dyn) pitches
-    return $ notes ++ [Sub.Event start dur Util.note]
+make_grace_notes :: ScoreTime -> (ScoreTime, ScoreTime) -> Signal.Y
+    -> [PitchSignal.Pitch] -> TrackLang.RealOrScore
+    -> Derive.Deriver [Sub.Event]
+make_grace_notes prev_end (start, dur) dyn_scale pitches grace_dur = do
+    real_start <- Derive.real start
+    dyn <- (*dyn_scale) <$> Util.dynamic real_start
+    let final = Sub.Event start dur Util.note
+        notes = map (flip Util.pitched_note dyn) pitches
+    case grace_dur of
+        TrackLang.Score grace_dur -> return $
+            [Sub.Event s grace_dur note | (s, note) <- zip starts notes]
+                ++ [final]
+            where
+            starts = fit_grace_before prev_end start (length pitches) grace_dur
+        TrackLang.Real grace_dur -> do
+            prev_end <- Derive.real prev_end
+            let starts = fit_grace_before prev_end real_start (length pitches)
+                    grace_dur
+            events <- zipWithM (note_real grace_dur) starts notes
+            return $ events ++ [final]
+    where
+    note_real dur start note = do
+        score_start <- Derive.score start
+        score_end <- Derive.score (start + dur)
+        return $ Sub.Event score_start (score_end - score_start) note
+
+-- | Originally I thought it would be useful to make before grace notes
+-- compress to avoid the previous note the same way after ones do.  But on
+-- further thought, it seems like they shouldn't.  Keyboard instruments can
+-- play the overlap, and if anything grace notes should shorten the previous
+-- note.  Still, I keep the setting in case I change my mind.
+avoid_prev_note :: Bool
+avoid_prev_note = False
+
+fit_grace_before :: (Fractional a, Ord a) => a -> a -> Int -> a -> [a]
+fit_grace_before prev start notes dur =
+    take notes $ Seq.range_ (start - notes_t * step) step
+    where
+    notes_t = fromIntegral notes
+    step
+        | avoid_prev_note && start - dur * notes_t < prev =
+            (start - prev) / notes_t
+        | otherwise = dur
 
 grace_notes :: RealTime -- ^ note start time, grace notes fall before this
     -> RealTime -- ^ duration of each grace note
@@ -135,12 +176,6 @@ grace_dyn_env :: Sig.Parser Double
 grace_dyn_env = TrackLang.positive <$>
     Sig.environ "grace-dyn" Sig.Unprefixed (TrackLang.Positive 0.5)
         "Scale the dyn of the grace notes."
-
-grace_doc :: Text
-grace_doc = "This kind of grace note falls before the start of the \
-    \ destination note, and is of a uniform speed, regardless of the tempo.\
-    \ The grace notes go through the `(` call, so they will overlap or apply a\
-    \ keyswitch, or whatever `(` does."
 
 c_grace_attr :: Map.Map Int Score.Attributes
     -- ^ Map intervals in semitones (positive or negative) to attrs.
