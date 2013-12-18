@@ -5,6 +5,7 @@
 module Derive.Call.Grace_test where
 import qualified Data.Map as Map
 
+import Util.Control
 import Util.Test
 import qualified Ui.UiTest as UiTest
 import qualified Derive.Call.Articulation as Articulation
@@ -27,38 +28,38 @@ run_note note = DeriveTest.derive_tracks [(">", [note]), ("*", [(0, 0, "4c")])]
 
 test_grace = do
     let run = DeriveTest.extract extract . DeriveTest.derive_tracks
+        tracks notes = [(">", notes), ("*", [(0, 0, "4c")])]
         extract e = (DeriveTest.e_note e, Score.initial_dynamic e)
-        title = "> | legato-detach = .25 | grace-dur = 1 | %legato-overlap = .5"
+        prefix = "legato-detach = .25 | grace-dur = 1 | %legato-overlap = .5 | "
         dur = 1
         overlap = 0.5
-    equal (run
-        [ (title, [(0, 1, "grace-dyn = .5 | g (4a) (4b)")])
-        , ("*", [(0, 0, "4c")])
-        ])
+    equal (run $ tracks [(0, 1, prefix <> "grace-dyn = .5 | g (4a) (4b)")])
         ( [ ((0-dur*2, dur+overlap, "4a"), 0.5)
           , ((0-dur, dur+overlap, "4b"), 0.5)
           , ((0, 0.75, "4c"), 1)
           ]
         , []
         )
-    equal (run
-        [ (title, [(1, 1, "grace-dyn = 1 | g (4b)")])
-        , ("*", [(1, 0, "4c")])
-        ])
+    equal (run $ tracks [(1, 1, prefix <> "grace-dyn = 1 | g (4b)")])
         ([((1-dur, dur+overlap, "4b"), 1), ((1, 0.75, "4c"), 1)], [])
 
     -- Ensure the grace-dyn default is picked up too.
-    equal (run
-        [ (title ++ "| grace-dyn = 1", [(1, 1, "g (4b)")])
-        , ("*", [(0, 0, "4c")])
-        ])
+    equal (run $ tracks [(1, 1, prefix <> " grace-dyn = 1 | g (4b)")])
         ([((0, 1.5, "4b"), 1), ((1, 0.75, "4c"), 1)], [])
+
+    -- grace-dur defaults to RealTime, but can be ScoreTime.
+    let tempo_tracks note = ("tempo", [(0, 0, "2")])
+            : tracks [(4, 1, "%legato-overlap = 0 | " <> note)]
+    equal (first (map fst) $ run $ tempo_tracks "grace-dur = 1 | g (4b)")
+        ([(1, 1, "4b"), (2, 0.5, "4c")], [])
+    equal (first (map fst) $ run $ tempo_tracks "grace-dur = 1t | g (4b)")
+        ([(1.5, 0.5, "4b"), (2, 0.5, "4c")], [])
 
     -- Ensure grace works with attr legato.
     let runa = DeriveTest.extract DeriveTest.e_attributes
             . DeriveTest.derive_tracks_with with
         with = CallTest.with_note_generator "(" Articulation.c_attr_legato
-    equal (runa [(title, [(0, 1, "g (4a) (4b)")]), ("*", [(0, 0, "4c")])])
+    equal (runa $ tracks [(0, 1, prefix <> "g (4a) (4b)")])
         (["+legato", "+legato", "+legato"], [])
 
 test_grace_ly = do
@@ -104,6 +105,7 @@ test_grace_p = do
         [(0, 57), (2, 59), (4, 60)]
     equal (run [(0, "grace-dur = 2 | g (4c) -2c -1"), (3, "--")])
         [(0, 58), (1, 59), (2, 60)]
+
 
 test_mordent_p = do
     let run = CallTest.run_pitch

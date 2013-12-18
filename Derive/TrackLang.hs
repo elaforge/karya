@@ -113,19 +113,19 @@ instance ShowVal RealOrScore where
 
 -- | Normally Transpose will default to Chromatic if the val is untyped,
 -- but some calls would prefer to default to Diatonic.
-newtype DefaultDiatonic = DefaultDiatonic Pitch.Transpose
+newtype DefaultDiatonic =
+    DefaultDiatonic { default_diatonic :: Pitch.Transpose }
     deriving (Show, ShowVal)
 
-defaulted_diatonic :: DefaultDiatonic -> Pitch.Transpose
-defaulted_diatonic (DefaultDiatonic x) = x
-
-default_diatonic :: Double -> DefaultDiatonic
-default_diatonic = DefaultDiatonic . Pitch.Diatonic
+diatonic :: Double -> DefaultDiatonic
+diatonic = DefaultDiatonic . Pitch.Diatonic
 
 -- | Either RealTime or ScoreTime, but untyped defaults to RealTime.
-newtype DefaultReal = DefaultReal RealOrScore deriving (Eq, Show, ShowVal)
+newtype DefaultReal = DefaultReal { default_real :: RealOrScore }
+    deriving (Eq, Show, ShowVal)
 -- | Same as 'DefaultReal' but untyped defaults to ScoreTime.
-newtype DefaultScore = DefaultScore RealOrScore deriving (Eq, Show, ShowVal)
+newtype DefaultScore = DefaultScore { default_score :: RealOrScore }
+    deriving (Eq, Show, ShowVal)
 
 -- | Create DefaultReal and DefaultScores for use in "Derive.Sig" signatures
 -- for default values.  It would be nice to use literals and let type
@@ -137,17 +137,11 @@ real = DefaultReal . Real
 score :: ScoreTime -> DefaultScore
 score = DefaultScore . Score
 
-defaulted_real :: DefaultReal -> RealOrScore
-defaulted_real (DefaultReal t) = t
-
-defaulted_score :: DefaultScore -> RealOrScore
-defaulted_score (DefaultScore t) = t
-
 -- | An annotation that says this value must be >0.  Instances only exist
 -- for numeric types.
-newtype Positive a = Positive a deriving (Show, Eq, ShowVal)
+newtype Positive a = Positive { positive :: a } deriving (Show, Eq, ShowVal)
 -- | Like 'Positive', but >=0.
-newtype Natural a = Natural a deriving (Show, Eq, ShowVal)
+newtype Natural a = Natural { natural :: a } deriving (Show, Eq, ShowVal)
 
 -- * show val
 

@@ -110,7 +110,7 @@ data Mode = High | Low deriving (Eq, Show)
 c_hold :: Derive.Transformer d
 c_hold = Make.with_environ "hold"
     (defaulted "time" (TrackLang.real 1) "Hold first value for this long.")
-    TrackLang.defaulted_real
+    TrackLang.default_real
 
 -- * standard parameters
 
@@ -223,7 +223,7 @@ c_dip = Derive.generator1 "dip" Tags.india
     \ pitch."
     $ Sig.call ((,,,,,)
     <$> required "pitch" "Base pitch."
-    <*> defaulted "high" (TrackLang.default_diatonic 1) "High interval."
+    <*> defaulted "high" (TrackLang.diatonic 1) "High interval."
     <*> defaulted "low" (-1) "Low interval."
     <*> speed_arg
     <*> defaulted "dyn" 0.5 "Multiply dyn by this amount."
@@ -262,7 +262,7 @@ c_jaru = Derive.generator1 "jaru" Tags.india
         | otherwise = Derive.throw "all intervals must have the same type"
         where
         (xs, control :| controls) = NonEmpty.unzip $ NonEmpty.map
-            (Controls.transpose_control . TrackLang.defaulted_diatonic)
+            (Controls.transpose_control . TrackLang.default_diatonic)
             intervals
 
 c_jaru_intervals :: Util.TransposeType -> [Signal.Y]

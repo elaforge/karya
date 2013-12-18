@@ -91,7 +91,7 @@ lily_grace args pitches = do
     Lily.prepend_code code $ Util.place args Util.note
 
 grace_call :: Derive.NoteArgs -> Signal.Y -> [PitchSignal.Pitch]
-    -> RealTime -> Derive.NoteDeriver
+    -> TrackLang.RealOrScore -> Derive.NoteDeriver
 grace_call args dyn pitches grace_dur = do
     notes <- make_grace_notes (Args.extent args) dyn pitches grace_dur
     -- Normally legato notes emphasize the first note, but that's not
@@ -100,11 +100,12 @@ grace_call args dyn pitches grace_dur = do
         Sub.reapply_call args "(" [] [notes]
 
 make_grace_notes :: (ScoreTime, ScoreTime) -> Signal.Y -> [PitchSignal.Pitch]
-    -> RealTime -> Derive.Deriver [Sub.Event]
+    -> TrackLang.RealOrScore -> Derive.Deriver [Sub.Event]
 make_grace_notes (start, dur) dyn_scale pitches grace_dur = do
     pos <- Derive.real start
     dyn <- (*dyn_scale) <$> Util.dynamic pos
-    notes <- grace_notes pos grace_dur $
+    real_dur <- Util.real_dur' start grace_dur
+    notes <- grace_notes pos real_dur $
         map (flip Util.pitched_note dyn) pitches
     return $ notes ++ [Sub.Event start dur Util.note]
 
@@ -123,11 +124,12 @@ resolve_pitches :: PitchSignal.Pitch
     -> [Either PitchSignal.Pitch TrackLang.DefaultDiatonic]
     -> [PitchSignal.Pitch]
 resolve_pitches base = map $
-    either id (flip Pitches.transpose base . TrackLang.defaulted_diatonic)
+    either id (flip Pitches.transpose base . TrackLang.default_diatonic)
 
-grace_dur_env :: Sig.Parser RealTime
-grace_dur_env = Sig.environ "grace-dur" Sig.Unprefixed (1/12)
-    "Duration of grace notes."
+grace_dur_env :: Sig.Parser TrackLang.RealOrScore
+grace_dur_env = TrackLang.default_real <$>
+    Sig.environ "grace-dur" Sig.Unprefixed (TrackLang.real (1/12))
+        "Duration of grace notes."
 
 grace_dyn_env :: Sig.Parser Double
 grace_dyn_env = TrackLang.positive <$>
@@ -182,7 +184,7 @@ c_mordent_p default_neighbor = Derive.generator1 "mordent" Tags.ornament
     <*> grace_dur_env
     ) $ \(pitch, TrackLang.DefaultDiatonic neighbor, grace_dur) args ->
         grace_p grace_dur [pitch, Pitches.transpose neighbor pitch, pitch]
-            <$> Args.real_range_or_next args
+            (Args.range_or_next args)
 
 c_grace_p :: Derive.Generator Derive.Pitch
 c_grace_p = Derive.generator1 "grace" Tags.ornament
@@ -196,12 +198,16 @@ c_grace_p = Derive.generator1 "grace" Tags.ornament
     <*> grace_dur_env
     ) $ \(pitch, pitches, grace_dur) args -> do
         let ps = resolve_pitches pitch pitches ++ [pitch]
-        grace_p grace_dur ps <$> Args.real_range_or_next args
+        grace_p grace_dur ps (Args.range_or_next args)
 
-grace_p :: RealTime -> [PitchSignal.Pitch] -> (RealTime, RealTime)
-    -> PitchSignal.Signal
-grace_p grace_dur pitches (start, end) = PitchSignal.signal $ zip starts pitches
-    where starts = fit_grace start end (length pitches) grace_dur
+grace_p :: TrackLang.RealOrScore -> [PitchSignal.Pitch]
+    -> (ScoreTime, ScoreTime) -> Derive.Deriver PitchSignal.Signal
+grace_p grace_dur pitches (start, end) = do
+    real_dur <- Util.real_dur' start grace_dur
+    real_start <- Derive.real start
+    real_end <- Derive.real end
+    let starts = fit_grace real_start real_end (length pitches) real_dur
+    return $ PitchSignal.signal $ zip starts pitches
 
 -- | Determine grace note starting times if they are to fit in the given time
 -- range.

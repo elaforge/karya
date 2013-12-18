@@ -8,7 +8,9 @@ UNSORTED
     which is pretty vague.
   - attr grace should move the note back, just like normal grace
   - but moving the note back should respect the previous note
-  - make grace dur into RealOrScore
+  * make grace dur into RealOrScore
+  - nums should not default to chromatic, they should be symmetrical like Real
+    and Score.
   * is there really no way to easily write a 1 cycle trill?
     I should have grace note variants for relative intervals, before and on
     note start, and note/pitch
@@ -19,6 +21,8 @@ UNSORTED
     changes.
   - Perhaps TimeStep should have its own Typecheck instance.  Even make it
     into RealOrScore, like Transpose gained Nn?
+    RealOrScore is renamed to Duration
+    Or even a tracklang level TimeStep literal, rather than using strings.
   - A postproc might transform percussion so repeated notes after the first
     one lose dyn.
   * get rid of ParseBs.from_string? rename Call.eval_string to eval_text?
