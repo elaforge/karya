@@ -28,7 +28,6 @@ run_note note = DeriveTest.derive_tracks [(">", [note]), ("*", [(0, 0, "4c")])]
 
 test_grace = do
     let run extract = DeriveTest.extract extract . DeriveTest.derive_tracks
-        run_n = run DeriveTest.e_note
         tracks notes = [(">", notes), ("*", [(0, 0, "4c")])]
         prefix = "legato-detach = 0 | %legato-overlap = 0 | grace-dur = 1 |"
 
@@ -42,14 +41,19 @@ test_grace = do
     equal (run e_dyn $ legato_tracks "grace-dyn = .5 | g (4a) (4b)")
         ( [ ((2-dur*2, dur+overlap, "4a"), 0.5)
           , ((2-dur, dur+overlap, "4b"), 0.5)
-          , ((2, 0.75, "4c"), 1)
+          , ((2, dur-detach, "4c"), 1)
           ]
         , []
         )
 
     -- Ensure the grace-dyn default is picked up too.
     equal (run e_dyn $ legato_tracks "grace-dyn = 1 | g (4b)")
-        ([((2-dur, dur+overlap, "4b"), 1), ((2, 1-detach, "4c"), 1)], [])
+        ([((2-dur, dur+overlap, "4b"), 1), ((2, dur-detach, "4c"), 1)], [])
+
+    let run_n = run DeriveTest.e_note
+    equal (run_n $ tracks [(0, 2, ""), (2, 2, prefix <> "g (4a) (4b) (4d)")])
+        ([(0, 2, "4c"), (0.5, 0.5, "4a"), (1, 0.5, "4b"), (1.5, 0.5, "4d"),
+            (2, 2, "4c")], [])
 
     -- grace-dur defaults to RealTime, but can be ScoreTime.
     let tempo_tracks note = ("tempo", [(0, 0, "2")])
@@ -120,7 +124,6 @@ graces = Map.fromList
     , (2, Score.attrs ["whole", "up"])
     ]
 
-
 test_grace_p = do
     let run = CallTest.run_pitch
     equal (run [(0, "grace-dur = 2 | g (4c) -2 -1"), (10, "--")])
@@ -128,8 +131,13 @@ test_grace_p = do
     equal (run [(0, "grace-dur = 2 | g (4c) -2c -1"), (3, "--")])
         [(0, 58), (1, 59), (2, 60)]
 
-
 test_mordent_p = do
     let run = CallTest.run_pitch
     equal (run [(0, "grace-dur = 2 | `mordent` (4c)")])
         [(0, 60), (2, 62), (4, 60)]
+
+test_fit_grace = do
+    let f place notes = Grace.fit_grace place (Just 0) 2 4 notes 1
+    equal (f 0 4) [0, 0.5, 1, 1.5]
+    equal (f 1 4) [2, 2.5, 3, 3.5]
+    equal (f 0.5 4) [1, 1.5, 2, 2.5]

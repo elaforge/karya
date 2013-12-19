@@ -120,36 +120,32 @@ lily_grace args pitches = do
 grace_call :: Derive.NoteArgs -> Signal.Y -> [PitchSignal.Pitch]
     -> TrackLang.RealOrScore -> TrackLang.ValControl -> Derive.NoteDeriver
 grace_call args dyn pitches grace_dur place = do
-    notes <- make_grace_notes (Args.extent args) dyn pitches grace_dur place
+    notes <- make_grace_notes (Args.prev_start args) (Args.extent args) dyn
+        pitches grace_dur place
     -- Normally legato notes emphasize the first note, but that's not
     -- appropriate for grace notes.
     Derive.with_val "legato-dyn" (1 :: Double) $
         Sub.reapply_call args "(" [] [notes]
 
-make_grace_notes :: (ScoreTime, ScoreTime) -> Signal.Y
+make_grace_notes :: Maybe ScoreTime -> (ScoreTime, ScoreTime) -> Signal.Y
     -> [PitchSignal.Pitch] -> TrackLang.RealOrScore -> TrackLang.ValControl
     -> Derive.Deriver [Sub.Event]
-make_grace_notes (start, dur) dyn_scale pitches grace_dur place = do
+make_grace_notes prev (start, dur) dyn_scale pitches grace_dur place = do
     real_start <- Derive.real start
     dyn <- (*dyn_scale) <$> Util.dynamic real_start
     place <- Num.clamp 0 1 <$> Util.control_at place real_start
     let notes = map (flip Util.pitched_note dyn) pitches ++ [Util.note]
     case grace_dur of
         TrackLang.Score grace_dur -> do
-            let before = fromIntegral (length pitches) * grace_dur
-                grace_start = Num.scale (start - before) start
-                    (ScoreTime.double place)
-                extents = fit_grace grace_start (start + dur) (length notes)
-                        grace_dur
+            let extents = fit_grace_durs (ScoreTime.double place)
+                    prev start (start + dur) (length notes) grace_dur
             return [Sub.Event start dur note
                 | ((start, dur), note) <- zip extents notes]
         TrackLang.Real grace_dur -> do
             real_end <- Derive.real (start + dur)
-            let before = fromIntegral (length pitches) * grace_dur
-                grace_start = Num.scale (real_start - before) real_start
-                    (RealTime.seconds place)
-                extents = fit_grace grace_start real_end (length notes)
-                    grace_dur
+            real_prev <- maybe (return Nothing) ((Just <$>) . Derive.real) prev
+            let extents = fit_grace_durs (RealTime.seconds place)
+                    real_prev real_start real_end (length notes) grace_dur
             zipWithM note_real extents notes
     where
     note_real (start, dur) note = do
@@ -245,20 +241,42 @@ grace_p grace_dur pitches (start, end) = do
     real_dur <- Util.real_dur' start grace_dur
     real_start <- Derive.real start
     real_end <- Derive.real end
-    let starts = map fst $
-            fit_grace real_start real_end (length pitches) real_dur
+    let starts = fit_after real_start real_end (length pitches) real_dur
     return $ PitchSignal.signal $ zip starts pitches
 
 -- | Determine grace note starting times and durations if they are to fit in
 -- the given time range, shortening them if they don't fit.
-fit_grace :: (Fractional a, Ord a) => a -> a -> Int -> a -> [(a, a)]
-fit_grace start end notes dur = take1 notes $ Seq.range_ start step
+fit_grace_durs :: (Show a, Fractional a, Ord a) => a -> Maybe a -> a -> a
+    -> Int -> a -> [(a, a)]
+fit_grace_durs place prev start end notes dur =
+    map add_dur $ Seq.zip_next $ fit_grace place prev start end notes dur
     where
-    take1 _ [] = []
-    take1 n (t:ts)
-        | n <= 0 = []
-        | n == 1 = [(t, end - t)]
-        | otherwise = (t, step) : take1 (n-1) ts
+    add_dur (x, Nothing) = (x, end - x)
+    add_dur (x, Just next) = (x, next - x)
+
+fit_grace :: (Show a, Fractional a, Ord a) => a -> Maybe a -> a -> a -> Int
+    -> a -> [a]
+fit_grace place maybe_prev start end notes dur
+    | place <= 0 = before
+    | place >= 1 = after
+    | otherwise = zipWith (\x y -> Num.scale x y place) before after
+    where
+    after = fit_after start end notes dur
+    before = fit_before maybe_prev start notes dur
+
+fit_before :: (Fractional a, Ord a) => Maybe a -> a -> Int -> a -> [a]
+fit_before maybe_prev start notes dur =
+    take notes $ drop 1 $ Seq.range_ (start - notes_t * step) step
+    where
+    notes_t = fromIntegral notes
+    step
+        | Just prev <- maybe_prev, start - dur * notes_t < prev =
+            (start - prev) / notes_t
+        | otherwise = dur
+
+fit_after :: (Fractional a, Ord a) => a -> a -> Int -> a -> [a]
+fit_after start end notes dur = take notes $ Seq.range_ start step
+    where
     notes_t = fromIntegral notes
     step
         | dur * notes_t >= end - start = (end - start) / notes_t

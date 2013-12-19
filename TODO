@@ -12,7 +12,7 @@ UNSORTED
     which is pretty vague.
   * attr grace should move the note back, just like normal grace
   / but moving the note back should respect the previous note
-  - Maybe it should instead avoid starting before the *start* of the previous
+  * Maybe it should instead avoid starting before the *start* of the previous
     note.  Otherwise you get notes out of order.
   * make grace dur into RealOrScore
   - nums should not default to chromatic, they should be symmetrical like Real
@@ -29,6 +29,11 @@ UNSORTED
     into RealOrScore, like Transpose gained Nn?
     RealOrScore is renamed to Duration
     Or even a tracklang level TimeStep literal, rather than using strings.
+    . A more general option would be quoted code: grace-dur = "(t s)
+      This would be a Val that Derive.Sig could evaluate.
+      Other applications: support TimeStep interpreted as both ScoreTime and
+      RealTime: "(rt (t s)), a note that can retune: "(4c), randomized value:
+      "(rnd 0 .4).
   - A postproc might transform percussion so repeated notes after the first
     one lose dyn.
   * get rid of ParseBs.from_string? rename Call.eval_string to eval_text?
