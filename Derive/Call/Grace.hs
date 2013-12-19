@@ -9,7 +9,10 @@ import qualified Data.Map as Map
 import qualified Data.Text as Text
 
 import Util.Control
+import qualified Util.Num as Num
 import qualified Util.Seq as Seq
+
+import qualified Ui.ScoreTime as ScoreTime
 import qualified Derive.Args as Args
 import qualified Derive.Call.Lily as Lily
 import qualified Derive.Call.Sub as Sub
@@ -46,43 +49,61 @@ pitch_calls = Derive.generator_call_map
     ]
 
 
+-- * standard args
+
+grace_envs :: Sig.Parser (TrackLang.RealOrScore, Double, TrackLang.ValControl)
+grace_envs = (,,) <$> grace_dur_env <*> grace_dyn_env <*> grace_placement_env
+
+grace_dur_env :: Sig.Parser TrackLang.RealOrScore
+grace_dur_env = TrackLang.default_real <$>
+    Sig.environ "grace-dur" Sig.Unprefixed (TrackLang.real (1/12))
+        "Duration of grace notes."
+
+grace_dyn_env :: Sig.Parser Double
+grace_dyn_env = TrackLang.positive <$>
+    Sig.environ "grace-dyn" Sig.Unprefixed (TrackLang.Positive 0.5)
+        "Scale the dyn of the grace notes."
+
+grace_placement_env :: Sig.Parser TrackLang.ValControl
+grace_placement_env = Sig.environ "grace-place" Sig.Unprefixed
+    (Sig.control "grace-place" 0)
+    "At 0, grace notes fall before their base note.  At 1, grace notes fall on\
+    \ the base note, and the base note is delayed."
+
+
 -- * note calls
 
 c_mordent :: Pitch.Transpose -> Derive.Generator Derive.Note
 c_mordent default_neighbor = Derive.make_call "mordent" Tags.ornament
     "Like `g`, but hardcoded to play pitch, neighbor, pitch."
-    $ Sig.call ((,,)
+    $ Sig.call ((,)
     <$> Sig.defaulted "neighbor" (TrackLang.DefaultDiatonic default_neighbor)
         "Neighbor pitch."
-    <*> grace_dur_env <*> grace_dyn_env
-    ) $ \(TrackLang.DefaultDiatonic neighbor, grace_dur, dyn) ->
+    <*> grace_envs
+    ) $ \(TrackLang.DefaultDiatonic neighbor, (grace_dur, dyn, place)) ->
     Sub.inverting $ \args ->
         Lily.when_lilypond (lily_mordent args neighbor) $ do
             pitch <- Util.get_pitch =<< Args.real_start args
             grace_call args dyn [pitch, Pitches.transpose neighbor pitch]
-                grace_dur
+                grace_dur place
 
 lily_mordent :: Derive.PassedArgs d -> Pitch.Transpose -> Derive.NoteDeriver
 lily_mordent args neighbor = do
     pitch <- Util.get_pitch =<< Args.real_start args
     lily_grace args [pitch, Pitches.transpose neighbor pitch]
 
-grace_doc :: Text
-grace_doc = "This kind of grace note falls before the start of the \
-    \ destination note, and is of a uniform speed, regardless of the tempo.\
-    \ The grace notes go through the `(` call, so they will overlap or apply a\
-    \ keyswitch, or whatever `(` does."
-
 c_grace :: Derive.Generator Derive.Note
 c_grace = Derive.make_call "grace" (Tags.ornament <> Tags.ly)
-    ("Emit grace notes.\n" <> grace_doc) $ Sig.call ((,,)
+    "Emit grace notes. The grace notes go through the `(` call, so they will\
+    \ overlap or apply a keyswitch, or do whatever `(` does."
+    $ Sig.call ((,)
     <$> Sig.many "pitch" "Grace note pitches."
-    <*> grace_dur_env <*> grace_dyn_env
-    ) $ \(pitches, grace_dur, dyn) -> Sub.inverting $ \args -> do
+    <*> grace_envs
+    ) $ \(pitches, (grace_dur, dyn, place)) -> Sub.inverting $ \args -> do
         base <- Util.get_pitch =<< Args.real_start args
         let ps = resolve_pitches base pitches
         Lily.when_lilypond (lily_grace args ps) $
-            grace_call args dyn ps grace_dur
+            grace_call args dyn ps grace_dur place
 
 lily_grace :: Derive.PassedArgs d -> [PitchSignal.Pitch] -> Derive.NoteDeriver
 lily_grace args pitches = do
@@ -97,58 +118,44 @@ lily_grace args pitches = do
     Lily.prepend_code code $ Util.place args Util.note
 
 grace_call :: Derive.NoteArgs -> Signal.Y -> [PitchSignal.Pitch]
-    -> TrackLang.RealOrScore -> Derive.NoteDeriver
-grace_call args dyn pitches grace_dur = do
-    notes <- make_grace_notes (fromMaybe 0 (Args.prev_end args))
-        (Args.extent args) dyn pitches grace_dur
+    -> TrackLang.RealOrScore -> TrackLang.ValControl -> Derive.NoteDeriver
+grace_call args dyn pitches grace_dur place = do
+    notes <- make_grace_notes (Args.extent args) dyn pitches grace_dur place
     -- Normally legato notes emphasize the first note, but that's not
     -- appropriate for grace notes.
     Derive.with_val "legato-dyn" (1 :: Double) $
         Sub.reapply_call args "(" [] [notes]
 
-make_grace_notes :: ScoreTime -> (ScoreTime, ScoreTime) -> Signal.Y
-    -> [PitchSignal.Pitch] -> TrackLang.RealOrScore
+make_grace_notes :: (ScoreTime, ScoreTime) -> Signal.Y
+    -> [PitchSignal.Pitch] -> TrackLang.RealOrScore -> TrackLang.ValControl
     -> Derive.Deriver [Sub.Event]
-make_grace_notes prev_end (start, dur) dyn_scale pitches grace_dur = do
+make_grace_notes (start, dur) dyn_scale pitches grace_dur place = do
     real_start <- Derive.real start
     dyn <- (*dyn_scale) <$> Util.dynamic real_start
-    let final = Sub.Event start dur Util.note
-        notes = map (flip Util.pitched_note dyn) pitches
+    place <- Num.clamp 0 1 <$> Util.control_at place real_start
+    let notes = map (flip Util.pitched_note dyn) pitches ++ [Util.note]
     case grace_dur of
-        TrackLang.Score grace_dur -> return $
-            [Sub.Event s grace_dur note | (s, note) <- zip starts notes]
-                ++ [final]
-            where
-            starts = fit_grace_before prev_end start (length pitches) grace_dur
+        TrackLang.Score grace_dur -> do
+            let before = fromIntegral (length pitches) * grace_dur
+                grace_start = Num.scale (start - before) start
+                    (ScoreTime.double place)
+                extents = fit_grace grace_start (start + dur) (length notes)
+                        grace_dur
+            return [Sub.Event start dur note
+                | ((start, dur), note) <- zip extents notes]
         TrackLang.Real grace_dur -> do
-            prev_end <- Derive.real prev_end
-            let starts = fit_grace_before prev_end real_start (length pitches)
+            real_end <- Derive.real (start + dur)
+            let before = fromIntegral (length pitches) * grace_dur
+                grace_start = Num.scale (real_start - before) real_start
+                    (RealTime.seconds place)
+                extents = fit_grace grace_start real_end (length notes)
                     grace_dur
-            events <- zipWithM (note_real grace_dur) starts notes
-            return $ events ++ [final]
+            zipWithM note_real extents notes
     where
-    note_real dur start note = do
+    note_real (start, dur) note = do
         score_start <- Derive.score start
         score_end <- Derive.score (start + dur)
         return $ Sub.Event score_start (score_end - score_start) note
-
--- | Originally I thought it would be useful to make before grace notes
--- compress to avoid the previous note the same way after ones do.  But on
--- further thought, it seems like they shouldn't.  Keyboard instruments can
--- play the overlap, and if anything grace notes should shorten the previous
--- note.  Still, I keep the setting in case I change my mind.
-avoid_prev_note :: Bool
-avoid_prev_note = False
-
-fit_grace_before :: (Fractional a, Ord a) => a -> a -> Int -> a -> [a]
-fit_grace_before prev start notes dur =
-    take notes $ Seq.range_ (start - notes_t * step) step
-    where
-    notes_t = fromIntegral notes
-    step
-        | avoid_prev_note && start - dur * notes_t < prev =
-            (start - prev) / notes_t
-        | otherwise = dur
 
 grace_notes :: RealTime -- ^ note start time, grace notes fall before this
     -> RealTime -- ^ duration of each grace note
@@ -167,16 +174,6 @@ resolve_pitches :: PitchSignal.Pitch
 resolve_pitches base = map $
     either id (flip Pitches.transpose base . TrackLang.default_diatonic)
 
-grace_dur_env :: Sig.Parser TrackLang.RealOrScore
-grace_dur_env = TrackLang.default_real <$>
-    Sig.environ "grace-dur" Sig.Unprefixed (TrackLang.real (1/12))
-        "Duration of grace notes."
-
-grace_dyn_env :: Sig.Parser Double
-grace_dyn_env = TrackLang.positive <$>
-    Sig.environ "grace-dyn" Sig.Unprefixed (TrackLang.Positive 0.5)
-        "Scale the dyn of the grace notes."
-
 c_grace_attr :: Map.Map Int Score.Attributes
     -- ^ Map intervals in semitones (positive or negative) to attrs.
     -> Derive.Generator Derive.Note
@@ -186,18 +183,25 @@ c_grace_attr supported =
     \ If the grace note can't be expressed by the supported attrs, then emit\
     \ notes like the normal grace call.\nSupported: "
     <> Text.intercalate ", " (map ShowVal.show_val (Map.elems supported))
-    ) $ Sig.call ((,,)
+    ) $ Sig.call ((,)
     <$> Sig.many "pitch" "Grace note pitches."
-    <*> grace_dur_env <*> grace_dyn_env
-    ) $ \(pitches, grace_dur, dyn) -> Sub.inverting $ \args -> do
+    <*> grace_envs
+    ) $ \(pitches, (grace_dur, dyn, place)) -> Sub.inverting $ \args -> do
         base <- Util.get_pitch =<< Args.real_start args
         let ps = resolve_pitches base pitches
         Lily.when_lilypond (lily_grace args ps) $ do
             maybe_attrs <- grace_attrs supported ps base
             case maybe_attrs of
-                Just attrs -> Util.add_attrs attrs (Util.placed_note args)
+                Just attrs -> attr_grace args grace_dur (length pitches) attrs
                 -- Fall back on normal grace.
-                Nothing -> grace_call args dyn ps grace_dur
+                Nothing -> grace_call args dyn ps grace_dur place
+    where
+    attr_grace args grace_dur notes attrs = do
+        let (start, dur) = Args.extent args
+        grace_dur <- Util.duration_from start grace_dur
+        let before = fromIntegral notes * grace_dur
+        Util.add_attrs attrs $
+            Derive.d_place (start - before) (dur + before) Util.note
 
 grace_attrs :: Map.Map Int Score.Attributes -> [PitchSignal.Pitch]
     -> PitchSignal.Pitch -> Derive.Deriver (Maybe Score.Attributes)
@@ -241,15 +245,21 @@ grace_p grace_dur pitches (start, end) = do
     real_dur <- Util.real_dur' start grace_dur
     real_start <- Derive.real start
     real_end <- Derive.real end
-    let starts = fit_grace real_start real_end (length pitches) real_dur
+    let starts = map fst $
+            fit_grace real_start real_end (length pitches) real_dur
     return $ PitchSignal.signal $ zip starts pitches
 
--- | Determine grace note starting times if they are to fit in the given time
--- range.
-fit_grace :: RealTime -> RealTime -> Int -> RealTime -> [RealTime]
-fit_grace start end notes dur = take notes $ Seq.range_ start step
+-- | Determine grace note starting times and durations if they are to fit in
+-- the given time range, shortening them if they don't fit.
+fit_grace :: (Fractional a, Ord a) => a -> a -> Int -> a -> [(a, a)]
+fit_grace start end notes dur = take1 notes $ Seq.range_ start step
     where
-    ndur = RealTime.seconds (fromIntegral notes)
+    take1 _ [] = []
+    take1 n (t:ts)
+        | n <= 0 = []
+        | n == 1 = [(t, end - t)]
+        | otherwise = (t, step) : take1 (n-1) ts
+    notes_t = fromIntegral notes
     step
-        | dur * ndur >= end - start = (end - start) / ndur
+        | dur * notes_t >= end - start = (end - start) / notes_t
         | otherwise = dur

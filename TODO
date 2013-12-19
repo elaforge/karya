@@ -3,11 +3,17 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
+  * control for grace notes to fall before or on the base note, at 0 the
+    grace notes fall before, at 0 they fall on.
+  - 'g 2c 1' is interpreted as 'g 2c 1d'.  Perhaps subsequent untyped nums
+    should get the type of the preceding one?
   * why doesn't Sig.optional take the optional val and put in the doc?
   - Tags.europe for european music?  Then I can get rid of Tags.ornament,
     which is pretty vague.
-  - attr grace should move the note back, just like normal grace
+  * attr grace should move the note back, just like normal grace
   / but moving the note back should respect the previous note
+  - Maybe it should instead avoid starting before the *start* of the previous
+    note.  Otherwise you get notes out of order.
   * make grace dur into RealOrScore
   - nums should not default to chromatic, they should be symmetrical like Real
     and Score.

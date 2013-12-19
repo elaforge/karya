@@ -30,12 +30,16 @@ test_grace = do
     let run extract = DeriveTest.extract extract . DeriveTest.derive_tracks
         run_n = run DeriveTest.e_note
         tracks notes = [(">", notes), ("*", [(0, 0, "4c")])]
-        e_dyn e = (DeriveTest.e_note e, Score.initial_dynamic e)
-        prefix = "legato-detach = .25 | grace-dur = 1 | %legato-overlap = .5 | "
+        prefix = "legato-detach = 0 | %legato-overlap = 0 | grace-dur = 1 |"
+
+    let legato_tracks note = tracks [(2, 1,
+            "legato-detach = .25 | grace-dur = 1 | %legato-overlap = .5 | "
+                <> note)]
         dur = 1
         overlap = 0.5
-    equal (run e_dyn $ tracks
-            [(2, 1, prefix <> "grace-dyn = .5 | g (4a) (4b)")])
+        detach = 0.25
+        e_dyn e = (DeriveTest.e_note e, Score.initial_dynamic e)
+    equal (run e_dyn $ legato_tracks "grace-dyn = .5 | g (4a) (4b)")
         ( [ ((2-dur*2, dur+overlap, "4a"), 0.5)
           , ((2-dur, dur+overlap, "4b"), 0.5)
           , ((2, 0.75, "4c"), 1)
@@ -44,31 +48,36 @@ test_grace = do
         )
 
     -- Ensure the grace-dyn default is picked up too.
-    equal (run e_dyn $ tracks [(1, 1, prefix <> "grace-dyn = 1 | g (4b)")])
-        ([((1-dur, dur+overlap, "4b"), 1), ((1, 0.75, "4c"), 1)], [])
-
-    -- -- TODO legato-overlap should be smarter and not make it overlap so much
-    -- equal (run_n $ tracks
-    --         [(1, 1, prefix <> "grace-dyn = .5 | g (4a) (4b)")])
-    --     ( [ (0, dur + overlap, "4a")
-    --       , (0.5, dur + overlap, "4b")
-    --       , (1, 0.75, "4c")
-    --       ]
-    --     , [])
+    equal (run e_dyn $ legato_tracks "grace-dyn = 1 | g (4b)")
+        ([((2-dur, dur+overlap, "4b"), 1), ((2, 1-detach, "4c"), 1)], [])
 
     -- grace-dur defaults to RealTime, but can be ScoreTime.
     let tempo_tracks note = ("tempo", [(0, 0, "2")])
-            : tracks [(4, 1, "%legato-overlap = 0 | " <> note)]
+            : tracks [(4, 2, "%legato-overlap = 0 | " <> note)]
     equal (run_n $ tempo_tracks "grace-dur = 1 | g (4b)")
-        ([(1, 1, "4b"), (2, 0.5, "4c")], [])
+        ([(1, 1, "4b"), (2, 1, "4c")], [])
     equal (run_n $ tempo_tracks "grace-dur = 1t | g (4b)")
-        ([(1.5, 0.5, "4b"), (2, 0.5, "4c")], [])
+        ([(1.5, 0.5, "4b"), (2, 1, "4c")], [])
+
+    -- grace-place
+    let place_tracks note = tracks [(2, 2, prefix <> note)]
+    equal (run_n $ place_tracks "%grace-place = 1 | g (4b)")
+        ([(2, 1, "4b"), (3, 1, "4c")], [])
+    -- Grace notes shorten if the note can't accomodate them all.
+    equal (run_n $ place_tracks "%grace-place = 1 | g (4a) (4b) (4d)")
+        ( [ (2, 0.5, "4a"), (2.5, 0.5, "4b")
+          , (3, 0.5, "4d"), (3.5, 0.5, "4c")
+          ]
+        , []
+        )
+    equal (run_n $ place_tracks "%grace-place = .5 | g (4b)")
+        ([(1.5, 1, "4b"), (2.5, 1.5, "4c")], [])
 
     -- Ensure grace works with attr legato.
     let run_a = DeriveTest.extract DeriveTest.e_attributes
             . DeriveTest.derive_tracks_with with
         with = CallTest.with_note_generator "(" Articulation.c_attr_legato
-    equal (run_a $ tracks [(0, 1, prefix <> "g (4a) (4b)")])
+    equal (run_a $ tracks [(0, 1, "g (4a) (4b)")])
         (["+legato", "+legato", "+legato"], [])
 
 test_grace_ly = do
@@ -88,18 +97,22 @@ test_grace_ly = do
             [])
 
 test_grace_attr = do
-    let run = DeriveTest.extract extract
-            . DeriveTest.derive_tracks_with with_call
-        extract e = (DeriveTest.e_pitch e, DeriveTest.e_attributes e)
+    let run note = DeriveTest.extract extract $
+            DeriveTest.derive_tracks_with with_call
+                [ ("> | %legato-overlap = .5 | grace-dur = 1", [note])
+                , ("*", [(0, 0, "4c")])
+                ]
+        extract e = (DeriveTest.e_start_dur e, DeriveTest.e_pitch e,
+            DeriveTest.e_attributes e)
         with_call = CallTest.with_note_generator "g" (Grace.c_grace_attr graces)
     -- Attrs when it can.
-    equal (run [(">", [(0, 1, "g (4a)")]), ("*", [(0, 0, "4b")])])
-        ([("4b", "+up+whole")], [])
-    equal (run [(">", [(0, 1, "g 1")]), ("*", [(0, 0, "4b")])])
-        ([("4b", "+down+half")], [])
+    equal (run (0, 1, "g (3bb)"))
+        ([((-1, 2), "4c", "+up+whole")], [])
+    equal (run (0, 1, "g 1c"))
+        ([((-1, 2), "4c", "+down+half")], [])
     -- Notes when it can't.
-    equal (run [(">", [(0, 1, "g (4a)")]), ("*", [(0, 0, "4c")])])
-        ([("4a", "+"), ("4c", "+")], [])
+    equal (run (0, 1, "g (4a)"))
+        ([((-1, 1.5), "4a", "+"), ((0, 1), "4c", "+")], [])
 
 graces :: Map.Map Int Score.Attributes
 graces = Map.fromList
