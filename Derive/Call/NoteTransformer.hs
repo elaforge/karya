@@ -117,8 +117,7 @@ tuplet_code tuplet_dur note_dur note_count notes =
 data Arpeggio = ToRight | ToLeft | Random deriving (Show)
 
 c_real_arpeggio :: Arpeggio -> Derive.Generator Derive.Note
-c_real_arpeggio arp = Derive.make_call "arpeggio"
-    (Tags.subs <> Tags.ornament)
+c_real_arpeggio arp = Derive.make_call "arpeggio" (Tags.subs <> Tags.europe)
     ("Arpeggiate the transformed notes. This shifts each note's start time\
     \ by a different amount, increasing to the right for `arp-up`,\
     \ to the left for `arp-down`, and randomly for `arp-rnd`.\

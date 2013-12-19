@@ -73,7 +73,7 @@ scale = tag "scale"
 random :: Tags
 random = tag "random"
 
--- | Adds note doohickeys to an existing note.
+-- | Adds ornaments an existing note, generally to its attack.
 ornament :: Tags
 ornament = tag "ornament"
 
@@ -101,11 +101,22 @@ attr = tag "attr"
 ly :: Tags
 ly = tag "ly"
 
--- | Only emits lilypond, emits no \"normal\" events.
+-- | Only emits lilypond, emits no \"normal\" events.  You never need to use
+-- these if you aren't generating lilypond.
 ly_only :: Tags
 ly_only = ly <> tag "ly-only"
 
--- * idioms
+-- * genres
+
+-- These tags roughly categorize calls by the \"kind\" of music they are used
+-- in.  They tend to implement more specifically idiomatic things, and as such,
+-- are likely to be mutually exclusive.
+
+-- | Calls for ornaments that occur in European music.  They generally
+-- correspond to things you might see in staff notation, and many of them can
+-- emit lilypond as well.
+europe :: Tags
+europe = tag "europe"
 
 bali :: Tags
 bali = tag "bali"

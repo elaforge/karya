@@ -138,8 +138,7 @@ c_ly_slur_up = Derive.make_call "ly-slur-up" (Tags.subs <> Tags.ly_only)
         Lily.notes_around_ly (Lily.SuffixFirst, "^(") (Lily.SuffixLast, ")")
 
 c_ly_slur_down :: Derive.Generator Derive.Note
-c_ly_slur_down = Derive.make_call "ly-slur-down"
-    (Tags.subs <> Tags.ly_only)
+c_ly_slur_down = Derive.make_call "ly-slur-down" (Tags.subs <> Tags.ly_only)
     "Add a lilypond slur, forced to be below." $ Sig.call0 $
         Lily.notes_around_ly (Lily.SuffixFirst, "_(") (Lily.SuffixLast, ")")
 

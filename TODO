@@ -8,7 +8,7 @@ UNSORTED
   - 'g 2c 1' is interpreted as 'g 2c 1d'.  Perhaps subsequent untyped nums
     should get the type of the preceding one?
   * why doesn't Sig.optional take the optional val and put in the doc?
-  - Tags.europe for european music?  Then I can get rid of Tags.ornament,
+  * Tags.europe for european music?  Then I can get rid of Tags.ornament,
     which is pretty vague.
   * attr grace should move the note back, just like normal grace
   / but moving the note back should respect the previous note
@@ -17,6 +17,9 @@ UNSORTED
   * make grace dur into RealOrScore
   - nums should not default to chromatic, they should be symmetrical like Real
     and Score.
+    . The difference is that RealOrScore from_val returns Nothing on Untyped
+      It would mean that a call without a DefaultX would refuse an untyped
+      num.
   * is there really no way to easily write a 1 cycle trill?
     I should have grace note variants for relative intervals, before and on
     note start, and note/pitch

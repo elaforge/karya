@@ -79,7 +79,7 @@ note_calls = Derive.call_maps
     [ ("trem", c_tremolo_transformer) ]
 
 c_note_trill :: Derive.Generator Derive.Note
-c_note_trill = Derive.make_call "trill" (Tags.ornament <> Tags.ly)
+c_note_trill = Derive.make_call "trill" (Tags.europe <> Tags.ly)
     ("Generate a note with a trill.\
     \\nUnlike a trill on a pitch track, this generates events for each\
     \ note of the trill. This is more appropriate for fingered trills,\
@@ -103,7 +103,7 @@ c_note_trill = Derive.make_call "trill" (Tags.ornament <> Tags.ly)
             Sub.place notes
 
 c_attr_trill :: Derive.Generator Derive.Note
-c_attr_trill = Derive.make_call "attr-trill" (Tags.ornament <> Tags.attr)
+c_attr_trill = Derive.make_call "attr-trill" (Tags.europe <> Tags.attr)
     "Generate a trill by adding a `+trill` attribute. Presumably this is a\
     \ sampled instrument that has a trill keyswitch."
     $ Sig.call
@@ -121,7 +121,7 @@ c_attr_trill = Derive.make_call "attr-trill" (Tags.ornament <> Tags.attr)
         Util.add_attrs (Attrs.trill <> width_attr) (Util.placed_note args)
 
 c_tremolo_generator :: Derive.Generator Derive.Note
-c_tremolo_generator = Derive.make_call "trem" (Tags.ornament <> Tags.ly)
+c_tremolo_generator = Derive.make_call "trem" (Tags.europe <> Tags.ly)
     "Repeat a single note." $ Sig.call Speed.arg $ \speed args -> do
         starts <- tremolo_starts speed (Args.range_or_next args)
         notes <- Sub.sub_events args
@@ -133,7 +133,7 @@ c_tremolo_generator = Derive.make_call "trem" (Tags.ornament <> Tags.ly)
 
 c_tremolo_transformer :: Derive.Transformer Derive.Note
 c_tremolo_transformer = Derive.transformer "trem"
-    (Tags.ornament <> Tags.subs)
+    (Tags.europe <> Tags.subs)
     "Repeat the transformed note. The generator is creating the notes so it\
     \ can set them to the appropriate duration, but this one has to stretch\
     \ them to fit." $ Sig.callt Speed.arg $ \speed args deriver -> do
@@ -225,7 +225,7 @@ pitch_calls = Derive.call_maps
     []
 
 c_pitch_trill :: Maybe Mode -> Derive.Generator Derive.Pitch
-c_pitch_trill maybe_mode = Derive.generator1 "trill" Tags.ornament
+c_pitch_trill maybe_mode = Derive.generator1 "trill" Tags.europe
     ("Generate a pitch signal of alternating pitches. `tr1` will start with\
     \ the unison, while `tr2` will start with the neighbor. `tr` is\
     \ configurabled with the environment."
@@ -294,7 +294,7 @@ control_calls = Derive.call_maps
 --
 -- Args are the same as 'c_pitch_trill'.
 c_control_trill :: Maybe Mode -> Derive.Generator Derive.Control
-c_control_trill maybe_mode = Derive.generator1 "trill" Tags.ornament
+c_control_trill maybe_mode = Derive.generator1 "trill" Tags.europe
     ("The control version of the pitch trill.  It generates a signal of values\
     \ alternating with 0, which can be used as a transposition signal."
     ) $ Sig.call ((,,)
@@ -316,7 +316,7 @@ trill_speed_arg = defaulted "speed" (typed_control "trill-speed" 14 Score.Real)
     \ emitting a cut-off note at the end."
 
 c_saw :: Derive.Generator Derive.Control
-c_saw = Derive.generator1 "saw" Tags.ornament
+c_saw = Derive.generator1 "saw" mempty
     "Emit a sawtooth.  By default it has a downward slope, but you can make\
     \ an upward slope by setting `from` and `to`."
     $ Sig.call ((,,)
@@ -342,7 +342,7 @@ data SineMode = Bipolar | Negative | Positive deriving (Show)
 -- | This is probably not terribly convenient to use on its own, I should
 -- have some more specialized calls based on this.
 c_sine :: SineMode -> Derive.Generator Derive.Control
-c_sine mode = Derive.generator1 "sine" Tags.ornament
+c_sine mode = Derive.generator1 "sine" mempty
     "Emit a sine wave. The default version is centered on the `offset`,\
     \ and the `+` and `-` variants are above and below it, respectively."
     $ Sig.call ((,,)

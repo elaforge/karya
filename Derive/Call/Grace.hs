@@ -74,7 +74,8 @@ grace_placement_env = Sig.environ "grace-place" Sig.Unprefixed
 -- * note calls
 
 c_mordent :: Pitch.Transpose -> Derive.Generator Derive.Note
-c_mordent default_neighbor = Derive.make_call "mordent" Tags.ornament
+c_mordent default_neighbor = Derive.make_call "mordent"
+    (Tags.europe <> Tags.ornament)
     "Like `g`, but hardcoded to play pitch, neighbor, pitch."
     $ Sig.call ((,)
     <$> Sig.defaulted "neighbor" (TrackLang.DefaultDiatonic default_neighbor)
@@ -93,7 +94,7 @@ lily_mordent args neighbor = do
     lily_grace args [pitch, Pitches.transpose neighbor pitch]
 
 c_grace :: Derive.Generator Derive.Note
-c_grace = Derive.make_call "grace" (Tags.ornament <> Tags.ly)
+c_grace = Derive.make_call "grace" (Tags.europe <> Tags.ornament <> Tags.ly)
     "Emit grace notes. The grace notes go through the `(` call, so they will\
     \ overlap or apply a keyswitch, or do whatever `(` does."
     $ Sig.call ((,)
@@ -167,14 +168,14 @@ grace_notes start dur notes = mapM note $ zip starts notes
 resolve_pitches :: PitchSignal.Pitch
     -> [Either PitchSignal.Pitch TrackLang.DefaultDiatonic]
     -> [PitchSignal.Pitch]
-resolve_pitches base = map $
-    either id (flip Pitches.transpose base . TrackLang.default_diatonic)
+resolve_pitches base = map $ either id (resolve . TrackLang.default_diatonic)
+    where resolve t = Pitches.transpose t base
 
 c_grace_attr :: Map.Map Int Score.Attributes
     -- ^ Map intervals in semitones (positive or negative) to attrs.
     -> Derive.Generator Derive.Note
 c_grace_attr supported =
-    Derive.make_call "grace" (Tags.ornament <> Tags.ly)
+    Derive.make_call "grace" (Tags.europe <> Tags.ornament <> Tags.ly)
     ("Emit grace notes as attrs, given a set of possible interval attrs.\
     \ If the grace note can't be expressed by the supported attrs, then emit\
     \ notes like the normal grace call.\nSupported: "
@@ -210,7 +211,8 @@ grace_attrs _ _ _ = return Nothing
 -- * pitch calls
 
 c_mordent_p :: Pitch.Transpose -> Derive.Generator Derive.Pitch
-c_mordent_p default_neighbor = Derive.generator1 "mordent" Tags.ornament
+c_mordent_p default_neighbor = Derive.generator1 "mordent"
+    (Tags.europe <> Tags.ornament)
     "Like `g`, but hardcoded to play pitch, neighbor, pitch."
     $ Sig.call ((,,)
     <$> Sig.required "pitch" "Base pitch."
@@ -222,7 +224,7 @@ c_mordent_p default_neighbor = Derive.generator1 "mordent" Tags.ornament
             (Args.range_or_next args)
 
 c_grace_p :: Derive.Generator Derive.Pitch
-c_grace_p = Derive.generator1 "grace" Tags.ornament
+c_grace_p = Derive.generator1 "grace" (Tags.europe <> Tags.ornament)
     "Generate grace note pitches.  They start on the event and have the given\
     \ duration, but are shortened if the available duration is too short.\
     \ The destination pitch is first, even though it plays last, so\
