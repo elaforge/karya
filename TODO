@@ -3,6 +3,7 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
+  - Can I get rid of RawVal vs. Val by storing it as a Quoted?
   - apparently tests that throw an exception aren't getting counted as failed
     and they're slow and have low parallelism
   * control for grace notes to fall before or on the base note, at 0 the

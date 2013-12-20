@@ -11,6 +11,7 @@ import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 
 import qualified Ui.Event as Event
+import qualified Ui.ScoreTime as ScoreTime
 import qualified Derive.Args as Args
 import qualified Derive.Call as Call
 import qualified Derive.Call.Control as Control
@@ -29,6 +30,7 @@ import qualified Derive.TrackInfo as TrackInfo
 import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.Pitch as Pitch
+import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
 
 import Types
@@ -40,10 +42,12 @@ val_calls = Derive.make_calls
     , ("<", c_prev_val)
     , ("e", c_env)
     , ("t", c_timestep)
-    , ("ts", c_timestep_reciprocal)
+    , ("t/", c_timestep_reciprocal)
     , ("1/", c_reciprocal)
     , ("nn", c_nn)
     , ("hz", c_hz)
+    , ("st", c_scoretime)
+    , ("rt", c_realtime)
 
     -- lookup
     , ("#", c_pitch_signal)
@@ -155,6 +159,20 @@ c_hz = Derive.val_call "hz" mempty
         Left pitch -> TrackLang.num . Pitch.nn_to_hz <$> Pitches.pitch_nn pitch
         Right nn ->
             return $ TrackLang.num $ Pitch.nn_to_hz (Pitch.NoteNumber nn)
+
+c_scoretime :: Derive.ValCall
+c_scoretime = Derive.val_call "scoretime" mempty
+    "Convert a number to ScoreTime. This just changes the type annotation, the\
+    \ value remains the same." $
+    Sig.call (Sig.required_env "val" Sig.None "") $ \val _ ->
+        return $ ScoreTime.double val
+
+c_realtime :: Derive.ValCall
+c_realtime = Derive.val_call "realtime" mempty
+    "Convert a number to RealTime. This just changes the type annotation, the\
+    \ value remains the same." $
+    Sig.call (Sig.required_env "val" Sig.None "") $ \val _ ->
+        return $ RealTime.seconds val
 
 -- * lookup
 
