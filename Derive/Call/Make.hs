@@ -2,6 +2,7 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
+{-# LANGUAGE FlexibleContexts #-}
 -- | This is like "Derive.Call.Util", but higher level.  It has templates for
 -- creating calls.
 module Derive.Call.Make where
@@ -69,9 +70,25 @@ transform_notes_subevents name tags sig transform =
 
 -- | Create a transformer that just sets an environ value.  This is higher
 -- level and more concise than using the @=@ transformer.
-with_environ :: (TrackLang.Typecheck val) =>
+with_environ :: (TrackLang.Typecheck val, Derive.ToTagged (Derive.Elem d)) =>
     Text -> Sig.Parser a -> (a -> val) -> Derive.Transformer d
 with_environ name sig extract = Derive.transformer name mempty
         ("Set `" <> name <> "` environ variable.")
     $ Sig.callt sig $ \val _args ->
         Derive.with_val (TrackLang.Symbol name) (extract val)
+
+
+-- * val calls
+
+-- | Make a new ValCall from an existing one, by mapping over its output.
+modify_vcall :: Derive.ValCall -> Text -> Text
+    -> (TrackLang.Val -> TrackLang.Val) -> Derive.ValCall
+modify_vcall vcall name doc f = vcall
+    { Derive.vcall_name = name
+    , Derive.vcall_doc = Derive.CallDoc
+        { Derive.cdoc_tags = Derive.cdoc_tags (Derive.vcall_doc vcall)
+        , Derive.cdoc_doc = doc
+        , Derive.cdoc_args = Derive.cdoc_args (Derive.vcall_doc vcall)
+        }
+    , Derive.vcall_call = fmap f . Derive.vcall_call vcall
+    }

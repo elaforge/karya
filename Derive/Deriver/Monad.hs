@@ -35,7 +35,7 @@ module Derive.Deriver.Monad (
     , modify, get, gets, put, run
 
     -- * error
-    , Error(..), ErrorVal(..), CallError(..), ErrorPlace(..)
+    , Error(..), ErrorVal(..), CallError(..), ErrorPlace(..), EvalSource(..)
     , throw, throw_srcpos, throw_arg_error, throw_arg_error_srcpos
     , throw_error, throw_error_srcpos
 
@@ -81,7 +81,7 @@ module Derive.Deriver.Monad (
     -- * calls
     , CallMap, ValCallMap
     , CallMaps, make_calls, call_maps, generator_call_map, transformer_call_map
-    , CallInfo(..), coerce_call_info, dummy_call_info
+    , CallInfo(..), coerce_call_info, dummy_call_info, tag_call_info
     , Call(..), make_call
     , CallDoc(..), ArgDoc(..), ArgParser(..), EnvironDefault(..), ArgDocs(..)
     , WithArgDoc
@@ -144,6 +144,7 @@ import qualified Derive.Call.Tags as Tags
 import qualified Derive.LEvent as LEvent
 import qualified Derive.PitchSignal as PitchSignal
 import qualified Derive.Score as Score
+import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Stack as Stack
 import qualified Derive.TrackInfo as TrackInfo
 import qualified Derive.TrackLang as TrackLang
@@ -262,10 +263,12 @@ instance Pretty.Pretty ErrorVal where
     pretty (CallError err) = Pretty.pretty err
 
 data CallError =
-    -- | ErrorPlace, arg name, expected type, received val
-    --
-    -- The arg number starts at 0.
-    TypeError !ErrorPlace !Text !TrackLang.Type !(Maybe TrackLang.Val)
+    -- | ErrorPlace, EvalSource, arg name, expected type, received val
+    TypeError !ErrorPlace !EvalSource !Text !TrackLang.Type
+        !(Maybe TrackLang.Val)
+    -- | Error evaluating a 'TrackLang.VQuoted' while processing a particular
+    -- argument.
+    | EvalError !ErrorPlace !TrackLang.Quoted !Text !Error
     -- | Couldn't even call the thing because the name was not found.
     | CallNotFound !TrackLang.CallId
     -- | Calling error that doesn't fit into the above categories.
@@ -276,13 +279,30 @@ data CallError =
 data ErrorPlace = TypeErrorArg !Int | TypeErrorEnviron !TrackLang.Symbol
     deriving (Eq, Show)
 
+data EvalSource =
+    -- | The value in error came from a literal expression.
+    Literal
+    -- | The value in error came from a 'TrackLang.VQuoted' bit of code.
+    | Quoted !TrackLang.Quoted
+    deriving (Show)
+
 instance Pretty.Pretty CallError where
     pretty err = case err of
-        TypeError place name expected received ->
+        TypeError place source name expected received ->
             "TypeError: arg " <> Pretty.pretty place <> "/" <> untxt name
-            <> ": expected " <> Pretty.pretty expected <> " but got "
-            <> Pretty.pretty (TrackLang.type_of <$> received)
+            <> source_desc <> ": expected " <> Pretty.pretty expected
+            <> " but got " <> Pretty.pretty (TrackLang.type_of <$> received)
             <> ": " <> Pretty.pretty received
+            where
+            source_desc = case source of
+                Literal -> ""
+                Quoted call -> " from " <> untxt (ShowVal.show_val call)
+        EvalError place call name (Error _ _ error_val) ->
+            -- The srcpos and stack of the derive error is probably not
+            -- interesting, so I strip those out.
+            "EvalError: arg " <> Pretty.pretty place <> "/" <> untxt name
+            <> " from " <> untxt (ShowVal.show_val call)
+            <> ": " <> Pretty.pretty error_val
         ArgError err -> "ArgError: " <> untxt err
         CallNotFound call_id -> "CallNotFound: " <> Pretty.pretty call_id
 
@@ -385,7 +405,6 @@ instance Callable PitchSignal.Signal where
     lookup_generator = lookup_with (scope_pitch . scopes_generator)
     lookup_transformer = lookup_with (scope_pitch . scopes_transformer)
     callable_name _ = "pitch"
-
 
 -- * state
 
@@ -1075,6 +1094,13 @@ dummy_call_info start dur text = CallInfo
     , info_sub_events = Nothing
     , info_track_type = Nothing
     } where s = if null text then "<no-event>" else "<" ++ text ++ ">"
+
+-- | Tag the polymorphic part of the CallInfo so it can be given to
+-- a 'ValCall'.  Otherwise, ValCall would have to be polymorphic too,
+-- which means it would hard to write generic ones.
+tag_call_info :: (ToTagged a) => CallInfo a -> CallInfo Tagged
+tag_call_info cinfo = cinfo
+    { info_prev_val = second to_tagged <$> info_prev_val cinfo }
 
 -- | A Call will be called as either a generator or a transformer, depending on
 -- its position.  A call at the end of a compose pipeline will be called as

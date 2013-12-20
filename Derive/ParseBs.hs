@@ -232,6 +232,7 @@ p_val =
     <|> TrackLang.VSymbol <$> p_string
     <|> TrackLang.VControl <$> p_control
     <|> TrackLang.VPitchControl <$> p_pitch_control
+    <|> TrackLang.VQuoted <$> p_quoted_call
     <|> (A.char '_' >> return TrackLang.VNotGiven)
     <|> TrackLang.VSymbol <$> p_symbol
 
@@ -310,6 +311,9 @@ p_pitch_control = do
         Nothing -> TrackLang.LiteralControl control
         Just call -> TrackLang.DefaultedControl control call
     <?> "pitch control"
+
+p_quoted_call :: A.Parser TrackLang.Quoted
+p_quoted_call = A.char '"' >> TrackLang.Quoted <$> p_sub_call
 
 -- | This is special syntax that's only allowed in control track titles.
 p_scale_id :: A.Parser TrackLang.Symbol

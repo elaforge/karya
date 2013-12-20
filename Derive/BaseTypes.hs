@@ -338,6 +338,11 @@ data ValType pitch =
     --
     -- Literal: @func@, @\'hello\'@, @\'quinn\'\'s hat\'@
     | VSymbol !Symbol
+
+    -- | A quoted val call.  TODO
+    --
+    -- Literal: @"(a b c)@
+    | VQuoted !Quoted
     -- | An explicit not-given arg for functions so you can use positional
     -- args with defaults.
     --
@@ -359,6 +364,7 @@ instance (ShowVal.ShowVal pitch) => ShowVal.ShowVal (ValType pitch) where
         VPitch pitch -> ShowVal.show_val pitch
         VInstrument inst -> ShowVal.show_val inst
         VSymbol sym -> ShowVal.show_val sym
+        VQuoted quoted -> ShowVal.show_val quoted
         VNotGiven -> "_"
 
 instance (ShowVal.ShowVal pitch) => Pretty.Pretty (ValType pitch) where
@@ -368,6 +374,11 @@ instance DeepSeq.NFData (ValType pitch) where
     rnf (VNum d) = DeepSeq.rnf d
     rnf (VSymbol (Symbol s)) = DeepSeq.rnf s
     rnf _ = ()
+
+newtype Quoted = Quoted Call deriving (Show)
+
+instance ShowVal.ShowVal Quoted where
+    show_val (Quoted call) = "\"(" <> ShowVal.show_val call <> ")"
 
 newtype Symbol = Symbol Text
     deriving (Eq, Ord, Show, DeepSeq.NFData, String.IsString)

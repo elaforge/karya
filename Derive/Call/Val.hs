@@ -14,6 +14,7 @@ import qualified Ui.Event as Event
 import qualified Derive.Args as Args
 import qualified Derive.Call as Call
 import qualified Derive.Call.Control as Control
+import qualified Derive.Call.Make as Make
 import qualified Derive.Call.Pitch as Call.Pitch
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Call.Util as Util
@@ -29,6 +30,7 @@ import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.Pitch as Pitch
 import qualified Perform.Signal as Signal
+
 import Types
 
 
@@ -124,7 +126,7 @@ c_timestep = Derive.val_call "timestep" mempty
             Util.parsed_meter_duration (Args.start args) rank steps
 
 c_timestep_reciprocal :: Derive.ValCall
-c_timestep_reciprocal = Sig.modify_vcall c_timestep "timestep-reciprocal"
+c_timestep_reciprocal = Make.modify_vcall c_timestep "timestep-reciprocal"
     ("This is the same as `timestep` except it returns the reciprocal. This is\
     \ useful for e.g. trills which take cycles per second rather than duration."
     ) reciprocal
@@ -229,8 +231,8 @@ num_or_pitch argnum (val :| vals) = case val of
 type_error :: Int -> Text -> TrackLang.Type -> TrackLang.Val -> Derive.Deriver a
 type_error argnum name expected received =
     Derive.throw_error $ Derive.CallError $
-        Derive.TypeError (Derive.TypeErrorArg argnum) name expected
-            (Just received)
+        Derive.TypeError (Derive.TypeErrorArg argnum) Derive.Literal name
+            expected (Just received)
 
 make_segments :: (Monoid.Monoid sig) =>
     ([(RealTime, y)] -> sig)

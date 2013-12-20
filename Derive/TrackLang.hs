@@ -28,8 +28,8 @@ import qualified Ui.ScoreTime as ScoreTime
 import qualified Derive.BaseTypes as Score
 import Derive.BaseTypes
        (Environ, make_environ, environ_to_list, insert_val, delete_val,
-        lookup_val, null_environ, ValName, RawVal, Val, ValType(..), Symbol(..),
-        ControlRef(..), PitchControl, RawPitchControl, ValControl,
+        lookup_val, null_environ, ValName, RawVal, Val, Quoted(..), ValType(..),
+        Symbol(..), ControlRef(..), PitchControl, RawPitchControl, ValControl,
         show_call_val, CallId, Expr, Call(..), PitchCall, Term(..))
 import qualified Derive.Environ as Environ
 import qualified Derive.PitchSignal as PitchSignal
@@ -159,6 +159,9 @@ data Type = TNum NumType NumValue
     -- | Text string, with enum values if it's an enum.
     | TSymbol (Maybe [Text])
     | TNotGiven | TMaybe Type | TEither Type Type | TVal
+    -- | A 'VQuoted'.  This has no Typecheck instance so it should never show
+    -- up as a call argument.
+    | TQuoted
     deriving (Eq, Ord, Show)
 
 data NumType = TUntyped | TTranspose | TDefaultDiatonic | TDefaultChromatic
@@ -223,6 +226,7 @@ type_of val = case val of
     VPitch {} -> TPitch
     VInstrument {} -> TInstrument
     VSymbol {} -> TSymbol Nothing
+    VQuoted {} -> TQuoted
     VNotGiven -> TNotGiven
 
 -- ** special types
@@ -263,6 +267,12 @@ instance (Typecheck a, Typecheck b) => Typecheck (Either a b) where
         (to_type (error "Either to_type" :: b))
 
 -- ** numeric types
+
+instance Typecheck Score.TypedVal where
+    from_val (VNum a) = Just a
+    from_val _ = Nothing
+    to_val = VNum
+    to_type = num_to_type
 
 instance Typecheck Double where
     from_val (VNum (Score.Typed _ a)) = Just a
@@ -361,6 +371,7 @@ num_to_type :: (TypecheckNum a) => a -> Type
 num_to_type undef = TNum (num_type undef) TAny
 
 class (Typecheck a) => TypecheckNum a where num_type :: a -> NumType
+instance TypecheckNum Score.TypedVal where num_type _ = TUntyped
 instance TypecheckNum Double where num_type _ = TUntyped
 instance TypecheckNum Int where num_type _ = TInt
 instance TypecheckNum Pitch.Transpose where num_type _ = TTranspose
@@ -439,11 +450,6 @@ instance (Show a, TypecheckEnum a) => Typecheck (E a) where
     from_val _ = Nothing
     to_val = VSymbol . Symbol . show_val . get_e
     to_type _ = TSymbol (Just (map show_val [minBound :: a .. maxBound]))
-
-data Mode2 = High | Low deriving (Eq, Enum, Bounded, Show)
-
-instance ShowVal Mode2 where show_val = default_show_val
-instance TypecheckEnum Mode2
 
 -- *** any symbol
 

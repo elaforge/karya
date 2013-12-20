@@ -96,14 +96,12 @@ module Derive.Sig (
     , prefixed_environ, environ_keys
     -- * call
     , call, call0, callt, call0t
-    -- * misc
-    , cast, modify_vcall
 ) where
 import qualified Control.Applicative as Applicative
 import qualified Data.Text as Text
 
 import Util.Control
-import qualified Util.Pretty as Pretty
+import qualified Derive.Call as Call
 import qualified Derive.Derive as Derive
 import Derive.Derive (EnvironDefault(..))
 import qualified Derive.Score as Score
@@ -132,9 +130,10 @@ data State = State {
     -- in state_vals doesn't work because when I run out I don't know where
     -- I am.
     , state_argnum :: !Int
-    , state_environ :: !TrackLang.Environ
     , state_call_name :: !Text
-    } deriving (Show)
+    , state_derive :: !Derive.State
+    , state_call_info :: !(Derive.CallInfo Derive.Tagged)
+    }
 
 run :: Parser a -> State -> Either Error a
 run parser state = case parser_parser parser state of
@@ -175,14 +174,12 @@ required name = required_env name Derive.Prefixed
 
 required_env :: forall a. (TrackLang.Typecheck a) => Text
     -> Derive.EnvironDefault -> Text -> Parser a
-required_env name env_default doc = parser arg_doc $ \state ->
-    case get_val env_default state name of
+required_env name env_default doc = parser arg_doc $ \state1 ->
+    case get_val env_default state1 name of
         Nothing -> Left $ Derive.ArgError $
             "expected another argument at: " <> showt name
-        Just (state2, val) -> case TrackLang.from_val val of
-            Just a -> Right (state2, a)
-            Nothing -> Left $ Derive.TypeError (arg_error state) name expected
-                (Just val)
+        Just (state, val) -> (,) state <$>
+            check_arg state arg_doc (argnum_error state1) name val
     where
     expected = TrackLang.to_type (error "Sig.required" :: a)
     arg_doc = Derive.ArgDoc
@@ -193,6 +190,7 @@ required_env name env_default doc = parser arg_doc $ \state ->
         , Derive.arg_doc = doc
         }
 
+
 -- | The argument is not required to be present, but if it is, it has to have
 -- either the right type or be VNotGiven.
 defaulted :: forall a. (TrackLang.Typecheck a) => Text -> a -> Text -> Parser a
@@ -200,14 +198,12 @@ defaulted name = defaulted_env name Derive.Prefixed
 
 defaulted_env :: forall a. (TrackLang.Typecheck a) => Text
     -> Derive.EnvironDefault -> a -> Text -> Parser a
-defaulted_env name env_default deflt doc = parser arg_doc $ \state ->
-    case get_val env_default state name of
-        Nothing -> Right (state, deflt)
-        Just (state2, TrackLang.VNotGiven) -> Right (state2, deflt)
-        Just (state2, val) -> case TrackLang.from_val val of
-            Just a -> Right (state2, a)
-            Nothing -> Left $ Derive.TypeError (arg_error state) name expected
-                (Just val)
+defaulted_env name env_default deflt doc = parser arg_doc $ \state1 ->
+    case get_val env_default state1 name of
+        Nothing -> Right (state1, deflt)
+        Just (state, TrackLang.VNotGiven) -> Right (state, deflt)
+        Just (state, val) -> (,) state <$>
+            check_arg state arg_doc (argnum_error state1) name val
     where
     expected = TrackLang.to_type deflt
     arg_doc = Derive.ArgDoc
@@ -230,10 +226,8 @@ environ :: forall a. (TrackLang.Typecheck a) => Text -> Derive.EnvironDefault
 environ name env_default deflt doc = parser arg_doc $ \state ->
     case lookup_default env_default state name of
         Nothing -> Right (state, deflt)
-        Just val -> case TrackLang.from_val val of
-            Nothing -> Left $ Derive.TypeError (environ_error state name)
-                name expected (Just val)
-            Just a -> Right (state, a)
+        Just val -> (,) state <$>
+            check_arg state arg_doc (environ_error state name) name val
     where
     expected = TrackLang.to_type deflt
     arg_doc = Derive.ArgDoc
@@ -250,11 +244,9 @@ required_environ :: forall a. (TrackLang.Typecheck a) =>
 required_environ name env_default doc = parser arg_doc $ \state ->
     case lookup_default env_default state name of
         Nothing -> Left $ Derive.TypeError (environ_error state name)
-            name expected Nothing
-        Just val -> case TrackLang.from_val val of
-            Nothing -> Left $ Derive.TypeError (environ_error state name)
-                name expected (Just val)
-            Just a -> Right (state, a)
+            Derive.Literal name expected Nothing
+        Just val -> (,) state <$>
+            check_arg state arg_doc (environ_error state name) name val
     where
     expected = TrackLang.to_type (error "Sig.required_environ" :: a)
     arg_doc = Derive.ArgDoc
@@ -274,18 +266,20 @@ optional name = optional_env name Derive.Prefixed
 
 optional_env :: forall a. (TrackLang.Typecheck a) =>
     Text -> Derive.EnvironDefault -> a -> Text -> Parser a
-optional_env name env_default deflt doc = parser arg_doc $ \state ->
-    case get_val env_default state name of
-        Nothing -> Right (state, deflt)
-        Just (state2, TrackLang.VNotGiven) -> Right (state2, deflt)
-        Just (state2, val) -> case TrackLang.from_val val of
-            Just a -> Right (state2, a)
-            Nothing -> case lookup_default env_default state name of
-                Nothing -> Right (state, deflt)
-                Just val -> case TrackLang.from_val val of
-                    Nothing -> Left $ Derive.TypeError
-                        (arg_error state) name expected (Just val)
-                    Just a -> Right (state, a)
+optional_env name env_default deflt doc = parser arg_doc $ \state1 ->
+    case get_val env_default state1 name of
+        Nothing -> Right (state1, deflt)
+        Just (state, TrackLang.VNotGiven) -> Right (state, deflt)
+        Just (state, val) ->
+            case check_arg state arg_doc (argnum_error state1) name val of
+                Right a -> Right (state, a)
+                Left (Derive.TypeError {}) ->
+                    case lookup_default env_default state name of
+                        Nothing -> Right (state, deflt)
+                        Just val -> (,) state <$>
+                            check_arg state arg_doc (argnum_error state1)
+                                name val
+                Left err -> Left err
     where
     expected = TrackLang.to_type (error "Sig.optional" :: a)
     arg_doc = Derive.ArgDoc
@@ -299,13 +293,12 @@ optional_env name env_default deflt doc = parser arg_doc $ \state ->
 -- | Collect the rest of the arguments.
 many :: forall a. (TrackLang.Typecheck a) => Text -> Text -> Parser [a]
 many name doc = parser arg_doc $ \state -> do
-    vals <- mapM typecheck (zip [state_argnum state ..] (state_vals state))
+    vals <- mapM (typecheck state)
+        (zip [state_argnum state ..] (state_vals state))
     Right (state { state_vals = [] }, vals)
     where
-    typecheck (argnum, val) = case TrackLang.from_val val of
-        Just a -> Right a
-        Nothing -> Left $ Derive.TypeError (Derive.TypeErrorArg argnum) name
-            expected (Just val)
+    typecheck state (argnum, val) =
+        check_arg state arg_doc (Derive.TypeErrorArg argnum) name val
     expected = TrackLang.to_type (error "Sig.many" :: a)
     arg_doc = Derive.ArgDoc
         { Derive.arg_name = name
@@ -323,14 +316,12 @@ many1 name doc = parser arg_doc $ \state ->
         [] -> Left $
             Derive.ArgError $ "many1 arg requires at least one value: " <> name
         v : vs -> do
-            v <- typecheck v
-            vs <- mapM typecheck vs
+            v <- typecheck state v
+            vs <- mapM (typecheck state) vs
             Right (state { state_vals = [] }, v :| vs)
     where
-    typecheck (argnum, val) = case TrackLang.from_val val of
-        Just a -> Right a
-        Nothing -> Left $ Derive.TypeError (Derive.TypeErrorArg argnum) name
-            expected (Just val)
+    typecheck state (argnum, val) =
+        check_arg state arg_doc (Derive.TypeErrorArg argnum) name val
     expected = TrackLang.to_type (error "Sig.many1" :: a)
     arg_doc = Derive.ArgDoc
         { Derive.arg_name = name
@@ -340,8 +331,8 @@ many1 name doc = parser arg_doc $ \state ->
         , Derive.arg_doc = doc
         }
 
-arg_error :: State -> Derive.ErrorPlace
-arg_error = Derive.TypeErrorArg . state_argnum
+argnum_error :: State -> Derive.ErrorPlace
+argnum_error = Derive.TypeErrorArg . state_argnum
 
 environ_error :: State -> Text -> Derive.ErrorPlace
 environ_error state name =
@@ -378,6 +369,26 @@ get_val env_default state name = case state_vals state of
         _ -> v)
     where next = state { state_argnum = state_argnum state + 1 }
 
+check_arg :: forall a. TrackLang.Typecheck a => State -> Derive.ArgDoc
+    -> Derive.ErrorPlace -> Text -> TrackLang.Val -> Either Error a
+check_arg state arg_doc place name val = do
+    (val, maybe_call) <- case val of
+        TrackLang.VQuoted q@(TrackLang.Quoted call) -> case eval state call of
+            Left err -> Left $ Derive.EvalError place q name err
+            Right val -> Right (val, Just q)
+        _ -> Right (val, Nothing)
+    let source = maybe Derive.Literal Derive.Quoted maybe_call
+    case TrackLang.from_val val of
+        Just a -> Right a
+        Nothing -> Left $ Derive.TypeError place
+            source name (Derive.arg_type arg_doc) (Just val)
+
+eval :: State -> TrackLang.Call -> Either Derive.Error TrackLang.Val
+eval state call = result
+    where
+    (result, _state, _logs) = Derive.run (state_derive state) $
+        Call.eval (state_call_info state) (TrackLang.ValCall call)
+
 lookup_default :: Derive.EnvironDefault -> State -> Text -> Maybe TrackLang.Val
 lookup_default env_default state name =
     msum $ map lookup $ environ_keys (state_call_name state) name env_default
@@ -406,64 +417,44 @@ type Generator y d = Derive.PassedArgs y -> Derive.Deriver d
 type Transformer y d =
     Derive.PassedArgs y -> Derive.Deriver d -> Derive.Deriver d
 
-call :: Parser a -> (a -> Generator y d) -> Derive.WithArgDoc (Generator y d)
+call :: Derive.ToTagged y => Parser a -> (a -> Generator y d)
+    -> Derive.WithArgDoc (Generator y d)
 call parser f = (go, Derive.ArgDocs (parser_docs parser))
     where go args = run_call parser args >>= \a -> f a args
 
 -- | Specialization of 'call' for 0 arguments.
-call0 :: Generator y d -> Derive.WithArgDoc (Generator y d)
+call0 :: Derive.ToTagged y => Generator y d -> Derive.WithArgDoc (Generator y d)
 call0 f = (go, Derive.ArgDocs [])
     where go args = run_call no_args args >>= \() -> f args
 
-callt :: Parser a -> (a -> Transformer y d)
+callt :: Derive.ToTagged y => Parser a -> (a -> Transformer y d)
     -> Derive.WithArgDoc (Transformer y d)
 callt parser f = (go, Derive.ArgDocs (parser_docs parser))
     where go args deriver = run_call parser args >>= \a -> f a args deriver
 
 -- | Specialization of 'callt' for 0 arguments.
-call0t :: Transformer y d -> Derive.WithArgDoc (Transformer y d)
+call0t :: Derive.ToTagged y => Transformer y d
+    -> Derive.WithArgDoc (Transformer y d)
 call0t f = (go, Derive.ArgDocs [])
     where
     go args deriver = run_call (Applicative.pure ()) args >>= \() ->
         f args deriver
 
-run_call :: Parser a -> Derive.PassedArgs d -> Derive.Deriver a
+run_call :: Derive.ToTagged d => Parser a -> Derive.PassedArgs d
+    -> Derive.Deriver a
 run_call parser args = do
-    environ <- Derive.gets (Derive.state_environ . Derive.state_dynamic)
-    case run parser (make_state args environ) of
+    state <- Derive.get
+    case run parser (make_state args state) of
         Left err -> Derive.throw_error (Derive.CallError err)
         Right a -> return a
     where
-    make_state args environ = State
+    make_state args state = State
         { state_vals = Derive.passed_vals args
         , state_argnum = 0
-        , state_environ = environ
         , state_call_name = Derive.passed_call_name args
+        , state_derive = state
+        , state_call_info = Derive.tag_call_info (Derive.passed_info args)
         }
 
-
--- * misc
-
--- | Cast a Val to a haskell val, or throw if it's the wrong type.
-cast :: forall a. (TrackLang.Typecheck a) => Text -> TrackLang.Val
-    -> Derive.Deriver a
-cast name val = case TrackLang.from_val val of
-        Nothing -> Derive.throw $ untxt $
-            name <> ": expected " <> Pretty.prettytxt return_type
-            <> " but val was " <> Pretty.prettytxt (TrackLang.type_of val)
-            <> " " <> TrackLang.show_val val
-        Just a -> return a
-    where return_type = TrackLang.to_type (error "cast" :: a)
-
--- | Make a new ValCall from an existing one, by mapping over its output.
-modify_vcall :: Derive.ValCall -> Text -> Text
-    -> (TrackLang.Val -> TrackLang.Val) -> Derive.ValCall
-modify_vcall vcall name doc f = vcall
-    { Derive.vcall_name = name
-    , Derive.vcall_doc = Derive.CallDoc
-        { Derive.cdoc_tags = Derive.cdoc_tags (Derive.vcall_doc vcall)
-        , Derive.cdoc_doc = doc
-        , Derive.cdoc_args = Derive.cdoc_args (Derive.vcall_doc vcall)
-        }
-    , Derive.vcall_call = fmap f . Derive.vcall_call vcall
-    }
+state_environ :: State -> TrackLang.Environ
+state_environ = Derive.state_environ . Derive.state_dynamic . state_derive

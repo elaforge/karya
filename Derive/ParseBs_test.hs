@@ -108,6 +108,10 @@ test_parse_val = do
             , ("#sig,(0)", Just $ VPitchControl $
                 DefaultedControl "sig" (TrackLang.call "0" []))
 
+            , ("\"(a b)", Just $ VQuoted $ TrackLang.Quoted $
+                Call (Symbol "a") [Literal (VSymbol (Symbol "b"))])
+            , ("\"()", Nothing)
+
             , ("$bad", Nothing)
             , ("_", Just VNotGiven)
             ]

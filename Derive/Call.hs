@@ -101,7 +101,6 @@ import qualified Derive.LEvent as LEvent
 import qualified Derive.ParseBs as ParseBs
 import qualified Derive.PitchSignal as PitchSignal
 import qualified Derive.ShowVal as ShowVal
-import qualified Derive.Sig as Sig
 import qualified Derive.Stack as Stack
 import qualified Derive.TrackInfo as TrackInfo
 import qualified Derive.TrackLang as TrackLang
@@ -184,7 +183,7 @@ reapply_call args call_id call_args =
 eval_pitch :: ScoreTime -> TrackLang.PitchCall
     -> Derive.Deriver PitchSignal.Pitch
 eval_pitch pos call =
-    Sig.cast ("eval pitch " <> ShowVal.show_val call)
+    cast ("eval pitch " <> ShowVal.show_val call)
         =<< eval cinfo (TrackLang.ValCall call)
     where
     cinfo :: Derive.CallInfo PitchSignal.Pitch
@@ -383,7 +382,7 @@ apply_generator cinfo (TrackLang.Call call_id args) = do
             vcall <- require_call True call_id
                 (name <> " generator or val call")
                     =<< Derive.lookup_val_call call_id
-            val <- apply (tag_call_info cinfo) vcall args
+            val <- apply (Derive.tag_call_info cinfo) vcall args
             -- We only do this fallback thing once.
             call <- get_generator fallback_call_id
             return (call, [val])
@@ -478,7 +477,7 @@ eval :: (Derive.ToTagged a) => Derive.CallInfo a -> TrackLang.Term
 eval cinfo (TrackLang.Literal val) = eval_val cinfo val
 eval cinfo (TrackLang.ValCall (TrackLang.Call call_id terms)) = do
     call <- get_val_call call_id
-    apply (tag_call_info cinfo) call terms
+    apply (Derive.tag_call_info cinfo) call terms
 
 eval_val :: (Derive.ToTagged a) => Derive.CallInfo a -> TrackLang.RawVal
     -> Derive.Deriver TrackLang.Val
@@ -492,6 +491,7 @@ eval_val cinfo val = case val of
     TrackLang.VPitch a -> return $ TrackLang.VPitch a
     TrackLang.VInstrument a -> return $ TrackLang.VInstrument a
     TrackLang.VSymbol a -> return $ TrackLang.VSymbol a
+    TrackLang.VQuoted a -> return $ TrackLang.VQuoted a
     TrackLang.VNotGiven -> return TrackLang.VNotGiven
 
 eval_pitch_control :: (Derive.ToTagged a) => Derive.CallInfo a
@@ -504,7 +504,7 @@ eval_pitch_control cinfo c = case c of
     TrackLang.LiteralControl ctl -> return $ TrackLang.LiteralControl ctl
     where
     eval_pitch call = fmap PitchSignal.constant $
-        Sig.cast ("eval_pitch_control " <> ShowVal.show_val call)
+        cast ("eval_pitch_control " <> ShowVal.show_val call)
             =<< eval cinfo (TrackLang.ValCall call)
 
 apply :: Derive.CallInfo Derive.Tagged -> Derive.ValCall
@@ -518,16 +518,6 @@ apply cinfo call args = do
             }
     Derive.with_msg ("val call " <> Derive.vcall_name call) $
         Derive.vcall_call call passed
-
--- | Tag the polymorphic part of the CallInfo so it can be given to
--- a 'Derive.ValCall'.  Otherwise, ValCall would have to be polymorphic too,
--- which means it would hard to write generic ones.
-tag_call_info :: (Derive.ToTagged a) => Derive.CallInfo a
-    -> Derive.CallInfo Derive.Tagged
-tag_call_info cinfo = cinfo
-    { Derive.info_prev_val =
-        second Derive.to_tagged <$> Derive.info_prev_val cinfo
-    }
 
 event_start :: Derive.CallInfo d -> ScoreTime
 event_start = Event.start . Derive.info_event
@@ -586,3 +576,17 @@ symbol_to_block_id ns maybe_caller (TrackLang.Symbol sym)
         | Just caller <- maybe_caller,
             "." `Text.isPrefixOf` sym = Id.ident_text caller <> sym
         | otherwise = sym
+
+
+-- * misc
+
+-- | Cast a Val to a haskell val, or throw if it's the wrong type.
+cast :: forall a. (TrackLang.Typecheck a) => Text -> TrackLang.Val
+    -> Derive.Deriver a
+cast name val = case TrackLang.from_val val of
+        Nothing -> Derive.throw $ untxt $
+            name <> ": expected " <> Pretty.prettytxt return_type
+            <> " but val was " <> Pretty.prettytxt (TrackLang.type_of val)
+            <> " " <> TrackLang.show_val val
+        Just a -> return a
+    where return_type = TrackLang.to_type (error "Call.cast" :: a)

@@ -6,6 +6,7 @@ module Derive.Sig_test where
 import Util.Control
 import Util.Test
 import qualified Ui.State as State
+import qualified Derive.Call.CallTest as CallTest
 import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Sig as Sig
@@ -15,14 +16,28 @@ import qualified Derive.TrackLang as TrackLang
 test_type_error = do
     let ints :: Sig.Parser [Int]
         ints = Sig.many "ints" ""
-        int_sym :: Sig.Parser (Int, TrackLang.Symbol)
-        int_sym = (,) <$> Sig.required "int" "" <*> Sig.defaulted "sym" "" ""
         str = TrackLang.str "hi"
         int = TrackLang.num 42
+        int_sym :: Sig.Parser (Int, TrackLang.Symbol)
+        int_sym = (,) <$> Sig.required "int" "" <*> Sig.defaulted "sym" "" ""
     left_like (call ints [str])
         "arg 1/ints: expected Num (integral) but got Symbol: hi"
     left_like (call int_sym [str]) "arg 1/int: expected Num"
     left_like (call int_sym [int, int]) "arg 2/sym: expected Symbol"
+
+test_eval_quoted = do
+    let int :: Sig.Parser Int
+        int = Sig.required "int" ""
+    let quoted sym = TrackLang.VQuoted
+            (TrackLang.Quoted (TrackLang.call sym []))
+    let run val = call_with (CallTest.with_val_call "v" (val_call val))
+        val_call val = Derive.val_call "v" mempty "" $ Sig.call0 $ \_ ->
+            return $ TrackLang.to_val val
+    left_like (run (0 :: Int) int [quoted "not-found"])
+        "arg 1/int from \"(not-found): *val call not found"
+    left_like (run ("hi" :: Text) int [quoted "v"])
+        "arg 1/int from \"(v): expected Num"
+    equal (run (0 :: Int) int [quoted "v"]) (Right 0)
 
 test_not_given = do
     let int :: Sig.Parser (Maybe Int)
@@ -40,10 +55,14 @@ test_not_given = do
         (Right (Nothing, [52]))
 
 call :: Sig.Parser a -> [TrackLang.Val] -> Either String a
-call p vals = DeriveTest.eval State.empty $
-    run (Sig.call p (\val _args -> return val)) vals
+call = call_with id
 
-run :: Derive.WithArgDoc (Sig.Generator y a) -> [TrackLang.Val]
+call_with :: (Derive.Deriver a -> Derive.Deriver a) -> Sig.Parser a
+    -> [TrackLang.Val] -> Either String a
+call_with with p vals = DeriveTest.eval State.empty $
+    with $ run (Sig.call p (\val _args -> return val)) vals
+
+run :: Derive.WithArgDoc (Sig.Generator Derive.Tagged a) -> [TrackLang.Val]
     -> Derive.Deriver a
 run (f, _) vals = f args
     where

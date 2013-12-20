@@ -112,7 +112,8 @@ c_show_args = Derive.generator "show-args" mempty "doc" $
             map (untxt . ShowVal.show_val) (Derive.passed_vals args)
         return []
 
-generator :: Sig.Generator y d -> Derive.Call (Sig.Generator y d)
+generator :: Derive.ToTagged y =>
+    Sig.Generator y d -> Derive.Call (Sig.Generator y d)
 generator = Derive.make_call "test" mempty "test doc" . Sig.call0
 
 -- * PassedArgs

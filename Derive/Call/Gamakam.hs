@@ -2,6 +2,7 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
+{-# LANGUAGE FlexibleContexts #-}
 {- | Carnatic style pitch ornaments.
 
     The names don't correspond directly with anything traditional, as far as
@@ -107,7 +108,7 @@ mode_affix (Just Low) = "_"
 
 data Mode = High | Low deriving (Eq, Show)
 
-c_hold :: Derive.Transformer d
+c_hold :: Derive.ToTagged (Derive.Elem d) => Derive.Transformer d
 c_hold = Make.with_environ "hold"
     (defaulted "time" (TrackLang.real 1) "Hold first value for this long.")
     TrackLang.default_real

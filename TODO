@@ -3,6 +3,8 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
+  - apparently tests that throw an exception aren't getting counted as failed
+    and they're slow and have low parallelism
   * control for grace notes to fall before or on the base note, at 0 the
     grace notes fall before, at 0 they fall on.
   - 'g 2c 1' is interpreted as 'g 2c 1d'.  Perhaps subsequent untyped nums
@@ -24,19 +26,24 @@ UNSORTED
     I should have grace note variants for relative intervals, before and on
     note start, and note/pitch
   - Double strokes for percussion, e.g. 'oo' could be thom thom with the first
-    at 0.5 dyn.  Time would have to extend RealTime and ScoreTime with
-    TimeStep.  Or perhaps just 'double-time = (t s/2)' or whatever, but then
-    I couldn't default it, and it doesn't adjust when the 's' timestep
-    changes.
-  - Perhaps TimeStep should have its own Typecheck instance.  Even make it
+    at 0.5 dyn.
+    - Derive/Instrument/* should go in Derive/Call/Instrument?
+    - Rename Tags.idiom to Tags.instrument?
+  / Perhaps TimeStep should have its own Typecheck instance.  Even make it
     into RealOrScore, like Transpose gained Nn?
     RealOrScore is renamed to Duration
     Or even a tracklang level TimeStep literal, rather than using strings.
-    . A more general option would be quoted code: grace-dur = "(t s)
-      This would be a Val that Derive.Sig could evaluate.
-      Other applications: support TimeStep interpreted as both ScoreTime and
-      RealTime: "(rt (t s)), a note that can retune: "(4c), randomized value:
-      "(rnd 0 .4).
+  - make 't' and 't/' val calls accept timestep as an enum, so the docs get it
+  * A more general option would be quoted code: grace-dur = "(t s)
+    This would be a Val that Derive.Sig could evaluate.
+    Other applications: support TimeStep interpreted as both ScoreTime and
+    RealTime: "(rt (t s)), a note that can retune: "(4c), randomized value:
+    "(rnd 0 .4).
+    * parser support
+    * Derive.Sig support: evaluate before typechecking
+      Currently the sig parser is just State -> Either Error (State, a), but
+      it needs to evaluate ValCalls, needs (CallInfo d, Derive.State)
+    * tests
   - A postproc might transform percussion so repeated notes after the first
     one lose dyn.
   * get rid of ParseBs.from_string? rename Call.eval_string to eval_text?
