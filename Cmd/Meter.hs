@@ -166,11 +166,16 @@ unlabelled_ranks = [r_2, r_8, r_32, r_64, r_256]
 -- | These are mnemonics for staff notation durations, though they may not
 -- correspond exactly, as documented in "Cmd.Meter".
 rank_names :: [(Ruler.Rank, Text)]
-rank_names = zip [0..]
-    ["section", "w", "h", "q", "e", "s", "32", "64", "128", "256"]
+rank_names = zip [0..] (map (Text.toLower . showt) [Section ..])
 
 rank_to_pixels :: [Int]
 rank_to_pixels = [pixels | (_, _, pixels) <- meter_ranks]
+
+data RankName = Section | W | H | Q | E | S | T32 | T64 | T128 | T256
+    deriving (Show, Eq, Ord, Bounded, Enum)
+
+name_to_rank :: RankName -> Ruler.Rank
+name_to_rank = fromEnum
 
 -- ** construct meters
 

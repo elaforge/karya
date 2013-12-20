@@ -41,8 +41,8 @@ val_calls = Derive.make_calls
     [ (">", c_next_val)
     , ("<", c_prev_val)
     , ("e", c_env)
-    , ("t", c_timestep)
-    , ("t/", c_timestep_reciprocal)
+    , ("ts", c_timestep)
+    , ("ts/", c_timestep_reciprocal)
     , ("1/", c_reciprocal)
     , ("nn", c_nn)
     , ("hz", c_hz)
@@ -119,15 +119,13 @@ c_env = Derive.val_call "env" mempty
 c_timestep :: Derive.ValCall
 c_timestep = Derive.val_call "timestep" mempty
     ("Compute the duration of the given RelativeMark timestep at the current\
-    \ position. This is for durations, so it only works with RelativeMark, and\
-    \ in fact prepends `r:`, so e.g. a quarter note is just `q`."
+    \ position. This is for durations, so it only works with RelativeMark."
     ) $ Sig.call ((,)
-    <$> required "rank" "Emit a duration of this rank, as accepted by\
-        \ `TimeStep.parse_rank`."
-    <*> defaulted "steps" 1 "Step this number of times, negative to step back."
-    ) $ \(rank, steps) args ->
+    <$> required "rank" "Emit a duration of this rank."
+    <*> defaulted "multiply" 1 "Multiply duration."
+    ) $ \(TrackLang.E rank, steps) args ->
         TrackLang.score_time <$>
-            Util.parsed_meter_duration (Args.start args) rank steps
+            Util.meter_duration (Args.start args) rank steps
 
 c_timestep_reciprocal :: Derive.ValCall
 c_timestep_reciprocal = Make.modify_vcall c_timestep "timestep-reciprocal"

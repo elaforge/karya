@@ -28,13 +28,14 @@ UNSORTED
     note start, and note/pitch
   - Double strokes for percussion, e.g. 'oo' could be thom thom with the first
     at 0.5 dyn.
-    - Derive/Instrument/* should go in Derive/Call/Instrument?
-    - Rename Tags.idiom to Tags.instrument?
+  - Derive/Instrument/* should go in Derive/Call/Instrument?
+  - Rename Tags.idiom to Tags.instrument?
   / Perhaps TimeStep should have its own Typecheck instance.  Even make it
     into RealOrScore, like Transpose gained Nn?
     RealOrScore is renamed to Duration
     Or even a tracklang level TimeStep literal, rather than using strings.
-  - make 't' and 't/' val calls accept timestep as an enum, so the docs get it
+  * make 't' and 't/' val calls accept timestep as an enum, so the docs get it
+  * easy ways to write timestep *n or /n, e.g. (t q/2)
   * A more general option would be quoted code: grace-dur = "(t s)
     This would be a Val that Derive.Sig could evaluate.
     Other applications: support TimeStep interpreted as both ScoreTime and

@@ -17,8 +17,8 @@
 module Derive.TrackLang (
     module Derive.TrackLang, module Derive.BaseTypes, show_val
 ) where
-import qualified Data.Char as Char
 import qualified Data.Map as Map
+import qualified Data.Text as Text
 
 import Util.Control
 import qualified Util.Pretty as Pretty
@@ -186,7 +186,7 @@ instance Pretty.Pretty Type where
     pretty (TNum typ val) = append_parens "Num" $
         Seq.join2 ", " (Pretty.pretty typ) (Pretty.pretty val)
     pretty (TSymbol enums) =
-        append_parens "Symbol" $ maybe "" (Seq.join "/" . map untxt) enums
+        append_parens "Symbol" $ maybe "" (unwords . map untxt) enums
     pretty typ = drop 1 (show typ)
 
 append_parens :: String -> String -> String
@@ -437,7 +437,7 @@ make_parse_enum vals = flip Map.lookup m
 
 -- | Make a ShowVal from a Show instance.
 default_show_val :: (Show a) => a -> Text
-default_show_val = txt . Seq.map_head Char.toLower . show
+default_show_val = Text.toLower . showt
 
 -- | A wrapper required to make the typeclass instance happy.
 newtype E a = E a deriving (Show, ShowVal)

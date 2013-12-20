@@ -3,6 +3,7 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 module Derive.Call.Val_test where
+import Util.Control
 import Util.Test
 import qualified Ui.Ruler as Ruler
 import qualified Ui.UiTest as UiTest
@@ -74,13 +75,14 @@ test_linear_next = do
 test_timestep = do
     let run start vcall = DeriveTest.extract extract $
             DeriveTest.derive_tracks_with_ui id (DeriveTest.set_ruler ruler)
-                [(">", [(start, 0, ("d (t " ++ vcall ++ ") |"))])]
+                [(">", [(start, 0, ("d (ts " <> vcall <> ") |"))])]
         extract = Score.event_start
         ruler = UiTest.ruler [(Ruler.meter, mlist)]
         mlist = Ruler.marklist (zip [0, 1, 2, 3, 4, 6, 8, 10, 12] UiTest.m44)
     let (evts, logs) = run 0 "'r:z'"
     equal evts []
-    strings_like logs ["parsing timestep"]
+    strings_like logs ["expected Symbol"]
+
     -- Whole note in the first measure is 4.
     equal (run 0 "w") ([4], [])
     equal (run 1 "w") ([5], [])
@@ -90,18 +92,11 @@ test_timestep = do
     equal (run 6 "w") ([14], [])
     equal (run 4 "q") ([6], []) -- quarter is 2
 
-    -- Test various steps args.
     equal (run 0 "q") ([1], [])
-    equal (run 0 "q 2") ([2], [])
-    equal (run 1 "q 0") ([1], [])
-    equal (run 1 "q -1") ([0], [])
-    let (evts, logs) = run 1 "q 1.5"
-    equal evts []
-    strings_like logs ["expected Num (integral) but got"]
+    equal (run 0 "q .5") ([0.5], [])
 
     -- TODO should be an error, there are no sixteenths
     equal (run 0 "s") ([1], [])
-
 
 test_make_segments = do
     let make = Val.make_segments Signal.signal

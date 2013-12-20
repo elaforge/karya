@@ -117,7 +117,7 @@ c_realize = Derive.transformer "realize-kilitan"
         \ defaults to `s` timestep.  Normally it should be 4* the pokok\
         \ rhythm.  TODO support more exotic rhythms.") $
     \maybe_beat args deriver -> do
-        beat <- maybe (Util.meter_duration (Args.start args) Meter.r_16 1)
+        beat <- maybe (Util.meter_duration (Args.start args) Meter.S 1)
             return maybe_beat
         realize (Args.start args) beat deriver
 

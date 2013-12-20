@@ -18,12 +18,11 @@ import qualified System.Random.Mersenne.Pure64 as Pure64
 
 import Util.Control
 import qualified Util.Num as Num
-import qualified Util.Parse as Parse
 import qualified Util.Pretty as Pretty
 import qualified Util.Random as Random
 
-import qualified Ui.Ruler as Ruler
 import qualified Ui.ScoreTime as ScoreTime
+import qualified Cmd.Meter as Meter
 import qualified Cmd.TimeStep as TimeStep
 import qualified Derive.Args as Args
 import qualified Derive.Call as Call
@@ -452,14 +451,15 @@ timestep start ts steps = do
         =<< Derive.eval_ui "c_timestep"
             (TimeStep.step_from steps ts block_id tracknum start)
 
-meter_duration :: ScoreTime -> Ruler.Rank -> Int -> Derive.Deriver ScoreTime
-meter_duration start rank steps = do
-    let ts = TimeStep.time_step $ TimeStep.RelativeMark TimeStep.match_meter rank
-    end <- timestep start ts steps
-    return $ end - start
+meter_duration :: ScoreTime -> Meter.RankName -> Double
+    -> Derive.Deriver ScoreTime
+meter_duration start rank multiply = do
+    let ts = TimeStep.time_step $
+            TimeStep.RelativeMark TimeStep.match_meter
+                (Meter.name_to_rank rank)
+    end <- timestep start ts 1
+    return $ (end - start) * ScoreTime.double multiply
 
-parsed_meter_duration :: ScoreTime -> Text -> Int -> Derive.Deriver ScoreTime
-parsed_meter_duration start rank steps = do
-    rank <- Derive.require_right ("parsing timestep: "++) $
-        Parse.parse TimeStep.parse_rank rank
-    meter_duration start rank steps
+instance ShowVal.ShowVal Meter.RankName where
+    show_val = TrackLang.default_show_val
+instance TrackLang.TypecheckEnum Meter.RankName
