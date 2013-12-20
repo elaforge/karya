@@ -37,6 +37,7 @@ import Types
 note_calls :: Derive.CallMaps Derive.Note
 note_calls = Derive.generator_call_map
     [ ("g", c_grace)
+    , ("roll", c_roll)
     , ("`mordent`", c_mordent (Pitch.Diatonic 1))
     , ("`rmordent`", c_mordent (Pitch.Diatonic (-1)))
     ]
@@ -120,22 +121,43 @@ lily_grace args pitches = do
 
 grace_call :: Derive.NoteArgs -> Signal.Y -> [PitchSignal.Pitch]
     -> TrackLang.RealOrScore -> TrackLang.ValControl -> Derive.NoteDeriver
-grace_call args dyn pitches grace_dur place = do
-    notes <- make_grace_notes (Args.prev_start args) (Args.extent args) dyn
-        pitches grace_dur place
+grace_call args dyn_scale pitches grace_dur place = do
+    dyn <- (*dyn_scale) <$> (Util.dynamic =<< Args.real_start args)
+    let notes = map (flip Util.pitched_note dyn) pitches ++ [Util.note]
+    events <- make_grace_notes (Args.prev_start args) (Args.extent args)
+        notes grace_dur place
     -- Normally legato notes emphasize the first note, but that's not
     -- appropriate for grace notes.
     Derive.with_val "legato-dyn" (1 :: Double) $
-        Sub.reapply_call args "(" [] [notes]
+        Sub.reapply_call args "(" [] [events]
 
-make_grace_notes :: Maybe ScoreTime -> (ScoreTime, ScoreTime) -> Signal.Y
-    -> [PitchSignal.Pitch] -> TrackLang.RealOrScore -> TrackLang.ValControl
+c_roll :: Derive.Generator Derive.Note
+c_roll = Derive.make_call "roll" (Tags.idiom <> Tags.ornament)
+    "These are like grace notes, but they all have the same pitch."
+    $ Sig.call ((,,)
+    <$> Sig.defaulted "times" 1 "Number of grace notes."
+    <*> Sig.defaulted "time" (TrackLang.real (1/12)) "Time between the strokes."
+    <*> Sig.defaulted "dyn" 0.5 "Dyn scale for the grace notes."
+    ) $ \(times, TrackLang.DefaultReal time, dyn_scale) ->
+    Sub.inverting $ repeat_notes times time dyn_scale
+
+repeat_notes :: Int -> TrackLang.RealOrScore -> Signal.Y -> Derive.PassedArgs a
+    -> Derive.NoteDeriver
+repeat_notes times time dyn_scale args = do
+    start <- Args.real_start args
+    dyn <- (*dyn_scale) <$> Util.dynamic start
+    pitch <- Util.get_pitch start
+    let notes = replicate times (Util.pitched_note pitch dyn)
+            ++ [Util.note]
+    Sub.place =<< make_grace_notes (Args.prev_start args)
+        (Args.extent args) notes time (TrackLang.constant_control 0)
+
+make_grace_notes :: Maybe ScoreTime -> (ScoreTime, ScoreTime)
+    -> [Derive.NoteDeriver] -> TrackLang.RealOrScore -> TrackLang.ValControl
     -> Derive.Deriver [Sub.Event]
-make_grace_notes prev (start, dur) dyn_scale pitches grace_dur place = do
+make_grace_notes prev (start, dur) notes grace_dur place = do
     real_start <- Derive.real start
-    dyn <- (*dyn_scale) <$> Util.dynamic real_start
     place <- Num.clamp 0 1 <$> Util.control_at place real_start
-    let notes = map (flip Util.pitched_note dyn) pitches ++ [Util.note]
     case grace_dur of
         TrackLang.Score grace_dur -> do
             let extents = fit_grace_durs (ScoreTime.double place)

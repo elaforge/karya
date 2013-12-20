@@ -18,6 +18,8 @@ import qualified Derive.Score as Score
 import qualified Perform.Lilypond.LilypondTest as LilypondTest
 
 
+-- * note calls
+
 test_mordent = do
     let run = DeriveTest.extract DeriveTest.e_pitch . run_note
     equal (run (1, 1, "`mordent`")) (["4c", "4d", "4c"], [])
@@ -124,6 +126,16 @@ graces = Map.fromList
     , (2, Score.attrs ["whole", "up"])
     ]
 
+test_roll = do
+    let run call = DeriveTest.extract DeriveTest.e_note $
+            DeriveTest.derive_tracks
+                [(">", [(2, 1, call)]), ("*", [(2, 0, "4c")])]
+    equal (run "roll 1 .5") ([(1.5, 0.5, "4c"), (2, 1, "4c")], [])
+    equal (run "roll 2 .5")
+        ([(1, 0.5, "4c"), (1.5, 0.5, "4c"), (2, 1, "4c")], [])
+
+-- * pitch calls
+
 test_grace_p = do
     let run = CallTest.run_pitch
     equal (run [(0, "grace-dur = 2 | g (4c) -2 -1"), (10, "--")])
@@ -136,8 +148,10 @@ test_mordent_p = do
     equal (run [(0, "grace-dur = 2 | `mordent` (4c)")])
         [(0, 60), (2, 62), (4, 60)]
 
+-- * misc
+
 test_fit_grace = do
     let f place notes = Grace.fit_grace place (Just 0) 2 4 notes 1
-    equal (f 0 4) [0, 0.5, 1, 1.5]
+    equal (f 0 4) [0.5, 1, 1.5, 2]
     equal (f 1 4) [2, 2.5, 3, 3.5]
-    equal (f 0.5 4) [1, 1.5, 2, 2.5]
+    equal (f 0.5 4) [1.25, 1.75, 2.25, 2.75]
