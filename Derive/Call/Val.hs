@@ -59,18 +59,21 @@ c_next_val = Derive.val_call "next-val" Tags.next
         event <- Derive.require "no next event" $
             Seq.head (Args.next_events args)
         start <- Derive.real (Event.start event)
-        case Derive.info_track_type (Derive.passed_info args) of
-            Just TrackInfo.ControlTrack -> eval_control start event
-            Just TrackInfo.TempoTrack -> eval_control start event
-            Just TrackInfo.PitchTrack -> do
-                signal <- eval event
-                case PitchSignal.at start signal of
-                    Nothing ->
-                        Derive.throw "next pitch event didn't emit a pitch"
-                    Just pitch -> return $ TrackLang.VPitch pitch
-            Just TrackInfo.NoteTrack -> Derive.throw
-                "can't get next value for note tracks"
-            Nothing -> Derive.throw "no track type"
+        next_val event start (Derive.info_track_type (Derive.passed_info args))
+
+next_val :: Event.Event -> RealTime -> Maybe TrackInfo.Type
+    -> Derive.Deriver TrackLang.Val
+next_val event start ttype = case ttype of
+    Just TrackInfo.ControlTrack -> eval_control start event
+    Just TrackInfo.TempoTrack -> eval_control start event
+    Just TrackInfo.PitchTrack -> do
+        signal <- eval event
+        case PitchSignal.at start signal of
+            Nothing -> Derive.throw "next pitch event didn't emit a pitch"
+            Just pitch -> return $ TrackLang.VPitch pitch
+    Just TrackInfo.NoteTrack ->
+        Derive.throw "can't get next value for note tracks"
+    Nothing -> Derive.throw "no track type"
     where
     eval_control start event = do
         signal <- eval event
@@ -157,8 +160,8 @@ c_pitch_signal :: Derive.ValCall
 c_pitch_signal = Derive.val_call "pitch" mempty
     "Get the current pitch." $ Sig.call (defaulted "control" ""
         "The default pitch if empty, otherwise, get the named pitch.") $
-    \control args -> TrackLang.VPitch <$>
-        (Derive.require "pitch" =<< get control =<< Args.real_start args)
+    \control args ->
+        Derive.require "pitch" =<< get control =<< Args.real_start args
     where
     get control
         | control == "" = Derive.pitch_at

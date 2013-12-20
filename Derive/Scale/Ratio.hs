@@ -65,7 +65,7 @@ note_call note ratio = Derive.val_call "ratio" Tags.scale
             ("ratio scale requires " <> untxt (ShowVal.show_val pitch_control))
             =<< Derive.named_nn_at control start
         let out_nn = Pitch.hz_to_nn $ ratio (Pitch.nn_to_hz nn) + hz
-        return $ TrackLang.VPitch $ PitchSignal.pitch
+        return $ PitchSignal.pitch
             pscale (const $ return out_nn) (const $ return note)
     where
     pitch_control = TrackLang.LiteralControl control :: TrackLang.PitchControl

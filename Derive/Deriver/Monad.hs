@@ -272,7 +272,7 @@ data CallError =
     | ArgError !Text
     deriving (Show)
 
--- | Where a type error came from.
+-- | Where a type error came from.  The arg number starts at 0.
 data ErrorPlace = TypeErrorArg !Int | TypeErrorEnviron !TrackLang.Symbol
     deriving (Eq, Show)
 
@@ -1190,11 +1190,11 @@ data ValCall = ValCall {
 instance Show ValCall where
     show (ValCall name _ _) = "((ValCall " ++ show name ++ "))"
 
-val_call :: Text -> Tags.Tags -> Text
-    -> WithArgDoc (PassedArgs Tagged -> Deriver TrackLang.Val) -> ValCall
+val_call :: TrackLang.Typecheck a => Text -> Tags.Tags -> Text
+    -> WithArgDoc (PassedArgs Tagged -> Deriver a) -> ValCall
 val_call name tags doc (call, arg_docs) = ValCall
     { vcall_name = name
-    , vcall_call = call
+    , vcall_call = fmap TrackLang.to_val . call
     , vcall_doc = CallDoc tags doc arg_docs
     }
 

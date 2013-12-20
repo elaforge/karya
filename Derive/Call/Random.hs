@@ -59,7 +59,7 @@ c_pick :: Derive.ValCall
 c_pick = Derive.val_call "pick" Tags.random
     "Pick one of the arguments randomly." $
         Sig.call (many1 "val" "Value of any type.") $ \vals _ ->
-            Util.pick vals
+            Util.pick (vals :: NonEmpty TrackLang.Val)
 
 c_range :: Derive.ValCall
 c_range = Derive.val_call "range" Tags.random

@@ -44,8 +44,7 @@ scale_degree scale pitch_nn pitch_note = Derive.val_call
     "pitch" Tags.scale "Emit the pitch of a scale degree." $ Sig.call
     (defaulted "frac" 0
         "Add this many hundredths of a scale degree to the output.")
-    $ \frac _args -> return $! TrackLang.VPitch $
-        PitchSignal.pitch scale (call frac) pitch_note
+    $ \frac _args -> return $! PitchSignal.pitch scale (call frac) pitch_note
     where
     call frac config = add config <$>
         pitch_nn (if frac == 0 then config else chromatic_config frac <> config)
@@ -81,7 +80,7 @@ scale_degree_just scale named_intervals extra_interval pitch_nn pitch_note =
     "Emit the pitch of a scale degree." $
     Sig.call (intervals_arg named_intervals) $ \intervals _ -> do
         interval <- resolve_intervals named_intervals intervals
-        return $! TrackLang.VPitch $ PitchSignal.pitch scale
+        return $! PitchSignal.pitch scale
             (call (extra_interval * interval)) pitch_note
     where
     call interval config =
@@ -123,7 +122,7 @@ relative_scale_degree scale named_intervals initial_interval =
             resolve_intervals named_intervals intervals
         Args.prev_val args >>= \x -> case x of
             Just (_, Derive.TagPitch prev) ->
-                return $ TrackLang.VPitch (modify interval prev)
+                return $ modify interval prev
             _ -> Derive.throw "relative interval requires a previous pitch"
     where
     modify interval pitch =
