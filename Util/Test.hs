@@ -222,11 +222,11 @@ left_like_srcpos :: (Show a) =>
 left_like_srcpos srcpos gotten expected = case gotten of
     Left msg
         | pattern_matches expected msg -> success_srcpos srcpos $
-            "Left (" ++ msg ++ ") =~ Left (" ++ expected ++ ")"
+            "Left " ++ msg ++ " =~ Left " ++ expected
         | otherwise -> failure_srcpos srcpos $
-            "Left (" ++ msg ++ ") !~ Left (" ++ expected ++ ")"
+            "Left " ++ msg ++ " !~ Left " ++ expected
     Right a -> failure_srcpos srcpos $
-        "Right (" ++ show a ++ ") !~ " ++ expected
+        "Right (" ++ show a ++ ") !~ Left " ++ expected
 
 match :: String -> String -> IO Bool
 match = match_srcpos Nothing
