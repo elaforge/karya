@@ -1,8 +1,8 @@
-{-# LANGUAGE LambdaCase #-}
 -- Copyright 2013 Evan Laforge
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
+{-# LANGUAGE LambdaCase #-}
 {- | Event editing commands.  This is where generic event editing commands go.
     More specialized ones, like copy and paste and control or note track
     commands, go in their own modules.

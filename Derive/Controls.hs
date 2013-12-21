@@ -1,3 +1,7 @@
+-- Copyright 2013 Evan Laforge
+-- This program is distributed under the terms of the GNU General Public
+-- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
+
 -- | This module defines control names understood by the default calls, or by
 -- the MIDI deriver.  There are also conventional names for certain controls
 -- that instruments can use.  Although each instrument as its own independent

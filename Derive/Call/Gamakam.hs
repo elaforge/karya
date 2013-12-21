@@ -140,6 +140,21 @@ hold_env :: Sig.Parser TrackLang.DefaultReal
 hold_env = Sig.environ (TrackLang.unsym Environ.hold) Sig.Unprefixed
     (TrackLang.real 0) "Time to hold the first pitch."
 
+adjust_env :: Sig.Parser AdjustMode
+adjust_env = TrackLang.get_e <$>
+    Sig.environ "adjust" Sig.Unprefixed (TrackLang.E Shorten)
+    "How to adjust an ornament to fulfill its mode restrictions."
+
+-- | How to adjust an ornament to fulfill its 'Mode' restrictions.
+data AdjustMode =
+    -- | Adjust by shortening the ornament.
+    Shorten
+    -- | Adjust by increasing the speed.
+    | Stretch
+    deriving (Bounded, Eq, Enum, Show)
+
+instance ShowVal.ShowVal AdjustMode where show_val = TrackLang.default_show_val
+instance TrackLang.TypecheckEnum AdjustMode
 
 -- * pitch calls
 
@@ -285,22 +300,6 @@ c_jaru_intervals transpose intervals = Derive.generator1 "jaru" Tags.india
 
 
 -- * control calls
-
--- | How to adjust an ornament to fulfill its 'Mode' restrictions.
-data AdjustMode =
-    -- | Adjust by shortening the ornament.
-    Shorten
-    -- | Adjust by increasing the speed.
-    | Stretch
-    deriving (Bounded, Eq, Enum, Show)
-
-instance ShowVal.ShowVal AdjustMode where show_val = TrackLang.default_show_val
-instance TrackLang.TypecheckEnum AdjustMode
-
-adjust_env :: Sig.Parser AdjustMode
-adjust_env = TrackLang.get_e <$>
-    Sig.environ "adjust" Sig.Unprefixed (TrackLang.E Shorten)
-    "How to adjust an ornament to fulfill its mode restrictions."
 
 -- | I had a lot of debate about whether I should use High and Low, or Unison
 -- and Neighbor.  Unison-Neighbor is more convenient for the implementation

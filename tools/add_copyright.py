@@ -36,6 +36,7 @@ def process(fn):
         if line == msg[:msg.index('\n')+1]:
             return
         contents = line + fp.read()
+    print 'add copyright to', fn
     tmp = fn + '.tmp'
     with open(tmp, 'w') as fp:
         fp.write(shebang)

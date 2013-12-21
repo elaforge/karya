@@ -428,6 +428,18 @@ trill_from_controls range mode neighbor speed = do
     let transpose = trill_from_transitions mode transitions neighbor_sig
     return (transpose, control)
 
+-- ** transitions
+
+-- | Make a trill signal from a list of transition times.
+trill_from_transitions :: Mode -> [RealTime] -> Signal.Control -> Signal.Control
+trill_from_transitions mode transitions neighbor =
+    Signal.signal [(x, if t then Signal.at x neighbor else 0)
+        | (x, t) <- zip transitions (cycle ts)]
+    where
+    ts = case mode of
+        Unison -> [False, True]
+        Neighbor -> [True, False]
+
 -- | Create trill transition points from a speed.
 trill_transitions :: (ScoreTime, ScoreTime) -> Bool -> TrackLang.ValControl
     -> Derive.Deriver [RealTime]
@@ -450,16 +462,6 @@ score_transitions :: (ScoreTime, ScoreTime) -> Bool -> Signal.Control
 score_transitions (start, end) include_end speed = do
     all_transitions <- Speed.score_starts speed start end
     mapM Derive.real $ full_cycles ScoreTime.eta end include_end all_transitions
-
--- | Make a trill signal from a list of transition times.
-trill_from_transitions :: Mode -> [RealTime] -> Signal.Control -> Signal.Control
-trill_from_transitions mode transitions neighbor =
-    Signal.signal [(x, if t then Signal.at x neighbor else 0)
-        | (x, t) <- zip transitions (cycle ts)]
-    where
-    ts = case mode of
-        Unison -> [False, True]
-        Neighbor -> [True, False]
 
 -- | Given a list of trill transition times, take only ones with a complete
 -- duration.  Otherwise a trill can wind up with a short note at the end, which

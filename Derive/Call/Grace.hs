@@ -176,23 +176,6 @@ make_grace_notes prev (start, dur) notes grace_dur place = do
         score_end <- Derive.score (start + dur)
         return $ Sub.Event score_start (score_end - score_start) note
 
-grace_notes :: RealTime -- ^ note start time, grace notes fall before this
-    -> RealTime -- ^ duration of each grace note
-    -> [Derive.NoteDeriver] -> Derive.Deriver [Sub.Event]
-grace_notes start dur notes = mapM note $ zip starts notes
-    where
-    starts = Seq.range_ (start - dur * fromIntegral (length notes)) dur
-    note (start, d) = do
-        s_start <- Derive.score start
-        s_end <- Derive.score (start + dur)
-        return $ Sub.Event s_start (s_end - s_start) d
-
-resolve_pitches :: PitchSignal.Pitch
-    -> [Either PitchSignal.Pitch TrackLang.DefaultDiatonic]
-    -> [PitchSignal.Pitch]
-resolve_pitches base = map $ either id (resolve . TrackLang.default_diatonic)
-    where resolve t = Pitches.transpose t base
-
 c_grace_attr :: Map.Map Int Score.Attributes
     -- ^ Map intervals in semitones (positive or negative) to attrs.
     -> Derive.Generator Derive.Note
@@ -267,6 +250,14 @@ grace_p grace_dur pitches (start, end) = do
     real_end <- Derive.real end
     let starts = fit_after real_start real_end (length pitches) real_dur
     return $ PitchSignal.signal $ zip starts pitches
+
+-- * util
+
+resolve_pitches :: PitchSignal.Pitch
+    -> [Either PitchSignal.Pitch TrackLang.DefaultDiatonic]
+    -> [PitchSignal.Pitch]
+resolve_pitches base = map $ either id (resolve . TrackLang.default_diatonic)
+    where resolve t = Pitches.transpose t base
 
 -- | Determine grace note starting times and durations if they are to fit in
 -- the given time range, shortening them if they don't fit.
