@@ -4,12 +4,26 @@ LEGEND
 
 UNSORTED
   - Can I get rid of RawVal vs. Val by storing it as a Quoted?
+    Why does PitchControl have a pitch *signal* anyway?  ValControl has a
+    control signal, which means I can have controls default to signals e.g.
+    '%decay,(i> 1 0)'.
+    But why can't I leave pitches quoted?  If I moved the evaluation to
+    Derive.Sig like VQuoted, it might be more consistent, but I'd still have
+    both Val and RawVal.  To really get rid of it, I'd have to put the eval
+    in Util.to_pitch_signal
+    . But it also means I can coerce a VPitch into a PitchControl.  But I
+      still could as long as the caller used quoted, then I could coerce
+      from 'f "(4c)'.  It would be more annoying to write, but maybe not so
+      bad?
   - apparently tests that throw an exception aren't getting counted as failed
     and they're slow and have low parallelism
   * control for grace notes to fall before or on the base note, at 0 the
     grace notes fall before, at 0 they fall on.
   - 'g 2c 1' is interpreted as 'g 2c 1d'.  Perhaps subsequent untyped nums
-    should get the type of the preceding one?
+    should get the type of the preceding one?  Or rather, I should require
+    that all transpositions are of the same type.  This is annoying to do
+    because I'd have to make it TypedVal at which point it loses automatic
+    typechecking.
   * why doesn't Sig.optional take the optional val and put in the doc?
   * Tags.europe for european music?  Then I can get rid of Tags.ornament,
     which is pretty vague.
@@ -18,11 +32,14 @@ UNSORTED
   * Maybe it should instead avoid starting before the *start* of the previous
     note.  Otherwise you get notes out of order.
   * make grace dur into RealOrScore
-  - nums should not default to chromatic, they should be symmetrical like Real
+  / nums should not default to chromatic, they should be symmetrical like Real
     and Score.
     . The difference is that RealOrScore from_val returns Nothing on Untyped
       It would mean that a call without a DefaultX would refuse an untyped
       num.
+    . Actually, I kind of don't like this because it seems like plain
+      Pitch.Transpose is not so useful, since no calls would want to require
+      a type, since not all scales support both.
   * is there really no way to easily write a 1 cycle trill?
     I should have grace note variants for relative intervals, before and on
     note start, and note/pitch
@@ -102,11 +119,12 @@ UNSORTED
     * note track signal
     * Collect mappend has to merge the fragments, and be careful to avoid
       leading zero samples.
-  - LRuler.inject, opposite of extract, replaces sub-block rulers
-  - calling a block with a %tempo = x in the block title gets messed up timing
+  * calling a block with a %tempo = x in the block title gets messed up timing
     . Perhaps because the block deriver then puts on another tempo=1 track,
       and it winds up with two tempos, and Tempo.with_tempo says "no two tempo
       tracks".  Or maybe not, since a tempo=1 shouldn't have any effect.
+    . I really just want this as a way to set default tempo without creating
+      a whole track.  Still seems useful...
   - I want to use a library of basic patterns in multiple scores.  Rather than
     just hardcoding a bunch of global calls, I should be able to load
     a namespace, and have block calls dispatch to it.  This is different
@@ -817,6 +835,8 @@ Cmd:
     StateT, or directly.  I supposed Dynamic wouldn't be so bad for that.  What
     happens when the module is reloaded?
 
+  ruler:
+    - LRuler.inject, opposite of extract, replaces sub-block rulers
   Cmd.Edit
     - alternate finale-like note entry: hold down step key to set step and
       turn on edit mode, but only while the key is down

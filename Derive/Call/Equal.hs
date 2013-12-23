@@ -17,12 +17,9 @@ import qualified Derive.Call.Tags as Tags
 import qualified Derive.Call.Util as Util
 import qualified Derive.Controls as Controls
 import qualified Derive.Derive as Derive
-import qualified Derive.Deriver.Internal as Internal
 import qualified Derive.ParseBs as ParseBs
 import qualified Derive.PitchSignal as PitchSignal
-import qualified Derive.Score as Score
 import qualified Derive.Sig as Sig
-import qualified Derive.Tempo as Tempo
 import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.Signal as Signal
@@ -82,9 +79,7 @@ parse_equal (parse_val -> Just assignee) val deriver
         TrackLang.VControl val -> Right $ do
             sig <- Util.to_signal val
             Derive.with_control control sig deriver
-        TrackLang.VNum val
-            | control == Controls.tempo -> Right $ set_tempo val
-            | otherwise -> Right $
+        TrackLang.VNum val -> Right $
                 Derive.with_control control (fmap Signal.constant val) deriver
         _ -> Left $ "binding a control expects a control or num, but got "
             <> Pretty.pretty (TrackLang.type_of val)
@@ -97,9 +92,6 @@ parse_equal (parse_val -> Just assignee) val deriver
         _ -> Left $ "binding a pitch signal expects a pitch or pitch"
             <> " control, but got " <> Pretty.pretty (TrackLang.type_of val)
     where
-    set_tempo val =
-        Internal.d_warp warp $ Internal.add_new_track_warp Nothing >> deriver
-        where warp = Tempo.tempo_to_warp $ Signal.constant (Score.typed_val val)
     is_control (TrackLang.VControl (TrackLang.LiteralControl c)) = Just c
     is_control _ = Nothing
     is_pitch (TrackLang.VPitchControl (TrackLang.LiteralControl c))

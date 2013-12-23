@@ -40,6 +40,7 @@ import qualified Derive.Control as Control
 import qualified Derive.Controls as Controls
 import qualified Derive.Derive as Derive
 import qualified Derive.Deriver.Internal as Internal
+import qualified Derive.Environ as Environ
 import qualified Derive.LEvent as LEvent
 import qualified Derive.Note as Note
 import qualified Derive.Score as Score
@@ -142,8 +143,10 @@ derive_tree block_end tree = with_default_tempo (derive_tracks tree)
         -- have tracks that don't have a tempo track above them.  Those tracks
         -- implicitly have an id warp, so this just makes that explicit.
         | has_nontempo_track tree = do
-            tempo <- Derive.get_ui_config
-                (State.default_tempo . State.config_default)
+            tempo <- Derive.lookup_val Environ.tempo >>= \x -> case x of
+                Nothing -> Derive.get_ui_config
+                    (State.default_tempo . State.config_default)
+                Just tempo -> return tempo
             Tempo.with_tempo block_end Nothing (Signal.constant tempo) deriver
         | otherwise = deriver
 

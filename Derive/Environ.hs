@@ -41,6 +41,17 @@ seed = "seed"
 srate :: ValName
 srate = "srate"
 
+-- | VNum: Set the default tempo, overriding 'Ui.State.default_tempo'.  This
+-- only applies if there is no toplevel tempo track, and generally only has an
+-- effect if the block is played as a toplevel block since it's a constant
+-- tempo.
+--
+-- Previously I would directly set the tempo warp in the equal call, but tempo
+-- setting has to be at the toplevel tempo track for it to interact properly
+-- with block call stretching.
+tempo :: ValName
+tempo = "tempo"
+
 -- | VSymbol: Kind of tuning for the scale in scope.  The meaning is dependent
 -- on the scale, e.g. ngumbang ngisep for Balinese scales.
 tuning :: ValName
