@@ -77,6 +77,7 @@ import qualified Util.SrcPos as SrcPos
 -- | If this is True, skip through human-feedback tests.  That way I can at
 -- least get the coverage and check for crashes, even if I can't verify the
 -- results.
+{-# NOINLINE skip_human #-}
 skip_human :: IORef.IORef Bool
 skip_human = Unsafe.unsafePerformIO (IORef.newIORef False)
 
@@ -140,16 +141,16 @@ diff xs ys = (concatMap fnums diffs, concatMap snums diffs,
     to_lines (Diff.Second nlines) =
         "\t---- " ++ show (num_of (head nlines)) ++ "\n"
             ++ unlines (map (('>':) . text_of) nlines)
-    num_of (NumberedLine (i, _)) = i
-    text_of (NumberedLine (_, s)) = s
+    num_of (NumberedLine i _) = i
+    text_of (NumberedLine _ s) = s
     diffs = Diff.getGroupedDiff (numbered (lines xs)) (numbered (lines ys))
-    numbered = map NumberedLine . zip [0..]
+    numbered = map (uncurry NumberedLine) . zip [0..]
 
 -- | Numbered lines don't compare their numbers so the diff won't count
 -- everytihng as different just because the line number changed.
-newtype NumberedLine = NumberedLine (Int, String)
+data NumberedLine = NumberedLine Int String
 instance Eq NumberedLine where
-    NumberedLine (_, s1) == NumberedLine (_, s2) = s1 == s2
+    NumberedLine _ s1 == NumberedLine _ s2 = s1 == s2
 
 -- * approximately equal
 
@@ -329,7 +330,7 @@ timer op = do
     return (v, cpu_to_sec (end_cpu - start_cpu))
     where
     cpu_to_sec :: Integer -> Double
-    cpu_to_sec s = fromIntegral s / fromIntegral (10^12)
+    cpu_to_sec s = fromIntegral s / 10^12
 
 print_timer :: String -> (a -> String) -> IO a -> IO a
 print_timer msg show_val op = do
@@ -369,15 +370,18 @@ pslist [] = putStrLn "[]"
 pslist xs = putStr $
     concatMap (\(i, x) -> printf "%02d. %s\n" i x) (Seq.enumerate xs)
 
-pmlist :: (Show a) => String -> [a] -> IO ()
+pmlist :: Show a => String -> [a] -> IO ()
 pmlist msg xs
     | null xs = return ()
     | otherwise = putStrLn (msg++":") >> plist xs
 
-prettyp :: (Pretty.Pretty a) => a -> IO ()
+prettyp :: Pretty.Pretty a => a -> IO ()
 prettyp val = s `DeepSeq.deepseq` putStr s -- ensure log tracing happens first
     where s = Pretty.formatted val
 
+pprint :: Show a => a -> IO ()
+pprint val = s `DeepSeq.deepseq` putStr s
+    where s = PPrint.pshow val
 
 -- These used to write to stderr, but the rest of the diagnostic output goes to
 -- stdout, and it's best these appear in context.
