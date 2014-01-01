@@ -283,7 +283,7 @@ group_eq_on key = group_eq (\x y -> key x == key y)
 
 -- | This is just 'List.groupBy' except with a key function.  It only groups
 -- adjacent elements.
-group :: (Eq key) => (a -> key) -> [a] -> [[a]]
+group :: (Eq key) => (a -> key) -> [a] -> [NonNull a]
 group key = List.groupBy ((==) `on` key)
 
 -- | Pair each element with the following element.  The last element is paired

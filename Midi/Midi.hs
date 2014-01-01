@@ -77,12 +77,12 @@ data WriteMessage = WriteMessage {
     wmsg_dev :: !WriteDevice
     , wmsg_ts :: !RealTime
     , wmsg_msg :: !Message
-    } deriving (Eq, Ord, Show)
+    } deriving (Eq, Ord, Read, Show)
 data ReadMessage = ReadMessage {
     rmsg_dev :: !ReadDevice
     , rmsg_ts :: !RealTime
     , rmsg_msg :: !Message
-    } deriving (Eq, Ord, Show)
+    } deriving (Eq, Ord, Read, Show)
 
 -- Midi msgs are already strict so deepseq is unnecessary, but an NFData
 -- instance will make deepseq work on things that contain msgs.

@@ -37,7 +37,7 @@ module Util.Test (
     -- * pretty printing
     , printf
     , plist, pslist, pmlist
-    , prettyp, PPrint.pprint
+    , prettyp, pprint
 
     -- * filesystem
     , tmp_dir
