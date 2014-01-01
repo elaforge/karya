@@ -28,6 +28,7 @@ import qualified Data.Ratio as Ratio
 import qualified Data.Set as Set
 import qualified Data.Text as Text
 import qualified Data.Text.Lazy as Text.Lazy
+import qualified Data.Time as Time
 import qualified Data.Tree as Tree
 import qualified Data.Vector as Vector
 import qualified Data.Vector.Storable as Storable
@@ -141,6 +142,8 @@ instance (Pretty a, Pretty b) => Pretty (Seq.Paired a b) where
     format (Seq.First a) = PP.text "First" <+> format a
     format (Seq.Second b) = PP.text "Second" <+> format b
     format (Seq.Both a b) = PP.text "Both" <+> format a <+> format b
+
+instance Pretty Time.UTCTime where pretty = show
 
 formatted :: (Pretty a) => a -> String
 formatted = (++"\n") . render default_width . format

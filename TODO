@@ -3,6 +3,8 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
+  - changing repl env var causes relink of things that don't rely on it,
+    e.g. logview
   - Corrupted views save in git repo is still happening.  How?
   - Can I get rid of RawVal vs. Val by storing it as a Quoted?
     Why does PitchControl have a pitch *signal* anyway?  ValControl has a
@@ -106,6 +108,7 @@ UNSORTED
     good performance and if it's different, and know what version of the app
     produced it.  Git-style commit IDs would be more suitable for this, but
     dates should be good enough for now.  Or I need a darcs tag.
+  - Cmdline program that verifies the root performance of a save file.
   * why only one cycle in 'nkam 2' in test/gamakam?
   * pitch-trill and control-trill should just be named trill, it's confusing
     to have to set different env values

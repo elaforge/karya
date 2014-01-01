@@ -29,8 +29,8 @@ module Ui.State (
     , Config(..), SavedViews
     , namespace, meta, root, midi, global_transform, aliases, lilypond
     , default_, saved_views
-    , Meta(..), creation, notes
-    , Default(..)
+    , Meta(..), creation, notes, performances
+    , Performance(..), Default(..)
     , tempo
     , empty_config, empty_meta, empty_default
     -- * address types
@@ -236,7 +236,11 @@ instance DeepSeq.NFData State where
         `seq` config `seq` ()
 
 empty_meta :: Meta
-empty_meta = Meta (Time.UTCTime (Time.ModifiedJulianDay 0) 0) ""
+empty_meta = Meta
+    { meta_creation = Time.UTCTime (Time.ModifiedJulianDay 0) 0
+    , meta_notes = ""
+    , meta_performances = mempty
+    }
 
 empty_config :: Config
 empty_config = Config

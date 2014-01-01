@@ -5,27 +5,37 @@
 {-# LANGUAGE NoMonomorphismRestriction #-}
 -- | Repl cmds providing general UI state operations.
 module Cmd.Repl.LState where
+import qualified Data.Map as Map
 import qualified Data.Time as Time
+import qualified Data.Vector as Vector
+
+import qualified System.Exit as Exit
 import qualified System.FilePath as FilePath
 import System.FilePath ((</>))
 import qualified System.Posix as Posix
+import qualified System.Process as Process
 
 import Util.Control
 import qualified Util.File as File
+import qualified Util.Lens as Lens
 import qualified Util.Pretty as Pretty
 
+import qualified Midi.Midi as Midi
 import qualified Ui.Id as Id
 import qualified Ui.State as State
 import qualified Ui.Transform as Transform
 
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Create as Create
+import qualified Cmd.DiffPerformance as DiffPerformance
 import qualified Cmd.Load.Midi as Load.Midi
+import qualified Cmd.PlayUtil as PlayUtil
 import qualified Cmd.Repl.LBlock as LBlock
-import qualified Cmd.Repl.LEvent as LEvent
+import qualified Cmd.Repl.LEvent as Repl.LEvent
 import qualified Cmd.Repl.LTrack as LTrack
 import qualified Cmd.Save as Save
 
+import qualified Derive.LEvent as LEvent
 import qualified Perform.Signal as Signal
 import qualified App.Config as Config
 import Types
@@ -36,7 +46,7 @@ find :: Text -> Cmd.CmdL String
 find search = do
     blocks <- LBlock.find search
     tracks <- LTrack.find search
-    events <- LEvent.find search
+    events <- Repl.LEvent.find search
     return $ unlines $ concatMap section $ concat
         [ [("blocks:", Pretty.formatted blocks) | not (null blocks)]
         , [("tracks:", Pretty.formatted tracks) | not (null tracks)]
@@ -79,8 +89,47 @@ set_creation_time = do
     now <- liftIO Time.getCurrentTime
     State.modify $ State.config#State.meta#State.creation #= now
 
-set_notes :: String -> Cmd.CmdL ()
+set_notes :: Text -> Cmd.CmdL ()
 set_notes = State.modify . (State.config#State.meta#State.notes #=)
+
+-- | Save the current root performances as \"correct\".
+save_performance :: Cmd.CmdL ()
+save_performance = do
+    block_id <- State.get_root_id
+    midi <- midi_performance block_id
+    time <- lift Time.getCurrentTime
+    patch <- either Cmd.throw return =<< lift get_current_patch
+    let perf = State.Performance midi time patch
+    State.modify_config $
+        State.meta#State.performances %= Map.insert block_id perf
+
+get_performance :: BlockId -> Cmd.CmdL State.Performance
+get_performance block_id =
+    Cmd.require_msg ("saved performance for " ++ show block_id)
+    =<< State.get_config (State.meta#State.performances # Lens.map block_id #$)
+
+-- | This assumes the current dir is in the darcs repo.
+get_current_patch :: IO (Either String Text)
+get_current_patch = do
+    (exit, stdout, stderr) <- Process.readProcessWithExitCode "darcs"
+        ["changes", "--last=1"] ""
+    return $ case exit of
+        Exit.ExitFailure n -> Left $ "darcs failed with " <> show n
+            <> ": " <> stderr
+        Exit.ExitSuccess -> Right $ txt stdout
+
+-- | Compare the current root block performance against the saved one.
+verify_performance :: Cmd.CmdL Text
+verify_performance = do
+    block_id <- State.get_root_id
+    perf <- get_performance block_id
+    msgs <- midi_performance block_id
+    return $ DiffPerformance.verify perf msgs
+
+midi_performance :: Cmd.M m => BlockId -> m (Vector.Vector Midi.WriteMessage)
+midi_performance block_id = do
+    perf <- Cmd.get_performance block_id
+    Vector.fromList . LEvent.events_of <$> PlayUtil.perform_from 0 perf
 
 
 -- * transform
