@@ -32,17 +32,14 @@ def main():
     out_fn = sys.argv[1]
     test_fns = sys.argv[2:]
 
-    init_func = re.compile(r'^initialize .*=', re.MULTILINE)
     test_defs = {}
     init_funcs = {}
     for fn in test_fns:
-        src = open(fn).read()
-        lines = list(open(fn))
-        test_defs[fn] = get_defs(list(enumerate(lines)))
+        test_defs[fn], init_funcs[fn] = extract_defs(fn)
         if not test_defs[fn]:
             print >>sys.stderr, 'Warning: no (test|profile)_* defs in %r' % fn
-        if init_func.search(''.join(lines)):
-            init_funcs[fn] = '%s.initialize' % path_to_module(fn)
+        if not init_funcs[fn]:
+            del init_funcs[fn]
 
     output = hs_template % {
         'generator': sys.argv[0],
@@ -56,13 +53,25 @@ def main():
     out.close()
 
 
+init_func_re = re.compile(r'^initialize .*=', re.MULTILINE)
+
+def extract_defs(fn):
+    lines = list(open(fn))
+    defs = get_defs(list(enumerate(lines)))
+    if init_func_re.search(''.join(lines)):
+        init_func = '%s.initialize' % path_to_module(fn)
+    else:
+        init_func = None
+    return defs, init_func
+
+
 def get_defs(lines):
     # regexes are not liking me, so functional it is
     if not lines:
         return []
     i, line = lines[0]
     i += 1 # enumerate starts from 0
-    m = re.match(r'^(?:test|profile)_[a-zA-Z0-9_]+ \=', line)
+    m = re.match(r'^(?:large_test|test|profile)_[a-zA-Z0-9_]+ \=', line)
     if m:
         body, rest = span(
             lambda (_, line): line.startswith(' ') or line == '\n', lines[1:])
@@ -100,16 +109,18 @@ def make_tests(test_defs, init_funcs):
             sym = '%s.%s' % (path_to_module(fn), test_name)
             out.append('Test %s (%s >> return ()) %s %d %s %s' % (
                 hs_str(sym), sym, hs_str(fn), lineno, init,
-                hs_str(test_type(has_initialize, body))))
+                hs_str(test_type(has_initialize, test_name, body))))
     return out
 
-def test_type(has_initialize, func_body):
+def test_type(has_initialize, test_name, func_body):
     interactive = any(re.search(r'\b%s\b' % sym, func_body)
         for sym in ['io_human', 'io_human_line'])
     if interactive:
         return 'interactive'
     elif has_initialize:
         return 'gui'
+    elif test_name.startswith('large_test_'):
+        return 'large'
     else:
         return 'normal'
 

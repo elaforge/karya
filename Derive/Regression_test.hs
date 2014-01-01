@@ -47,11 +47,11 @@ save_performance input output = do
     msgs <- perform_file input
     DiffPerformance.save_midi output msgs
 
-test_bloom = check =<< compare_performance
+large_test_bloom = check =<< compare_performance
     "data/bloom-perf.gz" "data/bloom.gz"
-test_pnovla = check =<< compare_performance
+large_test_pnovla = check =<< compare_performance
     "data/pnovla-perf.gz" "data/pnovla.gz"
-test_viola_sonata = check =<< compare_performance
+large_test_viola_sonata = check =<< compare_performance
     "data/viola-sonata-perf.gz" "data/viola-sonata.gz"
 
 -- * implementation

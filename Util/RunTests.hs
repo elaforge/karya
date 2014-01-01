@@ -114,8 +114,7 @@ matchingTests regexes tests = concatMap match regexes
 
 runTest :: Test -> IO ()
 runTest test = do
-    pid <- Posix.getProcessID
-    putStrLn $ divider pid ++ testFilename test ++ ": " ++ testName test
+    putStrLn $ unwords [metaPrefix, "run-test", testName test]
     let name = last (Seq.split "." (testName test))
     start <- CPUTime.getCPUTime
     maybe id id (testInitialize test) $ Test.catch_srcpos
@@ -127,6 +126,3 @@ runTest test = do
     putStrLn $ unwords [metaPrefix, "timing ", testName test,
         Numeric.showFFloat (Just 3) secs ""]
     return ()
-
-divider :: Posix.ProcessID -> String
-divider pid = metaPrefix ++ " run-test " ++ " " ++ show pid ++ ": "

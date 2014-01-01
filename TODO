@@ -18,7 +18,12 @@ UNSORTED
       still could as long as the caller used quoted, then I could coerce
       from 'f "(4c)'.  It would be more annoying to write, but maybe not so
       bad?
-  - tests are slow and apparently not very parallel
+  * tests are slow and apparently not very parallel
+    parallel: 47.08s user 1.68s system 110% cpu 44.181 total
+    sequential: 46.02s user 0.86s system 99% cpu 46.910 total
+      without large tests: 3.23s user 0.47s system 99% cpu 3.737 total
+    new parallel: 53.90s user 1.36s system 239% cpu 23.026 total
+
     . Most tests are really fast, and probably dwarfed by startup overhead.
       Can I use work stealing?  I'd need a fast IPC so each subprocess can
       steal a job.
@@ -32,6 +37,7 @@ UNSORTED
       pprint.
       Doesn't work for stderr output via Util.Debug, which means traced logs.
       Also, libgit2 crashes when called re-entrantly.
+  - configure Util.Debug to write to any file handle
   * grace note gets "no pitch signal"
   * and the error msg stack is at the wrong time
   * control for grace notes to fall before or on the base note, at 0 the
@@ -103,7 +109,7 @@ UNSORTED
     I need a way to tell if logview is running.
   * If I merge Derive.Note.render_of with Derive.Control.signal_wanted, I
     think I can get rid of Derive.state_wanted_track_signals.
-  - Perhaps each score should also save the MIDI performance of the root
+  * Perhaps each score should also save the MIDI performance of the root
     block, along with the date / patch.  That way I can run a diff on the last
     good performance and if it's different, and know what version of the app
     produced it.  Git-style commit IDs would be more suitable for this, but

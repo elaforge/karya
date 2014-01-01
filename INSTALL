@@ -67,8 +67,6 @@ lilypond, for some fonts, and for the lilypond backend, of course.
 
 fltk-1.3, from http://fltk.org/
 
-GNU parallel, to run tests in parallel.
-
 ## LINUX
 
 Either jack1 or jack2.  JACK support is mostly untested and probably doesn't
