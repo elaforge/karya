@@ -17,15 +17,19 @@ hpc_exclude_test=${hpc_exclude_test-}
 run_tests=$1
 shift
 if [[ -z $run_tests ]]; then
-    echo "usage: $0 run/tests/binary [ prefixes ...]"
+    echo "usage: $0 build/test/RunTests [ prefixes ...]"
     exit 1
 fi
 
+# Default to parallel, but you can turn it off with parallel=
+parallel=${parallel-t}
+
 # Run tests in parallel.
-if which parallel >/dev/null; then
-    parallel=t
-else
-    echo parallel command not found, running tests in serial.
+if [[ -n $parallel ]]; then
+    if ! which parallel >/dev/null; then
+        echo parallel command not found, running tests in serial.
+        parallel=
+    fi
 fi
 
 # This is appended to.  It should be reset along with the coverage data every
