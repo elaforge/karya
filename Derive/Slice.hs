@@ -155,12 +155,13 @@ slice :: Bool -- ^ Omit events than begin at the start.  'event_gaps' documents
 slice exclusive around start end insert_event = map do_slice
     where
     do_slice (Tree.Node track subs) = Tree.Node (slice_t track)
-        (if null subs then insert else map do_slice subs)
-    insert = case insert_event of
+        (if null subs then insert (TrackTree.tevents_shifted track)
+            else map do_slice subs)
+    insert shift = case insert_event of
         Nothing -> []
-        Just insert_event -> [Tree.Node (make insert_event) []]
+        Just insert_event -> [Tree.Node (make shift insert_event) []]
     -- The synthesized bottom track.
-    make (InsertEvent text dur trange around track_id) =
+    make shift (InsertEvent text dur trange around track_id) =
         TrackTree.TrackEvents
             { TrackTree.tevents_title = ">"
             , TrackTree.tevents_events =
@@ -172,7 +173,9 @@ slice exclusive around start end insert_event = map do_slice
             , TrackTree.tevents_sliced = True
             , TrackTree.tevents_inverted = True
             , TrackTree.tevents_around = around
-            , TrackTree.tevents_shifted = fst trange
+            -- Since a note may be inverted and inserted after 'slice_notes'
+            -- and its shifting, I have to get the shift from the parent track.
+            , TrackTree.tevents_shifted = shift
             }
     slice_t track = track
         { TrackTree.tevents_events = within
@@ -319,6 +322,13 @@ slice_notes start end tracks =
         }
         where move = Event.move (subtract shift)
 
+-- | (parents, track, slices, subs)
+type Sliced = ([TrackTree.TrackEvents], TrackTree.TrackEvents,
+    [(ScoreTime, ScoreTime)], TrackTree.EventsTree)
+
+-- | (start, dur, tracks)
+type Note = (ScoreTime, ScoreTime, TrackTree.EventsTree)
+
 -- | Slice overlaps are when an event overlaps the start of the slice range.
 -- They're bad because they tend to cause notes to get doubled.  This is
 -- because a slice is expanded by larger sub-events, so the events under the
@@ -390,12 +400,6 @@ checked_slice_notes start end tracks = do
         Pretty.pretty start <> "--" <> Pretty.pretty end
     show_overlapping (Just track_id, (start, end)) =
         Pretty.pretty $ State.Range Nothing track_id start end
-
--- | (parents, track, slices, subs)
-type Sliced = ([TrackTree.TrackEvents], TrackTree.TrackEvents,
-    [(ScoreTime, ScoreTime)], TrackTree.EventsTree)
--- | (start, dur, tracks)
-type Note = (ScoreTime, ScoreTime, TrackTree.EventsTree)
 
 -- | Get slice ranges for a track.  This gets the non-overlapping ranges of all
 -- the note tracks events below.

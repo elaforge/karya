@@ -393,6 +393,9 @@ r_split = second (filter interesting_log) . LEvent.partition . Derive.r_events
 r_logs :: Derive.Result -> [Log.Msg]
 r_logs = snd . r_split
 
+stack_to_ui :: Stack.Stack -> [String]
+stack_to_ui = map Stack.unparse_ui_frame . Stack.to_ui
+
 r_log_strings :: Derive.Result -> [String]
 r_log_strings = snd . extract id
 

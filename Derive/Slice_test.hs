@@ -323,6 +323,28 @@ test_overlaps = do
     prettyp events
     prettyp logs
 
+test_note_transformer_stack = do
+    -- The stack should be correct even in the presence of slicing and
+    -- inversion.
+    let run = DeriveTest.extract (DeriveTest.stack_to_ui . Score.event_stack)
+            . DeriveTest.derive_tracks_linear
+    let (stacks, logs) = run
+            [ (">", [(1, 1, "ap")])
+            , (">", [(1, 1, "")])
+            , ("*", [(0, 0, "4c")])
+            ]
+    equal logs []
+    equal stacks
+        [["test/b1 test/b1.t2 1-2"]]
+
+    let (stacks, logs) = run
+            [ (">", [(1, 1, "ap")])
+            , (">", [(1, 1, "") , (4, 1, "")])
+            , ("*", [(1, 0, "4a"), (4, 0, "4b")])
+            ]
+    equal logs []
+    equal stacks [["test/b1 test/b1.t2 1-2"], ["test/b1 test/b1.t2 4-5"]]
+
 
 -- * util
 
@@ -361,6 +383,7 @@ make_controls title ps = (title, [(to_score p, 0, show p) | p <- ps])
 make_controls2 :: String -> [(Int, String)] -> (String, [Event])
 make_controls2 title ps = (title, [(to_score p, 0, val) | (p, val) <- ps])
 
+to_score :: Int -> ScoreTime
 to_score = ScoreTime.double . fromIntegral
 
 make_notes :: ScoreTime -> String -> (String, [Event])

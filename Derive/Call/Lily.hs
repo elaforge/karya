@@ -346,8 +346,7 @@ c_ly_global = Derive.transformer "ly-global" Tags.ly_only
     ("Evaluate the deriver only when in lilypond mode, like `when-ly`, but\
     \ also set the " <> ShowVal.show_val Constants.ly_global
     <> " instrument."
-    ) $ Sig.call0t $ \_ deriver ->
-        when_lilypond (global deriver) mempty
+    ) $ Sig.call0t $ \_ deriver -> when_lilypond (global deriver) mempty
 
 c_ly_track :: Derive.Transformer Derive.Note
 c_ly_track = Derive.transformer "ly-track" Tags.ly_only

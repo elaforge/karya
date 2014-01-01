@@ -17,6 +17,21 @@ UNSORTED
       bad?
   - apparently tests that throw an exception aren't getting counted as failed
     and they're slow and have low parallelism
+    . Most tests are really fast, and probably dwarfed by startup overhead.
+      Can I use work stealing?  I'd need a fast IPC so each subprocess can
+      steal a job.
+    . Would it be to slow to use pipes to send a test, then wait for
+      completion, then send the next?
+    . First, divide expensive tests with slow_test_ prefix, then run those
+      first.  Then divide up the rest evenly.
+    . Also write something to time the tests and write a histogram.
+    . Or, I could do with threads by capturing stdout.  Could I substitute
+      fd 1 and 2 for os threads?  Or just redirect success, failure, and
+      pprint.
+      Doesn't work for stderr output via Util.Debug, which means traced logs.
+      Also, libgit2 crashes when called re-entrantly.
+  - grace note gets "no pitch signal"
+  * and the error msg stack is at the wrong time
   * control for grace notes to fall before or on the base note, at 0 the
     grace notes fall before, at 0 they fall on.
   - 'g 2c 1' is interpreted as 'g 2c 1d'.  Perhaps subsequent untyped nums
@@ -1140,6 +1155,21 @@ planning / research
       . Pitch variation.  Some instruments tend to attack inaccurately and
         then correct.  Higher dynamics and tempo could make pitch less
         accurate.
+    Modelling notation as a set of constraints:
+      Notation specifies parameters along with how "fixed" they are.  For
+      example, specified pitches are usually immovable, but onset time might
+      be variable, depending on how important the beat is.  Higher level
+      notation then assembles components and combines the constraints, and
+      results in either conflicts, or a set of more specific constraints.
+
+      . Example: janta attacks from below, normally one diatonic step, but
+        avoids repeating the previous note.  A trill can end on either low
+        or high, but if followed by janta, will change to avoid making janta
+        repeat a note.  If trill speed is unfixed, it can change that,
+        otherwise change attack time of the following note.  If the trill end
+        is fixed, then the grace note must adapt by picking another higher
+        note.
+      . Carnatic ornaments change when time is reduced.
   Composition of score fragments.  I think I want to display subderived
   notes within the call event.  And then some way to put edits on top of it.
   - spline curve interpolator: evoral/Curve.cpp, www.korf.co.uk/spline.pdf

@@ -113,12 +113,11 @@ run_with_dynamic dynamic deriver = do
     let state = Derive.State dynamic mempty constant
     return $ Derive.run state deriver
 
-get_lookup_inst :: (Cmd.M m) => m (Score.Instrument -> Maybe Derive.Instrument)
+get_lookup_inst :: Cmd.M m => m (Score.Instrument -> Maybe Derive.Instrument)
 get_lookup_inst =
     (fmap Cmd.derive_instrument .) <$> Cmd.get_lookup_instrument
 
-perform_from :: (Cmd.M m) => RealTime -> Cmd.Performance
-    -> m Perform.MidiEvents
+perform_from :: Cmd.M m => RealTime -> Cmd.Performance -> m Perform.MidiEvents
 perform_from start = perform_events . events_from start . Cmd.perf_events
 
 shift_messages :: RealTime -> RealTime -> Perform.MidiEvents
