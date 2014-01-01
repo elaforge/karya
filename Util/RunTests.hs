@@ -11,6 +11,8 @@ import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 
+import qualified Numeric
+import qualified System.CPUTime as CPUTime
 import qualified System.Console.GetOpt as GetOpt
 import qualified System.Environment
 import qualified System.Exit
@@ -42,6 +44,10 @@ data Test = Test {
 
 testName :: Test -> String
 testName test = testType test ++ "-" ++ testSymName test
+
+-- Prefix for lines with test metadata.
+metaPrefix :: String
+metaPrefix = "===>"
 
 data Flag = List | NonInteractive deriving (Eq, Show)
 
@@ -111,9 +117,16 @@ runTest test = do
     pid <- Posix.getProcessID
     putStrLn $ divider pid ++ testFilename test ++ ": " ++ testName test
     let name = last (Seq.split "." (testName test))
+    start <- CPUTime.getCPUTime
     maybe id id (testInitialize test) $ Test.catch_srcpos
         (Just (testFilename test, Just name, testLine test)) (testRun test)
+    end <- CPUTime.getCPUTime
+    -- CPUTime is in picoseconds.
+    let secs = fromIntegral (end - start) / 10^12
+    -- Grep for timing to make a histogram.
+    putStrLn $ unwords [metaPrefix, "timing ", testName test,
+        Numeric.showFFloat (Just 3) secs ""]
     return ()
 
 divider :: Posix.ProcessID -> String
-divider pid = "===> run-test " ++ " " ++ show pid ++ ": "
+divider pid = metaPrefix ++ " run-test " ++ " " ++ show pid ++ ": "
