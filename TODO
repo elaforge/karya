@@ -3,6 +3,7 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
+  - Corrupted views save in git repo is still happening.  How?
   - Can I get rid of RawVal vs. Val by storing it as a Quoted?
     Why does PitchControl have a pitch *signal* anyway?  ValControl has a
     control signal, which means I can have controls default to signals e.g.
@@ -30,7 +31,7 @@ UNSORTED
       pprint.
       Doesn't work for stderr output via Util.Debug, which means traced logs.
       Also, libgit2 crashes when called re-entrantly.
-  - grace note gets "no pitch signal"
+  * grace note gets "no pitch signal"
   * and the error msg stack is at the wrong time
   * control for grace notes to fall before or on the base note, at 0 the
     grace notes fall before, at 0 they fall on.

@@ -189,21 +189,24 @@ c_grace_attr supported =
     <$> Sig.many "pitch" "Grace note pitches."
     <*> grace_envs
     ) $ \(pitches, (grace_dur, dyn, place)) -> Sub.inverting $ \args -> do
-        base <- Util.get_pitch =<< Args.real_start args
+        start <- Args.real_start args
+        base <- Util.get_pitch start
         let ps = resolve_pitches base pitches
         Lily.when_lilypond (lily_grace args ps) $ do
             maybe_attrs <- grace_attrs supported ps base
             case maybe_attrs of
-                Just attrs -> attr_grace args grace_dur (length pitches) attrs
+                Just attrs -> attr_grace start args grace_dur (length pitches)
+                    attrs
                 -- Fall back on normal grace.
                 Nothing -> grace_call args dyn ps grace_dur place
     where
-    attr_grace args grace_dur notes attrs = do
+    attr_grace real_start args grace_dur notes attrs = do
         let (start, dur) = Args.extent args
         grace_dur <- Util.duration_from start grace_dur
         let before = fromIntegral notes * grace_dur
-        Util.add_attrs attrs $
-            Derive.d_place (start - before) (dur + before) Util.note
+        pitch <- Util.get_pitch real_start
+        Util.add_attrs attrs $ Derive.d_place (start - before) (dur + before)
+            (Util.pitched_note pitch 1)
 
 grace_attrs :: Map.Map Int Score.Attributes -> [PitchSignal.Pitch]
     -> PitchSignal.Pitch -> Derive.Deriver (Maybe Score.Attributes)
