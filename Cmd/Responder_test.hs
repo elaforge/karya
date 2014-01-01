@@ -34,7 +34,7 @@ test_modify_tempo = do
             ruler <- State.get_ruler rid
             State.modify_ruler UiTest.default_ruler_id (const ruler)
     let cstate = ResponderTest.mk_cmd_state ustate (UiTest.default_view_id)
-    results <- ResponderTest.thread (ustate, cstate)
+    results <- ResponderTest.thread False (ustate, cstate)
         -- Delete the tempo and set it to 2.
         (CmdTest.keypresses [Key.Escape, Key.Backspace, Key.Char '2'])
     -- Icky.  If I don't pick exactly the right result it will hang fover

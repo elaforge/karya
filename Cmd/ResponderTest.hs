@@ -158,8 +158,8 @@ result_states r = (result_ui_state r, result_cmd_state r)
 -- cmds complete with a minimum of delay, don't get in loops, and the new
 -- performance becomes available eventually.
 
-thread :: States -> [Msg.Msg] -> IO [Result]
-thread states msgs = thread_delay True states [(m, 0) | m <- msgs]
+thread :: Bool -> States -> [Msg.Msg] -> IO [Result]
+thread print_timing states msgs = thread_delay False states [(m, 0) | m <- msgs]
 
 thread_delay :: Bool -> States -> [(Msg.Msg, Thread.Seconds)] -> IO [Result]
 thread_delay _ _ [] = return []
