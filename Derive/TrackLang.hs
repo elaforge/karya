@@ -291,6 +291,15 @@ instance Typecheck Int where
 
 -- | VNums can also be coerced into chromatic transposition, so you can write
 -- a plain number if you don't care about diatonic.
+--
+-- This is different from RealOrScore, which does not default an untyped
+-- literal, so you have to supply the type explicitly.  The rationale is that
+-- many scales don't have diatonic or chromatic, and it would be annoying to
+-- have to specify one or the other when it was definitely irrelevant.  But
+-- the RealTime ScoreTime distinction is universal, there is no single default
+-- that is appropriate for all calls.  So they have to specify a default by
+-- taking a 'DefaultScore' or 'DefaultReal', or require the caller to
+-- distinguish with 'RealOrScore'.
 instance Typecheck Pitch.Transpose where
     from_val (VNum (Score.Typed typ val)) = case typ of
         Score.Untyped -> Just (Pitch.Chromatic val)

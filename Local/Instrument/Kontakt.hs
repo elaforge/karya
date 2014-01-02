@@ -310,7 +310,7 @@ kendang_composite_code insts =
 c_realize_kendang :: (Score.Instrument, Score.Instrument)
     -> Derive.Transformer Derive.Note
 c_realize_kendang insts = Derive.transformer "realize-kendang"
-    (Tags.idiom <> Tags.postproc)
+    (Tags.inst <> Tags.postproc)
     ("Realize a composite kendang score into separate lanang and wadon parts."
     ) $ Sig.call0t $ \_ deriver -> do
         events <- deriver

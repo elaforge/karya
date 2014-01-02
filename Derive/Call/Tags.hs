@@ -86,8 +86,8 @@ next :: Tags
 next = tag "next"
 
 -- | Adds or transforms note in a style idiomatic to a particular instrument.
-idiom :: Tags
-idiom = tag "idiom"
+inst :: Tags
+inst = tag "inst"
 
 -- | Transforms Score.Events.
 postproc :: Tags

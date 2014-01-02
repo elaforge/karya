@@ -132,7 +132,7 @@ grace_call args dyn_scale pitches grace_dur place = do
         Sub.reapply_call args "(" [] [events]
 
 c_roll :: Derive.Generator Derive.Note
-c_roll = Derive.make_call "roll" (Tags.idiom <> Tags.ornament)
+c_roll = Derive.make_call "roll" Tags.ornament
     "These are like grace notes, but they all have the same pitch."
     $ Sig.call ((,,)
     <$> Sig.defaulted "times" 1 "Number of grace notes."

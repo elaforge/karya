@@ -69,7 +69,7 @@ UNSORTED
   - Double strokes for percussion, e.g. 'oo' could be thom thom with the first
     at 0.5 dyn.
   - Derive/Instrument/* should go in Derive/Call/Instrument?
-  - Rename Tags.idiom to Tags.instrument?
+  * Rename Tags.idiom to Tags.instrument?
   / Perhaps TimeStep should have its own Typecheck instance.  Even make it
     into RealOrScore, like Transpose gained Nn?
     RealOrScore is renamed to Duration

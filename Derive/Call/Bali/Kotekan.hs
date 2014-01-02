@@ -38,7 +38,7 @@ c_norot :: Derive.Generator Derive.Note
 c_norot = undefined
 
 postproc :: Tags.Tags
-postproc = Tags.idiom <> Tags.bali <> Tags.postproc
+postproc = Tags.bali <> Tags.postproc
 
 c_unison :: Derive.Transformer Derive.Note
 c_unison = Derive.transformer "unison" postproc

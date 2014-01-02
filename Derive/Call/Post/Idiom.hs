@@ -34,7 +34,7 @@ note_calls = Derive.call_maps []
 -- * pizz arp
 
 c_pizz_arp :: Derive.Transformer Derive.Note
-c_pizz_arp = Derive.transformer "pizz-arp" (Tags.postproc <> Tags.idiom)
+c_pizz_arp = Derive.transformer "pizz-arp" (Tags.postproc <> Tags.inst)
     "Arpeggiate simultaneous notes with `+pizz`. The order is arbitrary but\
     \ probably in track order.  TODO sort by pitch?" $
     Sig.callt (defaulted "time" (control "pizz-arp-time" 0.02)
@@ -81,7 +81,7 @@ map_simultaneous eta accept f = go
 
 c_avoid_overlap :: Derive.Transformer Derive.Note
 c_avoid_overlap = Derive.transformer "avoid-overlap"
-    (Tags.postproc <> Tags.idiom)
+    (Tags.postproc <> Tags.inst)
     "Notes with the same starting pitch are shortened so they don't overlap\
     \ with each other.  This simulates keyboard instruments, where you have\
     \ to release a key before striking the same key again. This also happens\

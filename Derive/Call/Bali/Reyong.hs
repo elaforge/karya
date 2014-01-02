@@ -108,7 +108,7 @@ note_calls = Derive.call_maps []
 
 c_realize :: Derive.Transformer Derive.Note
 c_realize = Derive.transformer "realize-kilitan"
-    (Tags.idiom <> Tags.bali <> Tags.postproc)
+    (Tags.inst <> Tags.bali <> Tags.postproc)
     "Realize reyong kilitan.  Pitch-less events with +byut, +byong, or\
     \ +cek attrs, and are transformed into +mute, -, or +cek attributed notes\
     \ with the appropriate pitches for each position.  Pitched notes with -\
