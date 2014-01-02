@@ -9,7 +9,18 @@
 -- winds up linking in the GUI libs, even though there's no GUI.
 --
 -- TODO shouldn't it be possible to lift this restriction?
-module Cmd.ResponderTest where
+module Cmd.ResponderTest (
+    -- * States
+    States
+    , mkstates, mk_cmd_state, set_midi_config
+    -- * Result
+    , Result(..), result_states, result_ui_state, result_cmd_state
+    , result_perf
+    -- * run
+    , respond_cmd, next, respond_until, continue_until
+    , is_derive_complete
+    , thread, thread_delay
+) where
 import qualified Control.Concurrent.Chan as Chan
 import qualified Control.Concurrent.MVar as MVar
 import qualified Control.Concurrent.STM as STM
@@ -21,6 +32,7 @@ import qualified System.IO.Unsafe as Unsafe
 import qualified Text.Printf as Printf
 
 import Util.Control
+import qualified Util.Log as Log
 import qualified Util.Pretty as Pretty
 import Util.Test
 import qualified Util.Thread as Thread
@@ -34,8 +46,8 @@ import qualified Ui.Update as Update
 
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.CmdTest as CmdTest
-import qualified Cmd.Repl as Repl
 import qualified Cmd.Msg as Msg
+import qualified Cmd.Repl as Repl
 import qualified Cmd.Responder as Responder
 
 import qualified Derive.DeriveTest as DeriveTest
@@ -94,6 +106,9 @@ data Result = Result {
     , result_loopback :: Chan.Chan Msg.Msg
     }
 
+result_states :: Result -> States
+result_states r = (result_ui_state r, result_cmd_state r)
+
 result_cmd_state :: Result -> Cmd.State
 result_cmd_state = CmdTest.result_cmd_state . result_cmd
 
@@ -148,9 +163,6 @@ is_derive_complete :: Msg.Msg -> Bool
 is_derive_complete (Msg.DeriveStatus _ (Msg.DeriveComplete {})) = True
 is_derive_complete _ = False
 
-result_states :: Result -> States
-result_states r = (result_ui_state r, result_cmd_state r)
-
 -- * thread
 
 -- TODO to do a realistic simulation, I think I need to asynchronously send
@@ -159,7 +171,8 @@ result_states r = (result_ui_state r, result_cmd_state r)
 -- performance becomes available eventually.
 
 thread :: Bool -> States -> [Msg.Msg] -> IO [Result]
-thread print_timing states msgs = thread_delay False states [(m, 0) | m <- msgs]
+thread print_timing states msgs =
+    thread_delay print_timing states [(m, 0) | m <- msgs]
 
 thread_delay :: Bool -> States -> [(Msg.Msg, Thread.Seconds)] -> IO [Result]
 thread_delay _ _ [] = return []
@@ -173,10 +186,16 @@ thread_delay print_timing states ((msg, delay) : msgs) = do
 
 -- * respond_cmd
 
+configure_logging :: IO ()
+configure_logging = do
+    Log.configure $ \st -> st { Log.state_log_hdl = Just IO.stdout }
+    return ()
+
 -- | Respond to a single Cmd.  This can be used to test cmds in the full
 -- responder context without having to fiddle around with keymaps.
 respond_cmd :: States -> Cmd.CmdT IO a -> IO Result
-respond_cmd states cmd = respond1 states (Just (mkcmd cmd)) magic
+respond_cmd states cmd =
+    configure_logging >> respond1 states (Just (mkcmd cmd)) magic
     where
     -- I run a cmd by adding a cmd that responds only to a specific Msg, and
     -- then sending that Msg.

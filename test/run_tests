@@ -31,11 +31,13 @@ parallel=${parallel-t}
 test_output=build/test/output
 
 function run {
+    echo start "$@" >&2
     "$@"
     local r=$?
     if [[ $r -ne 0 ]]; then
         echo '__->' cmd returned $r: "$@"
     fi
+    echo complete "$@" >&2
 }
 
 # Tests will recreate this if they need to.
@@ -45,19 +47,14 @@ mkdir -p $tmp
 rm -f *.tix(N)
 
 
-# I capture stderr as well because Debug.Trace.trace prints to stderr,
-# and apparently there's no way to change that.
 time (
 if [[ -n $parallel && -z $prefixes ]]; then
     # Only run in parallel if no explicit prefixes were given.
     for test in $($run_tests --list '^large-'); do
         ln $run_tests $tmp/RunTests.$test
-        echo run $tmp/RunTests.$test $test
-        run $tmp/RunTests.$test $test >$tmp/output.$test 2>&1 &
+        run $tmp/RunTests.$test $test >$tmp/output.$test &
     done
-    echo run $run_tests '^normal-'
-    run $run_tests '^normal-' >$test_output 2>&1
-    print wait for completion
+    run $run_tests '^normal-' >$test_output
     wait
     mv *.tix $tmp
     cat $tmp/output.* >>$test_output
@@ -67,7 +64,7 @@ else
     if [[ -z $prefixes ]]; then
         prefixes=('^normal-')
     fi
-    run $run_tests --noninteractive $prefixes >$test_output 2>&1
+    run $run_tests --noninteractive $prefixes >$test_output
 fi
 )
 

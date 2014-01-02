@@ -7,10 +7,10 @@ module Cmd.CmdTest where
 import qualified Control.Concurrent.Chan as Chan
 import qualified Data.Map as Map
 import qualified Data.Vector as Vector
-import qualified Debug.Trace as Trace
 import qualified System.IO.Unsafe as Unsafe
 
 import Util.Control
+import qualified Util.Debug as Debug
 import qualified Util.Log as Log
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
@@ -260,7 +260,7 @@ trace_logs :: Extracted a -> Either String a
 trace_logs res = case res of
     Right (b, logs) -> (if null logs then id else trace logs) (Right b)
     Left a -> Left a
-    where trace = Trace.trace . Seq.strip . unlines . ("\tlogged:":)
+    where trace = Debug.trace_str . Seq.strip . unlines . ("\tlogged:":)
 
 e_logs :: Result a -> [String]
 e_logs = map DeriveTest.show_log . DeriveTest.trace_low_prio . result_logs

@@ -37,7 +37,7 @@ UNSORTED
       pprint.
       Doesn't work for stderr output via Util.Debug, which means traced logs.
       Also, libgit2 crashes when called re-entrantly.
-  - configure Util.Debug to write to any file handle
+  * configure Util.Debug to write to any file handle
   * grace note gets "no pitch signal"
   * and the error msg stack is at the wrong time
   * control for grace notes to fall before or on the base note, at 0 the

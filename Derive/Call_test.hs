@@ -31,7 +31,6 @@ import qualified Derive.Instrument.DUtil as DUtil
 import qualified Derive.Scale.Legong as Legong
 import qualified Derive.Score as Score
 import qualified Derive.Sig as Sig
-import qualified Derive.Stack as Stack
 import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.Midi.Instrument as Instrument

@@ -50,7 +50,6 @@ import qualified Data.Monoid as Monoid
 import qualified Data.Text as Text
 import qualified Data.Time as Time
 
-import qualified Debug.Trace as Trace
 import qualified System.CPUTime as CPUTime
 import qualified System.IO as IO
 import qualified System.IO.Unsafe as Unsafe
@@ -58,6 +57,7 @@ import qualified System.IO.Unsafe as Unsafe
 import Text.Printf (printf)
 
 import Util.Control
+import qualified Util.Debug as Debug
 import qualified Util.Logger as Logger
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
@@ -102,10 +102,14 @@ data State = State {
     }
 
 initial_state :: State
-initial_state = State (Just IO.stderr) Debug format_msg
+initial_state = State
+    { state_log_hdl = Just IO.stderr
+    , state_log_level = Debug
+    , state_log_formatter = format_msg
+    }
 
-global_state :: MVar.MVar State
 {-# NOINLINE global_state #-}
+global_state :: MVar.MVar State
 global_state = Unsafe.unsafePerformIO (MVar.newMVar initial_state)
 
 -- | Configure the logging system by modifying its internal state.
@@ -214,7 +218,7 @@ add_prefix pref = map $ \m -> m { msg_text = pref <> ": " <> msg_text m }
 trace_logs :: [Msg] -> a -> a
 trace_logs logs val
     | null logs = val
-    | otherwise = Trace.trace
+    | otherwise = Debug.trace_str
         (Seq.rdrop_while (=='\n') $ unlines $ "\tlogged:" : map format_msg logs)
         val
 

@@ -8,33 +8,34 @@ module Util.Debug (
     -- * forced by evaluation
     , trace, tracep, traces, traceps
     , tracef, tracefp, trace_ret, trace_retp
+    , trace_str
     -- * forced by monad
     , traceM, tracepM, tracesM
     -- in IO
     , puts, put, putp
 ) where
 import qualified Control.Monad.Trans as Trans
-import qualified System.IO.Unsafe as Unsafe
 import qualified Data.IORef as IORef
 import qualified Data.Monoid as Monoid
-
-import qualified Debug.Trace as Trace
 import qualified System.IO as IO
+import qualified System.IO.Unsafe as Unsafe
 
 import qualified Util.PPrint as PPrint
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 
 
-active :: IORef.IORef Bool
 {-# NOINLINE active #-}
-active = Unsafe.unsafePerformIO (IORef.newIORef True)
+active :: IORef.IORef (Maybe IO.Handle)
+active = Unsafe.unsafePerformIO (IORef.newIORef (Just IO.stdout))
 
-activate :: IO ()
-activate = IORef.writeIORef active True
+-- | Write debug msgs to the given handle.
+activate :: IO.Handle -> IO ()
+activate hdl = IORef.writeIORef active (Just hdl)
 
+-- | Suppress debug msgs.
 deactivate :: IO ()
-deactivate = IORef.writeIORef active False
+deactivate = IORef.writeIORef active Nothing
 
 -- | Only apply the function if the val is non-mempty.  Useful for the trace
 -- family.
@@ -104,6 +105,7 @@ trace_retp function a ret = trace_str text ret
     pa = Seq.strip $ Pretty.formatted a
     pret = Seq.strip $ Pretty.formatted ret
 
+-- | Show a raw string, equivalent to 'Debug.Trace.trace'.
 trace_str :: String -> a -> a
 trace_str = write . (prefix++)
 
@@ -123,26 +125,26 @@ tracesM msg = write msg (return ())
 -- These are like putStrLn, but more easily greppable.
 
 puts :: (Trans.MonadIO m) => String -> m ()
-puts = put_line . (prefix++)
+puts = writeIO . (prefix++)
 
 put :: (Trans.MonadIO m, Show a) => String -> a -> m ()
-put msg = put_line . with_msg msg . pshow
+put msg = writeIO . with_msg msg . pshow
 
 putp :: (Trans.MonadIO m, Pretty.Pretty a) => String -> a -> m ()
-putp msg = put_line . with_msg msg . Pretty.formatted
-
-put_line :: (Trans.MonadIO m) => String -> m ()
-put_line s = Trans.liftIO $ do
-    putStrLn s
-    IO.hFlush IO.stdout
+putp msg = writeIO . with_msg msg . Pretty.formatted
 
 
 -- * implementation
 
 write :: String -> a -> a
-write msg val
-    | Unsafe.unsafePerformIO (IORef.readIORef active) = Trace.trace msg val
-    | otherwise = val
+write msg val = Unsafe.unsafePerformIO $ do
+    writeIO msg
+    return val
+
+writeIO :: Trans.MonadIO m => String -> m ()
+writeIO msg = Trans.liftIO $ IORef.readIORef active >>= \x -> case x of
+    Nothing -> return ()
+    Just hdl -> IO.hPutStrLn hdl msg
 
 with_msg :: String -> String -> String
 with_msg msg text_ =
