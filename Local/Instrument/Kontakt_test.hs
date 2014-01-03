@@ -138,6 +138,14 @@ test_mridangam = do
             run "3b" ["do"] [("dyn", [(0, 0, ".5")])])
         (["+din", "+thom"], [])
 
+test_mridangam_double = do
+    let run title notes = DeriveTest.extract extract $
+            derive [(">kkt/mridangam" <> title, notes)]
+        extract e = (Score.event_start e, Score.initial_dynamic e)
+    -- The second one doesn't have enough space.
+    equal (run " | double-time = 1s" [(1, 0, "oo"), (2, 0, "oo")])
+        ([(0, 0.5), (1, 1), (1.5, 0.5), (2, 1)], [])
+
 derive :: [UiTest.TrackSpec] -> Derive.Result
 derive = DeriveTest.derive_tracks_with
     (DeriveTest.with_inst_db Kontakt.synth_descs)

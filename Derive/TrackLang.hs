@@ -51,7 +51,11 @@ is_null_instrument _ = False
 c_equal :: CallId
 c_equal = "="
 
--- * make literals
+-- * make Val literals
+
+-- These are intentionally not as polymorphic as they could be, because
+-- otherwise 'Derive.val_call $ ... return $ TrackLang.num x' would have an
+-- amgiguous type variable.
 
 -- | Make an untyped VNum.
 num :: Double -> Val
@@ -614,12 +618,15 @@ map_generator f (call1 :| calls) = case calls of
     [] -> map_call_id f call1 :| []
     _ : _ -> call1 :| Seq.map_last (map_call_id f) calls
 
--- | Convenient constructor for Call.  Not to be confused with 'call0'--calln.
+-- | Convenient constructor for Call.
 call :: Text -> [Term] -> Call
 call sym = Call (Symbol sym)
+
+literal_call :: Text -> [RawVal] -> Call
+literal_call sym args = call sym (map Literal args)
 
 inst :: Text -> Term
 inst = Literal . VInstrument . Score.Instrument
 
 val_call :: Text -> [RawVal] -> Term
-val_call sym args = ValCall (Call (Symbol sym) (map Literal args))
+val_call sym args = ValCall (literal_call sym args)

@@ -50,6 +50,10 @@ pitch_calls = Derive.generator_call_map
     ]
 
 
+-- | It's pretty much arbitrary, but this seems ok.
+default_grace_dur :: TrackLang.DefaultReal
+default_grace_dur = TrackLang.real (1/12)
+
 -- * standard args
 
 grace_envs :: Sig.Parser (TrackLang.RealOrScore, Double, TrackLang.ValControl)
@@ -57,7 +61,7 @@ grace_envs = (,,) <$> grace_dur_env <*> grace_dyn_env <*> grace_placement_env
 
 grace_dur_env :: Sig.Parser TrackLang.RealOrScore
 grace_dur_env = TrackLang.default_real <$>
-    Sig.environ "grace-dur" Sig.Unprefixed (TrackLang.real (1/12))
+    Sig.environ "grace-dur" Sig.Unprefixed default_grace_dur
         "Duration of grace notes."
 
 grace_dyn_env :: Sig.Parser Double
@@ -136,19 +140,24 @@ c_roll = Derive.make_call "roll" Tags.ornament
     "These are like grace notes, but they all have the same pitch."
     $ Sig.call ((,,)
     <$> Sig.defaulted "times" 1 "Number of grace notes."
-    <*> Sig.defaulted "time" (TrackLang.real (1/12)) "Time between the strokes."
+    <*> Sig.defaulted "time" default_grace_dur "Time between the strokes."
     <*> Sig.defaulted "dyn" 0.5 "Dyn scale for the grace notes."
     ) $ \(times, TrackLang.DefaultReal time, dyn_scale) ->
-    Sub.inverting $ repeat_notes times time dyn_scale
+    Sub.inverting $ roll times time dyn_scale
 
-repeat_notes :: Int -> TrackLang.RealOrScore -> Signal.Y -> Derive.PassedArgs a
+roll :: Int -> TrackLang.RealOrScore -> Signal.Y -> Derive.PassedArgs a
     -> Derive.NoteDeriver
-repeat_notes times time dyn_scale args = do
+roll times time dyn_scale args = do
+    start <- Args.real_start args
+    pitch <- Util.get_pitch start
+    repeat_notes (Util.with_pitch pitch Util.note) times time dyn_scale args
+
+repeat_notes :: Derive.NoteDeriver -> Int -> TrackLang.RealOrScore -> Signal.Y
+    -> Derive.PassedArgs a -> Derive.NoteDeriver
+repeat_notes note times time dyn_scale args = do
     start <- Args.real_start args
     dyn <- (*dyn_scale) <$> Util.dynamic start
-    pitch <- Util.get_pitch start
-    let notes = replicate times (Util.pitched_note pitch dyn)
-            ++ [Util.note]
+    let notes = replicate times (Util.with_dynamic dyn note) ++ [note]
     Sub.place =<< make_grace_notes (Args.prev_start args)
         (Args.extent args) notes time (TrackLang.constant_control 0)
 

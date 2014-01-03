@@ -27,7 +27,7 @@ UNSORTED
     that all transpositions are of the same type.  This is annoying to do
     because I'd have to make it TypedVal at which point it loses automatic
     typechecking.
-  - Double strokes for percussion, e.g. 'oo' could be thom thom with the first
+  * Double strokes for percussion, e.g. 'oo' could be thom thom with the first
     at 0.5 dyn.
   - Derive/Instrument/* should go in Derive/Call/Instrument?
   - A postproc might transform percussion so repeated notes after the first

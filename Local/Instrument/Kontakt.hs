@@ -406,14 +406,19 @@ mridangam_patches = [(inst, code)]
         Instrument.patch $ Instrument.instrument "mridangam" [] pb_range
     code = MidiInst.note_generators call_code
         <> MidiInst.cmd (CUtil.insert_call char_to_call)
-    call_code =
-        CUtil.drum_calls
+    call_code = concat
+        [ CUtil.drum_calls
             [Drums.Note call attrs char 1 | (call, attrs, char, _) <- mridangam]
-        ++ CUtil.multiple_calls
+        , CUtil.multiple_calls
             [(call, subcalls) | (call, subcalls, _) <- mridangam_both]
-    char_to_call = Map.fromList $
-        [(c, call) | (call, _, c, _) <- mridangam]
-        ++ [(c, call) | (call, _, Just c) <- mridangam_both]
+        , CUtil.double_calls
+            [(call, subcall) | (call, subcall, _) <- mridangam_double]
+        ]
+    char_to_call = Map.fromList $ concat
+        [ [(c, call) | (call, _, c, _) <- mridangam]
+        , [(c, call) | (call, _, Just c) <- mridangam_both]
+        , [(c, call) | (call, _, Just c) <- mridangam_double]
+        ]
 
 mridangam_keymap :: Instrument.AttributeMap
 mridangam_keymap = Instrument.keymap
@@ -431,6 +436,16 @@ mridangam_both =
         | (lcall, _, _, _) <- mridangam_left
         , (rcall, _, _, _) <- mridangam_right
         , Text.length lcall == 1 && Text.length rcall == 1
+        ]
+
+mridangam_double :: [(Text, Text, Maybe Char)]
+mridangam_double =
+    [(call <> call, call, lookup call keys) | (call, _, _, _) <- mridangam,
+        Text.length call == 1]
+    where
+    keys =
+        [ ("+", 'a'), ("o", 'd')
+        , ("k", '1'), ("n", '3'), ("d", '4')
         ]
 
 mridangam, mridangam_left, mridangam_right
@@ -464,16 +479,19 @@ mridangam2_patches = [(inst, code)]
         Instrument.patch $ Instrument.instrument "mridangam2" [] pb_range
     code = MidiInst.note_generators call_code
         <> MidiInst.cmd (CUtil.insert_call char_to_call)
-    call_code =
-        CUtil.drum_calls
-            [ Drums.Note call attrs char 1
-            | (char, call, attrs) <- mridangam2_left ++ mridangam2_right
-            ]
-        ++ CUtil.multiple_calls
+    call_code = concat
+        [ CUtil.drum_calls
+            [Drums.Note call attrs char 1 | (char, call, attrs) <- mridangam2]
+        , CUtil.multiple_calls
             [(call, subcalls) | (call, subcalls, _) <- mridangam2_both]
-    char_to_call = Map.fromList $
-        [(char, call) | (char, call, _) <- mridangam2_left ++ mridangam2_right]
-        ++ [(char, call) | (call, _, Just char) <- mridangam2_both]
+        , CUtil.double_calls
+            [(call, subcall) | (call, subcall, _) <- mridangam2_double]
+        ]
+    char_to_call = Map.fromList $ concat
+        [ [(char, call) | (char, call, _) <- mridangam2]
+        , [(char, call) | (call, _, Just char) <- mridangam2_both]
+        , [(char, call) | (call, _, Just char) <- mridangam2_double]
+        ]
 
 mridangam2_attribute_map :: Instrument.AttributeMap
 mridangam2_attribute_map = Instrument.make_attribute_map
@@ -481,6 +499,16 @@ mridangam2_attribute_map = Instrument.make_attribute_map
         Just (Instrument.PitchedKeymap low high NN.gs3))
     | (attrs, (ks, low, high)) <- mridangam2_attributes
     ]
+
+mridangam2_double :: [(Text, Text, Maybe Char)]
+mridangam2_double =
+    [(call <> call, call, lookup call keys)
+        | (_, call, _) <- mridangam2, Text.length call == 1]
+    where
+    keys =
+        [ ("+", 'a'), ("o", 'd')
+        , ("k", '1'), ("n", '3'), ("d", '4')
+        ]
 
 -- | Create calls for all simultaneous left and right hand combinations, and
 -- key bindings for a few common ones.
@@ -496,7 +524,7 @@ mridangam2_both =
         , Text.length lcall == 1 && Text.length rcall == 1
         ]
 
-mridangam2_left, mridangam2_right :: [(Char, Text, Attributes)]
+mridangam2, mridangam2_left, mridangam2_right :: [(Char, Text, Attributes)]
 mridangam2_left = map (\(a, b, c) -> (a, b, Score.attr c))
     [ ('z', "+", "tha")
     , ('x', "o", "thom")
@@ -510,6 +538,7 @@ mridangam2_right = map (\(a, b, c) -> (a, b, Score.attr c))
     , ('y', "u", "arai")
     , ('u', "v", "muru")
     ]
+mridangam2 = mridangam2_left ++ mridangam2_right
 
 mridangam2_attributes :: [(Attributes, (Midi.Key, Midi.Key, Midi.Key))]
 mridangam2_attributes = assign $ map (map (mconcat . map Score.attr))

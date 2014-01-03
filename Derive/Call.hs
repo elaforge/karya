@@ -155,6 +155,22 @@ reapply_gen args call_id = do
         replace_generator call_id (Derive.info_expr cinfo)
     reapply_generator cinfo call_id (Derive.passed_vals args) expr
 
+-- | Like 'reapply_gen', but the note is given normalized time, 0--1, instead
+-- of inheriting the start and duration from the args.  This is essential if
+-- you want to shift or stretch the note.
+reapply_gen_normalized :: Derive.Callable d => PassedArgs d -> TrackLang.CallId
+    -> Derive.LogsDeriver d
+reapply_gen_normalized args = reapply_gen $ args
+    { Derive.passed_info = cinfo
+        { Derive.info_event = (Derive.info_event cinfo)
+            { Event.start = 0
+            , Event.duration = 1
+            }
+        , Derive.info_event_end = 1
+        }
+    }
+    where cinfo = Derive.passed_info args
+
 replace_generator :: TrackLang.CallId -> Event.Text -> Either String Event.Text
 replace_generator call_id = fmap replace . ParseBs.parse_expr
     where

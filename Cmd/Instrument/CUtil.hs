@@ -8,7 +8,6 @@
 -- I need a better name than \"Util\" for everything.
 module Cmd.Instrument.CUtil where
 import qualified Data.Map as Map
-import qualified Data.Text as Text
 
 import Util.Control
 import qualified Util.Log as Log
@@ -26,7 +25,9 @@ import qualified Cmd.Perf as Perf
 import qualified Cmd.Selection as Selection
 
 import qualified Derive.Call as Call
+import qualified Derive.Call.Grace as Grace
 import qualified Derive.Call.Note as Note
+import qualified Derive.Call.Tags as Tags
 import qualified Derive.Call.Util as Call.Util
 import qualified Derive.Derive as Derive
 import qualified Derive.Score as Score
@@ -194,7 +195,25 @@ multiple_calls calls =
 
 -- | Create a call that just dispatches to other calls.
 multiple_call :: Call -> [Call] -> Derive.Generator Derive.Note
-multiple_call name calls = Derive.make_call name mempty
-    ("Dispatch to multiple calls: " <> Text.intercalate ", " calls)
-    $ Sig.call0 $ \args ->
+multiple_call name calls = Derive.make_call name Tags.inst
+    -- I intentionally omit the calls from the doc string, so they will
+    -- combine in the call doc.  Presumably the calls are apparent from the
+    -- name.
+    "Dispatch to multiple calls." $ Sig.call0 $ \args ->
         mconcat $ map (Call.reapply_gen args . TrackLang.Symbol) calls
+
+double_calls :: [(Call, Call)] -- ^ (call_name, repeated_call)
+    -> [(Call, Derive.Generator Derive.Note)]
+double_calls calls =
+    [(name, double_call repeated) | (name, repeated) <- calls]
+
+double_call :: Call -> Derive.Generator Derive.Note
+double_call repeated = Derive.make_call "double" Tags.inst
+    "Doubled call. This is a specialization of `roll`."
+    $ Sig.call ((,)
+    <$> Sig.defaulted "time" Grace.default_grace_dur "Time between the strokes."
+    <*> Sig.defaulted "dyn" 0.5 "Dyn scale for grace notes."
+    ) $ \(TrackLang.DefaultReal time, dyn) args ->
+        Grace.repeat_notes (Call.reapply_gen_normalized args
+                (TrackLang.Symbol repeated))
+            1 time dyn args
