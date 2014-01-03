@@ -339,9 +339,11 @@ data ValType pitch =
     -- Literal: @func@, @\'hello\'@, @\'quinn\'\'s hat\'@
     | VSymbol !Symbol
 
-    -- | A quoted val call.  TODO
+    -- | A quoted val call.  Quoted calls are resolved by "Derive.Sig" when
+    -- it typechecks arguments.  This way you can set an argument default to
+    -- an expression that will be evaluated every time the call occurs.
     --
-    -- Literal: @"(a b c)@
+    -- Literal: @\"(a b c)@
     | VQuoted !Quoted
     -- | An explicit not-given arg for functions so you can use positional
     -- args with defaults.

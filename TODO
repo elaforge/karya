@@ -3,9 +3,13 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
+  - fix the ly notation in mvt3 of viola-sonata
+  - `mordent` is a pain to type, abbreviate to `mord`?
   - changing repl env var causes relink of things that don't rely on it,
     e.g. logview
   - Corrupted views save in git repo is still happening.  How?
+    Could this be related to the shake database corruption?
+    . Investigate bug/views-broken.gz to see where and how it got corrupted.
   - Can I get rid of RawVal vs. Val by storing it as a Quoted?
     Why does PitchControl have a pitch *signal* anyway?  ValControl has a
     control signal, which means I can have controls default to signals e.g.
@@ -32,6 +36,7 @@ UNSORTED
     understands the first loop, and doesn't know that 'tile' cuts off the
     beginning.
   - Cmdline program that verifies the root performance of a save file.
+    This becomes a regression test on any saved score.
   - use tr^ and tr_ starting high and low, instead of tr1 and tr2, starting
     unison and neighbor?
   - I want to use a library of basic patterns in multiple scores.  Rather than
@@ -207,46 +212,6 @@ documentation
   call doc:
     - I could go look through arg docs for controls and list all the controls
       that have someone listening to them in a certain scope.
-
-block composition
-  - I do a lot of appending a block along with its ruler, I could have
-    a single cmd to do that.
-  - A more radical approach would be a block mode where the block calls are
-    simply additive, and their duration doesn't matter.  This would mean I'd
-    have to edit the tempo on the subblocks though, which in turn means it
-    couldn't vary independently.
-    . Could do this with a block call that acts as a note transformer, which
-      simply pastes together sub-blocks.  I'd still want to cache the
-      sub-blocks if possible, unless I do the block-range caching thing.
-      Another bonus is I could probably get next/prev events working across
-      block boundaries this way.  Maybe this could be used as an integrator
-      input.
-  - tempo composition is problematic because it means you can't change the
-    length of a block from within the block.  So slowing down one part will
-    speed up another.  How can I get local tempo like I want?  Or just edit
-    the global tempo?  Unfortunately it's much more convenient to edit local
-    tempo.  Maybe I could do a non-compositional tempo that simply overrides
-    the caller, or rather multiplies with the caller.
-    This means the call event is now longer than its duration would imply,
-    and to fix that I need to have the child tempo modify the parent.  So
-    effectively I am just modifying the global tempo, only providing a nicer
-    syntax.
-
-    This technique really is non-compositional: you can't have more than
-    one call at once.
-    Actually, I could: tempo track looks at calls in note tracks, gets
-    sub-blocks, strips out the tempo tracks.  Then multiplies those signals
-    with its own.
-
-    Or I could just make it easier to edit the global tempo:
-      * when you click on the parent, show selection pos on the child too
-      - show derivation of child inside caller, I think I want to do this
-        anyway, but it's hard, how do I fit all that stuff in?
-      * merge child rulers with parent?
-      But it still seems a bit awkward because I do want the tempo associated
-      with the music, e.g. when I play by itself.  On the other hand, if the
-      block repeats do I want the tempo to repeat as well?  Sometimes yes,
-      sometimes no...
 
 incremental save / git:
   + try saving individual events for incremental save
@@ -1056,8 +1021,51 @@ planning / research
         is fixed, then the grace note must adapt by picking another higher
         note.
       . Carnatic ornaments change when time is reduced.
-  Composition of score fragments.  I think I want to display subderived
-  notes within the call event.  And then some way to put edits on top of it.
+
+  think about grammar for ornaments
+    . Notes have a syntax: there are ornaments or articulations only valid at
+      the attack time, ones that apply to the sustain, and ones that serve as
+      transitions to the next note.  Also, the shapes of ornaments vary based on
+      the note or absence of a note preceding and following, in addition to the
+      speed.  It makes me think of cursive Arabic, where letters change shape
+      and placement based on the previous letter, along with rules about which
+      letters go where in the word (I'm sure linguists have a name for this,
+      e.g. English has "ng", but won't start a word with it).  I've noticed
+      there's a tension between specifying exact times via a timeline or
+      whatever, and the kind of higher level flexibility implied by a syntactic
+      approach.  E.g. if you say "attack X, sustain Y, end with Z", you are not
+      saying exactly when X, Y, and Z start and end, and they are free to
+      arrange themselves according to context.  But you do need a certain amount
+      of precise control over times, at least in some cases.
+    . This is similar to the "constraints" idea, at least with regard to some
+      aspects being flexible, while others are fixed.  For instance, if
+      I write ornaments with no specific times: 'A; B; C' then the start times
+      and durations are flexible, and its up to the interpreting code to
+      arrange them, but if I make separate events for A, B, and C, then the
+      times are fixed.  Of course I also want to be able to fix A and C, but
+      leave B's position flexible.
+    . How to represent this as events?  I think I need a "macro" facility,
+      where a call can interpret following events as a separate mini-language.
+      I used to have this, and could probably get it back, by re-introducing
+      the "skip following events" return value.  In that case, some notation
+      like a leading '=' would indicate that the start time is fixed.
+      Otherwise, the event_start is irrelevant except that it's in between
+      the previous and next events.
+    . Or maybe I do it as sub-notes, that way the one on the left specifies
+      the extent of the "note DSL", and I don't need a "skip following" hack.
+
+  . Composition of score fragments.  Similar to the note grammar thing, this
+    is a sublanguage, so I can sequence movements or sections without worrying
+    about their timing.  It simply derives each one and concatenates them.
+    I could implement it as a "sequence" note transformer call.
+
+  . Give a visual indication of the events emitted by a call.  This is the
+    note level version of the track signal render.  The underlying problem is
+    that textual call names are not necessarily very clear about what the
+    notes are, especially if it's a relatively ad-hoc call.  But I think
+    I need a fancier GUI for this, since I'd have to have some way of turning
+    a bunch of events into a distinctive looking graphic, e.g. a scaled down
+    image of the block or something.
   - spline curve interpolator: evoral/Curve.cpp, www.korf.co.uk/spline.pdf
 
   - If I implement a VST host or patch a DAW to accept VST controls like MIDI

@@ -344,12 +344,15 @@ It's not really necessary, but I think infix looks a little nicer.
 ### Vals
 
 These are your basic types.  They are defined in 'Derive.TrackLang.Val' (or
-'Derive.BaseTypes.Val' thanks to haddock bugs).  Most of them have a literal
-syntax so they can written as call arguments.
+'Derive.BaseTypes.Val' if haddock still doesn't work properly).  Most of them
+have a literal syntax so they can written as call arguments.
 
 #### number types
 
-Chromatic: `c`, diatonic: `d`, ScoreTime: `t`, RealTime: `s`.
+The types and their codes are enumerated in 'Derive.BaseTypes.Type', but
+hopefully this is up to date:
+Chromatic: `c`, diatonic: `d`, NoteNumber: `nn`, ScoreTime: `t`, RealTime: `s`.
+These break down into transposition and duration.
 
 Numeric values can have a type suffix.  For instance, `3d` means that the
 number is intended to be interpreted as a transposition of three diatonic
@@ -357,22 +360,36 @@ steps, and `2s` is two seconds of RealTime.  Similarly, control names can have
 a type suffix, such as `delay:s`.  This means that the values of the control
 are intended to be interpreted as RealTime seconds.
 
-Of course, whether or not they are so interpreted depends on the call that
-winds up receiving them.  Calls that expect an amount of transposition will
-accept `d` and `c`, untyped numbers will be interpreted as `c` (chromatic), and
-hopefully numbers of other types will cause an exception.
+This is intended to provide more information to calls, and could be seen as a
+way of overloading.  For example, it would be awkward to include all
+combinations of trills on diatonic or chromatic neighbors, and in score time or
+real time.  It's easier to have one control that can be passed a diatonic or
+chromatic neighbor, and a score time or real time speed.
 
-Many numbers and controls are untyped and will ignore any type on a value or
-control.  The type mechanism can be seen as a way of overloading certain calls.
-For example, it would be awkward to include all combinations of trills on
-diatonic or chromatic neighbors, and in score time or real time.  It's easier
-to have one control that can be passed a diatonic or chromatic neighbor, and a
-score time or real time speed.
+Calls can expect untyped numbers, transpositions, or durations, and can specify
+that untyped numbers default to a particular type.  So a call may accept `1`,
+`1t`, or `1s`, and cause `1` to default to `1t`.  A call the expects a
+transposition will always default to Chromatic, however.  The rationale is that
+many scales don't have diatonic or chromatic, and it would be annoying to have
+to specify one or the other when it was definitely irrelevant.  But the
+RealTime ScoreTime distinction is universal, there is no single default that is
+appropriate for all calls.
 
-The types and their codes are enumerated in 'Derive.BaseTypes.Type'.
+The details of how Vals are coerced into haskell values are handled by the
+'Derive.TrackLang.Typecheck' class.  The interaction between typed controls and
+arguments is also documented in 'Derive.Sig'.
 
-The interaction between typed controls and arguments is also documented in
-'Derive.Sig'.
+#### quoted
+
+'Derive.BaseTypes.VQuoted' is somewhat special.  This corresponds to a quoted
+val call, e.g. `"(f x y)`.  When this is passed as a call argument, it will be
+evaluated in the context of the call.  This is useful for default arguments.
+For example, you could globally set `delay-time = "(ts s)` and the `delay`
+call's `time` argument will get the result of `(ts s)`, which is the sixteenth
+note [TimeStep](cmd.md.html#timestep) at the point of the call.  If you didn't
+quote the expression, it would fail if there was no ruler at the call's
+position (e.g. in a block title).  Another example would be a val call that
+emits random numbers in a certain distribution to randomize argument values.
 
 ## Calls
 
@@ -560,12 +577,12 @@ must be dealt with symbolically, since their relation to a concrete frequency
 might depend on a lot of context.
 
 At performance time, a pitch signal is flattened into a
-'Perform.Control.NoteNumber' signal, and any transposition signals in scope
-are applied.  The transposition signals, along with all the other signals, are
-attached to the note when the note itself is generated, probably by the
-null note call, so if you write `%t-chromatic = 1 | 4c` in a pitch track,
-you won't get the effect you expect.  You should instead put `%t-chromatic = 1
-|` in the note track.
+'Perform.Control.NoteNumber' signal, and any transposition signals in scope are
+applied.  The transposition signals, along with all the other signals, are
+attached to the note when the note itself is generated, probably by the null
+note call, so if you write `%t-chromatic = 1 | 4c` in a pitch track, you won't
+get the effect you expect.  You should instead put `%t-chromatic = 1 |` in the
+note track.
 
 ## Logging
 
@@ -580,18 +597,19 @@ on the relevant bit of track.
 ## Randomness
 
 "Randomness" in a music language is a bit interesting.  You want it to be
-random, but if you get something you like, you want to fix it to that version.
+random, but always the same random, and if you get something you like, you want
+to fix it to that version.
 
 Calls that want randomness can use the various calls in 'Derive.Call.Util' to
 get a pseudo-random number.  The number depends soley on the random
 'Derive.Environ.seed', so if the seed is the same, the number will always be
 the same.  The seed is hashed with each stack frame as it is added, so
-each event should get a unique stream of random numbers.  However, the seed is
-an environ value, and if you manually set it to a constant the derivation
-underneath should always derive the same way, provided you don't change the
-stack underneath the point where it gets set.  So you can freeze a derivation
-by inspecting the seed and hardcoding it manually, or you can ask for a
-different variation by setting a new seed.
+each event should get a unique stream of random numbers, even if it winds up
+being called more than once.  However, the seed is an environ value, and if you
+manually set it to a constant the derivation underneath should always derive
+the same way, provided you don't change the stack underneath the point where it
+gets set.  So you can freeze a derivation by inspecting the seed and hardcoding
+it manually, or you can ask for a different variation by setting a new seed.
 
 Because the seed depends on the stack, two calls on the same event will get the
 same random sequence.  Hopefully that's not a problem.

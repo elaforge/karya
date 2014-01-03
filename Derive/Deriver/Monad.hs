@@ -926,17 +926,12 @@ instance Monoid.Monoid TrackDynamic where
     mempty = TrackDynamic mempty
     mappend (TrackDynamic d1) (TrackDynamic d2) =
         TrackDynamic $ Map.unionWith merge d1 d2
-        -- | dc1 /= mempty && dc2 /= mempty = TrackDynamic $
-        --     Debug.traceps "merge" (dc1, dc2) $ Map.unionWith merge d1 d2
-        -- | otherwise = TrackDynamic $ Map.unionWith merge d1 d2
         where
         merge d1 d2 = d2
             { state_environ = state_environ d1
             , state_controls = Map.unionWith merge_controls
                 (state_controls d1) (state_controls d2)
             }
-        -- dc1 = Map.map state_controls d1
-        -- dc2 = Map.map state_controls d2
 
 merge_controls :: Score.TypedControl -> Score.TypedControl -> Score.TypedControl
 merge_controls (Score.Typed typ c1) (Score.Typed _ c2) =
