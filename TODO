@@ -3,14 +3,30 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
-  - fix the ly notation in mvt3 of viola-sonata
+  - why is save/seasons piano part putting lots of pitch bends in?
+  - chord calls, with automatic dyns for the notes.
+    Originally I intended each note to go in its own track, with the idea that
+    it takes about the same space but is more powerful and flexible.  But it's
+    not quite true, because the extra track is there for the whole block,
+    though perhaps that's a side-effect of having blocks which are too large.
+    More compellingly, chords can automatically fiddle with dyn and start
+    time, and can also interpret chord symbols.
+  - Implement 'sequence'.  It sequences its notes, paying attention only to
+    their order, not time and duration.  The tricky part is getting the tempo
+    right so playback looks right, and controls line up right.
+    . Figure out tempo from sum of durations of called blocks.  Then set the
+      tempo accordingly.  Then evaluate the block normally.  So actually this
+      is a kind of tempo track.
+  * fix the ly notation in mvt3 of viola-sonata: bug/ly-tuplets.gz
+    It is emitting 32nd notes instead of tuplets, caused by the +spic sub
+    call.
   - `mordent` is a pain to type, abbreviate to `mord`?
-  - changing repl env var causes relink of things that don't rely on it,
-    e.g. logview
+  - shakefile: changing repl env var causes relink of things that don't rely
+    on it, e.g. logview
   - Corrupted views save in git repo is still happening.  How?
     Could this be related to the shake database corruption?
-    . Investigate bug/views-broken.gz to see where and how it got corrupted.
-  - Can I get rid of RawVal vs. Val by storing it as a Quoted?
+    - Investigate bug/views-broken.gz to see where and how it got corrupted.
+  / Can I get rid of RawVal vs. Val by storing it as a Quoted?
     Why does PitchControl have a pitch *signal* anyway?  ValControl has a
     control signal, which means I can have controls default to signals e.g.
     '%decay,(i> 1 0)'.
@@ -18,10 +34,13 @@ UNSORTED
     Derive.Sig like VQuoted, it might be more consistent, but I'd still have
     both Val and RawVal.  To really get rid of it, I'd have to put the eval
     in Util.to_pitch_signal
-    . But it also means I can coerce a VPitch into a PitchControl.  But I
-      still could as long as the caller used quoted, then I could coerce
-      from 'f "(4c)'.  It would be more annoying to write, but maybe not so
-      bad?
+    . But it also means I can coerce a VPitch into a PitchControl.  Otherwise,
+      either the pitch is already a VPitch and I can't put it in a Val, or
+      I need RawVal so I can write a defaulted pitch PitchControl.  Both are
+      common cases.
+    . I could get around that by having the caller quote the val, e.g.
+      'f "(4c)', but that's an annoying syntax for something that should "just
+      work", and is common.
   - 'g 2c 1' is interpreted as 'g 2c 1d'.  Perhaps subsequent untyped nums
     should get the type of the preceding one?  Or rather, I should require
     that all transpositions are of the same type.  This is annoying to do
@@ -29,7 +48,8 @@ UNSORTED
     typechecking.
   * Double strokes for percussion, e.g. 'oo' could be thom thom with the first
     at 0.5 dyn.
-  - Derive/Instrument/* should go in Derive/Call/Instrument?
+  / Derive/Instrument/* should go in Derive/Call/Instrument?
+    Not really worth having nested directories over.
   - A postproc might transform percussion so repeated notes after the first
     one lose dyn.
   - Play position doesn't work right for 'loop' and 'tile' calls, it only

@@ -10,6 +10,7 @@ import qualified Data.Text as Text
 
 import Util.Control
 import qualified Util.Log as Log
+import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 
 import qualified Derive.Args as Args
@@ -53,7 +54,7 @@ c_tuplet = Derive.make_call "tuplet" Tags.subs
     \ their collective duration is the same as the tuplet's duration.\
     \\nIf there are multiple note tracks, they will all be stretched\
     \ the same amount."
-    $ Sig.call0 $ \args -> emit_lily_tuplet args $
+    $ Sig.call0 $ \args -> lily_tuplet args $
         Sub.place_at (Args.range args) . concat =<< Sub.sub_events args
 
 -- | 'c_tuplet' works by lengthening notes to fit in its range, but staff
@@ -66,39 +67,44 @@ c_tuplet = Derive.make_call "tuplet" Tags.subs
 -- be a 'Lilypond.Duration', and all the notes must be the same duration.  So
 -- I don't support tuplets with ties and whatnot inside.  It's theoretically
 -- possible, but seems hard.
-emit_lily_tuplet :: Derive.PassedArgs d -> Derive.NoteDeriver
+lily_tuplet :: Derive.PassedArgs d -> Derive.NoteDeriver
     -> Derive.NoteDeriver
-emit_lily_tuplet args not_lily = Lily.when_lilypond_config lily not_lily
+lily_tuplet args not_lily = Lily.when_lilypond_config lily not_lily
     where
     lily config = either err return =<< Either.runEitherT . check config
         =<< Sub.sub_events args
     check config notes = do
-        (note, notes) <- case filter (not . null) notes of
-            [] -> Either.left $ Just "no sub events"
-            [[]] -> Either.left $ Just "no sub events"
-            _ : _ : _ -> Either.left $ Just ">1 non-empty sub track"
-            [[_]] -> Either.left Nothing
-            [n : ns]
-                | not $ all ((== Sub.event_duration n) . Sub.event_duration)
-                        ns ->
-                    Either.left $ Just "all event durations must be equal"
-                | otherwise -> Either.right (n, ns)
+        notes <- case filter (not . null) notes of
+            [] -> Either.left "no sub events"
+            [[]] -> Either.left "no sub events"
+            _ : _ : _ -> Either.left ">1 non-empty sub track"
+            [notes] -> return notes
+        (events, logs) <- (LEvent.partition <$>) $ lift $ Sub.place $
+            map (Sub.stretch (Args.start args) 2) notes
+            -- Double the notes duration, since staff notation tuplets shorten
+            -- notes.
+        lift $ mapM_ Log.write logs
+        (e, es) <- case events of
+            [] -> Either.left "no sub events"
+            [_] -> Either.left "just one event"
+            e : es
+                | all ((== dur e) . dur) es -> Either.right (e, es)
+                | otherwise -> Either.left $
+                    "all event durations must be equal: "
+                    <> Seq.join ", " (map (Pretty.pretty . dur) (e:es))
+                where dur = Score.event_duration
         (start, end) <- lift $ Args.real_range args
-        tuplet_dur <- is_dur "tuplet" (end - start)
-        real_dur <- lift $
-            Util.real_dur (Args.start args) (Sub.event_duration note)
-        note_dur <- is_dur "note" (real_dur * 2)
-        ly_notes <- lift $ Lily.eval config args $
-            map (Sub.stretch (Args.start args) 2) (note : notes)
+        tuplet_dur <- to_dur config "tuplet" (end - start)
+        note_dur <- to_dur config "note" $ Score.event_duration e
+        ly_notes <- lift $ Lily.eval_events config start (e : es)
         lift $ Lily.code (Args.extent args) $
-            tuplet_code tuplet_dur note_dur (length notes + 1) ly_notes
-        where
-        is_dur msg t = maybe
-            (Either.left $ Just $ msg ++ " duration must be simple")
-            return (Lily.is_duration config t)
+            tuplet_code tuplet_dur note_dur (length (e:es)) ly_notes
     err msg = do
-        whenJust msg $ Log.warn . ("can't convert to ly tuplet: "++)
+        Log.warn $ "can't convert to ly tuplet: " <> msg
         not_lily
+    to_dur config msg t = maybe
+        (Either.left $ msg ++ " duration must be simple")
+        return (Lily.is_duration config t)
 
 tuplet_code :: Lilypond.Duration -> Lilypond.Duration -> Int -> [Lily.Note]
     -> Lily.Ly

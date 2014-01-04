@@ -260,7 +260,8 @@ eval config args notes = do
     mapM_ Log.write logs
     eval_events config start events
 
-eval_events :: Types.Config -> RealTime -> [Score.Event] -> Derive.Deriver [Note]
+eval_events :: Types.Config -> RealTime -> [Score.Event]
+    -> Derive.Deriver [Note]
 eval_events config start events = do
     meter <- maybe (return Meter.default_meter) parse_meter
         =<< Derive.lookup_val Constants.v_meter

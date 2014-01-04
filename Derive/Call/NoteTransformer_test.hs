@@ -112,6 +112,12 @@ test_tuplet_ly = do
                 (2, 1, "ly-) | -- 3d")])
         (Right "\\times 2/3 { a4 b4( c4 } d4) r4", [])
 
+    equal (run $
+            (">", [(0, 4, "t")])
+            : (">", [(0, 3, "+stac")])
+            : UiTest.regular_notes 3)
+        (Right "\\times 2/3 { c2-. d2-. e2-. }", [])
+
 test_arpeggio = do
     let run = DeriveTest.extract_events DeriveTest.e_note
             . DeriveTest.derive_tracks_with_ui id
