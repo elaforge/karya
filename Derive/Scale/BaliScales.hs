@@ -64,6 +64,10 @@ make_scale scale_pattern scale_id (ScaleMap dmap nn_map) = Scale.Scale
     -- take effect at the beginning of each note, but won't retune a sounding
     -- one.
     , Scale.scale_transposers = Util.standard_transposers
+    , Scale.scale_read = const $ Util.read_note dmap
+    , Scale.scale_show = const $ Util.show_pitch dmap
+    , Scale.scale_layout =
+        Scale.diatonic_layout (fromIntegral (Util.dm_per_octave dmap))
     , Scale.scale_transpose = Util.transpose dmap
     , Scale.scale_enharmonics = Util.no_enharmonics
     , Scale.scale_note_to_call = note_to_call

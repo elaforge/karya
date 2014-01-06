@@ -11,20 +11,14 @@
 module Cmd.Repl.LPitch where
 import Util.Control
 import qualified Ui.Event as Event
-import qualified Ui.State as State
-import qualified Ui.Track as Track
-
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.ModifyEvents as ModifyEvents
-import qualified Cmd.Perf as Perf
 import qualified Cmd.PitchTrack as PitchTrack
 
-import qualified Derive.Controls as Controls
 import qualified Derive.Scale as Scale
 import qualified Derive.Scale.Theory as Theory
 import qualified Derive.Scale.Twelve as Twelve
-import qualified Derive.Score as Score
-import qualified Derive.TrackInfo as TrackInfo
+import qualified Derive.ShowVal as ShowVal
 
 import qualified Perform.Pitch as Pitch
 import Types
@@ -49,63 +43,53 @@ negate_event event =
 
 -- * transpose
 
+-- | Chromatic transposition.
 transpose_c :: Pitch.Octave -> Double -> Cmd.CmdL ()
 transpose_c oct steps =
     PitchTrack.transpose_selection oct (Pitch.Chromatic steps)
 
+-- | Diatonic transposition.
 transpose_d :: Pitch.Octave -> Double -> Cmd.CmdL ()
 transpose_d oct steps =
     PitchTrack.transpose_selection oct (Pitch.Diatonic steps)
 
-transpose_all :: Pitch.Octave -> Pitch.Transpose -> Cmd.CmdL()
+transpose_all :: Pitch.Octave -> Pitch.Transpose -> Cmd.CmdL ()
 transpose_all octs steps = ModifyEvents.all_blocks $ PitchTrack.pitch_tracks $
     PitchTrack.transpose octs steps
 
--- * to_relative
+-- * modify pitches
+
+modify_pitch :: Cmd.M m => (Theory.Pitch -> Theory.Pitch)
+    -> ModifyEvents.Track m
+modify_pitch modify = PitchTrack.pitch_tracks $ \scale key note -> do
+    pitch <- PitchTrack.pretty_err $ Scale.scale_read scale key note
+    PitchTrack.pretty_err $ Scale.scale_show scale key $ modify pitch
+
+-- | Change notes from one scale to another.  This only makes sense if the
+-- scales have the same number of notes per octave.
+--
+-- TODO it would be nice to change the track title too, but ModifyEvents.Track
+-- doesn't support that.
+change_scale :: Cmd.M m => Pitch.ScaleId -> m (ModifyEvents.Track m)
+change_scale to_scale = do
+    to_scale <- Cmd.get_scale "LPitch.change_scale" to_scale
+    return $ PitchTrack.pitch_tracks $ \from_scale key note -> do
+        pitch <- PitchTrack.pretty_err $ Scale.scale_read from_scale key note
+        PitchTrack.pretty_err $ Scale.scale_show to_scale key pitch
 
 -- | Convert the selected absolute pitch track into a relative one by
 -- subtracting all the notes from the given base note.
-to_relative :: Bool -> Text -> Cmd.CmdL ()
-to_relative diatonic note_s =
-    ModifyEvents.selection $ \block_id track_id events -> do
-        -- This is tricky because it's converting a pitch track to a control
-        -- track, and hoping the same calls apply.
-        let base = Pitch.Note note_s
-        title <- Track.track_title <$> State.get_track track_id
-        case TrackInfo.parse_control title of
-            Right (TrackInfo.Pitch scale_id Nothing) -> do
-                scale <- Cmd.get_scale "LPitch.to_relative" scale_id
-                m_key <- Perf.get_key block_id (Just track_id)
-                State.set_track_title track_id $ add_control $
-                    if diatonic then Controls.diatonic else Controls.chromatic
-                ModifyEvents.failable_texts
-                    (relative_event diatonic scale m_key base)
-                    block_id track_id events
-                -- relative_events diatonic scale note block_id track_id events
-            control_type ->
-                Cmd.throw $ "not the default pitch track: " ++ show control_type
+--
+-- TODO as above, would be nice to set thet track title.
+to_relative :: Cmd.M m => Bool -> Pitch.Note -> ModifyEvents.Track m
+to_relative diatonic base = PitchTrack.pitch_tracks $ \scale key note -> do
+    base <- PitchTrack.pretty_err $ Scale.scale_read scale key base
+    pitch <- PitchTrack.pretty_err $ Scale.scale_read scale key note
+    let layout = Scale.scale_layout scale
+    let d = if diatonic then Scale.diatonic_difference layout pitch base
+            else Scale.chromatic_difference layout pitch base
+    return $ Pitch.Note $ ShowVal.show_val d
 
--- | Make an absolute pitch call relative to the given base degree.
-relative_event :: Bool -> Scale.Scale -> Maybe Pitch.Key -> Pitch.Note
-    -> Text -> Either String Text
-relative_event diatonic scale m_key base = PitchTrack.modify_expr $ \text ->
-    case scale_diff scale m_key diatonic base (Pitch.Note text) of
-        Left err -> Left (show err)
-        Right note -> Right $ Pitch.note_text note
-
--- TODO unimplemented, it would have to a be a Scale method
-scale_diff :: Scale.Scale -> Maybe Pitch.Key -> Bool
-    -> Pitch.Note -> Pitch.Note -> Either Scale.ScaleError Pitch.Note
-scale_diff = undefined
-
--- | Make a control track title.
-add_control :: Score.Control -> Text
-add_control control = TrackInfo.unparse_control $
-    TrackInfo.Control (Just "add") (Score.untyped control)
-
-set_note :: Pitch.Note -> Event.Event -> Event.Event
-set_note note = PitchTrack.modify f
-    where f event = event { PitchTrack.event_val = Pitch.note_text note }
 
 -- * enharmonics
 

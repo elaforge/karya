@@ -11,7 +11,9 @@ module Cmd.PitchTrack (module Cmd.PitchTrack, module Cmd.ControlTrack) where
 import qualified Data.Text as Text
 
 import Util.Control
+import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
+
 import qualified Ui.Event as Event
 import qualified Ui.Key as Key
 import qualified Cmd.Cmd as Cmd
@@ -159,6 +161,9 @@ unparse (ControlTrack.Event method val args)
 -- the text is a call with a val call as its first argument, that's considered
 -- the pitch call.  Otherwise, if the text is just a call, that's the pitch
 -- call.  Otherwise the text is unchanged.
+--
+-- This works with the convention that pitch calls take the \"base\" pitch as
+-- their first argument.
 modify_note :: (Pitch.Note -> Either String Pitch.Note) -> Text
     -> Either String Text
 modify_note f = modify_expr $ \note_str -> case Text.uncons note_str of
@@ -209,7 +214,7 @@ transpose octaves steps scale maybe_key note =
         Right note2 -> Right note2
 
 cycle_enharmonics :: ModifyPitch
-cycle_enharmonics scale maybe_key note = show_err $ do
+cycle_enharmonics scale maybe_key note = pretty_err $ do
     enharmonics <- Scale.scale_enharmonics scale maybe_key note
     return $ fromMaybe note (Seq.head enharmonics)
 
@@ -226,6 +231,5 @@ pitch_tracks f = ModifyEvents.tracks_named TrackInfo.is_pitch_track $
     let modify = modify_note (f scale maybe_key)
     ModifyEvents.failable_texts modify block_id track_id events
 
-show_err :: Either Scale.ScaleError a -> Either String a
-show_err (Right x) = Right x
-show_err (Left err) = Left (show err)
+pretty_err :: Either Scale.ScaleError a -> Either String a
+pretty_err = either (Left . Pretty.pretty) Right

@@ -120,20 +120,15 @@ UNSORTED
     - wendy carlos' alpha, beta, gamma
     - overtone series
     - add ratio transpose single, that multiplies hz
-  - generic way to parse a note to a Theory.Pitch, and back
-    . If I add
-      scale_parse :: Pitch.Note -> Maybe Theory.Pitch
-      scale_show :: Theory.Pitch -> Maybe Theory.Note
-    . Do I need the key?  This may have problems transposing octatonic in
-      *twelve.
 
   + recent tends to collect pitches added via edit input, but since they have
     a specific pitch they're not useful.
     . Maybe I should have a separate recent queue only for transformers, and
       the generator recent is only one slot.  That way I can still repeat the
       last note call.
-    - I'm still not sure I want this, since it seems like I want to repeat
+    . I'm still not sure I want this, since it seems like I want to repeat
       generators too.  But how to tell wanted ones from unwanted pitch ones?
+    . Maybe there should be a way to explicitly record a transform.
   - After a rederive, it still takes a Cmd to free up the memory.  Who is
     holding on to it?
   - Composite 0 dur notes still not quite right, controls come too early.
@@ -908,10 +903,17 @@ pitch: scales: scale:
       tricky since I have to extract a "principle pitch" from each event,
       but it might be useful in general to have an analysis framework.
   fancier pitch signals:
-    - to_relative: This needs Note - Note = Semis.  I think I could just add
+    * to_relative: This needs Note - Note = Semis.  I think I could just add
       a field in Scale, but I'm not totally sure I really want this.
-    - Cmd.Lang.LPitch.to_relative: I would need to implement Scale.scale_diff
+    * Cmd.Lang.LPitch.to_relative: I would need to implement Scale.scale_diff
       but I'm reluctant until I need to_relative or something similar
+  * generic way to parse a note to a Theory.Pitch, and back
+    . If I add
+      scale_parse :: Pitch.Note -> Maybe Theory.Pitch
+      scale_show :: Theory.Pitch -> Maybe Theory.Note
+  - Can I get rid of scale_transpose with scale_read and scale_show?  I think
+    it wouldn't be able to support odd scales like octatonic in a-g, but I'm
+    not sure.  What about enharmonic spelling?
 
 Perform:
   - damper pedal causes all notes to extend until the pedal comes up, should

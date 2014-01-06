@@ -39,7 +39,7 @@ module Derive.Scale.Theory (
     , Note(..), note_in_layout
     -- ** key
     , Key(key_tonic, key_name, key_intervals, key_signature, key_layout), key
-    , Signature
+    , Signature, Intervals
     , layout
     , layout_pc_per_octave, key_degrees_per_octave, layout_semis_per_octave
     -- * util

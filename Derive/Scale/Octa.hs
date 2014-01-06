@@ -60,6 +60,10 @@ make_scale scale_id layout keys fmt = Scale.Scale
     , Scale.scale_pattern = TheoryFormat.fmt_pattern fmt
     , Scale.scale_symbols = []
     , Scale.scale_transposers = Util.standard_transposers
+    , Scale.scale_read = ChromaticScales.read_note scale_map
+    , Scale.scale_show = ChromaticScales.show_pitch scale_map
+    , Scale.scale_layout =
+        Theory.layout_intervals (ChromaticScales.smap_layout scale_map)
     , Scale.scale_transpose = ChromaticScales.transpose scale_map
     , Scale.scale_enharmonics = ChromaticScales.enharmonics scale_map
     , Scale.scale_note_to_call = ChromaticScales.note_to_call scale scale_map

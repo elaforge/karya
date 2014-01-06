@@ -39,6 +39,10 @@ make_scale dmap scale_id note_pattern doc = Scale.Scale
     , Scale.scale_pattern = note_pattern
     , Scale.scale_symbols = []
     , Scale.scale_transposers = standard_transposers
+    , Scale.scale_read = const $ read_note dmap
+    , Scale.scale_show = const $ show_pitch dmap
+    , Scale.scale_layout =
+        Scale.diatonic_layout (fromIntegral (dm_per_octave dmap))
     , Scale.scale_transpose = transpose dmap
     , Scale.scale_enharmonics = no_enharmonics
     , Scale.scale_note_to_call = mapped_note_to_call dmap scale
@@ -89,6 +93,18 @@ type DegreeToNoteNumber = PitchSignal.PitchConfig -> Pitch.Degree
     -> Either Scale.ScaleError Pitch.NoteNumber
 
 -- * scale functions
+
+read_note :: DegreeMap -> Pitch.Note -> Either Scale.ScaleError Theory.Pitch
+read_note dmap note = case Map.lookup note (dm_to_degree dmap) of
+    Nothing -> Left Scale.UnparseableNote
+    Just (Pitch.Degree degree) -> Right $ Theory.Pitch oct (Theory.Note pc 0)
+        where (oct, pc) = degree `divMod` fromIntegral (dm_per_octave dmap)
+
+show_pitch :: DegreeMap -> Theory.Pitch -> Either Scale.ScaleError Pitch.Note
+show_pitch dmap (Theory.Pitch oct (Theory.Note pc _)) =
+    maybe (Left Scale.UnparseableNote) Right $
+        Map.lookup degree (dm_to_note dmap)
+    where degree = Pitch.Degree $ fromIntegral (dm_per_octave dmap) * oct + pc
 
 -- ** transpose
 

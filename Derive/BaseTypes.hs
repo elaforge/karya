@@ -255,6 +255,7 @@ instance Pretty.Pretty Pitch where
 instance ShowVal.ShowVal Pitch where
     show_val pitch = "<pitch: " <> txt (Pretty.pretty pitch) <> ">"
 
+-- | Error evaluating a pitch.
 newtype PitchError = PitchError Text deriving (Eq, Ord, Read, Show)
 instance Pretty.Pretty PitchError where pretty (PitchError s) = untxt s
 

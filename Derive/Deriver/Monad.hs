@@ -111,7 +111,7 @@ module Derive.Deriver.Monad (
     -- * scale
     -- $scale_doc
     , Scale(..)
-    , LookupScale, Transpose, Enharmonics, ScaleError(..)
+    , LookupScale, Transpose, Enharmonics, Layout, ScaleError(..)
 
     -- * testing
     , invalidate_damaged
@@ -124,6 +124,7 @@ import qualified Data.Map.Strict as Map
 import qualified Data.Monoid as Monoid
 import qualified Data.Set as Set
 import qualified Data.Text as Text
+import qualified Data.Vector.Unboxed as Vector.Unboxed
 
 import Util.Control
 import qualified Util.Lens as Lens
@@ -143,6 +144,7 @@ import qualified Ui.TrackTree as TrackTree
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.LEvent as LEvent
 import qualified Derive.PitchSignal as PitchSignal
+import qualified Derive.Scale.Theory as Theory
 import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Stack as Stack
@@ -1367,6 +1369,12 @@ data Scale = Scale {
     -- a given pitch.  Other controls can affect the pitch, but if they aren't
     -- in this set, the pitch won't be reevaluated when they change.
     , scale_transposers :: !(Set.Set Score.Control)
+    -- | Parse a Note into a Theory.Pitch with scale degree and accidentals.
+    , scale_read :: Maybe Pitch.Key -> Pitch.Note
+        -> Either ScaleError Theory.Pitch
+    , scale_show :: Maybe Pitch.Key -> Theory.Pitch
+        -> Either ScaleError Pitch.Note
+    , scale_layout :: !Layout
 
     -- | Transpose a Note by a given number of octaves and integral degrees.
     -- Will be nothing if the pitch is out of range, or the scale doesn't have
@@ -1405,11 +1413,22 @@ instance Pretty.Pretty Scale where
 type LookupScale = Pitch.ScaleId -> Maybe Scale
 type Transpose = Maybe Pitch.Key -> Pitch.Octave -> Pitch.Transpose
     -> Pitch.Note -> Either ScaleError Pitch.Note
+
 -- | Get the enharmonics of the note.  The given note is omitted, and the
 -- enharmonics are in ascending order until they wrap around, so if you always
 -- take the head of the list you will cycle through all of the enharmonics.
 type Enharmonics = Maybe Pitch.Key -> Pitch.Note
     -> Either ScaleError [Pitch.Note]
+
+-- | The number of chromatic intervals between each 'Theory.PitchClass',
+-- starting from 0, as returned by 'scale_read'.  The length is the number of
+-- degree per octave.  A diatonic-only scale will have all 1s, and a scale
+-- without octaves has an empty layout.
+--
+-- This is analogous to 'Theory.Layout', but is intended to be a minimal
+-- implementation that all scales can export, without having to support the
+-- full complexity of a chromatic scale.
+type Layout = Vector.Unboxed.Vector Theory.Semi
 
 -- | Things that can go wrong during scale operations.
 data ScaleError =
@@ -1419,6 +1438,14 @@ data ScaleError =
     | UnparseableEnviron !TrackLang.ValName !Text
         -- The Text should be TrackLang.Val except that makes Eq not work.
     deriving (Eq, Show)
+
+instance Pretty.Pretty ScaleError where
+    pretty err = case err of
+        InvalidTransposition -> "invalid transposition"
+        KeyNeeded -> "key needed"
+        UnparseableNote -> "unparseable note"
+        UnparseableEnviron key val -> "unparseable environ "
+            <> Pretty.pretty key <> ": " <> untxt val
 
 {- NOTE [control-modification]
     . Control tracks return a single control, and how that merges into the
