@@ -14,6 +14,7 @@ module Util.Debug (
     -- in IO
     , puts, put, putp
 ) where
+import qualified Control.DeepSeq as DeepSeq
 import qualified Control.Monad.Trans as Trans
 import qualified Data.IORef as IORef
 import qualified Data.Monoid as Monoid
@@ -137,9 +138,9 @@ putp msg = writeIO . with_msg msg . Pretty.formatted
 -- * implementation
 
 write :: String -> a -> a
-write msg val = Unsafe.unsafePerformIO $ do
-    writeIO msg
-    return val
+write msg val = msg `DeepSeq.deepseq` Unsafe.unsafePerformIO
+    (writeIO msg >> return val)
+    -- deepseq to prevent debug msgs from being interleaved.
 
 writeIO :: Trans.MonadIO m => String -> m ()
 writeIO msg = Trans.liftIO $ IORef.readIORef active >>= \x -> case x of
