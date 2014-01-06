@@ -78,20 +78,22 @@ quantize_timestep mode step block_id track_id events = do
 -- duration.
 quantize_event :: Mode -> [TrackTime] -> Event.Event
     -> ([TrackTime], Event.Event)
-quantize_event mode points_ event = (start_points, quantized)
+quantize_event mode points_ event = (start_points, quantize_event event)
     where
-    quantized = case mode of
-        Start -> Event.move (quantize start_points) event
+    quantize_event = case mode of
+        Start -> quantize_start
         End
-            | zero -> event
-            | otherwise -> Event.modify_end (quantize end_points) event
+            | zero -> id
+            | otherwise -> quantize_end
         Both
-            | zero -> Event.move (quantize start_points) event
-            | otherwise -> Event.modify_end (quantize end_points) $
-                Event.move (quantize start_points) event
+            | zero -> quantize_start
+            | otherwise -> quantize_end . quantize_start
+    quantize_start = Event.move (quantize start_points)
+    quantize_end event =
+        Event.modify_end (quantize (end_points (Event.end event))) event
     zero = Event.duration event == 0
     start_points = TimeStep.drop_before (Event.start event) points_
-    end_points = dropWhile (< Event.end event) start_points
+    end_points end = dropWhile (< end) start_points
 
 quantize :: [TrackTime] -> TrackTime -> TrackTime
 quantize points t = case points of

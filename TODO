@@ -3,7 +3,7 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
-  - why is save/seasons piano part putting lots of pitch bends in?
+  * why is save/seasons piano part putting lots of pitch bends in?
   - chord calls, with automatic dyns for the notes.
     Originally I intended each note to go in its own track, with the idea that
     it takes about the same space but is more powerful and flexible.  But it's
