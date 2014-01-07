@@ -111,15 +111,15 @@ chromatic_steps key note steps =
 -- whole-tone or octatonic), it will figure out the number of chromatic steps
 -- to transpose and act like 'transpose_chromatic'.
 transpose_diatonic :: Key -> Degree -> Pitch -> Pitch
-transpose_diatonic key steps pitch@(Pitch oct note)
+transpose_diatonic key steps pitch@(Pitch oct note@(Note pc accs))
     | steps == 0 = pitch
     | otherwise = case key_signature key of
-        Just sig -> Pitch (oct + oct2)
-            (Note pc2 (note_accidentals note + key_accs sig pc2))
+        Just sig -> Pitch (oct + oct2) $ Note pc2 $
+            accs - key_accs sig pc + key_accs sig pc2
         Nothing -> transpose_chromatic
             key (chromatic_steps key note steps) pitch
     where
-    (oct2, pc2) = (note_pc note + steps) `divMod` key_degrees_per_octave key
+    (oct2, pc2) = (pc + steps) `divMod` key_degrees_per_octave key
     key_accs sig pc = fromMaybe 0 $ sig Vector.!? diatonic_degree_of key pc
 
 -- | Chromatic transposition.  Try to pick a spelling that makes sense for the

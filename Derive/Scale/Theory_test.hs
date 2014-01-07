@@ -63,16 +63,22 @@ test_diatonic_to_chromatic_other = do
 test_transpose_diatonic = do
     let f key steps pitch = show_pitch $
             Theory.transpose_diatonic key steps pitch
-    equal [(f (key "a-min") n (p "1a")) | n <- [0..7]]
+        fs key_ base steps = [f (key key_) step (p base) | step <- [0..steps]]
+    equal (fs "a-min" "1a" 7)
         ["1a", "1b", "2c", "2d", "2e", "2f", "2g", "2a"]
-    equal [(f (key "a-maj") n (p "1a")) | n <- [0..7]]
+    equal (fs "a-maj" "1a" 7)
         ["1a", "1b", "2c#", "2d", "2e", "2f#", "2g#", "2a"]
-    equal [(f (key "a-maj") n (p "1a#")) | n <- [0..7]]
+    equal (fs "a-maj" "1a#" 7)
         ["1a#", "1b#", "2cx", "2d#", "2e#", "2fx", "2gx", "2a#"]
 
-    equal [(f (key "a-octa21") n (p "1a")) | n <- [0..8]]
+    equal (fs "f#-min" "2f#" 7)
+        ["2f#", "2g#", "2a", "2b", "3c#", "3d", "3e", "3f#"]
+    equal (fs "bb-maj" "2bb" 7)
+        ["2bb", "3c", "3d", "3eb", "3f", "3g", "3a", "3bb"]
+
+    equal (fs "a-octa21" "1a" 8)
         ["1a", "1b", "2c", "2d", "2d#", "2f", "2f#", "2g#", "2a"]
-    equal [(f (key "bb-octa21") n (p "1bb")) | n <- [0..8]]
+    equal (fs "bb-octa21" "1bb" 8)
         ["1bb", "2c", "2db", "2eb", "2e", "2gb", "2g", "2a", "2bb"]
 
 test_pitch_to_semis = do
