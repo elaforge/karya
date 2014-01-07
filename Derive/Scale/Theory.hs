@@ -39,6 +39,7 @@ module Derive.Scale.Theory (
     , Note(..), note_in_layout
     -- ** key
     , Key(key_tonic, key_name, key_intervals, key_signature, key_layout), key
+    , accidentals_at_pc
     , Signature, Intervals
     , layout
     , layout_pc_per_octave, key_degrees_per_octave, layout_semis_per_octave
@@ -114,13 +115,12 @@ transpose_diatonic :: Key -> Degree -> Pitch -> Pitch
 transpose_diatonic key steps pitch@(Pitch oct note@(Note pc accs))
     | steps == 0 = pitch
     | otherwise = case key_signature key of
-        Just sig -> Pitch (oct + oct2) $ Note pc2 $
-            accs - key_accs sig pc + key_accs sig pc2
+        Just _ -> Pitch (oct + oct2) $ Note pc2 $
+            accs - accidentals_at_pc key pc + accidentals_at_pc key pc2
         Nothing -> transpose_chromatic
             key (chromatic_steps key note steps) pitch
     where
     (oct2, pc2) = (pc + steps) `divMod` key_degrees_per_octave key
-    key_accs sig pc = fromMaybe 0 $ sig Vector.!? diatonic_degree_of key pc
 
 -- | Chromatic transposition.  Try to pick a spelling that makes sense for the
 -- given key.
@@ -379,6 +379,12 @@ instance Pretty.Pretty Key where
         title = Pretty.text "Key" Pretty.<+> Pretty.format tonic
             Pretty.<+> Pretty.text (untxt name)
 
+-- | The number of accidentals in the key signature at the given pitch class.
+accidentals_at_pc :: Key -> PitchClass -> Accidentals
+accidentals_at_pc key pc = fromMaybe 0 $ do
+    sig <- key_signature key
+    sig Vector.!? diatonic_degree_of key pc
+
 -- | Number of degrees in an octave for this scale.
 --
 -- This is different from the number of PCs per octave, because scales like
@@ -392,15 +398,16 @@ layout_semis_per_octave = Vector.sum . layout_intervals
 layout_pc_per_octave :: Layout -> PitchClass
 layout_pc_per_octave = Vector.length . layout_intervals
 
--- | Figure out the scale degree of a note in the given key.
+-- | Figure out the relative scale degree of a note in the given key.
 degree_of :: Key -> Note -> Degree
 degree_of key note
     | key_is_diatonic key = diatonic_degree_of key (note_pc note)
     | otherwise = Vector.find_before semis (key_intervals key)
     where semis = note_to_semis (key_layout key) note
 
--- | Figure out the score degree of a diatonic key.  In a diatonic key, the
--- degree and pitch class are relative and absolute versions of the same thing.
+-- | Figure out the (relative) scale degree of an absolute PitchClass in
+-- a diatonic key.  In a diatonic key, the degree and pitch class are relative
+-- and absolute versions of the same thing.
 diatonic_degree_of :: Key -> PitchClass -> PitchClass
 diatonic_degree_of key pc =
     (pc - note_pc (key_tonic key)) `mod` key_degrees_per_octave key

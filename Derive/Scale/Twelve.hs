@@ -87,9 +87,9 @@ show_nn :: Pitch.NoteNumber -> Maybe Pitch.Note
 show_nn = show_pitch . Theory.semis_to_pitch_sharps layout
     . Theory.nn_to_semis . floor
 
-read_pitch :: Pitch.Note -> Maybe Theory.Pitch
-read_pitch =
-    either (const Nothing) Just . ChromaticScales.read_pitch absolute_scale_map
+read_absolute_pitch :: Pitch.Note -> Maybe Theory.Pitch
+read_absolute_pitch = either (const Nothing) Just
+    . ChromaticScales.read_pitch absolute_scale_map Nothing
 
 -- * constants
 

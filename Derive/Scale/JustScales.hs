@@ -84,7 +84,7 @@ make_scale scale_id smap doc doc_fields = Scale.Scale
     , Scale.scale_pattern = TheoryFormat.fmt_pattern fmt
     , Scale.scale_symbols = []
     , Scale.scale_transposers = Util.standard_transposers
-    , Scale.scale_read = read_note fmt
+    , Scale.scale_read = TheoryFormat.read_pitch fmt
     , Scale.scale_show = \key -> Right . TheoryFormat.show_pitch fmt key
     , Scale.scale_layout =
         Scale.diatonic_layout $ TheoryFormat.fmt_pc_per_octave fmt
@@ -126,16 +126,11 @@ just_doc =
     \ but are inherently diatonic, so chromatic transposition is the same\
     \ as diatonic transposition."
 
-read_note :: TheoryFormat.Format -> Maybe Pitch.Key -> Pitch.Note
-    -> Either Scale.ScaleError Theory.Pitch
-read_note fmt key =
-    TheoryFormat.fmt_to_absolute fmt key <=< TheoryFormat.read_pitch fmt
-
 -- * input_to_note
 
 enharmonics :: Theory.Layout -> TheoryFormat.Format -> Derive.Enharmonics
 enharmonics layout fmt key note = do
-    pitch <- read_note fmt key note
+    pitch <- TheoryFormat.read_pitch fmt key note
     return $ map (TheoryFormat.show_pitch fmt key) $
         Theory.enharmonics_of layout pitch
 
@@ -156,7 +151,7 @@ input_to_note smap maybe_key (Pitch.Input kbd pitch _frac) = do
 transpose :: TheoryFormat.Format -> Maybe Pitch.Key -> Pitch.Octave
     -> Pitch.Transpose -> Pitch.Note -> Either Scale.ScaleError Pitch.Note
 transpose fmt key oct transpose note = do
-    pitch <- read_note fmt key note
+    pitch <- TheoryFormat.read_pitch fmt key note
     let steps = floor $ case transpose of
             Pitch.Chromatic steps -> steps
             Pitch.Diatonic steps -> steps
@@ -173,7 +168,7 @@ transpose fmt key oct transpose note = do
 note_to_call :: PitchSignal.Scale -> ScaleMap -> Pitch.Note
     -> Maybe Derive.ValCall
 note_to_call scale smap note =
-    case TheoryFormat.read_pitch fmt note of
+    case TheoryFormat.read_unadjusted_pitch fmt note of
         Left _ -> ScaleDegree.scale_degree_interval
             scale (smap_named_intervals smap) note
         Right pitch_ ->

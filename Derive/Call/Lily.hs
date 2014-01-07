@@ -238,7 +238,7 @@ pitch_to_lily :: PitchSignal.Pitch -> Derive.Deriver Note
 pitch_to_lily pitch = do
     note <- right $ PitchSignal.pitch_note pitch
     pitch <- require ("unparseable note: " <> Pretty.pretty note) $
-        Twelve.read_pitch note
+        Twelve.read_absolute_pitch note
     right $ Types.show_pitch pitch
     where
     require = Derive.require . (prefix <>)

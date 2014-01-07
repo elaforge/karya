@@ -9,7 +9,6 @@
 -- good.  I suppose if I need these functions elsewhere I can more them to more
 -- generic places.
 module Cmd.Repl.LPitch where
-import Util.Control
 import qualified Ui.Event as Event
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.ModifyEvents as ModifyEvents
@@ -97,12 +96,14 @@ simplify_block_enharmonics :: BlockId -> Cmd.CmdL ()
 simplify_block_enharmonics block_id =
     ModifyEvents.block block_id simplify_enharmonics
 
--- | This only works for Twelve at the moment.  For it to work for any scale
+-- | This only works for *twelve at the moment.  For it to work for any scale
 -- I need a way to parse to Theory.Pitch.  Can't use scale_enharmonics because
 -- I don't want to mess with ones that are already simple.
+--
+-- TODO I have scale_read now, a generic implementation should be possible
 simplify_enharmonics :: (Cmd.M m) => ModifyEvents.Track m
 simplify_enharmonics = PitchTrack.pitch_tracks $ \scale key note ->
-    case Twelve.read_pitch note of
+    case Twelve.read_absolute_pitch note of
         Nothing -> Right note
         Just pitch
             | abs (Theory.pitch_accidentals pitch) < 2 -> Right note

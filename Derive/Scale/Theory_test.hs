@@ -162,11 +162,11 @@ key name = either (error $ "can't parse key: " ++ show name) id $
 
 p :: Text -> Theory.Pitch
 p s = either (const $ error $ "can't parse pitch: " ++ show s) id $
-    TheoryFormat.read_pitch TheoryFormat.absolute_c (Pitch.Note s)
+    TheoryFormat.read_unadjusted_pitch TheoryFormat.absolute_c (Pitch.Note s)
 
 n :: Text -> Theory.Note
 n s = fromMaybe (error $ "can't parse note: " ++ show s) $
-    TheoryFormat.read_note TheoryFormat.absolute_c s
+    TheoryFormat.read_unadjusted_note TheoryFormat.absolute_c s
 
 show_pitch :: Theory.Pitch -> Text
 show_pitch p = maybe (error $ "can't show pitch: " ++ show p) Pitch.note_text $

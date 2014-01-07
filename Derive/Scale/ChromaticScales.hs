@@ -68,7 +68,7 @@ make_scale scale_map scale_id doc = Scale.Scale
     , Scale.scale_pattern = TheoryFormat.fmt_pattern (smap_fmt scale_map)
     , Scale.scale_symbols = []
     , Scale.scale_transposers = Util.standard_transposers
-    , Scale.scale_read = read_note scale_map
+    , Scale.scale_read = read_pitch scale_map
     , Scale.scale_show = show_pitch scale_map
     , Scale.scale_layout = Theory.layout_intervals (smap_layout scale_map)
     , Scale.scale_transpose = transpose scale_map
@@ -85,8 +85,8 @@ make_scale scale_map scale_id doc = Scale.Scale
 
 transpose :: ScaleMap -> Derive.Transpose
 transpose smap maybe_key octaves steps note = do
+    pitch <- Theory.modify_octave (+octaves) <$> read_pitch smap maybe_key note
     key <- read_key smap maybe_key
-    pitch <- Theory.modify_octave (+octaves) <$> read_pitch smap note
     case steps of
         Pitch.Chromatic steps -> show_pitch smap maybe_key $
             Theory.transpose_chromatic key (floor steps) pitch
@@ -96,15 +96,15 @@ transpose smap maybe_key octaves steps note = do
 
 enharmonics :: ScaleMap -> Derive.Enharmonics
 enharmonics smap maybe_key note = do
+    pitch <- read_pitch smap maybe_key note
     key <- read_key smap maybe_key
-    pitch <- read_pitch smap note
     return $ Either.rights $ map (show_pitch smap maybe_key) $
         Theory.enharmonics_of (Theory.key_layout key) pitch
 
 note_to_call :: PitchSignal.Scale -> ScaleMap -> Pitch.Note
     -> Maybe Derive.ValCall
 note_to_call scale smap note =
-    case TheoryFormat.read_pitch (smap_fmt smap) note of
+    case TheoryFormat.read_unadjusted_pitch (smap_fmt smap) note of
         Left _ -> Nothing
         Right pitch -> Just $ ScaleDegree.scale_degree scale
             (pitch_nn smap degree_to_nn pitch) (pitch_note smap pitch)
@@ -198,12 +198,6 @@ group_tonic_mode = map extract . Seq.keyed_group_on key . map (first split)
 
 -- * implementation
 
-read_note :: ScaleMap -> Maybe Pitch.Key -> Pitch.Note
-    -> Either Scale.ScaleError Theory.Pitch
-read_note smap key =
-    TheoryFormat.fmt_to_absolute fmt key <=< TheoryFormat.read_pitch fmt
-    where fmt = smap_fmt smap
-
 show_pitch :: ScaleMap -> Maybe Pitch.Key -> Theory.Pitch
     -> Either Scale.ScaleError Pitch.Note
 show_pitch smap key pitch
@@ -213,7 +207,8 @@ show_pitch smap key pitch
     where
     nn = Theory.semis_to_nn $ Theory.pitch_to_semis (smap_layout smap) pitch
 
-read_pitch :: ScaleMap -> Pitch.Note -> Either Scale.ScaleError Theory.Pitch
+read_pitch :: ScaleMap -> Maybe Pitch.Key -> Pitch.Note
+    -> Either Scale.ScaleError Theory.Pitch
 read_pitch = TheoryFormat.read_pitch . smap_fmt
 
 read_env_key :: ScaleMap -> TrackLang.Environ

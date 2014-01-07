@@ -22,3 +22,15 @@ test_input_to_note = do
         ["5b", "6c", "6c"]
     equal (map (f rel "d-min" . ascii) [(4, 2, 0), (4, 2, 1), (4, 3, 0)])
         ["4g", "4g#", "4m"]
+
+test_transpose = do
+    let f smap key octs steps note =
+            ChromaticScales.transpose smap
+                (Just (Pitch.Key key)) octs steps (Pitch.Note note)
+        rel = Twelve.relative_scale_map
+        abs = Twelve.absolute_scale_map
+    equal [f abs "f#-min" 0 (Pitch.Diatonic n) "4f#" | n <- [0..4]] $
+        map (Right . Pitch.Note) ["4f#", "4g#", "4a", "4b", "5c#"]
+    equal [f rel "f#-min" 0 (Pitch.Diatonic n) "4s" | n <- [0..4]] $
+        map (Right . Pitch.Note) ["4s", "4r", "4g", "4m", "4p"]
+    equal (f rel "f#-min" 0 (Pitch.Diatonic 2) "4s") (Right (Pitch.Note "4g"))

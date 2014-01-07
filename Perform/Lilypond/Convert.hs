@@ -104,7 +104,7 @@ convert_pitch event = case PitchSignal.at start (Score.event_pitch event) of
                 (Score.event_controls_at start event)
                 pitch
         require ("parseable note: " ++ Pretty.pretty note) $
-            Twelve.read_pitch note
+            Twelve.read_absolute_pitch note
 
 -- * util
 

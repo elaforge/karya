@@ -2,11 +2,12 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
--- | This is the part of "Derive.Scale.Theory" that's concerned with converting
--- 'Theory.Pitch'es to and from 'Pitch.Note's.
---
--- It's split off to avoid cluttering Theory, but also because the
--- "Derive.Scale" import would make it a circular dependency.
+{-| This is the part of "Derive.Scale.Theory" that's concerned with converting
+    'Theory.Pitch'es to and from 'Pitch.Note's.
+
+    It's split off to avoid cluttering Theory, but also because the
+    "Derive.Scale" import would make it a circular dependency.
+-}
 module Derive.Scale.TheoryFormat where
 import qualified Data.Attoparsec.Char8 as A
 import qualified Data.Text as Text
@@ -44,6 +45,11 @@ absolute_c_degrees = ["c", "d", "e", "f", "g", "a", "b"]
 -- * relative
 
 -- | Args for a relative scale format.
+--
+-- The 'Theory.Pitch'es handled by a relative scale are still absolute, exactly
+-- the same as the Pitches of an absolute scale.  The difference is that the
+-- 'read_pitch' and 'show_pitch' functions adjust based on the key to display
+-- the absolute Pitch relative to the tonic of the key.
 data RelativeFormat key = RelativeFormat {
     rel_acc_fmt :: AccidentalFormat
     , rel_parse_key :: ParseKey key
@@ -153,13 +159,21 @@ show_pitch fmt key (Theory.Pitch oct note) =
 show_note :: Format -> Maybe Pitch.Key -> Theory.Note -> Text
 show_note fmt key = snd . fmt_show fmt key
 
-read_pitch :: Format -> Pitch.Note -> Either Scale.ScaleError Theory.Pitch
-read_pitch fmt = maybe (Left Scale.UnparseableNote) Right
+read_pitch :: Format -> Maybe Pitch.Key -> Pitch.Note
+    -> Either Scale.ScaleError Theory.Pitch
+read_pitch fmt key = fmt_to_absolute fmt key <=< read_unadjusted_pitch fmt
+
+-- | Parse a Note, but don't adjust it for the key.  This means that relative
+-- pitches will likely be incorrect.  'ToAbsolute' documents why this needs
+-- to be separate.
+read_unadjusted_pitch :: Format -> Pitch.Note
+    -> Either Scale.ScaleError Theory.Pitch
+read_unadjusted_pitch fmt = maybe (Left Scale.UnparseableNote) Right
     . ParseBs.maybe_parse_text (Theory.Pitch <$> p_octave <*> fmt_read fmt)
     . Pitch.note_text
 
-read_note :: Format -> Text -> Maybe Theory.Note
-read_note fmt = ParseBs.maybe_parse_text (fmt_read fmt)
+read_unadjusted_note :: Format -> Text -> Maybe Theory.Note
+read_unadjusted_note fmt = ParseBs.maybe_parse_text (fmt_read fmt)
 
 show_octave :: Theory.Octave -> Text
 show_octave = showt
@@ -235,8 +249,7 @@ show_note_chromatic :: ShowNote Theory.Key
 show_note_chromatic degrees acc_fmt key (Theory.Note pc acc) =
     (oct, text <> acc_text)
     where
-    acc_text = show_accidentals acc_fmt
-        (acc - Theory.note_accidentals tonic)
+    acc_text = show_accidentals acc_fmt $ acc - Theory.accidentals_at_pc key pc
     (oct, text) = show_degree degrees (Theory.note_pc tonic) pc
     tonic = Theory.key_tonic key
 
