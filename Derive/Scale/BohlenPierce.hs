@@ -17,9 +17,9 @@ import qualified Derive.PitchSignal as PitchSignal
 import qualified Derive.Pitches as Pitches
 import qualified Derive.Scale as Scale
 import qualified Derive.Scale.ChromaticScales as ChromaticScales
+import qualified Derive.Scale.Scales as Scales
 import qualified Derive.Scale.Theory as Theory
 import qualified Derive.Scale.TheoryFormat as TheoryFormat
-import qualified Derive.Scale.Util as Util
 import qualified Derive.Score as Score
 
 import qualified Perform.Pitch as Pitch
@@ -38,7 +38,7 @@ absolute_scale =
         \ different in every way from all those other scales, but with its\
         \ own peculiar internal consistency.\n")
     { Scale.scale_note_to_call = note_to_call scale_map
-    , Scale.scale_input_to_nn = Util.computed_input_to_nn
+    , Scale.scale_input_to_nn = Scales.computed_input_to_nn
         (ChromaticScales.input_to_note scale_map) (note_to_call scale_map)
     }
     -- TODO that's pretty awkward, ChromaticScales should provide a way to make
@@ -78,7 +78,7 @@ degree_to_nn (PitchSignal.PitchConfig env controls) degreef =
     base_hz = Map.findWithDefault default_base_hz just_base_control controls
     tonic = Theory.note_to_semis layout $ Theory.key_tonic key
     key = fromMaybe default_key $ do
-        key <- Util.lookup_key env
+        key <- Scales.lookup_key env
         Map.lookup key all_keys
 
 degree_to_hz :: Pitch.Hz -> Theory.Semi -> Pitch.Degree -> Pitch.Hz

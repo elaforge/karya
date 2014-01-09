@@ -2,8 +2,11 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
--- | Utilities to construct scales.
-module Derive.Scale.Util where
+-- | Utilities for simple scales, which simply map pitch names to frequencies.
+-- Ok, so they also have octave structure, used by the input mechanism and to
+-- parse to 'Theory.Pitch'es, but it can be ignored (or set to the number of
+-- degrees in the scale) if you really don't want octaves.
+module Derive.Scale.Scales where
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 import qualified Data.Text as Text
@@ -62,15 +65,21 @@ data DegreeMap = DegreeMap {
     -- a collection of frequencies and don't need to have a notion of an
     -- octave.  But since the input mechanism wants to orient around octaves,
     -- it needs to know how many keys to assign to each octave.  So if your
-    -- scale has no octaves, then just set this to 8, that way it lines up with
+    -- scale has no octaves, then just set this to 7, that way it lines up with
     -- the piano keyboard.
     , dm_per_octave :: Pitch.Degree
     , dm_pitch_to_degree :: Theory.Pitch -> Pitch.Degree
     }
 
-degree_map :: Pitch.Degree -- ^ see 'dm_per_octave'
-    -- | First Note is this octave and PitchClass.
-    -> Theory.Octave -> Pitch.Degree
+instance Pretty.Pretty DegreeMap where
+    format dmap = Pretty.format $ Map.fromList $ do
+        (note, degree) <- Map.toList (dm_to_degree dmap)
+        let nn = Map.lookup degree (dm_to_nn dmap)
+        return (degree, (note, nn))
+
+degree_map :: Pitch.Degree
+    -> Theory.Octave -- ^ First Note is this Octave and Degree.
+    -> Pitch.Degree
     -> [Pitch.Note] -> [Pitch.NoteNumber] -> DegreeMap
 degree_map per_octave start_octave start_degree notes_ nns_ = DegreeMap
     { dm_to_degree = Map.fromList (zip notes [0..])

@@ -10,19 +10,22 @@
 module Derive.Scale.Legong where
 import qualified Derive.Scale as Scale
 import qualified Derive.Scale.BaliScales as BaliScales
-import qualified Derive.Scale.Util as Util
+import qualified Derive.Scale.Scales as Scales
 
 import qualified Perform.Pitch as Pitch
 
 scales :: [Scale.Scale]
 scales =
-    [ Util.add_doc "Saih pelegongan, from my instruments." $
+    [ Scales.add_doc "Saih pelegongan, from my instruments." $
         make_scale scale_id absolute_scale
-    , Util.add_doc "Pemade scale. This can be used to give the the same score\
-            \ to both pemade and kantilan." $
+    , make_scale "legong-c" cipher_scale
+    , Scales.add_doc
+        "Pemade scale. This can be used to give the the same score to both\
+            \ pemade and kantilan." $
         make_scale "legong-p" pemade_scale
-    , Util.add_doc "Kantilan scale. This can be used to give the the same score\
-            \ to both pemade and kantilan." $
+    , Scales.add_doc
+        "Kantilan scale. This can be used to give the the same score to both\
+            \ pemade and kantilan." $
         make_scale "legong-k" kantilan_scale
     ]
 
@@ -36,6 +39,10 @@ make_scale = BaliScales.make_scale "[0-9]ioeua"
 
 absolute_scale :: BaliScales.ScaleMap
 absolute_scale = BaliScales.scale_map 5 1 0 BaliScales.ioeua umbang isep
+
+cipher_scale :: BaliScales.ScaleMap
+cipher_scale = BaliScales.scale_map 5 2 1 BaliScales.dotted12356
+    (drop 11 umbang) (drop 11 isep)
 
 pemade_scale :: BaliScales.ScaleMap
 pemade_scale = BaliScales.scale_map 5 2 1 BaliScales.ioeua

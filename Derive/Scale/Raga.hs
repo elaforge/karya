@@ -80,7 +80,7 @@ melakarta_ratios = zip melakarta_names $ map Vector.fromList $ do
 
 type Ratio = Ratio.Ratio Int
 
-{- | I don't think there is any official definition, so I use a 7-limit scale:
+{- I don't think there is any official definition, so I use a 7-limit scale:
 
     > 1     2m    2M    3m    3M    4P    4A    5P    6m    6M    7m    7M
     > s     r1    r2    r3                      p     d1    d2    d3

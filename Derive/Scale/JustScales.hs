@@ -20,9 +20,9 @@ import qualified Derive.Derive as Derive
 import qualified Derive.Environ as Environ
 import qualified Derive.PitchSignal as PitchSignal
 import qualified Derive.Scale as Scale
+import qualified Derive.Scale.Scales as Scales
 import qualified Derive.Scale.Theory as Theory
 import qualified Derive.Scale.TheoryFormat as TheoryFormat
-import qualified Derive.Scale.Util as Util
 import qualified Derive.Score as Score
 import qualified Derive.TrackLang as TrackLang
 
@@ -83,7 +83,7 @@ make_scale scale_id smap doc doc_fields = Scale.Scale
     { Scale.scale_id = scale_id
     , Scale.scale_pattern = TheoryFormat.fmt_pattern fmt
     , Scale.scale_symbols = []
-    , Scale.scale_transposers = Util.standard_transposers
+    , Scale.scale_transposers = Scales.standard_transposers
     , Scale.scale_read = TheoryFormat.read_pitch fmt
     , Scale.scale_show = \key -> Right . TheoryFormat.show_pitch fmt key
     , Scale.scale_layout =
@@ -93,14 +93,15 @@ make_scale scale_id smap doc doc_fields = Scale.Scale
     , Scale.scale_note_to_call = note_to_call scale smap
     , Scale.scale_input_to_note = input_to_note smap
     , Scale.scale_input_to_nn =
-        Util.computed_input_to_nn (input_to_note smap) (note_to_call scale smap)
+        Scales.computed_input_to_nn (input_to_note smap)
+            (note_to_call scale smap)
     , Scale.scale_call_doc =
-        Util.annotate_call_doc Util.standard_transposers (doc <> just_doc)
+        Scales.annotate_call_doc Scales.standard_transposers (doc <> just_doc)
             doc_fields dummy_call
     }
     where
-    scale = PitchSignal.Scale scale_id Util.standard_transposers
-    dummy_call = Util.scale_degree_doc $ \scale ->
+    scale = PitchSignal.Scale scale_id Scales.standard_transposers
+    dummy_call = Scales.scale_degree_doc $ \scale ->
         ScaleDegree.scale_degree_just scale (smap_named_intervals smap) 0
     fmt = smap_fmt smap
 
@@ -136,7 +137,7 @@ enharmonics layout fmt key note = do
 
 input_to_note :: ScaleMap -> Maybe Pitch.Key -> Pitch.Input -> Maybe Pitch.Note
 input_to_note smap maybe_key (Pitch.Input kbd pitch _frac) = do
-    pitch <- Util.kbd_to_scale kbd pc_per_octave tonic pitch
+    pitch <- Scales.kbd_to_scale kbd pc_per_octave tonic pitch
     return $ TheoryFormat.show_pitch (smap_fmt smap) Nothing pitch
     where
     pc_per_octave = TheoryFormat.fmt_pc_per_octave (smap_fmt smap)
@@ -185,10 +186,10 @@ note_to_call scale smap note =
 
 pitch_nn :: ScaleMap -> Theory.Pitch -> Scale.PitchNn
 pitch_nn smap pitch (PitchSignal.PitchConfig env controls) =
-    Util.scale_to_pitch_error chromatic diatonic $ do
+    Scales.scale_to_pitch_error chromatic diatonic $ do
         key <- read_key smap env
         pitch <- TheoryFormat.fmt_to_absolute (smap_fmt smap)
-            (Util.lookup_key env) pitch
+            (Scales.lookup_key env) pitch
         let hz = transpose_to_hz
                 (TheoryFormat.fmt_pc_per_octave (smap_fmt smap)) base_hz
                 key (chromatic + diatonic) pitch
@@ -203,8 +204,8 @@ pitch_nn smap pitch (PitchSignal.PitchConfig env controls) =
 
 pitch_note :: TheoryFormat.Format -> Theory.Pitch -> Scale.PitchNote
 pitch_note fmt pitch (PitchSignal.PitchConfig env controls) =
-    Util.scale_to_pitch_error chromatic diatonic $ do
-        let key = Util.lookup_key env
+    Scales.scale_to_pitch_error chromatic diatonic $ do
+        let key = Scales.lookup_key env
         pitch <- TheoryFormat.fmt_to_absolute fmt key pitch
         let transposed = Theory.transpose_pitch
                 (TheoryFormat.fmt_pc_per_octave fmt)
@@ -248,7 +249,7 @@ data Key = Key {
     } deriving (Eq, Show)
 
 read_key :: ScaleMap -> TrackLang.Environ -> Either Scale.ScaleError Key
-read_key smap = Util.read_environ
+read_key smap = Scales.read_environ
     (\k -> Map.lookup (Pitch.Key k) (smap_keys smap))
     (smap_default_key smap) Environ.key
 
@@ -273,7 +274,7 @@ make_relative_fmt keys default_key = TheoryFormat.RelativeFormat
     }
     where
     lookup_key Nothing = Right default_key
-    lookup_key (Just key) = Util.maybe_key key (Map.lookup key keys)
+    lookup_key (Just key) = Scales.maybe_key key (Map.lookup key keys)
 
 -- * named intervals
 

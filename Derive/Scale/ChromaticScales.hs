@@ -19,9 +19,9 @@ import qualified Derive.Derive as Derive
 import qualified Derive.Environ as Environ
 import qualified Derive.PitchSignal as PitchSignal
 import qualified Derive.Scale as Scale
+import qualified Derive.Scale.Scales as Scales
 import qualified Derive.Scale.Theory as Theory
 import qualified Derive.Scale.TheoryFormat as TheoryFormat
-import qualified Derive.Scale.Util as Util
 import qualified Derive.Score as Score
 import qualified Derive.TrackLang as TrackLang
 
@@ -29,7 +29,7 @@ import qualified Perform.Pitch as Pitch
 
 
 -- | This contains all that is needed to define a western-like key system.
--- It fills a similar role to 'Derive.Call.Util.ScaleMap' for non-keyed scales.
+-- It fills a similar role to 'Scales.ScaleMap' for non-keyed scales.
 data ScaleMap = ScaleMap {
     smap_fmt :: !TheoryFormat.Format
     , smap_keys :: !Keys
@@ -67,7 +67,7 @@ make_scale scale_map scale_id doc = Scale.Scale
     { Scale.scale_id = scale_id
     , Scale.scale_pattern = TheoryFormat.fmt_pattern (smap_fmt scale_map)
     , Scale.scale_symbols = []
-    , Scale.scale_transposers = Util.standard_transposers
+    , Scale.scale_transposers = Scales.standard_transposers
     , Scale.scale_read = read_pitch scale_map
     , Scale.scale_show = show_pitch scale_map
     , Scale.scale_layout = Theory.layout_intervals (smap_layout scale_map)
@@ -75,11 +75,11 @@ make_scale scale_map scale_id doc = Scale.Scale
     , Scale.scale_enharmonics = enharmonics scale_map
     , Scale.scale_note_to_call = note_to_call scale scale_map
     , Scale.scale_input_to_note = input_to_note scale_map
-    , Scale.scale_input_to_nn = Util.computed_input_to_nn
+    , Scale.scale_input_to_nn = Scales.computed_input_to_nn
         (input_to_note scale_map) (note_to_call scale scale_map)
-    , Scale.scale_call_doc = call_doc Util.standard_transposers scale_map doc
+    , Scale.scale_call_doc = call_doc Scales.standard_transposers scale_map doc
     }
-    where scale = PitchSignal.Scale scale_id Util.standard_transposers
+    where scale = PitchSignal.Scale scale_id Scales.standard_transposers
 
 -- * functions
 
@@ -113,10 +113,10 @@ note_to_call scale smap note =
 
 pitch_note :: ScaleMap -> Theory.Pitch -> Scale.PitchNote
 pitch_note smap pitch (PitchSignal.PitchConfig env controls) =
-    Util.scale_to_pitch_error diatonic chromatic $ do
+    Scales.scale_to_pitch_error diatonic chromatic $ do
         let d = round diatonic
             c = round chromatic
-        show_pitch smap (Util.lookup_key env) =<< if d == 0 && c == 0
+        show_pitch smap (Scales.lookup_key env) =<< if d == 0 && c == 0
             then return pitch
             else do
                 key <- read_env_key smap env
@@ -130,9 +130,9 @@ pitch_nn :: ScaleMap
     -> (PitchSignal.PitchConfig -> Double -> Pitch.NoteNumber)
     -> Theory.Pitch -> Scale.PitchNn
 pitch_nn smap degree_to_nn pitch config@(PitchSignal.PitchConfig env controls) =
-    Util.scale_to_pitch_error diatonic chromatic $ do
+    Scales.scale_to_pitch_error diatonic chromatic $ do
         pitch <- TheoryFormat.fmt_to_absolute (smap_fmt smap)
-            (Util.lookup_key env) pitch
+            (Scales.lookup_key env) pitch
         dsteps <- if diatonic == 0 then Right 0 else do
             key <- read_env_key smap env
             return $ Theory.diatonic_to_chromatic key
@@ -146,9 +146,9 @@ pitch_nn smap degree_to_nn pitch config@(PitchSignal.PitchConfig env controls) =
     chromatic = Map.findWithDefault 0 Controls.chromatic controls
     diatonic = Map.findWithDefault 0 Controls.diatonic controls
 
-input_to_note :: ScaleMap -> Util.InputToNote
+input_to_note :: ScaleMap -> Scales.InputToNote
 input_to_note smap maybe_key (Pitch.Input kbd_type pitch frac) = do
-    pitch <- Util.kbd_to_scale kbd_type pc_per_octave tonic pitch
+    pitch <- Scales.kbd_to_scale kbd_type pc_per_octave tonic pitch
     -- Relative scales don't need to figure out enharmonic spelling, and
     -- besides it would be wrong since it assumes Pitch 0 0 is C.
     let pick_enharmonic = if TheoryFormat.fmt_relative (smap_fmt smap) then id
@@ -166,7 +166,7 @@ input_to_note smap maybe_key (Pitch.Input kbd_type pitch frac) = do
 
 call_doc :: Set.Set Score.Control -> ScaleMap -> Text -> Derive.DocumentedCall
 call_doc transposers smap doc =
-    Util.annotate_call_doc transposers extra_doc fields $
+    Scales.annotate_call_doc transposers extra_doc fields $
         Derive.extract_val_doc call
     where
     call = ScaleDegree.scale_degree PitchSignal.no_scale err err
@@ -213,7 +213,7 @@ read_pitch = TheoryFormat.read_pitch . smap_fmt
 
 read_env_key :: ScaleMap -> TrackLang.Environ
     -> Either Scale.ScaleError Theory.Key
-read_env_key smap = Util.read_environ
+read_env_key smap = Scales.read_environ
     (\k -> Map.lookup (Pitch.Key k) (smap_keys smap))
     (smap_default_key smap) Environ.key
 

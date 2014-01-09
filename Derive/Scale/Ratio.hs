@@ -21,7 +21,7 @@ import qualified Derive.Derive as Derive
 import qualified Derive.PitchSignal as PitchSignal
 import qualified Derive.Pitches as Pitches
 import qualified Derive.Scale as Scale
-import qualified Derive.Scale.Util as Util
+import qualified Derive.Scale.Scales as Scales
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Sig as Sig
 import Derive.Sig (defaulted)
@@ -39,14 +39,14 @@ scale = Scale.Scale
     , Scale.scale_read = const $ const $ Left Scale.UnparseableNote
     , Scale.scale_show = const $ const $ Left Scale.UnparseableNote
     , Scale.scale_layout = Scale.no_octaves
-    , Scale.scale_transpose = Util.non_transposing
-    , Scale.scale_enharmonics = Util.no_enharmonics
+    , Scale.scale_transpose = Scales.non_transposing
+    , Scale.scale_enharmonics = Scales.no_enharmonics
     , Scale.scale_note_to_call = note_to_call
     -- Since this isn't a proper scale, I can't think of any sensible way to
     -- input this with a music keyboard, so we'll have to use the computer
     -- keyboard.
     , Scale.scale_input_to_note = \_ _ -> Nothing
-    , Scale.scale_input_to_nn = Util.direct_input_to_nn
+    , Scale.scale_input_to_nn = Scales.direct_input_to_nn
     , Scale.scale_call_doc = Derive.extract_val_doc $
         note_call (Pitch.Note "1/1") id
     }

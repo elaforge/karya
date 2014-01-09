@@ -2,15 +2,15 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
-module Derive.Scale.Util_test where
+module Derive.Scale.Scales_test where
 import Util.Control
 import Util.Test
 import qualified Derive.Scale.Theory as Theory
-import qualified Derive.Scale.Util as Util
+import qualified Derive.Scale.Scales as Scales
 
 
 test_ascii_kbd_pitch = do
-    let f per_oct oct pc = extract $ Util.ascii_kbd_pitch per_oct $
+    let f per_oct oct pc = extract $ Scales.ascii_kbd_pitch per_oct $
             Theory.Pitch oct (Theory.Note pc 0)
         extract (Theory.Pitch oct (Theory.Note pc _)) = (oct, pc)
     -- Octave smaller than the row.
@@ -34,7 +34,7 @@ test_ascii_kbd_pitch = do
         ]
 
 test_piano_kbd_pitch = do
-    let f per_oct oct pc = extract <$> Util.piano_kbd_pitch 0 per_oct
+    let f per_oct oct pc = extract <$> Scales.piano_kbd_pitch 0 per_oct
             (Theory.Pitch oct (Theory.Note pc 0))
         extract (Theory.Pitch oct (Theory.Note pc _)) = (oct, pc)
     -- Octave smaller than the row.

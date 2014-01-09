@@ -40,8 +40,8 @@ import qualified Derive.LEvent as LEvent
 import qualified Derive.PitchSignal as PitchSignal
 import qualified Derive.Scale as Scale
 import qualified Derive.Scale.All as Scale.All
+import qualified Derive.Scale.Scales as Scales
 import qualified Derive.Scale.Twelve as Twelve
-import qualified Derive.Scale.Util as Scale.Util
 import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Stack as Stack
@@ -568,9 +568,9 @@ with_scale scale = modify_constant $ \st ->
 
 mkscale :: Pitch.ScaleId -> [(Text, Pitch.NoteNumber)] -> Scale.Scale
 mkscale scale_id notes =
-    Scale.Util.make_scale dmap scale_id "pattern" "simple test scale"
+    Scales.make_scale dmap scale_id "pattern" "simple test scale"
     where
-    dmap = Scale.Util.degree_map 8 0 0 (map (Pitch.Note . fst) notes)
+    dmap = Scales.degree_map 8 0 0 (map (Pitch.Note . fst) notes)
         (map snd notes)
 
 -- * inst

@@ -6,20 +6,22 @@
 module Derive.Scale.Wayang where
 import qualified Derive.Scale as Scale
 import qualified Derive.Scale.BaliScales as BaliScales
-import qualified Derive.Scale.Util as Util
+import qualified Derive.Scale.Scales as Scales
 
 import qualified Perform.Pitch as Pitch
 
 
 scales :: [Scale.Scale]
 scales =
-    [ Util.add_doc "Saih gender wayang." $
+    [ Scales.add_doc "Saih gender wayang." $
         make_scale scale_id absolute_scale
-    , Util.add_doc "Pemade scale. This can be used to give the the same score\
-            \ to both pemade and kantilan." $
+    , Scales.add_doc
+        "Pemade scale. This can be used to give the the same score to both\
+            \ pemade and kantilan." $
         make_scale "wayang-p" pemade_scale
-    , Util.add_doc "Kantilan scale. This can be used to give the the same score\
-            \ to both pemade and kantilan." $
+    , Scales.add_doc
+        "Kantilan scale. This can be used to give the the same score to both\
+            \ pemade and kantilan." $
         make_scale "wayang-k" kantilan_scale
     ]
 
@@ -31,7 +33,7 @@ make_scale = BaliScales.make_scale "[0-9]ioeua"
 scale_id :: Pitch.ScaleId
 scale_id = "wayang"
 
--- | Use ding deng dong dang dung.  I don't know if this is ever actually used
+-- | Use ding deng dong dung dang.  I don't know if this is ever actually used
 -- for gender, but the notation is compact.
 --
 -- > 3o  3e  3u  3a  4i  4o  4e  4u  4a  5i  5o  5e  5u  5a  6i

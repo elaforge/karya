@@ -25,9 +25,9 @@ import qualified Data.Vector.Unboxed as Unboxed
 import Util.Control
 import qualified Derive.Scale as Scale
 import qualified Derive.Scale.ChromaticScales as ChromaticScales
+import qualified Derive.Scale.Scales as Scales
 import qualified Derive.Scale.Theory as Theory
 import qualified Derive.Scale.TheoryFormat as TheoryFormat
-import qualified Derive.Scale.Util as Util
 
 import qualified Perform.Pitch as Pitch
 
@@ -39,7 +39,7 @@ scale :: Scale.Scale
 scale =
     (ChromaticScales.make_scale absolute_scale_map scale_id
         "The world-famous equal tempered twelve note scale.\n")
-    { Scale.scale_input_to_nn = Util.direct_input_to_nn }
+    { Scale.scale_input_to_nn = Scales.direct_input_to_nn }
 
 relative_scale :: Scale.Scale
 relative_scale = ChromaticScales.make_scale relative_scale_map "twelve-r"
