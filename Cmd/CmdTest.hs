@@ -36,7 +36,6 @@ import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Environ as Environ
 import qualified Derive.LEvent as LEvent
-import qualified Derive.Scale.Theory as Theory
 import qualified Derive.Score as Score
 import qualified Derive.TrackLang as TrackLang
 
@@ -395,7 +394,7 @@ make_midi chan_msg = Msg.Midi $
     Midi.ReadMessage (Midi.read_device "test") 0
         (Midi.ChannelMessage 0 chan_msg)
 
-note_on :: Int -> Theory.Pitch -> InputNote.Input
+note_on :: Int -> Pitch.Pitch -> InputNote.Input
 note_on note_id pitch = InputNote.NoteOn (InputNote.NoteId note_id)
     (Pitch.Input Pitch.AsciiKbd pitch 0) 1
 
@@ -406,7 +405,7 @@ note_on_nn nn = InputNote.NoteOn note_id (InputNote.nn_to_input nn) 1
 note_off :: Int -> InputNote.GenericInput a
 note_off note_id = InputNote.NoteOff (InputNote.NoteId note_id) 1
 
-pitch_change :: Int -> Theory.Pitch -> InputNote.Input
+pitch_change :: Int -> Pitch.Pitch -> InputNote.Input
 pitch_change note_id pitch = InputNote.PitchChange (InputNote.NoteId note_id)
     (Pitch.Input Pitch.AsciiKbd pitch 0)
 
@@ -432,17 +431,17 @@ m_pitch_change nid = Msg.InputNote . pitch_change_nn nid
 
 -- * Pitch.Input
 
-ascii_kbd :: Theory.Pitch -> Pitch.Input
+ascii_kbd :: Pitch.Pitch -> Pitch.Input
 ascii_kbd pitch = Pitch.Input Pitch.AsciiKbd pitch 0
 
-piano_kbd :: Theory.Pitch -> Pitch.Input
+piano_kbd :: Pitch.Pitch -> Pitch.Input
 piano_kbd pitch = Pitch.Input Pitch.PianoKbd pitch 0
 
-pitch :: Theory.Octave -> Theory.PitchClass -> Theory.Accidentals
-    -> Theory.Pitch
-pitch oct pc accs = Theory.Pitch oct (Theory.Note pc accs)
+pitch :: Pitch.Octave -> Pitch.PitchClass -> Pitch.Accidentals
+    -> Pitch.Pitch
+pitch oct pc accs = Pitch.Pitch oct (Pitch.Degree pc accs)
 
-oct_pc :: Theory.Octave -> Theory.PitchClass -> Theory.Pitch
+oct_pc :: Pitch.Octave -> Pitch.PitchClass -> Pitch.Pitch
 oct_pc oct pc = pitch oct pc 0
 
 -- * setup cmds

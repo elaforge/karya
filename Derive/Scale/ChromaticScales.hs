@@ -85,7 +85,7 @@ make_scale scale_map scale_id doc = Scale.Scale
 
 transpose :: ScaleMap -> Derive.Transpose
 transpose smap maybe_key octaves steps note = do
-    pitch <- Theory.modify_octave (+octaves) <$> read_pitch smap maybe_key note
+    pitch <- Pitch.add_octave octaves <$> read_pitch smap maybe_key note
     key <- read_key smap maybe_key
     case steps of
         Pitch.Chromatic steps -> show_pitch smap maybe_key $
@@ -111,7 +111,7 @@ note_to_call scale smap note =
     where degree_to_nn _config degree = Pitch.NoteNumber degree + 12
     -- Add an octave becasue of NOTE [middle-c].
 
-pitch_note :: ScaleMap -> Theory.Pitch -> Scale.PitchNote
+pitch_note :: ScaleMap -> Pitch.Pitch -> Scale.PitchNote
 pitch_note smap pitch (PitchSignal.PitchConfig env controls) =
     Scales.scale_to_pitch_error diatonic chromatic $ do
         let d = round diatonic
@@ -128,7 +128,7 @@ pitch_note smap pitch (PitchSignal.PitchConfig env controls) =
 
 pitch_nn :: ScaleMap
     -> (PitchSignal.PitchConfig -> Double -> Pitch.NoteNumber)
-    -> Theory.Pitch -> Scale.PitchNn
+    -> Pitch.Pitch -> Scale.PitchNn
 pitch_nn smap degree_to_nn pitch config@(PitchSignal.PitchConfig env controls) =
     Scales.scale_to_pitch_error diatonic chromatic $ do
         pitch <- TheoryFormat.fmt_to_absolute (smap_fmt smap)
@@ -136,7 +136,7 @@ pitch_nn smap degree_to_nn pitch config@(PitchSignal.PitchConfig env controls) =
         dsteps <- if diatonic == 0 then Right 0 else do
             key <- read_env_key smap env
             return $ Theory.diatonic_to_chromatic key
-                (Theory.pitch_note pitch) diatonic
+                (Pitch.pitch_degree pitch) diatonic
         let semis = Theory.pitch_to_semis (smap_layout smap) pitch
             degree = fromIntegral semis + chromatic + dsteps
             nn = degree_to_nn config degree
@@ -158,7 +158,7 @@ input_to_note smap maybe_key (Pitch.Input kbd_type pitch frac) = do
     return $ ScaleDegree.pitch_expr frac note
     where
     pc_per_octave = Theory.layout_pc_per_octave (smap_layout smap)
-    tonic = Theory.note_pc (Theory.key_tonic key)
+    tonic = Pitch.degree_pc (Theory.key_tonic key)
     -- Default to a key because otherwise you couldn't enter notes in an
     -- empty score!
     key = fromMaybe (smap_default_key smap) $
@@ -198,7 +198,7 @@ group_tonic_mode = map extract . Seq.keyed_group_on key . map (first split)
 
 -- * implementation
 
-show_pitch :: ScaleMap -> Maybe Pitch.Key -> Theory.Pitch
+show_pitch :: ScaleMap -> Maybe Pitch.Key -> Pitch.Pitch
     -> Either Scale.ScaleError Pitch.Note
 show_pitch smap key pitch
     | 1 <= nn && nn <= 127 =
@@ -208,7 +208,7 @@ show_pitch smap key pitch
     nn = Theory.semis_to_nn $ Theory.pitch_to_semis (smap_layout smap) pitch
 
 read_pitch :: ScaleMap -> Maybe Pitch.Key -> Pitch.Note
-    -> Either Scale.ScaleError Theory.Pitch
+    -> Either Scale.ScaleError Pitch.Pitch
 read_pitch = TheoryFormat.read_pitch . smap_fmt
 
 read_env_key :: ScaleMap -> TrackLang.Environ

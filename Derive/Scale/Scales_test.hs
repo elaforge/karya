@@ -5,14 +5,14 @@
 module Derive.Scale.Scales_test where
 import Util.Control
 import Util.Test
-import qualified Derive.Scale.Theory as Theory
 import qualified Derive.Scale.Scales as Scales
+import qualified Perform.Pitch as Pitch
 
 
 test_ascii_kbd_pitch = do
     let f per_oct oct pc = extract $ Scales.ascii_kbd_pitch per_oct $
-            Theory.Pitch oct (Theory.Note pc 0)
-        extract (Theory.Pitch oct (Theory.Note pc _)) = (oct, pc)
+            Pitch.Pitch oct (Pitch.Degree pc 0)
+        extract (Pitch.Pitch oct (Pitch.Degree pc _)) = (oct, pc)
     -- Octave smaller than the row.
     equal [f 5 0 pc | pc <- [0..9]]
         [ (0, 0), (0, 1), (0, 2), (0, 3), (0, 4)
@@ -35,8 +35,8 @@ test_ascii_kbd_pitch = do
 
 test_piano_kbd_pitch = do
     let f per_oct oct pc = extract <$> Scales.piano_kbd_pitch 0 per_oct
-            (Theory.Pitch oct (Theory.Note pc 0))
-        extract (Theory.Pitch oct (Theory.Note pc _)) = (oct, pc)
+            (Pitch.Pitch oct (Pitch.Degree pc 0))
+        extract (Pitch.Pitch oct (Pitch.Degree pc _)) = (oct, pc)
     -- Octave smaller than the row.
     equal (map (f 5 0) [0..6])
         [ Just (0, 0), Just (0, 1), Just (0, 2), Just (0, 3), Just (0, 4)

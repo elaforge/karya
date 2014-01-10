@@ -15,7 +15,6 @@ import qualified Cmd.ModifyEvents as ModifyEvents
 import qualified Cmd.PitchTrack as PitchTrack
 
 import qualified Derive.Scale as Scale
-import qualified Derive.Scale.Theory as Theory
 import qualified Derive.Scale.Twelve as Twelve
 import qualified Derive.ShowVal as ShowVal
 
@@ -58,7 +57,7 @@ transpose_all octs steps = ModifyEvents.all_blocks $ PitchTrack.pitch_tracks $
 
 -- * modify pitches
 
-modify_pitch :: Cmd.M m => (Theory.Pitch -> Theory.Pitch)
+modify_pitch :: Cmd.M m => (Pitch.Pitch -> Pitch.Pitch)
     -> ModifyEvents.Track m
 modify_pitch modify = PitchTrack.pitch_tracks $ \scale key note -> do
     pitch <- PitchTrack.pretty_err $ Scale.scale_read scale key note
@@ -97,7 +96,7 @@ simplify_block_enharmonics block_id =
     ModifyEvents.block block_id simplify_enharmonics
 
 -- | This only works for *twelve at the moment.  For it to work for any scale
--- I need a way to parse to Theory.Pitch.  Can't use scale_enharmonics because
+-- I need a way to parse to Pitch.Pitch.  Can't use scale_enharmonics because
 -- I don't want to mess with ones that are already simple.
 --
 -- TODO I have scale_read now, a generic implementation should be possible
@@ -106,7 +105,7 @@ simplify_enharmonics = PitchTrack.pitch_tracks $ \scale key note ->
     case Twelve.read_absolute_pitch note of
         Nothing -> Right note
         Just pitch
-            | abs (Theory.pitch_accidentals pitch) < 2 -> Right note
+            | abs (Pitch.pitch_accidentals pitch) < 2 -> Right note
             | otherwise -> case Scale.scale_enharmonics scale key note of
                 Right (simpler : _) -> Right simpler
                 _ -> Right note

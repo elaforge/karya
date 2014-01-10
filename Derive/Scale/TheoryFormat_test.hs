@@ -4,16 +4,14 @@
 
 module Derive.Scale.TheoryFormat_test where
 import Util.Test
-import qualified Derive.Scale.Theory as Theory
 import qualified Derive.Scale.TheoryFormat as TheoryFormat
 import qualified Derive.Scale.Twelve as Twelve
-
 import qualified Perform.Pitch as Pitch
 
 
-test_show_note = do
-    let f fmt key = TheoryFormat.show_note fmt (Just (Pitch.Key key))
+test_show_degree = do
+    let f fmt key = TheoryFormat.show_degree fmt (Just (Pitch.Key key))
         rel = TheoryFormat.sargam Twelve.relative_fmt
-    equal (f rel "f#-min" (Theory.Note 3 1)) "s"
-    equal (f rel "f#-min" (Theory.Note 4 0)) "rb"
-    equal (f rel "f#-min" (Theory.Note 5 0)) "g"
+    equal (f rel "f#-min" (Pitch.Degree 3 1)) "s"
+    equal (f rel "f#-min" (Pitch.Degree 4 0)) "rb"
+    equal (f rel "f#-min" (Pitch.Degree 5 0)) "g"

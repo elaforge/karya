@@ -41,9 +41,9 @@ relative_fmt keys = make $ TheoryFormat.RelativeFormat
     { TheoryFormat.rel_acc_fmt = TheoryFormat.ascii_accidentals
     , TheoryFormat.rel_parse_key = parse_key
     , TheoryFormat.rel_default_key = default_tkey
-    , TheoryFormat.rel_show_note = TheoryFormat.show_note_chromatic
+    , TheoryFormat.rel_show_degree = TheoryFormat.show_degree_chromatic
     , TheoryFormat.rel_to_absolute = TheoryFormat.chromatic_to_absolute
-    , TheoryFormat.rel_key_tonic = Theory.note_pc . Theory.key_tonic
+    , TheoryFormat.rel_key_tonic = Pitch.degree_pc . Theory.key_tonic
     }
     where
     parse_key = ChromaticScales.lookup_key default_tkey keys
@@ -83,13 +83,13 @@ make_scale scale_id layout keys fmt = Scale.Scale
 default_key :: Pitch.Key
 default_key = Pitch.Key "a"
 
-all_notes :: [Theory.Note]
-all_notes = [Theory.Note pc accs | pc <- [0..7], accs <- [-1..1]]
+all_degrees :: [Pitch.Degree]
+all_degrees = [Pitch.Degree pc accs | pc <- [0..7], accs <- [-1..1]]
 
-make_keys :: Theory.Layout -> [Theory.Semi] -> [Theory.Key]
+make_keys :: Theory.Layout -> [Pitch.Semi] -> [Theory.Key]
 make_keys layout intervals =
     [Theory.key tonic "" intervals layout
-        | tonic <- all_notes, abs (Theory.note_accidentals tonic) <= 1]
+        | tonic <- all_degrees, abs (Pitch.degree_accidentals tonic) <= 1]
 
 all_keys :: Theory.Layout -> ChromaticScales.Keys
 all_keys layout =

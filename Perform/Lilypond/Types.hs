@@ -11,11 +11,11 @@ import qualified Data.Text as Text
 
 import Util.Control
 import qualified Util.Pretty as Pretty
-import qualified Derive.Scale.Theory as Theory
 import qualified Derive.Score as Score
 import qualified Derive.Stack as Stack
 import qualified Derive.TrackLang as TrackLang
 
+import qualified Perform.Pitch as Pitch
 import qualified Perform.RealTime as RealTime
 import Types
 
@@ -231,16 +231,16 @@ instance Pretty.Pretty Event where
 
 -- * pitch
 
-show_pitch :: Theory.Pitch -> Either String Text
-show_pitch (Theory.Pitch octave note) = (<> oct_mark) <$> show_pitch_note note
+show_pitch :: Pitch.Pitch -> Either String Text
+show_pitch (Pitch.Pitch octave note) = (<> oct_mark) <$> show_pitch_note note
     where
     oct_mark
         | oct >= 0 = Text.replicate oct "'"
         | otherwise = Text.replicate (abs oct) ","
         where oct = octave - 3
 
-show_pitch_note :: Theory.Note -> Either String Text
-show_pitch_note (Theory.Note pc accs) = do
+show_pitch_note :: Pitch.Degree -> Either String Text
+show_pitch_note (Pitch.Degree pc accs) = do
     acc <- case accs of
         -2 -> Right "ff"
         -1 -> Right "f"

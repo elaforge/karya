@@ -13,7 +13,6 @@ import qualified Derive.PitchSignal as PitchSignal
 import qualified Derive.Scale as Scale
 import qualified Derive.Scale.Scales as Scales
 import qualified Derive.Scale.Symbols as Symbols
-import qualified Derive.Scale.Theory as Theory
 import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
 
@@ -27,9 +26,9 @@ data ScaleMap = ScaleMap {
 
 -- | umbang, isep
 data NoteNumberMap = NoteNumberMap !ToNn !ToNn deriving (Show)
-type ToNn = Map.Map Theory.Pitch Pitch.NoteNumber
+type ToNn = Map.Map Pitch.Pitch Pitch.NoteNumber
 
-scale_map :: Theory.PitchClass -> Pitch.Octave -> Theory.PitchClass
+scale_map :: Pitch.PitchClass -> Pitch.Octave -> Pitch.PitchClass
     -> [Pitch.Note] -> [Pitch.NoteNumber] -> [Pitch.NoteNumber] -> ScaleMap
 scale_map per_octave start_octave start_pc notes umbang isep = ScaleMap
     { scale_degree_map =

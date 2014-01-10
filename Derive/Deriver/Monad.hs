@@ -144,7 +144,6 @@ import qualified Ui.TrackTree as TrackTree
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.LEvent as LEvent
 import qualified Derive.PitchSignal as PitchSignal
-import qualified Derive.Scale.Theory as Theory
 import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Stack as Stack
@@ -1369,10 +1368,10 @@ data Scale = Scale {
     -- a given pitch.  Other controls can affect the pitch, but if they aren't
     -- in this set, the pitch won't be reevaluated when they change.
     , scale_transposers :: !(Set.Set Score.Control)
-    -- | Parse a Note into a Theory.Pitch with scale degree and accidentals.
+    -- | Parse a Note into a Pitch.Pitch with scale degree and accidentals.
     , scale_read :: Maybe Pitch.Key -> Pitch.Note
-        -> Either ScaleError Theory.Pitch
-    , scale_show :: Maybe Pitch.Key -> Theory.Pitch
+        -> Either ScaleError Pitch.Pitch
+    , scale_show :: Maybe Pitch.Key -> Pitch.Pitch
         -> Either ScaleError Pitch.Note
     , scale_layout :: !Layout
 
@@ -1420,7 +1419,7 @@ type Transpose = Maybe Pitch.Key -> Pitch.Octave -> Pitch.Transpose
 type Enharmonics = Maybe Pitch.Key -> Pitch.Note
     -> Either ScaleError [Pitch.Note]
 
--- | The number of chromatic intervals between each 'Theory.PitchClass',
+-- | The number of chromatic intervals between each 'Pitch.PitchClass',
 -- starting from 0, as returned by 'scale_read'.  The length is the number of
 -- degree per octave.  A diatonic-only scale will have all 1s, and a scale
 -- without octaves has an empty layout.
@@ -1428,7 +1427,7 @@ type Enharmonics = Maybe Pitch.Key -> Pitch.Note
 -- This is analogous to 'Theory.Layout', but is intended to be a minimal
 -- implementation that all scales can export, without having to support the
 -- full complexity of a chromatic scale.
-type Layout = Vector.Unboxed.Vector Theory.Semi
+type Layout = Vector.Unboxed.Vector Pitch.Semi
 
 -- | Things that can go wrong during scale operations.
 data ScaleError =

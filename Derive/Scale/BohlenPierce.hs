@@ -81,7 +81,7 @@ degree_to_nn (PitchSignal.PitchConfig env controls) degreef =
         key <- Scales.lookup_key env
         Map.lookup key all_keys
 
-degree_to_hz :: Pitch.Hz -> Theory.Semi -> Theory.Semi -> Pitch.Hz
+degree_to_hz :: Pitch.Hz -> Pitch.Semi -> Pitch.Semi -> Pitch.Hz
 degree_to_hz base_hz tonic semis = oct_base * ratio
     where
     oct_base = base_hz * 3 ^^ (octave - Pitch.middle_octave)
@@ -132,12 +132,12 @@ bp_ratios =
 -- | Display scale degrees and the intervals between them.
 print_intervals :: Text
 print_intervals =
-    Text.unwords $ interleave (map (("("<>) . (<>")")) notes) intervals
+    Text.unwords $ interleave (map (("("<>) . (<>")")) degrees) intervals
     where
     interleave (x:xs) (y:ys) = x : y : interleave xs ys
     interleave xs [] = xs
     interleave [] ys = ys
-    notes = TheoryFormat.key_notes default_key absolute_fmt
+    degrees = TheoryFormat.key_degrees default_key absolute_fmt
     intervals = zipWith interval bp_ratios (drop 1 bp_ratios)
     interval low high = fromMaybe ("no interval: " <> showt (high/low)) $
         Map.lookup (high / low) names
@@ -147,9 +147,9 @@ print_intervals =
 print_scales :: IO ()
 print_scales = mapM_ (putStrLn . untxt) $
     map (TheoryFormat.show_key_signature absolute_fmt) $
-    filter ((== Theory.Note 0 0) . Theory.key_tonic) $ Map.elems all_keys
+    filter ((== Pitch.Degree 0 0) . Theory.key_tonic) $ Map.elems all_keys
 
-pc_per_octave :: Theory.PitchClass
+pc_per_octave :: Pitch.PitchClass
 pc_per_octave = length lambda_intervals
 
 semis_per_octave :: Int
@@ -169,7 +169,7 @@ Just default_key = Map.lookup (Pitch.Key "a-lambda") all_keys
 -- This has keys rooted at every chromatic step, but BP modes rooted on
 -- accidentals tend to wind up with crazy key signatures, e.g. with triple
 -- sharps, probably due to the lack of a circle-of-fifths organization.
-modes :: [(Text, [Theory.Semi])]
+modes :: [(Text, [Pitch.Semi])]
 modes = make_modes lambda_names lambda_intervals
     ++ make_modes gamma_names gamma_intervals
     where
@@ -191,14 +191,14 @@ gamma_names = ["gamma", "x1", "x2", "x3", "x4", "x5", "x6", "dur-2", "x7"]
 gamma_intervals :: [Int]
 gamma_intervals = [1, 2, 1, 2, 1, 1, 2, 2, 1]
 
-make_keys :: Text -> [Theory.Semi] -> [Theory.Key]
+make_keys :: Text -> [Pitch.Semi] -> [Theory.Key]
 make_keys name intervals =
     [Theory.key tonic name intervals layout
-        | tonic <- all_notes, abs (Theory.note_accidentals tonic) <= 1]
+        | tonic <- all_degrees, abs (Pitch.degree_accidentals tonic) <= 1]
 
-all_notes :: [Theory.Note]
-all_notes =
-    [Theory.Note pc accs | pc <- [0 .. pc_per_octave - 1], accs <- [-1..1]]
+all_degrees :: [Pitch.Degree]
+all_degrees =
+    [Pitch.Degree pc accs | pc <- [0 .. pc_per_octave - 1], accs <- [-1..1]]
 
 named_intervals :: ScaleDegree.NamedIntervals
 named_intervals = Map.fromList

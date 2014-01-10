@@ -232,13 +232,13 @@ control_cc = Control.universal_control_map
 
 -- * from ascii
 
-from_ascii :: Bool -> Theory.Pitch -> Input
+from_ascii :: Bool -> Pitch.Pitch -> Input
 from_ascii down pitch
     | down = NoteOn note_id (Pitch.Input Pitch.AsciiKbd pitch 0) 1
     | otherwise = NoteOff note_id 1
     where note_id = NoteId (pitch_to_nn pitch)
 
-pitch_to_nn :: Theory.Pitch -> Int
+pitch_to_nn :: Pitch.Pitch -> Int
 pitch_to_nn = Theory.semis_to_nn . Theory.pitch_to_semis Theory.piano_layout
 
 -- * to midi

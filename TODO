@@ -3,7 +3,7 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
-  - move Theory.Pitch to Perform.Pitch.  (Octave, (PC, Accs))
+  * move Theory.Pitch to Perform.Pitch.  (Octave, (PC, Accs))
     data Abstract = Abstract Octave Degree
     data Degree = Degree PitchClass Accidentals
     While Pitch.Abstract might read nicely, abstracts = [Pitch.Abstract ...]

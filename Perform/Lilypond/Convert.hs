@@ -12,7 +12,6 @@ import qualified Util.Seq as Seq
 
 import qualified Derive.LEvent as LEvent
 import qualified Derive.PitchSignal as PitchSignal
-import qualified Derive.Scale.Theory as Theory
 import qualified Derive.Scale.Twelve as Twelve
 import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
@@ -22,6 +21,7 @@ import qualified Perform.ConvertUtil as ConvertUtil
 import Perform.ConvertUtil (require, throw)
 import qualified Perform.Lilypond.Constants as Constants
 import qualified Perform.Lilypond.Types as Types
+import qualified Perform.Pitch as Pitch
 
 import Types
 
@@ -91,7 +91,7 @@ convert_event quarter event = do
         TrackLang.lookup_val v (Score.event_environ event)
     code_attrs = [Constants.v_ly_prepend, Constants.v_ly_append_all]
 
-convert_pitch :: Score.Event -> ConvertT (Maybe Theory.Pitch)
+convert_pitch :: Score.Event -> ConvertT (Maybe Pitch.Pitch)
 convert_pitch event = case PitchSignal.at start (Score.event_pitch event) of
     Nothing -> return Nothing
     Just pitch -> Just <$> go pitch

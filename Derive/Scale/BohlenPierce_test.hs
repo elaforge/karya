@@ -10,7 +10,6 @@ import qualified Cmd.CmdTest as CmdTest
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Scale as Scale
 import qualified Derive.Scale.BohlenPierce as BP
-import qualified Derive.Scale.Theory as Theory
 import qualified Derive.Score as Score
 
 import qualified Perform.NN as NN
@@ -42,13 +41,13 @@ test_input_to_note = do
     equal [f (piano 5 pc) | pc <- [0..6]]
         ["2h", "2i", "", "", "", "", ""]
 
-ascii :: Theory.Octave -> Theory.PitchClass -> Pitch.Input
+ascii :: Pitch.Octave -> Pitch.PitchClass -> Pitch.Input
 ascii oct pc = Pitch.Input Pitch.AsciiKbd
-    (Theory.Pitch oct (Theory.Note pc 0)) 0
+    (Pitch.Pitch oct (Pitch.Degree pc 0)) 0
 
-piano :: Theory.Octave -> Theory.PitchClass -> Pitch.Input
+piano :: Pitch.Octave -> Pitch.PitchClass -> Pitch.Input
 piano oct pc = Pitch.Input Pitch.PianoKbd
-    (Theory.Pitch oct (Theory.Note pc 0)) 0
+    (Pitch.Pitch oct (Pitch.Degree pc 0)) 0
 
 test_input_to_nn = do
     let f input = DeriveTest.eval State.empty $

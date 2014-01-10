@@ -17,7 +17,6 @@ import qualified Cmd.Internal as Internal
 import qualified Cmd.Msg as Msg
 import qualified Cmd.NoteEntry as NoteEntry
 
-import qualified Derive.Scale.Theory as Theory
 import qualified Perform.Pitch as Pitch
 
 
@@ -91,7 +90,7 @@ with_key key = CmdTest.result_cmd_state $
     CmdTest.run State.empty CmdTest.default_cmd_state
         (Internal.cmd_record_keys key)
 
-note_on :: Int -> Theory.Octave -> Theory.PitchClass -> Theory.Accidentals
+note_on :: Int -> Pitch.Octave -> Pitch.PitchClass -> Pitch.Accidentals
     -> InputNote.Input
 note_on note_id oct pc accs =
     InputNote.NoteOn (InputNote.NoteId note_id)

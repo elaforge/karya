@@ -158,7 +158,7 @@ transpose fmt key oct transpose note = do
             Pitch.Diatonic steps -> steps
             Pitch.Nn _ -> 0
     Right $ TheoryFormat.show_pitch fmt key $
-        Theory.transpose_pitch per_oct (oct * per_oct + steps) pitch
+        Pitch.add_pc per_oct (oct * per_oct + steps) pitch
     where per_oct = TheoryFormat.fmt_pc_per_octave fmt
 
 -- * note_to_call
@@ -174,17 +174,17 @@ note_to_call scale smap note =
             scale (smap_named_intervals smap) note
         Right pitch_ ->
             let pitch = pitch_
-                    { Theory.pitch_note = (Theory.pitch_note pitch_)
-                        { Theory.note_accidentals = 0 }
+                    { Pitch.pitch_degree = (Pitch.pitch_degree pitch_)
+                        { Pitch.degree_accidentals = 0 }
                     }
-                accs = Theory.pitch_accidentals pitch_
+                accs = Pitch.pitch_accidentals pitch_
             in Just $ ScaleDegree.scale_degree_just
                 scale (smap_named_intervals smap)
                 (smap_accidental_interval smap ^^ accs)
                 (pitch_nn smap pitch) (pitch_note fmt pitch)
     where fmt = smap_fmt smap
 
-pitch_nn :: ScaleMap -> Theory.Pitch -> Scale.PitchNn
+pitch_nn :: ScaleMap -> Pitch.Pitch -> Scale.PitchNn
 pitch_nn smap pitch (PitchSignal.PitchConfig env controls) =
     Scales.scale_to_pitch_error chromatic diatonic $ do
         key <- read_key smap env
@@ -202,12 +202,12 @@ pitch_nn smap pitch (PitchSignal.PitchConfig env controls) =
     base_hz = Map.findWithDefault (smap_default_base_hz smap)
         just_base_control controls
 
-pitch_note :: TheoryFormat.Format -> Theory.Pitch -> Scale.PitchNote
+pitch_note :: TheoryFormat.Format -> Pitch.Pitch -> Scale.PitchNote
 pitch_note fmt pitch (PitchSignal.PitchConfig env controls) =
     Scales.scale_to_pitch_error chromatic diatonic $ do
         let key = Scales.lookup_key env
         pitch <- TheoryFormat.fmt_to_absolute fmt key pitch
-        let transposed = Theory.transpose_pitch
+        let transposed = Pitch.add_pc
                 (TheoryFormat.fmt_pc_per_octave fmt)
                 (round (chromatic + diatonic)) pitch
         Right $ TheoryFormat.show_pitch fmt key transposed
@@ -215,28 +215,28 @@ pitch_note fmt pitch (PitchSignal.PitchConfig env controls) =
     chromatic = Map.findWithDefault 0 Controls.chromatic controls
     diatonic = Map.findWithDefault 0 Controls.diatonic controls
 
-transpose_to_hz :: Theory.PitchClass -> Pitch.Hz -> Key -> Double
-    -> Theory.Pitch -> Pitch.Hz
+transpose_to_hz :: Pitch.PitchClass -> Pitch.Hz -> Key -> Double
+    -> Pitch.Pitch -> Pitch.Hz
 transpose_to_hz per_oct base_hz key frac_steps pitch = Num.scale hz1 hz2 frac
     where
     (steps, frac) = properFraction frac_steps
-    pitch1 = Theory.transpose_pitch per_oct (steps - key_tonic key) pitch
-    pitch2 = Theory.transpose_pitch per_oct 1 pitch1
+    pitch1 = Pitch.add_pc per_oct (steps - key_tonic key) pitch
+    pitch2 = Pitch.add_pc per_oct 1 pitch1
     hz1 = degree_to_hz (key_ratios key) base_hz pitch1
     hz2 = degree_to_hz (key_ratios key) base_hz pitch2
 
 -- | Given a Key, convert a pitch in that key to its hz value, calculated as
 -- a ratio from the given base hz.
 degree_to_hz :: Ratios -> Pitch.Hz
-    -> Theory.Pitch -- ^ should be relative to scale's tonic
+    -> Pitch.Pitch -- ^ should be relative to scale's tonic
     -> Pitch.Hz
 degree_to_hz ratios base_hz pitch = base * realToFrac ratio
     where
-    base = adjusted_base * 2 ^^ Theory.pitch_octave pitch
+    base = adjusted_base * 2 ^^ Pitch.pitch_octave pitch
     -- Normalize the base_hz to lie within the first octave.
     -- Add an octave because of NOTE [middle-c].
     adjusted_base = Pitch.nn_to_hz $ Pitch.hz_to_nn base_hz `Num.fmod` 12 + 12
-    ratio = index_mod ratios $ Theory.note_pc (Theory.pitch_note pitch)
+    ratio = index_mod ratios $ Pitch.degree_pc (Pitch.pitch_degree pitch)
 
 index_mod :: Vector.Vector a -> Int -> a
 index_mod v i = Vector.unsafeIndex v (i `mod` Vector.length v)
@@ -268,7 +268,7 @@ make_relative_fmt keys default_key = TheoryFormat.RelativeFormat
     { TheoryFormat.rel_acc_fmt = TheoryFormat.ascii_accidentals
     , TheoryFormat.rel_parse_key = fmap key_tonic . lookup_key
     , TheoryFormat.rel_default_key = 0
-    , TheoryFormat.rel_show_note = TheoryFormat.show_note_diatonic
+    , TheoryFormat.rel_show_degree = TheoryFormat.show_degree_diatonic
     , TheoryFormat.rel_to_absolute = TheoryFormat.diatonic_to_absolute
     , TheoryFormat.rel_key_tonic = id
     }

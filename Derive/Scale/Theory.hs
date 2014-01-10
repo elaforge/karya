@@ -6,12 +6,12 @@
 {- | Functions to manipulate pitches in scales according to the rules of
     standard western music theory.
 
-    Pitches are represented as 'Pitch'es and 'Note's.  They're generalized to
-    work with any number of 'PitchClass'es, but since each scale carries an
-    implied key 'Layout' it can only handle pitch classes in a certain range.
-    Internally there are no checks that the pitch class is in range, so the
-    range has to be checked on parse or show.  Parsing and showing is handled
-    in "Derive.Scale.TheoryFormat".
+    Pitches are represented as 'Pitch.Pitch'es and 'Pitch.Degree's.  They're
+    generalized to work with any number of 'Pitch.PitchClass'es, but since each
+    scale carries an implied key 'Layout' it can only handle pitch classes in
+    a certain range.  Internally there are no checks that the pitch class is in
+    range, so the range has to be checked on parse or show.  Parsing and
+    showing is handled in "Derive.Scale.TheoryFormat".
 
     @
         db      eb  fb      gb      ab      bb  cb
@@ -32,24 +32,17 @@ module Derive.Scale.Theory (
     , pitch_to_semis, note_to_semis
     , semis_to_pitch, pick_enharmonic, semis_to_pitch_sharps
     , semis_to_nn, nn_to_semis
-    -- * types
-    , PitchClass, Degree, Semi, Octave, Accidentals
-    , Pitch(..), pitch_accidentals, pitch_pc
-    , modify_octave, transpose_pitch
-    , Note(..), note_in_layout
     -- ** key
     , Key(key_tonic, key_name, key_intervals, key_signature, key_layout), key
     , accidentals_at_pc
     , Signature, Intervals
     , layout
-    , layout_pc_per_octave, key_degrees_per_octave, layout_semis_per_octave
-    -- * util
-    , diatonic_degree_of
+    , layout_pc_per_octave, layout_semis_per_octave
 #ifndef TESTING
     , Layout(layout_intervals)
 #else
     , Layout(..)
-    , calculate_signature, degree_of
+    , calculate_signature, step_of
 #endif
 ) where
 import qualified Data.List as List
@@ -62,6 +55,8 @@ import qualified Util.Num as Num
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 import qualified Util.Vector as Vector
+
+import qualified Perform.Pitch as Pitch
 
 
 -- * constants
@@ -77,27 +72,27 @@ piano_layout = layout piano_intervals
 -- * NoteNumber diatonic transposition
 
 -- | Convert a fractional number of diatonic steps to chromatic steps.
-diatonic_to_chromatic :: Key -> Note -> Double -> Double
-diatonic_to_chromatic key note steps
+diatonic_to_chromatic :: Key -> Pitch.Degree -> Double -> Double
+diatonic_to_chromatic key degree steps
     | steps == 0 = 0
     | steps > 0 = Num.scale (transpose isteps) (transpose (isteps+1)) frac
     | otherwise =
         Num.scale (transpose (isteps-1)) (transpose isteps) (1 - abs frac)
     where
     (isteps, frac) = properFraction steps
-    transpose = fromIntegral . chromatic_steps key note
+    transpose = fromIntegral . chromatic_steps key degree
 
 -- | Convert diatonic steps to chromatic steps.
-chromatic_steps :: Key -> Note -> Int -> Semi
-chromatic_steps key note steps =
-    case table Vector.!? (middle + degree + steps2) of
-        Just val -> oct_semis + val - table Vector.! (middle + degree)
+chromatic_steps :: Key -> Pitch.Degree -> Int -> Pitch.Semi
+chromatic_steps key degree steps =
+    case table Vector.!? (middle + step + steps2) of
+        Just val -> oct_semis + val - table Vector.! (middle + step)
         -- 'make_table' should build a table big enough that this can't happen.
         Nothing -> error $ "ran out of transpose table for "
-            ++ show (middle, degree, steps2) ++ ": " ++ show table
+            ++ show (middle, step, steps2) ++ ": " ++ show table
     where
-    degree = degree_of key note
-    (octaves, steps2) = steps `divMod` key_degrees_per_octave key
+    step = step_of key degree
+    (octaves, steps2) = steps `divMod` key_steps_per_octave key
     oct_semis = if octaves == 0 then 0
         else octaves * layout_semis_per_octave (key_layout key)
     middle = Vector.length table `div` 2
@@ -111,31 +106,32 @@ chromatic_steps key note steps =
 -- the accidentals based on the key signature.  Otherwise (i.e. for scales like
 -- whole-tone or octatonic), it will figure out the number of chromatic steps
 -- to transpose and act like 'transpose_chromatic'.
-transpose_diatonic :: Key -> Degree -> Pitch -> Pitch
-transpose_diatonic key steps pitch@(Pitch oct note@(Note pc accs))
+transpose_diatonic :: Key -> Step -> Pitch.Pitch -> Pitch.Pitch
+transpose_diatonic key steps
+        pitch@(Pitch.Pitch oct degree@(Pitch.Degree pc accs))
     | steps == 0 = pitch
     | otherwise = case key_signature key of
-        Just _ -> Pitch (oct + oct2) $ Note pc2 $
+        Just _ -> Pitch.Pitch (oct + oct2) $ Pitch.Degree pc2 $
             accs - accidentals_at_pc key pc + accidentals_at_pc key pc2
         Nothing -> transpose_chromatic
-            key (chromatic_steps key note steps) pitch
+            key (chromatic_steps key degree steps) pitch
     where
-    (oct2, pc2) = (pc + steps) `divMod` key_degrees_per_octave key
+    (oct2, pc2) = (pc + steps) `divMod` key_steps_per_octave key
 
 -- | Chromatic transposition.  Try to pick a spelling that makes sense for the
 -- given key.
-transpose_chromatic :: Key -> Semi -> Pitch -> Pitch
+transpose_chromatic :: Key -> Pitch.Semi -> Pitch.Pitch -> Pitch.Pitch
 transpose_chromatic key steps pitch
     | steps == 0 = pitch
     | otherwise = semis_to_pitch key $ pitch_to_semis layout pitch + steps
     where layout = key_layout key
 
-pitch_to_semis :: Layout -> Pitch -> Semi
-pitch_to_semis layout (Pitch oct note) =
+pitch_to_semis :: Layout -> Pitch.Pitch -> Pitch.Semi
+pitch_to_semis layout (Pitch.Pitch oct note) =
     oct * layout_semis_per_octave layout + note_to_semis layout note
 
-note_to_semis :: Layout -> Note -> Semi
-note_to_semis layout (Note pc_ accs) =
+note_to_semis :: Layout -> Pitch.Degree -> Pitch.Semi
+note_to_semis layout (Pitch.Degree pc_ accs) =
     Vector.sum (Vector.take pc (layout_intervals layout)) + accs
         + oct * layout_semis_per_octave layout
     where (oct, pc) = pc_ `divMod` layout_pc_per_octave layout
@@ -144,41 +140,41 @@ note_to_semis layout (Note pc_ accs) =
 --
 -- TODO I reduce to semis and then pick an enharmonic, so 5b# becomes 6c.  But
 -- if they asked for 5b# they should get it.
-pick_enharmonic :: Key -> Pitch -> Pitch
+pick_enharmonic :: Key -> Pitch.Pitch -> Pitch.Pitch
 pick_enharmonic key = semis_to_pitch key . pitch_to_semis (key_layout key)
 
 -- | Convert an absolute semitones value to a pitch.  This is a bit
 -- complicated because it wants to find the best spelling for the given key.
-semis_to_pitch :: Key -> Semi -> Pitch
+semis_to_pitch :: Key -> Pitch.Semi -> Pitch.Pitch
 semis_to_pitch key semis = mkpitch $ case key_signature key of
         Just sig -> case List.find (in_scale sig) enharmonics of
             Nothing -> pick_enharmonic (sharp_signature sig) enharmonics
             Just note -> note
         Nothing -> pick_enharmonic (sharp_tonic key) enharmonics
     where
-    mkpitch (oct, note) = Pitch (octave + oct) note
-    -- The (Note (-1) 0) error value is icky, but here's why it should never
-    -- happen: It happens when enharmonics is empty.  Since the values of
+    mkpitch (oct, note) = Pitch.Pitch (octave + oct) note
+    -- The (Pitch.Degree (-1) 0) error value is icky, but here's why it should
+    -- never happen: It happens when enharmonics is empty.  Since the values of
     -- layout_enharmonics are never [] as per the definition of 'layout', it
     -- means the mod of semis is out of range for the array, which means the
     -- sum of the intervals is larger than the length of layout_enharmonics.
     -- That shouldn't happen because layout_enharmonics is initialized to
     -- [..  | i <- intervals, a <- [0..i-1]].
-    pick_enharmonic use_sharps notes = fromMaybe (0, Note (-1) 0) $
-        Seq.minimum_on (key . note_accidentals . snd) notes
+    pick_enharmonic use_sharps notes = fromMaybe (0, Pitch.Degree (-1) 0) $
+        Seq.minimum_on (key . Pitch.degree_accidentals . snd) notes
         where key accs = (if use_sharps then accs < 0 else accs > 0, abs accs)
     in_scale sig (_, note) =
-        sig Vector.!? degree_of key note == Just (note_accidentals note)
+        sig Vector.!? step_of key note == Just (Pitch.degree_accidentals note)
     enharmonics = fromMaybe [] $ layout_enharmonics layout Boxed.!? steps
     (octave, steps) = semis `divMod` layout_semis_per_octave layout
     layout = key_layout key
     -- Sharpish looking key signatures favor sharps.
     sharp_signature sig = Vector.count (>0) sig >= Vector.count (<0) sig
-    sharp_tonic = (>=0) . note_accidentals . key_tonic
+    sharp_tonic = (>=0) . Pitch.degree_accidentals . key_tonic
 
 -- | Like 'semis_to_pitch', but only emits sharps, so it doesn't require a key.
-semis_to_pitch_sharps :: Layout -> Semi -> Pitch
-semis_to_pitch_sharps layout semis = Pitch (octave + oct) note
+semis_to_pitch_sharps :: Layout -> Pitch.Semi -> Pitch.Pitch
+semis_to_pitch_sharps layout semis = Pitch.Pitch (octave + oct) note
     where
     (octave, steps) = semis `divMod` layout_semis_per_octave layout
     (oct, note) = head $ enharmonics Boxed.! steps
@@ -201,10 +197,10 @@ semis_to_pitch_sharps layout semis = Pitch (octave + oct) note
 -- all scales, and it seemed confusing to ask for a Pitch with octave 4 and get
 -- a note with octave 3.  TODO maybe the add/subtract octave should just go in
 -- TheoryFormat.absolute_c?
-semis_to_nn :: Semi -> Int
+semis_to_nn :: Pitch.Semi -> Int
 semis_to_nn = (+12)
 
-nn_to_semis :: Int -> Semi
+nn_to_semis :: Int -> Pitch.Semi
 nn_to_semis = subtract 12
 
 -- * input
@@ -213,88 +209,26 @@ nn_to_semis = subtract 12
 --
 -- This choses the next highest enharmonic until it wraps around, so if you
 -- repeatedly pick the first one you'll cycle through them all.
-enharmonics_of :: Layout -> Pitch -> [Pitch]
+enharmonics_of :: Layout -> Pitch.Pitch -> [Pitch.Pitch]
 enharmonics_of layout pitch =
-    [Pitch (pitch_octave pitch + oct) n | (oct, n) <- ens]
-    where ens = get_enharmonics (layout_intervals layout) (pitch_note pitch)
+    [Pitch.Pitch (Pitch.pitch_octave pitch + oct) n | (oct, n) <- ens]
+    where
+    ens = get_enharmonics (layout_intervals layout) (Pitch.pitch_degree pitch)
 
--- * types
+-- * step
 
--- ** pitch types
-
--- | A PitchClass maps directly to a scale degree, which is a letter in
--- traditional Western notation, though this PitchClass may have fewer or
--- greater than 7 notes.  The PitchClass is absolute in that it doesn't depend
--- on the tonic of a key.
-type PitchClass = Int
-
--- | A degree is one step of a scale.  Unlike 'PitchClass' it's relative to the
--- tonic of the key, but also may have a different range.  This is because some
--- scales, such as whole-tone or octatonic, have fewer or more degrees than 7,
--- even though the underlying notation system uses only 7 letters.  This means
--- that not every Degree will map to a PitchClass.
+-- | A degree is one step of a scale.  Unlike 'Pitch.PitchClass' it's relative
+-- to the tonic of the key, but also may have a different range.  This is
+-- because some scales, such as whole-tone or octatonic, have fewer or more
+-- degrees than 7, even though the underlying notation system uses only
+-- 7 letters.  This means that not every Degree will map to a PitchClass.
 --
 -- Another approach is to change the number of PitchClasses, which would result
 -- in a--h for octatonic, but it would not admit easy modulation from an
 -- octatonic scale to a septatonic one.
 --
--- 'Key' has more documentation about the PitchClass and Degree distinction.
-type Degree = Int
-
--- | Number of semitones.
-type Semi = Int
-
--- | Octaves count from 0, which means if you translate directly to
--- 'Pitch.NoteNumbers', middle C will wind up in octave 5.  Since by convention
--- NoteNumber 0 is in octave -1 and middle C at octave 4,
--- "Derive.Scale.TheoryFormat" has to add or subtract 1.
-type Octave = Int
-
--- | Positive for sharps, negative for flats.
-type Accidentals = Int
-
--- *** Pitch
-
--- | A Pitch is just a Note with an octave.
-data Pitch = Pitch {
-    pitch_octave :: !Octave
-    , pitch_note :: !Note
-    } deriving (Eq, Ord, Show)
-
-instance Pretty.Pretty Pitch where
-    pretty (Pitch oct note) = show oct <> "-" <> Pretty.pretty note
-
-pitch_accidentals :: Pitch -> Accidentals
-pitch_accidentals = note_accidentals . pitch_note
-
-pitch_pc :: Pitch -> PitchClass
-pitch_pc = note_pc . pitch_note
-
-modify_octave :: (Octave -> Octave) -> Pitch -> Pitch
-modify_octave f (Pitch octave note) = Pitch (f octave) note
-
--- | Transpose a pitch by diatonic steps.  Simpler than 'transpose_diatonic'
--- in that it doesn't deal with key signatures or non-diatonic scales at all.
-transpose_pitch :: Degree -> PitchClass -> Pitch -> Pitch
-transpose_pitch per_oct steps (Pitch octave (Note pc accs)) =
-    Pitch (oct + octave) (Note pc2 accs)
-    where (oct, pc2) = (pc + steps) `divMod` per_oct
-
-
--- *** Note
-
-data Note = Note {
-    note_pc :: !PitchClass
-    , note_accidentals :: !Accidentals
-    } deriving (Eq, Ord, Show)
-
-instance Pretty.Pretty Note where
-    pretty (Note pc acc) = show pc
-        <> if acc < 0 then replicate (abs acc) 'b' else replicate acc '#'
-
-note_in_layout :: Layout -> Note -> Bool
-note_in_layout layout note =
-    0 <= note_pc note && note_pc note < layout_pc_per_octave layout
+-- 'Key' has more documentation about the PitchClass and Step distinction.
+type Step = Int
 
 -- * Key
 
@@ -302,14 +236,14 @@ note_in_layout layout note =
 --
 -- There's a distinction between \"diatonic\" and \"chromatic\" keys.  It's not
 -- really standard terminology, but within this module I call scales with a 1:1
--- 'PitchClass' to 'Degree' mapping \"diatonic\", and the ones without
+-- 'Pitch.PitchClass' to 'Degree' mapping \"diatonic\", and the ones without
 -- \"chromatic\".  That's because diatonic transposition for the former kind of
 -- scale is defined in terms of pitch classes, regardless of what accidentals
--- the Note may have, but the latter kind of scale must resort to chromatic
--- transposition, losing the spelling of the original note.  Ultimately there
--- is a tension between diatonic and chromatic systems.
+-- the 'Pitch.Degree' may have, but the latter kind of scale must resort to
+-- chromatic transposition, losing the spelling of the original note.
+-- Ultimately there is a tension between diatonic and chromatic systems.
 data Key = Key {
-    key_tonic :: !Note
+    key_tonic :: !Pitch.Degree
     , key_name :: !Text
     -- | Semitones between each scale degree.  This should have at least two
     -- octaves of intervals, as needed by 'chromatic_steps'.  If this is a
@@ -322,14 +256,14 @@ data Key = Key {
     , key_layout :: Layout
     } deriving (Eq, Show)
 
--- | Map from a Degree to the number of sharps or flats at that Degree.
-type Signature = Vector.Vector Accidentals
-type Intervals = Vector.Vector Semi
+-- | Map from a Step to the number of sharps or flats at that Step.
+type Signature = Vector.Vector Pitch.Accidentals
+type Intervals = Vector.Vector Pitch.Semi
 
 -- | Make a Key given intervals and a layout.  If the number of intervals are
 -- equal to the number of intervals in the layout, the scale is considered
 -- diatonic and will get a 'Signature'.
-key :: Note -> Text -> [Accidentals] -> Layout -> Key
+key :: Pitch.Degree -> Text -> [Pitch.Accidentals] -> Layout -> Key
 key tonic name intervals layout = Key
     { key_tonic = tonic
     , key_name = name
@@ -350,15 +284,15 @@ make_table intervals = Vector.fromList $
     reverse (drop 1 (make (-) (reverse intervals))) ++ make (+) intervals
     where make f = take (length intervals * 2) . scanl f 0 . cycle
 
-generate_signature :: Note -> Layout -> Intervals -> Maybe Signature
+generate_signature :: Pitch.Degree -> Layout -> Intervals -> Maybe Signature
 generate_signature tonic layout intervals
     | Vector.length (layout_intervals layout) /= Vector.length intervals =
         Nothing
     | otherwise = Just $
         calculate_signature tonic (layout_intervals layout) intervals
 
-calculate_signature :: Note -> Intervals -> Intervals -> Intervals
-calculate_signature (Note pc accs) layout intervals =
+calculate_signature :: Pitch.Degree -> Intervals -> Intervals -> Intervals
+calculate_signature (Pitch.Degree pc accs) layout intervals =
     Vector.take (Vector.length intervals) $
         Vector.zipWith subtract (Vector.scanl (+) 0 (rotate pc layout))
             (Vector.scanl (+) accs intervals)
@@ -372,7 +306,7 @@ key_is_diatonic = Maybe.isJust . key_signature
 instance Pretty.Pretty Key where
     format key@(Key tonic name ints sig _table _layout) = Pretty.record title
         [ ("intervals",
-            Pretty.format (Vector.take (key_degrees_per_octave key) ints))
+            Pretty.format (Vector.take (key_steps_per_octave key) ints))
         , ("signature", Pretty.format sig)
         ]
         where
@@ -380,37 +314,37 @@ instance Pretty.Pretty Key where
             Pretty.<+> Pretty.text (untxt name)
 
 -- | The number of accidentals in the key signature at the given pitch class.
-accidentals_at_pc :: Key -> PitchClass -> Accidentals
+accidentals_at_pc :: Key -> Pitch.PitchClass -> Pitch.Accidentals
 accidentals_at_pc key pc = fromMaybe 0 $ do
     sig <- key_signature key
-    sig Vector.!? diatonic_degree_of key pc
+    sig Vector.!? diatonic_step_of key pc
 
 -- | Number of degrees in an octave for this scale.
 --
 -- This is different from the number of PCs per octave, because scales like
 -- octatonic or whole tone don't have a mapping from PCs to scale degrees.
-key_degrees_per_octave :: Key -> Degree
-key_degrees_per_octave = Vector.length . key_intervals
+key_steps_per_octave :: Key -> Step
+key_steps_per_octave = Vector.length . key_intervals
 
-layout_semis_per_octave :: Layout -> Semi
+layout_semis_per_octave :: Layout -> Pitch.Semi
 layout_semis_per_octave = Vector.sum . layout_intervals
 
-layout_pc_per_octave :: Layout -> PitchClass
+layout_pc_per_octave :: Layout -> Pitch.PitchClass
 layout_pc_per_octave = Vector.length . layout_intervals
 
--- | Figure out the relative scale degree of a note in the given key.
-degree_of :: Key -> Note -> Degree
-degree_of key note
-    | key_is_diatonic key = diatonic_degree_of key (note_pc note)
+-- | Figure out the relative scale step of a note in the given key.
+step_of :: Key -> Pitch.Degree -> Step
+step_of key note
+    | key_is_diatonic key = diatonic_step_of key (Pitch.degree_pc note)
     | otherwise = Vector.find_before semis (key_intervals key)
     where semis = note_to_semis (key_layout key) note
 
--- | Figure out the (relative) scale degree of an absolute PitchClass in
--- a diatonic key.  In a diatonic key, the degree and pitch class are relative
+-- | Figure out the (relative) scale step of an absolute PitchClass in
+-- a diatonic key.  In a diatonic key, the step and pitch class are relative
 -- and absolute versions of the same thing.
-diatonic_degree_of :: Key -> PitchClass -> PitchClass
-diatonic_degree_of key pc =
-    (pc - note_pc (key_tonic key)) `mod` key_degrees_per_octave key
+diatonic_step_of :: Key -> Pitch.PitchClass -> Step
+diatonic_step_of key pc =
+    (pc - Pitch.degree_pc (key_tonic key)) `mod` key_steps_per_octave key
 
 -- ** Layout
 
@@ -419,16 +353,16 @@ data Layout = Layout {
     -- | Map PitchClass to the number of sharps above it.
     layout_intervals :: !Intervals
     -- | Map PitchClass to the enharmonic Notes at that PitchClass.
-    , layout_enharmonics :: !(Boxed.Vector [(Octave, Note)])
+    , layout_enharmonics :: !(Boxed.Vector [(Pitch.Octave, Pitch.Degree)])
     } deriving (Eq, Show)
 
-layout :: [Accidentals] -> Layout
+layout :: [Pitch.Accidentals] -> Layout
 layout intervals =
     Layout vec $ Boxed.fromList $
         map (\n -> (0, n) : get_enharmonics vec n) notes
     where
     vec = Vector.fromList intervals
-    notes = [Note pc accs | (pc, int) <- zip [0..] intervals,
+    notes = [Pitch.Degree pc accs | (pc, int) <- zip [0..] intervals,
         accs <- [0..int-1]]
 
 -- | Enharmonics of a note, along with an octave offset if the enharmonic
@@ -436,8 +370,8 @@ layout intervals =
 --
 -- This choses the next highest enharmonic until it wraps around, so if you
 -- repeatedly pick the first one you'll cycle through them all.
-get_enharmonics :: Intervals -> Note -> [(Octave, Note)]
-get_enharmonics intervals (Note note_pc note_accs) =
+get_enharmonics :: Intervals -> Pitch.Degree -> [(Pitch.Octave, Pitch.Degree)]
+get_enharmonics intervals (Pitch.Degree note_pc note_accs) =
     [ mknote intervals (note_pc + pc) (note_accs + accs)
     | (pc, accs) <- pcs, abs (note_accs + accs) < 3
     ]
@@ -450,9 +384,9 @@ get_enharmonics intervals (Note note_pc note_accs) =
         , (-1, diffs [-1])
         ]
     diffs = sum . map (layout_at intervals . (note_pc+))
-    mknote intervals pc accs = (oct, Note pc2 accs)
+    mknote intervals pc accs = (oct, Pitch.Degree pc2 accs)
         where (oct, pc2) = pc `divMod` Vector.length intervals
 
-layout_at :: Intervals -> PitchClass -> Accidentals
+layout_at :: Intervals -> Pitch.PitchClass -> Pitch.Accidentals
 layout_at intervals pc =
     fromMaybe 0 $ intervals Vector.!? (pc `mod` Vector.length intervals)

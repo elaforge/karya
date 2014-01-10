@@ -5,22 +5,22 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {- | Representation for scales, pitches, and frequencies (note numbers).
 
-    Pitches have a scale, and can be transposed via their scale.  However, they
-    can't be interpolated since the scale may be irregular.
-
-    To create smooth pitch interpolations and of course to perform the pitch,
-    you need a NoteNumber, which is just a logarithmic representation of
-    a frequency.  However, once the pitch becomes a NoteNumber it can no
-    longer be diatonically transposed since the scale information is lost.
+    There are many representations for a pitch, at many different levels of
+    abstraction.
 -}
 module Perform.Pitch (
-    Octave
+    -- * Note
+    Note(..), note_text
+
     -- * Pitch
-    , Note(..), note_text
+    , Pitch(..), Degree(..)
+    , Octave, PitchClass, Accidentals, Semi
+    , pitch_accidentals, pitch_pc
+    , add_octave, add_pc
+    , middle_octave, middle_c
 
     -- * Input
     , Input(..), KbdType(..), Frac
-    , middle_octave, middle_c
 
     -- * NoteNumber
     , NoteNumber(..), nn, nn_to_double
@@ -42,20 +42,14 @@ import Util.Control
 import qualified Util.Pretty as Pretty
 import qualified Util.Serialize as Serialize
 
-import qualified Derive.Scale.Theory as Theory
 import qualified Derive.ShowVal as ShowVal
 
 
--- There are many representations for pitch.  The types here are ordered
--- from abstract to concrete.  'NoteNumber' and 'Hz' can be relative
--- or absolute, but at the moment no distinctions are made at the type level.
-
--- | Just a way to label an octave, either relative or absolute.
-type Octave = Int
-
 -- * Note
 
--- | A Note belongs to a scale and describes a certain note in that scale.
+-- | A Note is the most abstract representation of pitch, in that it's simply
+-- an unparsed bit of text representing that pitch.  Given a Scale, it's
+-- expected to name a val call exported by that scale.
 newtype Note = Note Text deriving (Eq, Ord, Show)
 
 note_text :: Note -> Text
@@ -63,6 +57,72 @@ note_text (Note s) = s
 
 instance Pretty.Pretty Note where
     pretty (Note n) = untxt n
+
+
+-- * pitch
+
+-- | A Pitch is a parsed 'Note'.  Functions that want to manipulate notes
+-- in a scale-independent way can ask the scale to convert to and from a Note.
+-- Not all scales use all the fields.
+data Pitch = Pitch {
+    pitch_octave :: !Octave
+    , pitch_degree :: !Degree
+    } deriving (Eq, Ord, Show)
+
+instance Pretty.Pretty Pitch where
+    pretty (Pitch oct degree) = show oct <> "-" <> Pretty.pretty degree
+
+-- | A scale degree, without reference to an octave.
+data Degree = Degree {
+    degree_pc :: !PitchClass
+    -- | Ignored for diatonic scales.
+    , degree_accidentals :: !Accidentals
+    } deriving (Eq, Ord, Show)
+
+instance Pretty.Pretty Degree where
+    pretty (Degree pc acc) = show pc
+        <> if acc < 0 then replicate (abs acc) 'b' else replicate acc '#'
+
+-- | Just a way to label an octave, either relative or absolute.
+type Octave = Int
+
+-- | A PitchClass maps directly to a scale degree, which is a letter in
+-- traditional Western notation, though this PitchClass may have fewer or
+-- greater than 7 notes.  The PitchClass is absolute in that it doesn't depend
+-- on the tonic of a key.
+type PitchClass = Int
+
+-- | Positive for sharps, negative for flats.
+type Accidentals = Int
+
+-- | Number of semitones.  This is a relative measure representing chromatic
+-- steps.  If the scale has no concept of chromatic steps, then it's just scale
+-- steps.
+type Semi = Int
+
+pitch_accidentals :: Pitch -> Accidentals
+pitch_accidentals = degree_accidentals . pitch_degree
+
+pitch_pc :: Pitch -> PitchClass
+pitch_pc = degree_pc . pitch_degree
+
+add_octave :: Octave  -> Pitch -> Pitch
+add_octave oct (Pitch octave degree) = Pitch (oct + octave) degree
+
+-- | Add diatonic steps.  This doesn't deal with key signatures or non-diatonic
+-- scales.
+add_pc :: PitchClass -> PitchClass -> Pitch -> Pitch
+add_pc per_octave steps (Pitch octave (Degree pc accs)) =
+    Pitch (oct + octave) (Degree pc2 accs)
+    where (oct, pc2) = (pc + steps) `divMod` per_octave
+
+-- | The middle octave.  The \"center\" of a scale should be oriented around
+-- this.
+middle_octave :: Octave
+middle_octave = 4
+
+middle_c :: Pitch
+middle_c = Pitch middle_octave (Degree 0 0)
 
 -- * Input
 
@@ -75,8 +135,8 @@ instance Pretty.Pretty Note where
 -- relative, so that C or sa is always on Q and Z, and if the octave is <10
 -- then it will wrap on the same row.
 --
--- MIDI has the usual layout.  It's absolute, so that a relative scale can
--- start at keys other than C, if that would be convenient for the layout.
+-- MIDI has the usual piano layout.  It's absolute, so that a relative scale
+-- can start at keys other than C, if that would be convenient for the layout.
 -- The octave is rounded up to the nearest multiple of 7, and the extra keys
 -- are unused, so the octave always starts at C.
 --
@@ -84,7 +144,7 @@ instance Pretty.Pretty Note where
 -- closest to the given NN.  That's different from the MIDI kbd because the
 -- MIDI kbd never wants a key to emit something between notes.  TODO not
 -- supported yet
-data Input = Input !KbdType !Theory.Pitch !Frac
+data Input = Input !KbdType !Pitch !Frac
     deriving (Eq, Show)
 
 data KbdType =
@@ -110,25 +170,14 @@ instance Pretty.Pretty Input where
     pretty (Input kbd pitch frac) = show kbd <> ":" <> Pretty.pretty pitch
         <> if frac == 0 then "" else "+" <> Pretty.pretty frac
 
--- | The middle octave.  The \"center\" of a scale should be oriented around
--- this.
-middle_octave :: Octave
-middle_octave = 4
-
-middle_c :: Theory.Pitch
-middle_c = Theory.Pitch middle_octave (Theory.Note 0 0)
-
 -- * NoteNumber
 
 -- | This is equal tempered scale notes with the same definition as MIDI, so
 -- MIDI note 0 is NoteNumber 0, at 8.176 Hz, and is -1c.  Middle C (4c) is
 -- NoteNumber 60.
 --
--- 'PitchSignal's are converted into this before performance since performance
--- doesn't understand scales.
---
--- It would be less tempered-centric to use hz, but for the moment this seems
--- practical since note numbers are easier to read.
+-- 'Derive.PitchSignal.Signal's are converted into this before performance
+-- since performance doesn't understand scales.
 newtype NoteNumber = NoteNumber Double
     deriving (ApproxEq.ApproxEq, Eq, Ord, Fractional, Real, RealFrac, Num,
         Serialize.Serialize)

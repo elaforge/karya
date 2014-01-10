@@ -84,7 +84,7 @@ test_transpose_diatonic = do
 test_pitch_to_semis = do
     let semis = Theory.pitch_to_semis Twelve.layout
         pitch k = Theory.semis_to_pitch (key k)
-        mkp oct pc accs = Theory.Pitch oct (Theory.Note pc accs)
+        mkp oct pc accs = Pitch.Pitch oct (Pitch.Degree pc accs)
 
     -- If the pc is too high, it wraps the octave.
     equal [semis (mkp 4 pc 0) | pc <- [6, 7, 8, 9]] [59, 60, 62, 64]
@@ -142,8 +142,8 @@ test_enharmonics_of = do
     equal (cycle_en "1c") ["1c", "1dbb", "0b#", "1c"]
     equal (cycle_en "1g#") ["1g#", "1ab", "1g#", "1ab"]
 
-test_degree_of = do
-    let f k note = Theory.degree_of (key k) (n note)
+test_step_of = do
+    let f k note = Theory.step_of (key k) (n note)
     -- Diatonic scales care about the letter.
     equal (map (f "a-min") ["a", "b", "c", "d", "d#", "eb", "e"])
         [0, 1, 2, 3, 3, 4, 4]
@@ -160,14 +160,14 @@ key :: Text -> Theory.Key
 key name = either (error $ "can't parse key: " ++ show name) id $
     ChromaticScales.read_key Twelve.absolute_scale_map (Just (Pitch.Key name))
 
-p :: Text -> Theory.Pitch
+p :: Text -> Pitch.Pitch
 p s = either (const $ error $ "can't parse pitch: " ++ show s) id $
     TheoryFormat.read_unadjusted_pitch TheoryFormat.absolute_c (Pitch.Note s)
 
-n :: Text -> Theory.Note
-n s = fromMaybe (error $ "can't parse note: " ++ show s) $
+n :: Text -> Pitch.Degree
+n s = fromMaybe (error $ "can't parse degree: " ++ show s) $
     TheoryFormat.read_unadjusted_note TheoryFormat.absolute_c s
 
-show_pitch :: Theory.Pitch -> Text
+show_pitch :: Pitch.Pitch -> Text
 show_pitch p = maybe (error $ "can't show pitch: " ++ show p) Pitch.note_text $
     Twelve.show_pitch p

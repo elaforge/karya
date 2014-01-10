@@ -65,9 +65,9 @@ relative_fmt = TheoryFormat.RelativeFormat
     , TheoryFormat.rel_parse_key =
         ChromaticScales.lookup_key default_theory_key all_keys
     , TheoryFormat.rel_default_key = default_theory_key
-    , TheoryFormat.rel_show_note = TheoryFormat.show_note_chromatic
+    , TheoryFormat.rel_show_degree = TheoryFormat.show_degree_chromatic
     , TheoryFormat.rel_to_absolute = TheoryFormat.chromatic_to_absolute
-    , TheoryFormat.rel_key_tonic = Theory.note_pc . Theory.key_tonic
+    , TheoryFormat.rel_key_tonic = Pitch.degree_pc . Theory.key_tonic
     }
 
 
@@ -79,7 +79,7 @@ default_key = Pitch.Key "c-maj"
 default_theory_key :: Theory.Key
 Just default_theory_key = Map.lookup default_key all_keys
 
-show_pitch :: Theory.Pitch -> Maybe Pitch.Note
+show_pitch :: Pitch.Pitch -> Maybe Pitch.Note
 show_pitch = either (const Nothing) Just
     . ChromaticScales.show_pitch absolute_scale_map Nothing
 
@@ -87,7 +87,7 @@ show_nn :: Pitch.NoteNumber -> Maybe Pitch.Note
 show_nn = show_pitch . Theory.semis_to_pitch_sharps layout
     . Theory.nn_to_semis . floor
 
-read_absolute_pitch :: Pitch.Note -> Maybe Theory.Pitch
+read_absolute_pitch :: Pitch.Note -> Maybe Pitch.Pitch
 read_absolute_pitch = either (const Nothing) Just
     . ChromaticScales.read_pitch absolute_scale_map Nothing
 
@@ -120,10 +120,10 @@ exotic_keys = make_keys "hijaz" [1, 3, 1, 2, 1, 2, 2]
 layout :: Theory.Layout
 layout = Theory.piano_layout
 
-all_notes :: [Theory.Note]
-all_notes = [Theory.Note pc accs | pc <- [0..6], accs <- [-2..2]]
+all_degrees :: [Pitch.Degree]
+all_degrees = [Pitch.Degree pc accs | pc <- [0..6], accs <- [-2..2]]
 
-make_keys :: Text -> [Theory.Semi] -> [Theory.Key]
+make_keys :: Text -> [Pitch.Semi] -> [Theory.Key]
 make_keys name intervals =
     [Theory.key tonic name intervals layout
-        | tonic <- all_notes, abs (Theory.note_accidentals tonic) <= 1]
+        | tonic <- all_degrees, abs (Pitch.degree_accidentals tonic) <= 1]
