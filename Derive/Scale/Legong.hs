@@ -45,11 +45,11 @@ cipher_scale = BaliScales.scale_map 5 2 1 BaliScales.dotted12356
     (drop 11 umbang) (drop 11 isep)
 
 pemade_scale :: BaliScales.ScaleMap
-pemade_scale = BaliScales.scale_map 5 2 1 BaliScales.ioeua
+pemade_scale = BaliScales.scale_map 5 2 1 BaliScales.dotted_ioeua
     (drop 11 umbang) (drop 11 isep)
 
 kantilan_scale :: BaliScales.ScaleMap
-kantilan_scale = BaliScales.scale_map 5 3 1 BaliScales.ioeua
+kantilan_scale = BaliScales.scale_map 5 3 1 BaliScales.dotted_ioeua
     (drop 16 umbang) (drop 16 isep)
 
 {- | Extended scale.

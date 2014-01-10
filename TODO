@@ -3,6 +3,18 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
+  - move Theory.Pitch to Perform.Pitch.  (Octave, (PC, Accs))
+    data Abstract = Abstract Octave Degree
+    data Degree = Degree PitchClass Accidentals
+    While Pitch.Abstract might read nicely, abstracts = [Pitch.Abstract ...]
+    sure doesn't.  Maybe keep Pitch after all.  Pitch.Pitch.  But need a new
+    name for Note.  Degree is ok if there are no users of the old Degree.
+  - instance IsString Pitch.Note
+  - scale introduced val calls should go first
+    They do, but pitch calls always go before the val call fallback.
+    Maybe I could eliminate the fallabck, and instead have scales also
+    emit pitch calls.  In any case, I don't want them interfering anyway.
+  - give ModifyEvents.Track the ability to change the track title?
   * why is save/seasons piano part putting lots of pitch bends in?
   - chord calls, with automatic dyns for the notes.
     Originally I intended each note to go in its own track, with the idea that
@@ -17,6 +29,26 @@ UNSORTED
     . Figure out tempo from sum of durations of called blocks.  Then set the
       tempo accordingly.  Then evaluate the block normally.  So actually this
       is a kind of tempo track.
+    - Does that mean I need this to be a track call?  Or could I do with
+      a note transformer?
+    . For track calls:
+      type TrackCall d = Call (TrackFunc d)
+      type TrackFunc d = PassedArgs (Elem d) -> LogsDeriver d
+      type TrackFunc = BlockId -> TrackId -> [TrackLang.Val] -> LogsDeriver d
+        passed_vals :: [TrackLang.Val]
+        passed_call_name :: !Text
+        block_id
+        track_id :: !TrackId
+      - Can I use Derive.Sig?
+      . Can I turn normal tracks into track calls?  I suppose they would have
+        to be lookup calls.  Would that mess up TrackInfo?
+
+      . The general problem I need to solve is notation where time is
+        abstract.  If I don't mix it with concrete time (e.g. wanting
+        a playback cursor, and to be able to mix with "normal" notation)
+        then all is fine, but if I do want to mix then I need to get a tempo
+        out of it.
+
   * fix the ly notation in mvt3 of viola-sonata: bug/ly-tuplets.gz
     It is emitting 32nd notes instead of tuplets, caused by the +spic sub
     call.
@@ -70,11 +102,21 @@ UNSORTED
     signal for range.  E.g., each instrument should switch to noltol at
     a different time.
   bali
-    - cipher scale is still more convenient than absolute when dealing with
+    * cipher scale is still more convenient than absolute when dealing with
       one or two instruments.  Maybe I should use a base-octave var instead
       of kantilan and pemade variations.
+      . try per-instrument scale with: i_ i- i^
     kotekan ornaments
       - norot
+      . I should have a better way of specifying instrument ranges than
+        NoteNumber + adjust for umbang/isep, where I don't even know why it
+        works.
+      * ensure that Wayang and Legong scales all have a consistent
+        absolute Theory.Pitch parse.
+      - add VTPitch to TrackLang.Val, along with Typecheck instance
+        ParsedPitch?  ConcretePitch?
+      - add Environ.inst_top and Environ.inst_bottom, and use those for
+        kempyung
     wayang in octaves
       . I could do it with >wayang-both that emits >wayang-p and >wayang-k. Or
         just call the score twice, once with transpose +1 oct.

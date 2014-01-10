@@ -13,6 +13,7 @@ import qualified Derive.PitchSignal as PitchSignal
 import qualified Derive.Scale as Scale
 import qualified Derive.Scale.Scales as Scales
 import qualified Derive.Scale.Symbols as Symbols
+import qualified Derive.Scale.Theory as Theory
 import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
 
@@ -26,19 +27,20 @@ data ScaleMap = ScaleMap {
 
 -- | umbang, isep
 data NoteNumberMap = NoteNumberMap !ToNn !ToNn deriving (Show)
-type ToNn = Map.Map Pitch.Degree Pitch.NoteNumber
+type ToNn = Map.Map Theory.Pitch Pitch.NoteNumber
 
-scale_map :: Pitch.Degree -> Pitch.Octave -> Pitch.Degree
+scale_map :: Theory.PitchClass -> Pitch.Octave -> Theory.PitchClass
     -> [Pitch.Note] -> [Pitch.NoteNumber] -> [Pitch.NoteNumber] -> ScaleMap
-scale_map per_oct start_oct start_degree notes umbang isep = ScaleMap
+scale_map per_octave start_octave start_pc notes umbang isep = ScaleMap
     { scale_degree_map =
-        Scales.degree_map per_oct start_oct start_degree
-            (drop (fromIntegral start_degree) notes) avg
+        Scales.degree_map per_octave start_octave start_pc
+            (drop (fromIntegral start_pc) notes) avg
     , scale_nn_map = NoteNumberMap (make_to_nn umbang) (make_to_nn isep)
     }
     where
     avg = zipWith (\a b -> (a+b) / 2) umbang isep
-    make_to_nn = Map.fromList . zip [0..]
+    make_to_nn = Map.fromList
+        . zip (Scales.pitches_from per_octave start_octave start_pc)
 
 dotted12356 :: [Pitch.Note]
 dotted12356 =
@@ -51,6 +53,14 @@ octave12356 = [Pitch.Note $ showt oct <> "-" <> showt d
 ioeua :: [Pitch.Note]
 ioeua = [Pitch.Note $ showt oct <> vowel
     | oct <- [1..], vowel <- ["i", "o", "e", "u", "a"]]
+
+-- | I would prefer to leave the middle octave without an octave mark, but
+-- without one they conflict with common pitch calls.  Caps would also work,
+-- but they look ugly and I'd have to do it for the absolute notation too for
+-- consistency.
+dotted_ioeua :: [Pitch.Note]
+dotted_ioeua = [Pitch.Note $ vowel <> oct
+    | oct <- ["_", "-", "^"], vowel <- ["i", "o", "e", "u", "a"]]
 
 make_scale :: Text -> Pitch.ScaleId -> ScaleMap -> Scale.Scale
 make_scale scale_pattern scale_id (ScaleMap dmap nn_map) = Scale.Scale
@@ -102,12 +112,12 @@ read_tuning t
 c_ombak :: Score.Control
 c_ombak = "ombak"
 
-degree_to_nn :: ToNn -> NoteNumberMap -> Scales.DegreeToNoteNumber
+degree_to_nn :: ToNn -> NoteNumberMap -> Scales.PitchToNoteNumber
 degree_to_nn to_avg (NoteNumberMap to_umbang to_isep) =
-    \(PitchSignal.PitchConfig env controls) degree -> do
+    \(PitchSignal.PitchConfig env controls) pitch -> do
         tuning <- Scales.read_environ read_tuning Umbang Environ.tuning env
         let lookup_nn = maybe (Left Scale.InvalidTransposition) Right
-                . Map.lookup degree
+                . Map.lookup pitch
         case Map.lookup c_ombak controls of
             Nothing -> case tuning of
                 Umbang -> lookup_nn to_umbang

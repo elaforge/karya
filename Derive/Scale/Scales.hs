@@ -58,78 +58,72 @@ make_scale dmap scale_id note_pattern doc = Scale.Scale
 -- * types
 
 data DegreeMap = DegreeMap {
-    dm_to_degree :: Map.Map Pitch.Note Pitch.Degree
-    , dm_to_note :: Map.Map Pitch.Degree Pitch.Note
-    , dm_to_nn :: Map.Map Pitch.Degree Pitch.NoteNumber
+    dm_to_pitch :: Map.Map Pitch.Note Theory.Pitch
+    , dm_to_note :: Map.Map Theory.Pitch Pitch.Note
+    , dm_to_nn :: Map.Map Theory.Pitch Pitch.NoteNumber
     -- | Number of scale steps per octave.  Actually, simple scales are just
     -- a collection of frequencies and don't need to have a notion of an
     -- octave.  But since the input mechanism wants to orient around octaves,
     -- it needs to know how many keys to assign to each octave.  So if your
     -- scale has no octaves, then just set this to 7, that way it lines up with
     -- the piano keyboard.
-    , dm_per_octave :: Pitch.Degree
-    , dm_pitch_to_degree :: Theory.Pitch -> Pitch.Degree
+    , dm_per_octave :: Theory.PitchClass
     }
 
 instance Pretty.Pretty DegreeMap where
     format dmap = Pretty.format $ Map.fromList $ do
-        (note, degree) <- Map.toList (dm_to_degree dmap)
+        (note, degree) <- Map.toList (dm_to_pitch dmap)
         let nn = Map.lookup degree (dm_to_nn dmap)
         return (degree, (note, nn))
 
-degree_map :: Pitch.Degree
+degree_map :: Theory.PitchClass
     -> Theory.Octave -- ^ First Note is this Octave and Degree.
-    -> Pitch.Degree
+    -> Theory.PitchClass
     -> [Pitch.Note] -> [Pitch.NoteNumber] -> DegreeMap
-degree_map per_octave start_octave start_degree notes_ nns_ = DegreeMap
-    { dm_to_degree = Map.fromList (zip notes [0..])
-    , dm_to_note = Map.fromList (zip [0..] notes)
-    , dm_to_nn = Map.fromList (zip [0..] nns)
+degree_map per_octave start_octave start_pc notes_ nns_ = DegreeMap
+    { dm_to_pitch = Map.fromList (zip notes pitches)
+    , dm_to_note = Map.fromList (zip pitches notes)
+    , dm_to_nn = Map.fromList (zip pitches nns)
     , dm_per_octave = per_octave
-    , dm_pitch_to_degree = pitch_to_degree per_octave start_octave start_degree
     }
     where
+    pitches = pitches_from per_octave start_octave start_pc
     -- Guard against an infinite notes or nns.
     (notes, nns) = unzip $ zip notes_ nns_
 
-pitch_to_degree :: Pitch.Degree -> Pitch.Octave -> Pitch.Degree -> Theory.Pitch
-    -> Pitch.Degree
-pitch_to_degree (Pitch.Degree per_octave) start_octave start
-        (Theory.Pitch octave (Theory.Note pc accs)) =
-    Pitch.Degree ((octave - start_octave) * per_octave + pc + accs) - start
+pitches_from :: Theory.PitchClass -> Theory.Octave -> Theory.PitchClass
+    -> [Theory.Pitch]
+pitches_from per_octave start_octave start_pc = drop start_pc
+    [Theory.Pitch oct (Theory.Note pc 0) | oct <- [start_octave..],
+        pc <- [0..per_octave-1]]
 
-type DegreeToNoteNumber = PitchSignal.PitchConfig -> Pitch.Degree
+type PitchToNoteNumber = PitchSignal.PitchConfig -> Theory.Pitch
     -> Either Scale.ScaleError Pitch.NoteNumber
 
 -- * scale functions
 
 read_note :: DegreeMap -> Pitch.Note -> Either Scale.ScaleError Theory.Pitch
-read_note dmap note = case Map.lookup note (dm_to_degree dmap) of
-    Nothing -> Left Scale.UnparseableNote
-    Just (Pitch.Degree degree) -> Right $ Theory.Pitch oct (Theory.Note pc 0)
-        where (oct, pc) = degree `divMod` fromIntegral (dm_per_octave dmap)
+read_note dmap note = maybe (Left Scale.UnparseableNote) Right $
+    Map.lookup note (dm_to_pitch dmap)
 
 show_pitch :: DegreeMap -> Theory.Pitch -> Either Scale.ScaleError Pitch.Note
-show_pitch dmap (Theory.Pitch oct (Theory.Note pc _)) =
-    maybe (Left Scale.UnparseableNote) Right $
-        Map.lookup degree (dm_to_note dmap)
-    where degree = Pitch.Degree $ fromIntegral (dm_per_octave dmap) * oct + pc
+show_pitch dmap pitch = maybe (Left Scale.UnparseableNote) Right $
+    Map.lookup pitch (dm_to_note dmap)
 
 -- ** transpose
 
 transpose :: DegreeMap -> Derive.Transpose
 transpose dmap = \_key octaves steps note -> do
-    note_degree <- maybe (Left Scale.UnparseableNote) Right
-        (Map.lookup note (dm_to_degree dmap))
+    pitch <- maybe (Left Scale.UnparseableNote) Right
+        (Map.lookup note (dm_to_pitch dmap))
     let degrees = case steps of
-            Pitch.Diatonic steps -> d (floor steps)
-            Pitch.Chromatic steps -> d (floor steps)
+            Pitch.Diatonic steps -> floor steps
+            Pitch.Chromatic steps -> floor steps
             Pitch.Nn _ -> 0
+        transposed = Theory.modify_octave (+octaves) $
+            transpose_pitch dmap degrees pitch
     maybe (Left Scale.InvalidTransposition) Right $
-        Map.lookup
-            (note_degree + d octaves * dm_per_octave dmap + degrees)
-            (dm_to_note dmap)
-    where d = Pitch.Degree
+        Map.lookup transposed (dm_to_note dmap)
 
 -- | Transpose function for a non-transposing scale.
 non_transposing :: Derive.Transpose
@@ -148,46 +142,52 @@ mapped_note_to_call :: DegreeMap -> PitchSignal.Scale
     -> Pitch.Note -> Maybe Derive.ValCall
 mapped_note_to_call dmap scale = note_to_call scale dmap to_nn
     where
-    to_nn _config degree =
+    to_nn _config pitch =
         maybe (Left Scale.InvalidTransposition) Right $
-            Map.lookup degree (dm_to_nn dmap)
+            Map.lookup pitch (dm_to_nn dmap)
 
 -- | Create a note call that respects chromatic and diatonic transposition.
 -- However, diatonic transposition is mapped to chromatic transposition,
 -- so this is for scales that don't distinguish.
-note_to_call :: PitchSignal.Scale -> DegreeMap -> DegreeToNoteNumber
+note_to_call :: PitchSignal.Scale -> DegreeMap -> PitchToNoteNumber
     -> Pitch.Note -> Maybe Derive.ValCall
-note_to_call scale dmap degree_to_nn note =
-    case Map.lookup note (dm_to_degree dmap) of
+note_to_call scale dmap pitch_to_nn note =
+    case Map.lookup note (dm_to_pitch dmap) of
         Nothing -> Nothing
-        Just degree -> Just $ ScaleDegree.scale_degree scale
-            (pitch_nn degree) (pitch_note degree)
+        Just pitch -> Just $ ScaleDegree.scale_degree scale
+            (pitch_nn pitch) (pitch_note pitch)
     where
-    pitch_nn :: Pitch.Degree -> Scale.PitchNn
-    pitch_nn (Pitch.Degree degree) config =
+    pitch_nn :: Theory.Pitch -> Scale.PitchNn
+    pitch_nn pitch config =
         scale_to_pitch_error diatonic chromatic $
-            to_note (fromIntegral degree + chromatic + diatonic) config
+            to_note (transpose_pitch dmap steps pitch) frac config
         where
+        (steps, frac) = properFraction (chromatic + diatonic)
         controls = PitchSignal.pitch_controls config
         chromatic = Map.findWithDefault 0 Controls.chromatic controls
         diatonic = Map.findWithDefault 0 Controls.diatonic controls
-    to_note degree config
-        | frac == 0 = to_nn int
-        | otherwise = Num.scale <$> to_nn int <*> to_nn (int+1)
+    to_note pitch frac config
+        | frac == 0 = to_nn pitch
+        | otherwise = Num.scale
+            <$> to_nn pitch
+            <*> to_nn (transpose_pitch dmap 1 pitch)
             <*> return (Pitch.NoteNumber frac)
         where
-        (int, frac) = properFraction degree
-        to_nn = degree_to_nn config . Pitch.Degree . fromIntegral
-    pitch_note :: Pitch.Degree -> Scale.PitchNote
-    pitch_note (Pitch.Degree degree) config =
+        to_nn = pitch_to_nn config
+
+    pitch_note :: Theory.Pitch -> Scale.PitchNote
+    pitch_note pitch config =
         maybe (Left err) Right $ Map.lookup transposed (dm_to_note dmap)
         where
         err = invalid_transposition diatonic chromatic
-        transposed = Pitch.Degree $ round $
-            fromIntegral degree + chromatic + diatonic
+        transposed = transpose_pitch dmap (floor (chromatic + diatonic)) pitch
         chromatic = Map.findWithDefault 0 Controls.chromatic controls
         diatonic = Map.findWithDefault 0 Controls.diatonic controls
         controls = PitchSignal.pitch_controls config
+
+transpose_pitch :: DegreeMap -> Theory.PitchClass -> Theory.Pitch
+    -> Theory.Pitch
+transpose_pitch dmap = Theory.transpose_pitch (dm_per_octave dmap)
 
 lookup_key :: TrackLang.Environ -> Maybe Pitch.Key
 lookup_key = fmap Pitch.Key . TrackLang.maybe_val Environ.key
@@ -222,28 +222,26 @@ type InputToNote = Maybe Pitch.Key -> Pitch.Input -> Maybe Pitch.Note
 input_to_note :: DegreeMap -> InputToNote
 input_to_note dmap _key (Pitch.Input kbd pitch frac) = do
     pitch <- simple_kbd_to_scale dmap kbd pitch
-    let degree = dm_pitch_to_degree dmap pitch
-    note <- Map.lookup degree (dm_to_note dmap)
+    note <- Map.lookup pitch (dm_to_note dmap)
     return $ ScaleDegree.pitch_expr frac note
 
 -- | Input to NoteNumber for scales that have a direct relationship between
 -- Degree and NoteNumber.
 mapped_input_to_nn :: DegreeMap
     -> (ScoreTime -> Pitch.Input -> Derive.Deriver (Maybe Pitch.NoteNumber))
-mapped_input_to_nn dmap =
-    \_pos (Pitch.Input kbd pitch frac) -> return $ do
-        pitch <- simple_kbd_to_scale dmap kbd pitch
-        to_nn (dm_pitch_to_degree dmap pitch) frac
+mapped_input_to_nn dmap = \_pos (Pitch.Input kbd pitch frac) -> return $ do
+    pitch <- simple_kbd_to_scale dmap kbd pitch
+    to_nn pitch frac
     where
-    to_nn degree frac
-        | frac == 0 = lookup degree
+    to_nn pitch frac
+        | frac == 0 = lookup pitch
         | frac > 0 = do
-            nn <- lookup degree
-            next <- lookup (degree + 1)
+            nn <- lookup pitch
+            next <- lookup (transpose_pitch dmap 1 pitch)
             return $ Num.scale nn next (Pitch.NoteNumber frac)
         | otherwise = do
-            nn <- lookup degree
-            prev <- lookup (degree - 1)
+            nn <- lookup pitch
+            prev <- lookup (transpose_pitch dmap (-1) pitch)
             return $ Num.scale prev nn (Pitch.NoteNumber (frac + 1))
     lookup d = Map.lookup d (dm_to_nn dmap)
 
@@ -298,7 +296,7 @@ kbd_to_scale kbd pc_per_octave tonic pitch = case kbd of
     Pitch.PianoKbd -> piano_kbd_pitch tonic pc_per_octave pitch
     Pitch.AsciiKbd -> Just $ ascii_kbd_pitch pc_per_octave pitch
 
--- | Scale octave doesn't match the kbd octave, but is absolute:
+-- Scale octave doesn't match the kbd octave, but is absolute:
 --
 --    C D E F G A B|C D E F G A B
 -- C  1 2 3 4 5 - - 1 2 3 4 5 - -

@@ -44,10 +44,11 @@ absolute_scale = BaliScales.scale_map 5 1 0 BaliScales.ioeua
     (extend umbang) (extend isep)
 
 pemade_scale :: BaliScales.ScaleMap
-pemade_scale = BaliScales.scale_map 5 3 1 BaliScales.ioeua umbang isep
+pemade_scale = BaliScales.scale_map 5 3 1 BaliScales.dotted_ioeua
+    (take 10 umbang) (take 10 isep)
 
 kantilan_scale :: BaliScales.ScaleMap
-kantilan_scale = BaliScales.scale_map 5 4 1 BaliScales.ioeua
+kantilan_scale = BaliScales.scale_map 5 4 1 BaliScales.dotted_ioeua
     (drop 5 umbang) (drop 5 isep)
 
 -- | pemade starts at 3o - 4i - 5i, kanti is 4o - 5i - 6i

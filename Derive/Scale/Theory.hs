@@ -259,7 +259,7 @@ type Accidentals = Int
 data Pitch = Pitch {
     pitch_octave :: !Octave
     , pitch_note :: !Note
-    } deriving (Eq, Show)
+    } deriving (Eq, Ord, Show)
 
 instance Pretty.Pretty Pitch where
     pretty (Pitch oct note) = show oct <> "-" <> Pretty.pretty note
@@ -275,7 +275,7 @@ modify_octave f (Pitch octave note) = Pitch (f octave) note
 
 -- | Transpose a pitch by diatonic steps.  Simpler than 'transpose_diatonic'
 -- in that it doesn't deal with key signatures or non-diatonic scales at all.
-transpose_pitch :: Degree -> Semi -> Pitch -> Pitch
+transpose_pitch :: Degree -> PitchClass -> Pitch -> Pitch
 transpose_pitch per_oct steps (Pitch octave (Note pc accs)) =
     Pitch (oct + octave) (Note pc2 accs)
     where (oct, pc2) = (pc + steps) `divMod` per_oct
@@ -286,7 +286,7 @@ transpose_pitch per_oct steps (Pitch octave (Note pc accs)) =
 data Note = Note {
     note_pc :: !PitchClass
     , note_accidentals :: !Accidentals
-    } deriving (Eq, Show)
+    } deriving (Eq, Ord, Show)
 
 instance Pretty.Pretty Note where
     pretty (Note pc acc) = show pc
