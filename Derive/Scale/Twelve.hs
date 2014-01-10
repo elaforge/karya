@@ -91,23 +91,6 @@ read_absolute_pitch :: Pitch.Note -> Maybe Theory.Pitch
 read_absolute_pitch = either (const Nothing) Just
     . ChromaticScales.read_pitch absolute_scale_map Nothing
 
--- * constants
-
-middle_c :: Pitch.Degree
-middle_c = c4
-
-c3, d3, e3, f3, g3, a3, b3 :: Pitch.Degree
-(c3, d3, e3, f3, g3, a3, b3) = (48, 50, 52, 53, 55, 57, 59)
-
-c4, d4, e4, f4, g4, a4, b4 :: Pitch.Degree
-(c4, d4, e4, f4, g4, a4, b4) = (60, 62, 64, 65, 67, 69, 71)
-
-c5, d5, e5, f5, g5, a5, b5 :: Pitch.Degree
-(c5, d5, e5, f5, g5, a5, b5) = (72, 74, 76, 77, 79, 81, 83)
-
-c6, d6, e6, f6, g6, a6, b6 :: Pitch.Degree
-(c6, d6, e6, f6, g6, a6, b6) = (84, 86, 88, 89, 91, 93, 95)
-
 
 -- * implementation
 

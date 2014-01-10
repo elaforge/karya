@@ -30,7 +30,7 @@ module Perform.Pitch (
 
     -- * Scale
     , ScaleId(..), empty_scale, twelve
-    , Degree(..), Transpose(..), modify_transpose
+    , Transpose(..), modify_transpose
     , Key(Key), key_text
 ) where
 import qualified Data.String as String
@@ -47,7 +47,7 @@ import qualified Derive.ShowVal as ShowVal
 
 
 -- There are many representations for pitch.  The types here are ordered
--- from abstract to concrete.  'Degree', 'NoteNumber', and 'Hz' can be relative
+-- from abstract to concrete.  'NoteNumber' and 'Hz' can be relative
 -- or absolute, but at the moment no distinctions are made at the type level.
 
 -- | Just a way to label an octave, either relative or absolute.
@@ -214,14 +214,6 @@ empty_scale = ""
 
 twelve :: ScaleId
 twelve = "twelve"
-
--- | Scale steps.  What this means is internal to each scale, but is intended
--- to correspond to chromatic steps in the scale.
-newtype Degree = Degree Int
-    deriving (Num, Integral, Real, Enum, Eq, Ord, Show)
-
-instance Pretty.Pretty Degree where
-    pretty (Degree n) = show n
 
 -- | A generic transposition, for operations that can transpose diatonically,
 -- chromatically, or by absolute NoteNumber.

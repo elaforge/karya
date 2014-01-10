@@ -72,8 +72,8 @@ degree_to_nn :: PitchSignal.PitchConfig -> Double -> Pitch.NoteNumber
 degree_to_nn (PitchSignal.PitchConfig env controls) degreef =
     Pitch.hz_to_nn $ Num.scale hz1 hz2 frac
     where
-    hz1 = degree_to_hz base_hz tonic (Pitch.Degree degree)
-    hz2 = degree_to_hz base_hz tonic (Pitch.Degree (degree + 1))
+    hz1 = degree_to_hz base_hz tonic degree
+    hz2 = degree_to_hz base_hz tonic (degree + 1)
     (degree, frac) = properFraction degreef
     base_hz = Map.findWithDefault default_base_hz just_base_control controls
     tonic = Theory.note_to_semis layout $ Theory.key_tonic key
@@ -81,18 +81,15 @@ degree_to_nn (PitchSignal.PitchConfig env controls) degreef =
         key <- Scales.lookup_key env
         Map.lookup key all_keys
 
-degree_to_hz :: Pitch.Hz -> Theory.Semi -> Pitch.Degree -> Pitch.Hz
-degree_to_hz base_hz tonic (Pitch.Degree abs_degree) = oct_base * ratio
+degree_to_hz :: Pitch.Hz -> Theory.Semi -> Theory.Semi -> Pitch.Hz
+degree_to_hz base_hz tonic semis = oct_base * ratio
     where
     oct_base = base_hz * 3 ^^ (octave - Pitch.middle_octave)
     ratio = index_mod just_ratios (degree - tonic)
-    (octave, degree) = abs_degree `divMod` semis_per_octave
+    (octave, degree) = semis `divMod` semis_per_octave
 
 index_mod :: Vector.Vector a -> Int -> a
 index_mod v i = Vector.unsafeIndex v (i `mod` Vector.length v)
-
-middle_a :: Pitch.Degree
-middle_a = Pitch.Degree 60 -- Pitch.middle_degree
 
 default_base_hz :: Pitch.Hz
 default_base_hz = Pitch.middle_c_hz
