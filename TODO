@@ -113,9 +113,9 @@ UNSORTED
         works.
       * ensure that Wayang and Legong scales all have a consistent
         absolute Theory.Pitch parse.
-      - add VTPitch to TrackLang.Val, along with Typecheck instance
-        ParsedPitch?  ConcretePitch?
-      - add Environ.inst_top and Environ.inst_bottom, and use those for
+      * add VTPitch to TrackLang.Val, along with Typecheck instance
+        called VNotePitch, since TTPitch is just terrible.
+      * add Environ.inst_top and Environ.inst_bottom, and use those for
         kempyung
     wayang in octaves
       . I could do it with >wayang-both that emits >wayang-p and >wayang-k. Or

@@ -10,6 +10,15 @@ import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Score as Score
 
 
+test_kempyung = do
+    let run title = derive extract (inst_title <> title <> " | kempyung")
+        extract e = (Score.event_start e, Score.initial_note e)
+        notes = [(0, 1, "4c"), (1, 1, "4d")]
+    equal (run "" notes)
+        ([(0, Just "4c"), (0, Just "4f"), (1, Just "4d"), (1, Just "4g")], [])
+    equal (run " | inst-top = (pitch (4f))" notes)
+        ([(0, Just "4c"), (0, Just "4f"), (1, Just "4d"), (1, Just "4d")], [])
+
 test_nyogcag = do
     let run = derive extract (inst_title <> " | nyog")
         extract e = (Score.event_start e, DeriveTest.e_inst e)

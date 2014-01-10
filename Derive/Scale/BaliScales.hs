@@ -8,6 +8,7 @@ module Derive.Scale.BaliScales where
 import qualified Data.Map as Map
 
 import Util.Control
+import qualified Util.Map as Map
 import qualified Derive.Environ as Environ
 import qualified Derive.PitchSignal as PitchSignal
 import qualified Derive.Scale as Scale
@@ -40,6 +41,12 @@ scale_map per_octave start_octave start_pc notes umbang isep = ScaleMap
     avg = zipWith (\a b -> (a+b) / 2) umbang isep
     make_to_nn = Map.fromList
         . zip (Scales.pitches_from per_octave start_octave start_pc)
+
+scale_top :: ScaleMap -> Maybe Pitch.Pitch
+scale_top = fmap fst . Map.max . (\(NoteNumberMap n _) -> n) . scale_nn_map
+
+scale_bottom :: ScaleMap -> Maybe Pitch.Pitch
+scale_bottom = fmap fst . Map.min . (\(NoteNumberMap n _) -> n) . scale_nn_map
 
 dotted12356 :: [Pitch.Note]
 dotted12356 =

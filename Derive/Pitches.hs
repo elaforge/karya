@@ -45,6 +45,11 @@ pitch_nn :: PitchSignal.Pitch -> Derive.Deriver Pitch.NoteNumber
 pitch_nn = either (Derive.throw . ("evaluating pitch: " ++) . Pretty.pretty)
     return . PitchSignal.pitch_nn
 
+-- | Like 'pitch_nn', but return the Note.
+pitch_note :: PitchSignal.Pitch -> Derive.Deriver Pitch.Note
+pitch_note = either (Derive.throw . ("evaluating pitch: " ++) . Pretty.pretty)
+    return . PitchSignal.pitch_note
+
 constant :: Pitch.NoteNumber -> PitchSignal.Pitch
 constant nn = PitchSignal.pitch PitchSignal.no_scale
     (const (Right nn)) (const $ Right $ Pitch.Note $ Pretty.prettytxt nn)

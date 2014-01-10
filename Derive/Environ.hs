@@ -21,6 +21,19 @@ control = "control"
 instrument :: ValName
 instrument = "inst"
 
+-- | VNotePitch: The top of the instrument's range.
+--
+-- It's a VNotePitch for instruments that are tied to a particular family of
+-- scales, and have an upper note that is independent of any particular
+-- frequency. For instance, a kantilan's top note will have a different
+-- NoteNumber depending on its scale, or even within a single scale, depending
+-- if it is pengumbang or pengisep.
+instrument_top :: ValName
+instrument_top = "inst-top"
+
+instrument_bottom :: ValName
+instrument_bottom = "inst-bottom"
+
 -- | VSymbol: Diatonic transposition often requires a key.  The interpretation
 -- of the value depends on the scale.
 key :: ValName

@@ -51,6 +51,12 @@ kantilan_scale :: BaliScales.ScaleMap
 kantilan_scale = BaliScales.scale_map 5 4 1 BaliScales.dotted_ioeua
     (drop 5 umbang) (drop 5 isep)
 
+pemade_top :: Pitch.Pitch
+Just pemade_top = BaliScales.scale_top pemade_scale
+
+kantilan_top :: Pitch.Pitch
+Just kantilan_top = BaliScales.scale_top kantilan_scale
+
 -- | pemade starts at 3o - 4i - 5i, kanti is 4o - 5i - 6i
 extend :: [Pitch.NoteNumber] -> [Pitch.NoteNumber]
 extend nns =
@@ -103,9 +109,3 @@ isep =
     , 84
     , 86.78 -- kantilan end
     ]
-
-pemade_top :: Pitch.NoteNumber
-pemade_top = max (umbang !! 9) (isep !! 9)
-
-kantilan_top :: Pitch.NoteNumber
-kantilan_top = max (last umbang) (last isep)

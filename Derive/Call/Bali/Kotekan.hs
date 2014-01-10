@@ -13,10 +13,14 @@ import qualified Derive.Call.Post as Post
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Call.Util as Util
 import qualified Derive.Derive as Derive
+import qualified Derive.Deriver.Internal as Internal
+import qualified Derive.Environ as Environ
 import qualified Derive.LEvent as LEvent
 import qualified Derive.PitchSignal as PitchSignal
 import qualified Derive.Pitches as Pitches
+import qualified Derive.Scale as Scale
 import qualified Derive.Score as Score
+import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Sig as Sig
 import qualified Derive.TrackLang as TrackLang
 
@@ -60,32 +64,28 @@ c_unison = Derive.transformer "unison" postproc
 -- the instrument choose how it wants to interpret +kempyung while letting this
 -- call remain generic, but let's face it, it only really means one thing.  The
 -- second seems a little simpler since it doesn't need a cooperating note call.
+--
+-- So postproc it is.
 c_kempyung :: Derive.Transformer Derive.Note
 c_kempyung = Derive.transformer "kempyung" postproc
     "Split part into kempyung, with `polos-inst` below and `sangsih-inst`\
     \ above."
     $ Sig.callt ((,)
-    <$> Sig.defaulted "top" Nothing
-        "Any pitches above this will be in unison. Normally the instrument\
-        \ sets it via the environ."
-    <*> pasang_env
-    ) $ \(top_pitch, (polos, sangsih)) _args deriver -> do
+    <$> instrument_top_env <*> pasang_env
+    ) $ \(maybe_top, (polos, sangsih)) _args deriver -> do
         inst <- Util.get_instrument
-        maybe_top <- case top_pitch of
-            Nothing -> return Nothing
-            Just pitch -> Just <$>
-                Derive.with_instrument sangsih (Pitches.pitch_nn pitch)
-        Post.map_events_asc_ (kempyung maybe_top inst polos sangsih) <$> deriver
+        scale <- Util.get_scale
+        let too_high = pitch_too_high scale maybe_top
+        Post.map_events_asc_ (kempyung too_high inst polos sangsih) <$> deriver
     where
-    kempyung maybe_top inst polos sangsih event
+    kempyung too_high inst polos sangsih event
         | Score.event_instrument event == inst =
             [ event { Score.event_instrument = polos }
-            , transpose maybe_top $ event { Score.event_instrument = sangsih }
+            , transpose too_high $ event { Score.event_instrument = sangsih }
             ]
         | otherwise = [event]
-    transpose maybe_top event
-        | Just top <- maybe_top, Just nn <- Score.initial_nn transposed,
-            nn > top = event
+    transpose too_high event
+        | too_high transposed = event
         | otherwise = transposed
         where
         transposed = event
@@ -94,10 +94,18 @@ c_kempyung = Derive.transformer "kempyung" postproc
                     (Score.event_pitch event)
             }
 
+pitch_too_high :: Scale.Scale -> Maybe Pitch.Pitch -> Score.Event -> Bool
+pitch_too_high scale maybe_top event = fromMaybe False $ do
+    top <- maybe_top
+    note <- Score.initial_note event
+    pitch <- either (const Nothing) Just $
+        Scale.scale_read scale Nothing note
+    return $ pitch > top
+
 c_nyogcag :: Derive.Transformer Derive.Note
 c_nyogcag = Derive.transformer "nyog" postproc
     "Split a single part into polos and sangsih parts by assigning\
-    \ `inst-polos` and `inst-sangsih` to alternating notes."
+    \ polos and sangsih to alternating notes."
     $ Sig.callt pasang_env $ \(polos, sangsih) _args deriver ->
         snd . Post.map_events_asc (nyogcag polos sangsih) True <$> deriver
 
@@ -143,6 +151,12 @@ noltol threshold nexts event
     next = Score.event_start <$>
         List.find ((== Score.event_instrument event) . Score.event_instrument)
             nexts
+
+instrument_top_env :: Sig.Parser (Maybe Pitch.Pitch)
+instrument_top_env =
+    Sig.environ (TrackLang.unsym Environ.instrument_top) Sig.Unprefixed Nothing
+        "Top pitch this instrument can play. Normally the instrument sets\
+        \ it via the instrument environ."
 
 pasang_env :: Sig.Parser (Score.Instrument, Score.Instrument)
 pasang_env = (,)

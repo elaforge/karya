@@ -505,6 +505,7 @@ eval_val cinfo val = case val of
     TrackLang.VAttributes a -> return $ TrackLang.VAttributes a
     TrackLang.VControl a -> return $ TrackLang.VControl a
     TrackLang.VPitch a -> return $ TrackLang.VPitch a
+    TrackLang.VNotePitch a -> return $ TrackLang.VNotePitch a
     TrackLang.VInstrument a -> return $ TrackLang.VInstrument a
     TrackLang.VSymbol a -> return $ TrackLang.VSymbol a
     TrackLang.VQuoted a -> return $ TrackLang.VQuoted a

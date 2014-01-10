@@ -23,6 +23,7 @@ import qualified Derive.Derive as Derive
 import qualified Derive.LEvent as LEvent
 import qualified Derive.PitchSignal as PitchSignal
 import qualified Derive.Pitches as Pitches
+import qualified Derive.Scale as Scale
 import qualified Derive.Score as Score
 import qualified Derive.Sig as Sig
 import Derive.Sig (defaulted, required)
@@ -48,6 +49,7 @@ val_calls = Derive.make_calls
     , ("hz", c_hz)
     , ("st", c_scoretime)
     , ("rt", c_realtime)
+    , ("pitch", c_pitch)
 
     -- lookup
     , ("#", c_pitch_signal)
@@ -171,6 +173,32 @@ c_realtime = Derive.val_call "realtime" mempty
     \ value remains the same." $
     Sig.call (Sig.required_env "val" Sig.None "") $ \val _ ->
         return $ RealTime.seconds val
+
+c_pitch :: Derive.ValCall
+c_pitch = Derive.val_call "pitch" mempty "Create a 'Perform.Pitch.Pitch'."
+    $ Sig.call ((,,)
+    <$> Sig.defaulted_env "oct" Sig.None (Left 0)
+        "Octave, or a pitch name or pitch. If it's a pitch name or pitch, the\
+        \ `pc` and `accs` args must be 0."
+    <*> Sig.defaulted_env "pc" Sig.None 0 "Pitch class."
+    <*> Sig.defaulted_env "accs" Sig.None 0 "Accidentals."
+    ) $ \(oct, pc, accs) _ -> make_pitch oct pc accs
+        -- return $ Pitch.Pitch oct (Pitch.Degree pc accs)
+
+make_pitch :: Either Pitch.Octave (Either Text PitchSignal.Pitch)
+    -> Pitch.PitchClass -> Pitch.Accidentals -> Derive.Deriver Pitch.Pitch
+make_pitch (Left oct) pc accs = return $ Pitch.Pitch oct (Pitch.Degree pc accs)
+make_pitch (Right name_pitch) pc accs
+    | pc /= 0 || accs /= 0 = Derive.throw $
+        "pc and accs args must be 0 when a pitch is given: " ++ show (pc, accs)
+    | otherwise = do
+        (note, scale) <- case name_pitch of
+            Left name -> (,) <$> return (Pitch.Note name) <*> Util.get_scale
+            Right pitch -> (,) <$> Pitches.pitch_note pitch
+                <*> Derive.get_scale (PitchSignal.pitch_scale_id pitch)
+        key <- Util.lookup_key
+        either (Derive.throw . Pretty.pretty) return $
+            Scale.scale_read scale key note
 
 -- * lookup
 

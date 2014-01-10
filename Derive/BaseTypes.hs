@@ -322,6 +322,13 @@ data ValType pitch =
 
     -- | No literal, but is returned from val calls, notably scale calls.
     | VPitch !Pitch
+
+    -- | A parsed 'Pitch.Note'.  This is useful for things for which a textual
+    -- 'Pitch.Note' is too high level and a numerical 'Pitch.NoteNumber' is too
+    -- low level, like instrument ranges.
+    --
+    -- Literal: @(pitch 4 0 1)@ -> 4c#.
+    | VNotePitch !Pitch.Pitch
     -- | Sets the instrument in scope for a note.  An empty instrument doesn't
     -- set the instrument, but can be used to mark a track as a note track.
     --
@@ -365,6 +372,7 @@ instance (ShowVal.ShowVal pitch) => ShowVal.ShowVal (ValType pitch) where
         VControl control -> ShowVal.show_val control
         VPitchControl control -> ShowVal.show_val control
         VPitch pitch -> ShowVal.show_val pitch
+        VNotePitch pitch -> ShowVal.show_val pitch
         VInstrument inst -> ShowVal.show_val inst
         VSymbol sym -> ShowVal.show_val sym
         VQuoted quoted -> ShowVal.show_val quoted

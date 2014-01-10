@@ -8,6 +8,8 @@ import qualified Cmd.CmdTest as CmdTest
 import qualified Cmd.ModifyEvents as ModifyEvents
 import qualified Cmd.Repl.LPitch as LPitch
 
+import qualified Perform.Pitch as Pitch
+
 
 test_change_scale = do
     let run scale pitches to_scale = e_pitch $

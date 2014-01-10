@@ -67,7 +67,7 @@ test_wayang_kempyung = do
         ([ (umbang, (0, 1, "4e")), (isep, (0, 1, "5i"))
          , (umbang, (1, 1, "4u")), (isep, (1, 1, "4u"))
          ], [])
-    equal (run "-p" " | kempyung-top = (4a)" [(0, 1, "4o"), (1, 1, "4e")])
+    equal (run "-p" " | inst-top = (pitch (4a))" [(0, 1, "4o"), (1, 1, "4e")])
         ([ (umbang, (0, 1, "4o")), (isep, (0, 1, "4a"))
          , (umbang, (1, 1, "4e")), (isep, (1, 1, "4e"))
          ], [])

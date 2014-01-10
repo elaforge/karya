@@ -34,6 +34,7 @@ module Perform.Pitch (
     , Key(Key), key_text
 ) where
 import qualified Data.String as String
+import qualified Data.Text as Text
 import qualified Text.ParserCombinators.ReadP as ReadP
 import qualified Text.Read as Read
 
@@ -71,6 +72,12 @@ data Pitch = Pitch {
 
 instance Pretty.Pretty Pitch where
     pretty (Pitch oct degree) = show oct <> "-" <> Pretty.pretty degree
+
+-- | This relies on the presence of a @pitch@ val call.
+instance ShowVal.ShowVal Pitch where
+    show_val (Pitch oct (Degree pc accs)) =
+        "(pitch" <> Text.unwords (map showt (filter (/=0) [oct, pc, accs]))
+            <> ")"
 
 -- | A scale degree, without reference to an octave.
 data Degree = Degree {

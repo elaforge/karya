@@ -159,7 +159,7 @@ instance (ShowVal a, ShowVal b) => ShowVal (Either a b) where
 -- * types
 
 data Type = TNum NumType NumValue
-    | TAttributes | TControl | TPitchControl | TPitch | TInstrument
+    | TAttributes | TControl | TPitchControl | TPitch | TNotePitch | TInstrument
     -- | Text string, with enum values if it's an enum.
     | TSymbol (Maybe [Text])
     | TNotGiven | TMaybe Type | TEither Type Type | TVal
@@ -228,6 +228,7 @@ type_of val = case val of
     VControl {} -> TControl
     VPitchControl {} -> TPitchControl
     VPitch {} -> TPitch
+    VNotePitch {} -> TNotePitch
     VInstrument {} -> TInstrument
     VSymbol {} -> TSymbol Nothing
     VQuoted {} -> TQuoted
@@ -511,6 +512,12 @@ instance Typecheck PitchSignal.Pitch where
     from_val _ = Nothing
     to_val = VPitch
     to_type _ = TPitch
+
+instance Typecheck Pitch.Pitch where
+    from_val (VNotePitch a) = Just a
+    from_val _ = Nothing
+    to_val = VNotePitch
+    to_type _ = TNotePitch
 
 instance Typecheck Score.Instrument where
     from_val (VInstrument a) = Just a
