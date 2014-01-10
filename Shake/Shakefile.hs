@@ -483,7 +483,7 @@ configHeaderRule = matchBuildDir "hsconfig.h" ?> \fn -> do
     useRepl <- Shake.askOracle (Question () :: Question ReplQ)
     useRepl <- return $ useRepl && targetToMode fn /= Just Test
     midiDriver <- Shake.askOracle (Question () :: Question MidiQ)
-    Shake.writeFile' fn $ unlines
+    Shake.writeFileChanged fn $ unlines
         [ "/* Created automatically by the shakefile. */"
         , "#ifndef __HSCONFIG_H"
         , "#define __HSCONFIG_H"
@@ -692,8 +692,6 @@ makeHs dir out main = ("GHC-MAKE", out, cmdline)
 -- | Build a haskell binary.
 buildHs :: Config -> [FilePath] -> FilePath -> FilePath -> Shake.Action ()
 buildHs config deps hs fn = do
-    -- I need the include to record its dependency.
-    need [buildDir config </> "hsconfig.h"]
     srcs <- HsDeps.transitiveImportsOf (cppFlags config) hs
     let ccs = List.nub $
             concat [Map.findWithDefault [] src hsToCc | src <- srcs]

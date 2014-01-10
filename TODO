@@ -53,7 +53,7 @@ UNSORTED
     It is emitting 32nd notes instead of tuplets, caused by the +spic sub
     call.
   - `mordent` is a pain to type, abbreviate to `mord`?
-  - shakefile: changing repl env var causes relink of things that don't rely
+  * shakefile: changing repl env var causes relink of things that don't rely
     on it, e.g. logview
   - Corrupted views save in git repo is still happening.  How?
     Could this be related to the shake database corruption?
