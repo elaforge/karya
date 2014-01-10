@@ -9,7 +9,7 @@ UNSORTED
     While Pitch.Abstract might read nicely, abstracts = [Pitch.Abstract ...]
     sure doesn't.  Maybe keep Pitch after all.  Pitch.Pitch.  But need a new
     name for Note.  Degree is ok if there are no users of the old Degree.
-  - instance IsString Pitch.Note
+  * instance IsString Pitch.Note
   - scale introduced val calls should go first
     They do, but pitch calls always go before the val call fallback.
     Maybe I could eliminate the fallabck, and instead have scales also

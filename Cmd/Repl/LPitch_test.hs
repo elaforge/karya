@@ -8,8 +8,6 @@ import qualified Cmd.CmdTest as CmdTest
 import qualified Cmd.ModifyEvents as ModifyEvents
 import qualified Cmd.Repl.LPitch as LPitch
 
-import qualified Perform.Pitch as Pitch
-
 
 test_change_scale = do
     let run scale pitches to_scale = e_pitch $
@@ -21,8 +19,7 @@ test_change_scale = do
 test_to_relative = do
     let run scale pitches diatonic base = e_pitch $
             CmdTest.run_tracks (pitch_track scale pitches) $
-                ModifyEvents.all_blocks $ LPitch.to_relative diatonic
-                    (Pitch.Note base)
+                ModifyEvents.all_blocks $ LPitch.to_relative diatonic base
     equal (run "twelve" ["4c", "4d", "5c"] True "4c") $
         Right (("*twelve", ["0", "1", "7"]), [])
     equal (run "twelve" ["4c", "4d", "5c"] False "4c") $

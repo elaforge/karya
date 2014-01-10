@@ -148,12 +148,12 @@ test_input_to_nn = do
 
 test_transpose = do
     let f = JustScales.transpose TheoryFormat.absolute_c Nothing
-    equal [f 0 (Pitch.Chromatic n) (Pitch.Note "4a") | n <- [0..2]] $
-        map (Right . Pitch.Note) ["4a", "4b", "5c"]
-    equal [f n (Pitch.Chromatic 0) (Pitch.Note "4a") | n <- [0..2]] $
-        map (Right . Pitch.Note) ["4a", "5a", "6a"]
+    equal [f 0 (Pitch.Chromatic n) "4a" | n <- [0..2]] $
+        map Right ["4a", "4b", "5c"]
+    equal [f n (Pitch.Chromatic 0) "4a" | n <- [0..2]] $
+        map Right ["4a", "5a", "6a"]
 
 test_transpose_relative = do
     let f = JustScales.transpose (TheoryFormat.sargam Just.relative_fmt) Nothing
-    equal [f 0 (Pitch.Chromatic n) (Pitch.Note "4s") | n <- [0..2]] $
-        map (Right . Pitch.Note) ["4s", "4r", "4g"]
+    equal [f 0 (Pitch.Chromatic n) "4s" | n <- [0..2]] $
+        map Right ["4s", "4r", "4g"]

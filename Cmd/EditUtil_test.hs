@@ -18,7 +18,7 @@ test_modify_text_key = do
     equal (f ' ' "") (Just "")
 
 test_modify_text_note = do
-    let f n = EditUtil.modify_text_note (Pitch.Note n)
+    let f = EditUtil.modify_text_note
     equal (f "abc" "") (Just "(abc)")
     equal (f "abc" "a") (Just "a (abc)")
 
@@ -36,7 +36,5 @@ test_input_to_note = do
             UiTest.default_block_id (UiTest.mk_tid 2) Wayang.scale_id
     let f = EditUtil.input_to_note
     let input = Pitch.Input Pitch.PianoKbd Pitch.middle_c 0
-    equal (run (f input))
-        (Right (Just (Pitch.Note "4c"), []))
-    equal (run (set_env >> f input))
-        (Right (Just (Pitch.Note "4i"), []))
+    equal (run (f input)) (Right (Just "4c", []))
+    equal (run (set_env >> f input)) (Right (Just "4i", []))

@@ -50,7 +50,7 @@ import qualified Derive.ShowVal as ShowVal
 -- | A Note is the most abstract representation of pitch, in that it's simply
 -- an unparsed bit of text representing that pitch.  Given a Scale, it's
 -- expected to name a val call exported by that scale.
-newtype Note = Note Text deriving (Eq, Ord, Show)
+newtype Note = Note Text deriving (Eq, Ord, Show, String.IsString)
 
 note_text :: Note -> Text
 note_text (Note s) = s
