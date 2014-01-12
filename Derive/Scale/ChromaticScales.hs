@@ -84,15 +84,13 @@ make_scale scale_map scale_id doc = Scale.Scale
 -- * functions
 
 transpose :: ScaleMap -> Derive.Transpose
-transpose smap maybe_key octaves steps note = do
-    pitch <- Pitch.add_octave octaves <$> read_pitch smap maybe_key note
+transpose smap transposition maybe_key steps pitch = do
     key <- read_key smap maybe_key
-    case steps of
-        Pitch.Chromatic steps -> show_pitch smap maybe_key $
-            Theory.transpose_chromatic key (floor steps) pitch
-        Pitch.Diatonic steps -> show_pitch smap maybe_key $
-            Theory.transpose_diatonic key (floor steps) pitch
-        Pitch.Nn _ -> Right note
+    return $ t key steps pitch
+    where
+    t = case transposition of
+        Scale.Chromatic -> Theory.transpose_chromatic
+        Scale.Diatonic -> Theory.transpose_diatonic
 
 enharmonics :: ScaleMap -> Derive.Enharmonics
 enharmonics smap maybe_key note = do

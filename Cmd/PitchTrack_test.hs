@@ -13,6 +13,7 @@ import qualified Cmd.Cmd as Cmd
 import qualified Cmd.CmdTest as CmdTest
 import qualified Cmd.PitchTrack as PitchTrack
 
+import qualified Derive.Scale as Scale
 import qualified Perform.NN as NN
 import qualified Perform.Pitch as Pitch
 import Types
@@ -84,8 +85,7 @@ test_modify_note = do
     equal (f "x = (y)") (Right "x = (y)")
 
 test_transpose_selection = do
-    let f octs steps = PitchTrack.transpose_selection octs
-            (Pitch.Chromatic steps)
+    let f = PitchTrack.transpose_selection Scale.Chromatic
         run events = run_tracks [("*", events)]
     equal (run [(0, 0, "4c")] 0 0 (f 0 1)) $ Right [("*", [(0, 0, "4c#")])]
     equal (run [(0, 0, "4c"), (1, 0, "5e")] 0 2 (f 1 0)) $ Right

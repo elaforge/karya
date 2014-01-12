@@ -42,18 +42,12 @@ negate_event event =
 -- * transpose
 
 -- | Chromatic transposition.
-transpose_c :: Pitch.Octave -> Double -> Cmd.CmdL ()
-transpose_c oct steps =
-    PitchTrack.transpose_selection oct (Pitch.Chromatic steps)
+transpose_c :: Pitch.Octave -> Pitch.Step -> Cmd.CmdL ()
+transpose_c = PitchTrack.transpose_selection Scale.Chromatic
 
 -- | Diatonic transposition.
-transpose_d :: Pitch.Octave -> Double -> Cmd.CmdL ()
-transpose_d oct steps =
-    PitchTrack.transpose_selection oct (Pitch.Diatonic steps)
-
-transpose_all :: Pitch.Octave -> Pitch.Transpose -> Cmd.CmdL ()
-transpose_all octs steps = ModifyEvents.all_blocks $ PitchTrack.pitch_tracks $
-    PitchTrack.transpose octs steps
+transpose_d :: Pitch.Octave -> Pitch.Step -> Cmd.CmdL ()
+transpose_d = PitchTrack.transpose_selection Scale.Diatonic
 
 -- * modify pitches
 

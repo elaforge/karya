@@ -36,10 +36,9 @@ scales :: [Scale.Scale]
 scales = [scale, relative_scale]
 
 scale :: Scale.Scale
-scale =
-    (ChromaticScales.make_scale absolute_scale_map scale_id
-        "The world-famous equal tempered twelve note scale.\n")
-    { Scale.scale_input_to_nn = Scales.direct_input_to_nn }
+scale = Scales.set_direct_input_to_nn $
+    ChromaticScales.make_scale absolute_scale_map scale_id
+        "The world-famous equal tempered twelve note scale."
 
 relative_scale :: Scale.Scale
 relative_scale = ChromaticScales.make_scale relative_scale_map "twelve-r"

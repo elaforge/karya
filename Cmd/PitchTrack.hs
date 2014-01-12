@@ -202,12 +202,14 @@ modify_expr f text = case ParseBs.parse_expr (ParseBs.from_text text) of
 type ModifyPitch =
     Scale.Scale -> Maybe Pitch.Key -> Pitch.Note -> Either String Pitch.Note
 
-transpose_selection :: (Cmd.M m) => Pitch.Octave -> Pitch.Transpose -> m ()
-transpose_selection oct steps = pitches (transpose oct steps)
+transpose_selection :: (Cmd.M m) => Scale.Transposition -> Pitch.Octave
+    -> Pitch.Step -> m ()
+transpose_selection transposition oct steps =
+    pitches $ transpose transposition oct steps
 
-transpose :: Pitch.Octave -> Pitch.Transpose -> ModifyPitch
-transpose octaves steps scale maybe_key note =
-    case Scale.scale_transpose scale maybe_key octaves steps note of
+transpose :: Scale.Transposition -> Pitch.Octave -> Pitch.Step -> ModifyPitch
+transpose transposition octaves steps = \scale key note ->
+    case Scale.transpose transposition scale key octaves steps note of
         -- Leave non-pitches alone.
         Left Scale.UnparseableNote -> Right note
         Left err -> Left (show err)

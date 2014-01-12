@@ -145,15 +145,3 @@ test_input_to_nn = do
         Right (Just NN.middle_c)
     equalf 0.01 (DeriveTest.eval State.empty $ f (input 1)) $
         Right $ Just $ Pitch.modify_hz (* (9/8)) NN.middle_c
-
-test_transpose = do
-    let f = JustScales.transpose TheoryFormat.absolute_c Nothing
-    equal [f 0 (Pitch.Chromatic n) "4a" | n <- [0..2]] $
-        map Right ["4a", "4b", "5c"]
-    equal [f n (Pitch.Chromatic 0) "4a" | n <- [0..2]] $
-        map Right ["4a", "5a", "6a"]
-
-test_transpose_relative = do
-    let f = JustScales.transpose (TheoryFormat.sargam Just.relative_fmt) Nothing
-    equal [f 0 (Pitch.Chromatic n) "4s" | n <- [0..2]] $
-        map Right ["4s", "4r", "4g"]

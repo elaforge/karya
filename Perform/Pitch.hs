@@ -14,7 +14,7 @@ module Perform.Pitch (
 
     -- * Pitch
     , Pitch(..), Degree(..)
-    , Octave, PitchClass, Accidentals, Semi
+    , Octave, PitchClass, Accidentals, Semi, Step
     , pitch_accidentals, pitch_pc
     , add_octave, add_pc
     , middle_octave, middle_c
@@ -106,6 +106,13 @@ type Accidentals = Int
 -- steps.  If the scale has no concept of chromatic steps, then it's just scale
 -- steps.
 type Semi = Int
+
+-- | Like Semi, but could be diatonic or chromatic.
+--
+-- TODO I use PitchClass for diatonic steps, even though it's meant to be an
+-- absolute measure.  I don't separate absolute and relative types in general
+-- anyway, but perhaps Semi should be merged with Step.
+type Step = Int
 
 pitch_accidentals :: Pitch -> Accidentals
 pitch_accidentals = degree_accidentals . pitch_degree

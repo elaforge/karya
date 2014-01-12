@@ -6,8 +6,10 @@ module Derive.Scale.ChromaticScales_test where
 import Util.Control
 import Util.Test
 import qualified Cmd.CmdTest as CmdTest
+import qualified Derive.Scale as Scale
 import qualified Derive.Scale.ChromaticScales as ChromaticScales
 import qualified Derive.Scale.Twelve as Twelve
+
 import qualified Perform.Pitch as Pitch
 
 
@@ -24,13 +26,15 @@ test_input_to_note = do
         ["4g", "4g#", "4m"]
 
 test_transpose = do
-    let f smap key octs steps note =
-            ChromaticScales.transpose smap
-                (Just (Pitch.Key key)) octs steps note
+    let f smap key_ trans steps =
+            ChromaticScales.show_pitch smap key
+                <=< ChromaticScales.transpose smap trans key steps
+                <=< ChromaticScales.read_pitch smap key
+            where key = Just (Pitch.Key key_)
         rel = Twelve.relative_scale_map
         abs = Twelve.absolute_scale_map
-    equal [f abs "f#-min" 0 (Pitch.Diatonic n) "4f#" | n <- [0..4]] $
+    equal [f abs "f#-min" Scale.Diatonic n "4f#" | n <- [0..4]] $
         map Right ["4f#", "4g#", "4a", "4b", "5c#"]
-    equal [f rel "f#-min" 0 (Pitch.Diatonic n) "4s" | n <- [0..4]] $
+    equal [f rel "f#-min" Scale.Diatonic n "4s" | n <- [0..4]] $
         map Right ["4s", "4r", "4g", "4m", "4p"]
-    equal (f rel "f#-min" 0 (Pitch.Diatonic 2) "4s") (Right "4g")
+    equal (f rel "f#-min" Scale.Diatonic 2 "4s") (Right "4g")

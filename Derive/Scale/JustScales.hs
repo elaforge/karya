@@ -149,16 +149,9 @@ input_to_note smap maybe_key (Pitch.Input kbd pitch _frac) = do
 
 -- * transpose
 
-transpose :: TheoryFormat.Format -> Maybe Pitch.Key -> Pitch.Octave
-    -> Pitch.Transpose -> Pitch.Note -> Either Scale.ScaleError Pitch.Note
-transpose fmt key oct transpose note = do
-    pitch <- TheoryFormat.read_pitch fmt key note
-    let steps = floor $ case transpose of
-            Pitch.Chromatic steps -> steps
-            Pitch.Diatonic steps -> steps
-            Pitch.Nn _ -> 0
-    Right $ TheoryFormat.show_pitch fmt key $
-        Pitch.add_pc per_oct (oct * per_oct + steps) pitch
+transpose :: TheoryFormat.Format -> Derive.Transpose
+transpose fmt _transposition _key steps pitch =
+    return $ Pitch.add_pc per_oct steps pitch
     where per_oct = TheoryFormat.fmt_pc_per_octave fmt
 
 -- * note_to_call

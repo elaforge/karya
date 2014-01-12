@@ -111,7 +111,8 @@ module Derive.Deriver.Monad (
     -- * scale
     -- $scale_doc
     , Scale(..)
-    , LookupScale, Transpose, Enharmonics, Layout, ScaleError(..)
+    , LookupScale, Transpose, Transposition(..), Enharmonics, Layout
+    , ScaleError(..)
 
     -- * testing
     , invalidate_damaged
@@ -1374,10 +1375,6 @@ data Scale = Scale {
     , scale_show :: Maybe Pitch.Key -> Pitch.Pitch
         -> Either ScaleError Pitch.Note
     , scale_layout :: !Layout
-
-    -- | Transpose a Note by a given number of octaves and integral degrees.
-    -- Will be nothing if the pitch is out of range, or the scale doesn't have
-    -- octaves.
     , scale_transpose :: !Transpose
     , scale_enharmonics :: !Enharmonics
 
@@ -1410,8 +1407,12 @@ instance Pretty.Pretty Scale where
     pretty = Pretty.pretty . scale_id
 
 type LookupScale = Pitch.ScaleId -> Maybe Scale
-type Transpose = Maybe Pitch.Key -> Pitch.Octave -> Pitch.Transpose
-    -> Pitch.Note -> Either ScaleError Pitch.Note
+
+-- | Scales may ignore Transposition if they don't support it.
+type Transpose = Transposition -> Maybe Pitch.Key -> Pitch.Step -> Pitch.Pitch
+    -> Either ScaleError Pitch.Pitch
+
+data Transposition = Chromatic | Diatonic deriving (Show)
 
 -- | Get the enharmonics of the note.  The given note is omitted, and the
 -- enharmonics are in ascending order until they wrap around, so if you always

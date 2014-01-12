@@ -6,7 +6,6 @@ module Derive.Scale.Octa where
 import qualified Data.Map as Map
 import qualified Data.Vector.Unboxed as Vector
 
-import qualified Derive.PitchSignal as PitchSignal
 import qualified Derive.Scale as Scale
 import qualified Derive.Scale.ChromaticScales as ChromaticScales
 import qualified Derive.Scale.Scales as Scales
@@ -55,30 +54,14 @@ relative_fmt keys = make $ TheoryFormat.RelativeFormat
 
 make_scale :: Pitch.ScaleId -> Theory.Layout -> ChromaticScales.Keys
     -> TheoryFormat.Format -> Scale.Scale
-make_scale scale_id layout keys fmt = Scale.Scale
-    { Scale.scale_id = scale_id
-    , Scale.scale_pattern = TheoryFormat.fmt_pattern fmt
-    , Scale.scale_symbols = []
-    , Scale.scale_transposers = Scales.standard_transposers
-    , Scale.scale_read = ChromaticScales.read_pitch scale_map
-    , Scale.scale_show = ChromaticScales.show_pitch scale_map
-    , Scale.scale_layout =
-        Theory.layout_intervals (ChromaticScales.smap_layout scale_map)
-    , Scale.scale_transpose = ChromaticScales.transpose scale_map
-    , Scale.scale_enharmonics = ChromaticScales.enharmonics scale_map
-    , Scale.scale_note_to_call = ChromaticScales.note_to_call scale scale_map
-    , Scale.scale_input_to_note = ChromaticScales.input_to_note scale_map
-    , Scale.scale_input_to_nn = Scales.direct_input_to_nn
-    , Scale.scale_call_doc =
-        ChromaticScales.call_doc Scales.standard_transposers scale_map
-            "Octatonic scales as true 8 note scales, using notes from a-h.\
-            \ There are two variants: octa21 starts with a whole step, while\
-            \ octa12 starts with a half-step."
-    }
+make_scale scale_id layout keys fmt = Scales.set_direct_input_to_nn $
+    ChromaticScales.make_scale scale_map scale_id doc
     where
     scale_map = ChromaticScales.scale_map layout fmt keys default_tkey
-    scale = PitchSignal.Scale scale_id Scales.standard_transposers
     Just default_tkey = Map.lookup default_key keys
+    doc = "Octatonic scales as true 8 note scales, using notes from a-h.\
+        \ There are two variants: octa21 starts with a whole step, while\
+        \ octa12 starts with a half-step."
 
 default_key :: Pitch.Key
 default_key = Pitch.Key "a"

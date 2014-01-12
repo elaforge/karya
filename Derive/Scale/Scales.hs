@@ -37,9 +37,9 @@ import Types
 -- | Make a simple scale where there is a direct mapping from input to note to
 -- nn.
 make_scale :: DegreeMap -> Pitch.ScaleId -> Text -> Text -> Scale.Scale
-make_scale dmap scale_id note_pattern doc = Scale.Scale
+make_scale dmap scale_id pattern doc = Scale.Scale
     { Scale.scale_id = scale_id
-    , Scale.scale_pattern = note_pattern
+    , Scale.scale_pattern = pattern
     , Scale.scale_symbols = []
     , Scale.scale_transposers = standard_transposers
     , Scale.scale_read = const $ read_note dmap
@@ -113,16 +113,10 @@ show_pitch dmap pitch = maybe (Left Scale.UnparseableNote) Right $
 -- ** transpose
 
 transpose :: DegreeMap -> Derive.Transpose
-transpose dmap = \_key octaves steps note -> do
-    pitch <- maybe (Left Scale.UnparseableNote) Right
-        (Map.lookup note (dm_to_pitch dmap))
-    let degrees = case steps of
-            Pitch.Diatonic steps -> floor steps
-            Pitch.Chromatic steps -> floor steps
-            Pitch.Nn _ -> 0
-        transposed = Pitch.add_octave octaves $ add_pc dmap degrees pitch
-    maybe (Left Scale.InvalidTransposition) Right $
-        Map.lookup transposed (dm_to_note dmap)
+transpose dmap _transposition _key steps pitch
+    | Map.member result (dm_to_note dmap) = Right result
+    | otherwise = Left Scale.InvalidTransposition
+    where result = add_pc dmap steps pitch
 
 -- | Transpose function for a non-transposing scale.
 non_transposing :: Derive.Transpose
@@ -242,6 +236,10 @@ mapped_input_to_nn dmap = \_pos (Pitch.Input kbd pitch frac) -> return $ do
             prev <- lookup (add_pc dmap (-1) pitch)
             return $ Num.scale prev nn (Pitch.NoteNumber (frac + 1))
     lookup d = Map.lookup d (dm_to_nn dmap)
+
+set_direct_input_to_nn :: Scale.Scale -> Scale.Scale
+set_direct_input_to_nn scale = scale
+    { Scale.scale_input_to_nn = direct_input_to_nn }
 
 -- | An Input maps directly to a NoteNumber.  This is an efficient
 -- implementation for scales tuned to 12TET.

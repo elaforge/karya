@@ -69,33 +69,17 @@ dotted_ioeua = [Pitch.Note $ vowel <> oct
     | oct <- ["_", "-", "^"], vowel <- ["i", "o", "e", "u", "a"]]
 
 make_scale :: Text -> Pitch.ScaleId -> ScaleMap -> Scale.Scale
-make_scale scale_pattern scale_id (ScaleMap dmap nn_map) = Scale.Scale
-    { Scale.scale_id = scale_id
-    , Scale.scale_pattern = scale_pattern
-    -- loaded from Derive.Scale.Symbols
-    , Scale.scale_symbols = []
-    -- I don't put %ombak into the transposers, this means changes in ombak
-    -- take effect at the beginning of each note, but won't retune a sounding
-    -- one.
-    , Scale.scale_transposers = Scales.standard_transposers
-    , Scale.scale_read = const $ Scales.read_note dmap
-    , Scale.scale_show = const $ Scales.show_pitch dmap
-    , Scale.scale_layout =
-        Scale.diatonic_layout (fromIntegral (Scales.dm_per_octave dmap))
-    , Scale.scale_transpose = Scales.transpose dmap
-    , Scale.scale_enharmonics = Scales.no_enharmonics
-    , Scale.scale_note_to_call = note_to_call
+make_scale scale_pattern scale_id (ScaleMap dmap nn_map) =
+    (Scales.make_scale dmap scale_id scale_pattern doc)
+    { Scale.scale_note_to_call = note_to_call
     , Scale.scale_input_to_note = input_to_note
     , Scale.scale_input_to_nn =
         Scales.computed_input_to_nn input_to_note note_to_call
-    , Scale.scale_call_doc =
-        Scales.call_doc Scales.standard_transposers dmap doc
     }
+    -- I don't put %ombak into the transposers, this means changes in ombak
+    -- take effect at the beginning of each note, but won't retune a sounding
+    -- one.
     where
-    note_to_call = Scales.note_to_call scale dmap $
-        degree_to_nn (Scales.dm_to_nn dmap) nn_map
-    input_to_note = Scales.input_to_note dmap
-    scale = PitchSignal.Scale scale_id Scales.standard_transposers
     doc =
         "Balinese scales come in detuned pairs. They use the `tuning` env var\
         \ to select between pengumbang and pengisep tuning. The env var\
@@ -104,6 +88,10 @@ make_scale scale_pattern scale_id (ScaleMap dmap nn_map) = Scale.Scale
         \ frequencies are hardcoded according to the scale, but if the "
         <> ShowVal.doc_val c_ombak
         <> " control is present, they will be tuned that many hz apart."
+    note_to_call = Scales.note_to_call scale dmap $
+        degree_to_nn (Scales.dm_to_nn dmap) nn_map
+    input_to_note = Scales.input_to_note dmap
+    scale = PitchSignal.Scale scale_id Scales.standard_transposers
 
 data Tuning = Umbang | Isep deriving (Show)
 

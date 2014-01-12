@@ -4,10 +4,14 @@
 
 -- | Scale is actually defined in "Derive.Deriver.Monad" to avoid circular
 -- imports.  But you should refer to it from here.
-module Derive.Scale (Scale(..), ScaleError(..), module Derive.Scale) where
+--
+-- The difference between this and "Derive.Scale.Scales" is that this is
+-- intended for using scales, while Scales is intended for implementing them.
+module Derive.Scale (module Derive.Derive, module Derive.Scale) where
+import Util.Control
 import qualified Data.Vector.Unboxed as Vector
 
-import Derive.Derive (Scale(..), ScaleError(..), Layout)
+import Derive.Derive (Scale(..), Transposition(..), ScaleError(..), Layout)
 import qualified Derive.PitchSignal as PitchSignal
 import qualified Perform.Pitch as Pitch
 
@@ -57,3 +61,9 @@ chromatic_difference layout (Pitch.Pitch oct1 (Pitch.Degree pc1 acc1))
         (Pitch.Pitch oct2 (Pitch.Degree pc2 acc2)) =
     oct_diff + (semis_at_pc layout pc1 - semis_at_pc layout pc2) + (acc1 - acc2)
     where oct_diff = semis_per_octave layout * (oct1 - oct2)
+
+transpose :: Transposition -> Scale -> Maybe Pitch.Key -> Pitch.Octave
+    -> Pitch.Step -> Pitch.Note -> Either ScaleError Pitch.Note
+transpose transposition scale key octaves steps =
+    scale_show scale key <=< scale_transpose scale transposition key steps
+        . Pitch.add_octave octaves <=< scale_read scale key
