@@ -39,6 +39,12 @@ transpose :: Pitch.Transpose -> PitchSignal.Pitch -> PitchSignal.Pitch
 transpose t = PitchSignal.add_control control val
     where (val, control) = Controls.transpose_control t
 
+transpose_d :: Pitch.Step -> PitchSignal.Pitch -> PitchSignal.Pitch
+transpose_d = transpose . Pitch.Diatonic . fromIntegral
+
+transpose_c :: Pitch.Step -> PitchSignal.Pitch -> PitchSignal.Pitch
+transpose_c = transpose . Pitch.Chromatic . fromIntegral
+
 -- | Convert a Pitch to a NoteNumber, throwing an exception if the pitch
 -- failed.
 pitch_nn :: PitchSignal.Pitch -> Derive.Deriver Pitch.NoteNumber

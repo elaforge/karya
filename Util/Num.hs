@@ -91,6 +91,10 @@ infixl 7 `fmod` -- match `mod`
 fmod :: (Real a) => a -> a -> a
 fmod = Fixed.mod'
 
+isEven, isOdd :: Integral a => a -> Bool
+isEven n = n `mod` 2 == 0
+isOdd = not . isEven
+
 -- | realToFrac doesn't preserve the special float values and is inefficient.
 --
 -- There are some RULEs for this, but they aren't reliable.

@@ -3,6 +3,8 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
+  - moving notes up should clip negative notes
+  - cmd-s should work on negative notes
   * move Theory.Pitch to Perform.Pitch.  (Octave, (PC, Accs))
     data Abstract = Abstract Octave Degree
     data Degree = Degree PitchClass Accidentals
@@ -107,8 +109,9 @@ UNSORTED
       of kantilan and pemade variations.
       . try per-instrument scale with: i_ i- i^
     kotekan ornaments
-      - norot
-      . I should have a better way of specifying instrument ranges than
+      * norot
+      - norot switches to kotekan when above a certain speed
+      * I should have a better way of specifying instrument ranges than
         NoteNumber + adjust for umbang/isep, where I don't even know why it
         works.
       * ensure that Wayang and Legong scales all have a consistent
@@ -419,6 +422,7 @@ local: plugins:
     map.
 
 cleanup:
+  - clean up Pitch.Semi, Pitch.PitchClass, Pitch.Step, and Theory.Step
   - update shakefile to use new system calls and logging levels
   - if I add an Alternative instance to Sig.Parser I can write arg parsers
     like 'Sig.many xs <|> Sig.many ys'.  I think.  If I wind up with something

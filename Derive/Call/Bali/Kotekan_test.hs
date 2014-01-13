@@ -10,6 +10,27 @@ import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Score as Score
 
 
+test_norot = do
+    let run title = derive DeriveTest.e_note
+            (inst_title <> " | inst-top = (pitch (4f))" <> title)
+    equal (run "" [(2, -2, "norot 1 -- 3a")])
+        ([ (1, 1, "3b"), (1, 1, "4e")
+         , (2, -1, "3a"), (2, -1, "4d")
+         ], [])
+    equal (run "" [(3, -3, "norot 1 -- 3a")])
+        ([ (1, 1, "3a"), (1, 1, "4d")
+         , (2, 1, "3b"), (2, 1, "4e")
+         , (3, -1, "3a"), (3, -1, "4d")
+         ], [])
+    equal (run "" [(2, -2, "norot 1 -- 4c")])
+        ([ (1, 1, "4d"), (1, 1, "4d")
+         , (2, -1, "4c"), (2, -1, "4f")
+         ], [])
+    equal (run "" [(2, -2, "norot 1 diamond -- 4c")])
+        ([ (1, 1, "4d"), (1, 1, "3b")
+         , (2, -1, "4c"), (2, -1, "4c")
+         ], [])
+
 test_kempyung = do
     let run title = derive extract (inst_title <> title <> " | kempyung")
         extract e = (Score.event_start e, Score.initial_note e)

@@ -1409,6 +1409,14 @@ instance Pretty.Pretty Scale where
 type LookupScale = Pitch.ScaleId -> Maybe Scale
 
 -- | Scales may ignore Transposition if they don't support it.
+--
+-- Transposition could almost always succeed, and leaving the error reporting
+-- to 'scale_show'.  But for some scales it has to parse the 'Pitch.Key', which
+-- can fail.  Parsing the key is pretty unfortunate, since it winds up getting
+-- repeated for 'scale_read' and 'scale_show', but I don't want to make the Key
+-- type concrete, since each scale has a different one.
+--
+-- TODO could make the key an existential type and export scale_parse_key?
 type Transpose = Transposition -> Maybe Pitch.Key -> Pitch.Step -> Pitch.Pitch
     -> Either ScaleError Pitch.Pitch
 

@@ -79,11 +79,10 @@ lily_tuplet args not_lily = Lily.when_lilypond_config lily not_lily
             [[]] -> Either.left "no sub events"
             _ : _ : _ -> Either.left ">1 non-empty sub track"
             [notes] -> return notes
-        (events, logs) <- (LEvent.partition <$>) $ lift $ Sub.place $
-            map (Sub.stretch (Args.start args) 2) notes
+        events <- lift $ LEvent.write_logs
+            =<< Sub.place (map (Sub.stretch (Args.start args) 2) notes)
             -- Double the notes duration, since staff notation tuplets shorten
             -- notes.
-        lift $ mapM_ Log.write logs
         (e, es) <- case events of
             [] -> Either.left "no sub events"
             [_] -> Either.left "just one event"

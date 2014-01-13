@@ -8,12 +8,17 @@ module Derive.Call.Bali.Kotekan where
 import qualified Data.List as List
 
 import Util.Control
+import qualified Util.Num as Num
+import qualified Util.Seq as Seq
+
+import qualified Cmd.Meter as Meter
+import qualified Derive.Args as Args
 import qualified Derive.Attrs as Attrs
 import qualified Derive.Call.Post as Post
+import qualified Derive.Call.Sub as Sub
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Call.Util as Util
 import qualified Derive.Derive as Derive
-import qualified Derive.Deriver.Internal as Internal
 import qualified Derive.Environ as Environ
 import qualified Derive.LEvent as LEvent
 import qualified Derive.PitchSignal as PitchSignal
@@ -29,20 +34,70 @@ import Types
 
 
 note_calls :: Derive.CallMaps Derive.Note
-note_calls = Derive.call_maps []
+note_calls = Derive.call_maps
+    [ ("norot", c_norot) ]
     [ ("nyog", c_nyogcag)
     , ("unison", c_unison)
     , ("kempyung", c_kempyung)
     , ("noltol", c_noltol)
     ]
 
--- Similar to reyong, extract a pokok from the events and generate from
--- a pattern.
-c_norot :: Derive.Generator Derive.Note
-c_norot = undefined
-
 postproc :: Tags.Tags
 postproc = Tags.bali <> Tags.postproc
+
+-- | Initially I implemented this as a postproc, but it now seems to me that
+-- it would be more convenient as a generator.  In any case, as a postproc it
+-- gets really complicated.
+--
+-- TODO: switch to kotekan when above a certain speed
+c_norot :: Derive.Generator Derive.Note
+c_norot = Derive.make_call "norot" Tags.bali
+    "Emit the basic norot pattern. The last note will line up with the end of\
+    \ the event, so this is most suitable for a negative duration event."
+    $ Sig.call ((,,,)
+    <$> Sig.defaulted "dur" Nothing
+        "Duration of derived notes. Defaults to `\"(ts s)`."
+    <*> Sig.defaulted "style" (TrackLang.E Kempyung) "Norot style."
+    <*> instrument_top_env <*> pasang_env
+    ) $ \(maybe_dur, TrackLang.E style, inst_top, pasang) ->
+    Sub.inverting $ \args -> do
+        dur <- maybe (Util.meter_duration (Args.start args) Meter.S 1)
+            return maybe_dur
+        pitch <- Util.get_pitch =<< Args.real_start args
+        scale <- Util.get_scale
+        let (start, end) = Args.range args
+            is_top steps = note_too_high scale inst_top $
+                Pitches.transpose_d steps pitch
+        mconcat $ map (note pitch) $ norot style is_top pasang dur start end
+    where
+    note pitch (start, dur, inst, steps) = Derive.d_place start dur $
+        Derive.with_instrument inst $
+        Util.pitched_note (Pitches.transpose_d steps pitch) 1
+
+norot :: NorotStyle -> (Pitch.Step -> Bool) -> Pasang -> ScoreTime -> ScoreTime
+    -> ScoreTime -> [(ScoreTime, ScoreTime, Score.Instrument, Pitch.Step)]
+norot style out_of_range (polos, sangsih) dur start end =
+    concat [[(start, dur, polos, pstep), (start, dur, sangsih, sstep)]
+        | ((start, dur), (pstep, sstep)) <- zip starts steps]
+    where
+    two_steps
+        | out_of_range 1 = [(-1, -1), (0, 0)]
+        | otherwise = case style of
+            Diamond -> [(1, -1), (0, 0)]
+            Kempyung
+                | not (out_of_range 4) -> [(1, 4), (0, 3)]
+                | otherwise -> [(1, 1), (0, 3)]
+    steps = (if Num.isEven (length starts) then id else drop 1)
+        (cycle two_steps)
+    starts = end_on start end dur
+
+end_on :: (Num a, Ord a) => a -> a -> a -> [(a, a)]
+end_on start end dur = reverse $ takeWhile ((>start) . fst) $
+    (end, -dur) : [(p, dur) | p <- Seq.range_ (end - dur) (-dur)]
+
+data NorotStyle = Kempyung | Diamond deriving (Bounded, Eq, Enum, Show)
+instance ShowVal.ShowVal NorotStyle where show_val = TrackLang.default_show_val
+instance TrackLang.TypecheckEnum NorotStyle
 
 c_unison :: Derive.Transformer Derive.Note
 c_unison = Derive.transformer "unison" postproc
@@ -94,24 +149,15 @@ c_kempyung = Derive.transformer "kempyung" postproc
                     (Score.event_pitch event)
             }
 
-pitch_too_high :: Scale.Scale -> Maybe Pitch.Pitch -> Score.Event -> Bool
-pitch_too_high scale maybe_top event = fromMaybe False $ do
-    top <- maybe_top
-    note <- Score.initial_note event
-    pitch <- either (const Nothing) Just $
-        Scale.scale_read scale Nothing note
-    return $ pitch > top
-
 c_nyogcag :: Derive.Transformer Derive.Note
 c_nyogcag = Derive.transformer "nyog" postproc
     "Split a single part into polos and sangsih parts by assigning\
     \ polos and sangsih to alternating notes."
-    $ Sig.callt pasang_env $ \(polos, sangsih) _args deriver ->
-        snd . Post.map_events_asc (nyogcag polos sangsih) True <$> deriver
+    $ Sig.callt pasang_env $ \pasang _args deriver ->
+        snd . Post.map_events_asc (nyogcag pasang) True <$> deriver
 
-nyogcag :: Score.Instrument -> Score.Instrument
-    -> Bool -> Score.Event -> (Bool, [Score.Event])
-nyogcag polos sangsih is_polos event = (not is_polos, [with_inst])
+nyogcag :: Pasang -> Bool -> Score.Event -> (Bool, [Score.Event])
+nyogcag (polos, sangsih) is_polos event = (not is_polos, [with_inst])
     where
     with_inst = event
         { Score.event_instrument = if is_polos then polos else sangsih }
@@ -152,13 +198,29 @@ noltol threshold nexts event
         List.find ((== Score.event_instrument event) . Score.event_instrument)
             nexts
 
+-- * util
+
 instrument_top_env :: Sig.Parser (Maybe Pitch.Pitch)
 instrument_top_env =
     Sig.environ (TrackLang.unsym Environ.instrument_top) Sig.Unprefixed Nothing
         "Top pitch this instrument can play. Normally the instrument sets\
         \ it via the instrument environ."
 
-pasang_env :: Sig.Parser (Score.Instrument, Score.Instrument)
+note_too_high :: Scale.Scale -> Maybe Pitch.Pitch -> PitchSignal.Pitch -> Bool
+note_too_high scale maybe_top pitchv = fromMaybe False $ do
+    top <- maybe_top
+    note <- either (const Nothing) Just $ PitchSignal.pitch_note pitchv
+    pitch <- either (const Nothing) Just $ Scale.scale_read scale Nothing note
+    return $ pitch > top
+
+pitch_too_high :: Scale.Scale -> Maybe Pitch.Pitch -> Score.Event -> Bool
+pitch_too_high scale maybe_top =
+    maybe False (note_too_high scale maybe_top) . Score.initial_pitch
+
+-- | (polos, sangsih)
+type Pasang = (Score.Instrument, Score.Instrument)
+
+pasang_env :: Sig.Parser Pasang
 pasang_env = (,)
     <$> Sig.required_environ (TrackLang.unsym inst_polos) Sig.Unprefixed
         "Polos instrument."
