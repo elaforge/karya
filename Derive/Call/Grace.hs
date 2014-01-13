@@ -127,7 +127,8 @@ grace_call :: Derive.NoteArgs -> Signal.Y -> [PitchSignal.Pitch]
     -> TrackLang.RealOrScore -> TrackLang.ValControl -> Derive.NoteDeriver
 grace_call args dyn_scale pitches grace_dur place = do
     dyn <- (*dyn_scale) <$> (Util.dynamic =<< Args.real_start args)
-    let notes = map (flip Util.pitched_note dyn) pitches ++ [Util.note]
+    let notes = map (Util.with_dynamic dyn . Util.pitched_note) pitches
+            ++ [Util.note]
     events <- make_grace_notes (Args.prev_start args) (Args.extent args)
         notes grace_dur place
     -- Normally legato notes emphasize the first note, but that's not
@@ -212,10 +213,12 @@ c_grace_attr supported =
     attr_grace real_start args grace_dur notes attrs = do
         let (start, dur) = Args.extent args
         grace_dur <- Util.duration_from start grace_dur
+        dyn <- Util.dynamic real_start
         let before = fromIntegral notes * grace_dur
         pitch <- Util.get_pitch real_start
-        Util.add_attrs attrs $ Derive.d_place (start - before) (dur + before)
-            (Util.pitched_note pitch 1)
+        Derive.d_place (start - before) (dur + before) $
+            Util.add_attrs attrs $ Util.with_dynamic dyn $
+            Util.pitched_note pitch
 
 grace_attrs :: Map.Map Int Score.Attributes -> [PitchSignal.Pitch]
     -> PitchSignal.Pitch -> Derive.Deriver (Maybe Score.Attributes)

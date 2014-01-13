@@ -72,7 +72,7 @@ c_norot = Derive.make_call "norot" Tags.bali
     where
     note pitch (start, dur, inst, steps) = Derive.d_place start dur $
         Derive.with_instrument inst $
-        Util.pitched_note (Pitches.transpose_d steps pitch) 1
+        Util.pitched_note (Pitches.transpose_d steps pitch)
 
 norot :: NorotStyle -> (Pitch.Step -> Bool) -> Pasang -> ScoreTime -> ScoreTime
     -> ScoreTime -> [(ScoreTime, ScoreTime, Score.Instrument, Pitch.Step)]

@@ -43,16 +43,16 @@ import Types
 -- | Perform the input score and save the midi msgs to the output file.
 -- This creates the -perf files.
 save_performance :: FilePath -> FilePath -> IO ()
-save_performance input output = do
+save_performance output input = do
     msgs <- perform_file input
     DiffPerformance.save_midi output msgs
 
 large_test_bloom = check =<< compare_performance
-    "data/bloom-perf.gz" "data/bloom.gz"
+    "data/bloom-perf" "data/bloom"
 large_test_pnovla = check =<< compare_performance
-    "data/pnovla-perf.gz" "data/pnovla.gz"
+    "data/pnovla-perf" "data/pnovla"
 large_test_viola_sonata = check =<< compare_performance
-    "data/viola-sonata-perf.gz" "data/viola-sonata.gz"
+    "data/viola-sonata-perf" "data/viola-sonata"
 
 -- * implementation
 

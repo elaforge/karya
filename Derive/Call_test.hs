@@ -199,7 +199,7 @@ test_inverting_around = do
             next <- Derive.require "next event" $ Args.next_start args
             next_pitch <- Derive.require "next pitch"
                 =<< Derive.pitch_at =<< Derive.real next
-            Derive.d_at (Args.start args) $ Util.pitched_note next_pitch 1
+            Derive.d_at (Args.start args) $ Util.pitched_note next_pitch
 
 test_track_dynamic = do
     let extract ex = map ex . Map.assocs . (\(Derive.TrackDynamic d) -> d)

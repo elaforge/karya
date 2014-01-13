@@ -212,6 +212,10 @@ get_pitch :: RealTime -> Derive.Deriver PitchSignal.Pitch
 get_pitch pos = Derive.require ("pitch at " ++ Pretty.pretty pos)
     =<< Derive.pitch_at pos
 
+eval_note :: ScoreTime -> Pitch.Note -> Derive.Deriver PitchSignal.Pitch
+eval_note pos note =
+    Call.eval_pitch pos (TrackLang.call (Pitch.note_text note) [])
+
 dynamic :: RealTime -> Derive.Deriver Signal.Y
 dynamic pos = maybe Derive.default_dynamic Score.typed_val <$>
     Derive.control_at Controls.dynamic pos
@@ -225,6 +229,7 @@ with_symbolic_pitch call pos deriver = do
     pitch <- Call.eval_pitch pos call
     with_pitch pitch deriver
 
+-- | Replace the dynamic with the given one.
 with_dynamic :: Signal.Y -> Derive.Deriver a -> Derive.Deriver a
 with_dynamic = with_constant Controls.dynamic
 
@@ -246,8 +251,8 @@ note :: Derive.NoteDeriver
 note = Call.eval_one_call $ TrackLang.call "" []
 
 -- | Override the pitch signal and generate a single note.
-pitched_note :: PitchSignal.Pitch -> Signal.Y -> Derive.NoteDeriver
-pitched_note pitch dynamic = with_pitch pitch $ with_dynamic dynamic note
+pitched_note :: PitchSignal.Pitch -> Derive.NoteDeriver
+pitched_note pitch = with_pitch pitch note
 
 -- | Add an attribute and generate a single note.
 attr_note :: Score.Attributes -> Derive.NoteDeriver

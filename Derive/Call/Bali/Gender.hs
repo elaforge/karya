@@ -70,8 +70,8 @@ c_tick transpose = Derive.make_call "tick"
         pitch <- Derive.require "pitch" =<< Derive.pitch_at start
         Derive.d_place grace_start (grace_end - grace_start)
                 (Util.add_attrs damped_tag $
-                    Util.pitched_note (Pitches.transpose transpose pitch)
-                        (dyn * dyn_scale))
+                    Util.with_dynamic (dyn * dyn_scale) $
+                    Util.pitched_note (Pitches.transpose transpose pitch))
             <> Derive.d_place (Args.start args) (Args.duration args) Util.note
 
 infer_transpose :: Derive.PassedArgs d -> RealTime
