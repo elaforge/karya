@@ -114,7 +114,7 @@ UNSORTED
       . try per-instrument scale with: i_ i- i^
     kotekan ornaments
       * norot
-      - norot switches to kotekan when above a certain speed
+      * norot switches to kotekan when above a certain speed
       - gnorot for gender style norot: 5656, 434- / 234-
       - kotekan:
         . patterns: 1-12-1-21, -2-12-12, -1-21-21

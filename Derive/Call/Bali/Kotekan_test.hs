@@ -11,25 +11,31 @@ import qualified Derive.Score as Score
 
 
 test_norot = do
-    let run title = derive DeriveTest.e_note
-            (inst_title <> " | inst-top = (pitch (4f))" <> title)
-    equal (run "" [(2, -2, "norot 1 -- 3a")])
-        ([ (1, 1, "3b"), (1, 1, "4e")
-         , (2, -1, "3a"), (2, -1, "4d")
+    let run = derive extract $
+            inst_title <> " | inst-top = (pitch (4f))"
+        extract e = (DeriveTest.e_note e, Score.event_instrument e)
+        polos = Score.Instrument "i1"
+        sangsih = Score.Instrument "i2"
+    equal (run [(2, -2, "norot 1 -- 3a")])
+        ([ ((1, 1, "3b"), polos), ((1, 1, "4e"), sangsih)
+         , ((2, -1, "3a"), polos), ((2, -1, "4d"), sangsih)
          ], [])
-    equal (run "" [(3, -3, "norot 1 -- 3a")])
-        ([ (1, 1, "3a"), (1, 1, "4d")
-         , (2, 1, "3b"), (2, 1, "4e")
-         , (3, -1, "3a"), (3, -1, "4d")
+    equal (run [(3, -3, "norot 1 -- 3a")])
+        ([ ((1, 1, "3a"), polos), ((1, 1, "4d"), sangsih)
+         , ((2, 1, "3b"), polos), ((2, 1, "4e"), sangsih)
+         , ((3, -1, "3a"), polos), ((3, -1, "4d"), sangsih)
          ], [])
-    equal (run "" [(2, -2, "norot 1 -- 4c")])
-        ([ (1, 1, "4d"), (1, 1, "4d")
-         , (2, -1, "4c"), (2, -1, "4f")
+    equal (run [(2, -2, "norot 1 -- 4c")])
+        ([ ((1, 1, "4d"), polos), ((1, 1, "4d"), sangsih)
+         , ((2, -1, "4c"), polos), ((2, -1, "4f"), sangsih)
          ], [])
-    equal (run "" [(2, -2, "norot 1 diamond -- 4c")])
-        ([ (1, 1, "4d"), (1, 1, "3b")
-         , (2, -1, "4c"), (2, -1, "4c")
+    equal (run [(2, -2, "norot 1 diamond -- 4c")])
+        ([ ((1, 1, "4d"), polos), ((1, 1, "3b"), sangsih)
+         , ((2, -1, "4c"), polos), ((2, -1, "4c"), sangsih)
          ], [])
+    equal (run [(2, -2, "kotekan = 2 | norot 1 -- 3a")])
+        ([((1, 1, "3b"), sangsih), ((2, -1, "3a"), polos)], [])
+
 
 test_kempyung = do
     let run title = derive extract (inst_title <> title <> " | kempyung")

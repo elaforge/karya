@@ -6,10 +6,11 @@
 -- pairs.
 module Derive.Call.Bali.Kotekan where
 import qualified Data.List as List
+import qualified Data.Maybe as Maybe
 
 import Util.Control
-import qualified Util.Num as Num
 import qualified Util.Seq as Seq
+import qualified Util.Then as Then
 
 import qualified Cmd.Meter as Meter
 import qualified Derive.Args as Args
@@ -30,6 +31,9 @@ import qualified Derive.Sig as Sig
 import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.Pitch as Pitch
+import qualified Perform.RealTime as RealTime
+import qualified Perform.Signal as Signal
+
 import Types
 
 
@@ -48,52 +52,67 @@ postproc = Tags.bali <> Tags.postproc
 -- | Initially I implemented this as a postproc, but it now seems to me that
 -- it would be more convenient as a generator.  In any case, as a postproc it
 -- gets really complicated.
---
--- TODO: switch to kotekan when above a certain speed
 c_norot :: Derive.Generator Derive.Note
 c_norot = Derive.make_call "norot" Tags.bali
     "Emit the basic norot pattern. The last note will line up with the end of\
     \ the event, so this is most suitable for a negative duration event."
-    $ Sig.call ((,,,)
+    $ Sig.call ((,,,,)
     <$> Sig.defaulted "dur" Nothing
         "Duration of derived notes. Defaults to `\"(ts s)`."
     <*> Sig.defaulted "style" (TrackLang.E Kempyung) "Norot style."
-    <*> instrument_top_env <*> pasang_env
-    ) $ \(maybe_dur, TrackLang.E style, inst_top, pasang) ->
+    <*> kotekan_env <*> instrument_top_env <*> pasang_env
+    ) $ \(maybe_dur, TrackLang.E style, kotekan, inst_top, pasang) ->
     Sub.inverting $ \args -> do
         dur <- maybe (Util.meter_duration (Args.start args) Meter.S 1)
             return maybe_dur
         pitch <- Util.get_pitch =<< Args.real_start args
         scale <- Util.get_scale
         let (start, end) = Args.range args
-            is_top steps = note_too_high scale inst_top $
+            out_of_range steps = note_too_high scale inst_top $
                 Pitches.transpose_d steps pitch
-        mconcat $ map (note pitch) $ norot style is_top pasang dur start end
+        to_real <- Derive.real_function
+        kotekan <- Util.to_untyped_signal kotekan
+        mconcat $ map (note pitch) $ norot out_of_range to_real kotekan style
+            pasang dur start end
     where
     note pitch (start, dur, inst, steps) = Derive.d_place start dur $
         Derive.with_instrument inst $
         Util.pitched_note (Pitches.transpose_d steps pitch)
 
-norot :: NorotStyle -> (Pitch.Step -> Bool) -> Pasang -> ScoreTime -> ScoreTime
+norot :: (Pitch.Step -> Bool) -> (ScoreTime -> RealTime) -> Signal.Control
+    -> NorotStyle -> Pasang -> ScoreTime -> ScoreTime
     -> ScoreTime -> [(ScoreTime, ScoreTime, Score.Instrument, Pitch.Step)]
-norot style out_of_range (polos, sangsih) dur start end =
-    concat [[(start, dur, polos, pstep), (start, dur, sangsih, sstep)]
-        | ((start, dur), (pstep, sstep)) <- zip starts steps]
+norot out_of_range to_real kotekan style (polos, sangsih) dur start end =
+    dropWhile (\(t, _, _, _) -> t <= start) $
+        concatMap (one_cycle . second Maybe.isNothing) $
+        Seq.zip_next $ end_on start end (dur*2)
     where
-    two_steps
-        | out_of_range 1 = [(-1, -1), (0, 0)]
+    one_cycle (start, is_last)
+        | under_threshold start =
+            [ (start - dur, dur, sangsih, polos_step1)
+            , (start, ndur, polos, polos_step2)
+            ]
+        | otherwise =
+            [ (start - dur, dur, polos, polos_step1)
+            , (start - dur, dur, sangsih, sangsih_step1)
+            , (start, ndur, polos, polos_step2)
+            , (start, ndur, sangsih, sangsih_step2)
+            ]
+        where ndur = if is_last then -dur else dur
+    (polos_step1, polos_step2, sangsih_step1, sangsih_step2)
+        | out_of_range 1 = (-1, 0, -1, 0)
         | otherwise = case style of
-            Diamond -> [(1, -1), (0, 0)]
+            Diamond -> (1, 0, -1, 0)
             Kempyung
-                | not (out_of_range 4) -> [(1, 4), (0, 3)]
-                | otherwise -> [(1, 1), (0, 3)]
-    steps = (if Num.isEven (length starts) then id else drop 1)
-        (cycle two_steps)
-    starts = end_on start end dur
+                | not (out_of_range 4) -> (1, 0, 4, 3)
+                | otherwise -> (1, 0, 1, 3)
+    under_threshold t =
+        to_real (t+dur) - real < RealTime.seconds (Signal.at real kotekan)
+        where real = to_real t
 
-end_on :: (Num a, Ord a) => a -> a -> a -> [(a, a)]
-end_on start end dur = reverse $ takeWhile ((>start) . fst) $
-    (end, -dur) : [(p, dur) | p <- Seq.range_ (end - dur) (-dur)]
+end_on :: (Num a, Ord a) => a -> a -> a -> [a]
+end_on start end dur =
+    reverse $ Then.takeWhile1 (>start) $ Seq.range_ end (-dur)
 
 data NorotStyle = Kempyung | Diamond deriving (Bounded, Eq, Enum, Show)
 instance ShowVal.ShowVal NorotStyle where show_val = TrackLang.default_show_val
@@ -199,6 +218,12 @@ noltol threshold nexts event
             nexts
 
 -- * util
+
+kotekan_env :: Sig.Parser TrackLang.ValControl
+kotekan_env =
+    Sig.environ "kotekan" Sig.Unprefixed (TrackLang.constant_control 0.15)
+        "If note durations are below this, kotekan calls will split polos and\
+        \ sangsih."
 
 instrument_top_env :: Sig.Parser (Maybe Pitch.Pitch)
 instrument_top_env =

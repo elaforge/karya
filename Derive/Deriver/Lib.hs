@@ -117,6 +117,16 @@ error_to_warn (Error srcpos stack val) = Log.msg_srcpos srcpos Log.Warn
 get_stack :: Deriver Stack.Stack
 get_stack = gets (state_stack . state_dynamic)
 
+real_function :: Deriver (ScoreTime -> RealTime)
+real_function = do
+    warp <- Internal.get_dynamic state_warp
+    return $ flip Score.warp_pos warp
+
+score_function :: Deriver (RealTime -> Maybe ScoreTime)
+score_function = do
+    warp <- Internal.get_dynamic state_warp
+    return $ flip Score.unwarp_pos warp
+
 -- ** scale
 
 -- | Lookup a scale_id or throw.
