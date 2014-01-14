@@ -3,8 +3,12 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
+  - experiment with explicit recording instead of the automatic "recent"
+    - Either record a text modification: replace, prepend, append, delete
+    - Or insert an event + dur + text, and advance the cursor to its end.
+    - also record the last operation to repeat with '.'
   - moving notes up should clip negative notes
-  - cmd-s should work on negative notes
+  * cmd-s should work on negative notes
   * move Theory.Pitch to Perform.Pitch.  (Octave, (PC, Accs))
     data Abstract = Abstract Octave Degree
     data Degree = Degree PitchClass Accidentals
@@ -111,6 +115,13 @@ UNSORTED
     kotekan ornaments
       * norot
       - norot switches to kotekan when above a certain speed
+      - gnorot for gender style norot: 5656, 434- / 234-
+      - kotekan:
+        . patterns: 1-12-1-21, -2-12-12, -1-21-21
+          1-12-12-21-21-123
+        . Aligned so the last polos / sangsih note is the pitch.
+        . telu vs. empat
+        . phase: this can make the last note no longer align to the pitch
       * I should have a better way of specifying instrument ranges than
         NoteNumber + adjust for umbang/isep, where I don't even know why it
         works.

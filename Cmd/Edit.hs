@@ -2,7 +2,6 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
-{-# LANGUAGE LambdaCase #-}
 {- | Event editing commands.  This is where generic event editing commands go.
     More specialized ones, like copy and paste and control or note track
     commands, go in their own modules.
@@ -59,8 +58,8 @@ cmd_toggle_method_edit = modify_edit_mode $ \m -> case m of
 get_mode :: (Cmd.M m) => m Cmd.EditMode
 get_mode = Cmd.gets (Cmd.state_edit_mode . Cmd.state_edit)
 
--- | Turn on kbd entry mode, putting a K in the edit box as a reminder.  This
--- is orthogonal to the previous edit modes.
+-- | Toggle kbd entry mode, putting a K in the edit box as a reminder.  This is
+-- orthogonal to the previous edit modes.
 cmd_toggle_kbd_entry :: (Cmd.M m) => m ()
 cmd_toggle_kbd_entry = Cmd.modify_edit_state $ \st ->
     st { Cmd.state_kbd_entry = not (Cmd.state_kbd_entry st) }
@@ -95,7 +94,7 @@ modify_record_velocity f = Cmd.modify_edit_state $ \st ->
 -- * universal event cmds
 
 -- | Insert an event at the current insert pos.
-insert_event :: (Cmd.M m) => String -> ScoreTime -> m ()
+insert_event :: Cmd.M m => Text -> ScoreTime -> m ()
 insert_event text dur = do
     (_, _, track_id, pos) <- Selection.get_insert
     State.insert_event track_id $ Event.event pos dur text
@@ -133,29 +132,41 @@ move_event get_event = do
 -- | Extend the events in the selection to either the end of the selection or
 -- the beginning of the next note, whichever is shorter.
 --
--- If the selection is on an event, the previous one is extended instead.
--- This is more useful than reducing the event to 0, which has its own cmd
--- anyway.
+-- If the selection is on an event, the previous or next one is extended
+-- instead.  This is more useful than reducing the event to 0, which has its
+-- own cmd anyway.
 cmd_set_duration :: (Cmd.M m) => m ()
-cmd_set_duration = modify_prev $ \sel_pos event ->
-    set_dur (sel_pos - Event.start event) event
+cmd_set_duration = modify_event_near_point modify
+    where
+    modify (start, end) event
+        | Event.negative event = set_dur (start - Event.start event) event
+        | otherwise = set_dur (end - Event.start event) event
 
 -- | Similar to 'ModifyEvents.event', but if the selection is a point, modify
--- the previous event.  Also, pass the end of the selection.
-modify_prev :: (Cmd.M m) => (ScoreTime -> Event.Event -> Event.Event) -> m ()
-modify_prev modify = do
+-- the previous or next event, depending on if it's positive or negative.
+modify_event_near_point :: Cmd.M m =>
+    ((ScoreTime, ScoreTime) -> Event.Event -> Event.Event) -> m ()
+modify_event_near_point modify = do
     (_, sel) <- Selection.get
-    (if Types.sel_is_point sel then modify_prev else modify_events)
-        (snd (Types.sel_range sel))
+    if Types.sel_is_point sel
+        then modify_prev (Types.sel_start_pos sel)
+        else modify_selection (Types.sel_range sel)
     where
-    modify_events = ModifyEvents.selection . ModifyEvents.event . modify
-    modify_prev sel_pos = do
-        -- Wow it's a lot of work as soon as it's not the standard selection.
+    modify_selection = ModifyEvents.selection . ModifyEvents.event . modify
+    modify_prev pos = do
         (_, _, track_ids, _, _) <- Selection.tracks
-        forM_ track_ids $ \track_id -> do
-            prev <- Seq.head . fst . Events.split sel_pos . Track.track_events
-                <$> State.get_track track_id
-            whenJust prev $ State.insert_event track_id . modify sel_pos
+        forM_ track_ids $ modify_track pos
+    modify_track pos track_id = do
+        (pre, post) <- Events.split pos . Track.track_events <$>
+            State.get_track track_id
+        let maybe_event = case (pre, dropWhile ((==pos) . Event.start) post) of
+                -- Favor a negative event if it overlaps the point.
+                (_, post:_) | Event.overlaps pos post -> Just post
+                -- Otherwise, favor positive.
+                (pre:_, _) | Event.positive pre -> Just pre
+                (_, post:_) | Event.negative post -> Just post
+                _ -> Nothing
+        whenJust maybe_event $ State.insert_event track_id . modify (pos, pos)
 
 -- | Toggle duration between zero and non-zero.
 --
@@ -188,9 +199,9 @@ cmd_toggle_zero_duration = do
 -- Unlike 'cmd_set_duration', I can't think of a way for this to make sense
 -- with a non-point selection, so it uses the point position.
 --
--- TODO for zero duration events, this is equivalent to 'cmd_move_event_back'.
--- I'm not totally happy about the overlap, is there a more orthogonal
--- organization?
+-- TODO for zero duration events, this is equivalent to
+-- 'cmd_move_event_backward'.  I'm not totally happy about the overlap, is
+-- there a more orthogonal organization?
 cmd_set_beginning :: (Cmd.M m) => m ()
 cmd_set_beginning = do
     (_, sel) <- Selection.get
@@ -480,7 +491,8 @@ cmd_set_block_call_duration =
 set_block_call_duration :: (Cmd.M m) => Event.Event -> m (Maybe Event.Event)
 set_block_call_duration event = do
     block_id <- Cmd.get_focused_block
-    NoteTrack.block_call (Just block_id) (Event.event_text event) >>= \case
+    call <- NoteTrack.block_call (Just block_id) (Event.event_text event)
+    case call of
         Nothing -> return Nothing
         Just block_id -> do
             -- The same as Derive.get_block_dur, TODO should I have

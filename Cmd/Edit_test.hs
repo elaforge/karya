@@ -3,6 +3,7 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 module Cmd.Edit_test where
+import Util.Control
 import Util.Test
 import qualified Ui.UiTest as UiTest
 import qualified Cmd.Cmd as Cmd
@@ -13,29 +14,64 @@ import Types
 
 
 test_split_events = do
-    let run events = CmdTest.e_tracks
-            . run_sel [(">", events)] Edit.cmd_split_events 1
-    equal (run [(0, 4, "")] 0) $
-        Right ([(">", [(0, 4, "")])], [])
-    equal (run [(0, 4, "")] 2) $
-        Right ([(">", [(0, 2, ""), (2, 2, "")])], [])
-    equal (run [(2, 2, "")] 3) $
-        Right ([(">", [(2, 1, ""), (3, 1, "")])], [])
-    equal (run [(0, 4, "")] 4) $
-        Right ([(">", [(0, 4, "")])], [])
+    let run events sel = e_track $
+            run_sel (null_events events) Edit.cmd_split_events 1 sel sel
+    equal (run [(0, 4)] 0) $ Right ([(0, 4)], [])
+    equal (run [(0, 4)] 2) $ Right ([(0, 2), (2, 2)], [])
+    equal (run [(2, 2)] 3) $ Right ([(2, 1), (3, 1)], [])
+    equal (run [(0, 4)] 4) $ Right ([(0, 4)], [])
 
-    equal (run [(4, -4, "")] 0) $
-        Right ([(">", [(4, -4, "")])], [])
-    equal (run [(4, -4, "")] 2) $
-        Right ([(">", [(2, -2, ""), (4, -2, "")])], [])
-    equal (run [(4, -4, "")] 4) $
-        Right ([(">", [(4, -4, "")])], [])
+    equal (run [(4, -4)] 0) $ Right ([(4, -4)], [])
+    equal (run [(4, -4)] 2) $ Right ([(2, -2), (4, -2)], [])
+    equal (run [(4, -4)] 4) $ Right ([(4, -4)], [])
+
+null_events :: [(ScoreTime, ScoreTime)] -> [UiTest.TrackSpec]
+null_events events = [(">", [(start, dur, "") | (start, dur) <- events])]
+
+e_track :: CmdTest.Result a
+    -> Either String ([(ScoreTime, ScoreTime)], [String])
+e_track = fmap (first (map range . snd . head)) . CmdTest.e_tracks
+    where range (start, dur, _) = (start, dur)
+
+test_set_duration = do
+    let run events start end = e_track $
+            run_sel (null_events events) Edit.cmd_set_duration 1 start end
+    equal (run [(0, 1)] 2 2) $ Right ([(0, 2)], [])
+    -- Affects the previous event.
+    equal (run [(0, 0.5), (1, 1)] 1 1) $ Right ([(0, 1), (1, 1)], [])
+    -- No effect on zero-dur events.
+    equal (run [(0, 0), (1, 0)] 0.5 3) $ Right ([(0, 0), (1, 0)], [])
+    -- Non-point selection affects all selected events.
+    equal (run [(0, 0.5), (1, 0.5)] 0 3) $ Right ([(0, 1), (1, 2)], [])
+
+    -- Negative events, should be symmetrical with positive cases.
+    equal (run [(2, -1)] 0 0) $ Right ([(2, -2)], [])
+    -- Affects next event.
+    equal (run [(1, -1), (2, -0.5)] 1 1) $ Right ([(1, -1), (2, -1)], [])
+    -- No effect on zero-dur events.
+    equal (run [(0, -0), (1, -0)] 0.5 3) $ Right ([(0, -0), (1, -0)], [])
+    -- Non-point selection affects all selected events.
+    equal (run [(1, -0.5), (2, -0.5)] 0 2) $ Right ([(1, -1), (2, -1)], [])
+
+    -- Mixed negative and positive.
+    -- When nothing overlaps, positive wins.
+    equal (run [(0, 1), (3, -1)] 2 2) $ Right ([(0, 2), (3, -1)], [])
+    -- Negative wins if it overlaps.
+    equal (run [(0, 1), (3, -2)] 2 2) $ Right ([(0, 1), (3, -1)], [])
+    -- Selection extends them all.
+    equal (run [(2, -1), (3, 1)] 0 5) $ Right ([(2, -2), (3, 2)], [])
+    -- The negative event loses and becomes -0, which is not ideal, but there's
+    -- no good answer here.
+    equal (run [(0, 1), (3, -1)] 0 3) $ Right ([(0, 3), (3, -0)], [])
+
 
 run_sel :: [UiTest.TrackSpec] -> Cmd.CmdId a -> TrackNum -> ScoreTime
-    -> CmdTest.Result a
-run_sel track_specs cmd tracknum pos = CmdTest.run_tracks track_specs $ do
-    CmdTest.set_sel tracknum pos tracknum pos
-    cmd
+    -> ScoreTime -> CmdTest.Result a
+run_sel tracks cmd tracknum start end = CmdTest.run_tracks tracks $
+    with_sel tracknum start end cmd
+
+with_sel :: Cmd.M m => TrackNum -> ScoreTime -> ScoreTime -> m a -> m a
+with_sel tracknum start end = (CmdTest.set_sel tracknum start tracknum end >>)
 
 test_record_recent = do
     let f recent = Edit.record_recent recent

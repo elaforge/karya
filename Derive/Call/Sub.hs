@@ -109,8 +109,8 @@ invert :: (Int, Int) -> (ScoreTime, ScoreTime) -> TrackTree.EventsTree
     -> ([Event.Event], [Event.Event])
     -> Derive.Deriver TrackTree.EventsTree
 invert around (track_start, _) subs start end next_start text events_around = do
-    -- Pick the current track out of the stack, and give that to the inverted
-    -- track.
+    -- Pick the current TrackId out of the stack, and give that to the track
+    -- created by inversion.
     -- TODO I'm not 100% comfortable with this, I don't like putting implicit
     -- dependencies on the stack like this.  Too many of these and someday
     -- I change how the stack works and all sorts of things break.  It would be
