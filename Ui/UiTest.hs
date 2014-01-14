@@ -149,7 +149,7 @@ run_mkblock track_specs = (tids, state)
 
 run_mkview :: [TrackSpec] -> ([TrackId], State.State)
 run_mkview track_specs =
-    run State.empty (mkblock_view (default_block_name, track_specs))
+    run State.empty $ mkblock_view (default_block_name, track_specs)
 
 mkblocks :: (State.M m) => [BlockSpec] -> m [BlockId]
 mkblocks blocks = mapM (fmap fst . mkblock) blocks
@@ -222,8 +222,8 @@ mkview block_id = do
         Block.view block block_id default_rect default_zoom
 
 mkblock_view :: (State.M m) => BlockSpec -> m [TrackId]
-mkblock_view block_spec =
-    (snd <$> mkblock block_spec) <* mkview (bid (fst block_spec))
+mkblock_view block_spec = (snd <$> mkblock block_spec) <* mkview block_id
+    where (block_id, _, _) = parse_block_spec (fst block_spec)
 
 mk_vid :: BlockId -> ViewId
 mk_vid block_id = Types.ViewId $ Id.unsafe_id ns ("v." ++ block_name)

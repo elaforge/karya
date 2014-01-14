@@ -64,6 +64,16 @@ test_set_duration = do
     -- no good answer here.
     equal (run [(0, 1), (3, -1)] 0 3) $ Right ([(0, 3), (3, -0)], [])
 
+test_move_events = do
+    let run cmd events sel = e_track $
+            CmdTest.run_tracks_ruler (null_events events) $
+            with_sel 1 sel sel cmd
+        fwd = Edit.cmd_move_event_forward
+    -- Clipped to the end of the ruler.
+    equal (run fwd [(0, 2)] 1) $ Right ([(1, 1)], [])
+    let bwd = Edit.cmd_move_event_backward
+    equal (run bwd [(2, -2)] 1) $ Right ([(1, -1)], [])
+
 
 run_sel :: [UiTest.TrackSpec] -> Cmd.CmdId a -> TrackNum -> ScoreTime
     -> ScoreTime -> CmdTest.Result a

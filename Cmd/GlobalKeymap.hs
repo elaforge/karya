@@ -366,7 +366,7 @@ event_bindings :: (Cmd.M m) => [Keymap.Binding m]
 event_bindings = concat
     -- J = move previous event down, K = move next event up.
     [ command_char 'J' "move event forward" Edit.cmd_move_event_forward
-    , command_char 'K' "move event back" Edit.cmd_move_event_back
+    , command_char 'K' "move event backward" Edit.cmd_move_event_backward
     , command_char 'j' "insert time" Edit.cmd_insert_time
     , command_char 'k' "delete time" Edit.cmd_delete_time
     -- Unlike other event editing commands, you don't have to be in insert

@@ -96,8 +96,8 @@ modify_record_velocity f = Cmd.modify_edit_state $ \st ->
 -- | Insert an event at the current insert pos.
 insert_event :: Cmd.M m => Text -> ScoreTime -> m ()
 insert_event text dur = do
-    (_, _, track_id, pos) <- Selection.get_insert
-    State.insert_event track_id $ Event.event pos dur text
+    (block_id, _, track_id, pos) <- Selection.get_insert
+    State.insert_block_events block_id track_id [Event.text_event pos dur text]
 
 -- | Different from insert/delete time since it only modifies one event.
 -- Move back the next event, or move down the previous event.  If the
@@ -110,8 +110,8 @@ cmd_move_event_forward = move_event $ \pos events ->
         (prev : _, _) -> Just prev
         _ -> Nothing
 
-cmd_move_event_back :: (Cmd.M m) => m ()
-cmd_move_event_back = move_event $ \pos events ->
+cmd_move_event_backward :: (Cmd.M m) => m ()
+cmd_move_event_backward = move_event $ \pos events ->
     case Events.at_after pos events of
         next : _
             | Event.start next == pos -> Nothing
@@ -120,13 +120,14 @@ cmd_move_event_back = move_event $ \pos events ->
 
 move_event :: (Cmd.M m) =>
     (ScoreTime -> Events.Events -> Maybe Event.Event) -> m ()
-move_event get_event = do
-    (_, _, track_ids, pos, _) <- Selection.tracks
+move_event modify = do
+    (block_id, _, track_ids, pos, _) <- Selection.tracks
     forM_ track_ids $ \track_id -> do
         events <- Track.track_events <$> State.get_track track_id
-        whenJust (get_event pos events) $ \event -> do
+        whenJust (modify pos events) $ \event -> do
             State.remove_event track_id (Event.start event)
-            State.insert_event track_id $ Event.move (const pos) event
+            State.insert_block_events block_id track_id
+                [Event.move (const pos) event]
 
 
 -- | Extend the events in the selection to either the end of the selection or

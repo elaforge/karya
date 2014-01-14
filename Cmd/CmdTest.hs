@@ -72,6 +72,11 @@ result_failed res = case result_val res of
 run_tracks :: [UiTest.TrackSpec] -> Cmd.CmdId a -> Result a
 run_tracks tracks = run (make_tracks tracks) default_cmd_state
 
+-- | Like 'run_tracks', but the ruler only extends to the end of the last
+-- event.
+run_tracks_ruler :: [UiTest.TrackSpec] -> Cmd.CmdId a -> Result a
+run_tracks_ruler tracks = run (make_tracks_ruler tracks) default_cmd_state
+
 -- | Derive the tracks and then run the cmd with the performance available.
 run_perf_tracks :: [UiTest.TrackSpec] -> Cmd.CmdId val -> IO (Result val)
 run_perf_tracks tracks = run_perf (make_tracks tracks) default_cmd_state
@@ -83,6 +88,12 @@ run_perf ustate cstate cmd = do
 
 make_tracks :: [UiTest.TrackSpec] -> State.State
 make_tracks = DeriveTest.set_default_midi_config . snd . UiTest.run_mkview
+
+make_tracks_ruler :: [UiTest.TrackSpec] -> State.State
+make_tracks_ruler = DeriveTest.set_default_midi_config . snd . make
+    where
+    make tracks = UiTest.run State.empty $
+        UiTest.mkblock_view (UiTest.default_block_name <> "=ruler", tracks)
 
 -- | Run a cmd and return everything you could possibly be interested in.
 run :: State.State -> Cmd.State -> Cmd.CmdId a -> Result a

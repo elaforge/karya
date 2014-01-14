@@ -352,6 +352,9 @@ merge (Events evts1) (Events evts2)
 --
 -- The precondition is that the input events are sorted, the postcondition is
 -- that no [pos .. pos+dur) ranges will overlap.
+--
+-- Though tracks should never have events starting <0, this can still happen
+-- when Events are constructed by track slicing.
 clip_events :: [Event.Event] -> [Event.Event]
 clip_events =
     map clip_duration . Seq.zip_neighbors . Seq.drop_initial_dups Event.start

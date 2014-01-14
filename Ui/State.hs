@@ -1185,10 +1185,18 @@ blocks_with_track_id track_id =
 
 -- | Insert events into track_id as per 'Events.insert'.
 insert_events :: (M m) => TrackId -> [Event.Event] -> m ()
-insert_events track_id events = _modify_events track_id $ \old_events ->
+insert_events track_id events_ = _modify_events track_id $ \old_events ->
     (Events.insert events old_events, events_range events)
+    where
+    events = map clip_negative $ dropWhile ((<0) . Event.start) events_
+    clip_negative event
+        | Event.end event < 0 = Event.set_duration (- Event.start event) event
+        | otherwise = event
 
 -- | Like 'insert_events', but clip the events to the end of a block.
+--
+-- This is necessarily block specific, because block duration is defined by its
+-- ruler.  Still, you should use this in preference to 'insert_events'.
 insert_block_events :: (M m) => BlockId -> TrackId -> [Event.Event] -> m ()
 insert_block_events block_id track_id events = do
     end <- block_ruler_end block_id
