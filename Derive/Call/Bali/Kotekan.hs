@@ -2,16 +2,32 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
--- | Calls that generate notes for instruments that come in polos and sangsih
--- pairs.
+{- | Calls that generate notes for instruments that come in polos and sangsih
+    pairs.
+
+    Kotekan patterns have a number of features in common.  They are all
+    transpositions from a base pitch.  Rhythmically, they consist of notes with
+    a constant duration, that line up at the end of an event's range, and the
+    last duration is negative (i.e. implicit, depending on the next note).
+    They use polos and sangsih and may switch patterns when the a kotekan speed
+    threshold is passed.  Notes are also possible muted.
+
+    There are a number of ways this can be extended:
+    - Use any attribute instead of just mute.
+    - More instruments than just polos and sangsih.
+    - Multiple kotekan thresholds.
+
+    The first two are supported at the 'PatternNote' level of abstraction.  For
+    the others, I have to either directly use 'Note's or create a new
+    abstraction:
+    - Variable durations.
+    - Line up at the start of the event instead of the end.
+-}
 module Derive.Call.Bali.Kotekan where
 import qualified Data.List as List
-import qualified Data.Maybe as Maybe
 
 import Util.Control
 import qualified Util.Seq as Seq
-import qualified Util.Then as Then
-
 import qualified Cmd.Meter as Meter
 import qualified Derive.Args as Args
 import qualified Derive.Attrs as Attrs
@@ -39,7 +55,10 @@ import Types
 
 note_calls :: Derive.CallMaps Derive.Note
 note_calls = Derive.call_maps
-    [ ("norot", c_norot) ]
+    [ ("norot", c_norot)
+    , (">norot", c_norot_pickup)
+    , ("gnorot", c_gender_norot)
+    ]
     [ ("nyog", c_nyogcag)
     , ("unison", c_unison)
     , ("kempyung", c_kempyung)
@@ -49,6 +68,9 @@ note_calls = Derive.call_maps
 postproc :: Tags.Tags
 postproc = Tags.bali <> Tags.postproc
 
+
+-- * patterns
+
 -- | Initially I implemented this as a postproc, but it now seems to me that
 -- it would be more convenient as a generator.  In any case, as a postproc it
 -- gets really complicated.
@@ -57,66 +79,165 @@ c_norot = Derive.make_call "norot" Tags.bali
     "Emit the basic norot pattern. The last note will line up with the end of\
     \ the event, so this is most suitable for a negative duration event."
     $ Sig.call ((,,,,)
-    <$> Sig.defaulted "dur" Nothing
-        "Duration of derived notes. Defaults to `\"(ts s)`."
+    <$> dur_arg
     <*> Sig.defaulted "style" (TrackLang.E Kempyung) "Norot style."
     <*> kotekan_env <*> instrument_top_env <*> pasang_env
     ) $ \(maybe_dur, TrackLang.E style, kotekan, inst_top, pasang) ->
     Sub.inverting $ \args -> do
-        dur <- maybe (Util.meter_duration (Args.start args) Meter.S 1)
-            return maybe_dur
+        dur <- Util.default_timestep args Meter.S maybe_dur
         pitch <- Util.get_pitch =<< Args.real_start args
         scale <- Util.get_scale
+        let nsteps = norot_steps scale inst_top pitch style
+        under_threshold <- under_threshold_function kotekan dur
         let (start, end) = Args.range args
-            out_of_range steps = note_too_high scale inst_top $
-                Pitches.transpose_d steps pitch
-        to_real <- Derive.real_function
-        kotekan <- Util.to_untyped_signal kotekan
-        mconcat $ map (note pitch) $ norot out_of_range to_real kotekan style
-            pasang dur start end
+        realize_notes start pitch $ realize_pattern True start end dur $
+            gangsa_norot under_threshold pasang nsteps
+
+c_norot_pickup :: Derive.Generator Derive.Note
+c_norot_pickup = Derive.make_call "norot-pickup" Tags.bali
+    "Emit norot pickup."
+    $ Sig.call ((,,,,)
+    <$> dur_arg
+    <*> Sig.defaulted "style" (TrackLang.E Kempyung) "Norot style."
+    <*> kotekan_env <*> instrument_top_env <*> pasang_env
+    ) $ \(maybe_dur, TrackLang.E style, kotekan, inst_top, pasang) ->
+    Sub.inverting $ \args -> do
+        dur <- Util.default_timestep args Meter.S maybe_dur
+        pitch <- Util.get_pitch =<< Args.real_start args
+        scale <- Util.get_scale
+        let nsteps = norot_steps scale inst_top pitch style
+        under_threshold <- under_threshold_function kotekan dur
+        let (start, end) = Args.range args
+        realize_notes start pitch $ realize_pattern False start end dur $
+            gangsa_norot_pickup under_threshold pasang nsteps
+
+norot_steps :: Scale.Scale -> Maybe Pitch.Pitch -> PitchSignal.Pitch
+    -> NorotStyle -> ((Pitch.Step, Pitch.Step), (Pitch.Step, Pitch.Step))
+norot_steps scale inst_top pitch style
+    | out_of_range 1 = ((-1, 0), (-1, 0))
+    | otherwise = case style of
+        Diamond -> ((1, 0), (-1, 0))
+        Kempyung
+            | not (out_of_range 4) -> ((1, 0), (4, 3))
+            | otherwise -> ((1, 0), (1, 3))
     where
-    note pitch (start, dur, inst, steps) = Derive.d_place start dur $
+    out_of_range steps = note_too_high scale inst_top $
+        Pitches.transpose_d steps pitch
+
+under_threshold_function :: TrackLang.ValControl -> ScoreTime
+    -> Derive.Deriver (ScoreTime -> Bool)
+under_threshold_function kotekan dur = do
+    to_real <- Derive.real_function
+    kotekan <- Util.to_untyped_signal kotekan
+    return $ \t ->
+        let real = to_real t
+        in to_real (t+dur) - real < RealTime.seconds (Signal.at real kotekan)
+
+c_gender_norot :: Derive.Generator Derive.Note
+c_gender_norot = Derive.make_call "gender-norot" Tags.bali
+    "Gender-style norot."
+    $ Sig.call ((,,) <$> dur_arg <*> kotekan_env <*> pasang_env)
+    $ \(maybe_dur, kotekan, pasang) -> Sub.inverting $ \args -> do
+        dur <- Util.default_timestep args Meter.S maybe_dur
+        pitch <- Util.get_pitch =<< Args.real_start args
+        under_threshold <- under_threshold_function kotekan dur
+        let (start, end) = Args.range args
+        realize_notes start pitch $ realize_pattern True start end dur $
+            gender_norot under_threshold pasang
+
+gangsa_norot_pickup :: (ScoreTime -> Bool) -> Pasang
+    -> ((Pitch.Step, Pitch.Step), (Pitch.Step, Pitch.Step))
+    -> ScoreTime -> [[PatternNote]]
+gangsa_norot_pickup under_threshold pasang (pstep, sstep) start
+    | under_threshold start =
+        [ [polos (snd pstep) mempty, sangsih (snd pstep) mempty]
+        , [polos (snd pstep) mempty, sangsih (snd pstep) mempty]
+        , [sangsih (fst pstep) mempty]
+        , [polos (snd pstep) mempty]
+        ]
+    | otherwise =
+        [ [polos (snd pstep) mute, sangsih (snd sstep) mute]
+        , [polos (snd pstep) mempty, sangsih (snd sstep) mempty]
+        , [polos (fst pstep) mempty, sangsih (fst sstep) mempty]
+        , [polos (snd pstep) mempty, sangsih (snd sstep) mempty]
+        ]
+    where
+    mute = Attrs.mute -- TODO configurable
+    polos steps attrs = (fst pasang, steps, attrs)
+    sangsih steps attrs = (snd pasang, steps, attrs)
+
+gangsa_norot :: (ScoreTime -> Bool) -> Pasang
+    -> ((Pitch.Step, Pitch.Step), (Pitch.Step, Pitch.Step))
+    -> MakePattern
+gangsa_norot under_threshold pasang (pstep, sstep) start
+    | under_threshold start = [[sangsih (fst pstep)], [polos (snd pstep)]]
+    | otherwise =
+        [ [polos (fst pstep), sangsih (fst sstep)]
+        , [polos (snd pstep), sangsih (snd sstep)]
+        ]
+    where
+    polos steps = (fst pasang, steps, mempty)
+    sangsih steps = (snd pasang, steps, mempty)
+
+gender_norot :: (ScoreTime -> Bool) -> Pasang -> MakePattern
+gender_norot under_threshold pasang start
+    | under_threshold start =
+        [[sangsih 1], [polos 0], [sangsih 1], [polos 0]]
+    | otherwise =
+        [ [polos (-1), sangsih 1]
+        , [polos (-2), sangsih 0]
+        , [polos (-1), sangsih 1]
+        , if include_unison then [polos 0, sangsih 0] else [sangsih 0]
+        ]
+    where
+    include_unison = True -- TODO chance based on signal
+    polos steps = (fst pasang, steps, mempty)
+    sangsih steps = (snd pasang, steps, mempty)
+
+-- ** implementation
+
+type MakePattern = ScoreTime -> [[PatternNote]]
+type PatternNote = (Score.Instrument, Pitch.Step, Score.Attributes)
+
+realize_pattern :: Bool -> ScoreTime -> ScoreTime -> ScoreTime -> MakePattern
+    -> [Note]
+realize_pattern repeat pattern_start pattern_end dur get_cycle =
+    concat $ reverse $ Seq.map_head negate_dur $ concat $
+        (if repeat then id else take 1) $
+        realize_cycle $ Seq.range' pattern_end pattern_start (-dur)
+    where
+    negate_dur = map $ \n -> n { note_duration = negate $ note_duration n }
+    realize_cycle [] = []
+    realize_cycle ts@(t:_) = map realize pairs : realize_cycle rest_ts
+        where (pairs, rest_ts) = Seq.zip_remainder (reverse (get_cycle t)) ts
+    realize (notes, start) = map (realize1 start ndur) notes
+        where ndur = if start == pattern_start then -dur else dur
+    realize1 start dur (inst, steps, attrs) = Note start dur inst steps attrs
+
+realize_notes :: ScoreTime -> PitchSignal.Pitch -> [Note] -> Derive.NoteDeriver
+realize_notes start pitch =
+    mconcat . map note . dropWhile ((<=start) . note_start)
+    where
+    note (Note start dur inst steps attrs) =
+        Derive.d_place start dur $
         Derive.with_instrument inst $
+        Util.add_attrs attrs $
         Util.pitched_note (Pitches.transpose_d steps pitch)
 
-norot :: (Pitch.Step -> Bool) -> (ScoreTime -> RealTime) -> Signal.Control
-    -> NorotStyle -> Pasang -> ScoreTime -> ScoreTime
-    -> ScoreTime -> [(ScoreTime, ScoreTime, Score.Instrument, Pitch.Step)]
-norot out_of_range to_real kotekan style (polos, sangsih) dur start end =
-    dropWhile (\(t, _, _, _) -> t <= start) $
-        concatMap (one_cycle . second Maybe.isNothing) $
-        Seq.zip_next $ end_on start end (dur*2)
-    where
-    one_cycle (start, is_last)
-        | under_threshold start =
-            [ (start - dur, dur, sangsih, polos_step1)
-            , (start, ndur, polos, polos_step2)
-            ]
-        | otherwise =
-            [ (start - dur, dur, polos, polos_step1)
-            , (start - dur, dur, sangsih, sangsih_step1)
-            , (start, ndur, polos, polos_step2)
-            , (start, ndur, sangsih, sangsih_step2)
-            ]
-        where ndur = if is_last then -dur else dur
-    (polos_step1, polos_step2, sangsih_step1, sangsih_step2)
-        | out_of_range 1 = (-1, 0, -1, 0)
-        | otherwise = case style of
-            Diamond -> (1, 0, -1, 0)
-            Kempyung
-                | not (out_of_range 4) -> (1, 0, 4, 3)
-                | otherwise -> (1, 0, 1, 3)
-    under_threshold t =
-        to_real (t+dur) - real < RealTime.seconds (Signal.at real kotekan)
-        where real = to_real t
-
-end_on :: (Num a, Ord a) => a -> a -> a -> [a]
-end_on start end dur =
-    reverse $ Then.takeWhile1 (>start) $ Seq.range_ end (-dur)
+data Note = Note {
+    note_start :: !ScoreTime
+    , note_duration :: !ScoreTime
+    , note_instrument :: !Score.Instrument
+    , note_steps :: !Pitch.Step
+    , note_attributes :: !Score.Attributes
+    } deriving (Show)
 
 data NorotStyle = Kempyung | Diamond deriving (Bounded, Eq, Enum, Show)
 instance ShowVal.ShowVal NorotStyle where show_val = TrackLang.default_show_val
 instance TrackLang.TypecheckEnum NorotStyle
+
+
+-- * postproc
 
 c_unison :: Derive.Transformer Derive.Note
 c_unison = Derive.transformer "unison" postproc
@@ -217,12 +338,17 @@ noltol threshold nexts event
         List.find ((== Score.event_instrument event) . Score.event_instrument)
             nexts
 
+
 -- * util
+
+dur_arg :: Sig.Parser (Maybe ScoreTime)
+dur_arg = Sig.defaulted "dur" Nothing
+    "Duration of derived notes. Defaults to `\"(ts s)`."
 
 kotekan_env :: Sig.Parser TrackLang.ValControl
 kotekan_env =
     Sig.environ "kotekan" Sig.Unprefixed (TrackLang.constant_control 0.15)
-        "If note durations are below this, kotekan calls will split polos and\
+        "If note durations are below this, divide the parts between polos and\
         \ sangsih."
 
 instrument_top_env :: Sig.Parser (Maybe Pitch.Pitch)

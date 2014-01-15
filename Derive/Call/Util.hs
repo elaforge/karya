@@ -465,6 +465,11 @@ meter_duration start rank multiply = do
     end <- timestep start ts 1
     return $ (end - start) * ScoreTime.double multiply
 
+default_timestep :: Derive.PassedArgs a -> Meter.RankName -> Maybe ScoreTime
+    -> Derive.Deriver ScoreTime
+default_timestep args step =
+    maybe (meter_duration (Args.start args) step 1) return
+
 instance ShowVal.ShowVal Meter.RankName where
     show_val = TrackLang.default_show_val
 instance TrackLang.TypecheckEnum Meter.RankName

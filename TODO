@@ -3,6 +3,11 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
+  - redo profiles so they use saved scores, and report events/sec
+  - Can I get "(ts s) as an arg parser?  Two ways
+    . Pair an arg and bit of Deriver code to transform it.
+    . Put VQuoted in as a default.  This way the doc can mention it, but it
+      has to be a ValCall.
   - experiment with explicit recording instead of the automatic "recent"
     - Either record a text modification: replace, prepend, append, delete
     - Or insert an event + dur + text, and advance the cursor to its end.
@@ -112,13 +117,22 @@ UNSORTED
       one or two instruments.  Maybe I should use a base-octave var instead
       of kantilan and pemade variations.
       . try per-instrument scale with: i_ i- i^
+    - How do I set umbang/isep for instruments that don't already have them
+      built-in?  Do I need the Environ per-instrument config?
     kotekan ornaments
       * norot
       * norot switches to kotekan when above a certain speed
-      - gnorot for gender style norot: 5656, 434- / 234-
+      * norot pickup: >norot
+        - control for +mute or not
+      * gnorot for gender style norot: 5656, 434- / 234-
+        - control for polos 234- vs. 434-
+      - an optional special pattern which switching between kotekan and back,
+        e.g. 112-2-2-
       - kotekan:
-        . patterns: 1-12-1-21, -2-12-12, -1-21-21
-          1-12-12-21-21-123
+        . patterns
+          1-12-1-21 -- _/_\
+          -2-12-12, -1-21-21 -- \\\, ///
+          1-12-12-21-21-12- / 434-34-3-43-434-3 -- \/-
         . Aligned so the last polos / sangsih note is the pitch.
         . telu vs. empat
         . phase: this can make the last note no longer align to the pitch
@@ -134,6 +148,10 @@ UNSORTED
     wayang in octaves
       . I could do it with >wayang-both that emits >wayang-p and >wayang-k. Or
         just call the score twice, once with transpose +1 oct.
+      . Or I could create the kantilan as a integration of the pemade, so it
+        can still be modified. I think this would want a "score integration"
+        which just copies and merges the events directly, and doesn't do
+        the intermediate derivation.
   india
     - nkam doesn't seem to interact correctly with 'h'
     - semi-tone dip.  This is like 1 cycle kam.
