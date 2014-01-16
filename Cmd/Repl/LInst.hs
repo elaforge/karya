@@ -22,9 +22,11 @@ import qualified Ui.State as State
 import qualified Ui.TrackTree as TrackTree
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Info as Info
+import qualified Derive.RestrictedEnviron as RestrictedEnviron
 import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.TrackInfo as TrackInfo
+import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.Midi.Instrument as Instrument
 import qualified Instrument.MidiDb as MidiDb
@@ -59,20 +61,24 @@ configs = do
     show_config alias_map (inst, config) = ShowVal.show_val inst <> " - "
         <> Info.show_addrs (map fst (Instrument.config_addrs config))
         <> show_alias alias_map inst
-        <> show_flags config
         <> show_controls (Instrument.config_controls config)
+        <> show_environ (Instrument.config_restricted_environ config)
+        <> show_flags config
     show_alias alias_map inst = case Map.lookup inst alias_map of
         Nothing -> ""
         Just source -> " (source: " <> ShowVal.show_val source <> ")"
+    show_controls controls
+        | Map.null controls = ""
+        | otherwise = " " <> Pretty.prettytxt controls
+    show_environ environ
+        | environ == mempty = ""
+        | otherwise = " " <> Pretty.prettytxt environ
     show_flags config
         | null flags = ""
         | otherwise = " {" <> Text.intercalate ", " flags <> "}"
         where
         flags = ["mute" | Instrument.config_mute config]
             ++ ["solo" | Instrument.config_solo config]
-    show_controls controls
-        | Map.null controls = ""
-        | otherwise = " " <> Pretty.prettytxt controls
 
 -- | The not-so-purty version.
 midi_config :: (State.M m) => m Instrument.Configs
@@ -119,15 +125,28 @@ remove_alias :: Text -> Cmd.CmdL ()
 remove_alias inst = State.modify $
     State.config#State.aliases %= Map.delete (Score.Instrument inst)
 
-toggle_mute :: (State.M m) => Text -> m Bool
+toggle_mute :: State.M m => Text -> m Bool
 toggle_mute inst = modify_config (Score.Instrument inst) $ \config ->
     let mute = not $ Instrument.config_mute config
     in (config { Instrument.config_mute = mute }, mute)
 
-toggle_solo :: (State.M m) => Text -> m Bool
+toggle_solo :: State.M m => Text -> m Bool
 toggle_solo inst = modify_config (Score.Instrument inst) $ \config ->
     let solo = not $ Instrument.config_solo config
     in (config { Instrument.config_solo = solo }, solo)
+
+-- | Add an environ val to the instrument config.
+add_environ :: (RestrictedEnviron.ToVal a, State.M m) => Score.Instrument
+    -> Text -> a -> m ()
+add_environ inst name val =
+    modify_config_ inst $ Instrument.cenviron
+        %= (RestrictedEnviron.make [(TrackLang.Symbol name, v)] <>)
+    where v = RestrictedEnviron.to_val val
+
+-- | Clear the instrument config's environ.  The instrument's built-in environ
+-- from 'Instrument.patch_environ' is still present.
+clear_environ :: State.M m => Score.Instrument -> m ()
+clear_environ inst = modify_config_ inst $ Instrument.cenviron #= mempty
 
 set_control :: (State.M m) => Text -> Score.Control -> Double -> m ()
 set_control inst control val = modify_config_ (Score.Instrument inst) $

@@ -114,8 +114,7 @@ run_with_dynamic dynamic deriver = do
     return $ Derive.run state deriver
 
 get_lookup_inst :: Cmd.M m => m (Score.Instrument -> Maybe Derive.Instrument)
-get_lookup_inst =
-    (fmap Cmd.derive_instrument .) <$> Cmd.get_lookup_instrument
+get_lookup_inst = (fmap Cmd.derive_instrument .) <$> Cmd.get_lookup_instrument
 
 perform_from :: Cmd.M m => RealTime -> Cmd.Performance -> m Perform.MidiEvents
 perform_from start = perform_events . events_from start . Cmd.perf_events
@@ -232,13 +231,13 @@ filter_instrument_muted configs
 
 perform_events :: (Cmd.M m) => Cmd.Events -> m Perform.MidiEvents
 perform_events events = do
-    midi_config <- State.get_midi_config
+    configs <- State.get_midi_config
     lookup <- get_convert_lookup
     blocks <- State.gets (Map.toList . State.state_blocks)
     tree <- concat <$> mapM (TrackTree.get_track_tree . fst) blocks
-    return $ fst $ Perform.perform Perform.initial_state midi_config $
+    return $ fst $ Perform.perform Perform.initial_state configs $
         Convert.convert lookup $ filter_track_muted tree blocks $
-        filter_instrument_muted midi_config $
+        filter_instrument_muted configs $
         -- Performance should be lazy, so converting to a list here means I can
         -- avoid doing work for the notes that never get played.
         Vector.toList events

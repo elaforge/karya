@@ -117,7 +117,7 @@ UNSORTED
       one or two instruments.  Maybe I should use a base-octave var instead
       of kantilan and pemade variations.
       . try per-instrument scale with: i_ i- i^
-    - How do I set umbang/isep for instruments that don't already have them
+    * How do I set umbang/isep for instruments that don't already have them
       built-in?  Do I need the Environ per-instrument config?
       * But I can't save Environ because of Pitch
         * I could make a RestrictedEnviron.  I could also put environ in the

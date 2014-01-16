@@ -26,7 +26,7 @@ import Types
 
 
 newtype Environ = Environ (Map.Map TrackLang.ValName Val)
-    deriving (Show, Eq, Monoid.Monoid, Pretty.Pretty, Serialize.Serialize)
+    deriving (Read, Show, Eq, Monoid.Monoid, Pretty.Pretty, Serialize.Serialize)
 
 make :: [(TrackLang.ValName, Val)] -> Environ
 make = Environ . Map.fromList
@@ -44,7 +44,7 @@ data Val =
     | VInstrument !Score.Instrument
     | VSymbol !TrackLang.Symbol
     | VQuoted !Call
-    deriving (Eq, Show)
+    deriving (Eq, Read, Show)
 
 convert_val :: Val -> TrackLang.ValType p
 convert_val val = case val of
@@ -90,8 +90,8 @@ instance ToVal Call where to_val = VQuoted
 
 -- * call
 
-data Call = Call TrackLang.CallId [Term] deriving (Eq, Show)
-data Term = ValCall Call | Literal Val deriving (Eq, Show)
+data Call = Call TrackLang.CallId [Term] deriving (Eq, Read, Show)
+data Term = ValCall Call | Literal Val deriving (Eq, Read, Show)
 
 convert_call :: Call -> TrackLang.Call
 convert_call (Call call_id terms) =

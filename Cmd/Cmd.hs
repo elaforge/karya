@@ -976,6 +976,11 @@ set_status key val = do
     view_ids <- State.gets (Map.keys . State.state_views)
     forM_ view_ids $ \view_id -> set_view_status view_id key val
 
+get_midi_instrument :: (M m) => Score.Instrument -> m Instrument.Instrument
+get_midi_instrument inst = do
+    lookup <- get_lookup_midi_instrument
+    require_msg ("get_midi_instrument " ++ Pretty.pretty inst) $ lookup inst
+
 get_lookup_midi_instrument :: (M m) => m MidiDb.LookupMidiInstrument
 get_lookup_midi_instrument = do
     aliases <- State.config#State.aliases <#> State.get
@@ -986,12 +991,26 @@ get_lookup_midi_instrument = do
 lookup_instrument :: (M m) => Score.Instrument -> m (Maybe MidiInfo)
 lookup_instrument inst = ($ inst) <$> get_lookup_instrument
 
+-- | Get a function to look up a 'Score.Instrument'.  This is where
+-- 'Ui.StateConfig' is applied to the instrument db, applying aliases
+-- and 'Instrument.config_environ', so anyone looking up a Patch should go
+-- through this.
 get_lookup_instrument :: (M m) => m (Score.Instrument -> Maybe MidiInfo)
 get_lookup_instrument = do
     aliases <- State.config#State.aliases <#> State.get
-    gets $ Instrument.Db.db_lookup
+    configs <- State.get_midi_config
+    lookup <- gets $ Instrument.Db.db_lookup
         . Instrument.Db.with_aliases aliases . state_instrument_db
         . state_config
+    return $ \inst -> merge_environ configs inst <$> lookup inst
+    where
+    merge_environ configs inst info = info
+        { MidiDb.info_patch = Instrument.environ %= (environ <>) $
+            MidiDb.info_patch info
+        }
+        where
+        environ = maybe mempty Instrument.config_restricted_environ $
+            Map.lookup inst configs
 
 -- | Lookup a detailed patch along with the environ that it likes.
 get_midi_patch :: (M m) => Score.Instrument -> m Instrument.Patch
@@ -999,11 +1018,6 @@ get_midi_patch inst = do
     info <- require_msg ("get_midi_patch " ++ Pretty.pretty inst)
         =<< lookup_instrument inst
     return $ MidiDb.info_patch info
-
-get_midi_instrument :: (M m) => Score.Instrument -> m Instrument.Instrument
-get_midi_instrument inst = do
-    lookup <- get_lookup_midi_instrument
-    require_msg ("get_midi_instrument " ++ Pretty.pretty inst) $ lookup inst
 
 get_lookup_scale :: (M m) => m Derive.LookupScale
 get_lookup_scale = do

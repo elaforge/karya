@@ -71,7 +71,7 @@ newtype Control = Control Text
 
 -- | Tag for the type of the values in a control signal.
 data Type = Untyped | Chromatic | Diatonic | Nn | Score | Real
-    deriving (Eq, Ord, Read, Show)
+    deriving (Eq, Enum, Ord, Read, Show)
 
 instance Pretty.Pretty Type where pretty = show
 
@@ -439,7 +439,7 @@ data ControlRef val =
     | DefaultedControl Control val
     -- | Throw an exception if the control isn't present.
     | LiteralControl Control
-    deriving (Eq, Show)
+    deriving (Eq, Read, Show)
 
 type PitchControl = ControlRef Signal
 -- | Pitches have to be evaluated, but the parser has to return something

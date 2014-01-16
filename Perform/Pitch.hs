@@ -68,7 +68,7 @@ instance Pretty.Pretty Note where
 data Pitch = Pitch {
     pitch_octave :: !Octave
     , pitch_degree :: !Degree
-    } deriving (Eq, Ord, Show)
+    } deriving (Eq, Ord, Read, Show)
 
 instance Pretty.Pretty Pitch where
     pretty (Pitch oct degree) = show oct <> "-" <> Pretty.pretty degree
@@ -88,7 +88,7 @@ data Degree = Degree {
     degree_pc :: !PitchClass
     -- | Ignored for diatonic scales.
     , degree_accidentals :: !Accidentals
-    } deriving (Eq, Ord, Show)
+    } deriving (Eq, Ord, Read, Show)
 
 instance Pretty.Pretty Degree where
     pretty (Degree pc acc) = show pc

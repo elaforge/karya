@@ -201,6 +201,8 @@ data Config = Config {
     -- Each Addr has a count of how many simultaneous voices the addr can
     -- handle.  Nothing means there's no limit.
     config_addrs :: ![(Addr, Maybe Voices)]
+    -- | This is a local version of 'patch_restricted_environ'.
+    , config_restricted_environ :: !RestrictedEnviron.Environ
     -- | Default controls for this instrument, will always be set unless
     -- explicitly replaced.  This hopefully avoids the problem where
     -- a synthesizer starts in an undefined state.
@@ -210,9 +212,14 @@ data Config = Config {
     -- | If any instrument is soloed, all instruments except soloed ones are
     -- filtered out prior to playing.
     , config_solo :: !Bool
-    } deriving (Eq, Show, Read)
+    } deriving (Eq, Read, Show)
+
+config_environ :: Config -> TrackLang.Environ
+config_environ = RestrictedEnviron.convert . config_restricted_environ
 
 addrs = Lens.lens config_addrs (\v r -> r { config_addrs = v })
+cenviron = Lens.lens config_restricted_environ
+    (\v r -> r { config_restricted_environ = v })
 controls = Lens.lens config_controls (\v r -> r { config_controls = v })
 mute = Lens.lens config_mute (\v r -> r { config_mute = v })
 solo = Lens.lens config_solo (\v r -> r { config_solo = v })
@@ -220,15 +227,17 @@ solo = Lens.lens config_solo (\v r -> r { config_solo = v })
 config :: [(Addr, Maybe Voices)] -> Config
 config addrs = Config
     { config_addrs = addrs
+    , config_restricted_environ = mempty
     , config_controls = mempty
     , config_mute = False
     , config_solo = False
     }
 
 instance Pretty.Pretty Config where
-    format (Config addrs controls mute solo) =
+    format (Config addrs environ controls mute solo) =
         Pretty.record_title "Config"
             [ ("addrs", Pretty.format addrs)
+            , ("environ", Pretty.format environ)
             , ("mute", Pretty.format mute)
             , ("controls", Pretty.format controls)
             , ("solo", Pretty.format solo)

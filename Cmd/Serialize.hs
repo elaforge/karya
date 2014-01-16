@@ -34,8 +34,8 @@ import qualified Util.Rect as Rect
 import qualified Util.Serialize as Serialize
 import Util.Serialize (Serialize, get, put, get_tag, put_tag, bad_tag)
 
-import qualified Midi.Midi as Midi
 import Midi.Instances ()
+import qualified Midi.Midi as Midi
 import qualified Ui.Block as Block
 import qualified Ui.Color as Color
 import qualified Ui.Events as Events
@@ -46,6 +46,7 @@ import qualified Ui.State as State
 import qualified Ui.Track as Track
 import qualified Ui.Types as Types
 
+import qualified Derive.RestrictedEnviron as RestrictedEnviron
 import qualified Derive.Score as Score
 import qualified Perform.Lilypond.Types as Lilypond
 import qualified Perform.Midi.Instrument as Instrument
@@ -490,8 +491,8 @@ instance Serialize Configs where
             _ -> Serialize.bad_version "Instrument.Configs" v
 
 instance Serialize Instrument.Config where
-    put (Instrument.Config a b c d) = Serialize.put_version 3
-        >> put a >> put b >> put c >> put d
+    put (Instrument.Config a b c d e) = Serialize.put_version 4
+        >> put a >> put b >> put c >> put d >> put e
     get = do
         v <- Serialize.get_version
         case v of
@@ -500,20 +501,27 @@ instance Serialize Instrument.Config where
                 mute :: Bool <- get
                 solo :: Bool <- get
                 return $ Instrument.Config (map (flip (,) Nothing) addrs)
-                    mempty mute solo
+                    mempty mempty mute solo
             2 -> do
                 addrs :: [Instrument.Addr] <- get
                 controls :: Score.ControlValMap <- get
                 mute :: Bool <- get
                 solo :: Bool <- get
                 return $ Instrument.Config (map (flip (,) Nothing) addrs)
-                    controls mute solo
+                    mempty controls mute solo
             3 -> do
                 addrs :: [(Instrument.Addr, Maybe Instrument.Voices)] <- get
                 controls :: Score.ControlValMap <- get
                 mute :: Bool <- get
                 solo :: Bool <- get
-                return $ Instrument.Config addrs controls mute solo
+                return $ Instrument.Config addrs mempty controls mute solo
+            4 -> do
+                addrs :: [(Instrument.Addr, Maybe Instrument.Voices)] <- get
+                environ :: RestrictedEnviron.Environ <- get
+                controls :: Score.ControlValMap <- get
+                mute :: Bool <- get
+                solo :: Bool <- get
+                return $ Instrument.Config addrs environ controls mute solo
             _ -> Serialize.bad_version "Instrument.Config" v
 
 -- ** lilypond

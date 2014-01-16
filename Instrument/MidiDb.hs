@@ -132,10 +132,10 @@ lookup_midi midi_db inst = case lookup_instrument midi_db inst of
 make_inst :: Instrument.Synth -> Instrument.Patch -> Score.Instrument
     -> Instrument.Instrument
 make_inst synth patch score_inst = inst
-        { Instrument.inst_control_map = Map.union inst_cmap synth_cmap
-        , Instrument.inst_score = score_inst
-        , Instrument.inst_synth = Instrument.synth_name synth
-        }
+    { Instrument.inst_control_map = Map.union inst_cmap synth_cmap
+    , Instrument.inst_score = score_inst
+    , Instrument.inst_synth = Instrument.synth_name synth
+    }
     where
     inst = Instrument.patch_instrument patch
     synth_cmap = Instrument.synth_control_map synth

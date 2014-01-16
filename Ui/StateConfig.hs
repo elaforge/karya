@@ -61,7 +61,7 @@ data Config = Config {
     , config_lilypond :: !Lilypond.Config
     , config_default :: !Default
     , config_saved_views :: !SavedViews
-    } deriving (Eq, Read, Show, Generics.Typeable)
+    } deriving (Eq, Show, Generics.Typeable)
 
 namespace = Lens.lens config_namespace (\v r -> r { config_namespace = v })
 meta = Lens.lens config_meta (\v r -> r { config_meta = v })
