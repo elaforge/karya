@@ -313,9 +313,9 @@ instance Typecheck Pitch.Transpose where
         Score.Nn -> Just (Pitch.Nn val)
         _ -> Nothing
     from_val _ = Nothing
-    to_val (Pitch.Chromatic a) = to_val a
-    to_val (Pitch.Diatonic a) = to_val a
-    to_val (Pitch.Nn a) = to_val a
+    to_val (Pitch.Chromatic a) = VNum $ Score.Typed Score.Chromatic a
+    to_val (Pitch.Diatonic a) = VNum $ Score.Typed Score.Diatonic a
+    to_val (Pitch.Nn a) = VNum $ Score.Typed Score.Nn a
     to_type = num_to_type
 
 -- | But some calls want to default to diatonic, not chromatic.
