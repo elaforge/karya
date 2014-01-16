@@ -16,9 +16,9 @@ import Cmd.Meter (AbstractMeter(..))
 
 -- * presets
 
--- | 2 sections of 4 avartanams of everyone's favorite talam.
-adi_ruler :: Ruler.Ruler
-adi_ruler = make_ruler adi_tala 2 4 4 1
+-- | n sections of 4 avartanams of everyone's favorite talam.
+adi_ruler :: Int -> Ruler.Ruler
+adi_ruler sections = make_ruler adi_tala sections 4 4 1
 
 -- * implementation
 
