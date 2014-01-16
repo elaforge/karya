@@ -40,8 +40,11 @@ import qualified Util.Seq as Seq
 import qualified Util.Vector
 
 import qualified Midi.Midi as Midi
+import qualified Derive.RestrictedEnviron as RestrictedEnviron
 import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
+import qualified Derive.TrackLang as TrackLang
+
 import qualified Perform.Midi.Control as Control
 import qualified Perform.Pitch as Pitch
 import Types
@@ -201,7 +204,7 @@ data Config = Config {
     -- | Default controls for this instrument, will always be set unless
     -- explicitly replaced.  This hopefully avoids the problem where
     -- a synthesizer starts in an undefined state.
-    , config_controls :: Score.ControlValMap
+    , config_controls :: !Score.ControlValMap
     -- | If true, this instrument is filtered out prior to playing.
     , config_mute :: !Bool
     -- | If any instrument is soloed, all instruments except soloed ones are
@@ -250,6 +253,11 @@ data Patch = Patch {
     -- used in performance, because e.g. synth controls can get added in.
     patch_instrument :: !Instrument
     , patch_scale :: !PatchScale
+    -- | This environ is merged into the derive environ when the instrument
+    -- comes into scope, and also when the pitch of 'Score.Event's with this
+    -- instrument is converted.  Typically it sets things like instrument
+    -- range, tuning details, etc.
+    , patch_restricted_environ :: !RestrictedEnviron.Environ
     , patch_flags :: !(Set.Set Flag)
     , patch_composite :: ![Composite]
     , patch_initialize :: !InitializePatch
@@ -264,6 +272,23 @@ data Patch = Patch {
     -- | The patch was read from this file.
     , patch_file :: !FilePath
     } deriving (Eq, Show)
+
+instrument_ = Lens.lens patch_instrument (\v r -> r { patch_instrument = v })
+scale = Lens.lens patch_scale (\v r -> r { patch_scale = v })
+environ = Lens.lens patch_restricted_environ
+    (\v r -> r { patch_restricted_environ = v })
+flags = Lens.lens patch_flags (\v r -> r { patch_flags = v })
+composite = Lens.lens patch_composite (\v r -> r { patch_composite = v })
+initialize = Lens.lens patch_initialize (\v r -> r { patch_initialize = v })
+attribute_map = Lens.lens patch_attribute_map
+    (\v r -> r { patch_attribute_map = v })
+call_map = Lens.lens patch_call_map (\v r -> r { patch_call_map = v })
+tags = Lens.lens patch_tags (\v r -> r { patch_tags = v })
+text = Lens.lens patch_text (\v r -> r { patch_text = v })
+file = Lens.lens patch_file (\v r -> r { patch_file = v })
+
+patch_environ :: Patch -> TrackLang.Environ
+patch_environ = RestrictedEnviron.convert . patch_restricted_environ
 
 -- | A composite patch corresponds to multiple underlying midi patches.
 -- At conversion time, a single event with a composite patch will be split
@@ -284,6 +309,7 @@ patch :: Instrument -> Patch
 patch inst = Patch
     { patch_instrument = inst
     , patch_scale = Nothing
+    , patch_restricted_environ = mempty
     , patch_flags = Set.empty
     , patch_composite = []
     , patch_initialize = NoInitialization
@@ -293,18 +319,6 @@ patch inst = Patch
     , patch_text = ""
     , patch_file = ""
     }
-
-instrument_ = Lens.lens patch_instrument (\v r -> r { patch_instrument = v })
-scale = Lens.lens patch_scale (\v r -> r { patch_scale = v })
-flags = Lens.lens patch_flags (\v r -> r { patch_flags = v })
-composite = Lens.lens patch_composite (\v r -> r { patch_composite = v })
-initialize = Lens.lens patch_initialize (\v r -> r { patch_initialize = v })
-attribute_map = Lens.lens patch_attribute_map
-    (\v r -> r { patch_attribute_map = v })
-call_map = Lens.lens patch_call_map (\v r -> r { patch_call_map = v })
-tags = Lens.lens patch_tags (\v r -> r { patch_tags = v })
-text = Lens.lens patch_text (\v r -> r { patch_text = v })
-file = Lens.lens patch_file (\v r -> r { patch_file = v })
 
 -- | If a patch is tuned to something other than 12TET, this vector maps MIDI
 -- key numbers to their NNs, or 0 if the patch doesn't support that key.
@@ -344,11 +358,12 @@ convert_patch_scale scale (Pitch.NoteNumber nn) =
 
 -- | A Pretty instance is useful because InitializeMidi tends to be huge.
 instance Pretty.Pretty Patch where
-    format (Patch inst scale flags composite init attr_map call_map tags text
-            file) =
+    format (Patch inst scale environ flags composite init attr_map call_map
+            tags text file) =
         Pretty.record_title "Patch"
             [ ("instrument", Pretty.format inst)
             , ("scale", Pretty.format scale)
+            , ("environ", Pretty.format environ)
             , ("flags", Pretty.format flags)
             , ("composite", Pretty.format composite)
             , ("initialize", Pretty.format init)

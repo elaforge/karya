@@ -45,8 +45,7 @@ type State = Set.Set Score.Instrument
 data Lookup = Lookup {
     lookup_scale :: Derive.LookupScale
     , lookup_inst :: Score.Instrument -> Maybe Instrument.Instrument
-    , lookup_patch :: Score.Instrument
-        -> Maybe (Instrument.Patch, TrackLang.Environ)
+    , lookup_patch :: Score.Instrument -> Maybe Instrument.Patch
     , lookup_default_controls :: Score.Instrument -> Score.ControlMap
     }
 
@@ -59,14 +58,13 @@ convert_event :: Lookup -> Score.Event
     -> ConvertT (Perform.Event, [Score.Event])
 convert_event lookup event_ = do
     let score_inst = Score.event_instrument event_
-    (patch, environ) <- require_patch score_inst $
-        lookup_patch lookup score_inst
+    patch <- require_patch score_inst $ lookup_patch lookup score_inst
     let (event, additional) =
             split_composite (Instrument.patch_composite patch) event_
     midi_inst <- require ("instrument in db: " <> Pretty.pretty score_inst) $
         lookup_inst lookup score_inst
-    (midi_inst, pitch) <- convert_midi_pitch midi_inst environ
-        (Instrument.patch_scale patch)
+    (midi_inst, pitch) <- convert_midi_pitch midi_inst
+        (Instrument.patch_environ patch) (Instrument.patch_scale patch)
         (Instrument.patch_attribute_map patch) event
     let (controls, overridden) = convert_controls
             (Instrument.has_flag Instrument.Pressure patch)

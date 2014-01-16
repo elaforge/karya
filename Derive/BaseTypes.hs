@@ -55,7 +55,7 @@ import qualified Perform.Signal as Signal
 -- the backend itself, but things at the Derive layer and above don't care
 -- about all that.
 newtype Instrument = Instrument Text
-    deriving (DeepSeq.NFData, Eq, Ord, Show, Read)
+    deriving (Eq, Ord, Show, Read, DeepSeq.NFData, Serialize.Serialize)
 
 instance Pretty.Pretty Instrument where pretty = untxt . ShowVal.show_val
 instance ShowVal.ShowVal Instrument where
@@ -74,6 +74,10 @@ data Type = Untyped | Chromatic | Diatonic | Nn | Score | Real
     deriving (Eq, Ord, Read, Show)
 
 instance Pretty.Pretty Type where pretty = show
+
+instance Serialize.Serialize Type where
+    put = Serialize.put . fromEnum
+    get = toEnum <$> Serialize.get
 
 all_types :: [Type]
 all_types = [Chromatic, Diatonic, Nn, Score, Real, Untyped]
@@ -112,16 +116,20 @@ data Typed a = Typed {
     , typed_val :: !a
     } deriving (Eq, Ord, Read, Show)
 
-instance (DeepSeq.NFData a) => DeepSeq.NFData (Typed a) where
+instance DeepSeq.NFData a => DeepSeq.NFData (Typed a) where
     rnf (Typed typ val) = typ `seq` DeepSeq.rnf val
 
 instance Functor Typed where
     fmap f (Typed typ val) = Typed typ (f val)
 
-instance (Pretty.Pretty a) => Pretty.Pretty (Typed a) where
+instance Pretty.Pretty a => Pretty.Pretty (Typed a) where
     format (Typed typ val) =
         Pretty.text (if null c then "" else c ++ ":") <> Pretty.format val
         where c = type_to_code typ
+
+instance Serialize.Serialize a => Serialize.Serialize (Typed a) where
+    put (Typed a b) = Serialize.put a >> Serialize.put b
+    get = Typed <$> Serialize.get <*> Serialize.get
 
 merge_typed :: (a -> a -> a) -> Typed a -> Typed a -> Typed a
 merge_typed f (Typed typ1 v1) (Typed typ2 v2) = Typed (typ1<>typ2) (f v1 v2)
@@ -143,7 +151,7 @@ instance ShowVal.ShowVal TypedVal where
 -- a drum from a drumset, or something like that.
 type Attribute = Text
 newtype Attributes = Attributes (Set.Set Attribute)
-    deriving (Monoid.Monoid, Eq, Ord, Read, Show)
+    deriving (Monoid.Monoid, Eq, Ord, Read, Show, Serialize.Serialize)
 
 instance Pretty.Pretty Attributes where pretty = untxt . ShowVal.show_val
 instance ShowVal.ShowVal Attributes where
@@ -365,7 +373,7 @@ data ValType pitch =
 -- thing.  I use this to treat any Val as a Symbol to re-evaluate it.  Being
 -- invalid means that a VPitch or VPitchControl with a default will cause
 -- a parse failure, but I'll have to see if this becomes a problem in practice.
-instance (ShowVal.ShowVal pitch) => ShowVal.ShowVal (ValType pitch) where
+instance ShowVal.ShowVal pitch => ShowVal.ShowVal (ValType pitch) where
     show_val val = case val of
         VNum d -> ShowVal.show_val d
         VAttributes attrs -> ShowVal.show_val attrs
@@ -378,7 +386,7 @@ instance (ShowVal.ShowVal pitch) => ShowVal.ShowVal (ValType pitch) where
         VQuoted quoted -> ShowVal.show_val quoted
         VNotGiven -> "_"
 
-instance (ShowVal.ShowVal pitch) => Pretty.Pretty (ValType pitch) where
+instance ShowVal.ShowVal pitch => Pretty.Pretty (ValType pitch) where
     pretty = untxt . ShowVal.show_val
 
 instance DeepSeq.NFData (ValType pitch) where
@@ -392,7 +400,8 @@ instance ShowVal.ShowVal Quoted where
     show_val (Quoted call) = "\"(" <> ShowVal.show_val call <> ")"
 
 newtype Symbol = Symbol Text
-    deriving (Eq, Ord, Show, DeepSeq.NFData, String.IsString)
+    deriving (Eq, Ord, Read, Show, DeepSeq.NFData, String.IsString,
+        Serialize.Serialize)
 instance Pretty.Pretty Symbol where pretty = untxt . ShowVal.show_val
 
 instance ShowVal.ShowVal Symbol where
@@ -439,6 +448,18 @@ type RawPitchControl = ControlRef PitchCall
 type ValControl = ControlRef TypedControl
 
 instance Pretty.Pretty PitchControl where pretty = untxt . ShowVal.show_val
+
+instance Serialize.Serialize val => Serialize.Serialize (ControlRef val) where
+    put val = case val of
+        ControlSignal a -> Serialize.put_tag 0 >> Serialize.put a
+        DefaultedControl a b -> Serialize.put_tag 1 >> Serialize.put a
+            >> Serialize.put b
+        LiteralControl a -> Serialize.put_tag 2 >> Serialize.put a
+    get = Serialize.get_tag >>= \x -> case x of
+        0 -> ControlSignal <$> Serialize.get
+        1 -> DefaultedControl <$> Serialize.get <*> Serialize.get
+        2 -> LiteralControl <$> Serialize.get
+        n -> Serialize.bad_tag "BaseTypes.ControlRef" n
 
 -- | There's no way to convert a pitch back into the expression that produced
 -- it, so this is the best I can do.

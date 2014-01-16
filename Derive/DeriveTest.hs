@@ -619,9 +619,7 @@ make_convert_lookup midi_db = Convert.Lookup
     }
     where
     lookup_inst = Instrument.Db.db_lookup_midi midi_db
-    lookup_patch = fmap extract . Instrument.Db.db_lookup midi_db
-    extract info = (MidiDb.info_patch info,
-        Cmd.inst_environ (MidiDb.info_code info))
+    lookup_patch = fmap MidiDb.info_patch . Instrument.Db.db_lookup midi_db
 
 make_db :: [(Text, [Instrument.Patch])] -> Cmd.InstrumentDb
 make_db synth_patches = Instrument.Db.db midi_db

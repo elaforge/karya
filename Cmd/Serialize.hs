@@ -516,10 +516,6 @@ instance Serialize Instrument.Config where
                 return $ Instrument.Config addrs controls mute solo
             _ -> Serialize.bad_version "Instrument.Config" v
 
-instance Serialize Score.Instrument where
-    put (Score.Instrument a) = put a
-    get = fmap Score.Instrument get
-
 -- ** lilypond
 
 instance Serialize Lilypond.Config where

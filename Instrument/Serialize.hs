@@ -16,8 +16,6 @@ import Util.Control
 import Util.Serialize (Serialize, get, put, get_tag, put_tag, bad_tag)
 import Midi.Instances ()
 import qualified Cmd.Serialize
-import qualified Derive.BaseTypes as BaseTypes
-import qualified Derive.Score as Score
 import qualified Perform.Midi.Instrument as Instrument
 import qualified Instrument.MidiDb as MidiDb
 import qualified Instrument.Search as Search
@@ -87,11 +85,12 @@ instance Serialize (MidiDb.PatchMap ()) where
     get = get >>= \a -> return (MidiDb.PatchMap a)
 
 instance Serialize Instrument.Patch where
-    put (Instrument.Patch a b c d e f g h i j) = put a >> put b >> put c
-        >> put d >> put e >> put f >> put g >> put h >> put i >> put j
+    put (Instrument.Patch a b c d e f g h i j k) = put a >> put b >> put c
+        >> put d >> put e >> put f >> put g >> put h >> put i >> put j >> put k
     get = get >>= \a -> get >>= \b -> get >>= \c -> get >>= \d -> get >>= \e ->
         get >>= \f -> get >>= \g -> get >>= \h -> get >>= \i -> get >>= \j ->
-            return (Instrument.Patch a b c d e f g h i j)
+        get >>= \k ->
+            return (Instrument.Patch a b c d e f g h i j k)
 
 instance Serialize Instrument.Flag where
     put Instrument.Triggered = put_tag 0
@@ -145,7 +144,3 @@ instance Serialize Instrument.Keyswitch where
             0 -> Instrument.Keyswitch <$> get
             1 -> Instrument.ControlSwitch <$> get <*> get
             _ -> bad_tag "Instrument.Keyswitch" tag
-
-instance Serialize Score.Attributes where
-    put = put . Score.attrs_set
-    get = BaseTypes.set_to_attrs <$> get

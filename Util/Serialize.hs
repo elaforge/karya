@@ -2,6 +2,7 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
+{-# LANGUAGE ScopedTypeVariables #-}
 {- | This module implements a Serialize class and serializers for basic types.
 
     It duplicates a lot from the standard Serialize class, but this one at
@@ -29,6 +30,7 @@ import qualified Data.Set as Set
 import qualified Data.Text as Text
 import qualified Data.Text.Encoding as Text.Encoding
 import qualified Data.Vector as Vector
+import qualified Data.Vector.Storable as Vector.Storable
 import qualified Data.Vector.Unboxed as Unboxed
 
 import Foreign
@@ -186,7 +188,7 @@ instance (Serialize a, Unboxed.Unbox a) => Serialize (Unboxed.Vector a) where
         put (Unboxed.length v)
         Unboxed.mapM_ put v
     get = do
-        len <- get :: Get Int
+        len :: Int <- get
         Unboxed.replicateM len get
 
 instance (Serialize a) => Serialize (Vector.Vector a) where
@@ -194,8 +196,17 @@ instance (Serialize a) => Serialize (Vector.Vector a) where
         put (Vector.length v)
         Vector.mapM_ put v
     get = do
-        len <- get :: Get Int
+        len :: Int <- get
         Vector.replicateM len get
+
+instance (Serialize a, Storable a) => Serialize (Vector.Storable.Vector a) where
+    put v = do
+        put (Vector.Storable.length v)
+        Vector.Storable.mapM_ put v
+    get = do
+        len :: Int <- get
+        Vector.Storable.replicateM len get
+
 
 
 -- * versions

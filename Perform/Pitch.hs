@@ -76,8 +76,12 @@ instance Pretty.Pretty Pitch where
 -- | This relies on the presence of a @pitch@ val call.
 instance ShowVal.ShowVal Pitch where
     show_val (Pitch oct (Degree pc accs)) =
-        "(pitch" <> Text.unwords (map showt (filter (/=0) [oct, pc, accs]))
-            <> ")"
+        "(pitch " <> Text.unwords args <> ")"
+        where args = map showt $ oct : pc : if accs == 0 then [] else [accs]
+
+instance Serialize.Serialize Pitch where
+    put (Pitch a b) = Serialize.put a >> Serialize.put b
+    get = Pitch <$> Serialize.get <*> Serialize.get
 
 -- | A scale degree, without reference to an octave.
 data Degree = Degree {
@@ -89,6 +93,10 @@ data Degree = Degree {
 instance Pretty.Pretty Degree where
     pretty (Degree pc acc) = show pc
         <> if acc < 0 then replicate (abs acc) 'b' else replicate acc '#'
+
+instance Serialize.Serialize Degree where
+    put (Degree a b) = Serialize.put a >> Serialize.put b
+    get = Degree <$> Serialize.get <*> Serialize.get
 
 -- | Just a way to label an octave, either relative or absolute.
 type Octave = Int

@@ -44,7 +44,6 @@ import qualified Cmd.Cmd as Cmd
 import qualified Derive.Derive as Derive
 import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
-import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.Midi.Control as Control
 import qualified Perform.Midi.Instrument as Instrument
@@ -118,8 +117,8 @@ info_of db score_inst (MidiDb.Info synth patch code) =
         , ("Note transformers",
             show_calls CallDoc.TransformerCall note_transformers)
         , ("Val calls", show_calls CallDoc.ValCall val_calls)
-        , ("Environ", if TrackLang.null_environ (Cmd.inst_environ code) then ""
-            else Pretty.prettytxt (Cmd.inst_environ code))
+        , ("Environ",
+            if environ == mempty then "" else Pretty.prettytxt environ)
 
         -- implementation details
         , ("Attribute map", show_attribute_map attr_map)
@@ -136,6 +135,7 @@ info_of db score_inst (MidiDb.Info synth patch code) =
     Instrument.Patch {
         Instrument.patch_instrument = inst
         , Instrument.patch_scale = scale
+        , Instrument.patch_restricted_environ = environ
         , Instrument.patch_flags = pflags
         , Instrument.patch_initialize = initialize
         , Instrument.patch_attribute_map = attr_map

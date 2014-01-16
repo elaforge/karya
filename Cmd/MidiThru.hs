@@ -102,12 +102,13 @@ midi_thru_instrument score_inst input = do
     addrs <- Instrument.get_addrs score_inst <$> State.get_midi_config
     if null addrs then return () else do
     scale_id <- EditUtil.get_scale_id
-    (patch, environ) <- Cmd.get_midi_patch score_inst
+    patch <- Cmd.get_midi_patch score_inst
 
     scale <- Cmd.get_scale "cmd_midi_thru" scale_id
     input <- Cmd.require_msg
         (Pretty.pretty scale_id <> " doesn't have " <> Pretty.pretty input)
-        =<< map_scale (Instrument.patch_scale patch) scale environ input
+        =<< map_scale (Instrument.patch_scale patch) scale
+            (Instrument.patch_environ patch) input
 
     wdev_state <- Cmd.get_wdev_state
     let (thru_msgs, maybe_wdev_state) =

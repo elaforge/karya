@@ -100,7 +100,6 @@ import qualified Derive.Derive as Derive
 import qualified Derive.Scale as Scale
 import qualified Derive.Score as Score
 import qualified Derive.Stack as Stack
-import qualified Derive.TrackLang as TrackLang
 import qualified Derive.TrackWarp as TrackWarp
 
 import qualified Perform.Midi.Instrument as Instrument
@@ -706,29 +705,28 @@ perf_closest_warp = TrackWarp.closest_warp . perf_warps
 -- This has to be in Cmd.Cmd for circular import reasons.
 data InstrumentCode = InstrumentCode {
     inst_calls :: !Derive.InstrumentCalls
-    -- | When the instrument comes into scope during derivation, these
-    -- variables come into scope in addition to the InstrumentCalls.
-    , inst_environ :: !TrackLang.Environ
     , inst_cmds :: ![Cmd]
     }
 
 instance Show InstrumentCode where show _ = "((InstrumentCode))"
 instance Pretty.Pretty InstrumentCode where
-    format (InstrumentCode calls env cmds) =
+    format (InstrumentCode calls cmds) =
         Pretty.record_title "InstrumentCode"
             [ ("calls", Pretty.format calls)
-            , ("environ", Pretty.format env)
             , ("cmds", Pretty.format cmds)
             ]
 
 derive_instrument :: MidiInfo -> Derive.Instrument
 derive_instrument info = Derive.Instrument
     { Derive.inst_calls = inst_calls (MidiDb.info_code info)
-    , Derive.inst_environ = inst_environ (MidiDb.info_code info)
+    , Derive.inst_environ = Instrument.patch_environ (MidiDb.info_patch info)
     }
 
 empty_code :: InstrumentCode
-empty_code = InstrumentCode (Derive.InstrumentCalls [] [] []) mempty []
+empty_code = InstrumentCode
+    { inst_calls = Derive.InstrumentCalls [] [] []
+    , inst_cmds = []
+    }
 
 -- | Instantiate the MidiDb with the code types.  The only reason the MidiDb
 -- types have the type parameter is so I can define them in their own module
@@ -996,12 +994,11 @@ get_lookup_instrument = do
         . state_config
 
 -- | Lookup a detailed patch along with the environ that it likes.
-get_midi_patch :: (M m) => Score.Instrument
-    -> m (Instrument.Patch, TrackLang.Environ)
+get_midi_patch :: (M m) => Score.Instrument -> m Instrument.Patch
 get_midi_patch inst = do
     info <- require_msg ("get_midi_patch " ++ Pretty.pretty inst)
         =<< lookup_instrument inst
-    return (MidiDb.info_patch info, inst_environ (MidiDb.info_code info))
+    return $ MidiDb.info_patch info
 
 get_midi_instrument :: (M m) => Score.Instrument -> m Instrument.Instrument
 get_midi_instrument inst = do

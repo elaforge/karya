@@ -119,8 +119,8 @@ UNSORTED
       . try per-instrument scale with: i_ i- i^
     - How do I set umbang/isep for instruments that don't already have them
       built-in?  Do I need the Environ per-instrument config?
-      - But I can't save Environ because of Pitch
-        . I could make a RestrictedEnviron.  I could also put environ in the
+      * But I can't save Environ because of Pitch
+        * I could make a RestrictedEnviron.  I could also put environ in the
           Patch and get rid of the special purpose plumbing.
         / Would it be enough to get rid of Val vs. RawVal?  No, not unless I
           want to use an expression for VPitch.  In that case, what would

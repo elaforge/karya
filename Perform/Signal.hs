@@ -62,6 +62,7 @@ import Util.Control
 import qualified Util.Num as Num
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
+import qualified Util.Serialize as Serialize
 import qualified Util.TimeVector as V
 
 import qualified Midi.Midi as Midi
@@ -79,7 +80,7 @@ import Types
 -- signal below, but it really is just documentation and anyone who wants to
 -- operate on a generic signal can take a @Signal y@.
 newtype Signal y = Signal { sig_vec :: V.Unboxed }
-    deriving (DeepSeq.NFData, Pretty.Pretty, Eq)
+    deriving (DeepSeq.NFData, Pretty.Pretty, Eq, Serialize.Serialize)
 
 instance Show (Signal y) where
     show (Signal vec) = "Signal " ++ show (V.unsignal vec)

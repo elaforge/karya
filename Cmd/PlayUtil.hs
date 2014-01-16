@@ -254,10 +254,7 @@ get_convert_lookup = do
     return $ Convert.Lookup
         { Convert.lookup_scale = lookup_scale
         , Convert.lookup_inst = lookup_inst
-        , Convert.lookup_patch = fmap extract . lookup_info
+        , Convert.lookup_patch = fmap MidiDb.info_patch . lookup_info
         , Convert.lookup_default_controls = \inst ->
             Map.findWithDefault mempty inst defaults
         }
-    where
-    extract info = (MidiDb.info_patch info,
-        Cmd.inst_environ (MidiDb.info_code info))

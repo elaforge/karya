@@ -35,6 +35,7 @@ import Cmd.Cmd (SynthDesc)
 import qualified Derive.Call.Make as Make
 import qualified Derive.Derive as Derive
 import qualified Derive.Environ as Environ
+import qualified Derive.RestrictedEnviron as RestrictedEnviron
 import qualified Derive.Score as Score
 import qualified Derive.TrackLang as TrackLang
 
@@ -91,16 +92,13 @@ data Code = Code {
     , code_note_transformers ::
         [Derive.LookupCall (Derive.Transformer Derive.Note)]
     , code_val_calls :: [Derive.LookupCall Derive.ValCall]
-    -- | Bring environment variables into scope.  This is intended for
-    -- configuration which is inherent to the patch itself, e.g. scale tuning.
-    , code_environ :: TrackLang.Environ
     , code_cmds :: [Cmd.Cmd]
     }
 
 instance Monoid.Monoid Code where
-    mempty = Code [] [] [] mempty []
-    mappend (Code a1 b1 c1 d1 e1) (Code a2 b2 c2 d2 e2) =
-        Code (a1<>a2) (b1<>b2) (c1<>c2) (d1<>d2) (e1<>e2)
+    mempty = Code [] [] mempty []
+    mappend (Code a1 b1 c1 d1) (Code a2 b2 c2 d2) =
+        Code (a1<>a2) (b1<>b2) (c1<>c2) (d1<>d2)
 
 empty_code :: Code
 empty_code = mempty
@@ -112,9 +110,8 @@ with_empty_code :: [Instrument.Patch] -> [Patch]
 with_empty_code = with_code empty_code
 
 make_code :: Code -> Cmd.InstrumentCode
-make_code (Code generator transformer val environ cmds) =
-    Cmd.InstrumentCode (Derive.InstrumentCalls generator transformer val)
-        environ cmds
+make_code (Code generator transformer val cmds) =
+    Cmd.InstrumentCode (Derive.InstrumentCalls generator transformer val) cmds
 
 -- ** code constructors
 
@@ -162,12 +159,13 @@ cmd :: Cmd.Cmd -> Code
 cmd c = mempty { code_cmds = [c] }
 
 -- | The instrument will also set the given environ when it comes into scope.
-environ :: (TrackLang.Typecheck a) => TrackLang.ValName -> a -> Code
-environ name val = mempty
-    { code_environ = TrackLang.make_environ [(name, TrackLang.to_val val)] }
+environ :: RestrictedEnviron.ToVal a => TrackLang.ValName -> a
+    -> Instrument.Patch -> Instrument.Patch
+environ name val = Instrument.environ
+    %= (RestrictedEnviron.make [(name, RestrictedEnviron.to_val val)] <>)
 
 -- | The instrument will set the given scale when it comes into scope.
-default_scale :: Pitch.ScaleId -> Code
+default_scale :: Pitch.ScaleId -> Instrument.Patch -> Instrument.Patch
 default_scale = environ Environ.scale . TrackLang.scale_id_to_sym
 
 -- * making patches

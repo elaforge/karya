@@ -208,15 +208,15 @@ hang_ks = [(attrs, key) | (attrs, key, _, _) <- hang_strokes]
 -}
 wayang_patches :: [MidiInst.Patch]
 wayang_patches =
-    [ (scale Wayang.umbang $ wayang "wayang-umbang",
-        set_tuning "umbang" <> wayang_code)
-    , (scale Wayang.isep $ wayang "wayang-isep",
-        set_tuning "isep" <> wayang_code)
+    [ (set_tuning "umbang" $ scale Wayang.umbang $ wayang "wayang-umbang",
+        wayang_code)
+    , (set_tuning "isep" $ scale Wayang.isep $ wayang "wayang-isep",
+        wayang_code)
     , (wayang "wayang", pasang_code)
-    , (wayang "wayang-p", pasang_code
-        <> set_range Wayang.pemade_bottom Wayang.pemade_top)
-    , (wayang "wayang-k", pasang_code
-        <> set_range Wayang.kantilan_bottom Wayang.kantilan_top)
+    , (set_range Wayang.pemade_bottom Wayang.pemade_top $ wayang "wayang-p",
+        pasang_code)
+    , (set_range Wayang.kantilan_bottom Wayang.kantilan_top $ wayang "wayang-k",
+        pasang_code)
     , (Instrument.text #= "Tuned to 12TET." $ wayang "wayang12", wayang_code)
     ]
     where
@@ -224,9 +224,9 @@ wayang_patches =
     scale scale = (Instrument.text #= doc)
         . (Instrument.scale #= wayang_scale scale)
     set_tuning tuning = MidiInst.default_scale Wayang.scale_id
-        <> MidiInst.environ Environ.tuning (tuning :: Text)
+        . MidiInst.environ Environ.tuning (tuning :: Text)
     set_range bottom top = MidiInst.environ Environ.instrument_bottom bottom
-        <> MidiInst.environ Environ.instrument_top top
+        . MidiInst.environ Environ.instrument_top top
     doc = "These set the scale and tuning automatically, and expect the patch\
         \ to be tuned to its natural scale."
 
