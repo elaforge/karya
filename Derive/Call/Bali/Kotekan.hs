@@ -58,12 +58,24 @@ note_calls = Derive.call_maps
     [ ("norot", c_norot)
     , (">norot", c_norot_pickup)
     , ("gnorot", c_gender_norot)
+    , ("k/_\\", c_kotekan $ parse_pattern "-12-1-21")
+    , ("k//",   c_kotekan $ parse_pattern "12-12-12")
+    , ("k\\\\", c_kotekan $ parse_pattern "21-21-21")
+    , ("k\\/",  c_kotekan $ parse_pattern "-12-12-2 1-21-12-")
     ]
     [ ("nyog", c_nyogcag)
     , ("unison", c_unison)
     , ("kempyung", c_kempyung)
     , ("noltol", c_noltol)
     ]
+
+parse_pattern :: [Char] -> [KotekanNote]
+parse_pattern = map p . filter (/=' ')
+    where
+    p '-' = N_
+    p '1' = N1
+    p '2' = N2
+    p c = error $ "unparseable character: " ++ show c
 
 postproc :: Tags.Tags
 postproc = Tags.bali <> Tags.postproc
@@ -84,7 +96,7 @@ c_norot = Derive.make_call "norot" Tags.bali
     <*> kotekan_env <*> instrument_top_env <*> pasang_env
     ) $ \(maybe_dur, TrackLang.E style, kotekan, inst_top, pasang) ->
     Sub.inverting $ \args -> do
-        dur <- Util.default_timestep args Meter.S maybe_dur
+        dur <- get_dur_arg args maybe_dur
         pitch <- Util.get_pitch =<< Args.real_start args
         scale <- Util.get_scale
         let nsteps = norot_steps scale inst_top pitch style
@@ -102,7 +114,7 @@ c_norot_pickup = Derive.make_call "norot-pickup" Tags.bali
     <*> kotekan_env <*> instrument_top_env <*> pasang_env
     ) $ \(maybe_dur, TrackLang.E style, kotekan, inst_top, pasang) ->
     Sub.inverting $ \args -> do
-        dur <- Util.default_timestep args Meter.S maybe_dur
+        dur <- get_dur_arg args maybe_dur
         pitch <- Util.get_pitch =<< Args.real_start args
         scale <- Util.get_scale
         let nsteps = norot_steps scale inst_top pitch style
@@ -138,7 +150,7 @@ c_gender_norot = Derive.make_call "gender-norot" Tags.bali
     "Gender-style norot."
     $ Sig.call ((,,) <$> dur_arg <*> kotekan_env <*> pasang_env)
     $ \(maybe_dur, kotekan, pasang) -> Sub.inverting $ \args -> do
-        dur <- Util.default_timestep args Meter.S maybe_dur
+        dur <- get_dur_arg args maybe_dur
         pitch <- Util.get_pitch =<< Args.real_start args
         under_threshold <- under_threshold_function kotekan dur
         let (start, end) = Args.range args
@@ -194,6 +206,52 @@ gender_norot under_threshold pasang start
     polos steps = (fst pasang, steps, mempty)
     sangsih steps = (snd pasang, steps, mempty)
 
+c_kotekan :: [KotekanNote] -> Derive.Generator Derive.Note
+c_kotekan pattern = Derive.make_call "kotekan" Tags.bali
+    "Kotekan."
+    $ Sig.call ((,,,)
+    <$> dur_arg
+    <*> Sig.defaulted "style" (TrackLang.E Telu) "Kotekan style."
+    <*> kotekan_env <*> pasang_env
+    ) $ \(maybe_dur, TrackLang.E style, kotekan, pasang) ->
+    Sub.inverting $ \args -> do
+        dur <- get_dur_arg args maybe_dur
+        pitch <- Util.get_pitch =<< Args.real_start args
+        under_threshold <- under_threshold_function kotekan dur
+        let (start, end) = Args.range args
+        realize_notes start pitch $ realize_pattern True start end dur $
+            kotekan_pattern pattern style under_threshold pasang
+
+kotekan_pattern :: [KotekanNote] -> KotekanStyle -> (ScoreTime -> Bool)
+    -> Pasang -> ScoreTime -> [[PatternNote]]
+kotekan_pattern pattern style under_threshold (polos, sangsih) start
+    | under_threshold start =
+        map make_interlocking $ realize_interlocking pattern
+    | otherwise = map make_normal $ map steps pattern
+    where
+    make_interlocking = map $ \(inst, step) ->
+        (inst, step - destination, mempty)
+    destination = steps (last pattern)
+    steps N1 = 0
+    steps N2 = 1
+    steps N_ = 2
+    realize_interlocking = case style of
+        Telu -> map $ \n -> case n of
+            N1 -> [(polos, 0)]
+            N2 -> [(polos, 1), (sangsih, 1)]
+            N_ -> [(sangsih, 2)]
+        Pat -> map $ \n -> case n of
+            N1 -> [(polos, 0), (sangsih, 3)]
+            N2 -> [(polos, 1)]
+            N_ -> [(sangsih, 2)]
+    make_normal step =
+        [ (polos, step - destination, mempty)
+        , (sangsih, step - destination, mempty)
+        ]
+
+data KotekanNote = N1 | N2 | N_ deriving (Show)
+
+
 -- ** implementation
 
 type MakePattern = ScoreTime -> [[PatternNote]]
@@ -236,6 +294,10 @@ data NorotStyle = Kempyung | Diamond deriving (Bounded, Eq, Enum, Show)
 instance ShowVal.ShowVal NorotStyle where show_val = TrackLang.default_show_val
 instance TrackLang.TypecheckEnum NorotStyle
 
+data KotekanStyle = Telu | Pat deriving (Bounded, Eq, Enum, Show)
+instance ShowVal.ShowVal KotekanStyle where
+    show_val = TrackLang.default_show_val
+instance TrackLang.TypecheckEnum KotekanStyle
 
 -- * postproc
 
@@ -343,7 +405,13 @@ noltol threshold nexts event
 
 dur_arg :: Sig.Parser (Maybe ScoreTime)
 dur_arg = Sig.defaulted "dur" Nothing
-    "Duration of derived notes. Defaults to `\"(ts s)`."
+    "Duration of derived notes. Defaults to `\"(ts e)`."
+
+-- | Run this on the result of 'dur_arg'.  Ideally, this would be packaged
+-- together and Derive.Sig would call it for me.
+get_dur_arg :: Derive.PassedArgs a -> Maybe ScoreTime
+    -> Derive.Deriver ScoreTime
+get_dur_arg args = Util.default_timestep args Meter.E
 
 kotekan_env :: Sig.Parser TrackLang.ValControl
 kotekan_env =

@@ -119,6 +119,12 @@ UNSORTED
       . try per-instrument scale with: i_ i- i^
     - How do I set umbang/isep for instruments that don't already have them
       built-in?  Do I need the Environ per-instrument config?
+      - But I can't save Environ because of Pitch
+        . I could make a RestrictedEnviron.  I could also put environ in the
+          Patch and get rid of the special purpose plumbing.
+        / Would it be enough to get rid of Val vs. RawVal?  No, not unless I
+          want to use an expression for VPitch.  In that case, what would
+          pitch val calls return?
     kotekan ornaments
       * norot
       * norot switches to kotekan when above a certain speed
@@ -129,13 +135,21 @@ UNSORTED
       - an optional special pattern which switching between kotekan and back,
         e.g. 112-2-2-
       - kotekan:
-        . patterns
-          1-12-1-21 -- _/_\
-          -2-12-12, -1-21-21 -- \\\, ///
-          1-12-12-21-21-12- / 434-34-3-43-434-3 -- \/-
+        patterns
+          * 1-12-1-21 -- /_\
+          * -2-12-12, -1-21-21 -- \\, //
+          * 1-12-12-21-21-12- / 434-34-3-43-434-3 -- \/-
+          - _11_1-21 / 44-43-4 -- _\
+            use Nx for rests
+        Less regular patterns, e.g.
+          - -11-1-21 / -3-32-32
+          - In general I need a way to express arbitrary patterns,
+            parameterized by destination note.
+        - Some patterns do play on the beat, they should be able to do that
+          and suppress the previous note.
         . Aligned so the last polos / sangsih note is the pitch.
-        . telu vs. empat
-        . phase: this can make the last note no longer align to the pitch
+        * telu vs. empat
+        - phase: this can make the last note no longer align to the pitch
       * I should have a better way of specifying instrument ranges than
         NoteNumber + adjust for umbang/isep, where I don't even know why it
         works.
