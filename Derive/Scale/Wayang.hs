@@ -51,10 +51,12 @@ kantilan_scale :: BaliScales.ScaleMap
 kantilan_scale = BaliScales.scale_map 5 4 1 BaliScales.dotted_ioeua
     (drop 5 umbang) (drop 5 isep)
 
-pemade_top :: Pitch.Pitch
+pemade_bottom, pemade_top :: Pitch.Pitch
+Just pemade_bottom = BaliScales.scale_bottom pemade_scale
 Just pemade_top = BaliScales.scale_top pemade_scale
 
-kantilan_top :: Pitch.Pitch
+kantilan_bottom, kantilan_top :: Pitch.Pitch
+Just kantilan_bottom = BaliScales.scale_bottom kantilan_scale
 Just kantilan_top = BaliScales.scale_top kantilan_scale
 
 -- | pemade starts at 3o - 4i - 5i, kanti is 4o - 5i - 6i

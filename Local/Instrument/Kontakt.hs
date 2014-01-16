@@ -213,11 +213,10 @@ wayang_patches =
     , (scale Wayang.isep $ wayang "wayang-isep",
         set_tuning "isep" <> wayang_code)
     , (wayang "wayang", pasang_code)
-    -- These have "kempyung-top" set for the benefit of the kempyung call.
-    -- TODO probably at some point maybe I'll want a generic way to get
-    -- instrument ranges.
-    , (wayang "wayang-p", pasang_code <> set_top Wayang.pemade_top)
-    , (wayang "wayang-k", pasang_code <> set_top Wayang.kantilan_top)
+    , (wayang "wayang-p", pasang_code
+        <> set_range Wayang.pemade_bottom Wayang.pemade_top)
+    , (wayang "wayang-k", pasang_code
+        <> set_range Wayang.kantilan_bottom Wayang.kantilan_top)
     , (Instrument.text #= "Tuned to 12TET." $ wayang "wayang12", wayang_code)
     ]
     where
@@ -226,7 +225,8 @@ wayang_patches =
         . (Instrument.scale #= wayang_scale scale)
     set_tuning tuning = MidiInst.default_scale Wayang.scale_id
         <> MidiInst.environ Environ.tuning (tuning :: Text)
-    set_top = MidiInst.environ Environ.instrument_top
+    set_range bottom top = MidiInst.environ Environ.instrument_bottom bottom
+        <> MidiInst.environ Environ.instrument_top top
     doc = "These set the scale and tuning automatically, and expect the patch\
         \ to be tuned to its natural scale."
 
