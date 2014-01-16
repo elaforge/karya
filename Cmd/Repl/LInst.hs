@@ -35,11 +35,11 @@ import Types
 
 -- * instrument info
 
-lookup :: Text -> Cmd.CmdL (Maybe Cmd.MidiInfo)
-lookup = Cmd.lookup_instrument . Score.Instrument
+lookup :: Instrument -> Cmd.CmdL (Maybe Cmd.MidiInfo)
+lookup = Cmd.lookup_instrument . instrument
 
-info :: Text -> Cmd.CmdL Text
-info inst_name = Info.inst_info (Score.Instrument inst_name)
+info :: Instrument -> Cmd.CmdL Text
+info = Info.inst_info . instrument
 
 info_all :: Cmd.CmdL Text
 info_all = do
@@ -88,7 +88,7 @@ aliases :: (State.M m) => m (Map.Map Score.Instrument Score.Instrument)
 aliases = State.config#State.aliases <#> State.get
 
 -- | Rename an instrument, in both aliases and allocations.
-rename :: (State.M m) => Text -> Text -> m ()
+rename :: (State.M m) => Instrument -> Instrument -> m ()
 rename from_ to_ =
     State.modify $ (State.config#State.midi %= rename_alloc)
         . (State.config#State.aliases %= rename_alias)
@@ -99,47 +99,47 @@ rename from_ to_ =
     rename_alias aliases = case Map.lookup from aliases of
         Just source -> Map.insert to source $ Map.delete from aliases
         Nothing -> aliases
-    from = Score.Instrument from_
-    to = Score.Instrument to_
+    from = instrument from_
+    to = instrument to_
 
 -- | Allocate a new instrument and create an alias for it.
-create :: Text -> Text -> Text -> [Midi.Channel] -> Cmd.CmdL ()
-create alias inst_name wdev chans = do
+create :: Instrument -> Instrument -> Text -> [Midi.Channel] -> Cmd.CmdL ()
+create alias inst wdev chans = do
     alloc alias wdev chans
-    add_alias inst_name alias
+    add_alias inst alias
 
 -- | Remove both an alias and its allocation.
-remove :: Text -> Cmd.CmdL ()
+remove :: Instrument -> Cmd.CmdL ()
 remove alias = do
     remove_alias alias
     dealloc alias
 
 -- | Add a new instrument, copied from an existing one.  Argument order
 -- mnemonic: same as @ln@.
-add_alias :: Text -> Text -> Cmd.CmdL ()
+add_alias :: Instrument -> Instrument -> Cmd.CmdL ()
 add_alias source dest = State.modify $
-    State.config#State.aliases %= Map.insert (Score.Instrument dest)
-        (Score.Instrument source)
+    State.config#State.aliases %= Map.insert (instrument dest)
+        (instrument source)
 
-remove_alias :: Text -> Cmd.CmdL ()
+remove_alias :: Instrument -> Cmd.CmdL ()
 remove_alias inst = State.modify $
-    State.config#State.aliases %= Map.delete (Score.Instrument inst)
+    State.config#State.aliases %= Map.delete (instrument inst)
 
-toggle_mute :: State.M m => Text -> m Bool
-toggle_mute inst = modify_config (Score.Instrument inst) $ \config ->
+toggle_mute :: State.M m => Instrument -> m Bool
+toggle_mute inst = modify_config (instrument inst) $ \config ->
     let mute = not $ Instrument.config_mute config
     in (config { Instrument.config_mute = mute }, mute)
 
-toggle_solo :: State.M m => Text -> m Bool
-toggle_solo inst = modify_config (Score.Instrument inst) $ \config ->
+toggle_solo :: State.M m => Instrument -> m Bool
+toggle_solo inst = modify_config (instrument inst) $ \config ->
     let solo = not $ Instrument.config_solo config
     in (config { Instrument.config_solo = solo }, solo)
 
 -- | Add an environ val to the instrument config.
-add_environ :: (RestrictedEnviron.ToVal a, State.M m) => Score.Instrument
+add_environ :: (RestrictedEnviron.ToVal a, State.M m) => Instrument
     -> Text -> a -> m ()
 add_environ inst name val =
-    modify_config_ inst $ Instrument.cenviron
+    modify_config_ (instrument inst) $ Instrument.cenviron
         %= (RestrictedEnviron.make [(TrackLang.Symbol name, v)] <>)
     where v = RestrictedEnviron.to_val val
 
@@ -148,12 +148,12 @@ add_environ inst name val =
 clear_environ :: State.M m => Score.Instrument -> m ()
 clear_environ inst = modify_config_ inst $ Instrument.cenviron #= mempty
 
-set_control :: (State.M m) => Text -> Score.Control -> Double -> m ()
-set_control inst control val = modify_config_ (Score.Instrument inst) $
+set_control :: (State.M m) => Instrument -> Score.Control -> Double -> m ()
+set_control inst control val = modify_config_ (instrument inst) $
     Instrument.controls#Lens.map control #= Just val
 
-set_controls :: (State.M m) => Text -> [(Score.Control, Double)] -> m ()
-set_controls inst controls = modify_config_ (Score.Instrument inst) $
+set_controls :: (State.M m) => Instrument -> [(Score.Control, Double)] -> m ()
+set_controls inst controls = modify_config_ (instrument inst) $
     Instrument.controls #= Map.fromList controls
 
 get_controls :: (State.M m) => m (Map.Map Score.Instrument Score.ControlValMap)
@@ -177,27 +177,27 @@ modify_config_ inst modify = modify_config inst (\c -> (modify c, ()))
 
 -- | Deallocate the old allocation, and set it to the new one.  Meant for
 -- interactive use.
-alloc :: Text -> Text -> [Midi.Channel] -> Cmd.CmdL ()
-alloc inst_name wdev chans =
-    alloc_voices inst_name wdev (map (flip (,) Nothing) chans)
+alloc :: Instrument -> Text -> [Midi.Channel] -> Cmd.CmdL ()
+alloc inst wdev chans =
+    alloc_voices inst wdev (map (flip (,) Nothing) chans)
 
 -- | Like 'alloc', but you can also give maximum voices per channel.
-alloc_voices :: Text -> Text -> [(Midi.Channel, Maybe Instrument.Voices)]
+alloc_voices :: Instrument -> Text -> [(Midi.Channel, Maybe Instrument.Voices)]
     -> Cmd.CmdL ()
-alloc_voices inst_name wdev chan_voices = do
-    let inst = Score.Instrument inst_name
+alloc_voices inst_ wdev chan_voices = do
+    let inst = instrument inst_
     dealloc_instrument inst
     let dev = Midi.write_device wdev
     alloc_instrument inst [((dev, c), v) | (c, v) <- chan_voices]
 
-dealloc :: Text -> Cmd.CmdL ()
-dealloc = dealloc_instrument . Score.Instrument
+dealloc :: Instrument -> Cmd.CmdL ()
+dealloc = dealloc_instrument . instrument
 
 -- | Allocate the given channels for the instrument using its default device.
-alloc_default :: Text -> [(Midi.Channel, Maybe Instrument.Voices)]
+alloc_default :: Instrument -> [(Midi.Channel, Maybe Instrument.Voices)]
     -> Cmd.CmdL ()
-alloc_default inst_name chans = do
-    let inst = Score.Instrument inst_name
+alloc_default inst_ chans = do
+    let inst = instrument inst_
     wdev <- maybe (Cmd.throw $ "inst not in db: " ++ Pretty.pretty inst) return
         =<< device_of inst
     alloc_instrument inst [((wdev, c), v) | (c, v) <- chans]
@@ -223,9 +223,9 @@ merge config = State.modify $ State.config # State.midi %= (config<>)
 -- For example, typing a new instrument in a track title should only complain
 -- if there is no allocation, but not necessarily deallocate the replaced
 -- instrument or send midi init.
-load :: Text -> Cmd.CmdL ()
-load inst_name = do
-    let inst = Score.Instrument inst_name
+load :: Instrument -> Cmd.CmdL ()
+load inst_ = do
+    let inst = instrument inst_
     block_id <- Cmd.get_focused_block
     tracknum <- Cmd.require =<< Cmd.get_insert_tracknum
     track_id <- Cmd.require =<< State.event_track_at block_id tracknum
@@ -351,3 +351,10 @@ run_interface op = do
 teach :: Text -> Midi.Channel -> Midi.Control -> Cmd.CmdL ()
 teach dev chan cc = Cmd.midi (Midi.write_device dev) $
     Midi.ChannelMessage chan (Midi.ControlChange cc 1)
+
+type Instrument = Text
+
+-- | Create a 'Score.Instrument'.  Drop a leading @>@, since I often
+-- accidentally include one.
+instrument :: Text -> Score.Instrument
+instrument = Score.Instrument . Text.dropWhile (=='>')
