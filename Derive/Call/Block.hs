@@ -34,6 +34,7 @@ import qualified Derive.Sig as Sig
 import Derive.Sig (required)
 import qualified Derive.TrackLang as TrackLang
 
+import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
 import Types
 
@@ -226,8 +227,11 @@ make_block_call name doc call = Derive.make_call name Tags.prelude doc $
         Internal.with_stack_block block_id $
             Cache.block (call block_id dur) args
 
+-- | Consistent with half-open ranges, block calls try to include events lining
+-- up with the start, and exclude ones lining up with the end.
 event_before :: RealTime -> LEvent.LEvent Score.Event -> Bool
-event_before t = LEvent.either ((<t) . Score.event_start) (const True)
+event_before t =
+    LEvent.either ((< t - RealTime.eta) . Score.event_start) (const True)
 
 -- * control call
 
