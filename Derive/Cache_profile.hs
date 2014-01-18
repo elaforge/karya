@@ -7,8 +7,8 @@
 -- This module is about performance, correctness is tested in
 -- "Derive.Cache_test".
 module Derive.Cache_profile where
-import qualified Data.Time as Time
-import qualified System.CPUTime as CPUTime
+import qualified System.IO as IO
+import qualified Text.Printf as Printf
 
 import Util.Control
 import Util.Test
@@ -53,38 +53,37 @@ modify_pitch pitch_tid pos =
 -- | Run the state transform a few times and rederive each time.
 rederive :: State.State -> [State.StateId ()] -> IO ()
 rederive initial_state modifications = do
-    start_cpu <- CPUTime.getCPUTime
-    start <- now
-    go (start_cpu, start) initial_state mempty (return () : modifications)
+    go initial_state mempty (return () : modifications)
     where
-    go _ _ _ [] = return ()
-    go start_times state1 cache (modify:rest) = do
-        let section = Derive_profile.time_section start_times
+    go _ _ [] = return ()
+    go state1 cache (modify:rest) = do
         let (_, state2, cmd_updates) = Cache_test.run state1 modify
-        cached <- section "cached" $
+        cached <- time_section "cached" $
             eval_derivation cache state1 state2 cmd_updates
-
-        uncached <- section "uncached" $ do
+        uncached <- time_section "uncached" $ do
             let result = DeriveTest.derive_block_standard
                     DeriveTest.default_db mempty mempty id state2
                     (UiTest.bid "b1")
-            let events = Derive.r_events result
-            force events
-            return (result, events)
+            force $ Derive.r_events result
+            return result
         equal (Cache_test.diff_events cached uncached) []
+        go state2 (Derive.r_cache cached) rest
 
-        go start_times state2 (Derive.r_cache cached) rest
+time_section :: String -> IO a -> IO a
+time_section title op = do
+    putStr $ "--> " ++ title ++ ": "
+    IO.hFlush IO.stdout
+    (val, cpu_secs) <- timer op
+    Printf.printf "%.2f\n" cpu_secs
+    return val
 
 eval_derivation :: Derive.Cache -> State.State -> State.State
-    -> [Update.CmdUpdate] -> IO (Derive.Result, Derive.Events)
+    -> [Update.CmdUpdate] -> IO Derive.Result
 eval_derivation cache state1 state2 cmd_updates = do
-    force events
-    return (result, events)
+    force $ Derive.r_events result
+    return result
     where
     (ui_updates, _) = Diff.diff cmd_updates state1 state2
     damage = Diff.derive_diff state1 state2 ui_updates
     result = DeriveTest.derive_block_standard DeriveTest.default_db cache
         damage id state2 (UiTest.bid "b1")
-    events = Derive.r_events result
-
-now = fmap Time.utctDayTime Time.getCurrentTime

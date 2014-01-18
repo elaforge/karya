@@ -221,14 +221,14 @@ wayang_patches =
     ]
     where
     wayang = (Instrument.attribute_map #= wayang_keymap) . patch
-    scale scale = (Instrument.text #= doc)
+    scale scale = (Instrument.text #= scale_doc)
         . (Instrument.scale #= wayang_scale scale)
+    scale_doc = "These set the scale and tuning automatically, and expect the\
+        \ patch to be tuned to the instrument's natural scale."
     set_tuning tuning = MidiInst.default_scale Wayang.scale_id
         . MidiInst.environ Environ.tuning (tuning :: Text)
     set_range bottom top = MidiInst.environ Environ.instrument_bottom bottom
         . MidiInst.environ Environ.instrument_top top
-    doc = "These set the scale and tuning automatically, and expect the patch\
-        \ to be tuned to its natural scale."
 
 wayang_code :: MidiInst.Code
 wayang_code = MidiInst.note_calls $ MidiInst.null_call $

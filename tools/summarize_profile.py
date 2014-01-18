@@ -8,14 +8,12 @@ import sys, os, re, datetime, subprocess
 
 write_files = True
 
-profiles = [
-    'Derive_profile.profile_big_block',
-    'Derive_profile.profile_nested_controls',
-    'Derive_profile.profile_bloom_derive',
-    'Derive_profile.profile_bloom_perform',
-    'Cmd.Responder_profile.profile_selection',
-] + ['Perform.Midi.Perform_profile.profile_' + n for n in
-    ['notes', 'control', 'complex', 'multiplex']]
+profiles = (
+    ['Derive_profile.profile_' + n for n in
+        ['bloom', 'pnovla', 'viola_sonata']]
+    + ['Perform.Midi.Perform_profile.profile_' + n for n in
+        ['notes', 'control', 'complex', 'multiplex']]
+)
 
 def main():
     if sys.argv[-1] == 'scc':

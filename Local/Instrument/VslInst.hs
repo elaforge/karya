@@ -4,7 +4,7 @@
 
 module Local.Instrument.VslInst (
     module Local.Instrument.VslInst, module Derive.Attrs
-)where
+) where
 import Prelude hiding (min, (.))
 import qualified Data.Text as Text
 

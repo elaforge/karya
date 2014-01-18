@@ -28,7 +28,6 @@ import qualified Cmd.Meters as Meters
 import qualified Cmd.RulerUtil as RulerUtil
 import qualified Cmd.Selection as Selection
 
-import qualified Derive.Derive_profile as Derive_profile
 import qualified Derive.Scale.Twelve as Twelve
 import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
@@ -43,26 +42,6 @@ arrival_beats = False
 
 auto_setup_cmd :: Cmd.CmdIO
 auto_setup_cmd = setup_small
-
-setup_generate :: String -> Cmd.CmdIO
-setup_generate gen = do
-    case gen of
-        "simple" -> Derive_profile.make_simple 200
-        "nested" -> Derive_profile.make_nested_controls 8 3 64
-        "nested-small" -> Derive_profile.make_nested_controls 8 1 64
-        "control" -> Derive_profile.make_big_control 15000
-        "shared" -> Derive_profile.make_shared_control 2000
-        _ -> error gen
-    State.set_midi_config $
-        make_midi_config "fm8" [("fm8/1", [0..2]), ("fm8/2", [3])]
-    Create.unfitted_view (UiTest.bid "b01")
-    Create.map_track_titles set_inst
-    return Cmd.Done
-    where
-    set_inst title
-        | untxt title == Derive_profile.inst1 = ">fm8/1"
-        | untxt title == Derive_profile.inst2 = ">fm8/2"
-        | otherwise = title
 
 load_mod :: FilePath -> Cmd.CmdIO
 load_mod fn = do

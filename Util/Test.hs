@@ -53,7 +53,6 @@ import Control.Monad
 import qualified Data.Algorithm.Diff as Diff
 import qualified Data.IORef as IORef
 import qualified Data.List as List
-import qualified Data.Time as Time
 
 import qualified System.CPUTime as CPUTime
 import qualified System.Directory as Directory
@@ -332,26 +331,18 @@ timer op = do
     cpu_to_sec :: Integer -> Double
     cpu_to_sec s = fromIntegral s / 10^12
 
-print_timer :: String -> (a -> String) -> IO a -> IO a
+print_timer :: String -> (Double -> a -> String) -> IO a -> IO a
 print_timer msg show_val op = do
-    start <- now
     printf "%s - " msg
     IO.hFlush IO.stdout
-    (!(val, showed), secs) <- timer $ do
-        val <- op
-        let showed = show_val val
-        force showed
-        return (val, showed)
-    end <- now
-    printf "time: %.2fcpu / %.2fs - %s\n" secs (double (end-start)) showed
+    (val, secs) <- timer $ do
+        !val <- op
+        -- let showed = show_val val
+        -- force showed
+        return val
+    printf "time: %.2f - %s\n" secs (show_val secs val)
     IO.hFlush IO.stdout
     return val
-    where
-    double :: Time.DiffTime -> Double
-    double = realToFrac
-
-now :: IO Time.DiffTime
-now = fmap Time.utctDayTime Time.getCurrentTime
 
 force :: (DeepSeq.NFData a) => a -> IO ()
 force x = x `DeepSeq.deepseq` return ()

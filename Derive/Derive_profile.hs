@@ -3,7 +3,6 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 module Derive.Derive_profile where
-import qualified Data.Time as Time
 import qualified System.CPUTime as CPUTime
 import qualified System.IO as IO
 import qualified System.Mem as Mem
@@ -22,6 +21,7 @@ import qualified Ui.UiTest as UiTest
 import qualified Cmd.Create as Create
 import qualified Cmd.Save as Save
 import qualified Derive.Derive as Derive
+import qualified Derive.DeriveSaved as DeriveSaved
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.ParseSkeleton as ParseSkeleton
 
@@ -36,7 +36,7 @@ import Types
 -- time_minutes events = events / 32 / 60
 
 -- | Make a giant block with simple non-overlapping controls and tempo changes.
-profile_big_block = derive_profile $ make_simple 2000
+profile_big_block = derive_profile "big block" $ make_simple 2000
 
 make_simple :: (State.M m) => Int -> m ()
 make_simple size =
@@ -49,7 +49,7 @@ make_simple size =
 
 -- | Block with a control controlling multiple note tracks.  Intended to
 -- profile channelize control sharing.
-profile_shared = derive_profile $ make_shared_control 2000
+profile_shared = derive_profile "shared" $ make_shared_control 2000
 
 make_shared_control size = mkblock $
         make_tempo size
@@ -64,7 +64,7 @@ make_shared_control size = mkblock $
 
 -- | Block with non-tempered scale so pitches can't share.  Intended to profile
 -- channelize pitch sharing.
-profile_nontempered = derive_profile $ make_nontempered 1000
+profile_nontempered = derive_profile "nontempered" $ make_nontempered 1000
     where
     make_nontempered size = mkblock $ map (track_until size)
             [ make_tempo (floor (ScoreTime.to_double size))
@@ -75,30 +75,38 @@ profile_nontempered = derive_profile $ make_nontempered 1000
 
 -- | Giant control track with lots of samples.  Intended to profile control
 -- track derivation.
-profile_control = derive_profile $ make_big_control 15000
+profile_control = derive_profile "control" $ make_big_control 15000
 
 make_big_control size = mkblock $ map (track_until size)
     [ mod_track
     , (inst1, [(0, size, "")])
     ]
 
-profile_nested_simple = derive_profile $ make_nested_notes 10 3 60
-profile_nested_controls = derive_profile $ make_nested_controls 10 3 60
+profile_nested_simple =
+    derive_profile "nested simple" $ make_nested_notes 10 3 60
+profile_nested_controls =
+    derive_profile "nested controls" $ make_nested_controls 10 3 60
 -- Just plain notes, no controls, so laziness works.
-profile_nested_nocontrol = derive_profile $
+profile_nested_nocontrol = derive_profile "nested nocontrol" $
     make_nested [note_track inst1] 10 3 60
 
+-- Profile with some bogus busy waits in there to make things clearer on the
+-- heap profile.
 profile_size = derive_size $ make_nested_controls 10 3 60
 
-profile_bloom_derive =
-    profile_saved False "data/bloom.gz" (UiTest.bid "bloom/score")
-profile_bloom_perform =
-    profile_saved True "data/bloom.gz" (UiTest.bid "bloom/score")
+-- profile_bloom_derive = derive_saved False "data/bloom"
+-- profile_bloom_perform = derive_saved True "data/bloom"
+-- profile_pnovla_derive = derive_saved False "data/pnovla"
+-- profile_pnovla_perform = derive_saved True "data/pnovla"
+-- profile_viola_sonata_perform = derive_saved True "data/viola-sonata"
 
-profile_pnovla_derive =
-    profile_saved False "data/pnovla.gz" (UiTest.bid "pnovla/b1")
-profile_pnovla_perform =
-    profile_saved True "data/pnovla.gz" (UiTest.bid "pnovla/b1")
+profile_bloom = profile_file "data/bloom"
+profile_pnovla = profile_file "data/pnovla"
+profile_viola_sonata = profile_file "data/viola-sonata"
+
+profile_file :: FilePath -> IO ()
+profile_file fname = DeriveSaved.perform_file fname >> return ()
+
 
 -- * make states
 
@@ -145,25 +153,24 @@ mkblock tracks = do
 
 -- * implementation
 
-profile_saved :: Bool -> FilePath -> BlockId -> IO ()
-profile_saved with_perform fname block_id = do
-    result <- print_timer ("unserialize " ++ show fname) (const "") $
+derive_saved :: Bool -> FilePath -> IO ()
+derive_saved with_perform fname = do
+    result <- print_timer ("unserialize " ++ show fname) (\_ _ -> "") $
         Save.read_state_ fname
     state <- case result of
         Left err -> error $ "loading " ++ show fname ++ ": " ++ err
         Right Nothing -> error $ "loading " ++ show fname ++ ": doesn't exist"
         Right (Just state) -> return state
-    let lookup = DeriveTest.lookup_from_state state
-    if with_perform
-        then replicateM_ 6 $ run_profile (Just lookup) block_id state
-        else replicateM_ 6 $ run_profile Nothing block_id state
+    let lookup = if with_perform
+            then Just $ DeriveTest.lookup_from_state state else Nothing
+    replicateM_ 1 $ run_profile fname lookup state
 
 derive_size :: State.StateId a -> IO ()
 derive_size create = do
-    print_timer "force mmsgs" (const "done") (force mmsgs)
-    print_timer "gc" (const "") Mem.performGC
-    print_timer "busy" id $ return $ show (busy_wait 100000000)
-    print_timer "length" id $ return $ show (length mmsgs)
+    print_timer "force mmsgs" (\_ _ -> "done") (force mmsgs)
+    print_timer "gc" (\_ _ -> "") Mem.performGC
+    print_timer "busy" (const id) $ return $ show (busy_wait 100000000)
+    print_timer "length" (const id) $ return $ show (length mmsgs)
     return ()
     where
     ui_state = UiTest.exec State.empty create
@@ -181,56 +188,40 @@ busy_wait ops = go ops 2
         | otherwise = go (n-1) (sqrt accum)
 
 -- | This runs the derivation several times to minimize the creation cost.
-derive_profile :: State.StateId a -> IO ()
-derive_profile create = replicateM_ 6 $
-    run_profile Nothing UiTest.default_block_id (UiTest.exec State.empty create)
+derive_profile :: String -> State.StateId a -> IO ()
+derive_profile name create = replicateM_ 6 $
+    run_profile name Nothing (UiTest.exec State.empty create)
 
-run_profile :: Maybe Convert.Lookup -- ^ If given, also run a perform.
-    -> BlockId -> State.State -> IO ()
-run_profile maybe_lookup block_id ui_state = do
+run_profile :: String -> Maybe Convert.Lookup -- ^ If given, also run a perform.
+    -> State.State -> IO ()
+run_profile fname maybe_lookup ui_state = do
+    block_id <- maybe (errorIO $ fname <> ": no root block") return $
+        State.config#State.root #$ ui_state
     start_cpu <- CPUTime.getCPUTime
-    start <- now
-    let section :: (Show a) => String -> IO ((), [a]) -> IO ()
-        section = time_section (start_cpu, start)
-
+    let section = time_section start_cpu
     let result = DeriveTest.derive_block ui_state block_id
     let events = Derive.r_events result
     section "derive" $ do
         force events
-        return ((), events)
+        prettyp events
+        return events
     whenJust maybe_lookup $ \lookup -> section "midi" $ do
         let mmsgs = snd $ DeriveTest.perform_stream lookup
                 (State.config_midi (State.state_config ui_state)) events
-        -- mapM_ Log.write (LEvent.logs_of mmsgs)
         force mmsgs
-        return ((), mmsgs)
+        return mmsgs
 
-time_section :: (Show a) => (Integer, Time.DiffTime) -> String
-    -> IO (result, [a]) -> IO result
-time_section (start_cpu, start_time) title op = do
+time_section :: Integer -> String -> IO [a] -> IO ()
+time_section start_cpu title op = do
     putStr $ "--> " ++ title ++ ": "
     IO.hFlush IO.stdout
-    ((result, vals), cpu_secs, secs) <- cpu_time op
+    (vals, cpu_secs) <- timer op
     cur_cpu <- CPUTime.getCPUTime
-    cur_time <- now
-    Printf.printf "%d vals -> %.2fcpu / %.2fs (running: %.2fcpu / %.2fs)\n"
-        (length vals) cpu_secs (double secs)
-        (cpu_to_sec (cur_cpu - start_cpu)) (double (cur_time - start_time))
-    return result
-    where
-    double :: Time.DiffTime -> Double
-    double = realToFrac
+    let len = length vals
+    Printf.printf "%d vals -> %.2f (%.2f / sec) (running: %.2f)\n"
+        len cpu_secs (fromIntegral len / cpu_secs)
+        (cpu_to_sec (cur_cpu - start_cpu))
 
-cpu_time :: IO a -> IO (a, Double, Time.DiffTime)
-cpu_time op = do
-    start_cpu <- CPUTime.getCPUTime
-    start <- now
-    v <- op
-    end_cpu <- CPUTime.getCPUTime
-    end <- now
-    return (v, cpu_to_sec (end_cpu - start_cpu), end - start)
-
-now = fmap Time.utctDayTime Time.getCurrentTime
 cpu_to_sec :: Integer -> Double
 cpu_to_sec s = fromIntegral s / fromIntegral (10^12)
 
@@ -271,5 +262,5 @@ track_take :: Int -> UiTest.TrackSpec -> UiTest.TrackSpec
 track_take = second . take
 
 set_midi_config :: State.State -> State.State
-set_midi_config = State.config#State.midi #=
-     UiTest.midi_config [(txt $ drop 1 inst1, [0, 1]), (txt $ drop 1 inst2, [2])]
+set_midi_config = State.config#State.midi #= UiTest.midi_config
+    [(txt $ drop 1 inst1, [0, 1]), (txt $ drop 1 inst2, [2])]

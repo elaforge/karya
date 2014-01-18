@@ -3,7 +3,11 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
-  - redo profiles so they use saved scores, and report events/sec
+  - deriving kendang-telek is super slow, what's going on?
+  - in kendang-telek some notes are incorrectly tuned
+  - When zooming in on a selection, zoom to exactly that selection.
+  - Vsl.strip_attr.strip_redundant is taking a huge amount of time
+  * redo profiles so they use saved scores, and report events/sec
   - Can I get "(ts s) as an arg parser?  Two ways
     . Pair an arg and bit of Deriver code to transform it.
     . Put VQuoted in as a default.  This way the doc can mention it, but it
@@ -112,60 +116,6 @@ UNSORTED
     Derive.randomized_control_at that looks for a corresponding <>"-rnd"
     signal for range.  E.g., each instrument should switch to noltol at
     a different time.
-  bali
-    * cipher scale is still more convenient than absolute when dealing with
-      one or two instruments.  Maybe I should use a base-octave var instead
-      of kantilan and pemade variations.
-      . try per-instrument scale with: i_ i- i^
-    * How do I set umbang/isep for instruments that don't already have them
-      built-in?  Do I need the Environ per-instrument config?
-      * But I can't save Environ because of Pitch
-        * I could make a RestrictedEnviron.  I could also put environ in the
-          Patch and get rid of the special purpose plumbing.
-        / Would it be enough to get rid of Val vs. RawVal?  No, not unless I
-          want to use an expression for VPitch.  In that case, what would
-          pitch val calls return?
-    kotekan ornaments
-      * norot
-      * norot switches to kotekan when above a certain speed
-      * norot pickup: >norot
-        - control for +mute or not
-      * gnorot for gender style norot: 5656, 434- / 234-
-        - control for polos 234- vs. 434-
-      - an optional special pattern which switching between kotekan and back,
-        e.g. 112-2-2-
-      - kotekan:
-        patterns
-          * 1-12-1-21 -- /_\
-          * -2-12-12, -1-21-21 -- \\, //
-          * 1-12-12-21-21-12- / 434-34-3-43-434-3 -- \/-
-          - _11_1-21 / 44-43-4 -- _\
-            use Nx for rests
-        Less regular patterns, e.g.
-          - -11-1-21 / -3-32-32
-          - In general I need a way to express arbitrary patterns,
-            parameterized by destination note.
-        - Some patterns do play on the beat, they should be able to do that
-          and suppress the previous note.
-        . Aligned so the last polos / sangsih note is the pitch.
-        * telu vs. empat
-        - phase: this can make the last note no longer align to the pitch
-      * I should have a better way of specifying instrument ranges than
-        NoteNumber + adjust for umbang/isep, where I don't even know why it
-        works.
-      * ensure that Wayang and Legong scales all have a consistent
-        absolute Theory.Pitch parse.
-      * add VTPitch to TrackLang.Val, along with Typecheck instance
-        called VNotePitch, since TTPitch is just terrible.
-      * add Environ.inst_top and Environ.inst_bottom, and use those for
-        kempyung
-    wayang in octaves
-      . I could do it with >wayang-both that emits >wayang-p and >wayang-k. Or
-        just call the score twice, once with transpose +1 oct.
-      . Or I could create the kantilan as a integration of the pemade, so it
-        can still be modified. I think this would want a "score integration"
-        which just copies and merges the events directly, and doesn't do
-        the intermediate derivation.
   india
     - nkam doesn't seem to interact correctly with 'h'
     - semi-tone dip.  This is like 1 cycle kam.
@@ -807,6 +757,8 @@ Cmd:
 
   ruler:
     - LRuler.inject, opposite of extract, replaces sub-block rulers
+    - LRuler.strip which strips out lower rank marks.  This can make rulers
+      for large blocks smaller.
   Cmd.Edit
     - alternate finale-like note entry: hold down step key to set step and
       turn on edit mode, but only while the key is down
@@ -889,66 +841,127 @@ Derive:
   note calls:
     trills
       / hybrid where the initial part stretches, final part is absolute
-    trompong / reyong:
-      - trompong ngoret, actually I can use rambat tick
-        But damping on reyong is different, you can just forget some notes.
-      - split to ngembat, e.g.  λ 人 hmm, is there a reverse lambda?  Can
-        I draw symbols reversed? 入 兩
-      - various numpuk
-      kilitan
-        . What is the "core" of what kilitan is?
-          Take a melody, and split it into multiple parts.  Each part has
-          a limited pitch range, and when the melody is out of range, play
-          harmonizing intervals, or move in contrary motion.
-          Also, the melody is at a slow tempo, and kilitan elaborates at some
-          integral multiple, using norot style patterns.
-        . So I decide on how many parts, and steady state patterns for each
-          part.  The patterns may have alternatives, or internal variations.
-        . Patterns also have transitions to a new melody note, which occur
-          before the melody note arrives.  The transitions may vary depending
-          on the source and destination melody notes.
-        . There are also cross-part variations, where neighbors must pick
-          cooperating variations.
-        . Also there may be ornaments that affect all the parts, e.g.
-          232321612.  These are similar to cross-part variations, except that
-          they should be signalled explicitly in the notation rather than
-          being random.
+    bali:
+      * cipher scale is still more convenient than absolute when dealing with
+        one or two instruments.  Maybe I should use a base-octave var instead
+        of kantilan and pemade variations.
+        . try per-instrument scale with: i_ i- i^
+      * How do I set umbang/isep for instruments that don't already have them
+        built-in?  Do I need the Environ per-instrument config?
+        * But I can't save Environ because of Pitch
+          * I could make a RestrictedEnviron.  I could also put environ in the
+            Patch and get rid of the special purpose plumbing.
+          / Would it be enough to get rid of Val vs. RawVal?  No, not unless I
+            want to use an expression for VPitch.  In that case, what would
+            pitch val calls return?
+      kotekan ornaments
+        - kotekan can leave inst as it is, to be split by unison or kempyung
+          I should be able to get rid of out of range and instrument_top_env
+          for the norot calls.
+        - how can I have thru etc work for a pasang instrument?
+          Yes, just >kkt/wayang.  Test to make sure it's ok to use with no
+          allocation.  Or maybe I should have an explicit empty allocation.
+        * norot
+        * norot switches to kotekan when above a certain speed
+        * norot pickup: >norot
+          - control for +mute or not
+        * gnorot for gender style norot: 5656, 434- / 234-
+          - control for polos 234- vs. 434-
+        - an optional special pattern which switching between kotekan and back,
+          e.g. 112-2-2-
+        kotekan:
+          patterns
+            * 1-12-1-21 -- /_\
+            * -2-12-12, -1-21-21 -- \\, //
+            * 1-12-12-21-21-12- / 434-34-3-43-434-3 -- \/-
+            * _11_1-21 / 44-43-4 -- _\
+          Less regular patterns, e.g.
+            * -11-1-21 / -3-32-32
+            * In general I need a way to express arbitrary patterns,
+              parameterized by destination note.
+          - verify realization with integration
+          - Some patterns do play on the beat, they should be able to do that
+            and suppress the previous note.
+          . Aligned so the last polos / sangsih note is the pitch.
+          * telu vs. empat
+          - phase: this can make the last note no longer align to the pitch
+        * I should have a better way of specifying instrument ranges than
+          NoteNumber + adjust for umbang/isep, where I don't even know why it
+          works.
+        * ensure that Wayang and Legong scales all have a consistent
+          absolute Theory.Pitch parse.
+        * add VTPitch to TrackLang.Val, along with Typecheck instance
+          called VNotePitch, since TTPitch is just terrible.
+        * add Environ.inst_top and Environ.inst_bottom, and use those for
+          kempyung
+      wayang in octaves
+        . I could do it with >wayang-both that emits >wayang-p and >wayang-k. Or
+          just call the score twice, once with transpose +1 oct.
+        . Or I could create the kantilan as a integration of the pemade, so it
+          can still be modified. I think this would want a "score integration"
+          which just copies and merges the events directly, and doesn't do
+          the intermediate derivation.
+      trompong / reyong:
+        - postproc for damping which omits damping if the other hand is busy
+        - trompong ngoret, actually I can use rambat tick
+          But damping on reyong is different, you can just forget some notes.
+        - split to ngembat, e.g.  λ 人 hmm, is there a reverse lambda?  Can
+          I draw symbols reversed? 入 兩
+        - various numpuk
+        kilitan
+          . What is the "core" of what kilitan is?
+            Take a melody, and split it into multiple parts.  Each part has
+            a limited pitch range, and when the melody is out of range, play
+            harmonizing intervals, or move in contrary motion.
+            Also, the melody is at a slow tempo, and kilitan elaborates at some
+            integral multiple, using norot style patterns.
+          . So I decide on how many parts, and steady state patterns for each
+            part.  The patterns may have alternatives, or internal variations.
+          . Patterns also have transitions to a new melody note, which occur
+            before the melody note arrives.  The transitions may vary depending
+            on the source and destination melody notes.
+          . There are also cross-part variations, where neighbors must pick
+            cooperating variations.
+          . Also there may be ornaments that affect all the parts, e.g.
+            232321612.  These are similar to cross-part variations, except that
+            they should be signalled explicitly in the notation rather than
+            being random.
 
-        . Eval transformed deriver in flat time, to get events in ScoreTime.
-        . Simplify notes to 'Melody Theory.Pitch | Ornament (Byong | DownUp)'
-        . Ornaments become set patterns at the given time, different for each
-          part.
-        . Start with part 1 and for each note:
-          . If it's an Ornament, emit the relevant notes verbatim relative to
-            the current time, e.g.
-              Ornament -> Part -> Time -> [(RelativeTime, Note)]
-            Clip anything that would overlap the previous event, or the next
-            note.
-          . If it's Melody, generate harmonic points until the next
-            non-Melody.  They are relative to the start of the call.
-          . Start assembling notes from fragments.  Get the transition
-            fragments based on the Part and the next Melody note, and if any
-            line up to now, pick and emit one.  Otherwise, pick a continuation
-            fragment based on the current Melody.  If it's a coordinated one,
-            emit that separately.
-          . Do the same for each part, except that the fragments that are
-            chosen can be influenced by previous coordinated fragments.
-        . Just emit open notes.  Damping is done with a separate postproc.
+          . Eval transformed deriver in flat time, to get events in ScoreTime.
+          . Simplify notes to 'Melody Theory.Pitch | Ornament (Byong | DownUp)'
+          . Ornaments become set patterns at the given time, different for each
+            part.
+          . Start with part 1 and for each note:
+            . If it's an Ornament, emit the relevant notes verbatim relative to
+              the current time, e.g.
+                Ornament -> Part -> Time -> [(RelativeTime, Note)]
+              Clip anything that would overlap the previous event, or the next
+              note.
+            . If it's Melody, generate harmonic points until the next
+              non-Melody.  They are relative to the start of the call.
+            . Start assembling notes from fragments.  Get the transition
+              fragments based on the Part and the next Melody note, and if any
+              line up to now, pick and emit one.  Otherwise, pick a continuation
+              fragment based on the current Melody.  If it's a coordinated one,
+              emit that separately.
+            . Do the same for each part, except that the fragments that are
+              chosen can be influenced by previous coordinated fragments.
+          . Just emit open notes.  Damping is done with a separate postproc.
 
-        . type RelativeTime = Int -- at harmonic rhythm
-        . type RelativePitch = (Diatonic, Chromatic)
-        . type Fragment = [(RelativeTime, RelativePitch)]
-        . type Coordination = Char -- anything, just a key
-        . type Fragments = [(Maybe Coordination, Probability, Fragment)]
-        . type Part = Part
-          { transition :: Pitch -> Fragments, continuation :: Fragments }
+          . type RelativeTime = Int -- at harmonic rhythm
+          . type RelativePitch = (Diatonic, Chromatic)
+          . type Fragment = [(RelativeTime, RelativePitch)]
+          . type Coordination = Char -- anything, just a key
+          . type Fragments = [(Maybe Coordination, Probability, Fragment)]
+          . type Part = Part
+            { transition :: Pitch -> Fragments, continuation :: Fragments }
 
-        - extend to work other scales
-        - more graceful transitions between pitches
-        - variant patterns
-        - coordination across parts
-        - damping, depending on speed
-        - support kilitan/beat speed more exotic than 4/1
+          - extend to work other scales
+          - more graceful transitions between pitches
+          - variant patterns
+          - coordination across parts
+          - damping, depending on speed
+          - support kilitan/beat speed more exotic than 4/1
 
   control calls:
     - signal transformations: +, *, max, min
