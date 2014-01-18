@@ -27,7 +27,10 @@ module Derive.Call.Bali.Kotekan where
 import qualified Data.List as List
 
 import Util.Control
+import qualified Util.Num as Num
+import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
+
 import qualified Cmd.Meter as Meter
 import qualified Derive.Args as Args
 import qualified Derive.Attrs as Attrs
@@ -58,10 +61,14 @@ note_calls = Derive.call_maps
     [ ("norot", c_norot)
     , (">norot", c_norot_pickup)
     , ("gnorot", c_gender_norot)
-    , ("k/_\\", c_kotekan $ parse_pattern "-12-1-21")
-    , ("k//",   c_kotekan $ parse_pattern "12-12-12")
-    , ("k\\\\", c_kotekan $ parse_pattern "21-21-21")
-    , ("k\\/",  c_kotekan $ parse_pattern "-12-12-2 1-21-12-")
+    , ("k/_\\", c_kotekan $ regular_pattern "-12-1-21" "3-23-32-" "34-343-4")
+    -- sangsih telu is below, but sangsih pat is above
+    , ("k//",   c_kotekan $ regular_pattern "23-23-23" "2-12-12-" "5-45-45-")
+    , ("k\\\\", c_kotekan $ regular_pattern "21-21-21" "2-32-32-" "-43-43-4")
+    , ("k\\/",  c_kotekan $ regular_pattern "-12-12-2 1-21-12-"
+                                            "3-23-232 -32-3-23"
+                                            "44-34-3- 43-434-3")
+    , ("k_\\",  c_kotekan $ regular_pattern "1-1-21" "3-32-32" "4-43-4")
     ]
     [ ("nyog", c_nyogcag)
     , ("unison", c_unison)
@@ -69,13 +76,37 @@ note_calls = Derive.call_maps
     , ("noltol", c_noltol)
     ]
 
-parse_pattern :: [Char] -> [KotekanNote]
-parse_pattern = map p . filter (/=' ')
+parse_pattern :: [Char] -> [Char] -> [Char] -> [Char] -> [Char]
+    -> KotekanPattern
+parse_pattern unison polos_pat sangsih_pat polos_telu sangsih_telu =
+    KotekanPattern (parse unison) (parse polos_pat) (parse sangsih_pat)
+        (parse polos_telu) (parse sangsih_telu)
     where
-    p '-' = N_
-    p '1' = N1
-    p '2' = N2
-    p c = error $ "unparseable character: " ++ show c
+    Just destination = Seq.last $ mapMaybe Num.read_digit unison
+    parse = map (fmap (subtract destination) . Num.read_digit) . filter (/=' ')
+
+data KotekanPattern = KotekanPattern {
+    kotekan_unison :: [Maybe Pitch.Step]
+    , kotekan_polos_pat :: [Maybe Pitch.Step]
+    , kotekan_sangsih_pat :: [Maybe Pitch.Step]
+    , kotekan_polos_telu :: [Maybe Pitch.Step]
+    , kotekan_sangsih_telu :: [Maybe Pitch.Step]
+    } deriving (Eq, Show)
+
+instance Pretty.Pretty KotekanPattern where
+    format (KotekanPattern unison p4 s4 p3 s3) =
+        Pretty.record_title "KotekanPattern" $ zip
+            ["unison", "polos pat", "sangsih pat", "polos telu", "sangsih telu"]
+            (map Pretty.format [unison, p4, s4, p3, s3])
+
+regular_pattern :: [Char] -> [Char] -> [Char] -> KotekanPattern
+regular_pattern polos sangsih_telu sangsih_pat =
+    parse_pattern (zipWith merge polos sangsih_telu)
+        polos sangsih_pat polos sangsih_telu
+    where
+    merge '-' n = n
+    merge n '-' = n
+    merge n _ = n
 
 postproc :: Tags.Tags
 postproc = Tags.bali <> Tags.postproc
@@ -206,7 +237,7 @@ gender_norot under_threshold pasang start
     polos steps = (fst pasang, steps, mempty)
     sangsih steps = (snd pasang, steps, mempty)
 
-c_kotekan :: [KotekanNote] -> Derive.Generator Derive.Note
+c_kotekan :: KotekanPattern -> Derive.Generator Derive.Note
 c_kotekan pattern = Derive.make_call "kotekan" Tags.bali
     "Kotekan."
     $ Sig.call ((,,,)
@@ -222,34 +253,27 @@ c_kotekan pattern = Derive.make_call "kotekan" Tags.bali
         realize_notes start pitch $ realize_pattern True start end dur $
             kotekan_pattern pattern style under_threshold pasang
 
-kotekan_pattern :: [KotekanNote] -> KotekanStyle -> (ScoreTime -> Bool)
+kotekan_pattern :: KotekanPattern -> KotekanStyle -> (ScoreTime -> Bool)
     -> Pasang -> ScoreTime -> [[PatternNote]]
-kotekan_pattern pattern style under_threshold (polos, sangsih) start
-    | under_threshold start =
-        map make_interlocking $ realize_interlocking pattern
-    | otherwise = map make_normal $ map steps pattern
-    where
-    make_interlocking = map $ \(inst, step) ->
-        (inst, step - destination, mempty)
-    destination = steps (last pattern)
-    steps N1 = 0
-    steps N2 = 1
-    steps N_ = 2
-    realize_interlocking = case style of
-        Telu -> map $ \n -> case n of
-            N1 -> [(polos, 0)]
-            N2 -> [(polos, 1), (sangsih, 1)]
-            N_ -> [(sangsih, 2)]
-        Pat -> map $ \n -> case n of
-            N1 -> [(polos, 0), (sangsih, 3)]
-            N2 -> [(polos, 1)]
-            N_ -> [(sangsih, 2)]
-    make_normal step =
-        [ (polos, step - destination, mempty)
-        , (sangsih, step - destination, mempty)
-        ]
+kotekan_pattern pattern style under_threshold pasang start =
+    map (map realize) $
+        pattern_steps style (under_threshold start) pasang pattern
+    where realize (inst, steps) = (inst, steps, mempty)
 
-data KotekanNote = N1 | N2 | N_ deriving (Show)
+pattern_steps :: KotekanStyle -> Bool -> Pasang -> KotekanPattern
+    -> [[(Score.Instrument, Pitch.Step)]]
+pattern_steps style interlock (polos, sangsih)
+        (KotekanPattern unison p4 s4 p3 s3)
+    | interlock = case style of
+        Telu -> interlocking p3 s3
+        Pat -> interlocking p4 s4
+    | otherwise = normal unison
+    where
+    interlocking ps ss =
+        [mapMaybe id [(,) polos <$> p, (,) sangsih <$> s] | (p, s) <- zip ps ss]
+    normal = map $ \n -> case n of
+        Nothing -> []
+        Just steps -> [(polos, steps), (sangsih, steps)]
 
 
 -- ** implementation

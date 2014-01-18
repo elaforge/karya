@@ -47,6 +47,17 @@ test_gender_norot = do
         extract e = (Score.event_start e, DeriveTest.e_pitch e)
     pprint (run [(5, -5, "gnorot 1 -- 3a")])
 
+test_kotekan = do
+    let run = derive_pasang extract " | kotekan = 2"
+        extract e = (Score.event_start e, DeriveTest.e_pitch e)
+    equal (run [(8, -8, "k/_\\ 1 -- 4c")])
+        (( [(2, "4c"), (3, "4d"), (5, "4c"), (7, "4d"), (8, "4c")]
+         , [(1, "4e"), (3, "4d"), (4, "4e"), (6, "4e"), (7, "4d")]
+         ), [])
+    equal (run [(8, -8, "k// 1 -- 4c")])
+        (( [(1, "3b"), (2, "4c"), (4, "3b"), (5, "4c"), (7, "3b"), (8, "4c")]
+         , [(1, "3b"), (3, "3a"), (4, "3b"), (6, "3a"), (7, "3b")]
+         ), [])
 
 test_kempyung = do
     let run title = derive extract (inst_title <> title <> " | kempyung")
