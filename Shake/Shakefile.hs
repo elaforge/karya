@@ -34,7 +34,7 @@ import qualified Data.Monoid as Monoid
 import Data.Monoid (mempty, (<>))
 
 import qualified Development.Shake as Shake
-import Development.Shake ((?==), (?>), (*>), need)
+import Development.Shake ((?==), (?>), (?>>), (*>), need)
 import qualified System.Directory as Directory
 import qualified System.Environment as Environment
 import qualified System.FilePath as FilePath
@@ -159,6 +159,12 @@ hsBinaries =
     where
     plain name path = HsBinary name path [] Nothing
     gui name path deps icon = HsBinary name path deps (Just icon)
+
+runProfile :: FilePath
+runProfile = modeToDir Profile </> "RunProfile"
+
+runTests :: FilePath
+runTests = modeToDir Test </> "RunTests"
 
 -- | Hardcoded list of files that should be processed with CPP when chasing
 -- deps.
@@ -425,12 +431,6 @@ main = do
         markdownRule (buildDir (modeConfig Opt) </> "linkify")
         hsRule (modeConfig Debug) -- hsc2hs only uses mode-independent flags
         hsORule infer
-        -- 'hsORule' depends on .hi files instead of .o files, and this rule
-        -- states that a .hi is created by creating its .hs.o.  This might
-        -- reduce some recompilation because ghc will avoid updating the
-        -- timestamp on the .hi file if things dependent on it don't need to
-        -- be recompiled.
-        "//*.hi" *> \hi -> need [hiToObj hi]
         ccORule infer
         dispatch modeConfig targets
 
@@ -474,12 +474,16 @@ midiFromEnv env = case lookup "midi" env of
 
 -- ** misc rules
 
+-- | Dynamically generated header.
+hsconfigH :: FilePath
+hsconfigH = "hsconfig.h"
+
 -- | Write a header to configure the haskell compilation.
 --
 -- It's in a separate file so that the relevant haskell files can include it.
 -- This way only those files will recompile when the config changes.
 configHeaderRule :: Shake.Rules ()
-configHeaderRule = matchBuildDir "hsconfig.h" ?> \fn -> do
+configHeaderRule = matchBuildDir hsconfigH ?> \fn -> do
     useRepl <- Shake.askOracle (Question () :: Question ReplQ)
     useRepl <- return $ useRepl && targetToMode fn /= Just Test
     midiDriver <- Shake.askOracle (Question () :: Question MidiQ)
@@ -523,7 +527,7 @@ dispatch modeConfig targets = do
             Shake.want $
                 [ debug "browser", debug "logview", debug "make_db"
                 , debug "seq", debug "update", debug "dump", debug "repl"
-                , debug "test_midi", modeToDir Profile </> "RunProfile"
+                , debug "test_midi", runProfile
                 , "karya.cabal"
                 ] ++ extractableDocs
             dispatch modeConfig ["tests"]
@@ -544,7 +548,7 @@ dispatch modeConfig targets = do
         "hlint" -> action $ hlint (modeConfig Debug)
         "md" -> action $ need . map docToHtml =<< getMarkdown
         "profile" -> action $ do
-            need [modeToDir Profile </> "RunProfile"]
+            need [runProfile]
             let with_scc = "-auto-all"
                     `elem` hcFlags (configFlags (modeConfig Profile))
             system "tools/summarize_profile.py"
@@ -554,17 +558,17 @@ dispatch modeConfig targets = do
         "show-opt" -> action $
             Trans.liftIO $ PPrint.pprint (modeConfig Opt)
         "tests" -> action $ do
-            need [runTests Nothing]
-            system "test/run_tests" [runTests Nothing]
+            need [runTestsTarget Nothing]
+            system "test/run_tests" [runTestsTarget Nothing]
         "tests-complete" -> action $ do
-            need [runTests Nothing]
-            system "test/run_tests" [runTests Nothing, "normal-", "gui-"]
+            need [runTestsTarget Nothing]
+            system "test/run_tests" [runTestsTarget Nothing, "normal-", "gui-"]
         (dropPrefix "tests-" -> Just tests) -> action $ do
-            need [runTests (Just tests)]
-            system "test/run_tests" [runTests (Just tests)]
+            need [runTestsTarget (Just tests)]
+            system "test/run_tests" [runTestsTarget (Just tests)]
         _ -> return False
     action act = Shake.action act >> return True
-    runTests tests = modeToDir Test </> ("RunTests" ++ maybe "" ('-':) tests)
+    runTestsTarget tests = runTests ++ maybe "" ('-':) tests
 
 hlint :: Config -> Shake.Action ()
 hlint config = do
@@ -619,7 +623,7 @@ getMarkdown = map ("doc"</>) <$> Shake.getDirectoryFiles "doc" ["*.md"]
 makeHaddock :: Config -> Shake.Action ()
 makeHaddock config = do
     (hs, hscs) <- getAllHaddock
-    need $ (buildDir config </> "hsconfig.h")
+    need $ (buildDir config </> hsconfigH)
         : map (hscToHs (hscDir config)) hscs
     let flags = configFlags config
     interfaces <- Trans.liftIO getHaddockInterfaces
@@ -692,6 +696,7 @@ makeHs dir out main = ("GHC-MAKE", out, cmdline)
 -- | Build a haskell binary.
 buildHs :: Config -> [FilePath] -> FilePath -> FilePath -> Shake.Action ()
 buildHs config deps hs fn = do
+    need [buildDir config </> hsconfigH]
     srcs <- HsDeps.transitiveImportsOf (cppFlags config) hs
     let ccs = List.nub $
             concat [Map.findWithDefault [] src hsToCc | src <- srcs]
@@ -712,9 +717,8 @@ makeBundle binary has_icon
 -- | Generate RunTests.hs and compile it.
 testRules :: Config -> Shake.Rules ()
 testRules config = do
-    let binPrefix = modeToDir Test </> "RunTests"
-    binPrefix ++ "*.hs" *> generateTestHs "_test"
-    hasPrefix binPrefix ?> \fn -> do
+    runTests ++ "*.hs" *> generateTestHs "_test"
+    hasPrefix runTests ?> \fn -> do
         -- The UI tests use fltk.a.  It would be nicer to have it
         -- automatically added when any .o that uses it is linked in.
         buildHs config [oDir config </> "fltk/fltk.a"] (fn ++ ".hs") fn
@@ -725,9 +729,8 @@ testRules config = do
 
 profileRules :: Config -> Shake.Rules ()
 profileRules config = do
-    let binPrefix = modeToDir Profile </> "RunProfile"
-    binPrefix ++ "*.hs" *> generateTestHs "_profile"
-    hasPrefix binPrefix ?> \fn ->
+    runProfile ++ "*.hs" *> generateTestHs "_profile"
+    hasPrefix runProfile ?> \fn ->
         buildHs config [oDir config </> "fltk/fltk.a"] (fn ++ ".hs") fn
 
 -- | Match any filename that starts with the given prefix but doesn't have
@@ -766,7 +769,8 @@ docToHtml = (docDir </>) . FilePath.takeFileName . (++".html")
 -- * hs
 
 hsORule :: InferConfig -> Shake.Rules ()
-hsORule infer = matchObj "//*.hs.o" ?> \obj -> do
+hsORule infer = matchHsObj ?>> \fns -> do
+    let Just obj = List.find (".hs.o" `List.isSuffixOf`) fns
     Shake.askOracleWith (Question () :: Question GhcQ) ("" :: String)
     let config = infer obj
     isHsc <- Trans.liftIO $
@@ -778,16 +782,36 @@ hsORule infer = matchObj "//*.hs.o" ?> \obj -> do
         then includesOf "hsORule" config hs else return []
     need includes
     let his = map (objToHi . srcToObj config) imports
+    -- I depend on the .hi files instead of the .hs.o files.  GHC avoids
+    -- updaing the timestamp on the .hi file if its .o didn't need to be
+    -- recompiled, so hopefully this will avoid some work.
     logDeps config "hs" obj (hs:his)
     Util.cmdline $ compileHs config hs
+
+-- | Generate both .hs.o and .hi from a .hs file.
+matchHsObj :: FilePath -> Maybe [FilePath]
+matchHsObj fn
+    | any (`List.isSuffixOf` fn) [".hs.o", ".hi"]
+            && "build/" `List.isPrefixOf` fn =
+        if isMain then Just [suffixless ++ ".hs.o"]
+            else Just [suffixless ++ ".hs.o", suffixless ++ ".hi"]
+    | otherwise = Nothing
+    where
+    suffixless = dropExtension fn
+    hs = suffixless ++ ".hs"
+    -- Hack: main modules are sometimes called Main, so their .hi file doesn't
+    -- have the same name as the module.  But no one should be importing them,
+    -- so I don't need to track the .hi.
+    isMain = Map.member hs nameToMain
+        || hs == runProfile ++ ".hs" || hs == runTests ++ ".hs"
 
 compileHs :: Config -> FilePath -> Util.Cmdline
 compileHs config hs = ("GHC", hs,
     [ghcBinary, "-c"] ++ ghcFlags config ++ hcFlags (configFlags config)
-        ++ main_is ++ packageFlags ++ [hs, "-o", srcToObj config hs])
+        ++ mainIs ++ packageFlags ++ [hs, "-o", srcToObj config hs])
     where
     packageFlags = ["-hide-all-packages"] ++ map ("-package="++) packages
-    main_is = if hs `elem` Map.elems nameToMain
+    mainIs = if hs `elem` Map.elems nameToMain
         then ["-main-is", pathToModule hs]
         else []
 
@@ -912,10 +936,15 @@ hscToHs :: FilePath -> FilePath -> FilePath
 hscToHs hscDir fn = (hscDir </>) $ FilePath.replaceExtension fn "hs"
 
 objToHi :: FilePath -> FilePath
-objToHi = (++".hi") . FilePath.dropExtension . FilePath.dropExtension
+objToHi = (++".hi") . dropExtension
 
 hiToObj :: FilePath -> FilePath
 hiToObj = flip FilePath.replaceExtension "hs.o"
+
+dropExtension :: FilePath -> FilePath
+dropExtension fn
+    | ".hs.o" `List.isSuffixOf` fn = take (length fn - 5) fn
+    | otherwise = FilePath.dropExtension fn
 
 dropDir :: FilePath -> FilePath -> FilePath
 dropDir odir fn
