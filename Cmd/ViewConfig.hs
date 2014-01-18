@@ -30,6 +30,14 @@ import Types
 
 -- * zoom
 
+-- | Zoom around the selection if it's a point, or zoom to it if it's not.
+cmd_zoom_around_or_to :: (Cmd.M m) => (Double -> Double) -> m ()
+cmd_zoom_around_or_to f = do
+    (view_id, sel) <- Selection.get
+    if Types.sel_is_point sel
+        then cmd_zoom_around_insert f
+        else uncurry (zoom_to view_id) (Types.sel_range sel)
+
 cmd_zoom_around_insert :: (Cmd.M m) => (Double -> Double) -> m ()
 cmd_zoom_around_insert f = do
     (view_id, (_, _, pos)) <- Selection.get_any_insert
@@ -49,6 +57,10 @@ zoom_around (Types.Zoom offset factor) pos f =
         (ScoreTime.double newf)) newf
     where newf = f factor
 
+zoom_to :: Cmd.M m => ViewId -> TrackTime -> TrackTime -> m ()
+zoom_to view_id start end =
+    set_zoom view_id . Types.Zoom start =<< zoom_factor view_id (end - start)
+
 zoom_pos :: ScoreTime -> ScoreTime -> ScoreTime -> ScoreTime -> ScoreTime
 zoom_pos offset pos oldf newf = (offset - pos) * (oldf/newf) + pos
 
@@ -67,10 +79,16 @@ zoom_to_ruler :: (Cmd.M m) => ViewId -> m ()
 zoom_to_ruler view_id = do
     view <- State.get_view view_id
     block_end <- State.block_end (Block.view_block view)
-    let pixels = Block.view_visible_time view
-    let factor = if block_end == 0 then 1
-            else fromIntegral pixels / ScoreTime.to_double block_end
-    set_zoom view_id (Types.Zoom 0 factor)
+    set_zoom view_id . Types.Zoom 0 =<< zoom_factor view_id block_end
+
+-- | Figure out the zoom factor to display the given amount of TrackTime.
+zoom_factor :: State.M m => ViewId -> TrackTime -> m Double
+zoom_factor view_id dur
+    | dur == 0 = return 1
+    | otherwise = do
+        view <- State.get_view view_id
+        let pixels = Block.view_visible_time view
+        return $ fromIntegral pixels / ScoreTime.to_double dur
 
 -- * resize
 
