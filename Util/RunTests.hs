@@ -16,7 +16,6 @@ import qualified System.CPUTime as CPUTime
 import qualified System.Console.GetOpt as GetOpt
 import qualified System.Environment
 import qualified System.Exit
-import qualified System.Posix as Posix
 import qualified System.Process as Process
 
 import qualified Util.Regex as Regex
@@ -72,11 +71,11 @@ run argv0 tests = do
 
 runTests :: String -> [Test] -> [Flag] -> [String] -> IO ()
 runTests argv0 tests flags args
-    | List `elem` flags = printTests True
+    | List `elem` flags = printTests
     | otherwise = do
         when (NonInteractive `elem` flags) $
             IORef.writeIORef Test.skip_human True
-        printTests False
+        printTests
         let (initTests, nonInitTests) =
                 List.partition (Maybe.isJust . testInitialize) matches
         mapM_ runTest nonInitTests
@@ -85,13 +84,9 @@ runTests argv0 tests flags args
             _ -> mapM_ (runSubprocess argv0) initTests
     where
     matches = matchingTests args tests
-    printTests printOnly
+    printTests
         | null matches = putStrLn $ "no tests match: " ++ show args
-        | otherwise = do
-            unless printOnly $ do
-                pid <- Posix.getProcessID
-                putStrLn $ "\nRunTests: " ++ show pid
-            mapM_ putStrLn (List.sort (map testName matches))
+        | otherwise = mapM_ putStrLn (List.sort (map testName matches))
 
 runSubprocess :: String -> Test -> IO ()
 runSubprocess argv0 test = do

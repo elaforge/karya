@@ -6,9 +6,10 @@
 """usage: output.hs test_mod1.hs test_mod2.hs ...
 
 Collect tests from the given modules and generate a haskell module that calls
-the tests.  Test functions are any function starting with 'test_' or
-'profile_'.  This module doesn't distinguish between tests and profiles, but
-they should presumably be compiled separately since they required different
+the tests.  Test functions are any function starting with 'large_test_',
+'test_' or 'profile_' and immediately followed by '=' (implying the function
+has no arguments).  This module doesn't distinguish between tests and profiles,
+but they should presumably be compiled separately since they required different
 flags.
 
 If a module has a function called 'initialize', it will be called as 'IO ()'
