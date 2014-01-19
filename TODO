@@ -7,7 +7,7 @@ UNSORTED
   - deriving kendang-telek is super slow, what's going on?
   - in kendang-telek some notes are incorrectly tuned
   * When zooming in on a selection, zoom to exactly that selection.
-  - Vsl.strip_attr.strip_redundant is taking a huge amount of time
+  * Vsl.strip_attr.strip_redundant is taking a huge amount of time
   * redo profiles so they use saved scores, and report events/sec
   - Can I get "(ts s) as an arg parser?  Two ways
     . Pair an arg and bit of Deriver code to transform it.

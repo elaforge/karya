@@ -25,6 +25,7 @@
 module Perform.Midi.Instrument (
     module Perform.Midi.Instrument, Control.PbRange
 ) where
+import qualified Control.DeepSeq as DeepSeq
 import Control.DeepSeq
 import qualified Data.List as List
 import qualified Data.Map as Map
@@ -441,7 +442,7 @@ instance Pretty.Pretty Flag where pretty = show
 -- will check for that.
 newtype AttributeMap =
     AttributeMap [(Score.Attributes, [Keyswitch], Maybe Keymap)]
-    deriving (Eq, Show, Pretty.Pretty)
+    deriving (Eq, Show, Pretty.Pretty, DeepSeq.NFData)
 
 -- | A Keymap corresponds to a timbre selected by MIDI key range, rather than
 -- keyswitches.  Unlike a keyswitch, this doesn't change the state of the MIDI
@@ -472,6 +473,14 @@ data Keyswitch =
     -- | This keyswitch is triggered by a control change.
     | ControlSwitch !Midi.Control !Midi.ControlValue
     deriving (Eq, Ord, Show, Read)
+
+instance DeepSeq.NFData Keymap where
+    rnf (UnpitchedKeymap k) = k `seq` ()
+    rnf (PitchedKeymap k _ _) = k `seq` ()
+
+instance DeepSeq.NFData Keyswitch where
+    rnf (Keyswitch k) = k `seq` ()
+    rnf (ControlSwitch k _) = k `seq` ()
 
 instance Pretty.Pretty Keyswitch where
     format (Keyswitch key) = "key:" <> Pretty.format key

@@ -151,7 +151,8 @@ instance ShowVal.ShowVal TypedVal where
 -- a drum from a drumset, or something like that.
 type Attribute = Text
 newtype Attributes = Attributes (Set.Set Attribute)
-    deriving (Monoid.Monoid, Eq, Ord, Read, Show, Serialize.Serialize)
+    deriving (Monoid.Monoid, Eq, Ord, Read, Show, Serialize.Serialize,
+        DeepSeq.NFData)
 
 instance Pretty.Pretty Attributes where pretty = untxt . ShowVal.show_val
 instance ShowVal.ShowVal Attributes where

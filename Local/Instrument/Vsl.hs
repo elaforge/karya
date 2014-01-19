@@ -236,7 +236,7 @@ keys_from low_key = map Instrument.Keyswitch [low_key ..]
 -- * attrs
 
 strip_attrs :: [Score.Attributes] -> [Score.Attributes]
-strip_attrs attrs = foldr strip_attr attrs strip
+strip_attrs attrs = snd $ foldr strip_attr (Set.fromList attrs, attrs) strip
     where
     strip = reverse
         [ VslInst.sus, VslInst.vib, VslInst.perf, VslInst.fast, VslInst.fa
@@ -245,14 +245,25 @@ strip_attrs attrs = foldr strip_attr attrs strip
         ]
 
 -- | Strip the given attr, but only if it wouldn't cause clashes.
-strip_attr :: Score.Attributes -> [Score.Attributes] -> [Score.Attributes]
-strip_attr attr all_attrs = map (strip_redundant attr) all_attrs
+strip_attr :: Score.Attributes -> (Set.Set Score.Attributes, [Score.Attributes])
+    -> (Set.Set Score.Attributes, [Score.Attributes])
+strip_attr attr (all_attrs_set, all_attrs)
+    | any (`Score.attrs_contain` attr) all_attrs =
+        List.mapAccumL strip_redundant all_attrs_set all_attrs
+    | otherwise = (all_attrs_set, all_attrs)
     where
-    strip = flip Score.attrs_diff
-    strip_redundant attr attrs
-        | stripped `elem` all_attrs = attrs
-        | otherwise = stripped
-        where stripped = strip attr attrs
+    -- Initially I had a naive version that search for clashes with a linear
+    -- search in 'all_attrs'.  But it turns out to be slow since there are
+    -- around 41 instruments * 12 attrs to strip * 285 attrs * 285 for linear
+    -- search.  Or something.  Anyway, previously forcing all the patches took
+    -- 0.39 CPU seconds, now it's down to 0.19.
+    --
+    -- This whole calculation winds up in 'patches' as a CAF, so it should be
+    -- possible at compile time.
+    strip_redundant attrs_set attrs
+        | Set.member stripped attrs_set = (attrs_set, attrs)
+        | otherwise = (Set.insert stripped attrs_set, stripped)
+        where stripped = Score.attrs_diff attrs attr
 
 expand_ab :: Score.Attributes -> Maybe [Score.Attributes]
 expand_ab attrs
