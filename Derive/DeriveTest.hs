@@ -704,7 +704,7 @@ mkpitch scale p = case eval State.empty deriver of
     Right pitch -> pitch
     where
     deriver = Derive.with_scale scale $
-        Call.eval_pitch 0 (TrackLang.call (txt p) [])
+        Call.eval_pitch 0 $ TrackLang.call (TrackLang.Symbol (txt p)) []
 
 default_scale :: Scale.Scale
 default_scale = Twelve.scale

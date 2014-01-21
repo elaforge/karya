@@ -139,7 +139,7 @@ test_val_call = do
     add_one :: Derive.ValCall
     add_one = Derive.val_call "add" mempty "doc" $ Sig.call
         (Sig.required "v" "doc") $
-        \val _ -> return (TrackLang.num (val + 1))
+        \val _ -> return (val + 1 :: Double)
 
 test_inst_call = do
     let extract = DeriveTest.extract (Score.attrs_list . Score.event_attributes)
