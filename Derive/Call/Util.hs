@@ -250,6 +250,12 @@ multiply_constant control = Derive.with_multiplied_control control
 note :: Derive.NoteDeriver
 note = Call.eval_one_call $ TrackLang.call "" []
 
+-- | Like 'note', but the note reuses the start and duration from the passed
+-- args, rather than being normalized from 0 to 1.  This is appropriate when
+-- dispatching to the default note call.
+note_here :: Derive.NoteArgs -> Derive.NoteDeriver
+note_here args = Call.reapply_call args "" []
+
 -- | Override the pitch signal and generate a single note.
 pitched_note :: PitchSignal.Pitch -> Derive.NoteDeriver
 pitched_note pitch = with_pitch pitch note
