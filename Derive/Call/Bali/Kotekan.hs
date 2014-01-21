@@ -206,21 +206,26 @@ gangsa_norot_pickup under_threshold pasang (pstep, sstep) start
         ]
     where
     mute = Attrs.mute -- TODO configurable
-    polos steps attrs = (fst pasang, steps, attrs)
-    sangsih steps attrs = (snd pasang, steps, attrs)
+    polos steps attrs = (Just $ fst pasang, steps, attrs)
+    sangsih steps attrs = (Just $ snd pasang, steps, attrs)
 
 gangsa_norot :: (ScoreTime -> Bool) -> Pasang
     -> ((Pitch.Step, Pitch.Step), (Pitch.Step, Pitch.Step))
     -> MakePattern
 gangsa_norot under_threshold pasang (pstep, sstep) start
-    | under_threshold start = [[sangsih (fst pstep)], [polos (snd pstep)]]
+    | under_threshold start = map (:[])
+        [sangsih (fst pstep), polos (snd pstep)]
     | otherwise =
+        -- It would be simpler to use Nothing for the instrument and let a
+        -- unison or kempyung call handle it, but that wouldn't work with
+        -- unison.  As long as I have to realize kempyung I might as well do it
+        -- here.
         [ [polos (fst pstep), sangsih (fst sstep)]
         , [polos (snd pstep), sangsih (snd sstep)]
         ]
     where
-    polos steps = (fst pasang, steps, mempty)
-    sangsih steps = (snd pasang, steps, mempty)
+    polos steps = (Just $ fst pasang, steps, mempty)
+    sangsih steps = (Just $ snd pasang, steps, mempty)
 
 gender_norot :: (ScoreTime -> Bool) -> Pasang -> MakePattern
 gender_norot under_threshold pasang start
@@ -234,12 +239,14 @@ gender_norot under_threshold pasang start
         ]
     where
     include_unison = True -- TODO chance based on signal
-    polos steps = (fst pasang, steps, mempty)
-    sangsih steps = (snd pasang, steps, mempty)
+    polos steps = (Just $ fst pasang, steps, mempty)
+    sangsih steps = (Just $ snd pasang, steps, mempty)
 
 c_kotekan :: KotekanPattern -> Derive.Generator Derive.Note
 c_kotekan pattern = Derive.make_call "kotekan" Tags.bali
-    "Kotekan."
+    "Kotekan calls perform a pattern with `inst-polos` and `inst-sangsih`.\
+    \ They line up at the end of the event, and are intended to be used with\
+    \ negative durations."
     $ Sig.call ((,,,)
     <$> dur_arg
     <*> Sig.defaulted "style" (TrackLang.E Telu) "Kotekan style."
@@ -261,7 +268,7 @@ kotekan_pattern pattern style under_threshold pasang start =
     where realize (inst, steps) = (inst, steps, mempty)
 
 pattern_steps :: KotekanStyle -> Bool -> Pasang -> KotekanPattern
-    -> [[(Score.Instrument, Pitch.Step)]]
+    -> [[(Maybe Score.Instrument, Pitch.Step)]]
 pattern_steps style interlock (polos, sangsih)
         (KotekanPattern unison p4 s4 p3 s3)
     | interlock = case style of
@@ -270,16 +277,18 @@ pattern_steps style interlock (polos, sangsih)
     | otherwise = normal unison
     where
     interlocking ps ss =
-        [mapMaybe id [(,) polos <$> p, (,) sangsih <$> s] | (p, s) <- zip ps ss]
+        [ mapMaybe id [(,) (Just polos) <$> p, (,) (Just sangsih) <$> s]
+        | (p, s) <- zip ps ss
+        ]
     normal = map $ \n -> case n of
         Nothing -> []
-        Just steps -> [(polos, steps), (sangsih, steps)]
+        Just steps -> [(Nothing, steps)]
 
 
 -- ** implementation
 
 type MakePattern = ScoreTime -> [[PatternNote]]
-type PatternNote = (Score.Instrument, Pitch.Step, Score.Attributes)
+type PatternNote = (Maybe Score.Instrument, Pitch.Step, Score.Attributes)
 
 realize_pattern :: Bool -> ScoreTime -> ScoreTime -> ScoreTime -> MakePattern
     -> [Note]
@@ -302,14 +311,16 @@ realize_notes start pitch =
     where
     note (Note start dur inst steps attrs) =
         Derive.d_place start dur $
-        Derive.with_instrument inst $
+        maybe id Derive.with_instrument inst $
         Util.add_attrs attrs $
         Util.pitched_note (Pitches.transpose_d steps pitch)
 
 data Note = Note {
     note_start :: !ScoreTime
     , note_duration :: !ScoreTime
-    , note_instrument :: !Score.Instrument
+    -- | If Nothing, retain the instrument in scope.  Presumably it will be
+    -- later split into polos and sangsih by a @unison@ or @kempyung@ call.
+    , note_instrument :: !(Maybe Score.Instrument)
     , note_steps :: !Pitch.Step
     , note_attributes :: !Score.Attributes
     } deriving (Show)
