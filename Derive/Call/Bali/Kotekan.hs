@@ -123,7 +123,7 @@ c_norot = Derive.make_call "norot" Tags.bali
     \ the event, so this is most suitable for a negative duration event."
     $ Sig.call ((,,,,)
     <$> dur_arg
-    <*> Sig.defaulted "style" (TrackLang.E Kempyung) "Norot style."
+    <*> Sig.defaulted "style" (TrackLang.E Default) "Norot style."
     <*> kotekan_env <*> instrument_top_env <*> pasang_env
     ) $ \(maybe_dur, TrackLang.E style, kotekan, inst_top, pasang) ->
     Sub.inverting $ \args -> do
@@ -134,14 +134,14 @@ c_norot = Derive.make_call "norot" Tags.bali
         under_threshold <- under_threshold_function kotekan dur
         let (start, end) = Args.range args
         realize_notes start pitch $ realize_pattern True start end dur $
-            gangsa_norot under_threshold pasang nsteps
+            gangsa_norot style under_threshold pasang nsteps
 
 c_norot_pickup :: Derive.Generator Derive.Note
 c_norot_pickup = Derive.make_call "norot-pickup" Tags.bali
     "Emit norot pickup."
     $ Sig.call ((,,,,)
     <$> dur_arg
-    <*> Sig.defaulted "style" (TrackLang.E Kempyung) "Norot style."
+    <*> Sig.defaulted "style" (TrackLang.E Default) "Norot style."
     <*> kotekan_env <*> instrument_top_env <*> pasang_env
     ) $ \(maybe_dur, TrackLang.E style, kotekan, inst_top, pasang) ->
     Sub.inverting $ \args -> do
@@ -152,7 +152,7 @@ c_norot_pickup = Derive.make_call "norot-pickup" Tags.bali
         under_threshold <- under_threshold_function kotekan dur
         let (start, end) = Args.range args
         realize_notes start pitch $ realize_pattern False start end dur $
-            gangsa_norot_pickup under_threshold pasang nsteps
+            gangsa_norot_pickup style under_threshold pasang nsteps
 
 norot_steps :: Scale.Scale -> Maybe Pitch.Pitch -> PitchSignal.Pitch
     -> NorotStyle -> ((Pitch.Step, Pitch.Step), (Pitch.Step, Pitch.Step))
@@ -160,9 +160,9 @@ norot_steps scale inst_top pitch style
     | out_of_range 1 = ((-1, 0), (-1, 0))
     | otherwise = case style of
         Diamond -> ((1, 0), (-1, 0))
-        Kempyung
-            | not (out_of_range 4) -> ((1, 0), (4, 3))
-            | otherwise -> ((1, 0), (1, 3))
+        -- Sangsih is only used if non-interlocking and using Diamond style.
+        -- So the snd pair should be ignored.
+        Default -> ((1, 0), (1, 0))
     where
     out_of_range steps = note_too_high scale inst_top $
         Pitches.transpose_d steps pitch
@@ -188,41 +188,43 @@ c_gender_norot = Derive.make_call "gender-norot" Tags.bali
         realize_notes start pitch $ realize_pattern True start end dur $
             gender_norot under_threshold pasang
 
-gangsa_norot_pickup :: (ScoreTime -> Bool) -> Pasang
+gangsa_norot_pickup :: NorotStyle -> (ScoreTime -> Bool) -> Pasang
     -> ((Pitch.Step, Pitch.Step), (Pitch.Step, Pitch.Step))
     -> ScoreTime -> [[PatternNote]]
-gangsa_norot_pickup under_threshold pasang (pstep, sstep) start
+gangsa_norot_pickup style under_threshold pasang (pstep, sstep) start
     | under_threshold start =
         [ [polos (snd pstep) mempty, sangsih (snd pstep) mempty]
         , [polos (snd pstep) mempty, sangsih (snd pstep) mempty]
         , [sangsih (fst pstep) mempty]
         , [polos (snd pstep) mempty]
         ]
-    | otherwise =
-        [ [polos (snd pstep) mute, sangsih (snd sstep) mute]
-        , [polos (snd pstep) mempty, sangsih (snd sstep) mempty]
-        , [polos (fst pstep) mempty, sangsih (fst sstep) mempty]
-        , [polos (snd pstep) mempty, sangsih (snd sstep) mempty]
-        ]
+    | otherwise = case style of
+        Default -> [[(Nothing, step, attr)] | (step, attr) <-
+            [(snd pstep, mute), (snd pstep, mempty), (fst pstep, mempty),
+                (snd pstep, mempty)]]
+        Diamond ->
+            [ [polos (snd pstep) mute, sangsih (snd sstep) mute]
+            , [polos (snd pstep) mempty, sangsih (snd sstep) mempty]
+            , [polos (fst pstep) mempty, sangsih (fst sstep) mempty]
+            , [polos (snd pstep) mempty, sangsih (snd sstep) mempty]
+            ]
     where
     mute = Attrs.mute -- TODO configurable
     polos steps attrs = (Just $ fst pasang, steps, attrs)
     sangsih steps attrs = (Just $ snd pasang, steps, attrs)
 
-gangsa_norot :: (ScoreTime -> Bool) -> Pasang
+gangsa_norot :: NorotStyle -> (ScoreTime -> Bool) -> Pasang
     -> ((Pitch.Step, Pitch.Step), (Pitch.Step, Pitch.Step))
     -> MakePattern
-gangsa_norot under_threshold pasang (pstep, sstep) start
+gangsa_norot style under_threshold pasang (pstep, sstep) start
     | under_threshold start = map (:[])
         [sangsih (fst pstep), polos (snd pstep)]
-    | otherwise =
-        -- It would be simpler to use Nothing for the instrument and let a
-        -- unison or kempyung call handle it, but that wouldn't work with
-        -- unison.  As long as I have to realize kempyung I might as well do it
-        -- here.
-        [ [polos (fst pstep), sangsih (fst sstep)]
-        , [polos (snd pstep), sangsih (snd sstep)]
-        ]
+    | otherwise = case style of
+        Default -> [[(Nothing, step, mempty)] | step <- [fst pstep, snd pstep]]
+        Diamond ->
+            [ [polos (fst pstep), sangsih (fst sstep)]
+            , [polos (snd pstep), sangsih (snd sstep)]
+            ]
     where
     polos steps = (Just $ fst pasang, steps, mempty)
     sangsih steps = (Just $ snd pasang, steps, mempty)
@@ -325,7 +327,16 @@ data Note = Note {
     , note_attributes :: !Score.Attributes
     } deriving (Show)
 
-data NorotStyle = Kempyung | Diamond deriving (Bounded, Eq, Enum, Show)
+-- | Style for non-interlocking norot.  Interlocking norot is always the upper
+-- neighbor (or lower on the top key).
+data NorotStyle =
+    -- | Norot is emitted as the current instrument, which should be converted
+    -- into kempyung or unison by a postproc.
+    Default
+    -- | Norot in the diamond pattern, where sangsih goes down.
+    | Diamond
+    deriving (Bounded, Eq, Enum, Show)
+
 instance ShowVal.ShowVal NorotStyle where show_val = TrackLang.default_show_val
 instance TrackLang.TypecheckEnum NorotStyle
 

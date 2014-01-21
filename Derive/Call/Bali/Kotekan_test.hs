@@ -16,18 +16,9 @@ test_norot = do
             inst_title <> " | inst-top = (pitch (4f))"
         extract e = (DeriveTest.e_note e, Score.event_instrument e)
     equal (run [(2, -2, "norot 1 -- 3a")])
-        ([ ((1, 1, "3b"), polos), ((1, 1, "4e"), sangsih)
-         , ((2, -1, "3a"), polos), ((2, -1, "4d"), sangsih)
-         ], [])
-    equal (run [(3, -3, "norot 1 -- 3a")])
-        ([ ((1, 1, "3a"), polos), ((1, 1, "4d"), sangsih)
-         , ((2, 1, "3b"), polos), ((2, 1, "4e"), sangsih)
-         , ((3, -1, "3a"), polos), ((3, -1, "4d"), sangsih)
-         ], [])
-    equal (run [(2, -2, "norot 1 -- 4c")])
-        ([ ((1, 1, "4d"), polos), ((1, 1, "4d"), sangsih)
-         , ((2, -1, "4c"), polos), ((2, -1, "4f"), sangsih)
-         ], [])
+        ([((1, 1, "3b"), pasang), ((2, -1, "3a"), pasang)], [])
+    equal (run [(2, -2, "norot 1 -- 4f")])
+        ([((1, 1, "4e"), pasang), ((2, -1, "4f"), pasang)], [])
     equal (run [(2, -2, "norot 1 diamond -- 4c")])
         ([ ((1, 1, "4d"), polos), ((1, 1, "3b"), sangsih)
          , ((2, -1, "4c"), polos), ((2, -1, "4c"), sangsih)
@@ -45,16 +36,20 @@ test_norot = do
 test_gender_norot = do
     let run = derive_pasang extract ""
         extract e = (Score.event_start e, DeriveTest.e_pitch e)
-    pprint (run [(5, -5, "gnorot 1 -- 3a")])
+    equal (run [(5, -5, "gnorot 1 -- 3a")])
+        (( [(1, "3a"), (2, "3g"), (3, "3f"), (4, "3g"), (5, "3a")]
+         , [(1, "3a"), (2, "3b"), (3, "3a"), (4, "3b"), (5, "3a")]
+         ), [])
 
 test_kotekan = do
-    let run = derive_pasang extract " | kotekan = 2"
+    let run kotekan = derive_pasang extract
+            (" | unison | kotekan = " <> if kotekan then "2" else "1")
         extract e = (Score.event_start e, DeriveTest.e_pitch e)
-    equal (run [(8, -8, "k/_\\ 1 -- 4c")])
+    equal (run True [(8, -8, "k/_\\ 1 -- 4c")])
         (( [(2, "4c"), (3, "4d"), (5, "4c"), (7, "4d"), (8, "4c")]
          , [(1, "4e"), (3, "4d"), (4, "4e"), (6, "4e"), (7, "4d")]
          ), [])
-    equal (run [(8, -8, "k// 1 -- 4c")])
+    equal (run True [(8, -8, "k// 1 -- 4c")])
         (( [(1, "3b"), (2, "4c"), (4, "3b"), (5, "4c"), (7, "3b"), (8, "4c")]
          , [(1, "3b"), (3, "3a"), (4, "3b"), (6, "3a"), (7, "3b")]
          ), [])
@@ -120,3 +115,6 @@ polos = Score.Instrument "i1"
 
 sangsih :: Score.Instrument
 sangsih = Score.Instrument "i2"
+
+pasang :: Score.Instrument
+pasang = Score.Instrument "i3"
