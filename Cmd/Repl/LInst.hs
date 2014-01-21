@@ -110,6 +110,13 @@ create alias inst wdev chans = do
     alloc alias wdev chans
     add_alias inst alias
 
+-- | Create an instrument with no channel allocation.  This is used for
+-- instruments which are expected to be converted into other instruments during
+-- derivation.  For instance, pasang instruments are stand-ins for polos
+-- sangsih pairs.
+create_empty :: Instrument -> Instrument -> Cmd.CmdL ()
+create_empty alias inst = create alias inst "empty" []
+
 -- | Remove both an alias and its allocation.
 remove :: Instrument -> Cmd.CmdL ()
 remove alias = do

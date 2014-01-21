@@ -864,7 +864,7 @@ Derive:
         * kotekan can leave inst as it is, to be split by unison or kempyung
           I should be able to get rid of out of range and instrument_top_env
           for the norot calls.
-        - a form of explicit "empty allocation" for instruments like pasang
+        * a form of explicit "empty allocation" for instruments like pasang
         * norot
         * norot switches to kotekan when above a certain speed
         * norot pickup: >norot
