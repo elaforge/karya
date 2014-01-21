@@ -9,7 +9,6 @@
 module Derive.Instrument.DUtil where
 import Util.Control
 import qualified Derive.Args as Args
-import qualified Derive.Call as Call
 import qualified Derive.Call.Note as Note
 import qualified Derive.Call.Sub as Sub
 import qualified Derive.Call.Tags as Tags
@@ -26,8 +25,7 @@ attrs_note attrs =
     Derive.make_call ("attrs_note " <> ShowVal.show_val attrs)
         Tags.attr
         "Invoke the default note call with the given attrs." $
-    Sig.call0 $ \args ->
-    Util.add_attrs attrs $ Call.reapply_call args "" []
+    Sig.call0 $ \args -> Util.add_attrs attrs (Util.note_here args)
 
 -- | This re-applies the default note call and wraps it in a transformer.
 -- However, it's more direct and probably clearer to directly create
@@ -37,7 +35,7 @@ note_call :: Text -> (Derive.NoteDeriver -> Derive.NoteDeriver)
 note_call name transform = Derive.make_call name mempty
     "Invoke the default note call with a certain transform." $
     Sig.call0 $ \args -> Sub.when_under_inversion args transform $
-        Call.reapply_call args "" []
+        Util.note_here args
 
 zero_duration :: Text -> (Derive.NoteDeriver -> Derive.NoteDeriver)
     -> Derive.Generator Derive.Note

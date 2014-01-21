@@ -22,6 +22,8 @@ import qualified Ui.State as State
 import qualified Ui.TrackTree as TrackTree
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Info as Info
+import qualified Derive.Call.Bali.Kotekan as Kotekan
+import qualified Derive.Environ as Environ
 import qualified Derive.RestrictedEnviron as RestrictedEnviron
 import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
@@ -137,10 +139,10 @@ toggle_solo inst = modify_config (instrument inst) $ \config ->
 
 -- | Add an environ val to the instrument config.
 add_environ :: (RestrictedEnviron.ToVal a, State.M m) => Instrument
-    -> Text -> a -> m ()
+    -> TrackLang.ValName -> a -> m ()
 add_environ inst name val =
-    modify_config_ (instrument inst) $ Instrument.cenviron
-        %= (RestrictedEnviron.make [(TrackLang.Symbol name, v)] <>)
+    modify_config_ (instrument inst) $
+        Instrument.cenviron %= (RestrictedEnviron.make [(name, v)] <>)
     where v = RestrictedEnviron.to_val val
 
 -- | Clear the instrument config's environ.  The instrument's built-in environ
@@ -358,3 +360,17 @@ type Instrument = Text
 -- accidentally include one.
 instrument :: Text -> Score.Instrument
 instrument = Score.Instrument . Text.dropWhile (=='>')
+
+
+-- * higher level
+
+-- | Set up a pair of instruments as polos and sangsih.
+create_pasang :: State.M m => Instrument -> Text -> Text -> Bool -> m ()
+create_pasang pasang polos sangsih polos_umbang = do
+    add_environ pasang Kotekan.inst_polos (instrument polos)
+    add_environ pasang Kotekan.inst_sangsih (instrument sangsih)
+    let (ptuning, stuning) = if polos_umbang
+            then (Environ.umbang, Environ.isep)
+            else (Environ.isep, Environ.umbang)
+    add_environ polos Environ.tuning (ptuning :: Text)
+    add_environ sangsih Environ.tuning (stuning :: Text)

@@ -3,6 +3,8 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
+  - If thru did eval on "", I wouldn't need pasang thru.  But it might be
+    slower.
   * Clip sometimes missing notes right at the beginning
   - deriving kendang-telek is super slow, what's going on?
   - in kendang-telek some notes are incorrectly tuned
@@ -64,7 +66,6 @@ UNSORTED
         a playback cursor, and to be able to mix with "normal" notation)
         then all is fine, but if I do want to mix then I need to get a tempo
         out of it.
-
   * fix the ly notation in mvt3 of viola-sonata: bug/ly-tuplets.gz
     It is emitting 32nd notes instead of tuplets, caused by the +spic sub
     call.
@@ -856,12 +857,14 @@ Derive:
             want to use an expression for VPitch.  In that case, what would
             pitch val calls return?
       kotekan ornaments
-        - kotekan can leave inst as it is, to be split by unison or kempyung
+        / pasang doesn't work because it eliminates the >pasang before
+          kempyung has a chance to see it.  I need something that does the
+          split at convert time.
+          But it's simpler to just wrap everything in a unison.
+        * kotekan can leave inst as it is, to be split by unison or kempyung
           I should be able to get rid of out of range and instrument_top_env
           for the norot calls.
-        - how can I have thru etc work for a pasang instrument?
-          Yes, just >kkt/wayang.  Test to make sure it's ok to use with no
-          allocation.  Or maybe I should have an explicit empty allocation.
+        - a form of explicit "empty allocation" for instruments like pasang
         * norot
         * norot switches to kotekan when above a certain speed
         * norot pickup: >norot

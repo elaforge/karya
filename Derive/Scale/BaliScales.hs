@@ -80,8 +80,7 @@ make_scale scale_pattern scale_id (ScaleMap dmap nn_map) =
     -- take effect at the beginning of each note, but won't retune a sounding
     -- one.
     where
-    doc =
-        "Balinese scales come in detuned pairs. They use the `tuning` env var\
+    doc = "Balinese scales come in detuned pairs. They use the `tuning` env var\
         \ to select between pengumbang and pengisep tuning. The env var\
         \ should be set to either `umbang` or `isep`, and if it's not\
         \ set, `umbang` is assumed. Normally the umbang and isep\
@@ -97,8 +96,8 @@ data Tuning = Umbang | Isep deriving (Show)
 
 read_tuning :: Text -> Maybe Tuning
 read_tuning t
-    | t == "umbang" = Just Umbang
-    | t == "isep" = Just Isep
+    | t == Environ.umbang = Just Umbang
+    | t == Environ.isep = Just Isep
     | otherwise = Nothing
 
 -- | If ombak is unset, use the hardcoded tunings.  Otherwise, create new

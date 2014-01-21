@@ -18,26 +18,20 @@ import qualified Midi.Key2 as Key2
 import qualified Midi.Midi as Midi
 
 import qualified Cmd.Cmd as Cmd
-import qualified Cmd.InputNote as InputNote
 import qualified Cmd.Instrument.CUtil as CUtil
 import qualified Cmd.Instrument.Drums as Drums
 import qualified Cmd.Keymap as Keymap
-import qualified Cmd.MidiThru as MidiThru
-import qualified Cmd.Msg as Msg
-import qualified Cmd.NoteEntry as NoteEntry
-import qualified Cmd.Perf as Perf
-import qualified Cmd.Selection as Selection
 
 import qualified Derive.Attrs as Attrs
 import Derive.Attrs
 import qualified Derive.Call.Articulation as Articulation
-import qualified Derive.Call.Bali.Kotekan as Kotekan
 import qualified Derive.Call.Make as Make
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Call.Util as Util
 import qualified Derive.Controls as Controls
 import qualified Derive.Derive as Derive
 import qualified Derive.Environ as Environ
+import qualified Derive.Instrument.Bali as Bali
 import qualified Derive.Instrument.DUtil as DUtil
 import qualified Derive.LEvent as LEvent
 import qualified Derive.Scale.Wayang as Wayang
@@ -208,15 +202,15 @@ hang_ks = [(attrs, key) | (attrs, key, _, _) <- hang_strokes]
 -}
 wayang_patches :: [MidiInst.Patch]
 wayang_patches =
-    [ (set_tuning "umbang" $ scale Wayang.umbang $ wayang "wayang-umbang",
+    [ (set_tuning Environ.umbang $ scale Wayang.umbang $ wayang "wayang-umbang",
         wayang_code)
-    , (set_tuning "isep" $ scale Wayang.isep $ wayang "wayang-isep",
+    , (set_tuning Environ.isep $ scale Wayang.isep $ wayang "wayang-isep",
         wayang_code)
-    , (wayang "wayang", pasang_code)
+    , (wayang "wayang", Bali.pasang_code)
     , (set_range Wayang.pemade_bottom Wayang.pemade_top $ wayang "wayang-p",
-        pasang_code)
+        Bali.pasang_code)
     , (set_range Wayang.kantilan_bottom Wayang.kantilan_top $ wayang "wayang-k",
-        pasang_code)
+        Bali.pasang_code)
     , (Instrument.text #= "Tuned to 12TET." $ wayang "wayang12", wayang_code)
     ]
     where
@@ -226,7 +220,7 @@ wayang_patches =
     scale_doc = "These set the scale and tuning automatically, and expect the\
         \ patch to be tuned to the instrument's natural scale."
     set_tuning tuning = MidiInst.default_scale Wayang.scale_id
-        . MidiInst.environ Environ.tuning (tuning :: Text)
+        . MidiInst.environ Environ.tuning tuning
     set_range bottom top = MidiInst.environ Environ.instrument_bottom bottom
         . MidiInst.environ Environ.instrument_top top
 
@@ -234,32 +228,6 @@ wayang_code :: MidiInst.Code
 wayang_code = MidiInst.note_calls $ MidiInst.null_call $
     DUtil.zero_duration "Add `+mute+loose` attribute and scale dyn by 0.75." $
         Util.add_attrs (Attrs.mute <> Attrs.loose) . Util.multiply_dynamic 0.75
-
--- | Emit events for both polos and sangsih.
-pasang_code :: MidiInst.Code
-pasang_code = MidiInst.cmd pasang_thru
-
--- | Dispatch MIDI through to both polos and sangsih instruments.
-pasang_thru :: Cmd.Cmd
-pasang_thru msg = do
-    NoteEntry.run_cmds_with_input [cmd] msg
-    -- This cmd just does midi thru, so I don't want it to return Done and
-    -- prevent track editing cmds from happening.
-    return Cmd.Continue
-    where
-    cmd msg = do
-        input <- case msg of
-            Msg.InputNote input -> return input
-            _ -> Cmd.abort
-        (block_id, _, track_id, _) <- Selection.get_insert
-        polos <- Perf.lookup_val block_id (Just track_id) Kotekan.inst_polos
-        sangsih <- Perf.lookup_val block_id (Just track_id) Kotekan.inst_sangsih
-        whenJust polos $ \inst ->
-            MidiThru.midi_thru_instrument inst input
-        whenJust sangsih $ \inst ->
-            MidiThru.midi_thru_instrument inst $
-                InputNote.multiply_note_id 1 input
-        return Cmd.Continue
 
 wayang_scale :: [Pitch.NoteNumber] -> Instrument.PatchScale
 wayang_scale scale = Instrument.make_patch_scale $ zip wayang_keys scale
