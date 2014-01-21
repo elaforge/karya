@@ -11,10 +11,17 @@ UNSORTED
   * When zooming in on a selection, zoom to exactly that selection.
   * Vsl.strip_attr.strip_redundant is taking a huge amount of time
   * redo profiles so they use saved scores, and report events/sec
-  - Can I get "(ts s) as an arg parser?  Two ways
+  * Can I get "(ts s) as an arg parser?  Two ways
     . Pair an arg and bit of Deriver code to transform it.
     . Put VQuoted in as a default.  This way the doc can mention it, but it
       has to be a ValCall.
+      . Use for CUtil.double_calls too.
+    . If I pass VQuoted, it winds up as a Val, which means the Parser return
+      value is also Val, which means Sig can't do typechecking.
+      I think if I have either a 'Typecheck a' or a Quoted, I can have Sig
+      explicitly evaluate the Quoted when the default is returned.
+      I don't think a typeclass will work because it's overlapping.
+    * First do it with Either, then try to be clever.
   - experiment with explicit recording instead of the automatic "recent"
     - Either record a text modification: replace, prepend, append, delete
     - Or insert an event + dur + text, and advance the cursor to its end.

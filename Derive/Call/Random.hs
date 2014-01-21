@@ -66,4 +66,4 @@ c_range = Derive.val_call "range" Tags.random
     "Pick a random number within a range." $ Sig.call ((,)
     <$> defaulted "low" 0 "Bottom of range, inclusive."
     <*> defaulted "high" 1 "Top of range, inclusive."
-    ) $ \(low, high) _args -> TrackLang.num <$> Util.random_in low high
+    ) $ \(low, high) _args -> Util.random_in low high :: Derive.Deriver Double

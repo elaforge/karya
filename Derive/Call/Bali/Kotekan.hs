@@ -31,7 +31,6 @@ import qualified Util.Num as Num
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 
-import qualified Cmd.Meter as Meter
 import qualified Derive.Args as Args
 import qualified Derive.Attrs as Attrs
 import qualified Derive.Call.Post as Post
@@ -125,9 +124,8 @@ c_norot = Derive.make_call "norot" Tags.bali
     <$> dur_arg
     <*> Sig.defaulted "style" (TrackLang.E Default) "Norot style."
     <*> kotekan_env <*> instrument_top_env <*> pasang_env
-    ) $ \(maybe_dur, TrackLang.E style, kotekan, inst_top, pasang) ->
+    ) $ \(dur, TrackLang.E style, kotekan, inst_top, pasang) ->
     Sub.inverting $ \args -> do
-        dur <- get_dur_arg args maybe_dur
         pitch <- Util.get_pitch =<< Args.real_start args
         scale <- Util.get_scale
         let nsteps = norot_steps scale inst_top pitch style
@@ -143,9 +141,8 @@ c_norot_pickup = Derive.make_call "norot-pickup" Tags.bali
     <$> dur_arg
     <*> Sig.defaulted "style" (TrackLang.E Default) "Norot style."
     <*> kotekan_env <*> instrument_top_env <*> pasang_env
-    ) $ \(maybe_dur, TrackLang.E style, kotekan, inst_top, pasang) ->
+    ) $ \(dur, TrackLang.E style, kotekan, inst_top, pasang) ->
     Sub.inverting $ \args -> do
-        dur <- get_dur_arg args maybe_dur
         pitch <- Util.get_pitch =<< Args.real_start args
         scale <- Util.get_scale
         let nsteps = norot_steps scale inst_top pitch style
@@ -180,8 +177,7 @@ c_gender_norot :: Derive.Generator Derive.Note
 c_gender_norot = Derive.make_call "gender-norot" Tags.bali
     "Gender-style norot."
     $ Sig.call ((,,) <$> dur_arg <*> kotekan_env <*> pasang_env)
-    $ \(maybe_dur, kotekan, pasang) -> Sub.inverting $ \args -> do
-        dur <- get_dur_arg args maybe_dur
+    $ \(dur, kotekan, pasang) -> Sub.inverting $ \args -> do
         pitch <- Util.get_pitch =<< Args.real_start args
         under_threshold <- under_threshold_function kotekan dur
         let (start, end) = Args.range args
@@ -253,9 +249,8 @@ c_kotekan pattern = Derive.make_call "kotekan" Tags.bali
     <$> dur_arg
     <*> Sig.defaulted "style" (TrackLang.E Telu) "Kotekan style."
     <*> kotekan_env <*> pasang_env
-    ) $ \(maybe_dur, TrackLang.E style, kotekan, pasang) ->
+    ) $ \(dur, TrackLang.E style, kotekan, pasang) ->
     Sub.inverting $ \args -> do
-        dur <- get_dur_arg args maybe_dur
         pitch <- Util.get_pitch =<< Args.real_start args
         under_threshold <- under_threshold_function kotekan dur
         let (start, end) = Args.range args
@@ -449,15 +444,10 @@ noltol threshold nexts event
 
 -- * util
 
-dur_arg :: Sig.Parser (Maybe ScoreTime)
-dur_arg = Sig.defaulted "dur" Nothing
-    "Duration of derived notes. Defaults to `\"(ts e)`."
-
--- | Run this on the result of 'dur_arg'.  Ideally, this would be packaged
--- together and Derive.Sig would call it for me.
-get_dur_arg :: Derive.PassedArgs a -> Maybe ScoreTime
-    -> Derive.Deriver ScoreTime
-get_dur_arg args = Util.default_timestep args Meter.E
+dur_arg :: Sig.Parser ScoreTime
+dur_arg = Sig.defaulted_env_quoted "dur" Sig.Prefixed
+    (TrackLang.quoted "ts" [TrackLang.str "e"])
+        "Duration of derived notes."
 
 kotekan_env :: Sig.Parser TrackLang.ValControl
 kotekan_env =

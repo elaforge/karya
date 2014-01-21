@@ -87,7 +87,7 @@ module Derive.Sig (
     Parser, Generator, Transformer
     -- * parsers
     , parsed_manually, no_args
-    , required, required_env, defaulted, defaulted_env
+    , required, required_env, defaulted, defaulted_env, defaulted_env_quoted
     , environ, required_environ
     , optional, optional_env, many, many1
     -- ** defaults
@@ -198,21 +198,44 @@ defaulted name = defaulted_env name Derive.Prefixed
 
 defaulted_env :: forall a. (TrackLang.Typecheck a) => Text
     -> Derive.EnvironDefault -> a -> Text -> Parser a
-defaulted_env name env_default deflt doc = parser arg_doc $ \state1 ->
+defaulted_env name env_default deflt =
+    defaulted_env_ name env_default (Left deflt)
+
+-- | The defaulted value can be a 'TrackLang.Quoted', which will be evaluated
+-- if needed.
+defaulted_env_quoted :: forall a. (TrackLang.Typecheck a) => Text
+    -> Derive.EnvironDefault -> TrackLang.Quoted -> Text -> Parser a
+defaulted_env_quoted name env_default quoted =
+    defaulted_env_ name env_default (Right quoted)
+
+defaulted_env_ :: forall a. (TrackLang.Typecheck a) => Text
+    -> Derive.EnvironDefault -> Either a TrackLang.Quoted -> Text -> Parser a
+defaulted_env_ name env_default quoted doc = parser arg_doc $ \state1 ->
     case get_val env_default state1 name of
-        Nothing -> Right (state1, deflt)
-        Just (state, TrackLang.VNotGiven) -> Right (state, deflt)
+        Nothing -> deflt state1
+        Just (state, TrackLang.VNotGiven) -> deflt state
         Just (state, val) -> (,) state <$>
             check_arg state arg_doc (argnum_error state1) name val
     where
-    expected = TrackLang.to_type deflt
+    deflt state = eval_default arg_doc (argnum_error state) name state quoted
+    show_deflt = either ShowVal.show_val ShowVal.show_val quoted
+    expected = TrackLang.to_type (error "Sig.defaulted_env_" :: a)
     arg_doc = Derive.ArgDoc
         { Derive.arg_name = name
         , Derive.arg_type = expected
-        , Derive.arg_parser = Derive.Defaulted (ShowVal.show_val deflt)
+        , Derive.arg_parser = Derive.Defaulted show_deflt
         , Derive.arg_environ_default = env_default
         , Derive.arg_doc = doc
         }
+
+-- | Eval a Quoted default value.
+eval_default :: TrackLang.Typecheck a => Derive.ArgDoc -> Derive.ErrorPlace
+    -> Text -> State -> Either a TrackLang.Quoted -> Either Error (State, a)
+eval_default _ _ _ state (Left a) = return (state, a)
+eval_default arg_doc place name state (Right q@(TrackLang.Quoted call)) =
+    case eval state call of
+        Left err -> Left $ Derive.EvalError place q name err
+        Right val -> (,) state <$> check_arg state arg_doc place name val
 
 -- | This is a phantom argument which is not actually parsed from the argument
 -- list.  Instead it's looked up it the environ according to the normal

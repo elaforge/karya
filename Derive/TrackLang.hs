@@ -53,16 +53,12 @@ c_equal = "="
 
 -- * make Val literals
 
--- These are intentionally not as polymorphic as they could be, because
--- otherwise 'Derive.val_call $ ... return $ TrackLang.num x' would have an
--- amgiguous type variable.
-
 -- | Make an untyped VNum.
-num :: Double -> Val
-num = to_val
+num :: Double -> ValType a
+num = VNum . Score.untyped
 
-str :: Text -> Val
-str = to_val
+str :: Text -> ValType a
+str = VSymbol . Symbol
 
 score_time :: ScoreTime -> Val
 score_time = VNum . Score.Typed Score.Score . ScoreTime.to_double
@@ -102,6 +98,9 @@ real_control c deflt =
 
 constant_control :: Signal.Y -> ValControl
 constant_control = ControlSignal . Score.untyped . Signal.constant
+
+quoted :: Symbol -> [RawVal] -> Quoted
+quoted name args = Quoted $ literal_call name args
 
 unsym :: Symbol -> Text
 unsym (Symbol sym) = sym

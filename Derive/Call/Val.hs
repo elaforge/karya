@@ -94,7 +94,8 @@ c_prev_val :: Derive.ValCall
 c_prev_val = Derive.val_call "prev-val" Tags.prev
     "Return the previous value. Only works on pitch and control tracks."
     $ Sig.call0 $ \args -> Args.prev_val args >>= \x -> case x of
-        Just (_, Derive.TagControl y) -> return $ TrackLang.num y
+        Just (_, Derive.TagControl y) ->
+            return (TrackLang.num y :: TrackLang.Val)
         Just (_, Derive.TagPitch y) -> return $ TrackLang.VPitch y
         _ -> Derive.throw "no previous value"
 
@@ -143,22 +144,21 @@ c_reciprocal = Derive.val_call "reciprocal" mempty
     "Find the reciprocal of a number. Useful for tempo, e.g. set the tempo to\
     \ 1/time." $ Sig.call (required "num" "") $ \num _ ->
         if num == 0 then Derive.throw "1/0"
-            else return $ TrackLang.num (1 / num)
+            else return (1 / num :: Double)
 
 c_nn :: Derive.ValCall
 c_nn = Derive.val_call "nn" mempty
     "Convert a pitch or hz to a NoteNumber." $ Sig.call (required "val" "") $
     \val _ -> case val of
-        Left pitch -> TrackLang.num . realToFrac <$> Pitches.pitch_nn pitch
-        Right hz -> return $ TrackLang.num . realToFrac $ Pitch.hz_to_nn hz
+        Left pitch -> realToFrac <$> Pitches.pitch_nn pitch
+        Right hz -> return (realToFrac (Pitch.hz_to_nn hz) :: Double)
 
 c_hz :: Derive.ValCall
 c_hz = Derive.val_call "hz" mempty
     "Convert a pitch or NoteNumber to hz." $ Sig.call (required "val" "") $
     \val _ -> case val of
-        Left pitch -> TrackLang.num . Pitch.nn_to_hz <$> Pitches.pitch_nn pitch
-        Right nn ->
-            return $ TrackLang.num $ Pitch.nn_to_hz (Pitch.NoteNumber nn)
+        Left pitch -> Pitch.nn_to_hz <$> Pitches.pitch_nn pitch
+        Right nn -> return (Pitch.nn_to_hz (Pitch.NoteNumber nn) :: Double)
 
 c_scoretime :: Derive.ValCall
 c_scoretime = Derive.val_call "scoretime" mempty
