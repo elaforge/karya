@@ -213,8 +213,8 @@ get_pitch pos = Derive.require ("pitch at " ++ Pretty.pretty pos)
     =<< Derive.pitch_at pos
 
 eval_note :: ScoreTime -> Pitch.Note -> Derive.Deriver PitchSignal.Pitch
-eval_note pos note =
-    Call.eval_pitch pos (TrackLang.call (Pitch.note_text note) [])
+eval_note pos note = Call.eval_pitch pos $
+    TrackLang.call (TrackLang.Symbol (Pitch.note_text note)) []
 
 dynamic :: RealTime -> Derive.Deriver Signal.Y
 dynamic pos = maybe Derive.default_dynamic Score.typed_val <$>

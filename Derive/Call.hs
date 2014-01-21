@@ -190,8 +190,8 @@ reapply_string args s = case ParseBs.parse_expr (ParseBs.from_text s) of
     Left err -> Derive.throw $ "parse error: " ++ err
     Right expr -> reapply args expr
 
-reapply_call :: (Derive.Callable d) => PassedArgs d -> Text -> [TrackLang.Term]
-    -> Derive.LogsDeriver d
+reapply_call :: (Derive.Callable d) => PassedArgs d -> TrackLang.Symbol
+    -> [TrackLang.Term] -> Derive.LogsDeriver d
 reapply_call args call_id call_args =
     reapply args (TrackLang.call call_id call_args :| [])
 

@@ -48,7 +48,7 @@ type Call = Text
 insert_call :: (Cmd.M m) => Map.Map Char Call -> Msg.Msg -> m Cmd.Status
 insert_call = insert_expr . Map.fromList . map (Keymap.physical_key *** to_expr)
         . Map.toList
-    where to_expr call = TrackLang.call call [] :| []
+    where to_expr call = TrackLang.call (TrackLang.Symbol call) [] :| []
 
 notes_to_calls :: [Drums.Note] -> Map.Map Char Call
 notes_to_calls notes =

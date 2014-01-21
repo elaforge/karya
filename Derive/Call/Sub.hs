@@ -246,7 +246,7 @@ reapply args expr notes = Call.reapply subs expr
             }
         }
 
-reapply_call :: Derive.NoteArgs -> Text
+reapply_call :: Derive.NoteArgs -> TrackLang.CallId
     -> [TrackLang.Term] -> [[Event]] -> Derive.NoteDeriver
 reapply_call args call_id call_args =
     reapply args (TrackLang.call call_id call_args :| [])

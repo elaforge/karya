@@ -214,7 +214,7 @@ play_output voice = Derive.d_merge_asc . concatMap go
             Util.add_attrs (strike_attrs strike) $
             Util.with_symbolic_pitch (TrackLang.call sym []) start $
             Derive.d_place start dur Util.note
-        where sym = Pitch.note_text $ show_pitch pitch
+        where sym = TrackLang.Symbol $ Pitch.note_text $ show_pitch pitch
 
 -- | Convert the strike to lower-level attributes for the actual instrument.
 -- These are applied to notes that already have position-appropriate pitches.

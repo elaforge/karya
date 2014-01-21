@@ -626,14 +626,14 @@ map_generator f (call1 :| calls) = case calls of
     _ : _ -> call1 :| Seq.map_last (map_call_id f) calls
 
 -- | Convenient constructor for Call.
-call :: Text -> [Term] -> Call
-call sym = Call (Symbol sym)
+call :: Symbol -> [Term] -> Call
+call sym = Call sym
 
-literal_call :: Text -> [RawVal] -> Call
+literal_call :: Symbol -> [RawVal] -> Call
 literal_call sym args = call sym (map Literal args)
 
 inst :: Text -> Term
 inst = Literal . VInstrument . Score.Instrument
 
-val_call :: Text -> [RawVal] -> Term
+val_call :: Symbol -> [RawVal] -> Term
 val_call sym args = ValCall (literal_call sym args)
