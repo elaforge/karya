@@ -33,6 +33,7 @@ note_calls :: Derive.CallMaps Derive.Note
 note_calls = Derive.call_maps
     [ ("ap", c_ap)
     , ("t", c_tuplet)
+    , ("tup", c_tuplet) -- longer name in case 't' is shadowed
     , ("`arp-up`", c_real_arpeggio ToRight)
     , ("`arp-down`", c_real_arpeggio ToLeft)
     , ("`arp-rnd`", c_real_arpeggio Random)
