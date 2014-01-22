@@ -786,7 +786,7 @@ hsORule infer = matchHsObj ?>> \fns -> do
     -- updaing the timestamp on the .hi file if its .o didn't need to be
     -- recompiled, so hopefully this will avoid some work.
     logDeps config "hs" obj (hs:his)
-    Util.cmdline $ compileHs config hs
+    Util.cmdline $ compileHs (targetToMode obj) config hs
 
 -- | Generate both .hs.o and .hi from a .hs file.
 matchHsObj :: FilePath -> Maybe [FilePath]
@@ -805,8 +805,8 @@ matchHsObj fn
     isMain = Map.member hs nameToMain
         || hs == runProfile ++ ".hs" || hs == runTests ++ ".hs"
 
-compileHs :: Config -> FilePath -> Util.Cmdline
-compileHs config hs = ("GHC", hs,
+compileHs :: Maybe Mode -> Config -> FilePath -> Util.Cmdline
+compileHs mode config hs = ("GHC" ++ maybe "" (('-':) . show) mode, hs,
     [ghcBinary, "-c"] ++ ghcFlags config ++ hcFlags (configFlags config)
         ++ mainIs ++ packageFlags ++ [hs, "-o", srcToObj config hs])
     where
