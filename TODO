@@ -3,6 +3,7 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
+  * zoom to selection with '\', not ']'
   - when in negative step, creating an event to a range should make it
     negative
   - isn't EditUtil.modify_event_at's advance should advance to the end of the

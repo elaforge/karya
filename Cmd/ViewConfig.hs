@@ -30,21 +30,12 @@ import Types
 
 -- * zoom
 
--- | Zoom around the selection if it's a point, or zoom to it if it's not.
-cmd_zoom_around_or_to :: (Cmd.M m) => (Double -> Double) -> m ()
-cmd_zoom_around_or_to f = do
-    (view_id, sel) <- Selection.get
-    if Types.sel_is_point sel
-        then cmd_zoom_around_insert f
-        else uncurry (zoom_to view_id) (Types.sel_range sel)
-
 cmd_zoom_around_insert :: (Cmd.M m) => (Double -> Double) -> m ()
 cmd_zoom_around_insert f = do
     (view_id, (_, _, pos)) <- Selection.get_any_insert
     cmd_zoom_around view_id pos f
 
-cmd_zoom_around :: (Cmd.M m) =>
-    ViewId -> ScoreTime -> (Double -> Double) -> m ()
+cmd_zoom_around :: Cmd.M m => ViewId -> ScoreTime -> (Double -> Double) -> m ()
 cmd_zoom_around view_id pos f = do
     -- Zoom by the given factor, but try to keep pos in the same place on the
     -- screen.
@@ -56,10 +47,6 @@ zoom_around (Types.Zoom offset factor) pos f =
     Types.Zoom (zoom_pos offset pos (ScoreTime.double factor)
         (ScoreTime.double newf)) newf
     where newf = f factor
-
-zoom_to :: Cmd.M m => ViewId -> TrackTime -> TrackTime -> m ()
-zoom_to view_id start end =
-    set_zoom view_id . Types.Zoom start =<< zoom_factor view_id (end - start)
 
 zoom_pos :: ScoreTime -> ScoreTime -> ScoreTime -> ScoreTime -> ScoreTime
 zoom_pos offset pos oldf newf = (offset - pos) * (oldf/newf) + pos
@@ -73,6 +60,19 @@ modify_factor :: (Cmd.M m) => ViewId -> (Double -> Double) -> m ()
 modify_factor view_id f = do
     zoom <- State.get_zoom view_id
     set_zoom view_id (zoom { Types.zoom_factor = f (Types.zoom_factor zoom) })
+
+-- | Zoom to the ruler duration if the selection is a point, or zoom to the
+-- selection if it's not.
+zoom_to_ruler_or_selection :: Cmd.M m => m ()
+zoom_to_ruler_or_selection = do
+    (view_id, sel) <- Selection.get
+    if Types.sel_is_point sel
+        then zoom_to_ruler view_id
+        else uncurry (zoom_to view_id) (Types.sel_range sel)
+
+zoom_to :: Cmd.M m => ViewId -> TrackTime -> TrackTime -> m ()
+zoom_to view_id start end =
+    set_zoom view_id . Types.Zoom start =<< zoom_factor view_id (end - start)
 
 -- | Set zoom on the given view to make the entire block visible.
 zoom_to_ruler :: (Cmd.M m) => ViewId -> m ()

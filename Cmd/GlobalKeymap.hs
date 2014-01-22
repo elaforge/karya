@@ -288,9 +288,9 @@ view_config_bindings = concat
     [ plain_char '[' "zoom out *0.8"
         (ViewConfig.cmd_zoom_around_insert (*0.8))
     , plain_char ']' "zoom in *1.25"
-        (ViewConfig.cmd_zoom_around_or_to (*1.25))
-    , plain_char '\\' "zoom to ruler"
-        (ViewConfig.zoom_to_ruler =<< Cmd.get_focused_view)
+        (ViewConfig.cmd_zoom_around_insert (*1.25))
+    , plain_char '\\' "zoom to ruler or selection"
+        ViewConfig.zoom_to_ruler_or_selection
     , command_char 'R' "resize to fit"
         (ViewConfig.resize_to_fit False =<< Cmd.get_focused_view)
     , command_char 'L' "horizontal tile" ViewConfig.horizontal_tile
