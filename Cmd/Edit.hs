@@ -7,11 +7,10 @@
     commands, go in their own modules.
 -}
 module Cmd.Edit where
-import qualified Data.List as List
+import qualified Data.Map as Map
 import qualified Data.Text as Text
 
 import Util.Control
-import qualified Util.Seq as Seq
 import qualified Ui.Event as Event
 import qualified Ui.Events as Events
 import qualified Ui.Ruler as Ruler
@@ -34,7 +33,6 @@ import Types
 
 cmd_toggle_raw_edit :: (Cmd.M m) => m ()
 cmd_toggle_raw_edit = do
-    whenM ((== Cmd.RawEdit) <$> get_mode) record_recent_note
     modify_edit_mode $ \m -> case m of
         Cmd.RawEdit -> Cmd.NoEdit
         _ -> Cmd.RawEdit
@@ -44,7 +42,6 @@ cmd_toggle_raw_edit = do
 -- kind of edit to val edit.
 cmd_toggle_val_edit :: (Cmd.M m) => m ()
 cmd_toggle_val_edit = do
-    whenM ((== Cmd.RawEdit) <$> get_mode) record_recent_note
     modify_edit_mode $ \m -> case m of
         Cmd.NoEdit -> Cmd.ValEdit
         _ -> Cmd.NoEdit
@@ -507,83 +504,57 @@ strip_transformer :: (Cmd.M m) => m ()
 strip_transformer = ModifyEvents.selection_advance $
     ModifyEvents.text $ ModifyEvents.pipeline $ drop 1
 
--- ** recent note
+-- ** record action
 
-cmd_insert_recent :: (Cmd.M m) => Int -> m ()
-cmd_insert_recent num = do
-    recent <- Cmd.gets (Cmd.state_recent_notes . Cmd.state_edit)
-    insert_recent =<< Cmd.require (lookup num recent)
+-- | If you create a new event, and there is explicit duration, then use it.
+-- If you don't have explicit dur, then dur == 0, and put Nothing.
+make_action :: Maybe Text -> Text -> TrackTime -> Cmd.Action
+make_action maybe_old new dur = case maybe_old of
+    Nothing -> Cmd.InsertEvent (if dur == 0 then Nothing else Just dur) new
+    Just old
+        -- This is a way to record a ReplaceText for an existing event.
+        | old == new -> Cmd.ReplaceText new
+        | old `Text.isPrefixOf` new ->
+            Cmd.AppendText $ Text.drop (Text.length old) new
+        | old `Text.isSuffixOf` new ->
+            Cmd.PrependText $ Text.take (Text.length new - Text.length old) new
+        | otherwise -> Cmd.ReplaceText new
 
-insert_recent :: (Cmd.M m) => Cmd.RecentNote -> m ()
-insert_recent (Cmd.RecentGenerator recent zero_dur) =
-    EditUtil.modify_event zero_dur True (const (Just recent, True))
-insert_recent (Cmd.RecentTransform recent zero_dur) = do
+insert_recorded_action :: Cmd.M m => Char -> Cmd.Action -> m ()
+insert_recorded_action key action = Cmd.modify_edit_state $ \st -> st
+    { Cmd.state_recorded_actions =
+        Map.insert key action (Cmd.state_recorded_actions st)
+    }
+
+save_last_action_to :: Cmd.M m => Char -> m ()
+save_last_action_to key = insert_recorded_action key =<< get_action '.'
+
+run_action_at :: Cmd.M m => Char -> m ()
+run_action_at key = run_action =<< get_action key
+
+get_action :: Cmd.M m => Char -> m Cmd.Action
+get_action key = Cmd.require
+    =<< Cmd.gets (Map.lookup key . Cmd.state_recorded_actions . Cmd.state_edit)
+
+run_action :: Cmd.M m => Cmd.Action -> m ()
+run_action action = do
     pos <- EditUtil.get_pos
-    EditUtil.modify_event_at pos zero_dur False $
-        (\s -> (Just (replace s), True)) . fromMaybe ""
-    where
-    -- "a |" -> "x |"
-    -- "a" -> "x | a"
-    replace text
-        | "|" `Text.isInfixOf` text =
-            recent <> " " <> Text.dropWhile (/='|') text
-        | otherwise =
-            recent <> " |" <> (if Text.null text then "" else " " <> text)
-
--- | Try to record the current event in the LIFO recent note queue, as
--- documented in 'Cmd.state_recent_notes'.
---
--- 'Cmd.RecentNote's are matched only on their first word, so if you change
--- the args or zero_dur then an existing one will be replaced.  If you want
--- an arg to vary a lot it should probably be extracted into a signal anyway.
-record_recent_note :: (Cmd.M m) => m ()
-record_recent_note = do
-    (_, _, track_id, pos) <- Selection.get_insert
-    maybe_event <- State.get_event track_id pos
-    whenJust (recent_note =<< maybe_event) $ \note ->
-        Cmd.modify_edit_state $ \st -> st { Cmd.state_recent_notes =
-            record_recent note (Cmd.state_recent_notes st) }
-
-recent_note :: Event.Event -> Maybe Cmd.RecentNote
-recent_note event
-    | Text.null post =
-        if Text.null pre then Nothing
-            else Just $ Cmd.RecentGenerator pre zero_dur
-    | otherwise = if Text.null pre then Nothing
-        else Just $ Cmd.RecentTransform pre zero_dur
-    where
-    (pre, post) = (Text.strip *** Text.strip) $ Text.break (=='|')
-        (Event.event_text event)
-    zero_dur = Event.duration event == 0
-
-
--- | Put a RecentNote into the FIFO.  RecentGenerators always go in slot 1,
--- with a queue size of 1.  RecentTransforms go in slots 2..4, and the least
--- recently used gets bumped off.  If this transform's first word matches an
--- old one, then the key of the old one is reused, and it is moved to the
--- front.
-record_recent :: Cmd.RecentNote -> [(Int, Cmd.RecentNote)]
-    -> [(Int, Cmd.RecentNote)]
-record_recent recent old_recents =
-    (key, recent) : take max_recent (filter ((/=key) . fst) old_recents)
-    where
-    key = case recent of
-        Cmd.RecentGenerator {} -> 1
-        Cmd.RecentTransform {} -> fromMaybe (length old_recents) $
-            -- Try to reuse an existing number, otherwise find the minimum
-            -- not-present number after dropping.
-            (fst <$> List.find (match recent . snd) old_recents)
-            `mplus` find_number stripped
-    stripped = take (max_recent - 2) $ filter ((/=1) . fst) old_recents
-    find_number recents =
-        Seq.head $ filter (`notElem` map fst recents) [2..max_recent]
-    match (Cmd.RecentGenerator t1 _) (Cmd.RecentGenerator t2 _) =
-        Seq.head (Text.words t1) == Seq.head (Text.words t2)
-    match (Cmd.RecentTransform t1 _) (Cmd.RecentTransform t2 _) =
-        Seq.head (Text.words t1) == Seq.head (Text.words t2)
-    match _ _ = False
-    max_recent = 4
-
+    let modify = EditUtil.modify_event_at pos False False
+    case action of
+        Cmd.InsertEvent maybe_dur text -> do
+            let new_pos = case pos of
+                    EditUtil.Pos block_id tracknum start _dur ->
+                        EditUtil.Pos block_id tracknum start
+                            (fromMaybe 0 maybe_dur)
+            EditUtil.modify_event_at new_pos (maybe_dur == Just 0) True $
+                const (Just text, True)
+        Cmd.ReplaceText text -> modify $ const (Just text, True)
+        Cmd.PrependText text -> modify $ \old -> case old of
+            Nothing -> (Nothing, False)
+            Just old -> (Just $ text <> old, True)
+        Cmd.AppendText text -> modify $ \old -> case old of
+            Nothing -> (Nothing, False)
+            Just old -> (Just $ old <> text, True)
 
 -- ** edit input
 
@@ -611,14 +582,14 @@ edit_open :: (Cmd.M m) => (Text -> Maybe (Int, Int)) -> m Cmd.Status
 edit_open selection = do
     view_id <- Cmd.get_focused_view
     (_, tracknum, track_id, pos) <- Selection.get_insert
-    text <- event_text_at track_id pos
+    text <- fromMaybe "" <$> event_text_at track_id pos
     return $ Cmd.EditInput $ Cmd.EditOpen view_id tracknum pos text
         (selection text)
 
-event_text_at :: (State.M m) => TrackId -> ScoreTime -> m Text
+event_text_at :: (State.M m) => TrackId -> ScoreTime -> m (Maybe Text)
 event_text_at track_id pos = do
     events <- Track.track_events <$> State.get_track track_id
-    return $ maybe "" Event.event_text $ Events.at pos events
+    return $ Event.event_text <$> Events.at pos events
 
 -- ** handle edit input msg
 
@@ -628,11 +599,14 @@ event_text_at track_id pos = do
 edit_input :: Bool -> Cmd.Cmd
 edit_input zero_dur msg = do
     text <- Cmd.require $ edit_input_msg msg
-    pos <- EditUtil.get_pos
+    pos@(EditUtil.Pos block_id tracknum start dur) <- EditUtil.get_pos
+    track_id <- Cmd.require_msg "edit_input on non-event track"
+        =<< State.event_track_at block_id tracknum
+    old_text <- event_text_at track_id start
     let space = " " `Text.isPrefixOf` text
     EditUtil.modify_event_at pos (zero_dur || space) False $
         const (Just (Text.strip text), False)
-    record_recent_note
+    insert_recorded_action '.' $ make_action old_text text dur
     return Cmd.Done
 
 edit_input_msg :: Msg.Msg -> Maybe Text

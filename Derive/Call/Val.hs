@@ -183,7 +183,6 @@ c_pitch = Derive.val_call "pitch" mempty "Create a 'Perform.Pitch.Pitch'."
     <*> Sig.defaulted_env "pc" Sig.None 0 "Pitch class."
     <*> Sig.defaulted_env "accs" Sig.None 0 "Accidentals."
     ) $ \(oct, pc, accs) _ -> make_pitch oct pc accs
-        -- return $ Pitch.Pitch oct (Pitch.Degree pc accs)
 
 make_pitch :: Either Pitch.Octave (Either Text PitchSignal.Pitch)
     -> Pitch.PitchClass -> Pitch.Accidentals -> Derive.Deriver Pitch.Pitch

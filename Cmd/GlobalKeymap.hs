@@ -381,12 +381,18 @@ event_bindings = concat
     , command_char 'Z' "toggle zero-dur" Edit.cmd_toggle_zero_duration
     , command_char 'g' "set beginning" Edit.cmd_set_beginning
 
-    , shift_char '1' "insert recent 1" (Edit.cmd_insert_recent 1)
-    , shift_char '2' "insert recent 2" (Edit.cmd_insert_recent 2)
-    , shift_char '3' "insert recent 3" (Edit.cmd_insert_recent 3)
-    , shift_char '4' "insert recent 4" (Edit.cmd_insert_recent 4)
+    , bind_repeatable [] (Key.Char '.') "run last action"
+        (Edit.run_action_at '.')
+    , shift_char '1' "run action 1" (Edit.run_action_at '1')
+    , shift_char '2' "run action 2" (Edit.run_action_at '2')
+    , shift_char '3' "run action 3" (Edit.run_action_at '3')
+    , shift_char '4' "run action 4" (Edit.run_action_at '4')
     , shift_char '5' "cycle enharmonic"
         (PitchTrack.pitches PitchTrack.cycle_enharmonics)
+    , shift_command '1' "record in slot 1" (Edit.save_last_action_to '1')
+    , shift_command '2' "record in slot 2" (Edit.save_last_action_to '2')
+    , shift_command '3' "record in slot 3" (Edit.save_last_action_to '3')
+    , shift_command '4' "record in slot 4" (Edit.save_last_action_to '4')
 
     , bind_key_status [] (Key.Char 'a') "append text" Edit.append_text
     , bind_key_status [] (Key.Char 'A') "replace last call"
@@ -395,6 +401,8 @@ event_bindings = concat
     , bind_key_status [] (Key.Char 'I') "replace first call"
         Edit.replace_first_call
     ]
+    where
+    shift_command = bind_key [Shift, PrimaryCommand] . Key.Char
 
 -- | Bindings which work on pitch tracks.  The reason this is global rather
 -- than in pitch track keymaps is that it's handy to select multiple tracks

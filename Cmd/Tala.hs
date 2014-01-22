@@ -20,6 +20,10 @@ import Cmd.Meter (AbstractMeter(..))
 adi_ruler :: Int -> Ruler.Ruler
 adi_ruler sections = make_ruler adi_tala sections 4 4 1
 
+-- | 'adi_ruler' but in tisram.
+adi3_ruler :: Int -> Ruler.Ruler
+adi3_ruler sections = make_ruler adi_tala sections 4 3 1
+
 -- * implementation
 
 data Tala = Tala ![Anga] !Jati deriving (Show, Eq)

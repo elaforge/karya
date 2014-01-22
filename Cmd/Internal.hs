@@ -314,7 +314,7 @@ sync_edit_state st = do
     sync_edit_box st
     sync_step_status st
     sync_octave_status st
-    sync_recent st
+    sync_recorded_actions (Cmd.state_recorded_actions st)
 
 sync_edit_box :: (Cmd.M m) => Cmd.EditState -> m ()
 sync_edit_box st = do
@@ -358,17 +358,10 @@ sync_octave_status st = do
     -- places.
     Cmd.set_status Config.status_octave (Just (showt octave))
 
-sync_recent :: (Cmd.M m) => Cmd.EditState -> m ()
-sync_recent st = do
-    let recent = Cmd.state_recent_notes st
-    Cmd.set_global_status "recent" $
-        Text.intercalate ", " (map show_recent (Seq.sort_on fst recent))
-    where
-    show_recent (num, note) = showt num <> ": " <> case note of
-        Cmd.RecentGenerator s zero_dur -> s <> zero zero_dur
-        Cmd.RecentTransform s zero_dur -> s <> "|" <> zero zero_dur
-    zero True = " (0 dur)"
-    zero False = ""
+sync_recorded_actions :: Cmd.M m => Cmd.RecordedActions -> m ()
+sync_recorded_actions actions = Cmd.set_global_status "rec" $
+    Text.intercalate ", " [Text.singleton i <> "-" <> Pretty.prettytxt act |
+        (i, act) <- Map.toAscList actions]
 
 sync_play_state :: (Cmd.M m) => Cmd.PlayState -> m ()
 sync_play_state st = do

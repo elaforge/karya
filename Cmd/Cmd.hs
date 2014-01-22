@@ -598,12 +598,7 @@ data EditState = EditState {
     -- octave instead of scale degree since scales may have different numbers
     -- of notes per octave.
     , state_kbd_entry_octave :: !Pitch.Octave
-
-    -- | A LIFO queue of recent notes or transforms, to make it easier to
-    -- re-enter them.  Each has an integer key associated with it so they can
-    -- remain bound to the same key even if their LIFO position changes.
-    , state_recent_notes :: ![(Int, RecentNote)]
-
+    , state_recorded_actions :: !RecordedActions
     -- | See 'set_edit_box'.
     , state_edit_box :: !(Block.Box, Block.Box)
     } deriving (Eq, Show, Generics.Typeable)
@@ -623,7 +618,7 @@ initial_edit_state = EditState {
     , state_note_text = ""
     -- This should put middle C in the center of the kbd entry keys.
     , state_kbd_entry_octave = 4
-    , state_recent_notes = []
+    , state_recorded_actions = mempty
     , state_edit_box = (box, box)
     } where box = uncurry Block.Box Config.bconfig_box
 
@@ -632,12 +627,27 @@ initial_edit_state = EditState {
 data EditMode = NoEdit | RawEdit | ValEdit | MethodEdit deriving (Eq, Show)
 instance Pretty.Pretty EditMode where pretty = show
 
-data RecentNote =
-    -- | Bool is true if the event was zero dur.  This is needed if
-    -- 'cmd_insert_recent' winds up creating a new event.
-    RecentGenerator !Text !Bool
-    | RecentTransform !Text !Bool
+type RecordedActions = Map.Map Char Action
+
+-- | Repeat a recorded action.
+--
+-- Select event and duration and hit shift-1 to record InsertEvent.
+-- Text edits record ReplaceText, PrependText, or AppendText in the last
+-- action field (bound to '.'), which you can then save.
+data Action =
+    -- | If a duration is given, the event has that duration, otherwise
+    -- it gets the current time step.
+    InsertEvent !(Maybe TrackTime) !Text
+    | ReplaceText !Text | PrependText !Text | AppendText !Text
     deriving (Show, Eq)
+
+instance Pretty.Pretty Action where
+    pretty act = case act of
+        InsertEvent maybe_dur text ->
+            show text ++ maybe "" ((" ("++) . (++")") . Pretty.pretty) maybe_dur
+        ReplaceText text -> '=' : show text
+        PrependText text -> show text ++ "+"
+        AppendText text -> '+' : show text
 
 -- *** midi devices
 

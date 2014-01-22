@@ -26,10 +26,10 @@ UNSORTED
       explicitly evaluate the Quoted when the default is returned.
       I don't think a typeclass will work because it's overlapping.
     * First do it with Either, then try to be clever.
-  - experiment with explicit recording instead of the automatic "recent"
-    - Either record a text modification: replace, prepend, append, delete
-    - Or insert an event + dur + text, and advance the cursor to its end.
-    - also record the last operation to repeat with '.'
+  * experiment with explicit recording instead of the automatic "recent"
+    * Either record a text modification: replace, prepend, append, delete
+    * Or insert an event + dur + text, and advance the cursor to its end.
+    * also record the last operation to repeat with '.'
   * moving notes up should clip negative notes
   * cmd-s should work on negative notes
   * move Theory.Pitch to Perform.Pitch.  (Octave, (PC, Accs))
@@ -172,7 +172,7 @@ UNSORTED
     - overtone series
     - add ratio transpose single, that multiplies hz
 
-  + recent tends to collect pitches added via edit input, but since they have
+  * recent tends to collect pitches added via edit input, but since they have
     a specific pitch they're not useful.
     . Maybe I should have a separate recent queue only for transformers, and
       the generator recent is only one slot.  That way I can still repeat the
