@@ -194,10 +194,9 @@ p_pipe = void $ lexeme (A.char '|')
 p_equal :: A.Parser TrackLang.Call
 p_equal = do
     a1 <- TrackLang.VSymbol <$> p_call_symbol True
-    spaces1
+    spaces
     A.char '='
-    -- This ensures that "a =b" is not interpreted as an equal expression.
-    spaces1
+    spaces
     a2 <- p_term
     return $ TrackLang.Call TrackLang.c_equal [TrackLang.Literal a1, a2]
 
@@ -213,8 +212,7 @@ p_null_call = return (TrackLang.Call "" []) <?> "null call"
 -- ornaments.
 p_call_symbol :: Bool -- ^ A call at the top level can allow a ).
     -> A.Parser TrackLang.Symbol
-p_call_symbol toplevel = TrackLang.Symbol . to_text <$>
-    (if toplevel then A.takeWhile1 (/=' ') else p_word)
+p_call_symbol toplevel = TrackLang.Symbol . to_text <$> p_word toplevel
 
 p_term :: A.Parser TrackLang.Term
 p_term = lexeme $
@@ -364,15 +362,25 @@ is_strict_id :: Text -> Bool
 is_strict_id s = not (B.null s) && Id.ascii_lower (B.head s)
     && B.all Id.is_strict_id_char s
 
-p_word, p_null_word :: A.Parser Text
-p_word = A.takeWhile1 is_word_char
+p_word :: Bool -> A.Parser Text
+p_word toplevel =
+    A.takeWhile1 (if toplevel then is_toplevel_word_char else is_word_char)
+
+p_null_word :: A.Parser Text
 p_null_word = A.takeWhile is_word_char
 
-is_word_char :: Char -> Bool
-is_word_char c = c /= ' ' && c /= ')'
-    -- I need to exclude ')' because otherwise I can't tell where the symbol
-    -- ends in a subcall like '(a)'.  But '(' is just fine, though it would
-    -- look weird in a subcall: '(()'.
+-- | A word is as permissive as possible, and is terminated by whitespace.
+-- That's because this determines how calls are allowed to be named, and for
+-- expressiveness it's nice to use symbols.  For example, the slur call is just
+-- @(@.
+--
+-- At the toplevel, any character is allowed except @=@, which lets me write
+-- 'p_equal' expressions without spaces.  In sub calls, @)@ is not allowed,
+-- because then I couldn't tell where the sub call expression ends, e.g. @())@.
+-- However, @(()@ is fine, even though it looks weird.
+is_word_char, is_toplevel_word_char :: Char -> Bool
+is_word_char c = c /= ' ' && c /= '=' && c /= ')'
+is_toplevel_word_char c = c /= ' ' && c /= '='
 
 lexeme :: A.Parser a -> A.Parser a
 lexeme p = p <* spaces
@@ -383,6 +391,3 @@ spaces = do
     comment <- A.option "" (A.string "--")
     unless (B.null comment) $
         A.skipWhile (const True)
-
-spaces1 :: A.Parser ()
-spaces1 = A.satisfy A.isSpace >> spaces

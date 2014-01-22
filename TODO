@@ -3,6 +3,10 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
+  - when in negative step, creating an event to a range should make it
+    negative
+  - isn't EditUtil.modify_event_at's advance should advance to the end of the
+    created or modified event.
   - If thru did eval on "", I wouldn't need pasang thru.  But it might be
     slower.
   * Clip sometimes missing notes right at the beginning
@@ -812,7 +816,7 @@ Derive:
     tags should instead be derived from the namespace, e.g. prelude, bali,
     india.
   tracklang:
-    - If I don't allow = in calls, I could write assigns without whitespace:
+    * If I don't allow = in calls, I could write assigns without whitespace:
       x=y Is it worth it?
     - there should be a character that triggers a parse failure, which is used
       by invalid ShowVal instances like ShowVal Pitch
@@ -892,7 +896,9 @@ Derive:
               parameterized by destination note.
           - verify realization with integration
           - Some patterns do play on the beat, they should be able to do that
-            and suppress the previous note.
+            and suppress the previous note.  I could do this by emitting the
+            note with a +weak attr, which will be cancelled out in postproc by
+            a coincident note.
           . Aligned so the last polos / sangsih note is the pitch.
           * telu vs. empat
           - phase: this can make the last note no longer align to the pitch

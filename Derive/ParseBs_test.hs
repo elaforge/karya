@@ -47,16 +47,15 @@ test_parse_expr = do
                 VControl (LiteralControl "sig")])
         ]
 
-    -- Symbols can have anything in them as long as they start with a letter.
-    equal (f "a|b=4") $ Right [Call (Symbol "a|b=4") []]
+    -- A toplevel symbol can have anything except =.
+    equal (f "a|b\")") $ Right [Call (Symbol "a|b\")") []]
 
-    -- Except a close paren, for subcalls.
+    -- Subcalls, however, use a close paren to delimit.
     equal (f "a (b) c") $
         Right [Call (Symbol "a") [val_call "b" [], Literal (symbol "c")]]
     equal (f "a (()") $
         Right [Call (Symbol "a") [val_call "(" []]]
     -- Unbalanced parens.
-    -- The error msg is strange for this one, I don't know why.
     left_like (f "a (b") "parse error"
 
     equal (f "") $ Right [Call (Symbol "") []]
@@ -153,6 +152,7 @@ test_p_equal = do
         num = Literal . VNum . Score.untyped
     let f = Util.Parse.parse_all Parse.p_equal
     equal (f "a = b") (eq (symbol "a") (Literal (symbol "b")))
+    equal (f "a=b") (eq (symbol "a") (Literal (symbol "b")))
     equal (f "a = 10") (eq (symbol "a") (num 10))
     equal (f "a = (b c)") (eq (symbol "a")
         (val_call "b" [Literal (symbol "c")]))
@@ -162,12 +162,6 @@ test_p_equal = do
 
     left_like (f "a = ()") "parse error on byte 6"
     left_like (f "a=") "not enough bytes"
-    left_like (f "a=b") "not enough bytes"
-
-    -- Make suer it doesn't interfere with a call ending in =.
-    let parse = fmap NonEmpty.toList . Parse.parse_expr
-    equal (parse "a= b") $ Right [Call (Symbol "a=") [Literal (symbol "b")]]
-    equal (parse "a=b") $ Right [Call (Symbol "a=b") []]
 
 test_lex1 = do
     let f = Parse.lex1
