@@ -49,10 +49,20 @@ test_kotekan = do
         (( [(2, "4c"), (3, "4d"), (5, "4c"), (7, "4d"), (8, "4c")]
          , [(1, "4e"), (3, "4d"), (4, "4e"), (6, "4e"), (7, "4d")]
          ), [])
-    equal (run True [(8, -8, "k// 1 -- 4c")])
-        (( [(1, "3b"), (2, "4c"), (4, "3b"), (5, "4c"), (7, "3b"), (8, "4c")]
-         , [(1, "3b"), (3, "3a"), (4, "3b"), (6, "3a"), (7, "3b")]
-         ), [])
+    let interlock =
+            ( [(1, "3b"), (2, "4c"), (4, "3b"), (5, "4c"), (7, "3b"), (8, "4c")]
+            , [(1, "3b"), (3, "3a"), (4, "3b"), (6, "3a"), (7, "3b")]
+            )
+    equal (run True [(8, -8, "k// 1 -- 4c")]) (interlock, [])
+
+    equal (e_pasang extract $ DeriveTest.derive_tracks
+            [ ("tempo", [(0, 0, "1"), (8, 0, ".5")])
+            , (">" <> inst_title <> " | unison | kotekan = 2",
+                [(8, -8, "k// 1")])
+            , ("*", [(0, 0, "4c")])
+            ])
+        (interlock, [])
+
 
 test_kempyung = do
     let run title = derive extract (inst_title <> title <> " | kempyung")
@@ -93,7 +103,7 @@ derive_pasang :: (Score.Event -> a) -> String -> [UiTest.EventSpec]
     -> (([a], [a]), [String])
 derive_pasang extract title notes =
     e_pasang extract $ DeriveTest.derive_tracks $
-    UiTest.note_spec (inst_title <> title, notes, [])
+        UiTest.note_spec (inst_title <> title, notes, [])
 
 e_pasang :: (Score.Event -> a) -> Derive.Result -> (([a], [a]), [String])
 e_pasang extract = first group_inst

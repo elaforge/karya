@@ -131,12 +131,26 @@ c_norot = Derive.make_call "norot" Tags.bali
         let nsteps = norot_steps scale inst_top pitch style
         under_threshold <- under_threshold_function kotekan dur
         let (start, end) = Args.range args
-        realize_notes start pitch $ realize_pattern True start end dur $
-            gangsa_norot style under_threshold pasang nsteps
+        realize_notes start pitch $
+            realize_pattern under_threshold True start end dur $
+            gangsa_norot style pasang nsteps
+
+gangsa_norot :: NorotStyle -> Pasang
+    -> ((Pitch.Step, Pitch.Step), (Pitch.Step, Pitch.Step)) -> Cycle
+gangsa_norot style pasang (pstep, sstep) = (interlock, normal)
+    where
+    interlock = map (:[]) [sangsih (fst pstep), polos (snd pstep)]
+    normal = case style of
+        Default -> [[(Nothing, step, mempty)] | step <- [fst pstep, snd pstep]]
+        Diamond ->
+            [ [polos (fst pstep), sangsih (fst sstep)]
+            , [polos (snd pstep), sangsih (snd sstep)]
+            ]
+    polos steps = (Just $ fst pasang, steps, mempty)
+    sangsih steps = (Just $ snd pasang, steps, mempty)
 
 c_norot_pickup :: Derive.Generator Derive.Note
-c_norot_pickup = Derive.make_call "norot-pickup" Tags.bali
-    "Emit norot pickup."
+c_norot_pickup = Derive.make_call "norot" Tags.bali "Emit norot pickup."
     $ Sig.call ((,,,,)
     <$> dur_arg
     <*> Sig.defaulted "style" (TrackLang.E Default) "Norot style."
@@ -148,8 +162,33 @@ c_norot_pickup = Derive.make_call "norot-pickup" Tags.bali
         let nsteps = norot_steps scale inst_top pitch style
         under_threshold <- under_threshold_function kotekan dur
         let (start, end) = Args.range args
-        realize_notes start pitch $ realize_pattern False start end dur $
-            gangsa_norot_pickup style under_threshold pasang nsteps
+        realize_notes start pitch $
+            realize_pattern under_threshold False start end dur $
+            gangsa_norot_pickup style pasang nsteps
+
+gangsa_norot_pickup :: NorotStyle -> Pasang
+    -> ((Pitch.Step, Pitch.Step), (Pitch.Step, Pitch.Step)) -> Cycle
+gangsa_norot_pickup style pasang (pstep, sstep) = (interlock, normal)
+    where
+    interlock =
+        [ [polos (snd pstep) mempty, sangsih (snd pstep) mempty]
+        , [polos (snd pstep) mempty, sangsih (snd pstep) mempty]
+        , [sangsih (fst pstep) mempty]
+        , [polos (snd pstep) mempty]
+        ]
+    normal = case style of
+        Default -> [[(Nothing, step, attr)] | (step, attr) <-
+            [(snd pstep, mute), (snd pstep, mempty), (fst pstep, mempty),
+                (snd pstep, mempty)]]
+        Diamond ->
+            [ [polos (snd pstep) mute, sangsih (snd sstep) mute]
+            , [polos (snd pstep) mempty, sangsih (snd sstep) mempty]
+            , [polos (fst pstep) mempty, sangsih (fst sstep) mempty]
+            , [polos (snd pstep) mempty, sangsih (snd sstep) mempty]
+            ]
+    mute = Attrs.mute -- TODO configurable
+    polos steps attrs = (Just $ fst pasang, steps, attrs)
+    sangsih steps attrs = (Just $ snd pasang, steps, attrs)
 
 norot_steps :: Scale.Scale -> Maybe Pitch.Pitch -> PitchSignal.Pitch
     -> NorotStyle -> ((Pitch.Step, Pitch.Step), (Pitch.Step, Pitch.Step))
@@ -164,15 +203,6 @@ norot_steps scale inst_top pitch style
     out_of_range steps = note_too_high scale inst_top $
         Pitches.transpose_d steps pitch
 
-under_threshold_function :: TrackLang.ValControl -> ScoreTime
-    -> Derive.Deriver (ScoreTime -> Bool)
-under_threshold_function kotekan dur = do
-    to_real <- Derive.real_function
-    kotekan <- Util.to_untyped_signal kotekan
-    return $ \t ->
-        let real = to_real t
-        in to_real (t+dur) - real < RealTime.seconds (Signal.at real kotekan)
-
 c_gender_norot :: Derive.Generator Derive.Note
 c_gender_norot = Derive.make_call "gender-norot" Tags.bali
     "Gender-style norot."
@@ -181,61 +211,20 @@ c_gender_norot = Derive.make_call "gender-norot" Tags.bali
         pitch <- Util.get_pitch =<< Args.real_start args
         under_threshold <- under_threshold_function kotekan dur
         let (start, end) = Args.range args
-        realize_notes start pitch $ realize_pattern True start end dur $
-            gender_norot under_threshold pasang
+        realize_notes start pitch $
+            realize_pattern under_threshold True start end dur $
+            gender_norot pasang
 
-gangsa_norot_pickup :: NorotStyle -> (ScoreTime -> Bool) -> Pasang
-    -> ((Pitch.Step, Pitch.Step), (Pitch.Step, Pitch.Step))
-    -> ScoreTime -> [[PatternNote]]
-gangsa_norot_pickup style under_threshold pasang (pstep, sstep) start
-    | under_threshold start =
-        [ [polos (snd pstep) mempty, sangsih (snd pstep) mempty]
-        , [polos (snd pstep) mempty, sangsih (snd pstep) mempty]
-        , [sangsih (fst pstep) mempty]
-        , [polos (snd pstep) mempty]
-        ]
-    | otherwise = case style of
-        Default -> [[(Nothing, step, attr)] | (step, attr) <-
-            [(snd pstep, mute), (snd pstep, mempty), (fst pstep, mempty),
-                (snd pstep, mempty)]]
-        Diamond ->
-            [ [polos (snd pstep) mute, sangsih (snd sstep) mute]
-            , [polos (snd pstep) mempty, sangsih (snd sstep) mempty]
-            , [polos (fst pstep) mempty, sangsih (fst sstep) mempty]
-            , [polos (snd pstep) mempty, sangsih (snd sstep) mempty]
-            ]
+gender_norot :: Pasang -> Cycle
+gender_norot pasang = (interlocking, normal)
     where
-    mute = Attrs.mute -- TODO configurable
-    polos steps attrs = (Just $ fst pasang, steps, attrs)
-    sangsih steps attrs = (Just $ snd pasang, steps, attrs)
-
-gangsa_norot :: NorotStyle -> (ScoreTime -> Bool) -> Pasang
-    -> ((Pitch.Step, Pitch.Step), (Pitch.Step, Pitch.Step))
-    -> MakePattern
-gangsa_norot style under_threshold pasang (pstep, sstep) start
-    | under_threshold start = map (:[])
-        [sangsih (fst pstep), polos (snd pstep)]
-    | otherwise = case style of
-        Default -> [[(Nothing, step, mempty)] | step <- [fst pstep, snd pstep]]
-        Diamond ->
-            [ [polos (fst pstep), sangsih (fst sstep)]
-            , [polos (snd pstep), sangsih (snd sstep)]
-            ]
-    where
-    polos steps = (Just $ fst pasang, steps, mempty)
-    sangsih steps = (Just $ snd pasang, steps, mempty)
-
-gender_norot :: (ScoreTime -> Bool) -> Pasang -> MakePattern
-gender_norot under_threshold pasang start
-    | under_threshold start =
-        [[sangsih 1], [polos 0], [sangsih 1], [polos 0]]
-    | otherwise =
+    interlocking = [[sangsih 1], [polos 0], [sangsih 1], [polos 0]]
+    normal =
         [ [polos (-1), sangsih 1]
         , [polos (-2), sangsih 0]
         , [polos (-1), sangsih 1]
         , if include_unison then [polos 0, sangsih 0] else [sangsih 0]
         ]
-    where
     include_unison = True -- TODO chance based on signal
     polos steps = (Just $ fst pasang, steps, mempty)
     sangsih steps = (Just $ snd pasang, steps, mempty)
@@ -254,25 +243,26 @@ c_kotekan pattern = Derive.make_call "kotekan" Tags.bali
         pitch <- Util.get_pitch =<< Args.real_start args
         under_threshold <- under_threshold_function kotekan dur
         let (start, end) = Args.range args
-        realize_notes start pitch $ realize_pattern True start end dur $
-            kotekan_pattern pattern style under_threshold pasang
+        realize_notes start pitch $
+            realize_pattern under_threshold True start end dur $
+            kotekan_pattern pattern style pasang
 
-kotekan_pattern :: KotekanPattern -> KotekanStyle -> (ScoreTime -> Bool)
-    -> Pasang -> ScoreTime -> [[PatternNote]]
-kotekan_pattern pattern style under_threshold pasang start =
-    map (map realize) $
-        pattern_steps style (under_threshold start) pasang pattern
-    where realize (inst, steps) = (inst, steps, mempty)
+kotekan_pattern :: KotekanPattern -> KotekanStyle -> Pasang -> Cycle
+kotekan_pattern pattern style pasang =
+    (realize *** realize) $ pattern_steps style pasang pattern
+    where
+    realize = map (map realize1)
+    realize1 (inst, steps) = (inst, steps, mempty)
 
-pattern_steps :: KotekanStyle -> Bool -> Pasang -> KotekanPattern
-    -> [[(Maybe Score.Instrument, Pitch.Step)]]
-pattern_steps style interlock (polos, sangsih)
-        (KotekanPattern unison p4 s4 p3 s3)
-    | interlock = case style of
+pattern_steps :: KotekanStyle -> Pasang -> KotekanPattern
+    -> ([[(Maybe Score.Instrument, Pitch.Step)]],
+        [[(Maybe Score.Instrument, Pitch.Step)]])
+pattern_steps style (polos, sangsih) (KotekanPattern unison p4 s4 p3 s3) =
+    (interlock, normal unison)
+    where
+    interlock = case style of
         Telu -> interlocking p3 s3
         Pat -> interlocking p4 s4
-    | otherwise = normal unison
-    where
     interlocking ps ss =
         [ mapMaybe id [(,) (Just polos) <$> p, (,) (Just sangsih) <$> s]
         | (p, s) <- zip ps ss
@@ -284,12 +274,22 @@ pattern_steps style interlock (polos, sangsih)
 
 -- ** implementation
 
-type MakePattern = ScoreTime -> [[PatternNote]]
+-- | (interlocking pattern, non-interlocking pattern)
+type Cycle = ([[PatternNote]], [[PatternNote]])
 type PatternNote = (Maybe Score.Instrument, Pitch.Step, Score.Attributes)
 
-realize_pattern :: Bool -> ScoreTime -> ScoreTime -> ScoreTime -> MakePattern
-    -> [Note]
-realize_pattern repeat pattern_start pattern_end dur get_cycle =
+under_threshold_function :: TrackLang.ValControl -> ScoreTime
+    -> Derive.Deriver (ScoreTime -> Bool)
+under_threshold_function kotekan dur = do
+    to_real <- Derive.real_function
+    kotekan <- Util.to_untyped_signal kotekan
+    return $ \t ->
+        let real = to_real t
+        in to_real (t+dur) - real < RealTime.seconds (Signal.at real kotekan)
+
+realize_pattern :: (ScoreTime -> Bool) -> Bool -> ScoreTime -> ScoreTime
+    -> ScoreTime -> Cycle -> [Note]
+realize_pattern under_threshold repeat pattern_start pattern_end dur cycle =
     concat $ reverse $ Seq.map_head negate_dur $ concat $
         (if repeat then id else take 1) $
         realize_cycle $ Seq.range' pattern_end pattern_start (-dur)
@@ -297,7 +297,16 @@ realize_pattern repeat pattern_start pattern_end dur get_cycle =
     negate_dur = map $ \n -> n { note_duration = negate $ note_duration n }
     realize_cycle [] = []
     realize_cycle ts@(t:_) = map realize pairs : realize_cycle rest_ts
-        where (pairs, rest_ts) = Seq.zip_remainder (reverse (get_cycle t)) ts
+        where
+        -- To make it easier to line up to the end, the actual notes are placed
+        -- from end to start, and then reversed.  But I want to measure the
+        -- threshold at the actual start of the cycle, otherwise the results
+        -- are confusing (the tempo at the end of the cycle affects whether
+        -- it interlocks, instead of the start).
+        interlocking =
+            under_threshold $ t - dur * fromIntegral (length (fst cycle))
+        (pairs, rest_ts) = Seq.zip_remainder
+            (reverse $ (if interlocking then fst else snd) cycle) ts
     realize (notes, start) = map (realize1 start ndur) notes
         where ndur = if start == pattern_start then -dur else dur
     realize1 start dur (inst, steps, attrs) = Note start dur inst steps attrs
