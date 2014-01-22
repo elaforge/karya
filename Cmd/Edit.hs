@@ -513,7 +513,7 @@ make_action maybe_old new dur = case maybe_old of
     Nothing -> Cmd.InsertEvent (if dur == 0 then Nothing else Just dur) new
     Just old
         -- This is a way to record a ReplaceText for an existing event.
-        | old == new -> Cmd.ReplaceText new
+        | old == new || old == "" -> Cmd.ReplaceText new
         | old `Text.isPrefixOf` new ->
             Cmd.AppendText $ Text.drop (Text.length old) new
         | old `Text.isSuffixOf` new ->
@@ -580,8 +580,12 @@ replace_last_call = edit_open $ \text -> case Text.breakOnEnd "|" text of
 
 edit_open :: (Cmd.M m) => (Text -> Maybe (Int, Int)) -> m Cmd.Status
 edit_open selection = do
-    view_id <- Cmd.get_focused_view
-    (_, tracknum, track_id, pos) <- Selection.get_insert
+    (view_id, sel) <- Selection.get
+    (_, tracknum, track_id, _) <- Selection.get_insert
+    dir <- Cmd.gets (Cmd.state_note_direction . Cmd.state_edit)
+    let pos = case dir of
+            TimeStep.Advance -> fst (Types.sel_range sel)
+            TimeStep.Rewind -> snd (Types.sel_range sel)
     text <- fromMaybe "" <$> event_text_at track_id pos
     return $ Cmd.EditInput $ Cmd.EditOpen view_id tracknum pos text
         (selection text)
@@ -599,15 +603,22 @@ event_text_at track_id pos = do
 edit_input :: Bool -> Cmd.Cmd
 edit_input zero_dur msg = do
     text <- Cmd.require $ edit_input_msg msg
-    pos@(EditUtil.Pos block_id tracknum start dur) <- EditUtil.get_pos
+    EditUtil.Pos block_id tracknum start dur <- EditUtil.get_pos
+    (start, dur) <- event_range start dur
     track_id <- Cmd.require_msg "edit_input on non-event track"
         =<< State.event_track_at block_id tracknum
     old_text <- event_text_at track_id start
     let space = " " `Text.isPrefixOf` text
-    EditUtil.modify_event_at pos (zero_dur || space) False $
-        const (Just (Text.strip text), False)
+    EditUtil.modify_event_at (EditUtil.Pos block_id tracknum start dur)
+        (zero_dur || space) False (const (Just (Text.strip text), False))
     insert_recorded_action '.' $ make_action old_text text dur
     return Cmd.Done
+    where
+    event_range start dur = do
+        dir <- Cmd.gets (Cmd.state_note_direction . Cmd.state_edit)
+        return $ case dir of
+            TimeStep.Advance -> (start, dur)
+            TimeStep.Rewind -> (start + dur, -dur)
 
 edit_input_msg :: Msg.Msg -> Maybe Text
 edit_input_msg (Msg.Ui (UiMsg.UiMsg ctx

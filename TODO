@@ -4,10 +4,11 @@ LEGEND
 
 UNSORTED
   * zoom to selection with '\', not ']'
-  - when in negative step, creating an event to a range should make it
+  * when in negative step, creating an event to a range should make it
     negative
-  - isn't EditUtil.modify_event_at's advance should advance to the end of the
-    created or modified event.
+  / EditUtil.modify_event_at's advance should advance to the end of the
+    created or modified event.  Well, that would be annoying with END.
+    And annoying in general.  Maybe I should just use cmd-0.
   - If thru did eval on "", I wouldn't need pasang thru.  But it might be
     slower.
   * Clip sometimes missing notes right at the beginning

@@ -79,35 +79,35 @@ type Modify = Maybe Text
     -- ^ Nothing deletes the event, True to advance cursor
 
 modify_event :: (Cmd.M m) => Bool -> Bool -> Modify -> m ()
-modify_event zero_dur modify_dur f = do
+modify_event zero_dur modify_dur modify = do
     pos <- get_pos
-    modify_event_at pos zero_dur modify_dur f
+    modify_event_at pos zero_dur modify_dur modify
 
 modify_event_at :: (Cmd.M m) => Pos
     -> Bool -- ^ Created event has 0 dur, otherwise it's the duration of the
     -- selection, or until next time step if the selection has 0 duration.
     -> Bool -- ^ If True, modify the duration of an existing event.
     -> Modify -> m ()
-modify_event_at (Pos block_id tracknum start dur) zero_dur modify_dur f = do
-    dir <- Cmd.gets (Cmd.state_note_direction . Cmd.state_edit)
-    dur <- if zero_dur
-        then return $ if dir == TimeStep.Advance then 0 else -0
-        else if dur > 0 then return dur
-        else do
-            step <- Cmd.gets (Cmd.state_note_duration . Cmd.state_edit)
-            end <- Selection.step_from tracknum start
-                (TimeStep.direction dir) step
-            return (end - start)
+modify_event_at (Pos block_id tracknum start dur) zero_dur modify_dur modify =do
+    dur <- event_dur =<< Cmd.gets (Cmd.state_note_direction . Cmd.state_edit)
     track_id <- State.get_event_track_at block_id tracknum
     (event, created) <- get_event modify_dur track_id start dur
-    -- TODO I could have the modifier take Text, if it were worth it.
-    let (val, advance) = f $
+    let (val, advance) = modify $
             if created then Nothing else Just (Event.event_text event)
     case val of
         Nothing -> State.remove_event track_id start
         Just new_text -> State.insert_event track_id
             (Event.set_text new_text event)
     when advance Selection.advance
+    where
+    event_dur dir
+        | zero_dur = return $ if dir == TimeStep.Advance then 0 else -0
+        | dur /= 0 = return dur
+        | otherwise = do
+            step <- Cmd.gets (Cmd.state_note_duration . Cmd.state_edit)
+            end <- Selection.step_from tracknum start
+                (TimeStep.direction dir) step
+            return (end - start)
 
 remove_event :: (Cmd.M m) => Bool -> m ()
 remove_event advance = do
