@@ -82,7 +82,7 @@ UNSORTED
   * fix the ly notation in mvt3 of viola-sonata: bug/ly-tuplets.gz
     It is emitting 32nd notes instead of tuplets, caused by the +spic sub
     call.
-  - `mordent` is a pain to type, abbreviate to `mord`?
+  / `mordent` is a pain to type, abbreviate to `mord`?
   * shakefile: changing repl env var causes relink of things that don't rely
     on it, e.g. logview
   - Corrupted views save in git repo is still happening.  How?
@@ -103,7 +103,7 @@ UNSORTED
     . I could get around that by having the caller quote the val, e.g.
       'f "(4c)', but that's an annoying syntax for something that should "just
       work", and is common.
-  - 'g 2c 1' is interpreted as 'g 2c 1d'.  Perhaps subsequent untyped nums
+  * 'g 2c 1' is interpreted as 'g 2c 1d'.  Perhaps subsequent untyped nums
     should get the type of the preceding one?  Or rather, I should require
     that all transpositions are of the same type.  This is annoying to do
     because I'd have to make it TypedVal at which point it loses automatic
@@ -127,10 +127,41 @@ UNSORTED
     from just loading a copy: it loads it anew each time, and doesn't save
     it with the score.  This is like the 'import' idea, except the library is
     in score, not code.
-  - If I want randomized signals, maybe I should have
-    Derive.randomized_control_at that looks for a corresponding <>"-rnd"
-    signal for range.  E.g., each instrument should switch to noltol at
-    a different time.
+  - Some way to randomize signals.
+    . One way would be look for a corresponding <>"-rnd" control for a range.
+      But what about distribution?
+    . If I pass RealTime to a Quoted value, I could write the parameter as
+      "(rnd-signal x y).  But it would have to be curried to still accept the
+      "at" parameter, or have access to it through CallInfo.  It could look at
+      the stack, which is how the random seed works.  Seems complicated.  But
+      replacing a signal with a function seems like a good idea.
+    . Can I replace the Signal.Control itself with something possibly wrapped
+      in a function?  That function would need (RandomSeed, RealTime).  But
+      that doesn't work for notes that take a slice of the signal.  I think
+      I only want to randomize Signal.at access.
+    . Or a separate 'Map Score.Control ValCall' and the Signal.at functions in
+      derive first look in there.  This is similar to the -rnd control idea,
+      except more flexible.  I could use it not just for different
+      distributions, but to invert a signal, combine two signals, etc.  Or
+      have an entirely synthesized signal, with no backing Signal.Control.
+    . dur-rnd could be replaced by randomization on sus-abs.  start-rnd gets
+      replaced by a start-offset control, which can then be randomized.
+      start-offset could be also useful for e.g. swing time or instruments
+      that are aggressively before the beat.
+    . At this point I could get rid of the "normal" control map, replacing
+      with Signal.at ValCalls.  Except that I still need non-randomized signals
+      to slice and send to MIDI perform, and to display on the UI.
+    . Also, ValCalls can log and fail and do the other Deriver things.  Of
+      course they also have access to State, which they need.
+  - Randomization for velocity, especially important as many sample libraries
+    have lots of velocity splits, but no round robin.
+    But I want to do it only for midi velocity, not pressure dyn.
+    Maybe dyn mapping should move to the note call?  But it doesn't have patch
+    flags.  So instead of a Pressure flag, there is a pressure variant of the
+    note call that some patches will override.  That way vel randomization can
+    use the same control signal randomization thing I'm planning below.
+    The advantage of flags is that Cmd can look at them, so Triggered I think
+    still remains a flag.
   india
     - nkam doesn't seem to interact correctly with 'h'
     - semi-tone dip.  This is like 1 cycle kam.
@@ -395,8 +426,8 @@ external
     - figure out how to implement pragmas in ghc
 
 local: plugins:
-  - ghc can now unload code: http://ghc.haskell.org/trac/ghc/ticket/8039
-  - might be relevant: http://hackage.haskell.org/package/dynamic-loader
+  . ghc can now unload code: http://ghc.haskell.org/trac/ghc/ticket/8039
+  . might be relevant: http://hackage.haskell.org/package/dynamic-loader
     http://codeutopia.net/blog/2011/08/20/adventures-in-haskell-dynamic-loading-and-compiling-of-modules/
   - to do per-score code, I can put it in Local.Score.<namespace>
     Convert to module name by replacing -x with (upper x) and capitalizing the
@@ -517,16 +548,17 @@ performance:
       speed at all.  Maybe all the time is spent elsewhere?
   - look into Debug.Trace.traceEventIO to see how long various things take as
     in http://www.yesodweb.com/blog/2012/10/future-work-warp
-  efficient signals
-    - make Ui.Events into 'Map ScoreTime (Event | Chunk Signal)'
-    - collapse chunks of adjacent 'set' calls into a Chunk
-    - track_derive on a Chunk just returns the contents
-    - fltk event render should detect too dense events and omit them, rely
+  - directly store signal chunks in the Ui.Track so they can be directly emitted
+    This is only useful for large chunks of 'set' calls, probably recorded
+    from MIDI.  So it's probably not pressing until that feature exists.
+    . make Ui.Events into 'Map ScoreTime (Event | Chunk Signal)'
+    . collapse chunks of adjacent 'set' calls into a Chunk
+    . track_derive on a Chunk just returns the contents
+    . fltk event render should detect too dense events and omit them, rely
       on the signal render
-    - UI edits should see the Chunk expanded out as Events.  Inserting an
+    . UI edits should see the Chunk expanded out as Events.  Inserting an
       event should modify the chunk or split it depending on if the inserted
       event is a set call or not.
-  cache
   Cmd
     - If a msg aborts or doesn't run any cmds, don't bother to run diff.
       Except that hardly ever happens if I do shortcut thru.
@@ -548,7 +580,7 @@ performance:
       - There are lots of lookups in the tempo map
     - see if making a version of Derive.local that's non-monadic in the
       modifier has any effect on performance
-    - to get arrival beats to work right with the control track, I think I can
+    / to get arrival beats to work right with the control track, I think I can
       make the 'set' control track call set from (prev, cur) instead of just
       cur.  It will make simultaneous samples, but they should be ok.
     derive cache
@@ -921,7 +953,8 @@ Derive:
           which just copies and merges the events directly, and doesn't do
           the intermediate derivation.
       trompong / reyong:
-        - postproc for damping which omits damping if the other hand is busy
+        - postproc for damping which omits damping if the other hand is busy,
+          or if it will be busy (e.g. 23-32)
         - trompong ngoret, actually I can use rambat tick
           But damping on reyong is different, you can just forget some notes.
         - split to ngembat, e.g.  λ 人 hmm, is there a reverse lambda?  Can

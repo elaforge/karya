@@ -5,11 +5,14 @@
 -- | Calls that generate grace notes.  These are short sequences of quick notes
 -- whose duration is generally independent of the tempo.
 module Derive.Call.Grace where
+import qualified Data.Either as Either
+import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Text as Text
 
 import Util.Control
 import qualified Util.Num as Num
+import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 
 import qualified Ui.ScoreTime as ScoreTime
@@ -103,11 +106,10 @@ c_grace = Derive.make_call "grace" (Tags.europe <> Tags.ornament <> Tags.ly)
     "Emit grace notes. The grace notes go through the `(` call, so they will\
     \ overlap or apply a keyswitch, or do whatever `(` does."
     $ Sig.call ((,)
-    <$> Sig.many "pitch" "Grace note pitches."
-    <*> grace_envs
+    <$> grace_pitches_arg <*> grace_envs
     ) $ \(pitches, (grace_dur, dyn, place)) -> Sub.inverting $ \args -> do
         base <- Util.get_pitch =<< Args.real_start args
-        let ps = resolve_pitches base pitches
+        ps <- resolve_pitches base pitches
         Lily.when_lilypond (lily_grace args ps) $
             grace_call args dyn ps grace_dur place
 
@@ -196,12 +198,11 @@ c_grace_attr supported =
     \ notes like the normal grace call.\nSupported: "
     <> Text.intercalate ", " (map ShowVal.show_val (Map.elems supported))
     ) $ Sig.call ((,)
-    <$> Sig.many "pitch" "Grace note pitches."
-    <*> grace_envs
+    <$> grace_pitches_arg <*> grace_envs
     ) $ \(pitches, (grace_dur, dyn, place)) -> Sub.inverting $ \args -> do
         start <- Args.real_start args
         base <- Util.get_pitch start
-        let ps = resolve_pitches base pitches
+        ps <- resolve_pitches base pitches
         Lily.when_lilypond (lily_grace args ps) $ do
             maybe_attrs <- grace_attrs supported ps base
             case maybe_attrs of
@@ -251,10 +252,9 @@ c_grace_p = Derive.generator1 "grace" (Tags.europe <> Tags.ornament)
     \ `g (c) (a) (b)` produces `a b c`."
     $ Sig.call ((,,)
     <$> Sig.required "pitch" "Base pitch."
-    <*> Sig.many "pitch" "Grace note pitches."
-    <*> grace_dur_env
+    <*> grace_pitches_arg <*> grace_dur_env
     ) $ \(pitch, pitches, grace_dur) args -> do
-        let ps = resolve_pitches pitch pitches ++ [pitch]
+        ps <- (++[pitch]) <$> resolve_pitches pitch pitches
         grace_p grace_dur ps (Args.range_or_next args)
 
 grace_p :: TrackLang.RealOrScore -> [PitchSignal.Pitch]
@@ -268,11 +268,40 @@ grace_p grace_dur pitches (start, end) = do
 
 -- * util
 
+grace_pitches_arg :: Sig.Parser [Either PitchSignal.Pitch Score.TypedVal]
+grace_pitches_arg = Sig.many "pitch" "Grace note pitches. If they are numbers,\
+    \ they are taken as transpositions and must all be the same type,\
+    \ defaulting to diatonic."
+
 resolve_pitches :: PitchSignal.Pitch
-    -> [Either PitchSignal.Pitch TrackLang.DefaultDiatonic]
-    -> [PitchSignal.Pitch]
-resolve_pitches base = map $ either id (resolve . TrackLang.default_diatonic)
-    where resolve t = Pitches.transpose t base
+    -> [Either PitchSignal.Pitch Score.TypedVal]
+    -> Derive.Deriver [PitchSignal.Pitch]
+resolve_pitches base = either Derive.throw return . check_pitches base
+
+check_pitches :: PitchSignal.Pitch
+    -> [Either PitchSignal.Pitch Score.TypedVal]
+    -> Either String [PitchSignal.Pitch]
+check_pitches base pitches = do
+    make <- case types of
+        t : ts
+            | all (==t) ts -> case t of
+                Score.Diatonic -> Right Pitch.Diatonic
+                Score.Chromatic -> Right Pitch.Chromatic
+                Score.Nn -> Right Pitch.Nn
+                _ -> Left $
+                    "expected transpose type, but got " ++ Pretty.pretty t
+            | otherwise ->
+                Left $ "arguments should all have the same type, got "
+                    <> Pretty.pretty types
+        [] -> Right Pitch.Diatonic
+    return $ map (either id (resolve make . Score.typed_val)) pitches
+    where
+    resolve make n = Pitches.transpose (make n) base
+    types = snd . List.mapAccumL type_of Score.Diatonic . Either.rights $
+        pitches
+    type_of deflt n = case Score.type_of n of
+        Score.Untyped -> (deflt, deflt)
+        t -> (t, t)
 
 -- | Determine grace note starting times and durations if they are to fit in
 -- the given time range, shortening them if they don't fit.

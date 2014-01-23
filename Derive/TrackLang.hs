@@ -105,7 +105,7 @@ quoted name args = Quoted $ literal_call name args
 unsym :: Symbol -> Text
 unsym (Symbol sym) = sym
 
--- * time
+-- * type wrappers
 
 -- | Some calls can operate in either RealTime or ScoreTime.
 data RealOrScore = Real RealTime | Score ScoreTime deriving (Eq, Show)
@@ -113,15 +113,6 @@ data RealOrScore = Real RealTime | Score ScoreTime deriving (Eq, Show)
 instance ShowVal RealOrScore where
     show_val (Real x) = show_val x
     show_val (Score x) = show_val x
-
--- | Normally Transpose will default to Chromatic if the val is untyped,
--- but some calls would prefer to default to Diatonic.
-newtype DefaultDiatonic =
-    DefaultDiatonic { default_diatonic :: Pitch.Transpose }
-    deriving (Show, ShowVal)
-
-diatonic :: Double -> DefaultDiatonic
-diatonic = DefaultDiatonic . Pitch.Diatonic
 
 -- | Either RealTime or ScoreTime, but untyped defaults to RealTime.
 newtype DefaultReal = DefaultReal { default_real :: RealOrScore }
@@ -145,6 +136,16 @@ score = DefaultScore . Score
 newtype Positive a = Positive { positive :: a } deriving (Show, Eq, ShowVal)
 -- | Like 'Positive', but >=0.
 newtype Natural a = Natural { natural :: a } deriving (Show, Eq, ShowVal)
+
+-- | Normally Transpose will default to Chromatic if the val is untyped,
+-- but some calls would prefer to default to Diatonic.
+newtype DefaultDiatonic =
+    DefaultDiatonic { default_diatonic :: Pitch.Transpose }
+    deriving (Show, ShowVal)
+
+diatonic :: Double -> DefaultDiatonic
+diatonic = DefaultDiatonic . Pitch.Diatonic
+
 
 -- * show val
 

@@ -86,6 +86,17 @@ test_grace = do
     equal (run_a $ tracks [(0, 1, "g (4a) (4b)")])
         (["+legato", "+legato", "+legato"], [])
 
+test_grace_args = do
+    let run = DeriveTest.extract DeriveTest.e_pitch . DeriveTest.derive_tracks
+            . UiTest.note_track
+    -- Defaults to diatonic.
+    equal (run [(1, 1, "g 2 1 -- 4c")]) (["4e", "4d", "4c"], [])
+    -- The chromatic propagates.
+    equal (run [(1, 1, "g 2c 1 -- 4c")]) (["4d", "4c#", "4c"], [])
+    -- Can't mix types.
+    strings_like (snd (run [(1, 1, "g 2 1c -- 4c")]))
+        ["arguments should all have the same type"]
+
 test_grace_ly = do
     let run = LilypondTest.derive_measures ["acciaccatura"]
     equal (run
