@@ -18,7 +18,7 @@ module Util.Test (
     , map_left, left_like, left_like_srcpos
     , match, match_srcpos
     -- ** exception checks
-    , throws, throws_srcpos, catch_srcpos
+    , throws, throws_srcpos
 
     -- ** io checks
     , io_equal, io_equal_srcpos
@@ -48,7 +48,6 @@ module Util.Test (
 import Control.Applicative ((<$>))
 import qualified Control.DeepSeq as DeepSeq
 import qualified Control.Exception as Exception
-import Control.Monad
 
 import qualified Data.Algorithm.Diff as Diff
 import qualified Data.IORef as IORef
@@ -266,14 +265,6 @@ throws_srcpos srcpos val exc_like =
             then success_srcpos srcpos ("caught exc: " ++ show exc)
             else failure_srcpos srcpos $
                 "exception <" ++ show exc ++ "> didn't match " ++ show exc_like
-
-catch_srcpos :: SrcPos.SrcPos -> IO a -> IO ()
-catch_srcpos srcpos op = do
-    result <- Exception.try op
-    case result of
-        Left (exc :: Exception.SomeException) ->
-            void $ failure_srcpos srcpos ("test threw exception: " ++ show exc)
-        Right _ -> return ()
 
 -- IO oriented checks, the first value is pulled from IO.
 
