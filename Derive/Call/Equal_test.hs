@@ -16,7 +16,7 @@ test_c_equal = do
     let run title evts = DeriveTest.extract e_inst $
             DeriveTest.derive_tracks [(title, evts)]
     strings_like (snd $ run ">" [(0, 1, "%c = >i |")])
-        ["expects a control or num, but got Instrument"]
+        ["expects a control, num, or control function, but got Instrument"]
     -- log stack should be at the track level
     let (evts, logs) = run "> | inst = inst" [(0, 1, "")]
     equal evts []

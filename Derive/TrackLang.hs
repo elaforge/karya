@@ -28,8 +28,9 @@ import qualified Ui.ScoreTime as ScoreTime
 import qualified Derive.BaseTypes as Score
 import Derive.BaseTypes
        (Environ, make_environ, environ_to_list, insert_val, delete_val,
-        lookup_val, null_environ, ValName, RawVal, Val, Quoted(..), ValType(..),
-        Symbol(..), ControlRef(..), PitchControl, RawPitchControl, ValControl,
+        lookup_val, null_environ, ValName, RawVal, Val, Quoted(..),
+        ControlFunction(..), Dynamic(..), ValType(..), Symbol(..),
+        ControlRef(..), PitchControl, RawPitchControl, ValControl,
         show_call_val, CallId, Expr, Call(..), PitchCall, Term(..))
 import qualified Derive.Environ as Environ
 import qualified Derive.PitchSignal as PitchSignal
@@ -166,6 +167,7 @@ data Type = TNum NumType NumValue
     -- | A 'VQuoted'.  This has no Typecheck instance so it should never show
     -- up as a call argument.
     | TQuoted
+    | TControlFunction
     deriving (Eq, Ord, Show)
 
 data NumType = TUntyped | TTranspose | TDefaultDiatonic | TDefaultChromatic
@@ -232,6 +234,7 @@ type_of val = case val of
     VInstrument {} -> TInstrument
     VSymbol {} -> TSymbol Nothing
     VQuoted {} -> TQuoted
+    VControlFunction {} -> TControlFunction
     VNotGiven -> TNotGiven
 
 -- ** special types
@@ -525,6 +528,12 @@ instance Typecheck Score.Instrument where
     to_val = VInstrument
     to_type _ = TInstrument
 
+instance Typecheck ControlFunction where
+    from_val (VControlFunction a) = Just a
+    from_val _ = Nothing
+    to_val = VControlFunction
+    to_type _ = TControlFunction
+
 -- * environ
 
 -- | Insert a new val, but return Left if it changes the type of an existing
@@ -637,3 +646,16 @@ inst = Literal . VInstrument . Score.Instrument
 
 val_call :: Symbol -> [RawVal] -> Term
 val_call sym args = ValCall (literal_call sym args)
+
+
+-- * ControlFunction
+
+call_control_function :: ControlFunction -> Score.Control -> Dynamic
+    -> RealTime -> Score.TypedVal
+call_control_function (ControlFunction _ f) = f
+
+apply_control_function ::
+    ((RealTime -> Score.TypedVal) -> (RealTime -> Score.TypedVal))
+    -> ControlFunction -> ControlFunction
+apply_control_function modify (ControlFunction name f) =
+    ControlFunction name (\dyn control -> modify (f dyn control))

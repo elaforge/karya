@@ -36,4 +36,7 @@ instance Eq Cmd.Status where
     Cmd.PlayMidi _ == Cmd.PlayMidi _ = True
     _ == _ = False
 
+instance Eq TrackLang.ControlFunction where
+    _ == _ = False
+
 #endif

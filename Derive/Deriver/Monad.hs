@@ -438,6 +438,10 @@ data Dynamic = Dynamic {
     -- | Derivers can modify it for sub-derivers, or look at it, whether to
     -- attach to an Event or to handle internally.
     state_controls :: !Score.ControlMap
+    -- | Function variant of controls.  Normally they modify a backing
+    -- 'Signal.Control', but could be synthesized as well.  See
+    -- 'TrackLang.ControlFunction' for details.
+    , state_control_functions :: !Score.ControlFunctionMap
     -- | Named pitch signals.
     , state_pitches :: !Score.PitchMap
     -- | The unnamed pitch signal currently in scope.  This is the pitch signal
@@ -463,6 +467,7 @@ data Dynamic = Dynamic {
 initial_dynamic :: Scopes -> TrackLang.Environ -> Dynamic
 initial_dynamic scopes environ = Dynamic
     { state_controls = initial_controls
+    , state_control_functions = mempty
     , state_pitches = Map.empty
     , state_pitch = mempty
     , state_environ = environ
@@ -486,9 +491,11 @@ default_dynamic :: Signal.Y
 default_dynamic = 1
 
 instance Pretty.Pretty Dynamic where
-    format (Dynamic controls pitches pitch environ warp scopes damage stack _) =
+    format (Dynamic controls cfuncs pitches pitch environ warp scopes damage
+            stack _) =
         Pretty.record_title "Dynamic"
             [ ("controls", Pretty.format controls)
+            , ("control functions", Pretty.format cfuncs)
             , ("pitches", Pretty.format pitches)
             , ("pitch", Pretty.format pitch)
             , ("environ", Pretty.format environ)
@@ -499,9 +506,10 @@ instance Pretty.Pretty Dynamic where
             ]
 
 instance DeepSeq.NFData Dynamic where
-    rnf (Dynamic controls pitches pitch environ warp _scopes damage stack _) =
-        rnf controls `seq` rnf pitches `seq` rnf pitch `seq` rnf environ
-        `seq` rnf warp `seq` rnf damage `seq` rnf stack
+    rnf (Dynamic controls cfuncs pitches pitch environ warp _scopes damage
+            stack _) =
+        rnf controls `seq` rnf cfuncs `seq` rnf pitches `seq` rnf pitch
+        `seq` rnf environ `seq` rnf warp `seq` rnf damage `seq` rnf stack
 
 -- ** scope
 

@@ -146,8 +146,9 @@ default_note config args = do
     st <- Derive.gets Derive.state_dynamic
     let controls = trimmed_controls start real_next (Derive.state_controls st)
         pitch = trimmed_pitch start real_next (Derive.state_pitch st)
+    start_controls <- Derive.controls_at start
     (start, end) <- randomized controls start $
-        duration_attributes config controls attrs start end
+        duration_attributes config start_controls attrs start end
     -- Add a attribute to get the arrival-note postproc to figure out the
     -- duration.  Details in "Derive.Call.Post.ArrivalNote".
     let make = if is_arrival
@@ -199,7 +200,7 @@ adjust_duration cur_pos cur_dur next_pos next_dur
 -- - Normal notes multiply 'Controls.sustain' and add 'Controls.duration_abs',
 -- which could be negative.  They clip at a minimum duration to keep from going
 -- negative.
-duration_attributes :: Config -> Score.ControlMap -> Score.Attributes
+duration_attributes :: Config -> Score.ControlValMap -> Score.Attributes
     -> RealTime -> RealTime -> RealTime -- ^ new end time
 duration_attributes config controls attrs start end
     | start >= end = end -- don't mess with 0 dur or negative notes
@@ -213,8 +214,7 @@ duration_attributes config controls attrs start end
         then 0 else lookup_time 0 Controls.sustain_abs
     sustain_ = if config_sustain config
         then lookup_time 1 Controls.sustain else 1
-    lookup_time deflt control = maybe deflt
-        (RealTime.seconds . Signal.at start . Score.typed_val)
+    lookup_time deflt control = maybe deflt RealTime.seconds
         (Map.lookup control controls)
     -- This keeps a negative sustain_abs from making note duration negative.
     min_duration = 0.01

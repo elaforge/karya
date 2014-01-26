@@ -65,6 +65,10 @@ inverting = tag "inverting"
 cmod :: Tags
 cmod = tag "cmod"
 
+-- | This call returns a 'TrackLang.VControlFunction'.
+control_function :: Tags
+control_function = tag "control-function"
+
 -- | Val call is a scale degree.
 scale :: Tags
 scale = tag "scale"

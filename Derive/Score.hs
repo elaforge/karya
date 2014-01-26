@@ -24,10 +24,11 @@ import qualified Util.Pretty as Pretty
 import qualified Ui.ScoreTime as ScoreTime
 import qualified Derive.BaseTypes as BaseTypes
 import Derive.BaseTypes
-       (Instrument(..), Control, Type(..), Typed(..), ControlValMap,
-        untyped, merge_typed, type_to_code, code_to_type, TypedControl,
-        TypedVal, Attributes, Attribute, attr, attrs, set_to_attrs, attrs_diff,
-        attrs_contain, attrs_remove, attrs_set, attrs_list, no_attrs)
+       (Instrument(..), Control, Type(..), Typed(..), ControlValMap, ControlMap,
+        ControlFunction(..), ControlFunctionMap, PitchMap, untyped, merge_typed,
+        type_to_code, code_to_type, TypedControl, TypedVal, Attributes,
+        Attribute, attr, attrs, set_to_attrs, attrs_diff, attrs_contain,
+        attrs_remove, attrs_set, attrs_list, no_attrs)
 import qualified Derive.Environ as Environ
 import qualified Derive.PitchSignal as PitchSignal
 import qualified Derive.Stack as Stack
@@ -132,9 +133,6 @@ instance Pretty.Pretty Event where
             , ("stack", Pretty.format stack)
             , ("environ", Pretty.format env)
             ]
-
-type ControlMap = Map.Map Control TypedControl
-type PitchMap = Map.Map Control PitchSignal.Signal
 
 event_string :: Event -> String
 event_string = UTF8.toString . event_bs

@@ -3,7 +3,10 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 module Derive.Call.Val where
+import qualified Data.List as List
+import qualified Data.Map as Map
 import qualified Data.Monoid as Monoid
+import qualified System.Random.Mersenne.Pure64 as Pure64
 
 import Util.Control
 import qualified Util.Num as Num
@@ -20,11 +23,13 @@ import qualified Derive.Call.Pitch as Call.Pitch
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Call.Util as Util
 import qualified Derive.Derive as Derive
+import qualified Derive.Environ as Environ
 import qualified Derive.LEvent as LEvent
 import qualified Derive.PitchSignal as PitchSignal
 import qualified Derive.Pitches as Pitches
 import qualified Derive.Scale as Scale
 import qualified Derive.Score as Score
+import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Sig as Sig
 import Derive.Sig (defaulted, required)
 import qualified Derive.TrackInfo as TrackInfo
@@ -50,13 +55,15 @@ val_calls = Derive.make_calls
     , ("st", c_scoretime)
     , ("rt", c_realtime)
     , ("pitch", c_pitch)
-
     -- lookup
     , ("#", c_pitch_signal)
-
     -- generate signals
     , ("i>", c_linear_next)
     , ("e>", c_exp_next)
+    -- control functions
+    , ("cf-rnd", c_cf_rnd const)
+    , ("cf-rnd+", c_cf_rnd (+))
+    , ("cf-rnd*", c_cf_rnd (*))
     ]
 
 c_next_val :: Derive.ValCall
@@ -294,3 +301,55 @@ make_breakpoints start end vals = case vals of
     _ -> [(Num.scale start end (n / (len - 1)), x)
         | (n, x) <- zip (Seq.range_ 0 1) vals]
     where len = fromIntegral (length vals)
+
+
+-- * control function
+
+data Distribution = Uniform | Normal | Bimodal
+    deriving (Bounded, Eq, Enum, Show)
+instance ShowVal.ShowVal Distribution where
+    show_val = TrackLang.default_show_val
+instance TrackLang.TypecheckEnum Distribution
+
+c_cf_rnd :: (Signal.Y -> Signal.Y -> Signal.Y) -> Derive.ValCall
+c_cf_rnd combine = Derive.val_call "cf-rnd"
+    (Tags.control_function <> Tags.random)
+    "Randomize a control. Normally it replaces the control of the same name,\
+    \ while the `+` and `*` variants add to and multiply with it."
+    $ Sig.call ((,,)
+    <$> required "low" "Low end of the range."
+    <*> required "high" "High end of the range."
+    <*> Sig.environ "distribution" Sig.Prefixed (TrackLang.E Normal)
+        "Random distribution."
+    ) $ \(low, high, TrackLang.E distribution) _args -> return $!
+        TrackLang.ControlFunction "cf-rnd" $ \control dyn pos ->
+            Score.untyped $ combine
+                (cf_rnd distribution low high (random_stream (dyn_seed dyn)))
+                (dyn_control dyn control pos)
+
+cf_rnd :: Distribution -> Double -> Double -> [Double] -> Double
+cf_rnd dist low high rnds = Num.scale low high $ case dist of
+    Uniform -> head rnds
+    Normal -> normal rnds
+    Bimodal
+        | v >= 0.5 -> v - 0.5
+        | otherwise -> v + 0.5
+        where v = normal rnds
+
+
+-- | Approximation to a normal distribution between 0 and 1, inclusive.
+-- This is similar to a gaussian distribution, but is bounded between 0 and 1.
+normal :: [Double] -> Double
+normal rnds = sum (take 12 rnds) / 12
+
+random_stream :: Double -> [Double]
+random_stream =
+    List.unfoldr (Just . Pure64.randomDouble) . Pure64.pureMT . floor
+
+dyn_seed :: TrackLang.Dynamic -> Double
+dyn_seed = fromMaybe 0
+    . TrackLang.maybe_val Environ.seed . TrackLang.dyn_environ
+
+dyn_control :: TrackLang.Dynamic -> Score.Control -> RealTime -> Double
+dyn_control dyn control pos = maybe 0 (Signal.at pos . Score.typed_val) $
+    Map.lookup control $ TrackLang.dyn_controls dyn

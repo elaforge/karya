@@ -76,13 +76,16 @@ parse_equal (TrackLang.Symbol assignee) (TrackLang.VSymbol sym) deriver
         override_val_call new sym deriver
 parse_equal (parse_val -> Just assignee) val deriver
     | Just control <- is_control assignee = case val of
-        TrackLang.VControl val -> Right $ do
-            sig <- Util.to_signal val
-            Derive.with_control control sig deriver
+        TrackLang.VControl val -> Right $
+            Util.to_signal_or_function val >>= \x -> case x of
+                Left sig -> Derive.with_control control sig deriver
+                Right f -> Derive.with_control_function control f deriver
         TrackLang.VNum val -> Right $
-                Derive.with_control control (fmap Signal.constant val) deriver
-        _ -> Left $ "binding a control expects a control or num, but got "
-            <> Pretty.pretty (TrackLang.type_of val)
+            Derive.with_control control (fmap Signal.constant val) deriver
+        TrackLang.VControlFunction f -> Right $
+            Derive.with_control_function control f deriver
+        _ -> Left $ "binding a control expects a control, num, or control\
+            \ function, but got " <> Pretty.pretty (TrackLang.type_of val)
     | Just control <- is_pitch assignee = case val of
         TrackLang.VPitch val -> Right $
             Derive.with_pitch control (PitchSignal.constant val) deriver

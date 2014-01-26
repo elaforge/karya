@@ -50,8 +50,6 @@ import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.Pitch as Pitch
 import qualified Perform.RealTime as RealTime
-import qualified Perform.Signal as Signal
-
 import Types
 
 
@@ -282,10 +280,10 @@ under_threshold_function :: TrackLang.ValControl -> ScoreTime
     -> Derive.Deriver (ScoreTime -> Bool)
 under_threshold_function kotekan dur = do
     to_real <- Derive.real_function
-    kotekan <- Util.to_untyped_signal kotekan
+    kotekan <- Util.to_function kotekan
     return $ \t ->
         let real = to_real t
-        in to_real (t+dur) - real < RealTime.seconds (Signal.at real kotekan)
+        in to_real (t+dur) - real < RealTime.seconds (kotekan real)
 
 realize_pattern :: (ScoreTime -> Bool) -> Bool -> ScoreTime -> ScoreTime
     -> ScoreTime -> Cycle -> [Note]

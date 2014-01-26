@@ -143,7 +143,7 @@ c_tremolo_transformer = Derive.transformer "trem"
 tremolo_starts :: TrackLang.ValControl -> (ScoreTime, ScoreTime)
     -> Derive.Deriver [ScoreTime]
 tremolo_starts speed range = do
-    (speed_sig, time_type) <- Util.to_time_signal Util.Real speed
+    (speed_sig, time_type) <- Util.to_time_function Util.Real speed
     case time_type of
         Util.Real -> do
             start <- Derive.real (fst range)
@@ -350,7 +350,7 @@ c_sine mode = Derive.generator1 "sine" mempty
     <*> defaulted "amp" 1 "Amplitude, measured center to peak."
     <*> defaulted "offset" 0 "Center point."
     ) $ \(speed, amp, offset) args -> do
-        (speed_sig, time_type) <- Util.to_time_signal Util.Real speed
+        (speed_sig, time_type) <- Util.to_time_function Util.Real speed
         case time_type of
             Util.Score -> Derive.throw "RealTime signal required"
             _ -> return ()
@@ -364,15 +364,14 @@ c_sine mode = Derive.generator1 "sine" mempty
         return $ Signal.map_y ((+(offset+sign)) . (*amp)) $
             sine srate start end speed_sig
 
-sine :: RealTime -> RealTime -> RealTime -> Signal.Control -> Signal.Control
+sine :: RealTime -> RealTime -> RealTime -> Util.Function -> Signal.Control
 sine srate start end freq_sig = Signal.unfoldr go (start, 0)
     where
     go (pos, phase)
         | pos >= end = Nothing
         | otherwise = Just ((pos, sin phase), (pos + srate, next_phase))
         where
-        freq = Signal.at pos freq_sig
-        next_phase = phase + RealTime.to_seconds srate * 2*pi * freq
+        next_phase = phase + RealTime.to_seconds srate * 2*pi * (freq_sig pos)
 
 
 -- ** xcut
@@ -387,8 +386,8 @@ c_xcut_control hold = Derive.generator1 "xcut" mempty
     <*> defaulted "speed" (typed_control "xcut-speed" 14 Score.Real) "Speed."
     ) $ \(val1, val2, speed) args -> do
         transitions <- Speed.starts speed (Args.range_or_next args) False
-        val1 <- Util.to_untyped_signal val1
-        val2 <- Util.to_untyped_signal val2
+        val1 <- Util.to_signal val1
+        val2 <- Util.to_signal val2
         return $ xcut_control hold val1 val2 transitions
 
 xcut_control :: Bool -> Signal.Control -> Signal.Control -> [RealTime]
@@ -408,7 +407,6 @@ xcut_control hold val1 val2 =
 -- * util
 
 data Mode = Unison | Neighbor deriving (Bounded, Eq, Enum, Show)
-
 instance ShowVal.ShowVal Mode where show_val = TrackLang.default_show_val
 instance TrackLang.TypecheckEnum Mode
 
@@ -424,16 +422,16 @@ trill_from_controls :: (ScoreTime, ScoreTime) -> Mode -> TrackLang.ValControl
     -> TrackLang.ValControl -> Derive.Deriver (Signal.Control, Score.Control)
 trill_from_controls range mode neighbor speed = do
     transitions <- trill_transitions range False speed
-    (neighbor_sig, control) <- Util.to_transpose_signal Util.Diatonic neighbor
+    (neighbor_sig, control) <- Util.to_transpose_function Util.Diatonic neighbor
     let transpose = trill_from_transitions mode transitions neighbor_sig
     return (transpose, control)
 
 -- ** transitions
 
 -- | Make a trill signal from a list of transition times.
-trill_from_transitions :: Mode -> [RealTime] -> Signal.Control -> Signal.Control
+trill_from_transitions :: Mode -> [RealTime] -> Util.Function -> Signal.Control
 trill_from_transitions mode transitions neighbor =
-    Signal.signal [(x, if t then Signal.at x neighbor else 0)
+    Signal.signal [(x, if t then neighbor x else 0)
         | (x, t) <- zip transitions (cycle ts)]
     where
     ts = case mode of
@@ -444,12 +442,12 @@ trill_from_transitions mode transitions neighbor =
 trill_transitions :: (ScoreTime, ScoreTime) -> Bool -> TrackLang.ValControl
     -> Derive.Deriver [RealTime]
 trill_transitions range include_end speed = do
-    (speed_sig, time_type) <- Util.to_time_signal Util.Real speed
+    (speed_sig, time_type) <- Util.to_time_function Util.Real speed
     case time_type of
         Util.Real -> real_transitions range include_end speed_sig
         Util.Score -> score_transitions range include_end speed_sig
 
-real_transitions :: (ScoreTime, ScoreTime) -> Bool -> Signal.Control
+real_transitions :: (ScoreTime, ScoreTime) -> Bool -> Util.Function
     -> Derive.Deriver [RealTime]
 real_transitions (start, end) include_end speed = do
     start <- Derive.real start
@@ -457,7 +455,7 @@ real_transitions (start, end) include_end speed = do
     full_cycles RealTime.eta end include_end <$>
         Speed.real_starts speed start end
 
-score_transitions :: (ScoreTime, ScoreTime) -> Bool -> Signal.Control
+score_transitions :: (ScoreTime, ScoreTime) -> Bool -> Util.Function
     -> Derive.Deriver [RealTime]
 score_transitions (start, end) include_end speed = do
     all_transitions <- Speed.score_starts speed start end

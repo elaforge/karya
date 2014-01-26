@@ -97,16 +97,11 @@ map_events_asc_m f state =
 control :: (Score.TypedVal -> a) -> TrackLang.ValControl -> Events
     -> Derive.Deriver [a]
 control f c events = do
-    sig <- Util.to_signal c
-    return $ map (f . signal_at sig . Score.event_start)
-        (LEvent.events_of events)
+    sig <- Util.to_typed_function c
+    return $ map (f . sig . Score.event_start) (LEvent.events_of events)
 
 time_control :: TrackLang.ValControl -> Events -> Derive.Deriver [RealTime]
 time_control = control (RealTime.seconds . Score.typed_val)
-
-signal_at :: Score.TypedControl -> RealTime -> Score.TypedVal
-signal_at sig t = Score.Typed (Score.type_of sig) $
-    Signal.at t (Score.typed_val sig)
 
 -- | Extract subsequent events.
 nexts :: [LEvent.LEvent e] -> [[e]]

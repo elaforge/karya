@@ -47,6 +47,8 @@ import qualified Perform.Pitch as Pitch
 import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
 
+import Types
+
 
 -- * Derive.Score
 
@@ -207,6 +209,9 @@ instance DeepSeq.NFData Signal where
 data PitchConfig = PitchConfig !Environ !ControlValMap
     deriving (Show)
 
+-- | This is a snapshot of the control signals at a certain point in time.
+-- It's meant for 'Pitch', so the values are expected to be transpositions, and
+-- hence untyped.
 type ControlValMap = Map.Map Control Signal.Y
 
 instance Monoid.Monoid PitchConfig where
@@ -362,6 +367,7 @@ data ValType pitch =
     --
     -- Literal: @\"(a b c)@
     | VQuoted !Quoted
+    | VControlFunction !ControlFunction
     -- | An explicit not-given arg for functions so you can use positional
     -- args with defaults.
     --
@@ -385,6 +391,7 @@ instance ShowVal.ShowVal pitch => ShowVal.ShowVal (ValType pitch) where
         VInstrument inst -> ShowVal.show_val inst
         VSymbol sym -> ShowVal.show_val sym
         VQuoted quoted -> ShowVal.show_val quoted
+        VControlFunction f -> ShowVal.show_val f
         VNotGiven -> "_"
 
 instance ShowVal.ShowVal pitch => Pretty.Pretty (ValType pitch) where
@@ -399,6 +406,48 @@ newtype Quoted = Quoted Call deriving (Show)
 
 instance ShowVal.ShowVal Quoted where
     show_val (Quoted call) = "\"(" <> ShowVal.show_val call <> ")"
+
+{- | Another representation of a signal, complementary to 'Signal.Control'.
+    It's more powerful because it has access to a subset of the Dynamic state,
+    as well as the 'Control' is was originally bound to.  However, it's also
+    less powerful because you can't inspect it to see if it's constant, or emit
+    exactly the samples present without resorting to sampling, or draw it on
+    the UI.  This is the ubiquitous code vs. data tradeoff.
+
+    In addition, the main motivation to add control functions was to randomize
+    values, which means that, unlike signals, they're not actually functions at
+    all, and thus couldn't be rendered as a continuous signal.  This means that
+    functions are only suitable for sampling at points, not for slicing over
+    time ranges.
+
+    Having both signals and functions is awkward because then some calls may
+    ignore a control function if they require a signal, which is inconsistent
+    and confusing.  This is the case for all control generators since the
+    signal usually is on a control track and will wind up being rendered on the
+    UI.  So the convention is that control functions are generally just
+    modifications of an underlying signal, rather than synthesizing a signal.
+-}
+data ControlFunction =
+    ControlFunction !Text !(Control -> Dynamic -> RealTime -> TypedVal)
+
+data Dynamic = Dynamic {
+    dyn_controls :: !ControlMap
+    , dyn_control_functions :: !ControlFunctionMap
+    , dyn_pitches :: !PitchMap
+    , dyn_pitch :: !Signal
+    , dyn_environ :: !Environ
+    } deriving (Show)
+type ControlMap = Map.Map Control TypedControl
+type ControlFunctionMap = Map.Map Control ControlFunction
+type PitchMap = Map.Map Control Signal
+
+instance Show ControlFunction where show = untxt . ShowVal.show_val
+instance Pretty.Pretty ControlFunction where pretty = show
+-- | Not parseable.
+instance ShowVal.ShowVal ControlFunction where
+    show_val (ControlFunction name _) = "((ControlFunction " <> name <> "))"
+instance DeepSeq.NFData ControlFunction where
+    rnf (ControlFunction a b) = a `seq` b `seq` ()
 
 newtype Symbol = Symbol Text
     deriving (Eq, Ord, Read, Show, DeepSeq.NFData, String.IsString,
@@ -419,13 +468,13 @@ instance ShowVal.ShowVal Symbol where
         -- directly because that would be a circular import.
         parseable = case Text.uncons s of
             Just (c, cs) -> (Char.isAlpha c || c == '-' || c == '*')
-                && Text.all (\c -> c /= ' ' && c /= ')') cs
+                && Text.all (\c -> c /= ' ' && c /= ')' && c /= '=') cs
             Nothing -> False
         quote '\'' = "''"
         quote c = Text.singleton c
 
 -- | Show a symbol intended for call position.  Call position is special in
--- that it can contain any character except space without quoting.
+-- that it can contain any character except space and equals without quoting.
 show_call_val :: Val -> Text
 show_call_val (VSymbol (Symbol sym)) = sym
 show_call_val val = ShowVal.show_val val

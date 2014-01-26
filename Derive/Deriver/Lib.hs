@@ -19,6 +19,7 @@ import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 
 import qualified Ui.Track as Track
+import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Controls as Controls
 import qualified Derive.Deriver.Internal as Internal
 import Derive.Deriver.Monad
@@ -249,24 +250,71 @@ with_environ environ
 
 -- ** control
 
--- | Return an entire signal.  Remember, signals are in RealTime, so if you
--- want to index them in ScoreTime you will have to call 'real'.
-get_control :: Score.Control -> Deriver (Maybe Score.TypedControl)
-get_control cont = Map.lookup cont <$> get_controls
+-- | Return an entire signal.
+get_control :: Score.Control -> Deriver (Maybe (RealTime -> Score.TypedVal))
+get_control control = get_control_function control >>= \x -> case x of
+    Just f -> return $ Just f
+    Nothing -> get_control_signal control >>= return . fmap signal_function
+
+signal_function :: Score.TypedControl -> (RealTime -> Score.TypedVal)
+signal_function sig t = Signal.at t <$> sig
+
+get_control_signal :: Score.Control -> Deriver (Maybe Score.TypedControl)
+get_control_signal control = Map.lookup control <$> get_controls
 
 get_controls :: Deriver Score.ControlMap
 get_controls = Internal.get_dynamic state_controls
 
+-- | Get the control value at the given time, taking 'state_control_functions'
+-- into account.
 control_at :: Score.Control -> RealTime -> Deriver (Maybe Score.TypedVal)
-control_at cont pos = do
-    controls <- get_controls
-    return $ fmap (Score.control_val_at pos) (Map.lookup cont controls)
+control_at control pos = get_control_function control >>= \x -> case x of
+    Just f -> return $ Just $ f pos
+    Nothing -> do
+        sig <- Map.lookup control <$> get_controls
+        return $ Score.control_val_at pos <$> sig
+
+get_control_function :: Score.Control
+    -> Deriver (Maybe (RealTime -> Score.TypedVal))
+get_control_function control = do
+    functions <- Internal.get_dynamic state_control_functions
+    case Map.lookup control functions of
+        Nothing -> return Nothing
+        Just f -> do
+            dyn <- Internal.get_dynamic convert_dynamic
+            return $ Just $ TrackLang.call_control_function f control dyn
+
+convert_dynamic :: Dynamic -> BaseTypes.Dynamic
+convert_dynamic dyn = BaseTypes.Dynamic
+    { BaseTypes.dyn_controls = state_controls dyn
+    , BaseTypes.dyn_control_functions = state_control_functions dyn
+    , BaseTypes.dyn_pitches = state_pitches dyn
+    , BaseTypes.dyn_pitch = state_pitch dyn
+    , BaseTypes.dyn_environ = state_environ dyn
+    }
 
 untyped_control_at :: Score.Control -> RealTime -> Deriver (Maybe Signal.Y)
 untyped_control_at cont = fmap (fmap Score.typed_val) . control_at cont
 
+-- | Get a ControlValMap at the given time, taking 'state_control_functions'
+-- into account.  Like ControlValMap, this is intended to be used for
+-- a 'PitchSignal.Pitch'.
 controls_at :: RealTime -> Deriver Score.ControlValMap
-controls_at pos = Score.controls_at pos <$> get_controls
+controls_at pos = do
+    controls <- get_controls
+    fs <- Internal.get_dynamic state_control_functions
+    dyn <- Internal.get_dynamic convert_dynamic
+    return $ Map.fromList $ map (resolve dyn pos) $
+        Seq.equal_pairs (\a b -> fst a == fst b)
+            (Map.toAscList fs) (Map.toAscList controls)
+    where
+    resolve dyn pos p = case p of
+        Seq.Both (k, f) _ -> (k, call k f)
+        Seq.First (k, f) -> (k, call k f)
+        Seq.Second (k, sig) -> (k, Signal.at pos (Score.typed_val sig))
+        where
+        call control f =
+            Score.typed_val $ TrackLang.call_control_function f control dyn pos
 
 with_merged_control :: Merge -> Score.Control -> Score.TypedControl
     -> Deriver a -> Deriver a
@@ -280,8 +328,15 @@ with_merged_control merge control = with control
         Merge op -> with_relative_control op
 
 with_control :: Score.Control -> Score.TypedControl -> Deriver a -> Deriver a
-with_control cont signal = Internal.local $ \st ->
-    st { state_controls = Map.insert cont signal (state_controls st) }
+with_control control signal = Internal.local $ \st ->
+    st { state_controls = Map.insert control signal (state_controls st) }
+
+with_control_function :: Score.Control -> TrackLang.ControlFunction
+    -> Deriver a -> Deriver a
+with_control_function control f = Internal.local $ \st -> st
+    { state_control_functions =
+        Map.insert control f (state_control_functions st)
+    }
 
 -- | Modify an existing control.
 --

@@ -172,7 +172,7 @@ c_kampita start_mode end_mode = Derive.generator1 "kam" Tags.india
         "Time for each slide."
     <*> hold_env <*> lilt_env <*> adjust_env
     ) $ \(pitch, neighbor, speed, transition, hold, lilt, adjust) args -> do
-        (neighbor, control) <- Util.to_transpose_signal Util.Nn neighbor
+        (neighbor, control) <- Util.to_transpose_function Util.Nn neighbor
         transpose <- kampita start_mode end_mode adjust neighbor speed
             transition hold lilt args
         start <- Args.real_start args
@@ -226,10 +226,10 @@ add_lilt lilt (t:ts)
 
 
 -- | Make a trill signal from a list of transition times.
-trill_from_transitions :: Signal.Control -> Signal.Control -> [RealTime]
-    -> Signal.Control
+trill_from_transitions :: Util.Function -> Util.Function
+    -> [RealTime] -> Signal.Control
 trill_from_transitions val1 val2 transitions = Signal.signal
-    [(x, Signal.at x sig) | (x, sig) <- zip transitions (cycle [val1, val2])]
+    [(x, sig x) | (x, sig) <- zip transitions (cycle [val1, val2])]
 
 -- | Ok, this name is terrible but what else is better?
 c_dip :: Derive.Generator Derive.Pitch
@@ -319,12 +319,12 @@ c_kampita_c start_mode end_mode = Derive.generator1 "kam" Tags.india
         "Time for each slide."
     <*> hold_env <*> lilt_env <*> adjust_env
     ) $ \(neighbor, speed, transition, hold, lilt, adjust) args -> do
-        neighbor <- Util.to_untyped_signal neighbor
+        neighbor <- Util.to_function neighbor
         kampita start_mode end_mode adjust neighbor speed transition hold lilt
             args
 
 -- | You don't think there are too many arguments, do you?
-kampita :: Maybe Mode -> Maybe Mode -> AdjustMode -> Signal.Control
+kampita :: Maybe Mode -> Maybe Mode -> AdjustMode -> Util.Function
     -> TrackLang.ValControl -> RealTime -> TrackLang.DefaultReal
     -> Double -> Derive.PassedArgs a -> Derive.Deriver Signal.Control
 kampita start_mode end_mode adjust neighbor speed transition
@@ -337,15 +337,15 @@ kampita start_mode end_mode adjust neighbor speed transition
         =<< trill_transitions even_transitions adjust lilt hold speed
             (Args.range_or_next args)
 
-smooth_trill :: RealTime -> Signal.Control -> Signal.Control -> [RealTime]
-    -> Derive.Deriver Signal.Control
+smooth_trill :: RealTime -> Util.Function -> Util.Function
+    -> [RealTime] -> Derive.Deriver Signal.Control
 smooth_trill time val1 val2 transitions = do
     srate <- Util.get_srate
     return $ SignalTransform.smooth id srate time $
         trill_from_transitions val1 val2 transitions
 
-convert_modes :: RealTime -> Signal.Control -> Maybe Mode -> Maybe Mode
-    -> ((Signal.Control, Signal.Control), Maybe Bool)
+convert_modes :: RealTime -> Util.Function -> Maybe Mode -> Maybe Mode
+    -> ((Util.Function, Util.Function), Maybe Bool)
 convert_modes start_t neighbor start end = (vals, even_transitions)
     where
     first = case start of
@@ -353,8 +353,8 @@ convert_modes start_t neighbor start end = (vals, even_transitions)
         Just Low -> if neighbor_low then Trill.Neighbor else Trill.Unison
         Just High -> if neighbor_low then Trill.Unison else Trill.Neighbor
     vals = case first of
-        Trill.Unison -> (Signal.constant 0, neighbor)
-        Trill.Neighbor -> (neighbor, Signal.constant 0)
+        Trill.Unison -> (const 0, neighbor)
+        Trill.Neighbor -> (neighbor, const 0)
     -- If I end Low, and neighbor is low, and I started with Unison, then val2
     -- is low, so I want even transitions.  Why is it so complicated just to
     -- get a trill to end high or low?
@@ -365,7 +365,7 @@ convert_modes start_t neighbor start end = (vals, even_transitions)
         Nothing -> Nothing
         Just Low -> Just (not first_low)
         Just High -> Just first_low
-    neighbor_low = Signal.at start_t neighbor < 0
+    neighbor_low = neighbor start_t < 0
 
 c_nkampita_c :: Maybe Mode -> Maybe Mode -> Derive.Generator Derive.Control
 c_nkampita_c start_mode end_mode = Derive.generator1 "nkam" Tags.india
@@ -380,7 +380,7 @@ c_nkampita_c start_mode end_mode = Derive.generator1 "nkam" Tags.india
     ) $ \(neighbor, TrackLang.Positive cycles, lilt, TrackLang.DefaultReal hold,
             transition) args -> do
         (start, end) <- Args.real_range_or_next args
-        neighbor <- Util.to_untyped_signal neighbor
+        neighbor <- Util.to_function neighbor
         let ((val1, val2), even_transitions) = convert_modes start neighbor
                 start_mode end_mode
         hold <- Util.duration_from (Args.start args) hold
@@ -417,10 +417,10 @@ dip high low speed dyn_scale transition (start, end) = do
     srate <- Util.get_srate
     transitions <- Trill.trill_transitions (start, end) False speed
     let smooth = SignalTransform.smooth id srate (-transition / 2)
-        transpose = smooth $ trill_from_transitions (Signal.constant high)
-            (Signal.constant low) transitions
-        dyn = smooth $ trill_from_transitions (Signal.constant 1)
-            (Signal.constant dyn_scale) transitions
+        transpose = smooth $
+            trill_from_transitions (const high) (const low) transitions
+        dyn = smooth $
+            trill_from_transitions (const 1) (const dyn_scale) transitions
     end <- Derive.real end
     Control.multiply_dyn end dyn
     return transpose

@@ -132,8 +132,8 @@ catch_srcpos srcpos op = do
         Left (exc :: Exception.SomeException) -> do
             void $ Test.failure_srcpos srcpos
                 ("test threw exception: " ++ show exc)
-            -- Die on async exception, otherwise it will try to continue after
-            -- ^C or out of memory.
+            -- Die on async exception, otherwise it will try to continue
+            -- after ^C or out of memory.
             case Exception.fromException exc of
                 Just (exc :: Exception.AsyncException) -> Exception.throwIO exc
                 Nothing -> return ()

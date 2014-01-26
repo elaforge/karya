@@ -14,6 +14,7 @@
 module Derive.Call.Util where
 import qualified Data.List as List
 import qualified Data.List.NonEmpty as NonEmpty
+import qualified Data.Map as Map
 import qualified System.Random.Mersenne.Pure64 as Pure64
 
 import Util.Control
@@ -119,52 +120,95 @@ transpose_control_at default_type control pos = do
             <> Pretty.pretty typ
     return (val, transpose_type)
 
--- | Convert a 'TrackLang.ValControl' to a signal.
+
+-- * function and signal
+
+type TypedFunction = RealTime -> Score.TypedVal
+type Function = RealTime -> Signal.Y
+
+-- | Convert a 'TrackLang.ValControl' to a function.
 --
 -- If a signal exists but doesn't have a type, the type will be inherited from
 -- the default.  This way a call can cause a signal parameter to default to
 -- a certain type.
-to_signal :: TrackLang.ValControl -> Derive.Deriver Score.TypedControl
-to_signal control = case control of
-    TrackLang.ControlSignal sig -> return sig
-    TrackLang.DefaultedControl cont deflt -> do
-        maybe_sig <- Derive.get_control cont
-        return $ case maybe_sig of
-            Nothing -> deflt
-            Just sig -> sig
-                { Score.type_of = Score.type_of sig <> Score.type_of deflt }
+to_typed_function :: TrackLang.ValControl -> Derive.Deriver TypedFunction
+to_typed_function control =
+    either (return . Derive.signal_function) from_function
+        =<< to_signal_or_function control
+    where
+    from_function f = TrackLang.call_control_function f score_control <$>
+        Internal.get_dynamic Derive.convert_dynamic
+    score_control = case control of
+        TrackLang.ControlSignal {} -> Controls.null
+        TrackLang.DefaultedControl cont _ -> cont
+        TrackLang.LiteralControl cont -> cont
+
+to_function :: TrackLang.ValControl -> Derive.Deriver Function
+to_function = fmap (Score.typed_val .) . to_typed_function
+
+to_typed_signal :: TrackLang.ValControl -> Derive.Deriver Score.TypedControl
+to_typed_signal control =
+    either return (const $ Derive.throw $ "not found: " ++ show control)
+        =<< to_signal_or_function control
+
+to_signal :: TrackLang.ValControl -> Derive.Deriver Signal.Control
+to_signal = fmap Score.typed_val . to_typed_signal
+
+to_signal_or_function :: TrackLang.ValControl
+    -> Derive.Deriver (Either Score.TypedControl TrackLang.ControlFunction)
+to_signal_or_function control = case control of
+    TrackLang.ControlSignal sig -> return $ Left sig
+    TrackLang.DefaultedControl cont deflt ->
+        get_control (Score.type_of deflt) (return (Left deflt)) cont
     TrackLang.LiteralControl cont ->
-        maybe (Derive.throw $ "not found: " ++ show cont) return
-            =<< Derive.get_control cont
+        get_control Score.Untyped (Derive.throw $ "not found: " ++ show cont)
+            cont
+    where
+    get_control default_type deflt cont = get_function cont >>= \x -> case x of
+        Just f -> return $ Right $
+            TrackLang.apply_control_function (inherit_type default_type .) f
+        Nothing -> Derive.get_control_signal cont >>= \x -> case x of
+            Just sig -> return $ Left sig
+            Nothing -> deflt
+    get_function cont = Internal.get_dynamic $
+        Map.lookup cont . Derive.state_control_functions
+    -- If the signal was untyped, it gets the type of the default, since
+    -- presumably the caller expects that type.
+    inherit_type default_type val =
+        val { Score.type_of = Score.type_of val <> default_type }
 
-to_untyped_signal :: TrackLang.ValControl -> Derive.Deriver Signal.Control
-to_untyped_signal = fmap Score.typed_val . to_signal
-
--- | Version of 'to_signal' specialized for transpose signals.  Throws if
+-- | Version of 'to_function' specialized for transpose signals.  Throws if
 -- the signal had a non-transpose type.
-to_transpose_signal :: TransposeType -> TrackLang.ValControl
-    -> Derive.Deriver (Signal.Control, Score.Control)
+to_transpose_function :: TransposeType -> TrackLang.ValControl
+    -> Derive.Deriver (Function, Score.Control)
     -- ^ (signal, appropriate transpose control)
-to_transpose_signal default_type control = do
-    Score.Typed typ sig <- to_signal control
+to_transpose_function default_type control = do
+    sig <- to_typed_function control
+    -- Previously, I directly returned 'Score.TypedControl's so I could look at
+    -- their types.  A function is more powerful but I have to actually call
+    -- it to find the type.
+    let typ = Score.type_of (sig 0)
+        untyped = Score.typed_val . sig
     case typ of
-        Score.Untyped -> return (sig, transpose_control default_type)
+        Score.Untyped -> return (untyped, transpose_control default_type)
         _ -> case Controls.transpose_type typ of
-            Just control -> return (sig, control)
+            Just control -> return (untyped, control)
             _ -> Derive.throw $ "expected transpose type for "
                 <> untxt (TrackLang.show_val control) <> " but got "
                 <> Pretty.pretty typ
 
--- | Version of 'to_signal' that will complain if the control isn't a time
+-- | Version of 'to_function' that will complain if the control isn't a time
 -- type.
-to_time_signal :: TimeType -> TrackLang.ValControl
-    -> Derive.Deriver (Signal.Control, TimeType)
-to_time_signal default_type control = do
-    Score.Typed typ sig <- to_signal control
+to_time_function :: TimeType -> TrackLang.ValControl
+    -> Derive.Deriver (Function, TimeType)
+to_time_function default_type control = do
+    sig <- to_typed_function control
+    let typ = Score.type_of (sig 0)
+        untyped = Score.typed_val . sig
     case typ of
-        Score.Untyped -> return (sig, default_type)
-        Score.Score -> return (sig, Score)
-        Score.Real -> return (sig, Real)
+        Score.Untyped -> return (untyped, default_type)
+        Score.Score -> return (untyped, Score)
+        Score.Real -> return (untyped, Real)
         _ -> Derive.throw $ "expected time type for "
             <> untxt (TrackLang.show_val control) <> " but got "
             <> Pretty.pretty typ

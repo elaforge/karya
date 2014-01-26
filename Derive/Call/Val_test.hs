@@ -4,7 +4,10 @@
 
 module Derive.Call.Val_test where
 import Util.Control
+import qualified Util.Num as Num
+import qualified Util.Seq as Seq
 import Util.Test
+
 import qualified Ui.Ruler as Ruler
 import qualified Ui.UiTest as UiTest
 import qualified Derive.Call.CallTest as CallTest
@@ -105,3 +108,13 @@ test_make_segments = do
     equal (f 4 8  []) []
     equal (f 4 8  [1]) [(4, 1)]
     equal (f 4 8  [0, 1, 0]) [(4, 0), (5, 0.5), (6, 1), (7, 0.5), (8, 0)]
+
+test_cf_rnd = do
+    let run sus notes = DeriveTest.extract extract $ DeriveTest.derive_tracks
+            [("> | %sus = " <> sus, [(n, 1, "") | n <- Seq.range' 0 notes 1])]
+        extract = Score.event_duration
+    equal (run ".5" 1) ([0.5], [])
+    let (durs, logs) = run "(cf-rnd .5 1.5)" 5
+    equal logs []
+    check $ not (all (== head durs) durs)
+    check (all (Num.in_range 0.8 1.2) durs)

@@ -3,6 +3,7 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
+  - Refactor.selection should also rename relative block calls
   * zoom to selection with '\', not ']'
   * when in negative step, creating an event to a range should make it
     negative
@@ -127,7 +128,7 @@ UNSORTED
     from just loading a copy: it loads it anew each time, and doesn't save
     it with the score.  This is like the 'import' idea, except the library is
     in score, not code.
-  - Some way to randomize signals.
+  Some way to randomize signals.
     . One way would be look for a corresponding <>"-rnd" control for a range.
       But what about distribution?
     . If I pass RealTime to a Quoted value, I could write the parameter as
@@ -152,14 +153,63 @@ UNSORTED
       with Signal.at ValCalls.  Except that I still need non-randomized signals
       to slice and send to MIDI perform, and to display on the UI.
     . Also, ValCalls can log and fail and do the other Deriver things.  Of
-      course they also have access to State, which they need.
+      course they also have access to State, which they need, or at least the
+      Dynamic part.  But to bind in tracklang I still need some sort of
+      currying, e.g. '%control = (rnd .1 sig)'.  But the call is
+      (rnd, Control, RealTime).  So I could save the Call and append RealTime
+      at the end.  I could optimize a bit by looking up 'rnd' at the binding
+      time.  But I can't typecheck the args unless I introspect... which
+      I actually can do, given the documentation.  I would have to map each
+      ArgDoc back to its parser, then apply each parser.  But it would be hard
+      to store the types untagged, maybe possible with an existential type but
+      seems tricky, and I need access to the function directly.
+    . I could also use plain haskell functions, but it would be yet another
+      namespace, and I'd still need a way to typecheck and pass args from
+      tracklang.
+    . A better way might be to add a VControlFunction, which is just
+      RealTime -> Signal.Y, this would also eliminate typechecking the return
+      value.  That means I also don't have to quote, e.g. '%x = "(f)'
+    * Add VControlFunction.  Needs Dynamic since it can't close over it.
+      But Dynamic is in Derive not BaseTypes.  I can pass a mini-Deriver,
+      or I could make the ControlFunction itself a Deriver.  That means it can
+      use the Deriver functions and log and all that.  Well, except I can't
+      because Deriver is in Derive as well.  Remember I had this problem
+      before with trying to put a Deriver in Val.
+    Derive.control_at looks in state_control_functions first
+      * For this to work I need to generalize Signal.Control to
+        (RealTime -> TypedVal).  This means Util.to_signal returns a function.
+      * signal functions don't let me see if they are constant, and Speed uses
+        this to eliminate precision loss for the common constant case.
+    * c_equal assigns a VControlFunction to state_control_functions
+    * add some control functions
+    * tests for control functions
+    - If ControlFunction has access to the ruler, it can do things based on
+      the importance of surrounding beats, e.g. swing or rubato.
+    . Things functions can't do:
+      . Figure out if it's constant, to optimize or eliminate precision loss.
+      . Mostly, I can't display them, though I suppose I could with sampling.
+        It seems like it would create confusing calls that ignore the
+        functions while others don't, e.g. xcut could use signals and display
+        the generated signal, or functions and not.  But the motivation for
+        functions is randomization, which is not really suitable for drawing
+        anyway, unless I want to draw a probability curve.  Functions aren't
+        suitable for the kinds of things that want continuous signals anyway.
+      . Functions are appealing because they can be more efficient, since they
+        don't have to materialize the data.  Of course, if I want to draw it
+        then it should be materialized, but many times drawing is a separate
+        render anyway.
+      . So maybe functions should only exist paired with an underlying signal.
+        Then you can't have a function with no signal, which means you can't
+        have it not work with calls that really want signals.  I could pass
+        the corresponding signal the function, but that's redundant with
+        Dynamic.
   - Randomization for velocity, especially important as many sample libraries
     have lots of velocity splits, but no round robin.
     But I want to do it only for midi velocity, not pressure dyn.
     Maybe dyn mapping should move to the note call?  But it doesn't have patch
     flags.  So instead of a Pressure flag, there is a pressure variant of the
     note call that some patches will override.  That way vel randomization can
-    use the same control signal randomization thing I'm planning below.
+    use the same control signal randomization thing I'm planning.
     The advantage of flags is that Cmd can look at them, so Triggered I think
     still remains a flag.
   india
