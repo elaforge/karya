@@ -534,8 +534,7 @@ apply cinfo call args = do
             , Derive.passed_call_name = Derive.vcall_name call
             , Derive.passed_info = cinfo
             }
-    Derive.with_msg ("val call " <> Derive.vcall_name call) $
-        Derive.vcall_call call passed
+    Derive.vcall_call call passed
 
 event_start :: Derive.CallInfo d -> ScoreTime
 event_start = Event.start . Derive.info_event

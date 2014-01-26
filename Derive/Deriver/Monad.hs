@@ -124,7 +124,6 @@ import Control.DeepSeq (rnf)
 import qualified Data.Map.Strict as Map
 import qualified Data.Monoid as Monoid
 import qualified Data.Set as Set
-import qualified Data.Text as Text
 import qualified Data.Vector.Unboxed as Vector.Unboxed
 
 import Util.Control
@@ -230,16 +229,7 @@ instance Log.LogMonad Deriver where
         -- If the msg was created explicitly, it may already have a stack.
         stack <- maybe (gets (Stack.to_strings . state_stack . state_dynamic))
             return (Log.msg_stack msg)
-        context <- gets (state_log_context . state_dynamic)
-        return $ msg
-            { Log.msg_stack = Just stack
-            , Log.msg_text = add_text_context context (Log.msg_text msg)
-            }
-        where
-        add_text_context :: [Text] -> Text -> Text
-        add_text_context [] s = s
-        add_text_context context s =
-            Text.intercalate " / " (reverse context) <> ": " <> s
+        return $ msg { Log.msg_stack = Just stack }
 
 run :: State -> Deriver a -> RunResult a
 run state m = _runD m state []
@@ -459,9 +449,6 @@ data Dynamic = Dynamic {
     -- and attached to events in case they want to emit errors later (say
     -- during performance).
     , state_stack :: !Stack.Stack
-    -- | This is a free-form stack which can be used to prefix log msgs with
-    -- a certain string.
-    , state_log_context :: ![Text]
     } deriving (Show)
 
 initial_dynamic :: Scopes -> TrackLang.Environ -> Dynamic
@@ -475,7 +462,6 @@ initial_dynamic scopes environ = Dynamic
     , state_scopes = scopes
     , state_control_damage = mempty
     , state_stack = Stack.empty
-    , state_log_context = []
     }
 
 -- | Initial control environment.
@@ -492,7 +478,7 @@ default_dynamic = 1
 
 instance Pretty.Pretty Dynamic where
     format (Dynamic controls cfuncs pitches pitch environ warp scopes damage
-            stack _) =
+            stack) =
         Pretty.record_title "Dynamic"
             [ ("controls", Pretty.format controls)
             , ("control functions", Pretty.format cfuncs)
@@ -507,7 +493,7 @@ instance Pretty.Pretty Dynamic where
 
 instance DeepSeq.NFData Dynamic where
     rnf (Dynamic controls cfuncs pitches pitch environ warp _scopes damage
-            stack _) =
+            stack) =
         rnf controls `seq` rnf cfuncs `seq` rnf pitches `seq` rnf pitch
         `seq` rnf environ `seq` rnf warp `seq` rnf damage `seq` rnf stack
 

@@ -104,10 +104,6 @@ require msg = maybe (throw $ "required: " ++ msg) return
 require_right :: (err -> String) -> Either err a -> Deriver a
 require_right fmt_err = either (throw . fmt_err) return
 
-with_msg :: Text -> Deriver a -> Deriver a
-with_msg msg = Internal.local $ \st ->
-    st { state_log_context = msg : state_log_context st }
-
 error_to_warn :: Error -> Log.Msg
 error_to_warn (Error srcpos stack val) = Log.msg_srcpos srcpos Log.Warn
     (Just (Stack.to_strings stack)) ("Error: " <> Pretty.prettytxt val)
