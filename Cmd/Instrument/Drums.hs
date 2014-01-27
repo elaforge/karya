@@ -6,13 +6,8 @@
 -- be imported by both Local.Instrument definitions and Derive.Call instrument
 -- calls.
 module Cmd.Instrument.Drums where
-import qualified Data.List as List
-
 import Util.Control
-import qualified Midi.Key as Key
-import qualified Midi.Midi as Midi
 import Derive.Attrs
-import qualified Derive.Score as Score
 import qualified Perform.Signal as Signal
 
 
@@ -48,67 +43,3 @@ c_ride  = Note "ride"   ride            't' 1
 c_crash = Note "crash"  crash           'y' 1
 
 -- TODO other drum style ornaments like double strikes, rolls, etc.
-
--- * kendang bali
-
--- | Left is wadon, Right is lanang.
-type CompositeAttrs = Either Score.Attributes Score.Attributes
-
-data Kendang = Wadon | Lanang deriving (Show, Eq)
-data Lima = Kebot | Kenawan deriving (Show)
-
-kendang_composite :: [((Note, Midi.Key), (Attributes, Kendang))]
-kendang_composite = map resolve
-    [ ("PL", Wadon, plak, 'b', 1)
-    , ("Ø", Lanang, tut <> left, 't', 1)
-    -- kenawan
-    , ("+", Wadon, de, 'z', 1) -- de
-    , ("-", Wadon, de <> soft, 'a', 0.3) -- de
-    , ("o", Lanang, de, 'x', 1) -- tut
-    , ("u", Wadon, tut, 'c', 1) -- kum
-    , ("U", Lanang, tut, 'v', 1) -- pung
-    , ("<", Wadon, dag, 'm', 1) -- dag
-    , (">", Lanang, dag, ',', 1) -- dug
-    , ("[", Wadon, tek, '.', 1) -- tak
-    , ("]", Lanang, tek, '/', 1) -- tek
-    -- kebot
-    , ("k", Wadon, pak, 'q', 1) -- ka
-    , ("P", Lanang, pak, 'w', 1) -- pak
-    , ("t", Wadon, pang, 'e', 1) -- kam
-    , ("T", Lanang, pang, 'r', 1) -- pang
-    ]
-    where
-    resolve (name, kendang, attrs, char, dyn) =
-        ((Note name (kattr kendang <> attrs) char dyn, key_of attrs),
-            (attrs, kendang))
-    kattr Wadon = wadon
-    kattr Lanang = lanang
-    key_of attrs = key
-        where
-        Just (_, key) = List.find ((==attrs) . note_attrs . fst)
-            (map fst kendang_tunggal)
-
-kendang_tunggal :: [((Note, Midi.Key), Lima)]
-kendang_tunggal =
-    map (flip (,) Kenawan)
-    [ (Note "PL" plak            'b' 1.0, Key.g1)
-    , (Note "+"  de              'z' 1.0, Key.c2)
-    , (Note "-"  (de <> soft)    'a' 0.3, Key.c2)
-    , (Note "+." (de <> thumb)   's' 1.0, Key.f2)
-    , (Note "+/" (de <> mute)    'd' 1.0, Key.c1)
-    , (Note "o"  tut             'x' 1.0, Key.c3)
-    , (Note "."  (ka <> soft)    'c' 0.3, Key.g3)
-    -- This should be rarely used, but '.' should definitely be soft, but
-    -- if it is there is no way to emit a normal 'ka'.
-    , (Note ".."  ka             'f' 1.0, Key.g3)
-    , (Note "<" dag              '.' 1.0, Key.c2) -- TODO
-    , (Note "-<" (dag <> soft)   'l' 0.3, Key.c2) -- TODO
-    , (Note "-[" (tek <> soft)   ';' 0.3, Key.c1) -- TODO
-    , (Note "[" tek              '/' 1.0, Key.c1) -- TODO
-    ] ++ map (flip (,) Kebot)
-    [ (Note "T"  pang            'q' 1.0, Key.g4)
-    , (Note "P"  pak             'w' 1.0, Key.c5)
-    , (Note "^"  (pak <> soft)   'e' 0.3, Key.c5)
-    , (Note "`O+`" (de <> left)  'r' 1.0, Key.d4)
-    , (Note "Ø"  (tut <> left)   't' 1.0, Key.c4)
-    ]

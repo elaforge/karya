@@ -18,7 +18,7 @@ import qualified App.MidiInst as MidiInst
 load :: FilePath -> IO [MidiInst.SynthDesc]
 load _dir = return $ MidiInst.make $
     (MidiInst.softsynth "dmx" "Image-Line Drumaxx" pb_range [])
-    { MidiInst.modify_wildcard = CUtil.drum_instrument note_keys
+    { MidiInst.modify_wildcard = CUtil.drum_patch note_keys
     , MidiInst.code = code
     , MidiInst.extra_patches = patches
     }
@@ -26,7 +26,7 @@ load _dir = return $ MidiInst.make $
 pb_range = (-24, 24)
 
 code :: MidiInst.Code
-code = CUtil.drum_code note_keys
+code = CUtil.drum_code (map fst note_keys)
 
 patches :: [MidiInst.Patch]
 patches = MidiInst.with_code code $ map make_patch
@@ -39,7 +39,7 @@ patches = MidiInst.with_code code $ map make_patch
     -- Since this drum has pitches and continuous controls, its notes need to
     -- have duration.
     make_patch = Instrument.unset_flag Instrument.Triggered
-        . CUtil.drum_instrument note_keys
+        . CUtil.drum_patch note_keys
     composite = Instrument.add_composite (Score.instrument "reak" "comb")
         Nothing ["mix", "fbk"]
 

@@ -30,7 +30,7 @@ test_c_equal = do
     equal (run ">i" [(0, 1, ""), (1, 1, "inst = >i2 |"), (2, 1, "n >s/1 |")])
         ([(0, "i"), (1, "i2"), (2, "s/1")], [])
     equal (run ">" [(0, 1, "inst = >nonexistent |")])
-        ([], ["Error: required: allocation for >nonexistent"])
+        ([], ["Error: required: instrument for >nonexistent"])
 
     -- Unset a val.
     equal (run ">i" [(0, 1, ""), (1, 1, "inst = _ |")])

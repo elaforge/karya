@@ -89,32 +89,6 @@ cek = attr "cek"
 
 -- * drums
 
--- ** balinese
-
-lanang = attr "lanang"
-wadon = attr "wadon"
-kebyar = attr "kebyar"
-legong = attr "legong"
-
--- Kendang tunggal strokes don't really have names so I made some up.
--- For composite it would be: de tut, kum pung, ka pak, kam pang
--- If I took the wadon or lanang names, it would be de, kum, ka, kam, or
--- tut, pung, pak, pang, which both sound weird.
-
--- both
-plak = attr "plak"
-
--- right
-de = attr "de"
-tut = attr "tut"
-ka = attr "ka" -- neutral stroke
-dag = attr "dag" -- de with panggul
-tek = attr "tek"
-
--- left
-pak = attr "pak"
-pang = attr "pang" -- rim
-
 -- ** western
 
 snare = attr "snare" -- snare

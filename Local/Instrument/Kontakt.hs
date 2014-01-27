@@ -11,7 +11,6 @@ import qualified Data.Map as Map
 import qualified Data.Text as Text
 
 import Util.Control
-import qualified Util.Seq as Seq
 import qualified Midi.CC as CC
 import qualified Midi.Key as Key
 import qualified Midi.Key2 as Key2
@@ -26,22 +25,19 @@ import qualified Derive.Attrs as Attrs
 import Derive.Attrs
 import qualified Derive.Call.Articulation as Articulation
 import qualified Derive.Call.Make as Make
-import qualified Derive.Call.Tags as Tags
 import qualified Derive.Call.Util as Util
 import qualified Derive.Controls as Controls
-import qualified Derive.Derive as Derive
 import qualified Derive.Environ as Environ
 import qualified Derive.Instrument.Bali as Bali
 import qualified Derive.Instrument.DUtil as DUtil
-import qualified Derive.LEvent as LEvent
 import qualified Derive.Scale.Wayang as Wayang
 import qualified Derive.Score as Score
-import qualified Derive.Sig as Sig
 
 import qualified Perform.Midi.Instrument as Instrument
 import qualified Perform.NN as NN
 import qualified Perform.Pitch as Pitch
 
+import qualified Local.Instrument.KontaktKendang as KontaktKendang
 import qualified Local.Instrument.Reaktor as Reaktor
 import qualified App.MidiInst as MidiInst
 
@@ -60,7 +56,7 @@ synth = "kkt"
 patches :: [MidiInst.Patch]
 patches = concat
     [ misc_patches
-    , hang_patches, wayang_patches, kendang_patches
+    , hang_patches, wayang_patches, KontaktKendang.patches
     , mridangam_patches, mridangam2_patches
     ]
 
@@ -248,117 +244,34 @@ wayang_keymap = Instrument.AttributeMap
         Instrument.PitchedKeymap Key2.c_1 Key2.b2 (Midi.from_key Key2.c3)
 
 
--- * kendang
+-- ** util
 
-kendang_patches :: [MidiInst.Patch]
-kendang_patches =
-    [ (inst tunggal wadon_name, CUtil.drum_code tunggal)
-    , (inst tunggal lanang_name, CUtil.drum_code tunggal)
-    , (inst composite "kendang",
-        kendang_composite_code (wadon_inst, lanang_inst))
+-- do the cmd keybindings in the same way as mridangam and move utils to
+-- to Cmd.Instrument.Drums
+drum_attributes :: Midi.Key -> Midi.Key -> Midi.Key -> [[Score.Attributes]]
+    -> [(Attributes, (Midi.Key, Midi.Key, Midi.Key))]
+drum_attributes base_keyswitch base_key range = assign
+    where
+    assign groups =
+        [ (attrs, (ks, low, low + (range-1)))
+        | (group, low) <- zip groups [base_key, base_key+range ..]
+        , (attrs, ks) <- zip group keyswitches
+        ]
+    keyswitches = [base_keyswitch ..]
+
+make_attribute_map :: [(Attributes, (Midi.Key, Midi.Key, Midi.Key))]
+    -> Instrument.AttributeMap
+make_attribute_map attr_map = Instrument.make_attribute_map
+    [ (attrs, [Instrument.Keyswitch ks],
+        Just (Instrument.PitchedKeymap low high NN.gs3))
+    | (attrs, (ks, low, high)) <- attr_map
     ]
-    where
-    tunggal = map fst Drums.kendang_tunggal
-    composite = map fst Drums.kendang_composite
-    inst notes name = CUtil.drum_instrument notes $
-        Instrument.patch $ Instrument.instrument name [] pb_range
-    wadon_inst = Score.instrument synth wadon_name
-    lanang_inst = Score.instrument synth lanang_name
-    wadon_name = "kendang-wadon"
-    lanang_name = "kendang-lanang"
 
-kendang_composite_code :: (Score.Instrument, Score.Instrument) -> MidiInst.Code
-kendang_composite_code insts =
-    MidiInst.note_transformers [("realize", c_realize_kendang insts)]
-    <> MidiInst.note_generators
-        (CUtil.drum_calls (map (fst . fst) Drums.kendang_composite))
-    <> MidiInst.cmd (CUtil.drum_cmd (map (fst . fst) Drums.kendang_composite))
-
-c_realize_kendang :: (Score.Instrument, Score.Instrument)
-    -> Derive.Transformer Derive.Note
-c_realize_kendang insts = Derive.transformer "realize-kendang"
-    (Tags.inst <> Tags.postproc)
-    ("Realize a composite kendang score into separate lanang and wadon parts."
-    ) $ Sig.call0t $ \_ deriver -> do
-        events <- deriver
-        return $ realize_kendang insts events
-
--- | Split a composite kendang part into two separate wadon and lanang parts.
--- The realization is only a best guess and likely needs to be edited further.
---
--- This passes unrecognized notes through unchanged, so you can apply different
--- realizations in different places.
-realize_kendang :: (Score.Instrument, Score.Instrument)
-    -> Derive.Events -> Derive.Events
-realize_kendang insts events = Derive.merge_asc_events $
-    LEvent.map_around (emit_kendang insts) $ map (fmap lookup_attrs) events
-    where
-    lookup_attrs event = (event, attrs_of event)
-    attrs_of event = Map.lookup (Score.event_attributes event) attrs_to_inst
-
-type KendangEvent = (Attributes, Drums.Kendang)
-
--- | The realization is not correct because I don't yet fully understand how it
--- works.
---
--- > c kPtTtT+o+oo-+
--- > l .P.TPTP+^++.^
--- > w P.TPTP+.+.^-+
---
--- > c kPktT t T T t T .kP.tT.tTØØØ
--- > l .P.^T P T T P T .^P^.T .TØØØ
--- > w P^.TP T P P T P .P^.TP.TP. .
---
--- > c kP+otT kPkP+o+o kPuUtT+o
--- > l P.+.T^ P.P.+.+. P.o.T^+.
--- > w .P.+.T .P.P.+.+ .P.O.T^+
---
--- > c kPtTtT
--- > l .P.TPTP
--- > w P.TPTP
---
--- > tTkPtTkP
--- > T.P.T.P
--- > .T.P.T.P
---
--- > tT+otT+o
--- > TP+.TP+.
--- > .TP+.TP+
-emit_kendang :: (Score.Instrument, Score.Instrument)
-    -> [(Score.Event, Maybe KendangEvent)]
-    -> (Score.Event, Maybe KendangEvent)
-    -> [(Score.Event, Maybe KendangEvent)] -> [Score.Event]
-emit_kendang _ _ (event, Nothing) _ = [event]
-emit_kendang insts prev (event, Just (attrs, kendang)) next =
-    make_event attrs main_inst : case filler of
-        Nothing -> []
-        Just second_attrs -> [make_event second_attrs second_inst]
-    where
-    make_event attrs inst = Score.modify_attributes (const attrs) $
-        event { Score.event_instrument = inst }
-    (main_inst, second_inst) = case kendang of
-        Drums.Wadon -> insts
-        Drums.Lanang -> (snd insts, fst insts)
-    -- TODO This is not quite right, because wadon should be preparing lanang
-    -- strokes, so the decision should be based on what the next lanang stroke
-    -- is.  Also multiple fillers will alternate hands.
-    -- TODO omit the filler if it's too fast, unless it's alternating hand with
-    -- prev and next strokes.
-    filler
-        | attrs == plak || attrs == lanang <> tut = Nothing
-        -- Use left hand if the pattern is T-T or T-+
-        | prev_attrs == pang && next_attrs `elem` [pang, de, mempty] =
-            Just pak
-        | otherwise = Just (ka <> soft)
-    prev_attrs = attrs_of prev
-    next_attrs = attrs_of next
-    attrs_of events = fromMaybe mempty $
-        Seq.head [a | (_, Just (a, _)) <- events]
-
-attrs_to_inst :: Map.Map Attributes KendangEvent
-attrs_to_inst =
-    Map.fromList [(Drums.note_attrs n, (attrs, kendang))
-        | ((n, _), (attrs, kendang)) <- Drums.kendang_composite]
+set_attribute_map :: [(Attributes, (Midi.Key, Midi.Key, Midi.Key))]
+    -> Instrument.Patch -> Instrument.Patch
+set_attribute_map attr_map =
+    Instrument.triggered
+    . (Instrument.attribute_map #= make_attribute_map attr_map)
 
 
 -- * mridangam
@@ -442,7 +355,7 @@ mridangam2_patches :: [MidiInst.Patch]
 mridangam2_patches = [(inst, code)]
     where
     inst = Instrument.triggered $
-        Instrument.attribute_map #= mridangam2_attribute_map $
+        Instrument.attribute_map #= make_attribute_map mridangam2_attributes $
         Instrument.patch $ Instrument.instrument "mridangam2" [] pb_range
     code = MidiInst.note_generators call_code
         <> MidiInst.cmd (CUtil.insert_call char_to_call)
@@ -459,13 +372,6 @@ mridangam2_patches = [(inst, code)]
         , [(char, call) | (call, _, Just char) <- mridangam2_both]
         , [(char, call) | (call, _, Just char) <- mridangam2_double]
         ]
-
-mridangam2_attribute_map :: Instrument.AttributeMap
-mridangam2_attribute_map = Instrument.make_attribute_map
-    [ (attrs, [Instrument.Keyswitch ks],
-        Just (Instrument.PitchedKeymap low high NN.gs3))
-    | (attrs, (ks, low, high)) <- mridangam2_attributes
-    ]
 
 mridangam2_double :: [(Text, Text, Maybe Char)]
 mridangam2_double =
@@ -508,19 +414,12 @@ mridangam2_right = map (\(a, b, c) -> (a, b, Score.attr c))
 mridangam2 = mridangam2_left ++ mridangam2_right
 
 mridangam2_attributes :: [(Attributes, (Midi.Key, Midi.Key, Midi.Key))]
-mridangam2_attributes = assign $ map (map (mconcat . map Score.attr))
-    [ [["tha"]]
-    , [["thom"], ["thom", "low"], ["thom", "open"]]
-    , [["ta"]], [["ki"]], [["nam"]], [["din"]]
-    , [["arai"], ["muru"]]
-    , [["dheem"], ["dheem", "stop"]]
-    , [["meetu"]]
+mridangam2_attributes = drum_attributes Key2.g_2 Key2.c_1 12
+    [ [a "tha"]
+    , [a "thom", a "thom" <> low, a "thom" <> open]
+    , [a "ta"], [a "ki"], [a "nam"], [a "din"]
+    , [a "arai", a "muru"]
+    , [a "dheem", a "dheem" <> staccato]
+    , [a "meetu"]
     ]
-    where
-    assign groups =
-        [ (attrs, (ks, low, low + 11))
-        | (group, low) <- zip groups [base_key, base_key+12 ..]
-        , (attrs, ks) <- zip group keyswitches
-        ]
-    base_key = Key2.c_1
-    keyswitches = [Key2.g_2 ..]
+    where a = Score.attr

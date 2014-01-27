@@ -113,7 +113,7 @@ test_patch_scale = do
 -- * composite instrument
 
 test_composite_instrument = do
-    let patch = (set_composite Nothing [] . CUtil.drum_instrument notes, mempty)
+    let patch = (set_composite Nothing [] . CUtil.drum_patch notes, mempty)
         notes = [(Drums.c_bd, Key.c4), (Drums.c_sn, Key.d4)]
     let (events, _, logs) = perform patch [("s/i", [0]), ("s/x", [1])]
             [ (">s/i", [(0, 1, "+bd"), (1, 1, "+snare")])

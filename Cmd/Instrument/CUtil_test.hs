@@ -88,7 +88,7 @@ drum_synth = make_synth [(Drums.c_bd, Key.c2), (Drums.c_sn, Key.d2)]
 
 make_synth :: [(Drums.Note, Midi.Key)] -> [MidiInst.SynthDesc]
 make_synth note_keys = MidiInst.make $ synth
-    { MidiInst.modify_wildcard = CUtil.drum_instrument note_keys
+    { MidiInst.modify_wildcard = CUtil.drum_patch note_keys
     , MidiInst.code =
         MidiInst.note_generators (CUtil.drum_calls (map fst note_keys))
         <> MidiInst.cmd (CUtil.drum_cmd (map fst note_keys))

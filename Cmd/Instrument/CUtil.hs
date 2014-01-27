@@ -36,6 +36,7 @@ import qualified Derive.Sig as Sig
 import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.Midi.Instrument as Instrument
+import qualified Perform.Pitch as Pitch
 import qualified App.MidiInst as MidiInst
 import Types
 
@@ -159,23 +160,44 @@ keyswitches inputs = \msg -> do
 
 -- * drums
 
+-- ** code
+
 -- | Construct code from drum notes.  This is both the deriver calls to
 -- interpret the stroke names, and the cmds to enter them.
-drum_code :: [(Drums.Note, Midi.Key)] -> MidiInst.Code
-drum_code note_keys =
-    MidiInst.note_generators (drum_calls (map fst note_keys))
-    <> MidiInst.cmd (drum_cmd (map fst note_keys))
+drum_code :: [Drums.Note] -> MidiInst.Code
+drum_code notes = MidiInst.note_generators (drum_calls notes)
+    <> MidiInst.cmd (drum_cmd notes)
 
 drum_cmd :: [Drums.Note] -> Cmd.Cmd
 drum_cmd = insert_call . notes_to_calls
 
-drum_instrument :: [(Drums.Note, Midi.Key)] -> Instrument.Patch
-    -> Instrument.Patch
-drum_instrument note_keys = Instrument.triggered
-    . Instrument.set_call_map
-        [(Drums.note_attrs note, Drums.note_name note) | (note, _) <- note_keys]
+-- ** patch
+
+drum_patch :: [(Drums.Note, Midi.Key)] -> Instrument.Patch -> Instrument.Patch
+drum_patch note_keys = Instrument.triggered
+    . (Instrument.call_map #= make_call_map (map fst note_keys))
     . (Instrument.attribute_map #= Instrument.simple_keymap
         [(Drums.note_attrs note, key) | (note, key) <- note_keys])
+
+-- | (keyswitch, low, high, root_pitch)
+type KeyswitchRange = (Midi.Key, Midi.Key, Midi.Key, Pitch.NoteNumber)
+type PitchedNotes = [(Drums.Note, KeyswitchRange)]
+
+pitched_drum_patch :: PitchedNotes -> Instrument.Patch -> Instrument.Patch
+pitched_drum_patch attr_map = Instrument.triggered
+    . (Instrument.call_map #= make_call_map (map fst attr_map))
+    . (Instrument.attribute_map #= make_attribute_map attr_map)
+
+make_call_map :: [Drums.Note] -> Instrument.CallMap
+make_call_map =
+    Map.fromList . map (\n -> (Drums.note_attrs n, Drums.note_name n))
+
+make_attribute_map :: PitchedNotes -> Instrument.AttributeMap
+make_attribute_map attr_map = Instrument.make_attribute_map
+    [ (Drums.note_attrs note, [Instrument.Keyswitch ks],
+        Just (Instrument.PitchedKeymap low high root))
+    | (note, (ks, low, high, root)) <- attr_map
+    ]
 
 -- | Create calls for the given Notes.
 drum_calls :: [Drums.Note] -> [(Call, Derive.Generator Derive.Note)]
