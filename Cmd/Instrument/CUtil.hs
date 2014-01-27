@@ -178,8 +178,18 @@ drum_patch note_keys = Instrument.triggered
         [(Drums.note_attrs note, key) | (note, key) <- note_keys])
 
 -- | (keyswitch, low, high, root_pitch)
-type KeyswitchRange = (Midi.Key, Midi.Key, Midi.Key, Pitch.NoteNumber)
+type KeyswitchRange = (Maybe Midi.Key, Midi.Key, Midi.Key, Pitch.NoteNumber)
 type PitchedNotes = [(Drums.Note, KeyswitchRange)]
+
+make_keymap :: Midi.Key -- ^ keyswitches start here
+    -> Midi.Key -- ^ notes start here
+    -> Midi.Key -- ^ each sound is mapped over this range
+    -> Pitch.NoteNumber -- ^ the pitch of the bottom note of each range
+    -> [[Score.Attributes]] -> [(Score.Attributes, KeyswitchRange)]
+make_keymap base_keyswitch base_key range root_pitch groups = do
+    (group, low) <- zip groups [base_key, base_key+range ..]
+    (attrs, ks) <- zip group [base_keyswitch ..]
+    return (attrs, (Just ks, low, low + (range-1), root_pitch))
 
 pitched_drum_patch :: PitchedNotes -> Instrument.Patch -> Instrument.Patch
 pitched_drum_patch attr_map = Instrument.triggered
@@ -192,7 +202,7 @@ make_call_map =
 
 make_attribute_map :: PitchedNotes -> Instrument.AttributeMap
 make_attribute_map attr_map = Instrument.make_attribute_map
-    [ (Drums.note_attrs note, [Instrument.Keyswitch ks],
+    [ (Drums.note_attrs note, maybe [] ((:[]) . Instrument.Keyswitch) ks,
         Just (Instrument.PitchedKeymap low high root))
     | (note, (ks, low, high, root)) <- attr_map
     ]

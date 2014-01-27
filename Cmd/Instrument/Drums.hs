@@ -7,6 +7,7 @@
 -- calls.
 module Cmd.Instrument.Drums where
 import Util.Control
+import qualified Util.Pretty as Pretty
 import Derive.Attrs
 import qualified Derive.TrackLang as TrackLang
 import qualified Perform.Signal as Signal
@@ -25,6 +26,14 @@ data Note = Note {
     -- different symbols for soft strokes.
     , note_dynamic :: !Signal.Y
     } deriving (Show)
+
+instance Pretty.Pretty Note where
+    format (Note name attrs char dyn) = Pretty.record_title "Note"
+        [ ("name", Pretty.format name)
+        , ("attrs", Pretty.format attrs)
+        , ("char", Pretty.format char)
+        , ("dynamic", Pretty.format dyn)
+        ]
 
 c_bd    = Note "bd"     bd              'z' 1
 c_bd2   = Note "bd2"    (bd <> v2)      's' 1

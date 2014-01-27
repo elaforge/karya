@@ -22,7 +22,6 @@ import qualified Cmd.Instrument.Drums as Drums
 import qualified Cmd.Keymap as Keymap
 
 import qualified Derive.Attrs as Attrs
-import Derive.Attrs
 import qualified Derive.Call.Articulation as Articulation
 import qualified Derive.Call.Make as Make
 import qualified Derive.Call.Util as Util
@@ -32,6 +31,7 @@ import qualified Derive.Instrument.Bali as Bali
 import qualified Derive.Instrument.DUtil as DUtil
 import qualified Derive.Scale.Wayang as Wayang
 import qualified Derive.Score as Score
+import Derive.Score (attr)
 import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.Midi.Instrument as Instrument
@@ -58,7 +58,7 @@ patches :: [MidiInst.Patch]
 patches = concat
     [ misc_patches
     , hang_patches, wayang_patches, KontaktKendang.patches
-    , mridangam_patches, mridangam2_patches
+    , mridangam_patches
     ]
 
 patch :: Instrument.InstrumentName -> Instrument.Patch
@@ -165,11 +165,11 @@ hang_cmd = CUtil.keyswitches [(Keymap.physical_key char, text, key)
 hang_strokes :: [(Score.Attributes, Midi.Key, Maybe TrackLang.CallId,
     Maybe Char)]
 hang_strokes =
-    [ (center,  Key.c2,     Just "",            Just 'Z')
-    , (edge,    Key.cs2,    Just "`pang2`",     Just 'X')
-    , (slap,    Key.d2,     Just "`da3`",       Just 'C')
-    , (middle,  Key.ds2,    Just "`zhong1`",    Just 'V')
-    , (knuckle, Key.e2,     Just "`zhi3`",      Just 'B')
+    [ (Attrs.center,  Key.c2,     Just "",            Just 'Z')
+    , (Attrs.edge,    Key.cs2,    Just "`pang2`",     Just 'X')
+    , (Attrs.slap,    Key.d2,     Just "`da3`",       Just 'C')
+    , (Attrs.middle,  Key.ds2,    Just "`zhong1`",    Just 'V')
+    , (Attrs.knuckle, Key.e2,     Just "`zhi3`",      Just 'B')
     , (mempty,  Key.c2,     Nothing,            Nothing)
     ]
 
@@ -246,144 +246,37 @@ wayang_keymap = Instrument.AttributeMap
         Instrument.PitchedKeymap Key2.c_1 Key2.b2 (Midi.from_key Key2.c3)
 
 
--- ** util
-
--- do the cmd keybindings in the same way as mridangam and move utils to
--- to Cmd.Instrument.Drums
-drum_attributes :: Midi.Key -> Midi.Key -> Midi.Key -> [[Score.Attributes]]
-    -> [(Attributes, (Midi.Key, Midi.Key, Midi.Key))]
-drum_attributes base_keyswitch base_key range = assign
-    where
-    assign groups =
-        [ (attrs, (ks, low, low + (range-1)))
-        | (group, low) <- zip groups [base_key, base_key+range ..]
-        , (attrs, ks) <- zip group keyswitches
-        ]
-    keyswitches = [base_keyswitch ..]
-
-make_attribute_map :: [(Attributes, (Midi.Key, Midi.Key, Midi.Key))]
-    -> Instrument.AttributeMap
-make_attribute_map attr_map = Instrument.make_attribute_map
-    [ (attrs, [Instrument.Keyswitch ks],
-        Just (Instrument.PitchedKeymap low high NN.gs3))
-    | (attrs, (ks, low, high)) <- attr_map
-    ]
-
-set_attribute_map :: [(Attributes, (Midi.Key, Midi.Key, Midi.Key))]
-    -> Instrument.Patch -> Instrument.Patch
-set_attribute_map attr_map =
-    Instrument.triggered
-    . (Instrument.attribute_map #= make_attribute_map attr_map)
-
-
 -- * mridangam
 
--- ** 1
-
 mridangam_patches :: [MidiInst.Patch]
-mridangam_patches = [(inst, code)]
+mridangam_patches =
+    [ (patch "mridangam2" mridangam_notes, code)
+    , (patch "mridangam" old_mridangam_notes, code)
+    ]
     where
-    inst = Instrument.triggered $
-        Instrument.attribute_map #= mridangam_keymap $
-        Instrument.patch $ Instrument.instrument "mridangam" [] pb_range
+    patch name notes = CUtil.pitched_drum_patch notes $
+        Instrument.patch $ Instrument.instrument name [] pb_range
     code = MidiInst.note_generators call_code
         <> MidiInst.cmd (CUtil.insert_call char_to_call)
     call_code = concat
         [ CUtil.drum_calls
-            [Drums.Note call attrs char 1 | (call, attrs, char, _) <- mridangam]
+            [Drums.Note call attrs char 1
+                | (char, call, attrs) <- mridangam_keymap]
         , DUtil.multiple_calls
             [(call, subcalls) | (call, subcalls, _) <- mridangam_both]
         , DUtil.double_calls
             [(call, subcall) | (call, subcall, _) <- mridangam_double]
         ]
     char_to_call = Map.fromList $ concat
-        [ [(c, call) | (call, _, c, _) <- mridangam]
-        , [(c, call) | (call, _, Just c) <- mridangam_both]
-        , [(c, call) | (call, _, Just c) <- mridangam_double]
+        [ [(char, call) | (char, call, _) <- mridangam_keymap]
+        , [(char, call) | (call, _, Just char) <- mridangam_both]
+        , [(char, call) | (call, _, Just char) <- mridangam_double]
         ]
-
-mridangam_keymap :: Instrument.AttributeMap
-mridangam_keymap = Instrument.keymap
-    [ (attrs, Instrument.PitchedKeymap low high NN.e3)
-    | (_, attrs, _, (low, high)) <- mridangam
-    ]
-
-mridangam_both :: [(TrackLang.CallId, [TrackLang.CallId], Maybe Char)]
-mridangam_both =
-    [(call, subcalls, lookup call keys) | (call, subcalls) <- pairs]
-    where
-    keys = [("do", 'c'), ("ko", 'v'), ("to", 'b')]
-    pairs =
-        [ (TrackLang.Symbol $ u rcall <> u lcall, [rcall, lcall])
-        | (lcall, _, _, _) <- mridangam_left
-        , (rcall, _, _, _) <- mridangam_right
-        , Text.length (u lcall) == 1
-        , Text.length (u rcall) == 1
-        ]
-    u = TrackLang.unsym
 
 mridangam_double :: [(TrackLang.CallId, TrackLang.CallId, Maybe Char)]
 mridangam_double =
     [ (TrackLang.Symbol $ u call <> u call, call, lookup call keys)
-    | (call, _, _, _) <- mridangam
-    , Text.length (u call) == 1
-    ]
-    where
-    keys =
-        [ ("+", 'a'), ("o", 'd')
-        , ("k", '1'), ("n", '3'), ("d", '4')
-        ]
-    u = TrackLang.unsym
-
-mridangam, mridangam_left, mridangam_right
-    :: [(TrackLang.CallId, Score.Attributes, Char, (Midi.Key, Midi.Key))]
-mridangam = mridangam_left ++ mridangam_right
-mridangam_left =
-    [ ("+", a "tha",          'z', (Key.g_1, Key.e0))
-    , ("o", a "thom",         'x', (Key.g0, Key.e1))
-    , ("o/", a "thom" <> mute,'s', (Key.g1, Key.e2))
-    ] where a = Score.attr
-mridangam_right =
-    [ ("k", a "ki",           'q', (Key.g2, Key.e3))
-    , ("t", a "ta",           'w', (Key.g3, Key.e4))
-    , ("n", a "nam",          'e', (Key.g4, Key.e5))
-    , ("d", a "din",          'r', (Key.g5, Key.e6))
-    , ("d2", a "din" <> v2,   '4', (Key.g6, Key.e7))
-    , ("m", a "dheem",        't', (Key.g7, Key.e8))
-    , ("u", a "araichapu",    'y', (Key.g8, Key.e9))
-    , ("v", a "muruchapu",    'u', (Key.g9, Key.g9))
-    -- TODO out of keys!  Replace o/ and d2 with a keyswitch?
-    ] where a = Score.attr
-
--- ** 2
-
--- | Alternate keymap.
-mridangam2_patches :: [MidiInst.Patch]
-mridangam2_patches = [(inst, code)]
-    where
-    inst = Instrument.triggered $
-        Instrument.attribute_map #= make_attribute_map mridangam2_attributes $
-        Instrument.patch $ Instrument.instrument "mridangam2" [] pb_range
-    code = MidiInst.note_generators call_code
-        <> MidiInst.cmd (CUtil.insert_call char_to_call)
-    call_code = concat
-        [ CUtil.drum_calls
-            [Drums.Note call attrs char 1 | (char, call, attrs) <- mridangam2]
-        , DUtil.multiple_calls
-            [(call, subcalls) | (call, subcalls, _) <- mridangam2_both]
-        , DUtil.double_calls
-            [(call, subcall) | (call, subcall, _) <- mridangam2_double]
-        ]
-    char_to_call = Map.fromList $ concat
-        [ [(char, call) | (char, call, _) <- mridangam2]
-        , [(char, call) | (call, _, Just char) <- mridangam2_both]
-        , [(char, call) | (call, _, Just char) <- mridangam2_double]
-        ]
-
-mridangam2_double :: [(TrackLang.CallId, TrackLang.CallId, Maybe Char)]
-mridangam2_double =
-    [ (TrackLang.Symbol $ u call <> u call, call, lookup call keys)
-    | (_, call, _) <- mridangam2
+    | (_, call, _) <- mridangam_keymap
     , Text.length (u call) == 1
     ]
     where
@@ -395,44 +288,90 @@ mridangam2_double =
 
 -- | Create calls for all simultaneous left and right hand combinations, and
 -- key bindings for a few common ones.
-mridangam2_both :: [(TrackLang.CallId, [TrackLang.CallId], Maybe Char)]
-mridangam2_both =
+mridangam_both :: [(TrackLang.CallId, [TrackLang.CallId], Maybe Char)]
+mridangam_both =
     [(call, subcalls, lookup call keys) | (call, subcalls) <- pairs]
     where
     keys = [("do", 'c'), ("ko", 'v'), ("to", 'b')]
     pairs =
         [ (TrackLang.Symbol $ u rcall <> u lcall, [rcall, lcall])
-        | (_, lcall, _) <- mridangam2_left
-        , (_, rcall, _) <- mridangam2_right
+        | (_, lcall, _) <- mridangam_left
+        , (_, rcall, _) <- mridangam_right
         , Text.length (u lcall) == 1
         , Text.length (u rcall) == 1
         ]
     u = TrackLang.unsym
 
-mridangam2, mridangam2_left, mridangam2_right
-    :: [(Char, TrackLang.CallId, Attributes)]
-mridangam2_left = map (\(a, b, c) -> (a, b, Score.attr c))
-    [ ('z', "+", "tha")
-    , ('x', "o", "thom")
+mridangam_keymap, mridangam_left, mridangam_right
+    :: [(Char, TrackLang.CallId, Score.Attributes)]
+mridangam_left =
+    [ ('z', "+", tha)
+    , ('x', "o", thom)
     ]
-mridangam2_right = map (\(a, b, c) -> (a, b, Score.attr c))
-    [ ('q', "k", "ki")
-    , ('w', "t", "ta")
-    , ('e', "n", "nam")
-    , ('r', "d", "din")
-    , ('t', "m", "dheem")
-    , ('y', "u", "arai")
-    , ('u', "v", "muru")
+mridangam_right =
+    [ ('q', "k", ki)
+    , ('w', "t", ta)
+    , ('e', "n", nam)
+    , ('r', "d", din)
+    , ('t', "m", dheem)
+    , ('y', "u", arai)
+    , ('u', "v", muru)
     ]
-mridangam2 = mridangam2_left ++ mridangam2_right
+mridangam_keymap = mridangam_left ++ mridangam_right
 
-mridangam2_attributes :: [(Attributes, (Midi.Key, Midi.Key, Midi.Key))]
-mridangam2_attributes = drum_attributes Key2.g_2 Key2.c_1 12
-    [ [a "tha"]
-    , [a "thom", a "thom" <> low, a "thom" <> open]
-    , [a "ta"], [a "ki"], [a "nam"], [a "din"]
-    , [a "arai", a "muru"]
-    , [a "dheem", a "dheem" <> staccato]
-    , [a "meetu"]
+make_mridangam_notes :: [(Score.Attributes, CUtil.KeyswitchRange)]
+    -> CUtil.PitchedNotes
+make_mridangam_notes keymap = do
+    (char, call, attrs) <- mridangam_keymap
+    let Just ks_range = lookup attrs keymap
+    let note = Drums.Note call attrs char 1
+    return (note, ks_range)
+
+{- | Layout:
+
+    > 0         10        20        30        40        50        60        70        80        90        100       110       120    127
+    > 01234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567
+    > c-2         c-1         c0          c1          c2          c3          c4          c5          c6          c7          c8     g8
+    >         XXXXtha -------|thom ------|ta --------|ki --------|nam -------|din -------|arai ------|dheem -----|meetu -----|
+-}
+mridangam_notes :: CUtil.PitchedNotes
+mridangam_notes = make_mridangam_notes $
+    CUtil.make_keymap Key2.g_2 Key2.c_1 12 NN.gs3
+    [ [tha]
+    , [thom, thom <> Attrs.low, thom <> Attrs.open]
+    , [ta], [ki], [nam], [din]
+    , [arai, muru]
+    , [dheem, dheem <> Attrs.staccato]
+    , [meetu]
     ]
-    where a = Score.attr
+
+old_mridangam_notes :: CUtil.PitchedNotes
+old_mridangam_notes = make_mridangam_notes $ map make
+    -- left
+    [ (tha, (Key.g_1, Key.e0))
+    , (thom, (Key.g0, Key.e1))
+    , (thom <> Attrs.staccato, (Key.g1, Key.e2))
+    -- right
+    , (ki, (Key.g2, Key.e3))
+    , (ta, (Key.g3, Key.e4))
+    , (nam, (Key.g4, Key.e5))
+    , (din, (Key.g5, Key.e6))
+    , (din <> Attrs.v2, (Key.g6, Key.e7))
+    , (dheem, (Key.g7, Key.e8))
+    , (arai, (Key.g8, Key.e9))
+    , (muru, (Key.g9, Key.g9))
+    ]
+    where make (attrs, (low, high)) = (attrs, (Nothing, low, high, NN.e3))
+
+-- * attrs
+
+tha = attr "tha"
+thom = attr "thom"
+ki = attr "ki"
+ta = attr "ta"
+nam = attr "nam"
+din = attr "din"
+dheem = attr "dheem"
+arai = attr "arai"
+muru = attr "muru"
+meetu = attr "meetu"

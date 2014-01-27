@@ -8,7 +8,6 @@ import qualified Data.List as List
 import qualified Data.Map as Map
 
 import Util.Control
-import qualified Util.Pretty as Pretty
 import qualified Midi.Key as Key
 import qualified Midi.Key2 as Key2
 import qualified Midi.Midi as Midi
@@ -28,8 +27,6 @@ import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.Midi.Instrument as Instrument
 import qualified Perform.NN as NN
-import qualified Perform.Pitch as Pitch
-
 import qualified App.MidiInst as MidiInst
 
 
@@ -49,15 +46,13 @@ patches =
 tunggal_notes :: CUtil.PitchedNotes
 tunggal_notes = do
     (char, call, attrs) <- tunggal_calls
-    let ks_range = fromMaybe
-            (error $ "KontaktKendang: attrs not found: " <> Pretty.pretty attrs)
-            (lookup (Score.attrs_remove soft attrs) tunggal_keymap)
+    let Just ks_range = lookup (Score.attrs_remove soft attrs) tunggal_keymap
     let note = Drums.Note call attrs char
             (if Score.attrs_contain attrs soft then 0.3 else 1)
     return (note, ks_range)
 
 tunggal_keymap :: [(Score.Attributes, CUtil.KeyswitchRange)]
-tunggal_keymap = drum_attributes Key2.e_2 Key2.c_1 12 NN.fs3
+tunggal_keymap = CUtil.make_keymap Key2.e_2 Key2.c_1 12 NN.fs3
     [ [de <> Attrs.staccato, plak]
     , [de <> Attrs.thumb]
     , [de, dag]
@@ -123,15 +118,6 @@ old_tunggal_notes = map make_note
         Just (char, call, _) =
             List.find (\(_, _, a) -> a == attrs) tunggal_calls
 
-
--- * util
-
-drum_attributes :: Midi.Key -> Midi.Key -> Midi.Key -> Pitch.NoteNumber
-    -> [[Score.Attributes]] -> [(Score.Attributes, CUtil.KeyswitchRange)]
-drum_attributes base_keyswitch base_key range root_pitch groups = do
-    (group, low) <- zip groups [base_key, base_key+range ..]
-    (attrs, ks) <- zip group [base_keyswitch ..]
-    return (attrs, (ks, low, low + (range-1), root_pitch))
 
 -- * pasang
 

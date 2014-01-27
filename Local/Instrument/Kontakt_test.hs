@@ -83,13 +83,13 @@ test_mridangam = do
             ] ++ tracks
         perf = perform ["kkt/mridangam"] . Derive.r_events
     let (_events, midi, logs) =
-            perf $ run "3b" ["k", "t", "n", "d", "d2", "m"] []
+            perf $ run "3b" ["k", "t", "n", "d", "m"] []
     equal logs []
     equal (mapMaybe Midi.channel_message $ filter Midi.is_note_on $
             map snd (DeriveTest.extract_midi midi))
         [ Midi.NoteOn Key.d3 127, Midi.NoteOn Key.d4 127
         , Midi.NoteOn Key.d5 127, Midi.NoteOn Key.d6 127
-        , Midi.NoteOn Key.d7 127, Midi.NoteOn Key.d8 127
+        , Midi.NoteOn Key.d8 127
         ]
     -- Ensure multiple calls works.  This is already tested in
     -- "Derive.Call_test", but here's another test.
