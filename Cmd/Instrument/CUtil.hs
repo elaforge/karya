@@ -24,15 +24,11 @@ import qualified Cmd.NoteTrack as NoteTrack
 import qualified Cmd.Perf as Perf
 import qualified Cmd.Selection as Selection
 
-import qualified Derive.Call as Call
-import qualified Derive.Call.Grace as Grace
 import qualified Derive.Call.Note as Note
-import qualified Derive.Call.Tags as Tags
 import qualified Derive.Call.Util as Call.Util
 import qualified Derive.Derive as Derive
 import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
-import qualified Derive.Sig as Sig
 import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.Midi.Instrument as Instrument
@@ -201,7 +197,10 @@ make_attribute_map attr_map = Instrument.make_attribute_map
     | (note, (ks, low, high, root)) <- attr_map
     ]
 
--- | Create calls for the given Notes.
+-- | Create 0 duration calls from the given drum notes.
+--
+-- This should probably go in DUtil, but that would make it depend on
+-- "Cmd.Instrument.Drums".
 drum_calls :: [Drums.Note] -> [(TrackLang.CallId, Derive.Generator Derive.Note)]
 drum_calls notes =
     [(Drums.note_name n, note_call (Drums.note_dynamic n) (Drums.note_attrs n))
@@ -212,33 +211,3 @@ drum_calls notes =
         (with_dyn dyn . Call.Util.add_attrs attrs
             . Note.default_note Note.no_duration_attributes)
     with_dyn = Derive.multiply_control Score.c_dynamic
-
-multiple_calls :: [(TrackLang.CallId, [TrackLang.CallId])]
-    -> [(TrackLang.CallId, Derive.Generator Derive.Note)]
-multiple_calls calls =
-    [(call, multiple_call (TrackLang.unsym call) subcalls)
-        | (call, subcalls) <- calls]
-
--- | Create a call that just dispatches to other calls.
-multiple_call :: Text -> [TrackLang.CallId] -> Derive.Generator Derive.Note
-multiple_call name calls = Derive.make_call name Tags.inst
-    -- I intentionally omit the calls from the doc string, so they will
-    -- combine in the call doc.  Presumably the calls are apparent from the
-    -- name.
-    "Dispatch to multiple calls." $ Sig.call0 $ \args ->
-        mconcat $ map (Call.reapply_gen args) calls
-
-double_calls :: [(TrackLang.CallId, TrackLang.CallId)]
-    -- ^ (call_name, repeated_call)
-    -> [(TrackLang.CallId, Derive.Generator Derive.Note)]
-double_calls calls = [(name, double_call repeated) | (name, repeated) <- calls]
-
-double_call :: TrackLang.CallId -> Derive.Generator Derive.Note
-double_call repeated = Derive.make_call "double" Tags.inst
-    "Doubled call. This is a specialization of `roll`."
-    $ Sig.call ((,)
-    <$> Sig.defaulted "time" Grace.default_grace_dur "Time between the strokes."
-    <*> Sig.defaulted "dyn" 0.5 "Dyn scale for grace notes."
-    ) $ \(TrackLang.DefaultReal time, dyn) args ->
-        Grace.repeat_notes (Call.reapply_gen_normalized args repeated)
-            1 time dyn args

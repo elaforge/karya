@@ -291,9 +291,9 @@ mridangam_patches = [(inst, code)]
     call_code = concat
         [ CUtil.drum_calls
             [Drums.Note call attrs char 1 | (call, attrs, char, _) <- mridangam]
-        , CUtil.multiple_calls
+        , DUtil.multiple_calls
             [(call, subcalls) | (call, subcalls, _) <- mridangam_both]
-        , CUtil.double_calls
+        , DUtil.double_calls
             [(call, subcall) | (call, subcall, _) <- mridangam_double]
         ]
     char_to_call = Map.fromList $ concat
@@ -369,9 +369,9 @@ mridangam2_patches = [(inst, code)]
     call_code = concat
         [ CUtil.drum_calls
             [Drums.Note call attrs char 1 | (char, call, attrs) <- mridangam2]
-        , CUtil.multiple_calls
+        , DUtil.multiple_calls
             [(call, subcalls) | (call, subcalls, _) <- mridangam2_both]
-        , CUtil.double_calls
+        , DUtil.double_calls
             [(call, subcall) | (call, subcall, _) <- mridangam2_double]
         ]
     char_to_call = Map.fromList $ concat

@@ -9,6 +9,8 @@
 module Derive.Instrument.DUtil where
 import Util.Control
 import qualified Derive.Args as Args
+import qualified Derive.Call as Call
+import qualified Derive.Call.Grace as Grace
 import qualified Derive.Call.Note as Note
 import qualified Derive.Call.Sub as Sub
 import qualified Derive.Call.Tags as Tags
@@ -17,6 +19,7 @@ import qualified Derive.Derive as Derive
 import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Sig as Sig
+import qualified Derive.TrackLang as TrackLang
 
 
 -- | Make a call that simply calls the default note call with the given attrs.
@@ -59,3 +62,33 @@ postproc_generator name new_doc (Derive.Call _ old_doc func) f =
     where
     append_doc text (Derive.CallDoc tags doc args) =
         Derive.CallDoc tags (doc <> "\n" <> text) args
+
+multiple_calls :: [(TrackLang.CallId, [TrackLang.CallId])]
+    -> [(TrackLang.CallId, Derive.Generator Derive.Note)]
+multiple_calls calls =
+    [(call, multiple_call (TrackLang.unsym call) subcalls)
+        | (call, subcalls) <- calls]
+
+-- | Create a call that just dispatches to other calls.
+multiple_call :: Text -> [TrackLang.CallId] -> Derive.Generator Derive.Note
+multiple_call name calls = Derive.make_call name Tags.inst
+    -- I intentionally omit the calls from the doc string, so they will
+    -- combine in the call doc.  Presumably the calls are apparent from the
+    -- name.
+    "Dispatch to multiple calls." $ Sig.call0 $ \args ->
+        mconcat $ map (Call.reapply_gen args) calls
+
+double_calls :: [(TrackLang.CallId, TrackLang.CallId)]
+    -- ^ (call_name, repeated_call)
+    -> [(TrackLang.CallId, Derive.Generator Derive.Note)]
+double_calls calls = [(name, double_call repeated) | (name, repeated) <- calls]
+
+double_call :: TrackLang.CallId -> Derive.Generator Derive.Note
+double_call repeated = Derive.make_call "double" Tags.inst
+    "Doubled call. This is a specialization of `roll`."
+    $ Sig.call ((,)
+    <$> Sig.defaulted "time" Grace.default_grace_dur "Time between the strokes."
+    <*> Sig.defaulted "dyn" 0.5 "Dyn scale for grace notes."
+    ) $ \(TrackLang.DefaultReal time, dyn) args ->
+        Grace.repeat_notes (Call.reapply_gen_normalized args repeated)
+            1 time dyn args

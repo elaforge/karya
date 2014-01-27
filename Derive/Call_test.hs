@@ -265,7 +265,7 @@ test_reapply_gen = do
     equal (run [(">", [(0, 0, "ab")]), dyn]) (["+a", "+b"], [])
     where
     with = CallTest.with_note_generators $
-        ("ab", CUtil.multiple_call "ab" ["a", "b"])
+        ("ab", DUtil.multiple_call "ab" ["a", "b"])
         : CUtil.drum_calls
             [ Drums.Note "a" (Score.attr "a") 'a' 1
             , Drums.Note "b" (Score.attr "b") 'b' 1
