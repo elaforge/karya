@@ -32,6 +32,7 @@ import qualified Derive.Instrument.Bali as Bali
 import qualified Derive.Instrument.DUtil as DUtil
 import qualified Derive.Scale.Wayang as Wayang
 import qualified Derive.Score as Score
+import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.Midi.Instrument as Instrument
 import qualified Perform.NN as NN
@@ -149,10 +150,10 @@ hang_patches = MidiInst.with_code hang_code
 hang_code :: MidiInst.Code
 hang_code =
     MidiInst.note_calls
-        [ MidiInst.both text (Make.attributed_note attrs)
-        | (attrs, _, Just text, _) <- hang_strokes
+        [ MidiInst.both call (Make.attributed_note attrs)
+        | (attrs, _, Just call, _) <- hang_strokes
         -- Make sure to not shadow the default "" call.
-        , not (Text.null text)
+        , call /= ""
         ]
     <> MidiInst.cmd hang_cmd
 
@@ -161,7 +162,8 @@ hang_cmd = CUtil.keyswitches [(Keymap.physical_key char, text, key)
     | (_, key, Just text, Just char) <- hang_strokes]
 
 -- | The order is important because it determines attr lookup priority.
-hang_strokes :: [(Score.Attributes, Midi.Key, Maybe Text, Maybe Char)]
+hang_strokes :: [(Score.Attributes, Midi.Key, Maybe TrackLang.CallId,
+    Maybe Char)]
 hang_strokes =
     [ (center,  Key.c2,     Just "",            Just 'Z')
     , (edge,    Key.cs2,    Just "`pang2`",     Just 'X')
@@ -306,30 +308,35 @@ mridangam_keymap = Instrument.keymap
     | (_, attrs, _, (low, high)) <- mridangam
     ]
 
-mridangam_both :: [(Text, [Text], Maybe Char)]
+mridangam_both :: [(TrackLang.CallId, [TrackLang.CallId], Maybe Char)]
 mridangam_both =
     [(call, subcalls, lookup call keys) | (call, subcalls) <- pairs]
     where
     keys = [("do", 'c'), ("ko", 'v'), ("to", 'b')]
     pairs =
-        [ (rcall <> lcall, [rcall, lcall])
+        [ (TrackLang.Symbol $ u rcall <> u lcall, [rcall, lcall])
         | (lcall, _, _, _) <- mridangam_left
         , (rcall, _, _, _) <- mridangam_right
-        , Text.length lcall == 1 && Text.length rcall == 1
+        , Text.length (u lcall) == 1
+        , Text.length (u rcall) == 1
         ]
+    u = TrackLang.unsym
 
-mridangam_double :: [(Text, Text, Maybe Char)]
+mridangam_double :: [(TrackLang.CallId, TrackLang.CallId, Maybe Char)]
 mridangam_double =
-    [(call <> call, call, lookup call keys) | (call, _, _, _) <- mridangam,
-        Text.length call == 1]
+    [ (TrackLang.Symbol $ u call <> u call, call, lookup call keys)
+    | (call, _, _, _) <- mridangam
+    , Text.length (u call) == 1
+    ]
     where
     keys =
         [ ("+", 'a'), ("o", 'd')
         , ("k", '1'), ("n", '3'), ("d", '4')
         ]
+    u = TrackLang.unsym
 
 mridangam, mridangam_left, mridangam_right
-    :: [(Text, Score.Attributes, Char, (Midi.Key, Midi.Key))]
+    :: [(TrackLang.CallId, Score.Attributes, Char, (Midi.Key, Midi.Key))]
 mridangam = mridangam_left ++ mridangam_right
 mridangam_left =
     [ ("+", a "tha",          'z', (Key.g_1, Key.e0))
@@ -373,31 +380,37 @@ mridangam2_patches = [(inst, code)]
         , [(char, call) | (call, _, Just char) <- mridangam2_double]
         ]
 
-mridangam2_double :: [(Text, Text, Maybe Char)]
+mridangam2_double :: [(TrackLang.CallId, TrackLang.CallId, Maybe Char)]
 mridangam2_double =
-    [(call <> call, call, lookup call keys)
-        | (_, call, _) <- mridangam2, Text.length call == 1]
+    [ (TrackLang.Symbol $ u call <> u call, call, lookup call keys)
+    | (_, call, _) <- mridangam2
+    , Text.length (u call) == 1
+    ]
     where
     keys =
         [ ("+", 'a'), ("o", 'd')
         , ("k", '1'), ("n", '3'), ("d", '4')
         ]
+    u = TrackLang.unsym
 
 -- | Create calls for all simultaneous left and right hand combinations, and
 -- key bindings for a few common ones.
-mridangam2_both :: [(Text, [Text], Maybe Char)]
+mridangam2_both :: [(TrackLang.CallId, [TrackLang.CallId], Maybe Char)]
 mridangam2_both =
     [(call, subcalls, lookup call keys) | (call, subcalls) <- pairs]
     where
     keys = [("do", 'c'), ("ko", 'v'), ("to", 'b')]
     pairs =
-        [ (rcall <> lcall, [rcall, lcall])
+        [ (TrackLang.Symbol $ u rcall <> u lcall, [rcall, lcall])
         | (_, lcall, _) <- mridangam2_left
         , (_, rcall, _) <- mridangam2_right
-        , Text.length lcall == 1 && Text.length rcall == 1
+        , Text.length (u lcall) == 1
+        , Text.length (u rcall) == 1
         ]
+    u = TrackLang.unsym
 
-mridangam2, mridangam2_left, mridangam2_right :: [(Char, Text, Attributes)]
+mridangam2, mridangam2_left, mridangam2_right
+    :: [(Char, TrackLang.CallId, Attributes)]
 mridangam2_left = map (\(a, b, c) -> (a, b, Score.attr c))
     [ ('z', "+", "tha")
     , ('x', "o", "thom")

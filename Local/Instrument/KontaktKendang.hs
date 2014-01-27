@@ -52,7 +52,7 @@ tunggal_notes = do
     let ks_range = fromMaybe
             (error $ "KontaktKendang: attrs not found: " <> Pretty.pretty attrs)
             (lookup (Score.attrs_remove soft attrs) tunggal_keymap)
-    let note = Drums.Note (TrackLang.unsym call) attrs char
+    let note = Drums.Note call attrs char
             (if Score.attrs_contain attrs soft then 0.3 else 1)
     return (note, ks_range)
 
@@ -69,7 +69,7 @@ tunggal_keymap = drum_attributes Key2.e_2 Key2.c_1 12 NN.fs3
     , [de <> Attrs.left, tut <> Attrs.left]
     ]
 
-tunggal_calls :: [(Char, TrackLang.Symbol, Score.Attributes)]
+tunggal_calls :: [(Char, TrackLang.CallId, Score.Attributes)]
 tunggal_calls =
     [ ('b', "PL", plak)
     -- left
@@ -118,7 +118,7 @@ old_tunggal_notes = map make_note
     where
     make_note (attrs, key) = (note, key)
         where
-        note = Drums.Note (TrackLang.unsym call) attrs char
+        note = Drums.Note call attrs char
             (if Score.attrs_contain attrs soft then 0.3 else 1)
         Just (char, call, _) =
             List.find (\(_, _, a) -> a == attrs) tunggal_calls
@@ -146,7 +146,7 @@ pasang_inst Lanang = snd
 --
 -- The dispatch calls should all be understood by a kendang tunggal, i.e.
 -- in 'tunggal_calls'.
-pasang_calls :: [(Char, TrackLang.Symbol, Kendang, TrackLang.Symbol)]
+pasang_calls :: [(Char, TrackLang.CallId, Kendang, TrackLang.CallId)]
 pasang_calls =
     [ ('b', "PL", Wadon, "PL")
     , ('t', "Ø", Lanang, "Ø")
@@ -171,19 +171,19 @@ pasang_calls =
 pasang_code :: MidiInst.Code
 pasang_code =
     MidiInst.note_transformers [("realize", c_realize_kendang)]
-    <> MidiInst.note_generators (map (first TrackLang.unsym) c_pasang_calls)
+    <> MidiInst.note_generators c_pasang_calls
     <> MidiInst.cmd pasang_cmd
 
 pasang_cmd :: Cmd.Cmd
 pasang_cmd = CUtil.insert_call $ Map.fromList
-    [(char, TrackLang.unsym name) | (char, name, _, _) <- pasang_calls]
+    [(char, name) | (char, name, _, _) <- pasang_calls]
 
-c_pasang_calls :: [(TrackLang.Symbol, Derive.Generator Derive.Note)]
+c_pasang_calls :: [(TrackLang.CallId, Derive.Generator Derive.Note)]
 c_pasang_calls =
     [(name, dispatch kendang call) | (_, name, kendang, call) <- pasang_calls]
 
 -- | Create a call that just dispatches to another call, possibly transformed.
-dispatch :: Kendang -> TrackLang.Symbol -> Derive.Generator Derive.Note
+dispatch :: Kendang -> TrackLang.CallId -> Derive.Generator Derive.Note
 dispatch kendang call = Derive.make_call "" (Tags.inst <> Tags.bali)
     "Dispatch to wadon or lanang." $ Sig.call pasang_env $ \pasang args ->
         Derive.with_instrument (pasang_inst kendang pasang) $

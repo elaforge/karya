@@ -44,9 +44,11 @@ import qualified Derive.Environ as Environ
 import qualified Derive.LEvent as LEvent
 import qualified Derive.Note as Note
 import qualified Derive.Score as Score
+import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Slice as Slice
 import qualified Derive.Tempo as Tempo
 import qualified Derive.TrackInfo as TrackInfo
+import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.Signal as Signal
 import Types
@@ -73,7 +75,7 @@ control_deriver block_id = do
         Right tree -> return $ derive_control_tree block_end tree
 
 -- | Name of the call for the control deriver hack.
-capture_null_control :: Text
+capture_null_control :: TrackLang.CallId
 capture_null_control = "capture-null-control"
 
 -- | Ensure the tree meets the requirements documented by 'control_deriver'
@@ -95,7 +97,7 @@ check_control_tree block_end forest = case forest of
         ++ show (map (TrackTree.tevents_title . Tree.rootLabel) tracks)
     where
     events = Events.singleton $
-        Event.event 0 block_end (untxt capture_null_control)
+        Event.text_event 0 block_end (TrackLang.unsym capture_null_control)
     capture_track = TrackTree.track_events ">" events block_end
 
 derive_control_tree :: ScoreTime -> TrackTree.EventsTree
@@ -120,8 +122,8 @@ derive_control_tree block_end tree = do
     -- also be visible, and they might have something interesting.
     complain events = Log.initialized_msg Log.Warn $
         "control call should have emitted a single call to "
-        <> showt capture_null_control <> " which produces a single event, but "
-        <> "got events: " <> showt events
+        <> ShowVal.show_val capture_null_control
+        <> " which produces a single event, but got events: " <> showt events
 
 -- ** implementation
 

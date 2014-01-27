@@ -8,6 +8,7 @@
 module Cmd.Instrument.Drums where
 import Util.Control
 import Derive.Attrs
+import qualified Derive.TrackLang as TrackLang
 import qualified Perform.Signal as Signal
 
 
@@ -17,7 +18,7 @@ import qualified Perform.Signal as Signal
 -- drum sets that don't fit in (e.g. have two or three snares), but at least
 -- this provides a standard base.
 data Note = Note {
-    note_name :: !Text
+    note_name :: !TrackLang.CallId
     , note_attrs :: !Attributes
     , note_char :: !Char
     -- | Scale the dynamic by this value.  This is for drums that have

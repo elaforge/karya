@@ -21,8 +21,9 @@ import qualified Derive.TrackLang as TrackLang
 -- together.  The rationale is described in 'Derive.CallMaps'.
 type Calls d = (Derive.Generator d, Derive.Transformer d)
 
-call_maps :: [(Text, Calls d)] -> [(Text, Derive.Generator d)]
-    -> [(Text, Derive.Transformer d)] -> Derive.CallMaps d
+call_maps :: [(TrackLang.CallId, Calls d)]
+    -> [(TrackLang.CallId, Derive.Generator d)]
+    -> [(TrackLang.CallId, Derive.Transformer d)] -> Derive.CallMaps d
 call_maps calls generators transformers =
     Derive.call_maps (gs ++ generators) (ts ++ transformers)
     where

@@ -387,9 +387,6 @@ instance Pretty.Pretty Patch where
 patch_name :: Patch -> InstrumentName
 patch_name = inst_name . patch_instrument
 
-set_call_map :: [(Score.Attributes, Text)] -> Patch -> Patch
-set_call_map attrs = call_map #= Map.fromList attrs
-
 set_flag :: Flag -> Patch -> Patch
 set_flag flag = flags %= Set.insert flag
 
@@ -552,7 +549,7 @@ sort_attributes (AttributeMap table) = AttributeMap (sort table)
 
 -- | Map attributes to the names of the calls they should map to.  This
 -- is used by the integrator to turn score events into UI events.
-type CallMap = Map.Map Score.Attributes Text
+type CallMap = Map.Map Score.Attributes TrackLang.CallId
 
 type Tag = (TagKey, TagVal)
 type TagKey = Text

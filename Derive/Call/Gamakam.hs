@@ -93,9 +93,9 @@ control_calls = Derive.call_maps gs ts
         ]
 
 kampita_variations :: Text -> (Maybe Mode -> Maybe Mode -> call)
-    -> [(Text, call)]
+    -> [(TrackLang.CallId, call)]
 kampita_variations name call =
-    [ (mode_affix s <> name <> mode_affix e, call s e)
+    [ (TrackLang.Symbol $ mode_affix s <> name <> mode_affix e, call s e)
     | s <- modes, e <- modes
     ]
     where

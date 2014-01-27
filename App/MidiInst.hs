@@ -118,19 +118,19 @@ make_code (Code generator transformer val cmds) =
 -- | Bundle together generators and transformers.  The rationale is described
 -- in 'Derive.CallMaps'.
 data Call d =
-    Generator Text (Derive.Generator d)
-    | Transformer Text (Derive.Transformer d)
-    | Both Text (Derive.Generator d) (Derive.Transformer d)
+    Generator TrackLang.CallId (Derive.Generator d)
+    | Transformer TrackLang.CallId (Derive.Transformer d)
+    | Both TrackLang.CallId (Derive.Generator d) (Derive.Transformer d)
 
 type NoteCall = Call Derive.Note
 
-generator :: Text -> Derive.Generator d -> Call d
+generator :: TrackLang.CallId -> Derive.Generator d -> Call d
 generator = Generator
 
-transformer :: Text -> Derive.Transformer d -> Call d
+transformer :: TrackLang.CallId -> Derive.Transformer d -> Call d
 transformer = Transformer
 
-both :: Text -> Make.Calls d -> Call d
+both :: TrackLang.CallId -> Make.Calls d -> Call d
 both name (g, t) = Both name g t
 
 note_calls :: [Call Derive.Note] -> Code
@@ -141,12 +141,13 @@ note_calls calls =
         ++ [(name, c) | Both name _ c <- calls])
 
 -- | Add the given calls to the note track scope.
-note_generators :: [(Text, Derive.Generator Derive.Note)] -> Code
+note_generators :: [(TrackLang.CallId, Derive.Generator Derive.Note)] -> Code
 note_generators calls = mempty
     { code_note_generators = [Derive.map_lookup (Derive.make_calls calls)] }
 
 -- | Add the given calls to the note track scope.
-note_transformers :: [(Text, Derive.Transformer Derive.Note)] -> Code
+note_transformers :: [(TrackLang.CallId, Derive.Transformer Derive.Note)]
+    -> Code
 note_transformers calls = mempty
     { code_note_transformers = [Derive.map_lookup (Derive.make_calls calls)] }
 

@@ -267,8 +267,8 @@ d_control_block block_id = Internal.with_stack_block block_id $ do
     deriver
 
 c_capture_null_control :: Derive.Generator Derive.Note
-c_capture_null_control = Derive.generator1 BlockUtil.capture_null_control
-    Tags.internal
+c_capture_null_control = Derive.generator1
+    (TrackLang.unsym BlockUtil.capture_null_control) Tags.internal
     ("This is an internal call used to capture the control signal at the\
     \ bottom of a control block."
     ) $ Sig.call0 $ \_ -> do

@@ -953,18 +953,19 @@ type ValCallMap = Map.Map TrackLang.CallId ValCall
 type CallMaps d = (CallMap (Generator d), CallMap (Transformer d))
 
 -- | Make a call map.
-make_calls :: [(Text, call)] -> Map.Map TrackLang.CallId call
-make_calls = Map.fromList . map (first TrackLang.Symbol)
+make_calls :: [(TrackLang.CallId, call)] -> Map.Map TrackLang.CallId call
+make_calls = Map.fromList
 
 -- | Bundle generators and transformers up together for convenience.
-call_maps :: [(Text, Generator d)] -> [(Text, Transformer d)] -> CallMaps d
+call_maps :: [(TrackLang.CallId, Generator d)]
+    -> [(TrackLang.CallId, Transformer d)] -> CallMaps d
 call_maps generators transformers =
     (make_calls generators, make_calls transformers)
 
-generator_call_map :: [(Text, Generator d)] -> CallMaps d
+generator_call_map :: [(TrackLang.CallId, Generator d)] -> CallMaps d
 generator_call_map = flip call_maps []
 
-transformer_call_map :: [(Text, Transformer d)] -> CallMaps d
+transformer_call_map :: [(TrackLang.CallId, Transformer d)] -> CallMaps d
 transformer_call_map = call_maps []
 
 -- | Data passed to a 'Call'.

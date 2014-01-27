@@ -46,12 +46,13 @@ type Call = Text
 
 -- * eval call
 
-insert_call :: (Cmd.M m) => Map.Map Char Call -> Msg.Msg -> m Cmd.Status
+insert_call :: (Cmd.M m) => Map.Map Char TrackLang.CallId -> Msg.Msg
+    -> m Cmd.Status
 insert_call = insert_expr . Map.fromList . map (Keymap.physical_key *** to_expr)
         . Map.toList
-    where to_expr call = TrackLang.call (TrackLang.Symbol call) [] :| []
+    where to_expr call = TrackLang.call call [] :| []
 
-notes_to_calls :: [Drums.Note] -> Map.Map Char Call
+notes_to_calls :: [Drums.Note] -> Map.Map Char TrackLang.CallId
 notes_to_calls notes =
     Map.fromList [(Drums.note_char n, Drums.note_name n) | n <- notes]
 
@@ -145,17 +146,18 @@ expr_to_midi block_id track_id pos expr = do
 -- TODO if I can pull the current or previous note out of the derive then I
 -- could use that to play an example note.  Wait until I have a "play current
 -- line" framework up for that.
-keyswitches :: (Cmd.M m) => [(Char, Call, Midi.Key)] -> Msg.Msg -> m Cmd.Status
+keyswitches :: (Cmd.M m) => [(Char, TrackLang.CallId, Midi.Key)] -> Msg.Msg
+    -> m Cmd.Status
 keyswitches inputs = \msg -> do
     EditUtil.fallthrough msg
     char <- Cmd.require $ Msg.char_down msg
-    (note, key) <- Cmd.require $ Map.lookup char to_note
+    (call, key) <- Cmd.require $ Map.lookup char to_call
     MidiThru.channel_messages Nothing False
         [Midi.NoteOn key 64, Midi.NoteOff key 64]
-    Cmd.set_note_text note
+    Cmd.set_note_text (TrackLang.unsym call)
     return Cmd.Done
     where
-    to_note = Map.fromList [(char, (note, key)) | (char, note, key) <- inputs]
+    to_call = Map.fromList [(char, (call, key)) | (char, call, key) <- inputs]
 
 
 -- * drums
@@ -200,7 +202,7 @@ make_attribute_map attr_map = Instrument.make_attribute_map
     ]
 
 -- | Create calls for the given Notes.
-drum_calls :: [Drums.Note] -> [(Call, Derive.Generator Derive.Note)]
+drum_calls :: [Drums.Note] -> [(TrackLang.CallId, Derive.Generator Derive.Note)]
 drum_calls notes =
     [(Drums.note_name n, note_call (Drums.note_dynamic n) (Drums.note_attrs n))
         | n <- notes]
@@ -211,31 +213,32 @@ drum_calls notes =
             . Note.default_note Note.no_duration_attributes)
     with_dyn = Derive.multiply_control Score.c_dynamic
 
-multiple_calls :: [(Call, [Call])] -> [(Call, Derive.Generator Derive.Note)]
+multiple_calls :: [(TrackLang.CallId, [TrackLang.CallId])]
+    -> [(TrackLang.CallId, Derive.Generator Derive.Note)]
 multiple_calls calls =
-    [(call, multiple_call call subcalls) | (call, subcalls) <- calls]
+    [(call, multiple_call (TrackLang.unsym call) subcalls)
+        | (call, subcalls) <- calls]
 
 -- | Create a call that just dispatches to other calls.
-multiple_call :: Call -> [Call] -> Derive.Generator Derive.Note
+multiple_call :: Text -> [TrackLang.CallId] -> Derive.Generator Derive.Note
 multiple_call name calls = Derive.make_call name Tags.inst
     -- I intentionally omit the calls from the doc string, so they will
     -- combine in the call doc.  Presumably the calls are apparent from the
     -- name.
     "Dispatch to multiple calls." $ Sig.call0 $ \args ->
-        mconcat $ map (Call.reapply_gen args . TrackLang.Symbol) calls
+        mconcat $ map (Call.reapply_gen args) calls
 
-double_calls :: [(Call, Call)] -- ^ (call_name, repeated_call)
-    -> [(Call, Derive.Generator Derive.Note)]
-double_calls calls =
-    [(name, double_call repeated) | (name, repeated) <- calls]
+double_calls :: [(TrackLang.CallId, TrackLang.CallId)]
+    -- ^ (call_name, repeated_call)
+    -> [(TrackLang.CallId, Derive.Generator Derive.Note)]
+double_calls calls = [(name, double_call repeated) | (name, repeated) <- calls]
 
-double_call :: Call -> Derive.Generator Derive.Note
+double_call :: TrackLang.CallId -> Derive.Generator Derive.Note
 double_call repeated = Derive.make_call "double" Tags.inst
     "Doubled call. This is a specialization of `roll`."
     $ Sig.call ((,)
     <$> Sig.defaulted "time" Grace.default_grace_dur "Time between the strokes."
     <*> Sig.defaulted "dyn" 0.5 "Dyn scale for grace notes."
     ) $ \(TrackLang.DefaultReal time, dyn) args ->
-        Grace.repeat_notes (Call.reapply_gen_normalized args
-                (TrackLang.Symbol repeated))
+        Grace.repeat_notes (Call.reapply_gen_normalized args repeated)
             1 time dyn args

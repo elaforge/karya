@@ -56,38 +56,40 @@ run_control events = extract $ DeriveTest.derive_tracks
 
 -- * call map
 
-with_note_generator :: Text -> Derive.Generator Derive.Note
+with_note_generator :: TrackLang.CallId -> Derive.Generator Derive.Note
     -> Derive.Deriver a -> Derive.Deriver a
 with_note_generator name call = Derive.with_scopes $
     Derive.s_generator#Derive.s_note#Derive.s_override
         %= (single_lookup name call :)
 
-with_note_generators :: [(Text, Derive.Generator Derive.Note)]
+with_note_generators :: [(TrackLang.CallId, Derive.Generator Derive.Note)]
     -> Derive.Deriver a -> Derive.Deriver a
 with_note_generators calls = Derive.with_scopes $
     Derive.s_generator#Derive.s_note#Derive.s_override %= (map_lookup calls :)
 
-with_note_transformer :: Text -> Derive.Transformer Derive.Note
+with_note_transformer :: TrackLang.CallId -> Derive.Transformer Derive.Note
     -> Derive.Deriver a -> Derive.Deriver a
 with_note_transformer name call = Derive.with_scopes $
     Derive.s_transformer#Derive.s_note#Derive.s_override
         %= (single_lookup name call :)
 
-with_val_call :: Text -> Derive.ValCall
+with_val_call :: TrackLang.CallId -> Derive.ValCall
     -> Derive.Deriver a -> Derive.Deriver a
 with_val_call name call = Derive.with_scopes $
     Derive.s_val#Derive.s_override %= (single_val_lookup name call :)
 
-single_lookup :: Text -> Derive.Call d -> Derive.LookupCall (Derive.Call d)
-single_lookup name call =
-    Derive.map_lookup (Map.singleton (TrackLang.Symbol name) call)
+single_lookup :: TrackLang.CallId -> Derive.Call d
+    -> Derive.LookupCall (Derive.Call d)
+single_lookup name call = Derive.map_lookup (Map.singleton name call)
 
-map_lookup :: [(Text, Derive.Call d)] -> Derive.LookupCall (Derive.Call d)
-map_lookup = Derive.map_lookup . Map.fromList . map (first TrackLang.Symbol)
+map_lookup :: [(TrackLang.CallId, Derive.Call d)]
+    -> Derive.LookupCall (Derive.Call d)
+map_lookup = Derive.map_lookup . Map.fromList
 
-single_val_lookup :: Text -> Derive.ValCall -> Derive.LookupCall Derive.ValCall
+single_val_lookup :: TrackLang.CallId -> Derive.ValCall
+    -> Derive.LookupCall Derive.ValCall
 single_val_lookup name call =
-    Derive.map_val_lookup (Map.singleton (TrackLang.Symbol name) call)
+    Derive.map_val_lookup (Map.singleton name call)
 
 -- * calls
 
