@@ -76,6 +76,11 @@ rename_block :: (State.M m) => BlockId -> BlockId -> m ()
 rename_block block_id new_name = Transform.map_block_ids $ \id ->
     if Types.BlockId id == block_id then Id.unpack_id new_name else id
 
+copy_block :: State.M m => BlockId -> BlockId -> m ()
+copy_block block_id new_name = do
+    from <- State.get_block block_id
+    void $ State.create_config_block (Id.unpack_id new_name) from
+
 -- | Find tracks which are not found in any block.  Probably used to pass them
 -- to State.destroy_track for \"gc\".
 orphan_tracks :: (State.M m) => m (Set.Set TrackId)

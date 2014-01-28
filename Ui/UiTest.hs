@@ -142,14 +142,15 @@ eval state m = case State.eval state m of
     Right val -> val
 
 run_mkblock :: [TrackSpec] -> ([TrackId], State.State)
-run_mkblock track_specs = (tids, state)
+run_mkblock tracks = (tids, state)
     where
-    ((_, tids), state) =
-        run State.empty (mkblock (default_block_name, track_specs))
+    ((_, tids), state) = run State.empty (mkblock (default_block_name, tracks))
 
 run_mkview :: [TrackSpec] -> ([TrackId], State.State)
-run_mkview track_specs =
-    run State.empty $ mkblock_view (default_block_name, track_specs)
+run_mkview tracks = run State.empty $ mkblock_view (default_block_name, tracks)
+
+run_mkblocks :: [BlockSpec] -> State.State
+run_mkblocks = snd . run State.empty . mkblocks
 
 mkblocks :: (State.M m) => [BlockSpec] -> m [BlockId]
 mkblocks blocks = mapM (fmap fst . mkblock) blocks

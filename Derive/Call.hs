@@ -585,15 +585,17 @@ fallback_call_id = ""
 symbol_to_block_id :: Id.Namespace -> Maybe BlockId
     -- ^ If the symbol starts with ., this block is prepended to it.
     -> TrackLang.CallId -> Maybe BlockId
-symbol_to_block_id ns maybe_caller (TrackLang.Symbol sym)
+symbol_to_block_id ns maybe_caller sym
     | sym == "" = Nothing
-    | otherwise = Types.BlockId <$> Id.read_short ns (untxt (relative sym))
+    | otherwise = Types.BlockId <$> Id.read_short ns (untxt relative)
     where
-    relative sym
-        | Just caller <- maybe_caller,
-            "." `Text.isPrefixOf` sym = Id.ident_text caller <> sym
-        | otherwise = sym
+    relative
+        | Just caller <- maybe_caller, is_relative_call sym =
+            Id.ident_text caller <> TrackLang.unsym sym
+        | otherwise = TrackLang.unsym sym
 
+is_relative_call :: TrackLang.CallId -> Bool
+is_relative_call (TrackLang.Symbol sym) = "." `Text.isPrefixOf` sym
 
 -- * misc
 

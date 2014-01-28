@@ -14,7 +14,7 @@ module Ui.Id (
     , clean_id, enforce_id, enforce_strict_id
 
     -- * access
-    , un_id, id_name, set_name, id_namespace, set_namespace
+    , un_id, id_name, id_namespace, set_namespace
 
     -- * read / show
     , read_id, show_id, read_short, show_short
@@ -175,9 +175,6 @@ un_id (Id ns ident) = (ns, B.unpack ident)
 
 id_name :: Id -> String
 id_name (Id _ name) = B.unpack name
-
-set_name :: String -> Id -> Id
-set_name name (Id ns _) = unsafe_id ns name
 
 id_namespace :: Id -> Namespace
 id_namespace (Id ns _) = ns

@@ -24,9 +24,12 @@ import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Create as Create
 import qualified Cmd.Edit as Edit
 import qualified Cmd.Meter as Meter
+import qualified Cmd.NoteTrack as NoteTrack
 import qualified Cmd.RulerUtil as RulerUtil
 import qualified Cmd.Selection as Selection
 
+import qualified Derive.Call as Call
+import qualified Derive.TrackLang as TrackLang
 import Types
 
 
@@ -122,20 +125,20 @@ selection_relative = selection_ True
 -- block.
 selection_ :: (Cmd.M m) => Bool -- ^ create dot-prefixed relative block call
     -> Text -> m BlockId
-selection_ relative name = do
+selection_ create_relative name = do
     (block_id, tracknums, track_ids, start, end) <- Selection.tracks
-    name <- return $ if relative
+    name <- return $ if create_relative
         then txt (Id.ident_name block_id) <> "." <> name else name
-    to_block_id <- selection_at (Just name) block_id tracknums track_ids
+    to_block_id <- selection_at name block_id tracknums track_ids
         start end
     Create.view to_block_id
     return to_block_id
 
-selection_at :: (State.M m) => Maybe Text -> BlockId -> [TrackNum]
+selection_at :: State.M m => Text -> BlockId -> [TrackNum]
     -> [TrackId] -> TrackTime -> TrackTime -> m BlockId
-selection_at maybe_name block_id tracknums track_ids start end = do
+selection_at name block_id tracknums track_ids start end = do
     ruler_id <- State.block_ruler block_id
-    to_block_id <- maybe Create.block Create.named_block maybe_name ruler_id
+    to_block_id <- Create.named_block name ruler_id
     forM_ (zip [1..] track_ids) $ \(tracknum, track_id) -> do
         title <- State.get_track_title track_id
         events <- Events.in_range_point start end . Track.track_events <$>
@@ -157,6 +160,44 @@ selection_at maybe_name block_id tracknums track_ids start end = do
     RulerUtil.local_meter to_block_id $
         Meter.clip (Meter.time_to_duration start) (Meter.time_to_duration end)
     return to_block_id
+
+-- | Update relative calls on a block to a new parent.
+rebase_relative_calls :: State.M m =>
+    Bool -- ^ if true, copy the call, otherwise rename it
+    -> BlockId -> BlockId -> m ()
+rebase_relative_calls copy from to = do
+    let ns = Id.ident_namespace from
+    track_ids <- Block.block_track_ids <$> State.get_block to
+    called <- Seq.unique . mapMaybe (resolve_relative_call ns from)
+        . concat <$> mapM get_block_calls track_ids
+    forM_ (zip called (map (rebase_call from) called)) $ \(old, new) ->
+        (if copy then Create.copy_block else Create.rename_block) old new
+
+-- | Move a call from one caller to another.
+--
+-- ns1/caller ns2/old.sub -> ns1/caller.sub
+rebase_call :: BlockId -> BlockId -> BlockId
+rebase_call caller block_id = Types.BlockId $ Id.unsafe_id ns name
+    where
+    (ns, caller_name) = Id.un_id (Id.unpack_id caller)
+    -- old.bar -> caller.bar
+    -- a.b.c -> a.caller.c
+    -- root.old.sub -> root.caller.sub
+    old_name = Id.ident_name block_id
+    name
+        | '.' `elem` old_name = caller_name ++ dropWhile (/='.') old_name
+        | otherwise = old_name
+
+get_block_calls :: State.M m => TrackId -> m [TrackLang.CallId]
+get_block_calls track_id = do
+    events <- Events.ascending . Track.track_events <$> State.get_track track_id
+    return $ mapMaybe (NoteTrack.block_call_of . Event.event_text) events
+
+resolve_relative_call :: Id.Namespace -> BlockId -> TrackLang.CallId
+    -> Maybe BlockId
+resolve_relative_call ns caller sym
+    | Call.is_relative_call sym = Call.symbol_to_block_id ns (Just caller) sym
+    | otherwise = Nothing
 
 make_block_call :: BlockId -> BlockId -> String
 make_block_call parent block_id

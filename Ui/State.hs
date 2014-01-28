@@ -62,7 +62,7 @@ module Ui.State (
 
     -- * block
     , get_block, lookup_block, all_block_ids, all_block_track_ids
-    , create_block, destroy_block
+    , create_config_block, create_block, destroy_block
     , block_of, block_id_of, views_of
     , get_block_title, set_block_title
     , modify_block_meta
