@@ -123,9 +123,9 @@ instance DeepSeq.NFData Event where
             `seq` rnf pitch `seq` rnf pitches
 
 instance Pretty.Pretty Event where
-    format (Event start dur bytes controls pitch pitches stack inst env) =
+    format (Event start dur txt controls pitch pitches stack inst env) =
         Pretty.record (Pretty.text "Event" Pretty.<+> Pretty.format (start, dur)
-                Pretty.<+> Pretty.format bytes)
+                Pretty.<+> Pretty.format txt)
             [ ("instrument", Pretty.format inst)
             , ("pitch", Pretty.format pitch)
             , ("pitches", Pretty.format pitches)
@@ -195,18 +195,14 @@ initial_dynamic event = maybe 0 typed_val $
     event_control_at (event_start event) c_dynamic (Just (untyped 0)) event
 
 modify_dynamic :: (Signal.Y -> Signal.Y) -> Event -> Event
-modify_dynamic = modify_event_signal c_dynamic
+modify_dynamic modify =
+    modify_control c_dynamic_function modify . modify_control c_dynamic modify
 
-modify_event_signal :: Control -> (Signal.Y -> Signal.Y) -> Event -> Event
-modify_event_signal control f = modify_event_control control (Signal.map_y f)
-
-modify_event_control :: Control -> (Signal.Control -> Signal.Control)
-    -> Event -> Event
-modify_event_control control f event = case Map.lookup control controls of
-        Nothing -> event
-        Just typed -> event
-            { event_controls = Map.insert control (fmap f typed) controls }
-    where controls = event_controls event
+modify_control :: Control -> (Signal.Y -> Signal.Y) -> Event -> Event
+modify_control control modify event = event
+    { event_controls = Map.adjust (fmap (Signal.map_y modify)) control
+        (event_controls event)
+    }
 
 event_controls_at :: RealTime -> Event -> ControlValMap
 event_controls_at t = controls_at t . event_controls
@@ -377,6 +373,10 @@ control_name (BaseTypes.Control text) = text
 -- | Converted into velocity or breath depending on the instrument.
 c_dynamic :: Control
 c_dynamic = "dyn"
+
+c_dynamic_function :: Control
+c_dynamic_function = "_dynamic-function"
+    -- The leading underscore should make it unparseable in tracklang.
 
 to_real :: ScoreTime -> RealTime
 to_real = RealTime.score

@@ -10,6 +10,7 @@ import Util.Control
 import Util.Test
 import qualified Ui.UiTest as UiTest
 import qualified Derive.Call.CallTest as CallTest
+import qualified Derive.Controls as Controls
 import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Score as Score
@@ -20,7 +21,8 @@ import qualified Perform.Signal as Signal
 
 
 test_compile = do
-    let controls = map Score.event_controls
+    let controls = map (Map.filterWithKey (\k _ -> not (Controls.is_private k))
+            . Score.event_controls)
         pitches = map DeriveTest.e_nns
 
     let derive track = DeriveTest.extract id $ DeriveTest.derive_tracks

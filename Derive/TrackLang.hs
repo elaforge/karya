@@ -28,7 +28,7 @@ import qualified Ui.ScoreTime as ScoreTime
 import qualified Derive.BaseTypes as Score
 import Derive.BaseTypes
        (Environ, make_environ, environ_to_list, insert_val, delete_val,
-        lookup_val, null_environ, ValName, RawVal, Val, Quoted(..),
+        lookup_val, val_set, null_environ, ValName, RawVal, Val, Quoted(..),
         ControlFunction(..), Dynamic(..), ValType(..), Symbol(..),
         ControlRef(..), PitchControl, RawPitchControl, ValControl,
         show_call_val, CallId, Expr, Call(..), PitchCall, Term(..))

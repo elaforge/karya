@@ -8,6 +8,7 @@ import qualified Data.Set as Set
 
 import Util.Control
 import qualified Util.Log as Log
+import qualified Util.Num as Num
 import qualified Util.Seq as Seq
 import Util.Test
 
@@ -54,23 +55,36 @@ test_convert = do
         , Left (1, [(1, 60)])
         ]
 
-test_convert_controls = do
-    let f pressure = first Map.toList
-            . Convert.convert_controls pressure Map.empty
-            . DeriveTest.mkcontrols
-    equal (f False [("dyn", [(0, 0.5)])])
-        ([(Controls.velocity, Signal.constant 0.5)], Nothing)
-    equal (f True [("dyn", [(0, 0.5)])])
-        ([(Controls.breath, Signal.constant 0.5)], Nothing)
-    -- If both vel and dyn are present, dyn wins.  This is because calls
-    -- should tend to use dyn, since its more generic.  But if the track is
-    -- using vel directly, the the dyn information will be shadowed.
-    equal (f False [("vel", [(0, 1)]), ("dyn", [(0, 0.5)])])
-        ([(Controls.velocity, Signal.constant 0.5)],
-            Just ("vel", Score.untyped (Signal.signal [(0, 1)])))
-    -- No warning if it was null.
-    equal (f False [("vel", []), ("dyn", [(0, 0.5)])])
-        ([(Controls.velocity, Signal.constant 0.5)], Nothing)
+test_convert_dynamic = do
+    let f pressure controls = first e_controls $
+            Convert.convert_dynamic pressure
+                (DeriveTest.mkcontrols_const controls)
+        dyn_function = Controls.dynamic_function
+        e_controls = map (second (Signal.unsignal . Score.typed_val))
+            . filter ((`elem` [Controls.velocity, Controls.breath]) . fst)
+            . Map.toList
+    equal (f False [(Controls.dynamic, 1), (dyn_function, 0.5)])
+        ([(Controls.velocity, [(0, 0.5)])], Nothing)
+    equal (f True [(Controls.dynamic, 1), (dyn_function, 0.5)])
+        ([(Controls.breath, [(0, 1)])], Nothing)
+
+    -- If both vel and dyn are present, dyn shadows vel, but warn about vel.
+    equal (f False [(Controls.velocity, 1), (Controls.dynamic_function, 0.5)])
+        ([(Controls.velocity, [(0, 0.5)])], Just Controls.velocity)
+
+test_rnd_vel = do
+    let run dyn notes = first extract $ DeriveTest.perform_block
+            [ (">s/1 | %dyn = " <> dyn,
+                [(n, 1, "") | n <- Seq.range' 0 notes 1])
+            , ("*", [(0, 0, "4c")])
+            ]
+        extract midi = [vel | (_, _, vel) <- DeriveTest.note_on_vel midi]
+
+    equal (run ".5" 1) ([64], [])
+    let (vels, logs) = run "(cf-rnd 0 1)" 10
+    equal logs []
+    check $ not (all (== head vels) vels)
+    check $ all (Num.in_range 40 90) vels
 
 noinst n = mkevent n "4c" "noinst"
 nopitch n = (mkevent n "4c" "s/1") { Score.event_pitch = mempty }

@@ -295,6 +295,9 @@ delete_val name (Environ env) = Environ $ Map.delete name env
 lookup_val :: ValName -> Environ -> Maybe Val
 lookup_val name (Environ env) = Map.lookup name env
 
+val_set :: ValName -> Environ -> Bool
+val_set name (Environ env) = Map.member name env
+
 null_environ :: Environ -> Bool
 null_environ (Environ env) = Map.null env
 

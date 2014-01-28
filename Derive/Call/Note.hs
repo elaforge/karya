@@ -144,11 +144,14 @@ default_note config args = do
     let attrs = either (const Score.no_attrs) id $
             TrackLang.get_val Environ.attributes environ
     st <- Derive.gets Derive.state_dynamic
-    let controls = trimmed_controls start real_next (Derive.state_controls st)
+
+    control_vals <- Derive.controls_at start
+    let controls = stash_dynamic control_vals $
+            trimmed_controls start real_next (Derive.state_controls st)
         pitch = trimmed_pitch start real_next (Derive.state_pitch st)
-    start_controls <- Derive.controls_at start
     (start, end) <- randomized controls start $
-        duration_attributes config start_controls attrs start end
+        duration_attributes config control_vals attrs start end
+
     -- Add a attribute to get the arrival-note postproc to figure out the
     -- duration.  Details in "Derive.Call.Post.ArrivalNote".
     let make = if is_arrival
@@ -164,6 +167,14 @@ default_note config args = do
         , Score.event_instrument = inst
         , Score.event_environ = environ
         }
+
+-- | Stash the dynamic value from the ControlValMap in
+-- 'Controls.dynamic_function'.  Gory details in
+-- 'Perform.Midi.Convert.convert_dynamic'.
+stash_dynamic :: Score.ControlValMap -> Score.ControlMap -> Score.ControlMap
+stash_dynamic vals = maybe id
+    (Map.insert Controls.dynamic_function . Score.untyped . Signal.constant)
+    (Map.lookup Controls.dynamic vals)
 
 adjust_end :: RealTime -> RealTime -> Maybe Event.Event
     -> Derive.Deriver (RealTime, Bool)

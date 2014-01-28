@@ -25,6 +25,11 @@ is_additive = (`Set.member` additive_controls)
 additive_controls :: Set.Set Control
 additive_controls = Set.fromList [diatonic, chromatic, nn, hz]
 
+-- | True for controls that are used for internal communication, and are not
+-- meant to be created directly or seen at the tracklang level.
+is_private :: Control -> Bool
+is_private = (==dynamic_function)
+
 -- | Used as the default control by control block calls.  This is because
 -- a ControlCall produces a Signal, but for it to be derived in a block it
 -- needs a temporary name.
@@ -39,6 +44,15 @@ tempo = "tempo"
 -- | Converted into velocity or breath depending on the instrument.
 dynamic :: Control
 dynamic = Score.c_dynamic
+
+-- | This is a bit of a hack for the dynamic to velocity conversion in
+-- "Perform.Midi.Convert".  The default note deriver stashes the control
+-- function output here, so if it turns out to not be a Pressure instrument
+-- it can use this value.
+--
+-- Details in 'Perform.Midi.Convert.convert_dynamic'.
+dynamic_function :: Control
+dynamic_function = Score.c_dynamic_function
 
 -- ** generally understood by the note deriver
 

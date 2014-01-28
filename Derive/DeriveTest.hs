@@ -668,6 +668,7 @@ default_inst_title = ">s/1"
 -- | (start, dur, pitch12, controls, inst)
 type EventSpec = (RealTime, RealTime, String, Controls, Score.Instrument)
 type Controls = [(Score.Control, [(RealTime, Signal.Y)])]
+type ControlVals = [(Score.Control, Signal.Y)]
 
 mkevent :: EventSpec -> Score.Event
 mkevent = mkevent_scale Twelve.scale
@@ -692,8 +693,11 @@ pitch_signal :: [(RealTime, String)] -> PitchSignal.Signal
 pitch_signal = PitchSignal.signal . map (second mkpitch12)
 
 mkcontrols :: Controls -> Score.ControlMap
-mkcontrols csigs = Map.fromList
-    [(c, Score.untyped (Signal.signal sig)) | (c, sig) <- csigs]
+mkcontrols cs = Map.fromList
+    [(c, Score.untyped (Signal.signal sig)) | (c, sig) <- cs]
+
+mkcontrols_const :: ControlVals -> Score.ControlMap
+mkcontrols_const cs = mkcontrols [(c, [(0, val)]) | (c, val) <- cs]
 
 mkpitch12 :: String -> PitchSignal.Pitch
 mkpitch12 = mkpitch Twelve.scale

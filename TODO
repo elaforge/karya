@@ -118,7 +118,7 @@ UNSORTED
     at 0.5 dyn.
   / Derive/Instrument/* should go in Derive/Call/Instrument?
     Not really worth having nested directories over.
-  - A postproc might transform percussion so repeated notes after the first
+  / A postproc might transform percussion so repeated notes after the first
     one lose dyn.
   - Play position doesn't work right for 'loop' and 'tile' calls, it only
     understands the first loop, and doesn't know that 'tile' cuts off the
@@ -208,7 +208,7 @@ UNSORTED
         have it not work with calls that really want signals.  I could pass
         the corresponding signal the function, but that's redundant with
         Dynamic.
-  - Randomization for velocity, especially important as many sample libraries
+  * Randomization for velocity, especially important as many sample libraries
     have lots of velocity splits, but no round robin.
     But I want to do it only for midi velocity, not pressure dyn.
     Maybe dyn mapping should move to the note call?  But it doesn't have patch
@@ -217,6 +217,26 @@ UNSORTED
     use the same control signal randomization thing I'm planning.
     The advantage of flags is that Cmd can look at them, so Triggered I think
     still remains a flag.
+    . But note entry uses Pressure for thru.  But maybe I need a more general
+      way to get control functions into midi events.  But I think there's no
+      better way than just a list of controls to pull out of ControlValMap,
+      including vel.  But they're per-inst configured, so maybe it should go
+      in environ, except environ doesn't support lists.  Space separated would
+      work, though not prettty.
+    . Or a separate postproc could sample the given controls and insert.  But
+      that wouldn't work for vel, and would be less convenient since it would
+      have to be applied per-instrument.  And I don't have a per-instrument
+      postproc, though I might want one some day.
+    . But this still doesn't seem to help dyn, because I still need to
+      substitute dyn into vel or breath.  So I need either access to flags in
+      Derive, or both set Pressure and the note config.
+    . The problem is now that I have to modify both event controls and
+      functions.  Having two means they can get out of sync.
+  - What if I want to randomize a MIDI control?  I can have a transform that's
+    just 'with_control control (control_at control start)'.  But maybe then
+    I want a way to wrap a transform around a call in tracklang so I don't
+    have to make a whole new instrument to set this up.
+    > = "( | cf-sample c1 c2 c3)
   india
     - nkam doesn't seem to interact correctly with 'h'
     - semi-tone dip.  This is like 1 cycle kam.
