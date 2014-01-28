@@ -103,7 +103,7 @@ parse_equal (parse_val -> Just assignee) val deriver
     is_pitch _ = Nothing
 parse_equal assignee val deriver = Right $ Derive.with_val assignee val deriver
 
-parse_val :: TrackLang.Symbol -> Maybe TrackLang.RawVal
+parse_val :: TrackLang.Symbol -> Maybe TrackLang.Val
 parse_val = either (const Nothing) Just . ParseBs.parse_val . TrackLang.unsym
 
 -- | Look up a call with the given CallId and add it as an override to the

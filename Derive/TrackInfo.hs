@@ -60,7 +60,7 @@ parse_control_expr title = do
     ctrack <- parse_control_vals vals
     return (ctrack, expr)
 
-parse_control_vals :: [TrackLang.RawVal] -> Either String ControlType
+parse_control_vals :: [TrackLang.Val] -> Either String ControlType
 parse_control_vals vals = case vals of
     --  *twelve -> default pitch track in twelve
     [scale -> Just scale_id] -> Right $ Pitch scale_id Nothing
@@ -109,7 +109,7 @@ parse_control_vals vals = case vals of
             <> TrackLang.show_val sym)
         Right (parse_control_type sym)
 
-    pitch_control :: TrackLang.RawVal -> Maybe (Maybe Score.Control)
+    pitch_control :: TrackLang.Val -> Maybe (Maybe Score.Control)
     pitch_control (TrackLang.VPitchControl (TrackLang.LiteralControl cont))
         | cont == Controls.null = Just Nothing
         | otherwise = Just (Just cont)

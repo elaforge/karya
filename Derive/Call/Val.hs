@@ -6,6 +6,7 @@ module Derive.Call.Val where
 import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Monoid as Monoid
+
 import qualified System.Random.Mersenne.Pure64 as Pure64
 
 import Util.Control
@@ -55,8 +56,9 @@ val_calls = Derive.make_calls
     , ("st", c_scoretime)
     , ("rt", c_realtime)
     , ("pitch", c_pitch)
+    , ("#", c_pitch_control)
     -- lookup
-    , ("#", c_pitch_signal)
+    , ("<-#", c_get_pitch)
     -- generate signals
     , ("i>", c_linear_next)
     , ("e>", c_exp_next)
@@ -206,10 +208,24 @@ make_pitch (Right name_pitch) pc accs
         either (Derive.throw . Pretty.pretty) return $
             Scale.scale_read scale key note
 
+c_pitch_control :: Derive.ValCall
+c_pitch_control = Derive.val_call "pitch-control" mempty
+    "Create a 'Derive.TrackLang.PitchControl'. For control literals, the\
+    \ `#name` syntax suffices, but if you want to give a default pitch,\
+    \ you need this call."
+    $ Sig.call ((,)
+    <$> Sig.required "name" "Name of pitch signal."
+    <*> Sig.defaulted "default" Nothing
+        "Default pitch, if the signal is not set."
+    ) $ \(name, maybe_default) _ -> return $ case maybe_default of
+        Nothing -> TrackLang.LiteralControl (Score.control name)
+        Just pitch -> TrackLang.DefaultedControl (Score.control name)
+            (PitchSignal.constant pitch)
+
 -- * lookup
 
-c_pitch_signal :: Derive.ValCall
-c_pitch_signal = Derive.val_call "pitch" mempty
+c_get_pitch :: Derive.ValCall
+c_get_pitch = Derive.val_call "pitch" mempty
     "Get the current pitch." $ Sig.call (defaulted "control" ""
         "The default pitch if empty, otherwise, get the named pitch.") $
     \control args ->

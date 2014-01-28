@@ -28,10 +28,10 @@ import qualified Ui.ScoreTime as ScoreTime
 import qualified Derive.BaseTypes as Score
 import Derive.BaseTypes
        (Environ, make_environ, environ_to_list, insert_val, delete_val,
-        lookup_val, val_set, null_environ, ValName, RawVal, Val, Quoted(..),
-        ControlFunction(..), Dynamic(..), ValType(..), Symbol(..),
-        ControlRef(..), PitchControl, RawPitchControl, ValControl,
-        show_call_val, CallId, Expr, Call(..), PitchCall, Term(..))
+        lookup_val, val_set, null_environ, ValName, Val(..), Quoted(..),
+        ControlFunction(..), Dynamic(..), Symbol(..), ControlRef(..),
+        PitchControl, RawPitchControl, ValControl, show_call_val, CallId, Expr,
+        Call(..), PitchCall, Term(..))
 import qualified Derive.Environ as Environ
 import qualified Derive.PitchSignal as PitchSignal
 import Derive.ShowVal (ShowVal(..))
@@ -55,10 +55,10 @@ c_equal = "="
 -- * make Val literals
 
 -- | Make an untyped VNum.
-num :: Double -> ValType a
+num :: Double -> Val
 num = VNum . Score.untyped
 
-str :: Text -> ValType a
+str :: Text -> Val
 str = VSymbol . Symbol
 
 score_time :: ScoreTime -> Val
@@ -100,7 +100,7 @@ real_control c deflt =
 constant_control :: Signal.Y -> ValControl
 constant_control = ControlSignal . Score.untyped . Signal.constant
 
-quoted :: Symbol -> [RawVal] -> Quoted
+quoted :: Symbol -> [Val] -> Quoted
 quoted name args = Quoted $ literal_call name args
 
 unsym :: Symbol -> Text
@@ -618,7 +618,7 @@ map_symbol f = fmap call
 
 -- | Transform the arguments in an expression.  This affects only vals in
 -- argument position.
-map_args :: (RawVal -> RawVal) -> Expr -> Expr
+map_args :: (Val -> Val) -> Expr -> Expr
 map_args f = fmap call
     where
     call (Call sym terms) = Call sym (map term terms)
@@ -638,13 +638,13 @@ map_generator f (call1 :| calls) = case calls of
 call :: Symbol -> [Term] -> Call
 call sym = Call sym
 
-literal_call :: Symbol -> [RawVal] -> Call
+literal_call :: Symbol -> [Val] -> Call
 literal_call sym args = call sym (map Literal args)
 
 inst :: Text -> Term
 inst = Literal . VInstrument . Score.Instrument
 
-val_call :: Symbol -> [RawVal] -> Term
+val_call :: Symbol -> [Val] -> Term
 val_call sym args = ValCall (literal_call sym args)
 
 

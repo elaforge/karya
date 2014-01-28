@@ -423,13 +423,8 @@ apply_generator cinfo (TrackLang.Call call_id args) = do
 -- because it's used later by inversion.  Since I'm evaluating a new call_id
 -- and args, and the cinfo is likely reused from another call, the @info_expr@
 -- is probably wrong.  Unfortunately, I can't "unparse" a call_id and args back
--- to an expr, because of the Val\/RawVal distinction.  That in turn is due to
--- pitch signal expressions having an optional default pitch.  To turn a pitch
--- signal back to a call, pitches would have to have enough information to
--- recreate the call that created them.  The underlying problem is that, for
--- flexibility, pitches are code, not data.  But that means that unlike all the
--- other Vals, they can't be converted back to the expression that created
--- them.
+-- to an expr, because pitches are code and can't necessarily be returned to
+-- the expression from whence they sprang.
 --
 -- The reason @info_expr@ is unparsed text is also thanks to pitch signal
 -- expressions.  Maybe I should get rid of them?
@@ -490,27 +485,10 @@ reapply_transformer cinfo call_id args deriver = do
 
 eval :: (Derive.ToTagged a) => Derive.CallInfo a -> TrackLang.Term
     -> Derive.Deriver TrackLang.Val
-eval cinfo (TrackLang.Literal val) = eval_val cinfo val
+eval _ (TrackLang.Literal val) = return val
 eval cinfo (TrackLang.ValCall (TrackLang.Call call_id terms)) = do
     call <- get_val_call call_id
     apply (Derive.tag_call_info cinfo) call terms
-
-eval_val :: (Derive.ToTagged a) => Derive.CallInfo a -> TrackLang.RawVal
-    -> Derive.Deriver TrackLang.Val
-eval_val cinfo val = case val of
-    TrackLang.VPitchControl p ->
-        TrackLang.VPitchControl <$> eval_pitch_control cinfo p
-    -- Ack, I wish there were a better way.
-    TrackLang.VNum a -> return $ TrackLang.VNum a
-    TrackLang.VAttributes a -> return $ TrackLang.VAttributes a
-    TrackLang.VControl a -> return $ TrackLang.VControl a
-    TrackLang.VPitch a -> return $ TrackLang.VPitch a
-    TrackLang.VNotePitch a -> return $ TrackLang.VNotePitch a
-    TrackLang.VInstrument a -> return $ TrackLang.VInstrument a
-    TrackLang.VSymbol a -> return $ TrackLang.VSymbol a
-    TrackLang.VQuoted a -> return $ TrackLang.VQuoted a
-    TrackLang.VControlFunction a -> return $ TrackLang.VControlFunction a
-    TrackLang.VNotGiven -> return TrackLang.VNotGiven
 
 eval_pitch_control :: (Derive.ToTagged a) => Derive.CallInfo a
     -> TrackLang.RawPitchControl -> Derive.Deriver TrackLang.PitchControl

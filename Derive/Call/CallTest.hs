@@ -124,5 +124,5 @@ expr :: Text -> TrackLang.Expr
 expr = either (error . ("CallTest.expr: " ++)) id . ParseBs.parse_expr
     . ParseBs.from_text
 
-val :: Text -> TrackLang.RawVal
+val :: Text -> TrackLang.Val
 val = either (error . ("CallTest.val: " ++)) id . ParseBs.parse_val

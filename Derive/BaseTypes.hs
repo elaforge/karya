@@ -306,14 +306,10 @@ type ValName = Symbol
 
 -- ** Val
 
--- | Pitches have to be evaluated, but the parser has to return something
--- unevaluated.
-type RawVal = ValType RawPitchControl
-
--- | Val with VPitchControl evaluated.
-type Val = ValType PitchControl
-
-data ValType pitch =
+-- | This is the type of first class values in the tracklang.  It's main
+-- purpose is the type for arguments to tracklang calls, and val calls' return
+-- type.
+data Val =
     -- | A number with an optional type suffix.  It also has a ratio style
     -- literal, though the output is still a floating point value, not a true
     -- ratio.
@@ -334,8 +330,8 @@ data ValType pitch =
     -- scale is taken from the environ.  Unlike a control signal, the empty
     -- string is a valid signal name and means the default pitch signal.
     --
-    -- Literal: @\#pitch,4c@, @\#,4@, @\#@
-    | VPitchControl !pitch
+    -- Literal: @\#pitch@, @(# pitch (4c))@
+    | VPitchControl !PitchControl
 
     -- | No literal, but is returned from val calls, notably scale calls.
     | VPitch !Pitch
@@ -383,7 +379,7 @@ data ValType pitch =
 -- thing.  I use this to treat any Val as a Symbol to re-evaluate it.  Being
 -- invalid means that a VPitch or VPitchControl with a default will cause
 -- a parse failure, but I'll have to see if this becomes a problem in practice.
-instance ShowVal.ShowVal pitch => ShowVal.ShowVal (ValType pitch) where
+instance ShowVal.ShowVal Val where
     show_val val = case val of
         VNum d -> ShowVal.show_val d
         VAttributes attrs -> ShowVal.show_val attrs
@@ -397,10 +393,10 @@ instance ShowVal.ShowVal pitch => ShowVal.ShowVal (ValType pitch) where
         VControlFunction f -> ShowVal.show_val f
         VNotGiven -> "_"
 
-instance ShowVal.ShowVal pitch => Pretty.Pretty (ValType pitch) where
+instance Pretty.Pretty Val where
     pretty = untxt . ShowVal.show_val
 
-instance DeepSeq.NFData (ValType pitch) where
+instance DeepSeq.NFData Val where
     rnf (VNum d) = DeepSeq.rnf d
     rnf (VSymbol (Symbol s)) = DeepSeq.rnf s
     rnf _ = ()
@@ -554,7 +550,7 @@ type CallId = Symbol
 -- | The only operator is @|@, so a list suffices for an AST.
 type Expr = NonEmpty Call
 data Call = Call CallId [Term] deriving (Show)
-data Term = ValCall Call | Literal RawVal deriving (Show)
+data Term = ValCall Call | Literal Val deriving (Show)
 
 -- | This is just a 'Call', but it's expected to return a VPitch.
 type PitchCall = Call

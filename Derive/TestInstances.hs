@@ -19,7 +19,6 @@ import qualified Cmd.Cmd as Cmd
 -- Normally Vals aren't comparable for equality because of the pesky VPitch,
 -- but it's too convenient for testing to lose.
 deriving instance Eq TrackLang.Val
-deriving instance Eq TrackLang.RawVal
 deriving instance Eq TrackLang.Call
 deriving instance Eq TrackLang.Term
 deriving instance Eq TrackLang.Quoted

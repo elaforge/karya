@@ -93,19 +93,22 @@ UNSORTED
     It is emitting 32nd notes instead of tuplets, caused by the +spic sub
     call.
   / `mordent` is a pain to type, abbreviate to `mord`?
-  * shakefile: changing repl env var causes relink of things that don't rely
+  - shakefile: changing repl env var causes relink of things that don't rely
     on it, e.g. logview
   - Corrupted views save in git repo is still happening.  How?
     Could this be related to the shake database corruption?
     - Investigate bug/views-broken.gz to see where and how it got corrupted.
-  / Can I get rid of RawVal vs. Val by storing it as a Quoted?
-    Why does PitchControl have a pitch *signal* anyway?  ValControl has a
-    control signal, which means I can have controls default to signals e.g.
-    '%decay,(i> 1 0)'.
-    But why can't I leave pitches quoted?  If I moved the evaluation to
-    Derive.Sig like VQuoted, it might be more consistent, but I'd still have
-    both Val and RawVal.  To really get rid of it, I'd have to put the eval
-    in Util.to_pitch_signal
+  * Get rid of RawVal by making literal pitch signals with a default
+    unparseable, instead they can be created with a val call:
+      (pcontrol sig (4c)) or (# sig (4c))
+    . Can I get rid of RawVal vs. Val by storing it as a Quoted?
+    . Why does PitchControl have a pitch *signal* anyway?  ValControl has a
+      control signal, which means I can have controls default to signals e.g.
+      '%decay,(i> 1 0)'.
+    . But why can't I leave pitches quoted?  If I moved the evaluation to
+      Derive.Sig like VQuoted, it might be more consistent, but I'd still have
+      both Val and RawVal.  To really get rid of it, I'd have to put the eval
+      in Util.to_pitch_signal
     . But it also means I can coerce a VPitch into a PitchControl.  Otherwise,
       either the pitch is already a VPitch and I can't put it in a Val, or
       I need RawVal so I can write a defaulted pitch PitchControl.  Both are

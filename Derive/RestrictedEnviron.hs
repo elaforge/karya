@@ -46,7 +46,7 @@ data Val =
     | VQuoted !Call
     deriving (Eq, Read, Show)
 
-convert_val :: Val -> TrackLang.ValType p
+convert_val :: Val -> TrackLang.Val
 convert_val val = case val of
     VNum v -> TrackLang.VNum v
     VAttributes v -> TrackLang.VAttributes v
@@ -57,7 +57,7 @@ convert_val val = case val of
     VQuoted v -> TrackLang.VQuoted $ TrackLang.Quoted $ convert_call v
 
 instance Pretty.Pretty Val where
-    format v = Pretty.format (convert_val v :: TrackLang.RawVal)
+    format v = Pretty.format (convert_val v)
 
 -- | This duplicates 'TrackLang.Typecheck', but then so does this whole module.
 -- In any case, it's convenient for creaing 'Environ's.

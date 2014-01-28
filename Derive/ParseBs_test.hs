@@ -14,7 +14,7 @@ import qualified Derive.Score as Score
 import Derive.TestInstances ()
 import qualified Derive.TrackLang as TrackLang
 import Derive.TrackLang
-       (ControlRef(..), Symbol(..), ValType(..), Call(..), Term(..))
+       (ControlRef(..), Symbol(..), Val(..), Call(..), Term(..))
 
 import qualified Perform.Signal as Signal
 
@@ -104,8 +104,7 @@ test_parse_val = do
             , ("%sig,", Nothing)
 
             , ("#", Just $ VPitchControl $ LiteralControl "")
-            , ("#sig,(0)", Just $ VPitchControl $
-                DefaultedControl "sig" (TrackLang.call "0" []))
+            , ("#sig", Just $ VPitchControl $ LiteralControl "sig")
 
             , ("\"(a b)", Just $ VQuoted $ TrackLang.Quoted $
                 Call (Symbol "a") [Literal (VSymbol (Symbol "b"))])
@@ -177,7 +176,7 @@ test_lex1 = do
 val_call :: Text -> [Term] -> Term
 val_call sym args = ValCall (Call (Symbol sym) args)
 
-symbol :: Text -> TrackLang.RawVal
+symbol :: Text -> TrackLang.Val
 symbol = VSymbol . Symbol
 
 
