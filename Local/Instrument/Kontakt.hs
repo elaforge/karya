@@ -259,7 +259,7 @@ mridangam_patches =
     code = MidiInst.note_generators call_code
         <> MidiInst.cmd (CUtil.insert_call char_to_call)
     call_code = concat
-        [ CUtil.drum_calls
+        [ CUtil.drum_calls Nothing
             [Drums.Note call attrs char 1
                 | (char, call, attrs) <- mridangam_keymap]
         , DUtil.multiple_calls

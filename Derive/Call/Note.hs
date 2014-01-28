@@ -20,7 +20,6 @@ import qualified Data.Text as Text
 import Util.Control
 import qualified Util.Num as Num
 import qualified Util.Seq as Seq
-import qualified Util.TextUtil as TextUtil
 
 import qualified Ui.Event as Event
 import qualified Derive.Args as Args
@@ -63,28 +62,27 @@ note_calls = Derive.call_maps
 -- * note
 
 c_note :: Derive.Generator Derive.Note
-c_note = note_call "" "" Tags.prelude (default_note use_attributes)
+c_note = note_call "note" "" Tags.prelude (default_note use_attributes)
 
 transformed_note :: Text -> Tags.Tags
     -> (Derive.NoteArgs -> Derive.NoteDeriver -> Derive.NoteDeriver)
     -> Derive.Generator Derive.Note
 transformed_note prepend_doc tags transform =
-    note_call "" prepend_doc tags $ \args ->
+    note_call "note" prepend_doc tags $ \args ->
         transform args (default_note use_attributes args)
 
 -- | Create a note call, configuring it with the actual note generating
 -- function.  The generator is called with the usual note arguments, and
 -- receives the usual instrument and attribute transform.
 note_call :: Text
-    -- ^ Append to the name, if non-null.  The documentation for all calls that
-    -- differ only in name can be grouped together, so it's easier to read
-    -- if small modifications are reflected in the name only.  But since
-    -- the name is then no longer a valid identifier, it can't be used to set
-    -- default arguments.  That's not really a big deal for the note call,
-    -- though.
+    -- ^ Call name.  The documentation for all calls that differ only in name
+    -- can be grouped together, so it's easier to read if small modifications
+    -- are reflected in the name only.  If you put invalid identifiers in the
+    -- name, it can't be used to set default arguments.  That's not really
+    -- a big deal for the note call, though.
     -> Text -> Tags.Tags -> GenerateNote -> Derive.Generator Derive.Note
-note_call append_name prepend_doc tags generate =
-    Derive.make_call (TextUtil.join2 "note" append_name) tags prepended $
+note_call name prepend_doc tags generate =
+    Derive.make_call name tags prepended $
         Sig.call parser (note_generate generate)
     where
     parser = Sig.many "attribute" "Change the instrument or attributes."

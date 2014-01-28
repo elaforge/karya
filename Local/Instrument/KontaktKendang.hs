@@ -40,7 +40,7 @@ patches =
     , (inst "kendang-pasang", pasang_code)
     ]
     where
-    tunggal_code = CUtil.drum_code (map fst tunggal_notes)
+    tunggal_code = CUtil.drum_code (Just "kendang-tune") (map fst tunggal_notes)
     inst name = Instrument.patch $ Instrument.instrument name [] pb_range
 
 tunggal_notes :: CUtil.PitchedNotes

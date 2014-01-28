@@ -6,7 +6,7 @@ UNSORTED
   * move derive utils from CUtil to DUtil
   * MidiInst.note_generators should take [(Symbol, ..)] instead of Text
   * refactor mridangam to use new pitched_drum_patch
-  - kkt/kendang should use a relative pitch, e.g. kendang-pitch = 0 means
+  * kkt/kendang should use a relative pitch, e.g. kendang-pitch = 0 means
     natural pitch, kendang-pitch = -1 goes down a step.
   - Refactor.selection should also rename relative block calls
   * zoom to selection with '\', not ']'

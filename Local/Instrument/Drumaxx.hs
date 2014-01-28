@@ -26,7 +26,7 @@ load _dir = return $ MidiInst.make $
 pb_range = (-24, 24)
 
 code :: MidiInst.Code
-code = CUtil.drum_code (map fst note_keys)
+code = CUtil.drum_code Nothing (map fst note_keys)
 
 patches :: [MidiInst.Patch]
 patches = MidiInst.with_code code $ map make_patch

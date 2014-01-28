@@ -24,15 +24,20 @@ import qualified Cmd.NoteTrack as NoteTrack
 import qualified Cmd.Perf as Perf
 import qualified Cmd.Selection as Selection
 
+import qualified Derive.Args as Args
 import qualified Derive.Call.Note as Note
+import qualified Derive.Call.Util as Util
 import qualified Derive.Call.Util as Call.Util
 import qualified Derive.Derive as Derive
+import qualified Derive.Pitches as Pitches
 import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.Midi.Instrument as Instrument
+import qualified Perform.NN as NN
 import qualified Perform.Pitch as Pitch
+
 import qualified App.MidiInst as MidiInst
 import Types
 
@@ -162,8 +167,15 @@ keyswitches inputs = \msg -> do
 
 -- | Construct code from drum notes.  This is both the deriver calls to
 -- interpret the stroke names, and the cmds to enter them.
-drum_code :: [Drums.Note] -> MidiInst.Code
-drum_code notes = MidiInst.note_generators (drum_calls notes)
+drum_code :: Maybe Score.Control -- ^ If given, the instrument is considered
+    -- unpitched, and will be given middle C to tune with if able, and should
+    -- map that to the instrument's natural pitch.  If the given control is
+    -- set, it indicates semitone offsets above or below the natural pitch.
+    -- Actual pitched drums which are tuned to a definite note should be tuned
+    -- by setting the pitch track, as always.
+    -> [Drums.Note] -> MidiInst.Code
+drum_code tuning_control notes =
+    MidiInst.note_generators (drum_calls tuning_control notes)
     <> MidiInst.cmd (drum_cmd notes)
 
 drum_cmd :: [Drums.Note] -> Cmd.Cmd
@@ -211,13 +223,28 @@ make_attribute_map attr_map = Instrument.make_attribute_map
 --
 -- This should probably go in DUtil, but that would make it depend on
 -- "Cmd.Instrument.Drums".
-drum_calls :: [Drums.Note] -> [(TrackLang.CallId, Derive.Generator Derive.Note)]
-drum_calls notes =
+drum_calls :: Maybe Score.Control -> [Drums.Note]
+    -> [(TrackLang.CallId, Derive.Generator Derive.Note)]
+drum_calls maybe_tuning_control notes =
     [(Drums.note_name n, note_call (Drums.note_dynamic n) (Drums.note_attrs n))
         | n <- notes]
     where
     note_call dyn attrs = Note.note_call
-        ("drum: " <> ShowVal.show_val attrs) "" mempty
-        (with_dyn dyn . Call.Util.add_attrs attrs
-            . Note.default_note Note.no_duration_attributes)
+        ("drum attrs: " <> ShowVal.show_val attrs) doc mempty $ \args ->
+        with_dyn dyn $ Call.Util.add_attrs attrs $ with_tuning args $
+            Note.default_note Note.no_duration_attributes args
     with_dyn = Derive.multiply_control Score.c_dynamic
+    with_tuning args = maybe id (tuning_control args) maybe_tuning_control
+    doc = case maybe_tuning_control of
+        Nothing -> ""
+        Just control -> "This instrument is unpitched, but its tuning can be\
+            \ adjusted with " <> ShowVal.show_val control <> ", in semitones\
+            \ from the natural pitch."
+
+tuning_control :: Derive.NoteArgs -> Score.Control -> Derive.Deriver a
+    -> Derive.Deriver a
+tuning_control args control deriver = do
+    tuning <- fromMaybe 0 <$>
+        (Derive.untyped_control_at control =<< Args.real_start args)
+    let nn = NN.middle_c + Pitch.nn tuning
+    Util.with_pitch (Pitches.nn_pitch nn) $ deriver
