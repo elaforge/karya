@@ -111,6 +111,7 @@ note_maps :: Derive.CallMaps Derive.Note
     , Random.note_calls
     , Reyong.note_calls
     , Sekar.note_calls
+    , SignalTransform.note_calls
     , String.note_calls
     , Trill.note_calls
     ]

@@ -232,11 +232,12 @@ UNSORTED
       Derive, or both set Pressure and the note config.
     . The problem is now that I have to modify both event controls and
       functions.  Having two means they can get out of sync.
-  - What if I want to randomize a MIDI control?  I can have a transform that's
+  * What if I want to randomize a MIDI control?  I can have a transform that's
     just 'with_control control (control_at control start)'.  But maybe then
     I want a way to wrap a transform around a call in tracklang so I don't
     have to make a whole new instrument to set this up.
-    > = "( | cf-sample c1 c2 c3)
+  - Bind a call to a Quoted to make it into a macro for that call:
+    > = "(cf-sample c1 c2 c3 |)
   india
     - nkam doesn't seem to interact correctly with 'h'
     - semi-tone dip.  This is like 1 cycle kam.

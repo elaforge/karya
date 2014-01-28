@@ -5,6 +5,7 @@
 -- | Transformers on control and pitch signals.
 module Derive.Call.SignalTransform where
 import qualified Data.List as List
+import qualified Data.List.NonEmpty as NonEmpty
 
 import Util.Control
 import qualified Util.Num as Num
@@ -29,10 +30,15 @@ import qualified Perform.Signal as Signal
 import Types
 
 
+-- * note
+
+note_calls :: Derive.CallMaps Derive.Note
+note_calls = Derive.transformer_call_map [("cf-sample", c_cf_sample)]
+
 -- * pitch
 
 pitch_calls :: Derive.CallMaps Derive.Pitch
-pitch_calls = Derive.call_maps [] [("sh", c_sh_pitch)]
+pitch_calls = Derive.transformer_call_map [("sh", c_sh_pitch)]
 
 c_sh_pitch :: Derive.Transformer Derive.Pitch
 c_sh_pitch = Derive.transformer "sh" mempty
@@ -58,7 +64,7 @@ sample_hold_pitch points sig = PitchSignal.unfoldr go (Nothing, points, sig)
 -- * control
 
 control_calls :: Derive.CallMaps Derive.Control
-control_calls = Derive.call_maps []
+control_calls = Derive.transformer_call_map
     [ ("quantize", c_quantize)
     , ("sh", c_sh_control)
     , ("slew", c_slew)
@@ -192,3 +198,18 @@ c_redirect merge op_name =
         (sig, logs) <- Post.derive_signal deriver
         Derive.modify_control merge (Score.control control) sig
         return $ map LEvent.Log logs
+
+c_cf_sample :: Derive.Transformer Derive.Note
+c_cf_sample = Derive.transformer "cf-sample"
+    (Tags.prelude <> Tags.control_function)
+    "Sample the given control functions and insert them as constants in the\
+    \ control map. The default note call expects continuous signals, so it\
+    \ takes slices out of the control map. This transfers control functions\
+    \ to the control map, so you can e.g. use randomized controls."
+    $ Sig.callt (Sig.many1 "control" "Sample these control functions.")
+    $ \controls args deriver -> do
+        start <- Args.real_start args
+        let cs = map Score.control (NonEmpty.toList controls)
+        vals <- mapM (flip Derive.control_at start) cs
+        foldr (uncurry Util.with_constant) deriver
+            [(c, Score.typed_val v) | (c, Just v) <- zip cs vals]
