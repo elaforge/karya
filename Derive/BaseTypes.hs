@@ -425,6 +425,8 @@ instance ShowVal.ShowVal Quoted where
     signal usually is on a control track and will wind up being rendered on the
     UI.  So the convention is that control functions are generally just
     modifications of an underlying signal, rather than synthesizing a signal.
+
+    See NOTE [control-function].
 -}
 data ControlFunction =
     ControlFunction !Text !(Control -> Dynamic -> RealTime -> TypedVal)
@@ -574,3 +576,51 @@ instance DeepSeq.NFData Call where
 instance DeepSeq.NFData Term where
     rnf (ValCall call) = DeepSeq.rnf call
     rnf (Literal val) = DeepSeq.rnf val
+
+{- NOTE [control-function]
+
+    Control functions add unwanted complexity, but I couldn't think of
+    a simpler way to randomized or synthesized control values.  Here's the
+    history:
+
+    . One way would be look for a corresponding <>"-rnd" control for a range.
+      But what about distribution?
+    . If I pass RealTime to a Quoted value, I could write the parameter as
+      "(rnd-signal x y).  But it would have to be curried to still accept the
+      "at" parameter, or have access to it through CallInfo.  It could look at
+      the stack, which is how the random seed works.  Seems complicated.  But
+      replacing a signal with a function seems like a good idea.
+    . Can I replace the Signal.Control itself with something possibly wrapped
+      in a function?  That function would need (RandomSeed, RealTime).  But
+      that doesn't work for notes that take a slice of the signal.  I think
+      I only want to randomize Signal.at access.
+    . Or a separate 'Map Score.Control ValCall' and the Signal.at functions in
+      derive first look in there.  This is similar to the -rnd control idea,
+      except more flexible.  I could use it not just for different
+      distributions, but to invert a signal, combine two signals, etc.  Or
+      have an entirely synthesized signal, with no backing Signal.Control.
+    . dur-rnd could be replaced by randomization on sus-abs.  start-rnd gets
+      replaced by a start-offset control, which can then be randomized.
+      start-offset could be also useful for e.g. swing time or instruments
+      that are aggressively before the beat.
+    . At this point I could get rid of the "normal" control map, replacing
+      with Signal.at ValCalls.  Except that I still need non-randomized signals
+      to slice and send to MIDI perform, and to display on the UI.
+    . Also, ValCalls can log and fail and do the other Deriver things.  Of
+      course they also have access to State, which they need, or at least the
+      Dynamic part.  But to bind in tracklang I still need some sort of
+      currying, e.g. '%control = (rnd .1 sig)'.  But the call is
+      (rnd, Control, RealTime).  So I could save the Call and append RealTime
+      at the end.  I could optimize a bit by looking up 'rnd' at the binding
+      time.  But I can't typecheck the args unless I introspect... which
+      I actually can do, given the documentation.  I would have to map each
+      ArgDoc back to its parser, then apply each parser.  But it would be hard
+      to store the types untagged, maybe possible with an existential type but
+      seems tricky, and I need access to the function directly.
+    . I could also use plain haskell functions, but it would be yet another
+      namespace, and I'd still need a way to typecheck and pass args from
+      tracklang.  Val calls already do all that, I should reuse it.
+    . A better way might be to add a VControlFunction, which is just
+      RealTime -> Signal.Y, this would also eliminate typechecking the return
+      value.  That means I also don't have to quote, e.g. '%x = "(f)'
+-}

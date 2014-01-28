@@ -7,56 +7,15 @@ UNSORTED
     a duplicate ruler id
   - LRuler call to synchronize ruler ids with their owning blocks, if only
     owned by one block.
-  * move derive utils from CUtil to DUtil
-  * MidiInst.note_generators should take [(Symbol, ..)] instead of Text
-  * refactor mridangam to use new pitched_drum_patch
-  * kkt/kendang should use a relative pitch, e.g. kendang-pitch = 0 means
-    natural pitch, kendang-pitch = -1 goes down a step.
-  * Refactor.selection should also rename relative block calls
-  * zoom to selection with '\', not ']'
-  * when in negative step, creating an event to a range should make it
-    negative
-  / EditUtil.modify_event_at's advance should advance to the end of the
-    created or modified event.  Well, that would be annoying with END.
-    And annoying in general.  Maybe I should just use cmd-0.
   - If thru did eval on "", I wouldn't need pasang thru.  But it might be
     slower.
-  * Clip sometimes missing notes right at the beginning
   - deriving kendang-telek is super slow, what's going on?
   - in kendang-telek some notes are incorrectly tuned
-  * When zooming in on a selection, zoom to exactly that selection.
-  * Vsl.strip_attr.strip_redundant is taking a huge amount of time
-  * redo profiles so they use saved scores, and report events/sec
-  * Can I get "(ts s) as an arg parser?  Two ways
-    . Pair an arg and bit of Deriver code to transform it.
-    . Put VQuoted in as a default.  This way the doc can mention it, but it
-      has to be a ValCall.
-      . Use for CUtil.double_calls too.
-    . If I pass VQuoted, it winds up as a Val, which means the Parser return
-      value is also Val, which means Sig can't do typechecking.
-      I think if I have either a 'Typecheck a' or a Quoted, I can have Sig
-      explicitly evaluate the Quoted when the default is returned.
-      I don't think a typeclass will work because it's overlapping.
-    * First do it with Either, then try to be clever.
-  * experiment with explicit recording instead of the automatic "recent"
-    * Either record a text modification: replace, prepend, append, delete
-    * Or insert an event + dur + text, and advance the cursor to its end.
-    * also record the last operation to repeat with '.'
-  * moving notes up should clip negative notes
-  * cmd-s should work on negative notes
-  * move Theory.Pitch to Perform.Pitch.  (Octave, (PC, Accs))
-    data Abstract = Abstract Octave Degree
-    data Degree = Degree PitchClass Accidentals
-    While Pitch.Abstract might read nicely, abstracts = [Pitch.Abstract ...]
-    sure doesn't.  Maybe keep Pitch after all.  Pitch.Pitch.  But need a new
-    name for Note.  Degree is ok if there are no users of the old Degree.
-  * instance IsString Pitch.Note
   - scale introduced val calls should go first
     They do, but pitch calls always go before the val call fallback.
     Maybe I could eliminate the fallabck, and instead have scales also
     emit pitch calls.  In any case, I don't want them interfering anyway.
   - give ModifyEvents.Track the ability to change the track title?
-  * why is save/seasons piano part putting lots of pitch bends in?
   - chord calls, with automatic dyns for the notes.
     Originally I intended each note to go in its own track, with the idea that
     it takes about the same space but is more powerful and flexible.  But it's
@@ -89,44 +48,12 @@ UNSORTED
         a playback cursor, and to be able to mix with "normal" notation)
         then all is fine, but if I do want to mix then I need to get a tempo
         out of it.
-  * fix the ly notation in mvt3 of viola-sonata: bug/ly-tuplets.gz
-    It is emitting 32nd notes instead of tuplets, caused by the +spic sub
-    call.
   / `mordent` is a pain to type, abbreviate to `mord`?
   - shakefile: changing repl env var causes relink of things that don't rely
     on it, e.g. logview
   - Corrupted views save in git repo is still happening.  How?
     Could this be related to the shake database corruption?
     - Investigate bug/views-broken.gz to see where and how it got corrupted.
-  * Get rid of RawVal by making literal pitch signals with a default
-    unparseable, instead they can be created with a val call:
-      (pcontrol sig (4c)) or (# sig (4c))
-    . Can I get rid of RawVal vs. Val by storing it as a Quoted?
-    . Why does PitchControl have a pitch *signal* anyway?  ValControl has a
-      control signal, which means I can have controls default to signals e.g.
-      '%decay,(i> 1 0)'.
-    . But why can't I leave pitches quoted?  If I moved the evaluation to
-      Derive.Sig like VQuoted, it might be more consistent, but I'd still have
-      both Val and RawVal.  To really get rid of it, I'd have to put the eval
-      in Util.to_pitch_signal
-    . But it also means I can coerce a VPitch into a PitchControl.  Otherwise,
-      either the pitch is already a VPitch and I can't put it in a Val, or
-      I need RawVal so I can write a defaulted pitch PitchControl.  Both are
-      common cases.
-    . I could get around that by having the caller quote the val, e.g.
-      'f "(4c)', but that's an annoying syntax for something that should "just
-      work", and is common.
-  * 'g 2c 1' is interpreted as 'g 2c 1d'.  Perhaps subsequent untyped nums
-    should get the type of the preceding one?  Or rather, I should require
-    that all transpositions are of the same type.  This is annoying to do
-    because I'd have to make it TypedVal at which point it loses automatic
-    typechecking.
-  * Double strokes for percussion, e.g. 'oo' could be thom thom with the first
-    at 0.5 dyn.
-  / Derive/Instrument/* should go in Derive/Call/Instrument?
-    Not really worth having nested directories over.
-  / A postproc might transform percussion so repeated notes after the first
-    one lose dyn.
   - Play position doesn't work right for 'loop' and 'tile' calls, it only
     understands the first loop, and doesn't know that 'tile' cuts off the
     beginning.
@@ -140,109 +67,11 @@ UNSORTED
     from just loading a copy: it loads it anew each time, and doesn't save
     it with the score.  This is like the 'import' idea, except the library is
     in score, not code.
-  Some way to randomize signals.
-    . One way would be look for a corresponding <>"-rnd" control for a range.
-      But what about distribution?
-    . If I pass RealTime to a Quoted value, I could write the parameter as
-      "(rnd-signal x y).  But it would have to be curried to still accept the
-      "at" parameter, or have access to it through CallInfo.  It could look at
-      the stack, which is how the random seed works.  Seems complicated.  But
-      replacing a signal with a function seems like a good idea.
-    . Can I replace the Signal.Control itself with something possibly wrapped
-      in a function?  That function would need (RandomSeed, RealTime).  But
-      that doesn't work for notes that take a slice of the signal.  I think
-      I only want to randomize Signal.at access.
-    . Or a separate 'Map Score.Control ValCall' and the Signal.at functions in
-      derive first look in there.  This is similar to the -rnd control idea,
-      except more flexible.  I could use it not just for different
-      distributions, but to invert a signal, combine two signals, etc.  Or
-      have an entirely synthesized signal, with no backing Signal.Control.
-    . dur-rnd could be replaced by randomization on sus-abs.  start-rnd gets
-      replaced by a start-offset control, which can then be randomized.
-      start-offset could be also useful for e.g. swing time or instruments
-      that are aggressively before the beat.
-    . At this point I could get rid of the "normal" control map, replacing
-      with Signal.at ValCalls.  Except that I still need non-randomized signals
-      to slice and send to MIDI perform, and to display on the UI.
-    . Also, ValCalls can log and fail and do the other Deriver things.  Of
-      course they also have access to State, which they need, or at least the
-      Dynamic part.  But to bind in tracklang I still need some sort of
-      currying, e.g. '%control = (rnd .1 sig)'.  But the call is
-      (rnd, Control, RealTime).  So I could save the Call and append RealTime
-      at the end.  I could optimize a bit by looking up 'rnd' at the binding
-      time.  But I can't typecheck the args unless I introspect... which
-      I actually can do, given the documentation.  I would have to map each
-      ArgDoc back to its parser, then apply each parser.  But it would be hard
-      to store the types untagged, maybe possible with an existential type but
-      seems tricky, and I need access to the function directly.
-    . I could also use plain haskell functions, but it would be yet another
-      namespace, and I'd still need a way to typecheck and pass args from
-      tracklang.
-    . A better way might be to add a VControlFunction, which is just
-      RealTime -> Signal.Y, this would also eliminate typechecking the return
-      value.  That means I also don't have to quote, e.g. '%x = "(f)'
-    * Add VControlFunction.  Needs Dynamic since it can't close over it.
-      But Dynamic is in Derive not BaseTypes.  I can pass a mini-Deriver,
-      or I could make the ControlFunction itself a Deriver.  That means it can
-      use the Deriver functions and log and all that.  Well, except I can't
-      because Deriver is in Derive as well.  Remember I had this problem
-      before with trying to put a Deriver in Val.
-    Derive.control_at looks in state_control_functions first
-      * For this to work I need to generalize Signal.Control to
-        (RealTime -> TypedVal).  This means Util.to_signal returns a function.
-      * signal functions don't let me see if they are constant, and Speed uses
-        this to eliminate precision loss for the common constant case.
-    * c_equal assigns a VControlFunction to state_control_functions
-    * add some control functions
-    * tests for control functions
+  control functions:
     - If ControlFunction has access to the ruler, it can do things based on
       the importance of surrounding beats, e.g. swing or rubato.
-    . Things functions can't do:
-      . Figure out if it's constant, to optimize or eliminate precision loss.
-      . Mostly, I can't display them, though I suppose I could with sampling.
-        It seems like it would create confusing calls that ignore the
-        functions while others don't, e.g. xcut could use signals and display
-        the generated signal, or functions and not.  But the motivation for
-        functions is randomization, which is not really suitable for drawing
-        anyway, unless I want to draw a probability curve.  Functions aren't
-        suitable for the kinds of things that want continuous signals anyway.
-      . Functions are appealing because they can be more efficient, since they
-        don't have to materialize the data.  Of course, if I want to draw it
-        then it should be materialized, but many times drawing is a separate
-        render anyway.
-      . So maybe functions should only exist paired with an underlying signal.
-        Then you can't have a function with no signal, which means you can't
-        have it not work with calls that really want signals.  I could pass
-        the corresponding signal the function, but that's redundant with
-        Dynamic.
-  * Randomization for velocity, especially important as many sample libraries
-    have lots of velocity splits, but no round robin.
-    But I want to do it only for midi velocity, not pressure dyn.
-    Maybe dyn mapping should move to the note call?  But it doesn't have patch
-    flags.  So instead of a Pressure flag, there is a pressure variant of the
-    note call that some patches will override.  That way vel randomization can
-    use the same control signal randomization thing I'm planning.
-    The advantage of flags is that Cmd can look at them, so Triggered I think
-    still remains a flag.
-    . But note entry uses Pressure for thru.  But maybe I need a more general
-      way to get control functions into midi events.  But I think there's no
-      better way than just a list of controls to pull out of ControlValMap,
-      including vel.  But they're per-inst configured, so maybe it should go
-      in environ, except environ doesn't support lists.  Space separated would
-      work, though not prettty.
-    . Or a separate postproc could sample the given controls and insert.  But
-      that wouldn't work for vel, and would be less convenient since it would
-      have to be applied per-instrument.  And I don't have a per-instrument
-      postproc, though I might want one some day.
-    . But this still doesn't seem to help dyn, because I still need to
-      substitute dyn into vel or breath.  So I need either access to flags in
-      Derive, or both set Pressure and the note config.
-    . The problem is now that I have to modify both event controls and
-      functions.  Having two means they can get out of sync.
-  * What if I want to randomize a MIDI control?  I can have a transform that's
-    just 'with_control control (control_at control start)'.  But maybe then
-    I want a way to wrap a transform around a call in tracklang so I don't
-    have to make a whole new instrument to set this up.
+    - Use a control function to implement swing tempo.  Or is there a better
+      way?
   - Bind a call to a Quoted to make it into a macro for that call:
     > = "(cf-sample c1 c2 c3 |)
   india
@@ -286,16 +115,7 @@ UNSORTED
   more scales
     - wendy carlos' alpha, beta, gamma
     - overtone series
-    - add ratio transpose single, that multiplies hz
-
-  * recent tends to collect pitches added via edit input, but since they have
-    a specific pitch they're not useful.
-    . Maybe I should have a separate recent queue only for transformers, and
-      the generator recent is only one slot.  That way I can still repeat the
-      last note call.
-    . I'm still not sure I want this, since it seems like I want to repeat
-      generators too.  But how to tell wanted ones from unwanted pitch ones?
-    . Maybe there should be a way to explicitly record a transform.
+    - add ratio transpose signal, that multiplies hz
   - After a rederive, it still takes a Cmd to free up the memory.  Who is
     holding on to it?
   - Composite 0 dur notes still not quite right, controls come too early.
@@ -933,8 +753,6 @@ Derive:
     tags should instead be derived from the namespace, e.g. prelude, bali,
     india.
   tracklang:
-    * If I don't allow = in calls, I could write assigns without whitespace:
-      x=y Is it worth it?
     - there should be a character that triggers a parse failure, which is used
       by invalid ShowVal instances like ShowVal Pitch
     - it's confusing how some calls expect env vals like 'x = 1' and some
@@ -972,62 +790,18 @@ Derive:
     trills
       / hybrid where the initial part stretches, final part is absolute
     bali:
-      * cipher scale is still more convenient than absolute when dealing with
-        one or two instruments.  Maybe I should use a base-octave var instead
-        of kantilan and pemade variations.
-        . try per-instrument scale with: i_ i- i^
-      * How do I set umbang/isep for instruments that don't already have them
-        built-in?  Do I need the Environ per-instrument config?
-        * But I can't save Environ because of Pitch
-          * I could make a RestrictedEnviron.  I could also put environ in the
-            Patch and get rid of the special purpose plumbing.
-          / Would it be enough to get rid of Val vs. RawVal?  No, not unless I
-            want to use an expression for VPitch.  In that case, what would
-            pitch val calls return?
       kotekan ornaments
-        / pasang doesn't work because it eliminates the >pasang before
-          kempyung has a chance to see it.  I need something that does the
-          split at convert time.
-          But it's simpler to just wrap everything in a unison.
-        * kotekan can leave inst as it is, to be split by unison or kempyung
-          I should be able to get rid of out of range and instrument_top_env
-          for the norot calls.
-        * a form of explicit "empty allocation" for instruments like pasang
-        * norot
-        * norot switches to kotekan when above a certain speed
-        * norot pickup: >norot
-          - control for +mute or not
-        * gnorot for gender style norot: 5656, 434- / 234-
-          - control for polos 234- vs. 434-
+        - control for norot +mute
+        - gender norot: control for polos 234- vs. 434-
         - an optional special pattern which switching between kotekan and back,
           e.g. 112-2-2-
         kotekan:
-          patterns
-            * 1-12-1-21 -- /_\
-            * -2-12-12, -1-21-21 -- \\, //
-            * 1-12-12-21-21-12- / 434-34-3-43-434-3 -- \/-
-            * _11_1-21 / 44-43-4 -- _\
-          Less regular patterns, e.g.
-            * -11-1-21 / -3-32-32
-            * In general I need a way to express arbitrary patterns,
-              parameterized by destination note.
           - verify realization with integration
           - Some patterns do play on the beat, they should be able to do that
             and suppress the previous note.  I could do this by emitting the
             note with a +weak attr, which will be cancelled out in postproc by
             a coincident note.
-          . Aligned so the last polos / sangsih note is the pitch.
-          * telu vs. empat
           - phase: this can make the last note no longer align to the pitch
-        * I should have a better way of specifying instrument ranges than
-          NoteNumber + adjust for umbang/isep, where I don't even know why it
-          works.
-        * ensure that Wayang and Legong scales all have a consistent
-          absolute Theory.Pitch parse.
-        * add VTPitch to TrackLang.Val, along with Typecheck instance
-          called VNotePitch, since TTPitch is just terrible.
-        * add Environ.inst_top and Environ.inst_bottom, and use those for
-          kempyung
       wayang in octaves
         . I could do it with >wayang-both that emits >wayang-p and >wayang-k. Or
           just call the score twice, once with transpose +1 oct.
@@ -1139,18 +913,6 @@ pitch: scales: scale:
       is.  Then pitch calls use that to tune.  Doing the analysis might be
       tricky since I have to extract a "principle pitch" from each event,
       but it might be useful in general to have an analysis framework.
-  fancier pitch signals:
-    * to_relative: This needs Note - Note = Semis.  I think I could just add
-      a field in Scale, but I'm not totally sure I really want this.
-    * Cmd.Lang.LPitch.to_relative: I would need to implement Scale.scale_diff
-      but I'm reluctant until I need to_relative or something similar
-  * generic way to parse a note to a Theory.Pitch, and back
-    . If I add
-      scale_parse :: Pitch.Note -> Maybe Theory.Pitch
-      scale_show :: Theory.Pitch -> Maybe Theory.Note
-  - Can I get rid of scale_transpose with scale_read and scale_show?  I think
-    it wouldn't be able to support odd scales like octatonic in a-g, but I'm
-    not sure.  What about enharmonic spelling?
 
 Perform:
   - damper pedal causes all notes to extend until the pedal comes up, should
