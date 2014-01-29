@@ -54,7 +54,12 @@ UNSORTED
     on it, e.g. logview
   - Corrupted views save in git repo is still happening.  How?
     Could this be related to the shake database corruption?
-    - Investigate bug/views-broken.gz to see where and how it got corrupted.
+    * Investigate bug/views-broken.gz to see where and how it got corrupted.
+      It always seems to be at View status field, though that may be
+      coincidence.
+    - It only happens when saving to git.  Maybe git corrupts the file, since
+      it's inside the git dir.  Save a copy to the parent, and compare the
+      next time I get corruption.
   - Play position doesn't work right for 'loop' and 'tile' calls, it only
     understands the first loop, and doesn't know that 'tile' cuts off the
     beginning.
