@@ -50,7 +50,6 @@ test_c_equal_note_transformer = do
 
 test_c_equal_call = do
     let run = DeriveTest.extract DeriveTest.e_note . DeriveTest.derive_tracks
-
     -- Rebind a note call.
     equal (run [(">", [(0, 1, ">zzz = n | zzz")])]) ([(0, 1, "?")], [])
     equal (run [("> | *zzz = set", [(0, 1, "")]), ("*", [(0, 0, "zzz (4c)")])])
@@ -60,6 +59,26 @@ test_c_equal_call = do
     equal (run [("> | -zzz = e | p = (4c)", [(0, 1, "")]),
             ("*", [(0, 0, "zzz p")])])
         ([(0, 1, "4c")], [])
+
+test_c_equal_quoted = do
+    let run title note = DeriveTest.extract extract $ DeriveTest.derive_tracks
+            [(title, [(0, 1, note)])]
+        extract e = (DeriveTest.e_pitch e, DeriveTest.e_attributes e)
+    -- Just make sure assigning to # works.
+    equal (run ">" "# = (4c) |") ([("4c", "+")], [])
+    -- Bind val call to (4c).
+    equal (run "> | -zzz = \"(4c)" "# = (zzz) |") ([("4c", "+")], [])
+    -- Bind argument to 'n'.
+    equal (run "> | >zzz = \"(n +a)" "zzz") ([("?", "+a")], [])
+    -- Recursive binding doesn't work.  To fix this, I should look up the
+    -- calls in the quoted text.
+    let (vals, logs) = run "> | >n = \"(n +a)" "n"
+    equal vals []
+    strings_like logs ["too many arguments"]
+
+    -- val calls () don't allow pipes inside, but "(x | y) is useful
+    -- also "() should be allowed
+    pprint (run "> | >z = \"(# = (4c) | n)" "z")
 
 e_inst :: Score.Event -> (RealTime, Text)
 e_inst e = (Score.event_start e, Score.inst_name (Score.event_instrument e))

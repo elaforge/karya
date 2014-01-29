@@ -4,7 +4,11 @@
 
 {-# LANGUAGE ViewPatterns #-}
 -- | Export 'c_equal' call, which implements @=@.
-module Derive.Call.Equal where
+module Derive.Call.Equal (
+    c_equal
+    , equal_arg_doc, equal_doc
+    , equal_transformer
+) where
 import qualified Data.Map as Map
 import qualified Data.Text as Text
 
@@ -19,6 +23,7 @@ import qualified Derive.Controls as Controls
 import qualified Derive.Derive as Derive
 import qualified Derive.ParseBs as ParseBs
 import qualified Derive.PitchSignal as PitchSignal
+import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Sig as Sig
 import qualified Derive.TrackLang as TrackLang
 
@@ -45,6 +50,11 @@ equal_doc =
     \ need quoting for symbols that don't match 'Derive.ParseBs.p_symbol'.\
     \ E.g.: set note generator: `>x = some-block`, note transformer: `>-x = t`,\
     \ control transfomrer: `'.-i' = t`, pitch val call: `'-4c' = 5c`.\
+    \\nIf you bind a call to a quoted expression, this creates a new call:\
+    \ `>new = \"(a b c)` will create a `new` call, which is a macro for\
+    \ `a b c`. It looks like function definition, but it's purely a macro,\
+    \ so don't bind `>n = \"(n x)` unless you like infinite recursion.\
+    \ Also, the created call does not take arguments (yet!).\
     \\nSet constant signals by assigning to a signal literal: `%c = .5` or\
     \ pitch: `#p = (4c)`.  `# = (4c)` sets the default pitch signal."
 
@@ -59,21 +69,21 @@ equal_transformer args deriver = case Derive.passed_vals args of
 
 parse_equal :: TrackLang.Symbol -> TrackLang.Val -> Derive.Deriver a
     -> Either String (Derive.Deriver a)
-parse_equal (TrackLang.Symbol assignee) (TrackLang.VSymbol sym) deriver
+parse_equal (TrackLang.Symbol assignee) (is_source -> Just source) deriver
     | Just new <- Text.stripPrefix ">" assignee = Right $
-        override_call new sym deriver "note"
+        override_call new source deriver "note"
             (Derive.s_generator#Derive.s_note)
             (Derive.s_transformer#Derive.s_note)
     | Just new <- Text.stripPrefix "*" assignee = Right $
-        override_call new sym deriver "pitch"
+        override_call new source deriver "pitch"
             (Derive.s_generator#Derive.s_pitch)
             (Derive.s_transformer#Derive.s_pitch)
     | Just new <- Text.stripPrefix "." assignee = Right $
-        override_call new sym deriver "control"
+        override_call new source deriver "control"
             (Derive.s_generator#Derive.s_control)
             (Derive.s_transformer#Derive.s_control)
     | Just new <- Text.stripPrefix "-" assignee = Right $
-        override_val_call new sym deriver
+        override_val_call new source deriver
 parse_equal (parse_val -> Just assignee) val deriver
     | Just control <- is_control assignee = case val of
         TrackLang.VControl val -> Right $
@@ -103,31 +113,42 @@ parse_equal (parse_val -> Just assignee) val deriver
     is_pitch _ = Nothing
 parse_equal assignee val deriver = Right $ Derive.with_val assignee val deriver
 
+type Source = Either TrackLang.CallId TrackLang.Quoted
+
+is_source :: TrackLang.Val -> Maybe Source
+is_source (TrackLang.VSymbol a) = Just $ Left a
+is_source (TrackLang.VQuoted a) = Just $ Right a
+is_source _ = Nothing
+
 parse_val :: TrackLang.Symbol -> Maybe TrackLang.Val
 parse_val = either (const Nothing) Just . ParseBs.parse_val . TrackLang.unsym
 
 -- | Look up a call with the given CallId and add it as an override to the
 -- scope given by the lenses.  I wanted to pass just one lens, but apparently
 -- they're not sufficiently polymorphic.
-override_call :: Text -> TrackLang.CallId -> Derive.Deriver a
-    -> Text
-    -> Lens Derive.Scopes (Derive.ScopeType (Derive.Call d1))
-    -> Lens Derive.Scopes (Derive.ScopeType (Derive.Call d2))
+override_call :: (Derive.Callable d1, Derive.Callable d2)
+    => Text -> Source -> Derive.Deriver a -> Text
+    -> Lens Derive.Scopes (Derive.ScopeType (Derive.Generator d1))
+    -> Lens Derive.Scopes (Derive.ScopeType (Derive.Transformer d2))
     -> Derive.Deriver a
-override_call assignee source deriver name generator transformer
+override_call assignee source deriver name_ generator transformer
     | Just stripped <- Text.stripPrefix "-" assignee =
-        override_scope stripped (name <> " transformer") transformer
-    | otherwise = override_scope assignee (name <> " generator") generator
+        override_scope stripped transformer
+            =<< resolve (name_ <> " transformer")
+                transformer (return . quoted_transformer) source
+    | otherwise = override_scope assignee generator
+        =<< resolve (name_ <> " generator")
+            generator (return . quoted_generator) source
     where
-    override_scope assignee name lens = do
-        call <- get_call name (lens #$) source
-        let modify = lens#Derive.s_override %= (single_lookup assignee call :)
+    override_scope assignee lens call =
         Derive.with_scopes modify deriver
+        where modify = lens#Derive.s_override %= (single_lookup assignee call :)
+    resolve name lens = either (get_call name (lens #$))
 
-override_val_call :: Text -> TrackLang.CallId -> Derive.Deriver a
-    -> Derive.Deriver a
+override_val_call :: Text -> Source -> Derive.Deriver a -> Derive.Deriver a
 override_val_call assignee source deriver = do
-    call <- get_call "val" (Derive.s_val #$) source
+    call <- either (get_call "val" (Derive.s_val #$)) (return . quoted_val_call)
+        source
     let modify = Derive.s_val#Derive.s_override
             %= (single_val_lookup assignee call :)
     Derive.with_scopes modify deriver
@@ -146,3 +167,36 @@ single_val_lookup :: Text -> Derive.ValCall
     -> Derive.LookupCall Derive.ValCall
 single_val_lookup name =
     Derive.map_val_lookup . Map.singleton (TrackLang.Symbol name)
+
+
+-- * quoted
+
+-- | Create a new call from a quoted expression.  This is flirting with
+-- function definiion, but is really just macro expansion, with all the
+-- variable capture problems implied.  But since the only variables I have are
+-- calls maybe it's not so bad.
+quoted_generator :: Derive.Callable d => TrackLang.Quoted -> Derive.Generator d
+quoted_generator (TrackLang.Quoted call@(TrackLang.Call call_id terms)) =
+    Derive.make_call "quoted-call" mempty
+    ("Created from expression: " <> ShowVal.show_val call)
+    $ Sig.call0 $ \args -> do
+        let cinfo = Derive.passed_info args
+        vals <- mapM (Call.eval cinfo) terms
+        Call.reapply_generator (Derive.passed_info args) call_id vals
+            (ParseBs.from_text (ShowVal.show_val call))
+
+quoted_transformer :: Derive.Callable d => TrackLang.Quoted
+    -> Derive.Transformer d
+quoted_transformer (TrackLang.Quoted call@(TrackLang.Call call_id terms)) =
+    Derive.make_call "quoted-call" mempty
+    ("Created from expression: " <> ShowVal.show_val call)
+    $ Sig.call0t $ \args deriver -> do
+        let cinfo = Derive.passed_info args
+        vals <- mapM (Call.eval cinfo) terms
+        Call.reapply_transformer (Derive.passed_info args) call_id vals deriver
+
+quoted_val_call :: TrackLang.Quoted -> Derive.ValCall
+quoted_val_call (TrackLang.Quoted call) = Derive.val_call "quoted-call" mempty
+    ("Created from expression: " <> ShowVal.show_val call)
+    $ Sig.call0 $ \args ->
+        Call.eval (Derive.passed_info args) (TrackLang.ValCall call)

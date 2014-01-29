@@ -16,6 +16,7 @@ UNSORTED
     Maybe I could eliminate the fallabck, and instead have scales also
     emit pitch calls.  In any case, I don't want them interfering anyway.
   - give ModifyEvents.Track the ability to change the track title?
+    Cmd.Repl.LPitch.change_scale and to_relative could use this.
   - chord calls, with automatic dyns for the notes.
     Originally I intended each note to go in its own track, with the idea that
     it takes about the same space but is more powerful and flexible.  But it's
@@ -72,8 +73,15 @@ UNSORTED
       the importance of surrounding beats, e.g. swing or rubato.
     - Use a control function to implement swing tempo.  Or is there a better
       way?
-  - Bind a call to a Quoted to make it into a macro for that call:
+  * Bind a call to a Quoted to make it into a macro for that call:
     > = "(cf-sample c1 c2 c3 |)
+    . Currently Quoted is for ValCalls, so the expression can't have |.
+      This still makes sense for quoted as default args, since they have to be
+      val calls.
+    . I could either have a separate syntax, e.g. "{expression}, or I could
+      loosen Quoted to any expression, but Derive.Sig throws if it's not
+      a ValCall.
+    - Let's generalize Quoted to any expression.
   india
     - nkam doesn't seem to interact correctly with 'h'
     - semi-tone dip.  This is like 1 cycle kam.
