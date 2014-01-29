@@ -22,8 +22,6 @@ import qualified Ui.Id as Id
 import qualified Ui.Style as Style
 import qualified Ui.Types as Types
 
-import qualified Perform.Midi.Control as Control
-
 
 #include "fltk/config.h"
 
@@ -262,7 +260,7 @@ default_scale_id :: Text
 default_scale_id = "twelve"
 
 -- | Default range for input devices (e.g. MIDI keyboards).
-read_device_pb_range :: Control.PbRange
+read_device_pb_range :: (Int, Int)
 read_device_pb_range = (-2, 2)
 
 -- | Default size of new views.
