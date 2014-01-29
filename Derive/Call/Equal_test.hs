@@ -76,9 +76,7 @@ test_c_equal_quoted = do
     equal vals []
     strings_like logs ["too many arguments"]
 
-    -- val calls () don't allow pipes inside, but "(x | y) is useful
-    -- also "() should be allowed
-    pprint (run "> | >z = \"(# = (4c) | n)" "z")
+    equal (run "> | >z = \"(# = (4c) |)" "z") ([("4c", "+")], [])
 
 e_inst :: Score.Event -> (RealTime, Text)
 e_inst e = (Score.event_start e, Score.inst_name (Score.event_instrument e))

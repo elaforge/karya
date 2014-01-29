@@ -9,6 +9,7 @@ module Derive.Call.Equal (
     , equal_arg_doc, equal_doc
     , equal_transformer
 ) where
+import qualified Data.List.NonEmpty as NonEmpty
 import qualified Data.Map as Map
 import qualified Data.Text as Text
 
@@ -176,27 +177,31 @@ single_val_lookup name =
 -- variable capture problems implied.  But since the only variables I have are
 -- calls maybe it's not so bad.
 quoted_generator :: Derive.Callable d => TrackLang.Quoted -> Derive.Generator d
-quoted_generator (TrackLang.Quoted call@(TrackLang.Call call_id terms)) =
+quoted_generator quoted@(TrackLang.Quoted expr) =
     Derive.make_call "quoted-call" mempty
-    ("Created from expression: " <> ShowVal.show_val call)
-    $ Sig.call0 $ \args -> do
-        let cinfo = Derive.passed_info args
-        vals <- mapM (Call.eval cinfo) terms
-        Call.reapply_generator (Derive.passed_info args) call_id vals
-            (ParseBs.from_text (ShowVal.show_val call))
+    ("Created from expression: " <> ShowVal.show_val quoted)
+    $ Sig.call0 $ \args -> Call.eval_expr (quoted_cinfo args quoted) expr
 
 quoted_transformer :: Derive.Callable d => TrackLang.Quoted
     -> Derive.Transformer d
-quoted_transformer (TrackLang.Quoted call@(TrackLang.Call call_id terms)) =
+quoted_transformer quoted@(TrackLang.Quoted expr) =
     Derive.make_call "quoted-call" mempty
-    ("Created from expression: " <> ShowVal.show_val call)
-    $ Sig.call0t $ \args deriver -> do
-        let cinfo = Derive.passed_info args
-        vals <- mapM (Call.eval cinfo) terms
-        Call.reapply_transformer (Derive.passed_info args) call_id vals deriver
+    ("Created from expression: " <> ShowVal.show_val quoted)
+    $ Sig.call0t $ \args deriver ->
+        Call.apply_transformers (quoted_cinfo args quoted)
+            (NonEmpty.toList expr) deriver
 
 quoted_val_call :: TrackLang.Quoted -> Derive.ValCall
-quoted_val_call (TrackLang.Quoted call) = Derive.val_call "quoted-call" mempty
-    ("Created from expression: " <> ShowVal.show_val call)
-    $ Sig.call0 $ \args ->
-        Call.eval (Derive.passed_info args) (TrackLang.ValCall call)
+quoted_val_call quoted = Derive.val_call "quoted-call" mempty
+    ("Created from expression: " <> ShowVal.show_val quoted)
+    $ Sig.call0 $ \args -> do
+        call <- case quoted of
+            TrackLang.Quoted (call :| []) -> return $ TrackLang.ValCall call
+            _ -> Derive.throw $
+                "expected a val call, but got a full expression: "
+                <> untxt (ShowVal.show_val quoted)
+        Call.eval (quoted_cinfo args quoted) call
+
+quoted_cinfo :: Derive.PassedArgs d -> TrackLang.Quoted -> Derive.CallInfo d
+quoted_cinfo args (TrackLang.Quoted expr) = (Derive.passed_info args)
+    { Derive.info_expr = ParseBs.from_text (ShowVal.show_val expr) }

@@ -406,10 +406,13 @@ check_arg state arg_doc place name val = do
         Nothing -> Left $ Derive.TypeError place
             source name (Derive.arg_type arg_doc) (Just val)
 
-eval :: State -> TrackLang.Call -> Either Derive.Error TrackLang.Val
-eval state call = result
+eval :: State -> TrackLang.Expr -> Either Derive.Error TrackLang.Val
+eval state expr = result
     where
-    (result, _state, _logs) = Derive.run (state_derive state) $
+    (result, _state, _logs) = Derive.run (state_derive state) $ do
+        call <- case expr of
+            call :| [] -> return call
+            _ -> Derive.throw "expected a val call, but got a full expression"
         Call.eval (state_call_info state) (TrackLang.ValCall call)
 
 lookup_default :: Derive.EnvironDefault -> State -> Text -> Maybe TrackLang.Val

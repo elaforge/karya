@@ -53,6 +53,8 @@ import qualified Derive.TrackLang as TrackLang
 import qualified Perform.Signal as Signal
 
 
+-- | This is really confusing, the only reason I called this Text is that
+-- I thought it would be a real Text sometime soon.  TODO should fix that.
 type Text = Event.Text
 
 from_string :: String -> Text
@@ -68,7 +70,7 @@ to_text :: Text -> Text.Text
 to_text = Parse.to_text
 
 parse_expr :: Text -> Either String TrackLang.Expr
-parse_expr = parse p_pipeline
+parse_expr = parse (p_pipeline True)
 
 -- | Parse a control track title.  The first expression in the composition is
 -- parsed simply as a list of values, not a Call.  Control track titles don't
@@ -176,17 +178,17 @@ p_hs_string = fmap (\s -> "\"" <> s <> "\"") $
 p_control_title :: A.Parser ([TrackLang.Val], [TrackLang.Call])
 p_control_title = do
     vals <- A.many (lexeme $ TrackLang.VSymbol <$> p_scale_id <|> p_val)
-    expr <- A.option [] (p_pipe >> NonEmpty.toList <$> p_pipeline)
+    expr <- A.option [] (p_pipe >> NonEmpty.toList <$> p_pipeline True)
     return (vals, expr)
 
-p_pipeline :: A.Parser TrackLang.Expr
-p_pipeline = do
+p_pipeline :: Bool -> A.Parser TrackLang.Expr
+p_pipeline toplevel = do
     -- It definitely matches at least one, because p_null_call always matches.
-    c : cs <- A.sepBy1 p_expr p_pipe
+    c : cs <- A.sepBy1 (p_expr toplevel) p_pipe
     return $ c :| cs
 
-p_expr :: A.Parser TrackLang.Call
-p_expr = A.try p_equal <|> A.try (p_call True) <|> p_null_call
+p_expr :: Bool -> A.Parser TrackLang.Call
+p_expr toplevel = A.try p_equal <|> A.try (p_call toplevel) <|> p_null_call
 
 p_pipe :: A.Parser ()
 p_pipe = void $ lexeme (A.char '|')
@@ -230,7 +232,7 @@ p_val =
     <|> TrackLang.VSymbol <$> p_string
     <|> TrackLang.VControl <$> p_control
     <|> TrackLang.VPitchControl <$> p_pitch_control
-    <|> TrackLang.VQuoted <$> p_quoted_call
+    <|> TrackLang.VQuoted <$> p_quoted
     <|> (A.char '_' >> return TrackLang.VNotGiven)
     <|> TrackLang.VSymbol <$> p_symbol
 
@@ -307,8 +309,9 @@ p_pitch_control = do
         A.option "" (p_identifier "")
     <?> "pitch control"
 
-p_quoted_call :: A.Parser TrackLang.Quoted
-p_quoted_call = A.char '"' >> TrackLang.Quoted <$> p_sub_call
+p_quoted :: A.Parser TrackLang.Quoted
+p_quoted =
+    A.string "\"(" *> (TrackLang.Quoted <$> p_pipeline False) <* A.char ')'
 
 -- | This is special syntax that's only allowed in control track titles.
 p_scale_id :: A.Parser TrackLang.Symbol
@@ -375,9 +378,16 @@ p_null_word = A.takeWhile is_word_char
 -- 'p_equal' expressions without spaces.  In sub calls, @)@ is not allowed,
 -- because then I couldn't tell where the sub call expression ends, e.g. @())@.
 -- However, @(()@ is fine, even though it looks weird.
-is_word_char, is_toplevel_word_char :: Char -> Bool
-is_word_char c = c /= ' ' && c /= '=' && c /= ')'
+--
+-- I could get rid of the toplevel distinction by not allowing ) in calls
+-- even at the toplevel, but I have @ly-(@ and @ly-)@ calls and I kind of like
+-- how those look.  I guess it's a crummy justification, but not need to change
+-- it unless toplevel gives more more trouble.
+is_toplevel_word_char :: Char -> Bool
 is_toplevel_word_char c = c /= ' ' && c /= '='
+
+is_word_char :: Char -> Bool
+is_word_char c = c /= ' ' && c /= '=' && c /= ')'
 
 lexeme :: A.Parser a -> A.Parser a
 lexeme p = p <* spaces

@@ -360,9 +360,11 @@ data Val =
     -- Literal: @func@, @\'hello\'@, @\'quinn\'\'s hat\'@
     | VSymbol !Symbol
 
-    -- | A quoted val call.  Quoted calls are resolved by "Derive.Sig" when
+    -- | A quoted expression.  Quoted calls are resolved by "Derive.Sig" when
     -- it typechecks arguments.  This way you can set an argument default to
     -- an expression that will be evaluated every time the call occurs.
+    -- Derive.Sig expects that the expression is a valid val call, which means
+    -- no pipes.
     --
     -- Literal: @\"(a b c)@
     | VQuoted !Quoted
@@ -401,10 +403,13 @@ instance DeepSeq.NFData Val where
     rnf (VSymbol (Symbol s)) = DeepSeq.rnf s
     rnf _ = ()
 
-newtype Quoted = Quoted Call deriving (Show)
+newtype Quoted = Quoted Expr deriving (Show)
 
+-- | Unlike Exprs in general, a Quoted Expr should be representable with
+-- show_val.  This is because a Quoted has only been parsed, not evaluated,
+-- so it shouldn't have anything unshowable, like pitches.
 instance ShowVal.ShowVal Quoted where
-    show_val (Quoted call) = "\"(" <> ShowVal.show_val call <> ")"
+    show_val (Quoted expr) = "\"(" <> ShowVal.show_val expr <> ")"
 
 {- | Another representation of a signal, complementary to 'Signal.Control'.
     It's more powerful because it has access to a subset of the Dynamic state,
@@ -558,7 +563,7 @@ data Term = ValCall Call | Literal Val deriving (Show)
 type PitchCall = Call
 
 instance ShowVal.ShowVal Expr where
-    show_val expr =
+    show_val expr = Text.stripEnd $
         Text.intercalate " | " (map ShowVal.show_val (NonEmpty.toList expr))
 instance ShowVal.ShowVal Call where
     show_val (Call (Symbol sym) terms) =

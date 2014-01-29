@@ -101,7 +101,7 @@ constant_control :: Signal.Y -> ValControl
 constant_control = ControlSignal . Score.untyped . Signal.constant
 
 quoted :: Symbol -> [Val] -> Quoted
-quoted name args = Quoted $ literal_call name args
+quoted name args = Quoted $ literal_call name args :| []
 
 unsym :: Symbol -> Text
 unsym (Symbol sym) = sym

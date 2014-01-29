@@ -29,7 +29,7 @@ test_eval_quoted = do
     let int :: Sig.Parser Int
         int = Sig.required "int" ""
     let quoted sym = TrackLang.VQuoted
-            (TrackLang.Quoted (TrackLang.call sym []))
+            (TrackLang.Quoted (TrackLang.call sym [] :| []))
     let run val = call_with (CallTest.with_val_call "v" (val_call val))
         val_call val = Derive.val_call "v" mempty "" $ Sig.call0 $ \_ ->
             return $ TrackLang.to_val val

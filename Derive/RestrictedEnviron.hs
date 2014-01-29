@@ -7,6 +7,7 @@
 -- | This is a serializable subset of 'TrackLang.Val' and 'TrackLang.Environ'.
 -- It omits pitches, which are code and can't be serialized.
 module Derive.RestrictedEnviron where
+import qualified Data.List.NonEmpty as NonEmpty
 import qualified Data.Map as Map
 import qualified Data.Monoid as Monoid
 
@@ -43,7 +44,7 @@ data Val =
     | VNotePitch !Pitch.Pitch
     | VInstrument !Score.Instrument
     | VSymbol !TrackLang.Symbol
-    | VQuoted !Call
+    | VQuoted !Expr
     deriving (Eq, Read, Show)
 
 convert_val :: Val -> TrackLang.Val
@@ -54,7 +55,7 @@ convert_val val = case val of
     VNotePitch v -> TrackLang.VNotePitch v
     VInstrument v -> TrackLang.VInstrument v
     VSymbol v -> TrackLang.VSymbol v
-    VQuoted v -> TrackLang.VQuoted $ TrackLang.Quoted $ convert_call v
+    VQuoted v -> TrackLang.VQuoted $ TrackLang.Quoted $ convert_expr v
 
 instance Pretty.Pretty Val where
     format v = Pretty.format (convert_val v)
@@ -86,12 +87,16 @@ instance ToVal Pitch.Pitch where to_val = VNotePitch
 instance ToVal Score.Instrument where to_val = VInstrument
 instance ToVal TrackLang.Symbol where to_val = VSymbol
 instance ToVal Text where to_val = VSymbol . TrackLang.Symbol
-instance ToVal Call where to_val = VQuoted
+instance ToVal Expr where to_val = VQuoted
 
 -- * call
 
+type Expr = NonEmpty Call
 data Call = Call TrackLang.CallId [Term] deriving (Eq, Read, Show)
 data Term = ValCall Call | Literal Val deriving (Eq, Read, Show)
+
+convert_expr :: Expr -> TrackLang.Expr
+convert_expr = NonEmpty.map convert_call
 
 convert_call :: Call -> TrackLang.Call
 convert_call (Call call_id terms) =

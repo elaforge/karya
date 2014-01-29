@@ -81,7 +81,7 @@ UNSORTED
     . I could either have a separate syntax, e.g. "{expression}, or I could
       loosen Quoted to any expression, but Derive.Sig throws if it's not
       a ValCall.
-    - Let's generalize Quoted to any expression.
+    * Let's generalize Quoted to any expression.
   india
     - nkam doesn't seem to interact correctly with 'h'
     - semi-tone dip.  This is like 1 cycle kam.
