@@ -15,6 +15,7 @@ module Derive.Call.Util where
 import qualified Data.List as List
 import qualified Data.List.NonEmpty as NonEmpty
 import qualified Data.Map as Map
+
 import qualified System.Random.Mersenne.Pure64 as Pure64
 
 import Util.Control
@@ -92,8 +93,7 @@ time_control_at default_type control pos = do
         Score.Score -> return Score
         Score.Real -> return Real
         _ -> Derive.throw $ "expected time type for "
-            <> untxt (TrackLang.show_val control) <> " but got "
-            <> Pretty.pretty typ
+            <> untxt (TrackLang.show_val control) <> " but got " <> pretty typ
     return $ case time_type of
         Real -> TrackLang.Real (RealTime.seconds val)
         Score -> TrackLang.Score (ScoreTime.double val)
@@ -116,8 +116,7 @@ transpose_control_at default_type control pos = do
         Score.Chromatic -> return Chromatic
         Score.Diatonic -> return Diatonic
         _ -> Derive.throw $ "expected transpose type for "
-            <> untxt (TrackLang.show_val control) <> " but got "
-            <> Pretty.pretty typ
+            <> untxt (TrackLang.show_val control) <> " but got " <> pretty typ
     return (val, transpose_type)
 
 
@@ -195,7 +194,7 @@ to_transpose_function default_type control = do
             Just control -> return (untyped, control)
             _ -> Derive.throw $ "expected transpose type for "
                 <> untxt (TrackLang.show_val control) <> " but got "
-                <> Pretty.pretty typ
+                <> pretty typ
 
 -- | Version of 'to_function' that will complain if the control isn't a time
 -- type.
@@ -211,7 +210,7 @@ to_time_function default_type control = do
         Score.Real -> return (untyped, Real)
         _ -> Derive.throw $ "expected time type for "
             <> untxt (TrackLang.show_val control) <> " but got "
-            <> Pretty.pretty typ
+            <> pretty typ
 
 -- TODO maybe pos should be be ScoreTime so I can pass it to eval_pitch?
 pitch_at :: RealTime -> TrackLang.PitchControl
@@ -226,7 +225,7 @@ pitch_at pos control = case control of
         maybe (Derive.throw $ "pitch not found and no default given: "
             ++ show cont) return maybe_pitch
     where
-    require = Derive.require ("ControlSignal pitch at " <> Pretty.pretty pos)
+    require = Derive.require ("ControlSignal pitch at " <> pretty pos)
         . PitchSignal.at pos
 
 to_pitch_signal :: TrackLang.PitchControl -> Derive.Deriver PitchSignal.Signal
@@ -241,7 +240,7 @@ to_pitch_signal control = case control of
 nn_at :: RealTime -> TrackLang.PitchControl
     -> Derive.Deriver (Maybe Pitch.NoteNumber)
 nn_at pos control = -- TODO throw exception?
-    Derive.logged_pitch_nn ("Util.nn_at " ++ Pretty.pretty (pos, control))
+    Derive.logged_pitch_nn ("Util.nn_at " ++ pretty (pos, control))
         =<< pitch_at pos control
 
 -- * note
@@ -253,7 +252,7 @@ pitch :: RealTime -> Derive.Deriver (Maybe PitchSignal.Pitch)
 pitch = Derive.pitch_at
 
 get_pitch :: RealTime -> Derive.Deriver PitchSignal.Pitch
-get_pitch pos = Derive.require ("pitch at " ++ Pretty.pretty pos)
+get_pitch pos = Derive.require ("pitch at " ++ pretty pos)
     =<< Derive.pitch_at pos
 
 eval_note :: ScoreTime -> Pitch.Note -> Derive.Deriver PitchSignal.Pitch

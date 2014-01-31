@@ -58,8 +58,8 @@ import qualified Text.ParserCombinators.ReadP as ReadP
 import qualified Text.Read as Read
 
 import qualified Util.ApproxEq as ApproxEq
-import Util.Crc32Instances ()
 import Util.Control
+import Util.Crc32Instances ()
 import qualified Util.ForeignC as C
 import qualified Util.Pretty as Pretty
 import qualified Util.Serialize as Serialize
@@ -124,7 +124,7 @@ suffix = 's'
 
 -- | Show RealTime as hours, minutes, seconds.
 show_units :: RealTime -> Text
-show_units t = units <> Pretty.prettytxt (seconds (fromIntegral secs + frac))
+show_units t = units <> prettyt (seconds (fromIntegral secs + frac))
     where
     units = mconcat $ map (\(a, b) -> showt a <> b) $
         filter ((>0) . fst) [(hours, "h"), (mins, "m")]

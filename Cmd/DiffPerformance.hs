@@ -11,8 +11,6 @@ import qualified Data.Vector as Vector
 
 import qualified Util.ApproxEq as ApproxEq
 import Util.Control
-import qualified Util.Pretty as Pretty
-
 import qualified Midi.Midi as Midi
 import qualified Ui.State as State
 import qualified Cmd.Serialize as Serialize
@@ -45,7 +43,7 @@ verify prev midi
     where
     diffs = diff_midi (State.perf_midi prev) midi
     show_diffs perf diffs =
-        "Diffs from " <> Pretty.prettytxt (State.perf_creation perf)
+        "Diffs from " <> prettyt (State.perf_creation perf)
         <> "\nPatch: " <> State.perf_patch perf
         <> "\n" <> Text.unlines (take 50 diffs)
 
@@ -59,9 +57,9 @@ diff_midi expected got =
     where
     show_diff (Diff.Both {}) = Nothing
     show_diff (Diff.First msgs) = Just $ Text.unlines $
-        map (("- " <>) . Pretty.prettytxt) msgs
+        map (("- " <>) . prettyt) msgs
     show_diff (Diff.Second msgs) = Just $ Text.unlines $
-        map (("+ " <>) . Pretty.prettytxt) msgs
+        map (("+ " <>) . prettyt) msgs
 
 wmsgs_equal :: Midi.WriteMessage -> Midi.WriteMessage -> Bool
 wmsgs_equal (Midi.WriteMessage dev1 t1 m1) (Midi.WriteMessage dev2 t2 m2) =

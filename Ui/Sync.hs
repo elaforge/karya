@@ -40,7 +40,6 @@ import qualified Data.Text as Text
 
 import Util.Control
 import qualified Util.Log as Log
-import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 
 import qualified Ui.Block as Block
@@ -93,7 +92,7 @@ check_updates state = filterM $ \update -> case update of
         _ | view_id `Map.member` State.state_views state -> return True
         _ -> do
             Log.warn $ "Update for nonexistent " <> show view_id <> ": "
-                <> Pretty.pretty u
+                <> pretty u
             return False
     _ -> return True
 

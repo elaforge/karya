@@ -5,7 +5,6 @@
 -- | Utilities dealing with speeds.
 module Derive.Call.Speed where
 import Util.Control
-import qualified Util.Pretty as Pretty
 import qualified Ui.ScoreTime as ScoreTime
 import qualified Derive.Call.Util as Util
 import qualified Derive.Derive as Derive
@@ -53,8 +52,7 @@ real_starts sig start end = get_starts speed_at start (end + RealTime.eta)
     speed_at t = do
         let speed = Signal.y_to_real (sig t)
         when (speed <= 0) $
-            Derive.throw $ "Speed.real_starts: speed <= 0: "
-                <> Pretty.pretty speed
+            Derive.throw $ "Speed.real_starts: speed <= 0: " <> pretty speed
         return speed
 
 -- | Emit ScoreTimes at the given speed, which may change over time.  The
@@ -72,8 +70,7 @@ score_starts sig start end = get_starts speed_at start (end + ScoreTime.eta)
     speed_at t = do
         speed <- Signal.y_to_score . sig <$> Derive.real t
         when (speed <= 0) $
-            Derive.throw $ "Speed.score_starts: speed <= 0: "
-                <> Pretty.pretty speed
+            Derive.throw $ "Speed.score_starts: speed <= 0: " <> pretty speed
         return speed
 
 get_starts :: (Ord t, Fractional t, Monad m, Functor m) => (t -> m t) -> t -> t

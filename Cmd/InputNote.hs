@@ -74,8 +74,7 @@ data GenericInput pitch =
 instance (Show pitch, Pretty.Pretty pitch) =>
         Pretty.Pretty (GenericInput pitch) where
     pretty (NoteOn id pitch vel) =
-        unwords ["NoteOn", "(" <> show id <> ")", Pretty.pretty pitch,
-            Pretty.pretty vel]
+        unwords ["NoteOn", "(" <> show id <> ")", pretty pitch, pretty vel]
     pretty input = show input
 
 input_id :: GenericInput x -> NoteId

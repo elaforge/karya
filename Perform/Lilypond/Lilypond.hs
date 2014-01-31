@@ -15,9 +15,7 @@ import qualified Data.Text.Lazy as Lazy
 import qualified Data.Text.Lazy.Builder as Builder
 
 import Util.Control
-import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
-
 import qualified Derive.Environ as Environ
 import qualified Derive.Score as Score
 import qualified Derive.Stack as Stack
@@ -309,8 +307,8 @@ get_meters start staff_end events = do
                 meter <- Meter.parse_meter val
                 return $ Just (event_start event, meter)
         where
-        context = Pretty.pretty Constants.ly_global <> " event at "
-            <> Pretty.pretty (event_start event)
+        context = pretty Constants.ly_global <> " event at "
+            <> pretty (event_start event)
 
 error_context :: String -> Either String a -> Either String a
 error_context msg = either (Left . ((msg ++ ": ") ++)) Right

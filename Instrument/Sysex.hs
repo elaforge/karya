@@ -352,7 +352,7 @@ encode_spec config path rmap (name, spec) = case spec of
     SubSpec specs -> do
         sub_record <- lookup_field name >>= \x -> case x of
             RMap rmap -> return rmap
-            rec -> throw $ "non-RMap child of a SubSpec: " ++ Pretty.pretty rec
+            rec -> throw $ "non-RMap child of a SubSpec: " ++ pretty rec
         mapM_ (encode_spec config (name:path) sub_record) specs
     List elts specs -> do
         records <- lookup_field name >>= \x -> case x of
@@ -362,21 +362,19 @@ encode_spec config path rmap (name, spec) = case spec of
                 | otherwise -> throw $ "expected RMap list of length "
                     ++ show elts ++ " but got length "
                     ++ show (Map.size rmap)
-            val -> throw $ "expected RMap list, but got "
-                ++ Pretty.pretty val
+            val -> throw $ "expected RMap list, but got " ++ pretty val
         rmaps <- forM records $ \x -> case x of
             RMap rmap -> return rmap
-            rec -> throw $ "non-RMap child of an RMap list: "
-                ++ Pretty.pretty rec
+            rec -> throw $ "non-RMap child of an RMap list: " <> pretty rec
         forM_ (zip [0..] rmaps) $ \(i, rmap) ->
             mapM_ (encode_spec config (name : show i : path) rmap) specs
     Union enum_name nbytes enum_specs -> do
         union_rmap <- lookup_field name >>= \x -> case x of
             RUnion union_rmap -> return union_rmap
-            val -> throw $ "expected RUnion RMap, but got " ++ Pretty.pretty val
+            val -> throw $ "expected RUnion RMap, but got " <> pretty val
         enum <- lookup_field enum_name >>= \x -> case x of
             RStr enum -> return enum
-            val -> throw $ "expeted RStr, but got " ++ Pretty.pretty val
+            val -> throw $ "expeted RStr, but got " <> pretty val
         specs <- case lookup enum enum_specs of
             Just specs -> return specs
             Nothing -> throw $ "not found in union "
@@ -394,8 +392,7 @@ encode_spec config path rmap (name, spec) = case spec of
                         "Unparsed expected " ++ show nbytes
                         ++ " bytes but got " ++ show (B.length bytes)
                     | otherwise -> return bytes
-                val -> throw $ "expected RUnparsed, but got "
-                    ++ Pretty.pretty val
+                val -> throw $ "expected RUnparsed, but got " <> pretty val
             Writer.tell (Builder.byteString bytes)
     Constant bytes -> Writer.tell (Builder.byteString bytes)
     where
@@ -438,7 +435,7 @@ encode_range _ record =
 
 rmap_lookup :: RMap -> Name -> Either Error Record
 rmap_lookup rmap name = case Map.lookup name rmap of
-    Nothing -> Left $ "not found in: " ++ Pretty.pretty (Map.keys rmap)
+    Nothing -> Left $ "not found in: " <> pretty (Map.keys rmap)
     Just val -> Right val
 
 -- * decode

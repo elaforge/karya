@@ -145,7 +145,7 @@ instance Pretty.Pretty Stack where
 instance Pretty.Pretty Frame where
     pretty (Block bid) = show bid
     pretty (Track tid) = show tid
-    pretty (Region s e) = Pretty.pretty s ++ "--" ++ Pretty.pretty e
+    pretty (Region s e) = pretty s <> "--" <> pretty e
     pretty (Call call) = untxt call
 
 instance Serialize.Serialize Frame where

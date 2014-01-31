@@ -144,7 +144,7 @@ instance Pretty.Pretty Meta where
 instance Pretty.Pretty Performance where
     format (Performance midi creation patch) = Pretty.record_title "Performance"
         [ ("midi", Pretty.text $ show (Vector.length midi))
-        , ("creation", Pretty.text $ Pretty.pretty creation)
+        , ("creation", Pretty.text $ pretty creation)
         , ("patch", Pretty.text (untxt patch))
         ]
 

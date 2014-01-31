@@ -16,7 +16,6 @@ import qualified Data.Text as Text
 import Util.Control
 import qualified Util.File as File
 import qualified Util.Format as Format
-import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 import qualified Util.TextUtil as TextUtil
 
@@ -66,7 +65,7 @@ call_bindings_text (binds, ctype, call_doc) = do
     arg_docs (Derive.ArgDocs args) = mapM_ arg_doc args
     arg_doc (Derive.ArgDoc name typ parser env_default doc) = do
         Format.write $ name <> fromMaybe mempty char <> " :: "
-            <> txt (Pretty.pretty typ) <> maybe "" (" = "<>) deflt
+            <> prettyt typ <> maybe "" (" = "<>) deflt
             <> " " <> environ_keys name env_default
             <> " -- "
         write_doc doc
@@ -220,7 +219,7 @@ call_bindings_html hstate call_kind bindings@(binds, ctype, call_doc) =
     arg_docs (Derive.ArgDocs args) = mconcatMap arg_doc args
     arg_doc (Derive.ArgDoc name typ parser env_default doc) =
         "<li>" <> tag "code" (html name) <> show_char char
-        <> " :: " <> tag "em" (html (txt (Pretty.pretty typ)))
+        <> " :: " <> tag "em" (html (prettyt typ))
         <> show_default deflt
         <> " " <> tag "code" (html (environ_keys name env_default))
         <> (if Text.null doc then "" else " &mdash; " <> html_doc hstate doc)

@@ -42,7 +42,6 @@ import qualified Data.List.NonEmpty as NonEmpty
 
 import Util.Control
 import qualified Util.Num as Num
-import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 
 import qualified Derive.Args as Args
@@ -284,7 +283,7 @@ c_jaru = Derive.generator1 "jaru" Tags.india
 c_jaru_intervals :: Util.TransposeType -> [Signal.Y]
     -> Derive.Generator Derive.Pitch
 c_jaru_intervals transpose intervals = Derive.generator1 "jaru" Tags.india
-    ("This is `jaru` hardcoded to " <> Pretty.prettytxt intervals <> ".")
+    ("This is `jaru` hardcoded to " <> prettyt intervals <> ".")
     $ Sig.call ((,,)
     <$> required "pitch" "Base pitch."
     <*> defaulted "time" jaru_time_default "Time for each note."
@@ -442,7 +441,7 @@ jaru_transition_c name default_transition transition_doc =
 
 c_jaru_intervals_c :: [Signal.Y] -> Derive.Generator Derive.Control
 c_jaru_intervals_c intervals = Derive.generator1 "jaru" Tags.india
-    ("This is `jaru` hardcoded to " <> Pretty.prettytxt intervals <> ".")
+    ("This is `jaru` hardcoded to " <> prettyt intervals <> ".")
     $ Sig.call ((,)
     <$> defaulted "time" jaru_time_default "Time for each note."
     <*> defaulted "transition" Nothing

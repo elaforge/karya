@@ -102,7 +102,7 @@ run_msg :: RealTime -> Midi.WriteMessage -> SynthM ()
 run_msg prev_ts (Midi.WriteMessage dev ts (Midi.ChannelMessage chan msg)) = do
     State.modify deactivate
     when (ts < prev_ts) $
-        warn $ "timestamp less than previous: " <> Pretty.prettytxt prev_ts
+        warn $ "timestamp less than previous: " <> prettyt prev_ts
     case msg of
         Midi.NoteOff key _ -> ifM (is_active addr key)
             (note_off addr ts key)
@@ -110,7 +110,7 @@ run_msg prev_ts (Midi.WriteMessage dev ts (Midi.ChannelMessage chan msg)) = do
         Midi.NoteOn key vel -> active_key addr key >>= \x -> case x of
             Nothing -> note_on addr ts key vel
             Just old -> do
-                warn $ "double note on: " <> Pretty.prettytxt old
+                warn $ "double note on: " <> prettyt old
                 note_off addr ts key
                 note_on addr ts key vel
         Midi.Aftertouch _ _ -> warn "aftertouch not supported"
@@ -193,9 +193,9 @@ deactivate state = state
 -- | Format synth state in an easier to read way.
 pretty_state :: State -> Text
 pretty_state (State active notes warns _ _) = Text.intercalate "\n" $ concat
-    [ ["active:"], map Pretty.prettytxt (concat (Map.elems active))
+    [ ["active:"], map prettyt (concat (Map.elems active))
     , ["", "warns:"], map pretty_warn warns
-    , ["", "notes:"], map Pretty.prettytxt notes
+    , ["", "notes:"], map prettyt notes
     ]
 
 pretty_controls :: ControlMap -> String
@@ -205,11 +205,10 @@ pretty_controls controls = Seq.join "\n\t"
 
 pretty_warn :: (Midi.WriteMessage, Text) -> Text
 pretty_warn (Midi.WriteMessage dev ts (Midi.ChannelMessage chan msg), warn) =
-    Pretty.prettytxt ts <> " " <> Pretty.prettytxt dev <> ":" <> showt chan
+    prettyt ts <> " " <> prettyt dev <> ":" <> showt chan
         <> " " <> showt msg <> ": " <> warn
 pretty_warn (Midi.WriteMessage dev ts msg, warn) =
-    Pretty.prettytxt ts <> " " <> Pretty.prettytxt dev <> ":" <> showt msg
-        <> ": " <> warn
+    prettyt ts <> " " <> prettyt dev <> ":" <> showt msg <> ": " <> warn
 
 instance Pretty.Pretty Note where
     pretty (Note start dur key vel pitch controls (dev, chan)) =

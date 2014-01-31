@@ -134,7 +134,7 @@ data Box = Box { box_color :: !Color.Color, box_char :: !Char }
     deriving (Eq, Show, Read)
 
 instance Pretty.Pretty Box where
-    pretty (Box color c) = Pretty.pretty color ++ if c == ' ' then [] else [c]
+    pretty (Box color c) = pretty color ++ if c == ' ' then [] else [c]
 
 -- | Like 'Track.Track', this has per-track data, but unlike Track.Track,
 -- this is data that can vary per-block.
@@ -159,9 +159,8 @@ track_id :: Track -> Maybe TrackId
 track_id = track_id_of . tracklike_id
 
 instance Pretty.Pretty Track where
-    pretty (Track tid width flags merged) =
-        Pretty.pretty tid ++ ": " ++ unwords
-            [Pretty.pretty width, Pretty.pretty flags, Pretty.pretty merged]
+    pretty (Track tid width flags merged) = pretty tid <> ": "
+        <> unwords [pretty width, pretty flags, pretty merged]
 
 -- | Construct a 'Track' with defaults.
 track :: TracklikeId -> Types.Width -> Track
@@ -269,8 +268,8 @@ data TracklikeId =
 
 instance Pretty.Pretty TracklikeId where
     pretty tlike_id = case tlike_id of
-        TId tid rid -> Pretty.pretty tid ++ "/" ++ Pretty.pretty rid
-        RId rid -> Pretty.pretty rid
+        TId tid rid -> pretty tid <> "/" <> pretty rid
+        RId rid -> pretty rid
         DId divider -> show divider
 
 track_id_of :: TracklikeId -> Maybe TrackId

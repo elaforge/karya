@@ -6,7 +6,6 @@ module Derive.Scale.Wayang_test where
 import qualified Data.List as List
 
 import Util.Control
-import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 import Util.Test
 
@@ -35,7 +34,7 @@ get_scale scale_id = fromMaybe (error $ "no scale: " ++ show scale_id) $
     List.find ((== Pitch.ScaleId scale_id) . Scale.scale_id) Wayang.scales
 
 read_scale :: Scale.Scale -> Pitch.Note -> Either String String
-read_scale scale note = either (Left . Pretty.pretty) (Right . Pretty.pretty) $
+read_scale scale note = either (Left . pretty) (Right . pretty) $
     Scale.scale_read scale Nothing note
 
 scale_track :: String -> [String] -> [UiTest.TrackSpec]

@@ -187,10 +187,10 @@ to_num_type typ = case typ of
     Score.Nn -> TTranspose
 
 instance Pretty.Pretty Type where
-    pretty (TMaybe typ) = "Maybe " ++ Pretty.pretty typ
-    pretty (TEither a b) = Pretty.pretty a ++ " or " ++ Pretty.pretty b
+    pretty (TMaybe typ) = "Maybe " <> pretty typ
+    pretty (TEither a b) = pretty a <> " or " <> pretty b
     pretty (TNum typ val) = append_parens "Num" $
-        Seq.join2 ", " (Pretty.pretty typ) (Pretty.pretty val)
+        Seq.join2 ", " (pretty typ) (pretty val)
     pretty (TSymbol enums) =
         append_parens "Symbol" $ maybe "" (unwords . map untxt) enums
     pretty typ = drop 1 (show typ)
@@ -590,8 +590,8 @@ checked_val :: forall a. (Typecheck a) => ValName -> Environ
 checked_val name environ = case get_val name environ of
         Left NotFound -> return Nothing
         Left (WrongType typ) ->
-            Left $ show name ++ ": expected " ++ Pretty.pretty return_type
-                ++ " but val type is " ++ Pretty.pretty typ
+            Left $ show name <> ": expected " <> pretty return_type
+                <> " but val type is " <> pretty typ
         Right v -> return (Just v)
     where return_type = to_type (error "checked_val" :: a)
 

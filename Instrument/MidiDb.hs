@@ -52,7 +52,7 @@ validate synth_pmaps = concatMap check_synth synth_pmaps
     check_patch synth patch = map (\s -> prefix <> ": " <> s) $
         Instrument.overlapping_attributes (Instrument.patch_attribute_map patch)
         where
-        prefix = Pretty.prettytxt $ Score.instrument
+        prefix = prettyt $ Score.instrument
             (Instrument.synth_name synth) (Instrument.patch_name patch)
 
 -- | Merge the MidiDbs, favoring instruments in the leftmost one.

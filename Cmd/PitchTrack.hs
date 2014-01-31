@@ -11,9 +11,7 @@ module Cmd.PitchTrack (module Cmd.PitchTrack, module Cmd.ControlTrack) where
 import qualified Data.Text as Text
 
 import Util.Control
-import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
-
 import qualified Ui.Event as Event
 import qualified Ui.Key as Key
 import qualified Cmd.Cmd as Cmd
@@ -234,4 +232,4 @@ pitch_tracks f = ModifyEvents.tracks_named TrackInfo.is_pitch_track $
     ModifyEvents.failable_texts modify block_id track_id events
 
 pretty_err :: Either Scale.ScaleError a -> Either String a
-pretty_err = either (Left . Pretty.pretty) Right
+pretty_err = either (Left . pretty) Right

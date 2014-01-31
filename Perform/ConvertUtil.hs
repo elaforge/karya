@@ -11,8 +11,6 @@ import qualified Control.Monad.State.Strict as State
 
 import Util.Control
 import qualified Util.Log as Log
-import qualified Util.Pretty as Pretty
-
 import qualified Derive.LEvent as LEvent
 import qualified Derive.Score as Score
 import qualified Derive.Stack as Stack
@@ -46,8 +44,8 @@ convert state convert_event = go state Nothing
     convert1 maybe_prev event = do
         -- Sorted is a postcondition of the deriver.
         whenJust maybe_prev $ \prev -> when (Score.event_start event < prev) $
-            Log.warn $ "start time " ++ Pretty.pretty (Score.event_start event)
-                ++ " less than previous of " ++ Pretty.pretty prev
+            Log.warn $ "start time " <> pretty (Score.event_start event)
+                <> " less than previous of " <> pretty prev
         convert_event event
 
 run_convert :: state -> Stack.Stack -> ConvertT state a

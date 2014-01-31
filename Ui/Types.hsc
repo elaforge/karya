@@ -21,6 +21,7 @@ import qualified Control.DeepSeq as DeepSeq
 import qualified Data.Digest.CRC32 as CRC32
 import Text.Read -- for Read class with readPrec
 
+import Util.Control
 import Util.ForeignC
 import qualified Util.Num as Num
 import qualified Util.Pretty as Pretty
@@ -72,7 +73,7 @@ data Zoom = Zoom {
 
 instance Pretty.Pretty Zoom where
     pretty (Zoom offset factor) =
-        '+' : Pretty.pretty offset ++ '*' : Pretty.show_float 1 factor
+        '+' : pretty offset ++ '*' : Pretty.show_float 1 factor
 
 instance CStorable Zoom where
     sizeOf _ = #size ZoomInfo
@@ -165,8 +166,7 @@ data Selection = Selection {
 
 instance Pretty.Pretty Selection where
     pretty (Selection strack spos ctrack cpos) =
-        "Selection " ++ Pretty.pretty (strack, spos) ++ "--"
-            ++ Pretty.pretty (ctrack, cpos)
+        "Selection " <> pretty (strack, spos) <> "--" <> pretty (ctrack, cpos)
 
 selection :: TrackNum -> TrackTime -> TrackNum -> TrackTime -> Selection
 selection start_track start_pos cur_track cur_pos =

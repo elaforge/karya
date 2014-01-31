@@ -10,7 +10,6 @@ import qualified Data.Map as Map
 import qualified Data.Text as Text
 
 import Util.Control
-import qualified Util.Pretty as Pretty
 import qualified Ui.Event as Event
 import qualified Ui.Events as Events
 import qualified Ui.Key as Key
@@ -213,7 +212,7 @@ input_to_note input = do
     let me = "EditUtil.input_to_note"
     scale <- Cmd.get_scale me scale_id
     key <- get_key
-    let msg = me <> ": " <> Pretty.pretty input <> " out of range for "
+    let msg = me <> ": " <> pretty input <> " out of range for "
             <> show scale_id
     maybe (Cmd.throw msg) return (Scale.scale_input_to_note scale key input)
 

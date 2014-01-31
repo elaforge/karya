@@ -14,7 +14,6 @@ import qualified System.IO.Unsafe as Unsafe
 import Util.Control
 import qualified Util.Log as Log
 import qualified Util.Num as Num
-import qualified Util.Pretty as Pretty
 import qualified Util.Ranges as Ranges
 import qualified Util.Seq as Seq
 
@@ -88,7 +87,7 @@ run ui_state m = run_ ui_state (Internal.with_stack_block bid m)
 run_ :: State.State -> Derive.Deriver a
     -> Either String (a, Derive.State, [Log.Msg])
 run_ ui_state m = case Derive.run derive_state m of
-        (Left err, _, _logs) -> Left (Pretty.pretty err)
+        (Left err, _, _logs) -> Left (pretty err)
         (Right val, state, logs) -> Right (val, state, logs)
     where
     derive_state = Derive.initial_state default_scopes

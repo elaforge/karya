@@ -248,7 +248,7 @@ data Scale = Scale {
     } deriving (Show)
 
 instance Pretty.Pretty Scale where
-    pretty = Pretty.pretty . pscale_scale_id
+    pretty = pretty . pscale_scale_id
 
 -- | It can't be reduced since it has lambdas, but at least this way you can
 -- easily rnf things that contain it.
@@ -257,17 +257,17 @@ instance DeepSeq.NFData Pitch where
 
 instance Show Pitch where
     -- Show just the NN, so this is parseable by Util.PPrint.
-    show p = either show Pretty.pretty (pitch_eval_nn p mempty)
+    show p = either show pretty (pitch_eval_nn p mempty)
 
 -- | Will look like: 62.95nn,4i(*wayang)
 instance Pretty.Pretty Pitch where
-    pretty p = either show Pretty.pretty (pitch_eval_nn p mempty) <> ","
+    pretty p = either show pretty (pitch_eval_nn p mempty) <> ","
         <> either show (untxt . Pitch.note_text) (pitch_eval_note p mempty)
-        <> "(" <> Pretty.pretty (pitch_scale p) <> ")"
+        <> "(" <> pretty (pitch_scale p) <> ")"
 
 -- | Pitches have no literal syntax, but I have to print something.
 instance ShowVal.ShowVal Pitch where
-    show_val pitch = "<pitch: " <> txt (Pretty.pretty pitch) <> ">"
+    show_val pitch = "<pitch: " <> prettyt pitch <> ">"
 
 -- | Error evaluating a pitch.
 newtype PitchError = PitchError Text deriving (Eq, Ord, Read, Show)

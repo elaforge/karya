@@ -162,8 +162,7 @@ channelize_event inst_addrs overlapping event =
 -- filtering.
 log_prefix :: Event -> Text
 log_prefix event =
-    Pretty.prettytxt inst <> " at " <> Pretty.prettytxt (event_start event)
-        <> ": "
+    prettyt inst <> " at " <> prettyt (event_start event) <> ": "
     where inst = Instrument.inst_score (event_instrument event)
 
 -- | Find a channel from the list of overlapping (Event, Channel) all of whose
@@ -195,12 +194,12 @@ can_share_chan old new = case (initial_pitch old, initial_pitch new) of
             | not (Signal.pitches_share in_decay start end
                 initial_old (event_pitch old) initial_new (event_pitch new)) ->
                     Just $ "pitch signals incompatible: "
-                        <> Pretty.prettytxt (event_pitch old) <> " /= "
-                        <> Pretty.prettytxt (event_pitch new)
+                        <> prettyt (event_pitch old) <> " /= "
+                        <> prettyt (event_pitch new)
             | not c_equal ->
                 Just $ "controls differ: "
-                    <> Pretty.prettytxt (event_controls old)
-                    <> " /= " <> Pretty.prettytxt (event_controls new)
+                    <> prettyt (event_controls old)
+                    <> " /= " <> prettyt (event_controls new)
             | otherwise -> Nothing
         _ -> Nothing
     where
@@ -337,7 +336,7 @@ allot_event inst_addrs state (event, ichan) =
     inst = event_instrument event
     update = update_allot_state (inst, ichan) (event_end event)
     no_alloc = event_warning event
-        ("no allocation for " <> Pretty.prettytxt (Instrument.inst_score inst))
+        ("no allocation for " <> prettyt (Instrument.inst_score inst))
 
 -- | Record this addr as now being allotted, and add its voice allocation.
 update_allot_state :: (Instrument.Instrument, Channel) -> RealTime
@@ -628,8 +627,8 @@ type ClipRange = (RealTime, RealTime)
 
 make_clip_warnings :: Event -> (Score.Control, [ClipRange]) -> [Log.Msg]
 make_clip_warnings event (control, clip_warns) =
-    [event_warning event (Pretty.prettytxt control <> " clipped: "
-        <> Pretty.prettytxt (s, e)) | (s, e) <- clip_warns]
+    [event_warning event (prettyt control <> " clipped: "
+        <> prettyt (s, e)) | (s, e) <- clip_warns]
 
 control_at :: Event -> Score.Control -> RealTime -> Maybe Signal.Y
 control_at event control pos = do

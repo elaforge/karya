@@ -273,7 +273,7 @@ overlaps :: [Binding m] -> [[String]]
 overlaps bindings =
     [map cmd_name grp | grp <- Seq.group_on fst bindings, length grp > 1]
     where
-    cmd_name (kspec, CmdSpec name _) = Pretty.pretty kspec ++ ": " ++ name
+    cmd_name (kspec, CmdSpec name _) = pretty kspec ++ ": " ++ name
 
 -- | Return the mods currently down, stripping out non-modifier keys and notes,
 -- so that overlapping keys will still match.  Mouse mods are not filtered, so
@@ -353,11 +353,11 @@ instance Pretty.Pretty Bindable where
 
 show_bindable :: Bool -> Bindable -> String
 show_bindable show_repeatable b = case b of
-    Key is_repeat key -> Pretty.pretty key
+    Key is_repeat key -> pretty key
         ++ if show_repeatable && is_repeat then " (repeatable)" else ""
     Click button on times -> click_times times ++ "click "
-        ++ show button ++ " on " ++ Pretty.pretty on
-    Drag button on -> "drag " ++ show button ++ " on " ++ Pretty.pretty on
+        ++ show button ++ " on " ++ pretty on
+    Drag button on -> "drag " ++ show button ++ " on " ++ pretty on
     Note chan key -> "midi " ++ show key ++ " channel " ++ show chan
     where
     click_times 0 = ""

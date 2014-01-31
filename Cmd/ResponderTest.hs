@@ -33,7 +33,6 @@ import qualified Text.Printf as Printf
 
 import Util.Control
 import qualified Util.Log as Log
-import qualified Util.Pretty as Pretty
 import Util.Test
 import qualified Util.Thread as Thread
 
@@ -147,7 +146,7 @@ continue_until is_complete result =
     where
     go accum chan states = do
         maybe_msg <- read_msg chan
-        putStrLn $ "ResponderTest.continue_until: " ++ Pretty.pretty maybe_msg
+        putStrLn $ "ResponderTest.continue_until: " ++ pretty maybe_msg
         case maybe_msg of
             Nothing -> return accum
             Just msg -> do
@@ -177,10 +176,10 @@ thread print_timing states msgs =
 thread_delay :: Bool -> States -> [(Msg.Msg, Thread.Seconds)] -> IO [Result]
 thread_delay _ _ [] = return []
 thread_delay print_timing states ((msg, delay) : msgs) = do
-    Printf.printf "thread msg: %s\n" (Pretty.pretty msg)
+    Printf.printf "thread msg: %s\n" (pretty msg)
     (result, secs) <- timer $ respond_msg states msg
     when print_timing $
-        Printf.printf "%s -> lag: %.2fs\n" (Pretty.pretty msg) secs
+        Printf.printf "%s -> lag: %.2fs\n" (pretty msg) secs
     Thread.delay delay
     (result:) <$> thread_delay print_timing (result_states result) msgs
 

@@ -17,7 +17,6 @@ import qualified Data.Tree as Tree
 import qualified Text.Printf as Printf
 
 import Util.Control
-import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 import qualified Util.Tree as Tree
 
@@ -179,7 +178,7 @@ show_instrument_info config info = fields
 -- | Looks like: "wdev1 [0..2]; wdev2 [0,4]"
 show_addrs :: [Instrument.Addr] -> Text
 show_addrs addrs = semicolon_list
-    [ Pretty.prettytxt wdev <> " "
+    [ prettyt wdev <> " "
         <> "[" <> Text.intercalate "," (show_runs (map snd addrs)) <> "]"
     | (wdev, addrs) <- Seq.keyed_group_on fst addrs
     ]

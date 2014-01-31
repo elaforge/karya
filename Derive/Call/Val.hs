@@ -11,7 +11,6 @@ import qualified System.Random.Mersenne.Pure64 as Pure64
 
 import Util.Control
 import qualified Util.Num as Num
-import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 
 import qualified Ui.Event as Event
@@ -124,9 +123,9 @@ c_env = Derive.val_call "env" mempty
     check _ deflt Nothing = return deflt
     check name deflt (Just val)
         | TrackLang.type_of val == TrackLang.type_of deflt = return val
-        | otherwise = Derive.throw $ "env " <> Pretty.pretty name
-            <> " expected " <> Pretty.pretty (TrackLang.type_of deflt)
-            <> " but got " <> Pretty.pretty (TrackLang.type_of val)
+        | otherwise = Derive.throw $ "env " <> pretty name
+            <> " expected " <> pretty (TrackLang.type_of deflt)
+            <> " but got " <> pretty (TrackLang.type_of val)
 
 c_timestep :: Derive.ValCall
 c_timestep = Derive.val_call "timestep" mempty
@@ -205,7 +204,7 @@ make_pitch (Right name_pitch) pc accs
             Right pitch -> (,) <$> Pitches.pitch_note pitch
                 <*> Derive.get_scale (PitchSignal.pitch_scale_id pitch)
         key <- Util.lookup_key
-        either (Derive.throw . Pretty.pretty) return $
+        either (Derive.throw . pretty) return $
             Scale.scale_read scale key note
 
 c_pitch_control :: Derive.ValCall

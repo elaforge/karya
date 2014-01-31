@@ -9,7 +9,6 @@ import qualified Data.Set as Set
 
 import Util.Control
 import qualified Util.Log as Log
-import qualified Util.Pretty as Pretty
 import qualified Util.Ranges as Ranges
 import qualified Util.Seq as Seq
 import Util.Test
@@ -651,13 +650,13 @@ toplevel_rederived False = "top *: rederived * sub-block damage"
 -- UiTest.run discards the Updates, which I need.
 run :: State.State -> State.StateId a -> (a, State.State, [Update.CmdUpdate])
 run state m = case result of
-        Left err -> error $ "state error: " ++ show err
+        Left err -> error $ "state error: " <> show err
         Right (val, state', updates) -> (val, state', updates)
     where result = Identity.runIdentity (State.run state m)
 
 log_with_stack :: Log.Msg -> String
-log_with_stack msg = Pretty.pretty (Stack.from_strings <$> Log.msg_stack msg)
-    ++ ": " ++ Log.msg_string msg
+log_with_stack msg = pretty (Stack.from_strings <$> Log.msg_stack msg)
+    <> ": " <> Log.msg_string msg
 
 -- | Pull the collects out of the cache, pairing them up with the cache keys.
 r_cache_collect :: Derive.Result -> [(String, Maybe Derive.Collect)]

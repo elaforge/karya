@@ -244,15 +244,14 @@ data Error = Error SrcPos.SrcPos Stack.Stack ErrorVal
 
 instance Pretty.Pretty Error where
     pretty (Error srcpos stack val) =
-        SrcPos.show_srcpos srcpos ++ " " ++ Pretty.pretty stack ++ ": "
-        ++ Pretty.pretty val
+        SrcPos.show_srcpos srcpos ++ " " ++ pretty stack ++ ": " ++ pretty val
 
 data ErrorVal = GenericError String | CallError CallError
     deriving (Show)
 
 instance Pretty.Pretty ErrorVal where
     pretty (GenericError s) = s
-    pretty (CallError err) = Pretty.pretty err
+    pretty (CallError err) = pretty err
 
 data CallError =
     -- | ErrorPlace, EvalSource, arg name, expected type, received val
@@ -281,10 +280,10 @@ data EvalSource =
 instance Pretty.Pretty CallError where
     pretty err = case err of
         TypeError place source name expected received ->
-            "TypeError: arg " <> Pretty.pretty place <> "/" <> untxt name
-            <> source_desc <> ": expected " <> Pretty.pretty expected
-            <> " but got " <> Pretty.pretty (TrackLang.type_of <$> received)
-            <> ": " <> Pretty.pretty received
+            "TypeError: arg " <> pretty place <> "/" <> untxt name
+            <> source_desc <> ": expected " <> pretty expected
+            <> " but got " <> pretty (TrackLang.type_of <$> received)
+            <> ": " <> pretty received
             where
             source_desc = case source of
                 Literal -> ""
@@ -292,15 +291,15 @@ instance Pretty.Pretty CallError where
         EvalError place call name (Error _ _ error_val) ->
             -- The srcpos and stack of the derive error is probably not
             -- interesting, so I strip those out.
-            "EvalError: arg " <> Pretty.pretty place <> "/" <> untxt name
+            "EvalError: arg " <> pretty place <> "/" <> untxt name
             <> " from " <> untxt (ShowVal.show_val call)
-            <> ": " <> Pretty.pretty error_val
+            <> ": " <> pretty error_val
         ArgError err -> "ArgError: " <> untxt err
-        CallNotFound call_id -> "CallNotFound: " <> Pretty.pretty call_id
+        CallNotFound call_id -> "CallNotFound: " <> pretty call_id
 
 instance Pretty.Pretty ErrorPlace where
     pretty (TypeErrorArg num) = show (num + 1)
-    pretty (TypeErrorEnviron key) = "environ:" <> Pretty.pretty key
+    pretty (TypeErrorEnviron key) = "environ:" <> pretty key
 
 throw :: String -> Deriver a
 throw msg = throw_error (GenericError msg)
@@ -586,7 +585,7 @@ instance Monoid.Monoid (ScopeType call) where
     mappend (ScopeType a1 b1 c1 d1) (ScopeType a2 b2 c2 d2) =
         ScopeType (a1<>a2) (b1<>b2) (c1<>c2) (d1<>d2)
 
-instance Show (ScopeType call) where show = Pretty.pretty
+instance Show (ScopeType call) where show = pretty
 instance Pretty.Pretty (ScopeType call) where
     format (ScopeType override inst scale builtin) =
         Pretty.record_title "ScopeType"
@@ -1399,7 +1398,7 @@ data Scale = Scale {
     }
 
 instance Pretty.Pretty Scale where
-    pretty = Pretty.pretty . scale_id
+    pretty = pretty . scale_id
 
 type LookupScale = Pitch.ScaleId -> Maybe Scale
 
@@ -1448,7 +1447,7 @@ instance Pretty.Pretty ScaleError where
         KeyNeeded -> "key needed"
         UnparseableNote -> "unparseable note"
         UnparseableEnviron key val -> "unparseable environ "
-            <> Pretty.pretty key <> ": " <> untxt val
+            <> pretty key <> ": " <> untxt val
 
 {- NOTE [control-modification]
     . Control tracks return a single control, and how that merges into the

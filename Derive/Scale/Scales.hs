@@ -193,7 +193,7 @@ scale_to_pitch_error diatonic chromatic = either (Left . msg) Right
         Scale.KeyNeeded -> PitchSignal.PitchError
             "no key is set, but this transposition needs one"
         Scale.UnparseableEnviron name val -> PitchSignal.PitchError $
-            txt (Pretty.pretty name) <> " unparseable by given scale: " <> val
+            prettyt name <> " unparseable by given scale: " <> val
         Scale.UnparseableNote -> PitchSignal.PitchError
             "unparseable note (shouldn't happen)"
 
@@ -204,7 +204,7 @@ invalid_transposition diatonic chromatic =
             [fmt "d" diatonic, fmt "c" chromatic])
     where
     fmt _ 0 = ""
-    fmt code val = txt (Pretty.pretty val) <> code
+    fmt code val = prettyt val <> code
 
 -- ** input
 
@@ -362,8 +362,8 @@ call_doc transposers dmap doc =
     where
     fields = [("note range", map_range snd (dm_to_note dmap))]
     map_range extract fm = case (Map.min fm, Map.max fm) of
-        (Just kv1, Just kv2) -> txt (Pretty.pretty (extract kv1))
-            <> " to " <> txt (Pretty.pretty (extract kv2))
+        (Just kv1, Just kv2) -> prettyt (extract kv1)
+            <> " to " <> prettyt (extract kv2)
         _ -> ""
 
 -- | Documentation of the standard 'Call.Pitch.scale_degree'.
@@ -383,8 +383,7 @@ annotate_call_doc transposers doc fields = Derive.prepend_doc extra_doc
     where
     extra_doc = doc <> "\n\n" <> join (transposers_field <> fields)
     transposers_field =
-        [("transposers", txt $ Pretty.pretty transposers)
-            | not (Set.null transposers)]
+        [("transposers", prettyt transposers) | not (Set.null transposers)]
     join = Text.unlines
         . map (\(k, v) -> k <> ": " <> v) . filter (not . Text.null . snd)
 
@@ -402,7 +401,7 @@ read_environ :: (TrackLang.Typecheck a) => (a -> Maybe val) -> val
     -> TrackLang.ValName -> TrackLang.Environ -> Either Scale.ScaleError val
 read_environ read_val deflt name env = case TrackLang.get_val name env of
     Left (TrackLang.WrongType expected) ->
-        unparseable ("expected type " <> txt (Pretty.pretty expected))
+        unparseable ("expected type " <> prettyt expected)
     Left TrackLang.NotFound -> Right deflt
     Right val -> parse val
     where

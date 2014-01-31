@@ -9,7 +9,6 @@ import qualified Data.Tuple as Tuple
 
 import Util.Control
 import qualified Util.Log as Log
-import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 
 import qualified Ui.Event as Event
@@ -175,8 +174,7 @@ pitch_signal_events event = (ui_events, pitch_errs)
         Score.event_pitch event
     pitches = zip3 xs ys (map PitchSignal.pitch_note ys)
     pitch_errs =
-        [Pretty.pretty x ++ ": converting " ++ Pretty.pretty p ++ " "
-                ++ Pretty.pretty err
+        [pretty x ++ ": converting " ++ pretty p ++ " " ++ pretty err
             | (x, p, Left err) <- pitches]
     ui_events = [ui_event (Score.event_stack event) (RealTime.to_score x) 0
             (Pitch.note_text note)

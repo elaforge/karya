@@ -9,6 +9,7 @@ module Ui.UiMsg where
 import qualified Data.Text as Text
 import Text.Printf (printf)
 
+import Util.Control
 import qualified Util.Pretty as Pretty
 import qualified Util.Rect as Rect
 import qualified Util.Seq as Seq
@@ -108,16 +109,16 @@ instance Pretty.Pretty UiMsg where
         UiMsg ctx (MsgEvent mdata) -> case mdata of
             Mouse mstate mods coords clicks is_click ->
                 printf "Mouse: %s %s %s %s click: %s %d" (show mstate)
-                    (show mods) (show coords) (Pretty.pretty ctx)
+                    (show mods) (show coords) (pretty ctx)
                     (show is_click) clicks
             Kbd kstate mods key text -> printf "Kbd: %s %s %s %s%s"
                 (show kstate) (show mods)
                 (show key) (maybe "" (\c -> '(':c:") ") text)
-                (Pretty.pretty ctx)
-            AuxMsg msg -> printf "Aux: %s %s" (show msg) (Pretty.pretty ctx)
+                (pretty ctx)
+            AuxMsg msg -> printf "Aux: %s %s" (show msg) (pretty ctx)
             Unhandled x -> printf "Unhandled: %d" x
         UiMsg ctx msg ->
-            printf "Other Event: %s %s" (show msg) (Pretty.pretty ctx)
+            printf "Other Event: %s %s" (show msg) (pretty ctx)
 
 instance Pretty.Pretty Context where
     pretty (Context focus track edit_input) = "{" ++ contents ++ "}"
@@ -128,10 +129,10 @@ instance Pretty.Pretty Context where
             , if edit_input then "edit_input" else ""
             ]
         show_track (tnum, track) =
-            "track=" ++ show tnum ++ ":" ++ Pretty.pretty track
+            "track=" ++ show tnum ++ ":" ++ pretty track
         show_maybe desc = maybe "" (\v -> desc ++ "=" ++ show v)
 
 instance Pretty.Pretty Track where
-    pretty (Track pos) = "track:" ++ Pretty.pretty pos
+    pretty (Track pos) = "track:" ++ pretty pos
     pretty Divider = "div"
     pretty SkeletonDisplay = "skel"

@@ -14,7 +14,6 @@ import qualified Data.Word as Word
 
 import Util.Control
 import qualified Util.Log as Log
-import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 
 import qualified Ui.Block as Block
@@ -92,7 +91,7 @@ insert_environ name val environ =
     case TrackLang.put_val name val environ of
         Left typ -> throw $ "can't set " <> show name <> " to "
             <> untxt (TrackLang.show_val (TrackLang.to_val val))
-            <> ", expected " <> Pretty.pretty typ
+            <> ", expected " <> pretty typ
         Right environ2 -> return environ2
 
 -- | Figure out the current block and track, and record the current environ
@@ -209,7 +208,7 @@ with_stack :: Stack.Frame -> Deriver a -> Deriver a
 with_stack frame = localm $ \st -> do
     stack <- get_stack
     when (Stack.length stack >= max_depth) $
-        throw $ "call stack too deep: " ++ Pretty.pretty frame
+        throw $ "call stack too deep: " ++ pretty frame
     return $ add_stack_frame frame st
     where
     -- A recursive loop will result in an unfriendly hang.  So limit the total

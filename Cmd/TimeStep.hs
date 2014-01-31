@@ -35,7 +35,6 @@ import qualified Text.Parsec as P
 
 import Util.Control
 import qualified Util.Parse as Parse
-import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 
 import qualified Ui.Event as Event
@@ -111,7 +110,7 @@ show_time_step (TimeStep steps) = Text.intercalate ";" (map show_step steps)
     -- The keywords and symbols are chosen carefully to allow unambiguous
     -- parsing.
     show_step step = case step of
-        Duration pos -> "d:" <> Pretty.prettytxt pos
+        Duration pos -> "d:" <> prettyt pos
         RelativeMark mlists rank ->
             "r:" <> show_marklists mlists <> show_rank rank
         BlockEdge -> "END"

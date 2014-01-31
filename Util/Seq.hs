@@ -94,6 +94,10 @@ map_filter f = go
         Just b -> (b, a) : go as
         Nothing -> go as
 
+-- | Filter on the snd values returning Just.
+map_maybe_snd :: (b -> Maybe b') -> [(a, b)] -> [(a, b')]
+map_maybe_snd f xs = [(a, b) | (a, Just b) <- map (Arrow.second f) xs]
+
 map_head :: (a -> a) -> [a] -> [a]
 map_head _ [] = []
 map_head f (x:xs) = f x : xs

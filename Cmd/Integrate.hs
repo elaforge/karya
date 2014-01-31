@@ -52,8 +52,6 @@ import qualified Data.Map as Map
 
 import Util.Control
 import qualified Util.Log as Log
-import qualified Util.Pretty as Pretty
-
 import qualified Ui.Block as Block
 import qualified Ui.State as State
 import qualified Cmd.Cmd as Cmd
@@ -96,8 +94,7 @@ integrate_tracks block_id track_id tracks = do
     new_dests <- case filter ((==track_id) . fst) itracks of
         [] -> (:[]) <$> Merge.merge_tracks block_id tracks []
         dests -> mapM (Merge.merge_tracks block_id tracks . snd) dests
-    Log.notice $ "integrated " <> show track_id <> " to: "
-        <> Pretty.pretty new_dests
+    Log.notice $ "integrated " <> show track_id <> " to: " <> pretty new_dests
     Cmd.derive_immediately [block_id]
     return $ map ((,) track_id) new_dests
 
@@ -114,7 +111,7 @@ integrate_block block_id tracks = do
         integrated -> forM integrated $ \(block_id, track_dests) ->
             (,) block_id <$> Merge.merge_block block_id tracks track_dests
     Log.notice $ "integrated " <> show block_id <> " to: "
-        <> Pretty.pretty (map fst new_blocks)
+        <> pretty (map fst new_blocks)
     forM_ new_blocks $ \(new_block_id, track_dests) ->
         unless (null track_dests) $
             State.set_integrated_block new_block_id $

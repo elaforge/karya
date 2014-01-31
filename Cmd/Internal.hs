@@ -15,7 +15,6 @@ import qualified Data.Text as Text
 import Util.Control
 import qualified Util.Log as Log
 import qualified Util.Map as Map
-import qualified Util.Pretty as Pretty
 import qualified Util.Rect as Rect
 import qualified Util.Seq as Seq
 
@@ -360,7 +359,7 @@ sync_octave_status st = do
 
 sync_recorded_actions :: Cmd.M m => Cmd.RecordedActions -> m ()
 sync_recorded_actions actions = Cmd.set_global_status "rec" $
-    Text.intercalate ", " [Text.singleton i <> "-" <> Pretty.prettytxt act |
+    Text.intercalate ", " [Text.singleton i <> "-" <> prettyt act |
         (i, act) <- Map.toAscList actions]
 
 sync_play_state :: (Cmd.M m) => Cmd.PlayState -> m ()
@@ -385,7 +384,7 @@ sync_zoom_status :: (Cmd.M m) => ViewId -> m ()
 sync_zoom_status _view_id = return ()
     -- view <- State.get_view view_id
     -- Cmd.set_view_status view_id Config.status_zoom
-    --     (Just (Pretty.pretty (Block.view_zoom view)))
+    --     (Just (pretty (Block.view_zoom view)))
 
 -- * selection
 
@@ -435,11 +434,11 @@ pretty_rational :: ScoreTime -> Text
 pretty_rational d
     | Ratio.denominator ratio <= 12 =
         Text.strip $ (if int == 0 then "" else showt int) <> pretty
-    | otherwise = Pretty.prettytxt d
+    | otherwise = prettyt d
     where
     (int, frac) = properFraction (ScoreTime.to_double d)
     ratio = Ratio.approxRational frac 0.0001
-    pretty = Map.findWithDefault (" " <> Pretty.prettytxt ratio) ratio fractions
+    pretty = Map.findWithDefault (" " <> prettyt ratio) ratio fractions
     fractions = Map.fromList
         [ (0 % 1, "")
         , (1 % 4, "¼"), (1 % 2, "½"), (3 % 4, "¾")

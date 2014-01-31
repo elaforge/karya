@@ -9,7 +9,6 @@ import qualified Data.Map as Map
 import Util.Control
 import qualified Util.Log as Log
 import qualified Util.Map as Map
-import qualified Util.Pretty as Pretty
 
 import qualified Derive.Call as Call
 import qualified Derive.Call.Pitch as Call.Pitch
@@ -152,11 +151,10 @@ process attack_interpolator release_interpolator
         (attack_time, delay_time, release_time)
         state@(State strings sounding_string prev) event = do
     pitch <- Derive.require "no pitch" $ Score.initial_pitch event
-    nn <- Derive.require_right Pretty.pretty $ PitchSignal.pitch_nn pitch
+    nn <- Derive.require_right pretty $ PitchSignal.pitch_nn pitch
     case find_string nn strings of
         Nothing -> do
-            Log.warn $ Pretty.pretty nn ++ " below lowest string: "
-                ++ Pretty.pretty strings
+            Log.warn $ pretty nn ++ " below lowest string: " ++ pretty strings
             return (state, [])
         Just string -> do
             new_event <- Derive.require "missing pitches" (emit pitch string)

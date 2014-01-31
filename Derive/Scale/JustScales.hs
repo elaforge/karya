@@ -11,7 +11,6 @@ import qualified Data.Vector as Vector
 
 import Util.Control
 import qualified Util.Num as Num
-import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 
 import qualified Derive.Call.ScaleDegree as ScaleDegree
@@ -116,7 +115,7 @@ group_relative_keys = mapMaybe fmt . Seq.group_eq_on snd
     fmt_names = Text.intercalate ", " . map Pitch.key_text
 
 show_ratios :: Ratios -> Text
-show_ratios = Text.intercalate ", " . map Pretty.prettytxt . Vector.toList
+show_ratios = Text.intercalate ", " . map prettyt . Vector.toList
 
 just_doc :: Text
 just_doc =

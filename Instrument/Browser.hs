@@ -36,7 +36,6 @@ import Text.Printf (printf)
 import Util.Control
 import qualified Util.Fltk as Fltk
 import qualified Util.Format as Format
-import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 
 import qualified Cmd.CallDoc as CallDoc
@@ -118,12 +117,12 @@ info_of db score_inst (MidiDb.Info synth patch code) =
             show_calls CallDoc.TransformerCall note_transformers)
         , ("Val calls", show_calls CallDoc.ValCall val_calls)
         , ("Environ",
-            if environ == mempty then "" else Pretty.prettytxt environ)
+            if environ == mempty then "" else prettyt environ)
 
         -- implementation details
         , ("Attribute map", show_attribute_map attr_map)
         , ("Pitchbend range", showt (Instrument.inst_pitch_bend_range inst))
-        , ("Scale", maybe "" Pretty.prettytxt scale)
+        , ("Scale", maybe "" prettyt scale)
         , ("Initialization", show_initialize initialize)
         -- info
         , ("Text", text)
@@ -152,8 +151,8 @@ info_of db score_inst (MidiDb.Info synth patch code) =
 show_composite :: Instrument.Composite -> Text
 show_composite (inst, maybe_pitch, controls) =
     ShowVal.show_val inst <> ": pitch: "
-        <> maybe "<default>" Pretty.prettytxt maybe_pitch
-        <> ", controls: " <> Pretty.prettytxt controls
+        <> maybe "<default>" prettyt maybe_pitch
+        <> ", controls: " <> prettyt controls
 
 fields :: [(Text, Text)] -> Text
 fields = Text.unlines . filter (not . Text.null) . map field
@@ -170,14 +169,13 @@ show_attribute_map :: Instrument.AttributeMap -> Text
 show_attribute_map (Instrument.AttributeMap table) =
     Text.unlines (map fmt table)
     where
-    attrs = map (\(a, _, _) -> Pretty.pretty a) table
+    attrs = map (\(a, _, _) -> pretty a) table
     longest = fromMaybe 0 $ Seq.maximum (map length attrs)
 
     fmt (attrs, keyswitches, maybe_keymap) =
         -- Still not quite right for lining up columns.
-        txt (printf "%-*s\t" longest (Pretty.pretty attrs))
-            <> Pretty.prettytxt keyswitches
-            <> maybe "" ((" "<>) . Pretty.prettytxt) maybe_keymap
+        txt (printf "%-*s\t" longest (pretty attrs))
+            <> prettyt keyswitches <> maybe "" ((" "<>) . prettyt) maybe_keymap
 
 show_control_map :: Control.ControlMap -> Text
 show_control_map cmap =
@@ -202,7 +200,7 @@ show_initialize :: Instrument.InitializePatch -> Text
 show_initialize Instrument.NoInitialization = ""
 show_initialize (Instrument.InitializeMessage msg) = "Message: " <> msg
 show_initialize (Instrument.InitializeMidi msgs) =
-    Text.unlines (map Pretty.prettytxt msgs)
+    Text.unlines (map prettyt msgs)
 
 quote :: Text -> Text
 quote s

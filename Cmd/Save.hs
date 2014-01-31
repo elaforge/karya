@@ -20,7 +20,6 @@ import System.FilePath ((</>))
 import Util.Control
 import qualified Util.Git as Git
 import qualified Util.Log as Log
-import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 
 import qualified Ui.Id as Id
@@ -171,7 +170,7 @@ read_git repo maybe_commit = do
     (state, commit, names) <- Cmd.require_right
         (("load git " <> repo <> ": ") <>)
         =<< liftIO (SaveGit.load repo maybe_commit)
-    Log.notice $ "read from " <> show repo <> ", at " <> Pretty.pretty commit
+    Log.notice $ "read from " <> show repo <> ", at " <> pretty commit
         <> " names: " <> show names
     return (state, SaveRepo repo commit (Just names))
 

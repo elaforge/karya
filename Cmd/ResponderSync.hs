@@ -10,7 +10,6 @@ import qualified Data.Map as Map
 
 import Util.Control
 import qualified Util.Log as Log
-import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 
 import qualified Ui.Diff as Diff
@@ -60,7 +59,7 @@ sync sync_func send_status ui_pre ui_from ui_to cmd_state cmd_updates
             (State.config_root (State.state_config ui_to)) cmd_state
     err <- sync_func tsigs Internal.set_style ui_to display_updates
     whenJust err $ \err ->
-        Log.error $ "syncing updates: " ++ Pretty.pretty err
+        Log.error $ "syncing updates: " ++ pretty err
 
     -- Kick off the background derivation threads.
     cmd_state <- Performance.update_performance send_status ui_pre ui_to

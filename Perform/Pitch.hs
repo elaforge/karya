@@ -71,7 +71,7 @@ data Pitch = Pitch {
     } deriving (Eq, Ord, Read, Show)
 
 instance Pretty.Pretty Pitch where
-    pretty (Pitch oct degree) = show oct <> "-" <> Pretty.pretty degree
+    pretty (Pitch oct degree) = show oct <> "-" <> pretty degree
 
 -- | This relies on the presence of a @pitch@ val call.
 instance ShowVal.ShowVal Pitch where
@@ -189,8 +189,8 @@ data KbdType =
 type Frac = Double
 
 instance Pretty.Pretty Input where
-    pretty (Input kbd pitch frac) = show kbd <> ":" <> Pretty.pretty pitch
-        <> if frac == 0 then "" else "+" <> Pretty.pretty frac
+    pretty (Input kbd pitch frac) = show kbd <> ":" <> pretty pitch
+        <> if frac == 0 then "" else "+" <> pretty frac
 
 -- * NoteNumber
 

@@ -13,7 +13,6 @@ import qualified Data.Text as Text
 import Util.Control
 import qualified Util.Lens as Lens
 import qualified Util.Log as Log
-import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 
 import qualified Midi.Interface as Interface
@@ -71,10 +70,10 @@ configs = do
         Just source -> " (source: " <> ShowVal.show_val source <> ")"
     show_controls controls
         | Map.null controls = ""
-        | otherwise = " " <> Pretty.prettytxt controls
+        | otherwise = " " <> prettyt controls
     show_environ environ
         | environ == mempty = ""
-        | otherwise = " " <> Pretty.prettytxt environ
+        | otherwise = " " <> prettyt environ
     show_flags config
         | null flags = ""
         | otherwise = " {" <> Text.intercalate ", " flags <> "}"
@@ -171,7 +170,7 @@ get_controls = Map.map Instrument.config_controls <$> State.get_midi_config
 modify_config :: (State.M m) => Score.Instrument
     -> (Instrument.Config -> (Instrument.Config, a)) -> m a
 modify_config inst modify = do
-    config <- State.require ("no config for " <> Pretty.pretty inst)
+    config <- State.require ("no config for " <> pretty inst)
         . Map.lookup inst =<< State.get_midi_config
     let (new, result) = modify config
     State.modify $ State.config # State.midi # Lens.map inst #= Just new
@@ -207,7 +206,7 @@ alloc_default :: Instrument -> [(Midi.Channel, Maybe Instrument.Voices)]
     -> Cmd.CmdL ()
 alloc_default inst_ chans = do
     let inst = instrument inst_
-    wdev <- maybe (Cmd.throw $ "inst not in db: " ++ Pretty.pretty inst) return
+    wdev <- maybe (Cmd.throw $ "inst not in db: " <> pretty inst) return
         =<< device_of inst
     alloc_instrument inst [((wdev, c), v) | (c, v) <- chans]
 
@@ -278,7 +277,7 @@ send_initialization :: Instrument.InitializePatch
     -> Score.Instrument -> Midi.WriteDevice -> Midi.Channel -> Cmd.CmdL ()
 send_initialization init inst dev chan = case init of
     Instrument.InitializeMidi msgs -> do
-        Log.notice $ "sending midi init: " ++ Pretty.pretty msgs
+        Log.notice $ "sending midi init: " <> pretty msgs
         mapM_ (Cmd.midi dev . Midi.set_channel chan) msgs
     Instrument.InitializeMessage msg ->
         -- TODO warn doesn't seem quite right for this...

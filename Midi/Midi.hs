@@ -59,7 +59,7 @@ import qualified Text.Printf as Printf
 import Util.Control
 import qualified Util.Num as Num
 import qualified Util.Pretty as Pretty
-import Util.Pretty (pretty, format, (<+>))
+import Util.Pretty (format, (<+>))
 import qualified Util.Seq as Seq
 import qualified Util.Serialize as Serialize
 

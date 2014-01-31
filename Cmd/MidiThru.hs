@@ -63,7 +63,6 @@ import qualified Data.Map as Map
 
 import Util.Control
 import qualified Util.Map as Map
-import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 
 import qualified Midi.Midi as Midi
@@ -106,7 +105,7 @@ midi_thru_instrument score_inst input = do
 
     scale <- Cmd.get_scale "cmd_midi_thru" scale_id
     input <- Cmd.require_msg
-        (Pretty.pretty scale_id <> " doesn't have " <> Pretty.pretty input)
+        (pretty scale_id <> " doesn't have " <> pretty input)
         =<< map_scale (Instrument.patch_scale patch) scale
             (Instrument.patch_environ patch) input
 

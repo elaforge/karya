@@ -267,7 +267,7 @@ data Track = Track !BlockId !TrackNum
 
 instance Pretty.Pretty Track where
     pretty (Track block_id tracknum) =
-        Pretty.pretty block_id ++ "/" ++ show tracknum
+        pretty block_id ++ "/" ++ show tracknum
 
 -- | A position on a track that can be indicated on the UI.  Its Pretty
 -- instance emits a string, which if logged or copy-pasted into the REPL, will
@@ -391,7 +391,7 @@ eval state m = case result of
 
 eval_rethrow :: (M m) => String -> State -> StateId a -> m a
 eval_rethrow msg state =
-    require_right (((msg <> ": ") <>) . Pretty.pretty) . eval state
+    require_right (((msg <> ": ") <>) . pretty) . eval state
 
 exec :: State -> StateId a -> Either Error State
 exec state m = case result of
@@ -401,7 +401,7 @@ exec state m = case result of
 
 exec_rethrow :: (M m) => String -> State -> StateId a -> m State
 exec_rethrow msg state =
-    require_right (((msg <> ": ") <>) . Pretty.pretty) . exec state
+    require_right (((msg <> ": ") <>) . pretty) . exec state
 
 
 -- ** error
@@ -865,7 +865,7 @@ get_block_track_at block_id tracknum =
     where
     tracknum_in_range block_id tracknum Nothing = do
         count <- track_count block_id
-        throw $ "track " ++ Pretty.pretty (Track block_id tracknum)
+        throw $ "track " ++ pretty (Track block_id tracknum)
             ++ " out of range 0--" ++ show count
     tracknum_in_range _ _ (Just a) = return a
 
@@ -884,7 +884,7 @@ event_track_at block_id tracknum = do
 get_event_track_at :: (M m) => BlockId -> TrackNum -> m TrackId
 get_event_track_at block_id tracknum = do
     track <- get_block_track_at block_id tracknum
-    require ("track " ++ Pretty.pretty (Track block_id tracknum)
+    require ("track " ++ pretty (Track block_id tracknum)
             ++ " not an event track") $
         Block.track_id track
 
@@ -1450,7 +1450,7 @@ validate caller verify = do
 -- a list of warnings.
 verify :: State -> (State, [String])
 verify state = case run_id state fix_state of
-    Left err -> (state, ["exception: " ++ Pretty.pretty err])
+    Left err -> (state, ["exception: " ++ pretty err])
     Right (errs, state, _) -> (state, errs)
 
 -- | This is like 'verify', but less complete.  It returns Left if it wants
@@ -1464,7 +1464,7 @@ verify state = case run_id state fix_state of
 -- TODO a better approach would be to make sure Sync can't be broken by State.
 quick_verify :: State -> Either String (State, [String])
 quick_verify state = case run_id state quick_fix of
-    Left err -> Left $ Pretty.pretty err
+    Left err -> Left $ pretty err
     Right (errs, state, _) -> Right (state, errs)
     where
     quick_fix = do
@@ -1572,7 +1572,7 @@ fix_integrated_block block_id block = do
             (fix_track_destination track_ids) dests
         errs = ["integrated block of " ++ show iblock
             ++ ": track destination has track ids not in this block: "
-            ++ Pretty.pretty dest | dest <- invalid]
+            ++ pretty dest | dest <- invalid]
 
 -- | Drop integrated tracks whose source TrackId isn't in this block, and
 -- TrackDestinations whose TrackIds aren't in this block.
@@ -1599,7 +1599,7 @@ fix_integrated_tracks block_id block = do
             (fix_track_destination track_ids) dests
         errs = ["integrated track of " ++ show track_id
             ++ ": track destination has track ids not in this block: "
-            ++ Pretty.pretty dest | dest <- invalid]
+            ++ pretty dest | dest <- invalid]
 
 fix_track_destination :: [TrackId] -> Block.TrackDestination -> Bool
 fix_track_destination track_ids (Block.TrackDestination note controls) =

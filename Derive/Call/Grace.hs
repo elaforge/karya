@@ -12,7 +12,6 @@ import qualified Data.Text as Text
 
 import Util.Control
 import qualified Util.Num as Num
-import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 
 import qualified Ui.ScoreTime as ScoreTime
@@ -288,11 +287,10 @@ check_pitches base pitches = do
                 Score.Diatonic -> Right Pitch.Diatonic
                 Score.Chromatic -> Right Pitch.Chromatic
                 Score.Nn -> Right Pitch.Nn
-                _ -> Left $
-                    "expected transpose type, but got " ++ Pretty.pretty t
+                _ -> Left $ "expected transpose type, but got " ++ pretty t
             | otherwise ->
                 Left $ "arguments should all have the same type, got "
-                    <> Pretty.pretty types
+                    <> pretty types
         [] -> Right Pitch.Diatonic
     return $ map (either id (resolve make . Score.typed_val)) pitches
     where

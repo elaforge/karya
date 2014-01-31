@@ -8,6 +8,7 @@
 -}
 module Util.Pretty (
     Pretty(..), Doc
+    , prettyt
     , formatted, pprint, render, render_compact
     -- * re-exported
     , PP.char, PP.text, PP.fsep, PP.fcat, PP.nest
@@ -24,9 +25,11 @@ import qualified Data.ByteString.UTF8 as UTF8
 import qualified Data.Char as Char
 import qualified Data.List.NonEmpty as NonEmpty
 import qualified Data.Map as Map
+import Data.Monoid ((<>))
 import qualified Data.Ratio as Ratio
 import qualified Data.Set as Set
 import qualified Data.Text as Text
+import Data.Text (Text)
 import qualified Data.Text.Lazy as Text.Lazy
 import qualified Data.Time as Time
 import qualified Data.Tree as Tree
@@ -41,7 +44,6 @@ import qualified Text.PrettyPrint as PP
 import Text.PrettyPrint ((<+>), Doc)
 import qualified Text.Read as Read
 
-import Util.Control
 import qualified Util.Seq as Seq
 import qualified Util.Then as Then
 
@@ -54,17 +56,17 @@ default_width = 75
 class Pretty a where
     pretty :: a -> String
     pretty = render_compact . format
-    prettytxt :: a -> Text
-    prettytxt = txt . pretty
     format :: a -> Doc
     format = PP.text . pretty
-
     format_list :: [a] -> Doc
     format_list = format_commas '[' ']'
 
+prettyt :: Pretty a => a -> Text
+prettyt = Text.pack . pretty
+
 instance Pretty Doc where format = id
 instance (Pretty a) => Pretty [a] where format = format_list
-instance (Pretty a) => Pretty (NonEmpty a) where
+instance (Pretty a) => Pretty (NonEmpty.NonEmpty a) where
     format = format_list . NonEmpty.toList
 instance Pretty Char where
     format = PP.quotes . PP.char

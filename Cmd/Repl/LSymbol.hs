@@ -9,7 +9,6 @@
 -- ghci on linux has a problem when it has to link in a FFI-using module.
 module Cmd.Repl.LSymbol where
 import Util.Control
-import qualified Util.Pretty as Pretty
 import qualified Ui.Event as Event
 import qualified Ui.Events as Events
 import qualified Ui.State as State
@@ -39,7 +38,7 @@ set :: Symbol.Symbol -> Cmd.CmdL ()
 set sym = do
     fonts <- liftIO $ SymbolC.insert_symbol sym
     unless (null fonts) $
-        Cmd.throw $ "Missing fonts: " ++ Pretty.pretty fonts
+        Cmd.throw $ "Missing fonts: " ++ pretty fonts
     (_, _, tid, _) <- Selection.get_insert
     State.insert_event tid $
         Event.text_event 0 5 ("`" <> Symbol.sym_name sym <> "`")

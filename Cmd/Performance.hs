@@ -20,7 +20,6 @@ import qualified Data.Vector as Vector
 import Util.Control
 import qualified Util.Log as Log
 import qualified Util.Map as Map
-import qualified Util.Pretty as Pretty
 import qualified Util.Thread as Thread
 
 import qualified Ui.Block as Block
@@ -210,7 +209,7 @@ evaluate_performance wait send_status block_id perf = do
             `DeepSeq.deepseq` ()
     when (secs > 1) $
         Log.notice $ "derived " ++ show block_id ++ " in "
-            ++ Pretty.pretty (RealTime.seconds secs)
+            ++ pretty (RealTime.seconds secs)
     send_status block_id $ Msg.DeriveComplete perf
 
 -- | Constructor for 'Cmd.Performance'.

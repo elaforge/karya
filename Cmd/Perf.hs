@@ -14,7 +14,6 @@ import qualified Data.Vector as Vector
 
 import Util.Control
 import qualified Util.Log as Log
-import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 
 import qualified Midi.Midi as Midi
@@ -64,7 +63,7 @@ derive_at block_id track_id deriver = do
     dynamic <- fromMaybe empty_dynamic <$>
         lookup_dynamic block_id (Just track_id)
     (val, _, logs) <- PlayUtil.run_with_dynamic dynamic deriver
-    return (either (Left . Pretty.pretty) Right val, logs)
+    return (either (Left . pretty) Right val, logs)
     where
     empty_dynamic = Derive.initial_dynamic Derive.empty_scopes mempty
 
@@ -74,7 +73,7 @@ derive :: (Cmd.M m) => Derive.Deriver a -> m (Either String a)
 derive deriver = do
     (val, _, _) <- PlayUtil.run mempty mempty deriver
     return $ case val of
-        Left err -> Left $ Pretty.pretty err
+        Left err -> Left $ pretty err
         Right val -> Right val
 
 -- * perform
@@ -203,7 +202,7 @@ lookup_default_environ name = do
 get_default_environ :: (TrackLang.Typecheck a, Cmd.M m) =>
     TrackLang.ValName -> m a
 get_default_environ name =
-    Cmd.require_msg ("no default val for " <> Pretty.pretty name)
+    Cmd.require_msg ("no default val for " <> pretty name)
         =<< lookup_default_environ name
 
 -- | The default scale established by 'State.config_global_transform', or
@@ -223,7 +222,7 @@ default_scale_id =
 get_realtime :: (Cmd.M m) => Cmd.Performance -> BlockId -> Maybe TrackId
     -> ScoreTime -> m RealTime
 get_realtime perf block_id maybe_track_id pos =
-    maybe (Cmd.throw $ show block_id ++ " " ++ Pretty.pretty maybe_track_id
+    maybe (Cmd.throw $ show block_id ++ " " ++ pretty maybe_track_id
             ++ " has no tempo information, so it probably failed to derive.")
         return =<< lookup_realtime perf block_id maybe_track_id pos
 

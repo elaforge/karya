@@ -38,7 +38,6 @@ import qualified Data.Set as Set
 import qualified Data.Tree as Tree
 
 import Util.Control
-import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 import qualified Util.Then as Then
 
@@ -397,9 +396,9 @@ checked_slice_notes start end tracks = do
             | (start, end, tree) <- tracks ]
         where non_null (_, _, xs) = not (null xs)
     show_overlapping (Nothing, (start, end)) =
-        Pretty.pretty start <> "--" <> Pretty.pretty end
+        pretty start <> "--" <> pretty end
     show_overlapping (Just track_id, (start, end)) =
-        Pretty.pretty $ State.Range Nothing track_id start end
+        pretty $ State.Range Nothing track_id start end
 
 -- | Get slice ranges for a track.  This gets the non-overlapping ranges of all
 -- the note tracks events below.

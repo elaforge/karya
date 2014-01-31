@@ -16,7 +16,6 @@ import qualified Data.Set as Set
 
 import Util.Control
 import qualified Util.Log as Log
-import qualified Util.Pretty as Pretty
 import qualified Util.TimeVector as TimeVector
 
 import qualified Midi.Midi as Midi
@@ -61,7 +60,7 @@ convert_event lookup event_ = do
     patch <- require_patch score_inst $ lookup_patch lookup score_inst
     let (event, additional) =
             split_composite (Instrument.patch_composite patch) event_
-    midi_inst <- require ("instrument in db: " <> Pretty.pretty score_inst) $
+    midi_inst <- require ("instrument in db: " <> pretty score_inst) $
         lookup_inst lookup score_inst
     (midi_inst, pitch) <- convert_midi_pitch midi_inst
         (Instrument.patch_environ patch) (Instrument.patch_scale patch)
@@ -73,7 +72,7 @@ convert_event lookup event_ = do
                     `Map.union` lookup_default_controls lookup score_inst)
     whenJust overridden $ \sig ->
         Log.warn $ "non-null control overridden by "
-            ++ Pretty.pretty Controls.dynamic ++ ": " ++ Pretty.pretty sig
+            <> pretty Controls.dynamic <> ": " <> pretty sig
     let converted = Perform.Event
             { Perform.event_instrument = midi_inst
             , Perform.event_start = Score.event_start event
@@ -94,8 +93,8 @@ require_patch inst Nothing = do
     if Set.member inst not_found then ConvertUtil.abort
         else do
             State.put (Set.insert inst not_found)
-            require ("patch in instrument db: " ++ Pretty.pretty inst
-                ++ " (further warnings suppressed)") Nothing
+            require ("patch in instrument db: " <> pretty inst
+                <> " (further warnings suppressed)") Nothing
 
 -- | Split a composite patch, as documented in 'Instrument.Composite'.
 split_composite :: [Instrument.Composite] -> Score.Event
@@ -220,10 +219,10 @@ convert_dynamic pressure controls =
 convert_pitch :: Instrument.PatchScale -> TrackLang.Environ -> Score.ControlMap
     -> PitchSignal.Signal -> ConvertT Signal.NoteNumber
 convert_pitch scale environ controls psig = do
-    unless (null errs) $ Log.warn $ "pitch: " ++ Pretty.pretty errs
+    unless (null errs) $ Log.warn $ "pitch: " <> pretty errs
     let (nn_sig, errs) = convert_scale scale (Signal.map_y round_pitch sig)
     unless (null errs) $
-        Log.warn $ "out of range for patch scale: " <> Pretty.pretty errs
+        Log.warn $ "out of range for patch scale: " <> pretty errs
     return nn_sig
     where
     (sig, errs) = PitchSignal.to_nn $

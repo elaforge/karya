@@ -14,9 +14,7 @@ import qualified Data.Map as Map
 import qualified Data.Text as Text
 
 import Util.Control
-import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
-
 import qualified Derive.Call as Call
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Call.Util as Util
@@ -66,7 +64,7 @@ equal_transformer args deriver = case Derive.passed_vals args of
             Left err -> Derive.throw_arg_error err
             Right d -> d
     args -> Derive.throw_arg_error $ "unexpected arg types: "
-        <> Seq.join ", " (map (Pretty.pretty . TrackLang.type_of) args)
+        <> Seq.join ", " (map (pretty . TrackLang.type_of) args)
 
 parse_equal :: TrackLang.Symbol -> TrackLang.Val -> Derive.Deriver a
     -> Either String (Derive.Deriver a)
@@ -96,7 +94,7 @@ parse_equal (parse_val -> Just assignee) val deriver
         TrackLang.VControlFunction f -> Right $
             Derive.with_control_function control f deriver
         _ -> Left $ "binding a control expects a control, num, or control\
-            \ function, but got " <> Pretty.pretty (TrackLang.type_of val)
+            \ function, but got " <> pretty (TrackLang.type_of val)
     | Just control <- is_pitch assignee = case val of
         TrackLang.VPitch val -> Right $
             Derive.with_pitch control (PitchSignal.constant val) deriver
@@ -104,7 +102,7 @@ parse_equal (parse_val -> Just assignee) val deriver
             sig <- Util.to_pitch_signal val
             Derive.with_pitch control sig deriver
         _ -> Left $ "binding a pitch signal expects a pitch or pitch"
-            <> " control, but got " <> Pretty.pretty (TrackLang.type_of val)
+            <> " control, but got " <> pretty (TrackLang.type_of val)
     where
     is_control (TrackLang.VControl (TrackLang.LiteralControl c)) = Just c
     is_control _ = Nothing

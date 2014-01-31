@@ -3,7 +3,7 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 module Ui.State_test where
-import qualified Util.Pretty as Pretty
+import Util.Control
 import qualified Util.Ranges as Ranges
 import Util.Test
 
@@ -15,7 +15,7 @@ import qualified Ui.UiTest as UiTest
 
 test_skeleton_cycles = do
     let bid = UiTest.default_block_id
-    let extract = either (Left . Pretty.pretty) Right
+    let extract = either (Left . pretty) Right
     let run ntracks m = extract $ State.eval State.empty $ do
             UiTest.mkblock (UiTest.default_block_name,
                 [('t' : show n, []) | n <- [0..ntracks]])

@@ -14,6 +14,8 @@ module Util.Control (
     , mapMaybe, fromMaybe
 
     , justm, errorIO
+    -- * pretty
+    , pretty, prettyt
 
     -- * lens
     , Lens, (#)
@@ -41,6 +43,7 @@ import Data.Monoid (mempty, mconcat, (<>))
 import qualified Data.Text as Text
 
 import Util.Lens
+import Util.Pretty (pretty, prettyt)
 
 
 -- | Like the Arrow combinators, but specialized to functions for clearer

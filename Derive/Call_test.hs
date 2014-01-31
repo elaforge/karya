@@ -7,7 +7,6 @@ import qualified Data.Map as Map
 
 import Util.Control
 import qualified Util.Log as Log
-import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 import Util.Test
 
@@ -247,7 +246,7 @@ test_track_dynamic_invert = do
         extract = Map.toList . Map.map (e_env . Derive.state_environ)
             . (\(Derive.TrackDynamic d) -> d) . Derive.r_track_dynamic
         e_env e = (lookup Environ.instrument e, lookup Environ.scale e)
-        lookup val = Pretty.pretty . TrackLang.lookup_val val
+        lookup val = pretty . TrackLang.lookup_val val
     -- Both tracks get *legong, even though >inst has to be inverted to see it.
     equal (run [(">i", [(0, 0, "")]), ("*legong", [(0, 0, "1")])])
         [ ((UiTest.default_block_id, UiTest.mk_tid 1), (">i", "legong"))

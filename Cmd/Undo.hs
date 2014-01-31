@@ -9,7 +9,6 @@ import qualified Data.Maybe as Maybe
 
 import Util.Control
 import qualified Util.Log as Log
-import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 
 import qualified Ui.Block as Block
@@ -132,7 +131,7 @@ redo = do
 
 hist_name :: Cmd.HistoryEntry -> String
 hist_name hist = '[' : Seq.join ", " (Cmd.hist_names hist) ++ "] "
-    ++ Pretty.pretty (Cmd.hist_commit hist)
+    ++ pretty (Cmd.hist_commit hist)
 
 load_history :: String
     -> (State.State -> SaveGit.Commit

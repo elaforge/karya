@@ -21,7 +21,6 @@ import qualified ZMidi.Core as Z
 import Util.Control
 import qualified Util.Log as Log
 import qualified Util.Map as Map
-import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 
 import qualified Midi.Midi as Midi
@@ -160,7 +159,7 @@ convert_track (title, msgs) =
     (tracks, stuck_on) = split_track msgs
     warns = if null stuck_on then []
         else [untxt title <> ": omitted notes with no note-offs: "
-            <> Pretty.pretty stuck_on]
+            <> pretty stuck_on]
 
 -- ** split_track
 

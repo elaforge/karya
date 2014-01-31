@@ -39,7 +39,6 @@ import qualified System.Posix.IO as Posix.IO
 
 import Util.Control
 import qualified Util.Log as Log
-import qualified Util.Pretty as Pretty
 import qualified Util.Thread as Thread
 
 import qualified Midi.Interface as Interface
@@ -288,7 +287,7 @@ run_responder state m = do
         <- Monad.State.runStateT m (make_rstate state)
     case val of
         Left err -> do
-            Log.warn (Pretty.pretty err)
+            Log.warn (pretty err)
             -- Exception rolls back changes to ui_state and cmd_state.
             return (False, state { state_ui = ui_from, state_cmd = cmd_from })
         Right status -> do
@@ -432,7 +431,7 @@ run_continue caller cmd = do
     (result, cmd_state) <- run_cmd cmd
     case result of
         Left err -> do
-            liftIO $ Log.error $ caller <> ": " <> Pretty.pretty err
+            liftIO $ Log.error $ caller <> ": " <> pretty err
             return Nothing
         Right (status, ui_state) -> do
             when (not_continue status) $ liftIO $

@@ -8,8 +8,10 @@ import qualified Data.Map as Map
 import qualified Data.Vector as Vector
 import qualified System.IO as IO
 
+import Util.Control
 import qualified Util.Log as Log
 import qualified Util.Pretty as Pretty
+
 import qualified Midi.Midi as Midi
 import qualified Ui.Key as Key
 import qualified Ui.Track as Track
@@ -46,11 +48,11 @@ data Msg =
     deriving (Show)
 
 instance Pretty.Pretty Msg where
-    pretty (Ui msg) = "Ui: " ++ Pretty.pretty msg
-    pretty (Midi msg) = "Midi: " ++ Pretty.pretty msg
+    pretty (Ui msg) = "Ui: " ++ pretty msg
+    pretty (Midi msg) = "Midi: " ++ pretty msg
     pretty (InputNote msg) = "Input: " ++ show msg
     pretty (DeriveStatus bid status) = "DeriveStatus: " ++ show bid ++ ": "
-        ++ Pretty.pretty status
+        ++ pretty status
     pretty msg = show msg
 
 data DeriveStatus =
@@ -108,7 +110,7 @@ data Performance = Performance {
 type Events = Vector.Vector Score.Event
 
 instance Show Performance where
-    show perf = "((Performance " ++ Pretty.pretty len ++ "))"
+    show perf = "((Performance " ++ pretty len ++ "))"
         where len = Derive.cache_size (perf_derive_cache perf)
 
 instance Pretty.Pretty Performance where

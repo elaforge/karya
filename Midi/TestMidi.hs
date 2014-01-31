@@ -17,7 +17,6 @@ import qualified System.IO as IO
 
 import Util.Control
 import qualified Util.Num as Num
-import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 import Util.Test
 
@@ -55,10 +54,10 @@ test_midi (Left err) = error $ "initializing midi: " ++ err
 test_midi (Right interface) = do
     rdevs <- Interface.read_devices interface
     putStrLn $ "read devs:"
-    mapM_ (putStrLn . ("    " ++) . Pretty.pretty) rdevs
+    mapM_ (putStrLn . ("    " ++) . pretty) rdevs
     wdevs <- Interface.write_devices interface
     putStrLn $ "write devs:"
-    mapM_ (putStrLn . ("    " ++) . Pretty.pretty) wdevs
+    mapM_ (putStrLn . ("    " ++) . pretty) wdevs
     rdevs <- return $ map fst rdevs
 
     let open = open_devs interface

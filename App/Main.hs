@@ -27,7 +27,6 @@ import qualified System.Remote.Monitoring
 import Util.Control
 import qualified Util.Log as Log
 import qualified Util.Map as Map
-import qualified Util.Pretty as Pretty
 import qualified Util.Thread as Thread
 
 import qualified Ui.Ui as Ui
@@ -172,11 +171,10 @@ startup_initialization = do
     -- Report keymap and call overlaps.
     mapM_ Log.warn GlobalKeymap.cmd_map_errors
     forM_ Call.All.shadowed $ \(sym, tags) ->
-        Log.warn $ "call shadowed: "
-            <> untxt (Text.intercalate "." tags)
-            <> " " <> Pretty.pretty sym
+        Log.warn $ "call shadowed: " <> untxt (Text.intercalate "." tags)
+            <> " " <> pretty sym
     unless (null Scale.All.shadowed) $
-        Log.warn $ "scales shadowed: " ++ Pretty.pretty Scale.All.shadowed
+        Log.warn $ "scales shadowed: " ++ pretty Scale.All.shadowed
 
 {-
 midi_thru remap_rmsg midi_chan write_midi = forever $ do
@@ -200,11 +198,10 @@ print_devs opened_rdevs rdevs wdevs = do
     putStrLn "read devs:"
     forM_ rdevs $ \(rdev, aliases) ->
         let prefix = if opened rdev aliases then "* " else "  "
-        in putStrLn $ prefix ++ Pretty.pretty rdev ++ " "
-            ++ Pretty.pretty aliases
+        in putStrLn $ prefix ++ pretty rdev ++ " " ++ pretty aliases
     putStrLn "write devs:"
     forM_ wdevs $ \(wdev, aliases) ->
-        putStrLn $ "* " ++ Pretty.pretty wdev ++ " " ++ Pretty.pretty aliases
+        putStrLn $ "* " ++ pretty wdev ++ " " ++ pretty aliases
     where
     opened rdev aliases = rdev `Set.member` opened_rdevs
         || any (`Set.member` opened_rdevs) aliases

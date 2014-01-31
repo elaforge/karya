@@ -458,9 +458,9 @@ data Keymap =
     deriving (Eq, Show)
 
 instance Pretty.Pretty Keymap where
-    pretty (UnpitchedKeymap k) = Pretty.pretty k
-    pretty (PitchedKeymap low high nn) = Pretty.pretty low <> "--"
-        <> Pretty.pretty high <> "(" <> Pretty.pretty nn <> ")"
+    pretty (UnpitchedKeymap k) = pretty k
+    pretty (PitchedKeymap low high nn) = pretty low <> "--"
+        <> pretty high <> "(" <> pretty nn <> ")"
 
 -- | A Keyswitch changes the timbre of a patch, but does so in a channel-global
 -- way.  So overlapping notes with different keyswitches will be split into

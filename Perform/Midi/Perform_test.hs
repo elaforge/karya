@@ -9,7 +9,6 @@ import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 
 import Util.Control
-import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 import Util.Test
 import qualified Util.Thread as Thread
@@ -332,7 +331,7 @@ extract_msg wmsg = (time, chan, msg)
 extract_dev_msg :: Midi.WriteMessage
     -> (String, RealTime, Midi.Channel, Midi.ChannelMessage)
 extract_dev_msg (Midi.WriteMessage dev ts (Midi.ChannelMessage chan msg)) =
-    (Pretty.pretty dev, ts, chan, msg)
+    (pretty dev, ts, chan, msg)
 extract_dev_msg (Midi.WriteMessage _ _ msg) =
     error $ "unknown msg: " ++ show msg
 
@@ -706,7 +705,7 @@ test_allot_steal = do
 test_allot_warn = do
     let extract (LEvent.Event (e, (dev, chan))) = Left
             (Instrument.inst_name (Perform.event_instrument e),
-                Pretty.pretty dev, chan)
+                pretty dev, chan)
         extract (LEvent.Log msg) = Right $ DeriveTest.show_log msg
     let f = map extract . allot midi_config1
             . map (\(evt, chan) -> (mkevent evt, chan))

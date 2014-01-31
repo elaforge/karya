@@ -181,6 +181,6 @@ load_merge fn = do
     new_state <- State.exec_rethrow "strip clip" new_state $
         Transform.destroy_namespace Config.clip_namespace
     state <- State.get
-    merged <- Cmd.require_right (("merge state: "<>) . Pretty.pretty) $
+    merged <- Cmd.require_right (("merge state: "<>) . pretty) $
         Transform.merge_states state new_state
     State.put merged

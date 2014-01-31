@@ -28,7 +28,6 @@ import System.FilePath ((</>))
 
 import Util.Control
 import qualified Util.Log as Log
-import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 
 import qualified Ui.State as State
@@ -108,7 +107,7 @@ run_cmdio cmd = do
             return (unformatted $ "IO exception: " ++ show exc, Cmd.Done)
         Right (cmd_state, midi, result) -> case result of
             Left err ->
-                return (unformatted $ "State error: " ++ Pretty.pretty err,
+                return (unformatted $ "State error: " ++ pretty err,
                     Cmd.Done)
             Right (val, ui_state, updates) -> do
                 mapM_ Cmd.write_midi midi

@@ -19,6 +19,7 @@ import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 
+import Util.Control
 import qualified Util.Map as Map
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
@@ -53,8 +54,8 @@ type Addr = (Midi.WriteDevice, Midi.Channel)
 type Message = (Midi.WriteDevice, Midi.Message)
 
 instance Pretty.Pretty Control where
-    pretty (CC cc) = Pretty.pretty cc
-    pretty (Aftertouch key) = "at:" ++ Pretty.pretty key
+    pretty (CC cc) = pretty cc
+    pretty (Aftertouch key) = "at:" ++ pretty key
     pretty Pressure = "pressure"
 
 cc_msg :: Control -> Midi.ControlValue -> Midi.ChannelMessage

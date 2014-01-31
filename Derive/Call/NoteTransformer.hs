@@ -10,7 +10,6 @@ import qualified Data.Text as Text
 
 import Util.Control
 import qualified Util.Log as Log
-import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 
 import qualified Derive.Args as Args
@@ -91,7 +90,7 @@ lily_tuplet args not_lily = Lily.when_lilypond_config lily not_lily
                 | all ((== dur e) . dur) es -> Either.right (e, es)
                 | otherwise -> Either.left $
                     "all event durations must be equal: "
-                    <> Seq.join ", " (map (Pretty.pretty . dur) (e:es))
+                    <> Seq.join ", " (map (pretty . dur) (e:es))
                 where dur = Score.event_duration
         (start, end) <- lift $ Args.real_range args
         tuplet_dur <- to_dur config "tuplet" (end - start)

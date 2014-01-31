@@ -428,10 +428,10 @@ state_midi_writer state imsg = do
     let out = case imsg of
             Midi.Interface.Midi wmsg -> Midi.Interface.Midi $ map_wdev wmsg
             _ -> imsg
-    -- putStrLn $ "PLAY " ++ Pretty.pretty out
+    -- putStrLn $ "PLAY " ++ pretty out
     ok <- Midi.Interface.write_message
         (state_midi_interface (state_config state)) out
-    unless ok $ Log.warn $ "error writing " ++ Pretty.pretty out
+    unless ok $ Log.warn $ "error writing " ++ pretty out
     where
     map_wdev (Midi.WriteMessage wdev time msg) =
         Midi.WriteMessage (lookup_wdev wdev) time msg
@@ -644,7 +644,7 @@ data Action =
 instance Pretty.Pretty Action where
     pretty act = case act of
         InsertEvent maybe_dur text ->
-            show text ++ maybe "" ((" ("++) . (++")") . Pretty.pretty) maybe_dur
+            show text ++ maybe "" ((" ("++) . (++")") . pretty) maybe_dur
         ReplaceText text -> '=' : show text
         PrependText text -> show text ++ "+"
         AppendText text -> '+' : show text
@@ -989,7 +989,7 @@ set_status key val = do
 get_midi_instrument :: (M m) => Score.Instrument -> m Instrument.Instrument
 get_midi_instrument inst = do
     lookup <- get_lookup_midi_instrument
-    require_msg ("get_midi_instrument " ++ Pretty.pretty inst) $ lookup inst
+    require_msg ("get_midi_instrument " ++ pretty inst) $ lookup inst
 
 get_lookup_midi_instrument :: (M m) => m MidiDb.LookupMidiInstrument
 get_lookup_midi_instrument = do
@@ -1025,7 +1025,7 @@ get_lookup_instrument = do
 -- | Lookup a detailed patch along with the environ that it likes.
 get_midi_patch :: (M m) => Score.Instrument -> m Instrument.Patch
 get_midi_patch inst = do
-    info <- require_msg ("get_midi_patch " ++ Pretty.pretty inst)
+    info <- require_msg ("get_midi_patch " ++ pretty inst)
         =<< lookup_instrument inst
     return $ MidiDb.info_patch info
 
@@ -1038,7 +1038,7 @@ get_lookup_scale = do
 get_scale :: (M m) => String -> Pitch.ScaleId -> m Scale.Scale
 get_scale caller scale_id = do
     lookup_scale <- get_lookup_scale
-    maybe (throw $ caller <> ": get_scale: unknown " <> Pretty.pretty scale_id)
+    maybe (throw $ caller <> ": get_scale: unknown " <> pretty scale_id)
         return (lookup_scale scale_id)
 
 get_wdev_state :: (M m) => m WriteDeviceState

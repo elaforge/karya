@@ -15,7 +15,6 @@ import qualified Data.Monoid as Monoid
 
 import Util.Control
 import qualified Util.Log as Log
-import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 
 import qualified Ui.Track as Track
@@ -106,7 +105,7 @@ require_right fmt_err = either (throw . fmt_err) return
 
 error_to_warn :: Error -> Log.Msg
 error_to_warn (Error srcpos stack val) = Log.msg_srcpos srcpos Log.Warn
-    (Just (Stack.to_strings stack)) ("Error: " <> Pretty.prettytxt val)
+    (Just (Stack.to_strings stack)) ("Error: " <> prettyt val)
 
 
 -- * state access
@@ -129,7 +128,7 @@ score_function = do
 -- | Lookup a scale_id or throw.
 get_scale :: Pitch.ScaleId -> Deriver Scale
 get_scale scale_id = maybe
-    (throw $ "get_scale: unknown " <> Pretty.pretty scale_id)
+    (throw $ "get_scale: unknown " <> pretty scale_id)
     return =<< lookup_scale scale_id
 
 lookup_scale :: Pitch.ScaleId -> Deriver (Maybe Scale)
@@ -153,7 +152,7 @@ is_val_set name =
 get_val :: (TrackLang.Typecheck a) => TrackLang.ValName -> Deriver a
 get_val name = do
     val <- lookup_val name
-    maybe (throw $ "environ val not found: " ++ Pretty.pretty name) return val
+    maybe (throw $ "environ val not found: " ++ pretty name) return val
 
 is_lilypond_derive :: Deriver Bool
 is_lilypond_derive = Maybe.isJust <$> lookup_lilypond_config
@@ -209,7 +208,7 @@ scale_to_lookup scale =
     pattern_lookup name (scale_call_doc scale)
         (\call_id -> return $ scale_note_to_call scale (to_note call_id))
     where
-    name = Pretty.prettytxt (scale_id scale) <> ": " <> scale_pattern scale
+    name = prettyt (scale_id scale) <> ": " <> scale_pattern scale
     to_note (TrackLang.Symbol sym) = Pitch.Note sym
 
 with_instrument :: Score.Instrument -> Deriver d -> Deriver d
@@ -418,7 +417,7 @@ nn_at pos = do
     controls <- controls_at pos
     environ <- Internal.get_environ
     justm (pitch_at pos) $ \pitch -> do
-    logged_pitch_nn ("nn " ++ Pretty.pretty pos) $
+    logged_pitch_nn ("nn " ++ pretty pos) $
         PitchSignal.apply environ controls pitch
 
 get_named_pitch :: Score.Control -> Deriver (Maybe PitchSignal.Signal)
@@ -429,7 +428,7 @@ named_nn_at name pos = do
     controls <- controls_at pos
     environ <- Internal.get_environ
     justm (named_pitch_at name pos) $ \pitch -> do
-    logged_pitch_nn ("named_nn " ++ Pretty.pretty (name, pos)) $
+    logged_pitch_nn ("named_nn " ++ pretty (name, pos)) $
         PitchSignal.apply environ controls pitch
 
 -- | Version of 'PitchSignal.pitch_nn' that logs errors.

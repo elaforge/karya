@@ -237,13 +237,13 @@ note_pitch deriver = do
 pitch_to_lily :: PitchSignal.Pitch -> Derive.Deriver Note
 pitch_to_lily pitch = do
     note <- right $ PitchSignal.pitch_note pitch
-    pitch <- require ("unparseable note: " <> Pretty.pretty note) $
+    pitch <- require ("unparseable note: " <> pretty note) $
         Twelve.read_absolute_pitch note
     right $ Types.show_pitch pitch
     where
     require = Derive.require . (prefix <>)
     right :: (Pretty.Pretty a) => Either a b -> Derive.Deriver b
-    right = Derive.require_right ((prefix <>) . Pretty.pretty)
+    right = Derive.require_right ((prefix <>) . pretty)
     prefix = "Lily.pitch_to_lily: "
 
 to_time :: Types.Config -> RealTime -> Types.Time
@@ -270,7 +270,7 @@ eval_events config start events = do
     return notes
     where
     parse_meter = either err return . Meter.parse_meter
-    err = Derive.throw . (("parse " <> Pretty.pretty Constants.v_meter) <>)
+    err = Derive.throw . (("parse " <> pretty Constants.v_meter) <>)
 
 eval_notes :: Types.Config -> Meter.Meter -> RealTime -> [Score.Event]
     -> ([Note], [Log.Msg])

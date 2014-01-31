@@ -3,7 +3,7 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
-  - export Pretty.pretty from Util.Control as pretty and prettyt
+  * export Pretty.pretty from Util.Control as pretty and prettyt
   - Copying a block and then doing LRuler.local on the original leads to
     a duplicate ruler id error.  RulerUtil.local should pick another name
     instead of throwing.

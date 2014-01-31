@@ -189,7 +189,7 @@ read_id s = unsafe_id (unsafe_namespace pre) (drop 1 post)
     where (pre, post) = break (=='/') s
 
 show_id :: Id -> String
-show_id (Id ns ident) = Pretty.pretty ns ++ "/" ++ B.unpack ident
+show_id (Id ns ident) = pretty ns ++ "/" ++ B.unpack ident
 
 -- | A smarter constructor that only applies the namespace if the string
 -- doesn't already have one.

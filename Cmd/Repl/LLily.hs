@@ -15,7 +15,6 @@ import qualified System.Process as Process
 
 import Util.Control
 import qualified Util.Log as Log
-import qualified Util.Pretty as Pretty
 import qualified Util.Process
 import qualified Util.Seq as Seq
 
@@ -61,7 +60,7 @@ modify_staff inst_ modify = do
     config <- get_config
     let staves = Lilypond.config_staves config
     case Seq.find_modify ((==inst) . fst) (second modify) staves of
-        Nothing -> State.throw $ "no staff config for " <> Pretty.pretty inst
+        Nothing -> State.throw $ "no staff config for " <> pretty inst
         Just staves -> modify_config $ const $
             config { Lilypond.config_staves = staves }
     where inst = Score.Instrument inst_

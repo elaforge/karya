@@ -10,7 +10,7 @@ import qualified Data.Map as Map
 import qualified Data.Text as Text
 import qualified Data.Text.IO as Text.IO
 
-import Util.Control
+import Util.Control hiding (pretty)
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 

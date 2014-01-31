@@ -4,7 +4,9 @@
 
 module Cmd.Instrument.CUtil_test where
 import Util.Control
+import qualified Util.Seq as Seq
 import Util.Test
+
 import qualified Midi.Key as Key
 import qualified Midi.Midi as Midi
 import Midi.Midi (ChannelMessage(..))
@@ -69,16 +71,12 @@ test_drum_instrument = do
     let (_, midi, logs) = DeriveTest.perform_inst drum_synth [("synth/x", [0])]
             (Derive.r_events result)
     equal logs []
-    let e_midi = mapMaybeSnd Midi.channel_message . filter (Midi.is_note . snd)
-            . DeriveTest.extract_midi
+    let e_midi = Seq.map_maybe_snd Midi.channel_message
+            . filter (Midi.is_note . snd) . DeriveTest.extract_midi
     equal (e_midi midi)
         [ (0, NoteOn Key.c2 127), (10, NoteOff Key.c2 127)
         , (1000, NoteOn Key.d2 127), (1010, NoteOff Key.d2 127)
         ]
-
--- I'll bet lenses could do this.
-mapMaybeSnd :: (b -> Maybe c) -> [(a, b)] -> [(a, c)]
-mapMaybeSnd f xs = [(a, b) | (a, Just b) <- map (second f) xs]
 
 synth :: MidiInst.Softsynth
 synth = MidiInst.softsynth "synth" "Synth" (-24, 24) []

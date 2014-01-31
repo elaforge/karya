@@ -13,8 +13,6 @@ import System.FilePath ((</>))
 
 import Util.Control
 import qualified Util.Log as Log
-import qualified Util.Pretty as Pretty
-
 import qualified Cmd.Cmd as Cmd
 import qualified Instrument.Db as Db
 import qualified Instrument.MidiDb as MidiDb
@@ -69,8 +67,7 @@ load app_dir = do
     forM_ warns $ \msg -> Log.warn $ "inst db: " ++ untxt msg
     (midi_db, not_found) <- return $ MidiDb.annotate annots midi_db
     unless (null not_found) $
-        Log.warn $ "annotated instruments not found: "
-            ++ Pretty.pretty not_found
+        Log.warn $ "annotated instruments not found: " ++ pretty not_found
     return $ Db.db midi_db
 
 make_dbs :: FilePath -> IO ()

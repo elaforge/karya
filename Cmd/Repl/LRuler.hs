@@ -36,9 +36,7 @@ import qualified Data.Map as Map
 import qualified Data.Text as Text
 
 import Util.Control
-import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
-
 import qualified Ui.Color as Color
 import qualified Ui.Event as Event
 import qualified Ui.Events as Events
@@ -103,16 +101,15 @@ sync_ids :: State.M m => m Text
 sync_ids = do
     deleted <- unify
     let unified = if null deleted then "" else Text.unlines $
-            "Unified:" : [Pretty.prettytxt x <> " <- " <> Pretty.prettytxt xs
-                    | x : xs <- deleted]
+            "Unified:" : [prettyt x <> " <- " <> prettyt xs | x : xs <- deleted]
             ++ [""]
     misnamed <- list_misnamed
     let renames = [(ruler_id, RulerUtil.block_id_to_ruler block_id)
             | (ruler_id, block_id) <- misnamed]
     Create.rename_rulers renames
     let renamed = if null renames then "" else Text.unlines $
-            "Renamed:" : [ Pretty.prettytxt from <> " -> "
-                <> Pretty.prettytxt (Types.RulerId to) | (from, to) <- renames]
+            "Renamed:" : [ prettyt from <> " -> "
+                <> prettyt (Types.RulerId to) | (from, to) <- renames]
     return $ unified <> renamed
 
 list_misnamed :: State.M m => m [(RulerId, BlockId)]

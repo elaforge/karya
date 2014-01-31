@@ -10,9 +10,7 @@ import qualified Data.Set as Set
 import qualified Data.Text as Text
 
 import Util.Control
-import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
-
 import qualified Derive.Call.ScaleDegree as ScaleDegree
 import qualified Derive.Controls as Controls
 import qualified Derive.Derive as Derive
@@ -171,7 +169,7 @@ call_doc transposers smap doc =
         where err _ = Left $ PitchSignal.PitchError "it was just an example!"
     extra_doc = doc <> twelve_doc
     fields =
-        [ ("default key", Pretty.prettytxt $
+        [ ("default key", prettyt $
             TheoryFormat.show_key (smap_fmt smap) (smap_default_key smap))
         , ("keys", format_keys $ Map.keys (smap_keys smap))
         ]
@@ -222,4 +220,4 @@ lookup_key :: key -> Map.Map Pitch.Key key -> Maybe Pitch.Key
     -> Either Scale.ScaleError key
 lookup_key deflt _ Nothing = Right deflt
 lookup_key _ keys (Just key) = maybe (Left err) Right $ Map.lookup key keys
-    where err = Scale.UnparseableEnviron Environ.key (Pretty.prettytxt key)
+    where err = Scale.UnparseableEnviron Environ.key (prettyt key)

@@ -12,7 +12,6 @@ import qualified System.IO.Unsafe as Unsafe
 import Util.Control
 import qualified Util.Debug as Debug
 import qualified Util.Log as Log
-import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 import qualified Util.Thread as Thread
 
@@ -101,7 +100,7 @@ run ustate1 cstate1 cmd = Result val cstate2 ustate2 updates logs midi_msgs
     where
     (cstate2, midi_msgs, logs, result) = Cmd.run_id ustate1 cstate1 cmd
     (val, ustate2, updates) = case result of
-        Left err -> (Left (Pretty.pretty err), ustate1, [])
+        Left err -> (Left (pretty err), ustate1, [])
         Right (v, ustate2, updates) -> (Right v, ustate2, updates)
 
 run_io :: State.State -> Cmd.State -> Cmd.CmdT IO a -> IO (Result a)
@@ -109,7 +108,7 @@ run_io ustate1 cstate1 cmd = do
     (cstate2, midi_msgs, logs, result) <-
         Cmd.run Nothing ustate1 cstate1 (Just <$> cmd)
     let (val, ustate2, updates) = case result of
-            Left err -> (Left (Pretty.pretty err), ustate1, [])
+            Left err -> (Left (pretty err), ustate1, [])
             Right (v, ustate2, updates) -> (Right v, ustate2, updates)
     return $ Result val cstate2 ustate2 updates logs midi_msgs
 

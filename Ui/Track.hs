@@ -87,7 +87,7 @@ line_render :: RenderConfig
 line_render = RenderConfig (Line Nothing) Config.render_color
 
 instance Pretty.Pretty RenderConfig where
-    pretty (RenderConfig style color) = Pretty.pretty (style, color)
+    pretty (RenderConfig style color) = pretty (style, color)
 
 -- | RenderStyles can take an optional source which says which control the
 -- signal comes from.  This is only for note tracks, and will extract the
