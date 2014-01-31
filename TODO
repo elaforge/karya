@@ -3,9 +3,11 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
-  - copying a block and then doing LRuler.local on the original leads to
-    a duplicate ruler id
-  - LRuler call to synchronize ruler ids with their owning blocks, if only
+  - export Pretty.pretty from Util.Control as pretty and prettyt
+  - Copying a block and then doing LRuler.local on the original leads to
+    a duplicate ruler id error.  RulerUtil.local should pick another name
+    instead of throwing.
+  * LRuler call to synchronize ruler ids with their owning blocks, if only
     owned by one block.
   - If thru did eval on "", I wouldn't need pasang thru.  But it might be
     slower.
@@ -49,7 +51,6 @@ UNSORTED
         a playback cursor, and to be able to mix with "normal" notation)
         then all is fine, but if I do want to mix then I need to get a tempo
         out of it.
-  / `mordent` is a pain to type, abbreviate to `mord`?
   - shakefile: changing repl env var causes relink of things that don't rely
     on it, e.g. logview
   - Corrupted views save in git repo is still happening.  How?
@@ -60,6 +61,10 @@ UNSORTED
     - It only happens when saving to git.  Maybe git corrupts the file, since
       it's inside the git dir.  Save a copy to the parent, and compare the
       next time I get corruption.
+    . Or maybe since it saves before quitting, it actually quits before the
+      save thread finishes.  But isn't the save done by the event loop
+      thread, which is the main thread?  And that shouldn't be possible since
+      File.writeGz writes first and then renames.
   - Play position doesn't work right for 'loop' and 'tile' calls, it only
     understands the first loop, and doesn't know that 'tile' cuts off the
     beginning.

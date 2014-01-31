@@ -33,15 +33,20 @@
 -}
 module Cmd.Repl.LRuler where
 import qualified Data.Map as Map
+import qualified Data.Text as Text
 
 import Util.Control
+import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
+
 import qualified Ui.Color as Color
 import qualified Ui.Event as Event
 import qualified Ui.Events as Events
+import qualified Ui.Id as Id
 import qualified Ui.Ruler as Ruler
 import qualified Ui.State as State
 import qualified Ui.Track as Track
+import qualified Ui.Types as Types
 
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Create as Create
@@ -59,14 +64,17 @@ rename :: RulerId -> RulerId -> Cmd.CmdL ()
 rename = Create.rename_ruler
 
 -- | List all rulers, along with the number of blocks each one appears in.
-list :: Cmd.CmdL [(RulerId, Int)]
+listn :: Cmd.CmdL [(RulerId, Int)]
+listn = map (second length) <$> list
+
+list :: State.M m => m [(RulerId, [BlockId])]
 list = do
     ruler_ids <- State.all_ruler_ids
-    counts <- map length <$> mapM State.blocks_with_ruler_id ruler_ids
-    return $ zip ruler_ids counts
+    block_ids <- mapM State.blocks_with_ruler_id ruler_ids
+    return $ zip ruler_ids (map (map fst) block_ids)
 
 -- | Destroy all unrefereced rulers, and return their now-invalid RulerIds.
-gc :: (State.M m) => m [RulerId]
+gc :: State.M m => m [RulerId]
 gc = do
     ruler_ids <- Create.orphan_rulers
     mapM_ State.destroy_ruler ruler_ids
@@ -75,17 +83,48 @@ gc = do
 -- | Group together rulers that are the same, replace all the duplicates with
 -- the first ruler in each group, then gc away the duplicates.  Return the
 -- duplicates.
-unify :: Cmd.CmdL [[RulerId]]
+unify :: State.M m => m [[RulerId]]
 unify = do
     groups <- Seq.group_eq_on snd <$>
         State.gets (Map.toAscList . State.state_rulers)
-    mapM_ unify groups
+    mapM_ merge groups
     gc
     return $ filter ((>1) . length) $ map (map fst) groups
     where
-    unify ((rid, _) : dups) = forM_ (map fst dups) $ \dup_rid ->
+    merge ((rid, _) : dups) = forM_ (map fst dups) $ \dup_rid ->
         replace_ruler_id dup_rid rid
-    unify _ = return ()
+    merge _ = return ()
+
+-- | After copying blocks around and fiddling with rulers, the RulerIds can
+-- wind up with names from other blocks.  Synchronize RulerIds along with their
+-- owning BlockIds.  A RulerId only on one BlockId is assumed to be local to
+-- that block, and will get its name.
+sync_ids :: State.M m => m Text
+sync_ids = do
+    deleted <- unify
+    let unified = if null deleted then "" else Text.unlines $
+            "Unified:" : [Pretty.prettytxt x <> " <- " <> Pretty.prettytxt xs
+                    | x : xs <- deleted]
+            ++ [""]
+    misnamed <- list_misnamed
+    let renames = [(ruler_id, RulerUtil.block_id_to_ruler block_id)
+            | (ruler_id, block_id) <- misnamed]
+    Create.rename_rulers renames
+    let renamed = if null renames then "" else Text.unlines $
+            "Renamed:" : [ Pretty.prettytxt from <> " -> "
+                <> Pretty.prettytxt (Types.RulerId to) | (from, to) <- renames]
+    return $ unified <> renamed
+
+list_misnamed :: State.M m => m [(RulerId, BlockId)]
+list_misnamed = go <$> list
+    where
+    go ruler_blocks =
+        [ (ruler_id, block_id)
+        | (ruler_id, Just block_id) <- map (second len1) ruler_blocks
+        , RulerUtil.block_id_to_ruler block_id /= Id.unpack_id ruler_id
+        ]
+    len1 [x] = Just x
+    len1 _ = Nothing
 
 -- | Blocks that contain the given ruler.
 blocks_of :: (State.M m) => RulerId -> m [BlockId]

@@ -71,7 +71,7 @@ local block_id ruler_id f = do
         _ -> do
             -- Give the ruler the same name as the block, since it's now local
             -- to that block.
-            new_ruler_id <- copy (Id.unpack_id block_id) ruler_id
+            new_ruler_id <- copy (block_id_to_ruler block_id) ruler_id
             State.modify_ruler new_ruler_id f
             sequence_ $ do
                 (rblock_id, tracks) <- blocks
@@ -79,6 +79,11 @@ local block_id ruler_id f = do
                 (tracknum, _) <- tracks
                 return $ State.set_track_ruler block_id tracknum new_ruler_id
             return new_ruler_id
+
+-- | Create a block-local RulerId.  It gets the exact same name as the block,
+-- but is defined as a function so it's clear where this conversion is done.
+block_id_to_ruler :: BlockId -> Id.Id
+block_id_to_ruler = Id.unpack_id
 
 copy :: (State.M m) => Id.Id -> RulerId -> m RulerId
 copy ident ruler_id = State.create_ruler ident =<< State.get_ruler ruler_id

@@ -53,14 +53,14 @@ import Types
 -- | Set the project to the given value and renamespace the old project to the
 -- new one.  The 'State.state_project_dir' is not modified, so it will keep
 -- saving to the old save file.
-rename_project :: (State.M m) => Id.Namespace -> m ()
+rename_project :: State.M m => Id.Namespace -> m ()
 rename_project ns = do
     old_ns <- State.get_namespace
     renamespace old_ns ns
     State.set_namespace ns
 
 -- | Rename all IDs in namespace @from@ to @to@.
-renamespace :: (State.M m) => Id.Namespace -> Id.Namespace -> m ()
+renamespace :: State.M m => Id.Namespace -> Id.Namespace -> m ()
 renamespace from to = Transform.map_ids set_ns
     where
     set_ns ident
@@ -68,11 +68,19 @@ renamespace from to = Transform.map_ids set_ns
         | otherwise = ident
         where (ns, name) = Id.un_id ident
 
-rename_ruler :: (State.M m) => RulerId -> RulerId -> m ()
+rename_ruler :: State.M m => RulerId -> RulerId -> m ()
 rename_ruler ruler_id new_name = Transform.map_ruler_ids $ \id ->
     if Types.RulerId id == ruler_id then Id.unpack_id new_name else id
 
-rename_block :: (State.M m) => BlockId -> BlockId -> m ()
+-- | Rename multiple RulerIds at once.  This can swap two IDs without
+-- colliding.
+rename_rulers :: State.M m => [(RulerId, Id.Id)] -> m ()
+rename_rulers pairs = Transform.map_ruler_ids $ \id ->
+    case lookup (Types.RulerId id) pairs of
+        Nothing -> id
+        Just new -> new
+
+rename_block :: State.M m => BlockId -> BlockId -> m ()
 rename_block block_id new_name = Transform.map_block_ids $ \id ->
     if Types.BlockId id == block_id then Id.unpack_id new_name else id
 
