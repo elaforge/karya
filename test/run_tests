@@ -31,8 +31,8 @@ parallel=${parallel-t}
 test_output=build/test/output
 
 function run {
-    echo start "$@" >&2
-    "$@"
+    echo start "$@" >&2 # In case the test itself writes to stderr.
+    "$@" 2>&1
     local r=$?
     if [[ $r -ne 0 ]]; then
         echo '__->' cmd returned $r: "$@"
@@ -54,7 +54,7 @@ if [[ -n $parallel && -z $prefixes ]]; then
         ln $run_tests $tmp/RunTests.$test
         run $tmp/RunTests.$test $test >$tmp/output.$test &
     done
-    run $run_tests '^normal-' >$test_output
+    run $run_tests '^normal-' >$test_output &
     wait
     mv *.tix $tmp
     cat $tmp/output.* >>$test_output
