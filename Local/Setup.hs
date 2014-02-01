@@ -48,7 +48,7 @@ load_mod fn = do
     blocks <- either Cmd.throw return =<< Trans.liftIO (Load.Mod.parse fn)
     let blocks2 = map
             (Load.Mod.map_block (Load.Mod.add_default_volume 1 38)) blocks
-    Load.Mod.create (Id.unsafe_namespace $ head (Seq.split "." fn))
+    Load.Mod.create (Id.namespace $ head (Seq.split "." fn))
         (Load.Mod.convert_blocks 0.25 blocks2)
     State.set_midi_config $ make_midi_config "ptq" [("ptq/c1", [0..8])]
     return Cmd.Done

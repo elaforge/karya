@@ -134,16 +134,13 @@ midi_performance block_id = do
 
 -- * transform
 
-set_namespace :: String -> Cmd.CmdL ()
-set_namespace ns = do
-    ns <- Cmd.require_msg ("invalid namespace: " ++ show ns) (Id.namespace ns)
-    Create.rename_project ns
+set_namespace :: Id.Namespace -> Cmd.CmdL ()
+set_namespace = Create.rename_project
 
 -- | Set the score namespace to the given one.  Also update the project_dir
 -- and move the actual directory.
-rename :: String -> Cmd.CmdL ()
+rename :: Id.Namespace -> Cmd.CmdL ()
 rename ns = do
-    ns <- Cmd.require_msg ("invalid namespace: " ++ show ns) (Id.namespace ns)
     Create.rename_project ns
     Cmd.gets Cmd.state_save_file >>= \x -> case x of
         Nothing -> return ()

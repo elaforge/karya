@@ -407,7 +407,7 @@ undump_map mkid dir =
     undump_file _ (name, Git.Dir _) =
         Left $ "expected file but got dir: " ++ show name
     undump_file ns (name, Git.File bytes) =
-        (,) <$> path_to_id mkid ns name <*> decode name bytes
+        (,) (path_to_id mkid ns name) <$> decode name bytes
 
 undump_diff :: State.State -> [Git.Modification]
     -> Either String (State.State, [Update.CmdUpdate])
@@ -420,14 +420,14 @@ undump_diff state = foldM apply (state, [])
         _ -> Left $ "unknown file deleted: " ++ show path
         where
         delete ns name mkid lens = do
-            ident <- path_to_id mkid ns name
+            let ident = path_to_id mkid ns name
             vals <- delete_key ident (lens #$ state)
             return ((lens #= vals) state, updates)
     apply (state, updates) (Git.Add path bytes) = case split path of
         ["blocks", ns, name] -> add ns name Types.BlockId State.blocks
         ["tracks", ns, name] -> do
             (state_to, updates) <- add ns name Types.TrackId State.tracks
-            tid <- path_to_id Types.TrackId ns name
+            let tid = path_to_id Types.TrackId ns name
             -- I don't save the CmdUpdates with the checkpoint, so to avoid
             -- having to rederive the entire track I do a little mini-diff
             -- just on the track.  It shouldn't be too expensive because it's
@@ -436,7 +436,7 @@ undump_diff state = foldM apply (state, [])
             return (state_to, event_updates ++ updates)
         ["rulers", ns, name] -> do
             (state_to, updates) <- add ns name Types.RulerId State.rulers
-            rid <- path_to_id Types.RulerId ns name
+            let rid = path_to_id Types.RulerId ns name
             return (state_to, Update.CmdRuler rid : updates)
         ["config"] -> do
             val <- decode path bytes
@@ -444,7 +444,7 @@ undump_diff state = foldM apply (state, [])
         _ -> Left $ "unknown file modified: " ++ show path
         where
         add ns name mkid lens = do
-            ident <- path_to_id mkid ns name
+            let ident = path_to_id mkid ns name
             val <- decode path bytes
             return ((lens %= Map.insert ident val) state, updates)
     split = FilePath.splitDirectories
@@ -458,16 +458,16 @@ make_id_path :: (Id.Ident a) => FilePath -> a -> FilePath
 make_id_path dir id = dir </> nsdir </> name
     where
     (ns, name) = Id.un_id (Id.unpack_id id)
-    nsdir = if ns == Id.global_namespace then "*GLOBAL*"
-        else Id.un_namespace ns
+    nsdir
+        | ns == Id.global_namespace = "*GLOBAL*"
+        | otherwise = Id.un_namespace ns
 
-path_to_id :: (Id.Id -> id) -> FilePath -> FilePath -> Either String id
-path_to_id mkid ns name = do
-    ns <- if ns == "*GLOBAL*" then return Id.global_namespace
-        else maybe (Left $ "invalid namespace: " ++ show ns) Right
-            (Id.namespace ns)
-    mkid <$> maybe
-        (Left $ "invalid ident name: " ++ show name) Right (Id.id ns name)
+path_to_id :: (Id.Id -> id) -> FilePath -> FilePath -> id
+path_to_id mkid ns name = mkid (Id.id save_ns name)
+    where
+    save_ns
+        | ns == "*GLOBAL*" = Id.global_namespace
+        | otherwise = Id.namespace ns
 
 -- * util
 

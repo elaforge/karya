@@ -20,7 +20,6 @@ import qualified Ui.Events as Events
 import qualified Ui.Id as Id
 import qualified Ui.State as State
 import qualified Ui.Track as Track
-import qualified Ui.Types as Types
 
 import qualified Cmd.BlockConfig as BlockConfig
 import qualified Cmd.CallDoc as CallDoc
@@ -171,15 +170,12 @@ create_named template name = whenM (can_create name) $
             Create.named_block name =<< State.block_ruler template_id
         Just template_id -> Create.named_block_from_template template_id name
 
-can_create :: (State.M m) => Text -> m Bool
+can_create :: State.M m => Text -> m Bool
 can_create name
     | Text.null name = return False
     | otherwise = do
-        ns <- State.get_namespace
-        case Types.BlockId <$> Id.read_short ns (untxt name) of
-            Just block_id -> not . Map.member block_id
-                <$> State.gets State.state_blocks
-            Nothing -> return False
+        block_id <- State.read_id (untxt name)
+        not . Map.member block_id <$> State.gets State.state_blocks
 
 -- | Create a named block with the same structure as the focused one.
 copy :: Text -> Cmd.CmdL ViewId

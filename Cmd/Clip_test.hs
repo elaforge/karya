@@ -166,8 +166,7 @@ test_cmd_paste_stretch = do
 -- * util
 
 clip_id :: BlockId
-clip_id = Types.BlockId $
-    Id.unsafe_id Config.clip_namespace Config.clip_block_name
+clip_id = Types.BlockId $ Id.id Config.clip_namespace Config.clip_block_name
 
 mkstate :: [UiTest.TrackSpec] -> [UiTest.TrackSpec] -> State.State
 mkstate block_tracks clip_tracks = UiTest.exec State.empty $ do

@@ -4,20 +4,16 @@
 
 {-# LANGUAGE GeneralizedNewtypeDeriving #-} -- NFData instance
 module Ui.Id (
-    Namespace, namespace, unsafe_namespace, un_namespace, Id
-
-    -- * construction
-    , id, unsafe_id
-
-    -- * naming enforcement
-    , is_id, is_id_char, is_strict_id, is_strict_id_char, ascii_lower
-    , clean_id, enforce_id, enforce_strict_id
+    Id, Namespace, id, namespace
 
     -- * access
-    , un_id, id_name, id_namespace, set_namespace, set_name
+    , un_id, un_namespace, id_name, id_namespace, set_namespace, set_name
 
     -- * read / show
     , read_id, show_id, read_short, show_short
+
+    -- * validate
+    , valid, is_id_char, is_lower_alpha, is_digit
 
     -- * Ident
     , Ident(..)
@@ -30,15 +26,11 @@ module Ui.Id (
 import Prelude hiding (id)
 import qualified Control.DeepSeq as DeepSeq
 import qualified Data.ByteString.Char8 as B
-import qualified Data.Char as Char
 import qualified Data.Digest.CRC32 as CRC32
-
-import qualified System.IO.Unsafe as Unsafe
 import qualified Text.ParserCombinators.ReadPrec as ReadPrec
 import qualified Text.Read as Read
 
 import Util.Control
-import qualified Util.Log as Log
 import qualified Util.Pretty as Pretty
 import qualified Util.Serialize as Serialize
 
@@ -48,125 +40,41 @@ import qualified Util.Serialize as Serialize
 -- This is so so that you can merge two scores together and not have their IDs
 -- clash.  Since block calls within a score will generally leave the namespace
 -- implicit, the merged score should still be playable.
-newtype Namespace = Namespace B.ByteString
-    deriving (Eq, Ord, Show, Read, DeepSeq.NFData, CRC32.CRC32)
+--
+-- TODO the ByteString is historical, it should be Text but it's a pain to
+-- change.
 data Id = Id !Namespace !B.ByteString
     deriving (Eq, Ord, Show, Read)
 
+-- | The Namespace should pass 'valid', but is guaranteed to not contain \/s.
+-- This is because the git backend uses the namespace for a directory name.
+newtype Namespace = Namespace B.ByteString
+    deriving (Eq, Ord, Show, Read, DeepSeq.NFData, CRC32.CRC32)
+
+-- | Construct an Id, or return Nothing if there were invalid characters in it.
+id :: Namespace -> String -> Id
+id ns name = Id ns (B.pack (map (\c -> if c == '/' then '-' else c) name))
+
+namespace :: String -> Namespace
+namespace = Namespace . B.pack . map (\c -> if c == '/' then '-' else c)
+
 instance Serialize.Serialize Id where
     put = Serialize.put . un_id
-    get = Serialize.get >>= \(a, b) -> return (unsafe_id a b)
+    get = Serialize.get >>= \(a, b) -> return (id a b)
 
 instance Serialize.Serialize Namespace where
     put = Serialize.put . un_namespace
-    get = Serialize.get >>= \a -> return (unsafe_namespace a)
+    get = Serialize.get >>= \a -> return (namespace a)
 
 instance CRC32.CRC32 Id where
     crc32Update n (Id ns name) =
         n `CRC32.crc32Update` ns `CRC32.crc32Update` name
 
--- | Create a namespace, if the characters are valid.
-namespace :: String -> Maybe Namespace
-namespace ns
-    | null ns || is_strict_id ns = Just (Namespace (B.pack ns))
-    | otherwise = Nothing
-
--- | Like 'namespace', but will strip and log invalid characters.
-unsafe_namespace :: String -> Namespace
-unsafe_namespace = Namespace . B.pack . enforce_strict_id_null_ok
-
-un_namespace :: Namespace -> String
-un_namespace (Namespace s) = B.unpack s
-
-instance DeepSeq.NFData Id where
-    rnf (Id ns ident) = ns `seq` ident `seq` ()
-
 instance Pretty.Pretty Namespace where pretty = un_namespace
 instance Pretty.Pretty Id where pretty = show_id
 
--- * construction
-
--- | Construct an Id, or return Nothing if there were invalid characters in it.
-id :: Namespace -> String -> Maybe Id
-id ns ident
-    | is_id ident = Just $ Id ns (B.pack ident)
-    | otherwise = Nothing
-
--- | Like 'id', but will strip and log invalid characters.
-unsafe_id :: Namespace -> String -> Id
-unsafe_id ns ident = Id ns (B.pack (enforce_id ident))
-
--- | To make naming them in events easier, IDs have a restricted character set.
--- @.@ is allowed so there is a "phrase separator" and @`@ is allowed for
--- symbols, of course.
-is_id :: String -> Bool
-is_id s = not (null s) && all is_id_char s
-
-is_id_char :: Char -> Bool
-is_id_char c = is_strict_id_char c || c == '`'
-
--- | Many other symbols have an even more restrictive character set.  In
--- addition since they show up as tracklang literals, they must start with
--- a letter, to avoid ambiguity with numbers or other literals.
-is_strict_id :: String -> Bool
-is_strict_id (c:cs) = ascii_lower c && all is_strict_id_char cs
-is_strict_id "" = False
-
--- | @-@ is the word separator, but @.@ is also allowed as a higher-level
--- separator.  For instance, tracks are conventionally named @block.t#@, and
--- if the block has words it's still non-ambiguous: @some-block.t3@.
-is_strict_id_char :: Char -> Bool
-is_strict_id_char c = ascii_lower c || ascii_digit c || c == '-' || c == '.'
-
-ascii_lower :: Char -> Bool
-ascii_lower c = 'a' <= c && c <= 'z'
-
-ascii_digit :: Char -> Bool
-ascii_digit c = '0' <= c && c <= '9'
-
-clean_id :: Bool -> String -> (String, Maybe String)
-clean_id null_ok s
-    | null cleaned = ("", Just $
-        "identifier consisted entirely of illegal characters: " ++ show s)
-    | not null_ok && null s = ("", Just "null identifier")
-    | s /= cleaned =
-        (cleaned, Just $ "stripped illegal characters from " ++ show s)
-    | otherwise = (cleaned, Nothing)
-    where
-    cleaned = filter is_strict_id_char $ dropWhile (not . ascii_lower) $
-        map Char.toLower s
-
--- | Enforce that a String conforms to the rules for a strict ID.
---
--- Illegal characters are stripped, but it's a runtime error if that results
--- in an empty string.  This is a bit dangerous, but strict IDs should be
--- applied to various tracklang constructs, which are either declared
--- statically in the source, or parsed via "Derive.ParseBs".
---
--- TODO not too happy with unsafe logging and runtime errros
-enforce_strict_id :: String -> String
-enforce_strict_id s
-    | Just warn <- maybe_warn = Unsafe.unsafePerformIO $ do
-        Log.warn $ "enforce_strict_id: " ++ warn
-        return result
-    | otherwise = result
-    where (result, maybe_warn) = clean_id False s
-
-enforce_strict_id_null_ok :: String -> String
-enforce_strict_id_null_ok s = if null s then s else enforce_strict_id s
-
--- | More relaxed version of 'enforce_strict_id', used by the various instances
--- of the Ident class.
-enforce_id :: String -> String
-enforce_id s
-    -- It turns out it's pretty inconvenient to throw errors like
-    -- 'enforce_strict_id' because they tend to be created directly in code.
-    | s /= cleaned = Unsafe.unsafePerformIO $ do
-        Log.warn $ "enforce_id: stripped illegal characters from "
-            ++ show s
-        return cleaned
-    | otherwise = cleaned
-    where cleaned = filter is_id_char s
+instance DeepSeq.NFData Id where
+    rnf (Id ns name) = ns `seq` name `seq` ()
 
 -- * access
 
@@ -180,15 +88,18 @@ id_namespace :: Id -> Namespace
 id_namespace (Id ns _) = ns
 
 set_namespace :: Namespace -> Id -> Id
-set_namespace ns (Id _ name) = unsafe_id ns (B.unpack name)
+set_namespace ns (Id _ name) = id ns (B.unpack name)
 
 set_name :: String -> Id -> Id
-set_name name (Id ns _) = unsafe_id ns name
+set_name name (Id ns _) = id ns name
+
+un_namespace :: Namespace -> String
+un_namespace (Namespace s) = B.unpack s
 
 -- * read / show
 
 read_id :: String -> Id
-read_id s = unsafe_id (unsafe_namespace pre) (drop 1 post)
+read_id s = id (namespace pre) (drop 1 post)
     where (pre, post) = break (=='/') s
 
 show_id :: Id -> String
@@ -196,18 +107,33 @@ show_id (Id ns ident) = pretty ns ++ "/" ++ B.unpack ident
 
 -- | A smarter constructor that only applies the namespace if the string
 -- doesn't already have one.
-read_short :: Namespace -> String -> Maybe Id
+read_short :: Namespace -> String -> Id
 read_short default_ns text = case break (=='/') text of
     (ident, "") -> id default_ns ident
-    (ns, ident) -> do
-        ns <- namespace ns
-        id ns (drop 1 ident)
+    (ns, ident) -> id (namespace ns) (drop 1 ident)
 
 -- | The inverse of 'read_short'.
 show_short :: Namespace -> Id -> String
 show_short default_ns ident@(Id ns name)
     | default_ns == ns = B.unpack name
     | otherwise = show_id ident
+
+-- * validate
+
+-- | True if this Namespace or Id name is parseable as a tracklang literal.
+-- You probably want to insist on this when creating new Ids to ensure they
+-- can be easily called from the track.
+valid :: String -> Bool
+valid s = not (null s) && is_lower_alpha (head s) && all is_id_char s
+
+is_id_char :: Char -> Bool
+is_id_char c = is_lower_alpha c || is_digit c || c == '-' || c == '.'
+
+is_lower_alpha :: Char -> Bool
+is_lower_alpha c = 'a' <= c && c <= 'z'
+
+is_digit :: Char -> Bool
+is_digit c = '0' <= c && c <= '9'
 
 -- * Ident
 
@@ -251,7 +177,7 @@ ident_namespace = id_namespace . unpack_id
 -- * constants
 
 global :: String -> Id
-global = unsafe_id global_namespace
+global = id global_namespace
 
 global_namespace :: Namespace
-global_namespace = unsafe_namespace ""
+global_namespace = namespace ""

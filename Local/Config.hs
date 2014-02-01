@@ -55,7 +55,7 @@ parse_args argv = case argv of
     ["midi", fn] -> Setup.load_midi fn
     ["-a"] -> do
         Save.load "save/default"
-        State.set_namespace (Id.unsafe_namespace "untitled")
+        State.set_namespace (Id.namespace "untitled")
         return Cmd.Done
     [fn] -> Save.load fn >> return Cmd.Done
     [fn, ref_or_commit] -> do

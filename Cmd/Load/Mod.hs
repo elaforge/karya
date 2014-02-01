@@ -50,7 +50,7 @@ import Types
 create :: (State.M m) => Id.Namespace -> [UiBlock] -> m ()
 create name ui_blocks = do
     State.set_namespace name
-    let mkid = Id.unsafe_id name
+    let mkid = Id.id name
     rid <- Create.ruler "meter44" $
         RulerUtil.meter_ruler 16 (replicate 4 Meters.m44_4)
     block_ids <- zipWithM (create_block mkid rid "") [0..] ui_blocks

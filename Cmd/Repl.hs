@@ -63,7 +63,7 @@ repl session repl_dirs msg = do
     (response_hdl, text) <- case msg of
         Msg.Socket hdl s -> return (hdl, s)
         _ -> Cmd.abort
-    ns <- State.config#State.namespace <#> State.get
+    ns <- State.get_namespace
     text <- Cmd.require_right ("expand_macros: "<>) $ expand_macros ns text
     Log.debug $ "repl input: " ++ show text
     local_modules <- fmap concat (mapM get_local_modules repl_dirs)
@@ -99,7 +99,7 @@ run_cmdio cmd = do
         mapM_ Log.write logs
         case result of
             Left _ -> return ()
-            -- Try to force out any async exceptions, e.g. 'Ui.Id.unsafe_id'.
+            -- Try to force out any async exceptions.
             Right (val, _, _) -> val `DeepSeq.deepseq` return ()
         return (cmd_state, midi, result)
     case result of

@@ -163,7 +163,7 @@ p_macros replacement = do
 p_macro :: (Text -> Text) -> A.Parser Text
 p_macro replacement = do
     A.char '@'
-    replacement <$> A.takeWhile1 (\c -> Id.is_strict_id_char c || c == '/')
+    replacement <$> A.takeWhile1 (\c -> Id.is_id_char c || c == '/')
 
 p_hs_string :: A.Parser Text
 p_hs_string = fmap (\s -> "\"" <> s <> "\"") $
@@ -349,18 +349,18 @@ p_identifier until = do
     -- TODO attoparsec docs say it's faster to do the check manually, profile
     -- and see if it makes a difference.
     ident <- A.takeWhile1 (A.notInClass (until ++ " |=)"))
-    -- This forces identifiers to be separated with spaces, except with the |
-    -- operator.  Otherwise @sym>inst@ is parsed as a call @sym >inst@, which
-    -- seems like something I don't want to support.
-    unless (is_strict_id ident) $
+    -- This forces identifiers to be separated with spaces, except with | and
+    -- =.  Otherwise @sym>inst@ is parsed as a call @sym >inst@, which I don't
+    -- want to support.
+    unless (valid_identifier ident) $
         fail $ "invalid chars in identifier; only [a-z0-9-] are accepted: "
             ++ show ident
     return ident
 
--- | ByteString versions of the ones in "Ui.Id".
-is_strict_id :: Text -> Bool
-is_strict_id s = not (B.null s) && Id.ascii_lower (B.head s)
-    && B.all Id.is_strict_id_char s
+-- | ByteString version of 'Id.valid'.
+valid_identifier :: Text -> Bool
+valid_identifier s = not (B.null s) && Id.is_lower_alpha (B.head s)
+    && B.all Id.is_id_char s
 
 p_word :: Bool -> A.Parser Text
 p_word toplevel =

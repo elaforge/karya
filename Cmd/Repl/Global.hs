@@ -71,17 +71,16 @@ import Types
 -- Throws an error if the ID has bad characters, which is ok since this is
 -- expected to be used from the REPL.
 class AutoId a where auto_id :: String -> String -> a
-instance AutoId ViewId where auto_id = make_id Types.ViewId "ViewId"
-instance AutoId BlockId where auto_id = make_id Types.BlockId "BlockId"
-instance AutoId RulerId where auto_id = make_id Types.RulerId "RulerId"
-instance AutoId TrackId where auto_id = make_id Types.TrackId "TrackId"
+instance AutoId ViewId where auto_id = make_id Types.ViewId
+instance AutoId BlockId where auto_id = make_id Types.BlockId
+instance AutoId RulerId where auto_id = make_id Types.RulerId
+instance AutoId TrackId where auto_id = make_id Types.TrackId
 
-make_id :: (Id.Id -> a) -> String -> String -> String -> a
-make_id make msg ns name = case Id.namespace ns of
-    Nothing -> error $ msg ++ ": illegal characters in namespace: " ++ show ns
-    Just ns -> case Id.read_short ns name of
-        Nothing -> error $ msg ++ ": illegal characters in ID: " ++ show name
-        Just ident -> make ident
+make_id :: (Id.Id -> a) -> String -> String -> a
+make_id make ns name
+    | not (Id.valid ns) || not (Id.valid name) =
+        error $ "invalid characters in id: " ++ show (ns, name)
+    | otherwise = make $ Id.read_short (Id.namespace ns) name
 
 vid = Types.ViewId . Id.read_id
 bid = Types.BlockId . Id.read_id
@@ -121,9 +120,9 @@ root = State.get_root_id
 -- | Create a namespace, and throw an IO exception if it has bad characters.
 -- Intended to be used from the REPL, where throwing an IO exception is ok.
 ns :: String -> Id.Namespace
-ns s = case Id.namespace s of
-    Nothing -> error $ "bad namespace: " ++ show s
-    Just ns -> ns
+ns name
+    | Id.valid name = Id.namespace name
+    | otherwise = error $ "bad namespace: " ++ show name
 
 -- | Some oprators to more conveniently string together monadic and non-monadic
 -- functions in the REPL.

@@ -64,9 +64,8 @@ renamespace :: State.M m => Id.Namespace -> Id.Namespace -> m ()
 renamespace from to = Transform.map_ids set_ns
     where
     set_ns ident
-        | ns == from = fromMaybe ident (Id.id to name)
+        | Id.id_namespace ident  == from = Id.set_namespace to ident
         | otherwise = ident
-        where (ns, name) = Id.un_id ident
 
 rename_ruler :: State.M m => RulerId -> RulerId -> m ()
 rename_ruler ruler_id new_name = Transform.map_ruler_ids $ \id ->
@@ -166,13 +165,13 @@ named_block_from_template template_id name = do
     return block_id
 
 -- | BlockIds look like @ns\/b1@, @ns\/b2@, etc.
-block :: (State.M m) => RulerId -> m BlockId
+block :: State.M m => RulerId -> m BlockId
 block = sub_block Nothing
 
 -- | Create a block whose BlockId is prefixed by another: @ns/parent.b1@.
 -- The relative block call mechanism supported by the default block call means
 -- you can call it from the parent by just writing @.b1@.
-sub_block :: (State.M m) => Maybe BlockId -> RulerId -> m BlockId
+sub_block :: State.M m => Maybe BlockId -> RulerId -> m BlockId
 sub_block maybe_parent ruler_id = do
     ns <- State.get_namespace
     block_id <- require "block id"
@@ -183,13 +182,11 @@ sub_block maybe_parent ruler_id = do
 -- | Create a block with the given ID name.  Useful for blocks meant to be
 -- sub-derived.  If the name doesn't contain a @\/@, it gets the current
 -- namespace.
-named_block :: (State.M m) => Text -> RulerId -> m BlockId
+named_block :: State.M m => Text -> RulerId -> m BlockId
 named_block name ruler_id = do
-    ns <- State.get_namespace
-    case Id.read_short ns (untxt name) of
-        Nothing -> State.throw $ "invalid block name: " ++ show name
-        Just ident -> State.create_block ident ""
-            [Block.track (Block.RId ruler_id) Config.ruler_width]
+    ident <- State.read_id (untxt name)
+    State.create_block ident ""
+        [Block.track (Block.RId ruler_id) Config.ruler_width]
 
 -- | Delete a block and any views it appears in.  Also delete any tracks
 -- that only appeared in that block.
@@ -480,7 +477,7 @@ track_events block_id ruler_id tracknum width track = do
 named_track :: (State.M m) =>
     BlockId -> RulerId -> TrackNum -> String -> Track.Track -> m TrackId
 named_track block_id ruler_id tracknum name track = do
-    ident <- make_id (Id.ident_name block_id ++ "." ++ name)
+    ident <- State.read_id (Id.ident_name block_id ++ "." ++ name)
     all_tracks <- State.gets State.state_tracks
     when (Types.TrackId ident `Map.member` all_tracks) $
         State.throw $ "track " ++ show ident ++ " already exists"
@@ -556,7 +553,7 @@ generate_track_id block_id code tracks =
 -- | Create a ruler with the given name.
 ruler :: (State.M m) => String -> Ruler.Ruler -> m RulerId
 ruler name ruler = do
-    ident <- make_id name
+    ident <- State.read_id name
     State.create_ruler ident ruler
 
 -- | Set a block to a new ruler.
@@ -569,13 +566,6 @@ new_ruler block_id name r = do
 set_block_ruler :: (State.M m) => RulerId -> BlockId -> m ()
 set_block_ruler ruler_id block_id =
     Transform.tracks block_id (Block.set_ruler_id ruler_id)
-
--- ** util
-
-make_id :: (State.M m) => String -> m Id.Id
-make_id name = do
-    ns <- State.get_namespace
-    State.require ("make_id: invalid name: " ++ show name) $ Id.id ns name
 
 -- * general util
 
@@ -595,7 +585,7 @@ generate_id ns parent_id code typ fm =
 -- consistency.
 ids_for :: Id.Namespace -> String -> String -> [Id.Id]
 ids_for ns parent code =
-    [Id.unsafe_id ns (dotted parent ++ code ++ show n) | n <- [1..]]
+    [Id.id ns (dotted parent ++ code ++ show n) | n <- [1..]]
     where dotted s = if null s then "" else s ++ "."
 
 require :: (State.M m) => String -> Maybe a -> m a

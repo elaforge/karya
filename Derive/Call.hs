@@ -565,7 +565,7 @@ symbol_to_block_id :: Id.Namespace -> Maybe BlockId
     -> TrackLang.CallId -> Maybe BlockId
 symbol_to_block_id ns maybe_caller sym
     | sym == "" = Nothing
-    | otherwise = Types.BlockId <$> Id.read_short ns (untxt relative)
+    | otherwise = Just $ Types.BlockId $ Id.read_short ns (untxt relative)
     where
     relative
         | Just caller <- maybe_caller, is_relative_call sym =

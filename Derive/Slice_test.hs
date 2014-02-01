@@ -368,12 +368,10 @@ make_tree = map $ \(Node (title, events) subs) ->
 make_track :: String -> [Event] -> TrackTree.TrackEvents
 make_track title events =
     (TrackTree.track_events (txt title) tevents 100)
-        { TrackTree.tevents_track_id = UiTest.tid <$> clean title }
+        { TrackTree.tevents_track_id =
+            Just $ UiTest.tid $ filter Id.is_id_char title
+        }
     where
-    clean s
-        | null ident = Nothing
-        | otherwise = Just ident
-        where ident = fst (Id.clean_id True s)
     tevents = Events.from_list
         [Event.event start dur text | (start, dur, text) <- events]
 

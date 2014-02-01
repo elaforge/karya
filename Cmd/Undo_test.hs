@@ -116,7 +116,7 @@ test_undo_merge = do
     let states = ResponderTest.mkstates [(">", [])]
         vid = UiTest.default_view_id
     res1 <- ResponderTest.respond_cmd states $ do
-        State.set_namespace (Id.unsafe_namespace "oogabooga")
+        State.set_namespace (Id.namespace "oogabooga")
         State.set_view_rect vid $ Rect.xywh 40 40 100 100
         insert_event 0 "z"
     res2 <- ResponderTest.respond_cmd (ResponderTest.result_states res1)
@@ -127,11 +127,11 @@ test_undo_merge = do
     -- some things aren't affected by undo
     -- namespace doesn't change
     let ns = State.config_namespace . State.state_config . e_ui
-    equal (ns res1) (Id.unsafe_namespace "oogabooga")
+    equal (ns res1) (Id.namespace "oogabooga")
     equal (UiTest.eval (e_ui res1) (Block.view_rect <$> State.get_view vid))
         (Rect.xywh 40 40 100 100)
 
-    equal (ns res2) (Id.unsafe_namespace "oogabooga")
+    equal (ns res2) (Id.namespace "oogabooga")
     equal (UiTest.eval (e_ui res2) (Block.view_rect <$> State.get_view vid))
         (Rect.xywh 40 40 100 100)
 

@@ -25,7 +25,7 @@ test_invert_call = do
         Right $ Just [Node (">", [(0, 1, "")]) []]
     -- but put an event in there and we have a problem
     left_like (run (mkargs "" [Node (">", [(0, 0, "")]) []]))
-        "will lead to an endless loop: Nothing"
+        "will lead to an endless loop"
 
     let control = make_controls "c"
         note text = (">", [(0, 1, text)])

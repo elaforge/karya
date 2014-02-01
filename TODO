@@ -5,9 +5,13 @@ LEGEND
 UNSORTED
   - Now that instruments are expected to be used via aliases, synths don't
     have to have abbreviated names any more.
-  - What does all the character restriction in Id really give me?  An Id with
+  * What does all the character restriction in Id really give me?  An Id with
     funny characters isn't callable from tracklang, but that's no big deal.
     Can I just get rid of all of that?
+    . Validating Namespace serves a purpose, because if you have a '/' in it
+      you can't save it via git.  Also maybe shouldn't start with a dot?
+    . Validate name too, just to avoid creating weird stuff?
+    - Move ID types and State.Id typeclass to Id.
   * export Pretty.pretty from Util.Control as pretty and prettyt
   * Copying a block and then doing LRuler.local on the original leads to
     a duplicate ruler id error.  RulerUtil.local should pick another name

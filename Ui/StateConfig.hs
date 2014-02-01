@@ -63,7 +63,8 @@ data Config = Config {
     , config_saved_views :: !SavedViews
     } deriving (Eq, Show, Generics.Typeable)
 
-namespace = Lens.lens config_namespace (\v r -> r { config_namespace = v })
+-- Ui.State already has a function called 'namespace'.
+namespace_ = Lens.lens config_namespace (\v r -> r { config_namespace = v })
 meta = Lens.lens config_meta (\v r -> r { config_meta = v })
 root = Lens.lens config_root (\v r -> r { config_root = v })
 midi = Lens.lens config_midi (\v r -> r { config_midi = v })

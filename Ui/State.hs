@@ -27,7 +27,7 @@ module Ui.State (
     , empty, create, clear
     -- * config
     , Config(..), SavedViews
-    , namespace, meta, root, midi, global_transform, aliases, lilypond
+    , namespace_, meta, root, midi, global_transform, aliases, lilypond
     , default_, saved_views
     , Meta(..), creation, notes, performances
     , Performance(..), Default(..)
@@ -122,7 +122,7 @@ module Ui.State (
     , quick_verify, verify -- TODO should be done automatically by put
 
     -- * ID
-    , read_id, try_read_id, make_namespace, Id
+    , read_id, namespace, Id
 ) where
 import qualified Control.Applicative as Applicative
 import qualified Control.DeepSeq as DeepSeq
@@ -244,7 +244,7 @@ empty_meta = Meta
 
 empty_config :: Config
 empty_config = Config
-    { config_namespace = Id.unsafe_namespace "untitled"
+    { config_namespace = Id.namespace "untitled"
     , config_meta = empty_meta
     , config_root = Nothing
     , config_midi = Instrument.configs []
@@ -1615,26 +1615,21 @@ block_event_tracknums block =
 -- | Read an ID of the form \"namespace/name\", or just \"name\", filling in
 -- the current namespace if it's not present.
 read_id :: (M m, Id a) => String -> m a
-read_id = require_right id <=< try_read_id
-
-try_read_id :: (M m, Id a) => String -> m (Either String a)
-try_read_id name = do
+read_id name = do
+    unless (Id.valid name) $
+        throw $ "invalid characters in id name: " ++ show name
     ns <- get_namespace
     return $ make_ns_id ns name
 
-make_namespace :: (M m) => String -> String -> m Id.Namespace
-make_namespace msg ns =
-    require (msg <> ": illegal characters in namespace: " <> show ns)
-        (Id.namespace ns)
+namespace :: M m => String -> m Id.Namespace
+namespace ns = do
+    unless (Id.valid ns) $
+        throw $ "invalid characters in namespace: " ++ show ns
+    return $ Id.namespace ns
 
-class Id a where make_ns_id :: Id.Namespace -> String -> Either String a
-instance Id ViewId where make_ns_id = _make_ns_id Types.ViewId "ViewId"
-instance Id BlockId where make_ns_id = _make_ns_id Types.BlockId "BlockId"
-instance Id RulerId where make_ns_id = _make_ns_id Types.RulerId "RulerId"
-instance Id TrackId where make_ns_id = _make_ns_id Types.TrackId "TrackId"
-
-_make_ns_id :: (Id.Id -> a) -> String -> Id.Namespace -> String
-    -> Either String a
-_make_ns_id make type_name ns name =
-    maybe (Left $ type_name <> ": illegal characters in ID: " <> show name)
-        (Right . make) (Id.read_short ns name)
+class Id a where make_ns_id :: Id.Namespace -> String -> a
+instance Id Id.Id where make_ns_id ns = Id.read_short ns
+instance Id ViewId where make_ns_id ns = Types.ViewId . Id.read_short ns
+instance Id BlockId where make_ns_id ns = Types.BlockId . Id.read_short ns
+instance Id RulerId where make_ns_id ns = Types.RulerId . Id.read_short ns
+instance Id TrackId where make_ns_id ns = Types.TrackId . Id.read_short ns

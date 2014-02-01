@@ -93,7 +93,7 @@ collect_warps wmap = drop 1 $ map drop_stack $ collect [] dummy_tw assocs
     assocs = Seq.sort_on fst $ map (first Stack.outermost) $ Map.assocs wmap
     drop_stack (_, tw, tracks) = (tw, tracks)
     dummy_tw = TrackWarp (0, 0, Score.id_warp, no_block, Nothing)
-    no_block = Types.BlockId (Id.global "_no_block_")
+    no_block = Types.BlockId (Id.global "-dummy-trackwarp-")
 
 type Frames = [Stack.Frame]
 

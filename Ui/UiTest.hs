@@ -56,9 +56,7 @@ default_divider = Block.Divider Color.blue
 -- state
 
 mkid :: String -> Id.Id
-mkid name = Maybe.fromMaybe
-    (error $ "UiTest.mkid: invalid characters in " ++ show name)
-    (Id.read_short test_ns name)
+mkid = Id.read_short test_ns
 
 bid :: String -> BlockId
 bid = Types.BlockId . mkid
@@ -73,7 +71,7 @@ rid :: String -> RulerId
 rid = Types.RulerId . mkid
 
 test_ns :: Id.Namespace
-test_ns = Id.unsafe_namespace "test"
+test_ns = Id.namespace "test"
 
 default_zoom :: Types.Zoom
 default_zoom = Config.zoom
@@ -164,7 +162,7 @@ mkblock (spec, tracks) = do
     ruler_id <- if has_ruler
         then do
             let len = event_end tracks
-                rid = Id.unsafe_id test_ns ("r" ++ show len)
+                rid = Id.id test_ns ("r" ++ show len)
             ifM (Maybe.isJust <$> State.lookup_ruler (Types.RulerId rid))
                 (return (Types.RulerId rid))
                 (State.create_ruler rid (mkruler_44 len 1))
@@ -227,7 +225,7 @@ mkblock_view block_spec = (snd <$> mkblock block_spec) <* mkview block_id
     where (block_id, _, _) = parse_block_spec (fst block_spec)
 
 mk_vid :: BlockId -> ViewId
-mk_vid block_id = Types.ViewId $ Id.unsafe_id ns ("v." ++ block_name)
+mk_vid block_id = Types.ViewId $ Id.id ns ("v." ++ block_name)
     where (ns, block_name) = Id.un_id (Id.unpack_id block_id)
 
 mk_vid_name :: String -> ViewId

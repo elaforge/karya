@@ -75,8 +75,7 @@ clip_namespace :: Id.Namespace
 clip_namespace = Config.clip_namespace
 
 clip_block_id :: BlockId
-clip_block_id = Types.BlockId $
-    Id.unsafe_id clip_namespace Config.clip_block_name
+clip_block_id = Types.BlockId $ Id.id clip_namespace Config.clip_block_name
 
 -- | Replace the clipboard with the given state.  This can be used to load
 -- another score and use the clipboard as a staging area.
