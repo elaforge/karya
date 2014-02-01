@@ -2,7 +2,7 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
-module Midi.JackMidi where
+module Midi.JackMidi (initialize) where
 import qualified Control.Concurrent as Concurrent
 import qualified Control.Concurrent.STM as STM
 import qualified Control.Concurrent.STM.TChan as TChan
@@ -64,12 +64,12 @@ interface app_name client chan = Interface.Interface
     , Interface.read_channel = chan
     , Interface.read_devices =
         -- Ignore my own write ports.
-        map (convert Midi.read_device) . filter (not . is_local . fst) <$>
-            get_ports client jackportisoutput
+        map (convert (Midi.read_device . txt)) . filter (not . is_local . fst)
+            <$> get_ports client jackportisoutput
     , Interface.write_devices =
         -- If I don't filter local ports, I wind up seeing my own read ports.
-        map (convert Midi.write_device) . filter (not . is_local . fst) <$>
-            get_ports client jackportisinput
+        map (convert (Midi.write_device . txt)) . filter (not . is_local . fst)
+            <$> get_ports client jackportisinput
     , Interface.connect_read_device = connect_read_device client
     , Interface.disconnect_read_device = disconnect_read_device client
     , Interface.connect_write_device = connect_write_device client

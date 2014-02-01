@@ -77,6 +77,7 @@ data Config = Config {
     , hscDir :: FilePath
     , ghcLib :: FilePath
     , fltkVersion :: String
+    , midiConfig :: MidiConfig
     , configFlags :: Flags
     } deriving (Show)
 
@@ -313,9 +314,15 @@ configure midi = do
     bindingsInclude <- case words bindingsInclude of
         [_, path] -> return path
         words -> error $ "unexpected output from ghc-pkg: " ++ show words
-    return $ \mode -> Config (modeToDir mode) (build </> "hsc") (strip ghcLib)
-        fltkVersion $ setCcFlags $
+    return $ \mode -> Config
+        { buildDir = modeToDir mode
+        , hscDir = build </> "hsc"
+        , ghcLib = strip ghcLib
+        , fltkVersion = fltkVersion
+        , midiConfig = midi
+        , configFlags = setCcFlags $
             setConfigFlags fltkCs fltkLds mode osFlags bindingsInclude
+        }
     where
     setConfigFlags fltkCs fltkLds mode flags bindingsInclude = flags
         { define = define osFlags
@@ -535,7 +542,9 @@ dispatch modeConfig targets = do
                 [ debug "browser", debug "logview", debug "make_db"
                 , debug "seq", debug "update", debug "dump", debug "repl"
                 , debug "test_midi", runProfile
-                , "karya.cabal"
+                , "karya.cabal", runTestsTarget Nothing
+                -- The teststarget also wants runTestsTarget, but putting it
+                -- here builds it in parallel.
                 ] ++ extractableDocs
             dispatch modeConfig ["tests"]
             -- The gui tests tend to wedge.
@@ -579,7 +588,7 @@ dispatch modeConfig targets = do
 
 hlint :: Config -> Shake.Action ()
 hlint config = do
-    (hs, hscs) <- getAllHaddock
+    (hs, hscs) <- getAllHaddock config
     need $ map (hscToHs (hscDir config)) hscs
     Util.staunchSystem "hlint" $ mkIgnore hlintIgnore ++ hs
     Util.staunchSystem "hlint" $ mkIgnore
@@ -604,7 +613,7 @@ hlintIgnore =
 -- | Make all documentation.
 makeAllDocumentation :: Config -> Shake.Action ()
 makeAllDocumentation config = do
-    (hs, hscs) <- getAllHaddock
+    (hs, hscs) <- getAllHaddock config
     docs <- getMarkdown
     need $ extractableDocs
         ++ map (hscToHs (hscDir config)) hscs ++ map docToHtml docs
@@ -629,11 +638,12 @@ getMarkdown = map ("doc"</>) <$> Shake.getDirectoryFiles "doc" ["*.md"]
 
 makeHaddock :: Config -> Shake.Action ()
 makeHaddock config = do
-    (hs, hscs) <- getAllHaddock
+    (hs, hscs) <- getAllHaddock config
     need $ (buildDir config </> hsconfigH)
         : map (hscToHs (hscDir config)) hscs
     let flags = configFlags config
     interfaces <- Trans.liftIO getHaddockInterfaces
+    let packageFlags = "-hide-all-packages" : map ("-package="++) packages
     system "haddock" $
         [ "--html", "-B", ghcLib config
         , "--source-base=../hscolour/"
@@ -645,7 +655,7 @@ makeHaddock config = do
         , "-o", build </> "haddock"
         ] ++ map ("-i"++) interfaces
         ++ ["--optghc=" ++ flag | flag <- define flags ++ cInclude flags
-            ++ ghcLanguageFlags]
+            ++ ghcLanguageFlags ++ packageFlags]
         ++ hs ++ map (hscToHs (hscDir config)) hscs
 
 -- | Get paths to haddock interface files for all the packages.
@@ -663,20 +673,21 @@ getHaddockInterfaces = do
     -- just pick the first one for now.
     extract = drop 1 . dropWhile (/=' ') . takeWhile (/='\n')
 
-getAllHaddock :: Shake.Action ([FilePath], [FilePath])
-getAllHaddock = do
-    hs <- filter wantsHaddock <$> Util.findHs "*.hs" "."
-    hscs <- filter wantsHaddock <$> Util.findHs "*.hsc" "."
+getAllHaddock :: Config -> Shake.Action ([FilePath], [FilePath])
+getAllHaddock config = do
+    hs <- filter (wantsHaddock (midiConfig config)) <$> Util.findHs "*.hs" "."
+    hscs <- filter (wantsHaddock (midiConfig config)) <$>
+        Util.findHs "*.hsc" "."
     return (hs, hscs)
 
 -- | Should this module have haddock documentation generated?
-wantsHaddock :: FilePath -> Bool
-wantsHaddock hs = not $ or
+wantsHaddock :: MidiConfig -> FilePath -> Bool
+wantsHaddock midi hs = not $ or
     [ "_test.hs" `List.isSuffixOf` hs
     , "_profile.hs" `List.isSuffixOf` hs
     -- This will crash haddock on OS X since jack.h is likely not present.
     -- TODO sorta hacky
-    , hs == "Midi/JackMidi.hsc"
+    , midi /= JackMidi && hs == "Midi/JackMidi.hsc"
     ]
 
 -- * cabal
