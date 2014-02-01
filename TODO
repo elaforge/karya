@@ -3,6 +3,8 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
+  - rename TrackLang.RealOrScore to Duration?
+  - clean up the Call.Util.duration* functions
   - Now that instruments are expected to be used via aliases, synths don't
     have to have abbreviated names any more.
   * What does all the character restriction in Id really give me?  An Id with
@@ -67,13 +69,15 @@ UNSORTED
     * Investigate bug/views-broken.gz to see where and how it got corrupted.
       It always seems to be at View status field, though that may be
       coincidence.
-    - It only happens when saving to git.  Maybe git corrupts the file, since
+    * It only happens when saving to git.  Maybe git corrupts the file, since
       it's inside the git dir.  Save a copy to the parent, and compare the
       next time I get corruption.
+      Nope, both are corrupted in the same way.
     . Or maybe since it saves before quitting, it actually quits before the
       save thread finishes.  But isn't the save done by the event loop
       thread, which is the main thread?  And that shouldn't be possible since
       File.writeGz writes first and then renames.
+    + Verify the views after writing.
   - Play position doesn't work right for 'loop' and 'tile' calls, it only
     understands the first loop, and doesn't know that 'tile' cuts off the
     beginning.
@@ -88,6 +92,7 @@ UNSORTED
     it with the score.  This is like the 'import' idea, except the library is
     in score, not code.
   control functions:
+    - replace start-rnd and dur-rnd with control functions
     - If ControlFunction has access to the ruler, it can do things based on
       the importance of surrounding beats, e.g. swing or rubato.
     - Use a control function to implement swing tempo.  Or is there a better
