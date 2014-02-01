@@ -5,8 +5,11 @@ LEGEND
 UNSORTED
   - Now that instruments are expected to be used via aliases, synths don't
     have to have abbreviated names any more.
+  - What does all the character restriction in Id really give me?  An Id with
+    funny characters isn't callable from tracklang, but that's no big deal.
+    Can I just get rid of all of that?
   * export Pretty.pretty from Util.Control as pretty and prettyt
-  - Copying a block and then doing LRuler.local on the original leads to
+  * Copying a block and then doing LRuler.local on the original leads to
     a duplicate ruler id error.  RulerUtil.local should pick another name
     instead of throwing.
   * LRuler call to synchronize ruler ids with their owning blocks, if only

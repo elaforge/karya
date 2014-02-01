@@ -2,11 +2,17 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
+-- | Infrastructure for dealing with rulers in a higher level way than as
+-- a 'Ruler.Marklist'.
 module Cmd.RulerUtil where
+import qualified Data.List as List
+import qualified Data.Map as Map
+
 import Util.Control
 import qualified Ui.Id as Id
 import qualified Ui.Ruler as Ruler
 import qualified Ui.State as State
+import qualified Ui.Types as Types
 
 import qualified Cmd.Meter as Meter
 import Types
@@ -69,9 +75,13 @@ local block_id ruler_id f = do
                 State.modify_ruler ruler_id f
                 return ruler_id
         _ -> do
-            -- Give the ruler the same name as the block, since it's now local
-            -- to that block.
-            new_ruler_id <- copy (block_id_to_ruler block_id) ruler_id
+            -- Try to the ruler the same name as the block, since it's now
+            -- local to that block, appending numbers if the name is taken.
+            -- This can happen if this block is a copy of another with a local
+            -- RulerId.
+            new_ruler_id <- block_id_to_free_ruler <$>
+                State.gets State.state_rulers <*> return block_id
+            new_ruler_id <- copy new_ruler_id ruler_id
             State.modify_ruler new_ruler_id f
             sequence_ $ do
                 (rblock_id, tracks) <- blocks
@@ -84,6 +94,14 @@ local block_id ruler_id f = do
 -- but is defined as a function so it's clear where this conversion is done.
 block_id_to_ruler :: BlockId -> Id.Id
 block_id_to_ruler = Id.unpack_id
+
+block_id_to_free_ruler :: Map.Map RulerId a -> BlockId -> Id.Id
+block_id_to_free_ruler rulers block_id = id
+    where
+    -- Always just since the list is infinite.
+    Just id = List.find (not . (`Map.member` rulers) . Types.RulerId) $
+        map (Id.unsafe_id ns) $ name : [name <> "-" <> show n | n <- [1..]]
+    (ns, name) = Id.un_id $ Id.unpack_id block_id
 
 copy :: (State.M m) => Id.Id -> RulerId -> m RulerId
 copy ident ruler_id = State.create_ruler ident =<< State.get_ruler ruler_id
