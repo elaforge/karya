@@ -24,6 +24,7 @@ module Ui.Id (
     , global, global_namespace
 ) where
 import Prelude hiding (id)
+import qualified Prelude
 import qualified Control.DeepSeq as DeepSeq
 import qualified Data.ByteString.Char8 as B
 import qualified Data.Digest.CRC32 as CRC32
@@ -142,23 +143,28 @@ is_digit c = '0' <= c && c <= '9'
 -- which puts the constructors in scope.
 class Ident a where
     unpack_id :: a -> Id
-    cons_name :: a -> String
-    cons :: Id -> a
+    constructor_name :: a -> String
+    make :: Id -> a
+
+instance Ident Id where
+    unpack_id = Prelude.id
+    constructor_name _ = "id"
+    make = Prelude.id
 
 show_ident :: Ident a => a -> String
 show_ident ident = "(" ++ con ++ " " ++ show (show_id id) ++ ")"
     where
     id = unpack_id ident
-    con = cons_name ident
+    con = constructor_name ident
 
 read_ident :: Ident a => a -> ReadPrec.ReadPrec a
 read_ident witness = do
     Read.Punc "(" <- Read.lexP
     Read.Ident sym <- Read.lexP
-    guard (sym == cons_name witness)
+    guard (sym == constructor_name witness)
     Read.String str <- Read.lexP
     Read.Punc ")" <- Read.lexP
-    return (cons (read_id str))
+    return (make (read_id str))
 
 -- | SomethingId -> "ns/name"
 ident_string :: (Ident a) => a -> String

@@ -81,11 +81,11 @@ repl session repl_dirs msg = do
     catch_io_errors = Exception.handle $ \(exc :: IOError) ->
         Log.warn $ "caught exception from socket write: " ++ show exc
 
--- | Replace \@some-id with @(auto_id ns \"some-id\")@
+-- | Replace \@some-id with @(make_id ns \"some-id\")@
 expand_macros :: Id.Namespace -> String -> Either String String
 expand_macros namespace expr = ParseBs.expand_macros replace expr
     where
-    replace ident = "(auto_id " <> show (Id.un_namespace namespace) <> " "
+    replace ident = "(make_id " <> show (Id.un_namespace namespace) <> " "
         <> show ident <> ")"
 
 -- | Run the Cmd under an IO exception handler.

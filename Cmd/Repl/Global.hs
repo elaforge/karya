@@ -63,24 +63,19 @@ import qualified App.Config as Config
 import Types
 
 
--- * util
-
 -- | Take a string and automatically figure out what kind of ID is expected and
 -- add a namespace if one was not already in the string.
 --
 -- Throws an error if the ID has bad characters, which is ok since this is
 -- expected to be used from the REPL.
-class AutoId a where auto_id :: String -> String -> a
-instance AutoId ViewId where auto_id = make_id Types.ViewId
-instance AutoId BlockId where auto_id = make_id Types.BlockId
-instance AutoId RulerId where auto_id = make_id Types.RulerId
-instance AutoId TrackId where auto_id = make_id Types.TrackId
-
-make_id :: (Id.Id -> a) -> String -> String -> a
-make_id make ns name
+--
+-- This is used by the REPL's macro feature, to replace @xyz@ with
+-- (make_id "current-namespace" "xyz")
+make_id :: Id.Ident a => String -> String -> a
+make_id ns name
     | not (Id.valid ns) || not (Id.valid name) =
         error $ "invalid characters in id: " ++ show (ns, name)
-    | otherwise = make $ Id.read_short (Id.namespace ns) name
+    | otherwise = Id.make $ Id.read_short (Id.namespace ns) name
 
 vid = Types.ViewId . Id.read_id
 bid = Types.BlockId . Id.read_id

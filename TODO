@@ -11,7 +11,7 @@ UNSORTED
     . Validating Namespace serves a purpose, because if you have a '/' in it
       you can't save it via git.  Also maybe shouldn't start with a dot?
     . Validate name too, just to avoid creating weird stuff?
-    - Move ID types and State.Id typeclass to Id.
+    * Move ID types and State.Id typeclass to Id.
   * export Pretty.pretty from Util.Control as pretty and prettyt
   * Copying a block and then doing LRuler.local on the original leads to
     a duplicate ruler id error.  RulerUtil.local should pick another name

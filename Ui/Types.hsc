@@ -133,20 +133,20 @@ instance Read RulerId where readPrec = Id.read_ident undefined
 
 instance Id.Ident BlockId where
     unpack_id (BlockId a) = a
-    cons_name _ = "bid"
-    cons = BlockId
+    constructor_name _ = "bid"
+    make = BlockId
 instance Id.Ident ViewId where
     unpack_id (ViewId a) = a
-    cons_name _ = "vid"
-    cons = ViewId
+    constructor_name _ = "vid"
+    make = ViewId
 instance Id.Ident TrackId where
     unpack_id (TrackId a) = a
-    cons_name _ = "tid"
-    cons = TrackId
+    constructor_name _ = "tid"
+    make = TrackId
 instance Id.Ident RulerId where
     unpack_id (RulerId a) = a
-    cons_name _ = "rid"
-    cons = RulerId
+    constructor_name _ = "rid"
+    make = RulerId
 
 
 -- * selection

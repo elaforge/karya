@@ -122,7 +122,7 @@ module Ui.State (
     , quick_verify, verify -- TODO should be done automatically by put
 
     -- * ID
-    , read_id, namespace, Id
+    , read_id, namespace
 ) where
 import qualified Control.Applicative as Applicative
 import qualified Control.DeepSeq as DeepSeq
@@ -1614,22 +1614,15 @@ block_event_tracknums block =
 
 -- | Read an ID of the form \"namespace/name\", or just \"name\", filling in
 -- the current namespace if it's not present.
-read_id :: (M m, Id a) => String -> m a
+read_id :: (Id.Ident a, M m) => String -> m a
 read_id name = do
     unless (Id.valid name) $
         throw $ "invalid characters in id name: " ++ show name
     ns <- get_namespace
-    return $ make_ns_id ns name
+    return $ Id.make $ Id.id ns name
 
 namespace :: M m => String -> m Id.Namespace
 namespace ns = do
     unless (Id.valid ns) $
         throw $ "invalid characters in namespace: " ++ show ns
     return $ Id.namespace ns
-
-class Id a where make_ns_id :: Id.Namespace -> String -> a
-instance Id Id.Id where make_ns_id ns = Id.read_short ns
-instance Id ViewId where make_ns_id ns = Types.ViewId . Id.read_short ns
-instance Id BlockId where make_ns_id ns = Types.BlockId . Id.read_short ns
-instance Id RulerId where make_ns_id ns = Types.RulerId . Id.read_short ns
-instance Id TrackId where make_ns_id ns = Types.TrackId . Id.read_short ns
