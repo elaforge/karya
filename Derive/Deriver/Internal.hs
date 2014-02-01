@@ -252,7 +252,7 @@ instance Time RealTime where
     score = real_to_score
 
 -- | This should go in TrackLang, but can't due to circular imports.
-instance Time TrackLang.RealOrScore where
+instance Time TrackLang.Duration where
     real (TrackLang.Real t) = real t
     real (TrackLang.Score t) = real t
     score (TrackLang.Real t) = score t

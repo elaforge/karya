@@ -187,7 +187,7 @@ pitch_fade align pitch pitch_dir interval
 --        <--pp
 -- @
 pitch_fade_ranges :: Align -> Align
-    -> TrackLang.RealOrScore -> TrackLang.RealOrScore
+    -> TrackLang.Duration -> TrackLang.Duration
     -> ScoreTime -> ScoreTime
     -> Derive.Deriver ((RealTime, RealTime), (RealTime, RealTime))
 pitch_fade_ranges align align_fade fade_time pitch_time start end = do

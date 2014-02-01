@@ -34,7 +34,7 @@ note_calls = Derive.generator_call_map
 
 data Direction = Unison | Up | Down deriving (Show)
 
-time_env :: Sig.Parser TrackLang.RealOrScore
+time_env :: Sig.Parser TrackLang.Duration
 time_env = TrackLang.default_real <$>
     Sig.environ "time" Sig.Prefixed (TrackLang.real 0.08)
     "Time between notes, if they aren't unison."
@@ -82,7 +82,7 @@ c_stack dir = Derive.make_call "stack" Tags.europe
         from_intervals dir base intervals time args
 
 from_intervals :: Direction -> PitchSignal.Pitch -> [PitchSignal.Pitch]
-    -> TrackLang.RealOrScore -> Derive.PassedArgs a -> Derive.NoteDeriver
+    -> TrackLang.Duration -> Derive.PassedArgs a -> Derive.NoteDeriver
 from_intervals dir base intervals time args = do
     let start = Args.start args
     dur <- min (Args.duration args / fromIntegral (length intervals + 1)) <$>

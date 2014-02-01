@@ -109,17 +109,17 @@ unsym (Symbol sym) = sym
 -- * type wrappers
 
 -- | Some calls can operate in either RealTime or ScoreTime.
-data RealOrScore = Real RealTime | Score ScoreTime deriving (Eq, Show)
+data Duration = Real RealTime | Score ScoreTime deriving (Eq, Show)
 
-instance ShowVal RealOrScore where
+instance ShowVal Duration where
     show_val (Real x) = show_val x
     show_val (Score x) = show_val x
 
 -- | Either RealTime or ScoreTime, but untyped defaults to RealTime.
-newtype DefaultReal = DefaultReal { default_real :: RealOrScore }
+newtype DefaultReal = DefaultReal { default_real :: Duration }
     deriving (Eq, Show, ShowVal)
 -- | Same as 'DefaultReal' but untyped defaults to ScoreTime.
-newtype DefaultScore = DefaultScore { default_score :: RealOrScore }
+newtype DefaultScore = DefaultScore { default_score :: Duration }
     deriving (Eq, Show, ShowVal)
 
 -- | Create DefaultReal and DefaultScores for use in "Derive.Sig" signatures
@@ -300,14 +300,14 @@ instance Typecheck Int where
 -- | VNums can also be coerced into chromatic transposition, so you can write
 -- a plain number if you don't care about diatonic.
 --
--- This is different from RealOrScore, which does not default an untyped
+-- This is different from Duration, which does not default an untyped
 -- literal, so you have to supply the type explicitly.  The rationale is that
 -- many scales don't have diatonic or chromatic, and it would be annoying to
 -- have to specify one or the other when it was definitely irrelevant.  But
 -- the RealTime ScoreTime distinction is universal, there is no single default
 -- that is appropriate for all calls.  So they have to specify a default by
 -- taking a 'DefaultScore' or 'DefaultReal', or require the caller to
--- distinguish with 'RealOrScore'.
+-- distinguish with 'Duration'.
 instance Typecheck Pitch.Transpose where
     from_val (VNum (Score.Typed typ val)) = case typ of
         Score.Untyped -> Just (Pitch.Chromatic val)
@@ -350,7 +350,7 @@ instance Typecheck RealTime where
     to_val a = VNum $ Score.Typed Score.Real (RealTime.to_seconds a)
     to_type = num_to_type
 
-instance Typecheck RealOrScore where
+instance Typecheck Duration where
     from_val (VNum (Score.Typed typ val)) = case typ of
         -- Untyped is abiguous, and there doesn't seem to be a natural
         -- default.
@@ -395,7 +395,7 @@ instance TypecheckNum Pitch.Transpose where num_type _ = TTranspose
 instance TypecheckNum DefaultDiatonic where num_type _ = TDefaultDiatonic
 instance TypecheckNum ScoreTime where num_type _ = TScoreTime
 instance TypecheckNum RealTime where num_type _ = TRealTime
-instance TypecheckNum RealOrScore where num_type _ = TTime
+instance TypecheckNum Duration where num_type _ = TTime
 instance TypecheckNum DefaultReal where num_type _ = TDefaultReal
 instance TypecheckNum DefaultScore where num_type _ = TDefaultScore
 

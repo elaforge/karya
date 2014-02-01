@@ -58,10 +58,10 @@ default_grace_dur = TrackLang.real (1/12)
 
 -- * standard args
 
-grace_envs :: Sig.Parser (TrackLang.RealOrScore, Double, TrackLang.ValControl)
+grace_envs :: Sig.Parser (TrackLang.Duration, Double, TrackLang.ValControl)
 grace_envs = (,,) <$> grace_dur_env <*> grace_dyn_env <*> grace_placement_env
 
-grace_dur_env :: Sig.Parser TrackLang.RealOrScore
+grace_dur_env :: Sig.Parser TrackLang.Duration
 grace_dur_env = TrackLang.default_real <$>
     Sig.environ "grace-dur" Sig.Unprefixed default_grace_dur
         "Duration of grace notes."
@@ -125,7 +125,7 @@ lily_grace args pitches = do
     Lily.prepend_code code $ Util.place args Util.note
 
 grace_call :: Derive.NoteArgs -> Signal.Y -> [PitchSignal.Pitch]
-    -> TrackLang.RealOrScore -> TrackLang.ValControl -> Derive.NoteDeriver
+    -> TrackLang.Duration -> TrackLang.ValControl -> Derive.NoteDeriver
 grace_call args dyn_scale pitches grace_dur place = do
     dyn <- (*dyn_scale) <$> (Util.dynamic =<< Args.real_start args)
     let notes = map (Util.with_dynamic dyn . Util.pitched_note) pitches
@@ -147,14 +147,14 @@ c_roll = Derive.make_call "roll" Tags.ornament
     ) $ \(times, TrackLang.DefaultReal time, dyn_scale) ->
     Sub.inverting $ roll times time dyn_scale
 
-roll :: Int -> TrackLang.RealOrScore -> Signal.Y -> Derive.PassedArgs a
+roll :: Int -> TrackLang.Duration -> Signal.Y -> Derive.PassedArgs a
     -> Derive.NoteDeriver
 roll times time dyn_scale args = do
     start <- Args.real_start args
     pitch <- Util.get_pitch start
     repeat_notes (Util.with_pitch pitch Util.note) times time dyn_scale args
 
-repeat_notes :: Derive.NoteDeriver -> Int -> TrackLang.RealOrScore -> Signal.Y
+repeat_notes :: Derive.NoteDeriver -> Int -> TrackLang.Duration -> Signal.Y
     -> Derive.PassedArgs a -> Derive.NoteDeriver
 repeat_notes note times time dyn_scale args = do
     start <- Args.real_start args
@@ -164,7 +164,7 @@ repeat_notes note times time dyn_scale args = do
         (Args.extent args) notes time (TrackLang.constant_control 0)
 
 make_grace_notes :: Maybe ScoreTime -> (ScoreTime, ScoreTime)
-    -> [Derive.NoteDeriver] -> TrackLang.RealOrScore -> TrackLang.ValControl
+    -> [Derive.NoteDeriver] -> TrackLang.Duration -> TrackLang.ValControl
     -> Derive.Deriver [Sub.Event]
 make_grace_notes prev (start, dur) notes grace_dur place = do
     real_start <- Derive.real start
@@ -256,7 +256,7 @@ c_grace_p = Derive.generator1 "grace" (Tags.europe <> Tags.ornament)
         ps <- (++[pitch]) <$> resolve_pitches pitch pitches
         grace_p grace_dur ps (Args.range_or_next args)
 
-grace_p :: TrackLang.RealOrScore -> [PitchSignal.Pitch]
+grace_p :: TrackLang.Duration -> [PitchSignal.Pitch]
     -> (ScoreTime, ScoreTime) -> Derive.Deriver PitchSignal.Signal
 grace_p grace_dur pitches (start, end) = do
     real_dur <- Util.real_dur' start grace_dur

@@ -3,7 +3,7 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
-  - rename TrackLang.RealOrScore to Duration?
+  * rename TrackLang.RealOrScore to Duration?
   - clean up the Call.Util.duration* functions
   - Now that instruments are expected to be used via aliases, synths don't
     have to have abbreviated names any more.

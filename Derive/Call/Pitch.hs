@@ -89,7 +89,7 @@ type Transpose = Either PitchSignal.Pitch Pitch.Transpose
 
 -- | Linear interpolation, with different start times.
 linear_interpolation :: (TrackLang.Typecheck time) => Text -> time -> Text
-    -> (Derive.PitchArgs -> time -> Derive.Deriver TrackLang.RealOrScore)
+    -> (Derive.PitchArgs -> time -> Derive.Deriver TrackLang.Duration)
     -> Derive.Generator Derive.Pitch
 linear_interpolation name time_default time_default_doc get_time =
     Derive.generator1 name Tags.prev doc $ Sig.call
@@ -127,7 +127,7 @@ c_linear_next_const =
 -- | Exponential interpolation, with different start times.
 exponential_interpolation :: (TrackLang.Typecheck time) =>
     Text -> time -> Text
-    -> (Derive.PitchArgs -> time -> Derive.Deriver TrackLang.RealOrScore)
+    -> (Derive.PitchArgs -> time -> Derive.Deriver TrackLang.Duration)
     -> Derive.Generator Derive.Pitch
 exponential_interpolation name time_default time_default_doc get_time =
     Derive.generator1 name Tags.prev doc $ Sig.call ((,,)
@@ -238,7 +238,7 @@ c_porta = linear_interpolation "porta" (TrackLang.real 0.1)
 
 -- * util
 
-default_real :: TrackLang.DefaultReal -> TrackLang.RealOrScore
+default_real :: TrackLang.DefaultReal -> TrackLang.Duration
 default_real (TrackLang.DefaultReal t) = t
 
 type Interpolator = Bool -- ^ include the initial sample or not
@@ -249,7 +249,7 @@ type Interpolator = Bool -- ^ include the initial sample or not
 -- | Create an interpolating call, from a certain duration (positive or
 -- negative) from the event start to the event start.
 interpolate :: (Double -> Double) -> Derive.PitchArgs
-    -> Transpose -> TrackLang.RealOrScore
+    -> Transpose -> TrackLang.Duration
     -> Derive.Deriver PitchSignal.Signal
 interpolate f args pitch_transpose dur = do
     (start, end) <- Util.duration_from_start args dur

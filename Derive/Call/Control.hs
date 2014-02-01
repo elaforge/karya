@@ -121,7 +121,7 @@ c_set_prev = Derive.generator "set-prev" (Tags.prelude <> Tags.prev)
 linear_interpolation :: (TrackLang.Typecheck time) =>
     Text -> Tags.Tags -> time -- ^ arg for duration function
     -> Text -- ^ doc for time arg
-    -> (Derive.ControlArgs -> time -> Derive.Deriver TrackLang.RealOrScore)
+    -> (Derive.ControlArgs -> time -> Derive.Deriver TrackLang.Duration)
     -- ^ function from the time arg to the desired duration
     -> Derive.Generator Derive.Control
 linear_interpolation name tags time_default time_default_doc get_time =
@@ -140,7 +140,7 @@ c_linear_prev = linear_interpolation "linear" Tags.prev Nothing
     "If not given, start from the previous sample." default_prev
 
 default_prev :: (Args.EvalPrev d) => Derive.PassedArgs d
-    -> Maybe TrackLang.DefaultReal -> Derive.Deriver TrackLang.RealOrScore
+    -> Maybe TrackLang.DefaultReal -> Derive.Deriver TrackLang.Duration
 default_prev args Nothing =
     fmap TrackLang.Real $ Args.prev_val args >>= \x -> case x of
         Nothing -> Args.real_start args
@@ -172,7 +172,7 @@ c_linear_next_const =
 -- | Exponential interpolation, with different start times.
 exponential_interpolation :: (TrackLang.Typecheck time) =>
     Text -> Tags.Tags -> time -> Text
-    -> (Derive.ControlArgs -> time -> Derive.Deriver TrackLang.RealOrScore)
+    -> (Derive.ControlArgs -> time -> Derive.Deriver TrackLang.Duration)
     -> Derive.Generator Derive.Control
 exponential_interpolation name tags time_default time_default_doc get_time =
     Derive.generator1 name (Tags.prelude <> tags) doc $ Sig.call ((,,)
@@ -284,7 +284,7 @@ c_pedal = Derive.generator1 "pedal" mempty
 
 -- * util
 
-default_real :: TrackLang.DefaultReal -> TrackLang.RealOrScore
+default_real :: TrackLang.DefaultReal -> TrackLang.Duration
 default_real (TrackLang.DefaultReal t) = t
 
 type Interpolator = Bool -- ^ include the initial sample or not
@@ -295,7 +295,7 @@ type Interpolator = Bool -- ^ include the initial sample or not
 -- | Create an interpolating call, from a certain duration (positive or
 -- negative) from the event start to the event start.
 interpolate :: (Double -> Double) -> Derive.ControlArgs
-    -> Signal.Y -> TrackLang.RealOrScore -> Derive.Deriver Signal.Control
+    -> Signal.Y -> TrackLang.Duration -> Derive.Deriver Signal.Control
 interpolate f args val dur = do
     (start, end) <- Util.duration_from_start args dur
     srate <- Util.get_srate

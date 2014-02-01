@@ -85,7 +85,7 @@ typed_control_at control pos = case control of
             =<< Derive.control_at cont pos
 
 time_control_at :: TimeType -> TrackLang.ValControl -> RealTime
-    -> Derive.Deriver TrackLang.RealOrScore
+    -> Derive.Deriver TrackLang.Duration
 time_control_at default_type control pos = do
     Score.Typed typ val <- typed_control_at control pos
     time_type <- case typ of
@@ -420,16 +420,16 @@ _random_generator = do
 
 -- * time
 
-real_time :: TrackLang.RealOrScore -> Derive.Deriver RealTime
+real_time :: TrackLang.Duration -> Derive.Deriver RealTime
 real_time (TrackLang.Score t) = Derive.real t
 real_time (TrackLang.Real t) = return t
 
-score_time :: TrackLang.RealOrScore -> Derive.Deriver ScoreTime
+score_time :: TrackLang.Duration -> Derive.Deriver ScoreTime
 score_time (TrackLang.Score t) = return t
 score_time (TrackLang.Real t) = Derive.score t
 
 -- | A time range from the event start until a given duration.
-duration_from_start :: Derive.PassedArgs d -> TrackLang.RealOrScore
+duration_from_start :: Derive.PassedArgs d -> TrackLang.Duration
     -> Derive.Deriver (RealTime, RealTime) -- ^ (start, start + dur)
 duration_from_start args duration = do
     start <- Args.real_start args
@@ -438,7 +438,7 @@ duration_from_start args duration = do
         TrackLang.Score t -> (,) start <$> Derive.real (Args.start args + t)
 
 -- | Like 'duration_from_start', but subtract a duration from the end.
-duration_from_end :: Derive.PassedArgs d -> TrackLang.RealOrScore
+duration_from_end :: Derive.PassedArgs d -> TrackLang.Duration
     -> Derive.Deriver (RealTime, RealTime) -- ^ (end - dur, end)
 duration_from_end args duration = do
     end <- Args.real_end args
@@ -468,9 +468,9 @@ real_dur from dur = do
     end <- Derive.real (from + dur)
     return (end - start)
 
--- | Like 'real_dur', but take a RealOrScore.
+-- | Like 'real_dur', but take a Duration.
 -- TODO Ugh.  Surely there's a more organized way to go about this.
-real_dur' :: ScoreTime -> TrackLang.RealOrScore -> Derive.Deriver RealTime
+real_dur' :: ScoreTime -> TrackLang.Duration -> Derive.Deriver RealTime
 real_dur' _ (TrackLang.Real t) = return t
 real_dur' from (TrackLang.Score t)
     | t == 0 = return 0
@@ -489,7 +489,7 @@ delay start time
 --
 -- This is the ScoreTime version of 'real_dur''.  TODO so maybe it should be
 -- named like that?
-duration_from :: ScoreTime -> TrackLang.RealOrScore -> Derive.Deriver ScoreTime
+duration_from :: ScoreTime -> TrackLang.Duration -> Derive.Deriver ScoreTime
 duration_from _ (TrackLang.Score t) = return t
 duration_from start (TrackLang.Real t) = do
     score_t <- delay start t
