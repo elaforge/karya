@@ -107,19 +107,20 @@ c_linear_prev = linear_interpolation "linear-prev" Nothing
 c_linear_prev_const :: Derive.Generator Derive.Pitch
 c_linear_prev_const =
     linear_interpolation "linear-prev-const" (TrackLang.real (-0.1)) "" $
-        \_ -> return . default_real
+        \_ -> return . TrackLang.default_real
 
 c_linear_next :: Derive.Generator Derive.Pitch
 c_linear_next =
     linear_interpolation "linear-next" Nothing
         "If not given, default to the start of the next event." $
-    \args maybe_time -> return $ maybe (next_dur args) default_real maybe_time
+    \args maybe_time ->
+        return $ maybe (next_dur args) TrackLang.default_real maybe_time
     where next_dur args = TrackLang.Score $ Args.next args - Args.start args
 
 c_linear_next_const :: Derive.Generator Derive.Pitch
 c_linear_next_const =
     linear_interpolation "linear-next-const" (TrackLang.real 0.1) "" $
-        \_ -> return . default_real
+        \_ -> return . TrackLang.default_real
 
 
 -- * exponential
@@ -147,18 +148,19 @@ c_exp_prev = exponential_interpolation "exp-prev" Nothing
 c_exp_prev_const :: Derive.Generator Derive.Pitch
 c_exp_prev_const =
     exponential_interpolation "exp-prev-const" (TrackLang.real (-0.1)) "" $
-        \_ -> return . default_real
+        \_ -> return . TrackLang.default_real
 
 c_exp_next :: Derive.Generator Derive.Pitch
 c_exp_next = exponential_interpolation "exp-next" Nothing
         "If not given default to the start of the next event." $
-    \args maybe_time -> return $ maybe (next_dur args) default_real maybe_time
+    \args maybe_time ->
+        return $ maybe (next_dur args) TrackLang.default_real maybe_time
     where next_dur args = TrackLang.Score $ Args.next args - Args.start args
 
 c_exp_next_const :: Derive.Generator Derive.Pitch
 c_exp_next_const =
     exponential_interpolation "exp-next-const" (TrackLang.real 0.1) "" $
-        \_ -> return . default_real
+        \_ -> return . TrackLang.default_real
 
 pitch_arg :: Sig.Parser Transpose
 pitch_arg = required "pitch"
@@ -234,12 +236,9 @@ c_porta = linear_interpolation "porta" (TrackLang.real 0.1)
     \ This is the same as i>>, but intended to be higher level, in that\
     \ instruments or scores can override it to represent an idiomatic\
     \ portamento." $
-    \_ -> return . default_real
+    \_ -> return . TrackLang.default_real
 
 -- * util
-
-default_real :: TrackLang.DefaultReal -> TrackLang.Duration
-default_real (TrackLang.DefaultReal t) = t
 
 type Interpolator = Bool -- ^ include the initial sample or not
     -> RealTime -> PitchSignal.Pitch -> RealTime -> PitchSignal.Pitch

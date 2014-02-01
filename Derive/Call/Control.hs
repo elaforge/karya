@@ -152,19 +152,20 @@ default_prev _ (Just (TrackLang.DefaultReal t)) = return t
 c_linear_prev_const :: Derive.Generator Derive.Control
 c_linear_prev_const =
     linear_interpolation "linear-prev-const" mempty (TrackLang.real (-0.1)) "" $
-        \_ -> return . default_real
+        \_ -> return . TrackLang.default_real
 
 c_linear_next :: Derive.Generator Derive.Control
 c_linear_next =
     linear_interpolation "linear-next" mempty Nothing
         "If not given, default to the start of the next event." $
-    \args maybe_time -> return $ maybe (next_dur args) default_real maybe_time
+    \args maybe_time ->
+        return $ maybe (next_dur args) TrackLang.default_real maybe_time
     where next_dur args = TrackLang.Score $ Args.next args - Args.start args
 
 c_linear_next_const :: Derive.Generator Derive.Control
 c_linear_next_const =
     linear_interpolation "linear-next-const" mempty (TrackLang.real 0.1) "" $
-        \_ -> return . default_real
+        \_ -> return . TrackLang.default_real
 
 
 -- * exponential
@@ -197,17 +198,18 @@ c_exp_prev = exponential_interpolation "exp-prev" Tags.prev Nothing
 
 c_exp_prev_const :: Derive.Generator Derive.Control
 c_exp_prev_const = exponential_interpolation "exp-prev-const" mempty
-    (TrackLang.real (-0.1)) "" $ \_ -> return . default_real
+    (TrackLang.real (-0.1)) "" $ \_ -> return . TrackLang.default_real
 
 c_exp_next :: Derive.Generator Derive.Control
 c_exp_next = exponential_interpolation "exp-next" mempty Nothing
         "If not given default to the start of the next event." $
-    \args maybe_time -> return $ maybe (next_dur args) default_real maybe_time
+    \args maybe_time ->
+        return $ maybe (next_dur args) TrackLang.default_real maybe_time
     where next_dur args = TrackLang.Score $ Args.next args - Args.start args
 
 c_exp_next_const :: Derive.Generator Derive.Control
 c_exp_next_const = exponential_interpolation "exp-next-const" mempty
-    (TrackLang.real 0.1) "" $ \_ -> return . default_real
+    (TrackLang.real 0.1) "" $ \_ -> return . TrackLang.default_real
 
 
 -- * misc
@@ -283,9 +285,6 @@ c_pedal = Derive.generator1 "pedal" mempty
         return $ Signal.signal [(start, val), (end, prev)]
 
 -- * util
-
-default_real :: TrackLang.DefaultReal -> TrackLang.Duration
-default_real (TrackLang.DefaultReal t) = t
 
 type Interpolator = Bool -- ^ include the initial sample or not
     -> RealTime -> Signal.Y -> RealTime -> Signal.Y
