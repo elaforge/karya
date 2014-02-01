@@ -170,10 +170,11 @@ c_pasang_calls =
 
 -- | Create a call that just dispatches to another call, possibly transformed.
 dispatch :: Kendang -> TrackLang.CallId -> Derive.Generator Derive.Note
-dispatch kendang call = Derive.make_call "" (Tags.inst <> Tags.bali)
+dispatch kendang call = Derive.make_call name (Tags.inst <> Tags.bali)
     "Dispatch to wadon or lanang." $ Sig.call pasang_env $ \pasang args ->
         Derive.with_instrument (pasang_inst kendang pasang) $
             Call.reapply_gen args call
+    where name = showt kendang <> " " <> prettyt call
 
 c_realize_kendang :: Derive.Transformer Derive.Note
 c_realize_kendang = Derive.transformer "realize-kendang"
