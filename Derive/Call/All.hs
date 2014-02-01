@@ -9,15 +9,16 @@ import qualified Data.Map as Map
 import Util.Control
 import qualified Util.Map as Map
 import qualified Derive.Call.Articulation as Articulation
-import qualified Derive.Call.Bali.Gender as Gender
-import qualified Derive.Call.Bali.Kotekan as Kotekan
-import qualified Derive.Call.Bali.Reyong as Reyong
+import qualified Derive.Call.Bali.Gender as Bali.Gender
+import qualified Derive.Call.Bali.Kotekan as Bali.Kotekan
+import qualified Derive.Call.Bali.Reyong as Bali.Reyong
 import qualified Derive.Call.Block as Block
 import qualified Derive.Call.Control as Control
 import qualified Derive.Call.Echo as Echo
+import qualified Derive.Call.Europe.Chord as Europe.Chord
 import qualified Derive.Call.Gamakam as Gamakam
 import qualified Derive.Call.Grace as Grace
-import qualified Derive.Call.Idiom.String as String
+import qualified Derive.Call.Idiom.String as Idiom.String
 import qualified Derive.Call.Integrate as Integrate
 import qualified Derive.Call.Lily as Lily
 import qualified Derive.Call.Note as Note
@@ -95,12 +96,15 @@ maps_lookup = (mk *** mk)
 note_maps :: Derive.CallMaps Derive.Note
 (note_maps, shadowed_notes) = union_calls
     [ Articulation.note_calls
+    , Bali.Gender.note_calls
+    , Bali.Kotekan.note_calls
+    , Bali.Reyong.note_calls
     , Block.note_calls
     , Echo.note_calls
-    , Gender.note_calls
+    , Europe.Chord.note_calls
     , Grace.note_calls
+    , Idiom.String.note_calls
     , Integrate.note_calls
-    , Kotekan.note_calls
     , Lily.note_calls
     , Note.note_calls
     , NoteTransformer.note_calls
@@ -109,10 +113,8 @@ note_maps :: Derive.CallMaps Derive.Note
     , Post.Idiom.note_calls
     , Post.Reverse.note_calls
     , Random.note_calls
-    , Reyong.note_calls
     , Sekar.note_calls
     , SignalTransform.note_calls
-    , String.note_calls
     , Trill.note_calls
     ]
 

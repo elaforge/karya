@@ -30,7 +30,7 @@ UNSORTED
     emit pitch calls.  In any case, I don't want them interfering anyway.
   - give ModifyEvents.Track the ability to change the track title?
     Cmd.Repl.LPitch.change_scale and to_relative could use this.
-  - chord calls, with automatic dyns for the notes.
+  + chord calls, with automatic dyns for the notes.
     Originally I intended each note to go in its own track, with the idea that
     it takes about the same space but is more powerful and flexible.  But it's
     not quite true, because the extra track is there for the whole block,
