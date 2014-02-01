@@ -9,7 +9,7 @@
 -- useful.  It would definitely be more natural, though, if the notation marked
 -- the seleh instead of the first note.  But that would require either
 -- a preproc pass or deriving the notes backwards.
-module Derive.Call.Sekar where
+module Derive.Call.Bali.Sekar where
 import qualified Data.Char as Char
 import qualified Data.Text as Text
 

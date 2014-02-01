@@ -283,8 +283,7 @@ required_environ name env_default doc = parser arg_doc $ \state ->
 -- | This is like 'defaulted', but if the argument is the wrong type return
 -- the default instead of failing.  It's mostly useful with 'many' or 'many1',
 -- where you can distinguish the arguments by type.
-optional :: forall a. (TrackLang.Typecheck a) => Text -> a -> Text
-    -> Parser a
+optional :: forall a. TrackLang.Typecheck a => Text -> a -> Text -> Parser a
 optional name = optional_env name Derive.Prefixed
 
 optional_env :: forall a. (TrackLang.Typecheck a) =>

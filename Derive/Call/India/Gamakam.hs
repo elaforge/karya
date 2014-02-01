@@ -37,7 +37,7 @@
     think of a way to get the advantages of both, I might have to have both
     around, with their own versions of the same calls.
 -}
-module Derive.Call.Gamakam where
+module Derive.Call.India.Gamakam where
 import qualified Data.List.NonEmpty as NonEmpty
 
 import Util.Control
@@ -46,10 +46,10 @@ import qualified Util.Seq as Seq
 
 import qualified Derive.Args as Args
 import qualified Derive.Call.Control as Control
+import qualified Derive.Call.Europe.Trill as Trill
 import qualified Derive.Call.Make as Make
 import qualified Derive.Call.SignalTransform as SignalTransform
 import qualified Derive.Call.Tags as Tags
-import qualified Derive.Call.Trill as Trill
 import qualified Derive.Call.Util as Util
 import qualified Derive.Controls as Controls
 import qualified Derive.Derive as Derive

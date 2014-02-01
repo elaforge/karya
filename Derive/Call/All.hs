@@ -9,29 +9,29 @@ import qualified Data.Map as Map
 import Util.Control
 import qualified Util.Map as Map
 import qualified Derive.Call.Articulation as Articulation
-import qualified Derive.Call.Bali.Gender as Bali.Gender
-import qualified Derive.Call.Bali.Kotekan as Bali.Kotekan
-import qualified Derive.Call.Bali.Reyong as Bali.Reyong
+import qualified Derive.Call.Bali.Gender as Gender
+import qualified Derive.Call.Bali.Kotekan as Kotekan
+import qualified Derive.Call.Bali.Reyong as Reyong
+import qualified Derive.Call.Bali.Sekar as Sekar
 import qualified Derive.Call.Block as Block
 import qualified Derive.Call.Control as Control
 import qualified Derive.Call.Echo as Echo
-import qualified Derive.Call.Europe.Chord as Europe.Chord
-import qualified Derive.Call.Gamakam as Gamakam
-import qualified Derive.Call.Grace as Grace
-import qualified Derive.Call.Idiom.String as Idiom.String
+import qualified Derive.Call.Europe.Chord as Chord
+import qualified Derive.Call.Europe.Grace as Grace
+import qualified Derive.Call.Europe.Trill as Trill
+import qualified Derive.Call.Idiom.String as String
+import qualified Derive.Call.India.Gamakam as Gamakam
 import qualified Derive.Call.Integrate as Integrate
 import qualified Derive.Call.Lily as Lily
 import qualified Derive.Call.Note as Note
 import qualified Derive.Call.NoteTransformer as NoteTransformer
 import qualified Derive.Call.Pitch as Pitch
 import qualified Derive.Call.PitchHigh as PitchHigh
-import qualified Derive.Call.Post.ArrivalNote as Post.ArrivalNote
-import qualified Derive.Call.Post.Idiom as Post.Idiom
+import qualified Derive.Call.Post.ArrivalNote as ArrivalNote
+import qualified Derive.Call.Post.Idiom as Idiom
 import qualified Derive.Call.Post.Reverse as Post.Reverse
 import qualified Derive.Call.Random as Random
-import qualified Derive.Call.Sekar as Sekar
 import qualified Derive.Call.SignalTransform as SignalTransform
-import qualified Derive.Call.Trill as Trill
 import qualified Derive.Call.Val as Val
 import qualified Derive.Derive as Derive
 import qualified Derive.TrackLang as TrackLang
@@ -96,21 +96,21 @@ maps_lookup = (mk *** mk)
 note_maps :: Derive.CallMaps Derive.Note
 (note_maps, shadowed_notes) = union_calls
     [ Articulation.note_calls
-    , Bali.Gender.note_calls
-    , Bali.Kotekan.note_calls
-    , Bali.Reyong.note_calls
+    , Gender.note_calls
+    , Kotekan.note_calls
+    , Reyong.note_calls
     , Block.note_calls
     , Echo.note_calls
-    , Europe.Chord.note_calls
+    , Chord.note_calls
     , Grace.note_calls
-    , Idiom.String.note_calls
+    , String.note_calls
     , Integrate.note_calls
     , Lily.note_calls
     , Note.note_calls
     , NoteTransformer.note_calls
     , PitchHigh.note_calls
-    , Post.ArrivalNote.note_calls
-    , Post.Idiom.note_calls
+    , ArrivalNote.note_calls
+    , Idiom.note_calls
     , Post.Reverse.note_calls
     , Random.note_calls
     , Sekar.note_calls
@@ -120,8 +120,11 @@ note_maps :: Derive.CallMaps Derive.Note
 
 control_maps :: Derive.CallMaps Derive.Control
 (control_maps, shadowed_controls) = union_calls
-    [ Control.control_calls, Gamakam.control_calls, Random.control_calls
-    , SignalTransform.control_calls, Trill.control_calls
+    [ Control.control_calls
+    , Gamakam.control_calls
+    , Random.control_calls
+    , SignalTransform.control_calls
+    , Trill.control_calls
     ]
 
 pitch_maps :: Derive.CallMaps Derive.Pitch

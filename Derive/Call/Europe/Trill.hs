@@ -39,7 +39,7 @@
     functions in here to write a specific kind of trill for the particular
     piece.
 -}
-module Derive.Call.Trill where
+module Derive.Call.Europe.Trill where
 import qualified Control.Applicative as Applicative
 import qualified Data.List as List
 

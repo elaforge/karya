@@ -4,7 +4,7 @@
 
 -- | Calls that generate grace notes.  These are short sequences of quick notes
 -- whose duration is generally independent of the tempo.
-module Derive.Call.Grace where
+module Derive.Call.Europe.Grace where
 import qualified Data.Either as Either
 import qualified Data.List as List
 import qualified Data.Map as Map

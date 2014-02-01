@@ -10,7 +10,7 @@ module Derive.Instrument.DUtil where
 import Util.Control
 import qualified Derive.Args as Args
 import qualified Derive.Call as Call
-import qualified Derive.Call.Grace as Grace
+import qualified Derive.Call.Europe.Grace as Grace
 import qualified Derive.Call.Note as Note
 import qualified Derive.Call.Sub as Sub
 import qualified Derive.Call.Tags as Tags
