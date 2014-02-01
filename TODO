@@ -3,6 +3,8 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
+  - Now that instruments are expected to be used via aliases, synths don't
+    have to have abbreviated names any more.
   * export Pretty.pretty from Util.Control as pretty and prettyt
   - Copying a block and then doing LRuler.local on the original leads to
     a duplicate ruler id error.  RulerUtil.local should pick another name

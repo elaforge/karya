@@ -143,7 +143,7 @@ instance Pretty.Pretty Instrument where
 -- in the underlying type.
 
 -- | Initialize with values I think just about every instrument will want to
--- set.  The rest can be initialized with set_* functions.
+-- set.  The rest can be initialized with set_* functions or lenses.
 instrument :: InstrumentName -> [(Midi.Control, Score.Control)]
     -> Control.PbRange -> Instrument
 instrument name cmap pb_range = Instrument
@@ -191,6 +191,7 @@ voice_configs inst_addrs =
 get_addrs :: Score.Instrument -> Configs -> [Addr]
 get_addrs inst = maybe [] (map fst . config_addrs) . Map.lookup inst
 
+-- | Configuration for one instrument on a score.
 data Config = Config {
     -- | An instrument may have multiple addresses assigned to it, which means
     -- that it can be multiplexed across multiple channels.  In addition,
@@ -244,7 +245,7 @@ instance Pretty.Pretty Config where
             , ("solo", Pretty.format solo)
             ]
 
--- | Midi instruments are addressed by a (device, channel) pair, allocated in
+-- | MIDI instruments are addressed by a (device, channel) pair, allocated in
 -- 'Config'.
 type Addr = (Midi.WriteDevice, Midi.Channel)
 -- | Number of simultaneous voices a certain Addr supports, aka polyphony.
@@ -558,14 +559,12 @@ type TagVal = Text
 -- * synth
 
 -- | A Synth defines common features for a set of instruments.  Synths form
--- a global flat namespace and must be unique.  They have abbreviated names
--- because they prefix the instrument name, which has to be written in the
--- score.
+-- a global flat namespace and must be unique.
 data Synth = Synth {
     -- | Uniquely defines the synth.
     synth_name :: !SynthName
     -- | Full name for the synthesizer.  'synth_name' appears in inst names so
-    -- it's usually abbreviated.
+    -- it has a restricted character set.
     , synth_doc :: !Text
     -- | Often synths have a set of common controls in addition to the
     -- global midi defaults.
