@@ -12,7 +12,6 @@ import Util.Control
 import qualified Ui.Id as Id
 import qualified Ui.Ruler as Ruler
 import qualified Ui.State as State
-import qualified Ui.Types as Types
 
 import qualified Cmd.Meter as Meter
 import Types
@@ -99,7 +98,7 @@ block_id_to_free_ruler :: Map.Map RulerId a -> BlockId -> Id.Id
 block_id_to_free_ruler rulers block_id = id
     where
     -- Always just since the list is infinite.
-    Just id = List.find (not . (`Map.member` rulers) . Types.RulerId) $
+    Just id = List.find (not . (`Map.member` rulers) . Id.RulerId) $
         map (Id.id ns) $ name : [name <> "-" <> show n | n <- [1..]]
     (ns, name) = Id.un_id $ Id.unpack_id block_id
 

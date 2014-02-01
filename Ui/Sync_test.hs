@@ -90,7 +90,7 @@ test_create_resize_destroy_view = thread (return State.empty) $
 test_rename_block = thread run_setup $
     ("block changes BlockId, window recreated with new block", do
         Transform.map_block_ids $ \id ->
-            if Types.BlockId id == t_block_id then Id.read_id "test/newb"
+            if Id.BlockId id == t_block_id then Id.read_id "test/newb"
                 else id
     , [[("window-title", "(bid \"test/newb\") -- (vid \"test/v1\")")]])
     : []
@@ -442,10 +442,10 @@ set_selection :: (State.M m) => ViewId -> Types.Selection -> m ()
 set_selection view_id sel = State.set_selection view_id 0 (Just sel)
 
 t_block = "b1"
-t_block_id = Types.BlockId (mkid t_block)
-t_ruler_id = Types.RulerId (mkid "r1")
-t_track1_id = Types.TrackId (mkid "b1.t1")
-t_view_id = Types.ViewId (mkid "v1")
+t_block_id = Id.BlockId (mkid t_block)
+t_ruler_id = Id.RulerId (mkid "r1")
+t_track1_id = Id.TrackId (mkid "b1.t1")
+t_view_id = Id.ViewId (mkid "v1")
 
 run_setup :: IO State.State
 run_setup = run State.empty setup_state

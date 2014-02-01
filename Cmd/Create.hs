@@ -69,19 +69,19 @@ renamespace from to = Transform.map_ids set_ns
 
 rename_ruler :: State.M m => RulerId -> RulerId -> m ()
 rename_ruler ruler_id new_name = Transform.map_ruler_ids $ \id ->
-    if Types.RulerId id == ruler_id then Id.unpack_id new_name else id
+    if Id.RulerId id == ruler_id then Id.unpack_id new_name else id
 
 -- | Rename multiple RulerIds at once.  This can swap two IDs without
 -- colliding.
 rename_rulers :: State.M m => [(RulerId, Id.Id)] -> m ()
 rename_rulers pairs = Transform.map_ruler_ids $ \id ->
-    case lookup (Types.RulerId id) pairs of
+    case lookup (Id.RulerId id) pairs of
         Nothing -> id
         Just new -> new
 
 rename_block :: State.M m => BlockId -> BlockId -> m ()
 rename_block block_id new_name = Transform.map_block_ids $ \id ->
-    if Types.BlockId id == block_id then Id.unpack_id new_name else id
+    if Id.BlockId id == block_id then Id.unpack_id new_name else id
 
 copy_block :: State.M m => BlockId -> BlockId -> m ()
 copy_block block_id new_name = do
@@ -202,7 +202,7 @@ destroy_block block_id = do
 generate_block_id :: Maybe BlockId -> Id.Namespace -> Map.Map BlockId _a
     -> Maybe Id.Id
 generate_block_id maybe_parent ns blocks =
-    generate_id ns parent "b" Types.BlockId blocks
+    generate_id ns parent "b" Id.BlockId blocks
     where parent = maybe (Id.global "") Id.unpack_id maybe_parent
 
 -- * view
@@ -265,7 +265,7 @@ block_view ruler_id = block ruler_id >>= view
 -- | ViewIds look like \"ns/b0.v0\", \"ns/b0.v1\", etc.
 generate_view_id :: BlockId -> Map.Map ViewId _a -> Maybe Id.Id
 generate_view_id block_id views =
-    generate_id (Id.id_namespace ident) ident "v" Types.ViewId views
+    generate_id (Id.id_namespace ident) ident "v" Id.ViewId views
     where ident = Id.unpack_id block_id
 
 -- | Destroy a view, along with the underlying block if there were no other
@@ -479,7 +479,7 @@ named_track :: (State.M m) =>
 named_track block_id ruler_id tracknum name track = do
     ident <- State.read_id (Id.ident_name block_id ++ "." ++ name)
     all_tracks <- State.gets State.state_tracks
-    when (Types.TrackId ident `Map.member` all_tracks) $
+    when (Id.TrackId ident `Map.member` all_tracks) $
         State.throw $ "track " ++ show ident ++ " already exists"
     tid <- State.create_track ident track
     State.insert_track block_id tracknum
@@ -545,7 +545,7 @@ track_after block tracknum
 
 generate_track_id :: BlockId -> String -> Map.Map TrackId _a -> Maybe Id.Id
 generate_track_id block_id code tracks =
-    generate_id (Id.id_namespace ident) ident code Types.TrackId tracks
+    generate_id (Id.id_namespace ident) ident code Id.TrackId tracks
     where ident = Id.unpack_id block_id
 
 -- * ruler

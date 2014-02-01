@@ -6,7 +6,6 @@ module Cmd.Clip_test where
 import Util.Test
 import qualified Ui.Id as Id
 import qualified Ui.State as State
-import qualified Ui.Types as Types
 import qualified Ui.UiTest as UiTest
 
 import qualified Cmd.Clip as Clip
@@ -166,7 +165,7 @@ test_cmd_paste_stretch = do
 -- * util
 
 clip_id :: BlockId
-clip_id = Types.BlockId $ Id.id Config.clip_namespace Config.clip_block_name
+clip_id = Id.BlockId $ Id.id Config.clip_namespace Config.clip_block_name
 
 mkstate :: [UiTest.TrackSpec] -> [UiTest.TrackSpec] -> State.State
 mkstate block_tracks clip_tracks = UiTest.exec State.empty $ do

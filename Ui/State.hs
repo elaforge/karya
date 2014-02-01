@@ -486,7 +486,7 @@ all_view_ids = gets (Map.keys . state_views)
 create_view :: (M m) => Id.Id -> Block.View -> m ViewId
 create_view id view = do
     view <- _update_view_status view
-    insert (Types.ViewId id) view state_views $ \views st ->
+    insert (Id.ViewId id) view state_views $ \views st ->
         st { state_views = views }
 
 destroy_view :: (M m) => ViewId -> m ()
@@ -590,12 +590,12 @@ all_block_track_ids =
 --
 -- Throw if the BlockId already exists.
 create_config_block :: (M m) => Id.Id -> Block.Block -> m BlockId
-create_config_block id block = insert (Types.BlockId id) block state_blocks $
+create_config_block id block = insert (Id.BlockId id) block state_blocks $
     \blocks st -> st
         { state_blocks = blocks
         , state_config = let c = state_config st
             in c { config_root = if Map.size blocks == 1
-                then Just (Types.BlockId id) else config_root c }
+                then Just (Id.BlockId id) else config_root c }
         }
 
 -- | Make a new block with the default 'Block.Config'.
@@ -1123,7 +1123,7 @@ all_track_ids = gets (Map.keys . state_tracks)
 -- Throw if the TrackId already exists.
 create_track :: (M m) => Id.Id -> Track.Track -> m TrackId
 create_track id track = do
-    track_id <- insert (Types.TrackId id) track state_tracks $
+    track_id <- insert (Id.TrackId id) track state_tracks $
         \tracks st -> st { state_tracks = tracks }
     -- Since I don't diff events but rely on changes being recorded here,
     -- I have to mark this track as having new events.  Otherwise, if the same
@@ -1337,7 +1337,7 @@ create_ruler :: (M m) => Id.Id -> Ruler.Ruler -> m RulerId
 create_ruler id ruler
         -- no_ruler is global and assumed to always exist.
     | id == Id.unpack_id no_ruler = throw "can't insert no-ruler"
-    | otherwise = insert (Types.RulerId id) ruler state_rulers $ \rulers st ->
+    | otherwise = insert (Id.RulerId id) ruler state_rulers $ \rulers st ->
         st { state_rulers = rulers }
 
 -- | Destroy the ruler and remove it from all the blocks it's in.
@@ -1385,7 +1385,7 @@ blocks_with_ruler_id ruler_id =
 -- only 'verify' and 'get_tracklike' for "Ui.Sync") uses 'get_ruler' then
 -- they won't be confused by tracks that have no_ruler.
 no_ruler :: RulerId
-no_ruler = Types.RulerId (Id.global "-no-ruler-")
+no_ruler = Id.RulerId (Id.global "-no-ruler-")
 
 
 -- * util

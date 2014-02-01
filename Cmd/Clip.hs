@@ -57,7 +57,6 @@ import qualified Ui.Id as Id
 import qualified Ui.State as State
 import qualified Ui.Track as Track
 import qualified Ui.Transform as Transform
-import qualified Ui.Types as Types
 
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Create as Create
@@ -75,7 +74,7 @@ clip_namespace :: Id.Namespace
 clip_namespace = Config.clip_namespace
 
 clip_block_id :: BlockId
-clip_block_id = Types.BlockId $ Id.id clip_namespace Config.clip_block_name
+clip_block_id = Id.BlockId $ Id.id clip_namespace Config.clip_block_name
 
 -- | Replace the clipboard with the given state.  This can be used to load
 -- another score and use the clipboard as a staging area.

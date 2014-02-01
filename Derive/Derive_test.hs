@@ -17,10 +17,10 @@ import Util.Test
 
 import qualified Midi.Key as Key
 import qualified Midi.Midi as Midi
+import qualified Ui.Id as Id
 import qualified Ui.ScoreTime as ScoreTime
 import qualified Ui.Skeleton as Skeleton
 import qualified Ui.State as State
-import qualified Ui.Types as Types
 import qualified Ui.UiTest as UiTest
 
 import qualified Derive.Derive as Derive
@@ -491,7 +491,7 @@ test_control = do
 test_make_inverse_tempo_func = do
     -- This is actually also tested in test_subderive.
     -- TODO and it belongs in TrackWarp_test now
-    let track_id = Types.TrackId (UiTest.mkid "warp")
+    let track_id = Id.TrackId (UiTest.mkid "warp")
         warp = Tempo.tempo_to_warp (Signal.constant 2)
         track_warps = [TrackWarp.Collection
                 0 2 UiTest.default_block_id (Set.singleton track_id) warp]
@@ -503,7 +503,7 @@ test_make_inverse_tempo_func = do
         [with_block 0, with_block 2, with_block 4, []]
 
 test_tempo_roundtrip = do
-    let track_id = Types.TrackId (UiTest.mkid "warp")
+    let track_id = Id.TrackId (UiTest.mkid "warp")
         warp = Tempo.tempo_to_warp (Signal.constant 0.987)
         track_warps = [TrackWarp.Collection
                 0 10 UiTest.default_block_id (Set.singleton track_id) warp]

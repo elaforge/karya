@@ -14,6 +14,7 @@ import qualified Ui.Block as Block
 import qualified Ui.BlockC as BlockC
 import qualified Ui.Color as Color
 import qualified Ui.Event as Event
+import qualified Ui.Id as Id
 import qualified Ui.Ruler as Ruler
 import qualified Ui.Symbol as Symbol
 import qualified Ui.SymbolC as SymbolC
@@ -203,7 +204,7 @@ event_track_2 = UiTest.make_track ("2", [(16, 10, "ho"), (30, 32, "eyo")])
 
 create_empty_view :: IO ViewId
 create_empty_view = do
-    let view_id = Types.ViewId (UiTest.mkid "default")
+    let view_id = Id.ViewId (UiTest.mkid "default")
     send $ BlockC.create_view view_id "some title" UiTest.default_rect
         Block.default_config
     return view_id

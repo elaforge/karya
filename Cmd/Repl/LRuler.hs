@@ -44,7 +44,6 @@ import qualified Ui.Id as Id
 import qualified Ui.Ruler as Ruler
 import qualified Ui.State as State
 import qualified Ui.Track as Track
-import qualified Ui.Types as Types
 
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Create as Create
@@ -109,7 +108,7 @@ sync_ids = do
     Create.rename_rulers renames
     let renamed = if null renames then "" else Text.unlines $
             "Renamed:" : [ prettyt from <> " -> "
-                <> prettyt (Types.RulerId to) | (from, to) <- renames]
+                <> prettyt (Id.RulerId to) | (from, to) <- renames]
     return $ unified <> renamed
 
 list_misnamed :: State.M m => m [(RulerId, BlockId)]

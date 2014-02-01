@@ -29,7 +29,6 @@ import qualified Ui.Id as Id
 import qualified Ui.ScoreTime as ScoreTime
 import qualified Ui.State as State
 import qualified Ui.Track as Track
-import qualified Ui.Types as Types
 import qualified Ui.Update as Update
 
 import qualified Cmd.Serialize
@@ -380,9 +379,9 @@ dump_diff track_dir state =
 
 undump :: Git.Dir -> Either String State.State
 undump dir = do
-    blocks <- undump_map Types.BlockId =<< get_dir "blocks"
-    tracks <- undump_map Types.TrackId =<< get_dir "tracks"
-    rulers <- undump_map Types.RulerId =<< get_dir "rulers"
+    blocks <- undump_map Id.BlockId =<< get_dir "blocks"
+    tracks <- undump_map Id.TrackId =<< get_dir "tracks"
+    rulers <- undump_map Id.RulerId =<< get_dir "rulers"
     config <- decode "config" =<< get_file "config"
     return $ State.State mempty blocks tracks rulers config
     where
@@ -414,9 +413,9 @@ undump_diff :: State.State -> [Git.Modification]
 undump_diff state = foldM apply (state, [])
     where
     apply (state, updates) (Git.Remove path) = case split path of
-        ["blocks", ns, name] -> delete ns name Types.BlockId State.blocks
-        ["tracks", ns, name] -> delete ns name Types.TrackId State.tracks
-        ["rulers", ns, name] -> delete ns name Types.RulerId State.rulers
+        ["blocks", ns, name] -> delete ns name Id.BlockId State.blocks
+        ["tracks", ns, name] -> delete ns name Id.TrackId State.tracks
+        ["rulers", ns, name] -> delete ns name Id.RulerId State.rulers
         _ -> Left $ "unknown file deleted: " ++ show path
         where
         delete ns name mkid lens = do
@@ -424,10 +423,10 @@ undump_diff state = foldM apply (state, [])
             vals <- delete_key ident (lens #$ state)
             return ((lens #= vals) state, updates)
     apply (state, updates) (Git.Add path bytes) = case split path of
-        ["blocks", ns, name] -> add ns name Types.BlockId State.blocks
+        ["blocks", ns, name] -> add ns name Id.BlockId State.blocks
         ["tracks", ns, name] -> do
-            (state_to, updates) <- add ns name Types.TrackId State.tracks
-            let tid = path_to_id Types.TrackId ns name
+            (state_to, updates) <- add ns name Id.TrackId State.tracks
+            let tid = path_to_id Id.TrackId ns name
             -- I don't save the CmdUpdates with the checkpoint, so to avoid
             -- having to rederive the entire track I do a little mini-diff
             -- just on the track.  It shouldn't be too expensive because it's
@@ -435,8 +434,8 @@ undump_diff state = foldM apply (state, [])
             let event_updates = Diff.track_diff state state_to tid
             return (state_to, event_updates ++ updates)
         ["rulers", ns, name] -> do
-            (state_to, updates) <- add ns name Types.RulerId State.rulers
-            let rid = path_to_id Types.RulerId ns name
+            (state_to, updates) <- add ns name Id.RulerId State.rulers
+            let rid = path_to_id Id.RulerId ns name
             return (state_to, Update.CmdRuler rid : updates)
         ["config"] -> do
             val <- decode path bytes

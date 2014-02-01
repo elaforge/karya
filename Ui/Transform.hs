@@ -11,13 +11,13 @@ import qualified Data.Map as Map
 import Util.Control
 import qualified Util.Map as Map
 import qualified Util.Memory as Memory
+
 import qualified Ui.Block as Block
 import qualified Ui.Event as Event
 import qualified Ui.Events as Events
 import qualified Ui.Id as Id
 import qualified Ui.State as State
 import qualified Ui.Track as Track
-import qualified Ui.Types as Types
 
 import Types
 
@@ -56,7 +56,7 @@ map_ids f = do
 map_view_ids :: (State.M m) => (Id.Id -> Id.Id) -> m ()
 map_view_ids f = do
     views <- State.gets State.state_views
-    let view_f = Types.ViewId . f . Id.unpack_id
+    let view_f = Id.ViewId . f . Id.unpack_id
     new_views <- safe_map_keys "state_views" view_f views
     State.modify $ \st -> st { State.state_views = new_views }
 
@@ -64,10 +64,10 @@ map_view_ids f = do
 map_block_ids :: (State.M m) => (Id.Id -> Id.Id) -> m ()
 map_block_ids f = do
     maybe_root <- State.lookup_root_id
-    let new_root = fmap (Types.BlockId . f . Id.unpack_id) maybe_root
+    let new_root = fmap (Id.BlockId . f . Id.unpack_id) maybe_root
 
     blocks <- State.gets State.state_blocks
-    let block_f = Types.BlockId . f . Id.unpack_id
+    let block_f = Id.BlockId . f . Id.unpack_id
     new_blocks <- safe_map_keys "state_blocks" block_f blocks
 
     views <- State.gets State.state_views
@@ -81,7 +81,7 @@ map_block_ids f = do
 map_track_ids :: (State.M m) => (Id.Id -> Id.Id) -> m ()
 map_track_ids f = do
     tracks <- State.gets State.state_tracks
-    let track_f = Types.TrackId . f . Id.unpack_id
+    let track_f = Id.TrackId . f . Id.unpack_id
     new_tracks <- safe_map_keys "state_tracks" track_f tracks
 
     blocks <- State.gets State.state_blocks
@@ -103,7 +103,7 @@ map_track_ids f = do
 map_ruler_ids :: (State.M m) => (Id.Id -> Id.Id) -> m ()
 map_ruler_ids f = do
     rulers <- State.gets State.state_rulers
-    let ruler_f = Types.RulerId . f . Id.unpack_id
+    let ruler_f = Id.RulerId . f . Id.unpack_id
     new_rulers <- safe_map_keys "state_rulers" ruler_f rulers
 
     blocks <- State.gets State.state_blocks

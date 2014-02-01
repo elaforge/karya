@@ -59,16 +59,16 @@ mkid :: String -> Id.Id
 mkid = Id.read_short test_ns
 
 bid :: String -> BlockId
-bid = Types.BlockId . mkid
+bid = Id.BlockId . mkid
 
 vid :: String -> ViewId
-vid = Types.ViewId . mkid
+vid = Id.ViewId . mkid
 
 tid :: String -> TrackId
-tid = Types.TrackId . mkid
+tid = Id.TrackId . mkid
 
 rid :: String -> RulerId
-rid = Types.RulerId . mkid
+rid = Id.RulerId . mkid
 
 test_ns :: Id.Namespace
 test_ns = Id.namespace "test"
@@ -163,8 +163,8 @@ mkblock (spec, tracks) = do
         then do
             let len = event_end tracks
                 rid = Id.id test_ns ("r" ++ show len)
-            ifM (Maybe.isJust <$> State.lookup_ruler (Types.RulerId rid))
-                (return (Types.RulerId rid))
+            ifM (Maybe.isJust <$> State.lookup_ruler (Id.RulerId rid))
+                (return (Id.RulerId rid))
                 (State.create_ruler rid (mkruler_44 len 1))
         else maybe
             (State.create_ruler (Id.unpack_id default_ruler_id) default_ruler)
@@ -225,7 +225,7 @@ mkblock_view block_spec = (snd <$> mkblock block_spec) <* mkview block_id
     where (block_id, _, _) = parse_block_spec (fst block_spec)
 
 mk_vid :: BlockId -> ViewId
-mk_vid block_id = Types.ViewId $ Id.id ns ("v." ++ block_name)
+mk_vid block_id = Id.ViewId $ Id.id ns ("v." ++ block_name)
     where (ns, block_name) = Id.un_id (Id.unpack_id block_id)
 
 mk_vid_name :: String -> ViewId
@@ -239,7 +239,7 @@ mk_tid = mk_tid_block default_block_id
 mk_tid_block :: BlockId -> TrackNum -> TrackId
 mk_tid_block block_id i
     | i < 1 = error $ "mk_tid_block: event tracknums start at 1: " ++ show i
-    | otherwise = Types.TrackId $ Create.ids_for ns block_name "t" !! (i-1)
+    | otherwise = Id.TrackId $ Create.ids_for ns block_name "t" !! (i-1)
     where (ns, block_name) = Id.un_id (Id.unpack_id block_id)
 
 mk_tid_name :: String -> TrackNum -> TrackId

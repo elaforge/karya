@@ -38,8 +38,6 @@ import qualified Util.Serialize as Serialize
 
 import qualified Ui.Id as Id
 import qualified Ui.ScoreTime as ScoreTime
-import qualified Ui.Types as Types
-
 import Types
 
 
@@ -289,8 +287,8 @@ parse_ui_frame = Parse.maybe_parse_string $ do
         to <- Parse.p_float
         return (ScoreTime.double from, ScoreTime.double to)
     return
-        ( Types.BlockId . Id.read_id . B.unpack <$> bid
-        , Types.TrackId . Id.read_id . B.unpack <$> tid
+        ( Id.BlockId . Id.read_id . B.unpack <$> bid
+        , Id.TrackId . Id.read_id . B.unpack <$> tid
         , range
         )
     where

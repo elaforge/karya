@@ -177,7 +177,7 @@ rebase_relative_calls copy from to = do
 --
 -- ns1/caller ns2/old.sub -> ns1/caller.sub
 rebase_call :: BlockId -> BlockId -> BlockId
-rebase_call caller block_id = Types.BlockId $ Id.id ns name
+rebase_call caller block_id = Id.BlockId $ Id.id ns name
     where
     (ns, caller_name) = Id.un_id (Id.unpack_id caller)
     -- old.bar -> caller.bar

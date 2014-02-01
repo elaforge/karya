@@ -16,7 +16,6 @@ import qualified Ui.Block as Block
 import qualified Ui.Event as Event
 import qualified Ui.Id as Id
 import qualified Ui.State as State
-import qualified Ui.Types as Types
 
 import qualified Derive.Args as Args
 import qualified Derive.Cache as Cache
@@ -69,7 +68,7 @@ lookup_note_block = Derive.pattern_lookup "block name"
     (\sym -> fmap c_block <$> symbol_to_block_id sym)
     where
     -- Not evaluated, so it doesn't matter if the BlockId is invalid.
-    fake_call = c_block (Types.BlockId (Id.read_id "example/block"))
+    fake_call = c_block (Id.BlockId (Id.read_id "example/block"))
 
 c_block :: BlockId -> Derive.Generator Derive.Note
 c_block block_id = Derive.make_call ("block " <> showt block_id) Tags.prelude
@@ -241,7 +240,7 @@ lookup_control_block = Derive.pattern_lookup "block id"
     (\sym -> fmap c_control_block <$> symbol_to_block_id sym)
     where
     -- Not evaluated, so it doesn't matter if the BlockId is invalid.
-    fake_call = c_control_block (Types.BlockId (Id.read_id "fake/block"))
+    fake_call = c_control_block (Id.BlockId (Id.read_id "fake/block"))
 
 c_control_block :: BlockId -> Derive.Generator Derive.Control
 c_control_block block_id = Derive.make_call "control-block" Tags.prelude

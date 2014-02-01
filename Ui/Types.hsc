@@ -9,26 +9,17 @@ module Ui.Types (
     , Zoom(..)
     , zoom_to_pixels, zoom_to_time
 
-    -- * ID
-    , BlockId(..), ViewId(..), TrackId(..), RulerId(..)
-
     -- * Selection
     , Selection(..), selection, point_selection, sel_is_point
     , sel_modify_tracks, sel_expand_tracks, sel_track_range, sel_tracknums
     , sel_range, sel_set_duration
 ) where
-import qualified Control.DeepSeq as DeepSeq
-import qualified Data.Digest.CRC32 as CRC32
-import Text.Read -- for Read class with readPrec
-
 import Util.Control
 import Util.ForeignC
 import qualified Util.Num as Num
 import qualified Util.Pretty as Pretty
 import qualified Util.Rect as Rect
-import qualified Util.Serialize as Serialize
 
-import qualified Ui.Id as Id
 import qualified Ui.ScoreTime as ScoreTime
 import Ui.ScoreTime (TrackTime)
 import qualified Ui.Util as Util
@@ -96,57 +87,6 @@ zoom_to_pixels zoom pos = Num.d2i $ ScoreTime.to_double pos * zoom_factor zoom
 zoom_to_time :: Zoom -> Int -> TrackTime
 zoom_to_time zoom pixels =
     ScoreTime.double (fromIntegral pixels / zoom_factor zoom)
-
-
--- * ID
-
--- | Reference to a Block.  Use this to look up Blocks in the State.
--- Even though the constructor is exported, you should only create them
--- through the 'State.StateT' interface.
-newtype BlockId = BlockId Id.Id
-    deriving (Eq, Ord, DeepSeq.NFData, Serialize.Serialize, CRC32.CRC32)
-
--- | Reference to a View, as per 'BlockId'.
-newtype ViewId = ViewId Id.Id
-    deriving (Eq, Ord, DeepSeq.NFData, Serialize.Serialize, CRC32.CRC32)
-
-newtype TrackId = TrackId Id.Id
-    deriving (Eq, Ord, DeepSeq.NFData, Serialize.Serialize, CRC32.CRC32)
-
-newtype RulerId = RulerId Id.Id
-    deriving (Eq, Ord, DeepSeq.NFData, Serialize.Serialize, CRC32.CRC32)
-
-instance Show BlockId where show = Id.show_ident
-instance Show ViewId where show = Id.show_ident
-instance Show TrackId where show = Id.show_ident
-instance Show RulerId where show = Id.show_ident
-
-instance Pretty.Pretty BlockId where pretty = show
-instance Pretty.Pretty ViewId where pretty = show
-instance Pretty.Pretty TrackId where pretty = show
-instance Pretty.Pretty RulerId where pretty = show
-
-instance Read BlockId where readPrec = Id.read_ident undefined
-instance Read ViewId where readPrec = Id.read_ident undefined
-instance Read TrackId where readPrec = Id.read_ident undefined
-instance Read RulerId where readPrec = Id.read_ident undefined
-
-instance Id.Ident BlockId where
-    unpack_id (BlockId a) = a
-    constructor_name _ = "bid"
-    make = BlockId
-instance Id.Ident ViewId where
-    unpack_id (ViewId a) = a
-    constructor_name _ = "vid"
-    make = ViewId
-instance Id.Ident TrackId where
-    unpack_id (TrackId a) = a
-    constructor_name _ = "tid"
-    make = TrackId
-instance Id.Ident RulerId where
-    unpack_id (RulerId a) = a
-    constructor_name _ = "rid"
-    make = RulerId
 
 
 -- * selection

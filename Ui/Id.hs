@@ -22,6 +22,9 @@ module Ui.Id (
 
     -- * constants
     , global, global_namespace
+
+    -- * instances
+    , BlockId(..), ViewId(..), TrackId(..), RulerId(..)
 ) where
 import Prelude hiding (id)
 import qualified Prelude
@@ -187,3 +190,52 @@ global = id global_namespace
 
 global_namespace :: Namespace
 global_namespace = namespace ""
+
+
+-- * instances
+
+-- | Reference to a Block.  Use this to look up Blocks in the State.
+newtype BlockId = BlockId Id
+    deriving (Eq, Ord, DeepSeq.NFData, Serialize.Serialize, CRC32.CRC32)
+
+-- | Reference to a View, as per 'BlockId'.
+newtype ViewId = ViewId Id
+    deriving (Eq, Ord, DeepSeq.NFData, Serialize.Serialize, CRC32.CRC32)
+
+newtype TrackId = TrackId Id
+    deriving (Eq, Ord, DeepSeq.NFData, Serialize.Serialize, CRC32.CRC32)
+
+newtype RulerId = RulerId Id
+    deriving (Eq, Ord, DeepSeq.NFData, Serialize.Serialize, CRC32.CRC32)
+
+instance Show BlockId where show = show_ident
+instance Show ViewId where show = show_ident
+instance Show TrackId where show = show_ident
+instance Show RulerId where show = show_ident
+
+instance Pretty.Pretty BlockId where pretty = show
+instance Pretty.Pretty ViewId where pretty = show
+instance Pretty.Pretty TrackId where pretty = show
+instance Pretty.Pretty RulerId where pretty = show
+
+instance Read BlockId where readPrec = read_ident undefined
+instance Read ViewId where readPrec = read_ident undefined
+instance Read TrackId where readPrec = read_ident undefined
+instance Read RulerId where readPrec = read_ident undefined
+
+instance Ident BlockId where
+    unpack_id (BlockId a) = a
+    constructor_name _ = "bid"
+    make = BlockId
+instance Ident ViewId where
+    unpack_id (ViewId a) = a
+    constructor_name _ = "vid"
+    make = ViewId
+instance Ident TrackId where
+    unpack_id (TrackId a) = a
+    constructor_name _ = "tid"
+    make = TrackId
+instance Ident RulerId where
+    unpack_id (RulerId a) = a
+    constructor_name _ = "rid"
+    make = RulerId

@@ -6,7 +6,6 @@
 -- interactively.
 module D where
 import qualified Ui.Id as Id
-import qualified Ui.Types as Types
 import Types
 
 
@@ -14,16 +13,16 @@ mkid :: String -> Id.Id
 mkid name = Id.read_short _default_ns name
 
 bid :: String -> BlockId
-bid = Types.BlockId . mkid
+bid = Id.BlockId . mkid
 
 vid :: String -> ViewId
-vid = Types.ViewId . mkid
+vid = Id.ViewId . mkid
 
 tid :: String -> TrackId
-tid = Types.TrackId . mkid
+tid = Id.TrackId . mkid
 
 rid :: String -> RulerId
-rid = Types.RulerId . mkid
+rid = Id.RulerId . mkid
 
 -- | Change this to whatever namespace you're debugging.
 _default_ns :: Id.Namespace

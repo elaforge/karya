@@ -24,7 +24,6 @@ import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 
 import qualified Ui.Id as Id
-import qualified Ui.Types as Types
 import qualified Derive.Score as Score
 import qualified Derive.Stack as Stack
 import qualified Perform.Transport as Transport
@@ -93,7 +92,7 @@ collect_warps wmap = drop 1 $ map drop_stack $ collect [] dummy_tw assocs
     assocs = Seq.sort_on fst $ map (first Stack.outermost) $ Map.assocs wmap
     drop_stack (_, tw, tracks) = (tw, tracks)
     dummy_tw = TrackWarp (0, 0, Score.id_warp, no_block, Nothing)
-    no_block = Types.BlockId (Id.global "-dummy-trackwarp-")
+    no_block = Id.BlockId (Id.global "-dummy-trackwarp-")
 
 type Frames = [Stack.Frame]
 

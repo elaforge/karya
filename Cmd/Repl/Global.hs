@@ -77,10 +77,17 @@ make_id ns name
         error $ "invalid characters in id: " ++ show (ns, name)
     | otherwise = Id.make $ Id.read_short (Id.namespace ns) name
 
-vid = Types.ViewId . Id.read_id
-bid = Types.BlockId . Id.read_id
-rid = Types.RulerId . Id.read_id
-tid = Types.TrackId . Id.read_id
+vid :: String -> ViewId
+vid = Id.ViewId . Id.read_id
+
+bid :: String -> BlockId
+bid = Id.BlockId . Id.read_id
+
+rid :: String -> RulerId
+rid = Id.RulerId . Id.read_id
+
+tid :: String -> TrackId
+tid = Id.TrackId . Id.read_id
 
 -- | Get the current focused block.
 block :: Cmd.CmdL BlockId

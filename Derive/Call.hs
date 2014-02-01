@@ -92,7 +92,6 @@ import qualified Ui.Event as Event
 import qualified Ui.Id as Id
 import qualified Ui.State as State
 import qualified Ui.TrackTree as TrackTree
-import qualified Ui.Types as Types
 
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Derive as Derive
@@ -565,7 +564,7 @@ symbol_to_block_id :: Id.Namespace -> Maybe BlockId
     -> TrackLang.CallId -> Maybe BlockId
 symbol_to_block_id ns maybe_caller sym
     | sym == "" = Nothing
-    | otherwise = Just $ Types.BlockId $ Id.read_short ns (untxt relative)
+    | otherwise = Just $ Id.BlockId $ Id.read_short ns (untxt relative)
     where
     relative
         | Just caller <- maybe_caller, is_relative_call sym =
