@@ -178,10 +178,8 @@ instance Serialize ByteString where
     get = get >>= Serialize.getByteString
 
 instance Serialize Text.Text where
-    put text = do
-        put $ Text.length text
-        Serialize.putByteString $ Text.Encoding.encodeUtf8 text
-    get = Text.Encoding.decodeUtf8 <$> (Serialize.getByteString =<< get)
+    put = put . Text.Encoding.encodeUtf8
+    get = Text.Encoding.decodeUtf8 <$> get
 
 instance (Serialize a, Unboxed.Unbox a) => Serialize (Unboxed.Vector a) where
     put v = do

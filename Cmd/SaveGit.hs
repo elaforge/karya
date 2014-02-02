@@ -306,11 +306,7 @@ views_magic :: Cmd.Serialize.Magic
 views_magic = Cmd.Serialize.Magic 'v' 'i' 'e' 'w'
 
 save_views :: Git.Repo -> Map.Map ViewId Block.View -> IO ()
-save_views repo views = do
-    Cmd.Serialize.serialize views_magic (repo </> "views") views
-    load_views repo >>= \x -> case x of
-        Left err -> putStrLn $ "can't load views: " ++ err
-        Right _ -> putStrLn "views ok"
+save_views repo = Cmd.Serialize.serialize views_magic (repo </> "views")
 
 load_views :: Git.Repo -> IO (Either String (Map.Map ViewId Block.View))
 load_views repo = fmap (fromMaybe mempty) <$>

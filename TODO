@@ -64,7 +64,7 @@ UNSORTED
         out of it.
   - shakefile: changing repl env var causes relink of things that don't rely
     on it, e.g. logview
-  - Corrupted views save in git repo is still happening.  How?
+  * Corrupted views save in git repo is still happening.  How?
     Could this be related to the shake database corruption?
     * Investigate bug/views-broken.gz to see where and how it got corrupted.
       It always seems to be at View status field, though that may be
@@ -77,7 +77,8 @@ UNSORTED
       save thread finishes.  But isn't the save done by the event loop
       thread, which is the main thread?  And that shouldn't be possible since
       File.writeGz writes first and then renames.
-    + Verify the views after writing.
+    * Verify the views after writing.
+    . Maybe something in the status that doesn't deserialize properly?
   - Play position doesn't work right for 'loop' and 'tile' calls, it only
     understands the first loop, and doesn't know that 'tile' cuts off the
     beginning.

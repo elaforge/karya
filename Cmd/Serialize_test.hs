@@ -25,5 +25,5 @@ test_negative_zero = do
     equal (recode (0 :: ScoreTime)) 0
     equal (recode (-0 :: ScoreTime)) (-0.0)
 
-recode :: (Util.Serialize.Serialize a) => a -> a
+recode :: Util.Serialize.Serialize a => a -> a
 recode = either error id . Util.Serialize.decode . Util.Serialize.encode
