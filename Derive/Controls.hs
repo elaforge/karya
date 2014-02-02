@@ -66,6 +66,14 @@ sustain = "sus"
 sustain_abs :: Control
 sustain_abs = "sus-abs"
 
+-- | Start offset, in RealTime.  This is added to event start times.
+start_s :: Control
+start_s = "start-s"
+
+-- | Start offset, in ScoreTime.
+start_t :: Control
+start_t = "start-t"
+
 -- | Offset the start time of each note by a value between - start-rnd/2 and
 -- start-rnd/2.  The start and end are shifted by the same amount, so the
 -- duration of the note is unaffected.

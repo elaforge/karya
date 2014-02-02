@@ -3,16 +3,18 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 module Derive.Call.Note_test where
+import qualified Util.Seq as Seq
 import Util.Test
+
 import qualified Ui.UiTest as UiTest
+import qualified Derive.Call.Note as Note
 import qualified Derive.DeriveTest as DeriveTest
-import qualified Derive.Score as Score
 
 
 test_random = do
     -- make sure notes in different tracks get different starts
-    let run = DeriveTest.extract extract . DeriveTest.derive_tracks
-        extract e = (Score.event_start e, Score.event_duration e)
+    let run = DeriveTest.extract DeriveTest.e_start_dur
+            . DeriveTest.derive_tracks
     let ([e1, e2], []) = run [("start-rnd", [(0, 0, ".1")]),
             (">", [(0, 1, "")]), (">", [(0, 1, "")])]
     check (e1 /= e2)
@@ -24,6 +26,24 @@ test_random = do
             (">", [(0, 1, "")]), (">", [(0, 1, "")])]
     equal (fst e1) (fst e2)
     check (snd e1 /= snd e2)
+
+test_start_controls = do
+    let run = DeriveTest.extract DeriveTest.e_start_dur
+            . DeriveTest.derive_tracks
+    let event title = [(title, [(0, 1, "")])]
+    equal (run (event ">")) ([(0, 1)], [])
+    equal (run [("> | %start-s = 1", [(0, 0, "")])]) ([(1, 0)], [])
+    equal (run (event "> | %start-s = -1")) ([(-1, 2)], [])
+    equal (run (event "> | %start-s = 1"))
+        ([(1 - Note.min_duration, Note.min_duration)], [])
+    equal (run $ ("tempo", [(0, 0, "2")]) : event "> | start-t = 1")
+        ([(0, 0.5)], [])
+
+    -- Randomization.
+    let events title n = [(title, [(t, 1, "") | t <- Seq.range' 0 n 1])]
+    equal (run $ events ">" 2) ([(0, 1), (1, 1)], [])
+    check $ (run $ events "> | %start-s = (cf-rnd -1 1)" 2)
+        /= ([(0, 1), (1, 1)], [])
 
 test_orphan_notes = do
     -- Slice out orphans that aren't covered by a parent event.

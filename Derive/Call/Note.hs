@@ -11,7 +11,7 @@ module Derive.Call.Note (
     , GenerateNote, default_note
     , adjust_duration
 #ifdef TESTING
-    , trimmed_controls
+    , trimmed_controls, min_duration
 #endif
 ) where
 import qualified Data.Map as Map
@@ -22,6 +22,7 @@ import qualified Util.Num as Num
 import qualified Util.Seq as Seq
 
 import qualified Ui.Event as Event
+import qualified Ui.ScoreTime as ScoreTime
 import qualified Derive.Args as Args
 import qualified Derive.Attrs as Attrs
 import qualified Derive.Call.Equal as Equal
@@ -136,7 +137,7 @@ default_note config args = do
     start <- Args.real_start args
     end <- Args.real_end args
     real_next <- Derive.real (Args.next args)
-    (end, is_arrival) <- adjust_end start end (Seq.head (Args.next_events args))
+    (end, is_arrival) <- adjust_end start end $ Seq.head (Args.next_events args)
     inst <- fromMaybe Score.empty_inst <$> Derive.lookup_val Environ.instrument
     environ <- Internal.get_environ
     let attrs = either (const Score.no_attrs) id $
@@ -147,14 +148,14 @@ default_note config args = do
     let controls = stash_dynamic control_vals $
             trimmed_controls start real_next (Derive.state_controls st)
         pitch = trimmed_pitch start real_next (Derive.state_pitch st)
-    (start, end) <- randomized controls start $
-        duration_attributes config control_vals attrs start end
+    (start, end) <- randomized controls =<< start_controls control_vals
+        (duration_attributes config control_vals attrs start end)
 
     -- Add a attribute to get the arrival-note postproc to figure out the
     -- duration.  Details in "Derive.Call.Post.ArrivalNote".
-    let make = if is_arrival
+    let add_arrival = if is_arrival
             then Score.add_attributes Attrs.arrival_note else id
-    return $! LEvent.one $! LEvent.Event $! make $! Score.Event
+    return $! LEvent.one $! LEvent.Event $! add_arrival $! Score.Event
         { Score.event_start = start
         , Score.event_duration = end - start
         , Score.event_bs = Event.event_bytestring (Args.event args)
@@ -174,6 +175,13 @@ stash_dynamic vals = maybe id
     (Map.insert Controls.dynamic_function . Score.untyped . Signal.constant)
     (Map.lookup Controls.dynamic vals)
 
+-- | Adjust the end of the event if it has negative duration.  This only works
+-- for when the next event start time is known.  At the end of a block the
+-- duration stays negative and relies on a postproc to resolve.
+--
+-- But postproc has to do more work because it has to search for the next event
+-- with the same instrument, while this one assumes the next event on the track
+-- is the one.
 adjust_end :: RealTime -> RealTime -> Maybe Event.Event
     -> Derive.Deriver (RealTime, Bool)
 adjust_end start end _ | end >= start = return (end, False)
@@ -196,6 +204,23 @@ adjust_duration cur_pos cur_dur next_pos next_dur
     | otherwise = next_pos - cur_pos
     where rest = next_pos + next_dur - cur_pos
 
+-- | Adjust the start time based on controls.
+start_controls :: Score.ControlValMap -> (RealTime, RealTime)
+    -> Derive.Deriver (RealTime, RealTime)
+start_controls controls (start, end) = do
+    offset <- (+start_s) <$> Util.real_duration start start_t
+    return $ case () of
+        _ | start < end -> (min (end - min_duration) (start + offset), end)
+        _ | start == end -> (start + offset, end + offset)
+        _ | otherwise -> (max (end + min_duration) (start + offset), end)
+    where
+    start_s = RealTime.seconds $ Map.findWithDefault 0 Controls.start_s controls
+    start_t = ScoreTime.double $ Map.findWithDefault 0 Controls.start_t controls
+
+-- | This keeps a negative sustain_abs from making note duration negative.
+min_duration :: RealTime
+min_duration = 1 / 64
+
 -- | Interpret attributes and controls that effect the note's duration.
 --
 -- This is actually somewhat complicated.  Instead of all the
@@ -210,10 +235,11 @@ adjust_duration cur_pos cur_dur next_pos next_dur
 -- which could be negative.  They clip at a minimum duration to keep from going
 -- negative.
 duration_attributes :: Config -> Score.ControlValMap -> Score.Attributes
-    -> RealTime -> RealTime -> RealTime -- ^ new end time
+    -> RealTime -> RealTime -> (RealTime, RealTime) -- ^ (start, end)
 duration_attributes config controls attrs start end
-    | start >= end = end -- don't mess with 0 dur or negative notes
-    | otherwise = start + max min_duration (dur * sustain + sustain_abs)
+    | start >= end = (start, end) -- don't mess with 0 dur or negative notes
+    | otherwise =
+        (start, start + max min_duration (dur * sustain + sustain_abs))
     where
     has = Score.attrs_contain attrs
     dur = end - start
@@ -225,17 +251,15 @@ duration_attributes config controls attrs start end
         then lookup_time 1 Controls.sustain else 1
     lookup_time deflt control = maybe deflt RealTime.seconds
         (Map.lookup control controls)
-    -- This keeps a negative sustain_abs from making note duration negative.
-    min_duration = 0.01
 
 -- | Interpret the c_start_rnd and c_dur_rnd controls.
 --
 -- This only ever makes notes shorter.  Otherwise, it's very easy for
 -- previously non-overlapping notes to become overlapping and MIDI doesn't
 -- like that.
-randomized :: Score.ControlMap -> RealTime -> RealTime
+randomized :: Score.ControlMap -> (RealTime, RealTime)
     -> Derive.Deriver (RealTime, RealTime)
-randomized controls start end
+randomized controls (start, end)
     | start_r == 0 && dur_r == 0 = return (start, end)
     | start == end = do
         r1 : _ <- Util.randoms
