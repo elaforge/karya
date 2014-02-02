@@ -242,14 +242,17 @@ get_stack = get_dynamic state_stack
 class Time t where
     real :: t -> Deriver RealTime
     score :: t -> Deriver ScoreTime
+    to_duration :: t -> TrackLang.Duration
 
 instance Time ScoreTime where
     real = score_to_real
     score = return
+    to_duration = TrackLang.Score
 
 instance Time RealTime where
     real = return
     score = real_to_score
+    to_duration = TrackLang.Real
 
 -- | This should go in TrackLang, but can't due to circular imports.
 instance Time TrackLang.Duration where
@@ -257,6 +260,7 @@ instance Time TrackLang.Duration where
     real (TrackLang.Score t) = real t
     score (TrackLang.Real t) = score t
     score (TrackLang.Score t) = score t
+    to_duration = id
 
 score_to_real :: ScoreTime -> Deriver RealTime
 score_to_real pos = do

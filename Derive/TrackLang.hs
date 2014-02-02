@@ -115,6 +115,10 @@ instance ShowVal Duration where
     show_val (Real x) = show_val x
     show_val (Score x) = show_val x
 
+instance Pretty.Pretty Duration where
+    pretty (Real t) = pretty t
+    pretty (Score t) = pretty t
+
 -- | Either RealTime or ScoreTime, but untyped defaults to RealTime.
 newtype DefaultReal = DefaultReal { default_real :: Duration }
     deriving (Eq, Show, ShowVal)

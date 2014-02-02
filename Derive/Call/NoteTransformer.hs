@@ -151,8 +151,8 @@ arpeggio arp time random tracks = do
     delay_tracks <- jitter . zip (Seq.range_ 0 time) =<< sort tracks
     events <- fmap concat $ forM delay_tracks $ \(delay, track) ->
         forM track $ \(Sub.Event start dur d) -> do
-            new_start <- Util.delay start delay
-            return $ Sub.Event new_start (dur - (new_start - start)) d
+            delay <- Util.score_duration start delay
+            return $ Sub.Event (start+delay) (dur-delay) d
     Sub.place events
     where
     jitter tracks

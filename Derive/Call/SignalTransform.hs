@@ -152,7 +152,7 @@ c_smooth = Derive.transformer "smooth" mempty
     <*> defaulted "curve" "i" "Curve."
     ) $ \(TrackLang.DefaultReal time, curve) args deriver -> do
         srate <- Util.get_srate
-        time <- Util.real_dur' (Args.start args) time
+        time <- Util.real_duration (Args.start args) time
         f <- Derive.require "curve" (curve_function curve)
         Post.signal (smooth f srate time) deriver
 

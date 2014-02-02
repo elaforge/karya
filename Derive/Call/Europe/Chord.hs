@@ -86,7 +86,7 @@ from_intervals :: Direction -> PitchSignal.Pitch -> [PitchSignal.Pitch]
 from_intervals dir base intervals time args = do
     let start = Args.start args
     dur <- min (Args.duration args / fromIntegral (length intervals + 1)) <$>
-        Util.duration_from start time
+        Util.score_duration start time
     let ts = case dir of
             Unison -> repeat start
             Up -> Seq.range_ start dur

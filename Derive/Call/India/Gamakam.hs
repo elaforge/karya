@@ -331,7 +331,7 @@ kampita start_mode end_mode adjust neighbor speed transition
     start <- Args.real_start args
     let ((val1, val2), even_transitions) = convert_modes start neighbor
             start_mode end_mode
-    hold <- Util.duration_from (Args.start args) hold
+    hold <- Util.score_duration (Args.start args) hold
     smooth_trill (-transition) val1 val2
         =<< trill_transitions even_transitions adjust lilt hold speed
             (Args.range_or_next args)
@@ -382,7 +382,7 @@ c_nkampita_c start_mode end_mode = Derive.generator1 "nkam" Tags.india
         neighbor <- Util.to_function neighbor
         let ((val1, val2), even_transitions) = convert_modes start neighbor
                 start_mode end_mode
-        hold <- Util.duration_from (Args.start args) hold
+        hold <- Util.score_duration (Args.start args) hold
         -- In order to hear the cycles clearly, I leave a one transition of
         -- flat space at the end.  This means nkam can't transition into the
         -- next note, but for now this seems more convenient.

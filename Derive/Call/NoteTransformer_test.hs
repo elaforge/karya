@@ -132,8 +132,6 @@ test_arpeggio = do
     equal (run (tracks "`arp-up` 1 0")) [(10, 10, "4c"), (11, 9, "4d")]
     equal (run (tracks "`arp-down` 1 0")) [(10, 10, "4d"), (11, 9, "4c")]
 
-    prettyp (run (tracks "`arp-down` 1 1"))
-
 test_slur_ly = do
     let run = LilypondTest.measures [] . LilypondTest.derive_linear
     equal (run $ (">", [(0, 4, "(")]) : UiTest.note_track

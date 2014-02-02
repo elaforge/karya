@@ -26,6 +26,7 @@ test_delay = do
     let pref = "d %delay | "
     equal (run ">i" pref [("delay", [(0, 0, "1"), (1, 0, "2")])]) $
         [(1, 1, pref ++ "n --1"), (3, 1, pref ++ "n --2")]
+    -- delay twice
     equal (run ">i | d %delay,1s | d %delay,1s" "" []) $
         [(2, 1, "n --1"), (3, 1, "n --2")]
 

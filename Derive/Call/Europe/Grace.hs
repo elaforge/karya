@@ -212,7 +212,7 @@ c_grace_attr supported =
     where
     attr_grace real_start args grace_dur notes attrs = do
         let (start, dur) = Args.extent args
-        grace_dur <- Util.duration_from start grace_dur
+        grace_dur <- Util.score_duration start grace_dur
         dyn <- Util.dynamic real_start
         let before = fromIntegral notes * grace_dur
         pitch <- Util.get_pitch real_start
@@ -259,7 +259,7 @@ c_grace_p = Derive.generator1 "grace" (Tags.europe <> Tags.ornament)
 grace_p :: TrackLang.Duration -> [PitchSignal.Pitch]
     -> (ScoreTime, ScoreTime) -> Derive.Deriver PitchSignal.Signal
 grace_p grace_dur pitches (start, end) = do
-    real_dur <- Util.real_dur' start grace_dur
+    real_dur <- Util.real_duration start grace_dur
     real_start <- Derive.real start
     real_end <- Derive.real end
     let starts = fit_after real_start real_end (length pitches) real_dur

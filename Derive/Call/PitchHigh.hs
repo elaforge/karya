@@ -194,8 +194,8 @@ pitch_fade_ranges align align_fade fade_time pitch_time start end = do
     let dur_from = case align of
             AlignStart -> start
             AlignEnd -> end
-    fade_time <- Util.real_dur' dur_from fade_time
-    pitch_time <- Util.real_dur' dur_from pitch_time
+    fade_time <- Util.real_duration dur_from fade_time
+    pitch_time <- Util.real_duration dur_from pitch_time
     (fade_start, fade_end) <- case align of
         AlignStart -> (\p -> (p, p + fade_time)) <$> Derive.real start
         AlignEnd -> (\p -> (p - fade_time, p)) <$> Derive.real end

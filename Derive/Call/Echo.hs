@@ -39,9 +39,9 @@ c_delay = Derive.transformer "delay" Tags.ly
     ) $ Sig.callt
     ( defaulted "time" (typed_control "delay-time" 0.1 Score.Real) "Delay time."
     ) $ \time args deriver -> Lily.when_lilypond deriver $ do
-        delay <- Util.duration_from (Args.start args)
-            =<< Util.time_control_at Util.Real time
-            =<< Args.real_start args
+        start <- Args.real_start args
+        delay <- Util.score_duration start
+            =<< Util.time_control_at Util.Real time start
         Derive.d_at delay deriver
 
 -- TODO typed delay time

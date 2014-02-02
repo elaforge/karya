@@ -420,80 +420,68 @@ _random_generator = do
 
 -- * time
 
-real_time :: TrackLang.Duration -> Derive.Deriver RealTime
-real_time (TrackLang.Score t) = Derive.real t
-real_time (TrackLang.Real t) = return t
+-- | Get the real duration of time val at the given point in time.  RealTime is
+-- linear, so 1 second is always 1 second no matter where it is, but ScoreTime
+-- will map to different amounts of RealTime depending on where it is.
+real_duration :: (Derive.Time t1, Derive.Time t2) => t1 -> t2
+    -> Derive.Deriver RealTime
+real_duration start dur = case Derive.to_duration dur of
+    TrackLang.Real t -> return t
+    TrackLang.Score t
+        | t == 0 -> return 0
+        | otherwise -> do
+            -- I'm adding score to real, so I want the amount of real time in
+            -- the future I am if I advance the given amount of score time from
+            -- 'start'.
+            score_start <- Derive.score start
+            real_start <- Derive.real start
+            end <- Derive.real $ score_start + t
+            return $ end - real_start
 
-score_time :: TrackLang.Duration -> Derive.Deriver ScoreTime
-score_time (TrackLang.Score t) = return t
-score_time (TrackLang.Real t) = Derive.score t
+-- | Like 'real_duration', but get the duration in ScoreTime.  If you are
+-- manipulating deriver abstractly instead of directly emitting events then you
+-- will place them via 'Derive.d_at' and family, which are in ScoreTime.
+score_duration :: (Derive.Time t1, Derive.Time t2) => t1 -> t2
+    -> Derive.Deriver ScoreTime
+score_duration start dur = case Derive.to_duration dur of
+    TrackLang.Score t -> return t
+    TrackLang.Real t
+        | t == 0 -> return 0
+        | otherwise -> do
+            -- I'm adding real to score, so I want the amount of amount of
+            -- score time I'd have to advance in order for the given amount
+            -- of real time to pass.
+            score_start <- Derive.score start
+            real_start <- Derive.real start
+            end <- Derive.score $ real_start + t
+            return $ end - score_start
 
 -- | A time range from the event start until a given duration.
-duration_from_start :: Derive.PassedArgs d -> TrackLang.Duration
-    -> Derive.Deriver (RealTime, RealTime) -- ^ (start, start + dur)
-duration_from_start args duration = do
+duration_from_start :: Derive.Time t => Derive.PassedArgs d -> t
+    -> Derive.Deriver (RealTime, RealTime) -- ^ (start, start+dur)
+duration_from_start args t = do
     start <- Args.real_start args
-    case duration of
-        TrackLang.Real t -> return (start, start + t)
-        TrackLang.Score t -> (,) start <$> Derive.real (Args.start args + t)
+    dur <- real_duration start t
+    return (start, start + dur)
 
 -- | Like 'duration_from_start', but subtract a duration from the end.
-duration_from_end :: Derive.PassedArgs d -> TrackLang.Duration
-    -> Derive.Deriver (RealTime, RealTime) -- ^ (end - dur, end)
-duration_from_end args duration = do
+duration_from_end :: Derive.Time t => Derive.PassedArgs d -> t
+    -> Derive.Deriver (RealTime, RealTime) -- ^ (end-dur, end)
+duration_from_end args t = do
     end <- Args.real_end args
-    case duration of
-        TrackLang.Real t -> return (end - t, end)
-        TrackLang.Score t ->
-            (,) <$> Derive.real (Args.end args - t) <*> return end
+    dur <- real_duration end t
+    return (end - dur, end)
 
--- | This is 'real_dur', but fancied up to take a TypedVal.
-real_duration :: TimeType -> ScoreTime -> Score.TypedVal
+-- | This is 'real_duration', but takes a TypedVal.
+typed_real_duration :: TimeType -> ScoreTime -> Score.TypedVal
     -> Derive.Deriver RealTime
-real_duration default_type from (Score.Typed typ val)
+typed_real_duration default_type from (Score.Typed typ val)
     | typ == Score.Real || typ == Score.Untyped && default_type == Real =
         return (RealTime.seconds val)
     | typ == Score.Score || typ == Score.Untyped && default_type == Score =
-        real_dur from (ScoreTime.double val)
+        real_duration from (ScoreTime.double val)
     | otherwise = Derive.throw $ "expected time type for "
         <> untxt (TrackLang.show_val (Score.Typed typ val))
-
--- | Get the real duration of a typed time val at the given point of score
--- time.  RealTime is linear, so 1 second is always 1 second no matter where
--- it is, but ScoreTime will map to different amounts of RealTime depending
--- on where it is.
-real_dur :: ScoreTime -> ScoreTime -> Derive.Deriver RealTime
-real_dur from dur = do
-    start <- Derive.real from
-    end <- Derive.real (from + dur)
-    return (end - start)
-
--- | Like 'real_dur', but take a Duration.
--- TODO Ugh.  Surely there's a more organized way to go about this.
-real_dur' :: ScoreTime -> TrackLang.Duration -> Derive.Deriver RealTime
-real_dur' _ (TrackLang.Real t) = return t
-real_dur' from (TrackLang.Score t)
-    | t == 0 = return 0
-    | otherwise = real_dur from t
-
--- | Add a RealTime to a ScoreTime.
-delay :: ScoreTime -> RealTime -> Derive.Deriver ScoreTime
-delay start time
-    | time == 0 = return start
-    | otherwise = Derive.score . (+time) =<< Derive.real start
-
--- | Get the amount of ScoreTime to add to a given ScoreTime to delay it
--- by a certain amount.  If the delay amount is already ScoreTime then
--- it's trivial, but if it's RealTime then the returned ScoreTime has to
--- be relative to the given start time.
---
--- This is the ScoreTime version of 'real_dur''.  TODO so maybe it should be
--- named like that?
-duration_from :: ScoreTime -> TrackLang.Duration -> Derive.Deriver ScoreTime
-duration_from _ (TrackLang.Score t) = return t
-duration_from start (TrackLang.Real t) = do
-    score_t <- delay start t
-    return $ score_t - start
 
 -- ** timestep
 

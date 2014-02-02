@@ -130,7 +130,7 @@ string_idiom attack_interpolator release_interpolator open_strings attack delay
     where
     go state (attack, delay, release, event) = do
         start <- Derive.score (Score.event_start event)
-        let dur = Util.real_duration Util.Real start
+        let dur = Util.typed_real_duration Util.Real start
         attack <- dur attack
         delay <- dur delay
         release <- dur release

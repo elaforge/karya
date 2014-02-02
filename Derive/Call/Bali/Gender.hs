@@ -52,7 +52,7 @@ c_tick transpose = Derive.make_call "tick"
     Sub.inverting_around (2, 1) $ \args -> do
         start <- Args.real_start args
         transpose <- maybe (infer_transpose args start) return transpose
-        time <- Util.real_time =<< Util.time_control_at Util.Real time start
+        time <- Derive.real =<< Util.time_control_at Util.Real time start
         damp <- Util.time_control_at Util.Real damp start
         dyn_scale <- Util.control_at dyn_scale start
         dyn <- Util.dynamic start
@@ -63,8 +63,7 @@ c_tick transpose = Derive.make_call "tick"
         grace_start <- return $ case Args.prev_start args of
             Nothing -> grace_start
             Just prev -> max grace_start $ (prev + Args.start args) / 2
-
-        overlap <- Util.duration_from (Args.start args) damp
+        overlap <- Util.score_duration (Args.start args) damp
         let grace_end = min (Args.end args) (Args.start args + overlap)
 
         pitch <- Derive.require "pitch" =<< Derive.pitch_at start
