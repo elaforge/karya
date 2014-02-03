@@ -87,7 +87,9 @@ note_call name prepend_doc tags generate =
         Sig.call parser (note_generate generate)
     where
     parser = Sig.many "attribute" "Change the instrument or attributes."
-    note_generate generate_note vals = Sub.inverting generate
+    note_generate generate_note vals args =
+        Sub.unless_under_inversion args (with_start_controls args) $
+            Sub.inverting generate args
         where generate args = transform_note vals $ generate_note args
     prepended
         | Text.null prepend_doc = generator_doc
@@ -99,6 +101,37 @@ note_call name prepend_doc tags generate =
         <> " setting those fields of the event.  This is bound to the"
         <> " null call, \"\", but any potential arguments would wind up"
         <> " looking like a different call, so it's bound to `n` as well."
+
+-- | Adjust the start time based on controls.
+with_start_controls :: Derive.NoteArgs -> Derive.NoteDeriver
+    -> Derive.NoteDeriver
+with_start_controls args deriver = do
+    start <- Args.real_start args
+    start_s <- maybe 0 RealTime.seconds <$>
+        Derive.untyped_control_at Controls.start_s start
+    start_s <- Util.score_duration (Args.start args) start_s
+    start_t <- maybe 0 ScoreTime.double <$>
+        Derive.untyped_control_at Controls.start_t start
+
+    let dur = Args.duration args
+        min_dur = RealTime.to_score min_duration
+        offset
+            | dur > 0 = min (start_s + start_t) (dur - min_dur)
+            | dur == 0 = start_s + start_t
+            | otherwise = max (start_s + start_t) (dur + min_dur)
+        stretch = case () of
+            _ | dur > 0 -> max min_dur (dur - offset)
+            _ | dur == 0 -> 1
+            _ | otherwise -> max min_dur $ abs (dur - offset)
+    if start_s + start_t == 0 then deriver else
+        Derive.d_place (Args.start args + offset) stretch $
+            normalize args deriver
+
+normalize :: Derive.PassedArgs d -> Derive.Deriver a -> Derive.Deriver a
+normalize args deriver =
+    Derive.d_stretch (if dur == 0 then 1 else 1 / abs dur) $
+        Derive.d_at (- Args.start args) deriver
+    where dur = Args.duration args
 
 c_note_attributes :: Text -> Derive.Transformer Derive.Note
 c_note_attributes name = Derive.transformer name Tags.prelude
@@ -148,8 +181,8 @@ default_note config args = do
     let controls = stash_dynamic control_vals $
             trimmed_controls start real_next (Derive.state_controls st)
         pitch = trimmed_pitch start real_next (Derive.state_pitch st)
-    (start, end) <- randomized controls =<< start_controls control_vals
-        (duration_attributes config control_vals attrs start end)
+    (start, end) <- randomized controls $
+        duration_attributes config control_vals attrs start end
 
     -- Add a attribute to get the arrival-note postproc to figure out the
     -- duration.  Details in "Derive.Call.Post.ArrivalNote".
@@ -203,19 +236,6 @@ adjust_duration cur_pos cur_dur next_pos next_dur
         -- followed by a departing note will sound until the next note.
     | otherwise = next_pos - cur_pos
     where rest = next_pos + next_dur - cur_pos
-
--- | Adjust the start time based on controls.
-start_controls :: Score.ControlValMap -> (RealTime, RealTime)
-    -> Derive.Deriver (RealTime, RealTime)
-start_controls controls (start, end) = do
-    offset <- (+start_s) <$> Util.real_duration start start_t
-    return $ case () of
-        _ | start < end -> (min (end - min_duration) (start + offset), end)
-        _ | start == end -> (start + offset, end + offset)
-        _ | otherwise -> (max (end + min_duration) (start + offset), end)
-    where
-    start_s = RealTime.seconds $ Map.findWithDefault 0 Controls.start_s controls
-    start_t = ScoreTime.double $ Map.findWithDefault 0 Controls.start_t controls
 
 -- | This keeps a negative sustain_abs from making note duration negative.
 min_duration :: RealTime

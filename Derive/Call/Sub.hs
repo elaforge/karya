@@ -6,7 +6,7 @@
 -- which is a special case of slicing.
 module Derive.Call.Sub (
     -- * inversion
-    when_under_inversion
+    when_under_inversion, unless_under_inversion
     , inverting, inverting_args, inverting_around
     , invert_call
     -- ** events
@@ -53,27 +53,22 @@ when_under_inversion args transform deriver
     | under_inversion args = transform deriver
     | otherwise = deriver
 
--- | True if the call will not invert.  This means it has no children, which
--- possibly means it already inverted and now we're at the \"real\" call.
+unless_under_inversion :: Derive.PassedArgs d -> (a -> a) -> a -> a
+unless_under_inversion args transform deriver
+    | under_inversion args = deriver
+    | otherwise = transform deriver
+
+-- | True if the call is under an inversion, which means it's the second time
+-- it has been evaluated.
 under_inversion :: Derive.PassedArgs d -> Bool
-under_inversion = null . Derive.info_sub_tracks . Derive.passed_info
+under_inversion = Derive.info_inverted . Derive.passed_info
 
 -- | Convert a call into an inverting call.  Documented in doc/inverting_calls.
 --
 -- This requires a bit of hackery:
 --
--- The first is that the ShowVal TrackLang.Val instance is expected to emit
--- parseable code.  This is because 'inverting' wants the
--- text of the generator it was called for.  Unfortunately this is tricky to
--- get directly because the parser takes a complete string to a complete Expr.
--- So instead I keep the parsed expr by putting it in CallInfo's
--- 'Derive.info_expr', and use the ShowVal instance to turn it back into
--- a string, so it can be parsed again when it is evaluated for real.  It's
--- rather convoluted, but trying to come up with a derive_tracks where the
--- events may already be parsed also seems convoluted.
---
--- If there are no sub-tracks then the call is performed as-is.  Otherwise
--- the expression must be broken up and re-evaluated.
+-- This requires getting the expression being evaluated so it can be inserted
+-- into the inverted track, which is what 'Derive.info_expr' is for.
 inverting :: (Derive.PassedArgs d -> Derive.NoteDeriver)
     -> (Derive.PassedArgs d -> Derive.NoteDeriver)
 inverting = inverting_around (1, 1)
