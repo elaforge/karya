@@ -211,7 +211,7 @@ data TrackFlag =
     -- derivation.  Since Mute and Solo work after derivation, they don't
     -- require a rederive but also can't mute a single control track.
     | Disable
-    deriving (Eq, Ord, Show, Read)
+    deriving (Eq, Ord, Enum, Bounded, Show, Read)
 
 instance Pretty.Pretty TrackFlag where pretty = show
 

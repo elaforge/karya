@@ -3,10 +3,23 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 module Cmd.Serialize_test where
+import qualified Data.Time as Time
+import qualified Data.Vector as Vector
+
+import Util.Control
 import qualified Util.Serialize
 import Util.Test
+
+import qualified Midi.Midi as Midi
+import qualified Ui.Block as Block
 import qualified Ui.State as State
+import qualified Ui.Track as Track
+import qualified Ui.Types as Types
 import qualified Ui.UiTest as UiTest
+
+import qualified Derive.Score as Score
+import qualified Perform.Lilypond.Types as Lilypond
+import qualified Perform.Midi.Instrument as Instrument
 import Types
 
 
@@ -19,6 +32,32 @@ test_serialize = do
     uncurry equal $ run State.state_blocks
     uncurry equal $ run State.state_tracks
     uncurry equal $ run State.state_rulers
+
+    equal State.empty (recode State.empty)
+
+    -- Performance
+    now <- Time.getCurrentTime
+    let perf = State.Performance msgs now "patch-tag"
+        msgs = Vector.fromList
+            [Midi.WriteMessage (Midi.write_device "wdev") 42 msg]
+        msg = Midi.ChannelMessage 1 (Midi.NoteOn 2 3)
+    equal perf (recode perf)
+
+    let tdest = Block.TrackDestination (UiTest.tid "tid", mempty) mempty
+    equal tdest (recode tdest)
+    let flags = [minBound .. maxBound] :: [Block.TrackFlag]
+    equal flags (recode flags)
+    let sel = Types.Selection 1 2 3 4
+    equal sel (recode sel)
+
+    let rstyle =
+            [ Track.Filled (Just (Track.Control (Score.control "hi")))
+            , Track.Line (Just (Track.Pitch (Just (Score.control "there"))))
+            ]
+    equal rstyle (recode rstyle)
+    let config = Instrument.config []
+    equal config (recode config)
+    equal Lilypond.empty_staff_config (recode Lilypond.empty_staff_config)
 
 test_negative_zero = do
     -- make sure negative zero is encoded properly
