@@ -93,7 +93,7 @@ UNSORTED
     it with the score.  This is like the 'import' idea, except the library is
     in score, not code.
   control functions:
-    + replace start-rnd and dur-rnd with control functions
+    * replace start-rnd and dur-rnd with control functions
     - If ControlFunction has access to the ruler, it can do things based on
       the importance of surrounding beats, e.g. swing or rubato.
     - Use a control function to implement swing tempo.  Or is there a better

@@ -11,22 +11,6 @@ import qualified Derive.Call.Note as Note
 import qualified Derive.DeriveTest as DeriveTest
 
 
-test_random = do
-    -- make sure notes in different tracks get different starts
-    let run = DeriveTest.extract DeriveTest.e_start_dur
-            . DeriveTest.derive_tracks
-    let ([e1, e2], []) = run [("start-rnd", [(0, 0, ".1")]),
-            (">", [(0, 1, "")]), (">", [(0, 1, "")])]
-    check (e1 /= e2)
-
-    equal (fst e1 + snd e1) 1
-    equal (fst e2 + snd e2) 1
-
-    let ([e1, e2], []) = run [("dur-rnd", [(0, 0, ".1")]),
-            (">", [(0, 1, "")]), (">", [(0, 1, "")])]
-    equal (fst e1) (fst e2)
-    check (snd e1 /= snd e2)
-
 test_start_controls = do
     let run = DeriveTest.extract DeriveTest.e_start_dur
             . DeriveTest.derive_tracks

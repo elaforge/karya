@@ -4,7 +4,7 @@
 
 - On OS X, run 'defaults write -g ApplePressAndHoldEnabled -bool false' to
 re-enable key repeats globally.  Provided you want them to work sanely, and
-note iphone-ly.
+not iphone-ly.
 
 - Build shakefile: bin/mkmk
 
@@ -25,7 +25,7 @@ To install the needed haskell dependencies, type:
 The actual build is with shake, but there's a dummy cabal file with just
 dependencies to make install easier.
 
-pandoc builds the documentation, but isn't in the cabal file because it ha a
+pandoc builds the documentation, but isn't in the cabal file because it has a
 zillion dependencies and I just need the binary.  Or just read the markdown
 directly, that's what it's for.  So many dependencies just to convert text to
 HTML.
@@ -36,8 +36,9 @@ dependent packages to use.  The result is that it just uses the latest version
 of everything, which will be a problem if another package was compiled against
 an older version.  It might be possible to use just the constraint solver from
 the Cabal library, but it would probably need some refactoring to be usable.
-Meanwhile, I haven't had any real trouble with dependency hell, despite not
-using cabal-dev or anything like that.
+Meanwhile, I haven't had any trouble with dependency hell, despite not using a
+sandbox.  But if you do other haskell development you might want to use a cabal
+sandbox.
 
 ## INSTALLED SEPARATELY
 
@@ -76,3 +77,4 @@ linux support.
 ## MISC
 
 tools/run_profile expects ps2pdf in the path, which is part of ghostscript.
+It's fine if it's not, but you'll get ps instead of pdf.

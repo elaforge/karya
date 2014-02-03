@@ -6,6 +6,7 @@
 -- | Repl cmds providing general UI state operations.
 module Cmd.Repl.LState where
 import qualified Data.Map as Map
+import qualified Data.Text as Text
 import qualified Data.Time as Time
 import qualified Data.Vector as Vector
 
@@ -92,7 +93,7 @@ set_creation_time = do
 set_notes :: Text -> Cmd.CmdL ()
 set_notes = State.modify . (State.config#State.meta#State.notes #=)
 
--- | Save the current root performances as \"correct\".
+-- | Save the current root performance as \"correct\".
 save_performance :: Cmd.CmdL ()
 save_performance = do
     block_id <- State.get_root_id
@@ -116,7 +117,7 @@ get_current_patch = do
     return $ case exit of
         Exit.ExitFailure n -> Left $ "darcs failed with " <> show n
             <> ": " <> stderr
-        Exit.ExitSuccess -> Right $ txt stdout
+        Exit.ExitSuccess -> Right $ Text.strip $ txt stdout
 
 -- | Compare the current root block performance against the saved one.
 verify_performance :: Cmd.CmdL Text

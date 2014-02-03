@@ -18,9 +18,7 @@ import qualified Data.Map as Map
 import qualified Data.Text as Text
 
 import Util.Control
-import qualified Util.Num as Num
 import qualified Util.Seq as Seq
-
 import qualified Ui.Event as Event
 import qualified Ui.ScoreTime as ScoreTime
 import qualified Derive.Args as Args
@@ -181,8 +179,7 @@ default_note config args = do
     let controls = stash_dynamic control_vals $
             trimmed_controls start real_next (Derive.state_controls st)
         pitch = trimmed_pitch start real_next (Derive.state_pitch st)
-    (start, end) <- randomized controls $
-        duration_attributes config control_vals attrs start end
+    end <- return $ duration_attributes config control_vals attrs start end
 
     -- Add a attribute to get the arrival-note postproc to figure out the
     -- duration.  Details in "Derive.Call.Post.ArrivalNote".
@@ -255,11 +252,10 @@ min_duration = 1 / 64
 -- which could be negative.  They clip at a minimum duration to keep from going
 -- negative.
 duration_attributes :: Config -> Score.ControlValMap -> Score.Attributes
-    -> RealTime -> RealTime -> (RealTime, RealTime) -- ^ (start, end)
+    -> RealTime -> RealTime -> RealTime -- ^ new end
 duration_attributes config controls attrs start end
-    | start >= end = (start, end) -- don't mess with 0 dur or negative notes
-    | otherwise =
-        (start, start + max min_duration (dur * sustain + sustain_abs))
+    | start >= end = end -- don't mess with 0 dur or negative notes
+    | otherwise = start + max min_duration (dur * sustain + sustain_abs)
     where
     has = Score.attrs_contain attrs
     dur = end - start
@@ -271,30 +267,6 @@ duration_attributes config controls attrs start end
         then lookup_time 1 Controls.sustain else 1
     lookup_time deflt control = maybe deflt RealTime.seconds
         (Map.lookup control controls)
-
--- | Interpret the c_start_rnd and c_dur_rnd controls.
---
--- This only ever makes notes shorter.  Otherwise, it's very easy for
--- previously non-overlapping notes to become overlapping and MIDI doesn't
--- like that.
-randomized :: Score.ControlMap -> (RealTime, RealTime)
-    -> Derive.Deriver (RealTime, RealTime)
-randomized controls (start, end)
-    | start_r == 0 && dur_r == 0 = return (start, end)
-    | start == end = do
-        r1 : _ <- Util.randoms
-        let offset = RealTime.seconds (Num.restrict (-start_r/2) (start_r/2) r1)
-        return (start + offset, end + offset)
-    | otherwise = do
-        r1 : r2 : _ <- Util.randoms
-        let start2 = start + RealTime.seconds (Num.restrict 0 start_r r1)
-        return (start2, max start2 $
-            end + RealTime.seconds (Num.restrict (-dur_r) 0 r2))
-    where
-    start_r = Score.typed_val $
-        Score.control_at controls Controls.start_rnd start
-    dur_r = Score.typed_val $
-        Score.control_at controls Controls.dur_rnd start
 
 -- ** controls
 

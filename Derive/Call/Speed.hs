@@ -10,7 +10,6 @@ import qualified Derive.Call.Util as Util
 import qualified Derive.Derive as Derive
 import qualified Derive.Score as Score
 import qualified Derive.Sig as Sig
-import Derive.Sig (defaulted, typed_control)
 import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.RealTime as RealTime
@@ -19,7 +18,7 @@ import Types
 
 
 arg :: Sig.Parser TrackLang.ValControl
-arg = defaulted "speed" (typed_control "speed" 10 Score.Real)
+arg = Sig.defaulted "speed" (Sig.typed_control "speed" 10 Score.Real)
     "Repeat at this speed.  If it's a RealTime, the value is the number of\
     \ repeats per second, which will be unaffected by the tempo. If it's\
     \ a ScoreTime, the value is the number of repeats per ScoreTime\

@@ -76,18 +76,6 @@ start_s = "start-s"
 start_t :: Control
 start_t = "start-t"
 
--- | Offset the start time of each note by a value between - start-rnd/2 and
--- start-rnd/2.  The start and end are shifted by the same amount, so the
--- duration of the note is unaffected.
-start_rnd :: Control
-start_rnd = "start-rnd"
-
--- | Shorten each note by a value between 0 and dur-rnd.  Shortening makes it
--- less likely that this will cause notes to become overlapping, which MIDI
--- doesn't like when they have the same pitch.
-dur_rnd :: Control
-dur_rnd = "dur-rnd"
-
 -- ** understood by MIDI performer
 
 -- | MIDI velocity and breath.  Generally you should use 'dynamic', which
