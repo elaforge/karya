@@ -160,7 +160,7 @@ data CodePosition =
     | SuffixFirst
     -- | Code goes after the last note in a tied sequnece.
     | SuffixLast
-    deriving (Show)
+    deriving (Bounded, Enum, Show)
 
 -- | Fragment of Lilypond code.
 type Ly = Text
@@ -205,6 +205,13 @@ code0 start (pos_, code) = with (Derive.d_place start 0 Util.note)
 
 global_code0 :: ScoreTime -> Code -> Derive.NoteDeriver
 global_code0 start = global . code0 start
+
+-- | Test if an event is a 0 duration lilypond code event.
+is_code0 :: Score.Event -> Bool
+is_code0 event = Score.event_duration event == 0 && any has vals
+    where
+    vals = map position_env [minBound .. maxBound]
+    has = (`TrackLang.val_set` Score.event_environ event)
 
 -- ** convert
 

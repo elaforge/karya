@@ -118,6 +118,11 @@ test_tuplet_ly = do
             : UiTest.regular_notes 3)
         (Right "\\times 2/3 { c2-. d2-. e2-. }", [])
 
+    -- 0 dur code event doesn't confuse it.
+    equal (run $ (">", [(0, 4, "t")]) : UiTest.note_track
+            [(0, 1, "xstaff up | ly-( | -- 3a"), (1, 1, "3b"), (2, 1, "3c")])
+        (Right "\\times 2/3 { \\change Staff = \"up\" a2( b2 c2 }", [])
+
 test_arpeggio = do
     let run = DeriveTest.extract_events DeriveTest.e_note
             . DeriveTest.derive_tracks_with_ui id

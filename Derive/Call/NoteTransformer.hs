@@ -83,21 +83,22 @@ lily_tuplet args not_lily = Lily.when_lilypond_config lily not_lily
             =<< Sub.place (map (Sub.stretch (Args.start args) 2) notes)
             -- Double the notes duration, since staff notation tuplets shorten
             -- notes.
-        (e, es) <- case events of
+        dur <- case filter (not . Lily.is_code0) events of
             [] -> Either.left "no sub events"
             [_] -> Either.left "just one event"
             e : es
-                | all ((== dur e) . dur) es -> Either.right (e, es)
+                | all ((== dur e) . dur) es -> Either.right (dur e)
                 | otherwise -> Either.left $
                     "all event durations must be equal: "
                     <> Seq.join ", " (map (pretty . dur) (e:es))
                 where dur = Score.event_duration
         (start, end) <- lift $ Args.real_range args
         tuplet_dur <- to_dur config "tuplet" (end - start)
-        note_dur <- to_dur config "note" $ Score.event_duration e
-        ly_notes <- lift $ Lily.eval_events config start (e : es)
+        note_dur <- to_dur config "note" dur
+        ly_notes <- lift $ Lily.eval_events config start events
         lift $ Lily.code (Args.extent args) $
-            tuplet_code tuplet_dur note_dur (length (e:es)) ly_notes
+            tuplet_code tuplet_dur note_dur
+                (length (filter (not . Lily.is_code0) events)) ly_notes
     err msg = do
         Log.warn $ "can't convert to ly tuplet: " <> msg
         not_lily
