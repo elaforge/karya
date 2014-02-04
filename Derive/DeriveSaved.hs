@@ -34,39 +34,61 @@ import qualified App.StaticConfig as StaticConfig
 import Types
 
 
-perform_file :: FilePath -> IO [Midi.WriteMessage]
-perform_file fname = do
-    cmd_config <- load_cmd_config
+perform_file :: Cmd.Config -> FilePath -> IO [Midi.WriteMessage]
+perform_file cmd_config fname = do
     state <- either errorIO return =<< load_score fname
-    (events, logs) <- timed_derive fname state
+    block_id <- maybe (errorIO $ fname <> ": no root block") return $
+        State.config#State.root #$ state
+    (events, logs) <- either (errorIO . ((fname <> ": ") <>)) return
+        =<< timed_derive fname state (Cmd.initial_state cmd_config) block_id
     mapM_ Log.write logs
-    let msg = "perform " ++ fname
-    (msgs, logs) <- print_timer msg (timer_msg (length . fst)) $ do
-        let (msgs, logs) = perform cmd_config state events
-        force (msgs, logs)
-        return (msgs, logs)
+    cmd_config <- load_cmd_config
+    (msgs, logs) <- timed_perform cmd_config ("perform " ++ fname) state events
     mapM_ Log.write logs
     return msgs
 
-timed_derive :: String -> State.State -> IO (Cmd.Events, [Log.Msg])
-timed_derive name state = do
-    block_id <- maybe (errorIO $ name <> ": no root block") return $
-        State.config#State.root #$ state
-    let (events, logs) = first Vector.fromList $ LEvent.partition $
-            Derive.r_events $ derive_block state block_id
-    events <- print_timer ("derive " ++ name) (timer_msg Vector.length)
-        (return $! events)
-    return (events, filter (not . boring) logs)
-    where
-    boring msg = Cache.is_cache_log msg
+timed_perform :: Cmd.Config -> String -> State.State -> Cmd.Events
+    -> IO ([Midi.WriteMessage], [Log.Msg])
+timed_perform cmd_config msg state events =
+    print_timer msg (timer_msg (length . fst)) $ do
+        let (msgs, logs) = perform cmd_config state events
+        force (msgs, logs)
+        return (msgs, logs)
+
+timed_derive :: String -> State.State -> Cmd.State -> BlockId
+    -> IO (Either String (Cmd.Events, [Log.Msg]))
+timed_derive name ui_state cmd_state block_id =
+    case derive_block ui_state cmd_state block_id of
+        Left err -> return $ Left err
+        Right (result, cmd_logs) -> fmap Right $ do
+            let (events, derive_logs) = first Vector.fromList $
+                    LEvent.partition $ Derive.r_events result
+            events <- print_timer ("derive " ++ name) (timer_msg Vector.length)
+                (return $! events)
+            return (events, cmd_logs ++ filter (not . boring) derive_logs)
+    where boring msg = Cache.is_cache_log msg
 
 timer_msg :: (a -> Int) -> Double -> a -> String
 timer_msg len secs events = Printf.printf "events: %d (%.2f / sec)"
     events_len (fromIntegral events_len / secs)
     where events_len = len events
 
-derive_block :: State.State -> BlockId -> Derive.Result
-derive_block = DeriveTest.derive_block_standard instrument_db mempty mempty id
+-- | Derive a block with the pure subset of the instrument db, and without
+-- taking instrument aliases or other Cmd-level configuration into account.
+simple_derive_block :: State.State -> BlockId -> Derive.Result
+simple_derive_block =
+    DeriveTest.derive_block_standard instrument_db mempty mempty id
+
+derive_block :: State.State -> Cmd.State -> BlockId
+    -> Either String (Derive.Result, [Log.Msg])
+derive_block ui_state cmd_state block_id = case result of
+        Left err -> Left $ pretty err
+        Right (val, _, _) -> case val of
+            Nothing -> Left "PlayUtil.uncached_derive had no result"
+            Just val -> Right (val, logs)
+    where
+    (_, _, logs, result) = Cmd.run_id ui_state cmd_state $
+        PlayUtil.uncached_derive block_id
 
 instrument_db :: Cmd.InstrumentDb
 instrument_db = DeriveTest.synth_to_db mempty pure_synths

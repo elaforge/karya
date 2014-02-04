@@ -105,7 +105,10 @@ profile_pnovla = profile_file "data/pnovla"
 profile_viola_sonata = profile_file "data/viola-sonata"
 
 profile_file :: FilePath -> IO ()
-profile_file fname = DeriveSaved.perform_file fname >> return ()
+profile_file fname = do
+    cmd_config <- DeriveSaved.load_cmd_config
+    DeriveSaved.perform_file cmd_config fname
+    return ()
 
 
 -- * make states

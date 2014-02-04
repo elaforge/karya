@@ -13,7 +13,7 @@ module Util.Control (
     , concatMapM, mapMaybeM
     , mapMaybe, fromMaybe
 
-    , justm, errorIO
+    , justm, rightm, errorIO
     -- * pretty
     , pretty, prettyt
 
@@ -124,6 +124,14 @@ mapMaybeM f as = go as
 -- explicit lifting.
 justm :: (Monad m) => m (Maybe a) -> (a -> m (Maybe b)) -> m (Maybe b)
 justm op1 op2 = maybe (return Nothing) op2 =<< op1
+
+-- | The Either equivalent of 'justm'.  EitherT solves the same problem, but
+-- requires a runEitherT and lots of hoistEithers.
+rightm :: Monad m => m (Either err a) -> (a -> m (Either err b))
+    -> m (Either err b)
+rightm op1 op2 = op1 >>= \x -> case x of
+    Left err -> return (Left err)
+    Right val -> op2 val
 
 errorIO :: (Trans.MonadIO m) => String -> m a
 errorIO = Trans.liftIO . Exception.throwIO . Exception.ErrorCall

@@ -6,6 +6,7 @@
 -- This is used to detect when code changes cause a performance to change.
 module Cmd.DiffPerformance where
 import qualified Data.Algorithm.Diff as Diff
+import qualified Data.List as List
 import qualified Data.Text as Text
 import qualified Data.Vector as Vector
 
@@ -36,30 +37,39 @@ save_midi = Serialize.serialize midi_magic
 
 -- * diff
 
-verify :: State.Performance -> Messages -> Text
+verify :: State.Performance -> [Midi.WriteMessage] -> Maybe Text
 verify prev midi
-    | null diffs = "valid"
-    | otherwise = show_diffs prev diffs
+    | null diffs = Nothing
+    | otherwise = Just $ show_diffs prev diffs
     where
     diffs = diff_midi (State.perf_midi prev) midi
     show_diffs perf diffs =
         "Diffs from " <> prettyt (State.perf_creation perf)
         <> "\nPatch: " <> State.perf_patch perf
-        <> "\n" <> Text.unlines (take 50 diffs)
+        <> "\n" <> Text.unlines (limit 50 (List.intercalate [""] diffs))
+
+limit :: Int -> [Text] -> [Text]
+limit n xs = ok ++ if more then ["... (trimmed)"] else []
+    where (ok, more) = take_more n xs
+
+take_more :: Int -> [a] -> ([a], Bool)
+take_more n xs
+    | n <= 0 = ([], not (null xs))
+    | otherwise = case xs of
+        [] -> ([], False)
+        x : xs -> first (x:) $ take_more (n-1) xs
 
 -- Faster diff:
 -- Zip msgs and compare each one.
 
-diff_midi :: Messages -> Messages -> [Text]
+diff_midi :: Messages -> [Midi.WriteMessage] -> [[Text]]
 diff_midi expected got =
     mapMaybe show_diff $ Diff.getGroupedDiffBy wmsgs_equal
-        (Vector.toList expected) (Vector.toList got)
+        (Vector.toList expected) got
     where
     show_diff (Diff.Both {}) = Nothing
-    show_diff (Diff.First msgs) = Just $ Text.unlines $
-        map (("- " <>) . prettyt) msgs
-    show_diff (Diff.Second msgs) = Just $ Text.unlines $
-        map (("+ " <>) . prettyt) msgs
+    show_diff (Diff.First msgs) = Just $ map (("- " <>) . prettyt) msgs
+    show_diff (Diff.Second msgs) = Just $ map (("+ " <>) . prettyt) msgs
 
 wmsgs_equal :: Midi.WriteMessage -> Midi.WriteMessage -> Bool
 wmsgs_equal (Midi.WriteMessage dev1 t1 m1) (Midi.WriteMessage dev2 t2 m2) =

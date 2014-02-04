@@ -52,23 +52,43 @@ load path = do
 -- | Try to guess whether the given path is a git save or state save.  If it's
 -- a directory, look inside for a .git or .state save.
 read :: FilePath -> Cmd.CmdT IO (State.State, SaveFile)
-read path
-    | SaveGit.is_git path = read_git path Nothing
-    | otherwise = ifM (isdir path) look_in_dir (read_state path)
-    where
-    look_in_dir =
-        ifM (isdir git_fn) (read_git git_fn Nothing) $
-        ifM (isfile state_fn) (read_state state_fn) $
-        ifM (orM [isfile state_fn, isfile (state_fn <> ".gz")])
-            (read_state state_fn) $
-            Cmd.throw $ "directory contains neither " <> git_fn <> " nor "
-                <> state_fn <> " nor " <> state_fn <> ".gz"
-        where
-        git_fn = path </> default_git
-        state_fn = path </> default_state
-    isdir = Cmd.rethrow_io . Directory.doesDirectoryExist
-    isfile = Cmd.rethrow_io . Directory.doesFileExist
+read path = do
+    save <- Cmd.require_right ("read: "<>) =<< liftIO (infer_save_type path)
+    case save of
+        Git repo -> read_git repo Nothing
+        State fn -> read_state fn
 
+data SaveType = Git SaveGit.Repo | State FilePath deriving (Show)
+
+-- | Given a path, which is either a file or a directory, try to figure out
+-- what to load.  Saves can be either a plain saved state, or a directory
+-- containing either a git repo @save.git@, or a state @save.state@.  If
+-- both are present, the git repo is preferred.
+infer_save_type :: FilePath -> IO (Either String SaveType)
+infer_save_type path_ = fmap prepend $ if_else
+    [ (return $ SaveGit.is_git path, ok $ Git path)
+    , (is_dir path, if_else
+        [ (is_dir git_fn, ok $ Git git_fn)
+        , (is_state state_fn, ok $ State state_fn)
+        ] $ return $ Left $ "directory contains neither " <> git_fn <> " nor "
+            <> state_fn <> " nor " <> state_fn <> ".gz")
+    , (is_state path, ok $ State path)
+    ] $ return $ Left "neither file nor file.gz exists"
+    where
+    prepend (Left err) = Left $ path_ <> ": " <> err
+    prepend (Right val) = Right val
+    path = stripGz path_
+    ok = return . Right
+    git_fn = path </> default_git
+    state_fn = path </> default_state
+    is_dir = Directory.doesDirectoryExist
+    is_file = Directory.doesFileExist
+    is_state fn = orM [is_file fn, is_file (fn <> ".gz")]
+
+if_else :: Monad m => [(m Bool, m a)] -> m a -> m a
+if_else [] consequent = consequent
+if_else ((condition, result) : rest) consequent =
+    ifM condition result (if_else rest consequent)
 
 -- * plain serialize
 
@@ -103,10 +123,9 @@ load_state fname = do
     set_state save_file True state
 
 read_state :: FilePath -> Cmd.CmdT IO (State.State, SaveFile)
-read_state fname = do
+read_state fname_ = do
     let mkmsg = (("load " ++ fname ++ ": ") ++)
-    fname <- return $ if FilePath.takeExtension fname == ".gz"
-        then FilePath.dropExtension fname else fname
+        fname = stripGz fname_
     Log.notice $ "read state from " ++ show fname
     state <- Cmd.require_msg (mkmsg "doesn't exist")
         =<< Cmd.require_right mkmsg =<< liftIO (read_state_ fname)
@@ -115,6 +134,11 @@ read_state fname = do
 -- | Lower level 'read_state'.
 read_state_ :: FilePath -> IO (Either String (Maybe State.State))
 read_state_ = Serialize.unserialize state_magic
+
+stripGz :: FilePath -> FilePath
+stripGz fn
+    | FilePath.takeExtension fn == ".gz" = FilePath.dropExtension fn
+    | otherwise = fn
 
 -- ** path
 

@@ -157,6 +157,7 @@ hsBinaries =
     , plain "shakefile" "Shake/Shakefile.hs"
     , plain "test_midi" "Midi/TestMidi.hs"
     , plain "update" "App/Update.hs"
+    , plain "verify_performance" "App/VerifyPerformance.hs"
     ]
     where
     plain name path = HsBinary name path [] Nothing
@@ -543,8 +544,8 @@ dispatch modeConfig targets = do
                 , debug "seq", debug "update", debug "dump", debug "repl"
                 , debug "test_midi", runProfile
                 , "karya.cabal", runTestsTarget Nothing
-                -- The teststarget also wants runTestsTarget, but putting it
-                -- here builds it in parallel.
+                -- The tests target also wants runTestsTarget, but putting it
+                -- here builds in parallel.
                 ] ++ extractableDocs
             dispatch modeConfig ["tests"]
             -- The gui tests tend to wedge.

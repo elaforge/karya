@@ -100,7 +100,11 @@ save_performance = do
     midi <- midi_performance block_id
     time <- lift Time.getCurrentTime
     patch <- either Cmd.throw return =<< lift get_current_patch
-    let perf = State.Performance midi time patch
+    let perf = State.Performance
+            { State.perf_midi = Vector.fromList midi
+            , State.perf_creation = time
+            , State.perf_patch = patch
+            }
     State.modify_config $
         State.meta#State.performances %= Map.insert block_id perf
 
@@ -125,12 +129,12 @@ verify_performance = do
     block_id <- State.get_root_id
     perf <- get_performance block_id
     msgs <- midi_performance block_id
-    return $ DiffPerformance.verify perf msgs
+    return $ fromMaybe "ok!" $ DiffPerformance.verify perf msgs
 
-midi_performance :: Cmd.M m => BlockId -> m (Vector.Vector Midi.WriteMessage)
+midi_performance :: Cmd.M m => BlockId -> m [Midi.WriteMessage]
 midi_performance block_id = do
     perf <- Cmd.get_performance block_id
-    Vector.fromList . LEvent.events_of <$> PlayUtil.perform_from 0 perf
+    LEvent.events_of <$> PlayUtil.perform_from 0 perf
 
 
 -- * transform
