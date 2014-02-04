@@ -32,6 +32,8 @@
     - TODO: inspect a meter
 -}
 module Cmd.Repl.LRuler where
+import qualified Prelude
+import Prelude hiding (concat)
 import qualified Data.Map as Map
 import qualified Data.Text as Text
 
@@ -220,6 +222,18 @@ fit_to_pos pos meters = do
     return (block_id,
         const $ Meter.fit_meter (Meter.time_to_duration pos) meters)
 
+-- | Replace the meter with the concatenation of the rulers of the given
+-- blocks.  This is like 'extract' except it doesn't infer the blocks from the
+-- calls and doesn't scale the extracted rulers.
+concat :: Cmd.M m => [BlockId] -> m Modify
+concat block_ids = do
+    ruler_ids <- mapM State.ruler_of block_ids
+    -- Strip the last 0-dur mark off of each meter before concatenating.
+    meters <- map (Seq.rdrop 1) <$> mapM RulerUtil.get_meter ruler_ids
+    let meter = mconcat meters ++ [(0, 0)]
+    block_id <- Cmd.get_focused_block
+    return (block_id, const meter)
+
 -- * extract
 
 extract :: (Cmd.M m) => m Modify
@@ -236,7 +250,7 @@ extract_meters block_id track_id = do
     ruler_ids <- mapM State.ruler_of [bid | (_, _, bid) <- subs]
     -- Strip the last 0-dur mark off of each meter before concatenating.
     meters <- map (Seq.rdrop 1) <$> mapM RulerUtil.get_meter ruler_ids
-    return $ concat $
+    return $ mconcat $
         [ Meter.scale (Meter.time_to_duration dur) meter
         | ((_start, dur, _), meter) <- zip subs meters
         ] ++ [[(0, 0)]]
