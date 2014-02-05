@@ -4,13 +4,16 @@ LEGEND
 
 UNSORTED
   - verify lilypond output, in the same way I verify MIDI output
-    I need to figure out the movement situation first, e.g.
-    Cmd.Lilypond.make_lys :: Lilypond.Config -> Lilypond.Title
-        -> [(Lilypond.Title, [Score.Event])] -> .. Text
-    Currently I specify in the REPL, e.g.
-      LLily.blocks "viola sonata" [("I", @mvt1), ("II", @mvt2), ("III", @mvt3)]
-    but I need something in the score, which is what the 'movement' call is, but
-    it doesn't seem to be working.  Try again.
+    * I need to figure out the movement situation first, e.g.
+      Cmd.Lilypond.make_lys :: Lilypond.Config -> Lilypond.Title
+          -> [(Lilypond.Title, [Score.Event])] -> .. Text
+      Currently I specify in the REPL, e.g.
+        LLily.blocks "viola sonata"
+          [("I", @mvt1), ("II", @mvt2), ("III", @mvt3)]
+      but I need something in the score, which is what the 'movement' call is,
+      but it doesn't seem to be working.  Try again.
+    . Apparently its the tempos in the called blocks, I thought ly derivation
+      ignored tempo tracks?
   * rename TrackLang.RealOrScore to Duration?
   * clean up the Call.Util.duration* functions
   - Now that instruments are expected to be used via aliases, synths don't

@@ -185,13 +185,17 @@ convert_staves wanted events =
         || wanted == ["ALL"]
     is_wanted _ = True
 
+-- | Generate an entire ly score.
+convert_score :: Derive.Result -> (String, [String])
+convert_score = first (make_ly default_config) . partition_logs
+
 derive_measures :: [String] -> [UiTest.TrackSpec]
     -> (Either String String, [String])
-derive_measures wanted = measures wanted . derive
+derive_measures wanted = measures wanted . derive_tracks
 
 derive_staves :: [String] -> [UiTest.TrackSpec]
     -> (Either String [StaffGroup], [String])
-derive_staves wanted = staves wanted . derive
+derive_staves wanted = staves wanted . derive_tracks
 
 measures :: [String] -> Derive.Result -> (Either String String, [String])
 measures wanted = first (convert_measures wanted) . partition_logs
@@ -210,20 +214,29 @@ partition_logs result = (events, extract_logs (dlogs ++ logs))
     dlogs = LEvent.logs_of (Derive.r_events result)
     extract_logs = map DeriveTest.show_log . DeriveTest.quiet_filter_logs
 
-derive :: [UiTest.TrackSpec] -> Derive.Result
-derive = derive_tracks_with_ui id id
+derive_tracks :: [UiTest.TrackSpec] -> Derive.Result
+derive_tracks = derive_tracks_with_ui id id
 
-derive_linear :: [UiTest.TrackSpec] -> Derive.Result
-derive_linear = derive_tracks_with_ui id DeriveTest.with_linear
+derive_tracks_linear :: [UiTest.TrackSpec] -> Derive.Result
+derive_tracks_linear = derive_tracks_with_ui id DeriveTest.with_linear
 
 derive_tracks_with_ui :: (Derive.NoteDeriver -> Derive.NoteDeriver)
     -> (State.State -> State.State) -> [UiTest.TrackSpec] -> Derive.Result
 derive_tracks_with_ui with transform_ui tracks =
+    derive_blocks_with_ui with transform_ui
+        [(UiTest.default_block_name, tracks)]
+
+derive_blocks :: [UiTest.BlockSpec] -> Derive.Result
+derive_blocks = derive_blocks_with_ui id id
+
+derive_blocks_with_ui :: (Derive.NoteDeriver -> Derive.NoteDeriver)
+    -> (State.State -> State.State) -> [UiTest.BlockSpec] -> Derive.Result
+derive_blocks_with_ui with transform_ui blocks =
     derive_lilypond (transform_ui state) (with deriver)
     where
     deriver = Call.Block.eval_root_block global_transform bid
     global_transform = State.config#State.global_transform #$ state
-    (bid:_, state) = DeriveTest.mkblocks [(UiTest.default_block_name, tracks)]
+    (bid:_, state) = DeriveTest.mkblocks blocks
 
 derive_lilypond :: State.State -> Derive.NoteDeriver -> Derive.Result
 derive_lilypond state deriver =
@@ -237,7 +250,8 @@ derive_lilypond state deriver =
 
 make_ly :: Types.Config -> [Lilypond.Event] -> String
 make_ly config events = Text.Lazy.unpack $
-    expect_right "make_ly" $ Lilypond.make_ly config "title" events
+    Lilypond.ly_file config "title" $ expect_right "make_ly" $
+    Lilypond.extract_movements config events
 
 -- * extract
 

@@ -165,11 +165,12 @@ test_enharmonics = do
 
 test_tempo = do
     -- Lilypond derivation is unaffected by the tempo.
-    let (events, logs) = LilypondTest.extract extract $ LilypondTest.derive
-            [ ("tempo", [(0, 0, "3")])
-            , (">s/1", [(0, 4, ""), (4, 4, "")])
-            , ("*", [(0, 0, "4c")])
-            ]
+    let (events, logs) = LilypondTest.extract extract $
+            LilypondTest.derive_tracks
+                [ ("tempo", [(0, 0, "3")])
+                , (">s/1", [(0, 4, ""), (4, 4, "")])
+                , ("*", [(0, 0, "4c")])
+                ]
         extract e = (Types.event_start e, Types.event_duration e)
         whole = Types.time_per_whole
     equal logs []
@@ -250,4 +251,4 @@ test_movements = do
 
 make_ly :: Types.Config -> [UiTest.TrackSpec] -> (String, [String])
 make_ly config = first (LilypondTest.make_ly config)
-    . LilypondTest.partition_logs . LilypondTest.derive
+    . LilypondTest.partition_logs . LilypondTest.derive_tracks

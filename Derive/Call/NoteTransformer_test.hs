@@ -71,7 +71,7 @@ test_tuplet_multiple_tracks = do
 
 test_tuplet_ly = do
     let run = LilypondTest.measures ["times", "acciaccatura"]
-            . LilypondTest.derive_linear
+            . LilypondTest.derive_tracks_linear
         pitches = map ('3':) (map (:"") "abcdefg")
         notes dur ts =
             UiTest.note_track [(t, dur, p) | (t, p) <- zip ts pitches]
@@ -138,7 +138,7 @@ test_arpeggio = do
     equal (run (tracks "`arp-down` 1 0")) [(10, 10, "4d"), (11, 9, "4c")]
 
 test_slur_ly = do
-    let run = LilypondTest.measures [] . LilypondTest.derive_linear
+    let run = LilypondTest.measures [] . LilypondTest.derive_tracks_linear
     equal (run $ (">", [(0, 4, "(")]) : UiTest.note_track
         [(0, 1, "4a"), (1, 1, "4b"), (2, 1, "4c")])
         (Right "a'4( b'4 c'4) r4", [])

@@ -432,6 +432,7 @@ realtime_at_selection view_id sel = do
 -- which are just fine in decimal, but the fraction still takes up less space.
 pretty_rational :: ScoreTime -> Text
 pretty_rational d
+    | d == 0 = "0"
     | Ratio.denominator ratio <= 12 =
         Text.strip $ (if int == 0 then "" else showt int) <> pretty
     | otherwise = prettyt d

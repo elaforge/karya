@@ -38,7 +38,7 @@ test_attr_legato = do
         ]
 
 test_legato_ly = do
-    let run = LilypondTest.measures [] . LilypondTest.derive_linear
+    let run = LilypondTest.measures [] . LilypondTest.derive_tracks_linear
     equal (run $ (">", [(1, 2, "(")]) : UiTest.regular_notes 4)
         (Right "c4 d4( e4) f4", [])
     let tracks =
@@ -60,7 +60,7 @@ test_legato_ly = do
         (Right "c4 r4 r2", [])
 
 test_attributed_note_ly = do
-    let run = LilypondTest.measures [] . LilypondTest.derive_linear
+    let run = LilypondTest.measures [] . LilypondTest.derive_tracks_linear
     -- Works as a note transformer.
     equal (run $
         (">", [(0, 2, "m")]) : UiTest.note_track

@@ -15,7 +15,9 @@ import qualified Data.Text.Lazy as Lazy
 import qualified Data.Text.Lazy.Builder as Builder
 
 import Util.Control
+import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
+
 import qualified Derive.Environ as Environ
 import qualified Derive.Score as Score
 import qualified Derive.Stack as Stack
@@ -50,17 +52,6 @@ paper_config =
 -- * output
 
 type Title = Text
-
-make_ly :: Config -> Title -> [Event] -> Either String Lazy.Text
-make_ly config title events =
-    ly_file config title <$> convert_movements config events
-
--- | Make a score from multiple movements.
-make_lys :: Config -> Title -> [(Title, [Event])] -> Either String Lazy.Text
-make_lys config title sections = fmap (ly_file config title) $
-    forM sections $ \(title, events) -> do
-        staves <- convert_staff_groups config 0 events
-        return (title, staves)
 
 ly_file :: Config -> Title -> [Movement] -> Lazy.Text
 ly_file config title movements = run_output $ do
@@ -200,7 +191,7 @@ set_bar :: Int -> Output ()
 set_bar n = State.modify $ \state -> state { output_bar = n }
 
 
--- * split staves
+-- * convert events
 
 type Movement = (Title, [StaffGroup])
 
@@ -208,13 +199,19 @@ type Movement = (Title, [StaffGroup])
 data StaffGroup = StaffGroup Score.Instrument [[Process.VoiceLy]]
     deriving (Show)
 
-convert_sections :: Config -> [(Title, [Event])] -> Either String [Movement]
-convert_sections config sections = forM sections $ \(title, events) -> do
+instance Pretty.Pretty StaffGroup where
+    format (StaffGroup inst staves) = Pretty.record_title "StaffGroup"
+        [ ("inst", Pretty.format inst)
+        , ("staves", Pretty.format staves)
+        ]
+
+explicit_movements :: Config -> [(Title, [Event])] -> Either String [Movement]
+explicit_movements config sections = forM sections $ \(title, events) -> do
     staves <- convert_staff_groups config 0 events
     return (title, staves)
 
-convert_movements :: Config -> [Event] -> Either String [Movement]
-convert_movements config events = do
+extract_movements :: Config -> [Event] -> Either String [Movement]
+extract_movements config events = do
     movements <- get_movements $
         filter ((==Constants.ly_global) . event_instrument) events
     forM (split_movements movements events) $ \(start, title, events) -> do

@@ -142,11 +142,13 @@ split_control track = extract $ split $ TrackTree.tevents_events track
 eval_track :: TrackTree.TrackEvents -> [TrackLang.Call]
     -> TrackInfo.ControlType -> Derive.NoteDeriver -> Derive.NoteDeriver
 eval_track track expr ctype deriver = case ctype of
-    TrackInfo.Tempo maybe_sym -> ifM Derive.is_lilypond_derive deriver $
-        tempo_call maybe_sym track
-            (with_control_env Controls.tempo $
-                derive_control True tempo_track expr)
-            deriver
+    TrackInfo.Tempo maybe_sym -> do
+        is_ly <- Derive.is_lilypond_derive
+        let sig_deriver
+                | is_ly = return (Signal.constant 1, [])
+                | otherwise = with_control_env Controls.tempo $
+                    derive_control True tempo_track expr
+        tempo_call maybe_sym track sig_deriver deriver
     TrackInfo.Control maybe_op control -> do
         merge <- lookup_op (Score.typed_val control) maybe_op
         control_call track control merge

@@ -15,7 +15,7 @@ import qualified Perform.Lilypond.LilypondTest as LilypondTest
 
 
 test_when_ly = do
-    let run_ly = extract . LilypondTest.derive
+    let run_ly = extract . LilypondTest.derive_tracks
         run_normal = extract . DeriveTest.derive_tracks
         extract = DeriveTest.extract $
             \e -> (DeriveTest.e_note e, DeriveTest.e_attributes e)
@@ -38,7 +38,8 @@ test_when_ly = do
 test_ly_track = do
     let run_normal = DeriveTest.extract ex . DeriveTest.derive_tracks_linear
             where ex e = (DeriveTest.e_pitch e, DeriveTest.e_attributes e)
-        run_ly = LilypondTest.extract extract . LilypondTest.derive_linear
+        run_ly =
+            LilypondTest.extract extract . LilypondTest.derive_tracks_linear
             where
             extract e = (Lilypond.event_pitch e,
                 ShowVal.show_val (Lilypond.event_attributes e))
@@ -94,7 +95,7 @@ test_clef_dyn = do
             LilypondTest.e_ly_env e)
         pre = Constants.v_ly_prepend
         app = Constants.v_ly_append_all
-    equal (DeriveTest.extract extract $ LilypondTest.derive tracks)
+    equal (DeriveTest.extract extract $ LilypondTest.derive_tracks tracks)
         ( [ (0, "?", [(pre, "'\\clef treble'")])
           , (0, "?", [(app, "'\\f'")])
           , (0, "3c", []), (1, "3d", [])
@@ -136,7 +137,30 @@ test_ly_slur = do
             [(0, 2, "ly-( | -- 3a"), (2, 6, "ly-) | -- 3b")])
         (Right "a2( b2~ | b1)", [])
 
+test_movement = do
+    let run  = LilypondTest.convert_score . LilypondTest.derive_blocks
+    -- Movements split up properly.
+    let (ly, logs) = run [(UiTest.default_block_name,
+            ("> | ly-global", [(0, 0, "movement I"), (4, 0, "movement II")])
+            : UiTest.regular_notes 8)]
+    equal logs []
+    -- The header titles go after the score.
+    match ly "c4 d4 e4 f4 *piece = \"I\" *g4 a4 b4 c'4 *piece = \"II\""
+
+    -- Not affected by local tempo.
+    let (ly, logs) = run
+            [ ("score",
+                [ ("> | ly-global",
+                    [(0, 0, "movement I"), (4, 0, "movement II")])
+                , (">", [(0, 4, "mvt1"), (4, 4, "mvt2")])
+                ])
+            , ("mvt1=ruler", UiTest.regular_notes 4)
+            , ("mvt2=ruler", ("tempo", [(0, 0, "2")]) : UiTest.regular_notes 4)
+            ]
+    equal logs []
+    match ly "c4 d4 e4 f4 *piece = \"I\" *c4 d4 e4 f4 *piece = \"II\""
+
 measures_linear :: [String] -> [UiTest.TrackSpec]
     -> (Either String String, [String])
 measures_linear wanted =
-    LilypondTest.measures wanted . LilypondTest.derive_linear
+    LilypondTest.measures wanted . LilypondTest.derive_tracks_linear
