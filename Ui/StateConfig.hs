@@ -80,12 +80,19 @@ saved_views = Lens.lens config_saved_views
 data Meta = Meta {
     meta_creation :: !Time.UTCTime
     , meta_notes :: !Text
-    , meta_performances :: !(Map.Map BlockId Performance)
+    , meta_midi_performances :: !(Map.Map BlockId MidiPerformance)
+    , meta_lilypond_performances :: !(Map.Map BlockId LilypondPerformance)
     } deriving (Eq, Read, Show, Generics.Typeable)
 
 creation = Lens.lens meta_creation (\v r -> r { meta_creation = v })
 notes = Lens.lens meta_notes (\v r -> r { meta_notes = v })
-performances = Lens.lens meta_performances (\v r -> r { meta_performances = v })
+midi_performances = Lens.lens meta_midi_performances
+    (\v r -> r { meta_midi_performances = v })
+lilypond_performances = Lens.lens meta_lilypond_performances
+    (\v r -> r { meta_lilypond_performances = v })
+
+type MidiPerformance = Performance (Vector.Vector Midi.WriteMessage)
+type LilypondPerformance = Performance Text
 
 -- | A record of the last successful performance that sounded as expected.  You
 -- can compare this with the current performance to see if code changes have
@@ -97,8 +104,8 @@ performances = Lens.lens meta_performances (\v r -> r { meta_performances = v })
 -- shouldn't actually be that large, and if it is, the git repo save should
 -- only save it when 'Config' changes.  I could also split it into its own
 -- file.
-data Performance = Performance {
-    perf_midi :: !(Vector.Vector Midi.WriteMessage)
+data Performance a = Performance {
+    perf_performance :: !a
     -- | The time this performance was recorded.
     , perf_creation :: !Time.UTCTime
     -- | The sequencer's patch level.  For darcs, this should be a patch name
@@ -136,16 +143,17 @@ instance Pretty.Pretty Config where
             ]
 
 instance Pretty.Pretty Meta where
-    format (Meta creation notes performances) = Pretty.record_title "Meta"
-        [ ("creation", Pretty.text (show creation))
-        , ("notes", Pretty.text (untxt notes))
-        , ("performances", Pretty.format performances)
-        ]
+    format (Meta creation notes midi_perf lily_perf) =
+        Pretty.record_title "Meta"
+            [ ("creation", Pretty.text (show creation))
+            , ("notes", Pretty.text (untxt notes))
+            , ("midi performances", Pretty.format midi_perf)
+            , ("lilypond performances", Pretty.format lily_perf)
+            ]
 
-instance Pretty.Pretty Performance where
-    format (Performance midi creation patch) = Pretty.record_title "Performance"
-        [ ("midi", Pretty.text $ show (Vector.length midi))
-        , ("creation", Pretty.text $ pretty creation)
+instance Pretty.Pretty (Performance a) where
+    format (Performance _ creation patch) = Pretty.record_title "Performance"
+        [ ("creation", Pretty.text $ pretty creation)
         , ("patch", Pretty.text (untxt patch))
         ]
 

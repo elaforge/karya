@@ -21,7 +21,6 @@ import qualified Data.List.NonEmpty as NonEmpty
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 import qualified Data.Time as Time
-import qualified Data.Vector as Vector
 
 import qualified System.Directory as Directory
 import qualified System.FilePath as FilePath
@@ -35,7 +34,6 @@ import qualified Util.Serialize as Serialize
 import Util.Serialize (Serialize, get, put, get_tag, put_tag, bad_tag)
 
 import Midi.Instances ()
-import qualified Midi.Midi as Midi
 import qualified Ui.Block as Block
 import qualified Ui.Color as Color
 import qualified Ui.Events as Events
@@ -184,28 +182,35 @@ instance Serialize State.Config where
         _ -> Serialize.bad_version "State.Config" v
 
 instance Serialize State.Meta where
-    put (State.Meta a b c) = Serialize.put_version 1 >> put a >> put b >> put c
+    put (State.Meta a b c d) = Serialize.put_version 2
+        >> put a >> put b >> put c >> put d
     get = Serialize.get_version >>= \v -> case v of
         0 -> do
             creation :: Time.UTCTime <- get
             notes :: String <- get
-            return $ State.Meta creation (txt notes) mempty
+            return $ State.Meta creation (txt notes) mempty mempty
         1 -> do
             creation :: Time.UTCTime <- get
             notes :: Text <- get
-            performances :: Map.Map BlockId State.Performance <- get
-            return $ State.Meta creation notes performances
+            performances :: Map.Map BlockId State.MidiPerformance <- get
+            return $ State.Meta creation notes performances mempty
+        2 -> do
+            creation :: Time.UTCTime <- get
+            notes :: Text <- get
+            midi :: Map.Map BlockId State.MidiPerformance <- get
+            lily :: Map.Map BlockId State.LilypondPerformance <- get
+            return $ State.Meta creation notes midi lily
         _ -> Serialize.bad_version "State.Meta" v
 
-instance Serialize State.Performance where
+instance Serialize a => Serialize (State.Performance a) where
     put (State.Performance a b c) = Serialize.put_version 0 >> put a >> put b
         >> put c
     get = Serialize.get_version >>= \v -> case v of
         0 -> do
-            midi :: Vector.Vector Midi.WriteMessage <- get
+            perf :: a <- get
             creation :: Time.UTCTime <- get
             patch :: Text <- get
-            return $ State.Performance midi creation patch
+            return $ State.Performance perf creation patch
         _ -> Serialize.bad_version "State.Performance" v
 
 instance Serialize State.Default where

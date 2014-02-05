@@ -35,18 +35,33 @@ load_midi fname = Serialize.unserialize midi_magic fname >>= \x -> case x of
 save_midi :: FilePath -> Messages -> IO ()
 save_midi = Serialize.serialize midi_magic
 
--- * diff
 
-verify :: State.Performance -> [Midi.WriteMessage] -> Maybe Text
-verify prev midi
+-- * diff lilypond
+
+diff_lilypond :: State.LilypondPerformance -> Text -> Maybe Text
+diff_lilypond prev ly_code
     | null diffs = Nothing
     | otherwise = Just $ show_diffs prev diffs
-    where
-    diffs = diff_midi (State.perf_midi prev) midi
-    show_diffs perf diffs =
-        "Diffs from " <> prettyt (State.perf_creation perf)
-        <> "\nPatch: " <> State.perf_patch perf
-        <> "\n" <> Text.unlines (limit 50 (List.intercalate [""] diffs))
+    where diffs = diff_lines (State.perf_performance prev) ly_code
+
+diff_lines :: Text -> Text -> [[Text]]
+diff_lines expected got = mapMaybe (show_diff id) $
+    Diff.getGroupedDiffBy (==) (Text.lines expected) (Text.lines got)
+
+-- * diff
+
+diff_midi_performance :: State.MidiPerformance -> [Midi.WriteMessage]
+    -> Maybe Text
+diff_midi_performance prev midi
+    | null diffs = Nothing
+    | otherwise = Just $ show_diffs prev diffs
+    where diffs = diff_midi (State.perf_performance prev) midi
+
+show_diffs :: State.Performance a -> [[Text]] -> Text
+show_diffs perf diffs =
+    "Diffs from " <> prettyt (State.perf_creation perf)
+    <> "\nPatch: " <> State.perf_patch perf
+    <> "\n" <> Text.unlines (limit 50 (List.intercalate [""] diffs))
 
 limit :: Int -> [Text] -> [Text]
 limit n xs = ok ++ if more then ["... (trimmed)"] else []
@@ -64,12 +79,13 @@ take_more n xs
 
 diff_midi :: Messages -> [Midi.WriteMessage] -> [[Text]]
 diff_midi expected got =
-    mapMaybe show_diff $ Diff.getGroupedDiffBy wmsgs_equal
+    mapMaybe (show_diff prettyt) $ Diff.getGroupedDiffBy wmsgs_equal
         (Vector.toList expected) got
-    where
-    show_diff (Diff.Both {}) = Nothing
-    show_diff (Diff.First msgs) = Just $ map (("- " <>) . prettyt) msgs
-    show_diff (Diff.Second msgs) = Just $ map (("+ " <>) . prettyt) msgs
+
+show_diff :: (a -> Text) -> Diff.Diff [a] -> Maybe [Text]
+show_diff _ (Diff.Both {}) = Nothing
+show_diff to_text (Diff.First msgs) = Just $ map (("- " <>) . to_text) msgs
+show_diff to_text (Diff.Second msgs) = Just $ map (("+ " <>) . to_text) msgs
 
 wmsgs_equal :: Midi.WriteMessage -> Midi.WriteMessage -> Bool
 wmsgs_equal (Midi.WriteMessage dev1 t1 m1) (Midi.WriteMessage dev2 t2 m2) =

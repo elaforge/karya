@@ -29,8 +29,8 @@ module Ui.State (
     , Config(..), SavedViews
     , namespace_, meta, root, midi, global_transform, aliases, lilypond
     , default_, saved_views
-    , Meta(..), creation, notes, performances
-    , Performance(..), Default(..)
+    , Meta(..), creation, notes, midi_performances, lilypond_performances
+    , Performance(..), MidiPerformance, LilypondPerformance, Default(..)
     , tempo
     , empty_config, empty_meta, empty_default
     -- * address types
@@ -239,7 +239,8 @@ empty_meta :: Meta
 empty_meta = Meta
     { meta_creation = Time.UTCTime (Time.ModifiedJulianDay 0) 0
     , meta_notes = ""
-    , meta_performances = mempty
+    , meta_midi_performances = mempty
+    , meta_lilypond_performances = mempty
     }
 
 empty_config :: Config

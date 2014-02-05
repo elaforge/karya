@@ -7,6 +7,7 @@
 module Cmd.Repl.LState where
 import qualified Data.Map as Map
 import qualified Data.Text as Text
+import qualified Data.Text.Lazy as Text.Lazy
 import qualified Data.Time as Time
 import qualified Data.Vector as Vector
 
@@ -19,6 +20,7 @@ import qualified System.Process as Process
 import Util.Control
 import qualified Util.File as File
 import qualified Util.Lens as Lens
+import qualified Util.Log as Log
 import qualified Util.Pretty as Pretty
 
 import qualified Midi.Midi as Midi
@@ -29,6 +31,7 @@ import qualified Ui.Transform as Transform
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Create as Create
 import qualified Cmd.DiffPerformance as DiffPerformance
+import qualified Cmd.Lilypond
 import qualified Cmd.Load.Midi as Load.Midi
 import qualified Cmd.PlayUtil as PlayUtil
 import qualified Cmd.Repl.LBlock as LBlock
@@ -36,6 +39,7 @@ import qualified Cmd.Repl.LEvent as Repl.LEvent
 import qualified Cmd.Repl.LTrack as LTrack
 import qualified Cmd.Save as Save
 
+import qualified Derive.Derive as Derive
 import qualified Derive.LEvent as LEvent
 import qualified Perform.Signal as Signal
 import qualified App.Config as Config
@@ -93,25 +97,22 @@ set_creation_time = do
 set_notes :: Text -> Cmd.CmdL ()
 set_notes = State.modify . (State.config#State.meta#State.notes #=)
 
--- | Save the current root performance as \"correct\".
-save_performance :: Cmd.CmdL ()
-save_performance = do
+-- *** midi performance
+
+-- | Save the current root MIDI performance as \"correct\".
+save_midi :: Cmd.CmdL ()
+save_midi = do
     block_id <- State.get_root_id
     midi <- midi_performance block_id
-    time <- lift Time.getCurrentTime
-    patch <- either Cmd.throw return =<< lift get_current_patch
-    let perf = State.Performance
-            { State.perf_midi = Vector.fromList midi
-            , State.perf_creation = time
-            , State.perf_patch = patch
-            }
+    perf <- make_performance (Vector.fromList midi)
     State.modify_config $
-        State.meta#State.performances %= Map.insert block_id perf
+        State.meta#State.midi_performances %= Map.insert block_id perf
 
-get_performance :: BlockId -> Cmd.CmdL State.Performance
-get_performance block_id =
+get_midi_performance :: BlockId -> Cmd.CmdL State.MidiPerformance
+get_midi_performance block_id =
     Cmd.require_msg ("saved performance for " ++ show block_id)
-    =<< State.get_config (State.meta#State.performances # Lens.map block_id #$)
+    =<< State.get_config
+        (State.meta#State.midi_performances # Lens.map block_id #$)
 
 -- | This assumes the current dir is in the darcs repo.
 get_current_patch :: IO (Either String Text)
@@ -127,14 +128,44 @@ get_current_patch = do
 verify_performance :: Cmd.CmdL Text
 verify_performance = do
     block_id <- State.get_root_id
-    perf <- get_performance block_id
+    perf <- get_midi_performance block_id
     msgs <- midi_performance block_id
-    return $ fromMaybe "ok!" $ DiffPerformance.verify perf msgs
+    return $ fromMaybe "ok!" $ DiffPerformance.diff_midi_performance perf msgs
 
 midi_performance :: Cmd.M m => BlockId -> m [Midi.WriteMessage]
 midi_performance block_id = do
     perf <- Cmd.get_performance block_id
     LEvent.events_of <$> PlayUtil.perform_from 0 perf
+
+make_performance :: a -> Cmd.CmdT IO (State.Performance a)
+make_performance perf = do
+    time <- liftIO Time.getCurrentTime
+    patch <- either Cmd.throw return =<< liftIO get_current_patch
+    return $ State.Performance
+        { State.perf_performance = perf
+        , State.perf_creation = time
+        , State.perf_patch = patch
+        }
+
+-- *** lilypond performance
+
+save_lilypond :: Cmd.CmdL ()
+save_lilypond = do
+    block_id <- State.get_root_id
+    lily <- lilypond_performance block_id
+    perf <- make_performance lily
+    State.modify_config $
+        State.meta#State.lilypond_performances %= Map.insert block_id perf
+
+lilypond_performance :: Cmd.M m => BlockId -> m Text
+lilypond_performance block_id = do
+    (events, logs) <- LEvent.partition . Derive.r_events <$>
+        Cmd.Lilypond.derive_block block_id
+    mapM_ Log.write logs
+    config <- State.config#State.lilypond <#> State.get
+    let (result, logs) = Cmd.Lilypond.extract_movements config "title" events
+    mapM_ Log.write logs
+    Text.Lazy.toStrict <$> Cmd.require_right id result
 
 
 -- * transform

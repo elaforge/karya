@@ -4,6 +4,7 @@
 
 -- | Utilities to directly perform a saved score.
 module Derive.DeriveSaved where
+import qualified Data.Text.Lazy as Lazy
 import qualified Data.Vector as Vector
 import qualified System.IO.Unsafe as Unsafe
 import qualified Text.Printf as Printf
@@ -16,6 +17,7 @@ import qualified Midi.Midi as Midi
 import qualified Ui.State as State
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.CmdTest as CmdTest
+import qualified Cmd.Lilypond
 import qualified Cmd.PlayUtil as PlayUtil
 import qualified Cmd.Save as Save
 
@@ -68,6 +70,24 @@ timed_derive name ui_state cmd_state block_id =
             return (events, cmd_logs ++ filter (not . boring) derive_logs)
     where boring msg = Cache.is_cache_log msg
 
+timed_lilypond :: String -> State.State -> Cmd.State -> BlockId
+    -> IO (Either String Text, [Log.Msg])
+timed_lilypond name ui_state cmd_state block_id = case result of
+    Left err -> return (Left err, [])
+    Right (levents, cmd_logs) -> do
+        let (events, derive_logs) = LEvent.partition levents
+        events <- print_timer ("lilypond " ++ name) (timer_msg length)
+            (return $! events)
+        let (result, ly_logs) = Cmd.Lilypond.extract_movements
+                config "title" events
+        return (Lazy.toStrict <$> result,
+            cmd_logs ++ filter (not . boring) derive_logs ++ ly_logs)
+    where
+    result = run_cmd ui_state cmd_state $
+        Derive.r_events <$> Cmd.Lilypond.derive_block block_id
+    config = State.config#State.lilypond #$ ui_state
+    boring msg = Cache.is_cache_log msg
+
 timer_msg :: (a -> Int) -> Double -> a -> String
 timer_msg len secs events = Printf.printf "events: %d (%.2f / sec)"
     events_len (fromIntegral events_len / secs)
@@ -81,14 +101,17 @@ simple_derive_block =
 
 derive_block :: State.State -> Cmd.State -> BlockId
     -> Either String (Derive.Result, [Log.Msg])
-derive_block ui_state cmd_state block_id = case result of
-        Left err -> Left $ pretty err
-        Right (val, _, _) -> case val of
-            Nothing -> Left "PlayUtil.uncached_derive had no result"
-            Just val -> Right (val, logs)
-    where
-    (_, _, logs, result) = Cmd.run_id ui_state cmd_state $
-        PlayUtil.uncached_derive block_id
+derive_block ui_state cmd_state block_id =
+    run_cmd ui_state cmd_state $ PlayUtil.uncached_derive block_id
+
+run_cmd :: State.State -> Cmd.State -> Cmd.CmdId a
+    -> Either String (a, [Log.Msg])
+run_cmd ui_state cmd_state cmd = case result of
+    Left err -> Left $ pretty err
+    Right (val, _, _) -> case val of
+        Nothing -> Left "cmd had no result"
+        Just val -> Right (val, logs)
+    where (_, _, logs, result) = Cmd.run_id ui_state cmd_state cmd
 
 instrument_db :: Cmd.InstrumentDb
 instrument_db = DeriveTest.synth_to_db mempty pure_synths
