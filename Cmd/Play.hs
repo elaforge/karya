@@ -111,6 +111,10 @@ import qualified Perform.Transport as Transport
 import Types
 
 
+modify_play_multiplier :: Cmd.M m => (RealTime -> RealTime) -> m ()
+modify_play_multiplier f = Cmd.modify_play_state $ \st ->
+    st { Cmd.state_play_multiplier = f (Cmd.state_play_multiplier st) }
+
 -- * stop
 
 -- | Context sensitive stop that stops whatever is going on.  First it stops

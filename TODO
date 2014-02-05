@@ -33,7 +33,11 @@ UNSORTED
     owned by one block.
   - If thru did eval on "", I wouldn't need pasang thru.  But it might be
     slower.
-  - deriving kendang-telek is super slow, what's going on?
+  - deriving seems really slow, and fluctuates wildly
+    . viola-sonata took 14s in opt, 1.89s in verify_performance
+    . kendang-telek takes 44s in debug, 10s in opt, and 1.5s in
+      verify_performance
+    . Lots of time in Signal.map_x, is it due to getting track signals?
   - in kendang-telek some notes are incorrectly tuned
   - scale introduced val calls should go first
     They do, but pitch calls always go before the val call fallback.
@@ -41,13 +45,6 @@ UNSORTED
     emit pitch calls.  In any case, I don't want them interfering anyway.
   - give ModifyEvents.Track the ability to change the track title?
     Cmd.Repl.LPitch.change_scale and to_relative could use this.
-  + chord calls, with automatic dyns for the notes.
-    Originally I intended each note to go in its own track, with the idea that
-    it takes about the same space but is more powerful and flexible.  But it's
-    not quite true, because the extra track is there for the whole block,
-    though perhaps that's a side-effect of having blocks which are too large.
-    More compellingly, chords can automatically fiddle with dyn and start
-    time, and can also interpret chord symbols.
   - Implement 'sequence'.  It sequences its notes, paying attention only to
     their order, not time and duration.  The tricky part is getting the tempo
     right so playback looks right, and controls line up right.
@@ -141,21 +138,8 @@ UNSORTED
         there.
       . The note call is for ornaments that decide their own scope.  The
         control calls are for when you want to place them directly.
-    Raga
-      - Support arohana and avarohana by treating them as enharmonics
-        Is this really a good idea, since they aren't anything like
-        enharmonics?  Maybe I should just use the flip-enharmonic key, but
-        keep the concept separate.
-        . I could keep it at the Cmd level by remembering the last entered
-          pitch and defaulting this one based on it, or I could try to put it
-          at the Derive level too by having the pitch itself be based on the
-          previous one.
-        . Putting it at the derive level seems really hard and unreliable, so
-          I should have separate symbols, e.g. 4r^ and 4r_ for up and down
-          variants.  For western modes this isn't necessary since the notation
-          is already absolute.
 
-  - keys to turn play speed up and down
+  * keys to turn play speed up and down
   more scales
     - wendy carlos' alpha, beta, gamma
     - overtone series
@@ -831,6 +815,13 @@ Derive:
     - overshoot pitch call, e.g. indian style
 
   note calls:
+    + chord calls, with automatic dyns for the notes.
+      Originally I intended each note to go in its own track, with the idea
+      that it takes about the same space but is more powerful and flexible.
+      But it's not quite true, because the extra track is there for the whole
+      block, though perhaps that's a side-effect of having blocks which are
+      too large.  More compellingly, chords can automatically fiddle with dyn
+      and start time, and can also interpret chord symbols.
     trills
       / hybrid where the initial part stretches, final part is absolute
     bali:
@@ -942,6 +933,19 @@ pitch: scales: scale:
       - Use scale_alternate to switch a note between alternates, bind to the
         same key as enharmonic.  If there are no enharmonics, then fall back
         on alternate.
+    Raga
+      - Support arohana and avarohana by treating them as enharmonics
+        Is this really a good idea, since they aren't anything like
+        enharmonics?  Maybe I should just use the flip-enharmonic key, but
+        keep the concept separate.
+        . I could keep it at the Cmd level by remembering the last entered
+          pitch and defaulting this one based on it, or I could try to put it
+          at the Derive level too by having the pitch itself be based on the
+          previous one.
+        . Putting it at the derive level seems really hard and unreliable, so
+          I should have separate symbols, e.g. 4r^ and 4r_ for up and down
+          variants.  For western modes this isn't necessary since the notation
+          is already absolute.
 
     - letter and jianpu but with implicit accidentals based on the key
   + It's a bit unpleasant how I have TwelveUtils for accidental and key using
