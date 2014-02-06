@@ -8,15 +8,14 @@
 -- "Midi.Synth" is different in that it wants to convert MIDI messages to
 -- higher level notes, but similar in that it's also simulating a synthesizer.
 -- This module focuses on the instantaneous state of the synth.
---
--- TODO but I could still integrate them a little better
 module Midi.State (
-    State(..), empty, Channel(..), empty_channel, Control(..), Addr
+    State(..), empty, Channel(..), get_channel, empty_channel
+    , Control(..), Addr
     , Message, convert
-    , play, diff
+    , play, process, diff
 ) where
 import qualified Data.List as List
-import qualified Data.Map as Map
+import qualified Data.Map.Strict as Map
 import qualified Data.Maybe as Maybe
 
 import Util.Control
@@ -40,6 +39,9 @@ data Channel = Channel {
 
 empty_channel :: Channel
 empty_channel = Channel Map.empty 0 Map.empty
+
+get_channel :: Addr -> State -> Channel
+get_channel addr (State chans) = Map.findWithDefault empty_channel addr chans
 
 instance Pretty.Pretty Channel where
     format (Channel notes pb controls) = Pretty.record_title "Channel"
@@ -73,19 +75,19 @@ play msgs state = List.foldl' process state msgs
 
 process :: State -> Message -> State
 process state (dev, Midi.ChannelMessage chan msg) = case msg of
-        Midi.NoteOff key _ -> notes (Map.delete key)
-        Midi.NoteOn key vel
-            | vel == 0 -> notes (Map.delete key)
-            | otherwise -> notes (Map.insert key vel)
-        Midi.Aftertouch key val -> controls (Map.insert (Aftertouch key) val)
-        Midi.ControlChange cc val -> controls (Map.insert (CC cc) val)
-        Midi.ProgramChange _pgm -> state -- I don't track current patch
-        Midi.ChannelPressure val -> controls (Map.insert Pressure val)
-        Midi.PitchBend val -> modify $ \chan -> chan { chan_pb = val }
-        Midi.AllSoundOff -> notes (const Map.empty)
-        Midi.ResetAllControls -> controls (const Map.empty)
-        Midi.AllNotesOff -> notes (const Map.empty)
-        _ -> state
+    Midi.NoteOff key _ -> notes (Map.delete key)
+    Midi.NoteOn key vel
+        | vel == 0 -> notes (Map.delete key)
+        | otherwise -> notes (Map.insert key vel)
+    Midi.Aftertouch key val -> controls (Map.insert (Aftertouch key) val)
+    Midi.ControlChange cc val -> controls (Map.insert (CC cc) val)
+    Midi.ProgramChange _pgm -> state -- I don't track current patch
+    Midi.ChannelPressure val -> controls (Map.insert Pressure val)
+    Midi.PitchBend val -> modify $ \chan -> chan { chan_pb = val }
+    Midi.AllSoundOff -> notes (const Map.empty)
+    Midi.ResetAllControls -> controls (const Map.empty)
+    Midi.AllNotesOff -> notes (const Map.empty)
+    _ -> state
     where
     notes f = modify $ \chan -> chan { chan_notes = f (chan_notes chan) }
     controls f = modify $ \chan ->

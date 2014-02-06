@@ -553,7 +553,9 @@ dispatch modeConfig targets = do
             return True
         "binaries" -> do
             Shake.want $ map (modeToDir Opt </>)
-                ["browser", "logview", "make_db", "seq", "repl", "test_midi"]
+                [ "browser", "logview", "make_db", "seq", "repl", "test_midi"
+                , "verify_performance"
+                ]
             return True
         "clean" -> action $ do
             -- The shake database will remain because shake creates it after the
