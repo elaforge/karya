@@ -20,6 +20,7 @@ import qualified Cmd.CmdTest as CmdTest
 import qualified Cmd.Lilypond
 import qualified Cmd.PlayUtil as PlayUtil
 import qualified Cmd.Save as Save
+import qualified Cmd.SaveGit as SaveGit
 
 import qualified Derive.Cache as Cache
 import qualified Derive.Derive as Derive
@@ -135,13 +136,13 @@ perform cmd_config ui_state events =
         Right (Just msgs) -> LEvent.partition msgs
 
 load_score :: FilePath -> IO (Either String State.State)
-load_score fname = do
-    result <- print_timer ("unserialize " ++ fname) (\_ _ -> "") $
-        Save.read_state_ fname
-    return $ case result of
-        Left err -> Left $ "loading " ++ show fname ++ ": " ++ err
-        Right Nothing -> Left $ "loading " ++ show fname ++ ": doesn't exist"
-        Right (Just state) -> Right state
+load_score fname = print_timer ("load " ++ fname) (\_ _ -> "") $
+    rightm (Save.infer_save_type fname) $ \save -> case save of
+        Save.Git repo -> rightm (SaveGit.load repo Nothing) $ \(state, _, _) ->
+            return $ Right state
+        Save.State fname -> rightm (Save.read_state_ fname) $ \x -> case x of
+            Nothing -> return $ Left "file not found"
+            Just state -> return $ Right state
 
 -- | Load cmd config, which basically means the inst db.
 load_cmd_config :: IO Cmd.Config

@@ -16,9 +16,6 @@ import qualified Util.Process as Process
 import qualified Ui.State as State
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.DiffPerformance as DiffPerformance
-import qualified Cmd.Save as Save
-import qualified Cmd.SaveGit as SaveGit
-
 import qualified Derive.DeriveSaved as DeriveSaved
 import Types
 
@@ -37,7 +34,7 @@ main = do
 
 verify_score :: Cmd.Config -> FilePath -> IO Int
 verify_score cmd_config fname = (handle =<<) $
-    rightm (load_score fname) $ \state ->
+    rightm (DeriveSaved.load_score fname) $ \state ->
     rightm (return $ get_root state) $ \block_id -> do
         let meta = State.config#State.meta #$ state
         n <- apply (verify_midi fname cmd_config state block_id) $
@@ -87,11 +84,3 @@ verify_lilypond fname cmd_config state block_id performance = do
 get_root :: State.State -> Either String BlockId
 get_root state = maybe (Left "no root block") Right $
     State.config#State.root #$ state
-
-load_score :: FilePath -> IO (Either String State.State)
-load_score fname = rightm (Save.infer_save_type fname) $ \save -> case save of
-    Save.Git repo -> rightm (SaveGit.load repo Nothing) $ \(state, _, _) ->
-        return $ Right state
-    Save.State fname -> rightm (Save.read_state_ fname) $ \x -> case x of
-        Nothing -> return $ Left "file not found"
-        Just state -> return $ Right state
