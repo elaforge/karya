@@ -119,13 +119,8 @@ unserialize_text fname = do
 -- | Move the file to file.last.  Do this before writing a new one that may
 -- fail.
 backup_file :: FilePath -> IO ()
-backup_file fname = do
-    moved <- File.ignoreEnoent $
-        Directory.renameFile (fname ++ ".gz") (fname ++ ".last.gz")
-    case moved of
-        Nothing -> void $ File.ignoreEnoent $
-            Directory.renameFile fname (fname ++ ".last")
-        _ -> return ()
+backup_file fname =
+    void $ File.ignoreEnoent $ Directory.renameFile fname (fname ++ ".last")
 
 make_dir :: FilePath -> IO ()
 make_dir = Directory.createDirectoryIfMissing True . FilePath.takeDirectory

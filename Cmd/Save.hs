@@ -65,25 +65,23 @@ data SaveType = Git SaveGit.Repo | State FilePath deriving (Show)
 -- containing either a git repo @save.git@, or a state @save.state@.  If
 -- both are present, the git repo is preferred.
 infer_save_type :: FilePath -> IO (Either String SaveType)
-infer_save_type path_ = fmap prepend $ if_else
+infer_save_type path = fmap prepend $ if_else
     [ (return $ SaveGit.is_git path, ok $ Git path)
     , (is_dir path, if_else
         [ (is_dir git_fn, ok $ Git git_fn)
-        , (is_state state_fn, ok $ State state_fn)
+        , (is_file state_fn, ok $ State state_fn)
         ] $ return $ Left $ "directory contains neither " <> git_fn <> " nor "
-            <> state_fn <> " nor " <> state_fn <> ".gz")
-    , (is_state path, ok $ State path)
-    ] $ return $ Left "neither file nor file.gz exists"
+            <> state_fn)
+    , (is_file path, ok $ State path)
+    ] $ return $ Left "file not found"
     where
-    prepend (Left err) = Left $ path_ <> ": " <> err
+    prepend (Left err) = Left $ path <> ": " <> err
     prepend (Right val) = Right val
-    path = stripGz path_
     ok = return . Right
     git_fn = path </> default_git
     state_fn = path </> default_state
     is_dir = Directory.doesDirectoryExist
     is_file = Directory.doesFileExist
-    is_state fn = orM [is_file fn, is_file (fn <> ".gz")]
 
 if_else :: Monad m => [(m Bool, m a)] -> m a -> m a
 if_else [] consequent = consequent
@@ -123,9 +121,8 @@ load_state fname = do
     set_state save_file True state
 
 read_state :: FilePath -> Cmd.CmdT IO (State.State, SaveFile)
-read_state fname_ = do
+read_state fname = do
     let mkmsg = (("load " ++ fname ++ ": ") ++)
-        fname = stripGz fname_
     Log.notice $ "read state from " ++ show fname
     state <- Cmd.require_msg (mkmsg "doesn't exist")
         =<< Cmd.require_right mkmsg =<< liftIO (read_state_ fname)
@@ -134,11 +131,6 @@ read_state fname_ = do
 -- | Lower level 'read_state'.
 read_state_ :: FilePath -> IO (Either String (Maybe State.State))
 read_state_ = Serialize.unserialize state_magic
-
-stripGz :: FilePath -> FilePath
-stripGz fn
-    | FilePath.takeExtension fn == ".gz" = FilePath.dropExtension fn
-    | otherwise = fn
 
 -- ** path
 

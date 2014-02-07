@@ -11,7 +11,6 @@ import qualified Control.Exception as Exception
 import qualified Data.ByteString as ByteString
 import qualified Data.ByteString.Lazy as Lazy
 import qualified System.Directory as Directory
-import qualified System.FilePath as FilePath
 import System.FilePath ((</>))
 import qualified System.IO.Error as IO.Error
 import qualified System.Process as Process
@@ -19,24 +18,16 @@ import qualified System.Process as Process
 import Util.Control
 
 
--- | Read and decompress @.gz@ file if it exists, otherwise read the given file
--- without decompressing.
+-- | Read and decompress a gzipped file.
 readGz :: FilePath -> IO ByteString.ByteString
-readGz fn = do
-    -- Otherwise, if you pass fn.gz it will read it uncompressed.
-    fn <- return $ if FilePath.takeExtension fn == ".gz"
-        then FilePath.dropExtension fn else fn
-    maybe_bytes <- ignoreEnoent $ Lazy.readFile (fn ++ ".gz")
-    case maybe_bytes of
-        Nothing -> ByteString.readFile fn
-        Just bytes -> return $ Lazy.toStrict $ GZip.decompress bytes
+readGz fn = Lazy.toStrict . GZip.decompress <$> Lazy.readFile fn
 
--- | Append @.gz@ and write a gzipped file.  Try to do so atomically by writing
--- to @.gz.write@ first and renaming it.
+-- | Write a gzipped file.  Try to do so atomically by writing to @fn.write@
+-- first and renaming it.
 writeGz :: FilePath -> ByteString.ByteString -> IO ()
 writeGz fn bytes = do
-    Lazy.writeFile (fn ++ ".gz.write") $ GZip.compress $ Lazy.fromStrict bytes
-    Directory.renameFile (fn ++ ".gz.write") (fn ++ ".gz")
+    Lazy.writeFile (fn ++ ".write") $ GZip.compress $ Lazy.fromStrict bytes
+    Directory.renameFile (fn ++ ".write") fn
 
 -- | Like 'Directory.getDirectoryContents' except don't return dotfiles and
 -- it prepends the directory.
