@@ -3,6 +3,8 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
+  * non test code should not import any of the *Test.hs libraries.  I can
+    enforce that with CPP.
   * get rid of .gz suffix for saved states
   * verify lilypond output, in the same way I verify MIDI output
     * I need to figure out the movement situation first, e.g.
@@ -47,6 +49,9 @@ UNSORTED
     . Maybe I could detect it by using Midi.Synth and looking for notes
       outside of the scale.
     . This is looking like a pianoteq bug.
+    . I can fix it by not stripping redundant control changes, this also means
+      that recorded MIDI can be played from any point.  If bandwidth isn't
+      a concern then why not?
   - scale introduced val calls should go first
     They do, but pitch calls always go before the val call fallback.
     Maybe I could eliminate the fallabck, and instead have scales also

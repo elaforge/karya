@@ -2,6 +2,7 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
+{-# LANGUAGE CPP #-}
 module Ui.UiTest where
 import qualified Control.Monad.Identity as Identity
 import qualified Data.List as List
@@ -9,10 +10,7 @@ import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 import qualified Data.Text as Text
 
-import qualified System.IO as IO
-
 import Util.Control
-import qualified Util.PPrint as PPrint
 import qualified Util.Rect as Rect
 import qualified Util.Seq as Seq
 
@@ -37,12 +35,22 @@ import qualified Cmd.Simple as Simple
 import qualified Cmd.TimeStep as TimeStep
 
 import qualified Derive.ParseSkeleton as ParseSkeleton
-import qualified Derive.Score as Score
 import qualified Derive.Stack as Stack
-
 import qualified Perform.Midi.Instrument as Instrument
 import qualified App.Config as Config
 import Types
+
+
+-- Test functions do things I don't want to include in non-testing code, such
+-- as freely call 'error' and define convenient but incorrect orphan instances.
+-- The orphans should be protected behind an ifdef in "Derive.TestInstances",
+-- but I still don't want to mix test and non-test code.
+--
+-- UiTest is the most fundamental of the test modules, so I should only need
+-- to check here.
+#ifndef TESTING
+#error "don't import testing modules from non-test code"
+#endif
 
 
 -- | (10, 50) seems to be the smallest x,y OS X will accept.  Apparently
@@ -300,37 +308,6 @@ regular_notes n = note_track $ take n
 
 -- * state to spec
 
--- | Dump a score, or part of a score, to paste into a test.
--- (global_transform, midi_config, aliases, blocks)
-type Dump = (Text, MidiConfig, Aliases, [(BlockSpec, [Skeleton.Edge])])
-type Aliases = [(Text, Text)]
-
--- | These can be used from 'Cmd.Repl.LDebug.dump_blocks' to dump state in
--- a form that can be pasted into a test, trimmed down by hand, and passed to
--- 'read_dump'.  This way problems that show up in the app can be pasted
--- into a test.
-write_dump :: FilePath -> State.State -> IO ()
-write_dump fname = IO.writeFile fname . PPrint.pshow . dump_blocks
-
-read_dump :: Dump -> State.State
-read_dump (global_transform, midi, aliases, blocks) = exec State.empty $ do
-    mkblocks_skel blocks
-    State.modify $
-        (State.config#State.global_transform #= global_transform)
-        . (State.config#State.midi #= midi_config midi)
-        . (State.config#State.aliases #=
-            Map.fromList (map (Score.Instrument *** Score.Instrument) aliases))
-
-dump_blocks :: State.State -> Dump
-dump_blocks state =
-    ( State.config#State.global_transform #$ state
-    , dump_midi_config $ State.config#State.midi #$ state
-    , map (Score.inst_name *** Score.inst_name) . Map.toList $
-        State.config#State.aliases #$ state
-    , map (flip dump_block state) (Map.keys (State.state_blocks state))
-    )
-    where
-
 dump_block :: BlockId -> State.State -> (BlockSpec, [Skeleton.Edge])
 dump_block block_id state =
     ((name ++ if Text.null title then "" else " -- " ++ untxt title,
@@ -460,21 +437,11 @@ r_4 = Meter.r_4
 mark :: Text -> Ruler.Mark
 mark name = Ruler.Mark 0 3 (Color.rgba 0.4 0 0.4 0.4) name 0 0
 
-
 -- * config
+
+midi_config :: [(Text, [Midi.Channel])] -> Instrument.Configs
+midi_config config = Simple.midi_config
+    [(inst, map ((,) "test") chans) | (inst, chans) <- config]
 
 set_midi_config :: Instrument.Configs -> State.State -> State.State
 set_midi_config = flip exec . State.set_midi_config
-
-type MidiConfig = [(Text, [Midi.Channel])]
-
-dump_midi_config :: Instrument.Configs -> MidiConfig
-dump_midi_config configs =
-    [(Score.inst_name inst, chans_of config)
-        | (inst, config) <- Map.toList configs]
-    where chans_of = map (snd . fst) . Instrument.config_addrs
-
-midi_config :: MidiConfig -> Instrument.Configs
-midi_config config = Instrument.configs
-    [(Score.Instrument inst, map mkaddr chans) | (inst, chans) <- config]
-    where mkaddr chan = (Midi.write_device "s", chan)

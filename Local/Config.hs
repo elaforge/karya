@@ -8,8 +8,6 @@ import qualified Control.Monad.Trans as Trans
 import qualified Network.BSD
 
 import qualified Util.Log as Log
-import qualified Ui.Id as Id
-import qualified Ui.State as State
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Save as Save
 import qualified Cmd.SaveGit as SaveGit
@@ -53,10 +51,6 @@ parse_args argv = case argv of
     ["views", fn] -> Trans.liftIO (SaveGit.dump_views fn) >> return Cmd.Done
     ["mod", fn] -> Setup.load_mod fn
     ["midi", fn] -> Setup.load_midi fn
-    ["-a"] -> do
-        Save.load "save/default"
-        State.set_namespace (Id.namespace "untitled")
-        return Cmd.Done
     [fn] -> Save.load fn >> return Cmd.Done
     [fn, ref_or_commit] -> do
         commit <- Cmd.require_msg ("not a ref or commit: " ++ ref_or_commit)

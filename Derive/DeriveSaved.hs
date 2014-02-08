@@ -4,9 +4,10 @@
 
 -- | Utilities to directly perform a saved score.
 module Derive.DeriveSaved where
+import qualified Data.Map as Map
 import qualified Data.Text.Lazy as Lazy
 import qualified Data.Vector as Vector
-import qualified System.IO.Unsafe as Unsafe
+
 import qualified Text.Printf as Printf
 
 import Util.Control
@@ -14,25 +15,21 @@ import qualified Util.Log as Log
 import Util.Test
 
 import qualified Midi.Midi as Midi
+import qualified Midi.StubMidi as StubMidi
 import qualified Ui.State as State
 import qualified Cmd.Cmd as Cmd
-import qualified Cmd.CmdTest as CmdTest
 import qualified Cmd.Lilypond
 import qualified Cmd.PlayUtil as PlayUtil
 import qualified Cmd.Save as Save
 import qualified Cmd.SaveGit as SaveGit
 
 import qualified Derive.Cache as Cache
+import qualified Derive.Call.All as Call.All
 import qualified Derive.Derive as Derive
-import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.LEvent as LEvent
+import qualified Derive.Scale.All as Scale.All
 
 import qualified Local.Config
-import qualified Local.Instrument.Fm8 as Fm8
-import qualified Local.Instrument.Kontakt as Kontakt
-import qualified Local.Instrument.Pianoteq as Pianoteq
-import qualified Local.Instrument.Vsl as Vsl
-
 import qualified App.StaticConfig as StaticConfig
 import Types
 
@@ -94,12 +91,6 @@ timer_msg len secs events = Printf.printf "events: %d (%.2f / sec)"
     events_len (fromIntegral events_len / secs)
     where events_len = len events
 
--- | Derive a block with the pure subset of the instrument db, and without
--- taking instrument aliases or other Cmd-level configuration into account.
-simple_derive_block :: State.State -> BlockId -> Derive.Result
-simple_derive_block =
-    DeriveTest.derive_block_standard instrument_db mempty mempty id
-
 derive_block :: State.State -> Cmd.State -> BlockId
     -> Either String (Derive.Result, [Log.Msg])
 derive_block ui_state cmd_state block_id =
@@ -114,26 +105,15 @@ run_cmd ui_state cmd_state cmd = case result of
         Just val -> Right (val, logs)
     where (_, _, logs, result) = Cmd.run_id ui_state cmd_state cmd
 
-instrument_db :: Cmd.InstrumentDb
-instrument_db = DeriveTest.synth_to_db mempty pure_synths
-
--- | These are synths that I happen to know are pure, and are used in the saved
--- performances.
-pure_synths :: [Cmd.SynthDesc]
-pure_synths = concat $ Unsafe.unsafePerformIO $
-    sequence $ map ($"") [Fm8.load, Kontakt.load, Pianoteq.load, Vsl.load]
-
 perform :: Cmd.Config -> State.State -> Cmd.Events
     -> ([Midi.WriteMessage], [Log.Msg])
 perform cmd_config ui_state events =
-    extract $ CmdTest.result_val $ CmdTest.run ui_state cmd_state $
+    extract $ run_cmd ui_state (Cmd.initial_state cmd_config) $
         PlayUtil.perform_events events
     where
-    cmd_state = Cmd.initial_state cmd_config
-    extract val = case val of
-        Left err -> error $ "perform: " ++ err
-        Right Nothing -> error $ "perform: cmd aborted"
-        Right (Just msgs) -> LEvent.partition msgs
+    extract (Left err) = ([], [Log.msg Log.Error Nothing (txt err)])
+    extract (Right (levents, logs)) = (events, logs ++ perf_logs)
+        where (events, perf_logs) = LEvent.partition levents
 
 load_score :: FilePath -> IO (Either String State.State)
 load_score fname = print_timer ("load " ++ fname) (\_ _ -> "") $
@@ -148,4 +128,19 @@ load_score fname = print_timer ("load " ++ fname) (\_ _ -> "") $
 load_cmd_config :: IO Cmd.Config
 load_cmd_config = do
     config <- Local.Config.load_static_config
-    return $ DeriveTest.cmd_config (StaticConfig.instrument_db config)
+    cmd_config (StaticConfig.instrument_db config)
+
+-- | Config to initialize the Cmd.State, without the instrument db.
+cmd_config :: Cmd.InstrumentDb -> IO Cmd.Config
+cmd_config inst_db = do
+    interface <- StubMidi.interface
+    return $ Cmd.Config
+        { Cmd.state_app_dir = "."
+        , Cmd.state_midi_interface = interface
+        , Cmd.state_rdev_map = mempty
+        , Cmd.state_wdev_map = mempty
+        , Cmd.state_instrument_db = inst_db
+        , Cmd.state_global_scopes = Call.All.scopes
+        , Cmd.state_lookup_scale = Cmd.LookupScale $
+            \scale_id -> Map.lookup scale_id Scale.All.scales
+        }

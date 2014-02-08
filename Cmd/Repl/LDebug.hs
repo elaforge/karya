@@ -8,13 +8,15 @@ module Cmd.Repl.LDebug where
 import qualified Data.Map as Map
 
 import Util.Control
+import qualified Util.PPrint as PPrint
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 
 import qualified Ui.State as State
-import qualified Ui.UiTest as UiTest
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Repl.LPerf as LPerf
+import qualified Cmd.Simple as Simple
+
 import qualified Derive.LEvent as LEvent
 import qualified Perform.Midi.Perform as Perform
 import qualified Perform.Midi.PerformTest as PerformTest
@@ -27,16 +29,25 @@ import Types
 -- with 'UiTest.read_blocks'.
 dump_blocks :: FilePath -> Cmd.CmdL ()
 dump_blocks fname = do
-    state <- State.get
-    liftIO $ UiTest.write_dump fname state
+    state <- Simple.dump_state
+    liftIO $ write_dump fname state
 
 -- | Like 'dump_blocks', but only dump a single block.
 dump_block :: FilePath -> BlockId -> Cmd.CmdL ()
 dump_block fname block_id = do
     state <- State.get
     block <- State.get_block block_id
-    liftIO $ UiTest.write_dump fname $ state
-        { State.state_blocks = Map.singleton block_id block }
+    state <- State.eval_rethrow "dump_block"
+        (state { State.state_blocks = Map.singleton block_id block })
+        Simple.dump_state
+    liftIO $ write_dump fname state
+
+-- | These can be used from 'Cmd.Repl.LDebug.dump_blocks' to dump state in
+-- a form that can be pasted into a test, trimmed down by hand, and passed to
+-- 'read_dump'.  This way problems that show up in the app can be pasted
+-- into a test.
+write_dump :: FilePath -> Simple.State -> IO ()
+write_dump fname = writeFile fname . PPrint.pshow
 
 -- * perf events
 

@@ -29,6 +29,8 @@ import qualified Ui.UiTest as UiTest
 
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.PlayUtil as PlayUtil
+import qualified Cmd.Simple as Simple
+
 import qualified Derive.Call as Call
 import qualified Derive.Call.All as Call.All
 import qualified Derive.Call.Block as Call.Block
@@ -228,18 +230,19 @@ derive_block_standard inst_db cache damage with ui_state block_id =
         Derive.extract_result <$> PlayUtil.run cache damage deriver
 
 -- | Derive the results of a "Cmd.Repl.LDebug".dump_block.
-derive_dump :: [MidiInst.SynthDesc] -> UiTest.Dump -> BlockId -> Derive.Result
+derive_dump :: [MidiInst.SynthDesc] -> Simple.State -> BlockId -> Derive.Result
 derive_dump synths dump@(_, _, aliases, _) =
-    derive_block_with (with_inst_db_aliases aliases synths)
-        (UiTest.read_dump dump)
+    derive_block_with (with_inst_db_aliases aliases synths) state
+    where
+    state = UiTest.eval State.empty (Simple.convert_state dump)
 
-perform_dump :: [MidiInst.SynthDesc] -> UiTest.Dump -> Derive.Result
+perform_dump :: [MidiInst.SynthDesc] -> Simple.State -> Derive.Result
     -> ([Perform.Event], [Midi.WriteMessage], [Log.Msg])
 perform_dump synths (_, midi, aliases, _) =
     perform lookup config . Derive.r_events
     where
     lookup = synth_to_convert_lookup aliases synths
-    config = UiTest.midi_config midi
+    config = Simple.midi_config midi
 
 -- * misc
 
@@ -578,7 +581,7 @@ mkscale scale_id notes =
 
 -- | Derive with a bit of the real instrument db.  Useful for testing
 -- instrument calls.
-with_inst_db_aliases :: UiTest.Aliases -> [Cmd.SynthDesc] -> Derive.Deriver a
+with_inst_db_aliases :: Simple.Aliases -> [Cmd.SynthDesc] -> Derive.Deriver a
     -> Derive.Deriver a
 with_inst_db_aliases aliases synth_descs = modify_constant $ \const -> const
     { Derive.state_lookup_instrument =
@@ -588,17 +591,17 @@ with_inst_db_aliases aliases synth_descs = modify_constant $ \const -> const
 with_inst_db :: [Cmd.SynthDesc] -> Derive.Deriver a -> Derive.Deriver a
 with_inst_db = with_inst_db_aliases mempty
 
-synth_to_derive_instrument :: UiTest.Aliases -> [Cmd.SynthDesc]
+synth_to_derive_instrument :: Simple.Aliases -> [Cmd.SynthDesc]
     -> Score.Instrument -> Maybe Derive.Instrument
 synth_to_derive_instrument aliases synth_descs inst =
     fmap Cmd.derive_instrument $ Instrument.Db.db_lookup db inst
     where db = synth_to_db aliases synth_descs
 
-synth_to_convert_lookup :: UiTest.Aliases -> [MidiInst.SynthDesc]
+synth_to_convert_lookup :: Simple.Aliases -> [MidiInst.SynthDesc]
     -> Convert.Lookup
 synth_to_convert_lookup aliases = make_convert_lookup . synth_to_db aliases
 
-synth_to_db :: UiTest.Aliases -> [Cmd.SynthDesc] -> Cmd.InstrumentDb
+synth_to_db :: Simple.Aliases -> [Cmd.SynthDesc] -> Cmd.InstrumentDb
 synth_to_db aliases synth_descs =
     with_aliases $ trace_logs (map (Log.msg Log.Warn Nothing) warns) $
         Instrument.Db.db midi_db

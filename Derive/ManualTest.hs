@@ -7,6 +7,7 @@
 module Derive.ManualTest where
 import Util.Test
 import qualified Ui.UiTest as UiTest
+import qualified Cmd.Simple as Simple
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Local.Instrument.Kontakt as Kontakt
 
@@ -22,6 +23,5 @@ run = do
 
 synths = Kontakt.synth_descs
 
-
-dump :: UiTest.Dump
+dump :: Simple.State
 dump = undefined
