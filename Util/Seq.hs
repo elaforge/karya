@@ -524,13 +524,29 @@ unique_on f xs = go Set.empty xs
         | otherwise = x : go (Set.insert k set) xs
         where k = f x
 
-rdrop :: Int -> [a] -> [a]
-rdrop n = either (const []) id . foldr f (Left n)
+rtake :: Int -> [a] -> [a]
+rtake n = snd . foldr go (n, [])
     where
-    f x (Left left)
-        | left <= 0 = Right [x]
-        | otherwise = Left (left-1)
-    f x (Right xs) = Right (x:xs)
+    go x (n, xs)
+        | n <= 0 = (0, xs)
+        | otherwise = (n - 1, x : xs)
+
+rtake_while :: (a -> Bool) -> [a] -> [a]
+rtake_while f = either id (const []) . foldr go (Right [])
+    where
+    -- Left means I'm done taking.
+    go _ (Left xs) = Left xs
+    go x (Right xs)
+        | f x = Right (x:xs)
+        | otherwise = Left xs
+
+rdrop :: Int -> [a] -> [a]
+rdrop n = either id (const []) . foldr f (Right n)
+    where
+    f x (Right n)
+        | n <= 0 = Left [x]
+        | otherwise = Right (n-1)
+    f x (Left xs) = Left (x:xs)
 
 rdrop_while :: (a -> Bool) -> [a] -> [a]
 rdrop_while f = foldr (\x xs -> if null xs && f x then [] else x:xs) []
