@@ -76,9 +76,7 @@ initial_size = (900, 300)
 -- someday I may want logview to catch things the app didn't explicitly mean to
 -- be caught, so I'll leave this functionality in for now.
 default_catch_patterns :: [Process.CatchPattern]
-default_catch_patterns =
-    [ Process.global_status_pattern
-    ]
+default_catch_patterns = [Process.global_status_pattern]
 
 -- | Remember this many log msgs.
 default_history :: Int

@@ -317,11 +317,11 @@ cache_logs block_id = do
     format_stack =
         maybe "" (Stack.show_ui_ . Stack.from_strings) . Log.msg_stack
 
--- | Stats for both block and track caches on the focused block.
-block_stats :: Cmd.CmdL String
-block_stats = do
-    block <- block_cache =<< Cmd.get_focused_block
-    track <- track_cache =<< Cmd.get_focused_block
+-- | Stats for both block and track caches from the given block.
+cache_stats :: BlockId -> Cmd.CmdL String
+cache_stats block_id = do
+    block <- block_cache block_id
+    track <- track_cache block_id
     return $ unlines
         ["block:", format_stats block, "track:", format_stats track]
 

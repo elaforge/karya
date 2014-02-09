@@ -275,29 +275,42 @@ write_logs block_id perf = unless (Cmd.perf_logs_written perf) $ do
         }
 
 -- | Summarize the cache stats and emit them as global status msgs.
+--
+-- The output looks like
+--
+-- > ~C: [34 / 6742] bid bid bid... || ~X control damage: [104] bid bid ... ||
+-- > ~X trock block damage: [1] bid
+--
+-- This means that 34 blocks were cached, totally 6742 events.  104 blocks
+-- were not cached due to control damage, and 1 more due to track block damage.
+-- The reasons are from 'Derive.Cache.find_generator_cache'.  They keys are
+-- prefixed with a tilde to make them sort last in the logview status line.
+--
+-- 'Cmd.Repl.LPerf.cache_stats' gives a more complete summary.
 record_cache_stats :: (Cmd.M m) => [Log.Msg] -> m ()
 record_cache_stats logs = do
     let (rederived, cached) = extract_cache_stats get_block_id logs
-    Cmd.set_global_status "~C" $ ellide 25 $
-        showt (length cached) <> " [" <> showt (sum (map snd cached)) <> "] "
-        <> Text.unwords (map (Id.ident_text . fst) cached)
+    Cmd.set_global_status "~C" $ "[" <> showt (length cached) <> " / "
+        <> showt (sum (map snd cached)) <> "] "
+        <> elide (Text.unwords (map (txt . Id.ident_name . fst) cached))
     status_keys <- Cmd.gets (Map.keysSet . Cmd.state_global_status)
     let keys = map (("~X "<>) . fst) rederived
         gone = Set.filter ("~X " `Text.isPrefixOf`) $
             status_keys Set.\\ Set.fromList keys
     forM_ (zip keys (map snd rederived)) $ \(key, block_ids) ->
-        Cmd.set_global_status key $ ellide 25 $
-            "[" <> showt (length block_ids) <> "] "
-            <> Text.unwords (map Id.ident_text block_ids)
+        Cmd.set_global_status key $ "[" <> showt (length block_ids) <> "] "
+            <> elide (Text.unwords (map (txt . Id.ident_name) block_ids))
     forM_ (Set.toList gone) $ \key -> Cmd.set_global_status key ""
     where
-    ellide len s
-        | Text.length s > len = Text.take (len-3) s <> "..."
+    max_chars = 45
+    elide s
+        | Text.length s > max_chars = Text.take (max_chars-3) s <> "..."
         | otherwise = s
 
 extract_cache_stats :: (Log.Msg -> Maybe k) -> [Log.Msg]
     -> ([(Text, [k])], [(k, Int)])
-    -- ^ ([(because, [key])], [(key, cached_vals)])
+    -- ^ (cache misses, cache hits):
+    -- ([(because, [key])], [(key, cached_vals)])
 extract_cache_stats key logs = (rederived, cached)
     where
     -- [("because xyz", [bid, bid, bid, ...])]

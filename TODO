@@ -3,6 +3,7 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
+  - LRuler.clip creates trailing [(0, 0), (0, 0)]
   * non test code should not import any of the *Test.hs libraries.  I can
     enforce that with CPP.
   * get rid of .gz suffix for saved states
@@ -39,8 +40,11 @@ UNSORTED
   - deriving seems really slow, and fluctuates wildly
     . viola-sonata took 14s in opt, 1.89s in verify_performance
     . kendang-telek takes 44s in debug, 10s in opt, and 1.5s in
-      verify_performance
+      verify_performance.  Now it's 85s in debug, 12 in opt.
     . Lots of time in Signal.map_x, is it due to getting track signals?
+    . When I modify the end of the tempo track, kendang-telek still has lots
+      of cache misses.  Shouldn't it just be the last call?
+    . Can't get damage because... why?
   - in kendang-telek some notes are incorrectly tuned
     . Hard to track down via recording because each scale degree gets its own
       channel, almost, and so the whole sequence depends on long initialized
