@@ -62,7 +62,7 @@ khanda_chapu = Tala [Clap 2, Clap 1, Clap 2] 0
 rupaka_c :: Tala
 rupaka_c = Tala [Clap 1, Clap 1, Wave 1] 0
 
--- Ranks (* marks labelled ranks):
+-- Ranks (* marks labeled ranks):
 -- r_section is several avarta -- sections -- *
 -- r_1 avarta -- avartanams
 -- r_2 anga -- based on tala -- *
@@ -74,8 +74,8 @@ rupaka_c = Tala [Clap 1, Clap 1, Wave 1] 0
 -- r_128 -- 2
 -- r_256 -- 2
 
-unlabelled_ranks :: [Ruler.Rank]
-unlabelled_ranks =
+unlabeled_ranks :: [Ruler.Rank]
+unlabeled_ranks =
     [Meter.r_section, Meter.r_2, Meter.r_16, Meter.r_64, Meter.r_128]
 
 data Ruler = Ruler {
@@ -146,11 +146,12 @@ angas_to_labels jati = concatMap $ \anga -> case anga of
 
 meter_marklist :: [[Meter.Label]] -> Meter.Meter -> Ruler.Marklist
 meter_marklist labels meter =
-    Meter.labeled_marklist $ List.zip3 ranks ps all_labels
+    Meter.labeled_marklist [Meter.LabeledMark rank dur label
+        | (rank, dur, label) <- List.zip3 ranks ps all_labels]
     where
     (ranks, ps) = unzip (clean meter)
     all_labels = Meter.text_labels 2 labels $
-        Meter.collapse_ranks unlabelled_ranks ranks
+        Meter.collapse_ranks unlabeled_ranks ranks
     -- Appending Meters can result in 0 dur marks in the middle.
     clean [] = []
     clean ((r, d) : meter)

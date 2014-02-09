@@ -69,7 +69,13 @@ instance Meterlike LabeledMeter where
     modify_meterlike f = labeled_marklist . f . marklist_labeled
 
 type Meter = [(Ruler.Rank, Duration)]
-type LabeledMeter = [(Ruler.Rank, Duration, Label)]
+type LabeledMeter = [LabeledMark]
+
+data LabeledMark = LabeledMark {
+    m_rank :: !Ruler.Rank
+    , m_duration :: !Duration
+    , m_label :: !Label
+    } deriving (Show)
 
 -- | The durations in a 'Meter' are summed together, which leads to
 -- accumulation of imprecision.  This means meters with unrepresentable
@@ -85,7 +91,7 @@ time_to_duration :: ScoreTime -> Duration
 time_to_duration = id
 
 meter_durations :: LabeledMeter -> [Duration]
-meter_durations = scanl (+) 0 . map (\(_, d, _) -> d)
+meter_durations = scanl (+) 0 . map m_duration
 
 modify_meter :: (Meterlike m) => (m -> m) -> Ruler.Ruler -> Ruler.Ruler
 modify_meter f = Ruler.modify_marklist Ruler.meter (modify_meterlike f)
@@ -160,8 +166,8 @@ r_section : r_1 : r_2 : r_4 : r_8 : r_16 : r_32 : r_64 : r_128 : r_256 : _ =
 -- rank.  This is convenient because that's how staff notation works.  But then
 -- the labels wind up being all 0s and 1s, which is not that useful.  The ranks
 -- in this list don't receive their own label.
-unlabelled_ranks :: [Ruler.Rank]
-unlabelled_ranks = [r_2, r_8, r_32, r_64, r_256]
+unlabeled_ranks :: [Ruler.Rank]
+unlabeled_ranks = [r_2, r_8, r_32, r_64, r_256]
 
 -- | These are mnemonics for staff notation durations, though they may not
 -- correspond exactly, as documented in "Cmd.Meter".
@@ -260,28 +266,32 @@ meter_marklist :: Meter -> Ruler.Marklist
 meter_marklist = labeled_marklist . label_meter
 
 marklist_meter :: Ruler.Marklist -> Meter
-marklist_meter = map (\(rank, dur, _) -> (rank, dur)) . marklist_labeled
+marklist_meter =
+    map (\(LabeledMark rank dur _) -> (rank, dur)) . marklist_labeled
 
 label_meter :: Meter -> LabeledMeter
-label_meter meter = List.zip3 ranks ps labels
+label_meter meter =
+    [LabeledMark rank dur label
+        | (rank, dur, label) <- List.zip3 ranks ps labels]
     where
     (ranks, ps) = unzip meter
     labels = text_labels 1 count1_labels $
-        collapse_ranks unlabelled_ranks ranks
+        collapse_ranks unlabeled_ranks ranks
 
--- | Create a Marklist from a labelled Meter.
+-- | Create a Marklist from a labeled Meter.
 labeled_marklist :: LabeledMeter -> Ruler.Marklist
 labeled_marklist meter = Ruler.marklist
     [ (ScoreTime.round pos, mark is_edge dur rank label)
     | (rank, pos, label, dur, is_edge)
-        <- List.zip5 ranks (scanl ((+) . ScoreTime.round) 0 ps)
-            labels durs edges
+        <- List.zip5 ranks
+            (scanl ((+) . ScoreTime.round) 0 (map m_duration meter))
+            (map m_label meter) durs edges
     ]
     -- Round at every step to avoid accumulating error, as per 'Duration'.
     where
     edges = True : map null (drop 2 (List.tails ranks))
-    durs = rank_durs (zip ranks ps)
-    (ranks, ps, labels) = List.unzip3 meter
+    durs = rank_durs (zip ranks (map m_duration meter))
+    ranks = map m_rank meter
     mark is_edge rank_dur rank name =
         let (color, width, pixels) = meter_ranks !! min rank ranks_len
             zoom = pixels_to_zoom rank_dur pixels
@@ -298,8 +308,8 @@ labeled_marklist meter = Ruler.marklist
 -- | The last mark gets a 0 duration.
 marklist_labeled :: Ruler.Marklist -> LabeledMeter
 marklist_labeled mlist =
-    [ (Ruler.mark_rank m, maybe 0 (subtract p . fst) maybe_next,
-        Ruler.mark_name m)
+    [ LabeledMark (Ruler.mark_rank m) (maybe 0 (subtract p . fst) maybe_next)
+        (Ruler.mark_name m)
     | ((p, m), maybe_next) <- Seq.zip_next marks
     ]
     where marks = Ruler.ascending 0 mlist
@@ -339,13 +349,11 @@ pixels_to_zoom dur pixels
 
 type Label = Text
 
-data Labelled =
+data Labeled =
     -- | The mark gets this text.
     Literal Label
     -- | The mark gets a number
     | Count deriving (Show)
-
-type LabelledMeter = [(Ruler.Rank, ScoreTime, Labelled)]
 
 text_labels :: Int -> [[Label]] -> [Ruler.Rank] -> [Label]
 text_labels min_depth labels ranks =
