@@ -118,6 +118,14 @@ delete start end meter = map snd pre ++ map snd post
     (pre, within) = break ((>=start) . fst) (zip (meter_durations meter) meter)
     post = dropWhile ((<end) . fst) within
 
+strip_ranks :: Ruler.Rank -> LabeledMeter -> LabeledMeter
+strip_ranks max_rank = strip
+    where
+    strip [] = []
+    strip (LabeledMark rank dur label : rest) =
+        LabeledMark rank (dur + sum (map m_duration pre)) label : strip post
+        where (pre, post) = span ((>max_rank) . m_rank) rest
+
 scale :: Duration -> Meter -> Meter
 scale dur meter = map (second (*factor)) meter
     where factor = if dur == 0 then 1 else dur / time_end meter

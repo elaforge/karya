@@ -213,7 +213,7 @@ input_to_note input = do
     scale <- Cmd.get_scale me scale_id
     key <- get_key
     let msg = me <> ": " <> pretty input <> " out of range for "
-            <> show scale_id
+            <> pretty scale_id
     maybe (Cmd.throw msg) return (Scale.scale_input_to_note scale key input)
 
 

@@ -192,6 +192,13 @@ delete = do
     return (block_id, Meter.delete
         (Meter.time_to_duration start) (Meter.time_to_duration end))
 
+-- | Strip out ranks below a certain value, for the whole block.  Larger scale
+-- blocks don't need the fine resolution and can wind up with huge rulers.
+strip_ranks :: Cmd.M m => Meter.RankName -> m DeleteModify
+strip_ranks max_rank = do
+    block_id <- Cmd.get_focused_block
+    return (block_id, Meter.strip_ranks (Meter.name_to_rank max_rank))
+
 -- | Set the ruler to a number of measures of the given meter, where each
 -- measure is the given amount of time.
 measures :: (Cmd.M m) => TrackTime -- ^ duration of one measure
