@@ -163,7 +163,8 @@ get_marks block_id =
 double :: (Cmd.M m) => m Modify
 double = do
     block_id <- Cmd.get_focused_block
-    return (block_id, \meter -> meter <> meter)
+    -- The final 0 duration mark should be replaced by the first mark.
+    return (block_id, \meter -> Seq.rdrop 1 meter <> meter)
 
 -- | Clip the meter to end at the selection.
 clip :: (Cmd.M m) => m DeleteModify

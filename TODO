@@ -3,7 +3,7 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
-  - LRuler.clip creates trailing [(0, 0), (0, 0)]
+  * LRuler.double creates [(0, 0), (0, 0)]
   * non test code should not import any of the *Test.hs libraries.  I can
     enforce that with CPP.
   * get rid of .gz suffix for saved states
