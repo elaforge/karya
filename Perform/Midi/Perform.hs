@@ -689,7 +689,7 @@ type AddrState =
 
 -- | Some context free post-processing on the midi stream.
 post_process :: PostprocState -> MidiEvents -> (MidiEvents, PostprocState)
-post_process state = first resort . drop_dup_controls state
+post_process state = drop_dup_controls state . resort
 
 -- | Having to deal with Log is ugly... can't I get that out with fmap?
 drop_dup_controls :: PostprocState -> MidiEvents -> (MidiEvents, PostprocState)
