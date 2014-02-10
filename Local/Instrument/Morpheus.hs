@@ -15,7 +15,7 @@ import qualified App.MidiInst as MidiInst
 
 
 synth_name :: FilePath
-synth_name = "morph"
+synth_name = "morpheus"
 
 load :: FilePath -> IO [MidiInst.SynthDesc]
 load = MidiInst.load_db (const MidiInst.empty_code) synth_name

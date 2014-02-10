@@ -22,8 +22,9 @@ import qualified Local.Instrument.Kontakt as Kontakt
 
 
 test_wayang = do
-    let run notes = extract $ perform ["kkt/wayang-umbang"] $ Derive.r_events $
-            derive $ UiTest.note_spec ("kkt/wayang-umbang", notes, [])
+    let run notes = extract $ perform ["kontakt/wayang-umbang"] $
+            Derive.r_events $ derive $
+                UiTest.note_spec ("kontakt/wayang-umbang", notes, [])
         extract (_, midi, logs) = (DeriveTest.note_on midi, logs)
     equal (run [(0, 1, "4i")]) ([Key2.e4], [])
     equal (run [(1, 1, "+mute -- 4i")]) ([Key2.b_2, Key2.e0], [])
@@ -34,12 +35,13 @@ test_wayang_pasang = do
         extract = DeriveTest.e_inst
         title = wayang_title "" <> " | unison"
     equal (DeriveTest.extract extract $ run [(0, 1, "")])
-        (["kkt/wayang-umbang", "kkt/wayang-isep"], [])
+        (["kontakt/wayang-umbang", "kontakt/wayang-isep"], [])
     let result = run [(0, 1, "4i")]
     equal (DeriveTest.extract extract result)
-        (["kkt/wayang-umbang", "kkt/wayang-isep"], [])
+        (["kontakt/wayang-umbang", "kontakt/wayang-isep"], [])
 
-    let (_events, midi, logs) = perform ["kkt/wayang-umbang", "kkt/wayang-isep"]
+    let (_events, midi, logs) = perform
+            ["kontakt/wayang-umbang", "kontakt/wayang-isep"]
             (Derive.r_events result)
     equal logs []
     -- Note no PitchBend, which means the split instruments applied
@@ -54,8 +56,8 @@ test_wayang_kempyung = do
             UiTest.note_spec
                 (wayang_title suffix <> append <> " | kempyung", notes, [])
         extract e = (DeriveTest.e_inst e, DeriveTest.e_note e)
-        umbang = "kkt/wayang-umbang"
-        isep = "kkt/wayang-isep"
+        umbang = "kontakt/wayang-umbang"
+        isep = "kontakt/wayang-isep"
     -- Top note is 6i.
     equal (run "-k" "" [(0, 1, "5e"), (1, 1, "5u")])
         ([ (umbang, (0, 1, "5e")), (isep, (0, 1, "6i"))
@@ -72,16 +74,16 @@ test_wayang_kempyung = do
 
 wayang_title :: String -> String
 wayang_title suffix =
-    " | scale = wayang | n >kkt/wayang" <> suffix <> " | scale = wayang\
-    \ | inst-polos = >kkt/wayang-umbang | inst-sangsih = >kkt/wayang-isep"
+    " | scale = wayang | n >kontakt/wayang" <> suffix <> " | scale = wayang\
+    \ | inst-polos = >kontakt/wayang-umbang | inst-sangsih = >kontakt/wayang-isep"
 
 test_mridangam = do
     let run pitch notes tracks = derive $
             [ ("*", [(0, 0, pitch)])
-            , (">kkt/mridangam",
+            , (">kontakt/mridangam",
                 [(t, 0, n) | (t, n) <- zip (Seq.range_ 0 1) notes])
             ] ++ tracks
-        perf = perform ["kkt/mridangam"] . Derive.r_events
+        perf = perform ["kontakt/mridangam"] . Derive.r_events
     let (_events, midi, logs) =
             perf $ run "3b" ["k", "t", "n", "d", "m"] []
     equal logs []
@@ -99,7 +101,7 @@ test_mridangam = do
 
 test_mridangam_double = do
     let run title notes = DeriveTest.extract extract $
-            derive [(">kkt/mridangam" <> title, notes)]
+            derive [(">kontakt/mridangam" <> title, notes)]
         extract e = (Score.event_start e, Score.initial_dynamic e)
     -- The second one doesn't have enough space.
     equal (run " | double-time = 1s" [(1, 0, "oo"), (2, 0, "oo")])

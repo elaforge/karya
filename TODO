@@ -20,7 +20,7 @@ UNSORTED
       ignored tempo tracks?
   * rename TrackLang.RealOrScore to Duration?
   * clean up the Call.Util.duration* functions
-  - Now that instruments are expected to be used via aliases, synths don't
+  * Now that instruments are expected to be used via aliases, synths don't
     have to have abbreviated names any more.
   * What does all the character restriction in Id really give me?  An Id with
     funny characters isn't callable from tracklang, but that's no big deal.

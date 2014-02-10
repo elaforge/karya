@@ -17,7 +17,7 @@ import qualified App.MidiInst as MidiInst
 
 load :: FilePath -> IO [MidiInst.SynthDesc]
 load _dir = return $ MidiInst.make $
-    (MidiInst.softsynth "dmx" "Image-Line Drumaxx" pb_range [])
+    (MidiInst.softsynth "drumaxx" "Image-Line Drumaxx" pb_range [])
     { MidiInst.modify_wildcard = CUtil.drum_patch note_keys
     , MidiInst.code = code
     , MidiInst.extra_patches = patches
@@ -31,7 +31,7 @@ code = CUtil.drum_code Nothing (map fst note_keys)
 patches :: [MidiInst.Patch]
 patches = MidiInst.with_code code $ map make_patch
     [ Instrument.text #= "This drum takes a pitch signal, which is then sent\
-        \ to the >reak/comb instrument, which is a tuned comb filter.\
+        \ to the >reaktor/comb instrument, which is a tuned comb filter.\
         \ The audio routing has to be set up in the VST host." $
         composite $ MidiInst.patch pb_range "comb" []
     ]
@@ -40,7 +40,7 @@ patches = MidiInst.with_code code $ map make_patch
     -- have duration.
     make_patch = Instrument.unset_flag Instrument.Triggered
         . CUtil.drum_patch note_keys
-    composite = Instrument.add_composite (Score.instrument "reak" "comb")
+    composite = Instrument.add_composite (Score.instrument "reaktor" "comb")
         Nothing ["mix", "fbk"]
 
 -- | The octave numbers on the drumaxx are one greater than the standard

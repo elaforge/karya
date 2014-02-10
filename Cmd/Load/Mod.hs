@@ -71,7 +71,7 @@ create_order_block :: (State.M m) => (String -> Id.Id)
     -> [(BlockId, BlockRows)] -> m BlockId
 create_order_block mkid block_ids = do
     rid <- Create.ruler "order" $ Ruler.meter_ruler (order_meter block_rows)
-    make_block mkid rid "order" [("tempo", tempo), (">ptq/c1", events)]
+    make_block mkid rid "order" [("tempo", tempo), (">pianoteq/c1", events)]
     where
     block_rows = map snd block_ids
     tempo = [Event.event 0 0 "6"]

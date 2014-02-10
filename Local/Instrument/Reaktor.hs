@@ -18,13 +18,13 @@ import qualified App.MidiInst as MidiInst
 
 load :: FilePath -> IO [MidiInst.SynthDesc]
 load _dir = return $ MidiInst.make
-    (MidiInst.softsynth "reak" "Native Instruments Reaktor" pb_range [])
+    (MidiInst.softsynth "reaktor" "Native Instruments Reaktor" pb_range [])
     { MidiInst.extra_patches = MidiInst.with_empty_code patches }
 
 pb_range = (-96, 96)
 
 filter_composite :: Instrument.Composite
-filter_composite = (Score.instrument "reak" "filter", Just "res",
+filter_composite = (Score.instrument "reaktor" "filter", Just "res",
         Set.fromList ["mix", "q", "lp-hp", "2-4-pole"])
 
 patches :: [Instrument.Patch]

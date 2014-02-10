@@ -52,7 +52,7 @@ synth_descs = MidiInst.make $
     { MidiInst.extra_patches = patches }
 
 synth :: Instrument.SynthName
-synth = "kkt"
+synth = "kontakt"
 
 patches :: [MidiInst.Patch]
 patches = concat

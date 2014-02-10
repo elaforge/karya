@@ -15,7 +15,7 @@ import qualified App.MidiInst as MidiInst
 
 load :: FilePath -> IO [MidiInst.SynthDesc]
 load _dir = return $ MidiInst.make $
-    (MidiInst.softsynth "ptq" "Modartt Pianoteq" pb_range controls)
+    (MidiInst.softsynth "pianoteq" "Modartt Pianoteq" pb_range controls)
     { MidiInst.extra_patches = patches }
 
 pb_range :: Instrument.PbRange
