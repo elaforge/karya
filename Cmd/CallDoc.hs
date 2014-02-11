@@ -64,12 +64,14 @@ call_bindings_text (binds, ctype, call_doc) = do
         write_doc doc
     arg_docs (Derive.ArgDocs args) = mapM_ arg_doc args
     arg_doc (Derive.ArgDoc name typ parser env_default doc) = do
-        Format.write $ name <> fromMaybe mempty char <> " :: "
-            <> prettyt typ <> maybe "" (" = "<>) deflt
-            <> " " <> environ_keys name env_default
+        Format.write $ name <> super <> " :: " <> prettyt typ
+            <> maybe "" (" = "<>) deflt <> " " <> environ_keys name env_default
             <> " -- "
         write_doc doc
-        where (char, deflt) = show_parser parser
+        where
+        (super_, deflt) = show_parser parser
+        super = maybe "" (\t -> if Text.length t == 1 then t else " " <> t)
+            super_
     write_tags tags
         | tags == mempty = return ()
         | otherwise = Format.write $
