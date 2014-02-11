@@ -21,7 +21,10 @@ def main():
         by_dir[dir] = (adds.get(path, 0) + add,
             subtracts.get(path, 0) + subtract)
 
-    longest = max(map(len, normal_by_dir.keys() + test_by_dir.keys()))
+    if normal_by_dir or test_by_dir:
+        longest = max(map(len, normal_by_dir.keys() + test_by_dir.keys()))
+    else:
+        longest = 1
     col1 = 20
     print '%-*s %-*s test' % (longest, 'dir', col1, 'normal')
     for dir in sorted(set(normal_by_dir).union(set(test_by_dir))):
