@@ -3,6 +3,9 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
+  - I could get rid of BaseTypes.RawPitchControl, if I don't want to use
+    Call.eval_pitch_control, which means I can't put #,(4c) as an arg default.
+    Well, but I could with Quoted (# '' (4c))
   * LRuler.double creates [(0, 0), (0, 0)]
   * non test code should not import any of the *Test.hs libraries.  I can
     enforce that with CPP.
@@ -87,7 +90,7 @@ UNSORTED
         a playback cursor, and to be able to mix with "normal" notation)
         then all is fine, but if I do want to mix then I need to get a tempo
         out of it.
-  - shakefile: changing repl env var causes relink of things that don't rely
+  * shakefile: changing repl env var causes relink of things that don't rely
     on it, e.g. logview
   * Corrupted views save in git repo is still happening.  How?
     Could this be related to the shake database corruption?

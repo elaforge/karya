@@ -88,6 +88,9 @@ oDir = (</> "obj") . buildDir
 docDir :: FilePath
 docDir = build </> "doc"
 
+includeDirs :: Config -> [FilePath]
+includeDirs config = [dir | '-':'I':dir <- cInclude (configFlags config)]
+
 -- * flags
 
 data Flags = Flags {
@@ -493,6 +496,9 @@ midiFromEnv env = case lookup "midi" env of
 hsconfigH :: FilePath
 hsconfigH = "hsconfig.h"
 
+hsconfigPath :: Config -> FilePath
+hsconfigPath config = buildDir config </> hsconfigH
+
 -- | Write a header to configure the haskell compilation.
 --
 -- It's in a separate file so that the relevant haskell files can include it.
@@ -642,8 +648,7 @@ getMarkdown = map ("doc"</>) <$> Shake.getDirectoryFiles "doc" ["*.md"]
 makeHaddock :: Config -> Shake.Action ()
 makeHaddock config = do
     (hs, hscs) <- getAllHaddock config
-    need $ (buildDir config </> hsconfigH)
-        : map (hscToHs (hscDir config)) hscs
+    need $ hsconfigPath config : map (hscToHs (hscDir config)) hscs
     let flags = configFlags config
     interfaces <- Trans.liftIO getHaddockInterfaces
     let packageFlags = "-hide-all-packages" : map ("-package="++) packages
@@ -717,7 +722,11 @@ makeHs dir out main = ("GHC-MAKE", out, cmdline)
 -- | Build a haskell binary.
 buildHs :: Config -> [FilePath] -> FilePath -> FilePath -> Shake.Action ()
 buildHs config deps hs fn = do
-    need [buildDir config </> hsconfigH]
+    -- If hsconfig.h doesn't exist then HsDeps.transitiveImportsOf will get
+    -- upset when it tries to CPP the files.
+    (_found, notFound) <- CcDeps.includesOf (includeDirs config) hs
+    when (hsconfigH `elem` notFound) $
+        need [hsconfigPath config]
     srcs <- HsDeps.transitiveImportsOf (cppFlags config) hs
     let ccs = List.nub $
             concat [Map.findWithDefault [] src hsToCc | src <- srcs]
@@ -990,13 +999,21 @@ logDeps config stage fn deps = do
 
 includesOf :: String -> Config -> FilePath -> Shake.Action [FilePath]
 includesOf caller config fn = do
-    let dirs = [dir | '-':'I':dir <- cInclude (configFlags config)]
-    (includes, not_found) <- CcDeps.transitiveIncludesOf dirs fn
-    unless (null not_found) $
+    let dirs = includeDirs config
+    (includes, notFound) <- hsconfig <$> CcDeps.transitiveIncludesOf dirs fn
+    unless (null notFound) $
         Trans.liftIO $ putStrLn $ caller
-            ++ ": WARNING: c includes not found: " ++ show not_found
+            ++ ": WARNING: c includes not found: " ++ show notFound
             ++ " (looked in " ++ show dirs ++ ")"
     return includes
+    where
+    -- hsconfig.h is the only automatically generated header.  Because the
+    -- #include line doesn't give the path (and can't, since each buil dir
+    -- has its own hsconfig.h), I have to special case it.
+    hsconfig (includes, notFound)
+        | hsconfigH `elem` notFound =
+            (hsconfigPath config : includes, filter (/=hsconfigH) notFound)
+        | otherwise = (includes, notFound)
 
 dropPrefix :: String -> String -> Maybe String
 dropPrefix pref str
@@ -1005,7 +1022,3 @@ dropPrefix pref str
 
 replaceExt :: FilePath -> String -> FilePath
 replaceExt fn = FilePath.replaceExtension (FilePath.takeFileName fn)
-
-mlast :: [a] -> Maybe a
-mlast [] = Nothing
-mlast xs = Just (last xs)

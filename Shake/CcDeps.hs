@@ -3,7 +3,7 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 {-# LANGUAGE OverloadedStrings #-}
-module Shake.CcDeps (enableDefines, transitiveIncludesOf) where
+module Shake.CcDeps (enableDefines, includesOf, transitiveIncludesOf) where
 import Control.Monad
 import qualified Control.Monad.Trans as Trans
 import qualified Data.ByteString.Char8 as B
@@ -40,6 +40,9 @@ enableDefines fn defines undefs = do
     process line = Map.findWithDefault line line trans
 
 -- * includes
+
+includesOf :: [FilePath] -> FilePath -> Shake.Action ([FilePath], [FilePath])
+includesOf dirs fn = Shake.need [fn] >> Trans.liftIO (includesOf_ dirs fn)
 
 -- | Find files this files includes, transitively.  Includes the given file.
 --
