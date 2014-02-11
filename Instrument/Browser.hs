@@ -106,8 +106,6 @@ info_of db score_inst (MidiDb.Info synth patch code) =
     synth_name <> " -- " <> name <> " -- " <> synth_doc <> "\n\n" <> fields
         -- important properties
         [ ("Flags", Text.intercalate ", " flags)
-        , ("Composite", Text.unlines $ map show_composite $
-            Instrument.patch_composite patch)
         , ("Instrument controls", show_control_map inst_cmap)
         , ("Synth controls", show_control_map synth_cmap)
         -- code
@@ -147,12 +145,6 @@ info_of db score_inst (MidiDb.Info synth patch code) =
     Derive.InstrumentCalls note_generators note_transformers val_calls =
         Cmd.inst_calls code
     tags = maybe "" show_tags $ Search.tags_of (db_index db) score_inst
-
-show_composite :: Instrument.Composite -> Text
-show_composite (inst, maybe_pitch, controls) =
-    ShowVal.show_val inst <> ": pitch: "
-        <> maybe "<default>" prettyt maybe_pitch
-        <> ", controls: " <> prettyt controls
 
 fields :: [(Text, Text)] -> Text
 fields = Text.unlines . filter (not . Text.null) . map field

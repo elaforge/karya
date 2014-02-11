@@ -270,7 +270,6 @@ data Patch = Patch {
     -- range, tuning details, etc.
     , patch_restricted_environ :: !RestrictedEnviron.Environ
     , patch_flags :: !(Set.Set Flag)
-    , patch_composite :: ![Composite]
     , patch_initialize :: !InitializePatch
     , patch_attribute_map :: !AttributeMap
     , patch_call_map :: !CallMap
@@ -289,7 +288,6 @@ scale = Lens.lens patch_scale (\v r -> r { patch_scale = v })
 environ = Lens.lens patch_restricted_environ
     (\v r -> r { patch_restricted_environ = v })
 flags = Lens.lens patch_flags (\v r -> r { patch_flags = v })
-composite = Lens.lens patch_composite (\v r -> r { patch_composite = v })
 initialize = Lens.lens patch_initialize (\v r -> r { patch_initialize = v })
 attribute_map = Lens.lens patch_attribute_map
     (\v r -> r { patch_attribute_map = v })
@@ -301,20 +299,6 @@ file = Lens.lens patch_file (\v r -> r { patch_file = v })
 patch_environ :: Patch -> TrackLang.Environ
 patch_environ = RestrictedEnviron.convert . patch_restricted_environ
 
--- | A composite patch corresponds to multiple underlying midi patches.
--- At conversion time, a single event with a composite patch will be split
--- into multiple events.
---
--- If the @Maybe Score.Control@ is Nothing, then the given instrument gets the
--- default pitch signal, and the main instrument must have a keymap pitch.
--- Otherwise, it gets the given named pitch.  The Set of Controls are given to
--- the split instrument and not the main one.
---
--- This is useful for instruments with multiple pitches, e.g. a drum with
--- a keymap for strokes as well as a tuned pitch, or a pitched instrument with
--- a secondary pitch as a resonance.
-type Composite = (Score.Instrument, Maybe Score.Control, Set.Set Score.Control)
-
 -- | Create a Patch with empty vals, to set them as needed.
 patch :: Instrument -> Patch
 patch inst = Patch
@@ -322,7 +306,6 @@ patch inst = Patch
     , patch_scale = Nothing
     , patch_restricted_environ = mempty
     , patch_flags = Set.empty
-    , patch_composite = []
     , patch_initialize = NoInitialization
     , patch_attribute_map = AttributeMap []
     , patch_call_map = Map.empty
@@ -369,14 +352,13 @@ convert_patch_scale scale (Pitch.NoteNumber nn) =
 
 -- | A Pretty instance is useful because InitializeMidi tends to be huge.
 instance Pretty.Pretty Patch where
-    format (Patch inst scale environ flags composite init attr_map call_map
+    format (Patch inst scale environ flags init attr_map call_map
             tags text file) =
         Pretty.record_title "Patch"
             [ ("instrument", Pretty.format inst)
             , ("scale", Pretty.format scale)
             , ("environ", Pretty.format environ)
             , ("flags", Pretty.format flags)
-            , ("composite", Pretty.format composite)
             , ("initialize", Pretty.format init)
             , ("attribute_map", Pretty.format attr_map)
             , ("call_map", Pretty.format call_map)
@@ -403,12 +385,6 @@ has_flag flag = Set.member flag . patch_flags
 
 set_decay :: RealTime -> Patch -> Patch
 set_decay secs = instrument_#maybe_decay #= Just secs
-
-add_composite :: Score.Instrument -> Maybe Text -> [Text] -> Patch -> Patch
-add_composite inst pitch controls = composite %= (comp:)
-    where
-    comp = (inst, Score.control <$> pitch,
-        Set.fromList $ map Score.control controls)
 
 -- | Various instrument flags.
 data Flag =

@@ -74,12 +74,11 @@ pb_range = (-24, 24)
 -- * misc
 
 misc_patches :: [MidiInst.Patch]
-misc_patches = concat [library, mcgill, balalaika, sonic_couture, sc_bali]
+misc_patches = concat [library, mcgill, balalaika, sonic_couture, sc_bali, misc]
 
 library :: [MidiInst.Patch]
 library = MidiInst.with_empty_code
-    [ inst "choir"
-        [ (1, "vowel") ]
+    [ inst "choir" [ (1, "vowel") ]
     ]
     where
     inst name controls = Instrument.patch $
@@ -90,14 +89,11 @@ mcgill :: [MidiInst.Patch]
 mcgill = MidiInst.with_empty_code
     [ pressure "viol", pressure "shawm", pressure "crumhorn"
     , plucked "lute"
-    , filtered (pressure "filtered")
     ]
     where
-    plucked name = Instrument.patch $ Instrument.instrument name [] pb_range
-    pressure name = MidiInst.pressure $ Instrument.patch $
-        Instrument.instrument name
-            [(CC.cc14, Controls.fc), (CC.cc15, Controls.q)] pb_range
-    filtered = Instrument.composite #= [Reaktor.filter_composite]
+    plucked name = patch name []
+    pressure name = MidiInst.pressure $
+        patch name [(CC.cc14, Controls.fc), (CC.cc15, Controls.q)]
 
 -- | Ilya Efimov Bailalaika Prima
 -- I changed it to support (-24, 24) pb range.
@@ -145,6 +141,9 @@ sc_bali = MidiInst.with_code mute_null_call
         Instrument.patch $ Instrument.instrument "sc-gangsa12" [] (-2, 2)
     ]
     where gangsa_ks = [(Attrs.mute, Key2.cs1), (mempty, Key2.c1)]
+
+misc :: [MidiInst.Patch]
+misc = MidiInst.with_code Reaktor.resonant_filter [patch "filtered" []]
 
 -- * hang
 

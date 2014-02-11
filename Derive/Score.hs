@@ -24,11 +24,12 @@ import qualified Util.Pretty as Pretty
 import qualified Ui.ScoreTime as ScoreTime
 import qualified Derive.BaseTypes as BaseTypes
 import Derive.BaseTypes
-       (Instrument(..), Control, Type(..), Typed(..), ControlValMap, ControlMap,
-        ControlFunction(..), ControlFunctionMap, PitchMap, untyped, merge_typed,
-        type_to_code, code_to_type, TypedControl, TypedVal, Attributes,
-        Attribute, attr, attrs, set_to_attrs, attrs_diff, attrs_contain,
-        attrs_remove, attrs_set, attrs_list, no_attrs)
+       (Instrument(..), Control, PControl(..), Type(..), Typed(..),
+        ControlValMap, ControlMap, ControlFunction(..), ControlFunctionMap,
+        PitchMap, untyped, merge_typed, type_to_code, code_to_type,
+        TypedControl, TypedVal, Attributes, Attribute, attr, attrs,
+        set_to_attrs, attrs_diff, attrs_contain, attrs_remove, attrs_set,
+        attrs_list, no_attrs)
 import qualified Derive.Environ as Environ
 import qualified Derive.PitchSignal as PitchSignal
 import qualified Derive.Stack as Stack

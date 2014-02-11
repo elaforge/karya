@@ -170,12 +170,12 @@ UNSORTED
     - add ratio transpose signal, that multiplies hz
   - After a rederive, it still takes a Cmd to free up the memory.  Who is
     holding on to it?
-  - Composite 0 dur notes still not quite right, controls come too early.
+  / Composite 0 dur notes still not quite right, controls come too early.
     Maybe I should just abandon the idea of trying to make those 0 dur notes.
     What is the point of a 0 dur note?  The score has no explicit duration,
     and the eventual performance has some arbitrary short duration.  This
     corresponds to midi instruments whose envelope ignores NoteOff.
-  - Get rid of the composite field in Patch and implement as a note call?
+  * Get rid of the composite field in Patch and implement as a note call?
   - add edit and windows menu to all apps
     There must be special OS X support for these
     Apparently not?  iTerms is defined in English.lproj/MainMenu.xib

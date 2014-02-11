@@ -22,25 +22,20 @@ type ConvertT state a =
 newtype Error = Error (Maybe Text) deriving (Show)
 instance Error.Error Error where strMsg = Error . Just . txt
 
-convert :: state
-    -> (Score.Event -> ConvertT state (a, [Score.Event]))
-    -- ^ The function returns the new event, along with optional Score.Events
-    -- to push on to the front of the input events.  This way a single
-    -- Score.Event can be split into multiple ones during conversion.
+convert :: state -> (Score.Event -> ConvertT state a)
     -> [Score.Event] -> [LEvent.LEvent a]
 convert state convert_event = go state Nothing
     where
     go _ _ [] = []
     go state prev (event : rest) =
         converted ++ map LEvent.Log logs
-            ++ go next_state (Just (Score.event_start event))
-                (additional ++ rest)
+            ++ go next_state (Just (Score.event_start event)) rest
         where
         (result, logs, next_state) = run_convert state
             (Score.event_stack event) (convert1 prev event)
-        (converted, additional) = case result of
-            Nothing -> ([], [])
-            Just (event, additional) -> ([LEvent.Event event], additional)
+        converted = case result of
+            Nothing -> []
+            Just event -> [LEvent.Event event]
     convert1 maybe_prev event = do
         -- Sorted is a postcondition of the deriver.
         whenJust maybe_prev $ \prev -> when (Score.event_start event < prev) $

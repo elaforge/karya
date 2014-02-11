@@ -10,7 +10,7 @@ import Util.Control
 import qualified Midi.CC as CC
 import qualified Derive.Attrs as Attrs
 import qualified Derive.Controls as Controls
-import qualified Derive.Score as Score
+import qualified Derive.Instrument.DUtil as DUtil
 
 import qualified Perform.Midi.Instrument as Instrument
 import qualified App.MidiInst as MidiInst
@@ -23,9 +23,10 @@ load _dir = return $ MidiInst.make
 
 pb_range = (-96, 96)
 
-filter_composite :: Instrument.Composite
-filter_composite = (Score.instrument "reaktor" "filter", Just "res",
-        Set.fromList ["mix", "q", "lp-hp", "2-4-pole"])
+resonant_filter :: MidiInst.Code
+resonant_filter = MidiInst.note_calls $ MidiInst.null_call $
+    DUtil.double_pitch "res" Nothing "res"
+        (Just (Set.fromList ["mix", "q", "lp-hp", "2-4-pole"]))
 
 patches :: [Instrument.Patch]
 patches =

@@ -5,12 +5,13 @@
 -- | Image-Line's Drumaxx softsynth.
 module Local.Instrument.Drumaxx where
 import Util.Control
+import qualified Data.Set as Set
 import Midi.Key
 import qualified Midi.Midi as Midi
-import qualified Cmd.Instrument.Drums as Drums
 import qualified Cmd.Instrument.CUtil as CUtil
+import qualified Cmd.Instrument.Drums as Drums
 import Derive.Attrs
-import qualified Derive.Score as Score
+import qualified Derive.Instrument.DUtil as DUtil
 import qualified Perform.Midi.Instrument as Instrument
 import qualified App.MidiInst as MidiInst
 
@@ -29,19 +30,18 @@ code :: MidiInst.Code
 code = CUtil.drum_code Nothing (map fst note_keys)
 
 patches :: [MidiInst.Patch]
-patches = MidiInst.with_code code $ map make_patch
+patches = MidiInst.with_code composite_code
     [ Instrument.text #= "This drum takes a pitch signal, which is then sent\
-        \ to the >reaktor/comb instrument, which is a tuned comb filter.\
+        \ to the `composite-pitched` instrument, which is a tuned comb filter.\
         \ The audio routing has to be set up in the VST host." $
-        composite $ MidiInst.patch pb_range "comb" []
+        MidiInst.patch pb_range "comb" []
     ]
     where
-    -- Since this drum has pitches and continuous controls, its notes need to
-    -- have duration.
-    make_patch = Instrument.unset_flag Instrument.Triggered
-        . CUtil.drum_patch note_keys
-    composite = Instrument.add_composite (Score.instrument "reaktor" "comb")
-        Nothing ["mix", "fbk"]
+    composite_code = MidiInst.note_generators
+        [(call, composite call) | call <- map (Drums.note_name . fst) note_keys]
+    composite call = DUtil.redirect_pitch "comb"
+        "" (Just (Set.fromList ["mix", "fbk"]))
+        call Nothing
 
 -- | The octave numbers on the drumaxx are one greater than the standard
 -- usage.  This is for \"Acoustic 2 FG\".  I'll have to come up with

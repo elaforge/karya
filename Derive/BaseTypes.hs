@@ -71,6 +71,13 @@ newtype Control = Control Text
     deriving (Eq, Ord, Read, Show, DeepSeq.NFData, Serialize.Serialize,
         String.IsString)
 
+-- | A pitch control, or Nothing for the default unnamed pitch.  Normally a
+-- @Maybe Control@ is used for pitch control names, but that leaves them
+-- without a ShowVal.  So for the moment this type is just for ShowVal.
+-- It should probably be called PitchControl, but that's already taken by the
+-- pitch version of 'ValControl', which also probably needs a clearer name.
+newtype PControl = PControl (Maybe Control)
+
 -- | Tag for the type of the values in a control signal.
 data Type = Untyped | Chromatic | Diatonic | Nn | Score | Real
     deriving (Eq, Enum, Ord, Read, Show)
@@ -112,6 +119,9 @@ instance Monoid.Monoid Type where
 instance Pretty.Pretty Control where pretty = untxt . ShowVal.show_val
 instance ShowVal.ShowVal Control where
     show_val (Control c) = Text.cons '%' c
+instance ShowVal.ShowVal PControl where
+    show_val (PControl Nothing) = "#"
+    show_val (PControl (Just (Control c))) = Text.cons '#' c
 
 data Typed a = Typed {
     type_of :: !Type

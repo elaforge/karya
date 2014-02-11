@@ -11,7 +11,6 @@
 module Perform.Midi.Convert where
 import qualified Control.Monad.State.Strict as State
 import qualified Data.Map as Map
-import qualified Data.Maybe as Maybe
 import qualified Data.Set as Set
 
 import Util.Control
@@ -53,13 +52,10 @@ data Lookup = Lookup {
 convert :: Lookup -> [Score.Event] -> [LEvent.LEvent Perform.Event]
 convert lookup = ConvertUtil.convert Set.empty (convert_event lookup)
 
-convert_event :: Lookup -> Score.Event
-    -> ConvertT (Perform.Event, [Score.Event])
-convert_event lookup event_ = do
-    let score_inst = Score.event_instrument event_
+convert_event :: Lookup -> Score.Event -> ConvertT Perform.Event
+convert_event lookup event = do
+    let score_inst = Score.event_instrument event
     patch <- require_patch score_inst $ lookup_patch lookup score_inst
-    let (event, additional) =
-            split_composite (Instrument.patch_composite patch) event_
     midi_inst <- require ("instrument in db: " <> pretty score_inst) $
         lookup_inst lookup score_inst
     (midi_inst, pitch) <- convert_midi_pitch midi_inst
@@ -81,7 +77,7 @@ convert_event lookup event_ = do
             , Perform.event_pitch = pitch
             , Perform.event_stack = Score.event_stack event
             }
-    return (converted, additional)
+    return converted
 
 -- | Abort if the patch wasn't found.  If it wasn't found the first time, it
 -- won't be found the second time either, so avoid spamming the log by throwing
@@ -95,28 +91,6 @@ require_patch inst Nothing = do
             State.put (Set.insert inst not_found)
             require ("patch in instrument db: " <> pretty inst
                 <> " (further warnings suppressed)") Nothing
-
--- | Split a composite patch, as documented in 'Instrument.Composite'.
-split_composite :: [Instrument.Composite] -> Score.Event
-    -> (Score.Event, [Score.Event])
-split_composite [] event = (event, [])
-split_composite composite event = (stripped, map extract composite)
-    where
-    stripped = event
-        { Score.event_pitch =
-            if any Maybe.isNothing [p | (_, p, _) <- composite]
-                then mempty else Score.event_pitch event
-        , Score.event_controls = filter_key (`Set.notMember` split_controls)
-        }
-    split_controls = mconcat [cs | (_, _, cs) <- composite]
-    extract (inst, maybe_pitch, controls) = event
-        { Score.event_instrument = inst
-        , Score.event_pitch = case maybe_pitch of
-            Nothing -> Score.event_pitch event
-            Just c -> Map.findWithDefault mempty c (Score.event_pitches event)
-        , Score.event_controls = filter_key (`Set.member` controls)
-        }
-    filter_key f = Map.filterWithKey (\k _ -> f k) (Score.event_controls event)
 
 -- | If the Event has an attribute matching its keymap, use the pitch from the
 -- keymap.  Otherwise convert the pitch signal.  Possibly warn if there are

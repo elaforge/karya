@@ -85,12 +85,11 @@ instance Serialize (MidiDb.PatchMap ()) where
     get = get >>= \a -> return (MidiDb.PatchMap a)
 
 instance Serialize Instrument.Patch where
-    put (Instrument.Patch a b c d e f g h i j k) = put a >> put b >> put c
-        >> put d >> put e >> put f >> put g >> put h >> put i >> put j >> put k
+    put (Instrument.Patch a b c d e f g h i j) = put a >> put b >> put c
+        >> put d >> put e >> put f >> put g >> put h >> put i >> put j
     get = get >>= \a -> get >>= \b -> get >>= \c -> get >>= \d -> get >>= \e ->
         get >>= \f -> get >>= \g -> get >>= \h -> get >>= \i -> get >>= \j ->
-        get >>= \k ->
-            return (Instrument.Patch a b c d e f g h i j k)
+            return (Instrument.Patch a b c d e f g h i j)
 
 instance Serialize Instrument.Flag where
     put Instrument.Triggered = put_tag 0

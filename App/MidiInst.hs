@@ -10,8 +10,9 @@ module App.MidiInst (
     , make
     -- * code
     , Code(..), empty_code, with_code, with_empty_code
+    , Call
     , environ
-    , NoteCall, generator, transformer, both, note_calls
+    , generator, transformer, both, note_calls
     , note_generators, note_transformers, null_call
     , cmd
     , default_scale
@@ -122,8 +123,6 @@ data Call d =
     | Transformer TrackLang.CallId (Derive.Transformer d)
     | Both TrackLang.CallId (Derive.Generator d) (Derive.Transformer d)
 
-type NoteCall = Call Derive.Note
-
 generator :: TrackLang.CallId -> Derive.Generator d -> Call d
 generator = Generator
 
@@ -153,7 +152,7 @@ note_transformers calls = mempty
 
 -- | Add the given call as the null note call to the note track.  This also
 -- binds @n@, since @n@ is supposed to be the \"named\" way to call \"\".
-null_call :: Derive.Generator Derive.Note -> [NoteCall]
+null_call :: Derive.Generator Derive.Note -> [Call Derive.Note]
 null_call call = [generator "" call, generator "n" call]
 
 cmd :: Cmd.Cmd -> Code

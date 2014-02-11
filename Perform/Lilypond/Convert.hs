@@ -49,7 +49,7 @@ convert quarter = ConvertUtil.convert () (convert_event quarter)
 --
 -- - If the event has a pitch it will be emitted as a note, with optional
 -- prepended or appended code.
-convert_event :: RealTime -> Score.Event -> ConvertT (Types.Event, [a])
+convert_event :: RealTime -> Score.Event -> ConvertT Types.Event
 convert_event quarter event = do
     let dur = Types.real_to_time quarter (Score.event_duration event)
     maybe_pitch <- convert_pitch event
@@ -72,7 +72,7 @@ convert_event quarter event = do
             , Types.event_stack = Score.event_stack event
             , Types.event_clipped = False
             }
-    return (converted, [])
+    return converted
     where
     check_0dur
         | not is_ly_global && not has_prepend && not has_append = throw $

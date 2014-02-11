@@ -4,7 +4,6 @@
 
 module Perform.Midi.Convert_test where
 import qualified Data.Map as Map
-import qualified Data.Set as Set
 
 import Util.Control
 import qualified Util.Log as Log
@@ -15,8 +14,6 @@ import Util.Test
 import qualified Midi.Key as Key
 import qualified Midi.Midi as Midi
 import qualified Ui.UiTest as UiTest
-import qualified Cmd.Instrument.CUtil as CUtil
-import qualified Cmd.Instrument.Drums as Drums
 import qualified Derive.Controls as Controls
 import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
@@ -123,31 +120,6 @@ test_patch_scale = do
     patch = Instrument.scale #= pscale $
         Instrument.patch $ Instrument.instrument "inst" [] (-12, 12)
     config = UiTest.midi_config [("s/inst", [0])]
-
--- * composite instrument
-
-test_composite_instrument = do
-    let patch = (set_composite Nothing [] . CUtil.drum_patch notes, mempty)
-        notes = [(Drums.c_bd, Key.c4), (Drums.c_sn, Key.d4)]
-    let (events, _, logs) = perform patch [("s/i", [0]), ("s/x", [1])]
-            [ (">s/i", [(0, 1, "+bd"), (1, 1, "+snare")])
-            , ("*", [(0, 0, "3c"), (0.5, 0, "3d")])
-            ]
-        extract e =
-            ( Instrument.inst_name $ Perform.event_instrument e
-            , Perform.event_start e
-            , nn_signal (Perform.event_pitch e)
-            )
-    equal logs []
-    equal (map extract events)
-        [ ("i", 0, [(0, NN.c4)]), ("x", 0, [(0, NN.c3), (0.5, NN.d3)])
-        , ("i", 1, [(0, NN.d4)]), ("x", 1, [(0.5, NN.d3)])
-        ]
-
-set_composite :: Maybe Score.Control -> [Score.Control] -> Instrument.Patch
-    -> Instrument.Patch
-set_composite pitch controls = Instrument.composite
-    #= [(Score.Instrument "s/x", pitch, Set.fromList controls)]
 
 -- * keymap
 

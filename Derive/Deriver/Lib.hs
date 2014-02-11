@@ -260,6 +260,9 @@ get_control_signal control = Map.lookup control <$> get_controls
 get_controls :: Deriver Score.ControlMap
 get_controls = Internal.get_dynamic state_controls
 
+get_control_functions :: Deriver Score.ControlFunctionMap
+get_control_functions = Internal.get_dynamic state_control_functions
+
 -- | Get the control value at the given time, taking 'state_control_functions'
 -- into account.
 control_at :: Score.Control -> RealTime -> Deriver (Maybe Score.TypedVal)
@@ -331,6 +334,14 @@ with_control_function :: Score.Control -> TrackLang.ControlFunction
 with_control_function control f = Internal.local $ \st -> st
     { state_control_functions =
         Map.insert control f (state_control_functions st)
+    }
+
+-- | Replace the controls entirely.
+with_control_maps :: Score.ControlMap -> Score.ControlFunctionMap
+    -> Deriver a -> Deriver a
+with_control_maps cmap cfuncs = Internal.local $ \st -> st
+    { state_controls = cmap
+    , state_control_functions = cfuncs
     }
 
 -- | Modify an existing control.
