@@ -489,19 +489,6 @@ eval cinfo (TrackLang.ValCall (TrackLang.Call call_id terms)) = do
     call <- get_val_call call_id
     apply (Derive.tag_call_info cinfo) call terms
 
-eval_pitch_control :: (Derive.ToTagged a) => Derive.CallInfo a
-    -> TrackLang.RawPitchControl -> Derive.Deriver TrackLang.PitchControl
-eval_pitch_control cinfo c = case c of
-    TrackLang.ControlSignal note ->
-        TrackLang.ControlSignal <$> eval_pitch note
-    TrackLang.DefaultedControl ctl note ->
-        TrackLang.DefaultedControl ctl <$> eval_pitch note
-    TrackLang.LiteralControl ctl -> return $ TrackLang.LiteralControl ctl
-    where
-    eval_pitch call = fmap PitchSignal.constant $
-        cast ("eval_pitch_control " <> ShowVal.show_val call)
-            =<< eval cinfo (TrackLang.ValCall call)
-
 apply :: Derive.CallInfo Derive.Tagged -> Derive.ValCall
     -> [TrackLang.Term] -> Derive.Deriver TrackLang.Val
 apply cinfo call args = do

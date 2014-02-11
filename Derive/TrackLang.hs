@@ -30,8 +30,8 @@ import Derive.BaseTypes
        (Environ, make_environ, environ_to_list, insert_val, delete_val,
         lookup_val, val_set, null_environ, ValName, Val(..), Quoted(..),
         ControlFunction(..), Dynamic(..), Symbol(..), ControlRef(..),
-        PitchControl, RawPitchControl, ValControl, show_call_val, CallId, Expr,
-        Call(..), PitchCall, Term(..))
+        PitchControl, ValControl, show_call_val, CallId, Expr, Call(..),
+        PitchCall, Term(..))
 import qualified Derive.Environ as Environ
 import qualified Derive.PitchSignal as PitchSignal
 import Derive.ShowVal (ShowVal(..))

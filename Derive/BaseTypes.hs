@@ -498,9 +498,6 @@ data ControlRef val =
     deriving (Eq, Read, Show)
 
 type PitchControl = ControlRef Signal
--- | Pitches have to be evaluated, but the parser has to return something
--- unevaluated.
-type RawPitchControl = ControlRef PitchCall
 type ValControl = ControlRef TypedControl
 
 instance Pretty.Pretty PitchControl where pretty = untxt . ShowVal.show_val
@@ -528,9 +525,6 @@ instance ShowVal.ShowVal PitchControl where
     show_val = show_control '#' $ \sig -> case TimeVector.at 0 (sig_vec sig) of
         Nothing -> "<none>"
         Just p -> ShowVal.show_val p
-
-instance ShowVal.ShowVal RawPitchControl where
-    show_val = show_control '#' (\c -> "(" <> ShowVal.show_val c <> ")")
 
 instance Pretty.Pretty ValControl where pretty = untxt . ShowVal.show_val
 

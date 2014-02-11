@@ -3,7 +3,10 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
-  - I could get rid of BaseTypes.RawPitchControl, if I don't want to use
+  - Maybe I should use Score.PControl instead of Score.Control for pitch
+    control names.  Or PitchControl and think of better names for the existing
+    PitchControl and ValControl.
+  * I could get rid of BaseTypes.RawPitchControl, if I don't want to use
     Call.eval_pitch_control, which means I can't put #,(4c) as an arg default.
     Well, but I could with Quoted (# '' (4c))
   * LRuler.double creates [(0, 0), (0, 0)]
