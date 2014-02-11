@@ -61,8 +61,10 @@ patches = concat
     , mridangam_patches
     ]
 
-patch :: Instrument.InstrumentName -> Instrument.Patch
-patch name = Instrument.patch $ Instrument.instrument name [] pb_range
+patch :: Instrument.InstrumentName -> [(Midi.Control, Score.Control)]
+    -> Instrument.Patch
+patch name controls =
+    Instrument.patch $ Instrument.instrument name controls pb_range
 
 -- One pitch bend modulator can only do +-12, but if you put two on you get
 -- +-24.
@@ -72,7 +74,7 @@ pb_range = (-24, 24)
 -- * misc
 
 misc_patches :: [MidiInst.Patch]
-misc_patches = concat [balalaika, mcgill]
+misc_patches = concat [library, mcgill, balalaika, sonic_couture, sc_bali]
 
 library :: [MidiInst.Patch]
 library = MidiInst.with_empty_code
@@ -128,23 +130,28 @@ balalaika =
 
 sonic_couture :: [MidiInst.Patch]
 sonic_couture = MidiInst.with_empty_code
-    [ inst "ebow"
+    [ patch "ebow"
         [ (1, "harm")
         , (21, "lpf")
         , (22, "q")
         , (23, "hpf")
         ]
     ]
-    where
-    inst name controls = Instrument.patch $
-        Instrument.instrument name controls pb_range
+
+sc_bali :: [MidiInst.Patch]
+sc_bali = MidiInst.with_code mute_null_call
+    [ Instrument.text #= "Sonic Couture's Balinese gamelan sample set." $
+        Instrument.attribute_map #= Instrument.simple_keyswitches gangsa_ks $
+        Instrument.patch $ Instrument.instrument "sc-gangsa12" [] (-2, 2)
+    ]
+    where gangsa_ks = [(Attrs.mute, Key2.cs1), (mempty, Key2.c1)]
 
 -- * hang
 
 hang_patches :: [MidiInst.Patch]
 hang_patches = MidiInst.with_code hang_code
     [ Instrument.attribute_map #= Instrument.simple_keyswitches hang_ks $
-        patch "hang"
+        patch "hang" []
     ]
 
 hang_code :: MidiInst.Code
@@ -201,18 +208,18 @@ hang_ks = [(attrs, key) | (attrs, key, _, _) <- hang_strokes]
 wayang_patches :: [MidiInst.Patch]
 wayang_patches =
     [ (set_tuning Environ.umbang $ scale Wayang.umbang $ wayang "wayang-umbang",
-        wayang_code)
+        mute_null_call)
     , (set_tuning Environ.isep $ scale Wayang.isep $ wayang "wayang-isep",
-        wayang_code)
+        mute_null_call)
     , (wayang "wayang", Bali.pasang_code)
     , (set_range Wayang.pemade_bottom Wayang.pemade_top $ wayang "wayang-p",
         Bali.pasang_code)
     , (set_range Wayang.kantilan_bottom Wayang.kantilan_top $ wayang "wayang-k",
         Bali.pasang_code)
-    , (Instrument.text #= "Tuned to 12TET." $ wayang "wayang12", wayang_code)
+    , (Instrument.text #= "Tuned to 12TET." $ wayang "wayang12", mute_null_call)
     ]
     where
-    wayang = (Instrument.attribute_map #= wayang_keymap) . patch
+    wayang = (Instrument.attribute_map #= wayang_keymap) . flip patch []
     scale scale = (Instrument.text #= scale_doc)
         . (Instrument.scale #= wayang_scale scale)
     scale_doc = "These set the scale and tuning automatically, and expect the\
@@ -222,10 +229,10 @@ wayang_patches =
     set_range bottom top = MidiInst.environ Environ.instrument_bottom bottom
         . MidiInst.environ Environ.instrument_top top
 
-wayang_code :: MidiInst.Code
-wayang_code = MidiInst.note_calls $ MidiInst.null_call $
-    DUtil.zero_duration "Add `+mute+loose` attribute and scale dyn by 0.75." $
-        Util.add_attrs (Attrs.mute <> Attrs.loose) . Util.multiply_dynamic 0.75
+mute_null_call :: MidiInst.Code
+mute_null_call = MidiInst.note_calls $ MidiInst.null_call $
+    DUtil.zero_duration "Add `+mute` attribute and scale dyn by 0.75." $
+        Util.add_attrs Attrs.mute . Util.multiply_dynamic 0.75
 
 wayang_scale :: [Pitch.NoteNumber] -> Instrument.PatchScale
 wayang_scale scale = Instrument.make_patch_scale $ zip wayang_keys scale
@@ -336,7 +343,7 @@ make_mridangam_notes keymap = do
 -}
 mridangam_notes :: CUtil.PitchedNotes
 mridangam_notes = make_mridangam_notes $
-    CUtil.make_keymap Key2.g_2 Key2.c_1 12 NN.gs3
+    CUtil.make_keymap Key2.g_2 Key2.c_1 12 NN.c4
     [ [tha]
     , [thom, thom <> Attrs.low, thom <> Attrs.open]
     , [ta], [ki], [nam], [din]
