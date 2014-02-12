@@ -384,14 +384,7 @@ apply_generator :: forall d. (Derive.Callable d) => CallInfo d
     -> TrackLang.Call -> Derive.LogsDeriver d
 apply_generator cinfo (TrackLang.Call call_id args) = do
     vals <- mapM (eval cinfo) args
-    call <- get_generator call_id
-    let passed = Derive.PassedArgs
-            { Derive.passed_vals = vals
-            , Derive.passed_call_name = Derive.call_name call
-            , Derive.passed_info = cinfo
-            }
-    Internal.with_stack_call (Derive.call_name call) $
-        Derive.call_func call passed
+    reapply_generator cinfo call_id vals (Derive.info_expr cinfo)
 
 -- | Like 'apply_generator', but for when the args are already parsed and
 -- evaluated.  This is useful when one generator wants to dispatch to another.
@@ -416,8 +409,6 @@ reapply_generator cinfo call_id args expr = do
             , Derive.passed_call_name = Derive.call_name call
             , Derive.passed_info = cinfo { Derive.info_expr = expr  }
             }
-    -- This duplicates code with 'apply_generator', I tried factoring it out
-    -- but found the results less readable.
     Internal.with_stack_call (Derive.call_name call) $
         Derive.call_func call passed
 
