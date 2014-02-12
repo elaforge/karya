@@ -45,7 +45,7 @@ equal_doc =
     \ to `_`: `x = 42` or `x = _`.\
     \\nIf the symbol is prefixed with `>`, `*`, `.`, or `-`, it will set a\
     \ note, pitch, control, or val call, respectively. It sets the generator\
-    \ by default, but will set the transformer if you add another `-`.  You\
+    \ by default, but will set the transformer if you prefix another `-`.  You\
     \ need quoting for symbols that don't match 'Derive.ParseBs.p_symbol'.\
     \ E.g.: set note generator: `>x = some-block`, note transformer: `>-x = t`,\
     \ control transfomrer: `'.-i' = t`, pitch val call: `'-4c' = 5c`.\

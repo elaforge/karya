@@ -383,25 +383,8 @@ apply_toplevel state cinfo expr =
 apply_generator :: forall d. (Derive.Callable d) => CallInfo d
     -> TrackLang.Call -> Derive.LogsDeriver d
 apply_generator cinfo (TrackLang.Call call_id args) = do
-    maybe_call <- Derive.lookup_generator call_id
-    (call, vals) <- case maybe_call of
-        Just call -> do
-            vals <- mapM (eval cinfo) args
-            return (call, vals)
-        -- If I didn't find a call, look for a val call and pass its result to
-        -- "".  This is what makes pitch tracks work, since scales are val
-        -- calls.
-        Nothing -> do
-            -- Use the outer name, not val call's "val", otherwise every failed
-            -- lookup says it's a failed val lookup.
-            vcall <- require_call True call_id
-                (name <> " generator or val call")
-                    =<< Derive.lookup_val_call call_id
-            val <- apply (Derive.tag_call_info cinfo) vcall args
-            -- We only do this fallback thing once.
-            call <- get_generator fallback_call_id
-            return (call, [val])
-
+    vals <- mapM (eval cinfo) args
+    call <- get_generator call_id
     let passed = Derive.PassedArgs
             { Derive.passed_vals = vals
             , Derive.passed_call_name = Derive.call_name call
@@ -409,9 +392,6 @@ apply_generator cinfo (TrackLang.Call call_id args) = do
             }
     Internal.with_stack_call (Derive.call_name call) $
         Derive.call_func call passed
-    where
-    name = Derive.callable_name
-        (error "Derive.callable_name shouldn't evaluate its argument." :: d)
 
 -- | Like 'apply_generator', but for when the args are already parsed and
 -- evaluated.  This is useful when one generator wants to dispatch to another.

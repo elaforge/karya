@@ -7,8 +7,7 @@
 -- 'Derive.scale_note_to_call' implementations.
 module Derive.Call.ScaleDegree (
     -- * equal tempered
-    scale_degree
-    , pitch_expr
+    scale_degree, pitch_expr
     -- * just
     , NamedIntervals
     , scale_degree_just, scale_degree_interval

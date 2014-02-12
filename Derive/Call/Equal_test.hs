@@ -57,7 +57,7 @@ test_c_equal_call = do
     equal (run [("> | *4 = set", [(0, 1, "")]), ("*", [(0, 0, "4 (4c)")])])
         ([(0, 1, "4c")], [])
     equal (run [("> | -zzz = e | p = (4c)", [(0, 1, "")]),
-            ("*", [(0, 0, "zzz p")])])
+            ("*", [(0, 0, "set (zzz p)")])])
         ([(0, 1, "4c")], [])
 
 test_c_equal_quoted = do

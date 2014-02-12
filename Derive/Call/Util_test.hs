@@ -15,7 +15,7 @@ import qualified Derive.Environ as Environ
 test_random = do
     let f seed = DeriveTest.extract extract $ DeriveTest.derive_blocks
             [ ("top", [(">", [(0, 1, seed ++ "b"), (1, 1, seed ++ "b")])])
-            , ("b", [(">", [(0, 1, "")]), ("c", [(0, 0, "range")])])
+            , ("b", [(">", [(0, 1, "")]), ("c", [(0, 0, "set (range)")])])
             ]
         extract = DeriveTest.e_control "c"
 

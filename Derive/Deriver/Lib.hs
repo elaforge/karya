@@ -17,7 +17,9 @@ import Util.Control
 import qualified Util.Log as Log
 import qualified Util.Seq as Seq
 
+import qualified Ui.Event as Event
 import qualified Ui.Track as Track
+
 import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Controls as Controls
 import qualified Derive.Deriver.Internal as Internal
@@ -199,17 +201,39 @@ modify_val name modify = Internal.localm $ \st -> do
 with_scale :: Scale -> Deriver d -> Deriver d
 with_scale scale =
     with_val_raw Environ.scale (TrackLang.scale_id_to_sym (scale_id scale))
-    . with_scopes (\scope -> scope { scopes_val = set (scopes_val scope) })
+    . with_scopes (val . pitch)
     where
-    set stype = stype { stype_scale = [scale_to_lookup scale] }
+    pitch = s_generator#s_pitch#s_scale #= [scale_to_lookup scale val_to_pitch]
+    val = s_val#s_scale #= [scale_to_lookup scale id]
 
-scale_to_lookup :: Scale -> LookupCall ValCall
-scale_to_lookup scale =
-    pattern_lookup name (scale_call_doc scale)
-        (\call_id -> return $ scale_note_to_call scale (to_note call_id))
+scale_to_lookup :: Scale -> (ValCall -> call) -> LookupCall call
+scale_to_lookup scale convert =
+    pattern_lookup name (scale_call_doc scale) $ \call_id ->
+        return $ convert <$> scale_note_to_call scale (to_note call_id)
     where
     name = prettyt (scale_id scale) <> ": " <> scale_pattern scale
     to_note (TrackLang.Symbol sym) = Pitch.Note sym
+
+-- | Convert a val call to a pitch call.  This is used so scales can export
+-- their ValCalls to pitch generators.
+val_to_pitch :: ValCall -> Generator Pitch
+val_to_pitch (ValCall name doc vcall) = Call
+    { call_name = name
+    , call_doc = doc
+    , call_func = pitch_call . convert_args
+    }
+    where
+    convert_args args = args
+        { passed_info = tag_call_info (passed_info args) }
+    pitch_call args = vcall args >>= \val -> case val of
+        TrackLang.VPitch pitch -> do
+            -- Previously I dispatched to '', which is normally
+            -- 'Derive.Call.Pitch.c_set'.  That would be more flexible since
+            -- you can then override '', but is also less efficient.
+            pos <- Internal.real $ Event.start $ info_event $ passed_info args
+            return [LEvent.Event $ PitchSignal.signal [(pos, pitch)]]
+        _ -> throw $ "scale call " <> untxt name
+            <> " returned non-pitch: " <> untxt (ShowVal.show_val val)
 
 with_instrument :: Score.Instrument -> Deriver d -> Deriver d
 with_instrument inst deriver = do

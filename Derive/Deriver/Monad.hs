@@ -1200,8 +1200,8 @@ transformer = make_call
 
 data ValCall = ValCall {
     vcall_name :: !Text
-    , vcall_call :: PassedArgs Tagged -> Deriver TrackLang.Val
     , vcall_doc :: !CallDoc
+    , vcall_call :: PassedArgs Tagged -> Deriver TrackLang.Val
     }
 
 instance Show ValCall where
@@ -1211,8 +1211,8 @@ val_call :: TrackLang.Typecheck a => Text -> Tags.Tags -> Text
     -> WithArgDoc (PassedArgs Tagged -> Deriver a) -> ValCall
 val_call name tags doc (call, arg_docs) = ValCall
     { vcall_name = name
-    , vcall_call = fmap TrackLang.to_val . call
     , vcall_doc = CallDoc tags doc arg_docs
+    , vcall_call = fmap TrackLang.to_val . call
     }
 
 

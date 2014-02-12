@@ -51,21 +51,24 @@ UNSORTED
     . When I modify the end of the tempo track, kendang-telek still has lots
       of cache misses.  Shouldn't it just be the last call?
     . Can't get damage because... why?
-  - in kendang-telek some notes are incorrectly tuned
+  in kendang-telek some notes are incorrectly tuned
     . Hard to track down via recording because each scale degree gets its own
       channel, almost, and so the whole sequence depends on long initialized
       state.  Can I modify the performer to not suppress redundant pitch
       bends?
     . Maybe I could detect it by using Midi.Synth and looking for notes
       outside of the scale.
-    . This is looking like a pianoteq bug.
-    . I can fix it by not stripping redundant control changes, this also means
+    . This is looking like a pianoteq bug.  In fact, it's probably the same
+      pianoteq bug I already know about.
+    - I can fix it by not stripping redundant control changes, this also means
       that recorded MIDI can be played from any point.  If bandwidth isn't
       a concern then why not?
-  - scale introduced val calls should go first
+  * scale introduced val calls should go first
     They do, but pitch calls always go before the val call fallback.
     Maybe I could eliminate the fallabck, and instead have scales also
     emit pitch calls.  In any case, I don't want them interfering anyway.
+  - If I specialized ValCall to PitchCall, then I could make scales generate
+    those, and convert to both ValCall and pitch generators.
   - give ModifyEvents.Track the ability to change the track title?
     Cmd.Repl.LPitch.change_scale and to_relative could use this.
   - Implement 'sequence'.  It sequences its notes, paying attention only to

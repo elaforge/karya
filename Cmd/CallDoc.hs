@@ -313,7 +313,7 @@ scales_html hstate scales = un_html $ html_header hstate
 
 scale_docs :: [Scale.Scale] -> [CallBindings]
 scale_docs = sort_calls . lookup_docs ValCall
-    . map (Derive.lookup_docs . Derive.scale_to_lookup)
+    . map (\scale -> Derive.lookup_docs $ Derive.scale_to_lookup scale id)
 
 -- * doc
 
