@@ -18,6 +18,8 @@ Figure out how to write synthesizers.
   - pure haskell: Has the smallest impedence mismatch, but experimental and
     unpredictable performance.  Even at its best probably won't be as good as
     LLVM or FAUST.
+  - http://halide-lang.org/ compile down to fast object code, hasn't been used
+    for audio but should be able.
 
 Write OSC synthesizer host.
   osc:

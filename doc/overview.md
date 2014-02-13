@@ -37,6 +37,8 @@ Another may simply put a "pizz" attribute on a note or section of score, or
 slide between two pitches in a certain way.  Calls may vary by instrument or
 scale, so a piano synthesizer might implement a slur as a change in note
 duration, while a sampler might interpret it as a keyswitch or control change.
+There are notation libraries and scales for for European, Balinese, and
+Carnatic music.
 
     Scores are composed hierarchically, and there's no strict division between
 call that modifies or emits a single note and one that modifies or produces an
@@ -81,8 +83,7 @@ section, edited to sound better.
 interface, so you can do complicated transformations by writing a function.
 The language is Haskell, which the rest of the program is written in, and it
 has direct access to all internal funtionality.  If you frequently use a
-particular transformation you can compile it into the program by pasting it
-into a file.
+particular transformation you can compile it into the program.
 
 - Instruments.  Instruments can map MIDI CC numbers to symbolic names, support
 keyswitches as named attributes, and automatically multiplex MIDI channels to
@@ -142,18 +143,18 @@ yourself.  I can do some limited integration with MMC and MTC sync, but closer
 integration is harder given that JACK is only supported by Ardour and Rewire is
 aggressively proprietary.
 
-- MIDI limitations. Due to the general wretchedness of MIDI, you'll need a lot
-of MIDI ports and channels, and will be limited to low resolution controls, on
-both value and time axes.  The underlying problem is the software synths, which
-have all deeply embedded MIDI's limitations.  To solve this we'd need to drag
-software synths out of the '80s, create a new high-resolution protocol, and
-modify the major samplers and synthesizers to support it.  This has been tried
-but failed, perhaps because there were no sequencers or input devices to
-generate the high resolution output.  VST's "automation parameters" are
-basically higher resolution MIDI controls, so some of this could probably be
-ameliorated by extending a VST host to turn high resolution OSC into VST
-automation.  Ardour is the only open source DAW so it's the only option here.
-Someday I would like to write my own synthesizer that responds to OSC.
+- MIDI limitations. Due to MIDI's weakness, you'll need a lot of MIDI ports and
+channels, and will be limited to low resolution controls, on both value and
+time axes.  The underlying problem is the software synths, which have all
+deeply embedded MIDI's limitations.  To solve this we'd need to drag software
+synths out of the '80s, create a new high-resolution protocol, and modify the
+major samplers and synthesizers to support it.  This has been tried but failed,
+perhaps because there were no sequencers or input devices to generate the high
+resolution output.  VST's "automation parameters" are basically higher
+resolution MIDI controls, so some of this could probably be ameliorated by
+extending a VST host to turn high resolution OSC into VST automation.  Ardour
+is the only open source DAW so it's the only option here.  Someday I would like
+to write my own synthesizer that responds to OSC.
 
 - The score format is not as efficient at displaying vertical structure (chords
 and harmony) as 5-line staff notation.  This is the price of generality, since
