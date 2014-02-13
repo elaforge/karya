@@ -41,6 +41,7 @@ import qualified Util.Pretty as Pretty
 import qualified Util.Serialize as Serialize
 import qualified Util.TimeVector as TimeVector
 
+import qualified Ui.Ruler as Ruler
 import qualified Ui.ScoreTime as ScoreTime
 import qualified Derive.ShowVal as ShowVal
 import qualified Perform.Pitch as Pitch
@@ -77,6 +78,33 @@ newtype Control = Control Text
 -- It should probably be called PitchControl, but that's already taken by the
 -- pitch version of 'ValControl', which also probably needs a clearer name.
 newtype PControl = PControl (Maybe Control)
+
+-- ** Warp
+
+-- | A tempo warp signal.  The shift and stretch are an optimization hack
+-- stolen from nyquist.  The idea is to make composed shifts and stretches more
+-- efficient if only the shift and stretch are changed.  The necessary magic
+-- is in 'compose_warps'.
+--
+-- The order of operation is: stretch -> shift -> signal.  That is, if the
+-- signal is \"f\": f(t*stretch + shift).
+data Warp = Warp {
+    warp_signal :: !Signal.Warp
+    , warp_shift :: !ScoreTime
+    , warp_stretch :: !ScoreTime
+    } deriving (Eq, Show)
+
+instance Pretty.Pretty Warp where
+    format (Warp sig shift stretch) =
+        Pretty.record (Pretty.text "Warp"
+                Pretty.<+> Pretty.format (shift, stretch))
+            [("signal", Pretty.format sig)]
+
+instance DeepSeq.NFData Warp where
+    rnf (Warp sig shift stretch) =
+        DeepSeq.rnf sig `seq` DeepSeq.rnf shift `seq` DeepSeq.rnf stretch
+
+-- ** Type
 
 -- | Tag for the type of the values in a control signal.
 data Type = Untyped | Chromatic | Diatonic | Nn | Score | Real
@@ -452,6 +480,8 @@ data Dynamic = Dynamic {
     , dyn_pitches :: !PitchMap
     , dyn_pitch :: !Signal
     , dyn_environ :: !Environ
+    , dyn_warp :: !Warp
+    , dyn_ruler :: Ruler.Marklists -- intentionally lazy
     } deriving (Show)
 type ControlMap = Map.Map Control TypedControl
 type ControlFunctionMap = Map.Map Control ControlFunction

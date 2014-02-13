@@ -24,7 +24,7 @@ import qualified Util.Pretty as Pretty
 import qualified Ui.ScoreTime as ScoreTime
 import qualified Derive.BaseTypes as BaseTypes
 import Derive.BaseTypes
-       (Instrument(..), Control, PControl(..), Type(..), Typed(..),
+       (Instrument(..), Control, PControl(..), Warp(..), Type(..), Typed(..),
         ControlValMap, ControlMap, ControlFunction(..), ControlFunctionMap,
         PitchMap, untyped, merge_typed, type_to_code, code_to_type,
         TypedControl, TypedVal, Attributes, Attribute, attr, attrs,
@@ -245,29 +245,6 @@ initial_note event = note_at (event_start event) event
 
 
 -- ** warp
-
--- | A tempo warp signal.  The shift and stretch are an optimization hack
--- stolen from nyquist.  The idea is to make composed shifts and stretches more
--- efficient if only the shift and stretch are changed.  The necessary magic
--- is in 'compose_warps'.
---
--- The order of operation is: stretch -> shift -> signal.  That is, if the
--- signal is \"f\": f(t*stretch + shift).
-data Warp = Warp {
-    warp_signal :: !Signal.Warp
-    , warp_shift :: !ScoreTime
-    , warp_stretch :: !ScoreTime
-    } deriving (Eq, Show)
-
-instance Pretty.Pretty Warp where
-    format (Warp sig shift stretch) =
-        Pretty.record (Pretty.text "Warp"
-                Pretty.<+> Pretty.format (shift, stretch))
-            [("signal", Pretty.format sig)]
-
-instance DeepSeq.NFData Warp where
-    rnf (Warp sig shift stretch) =
-        DeepSeq.rnf sig `seq` DeepSeq.rnf shift `seq` DeepSeq.rnf stretch
 
 -- | Convert a Signal to a Warp.
 signal_to_warp :: Signal.Warp -> Warp

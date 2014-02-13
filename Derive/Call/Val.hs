@@ -14,7 +14,10 @@ import qualified Util.Num as Num
 import qualified Util.Seq as Seq
 
 import qualified Ui.Event as Event
+import qualified Ui.Ruler as Ruler
 import qualified Ui.ScoreTime as ScoreTime
+
+import qualified Cmd.Meter as Meter
 import qualified Derive.Args as Args
 import qualified Derive.Call as Call
 import qualified Derive.Call.Control as Control
@@ -22,6 +25,7 @@ import qualified Derive.Call.Make as Make
 import qualified Derive.Call.Pitch as Call.Pitch
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Call.Util as Util
+import qualified Derive.Controls as Controls
 import qualified Derive.Derive as Derive
 import qualified Derive.Environ as Environ
 import qualified Derive.LEvent as LEvent
@@ -65,6 +69,7 @@ val_calls = Derive.make_calls
     , ("cf-rnd", c_cf_rnd const)
     , ("cf-rnd+", c_cf_rnd (+))
     , ("cf-rnd*", c_cf_rnd (*))
+    , ("cf-swing", c_cf_swing)
     ]
 
 c_next_val :: Derive.ValCall
@@ -351,7 +356,6 @@ cf_rnd dist low high rnds = Num.scale low high $ case dist of
         | otherwise -> v + 0.5
         where v = normal rnds
 
-
 -- | Approximation to a normal distribution between 0 and 1, inclusive.
 -- This is similar to a gaussian distribution, but is bounded between 0 and 1.
 normal :: [Double] -> Double
@@ -361,6 +365,51 @@ random_stream :: Double -> [Double]
 random_stream =
     List.unfoldr (Just . Pure64.randomDouble) . Pure64.pureMT . floor
 
+
+-- * cf-swing
+
+c_cf_swing :: Derive.ValCall
+c_cf_swing = Derive.val_call "cf-swing" Tags.control_function
+    ("Add a curved  offset to the control, suitable for swing tempo when added\
+    \ to " <> ShowVal.doc_val Controls.start_s <> ". The curve is a sine wave,\
+    \ from trough to trough.")
+    $ Sig.call ((,)
+    <$> defaulted "rank" (TrackLang.E Meter.Q)
+        "The time steps are on the beat, and midway between offset by the\
+        \ given amount."
+    <*> defaulted "amount" (1/3)
+        "Swing amount, multiplied by the rank duration / 2."
+    ) $ \(TrackLang.E rank, amount) _args -> return $!
+        TrackLang.ControlFunction "cf-swing" (cf_swing_ rank amount)
+    where
+    cf_swing_ rank amount control dyn pos
+        | Just marks <- maybe_marks, Just t <- score dyn pos = Score.untyped $
+            dyn_control dyn control pos + RealTime.to_seconds
+                (cf_swing (real dyn) (Meter.name_to_rank rank) amount marks t)
+        | otherwise = Score.untyped 0
+        where maybe_marks = Map.lookup Ruler.meter (TrackLang.dyn_ruler dyn)
+
+cf_swing :: (ScoreTime -> RealTime) -> Ruler.Rank -> RealTime -> Ruler.Marklist
+    -> ScoreTime -> RealTime
+cf_swing to_real rank amount marks pos = case marks_around rank marks pos of
+    Nothing -> 0
+    Just (pre, post) -> (to_real post - to_real pre) / 2
+        * amount * swing (Num.normalize pre post pos)
+
+marks_around :: Ruler.Rank -> Ruler.Marklist -> ScoreTime
+    -> Maybe (ScoreTime, ScoreTime)
+marks_around rank marks pos =
+    (,) <$> get (Ruler.descending pos marks) <*> get (Ruler.ascending pos marks)
+    where get = fmap fst . Seq.head . filter ((<=rank) . Ruler.mark_rank . snd)
+
+swing :: ScoreTime -- ^ time from this beat to the next, normalized 0 to 1
+    -> RealTime -- ^ amount of swing offset, also normalized 0 to 1
+swing = RealTime.seconds . Num.normalize (-1) 1 . sin . (*pi)
+    . Num.scale (-0.5) 1.5 . ScoreTime.to_double
+
+
+-- * TrackLang.Dynamic
+
 dyn_seed :: TrackLang.Dynamic -> Double
 dyn_seed = fromMaybe 0
     . TrackLang.maybe_val Environ.seed . TrackLang.dyn_environ
@@ -368,3 +417,9 @@ dyn_seed = fromMaybe 0
 dyn_control :: TrackLang.Dynamic -> Score.Control -> RealTime -> Double
 dyn_control dyn control pos = maybe 0 (Signal.at pos . Score.typed_val) $
     Map.lookup control $ TrackLang.dyn_controls dyn
+
+real :: TrackLang.Dynamic -> ScoreTime -> RealTime
+real dyn t = Score.warp_pos t (TrackLang.dyn_warp dyn)
+
+score :: TrackLang.Dynamic -> RealTime -> Maybe ScoreTime
+score dyn t = Score.unwarp_pos t (TrackLang.dyn_warp dyn)

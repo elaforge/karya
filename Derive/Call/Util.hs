@@ -136,7 +136,7 @@ to_typed_function control =
         =<< to_signal_or_function control
     where
     from_function f = TrackLang.call_control_function f score_control <$>
-        Internal.get_dynamic Derive.convert_dynamic
+        Derive.get_control_function_dynamic
     score_control = case control of
         TrackLang.ControlSignal {} -> Controls.null
         TrackLang.DefaultedControl cont _ -> cont

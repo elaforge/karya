@@ -395,11 +395,10 @@ default_ruler = mkruler_44 32 1
 default_block_end :: ScoreTime
 default_block_end = Ruler.time_end default_ruler
 
-no_ruler :: Ruler.Ruler
-no_ruler = mkruler_44 0 0
+type Marks = [(ScoreTime, Ruler.Rank)]
 
-ruler_until :: ScoreTime -> Ruler.Ruler
-ruler_until pos = ruler [("until", Ruler.marklist [(pos, Ruler.null_mark)])]
+no_ruler :: Ruler.Ruler
+no_ruler = ruler []
 
 -- | TimeStep to step by 1 ScoreTime on the default ruler.
 step1 :: TimeStep.TimeStep
@@ -411,31 +410,29 @@ step1 = TimeStep.time_step (TimeStep.AbsoluteMark TimeStep.AllMarklists r_4)
 -- The end of the ruler should be at marks*dist.  An extra mark is created
 -- since marks start at 0.
 mkruler_44 :: Int -> ScoreTime -> Ruler.Ruler
-mkruler_44 marks dist = ruler [(Ruler.meter, marklist (marks + 1) dist)]
+mkruler_44 marks dist = ruler $ take (marks + 1) $
+    zip (Seq.range_ 0 dist) (cycle [r_1, r_4, r_4, r_4])
 
-ruler :: [(Ruler.Name, Ruler.Marklist)] -> Ruler.Ruler
-ruler marklists = Ruler.Ruler
+ruler :: Marks -> Ruler.Ruler
+ruler marks = ruler_ [(Ruler.meter, mkmarklist marks)]
+
+mkmarklist :: Marks -> Ruler.Marklist
+mkmarklist = Ruler.marklist . map (second mark)
+    where
+    mark rank = Ruler.null_mark
+        { Ruler.mark_rank = rank, Ruler.mark_name = showt rank }
+
+ruler_ :: [(Ruler.Name, Ruler.Marklist)] -> Ruler.Ruler
+ruler_ marklists = Ruler.Ruler
     { Ruler.ruler_marklists = Map.fromList marklists
     , Ruler.ruler_bg = Config.ruler_bg
     , Ruler.ruler_show_names = False
     , Ruler.ruler_align_to_bottom = False
     }
 
-marklist :: Int -> ScoreTime -> Ruler.Marklist
-marklist n dist = Ruler.marklist $ take n $ zip (Seq.range_ 0 dist) m44
-
-m44 :: [Ruler.Mark]
-m44 = concatMap (\n -> [major n, minor, minor, minor]) [0..]
-    where
-    major n = Ruler.Mark r_1 3 (Color.rgba 0.45 0.27 0 0.35) (showt n) 0 0
-    minor = Ruler.Mark r_4 2 (Color.rgba 1 0.39 0.2 0.35) "" 0 0
-
 r_1, r_4 :: Ruler.Rank
 r_1 = Meter.r_1
 r_4 = Meter.r_4
-
-mark :: Text -> Ruler.Mark
-mark name = Ruler.Mark 0 3 (Color.rgba 0.4 0 0.4 0.4) name 0 0
 
 -- * config
 

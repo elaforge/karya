@@ -18,6 +18,8 @@ import qualified Util.Log as Log
 import qualified Util.Seq as Seq
 
 import qualified Ui.Event as Event
+import qualified Ui.Ruler as Ruler
+import qualified Ui.State as State
 import qualified Ui.Track as Track
 
 import qualified Derive.BaseTypes as BaseTypes
@@ -303,17 +305,8 @@ get_control_function control = do
     case Map.lookup control functions of
         Nothing -> return Nothing
         Just f -> do
-            dyn <- Internal.get_dynamic convert_dynamic
+            dyn <- get_control_function_dynamic
             return $ Just $ TrackLang.call_control_function f control dyn
-
-convert_dynamic :: Dynamic -> BaseTypes.Dynamic
-convert_dynamic dyn = BaseTypes.Dynamic
-    { BaseTypes.dyn_controls = state_controls dyn
-    , BaseTypes.dyn_control_functions = state_control_functions dyn
-    , BaseTypes.dyn_pitches = state_pitches dyn
-    , BaseTypes.dyn_pitch = state_pitch dyn
-    , BaseTypes.dyn_environ = state_environ dyn
-    }
 
 untyped_control_at :: Score.Control -> RealTime -> Deriver (Maybe Signal.Y)
 untyped_control_at cont = fmap (fmap Score.typed_val) . control_at cont
@@ -325,7 +318,7 @@ controls_at :: RealTime -> Deriver Score.ControlValMap
 controls_at pos = do
     controls <- get_controls
     fs <- Internal.get_dynamic state_control_functions
-    dyn <- Internal.get_dynamic convert_dynamic
+    dyn <- get_control_function_dynamic
     return $ Map.fromList $ map (resolve dyn pos) $
         Seq.equal_pairs (\a b -> fst a == fst b)
             (Map.toAscList fs) (Map.toAscList controls)
@@ -335,8 +328,34 @@ controls_at pos = do
         Seq.First (k, f) -> (k, call k f)
         Seq.Second (k, sig) -> (k, Signal.at pos (Score.typed_val sig))
         where
-        call control f =
-            Score.typed_val $ TrackLang.call_control_function f control dyn pos
+        call control f = Score.typed_val $
+            TrackLang.call_control_function f control dyn pos
+
+get_control_function_dynamic :: Deriver BaseTypes.Dynamic
+get_control_function_dynamic = do
+    ruler <- get_ruler
+    Internal.get_dynamic (convert_dynamic ruler)
+
+convert_dynamic :: Ruler.Marklists -> Dynamic -> TrackLang.Dynamic
+convert_dynamic ruler dyn = TrackLang.Dynamic
+    { TrackLang.dyn_controls = state_controls dyn
+    , TrackLang.dyn_control_functions = state_control_functions dyn
+    , TrackLang.dyn_pitches = state_pitches dyn
+    , TrackLang.dyn_pitch = state_pitch dyn
+    , TrackLang.dyn_environ = state_environ dyn
+    , TrackLang.dyn_warp = state_warp dyn
+    , TrackLang.dyn_ruler = ruler
+    }
+
+get_ruler :: Deriver Ruler.Marklists
+get_ruler = Internal.lookup_current_tracknum >>= \x -> case x of
+    Nothing -> return mempty
+    Just (block_id, tracknum) -> do
+        state <- Internal.get_ui_state id
+        return $ either (const mempty) id $ State.eval state $ do
+            ruler_id <- fromMaybe State.no_ruler <$>
+                State.ruler_track_at block_id tracknum
+            Ruler.ruler_marklists <$> State.get_ruler ruler_id
 
 with_merged_control :: Merge -> Score.Control -> Score.TypedControl
     -> Deriver a -> Deriver a
@@ -452,8 +471,8 @@ nn_at pos = do
     controls <- controls_at pos
     environ <- Internal.get_environ
     justm (pitch_at pos) $ \pitch -> do
-    logged_pitch_nn ("nn " ++ pretty pos) $
-        PitchSignal.apply environ controls pitch
+        logged_pitch_nn ("nn " ++ pretty pos) $
+            PitchSignal.apply environ controls pitch
 
 get_named_pitch :: Score.Control -> Deriver (Maybe PitchSignal.Signal)
 get_named_pitch name = Map.lookup name <$> Internal.get_dynamic state_pitches
@@ -463,8 +482,8 @@ named_nn_at name pos = do
     controls <- controls_at pos
     environ <- Internal.get_environ
     justm (named_pitch_at name pos) $ \pitch -> do
-    logged_pitch_nn ("named_nn " ++ pretty (name, pos)) $
-        PitchSignal.apply environ controls pitch
+        logged_pitch_nn ("named_nn " ++ pretty (name, pos)) $
+            PitchSignal.apply environ controls pitch
 
 -- | Version of 'PitchSignal.pitch_nn' that logs errors.
 logged_pitch_nn :: String -> PitchSignal.Pitch

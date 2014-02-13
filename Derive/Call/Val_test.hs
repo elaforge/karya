@@ -8,8 +8,8 @@ import qualified Util.Num as Num
 import qualified Util.Seq as Seq
 import Util.Test
 
-import qualified Ui.Ruler as Ruler
 import qualified Ui.UiTest as UiTest
+import qualified Cmd.Meter as Meter
 import qualified Derive.Call.CallTest as CallTest
 import qualified Derive.Call.Control as Control
 import qualified Derive.Call.Val as Val
@@ -81,8 +81,8 @@ test_timestep = do
             DeriveTest.derive_tracks_with_ui id (DeriveTest.set_ruler ruler)
                 [(">", [(start, 0, ("d (ts " <> vcall <> ") |"))])]
         extract = Score.event_start
-        ruler = UiTest.ruler [(Ruler.meter, mlist)]
-        mlist = Ruler.marklist (zip [0, 1, 2, 3, 4, 6, 8, 10, 12] UiTest.m44)
+        ruler = UiTest.ruler $ zip [0, 1, 2, 3, 4, 6, 8, 10, 12]
+            (cycle [Meter.r_1, Meter.r_4, Meter.r_4, Meter.r_4])
     let (evts, logs) = run 0 "'r:z'"
     equal evts []
     strings_like logs ["expected Symbol"]
@@ -119,3 +119,16 @@ test_cf_rnd = do
     equal logs []
     check $ not (all (== head durs) durs)
     check (all (Num.in_range 0.8 1.2) durs)
+
+test_cf_swing = do
+    let run marks amount events = DeriveTest.extract Score.event_start $
+            DeriveTest.derive_tracks_with_ui id (with_ruler marks)
+                [("> | %start-s = (cf-swing q " <> amount <> ")",
+                    [(n, 0, "") | n <- events])]
+        with_ruler = DeriveTest.set_ruler . UiTest.ruler
+            . map (second Meter.name_to_rank)
+
+    let marks = take 8 $ zip (Seq.range_ 0 2)
+            [Meter.H, Meter.Q, Meter.Q, Meter.Q]
+    equal (run marks ".5" [0, 1, 2, 3]) ([0, 1.5, 2, 3.5], [])
+    equal (run marks "-.5" [0, 1, 2, 3]) ([0, 0.5, 2, 2.5], [])

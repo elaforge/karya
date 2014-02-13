@@ -179,16 +179,21 @@ get_current_block_id =
     maybe (throw "get_current_block_id: no blocks in stack") return
         =<< lookup_current_block_id
 
+lookup_current_tracknum :: Deriver (Maybe (BlockId, TrackNum))
+lookup_current_tracknum = do
+    stack <- Stack.innermost <$> get_stack
+    let p = (,) <$> Seq.head [bid | Stack.Block bid <- stack]
+            <*> Seq.head [tid | Stack.Track tid <- stack]
+    case p of
+        Nothing -> return Nothing
+        Just (block_id, track_id) -> do
+            tracknum <- eval_ui "get_current_tracknum" $
+                State.get_tracknum_of block_id track_id
+            return $ Just (block_id, tracknum)
+
 get_current_tracknum :: Deriver (BlockId, TrackNum)
-get_current_tracknum = do
-    stack <- get_stack
-    track_id <- case [tid | Stack.Track tid <- Stack.innermost stack] of
-        [] -> throw "no tracks in stack"
-        tid : _ -> return tid
-    block_id <- get_current_block_id
-    tracknum <- eval_ui "get_current_tracknum" $
-        State.get_tracknum_of block_id track_id
-    return (block_id, tracknum)
+get_current_tracknum =
+    maybe (throw "get_current_tracknum") return =<< lookup_current_tracknum
 
 -- | Make a quick trick block stack.
 with_stack_block :: BlockId -> Deriver a -> Deriver a
