@@ -37,13 +37,23 @@ def main():
             dir = os.path.join('prof/summary-no-scc', prof)
         subprocess.call(['mkdir', '-p', dir])
         summary = run(prof)
-        write(os.path.join(dir, date), 'w', alist_to_str(summary) + '\n')
+        write_dated_summary(dir, summary)
         summary = [('profile', prof), ('date', date)] + summary
         if with_scc:
             summary = [('with_scc', 'true')] + summary
         mach_readable.append(summary)
     summary = '\n'.join(map(str, mach_readable)) + '\n'
     write('prof/summary/machine_readable', 'a', summary)
+
+def write_dated_summary(dir, summary):
+    date = datetime.datetime.now().strftime('%y-%m-%d')
+    i = 0
+    while True:
+        fn = os.path.join(dir, '%s.%02d' % (date, i))
+        if not os.path.exists(fn):
+            break
+        i += 1
+    write(fn, 'w', alist_to_str(summary) + '\n')
 
 def write(path, mode, content):
     if write_files:
