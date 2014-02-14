@@ -3,7 +3,7 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
-  - solo note track, then merge with pitch track, then unsolo: note track
+  * solo note track, then merge with pitch track, then unsolo: note track
     unsolos, but pitch track solos.
   - Maybe I should use Score.PControl instead of Score.Control for pitch
     control names.  Or PitchControl and think of better names for the existing

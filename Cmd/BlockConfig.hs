@@ -139,11 +139,19 @@ append dest source = do
 
 -- * track
 
-cmd_toggle_flag :: (Cmd.M m) => Block.TrackFlag -> m ()
+-- | If the flag is set on any of the selected tracks, unset it.  Otherwise,
+-- set it.  This is a bit more complicated than a simple toggle because if
+-- you have a collapsed track where one is soloed and one isn't, a simple
+-- toggle would just move the solo flag from one track to the other, leaving
+-- the track as a whole soloed.
+cmd_toggle_flag :: Cmd.M m => Block.TrackFlag -> m ()
 cmd_toggle_flag flag = do
     (block_id, tracknums, _, _, _) <- Selection.tracks
-    forM_ tracknums $ \tracknum ->
-        State.toggle_track_flag block_id tracknum flag
+    flags <- mapM (State.track_flags block_id) tracknums
+    let set = any (Set.member flag) flags
+    forM_ tracknums $ \tracknum -> if set
+        then State.remove_track_flag block_id tracknum flag
+        else State.add_track_flag block_id tracknum flag
 
 cmd_toggle_flag_clicked :: (Cmd.M m) => Block.TrackFlag -> Msg.Msg -> m ()
 cmd_toggle_flag_clicked flag msg = do
