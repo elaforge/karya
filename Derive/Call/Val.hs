@@ -377,7 +377,7 @@ c_cf_swing = Derive.val_call "cf-swing" Tags.control_function
     <$> defaulted "rank" (TrackLang.E Meter.Q)
         "The time steps are on the beat, and midway between offset by the\
         \ given amount."
-    <*> defaulted "amount" (1/3)
+    <*> defaulted "amount" (TrackLang.real_control "swing" (1/3))
         "Swing amount, multiplied by the rank duration / 2."
     ) $ \(TrackLang.E rank, amount) _args -> return $!
         TrackLang.ControlFunction "cf-swing" (cf_swing_ rank amount)
@@ -385,16 +385,18 @@ c_cf_swing = Derive.val_call "cf-swing" Tags.control_function
     cf_swing_ rank amount control dyn pos
         | Just marks <- maybe_marks, Just t <- score dyn pos = Score.untyped $
             dyn_control dyn control pos + RealTime.to_seconds
-                (cf_swing (real dyn) (Meter.name_to_rank rank) amount marks t)
+                (cf_swing (real dyn) (Meter.name_to_rank rank)
+                    (to_function dyn 0 amount) marks t)
         | otherwise = Score.untyped 0
         where maybe_marks = Map.lookup Ruler.meter (TrackLang.dyn_ruler dyn)
 
-cf_swing :: (ScoreTime -> RealTime) -> Ruler.Rank -> RealTime -> Ruler.Marklist
-    -> ScoreTime -> RealTime
+cf_swing :: (ScoreTime -> RealTime) -> Ruler.Rank -> Util.Function
+    -> Ruler.Marklist -> ScoreTime -> RealTime
 cf_swing to_real rank amount marks pos = case marks_around rank marks pos of
     Nothing -> 0
     Just (pre, post) -> (to_real post - to_real pre) / 2
-        * amount * swing (Num.normalize pre post pos)
+        * RealTime.seconds (amount (to_real pos))
+        * swing (Num.normalize pre post pos)
 
 marks_around :: Ruler.Rank -> Ruler.Marklist -> ScoreTime
     -> Maybe (ScoreTime, ScoreTime)
@@ -410,6 +412,12 @@ swing = RealTime.seconds . Num.normalize (-1) 1 . sin . (*pi)
 
 -- * TrackLang.Dynamic
 
+-- These functions are starting to reinvent the Deriver functions, which is
+-- annoying.  Also they are missing logging and exceptions, which would be
+-- convenient.  Unfortunately ControlFunction can't just use a Deriver without
+-- running into circular imports, or lumping thousands of lines into
+-- Derive.Deriver.Monad.
+
 dyn_seed :: TrackLang.Dynamic -> Double
 dyn_seed = fromMaybe 0
     . TrackLang.maybe_val Environ.seed . TrackLang.dyn_environ
@@ -423,3 +431,47 @@ real dyn t = Score.warp_pos t (TrackLang.dyn_warp dyn)
 
 score :: TrackLang.Dynamic -> RealTime -> Maybe ScoreTime
 score dyn t = Score.unwarp_pos t (TrackLang.dyn_warp dyn)
+
+-- ** ValControl
+
+to_function :: TrackLang.Dynamic -> Signal.Y -> TrackLang.ValControl
+    -> Util.Function
+to_function dyn deflt =
+    (Score.typed_val .) . to_typed_function dyn (Score.untyped deflt)
+
+to_typed_function :: TrackLang.Dynamic -> Score.TypedVal -> TrackLang.ValControl
+    -> Util.TypedFunction
+to_typed_function dyn deflt control =
+    case to_signal_or_function dyn control of
+        Nothing -> const deflt
+        Just (Left sig) -> Derive.signal_function sig
+        Just (Right f) -> TrackLang.call_control_function f score_control dyn
+    where
+    score_control = case control of
+        TrackLang.ControlSignal {} -> Controls.null
+        TrackLang.DefaultedControl cont _ -> cont
+        TrackLang.LiteralControl cont -> cont
+
+to_signal_or_function :: TrackLang.Dynamic -> TrackLang.ValControl
+    -> Maybe (Either Score.TypedControl TrackLang.ControlFunction)
+to_signal_or_function dyn control = case control of
+    TrackLang.ControlSignal sig -> return $ Left sig
+    TrackLang.DefaultedControl cont deflt ->
+        get_control (Score.type_of deflt) (return $ Left deflt) cont
+    TrackLang.LiteralControl cont ->
+        get_control Score.Untyped Nothing cont
+    where
+    get_control default_type deflt cont = case get_function cont of
+        Just f -> return $ Right $
+            TrackLang.apply_control_function (inherit_type default_type .) f
+        Nothing -> case get_signal cont of
+            Just sig -> return $ Left sig
+            Nothing -> deflt
+
+    get_function cont = Map.lookup cont $ TrackLang.dyn_control_functions dyn
+    get_signal cont = Map.lookup cont $ TrackLang.dyn_controls dyn
+
+    -- If the signal was untyped, it gets the type of the default, since
+    -- presumably the caller expects that type.
+    inherit_type default_type val =
+        val { Score.type_of = Score.type_of val <> default_type }

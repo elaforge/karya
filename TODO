@@ -134,7 +134,29 @@ UNSORTED
       . Swing is like a sine wave offset, where the midpoint is shifted
         forward:
           swing offset p = sin ((p * 2 - 0.5) * pi) / 2 + 0.5
+    * swing amount should be a signal
     * Use a control function to implement swing tempo.
+    . With 'real' and 'score' and the signal conversion functions, I gradually
+      rewrite more and more functions from Deriver to functions with a
+      TrackLang.Dynamic argument.  Also they're going to start to want an
+      exception, and why not logging too, and I'm right back to Deriver.
+    . Why can't I make ControlFunction into a Deriver?
+      ControlFunction moves to Deriver.Monad, so Val must also.
+      Now control function stuff must be exported from Deriver, not TrackLang
+      and Score.  But also Val can't be exported from TrackLang, and there are
+      tons of users for TrackLang.Val.  Maybe I can split TrackLang into a low
+      level version.  In fact I already have, everything Deriver uses
+      TrackLang for can come from BaseTypes, except Typecheck.  Monad.val_call
+      must move to Lib.
+    . Environ, Pitch, and Val all move into Derive.  And Score.Event.
+      This is getting to be pretty much everything.
+    . Another option is to make Derivers polymorphic.  I can put the
+      fields in TrackLang.Dynamic in a typeclass.
+    . Or make ControlFunction into a real mini-deriver with a failure monad.
+      I could parameterize DeriveT with state and err and use that.  Doesn't
+      help with the code duplication unless I combine with the deriver
+      typeclass.
+
   * Bind a call to a Quoted to make it into a macro for that call:
     > = "(cf-sample c1 c2 c3 |)
     . Currently Quoted is for ValCalls, so the expression can't have |.

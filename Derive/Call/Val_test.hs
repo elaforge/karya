@@ -121,14 +121,17 @@ test_cf_rnd = do
     check (all (Num.in_range 0.8 1.2) durs)
 
 test_cf_swing = do
-    let run marks amount events = DeriveTest.extract Score.event_start $
-            DeriveTest.derive_tracks_with_ui id (with_ruler marks)
-                [("> | %start-s = (cf-swing q " <> amount <> ")",
+    let run marks amount tracks events = DeriveTest.extract Score.event_start $
+            DeriveTest.derive_tracks_with_ui id (with_ruler marks) $
+                tracks ++ [("> | %start-s = (cf-swing q " <> amount <> ")",
                     [(n, 0, "") | n <- events])]
         with_ruler = DeriveTest.set_ruler . UiTest.ruler
             . map (second Meter.name_to_rank)
 
     let marks = take 8 $ zip (Seq.range_ 0 2)
             [Meter.H, Meter.Q, Meter.Q, Meter.Q]
-    equal (run marks ".5" [0, 1, 2, 3]) ([0, 1.5, 2, 3.5], [])
-    equal (run marks "-.5" [0, 1, 2, 3]) ([0, 0.5, 2, 2.5], [])
+        events = [0, 1, 2, 3]
+    equal (run marks ".5" [] events) ([0, 1.5, 2, 3.5], [])
+    equal (run marks "-.5" [] events) ([0, 0.5, 2, 2.5], [])
+    equal (run marks "%swing" [("swing", [(0, 0, "0"), (2, 0, ".5")])] events)
+        ([0, 1, 2, 3.5], [])

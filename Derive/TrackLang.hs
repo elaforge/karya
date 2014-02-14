@@ -91,11 +91,10 @@ sym_to_scale_id (Symbol s) = Pitch.ScaleId s
 scale_id_to_sym :: Pitch.ScaleId -> Symbol
 scale_id_to_sym (Pitch.ScaleId s) = Symbol s
 
--- | Constant control from a RealTime.
+-- | Defaulted control from a RealTime.
 real_control :: Score.Control -> RealTime -> ValControl
-real_control c deflt =
-    DefaultedControl c $
-        Score.untyped (Signal.constant (RealTime.to_seconds deflt))
+real_control c deflt = DefaultedControl c $
+    Score.untyped $ Signal.constant (RealTime.to_seconds deflt)
 
 constant_control :: Signal.Y -> ValControl
 constant_control = ControlSignal . Score.untyped . Signal.constant
