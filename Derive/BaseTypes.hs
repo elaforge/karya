@@ -531,7 +531,7 @@ instance ShowVal.ShowVal Text where
 data ControlRef val =
     -- | A signal literal.
     ControlSignal val
-    -- | If the control isn't present, use the constant.
+    -- | If the control isn't present, use the given default.
     | DefaultedControl Control val
     -- | Throw an exception if the control isn't present.
     | LiteralControl Control
@@ -575,11 +575,11 @@ instance ShowVal.ShowVal ValControl where
     show_val = show_control '%' $ \(Typed typ sig) ->
         ShowVal.show_val (Signal.at 0 sig) <> txt (type_to_code typ)
 
-show_control :: Char -> (val -> Text) -> ControlRef val -> Text
-show_control prefix val_text control = case control of
-    ControlSignal val -> val_text val
+show_control :: Char -> (sig -> Text) -> ControlRef sig -> Text
+show_control prefix sig_text control = case control of
+    ControlSignal sig -> sig_text sig
     DefaultedControl (Control cont) deflt -> mconcat
-        [Text.singleton prefix, cont, ",", val_text deflt]
+        [Text.singleton prefix, cont, ",", sig_text deflt]
     LiteralControl (Control cont) -> Text.cons prefix cont
 
 -- ** Call

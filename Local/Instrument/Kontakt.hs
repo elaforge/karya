@@ -20,9 +20,11 @@ import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Instrument.CUtil as CUtil
 import qualified Cmd.Instrument.Drums as Drums
 import qualified Cmd.Keymap as Keymap
+import qualified Cmd.Repl.LInst as LInst
 
 import qualified Derive.Attrs as Attrs
 import qualified Derive.Call.Articulation as Articulation
+import qualified Derive.Call.Bali.Kotekan as Kotekan
 import qualified Derive.Call.Make as Make
 import qualified Derive.Call.Util as Util
 import qualified Derive.Controls as Controls
@@ -205,17 +207,14 @@ hang_ks = [(attrs, key) | (attrs, key, _, _) <- hang_strokes]
     should add just +mute, and can inherit +loose if it's set.
 -}
 wayang_patches :: [MidiInst.Patch]
-wayang_patches =
-    [ (set_tuning Environ.umbang $ scale Wayang.umbang $ wayang "wayang-umbang",
-        mute_null_call)
-    , (set_tuning Environ.isep $ scale Wayang.isep $ wayang "wayang-isep",
-        mute_null_call)
-    , (wayang "wayang", Bali.pasang_code)
-    , (set_range Wayang.pemade_bottom Wayang.pemade_top $ wayang "wayang-p",
-        Bali.pasang_code)
-    , (set_range Wayang.kantilan_bottom Wayang.kantilan_top $ wayang "wayang-k",
-        Bali.pasang_code)
-    , (Instrument.text #= "Tuned to 12TET." $ wayang "wayang12", mute_null_call)
+wayang_patches = MidiInst.with_code mute_null_call
+    [ set_tuning Environ.umbang $ scale Wayang.umbang $ wayang "wayang-umbang"
+    , set_tuning Environ.isep $ scale Wayang.isep $ wayang "wayang-isep"
+    , Instrument.text #= "Tuned to 12TET." $ wayang "wayang12"
+    ] ++ MidiInst.with_code Bali.pasang_code
+    [ wayang "wayang"
+    , set_range Wayang.pemade_bottom Wayang.pemade_top $ wayang "wayang-p"
+    , set_range Wayang.kantilan_bottom Wayang.kantilan_top $ wayang "wayang-k"
     ]
     where
     wayang = (Instrument.attribute_map #= wayang_keymap) . flip patch []
@@ -227,6 +226,24 @@ wayang_patches =
         . MidiInst.environ Environ.tuning tuning
     set_range bottom top = MidiInst.environ Environ.instrument_bottom bottom
         . MidiInst.environ Environ.instrument_top top
+
+-- | Set up a gender wayang quartet.
+--
+-- There are two pasang instruments, which then rely on the kotekan calls to
+-- split into inst-polos and inst-sangsih.  This uses the traditional setup
+-- with polos on umbang.
+configure_wayang :: Text -> Cmd.CmdL ()
+configure_wayang dev = do
+    LInst.create "p" "kontakt/wayang-p" "" []
+    LInst.add_environ "p" Kotekan.inst_polos (Score.Instrument "p-umbang")
+    LInst.add_environ "p" Kotekan.inst_sangsih (Score.Instrument "p-isep")
+    LInst.create "k" "kontakt/wayang-k" "" []
+    LInst.add_environ "k" Kotekan.inst_polos (Score.Instrument "k-umbang")
+    LInst.add_environ "k" Kotekan.inst_sangsih (Score.Instrument "k-isep")
+    LInst.create "p-isep" "kontakt/wayang-isep" dev [0]
+    LInst.create "p-umbang" "kontakt/wayang-umbang" dev [1]
+    LInst.create "k-isep" "kontakt/wayang-isep" dev [2]
+    LInst.create "k-umbang" "kontakt/wayang-umbang" dev [3]
 
 mute_null_call :: MidiInst.Code
 mute_null_call = MidiInst.note_calls $ MidiInst.null_call $

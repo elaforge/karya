@@ -75,7 +75,8 @@ test_wayang_kempyung = do
 wayang_title :: String -> String
 wayang_title suffix =
     " | scale = wayang | n >kontakt/wayang" <> suffix <> " | scale = wayang\
-    \ | inst-polos = >kontakt/wayang-umbang | inst-sangsih = >kontakt/wayang-isep"
+    \ | inst-polos = >kontakt/wayang-umbang\
+    \ | inst-sangsih = >kontakt/wayang-isep"
 
 test_mridangam = do
     let run pitch notes tracks = derive $

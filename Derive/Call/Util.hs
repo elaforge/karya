@@ -147,7 +147,7 @@ to_function = fmap (Score.typed_val .) . to_typed_function
 
 to_typed_signal :: TrackLang.ValControl -> Derive.Deriver Score.TypedControl
 to_typed_signal control =
-    either return (const $ Derive.throw $ "not found: " ++ show control)
+    either return (const $ Derive.throw $ "not found: " <> pretty control)
         =<< to_signal_or_function control
 
 to_signal :: TrackLang.ValControl -> Derive.Deriver Signal.Control

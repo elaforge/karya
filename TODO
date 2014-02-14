@@ -3,6 +3,8 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
+  - solo note track, then merge with pitch track, then unsolo: note track
+    unsolos, but pitch track solos.
   - Maybe I should use Score.PControl instead of Score.Control for pitch
     control names.  Or PitchControl and think of better names for the existing
     PitchControl and ValControl.
@@ -128,12 +130,11 @@ UNSORTED
     it with the score.  This is like the 'import' idea, except the library is
     in score, not code.
   control functions:
+    - Could use rank to modify dyn and emphasize or deemphasize notes on
+      important beats.
     * replace start-rnd and dur-rnd with control functions
     * If ControlFunction has access to the ruler, it can do things based on
       the importance of surrounding beats, e.g. swing or rubato.
-      . Swing is like a sine wave offset, where the midpoint is shifted
-        forward:
-          swing offset p = sin ((p * 2 - 0.5) * pi) / 2 + 0.5
     * swing amount should be a signal
     * Use a control function to implement swing tempo.
     . With 'real' and 'score' and the signal conversion functions, I gradually
