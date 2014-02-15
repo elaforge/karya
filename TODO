@@ -3,6 +3,32 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
+  - score integration, copies Ui.Events directly rather than after derivation.
+    . I can write this as a "transformer" which does nothing at the derive
+      level, but code in Cmd.Performance looks for it in the block or track
+      title. <!
+    . ResponderSync.sync looks for track damage, then looks for <! on the
+      track or block.  If there is one, it runs an integrate, and returns the
+      new damage.
+    . But TrackDestination is not quite right, because ui integration just
+      copies events over directly, and doesn't have to worry about note and
+      control tracks.  So TrackDestination becomes
+        data TrackDestination =
+          -- | note_track controls (Map title (dest track id, index))
+          TrackDestination !(TrackId, EventIndex)
+            !(Map.Map Text (TrackId, EventIndex))
+          -- | Map source TrackId to destination TrackId and index.
+          | ScoreTrackDestination (Map.Map TrackId (TrackId, EventIndex))
+
+    . Look for tracks integrated from the changed one, and update them.
+      If there are TrackDestinations then its an error, and score
+      derivation is equally intolerant of ScoreTrackDestinations.
+    . Track integration takes the track and all its children, and tries to
+      match them up, by TrackId.  Extra destination TrackIds are deleted,
+      missing ones are created as a copy, and matching ones are merged.
+      Then the skeleton structure is recreated based on the source.
+    . I think I need a new Merge.pair_tracks and Merge.merge_pairs to emit
+      ScoreTrackDestinations, but can reuse merge_pair.
   * solo note track, then merge with pitch track, then unsolo: note track
     unsolos, but pitch track solos.
   - Maybe I should use Score.PControl instead of Score.Control for pitch

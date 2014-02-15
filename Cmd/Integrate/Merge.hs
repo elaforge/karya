@@ -76,6 +76,11 @@ merge_block = merge_tracks
 
 -- * tracks
 
+-- | Given a set of source 'Convert.Tracks' and a set of previously integrated
+-- destination tracks, merge them together and give new destination tracks.
+-- A single integrating source track can create multiple Convert.Tracks, and
+-- an integrating track can have >=1 destinations, so this is called once per
+-- (source, destination) pair.
 merge_tracks :: (State.M m) => BlockId -> Convert.Tracks
     -> [Block.TrackDestination] -> m [Block.TrackDestination]
 merge_tracks block_id tracks dests = do
@@ -85,9 +90,32 @@ merge_tracks block_id tracks dests = do
     set_skeleton block_id new_dests
     return new_dests
 
+set_skeleton :: (State.M m) => BlockId -> [Block.TrackDestination] -> m ()
+set_skeleton block_id dests = do
+    track_ids <- all_block_tracks block_id
+    skel <- State.require "integrate somehow created a cyclic skeleton"
+        =<< Skeleton.add_edges (track_edges track_ids dests) <$>
+            State.get_skeleton block_id
+    State.set_skeleton block_id skel
+
+track_edges :: [Maybe TrackId] -> [Block.TrackDestination]
+    -> [(TrackNum, TrackNum)]
+track_edges track_ids = concatMap edges
+    where
+    edges (Block.TrackDestination (track_id, _) controls) =
+        case tracknum_of track_id of
+            Nothing -> []
+            Just tracknum ->
+                let control_nums = mapMaybe (tracknum_of . fst)
+                        (Map.elems controls)
+                in zip (tracknum : control_nums) control_nums
+    tracknum_of track_id = List.elemIndex (Just track_id) track_ids
+
 all_block_tracks :: (State.M m) => BlockId -> m [Maybe TrackId]
 all_block_tracks block_id =
     map Block.track_id . Block.block_tracks <$> State.get_block block_id
+
+-- ** merge
 
 -- | Merge together TrackPairs, modifying the underlying tracks, and return
 -- a TrackDestination.  The head of the TrackPairs is assumed to be the note
@@ -120,8 +148,39 @@ merge_pair block_id pair = case pair of
         merge_track track dest
         return $ Just (title, fst dest, make_index events)
 
+clear_generated_events :: (State.M m) => TrackId -> m ()
+clear_generated_events track_id = State.modify_events track_id $
+    Events.from_list . filter (Maybe.isNothing . Event.stack) . Events.ascending
+
+merge_track :: (State.M m) => Convert.Track -> Dest -> m ()
+merge_track (Convert.Track _ integrated_events) (track_id, index) = do
+    old_events <- Events.ascending . Track.track_events <$>
+        State.get_track track_id
+    let (deletes, edits) = diff_events index old_events
+        new_events = apply deletes edits integrated_events
+    State.modify_some_events track_id (const new_events)
+
+-- | Create an index from integrated tracks.  Since they are integrated, they
+-- should all have stacks, so events without stacks are discarded.
+make_index :: [Event.Event] -> Block.EventIndex
+make_index events = Map.fromList
+    [(key, event) | (Just key, event) <- Seq.key_on index_key events]
+
+-- ** pair
+
+-- | If the Convert.Track is present, then that is the track being integrated
+-- in from the source.  If it's not present, then this track is no longer
+-- present in the integrated source.  If there is a TrackNum, then this track
+-- isn't present in the destination, and should be created.  Otherwise, it
+-- should be merged with the given Dest.
+--
+-- (Nothing, Left TrackNum) means the track is gone from both source and
+-- destination, so this TrackPair can be ignored.
+type TrackPair = (Maybe Convert.Track, Either TrackNum Dest)
+type Dest = (TrackId, Block.EventIndex)
+
 -- | Match up new tracks and integrated tracks so I know who to diff against
--- whom.
+-- whom.  This is called once for each integrate source track.
 --
 -- Note tracks are simply zipped up, so if a note track is added at the
 -- beginning it will look like everything changed and the diff won't work
@@ -171,50 +230,6 @@ pair_tracks track_ids tracks dests = map (filter is_valid) $
     tracknum_of track_id = List.elemIndex (Just track_id) track_ids
     is_valid (Nothing, Left _) = False
     is_valid _ = True
-
-type TrackPair = (Maybe Convert.Track, Either TrackNum Dest)
-type Dest = (TrackId, Block.EventIndex)
-
-clear_generated_events :: (State.M m) => TrackId -> m ()
-clear_generated_events track_id = State.modify_events track_id $
-    Events.from_list . filter (Maybe.isNothing . Event.stack) . Events.ascending
-
-merge_track :: (State.M m) => Convert.Track -> Dest -> m ()
-merge_track (Convert.Track _ integrated_events) (track_id, index) = do
-    old_events <- Events.ascending . Track.track_events <$>
-        State.get_track track_id
-    let (deletes, edits) = diff_events index old_events
-        new_events = apply deletes edits integrated_events
-    State.modify_some_events track_id (const new_events)
-
-set_skeleton :: (State.M m) => BlockId -> [Block.TrackDestination] -> m ()
-set_skeleton block_id dests = do
-    track_ids <- all_block_tracks block_id
-    skel <- State.require "integrate somehow created a cyclic skeleton"
-        =<< Skeleton.add_edges (track_edges track_ids dests) <$>
-            State.get_skeleton block_id
-    State.set_skeleton block_id skel
-
-track_edges :: [Maybe TrackId] -> [Block.TrackDestination]
-    -> [(TrackNum, TrackNum)]
-track_edges track_ids = concatMap edges
-    where
-    edges (Block.TrackDestination (track_id, _) controls) =
-        case tracknum_of track_id of
-            Nothing -> []
-            Just tracknum ->
-                let control_nums = mapMaybe (tracknum_of . fst)
-                        (Map.elems controls)
-                in zip (tracknum : control_nums) control_nums
-    tracknum_of track_id = List.elemIndex (Just track_id) track_ids
-
--- * reintegrate
-
--- | Create an index from integrated tracks.  Since they are integrated, they
--- should all have stacks, so events without stacks are discarded.
-make_index :: [Event.Event] -> Block.EventIndex
-make_index events = Map.fromList
-    [(key, event) | (Just key, event) <- Seq.key_on index_key events]
 
 -- ** diff
 
