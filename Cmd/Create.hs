@@ -134,33 +134,37 @@ map_track_titles f = do
 
 -- * block
 
-block_name :: (State.M m) => m Text
+block_name :: State.M m => m Text
 block_name = do
     ns <- State.get_namespace
     id <- require "block id" . generate_block_id Nothing ns
         =<< State.gets State.state_blocks
     return $ txt $ Id.id_name id
 
-block_from_template :: (State.M m) => BlockId -> m BlockId
-block_from_template template_id =
-    named_block_from_template template_id =<< block_name
+block_from_template :: State.M m => Bool -> BlockId -> m BlockId
+block_from_template copy_events template_id =
+    named_block_from_template copy_events template_id =<< block_name
 
--- | Create a block which is a copy of another, minus its events.
-named_block_from_template :: (State.M m) => BlockId -> Text -> m BlockId
-named_block_from_template template_id name = do
+-- | Create a block which is a copy of another.
+named_block_from_template :: State.M m => Bool -- ^ copy the events
+    -> BlockId -> Text -> m BlockId
+named_block_from_template copy_events template_id name = do
     ruler_id <- State.block_ruler template_id
     block_id <- named_block name ruler_id
     template <- State.get_block template_id
     State.set_block_title block_id (Block.block_title template)
     let tracks = drop 1 (Block.block_tracks template)
-    forM_ (zip [1..] tracks) $ \(tracknum, track) ->
-        case Block.tracklike_id track of
+    forM_ (zip [1..] tracks) $ \(tracknum, btrack) ->
+        case Block.tracklike_id btrack of
             Block.TId tid rid -> do
-                new_tid <- track_events block_id rid tracknum
-                    (Block.track_width track) Track.empty
-                title <- fmap Track.track_title (State.get_track tid)
-                State.set_track_title new_tid title
-            _ -> State.insert_track block_id tracknum track
+                track <- State.get_track tid
+                track_events block_id rid tracknum
+                    (Block.track_width btrack) $
+                        Track.track (Track.track_title track)
+                            (if copy_events then Track.track_events track
+                                else mempty)
+                return ()
+            _ -> State.insert_track block_id tracknum btrack
     State.set_skeleton block_id =<< State.get_skeleton template_id
     return block_id
 

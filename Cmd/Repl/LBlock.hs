@@ -168,7 +168,8 @@ create_named template name = whenM (can_create name) $
         Nothing -> do
             template_id <- Cmd.get_focused_block
             Create.named_block name =<< State.block_ruler template_id
-        Just template_id -> Create.named_block_from_template template_id name
+        Just template_id ->
+            Create.named_block_from_template False template_id name
 
 can_create :: State.M m => Text -> m Bool
 can_create name
@@ -178,10 +179,10 @@ can_create name
         not . Map.member block_id <$> State.gets State.state_blocks
 
 -- | Create a named block with the same structure as the focused one.
-copy :: Text -> Cmd.CmdL ViewId
-copy name = do
+copy :: Bool -> Text -> Cmd.CmdL ViewId
+copy copy_events name = do
     block_id <- Cmd.get_focused_block
-    Create.view =<< Create.named_block_from_template block_id name
+    Create.view =<< Create.named_block_from_template copy_events block_id name
 
 -- * dividers
 

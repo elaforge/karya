@@ -68,7 +68,8 @@ split_time_at from_block_id pos block_name = do
                 Events.ascending events
         State.modify_events track_id (const clipped)
     -- Create new block.
-    to_block_id <- Create.named_block_from_template from_block_id block_name
+    to_block_id <- Create.named_block_from_template False from_block_id
+        block_name
     forM_ track_events $ \(tracknum, events) -> do
         track_id <- State.get_event_track_at to_block_id tracknum
         State.insert_events track_id events
@@ -215,7 +216,7 @@ block_from_template :: (Cmd.M m) => m ()
 block_from_template = do
     (_, sel) <- Selection.get
     if Types.sel_is_point sel
-        then void $ Create.view =<< Create.block_from_template
+        then void $ Create.view =<< Create.block_from_template False
             =<< Cmd.get_focused_block
         else void block_template_from_selection
 
