@@ -64,8 +64,13 @@ track_height(const std::vector<SkeletonEdge> &edges, int tracknum)
     if (children.size() == 0)
         return 0;
     int height = 0;
-    for (size_t i = 0; i < children.size(); i++)
-        height = std::max(height, track_height(edges, children[i]));
+    for (size_t i = 0; i < children.size(); i++) {
+        // Avoid endless recursion.
+        if (tracknum == children[i])
+            DEBUG("track has itself as a child: " << tracknum);
+        else
+            height = std::max(height, track_height(edges, children[i]));
+    }
     if (children.size() > 1)
         height++;
     return height;
