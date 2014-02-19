@@ -833,7 +833,7 @@ matchHsObj fn
     -- have the same name as the module.  But no one should be importing them,
     -- so I don't need to track the .hi.
     isMain = Map.member hs nameToMain
-        || hs == runProfile ++ ".hs" || hs == runTests ++ ".hs"
+        || runProfile `List.isPrefixOf` hs || runTests `List.isPrefixOf` hs
 
 compileHs :: Maybe Mode -> Config -> FilePath -> Util.Cmdline
 compileHs mode config hs = ("GHC" ++ maybe "" (('-':) . show) mode, hs,
