@@ -3,7 +3,7 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 module Derive.Call.Integrate (
-    note_calls, unwarp
+    note_calls, score_integrate, unwarp
 ) where
 import Util.Control
 import qualified Ui.State as State
@@ -15,6 +15,7 @@ import qualified Derive.Deriver.Internal as Internal
 import qualified Derive.Score as Score
 import qualified Derive.Sig as Sig
 import qualified Derive.Stack as Stack
+import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.RealTime as RealTime
 import Types
@@ -24,7 +25,12 @@ note_calls :: Derive.CallMaps Derive.Note
 note_calls = Derive.call_maps []
     [ ("<<", c_block_integrate)
     , ("<", c_track_integrate)
+    , (score_integrate, c_score_integrate)
     ]
+
+score_integrate :: TrackLang.CallId
+score_integrate = "<!"
+
 
 -- * block integrate
 
@@ -112,3 +118,16 @@ track_integrate block_id track_id events = do
 
 frame_of :: (Stack.Frame -> Maybe a) -> Stack.Stack -> Maybe a
 frame_of f = msum . map f . Stack.innermost
+
+
+-- * ui integrate
+
+c_score_integrate :: Derive.Transformer Derive.Note
+c_score_integrate = Derive.transformer "score-integrate" Tags.prelude
+    "Integrate UI events. This is a higher level form of integration that\
+    \ simply copies score events directly, without the intervening derive step.\
+    \\nScore integration is implemented at the Cmd level,\
+    \ so this is actually a bogus call that does nothing. Its presence in a\
+    \ track or block title triggers code in the respond loop to run a score\
+    \ integration."
+    $ Sig.call0t $ \_ deriver -> deriver

@@ -242,6 +242,18 @@ status_root = Color.rgb 1 1 0.8
 status_integrate_destination :: Color.Color
 status_integrate_destination = Color.rgb 1 0.85 0.85
 
+-- | Color of the skeleton lines.
+skeleton :: Color.Color
+skeleton = Color.black
+
+-- | Color of lines indicating an integrate dependency.
+integrate_skeleton :: Color.Color
+integrate_skeleton = Color.red
+
+-- | Color of lines indicating a score integrate dependency.
+score_integrate_skeleton :: Color.Color
+score_integrate_skeleton = Color.green
+
 -- * defaults
 
 -- | The background derive threads will wait this many seconds before starting

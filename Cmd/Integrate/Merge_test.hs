@@ -3,6 +3,8 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 module Cmd.Integrate.Merge_test where
+import qualified Data.Map as Map
+
 import Util.Control
 import qualified Util.Seq as Seq
 import Util.Test
@@ -18,6 +20,7 @@ import qualified Cmd.Integrate.Convert as Convert
 import qualified Cmd.Integrate.Merge as Merge
 
 import qualified Derive.Stack as Stack
+import qualified App.Config as Config
 import Types
 
 
@@ -82,8 +85,10 @@ apply last_integrate integrated events = map extract_event $ Events.ascending $
     (deletes, edits) = Merge.diff_events index (map mkevent events)
     index = mkindex last_integrate
 
-test_integrate = do
-    let f state integrated = return $ integrate state integrated
+-- * derive integrate
+
+test_derive_integrate = do
+    let f state integrated = return $ derive_integrate state integrated
     let events cs = [(n, 1, c:"") | (n, c) <- zip (Seq.range_ 0 2) cs]
         extract = UiTest.extract_tracks
 
@@ -126,34 +131,108 @@ test_integrate = do
 
 mkblock :: [UiTest.TrackSpec] -> State.State
 mkblock = snd . UiTest.run_mkblock . ((">source", []):)
-    -- Add a track that 'integrate' can set as the source since the integrated
-    -- track source is required to exist.
+    -- Add a track that 'derive_integrate' can set as the source since the
+    -- integrated track source is required to exist.
 
-integrate :: State.State -> [(UiTest.TrackSpec, [UiTest.TrackSpec])]
+derive_integrate :: State.State -> [(UiTest.TrackSpec, [UiTest.TrackSpec])]
     -> State.State
-integrate state integrated = UiTest.exec state $ do
+derive_integrate state integrated = UiTest.exec state $ do
     itracks <- Block.block_integrated_tracks <$> State.get_block block_id
-    dests <- Merge.merge_tracks block_id (mktracks integrated)
-        (maybe [] snd (Seq.head itracks))
+    let derive_itracks =
+            [dests | (_, Block.DeriveDestinations dests) <- itracks]
+    dests <- Merge.merge_tracks block_id (make_convert_tracks integrated)
+        (fromMaybe [] $ Seq.head derive_itracks)
     State.modify_integrated_tracks block_id $
-        const [(UiTest.mk_tid 1, dests)]
+        const [(UiTest.mk_tid 1, Block.DeriveDestinations dests)]
     where block_id = UiTest.default_block_id
 
-modify :: State.StateId a -> State.State -> State.State
-modify action state = UiTest.exec state action
-
-mktracks :: [(UiTest.TrackSpec, [UiTest.TrackSpec])] -> Convert.Tracks
-mktracks = map $ \(note, controls) -> (convert note, map convert controls)
+make_convert_tracks :: [(UiTest.TrackSpec, [UiTest.TrackSpec])]
+    -> Convert.Tracks
+make_convert_tracks =
+    map $ \(note, controls) -> (convert note, map convert controls)
     where
     convert (title, events) = Convert.Track (txt title)
         (map (add_stack title) $ map UiTest.make_event events)
     add_stack title event = Event.set_stack
         (Event.Stack (Stack.call (txt title)) (Event.start event)) event
 
-mkindex :: [Event] -> Block.EventIndex
-mkindex = Merge.make_index . map mkevent
+-- * score integrate
+
+test_score_create_block = do
+    let (new_bid, state) = UiTest.run State.empty $ do
+            (bid, _) <- UiTest.mkblock
+                ("b1", [(">", [(0, 1, "")]), ("c1", [(0, 0, "1")])])
+            Merge.score_create_block bid
+    equal (UiTest.extract_tracks_of (UiTest.bid "b1") state)
+        [(">", [(0, 1, "")]), ("c1", [(0, 0, "1")])]
+    equal (UiTest.extract_tracks_of new_bid state)
+        [(">", [(0, 1, "")]), ("c1", [(0, 0, "1")])]
+
+test_score_integrate = do
+    -- make a block with the source, then modify
+    let f state m = return $ score_integrate 1 (modify m state)
+    let events cs = [(n, 1, c:"") | (n, c) <- zip (Seq.range_ 0 2) cs]
+        extract = UiTest.extract_tracks
+    state <- f State.empty $ UiTest.mkblock
+        (UiTest.default_block_name, [(">", events "ab"), ("c1", events "12")])
+    equal (extract state)
+        [ (">", events "ab"), ("c1", events "12")
+        , (">", events "ab"), ("c1", events "12")
+        ]
+    equal (UiTest.extract_skeleton state) [(1, 2), (3, 4)]
+
+    equal (map Block.integrate_skeleton (Map.elems (State.state_blocks state)))
+        [[(Config.score_integrate_skeleton, [(1, 3)])]]
+
+    -- Ensure a merge is happening.
+    state <- f state $ UiTest.insert_event 3 (4, 1, "z")
+    equal (extract state)
+        [ (">", events "ab"), ("c1", events "12")
+        , (">", events "abz"), ("c1", events "12")
+        ]
+    state <- f state $ UiTest.insert_event 1 (2, 1, "x")
+    equal (extract state)
+        [ (">", events "ax"), ("c1", events "12")
+        , (">", events "axz"), ("c1", events "12")
+        ]
+    equal (UiTest.extract_skeleton state) [(1, 2), (3, 4)]
+
+    let block_id = UiTest.default_block_id
+    -- Add a new track.
+    state <- f state $ do
+        Create.empty_track block_id 2
+        State.splice_skeleton_below block_id 2 1
+    equal (extract state)
+        [ (">", events "ax"), ("", []), ("c1", events "12")
+        , (">", events "axz"), ("", []), ("c1", events "12")
+        ]
+    equal (UiTest.extract_skeleton state) [(1, 2), (2, 3), (4, 5), (5, 6)]
+
+    -- Remove a track.  Generated events are cleared.
+    state <- f state $ State.remove_track block_id 3
+    equal (extract state)
+        [ (">", events "ax"), ("", [])
+        , (">", events "axz"), ("", []), ("c1", [])
+        ]
+    equal (UiTest.extract_skeleton state) [(1, 2), (3, 4)]
+
+score_integrate :: TrackNum -> State.State -> State.State
+score_integrate tracknum state = UiTest.exec state $ do
+    itracks <- Block.block_integrated_tracks <$> State.get_block block_id
+    let score_itracks = [dests | (_, Block.ScoreDestinations dests) <- itracks]
+    dests <- Merge.score_merge_tracks block_id (UiTest.mk_tid tracknum)
+        (fromMaybe [] $ Seq.head score_itracks)
+    State.modify_integrated_tracks block_id $
+        const [(UiTest.mk_tid 1, Block.ScoreDestinations dests)]
+    where block_id = UiTest.default_block_id
 
 -- * util
+
+modify :: State.StateId a -> State.State -> State.State
+modify action state = UiTest.exec state action
+
+mkindex :: [Event] -> Block.EventIndex
+mkindex = Merge.make_index . map mkevent
 
 type Event = (ScoreTime, ScoreTime, String, Maybe ScoreTime)
 

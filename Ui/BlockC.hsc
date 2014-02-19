@@ -90,6 +90,8 @@ import qualified Ui.ScoreTime as ScoreTime
 import qualified Ui.Skeleton as Skeleton
 import qualified Ui.Track as Track
 import qualified Ui.TrackC as TrackC
+
+import qualified App.Config as Config
 import Types
 
 
@@ -108,8 +110,8 @@ data CView
 -- | Global map of view IDs to their windows.  This is global mutable state
 -- because the underlying window system is also global mutable state, and is
 -- not well represented by a persistent functional state.
-view_id_to_ptr :: MVar.MVar (Map.Map ViewId (Ptr CView))
 {-# NOINLINE view_id_to_ptr #-}
+view_id_to_ptr :: MVar.MVar (Map.Map ViewId (Ptr CView))
 view_id_to_ptr = Unsafe.unsafePerformIO (MVar.newMVar Map.empty)
 
 get_ptr :: ViewId -> IO (Ptr CView)
@@ -234,8 +236,8 @@ set_model_config view_id config = do
 foreign import ccall "set_model_config"
     c_set_model_config :: Ptr CView -> Ptr Block.Config -> IO ()
 
-set_skeleton :: ViewId -> Skeleton.Skeleton -> [(TrackNum, TrackNum)]
-    -> [Block.Status] -> Fltk ()
+set_skeleton :: ViewId -> Skeleton.Skeleton
+    -> [(Color.Color, [(TrackNum, TrackNum)])] -> [Block.Status] -> Fltk ()
 set_skeleton view_id skel integrate_edges statuses = do
     viewp <- get_ptr view_id
     with_skeleton_config (skeleton_edges skel integrate_edges) statuses $
@@ -469,10 +471,11 @@ track_status (Just (status, color)) = (status ++ repeat '\0', color)
 
 -- ** skeleton
 
-skeleton_edges :: Skeleton.Skeleton -> [(TrackNum, TrackNum)] -> [SkeletonEdge]
+skeleton_edges :: Skeleton.Skeleton -> [(Color.Color, [(TrackNum, TrackNum)])]
+    -> [SkeletonEdge]
 skeleton_edges skel integrate_edges =
-    [edge p c 0 Color.black | (p, c) <- Skeleton.flatten skel]
-    ++ [edge p c 0 Color.red | (p, c) <- integrate_edges]
+    [edge p c 0 Config.skeleton | (p, c) <- Skeleton.flatten skel]
+    ++ [edge p c 0 color | (color, edges) <- integrate_edges, (p, c) <- edges]
     where
     edge p c = SkeletonEdge (p-1) (c-1)
     -- The -1s are because the fltk set_skeleton doesn't count the ruler track,

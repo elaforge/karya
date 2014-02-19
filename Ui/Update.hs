@@ -94,7 +94,8 @@ data Block t =
     -- drawn in the same place.  Otherwise, a change to the skeleton loses the
     -- status state, and the display can't preserve it because the skeleton
     -- update may be due to a track deletion or insertion.
-    | BlockSkeleton Skeleton.Skeleton [(TrackNum, TrackNum)] [Block.Status]
+    | BlockSkeleton Skeleton.Skeleton [(Color.Color, [(TrackNum, TrackNum)])]
+        [Block.Status]
     | RemoveTrack TrackNum
     | InsertTrack TrackNum t
     -- | Unlike 'Track', these settings are local to the block, not

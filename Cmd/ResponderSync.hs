@@ -18,6 +18,7 @@ import qualified Ui.Track as Track
 import qualified Ui.Update as Update
 
 import qualified Cmd.Cmd as Cmd
+import qualified Cmd.Integrate as Integrate
 import qualified Cmd.Internal as Internal
 import qualified Cmd.Performance as Performance
 
@@ -52,6 +53,19 @@ sync sync_func send_status ui_pre ui_from ui_to cmd_state cmd_updates
     let (ui_updates, display_updates) = Diff.diff cmd_updates ui_from ui_to
     -- Debug.fullM Debug.putp "ui_updates" ui_updates
     -- Debug.fullM Debug.putp "display_updates" display_updates
+    (ui_to, ui_updates, display_updates) <-
+        case Integrate.score_integrate ui_updates ui_to of
+            Left err -> do
+                Log.error $ "score_integrate failed: " ++ pretty err
+                return (ui_from, ui_updates, display_updates)
+            Right (logs, state, updates) -> do
+                mapM_ Log.write logs
+                let (ui_updates', display_updates') =
+                        Diff.diff updates ui_to state
+                -- Debug.fullM Debug.putp "int ui_updates" ui_updates'
+                -- Debug.fullM Debug.putp "int display_updates" display_updates'
+                return (state, ui_updates ++ ui_updates',
+                    display_updates ++ display_updates')
 
     when (any modified_view ui_updates) $
         MVar.modifyMVar_ play_monitor_state (const (return ui_to))
@@ -62,8 +76,9 @@ sync sync_func send_status ui_pre ui_from ui_to cmd_state cmd_updates
         Log.error $ "syncing updates: " ++ pretty err
 
     -- Kick off the background derivation threads.
-    cmd_state <- Performance.update_performance send_status ui_pre ui_to
-        cmd_state ui_updates
+    let damage = Diff.derive_diff ui_pre ui_to ui_updates
+    cmd_state <- Performance.update_performance send_status ui_to cmd_state
+        damage
     return (ui_updates, ui_to,
         cmd_state { Cmd.state_derive_immediately = mempty })
 

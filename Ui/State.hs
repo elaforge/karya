@@ -642,7 +642,7 @@ modify_block_meta block_id f = modify_block block_id $ \block ->
     block { Block.block_meta = f (Block.block_meta block) }
 
 set_integrated_block :: (M m) => BlockId
-    -> Maybe (BlockId, [Block.TrackDestination]) -> m ()
+    -> Maybe (BlockId, Block.TrackDestinations) -> m ()
 set_integrated_block block_id integrated = do
     modify_block block_id $ \block ->
         block { Block.block_integrated = integrated }
@@ -650,8 +650,8 @@ set_integrated_block block_id integrated = do
     validate "set_integrated_block" (fix_integrated_block block_id block)
 
 modify_integrated_tracks :: (M m) => BlockId
-    -> ([(TrackId, [Block.TrackDestination])]
-        -> [(TrackId, [Block.TrackDestination])])
+    -> ([(TrackId, Block.TrackDestinations)]
+        -> [(TrackId, Block.TrackDestinations)])
     -> m ()
 modify_integrated_tracks block_id modify = do
     modify_block block_id $ \block ->
@@ -717,8 +717,8 @@ modify_skeleton block_id f = do
         tracks = length $ Block.block_tracks block
     forM_ (Skeleton.flatten skel) $ \(parent, child) ->
         unless (1<=parent && parent < tracks && 1 <= child && child < tracks) $
-            throw $ "modify_skeleton: edge " ++ show (parent, child)
-                ++ " out of range for " ++ show block_id
+            throw $ "modify_skeleton: edge " <> show (parent, child)
+                <> " out of range for " <> show block_id
     modify_block block_id $ \block -> block { Block.block_skeleton = skel }
 
 -- | Toggle the given edge in the block's skeleton.  If a cycle would be
@@ -1555,8 +1555,8 @@ fix_merged block_id (tracknum, track) = do
 -- TrackDestinations whose TrackIds aren't in this block.
 fix_integrated_block :: BlockId -> Block.Block -> StateId [String]
 fix_integrated_block block_id block = do
-    block_ids <- all_block_ids
-    let (integrated, errs) = fix block_ids (Block.block_integrated block)
+    blocks <- gets state_blocks
+    let (integrated, errs) = fix blocks (Block.block_integrated block)
     unless (null errs) $
         modify_block block_id $ \block -> block
             { Block.block_integrated = integrated }
@@ -1564,22 +1564,20 @@ fix_integrated_block block_id block = do
     where
     track_ids = Block.block_track_ids block
     fix _ Nothing = (Nothing, [])
-    fix block_ids (Just (iblock, dests))
-        | iblock `notElem` block_ids =
-            (Nothing, ["removed invalid integrated block: " ++ show iblock])
-        | otherwise = (Just (iblock, valid), errs)
-        where
-        (valid, invalid) = List.partition
-            (fix_track_destination track_ids) dests
-        errs = ["integrated block of " ++ show iblock
-            ++ ": track destination has track ids not in this block: "
-            ++ pretty dest | dest <- invalid]
+    fix blocks (Just (source_id, dests)) = case Map.lookup source_id blocks of
+        Nothing ->
+            (Nothing, ["removed invalid integrated block: " ++ show source_id])
+        Just source -> (Just (source_id, valid), errs)
+            where
+            (valid, errs) = fix_track_destinations
+                ("block of " <> show source_id)
+                (Block.block_track_ids source) track_ids dests
 
 -- | Drop integrated tracks whose source TrackId isn't in this block, and
 -- TrackDestinations whose TrackIds aren't in this block.
 --
 -- TODO
--- - No TrackIds duplicated between TrackDestinations.
+-- - No TrackIds duplicated between DeriveDestinations.
 -- - No TrackIds duplicated across integrated tracks.
 fix_integrated_tracks :: BlockId -> Block.Block -> StateId [String]
 fix_integrated_tracks block_id block = do
@@ -1593,18 +1591,32 @@ fix_integrated_tracks block_id block = do
     track_ids = Block.block_track_ids block
     fix (track_id, dests)
         | track_id `notElem` track_ids =
-            (Nothing, ["removed invalid integrated track: " ++ show track_id])
+            (Nothing, ["removed invalid integrated track: " <> show track_id])
         | otherwise = (Just (track_id, valid), errs)
         where
-        (valid, invalid) = List.partition
-            (fix_track_destination track_ids) dests
-        errs = ["integrated track of " ++ show track_id
-            ++ ": track destination has track ids not in this block: "
-            ++ pretty dest | dest <- invalid]
+        (valid, errs) = fix_track_destinations ("track of " <> show track_id)
+            track_ids track_ids dests
 
-fix_track_destination :: [TrackId] -> Block.TrackDestination -> Bool
-fix_track_destination track_ids (Block.TrackDestination note controls) =
-    all (`elem` track_ids) (fst note : map fst (Map.elems controls))
+fix_track_destinations :: String -> [TrackId] -> [TrackId]
+    -> Block.TrackDestinations -> (Block.TrackDestinations, [String])
+fix_track_destinations err_msg source_track_ids track_ids d = case d of
+    Block.DeriveDestinations dests ->
+        (Block.DeriveDestinations valid, errs (map derive_track_ids invalid))
+        where (valid, invalid) = List.partition derive_valid dests
+    Block.ScoreDestinations dests ->
+        (Block.ScoreDestinations valid, errs (map score_track_ids invalid))
+        where (valid, invalid) = List.partition score_valid dests
+    where
+    errs invalid = ["integrated " <> err_msg
+        <> ": track destination has track ids not in the right block: "
+        <> pretty dest | dest <- invalid]
+    derive_track_ids (Block.DeriveDestination note controls) =
+        fst note : map fst (Map.elems controls)
+    score_track_ids (source_id, (dest_id, _)) = (source_id, dest_id)
+    derive_valid (Block.DeriveDestination note controls) =
+        all (`elem` track_ids) (fst note : map fst (Map.elems controls))
+    score_valid (source_id, (dest_id, _index)) =
+        source_id `elem` source_track_ids && dest_id `elem` track_ids
 
 block_event_tracknums :: Block.Block -> [(TrackNum, TrackId)]
 block_event_tracknums block =

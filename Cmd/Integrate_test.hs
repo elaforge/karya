@@ -18,6 +18,8 @@ import qualified Derive.DeriveTest as DeriveTest
 import Types
 
 
+-- * derive integration
+
 test_block_integrate = do
     let states = mkstates "<< | reverse"
             ("s/i1", [(0, 1, "4c"), (1, 1, "4d")], [])
@@ -124,6 +126,81 @@ test_track_modify = do
 -- multiple integrations of different tracks
 -- multiple integrations of the same track
 
+
+-- * score integration
+
+test_block_score_integrate = do
+    let states = mkstates "<!" ("s/i1", [(0, 1, "4c"), (1, 1, "4d")], [])
+    res <- start states $ UiTest.insert_event 1 (1, 1, "")
+    equal (e_tracks res)
+        [ (UiTest.bid "b1",
+            [ (">s/i1", [(0, 1, ""), (1, 1, "")])
+            , ("*", [(0, 0, "4c"), (1, 0, "4d")])
+            ])
+        , (UiTest.bid "b2",
+            [ (">s/i1", [(0, 1, ""), (1, 1, "")])
+            , ("*", [(0, 0, "4c"), (1, 0, "4d")])
+            ])
+        ]
+    res <- next res $ UiTest.insert_event 1 (4, 1, "")
+    equal (e_tracks res)
+        [ (UiTest.bid "b1",
+            [ (">s/i1", [(0, 1, ""), (1, 1, ""), (4, 1, "")])
+            , ("*", [(0, 0, "4c"), (1, 0, "4d")])
+            ])
+        , (UiTest.bid "b2",
+            [ (">s/i1", [(0, 1, ""), (1, 1, ""), (4, 1, "")])
+            , ("*", [(0, 0, "4c"), (1, 0, "4d")])
+            ])
+        ]
+
+test_track_score_integrate = do
+    let states = mkstates "" ("s/i1 | <!", [(0, 1, "4c")], [])
+    res <- start states $ UiTest.insert_event 1 (0, 1, "")
+    equal (e_tracks res)
+        [ (UiTest.bid "b1",
+            [ (">s/i1 | <!", [(0, 1, "")]), ("*", [(0, 0, "4c")])
+            , (">s/i1", [(0, 1, "")]), ("*", [(0, 0, "4c")])
+            ])
+        ]
+    res <- next res $ UiTest.insert_event 1 (1, 1, "")
+    equal (e_tracks res)
+        [ (UiTest.bid "b1",
+            [ (">s/i1 | <!", [(0, 1, ""), (1, 1, "")]), ("*", [(0, 0, "4c")])
+            , (">s/i1", [(0, 1, ""), (1, 1, "")]), ("*", [(0, 0, "4c")])
+            ])
+        ]
+
+-- test_cascading_track_score_integrate = do
+--     let states = mkstates_tracks "" [(">s/i1", [(0, 1, "")])]
+--     res <- start states $ State.set_track_title (UiTest.mk_tid 1) ">s/i1 | <!"
+--     equal (e_tracks res)
+--         [ (UiTest.bid "b1",
+--             [ (">s/i1 | <!", [(0, 1, "")])
+--             , (">s/i1", [(0, 1, "")])
+--             ])
+--         ]
+--     res <- next res $ State.set_track_title (UiTest.mk_tid 2) ">s/i1 | <!"
+--     equal (e_tracks res)
+--         [ (UiTest.bid "b1",
+--             [ (">s/i1 | <!", [(0, 1, "")])
+--             , (">s/i1 | <!", [(0, 1, "")])
+--             , (">s/i1", [(0, 1, "")])
+--             ])
+--         ]
+--
+--     -- Change should propagate through both.
+--     res <- next res $ UiTest.insert_event 1 (1, 1, "")
+--     equal (e_tracks res)
+--         [ (UiTest.bid "b1",
+--             [ (">s/i1 | <!", [(0, 1, ""), (1, 1, "")])
+--             , (">s/i1 | <!", [(0, 1, ""), (1, 1, "")])
+--             , (">s/i1", [(0, 1, ""), (1, 1, "")])
+--             ])
+--         ]
+
+-- * implementation
+
 -- | Run a cmd and return the next DeriveComplete.
 start :: ResponderTest.States -> Cmd.CmdT IO a -> IO ResponderTest.Result
 start states action = last <$> until_complete states action
@@ -159,9 +236,12 @@ e_perf = Map.lookup UiTest.default_block_id
     . Cmd.state_performance . Cmd.state_play . ResponderTest.result_cmd_state
 
 mkstates :: String -> UiTest.NoteSpec -> ResponderTest.States
-mkstates title notes = (UiTest.exec ui_state set_title, cmd_state)
+mkstates title = mkstates_tracks title . UiTest.note_spec
+
+mkstates_tracks :: String -> [UiTest.TrackSpec] -> ResponderTest.States
+mkstates_tracks title tracks = (UiTest.exec ui_state set_title, cmd_state)
     where
-    (ui_state, cmd_state) = ResponderTest.mkstates (UiTest.note_spec notes)
+    (ui_state, cmd_state) = ResponderTest.mkstates tracks
     set_title = State.set_block_title UiTest.default_block_id (txt title)
 
 run :: String -> [UiTest.TrackSpec] -> Cmd.CmdId a -> CmdTest.Result a

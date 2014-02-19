@@ -7,7 +7,6 @@ module Ui.Block where
 import qualified Control.DeepSeq as DeepSeq
 import qualified Data.Char as Char
 import qualified Data.Generics as Generics
-import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 import qualified Data.Set as Set
@@ -16,6 +15,7 @@ import qualified Data.Text as Text
 import Util.Control
 import qualified Util.Pretty as Pretty
 import qualified Util.Rect as Rect
+import qualified Util.Seq as Seq
 
 import qualified Ui.Color as Color
 import qualified Ui.Event as Event
@@ -36,13 +36,16 @@ data Block = Block {
     , block_config :: !Config
     , block_tracks :: ![Track]
     , block_skeleton :: !Skeleton.Skeleton
-    -- | Present if this block was integrated from another.
-    -- If the TrackDestinations is empty, then this is an existing block
-    -- that was created to receive integration.
-    , block_integrated :: !(Maybe (BlockId, [TrackDestination]))
-    -- | Similar to block_integrated, if the TrackDestinations is empty, then
-    -- new integrated tracks should be created.
-    , block_integrated_tracks :: ![(TrackId, [TrackDestination])]
+    -- | Present if this block was integrated from another.  If the
+    -- TrackDestinations is empty, then this is an empty block that was created
+    -- to receive integration.
+    , block_integrated :: !(Maybe (BlockId, TrackDestinations))
+
+    -- | Each pair is a set of tracks integrated from a source TrackId.
+    -- A single source can have multiple destination sets.  Similar to
+    -- block_integrated, if the TrackDestinations is empty, then new integrated
+    -- tracks should be created.
+    , block_integrated_tracks :: ![(TrackId, TrackDestinations)]
     , block_meta :: !Meta
     } deriving (Eq, Read, Show)
 
@@ -67,8 +70,36 @@ instance DeepSeq.NFData Block where
 -- you could put notes in there.
 type Meta = Map.Map Text Text
 
--- | This holds the 'EventIndex' for one track or block.
-data TrackDestination = TrackDestination {
+data TrackDestinations =
+    -- | A derive integrate can produce multiple note tracks, and each one gets
+    -- its own DeriveDestination.  The TrackIds in here should point to tracks
+    -- within the block that contains the TrackDestinations.
+    DeriveDestinations ![DeriveDestination]
+    -- | A score integrate is always just one track along with its descendents.
+    -- It's not necessarily a note track.
+    | ScoreDestinations !ScoreDestinations
+    deriving (Eq, Show, Read)
+
+-- | Score derivation creates destination tracks 1:1 with their source tracks,
+-- so I can key them with their source TrackIds.
+--
+-- (source_track_id, (destination_track_id, index))
+--
+-- For 'block_integrated', the source_track_id should point to a track in the
+-- source block, for 'block_integrated_tracks' it should point to a track
+-- within its own block.  The destination_track_id should always point to
+-- a track in the same block.
+type ScoreDestinations = [(TrackId, (TrackId, EventIndex))]
+
+instance Pretty.Pretty TrackDestinations where
+    format (DeriveDestinations dests) =
+        "DeriveDestinations" Pretty.<+> Pretty.format dests
+    format (ScoreDestinations dests) =
+        "ScoreDestinations" Pretty.<+> Pretty.format dests
+
+-- | This holds the 'EventIndex' for one note track, along with its dependent
+-- control tracks.
+data DeriveDestination = DeriveDestination {
     dest_note :: !(TrackId, EventIndex)
     , dest_controls :: !(Map.Map Text (TrackId, EventIndex))
     } deriving (Eq, Show, Read)
@@ -78,20 +109,32 @@ data TrackDestination = TrackDestination {
 -- the block I can figure out user edits.
 type EventIndex = Map.Map Event.IndexKey Event.Event
 
-instance Pretty.Pretty TrackDestination where
-    format (TrackDestination note controls) =
+instance Pretty.Pretty DeriveDestination where
+    format (DeriveDestination note controls) =
         Pretty.format (fst note, Map.map fst controls)
 
 -- | Arrows that should be drawn to indicate integrate relationships.
-integrate_skeleton :: Block -> [(TrackNum, TrackNum)]
-integrate_skeleton block =
-    concat $ mapMaybe edge_of (block_integrated_tracks block)
+integrate_skeleton :: Block -> [(Color.Color, [(TrackNum, TrackNum)])]
+integrate_skeleton block = map integrate_edges (block_integrated_tracks block)
     where
-    edge_of (source_id, dests) = do
-        source <- tracknum_of source_id
-        Just $ map ((,) source) (mapMaybe (tracknum_of . fst . dest_note) dests)
-    tracknum_of track_id = List.elemIndex (Just track_id) track_ids
-    track_ids = map track_id (block_tracks block)
+    integrate_edges (source_id, ScoreDestinations dests) =
+        (,) Config.score_integrate_skeleton $ maybe [] (:[]) $ do
+            (_, (dest_id, _)) <- Seq.head dests
+            dest <- tracknum_of dest_id
+            source <- tracknum_of source_id
+            return (source, dest)
+    integrate_edges (source_id, DeriveDestinations dests) =
+        (Config.integrate_skeleton, edges_of source_id dests)
+    edges_of source_id dests = do
+        source <- maybe [] (:[]) $ tracknum_of source_id
+        dest <- mapMaybe (tracknum_of . fst . dest_note) dests
+        return (source, dest)
+    tracknum_of = flip Map.lookup tracknums
+    tracknums = Map.fromList
+        [ (track_id, tracknum)
+        | (tracknum, Just track_id) <- zip [0..]
+            (map track_id (block_tracks block))
+        ]
 
 block_tracklike_ids :: Block -> [TracklikeId]
 block_tracklike_ids = map tracklike_id . block_tracks

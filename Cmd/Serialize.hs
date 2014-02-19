@@ -229,7 +229,7 @@ instance Serialize State.Default where
 instance Serialize Block.Block where
     -- Config is not serialized because everything in the block config is
     -- either derived from the Cmd.State or is hardcoded.
-    put (Block.Block a _config b c d e f) = Serialize.put_version 10
+    put (Block.Block a _config b c d e f) = Serialize.put_version 11
         >> put a >> put b >> put c >> put d >> put e >> put f
     get = do
         v <- Serialize.get_version
@@ -238,30 +238,51 @@ instance Serialize Block.Block where
                 title :: Text <- get
                 tracks :: [Block.Track] <- get
                 skel :: Skeleton.Skeleton <- get
-                integrated ::
-                    Maybe (BlockId, NonEmpty Block.TrackDestination) <- get
-                itracks :: [(TrackId, NonEmpty Block.TrackDestination)] <- get
+                iblock :: Maybe (BlockId, NonEmpty Block.DeriveDestination)
+                    <- get
+                itracks :: [(TrackId, NonEmpty Block.DeriveDestination)] <- get
                 meta :: Map.Map Text Text <- get
                 return $ Block.Block title Block.default_config tracks skel
-                    (second NonEmpty.toList <$> integrated)
-                    (map (second NonEmpty.toList) itracks) meta
+                    (upgrade_dest <$> second NonEmpty.toList <$> iblock)
+                    (map (upgrade_dest . second NonEmpty.toList) itracks) meta
             10 -> do
                 title :: Text <- get
                 tracks :: [Block.Track] <- get
                 skel :: Skeleton.Skeleton <- get
-                integrated :: Maybe (BlockId, [Block.TrackDestination]) <- get
-                itracks :: [(TrackId, [Block.TrackDestination])] <- get
+                iblock :: Maybe (BlockId, [Block.DeriveDestination]) <- get
+                itracks :: [(TrackId, [Block.DeriveDestination])] <- get
                 meta :: Map.Map Text Text <- get
                 return $ Block.Block title Block.default_config tracks skel
-                    integrated itracks meta
+                    (upgrade_dest <$> iblock) (map upgrade_dest itracks) meta
+            11 -> do
+                title :: Text <- get
+                tracks :: [Block.Track] <- get
+                skel :: Skeleton.Skeleton <- get
+                iblock :: Maybe (BlockId, Block.TrackDestinations) <- get
+                itracks :: [(TrackId, Block.TrackDestinations)] <- get
+                meta :: Map.Map Text Text <- get
+                return $ Block.Block title Block.default_config tracks skel
+                    iblock itracks meta
             _ -> Serialize.bad_version "Block.Block" v
+        where
+        upgrade_dest = second Block.DeriveDestinations
 
-instance Serialize Block.TrackDestination where
-    put (Block.TrackDestination a b) = put a >> put b
+instance Serialize Block.TrackDestinations where
+    put (Block.DeriveDestinations a) = put_tag 0 >> put a
+    put (Block.ScoreDestinations a) = put_tag 1 >> put a
+    get = do
+        tag <- get_tag
+        case tag of
+            0 -> Block.DeriveDestinations <$> get
+            1 -> Block.ScoreDestinations <$> get
+            _ -> bad_tag "Block.TrackDestinations" tag
+
+instance Serialize Block.DeriveDestination where
+    put (Block.DeriveDestination a b) = put a >> put b
     get = do
         note :: (TrackId, Block.EventIndex) <- get
         controls :: (Map.Map Text (TrackId, Block.EventIndex)) <- get
-        return $ Block.TrackDestination note controls
+        return $ Block.DeriveDestination note controls
 
 instance Serialize Skeleton.Skeleton where
     put (Skeleton.Skeleton a) = put a

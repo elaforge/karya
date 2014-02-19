@@ -28,7 +28,8 @@ block :: (Cmd.M m) => BlockId -> m ViewId
 block source_block = do
     ruler_id <- State.block_ruler source_block
     dest_block <- Create.block ruler_id
-    State.set_integrated_block dest_block $ Just (source_block, [])
+    State.set_integrated_block dest_block $
+        Just (source_block, Block.DeriveDestinations [])
     Cmd.derive_immediately [source_block]
     Cmd.inflict_block_damage source_block
     Create.view dest_block
@@ -37,7 +38,8 @@ block source_block = do
 -- given one, which should already have a `<` integrate call on it.
 track :: (Cmd.M m) => BlockId -> TrackId -> m ()
 track block_id track_id = do
-    State.modify_integrated_tracks block_id $ ((track_id, []) :)
+    State.modify_integrated_tracks block_id $
+        ((track_id, Block.DeriveDestinations []) :)
     Cmd.derive_immediately [block_id]
     Cmd.inflict_track_damage block_id track_id
 
@@ -46,7 +48,7 @@ sel_edits = do
     (block_id, _, track_id, _) <- Selection.get_insert
     edits block_id track_id
 
-edits :: (Cmd.M m) => BlockId -> TrackId -> m ([Event.IndexKey], [Merge.Edit])
+edits :: Cmd.M m => BlockId -> TrackId -> m ([Event.IndexKey], [Merge.Edit])
 edits block_id track_id = do
     block <- State.get_block block_id
     index <- Cmd.require_msg "track is not integrated from anywhere" $
@@ -56,13 +58,14 @@ edits block_id track_id = do
     let (deleted, edits) = Merge.diff_events index events
     return (Set.toList deleted, filter Merge.is_modified edits)
 
-indices_of :: Maybe (BlockId, [Block.TrackDestination])
-    -> [(TrackId, [Block.TrackDestination])]
-    -> [(TrackId, Block.EventIndex)]
+indices_of :: Maybe (BlockId, Block.TrackDestinations)
+    -> [(TrackId, Block.TrackDestinations)] -> [(TrackId, Block.EventIndex)]
 indices_of integrated integrated_tracks =
-    block_indices integrated ++ concatMap track_indices integrated_tracks
+    block_indices ++ concatMap dest_indices integrated_tracks
     where
-    block_indices = maybe [] (concatMap dest_indices . snd)
-    track_indices = concatMap dest_indices . snd
-    dest_indices (Block.TrackDestination note controls) =
+    block_indices = maybe [] dest_indices integrated
+    dest_indices (_, Block.DeriveDestinations dests) =
+        concatMap derive_indices dests
+    dest_indices (_, Block.ScoreDestinations dests) = map snd dests
+    derive_indices (Block.DeriveDestination note controls) =
         note : Map.elems controls

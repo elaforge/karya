@@ -170,11 +170,12 @@ extract_derive_result res =
 update_performance :: State.State -> State.State -> Cmd.State
     -> [Update.CmdUpdate] -> IO Cmd.State
 update_performance ui_from ui_to cmd_state cmd_updates = do
-    let (cupdates, _) = Diff.diff cmd_updates ui_from ui_to
+    let (ui_updates, _) = Diff.diff cmd_updates ui_from ui_to
     chan <- Chan.newChan
+    let damage = Diff.derive_diff ui_from ui_to ui_updates
     cstate <- Performance.update_performance
         (\bid status -> Chan.writeChan chan (bid, status))
-        ui_from ui_to (set_immediate cmd_state) cupdates
+        ui_to (set_immediate cmd_state) damage
     -- This will delay until the perform thread has derived enough of the
     -- performance to hand over.
     (block_id, perf) <- read_perf chan

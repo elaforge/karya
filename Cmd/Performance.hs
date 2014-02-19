@@ -23,10 +23,7 @@ import qualified Util.Map as Map
 import qualified Util.Thread as Thread
 
 import qualified Ui.Block as Block
-import qualified Ui.Diff as Diff
 import qualified Ui.State as State
-import qualified Ui.Update as Update
-
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Msg as Msg
 import qualified Cmd.PlayUtil as PlayUtil
@@ -70,13 +67,12 @@ type StateM = Monad.State.StateT Cmd.State IO ()
 -- responder so it can stash it in 'Cmd.state_performance'.  If a new change
 -- comes in while it's waiting it'll get killed off, and the out-of-date
 -- derivation will never happen.  Yay for laziness!
-update_performance :: SendStatus -> State.State -> State.State -> Cmd.State
-    -> [Update.UiUpdate] -> IO Cmd.State
-update_performance send_status ui_pre ui_state cmd_state updates =
+update_performance :: SendStatus -> State.State -> Cmd.State
+    -> Derive.ScoreDamage -> IO Cmd.State
+update_performance send_status ui_state cmd_state damage =
     -- The update will be modifying Cmd.State, especially PlayState.
     Monad.State.execStateT (run_update send_status ui_state)
-        (insert_damage ui_damage cmd_state)
-    where ui_damage = Diff.derive_diff ui_pre ui_state updates
+        (insert_damage damage cmd_state)
 
 run_update :: SendStatus -> State.State -> StateM
 run_update send_status ui_state = do

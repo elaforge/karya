@@ -12,7 +12,7 @@ UNSORTED
   - TrackTree.events_tree_of and get_track_tree are inconsistent
   - make require functions consistent: State.require, Cmd.require,
     Derive.require, and require_right
-  - score integration, copies Ui.Events directly rather than after derivation.
+  * score integration, copies Ui.Events directly rather than after derivation.
     . I can write this as a "transformer" which does nothing at the derive
       level, but code in Cmd.Performance looks for it in the block or track
       title. <!
@@ -38,6 +38,30 @@ UNSORTED
       Then the skeleton structure is recreated based on the source.
     . I think I need a new Merge.pair_tracks and Merge.merge_pairs to emit
       ScoreTrackDestinations, but can reuse merge_pair.
+
+    / I want to run in State, but with logs.
+      . Should I promote LogMonad to State?  That way the other integrate
+        functions can be State.M as long as they return the derive immediately
+        blocks.
+      . Meanwhile I can run in Cmd but ignore the Cmd.State and MidiThru.
+      . Or just make a LoggedState, instance of State.M.
+      . I could even then build CmdT on that, so cmds can use that to declare
+        that they don't care about Cmd.State and MidiThru.
+      - Actually I don't seem to use logs, derive integrate could return logs
+        and be in State.M too.
+      . But is it still useful for Cmds to indicate they don't depend on
+        Cmd.State?
+    * Update State.fix_integrated_tracks
+    - move TrackDestinations update into Merge calls for derive integration,
+      just like with score integration
+    - both score and derive integration should replace only the right dests
+    - cascading integrates
+      Is there really a use for this, other than consistency?
+    - make sure derive and score integration cooperate
+    test
+      * merge operations
+      * full respond cycle
+    * uncomment Repl.LIntegrate
   * solo note track, then merge with pitch track, then unsolo: note track
     unsolos, but pitch track solos.
   - Maybe I should use Score.PControl instead of Score.Control for pitch

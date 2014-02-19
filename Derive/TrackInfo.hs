@@ -12,6 +12,7 @@
 -- needed.  Control tracks titles are just a hardcoded list of special cases,
 -- though they are parsed as tracklang Vals.
 module Derive.TrackInfo where
+import qualified Data.List.NonEmpty as NonEmpty
 import qualified Data.Maybe as Maybe
 import qualified Data.Text as Text
 
@@ -20,6 +21,7 @@ import qualified Util.Pretty as Pretty
 import qualified Derive.Controls as Controls
 import qualified Derive.ParseBs as Parse
 import qualified Derive.Score as Score
+import qualified Derive.ShowVal as ShowVal
 import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.Pitch as Pitch
@@ -129,6 +131,12 @@ unparse_typed (Score.Typed typ c) =
         "" -> ""
         code -> txt $ ':' : code
 
+unparse_control_expr :: ControlType -> [TrackLang.Call] -> Text
+unparse_control_expr ctype calls
+    | Text.null call_expr = unparse_control ctype
+    | otherwise = unparse_control ctype <> " | " <> call_expr
+    where call_expr = maybe "" ShowVal.show_val $ NonEmpty.nonEmpty calls
+
 unparse_control :: ControlType -> Text
 unparse_control = Text.unwords . map TrackLang.show_val . unparse_control_vals
 
@@ -154,6 +162,10 @@ unparse_control_vals ctype = case ctype of
 -- this, note track titles are normal expressions.
 parse_note :: Text -> Either String TrackLang.Expr
 parse_note = Parse.parse_expr . Parse.from_text . ("note-track "<>)
+
+unparse_note :: TrackLang.Expr -> Text
+unparse_note = strip . ShowVal.show_val
+    where strip t = fromMaybe t $ Text.stripPrefix "note-track " t
 
 -- | Convert a track title into its instrument.
 --

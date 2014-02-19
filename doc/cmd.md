@@ -282,7 +282,7 @@ to explicitly divide their output events into separate tracks.
 As a visual reminder, events that were integrated from a source have their text
 in italics, and it will be bold if the event hasn't been changed.
 
-### block integration
+### block derive integration
 
 Block integration is triggered by adding a `<<` as a note transformer.
 It only works if you add it to a block title, because
@@ -295,7 +295,7 @@ transformer.  You can create another block manually with
 As a visual reminder, the status bar of an integrated block will have a red
 background.
 
-### track integration
+### track derive integration
 
 Track integration allows one track to act as the source for other tracks on the
 same block.  It's basically the same story as block integration, except you add
@@ -309,6 +309,18 @@ automatically creates new tracks if there were none, and
 'Cmd.Repl.LIntegrate.track' will create additional tracks.
 
 The integrated tracks are linked back to their source with red arrows.
+
+### score integration
+
+This is a different variant of integration, that copies the UI events directly,
+with no intervening derivation.  So it's not really "integration" in that it
+doesn't have to try to reverse a derivation.  This means that all notation
+will be preserved, and is useful if you simply want a variant copy of an
+original block or track, rather than a lower level view of it.
+
+Like derive integration, score integration has both block and track variants,
+triggered by adding a `<!` call in the block or track title, respectively.  The
+dependency is illustrated with a green arrow.
 
 ## Scales
 
