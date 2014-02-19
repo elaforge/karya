@@ -1,0 +1,6 @@
+#!/bin/sh
+# Build and run a binary.
+
+if bin/mk $1; then
+    "$@"
+fi
