@@ -152,7 +152,6 @@ score_merge_tracks block_id source_id dests = do
     tree <- TrackTree.get_track_tree block_id
     children <- State.require ("source track not found: " <> show source_id) $
         Tree.find ((==source_id) . State.track_id) tree
-    -- Debug.tracepM "children" children
     score_merge block_id [children] dests
 
 score_merge :: State.M m => BlockId -> TrackTree.TrackTree
@@ -162,8 +161,6 @@ score_merge block_id tree dests = do
     State.modify_skeleton block_id (Skeleton.remove_edges remove)
     track_ids <- all_block_tracks block_id
     tracks <- get_children tree
-    -- Debug.tracepM "tracks" tracks
-    -- Debug.tracepM "pairs" $ score_pair_tracks track_ids tracks dests
     dests <- mapMaybeM (score_merge_pair block_id) $
         score_pair_tracks track_ids tracks dests
     add_skeleton block_id =<< source_to_dest block_id dests

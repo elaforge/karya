@@ -52,9 +52,9 @@ UNSORTED
       . But is it still useful for Cmds to indicate they don't depend on
         Cmd.State?
     * Update State.fix_integrated_tracks
-    - move TrackDestinations update into Merge calls for derive integration,
+    * move TrackDestinations update into Merge calls for derive integration,
       just like with score integration
-    - both score and derive integration should replace only the right dests
+    * both score and derive integration should replace only the right dests
     - cascading integrates
       Is there really a use for this, other than consistency?
     - make sure derive and score integration cooperate

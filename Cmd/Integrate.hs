@@ -49,9 +49,12 @@
 -}
 module Cmd.Integrate (cmd_integrate, integrate, score_integrate) where
 import qualified Data.Map as Map
+import qualified Data.Text as Text
 
 import Util.Control
 import qualified Util.Log as Log
+import qualified Util.Seq as Seq
+
 import qualified Ui.Block as Block
 import qualified Ui.State as State
 import qualified Ui.Track as Track
@@ -68,33 +71,21 @@ import Types
 
 
 cmd_integrate :: Cmd.M m => Msg.Msg -> m Cmd.Status
-cmd_integrate (Msg.DeriveStatus block_id (Msg.DeriveComplete perf))
-    | null (Cmd.perf_integrated perf) = return Cmd.Continue
-    | otherwise = do
-        integrated <- concatMapM (integrate block_id) (Cmd.perf_integrated perf)
-        -- TODO filter out DeriveDestinations
-        State.modify_integrated_tracks block_id (const integrated)
-        return Cmd.Continue
+cmd_integrate (Msg.DeriveStatus block_id (Msg.DeriveComplete perf)) = do
+    mapM_ (integrate block_id) (Cmd.perf_integrated perf)
+    return Cmd.Continue
 cmd_integrate _ = return Cmd.Continue
 
--- | Integrate the track information into the current state, and if it
--- was a track integrate, return the TrackDestinations.  If it was a block
--- integrate, the TrackDestination has already been put into the
--- 'Block.block_integrated'.  The difference is because there can be multiple
--- track integrations, and I want to replace them all at once.
-integrate :: Cmd.M m => BlockId -> Derive.Integrated
-    -> m [(TrackId, Block.TrackDestinations)]
-integrate block_id integrated = do
-    tracks <- Convert.convert block_id (Derive.integrated_events integrated)
+-- | Integrate the track information into the current state.
+integrate :: Cmd.M m => BlockId -> Derive.Integrated -> m ()
+integrate derived_block_id integrated = do
+    tracks <- Convert.convert derived_block_id
+        (Derive.integrated_events integrated)
     case Derive.integrated_source integrated of
-        Left block_id -> do
-            integrate_block block_id tracks
-            return []
-        Right track_id -> map (second Block.DeriveDestinations) <$>
-            integrate_tracks block_id track_id tracks
+        Left block_id -> integrate_block block_id tracks
+        Right track_id -> integrate_tracks derived_block_id track_id tracks
 
-integrate_tracks :: Cmd.M m => BlockId -> TrackId -> Convert.Tracks
-    -> m [(TrackId, [Block.DeriveDestination])]
+integrate_tracks :: Cmd.M m => BlockId -> TrackId -> Convert.Tracks -> m ()
 integrate_tracks block_id track_id tracks = do
     itracks <- Block.block_integrated_tracks <$> State.get_block block_id
     let dests = [dests | (tid, Block.DeriveDestinations dests) <- itracks,
@@ -102,9 +93,12 @@ integrate_tracks block_id track_id tracks = do
     new_dests <- if null dests
         then (:[]) <$> Merge.merge_tracks block_id tracks []
         else mapM (Merge.merge_tracks block_id tracks) dests
-    Log.notice $ "integrated " <> show track_id <> " to: " <> pretty new_dests
+    -- Each integrated destination is actually a set of tracks.
+    Log.notice $ "derive integrated " <> show track_id <> " to: "
+        <> pretty (map (map (fst . Block.dest_note)) new_dests)
+    State.modify_integrated_tracks block_id $ replace track_id
+        [(track_id, Block.DeriveDestinations dests) | dests <- new_dests]
     Cmd.derive_immediately [block_id]
-    return $ map ((,) track_id) new_dests
 
 -- | Look for blocks derived from this one and replace their contents, or
 -- create a new block if there are no blocks derived from this one.
@@ -118,7 +112,7 @@ integrate_block source_id tracks = do
             return [(block_id, dests)]
         integrated -> forM integrated $ \(dest_id, track_dests) ->
             (,) dest_id <$> Merge.merge_block dest_id tracks track_dests
-    Log.notice $ "integrated " <> show source_id <> " to: "
+    Log.notice $ "derive integrated " <> show source_id <> " to: "
         <> pretty (map fst new_blocks)
     forM_ new_blocks $ \(new_block_id, track_dests) ->
         unless (null track_dests) $
@@ -143,11 +137,11 @@ score_integrate updates state = State.run_id state $ do
     -- out if there are updates that require integration.  This way, a
     -- track integrate can't trigger a block integrate, at least not until the
     -- next call to this function.
-    track_logs <- mapM score_track_integrate $
+    track_logs <- concatMapM score_track_integrate $
         needs_track_integrate updates state
     block_logs <- mapM score_integrate_block $
         needs_block_integrate updates state
-    return $ map (Log.msg Log.Debug Nothing) (track_logs ++ block_logs)
+    return $ map (Log.msg Log.Notice Nothing) (track_logs ++ block_logs)
 
 score_integrate_block :: State.M m => BlockId -> m Text
 score_integrate_block source_id = do
@@ -172,7 +166,7 @@ score_integrate_block source_id = do
         , source_block == source_id
         ]
 
-score_track_integrate :: State.M m => (BlockId, TrackId) -> m Text
+score_track_integrate :: State.M m => (BlockId, TrackId) -> m [Text]
 score_track_integrate (block_id, track_id) = do
     itracks <- Block.block_integrated_tracks <$> State.get_block block_id
     let dests = [dests | (tid, Block.ScoreDestinations dests) <- itracks,
@@ -180,15 +174,21 @@ score_track_integrate (block_id, track_id) = do
     new_dests <- if null dests
         then (:[]) <$> Merge.score_merge_tracks block_id track_id []
         else mapM (Merge.score_merge_tracks block_id track_id) dests
-    -- TODO replace only ScoreDestinations with tid==track_id
-    State.modify_integrated_tracks block_id $
-        const [(track_id, Block.ScoreDestinations dests) | dests <- new_dests]
-    return $ "score integrated " <> showt track_id <> " to: "
-        <> prettyt new_dests
+    State.modify_integrated_tracks block_id $ replace track_id
+        [(track_id, Block.ScoreDestinations dests) | dests <- new_dests]
+    return $ map msg new_dests
+    where
+    msg dests = "score integrated " <> showt track_id <> ": "
+        <> Text.intercalate ", "
+            [prettyt source_id <> " -> " <> prettyt dest_id
+                | (source_id, (dest_id, _)) <- dests]
+
+replace :: Eq key => key -> [(key, a)] -> [(key, a)] -> [(key, a)]
+replace key new xs = new ++ filter ((/=key) . fst) xs
 
 needs_block_integrate :: [Update.UiUpdate] -> State.State -> [BlockId]
-needs_block_integrate updates state =
-    map fst $ filter damaged $ Map.toList (State.state_blocks state)
+needs_block_integrate updates =
+    Seq.unique . map fst . filter damaged . Map.toList .  State.state_blocks
     where
     damaged (block_id, block) = block_id `elem` block_ids
         && Merge.block_has_score_inegrate (Block.block_title block)
@@ -197,7 +197,7 @@ needs_block_integrate updates state =
 needs_track_integrate :: [Update.UiUpdate] -> State.State
     -> [(BlockId, TrackId)]
 needs_track_integrate updates state =
-    concat $ mapMaybe (damaged <=< Update.track_changed) updates
+    Seq.unique $ concat $ mapMaybe (damaged <=< Update.track_changed) updates
     where
     damaged (track_id, _) = do
         track <- Map.lookup track_id (State.state_tracks state)

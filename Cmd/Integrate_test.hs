@@ -3,18 +3,24 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 module Cmd.Integrate_test where
+import qualified Data.List as List
 import qualified Data.Map as Map
 
 import Util.Control
 import Util.Test
+import qualified Ui.Block as Block
+import qualified Ui.Color as Color
+import qualified Ui.Skeleton as Skeleton
 import qualified Ui.State as State
 import qualified Ui.UiTest as UiTest
+
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.CmdTest as CmdTest
 import qualified Cmd.ResponderTest as ResponderTest
 
 import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
+import qualified App.Config as Config
 import Types
 
 
@@ -158,18 +164,69 @@ test_track_score_integrate = do
     let states = mkstates "" ("s/i1 | <!", [(0, 1, "4c")], [])
     res <- start states $ UiTest.insert_event 1 (0, 1, "")
     equal (e_tracks res)
-        [ (UiTest.bid "b1",
+        [ (UiTest.default_block_id,
             [ (">s/i1 | <!", [(0, 1, "")]), ("*", [(0, 0, "4c")])
             , (">s/i1", [(0, 1, "")]), ("*", [(0, 0, "4c")])
             ])
         ]
     res <- next res $ UiTest.insert_event 1 (1, 1, "")
     equal (e_tracks res)
-        [ (UiTest.bid "b1",
+        [ (UiTest.default_block_id,
             [ (">s/i1 | <!", [(0, 1, ""), (1, 1, "")]), ("*", [(0, 0, "4c")])
             , (">s/i1", [(0, 1, ""), (1, 1, "")]), ("*", [(0, 0, "4c")])
             ])
         ]
+
+test_double_score_integrate = do
+    let states = mkstates_tracks ""
+            [(">s/i1", [(0, 1, "a")]), (">s/i2", [(0, 1, "b")])]
+    res <- start states $ do
+        State.set_track_title (UiTest.mk_tid 1) ">s/i1 | <!"
+        State.set_track_title (UiTest.mk_tid 2) ">s/i2 | <!"
+    equal (e_tracks res)
+        [ (UiTest.default_block_id,
+            [ (">s/i1 | <!", [(0, 1, "a")])
+            , (">s/i2 | <!", [(0, 1, "b")])
+            , (">s/i1", [(0, 1, "a")])
+            , (">s/i2", [(0, 1, "b")])
+            ])
+        ]
+    equal (map List.sort (e_integrate_skeleton res))
+        [[ (Config.score_integrate_skeleton, [(1, 3)])
+         , (Config.score_integrate_skeleton, [(2, 4)])
+        ]]
+
+test_score_and_derive_integrate = do
+    let states = mkstates_tracks ""
+            [(">s/i1", [(0, 1, "")]), (">s/i2", [(0, 1, "")])]
+    res <- start states $ do
+        State.set_track_title (UiTest.mk_tid 1) ">s/i1 | <!"
+        State.set_track_title (UiTest.mk_tid 2) ">s/i2 | <"
+    equal (e_tracks res)
+        [ (UiTest.default_block_id,
+            [ (">s/i1 | <!", [(0, 1, "")])
+            , (">s/i2 | <", [(0, 1, "")])
+            , (">s/i1", [(0, 1, "")])
+            , (">s/i2", [(0, 1, "")])
+            ])
+        ]
+    equal (map List.sort (e_integrate_skeleton res))
+        [[ (Config.score_integrate_skeleton, [(1, 3)])
+         , (Config.integrate_skeleton, [(2, 4)])
+        ]]
+
+test_double_integrate = do
+    let states = mkstates_tracks "" [(">s/i1", [(0, 1, "")])]
+    res <- start states $ do
+        State.set_track_title (UiTest.mk_tid 1) ">s/i1 | < | <"
+    pprint (e_tracks res)
+    res <- next res $ UiTest.insert_event 1 (0, 1, "")
+    pprint (e_tracks res)
+
+e_integrate_skeleton :: ResponderTest.Result
+    -> [[(Color.Color, [Skeleton.Edge])]]
+e_integrate_skeleton = map Block.integrate_skeleton . Map.elems
+    . State.state_blocks . ResponderTest.result_ui_state
 
 -- test_cascading_track_score_integrate = do
 --     let states = mkstates_tracks "" [(">s/i1", [(0, 1, "")])]
