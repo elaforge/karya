@@ -263,7 +263,8 @@ merge_asc_lists key = foldr go []
 keyed_group_on :: (Ord key) => (a -> key) -> [a] -> [(key, NonNull a)]
 keyed_group_on key = map (\gs -> (key (List.head gs), gs)) . group_on key
 
--- | Similar to 'keyed_group_on', but it strips the key out of the groups.
+-- | Similar to 'keyed_group_on', but key on the fst element, and strip the key
+-- out of the groups.
 group_fst :: (Ord a) => [(a, b)] -> [(a, [b])]
 group_fst = map (Arrow.second (map snd)) . keyed_group_on fst
 
@@ -274,15 +275,15 @@ group_on key = group key . sort_on key -- TODO faster to use a map?
 
 -- | Group each element with all the other elements that compare equal to it.
 -- The heads of the groups appear in their original order.
-group_eq :: (a -> a -> Bool) -> [a] -> [NonNull a]
+group_eq :: (a -> a -> Bool) -> [a] -> [NonEmpty a]
 group_eq is_equal = go
     where
     go [] = []
-    go (x:xs) = (x : equal) : go inequal
+    go (x:xs) = (x :| equal) : go inequal
         where (equal, inequal) = List.partition (is_equal x) xs
 
 -- | 'group_eq' but with a key function.
-group_eq_on :: (Eq key) => (a -> key) -> [a] -> [NonNull a]
+group_eq_on :: Eq key => (a -> key) -> [a] -> [NonEmpty a]
 group_eq_on key = group_eq (\x y -> key x == key y)
 
 -- | This is just 'List.groupBy' except with a key function.  It only groups

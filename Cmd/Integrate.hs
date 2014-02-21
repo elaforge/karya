@@ -48,6 +48,7 @@
     integrate call is still there and just creates another.  Be quick!
 -}
 module Cmd.Integrate (cmd_integrate, integrate, score_integrate) where
+import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Text as Text
 
@@ -72,7 +73,17 @@ import Types
 
 cmd_integrate :: Cmd.M m => Msg.Msg -> m Cmd.Status
 cmd_integrate (Msg.DeriveStatus block_id (Msg.DeriveComplete perf)) = do
-    mapM_ (integrate block_id) (Cmd.perf_integrated perf)
+    -- If a block or track wants to integrate twice with different events,
+    -- I don't know which ones to give to the destinations, and wind up
+    -- creating a new track every time.
+    let (dups, integrates) = Seq.partition_either $ map is_dup $
+            Seq.group_eq_on Derive.integrated_source (Cmd.perf_integrated perf)
+        is_dup (x :| xs) = if null xs then Right x else Left x
+    unless (null dups) $
+        Log.warn $ "these blocks or tracks want to integrate twice: "
+            <> Seq.join ", "
+                (map (either pretty pretty . Derive.integrated_source) dups)
+    mapM_ (integrate block_id) integrates
     return Cmd.Continue
 cmd_integrate _ = return Cmd.Continue
 
@@ -85,17 +96,22 @@ integrate derived_block_id integrated = do
         Left block_id -> integrate_block block_id tracks
         Right track_id -> integrate_tracks derived_block_id track_id tracks
 
+-- | Update and replace the DeriveDestinations for the given TrackId.
+-- A source track can have multiple destinations, and each of those is actually
+-- a list of DeriveDestinations.
 integrate_tracks :: Cmd.M m => BlockId -> TrackId -> Convert.Tracks -> m ()
 integrate_tracks block_id track_id tracks = do
     itracks <- Block.block_integrated_tracks <$> State.get_block block_id
-    let dests = [dests | (tid, Block.DeriveDestinations dests) <- itracks,
-            tid == track_id]
-    new_dests <- if null dests
+    let dests = [dests | (source_id, Block.DeriveDestinations dests) <- itracks,
+            source_id == track_id]
+    (empty, new_dests) <- List.partition null <$> if null dests
         then (:[]) <$> Merge.merge_tracks block_id tracks []
         else mapM (Merge.merge_tracks block_id tracks) dests
-    -- Each integrated destination is actually a set of tracks.
-    Log.notice $ "derive integrated " <> show track_id <> " to: "
-        <> pretty (map (map (fst . Block.dest_note)) new_dests)
+    unless (null empty) $
+        Log.warn $ "empty integration from " <> show (block_id, track_id)
+    unless (null new_dests) $
+        Log.notice $ "derive integrated " <> show track_id <> " to: "
+            <> pretty (map (map (fst . Block.dest_note)) new_dests)
     State.modify_integrated_tracks block_id $ replace track_id
         [(track_id, Block.DeriveDestinations dests) | dests <- new_dests]
     Cmd.derive_immediately [block_id]

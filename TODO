@@ -57,7 +57,9 @@ UNSORTED
     * both score and derive integration should replace only the right dests
     - cascading integrates
       Is there really a use for this, other than consistency?
-    - make sure derive and score integration cooperate
+    * make sure derive and score integration cooperate
+    * a track with '< | <' or '< | <!' creates endless new ones
+    - empty integration should create a single empty note track
     test
       * merge operations
       * full respond cycle

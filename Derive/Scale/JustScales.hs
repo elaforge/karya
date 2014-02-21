@@ -109,8 +109,7 @@ make_scale scale_id smap doc doc_fields = Scale.Scale
 group_relative_keys :: [(Pitch.Key, Key)] -> [(Text, Text)]
 group_relative_keys = mapMaybe fmt . Seq.group_eq_on snd
     where
-    fmt [] = Nothing -- not reached, due to 'Seq.group_eq_on' postcondition.
-    fmt ((name, key) : rest) =
+    fmt ((name, key) :| rest) =
         Just (fmt_names (name : map fst rest), show_ratios (key_ratios key))
     fmt_names = Text.intercalate ", " . map Pitch.key_text
 

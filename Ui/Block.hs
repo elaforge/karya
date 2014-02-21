@@ -100,7 +100,9 @@ instance Pretty.Pretty TrackDestinations where
 -- | This holds the 'EventIndex' for one note track, along with its dependent
 -- control tracks.
 data DeriveDestination = DeriveDestination {
+    -- | (dest_track, index)
     dest_note :: !(TrackId, EventIndex)
+    -- | Map from control name to the track which was created for it.
     , dest_controls :: !(Map.Map Text (TrackId, EventIndex))
     } deriving (Eq, Show, Read)
 

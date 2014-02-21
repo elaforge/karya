@@ -177,7 +177,7 @@ test_track_score_integrate = do
             ])
         ]
 
-test_double_score_integrate = do
+test_score_integrate_two_tracks = do
     let states = mkstates_tracks ""
             [(">s/i1", [(0, 1, "a")]), (">s/i2", [(0, 1, "b")])]
     res <- start states $ do
@@ -194,6 +194,35 @@ test_double_score_integrate = do
     equal (map List.sort (e_integrate_skeleton res))
         [[ (Config.score_integrate_skeleton, [(1, 3)])
          , (Config.score_integrate_skeleton, [(2, 4)])
+        ]]
+
+test_derive_integrate_twice = do
+    let states = mkstates_tracks "" [(">s/i1", [(0, 1, "")])]
+    res <- start states $ do
+        State.set_track_title (UiTest.mk_tid 1) ">s/i1 | <"
+    equal (e_tracks res)
+        [ (UiTest.default_block_id,
+            [ (">s/i1 | <", [(0, 1, "")])
+            , (">s/i1", [(0, 1, "")])
+            ])
+        ]
+    equal (map List.sort (e_integrate_skeleton res))
+        [[ (Config.integrate_skeleton, [(1, 2)])
+        ]]
+
+    res <- next res $ do
+        State.modify_integrated_tracks UiTest.default_block_id $
+            ((UiTest.mk_tid 1, Block.DeriveDestinations []) :)
+    equal (e_tracks res)
+        [ (UiTest.default_block_id,
+            [ (">s/i1 | <", [(0, 1, "")])
+            , (">s/i1", [(0, 1, "")])
+            , (">s/i1", [(0, 1, "")])
+            ])
+        ]
+    equal (map List.sort (e_integrate_skeleton res))
+        [[ (Config.integrate_skeleton, [(1, 2)])
+         , (Config.integrate_skeleton, [(1, 3)])
         ]]
 
 test_score_and_derive_integrate = do
@@ -219,9 +248,9 @@ test_double_integrate = do
     let states = mkstates_tracks "" [(">s/i1", [(0, 1, "")])]
     res <- start states $ do
         State.set_track_title (UiTest.mk_tid 1) ">s/i1 | < | <"
-    pprint (e_tracks res)
-    res <- next res $ UiTest.insert_event 1 (0, 1, "")
-    pprint (e_tracks res)
+    -- It threw but that winds up being logged.
+    equal (e_tracks res)
+        [(UiTest.default_block_id, [(">s/i1 | < | <", [(0, 1, "")])])]
 
 e_integrate_skeleton :: ResponderTest.Result
     -> [[(Color.Color, [Skeleton.Edge])]]

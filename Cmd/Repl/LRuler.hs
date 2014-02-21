@@ -34,6 +34,7 @@
 module Cmd.Repl.LRuler where
 import qualified Prelude
 import Prelude hiding (concat)
+import qualified Data.List.NonEmpty as NonEmpty
 import qualified Data.Map as Map
 import qualified Data.Text as Text
 
@@ -88,11 +89,10 @@ unify = do
         State.gets (Map.toAscList . State.state_rulers)
     mapM_ merge groups
     gc
-    return $ filter ((>1) . length) $ map (map fst) groups
+    return $ filter ((>1) . length) $ map (map fst . NonEmpty.toList) groups
     where
-    merge ((rid, _) : dups) = forM_ (map fst dups) $ \dup_rid ->
+    merge ((rid, _) :| dups) = forM_ (map fst dups) $ \dup_rid ->
         replace_ruler_id dup_rid rid
-    merge _ = return ()
 
 -- | After copying blocks around and fiddling with rulers, the RulerIds can
 -- wind up with names from other blocks.  Synchronize RulerIds along with their
