@@ -7,8 +7,12 @@ UNSORTED
     the moment, but is just a normal expr.  I could rename TrackInfo to
     ParseTitle.
   * mk build/test/RunTests-Xyz is broken
-  - Cmd/Repl.hs:39:10: fatal error: 'hsconfig.h' file not found
+  * Cmd/Repl.hs:39:10: fatal error: 'hsconfig.h' file not found
     #include "hsconfig.h"
+    . The problem is that buildHs CcDeps.includesOf should be on all the
+      transitive HsDeps.  But I already have a list of hsconfig including
+      modules in cppFiles.
+    . When cppFlags is Just, then also need hsconfig.h
   * get rid of d_ prefix, e.g. Derive.d_place and friends
   * TrackTree.events_tree_of and get_track_tree are inconsistent
   * make require functions consistent:
@@ -24,7 +28,7 @@ UNSORTED
     . Get rid of "required:" prefix.
     . Rename Cmd.require to abort_unless, require_msg to require
 
-  * score integration, copies Ui.Events directly rather than after derivation.
+  score integration, copies Ui.Events directly rather than after derivation.
     . I can write this as a "transformer" which does nothing at the derive
       level, but code in Cmd.Performance looks for it in the block or track
       title. <!

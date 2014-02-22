@@ -187,7 +187,18 @@ cppFlags config fn
 -- 'LANGUAGE .*CPP' but there aren't many modules with CPP in their import
 -- lists so it should be faster to hardcode them.
 cppFiles :: [FilePath]
-cppFiles = ["App/Main.hs", "Cmd/Repl.hs", "Midi/TestMidi.hs", "Ui/Sync.hs"]
+cppFiles = ["App/Main.hs", "Cmd/Repl.hs", "Midi/TestMidi.hs"]
+
+-- | These are the binaries that depend, transitively, on 'hsconfigH'.  Since
+-- hsconfigH is generated, I need to generate it first before chasing
+-- dependencies.
+--
+-- The principled way to do this would be to notice the #include when chasing
+-- deps and 'need' it there, but that would mean interleaving logic in
+-- 'HsDeps.transitiveImportsOf' which seems like too much bother for just two
+-- binaries.
+hsconfigBinaries :: [FilePath]
+hsconfigBinaries = ["seq", "test_midi"]
 
 -- | Module that define 'main' and should get linked to their own binaries,
 -- and the names of their eventual binaries.
@@ -722,10 +733,8 @@ makeHs dir out main = ("GHC-MAKE", out, cmdline)
 -- | Build a haskell binary.
 buildHs :: Config -> [FilePath] -> FilePath -> FilePath -> Shake.Action ()
 buildHs config deps hs fn = do
-    -- If hsconfig.h doesn't exist then HsDeps.transitiveImportsOf will get
-    -- upset when it tries to CPP the files.
-    (_found, notFound) <- CcDeps.includesOf (includeDirs config) hs
-    when (hsconfigH `elem` notFound) $
+    when (FilePath.takeFileName fn `elem` hsconfigBinaries) $ do
+        Trans.liftIO $ putStrLn $ "need: " ++ fn
         need [hsconfigPath config]
     srcs <- HsDeps.transitiveImportsOf (cppFlags config) hs
     let ccs = List.nub $
