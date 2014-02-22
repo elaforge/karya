@@ -123,7 +123,7 @@ orphan_blocks = do
 -- | Modify track titles with a function.
 --
 -- TODO this is inadequate.  I need a function to get parsed inst and control
--- track titles separately.  Use TrackTree.get_track_tree to figure inst vs.
+-- track titles separately.  Use TrackTree.track_tree_of to figure inst vs.
 -- control.
 map_track_titles :: (State.M m) => (Text -> Text) -> m ()
 map_track_titles f = do
@@ -318,7 +318,7 @@ splice_above = do
 splice_above_all :: (Cmd.M m) => m TrackId
 splice_above_all = do
     (block_id, tracknum, _, _) <- Selection.get_insert
-    tree <- State.get_track_tree block_id
+    tree <- State.track_tree_of block_id
     (_, parents) <- Cmd.require_msg
         ("splice_above: tracknum not in tree: " ++ show tracknum) $
         Tree.find_with_parents ((==tracknum) . num) tree
@@ -344,7 +344,7 @@ splice_above_all = do
 splice_above_ancestors :: (Cmd.M m) => m TrackId
 splice_above_ancestors = do
     (block_id, tracknums, _, _, _) <- Selection.tracks
-    tree <- TrackTree.get_track_tree block_id
+    tree <- TrackTree.track_tree_of block_id
     let ancestors = Seq.unique $ mapMaybe (ancestor tree) tracknums
     insert_at <- Cmd.require_msg "no selected tracks" $ Seq.minimum ancestors
     track_id <- focused_track block_id insert_at
@@ -369,7 +369,7 @@ insert_branch = do
 -- branch below the selection.
 insert_branch_from :: (Cmd.M m) => BlockId -> TrackNum -> m ()
 insert_branch_from block_id source = do
-    tree <- TrackTree.get_track_tree block_id
+    tree <- TrackTree.track_tree_of block_id
     case Tree.find_with_parents ((==source) . State.track_tracknum) tree of
         Nothing -> Cmd.throw $ "selected track doesn't exist: "
             ++ show (block_id, source)

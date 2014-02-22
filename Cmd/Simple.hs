@@ -104,7 +104,7 @@ dump_block block_id = do
     block <- State.get_block block_id
     let track_ids = Block.block_track_ids block
     tracks <- mapM dump_track track_ids
-    tree <- TrackTree.get_track_tree block_id
+    tree <- TrackTree.track_tree_of block_id
     return (Id.ident_string block_id, Block.block_title block, tracks,
         to_skel tree)
     where

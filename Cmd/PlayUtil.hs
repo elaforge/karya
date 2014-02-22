@@ -234,7 +234,7 @@ perform_events events = do
     configs <- State.get_midi_config
     lookup <- get_convert_lookup
     blocks <- State.gets (Map.toList . State.state_blocks)
-    tree <- concat <$> mapM (TrackTree.get_track_tree . fst) blocks
+    tree <- concat <$> mapM (TrackTree.track_tree_of . fst) blocks
     return $ fst $ Perform.perform Perform.initial_state configs $
         Convert.convert lookup $ filter_track_muted tree blocks $
         filter_instrument_muted configs $

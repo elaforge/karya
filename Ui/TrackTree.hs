@@ -42,7 +42,7 @@ tracks_of block_id = do
 parents_children_of :: (State.M m) => BlockId -> TrackId
     -> m (Maybe ([State.TrackInfo], [State.TrackInfo]))
 parents_children_of block_id track_id = do
-    tree <- get_track_tree block_id
+    tree <- track_tree_of block_id
     case List.find (\(t, _, _) -> State.track_id t == track_id)
             (Tree.flat_paths tree) of
         Nothing -> return Nothing
@@ -64,8 +64,8 @@ children_of block_id track_id =
 -- away.  But that would mean redoing all the "Ui.Skeleton" operations for
 -- trees, which would be a huge pain.  And the reason I didn't do it in the
 -- first place was the hassle of graph operations on a Data.Tree.
-get_track_tree :: (State.M m) => BlockId -> m TrackTree
-get_track_tree block_id = do
+track_tree_of :: (State.M m) => BlockId -> m TrackTree
+track_tree_of block_id = do
     skel <- State.get_skeleton block_id
     tracks <- tracks_of block_id
     ntracks <- fmap (length . Block.block_tracklike_ids)
@@ -194,7 +194,7 @@ tevents_block_track_id track = do
 
 events_tree_of :: (State.M m) => BlockId -> m EventsTree
 events_tree_of block_id = do
-    info_tree <- get_track_tree block_id
+    info_tree <- track_tree_of block_id
     end <- State.block_ruler_end block_id
     events_tree block_id end info_tree
 

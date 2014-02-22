@@ -97,7 +97,7 @@ score_create_block source_id = do
 score_merge_block :: State.M m => BlockId -> BlockId -> Block.ScoreDestinations
     -> m ()
 score_merge_block source_id dest_id dests = do
-    tree <- TrackTree.get_track_tree source_id
+    tree <- TrackTree.track_tree_of source_id
     dests <- score_merge dest_id tree dests
     State.set_integrated_block dest_id $
         Just (source_id, Block.ScoreDestinations dests)
@@ -149,7 +149,7 @@ all_block_tracks block_id =
 score_merge_tracks :: State.M m => BlockId -> TrackId
     -> Block.ScoreDestinations -> m Block.ScoreDestinations
 score_merge_tracks block_id source_id dests = do
-    tree <- TrackTree.get_track_tree block_id
+    tree <- TrackTree.track_tree_of block_id
     children <- State.require ("source track not found: " <> show source_id) $
         Tree.find ((==source_id) . State.track_id) tree
     score_merge block_id [children] dests

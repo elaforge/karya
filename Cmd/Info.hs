@@ -64,14 +64,14 @@ get_track_type block_id tracknum = State.require
 
 lookup_track_type :: (State.M m) => BlockId -> TrackNum -> m (Maybe Track)
 lookup_track_type block_id tracknum = do
-    track_tree <- TrackTree.get_track_tree block_id
+    track_tree <- TrackTree.track_tree_of block_id
     return $ make_track <$>
         Tree.find_with_parents ((==tracknum) . State.track_tracknum) track_tree
 
 -- | Get all the Tracks in a block, sorted by tracknum.
 block_tracks :: (State.M m) => BlockId -> m [Track]
 block_tracks block_id = Seq.sort_on (State.track_tracknum . track_info)
-    . map make_track . Tree.paths <$> TrackTree.get_track_tree block_id
+    . map make_track . Tree.paths <$> TrackTree.track_tree_of block_id
 
 make_track :: (Tree.Tree State.TrackInfo, TrackTree.TrackTree) -> Track
 make_track (tree, parents) =
@@ -217,7 +217,7 @@ set_inst_status block_id tracknum = do
 -- fm8/inst1 at 1: fm8:0,1,2, [vel {collapse 2}, pedal {expand 3}]
 get_track_status :: (Cmd.M m) => BlockId -> TrackNum -> m (Maybe Text)
 get_track_status block_id tracknum = do
-    tree <- TrackTree.get_track_tree block_id
+    tree <- TrackTree.track_tree_of block_id
     case find_note_track tree tracknum of
         Just (track, inst) -> do
             inst <- get_default_instrument block_id (State.track_id track) inst

@@ -241,7 +241,7 @@ extract_note_trees :: (State.M m) => BlockId -> [TrackId]
     -> m TrackTree.TrackTree
 extract_note_trees block_id track_ids =
     Tree.filter (wanted_track (Set.fromList track_ids)) <$>
-        TrackTree.get_track_tree block_id
+        TrackTree.track_tree_of block_id
     where
     -- | Accept the top level note tracks.
     wanted_track track_ids track =
@@ -375,12 +375,12 @@ tracknum_after block_id track_ids = do
 -- pick the one with the highest TrackNum.
 bottom_track :: (State.M m) => BlockId -> TrackId -> m (Maybe State.TrackInfo)
 bottom_track block_id track_id = do
-    tree <- TrackTree.get_track_tree block_id
+    tree <- TrackTree.track_tree_of block_id
     return $ Seq.maximum_on State.track_tracknum . Tree.leaves
         =<< Tree.find ((==track_id) . State.track_id) tree
 
 parent_of :: (State.M m) => BlockId -> TrackId -> m (Maybe State.TrackInfo)
 parent_of block_id track_id = do
-    tree <- TrackTree.get_track_tree block_id
+    tree <- TrackTree.track_tree_of block_id
     return $ Seq.head [track | (track, _, children) <- Tree.flat_paths tree,
         track_id `elem` map State.track_id children]
