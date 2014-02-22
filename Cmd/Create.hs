@@ -137,7 +137,7 @@ map_track_titles f = do
 block_name :: State.M m => m Text
 block_name = do
     ns <- State.get_namespace
-    id <- require "block id" . generate_block_id Nothing ns
+    id <- require_id "block id" . generate_block_id Nothing ns
         =<< State.gets State.state_blocks
     return $ txt $ Id.id_name id
 
@@ -178,7 +178,7 @@ block = sub_block Nothing
 sub_block :: State.M m => Maybe BlockId -> RulerId -> m BlockId
 sub_block maybe_parent ruler_id = do
     ns <- State.get_namespace
-    block_id <- require "block id"
+    block_id <- require_id "block id"
         . generate_block_id maybe_parent ns =<< State.gets State.state_blocks
     State.create_block block_id ""
         [Block.track (Block.RId ruler_id) Config.ruler_width]
@@ -221,7 +221,7 @@ unfitted_view block_id = do
 
 sized_view :: (State.M m) => BlockId -> Rect.Rect -> m ViewId
 sized_view block_id rect = do
-    view_id <- require "view id" . generate_view_id block_id
+    view_id <- require_id "view id" . generate_view_id block_id
         =<< State.gets State.state_views
     block <- State.get_block block_id
     view_id <- State.create_view view_id $
@@ -319,7 +319,7 @@ splice_above_all :: (Cmd.M m) => m TrackId
 splice_above_all = do
     (block_id, tracknum, _, _) <- Selection.get_insert
     tree <- State.track_tree_of block_id
-    (_, parents) <- Cmd.require_msg
+    (_, parents) <- Cmd.require
         ("splice_above: tracknum not in tree: " ++ show tracknum) $
         Tree.find_with_parents ((==tracknum) . num) tree
     let new_tracknum = maybe 1 ((+1) . num . Tree.rootLabel) (Seq.head parents)
@@ -346,7 +346,7 @@ splice_above_ancestors = do
     (block_id, tracknums, _, _, _) <- Selection.tracks
     tree <- TrackTree.track_tree_of block_id
     let ancestors = Seq.unique $ mapMaybe (ancestor tree) tracknums
-    insert_at <- Cmd.require_msg "no selected tracks" $ Seq.minimum ancestors
+    insert_at <- Cmd.require "no selected tracks" $ Seq.minimum ancestors
     track_id <- focused_track block_id insert_at
     State.add_edges block_id (map ((,) insert_at . (+1)) ancestors)
     return track_id
@@ -470,7 +470,7 @@ track block_id tracknum title events = do
 track_events :: (State.M m) =>
     BlockId -> RulerId -> TrackNum -> Types.Width -> Track.Track -> m TrackId
 track_events block_id ruler_id tracknum width track = do
-    track_id <- require "track id" . generate_track_id block_id "t"
+    track_id <- require_id "track id" . generate_track_id block_id "t"
         =<< State.gets State.state_tracks
     tid <- State.create_track track_id track
     State.insert_track block_id tracknum
@@ -592,8 +592,9 @@ ids_for ns parent code =
     [Id.id ns (dotted parent ++ code ++ show n) | n <- [1..]]
     where dotted s = if null s then "" else s ++ "."
 
-require :: (State.M m) => String -> Maybe a -> m a
-require msg = maybe (State.throw $ "somehow can't find ID for " ++ msg) return
+require_id :: State.M m => String -> Maybe a -> m a
+require_id msg =
+    maybe (State.throw $ "somehow can't find ID for " ++ msg) return
 
 -- | Find a place to fit the given rect.  This is like a tiny window manager.
 find_rect :: Maybe Rect.Rect -> (Int, Int) -> [Rect.Rect] -> (Int, Int)

@@ -102,7 +102,7 @@ with_initial_scope env deriver = set_inst (set_scale deriver)
 -- * errors
 
 require :: String -> Maybe a -> Deriver a
-require msg = maybe (throw $ "required: " ++ msg) return
+require msg = maybe (throw msg) return
 
 require_right :: (err -> String) -> Either err a -> Deriver a
 require_right fmt_err = either (throw . fmt_err) return
@@ -245,7 +245,7 @@ with_instrument inst deriver = do
     -- out to be error prone, since a misspelled instrument would derive
     -- anyway, only without the right calls and environ.
     Instrument calls environ <-
-        require ("instrument for " <> untxt (ShowVal.show_val inst))
+        require ("no instrument found for " <> untxt (ShowVal.show_val inst))
         (lookup_inst inst)
     with_inst $ with_scopes (set_scopes calls) $ with_environ environ deriver
     where

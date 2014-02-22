@@ -92,7 +92,7 @@ cmd_midi_thru msg = do
     input <- case msg of
         Msg.InputNote input -> return input
         _ -> Cmd.abort
-    score_inst <- Cmd.require =<< EditUtil.lookup_instrument
+    score_inst <- Cmd.abort_unless =<< EditUtil.lookup_instrument
     midi_thru_instrument score_inst input
     return Cmd.Continue
 
@@ -104,8 +104,7 @@ midi_thru_instrument score_inst input = do
     patch <- Cmd.get_midi_patch score_inst
 
     scale <- Cmd.get_scale "cmd_midi_thru" scale_id
-    input <- Cmd.require_msg
-        (pretty scale_id <> " doesn't have " <> pretty input)
+    input <- Cmd.require (pretty scale_id <> " doesn't have " <> pretty input)
         =<< map_scale (Instrument.patch_scale patch) scale
             (Instrument.patch_environ patch) input
 
@@ -233,5 +232,6 @@ channel_messages maybe_inst first_addr msgs = do
 
 get_addrs :: (Cmd.M m) => Maybe Score.Instrument -> m [Addr]
 get_addrs maybe_inst = do
-    inst <- maybe (Cmd.require =<< EditUtil.lookup_instrument) return maybe_inst
+    inst <- maybe (Cmd.abort_unless =<< EditUtil.lookup_instrument)
+        return maybe_inst
     Instrument.get_addrs inst <$> State.get_midi_config

@@ -184,7 +184,7 @@ make_cmd_map bindings = (Map.fromList bindings, warns)
 -- the KeySpec is looked up in the keymap.
 make_cmd :: (Cmd.M m) => CmdMap m -> Msg.Msg -> m Cmd.Status
 make_cmd cmd_map msg = do
-    bindable <- Cmd.require (msg_to_bindable msg)
+    bindable <- Cmd.abort_unless (msg_to_bindable msg)
     mods <- mods_down
     case Map.lookup (KeySpec mods bindable) cmd_map of
         Nothing -> return Cmd.Continue

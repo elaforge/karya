@@ -41,9 +41,9 @@ get_track_cmds = do
     -- If this fails, it means the the track type can't be determined and there
     -- will be no track cmds.
     block_id <- Cmd.get_focused_block
-    tracknum <- Cmd.require =<< Cmd.get_insert_tracknum
+    tracknum <- Cmd.abort_unless =<< Cmd.get_insert_tracknum
     maybe_track_id <- State.event_track_at block_id tracknum
-    track <- Cmd.require =<< Info.lookup_track_type block_id tracknum
+    track <- Cmd.abort_unless =<< Info.lookup_track_type block_id tracknum
 
     maybe_info <- maybe (return Nothing) (lookup_midi_info block_id)
         maybe_track_id

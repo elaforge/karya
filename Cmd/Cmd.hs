@@ -918,7 +918,7 @@ lookup_performance block_id =
     gets $ Map.lookup block_id . state_performance . state_play
 
 get_performance :: (M m) => BlockId -> m Performance
-get_performance block_id = require =<< lookup_performance block_id
+get_performance block_id = abort_unless =<< lookup_performance block_id
 
 -- | Clear all performances, which will cause them to be rederived.
 -- It could get out of IO by using unsafePerformIO to kill the threads (it
@@ -937,7 +937,7 @@ keys_down :: (M m) => m (Map.Map Modifier Modifier)
 keys_down = gets state_keys_down
 
 get_focused_view :: (M m) => m ViewId
-get_focused_view = gets state_focused_view >>= require
+get_focused_view = gets state_focused_view >>= abort_unless
 
 get_focused_block :: (M m) => m BlockId
 get_focused_block = fmap Block.view_block (get_focused_view >>= State.get_view)
@@ -989,7 +989,7 @@ set_status key val = do
 get_midi_instrument :: (M m) => Score.Instrument -> m Instrument.Instrument
 get_midi_instrument inst = do
     lookup <- get_lookup_midi_instrument
-    require_msg ("get_midi_instrument " ++ pretty inst) $ lookup inst
+    require ("get_midi_instrument " ++ pretty inst) $ lookup inst
 
 get_lookup_midi_instrument :: (M m) => m MidiDb.LookupMidiInstrument
 get_lookup_midi_instrument = do
@@ -1025,7 +1025,7 @@ get_lookup_instrument = do
 -- | Lookup a detailed patch along with the environ that it likes.
 get_midi_patch :: (M m) => Score.Instrument -> m Instrument.Patch
 get_midi_patch inst = do
-    info <- require_msg ("get_midi_patch " ++ pretty inst)
+    info <- require ("get_midi_patch " ++ pretty inst)
         =<< lookup_instrument inst
     return $ MidiDb.info_patch info
 
@@ -1127,15 +1127,15 @@ log_event block_id track_id event = "{s" ++ show frame ++ "}"
 
 -- | Extract a Just value, or 'abort'.  Generally used to check for Cmd
 -- conditions that don't fit into a Keymap.
-require :: (M m) => Maybe a -> m a
-require = maybe abort return
+abort_unless :: M m => Maybe a -> m a
+abort_unless = maybe abort return
 
--- | Like 'require', but throw an exception with the given msg.
-require_msg :: (State.M m) => String -> Maybe a -> m a
-require_msg msg = maybe (throw msg) return
+-- | Throw an exception with the given msg on Nothing
+require :: State.M m => String -> Maybe a -> m a
+require msg = maybe (throw msg) return
 
-require_right :: (State.M m) => (err -> String) -> Either err a -> m a
-require_right mkmsg = either (throw . mkmsg) return
+require_right :: State.M m => (err -> String) -> Either err a -> m a
+require_right fmt_err = either (throw . fmt_err) return
 
 -- | Turn off all sounding notes.
 -- TODO clear out WriteDeviceState?

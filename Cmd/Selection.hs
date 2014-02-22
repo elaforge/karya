@@ -136,7 +136,7 @@ step_with :: (Cmd.M m) => Int -> Bool -> TimeStep.TimeStep -> m ()
 step_with steps extend step = do
     view_id <- Cmd.get_focused_view
     Types.Selection start_track start_pos cur_track cur_pos <-
-        Cmd.require =<< State.get_selection view_id Config.insert_selnum
+        Cmd.abort_unless =<< State.get_selection view_id Config.insert_selnum
     new_pos <- step_from cur_track cur_pos steps step
     let new_sel = if extend
             then Types.selection start_track start_pos cur_track new_pos
@@ -152,7 +152,7 @@ shift :: (Cmd.M m) => Bool -> TrackNum -> m ()
 shift extend shift = do
     view_id <- Cmd.get_focused_view
     block <- State.block_of view_id
-    sel <- Cmd.require =<< State.get_selection view_id Config.insert_selnum
+    sel <- Cmd.abort_unless =<< State.get_selection view_id Config.insert_selnum
     let new_sel = State.shift_selection block shift sel
     set_and_scroll view_id Config.insert_selnum
         (if extend then merge_sel sel new_sel else new_sel)
@@ -186,7 +186,7 @@ find_track shift stop = do
 cmd_track_all :: (Cmd.M m) => Types.SelNum -> m ()
 cmd_track_all selnum = do
     view_id <- Cmd.get_focused_view
-    sel <- Cmd.require =<< State.get_selection view_id selnum
+    sel <- Cmd.abort_unless =<< State.get_selection view_id selnum
     block_id <- State.block_id_of view_id
     block_end <- State.block_end block_id
     tracks <- length . Block.block_tracks <$> State.get_block block_id
@@ -286,8 +286,8 @@ mouse_drag :: (Cmd.M m) => Types.MouseButton -> Msg.Msg
     -> m ((TrackNum, UiMsg.Track), (TrackNum, UiMsg.Track))
     -- ^ (mouse down at, mouse currently at)
 mouse_drag btn msg = do
-    (is_down, mod, mouse_at) <- Cmd.require (mouse_mod msg)
-    msg_btn <- Cmd.require (Cmd.mouse_mod_btn mod)
+    (is_down, mod, mouse_at) <- Cmd.abort_unless (mouse_mod msg)
+    msg_btn <- Cmd.abort_unless (Cmd.mouse_mod_btn mod)
     -- The button down should be the same one as expected.
     when (msg_btn /= btn) Cmd.abort
     keys_down <- Cmd.keys_down
@@ -448,7 +448,7 @@ type AnyPoint = (BlockId, TrackNum, TrackTime)
 -- | Get the "insert position", which is the start track and position of the
 -- insert selection.  Abort if it's not an event track.
 get_insert :: (Cmd.M m) => m Point
-get_insert = Cmd.require =<< lookup_insert
+get_insert = Cmd.abort_unless =<< lookup_insert
 
 lookup_insert :: (Cmd.M m) => m (Maybe Point)
 lookup_insert = fmap (fmap snd) $ lookup_selnum_insert Config.insert_selnum
@@ -463,7 +463,7 @@ lookup_selnum_insert selnum =
 -- | Return the leftmost tracknum and trackpos, even if it's not an event
 -- track.
 get_any_insert :: (Cmd.M m) => m (ViewId, AnyPoint)
-get_any_insert = Cmd.require =<< lookup_any_insert
+get_any_insert = Cmd.abort_unless =<< lookup_any_insert
 
 lookup_any_insert :: (Cmd.M m) => m (Maybe (ViewId, AnyPoint))
 lookup_any_insert = lookup_any_selnum_insert Config.insert_selnum
@@ -502,7 +502,7 @@ get = get_selnum Config.insert_selnum
 
 -- | Get the requested selnum in the focused view.
 get_selnum :: (Cmd.M m) => Types.SelNum -> m (ViewId, Types.Selection)
-get_selnum selnum = Cmd.require =<< lookup_selnum selnum
+get_selnum selnum = Cmd.abort_unless =<< lookup_selnum selnum
 
 lookup :: (Cmd.M m) => m (Maybe (ViewId, Types.Selection))
 lookup = lookup_selnum Config.insert_selnum
@@ -560,7 +560,7 @@ relative_realtime :: (Cmd.M m) => BlockId -> m (RealTime, RealTime)
 relative_realtime root_id = do
     (view_id, sel) <- get
     block_id <- State.block_id_of view_id
-    track_id <- Cmd.require =<< sel_track block_id sel
+    track_id <- Cmd.abort_unless =<< sel_track block_id sel
     maybe_root_sel <- lookup_block_insert root_id
     perf <- Cmd.get_performance root_id
     let root_pos = point_to_real (Cmd.perf_tempo perf) maybe_root_sel
@@ -574,7 +574,7 @@ local_realtime :: (Cmd.M m) => m (BlockId, RealTime, RealTime)
 local_realtime = do
     (view_id, sel) <- get
     block_id <- State.block_id_of view_id
-    track_id <- Cmd.require =<< sel_track block_id sel
+    track_id <- Cmd.abort_unless =<< sel_track block_id sel
     perf <- Cmd.get_performance block_id
     let (start, end) = Types.sel_range sel
     let warp = Cmd.perf_closest_warp perf block_id track_id 0

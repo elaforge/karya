@@ -175,10 +175,10 @@ cmd_rewind = move False
 
 move :: (Cmd.M m) => Bool -> m ()
 move forward = do
-    step_state <- Cmd.require =<< get
+    step_state <- Cmd.abort_unless =<< get
     let msg = "can't " ++ (if forward then "advance" else "rewind")
             ++ " for step play"
-    (view_id, prev_state, pos, state) <- Cmd.require_msg msg
+    (view_id, prev_state, pos, state) <- Cmd.require msg
         =<< zip_state step_state forward
     block_id <- State.block_id_of view_id
     -- If I want to get accurate playback positions, I need to call
@@ -195,10 +195,10 @@ move forward = do
 -- exact match for the time, pick the previous one.
 move_to :: (Cmd.M m) => BlockId -> ScoreTime -> m ()
 move_to block_id pos = do
-    step_state <- Cmd.require =<< get
+    step_state <- Cmd.abort_unless =<< get
     let (before, after) = zip_backward $ zip_until ((>pos) . fst)
             (Cmd.step_before step_state, Cmd.step_after step_state)
-    (pos, mstate) <- Cmd.require $ zip_head (before, after)
+    (pos, mstate) <- Cmd.abort_unless $ zip_head (before, after)
     put $ Just $
         step_state { Cmd.step_before = before, Cmd.step_after = after }
     view_ids <- Map.keys <$> State.views_of block_id

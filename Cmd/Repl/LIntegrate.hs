@@ -51,7 +51,7 @@ sel_edits = do
 edits :: Cmd.M m => BlockId -> TrackId -> m ([Event.IndexKey], [Merge.Edit])
 edits block_id track_id = do
     block <- State.get_block block_id
-    index <- Cmd.require_msg "track is not integrated from anywhere" $
+    index <- Cmd.require "track is not integrated from anywhere" $
         lookup track_id $ indices_of (Block.block_integrated block)
             (Block.block_integrated_tracks block)
     events <- State.get_all_events track_id

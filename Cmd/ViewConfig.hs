@@ -194,7 +194,7 @@ save_views name = do
 -- saved as \"prev\".
 restore_views :: (Cmd.M m) => Text -> m ()
 restore_views name = do
-    (views, focused) <- Cmd.require_msg ("no saved views named: " <> untxt name)
+    (views, focused) <- Cmd.require ("no saved views named: " <> untxt name)
         =<< State.config#State.saved_views # Lens.map name <#> State.get
     save_views "prev"
     State.put_views views

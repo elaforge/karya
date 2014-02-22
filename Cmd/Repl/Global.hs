@@ -113,7 +113,7 @@ ruler :: Cmd.CmdL RulerId
 ruler = do
     n <- tracknum
     block_id <- block
-    Cmd.require =<< State.ruler_track_at block_id n
+    Cmd.abort_unless =<< State.ruler_track_at block_id n
 
 -- | Get the root block.
 root :: Cmd.CmdL BlockId

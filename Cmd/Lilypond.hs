@@ -142,7 +142,7 @@ convert config score_events =
 
 ly_filename :: Cmd.M m => Lilypond.Title -> m FilePath
 ly_filename title = do
-    dir <- Cmd.require_msg "ly_filename: no save dir"
+    dir <- Cmd.require "ly_filename: no save dir"
         =<< Cmd.gets Cmd.state_save_dir
     return $ dir </> "ly" </> untxt (clean title) ++ ".ly"
     where

@@ -235,15 +235,15 @@ load :: Instrument -> Cmd.CmdL ()
 load inst_ = do
     let inst = instrument inst_
     block_id <- Cmd.get_focused_block
-    tracknum <- Cmd.require =<< Cmd.get_insert_tracknum
-    track_id <- Cmd.require =<< State.event_track_at block_id tracknum
+    tracknum <- Cmd.abort_unless =<< Cmd.get_insert_tracknum
+    track_id <- Cmd.abort_unless =<< State.event_track_at block_id tracknum
 
     -- Deallocate the old instrument.
     title <- State.get_track_title
         =<< State.get_event_track_at block_id tracknum
     whenJust (ParseTitle.title_to_instrument title) dealloc_instrument
 
-    dev <- Cmd.require_msg ("no device for " ++ show inst) =<< device_of inst
+    dev <- Cmd.require ("no device for " ++ show inst) =<< device_of inst
     chan <- find_chan_for dev
     alloc_instrument inst [((dev, chan), Nothing)]
 
@@ -263,11 +263,11 @@ find_chan_for dev = do
     let addrs = map ((,) dev) [0..15]
         taken = concatMap (map fst . Instrument.config_addrs) (Map.elems config)
     let match = fmap snd $ List.find (not . (`elem` taken)) addrs
-    Cmd.require_msg ("couldn't find free channel for " ++ show dev) match
+    Cmd.require ("couldn't find free channel for " ++ show dev) match
 
 initialize :: Score.Instrument -> Midi.Channel -> Cmd.CmdL ()
 initialize inst chan = do
-    info <- Cmd.require_msg ("inst not found: " ++ show inst)
+    info <- Cmd.require ("inst not found: " ++ show inst)
         =<< Cmd.lookup_instrument inst
     let init = Instrument.patch_initialize (MidiDb.info_patch info)
     let dev = Instrument.synth_device (MidiDb.info_synth info)

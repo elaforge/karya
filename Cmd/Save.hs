@@ -124,7 +124,7 @@ read_state :: FilePath -> Cmd.CmdT IO (State.State, SaveFile)
 read_state fname = do
     let mkmsg = (("load " ++ fname ++ ": ") ++)
     Log.notice $ "read state from " ++ show fname
-    state <- Cmd.require_msg (mkmsg "doesn't exist")
+    state <- Cmd.require (mkmsg "doesn't exist")
         =<< Cmd.require_right mkmsg =<< liftIO (read_state_ fname)
     return (state, SaveState fname)
 
@@ -193,7 +193,7 @@ read_git repo maybe_commit = do
 -- | Revert to given save point, or the last one.
 revert :: Maybe String -> Cmd.CmdT IO ()
 revert maybe_ref = do
-    save_file <- Cmd.require_msg "can't revert when there is no save file"
+    save_file <- Cmd.require "can't revert when there is no save file"
         =<< Cmd.gets Cmd.state_save_file
     case save_file of
         Cmd.SaveState fn -> do
@@ -205,11 +205,11 @@ revert maybe_ref = do
     where
     revert_git repo = do
         save <- case maybe_ref of
-            Nothing -> fmap fst $ Cmd.require_msg "no last save"
+            Nothing -> fmap fst $ Cmd.require "no last save"
                 =<< liftIO (SaveGit.read_last_save repo Nothing)
-            Just ref -> Cmd.require_msg ("unparseable SavePoint: " ++ show ref)
+            Just ref -> Cmd.require ("unparseable SavePoint: " ++ show ref)
                 (SaveGit.ref_to_save ref)
-        commit <- Cmd.require_msg ("save ref not found: " ++ show save)
+        commit <- Cmd.require ("save ref not found: " ++ show save)
             =<< rethrow "revert" (SaveGit.read_save_ref repo save)
         load_git repo (Just commit)
 

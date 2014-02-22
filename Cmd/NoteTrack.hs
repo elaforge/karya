@@ -105,7 +105,7 @@ cmd_val_edit msg = Cmd.suppress_history Cmd.ValEdit "note track val edit" $ do
                 note <- EditUtil.input_to_note input
                 note_on block_id sel_tracknum pos dur note_id note vel
             InputNote.PitchChange note_id input -> do
-                (pitch_tracknum, track_id) <- Cmd.require_msg
+                (pitch_tracknum, track_id) <- Cmd.require
                     ("no track for note_id " ++ show note_id)
                     =<< find_pitch_track note_id
                 note <- EditUtil.input_to_note input

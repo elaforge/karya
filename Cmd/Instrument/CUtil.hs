@@ -74,7 +74,7 @@ insert_expr :: (Cmd.M m) => Map.Map Char TrackLang.Expr -> Msg.Msg
 insert_expr char_to_expr msg = do
     unlessM Cmd.is_kbd_entry Cmd.abort
     EditUtil.fallthrough msg
-    (kstate, char) <- Cmd.require $ Msg.char msg
+    (kstate, char) <- Cmd.abort_unless $ Msg.char msg
     case Map.lookup char char_to_expr of
         -- Only swallow keys that note entry would have caught, otherwise
         -- space would be swallowed here.
@@ -151,8 +151,8 @@ keyswitches :: (Cmd.M m) => [(Char, TrackLang.CallId, Midi.Key)] -> Msg.Msg
     -> m Cmd.Status
 keyswitches inputs = \msg -> do
     EditUtil.fallthrough msg
-    char <- Cmd.require $ Msg.char_down msg
-    (call, key) <- Cmd.require $ Map.lookup char to_call
+    char <- Cmd.abort_unless $ Msg.char_down msg
+    (call, key) <- Cmd.abort_unless $ Map.lookup char to_call
     MidiThru.channel_messages Nothing False
         [Midi.NoteOn key 64, Midi.NoteOff key 64]
     Cmd.set_note_text (TrackLang.unsym call)

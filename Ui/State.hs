@@ -41,7 +41,7 @@ module Ui.State (
     , gets, unsafe_modify, put, modify
     -- ** errors
     , Error(..)
-    , require, require_right, error_either
+    , require, require_right
 
     -- * config
     , get_namespace, set_namespace
@@ -418,17 +418,11 @@ instance Pretty.Pretty Error where
     pretty (Error msg) = msg
     pretty Abort = "(abort)"
 
-require :: (M m) => String -> Maybe a -> m a
-require err = maybe (throw $ "required: " <> err) return
+require :: M m => String -> Maybe a -> m a
+require err = maybe (throw err) return
 
-require_right :: (M m) => (err -> String) -> Either err a -> m a
+require_right :: M m => (err -> String) -> Either err a -> m a
 require_right fmt_err = either (throw . fmt_err) return
-
--- | Like 'require_right', but throw an IO exception.  Useful for tests.
-error_either :: (Show a, Monad m) => String -> Either Error a -> m a
-error_either msg = either (error . ((msg ++ ": ") ++) . show) return
-
--- * functions
 
 -- * config
 

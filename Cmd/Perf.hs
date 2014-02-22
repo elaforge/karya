@@ -202,7 +202,7 @@ lookup_default_environ name = do
 get_default_environ :: (TrackLang.Typecheck a, Cmd.M m) =>
     TrackLang.ValName -> m a
 get_default_environ name =
-    Cmd.require_msg ("no default val for " <> pretty name)
+    Cmd.require ("no default val for " <> pretty name)
         =<< lookup_default_environ name
 
 -- | The default scale established by 'State.config_global_transform', or
@@ -292,4 +292,4 @@ lookup_root :: (Cmd.M m) => m (Maybe Cmd.Performance)
 lookup_root = justm State.lookup_root_id Cmd.lookup_performance
 
 get_root :: (Cmd.M m) => m Cmd.Performance
-get_root = Cmd.require_msg "no root performance" =<< lookup_root
+get_root = Cmd.require "no root performance" =<< lookup_root

@@ -255,7 +255,7 @@ get_realtime perf_block play_block maybe_track_id pos = do
 
 get_performance :: (Cmd.M m) => BlockId -> m Cmd.Performance
 get_performance block_id = do
-    perf <- Cmd.require_msg ("no performance for block " ++ show block_id)
+    perf <- Cmd.require ("no performance for block " ++ show block_id)
         =<< lookup_current_performance block_id
     write_logs block_id perf
     return perf
@@ -349,7 +349,7 @@ from_realtime block_id repeat_at start_ = do
     play_control <- gets Cmd.state_play_control
     whenJust play_control $ \_ -> Cmd.throw "player already running"
 
-    perf <- Cmd.require_msg ("no performance for block " ++ show block_id)
+    perf <- Cmd.require ("no performance for block " ++ show block_id)
         =<< lookup_current_performance block_id
     multiplier <- gets (recip . Cmd.state_play_multiplier)
 

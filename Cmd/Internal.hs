@@ -159,7 +159,7 @@ cmd_record_ui_updates (Msg.Ui (UiMsg.UiMsg _
     set_screen screen screens rect = take screens
         . Seq.update_at Rect.empty screen (const rect)
 cmd_record_ui_updates msg = do
-    (ctx, view_id, update) <- Cmd.require (update_of msg)
+    (ctx, view_id, update) <- Cmd.abort_unless (update_of msg)
     ui_update (fst <$> UiMsg.ctx_track ctx) view_id update
     -- return Continue to give 'update_ui_state' a crack at it
     return Cmd.Continue
@@ -194,7 +194,7 @@ ui_update maybe_tracknum view_id update = case update of
 -- views.
 update_ui_state :: Cmd.Cmd
 update_ui_state msg = do
-    (ctx, view_id, update) <- Cmd.require (update_of msg)
+    (ctx, view_id, update) <- Cmd.abort_unless (update_of msg)
     if UiMsg.ctx_edit_input ctx
         then do
             Cmd.modify_edit_state $ \st -> st { Cmd.state_edit_input = False }

@@ -533,7 +533,7 @@ run_action_at :: Cmd.M m => Char -> m ()
 run_action_at key = run_action =<< get_action key
 
 get_action :: Cmd.M m => Char -> m Cmd.Action
-get_action key = Cmd.require
+get_action key = Cmd.abort_unless
     =<< Cmd.gets (Map.lookup key . Cmd.state_recorded_actions . Cmd.state_edit)
 
 run_action :: Cmd.M m => Cmd.Action -> m ()
@@ -602,10 +602,10 @@ event_text_at track_id pos = do
 -- A leading space will create a zero duration event.
 edit_input :: Bool -> Cmd.Cmd
 edit_input zero_dur msg = do
-    text <- Cmd.require $ edit_input_msg msg
+    text <- Cmd.abort_unless $ edit_input_msg msg
     EditUtil.Pos block_id tracknum start dur <- EditUtil.get_pos
     (start, dur) <- event_range start dur
-    track_id <- Cmd.require_msg "edit_input on non-event track"
+    track_id <- Cmd.require "edit_input on non-event track"
         =<< State.event_track_at block_id tracknum
     old_text <- event_text_at track_id start
     let space = " " `Text.isPrefixOf` text

@@ -38,7 +38,7 @@ import Types
 cmd_toggle_edge :: (Cmd.M m) => Msg.Msg -> m ()
 cmd_toggle_edge msg = do
     (block_id, sel_tracknum, _, _) <- Selection.get_insert
-    clicked_tracknum <- Cmd.require $ clicked_track msg
+    clicked_tracknum <- Cmd.abort_unless $ clicked_track msg
     -- The click order goes in the arrow direction, caller-to-callee.
     let edge = (sel_tracknum, clicked_tracknum)
     success <- State.toggle_skeleton_edge block_id edge
@@ -155,7 +155,7 @@ cmd_toggle_flag flag = do
 
 cmd_toggle_flag_clicked :: (Cmd.M m) => Block.TrackFlag -> Msg.Msg -> m ()
 cmd_toggle_flag_clicked flag msg = do
-    tracknum <- Cmd.require $ clicked_track msg
+    tracknum <- Cmd.abort_unless $ clicked_track msg
     block_id <- Cmd.get_focused_block
     State.toggle_track_flag block_id tracknum flag
 
@@ -164,7 +164,7 @@ cmd_toggle_flag_clicked flag msg = do
 -- Perhaps mute and solo should be exclusive in general.
 cmd_set_solo :: (Cmd.M m) => Msg.Msg -> m ()
 cmd_set_solo msg = do
-    tracknum <- Cmd.require $ clicked_track msg
+    tracknum <- Cmd.abort_unless $ clicked_track msg
     block_id <- Cmd.get_focused_block
     State.remove_track_flag block_id tracknum Block.Mute
     State.toggle_track_flag block_id tracknum Block.Solo
@@ -173,7 +173,7 @@ cmd_set_solo msg = do
 cmd_mute_or_unsolo :: (Cmd.M m) => Msg.Msg -> m ()
 cmd_mute_or_unsolo msg = do
     block_id <- Cmd.get_focused_block
-    tracknum <- Cmd.require $ clicked_track msg
+    tracknum <- Cmd.abort_unless $ clicked_track msg
     flags <- State.track_flags block_id tracknum
     if Block.Solo `Set.member` flags
         then State.remove_track_flag block_id tracknum Block.Solo
@@ -182,14 +182,14 @@ cmd_mute_or_unsolo msg = do
 cmd_expand_track :: (Cmd.M m) => Msg.Msg -> m ()
 cmd_expand_track msg = do
     block_id <- Cmd.get_focused_block
-    tracknum <- Cmd.require (clicked_track msg)
+    tracknum <- Cmd.abort_unless $ clicked_track msg
     State.remove_track_flag block_id tracknum Block.Collapse
 
 -- | Move selected tracks to the left of the clicked track.
 cmd_move_tracks :: (Cmd.M m) => Msg.Msg -> m ()
 cmd_move_tracks msg = do
     (block_id, tracknums, _, _, _) <- Selection.tracks
-    clicked <- Cmd.require $ clicked_track msg
+    clicked <- Cmd.abort_unless $ clicked_track msg
     move_tracks block_id tracknums clicked
     -- Shift from the max tracknum or the minimum tracknum, depending on
     -- the move direction.
