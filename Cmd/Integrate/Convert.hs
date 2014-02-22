@@ -19,11 +19,11 @@ import qualified Derive.Controls as Controls
 import qualified Derive.Derive as Derive
 import qualified Derive.Environ as Environ
 import qualified Derive.LEvent as LEvent
+import qualified Derive.ParseTitle as ParseTitle
 import qualified Derive.PitchSignal as PitchSignal
 import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Stack as Stack
-import qualified Derive.TrackInfo as TrackInfo
 import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.Midi.Instrument as Instrument
@@ -135,7 +135,7 @@ note_events :: Score.Instrument -> Instrument.CallMap -> [Score.Event]
     -> Track
 note_events inst call_map events =
     make_track note_title (map (note_event call_map) events)
-    where note_title = TrackInfo.instrument_to_title inst
+    where note_title = ParseTitle.instrument_to_title inst
 
 note_event :: Instrument.CallMap -> Score.Event -> Event.Event
 note_event call_map event = ui_event (Score.event_stack event)
@@ -154,7 +154,7 @@ pitch_events :: Pitch.ScaleId -> Pitch.ScaleId -> [Score.Event]
 pitch_events default_scale_id scale_id events =
     (make_track pitch_title (tidy_pitches ui_events), concat errs)
     where
-    pitch_title = TrackInfo.scale_to_title $
+    pitch_title = ParseTitle.scale_to_title $
         if scale_id == default_scale_id then Pitch.empty_scale else scale_id
     (ui_events, errs) = unzip $ map pitch_signal_events events
     tidy_pitches = clip_to_zero . clip_concat . map drop_dups
@@ -193,7 +193,7 @@ control_events events =
 
 control_track :: [Score.Event] -> Score.Typed Score.Control -> Track
 control_track events control =
-    make_track (TrackInfo.unparse_typed control) ui_events
+    make_track (ParseTitle.unparse_typed control) ui_events
     where
     ui_events = drop_dyn $ tidy_controls $
         map (signal_events (Score.typed_val control)) events

@@ -30,8 +30,8 @@ import qualified Cmd.Repl.Util as Util
 import qualified Cmd.Selection as Selection
 
 import qualified Derive.ParseBs as ParseBs
+import qualified Derive.ParseTitle as ParseTitle
 import qualified Derive.ShowVal as ShowVal
-import qualified Derive.TrackInfo as TrackInfo
 import qualified Derive.TrackLang as TrackLang
 
 import Types
@@ -135,7 +135,7 @@ replace :: BlockId -> BlockId -> Cmd.CmdL ()
 replace from to = do
     block_id <- Cmd.get_focused_block
     ModifyEvents.block block_id $
-        ModifyEvents.tracks_named TrackInfo.is_note_track $
+        ModifyEvents.tracks_named ParseTitle.is_note_track $
         ModifyEvents.text $ replace_block_call from to
 
 map_symbol :: (TrackLang.Symbol -> TrackLang.Symbol) -> Text -> Text

@@ -48,12 +48,12 @@ import qualified Derive.Deriver.Internal as Internal
 import qualified Derive.Environ as Environ
 import qualified Derive.LEvent as LEvent
 import qualified Derive.ParseBs as ParseBs
+import qualified Derive.ParseTitle as ParseTitle
 import qualified Derive.PitchSignal as PitchSignal
 import qualified Derive.Scale as Scale
 import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Tempo as Tempo
-import qualified Derive.TrackInfo as TrackInfo
 import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.Pitch as Pitch
@@ -74,7 +74,7 @@ d_control_track (Tree.Node track _) deriver = do
     let title = TrackTree.tevents_title track
     if Text.all Char.isSpace title then deriver else do
     (ctype, expr) <- either (\err -> Derive.throw $ "track title: " ++ err)
-        return (TrackInfo.parse_control_expr title)
+        return (ParseTitle.parse_control_expr title)
     eval_track track expr ctype deriver
 
 -- | Preprocess a track tree by splitting the control tracks.  An event
@@ -100,8 +100,8 @@ split_control_tracks :: TrackTree.EventsTree -> TrackTree.EventsTree
 split_control_tracks = map split
     where
     split (Tree.Node track subs) =
-        case TrackInfo.track_type (TrackTree.tevents_title track) of
-            TrackInfo.ControlTrack -> splice (split_control track) subs
+        case ParseTitle.track_type (TrackTree.tevents_title track) of
+            ParseTitle.ControlTrack -> splice (split_control track) subs
             _ -> Tree.Node track (map split subs)
         where
         splice [] subs = Tree.Node track subs
@@ -140,22 +140,22 @@ split_control track = extract $ split $ TrackTree.tevents_events track
 -- * eval_track
 
 eval_track :: TrackTree.TrackEvents -> [TrackLang.Call]
-    -> TrackInfo.ControlType -> Derive.NoteDeriver -> Derive.NoteDeriver
+    -> ParseTitle.ControlType -> Derive.NoteDeriver -> Derive.NoteDeriver
 eval_track track expr ctype deriver = case ctype of
-    TrackInfo.Tempo maybe_sym -> do
+    ParseTitle.Tempo maybe_sym -> do
         is_ly <- Derive.is_lilypond_derive
         let sig_deriver
                 | is_ly = return (Signal.constant 1, [])
                 | otherwise = with_control_env Controls.tempo $
                     derive_control True tempo_track expr
         tempo_call maybe_sym track sig_deriver deriver
-    TrackInfo.Control maybe_op control -> do
+    ParseTitle.Control maybe_op control -> do
         merge <- lookup_op (Score.typed_val control) maybe_op
         control_call track control merge
             (with_control_env (Score.typed_val control) $
                 derive_control False track expr)
             deriver
-    TrackInfo.Pitch scale_id maybe_name ->
+    ParseTitle.Pitch scale_id maybe_name ->
         pitch_call track maybe_name scale_id expr deriver
     where
     tempo_track = track { TrackTree.tevents_events = tempo_events }
@@ -326,7 +326,7 @@ derive_control is_tempo track expr = do
         , Call.tinfo_sub_tracks = []
         , Call.tinfo_events_around = TrackTree.tevents_around track
         , Call.tinfo_type =
-            if is_tempo then TrackInfo.TempoTrack else TrackInfo.ControlTrack
+            if is_tempo then ParseTitle.TempoTrack else ParseTitle.ControlTrack
         , Call.tinfo_inverted = TrackTree.tevents_inverted track
         }
 
@@ -356,7 +356,7 @@ derive_pitch cache track expr = do
         , Call.tinfo_shifted = TrackTree.tevents_shifted track
         , Call.tinfo_sub_tracks = []
         , Call.tinfo_events_around = TrackTree.tevents_around track
-        , Call.tinfo_type = TrackInfo.PitchTrack
+        , Call.tinfo_type = ParseTitle.PitchTrack
         , Call.tinfo_inverted = TrackTree.tevents_inverted track
         }
 

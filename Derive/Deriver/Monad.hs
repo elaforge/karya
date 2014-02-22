@@ -143,11 +143,11 @@ import qualified Ui.TrackTree as TrackTree
 
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.LEvent as LEvent
+import qualified Derive.ParseTitle as ParseTitle
 import qualified Derive.PitchSignal as PitchSignal
 import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Stack as Stack
-import qualified Derive.TrackInfo as TrackInfo
 import qualified Derive.TrackLang as TrackLang
 import qualified Derive.TrackWarp as TrackWarp
 
@@ -1045,7 +1045,7 @@ data CallInfo val = CallInfo {
     -- | This is needed by val calls that want to evaluate events around them.
     -- Since val calls are the same on all track types, they need to know
     -- explicitly what the track type is to evaluate events on it.
-    , info_track_type :: !(Maybe TrackInfo.Type)
+    , info_track_type :: !(Maybe ParseTitle.Type)
     }
 
 instance (Pretty.Pretty val) => Pretty.Pretty (CallInfo val) where

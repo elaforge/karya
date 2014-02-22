@@ -8,7 +8,10 @@ module Derive.Call.Block (
     , eval_root_block, lookup_note_block
     , lookup_control_block
 ) where
+import qualified Data.Char as Char
+import qualified Data.List.NonEmpty as NonEmpty
 import qualified Data.Map as Map
+import qualified Data.Text as Text
 
 import Util.Control
 import qualified Util.Seq as Seq
@@ -27,6 +30,7 @@ import qualified Derive.Controls as Controls
 import qualified Derive.Derive as Derive
 import qualified Derive.Deriver.Internal as Internal
 import qualified Derive.LEvent as LEvent
+import qualified Derive.ParseTitle as ParseTitle
 import qualified Derive.PitchSignal as PitchSignal
 import qualified Derive.Score as Score
 import qualified Derive.Sig as Sig
@@ -122,7 +126,14 @@ d_block block_id = do
     title <- case Map.lookup block_id blocks of
         Nothing -> Derive.throw "block_id not found"
         Just block -> return $ Block.block_title block
-    Call.apply_transform "block title" title $ do
+    transform <- if Text.all Char.isSpace title
+        then return id
+        else case ParseTitle.parse_block title of
+            Left err -> Derive.throw $ "block title: " <> err
+            Right expr ->
+                return $ Call.apply_transformers info (NonEmpty.toList expr)
+                where info = Derive.dummy_call_info 0 1 "block title"
+    transform $ do
         -- Record a dependency on this block.
         Internal.add_block_dep block_id
         deriver <- Derive.eval_ui ("d_block " ++ show block_id)

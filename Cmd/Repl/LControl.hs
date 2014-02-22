@@ -13,9 +13,9 @@ import qualified Cmd.ControlTrack as ControlTrack
 import qualified Cmd.ModifyEvents as ModifyEvents
 
 import qualified Derive.ParseBs
+import qualified Derive.ParseTitle as ParseTitle
 import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
-import qualified Derive.TrackInfo as TrackInfo
 import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.Signal as Signal
@@ -44,12 +44,12 @@ map_named name f =
 
 score_to_hex :: Cmd.CmdL ()
 score_to_hex = ModifyEvents.all_blocks $
-    ModifyEvents.tracks_named TrackInfo.is_signal_track $
+    ModifyEvents.tracks_named ParseTitle.is_signal_track $
         ModifyEvents.text to_hex
 
 block_to_hex :: BlockId -> Cmd.CmdL ()
 block_to_hex block_id = ModifyEvents.block block_id $
-    ModifyEvents.tracks_named TrackInfo.is_signal_track $
+    ModifyEvents.tracks_named ParseTitle.is_signal_track $
         ModifyEvents.text to_hex
 
 to_hex :: Text -> Text

@@ -65,9 +65,8 @@ import qualified Ui.TrackTree as TrackTree
 import qualified Cmd.Create as Create
 import qualified Cmd.Integrate.Convert as Convert
 import qualified Derive.Call.Integrate as Call.Integrate
-import qualified Derive.ParseBs as ParseBs
+import qualified Derive.ParseTitle as ParseTitle
 import qualified Derive.Stack as Stack
-import qualified Derive.TrackInfo as TrackInfo
 import qualified Derive.TrackLang as TrackLang
 
 import qualified App.Config as Config
@@ -524,13 +523,13 @@ apply_modifications mods event = List.foldl' go event mods
 -- blocks should copy the block title too.
 strip_score_integrate_track_call :: Text -> Text
 strip_score_integrate_track_call title
-    | TrackInfo.is_note_track title = case TrackInfo.parse_note title of
-        Right expr -> maybe "" TrackInfo.unparse_note $ NonEmpty.nonEmpty $
+    | ParseTitle.is_note_track title = case ParseTitle.parse_note title of
+        Right expr -> maybe "" ParseTitle.unparse_note $ NonEmpty.nonEmpty $
             filter (not . is_integrate_call) $ NonEmpty.toList expr
         Left _ -> ""
-    | otherwise = case TrackInfo.parse_control_expr title of
+    | otherwise = case ParseTitle.parse_control_expr title of
         Right (ctype, calls) ->
-            TrackInfo.unparse_control_expr ctype $
+            ParseTitle.unparse_control_expr ctype $
                 filter (not . is_integrate_call) calls
         Left _ -> ""
 
@@ -538,10 +537,10 @@ strip_score_integrate_track_call title
 -- parse it as a note track or control track title.
 track_has_score_integrate :: Text -> Bool
 track_has_score_integrate title
-    | TrackInfo.is_note_track title = case TrackInfo.parse_note title of
+    | ParseTitle.is_note_track title = case ParseTitle.parse_note title of
         Right expr -> any is_integrate_call $ NonEmpty.toList expr
         Left _ -> False
-    | otherwise = case TrackInfo.parse_control_expr title of
+    | otherwise = case ParseTitle.parse_control_expr title of
         Right (_, calls) -> any is_integrate_call calls
         Left _ -> False
 
@@ -551,7 +550,6 @@ is_integrate_call (TrackLang.Call call_id args) =
 
 -- | True if this block has a score integrate call in its title.
 block_has_score_inegrate :: Text -> Bool
-block_has_score_inegrate title =
-    case ParseBs.parse_expr (ParseBs.from_text title) of
-        Right expr -> any is_integrate_call $ NonEmpty.toList expr
-        Left _ -> False
+block_has_score_inegrate =
+    either (const False) (any is_integrate_call . NonEmpty.toList)
+        . ParseTitle.parse_block

@@ -43,11 +43,11 @@ import qualified Derive.Deriver.Internal as Internal
 import qualified Derive.Environ as Environ
 import qualified Derive.LEvent as LEvent
 import qualified Derive.Note as Note
+import qualified Derive.ParseTitle as ParseTitle
 import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Slice as Slice
 import qualified Derive.Tempo as Tempo
-import qualified Derive.TrackInfo as TrackInfo
 import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.Signal as Signal
@@ -159,7 +159,7 @@ derive_tracks = mconcat . map derive_track
 -- | Derive a single track node and any tracks below it.
 derive_track :: TrackTree.EventsNode -> Derive.NoteDeriver
 derive_track node@(Tree.Node track subs)
-    | TrackInfo.is_note_track (TrackTree.tevents_title track) = do
+    | ParseTitle.is_note_track (TrackTree.tevents_title track) = do
         let (orphans, underivable) = Slice.extract_orphans track subs
         Internal.record_empty_tracks underivable
         with_stack $ Cache.track track (TrackTree.tevents_children node) $ do
@@ -189,4 +189,4 @@ derive_track node@(Tree.Node track subs)
 -- | Does this tree have any non-tempo tracks at the top level?
 has_nontempo_track :: TrackTree.EventsTree -> Bool
 has_nontempo_track = any $ \(Tree.Node track _) ->
-    not $ TrackInfo.is_tempo_track (TrackTree.tevents_title track)
+    not $ ParseTitle.is_tempo_track (TrackTree.tevents_title track)

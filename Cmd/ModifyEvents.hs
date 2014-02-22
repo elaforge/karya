@@ -16,7 +16,7 @@ import qualified Ui.Types as Types
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Selection as Selection
 import qualified Derive.ParseBs as ParseBs
-import qualified Derive.TrackInfo as TrackInfo
+import qualified Derive.ParseTitle as ParseTitle
 import Types
 
 
@@ -99,13 +99,13 @@ tracks_named wanted f = \block_id track_id events ->
 
 -- | Like 'tracks' but only for note tracks.
 note_tracks :: (Cmd.M m) => Track m -> m ()
-note_tracks = selection . tracks_named TrackInfo.is_note_track
+note_tracks = selection . tracks_named ParseTitle.is_note_track
 
 control_tracks :: (Cmd.M m) => Track m -> m ()
-control_tracks = selection . tracks_named TrackInfo.is_signal_track
+control_tracks = selection . tracks_named ParseTitle.is_signal_track
 
 pitch_tracks :: (Cmd.M m) => Track m -> m ()
-pitch_tracks = selection . tracks_named TrackInfo.is_pitch_track
+pitch_tracks = selection . tracks_named ParseTitle.is_pitch_track
 
 
 -- * block tracks
@@ -127,13 +127,13 @@ all_tracks_named :: (Cmd.M m) => (Text -> Bool) -> Track m -> m ()
 all_tracks_named wanted = all_blocks . tracks_named wanted
 
 all_note_tracks :: (Cmd.M m) => Track m -> m ()
-all_note_tracks = all_tracks_named TrackInfo.is_note_track
+all_note_tracks = all_tracks_named ParseTitle.is_note_track
 
 all_control_tracks :: (Cmd.M m) => Track m -> m ()
-all_control_tracks = all_tracks_named TrackInfo.is_control_track
+all_control_tracks = all_tracks_named ParseTitle.is_control_track
 
 all_pitch_tracks :: (Cmd.M m) => Track m -> m ()
-all_pitch_tracks = all_tracks_named TrackInfo.is_pitch_track
+all_pitch_tracks = all_tracks_named ParseTitle.is_pitch_track
 
 -- * misc
 

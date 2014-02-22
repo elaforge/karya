@@ -102,9 +102,9 @@ import qualified Derive.Control as Control
 import qualified Derive.Derive as Derive
 import qualified Derive.Deriver.Internal as Internal
 import qualified Derive.LEvent as LEvent
+import qualified Derive.ParseTitle as ParseTitle
 import qualified Derive.PitchSignal as PitchSignal
 import qualified Derive.Score as Score
-import qualified Derive.TrackInfo as TrackInfo
 
 import qualified Perform.Signal as Signal
 import Types
@@ -163,7 +163,7 @@ with_title subs (start, end) title deriver
     | Text.all Char.isSpace title = deriver
     | otherwise = do
         track_expr <- either (Derive.throw . ("track title: "++)) return
-            (TrackInfo.parse_note title)
+            (ParseTitle.parse_note title)
         Call.apply_transformers info (NonEmpty.toList track_expr) deriver
     where
     info = (Derive.dummy_call_info start (end - start) "note track")
@@ -184,6 +184,6 @@ track_info track subs = Call.TrackInfo
     , Call.tinfo_shifted = TrackTree.tevents_shifted track
     , Call.tinfo_sub_tracks = subs
     , Call.tinfo_events_around = TrackTree.tevents_around track
-    , Call.tinfo_type = TrackInfo.NoteTrack
+    , Call.tinfo_type = ParseTitle.NoteTrack
     , Call.tinfo_inverted = TrackTree.tevents_inverted track
     }

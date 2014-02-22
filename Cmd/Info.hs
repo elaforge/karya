@@ -4,7 +4,7 @@
 
 {- | Functions to get higher level information about blocks and tracks.
 
-    This builds on "Derive.TrackInfo" but the Derive module only has functions
+    This builds on "Derive.ParseTitle" but the Derive module only has functions
     needed by derivation, and doesn't run in the State monad.
 -}
 module Cmd.Info where
@@ -27,9 +27,9 @@ import qualified Ui.TrackTree as TrackTree
 
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Perf as Perf
+import qualified Derive.ParseTitle as ParseTitle
 import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
-import qualified Derive.TrackInfo as TrackInfo
 
 import qualified Perform.Midi.Instrument as Instrument
 import qualified Instrument.MidiDb as MidiDb
@@ -79,10 +79,10 @@ make_track (tree, parents) =
 
 track_type_of :: (Tree.Tree State.TrackInfo, TrackTree.TrackTree) -> TrackType
 track_type_of (Tree.Node track subs, parents)
-    | TrackInfo.is_note_track title = Note $ takeWhile is_control children
+    | ParseTitle.is_note_track title = Note $ takeWhile is_control children
         ++ takeWhile is_control (map Tree.rootLabel
             (takeWhile is_single parents))
-    | TrackInfo.is_pitch_track title =
+    | ParseTitle.is_pitch_track title =
         Pitch $ List.find is_note (children ++ map Tree.rootLabel parents)
     | otherwise = Control $ children
         -- If there is a note track above assume it will invert itself below
@@ -93,10 +93,10 @@ track_type_of (Tree.Node track subs, parents)
     is_single (Tree.Node _ [_]) = True
     is_single _ = False
     is_control track =
-        TrackInfo.is_control_track t && not (TrackInfo.is_tempo_track t)
+        ParseTitle.is_control_track t && not (ParseTitle.is_tempo_track t)
         where t = State.track_title track
     title = State.track_title track
-    is_note = TrackInfo.is_note_track . State.track_title
+    is_note = ParseTitle.is_note_track . State.track_title
 
 -- ** specialized lookups
 
@@ -107,7 +107,7 @@ pitch_of_note block_id tracknum = do
     maybe_track <- lookup_track_type block_id tracknum
     return $ case maybe_track of
         Just (Track _ (Note controls)) ->
-            List.find (TrackInfo.is_pitch_track . State.track_title) controls
+            List.find (ParseTitle.is_pitch_track . State.track_title) controls
         _ -> Nothing
 
 -- | Note track of a pitch track, if any.
@@ -137,7 +137,7 @@ lookup_instrument_of :: (Cmd.M m) => BlockId -> TrackNum
 lookup_instrument_of block_id tracknum = do
     track_id <- State.get_event_track_at block_id tracknum
     track <- State.get_track track_id
-    case TrackInfo.title_to_instrument (Track.track_title track) of
+    case ParseTitle.title_to_instrument (Track.track_title track) of
         Nothing -> Perf.lookup_instrument block_id (Just track_id)
         Just inst -> Just <$> get_default_instrument block_id track_id inst
 
@@ -229,7 +229,7 @@ get_track_status block_id tracknum = do
         track_descs <- show_track_status block_id controls
         addrs <- maybe [] Instrument.config_addrs . Map.lookup inst <$>
             State.get_midi_config
-        let title = TrackInfo.instrument_to_title inst
+        let title = ParseTitle.instrument_to_title inst
         return $ txt $ Printf.printf "%s at %d: %s -- [%s]" (untxt title)
             note_tracknum (untxt (show_addrs (map fst addrs)))
             (Seq.join ", " track_descs)
@@ -245,7 +245,7 @@ find_note_track tree tracknum = case paths_of tree tracknum of
             Seq.head $ mapMaybe inst_of (track : children ++ parents)
     where
     inst_of track =
-        case TrackInfo.title_to_instrument (State.track_title track) of
+        case ParseTitle.title_to_instrument (State.track_title track) of
             Nothing -> Nothing
             Just inst -> Just (track, inst)
 
@@ -266,7 +266,7 @@ control_tracks_of tree tracknum =
     is_single (Tree.Node _ [_]) = True
     is_single _ = False
     is_control track =
-        TrackInfo.is_control_track t && not (TrackInfo.is_tempo_track t)
+        ParseTitle.is_control_track t && not (ParseTitle.is_tempo_track t)
         where t = State.track_title track
 
 -- | Looks like: [vel {collapse 2}, pedal {expand 3}]
@@ -281,7 +281,7 @@ show_track_status block_id status = forM status $ \info -> do
                 | Block.Collapse `Set.member` flags -> "expand"
                 | otherwise -> "collapse"
     return $ Printf.printf "%s {%s %d}"
-        (untxt $ TrackInfo.strip_expr $ State.track_title info)
+        (untxt $ ParseTitle.strip_expr $ State.track_title info)
         cmd_text tracknum
 
 paths_of :: TrackTree.TrackTree -> TrackNum

@@ -70,8 +70,8 @@ import qualified Cmd.TimeStep as TimeStep
 import qualified Cmd.Undo as Undo
 import qualified Cmd.ViewConfig as ViewConfig
 
+import qualified Derive.ParseTitle as ParseTitle
 import qualified Derive.Scale as Scale
-import qualified Derive.TrackInfo as TrackInfo
 import qualified App.Config as Config
 
 
@@ -247,10 +247,10 @@ selection_bindings = concat
     -- Mnemonic: next, previous.
     , repeatable_char 'n' "move selection right to note track" $
         Selection.shift False
-            =<< Selection.find_track Selection.R TrackInfo.is_note_track
+            =<< Selection.find_track Selection.R ParseTitle.is_note_track
     , repeatable_char 'p' "move selection left to note track" $
         Selection.shift False
-            =<< Selection.find_track Selection.L TrackInfo.is_note_track
+            =<< Selection.find_track Selection.L ParseTitle.is_note_track
 
     , repeatable_char 'w' "move selection next event" $
         Selection.step_with 1 False TimeStep.event_step

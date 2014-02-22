@@ -24,8 +24,8 @@ import qualified Cmd.ModifyEvents as ModifyEvents
 import qualified Cmd.PlayUtil as PlayUtil
 import qualified Cmd.Selection as Selection
 
+import qualified Derive.ParseTitle as ParseTitle
 import qualified Derive.Score as Score
-import qualified Derive.TrackInfo as TrackInfo
 import Types
 
 
@@ -147,7 +147,7 @@ note_render mode control_name = do
         Just s
             | Text.null s -> Track.Pitch Nothing
             | otherwise -> Track.Pitch $ Just (Score.control s)
-    is_note = fmap TrackInfo.is_note_track . State.get_track_title
+    is_note = fmap ParseTitle.is_note_track . State.get_track_title
 
 no_render :: Cmd.CmdL ()
 no_render = do

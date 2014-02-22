@@ -13,8 +13,8 @@ import qualified Derive.Derive as Derive
 import Derive.Derive (PassedArgs, CallInfo)
 import qualified Derive.LEvent as LEvent
 import qualified Derive.ParseBs as ParseBs
+import qualified Derive.ParseTitle as ParseTitle
 import qualified Derive.PitchSignal as PitchSignal
-import qualified Derive.TrackInfo as TrackInfo
 
 import qualified Perform.Signal as Signal
 import Types
@@ -39,9 +39,9 @@ instance EvalPrev PitchSignal.Pitch where prev_val = prev_pitch
 
 instance EvalPrev Derive.Tagged where
     prev_val args = case Derive.info_track_type (info args) of
-        Just TrackInfo.ControlTrack ->
+        Just ParseTitle.ControlTrack ->
             fmap (second Derive.TagControl) <$> prev_control coerced
-        Just TrackInfo.PitchTrack ->
+        Just ParseTitle.PitchTrack ->
             fmap (second Derive.TagPitch) <$> prev_pitch coerced
         typ -> Derive.throw $ "no previous value for track type " ++ show typ
         where

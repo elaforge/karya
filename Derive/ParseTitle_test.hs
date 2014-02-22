@@ -2,13 +2,13 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
-module Derive.TrackInfo_test where
+module Derive.ParseTitle_test where
 import Util.Test
-import qualified Derive.TrackInfo as TrackInfo
+import qualified Derive.ParseTitle as ParseTitle
 
 
 test_parse_unparse_control = do
-    let f = fmap TrackInfo.unparse_control . TrackInfo.parse_control
+    let f = fmap ParseTitle.unparse_control . ParseTitle.parse_control
     equal (f "*") (Right "*")
     equal (f "*scale") (Right "*scale")
     equal (f "*scale #") (Right "*scale")
@@ -23,6 +23,6 @@ test_parse_unparse_control = do
     left_like (f "a b c") "control track must be one of"
 
 test_parse_unparse_note = do
-    let f = fmap TrackInfo.unparse_note . TrackInfo.parse_note
+    let f = fmap ParseTitle.unparse_note . ParseTitle.parse_note
     equal (f ">") (Right ">")
     equal (f ">x | abc") (Right ">x | abc")

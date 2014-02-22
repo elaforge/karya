@@ -28,8 +28,8 @@ import qualified Derive.Derive as Derive
 import qualified Derive.Deriver.Internal as Internal
 import qualified Derive.Environ as Environ
 import qualified Derive.LEvent as LEvent
+import qualified Derive.ParseTitle as ParseTitle
 import qualified Derive.Score as Score
-import qualified Derive.TrackInfo as TrackInfo
 import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.Pitch as Pitch
@@ -117,7 +117,7 @@ scale_from_titles block_id track_id = do
         Nothing -> Nothing
         Just (parents, children) -> msum $ map scale_of (children ++ parents)
     where
-    scale_of track = case TrackInfo.title_to_scale (State.track_title track) of
+    scale_of track = case ParseTitle.title_to_scale (State.track_title track) of
         Just scale_id | scale_id /= Pitch.empty_scale -> Just scale_id
         _ -> Nothing
 

@@ -31,10 +31,10 @@ import qualified Ui.State as State
 
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Create as Create
+import qualified Derive.ParseTitle as ParseTitle
 import qualified Derive.Scale.Twelve as Twelve
 import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
-import qualified Derive.TrackInfo as TrackInfo
 
 import qualified Perform.Midi.Control as Control
 import qualified Perform.Pitch as Pitch
@@ -137,9 +137,9 @@ convert_tracks midi_tracks = (concatMap convert tracks, skeleton, warns)
     (tracks, warns) = mconcat $ map convert_track midi_tracks
     skeleton = Skeleton.make $ note_track_edges $ map snd tracks
     convert (inst, NoteTrack notes pitches controls) =
-        (TrackInfo.instrument_to_title inst, notes)
+        (ParseTitle.instrument_to_title inst, notes)
         : ("*", pitches)
-        : [(TrackInfo.control_to_title control, track)
+        : [(ParseTitle.control_to_title control, track)
             | (control, track) <- Map.toAscList controls]
 
 note_track_edges :: [NoteTrack] -> [Skeleton.Edge]

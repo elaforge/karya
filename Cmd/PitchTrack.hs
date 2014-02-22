@@ -25,8 +25,8 @@ import qualified Cmd.Perf as Perf
 import qualified Cmd.Selection as Selection
 
 import qualified Derive.ParseBs as ParseBs
+import qualified Derive.ParseTitle as ParseTitle
 import qualified Derive.Scale as Scale
-import qualified Derive.TrackInfo as TrackInfo
 import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.Pitch as Pitch
@@ -223,7 +223,7 @@ pitches = ModifyEvents.selection . pitch_tracks
 
 -- | Apply a ModifyPitch to only pitch tracks.
 pitch_tracks :: (Cmd.M m) => ModifyPitch -> ModifyEvents.Track m
-pitch_tracks f = ModifyEvents.tracks_named TrackInfo.is_pitch_track $
+pitch_tracks f = ModifyEvents.tracks_named ParseTitle.is_pitch_track $
         \block_id track_id events -> do
     scale_id <- Perf.get_scale_id block_id (Just track_id)
     scale <- Cmd.get_scale "PitchTrack.pitches" scale_id

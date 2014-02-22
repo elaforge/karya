@@ -19,7 +19,7 @@ import qualified Cmd.Msg as Msg
 import qualified Cmd.NoteTrack as NoteTrack
 import qualified Cmd.Selection as Selection
 
-import qualified Derive.TrackInfo as TrackInfo
+import qualified Derive.ParseTitle as ParseTitle
 import qualified Perform.NN as NN
 import Types
 
@@ -193,15 +193,15 @@ simplify = simplify_tracks . UiTest.extract_tracks . fst
 -- -> [(">", [(0, 1, "4c")])]
 simplify_tracks :: [UiTest.TrackSpec] -> [UiTest.TrackSpec]
 simplify_tracks tracks =
-    case Seq.split_with (TrackInfo.is_note_track . txt . fst) tracks of
+    case Seq.split_with (ParseTitle.is_note_track . txt . fst) tracks of
         [] -> []
         [] : groups -> map simplify groups
         hd : _ ->
             error $ "simplify_tracks: extra tracks in front: " ++ show hd
     where
     simplify [(note, notes), (pitch, pitches)]
-        | TrackInfo.is_note_track (txt note)
-            && TrackInfo.is_pitch_track (txt pitch) =
+        | ParseTitle.is_note_track (txt note)
+            && ParseTitle.is_pitch_track (txt pitch) =
                 (note, combine "" notes pitches)
     simplify tracks = error $ "simplify_tracks: expected a note and a pitch: "
         ++ show tracks

@@ -3,7 +3,7 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 {-# LANGUAGE ViewPatterns #-}
--- | Utilities to deal with track titles.
+-- | Utilities to deal with block and track titles.
 --
 -- This module is used by both Cmd and Derive since Cmd also wants to know
 -- track types for track specific cmds.
@@ -11,7 +11,7 @@
 -- Note track titles are just tracklang expressions, so no extra code is
 -- needed.  Control tracks titles are just a hardcoded list of special cases,
 -- though they are parsed as tracklang Vals.
-module Derive.TrackInfo where
+module Derive.ParseTitle where
 import qualified Data.List.NonEmpty as NonEmpty
 import qualified Data.Maybe as Maybe
 import qualified Data.Text as Text
@@ -27,6 +27,14 @@ import qualified Derive.TrackLang as TrackLang
 import qualified Perform.Pitch as Pitch
 
 
+-- * blocks
+
+-- | A block title is a normal expression, applied as a transform.
+parse_block :: Text -> Either String TrackLang.Expr
+parse_block = Parse.parse_expr . Parse.from_text
+
+-- * tracks
+
 data Type = TempoTrack | ControlTrack | PitchTrack | NoteTrack
     deriving (Eq, Show)
 
@@ -39,7 +47,7 @@ track_type title
     | is_tempo_track title = TempoTrack
     | otherwise = ControlTrack
 
--- * control tracks
+-- ** control
 
 data ControlType =
     -- | Control track with an optional combining operator.
@@ -156,7 +164,31 @@ unparse_control_vals ctype = case ctype of
         | otherwise = TrackLang.VSymbol $ TrackLang.Symbol (unparse_typed c)
     empty_control = TrackLang.VControl $ TrackLang.LiteralControl Controls.null
 
--- * note tracks
+-- | Convert a track title to its control.
+title_to_control :: Text -> Maybe Score.Control
+title_to_control title = case parse_control title of
+    Right (Control _ cont) -> Just (Score.typed_val cont)
+    _ -> Nothing
+
+control_to_title :: Score.Control -> Text
+control_to_title = Score.control_name
+
+-- | A pitch track is also considered a control track.
+is_control_track :: Text -> Bool
+is_control_track = not . is_note_track
+
+-- | This is like 'is_control_track' but doesn't include pitch tracks.
+is_signal_track :: Text -> Bool
+is_signal_track title = is_control_track title && case parse_control title of
+    Right (Control {}) -> True
+    _ -> False
+
+is_tempo_track :: Text -> Bool
+is_tempo_track title = case parse_control title of
+    Right (Tempo {}) -> True
+    _ -> False
+
+-- ** note
 
 -- | Parse a note track like @>inst@ as @note-track >inst@.  Other than
 -- this, note track titles are normal expressions.
@@ -186,7 +218,7 @@ is_note_track = Maybe.isJust . title_to_instrument
 strip_expr :: Text -> Text
 strip_expr = Text.stripEnd . Text.takeWhile (/='|')
 
--- * pitch
+-- ** pitch
 
 title_to_scale :: Text -> Maybe Pitch.ScaleId
 title_to_scale title = case parse_control title of
@@ -198,29 +230,3 @@ scale_to_title scale_id = unparse_control (Pitch scale_id Nothing)
 
 is_pitch_track :: Text -> Bool
 is_pitch_track = Maybe.isJust . title_to_scale
-
--- * control
-
--- | Convert a track title to its control.
-title_to_control :: Text -> Maybe Score.Control
-title_to_control title = case parse_control title of
-    Right (Control _ cont) -> Just (Score.typed_val cont)
-    _ -> Nothing
-
-control_to_title :: Score.Control -> Text
-control_to_title = Score.control_name
-
--- | A pitch track is also considered a control track.
-is_control_track :: Text -> Bool
-is_control_track = not . is_note_track
-
--- | This is like 'is_control_track' but doesn't include pitch tracks.
-is_signal_track :: Text -> Bool
-is_signal_track title = is_control_track title && case parse_control title of
-    Right (Control {}) -> True
-    _ -> False
-
-is_tempo_track :: Text -> Bool
-is_tempo_track title = case parse_control title of
-    Right (Tempo {}) -> True
-    _ -> False

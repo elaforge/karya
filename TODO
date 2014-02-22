@@ -3,7 +3,7 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
-  - perhaps block title parsing should also go in TrackInfo, it's ad-hoc at
+  * perhaps block title parsing should also go in TrackInfo, it's ad-hoc at
     the moment, but is just a normal expr.  I could rename TrackInfo to
     ParseTitle.
   * mk build/test/RunTests-Xyz is broken

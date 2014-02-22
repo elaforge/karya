@@ -30,9 +30,9 @@ import qualified Derive.Call as Call
 import qualified Derive.Call.BlockUtil as BlockUtil
 import qualified Derive.Derive as Derive
 import qualified Derive.Deriver.Internal as Internal
+import qualified Derive.ParseTitle as ParseTitle
 import qualified Derive.Slice as Slice
 import qualified Derive.Stack as Stack
-import qualified Derive.TrackInfo as TrackInfo
 import qualified Derive.TrackLang as TrackLang
 
 import Types
@@ -142,7 +142,7 @@ non_bottom_note_track :: TrackTree.EventsTree -> Maybe TrackTree.TrackEvents
 non_bottom_note_track tree = Seq.head (concatMap go tree)
     where
     go (Tree.Node track subs)
-        | TrackInfo.is_note_track (TrackTree.tevents_title track)
+        | ParseTitle.is_note_track (TrackTree.tevents_title track)
             && not (null subs) = [track]
         | otherwise = concatMap go subs
 

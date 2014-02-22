@@ -23,10 +23,10 @@ import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Info as Info
 import qualified Derive.Call.Bali.Kotekan as Kotekan
 import qualified Derive.Environ as Environ
+import qualified Derive.ParseTitle as ParseTitle
 import qualified Derive.RestrictedEnviron as RestrictedEnviron
 import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
-import qualified Derive.TrackInfo as TrackInfo
 import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.Midi.Instrument as Instrument
@@ -241,13 +241,13 @@ load inst_ = do
     -- Deallocate the old instrument.
     title <- State.get_track_title
         =<< State.get_event_track_at block_id tracknum
-    whenJust (TrackInfo.title_to_instrument title) dealloc_instrument
+    whenJust (ParseTitle.title_to_instrument title) dealloc_instrument
 
     dev <- Cmd.require_msg ("no device for " ++ show inst) =<< device_of inst
     chan <- find_chan_for dev
     alloc_instrument inst [((dev, chan), Nothing)]
 
-    State.set_track_title track_id (TrackInfo.instrument_to_title inst)
+    State.set_track_title track_id (ParseTitle.instrument_to_title inst)
     initialize inst chan
     Log.notice $ "allocating " ++ show (dev, chan) ++ " to " ++ show inst
     -- Log.notice $ "deallocating " ++ show old_inst ++ ", allocating "
@@ -296,7 +296,7 @@ dealloc_instrument inst = State.modify $
 block_instruments :: BlockId -> Cmd.CmdL [Score.Instrument]
 block_instruments block_id = do
     titles <- fmap (map State.track_title) (TrackTree.tracks_of block_id)
-    return $ mapMaybe TrackInfo.title_to_instrument titles
+    return $ mapMaybe ParseTitle.title_to_instrument titles
 
 -- | Try to automatically create an instrument config based on the instruments
 -- found in the given block.  It simply gives each instrument on a device a

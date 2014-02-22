@@ -3,13 +3,13 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 module Derive.ParseSkeleton where
-import qualified Util.Seq as Seq
 import qualified Data.Tree as Tree
-import qualified Util.Tree
 
-import qualified Ui.State as State
+import qualified Util.Seq as Seq
+import qualified Util.Tree
 import qualified Ui.Skeleton as Skeleton
-import qualified Derive.TrackInfo as TrackInfo
+import qualified Ui.State as State
+import qualified Derive.ParseTitle as ParseTitle
 
 
 -- | A parser figures out a skeleton based on track titles and position.
@@ -42,7 +42,7 @@ parse_to_tree :: Bool -> [State.TrackInfo] -> Tree.Forest State.TrackInfo
 parse_to_tree reversed tracks = concatMap parse groups
     where
     groups =
-        Seq.split_with (TrackInfo.is_tempo_track . State.track_title) tracks
+        Seq.split_with (ParseTitle.is_tempo_track . State.track_title) tracks
     parse = if reversed then reverse_tempo_group else parse_tempo_group
 
 parse_tempo_group :: [State.TrackInfo] -> Tree.Forest State.TrackInfo
@@ -51,7 +51,7 @@ parse_tempo_group tracks = case groups of
         non_note : ngroups ->
             descend non_note (concatMap parse_note_group ngroups)
     where
-    groups = Seq.split_with (TrackInfo.is_note_track . State.track_title)
+    groups = Seq.split_with (ParseTitle.is_note_track . State.track_title)
         tracks
 
 reverse_tempo_group :: [State.TrackInfo] -> Tree.Forest State.TrackInfo
@@ -59,7 +59,7 @@ reverse_tempo_group [] = []
 reverse_tempo_group (track:tracks) =
     [Tree.Node track $ concatMap parse_note_group (shift groups)]
     where
-    groups = Seq.split_with (TrackInfo.is_note_track . State.track_title)
+    groups = Seq.split_with (ParseTitle.is_note_track . State.track_title)
         tracks
     shift (group : (note : rest) : gs) = (group ++ [note]) : shift (rest : gs)
     shift gs = gs

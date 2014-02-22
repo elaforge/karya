@@ -40,8 +40,8 @@ import qualified Cmd.Selection as Selection
 import qualified Cmd.TimeStep as TimeStep
 
 import qualified Derive.ParseBs as ParseBs
+import qualified Derive.ParseTitle as ParseTitle
 import qualified Derive.ShowVal as ShowVal
-import qualified Derive.TrackInfo as TrackInfo
 
 import qualified Perform.RealTime as RealTime
 import qualified App.Config as Config
@@ -245,16 +245,16 @@ event_style has_note_children title event =
         | otherwise = Config.integrated_style
     syntax (Left _) = Config.Error
     syntax (Right _)
-        | TrackInfo.is_note_track title = if has_note_children
+        | ParseTitle.is_note_track title = if has_note_children
             then Config.NoteTransformer else Config.Default
-        | TrackInfo.is_pitch_track title = Config.Pitch
+        | ParseTitle.is_pitch_track title = Config.Pitch
         | otherwise = Config.Control
 
 -- | Set the track background color.
 track_bg :: Track.Track -> Color.Color
 track_bg track
-    | TrackInfo.is_pitch_track title = Color.brightness 1.7 Config.pitch_color
-    | TrackInfo.is_control_track title =
+    | ParseTitle.is_pitch_track title = Color.brightness 1.7 Config.pitch_color
+    | ParseTitle.is_control_track title =
         Color.brightness 1.7 Config.control_color
     | otherwise = Track.track_bg track
     where title = Track.track_title track

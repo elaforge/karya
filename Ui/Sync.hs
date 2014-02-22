@@ -54,7 +54,7 @@ import qualified Ui.Ui as Ui
 import qualified Ui.Update as Update
 
 import qualified Cmd.Cmd as Cmd
-import qualified Derive.TrackInfo as TrackInfo
+import qualified Derive.ParseTitle as ParseTitle
 import qualified App.Config as Config
 import Types
 
@@ -422,7 +422,7 @@ update_set_style _ _ _ (track_bg, set_style) = (track_bg, set_style False)
 has_note_children :: (State.M m) => BlockId -> TrackId -> m Bool
 has_note_children block_id track_id = do
     children <- fromMaybe [] <$> TrackTree.children_of block_id track_id
-    return $ any (TrackInfo.is_note_track . State.track_title) children
+    return $ any (ParseTitle.is_note_track . State.track_title) children
 
 merged_events_of :: State.State -> Block.Block -> TrackNum -> [Events.Events]
 merged_events_of state block tracknum =

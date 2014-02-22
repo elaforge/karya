@@ -50,7 +50,7 @@ import qualified Derive.Call.Control as Control
 import qualified Derive.Call.Pitch as Pitch
 import qualified Derive.Derive as Derive
 import qualified Derive.ParseBs as ParseBs
-import qualified Derive.TrackInfo as TrackInfo
+import qualified Derive.ParseTitle as ParseTitle
 
 import Types
 
@@ -191,9 +191,9 @@ slice exclusive around start end insert_event = map do_slice
         sliced_start = fst (TrackTree.tevents_range track)
     -- Extract events from an intermediate track.
     extract_events track
-        | TrackInfo.is_note_track title =
+        | ParseTitle.is_note_track title =
             extract_note_events exclusive start end es
-        | otherwise = extract_control_events (TrackInfo.is_pitch_track title)
+        | otherwise = extract_control_events (ParseTitle.is_pitch_track title)
             around start end es
         where
         es = TrackTree.tevents_events track
@@ -418,7 +418,7 @@ event_ranges start end = nonoverlapping . to_ranges
 -- * util
 
 is_note :: TrackTree.TrackEvents -> Bool
-is_note = TrackInfo.is_note_track . TrackTree.tevents_title
+is_note = ParseTitle.is_note_track . TrackTree.tevents_title
 
 track_null :: TrackTree.TrackEvents -> Bool
 track_null = Events.null . TrackTree.tevents_events

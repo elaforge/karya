@@ -29,6 +29,7 @@ import qualified Derive.Controls as Controls
 import qualified Derive.Derive as Derive
 import qualified Derive.Environ as Environ
 import qualified Derive.LEvent as LEvent
+import qualified Derive.ParseTitle as ParseTitle
 import qualified Derive.PitchSignal as PitchSignal
 import qualified Derive.Pitches as Pitches
 import qualified Derive.Scale as Scale
@@ -36,7 +37,6 @@ import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Sig as Sig
 import Derive.Sig (defaulted, required)
-import qualified Derive.TrackInfo as TrackInfo
 import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.Pitch as Pitch
@@ -82,17 +82,17 @@ c_next_val = Derive.val_call "next-val" Tags.next
         start <- Derive.real (Event.start event)
         next_val event start (Derive.info_track_type (Derive.passed_info args))
 
-next_val :: Event.Event -> RealTime -> Maybe TrackInfo.Type
+next_val :: Event.Event -> RealTime -> Maybe ParseTitle.Type
     -> Derive.Deriver TrackLang.Val
 next_val event start ttype = case ttype of
-    Just TrackInfo.ControlTrack -> eval_control start event
-    Just TrackInfo.TempoTrack -> eval_control start event
-    Just TrackInfo.PitchTrack -> do
+    Just ParseTitle.ControlTrack -> eval_control start event
+    Just ParseTitle.TempoTrack -> eval_control start event
+    Just ParseTitle.PitchTrack -> do
         signal <- eval event
         case PitchSignal.at start signal of
             Nothing -> Derive.throw "next pitch event didn't emit a pitch"
             Just pitch -> return $ TrackLang.VPitch pitch
-    Just TrackInfo.NoteTrack ->
+    Just ParseTitle.NoteTrack ->
         Derive.throw "can't get next value for note tracks"
     Nothing -> Derive.throw "no track type"
     where

@@ -21,7 +21,7 @@ import qualified Cmd.NoteTrackKeymap as NoteTrackKeymap
 import qualified Cmd.Perf as Perf
 import qualified Cmd.PitchTrack as PitchTrack
 
-import qualified Derive.TrackInfo as TrackInfo
+import qualified Derive.ParseTitle as ParseTitle
 import qualified Instrument.MidiDb as MidiDb
 import Types
 
@@ -50,7 +50,7 @@ get_track_cmds = do
     track_title <- maybe (return Nothing) (fmap Just . State.get_track_title)
         maybe_track_id
     let icmds = case (track_title, maybe_info) of
-            (Just title, Just inst) | TrackInfo.is_note_track title ->
+            (Just title, Just inst) | ParseTitle.is_note_track title ->
                 Cmd.inst_cmds $ MidiDb.info_code inst
             _ -> []
     edit_state <- Cmd.gets Cmd.state_edit
@@ -108,7 +108,7 @@ input_cmds edit_mode track = universal ++ case Info.track_type track of
         [ PitchTrack.cmd_record_note_status, MidiThru.cmd_midi_thru
         , NoteEntry.edit_append
         ]
-    is_tempo = TrackInfo.is_tempo_track $
+    is_tempo = ParseTitle.is_tempo_track $
         State.track_title (Info.track_info track)
 
 -- | Track-specific Cmds.

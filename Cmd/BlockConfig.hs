@@ -29,7 +29,7 @@ import qualified Cmd.NoteTrack as NoteTrack
 import qualified Cmd.Selection as Selection
 import qualified Cmd.ViewConfig as ViewConfig
 
-import qualified Derive.TrackInfo as TrackInfo
+import qualified Derive.ParseTitle as ParseTitle
 import Types
 
 
@@ -65,7 +65,7 @@ toggle_merge_all block_id = do
     let note_pitches = do
             Info.Track note (Info.Note controls) <- tracks
             pitch <- maybe [] (:[]) $ List.find
-                (TrackInfo.is_pitch_track . State.track_title) controls
+                (ParseTitle.is_pitch_track . State.track_title) controls
             return (State.track_tracknum note, State.track_tracknum pitch)
     ifM (andM [track_merged block_id tracknum | (tracknum, _) <- note_pitches])
         (mapM_ (State.unmerge_track block_id . fst) note_pitches)

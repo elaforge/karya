@@ -64,10 +64,10 @@ import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Create as Create
 import qualified Cmd.Selection as Selection
 
+import qualified Derive.ParseTitle as ParseTitle
 import qualified Derive.PitchSignal as PitchSignal
 import qualified Derive.Score as Score
 import qualified Derive.Stack as Stack
-import qualified Derive.TrackInfo as TrackInfo
 
 import qualified Perform.Pitch as Pitch
 import Types
@@ -107,8 +107,8 @@ notes_overlap n1 n2 =
 -- * controls
 
 type Controls = Map.Map Control Events.Events
--- | A simplified version of 'TrackInfo.ControlType', since Notes don't support
--- all the forms of control tracks.
+-- | A simplified version of 'ParseTitle.ControlType', since Notes don't
+-- support all the forms of control tracks.
 data Control = Control Score.Control | Pitch Pitch.ScaleId
     deriving (Eq, Ord, Show)
 
@@ -116,15 +116,15 @@ instance Pretty.Pretty Control where
     pretty = untxt . control_to_title
 
 control_to_title :: Control -> Text
-control_to_title control = TrackInfo.unparse_control $ case control of
-    Control c -> TrackInfo.Control Nothing (Score.untyped c)
-    Pitch scale_id -> TrackInfo.Pitch scale_id Nothing
+control_to_title control = ParseTitle.unparse_control $ case control of
+    Control c -> ParseTitle.Control Nothing (Score.untyped c)
+    Pitch scale_id -> ParseTitle.Pitch scale_id Nothing
 
 title_to_control :: Text -> Either String Control
-title_to_control title = TrackInfo.parse_control title >>= \x -> case x of
-    TrackInfo.Control Nothing (Score.Typed Score.Untyped c) ->
+title_to_control title = ParseTitle.parse_control title >>= \x -> case x of
+    ParseTitle.Control Nothing (Score.Typed Score.Untyped c) ->
         return $ Control c
-    TrackInfo.Pitch scale_id Nothing -> return $ Pitch scale_id
+    ParseTitle.Pitch scale_id Nothing -> return $ Pitch scale_id
     _ -> Left $ "complicated controls unsupported: " <> untxt title
 
 -- | Put the pitch tracks next to the note, the rest go in alphabetical order.
@@ -245,7 +245,7 @@ extract_note_trees block_id track_ids =
     where
     -- | Accept the top level note tracks.
     wanted_track track_ids track =
-        TrackInfo.is_note_track (State.track_title track)
+        ParseTitle.is_note_track (State.track_title track)
         && State.track_id track `Set.member` track_ids
 
 -- | The whole thing fails if a title is unparseable or the control tracks have

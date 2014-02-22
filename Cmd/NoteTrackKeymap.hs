@@ -14,7 +14,7 @@ import Cmd.Keymap (command_char)
 import qualified Cmd.ModifyEvents as ModifyEvents
 import qualified Cmd.Selection as Selection
 
-import qualified Derive.TrackInfo as TrackInfo
+import qualified Derive.ParseTitle as ParseTitle
 
 
 make_keymap :: (Cmd.M m) => (Keymap.CmdMap m, [String])
@@ -28,7 +28,7 @@ make_keymap = Keymap.make_cmd_map $ concat
 add_transform_generator :: (Cmd.M m) => Text -> m ()
 add_transform_generator text =
     ModifyEvents.selection_advance $
-    ModifyEvents.tracks_named TrackInfo.is_note_track $
+    ModifyEvents.tracks_named ParseTitle.is_note_track $
     ModifyEvents.text $ ModifyEvents.pipeline add
     where
     add [] = [[text]]

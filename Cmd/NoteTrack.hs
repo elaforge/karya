@@ -42,8 +42,8 @@ import qualified Cmd.Selection as Selection
 
 import qualified Derive.Call as Call
 import qualified Derive.ParseBs as ParseBs
+import qualified Derive.ParseTitle as ParseTitle
 import qualified Derive.Score as Score
-import qualified Derive.TrackInfo as TrackInfo
 import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.Midi.Instrument as Instrument
@@ -163,8 +163,8 @@ cmd_val_edit msg = Cmd.suppress_history Cmd.ValEdit "note track val edit" $ do
         advance_mode <- get_state Cmd.state_advance
         when (advance_mode && not chord_mode) Selection.advance
 
-    is_pitch = TrackInfo.is_pitch_track
-    is_dyn = (== Just Score.c_dynamic) . TrackInfo.title_to_control
+    is_pitch = ParseTitle.is_pitch_track
+    is_dyn = (== Just Score.c_dynamic) . ParseTitle.title_to_control
     set_temp_sel pos maybe_tracknum = Selection.set_current
         Config.temporary_insert_selnum $
             fmap (\num -> Types.point_selection num pos) maybe_tracknum
@@ -269,7 +269,7 @@ cmd_method_edit msg = Cmd.suppress_history Cmd.MethodEdit
         (EditUtil.method_key -> Just key) -> do
             (block_id, tracknum, _, pos) <- Selection.get_insert
             (ctrack, create) <- this_control_track block_id tracknum
-                TrackInfo.is_pitch_track
+                ParseTitle.is_pitch_track
             when create $ create_pitch_track block_id ctrack
             PitchTrack.method_edit_at
                 (EditUtil.Pos block_id (track_control ctrack) pos 0) key
@@ -315,7 +315,7 @@ create_dyn_track :: (Cmd.M m) => BlockId -> ControlTrack -> m ()
 create_dyn_track block_id (ControlTrack note dyn) = do
     tid <- Create.empty_track block_id dyn
     State.splice_skeleton_below block_id dyn note
-    State.set_track_title tid (TrackInfo.control_to_title Score.c_dynamic)
+    State.set_track_title tid (ParseTitle.control_to_title Score.c_dynamic)
 
 -- | Ensure that a note event exists at the given spot.  An existing event is
 -- left alone, but if there is no existing event a new one will be created.

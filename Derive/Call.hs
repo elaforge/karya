@@ -80,6 +80,7 @@
 -}
 module Derive.Call where
 import qualified Data.ByteString.Char8 as B
+import qualified Data.Char as Char
 import qualified Data.List.NonEmpty as NonEmpty
 import qualified Data.Text as Text
 
@@ -98,10 +99,10 @@ import qualified Derive.Derive as Derive
 import qualified Derive.Deriver.Internal as Internal
 import qualified Derive.LEvent as LEvent
 import qualified Derive.ParseBs as ParseBs
+import qualified Derive.ParseTitle as ParseTitle
 import qualified Derive.PitchSignal as PitchSignal
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Stack as Stack
-import qualified Derive.TrackInfo as TrackInfo
 import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.Signal as Signal
@@ -225,14 +226,14 @@ eval_expr cinfo expr = do
 -- | Parse and apply a transform expression.
 apply_transform :: (Derive.Callable d) => String -> Text
     -> Derive.LogsDeriver d -> Derive.LogsDeriver d
-apply_transform name expr_str deriver = do
-    expr <- case ParseBs.parse_expr (ParseBs.from_text expr_str) of
-        Left err -> Derive.throw $ name ++ ": " ++ err
-        Right expr -> return expr
-    let transform = if Text.null expr_str then id
-            else apply_transformers info (NonEmpty.toList expr)
-        info = Derive.dummy_call_info 0 1 name
-    transform deriver
+apply_transform name expr_str deriver
+    | Text.all Char.isSpace expr_str = deriver
+    | otherwise = do
+        expr <- case ParseBs.parse_expr (ParseBs.from_text expr_str) of
+            Left err -> Derive.throw $ name ++ ": " ++ err
+            Right expr -> return expr
+        let info = Derive.dummy_call_info 0 1 name
+        apply_transformers info (NonEmpty.toList expr) deriver
 
 -- * derive_track
 
@@ -246,7 +247,7 @@ data TrackInfo = TrackInfo {
     , tinfo_shifted :: !ScoreTime
     , tinfo_sub_tracks :: !TrackTree.EventsTree
     , tinfo_events_around :: !([Event.Event], [Event.Event])
-    , tinfo_type :: !TrackInfo.Type
+    , tinfo_type :: !ParseTitle.Type
     , tinfo_inverted :: !Bool
     } deriving (Show)
 

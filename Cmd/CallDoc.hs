@@ -24,9 +24,9 @@ import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Perf as Perf
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Derive as Derive
+import qualified Derive.ParseTitle as ParseTitle
 import qualified Derive.Scale as Scale
 import qualified Derive.Sig as Sig
-import qualified Derive.TrackInfo as TrackInfo
 import qualified Derive.TrackLang as TrackLang
 
 import Types
@@ -350,7 +350,7 @@ track :: (Cmd.M m) => BlockId -> TrackId -> m Document
 track block_id track_id = do
     dynamic <- Cmd.require_msg "dynamic for doc"
         =<< Perf.lookup_dynamic block_id (Just track_id)
-    ttype <- TrackInfo.track_type <$> State.get_track_title track_id
+    ttype <- ParseTitle.track_type <$> State.get_track_title track_id
     return $ track_sections ttype (Derive.state_scopes dynamic)
 
 -- | (call kind, docs)
@@ -359,15 +359,15 @@ track block_id track_id = do
 -- transformer.
 type Section = (Text, [ScopeDoc])
 
-track_sections :: TrackInfo.Type -> Derive.Scopes -> [Section]
+track_sections :: ParseTitle.Type -> Derive.Scopes -> [Section]
 track_sections ttype (Derive.Scopes (Derive.Scope gnote gcontrol gpitch)
         (Derive.Scope tnote tcontrol tpitch) val) =
     (\d -> [d, ("val", scope_doc ValCall val)]) $ case ttype of
-        TrackInfo.NoteTrack -> ("note", merged_scope_docs gnote tnote)
-        TrackInfo.ControlTrack ->
+        ParseTitle.NoteTrack -> ("note", merged_scope_docs gnote tnote)
+        ParseTitle.ControlTrack ->
             ("control", merged_scope_docs gcontrol tcontrol)
-        TrackInfo.TempoTrack -> ("tempo", merged_scope_docs gcontrol tcontrol)
-        TrackInfo.PitchTrack -> ("pitch", merged_scope_docs gpitch tpitch)
+        ParseTitle.TempoTrack -> ("tempo", merged_scope_docs gcontrol tcontrol)
+        ParseTitle.PitchTrack -> ("pitch", merged_scope_docs gpitch tpitch)
 
 -- | Documentation for one type of scope: (scope_source, calls)
 type ScopeDoc = (Text, [CallBindings])
