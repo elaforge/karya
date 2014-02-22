@@ -113,8 +113,8 @@ merge_tracks :: State.M m => BlockId -> Convert.Tracks
     -> [Block.DeriveDestination] -> m [Block.DeriveDestination]
 merge_tracks block_id tracks dests = do
     track_ids <- all_block_tracks block_id
-    new_dests <- mapMaybeM (merge_pairs block_id)
-        (pair_tracks track_ids tracks dests)
+    new_dests <- mapMaybeM (merge_pairs block_id) $
+        pair_tracks track_ids tracks dests
     add_derive_skeleton block_id new_dests
     return new_dests
 

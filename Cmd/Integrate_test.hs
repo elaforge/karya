@@ -246,7 +246,7 @@ test_score_and_derive_integrate = do
 
 test_double_integrate = do
     let states = mkstates_tracks "" [(">s/i1", [(0, 1, "")])]
-    res <- start states $ do
+    res <- start states $
         State.set_track_title (UiTest.mk_tid 1) ">s/i1 | < | <"
     -- It threw but that winds up being logged.
     equal (e_tracks res)

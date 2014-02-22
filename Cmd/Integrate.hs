@@ -48,7 +48,6 @@
     integrate call is still there and just creates another.  Be quick!
 -}
 module Cmd.Integrate (cmd_integrate, integrate, score_integrate) where
-import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Text as Text
 
@@ -104,11 +103,9 @@ integrate_tracks block_id track_id tracks = do
     itracks <- Block.block_integrated_tracks <$> State.get_block block_id
     let dests = [dests | (source_id, Block.DeriveDestinations dests) <- itracks,
             source_id == track_id]
-    (empty, new_dests) <- List.partition null <$> if null dests
+    new_dests <- if null dests
         then (:[]) <$> Merge.merge_tracks block_id tracks []
         else mapM (Merge.merge_tracks block_id tracks) dests
-    unless (null empty) $
-        Log.warn $ "empty integration from " <> show (block_id, track_id)
     unless (null new_dests) $
         Log.notice $ "derive integrated " <> show track_id <> " to: "
             <> pretty (map (map (fst . Block.dest_note)) new_dests)
@@ -131,9 +128,8 @@ integrate_block source_id tracks = do
     Log.notice $ "derive integrated " <> show source_id <> " to: "
         <> pretty (map fst new_blocks)
     forM_ new_blocks $ \(new_block_id, track_dests) ->
-        unless (null track_dests) $
-            State.set_integrated_block new_block_id $
-                Just (source_id, Block.DeriveDestinations track_dests)
+        State.set_integrated_block new_block_id $
+            Just (source_id, Block.DeriveDestinations track_dests)
     Cmd.derive_immediately (map fst new_blocks)
     where
     integrated_from blocks =

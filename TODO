@@ -4,7 +4,8 @@ LEGEND
 
 UNSORTED
   - perhaps block title parsing should also go in TrackInfo, it's ad-hoc at
-    the moment, but is just a normal expr.
+    the moment, but is just a normal expr.  I could rename TrackInfo to
+    ParseTitle.
   * mk build/test/RunTests-Xyz is broken
   - Cmd/Repl.hs:39:10: fatal error: 'hsconfig.h' file not found
     #include "hsconfig.h"
@@ -59,7 +60,7 @@ UNSORTED
       Is there really a use for this, other than consistency?
     * make sure derive and score integration cooperate
     * a track with '< | <' or '< | <!' creates endless new ones
-    - empty integration should create a single empty note track
+    / empty integration should create a single empty note track
     test
       * merge operations
       * full respond cycle
