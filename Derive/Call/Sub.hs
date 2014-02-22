@@ -204,20 +204,20 @@ sub_events args = case Derive.info_sub_events (Derive.passed_info args) of
     mkevent (shift, stretch, tree) = Event
         { event_start = shift
         , event_duration = stretch
-        , event_deriver = Derive.d_stretch
+        , event_deriver = Derive.stretch
             (if stretch == 0 then 1 else recip stretch)
             (BlockUtil.derive_tracks tree)
         }
 
 -- | Place and merge a list of Events.
 place :: [Event] -> Derive.NoteDeriver
-place = Derive.d_merge . map (\(Event s d n) -> Derive.d_place s d n)
+place = Derive.d_merge . map (\(Event s d n) -> Derive.place s d n)
 
 -- | Fit the given events into a time range.  Any leading space (time between
 -- the start of the range and the first Event) and trailing space is
 -- eliminated.
 place_at :: (ScoreTime, ScoreTime) -> [Event] -> Derive.NoteDeriver
-place_at (start, end) notes = Derive.d_place start factor $
+place_at (start, end) notes = Derive.place start factor $
     place [note { event_start = event_start note - note_start } | note <- notes]
     where
     factor = (end - start) / (note_end - note_start)

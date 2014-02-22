@@ -188,12 +188,12 @@ add_code (pos, code) = Derive.modify_val (position_env pos) $
 -- a 'Types.Event'.
 code :: (ScoreTime, ScoreTime) -> Ly -> Derive.NoteDeriver
 code (start, dur) code = Derive.with_val Constants.v_ly_prepend code $
-    Derive.with_no_pitch $ Derive.d_place start dur Util.note
+    Derive.with_no_pitch $ Derive.place start dur Util.note
 
 -- | Like 'code', but for 0 duration code fragments, and can either put them
 -- before or after notes that occur at the same time.
 code0 :: ScoreTime -> Code -> Derive.NoteDeriver
-code0 start (pos_, code) = with (Derive.d_place start 0 Util.note)
+code0 start (pos_, code) = with (Derive.place start 0 Util.note)
     where
     -- SuffixFirst and SuffixLast are not used for 0 dur events, so make it
     -- less error-prone by getting rid of them.  Ick.
@@ -577,7 +577,7 @@ global_code0_call :: Text -> Text -> Sig.Parser a
     -> Make.Calls Derive.Note
 global_code0_call name doc sig call =
     make_code_call name doc sig $ \val args ->
-        global (call val (Derive.d_place (Args.start args) 0 Util.note))
+        global (call val (Derive.place (Args.start args) 0 Util.note))
 
 -- | Emit a free-standing fragment of lilypond code.
 make_code_call :: Text -> Text -> Sig.Parser a

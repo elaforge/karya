@@ -176,7 +176,7 @@ test_real_trill = do
         Right [(0, 0), (0.5, -1)]
 
     -- Trill speed is in real time and not affected by stretch.
-    equal (run $ Derive.d_stretch 2 $ f (cnst 1) (cnst 2)) $
+    equal (run $ Derive.stretch 2 $ f (cnst 1) (cnst 2)) $
         Right [(0, 0), (0.5, 1), (1, 0), (1.5, 1)]
 
     -- Changing depth signal.
@@ -200,7 +200,7 @@ test_score_trill = do
         Right [(0, 0), (0.5, 1), (1, 0), (1.5, 1)]
 
     -- Trill speed affected by stretch.
-    equal (run $ Derive.d_stretch 2 $ f 1 (cnst 1) (cnst 2)) $
+    equal (run $ Derive.stretch 2 $ f 1 (cnst 1) (cnst 2)) $
         Right [(0, 0), (1, 1)]
 
 mkcontrol :: Score.Type -> Signal.Control -> TrackLang.ValControl

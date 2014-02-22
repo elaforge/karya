@@ -213,7 +213,7 @@ play_output voice = Derive.d_merge_asc . concatMap go
         Derive.with_val Environ.voice voice $
             Util.add_attrs (strike_attrs strike) $
             Util.with_symbolic_pitch (TrackLang.call sym []) start $
-            Derive.d_place start dur Util.note
+            Derive.place start dur Util.note
         where sym = TrackLang.Symbol $ Pitch.note_text $ show_pitch pitch
 
 -- | Convert the strike to lower-level attributes for the actual instrument.

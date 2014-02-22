@@ -314,7 +314,7 @@ realize_notes start pitch =
     mconcat . map note . dropWhile ((<=start) . note_start)
     where
     note (Note start dur inst steps attrs) =
-        Derive.d_place start dur $
+        Derive.place start dur $
         maybe id Derive.with_instrument inst $
         Util.add_attrs attrs $
         Util.pitched_note (Pitches.transpose_d steps pitch)

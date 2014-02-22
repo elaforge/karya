@@ -286,26 +286,26 @@ with_warp f = local $ \st -> st { state_warp = f (state_warp st) }
 
 -- ** warp
 
-d_at :: ScoreTime -> Deriver a -> Deriver a
-d_at shift = d_warp (Score.id_warp { Score.warp_shift = shift })
+at :: ScoreTime -> Deriver a -> Deriver a
+at shift = warp (Score.id_warp { Score.warp_shift = shift })
 
-d_stretch :: ScoreTime -> Deriver a -> Deriver a
-d_stretch factor = d_warp (Score.id_warp { Score.warp_stretch = factor })
+stretch :: ScoreTime -> Deriver a -> Deriver a
+stretch factor = warp (Score.id_warp { Score.warp_stretch = factor })
 
--- | 'd_at' and 'd_stretch' in one.  It's a little faster than using them
+-- | 'at' and 'stretch' in one.  It's a little faster than using them
 -- separately.
-d_place :: ScoreTime -> ScoreTime -> Deriver a -> Deriver a
-d_place shift stretch = d_warp
+place :: ScoreTime -> ScoreTime -> Deriver a -> Deriver a
+place shift stretch = warp
     (Score.id_warp { Score.warp_stretch = stretch, Score.warp_shift = shift })
 
 -- | Low level warp function.
 --
 -- Previously, this would disallow <=0 stretch, but it turns out to be useful
 -- to stretch events to 0, and to negative durations.
-d_warp :: Score.Warp -> Deriver a -> Deriver a
-d_warp warp deriver
-    | Score.is_id_warp warp = deriver
-    | otherwise = modify_warp (\w -> Score.compose_warps w warp) deriver
+warp :: Score.Warp -> Deriver a -> Deriver a
+warp score_warp deriver
+    | Score.is_id_warp score_warp = deriver
+    | otherwise = modify_warp (\w -> Score.compose_warps w score_warp) deriver
 
 modify_warp :: (Score.Warp -> Score.Warp) -> Deriver a -> Deriver a
 modify_warp modify = local $ \st -> st { state_warp = modify (state_warp st) }

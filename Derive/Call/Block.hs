@@ -79,7 +79,7 @@ c_block block_id = Derive.make_call ("block " <> showt block_id) Tags.prelude
         -- on the stack.
         Internal.with_stack_block block_id (Cache.block run args)
     where
-    run args = Derive.d_place start (end-start)
+    run args = Derive.place start (end-start)
             (mangle_controls args (d_block block_id))
         where (start, end) = Args.range args
     mangle_controls args
@@ -95,7 +95,7 @@ block_call_doc =
 -- | Replace all controls and pitches with constants from ScoreTime 1.
 -- This is to support arrival notes.  If a block call has negative duration,
 -- then its controls should be taken from its start time, which is the end of
--- the event, time-wise.  Since d_place has already been called, that's
+-- the event, time-wise.  Since 'Derive.place' has already been called, that's
 -- ScoreTime 1.
 --
 -- Details in "Derive.Call.Post.ArrivalNote".
@@ -165,7 +165,7 @@ c_clip = make_block_call "clip"
     $ \block_id dur args -> do
         end <- Derive.real (snd (Args.range args))
         takeWhile (event_before end) <$>
-            Derive.d_place (Args.start args) dur (d_block block_id)
+            Derive.place (Args.start args) dur (d_block block_id)
 
 c_clip_start :: Derive.Generator Derive.Note
 c_clip_start = make_block_call "Clip"
@@ -174,7 +174,7 @@ c_clip_start = make_block_call "Clip"
     $ \block_id dur args -> do
         start <- Args.real_start args
         dropWhile (event_before start) <$>
-            Derive.d_place (Args.end args - dur) dur (d_block block_id)
+            Derive.place (Args.end args - dur) dur (d_block block_id)
 
 -- ** loop
 
@@ -188,7 +188,7 @@ c_loop = make_block_call "loop"
             starts = take repeats $ Seq.range_ start dur
         real_end <- Derive.real end
         takeWhile (event_before real_end) <$> mconcat
-            [Derive.d_place s dur (d_block block_id) | s <- starts]
+            [Derive.place s dur (d_block block_id) | s <- starts]
 
 c_tile :: Derive.Generator Derive.Note
 c_tile = make_block_call "tile"
@@ -205,7 +205,7 @@ c_tile = make_block_call "tile"
         real_end <- Derive.real end
         real_start <- Derive.real start
         dropWhile (event_before real_start) . takeWhile (event_before real_end)
-            <$> mconcat [Derive.d_place s dur (d_block block_id) | s <- starts]
+            <$> mconcat [Derive.place s dur (d_block block_id) | s <- starts]
 
 -- ** util
 
@@ -251,7 +251,7 @@ c_control_block block_id = Derive.make_call "control-block" Tags.prelude
     ) $
     Sig.call0 $ \args -> do
         let (start, end) = Args.range args
-        Derive.d_place start (end-start) (d_control_block block_id)
+        Derive.place start (end-start) (d_control_block block_id)
 
 d_control_block :: BlockId -> Derive.ControlDeriver
 d_control_block block_id = Internal.with_stack_block block_id $ do

@@ -125,7 +125,7 @@ eval_one_at :: (Derive.Callable d) => ScoreTime -> ScoreTime -> TrackLang.Expr
     -> Derive.LogsDeriver d
 eval_one_at start dur expr = eval_expr cinfo expr
     where
-    -- Set the event start and duration instead of using Derive.d_place since
+    -- Set the event start and duration instead of using Derive.place since
     -- this way I can have zero duration events.
     cinfo = Derive.dummy_call_info start dur $
         untxt $ "eval_one: " <> ShowVal.show_val expr

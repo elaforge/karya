@@ -216,7 +216,7 @@ c_grace_attr supported =
         dyn <- Util.dynamic real_start
         let before = fromIntegral notes * grace_dur
         pitch <- Util.get_pitch real_start
-        Derive.d_place (start - before) (dur + before) $
+        Derive.place (start - before) (dur + before) $
             Util.add_attrs attrs $ Util.with_dynamic dyn $
             Util.pitched_note pitch
 

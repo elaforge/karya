@@ -51,8 +51,8 @@ with_tempo block_dur maybe_track_id signal deriver = do
     stretch_to_1 <- ifM Internal.is_root_block (return id) $ do
         let real_dur = Score.warp_pos block_dur warp
         require_dur block_dur real_dur $
-            Derive.d_stretch (1 / RealTime.to_score real_dur)
-    stretch_to_1 $ Internal.d_warp warp $ do
+            Derive.stretch (1 / RealTime.to_score real_dur)
+    stretch_to_1 $ Internal.warp warp $ do
         Internal.add_new_track_warp maybe_track_id
         deriver
 
@@ -94,8 +94,8 @@ with_absolute block_dur maybe_track_id signal deriver = do
         end <- RealTime.to_score <$> Derive.real (1 :: ScoreTime)
         let real_dur = Score.warp_pos block_dur warp
         require_dur block_dur real_dur $
-            Internal.d_place start ((end - start) / RealTime.to_score real_dur)
-    Internal.in_real_time $ place $ Internal.d_warp warp $ do
+            Internal.place start ((end - start) / RealTime.to_score real_dur)
+    Internal.in_real_time $ place $ Internal.warp warp $ do
         Internal.add_new_track_warp maybe_track_id
         deriver
 
@@ -129,7 +129,7 @@ with_hybrid block_dur maybe_track_id signal deriver = do
                 else max 0.001 $ (end - start - absolute)
                     / (block_dur - absolute)
         require_dur block_dur real_dur $
-            Internal.in_real_time . Internal.d_place start stretch
+            Internal.in_real_time . Internal.place start stretch
     place $ hybrid_warp warp $ do
         Internal.add_new_track_warp maybe_track_id
         deriver

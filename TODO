@@ -9,7 +9,7 @@ UNSORTED
   * mk build/test/RunTests-Xyz is broken
   - Cmd/Repl.hs:39:10: fatal error: 'hsconfig.h' file not found
     #include "hsconfig.h"
-  - get rid of d_ prefix, e.g. Derive.d_place and friends
+  * get rid of d_ prefix, e.g. Derive.d_place and friends
   - TrackTree.events_tree_of and get_track_tree are inconsistent
   - make require functions consistent: State.require, Cmd.require,
     Derive.require, and require_right

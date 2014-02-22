@@ -185,7 +185,7 @@ range_on_track args = (track_start + start, track_start + end)
 -- the case if the deriver is a transformer arg, so this is useful for
 -- a transformer to manipulate its argument.
 normalized :: PassedArgs a -> Derive.Deriver b -> Derive.Deriver b
-normalized args = Derive.d_place (- (start / dur)) (1 / dur)
+normalized args = Derive.place (- (start / dur)) (1 / dur)
     where
     (start, dur_) = extent args
     dur = if dur_ == 0 then 1 else dur_

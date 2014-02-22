@@ -42,7 +42,7 @@ c_delay = Derive.transformer "delay" Tags.ly
         start <- Args.real_start args
         delay <- Util.score_duration start
             =<< Util.time_control_at Util.Real time start
-        Derive.d_at delay deriver
+        Derive.at delay deriver
 
 -- TODO typed delay time
 c_echo :: Derive.Transformer Derive.Note
@@ -69,7 +69,7 @@ c_echo = Derive.transformer "echo" mempty
 echo :: ScoreTime -> Double -> Int -> Derive.NoteDeriver -> Derive.NoteDeriver
 echo delay feedback times deriver
     | times <= 0 = deriver
-    | otherwise = deriver <> Derive.shift_control delay (Derive.d_at delay
+    | otherwise = deriver <> Derive.shift_control delay (Derive.at delay
         (scale_dyn feedback $ echo delay feedback (times - 1) deriver))
 
 scale_dyn :: Signal.Y -> Derive.NoteDeriver -> Derive.NoteDeriver

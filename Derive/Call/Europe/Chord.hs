@@ -92,7 +92,7 @@ from_intervals dir base intervals time args = do
             Up -> Seq.range_ start dur
             Down -> Seq.range_
                 (start + dur * fromIntegral (length intervals)) (-dur)
-    mconcat [Derive.d_place t (Args.end args - t) (Util.pitched_note pitch)
+    mconcat [Derive.place t (Args.end args - t) (Util.pitched_note pitch)
         | (t, pitch) <- zip ts (base : intervals)]
 
 type Interval = Either PitchSignal.Pitch (Either Pitch.Step Text)

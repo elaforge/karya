@@ -122,13 +122,13 @@ with_start_controls args deriver = do
             _ | dur == 0 -> 1
             _ | otherwise -> max min_dur $ abs (dur - offset)
     if start_s + start_t == 0 then deriver else
-        Derive.d_place (Args.start args + offset) stretch $
+        Derive.place (Args.start args + offset) stretch $
             normalize args deriver
 
 normalize :: Derive.PassedArgs d -> Derive.Deriver a -> Derive.Deriver a
 normalize args deriver =
-    Derive.d_stretch (if dur == 0 then 1 else 1 / abs dur) $
-        Derive.d_at (- Args.start args) deriver
+    Derive.stretch (if dur == 0 then 1 else 1 / abs dur) $
+        Derive.at (- Args.start args) deriver
     where dur = Args.duration args
 
 c_note_attributes :: Text -> Derive.Transformer Derive.Note

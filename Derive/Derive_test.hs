@@ -309,12 +309,12 @@ test_warp_ops = do
             return [x0, x1]
 
     equal (run id) $ Right [0, 2]
-    equal (run (Derive.d_stretch 2)) $ Right [0, 4]
-    equal (run (Derive.d_at 2)) $ Right [2, 4]
-    equal (run (Derive.d_at 2 . Derive.d_stretch 2)) $ Right [2, 6]
-    equal (run (Derive.d_stretch 2 . Derive.d_at 2)) $ Right [4, 8]
-    equal (run (Derive.d_at 2 . Derive.d_stretch 0.5)) $ Right [2, 3]
-    equal (run (Derive.d_stretch 0.5 . Derive.d_at 2)) $ Right [1, 2]
+    equal (run (Derive.stretch 2)) $ Right [0, 4]
+    equal (run (Derive.at 2)) $ Right [2, 4]
+    equal (run (Derive.at 2 . Derive.stretch 2)) $ Right [2, 6]
+    equal (run (Derive.stretch 2 . Derive.at 2)) $ Right [4, 8]
+    equal (run (Derive.at 2 . Derive.stretch 0.5)) $ Right [2, 3]
+    equal (run (Derive.stretch 0.5 . Derive.at 2)) $ Right [1, 2]
 
     -- test compose
     let plain = Score.signal_to_warp $
@@ -323,50 +323,49 @@ test_warp_ops = do
             Signal.signal [(RealTime.seconds n, n*2) | n <- [0..40]]
 
 
-    equal (run (Internal.d_warp plain)) $ Right [0, 2]
-    equal (run (Derive.d_at 2 . Internal.d_warp plain)) $ Right [2, 4]
-    equal (run (Derive.d_stretch 2 . Internal.d_warp plain)) $
+    equal (run (Internal.warp plain)) $ Right [0, 2]
+    equal (run (Derive.at 2 . Internal.warp plain)) $ Right [2, 4]
+    equal (run (Derive.stretch 2 . Internal.warp plain)) $
         Right [0, 4]
 
-    equal (run (Internal.d_warp plain . Internal.d_warp plain)) $
+    equal (run (Internal.warp plain . Internal.warp plain)) $
         Right [0, 2]
-    equal (run (Internal.d_warp plain . Internal.d_warp slow)) $
+    equal (run (Internal.warp plain . Internal.warp slow)) $
         Right [0, 4]
-    equal (run (Internal.d_warp slow . Internal.d_warp plain)) $
+    equal (run (Internal.warp slow . Internal.warp plain)) $
         Right [0, 4]
-    equal (run (Internal.d_warp slow . Internal.d_warp slow)) $
+    equal (run (Internal.warp slow . Internal.warp slow)) $
         Right [0, 8]
-    equal (run (Derive.d_stretch 2 . Internal.d_warp slow)) $
+    equal (run (Derive.stretch 2 . Internal.warp slow)) $
         Right [0, 8]
-    equal (run (Derive.d_stretch 2 . Internal.d_warp slow
-            . Internal.d_warp slow)) $
+    equal (run (Derive.stretch 2 . Internal.warp slow . Internal.warp slow)) $
         Right [0, 16]
 
     -- If you start at 1, but time is twice as slow, you really start at 2.
     -- But that is backwards.  Twice as slow time starts at 1.
-    equal (run (Derive.d_at 1 . Internal.d_warp slow)) $ Right [1, 5]
-    equal (run (Internal.d_warp slow . Derive.d_at 1)) $ Right [2, 6]
-    equal (run (Derive.d_at 1 . Derive.d_stretch 2)) $ Right [1, 5]
-    equal (run (Derive.d_stretch 2 . Derive.d_at 1)) $ Right [2, 6]
+    equal (run (Derive.at 1 . Internal.warp slow)) $ Right [1, 5]
+    equal (run (Internal.warp slow . Derive.at 1)) $ Right [2, 6]
+    equal (run (Derive.at 1 . Derive.stretch 2)) $ Right [1, 5]
+    equal (run (Derive.stretch 2 . Derive.at 1)) $ Right [2, 6]
 
-    equal (run (Derive.d_at 1 . Derive.d_stretch 2 . Internal.d_warp slow)) $
-            Right [1, 9]
-    equal (run (Derive.d_at 1 . Derive.d_stretch 2 . Internal.d_warp slow
-        . Internal.d_warp slow)) $
-            Right [1, 17]
+    equal (run (Derive.at 1 . Derive.stretch 2 . Internal.warp slow)) $
+        Right [1, 9]
+    equal (run (Derive.at 1 . Derive.stretch 2 . Internal.warp slow
+            . Internal.warp slow)) $
+        Right [1, 17]
 
 test_real_to_score = do
     let f do_warp pos = DeriveTest.eval State.empty $
             do_warp (Derive.real_to_score =<< Derive.score_to_real pos)
     equal (f id 1) (Right 1)
-    equal (f (Derive.d_at 5) 1) (Right 1)
-    equal (f (Derive.d_stretch 5) 1) (Right 1)
-    equal (f (Derive.d_stretch 5 . Derive.d_at 5) 1) (Right 1)
+    equal (f (Derive.at 5) 1) (Right 1)
+    equal (f (Derive.stretch 5) 1) (Right 1)
+    equal (f (Derive.stretch 5 . Derive.at 5) 1) (Right 1)
     let slow = Score.signal_to_warp $
             Signal.signal [(0, 0), (1, 2), (2, 4), (3, 6), (100, 200)]
-    equal (f (Internal.d_warp slow . Derive.d_stretch 5 . Derive.d_at 5) 1)
+    equal (f (Internal.warp slow . Derive.stretch 5 . Derive.at 5) 1)
         (Right 1)
-    equal (f (Derive.d_stretch 5 . Derive.d_at 5 . Internal.d_warp slow) 1)
+    equal (f (Derive.stretch 5 . Derive.at 5 . Internal.warp slow) 1)
         (Right 1)
 
 test_shift_control = do
