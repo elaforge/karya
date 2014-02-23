@@ -35,8 +35,12 @@ main = do
         else do
             cmd_config <- DeriveSaved.load_cmd_config
             fmap sum $ forM (filter (/="--save") args) $ \fname -> do
-                putStrLn $ "verify " <> fname
-                verify_score cmd_config fname
+                putStrLn $ "------------------------- verify " <> fname
+                fails <- verify_score cmd_config fname
+                putStrLn $ if fails == 0
+                    then "+++++++++++++++++++++++++ OK!"
+                    else "_________________________ FAILED!"
+                return fails
     Process.exit failures
 
 handle_left :: Either String Int -> IO Int
@@ -99,7 +103,7 @@ verify_midi fname cmd_config state block_id performance = do
                 ("perform " <> fname) state events
             mapM_ Log.write logs
             case DiffPerformance.diff_midi_performance performance msgs of
-                Nothing -> putStrLn "ok!" >> return 0
+                Nothing -> return 0
                 Just err -> putStrLn (untxt err) >> return 1
 
 verify_lilypond :: FilePath -> Cmd.Config -> State.State -> BlockId

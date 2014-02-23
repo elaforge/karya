@@ -556,17 +556,23 @@ dispatch modeConfig targets = do
         -- I should probably run this in staunch mode, -k.
         "checkin" -> do
             let debug = (modeToDir Debug </>)
+                opt = (modeToDir Opt </>)
             Shake.want $
                 [ debug "browser", debug "logview", debug "make_db"
                 , debug "seq", debug "update", debug "dump", debug "repl"
-                , debug "test_midi", runProfile
-                , "karya.cabal", runTestsTarget Nothing
-                -- The tests target also wants runTestsTarget, but putting it
-                -- here builds in parallel.
+                , debug "test_midi", runProfile, "karya.cabal"
                 ] ++ extractableDocs
-            dispatch modeConfig ["tests"]
-            -- The gui tests tend to wedge.
-            -- dispatch config "complete-tests"
+            -- I used to dispatch to "tests", but putting it here means I can
+            -- build and test in parallel.
+            action $ do
+                need [runTests]
+                system "test/run_tests" [runTests]
+            action $ do
+                -- Unfortunately, verify_performance is the only binary in
+                -- opt, which most of the opt tree to build.  I could build
+                -- a debug one, but debug deriving is really slow.
+                need [opt "verify_performance"]
+                Util.shell $ opt "verify_performance" <> " save/complete/*"
             return True
         "binaries" -> do
             Shake.want $ map (modeToDir Opt </>)
@@ -594,11 +600,12 @@ dispatch modeConfig targets = do
         "show-opt" -> action $
             Trans.liftIO $ PPrint.pprint (modeConfig Opt)
         "tests" -> action $ do
-            need [runTestsTarget Nothing]
-            system "test/run_tests" [runTestsTarget Nothing]
+            need [runTests]
+            system "test/run_tests" [runTests]
         "tests-complete" -> action $ do
-            need [runTestsTarget Nothing]
-            system "test/run_tests" [runTestsTarget Nothing, "normal-", "gui-"]
+            -- Separated from normal tests because the GUI tests tend to wedge.
+            need [runTests]
+            system "test/run_tests" [runTests, "normal-", "gui-"]
         (dropPrefix "tests-" -> Just tests) -> action $ do
             need [runTestsTarget (Just tests)]
             system "test/run_tests" [runTestsTarget (Just tests)]
