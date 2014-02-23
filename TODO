@@ -57,29 +57,6 @@ UNSORTED
     from just loading a copy: it loads it anew each time, and doesn't save
     it with the score.  This is like the 'import' idea, except the library is
     in score, not code.
-  control functions:
-    - Could use rank to modify dyn and emphasize or deemphasize notes on
-      important beats.
-    . With 'real' and 'score' and the signal conversion functions, I gradually
-      rewrite more and more functions from Deriver to functions with a
-      TrackLang.Dynamic argument.  Also they're going to start to want an
-      exception, and why not logging too, and I'm right back to Deriver.
-    . Why can't I make ControlFunction into a Deriver?
-      ControlFunction moves to Deriver.Monad, so Val must also.
-      Now control function stuff must be exported from Deriver, not TrackLang
-      and Score.  But also Val can't be exported from TrackLang, and there are
-      tons of users for TrackLang.Val.  Maybe I can split TrackLang into a low
-      level version.  In fact I already have, everything Deriver uses
-      TrackLang for can come from BaseTypes, except Typecheck.  Monad.val_call
-      must move to Lib.
-    . Environ, Pitch, and Val all move into Derive.  And Score.Event.
-      This is getting to be pretty much everything.
-    . Another option is to make Derivers polymorphic.  I can put the
-      fields in TrackLang.Dynamic in a typeclass.
-    - Abstract 'state' and 'err' to a DeriveM, and implement
-      type ControlFunctionM a = DeriveM.Deriver Dynamic Text a
-      . I can't reuse Deriver, but at least I get logging and errors.
-
   india
     - nkam doesn't seem to interact correctly with 'h'
     - semi-tone dip.  This is like 1 cycle kam.
@@ -146,7 +123,6 @@ UNSORTED
     Maybe I should extend Midi.Interface.note_tracker to keep track of
     used CCs to issue resets for them.  Some reset to 1, e.g. cc2 and cc7,
     the rest reset to 0.
-    But filtering the midi shows dyn controls mixed into both channels.
   - Pretty on a lot of events causes a stack overflow
     Need a reproduction.
     I should extend Util.Format so I can use it for Util.Pretty.
@@ -446,7 +422,7 @@ performance:
       speed at all.  Maybe all the time is spent elsewhere?
   - look into Debug.Trace.traceEventIO to see how long various things take as
     in http://www.yesodweb.com/blog/2012/10/future-work-warp
-  - directly store signal chunks in the Ui.Track so they can be directly emitted
+  - Store signal chunks in the Ui.Track so they can be directly emitted.
     This is only useful for large chunks of 'set' calls, probably recorded
     from MIDI.  So it's probably not pressing until that feature exists.
     . make Ui.Events into 'Map ScoreTime (Event | Chunk Signal)'
@@ -478,9 +454,6 @@ performance:
       - There are lots of lookups in the tempo map
     - see if making a version of Derive.local that's non-monadic in the
       modifier has any effect on performance
-    / to get arrival beats to work right with the control track, I think I can
-      make the 'set' control track call set from (prev, cur) instead of just
-      cur.  It will make simultaneous samples, but they should be ok.
     derive cache
       - can I cache long blocks by slicing them if they're >n?
       - c_block should only cache if the block has > a certain number of
@@ -550,7 +523,7 @@ fltk:
       But it's OSX only.
   / rethrow c++ exceptions as FltkError
   - factor scroll redrawing into a single class
-  / draw arrows in SkeletonDisplay.cc properly meh, they look ok
+  / draw arrows in SkeletonDisplay.cc properly?  Meh, they look ok.
   - figure out how to have a minimal title bar in os x (win.border(0) removes
     it altogether)
     I can set something like kUtilityWindowClass in Fl_mac.cxx:Fl_X::make, but
@@ -702,7 +675,7 @@ Cmd:
 
   ruler:
     - LRuler.inject, opposite of extract, replaces sub-block rulers
-    - LRuler.strip which strips out lower rank marks.  This can make rulers
+    * LRuler.strip which strips out lower rank marks.  This can make rulers
       for large blocks smaller.
   Cmd.Edit
     - alternate finale-like note entry: hold down step key to set step and
@@ -777,10 +750,6 @@ Derive:
     I could use this to implement is-ly and no-ly, and also totally custom
     track types and block types.
 
-  pitch calls:
-    - accelerating trill
-    - overshoot pitch call, e.g. indian style
-
   note calls:
     + chord calls, with automatic dyns for the notes.
       Originally I intended each note to go in its own track, with the idea
@@ -789,8 +758,6 @@ Derive:
       block, though perhaps that's a side-effect of having blocks which are
       too large.  More compellingly, chords can automatically fiddle with dyn
       and start time, and can also interpret chord symbols.
-    trills
-      / hybrid where the initial part stretches, final part is absolute
     bali:
       kotekan ornaments
         - control for norot +mute
@@ -879,6 +846,30 @@ Derive:
     - saturation limit, e.g. flatten sine wave but without clipping
     - continuous tempo warping for signals
       tempo: "2" -> "1", "2", cont: "2" -> "i, 1", should emit a bent line
+
+  control functions:
+    - Could use rank to modify dyn and emphasize or deemphasize notes on
+      important beats.
+    . With 'real' and 'score' and the signal conversion functions, I gradually
+      rewrite more and more functions from Deriver to functions with a
+      TrackLang.Dynamic argument.  Also they're going to start to want an
+      exception, and why not logging too, and I'm right back to Deriver.
+    . Why can't I make ControlFunction into a Deriver?
+      ControlFunction moves to Deriver.Monad, so Val must also.
+      Now control function stuff must be exported from Deriver, not TrackLang
+      and Score.  But also Val can't be exported from TrackLang, and there are
+      tons of users for TrackLang.Val.  Maybe I can split TrackLang into a low
+      level version.  In fact I already have, everything Deriver uses
+      TrackLang for can come from BaseTypes, except Typecheck.  Monad.val_call
+      must move to Lib.
+    . Environ, Pitch, and Val all move into Derive.  And Score.Event.
+      This is getting to be pretty much everything.
+    . Another option is to make Derivers polymorphic.  I can put the
+      fields in TrackLang.Dynamic in a typeclass.
+    - Abstract 'state' and 'err' to a DeriveM, and implement
+      type ControlFunctionM a = DeriveM.Deriver Dynamic Text a
+      . I can't reuse Deriver, but at least I get logging and errors.
+
 
 pitch: scales: scale:
   scales / Derive.Scale:
