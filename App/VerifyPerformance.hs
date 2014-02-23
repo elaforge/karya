@@ -6,7 +6,9 @@
 -- msgs or lilypond code as the last saved performance.
 module App.VerifyPerformance where
 import qualified Data.Map as Map
+import qualified Data.Text.IO as Text.IO
 import qualified Data.Traversable as Traversable
+
 import qualified System.Environment as Environment
 
 import Util.Control
@@ -22,20 +24,54 @@ import Types
 
 main :: IO ()
 main = do
-    cmd_config <- DeriveSaved.load_cmd_config
     args <- Environment.getArgs
     when (null args) $ do
-        putStrLn "usage: verify_performance [ save.state save.git ... ]"
+        putStrLn "usage: verify_performance [ --save ]\
+            \ [ save.state save.git ... ]"
+        putStrLn "--save writes the saved performanes to disk"
         Process.exit 1
-    failures <- fmap sum $ forM args $ \fname -> do
-        putStrLn $ "verify " <> fname
-        verify_score cmd_config fname
+    failures <- if "--save" `elem` args
+        then sum <$> mapM save (filter (/="--save") args)
+        else do
+            cmd_config <- DeriveSaved.load_cmd_config
+            fmap sum $ forM (filter (/="--save") args) $ \fname -> do
+                putStrLn $ "verify " <> fname
+                verify_score cmd_config fname
     Process.exit failures
 
-verify_score :: Cmd.Config -> FilePath -> IO Int
-verify_score cmd_config fname = (handle =<<) $
+handle_left :: Either String Int -> IO Int
+handle_left = either (\err -> putStrLn err >> return 1) return
+
+load :: FilePath -> IO (Either String (State.State, BlockId))
+load fname =
     rightm (DeriveSaved.load_score fname) $ \state ->
-    rightm (return $ get_root state) $ \block_id -> do
+    rightm (return $ get_root state) $ \block_id ->
+        return $ Right (state, block_id)
+
+save :: FilePath -> IO Int
+save fname = (handle_left =<<) $
+    rightm (load fname) $ \(state, block_id) -> do
+        let meta = State.config#State.meta #$ state
+            look = Map.lookup block_id
+        midi <- case look (State.meta_midi_performances meta) of
+            Nothing -> return False
+            Just perf -> do
+                DiffPerformance.save_midi (fname <> ".midi")
+                    (State.perf_performance perf)
+                putStrLn $ "wrote " <> fname <> ".midi"
+                return True
+        ly <- case look (State.meta_lilypond_performances meta) of
+            Nothing -> return False
+            Just perf -> do
+                Text.IO.writeFile (fname <> ".ly") (State.perf_performance perf)
+                putStrLn $ "wrote " <> fname <> ".ly"
+                return True
+        return $ if midi || ly then Right 0
+            else Left $ fname <> ": no midi or ly performance"
+
+verify_score :: Cmd.Config -> FilePath -> IO Int
+verify_score cmd_config fname = (handle_left =<<) $
+    rightm (load fname) $ \(state, block_id) -> do
         let meta = State.config#State.meta #$ state
         n <- apply (verify_midi fname cmd_config state block_id) $
             Map.lookup block_id (State.meta_midi_performances meta)
@@ -44,7 +80,6 @@ verify_score cmd_config fname = (handle =<<) $
         return $ case (n, m) of
             (Nothing, Nothing) -> Left "no saved performances!"
             _ -> Right (fromMaybe 0 n + fromMaybe 0 m)
-    where handle = either (\err -> putStrLn err >> return 1) return
 
 apply :: Monad m => (a -> m b) -> Maybe a -> m (Maybe b)
 apply = Traversable.mapM
