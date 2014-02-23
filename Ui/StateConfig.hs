@@ -2,7 +2,7 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
-{-# LANGUAGE DeriveDataTypeable #-}
+{-# LANGUAGE DeriveDataTypeable, TypeSynonymInstances, FlexibleInstances #-}
 {-# OPTIONS_HADDOCK not-home #-}
 -- | State.Config and State.Default, in their own module to avoid circular
 -- imports with "State.Update".  Everyone else should pretend they're defined
@@ -11,6 +11,7 @@ module Ui.StateConfig where
 import qualified Control.DeepSeq as DeepSeq
 import qualified Data.Generics as Generics
 import qualified Data.Map as Map
+import qualified Data.Text as Text
 import qualified Data.Time as Time
 import qualified Data.Vector as Vector
 
@@ -151,11 +152,21 @@ instance Pretty.Pretty Meta where
             , ("lilypond performances", Pretty.format lily_perf)
             ]
 
-instance Pretty.Pretty (Performance a) where
-    format (Performance _ creation patch) = Pretty.record_title "Performance"
-        [ ("creation", Pretty.text $ pretty creation)
-        , ("patch", Pretty.text (untxt patch))
-        ]
+instance Pretty.Pretty MidiPerformance where
+    format (Performance midi creation patch) =
+        Pretty.record_title "MidiPerformance"
+            [ ("events", Pretty.format $ Vector.length midi)
+            , ("creation", Pretty.text $ pretty creation)
+            , ("patch", Pretty.text (untxt patch))
+            ]
+
+instance Pretty.Pretty LilypondPerformance where
+    format (Performance ly creation patch) =
+        Pretty.record_title "LilypondPerformance"
+            [ ("lilypond lines", Pretty.format $ Text.count "\n" ly)
+            , ("creation", Pretty.text $ pretty creation)
+            , ("patch", Pretty.text (untxt patch))
+            ]
 
 instance Pretty.Pretty Default where
     format (Default tempo) =
