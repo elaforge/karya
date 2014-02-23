@@ -347,6 +347,9 @@ convert_dynamic ruler dyn = TrackLang.Dynamic
     , TrackLang.dyn_ruler = ruler
     }
 
+-- | Get the 'Ruler.meter' marklists, if there is a ruler track here.  This
+-- is called in all contexts, due to 'control_at', so it has to be careful
+-- to not require a ruler.
 get_ruler :: Deriver Ruler.Marklists
 get_ruler = Internal.lookup_current_tracknum >>= \x -> case x of
     Nothing -> return mempty

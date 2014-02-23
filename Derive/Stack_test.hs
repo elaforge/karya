@@ -19,6 +19,7 @@ region = Stack.Region
 test_block_track_of = do
     let f = Stack.block_track_of . Stack.from_outermost
     equal (f [block "b"]) Nothing
+    equal (f [track "t1", block "b1"]) Nothing
     equal (f [block "b", track "t1", track "t2"])
         (Just (UiTest.bid "test/b", UiTest.tid "test/t2"))
     equal (f [block "b1", block "b2", track "t1", track "t2"])

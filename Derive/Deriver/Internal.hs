@@ -156,7 +156,7 @@ get_block block_id = lookup_id block_id =<< get_ui_state State.state_blocks
 eval_ui :: String -> State.StateId a -> Deriver a
 eval_ui caller action = do
     ui_state <- get_ui_state id
-    let rethrow exc = throw $ caller ++ ": " ++ show exc
+    let rethrow exc = throw $ caller ++ ": " ++ pretty exc
     either rethrow return (State.eval ui_state action)
 
 -- | Lookup @map!key@, throwing if it doesn't exist.
@@ -181,13 +181,11 @@ get_current_block_id =
 
 lookup_current_tracknum :: Deriver (Maybe (BlockId, TrackNum))
 lookup_current_tracknum = do
-    stack <- Stack.innermost <$> get_stack
-    let p = (,) <$> Seq.head [bid | Stack.Block bid <- stack]
-            <*> Seq.head [tid | Stack.Track tid <- stack]
-    case p of
+    stack <- get_stack
+    case Stack.block_track_of stack of
         Nothing -> return Nothing
         Just (block_id, track_id) -> do
-            tracknum <- eval_ui "get_current_tracknum" $
+            tracknum <- eval_ui "lookup_current_tracknum" $
                 State.get_tracknum_of block_id track_id
             return $ Just (block_id, tracknum)
 

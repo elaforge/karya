@@ -108,13 +108,14 @@ call_of _ = Nothing
 
 -- | Walk up the stack to discover the innermost BlockId and TrackId.
 block_track_of :: Stack -> Maybe (BlockId, TrackId)
-block_track_of = go Nothing . innermost
+block_track_of = track . innermost
     where
-    go _ [] = Nothing
-    go Nothing (Track track_id : rest) = go (Just track_id) rest
-    go Nothing (_ : rest) = go Nothing rest
-    go (Just track_id) (Block block_id : _) = Just (block_id, track_id)
-    go track_id (_ : rest) = go track_id rest
+    track (Track track_id : rest) = block track_id rest
+    track (_ : rest) = track rest
+    track [] = Nothing
+    block track_id (Block block_id : _) = Just (block_id, track_id)
+    block track_id (_ : rest) = block track_id rest
+    block _ [] = Nothing
 
 -- | Nothing is a wildcard, and matches anything, but if a field is set then it
 -- only matches frames where the corresponding field is set, and is equal (or
