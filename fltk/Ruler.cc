@@ -16,7 +16,7 @@
 
 // Height in pixels both above and below  of the special indicator that is
 // drawn on a 0 size selection.
-const static int selection_point_size = 4;
+const static int selection_point_size = 6;
 // Selections are always at least this many pixels.
 const static int selection_min_size = 2;
 
@@ -351,7 +351,7 @@ OverlayRuler::draw_selections()
             continue;
         int start = y + this->zoom.to_pixels(sel.low() - this->zoom.offset);
         int height = std::max(selection_min_size,
-                this->zoom.to_pixels(sel.high() - sel.low()));
+            this->zoom.to_pixels(sel.high() - sel.low()));
         // IRect intersection is half-open ranges, but rect drawing is inclusive
         // pixel ranges.  So add one to ensure that if I share a pixel border
         // with the clip rect, I'll still draw that pixel line.
@@ -364,9 +364,14 @@ OverlayRuler::draw_selections()
         int cur = y + this->zoom.to_pixels(sel.cur - this->zoom.offset);
         fl_line(x() + 2, cur, x() + w() - 2, cur);
         if (sel.is_point() && sel.is_cur_track) {
-            // Draw a little bevel thingy.
+            // Draw a little bevel thingy.  It can be hard to see a point
+            // selection.
             const int sz = selection_point_size;
-            fl_polygon(x(), cur - sz, x() + 4, cur, x(), cur + sz);
+            fl_color(FL_RED);
+            fl_polygon(
+                x(), cur - sz,
+                x() + sz, cur,
+                x(), cur + sz);
         }
     }
 }

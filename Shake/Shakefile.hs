@@ -733,8 +733,7 @@ makeHs dir out main = ("GHC-MAKE", out, cmdline)
 -- | Build a haskell binary.
 buildHs :: Config -> [FilePath] -> FilePath -> FilePath -> Shake.Action ()
 buildHs config deps hs fn = do
-    when (FilePath.takeFileName fn `elem` hsconfigBinaries) $ do
-        Trans.liftIO $ putStrLn $ "need: " ++ fn
+    when (FilePath.takeFileName fn `elem` hsconfigBinaries) $
         need [hsconfigPath config]
     srcs <- HsDeps.transitiveImportsOf (cppFlags config) hs
     let ccs = List.nub $

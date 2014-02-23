@@ -3,6 +3,8 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
+  * point select is really hard to see, it should be more obvious
+    I could just make it bigger.  Or make the triangle bright red?
   - If thru did eval on "", I wouldn't need pasang thru.  But it might be
     slower.
   - deriving seems really slow, and fluctuates wildly
