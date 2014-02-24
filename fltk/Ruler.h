@@ -105,9 +105,9 @@ public:
 class OverlayRuler : public Fl_Widget {
 public:
     explicit OverlayRuler(const RulerConfig &config, bool is_ruler_track);
-    void set_zoom(const ZoomInfo &new_zoom) { this->zoom = new_zoom; }
+    void set_zoom(const ZoomInfo &new_zoom) { zoom = new_zoom; }
     void set_selection(int selnum, int tracknum, const Selection &sel);
-    ScoreTime time_end() const;
+    ScoreTime time_end() const { return config.last_mark_pos; }
     void set_config(bool is_ruler_track, const RulerConfig &config,
         ScoreTime start, ScoreTime end);
     // Deallocate marklist memory.

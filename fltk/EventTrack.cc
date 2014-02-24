@@ -704,7 +704,15 @@ EventTrackView::draw_upper_layer(int offset, const Event &event, int rank,
 
     // Negative events at the top of the track wind up with text above the top.
     text_rect.y = std::max(
-        this->track_start() - zoom.to_pixels(zoom.offset), text_rect.y);
+        text_rect.y, this->track_start() - zoom.to_pixels(zoom.offset));
+    // Similarly, avoid going past the end of the ruler, unless there's space
+    // to draw.
+    int bottom = std::max(
+        y() + zoom.to_pixels(overlay_ruler.time_end() - zoom.offset),
+        y() + h() - 3);
+        // Just like track_start(), subtract a few pixels from the bottom to
+        // avoid the bevel.
+    text_rect.b(std::min( text_rect.b(), bottom));
 
     // The various pixel tweaks in here were determined by zooming in and
     // squinting.

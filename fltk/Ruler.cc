@@ -102,23 +102,6 @@ OverlayRuler::set_selection(int selnum, int tracknum, const Selection &sel)
 }
 
 
-ScoreTime
-OverlayRuler::time_end() const
-{
-    return this->config.last_mark_pos;
-    // Now that I go to the end of the ruler, I probably don't need to check
-    // the selections any more.
-    /*
-    ScoreTime end(0);
-    for (int i = 0; i < Config::max_selections; i++) {
-        if (!selections[i].empty())
-            end = std::max(end, selections[i].end);
-    }
-    return end;
-    */
-}
-
-
 void
 OverlayRuler::set_config(bool is_ruler_track, const RulerConfig &config,
     ScoreTime start, ScoreTime end)
