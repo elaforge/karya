@@ -374,10 +374,10 @@ EventTrackView::draw_area()
     if (false)
         show_found_events(start, end, events, count);
 
-    int *offsets = new int[count];
+    std::vector<int> offsets(count);
     for (int i = 0; i < count; i++) {
-        offsets[i] = y + this->zoom.to_pixels(
-            events[i].start - this->zoom.offset);
+        offsets[i] =
+            y + this->zoom.to_pixels(events[i].start - this->zoom.offset);
     }
 
     // Draw event boxes.  Rank >0 boxes are not drawn since I'd have to figure
@@ -387,7 +387,7 @@ EventTrackView::draw_area()
             continue;
         const Event &event = events[i];
         int height = this->zoom.to_pixels(event.duration);
-        // If this event touches the next one, make it's box one pixel short,
+        // If this event touches the next one, make its box one pixel short,
         // so it's clearer which direction it's facing.
         if (height > 0) {
             int next_offset = MAX_PIXEL;
@@ -425,7 +425,7 @@ EventTrackView::draw_area()
 
     this->draw_signal(clip.y, clip.b(), start);
 
-    IRect prev_unranked_rect(0, 0, 0, 0);
+    std::pair<IRect, IRect> prev_rects(IRect(0, 0, 0, 0), IRect(0, 0, 0, 0));
     // Draw the upper layer (event start line, text).
     for (int i = 0; i < count; i++) {
         int rank = ranks[i];
@@ -438,8 +438,9 @@ EventTrackView::draw_area()
                 break;
             }
         }
-        prev_unranked_rect = this->draw_upper_layer(offsets[i], events[i],
-            rank, prev_offset, next_offset, prev_unranked_rect);
+        prev_rects = this->draw_upper_layer(
+            offsets[i], events[i], rank, prev_offset, next_offset,
+            prev_rects.first, prev_rects.second);
     }
     if (count) {
         for (int i = 0; i < count; i++) {
@@ -449,7 +450,6 @@ EventTrackView::draw_area()
         free(events);
         free(ranks);
     }
-    delete[] offsets;
 
     // The overlay ruler overlaps me entirely, so I'm sure it's damaged.
     if (damage() & FL_DAMAGE_ALL)
@@ -624,9 +624,10 @@ EventTrackView::draw_signal(int min_y, int max_y, ScoreTime start)
 }
 
 
-IRect
+std::pair<IRect, IRect>
 EventTrackView::draw_upper_layer(int offset, const Event &event, int rank,
-        int prev_offset, int next_offset, const IRect &prev_unranked_rect)
+        int prev_offset, int next_offset,
+        const IRect &prev_unranked_rect, const IRect &prev_ranked_rect)
 {
     // So the overlap stuff is actually pretty tricky.  I want to hide
     // overlapping text so it doesn't get into an unreadable jumble.  It's also
@@ -662,6 +663,10 @@ EventTrackView::draw_upper_layer(int offset, const Event &event, int rank,
         color_to_fl(rank ? event_style->text_color.brightness(rank_brightness)
             : event_style->text_color));
 
+    // DEBUG("---------event " << event.text << " " << prev_offset << ", "
+    //     << offset << ", " << next_offset
+    //     << " prev " << prev_unranked_rect << " / " << prev_ranked_rect);
+
     IRect text_rect(0, 0, 0, 0);
     bool draw_text = false;
     if (event.text) {
@@ -681,18 +686,19 @@ EventTrackView::draw_upper_layer(int offset, const Event &event, int rank,
             text_rect.x = x() + 2;
 
         if (event.is_negative()) {
-            // I think this should be next_ranked_rect, but that's too much of
-            // a bother to get.
-            draw_text = text_rect.y >= prev_offset;
+            // Negative event text draws above, so check for overlap with the
+            // previous text box.  This is regardless of whether or not the
+            // previous event text was actually drawn!
+            if (rank)
+                draw_text = text_rect.y >= prev_ranked_rect.b();
+            else
+                draw_text = text_rect.y >= prev_unranked_rect.b();
             if (rank && text_rect.intersects(prev_unranked_rect))
                 draw_text = false;
         } else {
             draw_text = text_rect.b() <= next_offset;
             if (rank && text_rect.intersects(prev_unranked_rect))
                 draw_text = false;
-            // DEBUG(offset << " d " << draw_text << " next " << next_offset
-            //     << " prev_unranked_rect " << prev_unranked_rect);
-            // DEBUG("text rect: " << text_rect);
         }
     }
 
@@ -750,9 +756,9 @@ EventTrackView::draw_upper_layer(int offset, const Event &event, int rank,
         }
     }
     if (rank) {
-        return prev_unranked_rect;
+        return std::make_pair(prev_unranked_rect, text_rect);
     } else {
-        return text_rect;
+        return std::make_pair(text_rect, prev_ranked_rect);
     }
 }
 

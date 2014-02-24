@@ -149,8 +149,10 @@ protected:
 private:
     void draw_area();
     void draw_signal(int min_y, int max_y, ScoreTime start);
-    IRect draw_upper_layer(int offset, const Event &event, int rank,
-        int prev_offset, int next_offset, const IRect &prev_unranked_rect);
+    std::pair<IRect, IRect> draw_upper_layer(
+        int offset,
+        const Event &event, int rank, int prev_offset, int next_offset,
+        const IRect &prev_unranked_rect, const IRect &prev_ranked_rect);
 
     EventTrackConfig config;
     ZoomInfo zoom;

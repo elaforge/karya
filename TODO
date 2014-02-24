@@ -4,7 +4,7 @@ LEGEND
 
 UNSORTED
   - positive events at the end of the ruler should have text above
-  - merged track text doesn't render on negative events
+  * merged track text doesn't render on negative events
     It's because the text has to be below the prev_offset, and the prev_offset
     is the same due to a concident rank 0 event.
   - Often windows are too narrow to see the name, and besides the title goes
