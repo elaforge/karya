@@ -5,16 +5,17 @@
 
 # Based on a script michael sweet posted to the fltk mailing list.
 
-if test $# -lt 1; then
-    echo "Usage: $0 filename [icon.icns]"
+if [[ $# -lt 1 ]]; then
+    echo "Usage: $0 filename [icon.icns] [args]"
     exit 1
 fi
 
-binpath="$1"
-icon="$2"
+binpath=$1
+icon=$2
+args=$3
 name=$(basename "$binpath")
 id=elaforge.seq.$(echo "$name" | tr ' ' _)
-bindir="$binpath.app/Contents/MacOS"
+bindir=$binpath.app/Contents/MacOS
 
 # Make a shell script that runs the bundled executable
 # Use $(basename $0) internally so you can rename it.
@@ -22,7 +23,7 @@ cat >"$binpath.run" <<EOF
 #!/bin/sh
 dir=\$(dirname "\$0")
 bin=\$(basename "\$0")
-exec "\$dir/\$bin.app/Contents/MacOS/$name" +RTS -N -RTS "\$@"
+exec "\$dir/\$bin.app/Contents/MacOS/$name" $args "\$@"
 EOF
 chmod +x "$binpath.run"
 

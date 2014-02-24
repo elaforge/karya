@@ -435,14 +435,14 @@ main = withLockedDatabase $ do
             let objs = map (oDir config </>) (ccDeps binary)
             need objs
             Util.cmdline $ linkCc config fn objs
-            makeBundle fn False
+            makeBundle fn False False
         forM_ hsBinaries $ \binary -> matchBuildDir (hsName binary) ?> \fn -> do
             let config = infer fn
             hs <- maybe (errorIO $ "no main module for " ++ fn) return
                 (Map.lookup (FilePath.takeFileName fn) nameToMain)
             buildHs config (map (oDir config </>) (hsDeps binary)) hs fn
             case hsGui binary of
-                Just has_icon -> makeBundle fn has_icon
+                Just has_icon -> makeBundle fn True has_icon
                 _ -> return ()
         (build </> "*.icns") *> \fn -> do
             -- Build OS X .icns file from .iconset dir.
@@ -749,13 +749,17 @@ buildHs config deps hs fn = do
     logDeps config "build" fn objs
     Util.cmdline $ linkHs config fn packages objs
 
-makeBundle :: FilePath -> Bool -> Shake.Action ()
-makeBundle binary has_icon
+makeBundle :: FilePath -> Bool -> Bool -> Shake.Action ()
+makeBundle binary isHaskell hasIcon
     | System.Info.os == "darwin" = do
-        need icon
-        system "tools/make_bundle" (binary : icon)
+        let icon = build </> replaceExt binary "icns"
+        when hasIcon $ need [icon]
+        system "tools/make_bundle"
+            [ binary
+            , if hasIcon then icon else ""
+            , if isHaskell then "+RTS -N -RTS" else ""
+            ]
     | otherwise = return ()
-    where icon = [build </> replaceExt binary "icns" | has_icon]
 
 -- * tests and profiles
 
