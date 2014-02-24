@@ -107,7 +107,7 @@ rename from_ to_ =
 create :: Instrument -> Instrument -> Text -> [Midi.Channel] -> Cmd.CmdL ()
 create alias inst wdev chans = do
     alloc alias wdev chans
-    add_alias inst alias
+    add_alias alias inst
 
 -- | Create an instrument with no channel allocation.  This is used for
 -- instruments which are expected to be converted into other instruments during
@@ -122,12 +122,12 @@ remove alias = do
     remove_alias alias
     dealloc alias
 
--- | Add a new instrument, copied from an existing one.  Argument order
--- mnemonic: same as @ln@.
+-- | Add a new instrument, copied from an existing one.  The argument order is
+-- the same as used by 'create'.
 add_alias :: Instrument -> Instrument -> Cmd.CmdL ()
-add_alias source dest = State.modify $
-    State.config#State.aliases %= Map.insert (instrument dest)
-        (instrument source)
+add_alias alias inst = State.modify $
+    State.config#State.aliases %= Map.insert (instrument alias)
+        (instrument inst)
 
 remove_alias :: Instrument -> Cmd.CmdL ()
 remove_alias inst = State.modify $
