@@ -24,14 +24,11 @@ import qualified Derive.Score as Score
 import qualified Perform.Midi.Instrument as Instrument
 
 
-auto_setup_cmd :: Cmd.CmdIO
-auto_setup_cmd = load_default
-
 -- | Load from @save/default@, but don't set the save file so a save doesn't
 -- overwrite it.
-load_default :: Cmd.CmdIO
-load_default = do
-    (state, _) <- Save.read_state "save/default"
+load_template :: FilePath -> Cmd.CmdIO
+load_template fn = do
+    (state, _) <- Save.read_state fn
     State.put (State.clear state)
     State.set_namespace (Id.namespace "untitled")
     return Cmd.Done

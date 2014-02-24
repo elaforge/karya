@@ -3,6 +3,13 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
+  - positive events at the end of the ruler should have text above
+  - merged track text doesn't render on negative events
+    It's because the text has to be below the prev_offset, and the prev_offset
+    is the same due to a concident rank 0 event.
+  - Often windows are too narrow to see the name, and besides the title goes
+    away if I don't use window decorations.  Can I squeeze the block title in
+    skeleton display?
   * point select is really hard to see, it should be more obvious
     I could just make it bigger.  Or make the triangle bright red?
   - If thru did eval on "", I wouldn't need pasang thru.  But it might be
