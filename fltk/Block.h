@@ -109,11 +109,7 @@ public:
     void set_track_scroll(int offset);
     // Get the pixels devoted to non-track overhead like scrollbars, in the
     // (track, time) dimensions.
-    IPoint get_padding() const {
-        // Subtract, rather than try to remember every widget to add them up.
-        IPoint p = track_tile.visible_pixels();
-        return IPoint(w() - (p.x + ruler_track->w()), h() - p.y);
-    }
+    IPoint get_padding() const;
 
     void set_selection(int selnum, const Selection &sel);
     // This is different from 'set_selection' because it only sets or clears

@@ -363,6 +363,18 @@ BlockView::set_track_scroll(int offset)
 }
 
 
+IPoint
+BlockView::get_padding() const
+{
+    // Subtract, rather than try to remember every widget to add them up.
+    IPoint p = track_tile.visible_pixels();
+    // Add a small constant, since otherwise this winds up being a few pixels
+    // too small for 'ViewConfig.zoom_to_ruler' to get the bottom of the ruler
+    // in sight, probably due to those all-important bezels.
+    return IPoint(w() - (p.x + ruler_track->w()), h() - p.y + 6);
+}
+
+
 void
 BlockView::set_selection(int selnum, const Selection &sel)
 {
