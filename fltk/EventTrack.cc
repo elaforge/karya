@@ -276,7 +276,7 @@ EventTrackView::draw()
     // doesn't actually seem to improve performance.
     // TODO either fix or remove
     if (false && this->damage() == FL_DAMAGE_SCROLL) {
-        // Avoid the one pixel upper and lower bezels;
+        // Avoid the one pixel upper and lower bevels.
         draw_area.x++; draw_area.w -= 2;
         draw_area.y++; draw_area.h -= 2;
         draw_area = clip_rect(draw_area);

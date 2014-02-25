@@ -298,7 +298,7 @@ OverlayRuler::draw_mark(bool at_zero, int offset, const Mark &mark)
     if (this->zoom.factor >= mark.name_zoom_level && this->config.show_names
         && mark.name)
     {
-        // Extra pixels to keep from bumping into the bezel.
+        // Extra pixels to keep from bumping into the bevel.
         int text_width = fl_width(mark.name) + 2;
         int xmin = x() + 2;
         int xmax = x() + w() - text_width;
@@ -440,7 +440,7 @@ RulerTrackView::draw()
     // doesn't actually seem to improve performance.
     // TODO either fix or remove
     if (false && damage() == FL_DAMAGE_SCROLL) {
-        // Avoid the one pixel upper and lower bezels;
+        // Avoid the one pixel upper and lower bevels.
         draw_area.x++; draw_area.w -= 2;
         draw_area.y++; draw_area.h -= 2;
         draw_area = clip_rect(draw_area);
