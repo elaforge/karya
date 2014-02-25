@@ -58,10 +58,14 @@ enum {
 
 namespace font_size {
     enum {
+        // Block and track titles.
         input = 12,
+        // Text labels in the ruler.
         ruler = 9,
+        // Per-track status, drawn in the SkeletonDisplay.
         track_status = 12,
-        pitch_signal = 9
+        // Title drawn in the SkeletonDisplay.
+        skeleton_title = 10
     };
 };
 

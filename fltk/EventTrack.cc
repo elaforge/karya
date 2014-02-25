@@ -575,9 +575,6 @@ EventTrackView::draw_signal(int min_y, int max_y, ScoreTime start)
     // Account for both the 1 pixel track border and the width of the line.
     const int min_x = x() + 2;
     const int max_x = x() + w() - 2;
-    const SymbolTable::Style style(
-        Config::font, Config::font_size::pitch_signal, FL_BLACK);
-
     int next_i;
     int offset = 0;
     int prev_xpos = -1;

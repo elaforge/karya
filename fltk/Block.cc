@@ -33,7 +33,7 @@ static const int min_width = Config::View::sb_size + 60;
 
 
 BlockView::BlockView(int X, int Y, int W, int H,
-        const BlockModelConfig &model_config) :
+        const BlockModelConfig &model_config, const char *window_title) :
     Fl_Group(X, Y, W, H),
 
     title(0, 0, 1, 1),
@@ -83,6 +83,7 @@ BlockView::BlockView(int X, int Y, int W, int H,
     track_tile.callback(BlockView::track_tile_cb, static_cast<void *>(this));
 
     skel_display.color(color_to_fl(Config::skeleton_display_bg));
+    skel_display.set_title(window_title);
 
     resizable(body);
     body.resizable(body_resize_group);
@@ -759,7 +760,8 @@ BlockViewWindow::BlockViewWindow(
         const BlockModelConfig &model_config) :
     Fl_Double_Window(
         X, Y, std::max(min_width, W), std::max(min_height, H), label),
-    block(X, Y, std::max(min_width, W), std::max(min_height, H), model_config),
+    block(X, Y, std::max(min_width, W), std::max(min_height, H), model_config,
+        label),
     testing(false)
 {
     this->callback((Fl_Callback *) block_view_window_cb);

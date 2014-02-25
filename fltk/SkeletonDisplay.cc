@@ -17,7 +17,6 @@ SkeletonDisplay::SkeletonDisplay(int X, int Y, int W, int H)
     : Fl_Box(X, Y, W, H), right_edge(X+W)
 {
     box(FL_FLAT_BOX);
-    // box(FL_THIN_DOWN_BOX);
 }
 
 
@@ -102,6 +101,14 @@ SkeletonDisplay::set_config(
 
 
 void
+SkeletonDisplay::set_title(const char *title)
+{
+    this->title = title;
+    this->redraw();
+}
+
+
+void
 SkeletonDisplay::set_status(
     int tracknum, char status1, char status2, Color color)
 {
@@ -178,7 +185,7 @@ SkeletonDisplay::draw()
     // half among the steps.
     const int height_step = h() / 2 / (max_height+1);
 
-    // Draw status color.
+    // Draw status colors.
     for (int i = 0; i < ntracks; i++) {
         if (tracks[i].status1) {
             fl_color(color_to_fl(tracks[i].color));
@@ -196,6 +203,15 @@ SkeletonDisplay::draw()
             fl_rectf(x() + tracks[i].left, y() + h() - height,
                 tracks[i].width, height);
         }
+    }
+
+    // Initially I thought to center the text, but it turns out the upper left
+    // corner is the least likely to collide with skeleton arcs.
+    if (title.size() > 0) {
+        fl_font(Config::font, Config::font_size::skeleton_title);
+        fl_color(FL_BLACK);
+        fl_draw(title.c_str(), title.size(),
+            x() + 3, top + fl_height() - fl_descent());
     }
 
     for (size_t i = 0; i < this->edges.size(); i++) {
@@ -236,10 +252,9 @@ SkeletonDisplay::draw()
         if (c[0]) {
             // DEBUG("draw " << i << " " << tracks[i].color);
             int cw = fl_width(c, 2);
-            int ch = fl_height() + fl_descent();
             int xpos = this->x() + tracks[i].center - cw/2;
             fl_color(color_to_fl(tracks[i].color));
-            fl_rectf(xpos-1, bottom - ch, cw + 2, ch);
+            fl_rectf(xpos-1, bottom - fl_height(), cw + 2, fl_height());
             fl_color(FL_BLACK);
             fl_draw(c, 2, xpos, bottom - fl_descent());
         }

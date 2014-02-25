@@ -7,7 +7,7 @@ UNSORTED
   * merged track text doesn't render on negative events
     It's because the text has to be below the prev_offset, and the prev_offset
     is the same due to a concident rank 0 event.
-  - Often windows are too narrow to see the name, and besides the title goes
+  * Often windows are too narrow to see the name, and besides the title goes
     away if I don't use window decorations.  Can I squeeze the block title in
     skeleton display?
   * point select is really hard to see, it should be more obvious
@@ -78,8 +78,9 @@ UNSORTED
     - janta.  Isn't this just Lift?  It's fingered, right?
     - overshoot "curve" for 'smooth': over2 over3, depending how far over
     - ornaments can use more controls than just 'dyn', e.g. bow pressure
-    - instead of hardcoding specific times, I should say short, medium, long,
-      which can vary and have some randomization
+    . instead of hardcoding specific times, I should say short, medium, long,
+      which can vary and have some randomization:
+      . short, medium, long: -s = '(rnd low high) | -m = .. | -l = ..
     . Think about a way to sequence ornaments:
       . seq x; y; z to sequence ornaments, does this make sense?  Or I could
         see each note has having attack, middle, and release "slots".

@@ -39,8 +39,8 @@ struct SkeletonStatus {
 // show the relationship visually.  Out of range tracknums will be warned about
 // and ignored.
 struct SkeletonConfig {
-    SkeletonConfig(int edges_len, SkeletonEdge *edges)
-        : edges_len(edges_len), edges(edges), statuses_len(0), statuses(0)
+    SkeletonConfig(int edges_len, SkeletonEdge *edges) :
+        edges_len(edges_len), edges(edges), statuses_len(0), statuses(0)
     {}
     int edges_len;
     SkeletonEdge *edges;
@@ -65,6 +65,7 @@ public:
     // Since this copies the config, it doesn't need to live beyond this call.
     void set_config(
         const SkeletonConfig &config, const std::vector<int> &widths);
+    void set_title(const char *title);
     void set_status(int tracknum, char status1, char status2, Color color);
     void set_width(int tracknum, int width);
 
@@ -89,6 +90,7 @@ private:
     };
 
     void recalculate_centers();
+    std::string title;
     std::vector<Track> tracks;
     std::vector<SkeletonEdge> edges;
     int right_edge;

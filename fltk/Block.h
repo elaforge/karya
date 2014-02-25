@@ -89,7 +89,7 @@ struct DisplayTrack {
 class BlockView : public Fl_Group {
 public:
     BlockView(int X, int Y, int W, int H,
-        const BlockModelConfig &model_config);
+        const BlockModelConfig &model_config, const char *window_title);
     ~BlockView();
 
     int handle(int evt);
