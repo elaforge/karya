@@ -13,18 +13,10 @@
 #include <iostream>
 
 
-SkeletonDisplay::SkeletonDisplay(int X, int Y, int W, int H)
-    : Fl_Box(X, Y, W, H), right_edge(X+W)
+SkeletonDisplay::SkeletonDisplay(int X, int Y, int W, int H) :
+    Fl_Box(X, Y, W, H)
 {
     box(FL_FLAT_BOX);
-}
-
-
-void
-SkeletonDisplay::resize(int x, int y, int w, int h)
-{
-    w = std::max(this->right_edge, w);
-    Fl_Box::resize(x, y, w, h);
 }
 
 
@@ -38,7 +30,6 @@ SkeletonDisplay::recalculate_centers()
         tracks[i].left = right;
         right += width;
     }
-    this->right_edge = right;
 }
 
 

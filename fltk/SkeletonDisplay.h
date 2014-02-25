@@ -40,7 +40,8 @@ struct SkeletonStatus {
 // and ignored.
 struct SkeletonConfig {
     SkeletonConfig(int edges_len, SkeletonEdge *edges) :
-        edges_len(edges_len), edges(edges), statuses_len(0), statuses(0)
+        edges_len(edges_len), edges(edges), statuses_len(0),
+        statuses(0)
     {}
     int edges_len;
     SkeletonEdge *edges;
@@ -58,7 +59,6 @@ struct SkeletonConfig {
 class SkeletonDisplay : public Fl_Box {
 public:
     SkeletonDisplay(int X, int Y, int W, int H);
-    void resize(int x, int y, int w, int h);
     // This does not reject configs with tracks out of range because fltk
     // should do what haskell says or it gets out of sync.  But draw() will
     // complain about them.
@@ -93,7 +93,6 @@ private:
     std::string title;
     std::vector<Track> tracks;
     std::vector<SkeletonEdge> edges;
-    int right_edge;
 };
 
 #endif
