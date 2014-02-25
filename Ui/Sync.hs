@@ -437,10 +437,15 @@ wants_tsig flags track =
     && Block.Collapse `Set.notMember` flags
 
 -- | Generate the title for block windows.
+--
+-- This is @block - view@, where @view@ will have @block@ stripped from the
+-- beginning, e.g. @b1 - b1.v1@ becomes @b1 - .v1@.
 block_window_title :: Id.Namespace -> ViewId -> BlockId -> Text
-block_window_title ns view_id block_id = txt $
-    Id.show_short ns (Id.unpack_id block_id) <> " - "
-    <> Id.show_short ns (Id.unpack_id view_id)
+block_window_title ns view_id block_id = block <> " - " <> strip block view
+    where
+    block = txt $ Id.show_short ns (Id.unpack_id block_id)
+    view = txt $ Id.show_short ns (Id.unpack_id view_id)
+    strip prefix txt = fromMaybe txt $ Text.stripPrefix prefix txt
 
 events_of_track_ids :: State.State -> [TrackId] -> [Events.Events]
 events_of_track_ids state track_ids = mapMaybe events_of track_ids

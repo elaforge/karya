@@ -500,6 +500,8 @@ data SkeletonConfig
 instance CStorable SkeletonConfig where
     sizeOf _ = #size SkeletonConfig
     alignment _ = alignment nullPtr -- contains pointers and ints
+    -- peek and poke intentionally not implemented, due to dynamic allocation
+    -- for internal pointers.  Use 'with_skeleton_config' instead.
 
 data SkeletonEdge = SkeletonEdge !TrackNum !TrackNum !Types.Width !Color.Color
     deriving (Show)
