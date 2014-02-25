@@ -47,7 +47,12 @@ namespace View {
         track_title_height = 20,
         skel_height = 16,
         sb_size = 5,
-        status_size = 16
+        status_size = 16,
+        // Pixels added to block.get_padding().y.  Otherwise it winds up being
+        // a few pixels too small for 'ViewConfig.zoom_to_ruler' to get the
+        // bottom of the ruler in sight, probably due to those all-important
+        // bevels.
+        extra_time_padding = 6
     };
 };
 

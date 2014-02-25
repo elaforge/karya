@@ -333,6 +333,7 @@ view_time_padding =
     + #const Config::View::skel_height
     + #const Config::View::status_size
     + #const Config::View::sb_size
+    + #const Config::View::extra_time_padding
 
 block_title_height :: Int
 block_title_height = #const Config::View::block_title_height
