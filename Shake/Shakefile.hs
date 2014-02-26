@@ -189,7 +189,7 @@ cppFlags config fn
 cppFiles :: [FilePath]
 cppFiles = ["App/Main.hs", "Cmd/Repl.hs", "Midi/TestMidi.hs"]
 
--- | These are the binaries that depend, transitively, on 'hsconfigH'.  Since
+-- | True for binaries that depend, transitively, on 'hsconfigH'.  Since
 -- hsconfigH is generated, I need to generate it first before chasing
 -- dependencies.
 --
@@ -197,8 +197,10 @@ cppFiles = ["App/Main.hs", "Cmd/Repl.hs", "Midi/TestMidi.hs"]
 -- deps and 'need' it there, but that would mean interleaving logic in
 -- 'HsDeps.transitiveImportsOf' which seems like too much bother for just two
 -- binaries.
-hsconfigBinaries :: [FilePath]
-hsconfigBinaries = ["seq", "test_midi"]
+isHsconfigBinary :: FilePath -> Bool
+isHsconfigBinary fn =
+    FilePath.takeFileName fn `elem` ["seq", "test_midi"]
+    || runProfile `List.isPrefixOf` fn
 
 -- | Module that define 'main' and should get linked to their own binaries,
 -- and the names of their eventual binaries.
@@ -740,7 +742,7 @@ makeHs dir out main = ("GHC-MAKE", out, cmdline)
 -- | Build a haskell binary.
 buildHs :: Config -> [FilePath] -> FilePath -> FilePath -> Shake.Action ()
 buildHs config deps hs fn = do
-    when (FilePath.takeFileName fn `elem` hsconfigBinaries) $
+    when (isHsconfigBinary fn) $
         need [hsconfigPath config]
     srcs <- HsDeps.transitiveImportsOf (cppFlags config) hs
     let ccs = List.nub $
