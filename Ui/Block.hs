@@ -8,7 +8,6 @@ import qualified Control.DeepSeq as DeepSeq
 import qualified Data.Char as Char
 import qualified Data.Generics as Generics
 import qualified Data.Map as Map
-import qualified Data.Maybe as Maybe
 import qualified Data.Set as Set
 import qualified Data.Text as Text
 
@@ -425,8 +424,9 @@ view block block_id rect zoom = View
 status_color :: BlockId -> Block -> Maybe BlockId -> Color.Color
 status_color block_id block maybe_root_id
     | Just block_id == maybe_root_id = Config.status_root
-    | Maybe.isJust (block_integrated block) =
-        Config.status_integrate_destination
+    | Just (_, dests) <- block_integrated block = case dests of
+        DeriveDestinations {} -> Config.status_integrate_destination
+        ScoreDestinations {} -> Config.status_score_integrate_destination
     | otherwise = Config.status_default
 
 show_status :: Map.Map (Int, Text) Text -> Text

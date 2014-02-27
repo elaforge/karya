@@ -381,8 +381,7 @@ put_unwarped_signal :: BlockId -> TrackId -> Score.Warp -> Signal.Control
 put_unwarped_signal block_id track_id warp sig is_pitch =
     put_track_signal block_id track_id $
         Track.TrackSignal unwarped shift stretch is_pitch
-    where
-    (unwarped, shift, stretch) = unwarp warp sig
+    where (unwarped, shift, stretch) = unwarp warp sig
 
 unwarp :: Score.Warp -> Signal.Control -> (Signal.Display, ScoreTime, ScoreTime)
 unwarp warp control = case is_linear_warp warp of

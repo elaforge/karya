@@ -242,6 +242,10 @@ status_root = Color.rgb 1 1 0.8
 status_integrate_destination :: Color.Color
 status_integrate_destination = Color.rgb 1 0.85 0.85
 
+-- | Like 'status_integrate_destination', but for score integration.
+status_score_integrate_destination :: Color.Color
+status_score_integrate_destination = Color.rgb 0.85 1 0.85
+
 -- | Color of the skeleton lines.
 skeleton :: Color.Color
 skeleton = Color.black

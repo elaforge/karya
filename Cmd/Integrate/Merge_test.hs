@@ -158,16 +158,6 @@ make_convert_tracks =
 
 -- * score integrate
 
-test_score_create_block = do
-    let (new_bid, state) = UiTest.run State.empty $ do
-            (bid, _) <- UiTest.mkblock
-                ("b1", [(">", [(0, 1, "")]), ("c1", [(0, 0, "1")])])
-            Merge.score_create_block bid
-    equal (UiTest.extract_tracks_of (UiTest.bid "b1") state)
-        [(">", [(0, 1, "")]), ("c1", [(0, 0, "1")])]
-    equal (UiTest.extract_tracks_of new_bid state)
-        [(">", [(0, 1, "")]), ("c1", [(0, 0, "1")])]
-
 test_score_integrate = do
     -- make a block with the source, then modify
     let f state m = return $ score_integrate 1 (modify m state)

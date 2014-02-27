@@ -19,14 +19,10 @@ UNSORTED
     . kendang-telek takes 44s in debug, 10s in opt, and 1.5s in
       verify_performance.  Now it's 85s in debug, 12 in opt.
     . Lots of time in Signal.map_x, is it due to getting track signals?
-    . When I modify the end of the tempo track, kendang-telek still has lots
-      of cache misses.  Shouldn't it just be the last call?
-    . Can't get damage because... why?
-  - I can work around the pianoteq tuning bug by not stripping redundant
-    conrol changes.  This also means that recorded MIDI can be played from any
-    point.  If bandwidth isn't a concern then why not?
-  - If I specialized ValCall to PitchCall, then I could make scales generate
+  / If I specialized ValCall to PitchCall, then I could make scales generate
     those, and convert to both ValCall and pitch generators.
+    . Seems not worth it, since scales are generally going to use ScaleDegree
+      anyway.
   - give ModifyEvents.Track the ability to change the track title?
     Cmd.Repl.LPitch.change_scale and to_relative could use this.
   - Implement 'sequence'.  It sequences its notes, paying attention only to
@@ -204,7 +200,9 @@ incremental save / git:
 
 integrate / integration:
   score integrate
-    - if there were a Cmd.create_fitted which took screen dimensions, then
+    * Why do I need the bogus <! call at all?  I could just have a cmd call
+      that adds a TrackDestination.
+    / if there were a Cmd.create_fitted which took screen dimensions, then
       Integrate.score_integrate_block could make a fitted view
     - cascading score integrates
       Is there really a use for this, other than consistency?
@@ -880,7 +878,6 @@ Derive:
       type ControlFunctionM a = DeriveM.Deriver Dynamic Text a
       . I can't reuse Deriver, but at least I get logging and errors.
 
-
 pitch: scales: scale:
   scales / Derive.Scale:
     just intonation
@@ -931,6 +928,9 @@ pitch: scales: scale:
       but it might be useful in general to have an analysis framework.
 
 Perform:
+  - I can work around the pianoteq tuning bug by not stripping redundant
+    conrol changes.  This also means that recorded MIDI can be played from any
+    point.  If bandwidth isn't a concern then why not?
   - damper pedal causes all notes to extend until the pedal comes up, should
     the performer know about that?  Is there anything that this breaks?
     I don't think so, it affects channel allotment so notes could be
@@ -939,7 +939,6 @@ Perform:
     they don't precede the previous NoteOn, since I think samplers will only
     switch on the next NoteOn
   Instrument
-    - some kind of organized way to manage instruments and instrument config
     - some basic midi instrument defs for generic midi (dev, patch)
 
 Instrument DB / browser:

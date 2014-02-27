@@ -19,13 +19,14 @@ import qualified Cmd.Selection as Selection
 import Types
 
 
--- | Create an integrated block from the given BlockId.  The block integrate
+-- | Create an integrated block from the focused block.  The block integrate
 -- call will automatically create one block, but you have to use this if you
 -- want more than one.  Actually, you can use it on a block without a `<<`
 -- integrate call, but there isn't much point since it won't reintegrate until
 -- you add one.
-block :: (Cmd.M m) => BlockId -> m ViewId
-block source_block = do
+block :: Cmd.M m => m ViewId
+block = do
+    source_block <- Cmd.get_focused_block
     ruler_id <- State.block_ruler source_block
     dest_block <- Create.block ruler_id
     State.set_integrated_block dest_block $
@@ -34,13 +35,31 @@ block source_block = do
     Cmd.inflict_block_damage source_block
     Create.view dest_block
 
+score_block :: Cmd.M m => m ViewId
+score_block = do
+    source_block <- Cmd.get_focused_block
+    ruler_id <- State.block_ruler source_block
+    dest_block <- Create.block ruler_id
+    State.set_integrated_block dest_block $
+        Just (source_block, Block.ScoreDestinations [])
+    Cmd.inflict_block_damage source_block
+    Create.view dest_block
+
 -- | Similar to 'block', explicitly create another track integrated from the
--- given one, which should already have a `<` integrate call on it.
-track :: (Cmd.M m) => BlockId -> TrackId -> m ()
-track block_id track_id = do
+-- selected one, which should already have a `<` integrate call on it.
+track :: Cmd.M m => m ()
+track = do
+    (block_id, _, track_id, _) <- Selection.get_insert
     State.modify_integrated_tracks block_id $
         ((track_id, Block.DeriveDestinations []) :)
     Cmd.derive_immediately [block_id]
+    Cmd.inflict_track_damage block_id track_id
+
+score_track :: Cmd.M m => m ()
+score_track = do
+    (block_id, _, track_id, _) <- Selection.get_insert
+    State.modify_integrated_tracks block_id $
+        ((track_id, Block.ScoreDestinations []) :)
     Cmd.inflict_track_damage block_id track_id
 
 sel_edits :: Cmd.CmdL ([Event.IndexKey], [Merge.Edit])

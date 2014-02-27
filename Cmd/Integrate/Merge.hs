@@ -26,15 +26,13 @@
 -}
 module Cmd.Integrate.Merge (
     -- * create
-    create_block, score_create_block
+    create_block
     -- * merge
     , merge_block, score_merge_block, merge_tracks
     , score_merge_tracks
     , Edit(..), Modify(..), is_modified
     -- * diff
     , diff_events
-    -- * score integrate call
-    , block_has_score_inegrate, track_has_score_integrate
 #ifdef TESTING
     , make_index
     , diff, diff_event, apply
@@ -42,7 +40,6 @@ module Cmd.Integrate.Merge (
 ) where
 import qualified Data.ByteString.Char8 as B
 import qualified Data.List as List
-import qualified Data.List.NonEmpty as NonEmpty
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 import qualified Data.Set as Set
@@ -64,11 +61,7 @@ import qualified Ui.TrackTree as TrackTree
 
 import qualified Cmd.Create as Create
 import qualified Cmd.Integrate.Convert as Convert
-import qualified Derive.Call.Integrate as Call.Integrate
-import qualified Derive.ParseTitle as ParseTitle
 import qualified Derive.Stack as Stack
-import qualified Derive.TrackLang as TrackLang
-
 import qualified App.Config as Config
 import Types
 
@@ -86,20 +79,11 @@ merge_block :: State.M m => BlockId -> Convert.Tracks
     -> [Block.DeriveDestination] -> m [Block.DeriveDestination]
 merge_block = merge_tracks
 
-score_create_block :: State.M m => BlockId -> m BlockId
-score_create_block source_id = do
-    ruler_id <- State.block_ruler source_id
-    dest_id <- Create.block ruler_id
-    score_merge_block source_id dest_id []
-    return dest_id
-
 score_merge_block :: State.M m => BlockId -> BlockId -> Block.ScoreDestinations
-    -> m ()
+    -> m Block.ScoreDestinations
 score_merge_block source_id dest_id dests = do
     tree <- TrackTree.track_tree_of source_id
-    dests <- score_merge dest_id tree dests
-    State.set_integrated_block dest_id $
-        Just (source_id, Block.ScoreDestinations dests)
+    score_merge dest_id tree dests
 
 -- * tracks
 
@@ -251,8 +235,7 @@ score_merge_pair block_id pair = case pair of
         let stacked = add_event_stacks block_id source_id events
         title <- State.get_track_title source_id
         track_id <- Create.track block_id tracknum
-            (strip_score_integrate_track_call title)
-            (Events.from_list (map unmodified stacked))
+            title (Events.from_list (map unmodified stacked))
         return $ Just (source_id, (track_id, make_index stacked))
     (Nothing, Right (track_id, _)) -> do
         -- Integrate no longer wants the track.  Don't delete the track in case
@@ -513,43 +496,3 @@ apply_modifications mods event = List.foldl' go event mods
         Duration d -> Event.set_duration d
         Set text -> Event.modify_bytestring (const text)
         Prefix text -> Event.modify_bytestring (text<>)
-
-
--- * score integrate call
-
--- | Strip the score integrate call to avoid the destination track creating its
--- own destination tracks endlessly.  This only happens for track calls since
--- block calls strip the text entirely.  There's no deep reason, perhaps new
--- blocks should copy the block title too.
-strip_score_integrate_track_call :: Text -> Text
-strip_score_integrate_track_call title
-    | ParseTitle.is_note_track title = case ParseTitle.parse_note title of
-        Right expr -> maybe "" ParseTitle.unparse_note $ NonEmpty.nonEmpty $
-            filter (not . is_integrate_call) $ NonEmpty.toList expr
-        Left _ -> ""
-    | otherwise = case ParseTitle.parse_control_expr title of
-        Right (ctype, calls) ->
-            ParseTitle.unparse_control_expr ctype $
-                filter (not . is_integrate_call) calls
-        Left _ -> ""
-
--- | True if this track has a score integrate call in its title.  Tries to
--- parse it as a note track or control track title.
-track_has_score_integrate :: Text -> Bool
-track_has_score_integrate title
-    | ParseTitle.is_note_track title = case ParseTitle.parse_note title of
-        Right expr -> any is_integrate_call $ NonEmpty.toList expr
-        Left _ -> False
-    | otherwise = case ParseTitle.parse_control_expr title of
-        Right (_, calls) -> any is_integrate_call calls
-        Left _ -> False
-
-is_integrate_call :: TrackLang.Call -> Bool
-is_integrate_call (TrackLang.Call call_id args) =
-    call_id == Call.Integrate.score_integrate && null args
-
--- | True if this block has a score integrate call in its title.
-block_has_score_inegrate :: Text -> Bool
-block_has_score_inegrate =
-    either (const False) (any is_integrate_call . NonEmpty.toList)
-        . ParseTitle.parse_block
