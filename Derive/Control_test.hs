@@ -6,7 +6,9 @@ module Derive.Control_test where
 import qualified Data.Map as Map
 
 import Util.Control
+import qualified Util.Seq as Seq
 import Util.Test
+
 import qualified Ui.Block as Block
 import qualified Ui.Events as Events
 import qualified Ui.State as State
@@ -231,6 +233,22 @@ test_stash_signal = do
     equal (run [(">", [(0, 1, ""), (1, 1, "")]), ctrack]) [(csig, 0, 1)]
     equal (run [(">", [(0, 1, ""), (1, 1, ""), (2, 1, "")]), ctrack])
         [(csig, 0, 1)]
+
+test_stash_signal_performance = do
+    let run tsig_tracks = e_tsigs . DeriveTest.derive_blocks_with_ui id
+            (DeriveTest.with_tsig_on tsig_tracks)
+    equal (tail $ run [UiTest.mk_tid_name "sub" 2]
+        [ ("b1",
+            [ ("tempo", [(0, 0, "1"), (10, 0, "2")])
+            , (">", [(0, 4, "sub"), (4, 4, "sub")])
+            ])
+        , ("sub",
+            [ (">", [(n, 1, "") | n <- Seq.range 0 3 1])
+            , ("dyn", [(n, 0, v) | (n, v) <- zip (Seq.range_ 0 1)
+                ["1", ".75", ".5", ".25"]])
+            ])
+        ])
+        [(Signal.signal [(0, 1), (1, 0.75), (2, 0.5), (3, 0.25)], 0, 1)]
 
 test_stash_signal_default_tempo = do
     -- Signal is stretched by the default tempo.

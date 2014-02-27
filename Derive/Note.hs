@@ -121,8 +121,9 @@ d_note_track (Tree.Node track subs) =
     title = with_title subs (TrackTree.tevents_range track)
         (TrackTree.tevents_title track)
 
-record_if_wanted :: TrackTree.TrackEvents -> Derive.Events -> Derive.Deriver ()
-record_if_wanted track events =
+stash_signal_if_wanted :: TrackTree.TrackEvents -> Derive.Events
+    -> Derive.Deriver ()
+stash_signal_if_wanted track events =
     whenJustM (Control.render_of track) $ \(block_id, track_id, maybe_source) ->
         whenJust maybe_source $ \source ->
             stash_signal block_id track_id source events

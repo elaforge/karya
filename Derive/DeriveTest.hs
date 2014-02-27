@@ -301,6 +301,14 @@ with_tsig = State.tracks %= Map.map enable
     enable track = track { Track.track_render =
         Track.RenderConfig (Track.Line Nothing) Color.blue }
 
+with_tsig_on :: [TrackId] -> State.State -> State.State
+with_tsig_on track_ids = State.tracks %= Map.mapWithKey enable
+    where
+    enable track_id track
+        | track_id `elem` track_ids = track { Track.track_render =
+            Track.RenderConfig (Track.Line Nothing) Color.blue }
+        | otherwise = track
+
 with_transform :: Text -> State.State -> State.State
 with_transform = (State.config#State.global_transform #=)
 

@@ -111,7 +111,7 @@ test_integrate = do
         [(0, 0), (1, 0), (2, -1), (3, -3)]
 
 test_unwarp = do
-    let f w sig = unsignal $ Signal.unwarp w (signal sig)
+    let f w = unsignal . Signal.unwarp w . signal
     -- warp is score -> real
     let lin = [(0, 0), (1, 1), (2, 2), (3, 3)]
         slow = make_warp 10 0.5

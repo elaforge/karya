@@ -57,7 +57,9 @@ import qualified Derive.Tempo as Tempo
 import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.Pitch as Pitch
+import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
+
 import Types
 
 
@@ -73,9 +75,9 @@ d_control_track :: TrackTree.EventsNode
 d_control_track (Tree.Node track _) deriver = do
     let title = TrackTree.tevents_title track
     if Text.all Char.isSpace title then deriver else do
-    (ctype, expr) <- either (\err -> Derive.throw $ "track title: " ++ err)
-        return (ParseTitle.parse_control_expr title)
-    eval_track track expr ctype deriver
+        (ctype, expr) <- either (\err -> Derive.throw $ "track title: " ++ err)
+            return (ParseTitle.parse_control_expr title)
+        eval_track track expr ctype deriver
 
 -- | Preprocess a track tree by splitting the control tracks.  An event
 -- starting with @%@ splits the events below it into a new control track.  The
@@ -386,7 +388,9 @@ put_unwarped_signal block_id track_id warp sig is_pitch =
 unwarp :: Score.Warp -> Signal.Control -> (Signal.Display, ScoreTime, ScoreTime)
 unwarp warp control = case is_linear_warp warp of
     Just (shift, stretch) -> (Signal.coerce control, shift, stretch)
-    Nothing -> (Signal.unwarp (Score.warp_to_signal warp) control, 0, 1)
+    Nothing -> (Signal.unwarp_fused warp_sig
+            (RealTime.score shift) (RealTime.score stretch) control, 0, 1)
+        where Score.Warp warp_sig shift stretch = warp
 
 -- | Return (shift, stretch) if the tempo is linear.  This relies on an
 -- optimization in 'Derive.d_tempo' to notice when the tempo is constant and
@@ -423,7 +427,9 @@ get_block_track :: BlockId -> TrackId
 get_block_track block_id track_id = do
     track <- Derive.get_track track_id
     block <- Derive.get_block block_id
-    btrack <- Derive.require (show block_id <> " has " <> show track_id) $
+    btrack <- Derive.require
+        ("get_block_track: " <> show block_id <> " doesn't have "
+            <> show track_id) $
         List.find ((== Just track_id) . Block.track_id)
             (Block.block_tracks block)
     return (btrack, track)

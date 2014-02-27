@@ -14,11 +14,71 @@ UNSORTED
     I could just make it bigger.  Or make the triangle bright red?
   - If thru did eval on "", I wouldn't need pasang thru.  But it might be
     slower.
-  - deriving seems really slow, and fluctuates wildly
+  deriving seems really slow
     . viola-sonata took 14s in opt, 1.89s in verify_performance
     . kendang-telek takes 44s in debug, 10s in opt, and 1.5s in
       verify_performance.  Now it's 85s in debug, 12 in opt.
     . Lots of time in Signal.map_x, is it due to getting track signals?
+      Derive.Control.derive_control.deriver
+      Derive.Control.stash_if_wanted -> Derive.Control.get_block_track ->
+      Derive.Control.stash_if_wanted -> put_unwarped_signal
+        Derive.Control 165571 300 0.0 0.0 12.1 24.3
+      Then Derive.Control.unwarp -> warp_to_signal -> map_x has 12.4%
+      Also Derive.Control.unwarp -> Signal.unwarp -> invert -> modify_vec
+
+      line 23793:
+      Derive.Control.stash_if_wanted has 1178 entries
+      Only 300 calls to Block.track_flags, so looks like the majority have
+        TrackTree.tevents_block_track_id track -> Nothing
+
+      Then put_unwarped_signal, and time is split between
+      Score.warp_to_signal and Signal.unwarp
+
+    . Remember tempo tracks have a constant sampling rate, so the tempo
+      track may actually have a lot of samples in it.  And presumably
+      warp_to_signal has to be repeated for each realization.
+    . I could memoize by making a warp have both the triple and a lazy
+      signal.
+    . Or, maybe I don't need to flatten the Warp at all to unwarp with it.
+    ? First find out why viola-sonata needs 300 track signals rendered.
+      It's the dyn track, every single invert it has to unwarp the signal by
+      the entire tempo track.
+      Unwarping shouldn't be bad if I don't have to flatten the warp each
+      time.
+    . data/viola-sonata by opt/seq @score takes 11.49 without fusion, 10.72s
+      with
+
+    . I think profile does this because testing now wants signals for all
+      tracks.  That would explain why verify_performance is so much faster.
+      But if that's true, derivation in seq should become fast if I disable
+      all track signals.  Try it out.
+    . Also, for viola-sonata, shouldn't it be able to reuse the track signal
+      for all the blocks except the top one, which is the only one with
+      tempo?  Still, it has to concatenate the chunks, but that should be
+      faster than rederiving, unless it's concetenating inefficiently.
+    . Collect stats, kinds of track renders:
+      1. Control track emitted directly: Control.stash_if_wanted
+        1a. Linear tempo, can be reused.
+        1b. Nonlinear tempo, must be unwarped: Signal.unwarp
+      2. Sliced track is pieced together.  Note.stash_signal_if_wanted
+
+    * Add unwarp_fused, even though it doesn't seem to help seq, but it
+      does help the profile.
+    . Why don't these changes seem to help seq?
+      Profiling says they do, seq is still lots slower than
+      verify_performance.  Why?
+    - If a block is called multiple times, it stashes signals multiple times.
+      I should either ensure that laziness prevents extra work from being
+      done, or figure out how to skip it if it's already there.
+    - I still do lots of redundant unwarping since each control fragment has
+      extra samples.  I should concatenate them first, then unwarp.
+      That would mean Control.put_unwarped_signal puts the signal directly.
+      Now Call.derive_track unwarps the Derive.collect_track_signals for
+      the appropriate (block_id, track_id).  This seems a bit sketchy since
+      I'm modifying an existing track warp, I can't do it twice.  And it would
+      happen twice, since I get a derive_track on every single slice.  So
+      I have to check that it's not sliced.
+
   / If I specialized ValCall to PitchCall, then I could make scales generate
     those, and convert to both ValCall and pitch generators.
     . Seems not worth it, since scales are generally going to use ScaleDegree

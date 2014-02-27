@@ -166,7 +166,7 @@ derive_track node@(Tree.Node track subs)
             events <- derive_orphans (TrackTree.tevents_title track) orphans $
                 Internal.track_setup track (Note.d_note_track node)
             -- The note track can also have a TrackSignal.
-            Note.record_if_wanted track events
+            Note.stash_signal_if_wanted track events
             return events
     -- I'd like to call track_setup up here, but tempo tracks are treated
     -- differently, so it goes inside d_control_track.

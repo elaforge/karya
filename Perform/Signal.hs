@@ -44,7 +44,7 @@ module Perform.Signal (
     -- ** special functions
     , inverse_at, inverse_at_extend
     , compose, compose_hybrid, integrate
-    , unwarp, invert
+    , unwarp, unwarp_fused, invert
     , pitches_share
 ) where
 import qualified Prelude
@@ -487,6 +487,19 @@ warp warp = modify_vec $ V.map_x $ \x -> y_to_real (at_linear x warp)
 -- reason to do this is to display in the UI, so the return type is Display.
 unwarp :: Warp -> Control -> Display
 unwarp w = coerce . warp (invert w)
+
+-- | Previously, 'unwarp' was called as
+-- @Signal.unwarp (Score.warp_to_signal warp) control@.  This converts the
+-- entire @warp@, which is often large thanks to the sampling rate required by
+-- 'integrate', for the sake of unwarping @control@, which is often very small,
+-- thanks to track slicing, and does so again and again.  Fusion should
+-- take care of making the warp conversion just as efficient as manually
+-- applying the shift and stretch, but presumably can't handle only inverting
+-- the part of the warp needed to unwarp the control, becasue the signal is
+-- strict.
+unwarp_fused :: Warp -> RealTime -> RealTime -> Control -> Display
+unwarp_fused w shift stretch = coerce . modify_vec (V.map_x unwarp)
+    where unwarp x = inverse_at_extend (x_to_y ((x - shift) / stretch)) w
 
 invert :: Warp -> Warp
 invert = modify_vec $ Vector.map $ \(V.Sample x y) ->
