@@ -357,6 +357,27 @@ lookup_instrument = Derive.lookup_val Environ.instrument
 get_attrs :: Derive.Deriver Score.Attributes
 get_attrs = fromMaybe mempty <$> Derive.lookup_val Environ.attributes
 
+-- | Get symbolic pitch manipulating functions for the current scale.  This
+-- is for calls that want to work with symbolic pitches.
+-- TODO which I don't actually have any of at the moment, so kill this if I
+-- continue to not have any.
+get_pitch_functions :: Derive.Deriver
+    ( Pitch.Note -> Maybe Pitch.Pitch
+    , Pitch.Pitch -> Maybe Pitch.Note
+    , Scale.Transposition -> Pitch.Step -> Pitch.Pitch -> Maybe Pitch.Pitch
+    )
+get_pitch_functions = do
+    scale <- get_scale
+    key <- lookup_key
+    let transpose transposition steps =
+            to_maybe . Scale.scale_transpose scale transposition key steps
+    return
+        ( to_maybe . Scale.scale_read scale key
+        , to_maybe . Scale.scale_show scale key
+        , transpose
+        )
+    where to_maybe = either (const Nothing) Just
+
 -- * random
 
 -- | Get an infinite list of random numbers.  These are deterministic in that
