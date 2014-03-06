@@ -23,6 +23,7 @@ module Util.Pretty (
 import qualified Data.ByteString as ByteString
 import qualified Data.ByteString.UTF8 as UTF8
 import qualified Data.Char as Char
+import qualified Data.DList as DList
 import qualified Data.List.NonEmpty as NonEmpty
 import qualified Data.Map as Map
 import Data.Monoid ((<>))
@@ -58,6 +59,8 @@ class Pretty a where
     pretty = render_compact . format
     format :: a -> Doc
     format = PP.text . pretty
+    -- | Everyone's favorite list hack from show, so pretty on String is
+    -- treated specially.  Don't implement this.
     format_list :: [a] -> Doc
     format_list = format_commas '[' ']'
 
@@ -81,6 +84,9 @@ instance Pretty Word.Word64 where pretty = show
 instance Pretty Double where pretty = show_float 3
 instance Pretty Float where pretty = show_float 3
 instance Pretty Bool where pretty = show
+
+instance Pretty a => Pretty (DList.DList a) where
+    format = format . DList.toList
 
 instance (Integral a, Pretty a) => Pretty (Ratio.Ratio a) where
     pretty r = pretty (Ratio.numerator r) <> "/" <> pretty (Ratio.denominator r)

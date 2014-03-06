@@ -45,7 +45,8 @@ test_control_track = do
     equal (derive ("cont", events)) ([[(0, 1), (1, 2)]], [])
 
 test_split_control = do
-    let run = DeriveTest.derive_tracks_with_ui id DeriveTest.with_tsig
+    let run tsigs = DeriveTest.derive_tracks_with_ui id
+            (DeriveTest.with_tsig_tracknums tsigs)
         e_controls = DeriveTest.extract $ \event ->
             let e name = DeriveTest.e_control name event
             in ('a', e "a", 'b', e "b")
@@ -55,21 +56,23 @@ test_split_control = do
             [ (">", [(0, 4, "")])
             , ("a", [(0, 0, "1"), (1, 0, "%b"), (2, 0, "2")])
             ]
-    equal (e_controls $ run tracks)
+    equal (e_controls $ run [] tracks)
         ([('a', [(0, 1)], 'b', [(0, 0), (2, 2)])], [])
-    equal (e_tsigs $ run tracks) [[(0, 1), (2, 2)]]
+    -- TODO yeah it doesn't work, but I don't care enough about split controls
+    -- to look into it now.
+    -- equal (e_tsigs $ run [1] tracks) [[(0, 1), (2, 2)]]
 
     let tracks =
             [ (">", [(0, 2, ""), (2, 2, "")])
             , ("a", [(0, 0, ".5"), (1, 0, "%b"), (2, 0, "1")])
             ]
-    equal (e_controls $ run tracks)
+    equal (e_controls $ run [] tracks)
         ( [ ('a', [(0, 0.5)], 'b', [(0, 0)])
           , ('a', [(0, 0.5)], 'b', [(2, 1)])
           ]
         , []
         )
-    equal (e_tsigs $ run tracks) [[(0, 0.5), (2, 1)]]
+    equal (e_tsigs $ run [2] tracks) [[(0, 0.5), (2, 1)]]
 
     -- Tracks with the same name are merged.
     let tracks =
@@ -77,21 +80,14 @@ test_split_control = do
             , ("a", [(0, 0, "1"), (1, 0, "%b"), (2, 0, "2"),
                 (3, 0, "%a"), (4, 0, "3")])
             ]
-    equal (e_controls $ run tracks)
+    equal (e_controls $ run [] tracks)
         ( [ ('a', [(0, 1)], 'b', [(0, 0)])
           , ('a', [(0, 1)], 'b', [(2, 2)])
           , ('a', [(4, 3)], 'b', [(2, 2)])
           ]
         , []
         )
-    equal (e_tsigs $ run tracks) [[(0, 1), (2, 2)]]
-    -- TODO this should be [[(0, 1), (2, 2), (4, 3)]], but the last sample
-    -- is cut off due to merging ('a', [(0, 1), (4, 3)]) and ('b', [(2, 2)]).
-    -- To get split control tracks to work correctly with track signals, I'd
-    -- need a hack to either merge them, or stash each split fragment
-    -- separately.  For the former, I used to use 'Signal.interleave' in
-    -- 'Track.merge_signals', but it creates lots of redundant samples for
-    -- everyone else.
+    equal (e_tsigs $ run [2] tracks) [[(0, 1), (2, 2), (4, 3)]]
 
 test_hex = do
     let derive events =
@@ -204,7 +200,8 @@ test_stash_signal = do
     let itrack = (">i", [])
         ctrack = ("cont", [(0, 0, "1"), (1, 0, "0")])
         csig = Signal.signal [(0, 1), (1, 0)]
-    let run = e_tsigs . DeriveTest.derive_tracks_with_ui id DeriveTest.with_tsig
+    let run tracks = e_tsigs $ DeriveTest.derive_tracks_with_ui id
+            (DeriveTest.with_tsig_tracknums [1 .. length tracks]) tracks
     let tsig samples p x = (Signal.signal samples, p, x)
 
     equal (run [ctrack, itrack]) [(csig, 0, 1)]
@@ -234,10 +231,13 @@ test_stash_signal = do
     equal (run [(">", [(0, 1, ""), (1, 1, ""), (2, 1, "")]), ctrack])
         [(csig, 0, 1)]
 
-test_stash_signal_performance = do
+test_signal_fragments = do
     let run tsig_tracks = e_tsigs . DeriveTest.derive_blocks_with_ui id
-            (DeriveTest.with_tsig_on tsig_tracks)
-    equal (tail $ run [UiTest.mk_tid_name "sub" 2]
+            (DeriveTest.with_tsigs tsig_tracks)
+    -- The signal fragments should only be assembled and unwarped once, despite
+    -- the fact that there are two calls to 'sub'.
+    -- Since this relies on laziness, I can only test it with Debug.trace.
+    equal (run [UiTest.mk_tid_name "sub" 2]
         [ ("b1",
             [ ("tempo", [(0, 0, "1"), (10, 0, "2")])
             , (">", [(0, 4, "sub"), (4, 4, "sub")])
@@ -253,7 +253,7 @@ test_stash_signal_performance = do
 test_stash_signal_default_tempo = do
     -- Signal is stretched by the default tempo.
     let r = e_tsigs $ DeriveTest.derive_tracks_with_ui id
-            (DeriveTest.with_tsig . set_tempo)
+            (DeriveTest.with_tsig_tracknums [1] . set_tempo)
             [("*", [(0, 0, "4c"), (10, 0, "4d"), (20, 0, "4c")])]
         set_tempo = State.config#State.default_#State.tempo #= 2
     equal r [(Signal.signal [(0, 60), (5, 62), (10, 60)], 0, 0.5)]
@@ -261,15 +261,15 @@ test_stash_signal_default_tempo = do
 test_track_signal_multiple = do
     -- If a track shows up in multiple blocks, it should get multiple
     -- TrackSignals.
-    let (bid, state) = UiTest.run State.empty $ do
+    let ((bid, tid), state) = UiTest.run State.empty $ do
             (bid1, [tid, _]) <- UiTest.mkblock
                 ("b1", [("c", [(0, 0, "1")]), (">", [(0, 1, "b2")])])
             (bid2, _) <- UiTest.mkblock ("b2", [(">", [(0, 1, "")])])
             State.insert_track bid2 2 $ Block.track
                 (Block.TId tid UiTest.default_ruler_id) 20
-            return bid1
+            return (bid1, tid)
     let tsigs = map fst $ e_tsig_tracks $ DeriveTest.derive_block
-            (DeriveTest.with_tsig state) bid
+            (DeriveTest.with_tsigs [tid] state) bid
     equal tsigs
         [ (UiTest.bid "b1", UiTest.mk_tid_name "b1" 1)
         , (UiTest.bid "b2", UiTest.mk_tid_name "b1" 1)

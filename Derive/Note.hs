@@ -84,7 +84,7 @@
     - In method mode, it edits the last note event or adds one, just like note
     mode.
 -}
-module Derive.Note where
+module Derive.Note (d_note_track, stash_signal_if_wanted, with_title) where
 import qualified Data.Char as Char
 import qualified Data.List.NonEmpty as NonEmpty
 import qualified Data.Map as Map
@@ -121,18 +121,19 @@ d_note_track (Tree.Node track subs) =
     title = with_title subs (TrackTree.tevents_range track)
         (TrackTree.tevents_title track)
 
-stash_signal_if_wanted :: TrackTree.TrackEvents -> Derive.Events
+-- | Note tracks can also have track signals, extracted from the events they
+-- produce.
+stash_signal_if_wanted :: Derive.Events -> TrackTree.TrackEvents
     -> Derive.Deriver ()
-stash_signal_if_wanted track events =
+stash_signal_if_wanted events track =
     whenJustM (Control.render_of track) $ \(block_id, track_id, maybe_source) ->
         whenJust maybe_source $ \source ->
             stash_signal block_id track_id source events
 
 stash_signal :: BlockId -> TrackId -> Track.RenderSource -> Derive.Events
     -> Derive.Deriver ()
-stash_signal block_id track_id source events = do
-    warp <- Internal.get_dynamic Derive.state_warp
-    Control.put_unwarped_signal block_id track_id warp signal is_pitch
+stash_signal block_id track_id source events =
+    Control.put_unwarped_signal block_id track_id signal is_pitch
     where
     (signal, is_pitch) = extract_track_signal source (LEvent.events_of events)
 
@@ -180,11 +181,14 @@ derive_notes tinfo events = do
 
 track_info :: TrackTree.TrackEvents -> [TrackTree.EventsNode] -> Call.TrackInfo
 track_info track subs = Call.TrackInfo
-    { Call.tinfo_events_end = TrackTree.tevents_end track
+    { Call.tinfo_block_id = TrackTree.tevents_block_id track
+    , Call.tinfo_track_id = TrackTree.tevents_track_id track
+    , Call.tinfo_events_end = TrackTree.tevents_end track
     , Call.tinfo_track_range = TrackTree.tevents_range track
     , Call.tinfo_shifted = TrackTree.tevents_shifted track
     , Call.tinfo_sub_tracks = subs
     , Call.tinfo_events_around = TrackTree.tevents_around track
     , Call.tinfo_type = ParseTitle.NoteTrack
     , Call.tinfo_inverted = TrackTree.tevents_inverted track
+    , Call.tinfo_sliced = TrackTree.tevents_sliced track
     }

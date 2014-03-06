@@ -57,9 +57,7 @@ import qualified Derive.Tempo as Tempo
 import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.Pitch as Pitch
-import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
-
 import Types
 
 
@@ -322,7 +320,9 @@ derive_control is_tempo track expr = do
     compact events = LEvent.Event (mconcat sigs) : map LEvent.Log logs
         where (sigs, logs) = LEvent.partition events
     tinfo = Call.TrackInfo
-        { Call.tinfo_events_end = TrackTree.tevents_end track
+        { Call.tinfo_block_id = TrackTree.tevents_block_id track
+        , Call.tinfo_track_id = TrackTree.tevents_track_id track
+        , Call.tinfo_events_end = TrackTree.tevents_end track
         , Call.tinfo_track_range = TrackTree.tevents_range track
         , Call.tinfo_shifted = TrackTree.tevents_shifted track
         , Call.tinfo_sub_tracks = []
@@ -330,6 +330,7 @@ derive_control is_tempo track expr = do
         , Call.tinfo_type =
             if is_tempo then ParseTitle.TempoTrack else ParseTitle.ControlTrack
         , Call.tinfo_inverted = TrackTree.tevents_inverted track
+        , Call.tinfo_sliced = TrackTree.tevents_sliced track
         }
 
 derive_pitch :: Bool -> TrackTree.TrackEvents -> [TrackLang.Call]
@@ -353,13 +354,16 @@ derive_pitch cache track expr = do
     compact events = LEvent.Event (mconcat sigs) : map LEvent.Log logs
         where (sigs, logs) = LEvent.partition events
     tinfo = Call.TrackInfo
-        { Call.tinfo_events_end = TrackTree.tevents_end track
+        { Call.tinfo_block_id = TrackTree.tevents_block_id track
+        , Call.tinfo_track_id = TrackTree.tevents_track_id track
+        , Call.tinfo_events_end = TrackTree.tevents_end track
         , Call.tinfo_track_range = TrackTree.tevents_range track
         , Call.tinfo_shifted = TrackTree.tevents_shifted track
         , Call.tinfo_sub_tracks = []
         , Call.tinfo_events_around = TrackTree.tevents_around track
         , Call.tinfo_type = ParseTitle.PitchTrack
         , Call.tinfo_inverted = TrackTree.tevents_inverted track
+        , Call.tinfo_sliced = TrackTree.tevents_sliced track
         }
 
 tevents :: TrackTree.TrackEvents -> [Event.Event]
@@ -374,32 +378,27 @@ tevents = Events.ascending . TrackTree.tevents_events
 stash_if_wanted :: TrackTree.TrackEvents -> Signal.Control -> Bool
     -> Derive.Deriver ()
 stash_if_wanted track sig is_pitch =
-    whenJustM (render_of track) $ \(block_id, track_id, _) -> do
-        warp <- Internal.get_dynamic Derive.state_warp
-        put_unwarped_signal block_id track_id warp sig is_pitch
+    whenJustM (render_of track) $ \(block_id, track_id, _) ->
+        if TrackTree.tevents_sliced track
+            then put_signal_fragment is_pitch block_id track_id sig
+            else put_unwarped_signal block_id track_id sig is_pitch
 
-put_unwarped_signal :: BlockId -> TrackId -> Score.Warp -> Signal.Control
-    -> Bool -> Derive.Deriver ()
-put_unwarped_signal block_id track_id warp sig is_pitch =
-    put_track_signal block_id track_id $
-        Track.TrackSignal unwarped shift stretch is_pitch
-    where (unwarped, shift, stretch) = unwarp warp sig
+put_signal_fragment :: Bool -> BlockId -> TrackId -> Signal.Control
+    -> Derive.Deriver ()
+put_signal_fragment is_pitch block_id track_id sig = Internal.modify_collect $
+    -- TODO profile with Internal.merge_collect
+    \collect -> collect { Derive.collect_signal_fragments =
+        add (Derive.collect_signal_fragments collect) }
+    where
+    -- Map.insertWith does 'merge new old', so put the singleton on the front.
+    add = Map.insertWith' (<>) (block_id, track_id)
+        (Derive.Fragments is_pitch [sig])
 
-unwarp :: Score.Warp -> Signal.Control -> (Signal.Display, ScoreTime, ScoreTime)
-unwarp warp control = case is_linear_warp warp of
-    Just (shift, stretch) -> (Signal.coerce control, shift, stretch)
-    Nothing -> (Signal.unwarp_fused warp_sig
-            (RealTime.score shift) (RealTime.score stretch) control, 0, 1)
-        where Score.Warp warp_sig shift stretch = warp
-
--- | Return (shift, stretch) if the tempo is linear.  This relies on an
--- optimization in 'Derive.d_tempo' to notice when the tempo is constant and
--- give it 'Score.id_warp_signal'.
-is_linear_warp :: Score.Warp -> Maybe (ScoreTime, ScoreTime)
-is_linear_warp warp
-    | Score.warp_signal warp == Score.id_warp_signal =
-        Just (Score.warp_shift warp, Score.warp_stretch warp)
-    | otherwise = Nothing
+put_unwarped_signal :: BlockId -> TrackId -> Signal.Control -> Bool
+    -> Derive.Deriver ()
+put_unwarped_signal block_id track_id sig is_pitch = do
+    warp <- Internal.get_dynamic Derive.state_warp
+    put_track_signal block_id track_id $ Call.unwarp is_pitch warp sig
 
 put_track_signal :: BlockId -> TrackId -> Track.TrackSignal -> Derive.Deriver ()
 put_track_signal block_id track_id tsig = Internal.merge_collect $ mempty
@@ -408,7 +407,7 @@ put_track_signal block_id track_id tsig = Internal.merge_collect $ mempty
 -- | Get render information if this track wants a TrackSignal.
 render_of :: TrackTree.TrackEvents
     -> Derive.Deriver (Maybe (BlockId, TrackId, Maybe Track.RenderSource))
-render_of track = case TrackTree.tevents_block_track_id track of
+render_of tevents = case TrackTree.tevents_block_track_id tevents of
     Nothing -> return Nothing
     Just (block_id, track_id) -> do
         (btrack, track) <- get_block_track block_id track_id

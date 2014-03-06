@@ -64,13 +64,54 @@ UNSORTED
 
     * Add unwarp_fused, even though it doesn't seem to help seq, but it
       does help the profile.
-    . Why don't these changes seem to help seq?
+    ? Why don't these changes seem to help seq?
       Profiling says they do, seq is still lots slower than
       verify_performance.  Why?
-    - If a block is called multiple times, it stashes signals multiple times.
+    . Laziness doesn't save me from all the unwarp calls, probably because of
+      Collect's Monoid instance, which has Map.unionWith Track.merge_signals
+    - Get rid of Track.ts_is_pitch.
+    - Move Monoid NoteDeriver instance from Deriver.Lib to Deriver.Monad
+      so it's not an orphan.
+    - Debug.trace implies track events are evaluated back to front, presumably
+      something is insufficiently strict, and would be more efficient front to
+      back.
+    - It seems like inverted tracks wind up with Nothing block_id but a set
+      track_id, is that ok?
+    - Can I implement a more efficient TimeVector.merge when I know there will
+      be lots of overlaps, as when merging track signal fragments?  I could
+      first go through and count the samples that will be emitted, and then
+      give that to unfoldrN.  Or I could avoid the duplicate work by first
+      clipping all the fragments, and then do a big mconcat, which should be
+      able to allocate the whole array in one go.  In fact, this might be
+      better for all merges.
+    - Make Call.TrackInfo just include a TrackEvents, since it has almost all
+      the fields.  Or make a LCD if it means I can put it in CallInfo too.
+    - The Control.put_signal_fragment work is done on a second call to
+      a track, even though the output is never used.  Can I fix that?
+    - Track.merge_signals no longer used?
+    * If a block is called multiple times, it stashes signals multiple times.
       I should either ensure that laziness prevents extra work from being
       done, or figure out how to skip it if it's already there.
-    - I still do lots of redundant unwarping since each control fragment has
+      . To skip it I have to thread the collect along so the next call can
+        see there is already a tsig.  This makes a data dependency so it's not
+        great.
+      . To use laziness, I have to combine tsigs with Map.union, not
+        Map.unionWith.  But then how do I combine sliced fragments, or
+        orphan tracks?
+      . I think I need a two step process.  If I'm in a sliced track, then
+        put fragments keyed by (block_id, track_id) into a new Collect field.
+        After a non-sliced track has derived, it extracts, merges, and unwarps
+        the tsigs from that field, unless one already exists.  The merging
+        into the field should be strict, but the field itself should be lazy,
+        so when a track is evaluated the second time, none of the fragment
+        stashing happens.
+      * Note track track signal fails with the orphans.
+        The problem is that the track fragments each get their own fragment,
+        but in track_signals, so they don't combine.
+        . I'm asking for the signal of the track under the transformer track,
+          but that track is evaluated as orphans in the caller and all the
+          events are only available it the parent track.
+    * I still do lots of redundant unwarping since each control fragment has
       extra samples.  I should concatenate them first, then unwarp.
       That would mean Control.put_unwarped_signal puts the signal directly.
       Now Call.derive_track unwarps the Derive.collect_track_signals for
@@ -901,6 +942,9 @@ Derive:
           . type Fragments = [(Maybe Coordination, Probability, Fragment)]
           . type Part = Part
             { transition :: Pitch -> Fragments, continuation :: Fragments }
+
+          . Or, do this the same way I do kotekan.  But instead of sangsih and
+            polos patterns, I have a set of N patterns indexed by pitch.
 
           - extend to work other scales
           - more graceful transitions between pitches

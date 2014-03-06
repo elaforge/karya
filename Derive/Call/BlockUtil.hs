@@ -36,6 +36,7 @@ import qualified Ui.State as State
 import qualified Ui.TrackTree as TrackTree
 
 import qualified Derive.Cache as Cache
+import qualified Derive.Call as Call
 import qualified Derive.Control as Control
 import qualified Derive.Controls as Controls
 import qualified Derive.Derive as Derive
@@ -164,9 +165,13 @@ derive_track node@(Tree.Node track subs)
         Internal.record_empty_tracks underivable
         with_stack $ Cache.track track (TrackTree.tevents_children node) $ do
             events <- derive_orphans (TrackTree.tevents_title track) orphans $
-                Internal.track_setup track (Note.d_note_track node)
-            -- The note track can also have a TrackSignal.
-            Note.stash_signal_if_wanted track events
+                Internal.track_setup track $ Note.d_note_track $
+                -- If there are orphans, then this derivation is merely a
+                -- fragment of the total track signal.  Setting the sliced
+                -- flag prevents 'Call.derive_track' from defragmenting.
+                Tree.Node ((if null orphans then id else set_sliced) track) subs
+            mapM_ (Note.stash_signal_if_wanted events)
+                (note_signal_tracks track subs)
             return events
     -- I'd like to call track_setup up here, but tempo tracks are treated
     -- differently, so it goes inside d_control_track.
@@ -178,13 +183,40 @@ derive_track node@(Tree.Node track subs)
         | null orphans = deriver
         -- The orphans still get evaluated under the track title, otherwise
         -- they might miss the instrument.
-        | otherwise = derived_orphans <> deriver
+        --
+        -- Since the orphans are extracted and derived separately, they aren't
+        -- derived in track order.  That in turn means that any signal
+        -- fragments are collected out of order, which means 'Signal.merge'
+        -- must sort them before merging.
+        | otherwise = mconcat (deriver : derived_orphans) <* defragment
         where
-        derived_orphans = mconcat
-            [Note.with_title [] range title (derive_track orphan)
-                | (range, orphan) <- orphans]
+        derived_orphans =
+            [ Note.with_title [] range title (derive_track orphan)
+            | (range, orphan) <- orphans
+            ]
+    defragment = do
+        warp <- Internal.get_dynamic Derive.state_warp
+        Internal.modify_collect $ Call.defragment_track_signals warp
     with_stack = maybe id Internal.with_stack_track
         (TrackTree.tevents_track_id track)
+
+set_sliced :: TrackTree.TrackEvents -> TrackTree.TrackEvents
+set_sliced track = track { TrackTree.tevents_sliced = True }
+
+-- | Extract tracks that might want to stash a signal.
+--
+-- A note track can display a signal, extracted from the events it generates.
+-- But if the track has orphan sub-tracks, its events will be evaluated
+-- separately, either directly as orphans, or indirectly as the children of the
+-- non-orphan sections.  At the moment it seems simpler to collect all the
+-- events of the whole set of tracks and consider them the output of all of
+-- them.
+note_signal_tracks :: TrackTree.TrackEvents -> TrackTree.EventsTree
+    -> [TrackTree.TrackEvents]
+note_signal_tracks track subs
+    | TrackTree.tevents_sliced track = []
+    | otherwise = track : filter is_note (concatMap Tree.flatten subs)
+    where is_note = ParseTitle.is_note_track . TrackTree.tevents_title
 
 -- | Does this tree have any non-tempo tracks at the top level?
 has_nontempo_track :: TrackTree.EventsTree -> Bool

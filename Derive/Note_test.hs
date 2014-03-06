@@ -55,12 +55,29 @@ test_sub_tracks = do
         ]
 
 test_derive_track_signals = do
-    let run = extract . DeriveTest.derive_tracks_with_ui id
-            (DeriveTest.with_tsig . DeriveTest.with_linear)
+    let run tracknum source = extract . DeriveTest.derive_tracks_with_ui id
+            (DeriveTest.with_tsig_sources [(UiTest.mk_tid tracknum, source)]
+                . DeriveTest.with_linear)
         extract = Map.toList
             . Map.map (Signal.unsignal . Track.ts_signal)
             . Derive.r_track_signals
-    equal (run $ (">", [(1, 2, "(")]) : UiTest.regular_notes 4)
+        pitch = Just (Track.Pitch Nothing)
+    equal (run 1 pitch $ UiTest.regular_notes 4)
+        [((UiTest.default_block_id, UiTest.mk_tid 1),
+            [(0, 48), (1, 50), (2, 52), (3, 53)])]
+
+    --    0  1  2  3
+    -- t1    (- --
+    -- t2 "" "" "" ""
+    -- t3 48 50 52 53
+    -- Make sure track signals from orphans are incorporated.
+    equal (run 2 pitch $ (">", [(1, 2, "(")]) : UiTest.regular_notes 4)
+        [((UiTest.default_block_id, UiTest.mk_tid 2),
+            [(0, 48), (1, 50), (2, 52), (3, 53)])]
+
+    -- This isn't a note track signal, but let's make sure normal track signals
+    -- work with orphans as well.
+    equal (run 3 Nothing $ (">", [(1, 2, "(")]) : UiTest.regular_notes 4)
         [((UiTest.default_block_id, UiTest.mk_tid 3),
             [(0, 48), (1, 50), (2, 52), (3, 53)])]
 

@@ -34,11 +34,11 @@ data Track = Track {
     } deriving (Eq, Show, Read)
 
 instance Pretty.Pretty Track where
-    format (Track title events _bg render) =
-        Pretty.record (Pretty.text "Track" Pretty.<+> Pretty.format title
-                Pretty.<+> Pretty.format render)
-            [ ("events", Pretty.format events)
-            ]
+    format (Track title events _bg render) = Pretty.record_title "Track"
+        [ ("title", Pretty.format title)
+        , ("render", Pretty.format render)
+        , ("events", Pretty.format events)
+        ]
 
 -- | Construct a new Track.
 track :: Text -> Events.Events -> Track

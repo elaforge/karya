@@ -75,7 +75,8 @@ module Derive.Deriver.Monad (
     , Merge(..), ControlOp(..)
 
     -- ** collect
-    , Collect(..), ControlMod(..), Integrated(..)
+    , Collect(..), SignalFragments, Fragments(..)
+    , ControlMod(..), Integrated(..)
     , TrackDynamic(..)
 
     -- * calls
@@ -815,6 +816,7 @@ data Collect = Collect {
     -- more efficient when it inverts them to get playback position.
     collect_warp_map :: !TrackWarp.WarpMap
     , collect_track_signals :: !Track.TrackSignals
+    , collect_signal_fragments :: !SignalFragments
     , collect_track_dynamic :: !TrackDynamic
     -- | This is how a call records its dependencies.  After evaluation of
     -- a deriver, this will contain the dependencies of the most recent call.
@@ -825,6 +827,62 @@ data Collect = Collect {
     , collect_integrated :: ![Integrated]
     , collect_control_mods :: ![ControlMod]
     } deriving (Show)
+
+-- | These are fragments of a signal, which will be later collected into
+-- 'collect_track_signals'.  This is part of a complicated mechanism to
+-- evaluate TrackSignals only once.  When the sliced fragments of a track are
+-- evaluated, they collect signal Fragments.  When the track is fully
+-- evaluated, they are sorted and merged into 'collect_track_signals'.
+-- If the track is then evaluated again, the monoid instance will discard the
+-- duplicate.
+type SignalFragments = Map.Map (BlockId, TrackId) Fragments
+-- | The Bool is true if these are fragments of a pitch track.  It winds up in
+-- 'Ui.Track.ts_is_pitch'.  The signal fragments are collected in essentially
+-- arbitrary order, to keep Collect from imposing an order dependence on track
+-- slice derivation, and are later merged with 'Signal.merge', which sorts them
+-- first.
+data Fragments = Fragments !Bool [Signal.Control]
+    deriving (Show)
+
+instance Monoid.Monoid Fragments where
+    mempty = Fragments False mempty
+    mappend (Fragments is_pitch1 frags1) (Fragments is_pitch2 frags2) =
+        Fragments (is_pitch1 || is_pitch2) (frags1 <> frags2)
+
+instance DeepSeq.NFData Fragments where rnf (Fragments _ frags) = rnf frags
+
+instance Pretty.Pretty Fragments where
+    format (Fragments is_pitch frags) = Pretty.format (is_pitch, frags)
+
+instance Pretty.Pretty Collect where
+    format (Collect warp_map tsigs frags trackdyn deps cache integrated cmods) =
+        Pretty.record_title "Collect"
+            [ ("warp_map", Pretty.format warp_map)
+            , ("track_signals", Pretty.format tsigs)
+            , ("signal_fragments", Pretty.format frags)
+            , ("track_dynamic", Pretty.format trackdyn)
+            , ("block_deps", Pretty.format deps)
+            , ("cache", Pretty.format cache)
+            , ("integrated", Pretty.format integrated)
+            , ("control_mods", Pretty.format cmods)
+            ]
+
+instance Monoid.Monoid Collect where
+    mempty = Collect mempty mempty mempty mempty mempty mempty mempty mempty
+    mappend (Collect warps1 tsigs1 frags1 trackdyn1 deps1 cache1 integrated1
+                cmods1)
+            (Collect warps2 tsigs2 frags2 trackdyn2 deps2 cache2 integrated2
+                cmods2) =
+        Collect (warps1 <> warps2)
+            (tsigs1 <> tsigs2) (Map.unionWith (<>) frags1 frags2)
+            (trackdyn1 <> trackdyn2) (deps1 <> deps2) (cache1 <> cache2)
+            (integrated1 <> integrated2) (cmods1 <> cmods2)
+
+instance DeepSeq.NFData Collect where
+    rnf (Collect warp_map frags tsigs track_dyn local_dep cache integrated
+            _cmods) =
+        rnf warp_map `seq` rnf frags `seq` rnf tsigs `seq` rnf track_dyn
+        `seq` rnf local_dep `seq` rnf cache `seq` rnf integrated
 
 -- | This is a hack so a call on a control track can modify other controls.
 -- The motivating case is pitch ornaments that also want to affect the
@@ -838,20 +896,6 @@ instance Pretty.Pretty ControlMod where
     format (ControlMod control signal merge) =
         Pretty.constructor "ControlMod"
             [Pretty.format control, Pretty.format signal, Pretty.format merge]
-
-instance Monoid.Monoid Collect where
-    mempty = Collect mempty mempty mempty mempty mempty mempty mempty
-    mappend (Collect warps1 tsigs1 trackdyn1 deps1 cache1 integrated1 cmods1)
-            (Collect warps2 tsigs2 trackdyn2 deps2 cache2 integrated2 cmods2) =
-        Collect (warps1 <> warps2)
-            (Map.unionWith Track.merge_signals tsigs1 tsigs2)
-            (trackdyn1 <> trackdyn2) (deps1 <> deps2) (cache1 <> cache2)
-            (integrated1 <> integrated2) (cmods1 <> cmods2)
-
-instance DeepSeq.NFData Collect where
-    rnf (Collect warp_map tsigs track_dyn local_dep cache integrated _cmods) =
-        rnf warp_map `seq` rnf tsigs `seq` rnf track_dyn
-        `seq` rnf local_dep `seq` rnf cache `seq` rnf integrated
 
 data Integrated = Integrated {
     -- BlockId for a block integration, TrackId for a track integration.
@@ -1275,7 +1319,7 @@ instance (DeepSeq.NFData d) => DeepSeq.NFData (CallType d) where
 -- ** deps
 
 newtype BlockDeps = BlockDeps (Set.Set BlockId)
-    deriving (Monoid.Monoid, Show, Eq, DeepSeq.NFData)
+    deriving (Pretty.Pretty, Monoid.Monoid, Show, Eq, DeepSeq.NFData)
 
 -- ** damage
 

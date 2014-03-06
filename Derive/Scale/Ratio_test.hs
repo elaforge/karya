@@ -16,7 +16,7 @@ test_ratio = do
             , DeriveTest.e_tsig_logs r
             )
     let run ratio base = DeriveTest.derive_tracks_with_ui
-            id DeriveTest.with_tsig
+            id (DeriveTest.with_tsig_tracknums [3])
             [ (">i1", [(0, 1, "")])
             , ("*twelve #ratio-source", [(0, 0, base)])
             , ("*ratio", [(0, 0, ratio)])

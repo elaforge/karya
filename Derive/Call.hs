@@ -82,6 +82,7 @@ module Derive.Call where
 import qualified Data.ByteString.Char8 as B
 import qualified Data.Char as Char
 import qualified Data.List.NonEmpty as NonEmpty
+import qualified Data.Map as Map
 import qualified Data.Text as Text
 
 import Util.Control
@@ -92,6 +93,7 @@ import qualified Util.Seq as Seq
 import qualified Ui.Event as Event
 import qualified Ui.Id as Id
 import qualified Ui.State as State
+import qualified Ui.Track as Track
 import qualified Ui.TrackTree as TrackTree
 
 import qualified Derive.Call.Tags as Tags
@@ -101,10 +103,12 @@ import qualified Derive.LEvent as LEvent
 import qualified Derive.ParseBs as ParseBs
 import qualified Derive.ParseTitle as ParseTitle
 import qualified Derive.PitchSignal as PitchSignal
+import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Stack as Stack
 import qualified Derive.TrackLang as TrackLang
 
+import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
 import Types
 
@@ -242,25 +246,32 @@ apply_transform name expr_str deriver
 -- to construct a 'Derive.CallInfo', so the fields are documented in
 -- 'TrackTree.TrackEvents'.
 data TrackInfo = TrackInfo {
-    tinfo_events_end :: !ScoreTime
+    tinfo_block_id :: !(Maybe BlockId)
+    , tinfo_track_id :: !(Maybe TrackId)
+    , tinfo_events_end :: !ScoreTime
     , tinfo_track_range :: !(ScoreTime, ScoreTime)
     , tinfo_shifted :: !ScoreTime
     , tinfo_sub_tracks :: !TrackTree.EventsTree
     , tinfo_events_around :: !([Event.Event], [Event.Event])
     , tinfo_type :: !ParseTitle.Type
     , tinfo_inverted :: !Bool
+    , tinfo_sliced :: !Bool
     } deriving (Show)
 
 instance Pretty.Pretty TrackInfo where
-    format (TrackInfo end range shifted subs around ttype inverted) =
+    format (TrackInfo block_id track_id end range shifted subs around ttype
+            inverted sliced) =
         Pretty.record_title "TrackInfo"
-            [ ("events_end", Pretty.format end)
+            [ ("block_id", Pretty.format block_id)
+            , ("track_id", Pretty.format track_id)
+            , ("events_end", Pretty.format end)
             , ("track_range", Pretty.format range)
             , ("shifted", Pretty.format shifted)
             , ("sub_tracks", Pretty.format subs)
             , ("events_around", Pretty.format around)
             , ("type", Pretty.format ttype)
             , ("inverted", Pretty.format inverted)
+            , ("sliced", Pretty.format sliced)
             ]
 
 -- | Given the previous sample and derivation results, get the last sample from
@@ -304,7 +315,12 @@ derive_track state tinfo get_last_sample events =
     -- mconcat, but profiling showed that to be quite a bit slower.
     go :: Derive.Collect -> PrevVal d -> [Event.Event] -> [Event.Event]
         -> ([LEvent.LEvents d], Derive.Collect)
-    go collect _ _ [] = ([], collect)
+    go collect _ _ [] = ([], defragmented)
+        where
+        warp = Derive.state_warp $ Derive.state_dynamic state
+        defragmented
+            | tinfo_sliced tinfo = collect
+            | otherwise = defragment_track_signals warp collect
     go collect prev_sample prev (cur : rest) =
         (events : rest_events, final_collect)
         where
@@ -317,6 +333,39 @@ derive_track state tinfo get_last_sample events =
             Right stream -> stream
             Left err -> [LEvent.Log (Derive.error_to_warn err)]
         next_sample = get_last_sample prev_sample result
+
+defragment_track_signals :: Score.Warp -> Derive.Collect -> Derive.Collect
+defragment_track_signals warp collect
+    | Map.null fragments = collect
+    | otherwise = collect
+        { Derive.collect_track_signals = Derive.collect_track_signals collect
+            <> Map.map defragment fragments
+        , Derive.collect_signal_fragments = mempty
+        }
+    where
+    fragments = Derive.collect_signal_fragments collect
+    defragment (Derive.Fragments is_pitch fs) =
+        unwarp is_pitch warp $ Signal.merge fs
+
+unwarp :: Bool -> Score.Warp -> Signal.Control -> Track.TrackSignal
+unwarp is_pitch warp control = case is_linear_warp warp of
+    Just (shift, stretch) ->
+        Track.TrackSignal (Signal.coerce control) shift stretch is_pitch
+    Nothing -> Track.TrackSignal unwarped 0 1 is_pitch
+        where
+        Score.Warp warp_sig shift stretch = warp
+        unwarped = Signal.unwarp_fused warp_sig (RealTime.score shift)
+            (RealTime.score stretch) control
+
+-- | Return (shift, stretch) if the tempo is linear.  This relies on an
+-- optimization in 'Derive.d_tempo' to notice when the tempo is constant and
+-- give it 'Score.id_warp_signal'.
+is_linear_warp :: Score.Warp -> Maybe (ScoreTime, ScoreTime)
+is_linear_warp warp
+    | Score.warp_signal warp == Score.id_warp_signal =
+        Just (Score.warp_shift warp, Score.warp_stretch warp)
+    | otherwise = Nothing
+
 
 derive_event :: (Derive.Callable d) =>
     Derive.State -> TrackInfo -> PrevVal d

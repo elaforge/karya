@@ -139,8 +139,7 @@ data TrackEvents = TrackEvents {
     -- This is a (start, end) range, not (start, dur).
     , tevents_range :: !(TrackTime, TrackTime)
     -- | True if this is a sliced track.  That means it's a fragment of
-    -- a track and so certain track-level things, like recording a track
-    -- signal, should be skipped.
+    -- a track and certain track-level things should be skipped.
     , tevents_sliced :: !Bool
     -- | True if this was created as a result of inversion.  It's just here
     -- to hand off to 'Derive.info_inverted'.
@@ -160,17 +159,20 @@ data TrackEvents = TrackEvents {
     } deriving (Show)
 
 instance Pretty.Pretty TrackEvents where
-    format track = Pretty.record
-        (Pretty.text "TrackEvents"
-            Pretty.<+> Pretty.format (tevents_title track)
-            Pretty.<+> Pretty.format (tevents_track_id track))
-        [ ("end", Pretty.format (tevents_end track))
-        , ("range", Pretty.format (tevents_range track))
-        , ("sliced", Pretty.format (tevents_sliced track))
-        , ("shifted", Pretty.format (tevents_shifted track))
-        , ("events", Pretty.format (tevents_events track))
-        , ("around", Pretty.format (tevents_around track))
-        ]
+    format (TrackEvents title events track_id block_id end range sliced
+            inverted around shifted) =
+        Pretty.record_title "TrackEvents"
+            [ ("title", Pretty.format title)
+            , ("events", Pretty.format events)
+            , ("track_id", Pretty.format track_id)
+            , ("block_id", Pretty.format block_id)
+            , ("end", Pretty.format end)
+            , ("range", Pretty.format range)
+            , ("sliced", Pretty.format sliced)
+            , ("inverted", Pretty.format inverted)
+            , ("around", Pretty.format around)
+            , ("shifted", Pretty.format shifted)
+            ]
 
 track_events :: Text -> Events.Events -> ScoreTime -> TrackEvents
 track_events title events end = TrackEvents

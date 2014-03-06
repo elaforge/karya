@@ -372,11 +372,12 @@ mkstack_block (block, tracknum, s, e) = Stack.from_outermost
 -- ** track
 
 make_track :: TrackSpec -> Track.Track
-make_track (title, triplets) = Track.modify_events
-    (Events.insert (map make_event triplets)) (empty_track title)
+make_track (title, events) = Track.modify_events
+    (Events.insert (map make_event events)) (empty_track title)
 
 empty_track :: String -> Track.Track
-empty_track title = Track.track (txt title) Events.empty
+empty_track title = (Track.track (txt title) Events.empty)
+    { Track.track_render = Track.no_render }
 
 -- ** event
 

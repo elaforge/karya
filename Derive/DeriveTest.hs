@@ -295,19 +295,20 @@ with_skel_block block_id skel state = UiTest.exec state $
 set_ruler :: Ruler.Ruler -> State.State -> State.State
 set_ruler ruler = State.rulers %= Map.insert UiTest.default_ruler_id ruler
 
-with_tsig :: State.State -> State.State
-with_tsig = State.tracks %= Map.map enable
-    where
-    enable track = track { Track.track_render =
-        Track.RenderConfig (Track.Line Nothing) Color.blue }
+with_tsigs :: [TrackId] -> State.State -> State.State
+with_tsigs = with_tsig_sources . map (flip (,) Nothing)
 
-with_tsig_on :: [TrackId] -> State.State -> State.State
-with_tsig_on track_ids = State.tracks %= Map.mapWithKey enable
+with_tsig_tracknums :: [TrackNum] -> State.State -> State.State
+with_tsig_tracknums = with_tsigs . map UiTest.mk_tid
+
+with_tsig_sources :: [(TrackId, Maybe Track.RenderSource)] -> State.State
+    -> State.State
+with_tsig_sources track_ids = State.tracks %= Map.mapWithKey enable
     where
-    enable track_id track
-        | track_id `elem` track_ids = track { Track.track_render =
-            Track.RenderConfig (Track.Line Nothing) Color.blue }
-        | otherwise = track
+    enable track_id track = case lookup track_id track_ids of
+        Just source -> track { Track.track_render =
+            Track.RenderConfig (Track.Line source) Color.blue }
+        Nothing -> track
 
 with_transform :: Text -> State.State -> State.State
 with_transform = (State.config#State.global_transform #=)
