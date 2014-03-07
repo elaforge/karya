@@ -91,11 +91,9 @@ instance CStorable Track.TrackSignal where
 -- sig rendering by messing with ValNames seems like a useful thing to do.
 -- TOOD ValNames are gone now, revisit this?
 poke_track_signal :: Ptr Track.TrackSignal -> Track.TrackSignal -> IO ()
-poke_track_signal tsigp (Track.TrackSignal sig shift stretch is_pitch) = do
+poke_track_signal tsigp (Track.TrackSignal sig shift stretch) = do
     (#poke TrackSignal, shift) tsigp shift
     (#poke TrackSignal, stretch) tsigp stretch
-    (#poke TrackSignal, is_pitch_signal) tsigp (Util.c_bool is_pitch)
-
     initialize_track_signal tsigp
     Signal.with_ptr sig $ \sigp len -> do
         -- TODO copy an empty signal as a null ptr

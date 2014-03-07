@@ -133,20 +133,13 @@ data TrackSignal = TrackSignal {
     ts_signal :: !Signal.Display
     , ts_shift :: !ScoreTime
     , ts_stretch :: !ScoreTime
-    , ts_is_pitch :: !Bool
     } deriving (Show, Eq)
 
 instance Pretty.Pretty TrackSignal where
-    format (TrackSignal sig shift stretch _is_pitch) =
+    format (TrackSignal sig shift stretch) =
         Pretty.record (Pretty.text "TrackSignal"
                 Pretty.<+> Pretty.format (shift, stretch))
             [("signal", Pretty.format sig)]
 
 instance DeepSeq.NFData TrackSignal where
-    rnf (TrackSignal sig _ _ _) = DeepSeq.rnf sig
-
--- | Not a monoid because there's no mempty and since I take shift and stretch
--- from the first TrackSignal it's not really commutative.
-merge_signals :: TrackSignal -> TrackSignal -> TrackSignal
-merge_signals tsig1 tsig2 = tsig1
-    { ts_signal = ts_signal tsig1 <> ts_signal tsig2 }
+    rnf (TrackSignal sig _ _) = DeepSeq.rnf sig

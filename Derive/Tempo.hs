@@ -2,9 +2,14 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
-{-# LANGUAGE BangPatterns #-}
+{-# LANGUAGE CPP, BangPatterns #-}
 -- | Functions to handle tempo tracks.
-module Derive.Tempo where
+module Derive.Tempo (
+    with_tempo, with_absolute, with_hybrid
+#ifdef TESTING
+    , tempo_to_warp
+#endif
+) where
 import qualified Data.Vector.Storable as Vector
 
 import Util.Control
@@ -151,7 +156,7 @@ with_hybrid block_dur maybe_track_id signal deriver = do
         s2 = Score.warp_to_signal w2
 
 -- | Total duration of horizontal segments in the warp signal.  These are
--- the places where 'Signal.compose_hybrid' will
+-- the places where 'Signal.compose_hybrid' will emit a 1\/1 line.
 flat_duration :: Signal.Warp -> ScoreTime
 flat_duration =
     RealTime.to_score . fst . Vector.foldl' go (0, TimeVector.Sample 0 0)

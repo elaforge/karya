@@ -344,14 +344,13 @@ defragment_track_signals warp collect
         }
     where
     fragments = Derive.collect_signal_fragments collect
-    defragment (Derive.Fragments is_pitch fs) =
-        unwarp is_pitch warp $ Signal.merge fs
+    defragment = unwarp warp . Signal.merge
 
-unwarp :: Bool -> Score.Warp -> Signal.Control -> Track.TrackSignal
-unwarp is_pitch warp control = case is_linear_warp warp of
+unwarp :: Score.Warp -> Signal.Control -> Track.TrackSignal
+unwarp warp control = case is_linear_warp warp of
     Just (shift, stretch) ->
-        Track.TrackSignal (Signal.coerce control) shift stretch is_pitch
-    Nothing -> Track.TrackSignal unwarped 0 1 is_pitch
+        Track.TrackSignal (Signal.coerce control) shift stretch
+    Nothing -> Track.TrackSignal unwarped 0 1
         where
         Score.Warp warp_sig shift stretch = warp
         unwarped = Signal.unwarp_fused warp_sig (RealTime.score shift)

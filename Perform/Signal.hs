@@ -410,7 +410,7 @@ compose f = modify_vec $ V.map_y $ \y -> at_linear (y_to_real y) f
 -- | This is like 'compose', but implements a kind of \"semi-absolute\"
 -- composition.  The idea is that it's normal composition until the second
 -- signal has a slope of zero.  Normally this would be a discontinuity, but
--- is special cased to force the output to a 1/1 line.  In effect, it's as
+-- is special cased to force the output to a 1\/1 line.  In effect, it's as
 -- if the flat segment were whatever slope is necessary to to generate a slope
 -- of 1 when composed with the first signal.
 compose_hybrid :: Warp -> Warp -> Warp

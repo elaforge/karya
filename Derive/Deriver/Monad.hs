@@ -75,7 +75,7 @@ module Derive.Deriver.Monad (
     , Merge(..), ControlOp(..)
 
     -- ** collect
-    , Collect(..), SignalFragments, Fragments(..)
+    , Collect(..), SignalFragments
     , ControlMod(..), Integrated(..)
     , TrackDynamic(..)
 
@@ -831,28 +831,15 @@ data Collect = Collect {
 -- | These are fragments of a signal, which will be later collected into
 -- 'collect_track_signals'.  This is part of a complicated mechanism to
 -- evaluate TrackSignals only once.  When the sliced fragments of a track are
--- evaluated, they collect signal Fragments.  When the track is fully
+-- evaluated, they collect signal fragments.  When the track is fully
 -- evaluated, they are sorted and merged into 'collect_track_signals'.
 -- If the track is then evaluated again, the monoid instance will discard the
 -- duplicate.
-type SignalFragments = Map.Map (BlockId, TrackId) Fragments
--- | The Bool is true if these are fragments of a pitch track.  It winds up in
--- 'Ui.Track.ts_is_pitch'.  The signal fragments are collected in essentially
--- arbitrary order, to keep Collect from imposing an order dependence on track
--- slice derivation, and are later merged with 'Signal.merge', which sorts them
--- first.
-data Fragments = Fragments !Bool [Signal.Control]
-    deriving (Show)
-
-instance Monoid.Monoid Fragments where
-    mempty = Fragments False mempty
-    mappend (Fragments is_pitch1 frags1) (Fragments is_pitch2 frags2) =
-        Fragments (is_pitch1 || is_pitch2) (frags1 <> frags2)
-
-instance DeepSeq.NFData Fragments where rnf (Fragments _ frags) = rnf frags
-
-instance Pretty.Pretty Fragments where
-    format (Fragments is_pitch frags) = Pretty.format (is_pitch, frags)
+--
+-- The signal fragments are collected in essentially arbitrary order, to keep
+-- Collect from imposing an order dependence on track slice derivation, and are
+-- later merged with 'Signal.merge', which sorts them first.
+type SignalFragments = Map.Map (BlockId, TrackId) [Signal.Control]
 
 instance Pretty.Pretty Collect where
     format (Collect warp_map tsigs frags trackdyn deps cache integrated cmods) =

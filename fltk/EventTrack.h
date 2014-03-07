@@ -28,7 +28,7 @@ struct ControlSample {
 class TrackSignal {
 public:
     TrackSignal() : signal(NULL), val_min(0), val_max(0), length(0),
-        is_pitch_signal(false), shift(0), stretch(1)
+        shift(0), stretch(1)
     {}
 
     // The track containing the TrackSignal is responsible for the freeing of
@@ -41,7 +41,6 @@ public:
     double val_min, val_max;
     // Length of above signal.
     int length;
-    char is_pitch_signal;
 
     // These are to be applied to the signal's time values.
     ScoreTime shift;

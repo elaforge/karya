@@ -69,7 +69,7 @@ UNSORTED
       verify_performance.  Why?
     . Laziness doesn't save me from all the unwarp calls, probably because of
       Collect's Monoid instance, which has Map.unionWith Track.merge_signals
-    - Get rid of Track.ts_is_pitch.
+    * Get rid of Track.ts_is_pitch.
     - Move Monoid NoteDeriver instance from Deriver.Lib to Deriver.Monad
       so it's not an orphan.
     - Debug.trace implies track events are evaluated back to front, presumably
@@ -88,7 +88,7 @@ UNSORTED
       the fields.  Or make a LCD if it means I can put it in CallInfo too.
     - The Control.put_signal_fragment work is done on a second call to
       a track, even though the output is never used.  Can I fix that?
-    - Track.merge_signals no longer used?
+    * Track.merge_signals no longer used?
     * If a block is called multiple times, it stashes signals multiple times.
       I should either ensure that laziness prevents extra work from being
       done, or figure out how to skip it if it's already there.

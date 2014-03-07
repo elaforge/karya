@@ -2,6 +2,7 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
+{-# LANGUAGE CPP #-}
 {- | Derivers for control tracks.  That means tempo, control, and pitch.
 
     Control tracks (specifically control tracks, not tempo or pitch) can have
@@ -20,11 +21,18 @@
     Relative pitches can be added or multiplied, and this is expressed via
     normal controls using transposition signals like 'Controls.chromatic'.
 -}
-module Derive.Control where
+module Derive.Control (
+    d_control_track, split_control_tracks
+    -- * TrackSignal
+    , put_unwarped_signal, render_of
+#ifdef TESTING
+    , derive_control
+#endif
+) where
 import qualified Data.ByteString.Char8 as Char8
 import qualified Data.Char as Char
 import qualified Data.List as List
-import qualified Data.Map as Map
+import qualified Data.Map.Strict as Map
 import qualified Data.Maybe as Maybe
 import qualified Data.Text as Text
 import qualified Data.Tree as Tree
@@ -60,9 +68,6 @@ import qualified Perform.Pitch as Pitch
 import qualified Perform.Signal as Signal
 import Types
 
-
-type Pitch = PitchSignal.Signal
-type Control = Signal.Control
 
 -- | As returned by 'TrackTree.tevents_range', happpens to be used a lot here.
 type TrackRange = (ScoreTime, ScoreTime)
@@ -196,7 +201,7 @@ tempo_call sym track sig_deriver deriver = do
         (signal, logs) <- sig_deriver
         -- Do this in real time, so 'stash_if_wanted' knows it can directly
         -- reuse the signal.
-        stash_if_wanted track signal False
+        stash_if_wanted track signal
         return (signal, logs)
 
     -- 'with_damage' must be applied *inside* 'd_tempo'.  If it were outside,
@@ -231,7 +236,7 @@ control_call :: TrackTree.TrackEvents -> Score.Typed Score.Control
     -> Derive.NoteDeriver -> Derive.NoteDeriver
 control_call track control merge control_deriver deriver = do
     (signal, logs) <- Internal.track_setup track control_deriver
-    stash_if_wanted track signal False
+    stash_if_wanted track signal
     -- Apply and strip any control modifications made during the above derive.
     Derive.apply_control_mods $ merge_logs logs $ with_damage $
         with_control_op control merge signal deriver
@@ -247,11 +252,6 @@ with_control_op :: Score.Typed Score.Control -> Derive.Merge -> Signal.Control
 with_control_op (Score.Typed typ control) merge signal =
     Derive.with_merged_control merge control (Score.Typed typ signal)
 
-to_display :: TrackResults Signal.Control -> Signal.Display
-to_display (sig, _) = Signal.coerce sig
-    -- I discard the logs since I think if there is anything interesting it
-    -- will be logged in the "real" derivation.
-
 merge_logs :: [Log.Msg] -> Derive.NoteDeriver -> Derive.NoteDeriver
 merge_logs logs deriver = do
     events <- deriver
@@ -266,7 +266,7 @@ pitch_call track maybe_name scale_id expr deriver =
             (signal, logs) <- derive_pitch True track expr
             -- Ignore errors, they should be logged on conversion.
             (nn_sig, _) <- pitch_signal_to_nn signal
-            stash_if_wanted track (Signal.coerce nn_sig) True
+            stash_if_wanted track (Signal.coerce nn_sig)
             -- Apply and strip any control modifications made during the above
             -- derive.
             Derive.apply_control_mods $ merge_logs logs $ with_damage $
@@ -334,7 +334,7 @@ derive_control is_tempo track expr = do
         }
 
 derive_pitch :: Bool -> TrackTree.TrackEvents -> [TrackLang.Call]
-    -> Derive.Deriver (TrackResults Pitch)
+    -> Derive.Deriver (TrackResults PitchSignal.Signal)
 derive_pitch cache track expr = do
     let (start, end) = TrackTree.tevents_range track
     stream <- Call.apply_transformers
@@ -375,30 +375,26 @@ tevents = Events.ascending . TrackTree.tevents_events
 -- | If this track is to be rendered by the UI, stash the given signal away in
 -- the Derive state as a 'Track.TrackSignal'.  It may or may not need to
 -- unwarp the signal.
-stash_if_wanted :: TrackTree.TrackEvents -> Signal.Control -> Bool
-    -> Derive.Deriver ()
-stash_if_wanted track sig is_pitch =
+stash_if_wanted :: TrackTree.TrackEvents -> Signal.Control -> Derive.Deriver ()
+stash_if_wanted track sig =
     whenJustM (render_of track) $ \(block_id, track_id, _) ->
         if TrackTree.tevents_sliced track
-            then put_signal_fragment is_pitch block_id track_id sig
-            else put_unwarped_signal block_id track_id sig is_pitch
+            then put_signal_fragment block_id track_id sig
+            else put_unwarped_signal block_id track_id sig
 
-put_signal_fragment :: Bool -> BlockId -> TrackId -> Signal.Control
-    -> Derive.Deriver ()
-put_signal_fragment is_pitch block_id track_id sig = Internal.modify_collect $
+put_signal_fragment :: BlockId -> TrackId -> Signal.Control -> Derive.Deriver ()
+put_signal_fragment block_id track_id sig = Internal.modify_collect $
     -- TODO profile with Internal.merge_collect
     \collect -> collect { Derive.collect_signal_fragments =
         add (Derive.collect_signal_fragments collect) }
     where
-    -- Map.insertWith does 'merge new old', so put the singleton on the front.
-    add = Map.insertWith' (<>) (block_id, track_id)
-        (Derive.Fragments is_pitch [sig])
+    -- See 'Derive.SignalFragment' for the expected (lack of) order.
+    add = Map.alter (maybe (Just [sig]) (Just . (sig:))) (block_id, track_id)
 
-put_unwarped_signal :: BlockId -> TrackId -> Signal.Control -> Bool
-    -> Derive.Deriver ()
-put_unwarped_signal block_id track_id sig is_pitch = do
+put_unwarped_signal :: BlockId -> TrackId -> Signal.Control -> Derive.Deriver ()
+put_unwarped_signal block_id track_id sig = do
     warp <- Internal.get_dynamic Derive.state_warp
-    put_track_signal block_id track_id $ Call.unwarp is_pitch warp sig
+    put_track_signal block_id track_id (Call.unwarp warp sig)
 
 put_track_signal :: BlockId -> TrackId -> Track.TrackSignal -> Derive.Deriver ()
 put_track_signal block_id track_id tsig = Internal.merge_collect $ mempty

@@ -302,7 +302,7 @@ test_collect = do
     let (_, cached, _) = compare_cached create $ insert_event "top.t1" 1 1 ""
     -- pprint (r_cache_collect cached)
     let root : _ = r_cache_collect cached
-    let tsig = Track.TrackSignal (Signal.signal [(0, 1)]) 0 1 False
+    let tsig = Track.TrackSignal (Signal.signal [(0, 1)]) 0 1
     let extract = second (fmap extract_collect)
         extract_collect collect =
             ( Seq.sort_on fst $ map (first Stack.show_ui_) $

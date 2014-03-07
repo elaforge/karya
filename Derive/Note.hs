@@ -133,20 +133,14 @@ stash_signal_if_wanted events track =
 stash_signal :: BlockId -> TrackId -> Track.RenderSource -> Derive.Events
     -> Derive.Deriver ()
 stash_signal block_id track_id source events =
-    Control.put_unwarped_signal block_id track_id signal is_pitch
-    where
-    (signal, is_pitch) = extract_track_signal source (LEvent.events_of events)
+    Control.put_unwarped_signal block_id track_id signal
+    where signal = extract_track_signal source (LEvent.events_of events)
 
-extract_track_signal :: Track.RenderSource -> [Score.Event]
-    -> (Signal.Control, Bool)
-extract_track_signal source events = (sig, is_pitch)
+extract_track_signal :: Track.RenderSource -> [Score.Event] -> Signal.Control
+extract_track_signal source events = mconcat $ case source of
+    Track.Control control -> mapMaybe (extract_control control) events
+    Track.Pitch control -> mapMaybe (extract_pitch control) events
     where
-    sig = mconcat $ case source of
-        Track.Control control -> mapMaybe (extract_control control) events
-        Track.Pitch control -> mapMaybe (extract_pitch control) events
-    is_pitch = case source of
-        Track.Control {} -> False
-        Track.Pitch {} -> True
     extract_control control = fmap Score.typed_val . Map.lookup control
         . Score.event_controls
     extract_pitch Nothing event = Just $ convert event $ Score.event_pitch event

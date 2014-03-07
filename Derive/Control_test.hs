@@ -282,12 +282,10 @@ test_prev_val = do
             [("c", [(0, 0, ".5"), (1, 0, "'"), (2, 0, "'")])])
         ([[(0, 0.5)], [(1, 0.5)], [(2, 0.5)]], [])
 
-
 e_tsigs :: Derive.Result -> [(Signal.Display, ScoreTime, ScoreTime)]
 e_tsigs = map snd . e_tsig_tracks
 
 e_tsig_tracks :: Derive.Result
     -> [((BlockId, TrackId), (Signal.Display, ScoreTime, ScoreTime))]
 e_tsig_tracks = map (second extract) . Map.toList . Derive.r_track_signals
-    where
-    extract (Track.TrackSignal sig shift stretch _) = (sig, shift, stretch)
+    where extract (Track.TrackSignal sig shift stretch) = (sig, shift, stretch)
