@@ -205,7 +205,7 @@ output_melody pos beat = concatMap play
         <- zip (Seq.range_ start beat) (realize_melody pos ds)]
 
 play_output :: Int -> [Output] -> Derive.NoteDeriver
-play_output voice = Derive.d_merge_asc . concatMap go
+play_output voice = mconcat . concatMap go
     where
     go (start, dur, Note ps strike) =
         map (note start dur strike) (Set.toAscList ps)

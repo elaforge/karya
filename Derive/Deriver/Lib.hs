@@ -11,7 +11,6 @@ module Derive.Deriver.Lib where
 import Prelude hiding (error)
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
-import qualified Data.Monoid as Monoid
 
 import Util.Control
 import qualified Util.Log as Log
@@ -106,10 +105,6 @@ require msg = maybe (throw msg) return
 
 require_right :: (err -> String) -> Either err a -> Deriver a
 require_right fmt_err = either (throw . fmt_err) return
-
-error_to_warn :: Error -> Log.Msg
-error_to_warn (Error srcpos stack val) = Log.msg_srcpos srcpos Log.Warn
-    (Just (Stack.to_strings stack)) ("Error: " <> prettyt val)
 
 
 -- * state access
@@ -559,59 +554,3 @@ shift_control shift deriver = do
     where
     nudge delay = Map.map (fmap (Signal.shift delay))
     nudge_pitch = PitchSignal.shift
-
--- ** merge
-
--- | The EventDerivers run as sub-derivers and the results are mappended, which
--- lets them to interleave their work or run in parallel.
-d_merge :: [NoteDeriver] -> NoteDeriver
-d_merge [] = mempty
-d_merge [d] = d
-d_merge derivers = do
-    state <- get
-    -- Clear collect so they can be merged back without worrying about dups.
-    let cleared = state { state_collect = mempty }
-    let (streams, collects) = unzip (map (run_sub cleared) derivers)
-    modify $ \st -> st
-        { state_collect = Monoid.mconcat (state_collect state : collects) }
-    return (Seq.merge_lists event_start streams)
-
--- | Like 'd_merge', but the derivers are assumed to return events that are
--- non-decreasing in time, so the merge can be more efficient.  It also assumes
--- each deriver is small, so it threads collect instead of making them
--- independent.
-d_merge_asc :: [NoteDeriver] -> NoteDeriver
-d_merge_asc = fmap merge_asc_events . sequence
-
-type PureResult d = (LEvent.LEvents d, Collect)
-
--- | Run the given deriver and return the relevant data.
-run_sub :: State -> LogsDeriver derived -> PureResult derived
-run_sub state deriver = (merge_logs result logs, state_collect state2)
-    where (result, state2, logs) = run state deriver
-
-merge_logs :: Either Error (LEvent.LEvents d) -> [Log.Msg]
-    -> LEvent.LEvents d
-merge_logs result logs = case result of
-    Left err -> map LEvent.Log (logs ++ [error_to_warn err])
-    Right events -> events ++ map LEvent.Log logs
-
--- | Merge sorted lists of events.  If the lists themselves are also sorted,
--- I can produce output without scanning the entire input list, so this should
--- be more efficient for a large input list than 'merge_events'.
-merge_asc_events :: [Events] -> Events
-merge_asc_events = Seq.merge_asc_lists event_start
-
-merge_events :: Events -> Events -> Events
-merge_events = Seq.merge_on event_start
-
--- | This will make logs always merge ahead of score events, but that should
--- be ok.
-event_start :: LEvent.LEvent Score.Event -> RealTime
-event_start (LEvent.Log _) = 0
-event_start (LEvent.Event event) = Score.event_start event
-
-instance Monoid.Monoid NoteDeriver where
-    mempty = return []
-    mappend d1 d2 = d_merge [d1, d2]
-    mconcat = d_merge

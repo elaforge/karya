@@ -62,7 +62,7 @@ UNSORTED
     . Laziness doesn't save me from all the unwarp calls, probably because of
       Collect's Monoid instance, which has Map.unionWith Track.merge_signals
     * Get rid of Track.ts_is_pitch.
-    - Move Monoid NoteDeriver instance from Deriver.Lib to Deriver.Monad
+    * Move Monoid NoteDeriver instance from Deriver.Lib to Deriver.Monad
       so it's not an orphan.
     - Debug.trace implies track events are evaluated back to front, presumably
       something is insufficiently strict, and would be more efficient front to
