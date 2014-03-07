@@ -16,8 +16,10 @@ UNSORTED
     slower.
   deriving seems really slow
     . viola-sonata took 14s in opt, 1.89s in verify_performance
+      . now it's 11.5
     . kendang-telek takes 44s in debug, 10s in opt, and 1.5s in
       verify_performance.  Now it's 85s in debug, 12 in opt.
+      . now it's 8.15
     . Lots of time in Signal.map_x, is it due to getting track signals?
       Derive.Control.derive_control.deriver
       Derive.Control.stash_if_wanted -> Derive.Control.get_block_track ->
@@ -25,15 +27,6 @@ UNSORTED
         Derive.Control 165571 300 0.0 0.0 12.1 24.3
       Then Derive.Control.unwarp -> warp_to_signal -> map_x has 12.4%
       Also Derive.Control.unwarp -> Signal.unwarp -> invert -> modify_vec
-
-      line 23793:
-      Derive.Control.stash_if_wanted has 1178 entries
-      Only 300 calls to Block.track_flags, so looks like the majority have
-        TrackTree.tevents_block_track_id track -> Nothing
-
-      Then put_unwarped_signal, and time is split between
-      Score.warp_to_signal and Signal.unwarp
-
     . Remember tempo tracks have a constant sampling rate, so the tempo
       track may actually have a lot of samples in it.  And presumably
       warp_to_signal has to be repeated for each realization.
@@ -47,7 +40,6 @@ UNSORTED
       time.
     . data/viola-sonata by opt/seq @score takes 11.49 without fusion, 10.72s
       with
-
     . I think profile does this because testing now wants signals for all
       tracks.  That would explain why verify_performance is so much faster.
       But if that's true, derivation in seq should become fast if I disable
@@ -84,7 +76,7 @@ UNSORTED
       clipping all the fragments, and then do a big mconcat, which should be
       able to allocate the whole array in one go.  In fact, this might be
       better for all merges.
-    - Make Call.TrackInfo just include a TrackEvents, since it has almost all
+    * Make Call.TrackInfo just include a TrackEvents, since it has almost all
       the fields.  Or make a LCD if it means I can put it in CallInfo too.
     - The Control.put_signal_fragment work is done on a second call to
       a track, even though the output is never used.  Can I fix that?

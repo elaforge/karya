@@ -241,38 +241,20 @@ apply_transform name expr_str deriver
 
 -- * derive_track
 
--- | This is a collection of per-track parameters.  Mostly it's just the
--- subset of 'TrackTree.TrackEvents' which are needed to to evaluate and
--- to construct a 'Derive.CallInfo', so the fields are documented in
--- 'TrackTree.TrackEvents'.
+-- | Per-track parameters, to cut down on the number of arguments taken by
+-- 'derive_track'.
 data TrackInfo = TrackInfo {
-    tinfo_block_id :: !(Maybe BlockId)
-    , tinfo_track_id :: !(Maybe TrackId)
-    , tinfo_events_end :: !ScoreTime
-    , tinfo_track_range :: !(ScoreTime, ScoreTime)
-    , tinfo_shifted :: !ScoreTime
+    tinfo_track :: !TrackTree.TrackEvents
     , tinfo_sub_tracks :: !TrackTree.EventsTree
-    , tinfo_events_around :: !([Event.Event], [Event.Event])
     , tinfo_type :: !ParseTitle.Type
-    , tinfo_inverted :: !Bool
-    , tinfo_sliced :: !Bool
     } deriving (Show)
 
 instance Pretty.Pretty TrackInfo where
-    format (TrackInfo block_id track_id end range shifted subs around ttype
-            inverted sliced) =
-        Pretty.record_title "TrackInfo"
-            [ ("block_id", Pretty.format block_id)
-            , ("track_id", Pretty.format track_id)
-            , ("events_end", Pretty.format end)
-            , ("track_range", Pretty.format range)
-            , ("shifted", Pretty.format shifted)
-            , ("sub_tracks", Pretty.format subs)
-            , ("events_around", Pretty.format around)
-            , ("type", Pretty.format ttype)
-            , ("inverted", Pretty.format inverted)
-            , ("sliced", Pretty.format sliced)
-            ]
+    format (TrackInfo track subs ttype) = Pretty.record_title "TrackInfo"
+        [ ("track", Pretty.format track)
+        , ("sub_tracks", Pretty.format subs)
+        , ("type", Pretty.format ttype)
+        ]
 
 -- | Given the previous sample and derivation results, get the last sample from
 -- the results.
@@ -319,7 +301,7 @@ derive_track state tinfo get_last_sample events =
         where
         warp = Derive.state_warp $ Derive.state_dynamic state
         defragmented
-            | tinfo_sliced tinfo = collect
+            | TrackTree.tevents_sliced (tinfo_track tinfo) = collect
             | otherwise = defragment_track_signals warp collect
     go collect prev_sample prev (cur : rest) =
         (events : rest_events, final_collect)
@@ -365,7 +347,6 @@ is_linear_warp warp
         Just (Score.warp_shift warp, Score.warp_stretch warp)
     | otherwise = Nothing
 
-
 derive_event :: (Derive.Callable d) =>
     Derive.State -> TrackInfo -> PrevVal d
     -> [Event.Event] -- ^ previous events, in reverse order
@@ -388,8 +369,8 @@ derive_event st tinfo prev_sample prev event next
         { Derive.state_dynamic = Internal.add_stack_frame
             region (Derive.state_dynamic st)
         }
-    region = Stack.Region (shifted + Event.min event)
-        (shifted + Event.max event)
+    region = Stack.Region (TrackTree.tevents_shifted tevents + Event.min event)
+        (TrackTree.tevents_shifted tevents + Event.max event)
     cinfo = Derive.CallInfo
         { Derive.info_expr = text
         , Derive.info_prev_val = prev_sample
@@ -399,23 +380,16 @@ derive_event st tinfo prev_sample prev event next
         , Derive.info_prev_events = tprev ++ prev
         , Derive.info_next_events = next ++ tnext
         , Derive.info_event_end = case next ++ tnext of
-            [] -> events_end
+            [] -> TrackTree.tevents_end tevents
             event : _ -> Event.start event
-        , Derive.info_track_range = track_range
-        , Derive.info_inverted = inverted
+        , Derive.info_track_range = TrackTree.tevents_range tevents
+        , Derive.info_inverted = TrackTree.tevents_inverted tevents
         , Derive.info_sub_tracks = subs
         , Derive.info_sub_events = Nothing
         , Derive.info_track_type = Just ttype
         }
-    TrackInfo
-        { tinfo_events_end = events_end
-        , tinfo_track_range = track_range
-        , tinfo_shifted = shifted
-        , tinfo_sub_tracks = subs
-        , tinfo_events_around = (tprev, tnext)
-        , tinfo_type = ttype
-        , tinfo_inverted = inverted
-        } = tinfo
+    TrackInfo tevents subs ttype = tinfo
+    (tprev, tnext) = TrackTree.tevents_around tevents
 
 -- | Apply a toplevel expression.
 apply_toplevel :: (Derive.Callable d) =>

@@ -320,17 +320,10 @@ derive_control is_tempo track expr = do
     compact events = LEvent.Event (mconcat sigs) : map LEvent.Log logs
         where (sigs, logs) = LEvent.partition events
     tinfo = Call.TrackInfo
-        { Call.tinfo_block_id = TrackTree.tevents_block_id track
-        , Call.tinfo_track_id = TrackTree.tevents_track_id track
-        , Call.tinfo_events_end = TrackTree.tevents_end track
-        , Call.tinfo_track_range = TrackTree.tevents_range track
-        , Call.tinfo_shifted = TrackTree.tevents_shifted track
+        { Call.tinfo_track = track
         , Call.tinfo_sub_tracks = []
-        , Call.tinfo_events_around = TrackTree.tevents_around track
         , Call.tinfo_type =
             if is_tempo then ParseTitle.TempoTrack else ParseTitle.ControlTrack
-        , Call.tinfo_inverted = TrackTree.tevents_inverted track
-        , Call.tinfo_sliced = TrackTree.tevents_sliced track
         }
 
 derive_pitch :: Bool -> TrackTree.TrackEvents -> [TrackLang.Call]
@@ -354,16 +347,9 @@ derive_pitch cache track expr = do
     compact events = LEvent.Event (mconcat sigs) : map LEvent.Log logs
         where (sigs, logs) = LEvent.partition events
     tinfo = Call.TrackInfo
-        { Call.tinfo_block_id = TrackTree.tevents_block_id track
-        , Call.tinfo_track_id = TrackTree.tevents_track_id track
-        , Call.tinfo_events_end = TrackTree.tevents_end track
-        , Call.tinfo_track_range = TrackTree.tevents_range track
-        , Call.tinfo_shifted = TrackTree.tevents_shifted track
+        { Call.tinfo_track = track
         , Call.tinfo_sub_tracks = []
-        , Call.tinfo_events_around = TrackTree.tevents_around track
         , Call.tinfo_type = ParseTitle.PitchTrack
-        , Call.tinfo_inverted = TrackTree.tevents_inverted track
-        , Call.tinfo_sliced = TrackTree.tevents_sliced track
         }
 
 tevents :: TrackTree.TrackEvents -> [Event.Event]

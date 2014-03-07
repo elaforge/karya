@@ -175,14 +175,7 @@ derive_notes tinfo events = do
 
 track_info :: TrackTree.TrackEvents -> [TrackTree.EventsNode] -> Call.TrackInfo
 track_info track subs = Call.TrackInfo
-    { Call.tinfo_block_id = TrackTree.tevents_block_id track
-    , Call.tinfo_track_id = TrackTree.tevents_track_id track
-    , Call.tinfo_events_end = TrackTree.tevents_end track
-    , Call.tinfo_track_range = TrackTree.tevents_range track
-    , Call.tinfo_shifted = TrackTree.tevents_shifted track
+    { Call.tinfo_track = track
     , Call.tinfo_sub_tracks = subs
-    , Call.tinfo_events_around = TrackTree.tevents_around track
     , Call.tinfo_type = ParseTitle.NoteTrack
-    , Call.tinfo_inverted = TrackTree.tevents_inverted track
-    , Call.tinfo_sliced = TrackTree.tevents_sliced track
     }
