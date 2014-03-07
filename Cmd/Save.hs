@@ -20,6 +20,7 @@ import System.FilePath ((</>))
 import Util.Control
 import qualified Util.Git as Git
 import qualified Util.Log as Log
+import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 
 import qualified Ui.Id as Id
@@ -108,8 +109,9 @@ save_state_as fname = do
 write_current_state :: FilePath -> Cmd.CmdT IO ()
 write_current_state fname = do
     state <- State.get
-    Log.notice $ "write state to " ++ show fname
-    liftIO $ write_state fname state
+    ((), secs) <- liftIO $ Log.time_eval $ write_state fname state
+    Log.notice $ "wrote state to " <> show fname
+        <> ", took " <> Pretty.pretty secs <> "s"
 
 write_state :: FilePath -> State.State -> IO ()
 write_state fname state =
