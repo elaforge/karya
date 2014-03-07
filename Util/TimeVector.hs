@@ -148,21 +148,14 @@ instance (Pretty.Pretty y) => Pretty.Pretty (Sample y) where
 {-# SPECIALIZE merge :: [Unboxed] -> Unboxed #-}
 {-# INLINEABLE merge #-}
 merge :: (V.Vector v (Sample y)) => [v (Sample y)] -> v (Sample y)
-merge vecs = V.unfoldrN len go $ Seq.sort_on (fmap sx . head) vecs
+merge = V.concat . trim
     where
-    -- This will be too big if there's lots of overlap.
-    len = sum (map V.length vecs) + 1
-    go [] = Nothing
-    go [vec] = case uncons vec of
-        Nothing -> Nothing
-        Just (x, rest) -> Just (x, [rest])
-    go (cur : vecs@(next : rest)) = case uncons cur of
-        Nothing -> go vecs
-        Just (Sample x y, cur_tl) -> case uncons next of
-            Nothing -> go (cur : rest)
-            Just (Sample next_x _, _)
-                | next_x <= x -> go vecs
-                | otherwise -> Just (Sample x y, cur_tl : vecs)
+    trim [] = []
+    trim (v : vs) = case first_x vs of
+        Nothing -> [v]
+        Just x -> V.takeWhile ((<x) . sx) v : trim vs
+    first_x [] = Nothing
+    first_x (v:vs) = maybe (first_x vs) (Just . sx) (v V.!? 0)
 
 -- | Merge two vectors, interleaving their samples.
 {-# SPECIALIZE interleave :: Unboxed -> Unboxed -> Unboxed #-}

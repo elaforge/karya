@@ -69,7 +69,7 @@ UNSORTED
       back.
     - It seems like inverted tracks wind up with Nothing block_id but a set
       track_id, is that ok?
-    - Can I implement a more efficient TimeVector.merge when I know there will
+    * Can I implement a more efficient TimeVector.merge when I know there will
       be lots of overlaps, as when merging track signal fragments?  I could
       first go through and count the samples that will be emitted, and then
       give that to unfoldrN.  Or I could avoid the duplicate work by first
