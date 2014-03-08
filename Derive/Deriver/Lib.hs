@@ -355,6 +355,7 @@ get_ruler = Internal.lookup_current_tracknum >>= \x -> case x of
                 State.ruler_track_at block_id tracknum
             Ruler.ruler_marklists <$> State.get_ruler ruler_id
 
+-- | Modify the given control according to the Merge.
 with_merged_control :: Merge -> Score.Control -> Score.TypedControl
     -> Deriver a -> Deriver a
 with_merged_control merge control = with control

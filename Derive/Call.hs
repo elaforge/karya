@@ -78,7 +78,29 @@
     the real language.  I should focus more on making it easy to write your own
     calls in haskell.
 -}
-module Derive.Call where
+module Derive.Call (
+    -- * eval
+    eval_one, eval_one_call, eval_one_at
+    , eval_event, reapply_gen, reapply_gen_normalized
+    , reapply, reapply_string, reapply_call, eval_pitch, apply_pitch
+    , eval_expr, apply_transform
+
+    -- * derive_track
+    , TrackInfo(..)
+    , pitch_last_sample, control_last_sample
+    , derive_track
+    , defragment_track_signals, unwarp
+
+    -- * eval / apply
+    , eval
+    , reapply_generator, apply_transformers, reapply_transformer
+
+    -- * lookup call
+    , unknown_call_id, symbol_to_block_id, is_relative_call
+
+    -- * misc
+    , cast
+) where
 import qualified Data.ByteString.Char8 as B
 import qualified Data.Char as Char
 import qualified Data.List.NonEmpty as NonEmpty
@@ -391,6 +413,8 @@ derive_event st tinfo prev_sample prev event next
     TrackInfo tevents subs ttype = tinfo
     (tprev, tnext) = TrackTree.tevents_around tevents
 
+-- * eval / apply
+
 -- | Apply a toplevel expression.
 apply_toplevel :: (Derive.Callable d) =>
     Derive.State -> CallInfo d -> TrackLang.Expr
@@ -494,8 +518,7 @@ apply cinfo call args = do
             }
     Derive.vcall_call call passed
 
-event_start :: Derive.CallInfo d -> ScoreTime
-event_start = Event.start . Derive.info_event
+-- * lookup call
 
 get_val_call :: TrackLang.CallId -> Derive.Deriver Derive.ValCall
 get_val_call call_id =
@@ -534,9 +557,6 @@ require_call is_generator call_id name Nothing = do
 
 unknown_call_id :: Text -> TrackLang.CallId -> Text
 unknown_call_id name (TrackLang.Symbol sym) = name <> " not found: " <> sym
-
-fallback_call_id :: TrackLang.CallId
-fallback_call_id = ""
 
 -- | Given a CallId, try to come up with the BlockId of the block it could be
 -- a call for.
