@@ -73,6 +73,8 @@ test_merge = do
         [(0, 0), (1, 3)]
     equal (f [[(0, 0), (1, 1)], [(1, 2)], [(1, 3), (2, 4)]])
         [(0, 0), (1, 3), (2, 4)]
+    -- The fragments can be out of order.
+    equal (f [[(2, 2)], [(0, 1)], [(2, 2)], [(0, 1)]]) [(0, 1), (2, 2)]
 
 test_interleave = do
     let f v1 v2 = unsignal $ V.interleave (signal v1) (signal v2)

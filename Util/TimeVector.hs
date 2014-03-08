@@ -148,14 +148,14 @@ instance (Pretty.Pretty y) => Pretty.Pretty (Sample y) where
 {-# SPECIALIZE merge :: [Unboxed] -> Unboxed #-}
 {-# INLINEABLE merge #-}
 merge :: (V.Vector v (Sample y)) => [v (Sample y)] -> v (Sample y)
-merge = V.concat . trim
+merge = V.concat . trim . Seq.sort_on (fmap sx . head)
     where
     trim [] = []
     trim (v : vs) = case first_x vs of
         Nothing -> [v]
         Just x -> V.takeWhile ((<x) . sx) v : trim vs
     first_x [] = Nothing
-    first_x (v:vs) = maybe (first_x vs) (Just . sx) (v V.!? 0)
+    first_x (v:vs) = maybe (first_x vs) (Just . sx) (head v)
 
 -- | Merge two vectors, interleaving their samples.
 {-# SPECIALIZE interleave :: Unboxed -> Unboxed -> Unboxed #-}
@@ -294,8 +294,7 @@ sig_op initial f vec1 vec2 = V.unfoldr go (initial, initial, 0, 0)
 --
 -- The signature is specialized to Boxed since you might as well use 'sig_op'
 -- for Unboxed vectors.
-sig_op2 :: y1 -> y2 -> (y1 -> y2 -> y3)
-    -> Boxed y1 -> Boxed y2 -> Boxed y3
+sig_op2 :: y1 -> y2 -> (y1 -> y2 -> y3) -> Boxed y1 -> Boxed y2 -> Boxed y3
 sig_op2 initial1 initial2 f vec1 vec2 = V.unfoldr go (initial1, initial2, 0, 0)
     where
     -- Yeah I could probably make 'sig_op' a specialization of this, but can't
