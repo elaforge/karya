@@ -229,4 +229,6 @@ scale_to_title :: Pitch.ScaleId -> Text
 scale_to_title scale_id = unparse_control (Pitch scale_id Nothing)
 
 is_pitch_track :: Text -> Bool
-is_pitch_track = Maybe.isJust . title_to_scale
+is_pitch_track = ("*" `Text.isPrefixOf`)
+    -- Previously it was 'Maybe.isJust . title_to_scale', but this is called
+    -- a lot during slicing so efficiency matters.

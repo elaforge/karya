@@ -52,8 +52,8 @@ info_all = do
 -- * config
 
 -- | Print out instrument configs all purty-like.
-configs :: (State.M m) => m Text
-configs = do
+list :: (State.M m) => m Text
+list = do
     config <- State.get_midi_config
     alias_map <- aliases
     return $ Text.intercalate "\n" $
