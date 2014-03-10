@@ -349,13 +349,12 @@ configure midi = do
             "-I" ++ bindingsInclude]
         , fltkCc = fltkCs
         , fltkLd = fltkLds
-        , hcFlags = words "-threaded -W -fwarn-tabs -pgml g++"
-            ++ ["-F", "-pgmF", hspp]
+        , hcFlags = words "-threaded -W -fwarn-tabs" ++ ["-F", "-pgmF", hspp]
             ++ case mode of
                 Debug -> []
                 Opt -> ["-O"]
                 Test -> ["-fhpc"]
-                Profile -> ["-O", "-prof", "-auto-all", "-caf-all"]
+                Profile -> ["-O", "-prof", "-fprof-auto-top"]
         , hLinkFlags = libs ++ ["-rtsopts", "-threaded"]
             ++ ["-prof" | mode == Profile]
             ++ ["-with-rtsopts=-T" | useEkg]
@@ -402,8 +401,7 @@ type InferConfig = FilePath -> Config
 
 -- | Figure out the Config for a given target by looking at its directory.
 inferConfig :: (Mode -> Config) -> InferConfig
-inferConfig modeConfig fn =
-    maybe (modeConfig Debug) modeConfig (targetToMode fn)
+inferConfig modeConfig = maybe (modeConfig Debug) modeConfig . targetToMode
 
 -- * rules
 
@@ -593,7 +591,7 @@ dispatch modeConfig targets = do
         "md" -> action $ need . map docToHtml =<< getMarkdown
         "profile" -> action $ do
             need [runProfile]
-            let with_scc = "-auto-all"
+            let with_scc = "-fprof-auto-top"
                     `elem` hcFlags (configFlags (modeConfig Profile))
             system "tools/summarize_profile.py"
                 [if with_scc then "scc" else "no-scc"]
