@@ -163,7 +163,8 @@ test_p_equal = do
     equal (f ">a = 1") (eq (symbol ">a") (num 1))
 
     left_like (f "a = ()") "parse error on byte 6"
-    left_like (f "a=") "not enough bytes"
+    -- not enough 'input' or 'bytes' depending on attoparsec version
+    left_like (f "a=") "not enough"
 
 test_lex1 = do
     let f = Parse.lex1

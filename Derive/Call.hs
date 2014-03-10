@@ -326,7 +326,13 @@ derive_track state tinfo get_last_sample events =
             | TrackTree.tevents_sliced (tinfo_track tinfo) = collect
             | otherwise = defragment_track_signals warp collect
     go collect prev_sample prev (cur : rest) =
-        (events : rest_events, final_collect)
+        -- Without 'seq', the events are parsed in reverse order, presumably
+        -- because the collect is forced to whnf when stashing it in the
+        -- Derive.State.  The out of order lasts only until the
+        -- get_generator call_id, but presumably creates a bit of drag.
+        -- I don't know if it's a significant amount, but in any case this
+        -- might get rid of it.
+        (events : rest_events, events `seq` final_collect)
         where
         (result, logs, next_collect) =
             derive_event (state { Derive.state_collect = collect })
