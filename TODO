@@ -67,8 +67,8 @@ UNSORTED
     * Debug.trace implies track events are evaluated back to front, presumably
       something is insufficiently strict, and would be more efficient front to
       back.
-    - It seems like inverted tracks wind up with Nothing block_id but a set
-      track_id, is that ok?
+    / It seems like inverted tracks wind up with Nothing block_id but a set
+      track_id, is that ok?  Yes.
     * Can I implement a more efficient TimeVector.merge when I know there will
       be lots of overlaps, as when merging track signal fragments?  I could
       first go through and count the samples that will be emitted, and then

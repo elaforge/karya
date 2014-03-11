@@ -111,12 +111,17 @@ event_gaps end ranges = reverse $
 
 -- | Ask 'slice' to synthesize a note track and insert it at the leaves of
 -- the sliced tree.
--- Event text, duration, tevents_range, tevents_around
 data InsertEvent = InsertEvent {
     ins_text :: Event.Text
     , ins_duration :: ScoreTime
     , ins_range :: (ScoreTime, ScoreTime)
     , ins_around :: ([Event.Event], [Event.Event])
+    -- | The TrackId for the track created for this event.  This is required
+    -- so it can collect a TrackDynamic and when the Cmd level looks at at
+    -- track with inverted note calls, it sees the environ established by the
+    -- tracks that the calls are inverted beneath.  E.g., if the pitch track
+    -- sets a scale, the Cmd layer should see the note track as having that
+    -- scale.
     , ins_track_id :: Maybe TrackId
     } deriving (Show)
 
