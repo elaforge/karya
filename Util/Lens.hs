@@ -12,13 +12,11 @@ module Util.Lens (
 
     -- * data
     , map, set, list
-    , mapf
 ) where
 import Prelude hiding ((.), map)
 import Control.Category ((.))
 import Data.Label hiding (Lens, set)
-import qualified Data.Label.Maybe as Maybe
-import qualified Data.Label.Pure as Pure
+import qualified Data.Label as Label
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 
@@ -41,7 +39,7 @@ infixr 1 #$
 
 -- | Set: @a#b #= 42 record@
 (#=) :: Lens f a -> a -> f -> f
-(#=) = Pure.set
+(#=) = Label.set
 infix 1 #=
 
 -- | Modify: @a#b %= (+1) record@
@@ -72,6 +70,3 @@ list i
     where
     modify i Nothing = Seq.remove_at i
     modify i (Just a) = Seq.modify_at i (const a)
-
-mapf :: (Ord k) => k -> Map.Map k a Maybe.:~> a
-mapf k = Maybe.lens (Map.lookup k) (\a -> Just . Map.insert k a)

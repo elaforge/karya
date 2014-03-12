@@ -52,7 +52,7 @@ library
         random-shuffle,
         dlist,
         bindings-DSL,
-        fclabels,
+        fclabels >=1 && <2,
         ghc >=7.6.1,
         ghc-paths,
         haskeline,
