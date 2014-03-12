@@ -5,7 +5,7 @@
 -- | Cmds to do with \"refactoring\".  This basically means fancy
 -- copy-paste-like operations.
 module Cmd.Refactor where
-import qualified Data.List as List
+import qualified Data.Text as Text
 
 import Util.Control
 import qualified Util.Num as Num
@@ -44,7 +44,7 @@ split_time = do
     let (from_block, to_block) = split_names block_id
     to_block_id <- split_time_at block_id pos to_block
     Create.view to_block_id
-    new_from <- State.read_id $ untxt from_block
+    new_from <- State.read_id from_block
     Create.rename_block block_id new_from
     return to_block_id
 
@@ -81,7 +81,7 @@ split_time_at from_block_id pos block_name = do
 
 split_names :: BlockId -> (Text, Text)
 split_names block_id = (name <> "-1", name <> "-2")
-    where name = txt $ Id.ident_name block_id
+    where name = Id.ident_name block_id
 
 -- | Put all tracks with a after the selection into a new block.
 --
@@ -129,7 +129,7 @@ selection_ :: (Cmd.M m) => Bool -- ^ create dot-prefixed relative block call
 selection_ create_relative name = do
     (block_id, tracknums, track_ids, start, end) <- Selection.tracks
     name <- return $ if create_relative
-        then txt (Id.ident_name block_id) <> "." <> name else name
+        then Id.ident_name block_id <> "." <> name else name
     to_block_id <- selection_at name block_id tracknums track_ids
         start end
     Create.view to_block_id
@@ -186,7 +186,8 @@ rebase_call caller block_id = Id.BlockId $ Id.id ns name
     -- root.old.sub -> root.caller.sub
     old_name = Id.ident_name block_id
     name
-        | '.' `elem` old_name = caller_name ++ dropWhile (/='.') old_name
+        | Text.count "." old_name > 0 =
+            caller_name <> Text.dropWhile (/='.') old_name
         | otherwise = old_name
 
 get_block_calls :: State.M m => TrackId -> m [TrackLang.CallId]
@@ -203,11 +204,11 @@ resolve_relative_call ns caller sym
 make_block_call :: BlockId -> BlockId -> Text
 make_block_call parent block_id
     | Id.ident_namespace parent == Id.ident_namespace block_id && is_sub =
-        txt $ dropWhile (/='.') child_name
-    | otherwise = txt child_name
+        Text.dropWhile (/='.') child_name
+    | otherwise = child_name
     where
     child_name = Id.ident_name block_id
-    is_sub = (Id.ident_name parent <> ".") `List.isPrefixOf` child_name
+    is_sub = (Id.ident_name parent <> ".") `Text.isPrefixOf` child_name
 
 -- | If there's a point selection, create a new empty block based on the
 -- current one.  If the selection has time, then the new block will have only
@@ -290,4 +291,4 @@ order_track block_id sub_blocks = do
     Create.track block_id 9999 ">" (Events.from_list events)
 
 block_id_to_call :: BlockId -> Text
-block_id_to_call = txt . Id.ident_name
+block_id_to_call = Id.ident_name

@@ -168,13 +168,13 @@ convert_block block = State.exec_rethrow "convert block" State.empty $
 make_block :: State.M m => Block -> m BlockId
 make_block (id_name, title, tracks, skel) = do
     tracks <- mapM convert_track tracks
-    block_id <- State.create_block (Id.read_id id_name) title tracks
+    block_id <- State.create_block (Id.read_id (txt id_name)) title tracks
     State.set_skeleton block_id (Skeleton.make skel)
     return block_id
 
 convert_track :: State.M m => Track -> m Block.Track
 convert_track (id_name, title, events) = do
-    track_id <- State.create_track (Id.read_id id_name) $
+    track_id <- State.create_track (Id.read_id (txt id_name)) $
         Track.track title (Events.from_list (map convert_event events))
     return $ Block.track (Block.TId track_id State.no_ruler) Config.track_width
 

@@ -26,11 +26,14 @@ module Ui.Id (
     -- * instances
     , BlockId(..), ViewId(..), TrackId(..), RulerId(..)
 ) where
-import Prelude hiding (id)
 import qualified Prelude
+import Prelude hiding (id)
 import qualified Control.DeepSeq as DeepSeq
 import qualified Data.ByteString.Char8 as B
 import qualified Data.Digest.CRC32 as CRC32
+import qualified Data.Text as Text
+import qualified Data.Text.Encoding as Encoding
+
 import qualified Text.ParserCombinators.ReadPrec as ReadPrec
 import qualified Text.Read as Read
 
@@ -55,26 +58,48 @@ data Id = Id !Namespace !B.ByteString
 newtype Namespace = Namespace B.ByteString
     deriving (Eq, Ord, Show, Read, DeepSeq.NFData, CRC32.CRC32)
 
--- | Construct an Id, or return Nothing if there were invalid characters in it.
-id :: Namespace -> String -> Id
-id ns name = Id ns (B.pack (map (\c -> if c == '/' then '-' else c) name))
+to_text :: B.ByteString -> Text
+to_text = Encoding.decodeUtf8
 
-namespace :: String -> Namespace
-namespace = Namespace . B.pack . map (\c -> if c == '/' then '-' else c)
+-- | Convert from Text and convert @/@.  This is because @/@ is used to
+-- separate namespace and ident.
+from_text :: Text -> B.ByteString
+from_text = Encoding.encodeUtf8 . Text.map (\c -> if c == '/' then '-' else c)
+
+id :: Namespace -> Text -> Id
+id ns = Id ns . from_text
+
+namespace :: Text -> Namespace
+namespace = Namespace . from_text
 
 instance Serialize.Serialize Id where
-    put = Serialize.put . un_id
-    get = Serialize.get >>= \(a, b) -> return (id a b)
+    put (Id ns ident) = Serialize.put val
+        where
+        val :: (Namespace, String)
+        val = (ns, B.unpack ident)
+    get = do
+        (ns, ident) <- Serialize.get
+        return $ Id ns (B.pack ident)
+    -- TODO These have inefficient put and get due to historical accident.
+    -- I should fix it some day, but it breaks all saves.  And as long as I'm
+    -- going to do that, I might as well switch from ByteString to Text.
+    -- put (Id a b) = Serialize.put a >> Serialize.put b
+    -- get = Id <$> Serialize.get <*> Serialize.get
 
 instance Serialize.Serialize Namespace where
-    put = Serialize.put . un_namespace
-    get = Serialize.get >>= \a -> return (namespace a)
+    put (Namespace a) = Serialize.put (B.unpack a)
+    get = Namespace . B.pack <$> Serialize.get
+    -- TODO These have inefficient put and get due to historical accident.
+    -- I should fix it some day, but it breaks all saves.  And as long as I'm
+    -- going to do that, I might as well switch from ByteString to Text.
+    -- put (Namespace a) = Serialize.put a
+    -- get = Namespace <$> Serialize.get
 
 instance CRC32.CRC32 Id where
     crc32Update n (Id ns name) =
         n `CRC32.crc32Update` ns `CRC32.crc32Update` name
 
-instance Pretty.Pretty Namespace where pretty = un_namespace
+instance Pretty.Pretty Namespace where pretty = untxt . un_namespace
 instance Pretty.Pretty Id where pretty = show_id
 
 instance DeepSeq.NFData Id where
@@ -82,39 +107,39 @@ instance DeepSeq.NFData Id where
 
 -- * access
 
-un_id :: Id -> (Namespace, String)
-un_id (Id ns ident) = (ns, B.unpack ident)
+un_id :: Id -> (Namespace, Text)
+un_id (Id ns ident) = (ns, to_text ident)
 
-id_name :: Id -> String
-id_name (Id _ name) = B.unpack name
+id_name :: Id -> Text
+id_name (Id _ name) = to_text name
 
 id_namespace :: Id -> Namespace
 id_namespace (Id ns _) = ns
 
 set_namespace :: Namespace -> Id -> Id
-set_namespace ns (Id _ name) = id ns (B.unpack name)
+set_namespace ns (Id _ name) = Id ns name
 
-set_name :: String -> Id -> Id
+set_name :: Text -> Id -> Id
 set_name name (Id ns _) = id ns name
 
-un_namespace :: Namespace -> String
-un_namespace (Namespace s) = B.unpack s
+un_namespace :: Namespace -> Text
+un_namespace (Namespace s) = to_text s
 
 -- * read / show
 
-read_id :: String -> Id
-read_id s = id (namespace pre) (drop 1 post)
-    where (pre, post) = break (=='/') s
+read_id :: Text -> Id
+read_id s = id (namespace pre) (Text.drop 1 post)
+    where (pre, post) = Text.breakOn "/" s
 
 show_id :: Id -> String
 show_id (Id ns ident) = pretty ns ++ "/" ++ B.unpack ident
 
 -- | A smarter constructor that only applies the namespace if the string
 -- doesn't already have one.
-read_short :: Namespace -> String -> Id
-read_short default_ns text = case break (=='/') text of
+read_short :: Namespace -> Text -> Id
+read_short default_ns text = case Text.breakOn "/" text of
     (ident, "") -> id default_ns ident
-    (ns, ident) -> id (namespace ns) (drop 1 ident)
+    (ns, ident) -> id (namespace ns) (Text.drop 1 ident)
 
 -- | The inverse of 'read_short'.
 show_short :: Namespace -> Id -> String
@@ -127,8 +152,9 @@ show_short default_ns ident@(Id ns name)
 -- | True if this Namespace or Id name is parseable as a tracklang literal.
 -- You probably want to insist on this when creating new Ids to ensure they
 -- can be easily called from the track.
-valid :: String -> Bool
-valid s = not (null s) && is_lower_alpha (head s) && all is_id_char s
+valid :: Text -> Bool
+valid s =
+    not (Text.null s) && is_lower_alpha (Text.head s) && Text.all is_id_char s
 
 is_id_char :: Char -> Bool
 is_id_char c = is_lower_alpha c || is_digit c || c == '-' || c == '.'
@@ -167,7 +193,7 @@ read_ident witness = do
     guard (sym == constructor_name witness)
     Read.String str <- Read.lexP
     Read.Punc ")" <- Read.lexP
-    return (make (read_id str))
+    return (make (read_id (txt str)))
 
 -- | SomethingId -> "ns/name"
 ident_string :: (Ident a) => a -> String
@@ -177,7 +203,7 @@ ident_text :: (Ident a) => a -> Text
 ident_text = txt . show_id . unpack_id
 
 -- | SomethingId -> "name"
-ident_name :: (Ident a) => a -> String
+ident_name :: (Ident a) => a -> Text
 ident_name = id_name . unpack_id
 
 ident_namespace :: (Ident a) => a -> Namespace
@@ -185,7 +211,7 @@ ident_namespace = id_namespace . unpack_id
 
 -- * constants
 
-global :: String -> Id
+global :: Text -> Id
 global = id global_namespace
 
 global_namespace :: Namespace

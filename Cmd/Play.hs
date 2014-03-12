@@ -292,14 +292,14 @@ record_cache_stats logs = do
     let (rederived, cached) = extract_cache_stats get_block_id logs
     Cmd.set_global_status "~C" $ "[" <> showt (length cached) <> " / "
         <> showt (sum (map snd cached)) <> "] "
-        <> elide (Text.unwords (map (txt . Id.ident_name . fst) cached))
+        <> elide (Text.unwords (map (Id.ident_name . fst) cached))
     status_keys <- Cmd.gets (Map.keysSet . Cmd.state_global_status)
     let keys = map (("~X "<>) . fst) rederived
         gone = Set.filter ("~X " `Text.isPrefixOf`) $
             status_keys Set.\\ Set.fromList keys
     forM_ (zip keys (map snd rederived)) $ \(key, block_ids) ->
         Cmd.set_global_status key $ "[" <> showt (length block_ids) <> "] "
-            <> elide (Text.unwords (map (txt . Id.ident_name) block_ids))
+            <> elide (Text.unwords (map Id.ident_name block_ids))
     forM_ (Set.toList gone) $ \key -> Cmd.set_global_status key ""
     where
     max_chars = 45

@@ -451,7 +451,7 @@ instance Ident TrackId where id_to_path = make_id_path "tracks"
 instance Ident RulerId where id_to_path = make_id_path "rulers"
 
 make_id_path :: (Id.Ident a) => FilePath -> a -> FilePath
-make_id_path dir id = dir </> nsdir </> name
+make_id_path dir id = dir </> untxt nsdir </> untxt name
     where
     (ns, name) = Id.un_id (Id.unpack_id id)
     nsdir
@@ -459,11 +459,11 @@ make_id_path dir id = dir </> nsdir </> name
         | otherwise = Id.un_namespace ns
 
 path_to_id :: (Id.Id -> id) -> FilePath -> FilePath -> id
-path_to_id mkid ns name = mkid (Id.id save_ns name)
+path_to_id mkid ns name = mkid (Id.id save_ns (txt name))
     where
     save_ns
         | ns == "*GLOBAL*" = Id.global_namespace
-        | otherwise = Id.namespace ns
+        | otherwise = Id.namespace (txt ns)
 
 -- * util
 

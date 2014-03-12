@@ -310,7 +310,7 @@ clip_namespace :: Id.Namespace
 clip_namespace = Id.namespace "clip"
 
 -- | The copied block will be BlockId (Id.id clip_namespace clip_block_name).
-clip_block_name :: String
+clip_block_name :: Text
 clip_block_name = "clip"
 
 -- * hardcoded configs

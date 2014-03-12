@@ -21,6 +21,7 @@ import qualified Data.Foldable as Foldable
 import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Set as Set
+import qualified Data.Text as Text
 import qualified Data.Tree as Tree
 
 import Util.Control
@@ -139,7 +140,7 @@ block_name = do
     ns <- State.get_namespace
     id <- require_id "block id" . generate_block_id Nothing ns
         =<< State.gets State.state_blocks
-    return $ txt $ Id.id_name id
+    return $ Id.id_name id
 
 block_from_template :: State.M m => Bool -> BlockId -> m BlockId
 block_from_template copy_events template_id =
@@ -188,7 +189,7 @@ sub_block maybe_parent ruler_id = do
 -- namespace.
 named_block :: State.M m => Text -> RulerId -> m BlockId
 named_block name ruler_id = do
-    ident <- State.read_id (untxt name)
+    ident <- State.read_id name
     State.create_block ident ""
         [Block.track (Block.RId ruler_id) Config.ruler_width]
 
@@ -479,9 +480,9 @@ track_events block_id ruler_id tracknum width track = do
 
 -- | Create a track with the given name, in the same namespace as the BlockId.
 named_track :: (State.M m) =>
-    BlockId -> RulerId -> TrackNum -> String -> Track.Track -> m TrackId
+    BlockId -> RulerId -> TrackNum -> Text -> Track.Track -> m TrackId
 named_track block_id ruler_id tracknum name track = do
-    ident <- State.read_id (Id.ident_name block_id ++ "." ++ name)
+    ident <- State.read_id (Id.ident_name block_id <> "." <> name)
     all_tracks <- State.gets State.state_tracks
     when (Id.TrackId ident `Map.member` all_tracks) $
         State.throw $ "track " ++ show ident ++ " already exists"
@@ -547,7 +548,7 @@ track_after block tracknum
     | otherwise = next_tracknum
     where next_tracknum = State.shift_tracknum block tracknum 1
 
-generate_track_id :: BlockId -> String -> Map.Map TrackId _a -> Maybe Id.Id
+generate_track_id :: BlockId -> Text -> Map.Map TrackId _a -> Maybe Id.Id
 generate_track_id block_id code tracks =
     generate_id (Id.id_namespace ident) ident code Id.TrackId tracks
     where ident = Id.unpack_id block_id
@@ -555,13 +556,13 @@ generate_track_id block_id code tracks =
 -- * ruler
 
 -- | Create a ruler with the given name.
-ruler :: (State.M m) => String -> Ruler.Ruler -> m RulerId
+ruler :: (State.M m) => Text -> Ruler.Ruler -> m RulerId
 ruler name ruler = do
     ident <- State.read_id name
     State.create_ruler ident ruler
 
 -- | Set a block to a new ruler.
-new_ruler :: (State.M m) => BlockId -> String -> Ruler.Ruler -> m RulerId
+new_ruler :: (State.M m) => BlockId -> Text -> Ruler.Ruler -> m RulerId
 new_ruler block_id name r = do
     ruler_id <- ruler name r
     set_block_ruler ruler_id block_id
@@ -573,7 +574,7 @@ set_block_ruler ruler_id block_id =
 
 -- * general util
 
-generate_id :: (Ord a) => Id.Namespace -> Id.Id -> String -> (Id.Id -> a)
+generate_id :: (Ord a) => Id.Namespace -> Id.Id -> Text -> (Id.Id -> a)
     -> Map.Map a _b -> Maybe Id.Id
 generate_id ns parent_id code typ fm =
     List.find (not . (`Map.member` fm) . typ) candidates
@@ -587,10 +588,10 @@ generate_id ns parent_id code typ fm =
 -- convenient if they line up with the tracknums.  So even though it's purely
 -- for testing and only for TrackIds, I start everything at 1 just for
 -- consistency.
-ids_for :: Id.Namespace -> String -> String -> [Id.Id]
+ids_for :: Id.Namespace -> Text -> Text -> [Id.Id]
 ids_for ns parent code =
-    [Id.id ns (dotted parent ++ code ++ show n) | n <- [1..]]
-    where dotted s = if null s then "" else s ++ "."
+    [Id.id ns (dotted parent <> code <> showt n) | n <- [1..]]
+    where dotted s = if Text.null s then "" else s <> "."
 
 require_id :: State.M m => String -> Maybe a -> m a
 require_id msg =

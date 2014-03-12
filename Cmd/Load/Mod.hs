@@ -59,15 +59,15 @@ create name ui_blocks = do
     Create.unfitted_view root
     return ()
 
-create_block :: (State.M m) => (String -> Id.Id) -> RulerId
+create_block :: (State.M m) => (Text -> Id.Id) -> RulerId
     -> String -> Int -> UiBlock -> m (BlockId, BlockRows)
 create_block mkid rid inst num (ui_block, block_rows) = do
-    block_id <- make_block mkid rid ('b' : show num)
+    block_id <- make_block mkid rid ("b" <> showt num)
         (concatMap mktrack ui_block)
     return (block_id, block_rows)
     where mktrack (ntrack, ctracks) = ('>' : inst, ntrack) : ctracks
 
-create_order_block :: (State.M m) => (String -> Id.Id)
+create_order_block :: (State.M m) => (Text -> Id.Id)
     -> [(BlockId, BlockRows)] -> m BlockId
 create_order_block mkid block_ids = do
     rid <- Create.ruler "order" $ Ruler.meter_ruler (order_meter block_rows)
@@ -78,7 +78,7 @@ create_order_block mkid block_ids = do
     starts = scanl (+) 0 block_rows
     events =
         [ Event.event (fromIntegral start) (fromIntegral dur)
-            (txt (Id.ident_name bid))
+            (Id.ident_name bid)
         | (start, (bid, dur)) <- zip starts block_ids
         ]
 
@@ -87,11 +87,11 @@ order_meter =
     Meter.meter_marklist . Meter.make_meter 1 . (:[]) . Meter.D . map mkd
     where mkd dur = Meter.D (replicate dur Meter.T)
 
-make_block :: (State.M m) => (String -> Id.Id) -> RulerId -> String
+make_block :: (State.M m) => (Text -> Id.Id) -> RulerId -> Text
     -> [(String, [Event.Event])] -> m BlockId
 make_block mkid rid name tracks = do
     tids <- forM (zip [0..] tracks) $ \(i, (title, events)) ->
-        State.create_track (mkid (name ++ ".t" ++ show i)) $
+        State.create_track (mkid (name <> ".t" <> showt i)) $
             Track.track (txt title) (Events.from_list events)
     let block_tracks = Block.track (Block.RId rid) 20
             : [Block.track (Block.TId tid rid) 25 | tid <- tids]

@@ -21,10 +21,11 @@ module Derive.Stack (
 ) where
 import qualified Prelude
 import Prelude hiding (length)
-import qualified Data.Attoparsec.Text as A
 import qualified Control.DeepSeq as DeepSeq
+import qualified Data.Attoparsec.Text as A
 import qualified Data.Digest.CRC32 as CRC32
 import qualified Data.Set as Set
+import qualified Data.Text as Text
 
 import qualified Text.Read as Read
 
@@ -270,13 +271,13 @@ unparse_ui_frame (maybe_bid, maybe_tid, maybe_range) =
 -- cluttered but potentially ambiguous output.
 unparse_ui_frame_ :: UiFrame -> String
 unparse_ui_frame_ (maybe_bid, maybe_tid, maybe_range) =
-    Seq.join " " [bid_s, tid_s, range_s]
+    untxt $ Text.unwords [bid_s, tid_s, range_s]
     where
     bid_s = maybe "*" Id.ident_name maybe_bid
     tid_s = maybe "*" Id.ident_name maybe_tid
     range_s = maybe "*"
-        (\(from, to) -> float from ++ "-" ++ float to) maybe_range
-    float = Pretty.show_float 2 . ScoreTime.to_double
+        (\(from, to) -> float from <> "-" <> float to) maybe_range
+    float = txt . Pretty.show_float 2 . ScoreTime.to_double
 
 parse_ui_frame :: String -> Maybe UiFrame
 parse_ui_frame = ParseText.maybe_parse_string $ do
@@ -288,8 +289,8 @@ parse_ui_frame = ParseText.maybe_parse_string $ do
         to <- ParseText.p_float
         return (ScoreTime.double from, ScoreTime.double to)
     return
-        ( Id.BlockId . Id.read_id . untxt <$> bid
-        , Id.TrackId . Id.read_id . untxt <$> tid
+        ( Id.BlockId . Id.read_id <$> bid
+        , Id.TrackId . Id.read_id <$> tid
         , range
         )
     where

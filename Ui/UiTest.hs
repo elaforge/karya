@@ -64,7 +64,7 @@ default_divider = Block.Divider Color.blue
 -- state
 
 mkid :: String -> Id.Id
-mkid = Id.read_short test_ns
+mkid = Id.read_short test_ns . txt
 
 bid :: String -> BlockId
 bid = Id.BlockId . mkid
@@ -170,7 +170,7 @@ mkblock (spec, tracks) = do
     ruler_id <- if has_ruler
         then do
             let len = event_end tracks
-                rid = Id.id test_ns ("r" ++ show len)
+                rid = Id.id test_ns ("r" <> showt len)
             ifM (Maybe.isJust <$> State.lookup_ruler (Id.RulerId rid))
                 (return (Id.RulerId rid))
                 (State.create_ruler rid (mkruler_44 len 1))
@@ -233,7 +233,7 @@ mkblock_view block_spec = (snd <$> mkblock block_spec) <* mkview block_id
     where (block_id, _, _) = parse_block_spec (fst block_spec)
 
 mk_vid :: BlockId -> ViewId
-mk_vid block_id = Id.ViewId $ Id.id ns ("v." ++ block_name)
+mk_vid block_id = Id.ViewId $ Id.id ns ("v." <> block_name)
     where (ns, block_name) = Id.un_id (Id.unpack_id block_id)
 
 mk_vid_name :: String -> ViewId
@@ -314,7 +314,7 @@ dump_block block_id state =
         map dump_track tracks), skel)
     where
     (id_str, title, tracks, skel) = eval state (Simple.dump_block block_id)
-    name = snd $ Id.un_id $ Id.read_id id_str
+    name = untxt $ snd $ Id.un_id $ Id.read_id $ txt id_str
     dump_track (_, title, events) = (untxt title, map convert events)
     convert (start, dur, text) =
         (ScoreTime.double start, ScoreTime.double dur, untxt text)

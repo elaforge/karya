@@ -348,10 +348,10 @@ format_stats (rederived, cached) =
     where
     format_rederived (because, ids) =
         untxt because <> ": [" <> show (length ids) <> "] "
-        <> unwords (map Id.ident_name ids)
+        <> unwords (map (untxt . Id.ident_name) ids)
     format_cached cached =
         show (length cached) <> " [" <> show (sum (map snd cached)) <> "] "
-        <> unwords (map (Id.ident_name . fst) cached)
+        <> unwords (map (untxt . Id.ident_name . fst) cached)
 
 -- ** cache contents
 

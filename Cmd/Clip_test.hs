@@ -3,6 +3,7 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 module Cmd.Clip_test where
+import Util.Control
 import Util.Test
 import qualified Ui.Id as Id
 import qualified Ui.State as State
@@ -172,5 +173,5 @@ mkstate block_tracks clip_tracks = UiTest.exec State.empty $ do
     UiTest.mkviews [(UiTest.default_block_name, block_tracks)]
     Clip.state_to_namespace
         (UiTest.exec State.empty
-            (UiTest.mkblocks [(Config.clip_block_name, clip_tracks)]))
+            (UiTest.mkblocks [(untxt Config.clip_block_name, clip_tracks)]))
         Config.clip_namespace

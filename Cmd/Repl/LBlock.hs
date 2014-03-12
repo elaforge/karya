@@ -148,8 +148,8 @@ replace_block_call from to =
     map_symbol $ \(TrackLang.Symbol sym) -> TrackLang.Symbol (f sym)
     where
     f sym
-        | sym == txt (Id.ident_name from) = txt $ Id.ident_name to
-        | sym == txt (Id.ident_string from) = txt $ Id.ident_string to
+        | sym == Id.ident_name from = Id.ident_name to
+        | sym == Id.ident_text from = Id.ident_text to
         | otherwise = sym
 
 -- * create
@@ -175,7 +175,7 @@ can_create :: State.M m => Text -> m Bool
 can_create name
     | Text.null name = return False
     | otherwise = do
-        block_id <- State.read_id (untxt name)
+        block_id <- State.read_id name
         not . Map.member block_id <$> State.gets State.state_blocks
 
 -- | Create a named block with the same structure as the focused one.

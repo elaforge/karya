@@ -71,22 +71,22 @@ import Types
 --
 -- This is used by the REPL's macro feature, to replace @xyz@ with
 -- (make_id "current-namespace" "xyz")
-make_id :: Id.Ident a => String -> String -> a
+make_id :: Id.Ident a => Text -> Text -> a
 make_id ns name
     | not (Id.valid ns) || not (Id.valid name) =
         error $ "invalid characters in id: " ++ show (ns, name)
     | otherwise = Id.make $ Id.read_short (Id.namespace ns) name
 
-vid :: String -> ViewId
+vid :: Text -> ViewId
 vid = Id.ViewId . Id.read_id
 
-bid :: String -> BlockId
+bid :: Text -> BlockId
 bid = Id.BlockId . Id.read_id
 
-rid :: String -> RulerId
+rid :: Text -> RulerId
 rid = Id.RulerId . Id.read_id
 
-tid :: String -> TrackId
+tid :: Text -> TrackId
 tid = Id.TrackId . Id.read_id
 
 -- | Get the current focused block.
@@ -121,7 +121,7 @@ root = State.get_root_id
 
 -- | Create a namespace, and throw an IO exception if it has bad characters.
 -- Intended to be used from the REPL, where throwing an IO exception is ok.
-ns :: String -> Id.Namespace
+ns :: Text -> Id.Namespace
 ns name
     | Id.valid name = Id.namespace name
     | otherwise = error $ "bad namespace: " ++ show name

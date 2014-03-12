@@ -150,7 +150,7 @@ extract_movements title events = do
             return ""
 
 block_id_title :: BlockId -> Lilypond.Title
-block_id_title = txt . Id.ident_name
+block_id_title = Id.ident_name
 
 -- * debugging
 

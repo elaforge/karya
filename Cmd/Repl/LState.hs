@@ -186,7 +186,8 @@ rename ns = do
             -- System.Directory.renameDirectory deletes the destination
             -- diretory for some reason.  I'd rather throw an exception.
             let old_dir = FilePath.takeDirectory repo
-                new_dir = FilePath.replaceFileName old_dir (Id.un_namespace ns)
+                new_dir = FilePath.replaceFileName old_dir
+                    (untxt (Id.un_namespace ns))
             Cmd.rethrow_io $ File.ignoreEnoent $ Posix.rename old_dir new_dir
             Cmd.modify $ \st -> st
                 { Cmd.state_save_file = Just $ Cmd.SaveState $
@@ -196,7 +197,7 @@ rename ns = do
     replace_dir ns path = new_dir </> FilePath.takeFileName path
         where
         new_dir = FilePath.replaceFileName (FilePath.takeDirectory path)
-            (Id.un_namespace ns)
+            (untxt (Id.un_namespace ns))
 
 -- * load
 

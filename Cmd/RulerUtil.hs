@@ -99,7 +99,7 @@ block_id_to_free_ruler rulers block_id = id
     where
     -- Always just since the list is infinite.
     Just id = List.find (not . (`Map.member` rulers) . Id.RulerId) $
-        map (Id.id ns) $ name : [name <> "-" <> show n | n <- [1..]]
+        map (Id.id ns) $ name : [name <> "-" <> showt n | n <- [1..]]
     (ns, name) = Id.un_id $ Id.unpack_id block_id
 
 copy :: (State.M m) => Id.Id -> RulerId -> m RulerId

@@ -5,23 +5,24 @@
 -- | A @.ghci@ file makes sure this module is in scope when debugging
 -- interactively.
 module D where
+import qualified Data.Text as Text
 import qualified Ui.Id as Id
 import Types
 
 
-mkid :: String -> Id.Id
+mkid :: Text.Text -> Id.Id
 mkid name = Id.read_short _default_ns name
 
-bid :: String -> BlockId
+bid :: Text.Text -> BlockId
 bid = Id.BlockId . mkid
 
-vid :: String -> ViewId
+vid :: Text.Text -> ViewId
 vid = Id.ViewId . mkid
 
-tid :: String -> TrackId
+tid :: Text.Text -> TrackId
 tid = Id.TrackId . mkid
 
-rid :: String -> RulerId
+rid :: Text.Text -> RulerId
 rid = Id.RulerId . mkid
 
 -- | Change this to whatever namespace you're debugging.

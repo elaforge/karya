@@ -144,7 +144,7 @@ get_state_path = do
 
 make_state_path :: Id.Namespace -> Cmd.State -> FilePath
 make_state_path ns state = case Cmd.state_save_file state of
-    Nothing -> Cmd.path state Config.save_dir </> Id.un_namespace ns
+    Nothing -> Cmd.path state Config.save_dir </> untxt (Id.un_namespace ns)
         </> default_state
     Just (Cmd.SaveState fn) -> fn
     Just (Cmd.SaveRepo repo) -> FilePath.replaceExtension repo ".state"
@@ -229,7 +229,7 @@ get_git_path = do
 
 make_git_path :: Id.Namespace -> Cmd.State -> Git.Repo
 make_git_path ns state = case Cmd.state_save_file state of
-    Nothing -> Cmd.path state Config.save_dir </> Id.un_namespace ns
+    Nothing -> Cmd.path state Config.save_dir </> untxt (Id.un_namespace ns)
         </> default_git
     Just (Cmd.SaveState fn) -> FilePath.replaceExtension fn ".git"
     Just (Cmd.SaveRepo repo) -> repo
