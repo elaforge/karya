@@ -201,6 +201,7 @@ isHsconfigBinary :: FilePath -> Bool
 isHsconfigBinary fn =
     FilePath.takeFileName fn `elem` ["seq", "test_midi"]
     || runProfile `List.isPrefixOf` fn
+    || runTests `List.isPrefixOf` fn
 
 -- | Module that define 'main' and should get linked to their own binaries,
 -- and the names of their eventual binaries.
