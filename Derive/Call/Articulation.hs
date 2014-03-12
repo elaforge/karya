@@ -28,7 +28,7 @@ import qualified Derive.Call.Tags as Tags
 import qualified Derive.Call.Util as Util
 import qualified Derive.Controls as Controls
 import qualified Derive.Derive as Derive
-import qualified Derive.ParseBs as ParseBs
+import qualified Derive.Parse as Parse
 import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Sig as Sig
@@ -58,7 +58,7 @@ make_lookup_attr call =
         \(TrackLang.Symbol sym) -> parse_symbol sym
     where
     parse_symbol sym = case Text.uncons sym of
-        Just (c, _) | c == '+' || c == '=' -> case ParseBs.parse_val sym of
+        Just (c, _) | c == '+' || c == '=' -> case Parse.parse_val sym of
             Right (TrackLang.VAttributes attrs) -> return $ Just (call attrs)
             _ -> return Nothing
         _ -> return Nothing

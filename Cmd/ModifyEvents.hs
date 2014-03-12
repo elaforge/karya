@@ -15,7 +15,7 @@ import qualified Ui.Types as Types
 
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Selection as Selection
-import qualified Derive.ParseBs as ParseBs
+import qualified Derive.Parse as Parse
 import qualified Derive.ParseTitle as ParseTitle
 import Types
 
@@ -37,7 +37,7 @@ text = event . (\f event -> Event.set_text (f (Event.event_text event)) event)
 
 -- | Split up a pipeline and lex the calls.
 pipeline :: ([[Text]] -> [[Text]]) -> Text -> Text
-pipeline modify = ParseBs.join_pipeline . modify . ParseBs.split_pipeline
+pipeline modify = Parse.join_pipeline . modify . Parse.split_pipeline
 
 -- | Take a text transformation that can fail to a Track transformation that
 -- transforms all the events and throws if any of the text transformations

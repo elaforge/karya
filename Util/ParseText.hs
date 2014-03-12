@@ -2,7 +2,7 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
-{- | Parsing utilities for ByteStrings, using Attoparsec.
+{- | Parsing utilities for Text, using Attoparsec.
 
     This module also exports some basic combinators.  The idea is that modules
     that want to do a bit of parsing should be able to import this and need not
@@ -11,38 +11,37 @@
     may return a different type (ByteString vs. Text) so callers will still
     need a little modification to switch libraries.
 -}
-module Util.ParseBs (module Util.ParseBs, many) where
+module Util.ParseText (module Util.ParseText, many) where
 import Control.Applicative (many)
 import qualified Data.Attoparsec as Attoparsec
 import Data.Attoparsec ((<?>))
-import qualified Data.Attoparsec.Char8 as A
-import qualified Data.ByteString.Char8 as B
-import qualified Data.Text.Encoding as Text.Encoding
+import qualified Data.Attoparsec.Text as A
+import qualified Data.Text as Text
+import qualified Data.Text.Read as Text.Read
 
 import Util.Control
 import qualified Util.Seq as Seq
-import qualified Ui.Util
 
 
 type Parser a = A.Parser a
 
-parse_all :: Parser a -> B.ByteString -> Either String a
+parse_all :: Parser a -> Text -> Either String a
 parse_all p text = go (A.parse p text)
     where
     go (Attoparsec.Fail rest contexts msg) =
         Left $ err rest ++ msg ++ " [" ++ Seq.join ", " contexts ++ "]"
     go (Attoparsec.Partial cont) = go (cont "")
     go (Attoparsec.Done rest val)
-        | B.null rest = Right val
+        | Text.null rest = Right val
         | otherwise = Left $ err rest ++ "expected eof"
-    err rest = "parse error on byte " ++ maybe "?" show (column rest) ++ " of "
+    err rest = "parse error on char " ++ maybe "?" show (column rest) ++ " of "
         ++ show_expr (column rest) text ++ ": "
-    show_expr Nothing expr = "\"" ++ B.unpack expr ++ "\""
-    show_expr (Just byte) expr = "\"" ++ pre ++ "»" ++ post ++ "\""
-        where (pre, post) = splitAt (byte - 1) (B.unpack expr)
-            -- byte starts at 1.  Use a unicode char so it's visually distinct.
+    show_expr Nothing expr = "\"" ++ Text.unpack expr ++ "\""
+    show_expr (Just char) expr = "\"" ++ pre ++ "»" ++ post ++ "\""
+        where (pre, post) = splitAt (char - 1) (Text.unpack expr)
+            -- char starts at 1.  Use a unicode char so it's visually distinct.
     column t
-        | t `B.isSuffixOf` text = Just $ B.length text - B.length t + 1
+        | t `Text.isSuffixOf` text = Just $ Text.length text - Text.length t + 1
         | otherwise = Nothing
 
 -- * casual parsing
@@ -52,44 +51,25 @@ maybe_read str = case reads str of
     (a, "") : _ -> Just a
     _ -> Nothing
 
-maybe_parse :: Parser a -> B.ByteString -> Maybe a
+maybe_parse :: Parser a -> Text -> Maybe a
 maybe_parse parser text = either (const Nothing) Just (parse_all parser text)
 
 maybe_parse_string :: Parser a -> String -> Maybe a
-maybe_parse_string parser = maybe_parse parser . B.pack
+maybe_parse_string parser = maybe_parse parser . Text.pack
 
-maybe_parse_text :: Parser a -> Text -> Maybe a
-maybe_parse_text parser = maybe_parse parser . Text.Encoding.encodeUtf8
+float :: Text -> Maybe Double
+float = maybe_parse p_float
 
-float :: String -> Maybe Double
-float = maybe_parse_string p_float
-
-int :: String -> Maybe Int
-int = maybe_parse_string p_int
-
--- * Text
-
-from_text :: Text -> B.ByteString
-from_text = Text.Encoding.encodeUtf8
-
-to_text :: B.ByteString -> Text
-to_text = Ui.Util.decodeUtf8
+int :: Text -> Maybe Int
+int = maybe_parse p_int
 
 -- * combinators
 
 between :: Parser _a -> Parser _b -> Parser a -> Parser a
-between open close p = open >> p <* close
+between open close p = open *> p <* close
 
 optional :: Parser a -> Parser (Maybe a)
 optional p = A.option Nothing (Just <$> p)
-
--- ** re-export
-
-char :: Char -> Parser Char
-char = A.char
-
-spaces :: Parser ()
-spaces = A.skipSpace
 
 -- * parsers
 
@@ -106,20 +86,20 @@ p_float = do
 
 p_unsigned_float :: Parser Double
 p_unsigned_float = do
-    i <- A.takeWhile A.isDigit
-    f <- A.option "" (A.char '.' >> A.takeWhile1 A.isDigit)
-    if B.null i && B.null f then mzero else do
+    i <- A.takeWhile is_digit
+    f <- A.option "" (A.char '.' >> A.takeWhile1 is_digit)
+    if Text.null i && Text.null f then mzero else do
     case (dec i, dec f) of
         (Just i', Just f') -> return $ fromIntegral i'
-            + fromIntegral f' / fromIntegral (10 ^ B.length f)
+            + fromIntegral f' / fromIntegral (10 ^ Text.length f)
         _ -> mzero
     <?> "unsigned float"
     where
-    dec :: B.ByteString -> Maybe Int
+    dec :: Text -> Maybe Int
     dec s
-        | B.null s = Just 0
-        | otherwise = case B.readInt s of
-            Just (d, rest) | B.null rest -> Just d
+        | Text.null s = Just 0
+        | otherwise = case Text.Read.decimal s of
+            Right (d, rest) | Text.null rest -> Just d
             _ -> Nothing
 
 p_int :: Parser Int
@@ -130,12 +110,14 @@ p_int = do
 
 p_nat :: Parser Int
 p_nat = do
-    i <- A.takeWhile1 A.isDigit
-    case B.readInt i of
-        Just (d, _) -> return d
-        Nothing -> mzero
+    i <- A.takeWhile1 is_digit
+    case Text.Read.decimal i of
+        Right (d, _) -> return d
+        Left _ -> mzero
 
+is_digit :: Char -> Bool
+is_digit c = c >= '0' && c <= '9'
 
 -- | A word of non-space chars.
-p_word :: Parser B.ByteString
+p_word :: Parser Text
 p_word = A.takeWhile1 (/= ' ')

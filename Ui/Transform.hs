@@ -4,9 +4,9 @@
 
 -- | Functions for larger scale transformations on a State.
 module Ui.Transform where
-import qualified Data.ByteString as ByteString
 import qualified Data.List as List
 import qualified Data.Map as Map
+import qualified Data.Text as Text
 
 import Util.Control
 import qualified Util.Map as Map
@@ -176,7 +176,7 @@ safe_union name fm0 fm1
 -- * intern
 
 -- | Increase sharing in event text with an intern table.
-intern_text :: State.State -> (State.State, Map.Map ByteString.ByteString Int)
+intern_text :: State.State -> (State.State, Map.Map Text Int)
 intern_text state =
     (state { State.state_tracks = Map.fromAscList tracks }, Map.map snd table)
     where
@@ -189,10 +189,10 @@ intern_text state =
         (state2, events) = List.mapAccumL Event.intern_event state
             (Events.ascending (Track.track_events track))
 
-intern_stats :: Map.Map ByteString.ByteString Int -> (Memory.Size, Int)
+intern_stats :: Map.Map Text Int -> (Memory.Size, Int)
 intern_stats table =
     (Memory.from_bytes $ sum (map stats (Map.toList table)), total_hits)
     where
     total_hits = sum (Map.elems table) - Map.size table
     stats (text, hits) = size * (hits - 1)
-        where size = ByteString.length text + 3 * 4 -- pointer + length + start
+        where size = Text.length text * 2 + 3 * 4 -- pointer + length + start

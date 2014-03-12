@@ -76,7 +76,7 @@ event event = (from_score (Event.start event),
 score_event :: Score.Event -> ScoreEvent
 score_event evt = (from_real (Score.event_start evt),
     from_real (Score.event_duration evt),
-    Score.event_string evt, Score.initial_nn evt)
+    untxt $ Score.event_text evt, Score.initial_nn evt)
 
 perf_event :: Perform.Event -> PerfEvent
 perf_event evt =

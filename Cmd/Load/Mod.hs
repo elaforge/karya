@@ -5,15 +5,15 @@
 -- | Load mod dumps from hacked up xmp.
 module Cmd.Load.Mod where
 import qualified Control.Applicative as A (many)
-import qualified Data.Attoparsec.Char8 as A
+import qualified Data.Attoparsec.Text as A
 import qualified Data.Bits as Bits
-import qualified Data.ByteString.Char8 as B
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
+import qualified Data.Text.IO as Text.IO
 
 import Util.Control
 import qualified Util.Map as Map
-import qualified Util.ParseBs as Parse
+import qualified Util.ParseText as ParseText
 import qualified Util.Seq as Seq
 import Util.Test
 import qualified Util.Then as Then
@@ -261,8 +261,8 @@ block_notes = concatMap row_notes . block_rows
 
 parse :: FilePath -> IO (Either String [Block])
 parse fn = do
-    s <- B.readFile fn
-    return $ Parse.parse_all p_blocks s
+    s <- Text.IO.readFile fn
+    return $ ParseText.parse_all p_blocks s
 
 p_blocks = A.many p_block
 p_block = Block <$> parens (A.many p_row)
@@ -278,5 +278,5 @@ p_note = parens $ do
     return $ Note pitch inst (filter ((/=0) . fst) [fx1, fx2])
 
 p_effects = parens ((,) <$> number <*> number)
-parens = Parse.between (Parse.lexeme (A.char '(')) (Parse.lexeme (A.char ')'))
-number = Parse.lexeme Parse.p_nat
+parens = ParseText.between (ParseText.lexeme (A.char '(')) (ParseText.lexeme (A.char ')'))
+number = ParseText.lexeme ParseText.p_nat

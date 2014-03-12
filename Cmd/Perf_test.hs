@@ -11,7 +11,7 @@ import qualified Ui.UiTest as UiTest
 import qualified Cmd.CmdTest as CmdTest
 import qualified Cmd.Perf as Perf
 import qualified Derive.DeriveTest as DeriveTest
-import qualified Derive.ParseBs as ParseBs
+import qualified Derive.Parse as Parse
 import qualified Derive.Score as Score
 
 import qualified Perform.Signal as Signal
@@ -22,7 +22,7 @@ test_derive_expr = do
             CmdTest.run_perf_tracks tracks cmd
         f tracknum pos expr = Perf.derive_expr UiTest.default_block_id
             (UiTest.mk_tid tracknum) pos
-            (expect_right "parse" (ParseBs.parse_expr expr))
+            (expect_right "parse" (Parse.parse_expr expr))
         note_call e = (Score.event_start e, DeriveTest.e_attributes e)
     io_equal (run note_call [(">s/1", [])] (f 1 0 "+b | n +a"))
         (Right (Just (Right [(0, "+a+b")], []), []))

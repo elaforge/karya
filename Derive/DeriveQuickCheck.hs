@@ -34,7 +34,7 @@ import qualified Data.Map as Map
 import qualified Test.QuickCheck as Q
 
 import Util.Control
-import qualified Util.ParseBs as ParseBs
+import qualified Util.ParseText as ParseText
 import qualified Util.Seq as Seq
 import qualified Util.Tree as Tree
 
@@ -176,7 +176,7 @@ update_state samples pos state = (List.foldl' go state pre, post)
     go state (Sample name _ val)
         | name == "*" = state { state_pitch = parse_pitch val }
         | otherwise = state { state_controls =
-            Map.insert (Score.control (txt name)) (parse_control val)
+            Map.insert (Score.control (txt name)) (parse_control (txt val))
                 (state_controls state) }
 
 parse_pitch :: String -> Pitch.NoteNumber
@@ -189,9 +189,9 @@ note_to_nn = Map.fromList
     [(note, nn) | (Just note, nn) <- zip (map Twelve.show_nn nns) nns]
     where nns = Seq.range 1 127 1
 
-parse_control :: String -> Signal.Y
-parse_control text = fromMaybe
-    (error $ "unparseable control: " ++ show text) (ParseBs.float text)
+parse_control :: Text -> Signal.Y
+parse_control text = fromMaybe (error $ "unparseable control: " ++ show text)
+    (ParseText.float text)
 
 block1 =
     [ ("c1", [(0, 0, "1")])

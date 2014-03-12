@@ -1033,7 +1033,7 @@ instance (Pretty.Pretty val) => Pretty.Pretty (PassedArgs val) where
 data CallInfo val = CallInfo {
     -- | The expression currently being evaluated.  Why I need this is
     -- documented in 'Derive.Call.Sub.invert_call'.
-    info_expr :: !Event.Text
+    info_expr :: !Text
 
     -- The below is not used at all for val calls, and the events are not
     -- used for transform calls.  It might be cleaner to split those out, but

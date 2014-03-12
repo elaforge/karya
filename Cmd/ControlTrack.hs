@@ -18,7 +18,7 @@ import qualified Cmd.InputNote as InputNote
 import qualified Cmd.Msg as Msg
 import qualified Cmd.Selection as Selection
 
-import qualified Derive.ParseBs as ParseBs
+import qualified Derive.Parse as Parse
 import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.TrackLang as TrackLang
@@ -212,8 +212,7 @@ parse s
 split_args :: Text -> Text -> Event
 split_args method rest = Event method (Text.stripEnd w) ws
     where
-    (w, ws) = (ParseBs.to_text *** ParseBs.to_text) $ ParseBs.lex1 $
-        ParseBs.from_text rest
+    (w, ws) = Parse.lex1 rest
 
 unparse :: Event -> Text
 unparse (Event method val args)
@@ -228,7 +227,7 @@ unparse (Event method val args)
 -- If the val was hex, keep it hex.
 modify_val :: (Signal.Y -> Signal.Y) -> Text -> Maybe Text
     -- ^ Nothing if I couldn't parse out a VNum.
-modify_val f text = case ParseBs.parse_val (event_val event) of
+modify_val f text = case Parse.parse_val (event_val event) of
         Right (TrackLang.VNum n) -> Just $ unparse $
             event { event_val = show_val (f <$> n) }
         _ -> Nothing

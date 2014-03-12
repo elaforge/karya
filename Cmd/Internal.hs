@@ -39,7 +39,7 @@ import qualified Cmd.Perf as Perf
 import qualified Cmd.Selection as Selection
 import qualified Cmd.TimeStep as TimeStep
 
-import qualified Derive.ParseBs as ParseBs
+import qualified Derive.Parse as Parse
 import qualified Derive.ParseTitle as ParseTitle
 import qualified Derive.ShowVal as ShowVal
 
@@ -237,7 +237,7 @@ set_style = (track_bg, event_style)
 event_style :: Bool -> Event.EventStyle
 event_style has_note_children title event =
     integrated $ Config.event_style
-        (syntax (ParseBs.parse_expr (Event.event_bytestring event)))
+        (syntax (Parse.parse_expr (Event.event_text event)))
         (Event.style event)
     where
     integrated

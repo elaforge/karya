@@ -49,7 +49,7 @@ mkargs text subs = Derive.PassedArgs [] "call" info
     where
     event = Event.event 0 1 text
     info = Derive.CallInfo
-        { Derive.info_expr = Event.event_bytestring event
+        { Derive.info_expr = Event.event_text event
         , Derive.info_prev_val = Nothing
         , Derive.info_event = event
         , Derive.info_prev_events = prev

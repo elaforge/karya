@@ -49,7 +49,7 @@ import qualified Ui.TrackTree as TrackTree
 import qualified Derive.Call.Control as Control
 import qualified Derive.Call.Pitch as Pitch
 import qualified Derive.Derive as Derive
-import qualified Derive.ParseBs as ParseBs
+import qualified Derive.Parse as Parse
 import qualified Derive.ParseTitle as ParseTitle
 
 import Types
@@ -169,7 +169,7 @@ slice exclusive around start end insert_event = map do_slice
         TrackTree.TrackEvents
             { TrackTree.tevents_title = ">"
             , TrackTree.tevents_events =
-                Events.singleton (Event.bs_event start dur text)
+                Events.singleton (Event.text_event start dur text)
             , TrackTree.tevents_track_id = track_id
             , TrackTree.tevents_block_id = Nothing
             , TrackTree.tevents_end = end
@@ -259,7 +259,7 @@ extract_control_events is_pitch_track (before, after) start end events =
     -- This way the previous call will only be evaluated once.  However, this
     -- hacky check is unreliable because it doesn't really know what calls are
     -- in scope, and doesn't work for val calls at all.
-    call_of = Maybe.fromMaybe "" . ParseBs.parse_call . Event.event_bytestring
+    call_of = Maybe.fromMaybe "" . Parse.parse_call . Event.event_text
     take_pre before = Then.span ((`Set.member` require_previous) . call_of)
         (splitAt before)
     require_previous = if is_pitch_track then Pitch.require_previous

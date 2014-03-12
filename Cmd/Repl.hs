@@ -43,7 +43,7 @@ import qualified Cmd.ReplGhc as ReplImpl
 import qualified Cmd.ReplStub as ReplImpl
 #endif
 
-import qualified Derive.ParseBs as ParseBs
+import qualified Derive.Parse as Parse
 
 
 -- | This is the persistent interpreter session which is stored in the global
@@ -83,7 +83,7 @@ repl session repl_dirs msg = do
 
 -- | Replace \@some-id with @(make_id ns \"some-id\")@
 expand_macros :: Id.Namespace -> String -> Either String String
-expand_macros namespace expr = ParseBs.expand_macros replace expr
+expand_macros namespace expr = Parse.expand_macros replace expr
     where
     replace ident = "(make_id " <> show (Id.un_namespace namespace) <> " "
         <> show ident <> ")"

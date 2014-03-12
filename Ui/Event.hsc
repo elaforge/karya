@@ -27,12 +27,12 @@
     be used to store the "parent event" of a derivation, for instance.
 -}
 module Ui.Event (
-    Event, start, duration, style, stack, event_bytestring
-    , Text, from_string, from_text
-    , Stack(..), IndexKey, event, text_event, bs_event
+    Event, start, duration, style, stack
+    , Text, from_string
+    , Stack(..), IndexKey, event, text_event
     -- * text
     , event_string, event_text, set_text
-    , modify_bytestring
+    , modify_text
     , intern_event
     -- * start, duration
     , end, min, max, range, overlaps
@@ -46,11 +46,8 @@ module Ui.Event (
 import Prelude hiding (min, max)
 import qualified Prelude
 import qualified Control.DeepSeq as DeepSeq
-import qualified Data.ByteString.Char8 as B
-import qualified Data.ByteString.UTF8 as UTF8
 import qualified Data.Map as Map
 import qualified Data.Text as Text
-import qualified Data.Text.Encoding as Encoding
 import Util.ForeignC
 
 import Util.Control hiding (Text)
@@ -69,8 +66,7 @@ import Types
 data Event = Event {
     start :: !TrackTime
     , duration :: !TrackTime
-    -- | UTF8 encoded.
-    , event_bytestring :: !Text
+    , event_text :: !Text
     -- | Each event can have its own style.  However, in practice, because I
     -- want events to use styles consistently I set them automatically via
     -- 'EventStyle'.  This way is less flexible, but it's one less bit of state
@@ -81,13 +77,10 @@ data Event = Event {
     , stack :: !(Maybe Stack)
     } deriving (Eq, Read, Show)
 
-type Text = UTF8.ByteString
+type Text = Text.Text
 
 from_string :: String -> Text
-from_string = UTF8.fromString
-
-from_text :: Text.Text -> Text
-from_text = Encoding.encodeUtf8
+from_string = Text.pack
 
 data Stack = Stack {
     -- | The stack is used so the event retains a reference to its generating
@@ -124,16 +117,13 @@ instance Pretty.Pretty Stack where
 
 -- | Manual event constructor.
 event :: ScoreTime -> ScoreTime -> String -> Event
-event start dur text = bs_event start dur (from_string text)
+event start dur text = text_event start dur (from_string text)
 
-text_event :: ScoreTime -> ScoreTime -> Text.Text -> Event
-text_event start dur = bs_event start dur . from_text
-
-bs_event :: ScoreTime -> ScoreTime -> Text -> Event
-bs_event start dur text = Event
+text_event :: ScoreTime -> ScoreTime -> Text -> Event
+text_event start dur text = Event
     { start = start
     , duration = dur
-    , event_bytestring = text
+    , event_text = text
     , style = Config.default_style
     , stack = Nothing
     }
@@ -141,17 +131,13 @@ bs_event start dur text = Event
 -- * text
 
 event_string :: Event -> String
-event_string = UTF8.toString . event_bytestring
-
-event_text :: Event -> Text.Text
-event_text = Encoding.decodeUtf8 . event_bytestring
+event_string = Text.unpack . event_text
 
 set_text :: Text.Text -> Event -> Event
-set_text s event = modified $ event { event_bytestring = from_text s }
+set_text s event = modified $ event { event_text = s }
 
-modify_bytestring :: (Text -> Text) -> Event -> Event
-modify_bytestring f event =
-    event { event_bytestring = f (event_bytestring event) }
+modify_text :: (Text -> Text) -> Event -> Event
+modify_text f event = event { event_text = f (event_text event) }
 
 intern_event :: Map.Map Text (Text, Int) -> Event
     -> (Map.Map Text (Text, Int), Event)
@@ -159,8 +145,8 @@ intern_event table event = case Map.lookup text table of
     Nothing -> (Map.insert text (text, 1) table, event)
     Just (interned, count) ->
         (Map.insert interned (interned, count+1) table,
-            event { event_bytestring = interned })
-    where text = event_bytestring event
+            event { event_text = interned })
+    where text = event_text event
 
 -- * start, duration
 
@@ -237,7 +223,7 @@ instance Serialize.Serialize Event where
     get = do
         start :: ScoreTime <- get
         dur :: ScoreTime <- get
-        text :: B.ByteString <- get
+        text :: Text <- get
         style :: Style.StyleId <- get
         stack :: Maybe Stack <- get
         return $ Event start dur text style stack
@@ -262,7 +248,7 @@ instance CStorable Event where
 poke_event :: Ptr Event -> Event -> IO ()
 poke_event eventp (Event start dur text (Style.StyleId style_id) _) = do
     -- Must be freed by the caller, EventTrackView::draw_area.
-    textp <- if B.null text then return nullPtr else Util.bytesToCString0 text
+    textp <- if Text.null text then return nullPtr else Util.textToCString0 text
     (#poke Event, start) eventp start
     (#poke Event, duration) eventp dur
     (#poke Event, text) eventp textp

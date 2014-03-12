@@ -111,7 +111,7 @@ events track_id start end = do
 
 drop_dups :: Cmd.CmdL ()
 drop_dups = ModifyEvents.selection $ ModifyEvents.events $
-    return . Seq.drop_dups Event.event_bytestring
+    return . Seq.drop_dups Event.event_text
 
 
 -- * signal render

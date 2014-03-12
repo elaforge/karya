@@ -29,7 +29,7 @@ import qualified Cmd.ModifyEvents as ModifyEvents
 import qualified Cmd.Repl.Util as Util
 import qualified Cmd.Selection as Selection
 
-import qualified Derive.ParseBs as ParseBs
+import qualified Derive.Parse as Parse
 import qualified Derive.ParseTitle as ParseTitle
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.TrackLang as TrackLang
@@ -141,7 +141,7 @@ replace from to = do
 map_symbol :: (TrackLang.Symbol -> TrackLang.Symbol) -> Text -> Text
 map_symbol f text =
     either (const text) (ShowVal.show_val . TrackLang.map_symbol f)
-        (ParseBs.parse_expr $ ParseBs.from_text text)
+        (Parse.parse_expr text)
 
 replace_block_call :: BlockId -> BlockId -> Text -> Text
 replace_block_call from to =

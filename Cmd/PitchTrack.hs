@@ -24,7 +24,7 @@ import qualified Cmd.Msg as Msg
 import qualified Cmd.Perf as Perf
 import qualified Cmd.Selection as Selection
 
-import qualified Derive.ParseBs as ParseBs
+import qualified Derive.Parse as Parse
 import qualified Derive.ParseTitle as ParseTitle
 import qualified Derive.Scale as Scale
 import qualified Derive.TrackLang as TrackLang
@@ -173,7 +173,7 @@ modify_note f = modify_expr $ \note_str -> case Text.uncons note_str of
 -- | Modify the note expression, e.g. in @i (a b c)@ it would be @(a b c)@,
 -- including the parens.
 modify_expr :: (Text -> Either String Text) -> Text -> Either String Text
-modify_expr f text = case ParseBs.parse_expr (ParseBs.from_text text) of
+modify_expr f text = case Parse.parse_expr text of
     Left _ -> Right text
     Right expr -> case expr of
         TrackLang.Call sym (TrackLang.ValCall _ : _) :| []

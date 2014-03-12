@@ -38,11 +38,11 @@ module Cmd.Integrate.Merge (
     , diff, diff_event, apply
 #endif
 ) where
-import qualified Data.ByteString.Char8 as B
 import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 import qualified Data.Set as Set
+import qualified Data.Text as Text
 import qualified Data.Traversable as Traversable
 import qualified Data.Tree as Tree
 
@@ -416,7 +416,7 @@ diff_event old new = concat
     [ cmp (Event.start old) (Event.start new) (Position (Event.start new))
     , cmp (Event.duration old) (Event.duration new)
         (Duration (Event.duration new))
-    , diff_text (Event.event_bytestring old) (Event.event_bytestring new)
+    , diff_text (Event.event_text old) (Event.event_text new)
     ]
     where cmp x y val = if x == y then [] else [val]
 
@@ -431,12 +431,12 @@ diff_event old new = concat
 diff_text :: Event.Text -> Event.Text -> [Modify]
 diff_text old new
     | old == new = []
-    | old `B.isSuffixOf` new && ends_with_pipe prefix = [Prefix prefix]
+    | old `Text.isSuffixOf` new && ends_with_pipe prefix = [Prefix prefix]
     | otherwise = [Set new]
     where
-    prefix = B.take (B.length new - B.length old) new
-    ends_with_pipe text = "|" `B.isSuffixOf` pre && B.all (==' ') post
-        where (pre, post) = B.breakEnd (=='|') text
+    prefix = Text.take (Text.length new - Text.length old) new
+    ends_with_pipe text = "|" `Text.isSuffixOf` pre && Text.all (==' ') post
+        where (pre, post) = Text.breakOnEnd "|" text
 
 data Edit =
     -- | This event was added, and will be copied to the output.
@@ -446,8 +446,7 @@ data Edit =
     | Edit !Event.IndexKey ![Modify]
     deriving (Eq, Show)
 
-data Modify = Position !ScoreTime | Duration !ScoreTime
-    | Set !B.ByteString | Prefix !B.ByteString
+data Modify = Position !ScoreTime | Duration !ScoreTime | Set !Text | Prefix !Text
     deriving (Eq, Show)
 
 instance Pretty.Pretty Edit where
@@ -494,5 +493,5 @@ apply_modifications mods event = List.foldl' go event mods
     go event mod = ($event) $ case mod of
         Position p -> Event.move (const p)
         Duration d -> Event.set_duration d
-        Set text -> Event.modify_bytestring (const text)
-        Prefix text -> Event.modify_bytestring (text<>)
+        Set text -> Event.modify_text (const text)
+        Prefix text -> Event.modify_text (text<>)

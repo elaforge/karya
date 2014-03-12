@@ -2,14 +2,14 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
-module Derive.ParseBs_test where
+module Derive.Parse_test where
 import qualified Data.List.NonEmpty as NonEmpty
 
 import Util.Control
-import qualified Util.ParseBs as Util.Parse
+import qualified Util.ParseText as ParseText
 import Util.Test
 
-import qualified Derive.ParseBs as Parse
+import qualified Derive.Parse as Parse
 import qualified Derive.Score as Score
 import Derive.TestInstances ()
 import qualified Derive.TrackLang as TrackLang
@@ -26,7 +26,6 @@ test_parse_expr = do
         [Call (Symbol "a") [], Call (Symbol "b") []]
     equal (f "a | b | c") $ Right $
         [Call (Symbol "a") [], Call (Symbol "b") [], Call (Symbol "c") []]
-
     -- Any word in call position is a symbol.
     equal (f "4") $ Right [Call (Symbol "4") []]
     equal (f "()") $ Right [Call (Symbol "()") []]
@@ -152,7 +151,7 @@ test_parse_num = do
 test_p_equal = do
     let eq a b = Right (Call (Symbol "=") [Literal a, b])
         num = Literal . VNum . Score.untyped
-    let f = Util.Parse.parse_all Parse.p_equal
+    let f = ParseText.parse_all Parse.p_equal
     equal (f "a = b") (eq (symbol "a") (Literal (symbol "b")))
     equal (f "a=b") (eq (symbol "a") (Literal (symbol "b")))
     equal (f "a = 10") (eq (symbol "a") (num 10))
@@ -162,9 +161,8 @@ test_p_equal = do
     equal (f "a) = 1") (eq (symbol "a)") (num 1))
     equal (f ">a = 1") (eq (symbol ">a") (num 1))
 
-    left_like (f "a = ()") "parse error on byte 6"
-    -- not enough 'input' or 'bytes' depending on attoparsec version
-    left_like (f "a=") "not enough"
+    left_like (f "a = ()") "parse error on char 6"
+    left_like (f "a=") "not enough input"
 
 test_lex1 = do
     let f = Parse.lex1

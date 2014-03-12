@@ -23,7 +23,7 @@ import qualified Data.Text as Text
 
 import Util.Control
 import qualified Util.Log as Log
-import qualified Util.ParseBs as ParseBs
+import qualified Util.ParseText as ParseText
 import qualified Util.Ranges as Ranges
 import qualified Util.Seq as Seq
 
@@ -247,7 +247,7 @@ extract_cached_msg :: Text -> Maybe Int
 extract_cached_msg = extract . Text.stripPrefix "using cache, "
     where
     extract (Just rest)
-        | Just vals <- ParseBs.int (untxt $ Text.takeWhile Char.isDigit rest) =
+        | Just vals <- ParseText.int (Text.takeWhile Char.isDigit rest) =
             Just vals
     extract _ = Nothing
 

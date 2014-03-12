@@ -9,7 +9,7 @@ import qualified System.IO as IO
 
 import Util.Control
 import qualified Util.PPrint as PPrint
-import qualified Util.ParseBs as ParseBs
+import qualified Util.ParseText as ParseText
 
 import qualified Derive.Score as Score
 import qualified Derive.Stack as Stack
@@ -50,7 +50,7 @@ show_perf_event (Perform.Event inst start dur controls pitch stack) =
 
 read_perf_event :: MidiDb.LookupMidiInstrument -> String -> Maybe Perform.Event
 read_perf_event lookup_inst =
-    make_perf_event lookup_inst <=< ParseBs.maybe_read
+    make_perf_event lookup_inst <=< ParseText.maybe_read
 
 make_perf_event :: MidiDb.LookupMidiInstrument -> Event -> Maybe Perform.Event
 make_perf_event lookup_inst (inst, start, dur, controls, pitch, stack) = do

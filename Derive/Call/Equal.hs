@@ -20,7 +20,7 @@ import qualified Derive.Call.Tags as Tags
 import qualified Derive.Call.Util as Util
 import qualified Derive.Controls as Controls
 import qualified Derive.Derive as Derive
-import qualified Derive.ParseBs as ParseBs
+import qualified Derive.Parse as Parse
 import qualified Derive.PitchSignal as PitchSignal
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Sig as Sig
@@ -46,7 +46,7 @@ equal_doc =
     \\nIf the symbol is prefixed with `>`, `*`, `.`, or `-`, it will set a\
     \ note, pitch, control, or val call, respectively. It sets the generator\
     \ by default, but will set the transformer if you prefix another `-`.  You\
-    \ need quoting for symbols that don't match 'Derive.ParseBs.p_symbol'.\
+    \ need quoting for symbols that don't match 'Derive.Parse.p_symbol'.\
     \ E.g.: set note generator: `>x = some-block`, note transformer: `>-x = t`,\
     \ control transfomrer: `'.-i' = t`, pitch val call: `'-4c' = 5c`.\
     \\nIf you bind a call to a quoted expression, this creates a new call:\
@@ -120,7 +120,7 @@ is_source (TrackLang.VQuoted a) = Just $ Right a
 is_source _ = Nothing
 
 parse_val :: TrackLang.Symbol -> Maybe TrackLang.Val
-parse_val = either (const Nothing) Just . ParseBs.parse_val . TrackLang.unsym
+parse_val = either (const Nothing) Just . Parse.parse_val . TrackLang.unsym
 
 -- | Look up a call with the given CallId and add it as an override to the
 -- scope given by the lenses.  I wanted to pass just one lens, but apparently
@@ -202,4 +202,4 @@ quoted_val_call quoted = Derive.val_call "quoted-call" mempty
 
 quoted_cinfo :: Derive.PassedArgs d -> TrackLang.Quoted -> Derive.CallInfo d
 quoted_cinfo args (TrackLang.Quoted expr) = (Derive.passed_info args)
-    { Derive.info_expr = ParseBs.from_text (ShowVal.show_val expr) }
+    { Derive.info_expr = ShowVal.show_val expr }

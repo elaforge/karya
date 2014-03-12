@@ -5,7 +5,6 @@
 {-# LANGUAGE NoMonomorphismRestriction #-}
 -- | Repl cmds to deal with events.
 module Cmd.Repl.LEvent where
-import qualified Data.ByteString.Char8 as Char8
 import qualified Data.List as List
 import qualified Data.Text as Text
 
@@ -41,14 +40,13 @@ modify_dur = Edit.modify_dur
 find :: Text -> Cmd.CmdL [(State.Range, Text)]
 find text = fmap concat . concatMapM search =<< State.all_block_track_ids
     where
-    bs = Event.from_text text
     search (block_id, track_ids) = forM track_ids $ \track_id -> do
         events <- Events.ascending . Track.track_events
             <$> State.get_track track_id
         let range e = State.Range (Just block_id) track_id
                 (Event.start e) (Event.end e)
         return [(range event, Event.event_text event) | event <- events,
-            bs `Char8.isInfixOf` Event.event_bytestring event]
+            text `Text.isInfixOf` Event.event_text event]
 
 -- | Replace text on events.  Call with 'ModifyEvents.all_blocks' to replace it
 -- everywhere, or 'ModifyEvents.all_note_tracks' for just note tracks.

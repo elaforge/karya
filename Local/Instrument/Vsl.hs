@@ -26,7 +26,7 @@ import qualified Derive.Call.Europe.Trill as Trill
 import qualified Derive.Call.Note as Note
 import qualified Derive.Call.Util as Util
 import qualified Derive.Derive as Derive
-import qualified Derive.ParseBs as ParseBs
+import qualified Derive.Parse as Parse
 import qualified Derive.Pitches as Pitches
 import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
@@ -45,7 +45,7 @@ find_attrs inst with_attrs =
     map ShowVal.show_val $ filter (`Score.attrs_contain` search)
         (patch_attrs patch)
     where
-    search = either error id (ParseBs.parse_attrs with_attrs)
+    search = either error id (Parse.parse_attrs with_attrs)
     patch = fromMaybe (error $ "patch not found: " ++ show inst) $
         List.find ((==inst) . Instrument.patch_name) (map fst patches)
 

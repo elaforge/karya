@@ -17,7 +17,7 @@ import qualified Derive.Call.Util as Util
 import qualified Derive.Controls as Controls
 import qualified Derive.Derive as Derive
 import qualified Derive.Environ as Environ
-import qualified Derive.ParseBs as ParseBs
+import qualified Derive.Parse as Parse
 import qualified Derive.Score as Score
 import qualified Derive.Sig as Sig
 import Derive.Sig (required, defaulted)
@@ -37,7 +37,7 @@ import Types
 -- 'Call.eval_event'.
 lookup_number :: Derive.LookupCall (Derive.Generator Derive.Control)
 lookup_number = Derive.pattern_lookup "numbers and hex" doc $
-    \(TrackLang.Symbol sym) -> return $! case ParseBs.parse_num sym of
+    \(TrackLang.Symbol sym) -> return $! case Parse.parse_num sym of
         Left _ -> Nothing
         Right val -> Just $ set val
     where

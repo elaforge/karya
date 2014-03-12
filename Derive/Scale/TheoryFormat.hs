@@ -9,14 +9,13 @@
     "Derive.Scale" import would make it a circular dependency.
 -}
 module Derive.Scale.TheoryFormat where
-import qualified Data.Attoparsec.Char8 as A
+import qualified Data.Attoparsec.Text as A
 import qualified Data.Text as Text
-import qualified Data.Text.Encoding as Encoding
 import qualified Data.Vector as Vector
 import qualified Data.Vector.Unboxed as Unboxed
 
 import Util.Control
-import qualified Util.ParseBs as ParseBs
+import qualified Util.ParseText as ParseText
 import qualified Derive.Scale as Scale
 import qualified Derive.Scale.Theory as Theory
 import qualified Perform.Pitch as Pitch
@@ -170,17 +169,17 @@ read_pitch fmt key = fmt_to_absolute fmt key <=< read_unadjusted_pitch fmt
 read_unadjusted_pitch :: Format -> Pitch.Note
     -> Either Scale.ScaleError Pitch.Pitch
 read_unadjusted_pitch fmt = maybe (Left Scale.UnparseableNote) Right
-    . ParseBs.maybe_parse_text (Pitch.Pitch <$> p_octave <*> fmt_read fmt)
+    . ParseText.maybe_parse (Pitch.Pitch <$> p_octave <*> fmt_read fmt)
     . Pitch.note_text
 
 read_unadjusted_note :: Format -> Text -> Maybe Pitch.Degree
-read_unadjusted_note fmt = ParseBs.maybe_parse_text (fmt_read fmt)
+read_unadjusted_note fmt = ParseText.maybe_parse (fmt_read fmt)
 
 show_octave :: Pitch.Octave -> Text
 show_octave = showt
 
 p_octave :: A.Parser Pitch.Octave
-p_octave = ParseBs.p_int
+p_octave = ParseText.p_int
 
 -- ** make
 
@@ -286,10 +285,9 @@ p_pitch_relative :: Degrees -> AccidentalFormat -> A.Parser Pitch.Degree
 p_pitch_relative degrees acc_fmt =
     Pitch.Degree <$> p_degree <*> p_accidentals acc_fmt
     where
-    -- TODO this is inefficient, I should switch to Text attoparsec some day
     p_degree = A.choice
-        [ A.string (Encoding.encodeUtf8 s) >> return i
-        | (i, s) <- zip [0..] (Vector.toList degrees)
+        [ A.string text >> return i
+        | (i, text) <- zip [0..] (Vector.toList degrees)
         ]
 
 
@@ -306,13 +304,12 @@ symbol_accidentals = AccidentalFormat "`#`" "`##`" "`b`" "`bb`"
 
 p_accidentals :: AccidentalFormat -> A.Parser Pitch.Accidentals
 p_accidentals (AccidentalFormat sharp1 sharp2 flat1 flat2) = do
-    sum <$> ParseBs.many (A.choice [p_flat2, p_sharp2, p_flat1, p_sharp1])
+    sum <$> ParseText.many (A.choice [p_flat2, p_sharp2, p_flat1, p_sharp1])
     where
-    p_sharp1 = A.string (bs sharp1) >> return 1
-    p_sharp2 = A.string (bs sharp2) >> return 2
-    p_flat1 = A.string (bs flat1) >> return (-1)
-    p_flat2 = A.string (bs flat2) >> return (-2)
-    bs = Encoding.encodeUtf8
+    p_sharp1 = A.string sharp1 >> return 1
+    p_sharp2 = A.string sharp2 >> return 2
+    p_flat1 = A.string flat1 >> return (-1)
+    p_flat2 = A.string flat2 >> return (-2)
 
 show_accidentals :: AccidentalFormat -> Pitch.Accidentals -> Text
 show_accidentals (AccidentalFormat sharp1 sharp2 flat1 flat2) acc

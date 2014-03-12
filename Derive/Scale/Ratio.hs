@@ -13,8 +13,10 @@
 -- relative pitch, so if the source is moving the relative one won't move with
 -- it.
 module Derive.Scale.Ratio where
+import qualified Data.Attoparsec.Text as A
+
 import Util.Control
-import qualified Util.ParseBs as Parse
+import qualified Util.ParseText as ParseText
 import qualified Derive.Args as Args
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Derive as Derive
@@ -53,7 +55,7 @@ scale = Scale.Scale
 
 note_to_call :: Pitch.Note -> Maybe Derive.ValCall
 note_to_call note = note_call note <$>
-    Parse.maybe_parse_text p_note (Pitch.note_text note)
+    ParseText.maybe_parse p_note (Pitch.note_text note)
 
 note_call :: Pitch.Note -> (Double -> Double) -> Derive.ValCall
 note_call note ratio = Derive.val_call "ratio" Tags.scale
@@ -77,10 +79,10 @@ note_call note ratio = Derive.val_call "ratio" Tags.scale
 
 -- | Ratios look like @2/5@, @-4/3@.  A negative ratio divides, a positive one
 -- multiplies.
-p_note :: Parse.Parser (Double -> Double)
+p_note :: ParseText.Parser (Double -> Double)
 p_note = do
-    num <- Parse.p_int
-    Parse.char '/'
-    denom <- Parse.p_nat
+    num <- ParseText.p_int
+    A.char '/'
+    denom <- ParseText.p_nat
     let ratio = fromIntegral (abs num) / fromIntegral denom
     return $ if num < 0 then (/ ratio) else (* ratio)

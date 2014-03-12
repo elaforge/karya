@@ -3,7 +3,6 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 module Derive.DeriveTest where
-import qualified Data.ByteString.Char8 as B
 import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Set as Set
@@ -411,7 +410,7 @@ r_log_strings :: Derive.Result -> [String]
 r_log_strings = snd . extract id
 
 e_event :: Score.Event -> (RealTime, RealTime, String)
-e_event e = (Score.event_start e, Score.event_duration e, Score.event_string e)
+e_event e = (Score.event_start e, Score.event_duration e, untxt $ Score.event_text e)
 
 e_start_dur :: Score.Event -> (RealTime, RealTime)
 e_start_dur e = (Score.event_start e, Score.event_duration e)
@@ -420,7 +419,7 @@ e_everything :: Score.Event -> (RealTime, RealTime, String, Text, [Text])
 e_everything e =
     ( Score.event_start e
     , Score.event_duration e
-    , Score.event_string e
+    , untxt $ Score.event_text e
     , e_inst e
     , Score.attrs_list (Score.event_attributes e)
     )
@@ -546,7 +545,7 @@ c_note s_start dur = do
     return $ LEvent.one $ LEvent.Event $ Score.Event
         { Score.event_start = start
         , Score.event_duration = end - start
-        , Score.event_bs = B.pack "evt"
+        , Score.event_text = "evt"
         , Score.event_controls = controls
         , Score.event_pitch = pitch_sig
         , Score.event_pitches = Derive.state_pitches st
@@ -691,7 +690,7 @@ mkevent_scale :: Scale.Scale
 mkevent_scale scale (start, dur, pitch, controls, inst) = Score.Event
     { Score.event_start = start
     , Score.event_duration = dur
-    , Score.event_bs = B.pack pitch
+    , Score.event_text = txt pitch
     , Score.event_controls = mkcontrols controls
     , Score.event_pitch = PitchSignal.signal [(start, mkpitch scale pitch)]
     , Score.event_pitches = mempty

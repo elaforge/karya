@@ -14,8 +14,6 @@ module Derive.Score (
 ) where
 import qualified Control.DeepSeq as DeepSeq
 import Control.DeepSeq (rnf)
-import qualified Data.ByteString.Char8 as B
-import qualified Data.ByteString.UTF8 as UTF8
 import qualified Data.Map as Map
 import qualified Data.Text as Text
 
@@ -47,9 +45,7 @@ data Event = Event {
     -- | These are the core attributes that define an event.
     event_start :: !RealTime
     , event_duration :: !RealTime
-    -- | Event text, carried over from 'Ui.Event.event_bs' for debugging.
-    -- UTF8 encoded.
-    , event_bs :: !B.ByteString
+    , event_text :: !Text
     , event_controls :: !ControlMap
     , event_pitch :: !PitchSignal.Signal
     -- | Named pitch signals.
@@ -66,7 +62,7 @@ empty_event :: Event
 empty_event = Event
     { event_start = 0
     , event_duration = 0
-    , event_bs = mempty
+    , event_text = mempty
     , event_controls = mempty
     , event_pitch = mempty
     , event_pitches = mempty
@@ -134,9 +130,6 @@ instance Pretty.Pretty Event where
             , ("stack", Pretty.format stack)
             , ("environ", Pretty.format env)
             ]
-
-event_string :: Event -> String
-event_string = UTF8.toString . event_bs
 
 event_scale_id :: Event -> Pitch.ScaleId
 event_scale_id = PitchSignal.sig_scale_id . event_pitch

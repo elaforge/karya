@@ -14,11 +14,11 @@
 -}
 module Ui.Dump where
 import qualified Control.Applicative as Applicative
-import qualified Data.Attoparsec.Char8 as A
-import qualified Data.ByteString.Char8 as B
+import qualified Data.Attoparsec.Text as A
+import qualified Data.Text as Text
 
 import Util.Control
-import qualified Util.ParseBs as ParseBs
+import qualified Util.ParseText as ParseText
 import qualified Util.Seq as Seq
 
 
@@ -28,7 +28,7 @@ newtype Tree = Tree [(String, Val)] deriving (Show)
 data Val = Val String | Sub Tree deriving (Show)
 
 parse :: String -> Either String Dump
-parse = fmap flatten . ParseBs.parse_all p_tree . B.pack
+parse = fmap flatten . ParseText.parse_all p_tree . Text.pack
 
 flatten :: Tree -> Dump
 flatten (Tree pairs) = concatMap (go []) pairs
@@ -41,23 +41,23 @@ p_tree :: A.Parser Tree
 p_tree = Tree <$> Applicative.many p_pair
 
 p_pair :: A.Parser (String, Val)
-p_pair = (,) <$> ParseBs.lexeme p_word <*> ParseBs.lexeme (p_sub <|> p_val)
+p_pair = (,) <$> ParseText.lexeme p_word <*> ParseText.lexeme (p_sub <|> p_val)
 
 p_sub :: A.Parser Val
-p_sub = Sub <$> ParseBs.between (A.char '(') (A.char ')') p_tree
+p_sub = Sub <$> ParseText.between (A.char '(') (A.char ')') p_tree
 
 p_val :: A.Parser Val
 p_val = Val <$> p_word
 
 p_word :: A.Parser String
-p_word = B.unpack <$> (p_str <|> A.takeWhile1 (`notElem` " ()"))
+p_word = Text.unpack <$> (p_str <|> A.takeWhile1 (`notElem` " ()"))
 
-p_str :: A.Parser B.ByteString
-p_str = ParseBs.between (A.char '"') (A.char '"')
-        (B.concat <$> Applicative.many str)
+p_str :: A.Parser Text
+p_str = ParseText.between (A.char '"') (A.char '"')
+        (mconcat <$> Applicative.many str)
     where
     str = do
         chunk <- A.takeWhile (\c -> c /= '"' && c /= '\\')
         quoted <- A.option "" (A.string "\\\"" <|> A.string "\\\\")
-        let res = B.append chunk (B.drop 1 quoted)
-        if B.null res then Applicative.empty else return res
+        let res = chunk <> Text.drop 1 quoted
+        if Text.null res then Applicative.empty else return res

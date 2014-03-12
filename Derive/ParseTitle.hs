@@ -19,7 +19,7 @@ import qualified Data.Text as Text
 import Util.Control
 import qualified Util.Pretty as Pretty
 import qualified Derive.Controls as Controls
-import qualified Derive.ParseBs as Parse
+import qualified Derive.Parse as Parse
 import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.TrackLang as TrackLang
@@ -31,7 +31,7 @@ import qualified Perform.Pitch as Pitch
 
 -- | A block title is a normal expression, applied as a transform.
 parse_block :: Text -> Either String TrackLang.Expr
-parse_block = Parse.parse_expr . Parse.from_text
+parse_block = Parse.parse_expr
 
 -- * tracks
 
@@ -193,7 +193,7 @@ is_tempo_track title = case parse_control title of
 -- | Parse a note track like @>inst@ as @note-track >inst@.  Other than
 -- this, note track titles are normal expressions.
 parse_note :: Text -> Either String TrackLang.Expr
-parse_note = Parse.parse_expr . Parse.from_text . ("note-track "<>)
+parse_note = Parse.parse_expr . ("note-track "<>)
 
 unparse_note :: TrackLang.Expr -> Text
 unparse_note = strip . ShowVal.show_val

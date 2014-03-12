@@ -3,22 +3,9 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 {-# LANGUAGE CPP #-}
--- | TrackLang parsers using ByteStrings and Attoparsec.
---
--- This is faster than Parsec + Strings, but cannot handle non-ascii text.
--- I think symbols will be handled with Symbol notation, which is ascii, so
--- this shouldn't be a big deal.  Unfortunately the speed difference is not
--- that large either.
---
--- Attoparsec has support for Text now, but it's still fastest when working
--- with ByteStrings (TODO according to profiling at the time, should recheck
--- this someday).  This module uses UTF8 internally, so unicode should be
--- preserved, but most of the parsers insist on a restrictive character set.
--- Special characters should probably be written with backticks anyway.
-module Derive.ParseBs (
-    from_text, to_text
-    , parse_expr
-    , parse_control_title
+-- | TrackLang parsers using Text and Attoparsec.
+module Derive.Parse (
+    parse_expr, parse_control_title
     , parse_val, parse_attrs, parse_num, parse_call
     , lex1, lex, split_pipeline, join_pipeline
 
@@ -31,19 +18,15 @@ module Derive.ParseBs (
 import Prelude hiding (lex)
 import qualified Control.Applicative as A (many)
 import Data.Attoparsec ((<?>))
-import qualified Data.Attoparsec.Char8 as A
-import qualified Data.ByteString.Char8 as B
-import qualified Data.ByteString.UTF8 as UTF8
+import qualified Data.Attoparsec.Text as A
 import qualified Data.List as List
 import qualified Data.List.NonEmpty as NonEmpty
 import qualified Data.Text as Text
-import qualified Data.Text.Encoding as Encoding
 
-import Util.Control hiding (Text)
-import qualified Util.ParseBs as Parse
+import Util.Control
+import qualified Util.ParseText as ParseText
 import qualified Util.Seq as Seq
 
-import qualified Ui.Event as Event
 import qualified Ui.Id as Id
 import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Score as Score
@@ -53,21 +36,11 @@ import qualified Derive.TrackLang as TrackLang
 import qualified Perform.Signal as Signal
 
 
--- | This is really confusing, the only reason I called this Text is that
--- I thought it would be a real Text sometime soon.  TODO should fix that.
-type Text = Event.Text
-
 from_string :: String -> Text
-from_string = UTF8.fromString
+from_string = Text.pack
 
 to_string :: Text -> String
-to_string = UTF8.toString
-
-from_text :: Text.Text -> Text
-from_text = Parse.from_text
-
-to_text :: Text -> Text.Text
-to_text = Parse.to_text
+to_string = Text.unpack
 
 parse_expr :: Text -> Either String TrackLang.Expr
 parse_expr = parse (p_pipeline True)
@@ -75,31 +48,31 @@ parse_expr = parse (p_pipeline True)
 -- | Parse a control track title.  The first expression in the composition is
 -- parsed simply as a list of values, not a Call.  Control track titles don't
 -- follow the normal calling process but pattern match directly on vals.
-parse_control_title :: Text.Text
+parse_control_title :: Text
     -> Either String ([TrackLang.Val], [TrackLang.Call])
-parse_control_title = Parse.parse_all p_control_title . from_text
+parse_control_title = ParseText.parse_all p_control_title
 
 -- | Parse a single Val.
-parse_val :: Text.Text -> Either String TrackLang.Val
-parse_val = Parse.parse_all (lexeme p_val) . from_text
+parse_val :: Text -> Either String TrackLang.Val
+parse_val = ParseText.parse_all (lexeme p_val)
 
 -- | Parse attributes in the form +a+b.
 parse_attrs :: String -> Either String Score.Attributes
 parse_attrs = parse p_attrs . from_string
 
 -- | Parse a number or hex code, without a type suffix.
-parse_num :: Text.Text -> Either String Signal.Y
-parse_num = Parse.parse_all (lexeme (p_hex <|> p_untyped_num)) . from_text
+parse_num :: Text -> Either String Signal.Y
+parse_num = ParseText.parse_all (lexeme (p_hex <|> p_untyped_num))
 
 -- | Extract only the call part of the text.
-parse_call :: Text -> Maybe Text.Text
+parse_call :: Text -> Maybe Text
 parse_call text = case parse_expr text of
     Right expr -> case NonEmpty.last expr of
         TrackLang.Call (TrackLang.Symbol call) _ -> Just call
     _ -> Nothing
 
 parse :: A.Parser a -> Text -> Either String a
-parse p = Parse.parse_all (spaces >> p)
+parse p = ParseText.parse_all (spaces >> p)
 
 -- * lex
 
@@ -107,25 +80,24 @@ parse p = Parse.parse_all (spaces >> p)
 -- it will extract a whole parenthesized expression instead of a token.
 lex1 :: Text -> (Text, Text)
 lex1 text = case parse ((,) <$> p_lex1 <*> A.takeWhile (const True)) text of
-    Right ((), rest) -> (B.take (B.length text - B.length rest) text, rest)
+    Right ((), rest) -> (Text.take (Text.length text - Text.length rest) text, rest)
     Left _ -> (text, "")
 
 -- | Like 'lex1', but get all of them.
 lex :: Text -> [Text]
 lex text
-    | B.null pre = []
-    | B.null post = [rstrip pre]
-    | otherwise = rstrip pre : lex post
+    | Text.null pre = []
+    | Text.null post = [Text.stripEnd pre]
+    | otherwise = Text.stripEnd pre : lex post
     where
     (pre, post) = lex1 text
-    rstrip = fst . B.spanEnd (==' ')
 
 -- | Take an expression and lex it into words, where each sublist corresponds
 -- to one expression in the pipeline.
-split_pipeline :: Text.Text -> [[Text.Text]]
-split_pipeline = map (map to_text) . Seq.split_null ["|"] . lex . from_text
+split_pipeline :: Text -> [[Text]]
+split_pipeline = Seq.split_null ["|"] . lex
 
-join_pipeline :: [[Text.Text]] -> Text.Text
+join_pipeline :: [[Text]] -> Text
 join_pipeline = mconcat . List.intercalate [" | "]
 
 -- | Attoparsec doesn't keep track of byte position, and always backtracks.
@@ -149,7 +121,7 @@ p_lex1 = (str <|> parens <|> word) >> spaces
 expand_macros :: (String -> String) -> String -> Either String String
 expand_macros replacement str
     | '@' `notElem` str = Right str
-    | otherwise = Parse.parse_all (to_string <$> p_macros replacement) text
+    | otherwise = ParseText.parse_all (to_string <$> p_macros replacement) text
     where text = from_string str
 
 p_macros :: (String -> String) -> A.Parser Text
@@ -167,9 +139,9 @@ p_macro replacement = do
 
 p_hs_string :: A.Parser Text
 p_hs_string = fmap (\s -> "\"" <> s <> "\"") $
-    Parse.between (A.char '"') (A.char '"') $ mconcat <$> A.many chunk
+    ParseText.between (A.char '"') (A.char '"') $ mconcat <$> A.many chunk
     where
-    chunk = (A.char '\\' >> B.cons '\\' <$> A.take 1)
+    chunk = (A.char '\\' >> Text.cons '\\' <$> A.take 1)
         <|> A.takeWhile1 (\c -> c /= '"' && c /= '\\')
 
 -- * toplevel parsers
@@ -214,14 +186,14 @@ p_null_call = return (TrackLang.Call "" []) <?> "null call"
 -- ornaments.
 p_call_symbol :: Bool -- ^ A call at the top level can allow a ).
     -> A.Parser TrackLang.Symbol
-p_call_symbol toplevel = TrackLang.Symbol . to_text <$> p_word toplevel
+p_call_symbol toplevel = TrackLang.Symbol <$> p_word toplevel
 
 p_term :: A.Parser TrackLang.Term
 p_term = lexeme $
     TrackLang.Literal <$> p_val <|> TrackLang.ValCall <$> p_sub_call
 
 p_sub_call :: A.Parser TrackLang.Call
-p_sub_call = Parse.between (A.char '(') (A.char ')') (p_call False)
+p_sub_call = ParseText.between (A.char '(') (A.char ')') (p_call False)
 
 p_val :: A.Parser TrackLang.Val
 p_val =
@@ -244,29 +216,28 @@ p_num = do
     return $ Score.Typed typ num
     where
     codes = zip BaseTypes.all_types $
-        map (UTF8.fromString . Score.type_to_code) BaseTypes.all_types
+        map (Text.pack . Score.type_to_code) BaseTypes.all_types
 
 p_untyped_num :: A.Parser Signal.Y
-p_untyped_num = p_ratio <|> Parse.p_float
+p_untyped_num = p_ratio <|> ParseText.p_float
 
 p_ratio :: A.Parser Signal.Y
 p_ratio = do
     sign <- A.option '+' (A.satisfy (\c -> c == '+' || c == '-'))
-    num <- Parse.p_nat
+    num <- ParseText.p_nat
     A.char '/'
-    denom <- Parse.p_nat
+    denom <- ParseText.p_nat
     return $ (if sign == '-' then -1 else 1)
         * fromIntegral num / fromIntegral denom
 
 -- | Parse numbers of the form @`0x`00@ or @0x00@.
 p_hex :: A.Parser Signal.Y
 p_hex = do
-    A.string prefix <|> A.string "0x"
+    A.string ShowVal.hex_prefix <|> A.string "0x"
     let higit c = '0' <= c && c <= '9' || 'a' <= c && c <= 'f'
     c1 <- A.satisfy higit
     c2 <- A.satisfy higit
     return $ fromIntegral (parse_hex c1 c2) / 0xff
-    where prefix = Encoding.encodeUtf8 ShowVal.hex_prefix
 
 parse_hex :: Char -> Char -> Int
 parse_hex c1 c2 = higit c1 * 16 + higit c2
@@ -278,25 +249,24 @@ parse_hex c1 c2 = higit c1 * 16 + higit c2
 -- | A string is anything between single quotes.  A single quote itself is
 -- represented by two single quotes in a row.
 p_string :: A.Parser TrackLang.Symbol
-p_string = TrackLang.Symbol . to_text <$> p_single_string
+p_string = TrackLang.Symbol <$> p_single_string
 
 p_single_string :: A.Parser Text
 p_single_string = do
     chunks <- A.many1 $
-        Parse.between (A.char '\'') (A.char '\'') (A.takeTill (=='\''))
-    return $ B.intercalate "'" chunks
+        ParseText.between (A.char '\'') (A.char '\'') (A.takeTill (=='\''))
+    return $ Text.intercalate "'" chunks
 
 -- There's no particular reason to restrict attrs to idents, but this will
 -- force some standardization on the names.
 p_attrs :: A.Parser Score.Attributes
-p_attrs = A.char '+' *> (attrs <$> A.sepBy (p_identifier "+") (A.char '+'))
-    where attrs = Score.attrs . map to_text
+p_attrs = A.char '+' *> (Score.attrs <$> A.sepBy (p_identifier "+") (A.char '+'))
 
 p_control :: A.Parser TrackLang.ValControl
 p_control = do
     A.char '%'
-    control <- Score.control . to_text <$> A.option "" (p_identifier ",")
-    deflt <- Parse.optional (A.char ',' >> p_num)
+    control <- Score.control <$> A.option "" (p_identifier ",")
+    deflt <- ParseText.optional (A.char ',' >> p_num)
     return $ case deflt of
         Nothing -> TrackLang.LiteralControl control
         Just val -> TrackLang.DefaultedControl control (Signal.constant <$> val)
@@ -305,7 +275,7 @@ p_control = do
 p_pitch_control :: A.Parser TrackLang.PitchControl
 p_pitch_control = do
     A.char '#'
-    TrackLang.LiteralControl . Score.control . to_text <$>
+    TrackLang.LiteralControl . Score.control <$>
         A.option "" (p_identifier "")
     <?> "pitch control"
 
@@ -317,11 +287,11 @@ p_quoted =
 p_scale_id :: A.Parser TrackLang.Symbol
 p_scale_id = do
     A.char '*'
-    TrackLang.Symbol . Text.cons '*' . to_text <$> A.option "" (p_identifier "")
+    TrackLang.Symbol . Text.cons '*' <$> A.option "" (p_identifier "")
     <?> "scale id"
 
 p_instrument :: A.Parser Score.Instrument
-p_instrument = A.char '>' >> (Score.Instrument . to_text) <$> p_null_word
+p_instrument = A.char '>' >> Score.Instrument <$> p_null_word
     <?> "instrument"
 
 -- | Symbols can have anything in them but they have to start with a letter.
@@ -333,9 +303,10 @@ p_instrument = A.char '>' >> (Score.Instrument . to_text) <$> p_null_word
 -- places too.
 p_symbol :: A.Parser TrackLang.Symbol
 p_symbol = do
-    c <- A.satisfy (\c -> A.isAlpha_ascii c || c == '-' || c == '*')
+    c <- A.satisfy $ \c -> c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z'
+        || c == '-' || c == '*'
     rest <- p_null_word
-    return $ TrackLang.Symbol $ Text.cons c (to_text rest)
+    return $ TrackLang.Symbol $ Text.cons c rest
 
 -- | Identifiers are somewhat more strict than usual.  They must be lowercase,
 -- and the only non-letter allowed is hyphen.  This means words must be
@@ -357,10 +328,10 @@ p_identifier until = do
             ++ show ident
     return ident
 
--- | ByteString version of 'Id.valid'.
+-- | Text version of 'Id.valid'.
 valid_identifier :: Text -> Bool
-valid_identifier s = not (B.null s) && Id.is_lower_alpha (B.head s)
-    && B.all Id.is_id_char s
+valid_identifier s = not (Text.null s) && Id.is_lower_alpha (Text.head s)
+    && Text.all Id.is_id_char s
 
 p_word :: Bool -> A.Parser Text
 p_word toplevel =
@@ -383,6 +354,7 @@ p_null_word = A.takeWhile is_word_char
 -- even at the toplevel, but I have @ly-(@ and @ly-)@ calls and I kind of like
 -- how those look.  I guess it's a crummy justification, but not need to change
 -- it unless toplevel gives more more trouble.
+
 is_toplevel_word_char :: Char -> Bool
 is_toplevel_word_char c = c /= ' ' && c /= '='
 
@@ -394,7 +366,7 @@ lexeme p = p <* spaces
 
 spaces :: A.Parser ()
 spaces = do
-    A.skipWhile A.isSpace
+    A.skipWhile (==' ')
     comment <- A.option "" (A.string "--")
-    unless (B.null comment) $
+    unless (Text.null comment) $
         A.skipWhile (const True)

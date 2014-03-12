@@ -21,7 +21,7 @@ import qualified Derive.Args as Args
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Controls as Controls
 import qualified Derive.Derive as Derive
-import qualified Derive.ParseBs as ParseBs
+import qualified Derive.Parse as Parse
 import qualified Derive.PitchSignal as PitchSignal
 import qualified Derive.Scale as Scale
 import qualified Derive.Score as Score
@@ -107,7 +107,7 @@ parse_relative_interval named_intervals note =
     unsign <$> (resolve_interval named_intervals (Pitch.note_text note)
         `mplus` parse_num)
     where
-    parse_num = case ParseBs.parse_val (Pitch.note_text note) of
+    parse_num = case Parse.parse_val (Pitch.note_text note) of
         Right (TrackLang.VNum (Score.Typed Score.Untyped num)) -> Just num
         _ -> Nothing
     unsign val = if val < 0 then recip (abs val) else val

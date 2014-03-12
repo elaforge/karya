@@ -188,7 +188,7 @@ default_note config args = do
     return $! LEvent.one $! LEvent.Event $! add_arrival $! Score.Event
         { Score.event_start = start
         , Score.event_duration = end - start
-        , Score.event_bs = Event.event_bytestring (Args.event args)
+        , Score.event_text = Event.event_text (Args.event args)
         , Score.event_controls = controls
         , Score.event_pitch = pitch
         , Score.event_pitches = Derive.state_pitches st

@@ -101,7 +101,6 @@ module Derive.Call (
     -- * misc
     , cast
 ) where
-import qualified Data.ByteString.Char8 as B
 import qualified Data.Char as Char
 import qualified Data.List.NonEmpty as NonEmpty
 import qualified Data.Map as Map
@@ -122,7 +121,7 @@ import qualified Derive.Call.Tags as Tags
 import qualified Derive.Derive as Derive
 import qualified Derive.Deriver.Internal as Internal
 import qualified Derive.LEvent as LEvent
-import qualified Derive.ParseBs as ParseBs
+import qualified Derive.Parse as Parse
 import qualified Derive.ParseTitle as ParseTitle
 import qualified Derive.PitchSignal as PitchSignal
 import qualified Derive.Score as Score
@@ -162,7 +161,7 @@ eval_one_at start dur expr = eval_expr cinfo expr
 -- the /next/ pitch.
 eval_event :: (Derive.Callable d) => Event.Event
     -> Derive.Deriver (Either String (LEvent.LEvents d))
-eval_event event = case ParseBs.parse_expr (Event.event_bytestring event) of
+eval_event event = case Parse.parse_expr (Event.event_text event) of
     Left err -> return $ Left err
     Right expr -> Right <$>
         -- TODO eval it separately to catch any exception?
@@ -198,10 +197,9 @@ reapply_gen_normalized args = reapply_gen $ args
     where cinfo = Derive.passed_info args
 
 replace_generator :: TrackLang.CallId -> Event.Text -> Either String Event.Text
-replace_generator call_id = fmap replace . ParseBs.parse_expr
+replace_generator call_id = fmap replace . Parse.parse_expr
     where
-    replace = ParseBs.from_text . ShowVal.show_val
-        . TrackLang.map_generator (const call_id)
+    replace = ShowVal.show_val . TrackLang.map_generator (const call_id)
 
 -- | Apply an expr with the current call info.  This discards the parsed
 -- arguments in the 'PassedArgs' since it gets args from the 'TrackLang.Expr'.
@@ -212,7 +210,7 @@ reapply args = eval_expr (Derive.passed_info args)
 -- | Like 'reapply', but parse the string first.
 reapply_string :: (Derive.Callable d) => PassedArgs d -> Text
     -> Derive.LogsDeriver d
-reapply_string args s = case ParseBs.parse_expr (ParseBs.from_text s) of
+reapply_string args s = case Parse.parse_expr s of
     Left err -> Derive.throw $ "parse error: " ++ err
     Right expr -> reapply args expr
 
@@ -255,7 +253,7 @@ apply_transform :: (Derive.Callable d) => String -> Text
 apply_transform name expr_str deriver
     | Text.all Char.isSpace expr_str = deriver
     | otherwise = do
-        expr <- case ParseBs.parse_expr (ParseBs.from_text expr_str) of
+        expr <- case Parse.parse_expr expr_str of
             Left err -> Derive.throw $ name ++ ": " ++ err
             Right expr -> return expr
         let info = Derive.dummy_call_info 0 1 name
@@ -382,14 +380,14 @@ derive_event :: (Derive.Callable d) =>
     -> [Event.Event] -- ^ following events
     -> (Either Derive.Error (LEvent.LEvents d), [Log.Msg], Derive.Collect)
 derive_event st tinfo prev_sample prev event next
-    | "--" `B.isPrefixOf` B.dropWhile (==' ') text =
+    | "--" `Text.isPrefixOf` Text.dropWhile (==' ') text =
         (Right mempty, [], Derive.state_collect st)
-    | otherwise = case ParseBs.parse_expr text of
+    | otherwise = case Parse.parse_expr text of
         Left err ->
             (Right mempty, [parse_error (txt err)], Derive.state_collect st)
         Right expr -> run_call expr
     where
-    text = Event.event_bytestring event
+    text = Event.event_text event
     parse_error = Log.msg Log.Warn $
         Just (Stack.to_strings (Derive.state_stack (Derive.state_dynamic st)))
     run_call expr = apply_toplevel state cinfo expr

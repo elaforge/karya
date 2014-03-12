@@ -29,7 +29,6 @@ module Derive.Control (
     , derive_control
 #endif
 ) where
-import qualified Data.ByteString.Char8 as Char8
 import qualified Data.Char as Char
 import qualified Data.List as List
 import qualified Data.Map.Strict as Map
@@ -55,7 +54,6 @@ import qualified Derive.Derive as Derive
 import qualified Derive.Deriver.Internal as Internal
 import qualified Derive.Environ as Environ
 import qualified Derive.LEvent as LEvent
-import qualified Derive.ParseBs as ParseBs
 import qualified Derive.ParseTitle as ParseTitle
 import qualified Derive.PitchSignal as PitchSignal
 import qualified Derive.Scale as Scale
@@ -125,9 +123,8 @@ split_control track = extract $ split $ TrackTree.tevents_events track
         (title, pre) : go next_title post switches
         where (pre, post) = Events.split_at_exclude start events
     switch_control event
-        | Just ('%', title) <- Char8.uncons (Event.event_bytestring event),
-            not (Char8.null title) =
-                Just (Event.start event, ParseBs.to_text title)
+        | Just ('%', title) <- Text.uncons (Event.event_text event),
+            not (Text.null title) = Just (Event.start event, title)
         | otherwise = Nothing
     extract [] = [track]
     extract [_] = [track]

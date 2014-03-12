@@ -41,7 +41,7 @@ import qualified Cmd.PitchTrack as PitchTrack
 import qualified Cmd.Selection as Selection
 
 import qualified Derive.Call as Call
-import qualified Derive.ParseBs as ParseBs
+import qualified Derive.Parse as Parse
 import qualified Derive.ParseTitle as ParseTitle
 import qualified Derive.Score as Score
 import qualified Derive.TrackLang as TrackLang
@@ -299,8 +299,7 @@ block_call caller expr = case block_call_of expr of
 -- | Assume the last word of the last call is the block id.  This will catch
 -- both normal block calls and ones like @clip someblock@.
 block_call_of :: Text -> Maybe TrackLang.CallId
-block_call_of = fmap TrackLang.Symbol . Seq.last <=< Seq.last
-    . ParseBs.split_pipeline
+block_call_of = fmap TrackLang.Symbol . Seq.last <=< Seq.last . Parse.split_pipeline
 
 -- * implementation
 

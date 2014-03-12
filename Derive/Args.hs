@@ -12,7 +12,7 @@ import qualified Derive.Call as Call
 import qualified Derive.Derive as Derive
 import Derive.Derive (PassedArgs, CallInfo)
 import qualified Derive.LEvent as LEvent
-import qualified Derive.ParseBs as ParseBs
+import qualified Derive.Parse as Parse
 import qualified Derive.ParseTitle as ParseTitle
 import qualified Derive.PitchSignal as PitchSignal
 
@@ -73,11 +73,11 @@ prev_pitch args = case Derive.info_prev_val $ info args of
 
 eval :: (Derive.Callable d) => CallInfo x -> Event.Event
     -> [Event.Event] -> Derive.LogsDeriver d
-eval cinfo event prev = case ParseBs.parse_expr bs of
+eval cinfo event prev = case Parse.parse_expr text of
     Left err -> Derive.throw $ "parse error: " ++ err
     Right expr ->
         let prev_cinfo = cinfo
-                { Derive.info_expr = bs
+                { Derive.info_expr = text
                 , Derive.info_prev_val = Nothing
                 , Derive.info_event = event
                 , Derive.info_prev_events = prev
@@ -86,7 +86,7 @@ eval cinfo event prev = case ParseBs.parse_expr bs of
                 , Derive.info_event_end = Event.start $ Derive.info_event cinfo
                 }
         in Call.eval_expr prev_cinfo expr
-    where bs = Event.event_bytestring event
+    where text = Event.event_text event
 
 is_title_call :: PassedArgs a -> Bool
 is_title_call args = range args == Derive.info_track_range (info args)

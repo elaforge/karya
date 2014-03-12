@@ -12,7 +12,7 @@ import qualified Cmd.Cmd as Cmd
 import qualified Cmd.ControlTrack as ControlTrack
 import qualified Cmd.ModifyEvents as ModifyEvents
 
-import qualified Derive.ParseBs
+import qualified Derive.Parse
 import qualified Derive.ParseTitle as ParseTitle
 import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
@@ -54,7 +54,7 @@ block_to_hex block_id = ModifyEvents.block block_id $
 
 to_hex :: Text -> Text
 to_hex text =
-    case Derive.ParseBs.parse_val (ControlTrack.event_val event) of
+    case Derive.Parse.parse_val (ControlTrack.event_val event) of
         Right (TrackLang.VNum (Score.Typed Score.Untyped n))
             | 0 <= n && n <= 1 -> ControlTrack.unparse $
                 event { ControlTrack.event_val = ShowVal.show_hex_val n }

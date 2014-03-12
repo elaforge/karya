@@ -21,8 +21,8 @@ module Derive.Stack (
 ) where
 import qualified Prelude
 import Prelude hiding (length)
+import qualified Data.Attoparsec.Text as A
 import qualified Control.DeepSeq as DeepSeq
-import qualified Data.ByteString.Char8 as B
 import qualified Data.Digest.CRC32 as CRC32
 import qualified Data.Set as Set
 
@@ -30,7 +30,7 @@ import qualified Text.Read as Read
 
 import Util.Control
 import Util.Crc32Instances ()
-import qualified Util.ParseBs as Parse
+import qualified Util.ParseText as ParseText
 import qualified Util.Pretty as Pretty
 import qualified Util.Ranges as Ranges
 import qualified Util.Seq as Seq
@@ -279,19 +279,19 @@ unparse_ui_frame_ (maybe_bid, maybe_tid, maybe_range) =
     float = Pretty.show_float 2 . ScoreTime.to_double
 
 parse_ui_frame :: String -> Maybe UiFrame
-parse_ui_frame = Parse.maybe_parse_string $ do
-    bid <- optional $ Parse.lexeme Parse.p_word
-    tid <- optional $ Parse.lexeme Parse.p_word
+parse_ui_frame = ParseText.maybe_parse_string $ do
+    bid <- optional $ ParseText.lexeme ParseText.p_word
+    tid <- optional $ ParseText.lexeme ParseText.p_word
     range <- optional $ do
-        from <- Parse.p_float
-        Parse.char '-'
-        to <- Parse.p_float
+        from <- ParseText.p_float
+        A.char '-'
+        to <- ParseText.p_float
         return (ScoreTime.double from, ScoreTime.double to)
     return
-        ( Id.BlockId . Id.read_id . B.unpack <$> bid
-        , Id.TrackId . Id.read_id . B.unpack <$> tid
+        ( Id.BlockId . Id.read_id . untxt <$> bid
+        , Id.TrackId . Id.read_id . untxt <$> tid
         , range
         )
     where
-    optional p = (Parse.char '*' >> Parse.spaces >> return Nothing)
+    optional p = (A.char '*' >> A.skipSpace >> return Nothing)
         <|> fmap Just p

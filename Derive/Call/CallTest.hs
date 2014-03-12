@@ -13,7 +13,7 @@ import qualified Ui.State as State
 import qualified Derive.Call.Util as Util
 import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
-import qualified Derive.ParseBs as ParseBs
+import qualified Derive.Parse as Parse
 import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Sig as Sig
@@ -121,8 +121,7 @@ generator = Derive.make_call "test" mempty "test doc" . Sig.call0
 -- * PassedArgs
 
 expr :: Text -> TrackLang.Expr
-expr = either (error . ("CallTest.expr: " ++)) id . ParseBs.parse_expr
-    . ParseBs.from_text
+expr = either (error . ("CallTest.expr: " ++)) id . Parse.parse_expr
 
 val :: Text -> TrackLang.Val
-val = either (error . ("CallTest.val: " ++)) id . ParseBs.parse_val
+val = either (error . ("CallTest.val: " ++)) id . Parse.parse_val

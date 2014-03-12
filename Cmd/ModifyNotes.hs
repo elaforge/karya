@@ -77,7 +77,7 @@ import Types
 data Note = Note {
     note_start :: !ScoreTime
     , note_duration :: !ScoreTime
-    , note_text :: !Event.Text
+    , note_text :: !Text
     -- | This is the contents of the child tracks, where they overlap this
     -- Note's range.
     , note_controls :: !Controls
@@ -270,7 +270,7 @@ extract_notes tree =
         return $ Note
             { note_start = Event.start event
             , note_duration = Event.duration event
-            , note_text = Event.event_bytestring event
+            , note_text = Event.event_text event
             , note_controls = Map.fromList controls
             , note_index = index
             }
@@ -303,7 +303,7 @@ merge_notes = map make_track . Seq.group_on note_index
     make_track = List.foldl' (<>) mempty . map note_track
     note_track note = NoteTrack (Events.singleton event) (note_controls note)
         where
-        event = Event.bs_event
+        event = Event.text_event
             (note_start note) (note_duration note) (note_text note)
 
 -- | Write NoteTracks to the given block.  It may create new tracks, but won't
