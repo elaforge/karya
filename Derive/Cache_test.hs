@@ -730,8 +730,7 @@ derive_block_cache :: Derive.Cache -> Derive.ScoreDamage -> State.State
 derive_block_cache cache damage =
     DeriveTest.derive_block_standard DeriveTest.default_db cache damage id
 
-insert_event :: (State.M m) => String -> ScoreTime -> ScoreTime -> String
-    -> m ()
+insert_event :: State.M m => String -> ScoreTime -> ScoreTime -> Text -> m ()
 insert_event tid pos dur text =
     State.insert_event (UiTest.tid tid) (Event.event pos dur text)
 

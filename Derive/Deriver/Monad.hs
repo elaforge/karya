@@ -128,6 +128,7 @@ import Control.DeepSeq (rnf)
 import qualified Data.Map.Strict as Map
 import qualified Data.Monoid as Monoid
 import qualified Data.Set as Set
+import qualified Data.Text as Text
 import qualified Data.Vector.Unboxed as Vector.Unboxed
 
 import Util.Control
@@ -1110,7 +1111,7 @@ coerce_call_info cinfo = cinfo { info_prev_val = Nothing }
 
 -- | Transformer calls don't necessarily apply to any particular event, and
 -- neither to generators for that matter.
-dummy_call_info :: ScoreTime -> ScoreTime -> String -> CallInfo a
+dummy_call_info :: ScoreTime -> ScoreTime -> Text -> CallInfo a
 dummy_call_info start dur text = CallInfo
     { info_expr = ""
     , info_inverted = False
@@ -1123,7 +1124,7 @@ dummy_call_info start dur text = CallInfo
     , info_sub_tracks = []
     , info_sub_events = Nothing
     , info_track_type = Nothing
-    } where s = if null text then "<no-event>" else "<" ++ text ++ ">"
+    } where s = if Text.null text then "<no-event>" else "<" <> text <> ">"
 
 -- | Tag the polymorphic part of the CallInfo so it can be given to
 -- a 'ValCall'.  Otherwise, ValCall would have to be polymorphic too,

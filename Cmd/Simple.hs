@@ -180,7 +180,7 @@ convert_track (id_name, title, events) = do
 
 convert_event :: Event -> Event.Event
 convert_event (start, dur, text) =
-    Event.text_event (ScoreTime.double start) (ScoreTime.double dur) text
+    Event.event (ScoreTime.double start) (ScoreTime.double dur) text
 
 midi_config :: MidiConfig -> Instrument.Configs
 midi_config config = Instrument.configs

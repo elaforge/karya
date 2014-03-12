@@ -259,7 +259,7 @@ insert_event_in :: (State.M m) => String -> TrackNum
     -> (ScoreTime, ScoreTime, String) -> m ()
 insert_event_in block_name tracknum (pos, dur, text) =
     State.insert_event (mk_tid_name block_name tracknum)
-        (Event.event pos dur text)
+        (Event.event pos dur (txt text))
 
 insert_event :: (State.M m) => TrackNum -> (ScoreTime, ScoreTime, String)
     -> m ()
@@ -382,7 +382,7 @@ empty_track title = (Track.track (txt title) Events.empty)
 -- ** event
 
 make_event :: EventSpec -> Event.Event
-make_event (start, dur, text) = Event.event start dur text
+make_event (start, dur, text) = Event.event start dur (txt text)
 
 extract_event :: Event.Event -> EventSpec
 extract_event event =

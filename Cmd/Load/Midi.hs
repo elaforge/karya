@@ -62,7 +62,7 @@ create tracks skel = do
     where
     add_track block_id (title, track) =
         Create.track block_id 9999 title $
-            Events.from_list [Event.event start dur (untxt text)
+            Events.from_list [Event.event start dur text
                 | (start, (dur, text)) <- Map.toAscList track]
 
 parse :: FilePath -> IO (Either Warn Z.MidiFile)

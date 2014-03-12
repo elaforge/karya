@@ -98,7 +98,7 @@ check_control_tree block_end forest = case forest of
         ++ show (map (TrackTree.tevents_title . Tree.rootLabel) tracks)
     where
     events = Events.singleton $
-        Event.text_event 0 block_end (TrackLang.unsym capture_null_control)
+        Event.event 0 block_end (TrackLang.unsym capture_null_control)
     capture_track = TrackTree.track_events ">" events block_end
 
 derive_control_tree :: ScoreTime -> TrackTree.EventsTree

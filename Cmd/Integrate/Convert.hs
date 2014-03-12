@@ -239,7 +239,7 @@ event_stack event = Event.Stack (Score.event_stack event)
 
 ui_event :: Stack.Stack -> ScoreTime -> ScoreTime -> Text -> Event.Event
 ui_event stack pos dur text =
-    Event.set_stack (Event.Stack stack pos) $ Event.text_event pos dur text
+    Event.set_stack (Event.Stack stack pos) $ Event.event pos dur text
 
 -- | Concatenate the events, dropping ones that are out of order.  The
 -- durations are not modified, so they still might overlap in duration, but the

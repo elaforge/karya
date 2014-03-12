@@ -303,7 +303,7 @@ merge_notes = map make_track . Seq.group_on note_index
     make_track = List.foldl' (<>) mempty . map note_track
     note_track note = NoteTrack (Events.singleton event) (note_controls note)
         where
-        event = Event.text_event
+        event = Event.event
             (note_start note) (note_duration note) (note_text note)
 
 -- | Write NoteTracks to the given block.  It may create new tracks, but won't

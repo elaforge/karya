@@ -154,7 +154,7 @@ eval_one_at start dur expr = eval_expr cinfo expr
     -- Set the event start and duration instead of using Derive.place since
     -- this way I can have zero duration events.
     cinfo = Derive.dummy_call_info start dur $
-        untxt $ "eval_one: " <> ShowVal.show_val expr
+        "eval_one: " <> ShowVal.show_val expr
 
 -- | Like 'derive_event' but evaluate the event outside of its track context.
 -- This is useful if you want to evaluate things out of order, i.e. evaluate
@@ -248,13 +248,13 @@ eval_expr cinfo expr = do
     return $ Derive.merge_logs res logs
 
 -- | Parse and apply a transform expression.
-apply_transform :: (Derive.Callable d) => String -> Text
+apply_transform :: (Derive.Callable d) => Text -> Text
     -> Derive.LogsDeriver d -> Derive.LogsDeriver d
 apply_transform name expr_str deriver
     | Text.all Char.isSpace expr_str = deriver
     | otherwise = do
         expr <- case Parse.parse_expr expr_str of
-            Left err -> Derive.throw $ name ++ ": " ++ err
+            Left err -> Derive.throw $ untxt name ++ ": " ++ err
             Right expr -> return expr
         let info = Derive.dummy_call_info 0 1 name
         apply_transformers info (NonEmpty.toList expr) deriver

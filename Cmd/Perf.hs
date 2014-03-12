@@ -191,9 +191,10 @@ lookup_default_environ name = do
         return $ LEvent.one $ LEvent.Event $
             Score.empty_event { Score.event_environ = environ }
     environ <- case result of
-        Left err -> Cmd.throw $ caller <> ": " <> err
+        Left err -> Cmd.throw $ untxt caller <> ": " <> err
         Right val -> case LEvent.events_of val of
-            [] -> Cmd.throw $ caller <> " didn't get the fake event it wanted"
+            [] -> Cmd.throw $ untxt caller
+                <> " didn't get the fake event it wanted"
             event : _ -> return $ Score.event_environ event
     either Cmd.throw return (TrackLang.checked_val name environ)
     where

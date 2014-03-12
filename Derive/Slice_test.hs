@@ -4,6 +4,7 @@
 
 module Derive.Slice_test where
 import qualified Data.List as List
+import qualified Data.Text as Text
 import qualified Data.Tree as Tree
 import Data.Tree (Tree(Node))
 
@@ -348,7 +349,7 @@ test_note_transformer_stack = do
 
 -- * util
 
-type Event = (ScoreTime, ScoreTime, String)
+type Event = (ScoreTime, ScoreTime, Text)
 type EventsTree = [Tree.Tree (String, [Event])]
 
 extract_tree :: TrackTree.EventsTree -> EventsTree
@@ -358,7 +359,7 @@ extract_tree = map $ fmap $ \track ->
 
 extract_track :: Events.Events -> [Event]
 extract_track events =
-    [(Event.start e, Event.duration e, Event.event_string e)
+    [(Event.start e, Event.duration e, Event.event_text e)
         | e <- Events.ascending events]
 
 make_tree :: EventsTree -> TrackTree.EventsTree
@@ -376,9 +377,9 @@ make_track title events =
         [Event.event start dur text | (start, dur, text) <- events]
 
 make_controls :: String -> [Int] -> (String, [Event])
-make_controls title ps = (title, [(to_score p, 0, show p) | p <- ps])
+make_controls title ps = (title, [(to_score p, 0, showt p) | p <- ps])
 
-make_controls2 :: String -> [(Int, String)] -> (String, [Event])
+make_controls2 :: String -> [(Int, Text)] -> (String, [Event])
 make_controls2 title ps = (title, [(to_score p, 0, val) | (p, val) <- ps])
 
 to_score :: Int -> ScoreTime
@@ -386,7 +387,9 @@ to_score = ScoreTime.double . fromIntegral
 
 make_notes :: ScoreTime -> String -> (String, [Event])
 make_notes offset notes = (">",
-    zipWith (\start note -> (start, 1, note : "")) (Seq.range_ offset 1) notes)
+    zipWith (\start note -> (start, 1, Text.singleton note))
+        (Seq.range_ offset 1) notes)
 
 make_notes_dur :: [(ScoreTime, ScoreTime, Char)] -> (String, [Event])
-make_notes_dur notes = (">", [(start, dur, c:"") | (start, dur, c) <- notes])
+make_notes_dur notes =
+    (">", [(start, dur, Text.singleton c) | (start, dur, c) <- notes])

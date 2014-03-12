@@ -53,7 +53,7 @@ test_notes_from_range = do
 
 test_merge_notes = do
     let f = extract . head . ModifyNotes.merge_notes . mknotes
-        mknotes notes = [mknote (start, 1, show n, controls, 0)
+        mknotes notes = [mknote (start, 1, showt n, controls, 0)
             | (n, (start, controls)) <- zip [0..] notes]
         extract (ModifyNotes.NoteTrack events controls) =
             (extract_events events, controls)
@@ -151,21 +151,21 @@ extract_events :: Events.Events -> [(ScoreTime, String)]
 extract_events = map event . Events.ascending
     where event e = (Event.start e, Event.event_string e)
 
-mkevents :: [(ScoreTime, String)] -> Events.Events
+mkevents :: [(ScoreTime, Text)] -> Events.Events
 mkevents = Events.from_list . map mkevent
     where mkevent (start, text) = Event.event start 0 text
 
-mknote :: (ScoreTime, ScoreTime, String, [(Text, [(ScoreTime, String)])],
+mknote :: (ScoreTime, ScoreTime, Text, [(Text, [(ScoreTime, Text)])],
     ModifyNotes.Index) -> ModifyNotes.Note
 mknote (start, dur, text, controls, index) = ModifyNotes.Note
     { ModifyNotes.note_start = start
     , ModifyNotes.note_duration = dur
-    , ModifyNotes.note_text = Event.from_string text
+    , ModifyNotes.note_text = text
     , ModifyNotes.note_controls = mkcontrols controls
     , ModifyNotes.note_index = index
     }
 
-mkcontrols :: [(Text, [(ScoreTime, String)])] -> ModifyNotes.Controls
+mkcontrols :: [(Text, [(ScoreTime, Text)])] -> ModifyNotes.Controls
 mkcontrols = Map.fromList . map mk
     where
     mk (name, events) = (control, mkevents events)

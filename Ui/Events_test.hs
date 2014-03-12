@@ -5,6 +5,7 @@
 module Ui.Events_test where
 import qualified Data.Maybe as Maybe
 
+import Util.Control
 import Util.Test
 import qualified Ui.Event as Event
 import qualified Ui.Events as Events
@@ -17,7 +18,7 @@ test_split_range = do
                 map Event.start (Events.ascending b),
                 map Event.start (Events.ascending c))
     let f start end evts = extract $ Events.split_range start end
-            (from_list [(p, d, show p) | (p, d) <- evts])
+            (from_list [(p, d, showt p) | (p, d) <- evts])
 
     equal (f 1 2 [(0, 1), (1, 1), (2, 1), (3, 1)])
         ([0], [1], [2, 3])
@@ -116,13 +117,13 @@ test_round_events = do
 
 -- * util
 
-type Event = (ScoreTime, ScoreTime, String)
+type Event = (ScoreTime, ScoreTime, Text)
 
 from_list :: [Event] -> Events.Events
 from_list = Events.from_list . pos_events
 
 to_list :: Events.Events -> [Event]
-to_list = map (\e -> (Event.start e, Event.duration e, Event.event_string e))
+to_list = map (\e -> (Event.start e, Event.duration e, Event.event_text e))
     . Events.ascending
 
 pos_events :: [Event] -> [Event.Event]

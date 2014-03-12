@@ -89,7 +89,7 @@ gpitch = Q.oneof $ map return (Map.keys note_to_nn)
 gevents :: Q.Gen [Event.Event]
 gevents = Events.ascending . Events.from_list <$> Q.listOf (gevent "")
 
-gevent :: String -> Q.Gen Event.Event
+gevent :: Text -> Q.Gen Event.Event
 gevent text = do
     start <- Q.arbitrarySizedFractional
     dur <- Q.arbitrarySizedFractional

@@ -78,7 +78,7 @@ create_order_block mkid block_ids = do
     starts = scanl (+) 0 block_rows
     events =
         [ Event.event (fromIntegral start) (fromIntegral dur)
-            (Id.ident_name bid)
+            (txt (Id.ident_name bid))
         | (start, (bid, dur)) <- zip starts block_ids
         ]
 
@@ -189,7 +189,7 @@ convert_controls notes = Map.assocs cont_vals
         Map.multimap (concat (zipWith mkcont (Seq.range_ 0 1) notes))
     mkcont at note = [(cont, (note_start (note_effects note) at, val))
         | (cont, val) <- note_controls note]
-    to_event (pos, val) = Event.event pos 0 val
+    to_event (pos, val) = Event.event pos 0 (txt val)
 
 note_controls :: Note -> [(String, String)]
 note_controls note = Maybe.maybeToList (convert_pitch note)

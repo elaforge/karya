@@ -224,7 +224,7 @@ modify action state = UiTest.exec state action
 mkindex :: [Event] -> Block.EventIndex
 mkindex = Merge.make_index . map mkevent
 
-type Event = (ScoreTime, ScoreTime, String, Maybe ScoreTime)
+type Event = (ScoreTime, ScoreTime, Text, Maybe ScoreTime)
 
 mkevent :: Event -> Event.Event
 mkevent (start, dur, text, mb_stack) = add_stack (Event.event start dur text)
@@ -236,5 +236,5 @@ mkevent (start, dur, text, mb_stack) = add_stack (Event.event start dur text)
 
 extract_event :: Event.Event -> Event
 extract_event event =
-    (Event.start event, Event.duration event, Event.event_string event,
+    (Event.start event, Event.duration event, Event.event_text event,
         Event.stack_key <$> Event.stack event)

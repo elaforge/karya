@@ -108,4 +108,4 @@ insert :: (Cmd.M m) => [(ScoreTime, ScoreTime, Text)] -> m ()
 insert events = do
     (_, _, track_id, pos) <- Selection.get_insert
     State.insert_events track_id
-        [Event.text_event (start + pos) dur text | (start, dur, text) <- events]
+        [Event.event (start + pos) dur text | (start, dur, text) <- events]

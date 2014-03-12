@@ -94,7 +94,7 @@ modify_record_velocity f = Cmd.modify_edit_state $ \st ->
 insert_event :: Cmd.M m => Text -> ScoreTime -> m ()
 insert_event text dur = do
     (block_id, _, track_id, pos) <- Selection.get_insert
-    State.insert_block_events block_id track_id [Event.text_event pos dur text]
+    State.insert_block_events block_id track_id [Event.event pos dur text]
 
 -- | Different from insert/delete time since it only modifies one event.
 -- Move back the next event, or move down the previous event.  If the

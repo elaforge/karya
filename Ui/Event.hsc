@@ -29,7 +29,7 @@
 module Ui.Event (
     Event, start, duration, style, stack
     , Text, from_string
-    , Stack(..), IndexKey, event, text_event
+    , Stack(..), IndexKey, event
     -- * text
     , event_string, event_text, set_text
     , modify_text
@@ -116,11 +116,8 @@ instance Pretty.Pretty Stack where
         Pretty.format (Pretty.format stack, Pretty.format key)
 
 -- | Manual event constructor.
-event :: ScoreTime -> ScoreTime -> String -> Event
-event start dur text = text_event start dur (from_string text)
-
-text_event :: ScoreTime -> ScoreTime -> Text -> Event
-text_event start dur text = Event
+event :: ScoreTime -> ScoreTime -> Text -> Event
+event start dur text = Event
     { start = start
     , duration = dur
     , event_text = text

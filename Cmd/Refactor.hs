@@ -200,11 +200,11 @@ resolve_relative_call ns caller sym
     | Call.is_relative_call sym = Call.symbol_to_block_id ns (Just caller) sym
     | otherwise = Nothing
 
-make_block_call :: BlockId -> BlockId -> String
+make_block_call :: BlockId -> BlockId -> Text
 make_block_call parent block_id
     | Id.ident_namespace parent == Id.ident_namespace block_id && is_sub =
-        dropWhile (/='.') child_name
-    | otherwise = child_name
+        txt $ dropWhile (/='.') child_name
+    | otherwise = txt child_name
     where
     child_name = Id.ident_name block_id
     is_sub = (Id.ident_name parent <> ".") `List.isPrefixOf` child_name
@@ -284,7 +284,7 @@ order_track block_id sub_blocks = do
     meters <- mapM RulerUtil.get_meter ruler_ids
     let durs = map Meter.time_end meters
         starts = scanl (+) 0 durs
-        events = [Event.text_event start dur (block_id_to_call block_id)
+        events = [Event.event start dur (block_id_to_call block_id)
             | (start, dur, block_id) <- zip3 starts durs sub_blocks]
     RulerUtil.local_meter block_id $ const $ mconcat meters
     Create.track block_id 9999 ">" (Events.from_list events)
