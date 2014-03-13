@@ -355,9 +355,9 @@ tevents = Events.ascending . TrackTree.tevents_events
 
 -- * TrackSignal
 
--- | If this track is to be rendered by the UI, stash the given signal away in
--- the Derive state as a 'Track.TrackSignal'.  It may or may not need to
--- unwarp the signal.
+-- | If this track is to be rendered by the UI, stash the given signal as
+-- in either 'Derive.collect_track_signals' or
+-- 'Derive.collect_signal_fragments'.
 stash_if_wanted :: TrackTree.TrackEvents -> Signal.Control -> Derive.Deriver ()
 stash_if_wanted track sig =
     whenJustM (render_of track) $ \(block_id, track_id, _) ->

@@ -446,7 +446,8 @@ data Edit =
     | Edit !Event.IndexKey ![Modify]
     deriving (Eq, Show)
 
-data Modify = Position !ScoreTime | Duration !ScoreTime | Set !Text | Prefix !Text
+data Modify = Position !ScoreTime | Duration !ScoreTime
+    | Set !Text | Prefix !Text
     deriving (Eq, Show)
 
 instance Pretty.Pretty Edit where

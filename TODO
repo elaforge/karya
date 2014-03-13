@@ -3,6 +3,9 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
+  - fix Id Serialize instances, and switch from ByteString to Text
+    This means breaking all scores, so I can remove all old versions from
+    Cmd.Serialize while I'm at it.
   * positive events at the end of the ruler should have text above
   * merged track text doesn't render on negative events
     It's because the text has to be below the prev_offset, and the prev_offset
@@ -14,6 +17,21 @@ UNSORTED
     I could just make it bigger.  Or make the triangle bright red?
   - If thru did eval on "", I wouldn't need pasang thru.  But it might be
     slower.
+  performance
+    . Signal.sig_op has 4.8% alloc, from Control.cotrol_call ->
+      Derive.with_relative_control -> Perform.sig_multiply
+      . So default multiplication for dyn is expensive.
+    - Track dynamic also does a lot of collecting and merging signal
+      fragments.  Make sure that only happens when needed, and if needed, is
+      done efficiently.
+    - The Control.put_signal_fragment work is done on a second call to
+      a track, even though the output is never used.  Can I fix that?
+      . I would need to notice in the collect that there's already an entry in
+        Derive.collect_track_signals.  But for that I can't pass an empty
+        collect.  I still think it belongs in collect though, because it's
+        not an actual data dependency, it just makes it more efficient if it
+        is.
+
   deriving seems really slow
     . viola-sonata took 14s in opt, 1.89s in verify_performance
       . now it's 11.5
@@ -78,8 +96,6 @@ UNSORTED
       better for all merges.
     * Make Call.TrackInfo just include a TrackEvents, since it has almost all
       the fields.  Or make a LCD if it means I can put it in CallInfo too.
-    - The Control.put_signal_fragment work is done on a second call to
-      a track, even though the output is never used.  Can I fix that?
     * Track.merge_signals no longer used?
     * If a block is called multiple times, it stashes signals multiple times.
       I should either ensure that laziness prevents extra work from being
@@ -184,13 +200,8 @@ UNSORTED
     - wendy carlos' alpha, beta, gamma
     - overtone series
     - add ratio transpose signal, that multiplies hz
-  - After a rederive, it still takes a Cmd to free up the memory.  Who is
+  / After a rederive, it still takes a Cmd to free up the memory.  Who is
     holding on to it?
-  - add edit and windows menu to all apps
-    There must be special OS X support for these
-    Apparently not?  iTerms is defined in English.lproj/MainMenu.xib
-    https://developer.apple.com/library/mac/#documentation/Cocoa/Conceptual/WinPanel/Tasks/UsingWindowsMenu.html
-    But it doesn't say how to add the Window menu.
 
   - %sus-abs=-.x is not quite right for detached, because it should scale
     a bit for shorter notes.  E.g. it's absolute but scales down to 0 below
@@ -593,6 +604,11 @@ symbolic score
   - find or make a font with gong che pu
 
 fltk:
+  - add edit and windows menu to all apps
+    There must be special OS X support for these
+    Apparently not?  iTerms is defined in English.lproj/MainMenu.xib
+    https://developer.apple.com/library/mac/#documentation/Cocoa/Conceptual/WinPanel/Tasks/UsingWindowsMenu.html
+    But it doesn't say how to add the Window menu.
   - If I want to draw multiple signals together, I need a line or polygon
     + gradient function.  Maybe I can get ahold of the OS X graphics context
     and directly call cocoa functions.  For that to work on linux, I think I'd

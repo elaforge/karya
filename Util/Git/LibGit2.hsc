@@ -21,6 +21,9 @@ import Foreign.C
 #include <git2.h>
 
 
+type CUInt32 = Word.Word32
+type CUInt16 = Word.Word16
+
 type Repo = Ptr C'git_repository
 
 #opaque_t git_repository
@@ -96,69 +99,92 @@ type ObjType = CInt
 
 -- * diff
 
-#opaque_t git_diff_list
+#opaque_t git_diff
 #opaque_t git_diff_options
 
 -- int git_diff_tree_to_tree(
---         git_diff_list **diff,
+--         git_diff **diff,
 --         git_repository *repo,
 --         git_tree *old_tree,
 --         git_tree *new_tree,
 --         const git_diff_options *opts)
-#ccall git_diff_tree_to_tree, Ptr (Ptr <git_diff_list>) -> Repo \
+#ccall git_diff_tree_to_tree, Ptr (Ptr <git_diff>) -> Repo \
     -> Ptr <git_tree> -> Ptr <git_tree> \
     -> Ptr <git_diff_options> \
     -> IO Error
 
-#ccall git_diff_list_free, Ptr <git_diff_list> -> IO ()
+#ccall git_diff_free, Ptr <git_diff> -> IO ()
 
--- int git_diff_print_compact(
---         git_diff_list *diff,
---         git_diff_data_cb print_cb,
---         void *payload)
-#ccall git_diff_print_compact, Ptr <git_diff_list> \
-    -> <git_diff_data_cb> -> Ptr Void -> IO Error
+-- int git_diff_print(
+--     git_diff *diff,
+--     git_diff_format_t format,
+--     git_diff_line_cb print_cb,
+--     void *payload);
+#ccall git_diff_print, Ptr <git_diff> \
+    -> <git_diff_format_t> -> <git_diff_line_cb> -> Ptr Void -> IO Error
 
-#opaque_t git_diff_range
+#integral_t git_diff_format_t
+#num GIT_DIFF_FORMAT_PATCH
+#num GIT_DIFF_FORMAT_PATCH_HEADER
+#num GIT_DIFF_FORMAT_RAW
+#num GIT_DIFF_FORMAT_NAME_ONLY
+#num GIT_DIFF_FORMAT_NAME_STATUS
 
--- typedef int (*git_diff_data_cb)(
---         const git_diff_delta *delta,
---         const git_diff_range *range,
---         char line_origin, /**< GIT_DIFF_LINE_... value from above */
---         const char *content,
---         size_t content_len,
---         void *payload);
-#callback git_diff_data_cb, Ptr <git_diff_delta> \
-    -> Ptr <git_diff_range> -> CChar -> CString -> CSize -> Ptr Void \
-    -> IO Error
+-- typedef int (*git_diff_line_cb)(
+--     const git_diff_delta *delta, /** delta that contains this data */
+--     const git_diff_hunk *hunk,   /** hunk containing this data */
+--     const git_diff_line *line,   /** line data */
+--     void *payload);              /** user reference data */
+#callback git_diff_line_cb, Ptr <git_diff_delta> \
+    -> Ptr <git_diff_hunk> -> Ptr <git_diff_line> -> Ptr Void -> IO Error
+
+#opaque_t git_diff_hunk
+#opaque_t git_diff_line
 
 #integral_t git_delta_t
+#num GIT_DELTA_UNMODIFIED
 #num GIT_DELTA_ADDED
 #num GIT_DELTA_DELETED
 #num GIT_DELTA_MODIFIED
+#num GIT_DELTA_RENAMED
+#num GIT_DELTA_COPIED
+#num GIT_DELTA_IGNORED
+#num GIT_DELTA_UNTRACKED
+#num GIT_DELTA_TYPECHANGE
 
 -- typedef struct {
---         git_diff_file old_file;
---         git_diff_file new_file;
---         git_delta_t   status;
---         unsigned int  similarity; /**< for RENAMED and COPIED, value 0-100 */
---         int           binary;
+--     git_delta_t   status;
+--     uint32_t      flags;           /**< git_diff_flag_t values */
+--     uint16_t      similarity;  /**< for RENAMED and COPIED, value 0-100 */
+--     uint16_t      nfiles;          /**< number of files in this delta */
+--     git_diff_file old_file;
+--     git_diff_file new_file;
 -- } git_diff_delta;
 #starttype git_diff_delta
+#field status, <git_delta_t>
+#field flags, CUInt32
+#field similarity, CUInt16
+#field nfiles, CUInt16
 #field old_file, <git_diff_file>
 #field new_file, <git_diff_file>
-#field status, <git_delta_t>
-#field similarity, CUInt
-#field binary, CInt
 #stoptype
 
+-- typedef struct {
+--     git_oid     oid;
+--     const char *path;
+--     git_off_t   size;
+--     uint32_t    flags;
+--     uint16_t    mode;
+-- } git_diff_file;
 #starttype git_diff_file
 #field oid, OID
 #field path, CString
-#field mode, Word.Word16
--- #field size, <git_off_t>
--- #field flags, CUInt
+#field size, <git_off_t>
+#field flags, CUInt32
+#field mode, CUInt16
 #stoptype
+
+#integral_t git_off_t
 
 -- * index
 

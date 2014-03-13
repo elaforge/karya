@@ -316,12 +316,13 @@ diff_tree_repo repop old new =
             G.c'git_diff_tree_to_tree listpp repop oldp newp nullPtr
         listp <- peek listpp
         ref <- IORef.newIORef []
-        with_fptr (G.mk'git_diff_data_cb (diff_cb ref)) $ \callback ->
-            G.check "diff_print_compact" $
-                G.c'git_diff_print_compact listp callback nullPtr
+        with_fptr (G.mk'git_diff_line_cb (diff_cb ref)) $ \callback ->
+            G.check "diff_print" $ G.c'git_diff_print listp
+                G.c'GIT_DIFF_FORMAT_NAME_STATUS callback nullPtr
         IORef.readIORef ref
     concatMapM to_mod diffs
     where
+    -- I'm only interested in which files were deleted, added, or modified.
     to_mod (status, path, oid)
         | status == G.c'GIT_DELTA_DELETED = return [Remove path]
         | status == G.c'GIT_DELTA_ADDED || status == G.c'GIT_DELTA_MODIFIED = do
@@ -329,9 +330,10 @@ diff_tree_repo repop old new =
             return [Add path bytes]
         | otherwise = G.throw $ "diff_trees " ++ show (old, new)
             ++ ": unknown status: " ++ show status
-    diff_cb ref deltap _rangep _line_origin _contentp _content_len _data = do
-        G.C'git_diff_delta _old new status _ _ <- peek deltap
-        let G.C'git_diff_file oid pathp _mode = new
+    diff_cb ref deltap _hunkp _linep _payloadp = do
+        G.C'git_diff_delta status _flags _similarity _nfiles
+            _old_file new_file <- peek deltap
+        let G.C'git_diff_file oid pathp _size _flags _mode = new_file
         path <- peekCString pathp
         IORef.modifyIORef ref ((status, path, oid):)
         return 0

@@ -45,11 +45,15 @@ sandbox.
 libpcre library from http://www.pcre.org
 OS X ports puts headers in /opt where configure may not find them.
 
-libgit2 - It has no official releases, but I synced to:
-https://github.com/libgit2/libgit2 be5869fce0ab9c61a294020e9baa9755c58ee8a3
+libgit2 - It has no official release, but as of 2014-03-12 my binding is to
+v0.20.0.  You can get it with:
 
-Make sure you sync to excatly that commit, because they break the API
-frequently.
+    % git clone https://github.com/libgit2/libgit2
+    % cd libgit2
+    % git checkout tags/v0.20.0
+    % git checkout -b v0.20.0
+
+Then build and install according to their instructions.
 
 lilypond, for some fonts, and for the lilypond backend, of course.
 
