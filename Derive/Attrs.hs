@@ -81,18 +81,11 @@ bisbig = attr "bisbig" -- bisbigliando
 
 flutter = attr "flutter"
 
--- * bali
-
-byut = attr "byut"
-byong = attr "byong"
-cek = attr "cek"
-
 -- * drums
 
 -- ** western
 
 snare = attr "snare" -- snare
-rim = attr "rim" -- rim on snare
 stick = attr "stick"
 bd = attr "bd" -- base drum
 hh = attr "hh" -- high-hat
@@ -112,6 +105,7 @@ center = attr "center"
 edge = attr "edge"
 slap = attr "slap"
 knuckle = attr "knuckle"
+rim = attr "rim"
 
 open = attr "open"
 closed = attr "closed"

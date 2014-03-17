@@ -54,9 +54,9 @@ tunggal_notes = do
 tunggal_keymap :: [(Score.Attributes, CUtil.KeyswitchRange)]
 tunggal_keymap = CUtil.make_keymap Key2.e_2 Key2.c_1 12 NN.fs3
     [ [de <> Attrs.staccato, plak]
-    , [de <> Attrs.thumb]
+    , [de <> Attrs.thumb, dag <> Attrs.staccato]
     , [de, dag]
-    , [de <> Attrs.mute, tek]
+    , [de <> Attrs.closed, tek]
     , [tut]
     , [ka]
     , [pang]

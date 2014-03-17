@@ -33,6 +33,7 @@ import qualified Derive.Derive as Derive
 import qualified Derive.Deriver.Internal as Internal
 import qualified Derive.Environ as Environ
 import qualified Derive.PitchSignal as PitchSignal
+import qualified Derive.Pitches as Pitches
 import qualified Derive.Scale as Scale
 import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
@@ -255,6 +256,13 @@ get_pitch :: RealTime -> Derive.Deriver PitchSignal.Pitch
 get_pitch pos = Derive.require ("pitch at " ++ pretty pos)
     =<< Derive.pitch_at pos
 
+get_parsed_pitch :: (Pitch.Note -> Maybe Pitch.Pitch) -> RealTime
+    -> Derive.Deriver Pitch.Pitch
+get_parsed_pitch parse pos = do
+    pitch <- get_pitch pos
+    note <- Pitches.pitch_note pitch
+    Derive.require "unparseable pitch" $ parse note
+
 eval_note :: ScoreTime -> Pitch.Note -> Derive.Deriver PitchSignal.Pitch
 eval_note pos note = Call.eval_pitch pos $
     TrackLang.call (TrackLang.Symbol (Pitch.note_text note)) []
@@ -359,8 +367,6 @@ get_attrs = fromMaybe mempty <$> Derive.lookup_val Environ.attributes
 
 -- | Get symbolic pitch manipulating functions for the current scale.  This
 -- is for calls that want to work with symbolic pitches.
--- TODO which I don't actually have any of at the moment, so kill this if I
--- continue to not have any.
 get_pitch_functions :: Derive.Deriver
     ( Pitch.Note -> Maybe Pitch.Pitch
     , Pitch.Pitch -> Maybe Pitch.Note

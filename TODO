@@ -15,23 +15,10 @@ UNSORTED
     skeleton display?
   * point select is really hard to see, it should be more obvious
     I could just make it bigger.  Or make the triangle bright red?
-  - If thru did eval on "", I wouldn't need pasang thru.  But it might be
-    slower.
-  performance
-    . Signal.sig_op has 4.8% alloc, from Control.cotrol_call ->
-      Derive.with_relative_control -> Perform.sig_multiply
-      . So default multiplication for dyn is expensive.
-    - Track dynamic also does a lot of collecting and merging signal
-      fragments.  Make sure that only happens when needed, and if needed, is
-      done efficiently.
-    - The Control.put_signal_fragment work is done on a second call to
-      a track, even though the output is never used.  Can I fix that?
-      . I would need to notice in the collect that there's already an entry in
-        Derive.collect_track_signals.  But for that I can't pass an empty
-        collect.  I still think it belongs in collect though, because it's
-        not an actual data dependency, it just makes it more efficient if it
-        is.
-
+  / If thru did eval on "", I wouldn't need pasang thru.  But it might be
+    slower.  That's what CUtil.insert_call is for, but it's designed for
+    non-pitched instruments, and wouldn't necessarily work for pasang because
+    it needs a 'unison' transform.
   deriving seems really slow
     . viola-sonata took 14s in opt, 1.89s in verify_performance
       . now it's 11.5
@@ -519,7 +506,20 @@ cleanup:
     clear redundant offs, but that's easier right?
 
 performance:
-  - Do profiles again with Event.event_text :: Data.Text instead of ByteString.
+  . Signal.sig_op has 4.8% alloc, from Control.cotrol_call ->
+    Derive.with_relative_control -> Perform.sig_multiply
+    . So default multiplication for dyn is expensive.
+  - Track dynamic also does a lot of collecting and merging signal
+    fragments.  Make sure that only happens when needed, and if needed, is
+    done efficiently.
+  - The Control.put_signal_fragment work is done on a second call to
+    a track, even though the output is never used.  Can I fix that?
+    . I would need to notice in the collect that there's already an entry in
+      Derive.collect_track_signals.  But for that I can't pass an empty
+      collect.  I still think it belongs in collect though, because it's
+      not an actual data dependency, it just makes it more efficient if it
+      is.
+  * Do profiles again with Event.event_text :: Data.Text instead of ByteString.
   scrolling through giant blocks is slow
     - drawing is stil slow, I'll have to look at the fltk layer
       It happens when the block is wide.  Use test_block to see if it's just
@@ -876,6 +876,8 @@ Derive:
       too large.  More compellingly, chords can automatically fiddle with dyn
       and start time, and can also interpret chord symbols.
     bali:
+      - If I put pemero notes in legong, then I can play them when needed.
+        But what should they be called?  i o e e# u a a#
       kotekan ornaments
         - control for norot +mute
         - gender norot: control for polos 234- vs. 434-
@@ -904,62 +906,10 @@ Derive:
           I draw symbols reversed? 入 兩
         - various numpuk
         kilitan
-          . What is the "core" of what kilitan is?
-            Take a melody, and split it into multiple parts.  Each part has
-            a limited pitch range, and when the melody is out of range, play
-            harmonizing intervals, or move in contrary motion.
-            Also, the melody is at a slow tempo, and kilitan elaborates at some
-            integral multiple, using norot style patterns.
-          . So I decide on how many parts, and steady state patterns for each
-            part.  The patterns may have alternatives, or internal variations.
-          . Patterns also have transitions to a new melody note, which occur
-            before the melody note arrives.  The transitions may vary depending
-            on the source and destination melody notes.
-          . There are also cross-part variations, where neighbors must pick
-            cooperating variations.
-          . Also there may be ornaments that affect all the parts, e.g.
-            232321612.  These are similar to cross-part variations, except that
-            they should be signalled explicitly in the notation rather than
-            being random.
-
-          . Eval transformed deriver in flat time, to get events in ScoreTime.
-          . Simplify notes to 'Melody Theory.Pitch | Ornament (Byong | DownUp)'
-          . Ornaments become set patterns at the given time, different for each
-            part.
-          . Start with part 1 and for each note:
-            . If it's an Ornament, emit the relevant notes verbatim relative to
-              the current time, e.g.
-                Ornament -> Part -> Time -> [(RelativeTime, Note)]
-              Clip anything that would overlap the previous event, or the next
-              note.
-            . If it's Melody, generate harmonic points until the next
-              non-Melody.  They are relative to the start of the call.
-            . Start assembling notes from fragments.  Get the transition
-              fragments based on the Part and the next Melody note, and if any
-              line up to now, pick and emit one.  Otherwise, pick a continuation
-              fragment based on the current Melody.  If it's a coordinated one,
-              emit that separately.
-            . Do the same for each part, except that the fragments that are
-              chosen can be influenced by previous coordinated fragments.
-          . Just emit open notes.  Damping is done with a separate postproc.
-
-          . type RelativeTime = Int -- at harmonic rhythm
-          . type RelativePitch = (Diatonic, Chromatic)
-          . type Fragment = [(RelativeTime, RelativePitch)]
-          . type Coordination = Char -- anything, just a key
-          . type Fragments = [(Maybe Coordination, Probability, Fragment)]
-          . type Part = Part
-            { transition :: Pitch -> Fragments, continuation :: Fragments }
-
-          . Or, do this the same way I do kotekan.  But instead of sangsih and
-            polos patterns, I have a set of N patterns indexed by pitch.
-
-          - extend to work other scales
-          - more graceful transitions between pitches
-          - variant patterns
-          - coordination across parts
-          - damping, depending on speed
-          - support kilitan/beat speed more exotic than 4/1
+          - pickups can mute
+          - kilitan patterns change over a speed threshold
+          - 323-23-2-32-323-2 as with kotekan
+          - variant patterns, e.g. p1 on dong
 
   control calls:
     - signal transformations: +, *, max, min

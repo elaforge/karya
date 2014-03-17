@@ -465,6 +465,10 @@ e_environ f event =
     , f (untxt k)
     ]
 
+e_environ_val :: TrackLang.Typecheck a => TrackLang.ValName -> Score.Event
+    -> Maybe a
+e_environ_val name = TrackLang.maybe_val name . Score.event_environ
+
 e_tsigs :: Derive.Result -> [((BlockId, TrackId), [(Signal.X, Signal.Y)])]
 e_tsigs =
     filter (not . null . snd) . Map.toList . Map.map tsig
