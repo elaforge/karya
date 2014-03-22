@@ -1,3 +1,6 @@
 #!/bin/sh
 # Rebuild the shakefile.
+
+mkdir -p build
+touch build/shake.database # Needed for my shake.database locking hack.
 exec runghc Shake/Shakefile.hs "$@" build/opt/shakefile
