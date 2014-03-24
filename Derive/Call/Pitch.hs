@@ -17,7 +17,6 @@ import qualified Ui.Event as Event
 import qualified Derive.Args as Args
 import qualified Derive.Call as Call
 import qualified Derive.Call.Control as Control
-import qualified Derive.Call.Equal as Equal
 import qualified Derive.Call.Module as Module
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Call.Util as Util
@@ -37,7 +36,7 @@ import Types
 -- * pitch
 
 pitch_calls :: Derive.CallMaps Derive.Pitch
-pitch_calls = Derive.call_maps
+pitch_calls = Derive.generator_call_map
     [ ("", c_set)
     , ("set", c_set)
     , ("'", c_set_prev)
@@ -57,7 +56,6 @@ pitch_calls = Derive.call_maps
     , ("d", c_down)
     , ("p", c_porta)
     ]
-    [ ("=", Equal.c_equal) ]
 
 -- | This should contain the calls that require the previous value.  It's used
 -- by a hack in 'Derive.Slice.slice'.

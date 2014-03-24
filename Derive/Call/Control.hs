@@ -11,7 +11,6 @@ import qualified Util.Num as Num
 import qualified Util.Seq as Seq
 
 import qualified Derive.Args as Args
-import qualified Derive.Call.Equal as Equal
 import qualified Derive.Call.Module as Module
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Call.Util as Util
@@ -31,7 +30,7 @@ import Types
 
 
 control_calls :: Derive.CallMaps Derive.Control
-control_calls = Derive.call_maps
+control_calls = Derive.generator_call_map
     [ ("", c_set) -- Fallback call will take val-call output.
     , ("set", c_set)
     , ("set-prev", c_set_prev)
@@ -55,7 +54,6 @@ control_calls = Derive.call_maps
     , ("`ped`", c_pedal)
     , ("h", c_pedal)
     ]
-    [("=", Equal.c_equal)]
     <> Derive.CallMaps [lookup_number] []
 
 -- | This should contain the calls that require the previous value.  It's used

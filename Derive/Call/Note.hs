@@ -23,7 +23,6 @@ import qualified Ui.Event as Event
 import qualified Ui.ScoreTime as ScoreTime
 import qualified Derive.Args as Args
 import qualified Derive.Attrs as Attrs
-import qualified Derive.Call.Equal as Equal
 import qualified Derive.Call.Module as Module
 import qualified Derive.Call.Sub as Sub
 import qualified Derive.Call.Tags as Tags
@@ -49,14 +48,12 @@ note_calls = Derive.call_maps
     -- Since you can never call "" with arguments, I need a non-null form
     -- to handle the args version.
     , ("n", c_note)
-    , ("=", c_equal_generator)
     ]
     [ ("n", c_note_attributes "note-attributes")
     -- Called implicitly for note track titles, e.g. '>foo +bar' becomes
     -- 'note-track >foo +bar'.  It has a different name so the stack shows
     -- track calls.
     , ("note-track", c_note_attributes "note-track")
-    , ("=", c_equal_transformer)
     ]
 
 -- * note
@@ -316,20 +313,3 @@ transform_note vals deriver =
     with_inst = maybe id Derive.with_instrument $
         Seq.last $ filter (/=Score.empty_inst) insts
 
-
--- * c_equal
-
-c_equal_generator :: Derive.Generator Derive.Note
-c_equal_generator = Derive.make_call Module.prelude "equal" Tags.subs
-    ("Similar to the transformer, this will evaluate the notes below in"
-        <> " a transformed environ.")
-    (Sig.parsed_manually Equal.equal_arg_doc generate)
-    where
-    generate args =
-        Sub.place . map (Sub.map_event (Equal.equal_transformer args))
-        . concat =<< Sub.sub_events args
-
-c_equal_transformer :: Derive.Transformer Derive.Note
-c_equal_transformer = Derive.transformer Module.prelude "equal" mempty
-    Equal.equal_doc
-    (Sig.parsed_manually Equal.equal_arg_doc Equal.equal_transformer)

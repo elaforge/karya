@@ -4,11 +4,7 @@
 
 {-# LANGUAGE ViewPatterns #-}
 -- | Export 'c_equal' call, which implements @=@.
-module Derive.Call.Equal (
-    c_equal
-    , equal_arg_doc, equal_doc
-    , equal_transformer
-) where
+module Derive.Call.Equal (note_calls, control_calls, pitch_calls) where
 import qualified Data.List.NonEmpty as NonEmpty
 import qualified Data.Map as Map
 import qualified Data.Text as Text
@@ -17,6 +13,7 @@ import Util.Control
 import qualified Util.Seq as Seq
 import qualified Derive.Call as Call
 import qualified Derive.Call.Module as Module
+import qualified Derive.Call.Sub as Sub
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Call.Util as Util
 import qualified Derive.Controls as Controls
@@ -30,9 +27,32 @@ import qualified Derive.TrackLang as TrackLang
 import qualified Perform.Signal as Signal
 
 
+-- * note
+
+note_calls :: Derive.CallMaps Derive.Note
+note_calls = Derive.call_maps [("=", c_equal_generator)] [("=", c_equal)]
+
+control_calls :: Derive.CallMaps Derive.Control
+control_calls = Derive.transformer_call_map [("=", c_equal)]
+
+pitch_calls :: Derive.CallMaps Derive.Pitch
+pitch_calls = Derive.transformer_call_map [("=", c_equal)]
+
+-- * implementation
+
 c_equal :: Derive.Callable d => Derive.Transformer d
 c_equal = Derive.transformer Module.prelude "equal" Tags.subs
     equal_doc (Sig.parsed_manually equal_arg_doc equal_transformer)
+
+c_equal_generator :: Derive.Generator Derive.Note
+c_equal_generator = Derive.make_call Module.prelude "equal" Tags.subs
+    ("Similar to the transformer, this will evaluate the notes below in"
+        <> " a transformed environ.")
+    (Sig.parsed_manually equal_arg_doc generate)
+    where
+    generate args =
+        Sub.place . map (Sub.map_event (equal_transformer args))
+        . concat =<< Sub.sub_events args
 
 equal_arg_doc :: Text
 equal_arg_doc = "Many types."

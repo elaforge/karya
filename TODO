@@ -3,7 +3,10 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
-  - move equal binding to Equal
+  - I think Shake.HsDeps will chase links forever, causing circular imports
+    to hang.
+  - ScaleDegree TODO documentation
+  * move equal binding to Equal
   - fix Id Serialize instances, and switch from ByteString to Text
     This means breaking all scores, so I can remove all old versions from
     Cmd.Serialize while I'm at it.

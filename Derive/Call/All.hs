@@ -16,6 +16,7 @@ import qualified Derive.Call.Bali.Sekar as Sekar
 import qualified Derive.Call.Block as Block
 import qualified Derive.Call.Control as Control
 import qualified Derive.Call.Echo as Echo
+import qualified Derive.Call.Equal as Equal
 import qualified Derive.Call.Europe.Chord as Chord
 import qualified Derive.Call.Europe.Grace as Grace
 import qualified Derive.Call.Idiom.String as String
@@ -87,6 +88,7 @@ call_module get_doc (Derive.LookupMap calls) =
 note_maps :: Derive.CallMaps Derive.Note
 note_maps = mconcat
     [ Articulation.note_calls
+    , Equal.note_calls
     , Gender.note_calls
     , Kotekan.note_calls
     , Reyong.note_calls
@@ -114,6 +116,7 @@ control_maps :: Derive.CallMaps Derive.Control
 control_maps = mconcat
     [ Block.control_calls
     , Control.control_calls
+    , Equal.control_calls
     , Gamakam.control_calls
     , Import.calls
     , Random.control_calls
@@ -123,7 +126,8 @@ control_maps = mconcat
 
 pitch_maps :: Derive.CallMaps Derive.Pitch
 pitch_maps = mconcat
-    [ Gamakam.pitch_calls
+    [ Equal.pitch_calls
+    , Gamakam.pitch_calls
     , Grace.pitch_calls
     , Import.calls
     , Pitch.pitch_calls
