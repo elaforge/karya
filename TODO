@@ -3,6 +3,7 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
+  - move equal binding to Equal
   - fix Id Serialize instances, and switch from ByteString to Text
     This means breaking all scores, so I can remove all old versions from
     Cmd.Serialize while I'm at it.
@@ -832,11 +833,43 @@ Cmd:
       separately
 
 Derive:
-  - namespaces for calls
-    As there gets to be more calls, I may need to have a 'import x' which
-    brings the namespace into scope.  Namespace could use tags, but perhaps
-    tags should instead be derived from the namespace, e.g. prelude, bali,
-    india.
+  * namespaces for calls
+    . As there gets to be more calls, I may need to have a 'import x' which
+      brings the namespace into scope.  Namespace could use tags, but perhaps
+      tags should instead be derived from the namespace, e.g. prelude, bali,
+      india.
+    . 'import a+b+c' imports all calls that have all of a, b, and c tags.
+      There is an implicit 'import prelude | import internal' at the top.
+    . I need a big collection of calls that is not the scopes, which I can
+      import from.  So instead of putting calls into a function and collecting
+      LookupDocs separately, I need a list:
+      type CallTable = [(BoundCall, CallDoc)]
+      data BoundCall = LookupCall (CallId -> Maybe Call)
+          | BoundCall CallId Call
+    . Import with tags doesnt make sense for informational tags like:
+        subs, under-invert, inverting, cmod, control-function, prev, next, attr
+      But some do make sense: europe, bali, ly, ly-only, prelude, internal
+      And it implies more: reyong, kotekan, ...
+    . So go to a traditional hierarchical system, that mirrors the Derive/Call
+      hierachy: bali.kotekan, etc.
+
+    * Add new types, and modify Deriver.Monad to use them instead of CallMap
+      etc.  Scopes is [LookupCall | CallMap]
+    * put Library in Constant
+    * import call to import collapse the LookupMaps, warn about collisions,
+      and put them in scopes
+    * update Cmd.CallDoc.  Now I have separate paths: doc for Library and doc
+      for Scopes.  I need both if I want to get documentation of calls in
+      scope on a track.  However, scopes now also have LookupCalls, so they
+      change too.
+    * I can also check for collisions within each module and emit warnings,
+      perhaps in extract_doc, or seq
+    * fix tests, some need imports now
+      * bloom, viola_sonata
+      . Why do the notes move?  Did randomization change?
+    - make 'import no-module' throw, I think I can keep a set of inhabited
+      module names in Constant.
+
   tracklang:
     - there should be a character that triggers a parse failure, which is used
       by invalid ShowVal instances like ShowVal Pitch
@@ -910,6 +943,8 @@ Derive:
           - kilitan patterns change over a speed threshold
           - 323-23-2-32-323-2 as with kotekan
           - variant patterns, e.g. p1 on dong
+          - write an alternate style of kilitan, e.g. with a 6 note scale in
+            tisram
 
   control calls:
     - signal transformations: +, *, max, min

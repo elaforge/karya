@@ -8,7 +8,7 @@ import qualified Derive.DeriveTest as DeriveTest
 
 
 test_drop = do
-    let run pitches dyn = extract $ DeriveTest.derive_tracks
+    let run pitches dyn = extract $ DeriveTest.derive_tracks ""
             [(">", [(0, 10, "")]), ("*", pitches), ("dyn", dyn)]
         extract = head . (DeriveTest.extract_events $ \e ->
             (DeriveTest.e_nns e, DeriveTest.e_dyn e))
@@ -23,13 +23,13 @@ test_drop = do
 
 test_drop_noninverted = do
     let run ps ns = DeriveTest.extract DeriveTest.e_dyn $
-            DeriveTest.derive_tracks [("*", ps), (">", ns)]
+            DeriveTest.derive_tracks "" [("*", ps), (">", ns)]
     equal (run [(0, 0, "4c"), (1, 0, "drop 2 2 2"), (4, 4, "4c")]
             [(0, 4, ""), (4, 4, "")])
         ([[(0, 1), (1, 1), (2, 0.5), (3, 0)], [(4, 1)]], [])
 
 test_drop_lift_note_inverted = do
-    let run note = DeriveTest.extract extract $ DeriveTest.derive_tracks
+    let run note = DeriveTest.extract extract $ DeriveTest.derive_tracks ""
             [(">", [(0, 4, note)]), ("*", [(0, 0, "4c")])]
         extract e = (DeriveTest.e_nns e, DeriveTest.e_dyn e)
     -- This verifies that Tags.under_invert works, so that 'drop' goes under
@@ -49,7 +49,7 @@ test_drop_lift_note_inverted = do
     equal logs []
 
 test_drop_lift_note = do
-    let run note = DeriveTest.extract extract $ DeriveTest.derive_tracks
+    let run note = DeriveTest.extract extract $ DeriveTest.derive_tracks ""
             [("*", [(0, 0, "4c")]), (">", [(0, 4, note)])]
         extract e = (DeriveTest.e_nns e, DeriveTest.e_dyn e)
 

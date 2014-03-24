@@ -33,8 +33,8 @@ main = do
         ["keymap"] -> putStr keymap_doc
         ["calls"] -> do
             hstate <- CallDoc.get_html_state "../haddock" "."
-            Text.IO.putStr $ CallDoc.doc_html hstate $ CallDoc.all_sections
-                Call.All.scopes
+            Text.IO.putStr $ CallDoc.doc_html hstate $
+                CallDoc.library Call.All.library
         ["scales"] -> do
             hstate <- CallDoc.get_html_state "../haddock" "."
             Text.IO.putStr $ CallDoc.scales_html hstate $

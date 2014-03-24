@@ -31,9 +31,9 @@ test_env = do
 
 test_prev_next_val = do
     let runc control = DeriveTest.extract (DeriveTest.e_control "c") $
-            DeriveTest.derive_tracks [(">", [(0, 10, "")]), ("c", control)]
+            DeriveTest.derive_tracks "" [(">", [(0, 10, "")]), ("c", control)]
     let runp notes pitch = DeriveTest.extract DeriveTest.e_note $
-            DeriveTest.derive_tracks [(">", notes), ("*", pitch)]
+            DeriveTest.derive_tracks "" [(">", notes), ("*", pitch)]
 
     -- prev
     equal (runc [(0, 0, ".5"), (1, 0, "set (<)")])
@@ -56,7 +56,7 @@ test_prev_next_val = do
 
 test_linear_next = do
     let f extract track =
-            DeriveTest.extract extract $ DeriveTest.derive_tracks
+            DeriveTest.extract extract $ DeriveTest.derive_tracks ""
                 [(">", [(0, 4, "")]), track]
     let (result, logs) = f DeriveTest.e_dyn
             ("dyn", [(0, 0, "xcut (i> 0 1) (i> 1 0) 2"), (4, 0, "0")])
@@ -79,7 +79,7 @@ test_linear_next = do
 test_timestep = do
     let run start vcall = DeriveTest.extract extract $
             DeriveTest.derive_tracks_with_ui id (DeriveTest.set_ruler ruler)
-                [(">", [(start, 0, ("d (ts " <> vcall <> ") |"))])]
+                "" [(">", [(start, 0, ("d (ts " <> vcall <> ") |"))])]
         extract = Score.event_start
         ruler = UiTest.ruler $ zip [0, 1, 2, 3, 4, 6, 8, 10, 12]
             (cycle [Meter.r_1, Meter.r_4, Meter.r_4, Meter.r_4])
@@ -111,7 +111,7 @@ test_make_segments = do
     equal (f 4 8  [0, 1, 0]) [(4, 0), (5, 0.5), (6, 1), (7, 0.5), (8, 0)]
 
 test_cf_rnd = do
-    let run sus notes = DeriveTest.extract extract $ DeriveTest.derive_tracks
+    let run sus notes = DeriveTest.extract extract $ DeriveTest.derive_tracks ""
             [("> | %sus = " <> sus, [(n, 1, "") | n <- Seq.range' 0 notes 1])]
         extract = Score.event_duration
     equal (run ".5" 1) ([0.5], [])
@@ -122,7 +122,7 @@ test_cf_rnd = do
 
 test_cf_swing = do
     let run marks amount tracks events = DeriveTest.extract Score.event_start $
-            DeriveTest.derive_tracks_with_ui id (with_ruler marks) $
+            DeriveTest.derive_tracks_with_ui id (with_ruler marks) "" $
                 tracks ++ [("> | %start-s = (cf-swing q " <> amount <> ")",
                     [(n, 0, "") | n <- events])]
         with_ruler = DeriveTest.set_ruler . UiTest.ruler

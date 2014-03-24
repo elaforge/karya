@@ -55,7 +55,7 @@ test_kotekan = do
             )
     equal (run True [(8, -8, "k// 1 -- 4c")]) (interlock, [])
 
-    equal (e_pasang extract $ DeriveTest.derive_tracks
+    equal (e_pasang extract $ derive_tracks
             [ ("tempo", [(0, 0, "1"), (8, 0, ".5")])
             , (">" <> inst_title <> " | unison | kotekan = 2",
                 [(8, -8, "k// 1")])
@@ -101,9 +101,8 @@ test_noltol = do
 
 derive_pasang :: (Score.Event -> a) -> String -> [UiTest.EventSpec]
     -> (([a], [a]), [String])
-derive_pasang extract title notes =
-    e_pasang extract $ DeriveTest.derive_tracks $
-        UiTest.note_spec (inst_title <> title, notes, [])
+derive_pasang extract title notes = e_pasang extract $ derive_tracks $
+    UiTest.note_spec (inst_title <> title, notes, [])
 
 e_pasang :: (Score.Event -> a) -> Derive.Result -> (([a], [a]), [String])
 e_pasang extract = first group_inst
@@ -113,8 +112,7 @@ e_pasang extract = first group_inst
         [n | (inst, n) <- ns, inst == sangsih])
 
 derive :: (Score.Event -> a) -> String -> [UiTest.EventSpec] -> ([a], [String])
-derive extract title notes =
-    DeriveTest.extract extract $ DeriveTest.derive_tracks $
+derive extract title notes = DeriveTest.extract extract $ derive_tracks $
     UiTest.note_spec (title, notes, [])
 
 inst_title :: String
@@ -128,3 +126,6 @@ sangsih = Score.Instrument "i2"
 
 pasang :: Score.Instrument
 pasang = Score.Instrument "i3"
+
+derive_tracks :: [UiTest.TrackSpec] -> Derive.Result
+derive_tracks = DeriveTest.derive_tracks "import bali.kotekan"

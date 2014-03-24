@@ -475,9 +475,8 @@ set_env root_id block_id track_id environ =
         }
     where
     track_dyn = Derive.TrackDynamic $ Map.singleton (block_id, track_id)
-        (mkdyn (TrackLang.make_environ environ))
+        (Derive.initial_dynamic (TrackLang.make_environ environ))
     perf = empty_performance { Cmd.perf_track_dynamic = track_dyn }
-    mkdyn = Derive.initial_dynamic Derive.empty_scopes
 
 empty_performance :: Msg.Performance
 empty_performance = Cmd.Performance

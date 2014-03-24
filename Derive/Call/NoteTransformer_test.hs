@@ -13,7 +13,7 @@ import qualified Perform.Lilypond.LilypondTest as LilypondTest
 
 test_tuplet = do
     let run = DeriveTest.extract_events DeriveTest.e_note
-            . DeriveTest.derive_tracks_linear
+            . DeriveTest.derive_tracks_linear ""
 
     let tracks =
             [ (">", [(0, 12, "t")])
@@ -57,7 +57,7 @@ test_tuplet = do
 test_tuplet_multiple_tracks = do
     let run = DeriveTest.extract_events extract
             . DeriveTest.derive_tracks_with_ui id
-                (DeriveTest.with_skel [(1, 2), (1, 3)])
+                (DeriveTest.with_skel [(1, 2), (1, 3)]) ""
         extract e = (Score.event_instrument e, Score.event_start e,
                 Score.event_duration e)
     let tracks =
@@ -126,7 +126,7 @@ test_tuplet_ly = do
 test_arpeggio = do
     let run = DeriveTest.extract_events DeriveTest.e_note
             . DeriveTest.derive_tracks_with_ui id
-                (DeriveTest.with_skel [(1, 2), (2, 3), (1, 4), (4, 5)])
+                (DeriveTest.with_skel [(1, 2), (2, 3), (1, 4), (4, 5)]) ""
     let tracks arp =
             [ (">", [(10, 0, arp)])
             , (">", [(10, 10, "")])

@@ -25,7 +25,7 @@ test_compile = do
             . Score.event_controls)
         pitches = map DeriveTest.e_nns
 
-    let derive track = DeriveTest.extract id $ DeriveTest.derive_tracks
+    let derive track = DeriveTest.extract id $ DeriveTest.derive_tracks ""
             [ ("tempo", [(0, 0, "2")])
             , track
             , (">i1", [(0, 1, ""), (1, 1, ""), (2, 1, "")])
@@ -59,8 +59,8 @@ test_compile = do
 
 test_extract_orphans = do
     let extract = fst . DeriveTest.extract Score.event_start
-    let run = extract
-            . DeriveTest.derive_tracks_with_ui with_calls DeriveTest.with_linear
+    let run = extract . DeriveTest.derive_tracks_with_ui with_calls
+            DeriveTest.with_linear ""
         with_calls = CallTest.with_note_generator "show" show_subs
     -- uncovered events are still played
     equal (run
@@ -88,7 +88,7 @@ test_extract_orphans = do
         [0, 1, 2]
     where
     show_subs :: Derive.Generator Derive.Note
-    show_subs = Derive.make_call "show" mempty "doc" $
+    show_subs = Derive.make_call "test" "show" mempty "doc" $
         Sig.call0 $ \_ -> do
             -- let subs = Derive.info_sub_tracks (Derive.passed_info args)
             -- Log.warn $ show (Slice_test.extract_tree subs)
@@ -96,7 +96,7 @@ test_extract_orphans = do
 
 test_record_empty_tracks = do
     -- Ensure that TrackWarps and TrackDynamics are collected for empty tracks.
-    let run = DeriveTest.derive_tracks_linear
+    let run = DeriveTest.derive_tracks_linear ""
         track_warps = concatMap (Set.toList . TrackWarp.tw_tracks)
             . Derive.r_track_warps
         track_dyn = Map.keys . (\(Derive.TrackDynamic d) -> d)
@@ -110,7 +110,7 @@ test_record_empty_tracks = do
 test_two_level_orphans = do
     -- Orphan extraction should be recursive, in case there are multiple
     -- intervening empty tracks.
-    let run = DeriveTest.extract extract . DeriveTest.derive_tracks_linear
+    let run = DeriveTest.extract extract . DeriveTest.derive_tracks_linear ""
         extract e = (DeriveTest.e_note e, DeriveTest.e_attributes e)
     equal (run
         [ (">i", [(0, 1, "+a")])
@@ -125,7 +125,7 @@ test_two_level_orphans = do
 test_empty_parent_track = do
     -- Ensure orphan tracks pick the instrument up from the parent.
     -- Well, the absentee parent, since they're orphans.
-    let run = DeriveTest.extract extract . DeriveTest.derive_tracks_linear
+    let run = DeriveTest.extract extract . DeriveTest.derive_tracks_linear ""
         extract e = (Score.event_start e, DeriveTest.e_inst e)
     equal (run [(">i1", [(0, 1, "t")]), (">", [(0, 1, "")])]) ([(0, "i1")], [])
     equal (run [(">i1", []), (">", [(0, 1, "")])]) ([(0, "i1")], [])

@@ -60,17 +60,21 @@ derive_block block_id = do
 derive :: Cmd.M m => Derive.NoteDeriver -> m Derive.Result
 derive deriver = do
     config <- State.config#State.lilypond <#> State.get
-    state <- (State.config#State.default_#State.tempo #= 1) <$> State.get
-    scopes <- Cmd.gets (Cmd.state_global_scopes . Cmd.state_config)
-    constant <- PlayUtil.make_constant state mempty mempty
-    return $ Derive.extract_result $ Derive.derive
-        (constant { Derive.state_lilypond = Just config })
-        (lilypond_scope scopes) PlayUtil.initial_environ deriver
+    constant <- PlayUtil.get_constant mempty mempty
+    return $ Derive.extract_result $ Derive.derive (tweak config constant)
+        PlayUtil.initial_environ (Derive.with_scopes lilypond_scope deriver)
+    where
+    tweak config constant = constant
+        { Derive.state_lilypond = Just config
+        , Derive.state_ui = State.config#State.default_#State.tempo #= 1 $
+            Derive.state_ui constant
+        }
 
+-- | Override a few calls with lilypond versions.
 lilypond_scope :: Derive.Scopes -> Derive.Scopes
 lilypond_scope = Derive.s_generator#Derive.s_note#Derive.s_override %= (lookup:)
     where
-    lookup = Derive.map_lookup $ Derive.make_calls
+    lookup = Derive.LookupMap $ Map.fromList
         [ ("", note), ("n", note)
         , ("(", Articulation.c_ly_slur)
         , ("^(", Articulation.c_ly_slur_up)

@@ -77,41 +77,37 @@ clear_all_caches = Cmd.modify_play_state $ \st -> st
     }
 
 -- | Derive the contents of the given block to score events.
-derive :: (Cmd.M m) => Derive.Cache -> Derive.ScoreDamage -> BlockId
+derive :: Cmd.M m => Derive.Cache -> Derive.ScoreDamage -> BlockId
     -> m Derive.Result
 derive cache damage block_id = do
     global_transform <- State.config#State.global_transform <#> State.get
     Derive.extract_result <$> run cache damage
         (Call.Block.eval_root_block global_transform block_id)
 
-run :: (Cmd.M m) => Derive.Cache -> Derive.ScoreDamage
+run :: Cmd.M m => Derive.Cache -> Derive.ScoreDamage
     -> Derive.Deriver a -> m (Derive.RunResult a)
 run cache damage deriver = do
-    ui_state <- State.get
-    scopes <- Cmd.gets (Cmd.state_global_scopes . Cmd.state_config)
-    constant <- make_constant ui_state cache damage
-    return $ Derive.derive constant scopes initial_environ deriver
-
-make_constant :: (Cmd.M m) => State.State -> Derive.Cache -> Derive.ScoreDamage
-    -> m Derive.Constant
-make_constant ui_state cache damage = do
-    lookup_scale <- Cmd.get_lookup_scale
-    lookup_inst <- get_lookup_inst
-    return $ Derive.initial_constant
-        ui_state lookup_scale lookup_inst cache damage
+    constant <- get_constant cache damage
+    return $ Derive.derive constant initial_environ deriver
 
 -- | Run a derivation when you already know the Dynamic.  This is the case when
 -- deriving at a certain point in the score via the TrackDynamic.
-run_with_dynamic :: (Cmd.M m) => Derive.Dynamic -> Derive.Deriver a
+run_with_dynamic :: Cmd.M m => Derive.Dynamic -> Derive.Deriver a
     -> m (Derive.RunResult a)
 run_with_dynamic dynamic deriver = do
+    constant <- get_constant mempty mempty
+    let state = Derive.State dynamic mempty constant
+    return $ Derive.run state deriver
+
+get_constant :: Cmd.M m => Derive.Cache -> Derive.ScoreDamage
+    -> m Derive.Constant
+get_constant cache damage = do
     ui_state <- State.get
     lookup_scale <- Cmd.get_lookup_scale
     lookup_inst <- get_lookup_inst
-    let constant = Derive.initial_constant ui_state lookup_scale lookup_inst
-            mempty mempty
-    let state = Derive.State dynamic mempty constant
-    return $ Derive.run state deriver
+    library <- Cmd.gets $ Cmd.state_library . Cmd.state_config
+    return $ Derive.initial_constant
+        ui_state library lookup_scale lookup_inst cache damage
 
 get_lookup_inst :: Cmd.M m => m (Score.Instrument -> Maybe Derive.Instrument)
 get_lookup_inst = (fmap Cmd.derive_instrument .) <$> Cmd.get_lookup_instrument

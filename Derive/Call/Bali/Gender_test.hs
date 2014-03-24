@@ -14,7 +14,7 @@ test_tick = do
     let extract = DeriveTest.extract $ \e ->
             (Score.event_start e, Score.event_duration e,
                 DeriveTest.e_pitch e, Score.initial_dynamic e)
-    let run = extract . DeriveTest.derive_tracks_linear
+    let run = extract . DeriveTest.derive_tracks_linear "import bali.gender"
     let dyn = Derive.default_dynamic
         c_to_e evt1 evt2 =
             [ (">", [(0, 1, evt1), (2, 1, evt2)])
@@ -73,7 +73,8 @@ test_tick = do
         ([(0, 1, "4c", dyn), (1.5, 1, "4f", dyn), (2, 1, "4e", dyn)], [])
 
 test_tick_damp = do
-    let run notes pitches = extract $ DeriveTest.derive_tracks
+    let run notes pitches = extract $
+            DeriveTest.derive_tracks "import bali.gender"
             [("> | realize-damp", notes), ("*", pitches)]
         extract = DeriveTest.extract DeriveTest.e_note
     equal (run [(0, 1, ""), (1, 1, "' .1 .5")] [(0, 0, "4c"), (1, 0, "4e")])

@@ -416,8 +416,8 @@ data Config = Config {
     -- 'State.State', which may override the one here.
     , state_wdev_map :: !(Map.Map Midi.WriteDevice Midi.WriteDevice)
     , state_instrument_db :: !InstrumentDb
-    -- | Global namespace for deriver.
-    , state_global_scopes :: !Derive.Scopes
+    -- | Library of calls for the deriver.
+    , state_library :: !Derive.Library
     -- | Turn 'Pitch.ScaleId's into 'Scale.Scale's.
     , state_lookup_scale :: !LookupScale
     } deriving (Show, Generics.Typeable)

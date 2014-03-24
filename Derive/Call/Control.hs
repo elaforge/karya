@@ -12,11 +12,13 @@ import qualified Util.Seq as Seq
 
 import qualified Derive.Args as Args
 import qualified Derive.Call.Equal as Equal
+import qualified Derive.Call.Module as Module
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Call.Util as Util
 import qualified Derive.Controls as Controls
 import qualified Derive.Derive as Derive
 import qualified Derive.Environ as Environ
+import qualified Derive.LEvent as LEvent
 import qualified Derive.Parse as Parse
 import qualified Derive.Score as Score
 import qualified Derive.Sig as Sig
@@ -27,40 +29,6 @@ import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
 import Types
 
-
--- | This is a special lookup for control tracks that lets you directly type
--- a number, and have that be interpreted as setting the control to that value.
--- In addition, it allows a special hex syntax
---
--- Formerly, control tracks used a slightly different parser to enable the same
--- thing, but that turned out to be awkward when I wanted to implement
--- 'Call.eval_event'.
-lookup_number :: Derive.LookupCall (Derive.Generator Derive.Control)
-lookup_number = Derive.pattern_lookup "numbers and hex" doc $
-    \(TrackLang.Symbol sym) -> return $! case Parse.parse_num sym of
-        Left _ -> Nothing
-        Right val -> Just $ set val
-    where
-    set :: Signal.Y -> Derive.Generator Derive.Control
-    set val = Derive.generator1 "self-eval" Tags.prelude
-        "Emit a sample with no interpolation. This accepts either decimal\
-        \ numbers or hex numbers that look like `\\`0x\\`xx`.  The hex\
-        \ is divided by 255, so they represent a number between 0 and 1.\n\
-        \ Setting a control called `<controlname>-rnd` will cause the set value\
-        \ to be randomized by the given number." $
-        Sig.call0 $ \args -> do
-            pos <- Args.real_start args
-            maybe_cname <- Derive.lookup_val Environ.control
-            rnd <- case maybe_cname of
-                Nothing -> return 0
-                Just cname -> do
-                    rnd_max <- fromMaybe 0 <$> Derive.untyped_control_at
-                        (Score.control $ cname <> "-rnd") pos
-                    Util.random_in 0 rnd_max
-            return $! Signal.signal [(pos, val + rnd)]
-    doc = Derive.extract_doc (set 0)
-
--- * call map
 
 control_calls :: Derive.CallMaps Derive.Control
 control_calls = Derive.call_maps
@@ -88,15 +56,48 @@ control_calls = Derive.call_maps
     , ("h", c_pedal)
     ]
     [("=", Equal.c_equal)]
+    <> Derive.CallMaps [lookup_number] []
 
 -- | This should contain the calls that require the previous value.  It's used
--- by a hack in 'Derive.Slice.slice'.
+-- by a hack in 'Derive.Slice.slice'.  TODO this is terrible, fix it.
 require_previous :: Set.Set Text
 require_previous = Set.fromList
     ["'", "i>", "i>>", "i<<", "e>", "e>>", "e<<", "u", "d"]
 
+-- | This is a special lookup for control tracks that lets you directly type
+-- a number, and have that be interpreted as setting the control to that value.
+-- In addition, it allows a special hex syntax
+--
+-- Formerly, control tracks used a slightly different parser to enable the same
+-- thing, but that turned out to be awkward when I wanted to implement
+-- 'Call.eval_event'.
+lookup_number :: Derive.LookupCall (Derive.Generator Derive.Control)
+lookup_number = Derive.LookupPattern "numbers and hex" doc $
+    \(TrackLang.Symbol sym) -> return $! case Parse.parse_num sym of
+        Left _ -> Nothing
+        Right val -> Just $ set val
+    where
+    set :: Signal.Y -> Derive.Generator Derive.Control
+    set val = generator1 "self-eval" mempty
+        "Emit a sample with no interpolation. This accepts either decimal\
+        \ numbers or hex numbers that look like `\\`0x\\`xx`.  The hex\
+        \ is divided by 255, so they represent a number between 0 and 1.\n\
+        \ Setting a control called `<controlname>-rnd` will cause the set value\
+        \ to be randomized by the given number." $
+        Sig.call0 $ \args -> do
+            pos <- Args.real_start args
+            maybe_cname <- Derive.lookup_val Environ.control
+            rnd <- case maybe_cname of
+                Nothing -> return 0
+                Just cname -> do
+                    rnd_max <- fromMaybe 0 <$> Derive.untyped_control_at
+                        (Score.control $ cname <> "-rnd") pos
+                    Util.random_in 0 rnd_max
+            return $! Signal.signal [(pos, val + rnd)]
+    doc = Derive.extract_doc (set 0)
+
 c_set :: Derive.Generator Derive.Control
-c_set = Derive.generator1 "set" Tags.prelude
+c_set = generator1 "set" mempty
     "Emit a sample with no interpolation." $
     Sig.call (required "val" "Destination value.") $ \val args -> do
         pos <- Args.real_start args
@@ -106,7 +107,7 @@ c_set = Derive.generator1 "set" Tags.prelude
 -- also automatically set by the control track deriver for the hack described
 -- in 'Perform.Signal.integrate'.
 c_set_prev :: Derive.Generator Derive.Control
-c_set_prev = Derive.generator "set-prev" (Tags.prelude <> Tags.prev)
+c_set_prev = Derive.generator Module.prelude "set-prev" Tags.prev
     ("Re-set the previous value.  This can be used to extend a breakpoint,\
     \ and is also automatically set by the control track deriver for\
     \ the hack described in 'Perform.Signal.integrate'."
@@ -125,7 +126,7 @@ linear_interpolation :: (TrackLang.Typecheck time) =>
     -- ^ function from the time arg to the desired duration
     -> Derive.Generator Derive.Control
 linear_interpolation name tags time_default time_default_doc get_time =
-    Derive.generator1 name (Tags.prelude <> tags) doc $ Sig.call ((,)
+    generator1 name tags doc $ Sig.call ((,)
     <$> required "val" "Destination value."
     <*> defaulted "time" time_default time_doc
     ) $ \(val, time) args ->
@@ -176,7 +177,7 @@ exponential_interpolation :: (TrackLang.Typecheck time) =>
     -> (Derive.ControlArgs -> time -> Derive.Deriver TrackLang.Duration)
     -> Derive.Generator Derive.Control
 exponential_interpolation name tags time_default time_default_doc get_time =
-    Derive.generator1 name (Tags.prelude <> tags) doc $ Sig.call ((,,)
+    generator1 name tags doc $ Sig.call ((,,)
     <$> required "val" "Destination value."
     <*> defaulted "exp" 2 exp_doc
     <*> defaulted "time" time_default time_doc
@@ -215,7 +216,7 @@ c_exp_next_const = exponential_interpolation "exp-next-const" mempty
 -- * misc
 
 c_neighbor :: Derive.Generator Derive.Control
-c_neighbor = Derive.generator1 "neighbor" Tags.prelude
+c_neighbor = generator1 "neighbor" mempty
     ("Emit a slide from a value to 0 in absolute time. This is the control\
     \ equivalent of the neighbor pitch call."
     ) $ Sig.call ((,)
@@ -227,14 +228,14 @@ c_neighbor = Derive.generator1 "neighbor" Tags.prelude
         return $! interpolator srate id True start neighbor end 0
 
 c_down :: Derive.Generator Derive.Control
-c_down = Derive.generator1 "down" (Tags.prelude <> Tags.prev)
+c_down = generator1 "down" Tags.prev
     "Descend at the given speed until the value reaches 0 or the next event."
     $ Sig.call (defaulted "speed" 1 "Descend this amount per second.") $
     \speed args -> slope args $ \start next prev_y ->
         slope_down speed start next prev_y
 
 c_up :: Derive.Generator Derive.Control
-c_up = Derive.generator1 "up" (Tags.prelude <> Tags.prev)
+c_up = generator1 "up" Tags.prev
     "Ascend at the given speed until the value reaches 1 or the next event."
     $ Sig.call (defaulted "speed" 1 "Ascend this amount per second.") $
     \speed args -> slope args $ \start next prev_y ->
@@ -262,7 +263,7 @@ slope args f = Args.prev_val args >>= \x -> case x of
         return $ interpolator srate id True start prev_y end dest
 
 c_sd :: Derive.Generator Derive.Control
-c_sd = Derive.generator1 "sd" Tags.prelude
+c_sd = generator1 "sd" mempty
     "A combination of `set` and `down`: set to the given value, and descend."
     $ Sig.call ((,)
     <$> defaulted "val" 1 "Start at this value."
@@ -274,7 +275,7 @@ c_sd = Derive.generator1 "sd" Tags.prelude
         return $ interpolator srate id True x1 val end dest
 
 c_pedal :: Derive.Generator Derive.Control
-c_pedal = Derive.generator1 "pedal" mempty
+c_pedal = generator1 "pedal" mempty
     ("Unlike most control events, this uses a duration. Set the control to\
     \ the given value for the event's duration, and reset to the old\
     \ value afterwards."
@@ -372,3 +373,7 @@ make_signal :: (Double -> Double) -> RealTime -> Signal.Y -> RealTime
 make_signal f x1 y1 x2 y2 = do
     srate <- Util.get_srate
     return $ interpolator srate f True x1 y1 x2 y2
+
+generator1 :: Functor m => Text -> Tags.Tags -> Text
+    -> Derive.WithArgDoc (a -> m d) -> Derive.Call (a -> m [LEvent.LEvent d])
+generator1 = Derive.generator1 Module.prelude

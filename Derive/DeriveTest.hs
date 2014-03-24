@@ -91,7 +91,7 @@ run_ ui_state m = case Derive.run derive_state m of
         (Left err, _, _logs) -> Left (pretty err)
         (Right val, state, logs) -> Right (val, state, logs)
     where
-    derive_state = Derive.initial_state default_scopes
+    derive_state = Derive.initial_state
         default_environ (default_constant ui_state mempty mempty)
 
 extract_run :: (a -> b) -> Either String (a, Derive.State, [Log.Msg])
@@ -109,7 +109,7 @@ run_events f = extract_run $
 default_constant :: State.State -> Derive.Cache -> Derive.ScoreDamage
     -> Derive.Constant
 default_constant ui_state cache damage = Derive.initial_constant ui_state
-    default_lookup_scale (const Nothing) cache damage
+    default_library default_lookup_scale (const Nothing) cache damage
 
 eval :: State.State -> Derive.Deriver a -> Either String a
 eval ui_state m = extract_run id (run ui_state m)
@@ -156,10 +156,10 @@ perform_inst synths config =
 
 type Transform a = Derive.Deriver a -> Derive.Deriver a
 
-derive_tracks :: [UiTest.TrackSpec] -> Derive.Result
+derive_tracks :: String -> [UiTest.TrackSpec] -> Derive.Result
 derive_tracks = derive_tracks_with id
 
-derive_tracks_with :: Transform Derive.Events -> [UiTest.TrackSpec]
+derive_tracks_with :: Transform Derive.Events -> String -> [UiTest.TrackSpec]
     -> Derive.Result
 derive_tracks_with with = derive_tracks_with_ui with id
 
@@ -167,10 +167,10 @@ derive_tracks_with with = derive_tracks_with_ui with id
 -- Technically I could modify Derive.State's state_ui, but that's not supposed
 -- to be modified, and it's too late for e.g. the initial environ anyway.
 derive_tracks_with_ui :: Transform Derive.Events -> (State.State -> State.State)
-    -> [UiTest.TrackSpec] -> Derive.Result
-derive_tracks_with_ui with transform_ui tracks =
+    -> String -> [UiTest.TrackSpec] -> Derive.Result
+derive_tracks_with_ui with transform_ui title tracks =
     derive_blocks_with_ui with transform_ui
-        [(UiTest.default_block_name, tracks)]
+        [(UiTest.default_block_name <> " -- " <> title, tracks)]
 
 -- ** derive block variations
 
@@ -210,7 +210,7 @@ derive_block_with_m with create =
 
 -- | Derive tracks but with a linear skeleton.  Good for testing note
 -- transformers since the default skeleton parsing won't create those.
-derive_tracks_linear :: [UiTest.TrackSpec] -> Derive.Result
+derive_tracks_linear :: String -> [UiTest.TrackSpec] -> Derive.Result
 derive_tracks_linear = derive_tracks_with_ui id with_linear
 
 -- | Derive a block in the same way that the app does.
@@ -247,7 +247,7 @@ perform_dump synths (_, midi, aliases, _) =
 
 derive :: State.State -> Derive.NoteDeriver -> Derive.Result
 derive ui_state deriver = Derive.extract_result $
-    Derive.derive (default_constant ui_state mempty mempty) default_scopes
+    Derive.derive (default_constant ui_state mempty mempty)
         default_environ deriver
 
 -- | Config to initialize the Cmd.State, without the instrument db.
@@ -258,7 +258,7 @@ cmd_config inst_db = Cmd.Config
     , Cmd.state_rdev_map = mempty
     , Cmd.state_wdev_map = mempty
     , Cmd.state_instrument_db = inst_db
-    , Cmd.state_global_scopes = Call.All.scopes
+    , Cmd.state_library = Call.All.library
     , Cmd.state_lookup_scale = Cmd.LookupScale $
         \scale_id -> Map.lookup scale_id Scale.All.scales
     }
@@ -332,8 +332,8 @@ set_default_midi_config = State.config#State.midi #= default_midi_config
 default_lookup_scale :: Derive.LookupScale
 default_lookup_scale scale_id = Map.lookup scale_id Scale.All.scales
 
-default_scopes :: Derive.Scopes
-default_scopes = Call.All.scopes
+default_library :: Derive.Library
+default_library = Call.All.library
 
 default_environ :: TrackLang.Environ
 default_environ = TrackLang.make_environ

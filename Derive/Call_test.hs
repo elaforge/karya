@@ -20,6 +20,7 @@ import qualified Derive.Args as Args
 import qualified Derive.Attrs as Attrs
 import qualified Derive.Call as Call
 import qualified Derive.Call.CallTest as CallTest
+import qualified Derive.Call.Module as Module
 import qualified Derive.Call.Sub as Sub
 import qualified Derive.Call.Util as Util
 import qualified Derive.Controls as Controls
@@ -39,7 +40,7 @@ import qualified App.MidiInst as MidiInst
 
 
 test_assign_controls = do
-    let run inst_title cont_title val = extract $ DeriveTest.derive_tracks
+    let run inst_title cont_title val = extract $ DeriveTest.derive_tracks ""
             [ (cont_title, [(0, 0, val)])
             , ("*twelve", [(0, 0, "4c")])
             , (inst_title, [(0, 1, "")])
@@ -74,7 +75,7 @@ test_assign_controls = do
 
 test_environ_across_tracks = do
     let run tracks = DeriveTest.extract (DeriveTest.e_control "cont") $
-            DeriveTest.derive_tracks ((">", [(0, 10, "")]) : tracks)
+            DeriveTest.derive_tracks "" ((">", [(0, 10, "")]) : tracks)
 
     -- first make sure srate works as I expect
     let interpolated = [(0, 0), (1, 0.25), (2, 0.5), (3, 0.75), (4, 1)]
@@ -91,7 +92,7 @@ test_environ_across_tracks = do
         ([interpolated], [])
 
 test_call_errors = do
-    let derive = extract . DeriveTest.derive_tracks_with with_trans
+    let derive = extract . DeriveTest.derive_tracks_with with_trans ""
         with_trans = CallTest.with_note_transformer "test-t" trans
         extract r = case DeriveTest.extract DeriveTest.e_event r of
             (val, []) -> Right val
@@ -108,13 +109,13 @@ test_call_errors = do
 
     let run_evt evt = derive [(">i", [(0, 1, evt)])]
     left_like (run_evt "no-such-call") "note generator not found: no-such-call"
-    let tr_result = extract $ DeriveTest.derive_tracks
+    let tr_result = extract $ DeriveTest.derive_tracks ""
             [(">", [(0, 4, "")]), ("*twelve", [(0, 0, "tr")])]
     left_like tr_result "ArgError: expected another argument"
     equal (run_evt "test-t 2 | test-t 1 |")
         (Right [(0, 1, "test-t 2 | test-t 1 |")])
     where
-    trans = Derive.transformer "trans" mempty "doc" $ Sig.callt
+    trans = Derive.transformer module_ "trans" mempty "doc" $ Sig.callt
         (Sig.defaulted "arg1" (Sig.required_control "test") "doc") $
         \c _args deriver -> do
             Util.control_at c 0
@@ -122,7 +123,7 @@ test_call_errors = do
 
 test_val_call = do
     let extract = DeriveTest.extract (DeriveTest.e_control "cont")
-    let run evt = extract $ DeriveTest.derive_tracks_with with_add1
+    let run evt = extract $ DeriveTest.derive_tracks_with with_add1 ""
             [(">", [(0, 1, "")]), ("cont", [(0, 0, evt)])]
         with_add1 = CallTest.with_val_call "add1" add_one
     equal (run "foobar")
@@ -135,14 +136,14 @@ test_val_call = do
     strings_like logs ["too many arguments"]
     where
     add_one :: Derive.ValCall
-    add_one = Derive.val_call "add" mempty "doc" $ Sig.call
+    add_one = Derive.val_call module_ "add" mempty "doc" $ Sig.call
         (Sig.required "v" "doc") $
         \val _ -> return (val + 1 :: Double)
 
 test_inst_call = do
     let extract = DeriveTest.extract (Score.attrs_list . Score.event_attributes)
     let run inst = extract $ DeriveTest.derive_tracks_with
-            (set_lookup_inst lookup_inst)
+            (set_lookup_inst lookup_inst) ""
             [(inst, [(0, 1, "sn")])]
     equal (run ">s/1") ([], ["Error: note generator not found: sn"])
     equal (run ">s/with-call")
@@ -150,19 +151,19 @@ test_inst_call = do
 
 test_recursive_call = do
     let extract = DeriveTest.extract DeriveTest.e_event
-    let result = extract $ DeriveTest.derive_tracks_with with_recur
+    let result = extract $ DeriveTest.derive_tracks_with with_recur ""
             [(">", [(0, 1, "recur")])]
         with_recur = CallTest.with_note_generator "recur" recursive
     equal result ([], ["Error: call stack too deep: recursive"])
     where
     recursive :: Derive.Generator Derive.Note
-    recursive = Derive.make_call "recursive" mempty "doc" $ Sig.call0 $
+    recursive = Derive.make_call module_ "recursive" mempty "doc" $ Sig.call0 $
         \args -> Call.reapply_call args "recur" []
 
 test_events_around = do
     -- Ensure sliced inverting notes still have access to prev and next events
     -- via the tevents_around hackery.
-    let logs = extract $ DeriveTest.derive_tracks_with with_call
+    let logs = extract $ DeriveTest.derive_tracks_with with_call ""
             [ (">", [(0, 1, ""), (1, 1, "around"), (2, 1, "")])
             , ("*twelve", [(0, 0, "4c"), (2, 0, "4d")])
             ]
@@ -171,7 +172,7 @@ test_events_around = do
     equal logs ["prev: [0.0]", "next: [2.0]"]
 
     where
-    c_around = Derive.make_call "around" mempty "doc" $ Sig.call0 $
+    c_around = Derive.make_call module_ "around" mempty "doc" $ Sig.call0 $
         Sub.inverting $ \args -> do
             Log.warn $ "prev: "
                 ++ show (map Event.start (Args.prev_events args))
@@ -182,7 +183,7 @@ test_events_around = do
 test_inverting_around = do
     -- Ensure calls that want to look at the next pitch work, with the help of
     -- events around and inverting_around.
-    let (evts, logs) = extract $ DeriveTest.derive_tracks_with with_call
+    let (evts, logs) = extract $ DeriveTest.derive_tracks_with with_call ""
             [ (">", [(0, 1, ""), (1, 1, "next"), (2, 1, "")])
             , ("*twelve", [(0, 0, "4c"), (2, 0, "4d")])
             ]
@@ -191,7 +192,7 @@ test_inverting_around = do
     equal evts [(0, 1, "4c"), (1, 1, "4d"), (2, 1, "4d")]
     equal logs []
     where
-    c_next = Derive.make_call "next" mempty "doc" $ Sig.call0 $
+    c_next = Derive.make_call module_ "next" mempty "doc" $ Sig.call0 $
         Sub.inverting_around (2, 2) $ \args -> do
             next <- Derive.require "next event" $ Args.next_start args
             next_pitch <- Derive.require "next pitch"
@@ -221,7 +222,7 @@ test_track_dynamic = do
         , (UiTest.bid "sub", UiTest.mk_tid_name "sub" 2, scale, inst)
         ]
 
-    let res = DeriveTest.derive_tracks
+    let res = DeriveTest.derive_tracks ""
             [ (">", [(0, 1, ""), (1, 1, ""), (2, 1, "")])
             , ("dyn", [(0, 1, ".25"), (1, 0, ".5"), (2, 0, ".75")])
             , ("dyn", [(0, 1, ".25"), (1, 0, ".5"), (2, 0, ".75")])
@@ -240,7 +241,7 @@ test_track_dynamic = do
 test_track_dynamic_invert = do
     -- Ensure the correct TrackDynamic is collected even in the presence of
     -- inversion.
-    let run = extract . DeriveTest.derive_tracks
+    let run = extract . DeriveTest.derive_tracks ""
         extract = Map.toList . Map.map (e_env . Derive.state_environ)
             . (\(Derive.TrackDynamic d) -> d) . Derive.r_track_dynamic
         e_env e = (lookup Environ.instrument e, lookup Environ.scale e)
@@ -253,7 +254,7 @@ test_track_dynamic_invert = do
 
 test_reapply_gen = do
     let run = DeriveTest.extract DeriveTest.e_attributes .
-            DeriveTest.derive_tracks_with with
+            DeriveTest.derive_tracks_with with ""
         dyn = ("dyn", [(0, 0, "1")])
     equal (run [(">", [(0, 0, "a")]), dyn]) (["+a"], [])
     -- If Call.reapply_gen isn't replacing the info_expr, the inversion will
@@ -293,3 +294,6 @@ set_lookup_inst lookup_inst deriver = do
             { Derive.state_lookup_instrument = lookup_inst }
         }
     deriver
+
+module_ :: Module.Module
+module_ = "test-module"

@@ -6,6 +6,7 @@ module Derive.Call.Post.Reverse where
 import Util.Control
 import qualified Util.Seq as Seq
 import qualified Derive.Args as Args
+import qualified Derive.Call.Module as Module
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Derive as Derive
 import qualified Derive.LEvent as LEvent
@@ -24,7 +25,8 @@ note_calls = Derive.call_maps []
 -- * reverse
 
 c_reverse :: Derive.Transformer Derive.Note
-c_reverse = Derive.transformer "reverse" Tags.postproc "Reverse the events." $
+c_reverse = Derive.transformer Module.prelude "reverse" Tags.postproc
+    "Reverse the events." $
     Sig.call0t $ \args deriver -> do
         start <- Args.real_start args
         (events, logs) <- LEvent.partition <$> deriver

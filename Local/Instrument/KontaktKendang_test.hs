@@ -43,7 +43,7 @@ test_pasang_calls = do
 
 derive :: [UiTest.TrackSpec] -> Derive.Result
 derive = DeriveTest.derive_tracks_with
-    (DeriveTest.with_inst_db_aliases aliases Kontakt.synth_descs)
+    (DeriveTest.with_inst_db_aliases aliases Kontakt.synth_descs) ""
     where aliases = [("w", "kontakt/kendang"), ("l", "kontakt/kendang")]
 
 inst_title :: String

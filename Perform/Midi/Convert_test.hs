@@ -105,7 +105,7 @@ show_logs extract =
 -- * patch scale
 
 test_patch_scale = do
-    let res = DeriveTest.derive_tracks
+    let res = DeriveTest.derive_tracks ""
             [ (">s/inst", [(0, 1, ""), (1, 1, ""), (2, 1, "")])
             , ("*", [(0, 0, "4c"), (1, 0, "4c#"), (2, 0, "4d")])
             ]
@@ -155,8 +155,8 @@ perform (set_patch, code) alloc tracks =
     DeriveTest.perform_inst synth alloc (Derive.r_events result)
     where
     synth = mksynth code set_patch
-    result = DeriveTest.derive_tracks_with
-        (DeriveTest.with_inst_db synth) tracks
+    result = DeriveTest.derive_tracks_with (DeriveTest.with_inst_db synth) ""
+        tracks
 
 mksynth :: MidiInst.Code -> (Instrument.Patch -> Instrument.Patch)
     -> [MidiInst.SynthDesc]

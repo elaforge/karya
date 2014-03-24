@@ -26,6 +26,7 @@ import qualified Derive.Attrs as Attrs
 import qualified Derive.Call.Articulation as Articulation
 import qualified Derive.Call.Bali.Kotekan as Kotekan
 import qualified Derive.Call.Make as Make
+import qualified Derive.Call.Module as Module
 import qualified Derive.Call.Util as Util
 import qualified Derive.Controls as Controls
 import qualified Derive.Environ as Environ
@@ -158,7 +159,7 @@ hang_patches = MidiInst.with_code hang_code
 hang_code :: MidiInst.Code
 hang_code =
     MidiInst.note_calls
-        [ MidiInst.both call (Make.attributed_note attrs)
+        [ MidiInst.both call (Make.attributed_note Module.instrument attrs)
         | (attrs, _, Just call, _) <- hang_strokes
         -- Make sure to not shadow the default "" call.
         , call /= ""

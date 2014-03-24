@@ -17,7 +17,7 @@ import qualified Perform.Pitch as Pitch
 
 
 test_note_to_call = do
-    let run ps = DeriveTest.extract extract $ DeriveTest.derive_tracks
+    let run ps = DeriveTest.extract extract $ DeriveTest.derive_tracks ""
             [ ("*bp", [(t, 0, p) | (t, p) <- times ps])
             , (">", [(t, 1, "") | (t, _) <- times ps])
             ]

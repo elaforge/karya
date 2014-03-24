@@ -19,7 +19,7 @@ test_interpolated_transpose = do
     -- after transposition.
     let scale = DeriveTest.mkscale "test" [("A", 1), ("B", 3), ("C", 4)]
     let run title = extract $ DeriveTest.derive_tracks_with
-            (DeriveTest.with_scale scale)
+            (DeriveTest.with_scale scale) ""
             [ (title, [(0, 5, "")])
             , ("*test", [(0, 0, "A"), (4, 0, "i (B)")])
             ]
@@ -41,18 +41,18 @@ test_transpose_out_of_range = do
         "note can't be transposed"
 
 run_with_title with inst_title pitch_title pitches = extract $
-    DeriveTest.derive_tracks_with with
+    DeriveTest.derive_tracks_with with ""
         [ (inst_title, [(0, 5, "")])
         , ('*' : pitch_title, [(x, 0, n) | (x, n) <- pitches])
         ]
     where extract = head . DeriveTest.extract_events DeriveTest.e_nns
 
 test_neighbor = do
-    equal (CallTest.run_pitch [(0, "n (4c) 1 2")])
+    equal (CallTest.run_pitch "" [(0, "n (4c) 1 2")])
         [(0, 61), (1, 60.5), (2, 60)]
     -- Both chromatic and diatonic literals.
-    equal (CallTest.run_pitch [(0, "n (4c) 1c 1")]) [(0, 61), (1, 60)]
-    equal (CallTest.run_pitch [(0, "n (4c) 1d 1")]) [(0, 62), (1, 60)]
+    equal (CallTest.run_pitch "" [(0, "n (4c) 1c 1")]) [(0, 61), (1, 60)]
+    equal (CallTest.run_pitch "" [(0, "n (4c) 1d 1")]) [(0, 62), (1, 60)]
 
     -- It defaults to RealTime.
     equal (run_tempo 2 [(0, "n (4c) 1d 1")]) [(0, 62), (1, 60)]
@@ -60,11 +60,11 @@ test_neighbor = do
     equal (run_tempo 2 [(0, "n (4c) 1d 1t")]) [(0, 62), (0.5, 60)]
 
 test_approach = do
-    equal (CallTest.run_pitch [(0, "4c"), (10, "a 2s"), (20, "4d")])
+    equal (CallTest.run_pitch "" [(0, "4c"), (10, "a 2s"), (20, "4d")])
         [(0, 60), (10, 60), (11, 61), (12, 62), (20, 62)]
 
     let run = DeriveTest.extract DeriveTest.e_nns
-            . DeriveTest.derive_tracks . UiTest.note_spec
+            . DeriveTest.derive_tracks "" . UiTest.note_spec
     equal (run ("", [(0, 10, "4c"), (10, 10, "a 2s"), (20, 10, "4d")], []))
         ([[(0, 60)], [(10, 60), (11, 61), (12, 62)], [(20, 62)]], [])
 
@@ -100,7 +100,7 @@ test_linear_next = do
 
     -- Test with slicing.
     let run2 = DeriveTest.extract_events DeriveTest.e_nns
-            . DeriveTest.derive_tracks . UiTest.note_track
+            . DeriveTest.derive_tracks "" . UiTest.note_track
     equal (run2 [(0, 1, "4c"), (1, 1, "i> (4d)"), (3, 1, "4e")])
         [[(0, 60)], [(1, 60), (2, 61)], [(3, 64)]]
 
@@ -125,7 +125,7 @@ run_tempo tempo pitches = extract $ run_ tempo pitches []
         . DeriveTest.extract_events DeriveTest.e_nns
 
 run_ :: Int -> [(ScoreTime, String)] -> [UiTest.TrackSpec] -> Derive.Result
-run_ tempo pitches tracks = DeriveTest.derive_tracks $
+run_ tempo pitches tracks = DeriveTest.derive_tracks "" $
     [ ("tempo", [(0, 0, show tempo)])
     , (">", [(0, 10, "")])
     , ("*", [(start, 0, text) | (start, text) <- pitches])

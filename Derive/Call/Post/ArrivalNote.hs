@@ -53,6 +53,7 @@ import qualified Data.List as List
 import Util.Control
 import qualified Util.Seq as Seq
 import qualified Derive.Attrs as Attrs
+import qualified Derive.Call.Module as Module
 import qualified Derive.Call.Note as Note
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Derive as Derive
@@ -69,7 +70,7 @@ note_calls :: Derive.CallMaps Derive.Note
 note_calls = Derive.call_maps [] [("arrival-note", c_arrival_note)]
 
 c_arrival_note :: Derive.Transformer Derive.Note
-c_arrival_note = Derive.transformer "arrival-note" Tags.postproc
+c_arrival_note = Derive.transformer Module.prelude "arrival-note" Tags.postproc
     "Postprocess events to replace negative durations with postive ones.\
     \ See 'Derive.Call.Post.ArrivalNote' for details.\
     \\nThis is only needed for events with `+arrival-note` set, which the\

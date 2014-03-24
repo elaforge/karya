@@ -3,11 +3,7 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 -- | Block call and support.
-module Derive.Call.Block (
-    note_calls
-    , eval_root_block, lookup_note_block
-    , lookup_control_block
-) where
+module Derive.Call.Block (eval_root_block, note_calls, control_calls) where
 import qualified Data.Char as Char
 import qualified Data.List.NonEmpty as NonEmpty
 import qualified Data.Map as Map
@@ -24,8 +20,8 @@ import qualified Derive.Args as Args
 import qualified Derive.Cache as Cache
 import qualified Derive.Call as Call
 import qualified Derive.Call.BlockUtil as BlockUtil
+import qualified Derive.Call.Module as Module
 import qualified Derive.Call.Sub as Sub
-import qualified Derive.Call.Tags as Tags
 import qualified Derive.Controls as Controls
 import qualified Derive.Derive as Derive
 import qualified Derive.Deriver.Internal as Internal
@@ -42,16 +38,6 @@ import qualified Perform.Signal as Signal
 import Types
 
 
-note_calls :: Derive.CallMaps Derive.Note
-note_calls = Derive.call_maps
-    [ ("clip", c_clip)
-    , ("Clip", c_clip_start)
-    , ("loop", c_loop)
-    , ("tile", c_tile)
-    , (BlockUtil.capture_null_control, c_capture_null_control)
-    ]
-    []
-
 -- * root block
 
 -- | Evaluate the root block in a performance.  Making this an ordinary call
@@ -64,10 +50,20 @@ eval_root_block global_transform block_id =
     Call.apply_transform "global transform" global_transform $
         Call.eval_one_call $ call_from_block_id block_id
 
--- * note block calls
+-- * note calls
+
+note_calls :: Derive.CallMaps Derive.Note
+note_calls = Derive.generator_call_map
+    [ ("clip", c_clip)
+    , ("Clip", c_clip_start)
+    , ("loop", c_loop)
+    , ("tile", c_tile)
+    , (BlockUtil.capture_null_control, c_capture_null_control)
+    ]
+    <> Derive.CallMaps [lookup_note_block] []
 
 lookup_note_block :: Derive.LookupCall (Derive.Generator Derive.Note)
-lookup_note_block = Derive.pattern_lookup "block name"
+lookup_note_block = Derive.LookupPattern "block name"
     (Derive.extract_doc fake_call)
     (\sym -> fmap c_block <$> symbol_to_block_id sym)
     where
@@ -75,8 +71,8 @@ lookup_note_block = Derive.pattern_lookup "block name"
     fake_call = c_block (Id.BlockId (Id.read_id "example/block"))
 
 c_block :: BlockId -> Derive.Generator Derive.Note
-c_block block_id = Derive.make_call ("block " <> showt block_id) Tags.prelude
-    "Substitute the named block into the score."
+c_block block_id = Derive.make_call Module.prelude ("block " <> showt block_id)
+    mempty "Substitute the named block into the score."
     $ Sig.call0 $ Sub.inverting $ \args ->
         -- I have to put the block on the stack before calling 'd_block'
         -- because 'Cache.block' relies on on the block id already being
@@ -223,8 +219,8 @@ c_tile = make_block_call "tile"
 make_block_call :: Text -> Text
     -> (BlockId -> ScoreTime -> Derive.NoteArgs -> Derive.NoteDeriver)
     -> Derive.Generator Derive.Note
-make_block_call name doc call = Derive.make_call name Tags.prelude doc $
-    Sig.call ((,)
+make_block_call name doc call = Derive.make_call Module.prelude name mempty doc
+    $ Sig.call ((,)
     <$> required "block-id" block_call_doc
     <*> Sig.defaulted "dur" Nothing "If given, the callee will be stretched to\
         \ this duration. Otherwise, it retains its own duration."
@@ -243,10 +239,13 @@ event_before :: RealTime -> LEvent.LEvent Score.Event -> Bool
 event_before t =
     LEvent.either ((< t - RealTime.eta) . Score.event_start) (const True)
 
--- * control call
+-- * control calls
+
+control_calls :: Derive.CallMaps Derive.Control
+control_calls = Derive.CallMaps [lookup_control_block] []
 
 lookup_control_block :: Derive.LookupCall (Derive.Generator Derive.Control)
-lookup_control_block = Derive.pattern_lookup "block id"
+lookup_control_block = Derive.LookupPattern "block id"
     (Derive.extract_doc fake_call)
     (\sym -> fmap c_control_block <$> symbol_to_block_id sym)
     where
@@ -254,8 +253,8 @@ lookup_control_block = Derive.pattern_lookup "block id"
     fake_call = c_control_block (Id.BlockId (Id.read_id "fake/block"))
 
 c_control_block :: BlockId -> Derive.Generator Derive.Control
-c_control_block block_id = Derive.make_call "control-block" Tags.prelude
-    ("Substitute the control signal from the named control block.\
+c_control_block block_id = Derive.make_call Module.prelude "control-block"
+    mempty ("Substitute the control signal from the named control block.\
     \ A control block should consist of a single branch ending in\
     \ a track named `%`.  The signal from that track will be\
     \ substituted."
@@ -277,8 +276,8 @@ d_control_block block_id = Internal.with_stack_block block_id $ do
     deriver
 
 c_capture_null_control :: Derive.Generator Derive.Note
-c_capture_null_control = Derive.generator1
-    (TrackLang.unsym BlockUtil.capture_null_control) Tags.internal
+c_capture_null_control = Derive.generator1 Module.internal
+    (TrackLang.unsym BlockUtil.capture_null_control) mempty
     ("This is an internal call used to capture the control signal at the\
     \ bottom of a control block."
     ) $ Sig.call0 $ \_ -> do

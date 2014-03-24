@@ -16,8 +16,9 @@ test_string = do
     let extract = DeriveTest.extract e_event
         -- 'merge_curve' can't see that pitches are the same, so it can produce
         -- duplicate pitches.
-        e_event e = (Score.event_start e, Seq.drop_dups snd $ DeriveTest.e_nns e)
-    let run p1 p2 p3 = extract $ DeriveTest.derive_tracks_with with_call
+        e_event e = (Score.event_start e,
+            Seq.drop_dups snd $ DeriveTest.e_nns e)
+    let run p1 p2 p3 = extract $ DeriveTest.derive_tracks_with with_call ""
             [ ("> | guzheng 2 2 1", [(0, 5, ""), (5, 5, ""), (10, 5, "")])
             , ("*", [(0, 0, p1), (5, 0, p2), (10, 0, p3)])
             ]

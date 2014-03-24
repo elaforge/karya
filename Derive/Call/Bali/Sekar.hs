@@ -16,6 +16,7 @@ import qualified Data.Text as Text
 import Util.Control
 import qualified Util.Seq as Seq
 import qualified Derive.Args as Args
+import qualified Derive.Call.Module as Module
 import qualified Derive.Call.Sub as Sub
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Derive as Derive
@@ -29,8 +30,11 @@ note_calls = Derive.call_maps
     ]
     []
 
+module_ :: Module.Module
+module_ = "bali" <> "sekar"
+
 c_sekar :: Derive.Generator Derive.Note
-c_sekar = Derive.make_call "sekar" (Tags.inst <> Tags.subs)
+c_sekar = Derive.make_call module_ "sekar" (Tags.inst <> Tags.subs)
     "Plain sekaran derivation." $ Sig.call
     ( required "pattern"
         "Apply this pattern to the encompassed notes. The pattern is\

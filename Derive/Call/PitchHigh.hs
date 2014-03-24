@@ -13,6 +13,7 @@ module Derive.Call.PitchHigh where
 import Util.Control
 import qualified Derive.Args as Args
 import qualified Derive.Call.Control as Control
+import qualified Derive.Call.Module as Module
 import qualified Derive.Call.Pitch as Call.Pitch
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Call.Util as Util
@@ -78,7 +79,7 @@ c_drop_note_start = make_note_fade "Drop"
 make_note_fade :: Text -> Text -> PitchDirection -> Align -> Align
     -> Derive.Transformer Derive.Note
 make_note_fade name doc pitch_dir align align_fade =
-    Derive.transformer name Tags.under_invert doc
+    Derive.transformer Module.prelude name Tags.under_invert doc
     $ Sig.callt fade_args
     $ \(interval, TrackLang.DefaultReal time, mb_fade) args deriver -> do
         let fade = case mb_fade of
@@ -125,7 +126,8 @@ c_lift = make_pitch_fade "lift"
 
 make_pitch_fade :: Text -> Text -> PitchDirection
     -> Derive.Generator Derive.Pitch
-make_pitch_fade name doc pitch_dir = Derive.generator1 name Tags.cmod doc
+make_pitch_fade name doc pitch_dir =
+    Derive.generator1 Module.prelude name Tags.cmod doc
     $ Sig.call fade_args
     $ \(interval, TrackLang.DefaultReal time, mb_fade) args -> do
         let fade = case mb_fade of
@@ -142,7 +144,8 @@ make_pitch_fade name doc pitch_dir = Derive.generator1 name Tags.cmod doc
                 return slide
 
 c_approach_dyn :: Derive.Generator Derive.Pitch
-c_approach_dyn = Derive.generator1 "approach-dyn" (Tags.cmod <> Tags.next)
+c_approach_dyn = Derive.generator1 Module.prelude "approach-dyn"
+    (Tags.cmod <> Tags.next)
     "Like `approach`, slide to the next pitch, but also drop the `dyn`."
     $ Sig.call ((,)
     <$> defaulted "time" (TrackLang.real 0.2)

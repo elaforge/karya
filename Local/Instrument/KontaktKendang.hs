@@ -18,6 +18,7 @@ import qualified Cmd.Instrument.Drums as Drums
 
 import qualified Derive.Attrs as Attrs
 import qualified Derive.Call as Call
+import qualified Derive.Call.Module as Module
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Derive as Derive
 import qualified Derive.Score as Score
@@ -170,15 +171,15 @@ c_pasang_calls =
 
 -- | Create a call that just dispatches to another call, possibly transformed.
 dispatch :: Kendang -> TrackLang.CallId -> Derive.Generator Derive.Note
-dispatch kendang call = Derive.make_call name (Tags.inst <> Tags.bali)
+dispatch kendang call = Derive.make_call Module.instrument name Tags.inst
     "Dispatch to wadon or lanang." $ Sig.call pasang_env $ \pasang args ->
         Derive.with_instrument (pasang_inst kendang pasang) $
             Call.reapply_gen args call
     where name = showt kendang <> " " <> prettyt call
 
 c_realize_kendang :: Derive.Transformer Derive.Note
-c_realize_kendang = Derive.transformer "realize-kendang"
-    (Tags.inst <> Tags.bali <> Tags.postproc)
+c_realize_kendang = Derive.transformer Module.instrument "realize-kendang"
+    (Tags.inst <> Tags.postproc)
     "Realize a composite kendang score into separate lanang and wadon parts."
     $ Sig.callt pasang_env
     $ \pasang _args deriver -> realize_kendang pasang <$> deriver

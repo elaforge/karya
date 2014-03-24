@@ -12,7 +12,7 @@ import qualified Derive.DeriveTest as DeriveTest
 
 test_pizz_arp = do
     let f = DeriveTest.extract DeriveTest.e_note
-            . DeriveTest.derive_tracks_with_ui id (global "pizz-arp .5")
+            . DeriveTest.derive_tracks_with_ui id (global "pizz-arp .5") ""
             . concatMap UiTest.note_track
 
     equal (f [[(0, 1, "+pizz -- 4c")], [(0, 1, "+pizz -- 4d")]])
@@ -22,7 +22,7 @@ test_pizz_arp = do
 
 test_avoid_overlap = do
     let f = DeriveTest.extract DeriveTest.e_note
-            . DeriveTest.derive_tracks_with_ui id (global "avoid-overlap .5")
+            . DeriveTest.derive_tracks_with_ui id (global "avoid-overlap .5") ""
             . UiTest.note_track
     equal (f [(0, 1, "4c"), (1, 1, "4d")])
         ([(0, 1, "4c"), (1, 1, "4d")], [])

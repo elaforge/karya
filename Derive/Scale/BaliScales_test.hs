@@ -10,7 +10,7 @@ import qualified Derive.Score as Score
 
 test_ombak = do
     let run trans pitch = DeriveTest.extract Score.initial_nn $
-            DeriveTest.derive_tracks
+            DeriveTest.derive_tracks ""
                 [("> " ++ trans, [(0, 1, "")]), ("*wayang", [(0, 0, pitch)])]
     equal (run "" "4e") ([Just 67.57], [])
     equal (run "| tuning = umbang" "4e") ([Just 67.57], [])

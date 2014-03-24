@@ -53,14 +53,13 @@ module Derive.Deriver.Monad (
     , initial_controls, default_dynamic
 
     -- ** scope
+    , Library(..), empty_library
     , Scopes(..), empty_scopes, s_generator, s_transformer, s_val
     , Scope(..), s_note, s_control, s_pitch
     , empty_scope
-    , ScopeType(..), s_override, s_instrument, s_scale, s_builtin
-    , DocumentedCall(..), prepend_doc
-    , LookupDocs(..)
-    , LookupCall(lookup_call, lookup_docs)
-    , map_lookup, map_val_lookup, pattern_lookup
+    , ScopeType(..), s_override, s_instrument, s_scale, s_imported
+    , DocumentedCall(..)
+    , LookupCall(..)
     , extract_doc, extract_val_doc
     , lookup_val_call, lookup_with
 
@@ -80,8 +79,9 @@ module Derive.Deriver.Monad (
     , TrackDynamic(..)
 
     -- * calls
-    , CallMap, ValCallMap
-    , CallMaps, make_calls, call_maps, generator_call_map, transformer_call_map
+    , CallMap
+    , CallMaps(..), call_map
+    , call_maps, generator_call_map, transformer_call_map
     , CallInfo(..), coerce_call_info, dummy_call_info, tag_call_info
     , Call(..), make_call
     , CallDoc(..), ArgDoc(..), ArgParser(..), EnvironDefault(..), ArgDocs(..)
@@ -146,6 +146,7 @@ import qualified Ui.Symbol as Symbol
 import qualified Ui.Track as Track
 import qualified Ui.TrackTree as TrackTree
 
+import qualified Derive.Call.Module as Module
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.LEvent as LEvent
 import qualified Derive.ParseTitle as ParseTitle
@@ -424,9 +425,9 @@ data State = State {
     , state_constant :: !Constant
     }
 
-initial_state :: Scopes -> TrackLang.Environ -> Constant -> State
-initial_state scopes environ constant = State
-    { state_dynamic = initial_dynamic scopes environ
+initial_state :: TrackLang.Environ -> Constant -> State
+initial_state environ constant = State
+    { state_dynamic = initial_dynamic environ
     , state_collect = mempty
     , state_constant = constant
     }
@@ -460,15 +461,15 @@ data Dynamic = Dynamic {
     , state_stack :: !Stack.Stack
     } deriving (Show)
 
-initial_dynamic :: Scopes -> TrackLang.Environ -> Dynamic
-initial_dynamic scopes environ = Dynamic
+initial_dynamic :: TrackLang.Environ -> Dynamic
+initial_dynamic environ = Dynamic
     { state_controls = initial_controls
     , state_control_functions = mempty
     , state_pitches = Map.empty
     , state_pitch = mempty
     , state_environ = environ
     , state_warp = Score.id_warp
-    , state_scopes = scopes
+    , state_scopes = empty_scopes
     , state_control_damage = mempty
     , state_stack = Stack.empty
     }
@@ -507,6 +508,27 @@ instance DeepSeq.NFData Dynamic where
         `seq` rnf environ `seq` rnf warp `seq` rnf damage `seq` rnf stack
 
 -- ** scope
+
+-- | This is the library of built-in calls.  The 'stype_imported' Scope fields
+-- are imported from this.
+data Library = Library {
+    lib_note :: !(CallMaps Note)
+    , lib_control :: !(CallMaps Control)
+    , lib_pitch :: !(CallMaps Pitch)
+    , lib_val :: !(CallMap ValCall)
+    }
+
+empty_library :: Library
+empty_library = Library mempty mempty mempty mempty
+
+instance Show Library where show _ = "((Library))"
+instance Pretty.Pretty Library where
+    format (Library note control pitch val) = Pretty.record_title "Library"
+        [ ("note", Pretty.format note)
+        , ("control", Pretty.format control)
+        , ("pitch", Pretty.format pitch)
+        , ("val", Pretty.format val)
+        ]
 
 -- | This represents all calls in scope.  Different types of calls are in scope
 -- depending on the track type, except ValCalls, which are in scope everywhere.
@@ -574,7 +596,7 @@ instance DeepSeq.NFData (Scope a b c) where
 --
 -- Priority is determined by 'get_scopes', which returns them in the
 -- declaration order.  So override calls take priority over instrument calls,
--- which take priority over scale and builtin calls.
+-- which take priority over scale and imported calls.
 data ScopeType call = ScopeType {
     -- | Override calls shadow all others.  They're useful when you want to
     -- prevent instruments from overriding calls, which the lilypond deriver
@@ -582,13 +604,14 @@ data ScopeType call = ScopeType {
     stype_override :: ![LookupCall call]
     , stype_instrument :: ![LookupCall call]
     , stype_scale :: ![LookupCall call]
-    , stype_builtin :: ![LookupCall call]
+    -- | Imported from the 'Library'.
+    , stype_imported :: ![LookupCall call]
     }
 
 s_override = Lens.lens stype_override (\v r -> r { stype_override = v })
 s_instrument = Lens.lens stype_instrument (\v r -> r { stype_instrument = v })
 s_scale = Lens.lens stype_scale (\v r -> r { stype_scale = v })
-s_builtin = Lens.lens stype_builtin (\v r -> r { stype_builtin = v })
+s_imported = Lens.lens stype_imported (\v r -> r { stype_imported = v })
 
 instance Monoid.Monoid (ScopeType call) where
     mempty = ScopeType [] [] [] []
@@ -597,72 +620,16 @@ instance Monoid.Monoid (ScopeType call) where
 
 instance Show (ScopeType call) where show = pretty
 instance Pretty.Pretty (ScopeType call) where
-    format (ScopeType override inst scale builtin) =
+    format (ScopeType override inst scale imported) =
         Pretty.record_title "ScopeType"
             [ ("override", Pretty.format override)
             , ("inst", Pretty.format inst)
             , ("scale", Pretty.format scale)
-            , ("builtin", Pretty.format builtin)
+            , ("imported", Pretty.format imported)
             ]
 
--- | For flexibility, a scope is represented not by a map from symbols to
--- derivers, but a function.  That way, it can inspect the CallId and return
--- an appropriate call, as is the case for some scales.
---
--- It's in Deriver because this same type is used for at the top-level track
--- derivation lookup, so it needs to look in the environment for the Scope.
--- The lookup itself presumably won't use Deriver and will just be a return, as
--- in 'map_lookup' or 'Derive.Call.lookup_scale_val'.
-data LookupCall call = LookupCall {
-    lookup_call :: TrackLang.CallId -> Deriver (Maybe call)
-    , lookup_docs :: LookupDocs
-    }
-
-data LookupDocs =
-    -- | Documentation for a table of calls.
-    LookupMap (Map.Map TrackLang.CallId DocumentedCall)
-    -- | Documentation for a programmatic lookup.  This is for calls that need
-    -- to inspect the CallId.  The String should document what kinds of CallIds
-    -- this lookup will match.
-    | LookupPattern Text DocumentedCall
-
-instance Pretty.Pretty (LookupCall call) where
-    format look = "Lookup: " <> case lookup_docs look of
-        LookupMap calls -> Pretty.format (Map.keys calls)
-        LookupPattern doc _ -> Pretty.text (untxt doc)
-
--- | This is like 'Call', but with only documentation.
+-- | This is like 'Call', but with only documentation.  (name, CallDoc)
 data DocumentedCall = DocumentedCall !Text !CallDoc
-
--- | Prepend a bit of text to the documentation.
-prepend_doc :: Text -> DocumentedCall -> DocumentedCall
-prepend_doc text = modify_doc ((text <> "\n") <>)
-
-modify_doc :: (Text -> Text) -> DocumentedCall -> DocumentedCall
-modify_doc modify (DocumentedCall name doc) = DocumentedCall name (annotate doc)
-    where annotate (CallDoc tags cdoc args) = CallDoc tags (modify cdoc) args
-
--- | In the common case, a lookup is simply a static map.
-map_lookup :: Map.Map TrackLang.CallId (Call d) -> LookupCall (Call d)
-map_lookup cmap = LookupCall
-    { lookup_call = \call_id -> return $ Map.lookup call_id cmap
-    , lookup_docs = LookupMap $ Map.map extract_doc cmap
-    }
-
--- | Like 'map_lookup', but for val calls.  It's too bad this is no longer
--- the same as 'map_lookup', but val calls don't have the weird generator
--- transformer namespace split, so their doc format is different.
-map_val_lookup :: Map.Map TrackLang.CallId ValCall -> LookupCall ValCall
-map_val_lookup cmap = LookupCall
-    { lookup_call = \call_id -> return $ Map.lookup call_id cmap
-    , lookup_docs = LookupMap $ Map.map extract_val_doc cmap
-    }
-
--- | Create a lookup that uses a function instead of a Map.
-pattern_lookup :: Text -> DocumentedCall
-    -> (TrackLang.CallId -> Deriver (Maybe call))
-    -> LookupCall call
-pattern_lookup name doc lookup = LookupCall lookup (LookupPattern name doc)
 
 extract_doc :: Call d -> DocumentedCall
 extract_doc call = DocumentedCall (call_name call) (call_doc call)
@@ -683,9 +650,9 @@ lookup_with get call_id = do
 
 get_scopes :: (Scopes -> ScopeType call) -> Deriver [LookupCall call]
 get_scopes get = do
-    ScopeType override inst scale builtin <-
+    ScopeType override inst scale imported <-
         gets $ get . state_scopes . state_dynamic
-    return $ override ++ inst ++ scale ++ builtin
+    return $ override ++ inst ++ scale ++ imported
 
 -- | Convert a list of lookups into a single lookup by returning the first
 -- one to yield a Just.
@@ -695,10 +662,15 @@ lookup_scopes (lookup:rest) call_id =
     maybe (lookup_scopes rest call_id) (return . Just)
         =<< lookup_call lookup call_id
 
+lookup_call :: LookupCall call -> TrackLang.CallId -> Deriver (Maybe call)
+lookup_call (LookupMap calls) call_id = return $ Map.lookup call_id calls
+lookup_call (LookupPattern _ _ lookup) call_id = lookup call_id
+
 -- ** constant
 
 data Constant = Constant {
     state_ui :: !State.State
+    , state_library :: !Library
     , state_control_op_map :: !(Map.Map TrackLang.CallId ControlOp)
     , state_lookup_scale :: !LookupScale
     -- | Get the calls and environ that should be in scope with a certain
@@ -713,12 +685,13 @@ data Constant = Constant {
     , state_lilypond :: !(Maybe Lilypond.Types.Config)
     }
 
-initial_constant :: State.State -> LookupScale
+initial_constant :: State.State -> Library -> LookupScale
     -> (Score.Instrument -> Maybe Instrument) -> Cache -> ScoreDamage
     -> Constant
-initial_constant ui_state lookup_scale lookup_inst cache
+initial_constant ui_state library lookup_scale lookup_inst cache
         score_damage = Constant
     { state_ui = ui_state
+    , state_library = library
     , state_control_op_map = default_control_op_map
     , state_lookup_scale = lookup_scale
     , state_lookup_instrument = lookup_inst
@@ -980,8 +953,19 @@ merge_controls (Score.Typed typ c1) (Score.Typed _ c2) =
 
 -- ** calls
 
-type CallMap call = Map.Map TrackLang.CallId call
-type ValCallMap = Map.Map TrackLang.CallId ValCall
+type CallMap call = [LookupCall call]
+data LookupCall call =
+    LookupMap !(Map.Map TrackLang.CallId call)
+    -- | Text description of the CallIds accepted.  The function is in Deriver
+    -- because some calls want to look at the state to know if the CallId is
+    -- valid, e.g. block calls.
+    | LookupPattern !Text !DocumentedCall
+        !(TrackLang.CallId -> Deriver (Maybe call))
+
+instance Pretty.Pretty (LookupCall call) where
+    format c = case c of
+        LookupMap calls -> "Map: " <> Pretty.format (Map.keys calls)
+        LookupPattern name _ _ -> "Pattern: " <> Pretty.text (untxt name)
 
 -- | Previously, a single Call contained both generator and transformer.
 -- This turned out to not be flexible enough, because an instrument that
@@ -989,20 +973,33 @@ type ValCallMap = Map.Map TrackLang.CallId ValCall
 -- happened to have the same name.  However, there are a number of calls that
 -- want both generator and transformer versions, and it's convenient to be
 -- able to deal with those together.
-type CallMaps d = (CallMap (Generator d), CallMap (Transformer d))
+data CallMaps d = CallMaps !(CallMap (Generator d)) !(CallMap (Transformer d))
 
--- | Make a call map.
-make_calls :: [(TrackLang.CallId, call)] -> Map.Map TrackLang.CallId call
-make_calls = Map.fromList
+instance Monoid.Monoid (CallMaps d) where
+    mempty = CallMaps [] []
+    mappend (CallMaps gs1 ts1) (CallMaps gs2 ts2) =
+        CallMaps (gs1 <> gs2) (ts1 <> ts2)
+
+instance Pretty.Pretty (CallMaps d) where
+    format (CallMaps gs ts) = Pretty.record_title "CallMaps"
+        [ ("generators", Pretty.format gs)
+        , ("transformers", Pretty.format ts)
+        ]
+
+-- | Make a CallMap whose the calls are all 'LookupMap's.  The LookupMaps are
+-- all singletons since names are allowed to overlap when declaring calls.  It
+-- is only when they are imported into a scope that the maps are combined.
+call_map :: [(TrackLang.CallId, call)] -> CallMap call
+call_map = map (LookupMap . uncurry Map.singleton)
 
 -- | Bundle generators and transformers up together for convenience.
 call_maps :: [(TrackLang.CallId, Generator d)]
     -> [(TrackLang.CallId, Transformer d)] -> CallMaps d
 call_maps generators transformers =
-    (make_calls generators, make_calls transformers)
+    CallMaps (call_map generators) (call_map transformers)
 
 generator_call_map :: [(TrackLang.CallId, Generator d)] -> CallMaps d
-generator_call_map = flip call_maps []
+generator_call_map generators = call_maps generators []
 
 transformer_call_map :: [(TrackLang.CallId, Transformer d)] -> CallMaps d
 transformer_call_map = call_maps []
@@ -1159,9 +1156,10 @@ instance Pretty.Pretty (Call derived) where
 -- to start a new paragraph.  Also, single quotes are turned into links as per
 -- "Util.TextUtil".haddockUrl.
 data CallDoc = CallDoc {
-    cdoc_tags :: Tags.Tags
-    , cdoc_doc :: Text
-    , cdoc_args :: ArgDocs
+    cdoc_module :: !Module.Module
+    , cdoc_tags :: !Tags.Tags
+    , cdoc_doc :: !Text
+    , cdoc_args :: !ArgDocs
     } deriving (Eq, Ord, Show)
 
 data ArgDocs = ArgDocs [ArgDoc]
@@ -1206,34 +1204,40 @@ type GeneratorFunc d = PassedArgs (Elem d) -> LogsDeriver d
 -- | args -> deriver -> deriver
 type TransformerFunc d = PassedArgs (Elem d) -> LogsDeriver d -> LogsDeriver d
 
-make_call :: Text -> Tags.Tags -> Text -> WithArgDoc func -> Call func
-make_call name tags doc (func, arg_docs) = Call
+make_call :: Module.Module -> Text -> Tags.Tags -> Text -> WithArgDoc func
+    -> Call func
+make_call module_ name tags doc (func, arg_docs) = Call
     { call_name = name
-    , call_doc = CallDoc tags doc arg_docs
+    , call_doc = CallDoc
+        { cdoc_module = module_
+        , cdoc_tags = tags
+        , cdoc_doc = doc
+        , cdoc_args = arg_docs
+        }
     , call_func = func
     }
 
 -- | Create a generator that expects a list of derived values (e.g. Score.Event
 -- or Signal.Control), with no logs mixed in.  The result is wrapped in
 -- LEvent.Event.
-generator :: (Functor m) => Text -> Tags.Tags -> Text
+generator :: Functor m => Module.Module -> Text -> Tags.Tags -> Text
     -> WithArgDoc (a -> m [d]) -> Call (a -> m [LEvent.LEvent d])
-generator name tags doc (func, arg_docs) =
-    make_call name tags doc ((map LEvent.Event <$>) . func, arg_docs)
+generator module_ name tags doc (func, arg_docs) =
+    make_call module_ name tags doc ((map LEvent.Event <$>) . func, arg_docs)
 
 -- | Since Signals themselves are collections, there's little reason for a
 -- signal generator to return a Stream of events.  So wrap the generator result
 -- in a Stream singleton.
-generator1 :: (Functor m) => Text -> Tags.Tags -> Text -> WithArgDoc (a -> m d)
-    -> Call (a -> m [LEvent.LEvent d])
-generator1 name tags doc (func, arg_docs) =
-    generator name tags doc ((LEvent.one <$>) . func, arg_docs)
+generator1 :: (Functor m) => Module.Module -> Text -> Tags.Tags -> Text
+    -> WithArgDoc (a -> m d) -> Call (a -> m [LEvent.LEvent d])
+generator1 module_ name tags doc (func, arg_docs) =
+    generator module_ name tags doc ((LEvent.one <$>) . func, arg_docs)
 
 -- ** transformer
 
 -- | Just 'make_call' with a more specific signature.
-transformer :: Text -> Tags.Tags -> Text -> WithArgDoc (TransformerFunc d)
-    -> Call (TransformerFunc d)
+transformer :: Module.Module -> Text -> Tags.Tags -> Text
+    -> WithArgDoc (TransformerFunc d) -> Call (TransformerFunc d)
 transformer = make_call
 
 -- ** val
@@ -1247,11 +1251,16 @@ data ValCall = ValCall {
 instance Show ValCall where
     show (ValCall name _ _) = "((ValCall " ++ show name ++ "))"
 
-val_call :: TrackLang.Typecheck a => Text -> Tags.Tags -> Text
+val_call :: TrackLang.Typecheck a => Module.Module -> Text -> Tags.Tags -> Text
     -> WithArgDoc (PassedArgs Tagged -> Deriver a) -> ValCall
-val_call name tags doc (call, arg_docs) = ValCall
+val_call module_ name tags doc (call, arg_docs) = ValCall
     { vcall_name = name
-    , vcall_doc = CallDoc tags doc arg_docs
+    , vcall_doc = CallDoc
+        { cdoc_module = module_
+        , cdoc_tags = tags
+        , cdoc_doc = doc
+        , cdoc_args = arg_docs
+        }
     , vcall_call = fmap TrackLang.to_val . call
     }
 

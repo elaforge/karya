@@ -46,14 +46,16 @@ import qualified Util.Seq as Seq
 
 import qualified Derive.Args as Args
 import qualified Derive.Call.Control as Control
-import qualified Derive.Call.Europe.Trill as Trill
 import qualified Derive.Call.Make as Make
+import qualified Derive.Call.Module as Module
 import qualified Derive.Call.SignalTransform as SignalTransform
 import qualified Derive.Call.Tags as Tags
+import qualified Derive.Call.Trill as Trill
 import qualified Derive.Call.Util as Util
 import qualified Derive.Controls as Controls
 import qualified Derive.Derive as Derive
 import qualified Derive.Environ as Environ
+import qualified Derive.LEvent as LEvent
 import qualified Derive.PitchSignal as PitchSignal
 import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
@@ -74,6 +76,9 @@ pitch_calls = Derive.call_maps
     ] ++ kampita_variations "kam" c_kampita)
     [ ("h", c_hold)
     ]
+
+module_ :: Module.Module
+module_ = "india" <> "gamakam"
 
 control_calls :: Derive.CallMaps Derive.Control
 control_calls = Derive.call_maps gs ts
@@ -108,7 +113,7 @@ mode_affix (Just Low) = "_"
 data Mode = High | Low deriving (Eq, Show)
 
 c_hold :: Derive.ToTagged (Derive.Elem d) => Derive.Transformer d
-c_hold = Make.with_environ "hold"
+c_hold = Make.with_environ module_ "hold"
     (defaulted "time" (TrackLang.real 1) "Hold first value for this long.")
     TrackLang.default_real
 
@@ -158,7 +163,7 @@ instance TrackLang.TypecheckEnum AdjustMode
 -- * pitch calls
 
 c_kampita :: Maybe Mode -> Maybe Mode -> Derive.Generator Derive.Pitch
-c_kampita start_mode end_mode = Derive.generator1 "kam" Tags.india
+c_kampita start_mode end_mode = generator1 "kam" mempty
     "This is a kind of trill, but its interval defaults to NNs,\
     \ and transitions between the notes are smooth.  It's intended for\
     \ the vocal microtonal trills common in Carnatic music."
@@ -232,7 +237,7 @@ trill_from_transitions val1 val2 transitions = Signal.signal
 
 -- | Ok, this name is terrible but what else is better?
 c_dip :: Derive.Generator Derive.Pitch
-c_dip = Derive.generator1 "dip" Tags.india
+c_dip = generator1 "dip" mempty
     "Alternate two intervals, dropping `dyn` on the second. This is useful\
     \ when avoiding a swaram, since it doesn't necessarily emit the base\
     \ pitch."
@@ -254,7 +259,7 @@ c_dip = Derive.generator1 "dip" Tags.india
             (Score.untyped transpose) $ PitchSignal.signal [(start, pitch)]
 
 c_jaru :: Derive.Generator Derive.Pitch
-c_jaru = Derive.generator1 "jaru" Tags.india
+c_jaru = generator1 "jaru" mempty
     "This is a series of grace notes whose pitches are relative to the given\
     \ base pitch."
     $ Sig.call ((,,,)
@@ -282,7 +287,7 @@ c_jaru = Derive.generator1 "jaru" Tags.india
 
 c_jaru_intervals :: Util.TransposeType -> [Signal.Y]
     -> Derive.Generator Derive.Pitch
-c_jaru_intervals transpose intervals = Derive.generator1 "jaru" Tags.india
+c_jaru_intervals transpose intervals = generator1 "jaru" mempty
     ("This is `jaru` hardcoded to " <> prettyt intervals <> ".")
     $ Sig.call ((,,)
     <$> required "pitch" "Base pitch."
@@ -304,7 +309,7 @@ c_jaru_intervals transpose intervals = Derive.generator1 "jaru" Tags.india
 -- and Neighbor.  Unison-Neighbor is more convenient for the implementation
 -- but High-Low I think is more musically intuitive.
 c_kampita_c :: Maybe Mode -> Maybe Mode -> Derive.Generator Derive.Control
-c_kampita_c start_mode end_mode = Derive.generator1 "kam" Tags.india
+c_kampita_c start_mode end_mode = generator1 "kam" mempty
     "This is a trill with smooth transitions between the notes.  It's intended\
     \ for the vocal microtonal trills common in Carnatic music.\
     \ `^` is high and `_` is low, so `^kam_` starts on the upper note, and\
@@ -367,7 +372,7 @@ convert_modes start_t neighbor start end = (vals, even_transitions)
     neighbor_low = neighbor start_t < 0
 
 c_nkampita_c :: Maybe Mode -> Maybe Mode -> Derive.Generator Derive.Control
-c_nkampita_c start_mode end_mode = Derive.generator1 "nkam" Tags.india
+c_nkampita_c start_mode end_mode = generator1 "nkam" mempty
     "`kam` with a set number of cycles. The speed adjusts to fit the cycles in\
     \ before the next event."
     $ Sig.call ((,,,,)
@@ -396,7 +401,7 @@ c_nkampita_c start_mode end_mode = Derive.generator1 "nkam" Tags.india
 
 -- | Ok, this name is terrible but what else is better?
 c_dip_c :: Derive.Generator Derive.Control
-c_dip_c = Derive.generator1 "dip" Tags.india
+c_dip_c = generator1 "dip" mempty
     "Alternate two intervals, dropping `dyn` on the second. This is useful\
     \ when avoiding a swaram, since it doesn't necessarily emit the base\
     \ pitch."
@@ -427,7 +432,7 @@ dip high low speed dyn_scale transition (start, end) = do
 jaru_transition_c :: Text -> Maybe RealTime -> Text
     -> Derive.Generator Derive.Control
 jaru_transition_c name default_transition transition_doc =
-    Derive.generator1 name Tags.india
+    generator1 name mempty
     "This is a series of grace notes with relative pitches."
     $ Sig.call ((,,)
     <$> Sig.many1 "interval" "Intervals from base pitch."
@@ -440,7 +445,7 @@ jaru_transition_c name default_transition transition_doc =
         return $ jaru srate start time transition (NonEmpty.toList intervals)
 
 c_jaru_intervals_c :: [Signal.Y] -> Derive.Generator Derive.Control
-c_jaru_intervals_c intervals = Derive.generator1 "jaru" Tags.india
+c_jaru_intervals_c intervals = generator1 "jaru" mempty
     ("This is `jaru` hardcoded to " <> prettyt intervals <> ".")
     $ Sig.call ((,)
     <$> defaulted "time" jaru_time_default "Time for each note."
@@ -457,3 +462,7 @@ jaru :: RealTime -> RealTime -> RealTime -> RealTime -> [Signal.Y]
 jaru srate start time transition intervals =
     SignalTransform.smooth id srate (-transition) $
         Signal.signal (zip (Seq.range_ start time) (intervals ++ [0]))
+
+generator1 :: (Functor m) => Text -> Tags.Tags -> Text
+    -> Derive.WithArgDoc (a -> m d) -> Derive.Call (a -> m [LEvent.LEvent d])
+generator1 = Derive.generator1 module_

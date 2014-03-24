@@ -14,7 +14,7 @@ test_c_equal = do
     -- Test the '=' call, but also test the special parsing Derive.Note deriver
     -- eval in general.
     let run title evts = DeriveTest.extract e_inst $
-            DeriveTest.derive_tracks [(title, evts)]
+            DeriveTest.derive_tracks "" [(title, evts)]
     strings_like (snd $ run ">" [(0, 1, "%c = >i |")])
         ["expects a control, num, or control function, but got Instrument"]
     -- log stack should be at the track level
@@ -38,7 +38,7 @@ test_c_equal = do
 
 test_c_equal_note_transformer = do
     let run events = DeriveTest.extract e_inst $
-            DeriveTest.derive_tracks_linear
+            DeriveTest.derive_tracks_linear ""
                 [ (">", events)
                 , (">", [(0, 1, ""), (1, 1, ""), (2, 1, "")])
                 ]
@@ -49,7 +49,7 @@ test_c_equal_note_transformer = do
         ([(0, "i1"), (1, "i2"), (2, "")], [])
 
 test_c_equal_call = do
-    let run = DeriveTest.extract DeriveTest.e_note . DeriveTest.derive_tracks
+    let run = DeriveTest.extract DeriveTest.e_note . DeriveTest.derive_tracks ""
     -- Rebind a note call.
     equal (run [(">", [(0, 1, ">zzz = n | zzz")])]) ([(0, 1, "?")], [])
     equal (run [("> | *zzz = set", [(0, 1, "")]), ("*", [(0, 0, "zzz (4c)")])])
@@ -61,8 +61,8 @@ test_c_equal_call = do
         ([(0, 1, "4c")], [])
 
 test_c_equal_quoted = do
-    let run title note = DeriveTest.extract extract $ DeriveTest.derive_tracks
-            [(title, [(0, 1, note)])]
+    let run title note = DeriveTest.extract extract $
+            DeriveTest.derive_tracks "" [(title, [(0, 1, note)])]
         extract e = (DeriveTest.e_pitch e, DeriveTest.e_attributes e)
     -- Just make sure assigning to # works.
     equal (run ">" "# = (4c) |") ([("4c", "+")], [])

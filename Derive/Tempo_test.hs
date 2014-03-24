@@ -16,7 +16,7 @@ test_tempo = do
             (floor (secs start), floor (secs dur), text)
         secs = RealTime.to_seconds
     let f tempo_track =
-            DeriveTest.extract extract $ DeriveTest.derive_tracks
+            DeriveTest.extract extract $ DeriveTest.derive_tracks ""
                 [ ("tempo", tempo_track)
                 , ("*", [(0, 10, "5a"), (10, 10, "5b"), (20, 10, "5c")])
                 , (">", [(0, 10, "n --1"), (10, 10, "n --2"),

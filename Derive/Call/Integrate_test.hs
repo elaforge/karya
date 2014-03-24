@@ -16,7 +16,7 @@ import Types
 
 
 test_integrate_track = do
-    let res = DeriveTest.derive_tracks_with (with_damage [2])
+    let res = DeriveTest.derive_tracks_with (with_damage [2]) ""
             [ ("> | <", [(0, 1, "")])
             , ("*", [(0, 0, "4c")])
             , ("dyn", [(0, 0, "1")])

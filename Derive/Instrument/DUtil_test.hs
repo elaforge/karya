@@ -8,7 +8,7 @@ import qualified Derive.Instrument.DUtil as DUtil
 
 
 test_composite = do
-    let run = DeriveTest.extract extract . DeriveTest.derive_tracks_with with
+    let run = DeriveTest.extract extract . DeriveTest.derive_tracks_with with ""
         extract e = (DeriveTest.e_inst e, DeriveTest.e_attributes e,
             DeriveTest.e_pitch e,
             DeriveTest.e_control "c1" e, DeriveTest.e_control "c2" e)

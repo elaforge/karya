@@ -4,6 +4,7 @@
 
 module Perform.Lilypond.LilypondTest where
 import qualified Data.List as List
+import qualified Data.Set as Set
 import qualified Data.Text.Lazy as Text.Lazy
 
 import Util.Control
@@ -15,6 +16,7 @@ import qualified Ui.UiTest as UiTest
 import qualified Cmd.CmdTest as CmdTest
 import qualified Cmd.Lilypond
 import qualified Derive.Call.Block as Call.Block
+import qualified Derive.Call.Module as Module
 import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Environ as Environ
@@ -232,11 +234,13 @@ derive_blocks = derive_blocks_with_ui id id
 derive_blocks_with_ui :: (Derive.NoteDeriver -> Derive.NoteDeriver)
     -> (State.State -> State.State) -> [UiTest.BlockSpec] -> Derive.Result
 derive_blocks_with_ui with transform_ui blocks =
-    derive_lilypond (transform_ui state) (with deriver)
+    derive_lilypond state $ with $
+        Derive.with_imported (Set.fromList [Module.ly, Module.europe]) deriver
     where
     deriver = Call.Block.eval_root_block global_transform bid
     global_transform = State.config#State.global_transform #$ state
-    (bid:_, state) = DeriveTest.mkblocks blocks
+    state = transform_ui state_
+    (bid:_, state_) = DeriveTest.mkblocks blocks
 
 derive_lilypond :: State.State -> Derive.NoteDeriver -> Derive.Result
 derive_lilypond state deriver =

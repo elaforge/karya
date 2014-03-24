@@ -9,7 +9,8 @@ import qualified Derive.Score as Score
 
 
 test_stack = do
-    let run call = DeriveTest.extract extract $ DeriveTest.derive_tracks
+    let run call = DeriveTest.extract extract $
+            DeriveTest.derive_tracks "import europe"
             [(">", [(0, 2, call)]), ("*", [(0, 0, "4c")])]
         extract e = (Score.event_start e, DeriveTest.e_pitch e)
     equal (run "stack 3 3") ([(0, "4c"), (0, "4e"), (0, "4g")], [])

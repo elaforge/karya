@@ -22,8 +22,8 @@ import qualified Derive.Args as Args
 import qualified Derive.Attrs as Attrs
 import qualified Derive.Call.Articulation as Articulation
 import qualified Derive.Call.Europe.Grace as Grace
-import qualified Derive.Call.Europe.Trill as Trill
 import qualified Derive.Call.Note as Note
+import qualified Derive.Call.Trill as Trill
 import qualified Derive.Call.Util as Util
 import qualified Derive.Derive as Derive
 import qualified Derive.Parse as Parse

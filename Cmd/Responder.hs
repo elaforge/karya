@@ -144,7 +144,7 @@ cmd_config app_dir interface config = Cmd.Config
     , Cmd.state_rdev_map = StaticConfig.rdev_map midi
     , Cmd.state_wdev_map = StaticConfig.wdev_map midi
     , Cmd.state_instrument_db = StaticConfig.instrument_db config
-    , Cmd.state_global_scopes = StaticConfig.global_scopes config
+    , Cmd.state_library = StaticConfig.library config
     -- TODO later this should also be merged with static config
     , Cmd.state_lookup_scale = Cmd.LookupScale $
         \scale_id -> Map.lookup scale_id Scale.All.scales

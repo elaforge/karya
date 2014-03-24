@@ -14,6 +14,7 @@ import qualified Util.Pretty as Pretty
 import qualified Derive.Args as Args
 import qualified Derive.Attrs as Attrs
 import qualified Derive.Call.Bali.Kotekan as Kotekan
+import qualified Derive.Call.Module as Module
 import qualified Derive.Call.Sub as Sub
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Call.Util as Util
@@ -54,23 +55,27 @@ note_calls = Derive.generator_call_map
     where
     articulation = make_articulation reyong_positions
 
-tags :: Tags.Tags
-tags = Tags.bali <> Tags.inst
+    -- , ("k\\/",  c_kotekan $ regular_pattern "-12-12-2 1-21-12-"
+    --                                         "3-23-232 -32-3-23"
+    --                                         "44-34-3- 43-434-3")
+
+module_ :: Module.Module
+module_ = "bali" <> "reyong"
 
 -- * kilitan
 
-c_kilitan_pickup :: [Position] -> Derive.Generator Derive.Note
-c_kilitan_pickup = make_kilitan pos_pickup
-
 c_kilitan :: [Position] -> Derive.Generator Derive.Note
 c_kilitan = make_kilitan pos_cycle
+
+c_kilitan_pickup :: [Position] -> Derive.Generator Derive.Note
+c_kilitan_pickup = make_kilitan pos_pickup
 
 -- | Kilitan is implemented as a set of patterns indexed by an absolute pitch
 -- degree.  The patterns are similar to kotekan, except with absolute pitches,
 -- and without a polos \/ sangsih division.
 make_kilitan :: (Position -> Degree -> [[ReyongNote]]) -> [Position]
     -> Derive.Generator Derive.Note
-make_kilitan get_notes positions = Derive.make_call "kilitan" tags
+make_kilitan get_notes positions = Derive.make_call module_ "kilitan" Tags.inst
     "Emit reyong kilitan for all parts."
     $ Sig.call (Kotekan.dur_arg) $ \dur -> Sub.inverting $ \args -> do
         (parse_pitch, show_pitch, _) <- Util.get_pitch_functions
@@ -92,7 +97,7 @@ make_kilitan get_notes positions = Derive.make_call "kilitan" tags
 make_articulation :: [Position] -> Text -> (Position -> [Pitch.Pitch])
     -> Score.Attributes -> Derive.Generator Derive.Note
 make_articulation positions name get_notes attrs =
-    Derive.make_call name tags "Reyong articulation."
+    Derive.make_call module_ name Tags.inst "Reyong articulation."
     $ Sig.call0 $ Sub.inverting $ \args -> do
         (_, show_pitch, _) <- Util.get_pitch_functions
         mconcat $ map (realize show_pitch args) positions

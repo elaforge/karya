@@ -23,6 +23,7 @@ import qualified Derive.Args as Args
 import qualified Derive.Attrs as Attrs
 import qualified Derive.Call.Lily as Lily
 import qualified Derive.Call.Make as Make
+import qualified Derive.Call.Module as Module
 import qualified Derive.Call.Sub as Sub
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Call.Util as Util
@@ -40,37 +41,12 @@ import qualified Perform.Signal as Signal
 import Types
 
 
-lookup_attr_generator :: Derive.LookupCall (Derive.Generator Derive.Note)
-lookup_attr_generator = make_lookup_attr $ \attrs ->
-    fst $ Make.transform_notes ("add attrs: " <> ShowVal.show_val attrs)
-        Tags.attr "Doc unused." Sig.no_args
-        (\() -> Util.add_attrs attrs)
-
-lookup_attr_transformer :: Derive.LookupCall (Derive.Transformer Derive.Note)
-lookup_attr_transformer = make_lookup_attr $ \attrs ->
-    snd $ Make.transform_notes ("add attrs: " <> ShowVal.show_val attrs)
-        Tags.attr "Doc unused." Sig.no_args
-        (\() -> Util.add_attrs attrs)
-
-make_lookup_attr :: (Score.Attributes -> call) -> Derive.LookupCall call
-make_lookup_attr call =
-    Derive.pattern_lookup "attribute starting with `+`" doc $
-        \(TrackLang.Symbol sym) -> parse_symbol sym
-    where
-    parse_symbol sym = case Text.uncons sym of
-        Just (c, _) | c == '+' || c == '=' -> case Parse.parse_val sym of
-            Right (TrackLang.VAttributes attrs) -> return $ Just (call attrs)
-            _ -> return Nothing
-        _ -> return Nothing
-    doc = Derive.extract_doc $ fst $
-        Make.attributed_note (Score.attr "example-attr")
-
 note_calls :: Derive.CallMaps Derive.Note
 note_calls = Make.call_maps
-    [ ("o", Make.attributed_note Attrs.harm)
-    , ("m", Make.attributed_note Attrs.mute)
-    , (".", Make.attributed_note Attrs.staccato)
-    , ("{", Make.attributed_note Attrs.porta)
+    [ ("o", Make.attributed_note Module.prelude Attrs.harm)
+    , ("m", Make.attributed_note Module.prelude Attrs.mute)
+    , (".", Make.attributed_note Module.prelude Attrs.staccato)
+    , ("{", Make.attributed_note Module.prelude Attrs.porta)
     , ("D", c_detach) -- for symmetry with 'd', which delays the start
     ]
     [ ("(", c_legato)
@@ -80,6 +56,34 @@ note_calls = Make.call_maps
     , ("_(", c_legato)
     ]
     []
+    <> Derive.CallMaps [lookup_attr_generator] [lookup_attr_transformer]
+
+-- * lookp attr
+
+lookup_attr_generator :: Derive.LookupCall (Derive.Generator Derive.Note)
+lookup_attr_generator = make_lookup_attr $ \attrs ->
+    fst $ Make.transform_notes Module.prelude
+        ("add attrs: " <> ShowVal.show_val attrs) Tags.attr "Doc unused."
+        Sig.no_args (\() -> Util.add_attrs attrs)
+
+lookup_attr_transformer :: Derive.LookupCall (Derive.Transformer Derive.Note)
+lookup_attr_transformer = make_lookup_attr $ \attrs ->
+    snd $ Make.transform_notes Module.prelude
+        ("add attrs: " <> ShowVal.show_val attrs) Tags.attr "Doc unused."
+        Sig.no_args (\() -> Util.add_attrs attrs)
+
+make_lookup_attr :: (Score.Attributes -> call) -> Derive.LookupCall call
+make_lookup_attr call =
+    Derive.LookupPattern "attribute starting with `+`" doc $
+        \(TrackLang.Symbol sym) -> parse_symbol sym
+    where
+    parse_symbol sym = case Text.uncons sym of
+        Just (c, _) | c == '+' || c == '=' -> case Parse.parse_val sym of
+            Right (TrackLang.VAttributes attrs) -> return $ Just (call attrs)
+            _ -> return Nothing
+        _ -> return Nothing
+    doc = Derive.extract_doc $ fst $
+        Make.attributed_note Module.prelude (Score.attr "example-attr")
 
 -- * legato
 
@@ -87,7 +91,8 @@ note_calls = Make.call_maps
 -- calls should get a nice result automatically.  On the other hand, they're
 -- not very composable if they override things like %sus-abs.
 c_legato :: Derive.Generator Derive.Note
-c_legato = Derive.make_call "legato" (Tags.attr <> Tags.subs <> Tags.ly)
+c_legato = Derive.make_call Module.prelude "legato"
+    (Tags.attr <> Tags.subs <> Tags.ly)
     "Play the transformed notes legato.  This just makes all but the last\
     \ overlap slightly.\
     \\nYou can combine this with other controls to get fancier phrasing.\
@@ -128,22 +133,25 @@ note_legato overlap maybe_detach dyn = Sub.place . concatMap apply
 -}
 
 c_ly_slur :: Derive.Generator Derive.Note
-c_ly_slur = Derive.make_call "ly-slur" (Tags.subs <> Tags.ly_only)
+c_ly_slur = Derive.make_call Module.ly "ly-slur" Tags.subs
     "Add a lilypond slur." $ Sig.call0 $
         Lily.notes_around_ly (Lily.SuffixFirst, "(") (Lily.SuffixLast, ")")
 
 c_ly_slur_up :: Derive.Generator Derive.Note
-c_ly_slur_up = Derive.make_call "ly-slur-up" (Tags.subs <> Tags.ly_only)
+c_ly_slur_up = Derive.make_call Module.ly "ly-slur-up" Tags.subs
     "Add a lilypond slur, forced to be above." $ Sig.call0 $
         Lily.notes_around_ly (Lily.SuffixFirst, "^(") (Lily.SuffixLast, ")")
 
 c_ly_slur_down :: Derive.Generator Derive.Note
-c_ly_slur_down = Derive.make_call "ly-slur-down" (Tags.subs <> Tags.ly_only)
+c_ly_slur_down = Derive.make_call Module.ly "ly-slur-down" Tags.subs
     "Add a lilypond slur, forced to be below." $ Sig.call0 $
         Lily.notes_around_ly (Lily.SuffixFirst, "_(") (Lily.SuffixLast, ")")
 
+-- | This is not in 'note_calls', instruments that support this are expected to
+-- override @(@ with it.
 c_attr_legato :: Derive.Generator Derive.Note
-c_attr_legato = Derive.make_call "legato" (Tags.attr <> Tags.subs)
+c_attr_legato = Derive.make_call Module.instrument "legato"
+    (Tags.attr <> Tags.subs)
     "Make a phrase legato by applying the `+legato` attribute. This is for\
     \ instruments that understand it, for instance with a keyswitch for\
     \ transition samples."
@@ -168,7 +176,7 @@ set_sustain = Util.with_constant Controls.sustain_abs . RealTime.to_seconds
 -- * misc
 
 c_detach :: Make.Calls Derive.Note
-c_detach = Make.transform_notes "detach" mempty
+c_detach = Make.transform_notes Module.prelude "detach" mempty
     ("Detach the notes slightly, by setting "
         <> ShowVal.show_val Controls.sustain_abs <> ".")
     (defaulted "time" 0.15 "Set control to `-time`.") $ \time ->

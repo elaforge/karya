@@ -27,7 +27,7 @@ data StaticConfig = StaticConfig {
     , global_cmds :: [Msg.Msg -> Cmd.CmdIO]
 
     -- | Default global namespace for deriver calls.
-    , global_scopes :: Derive.Scopes
+    , library :: Derive.Library
 
     -- | Run this on startup, given the app's argv.  It can set up an initial
     -- block, load a given file, or do nothing.
@@ -42,7 +42,7 @@ empty = StaticConfig {
     instrument_db = Instrument.Db.empty
     , local_repl_dirs = []
     , global_cmds = []
-    , global_scopes = Derive.empty_scopes
+    , library = Derive.empty_library
     , setup_cmd = const (return Cmd.Done)
     , midi = empty_midi
     }

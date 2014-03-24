@@ -26,10 +26,10 @@ test_mordent = do
     equal (run (1, 1, "`rmordent`")) (["4c", "3b", "4c"], [])
 
 run_note :: UiTest.EventSpec -> Derive.Result
-run_note note = DeriveTest.derive_tracks [(">", [note]), ("*", [(0, 0, "4c")])]
+run_note note = derive_tracks [(">", [note]), ("*", [(0, 0, "4c")])]
 
 test_grace = do
-    let run extract = DeriveTest.extract extract . DeriveTest.derive_tracks
+    let run extract = DeriveTest.extract extract . derive_tracks
         tracks notes = [(">", notes), ("*", [(0, 0, "4c")])]
         prefix = "legato-detach = 0 | %legato-overlap = 0 | grace-dur = 1 |"
 
@@ -81,13 +81,13 @@ test_grace = do
 
     -- Ensure grace works with attr legato.
     let run_a = DeriveTest.extract DeriveTest.e_attributes
-            . DeriveTest.derive_tracks_with with
+            . DeriveTest.derive_tracks_with with "import europe"
         with = CallTest.with_note_generator "(" Articulation.c_attr_legato
     equal (run_a $ tracks [(0, 1, "g (4a) (4b)")])
         (["+legato", "+legato", "+legato"], [])
 
 test_grace_args = do
-    let run = DeriveTest.extract DeriveTest.e_pitch . DeriveTest.derive_tracks
+    let run = DeriveTest.extract DeriveTest.e_pitch . derive_tracks
             . UiTest.note_track
     -- Defaults to diatonic.
     equal (run [(1, 1, "g 2 1 -- 4c")]) (["4e", "4d", "4c"], [])
@@ -115,7 +115,7 @@ test_grace_ly = do
 
 test_grace_attr = do
     let run note = DeriveTest.extract extract $
-            DeriveTest.derive_tracks_with with_call
+            DeriveTest.derive_tracks_with with_call "import europe"
                 [ ("> | %legato-overlap = .5 | grace-dur = 1", [note])
                 , ("*", [(0, 0, "4c")])
                 ]
@@ -138,9 +138,8 @@ graces = Map.fromList
     ]
 
 test_roll = do
-    let run call = DeriveTest.extract DeriveTest.e_note $
-            DeriveTest.derive_tracks
-                [(">", [(2, 1, call)]), ("*", [(2, 0, "4c")])]
+    let run call = DeriveTest.extract DeriveTest.e_note $ derive_tracks
+            [(">", [(2, 1, call)]), ("*", [(2, 0, "4c")])]
     equal (run "roll 1 .5") ([(1.5, 0.5, "4c"), (2, 1, "4c")], [])
     equal (run "roll 2 .5")
         ([(1, 0.5, "4c"), (1.5, 0.5, "4c"), (2, 1, "4c")], [])
@@ -148,14 +147,14 @@ test_roll = do
 -- * pitch calls
 
 test_grace_p = do
-    let run = CallTest.run_pitch
+    let run = CallTest.run_pitch "import europe"
     equal (run [(0, "grace-dur = 2 | g (4c) -2 -1"), (10, "--")])
         [(0, 57), (2, 59), (4, 60)]
     equal (run [(0, "grace-dur = 2 | g (4c) -2c -1"), (3, "--")])
         [(0, 58), (1, 59), (2, 60)]
 
 test_mordent_p = do
-    let run = CallTest.run_pitch
+    let run = CallTest.run_pitch "import europe"
     equal (run [(0, "grace-dur = 2 | `mordent` (4c)")])
         [(0, 60), (2, 62), (4, 60)]
 
@@ -166,3 +165,6 @@ test_fit_grace = do
     equal (f 0 4) [0.5, 1, 1.5, 2]
     equal (f 1 4) [2, 2.5, 3, 3.5]
     equal (f 0.5 4) [1.25, 1.75, 2.25, 2.75]
+
+derive_tracks :: [UiTest.TrackSpec] -> Derive.Result
+derive_tracks = DeriveTest.derive_tracks "import europe"

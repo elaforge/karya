@@ -16,7 +16,7 @@ test_ratio = do
             , DeriveTest.e_tsig_logs r
             )
     let run ratio base = DeriveTest.derive_tracks_with_ui
-            id (DeriveTest.with_tsig_tracknums [3])
+            id (DeriveTest.with_tsig_tracknums [3]) ""
             [ (">i1", [(0, 1, "")])
             , ("*twelve #ratio-source", [(0, 0, base)])
             , ("*ratio", [(0, 0, ratio)])
@@ -30,7 +30,7 @@ test_ratio = do
             , ("*ratio", [(0, 0, "1/1")])
             , ("*twelve #ratio-source", [(0, 0, "4c")])
             ]
-    equal (e_nns $ DeriveTest.derive_tracks tracks)
+    equal (e_nns $ DeriveTest.derive_tracks "" tracks)
         ([[]], ["Error: ratio scale requires #ratio-source"])
 
     -- This actually tests that Control.eval_signal sets the scale properly.

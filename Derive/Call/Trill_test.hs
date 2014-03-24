@@ -2,13 +2,13 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
-module Derive.Call.Europe.Trill_test where
+module Derive.Call.Trill_test where
 import Util.Control
 import Util.Test
 import qualified Ui.State as State
 import qualified Ui.UiTest as UiTest
 import qualified Derive.Call.CallTest as CallTest
-import qualified Derive.Call.Europe.Trill as Trill
+import qualified Derive.Call.Trill as Trill
 import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Score as Score
@@ -18,7 +18,7 @@ import qualified Perform.Signal as Signal
 
 
 test_note_trill = do
-    let run tempo notes pitches = extract $ DeriveTest.derive_tracks
+    let run tempo notes pitches = extract $ derive_tracks
             [("tempo", [(0, 0, show tempo)]), (">", notes), ("*", pitches)]
         extract = DeriveTest.extract DeriveTest.e_note
     equal (run 1 [(0, 3, "tr 1 1")] [(0, 0, "4c")])
@@ -34,7 +34,7 @@ test_note_trill = do
     check $ all (>0.05) [d | (_, d, _) <- notes]
 
 test_tremolo = do
-    let run tempo notes = extract $ DeriveTest.derive_tracks
+    let run tempo notes = extract $ derive_tracks
             [("tempo", [(0, 0, tempo)]), (">", notes), ("*", [(0, 0, "4c")])]
         extract = DeriveTest.extract DeriveTest.e_note
     -- RealTime
@@ -55,7 +55,7 @@ test_full_notes = do
     equal (f 0.5 [1]) []
 
 test_tremolo_transformer = do
-    let run notes = extract $ DeriveTest.derive_tracks $
+    let run notes = extract $ derive_tracks $
             [ (">", notes)
             , ("*", [(s, 0, p) | ((s, _, _), p)
                 <- zip notes (cycle ["4a", "4b", "4c"])])
@@ -80,7 +80,7 @@ test_tremolo_transformer = do
 
 test_chord_tremolo = do
     let run dur notes1 notes2 = extract $
-            DeriveTest.derive_tracks_with_ui id skel $
+            DeriveTest.derive_tracks_with_ui id skel "import europe" $
                 (">", [(0, dur, "trem 1s")])
                 : concatMap UiTest.note_track [notes1, notes2]
         skel = DeriveTest.with_skel [(1, 2), (1, 4), (2, 3), (4, 5)]
@@ -97,7 +97,7 @@ test_chord_tremolo = do
 -- * pitch calls
 
 test_trill = do
-    let run text = extract $ DeriveTest.derive_tracks
+    let run text = extract $ derive_tracks
             [(">", [(0, 3, "")]), ("*", [(0, 0, text), (3, 0, "--")])]
         extract = DeriveTest.extract DeriveTest.e_nns
     -- Defaults to diatonic.
@@ -110,7 +110,7 @@ test_trill = do
     equal (run "tr (4c) -1d 1")
         ([[(0, 60), (1, 59), (2, 60)]], [])
 
-    let run_neighbor suffix val = extract $ DeriveTest.derive_tracks
+    let run_neighbor suffix val = extract $ derive_tracks
             [ (">", [(0, 3, "")])
             , ("trill-neighbor" ++ suffix, [(0, 0, val)])
             , ("*", [(0, 0, "tr (4c) _ 1"), (3, 0, "--")])
@@ -122,7 +122,7 @@ test_trill = do
     equal (run_neighbor ":c" "1") ([[(0, 60), (1, 61), (2, 60)]], [])
     equal (run_neighbor ":c" "-2") ([[(0, 60), (1, 58), (2, 60)]], [])
 
-    let run_speed suffix = extract $ DeriveTest.derive_tracks
+    let run_speed suffix = extract $ derive_tracks
             [ ("tempo", [(0, 0, "2")])
             , (">", [(0, 3, "")])
             , ("trill-speed" ++ suffix, [(0, 0, "2")])
@@ -137,7 +137,7 @@ test_trill = do
         ["Error: expected time type for %trill-speed,14s but got Diatonic"])
 
 test_trill_mode = do
-    let run text = extract $ DeriveTest.derive_tracks
+    let run text = extract $ derive_tracks
             [(">", [(0, 3, "")]), ("*", [(0, 0, text), (3, 0, "--")])]
         extract = DeriveTest.extract (map snd . DeriveTest.e_nns)
     equal (run "tr (4c) 1 1") ([[60, 62, 60]], [])
@@ -148,7 +148,7 @@ test_trill_mode = do
 
 test_moving_trill = do
     -- Ensure a diatonic trill on a moving base note remains correct.
-    let run tracks = extract $ DeriveTest.derive_tracks $
+    let run tracks = extract $ derive_tracks $
             (">", [(0, 6, "")]) : tracks
         extract = DeriveTest.extract DeriveTest.e_nns
     -- Trill transitions from 2 semitones to 1 semitone.
@@ -207,12 +207,12 @@ mkcontrol :: Score.Type -> Signal.Control -> TrackLang.ValControl
 mkcontrol typ = TrackLang.ControlSignal . Score.Typed typ
 
 test_pitch_trill = do
-    equal (CallTest.run_pitch [(0, "tr (4e) 2 2"), (2.8, "4c")]) $
+    equal (CallTest.run_pitch "" [(0, "tr (4e) 2 2"), (2.8, "4c")]) $
         zip [0, 0.5, 1, 1.5, 2] (cycle [64, 67]) ++ [(2.8, 60)]
 
 test_xcut_pitch = do
     let f tracks = DeriveTest.extract DeriveTest.e_nns $
-            DeriveTest.derive_tracks_linear $
+            DeriveTest.derive_tracks_linear "" $
             (">", [(0, 4, "")]) : tracks
     equal (f
             [ ("* #xcut1", [(0, 0, "4c")])
@@ -227,7 +227,7 @@ test_xcut_pitch = do
 -- * control calls
 
 test_control_trill = do
-    let run tempo text = extract $ DeriveTest.derive_tracks
+    let run tempo text = extract $ derive_tracks
             [ ("tempo", [(0, 0, show tempo)])
             , (">", [(0, 3, "")])
             , ("cont", [(0, 0, text), (3, 0, "--")])
@@ -255,3 +255,6 @@ test_xcut_control = do
 
     equal (f False [(0, 0)] [(0, 1)] [0, 1, 2, 3, 4])
         [(0, 0), (1, 1), (2, 0), (3, 1), (4, 0)]
+
+derive_tracks :: [UiTest.TrackSpec] -> Derive.Result
+derive_tracks = DeriveTest.derive_tracks "import europe"

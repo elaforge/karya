@@ -25,7 +25,8 @@ import qualified Perform.Pitch as Pitch
 
 
 test_note_to_call = do
-    let run key base ps = DeriveTest.extract extract $ DeriveTest.derive_tracks
+    let run key base ps = DeriveTest.extract extract $
+            DeriveTest.derive_tracks ""
             [ (title, [(t, 1, "") | (t, _) <- times ps])
             , ("*just", [(t, 0, p) | (t, p) <- times ps])
             ]
@@ -61,7 +62,7 @@ test_note_to_call = do
         ([Just 440, Just $ 440 * acc, Just $ 440 / acc], [])
 
 test_note_to_call_relative = do
-    let run key p = DeriveTest.extract extract $ DeriveTest.derive_tracks
+    let run key p = DeriveTest.extract extract $ DeriveTest.derive_tracks ""
             [ ("*just-r | key = " <> key, [(0, 0, p)])
             , ("> | %just-base = 440", [(0, 1, "")])
             ]

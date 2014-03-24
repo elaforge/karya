@@ -12,7 +12,7 @@ import qualified Perform.NN as NN
 
 test_note_to_nn = do
     let f p = DeriveTest.extract extract $
-            DeriveTest.derive_tracks $ UiTest.note_track [(0, 1, p)]
+            DeriveTest.derive_tracks "" $ UiTest.note_track [(0, 1, p)]
         extract = Score.initial_nn
     equal (f "3b") ([Just 59], [])
     equal (f "4c") ([Just 60], [])
@@ -25,7 +25,7 @@ test_note_to_nn = do
     equal (f "9g#") ([Nothing], [])
 
 test_note_to_call_relative = do
-    let f key p = DeriveTest.extract extract $ DeriveTest.derive_tracks
+    let f key p = DeriveTest.extract extract $ DeriveTest.derive_tracks ""
             [(">" ++ key, [(0, 1, "")]), ("*twelve-r", [(0, 0, p)])]
         extract = Score.initial_nn
     equal (f "" "4s") ([Just NN.c4], [])

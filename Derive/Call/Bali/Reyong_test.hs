@@ -15,7 +15,7 @@ import qualified Derive.Score as Score
 
 test_kilitan = do
     let run notes = group_voices $ DeriveTest.extract extract $
-            DeriveTest.derive_tracks $
+            DeriveTest.derive_tracks "import bali.reyong" $
             UiTest.note_spec (" | scale = legong", notes, [])
         extract e = (DeriveTest.e_environ_val Environ.voice e :: Maybe Int,
             (Score.event_start e, DeriveTest.e_pitch e))

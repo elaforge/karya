@@ -16,6 +16,7 @@ import qualified Data.Text as Text
 import Util.Control
 import qualified Util.Seq as Seq
 import qualified Derive.Call as Call
+import qualified Derive.Call.Module as Module
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Call.Util as Util
 import qualified Derive.Controls as Controls
@@ -29,9 +30,9 @@ import qualified Derive.TrackLang as TrackLang
 import qualified Perform.Signal as Signal
 
 
-c_equal :: (Derive.Callable d) => Derive.Transformer d
-c_equal = Derive.transformer "equal" (Tags.prelude <> Tags.subs) equal_doc
-    (Sig.parsed_manually equal_arg_doc equal_transformer)
+c_equal :: Derive.Callable d => Derive.Transformer d
+c_equal = Derive.transformer Module.prelude "equal" Tags.subs
+    equal_doc (Sig.parsed_manually equal_arg_doc equal_transformer)
 
 equal_arg_doc :: Text
 equal_arg_doc = "Many types."
@@ -160,12 +161,12 @@ get_call name get call_id =
 
 single_lookup :: Text -> Derive.Call d
     -> Derive.LookupCall (Derive.Call d)
-single_lookup name = Derive.map_lookup . Map.singleton (TrackLang.Symbol name)
+single_lookup name = Derive.LookupMap . Map.singleton (TrackLang.Symbol name)
 
 single_val_lookup :: Text -> Derive.ValCall
     -> Derive.LookupCall Derive.ValCall
 single_val_lookup name =
-    Derive.map_val_lookup . Map.singleton (TrackLang.Symbol name)
+    Derive.LookupMap . Map.singleton (TrackLang.Symbol name)
 
 
 -- * quoted
@@ -176,21 +177,21 @@ single_val_lookup name =
 -- calls maybe it's not so bad.
 quoted_generator :: Derive.Callable d => TrackLang.Quoted -> Derive.Generator d
 quoted_generator quoted@(TrackLang.Quoted expr) =
-    Derive.make_call "quoted-call" mempty
+    Derive.make_call quoted_module "quoted-call" mempty
     ("Created from expression: " <> ShowVal.show_val quoted)
     $ Sig.call0 $ \args -> Call.eval_expr (quoted_cinfo args quoted) expr
 
 quoted_transformer :: Derive.Callable d => TrackLang.Quoted
     -> Derive.Transformer d
 quoted_transformer quoted@(TrackLang.Quoted expr) =
-    Derive.make_call "quoted-call" mempty
+    Derive.make_call quoted_module "quoted-call" mempty
     ("Created from expression: " <> ShowVal.show_val quoted)
     $ Sig.call0t $ \args deriver ->
         Call.apply_transformers (quoted_cinfo args quoted)
             (NonEmpty.toList expr) deriver
 
 quoted_val_call :: TrackLang.Quoted -> Derive.ValCall
-quoted_val_call quoted = Derive.val_call "quoted-call" mempty
+quoted_val_call quoted = Derive.val_call quoted_module "quoted-call" mempty
     ("Created from expression: " <> ShowVal.show_val quoted)
     $ Sig.call0 $ \args -> do
         call <- case quoted of
@@ -203,3 +204,7 @@ quoted_val_call quoted = Derive.val_call "quoted-call" mempty
 quoted_cinfo :: Derive.PassedArgs d -> TrackLang.Quoted -> Derive.CallInfo d
 quoted_cinfo args (TrackLang.Quoted expr) = (Derive.passed_info args)
     { Derive.info_expr = ShowVal.show_val expr }
+
+-- | Pseudo-module for val calls generated from a quoted expression.
+quoted_module :: Module.Module
+quoted_module = "quoted"

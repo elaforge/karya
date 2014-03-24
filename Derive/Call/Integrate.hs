@@ -9,7 +9,7 @@ import Util.Control
 import qualified Ui.State as State
 import qualified Ui.TrackTree as TrackTree
 import qualified Derive.Call.BlockUtil as BlockUtil
-import qualified Derive.Call.Tags as Tags
+import qualified Derive.Call.Module as Module
 import qualified Derive.Derive as Derive
 import qualified Derive.Deriver.Internal as Internal
 import qualified Derive.Score as Score
@@ -30,7 +30,7 @@ note_calls = Derive.call_maps []
 -- * block integrate
 
 c_block_integrate :: Derive.Transformer Derive.Note
-c_block_integrate = Derive.transformer "block-integrate" Tags.prelude
+c_block_integrate = Derive.transformer Module.prelude "block-integrate" mempty
     ("Integrate the output into a new block. The events are returned as-is\
     \ so the block can still be played normally."
     ) $ Sig.call0t $ \_ deriver -> do
@@ -72,7 +72,7 @@ uses_default_tempo block_id =
 -- * track integrate
 
 c_track_integrate :: Derive.Transformer Derive.Note
-c_track_integrate = Derive.transformer "track-integrate" Tags.prelude
+c_track_integrate = Derive.transformer Module.prelude "track-integrate" mempty
     ("Integrate the output into new tracks. Events will be split into tracks\
     \ based on source track, instrument, and scale, as documented in\
     \ 'Cmd.Integrate.Convert'.\

@@ -24,6 +24,7 @@ import qualified Ui.ScoreTime as ScoreTime
 import qualified Derive.Args as Args
 import qualified Derive.Attrs as Attrs
 import qualified Derive.Call.Equal as Equal
+import qualified Derive.Call.Module as Module
 import qualified Derive.Call.Sub as Sub
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Call.Util as Util
@@ -61,7 +62,7 @@ note_calls = Derive.call_maps
 -- * note
 
 c_note :: Derive.Generator Derive.Note
-c_note = note_call "note" "" Tags.prelude (default_note use_attributes)
+c_note = note_call "note" "" mempty (default_note use_attributes)
 
 transformed_note :: Text -> Tags.Tags
     -> (Derive.NoteArgs -> Derive.NoteDeriver -> Derive.NoteDeriver)
@@ -81,7 +82,7 @@ note_call :: Text
     -- a big deal for the note call, though.
     -> Text -> Tags.Tags -> GenerateNote -> Derive.Generator Derive.Note
 note_call name prepend_doc tags generate =
-    Derive.make_call name tags prepended $
+    Derive.make_call Module.prelude name tags prepended $
         Sig.call parser (note_generate generate)
     where
     parser = Sig.many "attribute" "Change the instrument or attributes."
@@ -132,7 +133,7 @@ normalize args deriver =
     where dur = Args.duration args
 
 c_note_attributes :: Text -> Derive.Transformer Derive.Note
-c_note_attributes name = Derive.transformer name Tags.prelude
+c_note_attributes name = Derive.transformer Module.prelude name mempty
     ("This is similar to to `=`, but it takes any number of `>inst` and"
         <> " `+attr` args and sets the `inst` or `attr` environ.")
     (Sig.callt parser note_transform)
@@ -319,7 +320,7 @@ transform_note vals deriver =
 -- * c_equal
 
 c_equal_generator :: Derive.Generator Derive.Note
-c_equal_generator = Derive.make_call "equal" (Tags.prelude <> Tags.subs)
+c_equal_generator = Derive.make_call Module.prelude "equal" Tags.subs
     ("Similar to the transformer, this will evaluate the notes below in"
         <> " a transformed environ.")
     (Sig.parsed_manually Equal.equal_arg_doc generate)
@@ -329,5 +330,6 @@ c_equal_generator = Derive.make_call "equal" (Tags.prelude <> Tags.subs)
         . concat =<< Sub.sub_events args
 
 c_equal_transformer :: Derive.Transformer Derive.Note
-c_equal_transformer = Derive.transformer "equal" Tags.prelude Equal.equal_doc
+c_equal_transformer = Derive.transformer Module.prelude "equal" mempty
+    Equal.equal_doc
     (Sig.parsed_manually Equal.equal_arg_doc Equal.equal_transformer)

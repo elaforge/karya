@@ -28,7 +28,7 @@ import Types
 
 do_derive :: (Score.Event -> a) -> UiTest.TrackSpec -> ([a], [String])
 do_derive extract track = DeriveTest.extract extract $
-        DeriveTest.derive_tracks [(">", [(0, 8, "")]), track]
+        DeriveTest.derive_tracks "" [(">", [(0, 8, "")]), track]
 
 test_control_track = do
     let derive = do_derive (DeriveTest.e_control "cont")
@@ -46,7 +46,7 @@ test_control_track = do
 
 test_split_control = do
     let run tsigs = DeriveTest.derive_tracks_with_ui id
-            (DeriveTest.with_tsig_tracknums tsigs)
+            (DeriveTest.with_tsig_tracknums tsigs) ""
         e_controls = DeriveTest.extract $ \event ->
             let e name = DeriveTest.e_control name event
             in ('a', e "a", 'b', e "b")
@@ -109,8 +109,9 @@ test_track_expression = do
 
 test_derive_control = do
     let ex (sig, logs) = (Signal.unsignal sig, map DeriveTest.show_log logs)
-    let derive events = DeriveTest.extract_run ex $ DeriveTest.run State.empty
-            (Control.derive_control True (mktrack 10 (0, 10) events) [])
+    let derive events = DeriveTest.extract_run ex $
+            DeriveTest.run State.empty $ Derive.with_default_imported $
+            Control.derive_control True (mktrack 10 (0, 10) events) []
     equal (derive [(0, 0, "1"), (1, 0, "2")])
         (Right ([(0, 1), (1, 2)], []))
     equal (derive [(0, 0, "1"), (2, 0, "i 2")])
@@ -153,7 +154,7 @@ test_pitch_track = do
         ([[(0, 60), (1, 61), (2, 62)]], [])
 
 test_relative_control = do
-    let run suf add_suf = extract $ DeriveTest.derive_tracks
+    let run suf add_suf = extract $ DeriveTest.derive_tracks ""
             [ (">", [(0, 5, "")])
             , ("*", [(0, 0, "4c")])
             , ("cont" ++ suf, [(0, 0, "0"), (2, 0, "i 2"), (4, 0, "i 0")])
@@ -174,7 +175,7 @@ test_relative_control = do
 
     -- Putting relative and absolute in the wrong order is ok since addition
     -- is a monoid.
-    let run2 c1 v1 c2 v2 = extract $ DeriveTest.derive_tracks
+    let run2 c1 v1 c2 v2 = extract $ DeriveTest.derive_tracks ""
             [ (">", [(0, 10, "")])
             , (c1, [(0, 0, v1)])
             , (c2, [(0, 0, v2)])
@@ -187,7 +188,7 @@ test_relative_control = do
 
 test_default_merge = do
     let run control = DeriveTest.extract (DeriveTest.e_control
-            (Score.control (txt control))) $ DeriveTest.derive_tracks
+            (Score.control (txt control))) $ DeriveTest.derive_tracks ""
                 [ (">", [(0, 4, "")])
                 , (control, [(0, 0, ".5")])
                 , (control, [(0, 0, ".5")])
@@ -201,7 +202,7 @@ test_stash_signal = do
         ctrack = ("cont", [(0, 0, "1"), (1, 0, "0")])
         csig = Signal.signal [(0, 1), (1, 0)]
     let run tracks = e_tsigs $ DeriveTest.derive_tracks_with_ui id
-            (DeriveTest.with_tsig_tracknums [1 .. length tracks]) tracks
+            (DeriveTest.with_tsig_tracknums [1 .. length tracks]) "" tracks
     let tsig samples p x = (Signal.signal samples, p, x)
 
     equal (run [ctrack, itrack]) [(csig, 0, 1)]
@@ -253,7 +254,7 @@ test_signal_fragments = do
 test_stash_signal_default_tempo = do
     -- Signal is stretched by the default tempo.
     let r = e_tsigs $ DeriveTest.derive_tracks_with_ui id
-            (DeriveTest.with_tsig_tracknums [1] . set_tempo)
+            (DeriveTest.with_tsig_tracknums [1] . set_tempo) ""
             [("*", [(0, 0, "4c"), (10, 0, "4d"), (20, 0, "4c")])]
         set_tempo = State.config#State.default_#State.tempo #= 2
     equal r [(Signal.signal [(0, 60), (5, 62), (10, 60)], 0, 0.5)]
@@ -276,7 +277,7 @@ test_track_signal_multiple = do
         ]
 
 test_prev_val = do
-    let run ex tracks = DeriveTest.extract ex $ DeriveTest.derive_tracks $
+    let run ex tracks = DeriveTest.extract ex $ DeriveTest.derive_tracks "" $
             (">", [(0, 1, ""), (1, 1, ""), (2, 1, "")]) : tracks
     equal (run (DeriveTest.e_control "c")
             [("c", [(0, 0, ".5"), (1, 0, "'"), (2, 0, "'")])])

@@ -231,7 +231,7 @@ extract_notes f = map $ map $ \(s, e, t) -> (s, e, f t)
 
 test_slur = do
     let run = DeriveTest.extract extract
-            . DeriveTest.derive_tracks_with_ui with DeriveTest.with_linear
+            . DeriveTest.derive_tracks_with_ui with DeriveTest.with_linear ""
         extract e =
             ( DeriveTest.e_note e
             , DeriveTest.e_environ ("ly-" `List.isPrefixOf`) e
@@ -252,7 +252,7 @@ test_slur = do
     equal logs []
 
 test_overlaps = do
-    let run = DeriveTest.extract extract . DeriveTest.derive_tracks_linear
+    let run = DeriveTest.extract extract . DeriveTest.derive_tracks_linear ""
         extract e = ( DeriveTest.e_note e, DeriveTest.e_attributes e)
         overlapping_log = "slice has overlaps"
 
@@ -328,7 +328,7 @@ test_note_transformer_stack = do
     -- The stack should be correct even in the presence of slicing and
     -- inversion.
     let run = DeriveTest.extract (DeriveTest.stack_to_ui . Score.event_stack)
-            . DeriveTest.derive_tracks_linear
+            . DeriveTest.derive_tracks_linear ""
     let (stacks, logs) = run
             [ (">", [(1, 1, "ap")])
             , (">", [(1, 1, "")])

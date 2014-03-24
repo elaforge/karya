@@ -19,7 +19,7 @@ import qualified Perform.Signal as Signal
 
 
 test_sub_tracks = do
-    let run = DeriveTest.derive_tracks
+    let run = DeriveTest.derive_tracks ""
     let extract_c e = (DeriveTest.e_event e, DeriveTest.e_control "c1" e,
             DeriveTest.e_control "c2" e)
     let (events, logs) = DeriveTest.extract extract_c $ run
@@ -58,6 +58,7 @@ test_derive_track_signals = do
     let run tracknum source = extract . DeriveTest.derive_tracks_with_ui id
             (DeriveTest.with_tsig_sources [(UiTest.mk_tid tracknum, source)]
                 . DeriveTest.with_linear)
+            ""
         extract = Map.toList
             . Map.map (Signal.unsignal . Track.ts_signal)
             . Derive.r_track_signals
@@ -85,7 +86,7 @@ test_stash_signal = do
     let run wanted tempo tracks =
             lookup (UiTest.default_block_id, UiTest.mk_tid 2) $
             DeriveTest.e_tsigs $
-            DeriveTest.derive_tracks_with_ui id (want wanted) $
+            DeriveTest.derive_tracks_with_ui id (want wanted) "" $
                 ("tempo", tempo) : (">", [(0, 1, ""), (1, 1, "")]) : tracks
         want control state = UiTest.exec state $
             State.set_render_style (Track.Line (Just control)) (UiTest.mk_tid 2)
@@ -106,7 +107,7 @@ test_c_note = do
     -- Test basic Derive.d_note_track plumbing and the note (null) deriver
     -- along with it.
     let run title evts = DeriveTest.extract DeriveTest.e_everything $
-            DeriveTest.derive_tracks [(title, evts)]
+            DeriveTest.derive_tracks "" [(title, evts)]
     let inst = "i"
 
     let evt s d = (s, d, "", inst, [])

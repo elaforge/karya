@@ -43,7 +43,7 @@ import Types
 test_basic = do
     -- verify the three phases of derivation
     -- 1: derivation to score events
-    let res = DeriveTest.derive_tracks
+    let res = DeriveTest.derive_tracks ""
             [ (inst_title, [(0, 16, ""), (16, 16, "")])
             , ("*", [(0, 0, "4c"), (16, 0, "4c#")])
             , ("dyn", [(0, 0, "1"), (16, 0, ".5")])
@@ -84,7 +84,7 @@ test_basic = do
 
 test_round_pitch = do
     -- A note sufficiently close to 4c becomes 4c.
-    let res = DeriveTest.derive_tracks
+    let res = DeriveTest.derive_tracks ""
             [(inst_title, [(0, 1, "")]), ("*", [(0, 0, "3b 99.99")])]
     let (_, mmsgs, _) =
             DeriveTest.perform_defaults (Derive.r_events res)
@@ -105,7 +105,7 @@ test_attributes = do
         keymap = Instrument.simple_keymap [(Score.attr "km", 42)]
         attr_map = Instrument.AttributeMap $ case (keyswitches, keymap) of
             (Instrument.AttributeMap a, Instrument.AttributeMap b) -> a ++ b
-    let res = DeriveTest.derive_tracks
+    let res = DeriveTest.derive_tracks ""
             [ (">s/ks +a1", [(0, 1, "n +a0"), (1, 1, "n +a2")])
             , ("*twelve", [(0, 0, "4c")])
             ]
@@ -453,7 +453,7 @@ test_fractional_pitch = do
     -- channels.  Yes, this is also tested in Perform.Midi.Perform, but this
     -- also tests that the pitch signal is trimmed properly by
     -- Note.trim_pitches.
-    let res = DeriveTest.derive_tracks
+    let res = DeriveTest.derive_tracks ""
             [ (inst_title, [(0, 16, ""), (16, 16, "")])
             , ("*just", [(0, 16, "4c"), (16, 16, "4d")])
             ]
@@ -470,7 +470,7 @@ e_control cont = fmap (Signal.unsignal . Score.typed_val)
     . Map.lookup cont . Score.event_controls
 
 test_control = do
-    let res = DeriveTest.derive_tracks
+    let res = DeriveTest.derive_tracks ""
             [ (inst_title, [(0, 1, ""), (1, 1, "")])
             , ("*twelve", [(0, 1, "4c"), (1, 1, "4c#")])
             , ("cc1", [(0, 0, "1"), (1, 0, "i .75"), (2, 0, "i 0")])

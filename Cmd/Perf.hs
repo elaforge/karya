@@ -64,8 +64,7 @@ derive_at block_id track_id deriver = do
         lookup_dynamic block_id (Just track_id)
     (val, _, logs) <- PlayUtil.run_with_dynamic dynamic deriver
     return (either (Left . pretty) Right val, logs)
-    where
-    empty_dynamic = Derive.initial_dynamic Derive.empty_scopes mempty
+    where empty_dynamic = Derive.initial_dynamic mempty
 
 -- | A cheap quick derivation that sets up the correct initial state, but
 -- runs without the cache and throws away any logs.

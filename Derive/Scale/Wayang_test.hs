@@ -25,7 +25,7 @@ test_read = do
     equal (f "wayang-p" "i^") (Right "5-0")
     equal (f "wayang-k" "i-") (Right "5-0")
     let run scale pitch = DeriveTest.extract Score.initial_nn $
-            DeriveTest.derive_tracks $ scale_track scale [pitch]
+            DeriveTest.derive_tracks "" $ scale_track scale [pitch]
     equal (run "wayang" "5i") (run "wayang-p" "i^")
     equal (run "wayang" "5i") (run "wayang-k" "i-")
 

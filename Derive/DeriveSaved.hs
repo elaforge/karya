@@ -140,7 +140,7 @@ cmd_config inst_db = do
         , Cmd.state_rdev_map = mempty
         , Cmd.state_wdev_map = mempty
         , Cmd.state_instrument_db = inst_db
-        , Cmd.state_global_scopes = Call.All.scopes
+        , Cmd.state_library = Call.All.library
         , Cmd.state_lookup_scale = Cmd.LookupScale $
             \scale_id -> Map.lookup scale_id Scale.All.scales
         }

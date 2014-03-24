@@ -13,7 +13,7 @@ import qualified Derive.DeriveTest as DeriveTest
 
 test_start_controls = do
     let run = DeriveTest.extract DeriveTest.e_start_dur
-            . DeriveTest.derive_tracks
+            . DeriveTest.derive_tracks ""
     let min_dur = Note.min_duration
     let start_s sig (s, d) = [("> | %start-s = " ++ sig, [(s, d, "")])]
     equal (run (start_s "0" (0, 1))) ([(0, 1)], [])
@@ -35,7 +35,8 @@ test_start_controls = do
         /= ([(0, 1), (1, 1)], [])
 
     -- The pitch moves with the note.
-    let runp = DeriveTest.extract DeriveTest.e_note . DeriveTest.derive_tracks
+    let runp = DeriveTest.extract DeriveTest.e_note
+            . DeriveTest.derive_tracks ""
     let tracks n =
             [ ("> | %start-s = -1", [(n, 1, "")])
             , ("*", [(n, 0, "4c")])
@@ -48,7 +49,7 @@ test_orphan_notes = do
     -- Also tested in 'Derive.Slice_test.test_slice_notes_orphans'.
     -- This is analogous to track level orphans, which are tested in
     -- "Ui.Call.BlockUtil_test".
-    let run = DeriveTest.extract extract . DeriveTest.derive_tracks_linear
+    let run = DeriveTest.extract extract . DeriveTest.derive_tracks_linear ""
         extract e = (DeriveTest.e_note e, DeriveTest.e_attributes e)
     equal (run
         [ (">i", [(0, 2, "a = b")])
@@ -66,7 +67,7 @@ test_orphan_notes = do
         ([((0, 1, "4c"), "+a"), ((1, 1, "4d"), "+")], [])
 
 test_arrival_notes = do
-    let run notes = DeriveTest.extract extract $ DeriveTest.derive_tracks
+    let run notes = DeriveTest.extract extract $ DeriveTest.derive_tracks ""
             [ (">", notes)
             , ("*", [(0, 0, "4c"), (1, 0, "4d"), (2, 0, "4e"), (3, 0, "4f")])
             ]

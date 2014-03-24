@@ -22,6 +22,7 @@ import qualified Derive.Args as Args
 import qualified Derive.Call as Call
 import qualified Derive.Call.Control as Control
 import qualified Derive.Call.Make as Make
+import qualified Derive.Call.Module as Module
 import qualified Derive.Call.Pitch as Call.Pitch
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Call.Util as Util
@@ -46,8 +47,8 @@ import qualified Perform.Signal as Signal
 import Types
 
 
-val_calls :: Derive.ValCallMap
-val_calls = Derive.make_calls
+val_calls :: Derive.CallMap Derive.ValCall
+val_calls = Derive.call_map
     [ (">", c_next_val)
     , ("<", c_prev_val)
     , ("e", c_env)
@@ -73,7 +74,7 @@ val_calls = Derive.make_calls
     ]
 
 c_next_val :: Derive.ValCall
-c_next_val = Derive.val_call "next-val" Tags.next
+c_next_val = val_call "next-val" Tags.next
     "Evaluate the next event. Only works on pitch and control tracks, and\
     \ if the next event doesn't need its previous event."
     $ Sig.call0 $ \args -> do
@@ -104,7 +105,7 @@ next_val event start ttype = case ttype of
         (either Derive.throw return =<< Call.eval_event event)
 
 c_prev_val :: Derive.ValCall
-c_prev_val = Derive.val_call "prev-val" Tags.prev
+c_prev_val = val_call "prev-val" Tags.prev
     "Return the previous value. Only works on pitch and control tracks."
     $ Sig.call0 $ \args -> Args.prev_val args >>= \x -> case x of
         Just (_, Derive.TagControl y) ->
@@ -113,7 +114,7 @@ c_prev_val = Derive.val_call "prev-val" Tags.prev
         _ -> Derive.throw "no previous value"
 
 c_env :: Derive.ValCall
-c_env = Derive.val_call "env" mempty
+c_env = val_call "env" mempty
     "Look up the given val in the environ."
     $ Sig.call ((,)
     <$> required "name" "Look up the value of this key."
@@ -133,7 +134,7 @@ c_env = Derive.val_call "env" mempty
             <> " but got " <> pretty (TrackLang.type_of val)
 
 c_timestep :: Derive.ValCall
-c_timestep = Derive.val_call "timestep" mempty
+c_timestep = val_call "timestep" mempty
     ("Compute the duration of the given RelativeMark timestep at the current\
     \ position. This is for durations, so it only works with RelativeMark."
     ) $ Sig.call ((,)
@@ -144,7 +145,8 @@ c_timestep = Derive.val_call "timestep" mempty
             Util.meter_duration (Args.start args) rank steps
 
 c_timestep_reciprocal :: Derive.ValCall
-c_timestep_reciprocal = Make.modify_vcall c_timestep "timestep-reciprocal"
+c_timestep_reciprocal = Make.modify_vcall c_timestep Module.prelude
+    "timestep-reciprocal"
     ("This is the same as `timestep` except it returns the reciprocal. This is\
     \ useful for e.g. trills which take cycles per second rather than duration."
     ) reciprocal
@@ -153,42 +155,42 @@ c_timestep_reciprocal = Make.modify_vcall c_timestep "timestep-reciprocal"
     reciprocal val = val
 
 c_reciprocal :: Derive.ValCall
-c_reciprocal = Derive.val_call "reciprocal" mempty
+c_reciprocal = val_call "reciprocal" mempty
     "Find the reciprocal of a number. Useful for tempo, e.g. set the tempo to\
     \ 1/time." $ Sig.call (required "num" "") $ \num _ ->
         if num == 0 then Derive.throw "1/0"
             else return (1 / num :: Double)
 
 c_nn :: Derive.ValCall
-c_nn = Derive.val_call "nn" mempty
+c_nn = val_call "nn" mempty
     "Convert a pitch or hz to a NoteNumber." $ Sig.call (required "val" "") $
     \val _ -> case val of
         Left pitch -> realToFrac <$> Pitches.pitch_nn pitch
         Right hz -> return (realToFrac (Pitch.hz_to_nn hz) :: Double)
 
 c_hz :: Derive.ValCall
-c_hz = Derive.val_call "hz" mempty
+c_hz = val_call "hz" mempty
     "Convert a pitch or NoteNumber to hz." $ Sig.call (required "val" "") $
     \val _ -> case val of
         Left pitch -> Pitch.nn_to_hz <$> Pitches.pitch_nn pitch
         Right nn -> return (Pitch.nn_to_hz (Pitch.NoteNumber nn) :: Double)
 
 c_scoretime :: Derive.ValCall
-c_scoretime = Derive.val_call "scoretime" mempty
+c_scoretime = val_call "scoretime" mempty
     "Convert a number to ScoreTime. This just changes the type annotation, the\
     \ value remains the same." $
     Sig.call (Sig.required_env "val" Sig.None "") $ \val _ ->
         return $ ScoreTime.double val
 
 c_realtime :: Derive.ValCall
-c_realtime = Derive.val_call "realtime" mempty
+c_realtime = val_call "realtime" mempty
     "Convert a number to RealTime. This just changes the type annotation, the\
     \ value remains the same." $
     Sig.call (Sig.required_env "val" Sig.None "") $ \val _ ->
         return $ RealTime.seconds val
 
 c_pitch :: Derive.ValCall
-c_pitch = Derive.val_call "pitch" mempty "Create a 'Perform.Pitch.Pitch'."
+c_pitch = val_call "pitch" mempty "Create a 'Perform.Pitch.Pitch'."
     $ Sig.call ((,,)
     <$> Sig.defaulted_env "oct" Sig.None (Left 0)
         "Octave, or a pitch name or pitch. If it's a pitch name or pitch, the\
@@ -213,7 +215,7 @@ make_pitch (Right name_pitch) pc accs
             Scale.scale_read scale key note
 
 c_pitch_control :: Derive.ValCall
-c_pitch_control = Derive.val_call "pitch-control" mempty
+c_pitch_control = val_call "pitch-control" mempty
     "Create a 'Derive.TrackLang.PitchControl'. For control literals, the\
     \ `#name` syntax suffices, but if you want to give a default pitch,\
     \ you need this call."
@@ -229,7 +231,7 @@ c_pitch_control = Derive.val_call "pitch-control" mempty
 -- * lookup
 
 c_get_pitch :: Derive.ValCall
-c_get_pitch = Derive.val_call "pitch" mempty
+c_get_pitch = val_call "pitch" mempty
     "Get the current pitch." $ Sig.call (defaulted "control" ""
         "The default pitch if empty, otherwise, get the named pitch.") $
     \control args ->
@@ -242,13 +244,13 @@ c_get_pitch = Derive.val_call "pitch" mempty
 -- * generate signals
 
 c_linear_next :: Derive.ValCall
-c_linear_next = Derive.val_call "linear-next" mempty
+c_linear_next = val_call "linear-next" mempty
     "Create straight lines between the given breakpoints."
     $ Sig.call breakpoints_arg $ \vals args ->
         c_breakpoints 0 id vals args
 
 c_exp_next :: Derive.ValCall
-c_exp_next = Derive.val_call "exp-next" mempty
+c_exp_next = val_call "exp-next" mempty
     "Create curved lines between the given breakpoints."
     $ Sig.call ((,)
     <$> defaulted "exp" 2 Control.exp_doc
@@ -332,7 +334,7 @@ instance ShowVal.ShowVal Distribution where
 instance TrackLang.TypecheckEnum Distribution
 
 c_cf_rnd :: (Signal.Y -> Signal.Y -> Signal.Y) -> Derive.ValCall
-c_cf_rnd combine = Derive.val_call "cf-rnd"
+c_cf_rnd combine = val_call "cf-rnd"
     (Tags.control_function <> Tags.random)
     "Randomize a control. Normally it replaces the control of the same name,\
     \ while the `+` and `*` variants add to and multiply with it."
@@ -369,7 +371,7 @@ random_stream =
 -- * cf-swing
 
 c_cf_swing :: Derive.ValCall
-c_cf_swing = Derive.val_call "cf-swing" Tags.control_function
+c_cf_swing = val_call "cf-swing" Tags.control_function
     ("Add a curved  offset to the control, suitable for swing tempo when added\
     \ to " <> ShowVal.doc_val Controls.start_s <> ". The curve is a sine wave,\
     \ from trough to trough.")
@@ -475,3 +477,9 @@ to_signal_or_function dyn control = case control of
     -- presumably the caller expects that type.
     inherit_type default_type val =
         val { Score.type_of = Score.type_of val <> default_type }
+
+
+val_call :: TrackLang.Typecheck a => Text -> Tags.Tags -> Text
+    -> Derive.WithArgDoc (Derive.PassedArgs Derive.Tagged -> Derive.Deriver a)
+    -> Derive.ValCall
+val_call = Derive.val_call Module.prelude

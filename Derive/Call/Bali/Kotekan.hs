@@ -33,6 +33,7 @@ import qualified Util.Seq as Seq
 
 import qualified Derive.Args as Args
 import qualified Derive.Attrs as Attrs
+import qualified Derive.Call.Module as Module
 import qualified Derive.Call.Post as Post
 import qualified Derive.Call.Sub as Sub
 import qualified Derive.Call.Tags as Tags
@@ -60,6 +61,8 @@ note_calls = Derive.call_maps
     , ("gnorot", c_gender_norot)
     , ("k/_\\", c_kotekan $ regular_pattern "-12-1-21" "3-23-32-" "34-343-4")
     -- sangsih telu is below, but sangsih pat is above
+    -- TODO it seems like I shouldn't need separate telu and pat, I should have
+    -- telu, and then infer pat.
     , ("k//",   c_kotekan $ regular_pattern "23-23-23" "2-12-12-" "5-45-45-")
     , ("k\\\\", c_kotekan $ regular_pattern "21-21-21" "2-32-32-" "-43-43-4")
     , ("k\\/",  c_kotekan $ regular_pattern "-12-12-2 1-21-12-"
@@ -72,6 +75,9 @@ note_calls = Derive.call_maps
     , ("kempyung", c_kempyung)
     , ("noltol", c_noltol)
     ]
+
+module_ :: Module.Module
+module_ = "bali" <> "kotekan"
 
 parse_pattern :: [Char] -> [Char] -> [Char] -> [Char] -> [Char]
     -> KotekanPattern
@@ -105,9 +111,6 @@ regular_pattern polos sangsih_telu sangsih_pat =
     merge n '-' = n
     merge n _ = n
 
-postproc :: Tags.Tags
-postproc = Tags.bali <> Tags.postproc
-
 
 -- * patterns
 
@@ -115,7 +118,7 @@ postproc = Tags.bali <> Tags.postproc
 -- it would be more convenient as a generator.  In any case, as a postproc it
 -- gets really complicated.
 c_norot :: Derive.Generator Derive.Note
-c_norot = Derive.make_call "norot" Tags.bali
+c_norot = Derive.make_call module_ "norot" mempty
     "Emit the basic norot pattern. The last note will line up with the end of\
     \ the event, so this is most suitable for a negative duration event."
     $ Sig.call ((,,,,)
@@ -147,7 +150,7 @@ gangsa_norot style pasang (pstep, sstep) = (interlock, normal)
     sangsih steps = KotekanNote (Just (snd pasang)) steps mempty
 
 c_norot_pickup :: Derive.Generator Derive.Note
-c_norot_pickup = Derive.make_call "norot" Tags.bali "Emit norot pickup."
+c_norot_pickup = Derive.make_call module_ "norot" mempty "Emit norot pickup."
     $ Sig.call ((,,,,)
     <$> dur_arg
     <*> Sig.defaulted "style" (TrackLang.E Default) "Norot style."
@@ -199,7 +202,7 @@ norot_steps scale inst_top pitch style
         Pitches.transpose_d steps pitch
 
 c_gender_norot :: Derive.Generator Derive.Note
-c_gender_norot = Derive.make_call "gender-norot" Tags.bali
+c_gender_norot = Derive.make_call module_ "gender-norot" mempty
     "Gender-style norot."
     $ Sig.call ((,,) <$> dur_arg <*> kotekan_env <*> pasang_env)
     $ \(dur, kotekan, pasang) -> Sub.inverting $ \args -> do
@@ -223,7 +226,7 @@ gender_norot pasang = (interlocking, normal)
     sangsih steps = KotekanNote (Just (snd pasang)) steps mempty
 
 c_kotekan :: KotekanPattern -> Derive.Generator Derive.Note
-c_kotekan pattern = Derive.make_call "kotekan" Tags.bali
+c_kotekan pattern = Derive.make_call module_ "kotekan" mempty
     "Kotekan calls perform a pattern with `inst-polos` and `inst-sangsih`.\
     \ They line up at the end of the event, and are intended to be used with\
     \ negative durations."
@@ -359,7 +362,7 @@ instance TrackLang.TypecheckEnum KotekanStyle
 -- * postproc
 
 c_unison :: Derive.Transformer Derive.Note
-c_unison = Derive.transformer "unison" postproc
+c_unison = Derive.transformer module_ "unison" Tags.postproc
     "Split part into unison polos and sangsih."
     $ Sig.callt pasang_env $ \(polos, sangsih) _args deriver -> do
         inst <- Util.get_instrument
@@ -381,7 +384,7 @@ c_unison = Derive.transformer "unison" postproc
 --
 -- So postproc it is.
 c_kempyung :: Derive.Transformer Derive.Note
-c_kempyung = Derive.transformer "kempyung" postproc
+c_kempyung = Derive.transformer module_ "kempyung" Tags.postproc
     "Split part into kempyung, with `polos-inst` below and `sangsih-inst`\
     \ above."
     $ Sig.callt ((,)
@@ -409,7 +412,7 @@ c_kempyung = Derive.transformer "kempyung" postproc
             }
 
 c_nyogcag :: Derive.Transformer Derive.Note
-c_nyogcag = Derive.transformer "nyog" postproc
+c_nyogcag = Derive.transformer module_ "nyog" Tags.postproc
     "Split a single part into polos and sangsih parts by assigning\
     \ polos and sangsih to alternating notes."
     $ Sig.callt pasang_env $ \pasang _args deriver ->
@@ -422,7 +425,7 @@ nyogcag (polos, sangsih) is_polos event = (not is_polos, [with_inst])
         { Score.event_instrument = if is_polos then polos else sangsih }
 
 c_noltol :: Derive.Transformer Derive.Note
-c_noltol = Derive.transformer "noltol" postproc
+c_noltol = Derive.transformer module_ "noltol" Tags.postproc
     "Play the transformed notes in noltol style. If the distance between each\
     \ note and the next note of the same instrument is above a threshold,\
     \ end the note with a `+mute`d copy of itself."

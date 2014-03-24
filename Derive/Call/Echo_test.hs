@@ -11,7 +11,7 @@ import qualified Derive.DeriveTest as DeriveTest
 
 test_delay = do
     let run title pref tracks = DeriveTest.extract_events DeriveTest.e_event $
-            DeriveTest.derive_tracks (tracks ++ [event])
+            DeriveTest.derive_tracks "" (tracks ++ [event])
             where
             event = (title, [(0, 1, pref ++ "n --1"), (1, 1, pref ++ "n --2")])
 
@@ -31,7 +31,7 @@ test_delay = do
         [(2, 1, "n --1"), (3, 1, "n --2")]
 
 test_delay_inverted = do
-    let run text = extract $ DeriveTest.derive_tracks
+    let run text = extract $ DeriveTest.derive_tracks ""
             [ ("tempo", [(0, 0, "2")])
             , (">i", [(2, 2, text)])
             , ("*twelve", [(0, 0, "4c"), (2, 0, "4d")])

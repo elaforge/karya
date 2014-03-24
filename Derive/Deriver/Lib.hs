@@ -11,6 +11,7 @@ module Derive.Deriver.Lib where
 import Prelude hiding (error)
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
+import qualified Data.Set as Set
 
 import Util.Control
 import qualified Util.Log as Log
@@ -22,6 +23,7 @@ import qualified Ui.State as State
 import qualified Ui.Track as Track
 
 import qualified Derive.BaseTypes as BaseTypes
+import qualified Derive.Call.Module as Module
 import qualified Derive.Controls as Controls
 import qualified Derive.Deriver.Internal as Internal
 import Derive.Deriver.Monad
@@ -64,13 +66,9 @@ data Result = Result {
     }
 
 -- | Kick off a derivation.
---
--- The derivation state is quite involved, so there are a lot of arguments
--- here.
-derive :: Constant -> Scopes -> TrackLang.Environ -> Deriver a -> RunResult a
-derive constant scopes environ deriver =
-    run state (with_initial_scope environ deriver)
-    where state = initial_state scopes environ constant
+derive :: Constant -> TrackLang.Environ -> Deriver a -> RunResult a
+derive constant environ = run (initial_state environ constant)
+    . with_initial_scope environ . with_default_imported
 
 extract_result :: RunResult Events -> Result
 extract_result (result, state, logs) = Result
@@ -121,6 +119,65 @@ score_function :: Deriver (RealTime -> Maybe ScoreTime)
 score_function = do
     warp <- Internal.get_dynamic state_warp
     return $ flip Score.unwarp_pos warp
+
+-- ** import
+
+with_default_imported :: Deriver a -> Deriver a
+with_default_imported = with_imported $
+    Set.fromList [Module.internal, Module.prelude]
+
+-- | Merge calls from any of the given modules into scope.
+with_imported :: Set.Set Module.Module -> Deriver a -> Deriver a
+with_imported modules deriver = do
+    lib <- Internal.get_constant state_library
+    with_scopes (import_library (extract_modules modules lib)) deriver
+
+-- | Filter out any calls that aren't in the given modules.
+extract_modules :: Set.Set Module.Module -> Library -> Library
+extract_modules modules (Library note control pitch val) =
+    Library (extract2 note) (extract2 control) (extract2 pitch)
+        (extract vcall_doc val)
+    where
+    extract2 (CallMaps gs ts) =
+        CallMaps (extract call_doc gs) (extract call_doc ts)
+    extract get_doc = mapMaybe (has_module get_doc)
+    has_module get_doc (LookupMap calls)
+        | Map.null include = Nothing
+        | otherwise = Just (LookupMap include)
+        where include = Map.filter (wanted . get_doc) calls
+    has_module _ lookup@(LookupPattern _ (DocumentedCall _ doc) _)
+        | wanted doc = Just lookup
+        | otherwise = Nothing
+    wanted = (`Set.member` modules) . cdoc_module
+
+import_library :: Library -> Scopes -> Scopes
+import_library (Library lib_note lib_control lib_pitch lib_val)
+        (Scopes gen trans val) =
+    Scopes
+        { scopes_generator = Scope
+            { scope_note = insert (gen_of lib_note) (scope_note gen)
+            , scope_control = insert (gen_of lib_control) (scope_control gen)
+            , scope_pitch = insert (gen_of lib_pitch) (scope_pitch gen)
+            }
+        , scopes_transformer = Scope
+            { scope_note = insert (trans_of lib_note) (scope_note trans)
+            , scope_control =
+                insert (trans_of lib_control) (scope_control trans)
+            , scope_pitch = insert (trans_of lib_pitch) (scope_pitch trans)
+            }
+        , scopes_val = insert lib_val val
+        }
+    where
+    gen_of (CallMaps gs _) = gs
+    trans_of (CallMaps _ ts) = ts
+    insert lookups = (imported (merge_lookups lookups) <>)
+    imported lookups = mempty { stype_imported = lookups }
+
+-- | Merge 'LookupMap's into one LookupMap, with any LookupPatterns afterwards.
+-- If there are collisions, the first one wins.
+merge_lookups :: [LookupCall call] -> [LookupCall call]
+merge_lookups lookups = LookupMap calls : [p | p@(LookupPattern {}) <- lookups]
+    where calls = Map.unions [calls | LookupMap calls <- lookups]
 
 -- ** scale
 
@@ -205,7 +262,7 @@ with_scale scale =
 
 scale_to_lookup :: Scale -> (ValCall -> call) -> LookupCall call
 scale_to_lookup scale convert =
-    pattern_lookup name (scale_call_doc scale) $ \call_id ->
+    LookupPattern name (scale_call_doc scale) $ \call_id ->
         return $ convert <$> scale_note_to_call scale (to_note call_id)
     where
     name = prettyt (scale_id scale) <> ": " <> scale_pattern scale

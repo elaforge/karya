@@ -11,7 +11,7 @@ import qualified Derive.DeriveTest as DeriveTest
 
 test_omit = do
     let extract = DeriveTest.extract DeriveTest.e_start_dur
-    let run n = extract $ DeriveTest.derive_tracks
+    let run n = extract $ DeriveTest.derive_tracks ""
             [(">", [(p, 1, n) | p <- Seq.range 0 5 1])]
     equal (run "omit 0 |") ([(p, 1) | p <- Seq.range 0 5 1], [])
     equal (run "omit 1 |") ([], [])

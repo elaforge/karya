@@ -141,14 +141,13 @@ note_calls calls =
 
 -- | Add the given calls to the note track scope.
 note_generators :: [(TrackLang.CallId, Derive.Generator Derive.Note)] -> Code
-note_generators calls = mempty
-    { code_note_generators = [Derive.map_lookup (Derive.make_calls calls)] }
+note_generators calls = mempty { code_note_generators = Derive.call_map calls }
 
 -- | Add the given calls to the note track scope.
 note_transformers :: [(TrackLang.CallId, Derive.Transformer Derive.Note)]
     -> Code
 note_transformers calls = mempty
-    { code_note_transformers = [Derive.map_lookup (Derive.make_calls calls)] }
+    { code_note_transformers = Derive.call_map calls }
 
 -- | Add the given call as the null note call to the note track.  This also
 -- binds @n@, since @n@ is supposed to be the \"named\" way to call \"\".

@@ -41,17 +41,6 @@ under_invert = tag "under-invert"
 
 -- * normal
 
--- | Internal calls are used to implement the basic track calls.  You should
--- never need to call them directly, and they can probably be omitted from the
--- documentation.
-internal :: Tags
-internal = tag "internal"
-
--- | This marks a standard library of \"fundamental\" calls.  They may also
--- interact more intimately with the builtin derivation machinery.
-prelude :: Tags
-prelude = tag "prelude"
-
 -- | Takes sub-events.
 subs :: Tags
 subs = tag "subs"
@@ -68,10 +57,6 @@ cmod = tag "cmod"
 -- | This call returns a 'TrackLang.VControlFunction'.
 control_function :: Tags
 control_function = tag "control-function"
-
--- | Val call is a scale degree.
-scale :: Tags
-scale = tag "scale"
 
 -- | Call uses randomness, and depends on the random seed.
 random :: Tags
@@ -105,28 +90,7 @@ attr = tag "attr"
 ly :: Tags
 ly = tag "ly"
 
--- | Only emits lilypond, emits no \"normal\" events.  You never need to use
--- these if you aren't generating lilypond.
-ly_only :: Tags
-ly_only = ly <> tag "ly-only"
-
 -- * genres
-
--- These tags roughly categorize calls by the \"kind\" of music they are used
--- in.  They tend to implement more specifically idiomatic things, and as such,
--- are likely to be mutually exclusive.
-
--- | Calls for ornaments that occur in European music.  They generally
--- correspond to things you might see in staff notation, and many of them can
--- emit lilypond as well.
-europe :: Tags
-europe = tag "europe"
-
-bali :: Tags
-bali = tag "bali"
-
-india :: Tags
-india = tag "india"
 
 
 -- * automatically applied

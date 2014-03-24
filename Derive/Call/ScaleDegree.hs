@@ -18,7 +18,7 @@ import qualified Data.Text as Text
 
 import Util.Control
 import qualified Derive.Args as Args
-import qualified Derive.Call.Tags as Tags
+import qualified Derive.Call.Module as Module
 import qualified Derive.Controls as Controls
 import qualified Derive.Derive as Derive
 import qualified Derive.Parse as Parse
@@ -39,8 +39,8 @@ import qualified Perform.Pitch as Pitch
 -- define calls in its own way.
 scale_degree :: PitchSignal.Scale -> Scale.PitchNn -> Scale.PitchNote
     -> Derive.ValCall
-scale_degree scale pitch_nn pitch_note = Derive.val_call
-    "pitch" Tags.scale "Emit the pitch of a scale degree." $ Sig.call
+scale_degree scale pitch_nn pitch_note = Derive.val_call Module.scale
+    "pitch" mempty "Emit the pitch of a scale degree." $ Sig.call
     (defaulted "frac" 0
         "Add this many hundredths of a scale degree to the output.")
     $ \frac _args -> return $! PitchSignal.pitch scale (call frac) pitch_note
@@ -75,7 +75,7 @@ scale_degree_just :: PitchSignal.Scale -> NamedIntervals
     -> Pitch.Hz -- ^ add an arbitrary extra interval to the output
     -> Scale.PitchNn -> Scale.PitchNote -> Derive.ValCall
 scale_degree_just scale named_intervals extra_interval pitch_nn pitch_note =
-    Derive.val_call "pitch" Tags.scale
+    Derive.val_call Module.scale "pitch" mempty
     "Emit the pitch of a scale degree." $
     Sig.call (intervals_arg named_intervals) $ \intervals _ -> do
         interval <- resolve_intervals named_intervals intervals
@@ -115,7 +115,8 @@ parse_relative_interval named_intervals note =
 relative_scale_degree :: PitchSignal.Scale -> NamedIntervals -> Pitch.Hz
     -> Derive.ValCall
 relative_scale_degree scale named_intervals initial_interval =
-    Derive.val_call "pitch" Tags.scale "doc doc" $
+    -- TODO documentation
+    Derive.val_call Module.scale "pitch" mempty "doc doc" $
     Sig.call (intervals_arg named_intervals) $ \intervals args -> do
         interval <- (initial_interval*) <$>
             resolve_intervals named_intervals intervals

@@ -379,7 +379,7 @@ scale_degree_doc scale_degree =
 
 annotate_call_doc :: Set.Set Score.Control -> Text -> [(Text, Text)]
     -> Derive.DocumentedCall -> Derive.DocumentedCall
-annotate_call_doc transposers doc fields = Derive.prepend_doc extra_doc
+annotate_call_doc transposers doc fields = prepend_doc extra_doc
     where
     extra_doc = doc <> "\n\n" <> join (transposers_field <> fields)
     transposers_field =
@@ -389,8 +389,20 @@ annotate_call_doc transposers doc fields = Derive.prepend_doc extra_doc
 
 add_doc :: Text -> Scale.Scale -> Scale.Scale
 add_doc doc scale = scale
-    { Scale.scale_call_doc = Derive.prepend_doc doc (Scale.scale_call_doc scale)
-    }
+    { Scale.scale_call_doc = prepend_doc doc (Scale.scale_call_doc scale) }
+
+-- *** DocumentedCall
+
+-- | Prepend a bit of text to the documentation.
+prepend_doc :: Text -> Derive.DocumentedCall -> Derive.DocumentedCall
+prepend_doc text = modify_doc ((text <> "\n") <>)
+
+modify_doc :: (Text -> Text) -> Derive.DocumentedCall -> Derive.DocumentedCall
+modify_doc modify (Derive.DocumentedCall name doc) =
+    Derive.DocumentedCall name (annotate doc)
+    where
+    annotate (Derive.CallDoc module_ tags cdoc args) =
+        Derive.CallDoc module_ tags (modify cdoc) args
 
 -- * util
 

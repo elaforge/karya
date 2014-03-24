@@ -110,7 +110,7 @@ test_mridangam_double = do
 
 derive :: [UiTest.TrackSpec] -> Derive.Result
 derive = DeriveTest.derive_tracks_with
-    (DeriveTest.with_inst_db Kontakt.synth_descs)
+    (DeriveTest.with_inst_db Kontakt.synth_descs) "import bali.kotekan"
 
 perform :: [Text] -> Derive.Events
     -> ([Perform.Event], [Midi.WriteMessage], [Log.Msg])

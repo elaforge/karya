@@ -24,7 +24,7 @@ test_strip_attrs = do
 
 test_natural_harmonic = do
     let run inst attrs pitch = DeriveTest.extract extract $
-            DeriveTest.derive_tracks_with with $
+            DeriveTest.derive_tracks_with with "" $
                 [ (inst, [(0, 1, attrs)])
                 , ("*", [(0, 0, pitch)])
                 ]

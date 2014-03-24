@@ -19,7 +19,7 @@ test_set = do
     equal (run [(0, "1"), (1, "")]) [(0, 1)]
 
 test_set_rnd = do
-    let run title val = DeriveTest.extract extract $ DeriveTest.derive_tracks
+    let run title val = DeriveTest.extract extract $ DeriveTest.derive_tracks ""
             [(">", [(0, 1, "")]), ("c" <> title, [(0, 0, val)])]
         extract = DeriveTest.e_control "c"
     equal (run "" ".5") ([[(0, 0.5)]], [])

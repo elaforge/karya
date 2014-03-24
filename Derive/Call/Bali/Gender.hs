@@ -7,6 +7,7 @@
 module Derive.Call.Bali.Gender where
 import Util.Control
 import qualified Derive.Args as Args
+import qualified Derive.Call.Module as Module
 import qualified Derive.Call.Post as Post
 import qualified Derive.Call.Sub as Sub
 import qualified Derive.Call.Tags as Tags
@@ -31,9 +32,12 @@ note_calls = Derive.call_maps
     ]
     [ ("realize-damp", c_realize_damp) ]
 
+module_ :: Module.Module
+module_ = "bali" <> "gender"
+
 c_tick :: Maybe Pitch.Transpose -> Derive.Generator Derive.Note
-c_tick transpose = Derive.make_call "tick"
-    (Tags.inst <> Tags.bali <> Tags.ornament <> Tags.prev)
+c_tick transpose = Derive.make_call module_ "tick"
+    (Tags.inst <> Tags.ornament <> Tags.prev)
     ("Insert an intermediate grace note in the \"ngoret\" rambat style.\
     \ The grace note moves up for `'^`, down for `'_`, or is based\
     \ on the previous note's pitch for `'`."
@@ -84,7 +88,8 @@ infer_transpose args start = do
         (return (Pitch.Diatonic (-1))) (return (Pitch.Diatonic 1))
 
 c_realize_damp :: Derive.Transformer Derive.Note
-c_realize_damp = Derive.transformer "realize-damp" (Tags.inst <> Tags.postproc)
+c_realize_damp = Derive.transformer module_ "realize-damp"
+    (Tags.inst <> Tags.postproc)
     ("Extend the duration of events preceding one with a "
     <> ShowVal.doc_val damped_tag
     <> " to the end of the event with the attr.\

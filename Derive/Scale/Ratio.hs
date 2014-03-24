@@ -18,7 +18,7 @@ import qualified Data.Attoparsec.Text as A
 import Util.Control
 import qualified Util.ParseText as ParseText
 import qualified Derive.Args as Args
-import qualified Derive.Call.Tags as Tags
+import qualified Derive.Call.Module as Module
 import qualified Derive.Derive as Derive
 import qualified Derive.PitchSignal as PitchSignal
 import qualified Derive.Pitches as Pitches
@@ -58,7 +58,7 @@ note_to_call note = note_call note <$>
     ParseText.maybe_parse p_note (Pitch.note_text note)
 
 note_call :: Pitch.Note -> (Double -> Double) -> Derive.ValCall
-note_call note ratio = Derive.val_call "ratio" Tags.scale
+note_call note ratio = Derive.val_call Module.scale "ratio" mempty
     ( "Generate a frequency that is the ratio of the frequency of the "
     <> ShowVal.doc_val pitch_control
     <> " signal. A negative ratio divides, a positive one multiplies."

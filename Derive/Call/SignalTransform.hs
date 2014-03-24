@@ -13,6 +13,7 @@ import qualified Util.Seq as Seq
 
 import qualified Derive.Args as Args
 import qualified Derive.Call.Control as Control
+import qualified Derive.Call.Module as Module
 import qualified Derive.Call.Post as Post
 import qualified Derive.Call.Speed as Speed
 import qualified Derive.Call.Tags as Tags
@@ -41,7 +42,7 @@ pitch_calls :: Derive.CallMaps Derive.Pitch
 pitch_calls = Derive.transformer_call_map [("sh", c_sh_pitch)]
 
 c_sh_pitch :: Derive.Transformer Derive.Pitch
-c_sh_pitch = Derive.transformer "sh" mempty
+c_sh_pitch = Derive.transformer Module.prelude "sh" mempty
     "Sample & hold. Hold values at the given speed."
     $ Sig.callt Speed.arg $ \speed _args deriver -> do
         (sig, (start, end), logs) <- Post.pitch_range deriver
@@ -75,7 +76,7 @@ control_calls = Derive.transformer_call_map
     ]
 
 c_sh_control :: Derive.Transformer Derive.Control
-c_sh_control = Derive.transformer "sh" mempty
+c_sh_control = Derive.transformer Module.prelude "sh" mempty
     "Sample & hold. Hold values at the given speed."
     $ Sig.callt Speed.arg $ \speed _args deriver -> do
         (sig, (start, end), logs) <- Post.control_range deriver
@@ -93,7 +94,7 @@ sample_hold_control points sig = Signal.unfoldr go (0, points, sig)
         where sig = Signal.drop_before x sig_
 
 c_quantize :: Derive.Transformer Derive.Control
-c_quantize = Derive.transformer "quantize" mempty
+c_quantize = Derive.transformer Module.prelude "quantize" mempty
     "Quantize a control signal."
     $ Sig.callt (required "val" "Quantize to multiples of this value.") $
     \val _args -> Post.signal (quantize val)
@@ -104,7 +105,7 @@ quantize val
     | otherwise = Signal.map_y $ \y -> fromIntegral (round (y / val)) * val
 
 c_slew :: Derive.Transformer Derive.Control
-c_slew = Derive.transformer "slew" mempty
+c_slew = Derive.transformer Module.prelude "slew" mempty
     "Smooth a signal by interpolating such that it doesn't exceed the given\
     \ slope."
     $ Sig.callt (required "slope" "Maximum allowed slope, per second.")
@@ -141,7 +142,7 @@ slope_segment srate slope prev_y (x, y) next = Signal.signal $ zip xs ys
     ys = drop 1 $ Seq.range_end prev_y y (if y >= prev_y then slope else -slope)
 
 c_smooth :: Derive.Transformer Derive.Control
-c_smooth = Derive.transformer "smooth" mempty
+c_smooth = Derive.transformer Module.prelude "smooth" mempty
     "Smooth a signal by interpolating between each sample."
     $ Sig.callt ((,)
     <$> required "time" "Amount of time to reach to the next sample.\
@@ -190,7 +191,7 @@ smooth f srate time =
 
 c_redirect :: Derive.Merge -> Text -> Derive.Transformer Derive.Control
 c_redirect merge op_name =
-    Derive.transformer "redirect" (Tags.prelude <> Tags.cmod)
+    Derive.transformer Module.prelude "redirect" Tags.cmod
     ("Redirect a signal to another control, using the control modifier hack.\
     \ The control is combined with " <> op_name <> ".")
     $ Sig.callt (required "control" "Redirect to this control.")
@@ -200,8 +201,8 @@ c_redirect merge op_name =
         return $ map LEvent.Log logs
 
 c_cf_sample :: Derive.Transformer Derive.Note
-c_cf_sample = Derive.transformer "cf-sample"
-    (Tags.prelude <> Tags.control_function)
+c_cf_sample = Derive.transformer Module.prelude "cf-sample"
+    Tags.control_function
     "Sample the given control functions and insert them as constants in the\
     \ control map. The default note call expects continuous signals, so it\
     \ takes slices out of the control map. This transfers control functions\

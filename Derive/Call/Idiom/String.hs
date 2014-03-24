@@ -11,6 +11,7 @@ import qualified Util.Log as Log
 import qualified Util.Map as Map
 
 import qualified Derive.Call as Call
+import qualified Derive.Call.Module as Module
 import qualified Derive.Call.Pitch as Call.Pitch
 import qualified Derive.Call.Post as Post
 import qualified Derive.Call.Tags as Tags
@@ -38,8 +39,12 @@ note_calls = Derive.call_maps []
     ]
     where notes = map (flip TrackLang.call [])
 
+module_ :: Module.Module
+module_ = "idiom" <> "string"
+
 c_guzheng :: [TrackLang.PitchCall] -> Derive.Transformer Derive.Note
-c_guzheng strings = Derive.transformer "guzheng" (Tags.postproc <> Tags.inst)
+c_guzheng strings = Derive.transformer module_ "guzheng"
+    (Tags.postproc <> Tags.inst)
     ("Post-process events to play in a monophonic string-like idiom, where\
     \ strings must be bent or stopped to reach non-open pitches.\
     \ Originally it was meant to play in the style of a 古箏 or\
@@ -66,7 +71,8 @@ c_guzheng strings = Derive.transformer "guzheng" (Tags.postproc <> Tags.inst)
 -- | A string idiom in the style of stopped strings like the violin family.
 -- Strings instantly jump to their pitches.
 c_violin :: [TrackLang.PitchCall] -> Derive.Transformer Derive.Note
-c_violin strings = Derive.transformer "violin" (Tags.postproc <> Tags.inst)
+c_violin strings = Derive.transformer module_ "violin"
+    (Tags.postproc <> Tags.inst)
     "A specialization of `string-guzheng` for stopped strings." $
     Sig.callt
     ( defaulted "delay" (control "string-delay" 0) "String release delay time."

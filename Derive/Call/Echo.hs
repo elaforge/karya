@@ -9,6 +9,7 @@ module Derive.Call.Echo where
 import Util.Control
 import qualified Derive.Args as Args
 import qualified Derive.Call.Lily as Lily
+import qualified Derive.Call.Module as Module
 import qualified Derive.Call.Post as Post
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Call.Util as Util
@@ -33,7 +34,7 @@ note_calls = Derive.transformer_call_map
 -- * note calls
 
 c_delay :: Derive.Transformer Derive.Note
-c_delay = Derive.transformer "delay" Tags.ly
+c_delay = Derive.transformer Module.prelude "delay" Tags.ly
     ("Simple abstract delay. As with `echo`, abstract means it happens in the\
     \ score, so events may not be delayed evenly if the tempo is changing."
     ) $ Sig.callt
@@ -46,7 +47,7 @@ c_delay = Derive.transformer "delay" Tags.ly
 
 -- TODO typed delay time
 c_echo :: Derive.Transformer Derive.Note
-c_echo = Derive.transformer "echo" mempty
+c_echo = Derive.transformer Module.prelude "echo" mempty
     ("Abstract echo. This means the echoes happen in score time, so they will\
     \ change tempo with the rest of the score, and their derivation may\
     \ change due to different dynamics.\
@@ -81,7 +82,7 @@ scale_dyn = Derive.multiply_control Score.c_dynamic
 -- Args are the same as 'c_echo', except that their signals are sampled at
 -- every event, so parameters can vary over the course of the effect.
 c_event_echo :: Derive.Transformer Derive.Note
-c_event_echo = Derive.transformer "event echo" Tags.postproc
+c_event_echo = Derive.transformer Module.prelude "event echo" Tags.postproc
     ("Concrete echo.  All events are delayed by the same amount.  Also, the\
     \ parameter signals are sampled at every event, so they can vary\
     \ over the course of the echo."

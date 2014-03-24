@@ -4,16 +4,20 @@
 
 module Derive.Call.India.Gamakam_test where
 import Util.Test
+import qualified Ui.UiTest as UiTest
+import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Score as Score
+
 import qualified Perform.NN as NN
 import Types
 
 
 test_kampita = do
-    let run call end = DeriveTest.extract DeriveTest.e_nns $
-            DeriveTest.derive_tracks
-                [(">", [(0, 4, "")]), ("*", [(0, 0, call), (end, 0, "3c")])]
+    let run call end = DeriveTest.extract DeriveTest.e_nns $ derive_tracks
+            [ (">", [(0, 4, "")])
+            , ("*", [(0, 0, call), (end, 0, "3c")])
+            ]
     equal (run "kam (4c) 1 1 1" 3)
         ([[(0, NN.c4), (1, NN.cs4), (2, NN.c4), (3, NN.c3)]], [])
     equal (run "kam (4c) 1d 1 1" 3)
@@ -65,24 +69,26 @@ test_nkampita_c = do
     equal (run "nkam^ 1 2" 4) ([[(0, 60), (1, 62), (2, 60), (3, 62)]], [])
 
 test_dip = do
-    let run ex call end = DeriveTest.extract ex $ DeriveTest.derive_tracks
+    let run ex call end = DeriveTest.extract ex $ derive_tracks
             [(">", [(0, 4, "")]), ("*", [(0, 0, call), (end, 0, "3c")])]
     equal (run DeriveTest.e_nns "dip (4c) 1 -1 1" 4)
         ([[(0, NN.d4), (1, NN.b3), (2, NN.d4), (3, NN.b3), (4, NN.c3)]], [])
     equal (run DeriveTest.e_dyn "dip (4c) 1 -1 1 .5" 4)
         ([[(0, 1), (1, 0.5), (2, 1), (3, 0.5), (4, 1)]], [])
 
+test_jaru = do
+    let run call = DeriveTest.extract DeriveTest.e_nns $ derive_tracks
+            [(">", [(0, 4, "")]), ("*", [(0, 0, call)])]
+    equal (run "sgr (3c) 2")
+        ([[(0, 47), (1, 48), (2, 50), (3, 49), (4, 48)]], [])
+
 run_diatonic :: (Score.Event -> a) -> String -> ScoreTime -> ([a], [String])
 run_diatonic extract call end =
-    DeriveTest.extract extract $ DeriveTest.derive_tracks
+    DeriveTest.extract extract $ derive_tracks
         [ (">", [(0, end, "")])
         , ("*", [(0, 0, "4c")])
         , ("t-diatonic", [(0, 0, call), (end, 0, "--")])
         ]
 
-test_jaru = do
-    let run call = DeriveTest.extract DeriveTest.e_nns $
-            DeriveTest.derive_tracks
-                [(">", [(0, 4, "")]), ("*", [(0, 0, call)])]
-    equal (run "sgr (3c) 2")
-        ([[(0, 47), (1, 48), (2, 50), (3, 49), (4, 48)]], [])
+derive_tracks :: [UiTest.TrackSpec] -> Derive.Result
+derive_tracks = DeriveTest.derive_tracks "import india.gamakam"

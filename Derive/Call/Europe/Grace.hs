@@ -17,6 +17,7 @@ import qualified Util.Seq as Seq
 import qualified Ui.ScoreTime as ScoreTime
 import qualified Derive.Args as Args
 import qualified Derive.Call.Lily as Lily
+import qualified Derive.Call.Module as Module
 import qualified Derive.Call.Sub as Sub
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Call.Util as Util
@@ -81,8 +82,8 @@ grace_placement_env = Sig.environ "grace-place" Sig.Unprefixed
 -- * note calls
 
 c_mordent :: Pitch.Transpose -> Derive.Generator Derive.Note
-c_mordent default_neighbor = Derive.make_call "mordent"
-    (Tags.europe <> Tags.ornament)
+c_mordent default_neighbor = Derive.make_call Module.europe "mordent"
+    Tags.ornament
     "Like `g`, but hardcoded to play pitch, neighbor, pitch."
     $ Sig.call ((,)
     <$> Sig.defaulted "neighbor" (TrackLang.DefaultDiatonic default_neighbor)
@@ -101,7 +102,7 @@ lily_mordent args neighbor = do
     lily_grace args [pitch, Pitches.transpose neighbor pitch]
 
 c_grace :: Derive.Generator Derive.Note
-c_grace = Derive.make_call "grace" (Tags.europe <> Tags.ornament <> Tags.ly)
+c_grace = Derive.make_call Module.europe "grace" (Tags.ornament <> Tags.ly)
     "Emit grace notes. The grace notes go through the `(` call, so they will\
     \ overlap or apply a keyswitch, or do whatever `(` does."
     $ Sig.call ((,)
@@ -138,7 +139,7 @@ grace_call args dyn_scale pitches grace_dur place = do
         Sub.reapply_call args "(" [] [events]
 
 c_roll :: Derive.Generator Derive.Note
-c_roll = Derive.make_call "roll" Tags.ornament
+c_roll = Derive.make_call Module.europe "roll" Tags.ornament
     "These are like grace notes, but they all have the same pitch."
     $ Sig.call ((,,)
     <$> Sig.defaulted "times" 1 "Number of grace notes."
@@ -191,7 +192,7 @@ c_grace_attr :: Map.Map Int Score.Attributes
     -- ^ Map intervals in semitones (positive or negative) to attrs.
     -> Derive.Generator Derive.Note
 c_grace_attr supported =
-    Derive.make_call "grace" (Tags.europe <> Tags.ornament <> Tags.ly)
+    Derive.make_call Module.europe "grace" (Tags.ornament <> Tags.ly)
     ("Emit grace notes as attrs, given a set of possible interval attrs.\
     \ If the grace note can't be expressed by the supported attrs, then emit\
     \ notes like the normal grace call.\nSupported: "
@@ -231,9 +232,8 @@ grace_attrs _ _ _ = return Nothing
 -- * pitch calls
 
 c_mordent_p :: Pitch.Transpose -> Derive.Generator Derive.Pitch
-c_mordent_p default_neighbor = Derive.generator1 "mordent"
-    (Tags.europe <> Tags.ornament)
-    "Like `g`, but hardcoded to play pitch, neighbor, pitch."
+c_mordent_p default_neighbor = Derive.generator1 Module.europe "mordent"
+    Tags.ornament "Like `g`, but hardcoded to play pitch, neighbor, pitch."
     $ Sig.call ((,,)
     <$> Sig.required "pitch" "Base pitch."
     <*> Sig.defaulted "neighbor" (TrackLang.DefaultDiatonic default_neighbor)
@@ -244,7 +244,7 @@ c_mordent_p default_neighbor = Derive.generator1 "mordent"
             (Args.range_or_next args)
 
 c_grace_p :: Derive.Generator Derive.Pitch
-c_grace_p = Derive.generator1 "grace" (Tags.europe <> Tags.ornament)
+c_grace_p = Derive.generator1 Module.europe "grace" Tags.ornament
     "Generate grace note pitches.  They start on the event and have the given\
     \ duration, but are shortened if the available duration is too short.\
     \ The destination pitch is first, even though it plays last, so\

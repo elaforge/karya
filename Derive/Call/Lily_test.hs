@@ -16,7 +16,7 @@ import qualified Perform.Lilypond.LilypondTest as LilypondTest
 
 test_when_ly = do
     let run_ly = extract . LilypondTest.derive_tracks
-        run_normal = extract . DeriveTest.derive_tracks
+        run_normal = extract . DeriveTest.derive_tracks "import ly"
         extract = DeriveTest.extract $
             \e -> (DeriveTest.e_note e, DeriveTest.e_attributes e)
     let tracks =
@@ -36,7 +36,8 @@ test_when_ly = do
     equal (run_normal tracks) ([((0, 1, "4a"), "+a")], [])
 
 test_ly_track = do
-    let run_normal = DeriveTest.extract ex . DeriveTest.derive_tracks_linear
+    let run_normal =
+            DeriveTest.extract ex . DeriveTest.derive_tracks_linear "import ly"
             where ex e = (DeriveTest.e_pitch e, DeriveTest.e_attributes e)
         run_ly =
             LilypondTest.extract extract . LilypondTest.derive_tracks_linear
