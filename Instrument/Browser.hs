@@ -110,10 +110,12 @@ info_of db score_inst (MidiDb.Info synth patch code) =
         , ("Synth controls", show_control_map synth_cmap)
         -- code
         , ("Cmds", show_cmds (Cmd.inst_cmds code))
-        , ("Note generators", show_calls CallDoc.GeneratorCall note_generators)
-        , ("Note transformers",
-            show_calls CallDoc.TransformerCall note_transformers)
-        , ("Val calls", show_calls CallDoc.ValCall val_calls)
+        , ("Note generators", show_calls CallDoc.GeneratorCall
+            (map CallDoc.convert_call note_generators))
+        , ("Note transformers", show_calls CallDoc.TransformerCall
+            (map CallDoc.convert_call note_transformers))
+        , ("Val calls", show_calls CallDoc.ValCall
+            (map CallDoc.convert_val_call val_calls))
         , ("Environ",
             if environ == mempty then "" else prettyt environ)
 
@@ -178,11 +180,11 @@ show_cmds :: [Cmd.Cmd] -> Text
 show_cmds [] = ""
 show_cmds cmds = showt (length cmds) <> " cmds (cmds can't be introspected yet)"
 
-show_calls :: CallDoc.CallType -> [Derive.LookupCall call] -> Text
+show_calls :: CallDoc.CallType -> [CallDoc.LookupCall] -> Text
 show_calls ctype lookups =
     -- Pass a Nothing for width because I should let fltk do the wrapping.
     Format.run Nothing $ mapM_ CallDoc.call_bindings_text bindings
-    where bindings = CallDoc.lookup_docs ctype (map Derive.lookup_docs lookups)
+    where bindings = CallDoc.lookup_calls ctype lookups
 
 show_tags :: [(Text, Text)] -> Text
 show_tags tags =

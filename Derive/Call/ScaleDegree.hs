@@ -115,8 +115,8 @@ parse_relative_interval named_intervals note =
 relative_scale_degree :: PitchSignal.Scale -> NamedIntervals -> Pitch.Hz
     -> Derive.ValCall
 relative_scale_degree scale named_intervals initial_interval =
-    -- TODO documentation
-    Derive.val_call Module.scale "pitch" mempty "doc doc" $
+    Derive.val_call Module.scale "pitch" mempty
+    "Emit a pitch that is a relative interval from the previous pitch." $
     Sig.call (intervals_arg named_intervals) $ \intervals args -> do
         interval <- (initial_interval*) <$>
             resolve_intervals named_intervals intervals

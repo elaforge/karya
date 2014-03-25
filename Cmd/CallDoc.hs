@@ -77,7 +77,7 @@ call_bindings_text (binds, ctype, call_doc) = do
     write_tags tags
         | tags == mempty = Format.write "\n"
         | otherwise = Format.write $
-            "Tags: " <> Text.intercalate ", " (Tags.untag tags) <> "\n"
+            " Tags: " <> Text.intercalate ", " (Tags.untag tags) <> "\n"
 
 environ_keys :: Text -> Sig.EnvironDefault -> Text
 environ_keys name deflt =
@@ -350,12 +350,10 @@ library (Derive.Library note control pitch val) =
 type LookupCall = Derive.LookupCall Derive.DocumentedCall
 
 convert_call :: Derive.LookupCall (Derive.Call f) -> LookupCall
-convert_call = fmap_lookup $ \call ->
-    Derive.DocumentedCall (Derive.call_name call) (Derive.call_doc call)
+convert_call = fmap_lookup Derive.extract_doc
 
 convert_val_call :: Derive.LookupCall Derive.ValCall -> LookupCall
-convert_val_call = fmap_lookup $ \call ->
-    Derive.DocumentedCall (Derive.vcall_name call) (Derive.vcall_doc call)
+convert_val_call = fmap_lookup Derive.extract_val_doc
 
 fmap_lookup :: (a -> b) -> Derive.LookupCall a -> Derive.LookupCall b
 fmap_lookup extract_doc (Derive.LookupMap calls) = Derive.LookupMap $
