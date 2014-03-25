@@ -130,7 +130,12 @@ with_default_imported = with_imported $
 with_imported :: Set.Set Module.Module -> Deriver a -> Deriver a
 with_imported modules deriver = do
     lib <- Internal.get_constant state_library
-    with_scopes (import_library (extract_modules modules lib)) deriver
+    lib <- case extract_modules modules lib of
+        Library (CallMaps [] []) (CallMaps [] []) (CallMaps [] []) [] ->
+            -- Likely the module name was typoed.
+            throw $ "no calls in the imported modules: " <> pretty modules
+        lib -> return lib
+    with_scopes (import_library lib) deriver
 
 -- | Filter out any calls that aren't in the given modules.
 extract_modules :: Set.Set Module.Module -> Library -> Library
