@@ -44,8 +44,7 @@ make_scale dmap scale_id pattern doc = Scale.Scale
     , Scale.scale_transposers = standard_transposers
     , Scale.scale_read = const $ read_note dmap
     , Scale.scale_show = const $ show_pitch dmap
-    , Scale.scale_layout =
-        Scale.diatonic_layout (fromIntegral (dm_per_octave dmap))
+    , Scale.scale_layout = Scale.diatonic_layout (dm_per_octave dmap)
     , Scale.scale_transpose = transpose dmap
     , Scale.scale_enharmonics = no_enharmonics
     , Scale.scale_note_to_call = mapped_note_to_call dmap scale
@@ -280,8 +279,7 @@ make_nn mprev nn mnext frac
 
 simple_kbd_to_scale :: DegreeMap -> Pitch.KbdType -> Pitch.Pitch
     -> Maybe Pitch.Pitch
-simple_kbd_to_scale dmap kbd =
-    kbd_to_scale kbd (fromIntegral (dm_per_octave dmap)) 0
+simple_kbd_to_scale dmap kbd = kbd_to_scale kbd (dm_per_octave dmap) 0
 
 -- | Convert an absolute Pitch in the input keyboard's layout to a relative
 -- Pitch within a scale with the given number of diatonic steps per octave, or

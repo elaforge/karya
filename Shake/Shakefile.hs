@@ -322,6 +322,11 @@ targetToMode target = snd <$> List.find ((`List.isPrefixOf` target) . fst)
 
 data MidiConfig = StubMidi | JackMidi | CoreMidi deriving (Show, Eq)
 
+ghcWarnings :: [String]
+ghcWarnings = map ("-fwarn-"++) $ words
+    "identities tabs incomplete-record-updates missing-fields unused-matches\
+    \ wrong-do-bind"
+
 configure :: MidiConfig -> IO (Mode -> Config)
 configure midi = do
     ghcLib <- run ghcBinary ["--print-libdir"]
@@ -350,7 +355,7 @@ configure midi = do
             "-I" ++ bindingsInclude]
         , fltkCc = fltkCs
         , fltkLd = fltkLds
-        , hcFlags = words "-threaded -W -fwarn-tabs" ++ ["-F", "-pgmF", hspp]
+        , hcFlags = ["-threaded", "-W"] ++ ghcWarnings ++ ["-F", "-pgmF", hspp]
             ++ case mode of
                 Debug -> []
                 Opt -> ["-O"]

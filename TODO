@@ -3,8 +3,6 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
-  - I think Shake.HsDeps will chase links forever, causing circular imports
-    to hang.
   * move equal binding to Equal
   - fix Id Serialize instances, and switch from ByteString to Text
     This means breaking all scores, so I can remove all old versions from
@@ -871,7 +869,6 @@ Derive:
       . Why do the notes move?  Did randomization change?
     * make 'import no-module' throw, I think I can keep a set of inhabited
       module names in Constant.
-
   tracklang:
     - there should be a character that triggers a parse failure, which is used
       by invalid ShowVal instances like ShowVal Pitch

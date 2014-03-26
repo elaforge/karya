@@ -32,9 +32,8 @@ type ToNn = Map.Map Pitch.Pitch Pitch.NoteNumber
 scale_map :: Pitch.PitchClass -> Pitch.Octave -> Pitch.PitchClass
     -> [Pitch.Note] -> [Pitch.NoteNumber] -> [Pitch.NoteNumber] -> ScaleMap
 scale_map per_octave start_octave start_pc notes umbang isep = ScaleMap
-    { scale_degree_map =
-        Scales.degree_map per_octave start_octave start_pc
-            (drop (fromIntegral start_pc) notes) avg
+    { scale_degree_map = Scales.degree_map per_octave start_octave start_pc
+        (drop start_pc notes) avg
     , scale_nn_map = NoteNumberMap (make_to_nn umbang) (make_to_nn isep)
     }
     where

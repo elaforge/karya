@@ -20,7 +20,7 @@ import qualified Perform.Signal as Signal
 type ControlMap = Map.Map Score.Control Midi.Control
 
 control_map :: [(Midi.Control, Score.Control)] -> ControlMap
-control_map cmap = Map.fromList [(c, fromIntegral n) | (n, c) <- cmap]
+control_map cmap = Map.fromList [(c, n) | (n, c) <- cmap]
 
 empty_map :: ControlMap
 empty_map = control_map []

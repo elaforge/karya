@@ -152,4 +152,4 @@ p_bank_decl = do
     Parsec.skipMany1 Parsec.space
     n <- Parse.p_nat
     st <- Parsec.getState
-    Parsec.setState (st { state_bank = fromIntegral n, state_patch_num = 0 })
+    Parsec.setState (st { state_bank = n, state_patch_num = 0 })
