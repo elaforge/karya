@@ -3,6 +3,7 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
+  . repeat '.' binding adds a leading space instead of making it 0 dur
   * move equal binding to Equal
   - fix Id Serialize instances, and switch from ByteString to Text
     This means breaking all scores, so I can remove all old versions from
@@ -940,7 +941,7 @@ Derive:
         kilitan
           - pickups can mute
           - kilitan patterns change over a speed threshold
-          - 323-23-2-32-323-2 as with kotekan
+          * 323-23-2-32-323-2 as with kotekan
           - variant patterns, e.g. p1 on dong
           - write an alternate style of kilitan, e.g. with a 6 note scale in
             tisram

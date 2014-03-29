@@ -65,10 +65,10 @@ note_calls = Derive.call_maps
     -- telu, and then infer pat.
     , ("k//",   c_kotekan $ regular_pattern "23-23-23" "2-12-12-" "5-45-45-")
     , ("k\\\\", c_kotekan $ regular_pattern "21-21-21" "2-32-32-" "-43-43-4")
+    , ("k_\\",  c_kotekan $ regular_pattern "-11-1-21" "3-32-32-" "-44-43-4")
     , ("k\\/",  c_kotekan $ regular_pattern "-12-12-2 1-21-12-"
                                             "3-23-232 -32-3-23"
                                             "44-34-3- 43-434-3")
-    , ("k_\\",  c_kotekan $ regular_pattern "1-1-21" "3-32-32" "4-43-4")
     ]
     [ ("nyog", c_nyogcag)
     , ("unison", c_unison)

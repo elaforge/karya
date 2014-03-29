@@ -151,7 +151,7 @@ program_change bank program =
     [ ControlChange CC.bank msb, ControlChange CC.bank_lsb lsb
     , ProgramChange program
     ]
-    where (lsb, msb) = split14 (fromIntegral bank)
+    where (lsb, msb) = split14 bank
 
 -- | Emit a pitch bend sensitivity RPN message for the given range.
 pitch_bend_sensitivity :: Double -> [ChannelMessage]
