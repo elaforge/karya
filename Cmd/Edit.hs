@@ -507,10 +507,9 @@ strip_transformer = ModifyEvents.selection_advance $
 -- ** record action
 
 -- | If you create a new event, and there is explicit duration, then use it.
--- If you don't have explicit dur, then dur == 0, and put Nothing.
-make_action :: Maybe Text -> Text -> TrackTime -> Cmd.Action
+make_action :: Maybe Text -> Text -> Maybe TrackTime -> Cmd.Action
 make_action maybe_old new dur = case maybe_old of
-    Nothing -> Cmd.InsertEvent (if dur == 0 then Nothing else Just dur) new
+    Nothing -> Cmd.InsertEvent dur new
     Just old
         -- This is a way to record a ReplaceText for an existing event.
         | old == new || old == "" -> Cmd.ReplaceText new
@@ -611,7 +610,9 @@ edit_input zero_dur msg = do
     let space = " " `Text.isPrefixOf` text
     EditUtil.modify_event_at (EditUtil.Pos block_id tracknum start dur)
         (zero_dur || space) False (const (Just (Text.strip text), False))
-    insert_recorded_action '.' $ make_action old_text text dur
+    -- 0 dur means a point selection, which means to use the time step.
+    insert_recorded_action '.' $ make_action old_text (Text.strip text)
+        (if space then Just 0 else if dur == 0 then Nothing else Just dur)
     return Cmd.Done
     where
     event_range start dur = do
