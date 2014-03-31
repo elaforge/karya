@@ -336,7 +336,6 @@ skel_color _ advance
 edit_color :: Cmd.EditMode -> Color.Color
 edit_color mode = case mode of
     Cmd.NoEdit -> Config.box_color
-    Cmd.RawEdit -> Config.raw_edit_color
     Cmd.ValEdit -> Config.val_edit_color
     Cmd.MethodEdit -> Config.method_edit_color
 
@@ -347,7 +346,6 @@ sync_step_status st = do
             <> TimeStep.show_time_step (Cmd.state_note_duration st)
     Cmd.set_status Config.status_step (Just step_status)
     Cmd.set_status Config.status_note_duration (Just dur_status)
-    Cmd.set_global_status "note dur" dur_status
 
 sync_octave_status :: (Cmd.M m) => Cmd.EditState -> m ()
 sync_octave_status st = do

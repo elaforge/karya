@@ -624,7 +624,7 @@ initial_edit_state = EditState {
 
 -- | These enable various commands to edit event text.  What exactly val
 -- and method mean are dependent on the track.
-data EditMode = NoEdit | RawEdit | ValEdit | MethodEdit deriving (Eq, Show)
+data EditMode = NoEdit | ValEdit | MethodEdit deriving (Eq, Show)
 instance Pretty.Pretty EditMode where pretty = show
 
 type RecordedActions = Map.Map Char Action

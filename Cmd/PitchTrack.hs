@@ -35,10 +35,6 @@ import qualified App.Config as Config
 
 -- * entry
 
-cmd_raw_edit :: Cmd.Cmd
-cmd_raw_edit = Cmd.suppress_history Cmd.RawEdit "pitch track raw edit"
-    . EditUtil.raw_edit True
-
 -- | Val edit turns 'Msg.InputNote's into the appropriate scale degree call
 -- for the scale in scope.
 --

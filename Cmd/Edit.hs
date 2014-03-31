@@ -31,12 +31,6 @@ import qualified Perform.Pitch as Pitch
 import Types
 
 
-cmd_toggle_raw_edit :: (Cmd.M m) => m ()
-cmd_toggle_raw_edit = do
-    modify_edit_mode $ \m -> case m of
-        Cmd.RawEdit -> Cmd.NoEdit
-        _ -> Cmd.RawEdit
-
 -- | Unlike the other toggle commands, val edit, being the \"default\" toggle,
 -- always turns other modes off.  So you can't switch directly from some other
 -- kind of edit to val edit.

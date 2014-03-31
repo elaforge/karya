@@ -219,18 +219,15 @@ means, of course, is documented in [control calls](calls.html).
 
 ### raw input
 
-RawEdit just appends whatever text you type directly to the event, so it's the
-only edit mode which acts the same on all tracks.  It's mostly made obsolete by
-edit input, so it might go away someday.
-
-Edit input is technically not a edit mode at all, but it's used to enter or
-alter text.  For example, the "append text" cmd (bound to 'a' by default),
-brings up a text input to edit event text directly.
+Edit input is technically not a edit mode since it's not in 'Cmd.Cmd.EditMode',
+but it's used to enter or alter text.  For example, the "append text" cmd
+(bound to 'a' by default), brings up a text input to edit event text directly.
 
 Events created on control and pitch tracks will normally be zero duration.
 Events on a note track will use the duration of the current TimeStep, but if
 you select a range of time and then create an event, the event will be exactly
-that duration.
+that duration.  Additionally, if the text has a leading space, the space will
+be stripped and the event created with a zero duration.
 
 ### note entry
 

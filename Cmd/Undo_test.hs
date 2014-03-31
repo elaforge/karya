@@ -75,28 +75,28 @@ test_undo = do
 
 test_suppress_history = do
     let states = ResponderTest.mkstates [(">", [(0, 1, "1"), (1, 1, "2")])]
-    let suppress = Cmd.suppress_history Cmd.RawEdit
+    let suppress = Cmd.suppress_history Cmd.ValEdit
 
     res <- ResponderTest.respond_cmd states $
-        Cmd.name "toggle" Edit.cmd_toggle_raw_edit
+        Cmd.name "toggle" Edit.cmd_toggle_val_edit
     res <- next res $ suppress "+z" $ insert_event 0 "z"
     equal (e_hist_names res) ([], "setup: 12", [])
     res <- next res $ suppress "+q" $ insert_event 1 "q"
     equal (e_hist_names res) ([], "setup: 12", [])
     -- A non-recording cmd will cause the suppressed cmds to be recorded.
     res <- next res $ set_sel 1
-    res <- next res $ Cmd.name "toggle" Edit.cmd_toggle_raw_edit
+    res <- next res $ Cmd.name "toggle" Edit.cmd_toggle_val_edit
     equal (e_hist_names res) (["setup: 12"], "+z: zq", [])
 
 test_undo_while_suppressed = do
     let states = ResponderTest.mkstates [(">", [(0, 1, "1"), (1, 1, "2")])]
-    let suppress = Cmd.suppress_history Cmd.RawEdit
+    let suppress = Cmd.suppress_history Cmd.ValEdit
 
     -- Unsuppressed.
     res <- ResponderTest.respond_cmd states $ Cmd.name "+a" $ insert_event 0 "a"
 
     -- Suppressed.
-    res <- next res $ Cmd.name "toggle" Edit.cmd_toggle_raw_edit
+    res <- next res $ Cmd.name "toggle" Edit.cmd_toggle_val_edit
     res <- next res $ suppress "+b" $ insert_event 0 "b"
     -- The 'b' cmd is buried in suppression.
     equal (e_hist_names res) (["setup: 12"], "+a: a2", [])

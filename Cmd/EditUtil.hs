@@ -18,7 +18,6 @@ import qualified Ui.Track as Track
 import qualified Ui.Types as Types
 
 import qualified Cmd.Cmd as Cmd
-import qualified Cmd.InputNote as InputNote
 import qualified Cmd.Msg as Msg
 import qualified Cmd.Perf as Perf
 import qualified Cmd.Selection as Selection
@@ -41,22 +40,6 @@ get_pos = do
     let (start, end) = Types.sel_range sel
     return $ Pos block_id (Selection.point_track sel) (Selection.point sel)
         (end - start)
-
--- * raw edit
-
-raw_edit :: Bool -> Cmd.Cmd
-raw_edit zero_dur msg = do
-    fallthrough msg
-    case msg of
-        Msg.InputNote (InputNote.NoteOn _ input _) -> do
-            note <- input_to_note input
-            modify_event zero_dur False $ \txt ->
-                (modify_text_note note (fromMaybe "" txt), False)
-        (raw_key -> Just (mods, key)) ->
-            modify_event zero_dur False $ \txt ->
-                (modify_text_key mods key (fromMaybe "" txt), False)
-        _ -> Cmd.abort
-    return Cmd.Done
 
 -- * events
 

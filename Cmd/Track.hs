@@ -91,11 +91,9 @@ lookup_midi_info block_id track_id =
 input_cmds :: Cmd.EditMode -> Info.Track -> [Cmd.Cmd]
 input_cmds edit_mode track = universal ++ case Info.track_type track of
     Info.Note {} -> case edit_mode of
-        Cmd.RawEdit -> [NoteTrack.cmd_raw_edit]
         Cmd.ValEdit -> [NoteTrack.cmd_val_edit]
         _ -> []
     Info.Pitch {} -> case edit_mode of
-        Cmd.RawEdit -> [PitchTrack.cmd_raw_edit]
         Cmd.ValEdit -> [PitchTrack.cmd_val_edit]
         _ -> []
     Info.Control {} -> case edit_mode of
@@ -121,7 +119,6 @@ track_cmds edit_mode track = case Info.track_type track of
         Cmd.MethodEdit -> [PitchTrack.cmd_method_edit]
         _ -> []
     Info.Control {} -> case edit_mode of
-        Cmd.RawEdit -> [ControlTrack.cmd_raw_edit]
         Cmd.MethodEdit -> [ControlTrack.cmd_method_edit]
         _ -> []
 

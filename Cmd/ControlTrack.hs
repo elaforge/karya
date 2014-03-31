@@ -27,10 +27,6 @@ import qualified Perform.Signal as Signal
 import Types
 
 
-cmd_raw_edit :: Cmd.Cmd
-cmd_raw_edit = Cmd.suppress_history Cmd.RawEdit "control track raw edit"
-    . EditUtil.raw_edit True
-
 -- | Accept keystrokes and modify the val field of the event.  Also accept
 -- 'InputNote.NoteOn' or 'InputNote.Control' msgs and enter a value based on
 -- their velocity or value, respectively.  So you can use a MIDI knob to set

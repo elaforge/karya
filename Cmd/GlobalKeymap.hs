@@ -321,8 +321,6 @@ edit_state_bindings = concat
     [ plain_key Key.Escape "toggle val edit" Edit.cmd_toggle_val_edit
     , bind_key [really_control] (Key.Char '[') "toggle val edit"
         Edit.cmd_toggle_val_edit
-    , bind_key [PrimaryCommand] Key.Escape "toggle raw edit"
-        Edit.cmd_toggle_raw_edit
     , bind_key [] Key.Tab "toggle method edit" Edit.cmd_toggle_method_edit
     , bind_key [Shift] Key.Escape "toggle kbd entry mode"
         Edit.cmd_toggle_kbd_entry

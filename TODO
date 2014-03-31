@@ -758,7 +758,7 @@ tempo:
     to be played.
 
 Cmd:
-  - remove RawEdit?
+  * remove RawEdit?
   meter / timestep
     - timestep 64*2 skips two 's', because 's' is the minimum match
       skip should be ignored when the match is a larger rank than exists, or

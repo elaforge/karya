@@ -24,23 +24,6 @@ import qualified Perform.NN as NN
 import Types
 
 
-test_cmd_raw_edit = do
-    let f = NoteTrack.cmd_raw_edit
-    -- Created event has dur according to ruler.
-    equal (run [(">i", [])] (f (CmdTest.m_note_on NN.middle_c))) $
-        Right [(">i", [(0, 1, "(4c)")])]
-    -- Space creates a zero-dur note.
-    equal (run [(">i", [])] (f (mkkey (Key.Char ' ')))) $
-        Right [(">i", [(0, 0, "")])]
-    equal (run [(">i", [])] (f (mkkey (Key.Char 'x')))) $
-        Right [(">i", [(0, 1, "x")])]
-    equal (run [(">i", [(0, 5, "")])] (f (mkkey Key.Backspace))) $
-        Right [(">i", [])]
-
-    -- Modified event keeps dur.
-    equal (run [(">i", [(0, 5, "a")])] (f (mkkey Key.Backspace))) $
-        Right [(">i", [(0, 5, "")])]
-
 test_cmd_val_edit_create = do
     let f = NoteTrack.cmd_val_edit
         note = CmdTest.m_note_on NN.middle_c
