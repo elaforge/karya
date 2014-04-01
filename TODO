@@ -5,7 +5,7 @@ LEGEND
 UNSORTED
   * repeat '.' binding adds a leading space instead of making it 0 dur
   * move equal binding to Equal
-  - fix Id Serialize instances, and switch from ByteString to Text
+  * fix Id Serialize instances, and switch from ByteString to Text
     This means breaking all scores, so I can remove all old versions from
     Cmd.Serialize while I'm at it.
   * positive events at the end of the ruler should have text above

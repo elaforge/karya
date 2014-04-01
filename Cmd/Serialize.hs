@@ -17,7 +17,6 @@ module Cmd.Serialize where
 import qualified Control.Exception as Exception
 import qualified Data.ByteString as B
 import qualified Data.ByteString.Char8 as Char8
-import qualified Data.List.NonEmpty as NonEmpty
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 import qualified Data.Time as Time
@@ -48,7 +47,6 @@ import qualified Derive.RestrictedEnviron as RestrictedEnviron
 import qualified Derive.Score as Score
 import qualified Perform.Lilypond.Types as Lilypond
 import qualified Perform.Midi.Instrument as Instrument
-import qualified Perform.Pitch as Pitch
 import qualified Perform.Signal as Signal
 
 import Types
@@ -151,17 +149,6 @@ instance Serialize State.Config where
             >> put transform >> put instruments >> put lilypond >> put defaults
             >> put saved_views
     get = Serialize.get_version >>= \v -> case v of
-        7 -> do
-            ns :: Id.Namespace <- get
-            meta :: State.Meta <- get
-            root :: Maybe BlockId <- get
-            Configs midi :: Configs <- get
-            transform :: Text <- get
-            instruments :: Map.Map Score.Instrument Score.Instrument <- get
-            lilypond :: Lilypond.Config <- get
-            defaults :: State.Default <- get
-            return $ State.Config ns meta root midi transform instruments
-                lilypond defaults mempty
         8 -> do
             ns :: Id.Namespace <- get
             meta :: State.Meta <- get
@@ -180,15 +167,6 @@ instance Serialize State.Meta where
     put (State.Meta a b c d) = Serialize.put_version 2
         >> put a >> put b >> put c >> put d
     get = Serialize.get_version >>= \v -> case v of
-        0 -> do
-            creation :: Time.UTCTime <- get
-            notes :: String <- get
-            return $ State.Meta creation (txt notes) mempty mempty
-        1 -> do
-            creation :: Time.UTCTime <- get
-            notes :: Text <- get
-            performances :: Map.Map BlockId State.MidiPerformance <- get
-            return $ State.Meta creation notes performances mempty
         2 -> do
             creation :: Time.UTCTime <- get
             notes :: Text <- get
@@ -213,12 +191,6 @@ instance Serialize State.Default where
     get = do
         v <- Serialize.get_version
         case v of
-            3 -> do
-                _scale :: Pitch.ScaleId <- get
-                _key :: Maybe Pitch.Key <- get
-                _inst :: Maybe Score.Instrument <- get
-                tempo :: Signal.Y <- get
-                return $ State.Default tempo
             4 -> do
                 tempo :: Signal.Y <- get
                 return $ State.Default tempo
@@ -234,26 +206,6 @@ instance Serialize Block.Block where
     get = do
         v <- Serialize.get_version
         case v of
-            9 -> do
-                title :: Text <- get
-                tracks :: [Block.Track] <- get
-                skel :: Skeleton.Skeleton <- get
-                iblock :: Maybe (BlockId, NonEmpty Block.DeriveDestination)
-                    <- get
-                itracks :: [(TrackId, NonEmpty Block.DeriveDestination)] <- get
-                meta :: Map.Map Text Text <- get
-                return $ Block.Block title Block.default_config tracks skel
-                    (upgrade_dest <$> second NonEmpty.toList <$> iblock)
-                    (map (upgrade_dest . second NonEmpty.toList) itracks) meta
-            10 -> do
-                title :: Text <- get
-                tracks :: [Block.Track] <- get
-                skel :: Skeleton.Skeleton <- get
-                iblock :: Maybe (BlockId, [Block.DeriveDestination]) <- get
-                itracks :: [(TrackId, [Block.DeriveDestination])] <- get
-                meta :: Map.Map Text Text <- get
-                return $ Block.Block title Block.default_config tracks skel
-                    (upgrade_dest <$> iblock) (map upgrade_dest itracks) meta
             11 -> do
                 title :: Text <- get
                 tracks :: [Block.Track] <- get
@@ -264,8 +216,6 @@ instance Serialize Block.Block where
                 return $ Block.Block title Block.default_config tracks skel
                     iblock itracks meta
             _ -> Serialize.bad_version "Block.Block" v
-        where
-        upgrade_dest = second Block.DeriveDestinations
 
 instance Serialize Block.TrackDestinations where
     put (Block.DeriveDestinations a) = put_tag 0 >> put a
@@ -337,9 +287,7 @@ instance Serialize Block.TracklikeId where
 
 instance Serialize Block.Divider where
     put (Block.Divider a) = put a
-    get = do
-        color :: Color.Color <- get
-        return $ Block.Divider color
+    get = Block.Divider <$> get
 
 instance Serialize Block.View where
     put (Block.View a b c d e f g h) = Serialize.put_version 5
@@ -442,19 +390,11 @@ instance Serialize Track.Track where
 instance Serialize Track.RenderConfig where
     put (Track.RenderConfig a b) = Serialize.put_version 1 >> put a >> put b
     get = Serialize.get_version >>= \v -> case v of
-        0 -> do
-            style :: RenderStyle0 <- get
-            color :: Color.Color <- get
-            return $ Track.RenderConfig (convert style) color
         1 -> do
             style :: Track.RenderStyle <- get
             color :: Color.Color <- get
             return $ Track.RenderConfig style color
         _ -> Serialize.bad_version "Track.RenderConfig" v
-        where
-        convert NoRender = Track.NoRender
-        convert Line = Track.Line Nothing
-        convert Filled = Track.Filled Nothing
 
 instance Serialize Track.RenderStyle where
     put Track.NoRender = put_tag 0
@@ -482,20 +422,6 @@ instance Serialize Track.RenderSource where
             return $ Track.Pitch control
         _ -> bad_tag "Track.RenderSource" tag
 
-instance Serialize RenderStyle0 where
-    put NoRender = put_tag 0
-    put Line = put_tag 1
-    put Filled = put_tag 2
-    get = do
-        tag <- get_tag
-        case tag of
-            0 -> return NoRender
-            1 -> return Line
-            2 -> return Filled
-            _ -> bad_tag "RenderStyle0" tag
-
-data RenderStyle0 = NoRender | Line | Filled
-
 -- ** Midi.Instrument
 
 -- | It's a type synonym, but Serialize needs a newtype.
@@ -517,25 +443,6 @@ instance Serialize Instrument.Config where
     get = do
         v <- Serialize.get_version
         case v of
-            1 -> do
-                addrs :: [Instrument.Addr] <- get
-                mute :: Bool <- get
-                solo :: Bool <- get
-                return $ Instrument.Config (map (flip (,) Nothing) addrs)
-                    mempty mempty mute solo
-            2 -> do
-                addrs :: [Instrument.Addr] <- get
-                controls :: Score.ControlValMap <- get
-                mute :: Bool <- get
-                solo :: Bool <- get
-                return $ Instrument.Config (map (flip (,) Nothing) addrs)
-                    mempty controls mute solo
-            3 -> do
-                addrs :: [(Instrument.Addr, Maybe Instrument.Voices)] <- get
-                controls :: Score.ControlValMap <- get
-                mute :: Bool <- get
-                solo :: Bool <- get
-                return $ Instrument.Config addrs mempty controls mute solo
             4 -> do
                 addrs :: [(Instrument.Addr, Maybe Instrument.Voices)] <- get
                 environ :: RestrictedEnviron.Environ <- get
@@ -567,11 +474,6 @@ instance Serialize Lilypond.StaffConfig where
     get = do
         v <- Serialize.get_version
         case v of
-            0 -> do
-                long :: Lilypond.Instrument <- get
-                short :: Lilypond.Instrument <- get
-                code :: [Text] <- get
-                return $ Lilypond.StaffConfig long short code True
             1 -> do
                 long :: Lilypond.Instrument <- get
                 short :: Lilypond.Instrument <- get

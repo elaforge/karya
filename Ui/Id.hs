@@ -29,15 +29,13 @@ module Ui.Id (
 import qualified Prelude
 import Prelude hiding (id)
 import qualified Control.DeepSeq as DeepSeq
-import qualified Data.ByteString.Char8 as B
 import qualified Data.Digest.CRC32 as CRC32
 import qualified Data.Text as Text
-import qualified Data.Text.Encoding as Encoding
-
 import qualified Text.ParserCombinators.ReadPrec as ReadPrec
 import qualified Text.Read as Read
 
 import Util.Control
+import Util.Crc32Instances () -- Text instance
 import qualified Util.Pretty as Pretty
 import qualified Util.Serialize as Serialize
 
@@ -47,53 +45,29 @@ import qualified Util.Serialize as Serialize
 -- This is so so that you can merge two scores together and not have their IDs
 -- clash.  Since block calls within a score will generally leave the namespace
 -- implicit, the merged score should still be playable.
---
--- TODO the ByteString is historical, it should be Text but it's a pain to
--- change.
-data Id = Id !Namespace !B.ByteString
+data Id = Id !Namespace !Text
     deriving (Eq, Ord, Show, Read)
 
 -- | The Namespace should pass 'valid', but is guaranteed to not contain \/s.
 -- This is because the git backend uses the namespace for a directory name.
-newtype Namespace = Namespace B.ByteString
-    deriving (Eq, Ord, Show, Read, DeepSeq.NFData, CRC32.CRC32)
+newtype Namespace = Namespace Text
+    deriving (Eq, Ord, Show, Read, DeepSeq.NFData, CRC32.CRC32,
+        Serialize.Serialize)
 
-to_text :: B.ByteString -> Text
-to_text = Encoding.decodeUtf8
-
--- | Convert from Text and convert @/@.  This is because @/@ is used to
--- separate namespace and ident.
-from_text :: Text -> B.ByteString
-from_text = Encoding.encodeUtf8 . Text.map (\c -> if c == '/' then '-' else c)
+-- | Convert @/@ to @-@.  This is because @/@ is used to separate namespace and
+-- ident.
+clean :: Text -> Text
+clean = Text.map (\c -> if c == '/' then '-' else c)
 
 id :: Namespace -> Text -> Id
-id ns = Id ns . from_text
+id ns = Id ns . clean
 
 namespace :: Text -> Namespace
-namespace = Namespace . from_text
+namespace = Namespace . clean
 
 instance Serialize.Serialize Id where
-    put (Id ns ident) = Serialize.put val
-        where
-        val :: (Namespace, String)
-        val = (ns, B.unpack ident)
-    get = do
-        (ns, ident) <- Serialize.get
-        return $ Id ns (B.pack ident)
-    -- TODO These have inefficient put and get due to historical accident.
-    -- I should fix it some day, but it breaks all saves.  And as long as I'm
-    -- going to do that, I might as well switch from ByteString to Text.
-    -- put (Id a b) = Serialize.put a >> Serialize.put b
-    -- get = Id <$> Serialize.get <*> Serialize.get
-
-instance Serialize.Serialize Namespace where
-    put (Namespace a) = Serialize.put (B.unpack a)
-    get = Namespace . B.pack <$> Serialize.get
-    -- TODO These have inefficient put and get due to historical accident.
-    -- I should fix it some day, but it breaks all saves.  And as long as I'm
-    -- going to do that, I might as well switch from ByteString to Text.
-    -- put (Namespace a) = Serialize.put a
-    -- get = Namespace <$> Serialize.get
+    get = Id <$> Serialize.get <*> Serialize.get
+    put (Id a b) = Serialize.put a >> Serialize.put b
 
 instance CRC32.CRC32 Id where
     crc32Update n (Id ns name) =
@@ -108,10 +82,10 @@ instance DeepSeq.NFData Id where
 -- * access
 
 un_id :: Id -> (Namespace, Text)
-un_id (Id ns ident) = (ns, to_text ident)
+un_id (Id ns ident) = (ns, ident)
 
 id_name :: Id -> Text
-id_name (Id _ name) = to_text name
+id_name (Id _ name) = name
 
 id_namespace :: Id -> Namespace
 id_namespace (Id ns _) = ns
@@ -123,7 +97,7 @@ set_name :: Text -> Id -> Id
 set_name name (Id ns _) = id ns name
 
 un_namespace :: Namespace -> Text
-un_namespace (Namespace s) = to_text s
+un_namespace (Namespace s) = s
 
 -- * read / show
 
@@ -132,7 +106,7 @@ read_id s = id (namespace pre) (Text.drop 1 post)
     where (pre, post) = Text.breakOn "/" s
 
 show_id :: Id -> String
-show_id (Id ns ident) = pretty ns ++ "/" ++ B.unpack ident
+show_id (Id ns ident) = pretty ns ++ "/" ++ Text.unpack ident
 
 -- | A smarter constructor that only applies the namespace if the string
 -- doesn't already have one.
@@ -144,7 +118,7 @@ read_short default_ns text = case Text.breakOn "/" text of
 -- | The inverse of 'read_short'.
 show_short :: Namespace -> Id -> String
 show_short default_ns ident@(Id ns name)
-    | default_ns == ns = B.unpack name
+    | default_ns == ns = Text.unpack name
     | otherwise = show_id ident
 
 -- * validate
