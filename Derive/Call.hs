@@ -533,18 +533,14 @@ get_generator :: forall d. (Derive.Callable d) =>
 get_generator call_id =
     require_call True call_id (name <> " generator")
         =<< Derive.lookup_generator call_id
-    where
-    name = Derive.callable_name
-        (error "Derive.callable_name shouldn't evaluate its argument." :: d)
+    where name = Derive.callable_name (Proxy :: Proxy d)
 
 get_transformer :: forall d. (Derive.Callable d) =>
     TrackLang.CallId -> Derive.Deriver (Derive.Transformer d)
 get_transformer call_id =
     require_call False call_id (name <> " transformer")
         =<< Derive.lookup_transformer call_id
-    where
-    name = Derive.callable_name
-        (error "Derive.callable_name shouldn't evaluate its argument." :: d)
+    where name = Derive.callable_name (Proxy :: Proxy d)
 
 require_call :: Bool -> TrackLang.CallId -> Text -> Maybe a -> Derive.Deriver a
 require_call _ _ _ (Just a) = return a
@@ -582,12 +578,12 @@ is_relative_call (TrackLang.Symbol sym) = "." `Text.isPrefixOf` sym
 -- * misc
 
 -- | Cast a Val to a haskell val, or throw if it's the wrong type.
-cast :: forall a. (TrackLang.Typecheck a) => Text -> TrackLang.Val
+cast :: forall a. TrackLang.Typecheck a => Text -> TrackLang.Val
     -> Derive.Deriver a
 cast name val = case TrackLang.from_val val of
-        Nothing -> Derive.throw $ untxt $
-            name <> ": expected " <> prettyt return_type
-            <> " but val was " <> prettyt (TrackLang.type_of val)
-            <> " " <> TrackLang.show_val val
-        Just a -> return a
-    where return_type = TrackLang.to_type (error "Call.cast" :: a)
+    Nothing -> Derive.throw $ untxt $
+        name <> ": expected " <> prettyt return_type
+        <> " but val was " <> prettyt (TrackLang.type_of val)
+        <> " " <> TrackLang.show_val val
+    Just a -> return a
+    where return_type = TrackLang.to_type (Proxy :: Proxy a)

@@ -5,7 +5,8 @@
 {- | Control flow and monadic utilities.
 -}
 module Util.Control (
-    (<$>), (<*>), (<*), (*>), (<|>)
+    Proxy(..)
+    , (<$>), (<*>), (<*), (*>), (<|>)
     , first, second, (***)
     , (<>), mempty, mconcat
     , while, while_
@@ -45,6 +46,10 @@ import qualified Data.Text as Text
 import Util.Lens
 import Util.Pretty (pretty, prettyt)
 
+
+-- | A value proxy for a type, used for class methods that just want a type,
+-- not a value.
+data Proxy a = Proxy
 
 -- | Like the Arrow combinators, but specialized to functions for clearer
 -- error messages.

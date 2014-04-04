@@ -337,7 +337,7 @@ throw_error_srcpos srcpos err = do
 class (Show d, ToTagged (Elem d)) => Callable d where
     lookup_generator :: TrackLang.CallId -> Deriver (Maybe (Generator d))
     lookup_transformer :: TrackLang.CallId -> Deriver (Maybe (Transformer d))
-    callable_name :: d -> Text
+    callable_name :: Proxy d -> Text
 
 -- | This converts the deriver return type to the scalar value used by
 -- 'info_prev_val'.

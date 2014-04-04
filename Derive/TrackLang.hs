@@ -80,7 +80,7 @@ type_to_transpose (Score.Typed typ val) = case typ of
     Score.Nn -> Just $ Pitch.Nn val
     _ -> Nothing
 
-to_scale_id :: (Typecheck a) => a -> Maybe Pitch.ScaleId
+to_scale_id :: Typecheck a => a -> Maybe Pitch.ScaleId
 to_scale_id val
     | VSymbol (Symbol s) <- to_val val = Just (Pitch.ScaleId s)
     | otherwise = Nothing
@@ -224,10 +224,6 @@ instance Pretty.Pretty NumValue where
 
 type_of :: Val -> Type
 type_of val = case val of
-    -- Yes, it's duplicated with 'to_type', and I can merge them by adding
-    -- a VMaybe and doing @type_of . to_val@, but 'to_val' and 'type_of' both
-    -- promising to not evaluate the value seems even more hacky than just
-    -- 'to_type' making that promise.
     VNum num -> TNum (to_num_type (Score.type_of num)) TAny
     VAttributes {} -> TAttributes
     VControl {} -> TControl
@@ -248,7 +244,7 @@ class (Show a, ShowVal a) => Typecheck a where
     -- | This shouldn't evaluate its argument, so you can use
     -- @maybe undefined id@ to get the type of a @Maybe a@.
     -- This is an unsatisfying dangerous hack.
-    to_type :: a -> Type
+    to_type :: Proxy a -> Type
 
 instance Typecheck Val where
     from_val = Just
@@ -257,15 +253,14 @@ instance Typecheck Val where
 
 -- | Putting Maybe in Typecheck means I can have optional arguments with no
 -- defaults.  Further docs in 'Derive.Sig.defaulted'.
-instance (Typecheck a) => Typecheck (Maybe a) where
+instance Typecheck a => Typecheck (Maybe a) where
     from_val VNotGiven = Just Nothing
     from_val a = case from_val a of
         Nothing -> Nothing
         Just v -> Just (Just v)
     to_val Nothing = VNotGiven
     to_val (Just a) = to_val a
-    to_type val = TMaybe $ to_type $
-        fromMaybe (error "to_type shouldn't evaluate its argument") val
+    to_type _ = TMaybe $ to_type (Proxy :: Proxy a)
 
 instance (Typecheck a, Typecheck b) => Typecheck (Either a b) where
     from_val a = case from_val a of
@@ -274,8 +269,8 @@ instance (Typecheck a, Typecheck b) => Typecheck (Either a b) where
             Just right -> Just $ Right right
             Nothing -> Nothing
     to_val = either to_val to_val
-    to_type _ = TEither (to_type (error "Either to_type" :: a))
-        (to_type (error "Either to_type" :: b))
+    to_type _ = TEither (to_type (Proxy :: Proxy a))
+        (to_type (Proxy :: Proxy b))
 
 -- ** numeric types
 
@@ -387,10 +382,10 @@ instance Typecheck DefaultScore where
 
 -- *** refined numeric types
 
-num_to_type :: (TypecheckNum a) => a -> Type
-num_to_type undef = TNum (num_type undef) TAny
+num_to_type :: TypecheckNum a => Proxy a -> Type
+num_to_type proxy = TNum (num_type proxy) TAny
 
-class (Typecheck a) => TypecheckNum a where num_type :: a -> NumType
+class Typecheck a => TypecheckNum a where num_type :: Proxy a -> NumType
 instance TypecheckNum Score.TypedVal where num_type _ = TUntyped
 instance TypecheckNum Double where num_type _ = TUntyped
 instance TypecheckNum Int where num_type _ = TInt
@@ -402,27 +397,21 @@ instance TypecheckNum Duration where num_type _ = TTime
 instance TypecheckNum DefaultReal where num_type _ = TDefaultReal
 instance TypecheckNum DefaultScore where num_type _ = TDefaultScore
 
-instance (TypecheckNum a) => Typecheck (Positive a) where
+instance TypecheckNum a => Typecheck (Positive a) where
     from_val v@(VNum val)
         | Score.typed_val val > 0 = Positive <$> from_val v
         | otherwise = Nothing
     from_val _ = Nothing
     to_val (Positive val) = to_val val
-    to_type _ = TNum (num_type result) TPositive
-        where
-        result :: a
-        result = error "TrackLang.Positive: unevaluated"
+    to_type _ = TNum (num_type (Proxy :: Proxy a)) TPositive
 
-instance (TypecheckNum a) => Typecheck (Natural a) where
+instance TypecheckNum a => Typecheck (Natural a) where
     from_val v@(VNum val)
         | Score.typed_val val >= 0 = Natural <$> from_val v
         | otherwise = Nothing
     from_val _ = Nothing
     to_val (Natural val) = to_val val
-    to_type _ = TNum (num_type result) TNatural
-        where
-        result :: a
-        result = error "TrackLang.Natural: unevaluated"
+    to_type _ = TNum (num_type (Proxy :: Proxy a)) TNatural
 
 -- *** text\/symbol types
 
@@ -545,7 +534,7 @@ instance Typecheck ControlFunction where
 -- inconsistent with types will just lead to confusion.
 --
 -- 'VNotGiven' is another special case, it deletes the given key.
-put_val :: (Typecheck val) => ValName -> val -> Environ -> Either Type Environ
+put_val :: Typecheck val => ValName -> val -> Environ -> Either Type Environ
 put_val name val environ
     | VNotGiven <- to_val val = Right $ delete_val name environ
     | otherwise = case lookup_val name environ of
@@ -575,7 +564,7 @@ hardcoded_types = Map.fromList
 
 data LookupError = NotFound | WrongType Type deriving (Show)
 
-get_val :: (Typecheck a) => ValName -> Environ -> Either LookupError a
+get_val :: Typecheck a => ValName -> Environ -> Either LookupError a
 get_val name environ = case lookup_val name environ of
     Nothing -> Left NotFound
     Just val -> case from_val val of
@@ -584,11 +573,11 @@ get_val name environ = case lookup_val name environ of
 
 -- | Like 'get_val', except that type errors and not found both turn into
 -- Nothing.
-maybe_val :: (Typecheck a) => ValName -> Environ -> Maybe a
+maybe_val :: Typecheck a => ValName -> Environ -> Maybe a
 maybe_val name = either (const Nothing) Just . get_val name
 
 -- | Like 'get_val' but format a WrongType nicely.
-checked_val :: forall a. (Typecheck a) => ValName -> Environ
+checked_val :: forall a. Typecheck a => ValName -> Environ
     -> Either String (Maybe a)
 checked_val name environ = case get_val name environ of
         Left NotFound -> return Nothing
@@ -596,11 +585,11 @@ checked_val name environ = case get_val name environ of
             Left $ show name <> ": expected " <> pretty return_type
                 <> " but val type is " <> pretty typ
         Right v -> return (Just v)
-    where return_type = to_type (error "checked_val" :: a)
+    where return_type = to_type (Proxy :: Proxy a)
 
 -- | Like 'checked_val', but juggle the return type around so NotFound is just
 -- Nothing, which is more convenient in some cases.
-checked_val2 :: (Typecheck a) => ValName -> Environ -> Maybe (Either String a)
+checked_val2 :: Typecheck a => ValName -> Environ -> Maybe (Either String a)
 checked_val2 name environ = case checked_val name environ of
     Right Nothing -> Nothing
     Right (Just val) -> Just (Right val)
