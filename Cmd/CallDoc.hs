@@ -140,7 +140,8 @@ html_header hstate =
         , "<code>[*-arg arg]</code> &mdash; default from environ values\
             \ <code>name-arg</code> followed by <code>arg</code>"
         ])
-    <> "<br> <code>word</code> to include a tag, <code>-word</code> to\n\
+    <> "<br> <code>word</code> to include a tag containing the word,\
+        \ <code>-word</code> to\n\
         \exclude, prefix <code>m:</code> for modules:\n\
         \<input id=input type=text size=60 value=\"" <> default_search
         <> "\" onchange=\"search(this.value)\">\n\
@@ -186,10 +187,13 @@ javascript =
     \   tags = tags.filter(function(x) { return x != '' });\n\
     \   return search.every(function(x) {\n\
     \       if (x[0] === '-')\n\
-    \           return tags.indexOf(x.slice(1)) === -1;\n\
+    \           return !tags_match(tags, x.slice(1));\n\
     \       else\n\
-    \           return tags.indexOf(x) !== -1;\n\
+    \           return tags_match(tags, x);\n\
     \    });\n\
+    \};\n\
+    \var tags_match = function(tags, val) {\n\
+    \   return tags.some(function(t) { return t.indexOf(val) !== -1 });\n\
     \};\n\
     \window.onload = function() {\n\
     \   search(document.getElementById('input').value);\n\
