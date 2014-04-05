@@ -52,10 +52,8 @@ call_bindings_text (binds, ctype, call_doc) = do
         Format.indented 2 $ show_call_doc call_doc
         Format.newline
     where
-    show_bind (shadowed, sym, name) = do
-        Format.write $ if shadowed then strikeout sym else sym
-        Format.write $ " -- " <> name <> ": (" <> show_call_type ctype <> ")\n"
-    strikeout sym = "~~" <> sym <> "~~ (shadowed)"
+    show_bind (sym, name) = Format.write $
+        sym <> " -- " <> name <> ": (" <> show_call_type ctype <> ")\n"
     show_call_doc (Derive.CallDoc (Module.Module module_) tags doc args) = do
         write_doc doc
         Format.write $ "Module: " <> module_
@@ -205,15 +203,13 @@ call_bindings_html hstate call_kind bindings@(binds, ctype, call_doc) =
     <> "</div>\n\n"
     where
     tags = call_kind : binding_tags bindings
-    show_bind (first, (shadowed, sym, name)) =
-        "<dt>" <> (if shadowed then strikeout sym else tag "code" (html sym))
+    show_bind (first, (sym, name)) =
+        "<dt>" <> tag "code" (html sym)
         -- This used to be &mdash;, but that's too hard to use text search on.
         <> " -- " <> tag "b" (html name) <> ": "
         <> (if first then show_ctype else "") <> "\n"
     show_ctype = "<div style='float:right'>"
         <> tag "em" (html (show_call_type ctype)) <> "</div>"
-    strikeout sym = tag "strike" (tag "code" (html sym))
-        <> tag "em" "(shadowed)"
     show_call_doc (Derive.CallDoc (Module.Module module_) tags doc args) =
         "<dd> <dl class=compact>\n"
         <> html_doc hstate doc
@@ -236,7 +232,7 @@ call_bindings_html hstate call_kind bindings@(binds, ctype, call_doc) =
     show_char = maybe "" (tag "sup" . html)
     write_tags tags
         | tags == mempty = ""
-        | otherwise = " -- <b>Tags:</b> <em>"
+        | otherwise = " &mdash; <b>Tags:</b> <em>"
             <> html (Text.intercalate ", " (Tags.untag tags))
             <> "</em>"
 
@@ -248,7 +244,7 @@ binding_tags :: CallBindings -> [Text]
 binding_tags (binds, ctype, call_doc) =
     Seq.unique (show_call_type ctype : extract call_doc)
     where
-    names = [name | (_, _, name) <- binds]
+    names = map snd binds
     extract call_doc = module_ (Derive.cdoc_module call_doc)
         : cdoc_tags call_doc ++ args_tags (Derive.cdoc_args call_doc)
     cdoc_tags = Tags.untag . Derive.cdoc_tags
@@ -433,7 +429,7 @@ merge_scope_docs = map (second (sort_calls . concat)) . Seq.group_fst
 
 sort_calls :: [CallBindings] -> [CallBindings]
 sort_calls = Seq.sort_on $ \(binds, _, _) ->
-    (\(_, sym, _) -> Text.toLower sym) <$> Seq.head binds
+    Text.toLower . fst <$> Seq.head binds
 
 -- | A 'Derive.Library' only has builtins, but ScopeDoc wants a source so
 -- it can work uniformly with 'track_sections', which does have separate
@@ -452,33 +448,25 @@ scope_type ctype (Derive.ScopeType override inst scale builtin) =
 
 -- | Multiple bound symbols with the same DocumentedCall are grouped together:
 type CallBindings = ([Binding], CallType, Derive.CallDoc)
--- | (is_shadowed, bound_symbol, call_name)
-type Binding = (Bool, SymbolName, CallName)
+type Binding = (SymbolName, CallName)
 type CallName = Text
 type SymbolName = Text
 
 lookup_calls :: CallType -> [LookupCall] -> [CallBindings]
-lookup_calls ctype =
-    group . map extract . snd . List.mapAccumL go Set.empty . concatMap flatten
+lookup_calls ctype = group . map extract . map go . concatMap flatten
     where
     flatten (Derive.LookupPattern pattern doc _) = [(Left pattern, doc)]
     flatten (Derive.LookupMap cmap) =
         [(Right sym, call) | (sym, call) <- Map.toAscList cmap]
-    go shadowed (Left pattern, call) =
-        -- There's no way to know if a programmatic lookup shadows.
-        (shadowed, ((False, "lookup: " <> pattern), call))
-    go shadowed (Right sym, call) =
-        (Set.insert sym shadowed,
-            ((sym `Set.member` shadowed, show_sym sym), call))
+    go (Left pattern, call) = ("lookup: " <> pattern, call)
+    go (Right sym, call) = (show_sym sym, call)
     show_sym (TrackLang.Symbol sym)
         | Text.null sym = "\"\""
         | otherwise = sym
-    extract ((shadowed, sym), Derive.DocumentedCall name doc) =
-        ((shadowed, sym, name), doc)
+    extract (sym, Derive.DocumentedCall name doc) = ((sym, name), doc)
     -- Group calls with the same CallDoc.
-    group docs =
-        [(map fst group, ctype, doc)
-            | (doc, group) <- Seq.keyed_group_on snd docs]
+    group docs = [(map fst group, ctype, doc)
+        | (doc, group) <- Seq.keyed_group_on snd docs]
 
 data CallType = ValCall | GeneratorCall | TransformerCall
     deriving (Eq, Ord, Show)

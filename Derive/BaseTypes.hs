@@ -483,6 +483,7 @@ data Dynamic = Dynamic {
     , dyn_warp :: !Warp
     , dyn_ruler :: Ruler.Marklists -- intentionally lazy
     } deriving (Show)
+
 type ControlMap = Map.Map Control TypedControl
 type ControlFunctionMap = Map.Map Control ControlFunction
 type PitchMap = Map.Map Control Signal

@@ -4,7 +4,7 @@ LEGEND
 
 UNSORTED
   - In save/rehearsal/telek, all edits are laggy.
-  - get rid of call doc shadowed mark
+  * get rid of call doc shadowed mark
   - call doc tag search can use *
   * repeat '.' binding adds a leading space instead of making it 0 dur
   * move equal binding to Equal
