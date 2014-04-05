@@ -4,6 +4,7 @@
 
 -- | Calls for reyong and trompong techniques.
 module Derive.Call.Bali.Reyong where
+import qualified Data.List as List
 import qualified Data.Map.Strict as Map
 
 import Util.Control
@@ -20,10 +21,14 @@ import qualified Derive.Call.Tags as Tags
 import qualified Derive.Call.Util as Util
 import qualified Derive.Derive as Derive
 import qualified Derive.Environ as Environ
+import qualified Derive.LEvent as LEvent
 import qualified Derive.Score as Score
+import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Sig as Sig
+import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.Pitch as Pitch
+import qualified Perform.Signal as Signal
 import Types
 
 
@@ -41,7 +46,7 @@ import Types
 -}
 
 note_calls :: Derive.CallMaps Derive.Note
-note_calls = Derive.generator_call_map
+note_calls = Derive.call_maps
     [ ("kilit", realize_pattern Kotekan.Repeat norot_patterns)
     , (">kilit", realize_pattern Kotekan.Once pickup_patterns)
     , ("k/_\\", realize_pattern Kotekan.Repeat k_12_1_21)
@@ -54,6 +59,8 @@ note_calls = Derive.generator_call_map
     , ("X", articulation "cek" ((:[]) . pos_cek) Attrs.rim)
     , ("O", articulation "byong" pos_byong mempty)
     , ("+", articulation "byut" pos_byong Attrs.mute)
+    ]
+    [ ("reyong-damp", c_reyong_damp)
     ]
     where
     articulation = make_articulation reyong_positions
@@ -290,3 +297,119 @@ make_position table cek byong = Position
     , pos_table = table
     }
     where parse = fst . parse_note table
+
+
+-- * damping
+
+c_reyong_damp :: Derive.Transformer Derive.Note
+c_reyong_damp = Derive.transformer module_ "reyong-damp" Tags.postproc
+    ("Add damping for reyong parts. The " <> ShowVal.doc_val damped
+    <> " attribute will force a damp, while " <> ShowVal.doc_val undamped
+    <> " will prevent damping. The latter can cause a previously undamped note\
+    \ to become damped because the hand is now freed  up.")
+    $ Sig.callt ((,,)
+    <$> Sig.defaulted "duration" 0.15
+        "This is how fast the player is able to damp. A note is only damped if\
+        \ there is a hand available which has this much time to move into\
+        \ position for the damp stroke, and then move into position for its\
+        \ next note afterwards."
+    <*> Sig.defaulted "attr" Attrs.mute
+        "A damp stroke is a note of zero duration with this attribute."
+    <*> Sig.defaulted "dyn" 0.75 "Scale dyn for damp strokes."
+    ) $ \(dur, damp_attr, dyn) _args deriver ->
+        reyong_damp_voices dur damp_attr dyn <$> deriver
+
+damped :: Score.Attributes
+damped = Score.attr "damped"
+
+undamped :: Score.Attributes
+undamped = Score.attr "undamped"
+
+data Hand = L | R deriving (Eq, Show)
+instance Pretty.Pretty Hand where pretty = show
+
+other :: Hand -> Hand
+other L = R
+other R = L
+
+-- | Divide notes into voices.  Assign each note to a hand.  The end of each
+-- note needs a free hand to damp.  That can be the same hand if the next note
+-- with that hand is sufficiently far, or the opposite hand if it is not too
+-- busy.
+--
+-- So assign hands first.
+reyong_damp_voices :: RealTime -> Score.Attributes -> Signal.Y -> Derive.Events
+    -> Derive.Events
+reyong_damp_voices dur damp_attr dyn levents =
+    map LEvent.Log logs ++ map LEvent.Event
+        (concatMap (reyong_damp damp_attr dyn dur) by_voice)
+    where
+    (events, logs) = LEvent.partition levents
+    by_voice = Seq.group_on event_voice events
+
+-- | To damp, if either hand has enough time before and after then damp,
+-- otherwise let it ring.
+reyong_damp :: Score.Attributes -> Signal.Y -> RealTime -> [Score.Event]
+    -> [Score.Event]
+reyong_damp damp_attr dyn dur = merge . map add_damp . zip_on (can_damp dur)
+    where
+    merge = Seq.merge_asc_lists Score.event_start
+    add_damp (damp, event) = event : if damp then [damped event] else []
+    damped event = Score.place (Score.event_end event) 0 $
+        Score.modify_dynamic (*dyn) $ Score.add_attributes damp_attr event
+
+can_damp :: RealTime -> [Score.Event] -> [Bool]
+can_damp dur = snd . List.mapAccumL damp (0, 0) . zip_next . assign_hands
+    where
+    damp prev ((hand, event), nexts) = (hands_state, can_damp)
+        where
+        can_damp = Score.has_attribute damped event
+            || (not (Score.has_attribute undamped event)
+                && (same_hand_can_damp || other_hand_can_damp))
+        -- The same hand can damp if its next strike is sufficiently distant.
+        same_hand_can_damp = enough_time (next hand)
+        -- The other hand can damp if it has enough time from its previous
+        -- strike to move, and the current hand has moved out of the way by
+        -- changing pitches.
+        -- TODO maybe doesn't need a full dur from prev strike?
+        other_hand_can_damp = and
+            [ (now - prev_strike (other hand)) >= dur
+            , enough_time (next (other hand))
+            , maybe True ((/= Score.initial_nn event) . Score.initial_nn . snd)
+                (next hand)
+            ]
+        now = Score.event_end event
+        prev_strike L = fst prev
+        prev_strike R = snd prev
+        hands_state
+            | can_damp = case hand of
+                L -> (now, snd prev)
+                R -> (fst prev, now)
+            | otherwise = prev
+        next hand = Seq.head $ filter ((==hand) . fst) nexts
+        enough_time = maybe True
+            ((>=dur) . subtract now . Score.event_start . snd)
+
+zip_next :: [a] -> [(a, [a])]
+zip_next xs = zip xs (drop 1 (List.tails xs))
+
+zip_on :: ([a] -> [b]) -> [a] -> [(b, a)]
+zip_on f xs = zip (f xs) xs
+
+-- | Assign hands based on the direction of the pitches.  This is a bit
+-- simplistic but hopefully works well enough.
+assign_hands :: [Score.Event] -> [(Hand, Score.Event)]
+assign_hands =
+    snd . List.mapAccumL assign (L, 999) . Seq.key_on_maybe Score.initial_nn
+    where
+    assign (prev_hand, prev_pitch) (pitch, event) =
+        ((hand, pitch), (hand, event))
+        where
+        hand
+            | pitch == prev_pitch = prev_hand
+            | pitch > prev_pitch = R
+            | otherwise = L
+
+event_voice :: Score.Event -> Int
+event_voice =
+    fromMaybe 0 . TrackLang.maybe_val Environ.voice . Score.event_environ

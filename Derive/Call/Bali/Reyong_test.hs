@@ -8,6 +8,7 @@ import Util.Test
 
 import qualified Ui.UiTest as UiTest
 import qualified Derive.Call.Bali.Reyong as Reyong
+import Derive.Call.Bali.Reyong (Hand(..))
 import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Environ as Environ
@@ -63,6 +64,36 @@ test_assign_positions = do
     equal (f p1 2) ["3u - 3e", "4i 4o -", "4u - 4e", "5i 5o -"]
     equal (f p1 3) ["3a - 3u", "4o 4e -", "4a - 4u", "5o 5e -"]
     equal (f p1 4) ["3e 3u -", "4i - 3a", "4e 4u -", "5i - 4a"]
+
+-- * damp
+
+test_can_damp = do
+    let f dur = Reyong.can_damp dur . mkevents
+    -- Damp with the other hand.
+    equal (f 1 [(0, "4c"), (1, "4d"), (2, "4e")]) [True, True, True]
+
+    -- 4e can't be damped because both hands are busy.
+    equal (f 1 [(0, "4d"), (1, "4e"), (2, "4f"), (2, "4d")])
+        [True, False, True, True]
+
+    -- First 4d can't damp because the same hand is busy, and the other
+    -- hand is blocked by the same hand.
+    equal (f 1.1 [(0, "4c"), (1, "4d"), (3, "4d"), (4, "4c")])
+        [True, False, True, True]
+    -- But give a bit more time and all is possible.
+    equal (f 0.75 [(0, "4c"), (1, "4d"), (3, "4d"), (4, "4c")])
+        [True, True, True, True]
+
+test_assign_hands = do
+    let f = map fst . Reyong.assign_hands . mkevents
+    equal (f [(0, "4c"), (1, "4c"), (2, "4d"), (3, "4d"), (4, "4c")])
+        [L, L, R, R, L]
+    equal (f [(0, "4c"), (1, "4d"), (2, "4e")]) [L, R, R]
+    equal (f [(0, "4d"), (1, "4e"), (2, "4f"), (2, "4d")]) [L, R, R, L]
+
+mkevents :: [(RealTime, String)] -> [Score.Event]
+mkevents =
+    map $ DeriveTest.mkevent . (\(t, p) -> (t, 1, p, [], Score.empty_inst))
 
 show_pitch :: Maybe Pitch.Pitch -> String
 show_pitch Nothing = "-"

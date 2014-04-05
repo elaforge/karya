@@ -3,6 +3,9 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
+  - In save/rehearsal/telek, all edits are laggy.
+  - get rid of call doc shadowed mark
+  - call doc tag search can use *
   * repeat '.' binding adds a leading space instead of making it 0 dur
   * move equal binding to Equal
   * fix Id Serialize instances, and switch from ByteString to Text
@@ -461,7 +464,7 @@ cleanup:
     - Ui.Id
   - I could make the fltk interface clearer by putting c_interface.cc into
     fltk, and then putting all the types it depends on in one header.
-  - There's a lot of duplication between State.TrackEvents, Call.TrackInfo,
+  * There's a lot of duplication between State.TrackEvents, Call.TrackInfo,
     and Derive.CallInfo.  Can I factor out the common bits?
   - Update.BlockSkeleton sets Block.Status, and so does Update.BlockTrack.  If
     I merge status update into skeleton updates I can take Status out of
@@ -490,7 +493,11 @@ cleanup:
       lookup functions then have to take into account.
     . Maybe generalize to have a TransformedSignal !Control !Shift !Stretch
       Don't I already do that in TrackWarp or something?
-  - Think about some way to formalize the identifier restrictions, currently
+    . Score.place doesn't stretch the conrols, should it?  Probably yes.
+      Currently: Map Control (Typed Signal.Control)
+      Or I could put shift stretch in the Event, since I expect it to be the
+      same for all controls.
+  / Think about some way to formalize the identifier restrictions, currently
     it's only enforced in the tracklang parser.
 
     p_ident applies to: Attributes, Control, PitchControl, ScaleId
@@ -911,6 +918,8 @@ Derive:
     bali:
       - If I put pemero notes in legong, then I can play them when needed.
         But what should they be called?  i o e e# u a a#
+        . I also want to be able to set the scale, to make different notes
+          bero.
       kotekan ornaments
         - control for norot +mute
         - gender norot: control for polos 234- vs. 434-
@@ -931,10 +940,13 @@ Derive:
           which just copies and merges the events directly, and doesn't do
           the intermediate derivation.
       trompong / reyong:
-        - postproc for damping which omits damping if the other hand is busy,
+        * postproc for damping which omits damping if the other hand is busy,
           or if it will be busy (e.g. 23-32)
         - trompong ngoret, actually I can use rambat tick
-          But damping on reyong is different, you can just forget some notes.
+          But damping on reyong is different. Ideally I could use the tick
+          and just apply the reyong damping postproc, but what about the
+          damped-tag?  I can just ignore it.  Or have a flag to turn it off,
+          if I really don't like it.
         - split to ngembat, e.g.  λ 人 hmm, is there a reverse lambda?  Can
           I draw symbols reversed? 入 兩
         - various numpuk

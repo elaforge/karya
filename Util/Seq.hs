@@ -223,15 +223,15 @@ maximum xs = Just (List.maximum xs)
 
 -- * ordered lists
 
-insert_on :: (Ord k) => (a -> k) -> a -> [a] -> [a]
+insert_on :: Ord k => (a -> k) -> a -> [a] -> [a]
 insert_on key = List.insertBy (\a b -> compare (key a) (key b))
 
 -- | Stable sort on a cheap key function.
-sort_on :: (Ord k) => (a -> k) -> [a] -> [a]
+sort_on :: Ord k => (a -> k) -> [a] -> [a]
 sort_on = Ordered.sortOn'
 
 -- | Like 'sort_on', but sort highest-to-lowest.
-reverse_sort_on :: (Ord b) => (a -> b) -> [a] -> [a]
+reverse_sort_on :: Ord b => (a -> b) -> [a] -> [a]
 reverse_sort_on f = List.sortBy $ \a b -> Ord.comparing f b a
 
 -- | Merge sorted lists.  If two elements compare equal, the one from the left
@@ -242,15 +242,15 @@ merge = merge_on id
 merge_by :: (a -> a -> Ordering) -> [a] -> [a] -> [a]
 merge_by = Ordered.mergeBy
 
-merge_on :: (Ord k) => (a -> k) -> [a] -> [a] -> [a]
+merge_on :: Ord k => (a -> k) -> [a] -> [a] -> [a]
 merge_on key = Ordered.mergeBy (Ord.comparing key)
 
-merge_lists :: (Ord k) => (a -> k) -> [[a]] -> [a]
+merge_lists :: Ord k => (a -> k) -> [[a]] -> [a]
 merge_lists key = foldr (merge_on key) []
 
 -- | If the heads of the sublists are also sorted I can be lazy in the list of
 -- sublists too.  This version is optimized for minimal overlap.
-merge_asc_lists :: (Ord k) => (a -> k) -> [[a]] -> [a]
+merge_asc_lists :: Ord k => (a -> k) -> [[a]] -> [a]
 merge_asc_lists key = foldr go []
     where
     go [] ys = ys
@@ -260,17 +260,19 @@ merge_asc_lists key = foldr go []
 
 -- | Group the unsorted list into @(key x, xs)@ where all @xs@ compare equal
 -- after @key@ is applied to them.  List is returned in sorted order.
-keyed_group_on :: (Ord key) => (a -> key) -> [a] -> [(key, NonNull a)]
+keyed_group_on :: Ord key => (a -> key) -> [a] -> [(key, NonNull a)]
 keyed_group_on key = map (\gs -> (key (List.head gs), gs)) . group_on key
 
 -- | Similar to 'keyed_group_on', but key on the fst element, and strip the key
 -- out of the groups.
-group_fst :: (Ord a) => [(a, b)] -> [(a, [b])]
+group_fst :: Ord a => [(a, b)] -> [(a, [b])]
 group_fst = map (Arrow.second (map snd)) . keyed_group_on fst
 
 -- | Like 'groupBy', but the list doesn't need to be sorted, and use a key
 -- function instead of equality.  The list is returned in sorted order.
-group_on :: (Ord key) => (a -> key) -> [a] -> [NonNull a]
+-- Since the sort is stable, the groups appear in their original order in the
+-- input list.
+group_on :: Ord key => (a -> key) -> [a] -> [NonNull a]
 group_on key = group key . sort_on key -- TODO faster to use a map?
 
 -- | Group each element with all the other elements that compare equal to it.
@@ -288,7 +290,7 @@ group_eq_on key = group_eq (\x y -> key x == key y)
 
 -- | This is just 'List.groupBy' except with a key function.  It only groups
 -- adjacent elements.
-group :: (Eq key) => (a -> key) -> [a] -> [NonNull a]
+group :: Eq key => (a -> key) -> [a] -> [NonNull a]
 group key = List.groupBy ((==) `on` key)
 
 -- | Pair each element with the following element.  The last element is paired
