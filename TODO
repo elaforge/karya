@@ -4,6 +4,7 @@ LEGEND
 
 UNSORTED
   - In save/rehearsal/telek, all edits are laggy.
+  * use Derive.Deriver.DeriveM, make sure there is no performance regression
   * get rid of call doc shadowed mark
   * call doc tag search can use *
   * repeat '.' binding adds a leading space instead of making it 0 dur
@@ -124,8 +125,6 @@ UNSORTED
     those, and convert to both ValCall and pitch generators.
     . Seems not worth it, since scales are generally going to use ScaleDegree
       anyway.
-  - give ModifyEvents.Track the ability to change the track title?
-    Cmd.Repl.LPitch.change_scale and to_relative could use this.
   - Implement 'sequence'.  It sequences its notes, paying attention only to
     their order, not time and duration.  The tricky part is getting the tempo
     right so playback looks right, and controls line up right.
@@ -157,12 +156,18 @@ UNSORTED
   - use tr^ and tr_ starting high and low, instead of tr1 and tr2, starting
     unison and neighbor?  Or just rename the calls and assume the neighbor is
     always higher.
-  - I want to use a library of basic patterns in multiple scores.  Rather than
+    . For kam it makes sense because I want to write the basic pitch as the
+      unison and ornament as neighbor.
+  / I want to use a library of basic patterns in multiple scores.  Rather than
     just hardcoding a bunch of global calls, I should be able to load
     a namespace, and have block calls dispatch to it.  This is different
     from just loading a copy: it loads it anew each time, and doesn't save
     it with the score.  This is like the 'import' idea, except the library is
     in score, not code.
+    . This makes scores no longer self-contained.  How would I manage the
+      extra binary data files?  Maybe I should have a text version so they
+      can be checked in.
+    . Or maybe it's not worth it and I should just import a copy.
   india
     - nkam doesn't seem to interact correctly with 'h'
     - semi-tone dip.  This is like 1 cycle kam.
@@ -766,6 +771,8 @@ tempo:
 
 Cmd:
   * remove RawEdit?
+  - give Cmd.ModifyEvents.Track the ability to change the track title?
+    Cmd.Repl.LPitch.change_scale and to_relative could use this.
   meter / timestep
     - timestep 64*2 skips two 's', because 's' is the minimum match
       skip should be ignored when the match is a larger rank than exists, or

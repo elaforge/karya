@@ -6,8 +6,6 @@
 {-# LANGUAGE TypeSynonymInstances, FlexibleInstances #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE FlexibleContexts #-} -- for super-classes of Callable
-{-# LANGUAGE UndecidableInstances #-}
-{-# LANGUAGE Rank2Types, BangPatterns #-}
 {- | Implementation for the Deriver monad.
 
     This module should contain only 'Deriver' and the definitions needed to
@@ -121,10 +119,8 @@ module Derive.Deriver.Monad (
     -- * testing
     , invalidate_damaged
 ) where
-import qualified Control.Applicative as Applicative
 import qualified Control.DeepSeq as DeepSeq
 import Control.DeepSeq (rnf)
-
 import qualified Data.Map.Strict as Map
 import qualified Data.Monoid as Monoid
 import qualified Data.Set as Set
@@ -148,6 +144,8 @@ import qualified Ui.TrackTree as TrackTree
 
 import qualified Derive.Call.Module as Module
 import qualified Derive.Call.Tags as Tags
+import qualified Derive.Deriver.DeriveM as DeriveM
+import Derive.Deriver.DeriveM (get, gets, modify, put, run)
 import qualified Derive.LEvent as LEvent
 import qualified Derive.ParseTitle as ParseTitle
 import qualified Derive.PitchSignal as PitchSignal
@@ -164,83 +162,16 @@ import qualified Perform.Signal as Signal
 import Types
 
 
--- * Deriver internals
-
-type Logs = [Log.Msg]
-
-newtype Deriver a = Deriver { _runD :: forall r.
-    State -> Logs -> Failure r -> Success a r -> RunResult r }
-
-type Failure r = State -> Logs -> Error -> RunResult r
-type Success a r = State -> Logs -> a -> RunResult r
-type RunResult a = (Either Error a, State, Logs)
-
-{-# INLINE returnC #-}
-returnC :: a -> Deriver a
-returnC a = Deriver $ \st logs _ win -> win st logs a
-
-{-# INLINE bindC #-}
-bindC :: Deriver a -> (a -> Deriver b) -> Deriver b
-bindC m f = Deriver $ \st1 logs1 lose win ->
-    _runD m st1 logs1 lose (\st2 logs2 a -> _runD (f a) st2 logs2 lose win)
-
-{-# INLINE apC #-}
-apC :: Deriver (a -> b) -> Deriver a -> Deriver b
-apC mf ma = do
-    f <- mf
-    a <- ma
-    return (f a)
-
-{-# INLINE fmapC #-}
-fmapC :: (a -> b) -> Deriver a -> Deriver b
-fmapC f m = Deriver $ \st1 logs1 lose win ->
-    _runD m st1 logs1 lose (\st2 logs2 a -> win st2 logs2 (f a))
-
-_throw :: Error -> Deriver a
-_throw err = Deriver $ \st logs lose _ -> lose st logs err
-
-{-# INLINE modify #-}
-modify :: (State -> State) -> Deriver ()
-modify f = Deriver $ \st logs _ win -> let !x = f st in win x logs ()
-
-{-# INLINE get #-}
-get :: Deriver State
-get = Deriver $ \st logs _ win -> win st logs st
-
-{-# INLINE gets #-}
-gets :: (State -> a) -> Deriver a
-gets f = do
-    state <- get
-    return $! f state
-
-{-# INLINE put #-}
-put :: State -> Deriver ()
-put !st = Deriver $ \_ logs _ win -> win st logs ()
-
-instance Functor Deriver where
-    fmap = fmapC
-
-instance Applicative.Applicative Deriver where
-    pure = returnC
-    (<*>) = apC
-
-instance Monad Deriver where
-    return = returnC
-    (>>=) = bindC
-    fail = throw
+type Deriver = DeriveM.Deriver State Error
+type RunResult a = (Either Error a, State, [Log.Msg])
 
 instance Log.LogMonad Deriver where
-    write msg = Deriver $ \st logs _ win -> win st (msg:logs) ()
+    write = DeriveM.write
     initialize_msg msg = do
         -- If the msg was created explicitly, it may already have a stack.
         stack <- maybe (gets (Stack.to_strings . state_stack . state_dynamic))
             return (Log.msg_stack msg)
         return $ msg { Log.msg_stack = Just stack }
-
-run :: State -> Deriver a -> RunResult a
-run state m = _runD m state []
-    (\st logs err -> (Left err, st, reverse logs))
-    (\st logs a -> (Right a, st, reverse logs))
 
 
 -- * error
@@ -326,7 +257,7 @@ throw_error = throw_error_srcpos Nothing
 throw_error_srcpos :: SrcPos.SrcPos -> ErrorVal -> Deriver a
 throw_error_srcpos srcpos err = do
     stack <- gets (state_stack . state_dynamic)
-    _throw (Error srcpos stack err)
+    DeriveM.throw (Error srcpos stack err)
 
 
 -- * derived types
@@ -1526,7 +1457,7 @@ type PureResult d = (LEvent.LEvents d, Collect)
 -- | Run the given deriver and return the relevant data.
 run_sub :: State -> LogsDeriver derived -> PureResult derived
 run_sub state deriver = (merge_logs result logs, state_collect state2)
-    where (result, state2, logs) = run state deriver
+    where (result, state2, logs) = DeriveM.run state deriver
 
 merge_logs :: Either Error (LEvent.LEvents d) -> [Log.Msg]
     -> LEvent.LEvents d
