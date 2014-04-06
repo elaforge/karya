@@ -4,127 +4,6 @@ LEGEND
 
 UNSORTED
   - In save/rehearsal/telek, all edits are laggy.
-  * use Derive.Deriver.DeriveM, make sure there is no performance regression
-  * get rid of call doc shadowed mark
-  * call doc tag search can use *
-  * repeat '.' binding adds a leading space instead of making it 0 dur
-  * move equal binding to Equal
-  * fix Id Serialize instances, and switch from ByteString to Text
-    This means breaking all scores, so I can remove all old versions from
-    Cmd.Serialize while I'm at it.
-  * positive events at the end of the ruler should have text above
-  * merged track text doesn't render on negative events
-    It's because the text has to be below the prev_offset, and the prev_offset
-    is the same due to a concident rank 0 event.
-  * Often windows are too narrow to see the name, and besides the title goes
-    away if I don't use window decorations.  Can I squeeze the block title in
-    skeleton display?
-  * point select is really hard to see, it should be more obvious
-    I could just make it bigger.  Or make the triangle bright red?
-  / If thru did eval on "", I wouldn't need pasang thru.  But it might be
-    slower.  That's what CUtil.insert_call is for, but it's designed for
-    non-pitched instruments, and wouldn't necessarily work for pasang because
-    it needs a 'unison' transform.
-  deriving seems really slow
-    . viola-sonata took 14s in opt, 1.89s in verify_performance
-      . now it's 11.5
-    . kendang-telek takes 44s in debug, 10s in opt, and 1.5s in
-      verify_performance.  Now it's 85s in debug, 12 in opt.
-      . now it's 8.15
-    . Lots of time in Signal.map_x, is it due to getting track signals?
-      Derive.Control.derive_control.deriver
-      Derive.Control.stash_if_wanted -> Derive.Control.get_block_track ->
-      Derive.Control.stash_if_wanted -> put_unwarped_signal
-        Derive.Control 165571 300 0.0 0.0 12.1 24.3
-      Then Derive.Control.unwarp -> warp_to_signal -> map_x has 12.4%
-      Also Derive.Control.unwarp -> Signal.unwarp -> invert -> modify_vec
-    . Remember tempo tracks have a constant sampling rate, so the tempo
-      track may actually have a lot of samples in it.  And presumably
-      warp_to_signal has to be repeated for each realization.
-    . I could memoize by making a warp have both the triple and a lazy
-      signal.
-    . Or, maybe I don't need to flatten the Warp at all to unwarp with it.
-    ? First find out why viola-sonata needs 300 track signals rendered.
-      It's the dyn track, every single invert it has to unwarp the signal by
-      the entire tempo track.
-      Unwarping shouldn't be bad if I don't have to flatten the warp each
-      time.
-    . data/viola-sonata by opt/seq @score takes 11.49 without fusion, 10.72s
-      with
-    . I think profile does this because testing now wants signals for all
-      tracks.  That would explain why verify_performance is so much faster.
-      But if that's true, derivation in seq should become fast if I disable
-      all track signals.  Try it out.
-    . Also, for viola-sonata, shouldn't it be able to reuse the track signal
-      for all the blocks except the top one, which is the only one with
-      tempo?  Still, it has to concatenate the chunks, but that should be
-      faster than rederiving, unless it's concetenating inefficiently.
-    . Collect stats, kinds of track renders:
-      1. Control track emitted directly: Control.stash_if_wanted
-        1a. Linear tempo, can be reused.
-        1b. Nonlinear tempo, must be unwarped: Signal.unwarp
-      2. Sliced track is pieced together.  Note.stash_signal_if_wanted
-
-    * Add unwarp_fused, even though it doesn't seem to help seq, but it
-      does help the profile.
-    ? Why don't these changes seem to help seq?
-      Profiling says they do, seq is still lots slower than
-      verify_performance.  Why?
-    . Laziness doesn't save me from all the unwarp calls, probably because of
-      Collect's Monoid instance, which has Map.unionWith Track.merge_signals
-    * Get rid of Track.ts_is_pitch.
-    * Move Monoid NoteDeriver instance from Deriver.Lib to Deriver.Monad
-      so it's not an orphan.
-    * Debug.trace implies track events are evaluated back to front, presumably
-      something is insufficiently strict, and would be more efficient front to
-      back.
-    / It seems like inverted tracks wind up with Nothing block_id but a set
-      track_id, is that ok?  Yes.
-    * Can I implement a more efficient TimeVector.merge when I know there will
-      be lots of overlaps, as when merging track signal fragments?  I could
-      first go through and count the samples that will be emitted, and then
-      give that to unfoldrN.  Or I could avoid the duplicate work by first
-      clipping all the fragments, and then do a big mconcat, which should be
-      able to allocate the whole array in one go.  In fact, this might be
-      better for all merges.
-    * Make Call.TrackInfo just include a TrackEvents, since it has almost all
-      the fields.  Or make a LCD if it means I can put it in CallInfo too.
-    * Track.merge_signals no longer used?
-    * If a block is called multiple times, it stashes signals multiple times.
-      I should either ensure that laziness prevents extra work from being
-      done, or figure out how to skip it if it's already there.
-      . To skip it I have to thread the collect along so the next call can
-        see there is already a tsig.  This makes a data dependency so it's not
-        great.
-      . To use laziness, I have to combine tsigs with Map.union, not
-        Map.unionWith.  But then how do I combine sliced fragments, or
-        orphan tracks?
-      . I think I need a two step process.  If I'm in a sliced track, then
-        put fragments keyed by (block_id, track_id) into a new Collect field.
-        After a non-sliced track has derived, it extracts, merges, and unwarps
-        the tsigs from that field, unless one already exists.  The merging
-        into the field should be strict, but the field itself should be lazy,
-        so when a track is evaluated the second time, none of the fragment
-        stashing happens.
-      * Note track track signal fails with the orphans.
-        The problem is that the track fragments each get their own fragment,
-        but in track_signals, so they don't combine.
-        . I'm asking for the signal of the track under the transformer track,
-          but that track is evaluated as orphans in the caller and all the
-          events are only available it the parent track.
-    * I still do lots of redundant unwarping since each control fragment has
-      extra samples.  I should concatenate them first, then unwarp.
-      That would mean Control.put_unwarped_signal puts the signal directly.
-      Now Call.derive_track unwarps the Derive.collect_track_signals for
-      the appropriate (block_id, track_id).  This seems a bit sketchy since
-      I'm modifying an existing track warp, I can't do it twice.  And it would
-      happen twice, since I get a derive_track on every single slice.  So
-      I have to check that it's not sliced.
-
-  / If I specialized ValCall to PitchCall, then I could make scales generate
-    those, and convert to both ValCall and pitch generators.
-    . Seems not worth it, since scales are generally going to use ScaleDegree
-      anyway.
   - Implement 'sequence'.  It sequences its notes, paying attention only to
     their order, not time and duration.  The tricky part is getting the tempo
     right so playback looks right, and controls line up right.
@@ -158,16 +37,6 @@ UNSORTED
     always higher.
     . For kam it makes sense because I want to write the basic pitch as the
       unison and ornament as neighbor.
-  / I want to use a library of basic patterns in multiple scores.  Rather than
-    just hardcoding a bunch of global calls, I should be able to load
-    a namespace, and have block calls dispatch to it.  This is different
-    from just loading a copy: it loads it anew each time, and doesn't save
-    it with the score.  This is like the 'import' idea, except the library is
-    in score, not code.
-    . This makes scores no longer self-contained.  How would I manage the
-      extra binary data files?  Maybe I should have a text version so they
-      can be checked in.
-    . Or maybe it's not worth it and I should just import a copy.
   india
     - nkam doesn't seem to interact correctly with 'h'
     - semi-tone dip.  This is like 1 cycle kam.
@@ -197,9 +66,6 @@ UNSORTED
     - wendy carlos' alpha, beta, gamma
     - overtone series
     - add ratio transpose signal, that multiplies hz
-  / After a rederive, it still takes a Cmd to free up the memory.  Who is
-    holding on to it?
-
   - %sus-abs=-.x is not quite right for detached, because it should scale
     a bit for shorter notes.  E.g. it's absolute but scales down to 0 below
     a certain threshold.
@@ -301,10 +167,6 @@ incremental save / git:
 
 integrate / integration:
   score integrate
-    * Why do I need the bogus <! call at all?  I could just have a cmd call
-      that adds a TrackDestination.
-    / if there were a Cmd.create_fitted which took screen dimensions, then
-      Integrate.score_integrate_block could make a fitted view
     - cascading score integrates
       Is there really a use for this, other than consistency?
   derive integrate
@@ -469,17 +331,9 @@ cleanup:
     - Ui.Id
   - I could make the fltk interface clearer by putting c_interface.cc into
     fltk, and then putting all the types it depends on in one header.
-  * There's a lot of duplication between State.TrackEvents, Call.TrackInfo,
-    and Derive.CallInfo.  Can I factor out the common bits?
   - Update.BlockSkeleton sets Block.Status, and so does Update.BlockTrack.  If
     I merge status update into skeleton updates I can take Status out of
     Block.DisplayTrack.
-  / move src into src subdir.  Then I don't have to do hacks in the shakefile
-    where I only recurse into [A-Z]* dirs.  That's not exactly a big deal
-    though.
-  / split Ui.State into separate modules for views, blocks, tracks, etc.
-    put into Ui.State.* and re-export from Ui.State
-    . Actually the giant module isn't so bad and it's stopped growing.
   - split up CallInfo depending on type
     I got started but was discouraged when it came time to write
     GetLastSample, maybe I should make another go.
@@ -502,18 +356,6 @@ cleanup:
       Currently: Map Control (Typed Signal.Control)
       Or I could put shift stretch in the Event, since I expect it to be the
       same for all controls.
-  / Think about some way to formalize the identifier restrictions, currently
-    it's only enforced in the tracklang parser.
-
-    p_ident applies to: Attributes, Control, PitchControl, ScaleId
-    Maybe it's enough that the parser restricts them?  That means no one
-    will bother creating e.g. a bogus control name because it could't be used.
-    Call names are explicitly anything-goes.  BlockIds should support at
-    least some of it if they are supposed to be interchangeable with other
-    calls.
-
-    On the other hand, I don't think I care much if idents can have wacky
-    names, they just won't be nameable from the tracklang.
   - storing TrackEvents without duration would make maintaining the
     no-overlap invariant easier.  E.g. have explicit 'off' events, otherwise
     each event extends to the next one.  It means after merging I have to
@@ -533,7 +375,6 @@ performance:
       collect.  I still think it belongs in collect though, because it's
       not an actual data dependency, it just makes it more efficient if it
       is.
-  * Do profiles again with Event.event_text :: Data.Text instead of ByteString.
   scrolling through giant blocks is slow
     - drawing is stil slow, I'll have to look at the fltk layer
       It happens when the block is wide.  Use test_block to see if it's just
@@ -652,7 +493,6 @@ fltk:
     detection.
     + gmail: subject:(scaling text)
       But it's OSX only.
-  / rethrow c++ exceptions as FltkError
   - factor scroll redrawing into a single class
   / draw arrows in SkeletonDisplay.cc properly?  Meh, they look ok.
   - figure out how to have a minimal title bar in os x (win.border(0) removes
@@ -770,7 +610,6 @@ tempo:
     to be played.
 
 Cmd:
-  * remove RawEdit?
   - give Cmd.ModifyEvents.Track the ability to change the track title?
     Cmd.Repl.LPitch.change_scale and to_relative could use this.
   meter / timestep
@@ -808,8 +647,6 @@ Cmd:
 
   ruler:
     - LRuler.inject, opposite of extract, replaces sub-block rulers
-    * LRuler.strip which strips out lower rank marks.  This can make rulers
-      for large blocks smaller.
   Cmd.Edit
     - alternate finale-like note entry: hold down step key to set step and
       turn on edit mode, but only while the key is down
@@ -848,42 +685,6 @@ Cmd:
       separately
 
 Derive:
-  * namespaces for calls
-    . As there gets to be more calls, I may need to have a 'import x' which
-      brings the namespace into scope.  Namespace could use tags, but perhaps
-      tags should instead be derived from the namespace, e.g. prelude, bali,
-      india.
-    . 'import a+b+c' imports all calls that have all of a, b, and c tags.
-      There is an implicit 'import prelude | import internal' at the top.
-    . I need a big collection of calls that is not the scopes, which I can
-      import from.  So instead of putting calls into a function and collecting
-      LookupDocs separately, I need a list:
-      type CallTable = [(BoundCall, CallDoc)]
-      data BoundCall = LookupCall (CallId -> Maybe Call)
-          | BoundCall CallId Call
-    . Import with tags doesnt make sense for informational tags like:
-        subs, under-invert, inverting, cmod, control-function, prev, next, attr
-      But some do make sense: europe, bali, ly, ly-only, prelude, internal
-      And it implies more: reyong, kotekan, ...
-    . So go to a traditional hierarchical system, that mirrors the Derive/Call
-      hierachy: bali.kotekan, etc.
-
-    * Add new types, and modify Deriver.Monad to use them instead of CallMap
-      etc.  Scopes is [LookupCall | CallMap]
-    * put Library in Constant
-    * import call to import collapse the LookupMaps, warn about collisions,
-      and put them in scopes
-    * update Cmd.CallDoc.  Now I have separate paths: doc for Library and doc
-      for Scopes.  I need both if I want to get documentation of calls in
-      scope on a track.  However, scopes now also have LookupCalls, so they
-      change too.
-    * I can also check for collisions within each module and emit warnings,
-      perhaps in extract_doc, or seq
-    * fix tests, some need imports now
-      * bloom, viola_sonata
-      . Why do the notes move?  Did randomization change?
-    * make 'import no-module' throw, I think I can keep a set of inhabited
-      module names in Constant.
   tracklang:
     - there should be a character that triggers a parse failure, which is used
       by invalid ShowVal instances like ShowVal Pitch
@@ -947,8 +748,6 @@ Derive:
           which just copies and merges the events directly, and doesn't do
           the intermediate derivation.
       trompong / reyong:
-        * postproc for damping which omits damping if the other hand is busy,
-          or if it will be busy (e.g. 23-32)
         - trompong ngoret, actually I can use rambat tick
           But damping on reyong is different. Ideally I could use the tick
           and just apply the reyong damping postproc, but what about the
@@ -960,7 +759,6 @@ Derive:
         kilitan
           - pickups can mute
           - kilitan patterns change over a speed threshold
-          * 323-23-2-32-323-2 as with kotekan
           - variant patterns, e.g. p1 on dong
           - write an alternate style of kilitan, e.g. with a 6 note scale in
             tisram
