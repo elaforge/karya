@@ -60,7 +60,7 @@ convert source_block levents = do
             tracknums events
     mapM_ Log.write (Log.add_prefix "integrate" logs)
     -- If something failed to derive I shouldn't integrate that into the block.
-    when (any ((>=Log.Warn) . Log.msg_prio) logs) $
+    when (any ((>=Log.Warn) . Log.msg_priority) logs) $
         Cmd.throw "aborting integrate due to warnings"
     unless (null errs) $
         Cmd.throw $ "integrating events: " ++ Seq.join "; " errs

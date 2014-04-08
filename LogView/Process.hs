@@ -195,9 +195,9 @@ eval_filter (Filter _ pred) msg text = pred msg text
 
 format_msg :: Log.Msg -> StyledText
 format_msg msg = run_formatter $ do
-    with_plain (prio_stars (Log.msg_prio msg))
+    with_plain (prio_stars (Log.msg_priority msg))
     with_plain "\t"
-    let style = if Log.msg_prio msg < Log.Warn
+    let style = if Log.msg_priority msg < Log.Warn
             then style_plain else style_warn
     whenJust (Log.msg_caller msg) $ \caller -> do
         emit_srcpos caller

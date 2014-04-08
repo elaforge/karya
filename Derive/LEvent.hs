@@ -42,7 +42,7 @@ format_log msg = Pretty.fsep
     [Pretty.text stars <+> Pretty.text srcpos <+> Pretty.format stack,
         Pretty.nest 2 $ Pretty.text (Log.msg_string msg)]
     where
-    stars = replicate (fromEnum (Log.msg_prio msg)) '*'
+    stars = replicate (fromEnum (Log.msg_priority msg)) '*'
     srcpos = maybe "" ((++": ") . SrcPos.show_srcpos . Just)
         (Log.msg_caller msg)
     stack = case Log.msg_stack msg of

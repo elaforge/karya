@@ -360,7 +360,7 @@ trace_low_prio msgs = Log.trace_logs low high
 -- | Tests generally shouldn't depend on logs below a certain priority since
 -- those don't indicate anything interesting.
 interesting_log :: Log.Msg -> Bool
-interesting_log = (>=Log.Warn) . Log.msg_prio
+interesting_log = (>=Log.Warn) . Log.msg_priority
 
 -- It's a hack, but the cache logs are annoying.
 -- Srcpos would be better but it doesn't exist in ghci.
@@ -371,7 +371,7 @@ cache_msg msg = any (`List.isInfixOf` s) ["using cache", "rederived generator"]
     where s = Log.msg_string msg
 
 quiet_filter_logs :: [Log.Msg] -> [Log.Msg]
-quiet_filter_logs = filter ((>=Log.Warn) . Log.msg_prio)
+quiet_filter_logs = filter ((>=Log.Warn) . Log.msg_priority)
 
 -- ** extract
 

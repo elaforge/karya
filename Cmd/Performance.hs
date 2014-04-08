@@ -79,7 +79,7 @@ run_update send_status ui_state = do
     kill_threads
     focused <- focused_block ui_state <$> Monad.State.get
     let generate = try_generate_performance send_status ui_state
-    whenJust focused $ generate
+    whenJust focused generate
     whenJust (State.config_root (State.state_config ui_state)) $
         \block_id -> when (Just block_id /= focused) $ generate block_id
 

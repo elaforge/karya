@@ -68,7 +68,7 @@ type Stack = [String]
 data Msg = Msg {
     msg_date :: !Time.UTCTime
     , msg_caller :: !SrcPos.SrcPos
-    , msg_prio :: !Prio
+    , msg_priority :: !Prio
     -- | Msgs which are logged from the deriver may record the position in the
     -- score the msg was emitted.
     , msg_stack :: !(Maybe Stack)
@@ -237,19 +237,19 @@ instance LogMonad IO where
         -- outside of IO, it won't have had IO's 'initialize_msg' run on it.
         MVar.withMVar global_state $ \(State m_hdl prio formatter) ->
             case m_hdl of
-                Just hdl | prio <= msg_prio log_msg -> do
+                Just hdl | prio <= msg_priority log_msg -> do
                     -- Go to a little bother to only run 'add_time' for msgs
                     -- that are actually logged.
                     log_msg <- add_time log_msg
                     IO.hPutStrLn hdl (formatter log_msg)
                 _ -> return ()
-        when (msg_prio log_msg == Error) $ do
+        when (msg_priority log_msg == Error) $ do
             log_msg <- add_time log_msg
             IO.hPutStrLn IO.stderr (format_msg log_msg)
 
 -- | Format a msg in a nice user readable way.
 format_msg :: Msg -> String
-format_msg (Msg { msg_date = _date, msg_caller = srcpos, msg_prio = prio
+format_msg (Msg { msg_date = _date, msg_caller = srcpos, msg_priority = prio
         , msg_text = text, msg_stack = stack }) =
     log_msg ++ maybe "" ((' ':) . Seq.join " / ") stack
     where

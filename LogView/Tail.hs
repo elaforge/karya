@@ -52,6 +52,8 @@ rotate_logs keep max_size log_fn = do
 
 -- * tail
 
+-- | The Handle remembers the file and current position so it can detect when
+-- the logs have been rotated.
 data Handle = Handle !FilePath !IO.Handle !Integer deriving (Show)
 
 open :: FilePath
