@@ -145,6 +145,7 @@ hsBinaries =
     [ gui "browser" "Instrument/Browser.hs" ["Instrument/browser_ui.cc.o"] True
     , plain "dump" "App/Dump.hs"
     , plain "logcat" "LogView/LogCat.hs"
+    , plain "show_timers" "LogView/ShowTimers.hs"
     , gui "logview" "LogView/LogView.hs" ["LogView/logview_ui.cc.o"] True
     , plain "linkify" "Util/Linkify.hs"
     , plain "make_db" "Instrument/MakeDb.hs"

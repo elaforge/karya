@@ -124,9 +124,9 @@ configure f = MVar.modifyMVar global_state $ \old -> do
     return (new, new)
 
 data Prio =
-    -- | Generated everywhere, to figure out where hangs are happening.  Should
-    -- only be on when debugging performance.  They only really work in
-    -- explicitly sequenced MonadIO code.
+    -- | Logs to determine where things are hanging when debugging
+    -- a performance problem.  Use "LogView.ShowTimers" to show the time
+    -- elapsed between Timer logs.
     Timer
     -- | Lots of msgs produced by code level.  Users don't look at this during
     -- normal use, but can be useful for debugging.
@@ -171,27 +171,20 @@ log_stack :: (LogMonad m) => Prio -> SrcPos.SrcPos -> Stack -> String
 log_stack prio srcpos stack text =
     write =<< make_msg srcpos prio (Just stack) (txt text)
 
-debug_srcpos, notice_srcpos, warn_srcpos, error_srcpos
+timer_srcpos, debug_srcpos, notice_srcpos, warn_srcpos, error_srcpos
     :: (LogMonad m) => SrcPos.SrcPos -> String -> m ()
+timer_srcpos = log Timer
 debug_srcpos = log Debug
 notice_srcpos = log Notice
 warn_srcpos = log Warn
 error_srcpos = log Error
 
-debug, notice, warn, error :: (LogMonad m) => String -> m ()
+timer, debug, notice, warn, error :: (LogMonad m) => String -> m ()
+timer = timer_srcpos Nothing
 debug = debug_srcpos Nothing
 notice = notice_srcpos Nothing
 warn = warn_srcpos Nothing
 error = error_srcpos Nothing
-
-timer :: (Trans.MonadIO m) => String -> m ()
-timer = timer_srcpos Nothing
-
-timer_srcpos :: (Trans.MonadIO m) => SrcPos.SrcPos -> String -> m ()
-timer_srcpos srcpos log_msg = Trans.liftIO $ do
-    n <- CPUTime.getCPUTime
-    putStrLn $ show (cpu_to_sec n) ++ " " ++ SrcPos.show_srcpos srcpos
-        ++ ": " ++ log_msg
 
 -- Yay permutation game.  I could probably do a typeclass trick to make 'stack'
 -- an optional arg, but I think I'd wind up with all the same boilerplate here.
