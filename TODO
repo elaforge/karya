@@ -3,7 +3,7 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
-  - In save/rehearsal/telek, all edits are laggy.
+  * In save/rehearsal/telek, all edits are laggy.
   - Implement 'sequence'.  It sequences its notes, paying attention only to
     their order, not time and duration.  The tricky part is getting the tempo
     right so playback looks right, and controls line up right.
@@ -12,6 +12,11 @@ UNSORTED
       is a kind of tempo track.
     - Does that mean I need this to be a track call?  Or could I do with
       a note transformer?
+      . Transformer would need its derivers separate, like a NoteTransformer.
+        Then eval each one, figure out its ending, and place the next one
+        there.  To figure out the ending, I can look up a block length.  But
+        if it's a plain deriver, then I need an explicit end time.  I could
+        set something in collect.
     . For track calls:
       type TrackCall d = Call (TrackFunc d)
       type TrackFunc d = PassedArgs (Elem d) -> LogsDeriver d

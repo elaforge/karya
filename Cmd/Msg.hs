@@ -3,6 +3,7 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 module Cmd.Msg where
+import qualified Control.DeepSeq as DeepSeq
 import Control.Monad
 import qualified Data.Map as Map
 import qualified Data.Vector as Vector
@@ -78,17 +79,7 @@ instance Pretty.Pretty DeriveStatus where pretty = show
 data Performance = Performance {
     perf_derive_cache :: Derive.Cache
     , perf_events :: Events
-    -- | Logs from the derivation are written separately, by the evaluation
-    -- thread in "Cmd.Performance".  Evaluation may be triggered by either the
-    -- evaluation thread (after a short delay), or by a Cmd that wants up to
-    -- date derivation output (such as play).  I could have those Cmds write
-    -- and filter any logs if the evaluator hasn't yet gotten around to it, but
-    -- then I can't stop the evaluator from repeating that work without an MVar
-    -- or something to tell the evaluator thread.  If I rely on lazy evaluation
-    -- I get that communication \"for free\".  However, it means that you might
-    -- have a play fail, and only get the logs about why when the evaluation
-    -- thread gets done waiting.  It doesn't wait long though, so that
-    -- shouldn't be a big deal.
+    -- | Logs from the derivation are written separately.
     , perf_logs :: [Log.Msg]
     -- | The logs are only written on the first play, to minimize error spam.
     -- So there's a flag which says whether these logs have been written or
@@ -105,6 +96,12 @@ data Performance = Performance {
     }
     -- The fields are intentionally not strict, since I need to modify
     -- 'perf_damage' without forcing any of the others.
+
+-- | Force a Performance so that it can be used without a lag.
+force_performance :: Performance -> ()
+force_performance perf = perf_logs perf `DeepSeq.deepseq` perf_events perf
+    `DeepSeq.deepseq` perf_warps perf `DeepSeq.deepseq` perf_track_dynamic
+    `DeepSeq.deepseq` ()
 
 -- | This is the forced result of a derivation.
 type Events = Vector.Vector Score.Event

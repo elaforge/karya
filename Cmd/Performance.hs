@@ -10,9 +10,7 @@
 -- asynchronously.
 module Cmd.Performance (SendStatus, update_performance, performance) where
 import qualified Control.Concurrent as Concurrent
-import qualified Control.DeepSeq as DeepSeq
 import qualified Control.Monad.State as Monad.State
-
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 import qualified Data.Vector as Vector
@@ -200,9 +198,7 @@ evaluate_performance wait send_status block_id perf = do
     Thread.delay wait
     send_status block_id Msg.Deriving
     -- I just force the logs here, and wait for a play to actually write them.
-    ((), secs) <- Log.time_eval $
-        return $! Cmd.perf_logs perf `DeepSeq.deepseq` Cmd.perf_events perf
-            `DeepSeq.deepseq` ()
+    ((), secs) <- Log.time_eval $ return $ Msg.force_performance perf
     when (secs > 1) $
         Log.notice $ "derived " ++ show block_id ++ " in "
             ++ pretty (RealTime.seconds secs)
