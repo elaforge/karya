@@ -148,9 +148,10 @@ html_header hstate =
         \<br>You can also search by <code>%control</code>, arg default\n\
         \(<code>name-arg</code>), and call kind (<code>note</code>,\n\
         \<code>control</code>, ...).\
-        \\n<br> Search for calls with the browser's text search, \"call --\"\
+        \\n<br>Search for calls with the browser's text search, \"call --\"\
         \ to search by binding, \"-- call\" to search by name.\n<br>"
-    <> html_doc hstate "Common tags are documneted at 'Derive.Call.Tags'.\n"
+    <> html_doc hstate "Common tags are documented at 'Derive.Call.Tags'."
+    <> " &mdash; <span id=totals> x </span>\n"
     where default_search = "-m:internal -m:ly"
 
 css :: Html
@@ -172,20 +173,29 @@ css = ".main dl { border-bottom: 1px solid #999 }\n\
 
 javascript :: Html
 javascript =
-    "var search = function(val) {\n\
-    \   var search = val.split(/ +/).filter(function(x) { return x != '' });\n\
+    "var total_calls = 0;\n\
+    \var displayed_calls = 0;\n\
+    \var search = function(val) {\n\
+    \   var search_words = val.split(/ +/).filter(\n\
+    \           function(x) { return x != '' });\n\
     \   var defs = document.getElementsByClassName('main');\n\
+    \   total_calls = 0;\n\
+    \   displayed_calls = 0;\n\
     \   for (var i = 0; i < defs.length; i++) {\n\
     \       for (var j = 0; j < defs[i].children.length; j++) {\n\
     \           var c = defs[i].children[j];\n\
     \           var tags = c.attributes.tags.value.split(' ');\n\
-    \           c.hidden = !matches(search, tags);\n\
+    \           c.hidden = !matches(search_words, tags);\n\
+    \           total_calls++;\n\
+    \           if (!c.hidden) displayed_calls++;\n\
     \       }\n\
     \   }\n\
+    \   document.getElementById('totals').innerText =\n\
+    \       'calls displayed/total: ' + displayed_calls + '/' + total_calls;\n\
     \};\n\
-    \var matches = function(search, tags) {\n\
+    \var matches = function(search_words, tags) {\n\
     \   tags = tags.filter(function(x) { return x != '' });\n\
-    \   return search.every(function(x) {\n\
+    \   return search_words.every(function(x) {\n\
     \       if (x[0] === '-')\n\
     \           return !tags_match(tags, x.slice(1));\n\
     \       else\n\
