@@ -37,11 +37,13 @@ UNSORTED
   - Play position doesn't work right for 'loop' and 'tile' calls, it only
     understands the first loop, and doesn't know that 'tile' cuts off the
     beginning.
-  - use tr^ and tr_ starting high and low, instead of tr1 and tr2, starting
+  * use tr^ and tr_ starting high and low, instead of tr1 and tr2, starting
     unison and neighbor?  Or just rename the calls and assume the neighbor is
     always higher.
     . For kam it makes sense because I want to write the basic pitch as the
       unison and ornament as neighbor.
+    * also support end_dir arg, and adjust arg
+    * Gamakam should re-use Trill functions
   india
     - nkam doesn't seem to interact correctly with 'h'
     - semi-tone dip.  This is like 1 cycle kam.

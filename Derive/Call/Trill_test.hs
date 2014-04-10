@@ -136,15 +136,29 @@ test_trill = do
     equal (run_speed ":d") ([[]],
         ["Error: expected time type for %trill-speed,14s but got Diatonic"])
 
-test_trill_mode = do
-    let run text = extract $ derive_tracks
+test_trill_start_end = do
+    let run ex text = DeriveTest.extract ex $ derive_tracks
             [(">", [(0, 3, "")]), ("*", [(0, 0, text), (3, 0, "--")])]
-        extract = DeriveTest.extract (map snd . DeriveTest.e_nns)
-    equal (run "tr (4c) 1 1") ([[60, 62, 60]], [])
-    equal (run "trill-mode = neighbor | tr (4c) 1 1") ([[62, 60, 62]], [])
-    -- Default is ignored for tr1 and tr2 variants.
-    equal (run "trill-mode = neighbor | tr1 (4c) 1 1") ([[60, 62, 60]], [])
-    equal (run "trill-mode = neighbor | tr2 (4c) 1 1") ([[62, 60, 62]], [])
+        nns = map snd . DeriveTest.e_nns
+    equal (run nns "tr (4c) 1 1") ([[60, 62, 60]], [])
+    equal (run nns "trill-start = high | tr (4c) 1 1") ([[62, 60, 62]], [])
+    -- Default is ignored for high and low variants.
+    equal (run nns "trill-mode = low | tr^ (4c) 1 1") ([[62, 60, 62]], [])
+    equal (run nns "trill-mode = high | tr_ (4c) 1 1") ([[60, 62, 60]], [])
+
+    -- Start, end, and adjust.
+    equal (run DeriveTest.e_nns "trill-adjust = shorten | tr^_ (4c) 1 1")
+        ([[(0, 62), (1, 60)]], [])
+    equal (run DeriveTest.e_nns "trill-adjust = stretch | tr^_ (4c) 1 1")
+        ([[(0, 62), (3, 60)]], [])
+
+test_trill_hold = do
+    let run text = DeriveTest.extract DeriveTest.e_nns $ derive_tracks
+            [(">", [(0, 3, "")]), ("*", [(0, 0, text), (3, 0, "--")])]
+    equal (run "hold = 1 | tr (4c) 1 1") ([[(0, 60), (2, 62)]], [])
+    -- Still respects start and end restrictions.
+    equal (run "hold = 1 | tr__ (4c) 1 1") ([[(0, 60)]], [])
+    equal (run "hold = 4 | tr (4c) 1 1") ([[(0, 60)]], [])
 
 test_moving_trill = do
     -- Ensure a diatonic trill on a moving base note remains correct.
@@ -165,15 +179,13 @@ test_moving_trill = do
 
 test_real_trill = do
     let f neighbor speed = fst <$> Trill.trill_from_controls (0, 1)
-            Trill.Unison (mkcontrol Score.Chromatic neighbor)
-            (mkcontrol Score.Real speed)
+            Nothing Nothing Trill.Shorten (TrackLang.real 0)
+            (mkcontrol Score.Chromatic neighbor) (mkcontrol Score.Real speed)
         run = extract . DeriveTest.run State.empty
         extract = DeriveTest.extract_run Signal.unsignal
         cnst = Signal.constant
-    equal (run $ f (cnst 1) (cnst 2)) $
-        Right [(0, 0), (0.5, 1)]
-    equal (run $ f (cnst (-1)) (cnst 2)) $
-        Right [(0, 0), (0.5, -1)]
+    equal (run $ f (cnst 1) (cnst 2)) $ Right [(0, 0), (0.5, 1)]
+    equal (run $ f (cnst (-1)) (cnst 2)) $ Right [(0, 0), (0.5, -1)]
 
     -- Trill speed is in real time and not affected by stretch.
     equal (run $ Derive.stretch 2 $ f (cnst 1) (cnst 2)) $
@@ -187,8 +199,8 @@ test_real_trill = do
 
 test_score_trill = do
     let f dur neighbor speed = fst <$> Trill.trill_from_controls (0, dur)
-            Trill.Unison (mkcontrol Score.Chromatic neighbor)
-            (mkcontrol Score.Score speed)
+            Nothing Nothing Trill.Shorten (TrackLang.real 0)
+            (mkcontrol Score.Chromatic neighbor) (mkcontrol Score.Score speed)
         run = extract . DeriveTest.run State.empty
         extract = DeriveTest.extract_run Signal.unsignal
         cnst = Signal.constant

@@ -44,7 +44,9 @@ import qualified Control.Applicative as Applicative
 import qualified Data.List as List
 
 import Util.Control
+import qualified Util.Num as Num
 import qualified Util.Seq as Seq
+
 import qualified Ui.ScoreTime as ScoreTime
 import qualified Derive.Args as Args
 import qualified Derive.Attrs as Attrs
@@ -57,6 +59,7 @@ import qualified Derive.Call.Sub as Sub
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Call.Util as Util
 import qualified Derive.Derive as Derive
+import qualified Derive.Environ as Environ
 import qualified Derive.PitchSignal as PitchSignal
 import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
@@ -73,27 +76,32 @@ import Types
 
 note_calls :: Derive.CallMaps Derive.Note
 note_calls = Derive.call_maps
-    [ ("tr", c_note_trill)
-    , ("`tr`", c_note_trill)
+    ([(name, c_note_trill start end) | (name, start, end) <- trill_variations]
+    ++
+    [ ("`tr`", c_note_trill Nothing Nothing)
     , ("trem", c_tremolo_generator)
-    ]
+    ])
     [ ("trem", c_tremolo_transformer) ]
 
-c_note_trill :: Derive.Generator Derive.Note
-c_note_trill = Derive.make_call Module.europe "trill" Tags.ly
+c_note_trill :: Maybe Direction -> Maybe Direction
+    -> Derive.Generator Derive.Note
+c_note_trill hardcoded_start hardcoded_end =
+    Derive.make_call Module.prelude "trill" Tags.ly
     ("Generate a note with a trill.\
     \\nUnlike a trill on a pitch track, this generates events for each\
     \ note of the trill. This is more appropriate for fingered trills,\
     \ or monophonic instruments that use legato to play slurred notes."
+    <> direction_doc hardcoded_start hardcoded_end
     ) $ Sig.call ((,,)
     <$> defaulted "neighbor" (typed_control "trill-neighbor" 1 Score.Diatonic)
         "Alternate with a pitch at this interval."
-    <*> trill_speed_arg
-    <*> mode_env Nothing
-    ) $ \(neighbor, speed, mode) -> Sub.inverting $ \args ->
+    <*> trill_speed_arg <*> trill_env hardcoded_start hardcoded_end
+    ) $ \(neighbor, speed, (start_dir, end_dir, hold, adjust)) ->
+    Sub.inverting $ \args ->
     Lily.note_code (Lily.SuffixFirst, "\\trill") args $ do
         (transpose, control) <- trill_from_controls
-            (Args.start args, Args.end args) mode neighbor speed
+            (Args.range_or_next args) start_dir end_dir adjust hold
+            neighbor speed
         xs <- mapM (Derive.score . fst) (Signal.unsignal transpose)
         let end = snd $ Args.range args
         let notes = do
@@ -211,33 +219,32 @@ full_notes end ts = go ts
         [] -> [end]
     -- This is surprisingly tricky.
 
+
 -- * pitch calls
 
 pitch_calls :: Derive.CallMaps Derive.Pitch
-pitch_calls = Derive.call_maps
-    [ ("tr", c_pitch_trill Nothing)
-    , ("tr1", c_pitch_trill (Just Unison))
-    , ("tr2", c_pitch_trill (Just Neighbor))
-    , ("`tr`", c_pitch_trill Nothing)
+pitch_calls = Derive.generator_call_map $
+    [(name, c_pitch_trill start end) | (name, start, end) <- trill_variations]
+    ++
+    [ ("`tr`", c_pitch_trill Nothing Nothing)
     , ("xcut", c_xcut_pitch False)
     , ("xcut-h", c_xcut_pitch True)
     ]
-    []
 
-c_pitch_trill :: Maybe Mode -> Derive.Generator Derive.Pitch
-c_pitch_trill maybe_mode = Derive.generator1 Module.prelude "trill" mempty
-    ("Generate a pitch signal of alternating pitches. `tr1` will start with\
-    \ the unison, while `tr2` will start with the neighbor. `tr` is\
-    \ configurabled with the environment."
+c_pitch_trill :: Maybe Direction -> Maybe Direction
+    -> Derive.Generator Derive.Pitch
+c_pitch_trill hardcoded_start hardcoded_end =
+    Derive.generator1 Module.prelude "trill" mempty
+    ("Generate a pitch signal of alternating pitches."
+    <> direction_doc hardcoded_start hardcoded_end
     ) $ Sig.call ((,,,)
     <$> required "note" "Base pitch."
     <*> defaulted "neighbor" (typed_control "trill-neighbor" 1 Score.Diatonic)
         "Alternate with a pitch at this interval."
-    <*> trill_speed_arg
-    <*> mode_env maybe_mode
-    ) $ \(note, neighbor, speed, mode) args -> do
+    <*> trill_speed_arg <*> trill_env hardcoded_start hardcoded_end
+    ) $ \(note, neighbor, speed, (start_dir, end_dir, hold, adjust)) args -> do
         (transpose, control) <- trill_from_controls (Args.range_or_next args)
-            mode neighbor speed
+            start_dir end_dir adjust hold neighbor speed
         start <- Args.real_start args
         return $ PitchSignal.apply_control control (Score.untyped transpose) $
             PitchSignal.signal [(start, note)]
@@ -276,44 +283,31 @@ xcut_pitch hold val1 val2 =
 -- * control calls
 
 control_calls :: Derive.CallMaps Derive.Control
-control_calls = Derive.call_maps
-    [ ("tr", c_control_trill Nothing)
-    , ("tr1", c_control_trill (Just Unison))
-    , ("tr2", c_control_trill (Just Neighbor))
-    , ("saw", c_saw)
+control_calls = Derive.generator_call_map $
+    [(name, c_control_trill start end) | (name, start, end) <- trill_variations]
+    ++
+    [ ("saw", c_saw)
     , ("sine", c_sine Bipolar)
     , ("sine+", c_sine Positive)
     , ("sine-", c_sine Negative)
     , ("xcut", c_xcut_control False)
     , ("xcut-h", c_xcut_control True)
     ]
-    []
 
--- | The control version of 'c_pitch_trill'.  It generates a signal of values
--- alternating with 0, and can be used in a transposition signal.
---
--- Args are the same as 'c_pitch_trill'.
-c_control_trill :: Maybe Mode -> Derive.Generator Derive.Control
-c_control_trill maybe_mode = Derive.generator1 Module.prelude "trill" mempty
-    ("The control version of the pitch trill.  It generates a signal of values\
+c_control_trill :: Maybe Direction -> Maybe Direction
+    -> Derive.Generator Derive.Control
+c_control_trill hardcoded_start hardcoded_end =
+    Derive.generator1 Module.prelude "trill" mempty
+    ("The control version of the pitch trill. It generates a signal of values\
     \ alternating with 0, which can be used as a transposition signal."
+    <> direction_doc hardcoded_start hardcoded_end
     ) $ Sig.call ((,,)
     <$> defaulted "neighbor" (control "trill-neighbor" 1)
         "Alternate with this value."
-    <*> trill_speed_arg
-    <*> mode_env maybe_mode
-    ) $ \(neighbor, speed, mode) args ->
-        fst <$> trill_from_controls (Args.start args, Args.next args)
-            mode neighbor speed
-
-trill_speed_arg :: Sig.Parser TrackLang.ValControl
-trill_speed_arg = defaulted "speed" (typed_control "trill-speed" 14 Score.Real)
-    "Trill at this speed. If it's a RealTime, the value is the number of\
-    \ cycles per second, which will be unaffected by the tempo. If it's\
-    \ a ScoreTime, the value is the number of cycles per ScoreTime\
-    \ unit, and will stretch along with tempo changes. In either case,\
-    \ this will emit only whole notes, i.e. it will end sooner to avoid\
-    \ emitting a cut-off note at the end."
+    <*> trill_speed_arg <*> trill_env hardcoded_start hardcoded_end
+    ) $ \(neighbor, speed, (start_dir, end_dir, hold, adjust)) args ->
+        fst <$> trill_from_controls (Args.range_or_next args)
+            start_dir end_dir adjust hold neighbor speed
 
 c_saw :: Derive.Generator Derive.Control
 c_saw = Derive.generator1 Module.prelude "saw" mempty
@@ -406,37 +400,190 @@ xcut_control hold val1 val2 =
 
 -- * util
 
-data Mode = Unison | Neighbor deriving (Bounded, Eq, Enum, Show)
-instance ShowVal.ShowVal Mode where show_val = TrackLang.default_show_val
-instance TrackLang.TypecheckEnum Mode
+trill_speed_arg :: Sig.Parser TrackLang.ValControl
+trill_speed_arg = defaulted "speed" (typed_control "trill-speed" 14 Score.Real)
+    "Trill at this speed. If it's a RealTime, the value is the number of\
+    \ cycles per second, which will be unaffected by the tempo. If it's\
+    \ a ScoreTime, the value is the number of cycles per ScoreTime\
+    \ unit, and will stretch along with tempo changes. In either case,\
+    \ this will emit only whole notes, i.e. it will end sooner to avoid\
+    \ emitting a cut-off note at the end."
 
-mode_env :: Maybe Mode -> Sig.Parser Mode
-mode_env (Just mode) = Applicative.pure mode
-mode_env Nothing = TrackLang.get_e <$>
-    Sig.environ "trill-mode" Sig.Unprefixed (TrackLang.E Unison)
-    "This affects which note the trill starts with, and can be `unison` or\
-    \ `neighbor`, defaulting to `unison`."
+-- | Whether the trill starts or ends on the high or low note.  This is another
+-- way to express 'AbsoluteMode'.
+--
+-- I had a lot of debate about whether I should use High and Low, or Unison and
+-- Neighbor.  Unison-Neighbor is more convenient for the implementation but
+-- High-Low I think is more musically intuitive.
+data Direction = High | Low deriving (Bounded, Eq, Enum, Show)
+instance ShowVal.ShowVal Direction where show_val = TrackLang.default_show_val
+instance TrackLang.TypecheckEnum Direction
 
--- | Create a transposition signal from neighbor and speed controls.
-trill_from_controls :: (ScoreTime, ScoreTime) -> Mode -> TrackLang.ValControl
-    -> TrackLang.ValControl -> Derive.Deriver (Signal.Control, Score.Control)
-trill_from_controls range mode neighbor speed = do
-    transitions <- trill_transitions range False speed
-    (neighbor_sig, control) <- Util.to_transpose_function Util.Diatonic neighbor
-    let transpose = trill_from_transitions mode transitions neighbor_sig
-    return (transpose, control)
+-- | This is the like 'Direction', but in terms of the unison and neighbor
+-- pitches, instead of high and low.
+data AbsoluteMode = Unison | Neighbor deriving (Bounded, Eq, Enum, Show)
+
+-- | A bundle of standard configuration for trills.
+trill_env :: Maybe Direction -> Maybe Direction
+    -> Sig.Parser (Maybe Direction, Maybe Direction, TrackLang.DefaultReal,
+        Adjust)
+trill_env start_dir end_dir =
+    (,,,) <$> start <*> end <*> hold_env <*> adjust_env
+    where
+    start = case start_dir of
+        Nothing -> fmap TrackLang.get_e <$>
+            Sig.environ "trill-start" Sig.Unprefixed Nothing
+                "Which note the trill starts with. If not given, it will start\
+                \ the unison note, which means it may move up or down.."
+        Just dir -> Applicative.pure (Just dir)
+    end = case end_dir of
+        Nothing -> fmap TrackLang.get_e <$>
+            Sig.environ "trill-end" Sig.Unprefixed Nothing
+                "Which note the trill ends with. If not given, it can end with\
+                \ either."
+        Just dir -> Applicative.pure (Just dir)
+
+-- Its default is both prefixed and unprefixed so you can put in a trill-hold
+-- globally, and so you can have a short @hold=n |@ for a single call.
+hold_env :: Sig.Parser TrackLang.DefaultReal
+hold_env = Sig.environ (TrackLang.unsym Environ.hold) Sig.Both
+    (TrackLang.real 0) "Time to hold the first pitch."
+
+trill_variations :: [(TrackLang.Symbol, Maybe Direction, Maybe Direction)]
+trill_variations =
+    [ (TrackLang.Symbol $ "tr" <> direction_affix start <> direction_affix end,
+        start, end)
+    | start <- dirs, end <- dirs
+    , not (start == Nothing && end /= Nothing)
+    ]
+    where dirs = [Nothing, Just High, Just Low]
+
+direction_affix :: Maybe Direction -> Text
+direction_affix Nothing = ""
+direction_affix (Just High) = "^"
+direction_affix (Just Low) = "_"
+
+direction_doc :: Maybe a -> Maybe a -> Text
+direction_doc Nothing Nothing = ""
+direction_doc _ _ = "\nA `^` suffix makes the trill starts on the higher value,\
+    \ while `_` makes it start on the lower value. A second suffix causes it\
+    \ to end on the higher or lower value, e.g. `^_` starts high and ends low.\
+    \ No suffix causes it to obey the settings in scope."
+
+-- | Resolve start and end Directions to the first and second trill notes.
+convert_direction :: RealTime -> Util.Function
+    -> Maybe Direction -> Maybe Direction
+    -> ((Util.Function, Util.Function), Maybe Bool)
+    -- ^ Signals for the first and second trill notes.  The boolean indicates
+    -- whether the transitions should be even to end on the expected end
+    -- Direction, and Nothing if it doesn't matter.
+convert_direction start_t neighbor start end = (vals, even_transitions)
+    where
+    first = case start of
+        Nothing -> Unison
+        Just Low -> if neighbor_low then Neighbor else Unison
+        Just High -> if neighbor_low then Unison else Neighbor
+    vals = case first of
+        Unison -> (const 0, neighbor)
+        Neighbor -> (neighbor, const 0)
+    -- If I end Low, and neighbor is low, and I started with Unison, then val2
+    -- is low, so I want even transitions.  Why is it so complicated just to
+    -- get a trill to end high or low?
+    first_low = case first of
+        Unison -> not neighbor_low
+        Neighbor -> neighbor_low
+    even_transitions = case end of
+        Nothing -> Nothing
+        Just Low -> Just (not first_low)
+        Just High -> Just first_low
+    neighbor_low = neighbor start_t < 0
+
+-- | How to adjust an ornament to fulfill its 'Direction' restrictions.
+data Adjust =
+    -- | Adjust by shortening the ornament.
+    Shorten
+    -- | Adjust by increasing the speed.
+    | Stretch
+    deriving (Bounded, Eq, Enum, Show)
+
+instance ShowVal.ShowVal Adjust where show_val = TrackLang.default_show_val
+instance TrackLang.TypecheckEnum Adjust
+
+adjust_env :: Sig.Parser Adjust
+adjust_env = TrackLang.get_e <$>
+    Sig.environ "adjust" Sig.Both (TrackLang.E Shorten)
+    "How to adjust a trill to fulfill its start and end pitch restrictions."
 
 -- ** transitions
 
--- | Make a trill signal from a list of transition times.
-trill_from_transitions :: Mode -> [RealTime] -> Util.Function -> Signal.Control
-trill_from_transitions mode transitions neighbor =
-    Signal.signal [(x, if t then neighbor x else 0)
-        | (x, t) <- zip transitions (cycle ts)]
+trill_from_controls :: (ScoreTime, ScoreTime) -> Maybe Direction
+    -> Maybe Direction -> Adjust -> TrackLang.DefaultReal
+    -> TrackLang.ValControl -> TrackLang.ValControl
+    -> Derive.Deriver (Signal.Control, Score.Control)
+trill_from_controls (start, end) start_dir end_dir adjust hold neighbor speed
+        = do
+    (neighbor_sig, control) <- Util.to_transpose_function Util.Diatonic neighbor
+    real_start <- Derive.real start
+    let ((val1, val2), even_transitions) = convert_direction real_start
+            neighbor_sig start_dir end_dir
+    hold <- Util.score_duration start (TrackLang.default_real hold)
+    transitions <- adjusted_transitions False even_transitions adjust 0 hold
+        speed (start, end)
+    return (trill_from_transitions val1 val2 transitions, control)
+
+-- | Get trill transition times, adjusted for all the various fancy parameters
+-- that trills have.
+adjusted_transitions :: Bool -- ^ include a transition at the end time
+    -> Maybe Bool -- ^ emit an even number of transitions, or Nothing for
+    -- however many will fit
+    -> Adjust -- ^ how to fit the transitions into the time range
+    -> Double -- ^ offset every other transition by this amount, from -1--1
+    -> ScoreTime -- ^ extend the first transition by this amount
+    -> TrackLang.ValControl -- ^ transition speed
+    -> (ScoreTime, ScoreTime) -> Derive.Deriver [RealTime]
+adjusted_transitions include_end even adjust bias hold speed (start, end) = do
+    real_end <- Derive.real end
+    add_hold . add_bias bias . adjust_transitions real_end adjust . trim
+        =<< trill_transitions (start + hold, end) include_end speed
     where
-    ts = case mode of
-        Unison -> [False, True]
-        Neighbor -> [True, False]
+    add_hold transitions
+        | hold > 0 = (: drop 1 transitions) <$> Derive.real start
+        | otherwise = return transitions
+    trim = case even of
+        Nothing -> id
+        Just even -> if even then take_even else take_odd
+    take_even (x:y:zs) = x : y : take_even zs
+    take_even _ = []
+    take_odd [x, _] = [x]
+    take_odd (x:y:zs) = x : y : take_odd zs
+    take_odd xs = xs
+
+adjust_transitions :: RealTime -> Adjust -> [RealTime] -> [RealTime]
+adjust_transitions _ Shorten ts = ts
+adjust_transitions end Stretch ts@(_:_:_) = zipWith (+) offsets ts
+    where
+    -- (_:_:_) above means both the last and division are safe.
+    stretch = max 0 (end - last ts) / fromIntegral (length ts - 1)
+    offsets = Seq.range_ 0 stretch
+adjust_transitions _ Stretch ts = ts
+
+add_bias :: Double -> [RealTime] -> [RealTime]
+add_bias _ [] = []
+add_bias bias (t:ts)
+    | bias == 0 = t : ts
+    | bias > 0 = t : positive (min 1 (RealTime.seconds bias)) ts
+    | otherwise = negative (min 1 (RealTime.seconds (abs bias))) (t:ts)
+    where
+    positive bias (x:y:zs) = Num.scale x y bias : y : positive bias zs
+    positive _ xs = xs
+    negative bias (x:y:zs) = x : Num.scale x y bias : negative bias zs
+    negative _ xs = xs
+
+-- | Make a trill signal from a list of transition times.
+trill_from_transitions :: Util.Function -> Util.Function
+    -> [RealTime] -> Signal.Control
+trill_from_transitions val1 val2 transitions = Signal.signal
+    [(x, sig x) | (x, sig) <- zip transitions (cycle [val1, val2])]
 
 -- | Create trill transition points from a speed.
 trill_transitions :: (ScoreTime, ScoreTime) -> Bool -> TrackLang.ValControl
