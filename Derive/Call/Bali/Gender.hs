@@ -4,7 +4,7 @@
 
 -- | Ornaments for gender.  The unique thing about gender technique is the
 -- delayed damping, so these calls deal with delayed damping.
-module Derive.Call.Bali.Gender where
+module Derive.Call.Bali.Gender (note_calls, ngoret) where
 import Util.Control
 import qualified Derive.Args as Args
 import qualified Derive.Call.Module as Module
@@ -19,6 +19,7 @@ import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Sig as Sig
 import Derive.Sig (control, defaulted, typed_control)
+import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.Pitch as Pitch
 import Types
@@ -26,19 +27,29 @@ import Types
 
 note_calls :: Derive.CallMaps Derive.Note
 note_calls = Derive.call_maps
-    [ ("'", c_tick Nothing)
-    , ("'^", c_tick (Just (Pitch.Diatonic (-1))))
-    , ("'_", c_tick (Just (Pitch.Diatonic 1)))
+    [ ("'", gender_ngoret Nothing)
+    , ("'^", gender_ngoret (Just (Pitch.Diatonic (-1))))
+    , ("'_", gender_ngoret (Just (Pitch.Diatonic 1)))
     ]
     [ ("realize-damp", c_realize_damp) ]
 
 module_ :: Module.Module
 module_ = "bali" <> "gender"
 
-c_tick :: Maybe Pitch.Transpose -> Derive.Generator Derive.Note
-c_tick transpose = Derive.make_call module_ "tick"
+gender_ngoret :: Maybe Pitch.Transpose -> Derive.Generator Derive.Note
+gender_ngoret = ngoret module_ True damp_arg
+    where
+    damp_arg = defaulted "damp" (typed_control "ngoret-damp" 0.5 Score.Real)
+        "Time that the grace note overlaps with this one. So the total\
+        \ duration is time+damp, though it will be clipped to the\
+        \ end of the current note."
+
+ngoret :: Module.Module -> Bool -> Sig.Parser TrackLang.ValControl
+    -> Maybe Pitch.Transpose -> Derive.Generator Derive.Note
+ngoret module_ add_damped_tag damp_arg transpose =
+    Derive.make_call module_ "ngoret"
     (Tags.inst <> Tags.ornament <> Tags.prev)
-    ("Insert an intermediate grace note in the \"ngoret\" rambat style.\
+    ("Insert an intermediate grace note in the \"ngoret\" style.\
     \ The grace note moves up for `'^`, down for `'_`, or is based\
     \ on the previous note's pitch for `'`."
     ) $ Sig.call ((,,)
@@ -46,10 +57,7 @@ c_tick transpose = Derive.make_call module_ "tick"
         "Time between the grace note start and the main note. If there isn't\
         \ enough room after the previous note, it will be halfway between\
         \ the previous note and this one."
-    <*> defaulted "damp" (typed_control "ngoret-damp" 0.5 Score.Real)
-        "Time that the grace note overlaps with this one. So the total\
-        \ duration is time+damp, though it will be clipped to the\
-        \ end of the current note."
+    <*> damp_arg
     <*> defaulted "dyn" (control "ngoret-dyn" 0.75)
         "The grace note's dyn will be this multiplier of the current dyn."
     ) $ \(time, damp, dyn_scale) ->
@@ -72,7 +80,7 @@ c_tick transpose = Derive.make_call module_ "tick"
 
         pitch <- Derive.require "pitch" =<< Derive.pitch_at start
         Derive.place grace_start (grace_end - grace_start)
-                (Util.add_attrs damped_tag $
+                ((if add_damped_tag then Util.add_attrs damped_tag else id) $
                     Util.with_dynamic (dyn * dyn_scale) $
                     Util.pitched_note (Pitches.transpose transpose pitch))
             <> Derive.place (Args.start args) (Args.duration args) Util.note
@@ -92,7 +100,7 @@ c_realize_damp = Derive.transformer module_ "realize-damp"
     (Tags.inst <> Tags.postproc)
     ("Extend the duration of events preceding one with a "
     <> ShowVal.doc_val damped_tag <> " to the end of the event with the attr.\
-    \ This is because the tick call can't modify its previous note.\
+    \ This is because the `ngoret` call can't modify its previous note.\
     \ TODO: Since there's no correspondence between tracks in different\
     \ blocks, the damping can't extend across block boundaries. I'd need\
     \ something like a 'hand' attribute to fix this."

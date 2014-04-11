@@ -4,6 +4,7 @@
 
 -- | Calls for reyong and trompong techniques.
 module Derive.Call.Bali.Reyong where
+import qualified Control.Applicative as Applicative
 import qualified Data.List as List
 import qualified Data.Map.Strict as Map
 
@@ -14,6 +15,7 @@ import qualified Util.Seq as Seq
 
 import qualified Derive.Args as Args
 import qualified Derive.Attrs as Attrs
+import qualified Derive.Call.Bali.Gender as Gender
 import qualified Derive.Call.Bali.Kotekan as Kotekan
 import qualified Derive.Call.Module as Module
 import qualified Derive.Call.Sub as Sub
@@ -45,6 +47,9 @@ import Types
     3353535322323232112121212121
 -}
 
+module_ :: Module.Module
+module_ = "bali" <> "reyong"
+
 note_calls :: Derive.CallMaps Derive.Note
 note_calls = Derive.call_maps
     [ ("kilit", realize_pattern Kotekan.Repeat norot_patterns)
@@ -59,11 +64,13 @@ note_calls = Derive.call_maps
     , ("X", articulation "cek" ((:[]) . pos_cek) Attrs.rim)
     , ("O", articulation "byong" pos_byong mempty)
     , ("+", articulation "byut" pos_byong Attrs.mute)
+    , ("'", ngoret Nothing)
+    , ("'^", ngoret (Just (Pitch.Diatonic (-1))))
+    , ("'_", ngoret (Just (Pitch.Diatonic 1)))
     ]
     [ ("reyong-damp", c_reyong_damp)
     ]
-    where
-    articulation = make_articulation reyong_positions
+    where articulation = make_articulation reyong_positions
 
 k_12_1_21, k12_12_12, k21_21_21, k_11_1_21, rejang :: Pattern
 k_12_1_21 = reyong_pattern "34-343-4" "-12-1-21"
@@ -78,8 +85,9 @@ reyong_patterns = [k_12_1_21, k12_12_12, k21_21_21, k_11_1_21, rejang]
 reyong_pattern :: [Char] -> [Char] -> Pattern
 reyong_pattern above below = reyong_kotkean_pattern $ parse_kotekan above below
 
-module_ :: Module.Module
-module_ = "bali" <> "reyong"
+ngoret :: Maybe Pitch.Transpose -> Derive.Generator Derive.Note
+ngoret = Gender.ngoret module_ False
+    (Applicative.pure (TrackLang.constant_control 1))
 
 -- * kilitan
 

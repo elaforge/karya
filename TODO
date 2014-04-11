@@ -248,7 +248,6 @@ negative duration / arrival beats:
     #1 might not be compelling if I've already done the work to get them to
     work, but if it's buggy or turns into continual for for every cmd then it
     becomes a big deal.
-
   - ensure inversion works (it should slice >start <=end)
   - ensure redraw works
     I have to make SymbolTable wrap text above too.
@@ -339,6 +338,8 @@ cleanup:
     - Ui.Id
   - I could make the fltk interface clearer by putting c_interface.cc into
     fltk, and then putting all the types it depends on in one header.
+    . I could make that a .c file too, and get rid of the sketchy hsc2hs on
+      c++, as well as clang's "c mode on c++ file" warning.
   - Update.BlockSkeleton sets Block.Status, and so does Update.BlockTrack.  If
     I merge status update into skeleton updates I can take Status out of
     Block.DisplayTrack.
@@ -472,11 +473,6 @@ fltk:
     Apparently not?  iTerms is defined in English.lproj/MainMenu.xib
     https://developer.apple.com/library/mac/#documentation/Cocoa/Conceptual/WinPanel/Tasks/UsingWindowsMenu.html
     But it doesn't say how to add the Window menu.
-  - If I want to draw multiple signals together, I need a line or polygon
-    + gradient function.  Maybe I can get ahold of the OS X graphics context
-    and directly call cocoa functions.  For that to work on linux, I think I'd
-    have to do the same for cairo.
-    . Or perhaps I should just switch to OpenGL?
   drawing artifacts on retina:
     . Some of this may be fltk bugs.
     - tops of tracks and the tops of track text boxes still get gunk, visible
@@ -507,7 +503,6 @@ fltk:
     it altogether)
     I can set something like kUtilityWindowClass in Fl_mac.cxx:Fl_X::make, but
     it doesn't get any kbd input
-  - can I get the windows into an os x windows menu?
   incremental redraw / scrolling
     I don't like the current situation of incremental redraw and scrolling.
     It's also buggy, i.e. one pixel difference between scroll and redraw.
@@ -532,33 +527,35 @@ fltk:
       . I'm pretty sure OS X can do this, as can cairo, so I would need to
         figure out how to get direct access to that API.  I could get rid of
         the awful alpha_draw.cc hack while I'm at it.
+      . Or perhaps I should just switch to OpenGL?
 
 logview:
-  - Logview: adding new log msgs causes the status bar to shrink back to one
-    line, even though it should be wrapped to two.
+  - Adding new log msgs causes the status bar to shrink back to one line, even
+    though it should be wrapped to two.
   - Logview got some kind of file locked error, presumably trying to track
     a rotated log.
     . It happens if the write handle is still open, for some reason
       Posix.getFileStatus then gets openFile: resource busy (file is locked)
     . Maybe it's when reopen tries to open the file and it's already open.
   - can I get the standard edit menu and copy/paste?
-  - haskell and c++ use the same machine readable format
+  / haskell and c++ use the same machine readable format
   - tabs are not lining up properly
   - option to wrap lines or not?
   - hide or display various attrs: date, file, function, ...
+  - Use Fl_Help_Viewer instead of Fl_Editor for text style?
 
 Ui:
   Track
-    - benchmark large TrackEvents
+    / benchmark large TrackEvents
     more compact implemnetation than Data.Map?  profile first!
-      - priorities: memory efficiency, persistent, merge speed (insert many)
+      . priorities: memory efficiency, persistent, merge speed (insert many)
         shallow tree of dense chunks?
         can I take advantage of non-overlap?  [(pos0, data), (pos1, end), ...]
         data Event = Event String StyleId | End | ControlVal Double
-      - I think memory efficiency is more important than modification speed
+      . I think memory efficiency is more important than modification speed
     dense sampled signals
-      - efficient storage, preferably as a Signal so no conversion is necessary
-      - display dense signals: omit text and trigger lines when zoomed out
+      . efficient storage, preferably as a Signal so no conversion is necessary
+      . display dense signals: omit text and trigger lines when zoomed out
 
 test:
   - try writing criterion tests for midi performance and derivation
@@ -756,7 +753,7 @@ Derive:
           which just copies and merges the events directly, and doesn't do
           the intermediate derivation.
       trompong / reyong:
-        - trompong ngoret, actually I can use rambat tick
+        * trompong ngoret, actually I can use rambat tick
           But damping on reyong is different. Ideally I could use the tick
           and just apply the reyong damping postproc, but what about the
           damped-tag?  I can just ignore it.  Or have a flag to turn it off,
@@ -796,7 +793,7 @@ Derive:
       This is getting to be pretty much everything.
     . Another option is to make Derivers polymorphic.  I can put the
       fields in TrackLang.Dynamic in a typeclass.
-    - Abstract 'state' and 'err' to a DeriveM, and implement
+    + Abstract 'state' and 'err' to a DeriveM, and implement
       type ControlFunctionM a = DeriveM.Deriver Dynamic Text a
       . I can't reuse Deriver, but at least I get logging and errors.
 
@@ -835,7 +832,7 @@ pitch: scales: scale:
           is already absolute.
 
     - letter and jianpu but with implicit accidentals based on the key
-  + It's a bit unpleasant how I have TwelveUtils for accidental and key using
+  * It's a bit unpleasant how I have TwelveUtils for accidental and key using
     scales, then Scale.Util for simple scales, and then Just is its own thing.
     Can I unify things into one framework?
   intonation: think about how to do e.g. meantone melody, with just harmony
