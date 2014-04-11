@@ -155,6 +155,7 @@ documentation
   - update screenshots: doc/img/ly-example.png
   - Publish haddock with http://documentup.com/feuerbach/standalone-haddock
   call doc:
+    - hide sections whose calls are all hidden
     - I could go look through arg docs for controls and list all the controls
       that have someone listening to them in a certain scope.
 

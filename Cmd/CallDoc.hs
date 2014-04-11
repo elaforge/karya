@@ -48,15 +48,16 @@ doc_text = Format.run (Just 75) . mapM_ section
 
 call_bindings_text :: CallBindings -> Format.FormatM ()
 call_bindings_text (binds, ctype, call_doc) = do
-        mapM_ show_bind binds
-        Format.indented 2 $ show_call_doc call_doc
-        Format.newline
+    show_module (Derive.cdoc_module call_doc)
+    mapM_ show_bind binds
+    Format.indented 2 $ show_call_doc call_doc
+    Format.newline
     where
+    show_module (Module.Module m) = Format.write $ "\tModule: " <> m <> "\n"
     show_bind (sym, name) = Format.write $
         sym <> " -- " <> name <> ": (" <> show_call_type ctype <> ")\n"
-    show_call_doc (Derive.CallDoc (Module.Module module_) tags doc args) = do
+    show_call_doc (Derive.CallDoc _module tags doc args) = do
         write_doc doc
-        Format.write $ "Module: " <> module_
         write_tags tags
         Format.indented 2 $ arg_docs args
     arg_docs (Derive.ArgsParsedSpecially doc) = do
@@ -72,10 +73,8 @@ call_bindings_text (binds, ctype, call_doc) = do
         (super_, deflt) = show_parser parser
         super = maybe "" (\t -> if Text.length t == 1 then t else " " <> t)
             super_
-    write_tags tags
-        | tags == mempty = Format.write "\n"
-        | otherwise = Format.write $
-            " Tags: " <> Text.intercalate ", " (Tags.untag tags) <> "\n"
+    write_tags tags = when (tags /= mempty) $ Format.write $
+        " Tags: " <> Text.intercalate ", " (Tags.untag tags) <> "\n"
 
 environ_keys :: Text -> Sig.EnvironDefault -> Text
 environ_keys name deflt =
@@ -122,8 +121,15 @@ doc_html hstate = un_html . (html_header hstate <>) . mconcatMap section
         <> mconcatMap (scope_doc call_kind) scope_docs
     scope_doc call_kind (source, calls) =
         tag "h3" ("from " <> html source) <> "\n\n<dl class=main>\n"
-        <> mconcatMap (call_bindings_html hstate call_kind) calls
+        <> mconcatMap (show_module_group call_kind)
+            (Seq.keyed_group_on module_of calls)
         <> "</dl>\n"
+    module_of (_, _, call_doc) = Derive.cdoc_module call_doc
+    show_module_group call_kind (module_, calls) =
+        show_module module_ <> "<br>\n"
+        <> mconcatMap (call_bindings_html hstate call_kind) calls
+    show_module (Module.Module m) = tag "center" $
+        tag "b" "Module: " <> tag "code" (html m)
 
 html_header :: HtmlState -> Html
 html_header hstate =
@@ -178,17 +184,15 @@ javascript =
     \var search = function(val) {\n\
     \   var search_words = val.split(/ +/).filter(\n\
     \           function(x) { return x != '' });\n\
-    \   var defs = document.getElementsByClassName('main');\n\
     \   total_calls = 0;\n\
     \   displayed_calls = 0;\n\
-    \   for (var i = 0; i < defs.length; i++) {\n\
-    \       for (var j = 0; j < defs[i].children.length; j++) {\n\
-    \           var c = defs[i].children[j];\n\
-    \           var tags = c.attributes.tags.value.split(' ');\n\
-    \           c.hidden = !matches(search_words, tags);\n\
-    \           total_calls++;\n\
-    \           if (!c.hidden) displayed_calls++;\n\
-    \       }\n\
+    \   var calls = document.getElementsByClassName('call');\n\
+    \   for (var i = 0; i < calls.length; i++) {\n\
+    \       var c = calls[i];\n\
+    \       var tags = c.attributes.tags.value.split(' ');\n\
+    \       c.hidden = !matches(search_words, tags);\n\
+    \       total_calls++;\n\
+    \       if (!c.hidden) displayed_calls++;\n\
     \   }\n\
     \   document.getElementById('totals').innerText =\n\
     \       'calls displayed/total: ' + displayed_calls + '/' + total_calls;\n\
@@ -211,7 +215,7 @@ javascript =
 
 call_bindings_html :: HtmlState -> Text -> CallBindings -> Html
 call_bindings_html hstate call_kind bindings@(binds, ctype, call_doc) =
-    "<div tags=\"" <> html (Text.unwords tags) <> "\">"
+    "<div class=call tags=\"" <> html (Text.unwords tags) <> "\">"
     <> mconcatMap show_bind (zip (True : repeat False) binds)
         <> show_call_doc call_doc
     <> "</div>\n\n"
@@ -224,10 +228,9 @@ call_bindings_html hstate call_kind bindings@(binds, ctype, call_doc) =
         <> (if first then show_ctype else "") <> "\n"
     show_ctype = "<div style='float:right'>"
         <> tag "em" (html (show_call_type ctype)) <> "</div>"
-    show_call_doc (Derive.CallDoc (Module.Module module_) tags doc args) =
+    show_call_doc (Derive.CallDoc _module tags doc args) =
         "<dd> <dl class=compact>\n"
         <> html_doc hstate doc
-        <> "<br><b>Module:</b> <code>" <> html module_ <> "</code>"
         <> write_tags tags <> "\n"
         <> tag "ul" (arg_docs args)
         <> "</dl>\n"
@@ -246,9 +249,8 @@ call_bindings_html hstate call_kind bindings@(binds, ctype, call_doc) =
     show_char = maybe "" (tag "sup" . html)
     write_tags tags
         | tags == mempty = ""
-        | otherwise = " &mdash; <b>Tags:</b> <em>"
-            <> html (Text.intercalate ", " (Tags.untag tags))
-            <> "</em>"
+        | otherwise = "<br><b>Tags:</b> "
+            <> tag "em" (html (Text.intercalate ", " (Tags.untag tags)))
 
 -- | Extract explicit tags as well as some implicit tags.  Implicit tags are
 -- @%control@ for controls in the default arguments, @name-arg@ for environ
@@ -323,8 +325,7 @@ type Scale = [CallBindings]
 scales_html :: HtmlState -> [CallBindings] -> Text
 scales_html hstate scales = un_html $ html_header hstate
         <> "<h2> Scales </h2>\n"
-        <> "<dl class=main>\n" <> scale_html scales
-        <> "</dl>\n"
+        <> "<dl class=main>\n" <> scale_html scales <> "</dl>\n"
     where scale_html = mconcatMap (call_bindings_html hstate "scale")
 
 -- | Extract documentation from scales.
