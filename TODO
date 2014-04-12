@@ -3,6 +3,8 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
+  - in rehearsal/telek, one ugal sometimes gets stuck on +mute, why doesn't
+    a new play send the keyswitch?
   * In save/rehearsal/telek, all edits are laggy.
   - Implement 'sequence'.  It sequences its notes, paying attention only to
     their order, not time and duration.  The tricky part is getting the tempo
@@ -339,7 +341,7 @@ cleanup:
   - I could make the fltk interface clearer by putting c_interface.cc into
     fltk, and then putting all the types it depends on in one header.
     . I could make that a .c file too, and get rid of the sketchy hsc2hs on
-      c++, as well as clang's "c mode on c++ file" warning.
+      c++, as well as clang's "treating 'c' input as 'c++' when in C++ mode"
   - Update.BlockSkeleton sets Block.Status, and so does Update.BlockTrack.  If
     I merge status update into skeleton updates I can take Status out of
     Block.DisplayTrack.
@@ -753,6 +755,9 @@ Derive:
           which just copies and merges the events directly, and doesn't do
           the intermediate derivation.
       trompong / reyong:
+        * Emit damped notes by applying "", not by copying existing notes.
+          This way I get the proper controls, and don't have to use
+          Score.place.
         * trompong ngoret, actually I can use rambat tick
           But damping on reyong is different. Ideally I could use the tick
           and just apply the reyong damping postproc, but what about the

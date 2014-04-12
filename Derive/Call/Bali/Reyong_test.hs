@@ -67,6 +67,15 @@ test_assign_positions = do
 
 -- * damp
 
+test_reyong_damp = do
+    let run = DeriveTest.extract extract
+            . DeriveTest.derive_tracks "import bali.reyong | reyong-damp 1"
+            . UiTest.note_track
+        extract e = (Score.event_start e, DeriveTest.e_pitch e,
+            DeriveTest.e_attributes e)
+    equal (run [(0, 1, "4c"), (1, 1, "+undamped -- 4d")])
+        ([(0, "4c", "+"), (1, "4d", "+undamped"), (1, "4c", "+mute")], [])
+
 test_can_damp = do
     let f dur = Reyong.can_damp dur . mkevents
     -- Damp with the other hand.

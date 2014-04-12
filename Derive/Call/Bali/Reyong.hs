@@ -324,8 +324,9 @@ c_reyong_damp = Derive.transformer module_ "reyong-damp" Tags.postproc
     <*> Sig.defaulted "attr" Attrs.mute
         "A damp stroke is a note of zero duration with this attribute."
     <*> Sig.defaulted "dyn" 0.75 "Scale dyn for damp strokes."
-    ) $ \(dur, damp_attr, dyn) _args deriver ->
-        reyong_damp_voices dur damp_attr dyn <$> deriver
+    ) $ \(dur, damp_attr, dyn) _args deriver -> do
+        events <- deriver
+        return events <> reyong_damp_voices dur damp_attr dyn events
 
 damped :: Score.Attributes
 damped = Score.attr "damped"
@@ -344,27 +345,27 @@ other R = L
 -- note needs a free hand to damp.  That can be the same hand if the next note
 -- with that hand is sufficiently far, or the opposite hand if it is not too
 -- busy.
---
--- So assign hands first.
 reyong_damp_voices :: RealTime -> Score.Attributes -> Signal.Y -> Derive.Events
-    -> Derive.Events
-reyong_damp_voices dur damp_attr dyn levents =
-    map LEvent.Log logs ++ map LEvent.Event
-        (concatMap (reyong_damp damp_attr dyn dur) by_voice)
-    where
-    (events, logs) = LEvent.partition levents
-    by_voice = Seq.group_on event_voice events
+    -> Derive.NoteDeriver
+reyong_damp_voices dur damp_attr dyn =
+    mconcat . map (reyong_damp damp_attr dyn dur)
+        . Seq.group_on event_voice . LEvent.events_of
 
 -- | To damp, if either hand has enough time before and after then damp,
 -- otherwise let it ring.
 reyong_damp :: Score.Attributes -> Signal.Y -> RealTime -> [Score.Event]
-    -> [Score.Event]
-reyong_damp damp_attr dyn dur = merge . map add_damp . zip_on (can_damp dur)
-    where
-    merge = Seq.merge_asc_lists Score.event_start
-    add_damp (damp, event) = event : if damp then [damped event] else []
-    damped event = Score.place (Score.event_end event) 0 $
-        Score.modify_dynamic (*dyn) $ Score.add_attributes damp_attr event
+    -> Derive.NoteDeriver
+reyong_damp damp_attr dyn dur =
+    mconcat . map (damped_note damp_attr dyn . snd) . filter fst
+        . zip_on (can_damp dur)
+
+damped_note :: Score.Attributes -> Signal.Y -> Score.Event -> Derive.NoteDeriver
+damped_note attr dyn event = case Score.initial_pitch event of
+    Nothing -> Derive.throw $ "no pitch on " <> pretty event
+    Just pitch -> do
+        end <- Derive.score (Score.event_end event)
+        Util.add_attrs attr $ Util.multiply_dynamic dyn $
+            Derive.place end 0 $ Util.pitched_note pitch
 
 can_damp :: RealTime -> [Score.Event] -> [Bool]
 can_damp dur = snd . List.mapAccumL damp (0, 0) . zip_next . assign_hands
