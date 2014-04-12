@@ -59,67 +59,68 @@ equal_arg_doc = "Many types."
 
 equal_doc :: Text
 equal_doc =
-    "Evaluate the deriver with a value set. A special rule means this can be\
-    \ called infix.  The arguments can take many forms to set different kinds\
-    \ of values.\
+    "Evaluate the deriver with a value set. Special parser support means this\
+    \ can be called infix.  The arguments can take many forms to set different\
+    \ kinds of values.\
     \\nSet environ values by setting a plain symbol or unset it by assigning\
     \ to `_`: `x = 42` or `x = _`.\
-    \\nIf the symbol is prefixed with `>`, `*`, `.`, or `-`, it will set a\
+    \\nIf the symbol is prefixed with `>`, `*`, `.`, or `-`, it will add a new\
+    \ name for a\
     \ note, pitch, control, or val call, respectively. It sets the generator\
     \ by default, but will set the transformer if you prefix another `-`.  You\
     \ need quoting for symbols that don't match 'Derive.Parse.p_symbol'.\
     \ E.g.: set note generator: `>x = some-block`, note transformer: `>-x = t`,\
     \ control transfomrer: `'.-i' = t`, pitch val call: `'-4c' = 5c`.\
-    \\nIf you bind a call to a quoted expression, this creates a new call:\
-    \ `>new = \"(a b c)` will create a `new` call, which is a macro for\
-    \ `a b c`. It looks like function definition, but it's purely a macro,\
-    \ so don't bind `>n = \"(n x)` unless you like infinite recursion.\
-    \ Also, the created call does not take arguments (yet!).\
+    \\nIf you bind a call to a quoted expression, this creates a new\
+    \ call: `>abc = \"(a b c)` will create a `abc` call, which is a macro for\
+    \ `a b c`. The created call does not take arguments (yet!).\
     \\nSet constant signals by assigning to a signal literal: `%c = .5` or\
     \ pitch: `#p = (4c)`.  `# = (4c)` sets the default pitch signal."
 
 equal_transformer :: Derive.PassedArgs d -> Derive.Deriver a -> Derive.Deriver a
 equal_transformer args deriver = case Derive.passed_vals args of
+    -- The first arg should be a symbol because that's how the parser parses
+    -- it.
     [TrackLang.VSymbol assignee, val] ->
-        case parse_equal assignee val deriver of
+        case parse_equal assignee val of
             Left err -> Derive.throw_arg_error err
-            Right d -> d
+            Right transform -> transform deriver
     args -> Derive.throw_arg_error $ "unexpected arg types: "
         <> Seq.join ", " (map (pretty . TrackLang.type_of) args)
 
-parse_equal :: TrackLang.Symbol -> TrackLang.Val -> Derive.Deriver a
-    -> Either String (Derive.Deriver a)
-parse_equal (TrackLang.Symbol assignee) (is_source -> Just source) deriver
-    | Just new <- Text.stripPrefix ">" assignee = Right $
-        override_call new source deriver "note"
+parse_equal :: TrackLang.Symbol -> TrackLang.Val
+    -> Either String (Derive.Deriver a -> Derive.Deriver a)
+parse_equal (TrackLang.Symbol assignee) (is_source -> Just source)
+    | Just new <- Text.stripPrefix "^" assignee = Right $
+        override_call new source "note"
             (Derive.s_generator#Derive.s_note)
             (Derive.s_transformer#Derive.s_note)
     | Just new <- Text.stripPrefix "*" assignee = Right $
-        override_call new source deriver "pitch"
+        override_call new source "pitch"
             (Derive.s_generator#Derive.s_pitch)
             (Derive.s_transformer#Derive.s_pitch)
     | Just new <- Text.stripPrefix "." assignee = Right $
-        override_call new source deriver "control"
+        override_call new source "control"
             (Derive.s_generator#Derive.s_control)
             (Derive.s_transformer#Derive.s_control)
     | Just new <- Text.stripPrefix "-" assignee = Right $
-        override_val_call new source deriver
-parse_equal (parse_val -> Just assignee) val deriver
+        override_val_call new source
+parse_equal (parse_val -> Just assignee) val
     | Just control <- is_control assignee = case val of
-        TrackLang.VControl val -> Right $
+        TrackLang.VControl val -> Right $ \deriver ->
             Util.to_signal_or_function val >>= \x -> case x of
                 Left sig -> Derive.with_control control sig deriver
                 Right f -> Derive.with_control_function control f deriver
-        TrackLang.VNum val -> Right $
-            Derive.with_control control (fmap Signal.constant val) deriver
-        TrackLang.VControlFunction f -> Right $
-            Derive.with_control_function control f deriver
+        TrackLang.VNum val ->
+            Right $ Derive.with_control control (fmap Signal.constant val)
+        TrackLang.VControlFunction f ->
+            Right $ Derive.with_control_function control f
         _ -> Left $ "binding a control expects a control, num, or control\
             \ function, but got " <> pretty (TrackLang.type_of val)
     | Just control <- is_pitch assignee = case val of
-        TrackLang.VPitch val -> Right $
-            Derive.with_pitch control (PitchSignal.constant val) deriver
-        TrackLang.VPitchControl val -> Right $ do
+        TrackLang.VPitch val ->
+            Right $ Derive.with_pitch control (PitchSignal.constant val)
+        TrackLang.VPitchControl val -> Right $ \deriver -> do
             sig <- Util.to_pitch_signal val
             Derive.with_pitch control sig deriver
         _ -> Left $ "binding a pitch signal expects a pitch or pitch"
@@ -131,7 +132,7 @@ parse_equal (parse_val -> Just assignee) val deriver
         | c == Controls.null = Just Nothing
         | otherwise = Just (Just c)
     is_pitch _ = Nothing
-parse_equal assignee val deriver = Right $ Derive.with_val assignee val deriver
+parse_equal assignee val = Right $ Derive.with_val assignee val
 
 type Source = Either TrackLang.CallId TrackLang.Quoted
 
@@ -147,20 +148,20 @@ parse_val = either (const Nothing) Just . Parse.parse_val . TrackLang.unsym
 -- scope given by the lenses.  I wanted to pass just one lens, but apparently
 -- they're not sufficiently polymorphic.
 override_call :: (Derive.Callable d1, Derive.Callable d2)
-    => Text -> Source -> Derive.Deriver a -> Text
+    => Text -> Source -> Text
     -> Lens Derive.Scopes (Derive.ScopeType (Derive.Generator d1))
     -> Lens Derive.Scopes (Derive.ScopeType (Derive.Transformer d2))
-    -> Derive.Deriver a
-override_call assignee source deriver name_ generator transformer
+    -> Derive.Deriver a -> Derive.Deriver a
+override_call assignee source name_ generator transformer deriver
     | Just stripped <- Text.stripPrefix "-" assignee =
-        override_scope stripped transformer
+        override_scope stripped transformer deriver
             =<< resolve (name_ <> " transformer")
                 transformer (return . quoted_transformer) source
-    | otherwise = override_scope assignee generator
+    | otherwise = override_scope assignee generator deriver
         =<< resolve (name_ <> " generator")
             generator (return . quoted_generator) source
     where
-    override_scope assignee lens call =
+    override_scope assignee lens deriver call =
         Derive.with_scopes modify deriver
         where modify = lens#Derive.s_override %= (single_lookup assignee call :)
     resolve name lens = either (get_call name (lens #$))
