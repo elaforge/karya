@@ -384,6 +384,12 @@ data Dynamic = Dynamic {
     , state_warp :: !Score.Warp
     -- | Calls currently in scope.
     , state_scopes :: !Scopes
+    -- | Instrument aliases as (alias, destination) pairs.  Map through this
+    -- before looking in 'state_lookup_instrument'.  This is analogous to the
+    -- instrument db level aliasing, except this only present in a dynamically
+    -- scoped part of derivation.  An alias can map to another alias later in
+    -- the list.
+    , state_instrument_aliases :: ![(Score.Instrument, Score.Instrument)]
     , state_control_damage :: !ControlDamage
 
     -- | This is the call stack for events.  It's used for error reporting,
@@ -401,6 +407,7 @@ initial_dynamic environ = Dynamic
     , state_environ = environ
     , state_warp = Score.id_warp
     , state_scopes = empty_scopes
+    , state_instrument_aliases = []
     , state_control_damage = mempty
     , state_stack = Stack.empty
     }
@@ -418,8 +425,8 @@ default_dynamic :: Signal.Y
 default_dynamic = 1
 
 instance Pretty.Pretty Dynamic where
-    format (Dynamic controls cfuncs pitches pitch environ warp scopes damage
-            stack) =
+    format (Dynamic controls cfuncs pitches pitch environ warp scopes aliases
+            damage stack) =
         Pretty.record_title "Dynamic"
             [ ("controls", Pretty.format controls)
             , ("control functions", Pretty.format cfuncs)
@@ -428,15 +435,17 @@ instance Pretty.Pretty Dynamic where
             , ("environ", Pretty.format environ)
             , ("warp", Pretty.format warp)
             , ("scopes", Pretty.format scopes)
+            , ("instrument aliases", Pretty.format aliases)
             , ("damage", Pretty.format damage)
             , ("stack", Pretty.format stack)
             ]
 
 instance DeepSeq.NFData Dynamic where
-    rnf (Dynamic controls cfuncs pitches pitch environ warp _scopes damage
-            stack) =
+    rnf (Dynamic controls cfuncs pitches pitch environ warp _scopes aliases
+            damage stack) =
         rnf controls `seq` rnf cfuncs `seq` rnf pitches `seq` rnf pitch
-        `seq` rnf environ `seq` rnf warp `seq` rnf damage `seq` rnf stack
+        `seq` rnf environ `seq` rnf warp `seq` rnf aliases `seq` rnf damage
+        `seq` rnf stack
 
 -- ** scope
 

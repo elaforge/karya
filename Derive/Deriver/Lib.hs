@@ -9,6 +9,7 @@
 -}
 module Derive.Deriver.Lib where
 import Prelude hiding (error)
+import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 import qualified Data.Set as Set
@@ -296,14 +297,12 @@ val_to_pitch (ValCall name doc vcall) = Call
 
 with_instrument :: Score.Instrument -> Deriver d -> Deriver d
 with_instrument inst deriver = do
-    lookup_inst <- gets $ state_lookup_instrument . state_constant
-    let with_inst = with_val_raw Environ.instrument inst
-    -- Previously, I would just substitute an empty instrument, but it turned
-    -- out to be error prone, since a misspelled instrument would derive
-    -- anyway, only without the right calls and environ.
-    Instrument calls environ <-
-        require ("no instrument found for " <> untxt (ShowVal.show_val inst))
-        (lookup_inst inst)
+    -- Previously, I would just substitute an empty instrument instead of
+    -- throwing, but it turned out to be error prone, since a misspelled
+    -- instrument would derive anyway, only without the right calls and
+    -- environ.
+    (real_inst, Instrument calls environ) <- get_instrument inst
+    let with_inst = with_val_raw Environ.instrument real_inst
     with_inst $ with_scopes (set_scopes calls) $ with_environ environ deriver
     where
     -- Replace the calls in the instrument scope type.
@@ -317,6 +316,27 @@ with_instrument inst deriver = do
     set_note lookups scope =
         scope { scope_note = set_inst lookups (scope_note scope) }
     set_inst lookups stype = stype { stype_instrument = lookups }
+
+with_instrument_alias :: Score.Instrument -> Score.Instrument
+    -> Deriver a -> Deriver a
+with_instrument_alias alias inst deriver = do
+    _ <- get_instrument inst -- ensure it exists
+    Internal.local with deriver
+    where
+    with st = st { state_instrument_aliases =
+        (alias, inst) : state_instrument_aliases st }
+
+get_instrument :: Score.Instrument -> Deriver (Score.Instrument, Instrument)
+get_instrument inst = do
+    aliases <- Internal.get_dynamic state_instrument_aliases
+    let real_inst = List.foldl'
+            (\inst (from, to) -> if inst == from then to else inst) inst aliases
+    lookup_inst <- gets $ state_lookup_instrument . state_constant
+    let msg = ShowVal.show_val real_inst <> if real_inst == inst then ""
+            else " (aliased via " <> ShowVal.show_val inst <> ")"
+    val <- require ("no instrument found for " <> untxt msg) $
+        lookup_inst real_inst
+    return (real_inst, val)
 
 -- | Merge the given environ into the environ in effect.
 with_environ :: TrackLang.Environ -> Deriver a -> Deriver a

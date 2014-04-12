@@ -3,6 +3,28 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
+  - Ngoret seemingly can't work with negative durations, because it wants to
+    make notes overlap, and I can't express that.
+    . One way is to extend negative durations to allow overlaps.  It seems
+      like there's a way to do that.
+    . But this is all really confusing and hard to understand.  Can I get rid
+      of them entirely but keep what I need them for, which is patterns
+      aligned at the end?  I can already have a block end with a note,
+      but I need it to have a duration.  This is the same as the arrival
+      note, and could use an attr + postproc in the same way.
+    . The usual cipher notation leaves duration entirely implicit, so it
+      really is fundamentally higher level.
+    . Or, I could keep negative duration as a way to signal that the call is
+      end-aligned, but have normal notes be positive.
+        ------|
+             ------|
+              |++++++
+                   |...
+
+          ----|----|
+              |++++|...
+            --|  --|
+              |++  |...
   - There's a bug where if you zoom-to-fit and then click, the selection snap
     can undo the zoom.
   - in rehearsal/telek, one ugal sometimes gets stuck on +mute, why doesn't
@@ -29,7 +51,7 @@ UNSORTED
         passed_call_name :: !Text
         block_id
         track_id :: !TrackId
-      - Can I use Derive.Sig?
+      . Can I use Derive.Sig?
       . Can I turn normal tracks into track calls?  I suppose they would have
         to be lookup calls.  Would that mess up TrackInfo?
 
@@ -752,10 +774,27 @@ Derive:
       wayang in octaves
         . I could do it with >wayang-both that emits >wayang-p and >wayang-k. Or
           just call the score twice, once with transpose +1 oct.
+        . I definitely want two calls because then kantilan randomizes
+          differently.
         . Or I could create the kantilan as a integration of the pemade, so it
           can still be modified. I think this would want a "score integration"
           which just copies and merges the events directly, and doesn't do
           the intermediate derivation.
+        . I could add inst aliases, e.g. >umbang = >p-umbang, etc.
+          Or a note-track call: '>umbang = "(>p-umbang)'
+          This can't be done with call aliasing because it's actually
+          'note-title >inst', and anyway wouldn't help with 'inst = >x'.
+        . The intended way to do this is have > instrument, and then set it in
+          the caller.  But then you can't put >1 inst on the same block.
+        . But this way doesn't work if I want differences in the kantilan
+          version.  I would have to do correspondingly more copy and paste to
+          replace the bit I want to change.
+        . Ideally I'd like something like integration: everything is
+          duplicated with no extra work, but an integration is available to
+          edit.  But it would be a kind of "deep integration", where
+          I duplicate the entire structure, from score on down.  Score
+          integration could theoretically do that.
+        * Add instrument alias, I think I need that at least.
       trompong / reyong:
         * Emit damped notes by applying "", not by copying existing notes.
           This way I get the proper controls, and don't have to use

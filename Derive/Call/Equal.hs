@@ -4,6 +4,10 @@
 
 {-# LANGUAGE ViewPatterns #-}
 -- | Export 'c_equal' call, which implements @=@.
+--
+-- The equal call is heavily overloaded because I want to reuse the nice infix
+-- syntax.  Unfortunately it results in lots of cryptic prefixes.  Is it worth
+-- it?
 module Derive.Call.Equal (note_calls, control_calls, pitch_calls) where
 import qualified Data.List.NonEmpty as NonEmpty
 import qualified Data.Map as Map
@@ -20,6 +24,7 @@ import qualified Derive.Controls as Controls
 import qualified Derive.Derive as Derive
 import qualified Derive.Parse as Parse
 import qualified Derive.PitchSignal as PitchSignal
+import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Sig as Sig
 import qualified Derive.TrackLang as TrackLang
@@ -64,18 +69,22 @@ equal_doc =
     \ kinds of values.\
     \\nSet environ values by setting a plain symbol or unset it by assigning\
     \ to `_`: `x = 42` or `x = _`.\
-    \\nIf the symbol is prefixed with `>`, `*`, `.`, or `-`, it will add a new\
-    \ name for a\
-    \ note, pitch, control, or val call, respectively. It sets the generator\
+    \\nAlias instrument names like: `>alias = >inst`.\
+    \\nIf the symbol is prefixed with `^`, `*`, `.`, or `-`, it will add a new\
+    \ name for a ^note, *pitch, .control, or -val call, respectively. It sets\
+    \ the generator\
     \ by default, but will set the transformer if you prefix another `-`.  You\
     \ need quoting for symbols that don't match 'Derive.Parse.p_symbol'.\
-    \ E.g.: set note generator: `>x = some-block`, note transformer: `>-x = t`,\
-    \ control transfomrer: `'.-i' = t`, pitch val call: `'-4c' = 5c`.\
+    \\nE.g.: set note generator: `>phrase = some-block`,\
+    \ note transformer: `>-mute = +mute+loose`,\
+    \ control transfomrer: `'.-i' = t`, val call: `'-4c' = 5c`.\
     \\nIf you bind a call to a quoted expression, this creates a new\
     \ call: `>abc = \"(a b c)` will create a `abc` call, which is a macro for\
     \ `a b c`. The created call does not take arguments (yet!).\
     \\nSet constant signals by assigning to a signal literal: `%c = .5` or\
     \ pitch: `#p = (4c)`.  `# = (4c)` sets the default pitch signal."
+    -- Previously > was for binding note calls, but that was takes by
+    -- instrument aliasing.  ^ at least looks like a rotated >.
 
 equal_transformer :: Derive.PassedArgs d -> Derive.Deriver a -> Derive.Deriver a
 equal_transformer args deriver = case Derive.passed_vals args of
@@ -105,6 +114,12 @@ parse_equal (TrackLang.Symbol assignee) (is_source -> Just source)
             (Derive.s_transformer#Derive.s_control)
     | Just new <- Text.stripPrefix "-" assignee = Right $
         override_val_call new source
+parse_equal (TrackLang.Symbol assignee) source
+    | Just new <- Text.stripPrefix ">" assignee = case source of
+        TrackLang.VInstrument inst -> Right $
+            Derive.with_instrument_alias (Score.Instrument new) inst
+        _ -> Left $ "aliasing an instrument expected an instrument source, got "
+            <> pretty (TrackLang.type_of source)
 parse_equal (parse_val -> Just assignee) val
     | Just control <- is_control assignee = case val of
         TrackLang.VControl val -> Right $ \deriver ->
@@ -115,7 +130,7 @@ parse_equal (parse_val -> Just assignee) val
             Right $ Derive.with_control control (fmap Signal.constant val)
         TrackLang.VControlFunction f ->
             Right $ Derive.with_control_function control f
-        _ -> Left $ "binding a control expects a control, num, or control\
+        _ -> Left $ "binding a control expected a control, num, or control\
             \ function, but got " <> pretty (TrackLang.type_of val)
     | Just control <- is_pitch assignee = case val of
         TrackLang.VPitch val ->
@@ -123,7 +138,7 @@ parse_equal (parse_val -> Just assignee) val
         TrackLang.VPitchControl val -> Right $ \deriver -> do
             sig <- Util.to_pitch_signal val
             Derive.with_pitch control sig deriver
-        _ -> Left $ "binding a pitch signal expects a pitch or pitch"
+        _ -> Left $ "binding a pitch signal expected a pitch or pitch"
             <> " control, but got " <> pretty (TrackLang.type_of val)
     where
     is_control (TrackLang.VControl (TrackLang.LiteralControl c)) = Just c
