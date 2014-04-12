@@ -3,6 +3,8 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
+  - There's a bug where if you zoom-to-fit and then click, the selection snap
+    can undo the zoom.
   - in rehearsal/telek, one ugal sometimes gets stuck on +mute, why doesn't
     a new play send the keyswitch?
   * In save/rehearsal/telek, all edits are laggy.

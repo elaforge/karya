@@ -468,7 +468,8 @@ cmd_toggle_zero_or_block_call_duration = do
     toggle end point event = fromMaybe (toggle_zero end point event) <$>
         set_block_call_duration event
     toggle_zero end point event
-        | Event.duration event /= 0 = Event.set_duration 0 event
+        | Event.duration event /= 0 =
+            Event.set_duration (if Event.negative event then -0 else 0) event
         | pos == point = Event.set_duration (end - pos) event
         | otherwise = Event.set_duration (point - pos) event
         where pos = Event.start event
