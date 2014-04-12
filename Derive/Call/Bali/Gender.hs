@@ -60,8 +60,7 @@ ngoret module_ add_damped_tag damp_arg transpose =
     <*> damp_arg
     <*> defaulted "dyn" (control "ngoret-dyn" 0.75)
         "The grace note's dyn will be this multiplier of the current dyn."
-    ) $ \(time, damp, dyn_scale) ->
-    Sub.inverting_around (2, 1) $ \args -> do
+    ) $ \(time, damp, dyn_scale) -> Sub.inverting_around (2, 1) $ \args -> do
         start <- Args.real_start args
         transpose <- maybe (infer_transpose args start) return transpose
         time <- Derive.real =<< Util.time_control_at Util.Real time start

@@ -212,7 +212,7 @@ stash_dynamic vals = maybe id
 -- is the one.
 adjust_end :: RealTime -> RealTime -> Maybe Event.Event
     -> Derive.Deriver (RealTime, Bool)
-adjust_end start end _ | end >= start = return (end, False)
+adjust_end start end _ | start <= end = return (end, False)
 adjust_end _ end Nothing = return (end, True)
 adjust_end start end (Just next) = do
     next_start <- Derive.real (Event.start next)

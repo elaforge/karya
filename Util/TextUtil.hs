@@ -18,6 +18,16 @@ import System.FilePath ((</>))
 import qualified Util.Seq as Seq
 
 
+-- | Replace substrings simultaneously.
+replaceMany :: [(Text, Text)] -> Text -> Text
+replaceMany replace = mconcat . go
+    where
+    go text
+        | Text.null text = []
+        | otherwise = case List.find ((`Text.isPrefixOf` text) . fst) replace of
+            Nothing -> Text.take 1 text : go (Text.drop 1 text)
+            Just (from, to) -> to : go (Text.drop (Text.length from) text)
+
 -- | Join the two pieces with a space, if they are non-empty.
 join2 :: Text -> Text -> Text
 join2 t1 t2 = Text.unwords $ filter (not . Text.null) [t1, t2]

@@ -9,7 +9,7 @@ import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Score as Score
 
 
-test_tick = do
+test_ngoret = do
     -- This also tests some error checking and absolute warp functions.
     let extract = DeriveTest.extract $ \e ->
             (Score.event_start e, Score.event_duration e,
@@ -28,7 +28,7 @@ test_tick = do
     -- though TimeVector.constant starts it at 0.
     equal (run $ c_to_e "'^ .5 .5 1" "")
         ([(-0.5, 1, "3b", dyn), (0, 1, "4c", dyn), (2, 1, "4e", dyn)], [])
-    -- tick is a constant time before second note regardless of tempo
+    -- ngoret is a constant time before second note regardless of tempo
     let (evts, logs) = run $ ("tempo", [(0, 0, ".5")]) : c_to_e "" "' .5 .5"
     equal logs []
     equal evts
@@ -37,7 +37,7 @@ test_tick = do
         , (4, 2, "4e", dyn)
         ]
 
-    -- tick damp time doesn't go past second note
+    -- ngoret damp time doesn't go past second note
     let (evts, logs) = run $ c_to_e "" "' .5 5 1"
     equal logs []
     equal evts
@@ -56,7 +56,7 @@ test_tick = do
         , (2, 1, "4e", dyn)
         ]
 
-    -- Tick works when not inverted as well.
+    -- Works when not inverted as well.
     let (evts, logs) = run
             [ ("*", [(0, 0, "4c"), (2, 0, "4e")])
             , (">", [(0, 1, ""), (2, 1, "' .5 1 1")])
@@ -68,11 +68,11 @@ test_tick = do
         , (2, 1, "4e", dyn)
         ]
 
-    -- Explicit down tick.
+    -- Explicit down ngoret.
     equal (run $ c_to_e "" "'_ .5 .5 1")
         ([(0, 1, "4c", dyn), (1.5, 1, "4f", dyn), (2, 1, "4e", dyn)], [])
 
-test_tick_damp = do
+test_realize_damp = do
     let run notes pitches = extract $
             DeriveTest.derive_tracks "import bali.gender"
             [("> | realize-damp", notes), ("*", pitches)]

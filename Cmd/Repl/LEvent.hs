@@ -10,6 +10,8 @@ import qualified Data.Text as Text
 
 import Util.Control
 import qualified Util.Seq as Seq
+import qualified Util.TextUtil as TextUtil
+
 import qualified Ui.Event as Event
 import qualified Ui.Events as Events
 import qualified Ui.State as State
@@ -52,6 +54,9 @@ find text = fmap concat . concatMapM search =<< State.all_block_track_ids
 -- everywhere, or 'ModifyEvents.all_note_tracks' for just note tracks.
 replace :: (Monad m) => Text -> Text -> ModifyEvents.Track m
 replace from to = ModifyEvents.text (Text.replace from to)
+
+replace_many :: Monad m => [(Text, Text)] -> ModifyEvents.Track m
+replace_many = ModifyEvents.text . TextUtil.replaceMany
 
 -- * quantize
 
