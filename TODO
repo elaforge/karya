@@ -493,7 +493,7 @@ fltk:
   + can I get fltk to omit the jellybean buttons on the window?
     . Yes, but requires hacking fltk.
     . Completely disables resizing.  Apparently this is hardcoded.
-  - some way to scroll that's not the scroll wheel
+  * some way to scroll that's not the scroll wheel
   - I could set certain Symbols to stretch to the length of their event, this
     would yield a nicer looking score.  But it would mess up the bounds
     detection.

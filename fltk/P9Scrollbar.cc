@@ -76,9 +76,17 @@ int
 P9Scrollbar::handle(int evt)
 {
     if (evt == FL_PUSH || evt == FL_RELEASE || evt == FL_DRAG) {
-        // DEBUG("got: " << show_event(evt));
+        double click;
+        if (orientation == P9Scrollbar::vertical) {
+            click = double(Fl::event_y() - this->y()) / this->h();
+        } else {
+            click = double(Fl::event_x() - this->x()) / this->w();
+        }
+        click -= this->size / 2;
+        click = ::clamp(0.0, 1 - size, click);
+        this->set_scroll(click, this->size);
+        this->do_callback();
         return 1;
     }
-    // DEBUG("got: " << show_event(evt));
     return 0;
 }
