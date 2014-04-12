@@ -92,7 +92,7 @@ first_note_code code args = when_lilypond $
 notes_around :: Code -> Code -> Derive.PassedArgs d
     -> Derive.NoteDeriver -> Derive.NoteDeriver
 notes_around start end args = when_lilypond $
-    mconcat . map around =<< Sub.sub_events args
+    mconcatMap around =<< Sub.sub_events args
     where
     around notes = first_last
         (add_event_code start) (add_event_code end) <$> Sub.place notes
@@ -100,7 +100,7 @@ notes_around start end args = when_lilypond $
 -- | Like 'notes_around', but for use when you already know you're in lilypond
 -- mode.
 notes_around_ly :: Code -> Code -> Derive.PassedArgs d -> Derive.NoteDeriver
-notes_around_ly start end = mconcat . map around <=< Sub.sub_events
+notes_around_ly start end = mconcatMap around <=< Sub.sub_events
     where
     around notes = first_last
         (add_event_code start) (add_event_code end) <$> Sub.place notes

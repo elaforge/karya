@@ -338,7 +338,7 @@ realize_pattern repeat pattern_start pattern_end dur get_cycle =
 realize_notes :: ScoreTime -> (a -> Derive.NoteDeriver) -> [Note a]
     -> Derive.NoteDeriver
 realize_notes start realize =
-    mconcat . map note . dropWhile ((<=start) . note_start)
+    mconcatMap note . dropWhile ((<=start) . note_start)
     where note (Note start dur note) = Derive.place start dur (realize note)
 
 -- | Style for non-interlocking norot.  Interlocking norot is always the upper

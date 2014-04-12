@@ -11,7 +11,7 @@ module Util.Control (
     , (<>), mempty, mconcat
     , while, while_
     , whenM, unlessM, whenJust, whenJustM, ifM, andM, orM, findM
-    , concatMapM, mapMaybeM
+    , mconcatMap, concatMapM, mapMaybeM
     , mapMaybe, fromMaybe
 
     , justm, rightm, errorIO
@@ -40,6 +40,7 @@ import Control.Monad.Trans (lift, liftIO)
 
 import Data.List.NonEmpty (NonEmpty(..))
 import Data.Maybe (mapMaybe, fromMaybe)
+import qualified Data.Monoid as Monoid
 import Data.Monoid (mempty, mconcat, (<>))
 import qualified Data.Text as Text
 
@@ -114,8 +115,11 @@ findM :: (Monad m) => (a -> m Bool) -> [a] -> m (Maybe a)
 findM _ [] = return Nothing
 findM f (x:xs) = ifM (f x) (return (Just x)) (findM f xs)
 
-concatMapM :: (Monad m) => (a -> m [b]) -> [a] -> m [b]
-concatMapM f = liftM concat . mapM f
+mconcatMap :: Monoid.Monoid b => (a -> b) -> [a] -> b
+mconcatMap f = mconcat . Prelude.map f
+
+concatMapM :: (Monad m, Monoid.Monoid b) => (a -> m b) -> [a] -> m b
+concatMapM f = liftM mconcat . mapM f
 
 mapMaybeM :: (Monad m) => (a -> m (Maybe b)) -> [a] -> m [b]
 mapMaybeM f as = go as

@@ -145,7 +145,7 @@ encode_bank_dump :: Unit -> Bank -> [Sysex.RMap] -> Either String ByteString
 encode_bank_dump unit bank rmaps = do
     header_rmap <- set_bank $ Sysex.spec_to_rmap program_dump_header
     encode_sysex (encode program_dump_header header_rmap)
-        (mconcat <$> mapM (encode patch_spec) rmaps)
+        (concatMapM (encode patch_spec) rmaps)
     where
     set_bank = Sysex.put_rmap "bank" (Text.toLower (showt bank))
         <=< Sysex.put_rmap "unit" (Text.toLower (showt unit))
@@ -184,7 +184,7 @@ multi_data_dump = 0x4d
 -- | Z1 sysexes use a scheme where the eighth bits are packed into a single
 -- byte preceeding its 7 7bit bytes.
 dekorg :: ByteString -> ByteString
-dekorg = mconcat . map smoosh . chunks 8
+dekorg = mconcatMap smoosh . chunks 8
     where
     smoosh bs = case B.uncons bs of
         Just (b7, bytes) -> snd $
@@ -194,7 +194,7 @@ dekorg = mconcat . map smoosh . chunks 8
         then Bits.setBit to 7 else Bits.clearBit to 7
 
 enkorg :: ByteString -> ByteString
-enkorg = mconcat . map expand . chunks 7
+enkorg = mconcatMap expand . chunks 7
     where
     expand bs = B.cons bits (B.map (`Bits.clearBit` 7) bs)
         where bits = B.foldr get_bits 0 bs

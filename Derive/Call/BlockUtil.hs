@@ -155,7 +155,7 @@ derive_tree block_end tree = with_default_tempo (derive_tracks tree)
 
 -- | Derive an EventsTree.
 derive_tracks :: TrackTree.EventsTree -> Derive.NoteDeriver
-derive_tracks = mconcat . map derive_track
+derive_tracks = mconcatMap derive_track
 
 -- | Derive a single track node and any tracks below it.
 derive_track :: TrackTree.EventsNode -> Derive.NoteDeriver

@@ -102,7 +102,7 @@ realize_pattern repeat pattern =
         pitch <- Util.get_parsed_pitch parse_pitch =<< Args.real_start args
         positions <- Derive.require ("no pattern for pitch: " <> pretty pitch)
             (Map.lookup (Pitch.pitch_pc pitch) pattern)
-        mconcat $ map (realize show_pitch (Args.range args) dur)
+        mconcatMap (realize show_pitch (Args.range args) dur)
             (zip [1..] positions)
     where
     realize show_pitch (start, end) dur (voice, position) =
@@ -117,11 +117,11 @@ make_articulation positions name get_notes attrs =
     Derive.make_call module_ name Tags.inst "Reyong articulation."
     $ Sig.call0 $ Sub.inverting $ \args -> do
         (_, show_pitch, _) <- Util.get_pitch_functions
-        mconcat $ map (realize show_pitch args) (zip [1..] positions)
+        mconcatMap (realize show_pitch args) (zip [1..] positions)
     where
-    realize show_pitch args (voice, position) = mconcat $
-        map (Util.place args . realize_note show_pitch voice (Args.start args))
-            (map (\p -> (p, attrs)) (get_notes position))
+    realize show_pitch args (voice, position) = mconcatMap
+        (Util.place args . realize_note show_pitch voice (Args.start args))
+        (map (\p -> (p, attrs)) (get_notes position))
 
 type Voice = Int
 
@@ -348,7 +348,7 @@ other R = L
 reyong_damp_voices :: RealTime -> Score.Attributes -> Signal.Y -> Derive.Events
     -> Derive.NoteDeriver
 reyong_damp_voices dur damp_attr dyn =
-    mconcat . map (reyong_damp damp_attr dyn dur)
+    mconcatMap (reyong_damp damp_attr dyn dur)
         . Seq.group_on event_voice . LEvent.events_of
 
 -- | To damp, if either hand has enough time before and after then damp,
@@ -356,7 +356,7 @@ reyong_damp_voices dur damp_attr dyn =
 reyong_damp :: Score.Attributes -> Signal.Y -> RealTime -> [Score.Event]
     -> Derive.NoteDeriver
 reyong_damp damp_attr dyn dur =
-    mconcat . map (damped_note damp_attr dyn . snd) . filter fst
+    mconcatMap (damped_note damp_attr dyn . snd) . filter fst
         . zip_on (can_damp dur)
 
 damped_note :: Score.Attributes -> Signal.Y -> Score.Event -> Derive.NoteDeriver

@@ -81,7 +81,7 @@ multiple_call name calls = Derive.make_call Module.instrument name Tags.inst
     -- combine in the call doc.  Presumably the calls are apparent from the
     -- name.
     "Dispatch to multiple calls." $ Sig.call0 $ \args ->
-        mconcat $ map (Call.reapply_gen args) calls
+        mconcatMap (Call.reapply_gen args) calls
 
 double_calls :: [(TrackLang.CallId, TrackLang.CallId)]
     -- ^ (call_name, repeated_call)
@@ -174,9 +174,9 @@ double_pitch name base_controls pcontrol secondary_controls =
         ]
 
 composite_call :: Derive.NoteArgs -> [Composite] -> Derive.NoteDeriver
-composite_call args composites = mconcat $ map (split args) composites
+composite_call args composites = mconcatMap (split args) composites
     where
-    allocated = mconcat $ map (fromMaybe mempty . c_controls) composites
+    allocated = mconcatMap (fromMaybe mempty . c_controls) composites
     split args (Composite call inst pitch controls) =
         Derive.with_instrument inst $ with_pitch pitch $
         with_controls controls $ Call.reapply_gen args call

@@ -137,7 +137,7 @@ split_control track = extract $ split $ TrackTree.tevents_events track
     -- TODO Group by control, not title.
     merge = map merge_track . Seq.group_on fst
     merge_track [] = error "Seq.group_on postcondition violated"
-    merge_track tracks@((title, _) : _) = (title, mconcat (map snd tracks))
+    merge_track tracks@((title, _) : _) = (title, mconcatMap snd tracks)
 
 -- * eval_track
 

@@ -211,7 +211,7 @@ sub_events args = case Derive.info_sub_events (Derive.passed_info args) of
 
 -- | Place and merge a list of Events.
 place :: [Event] -> Derive.NoteDeriver
-place = mconcat . map (\(Event s d n) -> Derive.place s d n)
+place = mconcatMap (\(Event s d n) -> Derive.place s d n)
 
 -- | Fit the given events into a time range.  Any leading space (time between
 -- the start of the range and the first Event) and trailing space is

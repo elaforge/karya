@@ -134,7 +134,7 @@ convert_tracks :: [(Text, [Midi])]
     -> ([(Text, Track)], Skeleton.Skeleton, [Warn])
 convert_tracks midi_tracks = (concatMap convert tracks, skeleton, warns)
     where
-    (tracks, warns) = mconcat $ map convert_track midi_tracks
+    (tracks, warns) = mconcatMap convert_track midi_tracks
     skeleton = Skeleton.make $ note_track_edges $ map snd tracks
     convert (inst, NoteTrack notes pitches controls) =
         (ParseTitle.instrument_to_title inst, notes)

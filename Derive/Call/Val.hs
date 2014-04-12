@@ -311,7 +311,7 @@ make_segments :: (Monoid.Monoid sig) =>
     -> (RealTime -> y -> RealTime -> y -> sig)
     -> RealTime -> RealTime -> [y] -> sig
 make_segments make_signal segment start end =
-    mconcat . map line . Seq.zip_next . make_breakpoints start end
+    mconcatMap line . Seq.zip_next . make_breakpoints start end
     where
     line ((x1, y1), Just (x2, y2)) = segment x1 y1 x2 y2
     line ((x1, y2), Nothing) = make_signal [(x1, y2)]

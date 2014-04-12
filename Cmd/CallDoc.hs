@@ -282,9 +282,6 @@ binding_tags (binds, ctype, call_doc) =
 tag :: Html -> Html -> Html
 tag name content = "<" <> name <> ">" <> content <> "</" <> name <> ">"
 
-mconcatMap :: (Monoid.Monoid b) => (a -> b) -> [a] -> b
-mconcatMap f = mconcat . map f
-
 newtype Html = Html Text
     deriving (Monoid.Monoid, String.IsString, Show)
 
