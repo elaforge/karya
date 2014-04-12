@@ -303,9 +303,9 @@ html_doc (haddock_dir, files) = Html . postproc . html_quote
     -- Text.replace.  It's doable, but would be more trouble than it's worth.
     postproc = para . backticks . single_quotes
     para = Text.replace "\n" "\n<br>"
-    backticks = TextUtil.mapDelimited True "`" "`"
+    backticks = TextUtil.mapDelimited True '`'
         (\t -> "<code>" <> t <> "</code>")
-    single_quotes = TextUtil.mapDelimited False "'" "'" $ \text ->
+    single_quotes = TextUtil.mapDelimited False '\'' $ \text ->
         case TextUtil.haddockUrl files haddock_dir text of
             Nothing -> "'" <> text <> "'"
             Just url -> html_link text url

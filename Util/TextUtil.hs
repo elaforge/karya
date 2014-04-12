@@ -3,6 +3,7 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 module Util.TextUtil where
+import Control.Arrow (first)
 import qualified Data.Char as Char
 import qualified Data.List as List
 import qualified Data.Maybe as Maybe
@@ -32,25 +33,35 @@ formatColumns padding rows = map format_row rows
     widths = replace $ map (List.maximum . (0:) . map Text.length) by_col
     replace = reverse . (0:) . drop 1 . reverse
 
-mapDelimited :: Bool -> Text -> Text -> (Text -> Text) -> Text -> Text
-mapDelimited withSpaces open close f =
-    mconcat . concatMap apply . extractDelimited withSpaces open close
+-- | Apply a function to the contents delimited by the given Char.  You can
+-- quote a delimiter with a backslash.
+mapDelimited :: Bool -> Char -> (Text -> Text) -> Text -> Text
+mapDelimited withSpaces delimiter f =
+    mconcat . concatMap apply . extractDelimited withSpaces delimiter
     where
     apply (text, Just word) = [text, f word]
     apply (text, Nothing) = [text]
 
--- | TODO option to omit if there's a space in it, e.g. for single quotes
-extractDelimited :: Bool -> Text -> Text -> Text -> [(Text, Maybe Text)]
-extractDelimited withSpaces open close = go
+-- | This is more awkward than a parser, but... ok, maybe I should have used
+-- a parser.
+extractDelimited :: Bool -> Char -> Text -> [(Text, Maybe Text)]
+extractDelimited withSpaces delimiter = go
     where
     go text
-        | Text.null within || Text.null post = [(text, Nothing)]
+        | Text.null within || Text.null post = [(pre <> within, Nothing)]
         | not withSpaces && Text.any (==' ') word =
-            (pre <> open, Nothing) : go (Text.drop (Text.length open) within)
-        | otherwise = (pre, Just word) : go (Text.drop (Text.length close) post)
+            (pre <> delim, Nothing) : go (Text.drop 1 within)
+        | otherwise = (pre, Just word) : go (Text.drop 1 post)
         where
-        (pre, within) = Text.breakOn open text
-        (word, post) = Text.breakOn close $ Text.drop (Text.length open) within
+        (pre, within) = break text
+        (word, post) = break $ Text.drop 1 within
+    break text
+        | "\\" `Text.isSuffixOf` pre =
+            first ((Text.take (Text.length pre - 1) pre <> delim) <>) $
+                break (Text.drop 1 post)
+        | otherwise = (pre, post)
+        where (pre, post) = Text.breakOn delim text
+    delim = Text.singleton delimiter
 
 -- * haddockUrl
 

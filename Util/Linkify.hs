@@ -35,7 +35,7 @@ main = do
 linkify :: FilePath -> Text -> IO Text
 linkify haddock_dir text = do
     files <- get_files "."
-    return $ TextUtil.mapDelimited False "'" "'"
+    return $ TextUtil.mapDelimited False '\''
         (link_quoted files haddock_dir) text
 
 get_files :: FilePath -> IO TextUtil.Files
