@@ -105,15 +105,17 @@ c_realize_damp = Derive.transformer module_ "realize-damp"
     \ something like a 'hand' attribute to fix this."
     ) $ Sig.call0t $ \_ deriver -> do
         events <- deriver
-        return $ Post.map_events_asc_ realize $
+        return $ Post.map_events_asc_ realize_damp $
             LEvent.zip (Post.nexts events) events
-    where
-    realize (nexts, event) = (:[]) $ Score.remove_attributes damped_tag $
-        case Post.filter_next_in_track event nexts of
-            next : _ | Score.has_attribute damped_tag next ->
-                Score.set_duration
-                    (Score.event_end next - Score.event_start event) event
-            _ -> event
+
+realize_damp :: ([Score.Event], Score.Event) -> [Score.Event]
+realize_damp (nexts, event) = (:[]) $ Score.remove_attributes damped_tag $
+    case Post.filter_next_in_track event nexts of
+        next : _ | Score.event_end event >= Score.event_start next
+                && Score.has_attribute damped_tag next ->
+            Score.set_duration
+                (Score.event_end next - Score.event_start event) event
+        _ -> event
 
 -- | Mark events that were damped late, and whose previous event should be
 -- extended to be damped together.

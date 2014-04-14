@@ -51,28 +51,26 @@ import Types
 
 -- * map events
 
-type Event = Score.Event
-type Events = [LEvent.LEvent Score.Event]
-
 map_events :: (state -> event -> (state, [Score.Event])) -> state
-    -> [LEvent.LEvent event] -> (state, [Events])
+    -> [LEvent.LEvent event] -> (state, [Derive.Events])
 map_events f = List.mapAccumL go
     where
     go state (LEvent.Log log) = (state, [LEvent.Log log])
     go state (LEvent.Event event) = map LEvent.Event <$> f state event
 
 map_events_asc :: (state -> event -> (state, [Score.Event])) -> state
-    -> [LEvent.LEvent event] -> (state, Events)
+    -> [LEvent.LEvent event] -> (state, Derive.Events)
 map_events_asc f state = second Derive.merge_asc_events . map_events f state
 
 -- | 'map_events_asc' without state.
-map_events_asc_ :: (event -> [Score.Event]) -> [LEvent.LEvent event] -> Events
+map_events_asc_ :: (event -> [Score.Event]) -> [LEvent.LEvent event]
+    -> Derive.Events
 map_events_asc_ f = snd . map_events_asc (\() event -> ((), f event)) ()
 
 -- | Monadic version of 'map_events'.
 map_events_m :: (state -> event -> Derive.Deriver (state, [Score.Event]))
     -- ^ Process an event. Exceptions are caught and logged.
-    -> state -> [LEvent.LEvent event] -> Derive.Deriver (state, [Events])
+    -> state -> [LEvent.LEvent event] -> Derive.Deriver (state, [Derive.Events])
 map_events_m f = go
     where
     go state [] = return (state, [])
@@ -86,7 +84,7 @@ map_events_m f = go
 
 map_events_asc_m ::
     (state -> event -> Derive.Deriver (state, [Score.Event]))
-    -> state -> [LEvent.LEvent event] -> Derive.Deriver (state, Events)
+    -> state -> [LEvent.LEvent event] -> Derive.Deriver (state, Derive.Events)
 map_events_asc_m f state =
     fmap (second Derive.merge_asc_events) . map_events_m f state
 
@@ -94,13 +92,14 @@ map_events_asc_m f state =
 
 -- Use the LEvent.zipn functions to zip this state up with the events.
 
-control :: (Score.TypedVal -> a) -> TrackLang.ValControl -> Events
+control :: (Score.TypedVal -> a) -> TrackLang.ValControl -> Derive.Events
     -> Derive.Deriver [a]
 control f c events = do
     sig <- Util.to_typed_function c
     return $ map (f . sig . Score.event_start) (LEvent.events_of events)
 
-time_control :: TrackLang.ValControl -> Events -> Derive.Deriver [RealTime]
+time_control :: TrackLang.ValControl -> Derive.Events
+    -> Derive.Deriver [RealTime]
 time_control = control (RealTime.seconds . Score.typed_val)
 
 -- | Extract subsequent events.
@@ -120,7 +119,7 @@ uncurry4 f (a, b, c, d) = f a b c d
 -- ** next in track
 
 -- | Return only the events that follow the given event on its track.
-filter_next_in_track :: Event -> [Event] -> [Event]
+filter_next_in_track :: Score.Event -> [Score.Event] -> [Score.Event]
 filter_next_in_track event = filter (next_in_track (stack event) . stack)
     where stack = Stack.to_ui . Score.event_stack
 
