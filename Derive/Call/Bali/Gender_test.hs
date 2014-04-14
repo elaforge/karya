@@ -66,3 +66,6 @@ test_realize_damp = do
     -- First note is extended.
     equal (run [(0, 1, "4c"), (1, 1, "' .5 .5 -- 4e")])
         ([(0, 1.5, "4c"), (0.5, 1, "4d"), (1, 1, "4e")], [])
+    -- But not if it has a rest.
+    equal (run [(0, 0.75, "4c"), (1, 1, "' .5 .5 -- 4e")])
+        ([(0, 0.75, "4c"), (0.5, 1, "4d"), (1, 1, "4e")], [])

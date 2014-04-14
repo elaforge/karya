@@ -78,9 +78,12 @@ ngoret module_ add_damped_tag damp_arg transpose =
         let grace_end = min (Args.end args) (Args.start args + overlap)
 
         pitch <- Derive.require "pitch" =<< Derive.pitch_at start
+        let prev_touches = maybe False (>= Args.start args) (Args.prev_end args)
+            with_tag
+                | add_damped_tag && prev_touches = Util.add_attrs damped_tag
+                | otherwise = id
         Derive.place grace_start (grace_end - grace_start)
-                ((if add_damped_tag then Util.add_attrs damped_tag else id) $
-                    Util.with_dynamic (dyn * dyn_scale) $
+                (with_tag $ Util.with_dynamic (dyn * dyn_scale) $
                     Util.pitched_note (Pitches.transpose transpose pitch))
             <> Derive.place (Args.start args) (Args.duration args) Util.note
 
