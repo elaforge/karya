@@ -3,6 +3,26 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
+  - derive Generic and use GHC.Generics to make a generic pretty for records?
+  - For call doc, can I group calls with the same doc but different args,
+    especially different defaults?
+    . Would look like:
+      doc doc doc generator
+      bind -- name
+        args
+  . How to manage dynamics?  I want to give the overall dyn, but have the
+    parts have dynamics within that.  But the problem with multiplication
+    is that it sets a ceiling on the dynamic, where I want it to set
+    a "normal".  Perhaps overall dynamic should be 1, but they can go >1
+    to express louder than normal.  Or I should do symbolic, that way I
+    could also do absolute.  E.g. numbers multiply.  But then I can have
+    'm+' or 'm-' which is current dyn plus or minus some amount, and
+    mf, f, ff, which are absolute values.
+  . Or dyn ranges from -1 to 1, where 0 is the current dyn and 1 scales to
+    1.  This is just another signal combiner.
+  - Absolute dyn values: 'f' emits whatever value is needed to get to the
+    desired value.  In fact I could have abs which does this, and then do
+    '*f = "(abs .75)'
   - Ngoret seemingly can't work with negative durations, because it wants to
     make notes overlap, and I can't express that.
     . One way is to extend negative durations to allow overlaps.  It seems

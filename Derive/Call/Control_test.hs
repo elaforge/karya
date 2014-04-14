@@ -26,6 +26,17 @@ test_set_rnd = do
     let ([[(0, val)]], []) = run " | %c-rnd = .5" ".5"
     check (val /= 0.5 && 0 <= val && val <= 1)
 
+test_abs = do
+    let run = DeriveTest.extract (DeriveTest.e_control "c")
+            . DeriveTest.derive_tracks_linear "" . (++ [(">", [(0, 1, "")])])
+    equal (run [("c", [(0, 0, ".5")]), ("c", [(0, 0, ".5")])])
+        ([[(0, 0.25)]], [])
+    equal (run [("c", [(0, 0, ".5")]), ("c", [(0, 0, "abs .75")])])
+        ([[(0, 0.75)]], [])
+    -- Nothing can be done if the input is 0.
+    equal (run [("c", [(0, 0, "0")]), ("c", [(0, 0, "abs .75")])])
+        ([[(0, 0)]], [])
+
 test_linear = do
     equal (run [(0, "1"), (2, "i 0")]) [(0, 1), (1, 0.5), (2, 0)]
 

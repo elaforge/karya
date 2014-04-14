@@ -31,10 +31,15 @@ import Types
 
 control_calls :: Derive.CallMaps Derive.Control
 control_calls = Derive.generator_call_map
-    [ ("", c_set) -- Fallback call will take val-call output.
-    , ("set", c_set)
+    [ ("set", c_set)
     , ("set-prev", c_set_prev)
     , ("'", c_set_prev)
+    , ("abs", c_abs)
+    , ("pp", c_dynamic "pp" 0.05)
+    , ("p", c_dynamic "p" 0.25)
+    , ("mf", c_dynamic "mf" 0.5)
+    , ("f", c_dynamic "f" 0.75)
+    , ("ff", c_dynamic "ff" 0.95)
 
     , ("i", c_linear_prev)
     , ("i<<", c_linear_prev_const)
@@ -84,8 +89,8 @@ lookup_number = Derive.LookupPattern "numbers and hex" doc $
         \ to be randomized by the given number." $
         Sig.call0 $ \args -> do
             pos <- Args.real_start args
-            maybe_cname <- Derive.lookup_val Environ.control
-            rnd <- case maybe_cname of
+            maybe_control <- Derive.lookup_val Environ.control
+            rnd <- case maybe_control of
                 Nothing -> return 0
                 Just cname -> do
                     rnd_max <- fromMaybe 0 <$> Derive.untyped_control_at
@@ -101,9 +106,6 @@ c_set = generator1 "set" mempty
         pos <- Args.real_start args
         return $! Signal.signal [(pos, val)]
 
--- | Re-set the previous val.  This can be used to extend a breakpoint, and is
--- also automatically set by the control track deriver for the hack described
--- in 'Perform.Signal.integrate'.
 c_set_prev :: Derive.Generator Derive.Control
 c_set_prev = Derive.generator Module.prelude "set-prev" Tags.prev
     ("Re-set the previous value.  This can be used to extend a breakpoint,\
@@ -114,6 +116,28 @@ c_set_prev = Derive.generator Module.prelude "set-prev" Tags.prev
         Just (prev_x, prev_y) -> do
             pos <- Args.real_start args
             return [Signal.signal [(pos, prev_y)] | pos > prev_x]
+
+c_abs :: Derive.Generator Derive.Control
+c_abs = Derive.generator1 Module.prelude "abs" mempty
+    "Set the control to an absolute value, provided this control is combined\
+    \ via multiplication."
+    $ Sig.call (required "val" "Set to this value.") $ \val args ->
+        set_absolute val =<< Args.real_start args
+
+c_dynamic :: Text -> Signal.Y -> Derive.Generator Derive.Control
+c_dynamic name val = Derive.generator1 Module.prelude name mempty
+    "Set the control to an absolute value. This is useful for the `dyn`\
+    \ control, so a part can override the dynamic in scope."
+    $ Sig.call (defaulted "val" val "Set to this value.") $ \val args ->
+        set_absolute val =<< Args.real_start args
+
+set_absolute :: Signal.Y -> RealTime -> Derive.Deriver Signal.Control
+set_absolute val pos = do
+    out <- Derive.lookup_val Environ.control >>= \x -> case x of
+        Nothing -> return val
+        Just control -> maybe val (\x -> if x == 0 then 0 else val / x) <$>
+            Derive.untyped_control_at (Score.control control) pos
+    return $ Signal.signal [(pos, out)]
 
 -- * linear
 
