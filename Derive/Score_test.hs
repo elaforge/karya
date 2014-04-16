@@ -48,3 +48,22 @@ test_warp_to_signal = do
     equal (f (w id_sig 0 2)) []
     equal (f (w id_sig 1 1)) []
     equal (f (w id_sig 1 2)) []
+
+test_warp_pos = do
+    let f = Score.warp_pos
+    let id_warp shift = Score.Warp Score.id_warp_signal shift 1
+        linear = Signal.signal [(0, 0), (1, 1), (2, 2)]
+        warp shift = Score.Warp linear shift 1
+
+        repl = replicate 4
+        combinations p =
+            [ f p (id_warp 0), f 0 (id_warp p)
+            , f p (warp 0), f 0 (warp p)
+            ]
+
+    -- Score.id_warp_signal should be the same as any other linear signal.
+    equal (combinations 0) (repl 0)
+    equal (combinations 1) (repl 1)
+    -- The warp is extended past its bounds.
+    equal (combinations 10) (repl 10)
+    equal (combinations (-10)) (repl (-10))

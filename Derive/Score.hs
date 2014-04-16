@@ -247,24 +247,33 @@ id_warp :: Warp
 id_warp = signal_to_warp id_warp_signal
 
 id_warp_signal :: Signal.Warp
-    -- TODO this is ugly, but would disappear if I decide to make warps
-    -- implicitly end with 1/1.  The numbers have to be big enough to not be
-    -- exceeded in normal work, but not so big they overflow.
+-- TODO I should be able to make this Signal.empty, but I'd need to make
+-- 'unwarp_pos' extend the signal in the same way that 'warp_pos' does.
 id_warp_signal = Signal.signal [(0, 0),
     (RealTime.large, RealTime.to_seconds RealTime.large)]
 
 is_id_warp :: Warp -> Bool
 is_id_warp = (== id_warp)
 
+-- | Warp a ScoreTime to a RealTime.
+--
+-- The warp signal is extended linearly in either direction infinitely, with
+-- its last slope, or 1:1 if there are no samples at all.  Previously, the warp
+-- signal was flat before zero and after its end, which effectively made the
+-- tempo infinitely fast at those points.  But that made the optimization for
+-- 'id_warp_signal' produce inconsistent results with a warp that was linear
+-- but not not equal to id_warp_signal, which in turn led to inconsistent
+-- results from ornaments that placed notes before ScoreTime 0.
 warp_pos :: ScoreTime -> Warp -> RealTime
 warp_pos pos (Warp sig shift stretch)
     | sig == id_warp_signal = pos1
-    | otherwise = Signal.y_to_real $ Signal.at_linear pos1 sig
+    | otherwise = Signal.y_to_real $ Signal.at_linear_extend pos1 sig
     where pos1 = to_real pos * to_real stretch + to_real shift
     -- RealTime may be higher precision than ScoreTime, so convert early.
+    -- It isn't now, but it was once.
 
 -- | Unlike 'warp_pos', 'unwarp_pos' can fail.  This asymmetry is because
--- at_linear will project a signal on forever, but inverse_at won't.
+-- warp_pos will project a signal on forever, but 'Signal.inverse_at' won't.
 unwarp_pos :: RealTime -> Warp -> Maybe ScoreTime
 unwarp_pos pos (Warp sig shift stretch) =
     case Signal.inverse_at (Signal.x_to_y pos) sig of

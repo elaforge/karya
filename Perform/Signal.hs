@@ -28,7 +28,7 @@ module Perform.Signal (
     , with_ptr
 
     -- * access
-    , at, at_linear, constant_val
+    , at, at_linear, at_linear_extend, constant_val
     , head, last, uncons
 
     -- * transformation
@@ -205,17 +205,43 @@ at :: X -> Signal y -> Y
 at x sig = fromMaybe 0 $ V.at x (sig_vec sig)
 
 at_linear :: X -> Signal y -> Y
-at_linear x sig =
-    interpolate x (sig_vec sig) (V.highest_index x (sig_vec sig))
+at_linear x sig = interpolate vec (V.highest_index x vec)
     where
-    interpolate x vec i
+    vec = sig_vec sig
+    interpolate vec i
         | V.null vec = 0
         | i + 1 >= V.length vec = y0
         | i < 0 = 0
         | otherwise = V.y_at x0 y0 x1 y1 x
         where
-        (x0, y0) = V.to_pair $ V.index vec i
-        (x1, y1) = V.to_pair $ V.index vec (i+1)
+        (x0, y0) = index i
+        (x1, y1) = index (i+1)
+    index = V.to_pair . V.index vec
+
+-- | This is a version of 'at_linear' that extends the signal on either side
+-- with a straight line.  A signal with no samples is a 1:1 line, one with
+-- a single sample is a 1:1 line passing through that point, and one with more
+-- samples will be extended according to the slope of the two samples at the
+-- beginning and end.
+--
+-- This is used by 'Derive.Score.warp_pos'.
+at_linear_extend :: X -> Warp -> Y
+at_linear_extend x sig = interpolate vec (V.highest_index x vec)
+    where
+    vec = sig_vec sig
+    interpolate vec i
+        | V.null vec = x_to_y x
+        | i + 1 >= V.length vec = if i - 1 < 0
+            then V.y_at x0 y0 (x0+1) (y0+1) x
+            else let (x_1, y_1) = index (i-1) in V.y_at x_1 y_1 x0 y0 x
+        | i < 0 = if V.length vec == 1
+            then V.y_at x1 y1 (x1+1) (y1+1) x
+            else let (x2, y2) = index 1 in V.y_at x1 y1 x2 y2 x
+        | otherwise = V.y_at x0 y0 x1 y1 x
+        where
+        (x0, y0) = index i
+        (x1, y1) = index (i+1)
+    index = V.to_pair . V.index vec
 
 -- | Just if the signal is constant.
 constant_val :: Signal y -> Maybe Y

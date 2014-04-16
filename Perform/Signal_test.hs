@@ -22,8 +22,18 @@ test_constant_val = do
 test_at_linear = do
     let f vec x = Signal.at_linear x (signal vec)
     equal (map (f [(2, 2), (4, 0)]) (Seq.range 0 5 1)) [0, 0, 2, 1, 0, 0]
+    equal (map (f [(2, 0), (4, 2)]) (Seq.range 0 5 1)) [0, 0, 0, 1, 2, 2]
     equal (f [(0, 2), (2, 0)] (-1)) 0
     equal (f [(-1, 2), (2, 0)] (-2)) 0
+
+test_at_linear_extend = do
+    let f vec x = Signal.at_linear_extend x (signal vec)
+    equal (map (f []) (Seq.range (-2) 2 1)) [-2, -1, 0, 1, 2]
+    equal (map (f [(0, 1)]) (Seq.range (-2) 2 1)) [-1, 0, 1, 2, 3]
+    equal (map (f [(0, 0), (1, 1), (2, 3)]) (Seq.range (-2) 3 1))
+        [-2, -1, 0, 1, 3, 5]
+    equal (map (f [(2, 2), (4, 0)]) (Seq.range 0 5 1)) [4, 3, 2, 1, 0, -1]
+    equal (map (f [(2, 0), (4, 2)]) (Seq.range 0 5 1)) [-2, -1, 0, 1, 2, 3]
 
 -- * transformation
 

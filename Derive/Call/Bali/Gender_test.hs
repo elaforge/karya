@@ -24,8 +24,13 @@ test_ngoret = do
     -- Starting at 0 will emit an event at negative time.
     -- Thanks to the "x <= 0 means constant" hack the pitch is accurate even
     -- though TimeVector.constant starts it at 0.
-    equal (run $ c_to_e "'^ .5 .5" "")
-        ([(-0.5, 1, "3b"), (0, 1, "4c"), (2, 1, "4e")], [])
+    equal (run $ UiTest.note_track [(0, 1, "'^ .5 .5 -- 4d")])
+        ([(-0.5, 1, "4c"), (0, 1, "4d")], [])
+
+    -- Negative start time works when tempo is non-trivial.
+    equal (run $ ("tempo", [(0, 0, "1"), (8, 0, "2")])
+            : UiTest.note_track [(0, 1, "'^ .5 .5 -- 4d")])
+        ([(-0.5, 1, "4c"), (0, 1, "4d")], [])
 
     -- Ngoret is a constant time before second note regardless of tempo.
     -- And dyn works.

@@ -3,6 +3,30 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
+  delima manis:
+    * adding a tempo track causes the negative start notes to wind up at 0
+      It works because id warp signal plus shift/stretch extends before 0,
+      so as soon as you're not the id warp you don't get that.  I don't
+      think I should have Score.warp_pos extend backwards implicitly, because
+      I don't know what the slope should be.  So instead I think I need a
+      hack to make tempo tracks start at -1 instead of 0, duplicating the
+      first sample.
+    - make Score.unwarp_pos extend the signal in the same way that 'warp_pos'
+      does so I can make id_warp_signal into mempty
+    - end is buggy, what's going on?
+      It's due to the wrong octave, i3 is not in range.  But why does it
+      result in funny sounds instead of an out of range error and a normal i4?
+    - Also midi thru is off by an octave, presumably confused by pemade
+      / kantilan.
+    - Do different things in polos and sangsih:
+      'when (is-polos) |' and 'when (is-sangsih) |'
+      I'd want a boolean type, or should I embed it in Int?
+    - Note which is either damp or absent: 'dmp'
+    - Either ngoret or straight.
+    - Gradually come in, could do omit with a signal that increases.
+
+  - Write a fancy tile like ViewConfig.horizontal_tile but guesses if you mean
+    to tile vertically.
   - derive Generic and use GHC.Generics to make a generic pretty for records?
   - For call doc, can I group calls with the same doc but different args,
     especially different defaults?
