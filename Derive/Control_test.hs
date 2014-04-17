@@ -111,7 +111,7 @@ test_derive_control = do
     let ex (sig, logs) = (Signal.unsignal sig, map DeriveTest.show_log logs)
     let derive events = DeriveTest.extract_run ex $
             DeriveTest.run State.empty $ Derive.with_default_imported $
-            Control.derive_control True (mktrack 10 (0, 10) events) []
+            Control.derive_control False (mktrack 10 (0, 10) events) []
     equal (derive [(0, 0, "1"), (1, 0, "2")])
         (Right ([(0, 1), (1, 2)], []))
     equal (derive [(0, 0, "1"), (2, 0, "i 2")])
@@ -208,7 +208,8 @@ test_stash_signal = do
     equal (run [ctrack, itrack]) [(csig, 0, 1)]
     -- Constant tempo stretches track sig.
     -- Tempo track itself is unstretched.
-    -- Extra sample at the end of the tempo track due to the set-prev hack.
+    -- Extra sample at the end of the tempo track due to the
+    -- 'Tempo.extend_signal' hack.
     let end = RealTime.score UiTest.default_block_end
     equal (run [("tempo", [(0, 0, "2")]), ctrack, itrack]) $
         [ tsig [(0, 2), (end, 2)] 0 1

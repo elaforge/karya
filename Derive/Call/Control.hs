@@ -32,7 +32,6 @@ import Types
 control_calls :: Derive.CallMaps Derive.Control
 control_calls = Derive.generator_call_map
     [ ("set", c_set)
-    , ("set-prev", c_set_prev)
     , ("'", c_set_prev)
     , ("abs", c_abs)
     , ("pp", c_dynamic "pp" 0.05)
@@ -108,10 +107,8 @@ c_set = generator1 "set" mempty
 
 c_set_prev :: Derive.Generator Derive.Control
 c_set_prev = Derive.generator Module.prelude "set-prev" Tags.prev
-    ("Re-set the previous value.  This can be used to extend a breakpoint,\
-    \ and is also automatically set by the control track deriver for\
-    \ the hack described in 'Perform.Signal.integrate'."
-    ) $ Sig.call0 $ \args -> Args.prev_val args >>= \x -> case x of
+    "Re-set the previous value. This can be used to extend a breakpoint"
+    $ Sig.call0 $ \args -> Args.prev_val args >>= \x -> case x of
         Nothing -> return []
         Just (prev_x, prev_y) -> do
             pos <- Args.real_start args

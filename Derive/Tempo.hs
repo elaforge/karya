@@ -5,7 +5,8 @@
 {-# LANGUAGE CPP, BangPatterns #-}
 -- | Functions to handle tempo tracks.
 module Derive.Tempo (
-    with_tempo, with_absolute, with_hybrid
+    extend_signal
+    , with_tempo, with_absolute, with_hybrid
 #ifdef TESTING
     , tempo_to_warp
 #endif
@@ -22,6 +23,15 @@ import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
 import Types
 
+
+-- | Extend the last sample of a tempo track signal to the end of the track.
+-- This is required because 'Signal.integrate' needs to generate samples to the
+-- end of the track, ultimately because 'Signal.compose' doesn't resample its
+-- arguments.
+extend_signal :: RealTime -> Signal.Tempo -> Signal.Tempo
+extend_signal track_end sig = sig <> case Signal.last sig of
+    Just (x, y) | x < track_end -> Signal.signal [(track_end, y)]
+    _ -> mempty
 
 -- * normal
 
@@ -143,9 +153,9 @@ with_hybrid block_dur maybe_track_id signal deriver = do
     -- This is like 'tempo_to_warp', but replaces zero tempo with
     -- zeroes instead of a minimum, as is expected by 'Signal.compose_hybrid'.
     tempo_to_score_warp :: Signal.Tempo -> Score.Warp
-    tempo_to_score_warp sig = Score.Warp (tempo_to_warp sig) 0 1
-    tempo_to_warp :: Signal.Tempo -> Signal.Warp
-    tempo_to_warp = Signal.integrate Signal.tempo_srate
+    tempo_to_score_warp sig = Score.Warp (hybrid_to_warp sig) 0 1
+    hybrid_to_warp :: Signal.Tempo -> Signal.Warp
+    hybrid_to_warp = Signal.integrate Signal.tempo_srate
         . Signal.map_y (\y -> if y == 0 then 0 else 1 / y)
     -- Like 'Score.compose_warps', but use 'Signal.compose_hybrid'.  It also
     -- can't use the id signal optimization, since that only works with normal

@@ -32,7 +32,6 @@ module Derive.Control (
 import qualified Data.Char as Char
 import qualified Data.List as List
 import qualified Data.Map.Strict as Map
-import qualified Data.Maybe as Maybe
 import qualified Data.Text as Text
 import qualified Data.Tree as Tree
 
@@ -149,7 +148,7 @@ eval_track track expr ctype deriver = case ctype of
         let sig_deriver
                 | is_ly = return (Signal.constant 1, [])
                 | otherwise = with_control_env Controls.tempo $
-                    derive_control True tempo_track expr
+                    derive_control True track expr
         tempo_call maybe_sym track sig_deriver deriver
     ParseTitle.Control maybe_op control -> do
         merge <- lookup_op (Score.typed_val control) maybe_op
@@ -159,17 +158,6 @@ eval_track track expr ctype deriver = case ctype of
             deriver
     ParseTitle.Pitch scale_id maybe_name ->
         pitch_call track maybe_name scale_id expr deriver
-    where
-    tempo_track = track { TrackTree.tevents_events = tempo_events }
-    -- This is a hack due to the way the tempo track works.  Further notes
-    -- are on the 'Perform.Signal.integrate' doc.
-    tempo_events
-        | Maybe.isNothing (Events.at (snd track_range) evts) =
-            Events.insert [Event.event (snd track_range) 0 "set-prev"] evts
-        | otherwise = evts
-        where
-        track_range = TrackTree.tevents_range track
-        evts = TrackTree.tevents_events track
 
 -- | Get the combining operator for this track.
 --
@@ -297,12 +285,14 @@ derive_control :: Bool -> TrackTree.TrackEvents -> [TrackLang.Call]
     -> Derive.Deriver (TrackResults Signal.Control)
 derive_control is_tempo track expr = do
     let (start, end) = TrackTree.tevents_range track
+    let name = if is_tempo then "tempo track" else "control track"
     stream <- Call.apply_transformers
-        (Derive.dummy_call_info start (end-start) "control track") expr deriver
+        (Derive.dummy_call_info start (end-start) name) expr deriver
     let (signal_chunks, logs) = LEvent.partition stream
         -- I just did it in 'compact', so this should just convert [x] to x.
         signal = mconcat signal_chunks
-    return (signal, logs)
+    real_end <- Derive.real end
+    return (extend real_end signal, logs)
     where
     deriver :: Derive.ControlDeriver
     deriver = Cache.track track mempty $ do
@@ -322,6 +312,9 @@ derive_control is_tempo track expr = do
         , Call.tinfo_type =
             if is_tempo then ParseTitle.TempoTrack else ParseTitle.ControlTrack
         }
+    extend end
+        | is_tempo = Signal.coerce . Tempo.extend_signal end . Signal.coerce
+        | otherwise = id
 
 derive_pitch :: Bool -> TrackTree.TrackEvents -> [TrackLang.Call]
     -> Derive.Deriver (TrackResults PitchSignal.Signal)

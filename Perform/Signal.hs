@@ -490,8 +490,8 @@ compose_hybrid f g = Signal $ run initial $ Vector.generateM (length g) gen
 -- a constant slope.  But since signals are strict, I can't have infinite
 -- signals.  So this integrate will only be accurate up until the final sample
 -- of the tempo given, and it's up to the caller to ensure that this range
--- is enough.  To this end, the tempo track deriver in "Derive.Control" has
--- a hack to ensure a sample at the end of the track.
+-- is enough.  To this end, 'Derive.Tempo.extend_signal' will ensure there's
+-- a sample at the end of the track.
 integrate :: X -> Tempo -> Warp
 integrate srate = coerce . modify_vec (V.concat_map_accum 0 go final 0)
     where
