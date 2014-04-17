@@ -402,8 +402,10 @@ class Random a where
     randoms_in :: a -> a -> Derive.Deriver [a]
 
 instance Random Double where
-    -- Random numbers between 0 and 1.
+    -- | Random numbers in the range [0, 1).
     randoms = _make_randoms Pure64.randomDouble
+        -- Pure64.randomDouble doesn't document the range, but that's what it
+        -- is.
     randoms_in low high = map (Num.scale low high) <$> randoms
 
 instance Random Int where

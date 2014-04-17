@@ -3,6 +3,8 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
+  - make Score.unwarp_pos extend the signal in the same way that 'warp_pos'
+    does so I can make id_warp_signal into mempty
   delima manis:
     * adding a tempo track causes the negative start notes to wind up at 0
       It works because id warp signal plus shift/stretch extends before 0,
@@ -11,8 +13,8 @@ UNSORTED
       I don't know what the slope should be.  So instead I think I need a
       hack to make tempo tracks start at -1 instead of 0, duplicating the
       first sample.
-    - make Score.unwarp_pos extend the signal in the same way that 'warp_pos'
-      does so I can make id_warp_signal into mempty
+    * for alternate versions, I could do them inline with a note transformer
+      that derives one of multiple sub-tracks
     - end is buggy, what's going on?
       It's due to the wrong octave, i3 is not in range.  But why does it
       result in funny sounds instead of an out of range error and a normal i4?
@@ -21,8 +23,12 @@ UNSORTED
     - Do different things in polos and sangsih:
       'when (is-polos) |' and 'when (is-sangsih) |'
       I'd want a boolean type, or should I embed it in Int?
-    - Note which is either damp or absent: 'dmp'
-    - Either ngoret or straight.
+    . Note which is either damp or absent: 'dmp'
+    - An ornament which is either ngoret or straight.  I think I could do that
+      with '2 = "(' (alt .1 999)).  I'd want weighted alt though.
+    - Weighted 'alt': 'alt-w 1 x 3 y', so I'd need (weight, val) pairs.
+      To express it directly I think I'd need a way to group args:
+        Sig.many (Sig.group ((,) <$> required "weight" <*> required "val"))
     - Gradually come in, could do omit with a signal that increases.
 
   - Write a fancy tile like ViewConfig.horizontal_tile but guesses if you mean

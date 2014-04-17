@@ -4,8 +4,9 @@
 
 {-# LANGUAGE TupleSections #-}
 module Derive.Call.Random_test where
-import Util.Test
 import qualified Util.Seq as Seq
+import Util.Test
+import qualified Derive.Call.Random as Random
 import qualified Derive.DeriveTest as DeriveTest
 
 
@@ -37,3 +38,20 @@ test_alternate = do
     let (ps, logs) = run "alt 'bad (call' 's2'"
     equal ps $ replicate 3 "4d"
     strings_like logs $ replicate 3 "parse error"
+
+test_alternate_tracks = do
+    let run tracks = DeriveTest.extract DeriveTest.e_attributes $
+            DeriveTest.derive_tracks_with_ui id (DeriveTest.with_skel skel) ""
+                (map ((,) ">") tracks)
+            where skel = map ((,) 1) [2 .. length tracks]
+    equal (run [[(0, 1, "+a")]]) (["+a"], [])
+    equal (run [[(0, 1, "alt-t 999")], [(0, 1, "+a")], [(0, 1, "+b")]])
+        (["+a"], [])
+    equal (run [[(0, 1, "alt-t 1 999")], [(0, 1, "+a")], [(0, 1, "+b")]])
+        (["+b"], [])
+
+test_pick_weighted = do
+    let f weights = Random.pick_weighted (zip "abcdef" weights) 'x'
+    equal (f [] 0) 'x'
+    equal (map (f [1, 3]) [0, 0.25, 0.5, 0.75]) "abbb"
+    equal (map (f [3, 1]) [0, 0.25, 0.5, 0.75]) "aaab"
