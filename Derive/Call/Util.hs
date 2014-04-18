@@ -539,3 +539,16 @@ default_timestep args step =
 instance ShowVal.ShowVal Meter.RankName where
     show_val = TrackLang.default_show_val
 instance TrackLang.TypecheckEnum Meter.RankName
+
+
+-- * eval
+
+-- | Calls themselves are not first class, so calls that want to take other
+-- calls as arguments have to either take a stirng, and evaluate it, or turn
+-- a Val back into a string to evaluate.  That works for most types, but not
+-- for Pitch.
+reapply_val :: Derive.Callable d => Derive.PassedArgs (Derive.Elem d)
+    -> TrackLang.Val -> Derive.LogsDeriver d
+reapply_val args val = case val of
+    TrackLang.VPitch p -> Derive.throw $ "can't evaluate pitch: " <> pretty p
+    _ -> Call.reapply_string args $ TrackLang.show_call_val val

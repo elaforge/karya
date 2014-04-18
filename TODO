@@ -5,6 +5,9 @@ LEGEND
 UNSORTED
   - make Score.unwarp_pos extend the signal in the same way that 'warp_pos'
     does so I can make id_warp_signal into mempty
+  - I now have a zero-dur block call, proving I will use those.  So I don't
+    think I can overload cmd-z any more.  But wait, it sets it to zero, which
+    is correct, yes?
   delima manis:
     * adding a tempo track causes the negative start notes to wind up at 0
       It works because id warp signal plus shift/stretch extends before 0,
@@ -24,9 +27,9 @@ UNSORTED
       'when (is-polos) |' and 'when (is-sangsih) |'
       I'd want a boolean type, or should I embed it in Int?
     . Note which is either damp or absent: 'dmp'
-    - An ornament which is either ngoret or straight.  I think I could do that
+    * An ornament which is either ngoret or straight.  I think I could do that
       with '2 = "(' (alt .1 999)).  I'd want weighted alt though.
-    - Weighted 'alt': 'alt-w 1 x 3 y', so I'd need (weight, val) pairs.
+    * Weighted 'alt': 'alt-w 1 x 3 y', so I'd need (weight, val) pairs.
       To express it directly I think I'd need a way to group args:
         Sig.many (Sig.group ((,) <$> required "weight" <*> required "val"))
     - Gradually come in, could do omit with a signal that increases.

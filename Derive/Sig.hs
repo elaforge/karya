@@ -85,6 +85,8 @@
 -}
 module Derive.Sig (
     Parser, Generator, Transformer
+    -- * pseudo-parsers
+    , paired_args
     -- * parsers
     , parsed_manually, no_args
     , required, required_env, defaulted, defaulted_env, defaulted_env_quoted
@@ -154,6 +156,18 @@ instance Applicative.Applicative Parser where
             (vals, f) <- parse1 vals
             (vals, a) <- parse2 vals
             Right (vals, f a)
+
+-- * pseudo-parsers
+
+-- | Expect pairs of arguments.
+--
+-- It would be nicer to have grouping in the parser, but that's more fancy
+-- parsing than I want to worry about right now.
+paired_args :: [a] -> Derive.Deriver [(a, a)]
+paired_args args = case args of
+    (x : y : rest) -> ((x, y) :) <$> paired_args rest
+    (_ : _) -> Derive.throw "expected an even number of arguments"
+    [] -> return []
 
 -- * parsers
 

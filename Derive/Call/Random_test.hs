@@ -4,6 +4,8 @@
 
 {-# LANGUAGE TupleSections #-}
 module Derive.Call.Random_test where
+import qualified Data.List.NonEmpty as NonEmpty
+
 import qualified Util.Seq as Seq
 import Util.Test
 import qualified Derive.Call.Random as Random
@@ -39,6 +41,21 @@ test_alternate = do
     equal ps $ replicate 3 "4d"
     strings_like logs $ replicate 3 "parse error"
 
+test_alternate_weighted = do
+    let run s = DeriveTest.extract (DeriveTest.e_control "c") $
+            DeriveTest.derive_tracks ""
+                [(">", [(0, 1, "")]), ("c", [(0, 0, s)])]
+    strings_like (snd (run "alt-w a b")) ["expected (Num, Val)"]
+    equal (run "alt-w 1 '5'") ([[(0, 5)]], [])
+    equal (run "alt-w 1 5") ([[(0, 5)]], [])
+
+    let runp s = DeriveTest.extract DeriveTest.e_note $
+            DeriveTest.derive_tracks ""
+                [(">", [(0, 1, "")]), ("*", [(0, 0, s)])]
+    equal (runp "alt-w 1 '4c'") ([(0, 1, "4c")], [])
+    strings_like (snd (runp "alt-w 1 (4c)"))
+        ["should be passed as quoted string"]
+
 test_alternate_tracks = do
     let run tracks = DeriveTest.extract DeriveTest.e_attributes $
             DeriveTest.derive_tracks_with_ui id (DeriveTest.with_skel skel) ""
@@ -51,7 +68,7 @@ test_alternate_tracks = do
         (["+b"], [])
 
 test_pick_weighted = do
-    let f weights = Random.pick_weighted (zip "abcdef" weights) 'x'
-    equal (f [] 0) 'x'
+    let f weights = Random.pick_weighted
+            (NonEmpty.fromList (zip ("abcdef" :: [Char]) weights))
     equal (map (f [1, 3]) [0, 0.25, 0.5, 0.75]) "abbb"
     equal (map (f [3, 1]) [0, 0.25, 0.5, 0.75]) "aaab"
