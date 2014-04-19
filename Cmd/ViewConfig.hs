@@ -129,20 +129,23 @@ contents_rect view = do
 
 -- | Arrange views horizontally on each screen.  They'll overlap if there isn't
 -- room for all of them.
-horizontal_tile :: (Cmd.M m) => m ()
-horizontal_tile = do
-    view_rects <- State.gets $
-        map (second Block.view_rect) . Map.toList . State.state_views
-    screens <- Cmd.gets Cmd.state_screens
-    let (screen_views, orphaned) = group_with
-            (\s -> Rect.overlapping s . snd) screens view_rects
-    mapM_ (State.destroy_view . fst) orphaned
-    mapM_ (uncurry tile_screen) screen_views
+horizontal_tile :: Cmd.M m => m ()
+horizontal_tile = mapM_ (uncurry tile_screen) =<< windows_by_screen
     where
     tile_screen screen view_rects =
         zipWithM_ State.set_view_rect view_ids $
             horizontal_tile_rects screen rects
         where (view_ids, rects) = unzip (Seq.sort_on (Rect.rx . snd) view_rects)
+
+windows_by_screen :: Cmd.M m => m [(Rect.Rect, [(ViewId, Rect.Rect)])]
+windows_by_screen = do
+    view_rects <- State.gets $
+        map (second Block.view_rect) . Map.toList . State.state_views
+    screens <- Cmd.gets Cmd.state_screens
+    let (screen_views, orphaned) = group_with
+            (\s -> Rect.overlaps s . snd) screens view_rects
+    mapM_ (State.destroy_view . fst) orphaned
+    return screen_views
 
 horizontal_tile_rects :: Rect.Rect -> [Rect.Rect] -> [Rect.Rect]
 horizontal_tile_rects screen rects = zipWith place rects xs

@@ -15,7 +15,7 @@ module Util.Rect (
     , place, resize
 
     -- * functions
-    , distance, intersection, overlapping, point_distance, contains
+    , distance, intersection, overlaps, point_distance, contains
 ) where
 import qualified Util.Pretty as Pretty
 
@@ -80,8 +80,8 @@ intersection r1 r2 = Rect x y (max 0 (r-x)) (max 0 (b-y))
     r = min (rr r1) (rr r2)
     b = min (rb r1) (rb r2)
 
-overlapping :: Rect -> Rect -> Bool
-overlapping r1 r2 = rw r > 0 || rh r > 0
+overlaps :: Rect -> Rect -> Bool
+overlaps r1 r2 = rw r > 0 || rh r > 0
     where r = intersection r1 r2
 
 point_distance :: Point -> Point -> Double

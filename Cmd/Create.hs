@@ -253,7 +253,7 @@ view block_id = do
     screen <- maybe (Cmd.get_screen (0, 0)) view_screen
         =<< Cmd.lookup_focused_view
     rect <- Block.view_rect <$> State.get_view view_id
-    others <- State.gets $ filter (\r -> r /= rect && Rect.overlapping r screen)
+    others <- State.gets $ filter (\r -> r /= rect && Rect.overlaps r screen)
         . map Block.view_rect . Map.elems . State.state_views
     let (x, y) = find_rect (Just screen) (Rect.rw rect, Rect.rh rect) others
     State.set_view_rect view_id (Rect.place x y rect)
