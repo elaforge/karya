@@ -6,7 +6,7 @@ module Util.Rect (
     Rect
     -- * access
     , rx, ry, rw, rh, rr, rb
-    , upper_left
+    , upper_left, lower_left, upper_right, lower_right
 
     -- * constructor
     , xywh, empty
@@ -15,7 +15,8 @@ module Util.Rect (
     , place, resize
 
     -- * functions
-    , distance, intersection, overlaps, point_distance, contains
+    , distance, intersection, overlaps, touches, point_distance
+    , contains_point, touches_point
 ) where
 import qualified Util.Pretty as Pretty
 
@@ -35,8 +36,12 @@ rr, rb :: Rect -> Int
 rr r = rx r + rw r
 rb r = ry r + rh r
 
-upper_left :: Rect -> Point
+upper_left, lower_left, upper_right, lower_right :: Rect -> Point
 upper_left r = (rx r, ry r)
+lower_left r = (rx r, rb r)
+upper_right r = (rr r, ry r)
+lower_right r = (rr r, rb r)
+
 
 -- * constructor
 
@@ -81,12 +86,23 @@ intersection r1 r2 = Rect x y (max 0 (r-x)) (max 0 (b-y))
     b = min (rb r1) (rb r2)
 
 overlaps :: Rect -> Rect -> Bool
-overlaps r1 r2 = rw r > 0 || rh r > 0
-    where r = intersection r1 r2
+overlaps r1 r2 = not $
+    rx r1 >= rr r2 || rr r1 <= rx r2 || ry r1 >= rb r2 || rb r1 <= ry r2
+
+-- | This is like 'overlaps', but is also true if the the rectangle touch each
+-- other.
+touches :: Rect -> Rect -> Bool
+touches r1 r2 = not $
+    rx r1 > rr r2 || rr r1 < rx r2 || ry r1 > rb r2 || rb r1 < ry r2
 
 point_distance :: Point -> Point -> Double
 point_distance (x1, y1) (x2, y2) =
     sqrt $ fromIntegral (x2-x1) ** 2 + fromIntegral (y2-y1) ** 2
 
-contains :: Rect -> Point -> Bool
-contains r (x, y) = rx r <= x && x < rr r && ry r <= y && y < rb r
+contains_point :: Rect -> Point -> Bool
+contains_point r (x, y) = rx r <= x && x < rr r && ry r <= y && y < rb r
+
+-- | This is like 'contains_point', but is also true if the the point is on the
+-- right or bottom edge of the rectangle.
+touches_point :: Rect -> Point -> Bool
+touches_point r (x, y) = rx r <= x && x <= rr r && ry r <= y && y <= rb r
