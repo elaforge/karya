@@ -5,7 +5,7 @@ LEGEND
 UNSORTED
   - make Score.unwarp_pos extend the signal in the same way that 'warp_pos'
     does so I can make id_warp_signal into mempty
-  - I now have a zero-dur block call, proving I will use those.  So I don't
+  / I now have a zero-dur block call, proving I will use those.  So I don't
     think I can overload cmd-z any more.  But wait, it sets it to zero, which
     is correct, yes?
   delima manis:
@@ -34,7 +34,7 @@ UNSORTED
         Sig.many (Sig.group ((,) <$> required "weight" <*> required "val"))
     - Gradually come in, could do omit with a signal that increases.
 
-  - Write a fancy tile like ViewConfig.horizontal_tile but guesses if you mean
+  + Write a fancy tile like ViewConfig.horizontal_tile but guesses if you mean
     to tile vertically.
   - derive Generic and use GHC.Generics to make a generic pretty for records?
   - For call doc, can I group calls with the same doc but different args,

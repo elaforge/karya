@@ -127,6 +127,76 @@ contents_rect view = do
 
 -- * window management
 
+-- | Infer a tiling layout based on current window position, and move and
+-- resize them to fit.
+
+-- If a window significantly overlaps its left neighbor, and is a certain
+-- distance below it, then shorten the neighbor and line up to the neigbor's
+-- left edge.
+--
+-- Or, try to tile, but if a window winds up going off the screen, then shorten
+-- everything in that column until they fit.  So I can do 'fit_rects', and then
+-- just shrink horizontally and vertically.
+--
+-- In general I don't want to expand windows because I want to leave space for
+-- new ones.  Or maybe I could expand vertically, but leave horizontal space
+-- open.
+--
+-- Use cases: put a window halfway down another one and expect them to tile
+-- vertically.
+
+-- auto_tile :: Cmd.M m => m ()
+-- auto_tile = do
+
+-- | Fit rectangles into a tiling pattern.  The algorithm is to sort them by
+-- X and Y, and place the first rectangle at (0, 0).  Then try to fit each
+-- rectangle to the below or the right of each already placed rectangle,
+-- filtering out the positions that would cause an overlap, and pick the spot
+-- closest to the rectangle's original position.  The whole process is started
+-- again with any rectangles that wind up totally outside the screen.
+fit_rects :: Rect.Rect -> [(ViewId, Rect.Rect)] -> [(ViewId, Rect.Rect)]
+fit_rects screen =
+    redo_outside . List.foldl' fit []
+        . Seq.sort_on (\(_, r) -> (Rect.rx r, Rect.ry r))
+    where
+    fit windows (view_id, rect) = case Seq.head (sort rect corners) of
+        Just (x, y) -> (view_id, Rect.place x y rect) : windows
+        -- Shouldn't happen since you can always place to the right or
+        -- below the rightmost or bottom rectangle.
+        -- Nothing -> error $ "no corners for " <> show rect
+        Nothing -> (view_id, rect) : windows
+        where
+        rects = map snd windows
+        corners =
+            filter (not . would_overlap rects rect) (corners_of screen rects)
+
+    sort rect = Seq.sort_on $ Rect.point_distance (Rect.upper_left rect)
+    -- If there are rects outside the screen, fit them again into an empty
+    -- screen.  I should run out eventually.
+    redo_outside rects = rects
+        -- | null outside = inside
+        -- | otherwise = fit_rects screen outside ++ inside
+        -- where
+        -- (inside, outside) = List.partition
+        --     (Rect.contains_point screen . Rect.upper_left . snd) rects
+
+corners_of :: Rect.Rect -> [Rect.Rect] -> [(Int, Int)]
+corners_of screen [] = [Rect.upper_left screen]
+corners_of _ rects =
+    filter (\p -> not $ point_above p || point_left p) not_touching
+    where
+    not_touching = filter (not . touches) $
+        map Rect.lower_left rects ++ map Rect.upper_right rects
+    point_above (x, y) = any (\(x1, y1) -> x1 == x && y1 < y) not_touching
+    point_left (x, y) = any (\(x1, y1) -> x1 < x && y1 == y) not_touching
+    touches p = any (\r -> Rect.contains_point r p) rects
+
+-- If I move the rect to the point, will it overlap with anything in the
+-- list?
+would_overlap :: [Rect.Rect] -> Rect.Rect -> (Int, Int) -> Bool
+would_overlap rects rect (x, y) =
+    any (Rect.overlaps (Rect.place x y rect)) rects
+
 -- | Arrange views horizontally on each screen.  They'll overlap if there isn't
 -- room for all of them.
 horizontal_tile :: Cmd.M m => m ()
