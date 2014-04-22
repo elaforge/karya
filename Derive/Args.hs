@@ -26,17 +26,16 @@ info = Derive.passed_info
 event :: PassedArgs a -> Event.Event
 event = Derive.info_event . info
 
-require_prev_val :: (EvalPrev a) => PassedArgs a -> Derive.Deriver (RealTime, a)
+require_prev_val :: EvalPrev a => PassedArgs a -> Derive.Deriver (RealTime, a)
 require_prev_val = Derive.require "previous value" <=< prev_val
 
-class (Derive.ToTagged d) => EvalPrev d where
+class Derive.ToTagged d => EvalPrev d where
     -- | Get the previous derived val.  This is used by control derivers so
     -- they can interpolate from the previous sample.
     prev_val :: PassedArgs d -> Derive.Deriver (Maybe (RealTime, d))
 
 instance EvalPrev Signal.Y where prev_val = prev_control
 instance EvalPrev PitchSignal.Pitch where prev_val = prev_pitch
-
 instance EvalPrev Derive.Tagged where
     prev_val args = case Derive.info_track_type (info args) of
         Just ParseTitle.ControlTrack ->

@@ -42,7 +42,7 @@ pipeline modify = Parse.join_pipeline . modify . Parse.split_pipeline
 -- | Take a text transformation that can fail to a Track transformation that
 -- transforms all the events and throws if any of the text transformations
 -- failed.
-failable_texts :: (Cmd.M m) => (Text -> Either String Text) -> Track m
+failable_texts :: Cmd.M m => (Text -> Either String Text) -> Track m
 failable_texts f block_id track_id events = do
     let (failed, ok) = Seq.partition_either $ map (failing_text f) events
         errs = [err ++ ": " ++ Cmd.log_event block_id track_id evt
@@ -59,7 +59,7 @@ failable_texts f block_id track_id events = do
 -- * modify selections
 
 -- | Map a function over the selected events.
-selection :: (Cmd.M m) => Track m -> m ()
+selection :: Cmd.M m => Track m -> m ()
 selection f = do
     selected <- Selection.events
     block_id <- Cmd.get_focused_block
@@ -71,14 +71,14 @@ selection f = do
 
 -- | Like 'selection', but advance it afterwards if it was a point selection.
 -- This is convenient for applying a transformation repeatedly.
-selection_advance :: (Cmd.M m) => Track m -> m ()
+selection_advance :: Cmd.M m => Track m -> m ()
 selection_advance f = do
     selection f
     whenM (Types.sel_is_point . snd <$> Selection.get)
         Selection.advance
 
 -- | Map a function over the events that overlap the selection point.
-overlapping :: (Cmd.M m) => Track m -> m ()
+overlapping :: Cmd.M m => Track m -> m ()
 overlapping f = do
     (block_id, _, track_ids, start, end) <- Selection.tracks
     let pos = Selection.point_pos start end
@@ -92,26 +92,26 @@ overlapping f = do
                 State.insert_block_events block_id track_id new_events
 
 -- | Map over tracks whose name matches the predicate.
-tracks_named :: (Cmd.M m) => (Text -> Bool) -> Track m -> Track m
+tracks_named :: Cmd.M m => (Text -> Bool) -> Track m -> Track m
 tracks_named wanted f = \block_id track_id events ->
-    ifM (not . wanted <$> State.get_track_title track_id)
-        (return Nothing) (f block_id track_id events)
+    ifM (wanted <$> State.get_track_title track_id)
+        (f block_id track_id events) (return Nothing)
 
 -- | Like 'tracks' but only for note tracks.
-note_tracks :: (Cmd.M m) => Track m -> m ()
+note_tracks :: Cmd.M m => Track m -> m ()
 note_tracks = selection . tracks_named ParseTitle.is_note_track
 
-control_tracks :: (Cmd.M m) => Track m -> m ()
+control_tracks :: Cmd.M m => Track m -> m ()
 control_tracks = selection . tracks_named ParseTitle.is_signal_track
 
-pitch_tracks :: (Cmd.M m) => Track m -> m ()
+pitch_tracks :: Cmd.M m => Track m -> m ()
 pitch_tracks = selection . tracks_named ParseTitle.is_pitch_track
 
 
 -- * block tracks
 
 -- | Like 'selection', but maps over an entire block.
-block :: (Cmd.M m) => BlockId -> Track m -> m ()
+block :: Cmd.M m => BlockId -> Track m -> m ()
 block block_id f = do
     track_ids <- Block.block_track_ids <$> State.get_block block_id
     forM_ track_ids $ \track_id -> do
@@ -120,19 +120,19 @@ block block_id f = do
                 (State.modify_events track_id . const . Events.from_list)
             =<< f block_id track_id events
 
-all_blocks :: (Cmd.M m) => Track m -> m ()
+all_blocks :: Cmd.M m => Track m -> m ()
 all_blocks f = mapM_ (flip block f) =<< State.all_block_ids
 
-all_tracks_named :: (Cmd.M m) => (Text -> Bool) -> Track m -> m ()
+all_tracks_named :: Cmd.M m => (Text -> Bool) -> Track m -> m ()
 all_tracks_named wanted = all_blocks . tracks_named wanted
 
-all_note_tracks :: (Cmd.M m) => Track m -> m ()
+all_note_tracks :: Cmd.M m => Track m -> m ()
 all_note_tracks = all_tracks_named ParseTitle.is_note_track
 
-all_control_tracks :: (Cmd.M m) => Track m -> m ()
+all_control_tracks :: Cmd.M m => Track m -> m ()
 all_control_tracks = all_tracks_named ParseTitle.is_control_track
 
-all_pitch_tracks :: (Cmd.M m) => Track m -> m ()
+all_pitch_tracks :: Cmd.M m => Track m -> m ()
 all_pitch_tracks = all_tracks_named ParseTitle.is_pitch_track
 
 -- * misc

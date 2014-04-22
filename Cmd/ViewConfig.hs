@@ -174,8 +174,8 @@ fit_rects screen =
     -- If there are rects outside the screen, fit them again into an empty
     -- screen.  I should run out eventually.
     redo_outside rects = rects
-        -- | null outside = inside
-        -- | otherwise = fit_rects screen outside ++ inside
+        -- - | null outside = inside
+        -- - | otherwise = fit_rects screen outside ++ inside
         -- where
         -- (inside, outside) = List.partition
         --     (Rect.contains_point screen . Rect.upper_left . snd) rects
