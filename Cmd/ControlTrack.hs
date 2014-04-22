@@ -117,7 +117,7 @@ modify_hex key event
 -- | Nothing if the val is not a hex number, Just Nothing if it was but the key
 -- was Backspace, and Just Just if it should get a new value.
 update_hex :: Text -> EditUtil.Key -> Maybe (Maybe Text)
-update_hex val key
+update_hex val_ key
     | Text.null val = case key of
         EditUtil.Backspace -> Just Nothing
         EditUtil.Key c
@@ -126,11 +126,15 @@ update_hex val key
     | Just c2 <- parse_val val = case key of
         EditUtil.Backspace -> Just Nothing
         EditUtil.Key c
-            | higit c -> Just $ Just $ ShowVal.hex_prefix <> Text.pack [c2, c]
+            | c == '-' -> Just $ Just $ if negative then val else "-" <> val
+            | higit c -> Just $ Just $ prefix <> Text.pack [c2, c]
             -- The field is hex, but this wasn't a higit, so ignore it.
             | otherwise -> Just (Just val)
     | otherwise = Nothing -- not hex at all
     where
+    prefix = (if negative then "-" else "") <> ShowVal.hex_prefix
+    negative = "-" `Text.isPrefixOf` val_
+    val = if negative then Text.drop 1 val_ else val_
     higit c = '0' <= c && c <= '9' || 'a' <= c && c <= 'f'
     parse_val t = case Text.unpack <$> Text.stripPrefix "`0x`" t of
         Just [c1, c2] | higit c1 && higit c2 -> Just c2

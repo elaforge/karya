@@ -230,14 +230,16 @@ p_ratio = do
     return $ (if sign == '-' then -1 else 1)
         * fromIntegral num / fromIntegral denom
 
--- | Parse numbers of the form @`0x`00@ or @0x00@.
+-- | Parse numbers of the form @`0x`00@ or @0x00@, with an optional @-@ prefix
+-- for negation.
 p_hex :: A.Parser Signal.Y
 p_hex = do
+    sign <- A.option 1 (A.char '-' >> return (-1))
     A.string ShowVal.hex_prefix <|> A.string "0x"
     let higit c = '0' <= c && c <= '9' || 'a' <= c && c <= 'f'
     c1 <- A.satisfy higit
     c2 <- A.satisfy higit
-    return $ fromIntegral (parse_hex c1 c2) / 0xff
+    return $ fromIntegral (parse_hex c1 c2) / 0xff * sign
 
 parse_hex :: Char -> Char -> Int
 parse_hex c1 c2 = higit c1 * 16 + higit c2
@@ -260,7 +262,8 @@ p_single_string = do
 -- There's no particular reason to restrict attrs to idents, but this will
 -- force some standardization on the names.
 p_attrs :: A.Parser Score.Attributes
-p_attrs = A.char '+' *> (Score.attrs <$> A.sepBy (p_identifier "+") (A.char '+'))
+p_attrs = A.char '+'
+    *> (Score.attrs <$> A.sepBy (p_identifier "+") (A.char '+'))
 
 p_control :: A.Parser TrackLang.ValControl
 p_control = do

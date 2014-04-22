@@ -53,6 +53,7 @@ UNSORTED
     mf, f, ff, which are absolute values.
   * Or dyn ranges from -1 to 1, where 0 is the current dyn and 1 scales to
     1.  This is just another signal combiner.
+  * add support for negative numbers to control normalized val input
   * But 'abs' needs to know the combiner in scope.  Maybe Derive.Control could
     put it there.
   * Absolute dyn values: 'f' emits whatever value is needed to get to the
@@ -81,7 +82,7 @@ UNSORTED
             --|  --|
               |++  |...
   - There's a bug where if you zoom-to-fit and then click, the selection snap
-    can undo the zoom.
+    can undo the zoom.  Can't figure out how to reproduce this.
   - in rehearsal/telek, one ugal sometimes gets stuck on +mute, why doesn't
     a new play send the keyswitch?
   * In save/rehearsal/telek, all edits are laggy.

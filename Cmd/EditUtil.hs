@@ -141,8 +141,9 @@ is_num_key Backspace = True
 is_num_key (Key c) = Char.isDigit c || c `elem` "_.-"
 
 -- | Is the key appropriate for editing control track hex numbers?
+-- Also includes @-@ for negation.
 hex_key :: Msg.Msg -> Maybe Key
-hex_key = extract_key $ \c -> Char.isDigit c || c `elem` "abcdefg"
+hex_key = extract_key $ \c -> Char.isDigit c || c `elem` "-abcdefg"
 
 alphanum_key :: Msg.Msg -> Maybe Key
 alphanum_key = extract_key $ \c -> Char.isAlphaNum c || c `elem` "_.-"

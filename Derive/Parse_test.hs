@@ -122,6 +122,7 @@ test_parse_val = do
             , ("3/2d", num (Score.Typed Score.Diatonic 1.5))
             , ("0x00", num (Score.untyped 0))
             , ("0xff", num (Score.untyped 1))
+            , ("-0xff", num (Score.untyped (-1)))
             ]
     let exprs = map ((,) True) invertible ++ map ((,) False) noninvertible
     forM_ exprs $ \(invertible, (expr, expected)) -> do
@@ -146,6 +147,7 @@ test_parse_num = do
     let f = Parse.parse_num
     equal (f "`0x`00") (Right 0)
     equal (f "`0x`ff") (Right 1)
+    equal (f "-`0x`ff") (Right (-1))
     left_like (f "`0x`000") "parse error"
 
 test_p_equal = do
