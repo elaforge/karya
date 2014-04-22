@@ -37,6 +37,12 @@ test_at_linear_extend = do
 
 -- * transformation
 
+test_scale = do
+    let f = Signal.scale 0.5
+    equal (map f [-1, -0.5, 0, 0.5, 1]) [0, 0.25, 0.5, 0.75, 1]
+    let invert = Signal.scale 0.5 . Signal.scale_invert 0.5
+    equal (map invert [-1, -0.5, 0, 0.5, 1]) [-1, -0.5, 0, 0.5, 1]
+
 test_inverse_at = do
     let f sig pos = Signal.inverse_at pos (signal sig)
     equal (map (f [(0, 0), (2, 2)]) (Seq.range 0 3 1))

@@ -51,9 +51,9 @@ UNSORTED
     could also do absolute.  E.g. numbers multiply.  But then I can have
     'm+' or 'm-' which is current dyn plus or minus some amount, and
     mf, f, ff, which are absolute values.
-  - Or dyn ranges from -1 to 1, where 0 is the current dyn and 1 scales to
+  * Or dyn ranges from -1 to 1, where 0 is the current dyn and 1 scales to
     1.  This is just another signal combiner.
-  - But 'abs' needs to know the combiner in scope.  Maybe Derive.Control could
+  * But 'abs' needs to know the combiner in scope.  Maybe Derive.Control could
     put it there.
   * Absolute dyn values: 'f' emits whatever value is needed to get to the
     desired value.  In fact I could have abs which does this, and then do

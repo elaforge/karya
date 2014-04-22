@@ -33,11 +33,12 @@ module Perform.Signal (
 
     -- * transformation
     , merge, concat, interleave, prepend
-    , sig_add, sig_subtract, sig_multiply
+    , sig_add, sig_subtract, sig_multiply, sig_scale
+    , scale, scale_invert
     -- ** scalar transformation
     , sig_max, sig_min, scalar_max, scalar_min, clip_bounds
     , scalar_add, scalar_subtract, scalar_multiply, scalar_divide
-    , shift, scale
+    , shift
     , take, drop, within, drop_after, drop_before, drop_before_strict
     , map_x, map_y, map_err
 
@@ -280,6 +281,19 @@ sig_add = sig_op (+)
 sig_subtract = sig_op (-)
 sig_multiply = sig_op (*)
 
+sig_scale :: Control -> Control -> Control
+sig_scale = sig_op scale
+
+scale :: Y -> Y -> Y
+scale x v
+    | v >= 0 = Num.scale x 1 v
+    | otherwise = Num.scale 0 x (v + 1)
+
+scale_invert :: Y -> Y -> Y
+scale_invert old new
+    | new >= old = Num.normalize old 1 new
+    | otherwise = Num.normalize 0 old new - 1
+
 sig_max, sig_min :: Control -> Control -> Control
 sig_max = sig_op max
 sig_min = sig_op min
@@ -320,12 +334,6 @@ clip_bounds low high sig = (clipped, reverse out_of_range)
 shift :: X -> Signal y -> Signal y
 shift 0 = id
 shift x = modify_vec (V.shift x)
-
-scale :: Y -> Signal y -> Signal y
-scale mult vec
-    | mult <= 0 = error $ "scale: called with mult<=0: " ++ show mult
-    | mult == 1 = vec
-    | otherwise = map_y (*mult) vec
 
 take :: Int -> Signal y -> Signal y
 take = modify_vec . V.take

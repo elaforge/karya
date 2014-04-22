@@ -147,17 +147,22 @@ eval_track track expr ctype deriver = case ctype of
         is_ly <- Derive.is_lilypond_derive
         let sig_deriver
                 | is_ly = return (Signal.constant 1, [])
-                | otherwise = with_control_env Controls.tempo $
+                | otherwise = with_control_env Controls.tempo "compose" $
                     derive_control True track expr
         tempo_call maybe_sym track sig_deriver deriver
     ParseTitle.Control maybe_op control -> do
-        merge <- lookup_op (Score.typed_val control) maybe_op
+        let control_name = Score.typed_val control
+        merge <- lookup_op control_name maybe_op
         control_call track control merge
-            (with_control_env (Score.typed_val control) $
-                derive_control False track expr)
+            (with_control_env control_name (merge_name control_name merge)
+                (derive_control False track expr))
             deriver
     ParseTitle.Pitch scale_id maybe_name ->
         pitch_call track maybe_name scale_id expr deriver
+
+merge_name :: Score.Control -> Derive.Merge -> Text
+merge_name control = maybe "set" name_of . Derive.merge_op control
+    where name_of (Derive.ControlOp name _) = name
 
 -- | Get the combining operator for this track.
 --
@@ -417,5 +422,8 @@ pitch_signal_to_nn sig = do
     environ <- Internal.get_environ
     return $ PitchSignal.to_nn $ PitchSignal.apply_controls environ controls sig
 
-with_control_env :: Score.Control -> Derive.Deriver a -> Derive.Deriver a
-with_control_env = Derive.with_val Environ.control . Score.control_name
+with_control_env :: Score.Control -> Text -> Derive.Deriver a
+    -> Derive.Deriver a
+with_control_env control merge =
+    Derive.with_val Environ.control (Score.control_name control)
+    . Derive.with_val Environ.merge merge

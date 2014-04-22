@@ -554,6 +554,7 @@ hardcoded_types = Map.fromList
     [ (Environ.attributes, TAttributes)
     , (Environ.instrument, TInstrument)
     , (Environ.control, TSymbol Nothing)
+    , (Environ.merge, TSymbol Nothing)
     , (Environ.key, TSymbol Nothing)
     , (Environ.scale, TSymbol Nothing)
     , (Environ.seed, TNum TUntyped TAny)

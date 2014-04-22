@@ -63,7 +63,7 @@ module Derive.Deriver.Monad (
 
     -- ** constant
     , Constant(..), initial_constant
-    , op_add, op_sub, op_mul
+    , op_add, op_sub, op_mul, op_scale
 
     -- ** instrument
     , Instrument(..), InstrumentCalls(..)
@@ -711,6 +711,7 @@ default_control_op_map = Map.fromList $ map (first TrackLang.Symbol)
     [ ("add", op_add)
     , ("sub", op_sub)
     , ("mul", op_mul)
+    , ("scale", op_scale)
     , ("max", op_max)
     , ("min", op_min)
     ]
@@ -719,6 +720,7 @@ op_add, op_sub, op_mul, op_scale :: ControlOp
 op_add = ControlOp "add" Signal.sig_add
 op_sub = ControlOp "subtract" Signal.sig_subtract
 op_mul = ControlOp "multiply" Signal.sig_multiply
+op_scale = ControlOp "scale" Signal.sig_scale
 
 -- These values should never be seen since any reasonable combining signal
 -- will be within this range.

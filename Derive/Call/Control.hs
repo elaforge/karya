@@ -4,6 +4,7 @@
 
 -- | Basic calls for control tracks.
 module Derive.Call.Control where
+import qualified Data.Map as Map
 import qualified Data.Set as Set
 
 import Util.Control
@@ -130,11 +131,31 @@ c_dynamic name val = Derive.generator1 Module.prelude name mempty
 
 set_absolute :: Signal.Y -> RealTime -> Derive.Deriver Signal.Control
 set_absolute val pos = do
-    out <- Derive.lookup_val Environ.control >>= \x -> case x of
-        Nothing -> return val
-        Just control -> maybe val (\x -> if x == 0 then 0 else val / x) <$>
-            Derive.untyped_control_at (Score.control control) pos
+    control <- Derive.lookup_val Environ.control
+    merge <- Derive.lookup_val Environ.merge
+    out <- set control merge
     return $ Signal.signal [(pos, out)]
+    where
+    set Nothing _ = return val
+    set (Just control) Nothing =
+        Derive.throw $ "merge not set for " <> pretty control
+    set (Just control) (Just merge) =
+        maybe (return val) (Derive.require_right id . invert_merge merge val)
+            =<< Derive.untyped_control_at (Score.control control) pos
+
+invert_merge :: Text -> Signal.Y -> Signal.Y -> Either String Signal.Y
+invert_merge merge val current_val = case Map.lookup merge inverters of
+    Nothing -> Left $ "no way to invert merge type: " <> untxt merge
+    Just f -> Right $ f current_val val
+    where
+    inverters = Map.fromList
+        [ ("set", \_ new -> new)
+        , (n Derive.op_add, \old new -> new - old)
+        , (n Derive.op_sub, \old new -> old - new)
+        , (n Derive.op_mul, \old new -> if old == 0 then 0 else new / old)
+        , (n Derive.op_scale, Signal.scale_invert)
+        ]
+    n (Derive.ControlOp name _) = name
 
 -- * linear
 

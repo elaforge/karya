@@ -440,14 +440,16 @@ get_ruler = Internal.lookup_current_tracknum >>= \x -> case x of
 -- | Modify the given control according to the Merge.
 with_merged_control :: Merge -> Score.Control -> Score.TypedControl
     -> Deriver a -> Deriver a
-with_merged_control merge control = with control
-    where
-    with = case merge of
-        Set -> with_control
-        Default
-            | Controls.is_additive control -> with_relative_control op_add
-            | otherwise -> with_relative_control op_mul
-        Merge op -> with_relative_control op
+with_merged_control merge control =
+    maybe with_control with_relative_control (merge_op control merge) control
+
+merge_op :: Score.Control -> Merge -> Maybe ControlOp -- ^ Nothing if it's Set.
+merge_op control merge = case merge of
+    Set -> Nothing
+    Default
+        | Controls.is_additive control -> Just op_add
+        | otherwise -> Just op_mul
+    Merge op -> Just op
 
 with_control :: Score.Control -> Score.TypedControl -> Deriver a -> Deriver a
 with_control control signal = Internal.local $ \st ->

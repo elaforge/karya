@@ -19,6 +19,15 @@ attributes = "attr"
 control :: ValName
 control = "control"
 
+-- | VSymbol: Set along with 'control' to the 'Derive.Derive.Merge' function
+-- which will be used for this control track.  Calls can use this to subvert
+-- the merge function and emit an absolute value.
+--
+-- Values are @compose@ for tempo tracks, @set@, or any of the names from
+-- 'Derive.Derive.ControlOp'.
+merge :: ValName
+merge = "merge"
+
 -- | VInstrument: Default instrument.
 instrument :: ValName
 instrument = "inst"
