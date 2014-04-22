@@ -126,14 +126,11 @@ test_val_call = do
     let run evt = extract $ DeriveTest.derive_tracks_with with_add1 ""
             [(">", [(0, 1, "")]), ("cont", [(0, 0, evt)])]
         with_add1 = CallTest.with_val_call "add1" add_one
-    equal (run "foobar")
-        ([[(0, 0)]], ["Error: control generator not found: foobar"])
+    strings_like (snd (run "foobar")) ["control generator not found: foobar"]
     equal (run "set 1") ([[(0, 1)]], [])
     equal (run "set (add1 1)") ([[(0, 2)]], [])
     equal (run "set (add1 (add1 1))") ([[(0, 3)]], [])
-    let (res, logs) = run "set (add1 1 2)"
-    equal res [[(0, 0)]]
-    strings_like logs ["too many arguments"]
+    strings_like (snd (run "set (add1 1 2)")) ["too many arguments"]
     where
     add_one :: Derive.ValCall
     add_one = Derive.val_call module_ "add" mempty "doc" $ Sig.call

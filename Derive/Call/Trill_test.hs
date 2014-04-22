@@ -251,8 +251,8 @@ test_control_trill = do
     equal (run 0.5 "tr 1 1") ([trill [0, 1, 2, 3, 4, 5]], [])
     equal (run 0.5 "tr 1 1s") ([trill [0, 1, 2, 3, 4, 5]], [])
     equal (run 0.5 "tr 1 1t") ([trill [0, 2, 4]], [])
-    equal (run 1 "tr 1 1d")
-        ([[(0, 0)]], ["Error: expected time type for 1d but got Diatonic"])
+    strings_like (snd (run 1 "tr 1 1d"))
+        ["expected time type for 1d but got Diatonic"]
 
 test_xcut_control = do
     let f hold val1 val2 = Signal.unsignal

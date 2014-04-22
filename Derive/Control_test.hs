@@ -39,9 +39,8 @@ test_control_track = do
     equal val []
     strings_like logs ["track title: control track must be one of"]
 
-    let (val, logs) = derive ("cont", [(0, 0, "abc"), (1, 0, "def")])
-    equal val [[(0, 0)]]
-    strings_like logs ["not found: abc", "not found: def"]
+    strings_like (snd (derive ("cont", [(0, 0, "abc"), (1, 0, "def")])))
+        ["not found: abc", "not found: def"]
     equal (derive ("cont", events)) ([[(0, 1), (1, 2)]], [])
 
 test_split_control = do
@@ -56,8 +55,7 @@ test_split_control = do
             [ (">", [(0, 4, "")])
             , ("a", [(0, 0, "1"), (1, 0, "%b"), (2, 0, "2")])
             ]
-    equal (e_controls $ run [] tracks)
-        ([('a', [(0, 1)], 'b', [(0, 0), (2, 2)])], [])
+    equal (e_controls $ run [] tracks) ([('a', [(0, 1)], 'b', [(2, 2)])], [])
     -- TODO yeah it doesn't work, but I don't care enough about split controls
     -- to look into it now.
     -- equal (e_tsigs $ run [1] tracks) [[(0, 1), (2, 2)]]
@@ -67,7 +65,7 @@ test_split_control = do
             , ("a", [(0, 0, ".5"), (1, 0, "%b"), (2, 0, "1")])
             ]
     equal (e_controls $ run [] tracks)
-        ( [ ('a', [(0, 0.5)], 'b', [(0, 0)])
+        ( [ ('a', [(0, 0.5)], 'b', [])
           , ('a', [(0, 0.5)], 'b', [(2, 1)])
           ]
         , []
@@ -81,7 +79,7 @@ test_split_control = do
                 (3, 0, "%a"), (4, 0, "3")])
             ]
     equal (e_controls $ run [] tracks)
-        ( [ ('a', [(0, 1)], 'b', [(0, 0)])
+        ( [ ('a', [(0, 1)], 'b', [])
           , ('a', [(0, 1)], 'b', [(2, 2)])
           , ('a', [(4, 3)], 'b', [(2, 2)])
           ]

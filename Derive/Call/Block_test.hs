@@ -95,9 +95,8 @@ test_control_block = do
                 , ("sub=ruler", [("%", callee)])
                 ]
         sub = [(0, 0, "1"), (16, 0, "2"), (32, 0, "4")]
-    let (evts, logs) = derive [(0, 2, "nosuch")] []
-    equal evts [[(0, 0)]]
-    strings_like logs ["control generator not found: nosuch"]
+    strings_like (snd (derive [(0, 2, "nosuch")] []))
+        ["control generator not found: nosuch"]
 
     -- The last sample is clipped off since it's at the end of the block.
     equal (derive [(0, 0, "0"), (1, 2, "sub"), (3, 0, "3")] sub)

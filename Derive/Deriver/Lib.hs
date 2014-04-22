@@ -482,12 +482,10 @@ with_relative_control op cont signal deriver = do
 -- | Combine two signals with a ControlOp.
 apply_control_op :: ControlOp -> Maybe Score.TypedControl
     -> Score.TypedControl -> Score.TypedControl
-apply_control_op (ControlOp _ op ident) maybe_old new =
+apply_control_op _ Nothing new = new
+apply_control_op (ControlOp _ op) (Just old) new =
     Score.Typed (Score.type_of old <> Score.type_of new)
         (op (Score.typed_val old) (Score.typed_val new))
-    where
-    old = fromMaybe (Score.Typed (Score.type_of new) (Signal.constant ident))
-        maybe_old
 
 with_added_control :: Score.Control -> Score.TypedControl -> Deriver a
     -> Deriver a

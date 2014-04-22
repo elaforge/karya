@@ -697,10 +697,10 @@ instance Pretty.Pretty Merge where pretty = show
 -- This is useful for e.g. a transposition signal which shouldn't care if
 -- there is or isn't a transposition signal already in scope.
 data ControlOp = ControlOp
-    !String !(Signal.Control -> Signal.Control -> Signal.Control) !Signal.Y
+    !Text !(Signal.Control -> Signal.Control -> Signal.Control)
 
 instance Show ControlOp where
-    show (ControlOp name _ _) = "((ControlOp " ++ name ++ "))"
+    show (ControlOp name _) = "((ControlOp " ++ untxt name ++ "))"
 
 -- *** control ops
 
@@ -715,16 +715,16 @@ default_control_op_map = Map.fromList $ map (first TrackLang.Symbol)
     , ("min", op_min)
     ]
 
-op_add, op_sub, op_mul :: ControlOp
-op_add = ControlOp "add" Signal.sig_add 0
-op_sub = ControlOp "subtract" Signal.sig_subtract 0
-op_mul = ControlOp "multiply" Signal.sig_multiply 1
+op_add, op_sub, op_mul, op_scale :: ControlOp
+op_add = ControlOp "add" Signal.sig_add
+op_sub = ControlOp "subtract" Signal.sig_subtract
+op_mul = ControlOp "multiply" Signal.sig_multiply
 
 -- These values should never be seen since any reasonable combining signal
 -- will be within this range.
 op_max, op_min :: ControlOp
-op_max = ControlOp "max" Signal.sig_max (-2^32)
-op_min = ControlOp "min" Signal.sig_min (2^32)
+op_max = ControlOp "max" Signal.sig_max
+op_min = ControlOp "min" Signal.sig_min
 
 
 -- ** collect
