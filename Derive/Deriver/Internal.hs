@@ -14,8 +14,6 @@ import qualified Data.Word as Word
 
 import Util.Control
 import qualified Util.Log as Log
-import qualified Util.Seq as Seq
-
 import qualified Ui.Block as Block
 import qualified Ui.State as State
 import qualified Ui.Track as Track
@@ -97,22 +95,11 @@ insert_environ name val environ =
 -- | Figure out the current block and track, and record the current environ
 -- in the Collect.  It only needs to be recorded once per track.
 record_track_dynamic :: State -> Collect
-record_track_dynamic state = case stack of
-    Stack.Track tid : Stack.Block bid : _ -> mempty
-        { collect_track_dynamic = TrackDynamic $
-            Map.singleton (bid, tid) (state_dynamic state)
-        }
-    _ -> mempty
-    where
-    -- Strip the stack down to the most recent track and block, since it will
-    -- look like [tid, tid, tid, bid, ...].
-    stack = Seq.drop_dups is_track $ filter track_or_block $
-        Stack.innermost (state_stack (state_dynamic state))
-    track_or_block (Stack.Track _) = True
-    track_or_block (Stack.Block _) = True
-    track_or_block _ = False
-    is_track (Stack.Track _) = True
-    is_track _ = False
+record_track_dynamic state = case Stack.block_track_of (state_stack dyn) of
+    Just (bid, tid) -> mempty
+        { collect_track_dynamic = TrackDynamic $ Map.singleton (bid, tid) dyn }
+    Nothing -> mempty
+    where dyn = state_dynamic state
 
 -- | 'record_track_dynamic' for when I already know BlockId and TrackId.
 record_track_dynamic_for :: BlockId -> TrackId -> Deriver ()
