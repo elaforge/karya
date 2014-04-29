@@ -375,34 +375,40 @@ failure = failure_srcpos Nothing
 -- | Print a msg with a special tag indicating a passing test.
 success_srcpos :: SrcPos.SrcPos -> String -> IO Bool
 success_srcpos srcpos msg = do
-    -- Make sure the output doesn't get mixed with trace debug msgs.
-    force msg
-    hPrintf IO.stdout "++-> %s - %s\n" (SrcPos.show_srcpos srcpos) msg
+    print_test_line srcpos vt100_green "++-> " msg
     return True
 
 -- | Print a msg with a special tag indicating a failing test.
 failure_srcpos :: SrcPos.SrcPos -> String -> IO Bool
 failure_srcpos srcpos msg = do
+    print_test_line srcpos vt100_red "__-> " msg
+    return False
+
+print_test_line :: SrcPos.SrcPos -> String -> String -> String -> IO ()
+print_test_line srcpos color_code prefix msg = do
     -- Make sure the output doesn't get mixed with trace debug msgs.
     force msg
     -- A little magic to make failures more obvious in tty output.
     isatty <- Terminal.queryTerminal IO.stdOutput
-    putStrLn $ colorify isatty $ "__-> " ++ SrcPos.show_srcpos srcpos
-        ++ " - " ++ msg
-    return False
-    where
-    -- Highlight the line unless the text already has highlighting in it.
-    colorify isatty text
-        | isatty = if vt100_red `List.isInfixOf` text then text
-            else highlight_red text
-        | otherwise =
-            Seq.replace vt100_red "" $ Seq.replace vt100_normal "" text
+    putStrLn $ highlight isatty color_code $ prefix
+        ++ SrcPos.show_srcpos srcpos ++ " - " ++ msg
+
+-- | Highlight the line unless the text already has highlighting in it.
+highlight :: Bool -> String -> String -> String
+highlight isatty code text
+    | isatty = if code `List.isInfixOf` text then text
+        else code ++ text ++ vt100_normal
+    | otherwise = Seq.replace code "" $ Seq.replace vt100_normal "" text
 
 highlight_red :: String -> String
-highlight_red text = vt100_red ++ text ++ vt100_normal
+highlight_red = (vt100_red++) . (++vt100_normal)
 
+-- | These codes should probably come from termcap, but I can't be bothered.
 vt100_red :: String
 vt100_red = "\ESC[31m"
+
+vt100_green :: String
+vt100_green = "\ESC[32m"
 
 vt100_normal :: String
 vt100_normal = "\ESC[m\ESC[m"
