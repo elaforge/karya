@@ -9,6 +9,8 @@ import qualified Data.List as List
 import qualified Data.Text.IO as Text.IO
 import qualified Data.Vector as Vector
 
+import qualified System.FilePath as FilePath
+
 import Util.Control
 import Util.Test
 import qualified Util.Thread as Thread
@@ -40,6 +42,11 @@ compare_performance saved score = timeout score $ do
     cmd_config <- DeriveSaved.load_cmd_config
     expected <- DiffPerformance.load_midi saved
     got <- DeriveSaved.perform_file cmd_config score
+    dir <- tmp_dir "regression"
+    let base = dir FilePath.</> FilePath.takeFileName score
+    writeFile (base ++ ".expected") $
+        unlines $ map pretty (Vector.toList expected)
+    writeFile (base ++ ".got") $ unlines $ map pretty got
     let diffs = DiffPerformance.diff_midi expected got
     -- Too many diffs aren't useful.
     mapM_ Text.IO.putStrLn $ DiffPerformance.limit 40

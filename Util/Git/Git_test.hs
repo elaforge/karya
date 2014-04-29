@@ -58,6 +58,6 @@ test_modify_tree = do
     io_equal (Git.read_dir repo tree) $ Map.fromList [("c", Git.File "qqq")]
 
 new_repo = do
-    repo <- tmp_dir "git"
+    repo <- unique_tmp_dir "git"
     io_equal (Git.init repo) False
     return repo

@@ -250,7 +250,7 @@ save_git repo states = do
     ResponderTest.respond_cmd states (Save.save_git_as repo)
 
 get_repo :: IO SaveGit.Repo
-get_repo = tmp_dir "git"
+get_repo = unique_tmp_dir "git"
 
 -- * implementation
 

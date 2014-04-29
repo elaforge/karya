@@ -40,7 +40,7 @@ module Util.Test (
     , prettyp, pprint
 
     -- * filesystem
-    , tmp_dir
+    , unique_tmp_dir, tmp_dir
 
     -- * debugging
     , module Debug
@@ -429,7 +429,15 @@ human_getch = do
 
 -- * filesystem
 
-tmp_dir :: String -> IO FilePath
-tmp_dir prefix = do
+-- | Get a tmp dir, which will be unique for each test run.
+unique_tmp_dir :: String -> IO FilePath
+unique_tmp_dir prefix = do
     Directory.createDirectoryIfMissing True "build/test/tmp"
     Temp.mkdtemp $ "build/test/tmp/" ++ prefix ++ "-"
+
+-- | Get a tmp dir, which is the same on each test run.
+tmp_dir :: String -> IO FilePath
+tmp_dir name = do
+    let dir = "build/test/tmp/" ++ name
+    Directory.createDirectoryIfMissing True dir
+    return dir
