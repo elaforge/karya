@@ -95,7 +95,7 @@ block call args = caching_deriver Block range (call args)
 data Ranges = Ranges !(Ranges.Ranges ScoreTime) !Bool deriving (Show)
 
 -- | Cache a track, but only if it's not sliced and has a TrackId.
-track :: (Cacheable d) => TrackTree.TrackEvents -> Set.Set TrackId
+track :: Cacheable d => TrackTree.Track -> Set.Set TrackId
     -- ^ Children, as documented in 'Track'.
     -> Derive.LogsDeriver d -> Derive.LogsDeriver d
 track track children
@@ -103,9 +103,9 @@ track track children
         (Ranges Ranges.everything False)
     | otherwise = id
 
-should_cache :: TrackTree.TrackEvents -> Bool
-should_cache track = not (TrackTree.tevents_sliced track)
-    && Maybe.isJust (TrackTree.tevents_track_id track)
+should_cache :: TrackTree.Track -> Bool
+should_cache track = not (TrackTree.track_sliced track)
+    && Maybe.isJust (TrackTree.track_id track)
 
 caching_deriver :: (Cacheable d) => Type -> Ranges
     -> Derive.LogsDeriver d -> Derive.LogsDeriver d

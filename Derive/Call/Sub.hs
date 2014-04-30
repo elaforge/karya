@@ -116,7 +116,7 @@ invert around (track_start, _) subs start end next_start text events_around = do
     let sliced = slice track_id
     whenJust (non_bottom_note_track sliced) $ \track -> Derive.throw $
         "inverting below a note track will lead to an endless loop: "
-        <> pretty (TrackTree.tevents_track_id track)
+        <> pretty (TrackTree.track_id track)
     return sliced
     where
     slice track_id =
@@ -142,12 +142,12 @@ stack_track_id = Seq.head . mapMaybe Stack.track_of . Stack.innermost
 --
 -- An exception is if the note track is empty, since I can be sure there are
 -- no inverting calls in that case.
-non_bottom_note_track :: TrackTree.EventsTree -> Maybe TrackTree.TrackEvents
+non_bottom_note_track :: TrackTree.EventsTree -> Maybe TrackTree.Track
 non_bottom_note_track tree = Seq.head (concatMap go tree)
     where
     go (Tree.Node track subs)
-        | ParseTitle.is_note_track (TrackTree.tevents_title track)
-            && not (Events.null (TrackTree.tevents_events track))
+        | ParseTitle.is_note_track (TrackTree.track_title track)
+            && not (Events.null (TrackTree.track_events track))
             && not (null subs) = [track]
         | otherwise = concatMap go subs
 

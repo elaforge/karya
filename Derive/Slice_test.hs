@@ -57,7 +57,7 @@ test_slice_neighbors = do
             extract . Slice.slice exclusive around s e Nothing
             . map make_tree
         extract = map $ fmap $ \track ->
-            extract_around (TrackTree.tevents_around track)
+            extract_around (TrackTree.track_around track)
         extract_around (before, after) = (concatMap Event.event_string before,
             concatMap Event.event_string after)
     let notes offset ns = Node (make_notes offset ns)
@@ -133,18 +133,18 @@ test_slice_notes_shift = do
     -- Verify that shifting events modifies the horrible hack fields in the
     -- confusing undefined but correct way.
     let f s e = extract_notes extract . Slice.slice_notes False s e
-        extract t = (TrackTree.tevents_range t, TrackTree.tevents_end t,
-            TrackTree.tevents_shifted t)
+        extract t = (TrackTree.track_range t, TrackTree.track_end t,
+            TrackTree.track_shifted t)
     let tree start track_end = Node (track start track_end) []
         track start track_end = (make_track ">" [(start, 1, "a")] 32)
-            { TrackTree.tevents_range = (1, 2)
-            , TrackTree.tevents_end = track_end
-            , TrackTree.tevents_shifted = 1
+            { TrackTree.track_range = (1, 2)
+            , TrackTree.track_end = track_end
+            , TrackTree.track_shifted = 1
             }
     -- No shift, so the values remain the same.
     equal (f 0 1 [tree 0 1]) [[(0, 1, [Node ((1, 2), 1, 1) []])]]
-    -- Shifted by 1.  tevents_range goes up by one but I'm not sure why.
-    -- tevents_end moves back so it's still at Event.end event + 1.
+    -- Shifted by 1.  track_range goes up by one but I'm not sure why.
+    -- track_end moves back so it's still at Event.end event + 1.
     equal (f 1 2 [tree 1 2]) [[(1, 1, [Node ((2, 3), 1, 2) []])]]
 
     equal (f 0 32 [tree 0 32]) [[(0, 1, [Node ((1, 2), 32, 1) []])]]
@@ -219,7 +219,7 @@ slice_notes exclude_start s e =
     extract_notes extract_tree . Slice.slice_notes exclude_start s e
     . map make_tree
 
-extract_notes :: (TrackTree.TrackEvents -> a)
+extract_notes :: (TrackTree.Track -> a)
     -> [[(ScoreTime, ScoreTime, TrackTree.EventsTree)]]
     -> [[(ScoreTime, ScoreTime, [Tree.Tree a])]]
 extract_notes f = map $ map $ \(s, e, t) -> (s, e, map (fmap f) t)
@@ -359,10 +359,10 @@ test_note_transformer_stack = do
 type EventsTree = Tree.Tree (String, [Event])
 type Event = (ScoreTime, ScoreTime, Text)
 
-extract_tree :: TrackTree.TrackEvents -> (String, [Event])
+extract_tree :: TrackTree.Track -> (String, [Event])
 extract_tree track =
-    (untxt $ TrackTree.tevents_title track,
-        extract_track (TrackTree.tevents_events track))
+    (untxt $ TrackTree.track_title track,
+        extract_track (TrackTree.track_events track))
 
 extract_track :: Events.Events -> [Event]
 extract_track events =
@@ -372,11 +372,10 @@ extract_track events =
 make_tree :: EventsTree -> TrackTree.EventsNode
 make_tree = fmap $ \(title, events) -> make_track title events 32
 
-make_track :: String -> [Event] -> TrackTime -> TrackTree.TrackEvents
+make_track :: String -> [Event] -> TrackTime -> TrackTree.Track
 make_track title events end =
-    (TrackTree.track_events (txt title) tevents end)
-        { TrackTree.tevents_track_id =
-            Just $ UiTest.tid $ filter Id.is_id_char title
+    (TrackTree.make_track (txt title) tevents end)
+        { TrackTree.track_id = Just $ UiTest.tid $ filter Id.is_id_char title
         }
     where
     tevents = Events.from_list

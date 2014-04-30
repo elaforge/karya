@@ -161,7 +161,7 @@ test_recursive_call = do
 
 test_events_around = do
     -- Ensure sliced inverting notes still have access to prev and next events
-    -- via the tevents_around hackery.
+    -- via the track_around hackery.
     let logs = extract $ DeriveTest.derive_tracks_with with_call ""
             [ (">", [(0, 1, ""), (1, 1, "around"), (2, 1, "")])
             , ("*twelve", [(0, 0, "4c"), (2, 0, "4d")])
@@ -373,7 +373,7 @@ test_two_level_orphans = do
             [])
 
 test_orphan_ranges = do
-    -- These test TrackTree.tevents_end, indirectly by making sure it clips
+    -- These test TrackTree.track_end, indirectly by making sure it clips
     -- or doesn't clip signal correctly.
     let run = DeriveTest.extract DeriveTest.e_nns
             . DeriveTest.derive_tracks_linear ""

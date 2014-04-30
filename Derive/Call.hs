@@ -258,7 +258,7 @@ apply_transform name expr_str deriver
 -- | Per-track parameters, to cut down on the number of arguments taken by
 -- 'derive_track'.
 data TrackInfo = TrackInfo {
-    tinfo_track :: !TrackTree.TrackEvents
+    tinfo_track :: !TrackTree.Track
     , tinfo_sub_tracks :: !TrackTree.EventsTree
     , tinfo_type :: !ParseTitle.Type
     } deriving (Show)
@@ -320,7 +320,7 @@ derive_note_track derive_tracks state tinfo =
         maybe id (<>) (get_sub_notes tinfo prev events) deriver
     get_sub_notes tinfo prev events =
         derive_sub_notes derive_tracks prev
-            (maybe (TrackTree.tevents_end (tinfo_track tinfo)) Event.start
+            (maybe (TrackTree.track_end (tinfo_track tinfo)) Event.start
                 (Seq.head events))
             (tinfo_sub_tracks tinfo)
 
@@ -388,7 +388,7 @@ derive_sub_notes derive_tracks prev end subs
     place (shift, _, tree) = Derive.at shift $ derive_tracks tree
 
 -- Notes on recording TrackDynamic at NOTE [record-track-dynamics].
-record_track_dynamic :: Bool -> TrackTree.TrackEvents -> Derive.State
+record_track_dynamic :: Bool -> TrackTree.Track -> Derive.State
     -> Derive.Collect
 record_track_dynamic _has_children track state
     -- Use the controls from the parent track.
@@ -396,8 +396,8 @@ record_track_dynamic _has_children track state
     -- sliced child know who its parent was?
     -- When the parent finishes, its children should already be recorded, so
     -- it could replace them.
-    | TrackTree.tevents_sliced track = collect $
-        -- Debug.tracep ("sliced: " ++ show (TrackTree.tevents_inverted track)) $
+    | TrackTree.track_sliced track = collect $
+        -- Debug.tracep ("sliced: " ++ show (TrackTree.track_inverted track)) $
         Internal.record_track_dynamic $
         dyn { Derive.state_controls = mempty }
     | otherwise = collect $
@@ -405,7 +405,7 @@ record_track_dynamic _has_children track state
         Internal.record_track_dynamic dyn
     -- where dyn = Derive.state_dynamic state
     where
-    -- k = (TrackTree.tevents_block_id track, TrackTree.tevents_track_id track)
+    -- k = (TrackTree.track_block_id track, TrackTree.track_track_id track)
     -- dyn = Debug.traceps "record" k $ Derive.state_dynamic state
     dyn = Derive.state_dynamic state
     collect = maybe mempty (\d -> mempty { Derive.collect_track_dynamic = d })
@@ -453,27 +453,27 @@ derive_event tinfo prev_sample prev event next
         Right expr -> Internal.with_stack_region (Event.min event + shifted)
             (Event.max event + shifted) $ apply_toplevel cinfo expr
     where
-    shifted = TrackTree.tevents_shifted tevents
+    shifted = TrackTree.track_shifted track
     text = Event.event_text event
     cinfo = Derive.CallInfo
         { Derive.info_expr = text
         , Derive.info_prev_val = prev_sample
         , Derive.info_event = event
         -- Augment prev and next with the unevaluated "around" notes from
-        -- 'State.tevents_around'.
+        -- 'State.track_around'.
         , Derive.info_prev_events = tprev ++ prev
         , Derive.info_next_events = next ++ tnext
         , Derive.info_event_end = case next ++ tnext of
-            [] -> TrackTree.tevents_end tevents
+            [] -> TrackTree.track_end track
             event : _ -> Event.start event
-        , Derive.info_track_range = TrackTree.tevents_range tevents
-        , Derive.info_inverted = TrackTree.tevents_inverted tevents
+        , Derive.info_track_range = TrackTree.track_range track
+        , Derive.info_inverted = TrackTree.track_inverted track
         , Derive.info_sub_tracks = subs
         , Derive.info_sub_events = Nothing
         , Derive.info_track_type = Just ttype
         }
-    TrackInfo tevents subs ttype = tinfo
-    (tprev, tnext) = TrackTree.tevents_around tevents
+    TrackInfo track subs ttype = tinfo
+    (tprev, tnext) = TrackTree.track_around track
 
 -- * eval / apply
 

@@ -1005,7 +1005,7 @@ data CallInfo val = CallInfo {
     -- course it has a value even when there is no next event.
     , info_event_end :: !ScoreTime
 
-    -- | This is the track range from 'State.tevents_range'.  For sliced
+    -- | This is the track range from 'State.track_range'.  For sliced
     -- tracks, it will tell where in the track the slice lies.  This is needed
     -- for 'Stack.Region' entries.  This should be in absolute TrackTime, not
     -- ScoreTime.

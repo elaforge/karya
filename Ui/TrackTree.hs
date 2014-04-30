@@ -26,7 +26,7 @@ import Types
 -- | A TrackTree is the Skeleton resolved to the tracks it references.
 type TrackTree = [Tree.Tree State.TrackInfo]
 
-tracks_of :: (State.M m) => BlockId -> m [State.TrackInfo]
+tracks_of :: State.M m => BlockId -> m [State.TrackInfo]
 tracks_of block_id = do
     block <- State.get_block block_id
     state <- State.get
@@ -39,7 +39,7 @@ tracks_of block_id = do
         return (i, tid, track)
 
 -- | Return @(parents, self : children)@.
-parents_children_of :: (State.M m) => BlockId -> TrackId
+parents_children_of :: State.M m => BlockId -> TrackId
     -> m (Maybe ([State.TrackInfo], [State.TrackInfo]))
 parents_children_of block_id track_id = do
     tree <- track_tree_of block_id
@@ -51,7 +51,7 @@ parents_children_of block_id track_id = do
 
 -- | This is like 'parents_children_of', but only the children, and it doesn't
 -- include the given TrackId.
-children_of :: (State.M m) => BlockId -> TrackId -> m (Maybe [State.TrackInfo])
+children_of :: State.M m => BlockId -> TrackId -> m (Maybe [State.TrackInfo])
 children_of block_id track_id =
     parents_children_of block_id track_id >>= \x -> return $ case x of
         Just (_, _ : children) -> Just children
@@ -64,7 +64,7 @@ children_of block_id track_id =
 -- away.  But that would mean redoing all the "Ui.Skeleton" operations for
 -- trees, which would be a huge pain.  And the reason I didn't do it in the
 -- first place was the hassle of graph operations on a Data.Tree.
-track_tree_of :: (State.M m) => BlockId -> m TrackTree
+track_tree_of :: State.M m => BlockId -> m TrackTree
 track_tree_of block_id = do
     skel <- State.get_skeleton block_id
     tracks <- tracks_of block_id
@@ -97,7 +97,7 @@ resolve_track_tree tracknums = foldr (cat_tree . go) ([], [])
         Nothing -> (forest, missing ++ all_missing)
         Just tree -> (tree : forest, missing ++ all_missing)
 
-strip_disabled_tracks :: (State.M m) => BlockId -> TrackTree -> m TrackTree
+strip_disabled_tracks :: State.M m => BlockId -> TrackTree -> m TrackTree
 strip_disabled_tracks block_id = concatMapM strip
     where
     strip (Tree.Node track subs) = ifM (disabled track)
@@ -107,27 +107,27 @@ strip_disabled_tracks block_id = concatMapM strip
         . State.track_flags block_id . State.track_tracknum
 
 type EventsTree = [EventsNode]
-type EventsNode = Tree.Tree TrackEvents
+type EventsNode = Tree.Tree Track
 
-data TrackEvents = TrackEvents {
-    tevents_title :: !Text
-    , tevents_events :: !Events.Events
+data Track = Track {
+    track_title :: !Text
+    , track_events :: !Events.Events
     -- | This goes into the stack when the track is evaluated.  Inverted tracks
     -- will carry the TrackId of the track they were inverted from, so they'll
     -- show up in the stack twice.  This means they can record their environ
     -- as it actually is when the notes are evaluated, rather than its
     -- pre-invert value, which is likely to not have the right scale.
-    , tevents_track_id :: !(Maybe TrackId)
+    , track_id :: !(Maybe TrackId)
     -- | The block these events came from.  A track can appear in multiple
     -- blocks, but can only appear once in each block.
-    , tevents_block_id :: !(Maybe BlockId)
+    , track_block_id :: !(Maybe BlockId)
 
     -- | The relative end of this slice of track.  This is different from @snd
-    -- . tevents_range@ because it gets shifted after slicing to be relative to
-    -- the sliced note, while tevents_range always reflects the absolute track
+    -- . track_range@ because it gets shifted after slicing to be relative to
+    -- the sliced note, while track_range always reflects the absolute track
     -- range.  So the difference between the two is how much this slice has
     -- been shifted.
-    , tevents_end :: !ScoreTime
+    , track_end :: !ScoreTime
 
     -- | Range of the track.  This may be past the end of the last event since
     -- it's the range of the block as a whole.
@@ -137,38 +137,34 @@ data TrackEvents = TrackEvents {
     -- damage outside of its range.
     --
     -- This is a (start, end) range, not (start, dur).
-    , tevents_range :: !(TrackTime, TrackTime)
+    , track_range :: !(TrackTime, TrackTime)
     -- | True if this is a sliced track.  That means it's a fragment of
     -- a track and certain track-level things should be skipped.
-    , tevents_sliced :: !Bool
+    , track_sliced :: !Bool
     -- | True if this was created as a result of inversion.  It's just here
     -- to hand off to 'Derive.info_inverted'.  If this is True,
-    -- 'tevents_sliced' will also be True.  TODO so why not a 3 state type?
-    , tevents_inverted :: !Bool
+    -- 'track_sliced' will also be True.  TODO so why not a 3 state type?
+    , track_inverted :: !Bool
     -- | These events are not evaluated, but go in
     -- 'Derive.Derive.info_prev_events' and info_next_events.  This is so that
     -- sliced calls (such as inverting calls) can see previous and following
     -- events.
-    , tevents_around :: !([Event.Event], [Event.Event])
+    , track_around :: !([Event.Event], [Event.Event])
 
     -- | If the events have been shifted from their original positions on the
     -- track, this can be added to them to put them back in TrackTime.  This is
     -- for the stack, which should always be in TrackTime.
     --
-    -- It's probably the same as @fst . tevents_range@, but only applies if the
+    -- It's probably the same as @fst . track_range@, but only applies if the
     -- events have been shifted, which you can't tell from just looking at
-    -- @tevents_range@.
-    , tevents_shifted :: !ScoreTime
+    -- @track_range@.
+    , track_shifted :: !ScoreTime
     } deriving (Show)
 
-tevents_track_start, tevents_track_end :: TrackEvents -> TrackTime
-tevents_track_start = fst . tevents_range
-tevents_track_end = snd . tevents_range
-
-instance Pretty.Pretty TrackEvents where
-    format (TrackEvents title events track_id block_id end range sliced
+instance Pretty.Pretty Track where
+    format (Track title events track_id block_id end range sliced
             inverted around shifted) =
-        Pretty.record_title "TrackEvents"
+        Pretty.record_title "Track"
             [ ("title", Pretty.format title)
             , ("events", Pretty.format events)
             , ("track_id", Pretty.format track_id)
@@ -181,45 +177,45 @@ instance Pretty.Pretty TrackEvents where
             , ("shifted", Pretty.format shifted)
             ]
 
-track_events :: Text -> Events.Events -> ScoreTime -> TrackEvents
-track_events title events end = TrackEvents
-    { tevents_title = title
-    , tevents_events = events
-    , tevents_track_id = Nothing
-    , tevents_block_id = Nothing
-    , tevents_end = end
-    , tevents_range = (0, end)
-    , tevents_sliced = False
-    , tevents_inverted = False
-    , tevents_around = ([], [])
-    , tevents_shifted = 0
+make_track :: Text -> Events.Events -> ScoreTime -> Track
+make_track title events end = Track
+    { track_title = title
+    , track_events = events
+    , track_id = Nothing
+    , track_block_id = Nothing
+    , track_end = end
+    , track_range = (0, end)
+    , track_sliced = False
+    , track_inverted = False
+    , track_around = ([], [])
+    , track_shifted = 0
     }
 
-tevents_block_track_id :: TrackEvents -> Maybe (BlockId, TrackId)
-tevents_block_track_id track = do
-    bid <- tevents_block_id track
-    tid <- tevents_track_id track
+track_block_track_id :: Track -> Maybe (BlockId, TrackId)
+track_block_track_id track = do
+    bid <- track_block_id track
+    tid <- track_id track
     return (bid, tid)
 
-events_tree_of :: (State.M m) => BlockId -> m EventsTree
+events_tree_of :: State.M m => BlockId -> m EventsTree
 events_tree_of block_id = do
     info_tree <- track_tree_of block_id
     end <- State.block_ruler_end block_id
     events_tree block_id end info_tree
 
-events_tree :: (State.M m) => BlockId -> ScoreTime -> TrackTree -> m EventsTree
+events_tree :: State.M m => BlockId -> ScoreTime -> TrackTree -> m EventsTree
 events_tree block_id end = mapM resolve
     where
     resolve (Tree.Node (State.TrackInfo title track_id _) subs) =
         Tree.Node <$> make title track_id <*> mapM resolve subs
     make title track_id = do
         track <- State.get_track track_id
-        return $ (track_events title (Track.track_events track) end)
-            { tevents_track_id = Just track_id
-            , tevents_block_id = Just block_id
+        return $ (make_track title (Track.track_events track) end)
+            { track_id = Just track_id
+            , track_block_id = Just block_id
             }
 
 -- | All the children of this EventsNode with TrackIds.
-tevents_children :: EventsNode -> Set.Set TrackId
-tevents_children = List.foldl' (flip Set.insert) Set.empty
-    . mapMaybe tevents_track_id . Tree.flatten
+track_children :: EventsNode -> Set.Set TrackId
+track_children = List.foldl' (flip Set.insert) Set.empty
+    . mapMaybe track_id . Tree.flatten

@@ -133,7 +133,8 @@ UNSORTED
       is used by Cache.
 
   * Rename Events.first to Events.head
-  - get rid of TrackTree.EventsTree, rename EventsNode to EventsTree
+  * get rid of TrackTree.EventsTree, rename EventsNode to EventsTree
+    The type aliases are too convenient, but I renamed TrackEvents.
   - make Score.unwarp_pos extend the signal in the same way that 'warp_pos'
     does so I can make id_warp_signal into mempty
   / I now have a zero-dur block call, proving I will use those.  So I don't

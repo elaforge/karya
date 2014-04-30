@@ -120,13 +120,13 @@ d_note_track :: ([TrackTree.EventsNode] -> Derive.NoteDeriver)
 d_note_track derive_tracks (Tree.Node track subs) =
     title $ derive_notes derive_tracks (track_info track subs) events
     where
-    events = Events.ascending (TrackTree.tevents_events track)
-    title = with_title subs (TrackTree.tevents_range track)
-        (TrackTree.tevents_title track)
+    events = Events.ascending (TrackTree.track_events track)
+    title = with_title subs (TrackTree.track_range track)
+        (TrackTree.track_title track)
 
 -- | Note tracks can also have track signals, extracted from the events they
 -- produce.
-stash_signal_if_wanted :: Derive.Events -> TrackTree.TrackEvents
+stash_signal_if_wanted :: Derive.Events -> TrackTree.Track
     -> Derive.Deriver ()
 stash_signal_if_wanted events track =
     whenJustM (Control.render_of track) $ \(block_id, track_id, maybe_source) ->
@@ -177,7 +177,7 @@ derive_notes derive_tracks tinfo events = do
     Internal.merge_collect collect
     return $ Derive.merge_asc_events event_groups
 
-track_info :: TrackTree.TrackEvents -> [TrackTree.EventsNode] -> Call.TrackInfo
+track_info :: TrackTree.Track -> [TrackTree.EventsNode] -> Call.TrackInfo
 track_info track subs = Call.TrackInfo
     { Call.tinfo_track = track
     , Call.tinfo_sub_tracks = subs

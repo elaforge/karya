@@ -358,9 +358,9 @@ get_total_block_dur block_id = do
 -- | This does setup common to all track derivation, namely recording the
 -- tempo warp, and then calls the specific track deriver.  Every track with
 -- a track ID except tempo tracks should call this.
-track_setup :: TrackTree.TrackEvents -> Deriver d -> Deriver d
+track_setup :: TrackTree.Track -> Deriver d -> Deriver d
 track_setup track deriver = do
-    whenJust (TrackTree.tevents_track_id track) add_track_warp
+    whenJust (TrackTree.track_id track) add_track_warp
     deriver
 
 -- | The deriver strips out tracks that can't be derived because they have no

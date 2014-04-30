@@ -126,10 +126,10 @@ test_derive_control = do
             ["Error: control generator not found: def"]))
 
 mktrack :: ScoreTime -> (ScoreTime, ScoreTime) -> [UiTest.EventSpec]
-    -> TrackTree.TrackEvents
+    -> TrackTree.Track
 mktrack events_end track_range events =
-    (TrackTree.track_events ">" evts events_end)
-        { TrackTree.tevents_range = track_range }
+    (TrackTree.make_track ">" evts events_end)
+        { TrackTree.track_range = track_range }
     where evts = Events.from_list (map UiTest.make_event events)
 
 test_pitch_track = do

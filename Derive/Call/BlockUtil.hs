@@ -85,20 +85,20 @@ check_control_tree :: ScoreTime -> TrackTree.EventsTree
 check_control_tree block_end forest = case forest of
     [] -> Left "empty block"
     [Tree.Node track []]
-        | TrackTree.tevents_title track == "%" ->
+        | TrackTree.track_title track == "%" ->
             Right [Tree.Node track [Tree.Node capture_track []]]
         | otherwise -> Left $ "skeleton must end in % track, ends with "
-            ++ show (TrackTree.tevents_title track)
+            ++ show (TrackTree.track_title track)
     [Tree.Node track subs] -> do
         subs <- check_control_tree block_end subs
         return [Tree.Node track subs]
     tracks -> Left $ "skeleton must have only a single branch, "
         ++ "but there are multiple children: "
-        ++ show (map (TrackTree.tevents_title . Tree.rootLabel) tracks)
+        ++ show (map (TrackTree.track_title . Tree.rootLabel) tracks)
     where
     events = Events.singleton $
         Event.event 0 block_end (TrackLang.unsym capture_null_control)
-    capture_track = TrackTree.track_events ">" events block_end
+    capture_track = TrackTree.make_track ">" events block_end
 
 derive_control_tree :: ScoreTime -> TrackTree.EventsTree
     -> Derive.ControlDeriver
@@ -159,11 +159,11 @@ derive_tracks = mconcatMap derive_track
 -- | Derive a single track node and any tracks below it.
 derive_track :: TrackTree.EventsNode -> Derive.NoteDeriver
 derive_track node@(Tree.Node track subs)
-    | ParseTitle.is_note_track (TrackTree.tevents_title track) =
-        with_stack $ Cache.track track (TrackTree.tevents_children node) $ do
+    | ParseTitle.is_note_track (TrackTree.track_title track) =
+        with_stack $ Cache.track track (TrackTree.track_children node) $ do
             events <- Internal.track_setup track $
                 Note.d_note_track derive_tracks node
-            unless (TrackTree.tevents_sliced track) defragment
+            unless (TrackTree.track_sliced track) defragment
             mapM_ (Note.stash_signal_if_wanted events)
                 (note_signal_tracks track subs)
             return events
@@ -175,7 +175,7 @@ derive_track node@(Tree.Node track subs)
         warp <- Internal.get_dynamic Derive.state_warp
         Internal.modify_collect $ Call.defragment_track_signals warp
     with_stack = maybe id Internal.with_stack_track
-        (TrackTree.tevents_track_id track)
+        (TrackTree.track_id track)
 
 -- | Extract tracks that might want to stash a signal.
 --
@@ -185,14 +185,14 @@ derive_track node@(Tree.Node track subs)
 -- non-orphan sections.  At the moment it seems simpler to collect all the
 -- events of the whole set of tracks and consider them the output of all of
 -- them.
-note_signal_tracks :: TrackTree.TrackEvents -> TrackTree.EventsTree
-    -> [TrackTree.TrackEvents]
+note_signal_tracks :: TrackTree.Track -> TrackTree.EventsTree
+    -> [TrackTree.Track]
 note_signal_tracks track subs
-    | TrackTree.tevents_sliced track = []
+    | TrackTree.track_sliced track = []
     | otherwise = track : filter is_note (concatMap Tree.flatten subs)
-    where is_note = ParseTitle.is_note_track . TrackTree.tevents_title
+    where is_note = ParseTitle.is_note_track . TrackTree.track_title
 
 -- | Does this tree have any non-tempo tracks at the top level?
 has_nontempo_track :: TrackTree.EventsTree -> Bool
 has_nontempo_track = any $ \(Tree.Node track _) ->
-    not $ ParseTitle.is_tempo_track (TrackTree.tevents_title track)
+    not $ ParseTitle.is_tempo_track (TrackTree.track_title track)

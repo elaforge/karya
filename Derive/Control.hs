@@ -66,14 +66,14 @@ import qualified Perform.Signal as Signal
 import Types
 
 
--- | As returned by 'TrackTree.tevents_range', happpens to be used a lot here.
+-- | As returned by 'TrackTree.track_range', happpens to be used a lot here.
 type TrackRange = (ScoreTime, ScoreTime)
 
 -- | Top level deriver for control tracks.
 d_control_track :: TrackTree.EventsNode
     -> Derive.NoteDeriver -> Derive.NoteDeriver
 d_control_track (Tree.Node track _) deriver = do
-    let title = TrackTree.tevents_title track
+    let title = TrackTree.track_title track
     if Text.all Char.isSpace title then deriver else do
         (ctype, expr) <- either (\err -> Derive.throw $ "track title: " ++ err)
             return (ParseTitle.parse_control_expr title)
@@ -102,7 +102,7 @@ split_control_tracks :: TrackTree.EventsTree -> TrackTree.EventsTree
 split_control_tracks = map split
     where
     split (Tree.Node track subs) =
-        case ParseTitle.track_type (TrackTree.tevents_title track) of
+        case ParseTitle.track_type (TrackTree.track_title track) of
             ParseTitle.ControlTrack -> splice (split_control track) subs
             _ -> Tree.Node track (map split subs)
         where
@@ -112,10 +112,10 @@ split_control_tracks = map split
 
 -- | Look for events starting with @%@, and split the track at each one.
 -- Each split-off track is titled with the text after the @%@.
-split_control :: TrackTree.TrackEvents -> [TrackTree.TrackEvents]
-split_control track = extract $ split $ TrackTree.tevents_events track
+split_control :: TrackTree.Track -> [TrackTree.Track]
+split_control track = extract $ split $ TrackTree.track_events track
     where
-    split events = go (TrackTree.tevents_title track) events $
+    split events = go (TrackTree.track_title track) events $
         mapMaybe switch_control $ Events.ascending events
     go title events [] = [(title, events)]
     go title events ((start, next_title) : switches) =
@@ -129,8 +129,8 @@ split_control track = extract $ split $ TrackTree.tevents_events track
     extract [_] = [track]
     extract tracks = map convert (merge tracks)
     convert (title,  events) = track
-        { TrackTree.tevents_title = title
-        , TrackTree.tevents_events = events
+        { TrackTree.track_title = title
+        , TrackTree.track_events = events
         }
     -- Tracks with the same name are merged back together.
     -- TODO Group by control, not title.
@@ -140,7 +140,7 @@ split_control track = extract $ split $ TrackTree.tevents_events track
 
 -- * eval_track
 
-eval_track :: TrackTree.TrackEvents -> [TrackLang.Call]
+eval_track :: TrackTree.Track -> [TrackLang.Call]
     -> ParseTitle.ControlType -> Derive.NoteDeriver -> Derive.NoteDeriver
 eval_track track expr ctype deriver = case ctype of
     ParseTitle.Tempo maybe_sym -> do
@@ -183,7 +183,7 @@ lookup_op control op = case op of
 
 -- | A tempo track is derived like other signals, but in absolute time.
 -- Otherwise it would wind up being composed with the environmental warp twice.
-tempo_call :: Maybe TrackLang.Symbol -> TrackTree.TrackEvents
+tempo_call :: Maybe TrackLang.Symbol -> TrackTree.Track
     -> Derive.Deriver (TrackResults Signal.Control)
     -> Derive.NoteDeriver -> Derive.NoteDeriver
 tempo_call sym track sig_deriver deriver = do
@@ -200,14 +200,14 @@ tempo_call sym track sig_deriver deriver = do
     merge_logs logs $ dispatch_tempo sym (snd track_range) maybe_track_id
         (Signal.coerce signal) (with_damage deriver)
     where
-    maybe_block_track_id = TrackTree.tevents_block_track_id track
+    maybe_block_track_id = TrackTree.track_block_track_id track
     maybe_track_id = snd <$> maybe_block_track_id
     with_damage = maybe id get_damage maybe_block_track_id
     get_damage (block_id, track_id) deriver = do
         damage <- Cache.get_tempo_damage block_id track_id track_range
-            (TrackTree.tevents_events track)
+            (TrackTree.track_events track)
         Internal.with_control_damage damage deriver
-    track_range = TrackTree.tevents_range track
+    track_range = TrackTree.track_range track
 
 dispatch_tempo :: Maybe TrackLang.Symbol -> ScoreTime -> Maybe TrackId
     -> Signal.Tempo -> Derive.Deriver a -> Derive.Deriver a
@@ -221,7 +221,7 @@ dispatch_tempo sym block_dur maybe_track_id signal deriver = case sym of
         | otherwise -> Derive.throw $
             "unknown tempo modifier: " <> untxt (ShowVal.show_val sym)
 
-control_call :: TrackTree.TrackEvents -> Score.Typed Score.Control
+control_call :: TrackTree.Track -> Score.Typed Score.Control
     -> Derive.Merge -> (Derive.Deriver (TrackResults Signal.Control))
     -> Derive.NoteDeriver -> Derive.NoteDeriver
 control_call track control merge control_deriver deriver = do
@@ -235,7 +235,7 @@ control_call track control merge control_deriver deriver = do
     -- run control_deriver as a sub-derive, then mappend the Collect.
     where
     with_damage = with_control_damage
-        (TrackTree.tevents_block_track_id track) (TrackTree.tevents_range track)
+        (TrackTree.track_block_track_id track) (TrackTree.track_range track)
 
 with_control_op :: Score.Typed Score.Control -> Derive.Merge -> Signal.Control
     -> Derive.Deriver a -> Derive.Deriver a
@@ -247,7 +247,7 @@ merge_logs logs deriver = do
     events <- deriver
     return $ Derive.merge_events (map LEvent.Log logs) events
 
-pitch_call :: TrackTree.TrackEvents -> Maybe Score.Control -> Pitch.ScaleId
+pitch_call :: TrackTree.Track -> Maybe Score.Control -> Pitch.ScaleId
     -> [TrackLang.Call] -> Derive.NoteDeriver -> Derive.NoteDeriver
 pitch_call track maybe_name scale_id expr deriver =
     Internal.track_setup track $ do
@@ -262,8 +262,8 @@ pitch_call track maybe_name scale_id expr deriver =
             Derive.apply_control_mods $ merge_logs logs $ with_damage $
                 Derive.with_pitch maybe_name signal deriver
     where
-    with_damage = with_control_damage (TrackTree.tevents_block_track_id track)
-        (TrackTree.tevents_range track)
+    with_damage = with_control_damage (TrackTree.track_block_track_id track)
+        (TrackTree.track_range track)
 
 get_scale :: Pitch.ScaleId -> Derive.Deriver Scale.Scale
 get_scale scale_id
@@ -286,10 +286,10 @@ with_control_damage maybe_block_track_id track_range =
 type TrackResults sig = (sig, [Log.Msg])
 
 -- | Derive the signal of a control track.
-derive_control :: Bool -> TrackTree.TrackEvents -> [TrackLang.Call]
+derive_control :: Bool -> TrackTree.Track -> [TrackLang.Call]
     -> Derive.Deriver (TrackResults Signal.Control)
 derive_control is_tempo track expr = do
-    let (start, end) = TrackTree.tevents_range track
+    let (start, end) = TrackTree.track_range track
     let name = if is_tempo then "tempo track" else "control track"
     stream <- Call.apply_transformers
         (Derive.dummy_call_info start (end-start) name) expr deriver
@@ -303,7 +303,7 @@ derive_control is_tempo track expr = do
     deriver = Cache.track track mempty $ do
         state <- Derive.get
         let (stream, collect) = Call.derive_control_track state tinfo
-                Call.control_last_sample (tevents track)
+                Call.control_last_sample (track_events track)
         Internal.merge_collect collect
         return $ compact (concat stream)
     -- Merge the signal here so it goes in the cache as one signal event.
@@ -321,10 +321,10 @@ derive_control is_tempo track expr = do
         | is_tempo = Signal.coerce . Tempo.extend_signal end . Signal.coerce
         | otherwise = id
 
-derive_pitch :: Bool -> TrackTree.TrackEvents -> [TrackLang.Call]
+derive_pitch :: Bool -> TrackTree.Track -> [TrackLang.Call]
     -> Derive.Deriver (TrackResults PitchSignal.Signal)
 derive_pitch cache track expr = do
-    let (start, end) = TrackTree.tevents_range track
+    let (start, end) = TrackTree.track_range track
     stream <- Call.apply_transformers
         (Derive.dummy_call_info start (end-start) "pitch track") expr deriver
     let (signal_chunks, logs) = LEvent.partition stream
@@ -335,7 +335,7 @@ derive_pitch cache track expr = do
     deriver = (if cache then Cache.track track mempty else id) $ do
         state <- Derive.get
         let (stream, collect) = Call.derive_control_track state tinfo
-                Call.pitch_last_sample (tevents track)
+                Call.pitch_last_sample (track_events track)
         Internal.merge_collect collect
         return $ compact (concat stream)
     -- Merge the signal here so it goes in the cache as one signal event.
@@ -347,8 +347,8 @@ derive_pitch cache track expr = do
         , Call.tinfo_type = ParseTitle.PitchTrack
         }
 
-tevents :: TrackTree.TrackEvents -> [Event.Event]
-tevents = Events.ascending . TrackTree.tevents_events
+track_events :: TrackTree.Track -> [Event.Event]
+track_events = Events.ascending . TrackTree.track_events
 
 
 -- * TrackSignal
@@ -356,10 +356,10 @@ tevents = Events.ascending . TrackTree.tevents_events
 -- | If this track is to be rendered by the UI, stash the given signal as
 -- in either 'Derive.collect_track_signals' or
 -- 'Derive.collect_signal_fragments'.
-stash_if_wanted :: TrackTree.TrackEvents -> Signal.Control -> Derive.Deriver ()
+stash_if_wanted :: TrackTree.Track -> Signal.Control -> Derive.Deriver ()
 stash_if_wanted track sig =
     whenJustM (render_of track) $ \(block_id, track_id, _) ->
-        if TrackTree.tevents_sliced track
+        if TrackTree.track_sliced track
             then put_signal_fragment block_id track_id sig
             else put_unwarped_signal block_id track_id sig
 
@@ -382,9 +382,9 @@ put_track_signal block_id track_id tsig = Internal.merge_collect $ mempty
     { Derive.collect_track_signals = Map.singleton (block_id, track_id) tsig }
 
 -- | Get render information if this track wants a TrackSignal.
-render_of :: TrackTree.TrackEvents
+render_of :: TrackTree.Track
     -> Derive.Deriver (Maybe (BlockId, TrackId, Maybe Track.RenderSource))
-render_of tevents = case TrackTree.tevents_block_track_id tevents of
+render_of track = case TrackTree.track_block_track_id track of
     Nothing -> return Nothing
     Just (block_id, track_id) -> do
         (btrack, track) <- get_block_track block_id track_id
