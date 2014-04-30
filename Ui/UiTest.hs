@@ -5,6 +5,7 @@
 {-# LANGUAGE CPP #-}
 module Ui.UiTest where
 import qualified Control.Monad.Identity as Identity
+import qualified Data.Char as Char
 import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
@@ -252,6 +253,13 @@ mk_tid_block block_id i
 
 mk_tid_name :: String -> TrackNum -> TrackId
 mk_tid_name = mk_tid_block . bid
+
+-- | Get a TrackNum back out of a 'mk_tid' call.
+tid_tracknum :: TrackId -> TrackNum
+tid_tracknum = parse . Seq.rtake_while Char.isDigit . untxt . Id.ident_name
+    where
+    parse "" = -1
+    parse ds = read ds
 
 -- * actions
 

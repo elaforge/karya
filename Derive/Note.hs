@@ -113,11 +113,14 @@ import Types
 -- * note track
 
 -- | Top level deriver for note tracks.
-d_note_track :: TrackTree.EventsNode -> Derive.NoteDeriver
-d_note_track (Tree.Node track subs) =
-    title $ derive_notes (track_info track subs)
-        (Events.ascending (TrackTree.tevents_events track))
+d_note_track :: ([TrackTree.EventsNode] -> Derive.NoteDeriver)
+    -- ^ This is used to derive orphans, as documented by
+    -- 'Call.derive_note_track'.
+    -> TrackTree.EventsNode -> Derive.NoteDeriver
+d_note_track derive_tracks (Tree.Node track subs) =
+    title $ derive_notes derive_tracks (track_info track subs) events
     where
+    events = Events.ascending (TrackTree.tevents_events track)
     title = with_title subs (TrackTree.tevents_range track)
         (TrackTree.tevents_title track)
 
@@ -165,11 +168,12 @@ with_title subs (start, end) title deriver
     info = (Derive.dummy_call_info start (end - start) "note track")
         { Derive.info_sub_tracks = subs }
 
-derive_notes :: Call.TrackInfo -> [Event.Event] -> Derive.NoteDeriver
-derive_notes tinfo events = do
+derive_notes :: (TrackTree.EventsTree -> Derive.NoteDeriver) -> Call.TrackInfo
+    -> [Event.Event] -> Derive.NoteDeriver
+derive_notes derive_tracks tinfo events = do
     state <- Derive.get
-    let (event_groups, collect) = Call.derive_track state tinfo
-            (\_ _ -> Nothing) events
+    let (event_groups, collect) =
+            Call.derive_note_track derive_tracks state tinfo events
     Internal.merge_collect collect
     return $ Derive.merge_asc_events event_groups
 

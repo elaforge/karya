@@ -846,7 +846,7 @@ instance DeepSeq.NFData Integrated where
 -- *scale because that only happens post-inversion.  In addition, an orphan
 -- track is only seen in sliced form.
 --
--- I really want to record the dynamic of each track as if there were no
+-- I really want to record the Dynamic of each track as if there were no
 -- slicing, but that would require a whole new derive pass.  I think I could
 -- fix this by storing TrackDynamics by (BlockId, TrackId, Maybe TrackTime),
 -- and have the lookup function find the most specific one.
@@ -870,27 +870,27 @@ instance DeepSeq.NFData Integrated where
 -- them after I drop the initial 0, as in 'merge_controls'.  This only works
 -- because the slices are evaluated and mappended in order.
 newtype TrackDynamic = TrackDynamic (Map.Map (BlockId, TrackId) Dynamic)
-    deriving (Show, DeepSeq.NFData, Pretty.Pretty)
+    deriving (Show, DeepSeq.NFData, Pretty.Pretty, Monoid.Monoid)
 
-instance Monoid.Monoid TrackDynamic where
-    mempty = TrackDynamic mempty
-    mappend (TrackDynamic d1) (TrackDynamic d2) =
-        TrackDynamic $ Map.unionWith merge d1 d2
-        where
-        merge d1 d2 = d2
-            { state_environ = state_environ d1
-            , state_controls = Map.unionWith merge_controls
-                (state_controls d1) (state_controls d2)
-            }
-
-merge_controls :: Score.TypedControl -> Score.TypedControl -> Score.TypedControl
-merge_controls (Score.Typed typ c1) (Score.Typed _ c2) =
-    -- c1 is the new one being merged in, c2 is the old one.
-    Score.Typed typ (c2 <> drop0 c1)
-    where
-    drop0 sig = case Signal.head sig of
-        Just (0, 0) -> Signal.drop 1 sig
-        _ -> sig
+-- instance Monoid.Monoid TrackDynamic where
+--     mempty = TrackDynamic mempty
+--     mappend (TrackDynamic d1) (TrackDynamic d2) =
+--         TrackDynamic $ Map.unionWith merge d1 d2
+--         where
+--         merge d1 d2 = d2
+--             { state_environ = state_environ d1
+--             , state_controls = Map.unionWith merge_controls
+--                 (state_controls d1) (state_controls d2)
+--             }
+--
+-- merge_controls :: Score.TypedControl -> Score.TypedControl -> Score.TypedControl
+-- merge_controls (Score.Typed typ c1) (Score.Typed _ c2) =
+--     -- c1 is the new one being merged in, c2 is the old one.
+--     Score.Typed typ (c2 <> drop0 c1)
+--     where
+--     drop0 sig = case Signal.head sig of
+--         Just (0, 0) -> Signal.drop 1 sig
+--         _ -> sig
 
 
 -- ** calls
@@ -1007,8 +1007,9 @@ data CallInfo val = CallInfo {
 
     -- | This is the track range from 'State.tevents_range'.  For sliced
     -- tracks, it will tell where in the track the slice lies.  This is needed
-    -- for 'Stack.Region' entries.
-    , info_track_range :: !(ScoreTime, ScoreTime)
+    -- for 'Stack.Region' entries.  This should be in absolute TrackTime, not
+    -- ScoreTime.
+    , info_track_range :: !(TrackTime, TrackTime)
 
     -- | If true, this call is being run under inversion.  This means that
     -- it's the second time it's been seen, though not necessarily executed.
@@ -1027,7 +1028,7 @@ data CallInfo val = CallInfo {
     , info_track_type :: !(Maybe ParseTitle.Type)
     }
 
-instance (Pretty.Pretty val) => Pretty.Pretty (CallInfo val) where
+instance Pretty.Pretty val => Pretty.Pretty (CallInfo val) where
     format (CallInfo expr prev_val event prev_events next_events event_end
             track_range inverted sub_tracks sub_events track_type) =
         Pretty.record_title "CallInfo"

@@ -4,6 +4,7 @@
 
 module Derive.Call_test where
 import qualified Data.Map as Map
+import qualified Data.Set as Set
 
 import Util.Control
 import qualified Util.Log as Log
@@ -28,15 +29,16 @@ import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Environ as Environ
 import qualified Derive.Instrument.DUtil as DUtil
-import qualified Derive.Scale.Legong as Legong
 import qualified Derive.Score as Score
 import qualified Derive.Sig as Sig
 import qualified Derive.TrackLang as TrackLang
+import qualified Derive.TrackWarp as TrackWarp
 
 import qualified Perform.Midi.Instrument as Instrument
 import qualified Perform.Signal as Signal
 import qualified Instrument.MidiDb as MidiDb
 import qualified App.MidiInst as MidiInst
+import Types
 
 
 test_assign_controls = do
@@ -197,56 +199,83 @@ test_inverting_around = do
             Derive.at (Args.start args) $ Util.pitched_note next_pitch
 
 test_track_dynamic = do
-    let extract ex = map ex . Map.assocs . (\(Derive.TrackDynamic d) -> d)
-            . Derive.r_track_dynamic
-        e_scale_inst ((bid, tid), dyn) =
-            ( bid, tid
-            , TrackLang.lookup_val Environ.scale env
-            , TrackLang.lookup_val Environ.instrument env
-            )
+    let e_scale_inst dyn =
+            (env_lookup Environ.scale env, env_lookup Environ.instrument env)
             where env = Derive.state_environ dyn
+        block_id = UiTest.default_block_id
+
     let res = DeriveTest.derive_blocks
             [ ("b", [("*legong", [(0, 0, "1")]), (">i1", [(0, 1, "sub")])])
             , ("sub", [(">", [(0, 1, "")]), ("*", [(0, 0, "2")])])
             ]
-    let inst = Just $ TrackLang.VInstrument $ Score.Instrument "i1"
-        scale = Just $ TrackLang.VSymbol $
-            TrackLang.scale_id_to_sym Legong.scale_id
-    equal (extract e_scale_inst res)
-        [ (UiTest.bid "b", UiTest.mk_tid_name "b" 1, scale, Nothing)
-        , (UiTest.bid "b", UiTest.mk_tid_name "b" 2, scale, inst)
-        , (UiTest.bid "sub", UiTest.mk_tid_name "sub" 1, scale, inst)
-        , (UiTest.bid "sub", UiTest.mk_tid_name "sub" 2, scale, inst)
+    equal (e_track_dynamic e_scale_inst res)
+        [ ((UiTest.bid "b", 1), ("legong", "Nothing"))
+        , ((UiTest.bid "b", 2), ("legong", ">i1"))
+        , ((UiTest.bid "sub", 1), ("legong", ">i1"))
+        , ((UiTest.bid "sub", 2), ("legong", ">i1"))
         ]
 
+    -- I get TrackDynamics from the *legong track even when there are 0 events
+    -- on it.
     let res = DeriveTest.derive_tracks ""
-            [ (">", [(0, 1, ""), (1, 1, ""), (2, 1, "")])
-            , ("dyn", [(0, 1, ".25"), (1, 0, ".5"), (2, 0, ".75")])
-            , ("dyn", [(0, 1, ".25"), (1, 0, ".5"), (2, 0, ".75")])
-            ]
-    let e_controls ((bid, tid), dyn) =
-            (bid, tid, (Signal.unsignal . Score.typed_val) <$>
-                (Map.lookup Controls.dynamic (Derive.state_controls dyn)))
-    equal (extract e_controls res)
-        [ (UiTest.bid "b1", UiTest.mk_tid 1,
-            Just [(0, 0.25 * 0.25), (1, 0.5 * 0.5), (2, 0.75 * 0.75)])
-        , (UiTest.bid "b1", UiTest.mk_tid 2, Just [(0, 1)])
-        , (UiTest.bid "b1", UiTest.mk_tid 3,
-            Just [(0, 0.25), (1, 0.5), (2, 0.75)])
+            [(">i1", [(0, 1, "")]), ("*legong", [])]
+            -- [(">i1", [(0, 1, "")]), ("*legong", [(0, 0, "4i")])]
+    equal (e_track_dynamic e_scale_inst res)
+        [ ((block_id, 1), ("legong", ">i1"))
+        , ((block_id, 2), ("legong", ">i1"))
         ]
+
+    -- TODO fix this next
+    -- let res = DeriveTest.derive_tracks_linear ""
+    --         [ ("dyn", [(0, 0, ".5")])
+    --         , (">", [(0, 1, ""), (1, 1, ""), (2, 1, "")])
+    --         , ("dyn", [(0, 0, ".25"), (1, 0, ".5"), (2, 0, ".75")])
+    --         , ("dyn", [(0, 0, ".25"), (1, 0, ".5"), (2, 0, ".75")])
+    --         ]
+    -- let e_controls dyn = Signal.unsignal . Score.typed_val <$>
+    --         Map.lookup Controls.dynamic (Derive.state_controls dyn)
+    -- equal (e_track_dynamic e_controls res)
+    --     [((block_id, n), Just [(0, 0.5)]) | n <- [1..4]]
+
+test_track_dynamic_consistent = do
+    -- Ensure that all parts of the Dynamic come from the same derivation of
+    -- the track.
+    let run e = lookup (UiTest.bid "sub", 1) $
+            e_track_dynamic e $ DeriveTest.derive_blocks
+            [ ("top",
+                [ ("> | env = a", [(0, 1, "sub")])
+                , ("> | env = b | %c = 1", [(0, 1, "sub")])
+                ])
+            , ("sub", [(">", [(0, 1, "")])])
+            ]
+        e_env = env_lookup "env" . Derive.state_environ
+        e_control = fmap (Signal.unsignal . Score.typed_val) . Map.lookup "c"
+            . Derive.state_controls
+    -- %c is only set in the env=b branch, so it shouldn't be set when env=a.
+    -- That's probably because of how the controls are merged.
+    equal (run e_env) (Just "a")
+    equal (run e_control) (Just Nothing)
+
+env_lookup :: TrackLang.ValName -> TrackLang.Environ -> String
+env_lookup key = pretty . TrackLang.lookup_val key
+
+e_track_dynamic :: (Derive.Dynamic -> a) -> Derive.Result
+    -> [((BlockId, TrackNum), a)]
+e_track_dynamic extract = map (first (second UiTest.tid_tracknum))
+    . Map.toList . fmap extract . x . Derive.r_track_dynamic
+    where x (Derive.TrackDynamic d) = d
 
 test_track_dynamic_invert = do
     -- Ensure the correct TrackDynamic is collected even in the presence of
     -- inversion.
-    let run = extract . DeriveTest.derive_tracks ""
-        extract = Map.toList . Map.map (e_env . Derive.state_environ)
-            . (\(Derive.TrackDynamic d) -> d) . Derive.r_track_dynamic
+    let run = e_track_dynamic (e_env . Derive.state_environ)
+            . DeriveTest.derive_tracks ""
         e_env e = (lookup Environ.instrument e, lookup Environ.scale e)
         lookup val = pretty . TrackLang.lookup_val val
     -- Both tracks get *legong, even though >inst has to be inverted to see it.
     equal (run [(">i", [(0, 0, "")]), ("*legong", [(0, 0, "1")])])
-        [ ((UiTest.default_block_id, UiTest.mk_tid 1), (">i", "legong"))
-        , ((UiTest.default_block_id, UiTest.mk_tid 2), (">i", "legong"))
+        [ ((UiTest.default_block_id, 1), (">i", "legong"))
+        , ((UiTest.default_block_id, 2), (">i", "legong"))
         ]
 
 test_reapply_gen = do
@@ -265,6 +294,105 @@ test_reapply_gen = do
             [ Drums.Note "a" (Score.attr "a") 'a' 1
             , Drums.Note "b" (Score.attr "b") 'b' 1
             ]
+
+-- * test orphans
+
+test_orphans = do
+    let extract = DeriveTest.extract_events Score.event_start
+    let run = extract . DeriveTest.derive_tracks_with_ui with_calls
+            DeriveTest.with_linear ""
+        with_calls = CallTest.with_note_generator "show" show_subs
+    -- uncovered events are still played
+    equal (run
+            [ (">i1", [(1, 1, "show")])
+            , (">i2", [(0, 1, ""), (1, 1, ""), (2, 1, "")])
+            ])
+        [0, 2]
+    -- as above, but with tuplet, verify it gets the correct subs
+    equal (run
+            [ (">", [(1, 4, "t")])
+            , (">", [(0, 1, ""), (1, 1, ""), (2, 1, ""), (5, 1, "")])
+            ])
+        [0, 1, 3, 5]
+
+    -- 0 dur captures the matching event below
+    equal (run
+            [ (">", [(1, 0, "show")])
+            , (">", [(0, 1, ""), (1, 1, ""), (2, 1, "")])
+            ])
+        [0, 2]
+
+    -- empty track above is ignored completely
+    equal (run
+            [ (">", [])
+            , (">", [(0, 1, ""), (1, 1, ""), (2, 1, "")])
+            ])
+        [0, 1, 2]
+    where
+    show_subs :: Derive.Generator Derive.Note
+    show_subs = Derive.make_call "test" "show" mempty "doc" $
+        Sig.call0 $ \args -> do
+            let subs = Derive.info_sub_tracks (Derive.passed_info args)
+            Log.warn $ pretty subs
+            return []
+
+test_record_empty_tracks = do
+    -- Ensure that TrackWarps and TrackDynamics are collected for empty tracks.
+    let run = DeriveTest.derive_tracks_linear ""
+        track_warps = concatMap (Set.toList . TrackWarp.tw_tracks)
+            . Derive.r_track_warps
+        track_dyn = Map.keys . (\(Derive.TrackDynamic d) -> d)
+            . Derive.r_track_dynamic
+
+    let result = run [(">i1", []), (">i2", []), (">i3", [(0, 1, "")])]
+    equal (track_warps result) (map UiTest.mk_tid [1, 2, 3])
+    equal (track_dyn result)
+        (map (((,) UiTest.default_block_id) . UiTest.mk_tid) [1, 2, 3])
+
+test_empty_parent_track = do
+    -- Ensure orphan tracks pick the instrument up from the parent.
+    -- Well, the absentee parent, since they're orphans.
+    let run = DeriveTest.extract extract . DeriveTest.derive_tracks_linear ""
+        extract e = (Score.event_start e, DeriveTest.e_inst e)
+    equal (run [(">i1", [(0, 1, "t")]), (">", [(0, 1, "")])]) ([(0, "i1")], [])
+    equal (run [(">i1", []), (">", [(0, 1, "")])]) ([(0, "i1")], [])
+
+test_two_level_orphans = do
+    -- Orphan extraction should be recursive, in case there are multiple
+    -- intervening empty tracks.
+    let run = DeriveTest.extract extract . DeriveTest.derive_tracks_linear ""
+        extract e = (DeriveTest.e_note e, DeriveTest.e_attributes e)
+    equal (run
+        [ (">i", [(0, 1, "+a")])
+        , (">", [(1, 1, "+b")])
+        , (">", [(2, 1, "+c")])
+        , (">", [(0, 1, ""), (1, 1, ""), (2, 1, "")])
+        , ("*", [(0, 0, "4c"), (1, 0, "4d"), (2, 0, "4e")])
+        ])
+        ([((0, 1, "4c"), "+a"), ((1, 1, "4d"), "+b"), ((2, 1, "4e"), "+c")],
+            [])
+
+test_orphan_ranges = do
+    -- These test TrackTree.tevents_end, indirectly by making sure it clips
+    -- or doesn't clip signal correctly.
+    let run = DeriveTest.extract DeriveTest.e_nns
+            . DeriveTest.derive_tracks_linear ""
+    -- Each note has only its control.
+    equal (run
+        [ (">", [(1, 3, "(")])
+        , (">", [])
+        , (">", [(1, 1, "n --a"), (2, 1, "n --b")])
+        , ("*", [(1, 0, "4c"), (2, 0, "4d")])
+        ])
+        ([[(1, 60)], [(2, 62)]], [])
+
+    -- The note has the pitch after its end.
+    equal (run
+        [ ("*", [(0, 0, "4c"), (10, 0, "4d")])
+        , (">", [])
+        , (">", [(0, 1, "")])
+        ])
+        ([[(0, 60), (10, 62)]], [])
 
 -- * implementation
 

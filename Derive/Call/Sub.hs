@@ -12,7 +12,7 @@ module Derive.Call.Sub (
     -- ** events
     , Event(..), event_end, event_overlaps, map_event, map_events
     , stretch
-    , has_sub_events, sub_events
+    , sub_events
     , place, place_at
     -- * reapply
     , reapply, reapply_call
@@ -24,7 +24,9 @@ import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 
 import qualified Ui.Event as Event
+import qualified Ui.Events as Events
 import qualified Ui.TrackTree as TrackTree
+
 import qualified Derive.Args as Args
 import qualified Derive.Call as Call
 import qualified Derive.Call.BlockUtil as BlockUtil
@@ -99,7 +101,7 @@ invert_call around args = case Derive.info_sub_tracks info of
     event = Derive.info_event info
     info = Derive.passed_info args
 
-invert :: (Int, Int) -> (ScoreTime, ScoreTime) -> TrackTree.EventsTree
+invert :: (Int, Int) -> (TrackTime, TrackTime) -> TrackTree.EventsTree
     -> ScoreTime -> ScoreTime -> ScoreTime -> Event.Text
     -> ([Event.Event], [Event.Event])
     -> Derive.Deriver TrackTree.EventsTree
@@ -112,13 +114,12 @@ invert around (track_start, _) subs start end next_start text events_around = do
     -- more explicit to put TrackId into CallInfo.
     track_id <- stack_track_id
     let sliced = slice track_id
-    whenJust (non_bottom_note_track sliced) $ \track ->
-        Derive.throw $
-            "inverting below a note track will lead to an endless loop: "
-            <> pretty (TrackTree.tevents_track_id track)
+    whenJust (non_bottom_note_track sliced) $ \track -> Derive.throw $
+        "inverting below a note track will lead to an endless loop: "
+        <> pretty (TrackTree.tevents_track_id track)
     return sliced
     where
-    slice track_id = concatMap Slice.strip_empty_tracks $
+    slice track_id =
         Slice.slice False around start next_start (Just (insert track_id)) subs
     -- Use 'next_start' instead of track_end because in the absence of a next
     -- note, the track end becomes next note and clips controls.
@@ -138,11 +139,15 @@ stack_track_id = Seq.head . mapMaybe Stack.track_of . Stack.innermost
 -- if there are overlapping sub-events that also invert, or confusing results
 -- if there are non-overlapping or non-inverting sub-events.  Either way, I
 -- don't think I want it.
+--
+-- An exception is if the note track is empty, since I can be sure there are
+-- no inverting calls in that case.
 non_bottom_note_track :: TrackTree.EventsTree -> Maybe TrackTree.TrackEvents
 non_bottom_note_track tree = Seq.head (concatMap go tree)
     where
     go (Tree.Node track subs)
         | ParseTitle.is_note_track (TrackTree.tevents_title track)
+            && not (Events.null (TrackTree.tevents_events track))
             && not (null subs) = [track]
         | otherwise = concatMap go subs
 
@@ -181,19 +186,13 @@ instance Show Event where
     show (Event start dur _) = "Event " ++ show start ++ " " ++ show dur
 instance Pretty.Pretty Event where pretty = show
 
--- | True if the are sub-events below this one.
-has_sub_events :: Derive.PassedArgs d -> Bool
-has_sub_events args =
-    any (not . null) $ Slice.slice_notes start end $
-        Derive.info_sub_tracks (Derive.passed_info args)
-    where (start, end) = Args.range args
-
 -- | Get the Events of subtracks, if any, returning one list of events per sub
 -- note track.  This is the top-level utility for note calls that take other
 -- note calls as arguments.
 sub_events :: Derive.PassedArgs d -> Derive.Deriver [[Event]]
 sub_events args = case Derive.info_sub_events (Derive.passed_info args) of
-    Nothing -> map (map mkevent) <$> Slice.checked_slice_notes start end subs
+    Nothing -> either Derive.throw (return . (map (map mkevent))) $
+        Slice.checked_slice_notes False start end subs
     Just events -> return $ map (map (\(s, d, n) -> Event s d n)) events
     where
     (start, end) = Args.range args

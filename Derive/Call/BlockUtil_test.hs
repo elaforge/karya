@@ -4,18 +4,14 @@
 
 module Derive.Call.BlockUtil_test where
 import qualified Data.Map as Map
-import qualified Data.Set as Set
 
 import Util.Control
 import Util.Test
 import qualified Ui.UiTest as UiTest
-import qualified Derive.Call.CallTest as CallTest
 import qualified Derive.Controls as Controls
 import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Score as Score
-import qualified Derive.Sig as Sig
-import qualified Derive.TrackWarp as TrackWarp
 
 import qualified Perform.Signal as Signal
 
@@ -56,79 +52,6 @@ test_compile = do
     -- The pitch signal gets truncated so it doesn't look like the note's decay
     -- wants to change pitch.
     equal (pitches events) [psig 1, psig 2, psig 7]
-
-test_extract_orphans = do
-    let extract = fst . DeriveTest.extract Score.event_start
-    let run = extract . DeriveTest.derive_tracks_with_ui with_calls
-            DeriveTest.with_linear ""
-        with_calls = CallTest.with_note_generator "show" show_subs
-    -- uncovered events are still played
-    equal (run
-            [ (">i1", [(1, 1, "show")])
-            , (">i2", [(0, 1, ""), (1, 1, ""), (2, 1, "")])
-            ])
-        [0, 2]
-    -- as above, but with tuplet, verify it gets the correct subs
-    equal (run
-            [ (">", [(1, 4, "t")])
-            , (">", [(0, 1, ""), (1, 1, ""), (2, 1, ""), (5, 1, "")])
-            ])
-        [0, 1, 3, 5]
-    -- 0 dur captures the matching event below
-    equal (run
-            [ (">", [(1, 0, "show")])
-            , (">", [(0, 1, ""), (1, 1, ""), (2, 1, "")])
-            ])
-        [0, 2]
-    -- empty track above is ignored completely
-    equal (run
-            [ (">", [])
-            , (">", [(0, 1, ""), (1, 1, ""), (2, 1, "")])
-            ])
-        [0, 1, 2]
-    where
-    show_subs :: Derive.Generator Derive.Note
-    show_subs = Derive.make_call "test" "show" mempty "doc" $
-        Sig.call0 $ \_ -> do
-            -- let subs = Derive.info_sub_tracks (Derive.passed_info args)
-            -- Log.warn $ show (Slice_test.extract_tree subs)
-            return []
-
-test_record_empty_tracks = do
-    -- Ensure that TrackWarps and TrackDynamics are collected for empty tracks.
-    let run = DeriveTest.derive_tracks_linear ""
-        track_warps = concatMap (Set.toList . TrackWarp.tw_tracks)
-            . Derive.r_track_warps
-        track_dyn = Map.keys . (\(Derive.TrackDynamic d) -> d)
-            . Derive.r_track_dynamic
-
-    let result = run [(">i1", []), (">i2", []), (">i3", [(0, 1, "")])]
-    equal (track_warps result) (map UiTest.mk_tid [1, 2, 3])
-    equal (track_dyn result)
-        (map (((,) UiTest.default_block_id) . UiTest.mk_tid) [1, 2, 3])
-
-test_two_level_orphans = do
-    -- Orphan extraction should be recursive, in case there are multiple
-    -- intervening empty tracks.
-    let run = DeriveTest.extract extract . DeriveTest.derive_tracks_linear ""
-        extract e = (DeriveTest.e_note e, DeriveTest.e_attributes e)
-    equal (run
-        [ (">i", [(0, 1, "+a")])
-        , (">", [(1, 1, "+b")])
-        , (">", [(2, 1, "+c")])
-        , (">", [(0, 1, ""), (1, 1, ""), (2, 1, "")])
-        , ("*", [(0, 0, "4c"), (1, 0, "4d"), (2, 0, "4e")])
-        ])
-        ([((0, 1, "4c"), "+a"), ((1, 1, "4d"), "+b"), ((2, 1, "4e"), "+c")],
-            [])
-
-test_empty_parent_track = do
-    -- Ensure orphan tracks pick the instrument up from the parent.
-    -- Well, the absentee parent, since they're orphans.
-    let run = DeriveTest.extract extract . DeriveTest.derive_tracks_linear ""
-        extract e = (Score.event_start e, DeriveTest.e_inst e)
-    equal (run [(">i1", [(0, 1, "t")]), (">", [(0, 1, "")])]) ([(0, "i1")], [])
-    equal (run [(">i1", []), (">", [(0, 1, "")])]) ([(0, "i1")], [])
 
 test_control_call = do
     let run tracks = DeriveTest.extract extract $ DeriveTest.derive_blocks

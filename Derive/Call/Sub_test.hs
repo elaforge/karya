@@ -20,10 +20,10 @@ import qualified Derive.Slice_test as Slice_test
 test_invert_call = do
     let run args = DeriveTest.extract_run extract $
             DeriveTest.run State.empty (Sub.invert_call (1, 1) args)
-        extract = fmap Slice_test.extract_tree
+        extract = fmap $ fmap $ fmap Slice_test.extract_tree
     -- it's ok, it's empty
     equal (run (mkargs "" [Node (">", []) []])) $
-        Right $ Just [Node (">", [(0, 1, "")]) []]
+        Right $ Just [Node (">", []) [Node (">", [(0, 1, "")]) []]]
     -- but put an event in there and we have a problem
     left_like (run (mkargs "" [Node (">", [(0, 0, "")]) []]))
         "will lead to an endless loop"
@@ -41,11 +41,23 @@ test_invert_call = do
             , Node (control [0..4]) [Node (note "x | y") []]
             ]
 
+test_inverting = do
+    let run = DeriveTest.extract_events extract
+            . DeriveTest.derive_tracks_linear ""
+        extract e = (DeriveTest.e_note e, DeriveTest.e_attributes e)
+    -- Make sure empty tracks are stripped.  But the title of the empty track
+    -- is still applied.
+    equal (run [(">", [(0, 1, "")]), ("> | +a", []), ("*", [(0, 0, "4c")])])
+        [((0, 1, "4c"), "+a")]
+    -- Initial empty track is also stripped.
+    equal (run [(">", []), (">", [(0, 1, "")]), ("*", [(0, 0, "4c")])])
+        [((0, 1, "4c"), "+")]
+
 make_controls :: String -> [Int] -> (String, [Slice_test.Event])
 make_controls title ps = (title, [(to_score p, 0, showt p) | p <- ps])
     where to_score = ScoreTime.double . fromIntegral
 
-mkargs :: Text -> Slice_test.EventsTree -> Derive.PassedArgs d
+mkargs :: Text -> [Slice_test.EventsTree] -> Derive.PassedArgs d
 mkargs text subs = Derive.PassedArgs [] "call" info
     where
     event = Event.event 0 1 text
@@ -58,7 +70,7 @@ mkargs text subs = Derive.PassedArgs [] "call" info
         , Derive.info_event_end = event_end
         , Derive.info_track_range = (0, event_end)
         , Derive.info_inverted = False
-        , Derive.info_sub_tracks = Slice_test.make_tree subs
+        , Derive.info_sub_tracks = map Slice_test.make_tree subs
         , Derive.info_sub_events = Nothing
         , Derive.info_track_type = Nothing
         }

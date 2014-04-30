@@ -3,6 +3,137 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
+  Simplify orphan extraction by making empty note tracks evaluate their children
+    . This way I don't need to strip empty note tracks but keep their titles.
+      I originally came across this problem because I wasn't collecting
+      TrackDynamics correctly, due to their tracks being stripped:
+        Additional problem: empty *scale track is omitted from track dynamics.
+        It's because slice strips empty tracks, which is in turn because their
+        presence would stop further derivation (really?).  I need the titles
+        to establish env.  Can I solve the "stop further derivation" problem
+        by making an empty track derive its children?
+    . As a side benefit, this makes the evaluation order consistent, i.e.
+      previously it was 'mconcat (deriver : orphans)'.
+    * Fix tests
+      broken: 25 19
+      . The problem is that it only slices to the first track underneath, but
+        if that track has partial cover, then no further slicing is done.
+      - So I think I do need to slice recursively.  It's tricky because
+        branches duplicate, but everything in a branch is merged.  Can I
+        reuse code from slice_notes?  I think it does this too?
+      - After that I can avoid further orphan slicing by skipping it
+        if the track already has sliced = True.
+      - Before doing that, go see what's up with
+        NoteTransformer_test.test_tuplet_multiple_tracks
+      - And NoteTransformer_test.test_arpeggio
+        Because orphans splits it up, when it shouldn't.  I don't want to
+        split a track with multiple children unless the children have
+        *different* slice points.  How did the old one not have this
+        problem?
+
+      . Or maybe I could get rid of orphans entirely, and make the note track
+        look for orphans, and eval as if they had an 'ap' above them.  Then
+        I wouldn't need to slice at all, just collect uncovered child events.
+      . If event track has subs, then act as if the blank spaces have an 'ap'
+        call on them: first check if there are any note events below, then
+        call slice_notes on the empty range.  slice_notes should take care of
+        all the nasty duplication, find children recursively, etc.
+      Implement Derive.Call.derive_note_track
+        * I need derive_sub_notes and merging logs collect etc. is a pain,
+          so promote derive_event to monadic.
+        * Need to pass derive_tracks in, or somehow resolve the circularity.
+        . Bloom has notes allocated to different channels, and some strange
+          pitch bends, e.g. at 143.76s.  Why is allocation different?
+        . viola-sonata has new pitch bend 1.0 at 48.88s
+        . Why do tests not catch this?
+        . viola-sonata at 48.71s has 3d, 3a:
+          [ Event (50.35s, .19s) ""
+              { instrument = >vsl/viola
+              , pitch = < 50.35s:50nn,3d(*twelve), 50.53s:57nn,3a(*twelve) >
+              , pitches = {}
+              , controls =
+                  { %_dynamic-function: <0s:.69>
+                  , %dyn: < 50.35s:.69, 50.53s:.752 >
+                  , %sus-abs: <0s:.02>
+                  }
+
+          [ Event (50.35s, .19s) ""
+              { instrument = >vsl/viola
+              , pitch = <50.35s:50nn,3d(*twelve)>
+              , pitches = {}
+              , controls =
+                  { %_dynamic-function: <0s:.69>
+                  , %dyn: <50.35s:.69>
+                  , %sus-abs: <0s:.02>
+                  }
+          without empty track: 1-2, 2-3
+          with: 1-3, 2-5
+          Derive.info_event_end, presumably empty track causes a wider slice.
+        * So the new code has extra pitch and control samples.  Make a test
+          for that.
+        * Slice tests for tevents_range etc.
+        * bloom is missing pedal up at 129.36s chan:8 ControlChange 64 0
+          I'm guessing it's due to the control being cut off due to
+          tevents_end being too short.
+          . slice_notes trims to the note boundaries, which snips off any
+            controls that happen afterwards.  I need to ensure tevents_end
+            remains at the next start or end of block.  I can extend note
+            slicing to the next start, is this really correct?
+          . Also not right because its not the note dur, so stretch is wrong.
+            So I want tevents_end to be different from the slice's returned
+            duration.
+        * Also has: loop1 150.34s: chan:1 NoteOn g2 0
+        - Factor out duplicated bits with 'derive_track'.
+          And get rid of non-monadic versions.
+        - Ensure that multiple sub note tracks cause the parent to slice at
+          different points, not the union of all of them.
+
+    * Slice.checked_slice_notes can return Either instead of Deriver
+    - derive_track optimization: if events empty, then just evaluate subs
+      without slicing.
+    - Remove Slice.strip_empty_tracks from Slice.checked_slice_note.
+    - Remove Slice.slice exclusive arg
+    - Revisit stricter overlap tests in Slice_test.test_overlaps
+  - data/bloom @b14 has:
+    fltk/EventTrack.cc:102 sample time decreased: 0.650101 <= 129.455
+  - why does data/bloom use so many channels?  E.g., c5 at 8.51s on chan 1
+    . I could emit logs giving output msgs along with reason for allocation.
+  Simplify TrackDynamic collection.
+    . Midi thru is off by an octave because it's going through the kantilan
+      block, so it has %t-diatonic=5, while inst=>p from the pemade block.
+      This is because controls are merged, which means if it's not set in A
+      but set in B, then B will merge in even though the environ is from A.
+      I can simplify this by not trying to merge controls, and simply using
+      the pre-invert ones.
+      . Theoretically complete control signals are available as Signal.Display
+        in ScoreTime, but that forces rederive for all tracks, not just ones
+        with render on and visible.  Dynamic collection should be cheap or
+        free, since it's frequently not used.
+      . Or I could explicitly do a derive just to collect the control tracks
+        but rely on laziness for it to not happen unless I need it.
+    . For each note track, if it doesn't have subs, record as-is.  If it does,
+      then record as-is (to get unsliced controls), and then record from the
+      first inverted instance of the note track, stripping out the controls.
+      Except for the inverted note track, only record each (BlockId, TrackId)
+      the first time.
+    - Complete Derive.Call.record_track_dynamic
+    - MidiThru can reset %dyn to 1.
+  Clean up 'tevents_range', 'tevents_end', 'tevents_shifted'.
+    . `fst . Derive.info_track_range` is used by `Args.range_on_track`, it
+      adds it to the event to get TrackTime, which is used by Cache to compare
+      against damage ranges, specifically to compare against control damage.
+    . However, Derive.Call generates a Stack.Region, which should also be in
+      TrackTime, by adding to TrackTree.tevents_shifted.
+    - change 'tevents_range' to 'tevents_absolute_start :: TrackTime'
+    - document well that tevents_range is *not* the beginning of the slice,
+      but absolute TrackTime, and may be totally different from the event
+      starts, due to shifting.
+    . I need to get 'Slice.ins_range' in absolute TrackTime because it's used
+      for Stack.Region.  No it's not, that uses tevents_shifted.  Ok, but it
+      is used by Cache.
+
+  - Rename Events.first to Events.head
+  - get rid of TrackTree.EventsTree, rename EventsNode to EventsTree
   - make Score.unwarp_pos extend the signal in the same way that 'warp_pos'
     does so I can make id_warp_signal into mempty
   / I now have a zero-dur block call, proving I will use those.  So I don't
@@ -23,6 +154,16 @@ UNSORTED
       result in funny sounds instead of an out of range error and a normal i4?
     - Also midi thru is off by an octave, presumably confused by pemade
       / kantilan.
+      . 3i plays as 4i, thru is one octave to high in the child block
+      . The environ has >p-umbang, maybe because of control vs. environ
+        Collect merge hack.
+      * Make a test that demonstrates control/environ inconsistency.
+        * Is it even necessary?  Why does it all work?
+          Because it only applies to note tracks!  So I should only have to
+          strip note tracks?  But I still want the transform titles.
+          Or just have note tracks derive their subs if they're empty.
+        * Can I get rid of the empty tracks from 'Slice.extract_orphans'?
+
     - Do different things in polos and sangsih:
       'when (is-polos) |' and 'when (is-sangsih) |'
       I'd want a boolean type, or should I embed it in Int?
@@ -37,12 +178,6 @@ UNSORTED
   + Write a fancy tile like ViewConfig.horizontal_tile but guesses if you mean
     to tile vertically.
   - derive Generic and use GHC.Generics to make a generic pretty for records?
-  - For call doc, can I group calls with the same doc but different args,
-    especially different defaults?
-    . Would look like:
-      doc doc doc generator
-      bind -- name
-        args
   . How to manage dynamics?  I want to give the overall dyn, but have the
     parts have dynamics within that.  But the problem with multiplication
     is that it sets a ceiling on the dynamic, where I want it to set
@@ -81,8 +216,6 @@ UNSORTED
               |++++|...
             --|  --|
               |++  |...
-  - There's a bug where if you zoom-to-fit and then click, the selection snap
-    can undo the zoom.  Can't figure out how to reproduce this.
   - in rehearsal/telek, one ugal sometimes gets stuck on +mute, why doesn't
     a new play send the keyswitch?
   * In save/rehearsal/telek, all edits are laggy.
@@ -237,6 +370,12 @@ documentation
   - update screenshots: doc/img/ly-example.png
   - Publish haddock with http://documentup.com/feuerbach/standalone-haddock
   call doc:
+    - For call doc, can I group calls with the same doc but different args,
+      especially different defaults?
+      . Would look like:
+        doc doc doc generator
+        bind -- name
+          args
     - hide sections whose calls are all hidden
     - I could go look through arg docs for controls and list all the controls
       that have someone listening to them in a certain scope.
@@ -570,6 +709,8 @@ fltk:
     - If I wrapped track titles I could see the entire thing, but at the cost
       of using more vertical space.
   - There's a focus bug, but I'm not sure how to reproduce it.
+  - There's a bug where if you zoom-to-fit and then click, the selection snap
+    can undo the zoom.  Can't figure out how to reproduce this.
   + can I get fltk to omit the jellybean buttons on the window?
     . Yes, but requires hacking fltk.
     . Completely disables resizing.  Apparently this is hardcoded.

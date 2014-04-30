@@ -142,9 +142,10 @@ data TrackEvents = TrackEvents {
     -- a track and certain track-level things should be skipped.
     , tevents_sliced :: !Bool
     -- | True if this was created as a result of inversion.  It's just here
-    -- to hand off to 'Derive.info_inverted'.
+    -- to hand off to 'Derive.info_inverted'.  If this is True,
+    -- 'tevents_sliced' will also be True.  TODO so why not a 3 state type?
     , tevents_inverted :: !Bool
-    -- | These events are not evaluated, but go in the
+    -- | These events are not evaluated, but go in
     -- 'Derive.Derive.info_prev_events' and info_next_events.  This is so that
     -- sliced calls (such as inverting calls) can see previous and following
     -- events.
@@ -152,11 +153,17 @@ data TrackEvents = TrackEvents {
 
     -- | If the events have been shifted from their original positions on the
     -- track, this can be added to them to put them back in TrackTime.  This is
-    -- for the stack, which should always be in TrackTime.  It's probably the
-    -- same as @fst . tevents_range@, but only applies if the events have been
-    -- shifted, which you can't tell from just looking at @tevents_range@.
+    -- for the stack, which should always be in TrackTime.
+    --
+    -- It's probably the same as @fst . tevents_range@, but only applies if the
+    -- events have been shifted, which you can't tell from just looking at
+    -- @tevents_range@.
     , tevents_shifted :: !ScoreTime
     } deriving (Show)
+
+tevents_track_start, tevents_track_end :: TrackEvents -> TrackTime
+tevents_track_start = fst . tevents_range
+tevents_track_end = snd . tevents_range
 
 instance Pretty.Pretty TrackEvents where
     format (TrackEvents title events track_id block_id end range sliced

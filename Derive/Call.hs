@@ -88,7 +88,7 @@ module Derive.Call (
     -- * derive_track
     , TrackInfo(..)
     , pitch_last_sample, control_last_sample
-    , derive_track
+    , derive_control_track, derive_note_track
     , defragment_track_signals, unwarp
 
     -- * eval / apply
@@ -126,7 +126,7 @@ import qualified Derive.ParseTitle as ParseTitle
 import qualified Derive.PitchSignal as PitchSignal
 import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
-import qualified Derive.Stack as Stack
+import qualified Derive.Slice as Slice
 import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.RealTime as RealTime
@@ -236,16 +236,10 @@ apply_pitch :: ScoreTime -> Derive.ValCall -> Derive.Deriver TrackLang.Val
 apply_pitch pos call = apply cinfo call []
     where cinfo = Derive.dummy_call_info pos 0 "<apply_pitch>"
 
--- | Evaluate a single expression.
+-- | Evaluate a single expression, catching an exception if it throws.
 eval_expr :: (Derive.Callable d) => CallInfo d -> TrackLang.Expr
     -> Derive.LogsDeriver d
-eval_expr cinfo expr = do
-    state <- Derive.get
-    let (res, logs, collect) = apply_toplevel state cinfo expr
-    -- I guess this could set collect to mempty and then merge it back in,
-    -- but I think this is the same with less work.
-    Derive.modify $ \st -> st { Derive.state_collect = collect }
-    return $ Derive.merge_logs res logs
+eval_expr cinfo expr = fromMaybe [] <$> Derive.catch (apply_toplevel cinfo expr)
 
 -- | Parse and apply a transform expression.
 apply_transform :: (Derive.Callable d) => Text -> Text
@@ -299,48 +293,122 @@ get_last f prev (Right derived) =
         Just elt -> f prev elt
         Nothing -> prev
 
--- | This is the toplevel function to derive a track.  It's responsible for
--- actually evaluating each event.
---
--- There's a certain amount of hairiness in here because note and control
--- tracks are mostly but not quite the same and because calls get a lot of
--- auxiliary data in 'Derive.CallInfo'.
-derive_track :: forall d. (Derive.Callable d) =>
-    -- forall and ScopedTypeVariables needed for the inner 'go' signature
+-- | This is the toplevel function to derive control tracks.  It's responsible
+-- for actually evaluating each event.
+derive_control_track :: forall d. Derive.Callable d =>
     Derive.State -> TrackInfo -> GetLastSample d
     -> [Event.Event] -> ([LEvent.LEvents d], Derive.Collect)
-derive_track state tinfo get_last_sample events =
-    -- Notes on recording TrackDynamic at NOTE [record-track-dynamics].
-    go (Internal.record_track_dynamic state) Nothing [] events
+derive_control_track = derive_track_ derive_section
+    where derive_section _ _ _ deriver = deriver
+
+-- | Derive a note track.  This is different from 'derive_control_track' in
+-- two ways: it doesn't keep track of the previous sample, and it evaluates
+-- orphans.
+--
+-- Orphans are uncovered events in note tracks in the sub-tracks.  They are
+-- extracted with 'Slice.checked_slice_notes' and evaluated as-is.  The effect
+-- is that note transformers can be stacked horizontally, and tracks left empty
+-- have no effect, except whatever transformers they may have in their titles.
+derive_note_track :: (TrackTree.EventsTree -> Derive.NoteDeriver)
+    -> Derive.State -> TrackInfo -> [Event.Event]
+    -> ([[LEvent.LEvent Score.Event]], Derive.Collect)
+derive_note_track derive_tracks state tinfo =
+    derive_track_ derive_section state tinfo get_last_sample
     where
+    get_last_sample _ _ = Nothing
+    derive_section tinfo prev events deriver =
+        maybe id (<>) (get_sub_notes tinfo prev events) deriver
+    get_sub_notes tinfo prev events =
+        derive_sub_notes derive_tracks prev
+            (maybe (TrackTree.tevents_end (tinfo_track tinfo)) Event.start
+                (Seq.head events))
+            (tinfo_sub_tracks tinfo)
+
+-- | Awkwardly factor out the common parts of 'derive_control_track' and
+-- 'derive_note_track'.
+derive_track_ :: forall d. Derive.Callable d =>
+    -- forall and ScopedTypeVariables needed for the inner 'go' signature
+    (TrackInfo -> Maybe Event.Event -> [Event.Event]
+        -> Derive.LogsDeriver d -> Derive.LogsDeriver d)
+    -> Derive.State -> TrackInfo -> GetLastSample d
+    -> [Event.Event] -> ([LEvent.LEvents d], Derive.Collect)
+derive_track_ derive_section state tinfo get_last_sample =
+    go (record state) Nothing []
+    where
+    record = record_track_dynamic (not (null (tinfo_sub_tracks tinfo)))
+        (tinfo_track tinfo)
     -- This threads the collect through each event.  I would prefer to map and
     -- mconcat, but profiling showed that to be quite a bit slower.
     go :: Derive.Collect -> PrevVal d -> [Event.Event] -> [Event.Event]
         -> ([LEvent.LEvents d], Derive.Collect)
-    go collect _ _ [] = ([], defragmented)
-        where
-        warp = Derive.state_warp $ Derive.state_dynamic state
-        defragmented
-            | TrackTree.tevents_sliced (tinfo_track tinfo) = collect
-            | otherwise = defragment_track_signals warp collect
-    go collect prev_sample prev (cur : rest) =
+    go collect prev_sample prev events =
         -- Without 'seq', the events are parsed in reverse order, presumably
         -- because the collect is forced to whnf when stashing it in the
         -- Derive.State.  The out of order lasts only until the
         -- get_generator call_id, but presumably creates a bit of drag.
         -- I don't know if it's a significant amount, but in any case this
         -- might get rid of it.
-        (events : rest_events, events `seq` final_collect)
+        (levents : rest_events, events `seq` final_collect)
         where
-        (result, logs, next_collect) =
-            derive_event (state { Derive.state_collect = collect })
-                tinfo prev_sample prev cur rest
-        (rest_events, final_collect) =
-            go next_collect next_sample (cur : prev) rest
-        events = map LEvent.Log logs ++ case result of
+        (result, out_state, logs) = Derive.run
+            (state { Derive.state_collect = collect }) $
+                derive_section tinfo (Seq.head prev) events derive
+        derive = case events of
+            [] -> return []
+            cur : rest -> derive_event tinfo prev_sample prev cur rest
+        (rest_events, final_collect) = case events of
+            [] -> ([], Derive.state_collect out_state)
+            cur : rest -> go (Derive.state_collect out_state) next_sample
+                (cur : prev) rest
+        levents = map LEvent.Log logs ++ case result of
             Right stream -> stream
             Left err -> [LEvent.Log (Derive.error_to_warn err)]
         next_sample = get_last_sample prev_sample result
+
+derive_sub_notes :: (TrackTree.EventsTree -> Derive.NoteDeriver)
+    -> Maybe Event.Event -> TrackTime -> TrackTree.EventsTree
+    -> Maybe Derive.NoteDeriver
+    -- ^ The Maybe is a micro-optimization to avoid returning 'mempty'.  This
+    -- is because 'Derive.d_merge' doesn't know that one of its operands is
+    -- empty, and does all the splitting of and restoring collect bother.
+    -- I expect lots of empties here so maybe it makes a difference.
+derive_sub_notes derive_tracks prev end subs
+    | start == end = Nothing
+    | otherwise = case concat <$> sliced of
+        Left err -> Just $ Log.warn err >> return []
+        Right [] -> Nothing
+        Right notes -> Just $ mconcatMap place notes
+        -- Right notes -> Just $ mconcatMap place $ Debug.trace_retp "orphan subs" (start, end, prev, subs) notes
+    where
+    sliced = Slice.checked_slice_notes exclude_start start end subs
+    exclude_start = maybe False ((==0) . Event.duration) prev
+    start = maybe 0 Event.end prev
+    -- The events have been shifted back to 0 by 'Slice.slice_notes', but are
+    -- still their original lengths.
+    place (shift, _, tree) = Derive.at shift $ derive_tracks tree
+
+-- Notes on recording TrackDynamic at NOTE [record-track-dynamics].
+record_track_dynamic :: Bool -> TrackTree.TrackEvents -> Derive.State
+    -> Derive.Collect
+record_track_dynamic _has_children track state
+    -- Use the controls from the parent track.
+    -- How to get them?  The parent can see the children, but how does the
+    -- sliced child know who its parent was?
+    -- When the parent finishes, its children should already be recorded, so
+    -- it could replace them.
+    | TrackTree.tevents_sliced track = collect $
+        -- Debug.tracep ("sliced: " ++ show (TrackTree.tevents_inverted track)) $
+        Internal.record_track_dynamic $
+        dyn { Derive.state_controls = mempty }
+    | otherwise = collect $
+        -- Debug.tracep "unsliced" $
+        Internal.record_track_dynamic dyn
+    -- where dyn = Derive.state_dynamic state
+    where
+    -- k = (TrackTree.tevents_block_id track, TrackTree.tevents_track_id track)
+    -- dyn = Debug.traceps "record" k $ Derive.state_dynamic state
+    dyn = Derive.state_dynamic state
+    collect = maybe mempty (\d -> mempty { Derive.collect_track_dynamic = d })
 
 defragment_track_signals :: Score.Warp -> Derive.Collect -> Derive.Collect
 defragment_track_signals warp collect
@@ -373,30 +441,20 @@ is_linear_warp warp
         Just (Score.warp_shift warp, Score.warp_stretch warp)
     | otherwise = Nothing
 
-derive_event :: (Derive.Callable d) =>
-    Derive.State -> TrackInfo -> PrevVal d
+derive_event :: Derive.Callable d => TrackInfo -> PrevVal d
     -> [Event.Event] -- ^ previous events, in reverse order
     -> Event.Event -- ^ cur event
     -> [Event.Event] -- ^ following events
-    -> (Either Derive.Error (LEvent.LEvents d), [Log.Msg], Derive.Collect)
-derive_event st tinfo prev_sample prev event next
-    | "--" `Text.isPrefixOf` Text.dropWhile (==' ') text =
-        (Right mempty, [], Derive.state_collect st)
+    -> Derive.LogsDeriver d
+derive_event tinfo prev_sample prev event next
+    | "--" `Text.isPrefixOf` Text.dropWhile (==' ') text = return []
     | otherwise = case Parse.parse_expr text of
-        Left err ->
-            (Right mempty, [parse_error (txt err)], Derive.state_collect st)
-        Right expr -> run_call expr
+        Left err -> Log.warn err >> return []
+        Right expr -> Internal.with_stack_region (Event.min event + shifted)
+            (Event.max event + shifted) $ apply_toplevel cinfo expr
     where
+    shifted = TrackTree.tevents_shifted tevents
     text = Event.event_text event
-    parse_error = Log.msg Log.Warn $
-        Just (Stack.to_strings (Derive.state_stack (Derive.state_dynamic st)))
-    run_call expr = apply_toplevel state cinfo expr
-    state = st
-        { Derive.state_dynamic = Internal.add_stack_frame
-            region (Derive.state_dynamic st)
-        }
-    region = Stack.Region (TrackTree.tevents_shifted tevents + Event.min event)
-        (TrackTree.tevents_shifted tevents + Event.max event)
     cinfo = Derive.CallInfo
         { Derive.info_expr = text
         , Derive.info_prev_val = prev_sample
@@ -420,18 +478,13 @@ derive_event st tinfo prev_sample prev event next
 -- * eval / apply
 
 -- | Apply a toplevel expression.
-apply_toplevel :: (Derive.Callable d) =>
-    Derive.State -> CallInfo d -> TrackLang.Expr
-    -> (Either Derive.Error (LEvent.LEvents d), [Log.Msg], Derive.Collect)
-apply_toplevel state cinfo expr =
-    run $ apply_transformers cinfo transform_calls $
-        apply_generator cinfo generator_call
-    where
-    (transform_calls, generator_call) = Seq.ne_viewr expr
-    run d = case Derive.run state d of
-        (result, state, logs) -> (result, logs, Derive.state_collect state)
+apply_toplevel :: Derive.Callable d => CallInfo d -> TrackLang.Expr
+    -> Derive.LogsDeriver d
+apply_toplevel cinfo expr = apply_transformers cinfo transform_calls $
+    apply_generator cinfo generator_call
+    where (transform_calls, generator_call) = Seq.ne_viewr expr
 
-apply_generator :: forall d. (Derive.Callable d) => CallInfo d
+apply_generator :: forall d. Derive.Callable d => CallInfo d
     -> TrackLang.Call -> Derive.LogsDeriver d
 apply_generator cinfo (TrackLang.Call call_id args) = do
     vals <- mapM (eval cinfo) args

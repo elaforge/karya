@@ -7,8 +7,6 @@
 -- Low level calls should do simple orthogonal things and their names are
 -- generally just one or two characters.
 module Derive.Call.Pitch where
-import qualified Data.Set as Set
-
 import Util.Control
 import qualified Util.Num as Num
 import qualified Util.Seq as Seq
@@ -56,12 +54,6 @@ pitch_calls = Derive.generator_call_map
     , ("d", c_down)
     , ("p", c_porta)
     ]
-
--- | This should contain the calls that require the previous value.  It's used
--- by a hack in 'Derive.Slice.slice'.
-require_previous :: Set.Set Text
-require_previous = Set.fromList
-    ["'", "i>", "i>>", "i<<", "e>", "e>>", "e<<", "a", "u", "d"]
 
 c_set :: Derive.Generator Derive.Pitch
 c_set = generator1 "set" mempty "Emit a pitch with no interpolation." $

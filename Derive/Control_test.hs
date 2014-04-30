@@ -198,10 +198,10 @@ test_stash_signal = do
     -- make sure that TrackSignals are recorded when control tracks are derived
     let itrack = (">i", [])
         ctrack = ("cont", [(0, 0, "1"), (1, 0, "0")])
-        csig = Signal.signal [(0, 1), (1, 0)]
+        csig = [(0, 1), (1, 0)]
     let run tracks = e_tsigs $ DeriveTest.derive_tracks_with_ui id
             (DeriveTest.with_tsig_tracknums [1 .. length tracks]) "" tracks
-    let tsig samples p x = (Signal.signal samples, p, x)
+    let tsig samples p x = (samples, p, x)
 
     equal (run [ctrack, itrack]) [(csig, 0, 1)]
     -- Constant tempo stretches track sig.
@@ -222,7 +222,7 @@ test_stash_signal = do
 
     -- pitch tracks work too
     let ptrack = ("*", [(0, 0, "4c"), (1, 0, "4d")])
-        psig = Signal.signal [(0, 60), (1, 62)]
+        psig = [(0, 60), (1, 62)]
     equal (run [ptrack, itrack]) [(psig, 0, 1)]
 
     -- Subtracks should be rendered, and their fragments merged together.
@@ -234,9 +234,12 @@ test_stash_signal = do
 test_signal_fragments = do
     let run tsig_tracks = e_tsigs . DeriveTest.derive_blocks_with_ui id
             (DeriveTest.with_tsigs tsig_tracks)
-    -- The signal fragments should only be assembled and unwarped once, despite
-    -- the fact that there are two calls to 'sub'.
-    -- Since this relies on laziness, I can only test it with Debug.trace.
+    equal (run [UiTest.mk_tid_name "b1" 2] [("b1",
+            [ (">", [(0, 1, ""), (1, 1, "")])
+            , ("dyn", [(0, 0, ".25"), (1, 0, ".5"), (2, 0, ".75")])
+            ])])
+        [([(0, 0.25), (1, 0.5), (2, 0.75)], 0, 1)]
+
     equal (run [UiTest.mk_tid_name "sub" 2]
         [ ("b1",
             [ ("tempo", [(0, 0, "1"), (10, 0, "2")])
@@ -248,7 +251,12 @@ test_signal_fragments = do
                 ["1", ".75", ".5", ".25"]])
             ])
         ])
-        [(Signal.signal [(0, 1), (1, 0.75), (2, 0.5), (3, 0.25)], 0, 1)]
+        [([(0, 1), (1, 0.75), (2, 0.5), (3, 0.25)], 0, 1)]
+
+    -- The signal fragments should only be assembled and unwarped once, despite
+    -- the fact that there are two calls to 'sub'.
+    -- Since this relies on laziness, I can only test it with Debug.trace.
+    -- TODO that's no excuse, test this for real.
 
 test_stash_signal_default_tempo = do
     -- Signal is stretched by the default tempo.
@@ -256,7 +264,7 @@ test_stash_signal_default_tempo = do
             (DeriveTest.with_tsig_tracknums [1] . set_tempo) ""
             [("*", [(0, 0, "4c"), (10, 0, "4d"), (20, 0, "4c")])]
         set_tempo = State.config#State.default_#State.tempo #= 2
-    equal r [(Signal.signal [(0, 60), (5, 62), (10, 60)], 0, 0.5)]
+    equal r [([(0, 60), (5, 62), (10, 60)], 0, 0.5)]
 
 test_track_signal_multiple = do
     -- If a track shows up in multiple blocks, it should get multiple
@@ -282,10 +290,12 @@ test_prev_val = do
             [("c", [(0, 0, ".5"), (1, 0, "'"), (2, 0, "'")])])
         ([[(0, 0.5)], [(1, 0.5)], [(2, 0.5)]], [])
 
-e_tsigs :: Derive.Result -> [(Signal.Display, ScoreTime, ScoreTime)]
+e_tsigs :: Derive.Result -> [([(RealTime, Signal.Y)], ScoreTime, ScoreTime)]
 e_tsigs = map snd . e_tsig_tracks
 
 e_tsig_tracks :: Derive.Result
-    -> [((BlockId, TrackId), (Signal.Display, ScoreTime, ScoreTime))]
+    -> [((BlockId, TrackId), ([(RealTime, Signal.Y)], ScoreTime, ScoreTime))]
 e_tsig_tracks = map (second extract) . Map.toList . Derive.r_track_signals
-    where extract (Track.TrackSignal sig shift stretch) = (sig, shift, stretch)
+    where
+    extract (Track.TrackSignal sig shift stretch) =
+        (Signal.unsignal sig, shift, stretch)

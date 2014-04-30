@@ -17,7 +17,7 @@ test_tuplet = do
 
     let tracks =
             [ (">", [(0, 12, "t")])
-            , ("*twelve", [(0, 0, "4c"), (3, 0, "4d"), (6, 0, "4e")])
+            , ("*", [(0, 0, "4c"), (3, 0, "4d"), (6, 0, "4e")])
             , (">", [(0, 3, ""), (3, 3, ""), (6, 3, "")])
             ]
     equal (run tracks) [(0, 4, "4c"), (4, 4, "4d"), (8, 4, "4e")]
@@ -26,7 +26,7 @@ test_tuplet = do
     let tracks =
             [ (">", [(0, 12, "t")])
             , (">", [(0, 3, ""), (3, 3, ""), (6, 3, "")])
-            , ("*twelve", [(0, 0, "4c"), (3, 0, "4d"), (6, 0, "4e")])
+            , ("*", [(0, 0, "4c"), (3, 0, "4d"), (6, 0, "4e")])
             ]
     equal (run tracks) [(0, 4, "4c"), (4, 4, "4d"), (8, 4, "4e")]
 
@@ -50,16 +50,12 @@ test_tuplet = do
     equal (run [(">", [(0, 4, "t")]), (">", [(2, 1, ""), (3, 1, "")])])
         [(0, 2, "?"), (2, 2, "?")]
 
-    -- not really testing tuplet: make sure empty tracks are stripped
-    equal (run [(">", [(0, 1, "")]), (">", []), ("*twelve", [(0, 0, "4c")])])
-        [(0, 1, "4c")]
-
 test_tuplet_multiple_tracks = do
     let run = DeriveTest.extract_events extract
             . DeriveTest.derive_tracks_with_ui id
                 (DeriveTest.with_skel [(1, 2), (1, 3)]) ""
         extract e = (Score.event_instrument e, Score.event_start e,
-                Score.event_duration e)
+            Score.event_duration e)
     let tracks =
             [ (">", [(0, 12, "t")])
             , (">i1", [(0, 1, ""), (1, 1, "")])

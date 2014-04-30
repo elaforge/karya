@@ -5,7 +5,6 @@
 -- | Basic calls for control tracks.
 module Derive.Call.Control where
 import qualified Data.Map as Map
-import qualified Data.Set as Set
 
 import Util.Control
 import qualified Util.Num as Num
@@ -60,12 +59,6 @@ control_calls = Derive.generator_call_map
     , ("h", c_pedal)
     ]
     <> Derive.CallMaps [lookup_number] []
-
--- | This should contain the calls that require the previous value.  It's used
--- by a hack in 'Derive.Slice.slice'.  TODO this is terrible, fix it.
-require_previous :: Set.Set Text
-require_previous = Set.fromList
-    ["'", "i>", "i>>", "i<<", "e>", "e>>", "e<<", "u", "d"]
 
 -- | This is a special lookup for control tracks that lets you directly type
 -- a number, and have that be interpreted as setting the control to that value.

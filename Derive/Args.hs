@@ -173,7 +173,7 @@ real_extent args = do
     return (start, end - start)
 
 -- | Event range as it appears on the track, regardless of slicing.
-range_on_track :: PassedArgs a -> (ScoreTime, ScoreTime)
+range_on_track :: PassedArgs a -> (TrackTime, TrackTime)
 range_on_track args = (track_start + start, track_start + end)
     where
     (start, end) = range args

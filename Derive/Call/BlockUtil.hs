@@ -47,7 +47,6 @@ import qualified Derive.Note as Note
 import qualified Derive.ParseTitle as ParseTitle
 import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
-import qualified Derive.Slice as Slice
 import qualified Derive.Tempo as Tempo
 import qualified Derive.TrackLang as TrackLang
 
@@ -160,16 +159,11 @@ derive_tracks = mconcatMap derive_track
 -- | Derive a single track node and any tracks below it.
 derive_track :: TrackTree.EventsNode -> Derive.NoteDeriver
 derive_track node@(Tree.Node track subs)
-    | ParseTitle.is_note_track (TrackTree.tevents_title track) = do
-        let (orphans, underivable) = Slice.extract_orphans track subs
-        Internal.record_empty_tracks underivable
+    | ParseTitle.is_note_track (TrackTree.tevents_title track) =
         with_stack $ Cache.track track (TrackTree.tevents_children node) $ do
-            events <- derive_orphans (TrackTree.tevents_title track) orphans $
-                Internal.track_setup track $ Note.d_note_track $
-                -- If there are orphans, then this derivation is merely a
-                -- fragment of the total track signal.  Setting the sliced
-                -- flag prevents 'Call.derive_track' from defragmenting.
-                Tree.Node ((if null orphans then id else set_sliced) track) subs
+            events <- Internal.track_setup track $
+                Note.d_note_track derive_tracks node
+            unless (TrackTree.tevents_sliced track) defragment
             mapM_ (Note.stash_signal_if_wanted events)
                 (note_signal_tracks track subs)
             return events
@@ -177,31 +171,11 @@ derive_track node@(Tree.Node track subs)
     -- differently, so it goes inside d_control_track.
     | otherwise = with_stack $ Control.d_control_track node (derive_tracks subs)
     where
-    derive_orphans title orphans deriver
-        -- If d_merge could tell when an NoteDeriver was mempty and not
-        -- evaluate it I wouldn't need this little optimization.
-        | null orphans = deriver
-        -- The orphans still get evaluated under the track title, otherwise
-        -- they might miss the instrument.
-        --
-        -- Since the orphans are extracted and derived separately, they aren't
-        -- derived in track order.  That in turn means that any signal
-        -- fragments are collected out of order, which means 'Signal.merge'
-        -- must sort them before merging.
-        | otherwise = mconcat (deriver : derived_orphans) <* defragment
-        where
-        derived_orphans =
-            [ Note.with_title [] range title (derive_track orphan)
-            | (range, orphan) <- orphans
-            ]
     defragment = do
         warp <- Internal.get_dynamic Derive.state_warp
         Internal.modify_collect $ Call.defragment_track_signals warp
     with_stack = maybe id Internal.with_stack_track
         (TrackTree.tevents_track_id track)
-
-set_sliced :: TrackTree.TrackEvents -> TrackTree.TrackEvents
-set_sliced track = track { TrackTree.tevents_sliced = True }
 
 -- | Extract tracks that might want to stash a signal.
 --

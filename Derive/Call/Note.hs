@@ -171,12 +171,13 @@ default_note config args = do
     environ <- Internal.get_environ
     let attrs = either (const Score.no_attrs) id $
             TrackLang.get_val Environ.attributes environ
-    st <- Derive.gets Derive.state_dynamic
+    dyn <- Derive.gets Derive.state_dynamic
 
     control_vals <- Derive.controls_at start
     let controls = stash_dynamic control_vals $
-            trimmed_controls start real_next (Derive.state_controls st)
-        pitch = trimmed_pitch start real_next (Derive.state_pitch st)
+            trimmed_controls start real_next (Derive.state_controls dyn)
+        pitch = trimmed_pitch start real_next (Derive.state_pitch dyn)
+        -- pitch = Debug.trace_retp "trim" (start, real_next, Derive.state_pitch dyn) $ trimmed_pitch start real_next (Derive.state_pitch dyn)
     end <- return $ duration_attributes config control_vals attrs start end
 
     -- Add a attribute to get the arrival-note postproc to figure out the
@@ -189,8 +190,8 @@ default_note config args = do
         , Score.event_text = Event.event_text (Args.event args)
         , Score.event_controls = controls
         , Score.event_pitch = pitch
-        , Score.event_pitches = Derive.state_pitches st
-        , Score.event_stack = Derive.state_stack st
+        , Score.event_pitches = Derive.state_pitches dyn
+        , Score.event_stack = Derive.state_stack dyn
         , Score.event_instrument = inst
         , Score.event_environ = environ
         }

@@ -296,7 +296,6 @@ test_collect = do
                 , ("cont", [(0, 0, "1")])
                 ])
             ]
-        -- with_tsig = State.unsafe_modify DeriveTest.with_tsig
     let create = blocks
             <* State.set_render_style (Track.Line Nothing) (UiTest.tid "sub.t2")
     let (_, cached, _) = compare_cached create $ insert_event "top.t1" 1 1 ""

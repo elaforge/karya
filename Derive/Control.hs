@@ -302,7 +302,7 @@ derive_control is_tempo track expr = do
     deriver :: Derive.ControlDeriver
     deriver = Cache.track track mempty $ do
         state <- Derive.get
-        let (stream, collect) = Call.derive_track state tinfo
+        let (stream, collect) = Call.derive_control_track state tinfo
                 Call.control_last_sample (tevents track)
         Internal.merge_collect collect
         return $ compact (concat stream)
@@ -334,7 +334,7 @@ derive_pitch cache track expr = do
     where
     deriver = (if cache then Cache.track track mempty else id) $ do
         state <- Derive.get
-        let (stream, collect) = Call.derive_track state tinfo
+        let (stream, collect) = Call.derive_control_track state tinfo
                 Call.pitch_last_sample (tevents track)
         Internal.merge_collect collect
         return $ compact (concat stream)
