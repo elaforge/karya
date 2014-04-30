@@ -107,7 +107,7 @@ test_round_events = do
     let move events =
             Events.insert [next] $ Events.remove_event (Event.start e) events
             where
-            e = Maybe.fromJust $ Events.first events
+            e = Maybe.fromJust $ Events.head events
             next = Event.move (+ 1/3) e
     -- If round_event is doing its thing, this won't fall victim to
     -- imprecision.

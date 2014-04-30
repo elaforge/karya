@@ -132,7 +132,7 @@ UNSORTED
       for Stack.Region.  No it's not, that uses tevents_shifted.  Ok, but it
       is used by Cache.
 
-  - Rename Events.first to Events.head
+  * Rename Events.first to Events.head
   - get rid of TrackTree.EventsTree, rename EventsNode to EventsTree
   - make Score.unwarp_pos extend the signal in the same way that 'warp_pos'
     does so I can make id_warp_signal into mempty

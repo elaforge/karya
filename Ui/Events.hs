@@ -26,7 +26,7 @@ module Ui.Events (
     , merge
 
     -- ** lookup
-    , at, overlapping, first, last
+    , at, overlapping, head, last
 
     -- ** split
     -- *** events
@@ -42,12 +42,12 @@ module Ui.Events (
     , clip_events
 #endif
 ) where
-import Prelude hiding (last, length, null)
+import Prelude hiding (head, last, length, null)
 import qualified Control.DeepSeq as DeepSeq
 import qualified Data.Map as Map
 import qualified Data.Monoid as Monoid
 
-import Util.Control hiding (first)
+import Util.Control
 import qualified Util.Map as Map
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
@@ -70,7 +70,7 @@ length :: Events -> Int
 length = Map.size . get
 
 time_begin :: Events -> ScoreTime
-time_begin = maybe 0 Event.min . first
+time_begin = maybe 0 Event.min . head
 
 time_end :: Events -> ScoreTime
 time_end = maybe 0 Event.max . last
@@ -154,8 +154,8 @@ overlapping pos events
     | otherwise = Nothing
     where (pre, post) = split pos events
 
-first :: Events -> Maybe Event.Event
-first (Events events) = snd <$> Map.min events
+head :: Events -> Maybe Event.Event
+head (Events events) = snd <$> Map.min events
 
 -- | Final event, if there is one.
 last :: Events -> Maybe Event.Event
