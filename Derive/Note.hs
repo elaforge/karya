@@ -84,7 +84,7 @@
     - In method mode, it edits the last note event or adds one, just like note
     mode.
 -}
-module Derive.Note (d_note_track, stash_signal_if_wanted, with_title) where
+module Derive.Note (d_note_track, stash_signal_if_wanted) where
 import qualified Data.Char as Char
 import qualified Data.List.NonEmpty as NonEmpty
 import qualified Data.Map as Map
@@ -121,7 +121,7 @@ d_note_track derive_tracks (Tree.Node track subs) =
     title $ derive_notes derive_tracks (track_info track subs) events
     where
     events = Events.ascending (TrackTree.track_events track)
-    title = with_title subs (TrackTree.track_range track)
+    title = with_title subs (TrackTree.track_end track)
         (TrackTree.track_title track)
 
 -- | Note tracks can also have track signals, extracted from the events they
@@ -156,16 +156,16 @@ extract_track_signal source events = mconcat $ case source of
         PitchSignal.apply_controls (Score.event_environ event)
             (Score.event_controls event) psig
 
-with_title :: TrackTree.EventsTree -> (ScoreTime, ScoreTime) -> Text
-    -> Derive.NoteDeriver -> Derive.NoteDeriver
-with_title subs (start, end) title deriver
+with_title :: TrackTree.EventsTree -> ScoreTime -> Text -> Derive.NoteDeriver
+    -> Derive.NoteDeriver
+with_title subs end title deriver
     | Text.all Char.isSpace title = deriver
     | otherwise = do
         track_expr <- either (Derive.throw . ("track title: "++)) return
             (ParseTitle.parse_note title)
         Call.apply_transformers info (NonEmpty.toList track_expr) deriver
     where
-    info = (Derive.dummy_call_info start (end - start) "note track")
+    info = (Derive.dummy_call_info 0 end "note track")
         { Derive.info_sub_tracks = subs }
 
 derive_notes :: (TrackTree.EventsTree -> Derive.NoteDeriver) -> Call.TrackInfo

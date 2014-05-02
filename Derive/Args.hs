@@ -87,9 +87,6 @@ eval cinfo event prev = case Parse.parse_expr text of
         in Call.eval_expr False prev_cinfo expr
     where text = Event.event_text event
 
-is_title_call :: PassedArgs a -> Bool
-is_title_call args = range args == Derive.info_track_range (info args)
-
 -- * event timing
 
 start :: PassedArgs a -> ScoreTime
@@ -174,10 +171,10 @@ real_extent args = do
 
 -- | Event range as it appears on the track, regardless of slicing.
 range_on_track :: PassedArgs a -> (TrackTime, TrackTime)
-range_on_track args = (track_start + start, track_start + end)
+range_on_track args = (shifted + start, shifted + end)
     where
     (start, end) = range args
-    track_start = fst (Derive.info_track_range (info args))
+    shifted = Derive.info_track_shifted (info args)
 
 -- | This normalizes a deriver to start at 0 and have a duration of 1, provided
 -- that the deriver is placed at the start and dur of the given args.  This is

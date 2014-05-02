@@ -467,7 +467,7 @@ derive_event tinfo prev_sample prev event next
         , Derive.info_event_end = case next ++ tnext of
             [] -> TrackTree.track_end track
             event : _ -> Event.start event
-        , Derive.info_track_range = TrackTree.track_range track
+        , Derive.info_track_shifted = TrackTree.track_shifted track
         , Derive.info_inverted = TrackTree.track_inverted track
         , Derive.info_sub_tracks = subs
         , Derive.info_sub_events = Nothing

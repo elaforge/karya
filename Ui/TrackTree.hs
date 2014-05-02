@@ -111,6 +111,8 @@ type EventsNode = Tree.Tree Track
 
 data Track = Track {
     track_title :: !Text
+    -- | Events on this track.  These are shifted by
+    -- 'Derive.Slice.slice_notes', so they are in ScoreTime, not TrackTime.
     , track_events :: !Events.Events
     -- | This goes into the stack when the track is evaluated.  Inverted tracks
     -- will carry the TrackId of the track they were inverted from, so they'll
@@ -122,22 +124,10 @@ data Track = Track {
     -- blocks, but can only appear once in each block.
     , track_block_id :: !(Maybe BlockId)
 
-    -- | The relative end of this slice of track.  This is different from @snd
-    -- . track_range@ because it gets shifted after slicing to be relative to
-    -- the sliced note, while track_range always reflects the absolute track
-    -- range.  So the difference between the two is how much this slice has
-    -- been shifted.
+    -- | The relative end of this slice of track.  Like 'track_events', this is
+    -- in ScoreTime, not TrackTime.
     , track_end :: !ScoreTime
 
-    -- | Range of the track.  This may be past the end of the last event since
-    -- it's the range of the block as a whole.
-    --
-    -- Used by "Derive.Cache": due to inverting calls, a control track may be
-    -- sliced to a shorter range.  In that case, I shouldn't bother with
-    -- damage outside of its range.
-    --
-    -- This is a (start, end) range, not (start, dur).
-    , track_range :: !(TrackTime, TrackTime)
     -- | True if this is a sliced track.  That means it's a fragment of
     -- a track and certain track-level things should be skipped.
     , track_sliced :: !Bool
@@ -148,29 +138,26 @@ data Track = Track {
     -- | These events are not evaluated, but go in
     -- 'Derive.Derive.info_prev_events' and info_next_events.  This is so that
     -- sliced calls (such as inverting calls) can see previous and following
-    -- events.
+    -- events.  Shifted along with 'track_events'.
     , track_around :: !([Event.Event], [Event.Event])
 
     -- | If the events have been shifted from their original positions on the
-    -- track, this can be added to them to put them back in TrackTime.  This is
-    -- for the stack, which should always be in TrackTime.
-    --
-    -- It's probably the same as @fst . track_range@, but only applies if the
-    -- events have been shifted, which you can't tell from just looking at
-    -- @track_range@.
-    , track_shifted :: !ScoreTime
+    -- track, add this to them to put them back in TrackTime.
+    , track_shifted :: !TrackTime
     } deriving (Show)
 
+track_range :: Track -> (TrackTime, TrackTime)
+track_range track = (track_shifted track, track_shifted track + track_end track)
+
 instance Pretty.Pretty Track where
-    format (Track title events track_id block_id end range sliced
-            inverted around shifted) =
+    format (Track title events track_id block_id end sliced inverted around
+            shifted) =
         Pretty.record_title "Track"
             [ ("title", Pretty.format title)
             , ("events", Pretty.format events)
             , ("track_id", Pretty.format track_id)
             , ("block_id", Pretty.format block_id)
             , ("end", Pretty.format end)
-            , ("range", Pretty.format range)
             , ("sliced", Pretty.format sliced)
             , ("inverted", Pretty.format inverted)
             , ("around", Pretty.format around)
@@ -184,7 +171,6 @@ make_track title events end = Track
     , track_id = Nothing
     , track_block_id = Nothing
     , track_end = end
-    , track_range = (0, end)
     , track_sliced = False
     , track_inverted = False
     , track_around = ([], [])

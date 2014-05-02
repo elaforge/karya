@@ -59,7 +59,6 @@ import Types
 data InsertEvent = InsertEvent {
     ins_text :: !Text
     , ins_duration :: !ScoreTime
-    , ins_range :: !(ScoreTime, ScoreTime)
     , ins_around :: !([Event.Event], [Event.Event])
     -- | The TrackId for the track created for this event.  This is required
     -- so it can collect a TrackDynamic and when the Cmd level looks at at
@@ -111,14 +110,13 @@ slice exclude_start around start end insert_event = map do_slice
         Nothing -> []
         Just insert_event -> [Tree.Node (make shift insert_event) []]
     -- The synthesized bottom track.
-    make shift (InsertEvent text dur trange around track_id) = TrackTree.Track
+    make shift (InsertEvent text dur around track_id) = TrackTree.Track
         { TrackTree.track_title = ">"
         , TrackTree.track_events =
             Events.singleton (Event.event start dur text)
         , TrackTree.track_id = track_id
         , TrackTree.track_block_id = Nothing
         , TrackTree.track_end = end
-        , TrackTree.track_range = trange
         , TrackTree.track_sliced = True
         , TrackTree.track_inverted = True
         , TrackTree.track_around = around
@@ -129,12 +127,6 @@ slice exclude_start around start end insert_event = map do_slice
     slice_t track = track
         { TrackTree.track_events = within
         , TrackTree.track_end = end
-        -- TODO There's something fishy about this because for the inverted
-        -- track this winds up being the track range of the unsliced parent,
-        -- which means it can be larger than the range of the slice above it.
-        -- But without this, the cache test fails.  Figure it out and
-        -- clarify this field.
-        , TrackTree.track_range = (sliced_start + start, sliced_start + end)
         , TrackTree.track_sliced = True
         , TrackTree.track_around = (before, after)
         } -- If the track has already been sliced then (start, end) are
@@ -143,7 +135,6 @@ slice exclude_start around start end insert_event = map do_slice
         -- absolute range.
         where
         (before, within, after) = extract_events track
-        sliced_start = fst (TrackTree.track_range track)
     -- Extract events from an intermediate track.
     extract_events track
         | ParseTitle.is_note_track title =

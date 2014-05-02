@@ -80,7 +80,8 @@ module Derive.Deriver.Monad (
     , CallMap
     , CallMaps(..), call_map
     , call_maps, generator_call_map, transformer_call_map
-    , CallInfo(..), coerce_call_info, dummy_call_info, tag_call_info
+    , CallInfo(..), info_track_range, coerce_call_info
+    , dummy_call_info, tag_call_info
     , Call(..), make_call
     , CallDoc(..), ArgDoc(..), ArgParser(..), EnvironDefault(..), ArgDocs(..)
     , WithArgDoc
@@ -1004,18 +1005,16 @@ data CallInfo val = CallInfo {
     -- This is the same as the first element of 'info_next_events' except of
     -- course it has a value even when there is no next event.
     , info_event_end :: !ScoreTime
-
-    -- | This is the track range from 'State.track_range'.  For sliced
-    -- tracks, it will tell where in the track the slice lies.  This is needed
-    -- for 'Stack.Region' entries.  This should be in absolute TrackTime, not
-    -- ScoreTime.
-    , info_track_range :: !(TrackTime, TrackTime)
+    -- | From 'TrackTree.track_shifted'.
+    , info_track_shifted :: !TrackTime
 
     -- | If true, this call is being run under inversion.  This means that
     -- it's the second time it's been seen, though not necessarily executed.
     , info_inverted :: !Bool
 
     -- | The track tree below note tracks.  Not given for control tracks.
+    -- TODO should this be Either with info_sub_events?  I don't think I ever
+    -- need both set.
     , info_sub_tracks :: !TrackTree.EventsTree
     -- | If present, 'Derive.Sub.sub_events' will directly return these sub
     -- events instead of slicing sub-tracks.  Track evaluation will never set
@@ -1027,6 +1026,11 @@ data CallInfo val = CallInfo {
     -- explicitly what the track type is to evaluate events on it.
     , info_track_type :: !(Maybe ParseTitle.Type)
     }
+
+-- | Range of the event in TrackTime.
+info_track_range :: CallInfo a -> (TrackTime, TrackTime)
+info_track_range info = (shifted, shifted + info_event_end info)
+    where shifted = info_track_shifted info
 
 instance Pretty.Pretty val => Pretty.Pretty (CallInfo val) where
     format (CallInfo expr prev_val event prev_events next_events event_end
@@ -1060,7 +1064,7 @@ dummy_call_info start dur text = CallInfo
     , info_prev_events = []
     , info_next_events = []
     , info_event_end = start + dur
-    , info_track_range = (start, start + dur)
+    , info_track_shifted = 0
     , info_sub_tracks = []
     , info_sub_events = Nothing
     , info_track_type = Nothing

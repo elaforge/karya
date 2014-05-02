@@ -66,9 +66,6 @@ import qualified Perform.Signal as Signal
 import Types
 
 
--- | As returned by 'TrackTree.track_range', happpens to be used a lot here.
-type TrackRange = (ScoreTime, ScoreTime)
-
 -- | Top level deriver for control tracks.
 d_control_track :: TrackTree.EventsNode
     -> Derive.NoteDeriver -> Derive.NoteDeriver
@@ -197,17 +194,17 @@ tempo_call sym track sig_deriver deriver = do
     -- 'with_damage' must be applied *inside* 'd_tempo'.  If it were outside,
     -- it would get the wrong RealTimes when it tried to create the
     -- ControlDamage.
-    merge_logs logs $ dispatch_tempo sym (snd track_range) maybe_track_id
-        (Signal.coerce signal) (with_damage deriver)
+    merge_logs logs $ dispatch_tempo sym (TrackTree.track_end track)
+        maybe_track_id (Signal.coerce signal) (with_damage deriver)
     where
     maybe_block_track_id = TrackTree.track_block_track_id track
     maybe_track_id = snd <$> maybe_block_track_id
     with_damage = maybe id get_damage maybe_block_track_id
     get_damage (block_id, track_id) deriver = do
-        damage <- Cache.get_tempo_damage block_id track_id track_range
+        damage <- Cache.get_tempo_damage block_id track_id
+            (TrackTree.track_end track)
             (TrackTree.track_events track)
         Internal.with_control_damage damage deriver
-    track_range = TrackTree.track_range track
 
 dispatch_tempo :: Maybe TrackLang.Symbol -> ScoreTime -> Maybe TrackId
     -> Signal.Tempo -> Derive.Deriver a -> Derive.Deriver a
@@ -270,7 +267,7 @@ get_scale scale_id
     | scale_id == Pitch.empty_scale = Util.get_scale
     | otherwise = Derive.get_scale scale_id
 
-with_control_damage :: Maybe (BlockId, TrackId) -> TrackRange
+with_control_damage :: Maybe (BlockId, TrackId) -> (TrackTime, TrackTime)
     -> Derive.Deriver d -> Derive.Deriver d
 with_control_damage maybe_block_track_id track_range =
     maybe id get_damage maybe_block_track_id
@@ -289,14 +286,12 @@ type TrackResults sig = (sig, [Log.Msg])
 derive_control :: Bool -> TrackTree.Track -> [TrackLang.Call]
     -> Derive.Deriver (TrackResults Signal.Control)
 derive_control is_tempo track expr = do
-    let (start, end) = TrackTree.track_range track
     let name = if is_tempo then "tempo track" else "control track"
-    stream <- Call.apply_transformers
-        (Derive.dummy_call_info start (end-start) name) expr deriver
+    stream <- Call.apply_transformers (track_call_info track name) expr deriver
     let (signal_chunks, logs) = LEvent.partition stream
         -- I just did it in 'compact', so this should just convert [x] to x.
         signal = mconcat signal_chunks
-    real_end <- Derive.real end
+    real_end <- Derive.real (TrackTree.track_end track)
     return (extend real_end signal, logs)
     where
     deriver :: Derive.ControlDeriver
@@ -324,9 +319,8 @@ derive_control is_tempo track expr = do
 derive_pitch :: Bool -> TrackTree.Track -> [TrackLang.Call]
     -> Derive.Deriver (TrackResults PitchSignal.Signal)
 derive_pitch cache track expr = do
-    let (start, end) = TrackTree.track_range track
-    stream <- Call.apply_transformers
-        (Derive.dummy_call_info start (end-start) "pitch track") expr deriver
+    stream <- Call.apply_transformers (track_call_info track "pitch track")
+        expr deriver
     let (signal_chunks, logs) = LEvent.partition stream
         -- I just did it in 'compact', so this should just convert [x] to x.
         signal = mconcat signal_chunks
@@ -350,6 +344,10 @@ derive_pitch cache track expr = do
 track_events :: TrackTree.Track -> [Event.Event]
 track_events = Events.ascending . TrackTree.track_events
 
+-- | Create a CallInfo for the title call of a track.
+track_call_info :: TrackTree.Track -> Text -> Derive.CallInfo d
+track_call_info track name =
+    Derive.dummy_call_info 0 (TrackTree.track_end track) name
 
 -- * TrackSignal
 

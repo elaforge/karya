@@ -118,13 +118,13 @@ UNSORTED
       the first time.
     - Complete Derive.Call.record_track_dynamic
     - MidiThru can reset %dyn to 1.
-  Clean up 'tevents_range', 'tevents_end', 'tevents_shifted'.
+  * Clean up 'tevents_range', 'tevents_end', 'tevents_shifted'.
     . `fst . Derive.info_track_range` is used by `Args.range_on_track`, it
       adds it to the event to get TrackTime, which is used by Cache to compare
       against damage ranges, specifically to compare against control damage.
     . However, Derive.Call generates a Stack.Region, which should also be in
       TrackTime, by adding to TrackTree.tevents_shifted.
-    - document well that tevents_range is *not* the beginning of the slice,
+    / document well that tevents_range is *not* the beginning of the slice,
       but absolute TrackTime, and may be totally different from the event
       starts, due to shifting.
     . I need to get 'Slice.ins_range' in absolute TrackTime because it's used

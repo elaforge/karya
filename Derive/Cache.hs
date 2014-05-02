@@ -303,9 +303,9 @@ get_control_damage block_id track_id track_range = do
 -- seems like editing a score at the end is a common case, and it would be
 -- a shame to rederive the entire score on each edit when only the very end has
 -- changed.
-get_tempo_damage :: BlockId -> TrackId -> (ScoreTime, ScoreTime)
+get_tempo_damage :: BlockId -> TrackId -> TrackTime
     -> Events.Events -> Derive.Deriver ControlDamage
-get_tempo_damage block_id track_id track_range events = do
+get_tempo_damage block_id track_id track_end events = do
     st <- Derive.get
     let control = Derive.state_control_damage (Derive.state_dynamic st)
         score = Derive.state_score_damage (Derive.state_constant st)
@@ -317,8 +317,8 @@ get_tempo_damage block_id track_id track_range events = do
             Just [] -> Ranges.nothing
             Just ((s, _) : _) -> case Events.split s events of
                 (prev : _, _) ->
-                    Ranges.range (Event.start prev) (snd track_range)
-                ([], _) -> Ranges.range s (snd track_range)
+                    Ranges.range (Event.start prev) track_end
+                ([], _) -> Ranges.range s track_end
 
 -- | Convert score damage directly to ControlDamage on a given track.
 score_to_control :: BlockId -> TrackId -> ScoreDamage -> ControlDamage

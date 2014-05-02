@@ -109,7 +109,7 @@ test_derive_control = do
     let ex (sig, logs) = (Signal.unsignal sig, map DeriveTest.show_log logs)
     let derive events = DeriveTest.extract_run ex $
             DeriveTest.run State.empty $ Derive.with_default_imported $
-            Control.derive_control False (mktrack 10 (0, 10) events) []
+            Control.derive_control False (mktrack 10 events) []
     equal (derive [(0, 0, "1"), (1, 0, "2")])
         (Right ([(0, 1), (1, 2)], []))
     equal (derive [(0, 0, "1"), (2, 0, "i 2")])
@@ -125,11 +125,8 @@ test_derive_control = do
         (Right ([(0, 1), (1, 1.5), (2, 2)],
             ["Error: control generator not found: def"]))
 
-mktrack :: ScoreTime -> (ScoreTime, ScoreTime) -> [UiTest.EventSpec]
-    -> TrackTree.Track
-mktrack events_end track_range events =
-    (TrackTree.make_track ">" evts events_end)
-        { TrackTree.track_range = track_range }
+mktrack :: ScoreTime -> [UiTest.EventSpec] -> TrackTree.Track
+mktrack events_end events = TrackTree.make_track ">" evts events_end
     where evts = Events.from_list (map UiTest.make_event events)
 
 test_pitch_track = do

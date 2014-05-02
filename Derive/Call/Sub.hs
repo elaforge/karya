@@ -93,19 +93,18 @@ invert_call :: (Int, Int)
     -> Derive.PassedArgs d -> Derive.Deriver (Maybe TrackTree.EventsTree)
 invert_call around args = case Derive.info_sub_tracks info of
     [] -> return Nothing
-    subs -> Just <$> invert around (Derive.info_track_range info) subs
-        (Event.start event) (Event.end event) (Args.next args)
-        (Derive.info_expr info)
+    subs -> Just <$> invert around subs (Event.start event) (Event.end event)
+        (Args.next args) (Derive.info_expr info)
         (Derive.info_prev_events info, Derive.info_next_events info)
     where
     event = Derive.info_event info
     info = Derive.passed_info args
 
-invert :: (Int, Int) -> (TrackTime, TrackTime) -> TrackTree.EventsTree
+invert :: (Int, Int) -> TrackTree.EventsTree
     -> ScoreTime -> ScoreTime -> ScoreTime -> Event.Text
     -> ([Event.Event], [Event.Event])
     -> Derive.Deriver TrackTree.EventsTree
-invert around (track_start, _) subs start end next_start text events_around = do
+invert around subs start end next_start text events_around = do
     -- Pick the current TrackId out of the stack, and give that to the track
     -- created by inversion.
     -- TODO I'm not 100% comfortable with this, I don't like putting implicit
@@ -126,7 +125,6 @@ invert around (track_start, _) subs start end next_start text events_around = do
     insert track_id = Slice.InsertEvent
         { Slice.ins_text = text
         , Slice.ins_duration = end - start
-        , Slice.ins_range = (track_start, next_start)
         , Slice.ins_around = events_around
         , Slice.ins_track_id = track_id
         }

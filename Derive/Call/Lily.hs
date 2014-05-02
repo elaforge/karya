@@ -13,7 +13,6 @@ import qualified Util.Seq as Seq
 
 import qualified Derive.Args as Args
 import qualified Derive.Call as Call
-import qualified Derive.Call.BlockUtil as BlockUtil
 import qualified Derive.Call.Make as Make
 import qualified Derive.Call.Module as Module
 import qualified Derive.Call.Post as Post
@@ -363,17 +362,14 @@ c_ly_track = transformer "ly-track" mempty
     \ track but evaluate its subtracks. Apply this to a track\
     \ to omit lilypond-only articulations, or to apply different articulations\
     \ to lilypond and non-lilypond output. Only use it in the track title!"
-    $ Sig.call0t $ \args deriver -> when_lilypond deriver $
-        if Args.is_title_call args then derive_subtracks args
-            else place_notes args
+    $ Sig.call0t $ \args deriver -> when_lilypond deriver $ place_notes args
 
 c_not_ly_track :: Derive.Transformer Derive.Note
 c_not_ly_track = transformer "not-ly-track" mempty
     "The inverse of `ly-track`, evaluate the track only when not in lilypond\
     \ mode. Only use it in the track title!"
     $ Sig.call0t $ \args deriver -> flip when_lilypond deriver $
-        if Args.is_title_call args then derive_subtracks args
-            else place_notes args
+        place_notes args
 
 c_if_ly :: Derive.Generator Derive.Note
 c_if_ly = make_call "if-ly" mempty
@@ -383,10 +379,6 @@ c_if_ly = make_call "if-ly" mempty
     ) $ \(is_ly, not_ly) args -> when_lilypond
         (Call.reapply_string args (TrackLang.show_call_val is_ly))
         (Call.reapply_string args (TrackLang.show_call_val not_ly))
-
-derive_subtracks :: Derive.PassedArgs d -> Derive.NoteDeriver
-derive_subtracks =
-    BlockUtil.derive_tracks . Derive.info_sub_tracks . Derive.passed_info
 
 c_8va :: Make.Calls Derive.Note
 c_8va = code0_call "ottava" "Emit lilypond ottava mark."

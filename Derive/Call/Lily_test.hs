@@ -45,6 +45,14 @@ test_ly_track = do
             extract e = (Lilypond.event_pitch e,
                 ShowVal.show_val (Lilypond.event_attributes e))
 
+    -- tr       0       1       2       3
+    -- >                +always
+    -- ly-track +ly1--- +ly2---
+    -- not-ly           +no1--- +no2---
+    --          3c      3d      3e      3f
+
+    -- Slice is with event range, e.g. (1, 2), but the subs have been
+    -- shifted so (0, 1, "+no1")
     let tracks =
             [ (">", [(1, 1, "+always")])
             , ("> | ly-track", [(0, 1, "+ly1"), (1, 1, "+ly2")])
