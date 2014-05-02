@@ -299,7 +299,7 @@ multiply_constant control = Derive.with_multiplied_control control
 
 -- | Generate a single note, from 0 to 1.
 note :: Derive.NoteDeriver
-note = Call.eval_one_call $ TrackLang.call "" []
+note = Call.eval_one_call True $ TrackLang.call "" []
 
 -- | Like 'note', but the note reuses the start and duration from the passed
 -- args, rather than being normalized from 0 to 1.  This is appropriate when
@@ -317,7 +317,7 @@ attr_note attrs = add_attrs attrs note
 
 -- | A zero-duration 'note'.
 triggered_note :: Derive.NoteDeriver
-triggered_note = Call.eval_one_at 0 0 $ TrackLang.call "" [] :| []
+triggered_note = Call.eval_one_at True 0 0 $ TrackLang.call "" [] :| []
 
 place :: Derive.PassedArgs d -> Derive.Deriver a -> Derive.Deriver a
 place = uncurry Derive.place . Args.extent

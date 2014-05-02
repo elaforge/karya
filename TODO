@@ -91,9 +91,9 @@ UNSORTED
     * Slice.checked_slice_notes can return Either instead of Deriver
     - derive_track optimization: if events empty, then just evaluate subs
       without slicing.
-    - Remove Slice.strip_empty_tracks from Slice.checked_slice_note.
-    - Remove Slice.slice exclusive arg
-    - Revisit stricter overlap tests in Slice_test.test_overlaps
+    * Remove Slice.strip_empty_tracks from Slice.checked_slice_note.
+    / Remove Slice.slice exclusive arg
+    * Revisit stricter overlap tests in Slice_test.test_overlaps
   - data/bloom @b14 has:
     fltk/EventTrack.cc:102 sample time decreased: 0.650101 <= 129.455
   - why does data/bloom use so many channels?  E.g., c5 at 8.51s on chan 1
@@ -124,13 +124,45 @@ UNSORTED
       against damage ranges, specifically to compare against control damage.
     . However, Derive.Call generates a Stack.Region, which should also be in
       TrackTime, by adding to TrackTree.tevents_shifted.
-    - change 'tevents_range' to 'tevents_absolute_start :: TrackTime'
     - document well that tevents_range is *not* the beginning of the slice,
       but absolute TrackTime, and may be totally different from the event
       starts, due to shifting.
     . I need to get 'Slice.ins_range' in absolute TrackTime because it's used
       for Stack.Region.  No it's not, that uses tevents_shifted.  Ok, but it
       is used by Cache.
+    By field:
+      . track_shifted
+        . Used for Region in Call
+        . Slice.find_overlapping to get event bounds back to TrackTime
+      . track_range
+        . Cache, via Args.range_on_track - uses only fst
+        . Args.is_title_call, hack via range == track range
+          In turn used by is-ly calls to tell if it should derive subtracks
+        . Sub.invert_call takes fst track_range for the track_start,
+          to set the Slice.ins_range = (track_start, next_start), which in
+          turn sets the generated track_range.
+        . Derive.Control uses (snd track_range) as block_dur for the Tempo
+          functions that use it to stretch the block to 1.
+        . Derive.Control uses track_range for with_control_damage
+          -> Cache.get_control_damage
+      . track_end
+        Call.derive_note_track uses it for the end of the track.
+    users:
+      . Region needs event position in TrackTime: track_shifted
+      . Slice.find_overlapping for the same reason: track_shifted
+      . Cache needs the same: track_shifted
+      . Sub.invert_call seems sketchy because start is TrackTime but end is
+        ScoreTime?  In any case, it just sets track range, so I think it can go
+        away.
+      . Derive.Control block_dur, this is the track end, used by unsliced
+        tracks.  I think track_end can replace it.
+      . Derive.Control get_control_damage should be track_shifted like the rest
+
+      . So I think I need track_shifted, and track_end.  track_end is ScoreTime,
+        but can be TrackTime with track_shifted.
+    . So I need the absolute track range and relative end, and a way to get
+      a ScoreTime to TrackTime.
+  - move cmods out of Derive.Call.Control
 
   * Rename Events.first to Events.head
   * get rid of TrackTree.EventsTree, rename EventsNode to EventsTree

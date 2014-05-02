@@ -70,7 +70,7 @@ prev_pitch args = case Derive.info_prev_val $ info args of
         -> Maybe (RealTime, PitchSignal.Pitch)
     last_pitch = msum . map PitchSignal.last . reverse . LEvent.events_of
 
-eval :: (Derive.Callable d) => CallInfo x -> Event.Event
+eval :: Derive.Callable d => CallInfo x -> Event.Event
     -> [Event.Event] -> Derive.LogsDeriver d
 eval cinfo event prev = case Parse.parse_expr text of
     Left err -> Derive.throw $ "parse error: " ++ err
@@ -84,7 +84,7 @@ eval cinfo event prev = case Parse.parse_expr text of
                     Derive.info_event cinfo : Derive.info_next_events cinfo
                 , Derive.info_event_end = Event.start $ Derive.info_event cinfo
                 }
-        in Call.eval_expr prev_cinfo expr
+        in Call.eval_expr False prev_cinfo expr
     where text = Event.event_text event
 
 is_title_call :: PassedArgs a -> Bool

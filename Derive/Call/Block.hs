@@ -48,7 +48,7 @@ eval_root_block :: Text -> BlockId -> Derive.NoteDeriver
     -- no stretching here.  Otherwise, a tempo of '2' is the same as '1'.
 eval_root_block global_transform block_id =
     Call.apply_transform "global transform" global_transform $
-        Call.eval_one_call $ call_from_block_id block_id
+        Call.eval_one_call True $ call_from_block_id block_id
 
 -- * note calls
 

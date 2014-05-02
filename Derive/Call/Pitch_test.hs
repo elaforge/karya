@@ -104,15 +104,6 @@ test_linear_next = do
     equal (run2 [(0, 1, "4c"), (1, 1, "i> (4d)"), (3, 1, "4e")])
         [[(0, 60)], [(1, 60), (2, 61)], [(3, 64)]]
 
-test_approach_dyn = do
-    let run pitches = extract . run_ 1 pitches
-        extract = head . (DeriveTest.extract_events $ \e ->
-            (DeriveTest.e_nns e, DeriveTest.e_dyn e))
-    equal (run [(0, "4c"), (2, "ad 2 .5"), (4, "4d")] [])
-        ( [(0, 60), (2, 60), (3, 61), (4, 62)]
-        , [(0, 1), (2, 1), (3, 0.75), (4, 1)]
-        )
-
 run :: [(ScoreTime, String)] -> [(RealTime, Pitch.NoteNumber)]
 run = run_tempo 1
 

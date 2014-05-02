@@ -215,7 +215,7 @@ quoted_generator :: Derive.Callable d => TrackLang.Quoted -> Derive.Generator d
 quoted_generator quoted@(TrackLang.Quoted expr) =
     Derive.make_call quoted_module "quoted-call" mempty
     ("Created from expression: " <> ShowVal.show_val quoted)
-    $ Sig.call0 $ \args -> Call.eval_expr (quoted_cinfo args quoted) expr
+    $ Sig.call0 $ \args -> Call.eval_expr False (quoted_cinfo args quoted) expr
 
 quoted_transformer :: Derive.Callable d => TrackLang.Quoted
     -> Derive.Transformer d

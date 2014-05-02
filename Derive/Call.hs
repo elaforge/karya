@@ -141,15 +141,16 @@ type PassedArgs d = Derive.PassedArgs (Derive.Elem d)
 
 -- | Evaluate a single note as a generator.  Fake up an event with no prev or
 -- next lists.
-eval_one :: (Derive.Callable d) => TrackLang.Expr -> Derive.LogsDeriver d
-eval_one = eval_one_at 0 1
+eval_one :: Derive.Callable d => Bool -> TrackLang.Expr -> Derive.LogsDeriver d
+eval_one collect = eval_one_at collect 0 1
 
-eval_one_call :: (Derive.Callable d) => TrackLang.Call -> Derive.LogsDeriver d
-eval_one_call = eval_one . (:| [])
-
-eval_one_at :: (Derive.Callable d) => ScoreTime -> ScoreTime -> TrackLang.Expr
+eval_one_call :: Derive.Callable d => Bool -> TrackLang.Call
     -> Derive.LogsDeriver d
-eval_one_at start dur expr = eval_expr cinfo expr
+eval_one_call collect = eval_one collect . (:| [])
+
+eval_one_at :: Derive.Callable d => Bool -> ScoreTime -> ScoreTime
+    -> TrackLang.Expr -> Derive.LogsDeriver d
+eval_one_at collect start dur expr = eval_expr collect cinfo expr
     where
     -- Set the event start and duration instead of using Derive.place since
     -- this way I can have zero duration events.
@@ -159,17 +160,17 @@ eval_one_at start dur expr = eval_expr cinfo expr
 -- | Like 'derive_event' but evaluate the event outside of its track context.
 -- This is useful if you want to evaluate things out of order, i.e. evaluate
 -- the /next/ pitch.
-eval_event :: (Derive.Callable d) => Event.Event
+eval_event :: Derive.Callable d => Event.Event
     -> Derive.Deriver (Either String (LEvent.LEvents d))
 eval_event event = case Parse.parse_expr (Event.event_text event) of
     Left err -> return $ Left err
     Right expr -> Right <$>
         -- TODO eval it separately to catch any exception?
-        eval_one_at (Event.start event) (Event.duration event) expr
+        eval_one_at False (Event.start event) (Event.duration event) expr
 
 -- | Evaluate a generator, reusing the passed args but replacing the CallId.
 -- Generators can use this to delegate to other generators.
-reapply_gen :: (Derive.Callable d) => PassedArgs d -> TrackLang.CallId
+reapply_gen :: Derive.Callable d => PassedArgs d -> TrackLang.CallId
     -> Derive.LogsDeriver d
 reapply_gen args call_id = do
     let cinfo = Derive.passed_info args
@@ -205,7 +206,7 @@ replace_generator call_id = fmap replace . Parse.parse_expr
 -- arguments in the 'PassedArgs' since it gets args from the 'TrackLang.Expr'.
 reapply :: (Derive.Callable d) => PassedArgs d -> TrackLang.Expr
     -> Derive.LogsDeriver d
-reapply args = eval_expr (Derive.passed_info args)
+reapply args = eval_expr False (Derive.passed_info args)
 
 -- | Like 'reapply', but parse the string first.
 reapply_string :: (Derive.Callable d) => PassedArgs d -> Text
@@ -237,9 +238,10 @@ apply_pitch pos call = apply cinfo call []
     where cinfo = Derive.dummy_call_info pos 0 "<apply_pitch>"
 
 -- | Evaluate a single expression, catching an exception if it throws.
-eval_expr :: (Derive.Callable d) => CallInfo d -> TrackLang.Expr
+eval_expr :: Derive.Callable d => Bool -> CallInfo d -> TrackLang.Expr
     -> Derive.LogsDeriver d
-eval_expr cinfo expr = fromMaybe [] <$> Derive.catch (apply_toplevel cinfo expr)
+eval_expr collect cinfo expr =
+    fromMaybe [] <$> Derive.catch collect (apply_toplevel cinfo expr)
 
 -- | Parse and apply a transform expression.
 apply_transform :: (Derive.Callable d) => Text -> Text
@@ -378,7 +380,6 @@ derive_sub_notes derive_tracks prev end subs
         Left err -> Just $ Log.warn err >> return []
         Right [] -> Nothing
         Right notes -> Just $ mconcatMap place notes
-        -- Right notes -> Just $ mconcatMap place $ Debug.trace_retp "orphan subs" (start, end, prev, subs) notes
     where
     sliced = Slice.checked_slice_notes exclude_start start end subs
     exclude_start = maybe False ((==0) . Event.duration) prev

@@ -50,7 +50,8 @@ derive_note_call block_id track_id pos call =
 derive_expr :: (Cmd.M m, Derive.Callable d) => BlockId -> TrackId -> TrackTime
     -> TrackLang.Expr -> m (Either String [d], [Log.Msg])
 derive_expr block_id track_id pos expr = do
-    (result, logs) <- derive_at block_id track_id (Call.eval_one_at pos 1 expr)
+    (result, logs) <- derive_at block_id track_id
+        (Call.eval_one_at False pos 1 expr)
     return $ case result of
         Left err -> (Left err, logs)
         Right levents -> (Right events, derive_logs ++ logs)

@@ -78,7 +78,7 @@ map_events_m f = go
         fmap ([LEvent.Log log] :) <$> go state events
     go state (LEvent.Event event : events) = do
         (state, output) <-
-            fromMaybe (state, []) <$> Derive.catch (f state event)
+            fromMaybe (state, []) <$> Derive.catch True (f state event)
         (final, outputs) <- go state events
         return (final, map LEvent.Event output : outputs)
 

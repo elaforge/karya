@@ -607,8 +607,11 @@ with_scopes modify = Internal.local $ \st ->
     st { state_scopes = modify (state_scopes st) }
 
 -- | If the deriver throws, log the error and return Nothing.
-catch :: Deriver a -> Deriver (Maybe a)
-catch deriver = do
+catch :: Bool -- ^ If True, incorporate the evaluated 'state_collect'.
+    -- This is False for eval which is disconnected from track evaluation, and
+    -- shouldn't be accumulating things like 'ControlMod's.
+    -> Deriver a -> Deriver (Maybe a)
+catch collect deriver = do
     st <- get
     let (result, st2, logs) = run st deriver
     mapM_ Log.write logs
@@ -617,7 +620,7 @@ catch deriver = do
             Log.write $ error_to_warn err
             return Nothing
         Right val -> do
-            Internal.merge_collect (state_collect st2)
+            when collect $ Internal.merge_collect (state_collect st2)
             return $ Just val
 
 -- * postproc
