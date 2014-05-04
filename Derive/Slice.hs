@@ -31,7 +31,7 @@ module Derive.Slice (
     InsertEvent(..), slice
     , checked_slice_notes
 #ifdef TESTING
-    , slice_notes
+    , slice_notes, strip_empty_tracks
 #endif
 ) where
 import qualified Data.Foldable as Foldable
@@ -287,32 +287,41 @@ event_ranges start end = nonoverlapping . to_ranges
     nonoverlapping (r:rs) = r : nonoverlapping (dropWhile (overlaps r) rs)
     overlaps (s1, e1, _) (s2, e2, _) = not $ e1 <= s2 || e2 <= s1
 
--- More aggressive.
--- strip_note :: Note -> Maybe Note
--- strip_note (start, dur, tree)
---     | null stripped = Nothing
---     | otherwise = Just (start, dur, stripped)
---     where stripped = concatMap strip_empty_tracks tree
---
--- -- | If a branch has no note track children with events, there's no way it can
--- -- produce any events, so it can be dropped before derivation.
--- strip_empty_tracks :: TrackTree.EventsNode -> TrackTree.EventsTree
--- strip_empty_tracks (Tree.Node track subs)
---     | null stripped && (not (is_note track) || track_empty track) = []
---     | otherwise = [Tree.Node track stripped]
---     where stripped = concatMap strip_empty_tracks subs
-
 strip_note :: Note -> Maybe Note
 strip_note (start, dur, tree)
     | null stripped = Nothing
     | otherwise = Just (start, dur, tree)
-    where stripped = filter has_note_events tree
+    where stripped = concatMap strip_empty_tracks tree
 
 -- | If a branch has no note track children with events, there's no way it can
 -- produce any events, so it can be dropped before derivation.
-has_note_events :: TrackTree.EventsNode -> Bool
-has_note_events (Tree.Node track subs) =
-    is_note track && not (track_empty track) || any has_note_events subs
+--
+-- The branch has to have no notes from top to bottom, because any note in the
+-- middle could invert below.
+strip_empty_tracks :: TrackTree.EventsNode -> [TrackTree.EventsNode]
+strip_empty_tracks (Tree.Node track subs)
+    | is_note track && not (track_empty track) = [Tree.Node track subs]
+    | is_note track && track_empty track =
+        if null stripped then [] else [Tree.Node track stripped]
+    | otherwise = stripped
+    where stripped = concatMap strip_empty_tracks subs
+
+-- | This is 'slice_notes', but throw an error if 'find_overlapping' complains.
+checked_slice_notes :: Bool -> ScoreTime -> ScoreTime
+    -> TrackTree.EventsTree -> Either String [[Note]]
+checked_slice_notes exclude_start start end tracks
+    | null overlaps = Right $ filter (not . null) notes
+    | otherwise = Left $ "slice has overlaps: "
+        <> Seq.join ", " (map show_overlap overlaps)
+    where
+    notes = slice_notes exclude_start start end tracks
+    -- Only check the first note of each slice.  Since the notes are
+    -- increasing, this is the one which might start before the slice.  Since
+    -- the events have been shifted back by the slice start, an event that
+    -- extends over 0 means it overlaps the beginning of the slice.
+    overlaps = mapMaybe
+        (\(_, _, subs) -> find_overlapping 0 subs)
+        (mapMaybe Seq.head notes)
 
 {- | Slice overlaps are when an event overlaps the start of the slice range,
     or extends past the end.  They're bad because they tend to cause notes to
@@ -351,35 +360,28 @@ has_note_events (Tree.Node track subs) =
     the check has been done, because otherwise @b@ wouldn't notice that @c@
     overlaps.
 -}
-find_overlapping :: ScoreTime -> TrackTree.EventsNode
+find_overlapping :: ScoreTime -> [TrackTree.EventsNode]
     -> Maybe (Maybe TrackId, (TrackTime, TrackTime))
-find_overlapping start = find overlaps
+find_overlapping start = msum . map (find overlaps)
     where
+    -- This relies on the 'strip_empty_tracks' having been called.  The
+    -- problem is that a zero duration slice after (0, 0) looks like (0, n).
+    -- I want to emit an error if and only if there are events starting at >0
+    -- in the (0, n) slice.  Those events will be evaluated twice if the (0, 0)
+    -- slice also got them.  But 'find_overlapping' only looks to see if prev
+    -- events overlap 0, which means it emits an error for both the case with
+    -- no events at >0, and with events >0.  Stripping empty tracks eliminates
+    -- the false positive for no events at >0, while leaving the true positive
+    -- for events at >0.
+    --
+    -- This seems pretty obscure and indirect, and I tried to come up with an
+    -- algorithm that didn't rely on 'strip_empty_tracks', but failed.
     overlaps track = case TrackTree.track_around track of
-        (prev : _, _)
-            | is_note track && Event.end prev > start ->
-                Just (TrackTree.track_id track,
-                    (shifted (Event.start prev), shifted (Event.end prev)))
-            -- Or if end is > parent end, unless start == parent start
+        (prev : _, _) | is_note track && Event.end prev > start->
+            Just (TrackTree.track_id track,
+                (shifted (Event.start prev), shifted (Event.end prev)))
         _ -> Nothing
         where shifted = (+ TrackTree.track_shifted track)
-
--- | This is 'slice_notes', but throw an error if 'find_overlapping' complains.
-checked_slice_notes :: Bool -> ScoreTime -> ScoreTime -> TrackTree.EventsTree
-    -> Either String [[Note]]
-checked_slice_notes exclude_start start end tracks
-    | null overlaps = Right $ filter (not . null) notes
-    | otherwise = Left $ "slice has overlaps: "
-            <> Seq.join ", " (map show_overlap overlaps)
-    where
-    notes = slice_notes exclude_start start end tracks
-    -- Only check the first note of each slice.  Since the notes are
-    -- increasing, this is the only one which might start before the slice.
-    -- Since the events have been shifted back by the slice start, an event
-    -- that extends over 0 means it overlaps the beginning of the slice.
-    overlaps = mapMaybe
-            (\(_, _, subs) -> msum (map (find_overlapping 0) subs))
-            (mapMaybe Seq.head notes)
 
 show_overlap :: (Maybe TrackId, (TrackTime, TrackTime)) -> String
 show_overlap (Nothing, (start, end)) =

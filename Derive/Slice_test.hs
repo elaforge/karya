@@ -243,6 +243,16 @@ test_slur = do
         ]
     equal logs []
 
+test_strip_empty_tracks = do
+    let f = map (fmap extract_tree) . Slice.strip_empty_tracks . make_tree
+    let empty = Node (make_notes 0 "")
+        notes c = Node (make_notes 0 (c:""))
+        controls = Node (make_controls "c" [1])
+    equal (f $ notes 'a' [empty []]) [notes 'a' [empty []]]
+    equal (f $ empty [empty [controls []]]) []
+    -- Empty branch is stripped.
+    equal (f $ empty [empty [controls []], notes 'a' []]) [empty [notes 'a' []]]
+
 test_overlaps = do
     let run = DeriveTest.extract extract . DeriveTest.derive_tracks_linear ""
         extract e = (DeriveTest.e_pitch e, DeriveTest.e_attributes e)
@@ -267,7 +277,11 @@ test_overlaps = do
             ++ UiTest.regular_notes 2)
         ([("3c", "+a"), ("3d", "+b")], [])
 
-    -- But not if there are multiple notes underneath.
+    -- But not if there are multiple notes underneath.  Otherwise, the
+    -- uncovered gap after +a will cause 3d to be evaluated twice.
+    -- +a
+    -- +b--
+    -- 3c3d
     let (events, logs) = run $
             [ (">", [(0, 0, "+a")])
             , (">", [(0, 2, "+b")])

@@ -319,9 +319,9 @@ derive_note_track derive_tracks state tinfo =
     where
     get_last_sample _ _ = Nothing
     derive_section tinfo prev events deriver =
-        maybe id (<>) (get_sub_notes tinfo prev events) deriver
-    get_sub_notes tinfo prev events =
-        derive_sub_notes derive_tracks prev
+        maybe id (<>) (get_orphans tinfo prev events) deriver
+    get_orphans tinfo prev events =
+        derive_orphans derive_tracks prev
             (maybe (TrackTree.track_end (tinfo_track tinfo)) Event.start
                 (Seq.head events))
             (tinfo_sub_tracks tinfo)
@@ -367,14 +367,14 @@ derive_track_ derive_section state tinfo get_last_sample =
             Left err -> [LEvent.Log (Derive.error_to_warn err)]
         next_sample = get_last_sample prev_sample result
 
-derive_sub_notes :: (TrackTree.EventsTree -> Derive.NoteDeriver)
+derive_orphans :: (TrackTree.EventsTree -> Derive.NoteDeriver)
     -> Maybe Event.Event -> TrackTime -> TrackTree.EventsTree
     -> Maybe Derive.NoteDeriver
     -- ^ The Maybe is a micro-optimization to avoid returning 'mempty'.  This
     -- is because 'Derive.d_merge' doesn't know that one of its operands is
     -- empty, and does all the splitting of and restoring collect bother.
     -- I expect lots of empties here so maybe it makes a difference.
-derive_sub_notes derive_tracks prev end subs
+derive_orphans derive_tracks prev end subs
     | start == end = Nothing
     | otherwise = case concat <$> sliced of
         Left err -> Just $ Log.warn err >> return []
