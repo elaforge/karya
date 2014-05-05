@@ -28,7 +28,7 @@ import Types
 
 do_derive :: (Score.Event -> a) -> UiTest.TrackSpec -> ([a], [String])
 do_derive extract track = DeriveTest.extract extract $
-        DeriveTest.derive_tracks "" [(">", [(0, 8, "")]), track]
+    DeriveTest.derive_tracks "" [(">", [(0, 8, "")]), track]
 
 test_control_track = do
     let derive = do_derive (DeriveTest.e_control "cont")
@@ -109,7 +109,7 @@ test_derive_control = do
     let ex (sig, logs) = (Signal.unsignal sig, map DeriveTest.show_log logs)
     let derive events = DeriveTest.extract_run ex $
             DeriveTest.run State.empty $ Derive.with_default_imported $
-            Control.derive_control False (mktrack 10 events) []
+            Control.derive_control False (mktrack 10 events) id
     equal (derive [(0, 0, "1"), (1, 0, "2")])
         (Right ([(0, 1), (1, 2)], []))
     equal (derive [(0, 0, "1"), (2, 0, "i 2")])

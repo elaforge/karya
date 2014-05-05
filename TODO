@@ -89,8 +89,10 @@ UNSORTED
           different points, not the union of all of them.
 
     * Slice.checked_slice_notes can return Either instead of Deriver
-    - derive_track optimization: if events empty, then just evaluate subs
+    / note track optimization: if events empty, then just evaluate subs
       without slicing.
+      . Can't do it, I still need to record empty tracks in collect.  No
+        significant performance win anyway.
     * Remove Slice.strip_empty_tracks from Slice.checked_slice_note.
     / Remove Slice.slice exclusive arg
     * Revisit stricter overlap tests in Slice_test.test_overlaps

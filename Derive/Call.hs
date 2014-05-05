@@ -277,27 +277,24 @@ instance Pretty.Pretty TrackInfo where
 --
 -- Technically only the last sample part varies, this signature allows note
 -- calls to avoid the work in 'get_last'.
-type GetLastSample d = forall x.  PrevVal d -> Either x (LEvent.LEvents d)
-    -> PrevVal d
+type GetLastSample d = PrevVal d -> LEvent.LEvents d -> PrevVal d
 type PrevVal d = Maybe (RealTime, Derive.Elem d)
 
 pitch_last_sample :: GetLastSample PitchSignal.Signal
 pitch_last_sample =
-    get_last (\prev chunk -> PitchSignal.last chunk `mplus` prev)
+    get_last $ \prev chunk -> PitchSignal.last chunk `mplus` prev
 
 control_last_sample :: GetLastSample Signal.Control
-control_last_sample = get_last (\prev chunk -> Signal.last chunk `mplus` prev)
+control_last_sample = get_last $ \prev chunk -> Signal.last chunk `mplus` prev
 
-get_last :: (val -> d -> val) -> val -> Either x [LEvent.LEvent d] -> val
-get_last _ prev (Left _) = prev
-get_last f prev (Right derived) =
-    case Seq.last (mapMaybe LEvent.event derived) of
-        Just elt -> f prev elt
-        Nothing -> prev
+get_last :: (val -> d -> val) -> val -> [LEvent.LEvent d] -> val
+get_last f prev derived = case Seq.last (mapMaybe LEvent.event derived) of
+    Just elt -> f prev elt
+    Nothing -> prev
 
 -- | This is the toplevel function to derive control tracks.  It's responsible
 -- for actually evaluating each event.
-derive_control_track :: forall d. Derive.Callable d =>
+derive_control_track :: Derive.Callable d =>
     Derive.State -> TrackInfo -> GetLastSample d
     -> [Event.Event] -> ([LEvent.LEvents d], Derive.Collect)
 derive_control_track = derive_track_ derive_section
@@ -320,11 +317,10 @@ derive_note_track derive_tracks state tinfo =
     get_last_sample _ _ = Nothing
     derive_section tinfo prev events deriver =
         maybe id (<>) (get_orphans tinfo prev events) deriver
-    get_orphans tinfo prev events =
-        derive_orphans derive_tracks prev
-            (maybe (TrackTree.track_end (tinfo_track tinfo)) Event.start
-                (Seq.head events))
-            (tinfo_sub_tracks tinfo)
+    get_orphans tinfo prev events = derive_orphans derive_tracks prev
+        (maybe (TrackTree.track_end (tinfo_track tinfo)) Event.start
+            (Seq.head events))
+        (tinfo_sub_tracks tinfo)
 
 -- | Awkwardly factor out the common parts of 'derive_control_track' and
 -- 'derive_note_track'.
@@ -352,20 +348,25 @@ derive_track_ derive_section state tinfo get_last_sample =
         -- might get rid of it.
         (levents : rest_events, events `seq` final_collect)
         where
-        (result, out_state, logs) = Derive.run
+        (levents, next_collect) = run_derive
             (state { Derive.state_collect = collect }) $
                 derive_section tinfo (Seq.head prev) events derive
         derive = case events of
             [] -> return []
             cur : rest -> derive_event tinfo prev_sample prev cur rest
         (rest_events, final_collect) = case events of
-            [] -> ([], Derive.state_collect out_state)
-            cur : rest -> go (Derive.state_collect out_state) next_sample
-                (cur : prev) rest
-        levents = map LEvent.Log logs ++ case result of
-            Right stream -> stream
-            Left err -> [LEvent.Log (Derive.error_to_warn err)]
-        next_sample = get_last_sample prev_sample result
+            [] -> ([], next_collect)
+            cur : rest -> go next_collect next_sample (cur : prev) rest
+        next_sample = get_last_sample prev_sample levents
+
+run_derive :: Derive.State -> Derive.LogsDeriver d
+    -> ([LEvent.LEvent d], Derive.Collect)
+run_derive state deriver = (levents, Derive.state_collect out_state)
+    where
+    levents = map LEvent.Log logs ++ case result of
+        Right stream -> stream
+        Left err -> [LEvent.Log (Derive.error_to_warn err)]
+    (result, out_state, logs) = Derive.run state deriver
 
 derive_orphans :: (TrackTree.EventsTree -> Derive.NoteDeriver)
     -> Maybe Event.Event -> TrackTime -> TrackTree.EventsTree
@@ -505,7 +506,7 @@ apply_generator cinfo (TrackLang.Call call_id args) = do
 --
 -- The reason @info_expr@ is unparsed text is also thanks to pitch signal
 -- expressions.  Maybe I should get rid of them?
-reapply_generator :: (Derive.Callable d) => CallInfo d
+reapply_generator :: Derive.Callable d => CallInfo d
     -> TrackLang.CallId -> [TrackLang.Val] -> Event.Text -> Derive.LogsDeriver d
 reapply_generator cinfo call_id args expr = do
     call <- get_generator call_id
@@ -517,7 +518,7 @@ reapply_generator cinfo call_id args expr = do
     Internal.with_stack_call (Derive.call_name call) $
         Derive.call_func call passed
 
-apply_transformers :: (Derive.Callable d) => CallInfo d
+apply_transformers :: Derive.Callable d => CallInfo d
     -> [TrackLang.Call] -> Derive.LogsDeriver d
     -> Derive.LogsDeriver d
 apply_transformers _ [] deriver = deriver

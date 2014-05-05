@@ -145,17 +145,25 @@ eval_track track expr ctype deriver = case ctype of
         let sig_deriver
                 | is_ly = return (Signal.constant 1, [])
                 | otherwise = with_control_env Controls.tempo "compose" $
-                    derive_control True track expr
+                    derive_control True track transform
         tempo_call maybe_sym track sig_deriver deriver
     ParseTitle.Control maybe_op control -> do
         let control_name = Score.typed_val control
         merge <- lookup_op control_name maybe_op
-        control_call track control merge
-            (with_control_env control_name (merge_name control_name merge)
-                (derive_control False track expr))
-            deriver
+        let name = merge_name control_name merge
+        let sig_deriver = with_control_env control_name name $
+                derive_control False track transform
+        control_call track control merge sig_deriver deriver
     ParseTitle.Pitch scale_id maybe_name ->
-        pitch_call track maybe_name scale_id expr deriver
+        pitch_call track maybe_name scale_id transform deriver
+    where
+    transform :: Derive.Callable d => Derive.LogsDeriver d
+        -> Derive.LogsDeriver d
+    transform = Call.apply_transformers cinfo expr
+    cinfo = Derive.dummy_call_info 0 (TrackTree.track_end track) $ case ctype of
+        ParseTitle.Tempo {} -> "tempo track"
+        ParseTitle.Control {} -> "control track"
+        ParseTitle.Pitch {} -> "pitch track"
 
 merge_name :: Score.Control -> Derive.Merge -> Text
 merge_name control = maybe "set" name_of . Derive.merge_op control
@@ -245,12 +253,13 @@ merge_logs logs deriver = do
     return $ Derive.merge_events (map LEvent.Log logs) events
 
 pitch_call :: TrackTree.Track -> Maybe Score.Control -> Pitch.ScaleId
-    -> [TrackLang.Call] -> Derive.NoteDeriver -> Derive.NoteDeriver
-pitch_call track maybe_name scale_id expr deriver =
+    -> (Derive.PitchDeriver -> Derive.PitchDeriver)
+    -> Derive.NoteDeriver -> Derive.NoteDeriver
+pitch_call track maybe_name scale_id transform deriver =
     Internal.track_setup track $ do
         scale <- get_scale scale_id
         Derive.with_scale scale $ do
-            (signal, logs) <- derive_pitch True track expr
+            (signal, logs) <- derive_pitch True track transform
             -- Ignore errors, they should be logged on conversion.
             (nn_sig, _) <- pitch_signal_to_nn signal
             stash_if_wanted track (Signal.coerce nn_sig)
@@ -283,24 +292,22 @@ with_control_damage maybe_block_track_id track_range =
 type TrackResults sig = (sig, [Log.Msg])
 
 -- | Derive the signal of a control track.
-derive_control :: Bool -> TrackTree.Track -> [TrackLang.Call]
+derive_control :: Bool -> TrackTree.Track
+    -> (Derive.ControlDeriver -> Derive.ControlDeriver)
     -> Derive.Deriver (TrackResults Signal.Control)
-derive_control is_tempo track expr = do
-    let name = if is_tempo then "tempo track" else "control track"
-    stream <- Call.apply_transformers (track_call_info track name) expr deriver
+derive_control is_tempo track transform = do
+    stream <- Cache.track track mempty $ transform $ do
+        state <- Derive.get
+        let (stream, collect) = Call.derive_control_track state tinfo
+                Call.control_last_sample (track_events track)
+        Internal.merge_collect collect
+        return $ compact (concat stream)
     let (signal_chunks, logs) = LEvent.partition stream
         -- I just did it in 'compact', so this should just convert [x] to x.
         signal = mconcat signal_chunks
     real_end <- Derive.real (TrackTree.track_end track)
     return (extend real_end signal, logs)
     where
-    deriver :: Derive.ControlDeriver
-    deriver = Cache.track track mempty $ do
-        state <- Derive.get
-        let (stream, collect) = Call.derive_control_track state tinfo
-                Call.control_last_sample (track_events track)
-        Internal.merge_collect collect
-        return $ compact (concat stream)
     -- Merge the signal here so it goes in the cache as one signal event.
     -- I can use concat instead of merge_asc_events because the signals
     -- will be merged with Signal.merge and the logs extracted.
@@ -316,22 +323,21 @@ derive_control is_tempo track expr = do
         | is_tempo = Signal.coerce . Tempo.extend_signal end . Signal.coerce
         | otherwise = id
 
-derive_pitch :: Bool -> TrackTree.Track -> [TrackLang.Call]
+derive_pitch :: Bool -> TrackTree.Track
+    -> (Derive.PitchDeriver -> Derive.PitchDeriver)
     -> Derive.Deriver (TrackResults PitchSignal.Signal)
-derive_pitch cache track expr = do
-    stream <- Call.apply_transformers (track_call_info track "pitch track")
-        expr deriver
-    let (signal_chunks, logs) = LEvent.partition stream
-        -- I just did it in 'compact', so this should just convert [x] to x.
-        signal = mconcat signal_chunks
-    return (signal, logs)
-    where
-    deriver = (if cache then Cache.track track mempty else id) $ do
+derive_pitch cache track transform = do
+    stream <- (if cache then Cache.track track mempty else id) $ transform $ do
         state <- Derive.get
         let (stream, collect) = Call.derive_control_track state tinfo
                 Call.pitch_last_sample (track_events track)
         Internal.merge_collect collect
         return $ compact (concat stream)
+    let (signal_chunks, logs) = LEvent.partition stream
+        -- I just did it in 'compact', so this should just convert [x] to x.
+        signal = mconcat signal_chunks
+    return (signal, logs)
+    where
     -- Merge the signal here so it goes in the cache as one signal event.
     compact events = LEvent.Event (mconcat sigs) : map LEvent.Log logs
         where (sigs, logs) = LEvent.partition events
@@ -343,11 +349,6 @@ derive_pitch cache track expr = do
 
 track_events :: TrackTree.Track -> [Event.Event]
 track_events = Events.ascending . TrackTree.track_events
-
--- | Create a CallInfo for the title call of a track.
-track_call_info :: TrackTree.Track -> Text -> Derive.CallInfo d
-track_call_info track name =
-    Derive.dummy_call_info 0 (TrackTree.track_end track) name
 
 -- * TrackSignal
 

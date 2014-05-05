@@ -163,12 +163,12 @@ with_title subs end title deriver
     | otherwise = do
         track_expr <- either (Derive.throw . ("track title: "++)) return
             (ParseTitle.parse_note title)
-        Call.apply_transformers info (NonEmpty.toList track_expr) deriver
+        Call.apply_transformers cinfo (NonEmpty.toList track_expr) deriver
     where
-    info = (Derive.dummy_call_info 0 end "note track")
+    cinfo = (Derive.dummy_call_info 0 end "note track")
         { Derive.info_sub_tracks = subs }
 
-derive_notes :: (TrackTree.EventsTree -> Derive.NoteDeriver) -> Call.TrackInfo
+derive_notes :: ([TrackTree.EventsNode] -> Derive.NoteDeriver) -> Call.TrackInfo
     -> [Event.Event] -> Derive.NoteDeriver
 derive_notes derive_tracks tinfo events = do
     state <- Derive.get
