@@ -50,7 +50,7 @@ data Block = Block {
 
 instance Pretty.Pretty Block where
     format (Block title _config tracks skel integrated integrated_tracks meta) =
-        Pretty.record_title "Block"
+        Pretty.record "Block"
             [ ("title", Pretty.format title)
             , ("tracks", Pretty.format tracks)
             , ("skel", Pretty.format skel)
@@ -234,7 +234,7 @@ type Status = Maybe (String, Color.Color)
 
 instance Pretty.Pretty DisplayTrack where
     format (DisplayTrack tlike_id width merged status _bright) =
-        Pretty.record_title "DisplayTrack"
+        Pretty.record "DisplayTrack"
             [ ("tracklike_id", Pretty.format tlike_id)
             , ("width", Pretty.format width)
             , ("merged", Pretty.format merged)
@@ -389,7 +389,7 @@ data View = View {
 
 instance Pretty.Pretty View where
     format (View block rect track_pad time_pad status tscroll zoom sels) =
-        Pretty.record_title "View"
+        Pretty.record "View"
             [ ("block", Pretty.format block)
             , ("rect", Pretty.format rect)
             , ("padding", Pretty.format (track_pad, time_pad))
