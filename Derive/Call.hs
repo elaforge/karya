@@ -390,27 +390,18 @@ derive_orphans derive_tracks prev end subs
     place (shift, _, tree) = Derive.at shift $ derive_tracks tree
 
 -- Notes on recording TrackDynamic at NOTE [record-track-dynamics].
-record_track_dynamic :: Bool -> TrackTree.Track -> Derive.State
-    -> Derive.Collect
-record_track_dynamic _has_children track state
-    -- Use the controls from the parent track.
-    -- How to get them?  The parent can see the children, but how does the
-    -- sliced child know who its parent was?
-    -- When the parent finishes, its children should already be recorded, so
-    -- it could replace them.
-    | TrackTree.track_sliced track = collect $
-        -- Debug.tracep ("sliced: " ++ show (TrackTree.track_inverted track)) $
-        Internal.record_track_dynamic $
-        dyn { Derive.state_controls = mempty }
-    | otherwise = collect $
-        -- Debug.tracep "unsliced" $
-        Internal.record_track_dynamic dyn
-    -- where dyn = Derive.state_dynamic state
-    where
-    -- k = (TrackTree.track_block_id track, TrackTree.track_track_id track)
-    -- dyn = Debug.traceps "record" k $ Derive.state_dynamic state
-    dyn = Derive.state_dynamic state
-    collect = maybe mempty (\d -> mempty { Derive.collect_track_dynamic = d })
+--
+-- I want controls from the first uninverted version (might be sliced because
+-- a child note track will only ever be evaluated sliced), and the rest from
+-- the first inverted version.
+record_track_dynamic :: TrackTree.Track -> Derive.State -> Derive.Collect
+record_track_dynamic track state =
+    case Internal.record_track_dynamic (Derive.state_dynamic state) of
+        Nothing -> mempty
+        Just track_dyn
+            | TrackTree.track_inverted track -> mempty
+                { Derive.collect_track_dynamic_inverted = track_dyn }
+            | otherwise -> mempty { Derive.collect_track_dynamic = track_dyn }
 
 defragment_track_signals :: Score.Warp -> Derive.Collect -> Derive.Collect
 defragment_track_signals warp collect

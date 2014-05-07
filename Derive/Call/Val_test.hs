@@ -69,7 +69,6 @@ test_linear_next = do
     equal logs []
     equal result [[(0, 60), (0.5, 72), (1, 63), (1.5, 69),
         (2, 66), (2.5, 66), (3, 69), (3.5, 63), (4, NN.c2)]]
-
     strings_like
         (snd $ f DeriveTest.e_dyn ("dyn", [(0, 0, "xcut (i> 0 (4c))")]))
         ["arg 2/bp: expected Num but got Pitch"]

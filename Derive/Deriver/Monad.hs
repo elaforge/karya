@@ -74,7 +74,7 @@ module Derive.Deriver.Monad (
     -- ** collect
     , Collect(..), SignalFragments
     , ControlMod(..), Integrated(..)
-    , TrackDynamic(..)
+    , TrackDynamic
 
     -- * calls
     , CallMap
@@ -742,6 +742,11 @@ data Collect = Collect {
     , collect_track_signals :: !Track.TrackSignals
     , collect_signal_fragments :: !SignalFragments
     , collect_track_dynamic :: !TrackDynamic
+    -- | I prefer the Dynamic from the inverted version of a track, if it
+    -- exists.  But I want the controls to come from the non-inverted version,
+    -- since they are sliced to a particular event in the inverted version.
+    -- So I record both, and merge them together at the end.
+    , collect_track_dynamic_inverted :: !TrackDynamic
     -- | This is how a call records its dependencies.  After evaluation of
     -- a deriver, this will contain the dependencies of the most recent call.
     , collect_block_deps :: !BlockDeps
@@ -773,6 +778,7 @@ instance Pretty.Pretty Collect where
             , ("track_signals", Pretty.format tsigs)
             , ("signal_fragments", Pretty.format frags)
             , ("track_dynamic", Pretty.format trackdyn)
+            , ("track_dynamic_inverted", Pretty.format trackdyn_inv)
             , ("block_deps", Pretty.format deps)
             , ("cache", Pretty.format cache)
             , ("integrated", Pretty.format integrated)
@@ -781,20 +787,23 @@ instance Pretty.Pretty Collect where
 
 instance Monoid.Monoid Collect where
     mempty = Collect mempty mempty mempty mempty mempty mempty mempty mempty
-    mappend (Collect warps1 tsigs1 frags1 trackdyn1 deps1 cache1 integrated1
-                cmods1)
-            (Collect warps2 tsigs2 frags2 trackdyn2 deps2 cache2 integrated2
-                cmods2) =
+        mempty
+    mappend (Collect warps1 tsigs1 frags1 trackdyn1 trackdyn_inv1 deps1 cache1
+                integrated1 cmods1)
+            (Collect warps2 tsigs2 frags2 trackdyn2 trackdyn_inv2 deps2 cache2
+                integrated2 cmods2) =
         Collect (warps1 <> warps2)
             (tsigs1 <> tsigs2) (Map.unionWith (<>) frags1 frags2)
-            (trackdyn1 <> trackdyn2) (deps1 <> deps2) (cache1 <> cache2)
-            (integrated1 <> integrated2) (cmods1 <> cmods2)
+            (trackdyn1 <> trackdyn2) (trackdyn_inv1 <> trackdyn_inv2)
+            (deps1 <> deps2) (cache1 <> cache2) (integrated1 <> integrated2)
+            (cmods1 <> cmods2)
 
 instance DeepSeq.NFData Collect where
-    rnf (Collect warp_map frags tsigs track_dyn local_dep cache integrated
-            _cmods) =
+    rnf (Collect warp_map frags tsigs track_dyn track_dyn_inv local_dep cache
+            integrated _cmods) =
         rnf warp_map `seq` rnf frags `seq` rnf tsigs `seq` rnf track_dyn
-        `seq` rnf local_dep `seq` rnf cache `seq` rnf integrated
+        `seq` rnf track_dyn_inv `seq` rnf local_dep `seq` rnf cache
+        `seq` rnf integrated
 
 -- | This is a hack so a call on a control track can modify other controls.
 -- The motivating case is pitch ornaments that also want to affect the
@@ -839,59 +848,13 @@ instance DeepSeq.NFData Integrated where
 -- This is a much simpler solution which will hopefully work well enough in
 -- practice.
 --
--- NOTE [record-track-dynamics] So it hasn't quite worked well enough in
--- practice.  The problem is that if I get controls from sliced tracks, the
--- controls are also sliced, which means they have zeroes where they shouldn't.
--- However, I can't just not record TrackDynamic from sliced or inverted tracks
--- because then in the very common case of [">i", "*scale"], >i won't get the
--- *scale because that only happens post-inversion.  In addition, an orphan
--- track is only seen in sliced form.
---
--- I really want to record the Dynamic of each track as if there were no
--- slicing, but that would require a whole new derive pass.  I think I could
--- fix this by storing TrackDynamics by (BlockId, TrackId, Maybe TrackTime),
--- and have the lookup function find the most specific one.
---
--- TODO That seems like an annoying bit of work that will probably bring its
--- own complications, so I'm settling for another hack for the moment (those
--- never go wrong, right?).  I generally want the controls from the
--- pre-inversion track, since those aren't sliced.  But I want the environ from
--- post-inversion, because of the *scale thing, and besides the environ can't
--- be sliced anyway.  So TrackDynamics's mappend takes the environ from the
--- first arg and the rest (including controls) from the second.  Since inverted
--- tracks wind up being mappended on the right, this gets controls from
--- non-inverted and environ from inverted.  Of course there are probably more
--- ways that could go wrong, and inverted tracks mappending on the right is
--- brittle and subtle, so I won't be too shocked if I have to come revisit this
--- someday, and maybe implement the TrackTime thing.
---
--- One more hack: the controls on the second nesting of a slice are also sliced
--- fragments.  I can't just merge them, since they have (0, 0) samples which
--- would cause a later fragment to wipe out the earlier ones.  But I can merge
--- them after I drop the initial 0, as in 'merge_controls'.  This only works
--- because the slices are evaluated and mappended in order.
-newtype TrackDynamic = TrackDynamic (Map.Map (BlockId, TrackId) Dynamic)
-    deriving (Show, DeepSeq.NFData, Pretty.Pretty, Monoid.Monoid)
-
--- instance Monoid.Monoid TrackDynamic where
---     mempty = TrackDynamic mempty
---     mappend (TrackDynamic d1) (TrackDynamic d2) =
---         TrackDynamic $ Map.unionWith merge d1 d2
---         where
---         merge d1 d2 = d2
---             { state_environ = state_environ d1
---             , state_controls = Map.unionWith merge_controls
---                 (state_controls d1) (state_controls d2)
---             }
---
--- merge_controls :: Score.TypedControl -> Score.TypedControl -> Score.TypedControl
--- merge_controls (Score.Typed typ c1) (Score.Typed _ c2) =
---     -- c1 is the new one being merged in, c2 is the old one.
---     Score.Typed typ (c2 <> drop0 c1)
---     where
---     drop0 sig = case Signal.head sig of
---         Just (0, 0) -> Signal.drop 1 sig
---         _ -> sig
+-- NOTE [record-track-dynamics] One complication is that when I get controls
+-- from sliced tracks, the controls are also sliced.  But I need the environ
+-- from the inverted version of the track so the common case of [>i, *scale]
+-- gets the correct scale.  So I record TrackDynamic for both inverted and non
+-- inverted tracks and prefer the inverted tracks, but take controls from
+-- the non-inverted versions.
+type TrackDynamic = Map.Map (BlockId, TrackId) Dynamic
 
 
 -- ** calls

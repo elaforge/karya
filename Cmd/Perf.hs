@@ -165,7 +165,7 @@ lookup_dynamic block_id maybe_track_id = do
         Nothing -> get <$> Cmd.lookup_performance block_id
     where
     get = maybe Nothing (lookup . Cmd.perf_track_dynamic)
-    lookup (Derive.TrackDynamic track_dyns) = case maybe_track_id of
+    lookup track_dyns = case maybe_track_id of
         Nothing -> do
             (_, dyn) <- List.find ((==block_id) . fst . fst)
                 (Map.toAscList track_dyns)

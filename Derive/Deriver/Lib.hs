@@ -16,6 +16,7 @@ import qualified Data.Set as Set
 
 import Util.Control
 import qualified Util.Log as Log
+import qualified Util.Map
 import qualified Util.Seq as Seq
 
 import qualified Ui.Event as Event
@@ -77,11 +78,21 @@ extract_result (result, state, logs) = Result
     , r_cache = collect_cache collect <> state_cache (state_constant state)
     , r_track_warps = TrackWarp.collections (collect_warp_map collect)
     , r_track_signals = collect_track_signals collect
-    , r_track_dynamic = collect_track_dynamic collect
+    , r_track_dynamic = extract_track_dynamic collect
     , r_integrated = collect_integrated collect
     , r_state = state
     }
     where collect = state_collect state
+
+extract_track_dynamic :: Collect -> TrackDynamic
+extract_track_dynamic collect =
+    Map.fromList $ map extract $ Util.Map.pairs
+        (collect_track_dynamic collect) (collect_track_dynamic_inverted collect)
+    where
+    extract (k, Seq.First dyn) = (k, dyn)
+    extract (k, Seq.Second dyn) = (k, dyn)
+    extract (k, Seq.Both normal inverted) = (k,
+        inverted { state_controls = state_controls normal })
 
 -- | Given an environ, bring instrument and scale calls into scope.
 with_initial_scope :: TrackLang.Environ -> Deriver d -> Deriver d

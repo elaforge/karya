@@ -155,11 +155,11 @@ UNSORTED
       first inverted instance of the note track, stripping out the controls.
       Except for the inverted note track, only record each (BlockId, TrackId)
       the first time.
-    - So I wind up with a map for uninverted, and a map for inverted.  At the
+    * So I wind up with a map for uninverted, and a map for inverted.  At the
       end, I union them, preferring inverted, and when both exist, take the
       controls from uninverted.
-    - Complete Derive.Call.record_track_dynamic
-    - MidiThru can reset %dyn to 1.
+    * Complete Derive.Call.record_track_dynamic
+  - MidiThru can reset %dyn to 1.
   * Clean up 'tevents_range', 'tevents_end', 'tevents_shifted'.
     . `fst . Derive.info_track_range` is used by `Args.range_on_track`, it
       adds it to the event to get TrackTime, which is used by Cache to compare

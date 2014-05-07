@@ -225,17 +225,29 @@ test_track_dynamic = do
         , ((block_id, 2), ("legong", ">i1"))
         ]
 
-    -- TODO fix this next
-    -- let res = DeriveTest.derive_tracks_linear ""
-    --         [ ("dyn", [(0, 0, ".5")])
-    --         , (">", [(0, 1, ""), (1, 1, ""), (2, 1, "")])
-    --         , ("dyn", [(0, 0, ".25"), (1, 0, ".5"), (2, 0, ".75")])
-    --         , ("dyn", [(0, 0, ".25"), (1, 0, ".5"), (2, 0, ".75")])
-    --         ]
-    -- let e_controls dyn = Signal.unsignal . Score.typed_val <$>
-    --         Map.lookup Controls.dynamic (Derive.state_controls dyn)
-    -- equal (e_track_dynamic e_controls res)
-    --     [((block_id, n), Just [(0, 0.5)]) | n <- [1..4]]
+    -- Controls for the note track come from the uninverted version, env from
+    -- inverted version.  Otherwise, Dynamic is from the first slice.
+    let res = DeriveTest.derive_tracks_linear ""
+            [ ("dyn", [(0, 0, ".5")])
+            , (">", [(0, 1, ""), (1, 1, ""), (2, 1, "")])
+            , ("*legong", [])
+            , ("dyn", [(0, 0, ".25"), (1, 0, ".5"), (2, 0, ".75")])
+            , ("dyn", [(0, 0, ".25"), (1, 0, ".5"), (2, 0, ".75")])
+            ]
+    let e_dyn dyn = Signal.unsignal . Score.typed_val <$>
+            Map.lookup Controls.dynamic (Derive.state_controls dyn)
+        e_scale = env_lookup Environ.scale . Derive.state_environ
+        all_tracks = [(block_id, n) | n <- [1..5]]
+    equal (e_track_dynamic e_scale res)
+        (zip all_tracks ("twelve" : repeat "legong"))
+    equal (e_track_dynamic e_dyn res)
+        (zip all_tracks
+            [ Just [(0, 1)]
+            , Just [(0, 0.5)]
+            , Just [(0, 0.5)]
+            , Just [(0, 0.5)]
+            , Just [(0, 0.125), (1, 0.25)]
+            ])
 
 test_track_dynamic_consistent = do
     -- Ensure that all parts of the Dynamic come from the same derivation of
@@ -262,8 +274,7 @@ env_lookup key = pretty . TrackLang.lookup_val key
 e_track_dynamic :: (Derive.Dynamic -> a) -> Derive.Result
     -> [((BlockId, TrackNum), a)]
 e_track_dynamic extract = map (first (second UiTest.tid_tracknum))
-    . Map.toList . fmap extract . x . Derive.r_track_dynamic
-    where x (Derive.TrackDynamic d) = d
+    . Map.toList . fmap extract . Derive.r_track_dynamic
 
 test_track_dynamic_invert = do
     -- Ensure the correct TrackDynamic is collected even in the presence of
@@ -341,8 +352,7 @@ test_record_empty_tracks = do
     let run = DeriveTest.derive_tracks_linear ""
         track_warps = concatMap (Set.toList . TrackWarp.tw_tracks)
             . Derive.r_track_warps
-        track_dyn = Map.keys . (\(Derive.TrackDynamic d) -> d)
-            . Derive.r_track_dynamic
+        track_dyn = Map.keys . Derive.r_track_dynamic
 
     let result = run [(">i1", []), (">i2", []), (">i3", [(0, 1, "")])]
     equal (track_warps result) (map UiTest.mk_tid [1, 2, 3])

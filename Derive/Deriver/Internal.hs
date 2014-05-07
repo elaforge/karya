@@ -73,7 +73,10 @@ detached_local modify_state deriver = do
 -- Direct modification would be potentially more efficient, but according to
 -- profiling it doesn't make a difference.
 merge_collect :: Collect -> Deriver ()
-merge_collect c = modify $ \st -> st { state_collect = c <> state_collect st }
+merge_collect c = modify $ \st -> st { state_collect = state_collect st <> c }
+    -- I append the Collect, which means that I wind up with the first instance
+    -- for Maps with duplicate keys.  This seems a bit more intuitive than the
+    -- last one.
 
 modify_collect :: (Collect -> Collect) -> Deriver ()
 modify_collect f = modify $ \st -> st { state_collect = f (state_collect st) }
@@ -96,7 +99,7 @@ insert_environ name val environ =
 -- in the Collect.  It only needs to be recorded once per track.
 record_track_dynamic :: Dynamic -> Maybe TrackDynamic
 record_track_dynamic dyn = case Stack.block_track_of (state_stack dyn) of
-    Just (bid, tid) -> Just $ TrackDynamic $ Map.singleton (bid, tid) dyn
+    Just (bid, tid) -> Just $ Map.singleton (bid, tid) dyn
     Nothing -> Nothing
 
 -- | 'record_track_dynamic' for when I already know BlockId and TrackId.
@@ -104,9 +107,7 @@ record_track_dynamic_for :: BlockId -> TrackId -> Deriver ()
 record_track_dynamic_for block_id track_id = do
     dynamic <- gets state_dynamic
     merge_collect $ mempty
-        { collect_track_dynamic =
-            TrackDynamic $ Map.singleton (block_id, track_id) dynamic
-        }
+        { collect_track_dynamic = Map.singleton (block_id, track_id) dynamic }
 
 
 -- * cache
