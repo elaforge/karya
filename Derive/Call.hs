@@ -266,7 +266,7 @@ data TrackInfo = TrackInfo {
     } deriving (Show)
 
 instance Pretty.Pretty TrackInfo where
-    format (TrackInfo track subs ttype) = Pretty.record_title "TrackInfo"
+    format (TrackInfo track subs ttype) = Pretty.record "TrackInfo"
         [ ("track", Pretty.format track)
         , ("sub_tracks", Pretty.format subs)
         , ("type", Pretty.format ttype)

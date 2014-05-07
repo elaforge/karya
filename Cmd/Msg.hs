@@ -111,14 +111,13 @@ instance Show Performance where
         where len = Derive.cache_size (perf_derive_cache perf)
 
 instance Pretty.Pretty Performance where
-    format perf =
-        Pretty.record_title "Performance"
-            [ ("cache", Pretty.format (Map.keys c))
-            , ("events", Pretty.format (Vector.length (perf_events perf)))
-            , ("integrated", Pretty.format (perf_integrated perf))
-            , ("damage", Pretty.format (perf_damage perf))
-            , ("warps", Pretty.format (perf_warps perf))
-            ]
+    format perf = Pretty.record "Performance"
+        [ ("cache", Pretty.format (Map.keys c))
+        , ("events", Pretty.format (Vector.length (perf_events perf)))
+        , ("integrated", Pretty.format (perf_integrated perf))
+        , ("damage", Pretty.format (perf_damage perf))
+        , ("warps", Pretty.format (perf_warps perf))
+        ]
         where Derive.Cache c = perf_derive_cache perf
 
 -- * views

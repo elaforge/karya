@@ -44,7 +44,7 @@ get_channel :: Addr -> State -> Channel
 get_channel addr (State chans) = Map.findWithDefault empty_channel addr chans
 
 instance Pretty.Pretty Channel where
-    format (Channel notes pb controls) = Pretty.record_title "Channel"
+    format (Channel notes pb controls) = Pretty.record "Channel"
         [ ("notes", Pretty.format notes)
         , ("pb", Pretty.format pb)
         , ("controls", Pretty.format controls)

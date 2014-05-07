@@ -65,13 +65,12 @@ type Marklists = Map.Map Name Marklist
 type Name = Text
 
 instance Pretty.Pretty Ruler where
-    format (Ruler mlists bg show_names align_to_bottom) =
-        Pretty.record_title "Ruler"
-            [ ("marklists", Pretty.format mlists)
-            , ("bg", Pretty.format bg)
-            , ("show_names", Pretty.format show_names)
-            , ("align_to_bottom", Pretty.format align_to_bottom)
-            ]
+    format (Ruler mlists bg show_names align_to_bottom) = Pretty.record "Ruler"
+        [ ("marklists", Pretty.format mlists)
+        , ("bg", Pretty.format bg)
+        , ("show_names", Pretty.format show_names)
+        , ("align_to_bottom", Pretty.format align_to_bottom)
+        ]
 
 instance DeepSeq.NFData Ruler where rnf (Ruler mlists _ _ _) = mlists `seq` ()
 

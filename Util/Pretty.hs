@@ -15,7 +15,7 @@ module Util.Pretty (
     , (PP.<+>)
 
     -- * formatting
-    , format_commas, text_list, comma_list, record, record_title
+    , format_commas, text_list, comma_list, record
     , constructor
     -- * misc
     , show_float, show_float0, read_word
@@ -147,9 +147,13 @@ instance (Pretty a) => Pretty (Tree.Tree a) where
         "Node" <+> PP.fsep ["(" <> format val <> ")", format children]
 
 instance (Pretty a, Pretty b) => Pretty (Seq.Paired a b) where
-    format (Seq.First a) = PP.text "First" <+> format a
-    format (Seq.Second b) = PP.text "Second" <+> format b
-    format (Seq.Both a b) = PP.text "Both" <+> format a <+> format b
+    format (Seq.First a) = "First" <+> format a
+    format (Seq.Second b) = "Second" <+> format b
+    -- format (Seq.Both a b) = "Both" <+> format a <+> format b
+    format (Seq.Both a b) = record "Both"
+        [ ("first", format a)
+        , ("second", format b)
+        ]
 
 instance Pretty Time.UTCTime where pretty = show
 
@@ -197,10 +201,6 @@ record title fields =
     fsep' :: [Doc] -> Doc
     fsep' [] = PP.empty
     fsep' (d:ds) = PP.nest 2 (PP.fsep (PP.nest (-2) d:ds))
-
--- | Just like 'record' except the first argument is text.
-record_title :: String -> [(String, Doc)] -> Doc
-record_title = record . PP.text
 
 constructor :: String -> [Doc] -> Doc
 constructor name [] = PP.text name

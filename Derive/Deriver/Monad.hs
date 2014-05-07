@@ -428,7 +428,7 @@ default_dynamic = 1
 instance Pretty.Pretty Dynamic where
     format (Dynamic controls cfuncs pitches pitch environ warp scopes aliases
             damage stack) =
-        Pretty.record_title "Dynamic"
+        Pretty.record "Dynamic"
             [ ("controls", Pretty.format controls)
             , ("control functions", Pretty.format cfuncs)
             , ("pitches", Pretty.format pitches)
@@ -464,7 +464,7 @@ empty_library = Library mempty mempty mempty mempty
 
 instance Show Library where show _ = "((Library))"
 instance Pretty.Pretty Library where
-    format (Library note control pitch val) = Pretty.record_title "Library"
+    format (Library note control pitch val) = Pretty.record "Library"
         [ ("note", Pretty.format note)
         , ("control", Pretty.format control)
         , ("pitch", Pretty.format pitch)
@@ -492,7 +492,7 @@ s_transformer =
 s_val = Lens.lens scopes_val (\v r -> r { scopes_val = v })
 
 instance Pretty.Pretty Scopes where
-    format (Scopes g t v) = Pretty.record_title "Scopes"
+    format (Scopes g t v) = Pretty.record "Scopes"
         [ ("generator", Pretty.format g)
         , ("transformer", Pretty.format t)
         , ("val", Pretty.format v)
@@ -518,7 +518,7 @@ empty_scope = Scope mempty mempty mempty
 
 instance (Pretty.Pretty note, Pretty.Pretty control, Pretty.Pretty pitch) =>
         Pretty.Pretty (Scope note control pitch) where
-    format (Scope note control pitch) = Pretty.record_title "Scope"
+    format (Scope note control pitch) = Pretty.record "Scope"
         [ ("note", Pretty.format note)
         , ("control", Pretty.format control)
         , ("pitch", Pretty.format pitch)
@@ -562,7 +562,7 @@ instance Monoid.Monoid (ScopeType call) where
 instance Show (ScopeType call) where show = pretty
 instance Pretty.Pretty (ScopeType call) where
     format (ScopeType override inst scale imported) =
-        Pretty.record_title "ScopeType"
+        Pretty.record "ScopeType"
             [ ("override", Pretty.format override)
             , ("inst", Pretty.format inst)
             , ("scale", Pretty.format scale)
@@ -666,12 +666,11 @@ instance Show InstrumentCalls where
             <> "))"
 
 instance Pretty.Pretty InstrumentCalls where
-    format (InstrumentCalls gen trans val) =
-        Pretty.record_title "InstrumentCalls"
-            [ ("generator", Pretty.format gen)
-            , ("transformer", Pretty.format trans)
-            , ("val", Pretty.format val)
-            ]
+    format (InstrumentCalls gen trans val) = Pretty.record "InstrumentCalls"
+        [ ("generator", Pretty.format gen)
+        , ("transformer", Pretty.format trans)
+        , ("val", Pretty.format val)
+        ]
 
 instance Monoid.Monoid InstrumentCalls where
     mempty = InstrumentCalls mempty mempty mempty
@@ -767,8 +766,9 @@ data Collect = Collect {
 type SignalFragments = Map.Map (BlockId, TrackId) [Signal.Control]
 
 instance Pretty.Pretty Collect where
-    format (Collect warp_map tsigs frags trackdyn deps cache integrated cmods) =
-        Pretty.record_title "Collect"
+    format (Collect warp_map tsigs frags trackdyn trackdyn_inv deps cache
+            integrated cmods) =
+        Pretty.record "Collect"
             [ ("warp_map", Pretty.format warp_map)
             , ("track_signals", Pretty.format tsigs)
             , ("signal_fragments", Pretty.format frags)
@@ -816,7 +816,7 @@ data Integrated = Integrated {
     } deriving (Show)
 
 instance Pretty.Pretty Integrated where
-    format (Integrated source events) = Pretty.record_title "Integrated"
+    format (Integrated source events) = Pretty.record "Integrated"
         [ ("source", Pretty.format source)
         , ("events", Pretty.format events)
         ]
@@ -924,7 +924,7 @@ instance Monoid.Monoid (CallMaps d) where
         CallMaps (gs1 <> gs2) (ts1 <> ts2)
 
 instance Pretty.Pretty (CallMaps d) where
-    format (CallMaps gs ts) = Pretty.record_title "CallMaps"
+    format (CallMaps gs ts) = Pretty.record "CallMaps"
         [ ("generators", Pretty.format gs)
         , ("transformers", Pretty.format ts)
         ]
@@ -959,7 +959,7 @@ data PassedArgs val = PassedArgs {
     }
 
 instance (Pretty.Pretty val) => Pretty.Pretty (PassedArgs val) where
-    format (PassedArgs vals call_name info) = Pretty.record_title "PassedArgs"
+    format (PassedArgs vals call_name info) = Pretty.record "PassedArgs"
         [ ("vals", Pretty.format vals)
         , ("call_name", Pretty.format call_name)
         , ("info", Pretty.format info)
@@ -1035,7 +1035,7 @@ info_track_range info = (shifted, shifted + info_event_end info)
 instance Pretty.Pretty val => Pretty.Pretty (CallInfo val) where
     format (CallInfo expr prev_val event prev_events next_events event_end
             track_range inverted sub_tracks sub_events track_type) =
-        Pretty.record_title "CallInfo"
+        Pretty.record "CallInfo"
             [ ("expr", Pretty.format expr)
             , ("prev_val", Pretty.format prev_val)
             , ("event", Pretty.format event)
@@ -1298,7 +1298,7 @@ instance Monoid.Monoid ScoreDamage where
 
 instance Pretty.Pretty ScoreDamage where
     format (ScoreDamage tracks track_blocks blocks) =
-        Pretty.record_title "ScoreDamage"
+        Pretty.record "ScoreDamage"
             [ ("tracks", Pretty.format tracks)
             , ("track_blocks", Pretty.format track_blocks)
             , ("blocks", Pretty.format blocks)

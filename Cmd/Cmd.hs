@@ -535,13 +535,12 @@ data SyncConfig = SyncConfig {
     } deriving (Show)
 
 instance Pretty.Pretty SyncConfig where
-    format (SyncConfig dev dev_id mtc rate) =
-        Pretty.record_title "SyncConfig"
-            [ ("device", Pretty.format dev)
-            , ("device_id", Pretty.format dev_id)
-            , ("mtc", Pretty.format mtc)
-            , ("frame_rate", Pretty.text (show rate))
-            ]
+    format (SyncConfig dev dev_id mtc rate) = Pretty.record "SyncConfig"
+        [ ("device", Pretty.format dev)
+        , ("device_id", Pretty.format dev_id)
+        , ("mtc", Pretty.format mtc)
+        , ("frame_rate", Pretty.text (show rate))
+        ]
 
 -- ** hooks
 
@@ -720,11 +719,10 @@ data InstrumentCode = InstrumentCode {
 
 instance Show InstrumentCode where show _ = "((InstrumentCode))"
 instance Pretty.Pretty InstrumentCode where
-    format (InstrumentCode calls cmds) =
-        Pretty.record_title "InstrumentCode"
-            [ ("calls", Pretty.format calls)
-            , ("cmds", Pretty.format cmds)
-            ]
+    format (InstrumentCode calls cmds) = Pretty.record "InstrumentCode"
+        [ ("calls", Pretty.format calls)
+        , ("cmds", Pretty.format cmds)
+        ]
 
 derive_instrument :: MidiInfo -> Derive.Instrument
 derive_instrument info = Derive.Instrument
@@ -833,13 +831,12 @@ empty_history_entry :: State.State -> HistoryEntry
 empty_history_entry state = HistoryEntry state [] [] Nothing
 
 instance Pretty.Pretty History where
-    format (History past present future last_cmd) =
-        Pretty.record_title "History"
-            [ ("past", Pretty.format past)
-            , ("present", Pretty.format present)
-            , ("future", Pretty.format future)
-            , ("last_cmd", Pretty.text (show last_cmd))
-            ]
+    format (History past present future last_cmd) = Pretty.record "History"
+        [ ("past", Pretty.format past)
+        , ("present", Pretty.format present)
+        , ("future", Pretty.format future)
+        , ("last_cmd", Pretty.text (show last_cmd))
+        ]
 
 instance Pretty.Pretty HistoryEntry where
     format (HistoryEntry _state updates commands commit) =
@@ -847,15 +844,14 @@ instance Pretty.Pretty HistoryEntry where
         Pretty.<+> Pretty.format updates
 
 instance Pretty.Pretty HistoryConfig where
-    format (HistoryConfig keep last_commit) =
-        Pretty.record_title "HistoryConfig"
-            [ ("keep", Pretty.format keep)
-            , ("last_commit", Pretty.format last_commit)
-            ]
+    format (HistoryConfig keep last_commit) = Pretty.record "HistoryConfig"
+        [ ("keep", Pretty.format keep)
+        , ("last_commit", Pretty.format last_commit)
+        ]
 
 instance Pretty.Pretty HistoryCollect where
     format (HistoryCollect names edit suppressed) =
-        Pretty.record_title "HistoryCollect"
+        Pretty.record "HistoryCollect"
             [ ("names", Pretty.format names)
             , ("suppress_edit", Pretty.format edit)
             , ("suppressed", Pretty.format suppressed)

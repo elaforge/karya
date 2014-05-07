@@ -34,7 +34,7 @@ data Track = Track {
     } deriving (Eq, Show, Read)
 
 instance Pretty.Pretty Track where
-    format (Track title events _bg render) = Pretty.record_title "Track"
+    format (Track title events _bg render) = Pretty.record "Track"
         [ ("title", Pretty.format title)
         , ("render", Pretty.format render)
         , ("events", Pretty.format events)
@@ -137,8 +137,7 @@ data TrackSignal = TrackSignal {
 
 instance Pretty.Pretty TrackSignal where
     format (TrackSignal sig shift stretch) =
-        Pretty.record (Pretty.text "TrackSignal"
-                Pretty.<+> Pretty.format (shift, stretch))
+        Pretty.record ("TrackSignal" Pretty.<+> Pretty.format (shift, stretch))
             [("signal", Pretty.format sig)]
 
 instance DeepSeq.NFData TrackSignal where

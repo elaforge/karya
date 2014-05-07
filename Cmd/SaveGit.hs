@@ -56,7 +56,7 @@ data SaveHistory =
 
 instance Pretty.Pretty SaveHistory where
     format (SaveHistory _state commit updates cmds) =
-        Pretty.record_title "SaveHistory"
+        Pretty.record "SaveHistory"
             [ ("commit", Pretty.format commit)
             , ("updates", Pretty.format updates)
             , ("cmds", Pretty.format cmds)

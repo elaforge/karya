@@ -3,6 +3,43 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
+   - recover save/sketch/13-05-18
+  * I think overloaded strings means Pretty.record_title is obsolete,
+    Pretty.record works just as well.
+  - ack, delima-manis is broken, presumably by slice refactor
+    It's because slice notes doesn't get the previous pitch control.
+    . Can I use Slice.slice for orphan slicing?  I don't need separate notes,
+      and it seems inefficient to slice them all up when I don't need to.
+    . I think I may still have a problem if there's an event at the beginning,
+      so it still falls on a slice boundary.
+    . But ' is in the previous event hack, why doesn't it apply?  It's for
+      pitch calls, but ' is now a note call.  There's no way to have a note
+      call want previous control values.
+
+  What would the "correct" solution to the previous event hack be?
+    . Disregarding performance, never slice control tracks, just evaluate the
+      whole thing for each note.  The optimization works because each note
+      usually only needs controls within its range, and occaisionally the
+      previous event.  The problem is that this applies recursively, so
+      a chain of ' calls goes back unil someone doesn't rely on the previous
+      value.
+    . I could use tags.  But I have to parse each call, extract call symbol
+      and val call symbols, look up each one, and look at its tags.  Even
+      after all this, it might not be correct because transforms in track
+      titles might change the bindings.  But it's still better than what
+      I have now, except in complexity.
+    . To close that hole, I'd have to eval transformers in note tracks.  At
+      this point, I should probably put the slice in track evaluation, e.g.
+      slice doesn't slice control tracks, but the control track evaluator gets
+      a "start time", and can track back from that time.
+
+    . A totally different approach would be to disallow prev/next note
+      entirely at the derive level.  You have to do it at postproc.  The
+      advantage here is that prev and next are available with no hackery.
+      I would wind up wanting a way to interleave deriver / Score.Event
+      evaluation, so that a derive call could leave an expression to be
+      evaluated at postproc.  Or something.
+
   Simplify orphan extraction by making empty note tracks evaluate their children
     . This way I don't need to strip empty note tracks but keep their titles.
       I originally came across this problem because I wasn't collecting
@@ -118,6 +155,9 @@ UNSORTED
       first inverted instance of the note track, stripping out the controls.
       Except for the inverted note track, only record each (BlockId, TrackId)
       the first time.
+    - So I wind up with a map for uninverted, and a map for inverted.  At the
+      end, I union them, preferring inverted, and when both exist, take the
+      controls from uninverted.
     - Complete Derive.Call.record_track_dynamic
     - MidiThru can reset %dyn to 1.
   * Clean up 'tevents_range', 'tevents_end', 'tevents_shifted'.

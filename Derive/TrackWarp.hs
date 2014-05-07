@@ -58,14 +58,13 @@ data Collection = Collection {
     } deriving (Eq, Show)
 
 instance Pretty.Pretty Collection where
-    format (Collection start end block tracks warp) =
-        Pretty.record_title "Collection"
-            [ ("start", Pretty.format start)
-            , ("end", Pretty.format end)
-            , ("block", Pretty.format block)
-            , ("tracks", Pretty.format tracks)
-            , ("warp", Pretty.format warp)
-            ]
+    format (Collection start end block tracks warp) = Pretty.record "Collection"
+        [ ("start", Pretty.format start)
+        , ("end", Pretty.format end)
+        , ("block", Pretty.format block)
+        , ("tracks", Pretty.format tracks)
+        , ("warp", Pretty.format warp)
+        ]
 
 instance DeepSeq.NFData Collection where
     rnf tw = DeepSeq.rnf (tw_tracks tw) `seq` DeepSeq.rnf (tw_warp tw)

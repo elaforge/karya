@@ -57,22 +57,20 @@ data StaffConfig = StaffConfig {
 type Instrument = Text
 
 instance Pretty.Pretty Config where
-    format (Config quarter quantize dotted staves) =
-        Pretty.record_title "Config"
-            [ ("quarter_duration", Pretty.format quarter)
-            , ("quantize", Pretty.format quantize)
-            , ("dotted_rests", Pretty.format dotted)
-            , ("staves", Pretty.format staves)
-            ]
+    format (Config quarter quantize dotted staves) = Pretty.record "Config"
+        [ ("quarter_duration", Pretty.format quarter)
+        , ("quantize", Pretty.format quantize)
+        , ("dotted_rests", Pretty.format dotted)
+        , ("staves", Pretty.format staves)
+        ]
 
 instance Pretty.Pretty StaffConfig where
-    format (StaffConfig long short code display) =
-        Pretty.record_title "StaffConfig"
-            [ ("long", Pretty.format long)
-            , ("short", Pretty.format short)
-            , ("code", Pretty.format code)
-            , ("display", Pretty.format display)
-            ]
+    format (StaffConfig long short code display) = Pretty.record "StaffConfig"
+        [ ("long", Pretty.format long)
+        , ("short", Pretty.format short)
+        , ("code", Pretty.format code)
+        , ("display", Pretty.format display)
+        ]
 
 default_config :: Config
 default_config = Config

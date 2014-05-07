@@ -28,7 +28,7 @@ data Note = Note {
     } deriving (Show)
 
 instance Pretty.Pretty Note where
-    format (Note name attrs char dyn) = Pretty.record_title "Note"
+    format (Note name attrs char dyn) = Pretty.record "Note"
         [ ("name", Pretty.format name)
         , ("attrs", Pretty.format attrs)
         , ("char", Pretty.format char)

@@ -131,7 +131,7 @@ tempo = Lens.lens default_tempo (\v r -> r { default_tempo = v })
 instance Pretty.Pretty Config where
     format (Config namespace meta root midi global_transform aliases lily
             default_ saved_views) =
-        Pretty.record_title "Config"
+        Pretty.record "Config"
             [ ("namespace", Pretty.format namespace)
             , ("meta", Pretty.format meta)
             , ("root", Pretty.format root)
@@ -144,34 +144,30 @@ instance Pretty.Pretty Config where
             ]
 
 instance Pretty.Pretty Meta where
-    format (Meta creation notes midi_perf lily_perf) =
-        Pretty.record_title "Meta"
-            [ ("creation", Pretty.text (show creation))
-            , ("notes", Pretty.text (untxt notes))
-            , ("midi performances", Pretty.format midi_perf)
-            , ("lilypond performances", Pretty.format lily_perf)
-            ]
+    format (Meta creation notes midi_perf lily_perf) = Pretty.record "Meta"
+        [ ("creation", Pretty.text (show creation))
+        , ("notes", Pretty.text (untxt notes))
+        , ("midi performances", Pretty.format midi_perf)
+        , ("lilypond performances", Pretty.format lily_perf)
+        ]
 
 instance Pretty.Pretty MidiPerformance where
-    format (Performance midi creation patch) =
-        Pretty.record_title "MidiPerformance"
-            [ ("events", Pretty.format $ Vector.length midi)
-            , ("creation", Pretty.text $ pretty creation)
-            , ("patch", Pretty.text (untxt patch))
-            ]
+    format (Performance midi creation patch) = Pretty.record "MidiPerformance"
+        [ ("events", Pretty.format $ Vector.length midi)
+        , ("creation", Pretty.text $ pretty creation)
+        , ("patch", Pretty.text (untxt patch))
+        ]
 
 instance Pretty.Pretty LilypondPerformance where
-    format (Performance ly creation patch) =
-        Pretty.record_title "LilypondPerformance"
-            [ ("lilypond lines", Pretty.format $ Text.count "\n" ly)
-            , ("creation", Pretty.text $ pretty creation)
-            , ("patch", Pretty.text (untxt patch))
-            ]
+    format (Performance ly creation patch) = Pretty.record "LilypondPerformance"
+        [ ("lilypond lines", Pretty.format $ Text.count "\n" ly)
+        , ("creation", Pretty.text $ pretty creation)
+        , ("patch", Pretty.text (untxt patch))
+        ]
 
 instance Pretty.Pretty Default where
-    format (Default tempo) =
-        Pretty.record_title "Default"
-            [ ("tempo", Pretty.format tempo) ]
+    format (Default tempo) = Pretty.record "Default"
+        [ ("tempo", Pretty.format tempo) ]
 
 instance DeepSeq.NFData Default where
     rnf (Default tempo) = tempo `seq` ()

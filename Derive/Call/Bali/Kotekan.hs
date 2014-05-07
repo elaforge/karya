@@ -98,7 +98,7 @@ data KotekanPattern = KotekanPattern {
 
 instance Pretty.Pretty KotekanPattern where
     format (KotekanPattern unison p4 s4 p3 s3) =
-        Pretty.record_title "KotekanPattern" $ zip
+        Pretty.record "KotekanPattern" $ zip
             ["unison", "polos pat", "sangsih pat", "polos telu", "sangsih telu"]
             (map Pretty.format [unison, p4, s4, p3, s3])
 

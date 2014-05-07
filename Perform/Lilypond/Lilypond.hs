@@ -200,7 +200,7 @@ data StaffGroup = StaffGroup Score.Instrument [[Process.VoiceLy]]
     deriving (Show)
 
 instance Pretty.Pretty StaffGroup where
-    format (StaffGroup inst staves) = Pretty.record_title "StaffGroup"
+    format (StaffGroup inst staves) = Pretty.record "StaffGroup"
         [ ("inst", Pretty.format inst)
         , ("staves", Pretty.format staves)
         ]

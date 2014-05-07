@@ -152,7 +152,7 @@ track_range track = (track_shifted track, track_shifted track + track_end track)
 instance Pretty.Pretty Track where
     format (Track title events track_id block_id end sliced inverted around
             shifted) =
-        Pretty.record_title "Track"
+        Pretty.record "Track"
             [ ("title", Pretty.format title)
             , ("events", Pretty.format events)
             , ("track_id", Pretty.format track_id)

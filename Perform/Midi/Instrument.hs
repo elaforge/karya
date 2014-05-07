@@ -114,7 +114,7 @@ instance NFData Instrument where
 instance Pretty.Pretty Instrument where
     format (Instrument name score synth keyswitch hold_keyswitch cmap
             pb_range decay) =
-        Pretty.record_title "Instrument"
+        Pretty.record "Instrument"
             [ ("name", Pretty.format name)
             , ("score", Pretty.format score)
             , ("synth", Pretty.format synth)
@@ -236,14 +236,13 @@ config addrs = Config
     }
 
 instance Pretty.Pretty Config where
-    format (Config addrs environ controls mute solo) =
-        Pretty.record_title "Config"
-            [ ("addrs", Pretty.format addrs)
-            , ("environ", Pretty.format environ)
-            , ("mute", Pretty.format mute)
-            , ("controls", Pretty.format controls)
-            , ("solo", Pretty.format solo)
-            ]
+    format (Config addrs environ controls mute solo) = Pretty.record "Config"
+        [ ("addrs", Pretty.format addrs)
+        , ("environ", Pretty.format environ)
+        , ("mute", Pretty.format mute)
+        , ("controls", Pretty.format controls)
+        , ("solo", Pretty.format solo)
+        ]
 
 -- | MIDI instruments are addressed by a (device, channel) pair, allocated in
 -- 'Config'.
@@ -354,7 +353,7 @@ convert_patch_scale scale (Pitch.NoteNumber nn) =
 instance Pretty.Pretty Patch where
     format (Patch inst scale environ flags init attr_map call_map
             tags text file) =
-        Pretty.record_title "Patch"
+        Pretty.record "Patch"
             [ ("instrument", Pretty.format inst)
             , ("scale", Pretty.format scale)
             , ("environ", Pretty.format environ)
@@ -548,7 +547,7 @@ data Synth = Synth {
     } deriving (Eq, Show)
 
 instance Pretty.Pretty Synth where
-    format (Synth name doc cmap) = Pretty.record_title "Synth"
+    format (Synth name doc cmap) = Pretty.record "Synth"
         [ ("name", Pretty.format name)
         , ("doc", Pretty.format doc)
         , ("control_map", Pretty.format cmap)

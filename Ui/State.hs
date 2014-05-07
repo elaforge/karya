@@ -220,14 +220,13 @@ clear state = state { state_views = Map.map clear_view (state_views state) }
         }
 
 instance Pretty.Pretty State where
-    format (State views blocks tracks rulers config) =
-        Pretty.record_title "State"
-            [ ("views", Pretty.format views)
-            , ("blocks", Pretty.format blocks)
-            , ("tracks", Pretty.format tracks)
-            , ("rulers", Pretty.format rulers)
-            , ("config", Pretty.format config)
-            ]
+    format (State views blocks tracks rulers config) = Pretty.record "State"
+        [ ("views", Pretty.format views)
+        , ("blocks", Pretty.format blocks)
+        , ("tracks", Pretty.format tracks)
+        , ("rulers", Pretty.format rulers)
+        , ("config", Pretty.format config)
+        ]
 
 instance DeepSeq.NFData State where
     rnf (State views blocks tracks rulers config) =
