@@ -177,7 +177,6 @@ default_note config args = do
     let controls = stash_dynamic control_vals $
             trimmed_controls start real_next (Derive.state_controls dyn)
         pitch = trimmed_pitch start real_next (Derive.state_pitch dyn)
-        -- pitch = Debug.trace_retp "trim" (start, real_next, Derive.state_pitch dyn) $ trimmed_pitch start real_next (Derive.state_pitch dyn)
     end <- return $ duration_attributes config control_vals attrs start end
 
     -- Add a attribute to get the arrival-note postproc to figure out the

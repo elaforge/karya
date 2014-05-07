@@ -3,10 +3,9 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
-   - recover save/sketch/13-05-18
   * I think overloaded strings means Pretty.record_title is obsolete,
     Pretty.record works just as well.
-  - ack, delima-manis is broken, presumably by slice refactor
+  * ack, delima-manis is broken, presumably by slice refactor
     It's because slice notes doesn't get the previous pitch control.
     . Can I use Slice.slice for orphan slicing?  I don't need separate notes,
       and it seems inefficient to slice them all up when I don't need to.
@@ -23,22 +22,26 @@ UNSORTED
       previous event.  The problem is that this applies recursively, so
       a chain of ' calls goes back unil someone doesn't rely on the previous
       value.
-    . I could use tags.  But I have to parse each call, extract call symbol
+    - I could use tags.  But I have to parse each call, extract call symbol
       and val call symbols, look up each one, and look at its tags.  Even
       after all this, it might not be correct because transforms in track
       titles might change the bindings.  But it's still better than what
       I have now, except in complexity.
-    . To close that hole, I'd have to eval transformers in note tracks.  At
+    - To close that hole, I'd have to eval transformers in note tracks.  At
       this point, I should probably put the slice in track evaluation, e.g.
       slice doesn't slice control tracks, but the control track evaluator gets
-      a "start time", and can track back from that time.
-
+      a "start time", and can track back from that time.  It does that based
+      on the calls that are in scope where it is.
     . A totally different approach would be to disallow prev/next note
       entirely at the derive level.  You have to do it at postproc.  The
       advantage here is that prev and next are available with no hackery.
       I would wind up wanting a way to interleave deriver / Score.Event
       evaluation, so that a derive call could leave an expression to be
-      evaluated at postproc.  Or something.
+      evaluated at postproc.  Or something.  I'm not sure how this would work,
+      but it could resolve a lot of problems.
+
+  - Overlap detection in Derive.Slice I think is still messed up, or at the
+    least it's more complicated than it should be.
 
   Simplify orphan extraction by making empty note tracks evaluate their children
     . This way I don't need to strip empty note tracks but keep their titles.

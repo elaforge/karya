@@ -30,11 +30,14 @@
 module Derive.Slice (
     InsertEvent(..), slice
     , checked_slice_notes
+    , slice_orphans
 #ifdef TESTING
-    , slice_notes, strip_empty_tracks
+    , strip_empty_tracks
+    , slice_notes
 #endif
 ) where
 import qualified Data.Foldable as Foldable
+import qualified Data.List as List
 import qualified Data.Maybe as Maybe
 import qualified Data.Monoid as Monoid
 import qualified Data.Set as Set
@@ -100,7 +103,7 @@ slice :: Bool -- ^ Omit events than begin at the start.
     -- ^ If given, insert an event at the bottom with the given text and dur.
     -- The created track will have the given track_range, so it can create
     -- a Stack.Region entry.
-    -> TrackTree.EventsTree -> TrackTree.EventsTree
+    -> [TrackTree.EventsNode] -> [TrackTree.EventsNode]
 slice exclude_start around start end insert_event = map do_slice
     where
     do_slice (Tree.Node track subs) = Tree.Node (slice_t track)
@@ -129,20 +132,16 @@ slice exclude_start around start end insert_event = map do_slice
         , TrackTree.track_end = end
         , TrackTree.track_sliced = True
         , TrackTree.track_around = (before, after)
-        } -- If the track has already been sliced then (start, end) are
-        -- relative to that previous slicing.  But since cache is based on
-        -- the stack, which is absolute, track_range must retain the true
-        -- absolute range.
-        where
-        (before, within, after) = extract_events track
+        }
+        where (before, within, after) = extract_events track
     -- Extract events from an intermediate track.
     extract_events track
         | ParseTitle.is_note_track title =
-            extract_note_events exclude_start start end es
+            extract_note_events exclude_start start end events
         | otherwise = extract_control_events (ParseTitle.is_pitch_track title)
-            around start end es
+            around start end events
         where
-        es = TrackTree.track_events track
+        events = TrackTree.track_events track
         title = TrackTree.track_title track
 
 -- | Note tracks don't include pre and post events like control tracks.
@@ -266,7 +265,7 @@ type Sliced = ([TrackTree.Track], TrackTree.Track,
     [(ScoreTime, ScoreTime, ScoreTime)], TrackTree.EventsTree)
 
 -- | (start, dur, tracks)
-type Note = (ScoreTime, ScoreTime, TrackTree.EventsTree)
+type Note = (ScoreTime, ScoreTime, [TrackTree.EventsNode])
 
 -- | Get slice ranges for a track.  This gets the non-overlapping ranges of all
 -- the note tracks events below.
@@ -300,28 +299,55 @@ strip_note (start, dur, tree)
 -- middle could invert below.
 strip_empty_tracks :: TrackTree.EventsNode -> [TrackTree.EventsNode]
 strip_empty_tracks (Tree.Node track subs)
-    | is_note track && not (track_empty track) = [Tree.Node track subs]
-    | is_note track && track_empty track =
+    | not (is_note track) || track_empty track =
         if null stripped then [] else [Tree.Node track stripped]
-    | otherwise = stripped
+    | otherwise = [Tree.Node track subs]
     where stripped = concatMap strip_empty_tracks subs
 
 -- | This is 'slice_notes', but throw an error if 'find_overlapping' complains.
+--
+-- TODO I think I don't want to allow sub-events larger than their slice, but
+-- currently I do.  Actually I think overlap checking needs an overhaul in
+-- general.
 checked_slice_notes :: Bool -> ScoreTime -> ScoreTime
     -> TrackTree.EventsTree -> Either String [[Note]]
-checked_slice_notes exclude_start start end tracks
-    | null overlaps = Right $ filter (not . null) notes
-    | otherwise = Left $ "slice has overlaps: "
-        <> Seq.join ", " (map show_overlap overlaps)
+checked_slice_notes exclude_start start end tracks = case maybe_err of
+    Nothing -> Right $ filter (not . null) notes
+    Just err -> Left err
     where
+    maybe_err = if start == end
+        then check_greater_than 0 check_tracks
+        else check_overlapping exclude_start 0 check_tracks
     notes = slice_notes exclude_start start end tracks
     -- Only check the first note of each slice.  Since the notes are
     -- increasing, this is the one which might start before the slice.  Since
     -- the events have been shifted back by the slice start, an event that
     -- extends over 0 means it overlaps the beginning of the slice.
-    overlaps = mapMaybe
-        (\(_, _, subs) -> find_overlapping 0 subs)
-        (mapMaybe Seq.head notes)
+    check_tracks = map (\(_, _, subs) -> subs) $ mapMaybe Seq.head notes
+
+check_greater_than :: ScoreTime -> [[TrackTree.EventsNode]] -> Maybe String
+check_greater_than start tracks
+    | null events = Nothing
+    | otherwise = Just $ "zero duration slice has note events >" <> pretty start
+        <> ": " <> Seq.join ", " (map pretty events)
+    where events = mapMaybe (find_greater_than start) tracks
+
+find_greater_than :: ScoreTime -> [TrackTree.EventsNode] -> Maybe Event.Event
+find_greater_than start = msum . map (find (has_gt <=< note_track))
+    where
+    note_track track
+        | is_note track = Just track
+        | otherwise = Nothing
+    has_gt = List.find ((>start) . Event.start) . Events.ascending
+        . TrackTree.track_events
+
+check_overlapping :: Bool -> ScoreTime -> [[TrackTree.EventsNode]]
+    -> Maybe String
+check_overlapping exclude_start start tracks
+    | null overlaps = Nothing
+    | otherwise = Just $ "slice has overlaps: "
+        <> Seq.join ", " (map show_overlap overlaps)
+    where overlaps = mapMaybe (find_overlapping exclude_start start) tracks
 
 {- | Slice overlaps are when an event overlaps the start of the slice range,
     or extends past the end.  They're bad because they tend to cause notes to
@@ -360,9 +386,9 @@ checked_slice_notes exclude_start start end tracks
     the check has been done, because otherwise @b@ wouldn't notice that @c@
     overlaps.
 -}
-find_overlapping :: ScoreTime -> [TrackTree.EventsNode]
+find_overlapping :: Bool -> ScoreTime -> [TrackTree.EventsNode]
     -> Maybe (Maybe TrackId, (TrackTime, TrackTime))
-find_overlapping start = msum . map (find overlaps)
+find_overlapping exclude_start start = msum . map (find has_overlap)
     where
     -- This relies on the 'strip_empty_tracks' having been called.  The
     -- problem is that a zero duration slice after (0, 0) looks like (0, n).
@@ -376,18 +402,34 @@ find_overlapping start = msum . map (find overlaps)
     --
     -- This seems pretty obscure and indirect, and I tried to come up with an
     -- algorithm that didn't rely on 'strip_empty_tracks', but failed.
-    overlaps track = case TrackTree.track_around track of
-        (prev : _, _) | is_note track && Event.end prev > start->
+    has_overlap track = case TrackTree.track_around track of
+        (prev : _, _) | is_note track && edge prev > start ->
             Just (TrackTree.track_id track,
                 (shifted (Event.start prev), shifted (Event.end prev)))
         _ -> Nothing
         where shifted = (+ TrackTree.track_shifted track)
+    -- This works but I don't know why.  It's probably wrong, and the whole
+    -- overlap checking strategy probably needs a redo, but it's defeated
+    -- me for the moment so I'm letting it be.
+    edge = if exclude_start then Event.min else Event.max
 
 show_overlap :: (Maybe TrackId, (TrackTime, TrackTime)) -> String
 show_overlap (Nothing, (start, end)) =
     pretty start <> "--" <> pretty end
 show_overlap (Just track_id, (start, end)) =
     pretty $ State.Range Nothing track_id start end
+
+-- * orphans
+
+-- | This is a variant of 'slice' used by note track evaluation to derive
+-- orphan events.
+slice_orphans :: Bool -> ScoreTime -> ScoreTime -> [TrackTree.EventsNode]
+    -> Either String [TrackTree.EventsNode]
+slice_orphans exclude_start start end subs =
+    maybe (Right slices) Left $ check_overlapping exclude_start start [slices]
+    where
+    slices = concatMap strip_empty_tracks $
+        slice exclude_start (1, 1) start end Nothing subs
 
 -- * util
 
@@ -397,6 +439,6 @@ is_note = ParseTitle.is_note_track . TrackTree.track_title
 track_empty :: TrackTree.Track -> Bool
 track_empty = Events.null . TrackTree.track_events
 
--- | 'List.find' generalized to Foldable.
+-- | Get the first Just from the structure.
 find :: Foldable.Foldable t => (a -> Maybe b) -> t a -> Maybe b
 find f = Monoid.getFirst . Foldable.foldMap (Monoid.First . f)

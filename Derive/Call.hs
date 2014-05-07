@@ -333,8 +333,7 @@ derive_track_ :: forall d. Derive.Callable d =>
 derive_track_ derive_section state tinfo get_last_sample =
     go (record state) Nothing []
     where
-    record = record_track_dynamic (not (null (tinfo_sub_tracks tinfo)))
-        (tinfo_track tinfo)
+    record = record_track_dynamic (tinfo_track tinfo)
     -- This threads the collect through each event.  I would prefer to map and
     -- mconcat, but profiling showed that to be quite a bit slower.
     go :: Derive.Collect -> PrevVal d -> [Event.Event] -> [Event.Event]
@@ -376,18 +375,15 @@ derive_orphans :: (TrackTree.EventsTree -> Derive.NoteDeriver)
     -- empty, and does all the splitting of and restoring collect bother.
     -- I expect lots of empties here so maybe it makes a difference.
 derive_orphans derive_tracks prev end subs
-    | start == end = Nothing
-    | otherwise = case concat <$> sliced of
+    | start >= end = Nothing
+    | otherwise = case checked of
         Left err -> Just $ Log.warn err >> return []
         Right [] -> Nothing
-        Right notes -> Just $ mconcatMap place notes
+        Right slices -> Just $ derive_tracks slices
     where
-    sliced = Slice.checked_slice_notes exclude_start start end subs
+    checked = Slice.slice_orphans exclude_start start end subs
     exclude_start = maybe False ((==0) . Event.duration) prev
     start = maybe 0 Event.end prev
-    -- The events have been shifted back to 0 by 'Slice.slice_notes', but are
-    -- still their original lengths.
-    place (shift, _, tree) = Derive.at shift $ derive_tracks tree
 
 -- Notes on recording TrackDynamic at NOTE [record-track-dynamics].
 --

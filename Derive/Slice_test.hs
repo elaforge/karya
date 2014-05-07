@@ -252,13 +252,15 @@ test_strip_empty_tracks = do
     equal (f $ empty [empty [controls []]]) []
     -- Empty branch is stripped.
     equal (f $ empty [empty [controls []], notes 'a' []]) [empty [notes 'a' []]]
+    -- Don't strip when there are notes below.
+    equal (f $ controls [notes 'a' []]) [controls [notes 'a' []]]
 
 test_overlaps = do
     let run = DeriveTest.extract extract . DeriveTest.derive_tracks_linear ""
         extract e = (DeriveTest.e_pitch e, DeriveTest.e_attributes e)
         overlapping_log = "slice has overlap"
 
-    -- +b overlaps with +a.
+    -- +b overlaps with the orphan spaces after +a.
     -- +a
     -- +b--
     -- a-b-
@@ -273,6 +275,14 @@ test_overlaps = do
     equal (run $ [(">", [(0, 0, "+a")]), (">", [(0, 2, "+b")])]
             ++ UiTest.regular_notes 1)
         ([("3c", "+a+b")], [])
+
+    -- Zero dur with a note afterwards.
+    equal (run $ (">", [(0, 0, "+a")]) : UiTest.regular_notes 2)
+        ([("3c", "+a"), ("3d", "+")], [])
+
+    -- +a
+    --   +b
+    -- 3c3d
     equal (run $ [(">", [(0, 0, "+a"), (1, 0, "+b")])]
             ++ UiTest.regular_notes 2)
         ([("3c", "+a"), ("3d", "+b")], [])
@@ -286,8 +296,8 @@ test_overlaps = do
             [ (">", [(0, 0, "+a")])
             , (">", [(0, 2, "+b")])
             ] ++ UiTest.regular_notes 2
-    equal events [("3c", "+a+b"), ("3d", "+a+b")]
-    strings_like logs [overlapping_log]
+    equal events [("3d", "+")]
+    strings_like logs ["zero duration slice"]
 
     -- +b overlaps with +a, but +b is an orphan.
     --   +a
@@ -298,8 +308,7 @@ test_overlaps = do
             [ (">", [(1, 1, "+a")])
             , (">", [(0, 2, "+b")])
             ] ++ UiTest.regular_notes 2
-    -- The (0, 1) orphan derives both notes.
-    equal events [("3c", "+b"), ("3d", "+b")]
+    equal events [("3c", "+b")]
     strings_like logs [overlapping_log]
 
     -- +c overlaps with +b.

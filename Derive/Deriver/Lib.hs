@@ -84,6 +84,7 @@ extract_result (result, state, logs) = Result
     }
     where collect = state_collect state
 
+-- | See 'TrackDynamic'.
 extract_track_dynamic :: Collect -> TrackDynamic
 extract_track_dynamic collect =
     Map.fromList $ map extract $ Util.Map.pairs
