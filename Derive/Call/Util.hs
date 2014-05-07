@@ -244,7 +244,7 @@ nn_at pos control = -- TODO throw exception?
     Derive.logged_pitch_nn ("Util.nn_at " ++ pretty (pos, control))
         =<< pitch_at pos control
 
--- * note
+-- * dynamic
 
 -- | Get the Pitch at the particular point in time in the default pitch
 -- signal.  As per 'Derive.pitch_at', the transposition controls have not been
@@ -253,7 +253,7 @@ pitch :: RealTime -> Derive.Deriver (Maybe PitchSignal.Pitch)
 pitch = Derive.pitch_at
 
 get_pitch :: RealTime -> Derive.Deriver PitchSignal.Pitch
-get_pitch pos = Derive.require ("pitch at " ++ pretty pos)
+get_pitch pos = Derive.require ("no pitch at " ++ pretty pos)
     =<< Derive.pitch_at pos
 
 get_parsed_pitch :: (Pitch.Note -> Maybe Pitch.Pitch) -> RealTime
@@ -262,10 +262,6 @@ get_parsed_pitch parse pos = do
     pitch <- get_pitch pos
     note <- Pitches.pitch_note pitch
     Derive.require "unparseable pitch" $ parse note
-
-eval_note :: ScoreTime -> Pitch.Note -> Derive.Deriver PitchSignal.Pitch
-eval_note pos note = Call.eval_pitch pos $
-    TrackLang.call (TrackLang.Symbol (Pitch.note_text note)) []
 
 dynamic :: RealTime -> Derive.Deriver Signal.Y
 dynamic pos = maybe Derive.default_dynamic Score.typed_val <$>
@@ -296,48 +292,6 @@ multiply_constant :: Score.Control -> Signal.Y -> Derive.Deriver a
     -> Derive.Deriver a
 multiply_constant control = Derive.with_multiplied_control control
     . Score.untyped . Signal.constant
-
--- | Generate a single note, from 0 to 1.
-note :: Derive.NoteDeriver
-note = Call.eval_one_call True $ TrackLang.call "" []
-
--- | Like 'note', but the note reuses the start and duration from the passed
--- args, rather than being normalized from 0 to 1.  This is appropriate when
--- dispatching to the default note call.
-note_here :: Derive.NoteArgs -> Derive.NoteDeriver
-note_here args = Call.reapply_call args "" []
-
--- | Override the pitch signal and generate a single note.
-pitched_note :: PitchSignal.Pitch -> Derive.NoteDeriver
-pitched_note pitch = with_pitch pitch note
-
--- | Add an attribute and generate a single note.
-attr_note :: Score.Attributes -> Derive.NoteDeriver
-attr_note attrs = add_attrs attrs note
-
--- | A zero-duration 'note'.
-triggered_note :: Derive.NoteDeriver
-triggered_note = Call.eval_one_at True 0 0 $ TrackLang.call "" [] :| []
-
-place :: Derive.PassedArgs d -> Derive.Deriver a -> Derive.Deriver a
-place = uncurry Derive.place . Args.extent
-
-placed_note :: Derive.PassedArgs d -> Derive.NoteDeriver
-placed_note args = place args note
-
--- * transformer notes
-
--- | Derive with transformed Attributes.
-with_attrs :: (Score.Attributes -> Score.Attributes) -> Derive.Deriver d
-    -> Derive.Deriver d
-with_attrs f deriver = do
-    attrs <- get_attrs
-    Derive.with_val Environ.attributes (f attrs) deriver
-
-add_attrs :: Score.Attributes -> Derive.Deriver d -> Derive.Deriver d
-add_attrs attrs
-    | attrs == mempty = id
-    | otherwise = with_attrs (<> attrs)
 
 -- * environ
 
@@ -383,6 +337,54 @@ get_pitch_functions = do
         , transpose
         )
     where to_maybe = either (const Nothing) Just
+
+-- * note
+
+eval_note :: ScoreTime -> Pitch.Note -> Derive.Deriver PitchSignal.Pitch
+eval_note pos note = Call.eval_pitch pos $
+    TrackLang.call (TrackLang.Symbol (Pitch.note_text note)) []
+
+-- | Generate a single note, from 0 to 1.
+note :: Derive.NoteDeriver
+note = Call.eval_one_call True $ TrackLang.call "" []
+
+-- | Like 'note', but the note reuses the start and duration from the passed
+-- args, rather than being normalized from 0 to 1.  This is appropriate when
+-- dispatching to the default note call.
+note_here :: Derive.NoteArgs -> Derive.NoteDeriver
+note_here args = Call.reapply_call args "" []
+
+-- | Override the pitch signal and generate a single note.
+pitched_note :: PitchSignal.Pitch -> Derive.NoteDeriver
+pitched_note pitch = with_pitch pitch note
+
+-- | Add an attribute and generate a single note.
+attr_note :: Score.Attributes -> Derive.NoteDeriver
+attr_note attrs = add_attrs attrs note
+
+-- | A zero-duration 'note'.
+triggered_note :: Derive.NoteDeriver
+triggered_note = Call.eval_one_at True 0 0 $ TrackLang.call "" [] :| []
+
+place :: Derive.PassedArgs d -> Derive.Deriver a -> Derive.Deriver a
+place = uncurry Derive.place . Args.extent
+
+placed_note :: Derive.PassedArgs d -> Derive.NoteDeriver
+placed_note args = place args note
+
+-- * transformer notes
+
+-- | Derive with transformed Attributes.
+with_attrs :: (Score.Attributes -> Score.Attributes) -> Derive.Deriver d
+    -> Derive.Deriver d
+with_attrs f deriver = do
+    attrs <- get_attrs
+    Derive.with_val Environ.attributes (f attrs) deriver
+
+add_attrs :: Score.Attributes -> Derive.Deriver d -> Derive.Deriver d
+add_attrs attrs
+    | attrs == mempty = id
+    | otherwise = with_attrs (<> attrs)
 
 -- * random
 

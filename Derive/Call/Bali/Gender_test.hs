@@ -64,6 +64,29 @@ test_ngoret = do
     equal (run $ c_to_e "" "'_ .5 .5 1")
         ([(0, 1, "4c"), (1.5, 1, "4f"), (2, 1, "4e")], [])
 
+test_ngoret_slice = do
+    let run = DeriveTest.extract DeriveTest.e_note
+            . DeriveTest.derive_tracks_linear "import bali.gender"
+    -- Make sure ngoret works under slicing.  Specifically, the prev pitch
+    -- stuff broke before.
+    equal (run
+            [ (">", [])
+            , (">", [(0, 1, ""), (1, 1, "' .5 .5")])
+            , ("*", [(0, 0, "4c"), (1, 0, "4e")])
+            ])
+        ([(0, 1, "4c"), (0.5, 1, "4d"), (1, 1, "4e")], [])
+
+    -- TODO
+    -- -- This fails because the presence of a preceding slice cuts out the 4c.
+    -- -- Slice needs to understand which note calls require a previous event's
+    -- -- worth of controls for this to work.
+    -- equal (run
+    --         [ (">", [(0, 1, "+a")])
+    --         , (">", [(0, 1, ""), (1, 1, "' .5 .5")])
+    --         , ("*", [(0, 0, "4c"), (1, 0, "4e")])
+    --         ])
+    --     ([(0, 1, "4c"), (0.5, 1, "4d"), (1, 1, "4e")], [])
+
 test_realize_damp = do
     let run = DeriveTest.extract DeriveTest.e_note
             . DeriveTest.derive_tracks "import bali.gender | realize-damp"

@@ -14,6 +14,7 @@ import qualified Derive.Call.Tags as Tags
 import qualified Derive.Call.Util as Util
 import qualified Derive.Derive as Derive
 import qualified Derive.LEvent as LEvent
+import qualified Derive.PitchSignal as PitchSignal
 import qualified Derive.Pitches as Pitches
 import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
@@ -22,7 +23,6 @@ import Derive.Sig (control, defaulted, typed_control)
 import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.Pitch as Pitch
-import Types
 
 
 note_calls :: Derive.CallMaps Derive.Note
@@ -62,7 +62,8 @@ ngoret module_ add_damped_tag damp_arg transpose =
         "The grace note's dyn will be this multiplier of the current dyn."
     ) $ \(time, damp, dyn_scale) -> Sub.inverting_around (2, 1) $ \args -> do
         start <- Args.real_start args
-        transpose <- maybe (infer_transpose args start) return transpose
+        pitch <- Util.get_pitch start
+        transpose <- maybe (infer_transpose args pitch) return transpose
         time <- Derive.real =<< Util.time_control_at Util.Real time start
         damp <- Util.time_control_at Util.Real damp start
         dyn_scale <- Util.control_at dyn_scale start
@@ -77,7 +78,6 @@ ngoret module_ add_damped_tag damp_arg transpose =
         overlap <- Util.score_duration (Args.start args) damp
         let grace_end = min (Args.end args) (Args.start args + overlap)
 
-        pitch <- Derive.require "pitch" =<< Derive.pitch_at start
         let prev_touches = maybe False (>= Args.start args) (Args.prev_end args)
             with_tag
                 | add_damped_tag && prev_touches = Util.add_attrs damped_tag
@@ -87,14 +87,13 @@ ngoret module_ add_damped_tag damp_arg transpose =
                     Util.pitched_note (Pitches.transpose transpose pitch))
             <> Derive.place (Args.start args) (Args.duration args) Util.note
 
-infer_transpose :: Derive.PassedArgs d -> RealTime
+infer_transpose :: Derive.PassedArgs d -> PitchSignal.Pitch
     -> Derive.Deriver Pitch.Transpose
-infer_transpose args start = do
+infer_transpose args pitch = do
     prev <- Derive.real =<< Derive.require "previous event"
         (Args.prev_start args)
-    prev_pitch <- Derive.require "previous pitch" =<< Derive.pitch_at prev
-    this_pitch <- Derive.require "this pitch" =<< Derive.pitch_at start
-    ifM ((<=) <$> Pitches.pitch_nn prev_pitch <*> Pitches.pitch_nn this_pitch)
+    prev_pitch <- Util.get_pitch prev
+    ifM ((<=) <$> Pitches.pitch_nn prev_pitch <*> Pitches.pitch_nn pitch)
         (return (Pitch.Diatonic (-1))) (return (Pitch.Diatonic 1))
 
 c_realize_damp :: Derive.Transformer Derive.Note
