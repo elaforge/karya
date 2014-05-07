@@ -27,11 +27,11 @@ import qualified Ui.ScoreTime as ScoreTime
 import qualified Cmd.Meter as Meter
 import qualified Cmd.TimeStep as TimeStep
 import qualified Derive.Args as Args
-import qualified Derive.Call as Call
 import qualified Derive.Controls as Controls
 import qualified Derive.Derive as Derive
 import qualified Derive.Deriver.Internal as Internal
 import qualified Derive.Environ as Environ
+import qualified Derive.Eval as Eval
 import qualified Derive.PitchSignal as PitchSignal
 import qualified Derive.Pitches as Pitches
 import qualified Derive.Scale as Scale
@@ -273,7 +273,7 @@ with_pitch = Derive.with_constant_pitch Nothing
 with_symbolic_pitch :: TrackLang.PitchCall -> ScoreTime -> Derive.Deriver a
     -> Derive.Deriver a
 with_symbolic_pitch call pos deriver = do
-    pitch <- Call.eval_pitch pos call
+    pitch <- Eval.eval_pitch pos call
     with_pitch pitch deriver
 
 -- | Replace the dynamic with the given one.
@@ -341,18 +341,18 @@ get_pitch_functions = do
 -- * note
 
 eval_note :: ScoreTime -> Pitch.Note -> Derive.Deriver PitchSignal.Pitch
-eval_note pos note = Call.eval_pitch pos $
+eval_note pos note = Eval.eval_pitch pos $
     TrackLang.call (TrackLang.Symbol (Pitch.note_text note)) []
 
 -- | Generate a single note, from 0 to 1.
 note :: Derive.NoteDeriver
-note = Call.eval_one_call True $ TrackLang.call "" []
+note = Eval.eval_one_call True $ TrackLang.call "" []
 
 -- | Like 'note', but the note reuses the start and duration from the passed
 -- args, rather than being normalized from 0 to 1.  This is appropriate when
 -- dispatching to the default note call.
 note_here :: Derive.NoteArgs -> Derive.NoteDeriver
-note_here args = Call.reapply_call args "" []
+note_here args = Eval.reapply_call args "" []
 
 -- | Override the pitch signal and generate a single note.
 pitched_note :: PitchSignal.Pitch -> Derive.NoteDeriver
@@ -364,7 +364,7 @@ attr_note attrs = add_attrs attrs note
 
 -- | A zero-duration 'note'.
 triggered_note :: Derive.NoteDeriver
-triggered_note = Call.eval_one_at True 0 0 $ TrackLang.call "" [] :| []
+triggered_note = Eval.eval_one_at True 0 0 $ TrackLang.call "" [] :| []
 
 place :: Derive.PassedArgs d -> Derive.Deriver a -> Derive.Deriver a
 place = uncurry Derive.place . Args.extent
@@ -553,4 +553,4 @@ reapply_val :: Derive.Callable d => Derive.PassedArgs (Derive.Elem d)
     -> TrackLang.Val -> Derive.LogsDeriver d
 reapply_val args val = case val of
     TrackLang.VPitch p -> Derive.throw $ "can't evaluate pitch: " <> pretty p
-    _ -> Call.reapply_string args $ TrackLang.show_call_val val
+    _ -> Eval.reapply_string args $ TrackLang.show_call_val val

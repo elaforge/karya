@@ -8,9 +8,9 @@ module Derive.Args where
 import Util.Control
 import qualified Util.Seq as Seq
 import qualified Ui.Event as Event
-import qualified Derive.Call as Call
 import qualified Derive.Derive as Derive
 import Derive.Derive (PassedArgs, CallInfo)
+import qualified Derive.Eval as Eval
 import qualified Derive.LEvent as LEvent
 import qualified Derive.Parse as Parse
 import qualified Derive.ParseTitle as ParseTitle
@@ -84,7 +84,7 @@ eval cinfo event prev = case Parse.parse_expr text of
                     Derive.info_event cinfo : Derive.info_next_events cinfo
                 , Derive.info_event_end = Event.start $ Derive.info_event cinfo
                 }
-        in Call.eval_expr False prev_cinfo expr
+        in Eval.eval_expr False prev_cinfo expr
     where text = Event.event_text event
 
 -- * event timing

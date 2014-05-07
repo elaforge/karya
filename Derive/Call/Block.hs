@@ -18,13 +18,13 @@ import qualified Ui.State as State
 
 import qualified Derive.Args as Args
 import qualified Derive.Cache as Cache
-import qualified Derive.Call as Call
 import qualified Derive.Call.BlockUtil as BlockUtil
 import qualified Derive.Call.Module as Module
 import qualified Derive.Call.Sub as Sub
 import qualified Derive.Controls as Controls
 import qualified Derive.Derive as Derive
 import qualified Derive.Deriver.Internal as Internal
+import qualified Derive.Eval as Eval
 import qualified Derive.LEvent as LEvent
 import qualified Derive.ParseTitle as ParseTitle
 import qualified Derive.PitchSignal as PitchSignal
@@ -47,8 +47,8 @@ eval_root_block :: Text -> BlockId -> Derive.NoteDeriver
     -- except the root one.  The root block should operate in real time, so
     -- no stretching here.  Otherwise, a tempo of '2' is the same as '1'.
 eval_root_block global_transform block_id =
-    Call.apply_transform "global transform" global_transform $
-        Call.eval_one_call True $ call_from_block_id block_id
+    Eval.apply_transform "global transform" global_transform $
+        Eval.eval_one_call True $ call_from_block_id block_id
 
 -- * note calls
 
@@ -127,7 +127,7 @@ d_block block_id = do
         else case ParseTitle.parse_block title of
             Left err -> Derive.throw $ "block title: " <> err
             Right expr ->
-                return $ Call.apply_transformers info (NonEmpty.toList expr)
+                return $ Eval.apply_transformers info (NonEmpty.toList expr)
                 where info = Derive.dummy_call_info 0 1 "block title"
     transform $ do
         -- Record a dependency on this block.
@@ -141,12 +141,12 @@ call_from_block_id :: BlockId -> TrackLang.Call
 call_from_block_id block_id = TrackLang.call
     (TrackLang.Symbol $ txt $ Id.show_id $ Id.unpack_id block_id) []
 
--- | Like 'Call.symbol_to_block_id' but make sure the block exists.
+-- | Like 'Eval.symbol_to_block_id' but make sure the block exists.
 symbol_to_block_id :: TrackLang.Symbol -> Derive.Deriver (Maybe BlockId)
 symbol_to_block_id sym = do
     caller <- Internal.lookup_current_block_id
     ns <- Derive.get_ui_state $ State.config_namespace . State.state_config
-    case Call.symbol_to_block_id ns caller sym of
+    case Eval.symbol_to_block_id ns caller sym of
         Nothing -> return Nothing
         Just block_id -> do
             blocks <- Derive.get_ui_state State.state_blocks

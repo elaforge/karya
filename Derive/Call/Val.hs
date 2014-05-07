@@ -19,7 +19,6 @@ import qualified Ui.ScoreTime as ScoreTime
 
 import qualified Cmd.Meter as Meter
 import qualified Derive.Args as Args
-import qualified Derive.Call as Call
 import qualified Derive.Call.Control as Control
 import qualified Derive.Call.Make as Make
 import qualified Derive.Call.Module as Module
@@ -29,6 +28,7 @@ import qualified Derive.Call.Util as Util
 import qualified Derive.Controls as Controls
 import qualified Derive.Derive as Derive
 import qualified Derive.Environ as Environ
+import qualified Derive.Eval as Eval
 import qualified Derive.LEvent as LEvent
 import qualified Derive.ParseTitle as ParseTitle
 import qualified Derive.PitchSignal as PitchSignal
@@ -102,7 +102,7 @@ next_val event start ttype = case ttype of
         return $ TrackLang.VNum $ Score.untyped $
             Signal.at start (signal :: Signal.Control)
     eval event = mconcat . LEvent.events_of <$>
-        (either Derive.throw return =<< Call.eval_event event)
+        (either Derive.throw return =<< Eval.eval_event event)
 
 c_prev_val :: Derive.ValCall
 c_prev_val = val_call "prev-val" Tags.prev

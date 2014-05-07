@@ -30,12 +30,12 @@ import qualified Cmd.Cmd as Cmd
 import qualified Cmd.PlayUtil as PlayUtil
 import qualified Cmd.Simple as Simple
 
-import qualified Derive.Call as Call
 import qualified Derive.Call.All as Call.All
 import qualified Derive.Call.Block as Call.Block
 import qualified Derive.Derive as Derive
 import qualified Derive.Deriver.Internal as Internal
 import qualified Derive.Environ as Environ
+import qualified Derive.Eval as Eval
 import qualified Derive.LEvent as LEvent
 import qualified Derive.PitchSignal as PitchSignal
 import qualified Derive.Scale as Scale
@@ -722,7 +722,7 @@ mkpitch scale p = case eval State.empty deriver of
     Right pitch -> pitch
     where
     deriver = Derive.with_scale scale $
-        Call.eval_pitch 0 $ TrackLang.call (TrackLang.Symbol (txt p)) []
+        Eval.eval_pitch 0 $ TrackLang.call (TrackLang.Symbol (txt p)) []
 
 default_scale :: Scale.Scale
 default_scale = Twelve.scale

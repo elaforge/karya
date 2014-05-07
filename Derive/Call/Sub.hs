@@ -28,10 +28,10 @@ import qualified Ui.Events as Events
 import qualified Ui.TrackTree as TrackTree
 
 import qualified Derive.Args as Args
-import qualified Derive.Call as Call
 import qualified Derive.Call.BlockUtil as BlockUtil
 import qualified Derive.Derive as Derive
 import qualified Derive.Deriver.Internal as Internal
+import qualified Derive.Eval as Eval
 import qualified Derive.ParseTitle as ParseTitle
 import qualified Derive.Slice as Slice
 import qualified Derive.Stack as Stack
@@ -224,12 +224,12 @@ place_at (start, end) notes = Derive.place start factor $
 -- * reapply
 
 -- | Call a note transformer with sub-events.  While you can easily call other
--- kinds of calls with 'Call.reapply', note transformers are more tricky
+-- kinds of calls with 'Eval.reapply', note transformers are more tricky
 -- because they expect a track structure in 'Derive.info_sub_tracks'.  This
 -- bypasses that and directly passes 'Event's to the note transformer, courtesy
 -- of 'Derive.info_sub_events'.
 reapply :: Derive.NoteArgs -> TrackLang.Expr -> [[Event]] -> Derive.NoteDeriver
-reapply args expr notes = Call.reapply subs expr
+reapply args expr notes = Eval.reapply subs expr
     where
     subs = args
         { Derive.passed_info = (Derive.passed_info args)

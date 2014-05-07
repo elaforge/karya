@@ -97,10 +97,11 @@ import qualified Ui.Events as Events
 import qualified Ui.Track as Track
 import qualified Ui.TrackTree as TrackTree
 
-import qualified Derive.Call as Call
 import qualified Derive.Control as Control
 import qualified Derive.Derive as Derive
 import qualified Derive.Deriver.Internal as Internal
+import qualified Derive.Eval as Eval
+import qualified Derive.EvalTrack as EvalTrack
 import qualified Derive.LEvent as LEvent
 import qualified Derive.ParseTitle as ParseTitle
 import qualified Derive.PitchSignal as PitchSignal
@@ -115,7 +116,7 @@ import Types
 -- | Top level deriver for note tracks.
 d_note_track :: ([TrackTree.EventsNode] -> Derive.NoteDeriver)
     -- ^ This is used to derive orphans, as documented by
-    -- 'Call.derive_note_track'.
+    -- 'EvalTrack.derive_note_track'.
     -> TrackTree.EventsNode -> Derive.NoteDeriver
 d_note_track derive_tracks (Tree.Node track subs) =
     title $ derive_notes derive_tracks (track_info track subs) events
@@ -163,23 +164,23 @@ with_title subs end title deriver
     | otherwise = do
         track_expr <- either (Derive.throw . ("track title: "++)) return
             (ParseTitle.parse_note title)
-        Call.apply_transformers cinfo (NonEmpty.toList track_expr) deriver
+        Eval.apply_transformers cinfo (NonEmpty.toList track_expr) deriver
     where
     cinfo = (Derive.dummy_call_info 0 end "note track")
         { Derive.info_sub_tracks = subs }
 
-derive_notes :: ([TrackTree.EventsNode] -> Derive.NoteDeriver) -> Call.TrackInfo
-    -> [Event.Event] -> Derive.NoteDeriver
+derive_notes :: ([TrackTree.EventsNode] -> Derive.NoteDeriver)
+    -> EvalTrack.TrackInfo -> [Event.Event] -> Derive.NoteDeriver
 derive_notes derive_tracks tinfo events = do
     state <- Derive.get
     let (event_groups, collect) =
-            Call.derive_note_track derive_tracks state tinfo events
+            EvalTrack.derive_note_track derive_tracks state tinfo events
     Internal.merge_collect collect
     return $ Derive.merge_asc_events event_groups
 
-track_info :: TrackTree.Track -> [TrackTree.EventsNode] -> Call.TrackInfo
-track_info track subs = Call.TrackInfo
-    { Call.tinfo_track = track
-    , Call.tinfo_sub_tracks = subs
-    , Call.tinfo_type = ParseTitle.NoteTrack
+track_info :: TrackTree.Track -> [TrackTree.EventsNode] -> EvalTrack.TrackInfo
+track_info track subs = EvalTrack.TrackInfo
+    { EvalTrack.tinfo_track = track
+    , EvalTrack.tinfo_sub_tracks = subs
+    , EvalTrack.tinfo_type = ParseTitle.NoteTrack
     }

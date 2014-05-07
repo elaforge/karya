@@ -40,7 +40,7 @@ import qualified Cmd.Msg as Msg
 import qualified Cmd.PitchTrack as PitchTrack
 import qualified Cmd.Selection as Selection
 
-import qualified Derive.Call as Call
+import qualified Derive.Eval as Eval
 import qualified Derive.Parse as Parse
 import qualified Derive.ParseTitle as ParseTitle
 import qualified Derive.Score as Score
@@ -263,7 +263,7 @@ block_call caller expr = case block_call_of expr of
     Nothing -> return Nothing
     Just sym -> do
         ns <- State.get_namespace
-        case Call.symbol_to_block_id ns caller sym of
+        case Eval.symbol_to_block_id ns caller sym of
             Nothing -> return Nothing
             Just block_id -> ifM (valid block_id)
                 (return (Just block_id)) (return Nothing)

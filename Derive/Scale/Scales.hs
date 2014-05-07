@@ -16,12 +16,12 @@ import qualified Util.Map as Map
 import qualified Util.Num as Num
 import qualified Util.Pretty as Pretty
 
-import qualified Derive.Call as Call
 import qualified Derive.Call.ScaleDegree as ScaleDegree
 import qualified Derive.Controls as Controls
 import qualified Derive.Derive as Derive
 import qualified Derive.Deriver.Internal as Internal
 import qualified Derive.Environ as Environ
+import qualified Derive.Eval as Eval
 import qualified Derive.PitchSignal as PitchSignal
 import qualified Derive.Scale as Scale
 import qualified Derive.Scale.Theory as Theory
@@ -256,7 +256,7 @@ computed_input_to_nn :: InputToNote -> (Pitch.Note -> Maybe Derive.ValCall)
     -> ScoreTime -> Pitch.Input -> Derive.Deriver (Maybe Pitch.NoteNumber)
 computed_input_to_nn input_to_note note_to_call pos input
     | Just note <- input_to_note Nothing input, Just call <- note_to_call note =
-        Call.apply_pitch pos call >>= \val -> case val of
+        Eval.apply_pitch pos call >>= \val -> case val of
             TrackLang.VPitch pitch -> do
                 controls <- Derive.controls_at =<< Derive.real pos
                 environ <- Internal.get_environ

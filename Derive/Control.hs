@@ -46,12 +46,13 @@ import qualified Ui.Track as Track
 import qualified Ui.TrackTree as TrackTree
 
 import qualified Derive.Cache as Cache
-import qualified Derive.Call as Call
 import qualified Derive.Call.Util as Util
 import qualified Derive.Controls as Controls
 import qualified Derive.Derive as Derive
 import qualified Derive.Deriver.Internal as Internal
 import qualified Derive.Environ as Environ
+import qualified Derive.Eval as Eval
+import qualified Derive.EvalTrack as EvalTrack
 import qualified Derive.LEvent as LEvent
 import qualified Derive.ParseTitle as ParseTitle
 import qualified Derive.PitchSignal as PitchSignal
@@ -159,7 +160,7 @@ eval_track track expr ctype deriver = case ctype of
     where
     transform :: Derive.Callable d => Derive.LogsDeriver d
         -> Derive.LogsDeriver d
-    transform = Call.apply_transformers cinfo expr
+    transform = Eval.apply_transformers cinfo expr
     cinfo = Derive.dummy_call_info 0 (TrackTree.track_end track) $ case ctype of
         ParseTitle.Tempo {} -> "tempo track"
         ParseTitle.Control {} -> "control track"
@@ -298,8 +299,8 @@ derive_control :: Bool -> TrackTree.Track
 derive_control is_tempo track transform = do
     stream <- Cache.track track mempty $ transform $ do
         state <- Derive.get
-        let (stream, collect) = Call.derive_control_track state tinfo
-                Call.control_last_sample (track_events track)
+        let (stream, collect) = EvalTrack.derive_control_track state tinfo
+                EvalTrack.control_last_sample (track_events track)
         Internal.merge_collect collect
         return $ compact (concat stream)
     let (signal_chunks, logs) = LEvent.partition stream
@@ -313,10 +314,10 @@ derive_control is_tempo track transform = do
     -- will be merged with Signal.merge and the logs extracted.
     compact events = LEvent.Event (mconcat sigs) : map LEvent.Log logs
         where (sigs, logs) = LEvent.partition events
-    tinfo = Call.TrackInfo
-        { Call.tinfo_track = track
-        , Call.tinfo_sub_tracks = []
-        , Call.tinfo_type =
+    tinfo = EvalTrack.TrackInfo
+        { EvalTrack.tinfo_track = track
+        , EvalTrack.tinfo_sub_tracks = []
+        , EvalTrack.tinfo_type =
             if is_tempo then ParseTitle.TempoTrack else ParseTitle.ControlTrack
         }
     extend end
@@ -329,8 +330,8 @@ derive_pitch :: Bool -> TrackTree.Track
 derive_pitch cache track transform = do
     stream <- (if cache then Cache.track track mempty else id) $ transform $ do
         state <- Derive.get
-        let (stream, collect) = Call.derive_control_track state tinfo
-                Call.pitch_last_sample (track_events track)
+        let (stream, collect) = EvalTrack.derive_control_track state tinfo
+                EvalTrack.pitch_last_sample (track_events track)
         Internal.merge_collect collect
         return $ compact (concat stream)
     let (signal_chunks, logs) = LEvent.partition stream
@@ -341,10 +342,10 @@ derive_pitch cache track transform = do
     -- Merge the signal here so it goes in the cache as one signal event.
     compact events = LEvent.Event (mconcat sigs) : map LEvent.Log logs
         where (sigs, logs) = LEvent.partition events
-    tinfo = Call.TrackInfo
-        { Call.tinfo_track = track
-        , Call.tinfo_sub_tracks = []
-        , Call.tinfo_type = ParseTitle.PitchTrack
+    tinfo = EvalTrack.TrackInfo
+        { EvalTrack.tinfo_track = track
+        , EvalTrack.tinfo_sub_tracks = []
+        , EvalTrack.tinfo_type = ParseTitle.PitchTrack
         }
 
 track_events :: TrackTree.Track -> [Event.Event]
@@ -374,7 +375,7 @@ put_signal_fragment block_id track_id sig = Internal.modify_collect $
 put_unwarped_signal :: BlockId -> TrackId -> Signal.Control -> Derive.Deriver ()
 put_unwarped_signal block_id track_id sig = do
     warp <- Internal.get_dynamic Derive.state_warp
-    put_track_signal block_id track_id (Call.unwarp warp sig)
+    put_track_signal block_id track_id (EvalTrack.unwarp warp sig)
 
 put_track_signal :: BlockId -> TrackId -> Track.TrackSignal -> Derive.Deriver ()
 put_track_signal block_id track_id tsig = Internal.merge_collect $ mempty

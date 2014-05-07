@@ -36,12 +36,12 @@ import qualified Ui.State as State
 import qualified Ui.TrackTree as TrackTree
 
 import qualified Derive.Cache as Cache
-import qualified Derive.Call as Call
 import qualified Derive.Control as Control
 import qualified Derive.Controls as Controls
 import qualified Derive.Derive as Derive
 import qualified Derive.Deriver.Internal as Internal
 import qualified Derive.Environ as Environ
+import qualified Derive.EvalTrack as EvalTrack
 import qualified Derive.LEvent as LEvent
 import qualified Derive.Note as Note
 import qualified Derive.ParseTitle as ParseTitle
@@ -173,7 +173,7 @@ derive_track node@(Tree.Node track subs)
     where
     defragment = do
         warp <- Internal.get_dynamic Derive.state_warp
-        Internal.modify_collect $ Call.defragment_track_signals warp
+        Internal.modify_collect $ EvalTrack.defragment_track_signals warp
     with_stack = maybe id Internal.with_stack_track
         (TrackTree.track_id track)
 

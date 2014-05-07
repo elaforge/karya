@@ -15,13 +15,13 @@ import qualified Data.Text as Text
 
 import Util.Control
 import qualified Util.Seq as Seq
-import qualified Derive.Call as Call
 import qualified Derive.Call.Module as Module
 import qualified Derive.Call.Sub as Sub
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Call.Util as Util
 import qualified Derive.Controls as Controls
 import qualified Derive.Derive as Derive
+import qualified Derive.Eval as Eval
 import qualified Derive.Parse as Parse
 import qualified Derive.PitchSignal as PitchSignal
 import qualified Derive.Score as Score
@@ -192,7 +192,7 @@ override_val_call assignee source deriver = do
 get_call :: Text -> (Derive.Scopes -> Derive.ScopeType call)
     -> TrackLang.CallId -> Derive.Deriver call
 get_call name get call_id =
-    maybe (Derive.throw $ untxt $ Call.unknown_call_id name call_id)
+    maybe (Derive.throw $ untxt $ Eval.unknown_call_id name call_id)
         return =<< Derive.lookup_with get call_id
 
 single_lookup :: Text -> Derive.Call d
@@ -215,7 +215,7 @@ quoted_generator :: Derive.Callable d => TrackLang.Quoted -> Derive.Generator d
 quoted_generator quoted@(TrackLang.Quoted expr) =
     Derive.make_call quoted_module "quoted-call" mempty
     ("Created from expression: " <> ShowVal.show_val quoted)
-    $ Sig.call0 $ \args -> Call.eval_expr False (quoted_cinfo args quoted) expr
+    $ Sig.call0 $ \args -> Eval.eval_expr False (quoted_cinfo args quoted) expr
 
 quoted_transformer :: Derive.Callable d => TrackLang.Quoted
     -> Derive.Transformer d
@@ -223,7 +223,7 @@ quoted_transformer quoted@(TrackLang.Quoted expr) =
     Derive.make_call quoted_module "quoted-call" mempty
     ("Created from expression: " <> ShowVal.show_val quoted)
     $ Sig.call0t $ \args deriver ->
-        Call.apply_transformers (quoted_cinfo args quoted)
+        Eval.apply_transformers (quoted_cinfo args quoted)
             (NonEmpty.toList expr) deriver
 
 quoted_val_call :: TrackLang.Quoted -> Derive.ValCall
@@ -235,7 +235,7 @@ quoted_val_call quoted = Derive.val_call quoted_module "quoted-call" mempty
             _ -> Derive.throw $
                 "expected a val call, but got a full expression: "
                 <> untxt (ShowVal.show_val quoted)
-        Call.eval (quoted_cinfo args quoted) call
+        Eval.eval (quoted_cinfo args quoted) call
 
 quoted_cinfo :: Derive.PassedArgs d -> TrackLang.Quoted -> Derive.CallInfo d
 quoted_cinfo args (TrackLang.Quoted expr) = (Derive.passed_info args)

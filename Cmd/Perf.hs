@@ -23,10 +23,10 @@ import qualified Ui.TrackTree as TrackTree
 
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.PlayUtil as PlayUtil
-import qualified Derive.Call as Call
 import qualified Derive.Derive as Derive
 import qualified Derive.Deriver.Internal as Internal
 import qualified Derive.Environ as Environ
+import qualified Derive.Eval as Eval
 import qualified Derive.LEvent as LEvent
 import qualified Derive.ParseTitle as ParseTitle
 import qualified Derive.Score as Score
@@ -51,7 +51,7 @@ derive_expr :: (Cmd.M m, Derive.Callable d) => BlockId -> TrackId -> TrackTime
     -> TrackLang.Expr -> m (Either String [d], [Log.Msg])
 derive_expr block_id track_id pos expr = do
     (result, logs) <- derive_at block_id track_id
-        (Call.eval_one_at False pos 1 expr)
+        (Eval.eval_one_at False pos 1 expr)
     return $ case result of
         Left err -> (Left err, logs)
         Right levents -> (Right events, derive_logs ++ logs)
@@ -179,8 +179,8 @@ lookup_default_environ :: (TrackLang.Typecheck a, Cmd.M m) =>
     TrackLang.ValName -> m (Maybe a)
 lookup_default_environ name = do
     global <- State.config#State.global_transform <#> State.get
-    let apply = Call.apply_transform caller global
-    -- Call.apply_transform only applies to things in Derived, so I have to do
+    let apply = Eval.apply_transform caller global
+    -- Eval.apply_transform only applies to things in Derived, so I have to do
     -- this gross hack where I stash the result in a Score.Event.  Ultimately
     -- it's because I use the return type to infer the lookup function, and
     -- I want to use Score.Event transformers.  It might be a better design to

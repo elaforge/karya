@@ -28,7 +28,7 @@ import qualified Cmd.NoteTrack as NoteTrack
 import qualified Cmd.RulerUtil as RulerUtil
 import qualified Cmd.Selection as Selection
 
-import qualified Derive.Call as Call
+import qualified Derive.Eval as Eval
 import qualified Derive.TrackLang as TrackLang
 import Types
 
@@ -198,7 +198,7 @@ get_block_calls track_id = do
 resolve_relative_call :: Id.Namespace -> BlockId -> TrackLang.CallId
     -> Maybe BlockId
 resolve_relative_call ns caller sym
-    | Call.is_relative_call sym = Call.symbol_to_block_id ns (Just caller) sym
+    | Eval.is_relative_call sym = Eval.symbol_to_block_id ns (Just caller) sym
     | otherwise = Nothing
 
 make_block_call :: BlockId -> BlockId -> Text

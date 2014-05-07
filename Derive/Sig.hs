@@ -103,9 +103,9 @@ import qualified Control.Applicative as Applicative
 import qualified Data.Text as Text
 
 import Util.Control
-import qualified Derive.Call as Call
 import qualified Derive.Derive as Derive
 import Derive.Derive (EnvironDefault(..))
+import qualified Derive.Eval as Eval
 import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.TrackLang as TrackLang
@@ -426,7 +426,7 @@ eval state expr = result
         call <- case expr of
             call :| [] -> return call
             _ -> Derive.throw "expected a val call, but got a full expression"
-        Call.eval (state_call_info state) (TrackLang.ValCall call)
+        Eval.eval (state_call_info state) (TrackLang.ValCall call)
 
 lookup_default :: Derive.EnvironDefault -> State -> Text -> Maybe TrackLang.Val
 lookup_default env_default state name =

@@ -13,7 +13,6 @@ import qualified Data.Set as Set
 import Util.Control
 import qualified Util.Pretty as Pretty
 import qualified Derive.Args as Args
-import qualified Derive.Call as Call
 import qualified Derive.Call.Europe.Grace as Grace
 import qualified Derive.Call.Module as Module
 import qualified Derive.Call.Note as Note
@@ -21,6 +20,7 @@ import qualified Derive.Call.Sub as Sub
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Call.Util as Util
 import qualified Derive.Derive as Derive
+import qualified Derive.Eval as Eval
 import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Sig as Sig
@@ -81,7 +81,7 @@ multiple_call name calls = Derive.make_call Module.instrument name Tags.inst
     -- combine in the call doc.  Presumably the calls are apparent from the
     -- name.
     "Dispatch to multiple calls." $ Sig.call0 $ \args ->
-        mconcatMap (Call.reapply_gen args) calls
+        mconcatMap (Eval.reapply_gen args) calls
 
 double_calls :: [(TrackLang.CallId, TrackLang.CallId)]
     -- ^ (call_name, repeated_call)
@@ -95,7 +95,7 @@ double_call repeated = Derive.make_call Module.instrument "double" Tags.inst
     <$> Sig.defaulted "time" Grace.default_grace_dur "Time between the strokes."
     <*> Sig.defaulted "dyn" 0.5 "Dyn scale for grace notes."
     ) $ \(TrackLang.DefaultReal time, dyn) args ->
-        Grace.repeat_notes (Call.reapply_gen_normalized args repeated)
+        Grace.repeat_notes (Eval.reapply_gen_normalized args repeated)
             1 time dyn args
 
 -- * composite
@@ -179,7 +179,7 @@ composite_call args composites = mconcatMap (split args) composites
     allocated = mconcatMap (fromMaybe mempty . c_controls) composites
     split args (Composite call inst pitch controls) =
         Derive.with_instrument inst $ with_pitch pitch $
-        with_controls controls $ Call.reapply_gen args call
+        with_controls controls $ Eval.reapply_gen args call
     with_pitch p deriver = case p of
         NoPitch -> Derive.with_pitch Nothing mempty deriver
         Pitch Nothing -> deriver

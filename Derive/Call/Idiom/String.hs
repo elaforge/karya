@@ -10,13 +10,13 @@ import Util.Control
 import qualified Util.Log as Log
 import qualified Util.Map as Map
 
-import qualified Derive.Call as Call
 import qualified Derive.Call.Module as Module
 import qualified Derive.Call.Pitch as Call.Pitch
 import qualified Derive.Call.Post as Post
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Call.Util as Util
 import qualified Derive.Derive as Derive
+import qualified Derive.Eval as Eval
 import qualified Derive.LEvent as LEvent
 import qualified Derive.PitchSignal as PitchSignal
 import qualified Derive.Pitches as Pitches
@@ -62,7 +62,7 @@ c_guzheng strings = Derive.transformer module_ "guzheng"
         \ released after this delay."
     ) $ \(attack, release, delay) _args deriver -> do
         -- TODO if I care about retuning notes I should pass a time
-        string_pitches <- mapM (Call.eval_pitch 0) strings
+        string_pitches <- mapM (Eval.eval_pitch 0) strings
         srate <- Util.get_srate
         events <- deriver
         let linear = Call.Pitch.interpolator srate id
@@ -77,7 +77,7 @@ c_violin strings = Derive.transformer module_ "violin"
     Sig.callt
     ( defaulted "delay" (control "string-delay" 0) "String release delay time."
     ) $ \delay _args deriver -> do
-        string_pitches <- mapM (Call.eval_pitch 0) strings
+        string_pitches <- mapM (Eval.eval_pitch 0) strings
         srate <- Util.get_srate
         events <- deriver
         let attack = TrackLang.constant_control 0

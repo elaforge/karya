@@ -13,12 +13,12 @@ import qualified Util.Seq as Seq
 
 import qualified Ui.Event as Event
 import qualified Derive.Args as Args
-import qualified Derive.Call as Call
 import qualified Derive.Call.Control as Control
 import qualified Derive.Call.Module as Module
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Call.Util as Util
 import qualified Derive.Derive as Derive
+import qualified Derive.Eval as Eval
 import qualified Derive.LEvent as LEvent
 import qualified Derive.PitchSignal as PitchSignal
 import qualified Derive.Pitches as Pitches
@@ -194,7 +194,7 @@ next_pitch = maybe (return Nothing) eval_pitch . Seq.head . Args.next_events
 
 eval_pitch :: Event.Event -> Derive.Deriver (Maybe PitchSignal.Pitch)
 eval_pitch event =
-    justm (either (const Nothing) Just <$> Call.eval_event event) $ \strm -> do
+    justm (either (const Nothing) Just <$> Eval.eval_event event) $ \strm -> do
     start <- Derive.real (Event.start event)
     return $ PitchSignal.at start $ mconcat $ LEvent.events_of strm
 
