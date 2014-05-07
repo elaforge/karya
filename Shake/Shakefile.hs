@@ -609,6 +609,9 @@ dispatch modeConfig targets = do
         "tests" -> action $ do
             need [runTests]
             system "test/run_tests" [runTests]
+        "tests-normal" -> action $ do
+            need [runTests]
+            system "test/run_tests" [runTests, "^normal-"]
         "tests-complete" -> action $ do
             -- Separated from normal tests because the GUI tests tend to wedge.
             need [runTests]
