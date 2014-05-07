@@ -12,9 +12,12 @@ import qualified Data.Vector as Vector
 
 import qualified Util.ApproxEq as ApproxEq
 import Util.Control
+import qualified Util.Seq as Seq
+
 import qualified Midi.Midi as Midi
 import qualified Ui.State as State
 import qualified Cmd.Serialize as Serialize
+import qualified Perform.RealTime as RealTime
 
 
 type Messages = Vector.Vector Midi.WriteMessage
@@ -74,13 +77,20 @@ take_more n xs
         [] -> ([], False)
         x : xs -> first (x:) $ take_more (n-1) xs
 
--- Faster diff:
--- Zip msgs and compare each one.
-
 diff_midi :: Messages -> [Midi.WriteMessage] -> [[Text]]
 diff_midi expected got =
     mapMaybe (show_diff prettyt) $ Diff.getGroupedDiffBy wmsgs_equal
-        (Vector.toList expected) got
+        (normalize (Vector.toList expected)) (normalize got)
+
+-- | To better approximate audible differences, I strip excessive time
+-- precision and ensure notes happening at the same time are in a consistent
+-- order.
+normalize :: [Midi.WriteMessage] -> [Midi.WriteMessage]
+normalize = concatMap List.sort . Seq.group Midi.wmsg_ts . map strip_precision
+    where
+    strip_precision wmsg = wmsg { Midi.wmsg_ts = strip (Midi.wmsg_ts wmsg) }
+    strip = RealTime.seconds . (/1000) . fromIntegral . round . (*1000)
+        . RealTime.to_seconds
 
 show_diff :: (a -> Text) -> Diff.Diff [a] -> Maybe [Text]
 show_diff _ (Diff.Both {}) = Nothing
@@ -89,7 +99,7 @@ show_diff to_text (Diff.Second msgs) = Just $ map (("+ " <>) . to_text) msgs
 
 wmsgs_equal :: Midi.WriteMessage -> Midi.WriteMessage -> Bool
 wmsgs_equal (Midi.WriteMessage dev1 t1 m1) (Midi.WriteMessage dev2 t2 m2) =
-    dev1 == dev2 && ApproxEq.approx_eq 0.001 t1 t2 && msgs_equal m1 m2
+    dev1 == dev2 && t1 == t2 && msgs_equal m1 m2
 
 msgs_equal :: Midi.Message -> Midi.Message -> Bool
 msgs_equal (Midi.ChannelMessage chan1 m1) (Midi.ChannelMessage chan2 m2) =
