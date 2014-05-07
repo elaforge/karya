@@ -76,6 +76,9 @@ environ = do
 controls :: Cmd.CmdL Score.ControlMap
 controls = maybe mempty Derive.state_controls <$> dynamic
 
+aliases :: Cmd.CmdL [(Score.Instrument, Score.Instrument)]
+aliases = maybe mempty Derive.state_instrument_aliases <$> dynamic
+
 warp :: Cmd.CmdL Score.Warp
 warp = maybe Score.id_warp Derive.state_warp <$> dynamic
 
