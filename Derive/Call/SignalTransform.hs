@@ -12,7 +12,7 @@ import qualified Util.Num as Num
 import qualified Util.Seq as Seq
 
 import qualified Derive.Args as Args
-import qualified Derive.Call.Control as Control
+import qualified Derive.Call.ControlUtil as ControlUtil
 import qualified Derive.Call.Module as Module
 import qualified Derive.Call.Post as Post
 import qualified Derive.Call.Speed as Speed
@@ -160,10 +160,10 @@ c_smooth = Derive.transformer Module.prelude "smooth" mempty
 curve_function :: Text -> Maybe (Double -> Double)
 curve_function curve = case untxt curve of
     "i" -> Just id
-    ['e', n] | Just d <- digit n -> Just $ Control.expon (fromIntegral (-d))
-    [n, 'e'] | Just d <- digit n -> Just $ Control.expon (fromIntegral d)
+    ['e', n] | Just d <- digit n -> Just $ ControlUtil.expon (fromIntegral (-d))
+    [n, 'e'] | Just d <- digit n -> Just $ ControlUtil.expon (fromIntegral d)
     [n1, 'e', n2] | Just d1 <- digit n1, Just d2 <- digit n2 ->
-        Just $ Control.expon2 (fromIntegral d1) (fromIntegral d2)
+        Just $ ControlUtil.expon2 (fromIntegral d1) (fromIntegral d2)
     -- Overshoot the destination by a certain amount.
     -- ['o', 'v', 'e', 'r', n] | Just d <- digit n -> undefined
     _ -> Nothing
@@ -185,9 +185,10 @@ smooth f srate time =
         Nothing -> (Just (x, y), Signal.signal [(x, y)])
         Just (x0, y0) -> (Signal.last segment `mplus` Just (x, y), segment)
             where
-            segment = Signal.drop 1 $ Control.interpolate_segment True srate f
-                (max x0 (min x (x+time))) y0
-                (maybe id (min . fst) next (max x (x+time))) y
+            segment = Signal.drop 1 $
+                ControlUtil.interpolate_segment True srate f
+                    (max x0 (min x (x+time))) y0
+                    (maybe id (min . fst) next (max x (x+time))) y
 
 c_redirect :: Derive.Merge -> Text -> Derive.Transformer Derive.Control
 c_redirect merge op_name =

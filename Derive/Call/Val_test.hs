@@ -11,7 +11,7 @@ import Util.Test
 import qualified Ui.UiTest as UiTest
 import qualified Cmd.Meter as Meter
 import qualified Derive.Call.CallTest as CallTest
-import qualified Derive.Call.Control as Control
+import qualified Derive.Call.ControlUtil as ControlUtil
 import qualified Derive.Call.Val as Val
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Score as Score
@@ -103,7 +103,7 @@ test_timestep = do
 
 test_make_segments = do
     let make = Val.make_segments Signal.signal
-            (Control.interpolate_segment False 1 id)
+            (ControlUtil.interpolate_segment False 1 id)
     let f start end = Signal.unsignal . make start end
     equal (f 4 8  []) []
     equal (f 4 8  [1]) [(4, 1)]

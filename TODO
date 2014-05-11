@@ -41,9 +41,6 @@ UNSORTED
         . Used by ngoret, to get previous pitch.  This is the hack that was
           broken by orphan slicing.
         . So I can get rid of around counts.
-      - Slice also has to set TrackTree.track_around and the other slice
-        fields.
-      - Derive.Slice only sets 'track_slice_range'
     . A totally different approach would be to disallow prev/next note
       entirely at the derive level.  You have to do it at postproc.  The
       advantage here is that prev and next are available with no hackery.
@@ -236,7 +233,7 @@ UNSORTED
         but can be TrackTime with track_shifted.
     . So I need the absolute track range and relative end, and a way to get
       a ScoreTime to TrackTime.
-  - move cmods out of Derive.Call.Control
+  * move cmods out of Derive.Call.Control
 
   * Rename Events.first to Events.head
   * get rid of TrackTree.EventsTree, rename EventsNode to EventsTree

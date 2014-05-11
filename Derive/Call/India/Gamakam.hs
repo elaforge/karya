@@ -43,7 +43,7 @@ import qualified Data.List.NonEmpty as NonEmpty
 import Util.Control
 import qualified Util.Seq as Seq
 import qualified Derive.Args as Args
-import qualified Derive.Call.Control as Control
+import qualified Derive.Call.ControlUtil as ControlUtil
 import qualified Derive.Call.Make as Make
 import qualified Derive.Call.Module as Module
 import qualified Derive.Call.SignalTransform as SignalTransform
@@ -361,7 +361,7 @@ dip high low speed dyn_scale transition (start, end) = do
         dyn = smooth $
             trill_from_transitions (const 1) (const dyn_scale) transitions
     end <- Derive.real end
-    Control.multiply_dyn end dyn
+    ControlUtil.multiply_dyn end dyn
     return transpose
 
 jaru_transition_c :: Text -> Maybe RealTime -> Text

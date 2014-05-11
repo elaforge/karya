@@ -3,25 +3,15 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 -- | Basic calls for control tracks.
-module Derive.Call.Control (
-    control_calls
-    -- * util
-    , interpolate_segment
-    , exp_doc, expon, expon2
-    -- * control modification
-    , multiply_dyn, multiply_signal, add_control, make_signal
-) where
+module Derive.Call.Control (control_calls) where
 import qualified Data.Map as Map
 
 import Util.Control
-import qualified Util.Num as Num
-import qualified Util.Seq as Seq
-
 import qualified Derive.Args as Args
+import qualified Derive.Call.ControlUtil as ControlUtil
 import qualified Derive.Call.Module as Module
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Call.Util as Util
-import qualified Derive.Controls as Controls
 import qualified Derive.Derive as Derive
 import qualified Derive.Environ as Environ
 import qualified Derive.LEvent as LEvent
@@ -170,7 +160,7 @@ linear_interpolation name tags time_default time_default_doc get_time =
     <$> required "val" "Destination value."
     <*> defaulted "time" time_default time_doc
     ) $ \(val, time) args ->
-        interpolate id args val =<< get_time args time
+        ControlUtil.interpolate id args val =<< get_time args time
     where
     doc = "Interpolate from the previous sample to the given one in a straight\
         \ line."
@@ -220,19 +210,14 @@ exponential_interpolation :: (TrackLang.Typecheck time) =>
 exponential_interpolation name tags time_default time_default_doc get_time =
     generator1 name tags doc $ Sig.call ((,,)
     <$> required "val" "Destination value."
-    <*> defaulted "exp" 2 exp_doc
+    <*> defaulted "exp" 2 ControlUtil.exp_doc
     <*> defaulted "time" time_default time_doc
     ) $ \(pitch, exp, time) args ->
-        interpolate (expon exp) args pitch =<< get_time args time
+        ControlUtil.interpolate (ControlUtil.expon exp) args pitch
+            =<< get_time args time
     where
     doc = "Interpolate from the previous value to the given one in a curve."
     time_doc = "Time to reach destination. " <> time_default_doc
-
-exp_doc :: Text
-exp_doc = "Slope of an exponential curve. Positive `n` is taken as `x^n`\
-    \ and will generate a slowly departing and rapidly approaching\
-    \ curve. Negative `-n` is taken as `x^1/n`, which will generate a\
-    \ rapidly departing and slowly approaching curve."
 
 c_exp_prev :: Derive.Generator Derive.Control
 c_exp_prev = exponential_interpolation "exp-prev" Tags.prev Nothing
@@ -266,7 +251,7 @@ c_neighbor = generator1 "neighbor" mempty
     ) $ \(neighbor, TrackLang.DefaultReal time) args -> do
         (start, end) <- Util.duration_from_start args time
         srate <- Util.get_srate
-        return $! interpolator srate id True start neighbor end 0
+        return $! ControlUtil.interpolator srate id True start neighbor end 0
 
 c_down :: Derive.Generator Derive.Control
 c_down = generator1 "down" Tags.prev
@@ -301,7 +286,7 @@ slope args f = case Args.prev_control args of
         (start, next) <- Args.real_range_or_next args
         srate <- Util.get_srate
         let (end, dest) = f start next prev_y
-        return $ interpolator srate id True start prev_y end dest
+        return $ ControlUtil.interpolator srate id True start prev_y end dest
 
 c_sd :: Derive.Generator Derive.Control
 c_sd = generator1 "sd" mempty
@@ -313,7 +298,7 @@ c_sd = generator1 "sd" mempty
         (x1, x2) <- Args.real_range_or_next args
         srate <- Util.get_srate
         let (end, dest) = slope_down speed x1 x2 val
-        return $ interpolator srate id True x1 val end dest
+        return $ ControlUtil.interpolator srate id True x1 val end dest
 
 c_pedal :: Derive.Generator Derive.Control
 c_pedal = generator1 "pedal" mempty
@@ -325,95 +310,6 @@ c_pedal = generator1 "pedal" mempty
         (start, end) <- Args.real_range args
         let prev = maybe 0 snd $ Args.prev_control args
         return $ Signal.signal [(start, val), (end, prev)]
-
--- * util
-
-type Interpolator = Bool -- ^ include the initial sample or not
-    -> RealTime -> Signal.Y -> RealTime -> Signal.Y
-    -- ^ start -> starty -> end -> endy
-    -> Signal.Control
-
--- | Create an interpolating call, from a certain duration (positive or
--- negative) from the event start to the event start.
-interpolate :: (Double -> Double) -> Derive.ControlArgs
-    -> Signal.Y -> TrackLang.Duration -> Derive.Deriver Signal.Control
-interpolate f args val dur = do
-    (start, end) <- Util.duration_from_start args dur
-    srate <- Util.get_srate
-    return $ case Args.prev_control args of
-        Nothing -> Signal.signal [(start, val)]
-        -- I always set include_initial.  It might be redundant, but if the
-        -- previous call was sliced off, it won't be.
-        Just (_, prev_val) -> interpolator srate f True
-            (min start end) prev_val (max start end) val
-
-interpolator :: RealTime -> (Double -> Double) -> Interpolator
-interpolator srate f include_initial x1 y1 x2 y2 =
-    (if include_initial then id else Signal.drop 1)
-        (interpolate_segment True srate f x1 y1 x2 y2)
-
--- | Interpolate between the given points.
-interpolate_segment :: Bool -> RealTime
-    -> (Double -> Double) -- ^ Map a straight line to the desired curve.
-    -> RealTime -> Signal.Y -> RealTime -> Signal.Y -> Signal.Control
-interpolate_segment include_end srate f x1 y1 x2 y2 =
-    Signal.unfoldr go (Seq.range_ x1 srate)
-    where
-    go [] = Nothing
-    go (x:xs)
-        | x >= x2 = if include_end then Just ((x2, y2), []) else Nothing
-        | otherwise = Just ((x, y_of x), xs)
-    y_of = Num.scale y1 y2 . f . Num.normalize (secs x1) (secs x2) . secs
-    secs = RealTime.to_seconds
-
--- | Negative exponents produce a curve that jumps from the \"starting point\"
--- which doesn't seem too useful, so so hijack the negatives as an easier way
--- to write 1/n.  That way n is smoothly departing, while -n is smoothly
--- approaching.
-expon :: Double -> Double -> Double
-expon n x = x**exp
-    where exp = if n >= 0 then n else 1 / abs n
-
--- | I could probably make a nicer curve of this general shape if I knew more
--- math.
-expon2 :: Double -> Double -> Double -> Double
-expon2 a b x
-    | x >= 1 = 1
-    | x < 0.5 = expon a (x * 2) / 2
-    | otherwise = expon (-b) ((x-0.5) * 2) / 2 + 0.5
-
--- ** control modification
-
-multiply_dyn :: RealTime -> Signal.Control -> Derive.Deriver ()
-multiply_dyn = multiply_signal Controls.dynamic
-
--- | Emit a multiplying modify control.
-multiply_signal :: Score.Control -> RealTime
-    -- ^ End time, after which the signal becomes 1.  This should be set to the
-    -- next event, otherwise, all subsequent events will be zeroed.
-    -> Signal.Control -> Derive.Deriver ()
-multiply_signal control end sig = do
-    -- Since signals are implicitly 0 before the first sample, the modification
-    -- will zero out the control before 'x1'.  That's usually not what I want,
-    -- so assume it's 'y1' before that.
-    Derive.modify_control (Derive.Merge Derive.op_mul) control $
-        initial <> sig <> Signal.signal [(end, 1)]
-    where
-    initial = case Signal.head sig of
-        Nothing -> mempty
-        Just (_, y) -> Signal.signal [(0, y)]
-
-add_control :: Score.Control -> (Double -> Double)
-    -> RealTime -> Signal.Y -> RealTime -> Signal.Y -> Derive.Deriver ()
-add_control control f x1 y1 x2 y2 = do
-    sig <- make_signal f x1 y1 x2 y2
-    Derive.modify_control (Derive.Merge Derive.op_add) control sig
-
-make_signal :: (Double -> Double) -> RealTime -> Signal.Y -> RealTime
-    -> Signal.Y -> Derive.Deriver Signal.Control
-make_signal f x1 y1 x2 y2 = do
-    srate <- Util.get_srate
-    return $ interpolator srate f True x1 y1 x2 y2
 
 generator1 :: Functor m => Text -> Tags.Tags -> Text
     -> Derive.WithArgDoc (a -> m d) -> Derive.Call (a -> m [LEvent.LEvent d])

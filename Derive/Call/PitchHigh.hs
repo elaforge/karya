@@ -12,7 +12,7 @@
 module Derive.Call.PitchHigh where
 import Util.Control
 import qualified Derive.Args as Args
-import qualified Derive.Call.Control as Control
+import qualified Derive.Call.ControlUtil as ControlUtil
 import qualified Derive.Call.Module as Module
 import qualified Derive.Call.Pitch as Call.Pitch
 import qualified Derive.Call.Tags as Tags
@@ -140,7 +140,7 @@ make_pitch_fade name doc pitch_dir =
                 (slide, dyn) <- pitch_fade AlignEnd prev_pitch pitch_dir
                     interval =<< pitch_fade_ranges AlignStart AlignStart
                         fade time (Args.start args) (Args.start args)
-                Control.multiply_dyn next dyn
+                ControlUtil.multiply_dyn next dyn
                 return slide
 
 c_approach_dyn :: Derive.Generator Derive.Pitch
@@ -153,8 +153,8 @@ c_approach_dyn = Derive.generator1 Module.prelude "approach-dyn"
     <*> defaulted "dyn" 0.25 "Drop `dyn` by this factor."
     ) $ \(TrackLang.DefaultReal time, dyn) args -> do
         (start, end) <- Util.duration_from_start args time
-        Control.multiply_dyn end
-            =<< Control.make_signal id start 1 end dyn
+        ControlUtil.multiply_dyn end
+            =<< ControlUtil.make_signal id start 1 end dyn
         Call.Pitch.approach args start end
 
 -- * fade implementation
@@ -216,7 +216,7 @@ pitch_fade_ranges align align_fade fade_time pitch_time start end = do
 segment :: (Double -> Double) -> RealTime -> Signal.Y -> RealTime
     -> Signal.Y -> Derive.Deriver Signal.Control
 segment f x1 y1 x2 y2 = do
-    sig <- Control.make_signal f x1 y1 x2 y2
+    sig <- ControlUtil.make_signal f x1 y1 x2 y2
     return $ Signal.signal [(0, y1)] <> sig
 
 pitch_segment :: Align -> RealTime -- ^ start pitch at this time

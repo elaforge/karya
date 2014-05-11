@@ -19,7 +19,7 @@ import qualified Ui.ScoreTime as ScoreTime
 
 import qualified Cmd.Meter as Meter
 import qualified Derive.Args as Args
-import qualified Derive.Call.Control as Control
+import qualified Derive.Call.ControlUtil as ControlUtil
 import qualified Derive.Call.Make as Make
 import qualified Derive.Call.Module as Module
 import qualified Derive.Call.Pitch as Call.Pitch
@@ -257,10 +257,10 @@ c_exp_next :: Derive.ValCall
 c_exp_next = val_call "exp-next" mempty
     "Create curved lines between the given breakpoints."
     $ Sig.call ((,)
-    <$> defaulted "exp" 2 Control.exp_doc
+    <$> defaulted "exp" 2 ControlUtil.exp_doc
     <*> breakpoints_arg
     ) $ \(exp, vals) args ->
-        c_breakpoints 1 (Control.expon exp) vals args
+        c_breakpoints 1 (ControlUtil.expon exp) vals args
 
 breakpoints_arg :: Sig.Parser (NonEmpty TrackLang.Val)
 breakpoints_arg = Sig.many1 "bp" "Breakpoints are distributed evenly between\
@@ -278,7 +278,7 @@ c_breakpoints argnum f vals args = do
     let pitch_breakpoints = make_segments PitchSignal.signal
             (Call.Pitch.interpolate_segment False srate f)
         control_breakpoints = make_segments Signal.signal
-            (Control.interpolate_segment False srate f)
+            (ControlUtil.interpolate_segment False srate f)
     return $ case vals of
         Left nums -> TrackLang.VControl $ TrackLang.ControlSignal $
             Score.untyped $ control_breakpoints start end nums

@@ -13,7 +13,7 @@ import qualified Util.Seq as Seq
 
 import qualified Ui.Event as Event
 import qualified Derive.Args as Args
-import qualified Derive.Call.Control as Control
+import qualified Derive.Call.ControlUtil as ControlUtil
 import qualified Derive.Call.Module as Module
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Call.Util as Util
@@ -124,10 +124,10 @@ exponential_interpolation :: (TrackLang.Typecheck time) =>
 exponential_interpolation name time_default time_default_doc get_time =
     generator1 name Tags.prev doc $ Sig.call ((,,)
     <$> pitch_arg
-    <*> defaulted "exp" 2 Control.exp_doc
+    <*> defaulted "exp" 2 ControlUtil.exp_doc
     <*> defaulted "time" time_default time_doc
     ) $ \(pitch, exp, time) args ->
-        interpolate (Control.expon exp) args pitch =<< get_time args time
+        interpolate (ControlUtil.expon exp) args pitch =<< get_time args time
     where
     doc = "Interpolate from the previous pitch to the given one in a curve."
     time_doc = "Time to reach destination. " <> time_default_doc

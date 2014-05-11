@@ -50,7 +50,7 @@ import qualified Util.Seq as Seq
 import qualified Ui.ScoreTime as ScoreTime
 import qualified Derive.Args as Args
 import qualified Derive.Attrs as Attrs
-import qualified Derive.Call.Control as Control
+import qualified Derive.Call.ControlUtil as ControlUtil
 import qualified Derive.Call.Lily as Lily
 import qualified Derive.Call.Make as Make
 import qualified Derive.Call.Module as Module
@@ -326,7 +326,7 @@ saw :: RealTime -> [RealTime] -> Double -> Double -> Signal.Control
 saw srate starts from to =
     mconcat $ zipWith saw starts (drop 1 starts)
     where
-    saw t1 t2 = Control.interpolate_segment
+    saw t1 t2 = ControlUtil.interpolate_segment
         True srate id t1 from (t2-srate) to
 
 -- ** sine
