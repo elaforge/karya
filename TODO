@@ -14,6 +14,9 @@ UNSORTED
     . But ' is in the previous event hack, why doesn't it apply?  It's for
       pitch calls, but ' is now a note call.  There's no way to have a note
       call want previous control values.
+  / Prev pitch with evaluation didn't work for ngoret presumably because of
+    missing TrackTree.track_around for the slice, how come?
+    . It's because it's a note track, not a control track.
 
   What would the "correct" solution to the previous event hack be?
     . Disregarding performance, never slice control tracks, just evaluate the
@@ -22,15 +25,24 @@ UNSORTED
       previous event.  The problem is that this applies recursively, so
       a chain of ' calls goes back unil someone doesn't rely on the previous
       value.
-    - I could use tags.  But I have to parse each call, extract call symbol
+    . I could use tags.  But I have to parse each call, extract call symbol
       and val call symbols, look up each one, and look at its tags.  Even
       after all this, it might not be correct because transforms in track
       titles might change the bindings.  But it's still better than what
       I have now, except in complexity.
-    - To close that hole, I'd have to eval transformers in note tracks.  At
+    . To close that hole, I'd have to eval transformers in note tracks.  At
       this point, I should probably put the slice in track evaluation, e.g.
       slice doesn't actually slice, but puts (start, end) in TrackTree.Track,
       and the track evaluator slices to those times.
+      * Figure how the 'around' counts are use, and if I need them in
+        TrackEval.slice.
+        . Used for control tracks, extra before and after.
+        . Used by ngoret, to get previous pitch.  This is the hack that was
+          broken by orphan slicing.
+        . So I can get rid of around counts.
+      - Slice also has to set TrackTree.track_around and the other slice
+        fields.
+      - Derive.Slice only sets 'track_slice_range'
     . A totally different approach would be to disallow prev/next note
       entirely at the derive level.  You have to do it at postproc.  The
       advantage here is that prev and next are available with no hackery.
@@ -38,9 +50,26 @@ UNSORTED
       evaluation, so that a derive call could leave an expression to be
       evaluated at postproc.  Or something.  I'm not sure how this would work,
       but it could resolve a lot of problems.
+    Or, I could try to make prev val work across slice boundaries.  I think
+      I tried this before, but don't remember the result.  It seems much
+      simpler than all the call lookup hackery.
+      * add Threaded type
+      . Oops, I already did all these, see NOTE [prev-val] in Args.hs.
+        But it seems like I could still do the "store prev val" thing if I
+        stored the whole event's worth of values.  Then the next event can
+        find the sample before its own start time.
+      * Threaded is getting cleared out somewhere.
+      * Make each track derive get the prev val at the beginning, and store
+        the prev val at the end.
+      * Remove (Int, Int) around and prev val hacks.
+      * Make sure tests still pass!
+      * Extend prev val to work for Score.Event.
 
   - Overlap detection in Derive.Slice I think is still messed up, or at the
     least it's more complicated than it should be.
+  - EvalTrack.derive_track doesn't need to take events, since it already takes
+    the track in TrackInfo.
+  - Derive.Deriver.Monad.d_merge shouldn't catch exceptions as a side-effect
 
   Simplify orphan extraction by making empty note tracks evaluate their children
     . This way I don't need to strip empty note tracks but keep their titles.

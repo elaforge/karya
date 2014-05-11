@@ -96,7 +96,12 @@ run_with_dynamic :: Cmd.M m => Derive.Dynamic -> Derive.Deriver a
     -> m (Derive.RunResult a)
 run_with_dynamic dynamic deriver = do
     constant <- get_constant mempty mempty
-    let state = Derive.State dynamic mempty constant
+    let state = Derive.State
+            { Derive.state_threaded = Derive.initial_threaded
+            , Derive.state_dynamic = dynamic
+            , Derive.state_collect = mempty
+            , Derive.state_constant = constant
+            }
     return $ Derive.run state deriver
 
 get_constant :: Cmd.M m => Derive.Cache -> Derive.ScoreDamage

@@ -107,11 +107,15 @@ next_val event start ttype = case ttype of
 c_prev_val :: Derive.ValCall
 c_prev_val = val_call "prev-val" Tags.prev
     "Return the previous value. Only works on pitch and control tracks."
-    $ Sig.call0 $ \args -> Args.prev_val args >>= \x -> case x of
-        Just (_, Derive.TagControl y) ->
-            return (TrackLang.num y :: TrackLang.Val)
-        Just (_, Derive.TagPitch y) -> return $ TrackLang.VPitch y
-        _ -> Derive.throw "no previous value"
+    $ Sig.call0 $ \args -> do
+        start <- Args.real_start args
+        case Args.prev_val args of
+            Just (Derive.TagControl sig) ->
+                return $ TrackLang.num $ Signal.at start sig
+            Just (Derive.TagPitch sig) ->
+                maybe (Derive.throw "no previous pitch")
+                    (return . TrackLang.VPitch) (PitchSignal.at start sig)
+            _ -> Derive.throw "no previous value"
 
 c_env :: Derive.ValCall
 c_env = val_call "env" mempty

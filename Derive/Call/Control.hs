@@ -3,7 +3,14 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 -- | Basic calls for control tracks.
-module Derive.Call.Control where
+module Derive.Call.Control (
+    control_calls
+    -- * util
+    , interpolate_segment
+    , exp_doc, expon, expon2
+    -- * control modification
+    , multiply_dyn, multiply_signal, add_control, make_signal
+) where
 import qualified Data.Map as Map
 
 import Util.Control
@@ -102,11 +109,11 @@ c_set = generator1 "set" mempty
 c_set_prev :: Derive.Generator Derive.Control
 c_set_prev = Derive.generator Module.prelude "set-prev" Tags.prev
     "Re-set the previous value. This can be used to extend a breakpoint"
-    $ Sig.call0 $ \args -> Args.prev_val args >>= \x -> case x of
+    $ Sig.call0 $ \args -> case Args.prev_control args of
         Nothing -> return []
-        Just (prev_x, prev_y) -> do
-            pos <- Args.real_start args
-            return [Signal.signal [(pos, prev_y)] | pos > prev_x]
+        Just (x, y) -> do
+            start <- Args.real_start args
+            return [Signal.signal [(start, y)] | start > x]
 
 c_abs :: Derive.Generator Derive.Control
 c_abs = Derive.generator1 Module.prelude "abs" mempty
@@ -152,7 +159,7 @@ invert_merge merge val current_val = case Map.lookup merge inverters of
 
 -- * linear
 
-linear_interpolation :: (TrackLang.Typecheck time) =>
+linear_interpolation :: TrackLang.Typecheck time =>
     Text -> Tags.Tags -> time -- ^ arg for duration function
     -> Text -- ^ doc for time arg
     -> (Derive.ControlArgs -> time -> Derive.Deriver TrackLang.Duration)
@@ -173,14 +180,15 @@ c_linear_prev :: Derive.Generator Derive.Control
 c_linear_prev = linear_interpolation "linear" Tags.prev Nothing
     "If not given, start from the previous sample." default_prev
 
-default_prev :: (Args.EvalPrev d) => Derive.PassedArgs d
-    -> Maybe TrackLang.DefaultReal -> Derive.Deriver TrackLang.Duration
-default_prev args Nothing =
-    fmap TrackLang.Real $ Args.prev_val args >>= \x -> case x of
-        Nothing -> Args.real_start args
-        Just (prev, _) -> do
-            start <- Args.real_start args
-            return $ prev - start
+default_prev :: Derive.ControlArgs -> Maybe TrackLang.DefaultReal
+    -> Derive.Deriver TrackLang.Duration
+default_prev args Nothing = do
+    start <- Args.real_start args
+    return $ TrackLang.Real $ case Args.prev_control args of
+        -- It's likely the callee won't use the duration if there's no prev
+        -- val.
+        Nothing -> 0
+        Just (prev, _) -> prev - start
 default_prev _ (Just (TrackLang.DefaultReal t)) = return t
 
 c_linear_prev_const :: Derive.Generator Derive.Control
@@ -287,7 +295,7 @@ slope_down speed x1 x2 y1 = (end, max 0 (y1 - diff))
 slope :: Derive.ControlArgs
     -> (RealTime -> RealTime -> Signal.Y -> (RealTime, Signal.Y))
     -> Derive.Deriver Signal.Control
-slope args f = Args.prev_val args >>= \x -> case x of
+slope args f = case Args.prev_control args of
     Nothing -> return Signal.empty
     Just (_, prev_y) -> do
         (start, next) <- Args.real_range_or_next args
@@ -315,7 +323,7 @@ c_pedal = generator1 "pedal" mempty
     ) $ Sig.call (defaulted "val" 1 "Set to this value.") $
     \val args -> do
         (start, end) <- Args.real_range args
-        prev <- maybe 0 snd <$> Args.prev_val args
+        let prev = maybe 0 snd $ Args.prev_control args
         return $ Signal.signal [(start, val), (end, prev)]
 
 -- * util
@@ -332,7 +340,7 @@ interpolate :: (Double -> Double) -> Derive.ControlArgs
 interpolate f args val dur = do
     (start, end) <- Util.duration_from_start args dur
     srate <- Util.get_srate
-    Args.prev_val args >>= \x -> return $ case x of
+    return $ case Args.prev_control args of
         Nothing -> Signal.signal [(start, val)]
         -- I always set include_initial.  It might be redundant, but if the
         -- previous call was sliced off, it won't be.

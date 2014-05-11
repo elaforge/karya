@@ -60,7 +60,7 @@ ngoret module_ add_damped_tag damp_arg transpose =
     <*> damp_arg
     <*> defaulted "dyn" (control "ngoret-dyn" 0.75)
         "The grace note's dyn will be this multiplier of the current dyn."
-    ) $ \(time, damp, dyn_scale) -> Sub.inverting_around (2, 1) $ \args -> do
+    ) $ \(time, damp, dyn_scale) -> Sub.inverting $ \args -> do
         start <- Args.real_start args
         pitch <- Util.get_pitch start
         transpose <- maybe (infer_transpose args pitch) return transpose
@@ -87,12 +87,12 @@ ngoret module_ add_damped_tag damp_arg transpose =
                     Util.pitched_note (Pitches.transpose transpose pitch))
             <> Derive.place (Args.start args) (Args.duration args) Util.note
 
-infer_transpose :: Derive.PassedArgs d -> PitchSignal.Pitch
+infer_transpose :: Derive.NoteArgs -> PitchSignal.Pitch
     -> Derive.Deriver Pitch.Transpose
 infer_transpose args pitch = do
-    prev <- Derive.real =<< Derive.require "previous event"
-        (Args.prev_start args)
-    prev_pitch <- Util.get_pitch prev
+    prev <- Derive.require "no previous event" $ Args.prev_val args
+    prev_pitch <- Derive.require "previous event lacks pitch" $
+        Score.initial_pitch prev
     ifM ((<=) <$> Pitches.pitch_nn prev_pitch <*> Pitches.pitch_nn pitch)
         (return (Pitch.Diatonic (-1))) (return (Pitch.Diatonic 1))
 

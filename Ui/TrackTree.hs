@@ -177,8 +177,8 @@ make_track title events end = Track
     , track_shifted = 0
     }
 
-track_block_track_id :: Track -> Maybe (BlockId, TrackId)
-track_block_track_id track = do
+block_track_id :: Track -> Maybe (BlockId, TrackId)
+block_track_id track = do
     bid <- track_block_id track
     tid <- track_id track
     return (bid, tid)

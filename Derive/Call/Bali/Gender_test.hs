@@ -19,7 +19,7 @@ test_ngoret = do
             , ("*", [(0, 0, "4c"), (2, 0, "4e")])
             ]
 
-    strings_like (snd $ run $ c_to_e "'" "'") ["previous event"]
+    strings_like (snd $ run $ c_to_e "'" "'") ["no previous", "no previous"]
 
     -- Starting at 0 will emit an event at negative time.
     -- Thanks to the "x <= 0 means constant" hack the pitch is accurate even
@@ -75,17 +75,12 @@ test_ngoret_slice = do
             , ("*", [(0, 0, "4c"), (1, 0, "4e")])
             ])
         ([(0, 1, "4c"), (0.5, 1, "4d"), (1, 1, "4e")], [])
-
-    -- TODO
-    -- -- This fails because the presence of a preceding slice cuts out the 4c.
-    -- -- Slice needs to understand which note calls require a previous event's
-    -- -- worth of controls for this to work.
-    -- equal (run
-    --         [ (">", [(0, 1, "+a")])
-    --         , (">", [(0, 1, ""), (1, 1, "' .5 .5")])
-    --         , ("*", [(0, 0, "4c"), (1, 0, "4e")])
-    --         ])
-    --     ([(0, 1, "4c"), (0.5, 1, "4d"), (1, 1, "4e")], [])
+    equal (run
+            [ (">", [(0, 1, "+a")])
+            , (">", [(0, 1, ""), (1, 1, "' .5 .5")])
+            , ("*", [(0, 0, "4c"), (1, 0, "4e")])
+            ])
+        ([(0, 1, "4c"), (0.5, 1, "4d"), (1, 1, "4e")], [])
 
 test_realize_damp = do
     let run = DeriveTest.extract DeriveTest.e_note

@@ -12,7 +12,7 @@ module Derive.PitchSignal (
     -- * apply controls
     , apply_controls, apply_control
     -- * signal functions
-    , null, at, shift, head, last
+    , null, at, sample_at, shift, head, last
     , take, drop, drop_after, drop_before, drop_before_strict
     , map_y
     , prepend
@@ -156,6 +156,9 @@ null = TimeVector.null . sig_vec
 
 at :: RealTime -> Signal -> Maybe Pitch
 at x = TimeVector.at x . sig_vec
+
+sample_at :: RealTime -> Signal -> Maybe (RealTime, Pitch)
+sample_at x = TimeVector.sample_at x . sig_vec
 
 shift :: RealTime -> Signal -> Signal
 shift x = modify_vector (TimeVector.shift x)

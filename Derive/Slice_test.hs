@@ -31,41 +31,32 @@ import Types
 
 
 test_slice = do
-    let f exclusive after s e insert =
-            map (fmap extract_tree)
-            . Slice.slice exclusive (1, after) s e insert
-            . map make_tree
-    equal (f False 1 1 2 Nothing [Node (make_notes 2 "ab") []])
+    let f exclusive s e insert = map (fmap extract_tree)
+            . Slice.slice exclusive s e insert . map make_tree
+    equal (f False 1 2 Nothing [Node (make_notes 2 "ab") []])
         [Node (">", []) []]
-    equal (f False 1 1 2 Nothing [Node (make_notes 1 "ab") []])
+    equal (f False 1 2 Nothing [Node (make_notes 1 "ab") []])
         [Node (">", [(1, 1, "a")]) []]
-    equal (f True 1 1 2 Nothing [Node (make_notes 1 "ab") []])
+    equal (f True 1 2 Nothing [Node (make_notes 1 "ab") []])
         [Node (">", []) []]
 
     -- control tracks get neighbors
-    equal (f False 1 1 2 Nothing [Node (make_controls "c" [0, 2..10]) []])
+    equal (f False 1 2 Nothing [Node (make_controls "c" [0, 2..10]) []])
         [Node (make_controls "c" [0, 2]) []]
-    equal (f False 1 2 5 Nothing [Node (make_controls "c" [0, 2..10]) []])
+    equal (f False 2 5 Nothing [Node (make_controls "c" [0, 2..10]) []])
         [Node (make_controls "c" [2, 4, 6]) []]
 
-    -- more neighbors for control tracks
-    equal (f False 2 1 2 Nothing [Node (make_controls "c" [0, 2..10]) []])
-        [Node (make_controls "c" [0, 2, 4]) []]
-
 test_slice_neighbors = do
-    let f exclusive around s e =
-            extract . Slice.slice exclusive around s e Nothing
-            . map make_tree
+    let f exclusive s e =
+            extract . Slice.slice exclusive s e Nothing . map make_tree
         extract = map $ fmap $ \track ->
             extract_around (TrackTree.track_around track)
         extract_around (before, after) = (concatMap Event.event_string before,
             concatMap Event.event_string after)
     let notes offset ns = Node (make_notes offset ns)
         controls cs = Node (make_controls "c" cs)
-    equal (f False (1, 1) 1 2 [controls [0..4] [notes 0 "xyz" []]])
+    equal (f False 1 2 [controls [0..4] [notes 0 "xyz" []]])
         [Node ("0", "34") [Node ("x", "z") []]]
-    equal (f False (1, 2) 1 2 [controls [0..4] [notes 0 "xyz" []]])
-        [Node ("0", "4") [Node ("x", "z") []]]
 
 test_slice_notes = do
     let f = slice_notes False

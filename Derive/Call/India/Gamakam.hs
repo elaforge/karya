@@ -108,7 +108,7 @@ mode_affix (Just Low) = "_"
 
 data Mode = High | Low deriving (Eq, Show)
 
-c_hold :: Derive.ToTagged (Derive.Elem d) => Derive.Transformer d
+c_hold :: Derive.Taggable d => Derive.Transformer d
 c_hold = Make.with_environ module_ "hold"
     (defaulted "time" (TrackLang.real 1) "Hold first value for this long.")
     TrackLang.default_real

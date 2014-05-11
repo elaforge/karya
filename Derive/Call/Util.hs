@@ -549,7 +549,7 @@ instance TrackLang.TypecheckEnum Meter.RankName
 -- calls as arguments have to either take a stirng, and evaluate it, or turn
 -- a Val back into a string to evaluate.  That works for most types, but not
 -- for Pitch.
-reapply_val :: Derive.Callable d => Derive.PassedArgs (Derive.Elem d)
+reapply_val :: Derive.Callable d => Derive.PassedArgs d
     -> TrackLang.Val -> Derive.LogsDeriver d
 reapply_val args val = case val of
     TrackLang.VPitch p -> Derive.throw $ "can't evaluate pitch: " <> pretty p

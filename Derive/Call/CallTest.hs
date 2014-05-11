@@ -63,6 +63,18 @@ with_note_generator name call = Derive.with_scopes $
     Derive.s_generator#Derive.s_note#Derive.s_override
         %= (single_lookup name call :)
 
+with_pitch_generator :: TrackLang.CallId -> Derive.Generator Derive.Pitch
+    -> Derive.Deriver a -> Derive.Deriver a
+with_pitch_generator name call = Derive.with_scopes $
+    Derive.s_generator#Derive.s_pitch#Derive.s_override
+        %= (single_lookup name call :)
+
+with_control_generator :: TrackLang.CallId -> Derive.Generator Derive.Control
+    -> Derive.Deriver a -> Derive.Deriver a
+with_control_generator name call = Derive.with_scopes $
+    Derive.s_generator#Derive.s_control#Derive.s_override
+        %= (single_lookup name call :)
+
 with_note_generators :: [(TrackLang.CallId, Derive.Generator Derive.Note)]
     -> Derive.Deriver a -> Derive.Deriver a
 with_note_generators calls = Derive.with_scopes $
@@ -108,7 +120,7 @@ c_show_args = Derive.generator module_ "show-args" mempty "doc" $
             map (untxt . ShowVal.show_val) (Derive.passed_vals args)
         return []
 
-generator :: Derive.ToTagged y =>
+generator :: Derive.Taggable y =>
     Sig.Generator y d -> Derive.Call (Sig.Generator y d)
 generator = Derive.make_call module_ "test" mempty "test doc" . Sig.call0
 

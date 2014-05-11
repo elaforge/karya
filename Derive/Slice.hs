@@ -38,9 +38,7 @@ module Derive.Slice (
 ) where
 import qualified Data.Foldable as Foldable
 import qualified Data.List as List
-import qualified Data.Maybe as Maybe
 import qualified Data.Monoid as Monoid
-import qualified Data.Set as Set
 import qualified Data.Tree as Tree
 
 import Util.Control
@@ -52,7 +50,6 @@ import qualified Ui.Events as Events
 import qualified Ui.State as State
 import qualified Ui.TrackTree as TrackTree
 
-import qualified Derive.Parse as Parse
 import qualified Derive.ParseTitle as ParseTitle
 import Types
 
@@ -85,40 +82,29 @@ data InsertEvent = InsertEvent {
 -}
 slice :: Bool -- ^ Omit events than begin at the start.
     -- 'slice_notes' documents why this is necessary.
-    -> (Int, Int)
-    -- ^ Capture this many control points at+before and after the slice
-    -- boundaries.  For the purposes of getting events around, the event at the
-    -- start is considered before.  This is so that getting 1 event before
-    -- means at or before, which is is appropriate for many control calls which
-    -- generate samples from the previous event.  Usually it's (1, 1) for one
-    -- at+before event and one following event, which is enough context for the
-    -- typical control call, but may be more for inverting calls that want to
-    -- see control values of preceeding or succeeding events.
-    --
-    -- TODO the use of (before, after) is probably incorrect.  It should be
-    -- that many note track events worth of control events before or after the
-    -- slice range.
-    -> ScoreTime -> ScoreTime
-    -> Maybe InsertEvent
+    -> ScoreTime -> ScoreTime -> Maybe InsertEvent
     -- ^ If given, insert an event at the bottom with the given text and dur.
     -- The created track will have the given track_range, so it can create
     -- a Stack.Region entry.
     -> [TrackTree.EventsNode] -> [TrackTree.EventsNode]
-slice exclude_start around start end insert_event = map do_slice
+slice exclude_start start end insert_event = map do_slice
     where
-    do_slice (Tree.Node track subs) = Tree.Node (slice_t track)
-        (if null subs then insert (TrackTree.track_shifted track)
-            else map do_slice subs)
-    insert shift = case insert_event of
+    do_slice (Tree.Node track subs) = Tree.Node (slice_t track) $ if null subs
+        then insert (TrackTree.track_shifted track)
+            (TrackTree.track_block_id track)
+        else map do_slice subs
+    insert shift block_id = case insert_event of
         Nothing -> []
-        Just insert_event -> [Tree.Node (make shift insert_event) []]
-    -- The synthesized bottom track.
-    make shift (InsertEvent text dur around track_id) = TrackTree.Track
+        Just insert_event -> [Tree.Node (make shift block_id insert_event) []]
+    -- The synthesized bottom track.  Since slicing only happens within
+    -- a block, I assume the BlockId is the same as the parent.  I need
+    -- a BlockId to look up the previous val in 'Derive.Threaded'.
+    make shift block_id (InsertEvent text dur around track_id) = TrackTree.Track
         { TrackTree.track_title = ">"
         , TrackTree.track_events =
             Events.singleton (Event.event start dur text)
         , TrackTree.track_id = track_id
-        , TrackTree.track_block_id = Nothing
+        , TrackTree.track_block_id = block_id
         , TrackTree.track_end = end
         , TrackTree.track_sliced = True
         , TrackTree.track_inverted = True
@@ -138,8 +124,7 @@ slice exclude_start around start end insert_event = map do_slice
     extract_events track
         | ParseTitle.is_note_track title =
             extract_note_events exclude_start start end events
-        | otherwise = extract_control_events (ParseTitle.is_pitch_track title)
-            around start end events
+        | otherwise = extract_control_events start end events
         where
         events = TrackTree.track_events track
         title = TrackTree.track_title track
@@ -156,42 +141,18 @@ extract_note_events exclude_start start end events =
     (pre, within, post) = (Events.descending pre, within, Events.ascending post)
         where (pre, within, post) = Events.split_range start end events
 
-extract_control_events :: Bool -> (Int, Int) -> ScoreTime -> ScoreTime
+extract_control_events :: ScoreTime -> ScoreTime
     -> Events.Events -> ([Event.Event], Events.Events, [Event.Event])
     -- ^ (descending_pre, within, ascending_post)
-extract_control_events is_pitch_track (before, after) start end events =
-    (pre2, Events.from_list $ reverse pre_within ++ within, post2)
+-- extract_control_events start end events = Debug.trace_retp "extract" (start, end, events) (pre, Events.from_list within, post2)
+extract_control_events start end events = (pre, Events.from_list within, post2)
     where
-    -- Implements the "before is at+before" as documented in 'slice'.
-    (pre1, post1) = case Events.split start events of
-        (pre, at : post) | Event.start at == start -> (at : pre, post)
+    (pre, post1) = case Events.split start events of
+        (at_1:pre, at:post) | Event.start at > start -> (pre, at_1:at:post)
+        (at_1:pre, []) -> (pre, [at_1])
         a -> a
-    (pre_within, pre2) = take_pre before pre1
-    (within, post2) = Then.span ((<end) . Event.start) (splitAt after) post1
-
-    -- Some calls rely on the previous val.  'Derive.Args.prev_val' will
-    -- evaluate it in that case, but if I know that the call will want the
-    -- previous val for sure it's probably more efficient to extend the slice
-    -- back a bit and let 'Derive.info_prev_val' provide the previous val.
-    -- This way the previous call will only be evaluated once.  However, this
-    -- hacky check is unreliable because it doesn't really know what calls are
-    -- in scope, and doesn't work for val calls at all.
-    call_of = Maybe.fromMaybe "" . Parse.parse_call . Event.event_text
-    take_pre before = Then.span ((`Set.member` require_previous) . call_of)
-        (splitAt before)
-    require_previous = if is_pitch_track then pitch_require_previous
-        else control_require_previous
-
--- | This should contain the calls that require the previous value.  It's used
--- by a hack in 'slice'.  TODO this is terrible, fix it.
-control_require_previous :: Set.Set Text
-control_require_previous = Set.fromList
-    ["'", "i>", "i>>", "i<<", "e>", "e>>", "e<<", "u", "d"]
-
--- | TODO Same terrible hack as 'control_require_previous'.
-pitch_require_previous :: Set.Set Text
-pitch_require_previous = Set.fromList
-    ["'", "i>", "i>>", "i<<", "e>", "e>>", "e<<", "a", "u", "d"]
+    -- Collect events until one at or after 'end'.
+    (within, post2) = Then.span ((<end) . Event.start) (splitAt 1) post1
 
 {- | Expect a note track somewhere in the tree.  Slice the tracks above and
     below it to each of its events.
@@ -246,7 +207,7 @@ slice_notes exclude_start start end tracks
     slice1 tree (n_start, n_end, n_next) =
         (n_start, n_end - n_start,
             map (fmap (shift_tree n_start n_next)) $
-            slice exclude (1, 1) n_start n_end Nothing tree)
+            slice exclude n_start n_end Nothing tree)
         where exclude = exclude_start && n_start == start
         -- Only exclude_start if 's' is still the original 'start'.
     shift_tree shift next track = track
@@ -429,7 +390,7 @@ slice_orphans exclude_start start end subs =
     maybe (Right slices) Left $ check_overlapping exclude_start start [slices]
     where
     slices = concatMap strip_empty_tracks $
-        slice exclude_start (1, 1) start end Nothing subs
+        slice exclude_start start end Nothing subs
 
 -- * util
 

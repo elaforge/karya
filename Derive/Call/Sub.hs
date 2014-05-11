@@ -7,8 +7,7 @@
 module Derive.Call.Sub (
     -- * inversion
     when_under_inversion, unless_under_inversion
-    , inverting, inverting_args, inverting_around
-    , invert_call
+    , inverting, inverting_args, invert_call
     -- ** events
     , Event(..), event_end, event_overlaps, map_event, map_events
     , stretch
@@ -17,6 +16,7 @@ module Derive.Call.Sub (
     -- * reapply
     , reapply, reapply_call
 ) where
+import qualified Data.Map as Map
 import qualified Data.Tree as Tree
 
 import Util.Control
@@ -65,46 +65,56 @@ unless_under_inversion args transform deriver
 under_inversion :: Derive.PassedArgs d -> Bool
 under_inversion = Derive.info_inverted . Derive.passed_info
 
+inverting_args :: Derive.Taggable d => Derive.PassedArgs d -> Derive.NoteDeriver
+    -> Derive.NoteDeriver
+inverting_args args f = inverting (const f) args
+
 -- | Convert a call into an inverting call.  Documented in doc/inverting_calls.
 --
 -- This requires a bit of hackery:
 --
 -- This requires getting the expression being evaluated so it can be inserted
 -- into the inverted track, which is what 'Derive.info_expr' is for.
-inverting :: (Derive.PassedArgs d -> Derive.NoteDeriver)
+inverting :: Derive.Taggable d => (Derive.PassedArgs d -> Derive.NoteDeriver)
     -> (Derive.PassedArgs d -> Derive.NoteDeriver)
-inverting = inverting_around (1, 1)
-
-inverting_args :: Derive.PassedArgs d -> Derive.NoteDeriver
-    -> Derive.NoteDeriver
-inverting_args args f = inverting (const f) args
-
-inverting_around :: (Int, Int) -- ^ Capture this many control points at+before
-    -- and after the slice boundary.  Also documented in 'Slice.slice'.
-    -> (Derive.PassedArgs d -> Derive.NoteDeriver)
-    -> (Derive.PassedArgs d -> Derive.NoteDeriver)
-inverting_around around call args =
+inverting call args = -- save_prev_val args
     -- If I can invert, the call isn't actually called.  Instead I make a track
     -- with event text that will result in this being called again, and at
     -- that point it actually will be called.
-    maybe (call args) BlockUtil.derive_tracks =<< invert_call around args
+    maybe (call args) BlockUtil.derive_tracks =<< invert_call args
 
-invert_call :: (Int, Int)
-    -> Derive.PassedArgs d -> Derive.Deriver (Maybe TrackTree.EventsTree)
-invert_call around args = case Derive.info_sub_tracks info of
+-- When I invert, I call derive_tracks again, which means the inverted bottom
+-- is going to expect to see the current prev val.  TODO but evidently I don't
+-- need this?  Try to make a problem without it.
+save_prev_val :: Derive.Taggable a => Derive.PassedArgs a -> Derive.Deriver ()
+save_prev_val args = case Args.prev_val args of
+    Nothing -> return ()
+    Just val -> Stack.block_track_of <$> Internal.get_stack >>= \x -> case x of
+        Nothing -> return ()
+        Just block_track -> modify_threaded $ \th -> th
+            { Derive.state_prev_val = Map.insert block_track
+                (Derive.to_tagged val) (Derive.state_prev_val th)
+            }
+    where
+    modify_threaded modify = Derive.modify $
+        \st -> st { Derive.state_threaded = modify (Derive.state_threaded st) }
+
+invert_call :: Derive.PassedArgs d
+    -> Derive.Deriver (Maybe TrackTree.EventsTree)
+invert_call args = case Derive.info_sub_tracks info of
     [] -> return Nothing
-    subs -> Just <$> invert around subs (Event.start event) (Event.end event)
+    subs -> Just <$> invert subs (Event.start event) (Event.end event)
         (Args.next args) (Derive.info_expr info)
         (Derive.info_prev_events info, Derive.info_next_events info)
     where
     event = Derive.info_event info
     info = Derive.passed_info args
 
-invert :: (Int, Int) -> TrackTree.EventsTree
+invert :: TrackTree.EventsTree
     -> ScoreTime -> ScoreTime -> ScoreTime -> Event.Text
     -> ([Event.Event], [Event.Event])
     -> Derive.Deriver TrackTree.EventsTree
-invert around subs start end next_start text events_around = do
+invert subs start end next_start text events_around = do
     -- Pick the current TrackId out of the stack, and give that to the track
     -- created by inversion.
     -- TODO I'm not 100% comfortable with this, I don't like putting implicit
@@ -119,7 +129,7 @@ invert around subs start end next_start text events_around = do
     return sliced
     where
     slice track_id =
-        Slice.slice False around start next_start (Just (insert track_id)) subs
+        Slice.slice False start next_start (Just (insert track_id)) subs
     -- Use 'next_start' instead of track_end because in the absence of a next
     -- note, the track end becomes next note and clips controls.
     insert track_id = Slice.InsertEvent

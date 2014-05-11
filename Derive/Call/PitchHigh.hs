@@ -133,7 +133,7 @@ make_pitch_fade name doc pitch_dir =
         let fade = case mb_fade of
                 Nothing -> time
                 Just (TrackLang.DefaultReal t) -> t
-        Args.prev_val args >>= \x -> case x of
+        case Args.prev_pitch args of
             Nothing -> return mempty
             Just (_, prev_pitch) -> do
                 next <- Derive.real (Args.next args)

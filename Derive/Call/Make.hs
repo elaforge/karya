@@ -74,7 +74,7 @@ transform_notes_subevents module_ name tags sig transform =
 
 -- | Create a transformer that just sets an environ value.  This is higher
 -- level and more concise than using the @=@ transformer.
-with_environ :: (TrackLang.Typecheck val, Derive.ToTagged (Derive.Elem d)) =>
+with_environ :: (TrackLang.Typecheck val, Derive.Taggable d) =>
     Module.Module -> Text -> Sig.Parser a -> (a -> val) -> Derive.Transformer d
 with_environ module_ name sig extract = Derive.transformer module_ name mempty
         ("Set `" <> name <> "` environ variable.")

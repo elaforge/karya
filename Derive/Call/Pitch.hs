@@ -68,11 +68,11 @@ c_set = generator1 "set" mempty "Emit a pitch with no interpolation." $
 c_set_prev :: Derive.Generator Derive.Pitch
 c_set_prev = Derive.generator Module.prelude "set-prev" Tags.prev
     "Re-set the previous pitch.  This can be used to extend a breakpoint."
-    $ Sig.call0 $ \args -> Args.prev_val args >>= \x -> case x of
-        Nothing -> return []
-        Just (prev_x, prev_y) -> do
-            pos <- Args.real_start args
-            return [PitchSignal.signal [(pos, prev_y)] | pos > prev_x]
+    $ Sig.call0 $ \args -> do
+        start <- Args.real_start args
+        return $ case Args.prev_pitch args of
+            Nothing -> []
+            Just (x, y) -> [PitchSignal.signal [(start, y)] | start > x]
 
 -- * linear
 
@@ -93,7 +93,7 @@ linear_interpolation name time_default time_default_doc get_time =
 
 c_linear_prev :: Derive.Generator Derive.Pitch
 c_linear_prev = linear_interpolation "linear-prev" Nothing
-    "If not given, start from the previous sample." Control.default_prev
+    "If not given, start from the previous sample." default_prev
 
 c_linear_prev_const :: Derive.Generator Derive.Pitch
 c_linear_prev_const =
@@ -134,7 +134,18 @@ exponential_interpolation name time_default time_default_doc get_time =
 
 c_exp_prev :: Derive.Generator Derive.Pitch
 c_exp_prev = exponential_interpolation "exp-prev" Nothing
-    "If not given, start from the previous sample." Control.default_prev
+    "If not given, start from the previous sample." default_prev
+
+default_prev :: Derive.PitchArgs -> Maybe TrackLang.DefaultReal
+    -> Derive.Deriver TrackLang.Duration
+default_prev args Nothing = do
+    start <- Args.real_start args
+    return $ TrackLang.Real $ case Args.prev_pitch args of
+        -- It's likely the callee won't use the duration if there's no prev
+        -- val.
+        Nothing -> 0
+        Just (prev, _) -> prev - start
+default_prev _ (Just (TrackLang.DefaultReal t)) = return t
 
 c_exp_prev_const :: Derive.Generator Derive.Pitch
 c_exp_prev_const =
@@ -184,7 +195,7 @@ approach :: Derive.PitchArgs -> RealTime -> RealTime
     -> Derive.Deriver PitchSignal.Signal
 approach args start end = do
     maybe_next <- next_pitch args
-    Args.prev_val args >>= \x -> case (x, maybe_next) of
+    case (Args.prev_pitch args, maybe_next) of
         (Just (_, prev), Just next) ->
             make_interpolator id True start prev end next
         _ -> return mempty
@@ -211,15 +222,16 @@ slope :: Text -> Double -> Derive.WithArgDoc
 slope word sign =
     Sig.call (defaulted "slope" (Pitch.Chromatic 1)
         (word <> " this many steps per second.")) $
-    \slope args -> Args.prev_val args >>= \x -> case x of
-        Nothing -> return mempty
-        Just (_, prev_pitch) -> do
-            start <- Args.real_start args
-            next <- Derive.real (Args.next args)
-            let dest = Pitches.transpose transpose prev_pitch
-                transpose = Pitch.modify_transpose
-                    (* (RealTime.to_seconds (next - start) * sign)) slope
-            make_interpolator id True start prev_pitch next dest
+    \slope args -> do
+        case Args.prev_pitch args of
+            Nothing -> return mempty
+            Just (_, prev_pitch) -> do
+                start <- Args.real_start args
+                next <- Derive.real (Args.next args)
+                let dest = Pitches.transpose transpose prev_pitch
+                    transpose = Pitch.modify_transpose
+                        (* (RealTime.to_seconds (next - start) * sign)) slope
+                make_interpolator id True start prev_pitch next dest
 
 c_porta :: Derive.Generator Derive.Pitch
 c_porta = linear_interpolation "porta" (TrackLang.real 0.1)
@@ -243,7 +255,7 @@ interpolate :: (Double -> Double) -> Derive.PitchArgs
     -> Derive.Deriver PitchSignal.Signal
 interpolate f args pitch_transpose dur = do
     (start, end) <- Util.duration_from_start args dur
-    Args.prev_val args >>= \x -> case x of
+    case Args.prev_pitch args of
         Nothing -> return $ case pitch_transpose of
             Left pitch -> PitchSignal.signal [(start, pitch)]
             Right _ -> PitchSignal.signal []

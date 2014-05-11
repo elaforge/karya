@@ -120,10 +120,10 @@ relative_scale_degree scale named_intervals initial_interval =
     Sig.call (intervals_arg named_intervals) $ \intervals args -> do
         interval <- (initial_interval*) <$>
             resolve_intervals named_intervals intervals
-        Args.prev_val args >>= \x -> case x of
-            Just (_, Derive.TagPitch prev) ->
-                return $ modify interval prev
-            _ -> Derive.throw "relative interval requires a previous pitch"
+        start <- Args.real_start args
+        Derive.require "relative interval requires a previous pitch" $ do
+            Derive.TagPitch prev <- Args.prev_val args
+            modify interval <$> PitchSignal.at start prev
     where
     modify interval pitch =
         PitchSignal.pitch scale (pitch_nn interval pitch)

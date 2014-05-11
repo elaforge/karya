@@ -35,11 +35,10 @@ test_alternate = do
             , ("s1=ruler", [(">", [(0, 1, "")]), ("*", [(0, 0, "4c")])])
             , ("s2=ruler", [(">", [(0, 1, "")]), ("*", [(0, 0, "4d")])])
             ]
-    equal (run "alt 's1' 's2'")
-        (["4d", "4d", "4c", "4c", "4d", "4c"], [])
-    let (ps, logs) = run "alt 'bad (call' 's2'"
-    equal ps $ replicate 3 "4d"
-    strings_like logs $ replicate 3 "parse error"
+    equal (run "alt s1 s2") (["4d", "4d", "4c", "4c", "4d", "4c"], [])
+    let (ps, logs) = run "alt 'bad (call' s2"
+    equal ps $ replicate 4 "4d"
+    strings_like logs $ replicate 2 "parse error"
 
 test_alternate_weighted = do
     let run s = DeriveTest.extract (DeriveTest.e_control "c") $

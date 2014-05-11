@@ -28,7 +28,7 @@ module Perform.Signal (
     , with_ptr
 
     -- * access
-    , at, at_linear, at_linear_extend, constant_val
+    , at, sample_at, at_linear, at_linear_extend, constant_val
     , head, last, uncons
 
     -- * transformation
@@ -203,7 +203,10 @@ with_ptr sig f = V.with_ptr (sig_vec sig) $ \sigp ->
 -- * access
 
 at :: X -> Signal y -> Y
-at x sig = fromMaybe 0 $ V.at x (sig_vec sig)
+at x = fromMaybe 0 . V.at x . sig_vec
+
+sample_at :: X -> Signal y -> Maybe (X, Y)
+sample_at x = V.sample_at x . sig_vec
 
 at_linear :: X -> Signal y -> Y
 at_linear x sig = interpolate vec (V.highest_index x vec)

@@ -197,10 +197,15 @@ prepend vec1 vec2 = case last vec1 of
 {-# SPECIALIZE at :: X -> Unboxed -> Maybe UnboxedY #-}
 {-# INLINEABLE at #-}
 at :: (V.Vector v (Sample y)) => X -> v (Sample y) -> Maybe y
-at x vec
-    | i >= 0 = Just $ sy (V.unsafeIndex vec i)
+at x = fmap snd . sample_at x
+
+{-# SPECIALIZE sample_at :: X -> Unboxed -> Maybe (X, UnboxedY) #-}
+{-# INLINEABLE sample_at #-}
+sample_at :: V.Vector v (Sample y) => X -> v (Sample y) -> Maybe (X, y)
+sample_at x vec
+    | i >= 0 = Just $ to_pair $ V.unsafeIndex vec i
     | otherwise = case uncons vec of
-        Just (Sample x y, _) | x <= 0 -> Just y
+        Just (Sample x y, _) | x <= 0 -> Just (x, y)
         _ -> Nothing
     where i = highest_index x vec
 

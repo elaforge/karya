@@ -456,30 +456,30 @@ type Generator y d = Derive.PassedArgs y -> Derive.Deriver d
 type Transformer y d =
     Derive.PassedArgs y -> Derive.Deriver d -> Derive.Deriver d
 
-call :: Derive.ToTagged y => Parser a -> (a -> Generator y d)
+call :: Derive.Taggable y => Parser a -> (a -> Generator y d)
     -> Derive.WithArgDoc (Generator y d)
 call parser f = (go, Derive.ArgDocs (parser_docs parser))
     where go args = run_call parser args >>= \a -> f a args
 
 -- | Specialization of 'call' for 0 arguments.
-call0 :: Derive.ToTagged y => Generator y d -> Derive.WithArgDoc (Generator y d)
+call0 :: Derive.Taggable y => Generator y d -> Derive.WithArgDoc (Generator y d)
 call0 f = (go, Derive.ArgDocs [])
     where go args = run_call no_args args >>= \() -> f args
 
-callt :: Derive.ToTagged y => Parser a -> (a -> Transformer y d)
+callt :: Derive.Taggable y => Parser a -> (a -> Transformer y d)
     -> Derive.WithArgDoc (Transformer y d)
 callt parser f = (go, Derive.ArgDocs (parser_docs parser))
     where go args deriver = run_call parser args >>= \a -> f a args deriver
 
 -- | Specialization of 'callt' for 0 arguments.
-call0t :: Derive.ToTagged y => Transformer y d
+call0t :: Derive.Taggable y => Transformer y d
     -> Derive.WithArgDoc (Transformer y d)
 call0t f = (go, Derive.ArgDocs [])
     where
     go args deriver = run_call (Applicative.pure ()) args >>= \() ->
         f args deriver
 
-run_call :: Derive.ToTagged d => Parser a -> Derive.PassedArgs d
+run_call :: Derive.Taggable d => Parser a -> Derive.PassedArgs d
     -> Derive.Deriver a
 run_call parser args = do
     state <- Derive.get

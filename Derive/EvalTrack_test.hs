@@ -37,10 +37,63 @@ import qualified App.MidiInst as MidiInst
 import Types
 
 
+test_threaded_last_val = do
+    let run notes = DeriveTest.extract (DeriveTest.e_control "c") $
+            DeriveTest.derive_tracks_with with_calls ""
+                [ (">", [(t, 1, "") | (t, _) <- events])
+                , ("c", [(t, 0, s) | (t, s) <- events])
+                ]
+                where events = zip (Seq.range_ 0 1) notes
+        with_calls = CallTest.with_control_generator "prev" c_prev
+    equal (run ["1", "prev"])
+        ([[(0, 1), (0.75, 0.75)], [(1, 1), (1.25, 1.25)]], [])
+    equal (run ["1", "prev", "prev"])
+        ( [ [(0, 1), (0.75, 0.75)]
+          , [(1, 1), (1.25, 1.25), (1.75, 1)]
+          , [(2, 1.25), (2.25, 1.5)]
+          ], [])
+    where
+    c_prev :: Derive.Generator Derive.Control
+    c_prev = Derive.generator1 "test" "prev" mempty "" $
+        Sig.call0 $ \args -> case Args.prev_control args of
+            Nothing -> Derive.throw "no prev val"
+            Just (x, y) -> do
+                start <- Args.real_start args
+                -- Log.warn $ show (start, (x, y))
+                return $ Signal.signal $ if start > x
+                    then [(start - 0.25, y - 0.25), (start, y),
+                        (start + 0.25, y + 0.25)]
+                    else []
+
+test_threaded_last_event = do
+    let run = snd . DeriveTest.extract id . DeriveTest.derive_tracks_with_ui
+            with_calls DeriveTest.with_linear ""
+        with_calls = CallTest.with_note_generator "prev" n_prev
+    equal (run [(">", [(0, 1, ""), (1, 1, "prev")])]) ["0.0s"]
+    -- Get last event when both are inverted.
+    equal (run [(">", [(0, 1, ""), (1, 1, "prev")]),
+            ("*", [(0, 0, "3c"), (1, 0, "3d")])])
+        ["0.0s"]
+    -- Get last event when one is an orphan.
+    equal (run
+            [ (">", [(0, 1, "+a")])
+            , (">", [(0, 1, ""), (1, 1, "prev")])
+            , ("*", [(0, 0, "4c"), (1, 0, "4e")])
+            ])
+        ["0.0s"]
+    where
+    n_prev :: Derive.Generator Derive.Note
+    n_prev = Derive.generator "test" "prev" mempty "" $
+        Sig.call0 $ \args -> case Args.prev_val args of
+            Nothing -> Derive.throw "no prev val"
+            Just prev -> do
+                Log.warn $ show (Score.event_start prev)
+                return []
+
 test_assign_controls = do
     let run inst_title cont_title val = extract $ DeriveTest.derive_tracks ""
             [ (cont_title, [(0, 0, val)])
-            , ("*twelve", [(0, 0, "4c")])
+            , ("*", [(0, 0, "4c")])
             , (inst_title, [(0, 1, "")])
             ]
         extract = DeriveTest.extract $ \e ->
@@ -164,25 +217,6 @@ test_events_around = do
                 ++ show (map Event.start (Args.next_events args))
             return []
 
-test_inverting_around = do
-    -- Ensure calls that want to look at the next pitch work, with the help of
-    -- events around and inverting_around.
-    let (evts, logs) = extract $ DeriveTest.derive_tracks_with with_call ""
-            [ (">", [(0, 1, ""), (1, 1, "next"), (2, 1, "")])
-            , ("*twelve", [(0, 0, "4c"), (2, 0, "4d")])
-            ]
-        with_call = CallTest.with_note_generator "next" c_next
-        extract = DeriveTest.extract DeriveTest.e_note
-    equal evts [(0, 1, "4c"), (1, 1, "4d"), (2, 1, "4d")]
-    equal logs []
-    where
-    c_next = Derive.make_call module_ "next" mempty "doc" $ Sig.call0 $
-        Sub.inverting_around (2, 2) $ \args -> do
-            next <- Derive.require "next event" $ Args.next_start args
-            next_pitch <- Derive.require "next pitch"
-                =<< Derive.pitch_at =<< Derive.real next
-            Derive.at (Args.start args) $ Util.pitched_note next_pitch
-
 test_track_dynamic = do
     let e_scale_inst dyn =
             (env_lookup Environ.scale env, env_lookup Environ.instrument env)
@@ -249,7 +283,6 @@ test_track_dynamic_consistent = do
         e_control = fmap (Signal.unsignal . Score.typed_val) . Map.lookup "c"
             . Derive.state_controls
     -- %c is only set in the env=b branch, so it shouldn't be set when env=a.
-    -- That's probably because of how the controls are merged.
     equal (run e_env) (Just "a")
     equal (run e_control) (Just Nothing)
 

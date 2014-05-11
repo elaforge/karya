@@ -81,6 +81,9 @@ merge_collect c = modify $ \st -> st { state_collect = state_collect st <> c }
 modify_collect :: (Collect -> Collect) -> Deriver ()
 modify_collect f = modify $ \st -> st { state_collect = f (state_collect st) }
 
+set_threaded :: Threaded -> Deriver ()
+set_threaded threaded = modify $ \st -> st { state_threaded = threaded }
+
 -- * environ
 
 get_environ :: Deriver TrackLang.Environ

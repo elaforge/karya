@@ -44,19 +44,16 @@ import qualified Derive.TrackLang as TrackLang
 import Types
 
 
-type CallInfo d = Derive.CallInfo (Derive.Elem d)
-type PassedArgs d = Derive.PassedArgs (Derive.Elem d)
-
 -- * eval / apply
 
 -- | Apply a toplevel expression.
-apply_toplevel :: Derive.Callable d => CallInfo d -> TrackLang.Expr
+apply_toplevel :: Derive.Callable d => Derive.CallInfo d -> TrackLang.Expr
     -> Derive.LogsDeriver d
 apply_toplevel cinfo expr = apply_transformers cinfo transform_calls $
     apply_generator cinfo generator_call
     where (transform_calls, generator_call) = Seq.ne_viewr expr
 
-apply_generator :: forall d. Derive.Callable d => CallInfo d
+apply_generator :: forall d. Derive.Callable d => Derive.CallInfo d
     -> TrackLang.Call -> Derive.LogsDeriver d
 apply_generator cinfo (TrackLang.Call call_id args) = do
     vals <- mapM (eval cinfo) args
@@ -76,7 +73,7 @@ apply_generator cinfo (TrackLang.Call call_id args) = do
 --
 -- The reason @info_expr@ is unparsed text is also thanks to pitch signal
 -- expressions.  Maybe I should get rid of them?
-reapply_generator :: Derive.Callable d => CallInfo d
+reapply_generator :: Derive.Callable d => Derive.CallInfo d
     -> TrackLang.CallId -> [TrackLang.Val] -> Event.Text -> Derive.LogsDeriver d
 reapply_generator cinfo call_id args expr = do
     call <- get_generator call_id
@@ -88,7 +85,7 @@ reapply_generator cinfo call_id args expr = do
     Internal.with_stack_call (Derive.call_name call) $
         Derive.call_func call passed
 
-apply_transformers :: Derive.Callable d => CallInfo d
+apply_transformers :: Derive.Callable d => Derive.CallInfo d
     -> [TrackLang.Call] -> Derive.LogsDeriver d
     -> Derive.LogsDeriver d
 apply_transformers _ [] deriver = deriver
@@ -116,7 +113,7 @@ apply_transformers cinfo (TrackLang.Call call_id args : calls) deriver = do
 -- 'apply_transformers', but apply only one, and apply to already
 -- evaluated 'TrackLang.Val's.  This is useful when you want to re-apply an
 -- already parsed set of vals.
-reapply_transformer :: (Derive.Callable d) => CallInfo d
+reapply_transformer :: (Derive.Callable d) => Derive.CallInfo d
     -> TrackLang.CallId -> [TrackLang.Val] -> Derive.LogsDeriver d
     -> Derive.LogsDeriver d
 reapply_transformer cinfo call_id args deriver = do
@@ -129,7 +126,7 @@ reapply_transformer cinfo call_id args deriver = do
     Internal.with_stack_call (Derive.call_name call) $
         Derive.call_func call passed deriver
 
-eval :: (Derive.ToTagged a) => Derive.CallInfo a -> TrackLang.Term
+eval :: Derive.Taggable a => Derive.CallInfo a -> TrackLang.Term
     -> Derive.Deriver TrackLang.Val
 eval _ (TrackLang.Literal val) = return val
 eval cinfo (TrackLang.ValCall (TrackLang.Call call_id terms)) = do
@@ -233,7 +230,7 @@ eval_event event = case Parse.parse_expr (Event.event_text event) of
 
 -- | Evaluate a generator, reusing the passed args but replacing the CallId.
 -- Generators can use this to delegate to other generators.
-reapply_gen :: Derive.Callable d => PassedArgs d -> TrackLang.CallId
+reapply_gen :: Derive.Callable d => Derive.PassedArgs d -> TrackLang.CallId
     -> Derive.LogsDeriver d
 reapply_gen args call_id = do
     let cinfo = Derive.passed_info args
@@ -247,8 +244,8 @@ reapply_gen args call_id = do
 -- | Like 'reapply_gen', but the note is given normalized time, 0--1, instead
 -- of inheriting the start and duration from the args.  This is essential if
 -- you want to shift or stretch the note.
-reapply_gen_normalized :: Derive.Callable d => PassedArgs d -> TrackLang.CallId
-    -> Derive.LogsDeriver d
+reapply_gen_normalized :: Derive.Callable d => Derive.PassedArgs d
+    -> TrackLang.CallId -> Derive.LogsDeriver d
 reapply_gen_normalized args = reapply_gen $ args
     { Derive.passed_info = cinfo
         { Derive.info_event = (Derive.info_event cinfo)
@@ -266,19 +263,20 @@ replace_generator call_id = fmap replace . Parse.parse_expr
     replace = ShowVal.show_val . TrackLang.map_generator (const call_id)
 
 -- | Apply an expr with the current call info.  This discards the parsed
--- arguments in the 'PassedArgs' since it gets args from the 'TrackLang.Expr'.
-reapply :: (Derive.Callable d) => PassedArgs d -> TrackLang.Expr
+-- arguments in the 'Derive.PassedArgs' since it gets args from the
+-- 'TrackLang.Expr'.
+reapply :: (Derive.Callable d) => Derive.PassedArgs d -> TrackLang.Expr
     -> Derive.LogsDeriver d
 reapply args = eval_expr False (Derive.passed_info args)
 
 -- | Like 'reapply', but parse the string first.
-reapply_string :: (Derive.Callable d) => PassedArgs d -> Text
+reapply_string :: (Derive.Callable d) => Derive.PassedArgs d -> Text
     -> Derive.LogsDeriver d
 reapply_string args s = case Parse.parse_expr s of
     Left err -> Derive.throw $ "parse error: " ++ err
     Right expr -> reapply args expr
 
-reapply_call :: (Derive.Callable d) => PassedArgs d -> TrackLang.Symbol
+reapply_call :: (Derive.Callable d) => Derive.PassedArgs d -> TrackLang.Symbol
     -> [TrackLang.Term] -> Derive.LogsDeriver d
 reapply_call args call_id call_args =
     reapply args (TrackLang.call call_id call_args :| [])
@@ -290,9 +288,8 @@ eval_pitch pos call =
     cast ("eval pitch " <> ShowVal.show_val call)
         =<< eval cinfo (TrackLang.ValCall call)
     where
-    cinfo :: Derive.CallInfo PitchSignal.Pitch
+    cinfo :: Derive.CallInfo Derive.Pitch
     cinfo = Derive.dummy_call_info pos 0 "<eval_pitch>"
-    -- Pitch calls shouldn't care about their pos.
 
 -- | This is like 'eval_pitch' when you already know the call, presumably
 -- because you asked 'Derive.scale_note_to_call'.
@@ -301,7 +298,7 @@ apply_pitch pos call = apply cinfo call []
     where cinfo = Derive.dummy_call_info pos 0 "<apply_pitch>"
 
 -- | Evaluate a single expression, catching an exception if it throws.
-eval_expr :: Derive.Callable d => Bool -> CallInfo d -> TrackLang.Expr
+eval_expr :: Derive.Callable d => Bool -> Derive.CallInfo d -> TrackLang.Expr
     -> Derive.LogsDeriver d
 eval_expr collect cinfo expr =
     fromMaybe [] <$> Derive.catch collect (apply_toplevel cinfo expr)

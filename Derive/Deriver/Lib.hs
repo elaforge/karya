@@ -8,7 +8,6 @@
     "Derive.Deriver.Monad".
 -}
 module Derive.Deriver.Lib where
-import Prelude hiding (error)
 import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
@@ -633,6 +632,7 @@ catch collect deriver = do
             return Nothing
         Right val -> do
             when collect $ Internal.merge_collect (state_collect st2)
+            Internal.set_threaded (state_threaded st2)
             return $ Just val
 
 -- * postproc

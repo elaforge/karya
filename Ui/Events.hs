@@ -169,8 +169,8 @@ last (Events events) = snd <$> Map.max events
 --
 -- This is complicated due to negative events.  The idea is that when positive
 -- events are present, the range is half-open where the end is excluded, as is
--- normal.  But whn negative events are present, it's the other way around, the
--- start of the range is excluded and the end is excluded.
+-- normal.  But when negative events are present, it's the other way around,
+-- the start of the range is excluded and the end is excluded.
 --
 -- Since this is a half-open range, if start==end then within will always be
 -- empty.

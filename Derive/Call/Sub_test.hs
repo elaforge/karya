@@ -19,7 +19,7 @@ import qualified Derive.Slice_test as Slice_test
 
 test_invert_call = do
     let run args = DeriveTest.extract_run extract $
-            DeriveTest.run State.empty (Sub.invert_call (1, 1) args)
+            DeriveTest.run State.empty (Sub.invert_call args)
         extract = fmap $ fmap $ fmap Slice_test.extract_tree
     -- it's ok, it's empty
     equal (run (mkargs "" [Node (">", []) []])) $

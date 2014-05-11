@@ -38,7 +38,7 @@ module Derive.Deriver.Monad (
     , throw_error, throw_error_srcpos
 
     -- * derived types
-    , Callable(..), Elem, Tagged(..), ToTagged(..)
+    , Callable(..), Tagged(..), Taggable(..)
     , LogsDeriver
 
     , Note, NoteDeriver, NoteArgs, Events
@@ -47,6 +47,7 @@ module Derive.Deriver.Monad (
 
     -- * state
     , State(..), initial_state
+    , Threaded(..), initial_threaded
     , Dynamic(..), initial_dynamic
     , initial_controls, default_dynamic
 
@@ -266,24 +267,32 @@ throw_error_srcpos srcpos err = do
 -- | Each kind of deriver looks a different scope for its calls.  By making
 -- this a class method, I can figure out which scope to look in just from
 -- the type.
-class (Show d, ToTagged (Elem d)) => Callable d where
+class (Show d, Taggable d) => Callable d where
     lookup_generator :: TrackLang.CallId -> Deriver (Maybe (Generator d))
     lookup_transformer :: TrackLang.CallId -> Deriver (Maybe (Transformer d))
     callable_name :: Proxy d -> Text
 
--- | This converts the deriver return type to the scalar value used by
--- 'info_prev_val'.
-type family Elem d :: *
-type LogsDeriver d = Deriver (LEvent.LEvents d)
+type LogsDeriver d = Deriver [LEvent.LEvent d]
 
 -- | This is for 'info_prev_val'.  Normally the previous value is available
 -- in all its untagged glory based on the type of the call, but ValCalls can
 -- occur with all the different types, so they need a tagged 'info_prev_val'.
-data Tagged =
-    TagEvent Score.Event | TagControl Signal.Y | TagPitch PitchSignal.Pitch
+data Tagged = TagEvent Score.Event | TagControl Signal.Control
+    | TagPitch PitchSignal.Signal
+    deriving (Show)
 
-class ToTagged a where to_tagged :: a -> Tagged
-instance ToTagged Tagged where to_tagged = id
+instance Pretty.Pretty Tagged where
+    format (TagEvent a) = Pretty.format a
+    format (TagControl a) = Pretty.format a
+    format (TagPitch a) = Pretty.format a
+
+class (Show a, Pretty.Pretty a) => Taggable a where
+    to_tagged :: a -> Tagged
+    from_tagged :: Tagged -> Maybe a
+
+instance Taggable Tagged where
+    to_tagged = id
+    from_tagged = Just
 
 -- ** event
 
@@ -291,8 +300,10 @@ type Note = Score.Event
 type NoteDeriver = LogsDeriver Score.Event
 type NoteArgs = PassedArgs Score.Event
 
-type instance Elem Score.Event = Score.Event
-instance ToTagged Score.Event where to_tagged = TagEvent
+instance Taggable Score.Event where
+    to_tagged = TagEvent
+    from_tagged (TagEvent a) = Just a
+    from_tagged _ = Nothing
 
 -- | This might seem like an inefficient way to represent the Event stream,
 -- but I can't think of how to make it better.
@@ -316,10 +327,12 @@ instance Monoid.Monoid NoteDeriver where
 
 type Control = Signal.Control
 type ControlDeriver = LogsDeriver Signal.Control
-type ControlArgs = PassedArgs Signal.Y
+type ControlArgs = PassedArgs Control
 
-type instance Elem Signal.Control = Signal.Y
-instance ToTagged Signal.Y where to_tagged = TagControl
+instance Taggable Control where
+    to_tagged = TagControl
+    from_tagged (TagControl a) = Just a
+    from_tagged _ = Nothing
 
 instance Callable Signal.Control where
     lookup_generator = lookup_with (scope_control . scopes_generator)
@@ -330,10 +343,12 @@ instance Callable Signal.Control where
 
 type Pitch = PitchSignal.Signal
 type PitchDeriver = LogsDeriver PitchSignal.Signal
-type PitchArgs = PassedArgs PitchSignal.Pitch
+type PitchArgs = PassedArgs Pitch
 
-type instance Elem PitchSignal.Signal = PitchSignal.Pitch
-instance ToTagged PitchSignal.Pitch where to_tagged = TagPitch
+instance Taggable Pitch where
+    to_tagged = TagPitch
+    from_tagged (TagPitch a) = Just a
+    from_tagged _ = Nothing
 
 instance Callable PitchSignal.Signal where
     lookup_generator = lookup_with (scope_pitch . scopes_generator)
@@ -348,10 +363,12 @@ instance Callable PitchSignal.Signal where
 -- derivation of siblings could be parallelized.  However, events on a track
 -- (except a note track) still must be serialized, thanks to 'info_prev_val'.
 data State = State {
+    state_threaded :: !Threaded
     -- | This data is modified in a dynamically scoped way, for
-    -- sub-derivations.
-    state_dynamic :: !Dynamic
+    -- sub-derivations.  This is used like a Reader.
+    , state_dynamic :: !Dynamic
     -- | This data is mappended.  It functions like an implicit return value.
+    -- This is used like a Writer.
     , state_collect :: !Collect
     -- | This data is constant throughout the derivation.
     , state_constant :: !Constant
@@ -359,10 +376,27 @@ data State = State {
 
 initial_state :: TrackLang.Environ -> Constant -> State
 initial_state environ constant = State
-    { state_dynamic = initial_dynamic environ
+    { state_threaded = initial_threaded
+    , state_dynamic = initial_dynamic environ
     , state_collect = mempty
     , state_constant = constant
     }
+
+-- * Threaded
+
+-- | State which is threaded linearly.  This destroys the ability to
+-- parallelize derivation, so it's not so great, but since it only tracks
+-- previous value, it can be broken at block boundaries.
+newtype Threaded = Threaded {
+    -- | Keep track of the previous value for each track currently being
+    -- evaluated.  See NOTE [prev-val].
+    state_prev_val :: Map.Map (BlockId, TrackId) Tagged
+    } deriving (Show)
+
+initial_threaded :: Threaded
+initial_threaded = Threaded mempty
+
+-- * Dynamic
 
 -- | This is a dynamically scoped environment that applies to generated events
 -- inside its scope.
@@ -953,7 +987,7 @@ data CallInfo val = CallInfo {
     -- may snip off the previous event.
     --
     -- See NOTE [prev-val] in "Derive.Args" for details.
-    , info_prev_val :: !(Maybe (RealTime, val))
+    , info_prev_val :: !(Maybe val)
 
     , info_event :: !Event.Event
     , info_prev_events :: ![Event.Event]
@@ -1033,12 +1067,12 @@ dummy_call_info start dur text = CallInfo
     , info_track_type = Nothing
     } where s = if Text.null text then "<no-event>" else "<" <> text <> ">"
 
--- | Tag the polymorphic part of the CallInfo so it can be given to
+-- | Taggable the polymorphic part of the CallInfo so it can be given to
 -- a 'ValCall'.  Otherwise, ValCall would have to be polymorphic too,
 -- which means it would hard to write generic ones.
-tag_call_info :: (ToTagged a) => CallInfo a -> CallInfo Tagged
+tag_call_info :: Taggable a => CallInfo a -> CallInfo Tagged
 tag_call_info cinfo = cinfo
-    { info_prev_val = second to_tagged <$> info_prev_val cinfo }
+    { info_prev_val = to_tagged <$> info_prev_val cinfo }
 
 -- | A Call will be called as either a generator or a transformer, depending on
 -- its position.  A call at the end of a compose pipeline will be called as
@@ -1110,9 +1144,9 @@ type WithArgDoc f = (f, ArgDocs)
 
 -- ** make calls
 
-type GeneratorFunc d = PassedArgs (Elem d) -> LogsDeriver d
+type GeneratorFunc d = PassedArgs d -> LogsDeriver d
 -- | args -> deriver -> deriver
-type TransformerFunc d = PassedArgs (Elem d) -> LogsDeriver d -> LogsDeriver d
+type TransformerFunc d = PassedArgs d -> LogsDeriver d -> LogsDeriver d
 
 make_call :: Module.Module -> Text -> Tags.Tags -> Text -> WithArgDoc func
     -> Call func
@@ -1415,6 +1449,7 @@ instance Pretty.Pretty ScaleError where
 d_merge :: [NoteDeriver] -> NoteDeriver
 d_merge [] = mempty
 d_merge [d] = d
+-- TODO this catches exceptions, that shouldn't happen just because of (<>)!
 d_merge derivers = do
     state <- get
     -- Clear collect so they can be merged back without worrying about dups.
@@ -1423,6 +1458,9 @@ d_merge derivers = do
     modify $ \st -> st
         { state_collect = Monoid.mconcat (state_collect state : collects) }
     return (Seq.merge_lists event_start streams)
+-- d_merge derivers = do
+--     streams <- sequence derivers
+--     return $ Seq.merge_lists event_start streams
 
 -- -- | Like 'd_merge', but the derivers are assumed to return events that are
 -- -- non-decreasing in time, so the merge can be more efficient.  It also assumes

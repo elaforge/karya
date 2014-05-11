@@ -173,9 +173,10 @@ derive_notes :: ([TrackTree.EventsNode] -> Derive.NoteDeriver)
     -> EvalTrack.TrackInfo -> [Event.Event] -> Derive.NoteDeriver
 derive_notes derive_tracks tinfo events = do
     state <- Derive.get
-    let (event_groups, collect) =
+    let (event_groups, threaded, collect) =
             EvalTrack.derive_note_track derive_tracks state tinfo events
     Internal.merge_collect collect
+    Internal.set_threaded threaded
     return $ Derive.merge_asc_events event_groups
 
 track_info :: TrackTree.Track -> [TrackTree.EventsNode] -> EvalTrack.TrackInfo

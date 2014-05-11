@@ -18,6 +18,13 @@ test_set = do
     equal (run [(0, "1"), (1, "0")]) [(0, 1), (1, 0)]
     equal (run [(0, "1"), (1, "")]) [(0, 1)]
 
+test_set_prev = do
+    let run ex tracks = DeriveTest.extract ex $ DeriveTest.derive_tracks "" $
+            (">", [(0, 1, ""), (1, 1, ""), (2, 1, "")]) : tracks
+    equal (run (DeriveTest.e_control "c")
+            [("c", [(0, 0, ".5"), (1, 0, "'"), (2, 0, "'")])])
+        ([[(0, 0.5)], [(1, 0.5)], [(2, 0.5)]], [])
+
 test_set_rnd = do
     let run title val = DeriveTest.extract extract $ DeriveTest.derive_tracks ""
             [(">", [(0, 1, "")]), ("c" <> title, [(0, 0, val)])]

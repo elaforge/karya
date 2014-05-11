@@ -280,13 +280,6 @@ test_track_signal_multiple = do
         , (UiTest.bid "b2", UiTest.mk_tid_name "b1" 1)
         ]
 
-test_prev_val = do
-    let run ex tracks = DeriveTest.extract ex $ DeriveTest.derive_tracks "" $
-            (">", [(0, 1, ""), (1, 1, ""), (2, 1, "")]) : tracks
-    equal (run (DeriveTest.e_control "c")
-            [("c", [(0, 0, ".5"), (1, 0, "'"), (2, 0, "'")])])
-        ([[(0, 0.5)], [(1, 0.5)], [(2, 0.5)]], [])
-
 e_tsigs :: Derive.Result -> [([(RealTime, Signal.Y)], ScoreTime, ScoreTime)]
 e_tsigs = map snd . e_tsig_tracks
 

@@ -32,6 +32,7 @@ module Derive.Control (
 import qualified Data.Char as Char
 import qualified Data.List as List
 import qualified Data.Map.Strict as Map
+import qualified Data.Monoid as Monoid
 import qualified Data.Text as Text
 import qualified Data.Tree as Tree
 
@@ -206,7 +207,7 @@ tempo_call sym track sig_deriver deriver = do
     merge_logs logs $ dispatch_tempo sym (TrackTree.track_end track)
         maybe_track_id (Signal.coerce signal) (with_damage deriver)
     where
-    maybe_block_track_id = TrackTree.track_block_track_id track
+    maybe_block_track_id = TrackTree.block_track_id track
     maybe_track_id = snd <$> maybe_block_track_id
     with_damage = maybe id get_damage maybe_block_track_id
     get_damage (block_id, track_id) deriver = do
@@ -241,7 +242,7 @@ control_call track control merge control_deriver deriver = do
     -- run control_deriver as a sub-derive, then mappend the Collect.
     where
     with_damage = with_control_damage
-        (TrackTree.track_block_track_id track) (TrackTree.track_range track)
+        (TrackTree.block_track_id track) (TrackTree.track_range track)
 
 with_control_op :: Score.Typed Score.Control -> Derive.Merge -> Signal.Control
     -> Derive.Deriver a -> Derive.Deriver a
@@ -269,7 +270,7 @@ pitch_call track maybe_name scale_id transform deriver =
             Derive.apply_control_mods $ merge_logs logs $ with_damage $
                 Derive.with_pitch maybe_name signal deriver
     where
-    with_damage = with_control_damage (TrackTree.track_block_track_id track)
+    with_damage = with_control_damage (TrackTree.block_track_id track)
         (TrackTree.track_range track)
 
 get_scale :: Pitch.ScaleId -> Derive.Deriver Scale.Scale
@@ -297,29 +298,14 @@ derive_control :: Bool -> TrackTree.Track
     -> (Derive.ControlDeriver -> Derive.ControlDeriver)
     -> Derive.Deriver (TrackResults Signal.Control)
 derive_control is_tempo track transform = do
-    stream <- Cache.track track mempty $ transform $ do
-        state <- Derive.get
-        let (stream, collect) = EvalTrack.derive_control_track state tinfo
-                EvalTrack.control_last_sample (track_events track)
-        Internal.merge_collect collect
-        return $ compact (concat stream)
-    let (signal_chunks, logs) = LEvent.partition stream
-        -- I just did it in 'compact', so this should just convert [x] to x.
-        signal = mconcat signal_chunks
+    let track_type
+            | is_tempo = ParseTitle.TempoTrack
+            | otherwise = ParseTitle.ControlTrack
+    (signal, logs) <- derive_track track track_type
+        last_signal_val (Cache.track track mempty . transform)
     real_end <- Derive.real (TrackTree.track_end track)
     return (extend real_end signal, logs)
     where
-    -- Merge the signal here so it goes in the cache as one signal event.
-    -- I can use concat instead of merge_asc_events because the signals
-    -- will be merged with Signal.merge and the logs extracted.
-    compact events = LEvent.Event (mconcat sigs) : map LEvent.Log logs
-        where (sigs, logs) = LEvent.partition events
-    tinfo = EvalTrack.TrackInfo
-        { EvalTrack.tinfo_track = track
-        , EvalTrack.tinfo_sub_tracks = []
-        , EvalTrack.tinfo_type =
-            if is_tempo then ParseTitle.TempoTrack else ParseTitle.ControlTrack
-        }
     extend end
         | is_tempo = Signal.coerce . Tempo.extend_signal end . Signal.coerce
         | otherwise = id
@@ -328,28 +314,43 @@ derive_pitch :: Bool -> TrackTree.Track
     -> (Derive.PitchDeriver -> Derive.PitchDeriver)
     -> Derive.Deriver (TrackResults PitchSignal.Signal)
 derive_pitch cache track transform = do
-    stream <- (if cache then Cache.track track mempty else id) $ transform $ do
+    let cache_track = if cache then Cache.track track mempty else id
+    derive_track track ParseTitle.PitchTrack last_signal_val
+        (cache_track . transform)
+
+derive_track :: (Monoid.Monoid d, Derive.Callable d) => TrackTree.Track
+    -> ParseTitle.Type -> EvalTrack.GetLastVal d
+    -> (Derive.LogsDeriver d -> Derive.LogsDeriver d)
+    -> Derive.Deriver (TrackResults d)
+derive_track track track_type get_last_val transform = do
+    stream <- transform $ do
         state <- Derive.get
-        let (stream, collect) = EvalTrack.derive_control_track state tinfo
-                EvalTrack.pitch_last_sample (track_events track)
+        let (stream, threaded, collect) = EvalTrack.derive_control_track state
+                tinfo get_last_val
+                (Events.ascending (TrackTree.track_events track))
         Internal.merge_collect collect
+        Internal.set_threaded threaded
         return $ compact (concat stream)
     let (signal_chunks, logs) = LEvent.partition stream
-        -- I just did it in 'compact', so this should just convert [x] to x.
-        signal = mconcat signal_chunks
-    return (signal, logs)
+    -- I just merged the signals in 'compact', so this should just convert [x]
+    -- to x.
+    return (mconcat signal_chunks, logs)
     where
-    -- Merge the signal here so it goes in the cache as one signal event.
-    compact events = LEvent.Event (mconcat sigs) : map LEvent.Log logs
-        where (sigs, logs) = LEvent.partition events
     tinfo = EvalTrack.TrackInfo
         { EvalTrack.tinfo_track = track
         , EvalTrack.tinfo_sub_tracks = []
-        , EvalTrack.tinfo_type = ParseTitle.PitchTrack
+        , EvalTrack.tinfo_type = track_type
         }
+    -- Merge the signal here so it goes in the cache as one signal event.
+    -- I can use concat instead of merge_asc_events because the signals
+    -- will be merged with Signal.merge and the logs extracted.
+    compact events = LEvent.Event (mconcat sigs) : map LEvent.Log logs
+        where (sigs, logs) = LEvent.partition events
 
-track_events :: TrackTree.Track -> [Event.Event]
-track_events = Events.ascending . TrackTree.track_events
+last_signal_val :: Monoid.Monoid d => EvalTrack.GetLastVal d
+last_signal_val xs
+    | null xs = Nothing
+    | otherwise = Just (mconcat xs)
 
 -- * TrackSignal
 
@@ -384,7 +385,7 @@ put_track_signal block_id track_id tsig = Internal.merge_collect $ mempty
 -- | Get render information if this track wants a TrackSignal.
 render_of :: TrackTree.Track
     -> Derive.Deriver (Maybe (BlockId, TrackId, Maybe Track.RenderSource))
-render_of track = case TrackTree.track_block_track_id track of
+render_of track = case TrackTree.block_track_id track of
     Nothing -> return Nothing
     Just (block_id, track_id) -> do
         (btrack, track) <- get_block_track block_id track_id
