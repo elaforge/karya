@@ -10,10 +10,9 @@ import qualified Data.List as List
 import qualified Data.Text as Text
 import qualified Data.Vector as Vector
 
-import qualified Util.ApproxEq as ApproxEq
 import Util.Control
 import qualified Util.Seq as Seq
-
+import qualified Midi.Encode as Encode
 import qualified Midi.Midi as Midi
 import qualified Ui.State as State
 import qualified Cmd.Serialize as Serialize
@@ -58,7 +57,7 @@ diff_midi_performance :: State.MidiPerformance -> [Midi.WriteMessage]
 diff_midi_performance prev midi
     | null diffs = Nothing
     | otherwise = Just $ show_diffs prev diffs
-    where diffs = diff_midi (State.perf_performance prev) midi
+    where diffs = diff_midi (Vector.toList (State.perf_performance prev)) midi
 
 show_diffs :: State.Performance a -> [[Text]] -> Text
 show_diffs perf diffs =
@@ -77,38 +76,30 @@ take_more n xs
         [] -> ([], False)
         x : xs -> first (x:) $ take_more (n-1) xs
 
-diff_midi :: Messages -> [Midi.WriteMessage] -> [[Text]]
+diff_midi :: [Midi.WriteMessage] -> [Midi.WriteMessage] -> [[Text]]
 diff_midi expected got =
-    mapMaybe (show_diff prettyt) $ Diff.getGroupedDiffBy wmsgs_equal
-        (normalize (Vector.toList expected)) (normalize got)
+    mapMaybe (show_diff prettyt) $ Diff.getGroupedDiffBy (==)
+        (normalize expected) (normalize got)
 
 -- | To better approximate audible differences, I strip excessive time
 -- precision and ensure notes happening at the same time are in a consistent
 -- order.
 normalize :: [Midi.WriteMessage] -> [Midi.WriteMessage]
-normalize = concatMap List.sort . Seq.group Midi.wmsg_ts . map strip_precision
+normalize = concatMap List.sort . Seq.group Midi.wmsg_ts . map strip
     where
-    strip_precision wmsg = wmsg { Midi.wmsg_ts = strip (Midi.wmsg_ts wmsg) }
-    strip = RealTime.seconds . (/1000) . fromIntegral . round . (*1000)
-        . RealTime.to_seconds
+    strip wmsg = wmsg
+        { Midi.wmsg_ts = strip_time (Midi.wmsg_ts wmsg)
+        , Midi.wmsg_msg = strip_msg (Midi.wmsg_msg wmsg)
+        }
+    strip_time = RealTime.seconds . round_to 3 . RealTime.to_seconds
+    -- PitchBends are serialized as 14-bit numbers, so when they get
+    -- deserialized they change.
+    strip_msg = Encode.decode . Encode.encode
+
+round_to :: RealFrac d => Int -> d -> d
+round_to n = (/ 10^n) . fromIntegral . round . (* 10^n)
 
 show_diff :: (a -> Text) -> Diff.Diff [a] -> Maybe [Text]
 show_diff _ (Diff.Both {}) = Nothing
 show_diff to_text (Diff.First msgs) = Just $ map (("- " <>) . to_text) msgs
 show_diff to_text (Diff.Second msgs) = Just $ map (("+ " <>) . to_text) msgs
-
-wmsgs_equal :: Midi.WriteMessage -> Midi.WriteMessage -> Bool
-wmsgs_equal (Midi.WriteMessage dev1 t1 m1) (Midi.WriteMessage dev2 t2 m2) =
-    dev1 == dev2 && t1 == t2 && msgs_equal m1 m2
-
-msgs_equal :: Midi.Message -> Midi.Message -> Bool
-msgs_equal (Midi.ChannelMessage chan1 m1) (Midi.ChannelMessage chan2 m2) =
-    chan1 == chan2 && chan_msgs_equal m1 m2
-msgs_equal m1 m2 = m1 == m2
-
-chan_msgs_equal :: Midi.ChannelMessage -> Midi.ChannelMessage -> Bool
-chan_msgs_equal (Midi.PitchBend v1) (Midi.PitchBend v2) =
-    ApproxEq.approx_eq 0.01 v1 v2
-    -- PitchBends are serialized as 14-bit numbers, so when they get
-    -- deserialized they change.
-chan_msgs_equal m1 m2 = m1 == m2

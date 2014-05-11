@@ -16,6 +16,7 @@ import Util.Test
 import qualified Util.Thread as Thread
 
 import Midi.Instances ()
+import qualified Midi.Midi as Midi
 import qualified Cmd.DiffPerformance as DiffPerformance
 import qualified Derive.DeriveSaved as DeriveSaved
 
@@ -40,12 +41,13 @@ large_test_viola_sonata = check =<< compare_performance
 compare_performance :: FilePath -> FilePath -> IO Bool
 compare_performance saved score = timeout score $ do
     cmd_config <- DeriveSaved.load_cmd_config
-    expected <- DiffPerformance.load_midi saved
-    got <- DeriveSaved.perform_file cmd_config score
+    expected <- DiffPerformance.normalize . Vector.toList <$>
+        DiffPerformance.load_midi saved
+    got <- DiffPerformance.normalize <$>
+        DeriveSaved.perform_file cmd_config score
     dir <- tmp_dir "regression"
     let base = dir FilePath.</> FilePath.takeFileName score
-    writeFile (base ++ ".expected") $
-        unlines $ map pretty (Vector.toList expected)
+    writeFile (base ++ ".expected") $ unlines $ map pretty expected
     writeFile (base ++ ".got") $ unlines $ map pretty got
     let diffs = DiffPerformance.diff_midi expected got
     -- Too many diffs aren't useful.

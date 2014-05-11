@@ -159,10 +159,11 @@ type StaffGroup = (String, [String])
 
 -- | Like 'convert_staves', but expect only one staff.
 convert_measures :: [String] -> [Lilypond.Event] -> Either String String
-convert_measures wanted = fmap staff1 . convert_staves wanted
-    where
-    staff1 [(_, [code])] = code
-    staff1 staves = error $ "expected one staff: " <> show staves
+convert_measures wanted staves = case convert_staves wanted staves of
+    Right [] -> Right ""
+    Right [(_, [code])] -> Right code
+    Right staves -> Left $ "error: expected one staff: " <> show staves
+    Left err -> Left err
 
 -- | Convert events to lilypond score.
 convert_staves ::
