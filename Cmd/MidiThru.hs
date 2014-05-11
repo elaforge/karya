@@ -75,6 +75,7 @@ import qualified Cmd.Msg as Msg
 import qualified Cmd.Perf as Perf
 import qualified Cmd.Selection as Selection
 
+import qualified Derive.Controls as Controls
 import qualified Derive.Derive as Derive
 import qualified Derive.Scale as Scale
 import qualified Derive.Score as Score
@@ -84,6 +85,7 @@ import qualified Perform.Midi.Control as Control
 import qualified Perform.Midi.Instrument as Instrument
 import Perform.Midi.Instrument (Addr)
 import qualified Perform.Pitch as Pitch
+import qualified Perform.Signal as Signal
 
 
 -- | Send midi thru, addressing it to the given Instrument.
@@ -96,7 +98,7 @@ cmd_midi_thru msg = do
     midi_thru_instrument score_inst input
     return Cmd.Continue
 
-midi_thru_instrument :: (Cmd.M m) => Score.Instrument -> InputNote.Input -> m ()
+midi_thru_instrument :: Cmd.M m => Score.Instrument -> InputNote.Input -> m ()
 midi_thru_instrument score_inst input = do
     addrs <- Instrument.get_addrs score_inst <$> State.get_midi_config
     if null addrs then return () else do
@@ -117,7 +119,7 @@ midi_thru_instrument score_inst input = do
     mapM_ (uncurry Cmd.midi) thru_msgs
 
 -- | Realize the Input as a pitch in the given scale.
-map_scale :: (Cmd.M m) => Instrument.PatchScale -> Scale.Scale
+map_scale :: Cmd.M m => Instrument.PatchScale -> Scale.Scale
     -> TrackLang.Environ -- ^ Evaluate the pitch in this environ.  This is
     -- important because some scales change pitch based on environ.
     -> InputNote.Input -> m (Maybe InputNote.InputNn)
@@ -137,6 +139,9 @@ map_scale patch_scale scale environ input = case input of
         (block_id, _, track_id, pos) <- Selection.get_insert
         (maybe_nn, _logs) <- Perf.derive_at block_id track_id $
             Derive.with_environ environ $
+            -- Otherwise, if %dyn happens to be 0 here then thru won't work.
+            Derive.with_control Controls.dynamic
+                (Score.untyped (Signal.constant 1)) $
             Scale.scale_input_to_nn scale pos input
         case maybe_nn of
             Left err -> Cmd.throw $
@@ -222,7 +227,7 @@ with_addr (wdev, chan) msg = (wdev, Midi.ChannelMessage chan msg)
 -- instrument.  This bypasses all of the WriteDeviceState stuff so it won't
 -- cooperate with addr allocation, but hopefully this won't cause problems for
 -- simple uses like keymapped instruments.
-channel_messages :: (Cmd.M m) => Maybe Score.Instrument -> Bool
+channel_messages :: Cmd.M m => Maybe Score.Instrument -> Bool
     -> [Midi.ChannelMessage] -> m ()
 channel_messages maybe_inst first_addr msgs = do
     addrs <- get_addrs maybe_inst
@@ -230,7 +235,7 @@ channel_messages maybe_inst first_addr msgs = do
     sequence_ [Cmd.midi wdev (Midi.ChannelMessage chan msg)
         | (wdev, chan) <- addrs2, msg <- msgs]
 
-get_addrs :: (Cmd.M m) => Maybe Score.Instrument -> m [Addr]
+get_addrs :: Cmd.M m => Maybe Score.Instrument -> m [Addr]
 get_addrs maybe_inst = do
     inst <- maybe (Cmd.abort_unless =<< EditUtil.lookup_instrument)
         return maybe_inst
