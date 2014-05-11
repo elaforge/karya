@@ -16,7 +16,6 @@ import Util.Test
 import qualified Util.Thread as Thread
 
 import Midi.Instances ()
-import qualified Midi.Midi as Midi
 import qualified Cmd.DiffPerformance as DiffPerformance
 import qualified Derive.DeriveSaved as DeriveSaved
 

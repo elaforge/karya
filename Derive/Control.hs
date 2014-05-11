@@ -327,7 +327,6 @@ derive_track track track_type get_last_val transform = do
         state <- Derive.get
         let (stream, threaded, collect) = EvalTrack.derive_control_track state
                 tinfo get_last_val
-                (Events.ascending (TrackTree.track_events track))
         Internal.merge_collect collect
         Internal.set_threaded threaded
         return $ compact (concat stream)

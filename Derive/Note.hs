@@ -92,11 +92,8 @@ import qualified Data.Text as Text
 import qualified Data.Tree as Tree
 
 import Util.Control
-import qualified Ui.Event as Event
-import qualified Ui.Events as Events
 import qualified Ui.Track as Track
 import qualified Ui.TrackTree as TrackTree
-
 import qualified Derive.Control as Control
 import qualified Derive.Derive as Derive
 import qualified Derive.Deriver.Internal as Internal
@@ -119,9 +116,8 @@ d_note_track :: ([TrackTree.EventsNode] -> Derive.NoteDeriver)
     -- 'EvalTrack.derive_note_track'.
     -> TrackTree.EventsNode -> Derive.NoteDeriver
 d_note_track derive_tracks (Tree.Node track subs) =
-    title $ derive_notes derive_tracks (track_info track subs) events
+    title $ derive_notes derive_tracks (track_info track subs)
     where
-    events = Events.ascending (TrackTree.track_events track)
     title = with_title subs (TrackTree.track_end track)
         (TrackTree.track_title track)
 
@@ -170,11 +166,11 @@ with_title subs end title deriver
         { Derive.info_sub_tracks = subs }
 
 derive_notes :: ([TrackTree.EventsNode] -> Derive.NoteDeriver)
-    -> EvalTrack.TrackInfo -> [Event.Event] -> Derive.NoteDeriver
-derive_notes derive_tracks tinfo events = do
+    -> EvalTrack.TrackInfo -> Derive.NoteDeriver
+derive_notes derive_tracks tinfo = do
     state <- Derive.get
     let (event_groups, threaded, collect) =
-            EvalTrack.derive_note_track derive_tracks state tinfo events
+            EvalTrack.derive_note_track derive_tracks state tinfo
     Internal.merge_collect collect
     Internal.set_threaded threaded
     return $ Derive.merge_asc_events event_groups

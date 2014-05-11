@@ -3,6 +3,7 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
+  - save/wayang/delima-manis: start time -.1s less than previous of 0s
   * I think overloaded strings means Pretty.record_title is obsolete,
     Pretty.record works just as well.
   * ack, delima-manis is broken, presumably by slice refactor
@@ -67,7 +68,7 @@ UNSORTED
 
   - Overlap detection in Derive.Slice I think is still messed up, or at the
     least it's more complicated than it should be.
-  - EvalTrack.derive_track doesn't need to take events, since it already takes
+  * EvalTrack.derive_track doesn't need to take events, since it already takes
     the track in TrackInfo.
   - Derive.Deriver.Monad.d_merge shouldn't catch exceptions as a side-effect
 

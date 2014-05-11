@@ -95,6 +95,7 @@ import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 
 import qualified Ui.Event as Event
+import qualified Ui.Events as Events
 import qualified Ui.Track as Track
 import qualified Ui.TrackTree as TrackTree
 
@@ -136,7 +137,7 @@ type DeriveEmpty d = TrackInfo -> Maybe Event.Event -> Maybe Event.Event
 -- | This is the toplevel function to derive control tracks.  It's responsible
 -- for actually evaluating each event.
 derive_control_track :: Derive.Callable d =>
-    Derive.State -> TrackInfo -> GetLastVal d -> [Event.Event] -> DeriveResult d
+    Derive.State -> TrackInfo -> GetLastVal d -> DeriveResult d
 derive_control_track = derive_track derive_empty
     where derive_empty _ _ _ deriver = deriver
 
@@ -149,7 +150,7 @@ derive_control_track = derive_track derive_empty
 -- is that note transformers can be stacked horizontally, and tracks left empty
 -- have no effect, except whatever transformers they may have in their titles.
 derive_note_track :: (TrackTree.EventsTree -> Derive.NoteDeriver)
-    -> Derive.State -> TrackInfo -> [Event.Event] -> DeriveResult Score.Event
+    -> Derive.State -> TrackInfo -> DeriveResult Score.Event
 derive_note_track derive_tracks state tinfo =
     derive_track derive_empty state tinfo get_last_val
     where
@@ -164,9 +165,10 @@ derive_note_track derive_tracks state tinfo =
 
 derive_track :: forall d. Derive.Callable d =>
     DeriveEmpty d -> Derive.State -> TrackInfo -> GetLastVal d
-    -> [Event.Event] -> DeriveResult d
+    -> DeriveResult d
 derive_track derive_empty initial_state tinfo get_last_val =
-    track_end . List.mapAccumL event1 accum_state . Seq.zipper []
+    track_end $ List.mapAccumL event1 accum_state $ Seq.zipper [] $
+        Events.ascending $ TrackTree.track_events track
     where
     accum_state = (record_track_dynamic track initial_state,
         lookup_prev_val track initial_state)
