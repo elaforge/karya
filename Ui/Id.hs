@@ -2,7 +2,7 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
-{-# LANGUAGE GeneralizedNewtypeDeriving #-} -- NFData instance
+{-# LANGUAGE GeneralizedNewtypeDeriving, ScopedTypeVariables #-}
 module Ui.Id (
     Id, Namespace, id, namespace
 
@@ -146,7 +146,7 @@ is_digit c = '0' <= c && c <= '9'
 -- which puts the constructors in scope.
 class Ident a where
     unpack_id :: a -> Id
-    constructor_name :: a -> String
+    constructor_name :: Proxy a -> String
     make :: Id -> a
 
 instance Ident Id where
@@ -154,17 +154,17 @@ instance Ident Id where
     constructor_name _ = "id"
     make = Prelude.id
 
-show_ident :: Ident a => a -> String
+show_ident :: forall a. Ident a => a -> String
 show_ident ident = "(" ++ con ++ " " ++ show (show_id id) ++ ")"
     where
     id = unpack_id ident
-    con = constructor_name ident
+    con = constructor_name (Proxy :: Proxy a)
 
-read_ident :: Ident a => a -> ReadPrec.ReadPrec a
-read_ident witness = do
+read_ident :: forall a. Ident a => ReadPrec.ReadPrec a
+read_ident = do
     Read.Punc "(" <- Read.lexP
     Read.Ident sym <- Read.lexP
-    guard (sym == constructor_name witness)
+    guard (sym == constructor_name (Proxy :: Proxy a))
     Read.String str <- Read.lexP
     Read.Punc ")" <- Read.lexP
     return (make (read_id (txt str)))
@@ -218,10 +218,10 @@ instance Pretty.Pretty ViewId where pretty = show
 instance Pretty.Pretty TrackId where pretty = show
 instance Pretty.Pretty RulerId where pretty = show
 
-instance Read BlockId where readPrec = read_ident undefined
-instance Read ViewId where readPrec = read_ident undefined
-instance Read TrackId where readPrec = read_ident undefined
-instance Read RulerId where readPrec = read_ident undefined
+instance Read BlockId where readPrec = read_ident
+instance Read ViewId where readPrec = read_ident
+instance Read TrackId where readPrec = read_ident
+instance Read RulerId where readPrec = read_ident
 
 instance Ident BlockId where
     unpack_id (BlockId a) = a
