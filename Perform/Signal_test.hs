@@ -5,6 +5,8 @@
 module Perform.Signal_test where
 import qualified Util.Seq as Seq
 import Util.Test
+import qualified Derive.Score as Score
+import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
 
 
@@ -138,6 +140,18 @@ test_unwarp = do
     equal (f fast lin) [(0, 0), (2, 1), (4, 2), (6, 3)]
     -- Conversely...
     equal (f slow lin) [(0, 0), (0.5, 1), (1, 2), (1.5, 3)]
+
+test_unwarp_fused = do
+    let f (Score.Warp sig shift stretch) = Signal.unsignal
+            . Signal.unwarp_fused sig (RealTime.score shift)
+                (RealTime.score stretch)
+            . Signal.signal
+        trip p warp = f warp [(Score.warp_pos p warp, 0)]
+    let warp = Score.Warp (Signal.signal [(0, 0), (2, 4)]) 2 1
+    equal (Score.unwarp_pos (Score.warp_pos 0 warp) warp) (Just 0)
+    equal (trip 0 warp) [(0, 0)]
+    let warp2 = Score.Warp (Signal.signal [(0, 0), (2, 4)]) 0 2
+    equal (trip 1 warp2) [(1, 0)]
 
 make_warp :: Signal.X -> Signal.Y -> Signal.Warp
 make_warp end tempo = tempo_to_warp (signal [(0, tempo), (end, tempo)])

@@ -162,8 +162,31 @@ UNSORTED
     * Remove Slice.strip_empty_tracks from Slice.checked_slice_note.
     / Remove Slice.slice exclusive arg
     * Revisit stricter overlap tests in Slice_test.test_overlaps
-  - data/bloom @b14 has:
+  * data/bloom @b14 @b14.t19 has:
     fltk/EventTrack.cc:102 sample time decreased: 0.650101 <= 129.455
+    . 129.45s:.101 , .65s:.298
+    . But first find out why unwarp is scrambling the signal.
+      warp reaches 142.336 at 17.88, so 142.55 maps to 124.55
+  - Make track signals derive from block derives, so they don't need to unwarp
+    so much.
+    . ResponderSync gets the root performance TrackSignals.  Either it should
+      get TrackSignals for each block from the block performance, or always
+      use the root but non-root derives never bother with TrackSignals.
+    . If I always use root, I never get signals if there is no root.
+      That seems a bit weird, but in practice it's hard to have no root.
+      But the signals would reflect root-level transforms, which I might
+      actually want.
+    . If I don't use root, then I have to derive all visible views.  Also,
+      derive has to know it's on the toplevel block and only collect
+      TrackSignals when it is.
+    . But if I always go from the root, then I'm almost certainly going to
+      need to unwarp, because that's where the tempo is.  If I go from each
+      block then I likely don't need to.
+    . Also, I want to avoid collecting for blocks without windows.  If I'm
+      going to derive all visible windows then I can just collect TrackSignals
+      only for toplevel blocks.
+  - Maybe BaseTypes.Warp fields should be RealTime instead of ScoreTime?
+
   - why does data/bloom use so many channels?  E.g., c5 at 8.51s on chan 1
     . I could emit logs giving output msgs along with reason for allocation.
   Simplify TrackDynamic collection.

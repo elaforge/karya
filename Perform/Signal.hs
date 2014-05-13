@@ -555,7 +555,7 @@ unwarp w = coerce . warp (invert w)
 -- strict.
 unwarp_fused :: Warp -> RealTime -> RealTime -> Control -> Display
 unwarp_fused w shift stretch = coerce . modify_vec (V.map_x unwarp)
-    where unwarp x = inverse_at_extend (x_to_y ((x - shift) / stretch)) w
+    where unwarp x = (inverse_at_extend (x_to_y x) w - shift) / stretch
 
 invert :: Warp -> Warp
 invert = modify_vec $ Vector.map $ \(V.Sample x y) ->
