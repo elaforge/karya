@@ -26,6 +26,8 @@ module Perform.Signal (
     , length, null
     , coerce
     , with_ptr
+    -- * check
+    , check, check_warp
 
     -- * access
     , at, sample_at, at_linear, at_linear_extend, constant_val
@@ -199,6 +201,23 @@ coerce (Signal vec) = Signal vec
 with_ptr :: Display -> (Foreign.Ptr (V.Sample Double) -> Int -> IO a) -> IO a
 with_ptr sig f = V.with_ptr (sig_vec sig) $ \sigp ->
     f sigp (V.length (sig_vec sig))
+
+-- * check
+
+check :: Signal y -> [String]
+check = V.check . sig_vec
+
+-- | Find places where the Warp is non monotonically nondecreasing.
+check_warp :: Warp -> [String]
+check_warp = reverse . fst . Vector.foldl' check ([], (0, 0, 0)) . sig_vec
+    where
+    check (warns, (i, prev_x, prev_y)) (V.Sample x y)
+        | x < prev_x = first ("index " <> show i <> ": x decreased: "
+            <> show x <> " < " <> show prev_x :) next
+        | y < prev_y = first ("index " <> show i <> ": y decreased: "
+            <> show y <> " < " <> show prev_y :) next
+        | otherwise = next
+        where next = (warns, (i + 1, x, y))
 
 -- * access
 

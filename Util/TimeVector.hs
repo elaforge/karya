@@ -143,6 +143,21 @@ to_pair (Sample x y) = (x, y)
 instance (Pretty.Pretty y) => Pretty.Pretty (Sample y) where
     format (Sample x y) = Pretty.format x <> Pretty.char ':' <> Pretty.format y
 
+-- | TimeVectors should be sorted by the X value.  Return warnings for where
+-- that's not true.
+{-# SPECIALIZE check :: Unboxed -> [String] #-}
+{-# INLINEABLE check #-}
+check :: V.Vector v (Sample y) => v (Sample y) -> [String]
+check = reverse . fst . V.foldl' check ([], (0, 0))
+    where
+    check (warns, (i, prev_x)) (Sample x _)
+        | x < prev_x = first (msg:) next
+        | otherwise = next
+        where
+        msg = "index " <> show i <> ": x decreased: " <> show x <> " < "
+            <> show prev_x
+        next = (warns, (i + 1, x))
+
 -- | Merge a list of vectors.  Samples are not interspersed, and if the vectors
 -- overlap the one with a later first sample wins.
 {-# SPECIALIZE merge :: [Unboxed] -> Unboxed #-}
