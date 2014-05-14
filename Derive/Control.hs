@@ -24,7 +24,7 @@
 module Derive.Control (
     d_control_track, split_control_tracks
     -- * TrackSignal
-    , put_unwarped_signal, render_of
+    , stash_signal, render_of
 #ifdef TESTING
     , derive_control
 #endif
@@ -353,18 +353,18 @@ last_signal_val xs
 
 -- * TrackSignal
 
--- | If this track is to be rendered by the UI, stash the given signal as
--- in either 'Derive.collect_track_signals' or
--- 'Derive.collect_signal_fragments'.
+-- | If this track is to be rendered by the UI, stash the given signal in
+-- either 'Derive.collect_track_signals' or 'Derive.collect_signal_fragments'.
 stash_if_wanted :: TrackTree.Track -> Signal.Control -> Derive.Deriver ()
 stash_if_wanted track sig =
     whenJustM (render_of track) $ \(block_id, track_id, _) ->
         if TrackTree.track_sliced track
-            then put_signal_fragment block_id track_id sig
-            else put_unwarped_signal block_id track_id sig
+            then stash_signal_fragment block_id track_id sig
+            else stash_signal block_id track_id sig
 
-put_signal_fragment :: BlockId -> TrackId -> Signal.Control -> Derive.Deriver ()
-put_signal_fragment block_id track_id sig = Internal.modify_collect $
+stash_signal_fragment :: BlockId -> TrackId -> Signal.Control
+    -> Derive.Deriver ()
+stash_signal_fragment block_id track_id sig = Internal.modify_collect $
     -- TODO profile with Internal.merge_collect
     \collect -> collect { Derive.collect_signal_fragments =
         add (Derive.collect_signal_fragments collect) }
@@ -372,10 +372,10 @@ put_signal_fragment block_id track_id sig = Internal.modify_collect $
     -- See 'Derive.SignalFragment' for the expected (lack of) order.
     add = Map.alter (maybe (Just [sig]) (Just . (sig:))) (block_id, track_id)
 
-put_unwarped_signal :: BlockId -> TrackId -> Signal.Control -> Derive.Deriver ()
-put_unwarped_signal block_id track_id sig = do
+stash_signal :: BlockId -> TrackId -> Signal.Control -> Derive.Deriver ()
+stash_signal block_id track_id sig = do
     warp <- Internal.get_dynamic Derive.state_warp
-    put_track_signal block_id track_id (EvalTrack.unwarp warp sig)
+    put_track_signal block_id track_id $ EvalTrack.unwarp warp sig
 
 put_track_signal :: BlockId -> TrackId -> Track.TrackSignal -> Derive.Deriver ()
 put_track_signal block_id track_id tsig = Internal.merge_collect $ mempty
@@ -386,7 +386,7 @@ render_of :: TrackTree.Track
     -> Derive.Deriver (Maybe (BlockId, TrackId, Maybe Track.RenderSource))
 render_of track = case TrackTree.block_track_id track of
     Nothing -> return Nothing
-    Just (block_id, track_id) -> do
+    Just (block_id, track_id) -> ifM not_root (return Nothing) $ do
         (btrack, track) <- get_block_track block_id track_id
         let flags = Block.track_flags btrack
         return $ if Block.wants_track_signal flags track
@@ -394,6 +394,7 @@ render_of track = case TrackTree.block_track_id track of
                 extract (Track.render_style (Track.track_render track)))
             else Nothing
     where
+    not_root = not <$> Internal.is_root_block
     extract (Track.Line (Just source)) = Just source
     extract (Track.Filled (Just source)) = Just source
     extract _ = Nothing

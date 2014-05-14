@@ -170,17 +170,17 @@ read_ident = do
     return (make (read_id (txt str)))
 
 -- | SomethingId -> "ns/name"
-ident_string :: (Ident a) => a -> String
+ident_string :: Ident a => a -> String
 ident_string = show_id . unpack_id
 
-ident_text :: (Ident a) => a -> Text
+ident_text :: Ident a => a -> Text
 ident_text = txt . show_id . unpack_id
 
 -- | SomethingId -> "name"
-ident_name :: (Ident a) => a -> Text
+ident_name :: Ident a => a -> Text
 ident_name = id_name . unpack_id
 
-ident_namespace :: (Ident a) => a -> Namespace
+ident_namespace :: Ident a => a -> Namespace
 ident_namespace = id_namespace . unpack_id
 
 -- * constants

@@ -297,7 +297,7 @@ warp score_warp deriver
 modify_warp :: (Score.Warp -> Score.Warp) -> Deriver a -> Deriver a
 modify_warp modify = local $ \st -> st { state_warp = modify (state_warp st) }
 
--- | Is this the toplevel block?
+-- | Am I deriving the toplevel block?
 is_root_block :: Deriver Bool
 is_root_block = do
     stack <- get_stack

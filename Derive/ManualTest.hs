@@ -59,6 +59,6 @@ run_cached = do
             (Set.fromList [root]) mempty
     let (cached, logs) = expect_right "cache derive" $
             DeriveSaved.run_cmd state cstate $
-            PlayUtil.derive cache damage root
+            PlayUtil.derive_block cache damage root
     mapM_ Log.write logs
     prettyp (Cache_test.r_block_logs cached)

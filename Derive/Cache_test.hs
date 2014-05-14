@@ -31,7 +31,6 @@ import qualified Derive.Stack as Stack
 import qualified Derive.TrackLang as TrackLang
 import qualified Derive.TrackWarp as TrackWarp
 
-import qualified Perform.Signal as Signal
 import Types
 
 
@@ -299,34 +298,30 @@ test_collect = do
     let create = blocks
             <* State.set_render_style (Track.Line Nothing) (UiTest.tid "sub.t2")
     let (_, cached, _) = compare_cached create $ insert_event "top.t1" 1 1 ""
-    -- pprint (r_cache_collect cached)
-    let root : _ = r_cache_collect cached
-    let tsig = Track.TrackSignal (Signal.signal [(0, 1)]) 0 1
-    let extract = second (fmap extract_collect)
-        extract_collect collect =
-            ( Seq.sort_on fst $ map (first Stack.show_ui_) $
-                Map.toAscList (Derive.collect_warp_map collect)
-            , Derive.collect_track_signals collect
-            , Derive.collect_block_deps collect
-            )
+    let (root_key, maybe_collect) : _ = r_cache_collect cached
+        Just collect = maybe_collect
+    equal root_key "top * *"
 
-    -- Wow, this is a hassle, but it's hard to figure out how to verify this
-    -- otherwise.
+    let e_warp_maps = Seq.sort_on fst . map (first Stack.show_ui_)
+            . Map.toAscList . Derive.collect_warp_map
+
     let tw start end bid = Left $ TrackWarp.TrackWarp
             (start, end, Score.id_warp, UiTest.bid bid, Nothing)
         track tid = Right (UiTest.tid tid)
-    equal (extract root) ("top * *", Just $
-        ( [ ("top * *", tw 0 2 "top")
-          , ("top top.t1 *", track "top.t1")
-          , ("top top.t1 0-1: sub * *", tw 0 1 "sub")
-          -- One for t1, one more for its inverted incarnation.
-          , ("top top.t1 0-1: sub sub.t1 *", track "sub.t1")
-          , ("top top.t1 0-1: sub sub.t1 *", track "sub.t1")
-          , ("top top.t1 0-1: sub sub.t2 *", track "sub.t2")
-          ]
-        , Map.fromList [((UiTest.bid "sub", UiTest.tid "sub.t2"), tsig)]
-        , mk_block_deps ["top", "sub"]
-        ))
+    equal (e_warp_maps collect)
+        [ ("top * *", tw 0 2 "top")
+        , ("top top.t1 *", track "top.t1")
+        , ("top top.t1 0-1: sub * *", tw 0 1 "sub")
+        -- One for t1, one more for its inverted incarnation.
+        , ("top top.t1 0-1: sub sub.t1 *", track "sub.t1")
+        , ("top top.t1 0-1: sub sub.t1 *", track "sub.t1")
+        , ("top top.t1 0-1: sub sub.t2 *", track "sub.t2")
+        ]
+
+    -- TrackSignals are only collected for the topmost block.
+    equal (Derive.collect_track_signals collect) mempty
+    equal (Derive.collect_block_deps collect)
+        (mk_block_deps ["top", "sub"])
 
 test_sliced_score_damage = do
     -- Ensure that a cached call underneath a slice still works correctly.

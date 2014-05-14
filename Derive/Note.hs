@@ -133,7 +133,7 @@ stash_signal_if_wanted events track =
 stash_signal :: BlockId -> TrackId -> Track.RenderSource -> Derive.Events
     -> Derive.Deriver ()
 stash_signal block_id track_id source events =
-    Control.put_unwarped_signal block_id track_id signal
+    Control.stash_signal block_id track_id signal
     where signal = extract_track_signal source (LEvent.events_of events)
 
 extract_track_signal :: Track.RenderSource -> [Score.Event] -> Signal.Control

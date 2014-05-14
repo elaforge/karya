@@ -56,11 +56,11 @@ cached_derive block_id = do
     maybe_perf <- Cmd.lookup_performance block_id
     case maybe_perf of
         Nothing -> uncached_derive block_id
-        Just perf -> derive (Cmd.perf_derive_cache perf) (Cmd.perf_damage perf)
-            block_id
+        Just perf -> derive_block (Cmd.perf_derive_cache perf)
+            (Cmd.perf_damage perf) block_id
 
 uncached_derive :: (Cmd.M m) => BlockId -> m Derive.Result
-uncached_derive = derive mempty mempty
+uncached_derive = derive_block mempty mempty
 
 clear_cache :: (Cmd.M m) => BlockId -> m ()
 clear_cache block_id = Cmd.modify_play_state $ \st -> st
@@ -77,9 +77,9 @@ clear_all_caches = Cmd.modify_play_state $ \st -> st
     }
 
 -- | Derive the contents of the given block to score events.
-derive :: Cmd.M m => Derive.Cache -> Derive.ScoreDamage -> BlockId
+derive_block :: Cmd.M m => Derive.Cache -> Derive.ScoreDamage -> BlockId
     -> m Derive.Result
-derive cache damage block_id = do
+derive_block cache damage block_id = do
     global_transform <- State.config#State.global_transform <#> State.get
     Derive.extract_result <$> run cache damage
         (Call.Block.eval_root_block global_transform block_id)
@@ -111,8 +111,8 @@ get_constant cache damage = do
     lookup_scale <- Cmd.get_lookup_scale
     lookup_inst <- get_lookup_inst
     library <- Cmd.gets $ Cmd.state_library . Cmd.state_config
-    return $ Derive.initial_constant
-        ui_state library lookup_scale lookup_inst cache damage
+    return $ (Derive.initial_constant
+            ui_state library lookup_scale lookup_inst cache damage)
 
 get_lookup_inst :: Cmd.M m => m (Score.Instrument -> Maybe Derive.Instrument)
 get_lookup_inst = (fmap Cmd.derive_instrument .) <$> Cmd.get_lookup_instrument

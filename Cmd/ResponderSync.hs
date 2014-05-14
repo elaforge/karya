@@ -22,8 +22,6 @@ import qualified Cmd.Integrate as Integrate
 import qualified Cmd.Internal as Internal
 import qualified Cmd.Performance as Performance
 
-import Types
-
 
 type Sync = Track.TrackSignals -> Track.SetStyleHigh -> State.State
     -> [Update.DisplayUpdate] -> IO (Maybe State.Error)
@@ -69,9 +67,8 @@ sync sync_func send_status ui_pre ui_from ui_to cmd_state cmd_updates
 
     when (any modified_view ui_updates) $
         MVar.modifyMVar_ play_monitor_state (const (return ui_to))
-    let tsigs = get_track_signals
-            (State.config_root (State.state_config ui_to)) cmd_state
-    err <- sync_func tsigs Internal.set_style ui_to display_updates
+    err <- sync_func (get_track_signals cmd_state) Internal.set_style
+        ui_to display_updates
     whenJust err $ \err ->
         Log.error $ "syncing updates: " ++ pretty err
 
@@ -82,11 +79,13 @@ sync sync_func send_status ui_pre ui_from ui_to cmd_state cmd_updates
     return (ui_updates, ui_to,
         cmd_state { Cmd.state_derive_immediately = mempty })
 
-get_track_signals :: Maybe BlockId -> Cmd.State -> Track.TrackSignals
-get_track_signals maybe_root st = fromMaybe Map.empty $ do
-    root <- maybe_root
-    Cmd.perf_track_signals <$>
-        Map.lookup root (Cmd.state_performance (Cmd.state_play st))
+-- | Get all track signals already derived.  TrackSignals are only collected
+-- for top level derives, so there should only be signals for visible windows.
+-- If the derive is still in progress, there may not be signals, but they will
+-- be directly when the DeriveComplete is received.
+get_track_signals :: Cmd.State -> Track.TrackSignals
+get_track_signals = mconcatMap Cmd.perf_track_signals . Map.elems
+    . Cmd.state_performance . Cmd.state_play
 
 modified_view :: Update.UiUpdate -> Bool
 modified_view (Update.View _ update) = case update of

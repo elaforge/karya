@@ -18,6 +18,7 @@ import qualified Data.Vector as Vector
 import Util.Control
 import qualified Util.Log as Log
 import qualified Util.Map as Map
+import qualified Util.Seq as Seq
 import qualified Util.Thread as Thread
 
 import qualified Ui.Block as Block
@@ -75,11 +76,11 @@ update_performance send_status ui_state cmd_state damage =
 run_update :: SendStatus -> State.State -> StateM
 run_update send_status ui_state = do
     kill_threads
-    focused <- focused_block ui_state <$> Monad.State.get
-    let generate = try_generate_performance send_status ui_state
-    whenJust focused generate
-    whenJust (State.config_root (State.state_config ui_state)) $
-        \block_id -> when (Just block_id /= focused) $ generate block_id
+    let visible = map Block.view_block $ Map.elems $ State.state_views $
+            ui_state
+        root_id = State.config_root (State.state_config ui_state)
+        block_ids = Seq.unique $ maybe id (:) root_id visible
+    mapM_ (try_generate_performance send_status ui_state) block_ids
 
 try_generate_performance :: SendStatus -> State.State -> BlockId -> StateM
 try_generate_performance send_status ui_state block_id = do
@@ -87,12 +88,6 @@ try_generate_performance send_status ui_state block_id = do
     when (needs_generate state block_id) $
         generate_performance ui_state (derive_wait state block_id)
             send_status block_id
-
-focused_block :: State.State -> Cmd.State -> Maybe BlockId
-focused_block ui_state cmd_state = do
-    view_id <- Cmd.state_focused_view cmd_state
-    view <- Map.lookup view_id (State.state_views ui_state)
-    return $ Block.view_block view
 
 -- | Theoretically I should be able to do away with the wait, but in practice
 -- deriving constantly causes UI latency.
@@ -187,8 +182,8 @@ derive ui_state cmd_state block_id = (strip <$> res, logs)
         Cmd.state_play cmd_state
     (_state, _midi, logs, res) = Cmd.run_id ui_state cmd_state $
         case maybe_perf of
-            Nothing -> PlayUtil.derive mempty mempty block_id
-            Just perf -> PlayUtil.derive (Cmd.perf_derive_cache perf)
+            Nothing -> PlayUtil.derive_block mempty mempty block_id
+            Just perf -> PlayUtil.derive_block (Cmd.perf_derive_cache perf)
                 (Cmd.perf_damage perf) block_id
 
 evaluate_performance :: Thread.Seconds -> SendStatus -> BlockId

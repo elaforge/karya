@@ -6,10 +6,7 @@ module Derive.Control_test where
 import qualified Data.Map as Map
 
 import Util.Control
-import qualified Util.Seq as Seq
 import Util.Test
-
-import qualified Ui.Block as Block
 import qualified Ui.Events as Events
 import qualified Ui.State as State
 import qualified Ui.Track as Track
@@ -229,31 +226,13 @@ test_stash_signal = do
         [(csig, 0, 1)]
 
 test_signal_fragments = do
-    let run tsig_tracks = e_tsigs . DeriveTest.derive_blocks_with_ui id
-            (DeriveTest.with_tsigs tsig_tracks)
-    equal (run [UiTest.mk_tid_name "b1" 2] [("b1",
+    let run tsig_tracks = e_tsigs . DeriveTest.derive_tracks_with_ui id
+            (DeriveTest.with_tsigs tsig_tracks) ""
+    equal (run [UiTest.mk_tid 2]
             [ (">", [(0, 1, ""), (1, 1, "")])
             , ("dyn", [(0, 0, ".25"), (1, 0, ".5"), (2, 0, ".75")])
-            ])])
+            ])
         [([(0, 0.25), (1, 0.5), (2, 0.75)], 0, 1)]
-
-    equal (run [UiTest.mk_tid_name "sub" 2]
-        [ ("b1",
-            [ ("tempo", [(0, 0, "1"), (10, 0, "2")])
-            , (">", [(0, 4, "sub"), (4, 4, "sub")])
-            ])
-        , ("sub",
-            [ (">", [(n, 1, "") | n <- Seq.range 0 3 1])
-            , ("dyn", [(n, 0, v) | (n, v) <- zip (Seq.range_ 0 1)
-                ["1", ".75", ".5", ".25"]])
-            ])
-        ])
-        [([(0, 1), (1, 0.75), (2, 0.5), (3, 0.25)], 0, 1)]
-
-    -- The signal fragments should only be assembled and unwarped once, despite
-    -- the fact that there are two calls to 'sub'.
-    -- Since this relies on laziness, I can only test it with Debug.trace.
-    -- TODO that's no excuse, test this for real.
 
 test_stash_signal_default_tempo = do
     -- Signal is stretched by the default tempo.
@@ -262,23 +241,6 @@ test_stash_signal_default_tempo = do
             [("*", [(0, 0, "4c"), (10, 0, "4d"), (20, 0, "4c")])]
         set_tempo = State.config#State.default_#State.tempo #= 2
     equal r [([(0, 60), (5, 62), (10, 60)], 0, 0.5)]
-
-test_track_signal_multiple = do
-    -- If a track shows up in multiple blocks, it should get multiple
-    -- TrackSignals.
-    let ((bid, tid), state) = UiTest.run State.empty $ do
-            (bid1, [tid, _]) <- UiTest.mkblock
-                ("b1", [("c", [(0, 0, "1")]), (">", [(0, 1, "b2")])])
-            (bid2, _) <- UiTest.mkblock ("b2", [(">", [(0, 1, "")])])
-            State.insert_track bid2 2 $ Block.track
-                (Block.TId tid UiTest.default_ruler_id) 20
-            return (bid1, tid)
-    let tsigs = map fst $ e_tsig_tracks $ DeriveTest.derive_block
-            (DeriveTest.with_tsigs [tid] state) bid
-    equal tsigs
-        [ (UiTest.bid "b1", UiTest.mk_tid_name "b1" 1)
-        , (UiTest.bid "b2", UiTest.mk_tid_name "b1" 1)
-        ]
 
 e_tsigs :: Derive.Result -> [([(RealTime, Signal.Y)], ScoreTime, ScoreTime)]
 e_tsigs = map snd . e_tsig_tracks

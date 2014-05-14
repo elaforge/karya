@@ -167,7 +167,7 @@ UNSORTED
     . 129.45s:.101 , .65s:.298
     . But first find out why unwarp is scrambling the signal.
       warp reaches 142.336 at 17.88, so 142.55 maps to 124.55
-  - Make track signals derive from block derives, so they don't need to unwarp
+  * Make track signals derive from block derives, so they don't need to unwarp
     so much.
     . ResponderSync gets the root performance TrackSignals.  Either it should
       get TrackSignals for each block from the block performance, or always
@@ -185,6 +185,13 @@ UNSORTED
     . Also, I want to avoid collecting for blocks without windows.  If I'm
       going to derive all visible windows then I can just collect TrackSignals
       only for toplevel blocks.
+    * Add trace showing who needs an expensive unwarp.
+    * Only collect track signals for the toplevel block.
+    * ResponderSync derives all visible windows, and merges tsigs from all
+      visible windows.
+      . Actually, it only does that when the window first appears, normally
+        it gets a DeriveComplete and calls Sync.set_track_signals directly.
+
   - Maybe BaseTypes.Warp fields should be RealTime instead of ScoreTime?
 
   - why does data/bloom use so many channels?  E.g., c5 at 8.51s on chan 1
