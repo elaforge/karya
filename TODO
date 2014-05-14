@@ -3,309 +3,18 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
-  * save/wayang/delima-manis: start time -.1s less than previous of 0s
-  * I think overloaded strings means Pretty.record_title is obsolete,
-    Pretty.record works just as well.
-  * ack, delima-manis is broken, presumably by slice refactor
-    It's because slice notes doesn't get the previous pitch control.
-    . Can I use Slice.slice for orphan slicing?  I don't need separate notes,
-      and it seems inefficient to slice them all up when I don't need to.
-    . I think I may still have a problem if there's an event at the beginning,
-      so it still falls on a slice boundary.
-    . But ' is in the previous event hack, why doesn't it apply?  It's for
-      pitch calls, but ' is now a note call.  There's no way to have a note
-      call want previous control values.
-  / Prev pitch with evaluation didn't work for ngoret presumably because of
-    missing TrackTree.track_around for the slice, how come?
-    . It's because it's a note track, not a control track.
-  What would the "correct" solution to the previous event hack be?
-    . Disregarding performance, never slice control tracks, just evaluate the
-      whole thing for each note.  The optimization works because each note
-      usually only needs controls within its range, and occaisionally the
-      previous event.  The problem is that this applies recursively, so
-      a chain of ' calls goes back unil someone doesn't rely on the previous
-      value.
-    . I could use tags.  But I have to parse each call, extract call symbol
-      and val call symbols, look up each one, and look at its tags.  Even
-      after all this, it might not be correct because transforms in track
-      titles might change the bindings.  But it's still better than what
-      I have now, except in complexity.
-    . To close that hole, I'd have to eval transformers in note tracks.  At
-      this point, I should probably put the slice in track evaluation, e.g.
-      slice doesn't actually slice, but puts (start, end) in TrackTree.Track,
-      and the track evaluator slices to those times.
-      * Figure how the 'around' counts are use, and if I need them in
-        TrackEval.slice.
-        . Used for control tracks, extra before and after.
-        . Used by ngoret, to get previous pitch.  This is the hack that was
-          broken by orphan slicing.
-        . So I can get rid of around counts.
-    . A totally different approach would be to disallow prev/next note
-      entirely at the derive level.  You have to do it at postproc.  The
-      advantage here is that prev and next are available with no hackery.
-      I would wind up wanting a way to interleave deriver / Score.Event
-      evaluation, so that a derive call could leave an expression to be
-      evaluated at postproc.  Or something.  I'm not sure how this would work,
-      but it could resolve a lot of problems.
-    Or, I could try to make prev val work across slice boundaries.  I think
-      I tried this before, but don't remember the result.  It seems much
-      simpler than all the call lookup hackery.
-      * add Threaded type
-      . Oops, I already did all these, see NOTE [prev-val] in Args.hs.
-        But it seems like I could still do the "store prev val" thing if I
-        stored the whole event's worth of values.  Then the next event can
-        find the sample before its own start time.
-      * Threaded is getting cleared out somewhere.
-      * Make each track derive get the prev val at the beginning, and store
-        the prev val at the end.
-      * Remove (Int, Int) around and prev val hacks.
-      * Make sure tests still pass!
-      * Extend prev val to work for Score.Event.
-
-  - Overlap detection in Derive.Slice I think is still messed up, or at the
-    least it's more complicated than it should be.
-  * EvalTrack.derive_track doesn't need to take events, since it already takes
-    the track in TrackInfo.
-  * Derive.Deriver.Monad.d_merge shouldn't catch exceptions as a side-effect
-    . Normal: derive data/bloom - time: 4.73 - events: 2671 (564.30 / sec)
-
-  Simplify orphan extraction by making empty note tracks evaluate their children
-    . This way I don't need to strip empty note tracks but keep their titles.
-      I originally came across this problem because I wasn't collecting
-      TrackDynamics correctly, due to their tracks being stripped:
-        Additional problem: empty *scale track is omitted from track dynamics.
-        It's because slice strips empty tracks, which is in turn because their
-        presence would stop further derivation (really?).  I need the titles
-        to establish env.  Can I solve the "stop further derivation" problem
-        by making an empty track derive its children?
-    . As a side benefit, this makes the evaluation order consistent, i.e.
-      previously it was 'mconcat (deriver : orphans)'.
-    * Fix tests
-      broken: 25 19
-      . The problem is that it only slices to the first track underneath, but
-        if that track has partial cover, then no further slicing is done.
-      - So I think I do need to slice recursively.  It's tricky because
-        branches duplicate, but everything in a branch is merged.  Can I
-        reuse code from slice_notes?  I think it does this too?
-      - After that I can avoid further orphan slicing by skipping it
-        if the track already has sliced = True.
-      - Before doing that, go see what's up with
-        NoteTransformer_test.test_tuplet_multiple_tracks
-      - And NoteTransformer_test.test_arpeggio
-        Because orphans splits it up, when it shouldn't.  I don't want to
-        split a track with multiple children unless the children have
-        *different* slice points.  How did the old one not have this
-        problem?
-
-      . Or maybe I could get rid of orphans entirely, and make the note track
-        look for orphans, and eval as if they had an 'ap' above them.  Then
-        I wouldn't need to slice at all, just collect uncovered child events.
-      . If event track has subs, then act as if the blank spaces have an 'ap'
-        call on them: first check if there are any note events below, then
-        call slice_notes on the empty range.  slice_notes should take care of
-        all the nasty duplication, find children recursively, etc.
-      Implement Derive.Call.derive_note_track
-        * I need derive_sub_notes and merging logs collect etc. is a pain,
-          so promote derive_event to monadic.
-        * Need to pass derive_tracks in, or somehow resolve the circularity.
-        . Bloom has notes allocated to different channels, and some strange
-          pitch bends, e.g. at 143.76s.  Why is allocation different?
-        . viola-sonata has new pitch bend 1.0 at 48.88s
-        . Why do tests not catch this?
-        . viola-sonata at 48.71s has 3d, 3a:
-          [ Event (50.35s, .19s) ""
-              { instrument = >vsl/viola
-              , pitch = < 50.35s:50nn,3d(*twelve), 50.53s:57nn,3a(*twelve) >
-              , pitches = {}
-              , controls =
-                  { %_dynamic-function: <0s:.69>
-                  , %dyn: < 50.35s:.69, 50.53s:.752 >
-                  , %sus-abs: <0s:.02>
-                  }
-
-          [ Event (50.35s, .19s) ""
-              { instrument = >vsl/viola
-              , pitch = <50.35s:50nn,3d(*twelve)>
-              , pitches = {}
-              , controls =
-                  { %_dynamic-function: <0s:.69>
-                  , %dyn: <50.35s:.69>
-                  , %sus-abs: <0s:.02>
-                  }
-          without empty track: 1-2, 2-3
-          with: 1-3, 2-5
-          Derive.info_event_end, presumably empty track causes a wider slice.
-        * So the new code has extra pitch and control samples.  Make a test
-          for that.
-        * Slice tests for tevents_range etc.
-        * bloom is missing pedal up at 129.36s chan:8 ControlChange 64 0
-          I'm guessing it's due to the control being cut off due to
-          tevents_end being too short.
-          . slice_notes trims to the note boundaries, which snips off any
-            controls that happen afterwards.  I need to ensure tevents_end
-            remains at the next start or end of block.  I can extend note
-            slicing to the next start, is this really correct?
-          . Also not right because its not the note dur, so stretch is wrong.
-            So I want tevents_end to be different from the slice's returned
-            duration.
-        * Also has: loop1 150.34s: chan:1 NoteOn g2 0
-        - Factor out duplicated bits with 'derive_track'.
-          And get rid of non-monadic versions.
-        - Ensure that multiple sub note tracks cause the parent to slice at
-          different points, not the union of all of them.
-
-    * Slice.checked_slice_notes can return Either instead of Deriver
-    / note track optimization: if events empty, then just evaluate subs
-      without slicing.
-      . Can't do it, I still need to record empty tracks in collect.  No
-        significant performance win anyway.
-    * Remove Slice.strip_empty_tracks from Slice.checked_slice_note.
-    / Remove Slice.slice exclusive arg
-    * Revisit stricter overlap tests in Slice_test.test_overlaps
-  * data/bloom @b14 @b14.t19 has:
-    fltk/EventTrack.cc:102 sample time decreased: 0.650101 <= 129.455
-    . 129.45s:.101 , .65s:.298
-    . But first find out why unwarp is scrambling the signal.
-      warp reaches 142.336 at 17.88, so 142.55 maps to 124.55
-  * Make track signals derive from block derives, so they don't need to unwarp
-    so much.
-    . ResponderSync gets the root performance TrackSignals.  Either it should
-      get TrackSignals for each block from the block performance, or always
-      use the root but non-root derives never bother with TrackSignals.
-    . If I always use root, I never get signals if there is no root.
-      That seems a bit weird, but in practice it's hard to have no root.
-      But the signals would reflect root-level transforms, which I might
-      actually want.
-    . If I don't use root, then I have to derive all visible views.  Also,
-      derive has to know it's on the toplevel block and only collect
-      TrackSignals when it is.
-    . But if I always go from the root, then I'm almost certainly going to
-      need to unwarp, because that's where the tempo is.  If I go from each
-      block then I likely don't need to.
-    . Also, I want to avoid collecting for blocks without windows.  If I'm
-      going to derive all visible windows then I can just collect TrackSignals
-      only for toplevel blocks.
-    * Add trace showing who needs an expensive unwarp.
-    * Only collect track signals for the toplevel block.
-    * ResponderSync derives all visible windows, and merges tsigs from all
-      visible windows.
-      . Actually, it only does that when the window first appears, normally
-        it gets a DeriveComplete and calls Sync.set_track_signals directly.
-
-  * Maybe BaseTypes.Warp fields should be RealTime instead of ScoreTime?
   - why does data/bloom use so many channels?  E.g., c5 at 8.51s on chan 1
     . I could emit logs giving output msgs along with reason for allocation.
-  Simplify TrackDynamic collection.
-    . Midi thru is off by an octave because it's going through the kantilan
-      block, so it has %t-diatonic=5, while inst=>p from the pemade block.
-      This is because controls are merged, which means if it's not set in A
-      but set in B, then B will merge in even though the environ is from A.
-      I can simplify this by not trying to merge controls, and simply using
-      the pre-invert ones.
-      . Theoretically complete control signals are available as Signal.Display
-        in ScoreTime, but that forces rederive for all tracks, not just ones
-        with render on and visible.  Dynamic collection should be cheap or
-        free, since it's frequently not used.
-      . Or I could explicitly do a derive just to collect the control tracks
-        but rely on laziness for it to not happen unless I need it.
-    . For each note track, if it doesn't have subs, record as-is.  If it does,
-      then record as-is (to get unsliced controls), and then record from the
-      first inverted instance of the note track, stripping out the controls.
-      Except for the inverted note track, only record each (BlockId, TrackId)
-      the first time.
-    * So I wind up with a map for uninverted, and a map for inverted.  At the
-      end, I union them, preferring inverted, and when both exist, take the
-      controls from uninverted.
-    * Complete Derive.Call.record_track_dynamic
-  * MidiThru can reset %dyn to 1.
-  * Clean up 'tevents_range', 'tevents_end', 'tevents_shifted'.
-    . `fst . Derive.info_track_range` is used by `Args.range_on_track`, it
-      adds it to the event to get TrackTime, which is used by Cache to compare
-      against damage ranges, specifically to compare against control damage.
-    . However, Derive.Call generates a Stack.Region, which should also be in
-      TrackTime, by adding to TrackTree.tevents_shifted.
-    / document well that tevents_range is *not* the beginning of the slice,
-      but absolute TrackTime, and may be totally different from the event
-      starts, due to shifting.
-    . I need to get 'Slice.ins_range' in absolute TrackTime because it's used
-      for Stack.Region.  No it's not, that uses tevents_shifted.  Ok, but it
-      is used by Cache.
-    By field:
-      . track_shifted
-        . Used for Region in Call
-        . Slice.find_overlapping to get event bounds back to TrackTime
-      . track_range
-        . Cache, via Args.range_on_track - uses only fst
-        . Args.is_title_call, hack via range == track range
-          In turn used by is-ly calls to tell if it should derive subtracks
-        . Sub.invert_call takes fst track_range for the track_start,
-          to set the Slice.ins_range = (track_start, next_start), which in
-          turn sets the generated track_range.
-        . Derive.Control uses (snd track_range) as block_dur for the Tempo
-          functions that use it to stretch the block to 1.
-        . Derive.Control uses track_range for with_control_damage
-          -> Cache.get_control_damage
-      . track_end
-        Call.derive_note_track uses it for the end of the track.
-    users:
-      . Region needs event position in TrackTime: track_shifted
-      . Slice.find_overlapping for the same reason: track_shifted
-      . Cache needs the same: track_shifted
-      . Sub.invert_call seems sketchy because start is TrackTime but end is
-        ScoreTime?  In any case, it just sets track range, so I think it can go
-        away.
-      . Derive.Control block_dur, this is the track end, used by unsliced
-        tracks.  I think track_end can replace it.
-      . Derive.Control get_control_damage should be track_shifted like the rest
-
-      . So I think I need track_shifted, and track_end.  track_end is ScoreTime,
-        but can be TrackTime with track_shifted.
-    . So I need the absolute track range and relative end, and a way to get
-      a ScoreTime to TrackTime.
-  * move cmods out of Derive.Call.Control
-
-  * Rename Events.first to Events.head
-  * get rid of TrackTree.EventsTree, rename EventsNode to EventsTree
-    The type aliases are too convenient, but I renamed TrackEvents.
   - make Score.unwarp_pos extend the signal in the same way that 'warp_pos'
     does so I can make id_warp_signal into mempty
-  / I now have a zero-dur block call, proving I will use those.  So I don't
-    think I can overload cmd-z any more.  But wait, it sets it to zero, which
-    is correct, yes?
   delima manis:
-    * adding a tempo track causes the negative start notes to wind up at 0
-      It works because id warp signal plus shift/stretch extends before 0,
-      so as soon as you're not the id warp you don't get that.  I don't
-      think I should have Score.warp_pos extend backwards implicitly, because
-      I don't know what the slope should be.  So instead I think I need a
-      hack to make tempo tracks start at -1 instead of 0, duplicating the
-      first sample.
-    * for alternate versions, I could do them inline with a note transformer
-      that derives one of multiple sub-tracks
     - end is buggy, what's going on?
       It's due to the wrong octave, i3 is not in range.  But why does it
       result in funny sounds instead of an out of range error and a normal i4?
-    * Also midi thru is off by an octave, presumably confused by pemade
-      / kantilan.
-      . 3i plays as 4i, thru is one octave to high in the child block
-      . The environ has >p-umbang, maybe because of control vs. environ
-        Collect merge hack.
-      * Make a test that demonstrates control/environ inconsistency.
-        * Is it even necessary?  Why does it all work?
-          Because it only applies to note tracks!  So I should only have to
-          strip note tracks?  But I still want the transform titles.
-          Or just have note tracks derive their subs if they're empty.
-        * Can I get rid of the empty tracks from 'Slice.extract_orphans'?
-
     - Do different things in polos and sangsih:
       'when (is-polos) |' and 'when (is-sangsih) |'
       I'd want a boolean type, or should I embed it in Int?
     . Note which is either damp or absent: 'dmp'
-    * An ornament which is either ngoret or straight.  I think I could do that
-      with '2 = "(' (alt .1 999)).  I'd want weighted alt though.
-    * Weighted 'alt': 'alt-w 1 x 3 y', so I'd need (weight, val) pairs.
-      To express it directly I think I'd need a way to group args:
-        Sig.many (Sig.group ((,) <$> required "weight" <*> required "val"))
     - Gradually come in, could do omit with a signal that increases.
 
   + Write a fancy tile like ViewConfig.horizontal_tile but guesses if you mean
@@ -319,14 +28,6 @@ UNSORTED
     could also do absolute.  E.g. numbers multiply.  But then I can have
     'm+' or 'm-' which is current dyn plus or minus some amount, and
     mf, f, ff, which are absolute values.
-  * Or dyn ranges from -1 to 1, where 0 is the current dyn and 1 scales to
-    1.  This is just another signal combiner.
-  * add support for negative numbers to control normalized val input
-  * But 'abs' needs to know the combiner in scope.  Maybe Derive.Control could
-    put it there.
-  * Absolute dyn values: 'f' emits whatever value is needed to get to the
-    desired value.  In fact I could have abs which does this, and then do
-    '*f = "(abs .75)'
   - Ngoret seemingly can't work with negative durations, because it wants to
     make notes overlap, and I can't express that.
     . One way is to extend negative durations to allow overlaps.  It seems
@@ -351,7 +52,6 @@ UNSORTED
               |++  |...
   - in rehearsal/telek, one ugal sometimes gets stuck on +mute, why doesn't
     a new play send the keyswitch?
-  * In save/rehearsal/telek, all edits are laggy.
   - Implement 'sequence'.  It sequences its notes, paying attention only to
     their order, not time and duration.  The tricky part is getting the tempo
     right so playback looks right, and controls line up right.
@@ -385,13 +85,6 @@ UNSORTED
   - Play position doesn't work right for 'loop' and 'tile' calls, it only
     understands the first loop, and doesn't know that 'tile' cuts off the
     beginning.
-  * use tr^ and tr_ starting high and low, instead of tr1 and tr2, starting
-    unison and neighbor?  Or just rename the calls and assume the neighbor is
-    always higher.
-    . For kam it makes sense because I want to write the basic pitch as the
-      unison and ornament as neighbor.
-    * also support end_dir arg, and adjust arg
-    * Gamakam should re-use Trill functions
   india
     - nkam doesn't seem to interact correctly with 'h'
     - semi-tone dip.  This is like 1 cycle kam.
@@ -662,6 +355,8 @@ local: plugins:
     map.
 
 cleanup:
+  - Overlap detection in Derive.Slice I think is still messed up, or at the
+    least it's more complicated than it should be.
   - Maybe I should use Score.PControl instead of Score.Control for pitch
     control names.  Or PitchControl and think of better names for the existing
     PitchControl and ValControl.
@@ -847,7 +542,6 @@ fltk:
   + can I get fltk to omit the jellybean buttons on the window?
     . Yes, but requires hacking fltk.
     . Completely disables resizing.  Apparently this is hardcoded.
-  * some way to scroll that's not the scroll wheel
   - I could set certain Symbols to stretch to the length of their event, this
     would yield a nicer looking score.  But it would mess up the bounds
     detection.
@@ -1124,16 +818,7 @@ Derive:
           edit.  But it would be a kind of "deep integration", where
           I duplicate the entire structure, from score on down.  Score
           integration could theoretically do that.
-        * Add instrument alias, I think I need that at least.
       trompong / reyong:
-        * Emit damped notes by applying "", not by copying existing notes.
-          This way I get the proper controls, and don't have to use
-          Score.place.
-        * trompong ngoret, actually I can use rambat tick
-          But damping on reyong is different. Ideally I could use the tick
-          and just apply the reyong damping postproc, but what about the
-          damped-tag?  I can just ignore it.  Or have a flag to turn it off,
-          if I really don't like it.
         - split to ngembat, e.g.  λ 人 hmm, is there a reverse lambda?  Can
           I draw symbols reversed? 入 兩
         - various numpuk
@@ -1208,9 +893,6 @@ pitch: scales: scale:
           is already absolute.
 
     - letter and jianpu but with implicit accidentals based on the key
-  * It's a bit unpleasant how I have TwelveUtils for accidental and key using
-    scales, then Scale.Util for simple scales, and then Just is its own thing.
-    Can I unify things into one framework?
   intonation: think about how to do e.g. meantone melody, with just harmony
     . Do a postproc to analyze simultaneous notes.  If I use an attr to
       tag the melody, I can tune everyone else to it.  But how do I retune
