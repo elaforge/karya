@@ -139,8 +139,7 @@ caching_deriver typ range call = do
         -- event will continue to produce its old value.
         (result, collect) <- with_empty_collect
             (typ == Block && inflict_control_damage) deriver
-        Derive.modify $ \st ->
-            st { Derive.state_collect = collect <> Derive.state_collect st }
+        Internal.merge_collect collect
         return (result, collect)
 
 -- | Both track warps and local deps are used as dynamic return values (aka
