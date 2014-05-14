@@ -6,7 +6,6 @@ module Perform.Signal_test where
 import qualified Util.Seq as Seq
 import Util.Test
 import qualified Derive.Score as Score
-import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
 
 
@@ -143,8 +142,7 @@ test_unwarp = do
 
 test_unwarp_fused = do
     let f (Score.Warp sig shift stretch) = Signal.unsignal
-            . Signal.unwarp_fused sig (RealTime.score shift)
-                (RealTime.score stretch)
+            . Signal.unwarp_fused sig shift stretch
             . Signal.signal
         trip p warp = f warp [(Score.warp_pos p warp, 0)]
     let warp = Score.Warp (Signal.signal [(0, 0), (2, 4)]) 2 1

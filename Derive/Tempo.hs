@@ -76,7 +76,7 @@ tempo_to_warp sig
     -- Optimize for a constant (or missing) tempo.
     | Just y <- Signal.constant_val sig =
         Score.Warp Score.id_warp_signal 0 $
-            Signal.y_to_score (1 / max min_tempo y)
+            RealTime.seconds (1 / max min_tempo y)
     | otherwise = Score.Warp warp_sig 0 1
     where
     warp_sig = Signal.integrate Signal.tempo_srate $ Signal.map_y (1/) $

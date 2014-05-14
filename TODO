@@ -192,7 +192,7 @@ UNSORTED
       . Actually, it only does that when the window first appears, normally
         it gets a DeriveComplete and calls Sync.set_track_signals directly.
 
-  - Maybe BaseTypes.Warp fields should be RealTime instead of ScoreTime?
+  * Maybe BaseTypes.Warp fields should be RealTime instead of ScoreTime?
 
   - why does data/bloom use so many channels?  E.g., c5 at 8.51s on chan 1
     . I could emit logs giving output msgs along with reason for allocation.

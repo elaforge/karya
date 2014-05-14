@@ -19,7 +19,6 @@ import qualified Data.Text as Text
 
 import Util.Control
 import qualified Util.Pretty as Pretty
-import qualified Ui.ScoreTime as ScoreTime
 import qualified Derive.BaseTypes as BaseTypes
 import Derive.BaseTypes
        (Instrument(..), Control, PControl(..), Warp(..), Type(..), Typed(..),
@@ -268,9 +267,7 @@ warp_pos :: ScoreTime -> Warp -> RealTime
 warp_pos pos (Warp sig shift stretch)
     | sig == id_warp_signal = pos1
     | otherwise = Signal.y_to_real $ Signal.at_linear_extend pos1 sig
-    where pos1 = to_real pos * to_real stretch + to_real shift
-    -- RealTime may be higher precision than ScoreTime, so convert early.
-    -- It isn't now, but it was once.
+    where pos1 = to_real pos * stretch + shift
 
 -- | Unlike 'warp_pos', 'unwarp_pos' can fail.  This asymmetry is because
 -- warp_pos will project a signal on forever, but 'Signal.inverse_at' won't.
@@ -278,7 +275,7 @@ unwarp_pos :: RealTime -> Warp -> Maybe ScoreTime
 unwarp_pos pos (Warp sig shift stretch) =
     case Signal.inverse_at (Signal.x_to_y pos) sig of
         Nothing -> Nothing
-        Just p -> Just $ to_score $ (p - to_real shift) / to_real stretch
+        Just p -> Just $ to_score $ (p - shift) / stretch
 
 -- | Compose two warps.  Warps with id signals are optimized.
 -- This is standard right to left composition
@@ -307,19 +304,9 @@ compose_warps
 warp_to_signal :: Warp -> Signal.Warp
 warp_to_signal (Warp sig shift stretch)
     | stretch == 1 && shift == 0 = sig
-    | stretch == 1 = Signal.map_x (subtract (to_real shift)) sig
-    | otherwise = Signal.map_x
-        ((`RealTime.div` factor) . subtract (to_real shift)) sig
-    where factor = ScoreTime.to_double stretch
-
--- ** warp util
-
--- | Modify a warp to shift and stretch it.  The argument order is tricky:
--- the composed warp goes *before* the modified warp, but in haskell tradition,
--- the modified argument is last.
-place_warp :: ScoreTime -> ScoreTime -> Warp -> Warp
-place_warp shift stretch warp = compose_warps warp
-    (id_warp { warp_stretch = stretch, warp_shift = shift })
+    | stretch == 1 = Signal.map_x (subtract shift) sig
+    | otherwise = Signal.map_x ((`RealTime.div` factor) . subtract shift) sig
+    where factor = RealTime.to_seconds stretch
 
 -- * instrument
 

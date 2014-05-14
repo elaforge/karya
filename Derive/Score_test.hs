@@ -57,8 +57,8 @@ test_warp_pos = do
 
         repl = replicate 4
         combinations p =
-            [ f p (id_warp 0), f 0 (id_warp p)
-            , f p (warp 0), f 0 (warp p)
+            [ f p (id_warp 0), f 0 (id_warp (RealTime.score p))
+            , f p (warp 0), f 0 (warp (RealTime.score p))
             ]
 
     -- Score.id_warp_signal should be the same as any other linear signal.

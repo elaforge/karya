@@ -90,8 +90,8 @@ newtype PControl = PControl (Maybe Control)
 -- signal is \"f\": f(t*stretch + shift).
 data Warp = Warp {
     warp_signal :: !Signal.Warp
-    , warp_shift :: !ScoreTime
-    , warp_stretch :: !ScoreTime
+    , warp_shift :: !RealTime
+    , warp_stretch :: !RealTime
     } deriving (Eq, Show)
 
 instance Pretty.Pretty Warp where

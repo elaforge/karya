@@ -26,6 +26,7 @@ import qualified Derive.Stack as Stack
 import qualified Derive.TrackLang as TrackLang
 import qualified Derive.TrackWarp as TrackWarp
 
+import qualified Perform.RealTime as RealTime
 import Types
 
 
@@ -274,16 +275,19 @@ with_warp f = local $ \st -> st { state_warp = f (state_warp st) }
 -- ** warp
 
 at :: ScoreTime -> Deriver a -> Deriver a
-at shift = warp (Score.id_warp { Score.warp_shift = shift })
+at shift = warp (Score.id_warp { Score.warp_shift = RealTime.score shift })
 
 stretch :: ScoreTime -> Deriver a -> Deriver a
-stretch factor = warp (Score.id_warp { Score.warp_stretch = factor })
+stretch factor =
+    warp $ Score.id_warp { Score.warp_stretch = RealTime.score factor }
 
 -- | 'at' and 'stretch' in one.  It's a little faster than using them
 -- separately.
 place :: ScoreTime -> ScoreTime -> Deriver a -> Deriver a
-place shift stretch = warp
-    (Score.id_warp { Score.warp_stretch = stretch, Score.warp_shift = shift })
+place shift stretch = warp $ Score.id_warp
+    { Score.warp_stretch = RealTime.score stretch
+    , Score.warp_shift = RealTime.score shift
+    }
 
 -- | Low level warp function.
 --

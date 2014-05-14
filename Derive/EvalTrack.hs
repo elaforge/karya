@@ -280,17 +280,17 @@ defragment_track_signals warp collect
 unwarp :: Score.Warp -> Signal.Control -> Track.TrackSignal
 unwarp warp control = case is_linear_warp warp of
     Just (shift, stretch) ->
-        Track.TrackSignal (Signal.coerce control) shift stretch
+        Track.TrackSignal (Signal.coerce control) (RealTime.to_score shift)
+            (RealTime.to_score stretch)
     Nothing -> Track.TrackSignal unwarped 0 1
         where
         Score.Warp warp_sig shift stretch = warp
-        unwarped = Signal.unwarp_fused warp_sig (RealTime.score shift)
-            (RealTime.score stretch) control
+        unwarped = Signal.unwarp_fused warp_sig shift stretch control
 
 -- | Return (shift, stretch) if the tempo is linear.  This relies on an
 -- optimization in 'Derive.d_tempo' to notice when the tempo is constant and
 -- give it 'Score.id_warp_signal'.
-is_linear_warp :: Score.Warp -> Maybe (ScoreTime, ScoreTime)
+is_linear_warp :: Score.Warp -> Maybe (RealTime, RealTime)
 is_linear_warp warp
     | Score.warp_signal warp == Score.id_warp_signal =
         Just (Score.warp_shift warp, Score.warp_stretch warp)
