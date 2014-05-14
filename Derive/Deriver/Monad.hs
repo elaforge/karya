@@ -1450,33 +1450,13 @@ instance Pretty.Pretty ScaleError where
 d_merge :: [NoteDeriver] -> NoteDeriver
 d_merge [] = mempty
 d_merge [d] = d
--- TODO this catches exceptions, that shouldn't happen just because of (<>)!
 d_merge derivers = do
-    state <- get
-    -- Clear collect so they can be merged back without worrying about dups.
-    let cleared = state { state_collect = mempty }
-    let (streams, collects) = unzip (map (run_sub cleared) derivers)
-    modify $ \st -> st
-        { state_collect = Monoid.mconcat (state_collect state : collects) }
-    return (Seq.merge_lists levent_key streams)
-
--- d_merge derivers = do
---     streams <- sequence derivers
---     return $ Seq.merge_lists levent_key streams
-
--- -- | Like 'd_merge', but the derivers are assumed to return events that are
--- -- non-decreasing in time, so the merge can be more efficient.  It also assumes
--- -- each deriver is small, so it threads collect instead of making them
--- -- independent.
--- d_merge_asc :: [NoteDeriver] -> NoteDeriver
--- d_merge_asc = fmap merge_asc_events . sequence
-
-type PureResult d = (LEvent.LEvents d, Collect)
-
--- | Run the given deriver and return the relevant data.
-run_sub :: State -> LogsDeriver derived -> PureResult derived
-run_sub state deriver = (merge_logs result logs, state_collect state2)
-    where (result, state2, logs) = DeriveM.run state deriver
+    -- Previously, each deriver was run independently, and their Collects
+    -- merged.  The theory was to allow their derivation to be interleaved
+    -- on demand as the events themselves are interleaved.  However, profiling
+    -- doesn't show a significant difference, and this way is simpler.
+    streams <- sequence derivers
+    return $ Seq.merge_lists levent_key streams
 
 merge_logs :: Either Error (LEvent.LEvents d) -> [Log.Msg]
     -> LEvent.LEvents d

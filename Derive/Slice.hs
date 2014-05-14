@@ -144,7 +144,6 @@ extract_note_events exclude_start start end events =
 extract_control_events :: ScoreTime -> ScoreTime
     -> Events.Events -> ([Event.Event], Events.Events, [Event.Event])
     -- ^ (descending_pre, within, ascending_post)
--- extract_control_events start end events = Debug.trace_retp "extract" (start, end, events) (pre, Events.from_list within, post2)
 extract_control_events start end events = (pre, Events.from_list within, post2)
     where
     (pre, post1) = case Events.split start events of

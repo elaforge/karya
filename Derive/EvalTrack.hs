@@ -256,7 +256,13 @@ derive_orphans derive_tracks prev end subs
 -- a child note track will only ever be evaluated sliced), and the rest from
 -- the first inverted version.
 record_track_dynamic :: TrackTree.Track -> Derive.State -> Derive.State
-record_track_dynamic track state = state { Derive.state_collect = collect }
+record_track_dynamic track state =
+    -- TODO I feel like I should merge this with the existing collect, but
+    -- profiling shows that it kills performance.  Perhaps I wind up
+    -- duplicating the collect and doing a bunch of extra merging every
+    -- (inverted) event.  I'm not sure at the moment, but it should be safe to
+    -- start with an empty collect anyway.
+    state { Derive.state_collect = collect }
     where
     collect = case Internal.record_track_dynamic (Derive.state_dynamic state) of
         Nothing -> mempty

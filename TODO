@@ -18,7 +18,6 @@ UNSORTED
   / Prev pitch with evaluation didn't work for ngoret presumably because of
     missing TrackTree.track_around for the slice, how come?
     . It's because it's a note track, not a control track.
-
   What would the "correct" solution to the previous event hack be?
     . Disregarding performance, never slice control tracks, just evaluate the
       whole thing for each note.  The optimization works because each note
@@ -67,7 +66,8 @@ UNSORTED
     least it's more complicated than it should be.
   * EvalTrack.derive_track doesn't need to take events, since it already takes
     the track in TrackInfo.
-  - Derive.Deriver.Monad.d_merge shouldn't catch exceptions as a side-effect
+  * Derive.Deriver.Monad.d_merge shouldn't catch exceptions as a side-effect
+    . Normal: derive data/bloom - time: 4.73 - events: 2671 (564.30 / sec)
 
   Simplify orphan extraction by making empty note tracks evaluate their children
     . This way I don't need to strip empty note tracks but keep their titles.
@@ -193,7 +193,6 @@ UNSORTED
         it gets a DeriveComplete and calls Sync.set_track_signals directly.
 
   * Maybe BaseTypes.Warp fields should be RealTime instead of ScoreTime?
-
   - why does data/bloom use so many channels?  E.g., c5 at 8.51s on chan 1
     . I could emit logs giving output msgs along with reason for allocation.
   Simplify TrackDynamic collection.
@@ -286,7 +285,7 @@ UNSORTED
     - end is buggy, what's going on?
       It's due to the wrong octave, i3 is not in range.  But why does it
       result in funny sounds instead of an out of range error and a normal i4?
-    - Also midi thru is off by an octave, presumably confused by pemade
+    * Also midi thru is off by an octave, presumably confused by pemade
       / kantilan.
       . 3i plays as 4i, thru is one octave to high in the child block
       . The environ has >p-umbang, maybe because of control vs. environ

@@ -89,7 +89,7 @@ test_8va = do
 test_xstaff = do
     let run = LilypondTest.derive_measures ["change"]
     equal (run $ UiTest.note_track [(0, 1, "xstaff bad | -- 4a")])
-        (Right "a'4 r4 r2", ["Error: expected 'up' or 'down', got bad"])
+        (Right "", ["Error: expected 'up' or 'down', got bad"])
     equal (run $ UiTest.note_track [(0, 1, "xstaff up | -- 4a")])
         (Right "\\change Staff = \"up\" a'4 r4 r2", [])
     equal (run $ (">", [(1, 0, "xstaff up")]) : UiTest.regular_notes 2)

@@ -271,13 +271,13 @@ test_track_dynamic = do
 test_track_dynamic_consistent = do
     -- Ensure that all parts of the Dynamic come from the same derivation of
     -- the track.
-    let run e = lookup (UiTest.bid "sub", 1) $
-            e_track_dynamic e $ DeriveTest.derive_blocks
+    let run extract = lookup (UiTest.bid "sub", 1) $
+            e_track_dynamic extract $ DeriveTest.derive_blocks
             [ ("top",
                 [ ("> | env = a", [(0, 1, "sub")])
                 , ("> | env = b | %c = 1", [(0, 1, "sub")])
                 ])
-            , ("sub", [(">", [(0, 1, "")])])
+            , ("sub=ruler", [(">", [(0, 1, "")])])
             ]
         e_env = env_lookup "env" . Derive.state_environ
         e_control = fmap (Signal.unsignal . Score.typed_val) . Map.lookup "c"
