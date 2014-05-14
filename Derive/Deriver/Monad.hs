@@ -159,6 +159,7 @@ import qualified Derive.TrackWarp as TrackWarp
 
 import qualified Perform.Lilypond.Types as Lilypond.Types
 import qualified Perform.Pitch as Pitch
+import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
 
 import Types
@@ -1457,10 +1458,11 @@ d_merge derivers = do
     let (streams, collects) = unzip (map (run_sub cleared) derivers)
     modify $ \st -> st
         { state_collect = Monoid.mconcat (state_collect state : collects) }
-    return (Seq.merge_lists event_start streams)
+    return (Seq.merge_lists levent_key streams)
+
 -- d_merge derivers = do
 --     streams <- sequence derivers
---     return $ Seq.merge_lists event_start streams
+--     return $ Seq.merge_lists levent_key streams
 
 -- -- | Like 'd_merge', but the derivers are assumed to return events that are
 -- -- non-decreasing in time, so the merge can be more efficient.  It also assumes
@@ -1487,19 +1489,21 @@ error_to_warn (Error srcpos stack val) = Log.msg_srcpos srcpos Log.Warn
     (Just (Stack.to_strings stack)) ("Error: " <> prettyt val)
 
 merge_events :: Events -> Events -> Events
-merge_events = Seq.merge_on event_start
+merge_events = Seq.merge_on levent_key
 
 -- | Merge sorted lists of events.  If the lists themselves are also sorted,
 -- I can produce output without scanning the entire input list, so this should
 -- be more efficient for a large input list than 'merge_events'.
 merge_asc_events :: [Events] -> Events
-merge_asc_events = Seq.merge_asc_lists event_start
+merge_asc_events = Seq.merge_asc_lists levent_key
 
 -- | This will make logs always merge ahead of score events, but that should
 -- be ok.
-event_start :: LEvent.LEvent Score.Event -> RealTime
-event_start (LEvent.Log _) = 0
-event_start (LEvent.Event event) = Score.event_start event
+levent_key :: LEvent.LEvent Score.Event -> RealTime
+    -- Yeah it's a hack and I could use a pair, but RealTime should never go
+    -- far negative.
+levent_key (LEvent.Log _) = -RealTime.large
+levent_key (LEvent.Event event) = Score.event_start event
 
 {- NOTE [control-modification]
     . Control tracks return a single control, and how that merges into the
