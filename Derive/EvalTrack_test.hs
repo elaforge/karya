@@ -286,6 +286,25 @@ test_track_dynamic_consistent = do
     equal (run e_env) (Just "a")
     equal (run e_control) (Just Nothing)
 
+test_prev_val = do
+    -- Test the prev_val and saved_val stuff in 'EvalTrack.derive_track'.
+    let run = DeriveTest.extract Score.initial_dynamic
+            . DeriveTest.derive_tracks ""
+    -- 0        1       2       3       4       5
+    -- ""       ""      ""      ""
+    -- .5       i> 0                            1
+    equal (run
+            [ (">", [(0, 1, ""), (1, 1, ""), (2, 1, ""), (3, 1, "")])
+            , ("dyn", [(0, 0, ".5"), (1, 0, "i> 0"), (5, 0, "1")])
+            ])
+        ([0.5, 0.5, 0.375, 0.25], [])
+
+    equal (run
+            [ (">", [(0, 1, ""), (1, 1, ""), (2, 1, ""), (3, 1, "")])
+            , ("dyn", [(0, 0, "0"), (4, 0, "i 1")])
+            ])
+        ([0, 0.25, 0.5, 0.75], [])
+
 env_lookup :: TrackLang.ValName -> TrackLang.Environ -> String
 env_lookup key = pretty . TrackLang.lookup_val key
 

@@ -86,6 +86,10 @@ UNSORTED
     understands the first loop, and doesn't know that 'tile' cuts off the
     beginning.
   india
+    - higher level ornaments that change based on how much time they have,
+      also depend on the previous pitch.
+    - A "default" ornament that applies whatever is appropriate for the raga
+      and swaram.
     - nkam doesn't seem to interact correctly with 'h'
     - semi-tone dip.  This is like 1 cycle kam.
     - It would be possible to implement a general purpose initial-hold
@@ -423,16 +427,20 @@ performance:
   . Signal.sig_op has 4.8% alloc, from Control.cotrol_call ->
     Derive.with_relative_control -> Perform.sig_multiply
     . So default multiplication for dyn is expensive.
-  - Track dynamic also does a lot of collecting and merging signal
+  * Track dynamic also does a lot of collecting and merging signal
     fragments.  Make sure that only happens when needed, and if needed, is
     done efficiently.
-  - The Control.put_signal_fragment work is done on a second call to
+  / The Control.put_signal_fragment work is done on a second call to
     a track, even though the output is never used.  Can I fix that?
     . I would need to notice in the collect that there's already an entry in
       Derive.collect_track_signals.  But for that I can't pass an empty
       collect.  I still think it belongs in collect though, because it's
       not an actual data dependency, it just makes it more efficient if it
       is.
+    . This is possible now that I thread Collect... well, except it's not
+      because Cache clears it.  But in any case, I don't think I can get
+      a second call to a track if I am only collecting signals for the
+      toplevel block.
   scrolling through giant blocks is slow
     - drawing is stil slow, I'll have to look at the fltk layer
       It happens when the block is wide.  Use test_block to see if it's just

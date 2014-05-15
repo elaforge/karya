@@ -170,11 +170,11 @@ derive_track derive_empty initial_state tinfo get_last_val =
     track_end $ List.mapAccumL event1 accum_state $ Seq.zipper [] $
         Events.ascending $ TrackTree.track_events track
     where
-    accum_state = (record_track_dynamic track initial_state,
-        lookup_prev_val track initial_state)
+    accum_state = (record_track_dynamic track initial_state, val, val)
+        where val = lookup_prev_val track initial_state
     track = tinfo_track tinfo
-    event1 (prev_state, prev_val) (prev_events, cur_events) =
-        ((state, next_val), levents)
+    event1 (prev_state, prev_val, prev_save_val) (prev_events, cur_events) =
+        ((state, next_val, save_val), levents)
         where
         (levents, state) = maybe ([], prev_state) (run_derive prev_state) $
             case cur_events of
@@ -185,24 +185,19 @@ derive_track derive_empty initial_state tinfo get_last_val =
             event : next_events ->
                 Just $ derive_event tinfo prev_val prev_events event next_events
             [] -> Nothing
-
-        -- I stop propagating the previous value when the event goes past the
-        -- end of the track.  This happens because 'Slice.slice' includes one
-        -- event past the end of the track, since control calls like to emit
-        -- samples before.  But the result is that the event is evaluated
-        -- twice, and I don't want its second evaluation to see its first
-        -- evaluation as the "previous" value.  This does mean that if there
-        -- are >1 events after track_end, the later ones won't get the proper
-        -- prev_val, but I don't think that should happen, and if it does,
-        -- I don't think I care what they emit.
-        save_val = maybe False ((< TrackTree.track_end track) . Event.start)
-            (Seq.head cur_events)
-        next_val :: Maybe d
-        next_val = if save_val
-            then mplus (get_last_val (LEvent.events_of levents)) prev_val
-            else prev_val
-    track_end ((state, val), result) =
-        (result, stash_prev_val track val $ Derive.state_threaded state,
+        save_val = if should_save_val then next_val else prev_save_val
+        next_val = mplus (get_last_val (LEvent.events_of levents)) prev_val
+        -- Only save a prev val if the event won't be derived again, e.g.
+        -- there's a future event <= the start of the next slice.  But this
+        -- only applies to control tracks!
+        --
+        -- Otherwise, an event sees its own output as its previous val.
+        should_save_val = is_note || case cur_events of
+            _ : next : _ -> Event.start next <= TrackTree.track_end track
+            _ -> False
+        is_note = ParseTitle.is_note_track $ TrackTree.track_title track
+    track_end ((state, _, save_val), result) =
+        (result, stash_prev_val track save_val $ Derive.state_threaded state,
             Derive.state_collect state)
 
 lookup_prev_val :: Derive.Taggable a => TrackTree.Track -> Derive.State
