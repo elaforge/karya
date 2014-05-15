@@ -125,22 +125,22 @@ list_misnamed = go <$> list
     len1 _ = Nothing
 
 -- | Blocks that contain the given ruler.
-blocks_of :: (State.M m) => RulerId -> m [BlockId]
+blocks_of :: State.M m => RulerId -> m [BlockId]
 blocks_of = fmap (map fst) . State.blocks_with_ruler_id
 
 -- | Set the rulers on a block to the given RulerId.
-set_ruler_id :: (State.M m) => RulerId -> BlockId -> m ()
+set_ruler_id :: State.M m => RulerId -> BlockId -> m ()
 set_ruler_id ruler_id block_id = do
     old <- State.block_ruler block_id
     State.replace_ruler_id block_id old ruler_id
 
-local_ruler :: (Cmd.M m) => Ruler.Ruler -> m ()
+local_ruler :: Cmd.M m => Ruler.Ruler -> m ()
 local_ruler ruler = do
     block_id <- Cmd.get_focused_block
     RulerUtil.local_block block_id (const ruler)
 
 -- | Replace all occurrences of one RulerId with another.
-replace_ruler_id :: (State.M m) => RulerId -> RulerId -> m ()
+replace_ruler_id :: State.M m => RulerId -> RulerId -> m ()
 replace_ruler_id old new = do
     blocks <- State.blocks_with_ruler_id old
     forM_ (map fst blocks) $ \block_id ->
@@ -148,11 +148,11 @@ replace_ruler_id old new = do
 
 -- * query
 
-get_meter :: (State.M m) => BlockId -> m Meter.Meter
+get_meter :: State.M m => BlockId -> m Meter.Meter
 get_meter block_id =
     Meter.ruler_meter <$> (State.get_ruler =<< State.ruler_of block_id)
 
-get_marks :: (State.M m) => BlockId -> m [Ruler.PosMark]
+get_marks :: State.M m => BlockId -> m [Ruler.PosMark]
 get_marks block_id =
     Ruler.ascending 0 . Ruler.get_marklist Ruler.meter <$>
         (State.get_ruler =<< State.ruler_of block_id)
@@ -160,34 +160,34 @@ get_marks block_id =
 -- * Modify
 
 -- | Double the meter of the current block. You can then trim it down to size.
-double :: (Cmd.M m) => m Modify
+double :: Cmd.M m => m Modify
 double = do
     block_id <- Cmd.get_focused_block
     -- The final 0 duration mark should be replaced by the first mark.
     return (block_id, \meter -> Seq.rdrop 1 meter <> meter)
 
 -- | Clip the meter to end at the selection.
-clip :: (Cmd.M m) => m DeleteModify
+clip :: Cmd.M m => m DeleteModify
 clip = do
     (block_id, _, _, pos) <- Selection.get_insert
     return (block_id, Meter.clip 0 (Meter.time_to_duration pos))
 
 -- | Copy the meter under the selection and append it to the end of the ruler.
-append :: (Cmd.M m) => m Modify
+append :: Cmd.M m => m Modify
 append = do
     (block_id, _, _, start, end) <- Selection.tracks
     return (block_id, \meter ->
         meter <> Meter.clipm (Meter.time_to_duration start)
             (Meter.time_to_duration end) meter)
 
-append_ruler_id :: (Cmd.M m) => RulerId -> m Modify
+append_ruler_id :: Cmd.M m => RulerId -> m Modify
 append_ruler_id ruler_id = do
     block_id <- Cmd.get_focused_block
     other <- Meter.ruler_meter <$> State.get_ruler ruler_id
     return (block_id, (<> other))
 
 -- | Remove the selected range of the ruler and shift the rest up.
-delete :: (Cmd.M m) => m DeleteModify
+delete :: Cmd.M m => m DeleteModify
 delete = do
     (block_id, _, _, start, end) <- Selection.tracks
     return (block_id, Meter.delete
@@ -202,7 +202,7 @@ strip_ranks max_rank = do
 
 -- | Set the ruler to a number of measures of the given meter, where each
 -- measure is the given amount of time.
-measures :: (Cmd.M m) => TrackTime -- ^ duration of one measure
+measures :: Cmd.M m => TrackTime -- ^ duration of one measure
     -> Meter.AbstractMeter -> Int -- ^ measures per section
     -> Int -- ^ sections
     -> m Modify
@@ -212,17 +212,17 @@ measures dur meter measures sections =
 
 -- | Replace the meter on this block, fitted to the end of the last event on
 -- the block.
-fit_to_end :: (Cmd.M m) => [Meter.AbstractMeter] -> BlockId -> m Modify
+fit_to_end :: Cmd.M m => [Meter.AbstractMeter] -> BlockId -> m Modify
 fit_to_end meter block_id = do
     end <- State.block_event_end block_id
     fit_to_pos end meter
 
-fit_to_selection :: (Cmd.M m) => [Meter.AbstractMeter] -> m Modify
+fit_to_selection :: Cmd.M m => [Meter.AbstractMeter] -> m Modify
 fit_to_selection meter = do
     (_, _, _, pos) <- Selection.get_insert
     fit_to_pos pos meter
 
-fit_to_pos :: (Cmd.M m) => ScoreTime -> [Meter.AbstractMeter] -> m Modify
+fit_to_pos :: Cmd.M m => ScoreTime -> [Meter.AbstractMeter] -> m Modify
 fit_to_pos pos meters = do
     when (pos <= 0) $
         Cmd.throw "can't set ruler for block with 0 duration"
@@ -244,7 +244,7 @@ concat block_ids = do
 
 -- * extract
 
-extract :: (Cmd.M m) => m Modify
+extract :: Cmd.M m => m Modify
 extract = do
     (block_id, _, track_id, _) <- Selection.get_insert
     all_meters <- extract_meters block_id track_id
@@ -252,7 +252,7 @@ extract = do
 
 -- | Extract the meter marklists from the sub-blocks called on the given
 -- track, concatenate them, and replace the current meter with it.
-extract_meters :: (Cmd.M m) => BlockId -> TrackId -> m Meter.Meter
+extract_meters :: Cmd.M m => BlockId -> TrackId -> m Meter.Meter
 extract_meters block_id track_id = do
     subs <- extract_calls block_id track_id
     ruler_ids <- mapM State.ruler_of [bid | (_, _, bid) <- subs]
@@ -263,7 +263,7 @@ extract_meters block_id track_id = do
         | ((_start, dur, _), meter) <- zip subs meters
         ] ++ [[(0, 0)]]
 
-extract_calls :: (State.M m) => BlockId -> TrackId
+extract_calls :: State.M m => BlockId -> TrackId
     -> m [(ScoreTime, ScoreTime, BlockId)]
 extract_calls block_id track_id =
     mapMaybeM extract =<< Events.ascending . Track.track_events <$>
@@ -292,10 +292,10 @@ type ModifyM m = (BlockId, m -> m)
 --
 -- I don't add this directly to 'RulerUtil.local_meter' because that would make
 -- it be in Cmd and IO.
-local :: (Meter.Meterlike m) => ModifyM m -> Cmd.CmdL ()
+local :: Meter.Meterlike m => ModifyM m -> Cmd.CmdL ()
 local (block_id, f) = RulerUtil.local_meter block_id f
 
-modify :: (Meter.Meterlike m) => ModifyM m -> Cmd.CmdL ()
+modify :: Meter.Meterlike m => ModifyM m -> Cmd.CmdL ()
 modify (block_id, f) = RulerUtil.modify_meter block_id f
 
 

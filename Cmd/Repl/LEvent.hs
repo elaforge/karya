@@ -34,7 +34,7 @@ stretch n = do
     ModifyEvents.selection $ ModifyEvents.event $
         Event.move (\p -> (p - start) * n + start) . Event.modify_duration (*n)
 
-modify_dur :: (Cmd.M m) => (ScoreTime -> ScoreTime) -> m ()
+modify_dur :: Cmd.M m => (ScoreTime -> ScoreTime) -> m ()
 modify_dur = Edit.modify_dur
 
 -- | Find all events having the given substring.  Call with 'pp' to get
@@ -52,7 +52,7 @@ find text = fmap concat . concatMapM search =<< State.all_block_track_ids
 
 -- | Replace text on events.  Call with 'ModifyEvents.all_blocks' to replace it
 -- everywhere, or 'ModifyEvents.all_note_tracks' for just note tracks.
-replace :: (Monad m) => Text -> Text -> ModifyEvents.Track m
+replace :: Monad m => Text -> Text -> ModifyEvents.Track m
 replace from to = ModifyEvents.text (Text.replace from to)
 
 replace_many :: Monad m => [(Text, Text)] -> ModifyEvents.Track m
@@ -63,12 +63,12 @@ replace_many = ModifyEvents.text . TextUtil.replaceMany
 -- | Which end of the event to quantize.
 data Mode = Start | End | Both
 
-quantize_sel :: (Cmd.M m) => Text -> m ()
+quantize_sel :: Cmd.M m => Text -> m ()
 quantize_sel = ModifyEvents.selection . quantize_timestep Both
 
 -- | Quantize to a TimeStep's duration.  What this does is snap the edges of
 -- the event to the nearest timestep.
-quantize_timestep :: (State.M m) => Mode -> Text -> ModifyEvents.Track m
+quantize_timestep :: State.M m => Mode -> Text -> ModifyEvents.Track m
 quantize_timestep mode step block_id track_id events = do
     step <- Cmd.require_right ("parsing timestep: "++) $
         TimeStep.parse_time_step step
@@ -109,7 +109,7 @@ quantize points t = case points of
 -- * insert
 
 -- | Insert an event directly.
-insert :: (Cmd.M m) => [(ScoreTime, ScoreTime, Text)] -> m ()
+insert :: Cmd.M m => [(ScoreTime, ScoreTime, Text)] -> m ()
 insert events = do
     (_, _, track_id, pos) <- Selection.get_insert
     State.insert_events track_id

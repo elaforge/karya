@@ -32,10 +32,10 @@ import Types
 
 -- * config
 
-get_config :: (State.M m) => m Lilypond.Config
+get_config :: State.M m => m Lilypond.Config
 get_config = State.config#State.lilypond <#> State.get
 
-modify_config :: (State.M m) => (Lilypond.Config -> Lilypond.Config) -> m ()
+modify_config :: State.M m => (Lilypond.Config -> Lilypond.Config) -> m ()
 modify_config modify = State.modify_config $ State.lilypond %= modify
 
 make_config :: RealTime -> Lilypond.Duration -> Lilypond.Config
@@ -44,15 +44,15 @@ make_config quarter quantize = Lilypond.default_config
     , Lilypond.config_quantize = quantize
     }
 
-set_code :: (State.M m) => Text -> [Text] -> m ()
+set_code :: State.M m => Text -> [Text] -> m ()
 set_code inst code = modify_staff inst $ \staff -> staff
     { Lilypond.staff_code = code }
 
-toggle_display :: (State.M m) => Text -> m ()
+toggle_display :: State.M m => Text -> m ()
 toggle_display inst = modify_staff inst $ \staff -> staff
     { Lilypond.staff_display = not $ Lilypond.staff_display staff }
 
-modify_staff :: (State.M m) => Text
+modify_staff :: State.M m => Text
     -> (Lilypond.StaffConfig -> Lilypond.StaffConfig)
     -> m ()
 modify_staff inst_ modify = do

@@ -37,7 +37,7 @@ map_val f = ModifyEvents.selection $
     ModifyEvents.text $ \text -> fromMaybe text (ControlTrack.modify_val f text)
 
 -- | Map controls with the given name.
-map_named :: (Cmd.M m) => Text -> (Signal.Y -> Signal.Y) -> ModifyEvents.Track m
+map_named :: Cmd.M m => Text -> (Signal.Y -> Signal.Y) -> ModifyEvents.Track m
 map_named name f =
     ModifyEvents.tracks_named (==name) $ ModifyEvents.text $ \text ->
         fromMaybe text (ControlTrack.modify_val f text)

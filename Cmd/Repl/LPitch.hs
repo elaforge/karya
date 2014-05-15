@@ -94,7 +94,7 @@ simplify_block_enharmonics block_id =
 -- I don't want to mess with ones that are already simple.
 --
 -- TODO I have scale_read now, a generic implementation should be possible
-simplify_enharmonics :: (Cmd.M m) => ModifyEvents.Track m
+simplify_enharmonics :: Cmd.M m => ModifyEvents.Track m
 simplify_enharmonics = PitchTrack.pitch_tracks $ \scale key note ->
     case Twelve.read_absolute_pitch note of
         Nothing -> Right note

@@ -68,7 +68,7 @@ interpret toks = case toks of
     where
     action c = Just (fmap show c)
 
-val :: (Read a) => String -> Maybe a
+val :: Read a => String -> Maybe a
 val text = case reads text of
     (val, "") : _ -> Just val
     _ -> Nothing

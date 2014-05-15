@@ -94,7 +94,7 @@ find search = do
 -- | Duplicate a track from one block to another.  The underlying track is
 -- the same, so edits in one of its occurrances will be reflected in all of its
 -- blocks.
-duplicate :: (State.M m) => BlockId -> TrackNum -> BlockId -> TrackNum -> m ()
+duplicate :: State.M m => BlockId -> TrackNum -> BlockId -> TrackNum -> m ()
 duplicate source_block source_tracknum dest_block dest_tracknum = do
     track <- State.get_block_track_at source_block source_tracknum
     State.insert_track dest_block dest_tracknum track
@@ -134,7 +134,7 @@ nline = note_render Track.Line
 nfilled :: Text -> Cmd.CmdL ()
 nfilled = note_render Track.Filled
 
-note_render :: (Cmd.M m) => (Maybe Track.RenderSource -> Track.RenderStyle)
+note_render :: Cmd.M m => (Maybe Track.RenderSource -> Track.RenderStyle)
     -> Text -> m ()
 note_render mode control_name = do
     (block_id, _, track_ids, _, _) <- Selection.tracks

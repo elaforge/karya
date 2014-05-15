@@ -49,7 +49,7 @@ import qualified App.Config as Config
 import Types
 
 
-get_root :: (Cmd.M m) => m Cmd.Performance
+get_root :: Cmd.M m => m Cmd.Performance
 get_root = Perf.get_root
 
 get :: Cmd.M m => BlockId -> m Cmd.Performance
@@ -93,7 +93,7 @@ sel_to_real = do
     tempo <- Cmd.perf_tempo <$> get block_id
     return $ tempo block_id track_id pos
 
-get_realtime :: (Cmd.M m) => Bool -> m RealTime
+get_realtime :: Cmd.M m => Bool -> m RealTime
 get_realtime root = do
     (block_id, _, track_id, pos) <- Selection.get_insert
     perf <- if root then get_root else get block_id
@@ -234,7 +234,7 @@ in_tracks event_stack track_ids =
     tracks_of = mapMaybe Stack.track_of . Stack.innermost
     has tids = any (`elem` tids) track_ids
 
-in_range :: (Ord k) => (d -> k) -> k -> k -> Events d -> Events d
+in_range :: Ord k => (d -> k) -> k -> k -> Events d -> Events d
 in_range start_of start end =
     takeWhile (is_event ((<end) . start_of))
         . dropWhile (is_event ((<start) . start_of))
@@ -344,7 +344,7 @@ track_cache block_id = do
     rederived_block = map (second $ map snd . filter ((==block_id) . fst))
     cached_block = map (first snd) . filter ((==block_id) . fst . fst)
 
-format_stats :: (Id.Ident id) => ([(Text, [id])], [(id, Int)]) -> String
+format_stats :: Id.Ident id => ([(Text, [id])], [(id, Int)]) -> String
 format_stats (rederived, cached) =
     "cached: " <> format_cached cached <> "\n"
         <> unlines (map format_rederived rederived)
@@ -358,7 +358,7 @@ format_stats (rederived, cached) =
 
 -- ** cache contents
 
-get_cache :: (Cmd.M m) => BlockId -> m (Map.Map Stack.Stack Derive.Cached)
+get_cache :: Cmd.M m => BlockId -> m (Map.Map Stack.Stack Derive.Cached)
 get_cache block_id = do
     Derive.Cache cache <- Cmd.perf_derive_cache <$>
         Cmd.get_performance block_id
@@ -375,7 +375,7 @@ get_cache_events block_id = do
         Nothing -> Nothing
         Just (Derive.CallType _ events) -> Just events
 
-show_cache :: (Cmd.M m) => BlockId -> m String
+show_cache :: Cmd.M m => BlockId -> m String
 show_cache block_id = do
     perf <- Cmd.get_performance block_id
     return $ unlines (pretty_cache (Cmd.perf_derive_cache perf))
@@ -426,7 +426,7 @@ show_ratio = go 0
     pretty ratio =
         showt (Ratio.numerator ratio) <> "/" <> showt (Ratio.denominator ratio)
 
-set_chord_status :: (Cmd.M m) => ViewId -> Maybe Types.Selection -> m ()
+set_chord_status :: Cmd.M m => ViewId -> Maybe Types.Selection -> m ()
 set_chord_status view_id maybe_sel = case maybe_sel of
     Nothing -> set Nothing
     Just sel -> set . Just . show_chord =<< chord_at_sel view_id sel
@@ -435,7 +435,7 @@ set_chord_status view_id maybe_sel = case maybe_sel of
 -- | Show the ratios of the frequencies of the notes at the time of the current
 -- selection.  They are sorted by their track-order, and the track with the
 -- selection is considered unity.
-chord_at_sel :: (Cmd.M m) => ViewId -> Types.Selection
+chord_at_sel :: Cmd.M m => ViewId -> Types.Selection
     -> m [(Pitch.NoteNumber, Pitch.Note, Ratio)]
 chord_at_sel view_id sel = do
     block_id <- State.block_id_of view_id
@@ -459,7 +459,7 @@ chord_at_sel view_id sel = do
 --
 -- TODO I should look for the block anywhere in the stack, and sort it by the
 -- corresponding track.
-sort_by_track :: (State.M m) => BlockId -> [Score.Event] -> m [Score.Event]
+sort_by_track :: State.M m => BlockId -> [Score.Event] -> m [Score.Event]
 sort_by_track block_id events = do
     let by_track = Seq.key_on_maybe
             (fmap snd . Stack.block_track_of . Score.event_stack) events

@@ -46,11 +46,11 @@ list = do
     return [(block_id, Seq.count block_id view_blocks) | block_id <- block_ids]
 
 -- | Find BlockIds that match the string.
-match_id :: (State.M m) => String -> m [BlockId]
+match_id :: State.M m => String -> m [BlockId]
 match_id match = filter (Util.match_id match) <$>
     State.gets (Map.keys . State.state_blocks)
 
-pretty :: (State.M m) => BlockId -> m String
+pretty :: State.M m => BlockId -> m String
 pretty block_id = do
     block <- State.get_block block_id
     tracks <- State.gets State.state_tracks
@@ -202,24 +202,24 @@ undivide = do
             (drop tracknum (zip [0..] tracks))
     whenJust found $ \(n, _) -> State.remove_track block_id n
 
-collapse_children :: (Cmd.M m) => m ()
+collapse_children :: Cmd.M m => m ()
 collapse_children = do
     (block_id, _, track_id, _) <- Selection.get_insert
     BlockConfig.collapse_children block_id track_id
 
-expand_children :: (Cmd.M m) => m ()
+expand_children :: Cmd.M m => m ()
 expand_children = do
     (block_id, _, track_id, _) <- Selection.get_insert
     BlockConfig.expand_children block_id track_id
 
 -- * merge
 
-append :: (Cmd.M m) => BlockId -> m ()
+append :: Cmd.M m => BlockId -> m ()
 append source = do
     dest <- Cmd.get_focused_block
     BlockConfig.append dest source
 
-create_merged :: (Cmd.M m) => BlockId -> BlockId -> m ViewId
+create_merged :: Cmd.M m => BlockId -> BlockId -> m ViewId
 create_merged b1 b2 = do
     ruler_id <- State.block_ruler b1
     new <- Create.block ruler_id

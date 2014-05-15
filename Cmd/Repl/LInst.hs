@@ -52,7 +52,7 @@ info_all = do
 -- * config
 
 -- | Print out instrument configs all purty-like.
-list :: (State.M m) => m Text
+list :: State.M m => m Text
 list = do
     config <- State.get_midi_config
     alias_map <- aliases
@@ -82,14 +82,14 @@ list = do
             ++ ["solo" | Instrument.config_solo config]
 
 -- | The not-so-purty version.
-midi_config :: (State.M m) => m Instrument.Configs
+midi_config :: State.M m => m Instrument.Configs
 midi_config = State.get_midi_config
 
-aliases :: (State.M m) => m (Map.Map Score.Instrument Score.Instrument)
+aliases :: State.M m => m (Map.Map Score.Instrument Score.Instrument)
 aliases = State.config#State.aliases <#> State.get
 
 -- | Rename an instrument, in both aliases and allocations.
-rename :: (State.M m) => Instrument -> Instrument -> m ()
+rename :: State.M m => Instrument -> Instrument -> m ()
 rename from_ to_ =
     State.modify $ (State.config#State.midi %= rename_alloc)
         . (State.config#State.aliases %= rename_alias)
@@ -156,18 +156,18 @@ add_environ inst name val =
 clear_environ :: State.M m => Score.Instrument -> m ()
 clear_environ inst = modify_config_ inst $ Instrument.cenviron #= mempty
 
-set_control :: (State.M m) => Instrument -> Score.Control -> Double -> m ()
+set_control :: State.M m => Instrument -> Score.Control -> Double -> m ()
 set_control inst control val = modify_config_ (instrument inst) $
     Instrument.controls#Lens.map control #= Just val
 
-set_controls :: (State.M m) => Instrument -> [(Score.Control, Double)] -> m ()
+set_controls :: State.M m => Instrument -> [(Score.Control, Double)] -> m ()
 set_controls inst controls = modify_config_ (instrument inst) $
     Instrument.controls #= Map.fromList controls
 
-get_controls :: (State.M m) => m (Map.Map Score.Instrument Score.ControlValMap)
+get_controls :: State.M m => m (Map.Map Score.Instrument Score.ControlValMap)
 get_controls = Map.map Instrument.config_controls <$> State.get_midi_config
 
-modify_config :: (State.M m) => Score.Instrument
+modify_config :: State.M m => Score.Instrument
     -> (Instrument.Config -> (Instrument.Config, a)) -> m a
 modify_config inst modify = do
     config <- State.require ("no config for " <> pretty inst)
@@ -176,7 +176,7 @@ modify_config inst modify = do
     State.modify $ State.config # State.midi # Lens.map inst #= Just new
     return result
 
-modify_config_ :: (State.M m) => Score.Instrument
+modify_config_ :: State.M m => Score.Instrument
     -> (Instrument.Config -> Instrument.Config) -> m ()
 modify_config_ inst modify = modify_config inst (\c -> (modify c, ()))
 

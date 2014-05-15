@@ -136,7 +136,7 @@ ns name
 --              .> (!!1) .> Midi.Cache.chunk_state .> Perform.state_postproc
 -- @
 
-($>) :: (Functor f) => f a -> (a -> b) -> f b
+($>) :: Functor f => f a -> (a -> b) -> f b
 ($>) = flip (<$>)
 infixl 1 $> -- put it above ($) but below everything else
 
@@ -147,7 +147,7 @@ infixl 1 $> -- put it above ($) but below everything else
 infixl 9 .>
 
 -- | Pretty-print the result of a cmd with 'Pretty.format'.
-pp :: (Pretty.Pretty a) => Cmd.CmdL a -> Cmd.CmdL String
+pp :: Pretty.Pretty a => Cmd.CmdL a -> Cmd.CmdL String
 pp = fmap Pretty.formatted
 
 quit :: Cmd.CmdL ()
