@@ -128,6 +128,7 @@ line = do
     PlayUtil.clear_cache block_id
     mapM_ (State.set_render_style (Track.Line Nothing)) track_ids
 
+-- | Just # for the pitch track.
 nline :: Text -> Cmd.CmdL ()
 nline = note_render Track.Line
 
@@ -135,7 +136,8 @@ nfilled :: Text -> Cmd.CmdL ()
 nfilled = note_render Track.Filled
 
 note_render :: Cmd.M m => (Maybe Track.RenderSource -> Track.RenderStyle)
-    -> Text -> m ()
+    -> Text -- ^ Either a control name, or a #-prefixed pitch name.
+    -> m ()
 note_render mode control_name = do
     (block_id, _, track_ids, _, _) <- Selection.tracks
     PlayUtil.clear_cache block_id

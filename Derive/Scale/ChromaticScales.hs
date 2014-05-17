@@ -112,7 +112,7 @@ pitch_note smap pitch (PitchSignal.PitchConfig env controls) =
     Scales.scale_to_pitch_error diatonic chromatic $ do
         let d = round diatonic
             c = round chromatic
-        show_pitch smap (Scales.lookup_key env) =<< if d == 0 && c == 0
+        show_pitch smap (Scales.environ_key env) =<< if d == 0 && c == 0
             then return pitch
             else do
                 key <- read_env_key smap env
@@ -128,7 +128,7 @@ pitch_nn :: ScaleMap
 pitch_nn smap degree_to_nn pitch config@(PitchSignal.PitchConfig env controls) =
     Scales.scale_to_pitch_error diatonic chromatic $ do
         pitch <- TheoryFormat.fmt_to_absolute (smap_fmt smap)
-            (Scales.lookup_key env) pitch
+            (Scales.environ_key env) pitch
         dsteps <- if diatonic == 0 then Right 0 else do
             key <- read_env_key smap env
             return $ Theory.diatonic_to_chromatic key
@@ -214,10 +214,4 @@ read_env_key smap = Scales.read_environ
     (smap_default_key smap) Environ.key
 
 read_key :: ScaleMap -> Maybe Pitch.Key -> Either Scale.ScaleError Theory.Key
-read_key smap = lookup_key (smap_default_key smap) (smap_keys smap)
-
-lookup_key :: key -> Map.Map Pitch.Key key -> Maybe Pitch.Key
-    -> Either Scale.ScaleError key
-lookup_key deflt _ Nothing = Right deflt
-lookup_key _ keys (Just key) = maybe (Left err) Right $ Map.lookup key keys
-    where err = Scale.UnparseableEnviron Environ.key (prettyt key)
+read_key smap = Scales.get_key (smap_default_key smap) (smap_keys smap)

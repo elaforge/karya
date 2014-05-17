@@ -180,7 +180,7 @@ pitch_nn smap pitch (PitchSignal.PitchConfig env controls) =
     Scales.scale_to_pitch_error chromatic diatonic $ do
         key <- read_key smap env
         pitch <- TheoryFormat.fmt_to_absolute (smap_fmt smap)
-            (Scales.lookup_key env) pitch
+            (Scales.environ_key env) pitch
         let hz = transpose_to_hz
                 (TheoryFormat.fmt_pc_per_octave (smap_fmt smap)) base_hz
                 key (chromatic + diatonic) pitch
@@ -196,7 +196,7 @@ pitch_nn smap pitch (PitchSignal.PitchConfig env controls) =
 pitch_note :: TheoryFormat.Format -> Pitch.Pitch -> Scale.PitchNote
 pitch_note fmt pitch (PitchSignal.PitchConfig env controls) =
     Scales.scale_to_pitch_error chromatic diatonic $ do
-        let key = Scales.lookup_key env
+        let key = Scales.environ_key env
         pitch <- TheoryFormat.fmt_to_absolute fmt key pitch
         let transposed = Pitch.add_pc
                 (TheoryFormat.fmt_pc_per_octave fmt)
@@ -257,15 +257,13 @@ make_relative_fmt :: Keys -> Key
     -> TheoryFormat.RelativeFormat TheoryFormat.Tonic
 make_relative_fmt keys default_key = TheoryFormat.RelativeFormat
     { TheoryFormat.rel_acc_fmt = TheoryFormat.ascii_accidentals
-    , TheoryFormat.rel_parse_key = fmap key_tonic . lookup_key
+    , TheoryFormat.rel_parse_key = fmap key_tonic
+        . Scales.get_key default_key keys
     , TheoryFormat.rel_default_key = 0
     , TheoryFormat.rel_show_degree = TheoryFormat.show_degree_diatonic
     , TheoryFormat.rel_to_absolute = TheoryFormat.diatonic_to_absolute
     , TheoryFormat.rel_key_tonic = id
     }
-    where
-    lookup_key Nothing = Right default_key
-    lookup_key (Just key) = Scales.maybe_key key (Map.lookup key keys)
 
 -- * named intervals
 

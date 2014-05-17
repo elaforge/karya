@@ -180,9 +180,6 @@ note_to_call scale dmap pitch_to_nn note =
 add_pc :: DegreeMap -> Pitch.PitchClass -> Pitch.Pitch -> Pitch.Pitch
 add_pc dmap = Pitch.add_pc (dm_per_octave dmap)
 
-lookup_key :: TrackLang.Environ -> Maybe Pitch.Key
-lookup_key = fmap Pitch.Key . TrackLang.maybe_val Environ.key
-
 scale_to_pitch_error :: Signal.Y -> Signal.Y
     -> Either Scale.ScaleError a -> Either PitchSignal.PitchError a
 scale_to_pitch_error diatonic chromatic = either (Left . msg) Right
@@ -407,7 +404,7 @@ modify_doc modify (Derive.DocumentedCall name doc) =
 no_enharmonics :: Derive.Enharmonics
 no_enharmonics _ _ = Right []
 
-read_environ :: (TrackLang.Typecheck a) => (a -> Maybe val) -> val
+read_environ :: TrackLang.Typecheck a => (a -> Maybe val) -> val
     -> TrackLang.ValName -> TrackLang.Environ -> Either Scale.ScaleError val
 read_environ read_val deflt name env = case TrackLang.get_val name env of
     Left (TrackLang.WrongType expected) ->
@@ -418,6 +415,22 @@ read_environ read_val deflt name env = case TrackLang.get_val name env of
     parse val = maybe (unparseable (ShowVal.show_val val)) Right (read_val val)
     unparseable = Left . Scale.UnparseableEnviron name
 
-maybe_key :: Pitch.Key -> Maybe a -> Either Scale.ScaleError a
-maybe_key (Pitch.Key txt) =
-    maybe (Left $ Scale.UnparseableEnviron Environ.key txt) Right
+
+-- ** keys
+
+environ_key :: TrackLang.Environ -> Maybe Pitch.Key
+environ_key = fmap Pitch.Key . TrackLang.maybe_val Environ.key
+
+-- | Find a key in a map, or throw a ScaleError.
+get_key :: key -> Map.Map Pitch.Key key -> Maybe Pitch.Key
+    -> Either Scale.ScaleError key
+get_key deflt _ Nothing = Right deflt
+get_key _ keys (Just key) =
+    maybe (Left $ key_error key) Right $ Map.lookup key keys
+
+lookup_key :: key -> Map.Map Pitch.Key key -> Maybe Pitch.Key -> Maybe key
+lookup_key deflt _ Nothing = Just deflt
+lookup_key _ keys (Just key) = Map.lookup key keys
+
+key_error :: Pitch.Key -> Scale.ScaleError
+key_error (Pitch.Key key) = Scale.UnparseableEnviron Environ.key key

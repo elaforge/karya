@@ -3,6 +3,33 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
+  - when I mistype a key, I get *raga doesn't have NoteOn etc. rather than
+    unparseable key
+    . scale_input_to_note returns Maybe Note, so it can't report errors
+  - error msg: pitch: [key unparseable by given scale: karaharapriya]
+    Firstly, what's up with the []s?  Secondly, should say what scale?
+  . For save/rehearsal/mridangam, I want to parameterize a pattern by
+    replacing a part of it.  I can do this by assigning note calls:
+      ^p=some-block | pattern
+    Then I have ^p1 = "(^p=subst1 | pattern) | ^p2 = "(^p=subst2 | pattern)
+    Putting this much code in the UI gets annoying, how can I put this in
+    a file?
+    . An easy way would be to load a set of files when starting derivation,
+      and put 'Map Symbol Text' in Constant.  Or just directly add calls on
+      them.  This would let me write in tracklang.
+    . But I also want to write in haskell.  I could put code in
+      Local.Score.SomeName, and have those either statically linked in, or
+      dynamically compiled and loaded on each derivation.
+      . Static linking is easier, but I should at least automatically create
+        a All.hs.
+      . Also, creating calls is a bit heavyweight, since I likely don't care
+        about tags and doc and module can be inferred.  Presumably I can get
+        around that with a constructor that defaults those fields, and then
+        the generated All.hs overrides the module.
+      . Writing in tracklang lacks typechecking.  So there should be utilities
+        to write like tracklang, but in haskell, e.g.
+          c_p1 = with_note_call "p" "subst1" $ block "pattern"
+
   - why does data/bloom use so many channels?  E.g., c5 at 8.51s on chan 1
     . I could emit logs giving output msgs along with reason for allocation.
   - make Score.unwarp_pos extend the signal in the same way that 'warp_pos'
@@ -16,18 +43,17 @@ UNSORTED
       I'd want a boolean type, or should I embed it in Int?
     . Note which is either damp or absent: 'dmp'
     - Gradually come in, could do omit with a signal that increases.
+    . How to manage dynamics?  I want to give the overall dyn, but have the
+      parts have dynamics within that.  But the problem with multiplication
+      is that it sets a ceiling on the dynamic, where I want it to set
+      a "normal".  Perhaps overall dynamic should be 1, but they can go >1
+      to express louder than normal.  Or I should do symbolic, that way I
+      could also do absolute.  E.g. numbers multiply.  But then I can have
+      'm+' or 'm-' which is current dyn plus or minus some amount, and
+      mf, f, ff, which are absolute values.
 
   + Write a fancy tile like ViewConfig.horizontal_tile but guesses if you mean
     to tile vertically.
-  - derive Generic and use GHC.Generics to make a generic pretty for records?
-  . How to manage dynamics?  I want to give the overall dyn, but have the
-    parts have dynamics within that.  But the problem with multiplication
-    is that it sets a ceiling on the dynamic, where I want it to set
-    a "normal".  Perhaps overall dynamic should be 1, but they can go >1
-    to express louder than normal.  Or I should do symbolic, that way I
-    could also do absolute.  E.g. numbers multiply.  But then I can have
-    'm+' or 'm-' which is current dyn plus or minus some amount, and
-    mf, f, ff, which are absolute values.
   - Ngoret seemingly can't work with negative durations, because it wants to
     make notes overlap, and I can't express that.
     . One way is to extend negative durations to allow overlaps.  It seems
@@ -58,44 +84,79 @@ UNSORTED
     . Figure out tempo from sum of durations of called blocks.  Then set the
       tempo accordingly.  Then evaluate the block normally.  So actually this
       is a kind of tempo track.
-    - Does that mean I need this to be a track call?  Or could I do with
-      a note transformer?
-      . Transformer would need its derivers separate, like a NoteTransformer.
-        Then eval each one, figure out its ending, and place the next one
-        there.  To figure out the ending, I can look up a block length.  But
-        if it's a plain deriver, then I need an explicit end time.  I could
-        set something in collect.
-    . For track calls:
-      type TrackCall d = Call (TrackFunc d)
-      type TrackFunc d = PassedArgs (Elem d) -> LogsDeriver d
-      type TrackFunc = BlockId -> TrackId -> [TrackLang.Val] -> LogsDeriver d
-        passed_vals :: [TrackLang.Val]
-        passed_call_name :: !Text
-        block_id
-        track_id :: !TrackId
-      . Can I use Derive.Sig?
-      . Can I turn normal tracks into track calls?  I suppose they would have
-        to be lookup calls.  Would that mess up TrackInfo?
+    . A note transformer doesn't have to call Sub.sub_events, it can evaluate
+      the subs itself.
+    . A transformer can also ignore its deriver and interpret the subs on its
+      own.  That seems like it doesn't fit well, e.g. transforms under it
+      would be ignored.
 
-      . The general problem I need to solve is notation where time is
-        abstract.  If I don't mix it with concrete time (e.g. wanting
-        a playback cursor, and to be able to mix with "normal" notation)
-        then all is fine, but if I do want to mix then I need to get a tempo
-        out of it.
+    . The general problem I need to solve is notation where time is
+      abstract.  If I don't mix it with concrete time (e.g. wanting
+      a playback cursor, and to be able to mix with "normal" notation)
+      then all is fine, but if I do want to mix then I need to get a tempo
+      out of it.
   - Play position doesn't work right for 'loop' and 'tile' calls, it only
     understands the first loop, and doesn't know that 'tile' cuts off the
     beginning.
-  india
+  india: gamakam:
+    . The split between >, *, t-diatonic, and t-nn is pretty awkward,
+      especially how I duplicate all the pitch calls as control calls.
+      I think I'm going to want a higher level layer, and only work with
+      those calls when I need more precise control.
+      . Could I make everything t-diatonic by using fractions?  On the pitch
+        track I can just use number types, which is so much more appealing.
+      . The nice thing about transpose tracks is that I don't have to repeat
+        the pitch all the time.  And it seems cleaner to put gamakam on its
+        own track.
+      . Maybe I can have a generic transpose track, that expects its calls to
+        return typed values.  Then when it mconcats the signals, it first has
+        to partition into different types, and apply separately.
+      . If I extend this for pitch tracks too, then I can get rid of the
+        ControlMod stuff, but I need basically the same mechanism to say
+        where the signals go, and how they are combined.  It does seem cleaner
+        to return them in LEvents instead of through Collect.  But it means
+        that the control track title becomes a default, since actually it
+        can create any type of control signal.
+        . It would look like: ("transpose", [..])
+      . What about split control tracks?  I think it's too low level and
+        awkward to use, since it requires a separate %t-whatever event
+        squeezed in there somehow.
+    . Ideally, I could write something like:
+        j) 1 2 ; _kam -1 ; lift
+      . This would go on the note event, so no transpose tracks.
+      . Then I can infer thet it's end lift from the position.
+      . Calls with a set duration, like j) and lift are sequenced, but calls
+        like _kam are variable duration, so they stretch to fill the available
+        space.
+      . Calls like 'lift' only go at the end or beginning.
+      . So it should be possible but it's kind of a separate language.  I'd
+        want to use the same calls as normal control calls, but they need to
+        export more information:
+        . syntactic restriction, start, middle, end
+        . stretch: Set ScoreTime | Stretch Weight
+          But Set can depend on args, and I might want to have Stretch that
+          way too.  I could infer Set from the output if I have a "logical
+          end" value, but Stretch seems problematic.
+          . I think I really have to reuse the arg parsing, which means an
+            alternate way to call, so it returns the duration information.
+            There is some precedent, because this is how lilypond calls work,
+            but I'd need to return a different type, or hack it into
+            a Score.Event.
+      . But once I have this, I could theoretically have the whole sequence
+        change depending on duration available, and then assign each one to
+        swarams.
+
+    - transcribe karaharapriya, slow and fast
     - higher level ornaments that change based on how much time they have,
       also depend on the previous pitch.
     - A "default" ornament that applies whatever is appropriate for the raga
       and swaram.
     - nkam doesn't seem to interact correctly with 'h'
     - semi-tone dip.  This is like 1 cycle kam.
-    - It would be possible to implement a general purpose initial-hold
+    / It would be possible to implement a general purpose initial-hold
       transformer by mapping the samples, to e.g. lengthen the first one and
       compress the rest to compensate.
-    - Can I have ornaments that affect the tempo?  This would be another way
+    / Can I have ornaments that affect the tempo?  This would be another way
       to control kam ending.  But it would require a separate pass to extract
       tempo modifications.
     - janta.  Isn't this just Lift?  It's fingered, right?
@@ -103,7 +164,7 @@ UNSORTED
     - ornaments can use more controls than just 'dyn', e.g. bow pressure
     . instead of hardcoding specific times, I should say short, medium, long,
       which can vary and have some randomization:
-      . short, medium, long: -s = '(rnd low high) | -m = .. | -l = ..
+      . short, medium, long: -s = "(rnd low high) | -m = .. | -l = ..
     . Think about a way to sequence ornaments:
       . seq x; y; z to sequence ornaments, does this make sense?  Or I could
         see each note has having attack, middle, and release "slots".
@@ -359,6 +420,7 @@ local: plugins:
     map.
 
 cleanup:
+  - derive Generic and use GHC.Generics to make a generic pretty for records?
   - Overlap detection in Derive.Slice I think is still messed up, or at the
     least it's more complicated than it should be.
   - Maybe I should use Score.PControl instead of Score.Control for pitch

@@ -45,7 +45,7 @@ relative_fmt keys = make $ TheoryFormat.RelativeFormat
     , TheoryFormat.rel_key_tonic = Pitch.degree_pc . Theory.key_tonic
     }
     where
-    parse_key = ChromaticScales.lookup_key default_tkey keys
+    parse_key = Scales.get_key default_tkey keys
     Just default_tkey = Map.lookup default_key keys
     make = TheoryFormat.make_relative_format (TheoryFormat.make_pattern degrees)
         degrees

@@ -78,7 +78,7 @@ degree_to_nn (PitchSignal.PitchConfig env controls) degreef =
     base_hz = Map.findWithDefault default_base_hz just_base_control controls
     tonic = Theory.note_to_semis layout $ Theory.key_tonic key
     key = fromMaybe default_key $ do
-        key <- Scales.lookup_key env
+        key <- Scales.environ_key env
         Map.lookup key all_keys
 
 degree_to_hz :: Pitch.Hz -> Pitch.Semi -> Pitch.Semi -> Pitch.Hz

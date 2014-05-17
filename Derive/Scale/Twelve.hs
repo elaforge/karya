@@ -61,8 +61,7 @@ relative_scale_map = ChromaticScales.scale_map
 relative_fmt :: TheoryFormat.RelativeFormat Theory.Key
 relative_fmt = TheoryFormat.RelativeFormat
     { TheoryFormat.rel_acc_fmt = TheoryFormat.ascii_accidentals
-    , TheoryFormat.rel_parse_key =
-        ChromaticScales.lookup_key default_theory_key all_keys
+    , TheoryFormat.rel_parse_key = Scales.get_key default_theory_key all_keys
     , TheoryFormat.rel_default_key = default_theory_key
     , TheoryFormat.rel_show_degree = TheoryFormat.show_degree_chromatic
     , TheoryFormat.rel_to_absolute = TheoryFormat.chromatic_to_absolute
