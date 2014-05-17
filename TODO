@@ -3,7 +3,7 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
-  - when I mistype a key, I get *raga doesn't have NoteOn etc. rather than
+  * when I mistype a key, I get *raga doesn't have NoteOn etc. rather than
     unparseable key
     . scale_input_to_note returns Maybe Note, so it can't report errors
   - error msg: pitch: [key unparseable by given scale: karaharapriya]

@@ -3,6 +3,7 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 module Derive.Scale.JustScales_test where
+import qualified Control.Arrow as Arrow
 import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Text as Text
@@ -71,7 +72,7 @@ test_note_to_call_relative = do
     equalf 0.001 (run "a-maj" "4p") ([Just (440 * 3/2)], [])
 
 test_input_to_note = do
-    let f smap key = maybe "" Pitch.note_text <$>
+    let f smap key = either (const "") Pitch.note_text <$>
             JustScales.input_to_note smap (Just (Pitch.Key key))
         rel = make_scale_map True
         abs = make_scale_map False
@@ -142,7 +143,7 @@ test_input_to_nn = do
     let Just scale = List.find ((== "just") . Scale.scale_id) Just.scales
     let f = DeriveTest.with_key "c-maj" . Scale.scale_input_to_nn scale 0
         input = CmdTest.ascii_kbd . CmdTest.oct_pc Pitch.middle_octave
-    equalf 0.01 (DeriveTest.eval State.empty $ f (input 0)) $
-        Right (Just NN.middle_c)
-    equalf 0.01 (DeriveTest.eval State.empty $ f (input 1)) $
-        Right $ Just $ Pitch.modify_hz (* (9/8)) NN.middle_c
+        run = Arrow.right (Arrow.left pretty)
+            . DeriveTest.eval State.empty . f . input
+    equalf 0.01 (run 0) $ Right (Right NN.middle_c)
+    equalf 0.01 (run 1) $ Right $ Right $ Pitch.modify_hz (* (9/8)) NN.middle_c

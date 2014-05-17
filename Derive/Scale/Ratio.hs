@@ -47,7 +47,7 @@ scale = Scale.Scale
     -- Since this isn't a proper scale, I can't think of any sensible way to
     -- input this with a music keyboard, so we'll have to use the computer
     -- keyboard.
-    , Scale.scale_input_to_note = \_ _ -> Nothing
+    , Scale.scale_input_to_note = \_ _ -> Left Scale.InvalidInput
     , Scale.scale_input_to_nn = Scales.direct_input_to_nn
     , Scale.scale_call_doc = Derive.extract_val_doc $
         note_call (Pitch.Note "1/1") id

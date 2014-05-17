@@ -81,8 +81,8 @@ make_note_fade :: Text -> Text -> PitchDirection -> Align -> Align
 make_note_fade name doc pitch_dir align align_fade =
     Derive.transformer Module.prelude name Tags.under_invert doc
     $ Sig.callt fade_args
-    $ \(interval, TrackLang.DefaultReal time, mb_fade) args deriver -> do
-        let fade = case mb_fade of
+    $ \(interval, TrackLang.DefaultReal time, maybe_fade) args deriver -> do
+        let fade = case maybe_fade of
                 Nothing -> time
                 Just (TrackLang.DefaultReal t) -> t
         ranges@((pitch_start, _), _) <- pitch_fade_ranges align align_fade

@@ -196,9 +196,10 @@ input_to_note input = do
     let me = "EditUtil.input_to_note"
     scale <- Cmd.get_scale me scale_id
     key <- get_key
-    let msg = me <> ": " <> pretty input <> " out of range for "
-            <> pretty scale_id
-    maybe (Cmd.throw msg) return (Scale.scale_input_to_note scale key input)
+    let msg = "input_to_note " <> pretty input <> " for " <> pretty scale_id
+            <> ": "
+    Cmd.require_right ((msg++) . pretty) $
+        Scale.scale_input_to_note scale key input
 
 
 -- * modify

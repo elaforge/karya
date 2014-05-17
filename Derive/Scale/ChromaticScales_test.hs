@@ -14,7 +14,7 @@ import qualified Perform.Pitch as Pitch
 
 
 test_input_to_note = do
-    let f smap key = maybe "" Pitch.note_text <$>
+    let f smap key = either prettyt Pitch.note_text <$>
             ChromaticScales.input_to_note smap (Just (Pitch.Key key))
         abs = Twelve.absolute_scale_map
         rel = Twelve.relative_scale_map

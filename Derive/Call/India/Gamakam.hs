@@ -77,9 +77,9 @@ module_ :: Module.Module
 module_ = "india" <> "gamakam"
 
 control_calls :: Derive.CallMaps Derive.Control
-control_calls = Derive.call_maps gs ts
+control_calls = Derive.call_maps generators transformers
     where
-    gs =
+    generators =
         [ ("dip", c_dip_c)
         , ("j)", jaru_transition_c "j)" Nothing
             "Time for each slide, defaults to `time`.")
@@ -88,7 +88,7 @@ control_calls = Derive.call_maps gs ts
         , ("sgr", c_jaru_intervals_c [-1, 1])
         ] ++ kampita_variations "kam" c_kampita_c
         ++ kampita_variations "nkam" c_nkampita_c
-    ts =
+    transformers =
         [ ("h", c_hold)
         ]
 

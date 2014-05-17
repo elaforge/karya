@@ -186,12 +186,7 @@ scale_to_pitch_error diatonic chromatic = either (Left . msg) Right
     where
     msg err = case err of
         Scale.InvalidTransposition -> invalid_transposition diatonic chromatic
-        Scale.KeyNeeded -> PitchSignal.PitchError
-            "no key is set, but this transposition needs one"
-        Scale.UnparseableEnviron name val -> PitchSignal.PitchError $
-            prettyt name <> " unparseable by given scale: " <> val
-        Scale.UnparseableNote -> PitchSignal.PitchError
-            "unparseable note (shouldn't happen)"
+        _ -> PitchSignal.PitchError $ prettyt err
 
 invalid_transposition :: Signal.Y -> Signal.Y -> PitchSignal.PitchError
 invalid_transposition diatonic chromatic =
@@ -204,22 +199,26 @@ invalid_transposition diatonic chromatic =
 
 -- ** input
 
-type InputToNote = Maybe Pitch.Key -> Pitch.Input -> Maybe Pitch.Note
+type InputToNote = Maybe Pitch.Key -> Pitch.Input
+    -> Either Scale.ScaleError Pitch.Note
 
 -- | Input to note for simple scales without keys.
 input_to_note :: DegreeMap -> InputToNote
 input_to_note dmap _key (Pitch.Input kbd pitch frac) = do
     pitch <- simple_kbd_to_scale dmap kbd pitch
-    note <- Map.lookup pitch (dm_to_note dmap)
+    note <- maybe (Left Scale.UnparseableNote) Right $
+        Map.lookup pitch (dm_to_note dmap)
     return $ ScaleDegree.pitch_expr frac note
+
+type InputToNn = ScoreTime -> Pitch.Input
+    -> Derive.Deriver (Either Scale.ScaleError Pitch.NoteNumber)
 
 -- | Input to NoteNumber for scales that have a direct relationship between
 -- Degree and NoteNumber.
-mapped_input_to_nn :: DegreeMap
-    -> (ScoreTime -> Pitch.Input -> Derive.Deriver (Maybe Pitch.NoteNumber))
+mapped_input_to_nn :: DegreeMap -> InputToNn
 mapped_input_to_nn dmap = \_pos (Pitch.Input kbd pitch frac) -> return $ do
     pitch <- simple_kbd_to_scale dmap kbd pitch
-    to_nn pitch frac
+    maybe (Left Scale.OutOfRange) Right $ to_nn pitch frac
     where
     to_nn pitch frac
         | frac == 0 = lookup pitch
@@ -239,10 +238,9 @@ set_direct_input_to_nn scale = scale
 
 -- | An Input maps directly to a NoteNumber.  This is an efficient
 -- implementation for scales tuned to 12TET.
-direct_input_to_nn :: ScoreTime -> Pitch.Input
-    -> Derive.Deriver (Maybe Pitch.NoteNumber)
+direct_input_to_nn :: InputToNn
 direct_input_to_nn _pos (Pitch.Input _ pitch frac) =
-    return $ Just $ nn + Pitch.nn frac
+    return $ Right $ nn + Pitch.nn frac
     where
     nn = fromIntegral $ Theory.semis_to_nn $
         Theory.pitch_to_semis Theory.piano_layout pitch
@@ -250,18 +248,22 @@ direct_input_to_nn _pos (Pitch.Input _ pitch frac) =
 -- | Convert input to nn by going through note_to_call.  This works for
 -- complicated scales that retune based on the environment but is more work.
 computed_input_to_nn :: InputToNote -> (Pitch.Note -> Maybe Derive.ValCall)
-    -> ScoreTime -> Pitch.Input -> Derive.Deriver (Maybe Pitch.NoteNumber)
-computed_input_to_nn input_to_note note_to_call pos input
-    | Just note <- input_to_note Nothing input, Just call <- note_to_call note =
-        Eval.apply_pitch pos call >>= \val -> case val of
-            TrackLang.VPitch pitch -> do
-                controls <- Derive.controls_at =<< Derive.real pos
-                environ <- Internal.get_environ
-                return $ either (const Nothing) Just $
-                    PitchSignal.eval_pitch pitch
-                        (PitchSignal.PitchConfig environ controls)
-            _ -> return Nothing
-    | otherwise = return Nothing
+    -> InputToNn
+computed_input_to_nn input_to_note note_to_call pos input = case get_call of
+    Left err -> return $ Left err
+    Right call -> Eval.apply_pitch pos call >>= \val -> case val of
+        TrackLang.VPitch pitch -> do
+            controls <- Derive.controls_at =<< Derive.real pos
+            environ <- Internal.get_environ
+            p <- Derive.require_right (("evaluating pich: " ++) . pretty) $
+                PitchSignal.eval_pitch pitch
+                    (PitchSignal.PitchConfig environ controls)
+            return $ Right p
+        _ -> Derive.throw $ "non-pitch from pitch call: " <> pretty val
+    where
+    get_call = do
+        note <- input_to_note Nothing input
+        maybe (Left Scale.UnparseableNote) Right $ note_to_call note
 
 make_nn :: Maybe Pitch.NoteNumber -> Pitch.NoteNumber -> Maybe Pitch.NoteNumber
     -> Pitch.Frac -> Maybe Pitch.NoteNumber
@@ -275,15 +277,21 @@ make_nn mprev nn mnext frac
 -- *** diatonic
 
 simple_kbd_to_scale :: DegreeMap -> Pitch.KbdType -> Pitch.Pitch
-    -> Maybe Pitch.Pitch
+    -> Either Scale.ScaleError Pitch.Pitch
 simple_kbd_to_scale dmap kbd = kbd_to_scale kbd (dm_per_octave dmap) 0
+
+kbd_to_scale :: Pitch.KbdType -> Pitch.PitchClass -> Pitch.PitchClass
+    -> Pitch.Pitch -> Either Scale.ScaleError Pitch.Pitch
+kbd_to_scale kbd pc_per_octave tonic =
+    maybe (Left Scale.InvalidInput) Right
+    . lookup_kbd_to_scale kbd pc_per_octave tonic
 
 -- | Convert an absolute Pitch in the input keyboard's layout to a relative
 -- Pitch within a scale with the given number of diatonic steps per octave, or
 -- Nothing if that key should have no pitch.
-kbd_to_scale :: Pitch.KbdType -> Pitch.PitchClass -> Pitch.PitchClass
+lookup_kbd_to_scale :: Pitch.KbdType -> Pitch.PitchClass -> Pitch.PitchClass
     -> Pitch.Pitch -> Maybe Pitch.Pitch
-kbd_to_scale kbd pc_per_octave tonic pitch = case kbd of
+lookup_kbd_to_scale kbd pc_per_octave tonic pitch = case kbd of
     Pitch.PianoKbd -> piano_kbd_pitch tonic pc_per_octave pitch
     Pitch.AsciiKbd -> Just $ ascii_kbd_pitch pc_per_octave pitch
 

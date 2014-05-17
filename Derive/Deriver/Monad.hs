@@ -1371,7 +1371,7 @@ data Scale = Scale {
 
     -- | Used by note input.
     , scale_input_to_note :: !(Maybe Pitch.Key -> Pitch.Input
-        -> Maybe Pitch.Note)
+        -> Either ScaleError Pitch.Note)
     -- | Used by MIDI thru.  This is a shortcut for
     -- @eval . note_to_call . input_to_note@ but can often be implemented more
     -- efficiently by the scale.
@@ -1383,8 +1383,8 @@ data Scale = Scale {
     -- This is because pitch val calls aren't evaluated in normalized time.
     -- If controls had (shift, stretch) I could normalize them efficiently
     -- and the pitch would just always look at time 0.  But they don't.
-    , scale_input_to_nn ::
-        !(ScoreTime -> Pitch.Input -> Deriver (Maybe Pitch.NoteNumber))
+    , scale_input_to_nn :: !(ScoreTime -> Pitch.Input
+        -> Deriver (Either ScaleError Pitch.NoteNumber))
 
     -- | Documentation for all of the ValCalls that 'scale_note_to_call' can
     -- return.
@@ -1429,6 +1429,10 @@ type Layout = Vector.Unboxed.Vector Pitch.Semi
 -- | Things that can go wrong during scale operations.
 data ScaleError =
     InvalidTransposition | KeyNeeded | UnparseableNote
+    -- | Note out of the scale's range.
+    | OutOfRange
+    -- | Input note doesn't map to a scale note.
+    | InvalidInput
     -- | An environ value was unparseable.  Has the environ key and a text
     -- description of the error.
     | UnparseableEnviron !TrackLang.ValName !Text
@@ -1440,8 +1444,10 @@ instance Pretty.Pretty ScaleError where
         InvalidTransposition -> "invalid transposition"
         KeyNeeded -> "key needed"
         UnparseableNote -> "unparseable note"
-        UnparseableEnviron key val -> "unparseable environ "
-            <> pretty key <> ": " <> untxt val
+        OutOfRange -> "out of range"
+        InvalidInput -> "invalid input"
+        UnparseableEnviron key val -> "unparseable environ: "
+            <> pretty key <> "=" <> untxt val
 
 -- * merge
 

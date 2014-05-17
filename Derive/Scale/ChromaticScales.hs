@@ -149,8 +149,7 @@ input_to_note smap maybe_key (Pitch.Input kbd_type pitch frac) = do
     -- besides it would be wrong since it assumes Pitch 0 0 is C.
     let pick_enharmonic = if TheoryFormat.fmt_relative (smap_fmt smap) then id
             else Theory.pick_enharmonic key
-    note <- either (const Nothing) Just $ show_pitch smap Nothing $
-        pick_enharmonic pitch
+    note <- show_pitch smap Nothing $ pick_enharmonic pitch
     return $ ScaleDegree.pitch_expr frac note
     where
     pc_per_octave = Theory.layout_pc_per_octave (smap_layout smap)

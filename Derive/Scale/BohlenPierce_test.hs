@@ -3,7 +3,10 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 module Derive.Scale.BohlenPierce_test where
+import qualified Control.Arrow as Arrow
+
 import qualified Util.Seq as Seq
+import Util.Control
 import Util.Test
 import qualified Ui.State as State
 import qualified Cmd.CmdTest as CmdTest
@@ -30,7 +33,7 @@ test_note_to_call = do
     equalf 0.001 (run ["5a"]) ([Just (c * 3)], [])
 
 test_input_to_note = do
-    let f = maybe "" Pitch.note_text
+    let f = either prettyt Pitch.note_text
             . Scale.scale_input_to_note BP.absolute_scale Nothing
     let ascii oct = CmdTest.ascii_kbd . CmdTest.oct_pc oct
         piano oct = CmdTest.piano_kbd . CmdTest.oct_pc oct
@@ -38,8 +41,8 @@ test_input_to_note = do
         ["4a", "4b", "4c", "4d", "4e", "4f", "4g", "4h", "4i", "5a"]
     equal [f (piano 4 pc) | pc <- [0..6]]
         ["2a", "2b", "2c", "2d", "2e", "2f", "2g"]
-    equal [f (piano 5 pc) | pc <- [0..6]]
-        ["2h", "2i", "", "", "", "", ""]
+    equal [f (piano 5 pc) | pc <- [0..6]] $
+        ["2h", "2i"] ++ replicate 5 "invalid input"
 
 ascii :: Pitch.Octave -> Pitch.PitchClass -> Pitch.Input
 ascii oct pc = Pitch.Input Pitch.AsciiKbd
@@ -50,10 +53,11 @@ piano oct pc = Pitch.Input Pitch.PianoKbd
     (Pitch.Pitch oct (Pitch.Degree pc 0)) 0
 
 test_input_to_nn = do
-    let f input = DeriveTest.eval State.empty $
+    let f input = Arrow.right (Arrow.left pretty) $
+            DeriveTest.eval State.empty $
             Scale.scale_input_to_nn BP.absolute_scale 0 input
     let ascii oct = CmdTest.ascii_kbd . CmdTest.oct_pc oct
-    equalf 0.001 (f (ascii 4 0)) $ Right (Just NN.middle_c)
+    equalf 0.001 (f (ascii 4 0)) $ Right (Right NN.middle_c)
     let ratio = 25/21
     equalf 0.001 (f (ascii 4 1)) $
-        Right $ Just $ Pitch.modify_hz (*ratio) NN.middle_c
+        Right $ Right $ Pitch.modify_hz (*ratio) NN.middle_c

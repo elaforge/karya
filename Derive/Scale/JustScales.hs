@@ -133,16 +133,12 @@ enharmonics layout fmt key note = do
     return $ map (TheoryFormat.show_pitch fmt key) $
         Theory.enharmonics_of layout pitch
 
-input_to_note :: ScaleMap -> Maybe Pitch.Key -> Pitch.Input -> Maybe Pitch.Note
+input_to_note :: ScaleMap -> Scales.InputToNote
 input_to_note smap maybe_key (Pitch.Input kbd pitch _frac) = do
-    pitch <- Scales.kbd_to_scale kbd pc_per_octave tonic pitch
+    key <- Scales.get_key (smap_default_key smap) (smap_keys smap) maybe_key
+    pitch <- Scales.kbd_to_scale kbd pc_per_octave (key_tonic key) pitch
     return $ TheoryFormat.show_pitch (smap_fmt smap) Nothing pitch
-    where
-    pc_per_octave = TheoryFormat.fmt_pc_per_octave (smap_fmt smap)
-    -- Default to a key because otherwise you couldn't enter notes in an
-    -- empty score!
-    tonic = key_tonic $ fromMaybe (smap_default_key smap) $
-        flip Map.lookup (smap_keys smap) =<< maybe_key
+    where pc_per_octave = TheoryFormat.fmt_pc_per_octave (smap_fmt smap)
 
 
 -- * transpose
