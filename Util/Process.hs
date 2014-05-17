@@ -67,6 +67,6 @@ isAlive :: Posix.ProcessID -> IO Bool
 isAlive pid = (Posix.signalProcess Posix.nullSignal pid >> return True)
     `Exception.catch` (return . not . IO.Error.isDoesNotExistError)
 
-exit :: Int -> IO ()
+exit :: Int -> IO a
 exit 0 = Exit.exitSuccess
 exit n = Exit.exitWith $ Exit.ExitFailure n
