@@ -11,7 +11,8 @@
 namespace input_util {
 
 bool should_ignore(int etv);
-bool handle(Fl_Input *input, int evt);
+// Handle common keys, and return true if they were handled.
+bool handle(Fl_Input *input, int evt, bool multiline);
 
 // True if it stripped spaces from the value().
 bool strip_value(Fl_Input *w);

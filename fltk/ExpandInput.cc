@@ -68,7 +68,7 @@ ExpandInput::handle(int evt)
     }
     if (input_util::should_ignore(evt))
         return 0;
-    bool handled = input_util::handle(this, evt);
+    bool handled = input_util::handle(this, evt, false);
 
     // Call Fl_Input::handle before expand(), so it has the updated value().
     // If I didn't handle the event above, hand it to Fl_Input so it can do its

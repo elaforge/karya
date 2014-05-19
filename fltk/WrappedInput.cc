@@ -96,7 +96,7 @@ WrappedInput::handle(int evt)
     }
     if (input_util::should_ignore(evt))
         return 0;
-    bool handled = input_util::handle(this, evt);
+    bool handled = input_util::handle(this, evt, true);
     if (!handled) {
         handled = Fl_Multiline_Input::handle(evt);
         if (evt == FL_KEYDOWN) {

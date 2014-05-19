@@ -151,7 +151,7 @@ should_ignore(int evt)
 }
 
 bool
-handle(Fl_Input *input, int evt)
+handle(Fl_Input *input, int evt, bool multiline)
 {
     int state = Fl::event_state();
     bool handled = false;
@@ -163,11 +163,17 @@ handle(Fl_Input *input, int evt)
             handled = true;
             break;
         case FL_Up:
-            input->position(0);
+            if (multiline)
+                return false;
+            else
+                input->position(0);
             handled = true;
             break;
         case FL_Down:
-            input->position(input->size());
+            if (multiline)
+                return false;
+            else
+                input->position(input->size());
             handled = true;
             break;
         case 'h':
