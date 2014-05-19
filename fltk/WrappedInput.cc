@@ -83,6 +83,27 @@ WrappedInput::text_height() const
 }
 
 
+static bool
+is_first_line(const char *text, int i)
+{
+    for (; i > 0; i--) {
+        if (text[i] == '\n')
+            return false;
+    }
+    return true;
+}
+
+static bool
+is_last_line(const char *text, int size, int i)
+{
+    for (; i < size; i++) {
+        if (text[i] == '\n')
+            return false;
+    }
+    return true;
+}
+
+
 int
 WrappedInput::handle(int evt)
 {
@@ -97,6 +118,26 @@ WrappedInput::handle(int evt)
     if (input_util::should_ignore(evt))
         return 0;
     bool handled = input_util::handle(this, evt, true);
+    if (!handled) {
+        // Jump to the beginning of the text if you try to go up from first
+        // line, and similar for the last line.
+        if (evt == FL_KEYDOWN) {
+            switch (Fl::event_key()) {
+            case FL_Up:
+                if (is_first_line(value(), position())) {
+                    this->position(0);
+                    handled = true;
+                }
+                break;
+            case FL_Down:
+                if (is_last_line(value(), size(), position())) {
+                    this->position(size() - 1);
+                    handled = true;
+                }
+                break;
+            }
+        }
+    }
     if (!handled) {
         handled = Fl_Multiline_Input::handle(evt);
         if (evt == FL_KEYDOWN) {
