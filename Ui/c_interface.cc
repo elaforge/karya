@@ -174,9 +174,9 @@ edit_open(BlockViewWindow *view, int tracknum, double pos, const char *text,
 }
 
 void
-edit_append(BlockViewWindow *view, const char *text)
+edit_insert(BlockViewWindow *view, const char *text)
 {
-    view->block.edit_append(text);
+    view->block.edit_insert(text);
 }
 
 

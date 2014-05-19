@@ -171,8 +171,8 @@ clear_play_position view_id = Ui.send_action $
 edit_input :: State.State -> Cmd.EditInput -> IO ()
 edit_input _ (Cmd.EditOpen view_id tracknum at text selection) =
     BlockC.edit_open view_id tracknum at text selection
-edit_input state (Cmd.EditAppend text) =
-    BlockC.edit_append (Map.keys (State.state_views state)) text
+edit_input state (Cmd.EditInsert text) =
+    BlockC.edit_insert (Map.keys (State.state_views state)) text
 
 
 -- * run_update

@@ -499,9 +499,9 @@ BlockView::edit_open(int tracknum, ScoreTime pos, const char *text,
 
 
 void
-BlockView::edit_append(const char *text)
+BlockView::edit_insert(const char *text)
 {
-    track_tile.edit_append(text);
+    track_tile.edit_insert(text);
 }
 
 

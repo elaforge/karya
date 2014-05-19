@@ -49,7 +49,7 @@ import qualified Instrument.MidiDb as MidiDb
 -- would either require a privileged position for the transformer, or an
 -- additional Cmd feature to re-emits a new Msg.  In addition, it would
 -- preclude the ability to shadow it and catch MIDI msgs for other purposes.
-cmds_with_input :: (Cmd.M m) => Bool -> Maybe Instrument.Patch
+cmds_with_input :: Cmd.M m => Bool -> Maybe Instrument.Patch
     -> [Msg.Msg -> m Cmd.Status] -> (Msg.Msg -> m Cmd.Status)
 cmds_with_input kbd_entry maybe_patch cmds msg =
     msg_to_inputs kbd_entry maybe_patch msg >>= \x -> case x of
@@ -65,7 +65,7 @@ cmds_with_input kbd_entry maybe_patch cmds msg =
         Cmd.sequence_cmds cmds msg
 
 -- | Like 'cmds_with_input', but figure out kbd_entry and patch on my own.
-run_cmds_with_input :: (Cmd.M m) => [Msg.Msg -> m Cmd.Status]
+run_cmds_with_input :: Cmd.M m => [Msg.Msg -> m Cmd.Status]
     -> (Msg.Msg -> m Cmd.Status)
 run_cmds_with_input cmds msg = do
     kbd_entry <- Cmd.gets $ Cmd.state_kbd_entry . Cmd.state_edit
@@ -79,7 +79,7 @@ run_cmds_with_input cmds msg = do
 -- the Msg is not convertible to InputNotes (and therefore other cmds should
 -- get it), and Just [] if it is but didn't emit any InputNotes (and therefore
 -- this other cmds shouldn't get it).
-msg_to_inputs :: (Cmd.M m) => Bool -> Maybe Instrument.Patch -> Msg.Msg
+msg_to_inputs :: Cmd.M m => Bool -> Maybe Instrument.Patch -> Msg.Msg
     -> m (Maybe [Msg.Msg])
 msg_to_inputs kbd_entry maybe_patch msg = do
     has_mods <- are_modifiers_down
@@ -92,7 +92,7 @@ msg_to_inputs kbd_entry maybe_patch msg = do
         else return Nothing
     maybe (midi_input msg) (return . Just) new_msgs
 
-are_modifiers_down :: (Cmd.M m) => m Bool
+are_modifiers_down :: Cmd.M m => m Bool
 are_modifiers_down = fmap (not . Set.null) Keymap.mods_down
 
 -- ** kbd
@@ -157,7 +157,7 @@ physical_key = map Keymap.physical_key
 -- ** midi
 
 -- | Convert a 'Msg.Midi' msg into a 'Msg.InputNote'.
-midi_input :: (Cmd.M m) => Msg.Msg -> m (Maybe [Msg.Msg])
+midi_input :: Cmd.M m => Msg.Msg -> m (Maybe [Msg.Msg])
 midi_input (Msg.Midi (Midi.ReadMessage rdev _ midi_msg)) = do
     rstate <- Cmd.gets Cmd.state_rdev_state
     case InputNote.from_midi rstate rdev midi_msg of
@@ -167,14 +167,14 @@ midi_input (Msg.Midi (Midi.ReadMessage rdev _ midi_msg)) = do
         Nothing -> return (Just [])
 midi_input _ = return Nothing
 
--- * edit_append
+-- * edit_insert
 
-edit_append :: (Cmd.M m) => Msg.Msg -> m Cmd.Status
-edit_append msg = do
+edit_insert :: Cmd.M m => Msg.Msg -> m Cmd.Status
+edit_insert msg = do
     edit_input <- Cmd.gets $ Cmd.state_edit_input . Cmd.state_edit
     case msg of
         Msg.InputNote (InputNote.NoteOn _ input _) | edit_input -> do
             note <- EditUtil.input_to_note input
-            return $ Cmd.EditInput $ Cmd.EditAppend $
+            return $ Cmd.EditInput $ Cmd.EditInsert $
                 " (" <> Pitch.note_text note <> ")"
         _ -> return Cmd.Continue

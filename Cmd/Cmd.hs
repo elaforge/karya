@@ -155,8 +155,8 @@ instance Show PlayMidiArgs where show _ = "((PlayMidiArgs))"
 data EditInput =
     -- | Open a new text input.  View, track, pos, (select start, select end).
     EditOpen !ViewId !TrackNum !ScoreTime !Text !(Maybe (Int, Int))
-    -- | Append the given text to an already open edit box.
-    | EditAppend !Text
+    -- | Insert the given text into an already open edit box.
+    | EditInsert !Text
     deriving (Show, Generics.Typeable)
 
 -- | Cmds can run in either Identity or IO, but are generally returned in IO,

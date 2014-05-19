@@ -180,7 +180,7 @@ TrackTile::edit_close()
 
 
 void
-TrackTile::edit_append(const char *text)
+TrackTile::edit_insert(const char *text)
 {
     if (!this->edit_input)
         return;

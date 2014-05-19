@@ -60,7 +60,7 @@ public:
         int select_start, int select_end);
     void edit_close();
     // If there's an open edit field, insert text at the insertion point.
-    void edit_append(const char *text);
+    void edit_insert(const char *text);
 
     // ScoreTime of the end of the last event.
     ScoreTime time_end() const;

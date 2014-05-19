@@ -54,7 +54,7 @@ module Ui.BlockC (
     , set_model_config, set_skeleton, set_title, set_status
     , set_display_track
     -- ** edit input
-    , edit_open, edit_append
+    , edit_open, edit_insert
 
     -- ** Track operations
     , insert_track, remove_track, update_track, update_entire_track
@@ -282,13 +282,13 @@ foreign import ccall "edit_open"
     c_edit_open :: Ptr CView -> CInt -> CDouble -> CString -> CInt -> CInt
         -> IO ()
 
-edit_append :: [ViewId] -> Text -> Fltk ()
-edit_append view_ids text =
+edit_insert :: [ViewId] -> Text -> Fltk ()
+edit_insert view_ids text =
     Util.withText text $ \textp -> forM_ view_ids $ \view_id -> do
         viewp <- get_ptr view_id
-        c_edit_append viewp textp
-foreign import ccall "edit_append"
-    c_edit_append :: Ptr CView -> CString -> IO ()
+        c_edit_insert viewp textp
+foreign import ccall "edit_insert"
+    c_edit_insert :: Ptr CView -> CString -> IO ()
 
 -- * Track operations
 

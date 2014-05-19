@@ -50,7 +50,7 @@ void set_display_track(BlockViewWindow *view, int tracknum,
 
 void edit_open(BlockViewWindow *view, int tracknum, double pos,
     const char *text, int select_start, int select_end);
-void edit_append(BlockViewWindow *view, const char *text);
+void edit_insert(BlockViewWindow *view, const char *text);
 
 // tracks
 
