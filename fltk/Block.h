@@ -39,7 +39,6 @@ skel_box  skel_display  ruler_group _____________        track_group
 
 #include "SimpleScroll.h"
 #include "SeqScrollbar.h"
-#include "ExpandInput.h"
 #include "SymbolOutput.h"
 #include "WrappedInput.h"
 
@@ -97,8 +96,8 @@ public:
 private:
     void set_widget_sizes();
 public:
-    void set_model_config(const BlockModelConfig &config,
-            bool update_all=false);
+    void set_model_config(
+        const BlockModelConfig &config, bool update_all=false);
     void set_skeleton(const SkeletonConfig &skel);
 
     // Set the zoom, which is the view rectangle in the timewise direction.
@@ -169,6 +168,7 @@ public:
     int get_track_width(int tracknum) const;
     void set_track_width(int tracknum, int width);
 
+    // Documented at TrackTile::edit_open.
     void edit_open(int tracknum, ScoreTime pos, const char *text,
         int select_start, int select_end);
     void edit_append(const char *text);

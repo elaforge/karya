@@ -29,7 +29,7 @@ static const int min_height =
     + Config::View::track_title_height
     + Config::View::skel_height + Config::View::status_size
     + Config::View::sb_size;
-static const int min_width = Config::View::sb_size + 60;
+static const int min_width = Config::View::sb_size + 10;
 
 
 BlockView::BlockView(int X, int Y, int W, int H,

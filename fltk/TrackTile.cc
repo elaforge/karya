@@ -10,7 +10,7 @@
 #include "config.h"
 
 #include "TrackTile.h"
-#include "ExpandInput.h"
+#include "WrappedInput.h"
 #include "MsgCollector.h"
 
 
@@ -104,22 +104,26 @@ TrackTile::set_zoom(const ZoomInfo &zoom)
 
 // edit input //////////////////////////
 
-static void
-edit_input_cb(Fl_Widget *_w, void *vp)
+void
+TrackTile::edit_input_cb(Fl_Widget *_w, void *vp)
 {
     TrackTile *self = static_cast<TrackTile *>(vp);
-    self->edit_close();
+    WrappedInput *input = self->edit_input;
+    if (input == Fl::focus()) {
+        int height = input->text_height();
+        if (height != input->h()) {
+            input->size(input->w(), height);
+            self->redraw();
+        }
+    } else {
+        self->edit_close();
+    }
 }
 
 void
 TrackTile::edit_open(int tracknum, ScoreTime pos, const char *text,
     int select_start, int select_end)
 {
-    // The edit_input is handled by TrackTile, so I can't put one on the ruler
-    // track.  Also, when I report the tracknum to the MsgCollector, I should
-    // report the absolute tracknum, not the TrackTile relative one.  So this
-    // method takes an unadjusted absolute tracknum, and subtracts one
-    // internally, except for tracknum 0 of course.
     ASSERT(0 <= tracknum && tracknum <= tracks());
     this->edit_close();
     int ypos = this->zoom.to_pixels(pos - zoom.offset);
@@ -136,10 +140,11 @@ TrackTile::edit_open(int tracknum, ScoreTime pos, const char *text,
     ypos += y() + title_height + 3;
     width -= 3;
     xpos += 2;
-    this->edit_input = new ExpandInput(
-        xpos, ypos, width, Config::View::track_title_height, true, false);
-    edit_input->set_callback2(edit_input_cb, static_cast<void *>(this));
+    this->edit_input = new WrappedInput(
+        xpos, ypos, width, Config::View::track_title_height);
+    edit_input->callback(edit_input_cb, static_cast<void *>(this));
     edit_input->show();
+    edit_input->take_focus();
     if (text)
         edit_input->set_text(text);
     if (select_start >= 0) {
@@ -150,7 +155,6 @@ TrackTile::edit_open(int tracknum, ScoreTime pos, const char *text,
     }
 
     this->add(edit_input);
-    edit_input->take_focus();
     this->redraw();
 }
 
@@ -167,7 +171,7 @@ TrackTile::edit_close()
     // delete until after I'm safely outside of the widget's callback.
     if (!this->edit_input)
         return;
-    MsgCollector::get()->edit_input(this, edit_input->value());
+    MsgCollector::get()->edit_input(this, edit_input->get_text());
     this->remove(edit_input);
     Fl::delete_widget(edit_input);
     edit_input = NULL;
@@ -180,7 +184,7 @@ TrackTile::edit_append(const char *text)
 {
     if (!this->edit_input)
         return;
-    edit_input->insert_text(text);
+    edit_input->insert(text);
 }
 
 ////////////////////////////////////////

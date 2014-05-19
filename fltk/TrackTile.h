@@ -14,7 +14,7 @@
 
     TrackTile________________
        |           \         \
-    title_input  EventTrack  ExpandInput (edit_input, temporary)
+    title_input  EventTrack  WrappedInput (edit_input, temporary)
 */
 
 #ifndef __TRACK_TILE_H
@@ -29,7 +29,7 @@
 
 #include "MoveTile.h"
 #include "Track.h"
-#include "ExpandInput.h"
+#include "WrappedInput.h"
 
 
 class TrackTile : public MoveTile {
@@ -48,10 +48,18 @@ public:
         this->redraw();
     }
 
-    // Edit input.
+    // Open a text input field at the given ScoreTime.  It will contain the
+    // given text, selected with the given select range.
+    //
+    // The edit_input is handled by TrackTile, so I can't put one on the ruler
+    // track.  Also, when I report the tracknum to the MsgCollector, I should
+    // report the absolute tracknum, not the TrackTile relative one.  So this
+    // method takes an unadjusted absolute tracknum, and subtracts one
+    // internally, except for tracknum 0 of course.
     void edit_open(int tracknum, ScoreTime pos, const char *text,
         int select_start, int select_end);
     void edit_close();
+    // If there's an open edit field, insert text at the insertion point.
     void edit_append(const char *text);
 
     // ScoreTime of the end of the last event.
@@ -87,9 +95,10 @@ private:
     ZoomInfo zoom;
     Fl_Box track_pad; // box to take up space not covered by tracks
     // Created and destroyed when 'edit_open' is called.
-    ExpandInput *edit_input;
+    WrappedInput *edit_input;
 
     void update_sizes();
+    static void edit_input_cb(Fl_Widget *_w, void *vp);
 };
 
 #endif
