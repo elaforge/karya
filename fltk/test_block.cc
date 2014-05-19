@@ -207,7 +207,7 @@ timeout_func(void *vp)
         // view.block.insert_track(2, Tracklike(&empty_track, &ruler), 30);
         break;
     case 1:
-        view.block.edit_append("haha");
+        view.block.edit_insert("haha");
         return;
         // view.block.insert_track(2, Tracklike(&track1, &truler), 30);
         break;
@@ -373,8 +373,6 @@ main(int argc, char **argv)
     }
     view.block.set_title("hi there");
 
-    // print_children(&view);
-
     Fl::add_timeout(1, timeout_func, (void*) &view);
 
     view.block.set_zoom(ZoomInfo(ScoreTime(0), 1.6));
@@ -466,6 +464,7 @@ main(int argc, char **argv)
     view.show();
 
     std::cout << view.block.dump() << '\n';
+    print_children(&view, 3);
 
     Fl::run();
 }

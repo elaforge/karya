@@ -161,8 +161,6 @@ private:
     Color bg_color;
 
     ExpandInput *title_input;
-    // Created and destroyed when 'edit_open' is called.
-    ExpandInput *edit_input;
     Fl_Box bg_box;
     OverlayRuler overlay_ruler;
 };

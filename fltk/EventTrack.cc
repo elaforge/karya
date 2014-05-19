@@ -133,8 +133,7 @@ EventTrackView::EventTrackView(const EventTrackConfig &config,
         const RulerConfig &ruler_config) :
     TrackView("events"),
     config(config), last_offset(0), brightness(1), bg_color(config.bg_color),
-    title_input(NULL), edit_input(NULL),
-    bg_box(0, 0, 1, 1),
+    title_input(NULL), bg_box(0, 0, 1, 1),
     overlay_ruler(ruler_config, false)
 {
     // this->resizable(0); // don't resize children
@@ -325,8 +324,6 @@ EventTrackView::draw()
         overlay_ruler.damaged_area.w = overlay_ruler.damaged_area.h = 0;
         this->last_offset = this->zoom.offset;
     }
-    if (edit_input)
-        this->draw_child(*edit_input);
 }
 
 
