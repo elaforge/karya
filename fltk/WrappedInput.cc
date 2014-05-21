@@ -86,6 +86,7 @@ WrappedInput::text_height() const
 static bool
 is_first_line(const char *text, int i)
 {
+    i--; // The end of the first line winds up being on a \n.
     for (; i > 0; i--) {
         if (text[i] == '\n')
             return false;
@@ -131,7 +132,7 @@ WrappedInput::handle(int evt)
                 break;
             case FL_Down:
                 if (is_last_line(value(), size(), position())) {
-                    this->position(size() - 1);
+                    this->position(size());
                     handled = true;
                 }
                 break;

@@ -20,6 +20,7 @@ UNSORTED
       It actually loses focus for a moment, it goes to BlockViewWindow
     * Track moves down when it is resized, it should scroll a little
       to counteract so the events stay in the same place.
+    * down arrow puts cursor before the last char, not after it
   * when I mistype a key, I get *raga doesn't have NoteOn etc. rather than
     unparseable key
     . scale_input_to_note returns Maybe Note, so it can't report errors
