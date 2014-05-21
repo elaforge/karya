@@ -14,9 +14,7 @@ UNSORTED
       to the normal height.
     . So I need the track tile to set the callback for all the event track
       titles.
-    . TrackTile still needs an "expanded" state, which it needs to revert as
-      soon as the widget loses focus.
-    - Should give visual indication that it has wrapped.
+    * Should give visual indication that it has wrapped.
     * Click on expanded input loses focus.
       It actually loses focus for a moment, it goes to BlockViewWindow
     - Track moves down when it is resized, it should scroll a little

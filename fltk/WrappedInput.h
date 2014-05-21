@@ -24,12 +24,13 @@ class WrappedInput : public Fl_Multiline_Input {
 public:
     WrappedInput(int X, int Y, int W, int H);
     void resize(int x, int y, int w, int h);
-    // Use this for the newline-free contents.
+    // Use this to set newline-free unwrapped text.
     void set_text(const char *text);
     const char *get_text() const;
     int text_height() const;
 protected:
     int handle(int evt);
+    void draw();
 private:
     bool wrap_text();
 };
