@@ -8,7 +8,7 @@
 #include "util.h"
 #include "alpha_draw.h"
 
-#include "ExpandInput.h"
+#include "WrappedInput.h"
 #include "EventTrack.h"
 #include "SymbolTable.h"
 #include "MsgCollector.h"
@@ -143,7 +143,7 @@ EventTrackView::EventTrackView(const EventTrackConfig &config,
     // create event widgets
     bg_box.box(FL_THIN_DOWN_BOX);
     bg_box.color(color_to_fl(config.bg_color.brightness(this->brightness)));
-    this->title_input = new ExpandInput(0, 0, 1, 1, true);
+    this->title_input = new WrappedInput(0, 0, 1, 1);
 }
 
 
@@ -162,6 +162,8 @@ void
 EventTrackView::set_title(const char *title)
 {
     this->title_input->set_text(title);
+    // If it has multiple lines, make sure it always displays the first one.
+    this->title_input->position(0);
 }
 
 

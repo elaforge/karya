@@ -88,8 +88,6 @@ public:
     // Return the track currently being dragged right now, or -1.
     int get_dragged_track() const;
 
-protected:
-    virtual void draw();
 private:
     int title_height;
     ZoomInfo zoom;
@@ -99,6 +97,7 @@ private:
 
     void update_sizes();
     static void edit_input_cb(Fl_Widget *_w, void *vp);
+    static void title_input_cb(Fl_Widget *_w, void *vp);
 };
 
 #endif

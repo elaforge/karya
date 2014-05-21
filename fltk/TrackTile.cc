@@ -29,65 +29,17 @@ TrackTile::TrackTile(int X, int Y, int W, int H, Color bg_color,
 }
 
 
-static bool
-raised_widget(Fl_Widget *w)
-{
-    ExpandInput *input = dynamic_cast<ExpandInput *>(w);
-    return input && input->is_expanded();
-}
-
-
-// HACK: See comment on ExpandInput::is_expanded.
 int
 TrackTile::handle(int evt)
 {
-    // Ahh, the copy-and-pastey goodness.  Offer the event to any raised
-    // children first, and if they don't want it, pass it on to the superclass
-    // as normal.  Since c++ makes it so hard to factor out bits of code,
-    // I just copy and paste.  Good thing my event handling is minimal.
-
-    switch (evt) {
-    case FL_ENTER:
-    case FL_MOVE:
-        for (int i = 0; i < children(); i++) {
-            if (!raised_widget(child(i)))
-                continue;
-            Fl_Widget *c = child(i);
-            if (c->visible() && Fl::event_inside(c)) {
-                if (c->contains(Fl::belowmouse())) {
-                    return c->handle(FL_MOVE);
-                } else {
-                    Fl::belowmouse(c);
-                    if (c->handle(FL_ENTER))
-                        return 1;
-                }
+    if (evt == FL_PUSH) {
+        // If the click is on a track I want to take focus off of a text input.
+        for (int i = 0; i < tracks(); i++) {
+            if (Fl::event_inside(track_at(i))) {
+                Fl::focus(this->window());
+                break;
             }
         }
-        return MoveTile::handle(evt);
-    case FL_PUSH:
-        for (int i = 0; i < children(); i++) {
-            if (!raised_widget(child(i)))
-                continue;
-            Fl_Widget *c = child(i);
-            if (c->takesevents() && Fl::event_inside(c)) {
-                if (c->handle(FL_PUSH)) {
-                    if (Fl::pushed() && !c->contains(Fl::pushed()))
-                        Fl::pushed(c);
-                    return 1;
-                }
-            }
-        }
-        // HACK: defocus any inputs since there's been a click elsewhere.
-        // Normally BlockViewWindow::handle does this, but it can't tell the
-        // difference between the input taking the event and the TrackTile
-        // taking it.
-        // There's a small bug where the cursor switch back to normal because
-        // the refocus will change the cursor and MoveTile:set_cursor won't
-        // notice, but it's not a big deal.
-        // Fl_Cursor c = this->window()->cursor(); how to get old cursor?
-        Fl::focus(this->window());
-        // this->window()->cursor(c);
-        return MoveTile::handle(evt);
     }
     return MoveTile::handle(evt);
 }
@@ -144,8 +96,14 @@ TrackTile::edit_open(int tracknum, ScoreTime pos, const char *text,
         xpos, ypos, width, Config::View::track_title_height);
     edit_input->callback(edit_input_cb, static_cast<void *>(this));
     edit_input->show();
+    // When a widget gets focus from a click, it becomes Fl::focus() and then
+    // gets FL_FOCUS.  But when it gets focus from take_focus(), it gets
+    // FL_FOCUS and then becomes Fl::focus().  edit_input_cb relies on the
+    // former, so I have to assign focus first, or it will delete the widget
+    // while I'm still working on it.
+    Fl::focus(edit_input);
     edit_input->take_focus();
-    if (text)
+    if (*text)
         edit_input->set_text(text);
     if (select_start >= 0) {
         int len = strlen(text);
@@ -162,17 +120,13 @@ TrackTile::edit_open(int tracknum, ScoreTime pos, const char *text,
 void
 TrackTile::edit_close()
 {
-    // Return or escape makes the input defocus itself.  Then it gets
-    // FL_UNFOCUS, which calls ExpandInput::contract and then
-    // ExpandInput::redraw_neighbors.  Then it invokes the 'edit_input_cb',
-    // which then calls 'edit_close'.  edit_close then deletes the ExpandInput,
-    // which causes it to be removed from the TrackTile.  But since it's still
-    // inside the callback, it has to use Fl::delete_widget, which delays the
-    // delete until after I'm safely outside of the widget's callback.
     if (!this->edit_input)
         return;
     MsgCollector::get()->edit_input(this, edit_input->get_text());
     this->remove(edit_input);
+    // This function can be called from the callback, and you can't delete
+    // yourself from inside a callback without crashing.  So I have to delay
+    // the delete until its safe to do so.
     Fl::delete_widget(edit_input);
     edit_input = NULL;
     this->redraw();
@@ -198,8 +152,8 @@ TrackTile::time_end() const
     // It's too much hassle to make a const version of track_at when I know
     // I'm using it const.
     for (int i = 0; i < this->tracks(); i++) {
-        end = std::max(end,
-                const_cast<TrackTile *>(this)->track_at(i)->time_end());
+        end = std::max(
+            end, const_cast<TrackTile *>(this)->track_at(i)->time_end());
     }
     return end;
 }
@@ -251,7 +205,10 @@ TrackTile::insert_track(int tracknum, TrackView *track, int width)
     // Just set sizes here, coords will be fixed by update_sizes()
     Fl_Widget &title = track->title_widget();
     title.size(width, this->title_height);
-    int child_pos = tracknum*2;
+    WrappedInput *wrapped = dynamic_cast<WrappedInput *>(&title);
+    if (wrapped)
+        wrapped->callback(title_input_cb, static_cast<void *>(this));
+    int child_pos = tracknum * 2;
     this->insert_child(title, child_pos);
 
     track->size(width, h() - this->title_height);
@@ -262,7 +219,6 @@ TrackTile::insert_track(int tracknum, TrackView *track, int width)
         this->set_stiff_child(child_pos+1);
     }
     this->update_sizes();
-    this->redraw();
 }
 
 
@@ -275,7 +231,6 @@ TrackTile::remove_track(int tracknum)
     this->remove_child(t);
     this->remove_child(&t->title_widget());
     this->update_sizes();
-    this->redraw();
     return t;
 }
 
@@ -319,49 +274,16 @@ TrackTile::set_track_width(int tracknum, int width)
     title.size(width, title.h());
     track->size(width, track->h());
     this->update_sizes();
-    this->redraw();
 }
 
 
 int
 TrackTile::get_dragged_track() const
 {
-    // DEBUG("dragged child " << this->dragged_child);
     if (this->dragged_child == -1)
         return -1;
     else
         return this->dragged_child / 2; // see track_at()
-}
-
-
-// HACK: See comment on ExpandInput::is_expanded.
-void
-TrackTile::draw()
-{
-    // Copied from Fl_Group::draw
-    if (damage() & ~FL_DAMAGE_CHILD) {
-        draw_box();
-        draw_label();
-    }
-    for (int i = 0; i < children(); i++) {
-        if (raised_widget(child(i)))
-            continue;
-        Fl_Widget &c = *child(i);
-        if (damage() & ~FL_DAMAGE_CHILD) {
-            draw_child(c);
-            draw_outside_label(c);
-        } else {
-            update_child(c);
-        }
-    }
-    // Draw the expanded inputs on top.
-    for (int i = 0; i < children(); i++) {
-        if (!raised_widget(child(i)))
-            continue;
-        Fl_Widget &c = *child(i);
-        draw_child(c);
-        draw_outside_label(c);
-    }
 }
 
 
@@ -373,11 +295,15 @@ TrackTile::update_sizes()
     for (int i = 0; i < tracks(); i++) {
         Fl_Widget *title = child(i*2);
         Fl_Widget *body = child(i*2+1);
-        // The title might be expanded if it's being edited.
-        ASSERT(title->w() >= body->w());
-        title->resize(x() + xpos, y(), title->w(), this->title_height);
-        body->resize(x() + xpos, y() + this->title_height,
-                body->w(), h() - this->title_height);
+
+        // If it's a WrappedText, and has focus, then resize to
+        // max(title_height, text_height()), otherwise title_height.
+        WrappedInput *input = dynamic_cast<WrappedInput *>(title);
+        int height = this->title_height;
+        if (input && input == Fl::focus())
+            height = std::max(height, input->text_height());
+        title->resize(x() + xpos, y(), body->w(), height);
+        body->resize(x() + xpos, y() + height, body->w(), h() - height);
         xpos += body->w();
     }
     // track_pad can't be 0 width, see MoveTile.
@@ -385,4 +311,27 @@ TrackTile::update_sizes()
     // They should have been inserted at the right place.
     ASSERT(!this->sort_children());
     init_sizes();
+    redraw();
+}
+
+void
+TrackTile::title_input_cb(Fl_Widget *w, void *vp)
+{
+    WrappedInput *input = static_cast<WrappedInput *>(w);
+    TrackTile *self = static_cast<TrackTile *>(vp);
+    if (input == Fl::focus()) {
+        int height = std::max(self->title_height, input->text_height());
+        if (height != input->h())
+            self->update_sizes();
+    } else {
+        // Collapse to the default height.
+        self->update_sizes();
+        for (int i = 0; i < self->tracks(); i++) {
+            if (self->child(i*2) == input) {
+                MsgCollector::get()->track_title(
+                    self, i + 1, input->get_text());
+                break;
+            }
+        }
+    }
 }

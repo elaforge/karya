@@ -197,6 +197,8 @@ public:
     // Record a msg from the given tracknum, where 'w' is within the msg's
     // window.
     void track(UiMsg::MsgType type, Fl_Widget *w, int tracknum);
+    // Record msg_input for text changes.
+    void track_title(Fl_Widget *w, int tracknum, const char *text);
     void edit_input(Fl_Widget *w, const char *edit_input);
     void view(UiMsg::MsgType type, BlockViewWindow *view);
 

@@ -7,8 +7,20 @@ UNSORTED
   * up/down arrows should navigate in WrappedInput
   * Rename edit_append to edit_insert since it really inserts text at the
     position.
-  - I could also make track titles wrap vertically, and still collapse when
+  * I could also make track titles wrap vertically, and still collapse when
     unfocused.
+    . Can I do the expand more simply?  In the callback, if it's still
+      focused, expand to text_height(), but when focus is lost, contract back
+      to the normal height.
+    . So I need the track tile to set the callback for all the event track
+      titles.
+    . TrackTile still needs an "expanded" state, which it needs to revert as
+      soon as the widget loses focus.
+    - Should give visual indication that it has wrapped.
+    * Click on expanded input loses focus.
+      It actually loses focus for a moment, it goes to BlockViewWindow
+    - Track moves down when it is resized, it should scroll a little
+      to counteract so the events stay in the same place.
   * when I mistype a key, I get *raga doesn't have NoteOn etc. rather than
     unparseable key
     . scale_input_to_note returns Maybe Note, so it can't report errors

@@ -295,7 +295,7 @@ ccBinaries =
 
 fltkDeps :: Config -> [FilePath]
 fltkDeps config = map (srcToObj config . ("fltk"</>))
-    [ "Block.cc", "EventTrack.cc", "ExpandInput.cc", "MoveTile.cc"
+    [ "Block.cc", "EventTrack.cc", "MoveTile.cc"
     , "MsgCollector.cc", "P9Scrollbar.cc", "Ruler.cc", "SimpleScroll.cc"
     , "SkeletonDisplay.cc", "StyleTable.cc", "SymbolOutput.cc"
     , "SymbolTable.cc", "Track.cc", "TrackTile.cc", "WrappedInput.cc"

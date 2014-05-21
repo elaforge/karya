@@ -36,7 +36,7 @@ WrappedInput::WrappedInput(int X, int Y, int W, int H) :
 
 
 void
-WrappedInput::resize(int x, int y, int w, int h) // , bool no_wrap)
+WrappedInput::resize(int x, int y, int w, int h)
 {
     int old_w = this->w();
     Fl_Multiline_Input::resize(x, y, w, h);
@@ -148,6 +148,9 @@ WrappedInput::handle(int evt)
     if (evt == FL_UNFOCUS) {
         if (input_util::strip_value(this))
             this->wrap_text();
+        this->position(0);
+        this->do_callback();
+    } else if (evt == FL_FOCUS) {
         this->do_callback();
     }
     return handled;

@@ -238,18 +238,18 @@ set_event(UiMsg::Event &e, int evt)
 
 
 static void
-set_update(UiMsg &m, UiMsg::MsgType type, const char *edit_input)
+set_update(UiMsg &m, UiMsg::MsgType type, const char *text)
 {
     ASSERT_MSG(m.context.view, "caller must explicitly set view for updates");
     BlockView *block = &m.context.view->block;
     switch (type) {
     case UiMsg::msg_input:
         {
+            // If 'text' was given, it's either a track title or edit input.
+            // Otherwise, it must have been the block title.
             const char *s;
-            if (edit_input)
-                s = edit_input;
-            else if (m.context.track_type)
-                s = block->track_at(m.context.tracknum)->get_title();
+            if (text)
+                s = text;
             else
                 s = block->get_title();
             if (s)
@@ -341,6 +341,15 @@ MsgCollector::track(UiMsg::MsgType type, Fl_Widget *w, int tracknum)
 
 
 void
+MsgCollector::track_title(Fl_Widget *w, int tracknum, const char *text)
+{
+    UiMsg::Context c(context(window(w), tracknum));
+    c.track_type = UiMsg::track_normal;
+    push_update(UiMsg::msg_input, c, text);
+}
+
+
+void
 MsgCollector::edit_input(Fl_Widget *w, const char *edit_input)
 {
     UiMsg::Context c(context(window(w)));
@@ -375,12 +384,12 @@ MsgCollector::screen_update()
 
 void
 MsgCollector::push_update(UiMsg::MsgType type, const UiMsg::Context &c,
-    const char *edit_input)
+    const char *text)
 {
     UiMsg m;
     m.type = type;
     m.context = c;
-    set_update(m, type, edit_input);
+    set_update(m, type, text);
     this->push(m);
 }
 
