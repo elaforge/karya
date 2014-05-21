@@ -28,6 +28,19 @@ TrackTile::TrackTile(int X, int Y, int W, int H, Color bg_color,
     set_bg_color(bg_color);
 }
 
+// Widgets alternate [title0, track0, title1, track1, ... box]
+static int
+track_index(int tracknum)
+{
+    return tracknum * 2 + 1;
+}
+
+static int
+title_index(int tracknum)
+{
+    return tracknum * 2;
+}
+
 
 int
 TrackTile::handle(int evt)
@@ -208,15 +221,14 @@ TrackTile::insert_track(int tracknum, TrackView *track, int width)
     WrappedInput *wrapped = dynamic_cast<WrappedInput *>(&title);
     if (wrapped)
         wrapped->callback(title_input_cb, static_cast<void *>(this));
-    int child_pos = tracknum * 2;
-    this->insert_child(title, child_pos);
+    this->insert_child(title, title_index(tracknum));
 
     track->size(width, h() - this->title_height);
-    this->insert_child(*track, child_pos+1);
+    this->insert_child(*track, track_index(tracknum));
 
     if (!track->track_resizable()) {
-        this->set_stiff_child(child_pos);
-        this->set_stiff_child(child_pos+1);
+        this->set_stiff_child(track_index(tracknum));
+        this->set_stiff_child(title_index(tracknum));
     }
     this->update_sizes();
 }
@@ -239,8 +251,7 @@ TrackView *
 TrackTile::track_at(int tracknum)
 {
     ASSERT(0 <= tracknum && tracknum < tracks());
-    // Widgets alternate [title0, track0, title1, track1, ... box]
-    return dynamic_cast<TrackView *>(child(tracknum*2 + 1));
+    return dynamic_cast<TrackView *>(child(track_index(tracknum)));
 }
 
 
@@ -248,8 +259,7 @@ const TrackView *
 TrackTile::track_at(int tracknum) const
 {
     ASSERT(0 <= tracknum && tracknum < tracks());
-    // Widgets alternate [title0, track0, title1, track1, ... box]
-    return dynamic_cast<const TrackView *>(child(tracknum*2 + 1));
+    return dynamic_cast<const TrackView *>(child(track_index(tracknum)));
 }
 
 
@@ -293,8 +303,8 @@ TrackTile::update_sizes()
     int xpos = 0;
 
     for (int i = 0; i < tracks(); i++) {
-        Fl_Widget *title = child(i*2);
-        Fl_Widget *body = child(i*2+1);
+        Fl_Widget *title = child(title_index(i));
+        Fl_Widget *body = child(track_index(i));
 
         // If it's a WrappedText, and has focus, then resize to
         // max(title_height, text_height()), otherwise title_height.
@@ -321,15 +331,29 @@ TrackTile::title_input_cb(Fl_Widget *w, void *vp)
     TrackTile *self = static_cast<TrackTile *>(vp);
     if (input == Fl::focus()) {
         int height = std::max(self->title_height, input->text_height());
-        if (height != input->h())
+        if (height != input->h()) {
             self->update_sizes();
+            for (int i = 0; i < self->tracks(); i++) {
+                if (self->child(title_index(i)) == input) {
+                    TrackView *track = self->track_at(i);
+                    ZoomInfo z = self->zoom;
+                    track->set_zoom(ZoomInfo(
+                        z.offset + z.to_time(height - self->title_height),
+                        z.factor));
+                    break;
+                }
+            }
+        }
+        // scroll the track underneath by an additional title_height - h()
     } else {
         // Collapse to the default height.
         self->update_sizes();
+        // scroll track back
         for (int i = 0; i < self->tracks(); i++) {
-            if (self->child(i*2) == input) {
+            if (self->child(title_index(i)) == input) {
                 MsgCollector::get()->track_title(
                     self, i + 1, input->get_text());
+                self->track_at(i)->set_zoom(self->zoom);
                 break;
             }
         }

@@ -17,7 +17,7 @@ UNSORTED
     * Should give visual indication that it has wrapped.
     * Click on expanded input loses focus.
       It actually loses focus for a moment, it goes to BlockViewWindow
-    - Track moves down when it is resized, it should scroll a little
+    * Track moves down when it is resized, it should scroll a little
       to counteract so the events stay in the same place.
   * when I mistype a key, I get *raga doesn't have NoteOn etc. rather than
     unparseable key
