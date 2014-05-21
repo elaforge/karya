@@ -113,6 +113,13 @@ record_track_dynamic_for block_id track_id = do
     merge_collect $ mempty
         { collect_track_dynamic = Map.singleton (block_id, track_id) dynamic }
 
+-- * misc Dynamic state
+
+with_default_merge :: Map.Map Score.Control Merge -> Deriver a -> Deriver a
+with_default_merge defaults = local $ \st -> st
+    { state_control_merge_defaults =
+        defaults <> state_control_merge_defaults st
+    }
 
 -- * cache
 

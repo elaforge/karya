@@ -164,8 +164,7 @@ note_to_call scale dmap pitch_to_nn note =
             <$> to_nn pitch
             <*> to_nn (add_pc dmap 1 pitch)
             <*> return (Pitch.NoteNumber frac)
-        where
-        to_nn = pitch_to_nn config
+        where to_nn = pitch_to_nn config
 
     pitch_note :: Pitch.Pitch -> Scale.PitchNote
     pitch_note pitch config =

@@ -70,9 +70,9 @@ control_calls = Derive.transformer_call_map
     , ("sh", c_sh_control)
     , ("slew", c_slew)
     , ("smooth", c_smooth)
-    , ("->", c_redirect Derive.Default "the default operator for the control")
+    , ("->", c_redirect Nothing "the default operator for the control")
     -- TODO should I set to 1 at start and end, like Control.multiply_signal?
-    , ("->+", c_redirect (Derive.Merge Derive.op_add) "addition")
+    , ("->+", c_redirect (Just $ Derive.Merge Derive.op_add) "addition")
     ]
 
 c_sh_control :: Derive.Transformer Derive.Control
@@ -190,15 +190,17 @@ smooth f srate time =
                     (max x0 (min x (x+time))) y0
                     (maybe id (min . fst) next (max x (x+time))) y
 
-c_redirect :: Derive.Merge -> Text -> Derive.Transformer Derive.Control
-c_redirect merge op_name =
+c_redirect :: Maybe Derive.Merge -> Text -> Derive.Transformer Derive.Control
+c_redirect maybe_merge op_name =
     Derive.transformer Module.prelude "redirect" Tags.cmod
     ("Redirect a signal to another control, using the control modifier hack.\
     \ The control is combined with " <> op_name <> ".")
     $ Sig.callt (required "control" "Redirect to this control.")
-    $ \control _args deriver -> do
+    $ \control_ _args deriver -> do
         (sig, logs) <- Post.derive_signal deriver
-        Derive.modify_control merge (Score.control control) sig
+        let control = Score.control control_
+        merge <- maybe (Derive.get_default_merge control) return maybe_merge
+        Derive.modify_control merge control sig
         return $ map LEvent.Log logs
 
 c_cf_sample :: Derive.Transformer Derive.Note

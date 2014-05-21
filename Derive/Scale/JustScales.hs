@@ -159,16 +159,16 @@ note_to_call scale smap note =
     case TheoryFormat.read_unadjusted_pitch fmt note of
         Left _ -> ScaleDegree.scale_degree_interval
             scale (smap_named_intervals smap) note
-        Right pitch_ ->
-            let pitch = pitch_
-                    { Pitch.pitch_degree = (Pitch.pitch_degree pitch_)
-                        { Pitch.degree_accidentals = 0 }
-                    }
-                accs = Pitch.pitch_accidentals pitch_
-            in Just $ ScaleDegree.scale_degree_just
+        Right pitch_ -> Just $ ScaleDegree.scale_degree_just
                 scale (smap_named_intervals smap)
                 (smap_accidental_interval smap ^^ accs)
                 (pitch_nn smap pitch) (pitch_note fmt pitch)
+            where
+            pitch = pitch_
+                { Pitch.pitch_degree = (Pitch.pitch_degree pitch_)
+                    { Pitch.degree_accidentals = 0 }
+                }
+            accs = Pitch.pitch_accidentals pitch_
     where fmt = smap_fmt smap
 
 pitch_nn :: ScaleMap -> Pitch.Pitch -> Scale.PitchNn

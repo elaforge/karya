@@ -9,7 +9,6 @@
 -- names.
 module Derive.Controls where
 import Prelude hiding (null)
-import qualified Data.Set as Set
 
 import Util.Control
 import qualified Derive.Score as Score
@@ -17,13 +16,10 @@ import Derive.Score (Control)
 import qualified Perform.Pitch as Pitch
 
 
--- | Should the given control be combined with addition by default instead of
--- multiplication?
-is_additive :: Control -> Bool
-is_additive = (`Set.member` additive_controls)
-
-additive_controls :: Set.Set Control
-additive_controls = Set.fromList [diatonic, chromatic, nn, hz]
+-- | These controls should be combined with addition by default instead of
+-- multiplication.
+additive_controls :: [Control]
+additive_controls = [diatonic, chromatic, nn, hz]
 
 -- | True for controls that are used for internal communication, and are not
 -- meant to be created directly or seen at the tracklang level.

@@ -146,6 +146,7 @@ import qualified Ui.TrackTree as TrackTree
 
 import qualified Derive.Call.Module as Module
 import qualified Derive.Call.Tags as Tags
+import qualified Derive.Controls as Controls
 import qualified Derive.Deriver.DeriveM as DeriveM
 import Derive.Deriver.DeriveM (get, gets, modify, put, run)
 import qualified Derive.LEvent as LEvent
@@ -409,6 +410,7 @@ data Dynamic = Dynamic {
     -- 'Signal.Control', but could be synthesized as well.  See
     -- 'TrackLang.ControlFunction' for details.
     , state_control_functions :: !Score.ControlFunctionMap
+    , state_control_merge_defaults :: Map.Map Score.Control Merge
     -- | Named pitch signals.
     , state_pitches :: !Score.PitchMap
     -- | The unnamed pitch signal currently in scope.  This is the pitch signal
@@ -438,6 +440,7 @@ initial_dynamic :: TrackLang.Environ -> Dynamic
 initial_dynamic environ = Dynamic
     { state_controls = initial_controls
     , state_control_functions = mempty
+    , state_control_merge_defaults = initial_control_merge_defaults
     , state_pitches = Map.empty
     , state_pitch = mempty
     , state_environ = environ
@@ -451,8 +454,12 @@ initial_dynamic environ = Dynamic
 -- | Initial control environment.
 initial_controls :: Score.ControlMap
 initial_controls = Map.fromList
-    [ (Score.c_dynamic, Score.untyped (Signal.constant default_dynamic))
+    [ (Controls.dynamic, Score.untyped (Signal.constant default_dynamic))
     ]
+
+initial_control_merge_defaults :: Map.Map Score.Control Merge
+initial_control_merge_defaults =
+    Map.fromList [(c, Merge op_add) | c <- Controls.additive_controls]
 
 -- | A default dynamic that's not 0 is useful because otherwise you have to add
 -- dyn to everything.  Since control tracks multiply by default, 1 is the most
@@ -461,11 +468,12 @@ default_dynamic :: Signal.Y
 default_dynamic = 1
 
 instance Pretty.Pretty Dynamic where
-    format (Dynamic controls cfuncs pitches pitch environ warp scopes aliases
-            damage stack) =
+    format (Dynamic controls cfuncs cmerge pitches pitch environ warp scopes
+            aliases damage stack) =
         Pretty.record "Dynamic"
             [ ("controls", Pretty.format controls)
             , ("control functions", Pretty.format cfuncs)
+            , ("control merge defaults", Pretty.format cmerge)
             , ("pitches", Pretty.format pitches)
             , ("pitch", Pretty.format pitch)
             , ("environ", Pretty.format environ)
@@ -477,11 +485,11 @@ instance Pretty.Pretty Dynamic where
             ]
 
 instance DeepSeq.NFData Dynamic where
-    rnf (Dynamic controls cfuncs pitches pitch environ warp _scopes aliases
-            damage stack) =
-        rnf controls `seq` rnf cfuncs `seq` rnf pitches `seq` rnf pitch
-        `seq` rnf environ `seq` rnf warp `seq` rnf aliases `seq` rnf damage
-        `seq` rnf stack
+    rnf (Dynamic controls cfuncs cmerge pitches pitch environ warp _scopes
+            aliases damage stack) =
+        rnf controls `seq` rnf cfuncs `seq` rnf cmerge `seq` rnf pitches
+        `seq` rnf pitch `seq` rnf environ `seq` rnf warp `seq` rnf aliases
+        `seq` rnf damage `seq` rnf stack
 
 -- ** scope
 
@@ -716,16 +724,12 @@ instance Monoid.Monoid InstrumentCalls where
 -- ** control
 
 -- | How to merge a control into 'Dynamic'.
-data Merge =
-    -- | Replace the existing signal.
-    Set
-    -- | Merge according to the signal's default.
-    | Default
-    -- | Merge with a specific operator.
-    | Merge !ControlOp
+data Merge = Set -- ^ Replace the existing signal.
+    | Merge !ControlOp -- ^ Merge with a specific operator.
     deriving (Show)
 
 instance Pretty.Pretty Merge where pretty = show
+instance DeepSeq.NFData Merge where rnf _ = ()
 
 -- | This is a monoid used for combining two signals.  The identity value
 -- is only used when a relative signal is applied when no signal is in scope.

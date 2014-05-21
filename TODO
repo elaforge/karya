@@ -3,6 +3,7 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
+  * configurable default control merge
   * text input should wrap when it hits the edge of the window
   * up/down arrows should navigate in WrappedInput
   * Rename edit_append to edit_insert since it really inserts text at the

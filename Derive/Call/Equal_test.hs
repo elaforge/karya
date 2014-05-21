@@ -85,5 +85,16 @@ test_equal_quoted = do
     strings_like logs ["too many arguments"]
     equal (run "> | ^z = \"(# = (4c) |)" "z") ([("4c", "+")], [])
 
+test_default_merge = do
+    let run title = DeriveTest.extract (DeriveTest.e_control "c") $
+            DeriveTest.derive_tracks title
+                [ ("c", [(0, 0, ".5")])
+                , ("c", [(0, 0, ".5")])
+                , (">", [(0, 1, "")])
+                ]
+    equal (run "") ([[(0, 0.25)]], [])
+    equal (run "default-merge set c") ([[(0, 0.5)]], [])
+    equal (run "default-merge add c") ([[(0, 1)]], [])
+
 e_inst :: Score.Event -> (RealTime, Text)
 e_inst e = (Score.event_start e, DeriveTest.e_inst e)

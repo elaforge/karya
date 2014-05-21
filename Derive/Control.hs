@@ -151,9 +151,8 @@ eval_track track expr ctype deriver = case ctype of
         tempo_call maybe_sym track sig_deriver deriver
     ParseTitle.Control maybe_op control -> do
         let control_name = Score.typed_val control
-        merge <- lookup_op control_name maybe_op
-        let name = merge_name control_name merge
-        let sig_deriver = with_control_env control_name name $
+        merge <- lookup_merge control_name maybe_op
+        let sig_deriver = with_control_env control_name (merge_name merge) $
                 derive_control False track transform
         control_call track control merge sig_deriver deriver
     ParseTitle.Pitch scale_id maybe_name ->
@@ -167,26 +166,22 @@ eval_track track expr ctype deriver = case ctype of
         ParseTitle.Control {} -> "control track"
         ParseTitle.Pitch {} -> "pitch track"
 
-merge_name :: Score.Control -> Derive.Merge -> Text
-merge_name control = maybe "set" name_of . Derive.merge_op control
-    where name_of (Derive.ControlOp name _) = name
+merge_name :: Derive.Merge -> Text
+merge_name Derive.Set = "set"
+merge_name (Derive.Merge (Derive.ControlOp name _)) = name
 
 -- | Get the combining operator for this track.
 --
--- 'Controls.null' is used by control calls, and uses 'Derive.Set' by default
--- instead of 'Derive.Default'.  Since the control call emits signal which then
--- goes in a control track, it would lead to multiplication being applied
--- twice.  In addition, applying a relative signal tends to create a leading
--- 0 sample, which then causes control calls to wipe out previous samples.
-lookup_op :: Score.Control -> Maybe TrackLang.CallId
+-- 'Controls.null' is used by control calls, and uses 'Derive.Set' by default.
+-- Since the control call emits signal which then goes in a control track,
+-- a merge operator would wind up being applied twice.
+lookup_merge :: Score.Control -> Maybe TrackLang.CallId
     -> Derive.Deriver Derive.Merge
-lookup_op control op = case op of
+lookup_merge control op = case op of
     Nothing
         | control == Controls.null -> return Derive.Set
-        | otherwise -> return Derive.Default
-    Just sym
-        | sym == "set" -> return Derive.Set
-        | otherwise -> Derive.Merge <$> Derive.get_control_op sym
+        | otherwise -> Derive.get_default_merge control
+    Just sym -> Derive.get_merge sym
 
 -- | A tempo track is derived like other signals, but in absolute time.
 -- Otherwise it would wind up being composed with the environmental warp twice.

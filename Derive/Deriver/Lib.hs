@@ -25,7 +25,6 @@ import qualified Ui.Track as Track
 
 import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Call.Module as Module
-import qualified Derive.Controls as Controls
 import qualified Derive.Deriver.Internal as Internal
 import Derive.Deriver.Monad
 import qualified Derive.Environ as Environ
@@ -451,16 +450,24 @@ get_ruler = Internal.lookup_current_tracknum >>= \x -> case x of
 -- | Modify the given control according to the Merge.
 with_merged_control :: Merge -> Score.Control -> Score.TypedControl
     -> Deriver a -> Deriver a
-with_merged_control merge control =
-    maybe with_control with_relative_control (merge_op control merge) control
+with_merged_control Set = with_control
+with_merged_control (Merge op) = with_relative_control op
 
-merge_op :: Score.Control -> Merge -> Maybe ControlOp -- ^ Nothing if it's Set.
-merge_op control merge = case merge of
-    Set -> Nothing
-    Default
-        | Controls.is_additive control -> Just op_add
-        | otherwise -> Just op_mul
-    Merge op -> Just op
+get_default_merge :: Score.Control -> Deriver Merge
+get_default_merge control = do
+    defaults <- Internal.get_dynamic state_control_merge_defaults
+    return $ Map.findWithDefault default_merge control defaults
+
+default_merge :: Merge
+default_merge = Merge op_mul
+
+get_merge :: TrackLang.CallId -> Deriver Merge
+get_merge name
+    | name == "set" = return Set
+    | otherwise = do
+        op_map <- gets (state_control_op_map . state_constant)
+        Merge <$> require ("unknown control op: " ++ show name)
+            (Map.lookup name op_map)
 
 with_control :: Score.Control -> Score.TypedControl -> Deriver a -> Deriver a
 with_control control signal = Internal.local $ \st ->
@@ -513,12 +520,6 @@ multiply_control cont val
     | val == 1 = id
     | otherwise = with_multiplied_control cont
         (Score.untyped (Signal.constant val))
-
-get_control_op :: TrackLang.CallId -> Deriver ControlOp
-get_control_op c_op = do
-    op_map <- gets (state_control_op_map . state_constant)
-    maybe (throw ("unknown control op: " ++ show c_op)) return
-        (Map.lookup c_op op_map)
 
 -- | Emit a 'ControlMod'.
 modify_control :: Merge -> Score.Control -> Signal.Control -> Deriver ()

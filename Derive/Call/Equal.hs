@@ -21,6 +21,7 @@ import qualified Derive.Call.Tags as Tags
 import qualified Derive.Call.Util as Util
 import qualified Derive.Controls as Controls
 import qualified Derive.Derive as Derive
+import qualified Derive.Deriver.Internal as Internal
 import qualified Derive.Eval as Eval
 import qualified Derive.Parse as Parse
 import qualified Derive.PitchSignal as PitchSignal
@@ -35,13 +36,20 @@ import qualified Perform.Signal as Signal
 -- * note
 
 note_calls :: Derive.CallMaps Derive.Note
-note_calls = Derive.call_maps [("=", c_equal_generator)] [("=", c_equal)]
+note_calls = Derive.call_maps
+    [("=", c_equal_generator)]
+    [("=", c_equal), (default_merge, c_default_merge)]
 
 control_calls :: Derive.CallMaps Derive.Control
-control_calls = Derive.transformer_call_map [("=", c_equal)]
+control_calls = Derive.transformer_call_map
+    [("=", c_equal), (default_merge, c_default_merge)]
 
 pitch_calls :: Derive.CallMaps Derive.Pitch
-pitch_calls = Derive.transformer_call_map [("=", c_equal)]
+pitch_calls = Derive.transformer_call_map
+    [("=", c_equal), (default_merge, c_default_merge)]
+
+default_merge :: TrackLang.CallId
+default_merge = "default-merge"
 
 -- * implementation
 
@@ -244,3 +252,20 @@ quoted_cinfo args (TrackLang.Quoted expr) = (Derive.passed_info args)
 -- | Pseudo-module for val calls generated from a quoted expression.
 quoted_module :: Module.Module
 quoted_module = "quoted"
+
+
+-- * other
+
+c_default_merge :: Derive.Callable d => Derive.Transformer d
+c_default_merge = Derive.transformer Module.prelude "default-merge" mempty
+    "Set the default merge operators for controls. These apply when the\
+    \ control track doesn't have an explicit operator."
+    $ Sig.callt ((,)
+    <$> Sig.required "op" "Merge operator, from\
+        \ 'Derive.Deriver.Monad.default_control_op_map'."
+    <*> Sig.many1 "control" "Control names."
+    ) $ \(op_name, controls) _args deriver -> do
+        merge <- Derive.get_merge op_name
+        let defaults = Map.fromList
+                [(Score.control c, merge) | c <- NonEmpty.toList controls]
+        Internal.with_default_merge defaults deriver
