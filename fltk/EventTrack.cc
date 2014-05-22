@@ -104,9 +104,12 @@ TrackSignal::calculate_val_bounds() {
         last_time = s->time;
     }
     // If it looks like a normalized control signal, then it's more convenient
-    // to see in on an absolute scale.
+    // to see it on an absolute scale.
     if (val_min >= 0 && val_max <= 1) {
         val_min = 0;
+        val_max = 1;
+    } else if (val_min >= -1 && val_max <= 1) {
+        val_min = -1;
         val_max = 1;
     }
 }

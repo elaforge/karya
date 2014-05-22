@@ -69,6 +69,8 @@ UNSORTED
       could also do absolute.  E.g. numbers multiply.  But then I can have
       'm+' or 'm-' which is current dyn plus or minus some amount, and
       mf, f, ff, which are absolute values.
+  * If I wind up using scale a lot, then track render should detect 0-1, -1-1,
+    and unbounded.
 
   + Write a fancy tile like ViewConfig.horizontal_tile but guesses if you mean
     to tile vertically.
