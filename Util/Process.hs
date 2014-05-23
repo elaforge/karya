@@ -67,6 +67,16 @@ isAlive :: Posix.ProcessID -> IO Bool
 isAlive pid = (Posix.signalProcess Posix.nullSignal pid >> return True)
     `Exception.catch` (return . not . IO.Error.isDoesNotExistError)
 
+commandName :: Posix.ProcessID -> IO (Maybe String)
+commandName pid = do
+    -- Ignore the exit code, because ps -p returns 1 when the pid doesn't
+    -- exist.
+    (_, output, _) <- Process.readProcessWithExitCode
+        "ps" ["-p", show pid, "-o", "comm"] ""
+    return $ case lines output of
+        [_, cmd] -> Just cmd
+        _ -> Nothing
+
 exit :: Int -> IO a
 exit 0 = Exit.exitSuccess
 exit n = Exit.exitWith $ Exit.ExitFailure n

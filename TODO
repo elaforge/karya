@@ -3,6 +3,9 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
+  * Looking for logview.pid is not reliable since it could collide with an
+    existing pid.  I should see if the process is called logview.
+      ps -e $(cat logview.pid) -o comm
   * configurable default control merge
   * text input should wrap when it hits the edge of the window
   * up/down arrows should navigate in WrappedInput
@@ -26,27 +29,34 @@ UNSORTED
     . scale_input_to_note returns Maybe Note, so it can't report errors
   - error msg: pitch: [key unparseable by given scale: karaharapriya]
     Firstly, what's up with the []s?  Secondly, should say what scale?
-  . For save/rehearsal/mridangam, I want to parameterize a pattern by
-    replacing a part of it.  I can do this by assigning note calls:
-      ^p=some-block | pattern
-    Then I have ^p1 = "(^p=subst1 | pattern) | ^p2 = "(^p=subst2 | pattern)
-    Putting this much code in the UI gets annoying, how can I put this in
-    a file?
-    . An easy way would be to load a set of files when starting derivation,
-      and put 'Map Symbol Text' in Constant.  Or just directly add calls on
-      them.  This would let me write in tracklang.
-    . But I also want to write in haskell.  I could put code in
-      Local.Score.SomeName, and have those either statically linked in, or
-      dynamically compiled and loaded on each derivation.
-      . Static linking is easier, but I should at least automatically create
-        a All.hs.
-      . Also, creating calls is a bit heavyweight, since I likely don't care
-        about tags and doc and module can be inferred.  Presumably I can get
-        around that with a constructor that defaults those fields, and then
-        the generated All.hs overrides the module.
-      . Writing in tracklang lacks typechecking.  So there should be utilities
-        to write like tracklang, but in haskell, e.g.
-          c_p1 = with_note_call "p" "subst1" $ block "pattern"
+  Edit per-score code in a text editor.
+    . For save/rehearsal/mridangam, I want to parameterize a pattern by
+      replacing a part of it.  I can do this by assigning note calls:
+        ^p=some-block | pattern
+      Then I have ^p1 = "(^p=subst1 | pattern) | ^p2 = "(^p=subst2 | pattern)
+      Putting this much code in the UI gets annoying, how can I put this in
+      a file?
+    * Write parser for .karya file.
+    - On derive, load it, and puts its definitions into scope.
+      . The file name is derived from the SaveFile... or perhaps it should be
+        in StateConfig?  Saving a score under a different name shouldn't cause
+        its definitions to disappear.  But the state doesn't have the pa
+  I also want local code in haskell.
+    . I could put code in Local.Score.SomeName, and have those either
+      statically linked in, or dynamically compiled and loaded on each
+      derivation.
+    . Static linking is easier, but I should at least automatically create
+      a All.hs.
+    . Also, creating calls is a bit heavyweight, since I likely don't care
+      about tags and doc and module can be inferred.  Presumably I can get
+      around that with a constructor that defaults those fields, and then
+      the generated All.hs overrides the module.
+    . Writing in tracklang lacks typechecking.  There could be utilities to
+      write like tracklang, but in haskell, e.g.
+        c_p1 = with_note_call "p" "subst1" $ block "pattern"
+  Also, it's kind of a pain to edit the global transform in the REPL.
+    . I could put a "global" section in $(save).karya, but then I have to
+      keep it in sync with State.global_transform, which seems error prone.
 
   - why does data/bloom use so many channels?  E.g., c5 at 8.51s on chan 1
     . I could emit logs giving output msgs along with reason for allocation.

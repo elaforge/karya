@@ -145,21 +145,24 @@ logview flags = do
         STM.atomically $ TChan.writeTChan log_chan msg
         tail_loop log_chan hdl
 
+-- | If a logview is already running, return its pid, otherwise write the
+-- current pid.
 write_pid :: IO (Maybe Posix.ProcessID)
 write_pid = do
     -- I have to use ByteString.readFile and writeFile to avoid GHC's obnoxious
     -- file locking.
     pid_str <- File.ignoreEnoent $ ByteString.readFile pid_file
     existing <- case ByteString.readInt =<< pid_str of
-        Just (pid, _) -> ifM (Util.Process.isAlive p)
-            (return (Just p)) (return Nothing)
-            where p = fromIntegral pid
+        Just (pid_, _) -> do
+            maybe_cmd <- Util.Process.commandName pid
+            return $ if maybe False ("logview" `List.isSuffixOf`) maybe_cmd
+                then Just pid else Nothing
+            where pid = fromIntegral pid_
         _ -> return Nothing
     when (existing == Nothing) $ do
         pid <- Posix.getProcessID
         ByteString.writeFile pid_file (ByteString.pack (show pid) <> "\n")
     return existing
-
 
 gui :: LogChan -> FilePath -> Int -> IO ()
 gui log_chan filename history = do
