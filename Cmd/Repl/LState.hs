@@ -81,8 +81,15 @@ modify_config f = State.modify_config f >> Cmd.invalidate_performances
 transform :: Text -> Cmd.CmdL ()
 transform = State.modify . (State.config#State.global_transform #=)
 
+modify_transform :: (Text -> Text) -> Cmd.CmdL ()
+modify_transform = State.modify . (State.config#State.global_transform %=)
+
 get_transform :: Cmd.CmdL Text
 get_transform = State.config#State.global_transform <#> State.get
+
+set_definitions :: Maybe FilePath -> Cmd.CmdL ()
+set_definitions fname =
+    State.modify_config $ State.definition_file #= fname
 
 -- ** meta
 

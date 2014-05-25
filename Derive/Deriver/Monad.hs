@@ -52,7 +52,7 @@ module Derive.Deriver.Monad (
     , initial_controls, default_dynamic
 
     -- ** scope
-    , Library(..), empty_library
+    , Library(..)
     , Scopes(..), empty_scopes, s_generator, s_transformer, s_val
     , Scope(..), s_note, s_control, s_pitch
     , empty_scope
@@ -499,11 +499,15 @@ data Library = Library {
     lib_note :: !(CallMaps Note)
     , lib_control :: !(CallMaps Control)
     , lib_pitch :: !(CallMaps Pitch)
-    , lib_val :: !(CallMap ValCall)
+    , lib_val :: ![LookupCall ValCall]
     }
 
-empty_library :: Library
-empty_library = Library mempty mempty mempty mempty
+instance Monoid.Monoid Library where
+    mempty = Library mempty mempty mempty mempty
+    mappend (Library note1 control1 pitch1 val1)
+            (Library note2 control2 pitch2 val2) =
+        Library (note1<>note2) (control1<>control2) (pitch1<>pitch2)
+            (val1<>val2)
 
 instance Show Library where show _ = "((Library))"
 instance Pretty.Pretty Library where
@@ -567,8 +571,7 @@ instance (Pretty.Pretty note, Pretty.Pretty control, Pretty.Pretty pitch) =>
         , ("pitch", Pretty.format pitch)
         ]
 
-instance DeepSeq.NFData (Scope a b c) where
-    rnf (Scope _ _ _) = ()
+instance DeepSeq.NFData (Scope a b c) where rnf _ = ()
 
 -- | An instrument or scale may put calls into scope.  If that instrument
 -- or scale is replaced with another, the old calls must be replaced with
@@ -918,7 +921,8 @@ instance Pretty.Pretty (LookupCall call) where
 -- happened to have the same name.  However, there are a number of calls that
 -- want both generator and transformer versions, and it's convenient to be
 -- able to deal with those together.
-data CallMaps d = CallMaps !(CallMap (Generator d)) !(CallMap (Transformer d))
+data CallMaps d = CallMaps ![LookupCall (Generator d)]
+    ![LookupCall (Transformer d)]
 
 instance Monoid.Monoid (CallMaps d) where
     mempty = CallMaps [] []
@@ -931,10 +935,10 @@ instance Pretty.Pretty (CallMaps d) where
         , ("transformers", Pretty.format ts)
         ]
 
--- | Make a CallMap whose the calls are all 'LookupMap's.  The LookupMaps are
--- all singletons since names are allowed to overlap when declaring calls.  It
--- is only when they are imported into a scope that the maps are combined.
-call_map :: [(TrackLang.CallId, call)] -> CallMap call
+-- | Make LookupCalls whose the calls are all 'LookupMap's.  The LookupMaps
+-- are all singletons since names are allowed to overlap when declaring calls.
+-- It is only when they are imported into a scope that the maps are combined.
+call_map :: [(TrackLang.CallId, call)] -> [LookupCall call]
 call_map = map (LookupMap . uncurry Map.singleton)
 
 -- | Bundle generators and transformers up together for convenience.

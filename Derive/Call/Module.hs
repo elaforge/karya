@@ -25,15 +25,20 @@ instance Monoid.Monoid Module where
         | otherwise = Module $ m1 <> "." <> m2
 
 -- | This marks a standard library of \"fundamental\" calls.  They may also
--- interact more intimately with the builtin derivation machinery.
+-- interact more intimately with the builtin derivation machinery.  Imported
+-- implicitly.
 prelude :: Module
 prelude = "prelude"
 
 -- | Internal calls are used to implement the basic track calls.  You should
 -- never need to call them directly, and they can probably be omitted from the
--- documentation.
+-- documentation.  Imported implicitly.
 internal :: Module
 internal = "internal"
+
+-- | Per-score calls, loaded from a definitions file.  Imported implicitly.
+local :: Module
+local = "local"
 
 -- | A pseudo-module that scale degree calls live in.
 scale :: Module

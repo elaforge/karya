@@ -4,6 +4,7 @@
 
 module Derive.Parse_test where
 import qualified Data.List.NonEmpty as NonEmpty
+import qualified Data.Map as Map
 
 import Util.Control
 import qualified Util.ParseText as ParseText
@@ -183,7 +184,6 @@ val_call sym args = ValCall (Call (Symbol sym) args)
 symbol :: Text -> TrackLang.Val
 symbol = VSymbol . Symbol
 
-
 test_expand_macros = do
     let f = Parse.expand_macros (\s -> "(" <> s <> ")")
     equal (f "") (Right "")
@@ -195,3 +195,22 @@ test_expand_macros = do
     equal (f "hi [@b0, @b1]") (Right "hi [(b0), (b1)]")
     -- Doesn't substitute macros inside quotes.
     equal (f "hi \"@a\" there") (Right "hi \"@a\" there")
+
+
+-- * definitions file
+
+test_parse_definition_file = do
+    let f extract = either (Left . untxt) (Right . extract)
+            . Parse.parse_definition_file
+    left_like (f id "x:\na = b") "unknown sections: x"
+    left_like (f id "val:\na = b\nc =\n") "3: parse error"
+    let text = "val:\n  a = b\n-- comment\n\nnote generator:\nn = x"
+    let call sym = Call (Symbol sym) []
+    equal (f Parse.def_val text) $ Right [("a", call "b")]
+    equal (f (fst . Parse.def_note) text) $ Right [("n", call "x")]
+
+test_split_sections = do
+    let f = either (Left . untxt) (Right . Map.toList) . Parse.split_sections
+    equal (f "a:\n1\nb:\n2\na:\n3\n") $
+        Right [("a", [(2, "1"), (6, "3")]), ("b", [(4, "2")])]
+    left_like (f "1\na:\n2\n") "section without a header"

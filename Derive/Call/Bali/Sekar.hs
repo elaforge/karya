@@ -38,7 +38,7 @@ c_sekar = Derive.make_call module_ "sekar" (Tags.inst <> Tags.subs)
     "Plain sekaran derivation." $ Sig.call
     ( required "pattern"
         "Apply this pattern to the encompassed notes. The pattern is\
-        \ documented by 'Derive.Call.Sekar.make_pattern'."
+        \ documented by 'Derive.Call.Bali.Sekar.make_pattern'."
     ) $ \pattern args -> do
         pattern <- make_pattern pattern
         notes <- Sub.sub_events args

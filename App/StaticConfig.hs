@@ -5,8 +5,8 @@
 module App.StaticConfig where
 import qualified Data.Map as Map
 import qualified Data.Set as Set
-import Data.Text (Text)
 
+import Util.Control
 import qualified Midi.Midi as Midi
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Msg as Msg
@@ -42,7 +42,7 @@ empty = StaticConfig {
     instrument_db = Instrument.Db.empty
     , local_repl_dirs = []
     , global_cmds = []
-    , library = Derive.empty_library
+    , library = mempty
     , setup_cmd = const (return Cmd.Done)
     , midi = empty_midi
     }

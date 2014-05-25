@@ -106,6 +106,12 @@ with_initial_scope env deriver = set_inst (set_scale deriver)
             with_scale scale deriver
         _ -> id
 
+with_default_imported :: Deriver a -> Deriver a
+with_default_imported =
+    with_imported True (Set.fromList [Module.internal, Module.prelude])
+    . with_imported True (Set.fromList [Module.local])
+    -- Calls from Module.local should shadow the others.
+
 
 -- * errors
 
@@ -133,19 +139,15 @@ score_function = do
 
 -- ** import
 
-with_default_imported :: Deriver a -> Deriver a
-with_default_imported = with_imported $
-    Set.fromList [Module.internal, Module.prelude]
-
 -- | Merge calls from any of the given modules into scope.
-with_imported :: Set.Set Module.Module -> Deriver a -> Deriver a
-with_imported modules deriver = do
+with_imported :: Bool -> Set.Set Module.Module -> Deriver a -> Deriver a
+with_imported empty_ok modules deriver = do
     lib <- Internal.get_constant state_library
     lib <- case extract_modules modules lib of
-        Library (CallMaps [] []) (CallMaps [] []) (CallMaps [] []) [] ->
-            -- Likely the module name was typoed.
-            throw $ "no calls in the imported modules: " <> pretty modules
-        lib -> return lib
+        Library (CallMaps [] []) (CallMaps [] []) (CallMaps [] []) []
+            | not empty_ok -> -- Likely the module name was typoed.
+                throw $ "no calls in the imported modules: " <> pretty modules
+        extracted -> return extracted
     with_scopes (import_library lib) deriver
 
 -- | Filter out any calls that aren't in the given modules.

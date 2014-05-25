@@ -21,5 +21,5 @@ c_import = Derive.transformer Module.prelude "import" mempty
     "Import the given modules into scope. Calls of all types (note, control,\
     \ pitch, val) are imported."
     $ Sig.callt (Sig.many1 "module" "Import these modules.") $ \modules _ ->
-        Derive.with_imported $ Set.fromList $
+        Derive.with_imported False $ Set.fromList $
             map Module.Module (NonEmpty.toList modules)

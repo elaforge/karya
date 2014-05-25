@@ -154,11 +154,11 @@ generate_performance ui_state wait send_status block_id = do
         -- These errors indicate not that derivation failed, but that the cmd
         -- threw before it even got started, which should never happen.
         Left err -> do
-            Log.error $ "derivation for " ++ show block_id ++ " failed: "
-                ++ show err
+            Log.warn $ "derivation for " <> show block_id <> " failed: "
+                <> pretty err
             return Nothing
         Right Nothing -> do
-            Log.error $ "derivation for " ++ show block_id ++ " aborted"
+            Log.warn $ "derivation for " <> show block_id <> " aborted"
             return Nothing
         Right (Just derive_result) -> return $ Just (performance derive_result)
     whenJust maybe_perf $ \perf -> do

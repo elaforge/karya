@@ -131,3 +131,31 @@ flexibility in other places, e.g. @-macros in the [REPL](repl.md.html).
 
 All the interesting things you can do with 'Ui.State.State' is facilitated by
 cmds, so you should look at the [cmd documentation](cmd.md.html).
+
+## local definitions
+
+There are several ways to define calls for a score, with different trade-offs.
+
+Defining them in haskell and statically linking them in is the most powerful,
+since you have a real programming language.  You also have source control,
+tests, a module system, and documentation.  But it's also the most heavyweight,
+so it's appropriate for "library" type calls that will be used in multiple
+scores.
+
+A middle ground would be to define them in haskell, and dynamically load them
+in to a single score.  They have the full power of haskell, but since they're
+not global they don't need modules and documentation, and the score itself is
+the test.  To do this I'd have to implement dynamic compiling and linking,
+which is not implemented yet.  They would lack a module system, source control,
+and tests, so it might be a better idea to put them in Local as normal modules
+and link them statically.  We'll see.
+
+A more concise way is to define the calls in tracklang.  This is limited to
+combinations of standard calls.  Small expressions can be defined inline in the score with the `=` call, e.g. `^down-to = "(g 2 1)`, but this is cumbersome
+if there are a lot of them.
+
+If you set 'Ui.StateConfig.config_definition_file', the tracklang call
+definitions in the file are loaded each time it changes.  Then the built-in
+calls can focus on being flexible if verbose, and rely on local definitions to
+"instantiate" them in a way that makes sense for the specific score.  The
+syntax is described in 'Derive.Parse.parse_definition_file'.

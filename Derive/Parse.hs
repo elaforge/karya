@@ -11,8 +11,12 @@ module Derive.Parse (
 
     -- * expand macros
     , expand_macros
+    -- * definition file
+    , Definitions(..), Definition
+    , parse_definition_file
 #ifdef TESTING
     , p_equal
+    , split_sections
 #endif
 ) where
 import Prelude hiding (lex)
@@ -21,7 +25,10 @@ import Data.Attoparsec ((<?>))
 import qualified Data.Attoparsec.Text as A
 import qualified Data.List as List
 import qualified Data.List.NonEmpty as NonEmpty
+import qualified Data.Map as Map
+import qualified Data.Set as Set
 import qualified Data.Text as Text
+import qualified Data.Traversable as Traversable
 
 import Util.Control
 import qualified Util.ParseText as ParseText
@@ -167,12 +174,15 @@ p_pipe = void $ lexeme (A.char '|')
 
 p_equal :: A.Parser TrackLang.Call
 p_equal = do
-    a1 <- TrackLang.VSymbol <$> p_call_symbol True
-    spaces
-    A.char '='
-    spaces
-    a2 <- p_term
-    return $ TrackLang.Call TrackLang.c_equal [TrackLang.Literal a1, a2]
+    (assignee, val) <- do
+        assignee <- p_call_symbol True
+        spaces
+        A.char '='
+        spaces
+        val <- p_term
+        return (assignee, val)
+    return $ TrackLang.Call TrackLang.c_equal
+        [TrackLang.Literal (TrackLang.VSymbol assignee), val]
 
 p_call :: Bool -> A.Parser TrackLang.Call
 p_call toplevel =
@@ -373,3 +383,97 @@ spaces = do
     comment <- A.option "" (A.string "--")
     unless (Text.null comment) $
         A.skipWhile (const True)
+
+-- * definition file
+
+-- | This is a mirror of 'Derive.Library', but with expressions instead of
+-- calls.  (generators, transformers)
+data Definitions = Definitions {
+    def_note :: !([Definition], [Definition])
+    , def_control :: !([Definition], [Definition])
+    , def_pitch :: !([Definition], [Definition])
+    , def_val :: ![Definition]
+    } deriving (Show)
+
+type Definition = (TrackLang.CallId, TrackLang.Call)
+type LineNumber = Int
+
+{- | Parse a definitions file.  This file gives a way to define new calls
+    in the tracklang language, which is less powerful but more concise than
+    haskell.
+
+    The syntax is a @header:@ line followed by definitions.  The header
+    determines the type of the calls defined after it, e.g.
+
+    > note generator:
+    > x = y
+
+    Valid headers are @val:@ or @note|control|pitch generator|transformer:@.
+
+    This is similar to the "Derive.Call.Equal" call, but not quite the same.
+    Firstly, it uses headers for the call type instead of equal's weirdo
+    sigils.  Secondly, the syntax is different because the arguments to equal
+    are evaluated in place, while a file is all quoted by nature.  E.g. a
+    definition @x = a b c@ is equivalent to an equal @^x = \"(a b c)@.
+    @x = a@ (no arguments) is equivalent to @^x = a@, in that @x@ can take the
+    same arguments as @a@.
+-}
+parse_definition_file :: Text -> Either Text Definitions
+parse_definition_file text = do
+    sections <- split_sections text
+    let extra = Set.toList $
+            Map.keysSet sections `Set.difference` Set.fromList headers
+    unless (null extra) $
+        Left $ "unknown sections: " <> Text.intercalate ", " extra
+    parsed <- Traversable.traverse parse_section sections
+    let get header = Map.findWithDefault [] header parsed
+        get2 kind = (get (kind <> " " <> generator),
+            get (kind <> " " <> transformer))
+    return $ Definitions
+        { def_note = get2 note
+        , def_control = get2 control
+        , def_pitch = get2 pitch
+        , def_val = get val
+        }
+    where
+    val = "val"
+    note = "note"
+    control = "control"
+    pitch = "pitch"
+    generator = "generator"
+    transformer = "transformer"
+    headers = val : [t1 <> " " <> t2 | t1 <- [note, control, pitch],
+        t2 <- [generator, transformer]]
+    parse_section = concatMapM parse_line
+    parse_line (num, line) = case parse p_maybe_definition line of
+        Left err -> Left $ showt num <> ": " <> txt err
+        Right Nothing -> Right []
+        Right (Just val) -> Right [val]
+
+-- word = val\n
+p_maybe_definition :: A.Parser (Maybe Definition)
+p_maybe_definition = (spaces >> A.endOfInput >> return Nothing)
+    <|> (Just <$> p_definition)
+
+p_definition :: A.Parser Definition
+p_definition = do
+    assignee <- p_call_symbol True
+    spaces
+    A.char '='
+    spaces
+    val <- p_call True
+    return (assignee, val)
+
+split_sections :: Text -> Either Text (Map.Map Text [(LineNumber, Text)])
+split_sections =
+    fmap (Map.fromListWith (flip (++))) . concatMapM check
+        . Seq.split_with is_header . zip [1..] . Text.lines
+    where
+    is_header = (":" `Text.isSuffixOf`) . snd
+    strip_header (_, header) = Text.take (Text.length header - 1) header
+    check [] = Right []
+    check (header : section)
+        | is_header header =
+            Right [(strip_header header, section)]
+        | otherwise = Left $ showt (fst header)
+            <> ": section without a header: " <> snd header

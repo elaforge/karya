@@ -3,6 +3,7 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
+  - rename Cmd.CmdVal to Cmd.Result
   * Looking for logview.pid is not reliable since it could collide with an
     existing pid.  I should see if the process is called logview.
       ps -e $(cat logview.pid) -o comm
@@ -37,10 +38,35 @@ UNSORTED
       Putting this much code in the UI gets annoying, how can I put this in
       a file?
     * Write parser for .karya file.
-    - On derive, load it, and puts its definitions into scope.
+    * On derive, load it, and puts its definitions into scope.
       . The file name is derived from the SaveFile... or perhaps it should be
         in StateConfig?  Saving a score under a different name shouldn't cause
         its definitions to disappear.  But the state doesn't have the pa
+      . But this means every single function that derives something either
+        goes into IO or needs a scopes arg.  The alternative is to keep
+        the cache in Cmd.State up to date.  That's extra work for cmds
+        that don't need it... but not so bad since the actual parsing can
+        be lazy.  I definitely don't want the IO to be lazy though.
+    * call PlayUtil.update_definition_cache on each Cmd
+    * It runs a derive first, how does that happen?
+    * On a rederive, it sees the new call, but the perf is from the old state.
+    - PlayUtil.load_definitions should complain about shadows.
+    - syntax error in the file is reported a zillion times
+    - I should support 'transformer | generator' syntax.
+    . Ideally, the .karya file should be versioned too.  I could have git
+      saves look for files in the .git dir and commit them when saving a tag.
+      Of course then I'd want to have a proper git repo with files checked out
+      and everything.  Then I could also do manual commits.  I'm not sure it's
+      really worth it though, since sufficiently complex code should move into
+      Local.* and be versioned and namespaced normally.
+  - remove Derive.CallMap synonym
+  - The 'import' call should ensure calls from later named modules shadow
+    earlier ones.
+  - %c = 1 can set a control, but what if I want to combine, e.g. *= .5?
+    Where can I squeeze in a merge operator?  %c = mul .5?
+  . equal syntax has lots of useless stuff, e.g.
+    `^a = x y z` is an error, `^a = (x y z)` is useless unless `x` returns
+    VQuoted or VSymbol.
   I also want local code in haskell.
     . I could put code in Local.Score.SomeName, and have those either
       statically linked in, or dynamically compiled and loaded on each

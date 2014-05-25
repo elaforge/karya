@@ -9,6 +9,7 @@ module Derive.Eval (
     apply_toplevel
     , reapply_generator, apply_transformers, reapply_transformer
     , eval, apply
+    , get_val_call
 
     -- * lookup call
     , unknown_call_id, symbol_to_block_id, is_relative_call
@@ -72,7 +73,8 @@ apply_generator cinfo (TrackLang.Call call_id args) = do
 -- the expression from whence they sprang.
 --
 -- The reason @info_expr@ is unparsed text is also thanks to pitch signal
--- expressions.  Maybe I should get rid of them?
+-- expressions.  Maybe I should get rid of them?  TODO they're gone, but
+-- info_expr remains.
 reapply_generator :: Derive.Callable d => Derive.CallInfo d
     -> TrackLang.CallId -> [TrackLang.Val] -> Event.Text -> Derive.LogsDeriver d
 reapply_generator cinfo call_id args expr = do
@@ -113,7 +115,7 @@ apply_transformers cinfo (TrackLang.Call call_id args : calls) deriver = do
 -- 'apply_transformers', but apply only one, and apply to already
 -- evaluated 'TrackLang.Val's.  This is useful when you want to re-apply an
 -- already parsed set of vals.
-reapply_transformer :: (Derive.Callable d) => Derive.CallInfo d
+reapply_transformer :: Derive.Callable d => Derive.CallInfo d
     -> TrackLang.CallId -> [TrackLang.Val] -> Derive.LogsDeriver d
     -> Derive.LogsDeriver d
 reapply_transformer cinfo call_id args deriver = do

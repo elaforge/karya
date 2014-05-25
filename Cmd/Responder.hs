@@ -43,6 +43,7 @@ import qualified Util.Thread as Thread
 
 import qualified Midi.Interface as Interface
 import qualified Midi.Midi as Midi
+import qualified Ui.Diff as Diff
 import qualified Ui.State as State
 import qualified Ui.Sync as Sync
 import qualified Ui.UiMsg as UiMsg
@@ -54,7 +55,9 @@ import qualified Cmd.Integrate as Integrate
 import qualified Cmd.Internal as Internal
 import qualified Cmd.Meter as Meter
 import qualified Cmd.Msg as Msg
+import qualified Cmd.Performance as Performance
 import qualified Cmd.PlayC as PlayC
+import qualified Cmd.PlayUtil as PlayUtil
 import qualified Cmd.Repl as Repl
 import qualified Cmd.ResponderSync as ResponderSync
 import qualified Cmd.Save as Save
@@ -108,11 +111,12 @@ responder config msg_reader midi_interface setup_cmd repl_session loopback = do
     ui_state <- State.create
     monitor_state <- MVar.newMVar ui_state
     app_dir <- Config.get_app_dir
+    let cmd_state = setup_state $ Cmd.initial_state $
+            cmd_config app_dir midi_interface config
     state <- run_setup_cmd setup_cmd $ State
         { state_static_config = config
         , state_ui = ui_state
-        , state_cmd = setup_state $ Cmd.initial_state $
-            cmd_config app_dir midi_interface config
+        , state_cmd = cmd_state
         , state_session = repl_session
         , state_loopback = loopback
         , state_sync = Sync.sync
@@ -153,7 +157,7 @@ cmd_config app_dir interface config = Cmd.Config
 
 -- | A special run-and-sync that runs before the respond loop gets started.
 run_setup_cmd :: Cmd.CmdIO -> State -> IO State
-run_setup_cmd cmd state = fmap snd $ run_responder state $ do
+run_setup_cmd cmd state = fmap snd $ run_responder False state $ do
     result <- run_continue "initial setup" $ Right $ do
         cmd
         Cmd.modify $ \st -> st
@@ -281,8 +285,13 @@ save_updates updates = Monad.State.modify $ \st ->
     TODO I feel like this generates a lot of garbage per msg.  It mostly
     doesn't matter except for MIDI input.  Profile?
 -}
-run_responder :: State -> ResponderM Result -> IO (Bool, State)
-run_responder state m = do
+run_responder :: Bool -- ^ If False, don't start background derivation.  This
+    -- is so 'run_setup_cmd' doesn't run a redundant derive, which is
+    -- ultimately because it needs to wait for 'load_definitions'.
+    -- But 'load_definitions' has to run after 'run_setup_cmd' because the
+    -- filename to load is in 'State.State'.
+    -> State -> ResponderM Result -> IO (Bool, State)
+run_responder run_derive state m = do
     (val, RState _ ui_from ui_to cmd_from cmd_to cmd_updates)
         <- Monad.State.runStateT m (make_rstate state)
     case val of
@@ -290,19 +299,33 @@ run_responder state m = do
             Log.warn (pretty err)
             -- Exception rolls back changes to ui_state and cmd_state.
             return (False, state { state_ui = ui_from, state_cmd = cmd_from })
-        Right status -> do
-            cmd_to <- handle_special_status
-                ui_to cmd_to (state_transport_info state) status
-            cmd_to <- return $ fix_cmd_state ui_to cmd_to
-            (updates, ui_to, cmd_to) <- ResponderSync.sync (state_sync state)
-                (send_derive_status (state_loopback state))
-                (state_ui state) ui_from ui_to cmd_to cmd_updates
-                (Transport.info_state (state_transport_info state))
-            cmd_to <- Undo.maintain_history ui_to cmd_to updates
-            when (is_quit status) $
-                Save.save_views cmd_to ui_to
-            return (is_quit status,
-                state { state_ui = ui_to, state_cmd = cmd_to })
+        Right status -> post_cmd run_derive state ui_from ui_to cmd_to
+            cmd_updates status
+
+-- | Do all the miscellaneous things that need to be done after a command
+-- completes.
+post_cmd :: Bool -> State -> State.State -> State.State -> Cmd.State
+    -> [Update.CmdUpdate] -> Cmd.Status -> IO (Bool, State)
+post_cmd run_derive state ui_from ui_to cmd_to cmd_updates status = do
+    cmd_to <- handle_special_status ui_to cmd_to (state_transport_info state)
+        status
+    cmd_to <- return $ fix_cmd_state ui_to cmd_to
+    (updates, ui_to, cmd_to) <- ResponderSync.sync (state_sync state)
+        ui_from ui_to cmd_to cmd_updates
+        (Transport.info_state (state_transport_info state))
+
+    cmd_to <- if not run_derive then return cmd_to else do
+        -- Kick off the background derivation threads.
+        let damage = Diff.derive_diff (state_ui state) ui_to updates
+        cmd_state <- Performance.update_performance
+            (send_derive_status (state_loopback state)) ui_to cmd_to damage
+        return $ cmd_state { Cmd.state_derive_immediately = mempty }
+
+    cmd_to <- Undo.maintain_history ui_to cmd_to updates
+    when (is_quit status) $
+        Save.save_views cmd_to ui_to
+    return (is_quit status,
+        state { state_ui = ui_to, state_cmd = cmd_to })
     where
     is_quit Cmd.Quit = True
     is_quit _ = False
@@ -331,8 +354,9 @@ handle_special_status ui_state cmd_state transport_info status = case status of
     _ -> return cmd_state
 
 respond :: State -> Msg.Msg -> IO (Bool, State)
-respond state msg = run_responder state $ do
+respond state msg = run_responder True state $ do
     record_keys msg
+    load_definitions
     -- Normal cmds abort as son as one returns a non-Continue.
     result <- fmap unerror $ Error.runErrorT $ do
         record_ui_updates msg
@@ -354,6 +378,15 @@ record_keys msg = do
         Internal.cmd_record_keys msg
     whenJust result $ \(_, _, cmd_state) -> Monad.State.modify $ \st ->
         st { rstate_cmd_from = cmd_state, rstate_cmd_to = cmd_state }
+
+-- | Load external definitions and cache them in Cmd.State, so cmds don't
+-- have a dependency on IO.
+load_definitions :: ResponderM ()
+load_definitions = do
+    rstate <- Monad.State.get
+    cmd_state <- liftIO $ PlayUtil.update_definition_cache
+        (rstate_ui_to rstate) (rstate_cmd_to rstate)
+    Monad.State.put $ rstate { rstate_cmd_to = cmd_state }
 
 -- | Record 'UiMsg.UiUpdate's from the UI.  Like normal cmds it can abort
 -- processing by returning not-Continue, but it commits its changes to ui_from
@@ -410,7 +443,7 @@ hardcoded_cmds :: [Cmd.Cmd]
 hardcoded_cmds =
     [Internal.record_focus, Internal.update_ui_state, Track.track_cmd]
 
--- | And these special commands that run in IO.
+-- | These are the only commands that run in IO.
 hardcoded_io_cmds :: Repl.Session -> [FilePath] -> [Msg.Msg -> Cmd.CmdIO]
 hardcoded_io_cmds repl_session repl_dirs =
     [ Repl.repl repl_session repl_dirs

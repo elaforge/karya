@@ -4,12 +4,34 @@
 
 -- | Functions to do with performance.  This is split off from "Cmd.Play",
 -- which contains play Cmds and their direct support.
-module Cmd.PlayUtil where
+module Cmd.PlayUtil (
+    initial_environ
+    , cached_derive, uncached_derive
+    , clear_cache, clear_all_caches
+    , derive_block, run, run_with_dynamic
+    , get_constant
+    -- * perform
+    , perform_from, shift_messages, first_time
+    , events_from, overlapping_events
+    , perform_events, get_convert_lookup
+    -- * definition file
+    , update_definition_cache
+    , compile_library
+) where
+import qualified Control.Monad.Trans.Either as Trans.Either
 import qualified Data.Map as Map
+import qualified Data.Maybe as Maybe
 import qualified Data.Set as Set
+import qualified Data.Text.IO as Text.IO
+import qualified Data.Time as Time
 import qualified Data.Vector as Vector
 
+import qualified System.Directory as Directory
+import System.FilePath ((</>))
+
 import Util.Control
+import qualified Util.File as File
+import qualified Util.Log as Log
 import qualified Util.Tree as Tree
 import qualified Util.Vector as Vector
 
@@ -20,10 +42,15 @@ import qualified Ui.TrackTree as TrackTree
 
 import qualified Cmd.Cmd as Cmd
 import qualified Derive.Call.Block as Call.Block
+import qualified Derive.Call.Module as Module
 import qualified Derive.Derive as Derive
 import qualified Derive.Environ as Environ
+import qualified Derive.Eval as Eval
 import qualified Derive.LEvent as LEvent
+import qualified Derive.Parse as Parse
 import qualified Derive.Score as Score
+import qualified Derive.ShowVal as ShowVal
+import qualified Derive.Sig as Sig
 import qualified Derive.Stack as Stack
 import qualified Derive.TrackLang as TrackLang
 
@@ -51,7 +78,7 @@ initial_environ = TrackLang.make_environ $
     ]
 
 -- | Derive with the cache.
-cached_derive :: (Cmd.M m) => BlockId -> m Derive.Result
+cached_derive :: Cmd.M m => BlockId -> m Derive.Result
 cached_derive block_id = do
     maybe_perf <- Cmd.lookup_performance block_id
     case maybe_perf of
@@ -59,26 +86,28 @@ cached_derive block_id = do
         Just perf -> derive_block (Cmd.perf_derive_cache perf)
             (Cmd.perf_damage perf) block_id
 
-uncached_derive :: (Cmd.M m) => BlockId -> m Derive.Result
+uncached_derive :: Cmd.M m => BlockId -> m Derive.Result
 uncached_derive = derive_block mempty mempty
 
-clear_cache :: (Cmd.M m) => BlockId -> m ()
+clear_cache :: Cmd.M m => BlockId -> m ()
 clear_cache block_id = Cmd.modify_play_state $ \st -> st
-    { Cmd.state_performance = Map.delete block_id (Cmd.state_performance st)
+    { Cmd.state_performance = delete (Cmd.state_performance st)
+    , Cmd.state_current_performance = delete (Cmd.state_current_performance st)
     -- Must remove this too or it won't want to rederive.
-    , Cmd.state_performance_threads =
-        Map.delete block_id (Cmd.state_performance_threads st)
+    , Cmd.state_performance_threads = delete (Cmd.state_performance_threads st)
     }
+    where delete = Map.delete block_id
 
-clear_all_caches :: (Cmd.M m) => m ()
+clear_all_caches :: Cmd.M m => m ()
 clear_all_caches = Cmd.modify_play_state $ \st -> st
     { Cmd.state_performance = mempty
+    , Cmd.state_current_performance = mempty
     , Cmd.state_performance_threads = mempty
     }
 
 -- | Derive the contents of the given block to score events.
-derive_block :: Cmd.M m => Derive.Cache -> Derive.ScoreDamage -> BlockId
-    -> m Derive.Result
+derive_block :: Cmd.M m => Derive.Cache -> Derive.ScoreDamage
+    -> BlockId -> m Derive.Result
 derive_block cache damage block_id = do
     global_transform <- State.config#State.global_transform <#> State.get
     Derive.extract_result <$> run cache damage
@@ -111,8 +140,9 @@ get_constant cache damage = do
     lookup_scale <- Cmd.get_lookup_scale
     lookup_inst <- get_lookup_inst
     library <- Cmd.gets $ Cmd.state_library . Cmd.state_config
-    return $ (Derive.initial_constant
-            ui_state library lookup_scale lookup_inst cache damage)
+    defs_library <- get_library
+    return $ Derive.initial_constant ui_state (defs_library <> library)
+        lookup_scale lookup_inst cache damage
 
 get_lookup_inst :: Cmd.M m => m (Score.Instrument -> Maybe Derive.Instrument)
 get_lookup_inst = (fmap Cmd.derive_instrument .) <$> Cmd.get_lookup_instrument
@@ -230,7 +260,7 @@ filter_instrument_muted configs
     muted = Set.fromList $ map fst $ filter (Instrument.config_mute . snd) $
         Map.toList configs
 
-perform_events :: (Cmd.M m) => Cmd.Events -> m Perform.MidiEvents
+perform_events :: Cmd.M m => Cmd.Events -> m Perform.MidiEvents
 perform_events events = do
     configs <- State.get_midi_config
     lookup <- get_convert_lookup
@@ -243,7 +273,7 @@ perform_events events = do
         -- avoid doing work for the notes that never get played.
         Vector.toList events
 
-get_convert_lookup :: (Cmd.M m) => m Convert.Lookup
+get_convert_lookup :: Cmd.M m => m Convert.Lookup
 get_convert_lookup = do
     lookup_scale <- Cmd.get_lookup_scale
     lookup_inst <- Cmd.get_lookup_midi_instrument
@@ -258,3 +288,125 @@ get_convert_lookup = do
         , Convert.lookup_default_controls = \inst ->
             Map.findWithDefault mempty inst defaults
         }
+
+
+-- * definition file
+
+-- | Get Library from the cache.
+get_library :: Cmd.M m => m Derive.Library
+get_library = do
+    cache <- Cmd.gets Cmd.state_definition_cache
+    case cache of
+        Nothing -> return mempty
+        Just (_, Left err) -> Cmd.throw $ "get_library: " <> untxt err
+        Just (_, Right library) -> return library
+
+-- | Update the definition cache by reading the per-score definition file.
+update_definition_cache :: State.State -> Cmd.State -> IO Cmd.State
+update_definition_cache ui_state cmd_state = case def_file of
+    Nothing
+        | Maybe.isNothing $ Cmd.state_definition_cache cmd_state ->
+            return cmd_state
+        | otherwise -> return $ cmd_state
+            { Cmd.state_definition_cache = Nothing }
+    Just fname -> cached_load cmd_state fname >>= \x -> return $ case x of
+        Nothing -> cmd_state
+        Just defs -> cmd_state
+            { Cmd.state_definition_cache = Just defs
+            , Cmd.state_play = (Cmd.state_play cmd_state)
+                { Cmd.state_performance = mempty
+                , Cmd.state_current_performance = mempty
+                , Cmd.state_performance_threads = mempty
+                }
+            }
+    where
+    def_file = State.config#State.definition_file #$ ui_state
+
+-- | Load a definition file if the cache is out of date.  Nothing if the cache
+-- is up to date.
+cached_load :: Cmd.State -> FilePath
+    -> IO (Maybe (Time.UTCTime, Either Text Derive.Library))
+cached_load state defs_fname = run $ do
+    dir <- require ("need a SaveFile to find " <> showt defs_fname) $
+        Cmd.state_save_dir state
+    let fname = dir </> defs_fname
+    time <- liftIO $ File.ignoreEnoent (Directory.getModificationTime fname)
+    case Cmd.state_definition_cache state of
+        Just (last_time, _) | time == Just last_time -> return Nothing
+        _ -> fmap Just $ require ("definition file not found: " <> txt fname)
+            =<< liftIO (load_definitions fname)
+    where
+    run = fmap extract . Trans.Either.runEitherT
+    require msg = maybe (Trans.Either.left msg) return
+    extract (Left msg) = Just (day0, Left msg)
+    extract (Right val) = val
+    day0 = Time.UTCTime (Time.ModifiedJulianDay 0) 0
+
+load_definitions :: FilePath
+    -> IO (Maybe (Time.UTCTime, Either Text Derive.Library))
+load_definitions fname = File.ignoreEnoent $ do
+    text <- Text.IO.readFile fname
+    Log.notice $ "reload definitions from " <> show fname
+    time <- Directory.getModificationTime fname
+    -- TODO complain about collisions
+    return $ case Parse.parse_definition_file text of
+        Left err -> (time, Left $ txt fname <> ":" <> err)
+        Right defs -> (time, Right $ compile_library defs)
+
+compile_library :: Parse.Definitions -> Derive.Library
+compile_library (Parse.Definitions note control pitch val) = Derive.Library
+    { Derive.lib_note = call_maps note
+    , Derive.lib_control = call_maps control
+    , Derive.lib_pitch = call_maps pitch
+    , Derive.lib_val = Derive.call_map $ compile make_val_call val
+    }
+    where
+    call_maps (gen, trans) = Derive.call_maps
+        (compile make_generator gen) (compile make_transformer trans)
+    compile make = map $ \(call_id, term) -> (call_id, make call_id term)
+
+make_generator :: Derive.Callable d => TrackLang.Symbol -> TrackLang.Call
+    -> Derive.Generator d
+make_generator (TrackLang.Symbol name) (TrackLang.Call call_id supplied) =
+    Derive.make_call Module.local name mempty ("Local definition: " <> name) $
+    if null supplied
+        then Sig.parsed_manually "Args parsed by reapplied call." generator_args
+        else Sig.call0 generator0
+    where
+    -- If there are arguments in the definition, then don't accept any in the
+    -- score.  I could do partial application, but it seems confusing, so
+    -- I won't add it unless I need it.
+    generator_args args = apply args (Derive.passed_vals args)
+        (Derive.info_expr (Derive.passed_info args))
+    generator0 args = do
+        vals <- mapM (Eval.eval (Derive.passed_info args)) supplied
+        apply args vals (ShowVal.show_val (TrackLang.Call call_id supplied))
+    apply args = Eval.reapply_generator (Derive.passed_info args) call_id
+
+make_transformer :: Derive.Callable d => TrackLang.Symbol -> TrackLang.Call
+    -> Derive.Transformer d
+make_transformer (TrackLang.Symbol name) (TrackLang.Call call_id supplied) =
+    Derive.make_call Module.local name mempty ("Local definition: " <> name) $
+    if null supplied
+        then Sig.parsed_manually "Args parsed by reapplied call."
+            transformer_args
+        else Sig.call0t transformer0
+    where
+    transformer_args args = apply args (Derive.passed_vals args)
+    transformer0 args deriver = do
+        vals <- mapM (Eval.eval (Derive.passed_info args)) supplied
+        apply args vals deriver
+    apply args = Eval.reapply_transformer (Derive.passed_info args) call_id
+
+make_val_call :: TrackLang.CallId -> TrackLang.Call -> Derive.ValCall
+make_val_call (TrackLang.Symbol name) call@(TrackLang.Call call_id supplied) =
+    Derive.val_call Module.local name mempty ("Local definiton: " <> name) $
+    if null supplied
+        then Sig.parsed_manually "Args parsed by reapplied call." call_args
+        else Sig.call0 call0
+    where
+    call_args args = do
+        call <- Eval.get_val_call call_id
+        Derive.vcall_call call $ args
+            { Derive.passed_call_name = Derive.vcall_name call }
+    call0 args = Eval.eval (Derive.passed_info args) (TrackLang.ValCall call)

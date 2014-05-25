@@ -20,7 +20,6 @@ import qualified Ui.Update as Update
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Integrate as Integrate
 import qualified Cmd.Internal as Internal
-import qualified Cmd.Performance as Performance
 
 
 type Sync = Track.TrackSignals -> Track.SetStyleHigh -> State.State
@@ -30,14 +29,12 @@ type Sync = Track.TrackSignals -> Track.SetStyleHigh -> State.State
 --
 -- Returns both UI state and cmd state since verification may clean up the UI
 -- state, and this is where the undo history is stored in Cmd.State.
-sync :: Sync -> Performance.SendStatus
-    -> State.State -- ^ state before UiMsg.UiUpdates have been applied
+sync :: Sync
     -> State.State -- ^ state before Cmd was run
     -> State.State -- ^ current state
     -> Cmd.State -> [Update.CmdUpdate] -> MVar.MVar State.State
     -> IO ([Update.UiUpdate], State.State, Cmd.State)
-sync sync_func send_status ui_pre ui_from ui_to cmd_state cmd_updates
-        play_monitor_state = do
+sync sync_func ui_from ui_to cmd_state cmd_updates play_monitor_state = do
     ui_to <- case State.quick_verify ui_to of
         Left err -> do
             Log.error $ "cmd caused a verify error, rejecting state change: "
@@ -71,13 +68,7 @@ sync sync_func send_status ui_pre ui_from ui_to cmd_state cmd_updates
         ui_to display_updates
     whenJust err $ \err ->
         Log.error $ "syncing updates: " ++ pretty err
-
-    -- Kick off the background derivation threads.
-    let damage = Diff.derive_diff ui_pre ui_to ui_updates
-    cmd_state <- Performance.update_performance send_status ui_to cmd_state
-        damage
-    return (ui_updates, ui_to,
-        cmd_state { Cmd.state_derive_immediately = mempty })
+    return (ui_updates, ui_to, cmd_state)
 
 -- | Get all track signals already derived.  TrackSignals are only collected
 -- for top level derives, so there should only be signals for visible windows.

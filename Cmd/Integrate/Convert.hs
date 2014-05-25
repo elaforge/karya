@@ -47,7 +47,7 @@ type Tracks = [(Track, [Track])]
 type Config = (LookupCall, Pitch.ScaleId)
 type LookupCall = Score.Instrument -> Instrument.CallMap
 
-convert :: (Cmd.M m) => BlockId -> Derive.Events -> m Tracks
+convert :: Cmd.M m => BlockId -> Derive.Events -> m Tracks
 convert source_block levents = do
     lookup_inst <- Cmd.get_lookup_instrument
     let lookup_call =

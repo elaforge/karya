@@ -41,7 +41,7 @@ import Types
 -- * derive
 
 -- | Specialized version of 'derive_expr' for note calls with no arguments.
-derive_note_call :: (Cmd.M m) => BlockId -> TrackId -> TrackTime
+derive_note_call :: Cmd.M m => BlockId -> TrackId -> TrackTime
     -> TrackLang.CallId -> m (Either String [Score.Event], [Log.Msg])
 derive_note_call block_id track_id pos call =
     derive_expr block_id track_id pos (TrackLang.Call call [] :| [])
@@ -58,7 +58,7 @@ derive_expr block_id track_id pos expr = do
             where (events, derive_logs) = LEvent.partition levents
 
 -- | Run an ad-hoc derivation in the context of the given track.
-derive_at :: (Cmd.M m) => BlockId -> TrackId
+derive_at :: Cmd.M m => BlockId -> TrackId
     -> Derive.Deriver a -> m (Either String a, [Log.Msg])
 derive_at block_id track_id deriver = do
     dynamic <- fromMaybe empty_dynamic <$>
@@ -69,7 +69,7 @@ derive_at block_id track_id deriver = do
 
 -- | A cheap quick derivation that sets up the correct initial state, but
 -- runs without the cache and throws away any logs.
-derive :: (Cmd.M m) => Derive.Deriver a -> m (Either String a)
+derive :: Cmd.M m => Derive.Deriver a -> m (Either String a)
 derive deriver = do
     (val, _, _) <- PlayUtil.run mempty mempty deriver
     return $ case val of
@@ -148,15 +148,15 @@ lookup_val block_id maybe_track_id name =
         either (Cmd.throw . ("Perf.lookup_val: "++)) return
             (TrackLang.checked_val name env)
 
-lookup_environ :: (Cmd.M m) => BlockId -> Maybe TrackId
+lookup_environ :: Cmd.M m => BlockId -> Maybe TrackId
     -> m (Maybe TrackLang.Environ)
 lookup_environ block_id maybe_track_id =
     fmap Derive.state_environ <$> lookup_dynamic block_id maybe_track_id
 
-get_environ :: (Cmd.M m) => BlockId -> Maybe TrackId -> m TrackLang.Environ
+get_environ :: Cmd.M m => BlockId -> Maybe TrackId -> m TrackLang.Environ
 get_environ block_id = fmap (fromMaybe mempty) . lookup_environ block_id
 
-lookup_dynamic :: (Cmd.M m) => BlockId -> Maybe TrackId
+lookup_dynamic :: Cmd.M m => BlockId -> Maybe TrackId
     -> m (Maybe Derive.Dynamic)
 lookup_dynamic block_id maybe_track_id = do
     maybe_dyn <- get <$> lookup_root
@@ -208,7 +208,7 @@ get_default_environ name =
 
 -- | The default scale established by 'State.config_global_transform', or
 -- 'Config.default_scale_id' if there is none.
-default_scale_id :: (Cmd.M m) => m Pitch.ScaleId
+default_scale_id :: Cmd.M m => m Pitch.ScaleId
 default_scale_id =
     maybe (Pitch.ScaleId Config.default_scale_id) TrackLang.sym_to_scale_id <$>
         lookup_default_environ Environ.scale

@@ -62,6 +62,9 @@ data Config = Config {
     , config_lilypond :: !Lilypond.Config
     , config_default :: !Default
     , config_saved_views :: !SavedViews
+    -- | If set, load local definitions from this file.  The filename is
+    -- relative to the score directory, which is defined by the loading code.
+    , config_definition_file :: !(Maybe FilePath)
     } deriving (Eq, Show, Generics.Typeable)
 
 -- Ui.State already has a function called 'namespace'.
@@ -76,6 +79,22 @@ lilypond = Lens.lens config_lilypond (\v r -> r { config_lilypond = v })
 default_ = Lens.lens config_default (\v r -> r { config_default = v })
 saved_views = Lens.lens config_saved_views
     (\v r -> r { config_saved_views = v })
+definition_file = Lens.lens config_definition_file
+    (\v r -> r { config_definition_file = v })
+
+empty_config :: Config
+empty_config = Config
+    { config_namespace = Id.namespace "untitled"
+    , config_meta = empty_meta
+    , config_root = Nothing
+    , config_midi = Instrument.configs []
+    , config_global_transform = ""
+    , config_aliases = mempty
+    , config_lilypond = Lilypond.default_config
+    , config_default = empty_default
+    , config_saved_views = mempty
+    , config_definition_file = Nothing
+    }
 
 -- | Extra data that doesn't have any effect on the score.
 data Meta = Meta {
@@ -94,6 +113,14 @@ lilypond_performances = Lens.lens meta_lilypond_performances
 
 type MidiPerformance = Performance (Vector.Vector Midi.WriteMessage)
 type LilypondPerformance = Performance Text
+
+empty_meta :: Meta
+empty_meta = Meta
+    { meta_creation = Time.UTCTime (Time.ModifiedJulianDay 0) 0
+    , meta_notes = ""
+    , meta_midi_performances = mempty
+    , meta_lilypond_performances = mempty
+    }
 
 -- | A record of the last successful performance that sounded as expected.  You
 -- can compare this with the current performance to see if code changes have
@@ -128,9 +155,12 @@ data Default = Default {
 
 tempo = Lens.lens default_tempo (\v r -> r { default_tempo = v })
 
+empty_default :: Default
+empty_default = Default { default_tempo = 1 }
+
 instance Pretty.Pretty Config where
     format (Config namespace meta root midi global_transform aliases lily
-            default_ saved_views) =
+            default_ saved_views definition) =
         Pretty.record "Config"
             [ ("namespace", Pretty.format namespace)
             , ("meta", Pretty.format meta)
@@ -141,6 +171,7 @@ instance Pretty.Pretty Config where
             , ("lilypond", Pretty.format lily)
             , ("default", Pretty.format default_)
             , ("saved views", Pretty.format saved_views)
+            , ("definition file", Pretty.format definition)
             ]
 
 instance Pretty.Pretty Meta where

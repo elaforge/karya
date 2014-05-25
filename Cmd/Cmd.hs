@@ -65,6 +65,7 @@ import qualified Data.Map as Map
 import qualified Data.Monoid as Monoid
 import qualified Data.Set as Set
 import qualified Data.Text as Text
+import qualified Data.Time as Time
 
 import qualified System.FilePath as FilePath
 import System.FilePath ((</>))
@@ -168,7 +169,7 @@ type RunCmd cmd_m val_m a =
 type CmdVal a = (State, [MidiThru], [Log.Msg],
     Either State.Error (a, State.State, [Update.CmdUpdate]))
 
-run :: (Monad m) => a -> RunCmd m m a
+run :: Monad m => a -> RunCmd m m a
 run abort_val ustate cstate cmd = do
     (((ui_result, cstate2), midi), logs) <-
         (Log.run . Logger.run . flip MonadState.runStateT cstate
@@ -197,9 +198,22 @@ run_id :: State.State -> State -> CmdT Identity.Identity a -> CmdVal (Maybe a)
 run_id ui_state cmd_state cmd =
     Identity.runIdentity (run Nothing ui_state cmd_state (fmap Just cmd))
 
+-- | Like 'run', but write logs, and discard MIDI thru and updates.
+run_val :: Log.LogMonad m => State.State -> State -> CmdT m a
+    -> m (Either String (a, State, State.State))
+run_val ui_state cmd_state cmd = do
+    (cmd_state, _thru, logs, result) <-
+        run Nothing ui_state cmd_state (liftM Just cmd)
+    mapM_ Log.write logs
+    return $ case result of
+        Left err -> Left $ pretty err
+        Right (val, ui_state, _updates) -> case val of
+            Nothing -> Left "aborted"
+            Just v -> Right (v, cmd_state, ui_state)
+
 -- | Run a set of Cmds as a single Cmd.  The first one to return non-Continue
 -- will return.  Cmds can use this to dispatch to other Cmds.
-sequence_cmds :: (M m) => [a -> m Status] -> (a -> m Status)
+sequence_cmds :: M m => [a -> m Status] -> (a -> m Status)
 sequence_cmds [] _ = return Continue
 sequence_cmds (cmd:cmds) msg = do
     status <- catch_abort (cmd msg)
@@ -305,6 +319,10 @@ data State = State {
     -- | If set, the current 'State.State' was loaded from this file.
     -- This is so save can keep saving to the same file.
     , state_save_file :: !(Maybe SaveFile)
+    -- | A loaded and parsed definition file, or an error string.  This also
+    -- has the timestamp of the last load, to detect when the file changes.
+    , state_definition_cache ::
+        !(Maybe (Time.UTCTime, Either Text Derive.Library))
     -- | Omit the usual derive delay for these blocks, and trigger a derive.
     -- This is set by integration, which modifies a block in response to
     -- another block being derived.  Blocks set to derive immediately are also
@@ -365,6 +383,7 @@ initial_state :: Config -> State
 initial_state config = State
     { state_config = config
     , state_save_file = Nothing
+    , state_definition_cache = Nothing
     , state_derive_immediately = Set.empty
     -- This is a dummy entry needed to bootstrap a Cmd.State.  Normally
     -- 'hist_present' should always have the current state, but the initial

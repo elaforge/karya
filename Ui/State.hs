@@ -26,13 +26,14 @@ module Ui.State (
     State(..), views, blocks, tracks, rulers, config
     , empty, create, clear
     -- * config
-    , Config(..), SavedViews
+    , Config(..), empty_config, SavedViews
     , namespace_, meta, root, midi, global_transform, aliases, lilypond
-    , default_, saved_views
-    , Meta(..), creation, notes, midi_performances, lilypond_performances
-    , Performance(..), MidiPerformance, LilypondPerformance, Default(..)
+    , default_, saved_views, definition_file
+    , Meta(..), empty_meta, creation, notes, midi_performances
+    , lilypond_performances
+    , Performance(..), MidiPerformance, LilypondPerformance
+    , Default(..), empty_default
     , tempo
-    , empty_config, empty_meta, empty_default
     -- * address types
     , Track(..), Range(..), TrackInfo(..)
     -- * StateT monad
@@ -160,7 +161,6 @@ import qualified Ui.Types as Types
 import qualified Ui.Update as Update
 
 import qualified Derive.Stack as Stack
-import qualified Perform.Lilypond.Types as Lilypond
 import qualified Perform.Midi.Instrument as Instrument
 import qualified App.Config as Config
 import Types
@@ -233,30 +233,6 @@ instance DeepSeq.NFData State where
         DeepSeq.rnf views `seq` DeepSeq.rnf blocks
         `seq` DeepSeq.rnf tracks `seq` DeepSeq.rnf rulers
         `seq` config `seq` ()
-
-empty_meta :: Meta
-empty_meta = Meta
-    { meta_creation = Time.UTCTime (Time.ModifiedJulianDay 0) 0
-    , meta_notes = ""
-    , meta_midi_performances = mempty
-    , meta_lilypond_performances = mempty
-    }
-
-empty_config :: Config
-empty_config = Config
-    { config_namespace = Id.namespace "untitled"
-    , config_meta = empty_meta
-    , config_root = Nothing
-    , config_midi = Instrument.configs []
-    , config_global_transform = ""
-    , config_aliases = mempty
-    , config_lilypond = Lilypond.default_config
-    , config_default = empty_default
-    , config_saved_views = mempty
-    }
-
-empty_default :: Default
-empty_default = Default { default_tempo = 1 }
 
 -- * address types
 
