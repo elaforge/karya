@@ -3,11 +3,8 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 -- | Collect the various calls into one place.
-module Derive.Call.All (library, shadowed) where
-import qualified Data.Map as Map
-
+module Derive.Call.All (library) where
 import Util.Control
-import qualified Util.Seq as Seq
 import qualified Derive.Call.Articulation as Articulation
 import qualified Derive.Call.Bali.Gender as Gender
 import qualified Derive.Call.Bali.Kotekan as Kotekan
@@ -24,7 +21,6 @@ import qualified Derive.Call.Import as Import
 import qualified Derive.Call.India.Gamakam as Gamakam
 import qualified Derive.Call.Integrate as Integrate
 import qualified Derive.Call.Lily as Lily
-import qualified Derive.Call.Module as Module
 import qualified Derive.Call.Note as Note
 import qualified Derive.Call.NoteTransformer as NoteTransformer
 import qualified Derive.Call.Pitch as Pitch
@@ -37,7 +33,6 @@ import qualified Derive.Call.SignalTransform as SignalTransform
 import qualified Derive.Call.Trill as Trill
 import qualified Derive.Call.Val as Val
 import qualified Derive.Derive as Derive
-import qualified Derive.TrackLang as TrackLang
 
 
 library :: Derive.Library
@@ -47,43 +42,6 @@ library = Derive.Library
     , Derive.lib_pitch = pitch_maps
     , Derive.lib_val = val_map
     }
-
--- | Warnings for shadowed symbols.
-type Shadowed = ((Text, Module.Module), [TrackLang.CallId])
-
-shadowed :: Derive.Library -> [Shadowed]
-shadowed (Derive.Library note control pitch val) =
-    filter (not . null . snd) $ concat
-    [ call_maps "note" note
-    , call_maps "control" control
-    , call_maps "pitch" pitch
-    , add "val" $ get_shadows Derive.vcall_doc val
-    ]
-    where
-    call_maps tag (Derive.CallMaps gen trans) = concat
-        [ add (tag <> " generator") $ get_shadows Derive.call_doc gen
-        , add (tag <> " transformer") $ get_shadows Derive.call_doc trans
-        ]
-    add tag shadows = [((tag, module_), calls) | (module_, calls) <- shadows]
-
-get_shadows :: (call -> Derive.CallDoc) -> [Derive.LookupCall call]
-    -> [(Module.Module, [TrackLang.CallId])]
-get_shadows get_doc = filter (not . null . snd) . map (second duplicates)
-    . Seq.group_fst . concatMap (call_module get_doc)
-
-duplicates :: Ord a => [a] -> [a]
-duplicates = mapMaybe extract . Seq.group_on id
-    where
-    extract (x : _ : _) = Just x
-    extract _ = Nothing
-
-call_module :: (call -> Derive.CallDoc) -> Derive.LookupCall call
-    -> [(Module.Module, TrackLang.CallId)]
-call_module _ (Derive.LookupPattern {}) = []
-call_module get_doc (Derive.LookupMap calls) =
-    [ (Derive.cdoc_module (get_doc call), call_id)
-    | (call_id, call) <- Map.toList calls
-    ]
 
 note_maps :: Derive.CallMaps Derive.Note
 note_maps = mconcat

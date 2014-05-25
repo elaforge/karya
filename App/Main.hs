@@ -50,6 +50,7 @@ import qualified Derive.Call.All as Call.All
 import qualified Derive.Call.Module as Module
 import qualified Derive.Call.Symbols as Call.Symbols
 import qualified Derive.Instrument.Symbols as Instrument.Symbols
+import qualified Derive.Library as Library
 import qualified Derive.Scale.All as Scale.All
 import qualified Derive.Scale.Symbols as Scale.Symbols
 
@@ -170,7 +171,7 @@ startup_initialization = do
     LoadConfig.styles Config.styles
     -- Report keymap and call overlaps.
     mapM_ Log.warn GlobalKeymap.cmd_map_errors
-    forM_ (Call.All.shadowed Call.All.library) $
+    forM_ (Library.shadowed Call.All.library) $
         \((name, (Module.Module module_)), calls) ->
             Log.warn $ "shadowed " <> untxt name <> " calls in module "
                 <> untxt module_ <> ": " <> pretty calls

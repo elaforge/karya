@@ -47,6 +47,7 @@ import qualified Derive.Derive as Derive
 import qualified Derive.Environ as Environ
 import qualified Derive.Eval as Eval
 import qualified Derive.LEvent as LEvent
+import qualified Derive.Library as Library
 import qualified Derive.Parse as Parse
 import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
@@ -348,10 +349,14 @@ load_definitions fname = File.ignoreEnoent $ do
     text <- Text.IO.readFile fname
     Log.notice $ "reload definitions from " <> show fname
     time <- Directory.getModificationTime fname
-    -- TODO complain about collisions
-    return $ case Parse.parse_definition_file text of
-        Left err -> (time, Left $ txt fname <> ":" <> err)
-        Right defs -> (time, Right $ compile_library defs)
+    case Parse.parse_definition_file text of
+        Left err -> return (time, Left $ txt fname <> ":" <> err)
+        Right defs -> do
+            let lib = compile_library defs
+            forM_ (Library.shadowed lib) $ \((name, _), calls) ->
+                Log.warn $ "definitions in " <> show fname
+                    <> " " <> untxt name <> " shadowed: " <> pretty calls
+            return (time, Right lib)
 
 compile_library :: Parse.Definitions -> Derive.Library
 compile_library (Parse.Definitions note control pitch val) = Derive.Library
