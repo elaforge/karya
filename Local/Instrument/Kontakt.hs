@@ -135,7 +135,15 @@ sonic_couture = MidiInst.with_empty_code
         , (22, "q")
         , (23, "hpf")
         ]
+    , Instrument.attribute_map #= Instrument.simple_keyswitches guzheng_ks $
+        patch "guzheng" [(23, "lpf"), (24, "q"), (27, "hpf")]
     ]
+    where
+    guzheng_ks =
+        [ (Attrs.harm, Key2.as5)
+        , (Attrs.left, Key2.b5) -- left hand, no pick
+        , (mempty, Key2.c6) -- right hand, picked
+        ]
 
 sc_bali :: [MidiInst.Patch]
 sc_bali = MidiInst.with_code mute_null_call
