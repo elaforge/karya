@@ -47,7 +47,7 @@ import qualified Perform.Signal as Signal
 import Types
 
 
-val_calls :: Derive.CallMap Derive.ValCall
+val_calls :: [Derive.LookupCall Derive.ValCall]
 val_calls = Derive.call_map
     [ (">", c_next_val)
     , ("<", c_prev_val)

@@ -107,7 +107,7 @@ pick_weighted weights rnd_ = go 0 weights
 
 -- * val calls
 
-val_calls :: Derive.CallMap Derive.ValCall
+val_calls :: [Derive.LookupCall Derive.ValCall]
 val_calls = Derive.call_map
     [ ("alt", c_val_alternate) -- or ?
     , ("alt-w", c_val_alternate_weighted)

@@ -59,7 +59,7 @@ UNSORTED
       and everything.  Then I could also do manual commits.  I'm not sure it's
       really worth it though, since sufficiently complex code should move into
       Local.* and be versioned and namespaced normally.
-  - remove Derive.CallMap synonym
+  * remove Derive.CallMap synonym
   - The 'import' call should ensure calls from later named modules shadow
     earlier ones.
   - %c = 1 can set a control, but what if I want to combine, e.g. *= .5?

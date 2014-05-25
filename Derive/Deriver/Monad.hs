@@ -78,7 +78,6 @@ module Derive.Deriver.Monad (
     , TrackDynamic
 
     -- * calls
-    , CallMap
     , CallMaps(..), call_map
     , call_maps, generator_call_map, transformer_call_map
     , CallInfo(..), info_track_range, coerce_call_info
@@ -901,7 +900,6 @@ type TrackDynamic = Map.Map (BlockId, TrackId) Dynamic
 
 -- ** calls
 
-type CallMap call = [LookupCall call]
 data LookupCall call =
     LookupMap !(Map.Map TrackLang.CallId call)
     -- | Text description of the CallIds accepted.  The function is in Deriver

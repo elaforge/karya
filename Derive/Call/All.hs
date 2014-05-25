@@ -66,7 +66,7 @@ shadowed (Derive.Library note control pitch val) =
         ]
     add tag shadows = [((tag, module_), calls) | (module_, calls) <- shadows]
 
-get_shadows :: (call -> Derive.CallDoc) -> Derive.CallMap call
+get_shadows :: (call -> Derive.CallDoc) -> [Derive.LookupCall call]
     -> [(Module.Module, [TrackLang.CallId])]
 get_shadows get_doc = filter (not . null . snd) . map (second duplicates)
     . Seq.group_fst . concatMap (call_module get_doc)
@@ -137,5 +137,5 @@ pitch_maps = mconcat
     , Trill.pitch_calls
     ]
 
-val_map :: Derive.CallMap Derive.ValCall
+val_map :: [Derive.LookupCall Derive.ValCall]
 val_map = concat [Random.val_calls, Val.val_calls]
