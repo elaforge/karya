@@ -3,6 +3,15 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
+  - a kontakt script to make pb only affect the last note would let me use
+    fewer channels
+  guzheng support:
+    * fix string idiom
+    - string idiom can take open strings from environ
+    - I want to make pitches after the first default to interpolated, like
+      i>>.  I would have to wrap all the scale calls, but how can an
+      instrument do that?  Make a LookupPattern that looks up the pitch call
+      in the scale manually.
   * Looking for logview.pid is not reliable since it could collide with an
     existing pid.  I should see if the process is called logview.
       ps -e $(cat logview.pid) -o comm

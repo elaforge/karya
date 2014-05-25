@@ -34,10 +34,14 @@ import Types
 -- static config or some kind of tracklang list literal.
 note_calls :: Derive.CallMaps Derive.Note
 note_calls = Derive.call_maps []
-    [ ("string-guzheng", c_guzheng $ notes ["4c", "4d", "4e", "4g", "4a"])
+    [ ("string-guzheng", c_guzheng $ notes strings)
     , ("string-viola", c_violin $ notes ["4c", "4g", "5d", "5a"])
     ]
-    where notes = map (flip TrackLang.call [])
+    where
+    strings = take (4*5 + 1) -- 4 octaves + 1, so D to D
+        [TrackLang.Symbol $ showt oct <> note | oct <- [2..],
+            note <- ["d", "e", "f#", "a", "b"]]
+    notes = map (flip TrackLang.call [])
 
 module_ :: Module.Module
 module_ = "idiom" <> "string"
@@ -52,10 +56,10 @@ c_guzheng strings = Derive.transformer module_ "guzheng"
     \ like the violin family.  Further documentation is in\
     \ 'Derive.Call.Idiom.String'."
     ) $ Sig.callt ((,,)
-    <$> defaulted "attack" (control "string-attack" 0.5)
+    <$> defaulted "attack" (control "string-attack" 0.1)
         "Time for a string to bend to its desired pitch. A fast attack\
         \ sounds like a stopped string."
-    <*> defaulted "release" (control "string-release" 0.5)
+    <*> defaulted "release" (control "string-release" 0.1)
         "Time for a string to return to its original pitch."
     <*> defaulted "delay" (control "string-delay" 0)
         "If the string won't be used for the following note, it will be\
@@ -104,12 +108,6 @@ c_violin strings = Derive.transformer module_ "violin"
 -- This does't do anything fancy like simulate hand position or alternate
 -- fingerings.
 --
--- TODO this evaluates the open strings only once at the beginning of the
--- postprocessing.  So any kind of fancy retuning isn't going to happen.  To
--- do that I think I'd need some cooperation from the note call, to evaluate
--- and stash the pitches of the open strings at the point of the note
--- evaluation.  I might be able do that by modifying the null call.
---
 -- TODO It would be possible to have a polyphonic effect by allowing more than
 -- one stopped string at a time.
 string_idiom ::
@@ -123,24 +121,25 @@ string_idiom ::
 string_idiom attack_interpolator release_interpolator open_strings attack delay
         release all_events = Post.event_head all_events $ \event events -> do
     open_nns <- mapM Pitches.pitch_nn open_strings
-    case initial_state (zip open_nns open_strings) event of
+    let strings = Map.fromList (zip open_nns open_strings)
+    case initial_state strings event of
         Nothing -> Derive.throw $ "initial pitch below lowest string: "
             ++ show (Score.initial_nn event)
         Just state -> do
             attack <- Post.control id attack events
             delay <- Post.control id delay events
             release <- Post.control id release events
-            (final, result) <- Post.map_events_asc_m go state
+            (final, result) <- Post.map_events_asc_m (go strings) state
                 (LEvent.zip4 attack delay release events)
             return $! result ++ [LEvent.Event $ state_event final]
     where
-    go state (attack, delay, release, event) = do
+    go strings state (attack, delay, release, event) = do
         start <- Derive.score (Score.event_start event)
         let dur = Util.typed_real_duration Util.Real start
         attack <- dur attack
         delay <- dur delay
         release <- dur release
-        process attack_interpolator release_interpolator
+        process strings attack_interpolator release_interpolator
             (attack, delay, release) state event
 
 -- | Monophonic:
@@ -150,12 +149,15 @@ string_idiom attack_interpolator release_interpolator open_strings attack delay
 --
 -- - If the note falls on the string in use, bend that string up to the note
 -- to be played and emit it.
-process :: Call.Pitch.Interpolator -> Call.Pitch.Interpolator
+process :: Map.Map Pitch.NoteNumber PitchSignal.Pitch
+    -- ^ The strings are tuned to Pitches, but to compare Pitches I have to
+    -- evaluate them to NoteNumbers first.
+    -> Call.Pitch.Interpolator -> Call.Pitch.Interpolator
     -> (RealTime, RealTime, RealTime) -> State -> Score.Event
     -> Derive.Deriver (State, [Score.Event])
-process attack_interpolator release_interpolator
+process strings attack_interpolator release_interpolator
         (attack_time, delay_time, release_time)
-        state@(State strings sounding_string prev) event = do
+        state@(State sounding_string prev) event = do
     pitch <- Derive.require "no pitch" $ Score.initial_pitch event
     nn <- Derive.require_right pretty $ PitchSignal.pitch_nn pitch
     case find_string nn strings of
@@ -164,7 +166,7 @@ process attack_interpolator release_interpolator
             return (state, [])
         Just string -> do
             new_event <- Derive.require "missing pitches" (emit pitch string)
-            return (State strings string event, [new_event])
+            return (State string event, [new_event])
     where
     start = Score.event_start event
     emit pitch string
@@ -209,30 +211,20 @@ find_string = Map.lookup_below
 
 -- | Keep track of the current string state.
 data State = State {
-    -- | The strings are tuned to Pitches, but to compare Pitches I have to
-    -- evaluate them to NoteNumbers first.
-    --
-    -- Since the strings are NoteNumbers, it means they can't retune based on
-    -- context as 'PitchSignal.Pitch's can.  I can think about supporting this
-    -- later if I need it.
-    state_strings :: !(Map.Map Pitch.NoteNumber PitchSignal.Pitch)
     -- | The string that is currently sounding.  This is the /open/ pitch.
-    , state_sounding :: !(Pitch.NoteNumber, PitchSignal.Pitch)
+    state_sounding :: !(Pitch.NoteNumber, PitchSignal.Pitch)
     -- | The previous event.  Since each event is modified based on the next
     -- pitch, each 'process' call is one event ahead of the actual event
     -- emitted.
     , state_event :: !Score.Event
     } deriving (Show)
 
-initial_state :: [(Pitch.NoteNumber, PitchSignal.Pitch)] -> Score.Event
+initial_state :: Map.Map Pitch.NoteNumber PitchSignal.Pitch -> Score.Event
     -> Maybe State
-initial_state open_strings event = do
+initial_state strings event = do
     nn <- Score.initial_nn event
     string <- find_string nn strings
     return $ State
-        { state_strings = strings
-        , state_sounding = string
+        { state_sounding = string
         , state_event = event
         }
-    where
-    strings = Map.fromList open_strings

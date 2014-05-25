@@ -493,6 +493,7 @@ keyswitches :: [(Score.Attributes, [Keyswitch])] -> AttributeMap
 keyswitches attr_ks = sort_attributes $
     AttributeMap [(attrs, ks, Nothing) | (attrs, ks) <- attr_ks]
 
+-- | An AttributeMap with a single Midi.Key keyswitch per Attribute.
 simple_keyswitches :: [(Score.Attributes, Midi.Key)] -> AttributeMap
 simple_keyswitches = keyswitches . map (second ((:[]) . Keyswitch))
 
