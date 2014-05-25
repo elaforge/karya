@@ -313,9 +313,15 @@ test_keyswitch_share_chan = do
         ks_inst ks = inst1 { Instrument.inst_keyswitch = ks }
         ks1 = [Instrument.Keyswitch Key.c1]
         ks2 = [Instrument.Keyswitch Key.d1]
-    -- Too close, so they split channels.
+
+    -- -- Too close, so they split channels.
+    -- equal (f [(ks1, "a", 0), (ks2, "b", 1)])
+    --     ([(0, Key.c1), (0, Key.c4), (1, Key.d1), (1, Key.cs4)], [])
+
+    -- New behaviour is that keyswitches like to share channels.
     equal (f [(ks1, "a", 0), (ks2, "b", 1)])
-        ([(0, Key.c1), (0, Key.c4), (1, Key.d1), (1, Key.cs4)], [])
+        ([(0, Key.c1), (0, Key.c4), (0, Key.d1), (0, Key.cs4)], [])
+
     -- Distant enough that they can share a channel.
     equal (f [(ks1, "a", 0), (ks2, "b", 10)])
         ([(0, Key.c1), (0, Key.c4), (0, Key.d1), (0, Key.cs4)], [])

@@ -4,19 +4,6 @@
 
 {- | Main entry point for Perform.Midi.  Render Deriver output down to actual
     midi events.
-
-    Keyswitch implementation:
-
-    Keyswitches are implemented as separate instruments that are allocated
-    the same channels.  That way the normal channel sharing stuff in
-    'can_share_chan' will try to give each instrument on its own channel to
-    minimize keyswitches.  Every note with a keyswitch will emit the keyswitch
-    slightly before the note if necessary.
-
-    Score.Event level Attributes are mapped to keyswitches.  This happens at
-    Convert by 'MidiDb.LookupMidiInstrument' so that the Perform.Events can get
-    their slightly different Instruments.  It's up to "Perform.Midi.Convert" to
-    convert an arbitrary set of attributes into a keyswitch.
 -}
 module Perform.Midi.Perform where
 import qualified Control.DeepSeq as DeepSeq
@@ -187,22 +174,27 @@ shareable_chan overlapping event =
 -- this is the core decision when multiplexing channels.
 can_share_chan :: Event -> Event -> Maybe Text
 can_share_chan old new = case (initial_pitch old, initial_pitch new) of
-        _ | start >= end -> Nothing
-        _ | event_instrument old /= event_instrument new ->
-            Just "instruments differ"
-        (Just (initial_old, _), Just (initial_new, _))
-            | not (Signal.pitches_share in_decay start end
-                initial_old (event_pitch old) initial_new (event_pitch new)) ->
-                    Just $ "pitch signals incompatible: "
-                        <> prettyt (event_pitch old) <> " /= "
-                        <> prettyt (event_pitch new)
-            | not c_equal ->
-                Just $ "controls differ: "
-                    <> prettyt (event_controls old)
-                    <> " /= " <> prettyt (event_controls new)
-            | otherwise -> Nothing
-        _ -> Nothing
+    _ | start >= end -> Nothing
+    -- Previously I required that the whole Instrument be equal, which caused
+    -- notes with different keyswitches to not share channels.  However, they
+    -- actually can share channels, though they still can't play
+    -- simultaneously.  I need to be as aggressive as possible sharing
+    -- channels, especially for instruments with long decays, because any
+    -- channel stealing for pitch bends can be very audible.
+    _ | inst_of old /= inst_of new -> Just "instruments differ"
+    (Just (initial_old, _), Just (initial_new, _))
+        | not (Signal.pitches_share in_decay start end
+            initial_old (event_pitch old) initial_new (event_pitch new)) ->
+                Just $ "pitch signals incompatible: "
+                    <> prettyt (event_pitch old) <> " /= "
+                    <> prettyt (event_pitch new)
+        | not c_equal ->
+            Just $ "controls differ: " <> prettyt (event_controls old)
+                <> " /= " <> prettyt (event_controls new)
+        | otherwise -> Nothing
+    _ -> Nothing
     where
+    inst_of = Instrument.inst_score . event_instrument
     start = event_start new
     -- Note that I add the control_lead_time to the decay of the old note
     -- rather than subtracting it from the start of the new one.  Subtracting

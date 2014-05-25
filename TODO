@@ -3,8 +3,8 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
-  - flag for midi performer to not split channels for keyswitches
-    - Perhaps the performer instrument stuff could use an overhaul, it seems
+  * flag for midi performer to not split channels for keyswitches
+    / Perhaps the performer instrument stuff could use an overhaul, it seems
       kind of oblique.  E.g. make a Perform.Instrument, then I can take the
       bogus inst_score, inst_synth, inst_keyswitch fields out of
       Instrument.Instrument.  No I can't, those are only note used for
