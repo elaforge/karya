@@ -163,10 +163,10 @@ data EditInput =
 -- | Cmds can run in either Identity or IO, but are generally returned in IO,
 -- just to make things uniform.
 type RunCmd cmd_m val_m a =
-    State.State -> State -> CmdT cmd_m a -> val_m (CmdVal a)
+    State.State -> State -> CmdT cmd_m a -> val_m (Result a)
 
 -- | The result of running a Cmd.
-type CmdVal a = (State, [MidiThru], [Log.Msg],
+type Result a = (State, [MidiThru], [Log.Msg],
     Either State.Error (a, State.State, [Update.CmdUpdate]))
 
 run :: Monad m => a -> RunCmd m m a
@@ -194,7 +194,7 @@ run_io :: RunCmd IO IO Status
 run_io = run Continue
 
 -- | Run the Cmd in Identity, returning Nothing if it aborted.
-run_id :: State.State -> State -> CmdT Identity.Identity a -> CmdVal (Maybe a)
+run_id :: State.State -> State -> CmdT Identity.Identity a -> Result (Maybe a)
 run_id ui_state cmd_state cmd =
     Identity.runIdentity (run Nothing ui_state cmd_state (fmap Just cmd))
 

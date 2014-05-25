@@ -3,7 +3,6 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
-  - rename Cmd.CmdVal to Cmd.Result
   * Looking for logview.pid is not reliable since it could collide with an
     existing pid.  I should see if the process is called logview.
       ps -e $(cat logview.pid) -o comm
