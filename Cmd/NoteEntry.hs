@@ -129,7 +129,7 @@ key_to_input is_pressure octave is_down (Key.Char c) = do
         input@(InputNote.NoteOn note_id _ _) | is_pressure ->
             -- Breath goes second, otherwise thru won't think it belongs to
             -- this note.
-            [input, breath note_id (100/127)]
+            [input, breath note_id InputNote.keyboard_velocity]
         input -> [input]
     breath note_id val = InputNote.Control note_id Controls.breath val
 key_to_input _ _ _ _ = Nothing

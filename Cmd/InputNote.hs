@@ -51,6 +51,12 @@ import qualified Perform.Signal as Signal
 import qualified App.Config as Config
 
 
+-- | Since the ASCII keyboard isn't pressure sensitive, this is the default
+-- velocity.  Hopefully it's strong but not so strong as to be hard on the
+-- ears.
+keyboard_velocity :: Signal.Y
+keyboard_velocity = 0.75
+
 type Input = GenericInput Pitch.Input
 
 -- | An input with a plain NoteNumber pitch instead of a 'Pitch.Input'.
@@ -233,8 +239,9 @@ control_cc = Control.universal_control_map
 
 from_ascii :: Bool -> Pitch.Pitch -> Input
 from_ascii down pitch
-    | down = NoteOn note_id (Pitch.Input Pitch.AsciiKbd pitch 0) 1
-    | otherwise = NoteOff note_id 1
+    | down = NoteOn note_id (Pitch.Input Pitch.AsciiKbd pitch 0)
+        keyboard_velocity
+    | otherwise = NoteOff note_id keyboard_velocity
     where note_id = NoteId (pitch_to_nn pitch)
 
 pitch_to_nn :: Pitch.Pitch -> Int

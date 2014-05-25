@@ -75,7 +75,6 @@ import qualified Cmd.Msg as Msg
 import qualified Cmd.Perf as Perf
 import qualified Cmd.Selection as Selection
 
-import qualified Derive.Controls as Controls
 import qualified Derive.Derive as Derive
 import qualified Derive.Scale as Scale
 import qualified Derive.Score as Score
@@ -85,7 +84,6 @@ import qualified Perform.Midi.Control as Control
 import qualified Perform.Midi.Instrument as Instrument
 import Perform.Midi.Instrument (Addr)
 import qualified Perform.Pitch as Pitch
-import qualified Perform.Signal as Signal
 
 
 -- | Send midi thru, addressing it to the given Instrument.
@@ -139,9 +137,6 @@ map_scale patch_scale scale environ input = case input of
         (block_id, _, track_id, pos) <- Selection.get_insert
         (result, _logs) <- Perf.derive_at block_id track_id $
             Derive.with_environ environ $
-            -- Otherwise, if %dyn happens to be 0 here then thru won't work.
-            Derive.with_control Controls.dynamic
-                (Score.untyped (Signal.constant 1)) $
             Scale.scale_input_to_nn scale pos input
         -- I ignore _logs, any interesting errors should be in 'result'.
         case result of
