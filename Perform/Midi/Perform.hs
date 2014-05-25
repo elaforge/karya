@@ -260,10 +260,7 @@ controls_equal start end cs1 cs2 = start >= end || all eq pairs
 -- | 'channelize' will assign channels based on whether the notes can coexist
 -- without interfering with each other.  'allot' reduces those channels down
 -- to the real midi channels assigned to the instrument, stealing if necessary.
---
--- allot assigns notes to the longest-unused channel, which means that even if
--- notes could coexist but don't have to, they will wind up on separate
--- channels.
+-- It steals from the longest-unused channel.
 --
 -- Events with instruments that have no address allocation in the config
 -- will be dropped.
@@ -287,9 +284,12 @@ data AllotState = AllotState {
     , ast_allotted :: !(Map.Map AllotKey Allotted)
     } deriving (Eq, Show)
 
+empty_allot_state :: AllotState
+empty_allot_state = AllotState Map.empty Map.empty
+
 -- | Channelize makes sure that a (inst, ichan) key identifies events that can
 -- share channels.
-type AllotKey = (Instrument.Instrument, Channel)
+type AllotKey = (Score.Instrument, Channel)
 
 data Allotted = Allotted {
     allotted_addr :: !Instrument.Addr
@@ -298,9 +298,6 @@ data Allotted = Allotted {
     -- | Maximum length for allotted_voices.
     , allotted_voice_count :: !Instrument.Voices
     } deriving (Eq, Show)
-
-empty_allot_state :: AllotState
-empty_allot_state = AllotState Map.empty Map.empty
 
 -- | Try to find an Addr for the given Event.  If that's impossible, return
 -- a log msg.
@@ -326,20 +323,17 @@ allot_event inst_addrs state (event, ichan) =
             -- A higher level should filter out the duplicates.
             Nothing -> (state, LEvent.Log no_alloc)
     where
-    -- log = LEvent.Log
-    --     . Log.msg Log.Warn (Just (Stack.to_strings (event_stack event)))
-    --     . (log_prefix event <>)
+    -- Remove voices that have ended.
     expire_voices allotted = allotted
         { allotted_voices =
             filter (> event_start event) (allotted_voices allotted)
         }
-    inst = event_instrument event
+    inst = Instrument.inst_score $ event_instrument event
     update = update_allot_state (inst, ichan) (event_end event)
-    no_alloc = event_warning event
-        ("no allocation for " <> prettyt (Instrument.inst_score inst))
+    no_alloc = event_warning event ("no allocation for " <> prettyt inst)
 
 -- | Record this addr as now being allotted, and add its voice allocation.
-update_allot_state :: (Instrument.Instrument, Channel) -> RealTime
+update_allot_state :: (Score.Instrument, Channel) -> RealTime
     -> Maybe (Instrument.Voices, Maybe AllotKey) -> Instrument.Addr
     -> [RealTime] -> AllotState -> AllotState
 update_allot_state inst_chan end maybe_new_allot addr voices state = state
@@ -359,17 +353,15 @@ update_allot_state inst_chan end maybe_new_allot addr voices state = state
 -- I initially feared keeping track of voice allocation would be wasteful for
 -- addrs with no limitation, but profiling revealed no detectable difference.
 -- So either it's not important or my profiles are broken.
-steal_addr :: InstAddrs -> Instrument.Instrument -> AllotState
+steal_addr :: InstAddrs -> Score.Instrument -> AllotState
     -> Maybe (Instrument.Addr, Instrument.Voices, Maybe AllotKey)
-steal_addr inst_addrs inst state =
-    case Map.lookup (Instrument.inst_score inst) inst_addrs of
-        Just addr_voices ->
-            let avail = zip addr_voices (map (mlookup . fst) addr_voices)
-            in case Seq.minimum_on (fst . snd) avail of
-                Just ((addr, voices), (_, maybe_inst_chan)) ->
-                    Just (addr, fromMaybe 10000 voices, maybe_inst_chan)
-                Nothing -> Nothing
-        _ -> Nothing
+steal_addr inst_addrs inst state = case Map.lookup inst inst_addrs of
+    Just addr_voices -> case Seq.minimum_on (fst . snd) avail of
+        Just ((addr, voices), (_, maybe_inst_chan)) ->
+            Just (addr, fromMaybe 10000 voices, maybe_inst_chan)
+        Nothing -> Nothing
+        where avail = zip addr_voices (map (mlookup . fst) addr_voices)
+    _ -> Nothing
     where
     mlookup addr = case Map.lookup addr (ast_available state) of
         Nothing -> (0, Nothing)
@@ -744,7 +736,7 @@ resort = go mempty
     interval = control_lead_time
 
 
--- * data
+-- * event
 
 data Event = Event {
     event_instrument :: !Instrument.Instrument
@@ -789,7 +781,6 @@ note_end event =
 -- will later be mapped to midi channels.
 type Channel = Integer
 type ControlMap = Map.Map Score.Control Signal.Control
-
 
 -- * util
 

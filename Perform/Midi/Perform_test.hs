@@ -306,34 +306,19 @@ test_vel_clip_warns = do
     equal warns ["Perform: %vel clipped: (0s, 4s)"]
     check (all_msgs_valid msgs)
 
--- * extract
-
-all_msgs_valid :: Midi.WriteMessages -> Bool
-all_msgs_valid wmsgs = all Midi.valid_msg (map Midi.wmsg_msg wmsgs)
-
-e_note_ons :: Midi.WriteMessages -> [(RealTime, (Midi.Channel, Midi.Key))]
-e_note_ons wmsgs =
-    [ (ts, (chan, key))
-    | (ts, (chan, Midi.NoteOn key _)) <- mapMaybe e_channel_msg wmsgs
-    ]
-
-e_channel_msg :: Midi.WriteMessage
-    -> Maybe (RealTime, (Midi.Channel, Midi.ChannelMessage))
-e_channel_msg wmsg = case Midi.wmsg_msg wmsg of
-    Midi.ChannelMessage chan msg -> Just (Midi.wmsg_ts wmsg, (chan, msg))
-    _ -> Nothing
-
-extract_msg :: Midi.WriteMessage
-    -> (RealTime, Midi.Channel, Midi.ChannelMessage)
-extract_msg wmsg = (time, chan, msg)
-    where (_, time, chan, msg) = extract_dev_msg wmsg
-
-extract_dev_msg :: Midi.WriteMessage
-    -> (String, RealTime, Midi.Channel, Midi.ChannelMessage)
-extract_dev_msg (Midi.WriteMessage dev ts (Midi.ChannelMessage chan msg)) =
-    (pretty dev, ts, chan, msg)
-extract_dev_msg (Midi.WriteMessage _ _ msg) =
-    error $ "unknown msg: " ++ show msg
+test_keyswitch_share_chan = do
+    let f evts = first extract $ perform midi_config1 (map make evts)
+        extract = map snd . e_note_ons
+        make (ks, pitch, start) = mkevent (ks_inst ks, pitch, start, 1, [])
+        ks_inst ks = inst1 { Instrument.inst_keyswitch = ks }
+        ks1 = [Instrument.Keyswitch Key.c1]
+        ks2 = [Instrument.Keyswitch Key.d1]
+    -- Too close, so they split channels.
+    equal (f [(ks1, "a", 0), (ks2, "b", 1)])
+        ([(0, Key.c1), (0, Key.c4), (1, Key.d1), (1, Key.cs4)], [])
+    -- Distant enough that they can share a channel.
+    equal (f [(ks1, "a", 0), (ks2, "b", 10)])
+        ([(0, Key.c1), (0, Key.c4), (0, Key.d1), (0, Key.cs4)], [])
 
 test_perform_lazy = do
     let perform evts = perform_notes [(evt, (dev1, 0)) | evt <- evts]
@@ -343,19 +328,14 @@ test_perform_lazy = do
     res <- run_timeout 1 $ return (take 20 msgs)
     equal (fmap length res) (Just 20)
 
--- TODO move to a more general purpose place?
-run_timeout :: Double -> IO a -> IO (Maybe a)
-run_timeout timeout action = do
-    mvar <- Concurrent.newEmptyMVar
-    th1 <- Concurrent.forkIO $ do
-        val <- action
-        Concurrent.putMVar mvar (Just val)
-    th2 <- Concurrent.forkIO $ do
-        Thread.delay timeout
-        Concurrent.putMVar mvar Nothing
-    result <- Concurrent.takeMVar mvar
-    mapM_ Concurrent.killThread [th1, th2]
-    return result
+test_no_pitch = do
+    let event = (mkevent (inst1, "a", 0, 2, []))
+            { Perform.event_pitch = Signal.constant Signal.invalid_pitch }
+    let (midi, logs) = perform midi_config1 [event]
+    equal (map Midi.wmsg_msg midi) []
+    equal logs ["Perform: no pitch signal"]
+
+-- * perform_note
 
 test_pitch_curve = do
     let event pitch = mkpevent (1, 0.5, pitch, [])
@@ -385,13 +365,6 @@ test_pitch_curve = do
         (0.9, Midi.ChannelMessage 1 (Midi.PitchBend 0.5))
     equal (head (notes 1 (event [(1, 42.5)])))
         (1, Midi.ChannelMessage 1 (Midi.PitchBend 0.5))
-
-test_no_pitch = do
-    let event = (mkevent (inst1, "a", 0, 2, []))
-            { Perform.event_pitch = Signal.constant Signal.invalid_pitch }
-    let (midi, logs) = perform midi_config1 [event]
-    equal (map Midi.wmsg_msg midi) []
-    equal logs ["Perform: no pitch signal"]
 
 test_keyswitch = do
     let e_note_on = mapMaybe $ \wmsg ->
@@ -460,6 +433,9 @@ test_keyswitch = do
         cs2 = [Instrument.ControlSwitch 1 20]
         e_msg = mapMaybe $ \wmsg ->
             ((,) (Midi.wmsg_ts wmsg) <$> note_on_cc (Midi.wmsg_msg wmsg))
+        note_on_cc msg
+            | Midi.is_note_on msg || Midi.is_cc msg = Just msg
+            | otherwise = Nothing
     equal (f e_msg [(cs1, False, "a", 0, 1), (cs2, False, "b", 1, 1)])
         [ (0 - ks_gap, Midi.ChannelMessage 0 (Midi.ControlChange 1 10))
         , (0, Midi.ChannelMessage 0 (Midi.NoteOn Key.c4 100))
@@ -472,9 +448,49 @@ note_on_key key
     | Just (True, key) <- note_key key = Just key
     | otherwise = Nothing
 
-note_on_cc msg
-    | Midi.is_note_on msg || Midi.is_cc msg = Just msg
-    | otherwise = Nothing
+-- ** extract
+
+all_msgs_valid :: Midi.WriteMessages -> Bool
+all_msgs_valid wmsgs = all Midi.valid_msg (map Midi.wmsg_msg wmsgs)
+
+e_note_ons :: Midi.WriteMessages -> [(RealTime, (Midi.Channel, Midi.Key))]
+e_note_ons wmsgs =
+    [ (ts, (chan, key))
+    | (ts, (chan, Midi.NoteOn key _)) <- mapMaybe e_channel_msg wmsgs
+    ]
+
+e_channel_msg :: Midi.WriteMessage
+    -> Maybe (RealTime, (Midi.Channel, Midi.ChannelMessage))
+e_channel_msg wmsg = case Midi.wmsg_msg wmsg of
+    Midi.ChannelMessage chan msg -> Just (Midi.wmsg_ts wmsg, (chan, msg))
+    _ -> Nothing
+
+extract_msg :: Midi.WriteMessage
+    -> (RealTime, Midi.Channel, Midi.ChannelMessage)
+extract_msg wmsg = (time, chan, msg)
+    where (_, time, chan, msg) = extract_dev_msg wmsg
+
+extract_dev_msg :: Midi.WriteMessage
+    -> (String, RealTime, Midi.Channel, Midi.ChannelMessage)
+extract_dev_msg (Midi.WriteMessage dev ts (Midi.ChannelMessage chan msg)) =
+    (pretty dev, ts, chan, msg)
+extract_dev_msg (Midi.WriteMessage _ _ msg) =
+    error $ "unknown msg: " ++ show msg
+
+-- TODO move to a more general purpose place?
+run_timeout :: Double -> IO a -> IO (Maybe a)
+run_timeout timeout action = do
+    mvar <- Concurrent.newEmptyMVar
+    th1 <- Concurrent.forkIO $ do
+        val <- action
+        Concurrent.putMVar mvar (Just val)
+    th2 <- Concurrent.forkIO $ do
+        Thread.delay timeout
+        Concurrent.putMVar mvar Nothing
+    result <- Concurrent.takeMVar mvar
+    mapM_ Concurrent.killThread [th1, th2]
+    return result
+
 
 note_key :: Midi.Message -> Maybe (Bool, Midi.Key)
 note_key (Midi.ChannelMessage _ (Midi.NoteOn key _)) = Just (True, key)
