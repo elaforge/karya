@@ -627,7 +627,9 @@ catch :: Bool -- ^ If True, incorporate the evaluated 'state_collect'.
     -> Deriver a -> Deriver (Maybe a)
 catch collect deriver = do
     st <- get
-    let (result, st2, logs) = run st deriver
+    -- It's critical to clear the collect, because if I merge it again later
+    -- I can't go duplicating the whole thing.
+    let (result, st2, logs) = run (st { state_collect = mempty }) deriver
     mapM_ Log.write logs
     case result of
         Left err -> do

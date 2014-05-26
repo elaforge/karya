@@ -4,10 +4,13 @@ LEGEND
 
 UNSORTED
   - make Ui.global_acts_mvar not global
-  - UI hangs after a string-idiom on the note track.
+  * UI hangs after a string-idiom on the note track.
     . Hangs putting an action in global_acts_mvar, which means the event loop
       hung.
     . Hung on set track signals, there's a TrackSignal of death.
+    . Somehow collect_signal_fragments is multiplied beyond all reason.
+      It stops when Monoid is just union, so a Collect is being merged with
+      itself.
   * flag for midi performer to not split channels for keyswitches
     / Perhaps the performer instrument stuff could use an overhaul, it seems
       kind of oblique.  E.g. make a Perform.Instrument, then I can take the
