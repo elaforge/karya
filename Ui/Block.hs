@@ -170,8 +170,11 @@ default_config = Config
     where box = uncurry Box
 
 instance Pretty.Pretty Config where
-    format (Config skel track sb) = Pretty.constructor "Config"
-        [Pretty.format skel, Pretty.format track, Pretty.format sb]
+    format (Config skel track sb) = Pretty.record "Config"
+        [ ("skel", Pretty.format skel)
+        , ("track", Pretty.format track)
+        , ("sb", Pretty.format sb)
+        ]
 
 -- | One of those colored boxes wedged into the corners of the block window.
 data Box = Box { box_color :: !Color.Color, box_char :: !Char }

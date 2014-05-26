@@ -56,34 +56,34 @@ data CmdUpdate =
     deriving (Eq, Show)
 
 data Update t u =
-    View ViewId View
-    | Block BlockId (Block t)
-    | Track TrackId Track
+    View !ViewId !View
+    | Block !BlockId !(Block t)
+    | Track !TrackId !Track
     -- | Since I expect rulers to be changed infrequently, the only kind of
     -- ruler update is a full update.
-    | Ruler RulerId
-    | State u
+    | Ruler !RulerId
+    | State !u
     deriving (Eq, Show, Generics.Typeable)
 
 data View =
     CreateView
     | DestroyView
-    | ViewSize Rect.Rect
-    | Status (Map.Map (Int, Text) Text) Color.Color -- ^ background color
-    | TrackScroll Types.Width
-    | Zoom Types.Zoom
-    | Selection Types.SelNum (Maybe Types.Selection)
+    | ViewSize !Rect.Rect
+    | Status !(Map.Map (Int, Text) Text) !Color.Color -- ^ background color
+    | TrackScroll !Types.Width
+    | Zoom !Types.Zoom
+    | Selection !Types.SelNum !(Maybe Types.Selection)
     -- | Bring the window to the front.  Unlike most other updates, this is
     -- recorded directly and is not reflected in Ui.State.
     | BringToFront
     -- | Similar to BringToFront, but sets keyboard focus in a track title.
     -- If the TrackNum is not given, focus on the block title.
-    | TitleFocus (Maybe TrackNum)
+    | TitleFocus !(Maybe TrackNum)
     deriving (Eq, Show)
 
 data Block t =
-    BlockTitle Text
-    | BlockConfig Block.Config
+    BlockTitle !Text
+    | BlockConfig !Block.Config
     -- | The second is the \"integrate skeleton\", which is drawn in the same
     -- place.  It could be Skeleton too, but since it never was a skeleton it
     -- seems pointless to convert it to one just so it can be flattened again.
@@ -94,34 +94,34 @@ data Block t =
     -- drawn in the same place.  Otherwise, a change to the skeleton loses the
     -- status state, and the display can't preserve it because the skeleton
     -- update may be due to a track deletion or insertion.
-    | BlockSkeleton Skeleton.Skeleton [(Color.Color, [(TrackNum, TrackNum)])]
-        [Block.Status]
-    | RemoveTrack TrackNum
-    | InsertTrack TrackNum t
+    | BlockSkeleton !Skeleton.Skeleton ![(Color.Color, [(TrackNum, TrackNum)])]
+        ![Block.Status]
+    | RemoveTrack !TrackNum
+    | InsertTrack !TrackNum !t
     -- | Unlike 'Track', these settings are local to the block, not
     -- global to this track in all its blocks.
-    | BlockTrack TrackNum t
+    | BlockTrack !TrackNum !t
     deriving (Eq, Show)
 
 data Track =
     -- | Low pos, high pos.
-    TrackEvents ScoreTime ScoreTime
+    TrackEvents !ScoreTime !ScoreTime
     -- | Update the entire track.
     | TrackAllEvents
-    | TrackTitle Text
-    | TrackBg Color.Color
-    | TrackRender Track.RenderConfig
+    | TrackTitle !Text
+    | TrackBg !Color.Color
+    | TrackRender !Track.RenderConfig
     deriving (Eq, Show)
 
 -- | These are updates to 'Ui.State.State' that have no UI presence.
 data State =
-    Config StateConfig.Config
-    | CreateBlock BlockId Block.Block
-    | DestroyBlock BlockId
-    | CreateTrack TrackId Track.Track
-    | DestroyTrack TrackId
-    | CreateRuler RulerId Ruler.Ruler
-    | DestroyRuler RulerId
+    Config !StateConfig.Config
+    | CreateBlock !BlockId !Block.Block
+    | DestroyBlock !BlockId
+    | CreateTrack !TrackId !Track.Track
+    | DestroyTrack !TrackId
+    | CreateRuler !RulerId !Ruler.Ruler
+    | DestroyRuler !RulerId
     deriving (Eq, Show, Generics.Typeable)
 
 instance DeepSeq.NFData (Update t u) where
@@ -159,7 +159,7 @@ instance Pretty.Pretty View where
         TitleFocus tracknum ->
             Pretty.constructor "TitleFocus" [Pretty.format tracknum]
 
-instance (Pretty.Pretty t) => Pretty.Pretty (Block t) where
+instance Pretty.Pretty t => Pretty.Pretty (Block t) where
     format update = case update of
         BlockTitle s -> Pretty.constructor "BlockTitle"
             [Pretty.format s]
@@ -218,7 +218,7 @@ update_id u = case u of
         CreateRuler ruler_id _ -> ident ruler_id
         DestroyRuler ruler_id -> ident ruler_id
     where
-    ident :: (Id.Ident a) => a -> Maybe Id.Id
+    ident :: Id.Ident a => a -> Maybe Id.Id
     ident = Just . Id.unpack_id
 
 -- | Convert a UiUpdate to a DisplayUpdate by stripping out all the UiUpdate

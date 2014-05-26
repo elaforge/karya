@@ -33,6 +33,7 @@ module Ui.Sync (
     , set_play_position, clear_play_position
     , edit_input
 ) where
+import qualified Control.DeepSeq as DeepSeq
 import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Set as Set
@@ -101,7 +102,7 @@ do_updates :: Track.TrackSignals -> Track.SetStyleHigh -> [Update.DisplayUpdate]
 do_updates track_signals set_style updates = do
     -- Debug.fullM Debug.putp "sync updates" updates
     actions <- mapM (run_update track_signals set_style) updates
-    liftIO (Ui.send_action (sequence_ actions))
+    liftIO $ Ui.send_action (sequence_ actions)
 
 set_track_signals :: BlockId -> State.State -> Track.TrackSignals -> IO ()
 set_track_signals block_id state track_signals =
@@ -112,12 +113,17 @@ set_track_signals block_id state track_signals =
             -- with its signal.
             -- TODO but I should just filter out the bad track_id in that case
             Log.warn $ "getting tracknums of track_signals: " ++ show err
-        Right tracks -> Ui.send_action $ forM_ tracks set_tsig
+        Right tracks -> do
+            let tsigs = do
+                    (view_id, track_id, tracknum) <- tracks
+                    Just tsig <- [Map.lookup (block_id, track_id) track_signals]
+                    return (view_id, tracknum, tsig)
+            -- Make sure tsigs is fully forced, because a hang on the fltk
+            -- event loop can be confusing.
+            tsigs `DeepSeq.deepseq` Ui.send_action $
+                forM_ tsigs $ \(view_id, tracknum, tsig) ->
+                    set_track_signal view_id tracknum tsig
     where
-    set_tsig (view_id, track_id, tracknum) =
-        whenJust (Map.lookup (block_id, track_id) track_signals) $ \tsig ->
-            set_track_signal view_id tracknum tsig
-
     -- | Get the tracks of this block which want to render a signal.
     rendering_tracks :: State.StateId [(ViewId, TrackId, TrackNum)]
     rendering_tracks = do

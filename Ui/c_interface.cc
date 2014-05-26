@@ -32,7 +32,6 @@ ui_wait()
 void
 ui_awake()
 {
-    // DEBUG("awake");
     Fl::awake((void*) 0);
 }
 
