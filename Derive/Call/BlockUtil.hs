@@ -54,10 +54,11 @@ import qualified Perform.Signal as Signal
 import Types
 
 
-note_deriver :: BlockId -> State.StateId Derive.NoteDeriver
+note_deriver :: BlockId -> Derive.NoteDeriver
 note_deriver block_id = do
-    (tree, block_end) <- get_tree block_id
-    return $ derive_tree block_end (Control.split_control_tracks tree)
+    (tree, block_end) <- Derive.eval_ui ("note_deriver " <> show block_id) $
+        get_tree block_id
+    derive_tree block_end (Control.split_control_tracks tree)
 
 -- * control deriver
 

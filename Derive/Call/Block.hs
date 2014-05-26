@@ -132,9 +132,7 @@ d_block block_id = do
     transform $ do
         -- Record a dependency on this block.
         Internal.add_block_dep block_id
-        deriver <- Derive.eval_ui ("d_block " ++ show block_id)
-            (BlockUtil.note_deriver block_id)
-        deriver
+        BlockUtil.note_deriver block_id
 
 -- | Given a block id, produce a call expression that will call that block.
 call_from_block_id :: BlockId -> TrackLang.Call
