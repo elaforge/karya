@@ -15,6 +15,7 @@ import qualified Derive.Args as Args
 import qualified Derive.Call.ControlUtil as ControlUtil
 import qualified Derive.Call.Module as Module
 import qualified Derive.Call.Pitch as Call.Pitch
+import qualified Derive.Call.PitchUtil as PitchUtil
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Call.Util as Util
 import qualified Derive.Derive as Derive
@@ -229,8 +230,8 @@ pitch_segment align start0 start end pitch interval pitch_dir = case align of
     -- If the pitch segment is at the start of the note, then I may need to
     -- override its base pitch with a flat segment.
     AlignStart -> (initial dest <>) <$>
-        Call.Pitch.make_interpolator id False start dest end pitch
-    AlignEnd -> Call.Pitch.make_interpolator id False start pitch end dest
+        PitchUtil.make_interpolator id False start dest end pitch
+    AlignEnd -> PitchUtil.make_interpolator id False start pitch end dest
     where
     initial p = PitchSignal.signal [(start0, p)]
     dest = case interval of

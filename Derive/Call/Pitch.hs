@@ -8,13 +8,12 @@
 -- generally just one or two characters.
 module Derive.Call.Pitch where
 import Util.Control
-import qualified Util.Num as Num
 import qualified Util.Seq as Seq
-
 import qualified Ui.Event as Event
 import qualified Derive.Args as Args
 import qualified Derive.Call.ControlUtil as ControlUtil
 import qualified Derive.Call.Module as Module
+import qualified Derive.Call.PitchUtil as PitchUtil
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Call.Util as Util
 import qualified Derive.Derive as Derive
@@ -76,8 +75,6 @@ c_set_prev = Derive.generator Module.prelude "set-prev" Tags.prev
 
 -- * linear
 
-type Transpose = Either PitchSignal.Pitch Pitch.Transpose
-
 -- | Linear interpolation, with different start times.
 linear_interpolation :: (TrackLang.Typecheck time) => Text -> time -> Text
     -> (Derive.PitchArgs -> time -> Derive.Deriver TrackLang.Duration)
@@ -85,7 +82,8 @@ linear_interpolation :: (TrackLang.Typecheck time) => Text -> time -> Text
 linear_interpolation name time_default time_default_doc get_time =
     generator1 name Tags.prev doc $ Sig.call
         ((,) <$> pitch_arg <*> defaulted "time" time_default time_doc) $
-    \(pitch, time) args -> interpolate id args pitch =<< get_time args time
+    \(pitch, time) args ->
+        PitchUtil.interpolate id args pitch =<< get_time args time
     where
     doc = "Interpolate from the previous pitch to the given one in a straight\
         \ line."
@@ -127,7 +125,8 @@ exponential_interpolation name time_default time_default_doc get_time =
     <*> defaulted "exp" 2 ControlUtil.exp_doc
     <*> defaulted "time" time_default time_doc
     ) $ \(pitch, exp, time) args ->
-        interpolate (ControlUtil.expon exp) args pitch =<< get_time args time
+        PitchUtil.interpolate (ControlUtil.expon exp) args pitch
+            =<< get_time args time
     where
     doc = "Interpolate from the previous pitch to the given one in a curve."
     time_doc = "Time to reach destination. " <> time_default_doc
@@ -164,7 +163,7 @@ c_exp_next_const =
     exponential_interpolation "exp-next-const" (TrackLang.real 0.1) "" $
         \_ -> return . TrackLang.default_real
 
-pitch_arg :: Sig.Parser Transpose
+pitch_arg :: Sig.Parser PitchUtil.Transpose
 pitch_arg = required "pitch"
     "Destination pitch, or a transposition from the previous one."
 
@@ -181,7 +180,7 @@ c_neighbor = generator1 "neighbor" mempty
     ) $ \(pitch, neighbor, TrackLang.DefaultReal time) args -> do
         (start, end) <- Util.duration_from_start args time
         let pitch1 = Pitches.transpose neighbor pitch
-        make_interpolator id True start pitch1 end pitch
+        PitchUtil.make_interpolator id True start pitch1 end pitch
 
 c_approach :: Derive.Generator Derive.Pitch
 c_approach = generator1 "approach" Tags.next
@@ -197,7 +196,7 @@ approach args start end = do
     maybe_next <- next_pitch args
     case (Args.prev_pitch args, maybe_next) of
         (Just (_, prev), Just next) ->
-            make_interpolator id True start prev end next
+            PitchUtil.make_interpolator id True start prev end next
         _ -> return mempty
 
 next_pitch :: Derive.PassedArgs d -> Derive.Deriver (Maybe PitchSignal.Pitch)
@@ -231,7 +230,7 @@ slope word sign =
                 let dest = Pitches.transpose transpose prev_pitch
                     transpose = Pitch.modify_transpose
                         (* (RealTime.to_seconds (next - start) * sign)) slope
-                make_interpolator id True start prev_pitch next dest
+                PitchUtil.make_interpolator id True start prev_pitch next dest
 
 c_porta :: Derive.Generator Derive.Pitch
 c_porta = linear_interpolation "porta" (TrackLang.real 0.1)
@@ -243,63 +242,6 @@ c_porta = linear_interpolation "porta" (TrackLang.real 0.1)
 
 -- * util
 
-type Interpolator = Bool -- ^ include the initial sample or not
-    -> RealTime -> PitchSignal.Pitch -> RealTime -> PitchSignal.Pitch
-    -- ^ start -> starty -> end -> endy
-    -> PitchSignal.Signal
-
--- | Create an interpolating call, from a certain duration (positive or
--- negative) from the event start to the event start.
-interpolate :: (Double -> Double) -> Derive.PitchArgs
-    -> Transpose -> TrackLang.Duration
-    -> Derive.Deriver PitchSignal.Signal
-interpolate f args pitch_transpose dur = do
-    (start, end) <- Util.duration_from_start args dur
-    case Args.prev_pitch args of
-        Nothing -> return $ case pitch_transpose of
-            Left pitch -> PitchSignal.signal [(start, pitch)]
-            Right _ -> PitchSignal.signal []
-        Just (_, prev) -> do
-            -- I always set include_initial.  It might be redundant, but if the
-            -- previous call was sliced off, it won't be.
-            make_interpolator f True (min start end) prev (max start end) $
-                either id (flip Pitches.transpose prev) pitch_transpose
-
--- | Create samples according to an interpolator function.  The function is
--- passed values from 0--1 representing position in time and is expected to
--- return values from 0--1 representing the Y position at that time.  So linear
--- interpolation is simply @id@.
-make_interpolator :: (Double -> Double)
-    -> Bool -- ^ include the initial sample or not
-    -> RealTime -> PitchSignal.Pitch -> RealTime -> PitchSignal.Pitch
-    -> Derive.Deriver PitchSignal.Signal
-make_interpolator f include_initial x1 y1 x2 y2 = do
-    srate <- Util.get_srate
-    return $ (if include_initial then id else PitchSignal.drop 1)
-        (interpolate_segment True srate f x1 y1 x2 y2)
-
--- | This is bundled into 'make_interpolator', but calls still use this to
--- create interpolations.
-interpolator :: RealTime -> (Double -> Double) -> Interpolator
-interpolator srate f include_initial x1 y1 x2 y2 =
-    (if include_initial then id else PitchSignal.drop 1)
-        (interpolate_segment True srate f x1 y1 x2 y2)
-
--- | Interpolate between the given points.
-interpolate_segment :: Bool -> RealTime -> (Double -> Double)
-    -> RealTime -> PitchSignal.Pitch -> RealTime -> PitchSignal.Pitch
-    -> PitchSignal.Signal
-interpolate_segment include_end srate f x1 y1 x2 y2 =
-    PitchSignal.unfoldr go (Seq.range_ x1 srate)
-    where
-    go [] = Nothing
-    go (x:xs)
-        | x >= x2 = if include_end then Just ((x2, y2), []) else Nothing
-        | otherwise = Just ((x, y_of x), xs)
-    y_of = Pitches.interpolated y1 y2
-        . f . Num.normalize (secs x1) (secs x2) . secs
-    secs = RealTime.to_seconds
-
-generator1 :: (Functor m) => Text -> Tags.Tags -> Text
+generator1 :: Functor m => Text -> Tags.Tags -> Text
     -> Derive.WithArgDoc (a -> m d) -> Derive.Call (a -> m [LEvent.LEvent d])
 generator1 = Derive.generator1 Module.prelude

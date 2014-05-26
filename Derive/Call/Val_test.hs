@@ -11,14 +11,11 @@ import Util.Test
 import qualified Ui.UiTest as UiTest
 import qualified Cmd.Meter as Meter
 import qualified Derive.Call.CallTest as CallTest
-import qualified Derive.Call.ControlUtil as ControlUtil
-import qualified Derive.Call.Val as Val
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Score as Score
 import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.NN as NN
-import qualified Perform.Signal as Signal
 
 
 test_env = do
@@ -100,14 +97,6 @@ test_timestep = do
 
     -- TODO should be an error, there are no sixteenths
     equal (run 0 "s") ([1], [])
-
-test_make_segments = do
-    let make = Val.make_segments Signal.signal
-            (ControlUtil.interpolate_segment False 1 id)
-    let f start end = Signal.unsignal . make start end
-    equal (f 4 8  []) []
-    equal (f 4 8  [1]) [(4, 1)]
-    equal (f 4 8  [0, 1, 0]) [(4, 0), (5, 0.5), (6, 1), (7, 0.5), (8, 0)]
 
 test_cf_rnd = do
     let run sus notes = DeriveTest.extract extract $ DeriveTest.derive_tracks ""

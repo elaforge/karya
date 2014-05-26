@@ -12,7 +12,7 @@ import qualified Util.Log as Log
 import qualified Util.Map as Map
 
 import qualified Derive.Call.Module as Module
-import qualified Derive.Call.Pitch as Call.Pitch
+import qualified Derive.Call.PitchUtil as PitchUtil
 import qualified Derive.Call.Post as Post
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Call.Util as Util
@@ -67,7 +67,7 @@ c_string_idiom = Derive.transformer module_ "string-idiom"
             pitches -> mapM (Eval.eval_pitch 0)
                 [TrackLang.call (TrackLang.Symbol p) [] | p <- pitches]
         srate <- Util.get_srate
-        let linear = Call.Pitch.interpolator srate id
+        let linear = PitchUtil.interpolator srate id
         string_idiom linear linear strings attack delay release =<< deriver
 
 -- | A string idiom in the style of stopped strings like the violin family.
@@ -84,7 +84,7 @@ c_violin strings = Derive.transformer module_ "violin"
         events <- deriver
         let attack = TrackLang.constant_control 0
             release = TrackLang.constant_control 0
-        let linear = Call.Pitch.interpolator srate id
+        let linear = PitchUtil.interpolator srate id
         string_idiom linear linear string_pitches attack delay release events
 
 -- | Post-process events to play them in a monophonic string-like idiom.
@@ -109,8 +109,8 @@ c_violin strings = Derive.transformer module_ "violin"
 -- TODO It would be possible to have a polyphonic effect by allowing more than
 -- one stopped string at a time.
 string_idiom ::
-    Call.Pitch.Interpolator -- ^ interpolator to draw the attack curve
-    -> Call.Pitch.Interpolator -- ^ draw the release curve
+    PitchUtil.Interpolator -- ^ interpolator to draw the attack curve
+    -> PitchUtil.Interpolator -- ^ draw the release curve
     -> [PitchSignal.Pitch] -- ^ Pitches of open strings.
     -> TrackLang.ValControl -- ^ Attack time.
     -> TrackLang.ValControl -- ^ Release delay.
@@ -150,7 +150,7 @@ string_idiom attack_interpolator release_interpolator open_strings attack delay
 process :: Map.Map Pitch.NoteNumber PitchSignal.Pitch
     -- ^ The strings are tuned to Pitches, but to compare Pitches I have to
     -- evaluate them to NoteNumbers first.
-    -> Call.Pitch.Interpolator -> Call.Pitch.Interpolator
+    -> PitchUtil.Interpolator -> PitchUtil.Interpolator
     -> (RealTime, RealTime, RealTime) -> State -> Score.Event
     -> Derive.Deriver (State, [Score.Event])
 process strings attack_interpolator release_interpolator
@@ -176,7 +176,7 @@ process strings attack_interpolator release_interpolator
             (snd sounding_string) start prev
 
 -- | Bend the event up to the next note.
-attack :: Call.Pitch.Interpolator -> RealTime -> PitchSignal.Pitch -> RealTime
+attack :: PitchUtil.Interpolator -> RealTime -> PitchSignal.Pitch -> RealTime
     -> Score.Event -> Maybe Score.Event
 attack interpolator time pitch next_event event = do
     let start_x = next_event - time
@@ -186,7 +186,7 @@ attack interpolator time pitch next_event event = do
 
 -- | After releasing a note, you release your hand, which means the pitch
 -- should bend down to the open string.
-release :: Call.Pitch.Interpolator -> RealTime -> RealTime
+release :: PitchUtil.Interpolator -> RealTime -> RealTime
     -> PitchSignal.Pitch -> RealTime -> Score.Event
     -> Maybe Score.Event
 release interpolator delay time pitch next_event event = do
@@ -195,7 +195,7 @@ release interpolator delay time pitch next_event event = do
     return $ merge_curve interpolator start_x start_pitch
         (start_x + time) pitch event
 
-merge_curve :: Call.Pitch.Interpolator -> RealTime -> PitchSignal.Pitch
+merge_curve :: PitchUtil.Interpolator -> RealTime -> PitchSignal.Pitch
     -> RealTime -> PitchSignal.Pitch -> Score.Event -> Score.Event
 merge_curve interpolator x0 y0 x1 y1 event =
     event { Score.event_pitch = new_pitch }

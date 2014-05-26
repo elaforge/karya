@@ -2,8 +2,10 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
--- | Utilities that emit ControlMod signals.
+-- | Utilities that emit 'Signal.Control's and 'Derive.ControlMod's.
 module Derive.Call.ControlUtil where
+import qualified Data.Monoid as Monoid
+
 import Util.Control
 import qualified Util.Num as Num
 import qualified Util.Seq as Seq
@@ -25,9 +27,15 @@ type Interpolator = Bool -- ^ include the initial sample or not
     -- ^ start -> starty -> end -> endy
     -> Signal.Control
 
+-- | Sampling rate.
+type SRate = RealTime
+
+-- | Interpolation function.  This maps a straight line to the desirned curve.
+type Function = Double -> Double
+
 -- | Create an interpolating call, from a certain duration (positive or
 -- negative) from the event start to the event start.
-interpolate :: (Double -> Double) -> Derive.ControlArgs
+interpolate :: Function -> Derive.ControlArgs
     -> Signal.Y -> TrackLang.Duration -> Derive.Deriver Signal.Control
 interpolate f args val dur = do
     (start, end) <- Util.duration_from_start args dur
@@ -39,14 +47,13 @@ interpolate f args val dur = do
         Just (_, prev_val) -> interpolator srate f True
             (min start end) prev_val (max start end) val
 
-interpolator :: RealTime -> (Double -> Double) -> Interpolator
+interpolator :: SRate -> Function -> Interpolator
 interpolator srate f include_initial x1 y1 x2 y2 =
     (if include_initial then id else Signal.drop 1)
         (interpolate_segment True srate f x1 y1 x2 y2)
 
 -- | Interpolate between the given points.
-interpolate_segment :: Bool -> RealTime
-    -> (Double -> Double) -- ^ Map a straight line to the desired curve.
+interpolate_segment :: Bool -> SRate -> Function
     -> RealTime -> Signal.Y -> RealTime -> Signal.Y -> Signal.Control
 interpolate_segment include_end srate f x1 y1 x2 y2 =
     Signal.unfoldr go (Seq.range_ x1 srate)
@@ -79,6 +86,30 @@ expon2 a b x
     | x >= 1 = 1
     | x < 0.5 = expon a (x * 2) / 2
     | otherwise = expon (-b) ((x-0.5) * 2) / 2 + 0.5
+
+-- * breakpoints
+
+breakpoints :: SRate -> Function -> RealTime -> RealTime -> [Signal.Y]
+    -> Signal.Control
+breakpoints srate f =
+    signal_breakpoints Signal.signal (interpolate_segment False srate f)
+
+signal_breakpoints :: Monoid.Monoid sig => ([(RealTime, y)] -> sig)
+    -> (RealTime -> y -> RealTime -> y -> sig) -> RealTime -> RealTime
+    -> [y] -> sig
+signal_breakpoints make_signal segment start end =
+    mconcatMap line . Seq.zip_next . make_breakpoints start end
+    where
+    line ((x1, y1), Just (x2, y2)) = segment x1 y1 x2 y2
+    line ((x1, y2), Nothing) = make_signal [(x1, y2)]
+
+make_breakpoints :: RealTime -> RealTime -> [a] -> [(RealTime, a)]
+make_breakpoints start end vals = case vals of
+    [] -> []
+    [x] -> [(start, x)]
+    _ -> [(Num.scale start end (n / (len - 1)), x)
+        | (n, x) <- zip (Seq.range_ 0 1) vals]
+    where len = fromIntegral (length vals)
 
 -- * control mod
 

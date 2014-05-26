@@ -5,8 +5,6 @@
 module Derive.Call.Val where
 import qualified Data.List as List
 import qualified Data.Map as Map
-import qualified Data.Monoid as Monoid
-
 import qualified System.Random.Mersenne.Pure64 as Pure64
 
 import Util.Control
@@ -22,7 +20,7 @@ import qualified Derive.Args as Args
 import qualified Derive.Call.ControlUtil as ControlUtil
 import qualified Derive.Call.Make as Make
 import qualified Derive.Call.Module as Module
-import qualified Derive.Call.Pitch as Call.Pitch
+import qualified Derive.Call.PitchUtil as PitchUtil
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Call.Util as Util
 import qualified Derive.Controls as Controls
@@ -275,15 +273,11 @@ c_breakpoints argnum f vals args = do
     (start, end) <- Args.real_range_or_next args
     srate <- Util.get_srate
     vals <- num_or_pitch argnum vals
-    let pitch_breakpoints = make_segments PitchSignal.signal
-            (Call.Pitch.interpolate_segment False srate f)
-        control_breakpoints = make_segments Signal.signal
-            (ControlUtil.interpolate_segment False srate f)
     return $ case vals of
         Left nums -> TrackLang.VControl $ TrackLang.ControlSignal $
-            Score.untyped $ control_breakpoints start end nums
+            Score.untyped $ ControlUtil.breakpoints srate f start end nums
         Right pitches -> TrackLang.VPitchControl $ TrackLang.ControlSignal $
-            pitch_breakpoints start end pitches
+            PitchUtil.breakpoints srate f start end pitches
 
 -- | Insist that the vals be either all numbers or pitches.
 --
@@ -309,25 +303,6 @@ type_error argnum name expected received =
     Derive.throw_error $ Derive.CallError $
         Derive.TypeError (Derive.TypeErrorArg argnum) Derive.Literal name
             expected (Just received)
-
-make_segments :: (Monoid.Monoid sig) =>
-    ([(RealTime, y)] -> sig)
-    -> (RealTime -> y -> RealTime -> y -> sig)
-    -> RealTime -> RealTime -> [y] -> sig
-make_segments make_signal segment start end =
-    mconcatMap line . Seq.zip_next . make_breakpoints start end
-    where
-    line ((x1, y1), Just (x2, y2)) = segment x1 y1 x2 y2
-    line ((x1, y2), Nothing) = make_signal [(x1, y2)]
-
-make_breakpoints :: RealTime -> RealTime -> [a] -> [(RealTime, a)]
-make_breakpoints start end vals = case vals of
-    [] -> []
-    [x] -> [(start, x)]
-    _ -> [(Num.scale start end (n / (len - 1)), x)
-        | (n, x) <- zip (Seq.range_ 0 1) vals]
-    where len = fromIntegral (length vals)
-
 
 -- * control function
 
