@@ -364,8 +364,16 @@ stash_signal_fragment block_id track_id sig = Internal.modify_collect $
     \collect -> collect { Derive.collect_signal_fragments =
         add (Derive.collect_signal_fragments collect) }
     where
-    -- See 'Derive.SignalFragment' for the expected (lack of) order.
-    add = Map.alter (maybe (Just [sig]) (Just . (sig:))) (block_id, track_id)
+    -- See 'Derive.SignalFragments' for the expected (lack of) order.
+    add = Map.alter insert (block_id, track_id)
+    -- If a control is constant over multiple inverted notes, I'll get a bunch
+    -- of identical signal fragments.  Rather than waiting for merge to
+    -- eliminate them, it seems a bit more efficient to not collect them in the
+    -- first place.
+    insert (Just old@(prev : _))
+        | sig == prev = Just old
+        | otherwise = Just $ sig : old
+    insert _ = Just [sig]
 
 stash_signal :: BlockId -> TrackId -> Signal.Control -> Derive.Deriver ()
 stash_signal block_id track_id sig = do
