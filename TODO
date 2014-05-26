@@ -19,7 +19,7 @@ UNSORTED
       wildcard.
   guzheng support:
     * fix string idiom
-    - string idiom can take open strings from environ
+    * string idiom can take open strings from environ
     - I want to make pitches after the first default to interpolated, like
       i>>.  I would have to wrap all the scale calls, but how can an
       instrument do that?  Make a LookupPattern that looks up the pitch call

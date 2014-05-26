@@ -4,6 +4,7 @@
 
 -- | Basic calls for control tracks.
 module Derive.Call.Control (control_calls) where
+import qualified Data.List.NonEmpty as NonEmpty
 import qualified Data.Map as Map
 
 import Util.Control
@@ -46,10 +47,13 @@ control_calls = Derive.generator_call_map
     , ("e>", c_exp_next)
     , ("e>>", c_exp_next_const)
 
+    -- misc
+    , ("bp>", c_breakpoint_next)
     , ("n", c_neighbor)
     , ("d", c_down)
     , ("u", c_up)
-    , ("sd", c_sd)
+    , ("sd", c_set_drop)
+    , ("si", c_set_linear)
 
     -- not sure which one I'll like better
     , ("`ped`", c_pedal)
@@ -98,7 +102,7 @@ c_set = generator1 "set" mempty
 
 c_set_prev :: Derive.Generator Derive.Control
 c_set_prev = Derive.generator Module.prelude "set-prev" Tags.prev
-    "Re-set the previous value. This can be used to extend a breakpoint"
+    "Re-set the previous value. This can be used to extend a breakpoint."
     $ Sig.call0 $ \args -> case Args.prev_control args of
         Nothing -> return []
         Just (x, y) -> do
@@ -187,8 +191,7 @@ c_linear_prev_const =
         \_ -> return . TrackLang.default_real
 
 c_linear_next :: Derive.Generator Derive.Control
-c_linear_next =
-    linear_interpolation "linear-next" mempty Nothing
+c_linear_next = linear_interpolation "linear-next" mempty Nothing
         "If not given, default to the start of the next event." $
     \args maybe_time ->
         return $ maybe (next_dur args) TrackLang.default_real maybe_time
@@ -241,6 +244,19 @@ c_exp_next_const = exponential_interpolation "exp-next-const" mempty
 
 -- * misc
 
+-- TODO it's linear for now, but I could add an env val to set interpolation
+c_breakpoint_next :: Derive.Generator Derive.Control
+c_breakpoint_next = generator1 "breakpoint" mempty
+    "Interpolate between the given values. Breakpoints start at this event and\
+    \ end at the next one."
+    $ Sig.call (Sig.many1 "val" "Breakpoints are distributed evenly between\
+        \ this event and the next event.")
+    $ \vals args -> do
+        (start, end) <- Args.real_range_or_next args
+        srate <- Util.get_srate
+        return $ ControlUtil.breakpoints srate id start end
+            (NonEmpty.toList vals)
+
 c_neighbor :: Derive.Generator Derive.Control
 c_neighbor = generator1 "neighbor" mempty
     ("Emit a slide from a value to 0 in absolute time. This is the control\
@@ -288,8 +304,8 @@ slope args f = case Args.prev_control args of
         let (end, dest) = f start next prev_y
         return $ ControlUtil.interpolator srate id True start prev_y end dest
 
-c_sd :: Derive.Generator Derive.Control
-c_sd = generator1 "sd" mempty
+c_set_drop :: Derive.Generator Derive.Control
+c_set_drop = generator1 "sd" mempty
     "A combination of `set` and `down`: set to the given value, and descend."
     $ Sig.call ((,)
     <$> defaulted "val" 1 "Start at this value."
@@ -299,6 +315,23 @@ c_sd = generator1 "sd" mempty
         srate <- Util.get_srate
         let (end, dest) = slope_down speed x1 x2 val
         return $ ControlUtil.interpolator srate id True x1 val end dest
+
+c_set_linear :: Derive.Generator Derive.Control
+c_set_linear = generator1 "si" mempty "A combination of `set` and `i>`: set to\
+    \ one value and interpolate to another."
+    $ Sig.call ((,,)
+    <$> defaulted "start" 1 "Start at this value."
+    <*> defaulted "end" 0 "Interpolate to this value."
+    <*> defaulted "time" Nothing "Take this much time to reach `dest`.\
+        \ If not given, default to the next event."
+    ) $ \(start, end, maybe_time) args -> do
+        time <- Derive.real $
+            maybe (TrackLang.Score $ Args.next args - Args.start args)
+            TrackLang.default_real maybe_time
+        start_t <- Args.real_start args
+        srate <- Util.get_srate
+        return $ ControlUtil.interpolator srate id True
+            start_t start (start_t + time) end
 
 c_pedal :: Derive.Generator Derive.Control
 c_pedal = generator1 "pedal" mempty
