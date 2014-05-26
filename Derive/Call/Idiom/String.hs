@@ -5,6 +5,7 @@
 -- | Post-processing to apply a string idiom.
 module Derive.Call.Idiom.String where
 import qualified Data.Map as Map
+import qualified Data.Text as Text
 
 import Util.Control
 import qualified Util.Log as Log
@@ -29,25 +30,19 @@ import qualified Perform.Pitch as Pitch
 import Types
 
 
--- | This is just a placeholder.  Any real use will want to put the
--- appropriate degrees from the appropriate scale in here, either via the
--- static config or some kind of tracklang list literal.
 note_calls :: Derive.CallMaps Derive.Note
 note_calls = Derive.call_maps []
-    [ ("string-guzheng", c_guzheng $ notes strings)
+    [ ("string-idiom", c_string_idiom)
     , ("string-viola", c_violin $ notes ["4c", "4g", "5d", "5a"])
     ]
     where
-    strings = take (4*5 + 1) -- 4 octaves + 1, so D to D
-        [TrackLang.Symbol $ showt oct <> note | oct <- [2..],
-            note <- ["d", "e", "f#", "a", "b"]]
     notes = map (flip TrackLang.call [])
 
 module_ :: Module.Module
 module_ = "idiom" <> "string"
 
-c_guzheng :: [TrackLang.PitchCall] -> Derive.Transformer Derive.Note
-c_guzheng strings = Derive.transformer module_ "guzheng"
+c_string_idiom :: Derive.Transformer Derive.Note
+c_string_idiom = Derive.transformer module_ "string-idiom"
     (Tags.postproc <> Tags.inst)
     ("Post-process events to play in a monophonic string-like idiom, where\
     \ strings must be bent or stopped to reach non-open pitches.\
@@ -55,7 +50,7 @@ c_guzheng strings = Derive.transformer module_ "guzheng"
     \ other zither, but may also be appropriate for stopped strings\
     \ like the violin family.  Further documentation is in\
     \ 'Derive.Call.Idiom.String'."
-    ) $ Sig.callt ((,,)
+    ) $ Sig.callt ((,,,)
     <$> defaulted "attack" (control "string-attack" 0.1)
         "Time for a string to bend to its desired pitch. A fast attack\
         \ sounds like a stopped string."
@@ -64,13 +59,16 @@ c_guzheng strings = Derive.transformer module_ "guzheng"
     <*> defaulted "delay" (control "string-delay" 0)
         "If the string won't be used for the following note, it will be\
         \ released after this delay."
-    ) $ \(attack, release, delay) _args deriver -> do
-        -- TODO if I care about retuning notes I should pass a time
-        string_pitches <- mapM (Eval.eval_pitch 0) strings
+    <*> Sig.environ "open-strings" Sig.Unprefixed ""
+        "Space separated list of the pitches of the open strings."
+    ) $ \(attack, release, delay, open_strings) _args deriver -> do
+        strings <- case Text.words open_strings of
+            [] -> Derive.throw "open-strings required"
+            pitches -> mapM (Eval.eval_pitch 0)
+                [TrackLang.call (TrackLang.Symbol p) [] | p <- pitches]
         srate <- Util.get_srate
-        events <- deriver
         let linear = Call.Pitch.interpolator srate id
-        string_idiom linear linear string_pitches attack delay release events
+        string_idiom linear linear strings attack delay release =<< deriver
 
 -- | A string idiom in the style of stopped strings like the violin family.
 -- Strings instantly jump to their pitches.

@@ -96,7 +96,7 @@ mcgill = MidiInst.with_empty_code
     where
     plucked name = patch name []
     pressure name = MidiInst.pressure $
-        patch name [(CC.cc14, Controls.fc), (CC.cc15, Controls.q)]
+        patch name [(CC.cc14, Controls.lpf), (CC.cc15, Controls.q)]
 
 -- | Ilya Efimov Bailalaika Prima
 -- I changed it to support (-24, 24) pb range.
@@ -129,14 +129,13 @@ balalaika =
 
 sonic_couture :: [MidiInst.Patch]
 sonic_couture = MidiInst.with_empty_code
-    [ patch "ebow"
-        [ (1, "harm")
-        , (21, "lpf")
-        , (22, "q")
-        , (23, "hpf")
-        ]
-    , Instrument.attribute_map #= Instrument.simple_keyswitches guzheng_ks $
-        patch "guzheng" [(23, "lpf"), (24, "q"), (27, "hpf")]
+    [ patch "ebow" [(1, "harm"), (21, Controls.lpf), (22, Controls.q),
+        (23, Controls.hpf)]
+    , MidiInst.environ "open-strings" guzheng_strings $
+        Instrument.instrument_#Instrument.maybe_decay #= Just 5 $
+        Instrument.attribute_map #= Instrument.simple_keyswitches guzheng_ks $
+        patch "guzheng" [(23, Controls.lpf), (24, Controls.q),
+            (27, Controls.hpf)]
     ]
     where
     guzheng_ks =
@@ -144,6 +143,8 @@ sonic_couture = MidiInst.with_empty_code
         , (Attrs.left, Key2.b5) -- left hand, no pick
         , (mempty, Key2.c6) -- right hand, picked
         ]
+    guzheng_strings = Text.unwords $ take (4*5 + 1) -- 4 octaves + 1, so D to D
+        [showt oct <> note | oct <- [2..], note <- ["d", "e", "f#", "a", "b"]]
 
 sc_bali :: [MidiInst.Patch]
 sc_bali = MidiInst.with_code mute_null_call

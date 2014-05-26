@@ -137,9 +137,12 @@ vol = "vol"
 pedal :: Control
 pedal = "pedal"
 
--- | Filter cutoff.
-fc :: Control
-fc = "fc"
+-- * standard names for patches
+
+-- | Low and high pass filter cutoff.
+lpf, hpf :: Control
+lpf = "lpf"
+hpf = "hpf"
 
 -- | Filter resonance.
 q :: Control

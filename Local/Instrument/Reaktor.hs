@@ -57,7 +57,7 @@ patches =
 
     , MidiInst.patch pb_range "spark"
         [ (4, Controls.mc1), (11, Controls.mc2), (1, Controls.mc3)
-        , (CC.cc14, Controls.fc)
+        , (CC.cc14, Controls.lpf)
         , (CC.cc15, Controls.q)
         ]
     , MidiInst.patch pb_range "prism"
@@ -70,7 +70,7 @@ patches =
     , MidiInst.patch pb_range "shark"
         -- Downloaded from NI, Shark.ens.
         -- Modifications: pitchbend to 96, signal smoothers from 100ms to 10ms.
-        [ (4, Controls.fc), (3, Controls.q) -- 1st filter
+        [ (4, Controls.lpf), (3, Controls.q) -- 1st filter
         , (10, "color")
         ]
 
