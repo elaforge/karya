@@ -134,6 +134,7 @@ main = initialize $ \repl_socket midi_interface -> do
 
     session <- Repl.make_session
     quit_request <- MVar.newMVar ()
+    ui_chan <- MVar.newMVar []
     Thread.start_logged "interpreter" $ do
         Repl.interpreter session
         `Exception.finally` Ui.quit_ui_thread quit_request
@@ -144,14 +145,14 @@ main = initialize $ \repl_socket midi_interface -> do
 
     Thread.start_logged "responder" $ do
         let loopback msg = STM.atomically (TChan.writeTChan loopback_chan msg)
-        Responder.responder static_config get_msg midi_interface
+        Responder.responder static_config ui_chan get_msg midi_interface
             setup_cmd session loopback
         `Exception.catch` (\(exc :: Exception.SomeException) ->
             Log.error $ "responder thread died from exception: " ++ show exc)
             -- It would be possible to restart the responder, but chances are
             -- good it would just die again.
         `Exception.finally` Ui.quit_ui_thread quit_request
-    Ui.event_loop quit_request msg_chan
+    Ui.event_loop ui_chan quit_request msg_chan
         `Exception.catch` \(exc :: Exception.SomeException) ->
             Log.error $ "ui died from exception: " ++ show exc
 

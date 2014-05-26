@@ -65,12 +65,13 @@ import Types
 -- TrackSignals are passed separately instead of going through diff because
 -- they're special: they exist in Cmd.State and not in Ui.State.  It's rather
 -- unpleasant, but as long as it's only TrackSignals then I can deal with it.
-sync :: Track.TrackSignals -> Track.SetStyleHigh -> State.State
+sync :: Ui.Channel -> Track.TrackSignals -> Track.SetStyleHigh -> State.State
     -> [Update.DisplayUpdate] -> IO (Maybe State.Error)
-sync track_signals set_style state updates = do
+sync ui_chan track_signals set_style state updates = do
     updates <- check_updates state $
         Update.sort (Update.collapse_updates updates)
-    result <- State.run state $ do_updates track_signals set_style updates
+    result <- State.run state $
+        do_updates ui_chan track_signals set_style updates
     return $ case result of
         Left err -> Just err
         -- I reuse State.StateT for convenience, but run_update should
@@ -97,15 +98,16 @@ check_updates state = filterM $ \update -> case update of
             return False
     _ -> return True
 
-do_updates :: Track.TrackSignals -> Track.SetStyleHigh -> [Update.DisplayUpdate]
-    -> State.StateT IO ()
-do_updates track_signals set_style updates = do
+do_updates :: Ui.Channel -> Track.TrackSignals -> Track.SetStyleHigh
+    -> [Update.DisplayUpdate] -> State.StateT IO ()
+do_updates ui_chan track_signals set_style updates = do
     -- Debug.fullM Debug.putp "sync updates" updates
     actions <- mapM (run_update track_signals set_style) updates
-    liftIO $ Ui.send_action (sequence_ actions)
+    liftIO $ Ui.send_action ui_chan (sequence_ actions)
 
-set_track_signals :: BlockId -> State.State -> Track.TrackSignals -> IO ()
-set_track_signals block_id state track_signals =
+set_track_signals :: Ui.Channel -> BlockId -> State.State -> Track.TrackSignals
+    -> IO ()
+set_track_signals ui_chan block_id state track_signals =
     case State.eval state rendering_tracks of
         Left err ->
             -- This could happen if track_signals had a stale track_id.  That
@@ -120,7 +122,7 @@ set_track_signals block_id state track_signals =
                     return (view_id, tracknum, tsig)
             -- Make sure tsigs is fully forced, because a hang on the fltk
             -- event loop can be confusing.
-            tsigs `DeepSeq.deepseq` Ui.send_action $
+            tsigs `DeepSeq.deepseq` Ui.send_action ui_chan $
                 forM_ tsigs $ \(view_id, tracknum, tsig) ->
                     set_track_signal view_id tracknum tsig
     where
@@ -159,8 +161,8 @@ set_track_signal = BlockC.set_track_signal
 -- This is because it happens asynchronously and would be noisy and inefficient
 -- to work into the responder loop, and isn't part of the usual state that
 -- should be saved anyway.
-set_play_position :: [(ViewId, [(TrackNum, ScoreTime)])] -> IO ()
-set_play_position block_sels = Ui.send_action $ sequence_
+set_play_position :: Ui.Channel -> [(ViewId, [(TrackNum, ScoreTime)])] -> IO ()
+set_play_position ui_chan block_sels = Ui.send_action ui_chan $ sequence_
     [ BlockC.set_track_selection False view_id
         Config.play_position_selnum tracknum (Just (sel_at pos))
     | (view_id, track_pos) <- block_sels, (tracknum, pos) <- track_pos
@@ -170,8 +172,8 @@ set_play_position block_sels = Ui.send_action $ sequence_
         (Types.selection 0 pos 0 pos)
         -- The 0s are dummy values since set_track_selection ignores them.
 
-clear_play_position :: ViewId -> IO ()
-clear_play_position view_id = Ui.send_action $
+clear_play_position :: Ui.Channel -> ViewId -> IO ()
+clear_play_position ui_chan view_id = Ui.send_action ui_chan $
     BlockC.set_selection False view_id Config.play_position_selnum Nothing
 
 edit_input :: State.State -> Cmd.EditInput -> IO ()

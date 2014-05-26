@@ -19,11 +19,13 @@
 -}
 module Ui.Sync_test where
 import qualified Control.Concurrent as Concurrent
+import qualified Control.Concurrent.MVar as MVar
 import qualified Control.Concurrent.STM as STM
 import qualified Control.Exception as Exception
 
 import qualified Data.List as List
 import qualified Data.Map as Map
+import qualified System.IO.Unsafe as Unsafe
 
 import Util.Control
 import qualified Util.PPrint as PPrint
@@ -66,7 +68,11 @@ initialize f = do
     msg_chan <- STM.newTChanIO
     LoadConfig.styles Config.styles
     Concurrent.forkIO (f `Exception.finally` Ui.quit_ui_thread quit_request)
-    Ui.event_loop quit_request msg_chan
+    Ui.event_loop global_ui_channel quit_request msg_chan
+
+global_ui_channel :: Ui.Channel
+{-# NOINLINE global_ui_channel #-}
+global_ui_channel = Unsafe.unsafePerformIO (MVar.newMVar [])
 
 test_create_resize_destroy_view = thread (return State.empty) $
     ("view with selection and titles", do
@@ -494,7 +500,8 @@ sync st1 st2 cmd_updates = do
     let (_cupdates, dupdates) = Diff.diff cmd_updates st1 st2
     pmlist "cmd updates" cmd_updates
     pmlist "updates" dupdates
-    result <- Sync.sync Map.empty Internal.set_style st2 dupdates
+    result <- Sync.sync global_ui_channel Map.empty Internal.set_style st2
+        dupdates
     case result of
         Just err -> putStrLn $ "err: " ++ show err
         Nothing -> putStrLn "synced"

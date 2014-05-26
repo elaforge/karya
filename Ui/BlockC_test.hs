@@ -5,8 +5,11 @@
 -- | Directly exercise the BlockC functions.
 module Ui.BlockC_test where
 import qualified Control.Concurrent as Concurrent
+import qualified Control.Concurrent.MVar as MVar
 import qualified Control.Concurrent.STM as STM
 import qualified Control.Exception as Exception
+
+import qualified System.IO.Unsafe as Unsafe
 
 import qualified Util.Rect as Rect
 import Util.Test
@@ -34,8 +37,14 @@ initialize f = do
     msg_chan <- STM.newTChanIO
     LoadConfig.styles Config.styles
     Concurrent.forkIO (f `Exception.finally` Ui.quit_ui_thread quit_request)
-    Ui.event_loop quit_request msg_chan
-send = Ui.send_action
+    Ui.event_loop global_ui_channel quit_request msg_chan
+
+global_ui_channel :: Ui.Channel
+{-# NOINLINE global_ui_channel #-}
+global_ui_channel = Unsafe.unsafePerformIO (MVar.newMVar [])
+
+send :: IO () -> IO ()
+send = Ui.send_action global_ui_channel
 
 -- tests
 

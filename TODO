@@ -3,7 +3,7 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
-  - make Ui.global_acts_mvar not global
+  * make Ui.global_acts_mvar not global
   * UI hangs after a string-idiom on the note track.
     . Hangs putting an action in global_acts_mvar, which means the event loop
       hung.

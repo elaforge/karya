@@ -40,6 +40,7 @@ import qualified Midi.Interface as Interface
 import qualified Midi.StubMidi as StubMidi
 import qualified Ui.State as State
 import qualified Ui.Types as Types
+import qualified Ui.Ui as Ui
 import qualified Ui.UiTest as UiTest
 import qualified Ui.Update as Update
 
@@ -219,7 +220,8 @@ respond1 (ui_state, cmd_state) maybe_cmd msg = do
     update_chan <- new_chan
     loopback_chan <- Chan.newChan
     (interface, midi_chan) <- make_midi_interface
-    let rstate = make_rstate update_chan loopback_chan
+    ui_chan <- MVar.newMVar []
+    let rstate = make_rstate ui_chan update_chan loopback_chan
             ui_state (set_cmd_state interface) maybe_cmd
     (_quit, rstate) <- Responder.respond rstate msg
     -- Updates and MIDI are normally forced by syncing with the UI and MIDI
@@ -251,10 +253,10 @@ respond1 (ui_state, cmd_state) maybe_cmd msg = do
             Map.keysSet (State.state_blocks ui_state)
         }
 
-make_rstate :: TVar.TVar [[Update.DisplayUpdate]]
+make_rstate :: Ui.Channel -> TVar.TVar [[Update.DisplayUpdate]]
     -> Chan.Chan Msg.Msg -> State.State -> Cmd.State -> Maybe CmdIO
     -> Responder.State
-make_rstate update_chan loopback_chan ui_state cmd_state maybe_cmd =
+make_rstate ui_chan update_chan loopback_chan ui_state cmd_state maybe_cmd =
     Responder.State
         { Responder.state_static_config = config
         , Responder.state_ui = ui_state
@@ -265,6 +267,7 @@ make_rstate update_chan loopback_chan ui_state cmd_state maybe_cmd =
         , Responder.state_loopback = loopback
         , Responder.state_sync = dummy_sync
         , Responder.state_monitor_state = play_monitor_state
+        , Responder.state_ui_channel = ui_chan
         }
     where
     play_monitor_state = Unsafe.unsafePerformIO (MVar.newMVar State.empty)

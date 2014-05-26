@@ -46,6 +46,7 @@ import qualified Midi.Midi as Midi
 import qualified Ui.Diff as Diff
 import qualified Ui.State as State
 import qualified Ui.Sync as Sync
+import qualified Ui.Ui as Ui
 import qualified Ui.UiMsg as UiMsg
 import qualified Ui.Update as Update
 
@@ -76,6 +77,8 @@ data State = State {
     state_static_config :: StaticConfig.StaticConfig
     , state_ui :: State.State
     , state_cmd :: Cmd.State
+    -- | Channel to send IO actions to be executed on the FLTK event loop.
+    , state_ui_channel :: Ui.Channel
     -- | State for the repl subsystem.
     , state_session :: Repl.Session
     -- | This is used to feed msgs back into the MsgReader.
@@ -104,9 +107,10 @@ state_transport_info state = Transport.Info
 type MsgReader = IO Msg.Msg
 type Loopback = Msg.Msg -> IO ()
 
-responder :: StaticConfig.StaticConfig -> MsgReader -> Interface.Interface
-    -> Cmd.CmdIO -> Repl.Session -> Loopback -> IO ()
-responder config msg_reader midi_interface setup_cmd repl_session loopback = do
+responder :: StaticConfig.StaticConfig -> Ui.Channel -> MsgReader
+    -> Interface.Interface -> Cmd.CmdIO -> Repl.Session -> Loopback -> IO ()
+responder config ui_chan msg_reader midi_interface setup_cmd repl_session
+        loopback = do
     Log.debug "start responder"
     ui_state <- State.create
     monitor_state <- MVar.newMVar ui_state
@@ -117,9 +121,10 @@ responder config msg_reader midi_interface setup_cmd repl_session loopback = do
         { state_static_config = config
         , state_ui = ui_state
         , state_cmd = cmd_state
+        , state_ui_channel = ui_chan
         , state_session = repl_session
         , state_loopback = loopback
-        , state_sync = Sync.sync
+        , state_sync = Sync.sync ui_chan
         , state_monitor_state = monitor_state
         }
     respond_loop state msg_reader
@@ -307,8 +312,8 @@ run_responder run_derive state m = do
 post_cmd :: Bool -> State -> State.State -> State.State -> Cmd.State
     -> [Update.CmdUpdate] -> Cmd.Status -> IO (Bool, State)
 post_cmd run_derive state ui_from ui_to cmd_to cmd_updates status = do
-    cmd_to <- handle_special_status ui_to cmd_to (state_transport_info state)
-        status
+    cmd_to <- handle_special_status (state_ui_channel state) ui_to cmd_to
+        (state_transport_info state) status
     cmd_to <- return $ fix_cmd_state ui_to cmd_to
     (updates, ui_to, cmd_to) <- ResponderSync.sync (state_sync state)
         ui_from ui_to cmd_to cmd_updates
@@ -336,22 +341,23 @@ post_cmd run_derive state ui_from ui_to cmd_to cmd_updates status = do
             cmd_state { Cmd.state_focused_view = Nothing }
         _ -> cmd_state
 
-handle_special_status :: State.State -> Cmd.State -> Transport.Info
-    -> Cmd.Status -> IO Cmd.State
-handle_special_status ui_state cmd_state transport_info status = case status of
-    Cmd.PlayMidi args -> do
-        play_ctl <- PlayC.play ui_state transport_info args
-        return $ cmd_state
-            { Cmd.state_play = (Cmd.state_play cmd_state)
-                { Cmd.state_play_control = Just play_ctl }
-            }
-    Cmd.EditInput edit -> do
-        Sync.edit_input ui_state edit
-        return $! cmd_state
-            { Cmd.state_edit = (Cmd.state_edit cmd_state)
-                { Cmd.state_edit_input = True }
-            }
-    _ -> return cmd_state
+handle_special_status :: Ui.Channel -> State.State -> Cmd.State
+    -> Transport.Info -> Cmd.Status -> IO Cmd.State
+handle_special_status ui_chan ui_state cmd_state transport_info status =
+    case status of
+        Cmd.PlayMidi args -> do
+            play_ctl <- PlayC.play ui_chan ui_state transport_info args
+            return $ cmd_state
+                { Cmd.state_play = (Cmd.state_play cmd_state)
+                    { Cmd.state_play_control = Just play_ctl }
+                }
+        Cmd.EditInput edit -> do
+            Sync.edit_input ui_state edit
+            return $! cmd_state
+                { Cmd.state_edit = (Cmd.state_edit cmd_state)
+                    { Cmd.state_edit_input = True }
+                }
+        _ -> return cmd_state
 
 respond :: State -> Msg.Msg -> IO (Bool, State)
 respond state msg = run_responder True state $ do
@@ -434,8 +440,8 @@ run_core_cmds msg = do
     let config = state_static_config state
     -- Certain commands require IO.  Rather than make everything IO,
     -- I hardcode them in a special list that gets run in IO.
-    let io_cmds = hardcoded_io_cmds (state_session state)
-            (StaticConfig.local_repl_dirs config)
+    let io_cmds = hardcoded_io_cmds (state_ui_channel state)
+            (state_session state) (StaticConfig.local_repl_dirs config)
     mapM_ (run_throw . Right . ($msg)) io_cmds
 
 -- | These cmds always get the first shot at the Msg.
@@ -444,11 +450,12 @@ hardcoded_cmds =
     [Internal.record_focus, Internal.update_ui_state, Track.track_cmd]
 
 -- | These are the only commands that run in IO.
-hardcoded_io_cmds :: Repl.Session -> [FilePath] -> [Msg.Msg -> Cmd.CmdIO]
-hardcoded_io_cmds repl_session repl_dirs =
+hardcoded_io_cmds :: Ui.Channel -> Repl.Session -> [FilePath]
+    -> [Msg.Msg -> Cmd.CmdIO]
+hardcoded_io_cmds ui_chan repl_session repl_dirs =
     [ Repl.repl repl_session repl_dirs
     , Integrate.cmd_integrate
-    , PlayC.cmd_play_msg
+    , PlayC.cmd_play_msg ui_chan
     ] ++ GlobalKeymap.io_cmds
 
 -- ** run cmds
