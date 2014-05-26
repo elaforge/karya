@@ -25,21 +25,21 @@ test_key_to_input = do
     let f = NoteEntry.key_to_input False
 
     -- This is assuming dvorak input.
-    equal (f 4 True (k '\'')) (Just [note_on 72 5 0 0])
-    equal (f 4 True (k ',')) (Just [note_on 74 5 1 0])
-    equal (f 4 True (k ';')) (Just [note_on 60 4 0 0])
-    equal (f 0 True (k ';')) (Just [note_on 12 0 0 0])
+    equal (f 4 True (k '\'')) (Just [kbd_note_on 72 5 0 0])
+    equal (f 4 True (k ',')) (Just [kbd_note_on 74 5 1 0])
+    equal (f 4 True (k ';')) (Just [kbd_note_on 60 4 0 0])
+    equal (f 0 True (k ';')) (Just [kbd_note_on 12 0 0 0])
 
-    equal (f 4 False (k '\'')) (Just [CmdTest.note_off 72])
+    equal (f 4 False (k '\'')) (Just [kbd_note_off 72])
     -- This is one of the few flat notes on the ascii kbd.
-    equal (f 4 True (k 'a')) (Just [note_on 59 4 0 (-1)])
+    equal (f 4 True (k 'a')) (Just [kbd_note_on 59 4 0 (-1)])
     equal (f 4 True (k '[')) Nothing
     equal (f 4 True Key.Backspace) Nothing
 
     let pressure = NoteEntry.key_to_input True
     equal (pressure 4 True (k '\'')) $ Just
-        [ note_on 72 5 0 0
-        , CmdTest.control 72 "breath" (100 / 127)
+        [ kbd_note_on 72 5 0 0
+        , CmdTest.control 72 "breath" InputNote.keyboard_velocity
         ]
 
 test_cmds_with_note = do
@@ -58,8 +58,8 @@ test_cmds_with_note = do
     -- test kbd entry
     equal [run st (f True (CmdTest.key_down c)) | c <- "1'2,"] $
         map (through . input)
-            [ note_on 71 5 0 (-1), note_on 72 5 0 0
-            , note_on 73 5 0 1, note_on 74 5 1 0
+            [ kbd_note_on 71 5 0 (-1), kbd_note_on 72 5 0 0
+            , kbd_note_on 73 5 0 1, kbd_note_on 74 5 1 0
             ]
 
     -- abort when a modifier is down
@@ -67,14 +67,14 @@ test_cmds_with_note = do
     equal (run (with_key (ctrl_key Key.ControlL)) (f True ckey)) (through ckey)
 
     equal (run st (f True (CmdTest.key_down ';')))
-        (through $ input (note_on 60 4 0 0))
+        (through $ input (kbd_note_on 60 4 0 0))
     equal (run st (f True (CmdTest.key_up ';')))
-        (through $ input (CmdTest.note_off 60))
+        (through $ input (kbd_note_off 60))
 
     let oct5 = st { Cmd.state_edit = (Cmd.state_edit st)
             { Cmd.state_kbd_entry_octave = 5 } }
     equal (run oct5 (f True (CmdTest.key_down high_c)))
-        (through $ input (note_on 84 6 0 0))
+        (through $ input (kbd_note_on 84 6 0 0))
     -- with kbd_entry off, keys don't get mapped
     equal (run st (f False (CmdTest.key_down high_c)))
         (through (CmdTest.key_down high_c))
@@ -90,8 +90,13 @@ with_key key = CmdTest.result_cmd_state $
     CmdTest.run State.empty CmdTest.default_cmd_state
         (Internal.cmd_record_keys key)
 
-note_on :: Int -> Pitch.Octave -> Pitch.PitchClass -> Pitch.Accidentals
+kbd_note_on :: Int -> Pitch.Octave -> Pitch.PitchClass -> Pitch.Accidentals
     -> InputNote.Input
-note_on note_id oct pc accs =
+kbd_note_on note_id oct pc accs =
     InputNote.NoteOn (InputNote.NoteId note_id)
-        (Pitch.Input Pitch.AsciiKbd (CmdTest.pitch oct pc accs) 0) 1
+        (Pitch.Input Pitch.AsciiKbd (CmdTest.pitch oct pc accs) 0)
+        InputNote.keyboard_velocity
+
+kbd_note_off :: Int -> InputNote.GenericInput a
+kbd_note_off note_id = InputNote.NoteOff (InputNote.NoteId note_id)
+    InputNote.keyboard_velocity
