@@ -662,10 +662,10 @@ data Action =
 instance Pretty.Pretty Action where
     pretty act = case act of
         InsertEvent maybe_dur text ->
-            show text ++ maybe "" ((" ("++) . (++")") . pretty) maybe_dur
-        ReplaceText text -> '=' : show text
-        PrependText text -> show text ++ "+"
-        AppendText text -> '+' : show text
+            pretty text ++ maybe "" ((" ("++) . (++")") . pretty) maybe_dur
+        ReplaceText text -> '=' : pretty text
+        PrependText text -> pretty text ++ "+"
+        AppendText text -> '+' : pretty text
 
 -- *** midi devices
 
