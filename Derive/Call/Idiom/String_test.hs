@@ -17,7 +17,7 @@ test_string = do
             Seq.drop_dups snd $ DeriveTest.e_nns e)
     let run p1 p2 p3 = extract $ DeriveTest.derive_tracks
             "import idiom.string | open-strings = '4c 4d 4e 4g 4a'"
-            [ ("> | string-idiom 2 2 1", [(0, 5, ""), (5, 5, ""), (10, 5, "")])
+            [ ("> | bent-string 2 2 1", [(0, 5, ""), (5, 5, ""), (10, 5, "")])
             , ("*", [(0, 0, p1), (5, 0, p2), (10, 0, p3)])
             ]
     let (res, logs) = run "4c" "2d" "2e"
@@ -36,3 +36,7 @@ test_string = do
         , (5, [(5, 61), (12, 60.5), (13, 60)]) -- bend back down for release
         , (10, [(10, 62)])
         ], [])
+
+    strings_like (snd $ extract $ DeriveTest.derive_tracks
+            "import idiom.string | bent-string" [(">", [(0, 1, "")])])
+        ["open-strings required"]

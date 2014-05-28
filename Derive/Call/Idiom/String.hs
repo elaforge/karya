@@ -32,24 +32,23 @@ import Types
 
 note_calls :: Derive.CallMaps Derive.Note
 note_calls = Derive.call_maps []
-    [ ("string-idiom", c_string_idiom)
-    , ("string-viola", c_violin $ notes ["4c", "4g", "5d", "5a"])
+    [ ("bent-string", c_bent_string)
+    , ("stopped-string", c_stopped_string)
     ]
-    where
-    notes = map (flip TrackLang.call [])
 
 module_ :: Module.Module
 module_ = "idiom" <> "string"
 
-c_string_idiom :: Derive.Transformer Derive.Note
-c_string_idiom = Derive.transformer module_ "string-idiom"
+c_bent_string :: Derive.Transformer Derive.Note
+c_bent_string = Derive.transformer module_ "bent-string"
     (Tags.postproc <> Tags.inst)
     ("Post-process events to play in a monophonic string-like idiom, where\
     \ strings must be bent or stopped to reach non-open pitches.\
     \ Originally it was meant to play in the style of a 古箏 or\
     \ other zither, but may also be appropriate for stopped strings\
-    \ like the violin family.  Further documentation is in\
-    \ 'Derive.Call.Idiom.String'."
+    \ like the violin family. This only makes sense for instruments with some\
+    \ decay, since otherwise you can't hear the transitions.\
+    \ Further documentation is in 'Derive.Call.Idiom.String'."
     ) $ Sig.callt ((,,,)
     <$> defaulted "attack" (control "string-attack" 0.1)
         "Time for a string to bend to its desired pitch. A fast attack\
@@ -59,33 +58,40 @@ c_string_idiom = Derive.transformer module_ "string-idiom"
     <*> defaulted "delay" (control "string-delay" 0)
         "If the string won't be used for the following note, it will be\
         \ released after this delay."
-    <*> Sig.environ "open-strings" Sig.Unprefixed ""
-        "Space separated list of the pitches of the open strings."
+    <*> open_strings_env
     ) $ \(attack, release, delay, open_strings) _args deriver -> do
-        strings <- case Text.words open_strings of
-            [] -> Derive.throw "open-strings required"
-            pitches -> mapM (Eval.eval_pitch 0)
-                [TrackLang.call (TrackLang.Symbol p) [] | p <- pitches]
+        open_strings <- sequence open_strings
         srate <- Util.get_srate
         let linear = PitchUtil.interpolator srate id
-        string_idiom linear linear strings attack delay release =<< deriver
+        string_idiom linear linear open_strings attack delay release =<< deriver
 
--- | A string idiom in the style of stopped strings like the violin family.
--- Strings instantly jump to their pitches.
-c_violin :: [TrackLang.PitchCall] -> Derive.Transformer Derive.Note
-c_violin strings = Derive.transformer module_ "violin"
+c_stopped_string :: Derive.Transformer Derive.Note
+c_stopped_string = Derive.transformer module_ "stopped-string"
     (Tags.postproc <> Tags.inst)
-    "A specialization of `string-guzheng` for stopped strings." $
-    Sig.callt
-    ( defaulted "delay" (control "string-delay" 0) "String release delay time."
-    ) $ \delay _args deriver -> do
-        string_pitches <- mapM (Eval.eval_pitch 0) strings
+    "A specialization of `bent-string` but for stopped strings, like the\
+    \ violin family, where strings instantly jump to their pitches."
+    $ Sig.callt ((,)
+    <$> defaulted "delay" (control "string-delay" 0)
+        "String release delay time."
+    <*> open_strings_env
+    ) $ \(delay, open_strings) _args deriver -> do
+        open_strings <- sequence open_strings
         srate <- Util.get_srate
         events <- deriver
         let attack = TrackLang.constant_control 0
             release = TrackLang.constant_control 0
         let linear = PitchUtil.interpolator srate id
-        string_idiom linear linear string_pitches attack delay release events
+        string_idiom linear linear open_strings attack delay release events
+
+open_strings_env :: Sig.Parser [Derive.Deriver PitchSignal.Pitch]
+open_strings_env = Sig.check non_empty $ map pitch . Text.words <$>
+    Sig.environ "open-strings" Sig.Unprefixed ""
+        "Space separated list of the pitches of the open strings."
+    where
+    non_empty xs
+        | null xs = Just "open-strings required"
+        | otherwise = Nothing
+    pitch = Eval.eval_pitch 0 . flip TrackLang.call [] . TrackLang.Symbol
 
 -- | Post-process events to play them in a monophonic string-like idiom.
 --

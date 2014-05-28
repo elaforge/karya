@@ -85,6 +85,7 @@
 -}
 module Derive.Sig (
     Parser, Generator, Transformer
+    , check
     -- * pseudo-parsers
     , paired_args
     -- * parsers
@@ -157,6 +158,13 @@ instance Applicative.Applicative Parser where
             (vals, a) <- parse2 vals
             Right (vals, f a)
 
+check :: (a -> Maybe Text) -> Parser a -> Parser a
+check validate (Parser docs parse) = Parser docs $ \state -> case parse state of
+    Left err -> Left err
+    Right (state2, val) -> case validate val of
+        Just err -> Left $ Derive.ArgError err
+        Nothing -> Right (state2, val)
+
 -- * pseudo-parsers
 
 -- | Expect pairs of arguments.
@@ -183,10 +191,10 @@ no_args :: Parser ()
 no_args = Applicative.pure ()
 
 -- | The argument is required to be present, and have the right type.
-required :: forall a. (TrackLang.Typecheck a) => Text -> Text -> Parser a
+required :: forall a. TrackLang.Typecheck a => Text -> Text -> Parser a
 required name = required_env name Derive.Prefixed
 
-required_env :: forall a. (TrackLang.Typecheck a) => Text
+required_env :: forall a. TrackLang.Typecheck a => Text
     -> Derive.EnvironDefault -> Text -> Parser a
 required_env name env_default doc = parser arg_doc $ \state1 ->
     case get_val env_default state1 name of
