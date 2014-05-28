@@ -10,10 +10,14 @@ import qualified Data.Text as Text
 import Util.Control
 import qualified Util.Log as Log
 import qualified Util.Map as Map
+import qualified Util.Num as Num
+import qualified Util.Seq as Seq
 
+import qualified Derive.Args as Args
 import qualified Derive.Call.Module as Module
 import qualified Derive.Call.PitchUtil as PitchUtil
 import qualified Derive.Call.Post as Post
+import qualified Derive.Call.Sub as Sub
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Call.Util as Util
 import qualified Derive.Derive as Derive
@@ -23,15 +27,19 @@ import qualified Derive.PitchSignal as PitchSignal
 import qualified Derive.Pitches as Pitches
 import qualified Derive.Score as Score
 import qualified Derive.Sig as Sig
-import Derive.Sig (control, defaulted)
+import Derive.Sig (control)
 import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.Pitch as Pitch
+import qualified Perform.RealTime as RealTime
+import qualified Perform.Signal as Signal
+
 import Types
 
 
 note_calls :: Derive.CallMaps Derive.Note
-note_calls = Derive.call_maps []
+note_calls = Derive.call_maps
+    [ ("gliss", c_gliss) ]
     [ ("bent-string", c_bent_string)
     , ("stopped-string", c_stopped_string)
     ]
@@ -50,12 +58,12 @@ c_bent_string = Derive.transformer module_ "bent-string"
     \ decay, since otherwise you can't hear the transitions.\
     \ Further documentation is in 'Derive.Call.Idiom.String'."
     ) $ Sig.callt ((,,,)
-    <$> defaulted "attack" (control "string-attack" 0.1)
+    <$> Sig.defaulted "attack" (control "string-attack" 0.1)
         "Time for a string to bend to its desired pitch. A fast attack\
         \ sounds like a stopped string."
-    <*> defaulted "release" (control "string-release" 0.1)
+    <*> Sig.defaulted "release" (control "string-release" 0.1)
         "Time for a string to return to its original pitch."
-    <*> defaulted "delay" (control "string-delay" 0)
+    <*> Sig.defaulted "delay" (control "string-delay" 0)
         "If the string won't be used for the following note, it will be\
         \ released after this delay."
     <*> open_strings_env
@@ -71,7 +79,7 @@ c_stopped_string = Derive.transformer module_ "stopped-string"
     "A specialization of `bent-string` but for stopped strings, like the\
     \ violin family, where strings instantly jump to their pitches."
     $ Sig.callt ((,)
-    <$> defaulted "delay" (control "string-delay" 0)
+    <$> Sig.defaulted "delay" (control "string-delay" 0)
         "String release delay time."
     <*> open_strings_env
     ) $ \(delay, open_strings) _args deriver -> do
@@ -93,27 +101,28 @@ open_strings_env = Sig.check non_empty $ map pitch . Text.words <$>
         | otherwise = Nothing
     pitch = Eval.eval_pitch 0 . flip TrackLang.call [] . TrackLang.Symbol
 
--- | Post-process events to play them in a monophonic string-like idiom.
---
--- This tweaks the ends of the pitch signals of notes.  When a new note is
--- played, the next event is examined to determine if it will share a string
--- or not.
---
--- If the string must be used for the following note, the end of the event is
--- bent up to the next pitch before the next event is triggered.  This is
--- called the \"attack\".  A fast attack gives the sound of a stopped string,
--- a slow one sounds like a bent one.
---
--- If the string won't be used for the following note, it will be released
--- after a delay.  The release time determines how long it will take to reach
--- its open pitch.  Since the release happens after the note ends, only
--- instruments with a bit of decay will have an audible release.
---
--- This does't do anything fancy like simulate hand position or alternate
--- fingerings.
---
--- TODO It would be possible to have a polyphonic effect by allowing more than
--- one stopped string at a time.
+{- | Post-process events to play them in a monophonic string-like idiom.
+
+    This tweaks the ends of the pitch signals of notes.  When a new note is
+    played, the next event is examined to determine if it will share a string
+    or not.
+
+    If the string must be used for the following note, the end of the event is
+    bent up to the next pitch before the next event is triggered.  This is
+    called the \"attack\".  A fast attack gives the sound of a stopped string,
+    a slow one sounds like a bent one.
+
+    If the string won't be used for the following note, it will be released
+    after a delay.  The release time determines how long it will take to reach
+    its open pitch.  Since the release happens after the note ends, only
+    instruments with a bit of decay will have an audible release.
+
+    This does't do anything fancy like simulate hand position or alternate
+    fingerings.
+
+    TODO It would be possible to have a polyphonic effect by allowing more than
+    one stopped string at a time.
+-}
 string_idiom ::
     PitchUtil.Interpolator -- ^ interpolator to draw the attack curve
     -> PitchUtil.Interpolator -- ^ draw the release curve
@@ -232,3 +241,62 @@ initial_state strings event = do
         { state_sounding = string
         , state_event = event
         }
+
+
+-- * gliss
+
+-- | TODO the other way to do it would be specify total gliss dur, and figure
+-- out the note times from there.  Then I could put a bit of randomization on
+-- it.  In fact, this might be better because then I can better control
+-- continuous gliss.
+c_gliss :: Derive.Generator Derive.Note
+c_gliss = Derive.make_call module_ "gliss" mempty
+    "Glissando along the open strings."
+    $ Sig.call ((,,,)
+    <$> Sig.required "start"
+        "Start this many strings above or below the destination pitch."
+    <*> Sig.defaulted "time" (TrackLang.real 0.15) "Time between each note."
+    <*> Sig.defaulted "dyn" Nothing "Start at this dyn, and interpolate\
+        \ to the destination dyn. If not given, the dyn is constant."
+    <*> open_strings_env
+    ) $ \(gliss_start, time, maybe_start_dyn, open_strings) -> Sub.inverting $
+    \args -> do
+        open_strings <- sequence open_strings
+        end <- Args.real_start args
+        time <- Derive.real time
+        dest_pitch <- Util.get_pitch end
+        dest_dyn <- Util.dynamic end
+        let start_dyn = fromMaybe dest_dyn maybe_start_dyn
+        gliss open_strings gliss_start time dest_pitch start_dyn dest_dyn end
+            <> Util.placed_note args
+
+gliss :: [PitchSignal.Pitch] -> Int -> RealTime -> PitchSignal.Pitch
+    -> Signal.Y -> Signal.Y -> RealTime
+    -> Derive.NoteDeriver
+gliss open_strings gliss_start time dest_pitch start_dyn end_dyn end = do
+    pitches <- gliss_pitches open_strings dest_pitch gliss_start
+    let start = end - fromIntegral (length pitches) * time
+        ts = take (length pitches) (Seq.range_ start time)
+        dyns = map (Num.scale start_dyn end_dyn . RealTime.to_seconds
+            . Num.normalize start end) ts
+    score_ts <- mapM Derive.score ts
+    dur <- Util.score_duration end time
+    let note (t, p, dyn) = Derive.place t dur $ Util.with_dynamic dyn $
+            Util.pitched_note p
+    mconcat $ map note $ zip3 score_ts pitches dyns
+
+gliss_pitches :: [PitchSignal.Pitch] -> PitchSignal.Pitch -> Int
+    -> Derive.Deriver [PitchSignal.Pitch]
+gliss_pitches open_strings dest_pitch gliss_start = do
+    dest_nn <- Pitches.pitch_nn dest_pitch
+    -- TODO shouldn't need to eval them all
+    open_nns <- mapM Pitches.pitch_nn open_strings
+    let strings = Seq.sort_on snd $ zip open_strings open_nns
+    -- 0 2 4 6 8 10
+    return $ if gliss_start >= 0
+        -- 5 -> 6 8 10 -> 10 8 6 5
+        then reverse $ take gliss_start $ map fst $
+            dropWhile ((<=dest_nn) . snd) strings
+        -- 5 -> 0 2 4
+        else Seq.rtake (-gliss_start) $ map fst $
+            takeWhile ((<dest_nn) . snd) strings

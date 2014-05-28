@@ -9,14 +9,16 @@ import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Score as Score
 
 
+title :: String
+title = "import idiom.string | open-strings = '4c 4d 4e 4g 4a'"
+
 test_string = do
     let extract = DeriveTest.extract e_event
         -- 'merge_curve' can't see that pitches are the same, so it can produce
         -- duplicate pitches.
         e_event e = (Score.event_start e,
             Seq.drop_dups snd $ DeriveTest.e_nns e)
-    let run p1 p2 p3 = extract $ DeriveTest.derive_tracks
-            "import idiom.string | open-strings = '4c 4d 4e 4g 4a'"
+    let run p1 p2 p3 = extract $ DeriveTest.derive_tracks title
             [ ("> | bent-string 2 2 1", [(0, 5, ""), (5, 5, ""), (10, 5, "")])
             , ("*", [(0, 0, p1), (5, 0, p2), (10, 0, p3)])
             ]
@@ -40,3 +42,16 @@ test_string = do
     strings_like (snd $ extract $ DeriveTest.derive_tracks
             "import idiom.string | bent-string" [(">", [(0, 1, "")])])
         ["open-strings required"]
+
+test_gliss = do
+    let run gliss dest = DeriveTest.extract extract $
+            DeriveTest.derive_tracks title
+            [ (">", [(4, 1, gliss)]), ("*", [(4, 0, dest)])]
+        extract e = (DeriveTest.e_note e, Score.initial_dynamic e)
+    equal (run "gliss 2 .5 .5" "4f")
+        ([((3, 0.5, "4a"), 0.5), ((3.5, 0.5, "4g"), 0.75), ((4, 1, "4f"), 1)],
+            [])
+    equal (run "gliss -2 .5" "4f")
+        ([((3, 0.5, "4d"), 1), ((3.5, 0.5, "4e"), 1), ((4, 1, "4f"), 1)], [])
+    equal (run "gliss 2 .5" "4d")
+        ([((3, 0.5, "4g"), 1), ((3.5, 0.5, "4e"), 1), ((4, 1, "4d"), 1)], [])

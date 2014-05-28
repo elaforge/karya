@@ -262,6 +262,16 @@ instance Time TrackLang.Duration where
     score (TrackLang.Score t) = score t
     to_duration = id
 
+instance Time TrackLang.DefaultReal where
+    real = real . TrackLang.default_real
+    score = score . TrackLang.default_real
+    to_duration = TrackLang.default_real
+
+instance Time TrackLang.DefaultScore where
+    real = real . TrackLang.default_score
+    score = score . TrackLang.default_score
+    to_duration = TrackLang.default_score
+
 score_to_real :: ScoreTime -> Deriver RealTime
 score_to_real pos = do
     warp <- get_dynamic state_warp

@@ -21,7 +21,7 @@ UNSORTED
   guzheng support:
     * fix string idiom
     * string idiom can take open strings from environ
-    - gliss call can also use the open-strings
+    * gliss call can also use the open-strings
       Give dest pitch, number of notes, speed, and starting dyn.
     - I want to make pitches after the first default to interpolated, like
       i>>.  I would have to wrap all the scale calls, but how can an
