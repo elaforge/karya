@@ -39,7 +39,9 @@ import Types
 
 note_calls :: Derive.CallMaps Derive.Note
 note_calls = Derive.call_maps
-    [ ("gliss", c_gliss) ]
+    [ ("gliss-a", make_gliss "gliss-a" True)
+    , ("gliss", make_gliss "gliss" False)
+    ]
     [ ("bent-string", c_bent_string)
     , ("stopped-string", c_stopped_string)
     ]
@@ -245,17 +247,23 @@ initial_state strings event = do
 
 -- * gliss
 
--- | TODO the other way to do it would be specify total gliss dur, and figure
--- out the note times from there.  Then I could put a bit of randomization on
--- it.  In fact, this might be better because then I can better control
--- continuous gliss.
-c_gliss :: Derive.Generator Derive.Note
-c_gliss = Derive.make_call module_ "gliss" mempty
-    "Glissando along the open strings."
+-- | This is a particularly graceless way to have to flavors of glissando.
+--
+-- The other option would be a single call with an environ to switch between
+-- the two behaviours, and expect to bind locally.  But it seems like both
+-- would be useful simultaneously, and why not have a reasonable default
+-- vocabulary if I can manage it?
+make_gliss :: Text -> Bool -> Derive.Generator Derive.Note
+make_gliss name is_absolute = Derive.make_call module_ name mempty
+    "Glissando along the open strings, taking an absolute amount of time."
     $ Sig.call ((,,,)
     <$> Sig.required "start"
         "Start this many strings above or below the destination pitch."
-    <*> Sig.defaulted "time" (TrackLang.real 0.15) "Time between each note."
+    <*> (if is_absolute
+        then Sig.defaulted "time" (TrackLang.real 0.25)
+            "Time in which to play the glissando."
+        else Sig.defaulted "time" (TrackLang.real 0.075)
+            "Time between each note.")
     <*> Sig.defaulted "dyn" Nothing "Start at this dyn, and interpolate\
         \ to the destination dyn. If not given, the dyn is constant."
     <*> open_strings_env
@@ -263,25 +271,27 @@ c_gliss = Derive.make_call module_ "gliss" mempty
     \args -> do
         open_strings <- sequence open_strings
         end <- Args.real_start args
-        time <- Derive.real time
+        time <- Util.real_duration end time
         dest_pitch <- Util.get_pitch end
         dest_dyn <- Util.dynamic end
         let start_dyn = fromMaybe dest_dyn maybe_start_dyn
-        gliss open_strings gliss_start time dest_pitch start_dyn dest_dyn end
+        pitches <- gliss_pitches open_strings dest_pitch gliss_start
+        gliss pitches
+            (if is_absolute then time else time * fromIntegral (length pitches))
+            start_dyn dest_dyn end
             <> Util.placed_note args
 
-gliss :: [PitchSignal.Pitch] -> Int -> RealTime -> PitchSignal.Pitch
-    -> Signal.Y -> Signal.Y -> RealTime
+gliss :: [PitchSignal.Pitch] -> RealTime -> Signal.Y -> Signal.Y -> RealTime
     -> Derive.NoteDeriver
-gliss open_strings gliss_start time dest_pitch start_dyn end_dyn end = do
-    pitches <- gliss_pitches open_strings dest_pitch gliss_start
-    let start = end - fromIntegral (length pitches) * time
-        ts = take (length pitches) (Seq.range_ start time)
+gliss pitches time start_dyn end_dyn end = do
+    let dur = time / fromIntegral (length pitches)
+        start = end - time
+        ts = take (length pitches) (Seq.range_ start dur)
         dyns = map (Num.scale start_dyn end_dyn . RealTime.to_seconds
             . Num.normalize start end) ts
     score_ts <- mapM Derive.score ts
-    dur <- Util.score_duration end time
-    let note (t, p, dyn) = Derive.place t dur $ Util.with_dynamic dyn $
+    score_dur <- Util.score_duration end dur
+    let note (t, p, dyn) = Derive.place t score_dur $ Util.with_dynamic dyn $
             Util.pitched_note p
     mconcat $ map note $ zip3 score_ts pitches dyns
 
