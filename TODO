@@ -3,6 +3,7 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
+  * why doesn't '^左 = +left' work?
   * make Ui.global_acts_mvar not global
   * UI hangs after a string-idiom on the note track.
     . Hangs putting an action in global_acts_mvar, which means the event loop
@@ -20,6 +21,8 @@ UNSORTED
   guzheng support:
     * fix string idiom
     * string idiom can take open strings from environ
+    - gliss call can also use the open-strings
+      Give dest pitch, number of notes, speed, and starting dyn.
     - I want to make pitches after the first default to interpolated, like
       i>>.  I would have to wrap all the scale calls, but how can an
       instrument do that?  Make a LookupPattern that looks up the pitch call

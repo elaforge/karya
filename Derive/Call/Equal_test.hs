@@ -68,6 +68,11 @@ test_equal_call = do
             ("*", [(0, 0, "set (zzz p)")])])
         ([(0, 1, "4c")], [])
 
+    -- RHS that doesn't look like
+    let run2 = DeriveTest.extract DeriveTest.e_attributes
+            . DeriveTest.derive_tracks ""
+    equal (run2 [("> | ^左 = +left", [(0, 1, "左")])]) (["+left"], [])
+
 test_equal_quoted = do
     let run title note = DeriveTest.extract extract $
             DeriveTest.derive_tracks "" [(title, [(0, 1, note)])]

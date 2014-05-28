@@ -107,7 +107,7 @@ equal_transformer args deriver = case Derive.passed_vals args of
 
 parse_equal :: TrackLang.Symbol -> TrackLang.Val
     -> Either String (Derive.Deriver a -> Derive.Deriver a)
-parse_equal (TrackLang.Symbol assignee) (is_source -> Just source)
+parse_equal (TrackLang.Symbol assignee) source
     | Just new <- Text.stripPrefix "^" assignee = Right $
         override_call new source "note"
             (Derive.s_generator#Derive.s_note)
@@ -157,42 +157,44 @@ parse_equal (parse_val -> Just assignee) val
     is_pitch _ = Nothing
 parse_equal assignee val = Right $ Derive.with_val assignee val
 
-type Source = Either TrackLang.CallId TrackLang.Quoted
-
-is_source :: TrackLang.Val -> Maybe Source
-is_source (TrackLang.VSymbol a) = Just $ Left a
-is_source (TrackLang.VQuoted a) = Just $ Right a
-is_source _ = Nothing
-
 parse_val :: TrackLang.Symbol -> Maybe TrackLang.Val
 parse_val = either (const Nothing) Just . Parse.parse_val . TrackLang.unsym
 
 -- | Look up a call with the given CallId and add it as an override to the
 -- scope given by the lenses.  I wanted to pass just one lens, but apparently
 -- they're not sufficiently polymorphic.
-override_call :: (Derive.Callable d1, Derive.Callable d2)
-    => Text -> Source -> Text
+override_call :: (Derive.Callable d1, Derive.Callable d2) =>
+    Text -> TrackLang.Val -> Text
     -> Lens Derive.Scopes (Derive.ScopeType (Derive.Generator d1))
     -> Lens Derive.Scopes (Derive.ScopeType (Derive.Transformer d2))
     -> Derive.Deriver a -> Derive.Deriver a
 override_call assignee source name_ generator transformer deriver
     | Just stripped <- Text.stripPrefix "-" assignee =
         override_scope stripped transformer deriver
-            =<< resolve (name_ <> " transformer")
-                transformer (return . quoted_transformer) source
+            =<< resolve_source (name_ <> " transformer") transformer
+                quoted_transformer source
     | otherwise = override_scope assignee generator deriver
-        =<< resolve (name_ <> " generator")
-            generator (return . quoted_generator) source
+        =<< resolve_source (name_ <> " generator") generator
+            quoted_generator source
     where
     override_scope assignee lens deriver call =
         Derive.with_scopes modify deriver
         where modify = lens#Derive.s_override %= (single_lookup assignee call :)
-    resolve name lens = either (get_call name (lens #$))
 
-override_val_call :: Text -> Source -> Derive.Deriver a -> Derive.Deriver a
+-- | A VQuoted becomes a call, a Symbol is expected to name a call, and
+-- everything else is turned into a Symbol via ShowVal.  This will cause
+-- a parse error for un-showable Vals, but what else is new?
+resolve_source :: Text -> Lens Derive.Scopes (Derive.ScopeType a)
+    -> (TrackLang.Quoted -> a) -> TrackLang.Val -> Derive.Deriver a
+resolve_source name lens make_quoted source = case source of
+    TrackLang.VQuoted quoted -> return $ make_quoted quoted
+    TrackLang.VSymbol call_id -> get_call name (lens #$) call_id
+    _ -> get_call name (lens #$) (TrackLang.Symbol (ShowVal.show_val source))
+
+override_val_call :: Text -> TrackLang.Val -> Derive.Deriver a
+    -> Derive.Deriver a
 override_val_call assignee source deriver = do
-    call <- either (get_call "val" (Derive.s_val #$)) (return . quoted_val_call)
-        source
+    call <- resolve_source "val" Derive.s_val quoted_val_call source
     let modify = Derive.s_val#Derive.s_override
             %= (single_val_lookup assignee call :)
     Derive.with_scopes modify deriver
