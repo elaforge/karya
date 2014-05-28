@@ -98,8 +98,8 @@ equal_transformer :: Derive.PassedArgs d -> Derive.Deriver a -> Derive.Deriver a
 equal_transformer args deriver = case Derive.passed_vals args of
     -- The first arg should be a symbol because that's how the parser parses
     -- it.
-    [TrackLang.VSymbol assignee, val] ->
-        case parse_equal assignee val of
+    [TrackLang.VSymbol lhs, val] ->
+        case parse_equal lhs val of
             Left err -> Derive.throw_arg_error err
             Right transform -> transform deriver
     args -> Derive.throw_arg_error $ "unexpected arg types: "
@@ -107,29 +107,28 @@ equal_transformer args deriver = case Derive.passed_vals args of
 
 parse_equal :: TrackLang.Symbol -> TrackLang.Val
     -> Either String (Derive.Deriver a -> Derive.Deriver a)
-parse_equal (TrackLang.Symbol assignee) source
-    | Just new <- Text.stripPrefix "^" assignee = Right $
-        override_call new source "note"
+parse_equal (TrackLang.Symbol lhs) rhs
+    | Just new <- Text.stripPrefix "^" lhs = Right $
+        override_call new rhs "note"
             (Derive.s_generator#Derive.s_note)
             (Derive.s_transformer#Derive.s_note)
-    | Just new <- Text.stripPrefix "*" assignee = Right $
-        override_call new source "pitch"
+    | Just new <- Text.stripPrefix "*" lhs = Right $
+        override_call new rhs "pitch"
             (Derive.s_generator#Derive.s_pitch)
             (Derive.s_transformer#Derive.s_pitch)
-    | Just new <- Text.stripPrefix "." assignee = Right $
-        override_call new source "control"
+    | Just new <- Text.stripPrefix "." lhs = Right $
+        override_call new rhs "control"
             (Derive.s_generator#Derive.s_control)
             (Derive.s_transformer#Derive.s_control)
-    | Just new <- Text.stripPrefix "-" assignee = Right $
-        override_val_call new source
-parse_equal (TrackLang.Symbol assignee) source
-    | Just new <- Text.stripPrefix ">" assignee = case source of
+    | Just new <- Text.stripPrefix "-" lhs = Right $ override_val_call new rhs
+parse_equal (TrackLang.Symbol lhs) rhs
+    | Just new <- Text.stripPrefix ">" lhs = case rhs of
         TrackLang.VInstrument inst -> Right $
             Derive.with_instrument_alias (Score.Instrument new) inst
-        _ -> Left $ "aliasing an instrument expected an instrument source, got "
-            <> pretty (TrackLang.type_of source)
-parse_equal (parse_val -> Just assignee) val
-    | Just control <- is_control assignee = case val of
+        _ -> Left $ "aliasing an instrument expected an instrument rhs, got "
+            <> pretty (TrackLang.type_of rhs)
+parse_equal (parse_val -> Just lhs) val
+    | Just control <- is_control lhs = case val of
         TrackLang.VControl val -> Right $ \deriver ->
             Util.to_signal_or_function val >>= \x -> case x of
                 Left sig -> Derive.with_control control sig deriver
@@ -140,7 +139,7 @@ parse_equal (parse_val -> Just assignee) val
             Right $ Derive.with_control_function control f
         _ -> Left $ "binding a control expected a control, num, or control\
             \ function, but got " <> pretty (TrackLang.type_of val)
-    | Just control <- is_pitch assignee = case val of
+    | Just control <- is_pitch lhs = case val of
         TrackLang.VPitch val ->
             Right $ Derive.with_pitch control (PitchSignal.constant val)
         TrackLang.VPitchControl val -> Right $ \deriver -> do
@@ -155,7 +154,7 @@ parse_equal (parse_val -> Just assignee) val
         | c == Controls.null = Just Nothing
         | otherwise = Just (Just c)
     is_pitch _ = Nothing
-parse_equal assignee val = Right $ Derive.with_val assignee val
+parse_equal lhs val = Right $ Derive.with_val lhs val
 
 parse_val :: TrackLang.Symbol -> Maybe TrackLang.Val
 parse_val = either (const Nothing) Just . Parse.parse_val . TrackLang.unsym
@@ -168,35 +167,35 @@ override_call :: (Derive.Callable d1, Derive.Callable d2) =>
     -> Lens Derive.Scopes (Derive.ScopeType (Derive.Generator d1))
     -> Lens Derive.Scopes (Derive.ScopeType (Derive.Transformer d2))
     -> Derive.Deriver a -> Derive.Deriver a
-override_call assignee source name_ generator transformer deriver
-    | Just stripped <- Text.stripPrefix "-" assignee =
+override_call lhs rhs name_ generator transformer deriver
+    | Just stripped <- Text.stripPrefix "-" lhs =
         override_scope stripped transformer deriver
             =<< resolve_source (name_ <> " transformer") transformer
-                quoted_transformer source
-    | otherwise = override_scope assignee generator deriver
+                quoted_transformer rhs
+    | otherwise = override_scope lhs generator deriver
         =<< resolve_source (name_ <> " generator") generator
-            quoted_generator source
+            quoted_generator rhs
     where
-    override_scope assignee lens deriver call =
+    override_scope lhs lens deriver call =
         Derive.with_scopes modify deriver
-        where modify = lens#Derive.s_override %= (single_lookup assignee call :)
+        where modify = lens#Derive.s_override %= (single_lookup lhs call :)
 
 -- | A VQuoted becomes a call, a Symbol is expected to name a call, and
 -- everything else is turned into a Symbol via ShowVal.  This will cause
 -- a parse error for un-showable Vals, but what else is new?
 resolve_source :: Text -> Lens Derive.Scopes (Derive.ScopeType a)
     -> (TrackLang.Quoted -> a) -> TrackLang.Val -> Derive.Deriver a
-resolve_source name lens make_quoted source = case source of
+resolve_source name lens make_quoted rhs = case rhs of
     TrackLang.VQuoted quoted -> return $ make_quoted quoted
     TrackLang.VSymbol call_id -> get_call name (lens #$) call_id
-    _ -> get_call name (lens #$) (TrackLang.Symbol (ShowVal.show_val source))
+    _ -> get_call name (lens #$) (TrackLang.Symbol (ShowVal.show_val rhs))
 
 override_val_call :: Text -> TrackLang.Val -> Derive.Deriver a
     -> Derive.Deriver a
-override_val_call assignee source deriver = do
-    call <- resolve_source "val" Derive.s_val quoted_val_call source
+override_val_call lhs rhs deriver = do
+    call <- resolve_source "val" Derive.s_val quoted_val_call rhs
     let modify = Derive.s_val#Derive.s_override
-            %= (single_val_lookup assignee call :)
+            %= (single_val_lookup lhs call :)
     Derive.with_scopes modify deriver
 
 get_call :: Text -> (Derive.Scopes -> Derive.ScopeType call)
