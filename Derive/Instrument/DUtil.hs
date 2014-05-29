@@ -17,7 +17,6 @@ import qualified Derive.Call.Europe.Grace as Grace
 import qualified Derive.Call.Module as Module
 import qualified Derive.Call.Note as Note
 import qualified Derive.Call.Sub as Sub
-import qualified Derive.Call.Tags as Tags
 import qualified Derive.Call.Util as Util
 import qualified Derive.Derive as Derive
 import qualified Derive.Eval as Eval
@@ -27,11 +26,21 @@ import qualified Derive.Sig as Sig
 import qualified Derive.TrackLang as TrackLang
 
 
+make_call :: Text -> Text -> Derive.WithArgDoc d -> Derive.Call d
+make_call name doc = Derive.make_call Module.instrument name mempty doc
+
+make_call0 :: Derive.Taggable d => Text -> Text
+    -> Derive.GeneratorFunc d -> Derive.Generator d
+make_call0 name doc call = make_call name doc (Sig.call0 call)
+
+make_call0t :: Derive.Taggable d => Text -> Text -> Derive.TransformerFunc d
+    -> Derive.Transformer d
+make_call0t name doc call = make_call name doc (Sig.call0t call)
+
 -- | Make a call that simply calls the default note call with the given attrs.
 attrs_note :: Score.Attributes -> Derive.Generator Derive.Note
 attrs_note attrs =
-    Derive.make_call Module.instrument ("attrs_note " <> ShowVal.show_val attrs)
-        Tags.attr
+    make_call ("attrs_note " <> ShowVal.show_val attrs)
         "Invoke the default note call with the given attrs." $
     Sig.call0 $ \args -> Util.add_attrs attrs (Util.note_here args)
 
@@ -40,7 +49,7 @@ attrs_note attrs =
 -- a transformed note call via 'Note.transformed_note' or 'Note.note_call'.
 note_call :: Text -> (Derive.NoteDeriver -> Derive.NoteDeriver)
     -> Derive.Generator Derive.Note
-note_call name transform = Derive.make_call Module.instrument name mempty
+note_call name transform = make_call name
     "Invoke the default note call with a certain transform." $
     Sig.call0 $ \args -> Sub.when_under_inversion args transform $
         Util.note_here args
@@ -76,7 +85,7 @@ multiple_calls calls =
 
 -- | Create a call that just dispatches to other calls.
 multiple_call :: Text -> [TrackLang.CallId] -> Derive.Generator Derive.Note
-multiple_call name calls = Derive.make_call Module.instrument name Tags.inst
+multiple_call name calls = make_call name
     -- I intentionally omit the calls from the doc string, so they will
     -- combine in the call doc.  Presumably the calls are apparent from the
     -- name.
@@ -89,7 +98,7 @@ double_calls :: [(TrackLang.CallId, TrackLang.CallId)]
 double_calls = map (second double_call)
 
 double_call :: TrackLang.CallId -> Derive.Generator Derive.Note
-double_call repeated = Derive.make_call Module.instrument "double" Tags.inst
+double_call repeated = make_call "double"
     "Doubled call. This is a specialization of `roll`."
     $ Sig.call ((,)
     <$> Sig.defaulted "time" Grace.default_grace_dur "Time between the strokes."
@@ -140,9 +149,8 @@ redirect_pitch :: Text -> TrackLang.CallId -> Controls -> TrackLang.CallId
     -> Controls -> Derive.Generator Derive.Note
 redirect_pitch name pitched_call pitched_controls unpitched_call
         unpitched_controls =
-    Derive.make_call Module.instrument name Tags.inst
-        ("A composite instrument splits pitch and controls to separate\
-        \ instruments.\n" <> composite_doc)
+    make_call name ("A composite instrument splits pitch and controls to\
+        \ separate instruments.\n" <> composite_doc)
     $ Sig.call ((,)
     <$> Sig.required_environ "pitched" Sig.Prefixed
         ("This instrument gets the pitch signal and controls: "
@@ -157,8 +165,7 @@ redirect_pitch name pitched_call pitched_controls unpitched_call
 double_pitch :: Text -> Controls -> Score.Control -> Controls
     -> Derive.Generator Derive.Note
 double_pitch name base_controls pcontrol secondary_controls =
-    Derive.make_call Module.instrument name Tags.inst
-        ("A composite instrument that has two pitch signals.\n"
+    make_call name ("A composite instrument that has two pitch signals.\n"
         <> composite_doc)
     $ Sig.call ((,)
     <$> Sig.required_environ "base-inst" Sig.Prefixed

@@ -5,7 +5,6 @@
 -- | Post-processing to apply a string idiom.
 module Derive.Call.Idiom.String where
 import qualified Data.Map as Map
-import qualified Data.Text as Text
 
 import Util.Control
 import qualified Util.Log as Log
@@ -21,7 +20,6 @@ import qualified Derive.Call.Sub as Sub
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Call.Util as Util
 import qualified Derive.Derive as Derive
-import qualified Derive.Eval as Eval
 import qualified Derive.LEvent as LEvent
 import qualified Derive.PitchSignal as PitchSignal
 import qualified Derive.Pitches as Pitches
@@ -70,7 +68,6 @@ c_bent_string = Derive.transformer module_ "bent-string"
         \ released after this delay."
     <*> open_strings_env
     ) $ \(attack, release, delay, open_strings) _args deriver -> do
-        open_strings <- sequence open_strings
         srate <- Util.get_srate
         let linear = PitchUtil.interpolator srate id
         string_idiom linear linear open_strings attack delay release =<< deriver
@@ -85,7 +82,6 @@ c_stopped_string = Derive.transformer module_ "stopped-string"
         "String release delay time."
     <*> open_strings_env
     ) $ \(delay, open_strings) _args deriver -> do
-        open_strings <- sequence open_strings
         srate <- Util.get_srate
         events <- deriver
         let attack = TrackLang.constant_control 0
@@ -93,15 +89,14 @@ c_stopped_string = Derive.transformer module_ "stopped-string"
         let linear = PitchUtil.interpolator srate id
         string_idiom linear linear open_strings attack delay release events
 
-open_strings_env :: Sig.Parser [Derive.Deriver PitchSignal.Pitch]
-open_strings_env = Sig.check non_empty $ map pitch . Text.words <$>
-    Sig.environ "open-strings" Sig.Unprefixed ""
+open_strings_env :: Sig.Parser [PitchSignal.Pitch]
+open_strings_env = Sig.check non_empty $
+    Sig.environ "open-strings" Sig.Unprefixed []
         "Space separated list of the pitches of the open strings."
     where
     non_empty xs
         | null xs = Just "open-strings required"
         | otherwise = Nothing
-    pitch = Eval.eval_pitch 0 . flip TrackLang.call [] . TrackLang.Symbol
 
 {- | Post-process events to play them in a monophonic string-like idiom.
 
@@ -269,7 +264,6 @@ make_gliss name is_absolute = Derive.make_call module_ name mempty
     <*> open_strings_env
     ) $ \(gliss_start, time, maybe_start_dyn, open_strings) -> Sub.inverting $
     \args -> do
-        open_strings <- sequence open_strings
         end <- Args.real_start args
         time <- Util.real_duration end time
         dest_pitch <- Util.get_pitch end

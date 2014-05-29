@@ -171,6 +171,7 @@ data Type = TNum NumType NumValue
     -- up as a call argument.
     | TQuoted
     | TControlFunction
+    | TList !Type
     deriving (Eq, Ord, Show)
 
 data NumType = TUntyped | TTranspose | TDefaultDiatonic | TDefaultChromatic
@@ -196,6 +197,7 @@ instance Pretty.Pretty Type where
         Seq.join2 ", " (pretty typ) (pretty val)
     pretty (TSymbol enums) =
         append_parens "Symbol" $ maybe "" (unwords . map untxt) enums
+    pretty (TList typ) = "(list " <> pretty typ <> ")"
     pretty typ = drop 1 (show typ)
 
 append_parens :: String -> String -> String
@@ -235,6 +237,7 @@ type_of val = case val of
     VQuoted {} -> TQuoted
     VControlFunction {} -> TControlFunction
     VNotGiven -> TNotGiven
+    VList {} -> TList TVal
 
 -- ** special types
 
@@ -271,6 +274,12 @@ instance (Typecheck a, Typecheck b) => Typecheck (Either a b) where
     to_val = either to_val to_val
     to_type _ = TEither (to_type (Proxy :: Proxy a))
         (to_type (Proxy :: Proxy b))
+
+instance Typecheck a => Typecheck [a] where
+    from_val (VList xs) = mapM from_val xs
+    from_val _ = Nothing
+    to_val = VList . map to_val
+    to_type _ = TList $ to_type (Proxy :: Proxy a)
 
 -- ** numeric types
 
@@ -630,6 +639,9 @@ map_generator f (call1 :| calls) = case calls of
 -- | Convenient constructor for Call.
 call :: Symbol -> [Term] -> Call
 call sym = Call sym
+
+call0 :: Symbol -> Call
+call0 sym = Call sym []
 
 literal_call :: Symbol -> [Val] -> Call
 literal_call sym args = call sym (map Literal args)

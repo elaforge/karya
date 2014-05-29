@@ -29,12 +29,15 @@ import qualified Derive.Call.Make as Make
 import qualified Derive.Call.Module as Module
 import qualified Derive.Call.Util as Util
 import qualified Derive.Controls as Controls
+import qualified Derive.Derive as Derive
 import qualified Derive.Environ as Environ
+import qualified Derive.Eval as Eval
 import qualified Derive.Instrument.Bali as Bali
 import qualified Derive.Instrument.DUtil as DUtil
 import qualified Derive.Scale.Wayang as Wayang
 import qualified Derive.Score as Score
 import Derive.Score (attr)
+import qualified Derive.ShowVal as ShowVal
 import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.Midi.Instrument as Instrument
@@ -138,21 +141,27 @@ sonic_couture = concat $
 
 guzheng :: [MidiInst.Patch]
 guzheng = MidiInst.with_code code
-    [ MidiInst.environ "open-strings" guzheng_strings $
-        Instrument.instrument_#Instrument.maybe_decay #= Just 5 $
+    [ Instrument.instrument_#Instrument.maybe_decay #= Just 5 $
         Instrument.attribute_map #= Instrument.simple_keyswitches guzheng_ks $
         patch "guzheng" [(23, Controls.lpf), (24, Controls.q),
             (27, Controls.hpf)]
     ]
     where
     code = MidiInst.note_generators [("左", DUtil.attrs_note Attrs.left)]
+        <> MidiInst.note_transformers [("standard-strings", standard_strings)]
+    standard_strings = DUtil.make_call0t "standard-strings"
+        ("Set `open-strings` to standard pitches: " <> ShowVal.show_val strings)
+        $ \_ deriver -> do
+            pitches <- mapM (Eval.eval_pitch 0) (map TrackLang.call0 strings)
+            Derive.with_val "open-strings" pitches deriver
     guzheng_ks =
         [ (Attrs.harm, Key2.as5)
         , (Attrs.left, Key2.b5) -- left hand, no pick
         , (mempty, Key2.c6) -- right hand, picked
         ]
-    guzheng_strings = Text.unwords $ take (4*5 + 1) -- 4 octaves + 1, so D to D
-        [showt oct <> note | oct <- [2..], note <- ["d", "e", "f#", "a", "b"]]
+    strings = take (4*5 + 1) -- 4 octaves + 1, so D to D
+        [TrackLang.Symbol $ showt oct <> note | oct <- [2..],
+            note <- ["d", "e", "f#", "a", "b"]]
 
 sc_bali :: [MidiInst.Patch]
 sc_bali = MidiInst.with_code mute_null_call

@@ -412,6 +412,10 @@ data Val =
     --
     -- Literal: @_@
     | VNotGiven
+    -- | List of values.
+    --
+    -- Literal: @(list)@, @(list 1 2)@, @(list (x) (y))@
+    | VList ![Val]
     deriving (Show)
 
 -- | This instance is actually invalid due to showing VPitch, which has no
@@ -432,6 +436,7 @@ instance ShowVal.ShowVal Val where
         VQuoted quoted -> ShowVal.show_val quoted
         VControlFunction f -> ShowVal.show_val f
         VNotGiven -> "_"
+        VList vals -> ShowVal.show_val vals
 
 instance Pretty.Pretty Val where
     pretty = untxt . ShowVal.show_val

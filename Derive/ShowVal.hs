@@ -40,6 +40,10 @@ doc_val a = "`" <> show_val a <> "`"
 -- Really these instances should go in Derive.ParseBs, but it imports
 -- Derive.TrackLang, which needs them.
 
+instance ShowVal a => ShowVal [a] where
+    show_val [] = "(list)"
+    show_val xs = "(list " <> Text.unwords (map show_val xs) <> ")"
+
 instance ShowVal Int where
     show_val = showt
 

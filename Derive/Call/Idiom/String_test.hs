@@ -10,7 +10,7 @@ import qualified Derive.Score as Score
 
 
 title :: String
-title = "import idiom.string | open-strings = '4c 4d 4e 4g 4a'"
+title = "import idiom.string | open-strings = (list (4c) (4d) (4e) (4g) (4a))"
 
 test_string = do
     let extract = DeriveTest.extract e_event

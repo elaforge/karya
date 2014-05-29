@@ -213,7 +213,7 @@ lookup_scale scale_id = do
 
 -- ** environment
 
-lookup_val :: (TrackLang.Typecheck a) => TrackLang.ValName -> Deriver (Maybe a)
+lookup_val :: TrackLang.Typecheck a => TrackLang.ValName -> Deriver (Maybe a)
 lookup_val name = do
     environ <- Internal.get_environ
     either throw return (TrackLang.checked_val name environ)
@@ -223,7 +223,7 @@ is_val_set name =
     Maybe.isJust . TrackLang.lookup_val name <$> Internal.get_environ
 
 -- | Like 'lookup_val', but throw if the value isn't present.
-get_val :: (TrackLang.Typecheck a) => TrackLang.ValName -> Deriver a
+get_val :: TrackLang.Typecheck a => TrackLang.ValName -> Deriver a
 get_val name = do
     val <- lookup_val name
     maybe (throw $ "environ val not found: " ++ pretty name) return val
@@ -244,7 +244,7 @@ lookup_lilypond_config = gets (state_lilypond . state_constant)
 -- This dispatches to 'with_scale' or 'with_instrument' if it's setting the
 -- scale or instrument, so scale or instrument scopes are always set when scale
 -- and instrument are.
-with_val :: (TrackLang.Typecheck val) => TrackLang.ValName -> val
+with_val :: TrackLang.Typecheck val => TrackLang.ValName -> val
     -> Deriver a -> Deriver a
 with_val name val deriver
     | name == Environ.scale, Just scale_id <- TrackLang.to_scale_id v = do
@@ -256,13 +256,13 @@ with_val name val deriver
     where v = TrackLang.to_val val
 
 -- | Like 'with_val', but don't set scopes for instrument and scale.
-with_val_raw :: (TrackLang.Typecheck val) => TrackLang.ValName -> val
+with_val_raw :: TrackLang.Typecheck val => TrackLang.ValName -> val
     -> Deriver a -> Deriver a
 with_val_raw name val = Internal.localm $ \st -> do
     environ <- Internal.insert_environ name val (state_environ st)
     return $! st { state_environ = environ }
 
-modify_val :: (TrackLang.Typecheck val) => TrackLang.ValName
+modify_val :: TrackLang.Typecheck val => TrackLang.ValName
     -> (Maybe val -> val) -> Deriver a -> Deriver a
 modify_val name modify = Internal.localm $ \st -> do
     let env = state_environ st

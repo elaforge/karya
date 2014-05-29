@@ -66,7 +66,7 @@ test_parse_expr = do
 
 test_parse_val = do
     let attrs = Just . VAttributes . Score.attrs
-        sym = Just . VSymbol . Symbol
+        sym = Just . VSymbol
     let invertible =
             [ (">", Just $ VInstrument (Score.Instrument ""))
             , (">fu/nny^*", Just $ VInstrument (Score.Instrument "fu/nny^*"))

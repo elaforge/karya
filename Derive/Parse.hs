@@ -372,7 +372,7 @@ is_toplevel_word_char :: Char -> Bool
 is_toplevel_word_char c = c /= ' ' && c /= '='
 
 is_word_char :: Char -> Bool
-is_word_char c = c /= ' ' && c /= '=' && c /= ')'
+is_word_char c = c /= ' ' && c /= '=' && c /= ')' && c /= ']'
 
 lexeme :: A.Parser a -> A.Parser a
 lexeme p = p <* spaces

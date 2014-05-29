@@ -3,6 +3,7 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
+  * I think I want a list type, so I can have open strings be [Pitch]
   * why doesn't '^左 = +left' work?
   * make Ui.global_acts_mvar not global
   * UI hangs after a string-idiom on the note track.
@@ -94,19 +95,6 @@ UNSORTED
   . equal syntax has lots of useless stuff, e.g.
     `^a = x y z` is an error, `^a = (x y z)` is useless unless `x` returns
     VQuoted or VSymbol.
-  I also want local code in haskell.
-    . I could put code in Local.Score.SomeName, and have those either
-      statically linked in, or dynamically compiled and loaded on each
-      derivation.
-    . Static linking is easier, but I should at least automatically create
-      a All.hs.
-    . Also, creating calls is a bit heavyweight, since I likely don't care
-      about tags and doc and module can be inferred.  Presumably I can get
-      around that with a constructor that defaults those fields, and then
-      the generated All.hs overrides the module.
-    . Writing in tracklang lacks typechecking.  There could be utilities to
-      write like tracklang, but in haskell, e.g.
-        c_p1 = with_note_call "p" "subst1" $ block "pattern"
   Also, it's kind of a pain to edit the global transform in the REPL.
     . I could put a "global" section in $(save).karya, but then I have to
       keep it in sync with State.global_transform, which seems error prone.
@@ -491,6 +479,19 @@ external
     - figure out how to implement pragmas in ghc
 
 local: plugins:
+  I also want local code in haskell.
+    . I could put code in Local.Score.SomeName, and have those either
+      statically linked in, or dynamically compiled and loaded on each
+      derivation.
+    . Static linking is easier, but I should at least automatically create
+      a All.hs.
+    . Also, creating calls is a bit heavyweight, since I likely don't care
+      about tags and doc and module can be inferred.  Presumably I can get
+      around that with a constructor that defaults those fields, and then
+      the generated All.hs overrides the module.
+    . Writing in tracklang lacks typechecking.  There could be utilities to
+      write like tracklang, but in haskell, e.g.
+        c_p1 = with_note_call "p" "subst1" $ block "pattern"
   . ghc can now unload code: http://ghc.haskell.org/trac/ghc/ticket/8039
   . might be relevant: http://hackage.haskell.org/package/dynamic-loader
     http://codeutopia.net/blog/2011/08/20/adventures-in-haskell-dynamic-loading-and-compiling-of-modules/

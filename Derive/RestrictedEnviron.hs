@@ -45,6 +45,7 @@ data Val =
     | VInstrument !Score.Instrument
     | VSymbol !TrackLang.Symbol
     | VQuoted !Expr
+    | VList ![Val]
     deriving (Eq, Read, Show)
 
 convert_val :: Val -> TrackLang.Val
@@ -56,6 +57,7 @@ convert_val val = case val of
     VInstrument v -> TrackLang.VInstrument v
     VSymbol v -> TrackLang.VSymbol v
     VQuoted v -> TrackLang.VQuoted $ TrackLang.Quoted $ convert_expr v
+    VList v -> TrackLang.VList $ map convert_val v
 
 instance Pretty.Pretty Val where
     format v = Pretty.format (convert_val v)
@@ -115,6 +117,7 @@ instance Serialize.Serialize Val where
         VInstrument v -> Serialize.put_tag 4 >> put v
         VSymbol v -> Serialize.put_tag 5 >> put v
         VQuoted v -> Serialize.put_tag 6 >> put v
+        VList v -> Serialize.put_tag 7 >> put v
     get = do
         tag <- Serialize.get_tag
         case tag of
@@ -125,6 +128,7 @@ instance Serialize.Serialize Val where
             4 -> VInstrument <$> get
             5 -> VSymbol <$> get
             6 -> VQuoted <$> get
+            7 -> VList <$> get
             _ -> Serialize.bad_tag "RestrictedEnviron.Val" tag
 
 instance Serialize.Serialize Call where

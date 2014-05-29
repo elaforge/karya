@@ -55,6 +55,8 @@ val_calls = Derive.call_map
     , ("1/", c_reciprocal)
     , ("nn", c_nn)
     , ("hz", c_hz)
+    -- literals
+    , ("list", c_list)
     , ("st", c_scoretime)
     , ("rt", c_realtime)
     , ("pitch", c_pitch)
@@ -176,6 +178,11 @@ c_hz = val_call "hz" mempty
     \val _ -> case val of
         Left pitch -> Pitch.nn_to_hz <$> Pitches.pitch_nn pitch
         Right nn -> return (Pitch.nn_to_hz (Pitch.NoteNumber nn) :: Double)
+
+c_list :: Derive.ValCall
+c_list = val_call "list" mempty "Create a list." $
+    Sig.call (Sig.many "val" "Value.") $ \vals _ ->
+        return $ TrackLang.VList vals
 
 c_scoretime :: Derive.ValCall
 c_scoretime = val_call "scoretime" mempty
