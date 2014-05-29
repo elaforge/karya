@@ -128,16 +128,24 @@ balalaika =
         ]
 
 sonic_couture :: [MidiInst.Patch]
-sonic_couture = MidiInst.with_empty_code
-    [ patch "ebow" [(1, "harm"), (21, Controls.lpf), (22, Controls.q),
-        (23, Controls.hpf)]
-    , MidiInst.environ "open-strings" guzheng_strings $
+sonic_couture = concat $
+    [ MidiInst.with_empty_code
+        [ patch "ebow" [(1, "harm"), (21, Controls.lpf), (22, Controls.q),
+            (23, Controls.hpf)]
+        ]
+    , guzheng
+    ]
+
+guzheng :: [MidiInst.Patch]
+guzheng = MidiInst.with_code code
+    [ MidiInst.environ "open-strings" guzheng_strings $
         Instrument.instrument_#Instrument.maybe_decay #= Just 5 $
         Instrument.attribute_map #= Instrument.simple_keyswitches guzheng_ks $
         patch "guzheng" [(23, Controls.lpf), (24, Controls.q),
             (27, Controls.hpf)]
     ]
     where
+    code = MidiInst.note_generators [("左", DUtil.attrs_note Attrs.left)]
     guzheng_ks =
         [ (Attrs.harm, Key2.as5)
         , (Attrs.left, Key2.b5) -- left hand, no pick
