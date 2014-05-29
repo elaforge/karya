@@ -77,7 +77,7 @@ UNSORTED
     * On a rederive, it sees the new call, but the perf is from the old state.
     * PlayUtil.load_definitions should complain about shadows.
     - syntax error in the file is reported a zillion times
-    - I should support 'transformer | generator' syntax.
+    * I should support 'transformer | generator' syntax.
     . Ideally, the .karya file should be versioned too.  I could have git
       saves look for files in the .git dir and commit them when saving a tag.
       Of course then I'd want to have a proper git repo with files checked out
@@ -85,7 +85,7 @@ UNSORTED
       really worth it though, since sufficiently complex code should move into
       Local.* and be versioned and namespaced normally.
   * remove Derive.CallMap synonym
-  - The 'import' call should ensure calls from later named modules shadow
+  / The 'import' call should ensure calls from later named modules shadow
     earlier ones.
   - %c = 1 can set a control, but what if I want to combine, e.g. *= .5?
     Where can I squeeze in a merge operator?  %c = mul .5?

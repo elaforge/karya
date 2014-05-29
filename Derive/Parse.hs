@@ -395,7 +395,7 @@ data Definitions = Definitions {
     , def_val :: ![Definition]
     } deriving (Show)
 
-type Definition = (TrackLang.CallId, TrackLang.Call)
+type Definition = (TrackLang.CallId, TrackLang.Expr)
 type LineNumber = Int
 
 {- | Parse a definitions file.  This file gives a way to define new calls
@@ -450,7 +450,6 @@ parse_definition_file text = do
         Right Nothing -> Right []
         Right (Just val) -> Right [val]
 
--- word = val\n
 p_maybe_definition :: A.Parser (Maybe Definition)
 p_maybe_definition = (spaces >> A.endOfInput >> return Nothing)
     <|> (Just <$> p_definition)
@@ -461,8 +460,8 @@ p_definition = do
     spaces
     A.char '='
     spaces
-    val <- p_call True
-    return (assignee, val)
+    expr <- p_pipeline True
+    return (assignee, expr)
 
 split_sections :: Text -> Either Text (Map.Map Text [(LineNumber, Text)])
 split_sections =

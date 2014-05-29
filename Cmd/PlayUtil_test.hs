@@ -37,6 +37,15 @@ test_definition_file = do
     -- A local note transformer shadows the built-in 'd' transformer.
     equal (run defs [(">", [(0, 1, "d |")])]) (["+a"], [])
 
+    -- Definitions can be full expressions.
+    let defs = Text.unlines
+            [ "note generator:"
+            , "with-a = +a | n"
+            , "note transformer:"
+            , "d = +a | +b"
+            ]
+    equal (run defs [(">", [(0, 1, "with-a")])]) (["+a"], [])
+    equal (run defs [(">", [(0, 1, "d |")])]) (["+a+b"], [])
 
 put_library :: Cmd.M m => Text -> m ()
 put_library text =

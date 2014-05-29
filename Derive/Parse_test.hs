@@ -203,11 +203,12 @@ test_parse_definition_file = do
     let f extract = either (Left . untxt) (Right . extract)
             . Parse.parse_definition_file
     left_like (f id "x:\na = b") "unknown sections: x"
-    left_like (f id "val:\na = b\nc =\n") "3: parse error"
-    let text = "val:\n  a = b\n-- comment\n\nnote generator:\nn = x"
+    left_like (f id "val:\na = b\nc\n") "3: parse error"
+    let text = "val:\n  a = b\n-- comment\n\nnote generator:\nn = t | x"
     let call sym = Call (Symbol sym) []
-    equal (f Parse.def_val text) $ Right [("a", call "b")]
-    equal (f (fst . Parse.def_note) text) $ Right [("n", call "x")]
+    equal (f Parse.def_val text) $ Right [("a", call "b" :| [])]
+    equal (f (fst . Parse.def_note) text) $
+        Right [("n", call "t" :| [call "x"])]
 
 test_split_sections = do
     let f = either (Left . untxt) (Right . Map.toList) . Parse.split_sections

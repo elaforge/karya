@@ -19,6 +19,7 @@ module Cmd.PlayUtil (
     , compile_library
 ) where
 import qualified Control.Monad.Trans.Either as Trans.Either
+import qualified Data.List.NonEmpty as NonEmpty
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 import qualified Data.Set as Set
@@ -368,50 +369,63 @@ compile_library (Parse.Definitions note control pitch val) = Derive.Library
     where
     call_maps (gen, trans) = Derive.call_maps
         (compile make_generator gen) (compile make_transformer trans)
-    compile make = map $ \(call_id, term) -> (call_id, make call_id term)
+    compile make = map $ \(call_id, expr) -> (call_id, make call_id expr)
 
-make_generator :: Derive.Callable d => TrackLang.Symbol -> TrackLang.Call
+make_generator :: Derive.Callable d => TrackLang.Symbol -> TrackLang.Expr
     -> Derive.Generator d
-make_generator (TrackLang.Symbol name) (TrackLang.Call call_id supplied) =
+make_generator (TrackLang.Symbol name) expr =
     Derive.make_call Module.local name mempty ("Local definition: " <> name) $
-    if null supplied
-        then Sig.parsed_manually "Args parsed by reapplied call." generator_args
-        else Sig.call0 generator0
+    case assign_symbol expr of
+        Nothing -> Sig.call0 generator
+        Just call_id -> Sig.parsed_manually "Args parsed by reapplied call." $
+            reapply call_id
     where
     -- If there are arguments in the definition, then don't accept any in the
     -- score.  I could do partial application, but it seems confusing, so
     -- I won't add it unless I need it.
-    generator_args args = apply args (Derive.passed_vals args)
+    reapply call_id args = Eval.reapply_generator (Derive.passed_info args)
+        call_id (Derive.passed_vals args)
         (Derive.info_expr (Derive.passed_info args))
-    generator0 args = do
-        vals <- mapM (Eval.eval (Derive.passed_info args)) supplied
-        apply args vals (ShowVal.show_val (TrackLang.Call call_id supplied))
-    apply args = Eval.reapply_generator (Derive.passed_info args) call_id
+    generator args = Eval.apply_toplevel cinfo expr
+        where
+        cinfo = (Derive.passed_info args)
+            { Derive.info_expr = ShowVal.show_val expr }
+            -- This should be safe since it came from parsed input.
 
-make_transformer :: Derive.Callable d => TrackLang.Symbol -> TrackLang.Call
+make_transformer :: Derive.Callable d => TrackLang.Symbol -> TrackLang.Expr
     -> Derive.Transformer d
-make_transformer (TrackLang.Symbol name) (TrackLang.Call call_id supplied) =
+make_transformer (TrackLang.Symbol name) expr =
     Derive.make_call Module.local name mempty ("Local definition: " <> name) $
-    if null supplied
-        then Sig.parsed_manually "Args parsed by reapplied call."
-            transformer_args
-        else Sig.call0t transformer0
+    case assign_symbol expr of
+        Nothing -> Sig.call0t transformer
+        Just call_id -> Sig.parsed_manually "Args parsed by reapplied call." $
+            reapply call_id
     where
-    transformer_args args = apply args (Derive.passed_vals args)
-    transformer0 args deriver = do
-        vals <- mapM (Eval.eval (Derive.passed_info args)) supplied
-        apply args vals deriver
-    apply args = Eval.reapply_transformer (Derive.passed_info args) call_id
+    transformer args deriver =
+        Eval.apply_transformers cinfo (NonEmpty.toList expr) deriver
+        where
+        cinfo = (Derive.passed_info args)
+            { Derive.info_expr = ShowVal.show_val expr }
+    reapply call_id args deriver =
+        Eval.reapply_transformer (Derive.passed_info args) call_id
+            (Derive.passed_vals args) deriver
 
-make_val_call :: TrackLang.CallId -> TrackLang.Call -> Derive.ValCall
-make_val_call (TrackLang.Symbol name) call@(TrackLang.Call call_id supplied) =
+make_val_call :: TrackLang.CallId -> TrackLang.Expr -> Derive.ValCall
+make_val_call (TrackLang.Symbol name) expr =
     Derive.val_call Module.local name mempty ("Local definiton: " <> name) $
-    if null supplied
-        then Sig.parsed_manually "Args parsed by reapplied call." call_args
-        else Sig.call0 call0
+    case assign_symbol expr of
+        Nothing -> Sig.call0 $ \args -> case expr of
+            call :| [] ->
+                Eval.eval (Derive.passed_info args) (TrackLang.ValCall call)
+            _ -> Derive.throw "val calls don't support pipeline syntax"
+        Just call_id -> Sig.parsed_manually "Args parsed by reapplied call."
+            (call_args call_id)
     where
-    call_args args = do
+    call_args call_id args = do
         call <- Eval.get_val_call call_id
         Derive.vcall_call call $ args
             { Derive.passed_call_name = Derive.vcall_name call }
-    call0 args = Eval.eval (Derive.passed_info args) (TrackLang.ValCall call)
+
+assign_symbol :: TrackLang.Expr -> Maybe TrackLang.CallId
+assign_symbol (TrackLang.Call call_id [] :| []) = Just call_id
+assign_symbol _ = Nothing
