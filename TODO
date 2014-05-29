@@ -76,7 +76,9 @@ UNSORTED
     * It runs a derive first, how does that happen?
     * On a rederive, it sees the new call, but the perf is from the old state.
     * PlayUtil.load_definitions should complain about shadows.
-    - syntax error in the file is reported a zillion times
+    * syntax error in the file is reported a zillion times
+      Problem is it makes perform fail, which makes it want to try again.
+      It has to fail "normally".
     * I should support 'transformer | generator' syntax.
     . Ideally, the .karya file should be versioned too.  I could have git
       saves look for files in the .git dir and commit them when saving a tag.

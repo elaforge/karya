@@ -148,40 +148,33 @@ generate_performance :: State.State -> Thread.Seconds -> SendStatus -> BlockId
     -> StateM
 generate_performance ui_state wait send_status block_id = do
     cmd_state <- Monad.State.get
-    let (res, logs) = derive ui_state cmd_state block_id
+    let (perf, logs) = derive ui_state cmd_state block_id
     mapM_ Log.write logs
-    maybe_perf <- case res of
-        -- These errors indicate not that derivation failed, but that the cmd
-        -- threw before it even got started, which should never happen.
-        Left err -> do
-            Log.warn $ "derivation for " <> show block_id <> " failed: "
-                <> pretty err
-            return Nothing
-        Right Nothing -> do
-            Log.warn $ "derivation for " <> show block_id <> " aborted"
-            return Nothing
-        Right (Just derive_result) -> return $ Just (performance derive_result)
-    whenJust maybe_perf $ \perf -> do
-        th <- liftIO $ Thread.start $
-            evaluate_performance wait send_status block_id perf
-        Monad.State.modify $ modify_play_state $ \st -> st
-            { Cmd.state_performance_threads = Map.insert block_id
-                th (Cmd.state_performance_threads st)
-            , Cmd.state_current_performance = Map.insert block_id
-                perf (Cmd.state_current_performance st)
-            }
+    th <- liftIO $ Thread.start $
+        evaluate_performance wait send_status block_id perf
+    Monad.State.modify $ modify_play_state $ \st -> st
+        { Cmd.state_performance_threads = Map.insert block_id
+            th (Cmd.state_performance_threads st)
+        , Cmd.state_current_performance = Map.insert block_id
+            perf (Cmd.state_current_performance st)
+        }
     -- If the derivation somehow failed, then the old performance will remain,
     -- and since there is no thread, this will try again the next time around.
 
-derive :: State.State -> Cmd.State -> BlockId
-    -> (Either State.Error (Maybe Derive.Result), [Log.Msg])
-derive ui_state cmd_state block_id = (strip <$> res, logs)
+derive :: State.State -> Cmd.State -> BlockId -> (Cmd.Performance, [Log.Msg])
+derive ui_state cmd_state block_id = (perf, logs)
     where
-    strip (result, _, _) = result
-    maybe_perf = Map.lookup block_id $ Cmd.state_current_performance $
+    perf = case cmd_result of
+        Left err -> broken_performance $
+            "derivation for " <> showt block_id <> " failed: " <> prettyt err
+        Right (derive_result, _, _) -> case derive_result of
+            Nothing -> broken_performance $
+                "derivation for " <> showt block_id <> " aborted"
+            Just result -> performance result
+    prev_perf = Map.lookup block_id $ Cmd.state_current_performance $
         Cmd.state_play cmd_state
-    (_state, _midi, logs, res) = Cmd.run_id ui_state cmd_state $
-        case maybe_perf of
+    (_state, _midi, logs, cmd_result) = Cmd.run_id ui_state cmd_state $
+        case prev_perf of
             Nothing -> PlayUtil.derive_block mempty mempty block_id
             Just perf -> PlayUtil.derive_block (Cmd.perf_derive_cache perf)
                 (Cmd.perf_damage perf) block_id
@@ -198,6 +191,22 @@ evaluate_performance wait send_status block_id perf = do
         Log.notice $ "derived " ++ show block_id ++ " in "
             ++ pretty (RealTime.seconds secs)
     send_status block_id $ Msg.DeriveComplete perf
+
+-- | Make a broken performance with just an error msg.  This ensures that
+-- the msg is logged when you try to play, but will still suppress further
+-- performance, so you don't get a million msgs.
+broken_performance :: Text -> Cmd.Performance
+broken_performance msg = Cmd.Performance
+    { Cmd.perf_derive_cache = mempty
+    , Cmd.perf_events = mempty
+    , Cmd.perf_logs = [Log.msg Log.Warn Nothing msg]
+    , Cmd.perf_logs_written = False
+    , Cmd.perf_track_dynamic = mempty
+    , Cmd.perf_integrated = mempty
+    , Cmd.perf_damage = mempty
+    , Cmd.perf_warps = mempty
+    , Cmd.perf_track_signals = mempty
+    }
 
 -- | Constructor for 'Cmd.Performance'.
 performance :: Derive.Result -> Cmd.Performance

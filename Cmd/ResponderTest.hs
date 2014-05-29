@@ -84,11 +84,6 @@ mk_cmd_state ui_state view_id = CmdTest.default_cmd_state
 set_midi_config :: State.StateId ()
 set_midi_config = State.set_midi_config DeriveTest.default_midi_config
 
-set_sel :: TrackNum -> TrackTime -> TrackNum -> TrackTime -> States -> States
-set_sel track1 pos1 track2 pos2 = first $ flip UiTest.exec $
-    State.set_selection UiTest.default_view_id Config.insert_selnum $
-        Just $ Types.selection track1 pos1 track2 pos2
-
 
 -- * result
 
