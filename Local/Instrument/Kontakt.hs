@@ -197,12 +197,12 @@ hang_cmd = CUtil.keyswitches [(Keymap.physical_key char, text, key)
 hang_strokes :: [(Score.Attributes, Midi.Key, Maybe TrackLang.CallId,
     Maybe Char)]
 hang_strokes =
-    [ (Attrs.center,  Key.c2,     Just "",            Just 'Z')
-    , (Attrs.edge,    Key.cs2,    Just "`pang2`",     Just 'X')
-    , (Attrs.slap,    Key.d2,     Just "`da3`",       Just 'C')
-    , (Attrs.middle,  Key.ds2,    Just "`zhong1`",    Just 'V')
-    , (Attrs.knuckle, Key.e2,     Just "`zhi3`",      Just 'B')
-    , (mempty,  Key.c2,     Nothing,            Nothing)
+    [ (Attrs.center,  Key.c2,     Just "",   Just 'Z')
+    , (Attrs.edge,    Key.cs2,    Just "旁", Just 'X')
+    , (Attrs.slap,    Key.d2,     Just "打", Just 'C')
+    , (Attrs.middle,  Key.ds2,    Just "中", Just 'V')
+    , (Attrs.knuckle, Key.e2,     Just "指", Just 'B')
+    , (mempty,        Key.c2,     Nothing,   Nothing)
     ]
 
 hang_ks :: [(Score.Attributes, Midi.Key)]
