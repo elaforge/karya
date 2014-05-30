@@ -81,7 +81,7 @@ UNSORTED
       Problem is it makes perform fail, which makes it want to try again.
       It has to fail "normally".
     * I should support 'transformer | generator' syntax.
-    - allow line wrapping by indent
+    * allow line wrapping by indent
     . Ideally, the .karya file should be versioned too.  I could have git
       saves look for files in the .git dir and commit them when saving a tag.
       Of course then I'd want to have a proper git repo with files checked out

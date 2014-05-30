@@ -16,13 +16,14 @@ module Derive.Parse (
     , parse_definition_file
 #ifdef TESTING
     , p_equal
-    , split_sections
+    , join_lines, split_sections
 #endif
 ) where
 import Prelude hiding (lex)
 import qualified Control.Applicative as A (many)
 import Data.Attoparsec ((<?>))
 import qualified Data.Attoparsec.Text as A
+import qualified Data.Char as Char
 import qualified Data.List as List
 import qualified Data.List.NonEmpty as NonEmpty
 import qualified Data.Map as Map
@@ -409,6 +410,7 @@ type LineNumber = Int
     > x = y
 
     Valid headers are @val:@ or @note|control|pitch generator|transformer:@.
+    A line is continued if it is indented.
 
     This is similar to the "Derive.Call.Equal" call, but not quite the same.
     Firstly, it uses headers for the call type instead of equal's weirdo
@@ -420,7 +422,7 @@ type LineNumber = Int
 -}
 parse_definition_file :: Text -> Either Text Definitions
 parse_definition_file text = do
-    sections <- split_sections text
+    sections <- fmap join_lines <$> split_sections text
     let extra = Set.toList $
             Map.keysSet sections `Set.difference` Set.fromList headers
     unless (null extra) $
@@ -462,6 +464,13 @@ p_definition = do
     spaces
     expr <- p_pipeline True
     return (assignee, expr)
+
+join_lines :: [(LineNumber, Text)] -> [(LineNumber, Text)]
+join_lines = mapMaybe merge . Seq.split_with (not . indented . snd)
+    where
+    indented t = not (Text.null t) && Char.isSpace (Text.index t 0)
+    merge [] = Nothing
+    merge ((num, s) : lines) = Just (num, mconcat $ s : map snd lines)
 
 split_sections :: Text -> Either Text (Map.Map Text [(LineNumber, Text)])
 split_sections =

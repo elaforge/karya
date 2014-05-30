@@ -215,3 +215,8 @@ test_split_sections = do
     equal (f "a:\n1\nb:\n2\na:\n3\n") $
         Right [("a", [(2, "1"), (6, "3")]), ("b", [(4, "2")])]
     left_like (f "1\na:\n2\n") "section without a header"
+
+test_join_lines = do
+    let f = Parse.join_lines
+    equal (f [(0, "a"), (1, " b"), (2, "c"), (3, "d")])
+        [(0, "a b"), (2, "c"), (3, "d")]
