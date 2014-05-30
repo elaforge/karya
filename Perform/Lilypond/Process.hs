@@ -725,7 +725,7 @@ parse_key key_name = do
     modes = Map.fromList
         [ ("min", "minor"), ("locrian", "locrian"), ("maj", "major")
         , ("dorian", "dorian"), ("phrygian", "phrygian"), ("lydian", "lydian")
-        , ("mixo", "mixolydian")
+        , ("mixolydian", "mixolydian")
         ]
 
 -- ** voice

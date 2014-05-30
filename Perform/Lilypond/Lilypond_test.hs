@@ -90,7 +90,8 @@ test_clefs = do
 test_key = do
     let f = LilypondTest.derive_measures ["key"]
     equal (f
-            [ (">s/1 | key = 'a-mixo'", [(0, 2, ""), (2, 2, "key = 'c-maj' |")])
+            [ (">s/1 | key = a-mixolydian",
+                [(0, 2, ""), (2, 2, "key = c-maj |")])
             , ("*", [(0, 0, "4c")])
             ])
         (Right "\\key a \\mixolydian c'2 \\key c \\major c'2", [])
