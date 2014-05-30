@@ -99,7 +99,8 @@ all_keys = ChromaticScales.make_keys fmt $
 church_keys :: [Theory.Key]
 church_keys = concat (zipWith make_keys modes intervals)
     where
-    modes = ["maj", "dorian", "phrygian", "lydian", "mixo", "min", "locrian"]
+    modes = ["maj", "dorian", "phrygian", "lydian", "mixolydian", "min",
+        "locrian"]
     intervals = [take 7 (drop n major) | n <- [0..6]]
     major = cycle $ Unboxed.toList (Theory.layout_intervals layout)
 

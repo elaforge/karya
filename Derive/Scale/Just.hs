@@ -5,6 +5,7 @@
 -- | A version of a just intonation diatonic scale that is tuned based on
 -- a pitch signal.
 module Derive.Scale.Just where
+import qualified Data.List as List
 import qualified Data.Map as Map
 import Data.Ratio ((%))
 import qualified Data.Vector as Vector
@@ -13,6 +14,7 @@ import Util.Control
 import qualified Derive.Scale as Scale
 import qualified Derive.Scale.ChromaticScales as ChromaticScales
 import qualified Derive.Scale.JustScales as JustScales
+import qualified Derive.Scale.Theory as Theory
 import qualified Derive.Scale.TheoryFormat as TheoryFormat
 
 import qualified Perform.Pitch as Pitch
@@ -54,9 +56,19 @@ keys :: Map.Map Pitch.Key JustScales.Key
 keys = JustScales.make_keys TheoryFormat.absolute_c_degrees key_ratios
 
 key_ratios :: [(Text, JustScales.Ratios)]
-key_ratios = map (second Vector.fromList)
-    [ ("maj", [1, 9%8, 5%4, 4%3, 3%2, 5%3, 15%8])
-    , ("min", [1, 9%8, 6%5, 4%3, 3%2, 8%5, 9%5])
-    , ("legong", [1, 10%9, 6%5, 4%3, 3%2, 25%16, 9%5])
-    , ("hemavathi", [1, 10%9, 6%5, (3%2) / (16%15), 3%2, 5%3, 9%5])
-    ]
+key_ratios =
+    [(name, Vector.fromList $ select (0:is) chromatic) |
+        (name, is) <- intervals]
+    where
+    intervals = map (second (take 7)) $ zip names $ List.tails $
+        cycle Theory.piano_intervals
+    chromatic = [1, 16%15, 9%8, 6%5, 5%4, 4%3, 7%5, 3%2, 8%5, 5%3, 9%5, 15%8]
+    -- The names are the same as in Twelve.
+    names = ["maj", "dorian", "phrygian", "lydian", "mixolydian", "min",
+        "locrian"]
+
+select :: [Int] -> [a] -> [a]
+select [] _ = []
+select (n:ns) xs = case drop n xs of
+    x : xs -> x : select ns (x:xs)
+    [] -> []

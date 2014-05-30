@@ -84,11 +84,8 @@ misc_patches = concat [library, mcgill, balalaika, sonic_couture, sc_bali, misc]
 
 library :: [MidiInst.Patch]
 library = MidiInst.with_empty_code
-    [ inst "choir" [ (1, "vowel") ]
+    [ patch "choir" [(1, "vowel")]
     ]
-    where
-    inst name controls = Instrument.patch $
-        Instrument.instrument name controls pb_range
 
 -- | From the McGill sample library.
 mcgill :: [MidiInst.Patch]
@@ -142,7 +139,7 @@ sonic_couture = concat $
 guzheng :: [MidiInst.Patch]
 guzheng = MidiInst.with_code code
     [ Instrument.instrument_#Instrument.maybe_decay #= Just 5 $
-        Instrument.attribute_map #= Instrument.simple_keyswitches guzheng_ks $
+        Instrument.attribute_map #= Instrument.simple_keyswitches ks $
         patch "guzheng" [(23, Controls.lpf), (24, Controls.q),
             (27, Controls.hpf)]
     ]
@@ -154,7 +151,7 @@ guzheng = MidiInst.with_code code
         $ \_ deriver -> do
             pitches <- mapM (Eval.eval_pitch 0) (map TrackLang.call0 strings)
             Derive.with_val "open-strings" pitches deriver
-    guzheng_ks =
+    ks =
         [ (Attrs.harm, Key2.as5)
         , (Attrs.left, Key2.b5) -- left hand, no pick
         , (mempty, Key2.c6) -- right hand, picked
