@@ -14,7 +14,7 @@
     Transposition control signal:
 
     - I can keep the pitches separate and clear and collapse the pitch
-    track.  This correctly reflects the underlying sargam, with the gamakam
+    track.  This correctly reflects the underlying swaram, with the gamakam
     as separate ornamentation.
 
     - Related to the above, each call doesn't need to repeat the the pitch arg,
@@ -92,21 +92,16 @@ control_calls = Derive.call_maps generators transformers
         [ ("h", c_hold)
         ]
 
-kampita_variations :: Text -> (Maybe Mode -> Maybe Mode -> call)
+kampita_variations :: Text
+    -> (Maybe Trill.Direction -> Maybe Trill.Direction -> call)
     -> [(TrackLang.CallId, call)]
 kampita_variations name call =
-    [ (TrackLang.Symbol $ mode_affix s <> name <> mode_affix e, call s e)
-    | s <- modes, e <- modes
+    [ (TrackLang.Symbol $ affix s <> name <> affix e, call s e)
+    | s <- dirs, e <- dirs
     ]
     where
-    modes = [Nothing, Just Low, Just High]
-
-mode_affix :: Maybe Mode -> Text
-mode_affix Nothing = ""
-mode_affix (Just High) = "^"
-mode_affix (Just Low) = "_"
-
-data Mode = High | Low deriving (Eq, Show)
+    affix = Trill.direction_affix
+    dirs = [Nothing, Just Trill.Low, Just Trill.High]
 
 c_hold :: Derive.Taggable d => Derive.Transformer d
 c_hold = Make.with_environ module_ "hold"
@@ -138,8 +133,9 @@ lilt_env = Sig.environ "lilt" Sig.Both 0 "Lilt is a horizontal bias to the\
 
 -- * pitch calls
 
-c_kampita :: Maybe Mode -> Maybe Mode -> Derive.Generator Derive.Pitch
-c_kampita start_mode end_mode = generator1 "kam" mempty
+c_kampita :: Maybe Trill.Direction -> Maybe Trill.Direction
+    -> Derive.Generator Derive.Pitch
+c_kampita start_dir end_dir = generator1 "kam" mempty
     "This is a kind of trill, but its interval defaults to NNs,\
     \ and transitions between the notes are smooth.  It's intended for\
     \ the vocal microtonal trills common in Carnatic music."
@@ -153,7 +149,7 @@ c_kampita start_mode end_mode = generator1 "kam" mempty
     <*> Trill.hold_env <*> lilt_env <*> Trill.adjust_env
     ) $ \(pitch, neighbor, speed, transition, hold, lilt, adjust) args -> do
         (neighbor, control) <- Util.to_transpose_function Util.Nn neighbor
-        transpose <- kampita start_mode end_mode adjust neighbor speed
+        transpose <- kampita start_dir end_dir adjust neighbor speed
             transition hold lilt args
         start <- Args.real_start args
         return $ PitchSignal.apply_control control
@@ -245,8 +241,9 @@ c_jaru_intervals transpose intervals = generator1 "jaru" mempty
 
 -- * control calls
 
-c_kampita_c :: Maybe Mode -> Maybe Mode -> Derive.Generator Derive.Control
-c_kampita_c start_mode end_mode = generator1 "kam" mempty
+c_kampita_c :: Maybe Trill.Direction -> Maybe Trill.Direction
+    -> Derive.Generator Derive.Control
+c_kampita_c start_dir end_dir = generator1 "kam" mempty
     "This is a trill with smooth transitions between the notes. It's intended\
     \ for the microtonal vocal trills common in Carnatic music. `^` is high\
     \ and `_` is low, so `^kam_` starts on the upper note, and ends on the\
@@ -259,18 +256,19 @@ c_kampita_c start_mode end_mode = generator1 "kam" mempty
     <*> Trill.hold_env <*> lilt_env <*> Trill.adjust_env
     ) $ \(neighbor, speed, transition, hold, lilt, adjust) args -> do
         neighbor <- Util.to_function neighbor
-        kampita start_mode end_mode adjust neighbor speed transition hold lilt
+        kampita start_dir end_dir adjust neighbor speed transition hold lilt
             args
 
 -- | You don't think there are too many arguments, do you?
-kampita :: Maybe Mode -> Maybe Mode -> Trill.Adjust -> Util.Function
-    -> TrackLang.ValControl -> RealTime -> TrackLang.DefaultReal
-    -> Double -> Derive.PassedArgs a -> Derive.Deriver Signal.Control
-kampita start_mode end_mode adjust neighbor speed transition
+kampita :: Maybe Trill.Direction -> Maybe Trill.Direction -> Trill.Adjust
+    -> Util.Function -> TrackLang.ValControl -> RealTime
+    -> TrackLang.DefaultReal -> Double -> Derive.PassedArgs a
+    -> Derive.Deriver Signal.Control
+kampita start_dir end_dir adjust neighbor speed transition
         (TrackLang.DefaultReal hold) lilt args = do
     start <- Args.real_start args
-    let ((val1, val2), even_transitions) = convert_modes start neighbor
-            start_mode end_mode
+    let ((val1, val2), even_transitions) = convert_directions start neighbor
+            start_dir end_dir
     hold <- Util.score_duration (Args.start args) hold
     smooth_trill (-transition) val1 val2
         =<< trill_transitions even_transitions adjust lilt hold speed
@@ -283,14 +281,14 @@ smooth_trill time val1 val2 transitions = do
     return $ SignalTransform.smooth id srate time $
         trill_from_transitions val1 val2 transitions
 
-convert_modes :: RealTime -> Util.Function -> Maybe Mode -> Maybe Mode
-    -> ((Util.Function, Util.Function), Maybe Bool)
-convert_modes start_t neighbor start end = (vals, even_transitions)
+convert_directions :: RealTime -> Util.Function -> Maybe Trill.Direction
+    -> Maybe Trill.Direction -> ((Util.Function, Util.Function), Maybe Bool)
+convert_directions start_t neighbor start end = (vals, even_transitions)
     where
     first = case start of
         Nothing -> Trill.Unison
-        Just Low -> if neighbor_low then Trill.Neighbor else Trill.Unison
-        Just High -> if neighbor_low then Trill.Unison else Trill.Neighbor
+        Just Trill.Low -> if neighbor_low then Trill.Neighbor else Trill.Unison
+        Just Trill.High -> if neighbor_low then Trill.Unison else Trill.Neighbor
     vals = case first of
         Trill.Unison -> (const 0, neighbor)
         Trill.Neighbor -> (neighbor, const 0)
@@ -302,12 +300,13 @@ convert_modes start_t neighbor start end = (vals, even_transitions)
         Trill.Neighbor -> neighbor_low
     even_transitions = case end of
         Nothing -> Nothing
-        Just Low -> Just (not first_low)
-        Just High -> Just first_low
+        Just Trill.Low -> Just (not first_low)
+        Just Trill.High -> Just first_low
     neighbor_low = neighbor start_t < 0
 
-c_nkampita_c :: Maybe Mode -> Maybe Mode -> Derive.Generator Derive.Control
-c_nkampita_c start_mode end_mode = generator1 "nkam" mempty
+c_nkampita_c :: Maybe Trill.Direction -> Maybe Trill.Direction
+    -> Derive.Generator Derive.Control
+c_nkampita_c start_dir end_dir = generator1 "nkam" mempty
     "`kam` with a set number of cycles. The speed adjusts to fit the cycles in\
     \ before the next event."
     $ Sig.call ((,,,,)
@@ -320,8 +319,8 @@ c_nkampita_c start_mode end_mode = generator1 "nkam" mempty
             transition) args -> do
         (start, end) <- Args.real_range_or_next args
         neighbor <- Util.to_function neighbor
-        let ((val1, val2), even_transitions) = convert_modes start neighbor
-                start_mode end_mode
+        let ((val1, val2), even_transitions) = convert_directions start
+                neighbor start_dir end_dir
         hold <- Util.score_duration (Args.start args) hold
         -- In order to hear the cycles clearly, I leave a one transition of
         -- flat space at the end.  This means nkam can't transition into the
