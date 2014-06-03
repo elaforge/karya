@@ -657,3 +657,9 @@ shift_control shift deriver = do
     where
     nudge delay = Map.map (fmap (Signal.shift delay))
     nudge_pitch = PitchSignal.shift
+
+-- * call
+
+set_module :: Module.Module -> Call f -> Call f
+set_module module_ call = call
+    { call_doc = (call_doc call) { cdoc_module = module_ } }

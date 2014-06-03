@@ -117,12 +117,12 @@ jaru_time_default :: RealTime
 jaru_time_default = 0.15
 
 speed_arg :: Sig.Parser TrackLang.ValControl
-speed_arg = defaulted "speed" (Sig.typed_control "trill-speed" 6 Score.Real)
+speed_arg = defaulted "speed" (Sig.typed_control "tr-speed" 6 Score.Real)
     "Alternate pitches at this speed."
 
 neighbor_arg :: Sig.Parser TrackLang.ValControl
 neighbor_arg = defaulted "neighbor"
-    (Sig.typed_control "trill-neighbor" 1 Score.Untyped)
+    (Sig.typed_control "tr-neighbor" 1 Score.Untyped)
     "Alternate between 0 and this value."
 
 lilt_env :: Sig.Parser Double
@@ -141,7 +141,7 @@ c_kampita start_dir end_dir = generator1 "kam" mempty
     \ the vocal microtonal trills common in Carnatic music."
     $ Sig.call ((,,,,,,)
     <$> required "pitch" "Base pitch."
-    <*> defaulted "neighbor" (Sig.typed_control "trill-neighbor" 1 Score.Nn)
+    <*> defaulted "neighbor" (Sig.typed_control "tr-neighbor" 1 Score.Nn)
         "Alternate with a pitch at this interval."
     <*> speed_arg
     <*> defaulted_env "transition" Sig.Both transition_default

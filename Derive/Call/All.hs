@@ -95,6 +95,7 @@ pitch_maps = mconcat
     , Random.pitch_calls
     , SignalTransform.pitch_calls
     , Trill.pitch_calls
+    , Zheng.pitch_calls
     ]
 
 val_map :: [Derive.LookupCall Derive.ValCall]

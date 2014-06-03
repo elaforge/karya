@@ -10,12 +10,17 @@ import qualified Util.Seq as Seq
 
 import qualified Derive.Args as Args
 import qualified Derive.Call.Idiom.String as String
+import qualified Derive.Call.India.Gamakam as Gamakam
+import qualified Derive.Call.Lily as Lily
 import qualified Derive.Call.Module as Module
 import qualified Derive.Call.Sub as Sub
+import qualified Derive.Call.Tags as Tags
+import qualified Derive.Call.Trill as Trill
 import qualified Derive.Call.Util as Util
 import qualified Derive.Derive as Derive
 import qualified Derive.PitchSignal as PitchSignal
 import qualified Derive.Pitches as Pitches
+import qualified Derive.Score as Score
 import qualified Derive.Sig as Sig
 import qualified Derive.TrackLang as TrackLang
 
@@ -24,17 +29,27 @@ import qualified Perform.Signal as Signal
 import Types
 
 
-note_calls :: Derive.CallMaps Derive.Note
-note_calls = Derive.call_maps
-    [ ("gliss-a", make_gliss "gliss-a" True)
-    , ("gliss", make_gliss "gliss" False)
-    ]
-    [ ("bent-string", String.c_bent_string)
-    ]
-
 module_ :: Module.Module
 module_ = "china" <> "zheng"
 
+note_calls :: Derive.CallMaps Derive.Note
+note_calls = Derive.call_maps
+    ([ ("gliss-a", make_gliss "gliss-a" True)
+    , ("gliss", make_gliss "gliss" False)
+    ] ++ trill_variations c_note_trill)
+    [ ("bent-string", Derive.set_module module_ $ String.c_bent_string)
+    ]
+
+pitch_calls :: Derive.CallMaps Derive.Pitch
+pitch_calls = Derive.generator_call_map $ trill_variations c_pitch_trill
+
+trill_variations :: (Maybe Trill.Direction -> call)
+    -> [(TrackLang.Symbol, call)]
+trill_variations make =
+    [ (TrackLang.Symbol $ "tr" <> Trill.direction_affix end, make end)
+    | end <- dirs
+    ]
+    where dirs = [Nothing, Just Trill.High, Just Trill.Low]
 
 -- * gliss
 
@@ -100,3 +115,49 @@ make_gliss name is_absolute = Derive.make_call module_ name mempty
             (if is_absolute then time else time * fromIntegral (length pitches))
             start_dyn dest_dyn end
             <> Util.placed_note args
+
+
+-- * trill
+
+c_note_trill :: Maybe Trill.Direction -> Derive.Generator Derive.Note
+c_note_trill start_dir = Derive.make_call module_ "tr" Tags.ly
+    "A trill with smooth transitions."
+    $ Sig.call ((,,) <$> neighbor_arg <*> speed_arg <*> Trill.hold_env
+    ) $ \(neighbor, speed, hold) -> Sub.inverting $ \args ->
+    Lily.note_code (Lily.SuffixFirst, "\\trill") args $ do
+        pitch <- Util.get_pitch =<< Args.real_start args
+        sig <- trill_signal start_dir pitch neighbor speed hold args
+        Derive.with_pitch Nothing sig $ Util.placed_note args
+
+c_pitch_trill :: Maybe Trill.Direction -> Derive.Generator Derive.Pitch
+c_pitch_trill start_dir = Derive.generator1 module_ "tr" mempty
+    "A trill with smooth transitions."
+    $ Sig.call ((,,,)
+    <$> Sig.required "pitch" "Base pitch."
+    <*> neighbor_arg <*> speed_arg <*> Trill.hold_env
+    ) $ \(pitch, neighbor, speed, hold) args ->
+        trill_signal start_dir pitch neighbor speed hold args
+
+trill_signal :: Maybe Trill.Direction -> PitchSignal.Pitch
+    -> TrackLang.ValControl -> TrackLang.ValControl -> TrackLang.DefaultReal
+    -> Derive.PassedArgs a -> Derive.Deriver PitchSignal.Signal
+trill_signal start_dir pitch neighbor speed hold args = do
+    (neighbor, control) <- Util.to_transpose_function Util.Nn neighbor
+    transpose <- Gamakam.kampita start_dir Nothing Trill.Shorten neighbor
+        speed transition hold lilt args
+    start <- Args.real_start args
+    return $ PitchSignal.apply_control control
+        (Score.untyped transpose) $ PitchSignal.signal [(start, pitch)]
+    where
+    transition :: RealTime
+    transition = 0.08
+    lilt = 0
+
+neighbor_arg :: Sig.Parser TrackLang.ValControl
+neighbor_arg = Sig.defaulted "neighbor"
+    (Sig.typed_control "tr-neighbor" 1 Score.Nn)
+    "Alternate with a pitch at this interval."
+
+speed_arg :: Sig.Parser TrackLang.ValControl
+speed_arg = Sig.defaulted "speed" (Sig.typed_control "tr-speed" 20 Score.Real)
+    "Alternate pitches at this speed."
