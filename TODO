@@ -5,6 +5,7 @@ LEGEND
 UNSORTED
   - hold support for trill and tremolo
     . also, would it be useful to add an acceleration?
+  * import should either warn about collisions, or import in order
   guzheng support:
     * port 'kam' trill to zheng
     * rename Idiom.String to China.Zheng

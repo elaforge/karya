@@ -14,5 +14,6 @@ test_import = do
     strings_like (snd (run "" [(">", [(0, 1, "X")])]))
         ["note generator not found"]
     equal (run "import bali.reyong" [(">", [(0, 1, "X")])]) ([0, 0, 0, 0], [])
-    strings_like (snd (run "import no-such-module" [(">", [(0, 1, "")])]))
-        ["no calls in the imported modules"]
+    strings_like
+        (snd (run "import europe no-such-module" [(">", [(0, 1, "")])]))
+        ["no calls in the imported module"]

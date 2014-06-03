@@ -5,7 +5,6 @@
 -- | The @import@ call, and support.
 module Derive.Call.Import where
 import qualified Data.List.NonEmpty as NonEmpty
-import qualified Data.Set as Set
 
 import Util.Control
 import qualified Derive.Call.Module as Module
@@ -19,7 +18,8 @@ calls = Derive.transformer_call_map [("import", c_import)]
 c_import :: Derive.Callable d => Derive.Transformer d
 c_import = Derive.transformer Module.prelude "import" mempty
     "Import the given modules into scope. Calls of all types (note, control,\
-    \ pitch, val) are imported."
-    $ Sig.callt (Sig.many1 "module" "Import these modules.") $ \modules _ ->
-        Derive.with_imported False $ Set.fromList $
+    \ pitch, val) are imported. If names clash, the ones from later modules\
+    \ win."
+    $ Sig.callt (Sig.many1 "module" "Import these modules.") $ \modules _ d ->
+        foldr (Derive.with_imported False) d $
             map Module.Module (NonEmpty.toList modules)

@@ -4,7 +4,6 @@
 
 module Perform.Lilypond.LilypondTest where
 import qualified Data.List as List
-import qualified Data.Set as Set
 import qualified Data.Text.Lazy as Text.Lazy
 
 import Util.Control
@@ -235,8 +234,8 @@ derive_blocks = derive_blocks_with_ui id id
 derive_blocks_with_ui :: (Derive.NoteDeriver -> Derive.NoteDeriver)
     -> (State.State -> State.State) -> [UiTest.BlockSpec] -> Derive.Result
 derive_blocks_with_ui with transform_ui blocks =
-    derive_lilypond state $ with $ Derive.with_imported True
-        (Set.fromList [Module.ly, Module.europe]) deriver
+    derive_lilypond state $ with $ Derive.with_imported True Module.europe $
+        Derive.with_imported True Module.ly deriver
     where
     deriver = Call.Block.eval_root_block global_transform bid
     global_transform = State.config#State.global_transform #$ state

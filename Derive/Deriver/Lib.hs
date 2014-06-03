@@ -11,7 +11,6 @@ module Derive.Deriver.Lib where
 import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
-import qualified Data.Set as Set
 
 import Util.Control
 import qualified Util.Log as Log
@@ -107,9 +106,9 @@ with_initial_scope env deriver = set_inst (set_scale deriver)
         _ -> id
 
 with_default_imported :: Deriver a -> Deriver a
-with_default_imported =
-    with_imported True (Set.fromList [Module.internal, Module.prelude])
-    . with_imported True (Set.fromList [Module.local])
+with_default_imported deriver =
+    foldr (with_imported True) deriver
+        [Module.internal, Module.prelude, Module.local]
     -- Calls from Module.local should shadow the others.
 
 
@@ -139,20 +138,20 @@ score_function = do
 
 -- ** import
 
--- | Merge calls from any of the given modules into scope.
-with_imported :: Bool -> Set.Set Module.Module -> Deriver a -> Deriver a
-with_imported empty_ok modules deriver = do
+-- | Merge calls from the given module into scope.
+with_imported :: Bool -> Module.Module -> Deriver a -> Deriver a
+with_imported empty_ok module_ deriver = do
     lib <- Internal.get_constant state_library
-    lib <- case extract_modules modules lib of
+    lib <- case extract_module module_ lib of
         Library (CallMaps [] []) (CallMaps [] []) (CallMaps [] []) []
             | not empty_ok -> -- Likely the module name was typoed.
-                throw $ "no calls in the imported modules: " <> pretty modules
+                throw $ "no calls in the imported module: " <> pretty module_
         extracted -> return extracted
     with_scopes (import_library lib) deriver
 
 -- | Filter out any calls that aren't in the given modules.
-extract_modules :: Set.Set Module.Module -> Library -> Library
-extract_modules modules (Library note control pitch val) =
+extract_module :: Module.Module -> Library -> Library
+extract_module module_ (Library note control pitch val) =
     Library (extract2 note) (extract2 control) (extract2 pitch)
         (extract vcall_doc val)
     where
@@ -166,7 +165,7 @@ extract_modules modules (Library note control pitch val) =
     has_module _ lookup@(LookupPattern _ (DocumentedCall _ doc) _)
         | wanted doc = Just lookup
         | otherwise = Nothing
-    wanted = (`Set.member` modules) . cdoc_module
+    wanted = (== module_) . cdoc_module
 
 import_library :: Library -> Scopes -> Scopes
 import_library (Library lib_note lib_control lib_pitch lib_val)
