@@ -431,7 +431,7 @@ data Keymap =
     -- NoteNumber.  So this transposes the event's pitch and clips it to the
     -- given range.
     | PitchedKeymap !Midi.Key !Midi.Key !Pitch.NoteNumber
-    deriving (Eq, Show)
+    deriving (Eq, Ord, Show)
 
 instance Pretty.Pretty Keymap where
     pretty (UnpitchedKeymap k) = pretty k

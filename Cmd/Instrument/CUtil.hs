@@ -11,6 +11,8 @@ import qualified Data.Map as Map
 
 import Util.Control
 import qualified Util.Log as Log
+import qualified Util.Seq as Seq
+
 import qualified Midi.Midi as Midi
 import qualified Ui.UiMsg as UiMsg
 import qualified Cmd.Cmd as Cmd
@@ -213,7 +215,10 @@ make_call_map =
     Map.fromList . map (\n -> (Drums.note_attrs n, Drums.note_name n))
 
 make_attribute_map :: PitchedNotes -> Instrument.AttributeMap
-make_attribute_map attr_map = Instrument.make_attribute_map
+make_attribute_map attr_map = Instrument.make_attribute_map $ Seq.unique
+    -- It's ok to have Notes with the same (attr, keyswitch), for instance if
+    -- there are loud and soft versions, but make_attribute_map will see them
+    -- as overlapping attrs, so filter out duplicates.
     [ (Drums.note_attrs note, maybe [] ((:[]) . Instrument.Keyswitch) ks,
         Just (Instrument.PitchedKeymap low high root))
     | (note, (ks, low, high, root)) <- attr_map

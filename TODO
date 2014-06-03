@@ -4,6 +4,7 @@ LEGEND
 
 UNSORTED
   guzheng support:
+    - bent-string emits "Error: missing pitches" on repeated notes
     - I want to make pitches after the first default to interpolated, like
       i>>.  I would have to wrap all the scale calls, but how can an
       instrument do that?  Make a LookupPattern that looks up the pitch call
@@ -108,6 +109,9 @@ UNSORTED
       . What about split control tracks?  I think it's too low level and
         awkward to use, since it requires a separate %t-whatever event
         squeezed in there somehow.
+    . Perhaps an env var could switch between start, middle, and end
+      alignment: s | neighbor | e | kam 2.  But since they don't know about
+      each other, they can't adjust properly.
     . Ideally, I could write something like:
         j) 1 2 ; _kam -1 ; lift
       . This would go on the note event, so no transpose tracks.
@@ -144,19 +148,37 @@ UNSORTED
 
     . Ornaments:
         start:
-          . Stort from pitch, possibly fade in.  Default to previous.
+          . Stort from pitch, possibly fade in.  Default to previous pitch.
+            > from, from<
+          . Attack, e.g. 0 -2 0.  Only at beginning of note.  Doesn't shorten,
+            though it might speed up a bit.  Diatonic.  Jaru.
+            > j) 0 -2, j] -1, sgr
         middle:
           . Avoid around: -1 1, end on low or high.  Shortens by dropping
             cycles.  When it's long, can have hold on the beginning.  Diatonic.
-          . Attack, e.g. 0 -2 0.  Only at beginning of note.  Doesn't shorten,
-            though it might speed up a bit.  Diatonic.  Jaru.
+            > avoid
           . Avoid below: -1 0 -1 0.  Always ends on 0.  Shortens by dropping
             cycles.  Has lilt, i.e. spends more time on -1, but if there's no
             time the ratio becomes even.  Fade on final approach to 0.
           . Avoid below: -1, then lift at end.
         end:
-          . lift, with fade or note.  Can either fade while sliding, or
+          . go to pitch, possibly fade out.  Can either fade while sliding, or
             fingered change then fade.
+            > to, to>
+        timed:
+          . Momentary dip: 0, -1, 0.  Possibly with dyn drop.
+      - all calls take interpolator as env arg
+      - each of the above are individual note calls
+      - but there is another note call that takes them as arguments and
+        sequences them, based on start/middle/end.
+        > ! j] -1 ; avoid ; to> (4g)
+        > ! from< ; ; to
+
+        I can merge 'from' and 'to' since I know from location.
+
+        But I need to either make them all parseable vals or implement
+        a "unparsed args" tag or something.  Should be able to pass them as
+        vals normally, but I might want a special token for separator, e.g. ;.
     - higher level ornaments that change based on how much time they have,
       also depend on the previous pitch.
     - A "default" ornament that applies whatever is appropriate for the raga

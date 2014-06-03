@@ -88,7 +88,8 @@ parse p = ParseText.parse_all (spaces >> p)
 -- it will extract a whole parenthesized expression instead of a token.
 lex1 :: Text -> (Text, Text)
 lex1 text = case parse ((,) <$> p_lex1 <*> A.takeWhile (const True)) text of
-    Right ((), rest) -> (Text.take (Text.length text - Text.length rest) text, rest)
+    Right ((), rest) ->
+        (Text.take (Text.length text - Text.length rest) text, rest)
     Left _ -> (text, "")
 
 -- | Like 'lex1', but get all of them.
