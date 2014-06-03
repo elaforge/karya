@@ -112,7 +112,7 @@ test_trill = do
 
     let run_neighbor suffix val = extract $ derive_tracks
             [ (">", [(0, 3, "")])
-            , ("trill-neighbor" ++ suffix, [(0, 0, val)])
+            , ("tr-neighbor" ++ suffix, [(0, 0, val)])
             , ("*", [(0, 0, "tr (4c) _ 1"), (3, 0, "--")])
             ]
     equal (run_neighbor "" "1") ([[(0, 60), (1, 62), (2, 60)]], [])
@@ -125,7 +125,7 @@ test_trill = do
     let run_speed suffix = extract $ derive_tracks
             [ ("tempo", [(0, 0, "2")])
             , (">", [(0, 3, "")])
-            , ("trill-speed" ++ suffix, [(0, 0, "2")])
+            , ("tr-speed" ++ suffix, [(0, 0, "2")])
             , ("*", [(0, 0, "tr (4c) 1"), (3, 0, "--")])
             ]
         trill xs = [zip xs (cycle [60, 62])]
@@ -134,22 +134,22 @@ test_trill = do
     equal (run_speed ":s") (trill [0, 0.5, 1], [])
     equal (run_speed ":t") (trill [0, 0.25, 0.5, 0.75, 1, 1.25], [])
     equal (run_speed ":d") ([[]],
-        ["Error: expected time type for %trill-speed,14s but got Diatonic"])
+        ["Error: expected time type for %tr-speed,14s but got Diatonic"])
 
 test_trill_start_end = do
     let run ex text = DeriveTest.extract ex $ derive_tracks
             [(">", [(0, 3, "")]), ("*", [(0, 0, text), (3, 0, "--")])]
         nns = map snd . DeriveTest.e_nns
     equal (run nns "tr (4c) 1 1") ([[60, 62, 60]], [])
-    equal (run nns "trill-start = high | tr (4c) 1 1") ([[62, 60, 62]], [])
+    equal (run nns "tr-start = high | tr (4c) 1 1") ([[62, 60, 62]], [])
     -- Default is ignored for high and low variants.
-    equal (run nns "trill-mode = low | tr^ (4c) 1 1") ([[62, 60, 62]], [])
-    equal (run nns "trill-mode = high | tr_ (4c) 1 1") ([[60, 62, 60]], [])
+    equal (run nns "tr-mode = low | tr^ (4c) 1 1") ([[62, 60, 62]], [])
+    equal (run nns "tr-mode = high | tr_ (4c) 1 1") ([[60, 62, 60]], [])
 
     -- Start, end, and adjust.
-    equal (run DeriveTest.e_nns "trill-adjust = shorten | tr^_ (4c) 1 1")
+    equal (run DeriveTest.e_nns "tr-adjust = shorten | tr^_ (4c) 1 1")
         ([[(0, 62), (1, 60)]], [])
-    equal (run DeriveTest.e_nns "trill-adjust = stretch | tr^_ (4c) 1 1")
+    equal (run DeriveTest.e_nns "tr-adjust = stretch | tr^_ (4c) 1 1")
         ([[(0, 62), (3, 60)]], [])
 
 test_trill_hold = do

@@ -86,14 +86,14 @@ note_calls = Derive.call_maps
 c_note_trill :: Maybe Direction -> Maybe Direction
     -> Derive.Generator Derive.Note
 c_note_trill hardcoded_start hardcoded_end =
-    Derive.make_call Module.prelude "trill" Tags.ly
+    Derive.make_call Module.prelude "tr" Tags.ly
     ("Generate a note with a trill.\
     \\nUnlike a trill on a pitch track, this generates events for each\
     \ note of the trill. This is more appropriate for fingered trills,\
     \ or monophonic instruments that use legato to play slurred notes."
     <> direction_doc hardcoded_start hardcoded_end
     ) $ Sig.call ((,,)
-    <$> defaulted "neighbor" (typed_control "trill-neighbor" 1 Score.Diatonic)
+    <$> defaulted "neighbor" (typed_control "tr-neighbor" 1 Score.Diatonic)
         "Alternate with a pitch at this interval."
     <*> trill_speed_arg <*> trill_env hardcoded_start hardcoded_end
     ) $ \(neighbor, speed, (start_dir, end_dir, hold, adjust)) ->
@@ -112,11 +112,11 @@ c_note_trill hardcoded_start hardcoded_end =
             Sub.place notes
 
 c_attr_trill :: Derive.Generator Derive.Note
-c_attr_trill = Derive.make_call Module.europe "attr-trill" Tags.attr
+c_attr_trill = Derive.make_call Module.europe "attr-tr" Tags.attr
     "Generate a trill by adding a `+trill` attribute. Presumably this is a\
     \ sampled instrument that has a trill keyswitch."
     $ Sig.call
-    (defaulted "neighbor" (typed_control "trill-neighbor" 1 Score.Chromatic)
+    (defaulted "neighbor" (typed_control "tr-neighbor" 1 Score.Chromatic)
         "Alternate with a pitch at this interval.  Only 1c and 2c are allowed."
     ) $ \neighbor args -> do
         (width, typ) <- Util.transpose_control_at Util.Chromatic neighbor
@@ -234,12 +234,12 @@ pitch_calls = Derive.generator_call_map $
 c_pitch_trill :: Maybe Direction -> Maybe Direction
     -> Derive.Generator Derive.Pitch
 c_pitch_trill hardcoded_start hardcoded_end =
-    Derive.generator1 Module.prelude "trill" mempty
+    Derive.generator1 Module.prelude "tr" mempty
     ("Generate a pitch signal of alternating pitches."
     <> direction_doc hardcoded_start hardcoded_end
     ) $ Sig.call ((,,,)
     <$> required "note" "Base pitch."
-    <*> defaulted "neighbor" (typed_control "trill-neighbor" 1 Score.Diatonic)
+    <*> defaulted "neighbor" (typed_control "tr-neighbor" 1 Score.Diatonic)
         "Alternate with a pitch at this interval."
     <*> trill_speed_arg <*> trill_env hardcoded_start hardcoded_end
     ) $ \(note, neighbor, speed, (start_dir, end_dir, hold, adjust)) args -> do
@@ -297,12 +297,12 @@ control_calls = Derive.generator_call_map $
 c_control_trill :: Maybe Direction -> Maybe Direction
     -> Derive.Generator Derive.Control
 c_control_trill hardcoded_start hardcoded_end =
-    Derive.generator1 Module.prelude "trill" mempty
+    Derive.generator1 Module.prelude "tr" mempty
     ("The control version of the pitch trill. It generates a signal of values\
     \ alternating with 0, which can be used as a transposition signal."
     <> direction_doc hardcoded_start hardcoded_end
     ) $ Sig.call ((,,)
-    <$> defaulted "neighbor" (control "trill-neighbor" 1)
+    <$> defaulted "neighbor" (control "tr-neighbor" 1)
         "Alternate with this value."
     <*> trill_speed_arg <*> trill_env hardcoded_start hardcoded_end
     ) $ \(neighbor, speed, (start_dir, end_dir, hold, adjust)) args ->
@@ -401,7 +401,7 @@ xcut_control hold val1 val2 =
 -- * util
 
 trill_speed_arg :: Sig.Parser TrackLang.ValControl
-trill_speed_arg = defaulted "speed" (typed_control "trill-speed" 14 Score.Real)
+trill_speed_arg = defaulted "speed" (typed_control "tr-speed" 14 Score.Real)
     "Trill at this speed. If it's a RealTime, the value is the number of\
     \ cycles per second, which will be unaffected by the tempo. If it's\
     \ a ScoreTime, the value is the number of cycles per ScoreTime\
@@ -432,18 +432,18 @@ trill_env start_dir end_dir =
     where
     start = case start_dir of
         Nothing -> fmap TrackLang.get_e <$>
-            Sig.environ "trill-start" Sig.Unprefixed Nothing
+            Sig.environ "tr-start" Sig.Unprefixed Nothing
                 "Which note the trill starts with. If not given, it will start\
-                \ the unison note, which means it may move up or down.."
+                \ the unison note, which means it may move up or down."
         Just dir -> Applicative.pure (Just dir)
     end = case end_dir of
         Nothing -> fmap TrackLang.get_e <$>
-            Sig.environ "trill-end" Sig.Unprefixed Nothing
+            Sig.environ "tr-end" Sig.Unprefixed Nothing
                 "Which note the trill ends with. If not given, it can end with\
                 \ either."
         Just dir -> Applicative.pure (Just dir)
 
--- Its default is both prefixed and unprefixed so you can put in a trill-hold
+-- Its default is both prefixed and unprefixed so you can put in a tr-hold
 -- globally, and so you can have a short @hold=n |@ for a single call.
 hold_env :: Sig.Parser TrackLang.DefaultReal
 hold_env = Sig.environ (TrackLang.unsym Environ.hold) Sig.Both
