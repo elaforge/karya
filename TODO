@@ -3,7 +3,13 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
+  - hold support for trill and tremolo
+    . also, would it be useful to add an acceleration?
   guzheng support:
+    - port 'kam' trill to zheng
+    * rename Idiom.String to China.Zheng
+      Or maybe leave it as is, but create a new module for zheng.
+    - should also get 'trem'
     - bent-string emits "Error: missing pitches" on repeated notes
     - I want to make pitches after the first default to interpolated, like
       i>>.  I would have to wrap all the scale calls, but how can an

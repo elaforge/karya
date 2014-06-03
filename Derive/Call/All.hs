@@ -11,6 +11,7 @@ import qualified Derive.Call.Bali.Kotekan as Kotekan
 import qualified Derive.Call.Bali.Reyong as Reyong
 import qualified Derive.Call.Bali.Sekar as Sekar
 import qualified Derive.Call.Block as Block
+import qualified Derive.Call.China.Zheng as Zheng
 import qualified Derive.Call.Control as Control
 import qualified Derive.Call.Echo as Echo
 import qualified Derive.Call.Equal as Equal
@@ -68,6 +69,7 @@ note_maps = mconcat
     , Sekar.note_calls
     , SignalTransform.note_calls
     , Trill.note_calls
+    , Zheng.note_calls
     ]
 
 control_maps :: Derive.CallMaps Derive.Control
