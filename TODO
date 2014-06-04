@@ -10,7 +10,7 @@ UNSORTED
     * port 'kam' trill to zheng
     * rename Idiom.String to China.Zheng
       Or maybe leave it as is, but create a new module for zheng.
-    - should also get 'trem'
+    * Should also get 'trem'.  Or put trem in the prelude.
     - bent-string emits "Error: missing pitches" on repeated notes
     - I want to make pitches after the first default to interpolated, like
       i>>.  I would have to wrap all the scale calls, but how can an

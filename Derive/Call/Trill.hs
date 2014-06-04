@@ -112,7 +112,7 @@ c_note_trill hardcoded_start hardcoded_end =
             Sub.place notes
 
 c_attr_trill :: Derive.Generator Derive.Note
-c_attr_trill = Derive.make_call Module.europe "attr-tr" Tags.attr
+c_attr_trill = Derive.make_call Module.prelude "attr-tr" Tags.attr
     "Generate a trill by adding a `+trill` attribute. Presumably this is a\
     \ sampled instrument that has a trill keyswitch."
     $ Sig.call
@@ -130,7 +130,7 @@ c_attr_trill = Derive.make_call Module.europe "attr-tr" Tags.attr
         Util.add_attrs (Attrs.trill <> width_attr) (Util.placed_note args)
 
 c_tremolo_generator :: Derive.Generator Derive.Note
-c_tremolo_generator = Derive.make_call Module.europe "trem" Tags.ly
+c_tremolo_generator = Derive.make_call Module.prelude "trem" Tags.ly
     "Repeat a single note." $ Sig.call Speed.arg $ \speed args -> do
         starts <- tremolo_starts speed (Args.range_or_next args)
         notes <- Sub.sub_events args
@@ -141,7 +141,7 @@ c_tremolo_generator = Derive.make_call Module.europe "trem" Tags.ly
     where code = (Lily.SuffixAll, ":32")
 
 c_tremolo_transformer :: Derive.Transformer Derive.Note
-c_tremolo_transformer = Derive.transformer Module.europe "trem" Tags.subs
+c_tremolo_transformer = Derive.transformer Module.prelude "trem" Tags.subs
     "Repeat the transformed note. The generator is creating the notes so it\
     \ can set them to the appropriate duration, but this one has to stretch\
     \ them to fit." $ Sig.callt Speed.arg $ \speed args deriver -> do
