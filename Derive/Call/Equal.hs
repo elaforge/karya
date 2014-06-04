@@ -2,7 +2,6 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
-{-# LANGUAGE ViewPatterns #-}
 -- | Export 'c_equal' call, which implements @=@.
 --
 -- The equal call is heavily overloaded because I want to reuse the nice infix
@@ -59,12 +58,11 @@ c_equal = Derive.transformer Module.prelude "equal" Tags.subs
 
 c_equal_generator :: Derive.Generator Derive.Note
 c_equal_generator = Derive.make_call Module.prelude "equal" Tags.subs
-    ("Similar to the transformer, this will evaluate the notes below in"
-        <> " a transformed environ.")
+    "Similar to the transformer, this will evaluate the notes below in\
+    \ a transformed environ."
     (Sig.parsed_manually equal_arg_doc generate)
     where
-    generate args =
-        Sub.place . map (Sub.map_event (equal_transformer args))
+    generate args = Sub.place . map (Sub.map_event (equal_transformer args))
         . concat =<< Sub.sub_events args
 
 equal_arg_doc :: Text
@@ -90,24 +88,31 @@ equal_doc =
     \ call: `>abc = \"(a b c)` will create a `abc` call, which is a macro for\
     \ `a b c`. The created call does not take arguments (yet!).\
     \\nSet constant signals by assigning to a signal literal: `%c = .5` or\
-    \ pitch: `#p = (4c)`.  `# = (4c)` sets the default pitch signal."
+    \ pitch: `#p = (4c)`.  `# = (4c)` sets the default pitch signal.\
+    \ You can rename a signal via `%a = %b` or `#x = #y`. Control signal\
+    \ assignment also supports the same merge operators as the control track:\
+    \ `%a = add .5` or `%a = add %b`.  However, the second example throws an\
+    \ error if `%b` is a ControlFunction. `%a = _ .5` will combine with `a`'s\
+    \ default merge operator."
     -- Previously > was for binding note calls, but that was takes by
     -- instrument aliasing.  ^ at least looks like a rotated >.
 
 equal_transformer :: Derive.PassedArgs d -> Derive.Deriver a -> Derive.Deriver a
-equal_transformer args deriver = case Derive.passed_vals args of
-    -- The first arg should be a symbol because that's how the parser parses
-    -- it.
-    [TrackLang.VSymbol lhs, val] ->
-        case parse_equal lhs val of
-            Left err -> Derive.throw_arg_error err
-            Right transform -> transform deriver
-    args -> Derive.throw_arg_error $ "unexpected arg types: "
-        <> Seq.join ", " (map (pretty . TrackLang.type_of) args)
+equal_transformer args deriver =
+    either Derive.throw_arg_error ($deriver) $ case Derive.passed_vals args of
+        -- The first arg is definitely a symbol because that's how the parser
+        -- parses it.
+        [TrackLang.VSymbol lhs, val] -> parse_equal Nothing lhs val
+        [TrackLang.VSymbol lhs, TrackLang.VSymbol merge, val] ->
+            parse_equal (Just (Merge merge)) lhs val
+        [TrackLang.VSymbol lhs, TrackLang.VNotGiven, val] ->
+            parse_equal (Just Default) lhs val
+        args -> Left $ "unexpected arg types: "
+            <> Seq.join ", " (map (pretty . TrackLang.type_of) args)
 
-parse_equal :: TrackLang.Symbol -> TrackLang.Val
+parse_equal :: Maybe Merge -> TrackLang.Symbol -> TrackLang.Val
     -> Either String (Derive.Deriver a -> Derive.Deriver a)
-parse_equal (TrackLang.Symbol lhs) rhs
+parse_equal Nothing (TrackLang.Symbol lhs) rhs
     | Just new <- Text.stripPrefix "^" lhs = Right $
         override_call new rhs "note"
             (Derive.s_generator#Derive.s_note)
@@ -121,40 +126,64 @@ parse_equal (TrackLang.Symbol lhs) rhs
             (Derive.s_generator#Derive.s_control)
             (Derive.s_transformer#Derive.s_control)
     | Just new <- Text.stripPrefix "-" lhs = Right $ override_val_call new rhs
-parse_equal (TrackLang.Symbol lhs) rhs
+parse_equal Nothing (TrackLang.Symbol lhs) rhs
     | Just new <- Text.stripPrefix ">" lhs = case rhs of
         TrackLang.VInstrument inst -> Right $
             Derive.with_instrument_alias (Score.Instrument new) inst
         _ -> Left $ "aliasing an instrument expected an instrument rhs, got "
             <> pretty (TrackLang.type_of rhs)
-parse_equal (parse_val -> Just lhs) val
-    | Just control <- is_control lhs = case val of
-        TrackLang.VControl val -> Right $ \deriver ->
-            Util.to_signal_or_function val >>= \x -> case x of
-                Left sig -> Derive.with_control control sig deriver
-                Right f -> Derive.with_control_function control f deriver
-        TrackLang.VNum val ->
-            Right $ Derive.with_control control (fmap Signal.constant val)
-        TrackLang.VControlFunction f ->
-            Right $ Derive.with_control_function control f
+parse_equal maybe_merge lhs rhs
+    | Just control <- is_control =<< parse_val lhs = case rhs of
+        TrackLang.VControl rhs -> Right $ \deriver ->
+            Util.to_signal_or_function rhs >>= \x -> case x of
+                Left sig -> do
+                    merge <- get_merge control maybe_merge
+                    Derive.with_merged_control merge control sig deriver
+                Right f -> case maybe_merge of
+                    Just merge -> Derive.throw_arg_error $ merge_error merge
+                    Nothing -> Derive.with_control_function control f deriver
+        TrackLang.VNum rhs -> Right $ \deriver -> do
+            merge <- get_merge control maybe_merge
+            Derive.with_merged_control merge control (fmap Signal.constant rhs)
+                deriver
+        TrackLang.VControlFunction f -> case maybe_merge of
+            Just merge -> Left $ merge_error merge
+            Nothing -> Right $ Derive.with_control_function control f
         _ -> Left $ "binding a control expected a control, num, or control\
-            \ function, but got " <> pretty (TrackLang.type_of val)
-    | Just control <- is_pitch lhs = case val of
-        TrackLang.VPitch val ->
-            Right $ Derive.with_pitch control (PitchSignal.constant val)
-        TrackLang.VPitchControl val -> Right $ \deriver -> do
-            sig <- Util.to_pitch_signal val
-            Derive.with_pitch control sig deriver
-        _ -> Left $ "binding a pitch signal expected a pitch or pitch"
-            <> " control, but got " <> pretty (TrackLang.type_of val)
+            \ function, but got " <> pretty (TrackLang.type_of rhs)
     where
     is_control (TrackLang.VControl (TrackLang.LiteralControl c)) = Just c
     is_control _ = Nothing
+parse_equal Nothing lhs rhs
+    | Just control <- is_pitch =<< parse_val lhs = case rhs of
+        TrackLang.VPitch rhs ->
+            Right $ Derive.with_pitch control (PitchSignal.constant rhs)
+        TrackLang.VPitchControl rhs -> Right $ \deriver -> do
+            sig <- Util.to_pitch_signal rhs
+            Derive.with_pitch control sig deriver
+        _ -> Left $ "binding a pitch signal expected a pitch or pitch"
+            <> " control, but got " <> pretty (TrackLang.type_of rhs)
+    where
     is_pitch (TrackLang.VPitchControl (TrackLang.LiteralControl c))
         | c == Controls.null = Just Nothing
         | otherwise = Just (Just c)
     is_pitch _ = Nothing
-parse_equal lhs val = Right $ Derive.with_val lhs val
+parse_equal (Just merge) _ _ = Left $ merge_error merge
+parse_equal Nothing lhs val = Right $ Derive.with_val lhs val
+
+merge_error :: Merge -> String
+merge_error merge = "operator is only supported when assigning to a control: "
+    <> case merge of
+        Default -> "_"
+        Merge sym -> pretty sym
+
+data Merge = Default | Merge TrackLang.CallId deriving (Show)
+
+get_merge :: Score.Control -> Maybe Merge -> Derive.Deriver Derive.Merge
+get_merge control maybe_merge = case maybe_merge of
+    Nothing -> return Derive.Set
+    Just Default -> Derive.get_default_merge control
+    Just (Merge op) -> Derive.get_merge op
 
 parse_val :: TrackLang.Symbol -> Maybe TrackLang.Val
 parse_val = either (const Nothing) Just . Parse.parse_val . TrackLang.unsym

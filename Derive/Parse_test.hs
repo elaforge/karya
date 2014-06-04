@@ -152,7 +152,7 @@ test_parse_num = do
     left_like (f "`0x`000") "parse error"
 
 test_p_equal = do
-    let eq a b = Right (Call (Symbol "=") [Literal a, b])
+    let eq a b = Right (Call "=" [Literal a, b])
         num = Literal . VNum . Score.untyped
     let f = ParseText.parse_all Parse.p_equal
     equal (f "a = b") (eq (symbol "a") (Literal (symbol "b")))
@@ -163,6 +163,8 @@ test_p_equal = do
     equal (f "a] = 1") (eq (symbol "a]") (num 1))
     equal (f "a) = 1") (eq (symbol "a)") (num 1))
     equal (f ">a = 1") (eq (symbol ">a") (num 1))
+    equal (f "a = b c") $
+        Right $ Call "=" $ map (Literal . symbol) ["a", "b", "c"]
 
     left_like (f "a = ()") "parse error on char 6"
     left_like (f "a=") "not enough input"

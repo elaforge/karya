@@ -19,7 +19,7 @@ UNSORTED
       . Another approach would be to apply slew control globally.
   - error msg: pitch: [key unparseable by given scale: karaharapriya]
     Firstly, what's up with the []s?  Secondly, should say what scale?
-  - %c = 1 can set a control, but what if I want to combine, e.g. *= .5?
+  * %c = 1 can set a control, but what if I want to combine, e.g. *= .5?
     Where can I squeeze in a merge operator?  %c = mul .5?
   . equal syntax has lots of useless stuff, e.g.
     `^a = x y z` is an error, `^a = (x y z)` is useless unless `x` returns

@@ -36,6 +36,13 @@ test_equal = do
     equal (run ">i" [(0, 1, ""), (1, 1, "inst = _ |")])
         ([(0, "i"), (1, "")], [])
 
+test_equal_modify = do
+    let run evts = DeriveTest.extract (DeriveTest.e_control "c") $
+            DeriveTest.derive_tracks "" [(">", evts)]
+    strings_like (snd $ run [(0, 1, "c = add .5 |")])
+        ["operator is only supported when"]
+    equal (run [(0, 1, "%c = .5 | %c = add .5 |")]) ([[(0, 1)]], [])
+
 test_equal_inst = do
     let run title track = DeriveTest.extract DeriveTest.e_inst $
             DeriveTest.derive_tracks title [(track, [(0, 1, "")])]

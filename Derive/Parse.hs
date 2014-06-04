@@ -176,15 +176,13 @@ p_pipe = void $ lexeme (A.char '|')
 
 p_equal :: A.Parser TrackLang.Call
 p_equal = do
-    (assignee, val) <- do
-        assignee <- p_call_symbol True
-        spaces
-        A.char '='
-        spaces
-        val <- p_term
-        return (assignee, val)
-    return $ TrackLang.Call TrackLang.c_equal
-        [TrackLang.Literal (TrackLang.VSymbol assignee), val]
+    assignee <- p_call_symbol True
+    spaces
+    A.char '='
+    spaces
+    vals <- A.many1 p_term
+    return $ TrackLang.Call TrackLang.c_equal $
+        TrackLang.Literal (TrackLang.VSymbol assignee) : vals
 
 p_call :: Bool -> A.Parser TrackLang.Call
 p_call toplevel =
