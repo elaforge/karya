@@ -176,7 +176,7 @@ data Type = TNum NumType NumValue
 
 data NumType = TUntyped | TTranspose | TDefaultDiatonic | TDefaultChromatic
     | TTime | TDefaultReal | TDefaultScore | TRealTime | TScoreTime
-    | TInt
+    | TNoteNumber | TInt
     deriving (Eq, Ord, Show)
 
 data NumValue = TAny | TNatural | TPositive deriving (Eq, Ord, Show)
@@ -217,6 +217,7 @@ instance Pretty.Pretty NumType where
         TDefaultScore -> "time, default score"
         TRealTime -> "realtime"
         TScoreTime -> "scoretime"
+        TNoteNumber -> "nn"
 
 instance Pretty.Pretty NumValue where
     pretty t = case t of
@@ -339,6 +340,14 @@ instance Typecheck DefaultDiatonic where
     to_val (DefaultDiatonic a) = to_val a
     to_type = num_to_type
 
+instance Typecheck Pitch.NoteNumber where
+    from_val (VNum (Score.Typed typ val))
+        | typ == Score.Untyped || typ == Score.Nn = Just $ Pitch.nn val
+        | otherwise = Nothing
+    from_val _ = Nothing
+    to_val = to_val . Pitch.nn_to_double
+    to_type = num_to_type
+
 instance Typecheck ScoreTime where
     from_val (VNum (Score.Typed typ val)) = case typ of
         Score.Untyped -> Just (ScoreTime.double val)
@@ -400,6 +409,7 @@ instance TypecheckNum Double where num_type _ = TUntyped
 instance TypecheckNum Int where num_type _ = TInt
 instance TypecheckNum Pitch.Transpose where num_type _ = TTranspose
 instance TypecheckNum DefaultDiatonic where num_type _ = TDefaultDiatonic
+instance TypecheckNum Pitch.NoteNumber where num_type _ = TNoteNumber
 instance TypecheckNum ScoreTime where num_type _ = TScoreTime
 instance TypecheckNum RealTime where num_type _ = TRealTime
 instance TypecheckNum Duration where num_type _ = TTime

@@ -211,15 +211,18 @@ newtype NoteNumber = NoteNumber Double
         Serialize.Serialize)
 
 instance Show NoteNumber where
-    show (NoteNumber nn) = Pretty.show_float0 3 nn ++ "nn"
+    show (NoteNumber nn) = Pretty.show_float0 3 nn <> "nn"
 instance Read NoteNumber where
     readPrec = do
         n <- Read.readPrec
         Read.lift $ ReadP.skipSpaces >> ReadP.string "nn"
         return (NoteNumber n)
 
-instance Pretty.Pretty NoteNumber where
-    pretty = show
+instance ShowVal.ShowVal NoteNumber where
+    show_val (NoteNumber nn) = ShowVal.show_val nn <> "nn"
+    -- The suffix should be the same as BaseTypes.type_to_code Nn
+
+instance Pretty.Pretty NoteNumber where pretty = show
 
 nn :: (Real a) => a -> NoteNumber
 nn = NoteNumber . realToFrac
