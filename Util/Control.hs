@@ -2,8 +2,7 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
-{- | Control flow and monadic utilities.
--}
+-- | Control flow and monadic utilities, meant to be imported unqualified.
 module Util.Control (
     Proxy(..)
     , (<$>), (<*>), (<*), (*>), (<|>)
@@ -25,7 +24,7 @@ module Util.Control (
     -- * state
     , (<#>)
     , module Control.Monad
-    , lift, liftIO
+    , module Control.Monad.Trans
     -- * nonempty
     , module Data.List.NonEmpty
     -- * text
@@ -35,6 +34,9 @@ module Util.Control (
 import Control.Applicative ((<$>), (<*>), (<*), (*>), (<|>))
 import qualified Control.Exception as Exception
 import Control.Monad
+       ((<=<), (>=>), ap, filterM, foldM, forM, forM_, forever, guard, join,
+        liftM, mplus, msum, mzero, replicateM, replicateM_, when, unless, void,
+        zipWithM, zipWithM_)
 import qualified Control.Monad.Trans as Trans
 import Control.Monad.Trans (lift, liftIO)
 
