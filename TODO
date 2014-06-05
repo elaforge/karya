@@ -265,7 +265,7 @@ MILESTONES
     + integration
     + just scales, and other ratio-oriented scales that use letters and
       accidentals
-    - complete Idiom.Wind, experiment with the Idiom postprocs
+    * complete Idiom.Wind, experiment with the Idiom postprocs
     + bring back negative duration / arrival beats
     * scales and keyswitches
     / efficient thru

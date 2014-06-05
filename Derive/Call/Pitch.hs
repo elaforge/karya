@@ -59,7 +59,8 @@ c_set = generator1 "set" mempty "Emit a pitch with no interpolation." $
     -- This could take a transpose too, but then set has to be in
     -- 'require_previous', it gets shadowed for "" because of scales that use
     -- numbers, and it's not clearly useful.
-    Sig.call (required "pitch" "Destination pitch.") $ \pitch args -> do
+    Sig.call (required "pitch" "Destination pitch or nn.") $ \pitch_ args -> do
+        let pitch = either Pitches.nn_pitch id pitch_
         pos <- Args.real_start args
         return $ PitchSignal.signal [(pos, pitch)]
 

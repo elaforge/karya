@@ -31,6 +31,7 @@
     the efficiency difference seems compelling.
 -}
 module Derive.Call.Post where
+import Prelude hiding (mapM)
 import qualified Data.List as List
 import qualified Data.Monoid as Monoid
 
@@ -50,6 +51,16 @@ import Types
 
 
 -- * map events
+
+-- Plain map is 'map . fmap'.
+
+mapM :: Monad m => (a -> m b) -> [LEvent.LEvent a] -> m [LEvent.LEvent b]
+mapM _ [] = return []
+mapM f (LEvent.Event e : es) = do
+    e <- LEvent.Event `liftM` f e
+    es <- mapM f es
+    return (e : es)
+mapM f (LEvent.Log e : es) = (LEvent.Log e :) `liftM` mapM f es
 
 map_events :: (state -> event -> (state, [Score.Event])) -> state
     -> [LEvent.LEvent event] -> (state, [Derive.Events])

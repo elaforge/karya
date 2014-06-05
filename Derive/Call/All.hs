@@ -18,6 +18,7 @@ import qualified Derive.Call.Equal as Equal
 import qualified Derive.Call.Europe.Chord as Chord
 import qualified Derive.Call.Europe.Grace as Grace
 import qualified Derive.Call.Idiom.String as String
+import qualified Derive.Call.Idiom.Wind as Wind
 import qualified Derive.Call.Import as Import
 import qualified Derive.Call.India.Gamakam as Gamakam
 import qualified Derive.Call.Integrate as Integrate
@@ -69,6 +70,7 @@ note_maps = mconcat
     , Sekar.note_calls
     , SignalTransform.note_calls
     , Trill.note_calls
+    , Wind.note_calls
     , Zheng.note_calls
     ]
 
