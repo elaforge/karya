@@ -52,6 +52,7 @@ import qualified Control.Exception as Exception
 import qualified Data.Algorithm.Diff as Diff
 import qualified Data.IORef as IORef
 import qualified Data.List as List
+import Data.Monoid ((<>))
 
 import qualified System.CPUTime as CPUTime
 import qualified System.Directory as Directory
@@ -93,8 +94,18 @@ equal = equal_srcpos Nothing
 
 equal_srcpos :: (Show a, Eq a) => SrcPos.SrcPos -> a -> a -> IO Bool
 equal_srcpos srcpos a b
-    | a == b = success_srcpos srcpos $ "== " ++ ellipse (show a)
-    | otherwise = failure_srcpos srcpos msg
+    | a == b = success_srcpos srcpos $ pretty True
+    | otherwise = failure_srcpos srcpos $ pretty False
+    where pretty = pretty_compare "==" "/=" a b
+
+-- | Show the values nicely, whether they are equal or not.
+pretty_compare :: Show a => String -> String -> a -> a -> Bool -> String
+pretty_compare equal inequal a b is_equal
+    | is_equal = equal <> " " <> ellipse (show a)
+    | Seq.count '\n' pa >= 5 = diff_values pa pb
+    | '\n' `elem` pa || '\n' `elem` pb || length pa + length pb >= 60 =
+        "\n" <> pa <> "\n\t" <> inequal <> "\n" <> pb
+    | otherwise = pa <> " " <> inequal <> " " <> pb
     where
     maxlen = 200
     ellipse s
@@ -103,11 +114,6 @@ equal_srcpos srcpos a b
         where len = length s
     pa = Seq.strip $ PPrint.pshow a
     pb = Seq.strip $ PPrint.pshow b
-    msg
-        | Seq.count '\n' pa >= 5 = diff_values pa pb
-        | '\n' `elem` pa || '\n' `elem` pb || length pa + length pb >= 60 =
-            "\n" ++ pa ++ "\n\t/=\n" ++ pb
-        | otherwise = pa ++ " /= " ++ pb
 
 diff_values :: String -> String -> String
 diff_values pa pb =
@@ -158,8 +164,9 @@ equalf = equalf_srcpos Nothing
 equalf_srcpos :: (Show a, ApproxEq.ApproxEq a) => SrcPos.SrcPos -> Double
     -> a -> a -> IO Bool
 equalf_srcpos srcpos eta a b
-    | ApproxEq.approx_eq eta a b = success_srcpos srcpos $ "~~ " ++ show a
-    | otherwise = failure_srcpos srcpos $ show a ++ " !~ " ++ show b
+    | ApproxEq.approx_eq eta a b = success_srcpos srcpos $ pretty True
+    | otherwise = failure_srcpos srcpos $ pretty False
+    where pretty = pretty_compare "~~" "/~" a b
 
 -- * other assertions
 
