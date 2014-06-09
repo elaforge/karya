@@ -21,6 +21,8 @@ import qualified Ui.State as State
 import qualified Ui.TrackTree as TrackTree
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Info as Info
+import qualified Cmd.Save as Save
+
 import qualified Derive.Call.Bali.Kotekan as Kotekan
 import qualified Derive.Environ as Environ
 import qualified Derive.ParseTitle as ParseTitle
@@ -108,6 +110,12 @@ create :: Instrument -> Instrument -> Text -> [Midi.Channel] -> Cmd.CmdL ()
 create alias inst wdev chans = do
     alloc alias wdev chans
     add_alias alias inst
+
+save :: FilePath -> Cmd.CmdL ()
+save = Save.save_midi_config
+
+load :: FilePath -> Cmd.CmdL ()
+load = Save.load_midi_config
 
 -- | Create an instrument with no channel allocation.  This is used for
 -- instruments which are expected to be converted into other instruments during
@@ -231,8 +239,8 @@ merge config = State.modify $ State.config # State.midi %= (config<>)
 -- For example, typing a new instrument in a track title should only complain
 -- if there is no allocation, but not necessarily deallocate the replaced
 -- instrument or send midi init.
-load :: Instrument -> Cmd.CmdL ()
-load inst_ = do
+set :: Instrument -> Cmd.CmdL ()
+set inst_ = do
     let inst = instrument inst_
     block_id <- Cmd.get_focused_block
     tracknum <- Cmd.abort_unless =<< Cmd.get_insert_tracknum

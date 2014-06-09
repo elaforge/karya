@@ -202,10 +202,10 @@ quote s
     | otherwise = s
 
 -- | Send the chosen instrument to the sequencer.  This will send
--- @load_instrument \"synth/inst\"@ to the REPL port.
+-- @set_instrument \"synth/inst\"@ to the REPL port.
 choose_instrument :: Score.Instrument -> IO ()
 choose_instrument inst = do
-    let cmd = "load_instrument " ++ show (Score.inst_name inst)
+    let cmd = "set_instrument " ++ show (Score.inst_name inst)
     putStrLn $ "send: " ++ cmd
     response <- (untxt <$> SendCmd.send cmd)
         `Exception.catch` \(exc :: Exception.SomeException) ->

@@ -237,6 +237,23 @@ make_git_path ns state = case Cmd.state_save_file state of
 default_git :: FilePath
 default_git = "save.git"
 
+-- * config
+
+save_midi_config :: FilePath -> Cmd.CmdT IO ()
+save_midi_config fname = do
+    config <- State.get_config id
+    Log.notice $ "write midi config to " ++ show fname
+    liftIO $ Serialize.serialize_pretty_text fname
+        (State.config_midi config, State.config_aliases config)
+
+load_midi_config :: FilePath -> Cmd.CmdT IO ()
+load_midi_config fname = do
+    Log.notice $ "load midi config from " ++ show fname
+    (config, aliases) <- Cmd.require_right
+        (("unserializing midi config " ++ show fname ++ ": ") ++)
+        =<< liftIO (Serialize.unserialize_text fname)
+    State.modify_config $ (State.midi #= config) . (State.aliases #= aliases)
+
 -- * misc
 
 -- | Git repos don't checkpoint views, but because I'm accustomed to them
@@ -311,18 +328,3 @@ set_state save_file clear_history state = do
         Just root -> Seq.head . Map.keys <$> State.views_of root
     let focused = msum [root, Seq.head (Map.keys (State.state_views state))]
     whenJust focused ViewConfig.bring_to_front
-
-cmd_save_midi_config :: FilePath -> Cmd.CmdT IO ()
-cmd_save_midi_config fname = do
-    config <- State.get_config id
-    Log.notice $ "write midi config to " ++ show fname
-    liftIO $ Serialize.serialize_pretty_text fname
-        (State.config_midi config)
-
-cmd_load_midi_config :: FilePath -> Cmd.CmdT IO ()
-cmd_load_midi_config fname = do
-    Log.notice $ "load midi config from " ++ show fname
-    config <- Cmd.require_right
-        (("unserializing midi config " ++ show fname ++ ": ") ++)
-        =<< liftIO (Serialize.unserialize_text fname)
-    State.set_midi_config config

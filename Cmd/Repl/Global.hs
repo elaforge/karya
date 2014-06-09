@@ -298,5 +298,5 @@ expand tracknum = flip expand_track tracknum =<< Cmd.get_focused_block
 -- Modify global keymap
 
 -- | Called from the browser.
-load_instrument :: Text -> Cmd.CmdL ()
-load_instrument = LInst.load
+set_instrument :: Text -> Cmd.CmdL ()
+set_instrument = LInst.set
