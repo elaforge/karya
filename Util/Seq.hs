@@ -4,10 +4,10 @@
 
 module Util.Seq where
 import Prelude hiding (head, tail, last)
-import Control.Applicative ((<$>))
 import qualified Control.Arrow as Arrow
 import qualified Data.Char as Char
 import Data.Function
+import Data.Functor ((<$>))
 import qualified Data.List as List
 import Data.List.NonEmpty (NonEmpty(..))
 import qualified Data.List.Ordered as Ordered
@@ -61,7 +61,7 @@ range_end start end step = go 0
         where val = start + (i*step)
 
 -- | Infinite range.
-range_ :: (Num a) => a -> a -> [a]
+range_ :: Num a => a -> a -> [a]
 range_ start step = go 0
     where go i = start + (i*step) : go (i+1)
 
@@ -197,27 +197,27 @@ move from to xs = do
 
 -- * min / max
 
-min_on :: (Ord k) => (a -> k) -> a -> a -> a
+min_on :: Ord k => (a -> k) -> a -> a -> a
 min_on key x y = if key x <= key y then x else y
 
-max_on :: (Ord k) => (a -> k) -> a -> a -> a
+max_on :: Ord k => (a -> k) -> a -> a -> a
 max_on key x y = if key x >= key y then x else y
 
-minimum_on :: (Ord ord) => (a -> ord) -> [a] -> Maybe a
+minimum_on :: Ord k => (a -> k) -> [a] -> Maybe a
 minimum_on _ [] = Nothing
 minimum_on key xs = Just (List.foldl1' f xs)
     where f low x = if key x < key low then x else low
 
-maximum_on :: (Ord ord) => (a -> ord) -> [a] -> Maybe a
+maximum_on :: Ord k => (a -> k) -> [a] -> Maybe a
 maximum_on _ [] = Nothing
 maximum_on key xs = Just (List.foldl1' f xs)
     where f high x = if key x > key high then x else high
 
-minimum :: (Ord a) => [a] -> Maybe a
+minimum :: Ord a => [a] -> Maybe a
 minimum [] = Nothing
 minimum xs = Just (List.minimum xs)
 
-maximum :: (Ord a) => [a] -> Maybe a
+maximum :: Ord a => [a] -> Maybe a
 maximum [] = Nothing
 maximum xs = Just (List.maximum xs)
 
@@ -380,11 +380,11 @@ indexed_pairs eq xs ys = zip (indexed pairs) pairs
         f i (First _) = i
         f i _ = i+1
 
-indexed_pairs_on :: (Eq eq) => (a -> eq) -> [a] -> [a] -> [(Int, Paired a a)]
+indexed_pairs_on :: Eq k => (a -> k) -> [a] -> [a] -> [(Int, Paired a a)]
 indexed_pairs_on key = indexed_pairs (\a b -> key a == key b)
 
 -- | Pair up two lists of sorted pairs by their first element.
-pair_sorted :: (Ord k) => [(k, a)] -> [(k, b)] -> [(k, Paired a b)]
+pair_sorted :: Ord k => [(k, a)] -> [(k, b)] -> [(k, Paired a b)]
 pair_sorted xs [] = [(k, First v) | (k, v) <- xs]
 pair_sorted [] ys = [(k, Second v) | (k, v) <- ys]
 pair_sorted x@((k0, v0) : xs) y@((k1, v1) : ys)
@@ -393,17 +393,17 @@ pair_sorted x@((k0, v0) : xs) y@((k1, v1) : ys)
     | otherwise = (k1, Second v1) : pair_sorted x ys
 
 -- | Like 'pair_sorted', but use a key function, and omit the extracted key.
-pair_sorted_on :: (Ord k) => (a -> k) -> [a] -> [a] -> [Paired a a]
+pair_sorted_on :: Ord k => (a -> k) -> [a] -> [a] -> [Paired a a]
 pair_sorted_on key xs ys =
     map snd $ pair_sorted (key_on key xs) (key_on key ys)
 
 -- | Sort the lists on with the key functions, then pair them up.
-pair_on :: (Ord k) => (a -> k) -> (b -> k) -> [a] -> [b] -> [Paired a b]
+pair_on :: Ord k => (a -> k) -> (b -> k) -> [a] -> [b] -> [Paired a b]
 pair_on k1 k2 xs ys = map snd $
     pair_sorted (sort_on fst (key_on k1 xs)) (sort_on fst (key_on k2 ys))
 
 -- | Like 'pair_on', but when the lists have the same type.
-pair_on1 :: (Ord k) => (a -> k) -> [a] -> [a] -> [Paired a a]
+pair_on1 :: Ord k => (a -> k) -> [a] -> [a] -> [Paired a a]
 pair_on1 k = pair_on k k
 
 -- | Left if the val was in the left list but not the right, Right for the
@@ -478,7 +478,7 @@ tail (_:xs) = Just xs
 
 -- | Drop adjacent elts if they are equal after applying the key function.
 -- The first elt is kept.
-drop_dups :: (Eq k) => (a -> k) -> [a] -> [a]
+drop_dups :: Eq k => (a -> k) -> [a] -> [a]
 drop_dups _ [] = []
 drop_dups key (x:xs) = x : map snd (filter (not . equal) (zip (x:xs) xs))
     where equal (x, y) = key x == key y
@@ -495,7 +495,7 @@ drop_with f (x:y:xs)
     | otherwise = x : drop_with f (y:xs)
 
 -- | Like 'drop_dups', but return the dropped values.
-partition_dups :: (Ord k) => (a -> k) -> [a] -> ([a], [(a, [a])])
+partition_dups :: Ord k => (a -> k) -> [a] -> ([a], [(a, [a])])
     -- ^ ([unique], [(used_for_unique, [dups])])
 partition_dups key xs = partition_either $ concatMap extract (group_on key xs)
     where
@@ -505,7 +505,7 @@ partition_dups key xs = partition_either $ concatMap extract (group_on key xs)
 
 -- | Like 'drop_dups', but keep the last adjacent equal elt instead of the
 -- first.
-drop_initial_dups :: (Eq k) => (a -> k) -> [a] -> [a]
+drop_initial_dups :: Eq k => (a -> k) -> [a] -> [a]
 drop_initial_dups _ [] = []
 drop_initial_dups _ [x] = [x]
 drop_initial_dups key (x:xs@(next:_))
@@ -561,7 +561,7 @@ strip = rstrip . lstrip
 
 -- | If the list doesn't have the given prefix, return the original list and
 -- False.  Otherwise, strip it off and return True.
-drop_prefix :: (Eq a) => [a] -> [a] -> ([a], Bool)
+drop_prefix :: Eq a => [a] -> [a] -> ([a], Bool)
 drop_prefix pref list = go pref list
     where
     go [] xs = (xs, True)
@@ -570,7 +570,7 @@ drop_prefix pref list = go pref list
         | p == x = go ps xs
         | otherwise = (list, False)
 
-drop_suffix :: (Eq a) => [a] -> [a] -> ([a], Bool)
+drop_suffix :: Eq a => [a] -> [a] -> ([a], Bool)
 drop_suffix suffix list
     | post == suffix = (pre, True)
     | otherwise = (list, False)
@@ -631,7 +631,7 @@ split_with f xs = map reverse (go f xs [])
         | otherwise = go f xs (x:collect)
 
 -- | Split 'xs' on 'sep', dropping 'sep' from the result.
-split :: (Eq a) => NonNull a -> [a] -> NonNull [a]
+split :: Eq a => NonNull a -> [a] -> NonNull [a]
 split [] _ = error "Util.Seq.split: empty separator"
 split sep xs = go sep xs
     where
@@ -641,19 +641,19 @@ split sep xs = go sep xs
         where (pre, post) = break_tails (sep `List.isPrefixOf`) xs
 
 -- | Like 'split', but it returns [] if the input was null.
-split_null :: (Eq a) => NonNull a -> [a] -> [[a]]
+split_null :: Eq a => NonNull a -> [a] -> [[a]]
 split_null _ [] = []
 split_null sep xs = split sep xs
 
 -- | 'split' never returns null, so sometimes it's more convenient to express
 -- that in the type.
-split_t :: (Eq a) => NonNull a -> [a] -> ([a], [[a]])
+split_t :: Eq a => NonNull a -> [a] -> ([a], [[a]])
 split_t sep xs = case split sep xs of
     (g:gs) -> (g, gs)
     _ -> error "split_t: unreached"
 
 -- | Like 'split', but only split once.
-split1 :: (Eq a) => NonNull a -> [a] -> ([a], [a])
+split1 :: Eq a => NonNull a -> [a] -> ([a], [a])
 split1 [] _ = error "Util.Seq.split1: empty seperator"
 split1 sep xs = (pre, drop (length sep) post)
     where (pre, post) = break_tails (sep `List.isPrefixOf`) xs
@@ -689,7 +689,7 @@ break_between _ xs = (xs, [])
 -- * replace
 
 -- | Replace sublist @from@ with @to@ in the given list.
-replace :: (Eq a) => [a] -> [a] -> [a] -> [a]
+replace :: Eq a => [a] -> [a] -> [a] -> [a]
 replace from to = go
     where
     len = length from
@@ -699,20 +699,20 @@ replace from to = go
         | otherwise = x : go xs
 
 -- | Replace occurrances of an element with zero or more other elements.
-replace1 :: (Eq a) => a -> [a] -> [a] -> [a]
+replace1 :: Eq a => a -> [a] -> [a] -> [a]
 replace1 from to = concatMap (\v -> if v == from then to else [v])
 
 
 -- * search
 
-count :: (Eq a) => a -> [a] -> Int
+count :: Eq a => a -> [a] -> Int
 count x = List.foldl' (\n c -> if c == x then n + 1 else n) 0
 
 
 -- * monadic
 
 -- | Like 'List.mapAccumL', but monadic.
-mapAccumLM :: (Monad m) => (state -> x -> m (state, y)) -> state -> [x]
+mapAccumLM :: Monad m => (state -> x -> m (state, y)) -> state -> [x]
     -> m (state, [y])
 mapAccumLM f state xs = go state xs
     where
