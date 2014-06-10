@@ -253,7 +253,7 @@ libraryDependencies = concat $
     -- really basic deps
     [ [("base", ">=4.6"), ("containers", ">=0.5")]
     , w "directory filepath process bytestring time unix array pretty"
-    , w "ghc-prim"
+    , w "ghc-prim old-locale"
     --  basic
     , w "transformers mtl deepseq data-ordlist cereal text stm network"
     , w "vector either utf8-string semigroups"

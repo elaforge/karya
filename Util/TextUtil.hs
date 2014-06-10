@@ -4,6 +4,9 @@
 
 module Util.TextUtil where
 import Control.Arrow (first)
+import Control.Monad
+import qualified Control.Monad.Identity as Identity
+
 import qualified Data.Char as Char
 import qualified Data.List as List
 import qualified Data.Maybe as Maybe
@@ -47,14 +50,23 @@ formatColumns padding rows = map format_row rows
 -- quote a delimiter with a backslash.
 mapDelimited :: Bool -> Char -> (Text -> Text) -> Text -> Text
 mapDelimited withSpaces delimiter f =
-    mconcat . concatMap apply . extractDelimited withSpaces delimiter
+    Identity.runIdentity . mapDelimitedM withSpaces delimiter (return . f)
+
+mapDelimitedM :: Monad m => Bool -> Char -> (Text -> m Text) -> Text -> m Text
+mapDelimitedM withSpaces delimiter f =
+    liftM (mconcat . mconcat) . mapM apply
+        . extractDelimited withSpaces delimiter
     where
-    apply (text, Just word) = [text, f word]
-    apply (text, Nothing) = [text]
+    apply (text, Just word) = do
+        replace <- f word
+        return [text, replace]
+    apply (text, Nothing) = return [text]
 
 -- | This is more awkward than a parser, but... ok, maybe I should have used
 -- a parser.
-extractDelimited :: Bool -> Char -> Text -> [(Text, Maybe Text)]
+extractDelimited :: Bool -- ^ If false, a delimiter doesn't count if the text
+    -- after it has a space.
+    -> Char -> Text -> [(Text, Maybe Text)]
 extractDelimited withSpaces delimiter = go
     where
     go text

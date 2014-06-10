@@ -13,15 +13,18 @@
 module Cmd.Save where
 import Prelude hiding (read)
 import qualified Data.Map as Map
+import qualified Data.Time as Time
 import qualified System.Directory as Directory
 import qualified System.FilePath as FilePath
 import System.FilePath ((</>))
+import qualified System.Locale as Locale
 
 import Util.Control
 import qualified Util.Git as Git
 import qualified Util.Log as Log
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
+import qualified Util.TextUtil as TextUtil
 
 import qualified Ui.Id as Id
 import qualified Ui.State as State
@@ -35,6 +38,20 @@ import qualified App.Config as Config
 
 
 -- * universal
+
+-- | Expand `-delimited macros to make a filepath.
+expand_filename :: FilePath -> IO FilePath
+expand_filename = fmap untxt . TextUtil.mapDelimitedM False '`' expand . txt
+    where
+    expand text
+        | text == "y-m-d" = date
+        | otherwise = return $ "`" <> text <> "`"
+
+date :: IO Text
+date = do
+    tz <- Time.getCurrentTimeZone
+    today <- Time.utcToLocalTime tz <$> Time.getCurrentTime
+    return $ txt $ Time.formatTime Locale.defaultTimeLocale "%y-%m-%d" today
 
 -- | Save to the current 'Cmd.state_save_file', or create a new git repo if
 -- there is none.
