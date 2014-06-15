@@ -53,6 +53,7 @@ control_calls = Derive.generator_call_map
     , ("d", c_down)
     , ("u", c_up)
     , ("sd", c_set_drop)
+    , ("si>", c_set_linear_next)
     , ("si", c_set_linear)
 
     -- not sure which one I'll like better
@@ -317,8 +318,20 @@ c_set_drop = generator1 "sd" mempty
         return $ ControlUtil.interpolator srate id True x1 val end dest
 
 c_set_linear :: Derive.Generator Derive.Control
-c_set_linear = generator1 "si" mempty "A combination of `set` and `i>`: set to\
-    \ one value and interpolate to another."
+c_set_linear = generator1 "si" mempty "A combination of `set` and `i`."
+    $ Sig.call ((,)
+    <$> required "to" "Interpolate to this value."
+    <*> required "set" "Set to this value."
+    ) $ \(to, set) args -> do
+        dur <- default_prev args Nothing
+        start <- Args.real_start args
+        segment <- ControlUtil.interpolate id args to dur
+        return $ segment <> Signal.signal [(start, set)]
+
+c_set_linear_next :: Derive.Generator Derive.Control
+c_set_linear_next = generator1 "si-next" mempty
+    "A combination of `set` and `i>`: set to one value and interpolate to\
+    \ another."
     $ Sig.call ((,,)
     <$> defaulted "start" 1 "Start at this value."
     <*> defaulted "end" 0 "Interpolate to this value."
