@@ -20,9 +20,9 @@ import Types
 -- * constructors
 
 -- | Create a ruler with a meter of the given duration.
-meter_ruler :: Meter.Duration -> [Meter.AbstractMeter] -> Ruler.Ruler
-meter_ruler dur meters =
-    Ruler.meter_ruler $ Meter.meter_marklist (Meter.fit_meter dur meters)
+meter_ruler :: Int -> Meter.Duration -> [Meter.AbstractMeter] -> Ruler.Ruler
+meter_ruler start_at dur meters = Ruler.meter_ruler $
+    Meter.meter_marklist start_at (Meter.fit_meter dur meters)
 
 -- | Replace or add a marklist with the given name.
 set_marklist :: (State.M m) => RulerId -> Ruler.Name -> Ruler.Marklist -> m ()
@@ -47,24 +47,28 @@ local_meter block_id f = local_block block_id (Meter.modify_meter f)
 -- | Modify a meter destructively.
 modify_meter :: (State.M m, Meter.Meterlike meter) =>
     BlockId -> (meter -> meter) -> m ()
-modify_meter block_id f = do
-    ruler_id <- State.ruler_of block_id
-    if ruler_id == State.no_ruler
-        then local_meter block_id f
-        else State.modify_ruler ruler_id (Meter.modify_meter f)
+modify_meter block_id = modify_block block_id . Meter.modify_meter
 
-get_meter :: (State.M m) => RulerId -> m Meter.Meter
+get_meter :: State.M m => RulerId -> m Meter.Meter
 get_meter = fmap Meter.ruler_meter . State.get_ruler
 
 -- * local modify
 
-local_block :: (State.M m) => BlockId -> (Ruler.Ruler -> Ruler.Ruler) -> m ()
-local_block block_id f = mapM_ (\ruler_id -> local block_id ruler_id f)
-    =<< State.rulers_of block_id
+local_block :: State.M m => BlockId -> (Ruler.Ruler -> Ruler.Ruler) -> m ()
+local_block block_id modify =
+    mapM_ (\ruler_id -> local block_id ruler_id modify)
+        =<< State.rulers_of block_id
+
+modify_block :: State.M m => BlockId -> (Ruler.Ruler -> Ruler.Ruler) -> m ()
+modify_block block_id modify = do
+    ruler_id <- State.ruler_of block_id
+    if ruler_id == State.no_ruler
+        then local_block block_id modify
+        else State.modify_ruler ruler_id modify
 
 -- | Modify the given RulerId, making a new one if it's already in use on
 -- a block other than the give one.
-local :: (State.M m) => BlockId -> RulerId
+local :: State.M m => BlockId -> RulerId
     -> (Ruler.Ruler -> Ruler.Ruler) -> m RulerId
 local block_id ruler_id f = do
     blocks <- State.blocks_with_ruler_id ruler_id

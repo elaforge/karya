@@ -430,6 +430,8 @@ set_root_id :: (M m) => BlockId -> m ()
 set_root_id block_id =
     modify_config $ \st -> st { config_root = Just block_id }
 
+-- | Unlike other State fields, you can modify Config freely without worrying
+-- about breaking invariants.
 modify_config :: (M m) => (Config -> Config) -> m ()
 modify_config f = unsafe_modify $ \st ->
     st { state_config = f (state_config st) }

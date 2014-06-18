@@ -40,7 +40,8 @@ load_mod fn = do
             (Load.Mod.map_block (Load.Mod.add_default_volume 1 38)) blocks
     Load.Mod.create (Id.namespace $ txt $ head $ Seq.split "." fn)
         (Load.Mod.convert_blocks 0.25 blocks2)
-    State.set_midi_config $ make_midi_config "loop1" [("pianoteq/c1", [0..8])]
+    State.modify_config $
+        State.midi #= make_midi_config "loop1" [("pianoteq/c1", [0..8])]
     return Cmd.Done
 
 load_midi :: FilePath -> Cmd.CmdIO
@@ -52,7 +53,7 @@ load_midi fn = do
 empty_block :: Cmd.M m => m Cmd.Status
 empty_block = do
     rid <- Create.ruler "m44-4"
-        (RulerUtil.meter_ruler 16 (replicate 4 Meters.m44_4))
+        (RulerUtil.meter_ruler 1 16 (replicate 4 Meters.m44_4))
     bid <- Create.block rid
     Create.track bid 1 "" mempty
     State.set_track_width bid 1 40

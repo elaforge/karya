@@ -18,11 +18,11 @@
     - Give the current block the standard 4/4 meter.  Since m44 is 4 measures
     of 4/4, stretching by 16 gives each whole note 1t.
 
-        > LRuler.modify =<< LRuler.fit_to_pos 16 Meter.m44
+        > LRuler.local_ruler $ LRuler.measures 1 Meters.m44 4 4 1
 
     - Or put the selection at the where the 4 meters should end and run
 
-        > LRuler.modify =<< LRuler.fit_to_selection Meter.m44
+        > LRuler.local_ruler =<< LRuler.fit_to_selection Meter.m44 1
 
     - Make the last measure 5/4 by selecting a quarter note and running
       @LRuler.append@.
@@ -134,10 +134,19 @@ set_ruler_id ruler_id block_id = do
     old <- State.block_ruler block_id
     State.replace_ruler_id block_id old ruler_id
 
+-- | Set the ruler on the focused block, without modifying any other blocks.
 local_ruler :: Cmd.M m => Ruler.Ruler -> m ()
 local_ruler ruler = do
     block_id <- Cmd.get_focused_block
     RulerUtil.local_block block_id (const ruler)
+    -- TODO rederive?
+
+-- | Modify the ruler on the focused block.  Other blocks with the same ruler
+-- will also be modified.
+modify_ruler :: Cmd.M m => Ruler.Ruler -> m ()
+modify_ruler ruler = do
+    block_id <- Cmd.get_focused_block
+    RulerUtil.modify_block block_id (const ruler)
 
 -- | Replace all occurrences of one RulerId with another.
 replace_ruler_id :: State.M m => RulerId -> RulerId -> m ()
@@ -201,34 +210,37 @@ strip_ranks max_rank = do
     return (block_id, Meter.strip_ranks (Meter.name_to_rank max_rank))
 
 -- | Set the ruler to a number of measures of the given meter, where each
--- measure is the given amount of time.
-measures :: Cmd.M m => TrackTime -- ^ duration of one measure
+-- measure is the given amount of time.  For example:
+--
+-- > local_ruler $ measures 1 Meters.m44 4 4 1
+-- > modify_ruler $ measures 1 Meters.m34 4 8 0
+measures :: TrackTime -- ^ duration of one measure
     -> Meter.AbstractMeter -> Int -- ^ measures per section
     -> Int -- ^ sections
-    -> m Modify
-measures dur meter measures sections =
-    fit_to_pos (dur * fromIntegral (measures * sections)) $
-        replicate sections (Meter.repeat measures meter)
+    -> Int -- ^ first measure number, e.g. 0 for a pickup
+    -> Ruler.Ruler
+measures dur meter measures sections first_measure_number =
+    fit_ruler (dur * fromIntegral (measures * sections))
+        (replicate sections (Meter.repeat measures meter))
+        first_measure_number
 
--- | Replace the meter on this block, fitted to the end of the last event on
--- the block.
-fit_to_end :: Cmd.M m => [Meter.AbstractMeter] -> BlockId -> m Modify
-fit_to_end meter block_id = do
+-- | Create a meter ruler fitted to the end of the last event on the block.
+fit_to_end :: State.M m => [Meter.AbstractMeter] -> Int -> BlockId
+    -> m Ruler.Ruler
+fit_to_end meter first_measure_number block_id = do
     end <- State.block_event_end block_id
-    fit_to_pos end meter
+    return $ fit_ruler end meter first_measure_number
 
-fit_to_selection :: Cmd.M m => [Meter.AbstractMeter] -> m Modify
-fit_to_selection meter = do
+fit_to_selection :: Cmd.M m => [Meter.AbstractMeter] -> Int -> m Ruler.Ruler
+fit_to_selection meter first_measure_number = do
     (_, _, _, pos) <- Selection.get_insert
-    fit_to_pos pos meter
+    return $ fit_ruler pos meter first_measure_number
 
-fit_to_pos :: Cmd.M m => ScoreTime -> [Meter.AbstractMeter] -> m Modify
-fit_to_pos pos meters = do
-    when (pos <= 0) $
-        Cmd.throw "can't set ruler for block with 0 duration"
-    block_id <- Cmd.get_focused_block
-    return (block_id,
-        const $ Meter.fit_meter (Meter.time_to_duration pos) meters)
+-- | Make a ruler fit in the given duration.
+fit_ruler :: ScoreTime -> [Meter.AbstractMeter] -> Int -> Ruler.Ruler
+fit_ruler dur meters first_measure_number = Ruler.meter_ruler $
+    Meter.meter_marklist first_measure_number $
+    Meter.fit_meter (Meter.time_to_duration dur) meters
 
 -- | Replace the meter with the concatenation of the rulers of the given
 -- blocks.  This is like 'extract' except it doesn't infer the blocks from the

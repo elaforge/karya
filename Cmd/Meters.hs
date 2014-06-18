@@ -10,6 +10,7 @@ module Cmd.Meters where
 import qualified Cmd.Meter as Meter
 import Cmd.Meter (AbstractMeter(..), regular_subdivision)
 
+t0 = Meter.label_meter 0 $ Meter.make_meter 1 [m44]
 
 -- half/measure, quarter/half, eighth/quarter, ...
 -- These use 1s to help keep the timestep mnemonics in sync with staff notation

@@ -52,7 +52,7 @@ create name ui_blocks = do
     State.set_namespace name
     let mkid = Id.id name
     rid <- Create.ruler "meter44" $
-        RulerUtil.meter_ruler 16 (replicate 4 Meters.m44_4)
+        RulerUtil.meter_ruler 1 16 (replicate 4 Meters.m44_4)
     block_ids <- zipWithM (create_block mkid rid "") [0..] ui_blocks
     root <- create_order_block mkid block_ids
     State.set_root_id root
@@ -84,7 +84,7 @@ create_order_block mkid block_ids = do
 
 order_meter :: [BlockRows] -> Ruler.Marklist
 order_meter =
-    Meter.meter_marklist . Meter.make_meter 1 . (:[]) . Meter.D . map mkd
+    Meter.meter_marklist 1 . Meter.make_meter 1 . (:[]) . Meter.D . map mkd
     where mkd dur = Meter.D (replicate dur Meter.T)
 
 make_block :: (State.M m) => (Text -> Id.Id) -> RulerId -> Text

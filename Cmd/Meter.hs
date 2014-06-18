@@ -37,33 +37,34 @@ import Types
 
 -- * meter marklist
 
--- | If a meter's labels are just number counts, they can be generated from
--- a 'Meter'.  However, if they have a more complicated structure, as with
--- "Cmd.Tala", I can't actually generate new meter without knowing the rules.
--- That means generic modification is not possible, unless it's just deleting
--- things (and even then it may be wrong if it should have renumbered).
---
--- I considered some schemes for a mid-level representation, but eventually
--- decided that they were all too complicated, and if you want to modify
--- a complicated ruler, you should just recreate it from scratch, presumably
--- using whatever mid-level representation was appropriate for the function
--- that created it in the first place.
---
--- Except that deletion can still be implemented generically, and 'clip' is
--- still very useful.  So modification works on a Meterlike, and the delete
--- functions can work directly on a LabaledMeter, while the rest work on
--- a Meter.  This means they will renumber and thus mess up fancy meters like
--- talas.
---
--- An alternate approach, perhaps suitable for colotomic patterns, would be
--- a separate Marklist, but I'd run into the same modification problems.  I'll
--- probably have to come up with a better solution once I have more experience
--- with what operations I'll want to perform.
+{- | If a meter's labels are just number counts, they can be generated from
+    a 'Meter'.  However, if they have a more complicated structure, as with
+    "Cmd.Tala", I can't actually generate new meter without knowing the rules.
+    That means generic modification is not possible, unless it's just deleting
+    things (and even then it may be wrong if it should have renumbered).
+
+    I considered some schemes for a mid-level representation, but eventually
+    decided that they were all too complicated, and if you want to modify
+    a complicated ruler, you should just recreate it from scratch, presumably
+    using whatever mid-level representation was appropriate for the function
+    that created it in the first place.
+
+    Except that deletion can still be implemented generically, and 'clip' is
+    still very useful.  So modification works on a Meterlike, and the delete
+    functions can work directly on a LabaledMeter, while the rest work on
+    a Meter.  This means they will renumber and thus mess up fancy meters like
+    talas.
+
+    An alternate approach, perhaps suitable for colotomic patterns, would be
+    a separate Marklist, but I'd run into the same modification problems.  I'll
+    probably have to come up with a better solution once I have more experience
+    with what operations I'll want to perform.
+-}
 class Meterlike a where
     modify_meterlike :: (a -> a) -> Ruler.Marklist -> Ruler.Marklist
 
 instance Meterlike Meter where
-    modify_meterlike f = meter_marklist . f . marklist_meter
+    modify_meterlike f = meter_marklist 1 . f . marklist_meter
 
 instance Meterlike LabeledMeter where
     modify_meterlike f = labeled_marklist . f . marklist_labeled
@@ -93,7 +94,7 @@ time_to_duration = id
 meter_durations :: LabeledMeter -> [Duration]
 meter_durations = scanl (+) 0 . map m_duration
 
-modify_meter :: (Meterlike m) => (m -> m) -> Ruler.Ruler -> Ruler.Ruler
+modify_meter :: Meterlike m => (m -> m) -> Ruler.Ruler -> Ruler.Ruler
 modify_meter f = Ruler.modify_marklist Ruler.meter (modify_meterlike f)
 
 ruler_meter :: Ruler.Ruler -> Meter
@@ -270,20 +271,22 @@ fit_meter dur meters = make_meter stretch meters
 -- ** marklist conversion
 
 -- | Convert a Meter into a Marklist using the default labels.
-meter_marklist :: Meter -> Ruler.Marklist
-meter_marklist = labeled_marklist . label_meter
+meter_marklist :: Int -> Meter -> Ruler.Marklist
+meter_marklist start_at = labeled_marklist . label_meter start_at
 
 marklist_meter :: Ruler.Marklist -> Meter
 marklist_meter =
     map (\(LabeledMark rank dur _) -> (rank, dur)) . marklist_labeled
 
-label_meter :: Meter -> LabeledMeter
-label_meter meter =
+label_meter :: Int -- ^ Start at this measure number.  Mostly useful for 0 for
+    -- a pickup.
+    -> Meter -> LabeledMeter
+label_meter start_at meter =
     [LabeledMark rank dur label
         | (rank, dur, label) <- List.zip3 ranks ps labels]
     where
     (ranks, ps) = unzip meter
-    labels = text_labels 1 count1_labels $
+    labels = text_labels 1 (count1_labels start_at) $
         collapse_ranks unlabeled_ranks ranks
 
 -- | Create a Marklist from a labeled Meter.
@@ -331,11 +334,13 @@ count0 = map showt [0..]
 count1 :: [Label]
 count1 = drop 1 count0
 
+-- | Sections start counting from 0.
 count0_labels :: [[Label]]
 count0_labels = List.repeat count0
 
-count1_labels :: [[Label]]
-count1_labels = List.repeat count1
+-- | Sections start counting from 1.
+count1_labels :: Int -> [[Label]]
+count1_labels start_at = drop start_at count0 : List.repeat count1
 
 -- | The rank duration is the duration until the next mark of equal or greater
 -- (lower) rank.
@@ -363,7 +368,9 @@ data Labeled =
     -- | The mark gets a number
     | Count deriving (Show)
 
-text_labels :: Int -> [[Label]] -> [Ruler.Rank] -> [Label]
+text_labels :: Int -- ^ Labels have at least this many sections.  Otherwise,
+    -- \"trailing zeroes\" (actually 1 for 'count1_labels') are omitted.
+    -> [[Label]] -> [Ruler.Rank] -> [Label]
 text_labels min_depth labels ranks =
     map (Text.intercalate ".") $ strip $ map (map replace) $
         apply_labels labels ranks

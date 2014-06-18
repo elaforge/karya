@@ -17,13 +17,13 @@ import Types
 
 test_make_meter = do
     let meter = Meter.make_meter 1 [Meter.regular_subdivision [4, 4]]
-    equal meter (Meter.marklist_meter (Meter.meter_marklist meter))
+    equal meter (Meter.marklist_meter (Meter.meter_marklist 1 meter))
 
-    let marks = Ruler.ascending 0 (Meter.meter_marklist meter)
+    let marks = Ruler.ascending 0 (Meter.meter_marklist 1 meter)
     equal (map fst marks) (Seq.range 0 16 1)
 
 test_meter_marklist = do
-    let f = extract_marklist 20 . Meter.meter_marklist . Meter.fit_meter 64
+    let f = extract_marklist 20 . Meter.meter_marklist 1 . Meter.fit_meter 64
             . replicate 4
     equal (take 9 $ f Meters.m44_4) $ zip (Seq.range_ 0 1)
         [ "1", "1.1.2", "1.1.3", "1.1.4"
@@ -32,9 +32,9 @@ test_meter_marklist = do
         ]
 
 test_rational_meter = do
-    let f = Meter.meter_marklist . Meter.fit_meter 4
+    let f = Meter.meter_marklist 1 . Meter.fit_meter 4
         extract = extract_marklist 20
-        round_trip = Meter.meter_marklist . Meter.marklist_meter
+        round_trip = Meter.meter_marklist 1 . Meter.marklist_meter
         meter = [Meter.repeat 4 Meters.m34]
     equal (extract $ f meter)
         (zip (Seq.range_ 0 1) ["1", "1.2", "1.3", "1.4", "2"])

@@ -82,7 +82,8 @@ mk_cmd_state ui_state view_id = CmdTest.default_cmd_state
 
 -- | It would be nicer to have this happen automatically.
 set_midi_config :: State.StateId ()
-set_midi_config = State.set_midi_config DeriveTest.default_midi_config
+set_midi_config =
+    State.modify_config $ State.midi #= DeriveTest.default_midi_config
 
 
 -- * result
