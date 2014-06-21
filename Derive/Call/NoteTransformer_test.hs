@@ -50,6 +50,11 @@ test_tuplet = do
     equal (run [(">", [(0, 4, "t")]), (">", [(2, 1, ""), (3, 1, "")])])
         [(0, 2, "?"), (2, 2, "?")]
 
+    -- All zero duration notes will infer a duration.
+    equal (run $ (">", [(0, 4, "t")])
+            : UiTest.note_track [(0, 0, "4c"), (1, 0, "4d")])
+        [(0, 0, "4c"), (2, 0, "4d")]
+
 test_tuplet_multiple_tracks = do
     let run = DeriveTest.extract_events extract
             . DeriveTest.derive_tracks_with_ui id
@@ -63,7 +68,7 @@ test_tuplet_multiple_tracks = do
             ]
     let i1 = Score.Instrument "i1"
         i2 = Score.Instrument "i2"
-    equal (run tracks) [(i1, 0, 6), (i2, 0, 6), (i1, 6, 6)]
+    equal (run tracks) [(i1, 0, 6), (i1, 6, 6), (i2, 0, 12)]
 
 test_tuplet_ly = do
     let run = LilypondTest.measures ["times", "acciaccatura"]

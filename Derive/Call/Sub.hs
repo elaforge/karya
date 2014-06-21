@@ -12,7 +12,7 @@ module Derive.Call.Sub (
     , Event(..), event_end, event_overlaps, map_event, map_events
     , stretch
     , sub_events
-    , place, place_at
+    , place, fit_to_range
     -- * reapply
     , reapply, reapply_call
 ) where
@@ -223,8 +223,8 @@ place = mconcatMap (\(Event s d n) -> Derive.place s d n)
 -- | Fit the given events into a time range.  Any leading space (time between
 -- the start of the range and the first Event) and trailing space is
 -- eliminated.
-place_at :: (ScoreTime, ScoreTime) -> [Event] -> Derive.NoteDeriver
-place_at (start, end) notes = Derive.place start factor $
+fit_to_range :: (ScoreTime, ScoreTime) -> [Event] -> Derive.NoteDeriver
+fit_to_range (start, end) notes = Derive.place start factor $
     place [note { event_start = event_start note - note_start } | note <- notes]
     where
     factor = (end - start) / (note_end - note_start)

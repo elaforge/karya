@@ -42,7 +42,7 @@ c_sekar = Derive.make_call module_ "sekar" (Tags.inst <> Tags.subs)
     ) $ \pattern args -> do
         pattern <- make_pattern pattern
         notes <- Sub.sub_events args
-        Sub.place_at (Args.range args) $ sekar (concat notes) pattern
+        Sub.fit_to_range (Args.range args) $ sekar (concat notes) pattern
 
 -- | [(index of note, is rest)]
 type Pattern = [(Int, Bool)]
