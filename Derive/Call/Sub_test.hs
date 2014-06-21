@@ -53,6 +53,18 @@ test_inverting = do
     equal (run [(">", []), (">", [(0, 1, "")]), ("*", [(0, 0, "4c")])])
         [((0, 1, "4c"), "+")]
 
+test_sub_notes = do
+    let run tracks = DeriveTest.extract extract $
+            DeriveTest.derive_tracks_linear "" tracks
+        extract = DeriveTest.e_attributes
+    -- Ensure zero duration subs show up.
+    equal (run [(">", [(0, 2, "+a")]), (">", [(0, 0, ""), (1, 0, "")])])
+        (["+a", "+a"], [])
+    -- It should show up only once!
+    equal (run
+            [(">", [(0, 0, "+a")]), (">", [(0, 0, "+b")]), (">", [(0, 1, "")])])
+        (["+a+b"], [])
+
 make_controls :: String -> [Int] -> (String, [Slice_test.Event])
 make_controls title ps = (title, [(to_score p, 0, showt p) | p <- ps])
     where to_score = ScoreTime.double . fromIntegral

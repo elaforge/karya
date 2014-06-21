@@ -30,7 +30,7 @@ module Ui.Events (
 
     -- ** split
     -- *** events
-    , split_range, split_at, split_at_exclude
+    , split_range, split_range_point, split_at, split_at_exclude
     , in_range, in_range_point
     , around
     -- *** List [Event]
@@ -178,6 +178,16 @@ split_range :: ScoreTime -> ScoreTime -> Events -> (Events, Events, Events)
 split_range start end events = (Events pre, Events within, Events post)
     where (pre, within, post) = _split_range start end (get events)
 
+-- | Like 'split_range', but if start==end, events that exactly match are
+-- included.
+split_range_point :: ScoreTime -> ScoreTime -> Events
+    -> (Events, Events, Events)
+split_range_point start end events
+    | start == end = (Events pre,
+        Events $ maybe mempty (Map.singleton start) at, Events post)
+    | otherwise = split_range start end events
+    where (pre, at, post) = Map.splitLookup start (get events)
+
 -- | Split at the given time.  An event that starts at the give time will
 -- appear in the above events.
 split_at :: ScoreTime -> Events -> (Events, Events)
@@ -304,19 +314,6 @@ _split_range start end events
         Just (pos, evt) | pos == start && not (Event.positive evt) ->
             (Map.insert pos evt pre, Map.delete pos within2)
         _ -> (pre, within2)
-
--- -- | Like 'in_range', except shorten the last event if it goes past the
--- -- end.
--- clip_to_range :: ScoreTime -> ScoreTime -> Events -> [Event]
--- clip_to_range start end events = to_asc_list clipped
---     where
---     (_, within, _) = split_range start end (get events)
---     clipped = case last (Events within) of
---         Nothing -> within
---         Just (pos, evt) -> Map.insert pos (clip_event (end-pos) evt) within
---     clip_event max_dur evt =
---         evt { Event.event_duration = min max_dur (Event.event_duration evt) }
-
 
 -- | Merge @evts2@ into @evts1@.  Events that overlap other events will be
 -- clipped so they don't overlap.  If events occur simultaneously, the

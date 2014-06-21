@@ -46,6 +46,11 @@ test_slice = do
     equal (f False 2 5 Nothing [Node (make_controls "c" [0, 2..10]) []])
         [Node (make_controls "c" [2, 4, 6]) []]
 
+    -- Zero duration slice still slices exact matches. This is so zero duration
+    -- note slicing works.
+    equal (f False 0 0 Nothing [Node (">", [(0, 0, "a")]) []])
+        [Node (">", [(0, 0, "a")]) []]
+
 test_slice_neighbors = do
     let f exclusive s e =
             extract . Slice.slice exclusive s e Nothing . map make_tree
@@ -119,6 +124,17 @@ test_slice_notes = do
     --     , [(1, 3, [notes "" [Node (">", [(0, 2, "x")]) []]])]
     --     , [(2, 4, [notes "" [Node (">", [(0, 2, "y")]) []]])]
     --     ]
+
+test_slice_notes_zero_dur = do
+    let f = slice_notes False
+    equal (f 0 2 [Node (">", [(0, 0, "a")]) []])
+        [[(0, 0, [Node (">", [(0, 0, "a")]) []])]]
+    equal (f 0 2 [Node (">", [(0, 0, "a"), (1, 0, "b")]) []])
+        [[ (0, 0, [Node (">", [(0, 0, "a")]) []])
+         , (1, 0, [Node (">", [(0, 0, "b")]) []])
+         ]]
+    equal (f 0 2 [Node (">", [(0, 0, "a")]) [Node (">", [(0, 1, "b")]) []]])
+        [[(0, 0, [Node (">", [(0, 0, "a")]) [Node (">", [(0, 1, "b")]) []]])]]
 
 test_slice_notes_shift = do
     -- Verify that shifting and slicing modify track_end and track_shifted

@@ -139,7 +139,7 @@ extract_note_events exclude_start start end events =
         _ -> (pre, within, post)
     where
     (pre, within, post) = (Events.descending pre, within, Events.ascending post)
-        where (pre, within, post) = Events.split_range start end events
+        where (pre, within, post) = Events.split_range_point start end events
 
 extract_control_events :: ScoreTime -> ScoreTime
     -> Events.Events -> ([Event.Event], Events.Events, [Event.Event])
@@ -165,29 +165,13 @@ extract_control_events start end events = (pre, Events.from_list within, post2)
     Technically the children of the note track don't need to be sliced, since
     if it is inverting it will do that anyway.  But slicing lets me shift fewer
     events, so it's probably a good idea anyway.
-
-    Since empty slices are removed from the output, an empty sub note track
-    will be excluded from derivation and won't cause an inverting call to
-    recurse endlessly.
-
-    If the parent track is empty then nothing can be done because this point
-    will never even be reached.  However, this situation is handled by the
-    track deriver, which should have called 'extract_orphans' already.
-
-    But if a sliced note track has yet another a note track underneath it, and
-    that note track has orphan notes, then the track deriver's extract_orphans
-    will miss it because it's hidden under an event.  So this function will also
-    extract orphans in the same way.
-
-    Ick.
 -}
 slice_notes :: Bool -> ScoreTime -> ScoreTime -> TrackTree.EventsTree
     -> [[Note]] -- ^ One [Note] per sub note track, in right to left order.
 slice_notes exclude_start start end tracks
     | null tracks || if exclude_start then start >= end else start > end = []
     | otherwise = filter (not . null) $
-        map (mapMaybe strip_note . slice_track) $
-        concatMap note_tracks tracks
+        map (mapMaybe strip_note . slice_track) $ concatMap note_tracks tracks
     where
     note_tracks :: TrackTree.EventsNode -> [Sliced]
     note_tracks node@(Tree.Node track subs)
@@ -199,16 +183,22 @@ slice_notes exclude_start start end tracks
     -- For each note track, slice out each event.
     slice_track :: Sliced -> [Note]
     slice_track (parents, track, slices, subs) =
-        map (slice1 (make_tree parents)) slices
+        map (slice1 (make_tree parents)) (Seq.zip_prev slices)
         where
         make_tree [] = [Tree.Node track subs]
         make_tree (p:ps) = [Tree.Node p (make_tree ps)]
-    slice1 tree (n_start, n_end, n_next) =
+    slice1 tree (prev, (n_start, n_end, n_next)) =
         (n_start, n_end - n_start,
             map (fmap (shift_tree n_start n_next)) $
             slice exclude n_start n_end Nothing tree)
-        where exclude = exclude_start && n_start == start
-        -- Only exclude_start if 's' is still the original 'start'.
+        where
+        -- exclude_start if 's' is still the original 'start', or if the
+        -- previous slice was zero dur and is the same as 'start', which means
+        -- it already consumed any event at 'start'.
+        exclude = prev_zero || exclude_start && n_start == start
+        prev_zero = case prev of
+            Nothing -> False
+            Just (s, e, _) -> s == e && s == n_start
     shift_tree shift next track = track
         { TrackTree.track_events =
             Events.map_events move (TrackTree.track_events track)
