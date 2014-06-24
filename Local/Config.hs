@@ -8,7 +8,10 @@ import qualified Control.Monad.Trans as Trans
 import qualified Network.BSD
 
 import qualified Util.Log as Log
+import qualified Midi.Key as Key
 import qualified Cmd.Cmd as Cmd
+import qualified Cmd.Controller as Controller
+import qualified Cmd.Msg as Msg
 import qualified Cmd.Save as Save
 import qualified Cmd.SaveGit as SaveGit
 
@@ -31,11 +34,27 @@ load_static_config = do
         StaticConfig.instrument_db = instrument_db
         , StaticConfig.local_repl_dirs =
             [Config.make_path app_dir Config.repl_dir]
-        , StaticConfig.global_cmds = []
+        , StaticConfig.global_cmds = global_cmds
         , StaticConfig.library = Call.All.library
         , StaticConfig.setup_cmd = parse_args
         , StaticConfig.midi = midi
         }
+
+oxygen8_v2 :: Controller.TransportConfig
+oxygen8_v2 = Controller.TransportConfig
+    { Controller.config_repeat = note_on Key.cs_1
+    , Controller.config_backward = note_on Key.ds_1
+    , Controller.config_forward = note_on Key.fs_1
+    , Controller.config_stop = note_on Key.gs_1
+    , Controller.config_play = note_on Key.as_1
+    , Controller.config_record = note_on Key.cs0
+    }
+    where note_on = Controller.note_on
+
+global_cmds :: [Msg.Msg -> Cmd.CmdT IO Cmd.Status]
+global_cmds =
+    [ Controller.transport oxygen8_v2
+    ]
 
 get_midi_config :: Cmd.InstrumentDb -> IO StaticConfig.Midi
 get_midi_config db = Network.BSD.getHostName >>= \x -> case x of
