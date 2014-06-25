@@ -363,7 +363,7 @@ documentation
         doc doc doc generator
         bind -- name
           args
-    - it's kind of useless for the call doc to say "from builtin", since they
+    * it's kind of useless for the call doc to say "from builtin", since they
       all are
     * hide sections whose calls are all hidden
       . group sections hierarchically, e.g.

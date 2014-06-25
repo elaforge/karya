@@ -119,9 +119,15 @@ doc_html hstate = un_html . (html_header hstate <>) . mconcatMap section
     section (call_kind, scope_docs) =
         tag_class "div" "call-kind" $ tag "h2" (html call_kind)
             <> "\n\n" <> mconcatMap (scope_doc call_kind) scope_docs
-    scope_doc call_kind (source, calls) =
-        tag_class "div" "call-source" $ tag "h3" ("from " <> html source)
-            <> "\n\n<dl class=main-dl>\n"
+    scope_doc call_kind (source, calls)
+        -- 'builtin_scope_doc' does this since Library doesn't have source
+        -- types.
+        | Text.null source = doc
+        | otherwise =
+            tag_class "div" "call-source" $ tag "h3" ("from " <> html source)
+                <> "\n\n" <> doc
+        where
+        doc = "<dl class=main-dl>\n"
             <> mconcatMap (show_module_group call_kind)
                 (Seq.keyed_group_on module_of calls)
             <> "</dl>\n"
@@ -134,11 +140,11 @@ doc_html hstate = un_html . (html_header hstate <>) . mconcatMap section
         tag "b" "Module: " <> tag "code" (html m)
 
 html_header :: HtmlState -> Html
-html_header hstate =
-    "<meta charset=utf-8>\n"
-    <> "<style type=text/css>\n" <> css <> "</style>\n"
-    <> "<script>\n" <> javascript <> "\n</script>\n"
-    <> join "; "
+html_header hstate = mconcat
+    [ "<meta charset=utf-8>\n"
+    , "<style type=text/css>\n" <> css <> "</style>\n"
+    , "<script>\n" <> javascript <> "\n</script>\n"
+    , join "; "
         [ "<code>arg<sup>?</sup></code> &mdash; optional arg"
         , "<code>arg<sup>*</sup></code> &mdash; zero or more args"
         , "<code>arg<sup>+</sup></code> &mdash; one or more args"
@@ -148,7 +154,7 @@ html_header hstate =
         , "<code>[*-arg arg]</code> &mdash; default from environ values\
             \ <code>name-arg</code> followed by <code>arg</code>"
         ]
-    <> "<br> <code>word</code> to include a tag containing the word,\
+    , "<br> <code>word</code> to include a tag containing the word,\
         \ <code>-word</code> to\n\
         \exclude, prefix <code>m:</code> for modules:\n\
         \<input id=input type=text size=60 value=\"" <> default_search
@@ -158,29 +164,29 @@ html_header hstate =
         \<code>control</code>, ...).\
         \\n<br>Search for calls with the browser's text search, \"call --\"\
         \ to search by binding, \"-- call\" to search by name.\n<br>"
-    <> html_doc hstate "Common tags are documented at 'Derive.Call.Tags'."
-    <> " &mdash; <span id=totals> x </span>\n"
+    , html_doc hstate "Common tags are documented at 'Derive.Call.Tags'."
+    , " &mdash; <span id=totals> x </span>\n"
+    ]
     where default_search = "-m:internal -m:ly"
 
 css :: Html
-css = ".main-dl dl { border-bottom: 1px solid #999 }\n\
-    \dl.compact {\n\
-    \    margin: 0px;\n\
-    \    padding: 0;\n\
-    \}\n\
-    \ul { margin: 0; }\n\
-    \div { margin-bottom: 10px; }\n\
-    \.compact dt {\n\
-    \    margin: 0;\n\
-    \    padding: 0;\n\
-    \}\n\
-    \.compact dd {\n\
-    \    margin: 0 0 1em 0;\n\
-    \    padding: 0;\n\
-    \}\n"
-
-join :: Monoid.Monoid a => a -> [a] -> a
-join sep = mconcat . List.intersperse sep
+css = join "\n"
+    [ ".main-dl dl { border-bottom: 1px solid #999 }"
+    , "dl.compact {"
+    , "    margin: 0px;"
+    , "    padding: 0;"
+    , "}"
+    , "ul { margin: 0; }"
+    , "div { margin-bottom: 10px; }"
+    , ".compact dt {"
+    , "    margin: 0;"
+    , "    padding: 0;"
+    , "}"
+    , ".compact dd {"
+    , "    margin: 0 0 1em 0;"
+    , "    padding: 0;"
+    , "}"
+    ]
 
 javascript :: Html
 javascript = join "\n"
@@ -255,6 +261,8 @@ hide_empty_javascript = join "\n"
     , "};"
     ]
 
+join :: Monoid.Monoid a => a -> [a] -> a
+join sep = mconcat . List.intersperse sep
 
 call_bindings_html :: HtmlState -> Text -> CallBindings -> Html
 call_bindings_html hstate call_kind bindings@(binds, ctype, call_doc) =
@@ -507,7 +515,7 @@ sort_calls = Seq.sort_on $ \(binds, _, _) ->
 -- it can work uniformly with 'track_sections', which does have separate
 -- sources.
 builtin_scope_doc :: CallType -> [LookupCall] -> [ScopeDoc]
-builtin_scope_doc ctype lookups = [("builtin", lookup_calls ctype lookups)]
+builtin_scope_doc ctype lookups = [("", lookup_calls ctype lookups)]
 
 scope_type :: CallType -> Derive.ScopeType Derive.DocumentedCall -> [ScopeDoc]
 scope_type ctype (Derive.ScopeType override inst scale builtin) =
