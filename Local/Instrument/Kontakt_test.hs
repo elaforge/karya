@@ -15,15 +15,13 @@ import qualified Midi.Midi as Midi
 import qualified Ui.UiTest as UiTest
 import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
-import qualified Derive.Score as Score
-
 import qualified Perform.Midi.Perform as Perform
 import qualified Local.Instrument.Kontakt as Kontakt
 
 
 test_wayang = do
     let run notes = extract $ perform ["kontakt/wayang-umbang"] $
-            Derive.r_events $ derive $
+            Derive.r_events $ derive "" $
                 UiTest.note_spec ("kontakt/wayang-umbang", notes, [])
         extract (_, midi, logs) = (DeriveTest.note_on midi, logs)
     equal (run [(0, 1, "4i")]) ([Key2.e4], [])
@@ -31,7 +29,8 @@ test_wayang = do
     equal (run [(2, 1, "+mute+loose -- 4i")]) ([Key2.a_2, Key2.e0], [])
 
 test_wayang_pasang = do
-    let run notes = derive $ UiTest.note_spec (title, notes, [])
+    let run notes = derive "import bali.kotekan" $
+            UiTest.note_spec (title, notes, [])
         extract = DeriveTest.e_inst
         title = wayang_title "" <> " | unison"
     equal (DeriveTest.extract extract $ run [(0, 1, "")])
@@ -52,8 +51,8 @@ test_wayang_pasang = do
         ]
 
 test_wayang_kempyung = do
-    let run suffix append notes = DeriveTest.extract extract $ derive $
-            UiTest.note_spec
+    let run suffix append notes = DeriveTest.extract extract $
+            derive "import bali.kotekan" $ UiTest.note_spec
                 (wayang_title suffix <> append <> " | kempyung", notes, [])
         extract e = (DeriveTest.e_inst e, DeriveTest.e_note e)
         umbang = "kontakt/wayang-umbang"
@@ -79,7 +78,7 @@ wayang_title suffix =
     \ | inst-sangsih = >kontakt/wayang-isep"
 
 test_mridangam = do
-    let run pitch notes tracks = derive $
+    let run pitch notes tracks = derive "" $
             [ ("*", [(0, 0, pitch)])
             , (">kontakt/mridangam",
                 [(t, 0, n) | (t, n) <- zip (Seq.range_ 0 1) notes])
@@ -100,17 +99,9 @@ test_mridangam = do
             run "3b" ["do"] [("dyn", [(0, 0, ".5")])])
         (["+din", "+thom"], [])
 
-test_mridangam_double = do
-    let run title notes = DeriveTest.extract extract $
-            derive [(">kontakt/mridangam" <> title, notes)]
-        extract e = (Score.event_start e, Score.initial_dynamic e)
-    -- The second one doesn't have enough space.
-    equal (run " | double-time = 1s" [(1, 0, "oo"), (2, 0, "oo")])
-        ([(0, 0.5), (1, 1), (1.5, 0.5), (2, 1)], [])
-
-derive :: [UiTest.TrackSpec] -> Derive.Result
+derive :: String -> [UiTest.TrackSpec] -> Derive.Result
 derive = DeriveTest.derive_tracks_with
-    (DeriveTest.with_inst_db Kontakt.synth_descs) "import bali.kotekan"
+    (DeriveTest.with_inst_db Kontakt.synth_descs)
 
 perform :: [Text] -> Derive.Events
     -> ([Perform.Event], [Midi.WriteMessage], [Log.Msg])

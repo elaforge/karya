@@ -80,7 +80,9 @@ pb_range = (-24, 24)
 -- * misc
 
 misc_patches :: [MidiInst.Patch]
-misc_patches = concat [library, mcgill, balalaika, sonic_couture, sc_bali, misc]
+misc_patches = concat
+    [ library, mcgill, balalaika, anthology_wind, sonic_couture, sc_bali, misc
+    ]
 
 library :: [MidiInst.Patch]
 library = MidiInst.with_empty_code
@@ -126,6 +128,38 @@ balalaika =
         , (Attrs.trem, Key.a3)
         , (mempty, Key.b3)
         ]
+
+-- | Bela D Anthology Spiritual Wind
+-- Change volume to cc 2.
+-- Change b3 and c3 to be normal keyswitches instead of toggles.
+anthology_wind :: [MidiInst.Patch]
+anthology_wind = MidiInst.with_empty_code
+    [ MidiInst.pressure $
+        Instrument.attribute_map #= Instrument.simple_keyswitches dizi_ks $
+        patch "dizi" [(CC.mod, Controls.vib)]
+    ]
+    where
+    -- blow and overblow as keyswitches instead of on/off
+    dizi_ks =
+        [ (mempty, Key2.c2)
+        , (ornament <> Attrs.v1, Key2.cs2)
+        , (Attrs.staccato, Key2.d2)
+        , (ornament <> Attrs.v2, Key2.ds2)
+        , (Attrs.staccato <> blow, Key.e2) -- unpitched attack
+        , (ornament <> Attrs.v3, Key2.fs2)
+        , (ornament <> Attrs.v4, Key2.gs2)
+        , (ornament <> Attrs.long <> Attrs.v1, Key2.as2)
+        , (blow, Key2.b3) -- sustain with sharp attack
+        , (Attrs.accent, Key2.c3) -- like 'blow', but softer attack
+        , (ornament <> Attrs.long <> Attrs.v2, Key2.cs3)
+        ]
+    -- f2 slide 1 up / down
+    -- g2 slide 2 up / down
+    -- a2 slide 2 down
+    ornament = Score.attr "o"
+    blow = Score.attr "blow"
+
+-- * sonic couture
 
 sonic_couture :: [MidiInst.Patch]
 sonic_couture = concat $
@@ -309,27 +343,11 @@ mridangam_patches =
         [ CUtil.drum_calls Nothing mridangam_keymap
         , DUtil.multiple_calls
             [(call, subcalls) | (call, subcalls, _) <- mridangam_both]
-        , DUtil.double_calls
-            [(call, subcall) | (call, subcall, _) <- mridangam_double]
         ]
     char_to_call = Map.fromList $ concat
         [ [(Drums.note_char n, Drums.note_name n) | n <- mridangam_keymap]
         , [(char, call) | (call, _, Just char) <- mridangam_both]
-        , [(char, call) | (call, _, Just char) <- mridangam_double]
         ]
-
-mridangam_double :: [(TrackLang.CallId, TrackLang.CallId, Maybe Char)]
-mridangam_double =
-    [ (TrackLang.Symbol $ u call <> u call, call, lookup call keys)
-    | call <- map Drums.note_name mridangam_keymap
-    , Text.length (u call) == 1
-    ]
-    where
-    keys =
-        [ ("+", 'a'), ("o", 'd')
-        , ("k", '1'), ("n", '3'), ("d", '4')
-        ]
-    u = TrackLang.unsym
 
 -- | Create calls for all simultaneous left and right hand combinations, and
 -- key bindings for a few common ones.
