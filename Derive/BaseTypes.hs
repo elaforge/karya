@@ -412,6 +412,11 @@ data Val =
     --
     -- Literal: @_@
     | VNotGiven
+    -- | A token used as a separator when calls want to parse their argument
+    -- lists via their own complicated means.
+    --
+    -- Literal: @;@
+    | VSeparator
     -- | List of values.
     --
     -- Literal: @(list)@, @(list 1 2)@, @(list (x) (y))@
@@ -436,6 +441,7 @@ instance ShowVal.ShowVal Val where
         VQuoted quoted -> ShowVal.show_val quoted
         VControlFunction f -> ShowVal.show_val f
         VNotGiven -> "_"
+        VSeparator -> ";"
         VList vals -> ShowVal.show_val vals
 
 instance Pretty.Pretty Val where

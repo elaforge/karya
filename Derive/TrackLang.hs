@@ -166,7 +166,7 @@ data Type = TNum NumType NumValue
     | TAttributes | TControl | TPitchControl | TPitch | TNotePitch | TInstrument
     -- | Text string, with enum values if it's an enum.
     | TSymbol (Maybe [Text])
-    | TNotGiven | TMaybe Type | TEither Type Type | TVal
+    | TNotGiven | TSeparator | TMaybe Type | TEither Type Type | TVal
     -- | A 'VQuoted'.  This has no Typecheck instance so it should never show
     -- up as a call argument.
     | TQuoted
@@ -238,6 +238,7 @@ type_of val = case val of
     VQuoted {} -> TQuoted
     VControlFunction {} -> TControlFunction
     VNotGiven -> TNotGiven
+    VSeparator -> TSeparator
     VList {} -> TList TVal
 
 -- ** special types
@@ -245,9 +246,6 @@ type_of val = case val of
 class (Show a, ShowVal a) => Typecheck a where
     from_val :: Val -> Maybe a
     to_val :: a -> Val
-    -- | This shouldn't evaluate its argument, so you can use
-    -- @maybe undefined id@ to get the type of a @Maybe a@.
-    -- This is an unsatisfying dangerous hack.
     to_type :: Proxy a -> Type
 
 instance Typecheck Val where

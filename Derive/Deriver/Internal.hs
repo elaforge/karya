@@ -47,12 +47,12 @@ get_constant f = gets (f . state_constant)
 -- (i.e. except Collect) from the sub derivation is discarded, whatever state
 -- it's in after the exception shouldn't matter.
 local :: (Dynamic -> Dynamic) -> Deriver a -> Deriver a
-local modify_state = localm (return . modify_state)
+local modify_dynamic = localm (return . modify_dynamic)
 
 localm :: (Dynamic -> Deriver Dynamic) -> Deriver a -> Deriver a
-localm modify_state deriver = do
+localm modify_dynamic deriver = do
     st <- get
-    new <- modify_state (state_dynamic st)
+    new <- modify_dynamic (state_dynamic st)
     put $ st { state_dynamic = new }
     result <- deriver
     modify $ \new -> new { state_dynamic = state_dynamic st }
@@ -62,12 +62,23 @@ localm modify_state deriver = do
 -- Collect.  This is appropriate for sub-calls that are below normal track
 -- derivation.
 detached_local :: (Dynamic -> Dynamic) -> Deriver a -> Deriver (Either Error a)
-detached_local modify_state deriver = do
+detached_local modify_dynamic deriver = do
     st <- get
     let (result, _, logs) = run
-            (st { state_dynamic = modify_state (state_dynamic st) }) deriver
+            (st { state_dynamic = modify_dynamic (state_dynamic st) }) deriver
     mapM_ Log.write logs
     return result
+
+-- | Run with an empty Collect, restore the original Collect, and return the
+-- sub-deriver's Collect.
+local_collect :: Deriver a -> Deriver (a, Collect)
+local_collect deriver = do
+    old <- gets state_collect
+    modify $ \st -> st { state_collect = mempty }
+    result <- deriver
+    sub_collect <- gets state_collect
+    modify $ \st -> st { state_collect = old }
+    return (result, sub_collect)
 
 -- | Collect is only ever accumulated.
 --

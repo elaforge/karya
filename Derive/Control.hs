@@ -230,7 +230,7 @@ control_call track control merge control_deriver deriver = do
     (signal, logs) <- Internal.track_setup track control_deriver
     stash_if_wanted track signal
     -- Apply and strip any control modifications made during the above derive.
-    Derive.apply_control_mods $ merge_logs logs $ with_damage $
+    Derive.eval_control_mods $ merge_logs logs $ with_damage $
         with_control_op control merge signal deriver
     -- I think this forces sequentialness because 'deriver' runs in the state
     -- from the end of 'control_deriver'.  To make these parallelize, I need to
@@ -262,7 +262,7 @@ pitch_call track maybe_name scale_id transform deriver =
             stash_if_wanted track (Signal.coerce nn_sig)
             -- Apply and strip any control modifications made during the above
             -- derive.
-            Derive.apply_control_mods $ merge_logs logs $ with_damage $
+            Derive.eval_control_mods $ merge_logs logs $ with_damage $
                 Derive.with_pitch maybe_name signal deriver
     where
     with_damage = with_control_damage (TrackTree.block_track_id track)

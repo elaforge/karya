@@ -529,11 +529,14 @@ modify_control merge control signal = Internal.modify_collect $ \collect ->
         ControlMod control signal merge : collect_control_mods collect }
 
 -- | Apply the collected control mods to the given deriver and clear them out.
-apply_control_mods :: Deriver a -> Deriver a
-apply_control_mods deriver = do
+eval_control_mods :: Deriver a -> Deriver a
+eval_control_mods deriver = do
     mods <- gets (collect_control_mods . state_collect)
-    Internal.modify_collect $ \collect ->
-        collect { collect_control_mods = [] }
+    Internal.modify_collect $ \collect -> collect { collect_control_mods = [] }
+    with_control_mods mods deriver
+
+with_control_mods :: [ControlMod] -> Deriver a -> Deriver a
+with_control_mods mods deriver = do
     foldr ($) deriver (map apply mods)
     where
     apply (ControlMod control signal merge) =

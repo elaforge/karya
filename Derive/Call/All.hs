@@ -21,6 +21,7 @@ import qualified Derive.Call.Idiom.String as String
 import qualified Derive.Call.Idiom.Wind as Wind
 import qualified Derive.Call.Import as Import
 import qualified Derive.Call.India.Gamakam as Gamakam
+import qualified Derive.Call.India.Gamakam2 as Gamakam2
 import qualified Derive.Call.Integrate as Integrate
 import qualified Derive.Call.Lily as Lily
 import qualified Derive.Call.Note as Note
@@ -55,6 +56,7 @@ note_maps = mconcat
     , Block.note_calls
     , Echo.note_calls
     , Chord.note_calls
+    , Gamakam2.note_calls
     , Grace.note_calls
     , String.note_calls
     , Import.calls
@@ -90,6 +92,7 @@ pitch_maps :: Derive.CallMaps Derive.Pitch
 pitch_maps = mconcat
     [ Equal.pitch_calls
     , Gamakam.pitch_calls
+    , Gamakam2.pitch_calls
     , Grace.pitch_calls
     , Import.calls
     , Pitch.pitch_calls

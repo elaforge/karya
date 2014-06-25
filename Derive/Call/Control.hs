@@ -15,7 +15,6 @@ import qualified Derive.Call.Tags as Tags
 import qualified Derive.Call.Util as Util
 import qualified Derive.Derive as Derive
 import qualified Derive.Environ as Environ
-import qualified Derive.LEvent as LEvent
 import qualified Derive.Parse as Parse
 import qualified Derive.Score as Score
 import qualified Derive.Sig as Sig
@@ -357,6 +356,7 @@ c_pedal = generator1 "pedal" mempty
         let prev = maybe 0 snd $ Args.prev_control args
         return $ Signal.signal [(start, val), (end, prev)]
 
-generator1 :: Functor m => Text -> Tags.Tags -> Text
-    -> Derive.WithArgDoc (a -> m d) -> Derive.Call (a -> m [LEvent.LEvent d])
+generator1 :: Text -> Tags.Tags -> Text
+    -> Derive.WithArgDoc (Derive.PassedArgs d -> Derive.Deriver d)
+    -> Derive.Call (Derive.GeneratorFunc d)
 generator1 = Derive.generator1 Module.prelude

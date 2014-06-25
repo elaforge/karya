@@ -102,7 +102,7 @@ UNSORTED
     beginning.
   india: gamakam:
     sequence calls:
-      - initial implementation
+      * initial implementation
       begin
         - p/from takes an arg so it can go to something other than unity
         - jaru

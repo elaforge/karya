@@ -115,6 +115,7 @@ test_parse_val = do
 
             , ("$bad", Nothing)
             , ("_", Just VNotGiven)
+            , (";", Just VSeparator)
             ]
     let num = Just . VNum
     let noninvertible =

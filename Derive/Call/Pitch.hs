@@ -164,7 +164,7 @@ c_exp_next_const =
     exponential_interpolation "exp-next-const" (TrackLang.real 0.1) "" $
         \_ -> return . TrackLang.default_real
 
-pitch_arg :: Sig.Parser PitchUtil.Transpose
+pitch_arg :: Sig.Parser PitchUtil.PitchOrTranspose
 pitch_arg = required "pitch"
     "Destination pitch, or a transposition from the previous one."
 
@@ -243,6 +243,7 @@ c_porta = linear_interpolation "porta" (TrackLang.real 0.1)
 
 -- * util
 
-generator1 :: Functor m => Text -> Tags.Tags -> Text
-    -> Derive.WithArgDoc (a -> m d) -> Derive.Call (a -> m [LEvent.LEvent d])
+generator1 :: Text -> Tags.Tags -> Text
+    -> Derive.WithArgDoc (Derive.PassedArgs d -> Derive.Deriver d)
+    -> Derive.Call (Derive.GeneratorFunc d)
 generator1 = Derive.generator1 Module.prelude

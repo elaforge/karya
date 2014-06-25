@@ -450,4 +450,4 @@ midi_config config = Simple.midi_config
     [(inst, map ((,) "test") chans) | (inst, chans) <- config]
 
 set_midi_config :: Instrument.Configs -> State.State -> State.State
-set_midi_config = flip exec . State.set_midi_config
+set_midi_config config = flip exec $ State.modify_config $ State.midi #= config

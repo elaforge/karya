@@ -21,7 +21,7 @@ import qualified Perform.RealTime as RealTime
 import Types
 
 
-type Transpose = Either PitchSignal.Pitch Pitch.Transpose
+type PitchOrTranspose = Either PitchSignal.Pitch Pitch.Transpose
 
 type Interpolator = Bool -- ^ include the initial sample or not
     -> RealTime -> PitchSignal.Pitch -> RealTime -> PitchSignal.Pitch
@@ -31,7 +31,7 @@ type Interpolator = Bool -- ^ include the initial sample or not
 -- | Create an interpolating call, from a certain duration (positive or
 -- negative) from the event start to the event start.
 interpolate :: Function -> Derive.PitchArgs
-    -> Transpose -> TrackLang.Duration
+    -> PitchOrTranspose -> TrackLang.Duration
     -> Derive.Deriver PitchSignal.Signal
 interpolate f args pitch_transpose dur = do
     (start, end) <- Util.duration_from_start args dur

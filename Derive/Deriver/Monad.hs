@@ -1171,16 +1171,18 @@ make_call module_ name tags doc (func, arg_docs) = Call
 -- | Create a generator that expects a list of derived values (e.g. Score.Event
 -- or Signal.Control), with no logs mixed in.  The result is wrapped in
 -- LEvent.Event.
-generator :: Functor m => Module.Module -> Text -> Tags.Tags -> Text
-    -> WithArgDoc (a -> m [d]) -> Call (a -> m [LEvent.LEvent d])
+generator :: Module.Module -> Text -> Tags.Tags -> Text
+    -> WithArgDoc (PassedArgs d -> Deriver [d]) -> Call (GeneratorFunc d)
 generator module_ name tags doc (func, arg_docs) =
     make_call module_ name tags doc ((map LEvent.Event <$>) . func, arg_docs)
 
 -- | Since Signals themselves are collections, there's little reason for a
 -- signal generator to return a Stream of events.  So wrap the generator result
 -- in a Stream singleton.
-generator1 :: (Functor m) => Module.Module -> Text -> Tags.Tags -> Text
-    -> WithArgDoc (a -> m d) -> Call (a -> m [LEvent.LEvent d])
+--
+-- TODO call this signal_generator?
+generator1 :: Module.Module -> Text -> Tags.Tags -> Text
+    -> WithArgDoc (PassedArgs d -> Deriver d) -> Call (GeneratorFunc d)
 generator1 module_ name tags doc (func, arg_docs) =
     generator module_ name tags doc ((LEvent.one <$>) . func, arg_docs)
 

@@ -2,7 +2,6 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
-{-# LANGUAGE FlexibleContexts #-}
 {- | Carnatic style pitch ornaments.
 
     The names don't correspond directly with anything traditional, as far as
@@ -52,7 +51,6 @@ import qualified Derive.Call.Trill as Trill
 import qualified Derive.Call.Util as Util
 import qualified Derive.Controls as Controls
 import qualified Derive.Derive as Derive
-import qualified Derive.LEvent as LEvent
 import qualified Derive.PitchSignal as PitchSignal
 import qualified Derive.Score as Score
 import qualified Derive.Sig as Sig
@@ -397,6 +395,7 @@ jaru srate start time transition intervals =
     SignalTransform.smooth id srate (-transition) $
         Signal.signal (zip (Seq.range_ start time) (intervals ++ [0]))
 
-generator1 :: (Functor m) => Text -> Tags.Tags -> Text
-    -> Derive.WithArgDoc (a -> m d) -> Derive.Call (a -> m [LEvent.LEvent d])
+generator1 :: Text -> Tags.Tags -> Text
+    -> Derive.WithArgDoc (Derive.PassedArgs d -> Derive.Deriver d)
+    -> Derive.Call (Derive.GeneratorFunc d)
 generator1 = Derive.generator1 module_

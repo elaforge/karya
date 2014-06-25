@@ -216,6 +216,7 @@ p_val =
     <|> TrackLang.VPitchControl <$> p_pitch_control
     <|> TrackLang.VQuoted <$> p_quoted
     <|> (A.char '_' >> return TrackLang.VNotGiven)
+    <|> (A.char ';' >> return TrackLang.VSeparator)
     <|> TrackLang.VSymbol <$> p_symbol
 
 p_num :: A.Parser Score.TypedVal
