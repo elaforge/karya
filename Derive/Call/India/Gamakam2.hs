@@ -33,7 +33,6 @@ import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Sig as Sig
 import qualified Derive.TrackLang as TrackLang
 
-import qualified Perform.Pitch as Pitch
 import qualified Perform.Signal as Signal
 import Types
 
@@ -358,7 +357,7 @@ c_hold = generator1 "hold" mempty "Emit a flat pitch."
             Nothing -> prev_pitch start args
             Just transpose -> do
                 pitch <- Util.get_pitch start
-                return $ resolve_transpose pitch transpose
+                return $ PitchUtil.resolve_pitch_transpose pitch transpose
         return $ PitchSignal.signal [(start, pitch)]
             <> PitchSignal.signal [(end, pitch)]
 
@@ -429,7 +428,7 @@ c_to fade_out = generator1 "to" mempty "Go to a pitch, and possibly fade out."
             ControlUtil.multiply_dyn end
                 =<< ControlUtil.make_signal id start 1 end 0
         PitchUtil.make_interpolator id True start pitch end
-            (resolve_transpose pitch to_pitch)
+            (PitchUtil.resolve_pitch_transpose pitch to_pitch)
 
 align_to_end :: RealTime -> RealTime -> TrackLang.Duration
     -> Derive.Deriver RealTime
@@ -455,11 +454,6 @@ resolve_pitch args this_pitch maybe_pitch = case maybe_pitch of
         Just (_, prev) -> prev
     Just (Left pitch) -> pitch
     Just (Right transpose) -> Pitches.transpose transpose this_pitch
-
--- | TODO better name, it's not necessarily a transpose
-resolve_transpose :: PitchSignal.Pitch
-    -> Either PitchSignal.Pitch Pitch.Transpose -> PitchSignal.Pitch
-resolve_transpose pitch = either id (flip Pitches.transpose pitch)
 
 generator1 :: Text -> Tags.Tags -> Text
     -> Derive.WithArgDoc (Derive.PassedArgs d -> Derive.Deriver d)

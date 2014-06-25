@@ -23,6 +23,12 @@ import Types
 
 type PitchOrTranspose = Either PitchSignal.Pitch Pitch.Transpose
 
+resolve_pitch_transpose :: PitchSignal.Pitch -> PitchOrTranspose
+    -> PitchSignal.Pitch
+resolve_pitch_transpose pitch = either id (flip Pitches.transpose pitch)
+
+-- * interpolate
+
 type Interpolator = Bool -- ^ include the initial sample or not
     -> RealTime -> PitchSignal.Pitch -> RealTime -> PitchSignal.Pitch
     -- ^ start -> starty -> end -> endy
@@ -43,7 +49,7 @@ interpolate f args pitch_transpose dur = do
             -- I always set include_initial.  It might be redundant, but if the
             -- previous call was sliced off, it won't be.
             make_interpolator f True (min start end) prev (max start end) $
-                either id (flip Pitches.transpose prev) pitch_transpose
+                resolve_pitch_transpose prev pitch_transpose
 
 -- | Create samples according to an interpolator function.  The function is
 -- passed values from 0--1 representing position in time and is expected to

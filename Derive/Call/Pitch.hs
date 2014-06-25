@@ -77,7 +77,7 @@ c_set_prev = Derive.generator Module.prelude "set-prev" Tags.prev
 -- * linear
 
 -- | Linear interpolation, with different start times.
-linear_interpolation :: (TrackLang.Typecheck time) => Text -> time -> Text
+linear_interpolation :: TrackLang.Typecheck time => Text -> time -> Text
     -> (Derive.PitchArgs -> time -> Derive.Deriver TrackLang.Duration)
     -> Derive.Generator Derive.Pitch
 linear_interpolation name time_default time_default_doc get_time =
@@ -116,7 +116,7 @@ c_linear_next_const =
 -- * exponential
 
 -- | Exponential interpolation, with different start times.
-exponential_interpolation :: (TrackLang.Typecheck time) =>
+exponential_interpolation :: TrackLang.Typecheck time =>
     Text -> time -> Text
     -> (Derive.PitchArgs -> time -> Derive.Deriver TrackLang.Duration)
     -> Derive.Generator Derive.Pitch
