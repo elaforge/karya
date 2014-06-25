@@ -117,17 +117,19 @@ doc_html :: HtmlState -> Document -> Text
 doc_html hstate = un_html . (html_header hstate <>) . mconcatMap section
     where
     section (call_kind, scope_docs) =
-        tag "h2" (html call_kind) <> "\n\n"
-        <> mconcatMap (scope_doc call_kind) scope_docs
+        tag_class "div" "call-kind" $ tag "h2" (html call_kind)
+            <> "\n\n" <> mconcatMap (scope_doc call_kind) scope_docs
     scope_doc call_kind (source, calls) =
-        tag "h3" ("from " <> html source) <> "\n\n<dl class=main>\n"
-        <> mconcatMap (show_module_group call_kind)
-            (Seq.keyed_group_on module_of calls)
-        <> "</dl>\n"
+        tag_class "div" "call-source" $ tag "h3" ("from " <> html source)
+            <> "\n\n<dl class=main-dl>\n"
+            <> mconcatMap (show_module_group call_kind)
+                (Seq.keyed_group_on module_of calls)
+            <> "</dl>\n"
     module_of (_, _, call_doc) = Derive.cdoc_module call_doc
     show_module_group call_kind (module_, calls) =
-        show_module module_ <> "<br>\n"
-        <> mconcatMap (call_bindings_html hstate call_kind) calls
+        tag_class "div" "call-module" $
+            show_module module_ <> "<br>\n"
+            <> mconcatMap (call_bindings_html hstate call_kind) calls
     show_module (Module.Module m) = tag "center" $
         tag "b" "Module: " <> tag "code" (html m)
 
@@ -135,8 +137,8 @@ html_header :: HtmlState -> Html
 html_header hstate =
     "<meta charset=utf-8>\n"
     <> "<style type=text/css>\n" <> css <> "</style>\n"
-    <> "<script>\n" <> javascript <> "</script>\n"
-    <> mconcat (List.intersperse "; "
+    <> "<script>\n" <> javascript <> "\n</script>\n"
+    <> join "; "
         [ "<code>arg<sup>?</sup></code> &mdash; optional arg"
         , "<code>arg<sup>*</sup></code> &mdash; zero or more args"
         , "<code>arg<sup>+</sup></code> &mdash; one or more args"
@@ -145,7 +147,7 @@ html_header hstate =
         , ":: <em>type</em> &mdash; argument type"
         , "<code>[*-arg arg]</code> &mdash; default from environ values\
             \ <code>name-arg</code> followed by <code>arg</code>"
-        ])
+        ]
     <> "<br> <code>word</code> to include a tag containing the word,\
         \ <code>-word</code> to\n\
         \exclude, prefix <code>m:</code> for modules:\n\
@@ -161,7 +163,7 @@ html_header hstate =
     where default_search = "-m:internal -m:ly"
 
 css :: Html
-css = ".main dl { border-bottom: 1px solid #999 }\n\
+css = ".main-dl dl { border-bottom: 1px solid #999 }\n\
     \dl.compact {\n\
     \    margin: 0px;\n\
     \    padding: 0;\n\
@@ -177,41 +179,82 @@ css = ".main dl { border-bottom: 1px solid #999 }\n\
     \    padding: 0;\n\
     \}\n"
 
+join :: Monoid.Monoid a => a -> [a] -> a
+join sep = mconcat . List.intersperse sep
+
 javascript :: Html
-javascript =
-    "var total_calls = 0;\n\
-    \var displayed_calls = 0;\n\
-    \var search = function(val) {\n\
-    \   var search_words = val.split(/ +/).filter(\n\
-    \           function(x) { return x != '' });\n\
-    \   total_calls = 0;\n\
-    \   displayed_calls = 0;\n\
-    \   var calls = document.getElementsByClassName('call');\n\
-    \   for (var i = 0; i < calls.length; i++) {\n\
-    \       var c = calls[i];\n\
-    \       var tags = c.attributes.tags.value.split(' ');\n\
-    \       c.hidden = !matches(search_words, tags);\n\
-    \       total_calls++;\n\
-    \       if (!c.hidden) displayed_calls++;\n\
-    \   }\n\
-    \   document.getElementById('totals').innerText =\n\
-    \       'calls displayed/total: ' + displayed_calls + '/' + total_calls;\n\
-    \};\n\
-    \var matches = function(search_words, tags) {\n\
-    \   tags = tags.filter(function(x) { return x != '' });\n\
-    \   return search_words.every(function(x) {\n\
-    \       if (x[0] === '-')\n\
-    \           return !tags_match(tags, x.slice(1));\n\
-    \       else\n\
-    \           return tags_match(tags, x);\n\
-    \    });\n\
-    \};\n\
-    \var tags_match = function(tags, val) {\n\
-    \   return tags.some(function(t) { return t.indexOf(val) !== -1 });\n\
-    \};\n\
-    \window.onload = function() {\n\
-    \   search(document.getElementById('input').value);\n\
-    \};\n"
+javascript = join "\n"
+    [ search_javascript
+    , ""
+    , hide_empty_javascript
+    , ""
+    , "window.onload = function() {"
+    , "    search(document.getElementById('input').value);"
+    , "};"
+    ]
+
+search_javascript :: Html
+search_javascript = join "\n"
+    [ "var total_calls = 0;"
+    , "var displayed_calls = 0;"
+    , "var search = function(val) {"
+    , "    var search_words = val.split(/ +/).filter("
+    , "        function(x) { return x != '' });"
+    , "    total_calls = 0;"
+    , "    displayed_calls = 0;"
+    , "    var calls = document.getElementsByClassName('call');"
+    , "    for (var i = 0; i < calls.length; i++) {"
+    , "        var c = calls[i];"
+    , "        var tags = c.attributes.tags.value.split(' ');"
+    , "        c.hidden = !matches(search_words, tags);"
+    , "        total_calls++;"
+    , "        if (!c.hidden) displayed_calls++;"
+    , "    }"
+    , "    hide_all_empty();"
+    , "    document.getElementById('totals').innerText ="
+    , "        'calls displayed/total: ' + displayed_calls + '/' + total_calls;"
+    , "};"
+    , ""
+    , "var matches = function(search_words, tags) {"
+    , "    tags = tags.filter(function(x) { return x != '' });"
+    , "    return search_words.every(function(x) {"
+    , "        if (x[0] === '-')"
+    , "            return !tags_match(tags, x.slice(1));"
+    , "        else"
+    , "            return tags_match(tags, x);"
+    , "     });"
+    , "};"
+    , ""
+    , "var tags_match = function(tags, val) {"
+    , "    return tags.some(function(t) { return t.indexOf(val) !== -1 });"
+    , "};"
+    ]
+
+hide_empty_javascript :: Html
+hide_empty_javascript = join "\n"
+    [ "var hide_all_empty = function() {"
+    , "    hide_if_empty('call-module');"
+    , "    hide_if_empty('call-source');"
+    , "    hide_if_empty('call-kind');"
+    , "};"
+    , ""
+    , "var hide_if_empty = function(class_) {"
+    , "    var elts = document.getElementsByClassName(class_);"
+    , "    for (var i = 0; i < elts.length; i++) {"
+    , "        elts[i].hidden = !any_shown_call(elts[i]);"
+    , "    }"
+    , "};"
+    , "" -- True if this has any unhidden 'call' children.
+    , "var any_shown_call = function(parent) {"
+    , "    for (var i = 0; i < parent.children.length; i++) {"
+    , "        var c = parent.children[i];"
+    , "        if (c.className === 'call' && !c.hidden || any_shown_call(c))"
+    , "            return true;"
+    , "    }"
+    , "    return false;"
+    , "};"
+    ]
+
 
 call_bindings_html :: HtmlState -> Text -> CallBindings -> Html
 call_bindings_html hstate call_kind bindings@(binds, ctype, call_doc) =
@@ -279,11 +322,32 @@ binding_tags (binds, ctype, call_doc) =
         | otherwise = []
     arg_control_tags _ = []
 
-tag :: Html -> Html -> Html
-tag name content = "<" <> name <> ">" <> content <> "</" <> name <> ">"
+tag :: Text -> Html -> Html
+tag name content = tag_attrs name [] (Just content)
+
+tag_class :: Text -> Text -> Html -> Html
+tag_class name class_ content =
+    tag_attrs name [("class", class_)] (Just content)
+
+html_link :: Text -> Text -> Html
+html_link text url = tag_attrs "a" [("href", url)] (Just (html text))
+
+tag_attrs :: Text -> [(Text, Text)] -> Maybe Html -> Html
+tag_attrs name attrs maybe_content =
+    "<" <> html name <> attrs_text <> ">" <> content_text
+    where
+    content_text = case maybe_content of
+        Nothing -> ""
+        Just content -> content <> "</" <> html name <> ">"
+    attrs_text
+        | null attrs = ""
+        | otherwise = (" "<>) $ join " "
+            [html name <> "=\"" <> html val <> "\"" | (name, val) <- attrs]
 
 newtype Html = Html Text
     deriving (Monoid.Monoid, String.IsString, Show)
+    -- TODO doesn't IsString defeat the purpose of using Html in the first
+    -- place?
 
 un_html :: Html -> Text
 un_html (Html text) = text
@@ -308,11 +372,7 @@ html_doc (haddock_dir, files) = Html . postproc . html_quote
     single_quotes = TextUtil.mapDelimited False '\'' $ \text ->
         case TextUtil.haddockUrl files haddock_dir text of
             Nothing -> "'" <> text <> "'"
-            Just url -> html_link text url
-
-html_link :: Text -> String -> Text
-html_link text url =
-    "<a href=\"" <> html_quote (txt url) <> "\">" <> html_quote text <> "</a>"
+            Just url -> un_html $ html_link text (txt url)
 
 
 -- * scale doc
@@ -321,8 +381,8 @@ type Scale = [CallBindings]
 
 scales_html :: HtmlState -> [CallBindings] -> Text
 scales_html hstate scales = un_html $ html_header hstate
-        <> "<h2> Scales </h2>\n"
-        <> "<dl class=main>\n" <> scale_html scales <> "</dl>\n"
+        <> "<h2>Scales</h2>\n"
+        <> "<dl class=main-dl>\n" <> scale_html scales <> "</dl>\n"
     where scale_html = mconcatMap (call_bindings_html hstate "scale")
 
 -- | Extract documentation from scales.
@@ -371,9 +431,9 @@ fmap_lookup _ (Derive.LookupPattern pattern doc _) =
 
 -- | Create docs for generator and transformer calls, and merge and sort them.
 call_maps :: Derive.CallMaps d -> [ScopeDoc]
-call_maps (Derive.CallMaps generator transformer) =
-    merge_scope_docs $ builtin_scope_doc GeneratorCall (convert generator)
-        ++ builtin_scope_doc TransformerCall (convert transformer)
+call_maps (Derive.CallMaps generator transformer) = merge_scope_docs $
+    builtin_scope_doc GeneratorCall (convert generator)
+    ++ builtin_scope_doc TransformerCall (convert transformer)
     where convert = map convert_call
 
 -- ** instrument doc

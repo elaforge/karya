@@ -3,6 +3,13 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
+  - is the chatusram tisram thing a case for two different meters?
+  * bind record and play/stop keys on oxygen8
+  automatic "All.hs" modules
+    - Derive.Calls.All looks for (note|pitch|control)_calls from Derive/Call/,
+      but could also take from Local/Call/*
+    - Local.Instrument looks for 'load' from Local/Instrument/
+  - maybe {} for quoted, it's a bit shorter than "()
   - hold support for trill and tremolo
     . also, would it be useful to add an acceleration?
   * import should either warn about collisions, or import in order
@@ -94,6 +101,36 @@ UNSORTED
     understands the first loop, and doesn't know that 'tile' cuts off the
     beginning.
   india: gamakam:
+    sequence calls:
+      - initial implementation
+      begin
+        - p/from takes an arg so it can go to something other than unity
+        - jaru
+        - janta
+      middle
+        - kam should adjust number of cycles based on time available, and then
+          stretch to fit
+        - nkam, with fixed number of cycles
+      - maybe 'hold' should transition to the pitch instead of snapping
+      - precomposed calls, e.g. '! j 2 -1; h -1; to 0'
+      - select precomposed calls based on scale degree, previous pitch,
+        and tempo
+      How to get the next pitch?
+        . 'approach' does it by evaluating the next
+          event on the pitch track.  I could do the same, but I'd have to go
+          find the pitch track, and it would be wrong if anything fancy was
+          happening.
+        . What I really want is to run once with the basic pitches, and then add
+          the gamakam later.  That means a postproc, but then I'm doing awkward
+          postproc evaluation.
+        . If I know a note track has a set of basic pitches, then I can evaluate
+          once, ignoring '!'.  Then evaluate again, and stash the events where
+          I can get them.
+        . I could do it with a special track evaluation.  This seems like a lot
+          of work for something I'm not sure is even right.  I'm not even sure
+          gamakam will need the next pitch.  On the other hand, getting next
+          values, or this kind of staged evaluation in general, is a problem
+          that comes up in different contexts.
     . The split between >, *, t-diatonic, and t-nn is pretty awkward,
       especially how I duplicate all the pitch calls as control calls.
       I think I'm going to want a higher level layer, and only work with
@@ -319,13 +356,25 @@ documentation
   - update screenshots: doc/img/ly-example.png
   - Publish haddock with http://documentup.com/feuerbach/standalone-haddock
   call doc:
+    - LBlock.doc_of to get docs of matching calls in scope
     - For call doc, can I group calls with the same doc but different args,
       especially different defaults?
       . Would look like:
         doc doc doc generator
         bind -- name
           args
-    - hide sections whose calls are all hidden
+    - it's kind of useless for the call doc to say "from builtin", since they
+      all are
+    * hide sections whose calls are all hidden
+      . group sections hierarchically, e.g.
+        <div class=call-type> <h2>note</h2>
+          <div class=call-source> <h3>from builtin</h3>
+            <div class=call-module> <center> Module: bali.gender </center>
+            </div>
+          </div>
+        </div>
+      . Then iterate over the whole list, hiding anything with 0 non-hidden
+        call definition (class=call) children, and unhiding otherwise.
     - I could go look through arg docs for controls and list all the controls
       that have someone listening to them in a certain scope.
 

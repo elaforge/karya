@@ -3,6 +3,7 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 module Derive.Call.CallTest where
+import qualified Control.Monad as Monad
 import qualified Data.Map as Map
 
 import Util.Control
@@ -106,7 +107,7 @@ run_val transform call = extract $ DeriveTest.derive_tracks_with
         [(">", [(0, 1, maybe "" (<> " | ") transform
             <> "capture (" <> call <> ")")])]
     where
-    extract = first (join . Seq.head) . DeriveTest.extract
+    extract = first (Monad.join . Seq.head) . DeriveTest.extract
         (TrackLang.lookup_val "capture" . Score.event_environ)
     c_capture :: Derive.Generator Derive.Note
     c_capture = Derive.make_call module_ "capture" mempty "Capture env." $

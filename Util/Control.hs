@@ -34,7 +34,7 @@ module Util.Control (
 import Control.Applicative ((<$>), (<*>), (<*), (*>), (<|>))
 import qualified Control.Exception as Exception
 import Control.Monad
-       ((<=<), (>=>), ap, filterM, foldM, forM, forM_, forever, guard, join,
+       ((<=<), (>=>), ap, filterM, foldM, forM, forM_, forever, guard,
         liftM, mplus, msum, mzero, replicateM, replicateM_, when, unless, void,
         zipWithM, zipWithM_)
 import qualified Control.Monad.Trans as Trans
