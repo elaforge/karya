@@ -111,10 +111,13 @@ UNSORTED
         - kam should adjust number of cycles based on time available, and then
           stretch to fit
         - nkam, with fixed number of cycles
-      - maybe 'hold' should transition to the pitch instead of snapping
+        - maybe 'hold' should transition to the pitch instead of snapping
       - precomposed calls, e.g. '! j 2 -1; h -1; to 0'
       - select precomposed calls based on scale degree, previous pitch,
         and tempo
+      - Currently, if there isn't enough time, the begin call will compress the
+        middle and end down to nothing.  Perhaps begin and end should compress
+        evenly?
       How to get the next pitch?
         . 'approach' does it by evaluating the next
           event on the pitch track.  I could do the same, but I'd have to go
@@ -153,7 +156,7 @@ UNSORTED
       . What about split control tracks?  I think it's too low level and
         awkward to use, since it requires a separate %t-whatever event
         squeezed in there somehow.
-      # However, I could use a pitch track, and then get rid of the extra
+      ! However, I could use a pitch track, and then get rid of the extra
         argument by expecting a separate pitch track above it.
     compose together ornaments:
       . Perhaps an env var could switch between start, middle, and end
@@ -356,7 +359,7 @@ documentation
   - update screenshots: doc/img/ly-example.png
   - Publish haddock with http://documentup.com/feuerbach/standalone-haddock
   call doc:
-    - LBlock.doc_of to get docs of matching calls in scope
+    * LBlock.find_doc to get docs of matching calls in scope
     - For call doc, can I group calls with the same doc but different args,
       especially different defaults?
       . Would look like:

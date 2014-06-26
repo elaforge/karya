@@ -404,6 +404,15 @@ scale_docs = sort_calls . lookup_calls ValCall . map convert
 -- textual output.
 type Document = [Section]
 
+-- | Keep only CallDocs whose name or binding name matches the function.
+-- TODO strip empty sections afterwards
+filter_calls :: (Text -> Bool) -> Document -> Document
+filter_calls matches = map (second (map scope_doc))
+    where
+    scope_doc = second (filter call_bindings)
+    call_bindings (bindings, _, _) = any binding bindings
+    binding (sym, call) = matches sym || matches call
+
 -- | Emit docs for all calls in the default scope.
 builtin :: Cmd.M m => m Document
 builtin = library <$> Cmd.gets (Cmd.state_library . Cmd.state_config)

@@ -94,6 +94,10 @@ replace_titles from to = map_titles $ Text.replace from to
 doc :: Cmd.CmdL Text
 doc = CallDoc.doc_text <$> track_doc
 
+find_doc :: Text -> Cmd.CmdL Text
+find_doc search  = CallDoc.doc_text
+    . CallDoc.filter_calls (search `Text.isInfixOf`) <$> track_doc
+
 -- | Write HTML documentation for the selected track to
 -- @build/derive_doc.html@.
 html_doc :: Cmd.CmdL ()
