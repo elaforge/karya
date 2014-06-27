@@ -425,8 +425,7 @@ data AbsoluteMode = Unison | Neighbor deriving (Bounded, Eq, Enum, Show)
 
 -- | A bundle of standard configuration for trills.
 trill_env :: Maybe Direction -> Maybe Direction
-    -> Sig.Parser (Maybe Direction, Maybe Direction, TrackLang.DefaultReal,
-        Adjust)
+    -> Sig.Parser (Maybe Direction, Maybe Direction, TrackLang.Duration, Adjust)
 trill_env start_dir end_dir =
     (,,,) <$> start <*> end <*> hold_env <*> adjust_env
     where
@@ -445,9 +444,10 @@ trill_env start_dir end_dir =
 
 -- Its default is both prefixed and unprefixed so you can put in a tr-hold
 -- globally, and so you can have a short @hold=n |@ for a single call.
-hold_env :: Sig.Parser TrackLang.DefaultReal
-hold_env = Sig.environ (TrackLang.unsym Environ.hold) Sig.Both
-    (TrackLang.real 0) "Time to hold the first pitch."
+hold_env :: Sig.Parser TrackLang.Duration
+hold_env = TrackLang.default_real <$>
+    Sig.environ (TrackLang.unsym Environ.hold) Sig.Both
+        (TrackLang.real 0) "Time to hold the first pitch."
 
 trill_variations :: [(TrackLang.Symbol, Maybe Direction, Maybe Direction)]
 trill_variations =
@@ -517,7 +517,7 @@ adjust_env = TrackLang.get_e <$>
 -- ** transitions
 
 trill_from_controls :: (ScoreTime, ScoreTime) -> Maybe Direction
-    -> Maybe Direction -> Adjust -> TrackLang.DefaultReal
+    -> Maybe Direction -> Adjust -> TrackLang.Duration
     -> TrackLang.ValControl -> TrackLang.ValControl
     -> Derive.Deriver (Signal.Control, Score.Control)
 trill_from_controls (start, end) start_dir end_dir adjust hold neighbor speed
@@ -526,7 +526,7 @@ trill_from_controls (start, end) start_dir end_dir adjust hold neighbor speed
     real_start <- Derive.real start
     let ((val1, val2), even_transitions) = convert_direction real_start
             neighbor_sig start_dir end_dir
-    hold <- Util.score_duration start (TrackLang.default_real hold)
+    hold <- Util.score_duration start hold
     transitions <- adjusted_transitions False even_transitions adjust 0 hold
         speed (start, end)
     return (trill_from_transitions val1 val2 transitions, control)

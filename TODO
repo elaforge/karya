@@ -110,7 +110,7 @@ UNSORTED
       middle
         * kam should adjust number of cycles based on time available, and then
           stretch to fit
-        - nkam, with fixed number of cycles
+        * nkam, with fixed number of cycles
         - maybe 'hold' should transition to the pitch instead of snapping
       - precomposed calls, e.g. '! j 2 -1; h -1; to 0'
       - select precomposed calls based on scale degree, previous pitch,

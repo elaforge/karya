@@ -139,7 +139,7 @@ c_pitch_trill start_dir = Derive.generator1 module_ "tr" mempty
         trill_signal start_dir pitch neighbor speed hold args
 
 trill_signal :: Maybe Trill.Direction -> PitchSignal.Pitch
-    -> TrackLang.ValControl -> TrackLang.ValControl -> TrackLang.DefaultReal
+    -> TrackLang.ValControl -> TrackLang.ValControl -> TrackLang.Duration
     -> Derive.PassedArgs a -> Derive.Deriver PitchSignal.Signal
 trill_signal start_dir pitch neighbor speed hold args = do
     (neighbor, control) <- Util.to_transpose_function Util.Nn neighbor

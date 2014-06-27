@@ -77,6 +77,23 @@ test_kampita = do
     equal (run [(0, 2.5, "kam-adjust=stretch | ! ; k^ 1; -- 4c")])
         ([[(0, 60), (2.5, 61)]], [])
 
+test_nkampita = do
+    let run = run_note_track "| nkam-transition=0"
+    strings_like (snd (run [(0, 2, "! ; nk 0; -- 4c")]))
+        ["cycles: expected Num (>0)"]
+    equal (run [(0, 2, "! ; nk 1; -- 4c")])
+        ([[(0, 60), (1, 61), (2, 60)]], [])
+    equal (run [(0, 2, "! ; nk_ 1; -- 4c")])
+        ([[(0, 60), (1, 61), (2, 60)]], [])
+    equal (run [(0, 2, "! ; nk 2; -- 4c")])
+        ([[(0, 60), (0.5, 61), (1, 60), (1.5, 61), (2, 60)]], [])
+    equal (run [(0, 2, "! ; nk^ 1; -- 4c")])
+        ([[(0, 60), (2, 61)]], [])
+    equal (run [(0, 2, "! ; nk_ 1 -1; -- 4c")])
+        ([[(0, 60), (2, 59)]], [])
+    equal (run [(0, 4, "nkam-transition=2 | ! ; nk^ 1; -- 4c")])
+        ([[(0, 60), (3, 60.5), (4, 61)]], [])
+
 run_note_track :: String -> [UiTest.EventSpec]
     -> ([[(RealTime, Pitch.NoteNumber)]], [String])
 run_note_track transform = DeriveTest.extract extract

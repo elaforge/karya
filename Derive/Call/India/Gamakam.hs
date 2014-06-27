@@ -260,10 +260,9 @@ c_kampita_c start_dir end_dir = generator1 "kam" mempty
 -- | You don't think there are too many arguments, do you?
 kampita :: Maybe Trill.Direction -> Maybe Trill.Direction -> Trill.Adjust
     -> Util.Function -> TrackLang.ValControl -> RealTime
-    -> TrackLang.DefaultReal -> Double -> Derive.PassedArgs a
+    -> TrackLang.Duration -> Double -> Derive.PassedArgs a
     -> Derive.Deriver Signal.Control
-kampita start_dir end_dir adjust neighbor speed transition
-        (TrackLang.DefaultReal hold) lilt args = do
+kampita start_dir end_dir adjust neighbor speed transition hold lilt args = do
     start <- Args.real_start args
     let ((val1, val2), even_transitions) = convert_directions start neighbor
             start_dir end_dir
@@ -313,8 +312,8 @@ c_nkampita_c start_dir end_dir = generator1 "nkam" mempty
     <*> lilt_env <*> Trill.hold_env
     <*> Sig.environ "transition" Sig.Both transition_default
         "Time for each slide."
-    ) $ \(neighbor, TrackLang.Positive cycles, lilt, TrackLang.DefaultReal hold,
-            transition) args -> do
+    ) $ \(neighbor, TrackLang.Positive cycles, lilt, hold, transition) args ->
+            do
         (start, end) <- Args.real_range_or_next args
         neighbor <- Util.to_function neighbor
         let ((val1, val2), even_transitions) = convert_directions start

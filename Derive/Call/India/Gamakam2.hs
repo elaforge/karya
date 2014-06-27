@@ -37,13 +37,13 @@ import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Sig as Sig
 import qualified Derive.TrackLang as TrackLang
 
+import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
 import Types
 
 
--- add as pitch calls
--- as note calls it's only one per note, plus placement for the high level
--- syntax
+module_ :: Module.Module
+module_ = "india" <> "gamakam2"
 
 note_calls :: Derive.CallMaps Derive.Note
 note_calls = Derive.call_maps [("!", c_sequence)] [("!", c_sequence_transform)]
@@ -65,6 +65,8 @@ middle_calls :: [(TrackLang.CallId, Derive.Generator Derive.Pitch)]
 middle_calls = ("hold", c_hold)
     : kampita_variations "kam" (c_kampita False)
     ++ kampita_variations "kam2" (c_kampita True)
+    ++ kampita_variations "nkam" (c_nkampita False)
+    ++ kampita_variations "nkam2" (c_nkampita True)
 
 end_calls :: [(TrackLang.CallId, Derive.Generator Derive.Pitch)]
 end_calls =
@@ -100,6 +102,7 @@ begin_aliases = Map.fromList
 middle_aliases :: Map.Map TrackLang.CallId TrackLang.CallId
 middle_aliases = Map.fromList $ ("-", "hold")
     : alias_prefix "k" "kam" (map fst middle_calls)
+    ++ alias_prefix "nk" "nkam" (map fst middle_calls)
 
 end_aliases :: Map.Map TrackLang.CallId TrackLang.CallId
 end_aliases = Map.fromList
@@ -113,9 +116,6 @@ alias_prefix from to calls = do
     TrackLang.Symbol call <- calls
     Just rest <- [Text.stripPrefix to call]
     return (TrackLang.Symbol (from <> rest), TrackLang.Symbol call)
-
-module_ :: Module.Module
-module_ = "india" <> "gamakam2"
 
 kampita_variations :: Text -> (Maybe Trill.Direction -> call)
     -> [(TrackLang.CallId, call)]
@@ -207,7 +207,6 @@ sequence_calls cinfo (start, end) maybe_begin middles maybe_end =
         (test_end_pitch, _) <-
             detached $ maybe_eval middle_start end maybe_end
         end_start <- lift $ signal_start end test_end_pitch
-        -- Debug.tracepM "sequence times" (start, middle_start, end_start, end)
         (middle_pitch, middle_mods) <-
             sequence_middles middle_start end_start middles
         (end_pitch, end_mods) <- maybe_eval end_start end maybe_end
@@ -236,7 +235,6 @@ sequence_middles _ _ [] = return (mempty, mempty)
 sequence_middles start end _ | start >= end = return (mempty, mempty)
 sequence_middles start end (expr:exprs) = do
     let dur = (end - start) / fromIntegral (length exprs + 1)
-    -- Debug.tracepM "sequence_middles" (start, end, expr, exprs)
     (pitch, mods) <- eval start (start + dur) expr
     sig_end <- lift $ signal_end start pitch
     (pitch_rest, mods_rest) <- sequence_middles sig_end end exprs
@@ -462,79 +460,109 @@ c_hold = generator1 "hold" mempty "Emit a flat pitch."
         return $ PitchSignal.signal [(start, pitch)]
             <> PitchSignal.signal [(end, pitch)]
 
+-- ** kampita
+
 c_kampita:: Bool -> Maybe Trill.Direction -> Derive.Generator Derive.Pitch
 c_kampita two_pitches end_dir = generator1 "kam" mempty
     "This is a kind of trill, but its interval defaults to NNs,\
     \ and transitions between the notes are smooth.  It's intended for\
     \ the vocal microtonal trills common in Carnatic music."
-    $ Sig.call (kampita_args two_pitches)
-    $ \((pitch1, pitch2), speed, transition, TrackLang.DefaultReal hold,
-            lilt, adjust) args -> do
-        (pitch1, control1) <- Util.to_transpose_function Util.Nn pitch1
-        (pitch2, control2) <- Util.to_transpose_function Util.Nn pitch2
-        when (two_pitches && control1 /= control2) $ Derive.throw $
-            "pitch1 and pitch2 signals should have the same type: "
-            <> pretty control1 <> " /= " <> pretty control2
+    $ Sig.call ((,,)
+    <$> kampita_pitch_args two_pitches
+    <*> Sig.defaulted "speed" (Sig.typed_control "kam-speed" 6 Score.Real)
+        "Alternate pitches at this speed."
+    <*> kampita_env
+    ) $ \(pitches, speed, (transition, hold, lilt, adjust)) args -> do
+        (pitches, control) <- resolve_pitches two_pitches pitches
         start <- Args.real_start args
-        let even = end_wants_even_transitions start pitch1 pitch2 end_dir
-        transpose <- kampita even adjust pitch1 pitch2 speed transition hold
-            lilt (Args.range args)
-        pitch <- prev_pitch start args
-        return $ PitchSignal.apply_control control1
-            (Score.untyped transpose) $ PitchSignal.signal [(start, pitch)]
+        let even = end_wants_even_transitions start pitches end_dir
+        transpose <- kampita_transpose even adjust pitches speed
+            transition hold lilt (Args.range args)
+        kampita start args control transpose
 
-kampita_args :: Bool -> Sig.Parser
-    ((TrackLang.ValControl, TrackLang.ValControl), TrackLang.ValControl,
-        RealTime, TrackLang.DefaultReal, Double, Trill.Adjust)
-kampita_args two_pitches = ((,,,,,)
-    <$> (let sig name deflt = Sig.typed_control name deflt Score.Nn in
-        if two_pitches
-        then (,)
-            <$> Sig.defaulted "pitch1" (sig "kam-pitch1" 0) "First interval."
-            <*> Sig.defaulted "pitch2" (sig "kam-pitch2" 1) "Second interval."
-        else (,)
-            <$> Applicative.pure (TrackLang.constant_control 0)
-            <*> Sig.defaulted "neighbor" (sig "kam-neighbor" 1)
-                "Alternate with a pitch at this interval.")
-    <*> speed_arg
-    <*> Sig.defaulted_env "transition" Sig.Both 0.08 "Time for each slide."
-    <*> Trill.hold_env <*> lilt_env <*> Trill.adjust_env)
+c_nkampita :: Bool -> Maybe Trill.Direction -> Derive.Generator Derive.Pitch
+c_nkampita two_pitches end_dir = generator1 "nkam" mempty
+    "`kam` with a set number of cycles. The speed adjusts to fit the cycles in\
+    \ before the next event."
+    $ Sig.call ((,,)
+    <$> Sig.defaulted "cycles" (TrackLang.Positive 1) "Number of cycles."
+    <*> kampita_pitch_args two_pitches
+    <*> kampita_env
+    ) $ \(TrackLang.Positive cycles, pitches, (transition, hold, lilt, adjust))
+            args -> do
+        (pitches, control) <- resolve_pitches two_pitches pitches
+        (start, end) <- Args.real_range_or_next args
+        let even = end_wants_even_transitions start pitches end_dir
+        -- 1 cycle means a complete cycle, which is 3 transitions, but
+        -- 'end_dir' may reduce the number of transitions, to a minimum of 2,
+        -- which winds up sounding like a single transition: [0, 1].
+        let num_transitions = cycles * 2 + if even == Just True then 0 else 1
+        let speed = TrackLang.constant_control $
+                (num_transitions - 1) / RealTime.to_seconds (end - start)
+        transpose <- kampita_transpose even adjust pitches speed
+            transition hold lilt (Args.range args)
+        kampita start args control transpose
+
+-- ** implementation
+
+resolve_pitches :: Bool -> (TrackLang.ValControl, TrackLang.ValControl)
+    -> Derive.Deriver ((Util.Function, Util.Function), Score.Control)
+resolve_pitches two_pitches (pitch1, pitch2) = do
+    (pitch1, control1) <- Util.to_transpose_function Util.Nn pitch1
+    (pitch2, control2) <- Util.to_transpose_function Util.Nn pitch2
+    when (two_pitches && control1 /= control2) $ Derive.throw $
+        "pitch1 and pitch2 signals should have the same type: "
+        <> pretty control1 <> " /= " <> pretty control2
+    return ((pitch1, pitch2), control1)
+
+kampita_pitch_args :: Bool
+    -> Sig.Parser (TrackLang.ValControl, TrackLang.ValControl)
+kampita_pitch_args two_pitches
+    | two_pitches = (,)
+        <$> Sig.defaulted "pitch1" (sig "kam-pitch1" 0) "First interval."
+        <*> Sig.defaulted "pitch2" (sig "kam-pitch2" 1) "Second interval."
+    | otherwise = (,)
+        <$> Applicative.pure (TrackLang.constant_control 0)
+        <*> Sig.defaulted "neighbor" (sig "kam-neighbor" 1)
+            "Alternate with a pitch at this interval."
+    where sig name deflt = Sig.typed_control name deflt Score.Nn
+
+kampita_env :: Sig.Parser (RealTime, TrackLang.Duration, Double, Trill.Adjust)
+kampita_env = (,,,)
+    <$> Sig.defaulted_env "transition" Sig.Both 0.08 "Time for each slide."
+    <*> Trill.hold_env <*> lilt_env <*> Trill.adjust_env
     where
     lilt_env :: Sig.Parser Double
     lilt_env = Sig.environ "lilt" Sig.Prefixed 0
-        "Lilt is a horizontal bias to the\
-        \ vibrato. A lilt of 1 would place each neighbor on top of the\
-        \ following unison, while -1 would place it on the previous one.\
-        \ So it should range from -1 < lilt < 1."
-    speed_arg :: Sig.Parser TrackLang.ValControl
-    speed_arg = Sig.defaulted "speed"
-        (Sig.typed_control "kam-speed" 6 Score.Real)
-        "Alternate pitches at this speed."
+        "Lilt is a horizontal bias to the vibrato. A lilt of 1 would place\
+        \ each neighbor on top of the following unison, while -1 would place\
+        \ it on the previous one. So it should range from -1 < lilt < 1."
+
+kampita :: RealTime -> Derive.PitchArgs -> Score.Control -> Signal.Control
+    -> Derive.Deriver PitchSignal.Signal
+kampita start args control transpose = do
+    pitch <- prev_pitch start args
+    return $ PitchSignal.apply_control control
+        (Score.untyped transpose) $ PitchSignal.signal [(start, pitch)]
 
 -- | You don't think there are too many arguments, do you?
-kampita :: Maybe Bool -> Trill.Adjust
-    -> Util.Function -> Util.Function -> TrackLang.ValControl -> RealTime
+kampita_transpose :: Maybe Bool -> Trill.Adjust
+    -> (Util.Function, Util.Function) -> TrackLang.ValControl -> RealTime
     -> TrackLang.Duration -> Double -> (ScoreTime, ScoreTime)
     -> Derive.Deriver Signal.Control
-kampita even adjust pitch1 pitch2 speed transition hold lilt (start, end) = do
+kampita_transpose even adjust (pitch1, pitch2) speed transition hold lilt
+        (start, end) = do
     hold <- Util.score_duration start hold
     Gamakam.smooth_trill (-transition) pitch1 pitch2
         =<< Gamakam.trill_transitions even adjust lilt hold speed (start, end)
 
-end_wants_even_transitions :: RealTime -> Util.Function -> Util.Function
+end_wants_even_transitions :: RealTime -> (Util.Function, Util.Function)
     -> Maybe Trill.Direction -> Maybe Bool
-end_wants_even_transitions start pitch1 pitch2 dir = case dir of
+end_wants_even_transitions start (pitch1, pitch2) dir = case dir of
     Nothing -> Nothing
     Just Trill.Low -> Just (not pitch1_low)
     Just Trill.High -> Just pitch1_low
     where pitch1_low = pitch1 start <= pitch2 start
-
-
-lilt_env :: Sig.Parser Double
-lilt_env = Sig.environ "lilt" Sig.Both 0 "Lilt is a horizontal bias to the\
-    \ vibrato. A lilt of 1 would place each neighbor on top of the\
-    \ following unison, while -1 would place it on the previous one.\
-    \ So it should range from -1 < lilt < 1."
 
 -- * end
 
