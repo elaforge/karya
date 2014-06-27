@@ -71,7 +71,7 @@ import Types
 initial_environ :: TrackLang.Environ
 initial_environ = TrackLang.make_environ $
     -- Control interpolators rely on this.
-    [ (Environ.srate, TrackLang.num 0.02)
+    [ (Environ.srate, TrackLang.num 0.015)
     -- Looking up any val call relies on having a scale in scope.
     , (Environ.scale, TrackLang.VSymbol
         (TrackLang.Symbol Config.default_scale_id))
