@@ -64,6 +64,9 @@ test_parse_expr = do
     equal (f "a 'b -- c'--d") $ Right
         [Call (Symbol "a") [Literal (VSymbol (Symbol "b -- c"))]]
 
+    equal (f "a;b") $ Right
+        [Call "a" [Literal VSeparator, Literal (VSymbol "b")]]
+
 test_parse_val = do
     let attrs = Just . VAttributes . Score.attrs
         sym = Just . VSymbol

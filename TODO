@@ -103,6 +103,11 @@ UNSORTED
   india: gamakam:
     sequence calls:
       * initial implementation
+      - always using the previous pitch is not so convenient when starting,
+        perhaps I should have an implicit 'start' call that sets the pitch
+      * It's awkward to remember spaces before ;, I suppose I should disallow
+        ; in calls.
+      - j too fast
       begin
         * p/from takes an arg so it can go to something other than unity
         * jaru
@@ -111,6 +116,7 @@ UNSORTED
         * kam should adjust number of cycles based on time available, and then
           stretch to fit
         * nkam, with fixed number of cycles
+        - test hold for kam and nkam, adjust for nkam
         - maybe 'hold' should transition to the pitch instead of snapping
       - precomposed calls, e.g. '! j 2 -1; h -1; to 0'
       - select precomposed calls based on scale degree, previous pitch,

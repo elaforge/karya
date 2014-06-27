@@ -371,9 +371,10 @@ p_null_word = A.takeWhile is_word_char
 
 is_toplevel_word_char :: Char -> Bool
 is_toplevel_word_char c = c /= ' ' && c /= '='
+    && c /= ';' -- This is so the ; separator can appear anywhere.
 
 is_word_char :: Char -> Bool
-is_word_char c = c /= ' ' && c /= '=' && c /= ')' && c /= ']'
+is_word_char c = is_toplevel_word_char c && c /= ')' && c /= ']'
 
 lexeme :: A.Parser a -> A.Parser a
 lexeme p = p <* spaces
