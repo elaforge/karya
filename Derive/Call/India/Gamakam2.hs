@@ -54,7 +54,8 @@ pitch_calls = Derive.generator_call_map $
 
 begin_calls :: [(TrackLang.CallId, Derive.Generator Derive.Pitch)]
 begin_calls =
-    [ ("from-p", c_from False False)
+    [ ("set-pitch", c_set_pitch)
+    , ("from-p", c_from False False)
     , ("from-p<", c_from False True)
     , ("from", c_from True False)
     , ("from<", c_from True True)
@@ -196,10 +197,10 @@ type Signals = (PitchSignal.Signal, [Derive.ControlMod])
     But I could indicate stretchiness with a special tag on the call.
 -}
 sequence_calls :: Derive.CallInfo Derive.Pitch -> (ScoreTime, ScoreTime)
-    -> Maybe Expr -> [Expr] -> Maybe Expr -> Derive.Deriver Signals
-sequence_calls cinfo (start, end) maybe_begin middles maybe_end =
+    -> Expr -> [Expr] -> Maybe Expr -> Derive.Deriver Signals
+sequence_calls cinfo (start, end) begin middles maybe_end =
     fmap fst $ flip Monad.State.runStateT cinfo $ do
-        (begin_pitch, begin_mods) <- maybe_eval start end maybe_begin
+        (begin_pitch, begin_mods) <- eval start end begin
         middle_start <- lift $ signal_end start begin_pitch
         -- This is a test eval of 'end', just to see how long it is.  The
         -- middle isn't evaluated yet, so it doesn't have the right
@@ -294,13 +295,14 @@ instance Pretty.Pretty Expr where
     format (QuotedExpr quoted) = Pretty.format quoted
 
 -- | Parse the sequence call's arguments and substitute aliases.  If there is
--- no middle, @-@ will be added.  This is so that if there is just an end call,
--- there will still be a signal from the beginning of the note.
+-- no begin, @set-pitch@ will be added, and if there is no middle, @-@ will be
+-- added.  This is so that if there is just an end call, there will still be
+-- a signal from the beginning of the note.
 --
 -- > begin ; middle1 ; middle2; ...; end
 -- > begin; end
 -- > ; middle ;
-parse_sequence :: [TrackLang.Val] -> (Maybe Expr, [Expr], Maybe Expr)
+parse_sequence :: [TrackLang.Val] -> (Expr, [Expr], Maybe Expr)
 parse_sequence exprs = postproc $
     case Seq.map_tail (drop 1) $ Seq.split_with is_separator exprs of
         [] -> (Nothing, [], Nothing)
@@ -309,7 +311,8 @@ parse_sequence exprs = postproc $
             [] -> (Just begin, [], Nothing)
     where
     postproc (begin, middles, end) =
-        ( fmap (substitute_aliases begin_aliases) . to_expr =<< begin
+        ( substitute_aliases begin_aliases $
+            fromMaybe (EvaluatedExpr "set-pitch" []) $ to_expr =<< begin
         , map (substitute_aliases middle_aliases) $
             add_hold $ mapMaybe to_expr middles
         , fmap (substitute_aliases end_aliases) . to_expr =<< end
@@ -331,6 +334,16 @@ substitute_aliases aliases expr = case expr of
     where subst call_id = Map.findWithDefault call_id call_id aliases
 
 -- * start
+
+c_set_pitch :: Derive.Generator Derive.Pitch
+c_set_pitch = generator1 "set-pitch" mempty "Emit the current pitch.\
+    \ Sequence pitch calls normally use the previous pitch, and this is an\
+    \ implicit begin call so a sequence missing a begin doesn't inherit the\
+    \ previous pitch."
+    $ Sig.call0 $ \args -> do
+        start <- Args.real_start args
+        pitch <- Util.get_pitch start
+        return $ PitchSignal.signal [(start, pitch)]
 
 c_from :: Bool -> Bool -> Derive.Generator Derive.Pitch
 c_from from_prev fade_in = generator1 "from" mempty

@@ -103,7 +103,7 @@ UNSORTED
   india: gamakam:
     sequence calls:
       * initial implementation
-      - always using the previous pitch is not so convenient when starting,
+      * always using the previous pitch is not so convenient when starting,
         perhaps I should have an implicit 'start' call that sets the pitch
       * It's awkward to remember spaces before ;, I suppose I should disallow
         ; in calls.

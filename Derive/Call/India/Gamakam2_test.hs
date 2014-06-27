@@ -19,6 +19,9 @@ test_sequence = do
     -- Implicit hold.
     equal (run [(0, 8, "! -- 4c")]) ([[(0, 60), (8, 60)]], [])
     equal (run [(0, 8, "!;; -- 4c")]) ([[(0, 60), (8, 60)]], [])
+    -- Implicit set pitch if you don't supply a begin call.
+    equal (run [(0, 1, "4c"), (1, 1, "! -- 4d")])
+        ([[(0, 60)], [(1, 62), (2, 62)]], [])
 
     -- From call.
     equal (run [(0, 1, "4c"), (1, 4, "! -^ 2 -- 4d")])
