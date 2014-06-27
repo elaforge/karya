@@ -61,6 +61,22 @@ test_jaru = do
     equal (run [(0, 1, "! j 1 -1 1 -- 4c")])
         ([[(0, 62), (0.5, 59), (1, 62)]], [])
 
+test_kampita = do
+    let run = run_note_track "| kam-transition=0 | kam-speed=1"
+    equal (run [(0, 2.5, "! ; k 1; -- 4c")])
+        ([[(0, 60), (1, 61), (2, 60)]], [])
+    equal (run [(0, 2.5, "! ; k^ 1; -- 4c")])
+        ([[(0, 60), (1, 61)]], [])
+    equal (run [(0, 2.5, "! ; k_ 1; -- 4c")])
+        ([[(0, 60), (1, 61), (2, 60)]], [])
+    -- Starts from the previous pitch.
+    equal (run [(0, 4, "! ; hold -1; k 1; -- 4c")])
+        ([[(0, 59), (2, 59), (3, 60), (4, 59)]], [])
+
+    -- Adjust.
+    equal (run [(0, 2.5, "kam-adjust=stretch | ! ; k^ 1; -- 4c")])
+        ([[(0, 60), (2.5, 61)]], [])
+
 run_note_track :: String -> [UiTest.EventSpec]
     -> ([[(RealTime, Pitch.NoteNumber)]], [String])
 run_note_track transform = DeriveTest.extract extract
