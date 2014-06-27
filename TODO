@@ -104,8 +104,8 @@ UNSORTED
     sequence calls:
       * initial implementation
       begin
-        - p/from takes an arg so it can go to something other than unity
-        - jaru
+        * p/from takes an arg so it can go to something other than unity
+        * jaru
         - janta
       middle
         - kam should adjust number of cycles based on time available, and then

@@ -5,7 +5,9 @@
 module Derive.Call.India.Gamakam2 where
 import qualified Control.Applicative as Applicative
 import qualified Control.Monad.State.Strict as Monad.State
+import qualified Data.List.NonEmpty as NonEmpty
 import qualified Data.Map as Map
+import qualified Data.Text as Text
 
 import Util.Control
 import qualified Util.Log as Log
@@ -18,10 +20,12 @@ import qualified Derive.Call.ControlUtil as ControlUtil
 import qualified Derive.Call.India.Gamakam as Gamakam
 import qualified Derive.Call.Module as Module
 import qualified Derive.Call.PitchUtil as PitchUtil
+import qualified Derive.Call.SignalTransform as SignalTransform
 import qualified Derive.Call.Sub as Sub
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Call.Trill as Trill
 import qualified Derive.Call.Util as Util
+import qualified Derive.Controls as Controls
 import qualified Derive.Derive as Derive
 import qualified Derive.Deriver.Internal as Internal
 import qualified Derive.Eval as Eval
@@ -42,27 +46,34 @@ import Types
 -- syntax
 
 note_calls :: Derive.CallMaps Derive.Note
-note_calls = Derive.call_maps
-    [ ("!", c_sequence)
-    ]
-    [ ("!", c_sequence_transform)
-    ]
+note_calls = Derive.call_maps [("!", c_sequence)] [("!", c_sequence_transform)]
 
 pitch_calls :: Derive.CallMaps Derive.Pitch
-pitch_calls = Derive.call_maps
-    ([ ("from-p", c_from False False)
+pitch_calls = Derive.generator_call_map $
+    begin_calls ++ middle_calls ++ end_calls
+
+begin_calls :: [(TrackLang.CallId, Derive.Generator Derive.Pitch)]
+begin_calls =
+    [ ("from-p", c_from False False)
     , ("from-p<", c_from False True)
     , ("from", c_from True False)
     , ("from<", c_from True True)
-    , ("hold", c_hold)
-    , ("to", c_to False)
+    , ("jaru", c_jaru)
+    ]
+
+middle_calls :: [(TrackLang.CallId, Derive.Generator Derive.Pitch)]
+middle_calls = [("hold", c_hold)]
+
+end_calls :: [(TrackLang.CallId, Derive.Generator Derive.Pitch)]
+end_calls =
+    [ ("to", c_to False)
     , ("to>", c_to True)
-    ] ++ kampita_variations "k" c_kampita)
-    [
     ]
 
 -- avoid below: ! p< -1 ; - ; p
 -- avoid below, kam: ! p< -1 ; nk 2 ; p>
+--
+-- kharaharapriya avarohana:
 -- sa: j 0 -2
 -- ni: ; k_^ -1 ;
 -- da: -
@@ -81,6 +92,7 @@ begin_aliases = Map.fromList
     , ("p<", "from-p<")
     , ("-^", "from")
     , ("-^<", "from<")
+    , ("j", "jaru")
     ]
 
 middle_aliases :: Map.Map TrackLang.CallId TrackLang.CallId
@@ -119,7 +131,14 @@ c_sequence_transform = Derive.transformer module_ "sequence" mempty
         with_sequence
 
 sequence_doc :: Text
-sequence_doc = "Sequence several pitch calls.  TODO"
+sequence_doc = "Sequence several pitch calls. Calls are divided into\
+    \ begin ; middle1 ; middle2; ... ; end calls. Calls are pitch generators,\
+    \ and are sequenced such that the middle calls stretch based on the\
+    \ duration of the note. There are short aliases for calls that are\
+    \ designed for sequencing."
+    <> "\nBegin aliases: " <> prettyt begin_aliases
+    <> "\nMiddle aliases: " <> prettyt middle_aliases
+    <> "\nEnd aliases: " <> prettyt end_aliases
 
 with_sequence :: Derive.PassedArgs Score.Event -> Derive.Deriver a
     -> Derive.Deriver a
@@ -313,15 +332,19 @@ c_from from_prev fade_in = generator1 "from" mempty
     (if from_prev
         then "Come for the previous pitch, and possibly fade in."
         else "Come from a pitch, and possibly fade in.")
-    $ Sig.call ((,)
+    $ Sig.call ((,,)
     <$> (if from_prev then Applicative.pure Nothing
-        else Sig.defaulted "pitch" Nothing
+        else Sig.defaulted "from" Nothing
             "Come from this pitch, or the previous one.")
     <*> Sig.defaulted "time" (TrackLang.real 0.25) "Time to destination pitch."
-    ) $ \(from_pitch, TrackLang.DefaultReal time) args -> do
+    <*> Sig.defaulted "to" Nothing "Go to this pitch, or the current one."
+    ) $ \(from_pitch, TrackLang.DefaultReal time, maybe_to_pitch) args -> do
         start <- Args.real_start args
         end <- get_end start time args
-        to_pitch <- Util.get_pitch start
+        current_pitch <- Util.get_pitch start
+        let to_pitch = maybe current_pitch
+                (PitchUtil.resolve_pitch_transpose current_pitch)
+                maybe_to_pitch
         let from = resolve_pitch args to_pitch from_pitch
         when fade_in $
             ControlUtil.multiply_dyn end
@@ -340,9 +363,80 @@ get_end start dur args = do
         else Args.real_end args
     return $ min time_end max_end
 
--- . Attack, e.g. 0 -2 0.  Only at beginning of note.  Doesn't shorten,
---   though it might speed up a bit.  Diatonic.  Jaru.
---   > j) 0 -2, j] -1, sgr
+{-
+    Reliance on the underlying pitch is awkward.  E.g. jaru and p go to 0, but
+    sometimes the hold is at -1 or something.  This also leads to kam not being
+    able to assume the base.  Maybe there should be a generic way to transpose
+    the base pitch.  Or set the middle:
+
+    > j 1 2; -1; p> -- Jaru 1 2 to -1, hold -1, then to 0
+    > j 1 2; k^ -1 1; p> -- Jaru 1 2, kam -1 1, to 0
+
+    So maybe the 'from' calls need to know what the first middle pitch is, so
+    they can go to it.
+
+    Or kam can start with the previous pitch, just like hold does:
+
+    > j 1 2 -1; - ; p> -- Jaru 1 2 to -1, hold -1, then to 0
+    > j 1 2 -1; k^ 0 2; p> -- Jaru 1 2, kam -1 1, to 0
+
+    Since it starts with 0 I can omit:
+
+    > j 1 2 -1; k^ 2; p> -- Jaru 1 2, kam -1 1, to 0
+
+    I think it doesn't read as nicely because each call depends on the previous
+    one, and 'j' needs an extra arg.  On the other hand, how is 'start'
+    supposed to know the starting pitch of 'middle', especially when 'middle'
+    may want to rely on the previous pitch?  I guess the two approaches are
+    incompatible.  So to do it that way, I'd need to make middle calls not
+    rely on prev_pitch, do a speculative middle eval, and communicate next
+    pitch to the 'begin' call via an env var or something.  Seems too
+    complicated.
+-}
+
+c_jaru :: Derive.Generator Derive.Pitch
+c_jaru = generator1 "jaru" mempty
+    "This is a series of grace notes whose pitches are relative to the\
+    \ base pitch."
+    $ Sig.call ((,,)
+    <$> Sig.many1 "interval" "Intervals from base pitch."
+    <*> Sig.environ "time" Sig.Both jaru_time_default "Time for each note."
+    -- TODO This should also be a Duration
+    <*> Sig.environ "transition" Sig.Both Nothing
+        "Time for each slide, defaults to `time`."
+    ) $ \(intervals, TrackLang.DefaultReal time_, maybe_transition) args -> do
+        start <- Args.real_start args
+        -- Adjust time per note based on the available duration.
+        -- Since transitions can start at 0 and end at the end, I'm dividing
+        -- the duration into intervals-1 parts.
+        let len = NonEmpty.length intervals - 1
+        end <- get_end start
+            (TrackLang.multiply_duration time_ len) args
+        let time = (end - start) / fromIntegral len
+        pitch <- Util.get_pitch start
+        srate <- Util.get_srate
+        (intervals, control) <- parse intervals
+        let transition = fromMaybe time maybe_transition
+        let sig = jaru srate start time transition (NonEmpty.toList intervals)
+        return $ PitchSignal.apply_control control (Score.untyped sig) $
+            PitchSignal.signal [(start, pitch)]
+    where
+    parse intervals
+        | all (==control) controls = return (xs, control)
+        | otherwise = Derive.throw "all intervals must have the same type"
+        where
+        (xs, control :| controls) = NonEmpty.unzip $ NonEmpty.map
+            (Controls.transpose_control . TrackLang.default_diatonic)
+            intervals
+    jaru_time_default = TrackLang.real 0.15
+
+jaru :: RealTime -> RealTime -> RealTime -> RealTime -> [Signal.Y]
+    -> Signal.Control
+jaru srate start time transition intervals =
+    -- TODO use segments from PitchUtil?  That way I can use the
+    -- interpolate-type.  Of course, 'smooth' takes a function too...
+    SignalTransform.smooth id srate (-transition) $
+        Signal.signal (zip (Seq.range_ start time) intervals)
 
 -- * middle
 

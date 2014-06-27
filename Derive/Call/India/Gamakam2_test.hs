@@ -3,16 +3,16 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 module Derive.Call.India.Gamakam2_test where
+import Util.Control
 import Util.Test
 import qualified Ui.UiTest as UiTest
 import qualified Derive.DeriveTest as DeriveTest
+import qualified Perform.Pitch as Pitch
+import Types
 
 
 test_sequence = do
-    let run = DeriveTest.extract extract
-            . DeriveTest.derive_tracks "import india.gamakam2"
-            . UiTest.note_track
-        extract = DeriveTest.e_nns
+    let run = run_note_track ""
     strings_like (snd (run [(0, 8, "! ; no-call ; -- 4c")]))
         ["generator not found"]
 
@@ -51,3 +51,19 @@ test_sequence = do
     -- Middle divided equally between 59 and 60.
     equal (run [(0, 8, "! p 1 1; - -1; - 0; p 1 1 -- 4c")])
         ([[(0, 61), (1, 59), (4, 60), (7, 60), (8, 61)]], [])
+
+test_jaru = do
+    let run = run_note_track "| jaru-time=1 | jaru-transition=1"
+    equal (run [(0, 4, "! j 1 -1 -- 4c")])
+        ([[(0, 62), (1, 59), (4, 59)]], [])
+    equal (run [(0, 2, "! j 1 -1 1 -- 4c")])
+        ([[(0, 62), (1, 59), (2, 62)]], [])
+    equal (run [(0, 1, "! j 1 -1 1 -- 4c")])
+        ([[(0, 62), (0.5, 59), (1, 62)]], [])
+
+run_note_track :: String -> [UiTest.EventSpec]
+    -> ([[(RealTime, Pitch.NoteNumber)]], [String])
+run_note_track transform = DeriveTest.extract extract
+    . DeriveTest.derive_tracks ("import india.gamakam2 " <> transform)
+    . UiTest.note_track
+    where extract = DeriveTest.e_nns

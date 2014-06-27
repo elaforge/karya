@@ -118,6 +118,10 @@ instance Pretty.Pretty Duration where
     pretty (Real t) = pretty t
     pretty (Score t) = pretty t
 
+multiply_duration :: Duration -> Int -> Duration
+multiply_duration (Real t) n = Real (t * fromIntegral n)
+multiply_duration (Score t) n = Score (t * fromIntegral n)
+
 -- | Either RealTime or ScoreTime, but untyped defaults to RealTime.
 newtype DefaultReal = DefaultReal { default_real :: Duration }
     deriving (Eq, Show, ShowVal)
