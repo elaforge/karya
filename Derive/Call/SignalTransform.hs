@@ -171,12 +171,11 @@ curve_function curve = case untxt curve of
     digit = Num.read_digit
 
 -- | Use the function to create a segment between each point in the signal.
-smooth :: (Double -> Double) -> RealTime -- ^ If negative, each segment is from
-    -- this much before the original sample until the sample.  If positive, it
-    -- starts on the sample.  If samples are too close, the segments are
-    -- shortened correspondingly.
-    -> RealTime -> Signal.Control
-    -> Signal.Control
+smooth :: (Double -> Double) -> RealTime -> RealTime
+    -- ^ If negative, each segment is from this much before the original sample
+    -- until the sample.  If positive, it starts on the sample.  If samples are
+    -- too close, the segments are shortened correspondingly.
+    -> Signal.Control -> Signal.Control
 smooth f srate time =
     Signal.concat . snd . List.mapAccumL go Nothing . Seq.zip_next
         . Signal.unsignal
@@ -185,10 +184,14 @@ smooth f srate time =
         Nothing -> (Just (x, y), Signal.signal [(x, y)])
         Just (x0, y0) -> (Signal.last segment `mplus` Just (x, y), segment)
             where
-            segment = Signal.drop 1 $
-                ControlUtil.interpolate_segment True srate f
-                    (max x0 (min x (x+time))) y0
-                    (maybe id (min . fst) next (max x (x+time))) y
+            segment = drop1 $ ControlUtil.interpolate_segment True srate f
+                (max x0 (min x (x+time))) y0
+                (maybe id (min . fst) next (max x (x+time))) y
+    -- If the segment length is non-zero, then the first sample is a duplicate
+    -- of the previous segment's final one.
+    drop1 sig
+        | Signal.length sig > 1 = Signal.drop 1 sig
+        | otherwise = sig
 
 c_redirect :: Maybe Derive.Merge -> Text -> Derive.Transformer Derive.Control
 c_redirect maybe_merge op_name =
