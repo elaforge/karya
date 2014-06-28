@@ -45,6 +45,8 @@ title_index(int tracknum)
 int
 TrackTile::handle(int evt)
 {
+    if (this->edit_input && Fl::event_inside(edit_input))
+        return edit_input->handle(evt);
     if (evt == FL_PUSH) {
         // If the click is on a track I want to take focus off of a text input.
         for (int i = 0; i < tracks(); i++) {

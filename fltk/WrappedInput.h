@@ -28,8 +28,8 @@ public:
     void set_text(const char *text);
     const char *get_text() const;
     int text_height() const;
-protected:
     int handle(int evt);
+protected:
     void draw();
 private:
     bool wrap_text();

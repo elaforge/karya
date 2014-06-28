@@ -3,7 +3,15 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
+  - shift down arrow in a text box loses the selection
+  * clicking on a floating text entry makes it lose focus instead of setting
+    the cursor.
+  - Tweak ruler rank colors to make the ranks clearer.  Lower ranks should be
+    darker than higher ones.
   - is the chatusram tisram thing a case for two different meters?
+    I could generalize meter rulers to be "meter" or "meter-*".
+    - toggle time step between different rulers
+    - LRuler modifications need to know which ruler to modify
   * bind record and play/stop keys on oxygen8
   automatic "All.hs" modules
     - Derive.Calls.All looks for (note|pitch|control)_calls from Derive/Call/,
@@ -116,7 +124,9 @@ UNSORTED
         * kam should adjust number of cycles based on time available, and then
           stretch to fit
         * nkam, with fixed number of cycles
-        - test hold for kam and nkam, adjust for nkam
+        - kam seems not smooth.  Also, maybe transition time should default to
+          faster than the speed.
+        - test hold and lilt for kam and nkam, adjust for nkam
         - maybe 'hold' should transition to the pitch instead of snapping
       - precomposed calls, e.g. '! j 2 -1; h -1; to 0'
       - select precomposed calls based on scale degree, previous pitch,
@@ -124,6 +134,7 @@ UNSORTED
       - Currently, if there isn't enough time, the begin call will compress the
         middle and end down to nothing.  Perhaps begin and end should compress
         evenly?
+      - When this is usable, I can get rid of all the old gamakam calls.
       How to get the next pitch?
         . 'approach' does it by evaluating the next
           event on the pitch track.  I could do the same, but I'd have to go
