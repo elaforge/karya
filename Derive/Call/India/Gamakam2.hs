@@ -370,7 +370,8 @@ c_from from_prev fade_in = generator1 "from" mempty
     <$> (if from_prev then Applicative.pure Nothing
         else Sig.defaulted "from" Nothing
             "Come from this pitch, or the previous one.")
-    <*> Sig.defaulted "time" (TrackLang.real 0.25) "Time to destination pitch."
+    <*> Sig.defaulted "transition" default_transition
+        "Time to destination pitch."
     <*> Sig.defaulted "to" Nothing "Go to this pitch, or the current one."
     ) $ \(from_pitch, TrackLang.DefaultReal time, maybe_to_pitch) args -> do
         start <- Args.real_start args
@@ -434,7 +435,7 @@ c_jaru = generator1 "jaru" mempty
     \ base pitch."
     $ Sig.call ((,,)
     <$> Sig.many1 "interval" "Intervals from base pitch."
-    <*> Sig.environ "time" Sig.Both jaru_time_default "Time for each note."
+    <*> Sig.environ "time" Sig.Both default_transition "Time for each note."
     -- TODO This should also be a Duration
     <*> Sig.environ "transition" Sig.Both Nothing
         "Time for each slide, defaults to `time`."
@@ -462,7 +463,6 @@ c_jaru = generator1 "jaru" mempty
         (xs, control :| controls) = NonEmpty.unzip $ NonEmpty.map
             (Controls.transpose_control . TrackLang.default_diatonic)
             intervals
-    jaru_time_default = TrackLang.real 0.15
 
 jaru :: RealTime -> RealTime -> RealTime -> RealTime -> [Signal.Y]
     -> Signal.Control
@@ -558,7 +558,8 @@ kampita_pitch_args two_pitches
 
 kampita_env :: Sig.Parser (RealTime, TrackLang.Duration, Double, Trill.Adjust)
 kampita_env = (,,,)
-    <$> Sig.defaulted_env "transition" Sig.Both 0.08 "Time for each slide."
+    <$> Sig.defaulted_env "transition" Sig.Both default_transition_
+        "Time for each slide."
     <*> Trill.hold_env <*> lilt_env <*> Trill.adjust_env
     where
     lilt_env :: Sig.Parser Double
@@ -566,6 +567,12 @@ kampita_env = (,,,)
         "Lilt is a horizontal bias to the vibrato. A lilt of 1 would place\
         \ each neighbor on top of the following unison, while -1 would place\
         \ it on the previous one. So it should range from -1 < lilt < 1."
+
+default_transition :: TrackLang.DefaultReal
+default_transition = TrackLang.real default_transition_
+
+default_transition_ :: RealTime
+default_transition_ = 0.12
 
 kampita :: RealTime -> Derive.PitchArgs -> Score.Control -> Signal.Control
     -> Derive.Deriver PitchSignal.Signal
@@ -599,7 +606,8 @@ c_to :: Bool -> Derive.Generator Derive.Pitch
 c_to fade_out = generator1 "to" mempty "Go to a pitch, and possibly fade out."
     $ Sig.call ((,)
     <$> Sig.required "pitch" "Go to this pitch or interval."
-    <*> Sig.defaulted "time" (TrackLang.real 0.25) "Time to destination pitch."
+    <*> Sig.defaulted "transition" default_transition
+        "Time to destination pitch."
     ) $ \(to_pitch, TrackLang.DefaultReal time) args -> do
         (start, end) <- Args.real_range args
         start <- align_to_end start end time
