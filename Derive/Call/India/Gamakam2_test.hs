@@ -7,6 +7,7 @@ import Util.Control
 import Util.Test
 import qualified Ui.UiTest as UiTest
 import qualified Derive.DeriveTest as DeriveTest
+import qualified Derive.Score as Score
 import qualified Perform.Pitch as Pitch
 import qualified Perform.Signal as Signal
 import Types
@@ -81,9 +82,8 @@ test_kampita = do
     equal (run [(0, 2.5, "!; k_ 1; -- 4c")])
         ([[(0, 60), (1, 61), (2, 60)]], [])
     -- Starts from the previous pitch.
-    equal (run [(0, 4, "!; hold -1; k 1; -- 4c")])
+    equal (run [(0, 4, "!; flat -1; k 1; -- 4c")])
         ([[(0, 59), (2, 59), (3, 60), (4, 59)]], [])
-
     -- Adjust.
     equal (run [(0, 2.5, "kam-adjust=stretch | !; k^ 1; -- 4c")])
         ([[(0, 60), (2.5, 61)]], [])
@@ -107,12 +107,13 @@ test_nkampita = do
 
 run_note_track_dyn :: String -> [UiTest.EventSpec]
     -> ([([(RealTime, Pitch.NoteNumber)], [(RealTime, Signal.Y)])], [String])
-run_note_track_dyn = run_ (\e -> (DeriveTest.e_nns e, DeriveTest.e_dyn e))
+run_note_track_dyn = run_ $ \e -> (DeriveTest.e_nns e, DeriveTest.e_dyn e)
 
 run_note_track :: String -> [UiTest.EventSpec]
     -> ([[(RealTime, Pitch.NoteNumber)]], [String])
 run_note_track = run_ DeriveTest.e_nns
 
+run_ :: (Score.Event -> a) -> String -> [UiTest.EventSpec] -> ([a], [String])
 run_ extract transform = DeriveTest.extract extract
     . DeriveTest.derive_tracks ("import india.gamakam2 " <> transform)
     . UiTest.note_track

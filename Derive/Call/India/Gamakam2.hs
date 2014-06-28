@@ -64,7 +64,7 @@ begin_calls =
     ]
 
 middle_calls :: [(TrackLang.CallId, Derive.Generator Derive.Pitch)]
-middle_calls = ("hold", c_hold)
+middle_calls = ("flat", c_flat)
     : kampita_variations "kam" (c_kampita False)
     ++ kampita_variations "kam2" (c_kampita True)
     ++ kampita_variations "nkam" (c_nkampita False)
@@ -108,7 +108,7 @@ begin_aliases = Map.fromList
     ]
 
 middle_aliases :: Map.Map TrackLang.CallId TrackLang.CallId
-middle_aliases = Map.fromList $ ("-", "hold")
+middle_aliases = Map.fromList $ ("-", "flat")
     : alias_prefix "k" "kam" (map fst middle_calls)
     ++ alias_prefix "nk" "nkam" (map fst middle_calls)
 
@@ -173,16 +173,20 @@ pitch_call_info cinfo = cinfo
 
 type Signals = (PitchSignal.Signal, [Derive.ControlMod])
 
--- Awkward things:
--- - I set call duration with the event (start, dur) instead of warp, so I have
--- to modify the event rather than use Derive.place.
--- - I deduce the duration of a call by seeing what signal it returns rather
--- that having some special call mode, so these calls need to emit samples at
--- their start and end.  Actually, just end for begin and middle calls, and
--- start for end calls.
--- - Prev val is manually passed from one call to the next, so if I don't have
--- TrackEval.derive_track handling that for me, I have to do it myself, and
--- be careful to not pass it for the speculative evaluation of the end call.
+{- Awkward things:
+
+    - I set call duration with the event (start, dur) instead of warp, so
+    I have to modify the event rather than use Derive.place.
+
+    - I deduce the duration of a call by seeing what signal it returns rather
+    that having some special call mode, so these calls need to emit samples at
+    their start and end.  Actually, just end for begin and middle calls, and
+    start for end calls.
+
+    - Prev val is manually passed from one call to the next, so if I don't have
+    TrackEval.derive_track handling that for me, I have to do it myself, and be
+    careful to not pass it for the speculative evaluation of the end call.
+-}
 
 {- | I assume that start and end calls have a fixed duration and don't stretch
     to fill the given space, though they will shrink if necessary.  So
@@ -216,17 +220,17 @@ sequence_calls cinfo (start, end) begin middles maybe_end =
         -- This is a test eval of 'end', just to see how long it is.  The
         -- middle isn't evaluated yet, so it doesn't have the right
         -- info_prev_val.
-        (test_end_pitch, _) <-
-            detached $ maybe_eval middle_start end maybe_end
+        (test_end_pitch, _) <- detached $
+            maybe_eval (eval middle_start end) maybe_end
         end_start <- lift $ signal_start end test_end_pitch
         (middle_pitch, middle_mods) <-
             sequence_middles middle_start end_start middles
-        (end_pitch, end_mods) <- maybe (return (mempty, mempty))
+        (end_pitch, end_mods) <- maybe_eval
             (eval_end start end_start end) maybe_end
         return (begin_pitch <> middle_pitch <> end_pitch,
             begin_mods <> middle_mods <> end_mods)
     where
-    maybe_eval start end = maybe (return (mempty, mempty)) (eval start end)
+    maybe_eval = maybe (return (mempty, mempty))
 
 -- | Special behaviour for the @fade@ call, as documented in 'sequence_doc'.
 eval_end :: ScoreTime -> ScoreTime -> ScoreTime -> Expr -> SequenceM Signals
@@ -477,8 +481,8 @@ jaru srate start time transition intervals =
 
 -- * middle
 
-c_hold :: Derive.Generator Derive.Pitch
-c_hold = generator1 "hold" mempty "Emit a flat pitch."
+c_flat :: Derive.Generator Derive.Pitch
+c_flat = generator1 "flat" mempty "Emit a flat pitch."
     $ Sig.call (Sig.defaulted "pitch" Nothing
         "Emit this pitch, or continue the previous pitch if not given.")
     $ \maybe_pitch args -> do
