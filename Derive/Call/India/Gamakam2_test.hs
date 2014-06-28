@@ -8,6 +8,7 @@ import Util.Test
 import qualified Ui.UiTest as UiTest
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Perform.Pitch as Pitch
+import qualified Perform.Signal as Signal
 import Types
 
 
@@ -55,6 +56,13 @@ test_sequence = do
     equal (run [(0, 8, "! p 1 1; - -1; - 0; p 1 1 -- 4c")])
         ([[(0, 61), (1, 59), (4, 60), (7, 60), (8, 61)]], [])
 
+test_fade = do
+    let run = run_note_track_dyn ""
+    equal (run [(0, 4, "!;; > 2 -- 4c")])
+        ([( [(0, 60), (4, 60)]
+          , [(0, 1), (2, 1), (3, 0.5), (4, 1)]
+          )], [])
+
 test_jaru = do
     let run = run_note_track "| jaru-time=1 | jaru-transition=1"
     equal (run [(0, 4, "! j 1 -1 -- 4c")])
@@ -97,9 +105,14 @@ test_nkampita = do
     equal (run [(0, 4, "nkam-transition=2 | !; nk^ 1; -- 4c")])
         ([[(0, 60), (3, 60.5), (4, 61)]], [])
 
+run_note_track_dyn :: String -> [UiTest.EventSpec]
+    -> ([([(RealTime, Pitch.NoteNumber)], [(RealTime, Signal.Y)])], [String])
+run_note_track_dyn = run_ (\e -> (DeriveTest.e_nns e, DeriveTest.e_dyn e))
+
 run_note_track :: String -> [UiTest.EventSpec]
     -> ([[(RealTime, Pitch.NoteNumber)]], [String])
-run_note_track transform = DeriveTest.extract extract
+run_note_track = run_ DeriveTest.e_nns
+
+run_ extract transform = DeriveTest.extract extract
     . DeriveTest.derive_tracks ("import india.gamakam2 " <> transform)
     . UiTest.note_track
-    where extract = DeriveTest.e_nns

@@ -73,7 +73,12 @@ end_calls :: [(TrackLang.CallId, Derive.Generator Derive.Pitch)]
 end_calls =
     [ ("to", c_to False)
     , ("to>", c_to True)
+    , (fade_call, c_fade)
     ]
+
+-- | Special behaviour documented in 'sequence_doc'.
+fade_call :: TrackLang.CallId
+fade_call = "fade"
 
 -- avoid below: ! p< -1 ; - ; p
 -- avoid below, kam: ! p< -1 ; nk 2 ; p>
@@ -109,6 +114,7 @@ end_aliases :: Map.Map TrackLang.CallId TrackLang.CallId
 end_aliases = Map.fromList
     [ ("p", "to")
     , ("p>", "to>")
+    , (">", fade_call)
     ]
 
 alias_prefix :: Text -> Text -> [TrackLang.CallId]
@@ -143,7 +149,10 @@ sequence_doc = "Sequence several pitch calls. Calls are divided into\
     \ begin ; middle1 ; middle2; ... ; end calls. Calls are pitch generators,\
     \ and are sequenced such that the middle calls stretch based on the\
     \ duration of the note. There are short aliases for calls that are\
-    \ designed for sequencing."
+    \ designed for sequencing.\
+    \\nThere's a special hack for the `>` or `fade` end call: it's considered\
+    \ to have 0 duration, but is overlaid over any preceding middle call.\
+    \ This is so you can fade without having to flatten the pitch."
     <> "\nBegin aliases: " <> prettyt begin_aliases
     <> "\nMiddle aliases: " <> prettyt middle_aliases
     <> "\nEnd aliases: " <> prettyt end_aliases
@@ -210,11 +219,18 @@ sequence_calls cinfo (start, end) begin middles maybe_end =
         end_start <- lift $ signal_start end test_end_pitch
         (middle_pitch, middle_mods) <-
             sequence_middles middle_start end_start middles
-        (end_pitch, end_mods) <- maybe_eval end_start end maybe_end
+        (end_pitch, end_mods) <- maybe (return (mempty, mempty))
+            (eval_end start end_start end) maybe_end
         return (begin_pitch <> middle_pitch <> end_pitch,
             begin_mods <> middle_mods <> end_mods)
     where
     maybe_eval start end = maybe (return (mempty, mempty)) (eval start end)
+
+-- | Special behaviour for the @fade@ call, as documented in 'sequence_doc'.
+eval_end :: ScoreTime -> ScoreTime -> ScoreTime -> Expr -> SequenceM Signals
+eval_end sequence_start start end expr = case expr of
+    EvaluatedExpr call _ | call == fade_call -> eval sequence_start end expr
+    _ -> eval start end expr
 
 -- | I need to thread Derive.info_prev_val from each call in the sequence.
 type SequenceM =
@@ -585,8 +601,7 @@ c_to fade_out = generator1 "to" mempty "Go to a pitch, and possibly fade out."
     <$> Sig.required "pitch" "Go to this pitch or interval."
     <*> Sig.defaulted "time" (TrackLang.real 0.25) "Time to destination pitch."
     ) $ \(to_pitch, TrackLang.DefaultReal time) args -> do
-        start <- Args.real_start args
-        end <- Args.real_end args
+        (start, end) <- Args.real_range args
         start <- align_to_end start end time
         pitch <- prev_pitch start args
         when fade_out $
@@ -594,6 +609,16 @@ c_to fade_out = generator1 "to" mempty "Go to a pitch, and possibly fade out."
                 =<< ControlUtil.make_signal id start 1 end 0
         PitchUtil.make_interpolator id True start pitch end
             (PitchUtil.resolve_pitch_transpose pitch to_pitch)
+
+c_fade :: Derive.Generator Derive.Pitch
+c_fade = generator1 "fade" mempty "Fade out."
+    $ Sig.call (Sig.defaulted "time" (TrackLang.real 0.15) "Time to fade.")
+    $ \(TrackLang.DefaultReal time) args -> do
+        (start, end) <- Args.real_range args
+        start <- align_to_end start end time
+        ControlUtil.multiply_dyn end
+            =<< ControlUtil.make_signal id start 1 end 0
+        return mempty
 
 align_to_end :: RealTime -> RealTime -> TrackLang.Duration
     -> Derive.Deriver RealTime

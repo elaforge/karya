@@ -129,7 +129,7 @@ UNSORTED
         - test hold and lilt for kam and nkam, adjust for nkam
         - maybe 'hold' should transition to the pitch instead of snapping
       end
-        - > call should have zero pitch length, just overlay a fade
+        * > call should have zero pitch length, just overlay a fade
       - precomposed calls, e.g. '! j 2 -1; h -1; to 0'
       - select precomposed calls based on scale degree, previous pitch,
         and tempo

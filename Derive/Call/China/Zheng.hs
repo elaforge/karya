@@ -91,7 +91,9 @@ gliss_pitches open_strings dest_pitch gliss_start = do
 -- vocabulary if I can manage it?
 make_gliss :: Text -> Bool -> Derive.Generator Derive.Note
 make_gliss name is_absolute = Derive.make_call module_ name mempty
-    "Glissando along the open strings, taking an absolute amount of time."
+    "Glissando along the open strings. The standard version divides the `time`\
+    \ among the number of notes, while the -a (absolute) version gives `time`\
+    \ to each note."
     $ Sig.call ((,,,)
     <$> Sig.required "start"
         "Start this many strings above or below the destination pitch."
