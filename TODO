@@ -3,7 +3,7 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
-  - shift down arrow in a text box loses the selection
+  * shift down arrow in a text box loses the selection
   * clicking on a floating text entry makes it lose focus instead of setting
     the cursor.
   - Tweak ruler rank colors to make the ranks clearer.  Lower ranks should be
@@ -128,6 +128,8 @@ UNSORTED
           faster than the speed.
         - test hold and lilt for kam and nkam, adjust for nkam
         - maybe 'hold' should transition to the pitch instead of snapping
+      end
+        - > call should have zero pitch length, just overlay a fade
       - precomposed calls, e.g. '! j 2 -1; h -1; to 0'
       - select precomposed calls based on scale degree, previous pitch,
         and tempo

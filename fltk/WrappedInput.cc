@@ -126,13 +126,14 @@ WrappedInput::handle(int evt)
             switch (Fl::event_key()) {
             case FL_Up:
                 if (is_first_line(value(), position())) {
-                    this->position(0);
+                    this->position(0, Fl::event_state(FL_SHIFT) ? mark() : 0);
                     handled = true;
                 }
                 break;
             case FL_Down:
                 if (is_last_line(value(), size(), position())) {
-                    this->position(size());
+                    this->position(
+                        size(), Fl::event_state(FL_SHIFT) ? mark() : size());
                     handled = true;
                 }
                 break;
