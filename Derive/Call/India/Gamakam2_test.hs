@@ -65,11 +65,11 @@ test_fade = do
 
 test_jaru = do
     let run = run_note_track "| jaru-time=1 | jaru-transition=1"
-    equal (run [(0, 4, "! j 1 -1 -- 4c")])
+    equal (run [(0, 4, "! J 1 -1 -- 4c")])
         ([[(0, 62), (1, 59), (4, 59)]], [])
-    equal (run [(0, 2, "! j 1 -1 1 -- 4c")])
+    equal (run [(0, 2, "! J 1 -1 1 -- 4c")])
         ([[(0, 62), (1, 59), (2, 62)]], [])
-    equal (run [(0, 1, "! j 1 -1 1 -- 4c")])
+    equal (run [(0, 1, "! J 1 -1 1 -- 4c")])
         ([[(0, 62), (0.5, 59), (1, 62)]], [])
 
 test_kampita = do

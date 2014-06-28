@@ -115,7 +115,7 @@ UNSORTED
         perhaps I should have an implicit 'start' call that sets the pitch
       * It's awkward to remember spaces before ;, I suppose I should disallow
         ; in calls.
-      - j too fast
+      * j too fast
       begin
         * p/from takes an arg so it can go to something other than unity
         * jaru
@@ -177,51 +177,6 @@ UNSORTED
         squeezed in there somehow.
       ! However, I could use a pitch track, and then get rid of the extra
         argument by expecting a separate pitch track above it.
-    compose together ornaments:
-      . Perhaps an env var could switch between start, middle, and end
-        alignment: s | neighbor | e | kam 2.  But since they don't know about
-        each other, they can't adjust properly.
-      . Ideally, I could write something like:
-          j) 1 2 ; _kam -1 ; lift
-        . This would go on the note event, so no transpose tracks.
-        . Then I can infer thet it's end lift from the position.
-        . Calls with a set duration, like j) and lift are sequenced, but calls
-          like _kam are variable duration, so they stretch to fill the available
-          space.
-        . Calls like 'lift' only go at the end or beginning.
-        . So it should be possible but it's kind of a separate language.  I'd
-          want to use the same calls as normal control calls, but they need to
-          export more information:
-          . syntactic restriction, start, middle, end
-          . stretch: Set ScoreTime | Stretch Weight
-            But Set can depend on args, and I might want to have Stretch that
-            way too.  I could infer Set from the output if I have a "logical
-            end" value, but Stretch seems problematic.
-            . I think I really have to reuse the arg parsing, which means an
-              alternate way to call, so it returns the duration information.
-              There is some precedent, because this is how lilypond calls work,
-              but I'd need to return a different type, or hack it into
-              a Score.Event.
-            . I could have a special field in Collect, but it seems hacky.
-              How about GeneratorFunc actually returns 'Either Val d'.  Then
-              the control call has to somehow combine those... or it could
-              just toss them, and warn.  The 'sequence' call will call them
-              directly, and expect vals.
-            . I want to return 'Set ScoreTime | Stretch', but I have to encode
-              it as a Val, e.g. VNum n > 0 | VNum 0.  Or store
-              Typecheck a => a.  Or just Dynamic.
-            . Or maybe I could just assume that start and end don't stretch,
-              but middle does.  Then do:
-                start_sig <- call start start end
-                let middle_start = PitchSignal.last start_sig
-                end_sig <- call end middle_start end
-                middle_sig <- call middle middle_start
-                  (PitchSigal.head end_sig)
-              The calls to conform to the given time, but may take up less.
-              . Weights could be useful if I want to hold, or I could just
-                add multiple holds, or give hold to a call, e.g.
-                'start ; - - middle ; end', or 'h=2 | start ; middle ; end'
-
     . Low level ornaments are control or pitch curves, as I have now.  They
       are used directly with pitch or control.
     . Medium level ornaments are for generic pitch, and go on a generic
@@ -266,8 +221,6 @@ UNSORTED
         vals normally, but I might want a special token for separator, e.g. ;.
     - higher level ornaments that change based on how much time they have,
       also depend on the previous pitch.
-    - A "default" ornament that applies whatever is appropriate for the raga
-      and swaram.
     - nkam doesn't seem to interact correctly with 'h'
     - semi-tone dip.  This is like 1 cycle kam.
     / It would be possible to implement a general purpose initial-hold
@@ -282,15 +235,6 @@ UNSORTED
     . instead of hardcoding specific times, I should say short, medium, long,
       which can vary and have some randomization:
       . short, medium, long: -s = "(rnd low high) | -m = .. | -l = ..
-    . Think about a way to sequence ornaments:
-      . seq x; y; z to sequence ornaments, does this make sense?  Or I could
-        see each note has having attack, middle, and release "slots".
-        I might need something more sophisticated than just overwriting
-        parts of the signal.  Also I want more natural transitions.
-      . Many ornaments also depend on the previous pitch, or at least start
-        there.
-      . The note call is for ornaments that decide their own scope.  The
-        control calls are for when you want to place them directly.
 
   more scales
     - wendy carlos' alpha, beta, gamma

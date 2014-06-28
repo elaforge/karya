@@ -59,7 +59,8 @@ begin_calls =
     , ("from-p<", c_from False True)
     , ("from", c_from True False)
     , ("from<", c_from True True)
-    , ("jaru", c_jaru)
+    , ("jaru", c_jaru False)
+    , ("jaru0", c_jaru True)
     ]
 
 middle_calls :: [(TrackLang.CallId, Derive.Generator Derive.Pitch)]
@@ -102,7 +103,8 @@ begin_aliases = Map.fromList
     , ("p<", "from-p<")
     , ("-^", "from")
     , ("-^<", "from<")
-    , ("j", "jaru")
+    , ("j", "jaru0")
+    , ("J", "jaru")
     ]
 
 middle_aliases :: Map.Map TrackLang.CallId TrackLang.CallId
@@ -429,10 +431,10 @@ get_end start dur args = do
     complicated.
 -}
 
-c_jaru :: Derive.Generator Derive.Pitch
-c_jaru = generator1 "jaru" mempty
+c_jaru :: Bool -> Derive.Generator Derive.Pitch
+c_jaru append_zero = generator1 "jaru" mempty
     "This is a series of grace notes whose pitches are relative to the\
-    \ base pitch."
+    \ base pitch. The 0 variant appends a 0 on the end."
     $ Sig.call ((,,)
     <$> Sig.many1 "interval" "Intervals from base pitch."
     <*> Sig.environ "time" Sig.Both default_transition "Time for each note."
@@ -452,7 +454,8 @@ c_jaru = generator1 "jaru" mempty
         srate <- Util.get_srate
         (intervals, control) <- parse intervals
         let transition = fromMaybe time maybe_transition
-        let sig = jaru srate start time transition (NonEmpty.toList intervals)
+        let sig = jaru srate start time transition $
+                NonEmpty.toList intervals ++ if append_zero then [0] else []
         return $ PitchSignal.apply_control control (Score.untyped sig) $
             PitchSignal.signal [(start, pitch)]
     where
