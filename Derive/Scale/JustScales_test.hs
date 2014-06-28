@@ -62,6 +62,20 @@ test_note_to_call = do
     equalf 0.001 (runa ["4c", "4c#", "4cb"])
         ([Just 440, Just $ 440 * acc, Just $ 440 / acc], [])
 
+test_transpose_smooth = do
+    let run = DeriveTest.extract DeriveTest.e_nns $
+            DeriveTest.derive_tracks "scale=raga | key=kharaharapriya"
+            [ ("*", [(0, 0, "4g")])
+            , ("t-diatonic",
+                [(0, 0, "-1"), (1, 0, "-.7"), (2, 0, "-.4"), (3, 0, "0")])
+            , (">", [(0, 8, "")])
+            ]
+    let [nns] = map (map snd) (fst run)
+        diffs = zipWith (-) (drop 1 nns) nns
+    -- Diatonic transpose changes pitch smoothly.  This tests the bug fixed
+    -- by split_fraction.
+    check $ all (>0) diffs
+
 test_note_to_call_relative = do
     let run key p = DeriveTest.extract extract $ DeriveTest.derive_tracks ""
             [ ("*just-r | key = " <> key, [(0, 0, p)])

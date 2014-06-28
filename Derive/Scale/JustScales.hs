@@ -206,11 +206,19 @@ transpose_to_hz :: Pitch.PitchClass -> Pitch.Hz -> Key -> Double
     -> Pitch.Pitch -> Pitch.Hz
 transpose_to_hz per_oct base_hz key frac_steps pitch = Num.scale hz1 hz2 frac
     where
-    (steps, frac) = properFraction frac_steps
+    -- The 'frac' must be positive for it to fall between pitch1 and pitch2.
+    (steps, frac) = split_fraction frac_steps
     pitch1 = Pitch.add_pc per_oct (steps - key_tonic key) pitch
     pitch2 = Pitch.add_pc per_oct 1 pitch1
     hz1 = degree_to_hz (key_ratios key) base_hz pitch1
     hz2 = degree_to_hz (key_ratios key) base_hz pitch2
+
+-- | Like 'properFraction', but the fraction is always positive.
+split_fraction :: (RealFrac a, Integral b) => a -> (b, a)
+split_fraction frac
+    | f < 0 = (i - 1, f + 1)
+    | otherwise = (i, f)
+    where (i, f) = properFraction frac
 
 -- | Given a Key, convert a pitch in that key to its hz value, calculated as
 -- a ratio from the given base hz.

@@ -76,8 +76,8 @@ scale_degree_just :: PitchSignal.Scale -> NamedIntervals
     -> Scale.PitchNn -> Scale.PitchNote -> Derive.ValCall
 scale_degree_just scale named_intervals extra_interval pitch_nn pitch_note =
     Derive.val_call Module.scale "pitch" mempty
-    "Emit the pitch of a scale degree." $
-    Sig.call (intervals_arg named_intervals) $ \intervals _ -> do
+    "Emit the pitch of a scale degree."
+    $ Sig.call (intervals_arg named_intervals) $ \intervals _ -> do
         interval <- resolve_intervals named_intervals intervals
         return $! PitchSignal.pitch scale
             (call (extra_interval * interval)) pitch_note
