@@ -276,7 +276,7 @@ eval_events config start events = do
     mapM_ Log.write logs
     return notes
     where
-    parse_meter = either err return . Meter.parse_meter
+    parse_meter = either (err . untxt) return . Meter.parse_meter
     err = Derive.throw . (("parse " <> pretty Constants.v_meter) <>)
 
 eval_notes :: Types.Config -> Meter.Meter -> RealTime -> [Score.Event]
@@ -509,7 +509,7 @@ c_ly_key = code0_call "ly-key"
     \ On the up side, it doesn't force a structural change like `=` does."
     (required "key" "You can use any of the keys from the Twelve scale.") $
     \key -> do
-        key <- Derive.require_right id $ Process.parse_key key
+        key <- Derive.require_right untxt $ Process.parse_key key
         return (Prefix, Types.to_lily key)
 
 c_ly_sus :: Make.Calls Derive.Note

@@ -145,7 +145,7 @@ lookup_val :: (Cmd.M m, TrackLang.Typecheck a) => BlockId
     -> TrackLang.ValName -> m (Maybe a)
 lookup_val block_id maybe_track_id name =
     justm (lookup_environ block_id maybe_track_id) $ \env ->
-        either (Cmd.throw . ("Perf.lookup_val: "++)) return
+        either (Cmd.throw . untxt . ("Perf.lookup_val: "<>)) return
             (TrackLang.checked_val name env)
 
 lookup_environ :: Cmd.M m => BlockId -> Maybe TrackId
@@ -196,7 +196,7 @@ lookup_default_environ name = do
             [] -> Cmd.throw $ untxt caller
                 <> " didn't get the fake event it wanted"
             event : _ -> return $ Score.event_environ event
-    either Cmd.throw return (TrackLang.checked_val name environ)
+    either (Cmd.throw . untxt) return (TrackLang.checked_val name environ)
     where
     caller = "Perf.lookup_default_environ"
 

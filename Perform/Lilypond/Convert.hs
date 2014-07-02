@@ -5,9 +5,9 @@
 -- | Convert Derive.Score output into Lilypond.Events.
 module Perform.Lilypond.Convert where
 import qualified Data.Maybe as Maybe
+import qualified Data.Text as Text
 
 import Util.Control
-import qualified Util.Seq as Seq
 import qualified Derive.LEvent as LEvent
 import qualified Derive.PitchSignal as PitchSignal
 import qualified Derive.Scale.Twelve as Twelve
@@ -77,8 +77,8 @@ convert_event quarter event = do
     check_0dur
         | not is_ly_global && not has_prepend && not has_append = throw $
             "zero duration event must have one of "
-            <> Seq.join ", " (map (untxt . ShowVal.show_val) code_attrs)
-            <> "; had " <> pretty (Score.event_environ event)
+            <> Text.intercalate ", " (map ShowVal.show_val code_attrs)
+            <> "; had " <> prettyt (Score.event_environ event)
         | has_prepend && has_append = throw
             "zero duration event with both prepend and append is ambiguous"
         | otherwise = return ()
@@ -96,12 +96,12 @@ convert_pitch event = case PitchSignal.at start (Score.event_pitch event) of
     where
     start = Score.event_start event
     go pitch = do
-        note <- either (throw . ("convert_pitch: "++) . show) return $
+        note <- either (throw . ("convert_pitch: "<>) . showt) return $
             PitchSignal.pitch_note $ PitchSignal.apply
                 (Score.event_environ event)
                 (Score.event_controls_at start event)
                 pitch
-        require ("parseable note: " ++ pretty note) $
+        require ("parseable note: " <> prettyt note) $
             Twelve.read_absolute_pitch note
 
 -- * util

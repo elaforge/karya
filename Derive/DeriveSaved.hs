@@ -69,9 +69,9 @@ timed_derive name ui_state cmd_state block_id =
     where boring msg = Cache.is_cache_log msg
 
 timed_lilypond :: String -> State.State -> Cmd.State -> BlockId
-    -> IO (Either String Text, [Log.Msg])
+    -> IO (Either Text Text, [Log.Msg])
 timed_lilypond name ui_state cmd_state block_id = case result of
-    Left err -> return (Left err, [])
+    Left err -> return (Left (txt err), [])
     Right (levents, cmd_logs) -> do
         let (events, derive_logs) = LEvent.partition levents
         events <- print_timer ("lilypond " ++ name) (timer_msg length)

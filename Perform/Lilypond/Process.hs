@@ -76,14 +76,14 @@ run_process complete f = go
 type VoiceLy = Either Voices Ly
 
 process :: Types.Config -> Time -> [Meter.Meter] -> [Event]
-    -> Either String [VoiceLy]
+    -> Either Text [VoiceLy]
 process config start meters events = do
     let state1 = make_state config start meters default_key
     key <- maybe (return default_key)
         (fmap fst . run_convert state1 . lookup_key) (Seq.head events)
     let state2 = state1 { state_key = key }
     (lys, _) <- run_convert state2 $
-        error_context ("start: " <> pretty start) $ convert events
+        error_context ("start: " <> prettyt start) $ convert events
     let meter = fromMaybe Meter.default_meter (Seq.head meters)
     return $ Right (Code $ "\\time " <> to_lily meter)
         : Right (Code $ to_lily key) : lys
@@ -136,7 +136,7 @@ convert_chunk events = error_context current $ case zero_dur_in_rest events of
         meter <- get_meter
         (lys, remaining) <- convert_chord meter (event :| events)
         return (rests <> lys, remaining)
-    where current = maybe "no more events" pretty (Seq.head events)
+    where current = maybe "no more events" prettyt (Seq.head events)
 
 -- | Code events are mixed into the Lys, depending on their prepend or append
 -- attrs.
@@ -339,7 +339,7 @@ convert_voices events@(event:_) = do
 -- I used to mix the code into the first voice here, but 'simplify_voices' may
 -- then get rid of it.  So return the code events and mix them in after
 -- simplification.
-collect_voices :: [Event] -> Either String (VoiceMap Event, [Event], [Event])
+collect_voices :: [Event] -> Either Text (VoiceMap Event, [Event], [Event])
 collect_voices events = do
     let (spanned, rest) = span_voices events
         (code, with_voice) = Seq.partition_either spanned
@@ -349,14 +349,14 @@ collect_voices events = do
         voices -> (voices, code, rest)
     where
     check_type (Right num, event) = do
-        voice <- maybe (Left $ "voice should be 1--4: " ++ show num) Right $
+        voice <- maybe (Left $ "voice should be 1--4: " <> showt num) Right $
             parse_voice num
         return (voice, event)
-    check_type (Left err, event) = Left $ pretty event <> ": " <> err
+    check_type (Left err, event) = Left $ prettyt event <> ": " <> err
 
 -- | Strip off events with voices.  This is complicated by the possibility of
 -- intervening zero_dur code events.
-span_voices :: [Event] -> ([Either Event (Either String Int, Event)], [Event])
+span_voices :: [Event] -> ([Either Event (Either Text Int, Event)], [Event])
 span_voices [] = ([], [])
 span_voices events
     | [_] <- spanned2 = ([], events)
@@ -495,7 +495,7 @@ advance_measure time = advance =<< State.get
     where
     advance state
         | time < state_time state =
-            throw $ "can't advance time backward: " ++ pretty time
+            throw $ "can't advance time backward: " <> prettyt time
         | time < state_measure_end state = do
             State.put $ state { state_time = time }
             return Nothing
@@ -503,10 +503,10 @@ advance_measure time = advance =<< State.get
             case state_meters state of
                 prev_meter : meters -> advance1 prev_meter meters
                 _ -> throw $ "out of meters, can't advance time to "
-                    <> pretty time
+                    <> prettyt time
         | otherwise =
-            throw $ "can't advance time past barline: " ++ pretty time
-                <> " > " <> pretty (state_measure_end state)
+            throw $ "can't advance time past barline: " <> prettyt time
+                <> " > " <> prettyt (state_measure_end state)
     advance1 prev_meter meters = do
         State.modify $ \state -> state
             { state_meters = meters
@@ -528,16 +528,16 @@ get_meter = do
 
 -- * ConvertM
 
-run_convert :: State -> ConvertM a -> Either String (a, State)
+run_convert :: State -> ConvertM a -> Either Text (a, State)
 run_convert state = Identity.runIdentity . Except.runExceptT
     . flip State.runStateT state
 
-type ConvertM = State.StateT State (Except.ExceptT String Identity.Identity)
+type ConvertM = State.StateT State (Except.ExceptT Text Identity.Identity)
 
-error_context :: String -> ConvertM a -> ConvertM a
+error_context :: Text -> ConvertM a -> ConvertM a
 error_context msg = map_error ((msg <> ": ") <>)
 
-map_error :: (String -> String) -> ConvertM a -> ConvertM a
+map_error :: (Text -> Text) -> ConvertM a -> ConvertM a
 map_error f action = Except.catchError action $ \err ->
     Except.throwError (f err)
 
@@ -574,10 +574,10 @@ make_state config start meters key = State
 
 -- ** util
 
-throw :: String -> ConvertM a
+throw :: Text -> ConvertM a
 throw msg = do
     now <- State.gets state_time
-    Except.throwError $ pretty now <> ": " <> msg
+    Except.throwError $ prettyt now <> ": " <> msg
 
 lookup_key :: Event -> ConvertM Key
 lookup_key = lookup_val Environ.key parse_key default_key
@@ -585,13 +585,13 @@ lookup_key = lookup_val Environ.key parse_key default_key
 default_key :: Key
 default_key = Key "c" "major"
 
-lookup_val :: TrackLang.ValName -> (Text -> Either String a) -> a -> Event
+lookup_val :: TrackLang.ValName -> (Text -> Either Text a) -> a -> Event
     -> ConvertM a
 lookup_val key parse deflt event = prefix $ do
     maybe_val <- TrackLang.checked_val key (event_environ event)
     maybe (Right deflt) parse maybe_val
     where
-    prefix = either (throw . ((pretty key ++ ": ") ++)) return
+    prefix = either (throw . ((prettyt key <> ": ") <>)) return
 
 
 -- * types
@@ -714,12 +714,12 @@ type Mode = Text
 instance ToLily Key where
     to_lily (Key tonic mode) = "\\key " <> tonic <> " \\" <> mode
 
-parse_key :: Text -> Either String Key
+parse_key :: Text -> Either Text Key
 parse_key key_name = do
-    key <- maybe (Left $ "unknown key: " ++ untxt key_name) Right $
+    key <- maybe (Left $ "unknown key: " <> key_name) Right $
         Map.lookup (Pitch.Key key_name) Twelve.all_keys
     tonic <- Types.show_pitch_note (Theory.key_tonic key)
-    mode <- maybe (Left $ "unknown mode: " ++ untxt (Theory.key_name key))
+    mode <- maybe (Left $ "unknown mode: " <> Theory.key_name key)
         Right $ Map.lookup (Theory.key_name key) modes
     return $ Key tonic mode
     where

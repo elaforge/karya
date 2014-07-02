@@ -600,18 +600,18 @@ maybe_val name = either (const Nothing) Just . get_val name
 
 -- | Like 'get_val' but format a WrongType nicely.
 checked_val :: forall a. Typecheck a => ValName -> Environ
-    -> Either String (Maybe a)
+    -> Either Text (Maybe a)
 checked_val name environ = case get_val name environ of
         Left NotFound -> return Nothing
         Left (WrongType typ) ->
-            Left $ show name <> ": expected " <> pretty return_type
-                <> " but val type is " <> pretty typ
+            Left $ showt name <> ": expected " <> prettyt return_type
+                <> " but val type is " <> prettyt typ
         Right v -> return (Just v)
     where return_type = to_type (Proxy :: Proxy a)
 
 -- | Like 'checked_val', but juggle the return type around so NotFound is just
 -- Nothing, which is more convenient in some cases.
-checked_val2 :: Typecheck a => ValName -> Environ -> Maybe (Either String a)
+checked_val2 :: Typecheck a => ValName -> Environ -> Maybe (Either Text a)
 checked_val2 name environ = case checked_val name environ of
     Right Nothing -> Nothing
     Right (Just val) -> Just (Right val)

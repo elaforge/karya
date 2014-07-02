@@ -18,7 +18,9 @@ import Perform.Lilypond.Types (Duration(..))
 
 
 test_rests_until = do
-    let f meters = fmap (Text.unwords . map Types.to_lily . fst)
+    let f meters =
+            either (Left . untxt)
+                (Right . Text.unwords . map Types.to_lily . fst)
             . Process.run_convert (LilypondTest.mkstate meters)
             . Process.rests_until . sum . map Types.dur_to_time
     equal (f ["4/4"] [D2]) (Right "r2")

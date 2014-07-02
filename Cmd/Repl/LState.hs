@@ -172,7 +172,7 @@ lilypond_performance block_id = do
     config <- State.config#State.lilypond <#> State.get
     let (result, logs) = Cmd.Lilypond.extract_movements config "title" events
     mapM_ Log.write logs
-    Text.Lazy.toStrict <$> Cmd.require_right id result
+    Text.Lazy.toStrict <$> Cmd.require_right untxt result
 
 
 -- * transform

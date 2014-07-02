@@ -76,24 +76,24 @@ set_staves staves config =
 -- * compile
 
 -- | Compile multiple blocks, with an explicit movement structure.
-blocks :: Lilypond.Title -> [(Lilypond.Title, BlockId)] -> Cmd.CmdL String
+blocks :: Lilypond.Title -> [(Lilypond.Title, BlockId)] -> Cmd.CmdL Text
 blocks title movements = do
     events <- mapM ((LEvent.write_logs <=< derive) . snd) movements
     explicit_movements title (zip (map fst movements) events)
 
 -- | Compile the given block as lilypond.  If there are movements, they are
 -- extracted from the events.
-block :: BlockId -> Cmd.CmdL String
+block :: BlockId -> Cmd.CmdL Text
 block block_id = do
     events <- LEvent.write_logs =<< derive block_id
     extract_movements (block_id_title block_id) events
 
-block_title :: Lilypond.Title -> BlockId -> Cmd.CmdL String
+block_title :: Lilypond.Title -> BlockId -> Cmd.CmdL Text
 block_title title block_id =
     extract_movements title =<< LEvent.write_logs =<< derive block_id
 
 -- | Compile the current block.
-current :: Cmd.CmdL String
+current :: Cmd.CmdL Text
 current = block =<< Cmd.get_focused_block
 
 -- | Show the output of the lilypond for the given block.
@@ -113,7 +113,7 @@ filter_inst :: [Text] -> [Score.Event] -> [Score.Event]
 filter_inst inst_s = filter ((`elem` insts) . Score.event_instrument)
     where insts = map Score.Instrument inst_s
 
-from_events :: [Score.Event] -> Cmd.CmdL String
+from_events :: [Score.Event] -> Cmd.CmdL Text
 from_events events = do
     block_id <- Cmd.get_focused_block
     extract_movements (block_id_title block_id) events
@@ -121,28 +121,28 @@ from_events events = do
 -- * compile_ly
 
 explicit_movements :: Lilypond.Title -> [Cmd.Lilypond.Movement]
-    -> Cmd.CmdL String
+    -> Cmd.CmdL Text
 explicit_movements title movements = do
     config <- get_config
     let (result, logs) = Cmd.Lilypond.explicit_movements config title movements
     mapM_ Log.write logs
     case result of
         Left err -> do
-            Log.warn $ "explicit_movements: " <> err
+            Log.warn $ "explicit_movements: " <> untxt err
             return err
         Right output -> do
             filename <- Cmd.Lilypond.ly_filename title
             liftIO $ Cmd.Lilypond.compile_ly filename output
             return ""
 
-extract_movements :: Lilypond.Title -> [Score.Event] -> Cmd.CmdL String
+extract_movements :: Lilypond.Title -> [Score.Event] -> Cmd.CmdL Text
 extract_movements title events = do
     config <- get_config
     let (result, logs) = Cmd.Lilypond.extract_movements config title events
     mapM_ Log.write logs
     case result of
         Left err -> do
-            Log.warn $ "extract_movements: " <> err
+            Log.warn $ "extract_movements: " <> untxt err
             return err
         Right output -> do
             filename <- Cmd.Lilypond.ly_filename title
@@ -159,7 +159,7 @@ derive :: BlockId -> Cmd.CmdL Derive.Events
 derive block_id = Derive.r_events <$> Cmd.Lilypond.derive_block block_id
 
 -- | Convert current block to lilypond score.
-make_ly :: Cmd.CmdL (Either String Lazy.Text, [Log.Msg])
+make_ly :: Cmd.CmdL (Either Text Lazy.Text, [Log.Msg])
 make_ly = do
     block_id <- Cmd.get_focused_block
     config <- get_config

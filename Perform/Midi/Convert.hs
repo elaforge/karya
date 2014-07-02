@@ -56,7 +56,7 @@ convert_event :: Lookup -> Score.Event -> ConvertT Perform.Event
 convert_event lookup event = do
     let score_inst = Score.event_instrument event
     patch <- require_patch score_inst $ lookup_patch lookup score_inst
-    midi_inst <- require ("instrument in db: " <> pretty score_inst) $
+    midi_inst <- require ("instrument in db: " <> prettyt score_inst) $
         lookup_inst lookup score_inst
     (midi_inst, pitch) <- convert_midi_pitch midi_inst
         (Instrument.patch_environ patch) (Instrument.patch_scale patch)
@@ -89,7 +89,7 @@ require_patch inst Nothing = do
     if Set.member inst not_found then ConvertUtil.abort
         else do
             State.put (Set.insert inst not_found)
-            require ("patch in instrument db: " <> pretty inst
+            require ("patch in instrument db: " <> prettyt inst
                 <> " (further warnings suppressed)") Nothing
 
 -- | If the Event has an attribute matching its keymap, use the pitch from the

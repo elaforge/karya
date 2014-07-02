@@ -123,7 +123,7 @@ write_voice_ly (Left (Process.Voices voices)) = do
     unless (all_equal bars) $
         -- Lilypond will also complain.
         output $ "% WARNING: voices have different numbers of bars: "
-            <> Text.pack (show bars)
+            <> showt bars
     set_bar (fromMaybe start (Seq.head bars))
     where
     all_equal [] = True
@@ -134,7 +134,7 @@ write_ly :: Process.Ly -> Output ()
 write_ly ly@(Process.Barline {}) = do
     bar <- State.gets output_bar
     stack <- State.gets output_last_stack
-    output $ to_lily ly <> " % " <> show_stack stack <> Text.pack (show bar)
+    output $ to_lily ly <> " % " <> show_stack stack <> showt bar
         <> "\n  "
     set_bar (bar+1)
 write_ly ly = do
@@ -205,12 +205,12 @@ instance Pretty.Pretty StaffGroup where
         , ("staves", Pretty.format staves)
         ]
 
-explicit_movements :: Config -> [(Title, [Event])] -> Either String [Movement]
+explicit_movements :: Config -> [(Title, [Event])] -> Either Text [Movement]
 explicit_movements config sections = forM sections $ \(title, events) -> do
     staves <- convert_staff_groups config 0 events
     return (title, staves)
 
-extract_movements :: Config -> [Event] -> Either String [Movement]
+extract_movements :: Config -> [Event] -> Either Text [Movement]
 extract_movements config events = do
     movements <- get_movements $
         filter ((==Constants.ly_global) . event_instrument) events
@@ -221,7 +221,7 @@ extract_movements config events = do
 -- | Group a stream of events into individual staves based on instrument, and
 -- for keyboard instruments, left or right hand.  Then convert each staff of
 -- Events to Notes, divided up into measures.
-convert_staff_groups :: Config -> Time -> [Event] -> Either String [StaffGroup]
+convert_staff_groups :: Config -> Time -> [Event] -> Either Text [StaffGroup]
 convert_staff_groups config start events = do
     let (global, normal) =
             List.partition ((==Constants.ly_global) . event_instrument) events
@@ -248,7 +248,7 @@ split_events events =
 -- goe below that.  Events that are don't have a hand are assumed to be in the
 -- right hand.
 staff_group :: Config -> Time -> [Meter.Meter] -> Score.Instrument -> [[Event]]
-    -> Either String StaffGroup
+    -> Either Text StaffGroup
 staff_group config start meters inst staves = do
     staff_measures <- mapM (Process.process config start meters) staves
     return $ StaffGroup inst staff_measures
@@ -270,14 +270,14 @@ split_movements movements =
     split [] events = [(0, "", events)]
     events_of (_, _, x) = x
 
-get_movements :: [Event] -> Either String [(Time, Title)]
+get_movements :: [Event] -> Either Text [(Time, Title)]
 get_movements = mapMaybeM $ \event -> do
     title <- TrackLang.checked_val Constants.v_movement (event_environ event)
     return $ (,) (event_start event) <$> title
 
 -- ** meter
 
-get_meters :: Time -> Time -> [Event] -> Either String [Meter.Meter]
+get_meters :: Time -> Time -> [Event] -> Either Text [Meter.Meter]
 get_meters start staff_end events = do
     meters <- mapMaybeM get_meter events
     return $ generate start Meter.default_meter meters
@@ -304,8 +304,8 @@ get_meters start staff_end events = do
                 meter <- Meter.parse_meter val
                 return $ Just (event_start event, meter)
         where
-        context = pretty Constants.ly_global <> " event at "
-            <> pretty (event_start event)
+        context = prettyt Constants.ly_global <> " event at "
+            <> prettyt (event_start event)
 
-error_context :: String -> Either String a -> Either String a
-error_context msg = either (Left . ((msg ++ ": ") ++)) Right
+error_context :: Text -> Either Text a -> Either Text a
+error_context msg = either (Left . ((msg <> ": ") <>)) Right

@@ -56,11 +56,11 @@ run_convert state stack conv = case val of
     logs = [msg { Log.msg_stack = log_stack } | msg <- stackless_logs]
     log_stack = Just (Stack.to_strings stack)
 
-require :: String -> Maybe a -> ConvertT st a
+require :: Text -> Maybe a -> ConvertT st a
 require msg = maybe (throw $ "event requires " <> msg) return
 
-throw :: String -> ConvertT st a
-throw = Except.throwError . Error . Just . txt
+throw :: Text -> ConvertT st a
+throw = Except.throwError . Error . Just
 
 abort :: ConvertT st a
 abort = Except.throwError (Error Nothing)

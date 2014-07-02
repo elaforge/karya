@@ -60,10 +60,10 @@ unparse_meter :: Meter -> Text
 unparse_meter meter = Text.intercalate "+" (map showt (meter_nums meter))
     <> "/" <> Types.to_lily (meter_denom meter)
 
-parse_meter :: Text -> Either String Meter
+parse_meter :: Text -> Either Text Meter
 parse_meter s = case Map.lookup s meter_map of
-    Nothing -> Left $ "can't parse " <> show s <> ", should be in "
-        <> untxt (Text.intercalate ", " (Map.keys meter_map))
+    Nothing -> Left $ "can't parse " <> showt s <> ", should be in "
+        <> Text.intercalate ", " (Map.keys meter_map)
     Just meter -> Right meter
 
 default_meter :: Meter

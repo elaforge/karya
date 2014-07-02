@@ -46,7 +46,7 @@ extract_rights :: (Show a) => [Either a String] -> String
 extract_rights = unwords . map (expect_right "expected only ly")
 
 process :: [Types.Event] -> Either String [Output]
-process events =
+process events = either (Left . untxt) Right $
     Process.process Types.default_config 0 (map mkmeter meters) events
     where
     end = fromMaybe 0 $ Seq.maximum $ map Types.event_end events
@@ -54,8 +54,8 @@ process events =
     meters = replicate bars "4/4"
 
 process_meters :: [String] -> [Types.Event] -> Either String [Output]
-process_meters meters =
-    Process.process Types.default_config 0 (map mkmeter meters)
+process_meters meters = either (Left . untxt) Right
+    . Process.process Types.default_config 0 (map mkmeter meters)
 
 -- * extract
 
@@ -169,7 +169,7 @@ convert_staves ::
     [String] -- ^ Only include lilypond backslash commands listed here.
     -- Or [\"ALL\"] to see them all, for debugging.
     -> [Lilypond.Event] -> Either String [StaffGroup]
-convert_staves wanted events =
+convert_staves wanted events = either (Left . untxt) Right $
     map extract_staves <$> Lilypond.convert_staff_groups default_config 0 events
     where
     extract_staves (Lilypond.StaffGroup inst staves) =

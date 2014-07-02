@@ -215,7 +215,7 @@ lookup_scale scale_id = do
 lookup_val :: TrackLang.Typecheck a => TrackLang.ValName -> Deriver (Maybe a)
 lookup_val name = do
     environ <- Internal.get_environ
-    either throw return (TrackLang.checked_val name environ)
+    either (throw . untxt) return (TrackLang.checked_val name environ)
 
 is_val_set :: TrackLang.ValName -> Deriver Bool
 is_val_set name =
@@ -265,7 +265,8 @@ modify_val :: TrackLang.Typecheck val => TrackLang.ValName
     -> (Maybe val -> val) -> Deriver a -> Deriver a
 modify_val name modify = Internal.localm $ \st -> do
     let env = state_environ st
-    val <- modify <$> either throw return (TrackLang.checked_val name env)
+    val <- modify <$> either (throw . untxt) return
+        (TrackLang.checked_val name env)
     return $! st { state_environ =
         TrackLang.insert_val name (TrackLang.to_val val) env }
 
