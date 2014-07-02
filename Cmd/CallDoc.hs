@@ -5,6 +5,7 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 -- | Pull deriver call documentation out of a Performance and format it nicely.
 module Cmd.CallDoc where
+import Prelude hiding (join)
 import qualified Data.Char as Char
 import qualified Data.List as List
 import qualified Data.Map as Map

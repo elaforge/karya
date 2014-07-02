@@ -20,7 +20,7 @@ midi_config db = StaticConfig.Midi
     }
 
 iac, tapco, network :: Int -> Text
-iac n = "IAC Synth " <> showt n
+iac n = "IAC Driver " <> showt n
 tapco n = "Tapco Port " <> showt n
 network n = "Network archy" <> showt n
 

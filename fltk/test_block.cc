@@ -434,20 +434,9 @@ main(int argc, char **argv)
         SymbolTable::Glyph("\xe2\x80\xa2", Config::font, 0, DPoint(-.3, .2)),
         SymbolTable::Glyph("\xe2\x80\xa2", Config::font, 0, DPoint(.5, .2))));
 
-    t->insert("sharp", SymbolTable::Symbol(
-        SymbolTable::Glyph("a"),
-        SymbolTable::Glyph("\xee\x84\x8e", music, 2, DPoint(.5, -.4))));
-    t->insert("flat", SymbolTable::Symbol(
-        SymbolTable::Glyph("a"),
-        SymbolTable::Glyph("\xee\x84\x8e", music, 2, DPoint(.5, -.4))));
-    t->insert("mordent", SymbolTable::Symbol(
-        SymbolTable::Glyph("\xee\x86\x8c", music, 4, DPoint(0, 0))));
-    t->insert("arp-up", SymbolTable::Symbol(
-        SymbolTable::Glyph("\xee\x86\x8a", music, 8, DPoint(-.14, -.25), 0),
-        SymbolTable::Glyph("\xee\x86\x8e", music, 4, DPoint(0, 0), 90)));
     t->insert("arp-down", SymbolTable::Symbol(
-        SymbolTable::Glyph("\xee\x86\x89", music, 8, DPoint(-.14, .5), 0),
-        SymbolTable::Glyph("\xee\x86\x8e", music, 4, DPoint(0, 0), 90)));
+        SymbolTable::Glyph("\xee\x85\x9d", music, 8, DPoint(-.14, .5), 0),
+        SymbolTable::Glyph("\xee\x85\xa2", music, 4, DPoint(0, 0), 90)));
 
     // dots: DOT OPERATOR e2 8b 85, bullet e2 80 a2
     // t->load("v-angle-double", "\xef\xb8\xbd", "LiSong Pro", 4);

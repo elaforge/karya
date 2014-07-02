@@ -68,7 +68,7 @@ defaultOptions :: Shake.ShakeOptions
 defaultOptions = Shake.shakeOptions
     { Shake.shakeFiles = build </> "shake"
     , Shake.shakeVerbosity = Shake.Quiet
-    , Shake.shakeReport = Just $ build </> "report.html"
+    , Shake.shakeReport = [build </> "report.html"]
     , Shake.shakeProgress = Progress.report
     }
 

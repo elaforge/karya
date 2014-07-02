@@ -21,8 +21,8 @@ module Derive.Parse (
 ) where
 import Prelude hiding (lex)
 import qualified Control.Applicative as A (many)
-import Data.Attoparsec ((<?>))
 import qualified Data.Attoparsec.Text as A
+import Data.Attoparsec.Text ((<?>))
 import qualified Data.Char as Char
 import qualified Data.List as List
 import qualified Data.List.NonEmpty as NonEmpty

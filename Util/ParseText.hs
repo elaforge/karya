@@ -13,8 +13,7 @@
 -}
 module Util.ParseText (module Util.ParseText, many) where
 import Control.Applicative (many)
-import qualified Data.Attoparsec as Attoparsec
-import Data.Attoparsec ((<?>))
+import Data.Attoparsec.Text ((<?>))
 import qualified Data.Attoparsec.Text as A
 import qualified Data.Text as Text
 import qualified Data.Text.Read as Text.Read
@@ -28,10 +27,10 @@ type Parser a = A.Parser a
 parse_all :: Parser a -> Text -> Either String a
 parse_all p text = go (A.parse p text)
     where
-    go (Attoparsec.Fail rest contexts msg) =
+    go (A.Fail rest contexts msg) =
         Left $ err rest ++ msg ++ " [" ++ Seq.join ", " contexts ++ "]"
-    go (Attoparsec.Partial cont) = go (cont "")
-    go (Attoparsec.Done rest val)
+    go (A.Partial cont) = go (cont "")
+    go (A.Done rest val)
         | Text.null rest = Right val
         | otherwise = Left $ err rest ++ "expected eof"
     err rest = "parse error on char " ++ maybe "?" show (column rest) ++ " of "

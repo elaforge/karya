@@ -6,7 +6,7 @@
 {-# LANGUAGE MagicHash, ScopedTypeVariables #-}
 -- | REPL implementation that directly uses the GHC API.
 --
--- Supported versions: 70, 74
+-- Supported versions: 70, 74, 78
 module Cmd.ReplGhc (
     Session(..), make_session
     , interpreter, interpret
@@ -24,7 +24,7 @@ import qualified GHC.Paths
 
 -- The liftIO here is not the same one in Control.Monad.Trans!
 -- GHC defines its own MonadIO.
-import MonadUtils (MonadIO, liftIO)
+import MonadUtils (liftIO)
 import qualified Outputable
 import System.FilePath ((</>))
 

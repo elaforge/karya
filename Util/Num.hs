@@ -19,11 +19,12 @@ import qualified Numeric
 --
 -- Warning: for some reason, Integer is an instance of Bits, but bitSize will
 -- crash.
-binary :: (Bits.Bits a) => a -> String
-binary b = map extract [bits-1, bits-2 .. 0]
+binary :: Bits.Bits a => a -> String
+binary b = case Bits.bitSizeMaybe b of
+    Nothing -> ""
+    Just bits -> map extract [bits-1, bits-2 .. 0]
     where
     extract i = if Bits.testBit b i then '1' else '0'
-    bits = Bits.bitSize b
 
 hex :: (Integral a, Show a) => a -> String
 hex n = Numeric.showHex n ""

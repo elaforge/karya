@@ -68,6 +68,7 @@ data GlyphC = GlyphC Text.Text CFont Int Double Double Int
 instance Storable GlyphC where
     sizeOf _ = #size SymbolTable::Glyph
     alignment _ = alignment (0 :: CDouble)
+    peek = error "GlyphC peek"
     poke glyphp (GlyphC text font size align_x align_y rotate) = do
         encoded <- Util.textToCString0 text
         (#poke SymbolTable::Glyph, utf8) glyphp encoded

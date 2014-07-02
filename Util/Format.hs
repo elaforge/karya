@@ -10,6 +10,7 @@ module Util.Format (
     , indented, wrapped_words
     , newline, write
 ) where
+import qualified Control.Applicative as Applicative
 import qualified Control.Monad.State.Strict as State
 import qualified Data.List as List
 import qualified Data.Text as Text
@@ -29,7 +30,7 @@ data State = State {
     } deriving (Show)
 
 newtype FormatM a = FormatM (State.State State a)
-    deriving (Functor, Monad, State.MonadState State)
+    deriving (Functor, Applicative.Applicative, Monad, State.MonadState State)
 
 run :: Maybe Int -> FormatM a -> Text
 run wrap_width (FormatM m) = extract $ State.execState m state

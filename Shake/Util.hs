@@ -17,7 +17,7 @@ import Control.Monad.Trans (liftIO)
 import qualified Data.Char as Char
 import qualified Development.Shake as Shake
 import qualified Development.Shake.FilePath as FilePath
-import qualified System.Cmd as Cmd
+import qualified System.Process as Process
 import qualified System.Exit as Exit
 import qualified System.FilePath
 import System.FilePath ((</>))
@@ -44,7 +44,7 @@ doCmdline staunch (abbr, output, cmd_:args) = do
     let desc = abbr ++ if null output then "" else ": " ++ output
     putQuietNormal desc (unwords (cmd:args))
     res <- Shake.traced ("cmdline: " ++ desc) $
-        Cmd.rawSystem "nice" (cmd : args)
+        Process.rawSystem "nice" (cmd : args)
     when (not staunch && res /= Exit.ExitSuccess) $
         error $ "Failed:\n" ++ unwords (cmd : args)
 doCmdline _ (abbr, output, []) =
@@ -60,7 +60,7 @@ staunchSystem cmd args = doCmdline True (unwords (cmd:args), "", cmd:args)
 shell :: String -> Shake.Action ()
 shell cmd = do
     Shake.putQuiet cmd
-    res <- Shake.traced ("shell: " ++ cmd) $ Cmd.system cmd
+    res <- Shake.traced ("shell: " ++ cmd) $ Process.system cmd
     when (res /= Exit.ExitSuccess) $
         error $ "Failed:\n" ++ cmd
 

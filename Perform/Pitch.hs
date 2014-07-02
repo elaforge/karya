@@ -30,7 +30,7 @@ module Perform.Pitch (
 
     -- * Scale
     , ScaleId(..), empty_scale, twelve
-    , Transpose(..), modify_transpose
+    , Transpose(..), zero_transpose, modify_transpose
     , Key(Key), key_text
 ) where
 import qualified Data.String as String

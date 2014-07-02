@@ -25,13 +25,13 @@ meter_ruler start_at dur meters = Ruler.meter_ruler $
     Meter.meter_marklist start_at (Meter.fit_meter dur meters)
 
 -- | Replace or add a marklist with the given name.
-set_marklist :: (State.M m) => RulerId -> Ruler.Name -> Ruler.Marklist -> m ()
+set_marklist :: State.M m => RulerId -> Ruler.Name -> Ruler.Marklist -> m ()
 set_marklist ruler_id name mlist =
     State.modify_ruler ruler_id (Ruler.set_marklist name mlist)
 
 -- | Copy a marklist from one ruler to another.  If it already exists in
 -- the destination ruler, it will be replaced.
-copy_marklist :: (State.M m) => Ruler.Name -> RulerId -> RulerId -> m ()
+copy_marklist :: State.M m => Ruler.Name -> RulerId -> RulerId -> m ()
 copy_marklist name from_ruler_id to_ruler_id = do
     from_ruler <- State.get_ruler from_ruler_id
     set_marklist to_ruler_id name $ Ruler.get_marklist name from_ruler

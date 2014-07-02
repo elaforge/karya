@@ -15,7 +15,7 @@ module Util.Logger (
 ) where
 import Prelude hiding (log)
 import qualified Control.Applicative as Applicative
-import qualified Control.Monad.Error as Error
+import qualified Control.Monad.Except as Except
 import qualified Control.Monad.Reader as Reader
 import qualified Control.Monad.State.Lazy as Lazy
 import qualified Control.Monad.State.Strict as Strict
@@ -29,24 +29,24 @@ import qualified Data.Monoid as Monoid
 -- appends because appending nil doesn't strictly eliminate the nil.
 newtype LoggerT w m a = LoggerT { runLoggerT :: Strict.StateT [w] m a }
     deriving (Applicative.Applicative, Functor, Monad, Trans.MonadTrans,
-        Trans.MonadIO, Error.MonadError e, Reader.MonadReader r)
+        Trans.MonadIO, Except.MonadError e, Reader.MonadReader r)
 
-run :: (Monad m) => LoggerT w m a -> m (a, [w])
+run :: Monad m => LoggerT w m a -> m (a, [w])
 run m = do
     (result, logs) <- Strict.runStateT (runLoggerT m) []
     return (result, reverse logs)
 
-exec :: (Monad m) => LoggerT w m a -> m [w]
+exec :: Monad m => LoggerT w m a -> m [w]
 exec m = return . snd =<< run m
 
-class (Monad m) => MonadLogger w m | m -> w where
+class Monad m => MonadLogger w m | m -> w where
     log :: w -> m ()
     peek :: m [w]
 
 logs :: (MonadLogger w m) => [w] -> m ()
 logs = mapM_ log
 
-instance (Monad m) => MonadLogger w (LoggerT w m) where
+instance Monad m => MonadLogger w (LoggerT w m) where
     log msg = LoggerT $ do
         ms <- Strict.get
         Strict.put $! (msg:ms)
@@ -62,20 +62,19 @@ instance (Strict.MonadState s m) => Strict.MonadState s (LoggerT w m) where
 
 -- mtl instances
 
-instance (MonadLogger w m) => MonadLogger w (Strict.StateT s m) where
+instance MonadLogger w m => MonadLogger w (Strict.StateT s m) where
     log = Trans.lift . log
     peek = Trans.lift peek
 
-instance (MonadLogger w m) => MonadLogger w (Lazy.StateT s m) where
+instance MonadLogger w m => MonadLogger w (Lazy.StateT s m) where
     log = Trans.lift . log
     peek = Trans.lift peek
 
-instance (Error.Error e, MonadLogger w m) =>
-        MonadLogger w (Error.ErrorT e m) where
+instance MonadLogger w m => MonadLogger w (Except.ExceptT e m) where
     log = Trans.lift . log
     peek = Trans.lift peek
 
-instance (MonadLogger w m) => MonadLogger w (Reader.ReaderT r m) where
+instance MonadLogger w m => MonadLogger w (Reader.ReaderT r m) where
     log = Trans.lift . log
     peek = Trans.lift peek
 

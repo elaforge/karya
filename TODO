@@ -3,6 +3,22 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
+  - Perform.ConvertUtil.throw should take Text
+  - upgrade to fclabels2
+  - copy paste that also copies the ruler
+  - it's such a pain to do anything with rulers, even simple things like
+    replace a chatusram section with tisram.  Surely there is a better way.
+    . I have to come up with where the break point is in the meter, then
+      create two concatenated meters, but that doesn't even work if it's not
+      on an even boundary.
+    . Ideally I should be able to replace a selection.  So it has to figure
+      out where the ruler left off and continue the counts.  Actually, why
+      can't I do the same thing as Meter.Meter, just leave the count empty to
+      fill in?
+      [(Rank, Duration)] -> [(Maybe Label, Rank, Duration)]
+      - 0 1 2 3 X O X O
+      - 0.0, 0.1, 0.2, 0.3, 0.X, 0.O, 0.X, 0.O
+      . The main thing is that it uses a different cycle for rank 1.
   * shift down arrow in a text box loses the selection
   * clicking on a floating text entry makes it lose focus instead of setting
     the cursor.
@@ -116,6 +132,7 @@ UNSORTED
       * It's awkward to remember spaces before ;, I suppose I should disallow
         ; in calls.
       * j too fast
+      - if I can fade out with >, I should be able to fade in with <
       begin
         * p/from takes an arg so it can go to something other than unity
         * jaru
