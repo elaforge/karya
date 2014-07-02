@@ -532,10 +532,12 @@ data Scopes = Scopes {
 empty_scopes :: Scopes
 empty_scopes = Scopes empty_scope empty_scope mempty
 
-s_generator = Lens.lens scopes_generator (\v r -> r { scopes_generator = v })
-s_transformer =
-    Lens.lens scopes_transformer (\v r -> r { scopes_transformer = v })
-s_val = Lens.lens scopes_val (\v r -> r { scopes_val = v })
+s_generator = Lens.lens scopes_generator
+    (\f r -> r { scopes_generator = f (scopes_generator r) })
+s_transformer = Lens.lens scopes_transformer
+    (\f r -> r { scopes_transformer = f (scopes_transformer r) })
+s_val = Lens.lens scopes_val
+    (\f r -> r { scopes_val = f (scopes_val r) })
 
 instance Pretty.Pretty Scopes where
     format (Scopes g t v) = Pretty.record "Scopes"
@@ -555,9 +557,12 @@ data Scope note control pitch = Scope {
     , scope_pitch :: !(ScopeType pitch)
     } deriving (Show)
 
-s_note = Lens.lens scope_note (\v r -> r { scope_note = v })
-s_control = Lens.lens scope_control (\v r -> r { scope_control = v })
-s_pitch = Lens.lens scope_pitch (\v r -> r { scope_pitch = v })
+s_note = Lens.lens scope_note
+    (\f r -> r { scope_note = f (scope_note r) })
+s_control = Lens.lens scope_control
+    (\f r -> r { scope_control = f (scope_control r) })
+s_pitch = Lens.lens scope_pitch
+    (\f r -> r { scope_pitch = f (scope_pitch r) })
 
 empty_scope :: Scope a b c
 empty_scope = Scope mempty mempty mempty
@@ -594,10 +599,14 @@ data ScopeType call = ScopeType {
     , stype_imported :: ![LookupCall call]
     }
 
-s_override = Lens.lens stype_override (\v r -> r { stype_override = v })
-s_instrument = Lens.lens stype_instrument (\v r -> r { stype_instrument = v })
-s_scale = Lens.lens stype_scale (\v r -> r { stype_scale = v })
-s_imported = Lens.lens stype_imported (\v r -> r { stype_imported = v })
+s_override = Lens.lens stype_override
+    (\f r -> r { stype_override = f (stype_override r) })
+s_instrument = Lens.lens stype_instrument
+    (\f r -> r { stype_instrument = f (stype_instrument r) })
+s_scale = Lens.lens stype_scale
+    (\f r -> r { stype_scale = f (stype_scale r) })
+s_imported = Lens.lens stype_imported
+    (\f r -> r { stype_imported = f (stype_imported r) })
 
 instance Monoid.Monoid (ScopeType call) where
     mempty = ScopeType [] [] [] []

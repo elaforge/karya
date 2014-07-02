@@ -95,16 +95,22 @@ data Instrument = Instrument {
     , inst_maybe_decay :: !(Maybe RealTime)
     } deriving (Eq, Ord, Show)
 
-name = Lens.lens inst_name (\v r -> r { inst_name = v })
-score = Lens.lens inst_score (\v r -> r { inst_score = v })
-synth_ = Lens.lens inst_synth (\v r -> r { inst_synth = v })
-keyswitch = Lens.lens inst_keyswitch (\v r -> r { inst_keyswitch = v })
-hold_keyswitch =
-    Lens.lens inst_hold_keyswitch (\v r -> r { inst_hold_keyswitch = v })
-control_map = Lens.lens inst_control_map (\v r -> r { inst_control_map = v })
-pitch_bend_range =
-    Lens.lens inst_pitch_bend_range (\v r -> r { inst_pitch_bend_range = v })
-maybe_decay = Lens.lens inst_maybe_decay (\v r -> r { inst_maybe_decay = v })
+name = Lens.lens inst_name
+    (\f r -> r { inst_name = f (inst_name r) })
+score = Lens.lens inst_score
+    (\f r -> r { inst_score = f (inst_score r) })
+synth_ = Lens.lens inst_synth
+    (\f r -> r { inst_synth = f (inst_synth r) })
+keyswitch = Lens.lens inst_keyswitch
+    (\f r -> r { inst_keyswitch = f (inst_keyswitch r) })
+hold_keyswitch = Lens.lens inst_hold_keyswitch
+    (\f r -> r { inst_hold_keyswitch = f (inst_hold_keyswitch r) })
+control_map = Lens.lens inst_control_map
+    (\f r -> r { inst_control_map = f (inst_control_map r) })
+pitch_bend_range = Lens.lens inst_pitch_bend_range
+    (\f r -> r { inst_pitch_bend_range = f (inst_pitch_bend_range r) })
+maybe_decay = Lens.lens inst_maybe_decay
+    (\f r -> r { inst_maybe_decay = f (inst_maybe_decay r) })
 
 
 instance NFData Instrument where
@@ -219,12 +225,16 @@ data Config = Config {
 config_environ :: Config -> TrackLang.Environ
 config_environ = RestrictedEnviron.convert . config_restricted_environ
 
-addrs = Lens.lens config_addrs (\v r -> r { config_addrs = v })
+addrs = Lens.lens config_addrs
+    (\f r -> r { config_addrs = f (config_addrs r) })
 cenviron = Lens.lens config_restricted_environ
-    (\v r -> r { config_restricted_environ = v })
-controls = Lens.lens config_controls (\v r -> r { config_controls = v })
-mute = Lens.lens config_mute (\v r -> r { config_mute = v })
-solo = Lens.lens config_solo (\v r -> r { config_solo = v })
+    (\f r -> r { config_restricted_environ = f (config_restricted_environ r) })
+controls = Lens.lens config_controls
+    (\f r -> r { config_controls = f (config_controls r) })
+mute = Lens.lens config_mute
+    (\f r -> r { config_mute = f (config_mute r) })
+solo = Lens.lens config_solo
+    (\f r -> r { config_solo = f (config_solo r) })
 
 config :: [(Addr, Maybe Voices)] -> Config
 config addrs = Config
@@ -282,18 +292,22 @@ data Patch = Patch {
     , patch_file :: !FilePath
     } deriving (Eq, Show)
 
-instrument_ = Lens.lens patch_instrument (\v r -> r { patch_instrument = v })
-scale = Lens.lens patch_scale (\v r -> r { patch_scale = v })
+instrument_ = Lens.lens patch_instrument
+    (\f r -> r { patch_instrument = f (patch_instrument r) })
+scale = Lens.lens patch_scale (\f r -> r { patch_scale = f (patch_scale r) })
 environ = Lens.lens patch_restricted_environ
-    (\v r -> r { patch_restricted_environ = v })
-flags = Lens.lens patch_flags (\v r -> r { patch_flags = v })
-initialize = Lens.lens patch_initialize (\v r -> r { patch_initialize = v })
+    (\f r -> r { patch_restricted_environ = f (patch_restricted_environ r) })
+flags = Lens.lens patch_flags
+    (\f r -> r { patch_flags = f (patch_flags r) })
+initialize = Lens.lens patch_initialize
+    (\f r -> r { patch_initialize = f (patch_initialize r) })
 attribute_map = Lens.lens patch_attribute_map
-    (\v r -> r { patch_attribute_map = v })
-call_map = Lens.lens patch_call_map (\v r -> r { patch_call_map = v })
-tags = Lens.lens patch_tags (\v r -> r { patch_tags = v })
-text = Lens.lens patch_text (\v r -> r { patch_text = v })
-file = Lens.lens patch_file (\v r -> r { patch_file = v })
+    (\f r -> r { patch_attribute_map = f (patch_attribute_map r) })
+call_map = Lens.lens patch_call_map
+    (\f r -> r { patch_call_map = f (patch_call_map r) })
+tags = Lens.lens patch_tags (\f r -> r { patch_tags = f (patch_tags r) })
+text = Lens.lens patch_text (\f r -> r { patch_text = f (patch_text r) })
+file = Lens.lens patch_file (\f r -> r { patch_file = f (patch_file r) })
 
 patch_environ :: Patch -> TrackLang.Environ
 patch_environ = RestrictedEnviron.convert . patch_restricted_environ

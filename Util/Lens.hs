@@ -15,7 +15,7 @@ module Util.Lens (
 ) where
 import Prelude hiding ((.), map)
 import Control.Category ((.))
-import Data.Label hiding (Lens, set)
+import Data.Label ((:->), get, modify, lens)
 import qualified Data.Label as Label
 import qualified Data.Map as Map
 import qualified Data.Set as Set
@@ -48,25 +48,27 @@ infix 1 #=
 infix 1 %=
 
 -- | Use like @a#b <#> State.get@.
-(<#>) :: (Functor f) => Lens a b -> f a -> f b
+(<#>) :: Functor f => Lens a b -> f a -> f b
 (<#>) = fmap . get
 infixl 4 <#> -- same as <$>
 
 -- * data
 
-map :: (Ord k) => k -> Lens (Map.Map k a) (Maybe a)
-map k = lens (Map.lookup k) (maybe (Map.delete k) (Map.insert k))
+map :: Ord k => k -> Lens (Map.Map k a) (Maybe a)
+map k = lens (Map.lookup k) (\modify -> Map.alter modify k)
 
-set :: (Ord k) => k -> Lens (Set.Set k) Bool
-set k = lens (Set.member k) (\a -> if a then Set.insert k else Set.delete k)
+set :: Ord k => k -> Lens (Set.Set k) Bool
+set k = lens (Set.member k) $ \modify s ->
+    if modify (Set.member k s) then Set.insert k s else Set.delete k s
 
 -- | A negative index counts from the end of the list, and a too-high index
 -- will be ignored.
 list :: Int -> Lens [a] (Maybe a)
 list i
     | i < 0 = lens (\xs -> Seq.head (drop (length xs + i) xs))
-        (\v xs -> modify (length xs + i) v xs)
-    | otherwise = lens (Seq.head . drop i) (modify i)
+        (\modify xs -> at (length xs + i) modify xs)
+    | otherwise = lens (Seq.head . drop i) (at i)
     where
-    modify i Nothing = Seq.remove_at i
-    modify i (Just a) = Seq.modify_at i (const a)
+    at i modify xs = case modify (Seq.at xs i) of
+        Nothing -> Seq.remove_at i xs
+        Just x -> Seq.modify_at i (const x) xs

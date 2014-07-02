@@ -178,19 +178,24 @@ data State = State {
     } deriving (Eq, Show, Generics.Typeable)
 
 views :: Lens.Lens State (Map.Map ViewId Block.View)
-views = Lens.lens state_views (\v r -> r { state_views = v })
+views = Lens.lens state_views
+    (\f r -> r { state_views = f (state_views r) })
 
 blocks :: Lens.Lens State (Map.Map BlockId Block.Block)
-blocks = Lens.lens state_blocks (\v r -> r { state_blocks = v })
+blocks = Lens.lens state_blocks
+    (\f r -> r { state_blocks = f (state_blocks r) })
 
 tracks :: Lens.Lens State (Map.Map TrackId Track.Track)
-tracks = Lens.lens state_tracks (\v r -> r { state_tracks = v })
+tracks = Lens.lens state_tracks
+    (\f r -> r { state_tracks = f (state_tracks r) })
 
 rulers :: Lens.Lens State (Map.Map RulerId Ruler.Ruler)
-rulers = Lens.lens state_rulers (\v r -> r { state_rulers = v })
+rulers = Lens.lens state_rulers
+    (\f r -> r { state_rulers = f (state_rulers r) })
 
 config :: Lens.Lens State Config
-config = Lens.lens state_config (\v r -> r { state_config = v })
+config = Lens.lens state_config
+    (\f r -> r { state_config = f (state_config r) })
 
 empty :: State
 empty = State {

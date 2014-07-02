@@ -262,7 +262,7 @@ libraryDependencies = concat $
     , w "mersenne-random-pure64 digest random-shuffle"
     , w "dlist" -- Util.TimeVector
     , w "bindings-DSL" -- Util.Git.LibGit2
-    , [("fclabels", ">=1 && <2")]
+    , [("fclabels", ">=2")]
     , [("ghc", ">=7.6.1")] -- REPL
     , w "ghc-paths haskeline terminfo" -- REPL
     -- Instrument.Parse, could use attoparsec, but parsec errors are better

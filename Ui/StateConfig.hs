@@ -68,19 +68,26 @@ data Config = Config {
     } deriving (Eq, Show, Generics.Typeable)
 
 -- Ui.State already has a function called 'namespace'.
-namespace_ = Lens.lens config_namespace (\v r -> r { config_namespace = v })
-meta = Lens.lens config_meta (\v r -> r { config_meta = v })
-root = Lens.lens config_root (\v r -> r { config_root = v })
-midi = Lens.lens config_midi (\v r -> r { config_midi = v })
+namespace_ = Lens.lens config_namespace
+    (\f r -> r { config_namespace = f (config_namespace r) })
+meta = Lens.lens config_meta
+    (\f r -> r { config_meta = f (config_meta r) })
+root = Lens.lens config_root
+    (\f r -> r { config_root = f (config_root r) })
+midi = Lens.lens config_midi
+    (\f r -> r { config_midi = f (config_midi r) })
 global_transform = Lens.lens config_global_transform
-    (\v r -> r { config_global_transform = v })
-aliases = Lens.lens config_aliases (\v r -> r { config_aliases = v })
-lilypond = Lens.lens config_lilypond (\v r -> r { config_lilypond = v })
-default_ = Lens.lens config_default (\v r -> r { config_default = v })
+    (\f r -> r { config_global_transform = f (config_global_transform r) })
+aliases = Lens.lens config_aliases
+    (\f r -> r { config_aliases = f (config_aliases r) })
+lilypond = Lens.lens config_lilypond
+    (\f r -> r { config_lilypond = f (config_lilypond r) })
+default_ = Lens.lens config_default
+    (\f r -> r { config_default = f (config_default r) })
 saved_views = Lens.lens config_saved_views
-    (\v r -> r { config_saved_views = v })
+    (\f r -> r { config_saved_views = f (config_saved_views r) })
 definition_file = Lens.lens config_definition_file
-    (\v r -> r { config_definition_file = v })
+    (\f r -> r { config_definition_file = f (config_definition_file r) })
 
 empty_config :: Config
 empty_config = Config
@@ -104,12 +111,15 @@ data Meta = Meta {
     , meta_lilypond_performances :: !(Map.Map BlockId LilypondPerformance)
     } deriving (Eq, Read, Show, Generics.Typeable)
 
-creation = Lens.lens meta_creation (\v r -> r { meta_creation = v })
-notes = Lens.lens meta_notes (\v r -> r { meta_notes = v })
+creation = Lens.lens meta_creation
+    (\f r -> r { meta_creation = f (meta_creation r) })
+notes = Lens.lens meta_notes
+    (\f r -> r { meta_notes = f (meta_notes r) })
 midi_performances = Lens.lens meta_midi_performances
-    (\v r -> r { meta_midi_performances = v })
+    (\f r -> r { meta_midi_performances = f (meta_midi_performances r) })
 lilypond_performances = Lens.lens meta_lilypond_performances
-    (\v r -> r { meta_lilypond_performances = v })
+    (\f r -> r { meta_lilypond_performances =
+        f (meta_lilypond_performances r) })
 
 type MidiPerformance = Performance (Vector.Vector Midi.WriteMessage)
 type LilypondPerformance = Performance Text
@@ -153,7 +163,8 @@ data Default = Default {
     default_tempo :: !Signal.Y
     } deriving (Eq, Read, Show, Generics.Typeable)
 
-tempo = Lens.lens default_tempo (\v r -> r { default_tempo = v })
+tempo = Lens.lens default_tempo
+    (\f r -> r { default_tempo = f (default_tempo r) })
 
 empty_default :: Default
 empty_default = Default { default_tempo = 1 }

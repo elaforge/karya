@@ -6,7 +6,7 @@ UNSORTED
   - Lilypond emmentaler symbols seem to change unpredictably across versions.
     Maybe it's too much bother to maintain, and I can just not use symbols.
   * Perform.ConvertUtil.throw should take Text
-  - upgrade to fclabels2
+  * upgrade to fclabels2
   - copy paste that also copies the ruler
   - it's such a pain to do anything with rulers, even simple things like
     replace a chatusram section with tisram.  Surely there is a better way.
