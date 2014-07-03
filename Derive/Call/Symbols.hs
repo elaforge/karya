@@ -19,11 +19,8 @@ misc_symbols =
 
 staff_symbols :: [Symbol.Symbol]
 staff_symbols =
-    [ symbol "tr" "\xe14d"
-    , symbol "mordent" "\xe160"
+    [ symbol "mordent" "\xe160"
     , symbol "rmordent" "\xe161"
-    , symbol "mordent2" "\xe162"
-    , symbol "rmordent2" "\xe163"
     , Symbol.symbol "arp-up"
         [arp, Symbol.glyph_at 8 (-0.14, -0.25) arp_arrow_up]
     , Symbol.symbol "arp-down"

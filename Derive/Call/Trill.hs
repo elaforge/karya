@@ -78,8 +78,7 @@ note_calls :: Derive.CallMaps Derive.Note
 note_calls = Derive.call_maps
     ([(name, c_note_trill start end) | (name, start, end) <- trill_variations]
     ++
-    [ ("`tr`", c_note_trill Nothing Nothing)
-    , ("trem", c_tremolo_generator)
+    [ ("trem", c_tremolo_generator)
     ])
     [ ("trem", c_tremolo_transformer) ]
 
@@ -226,8 +225,7 @@ pitch_calls :: Derive.CallMaps Derive.Pitch
 pitch_calls = Derive.generator_call_map $
     [(name, c_pitch_trill start end) | (name, start, end) <- trill_variations]
     ++
-    [ ("`tr`", c_pitch_trill Nothing Nothing)
-    , ("xcut", c_xcut_pitch False)
+    [ ("xcut", c_xcut_pitch False)
     , ("xcut-h", c_xcut_pitch True)
     ]
 
