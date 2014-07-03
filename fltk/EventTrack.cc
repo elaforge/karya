@@ -19,6 +19,9 @@
 // Hack for debugging.
 #define SHOW_RANGE(r) (r).y << "--" << (r).b()
 
+// Turn this off to see the samples more clearly.
+static const bool smooth_linear = true;
+
 // The color of events at a non-zero rank is scaled by this.
 static const double rank_brightness = 1.35;
 // The color of events with a negative duration is scaled by this.
@@ -88,7 +91,8 @@ TrackSignal::pixel_time_at(const ZoomInfo &zoom, int i) const
 
 
 void
-TrackSignal::calculate_val_bounds() {
+TrackSignal::calculate_val_bounds()
+{
     RealTime last_time = -9999;
     val_min = 9999;
     val_max = 1;
@@ -575,7 +579,10 @@ EventTrackView::draw_signal(int min_y, int max_y, ScoreTime start)
     for (int i = found; i < tsig.length; i = next_i) {
         // I draw from offset to next_offset.
         // For the first sample, 'found' should be at or before start.
-        next_i = find_linear(tsig, i);
+        if (smooth_linear)
+            next_i = find_linear(tsig, i);
+        else
+            next_i = i + 1;
 
         int xpos = floor(scale(double(min_x), double(max_x),
             clamp(0.0, 1.0, tsig.val_at(i))));
