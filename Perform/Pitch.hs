@@ -310,6 +310,12 @@ instance ShowVal.ShowVal Transpose where
     show_val (Diatonic d) = ShowVal.show_val d <> "d"
     show_val (Nn d) = ShowVal.show_val d <> "nn"
 
+zero_transpose :: Transpose -> Bool
+zero_transpose t = case t of
+    Chromatic d -> d == 0
+    Diatonic d -> d == 0
+    Nn d -> d == 0
+
 modify_transpose :: (Double -> Double) -> Transpose -> Transpose
 modify_transpose f t = case t of
     Chromatic d -> Chromatic (f d)
