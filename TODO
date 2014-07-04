@@ -3,6 +3,8 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
+  - pass -dynamic-too to let ghci link
+    . I can't figure how to get ghci to link compiled even in simple cases.
   / Lilypond emmentaler symbols seem to change unpredictably across versions.
     Maybe it's too much bother to maintain, and I can just not use symbols.
     . But `ped` and `mordent` look nice!  `rmordent` is hard to read though...
@@ -25,7 +27,7 @@ UNSORTED
   * shift down arrow in a text box loses the selection
   * clicking on a floating text entry makes it lose focus instead of setting
     the cursor.
-  - Tweak ruler rank colors to make the ranks clearer.  Lower ranks should be
+  * Tweak ruler rank colors to make the ranks clearer.  Lower ranks should be
     darker than higher ones.
   - is the chatusram tisram thing a case for two different meters?
     I could generalize meter rulers to be "meter" or "meter-*".

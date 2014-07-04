@@ -32,7 +32,6 @@
     - TODO: inspect a meter
 -}
 module Cmd.Repl.LRuler where
-import qualified Prelude
 import Prelude hiding (concat)
 import qualified Data.List.NonEmpty as NonEmpty
 import qualified Data.Map as Map
@@ -333,3 +332,49 @@ add_cue_at block_id pos text = RulerUtil.local_block block_id $
 
 cue_mark :: Text -> Ruler.Mark
 cue_mark text = Ruler.Mark 0 2 Color.black text 0 0
+
+
+-- * colors
+
+-- | Used to adjust mark colors interactively.
+reset_colors :: Cmd.CmdL ()
+reset_colors = do
+    block_id <- Cmd.get_focused_block
+    ruler_id <- State.ruler_of block_id
+    State.modify_ruler ruler_id (set_colors meter_ranks)
+
+set_colors :: [(Color.Color, Meter.MarkWidth, Int)] -> Ruler.Ruler
+    -> Ruler.Ruler
+set_colors ranks =
+    Ruler.modify_marklist Ruler.meter
+        (Ruler.marklist . map (second set) . Ruler.ascending 0)
+    where
+    set mark = case Seq.at ranks (Ruler.mark_rank mark) of
+        Nothing -> mark
+        Just (color, width, _) -> mark
+            { Ruler.mark_color = color
+            , Ruler.mark_width = width
+            }
+
+meter_ranks :: [(Color.Color, Meter.MarkWidth, Int)]
+meter_ranks =
+    [ (a8 0.0 0.0 0.0, 3, 8)    -- section
+    , (a8 0.2 0.1 0.0, 2, 8)    -- measure / whole
+
+    , (a8 1.0 0.4 0.2, 2, 8)    -- half
+    , (a5 1.0 0.4 0.2, 2, 8)    -- quarter
+
+    , (a8 1.0 0.4 0.9, 1, 8)    -- 8th
+    , (a5 1.0 0.4 0.9, 1, 8)    -- 16th
+
+    , (a5 0.1 0.5 0.1, 1, 8)    -- 32nd
+    , (a2 0.1 0.5 0.1, 1, 8)    -- 64th
+
+    , (a5 0.0 0.0 0.0, 1, 8)    -- 128th
+    , (a2 0.0 0.0 0.0, 1, 8)    -- 256th
+    ]
+    where
+    a2 = alpha 0.2
+    a5 = alpha 0.5
+    a8 = alpha 0.8
+    alpha a r g b = Color.rgba r g b a

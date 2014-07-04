@@ -143,28 +143,35 @@ color1, color2 :: Double -> Double -> Double -> Color.Color
 color1 r g b = Color.rgba r g b 0.5
 color2 r g b = Color.rgba r g b 0.3
 
+type MarkWidth = Int
+
 -- | Configs for marks in order of increasing rank.
 -- @(color, width, zoom_pixels)@
 --
 -- @zoom_pixels@ is how many pixels of space a mark at this rank must have
 -- between its neighbors before it appears.
-meter_ranks :: [(Color.Color, Int, Int)]
+meter_ranks :: [(Color.Color, MarkWidth, Int)]
 meter_ranks =
-    [ (color1 0.0 0.0 0.0, 3, 8)    -- section
-    , (color1 0.4 0.3 0.0, 2, 8)    -- measure / whole
+    [ (a8 0.0 0.0 0.0, 3, 8)    -- section
+    , (a8 0.2 0.1 0.0, 2, 8)    -- measure / whole
 
-    , (color1 1.0 0.4 0.2, 2, 8)    -- half
-    , (color2 1.0 0.4 0.2, 2, 8)    -- quarter
+    , (a8 1.0 0.4 0.2, 2, 8)    -- half
+    , (a5 1.0 0.4 0.2, 2, 8)    -- quarter
 
-    , (color1 1.0 0.2 0.7, 1, 8)    -- 8th
-    , (color2 1.0 0.2 0.7, 1, 8)    -- 16th
+    , (a8 1.0 0.4 0.9, 1, 8)    -- 8th
+    , (a5 1.0 0.4 0.9, 1, 8)    -- 16th
 
-    , (color1 0.1 0.5 0.1, 1, 8)    -- 32nd
-    , (color2 0.1 0.5 0.1, 1, 8)    -- 64th
+    , (a5 0.1 0.5 0.1, 1, 8)    -- 32nd
+    , (a2 0.1 0.5 0.1, 1, 8)    -- 64th
 
-    , (color1 0.0 0.0 0.0, 1, 8)    -- 128th
-    , (color2 0.0 0.0 0.0, 1, 8)    -- 256th
+    , (a5 0.0 0.0 0.0, 1, 8)    -- 128th
+    , (a2 0.0 0.0 0.0, 1, 8)    -- 256th
     ]
+    where
+    a2 = alpha 0.2
+    a5 = alpha 0.5
+    a8 = alpha 0.8
+    alpha a r g b = Color.rgba r g b a
 
 -- | These are the conventional meanings for the ranks.
 r_section, r_1, r_2, r_4, r_8, r_16, r_32, r_64, r_128, r_256 :: Ruler.Rank
