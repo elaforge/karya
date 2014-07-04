@@ -8,7 +8,6 @@
 {- | Shakefile for seq and associated binaries.
 
     TODO
-
     - askOracle isn't working like I think it should, why does it only
     rebuild test_block.cc when I change fltk version?
 
@@ -35,6 +34,10 @@ import Data.Monoid (mempty, (<>))
 
 import qualified Development.Shake as Shake
 import Development.Shake ((?==), (?>), (?>>), (*>), need)
+import qualified Distribution.Simple.Configure as Simple.Configure
+import qualified Distribution.Simple.LocalBuildInfo as LocalBuildInfo
+import qualified Distribution.Text
+
 import qualified System.Directory as Directory
 import qualified System.Environment as Environment
 import qualified System.FilePath as FilePath
@@ -72,6 +75,9 @@ defaultOptions = Shake.shakeOptions
     , Shake.shakeProgress = Progress.report
     }
 
+newtype GetPackages = GetPackages (Shake.Action [String])
+instance Show GetPackages where show _ = "((GetPackages))"
+
 data Config = Config {
     buildDir :: FilePath
     , hscDir :: FilePath
@@ -79,7 +85,11 @@ data Config = Config {
     , fltkVersion :: String
     , midiConfig :: MidiConfig
     , configFlags :: Flags
+    , getPackages_ :: GetPackages
     } deriving (Show)
+
+getPackages :: Config -> Shake.Action [String]
+getPackages (Config { getPackages_ = GetPackages get }) = get
 
 -- | Root of .o and .hi hierarchy.
 oDir :: Config -> FilePath
@@ -135,7 +145,7 @@ instance Monoid.Monoid Flags where
 data HsBinary = HsBinary {
     hsName :: FilePath
     , hsMain :: FilePath -- ^ main module
-    , hsDeps :: [FilePath] -- ^ additional deps, relative to obj dir
+    , hsLibraries :: [FilePath] -- ^ additional deps, relative to obj dir
     , hsGui :: Maybe Bool -- ^ Just if it's a GUI app and thus needs
     -- make_bundle on the mac, True if it has an icon at build/name.icns.
     } deriving (Show)
@@ -154,7 +164,8 @@ hsBinaries =
     -- directly call UI level functions.  Even though it doesn't call the
     -- cmds, they're packaged together with the keybindings, so I wind up
     -- having to link in all that stuff anyway.
-    , HsBinary "extract_doc" "App/ExtractDoc.hs" ["fltk/fltk.a"] Nothing
+    , (plain "extract_doc" "App/ExtractDoc.hs")
+        { hsLibraries = ["fltk/fltk.a"] }
     , plain "repl" "App/Repl.hs"
     , plain "send" "App/Send.hs"
     , gui "seq" "App/Main.hs" ["fltk/fltk.a"] True
@@ -233,21 +244,8 @@ hsToCc = Map.fromList $
 hsc2hsNeedsC :: [FilePath]
 hsc2hsNeedsC = ["Util/Git/LibGit2.hsc"]
 
--- | Rather than trying to figure out which binary needs which packages, I
--- just union all the packages.  TODO can I ask ghc to infer packages
--- automatically like --make?
-packages :: [String]
-packages = (if not useEkg then List.delete "ekg" else id) $
-    map fst libraryDependencies
-
--- | When I pass the -package lines I do so without version numbers, so if
--- multiple versions are installed I may wind up with the wrong ones.
--- If for whatever reason I need to use some older version than the one
--- installed, this will probably pick the wrong version.
---
--- To fix that I'd have to do cabal's version search thing.  The cabal
--- code is in Distribution.PackageDescription.Configuration, but unfortunately
--- the interesting functions are all private.
+-- | This is used to create karya.cabal, which is then used with cabal
+-- configure to figure out exact version numbers.
 libraryDependencies :: [(String, String)]
 libraryDependencies = concat $
     -- really basic deps
@@ -258,6 +256,9 @@ libraryDependencies = concat $
     , w "transformers mtl deepseq data-ordlist cereal text stm network"
     , w "vector either utf8-string semigroups"
     , w "attoparsec" -- Derive: tracklang parsing
+    -- shakefile
+    , w "Cabal"
+    , [("shake", ">=0.13"), ("binary", ""), ("syb", "")]
     -- Derive: score randomization
     , w "mersenne-random-pure64 digest random-shuffle"
     , w "dlist" -- Util.TimeVector
@@ -270,7 +271,6 @@ libraryDependencies = concat $
     , w "haskell-src" -- Util.PPrint
     , [("regex-pcre", ""), ("Diff", ">=0.2")] -- Util.Test
     , w "QuickCheck" -- Derive.DeriveQuickCheck
-    , [("shake", ">=0.10.8"), ("binary", ""), ("syb", "")] -- build system
     , w "ekg" -- removed if not useEkg, but is here so the cabal file has it
     , w "hashable zlib"
     , [("zmidi-core", ">=0.6")] -- for Cmd.Load.Midi
@@ -346,6 +346,7 @@ configure midi = do
         , midiConfig = midi
         , configFlags = setCcFlags $
             setConfigFlags fltkCs fltkLds mode osFlags bindingsInclude
+        , getPackages_ = GetPackages (return [])
         }
     where
     setConfigFlags fltkCs fltkLds mode flags bindingsInclude = flags
@@ -356,7 +357,8 @@ configure midi = do
             "-I" ++ bindingsInclude]
         , fltkCc = fltkCs
         , fltkLd = fltkLds
-        , hcFlags = ["-threaded", "-W"] ++ ghcWarnings ++ ["-F", "-pgmF", hspp]
+        , hcFlags = ["-threaded", "-W"] ++ ghcWarnings ++ ["-fno-warn-amp"]
+            ++ ["-F", "-pgmF", hspp]
             ++ case mode of
                 Debug -> []
                 Opt -> ["-O"]
@@ -422,11 +424,20 @@ main :: IO ()
 main = withLockedDatabase $ do
     IO.hSetBuffering IO.stdout IO.LineBuffering
     env <- Environment.getEnvironment
-    modeConfig <- configure (midiFromEnv env)
-    writeGhciFlags modeConfig
+    modeConfig_ <- configure (midiFromEnv env)
+    writeGhciFlags modeConfig_
     Shake.shakeArgsWith defaultOptions [] $ \[] targets -> return $ Just $ do
+        getPackages <- cachedGetPackages
+        let modeConfig = (\c -> c { getPackages_ = getPackages }) . modeConfig_
         let infer = inferConfig modeConfig
         setupOracle env (modeConfig Debug)
+        -- Always build, since it can't tell when 'libraryDependencies' has
+        -- changed.
+        -- TODO except if I do, rules it seems like rules that depend on it
+        -- also always fire, even if the file didn't change.
+        -- Shake.phony "karya.cabal" $ makeCabal "karya.cabal"
+        "karya.cabal" *> makeCabal
+        cabalConfigurationRule
         -- hspp is depended on by all .hs files.  To avoid recursion, I
         -- build hspp itself with --make.
         hspp *> \fn -> do
@@ -447,7 +458,7 @@ main = withLockedDatabase $ do
             let config = infer fn
             hs <- maybe (errorIO $ "no main module for " ++ fn) return
                 (Map.lookup (FilePath.takeFileName fn) nameToMain)
-            buildHs config (map (oDir config </>) (hsDeps binary)) hs fn
+            buildHs config (map (oDir config </>) (hsLibraries binary)) hs fn
             case hsGui binary of
                 Just has_icon -> makeBundle fn True has_icon
                 _ -> return ()
@@ -458,9 +469,6 @@ main = withLockedDatabase $ do
             system "iconutil" ["-c", "icns", "-o", fn, src]
         forM_ extractableDocs $ \fn ->
             fn *> extractDoc (modeConfig Debug)
-        -- Always build, since it can't tell when 'libraryDependencies' has
-        -- changed.
-        Shake.phony "karya.cabal" $ makeCabal "karya.cabal"
         configHeaderRule
         testRules (modeConfig Test)
         profileRules (modeConfig Profile)
@@ -645,7 +653,7 @@ hlintIgnore =
     , "Use isNothing" -- ==Nothing is nice too.
     ]
 
--- * doc
+-- ** doc
 
 -- | Make all documentation.
 makeAllDocumentation :: Config -> Shake.Action ()
@@ -677,8 +685,9 @@ makeHaddock :: Config -> Shake.Action ()
 makeHaddock config = do
     (hs, hscs) <- getAllHaddock config
     need $ hsconfigPath config : map (hscToHs (hscDir config)) hscs
+    packages <- getPackages config
     let flags = configFlags config
-    interfaces <- Trans.liftIO getHaddockInterfaces
+    interfaces <- Trans.liftIO $ getHaddockInterfaces packages
     let packageFlags = "-hide-all-packages" : map ("-package="++) packages
     system "haddock" $
         [ "--html", "-B", ghcLib config
@@ -695,8 +704,8 @@ makeHaddock config = do
         ++ hs ++ map (hscToHs (hscDir config)) hscs
 
 -- | Get paths to haddock interface files for all the packages.
-getHaddockInterfaces :: IO [String]
-getHaddockInterfaces = do
+getHaddockInterfaces :: [String] -> IO [String]
+getHaddockInterfaces packages = do
     -- ghc-pkg annoyingly provides no way to get a field from a list of
     -- packages.
     interfaces <- forM packages $ \package -> Process.readProcess "ghc-pkg"
@@ -726,12 +735,12 @@ wantsHaddock midi hs = not $ or
     , midi /= JackMidi && hs == "Midi/JackMidi.hsc"
     ]
 
--- * cabal
+-- ** cabal
 
 makeCabal :: FilePath -> Shake.Action ()
 makeCabal fn = do
     template <- Shake.readFile' "doc/karya.cabal.template"
-    Shake.writeFile' fn $ template ++ buildDepends ++ "\n"
+    Shake.writeFileChanged fn $ template ++ buildDepends ++ "\n"
     where
     indent = replicate 8 ' '
     buildDepends = (indent++) $ List.intercalate (",\n" ++ indent) $
@@ -739,7 +748,37 @@ makeCabal fn = do
     mkline (package, constraint) =
         package ++ if null constraint then "" else " " ++ constraint
 
--- * hs
+cabalConfigurationRule :: Shake.Rules ()
+cabalConfigurationRule = "dist/setup-config" *> \_ -> do
+    need ["karya.cabal"]
+    system "cabal" ["configure"]
+
+-- | Create an action that reads a cached list of packages with their
+-- versions.
+cachedGetPackages :: Shake.Rules GetPackages
+cachedGetPackages = do
+    cached <- Shake.newCache $ \fname -> do
+        need [fname]
+        Trans.liftIO readCabalConfiguration
+    return $ GetPackages $ cached "dist/setup-config"
+
+-- | Rather than trying to figure out which binary needs which packages, I
+-- just union all the packages.
+readCabalConfiguration :: IO [String]
+readCabalConfiguration =
+    strip . extractPackages <$> Simple.Configure.getPersistBuildConfig "dist"
+    where
+    strip = if useEkg then id else filter (not . ("ekg-" `List.isPrefixOf`))
+
+extractPackages :: LocalBuildInfo.LocalBuildInfo -> [String]
+extractPackages info = do
+    (LocalBuildInfo.CLibName,
+            build@(LocalBuildInfo.LibComponentLocalBuildInfo {}), _)
+        <- LocalBuildInfo.componentsConfigs info
+    (_, pkg) <- LocalBuildInfo.componentPackageDeps build
+    return $ Distribution.Text.display pkg
+
+-- ** hs
 
 makeHs :: FilePath -> FilePath -> FilePath -> Util.Cmdline
 makeHs dir out main = ("GHC-MAKE", out, cmdline)
@@ -748,14 +787,16 @@ makeHs dir out main = ("GHC-MAKE", out, cmdline)
         "-main-is", pathToModule main, main]
 
 -- | Build a haskell binary.
-buildHs :: Config -> [FilePath] -> FilePath -> FilePath -> Shake.Action ()
-buildHs config deps hs fn = do
+buildHs :: Config -> [FilePath] -> FilePath -> FilePath
+    -> Shake.Action ()
+buildHs config libs hs fn = do
+    packages <- getPackages config
     when (isHsconfigBinary fn) $
         need [hsconfigPath config]
     srcs <- HsDeps.transitiveImportsOf (cppFlags config) hs
     let ccs = List.nub $
             concat [Map.findWithDefault [] src hsToCc | src <- srcs]
-        objs = List.nub (map (srcToObj config) (ccs ++ srcs)) ++ deps
+        objs = List.nub (map (srcToObj config) (ccs ++ srcs)) ++ libs
     logDeps config "build" fn objs
     Util.cmdline $ linkHs config fn packages objs
 
@@ -840,12 +881,13 @@ hsORule infer = matchHsObj ?>> \fns -> do
     includes <- if Maybe.isJust (cppFlags config hs)
         then includesOf "hsORule" config hs else return []
     need includes
+    packages <- getPackages config
     let his = map (objToHi . srcToObj config) imports
     -- I depend on the .hi files instead of the .hs.o files.  GHC avoids
     -- updaing the timestamp on the .hi file if its .o didn't need to be
     -- recompiled, so hopefully this will avoid some work.
     logDeps config "hs" obj (hs:his)
-    Util.cmdline $ compileHs (targetToMode obj) config hs
+    Util.cmdline $ compileHs packages (targetToMode obj) config hs
 
 -- | Generate both .hs.o and .hi from a .hs file.
 matchHsObj :: FilePath -> Maybe [FilePath]
@@ -864,8 +906,8 @@ matchHsObj fn
     isMain = Map.member hs nameToMain
         || runProfile `List.isPrefixOf` hs || runTests `List.isPrefixOf` hs
 
-compileHs :: Maybe Mode -> Config -> FilePath -> Util.Cmdline
-compileHs mode config hs = ("GHC" ++ maybe "" (('-':) . show) mode, hs,
+compileHs :: [String] -> Maybe Mode -> Config -> FilePath -> Util.Cmdline
+compileHs packages mode config hs = ("GHC" ++ maybe "" (('-':) . show) mode, hs,
     [ghcBinary, "-c"] ++ ghcFlags config ++ hcFlags (configFlags config)
         ++ mainIs ++ packageFlags ++ [hs, "-o", srcToObj config hs])
     where

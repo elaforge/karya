@@ -11,8 +11,8 @@ description:
     package dependencies.
 
 category: Music
-license: GPL-2
-license-file: LICENSE
+license: GPL-3
+license-file: COPYING
 author: Evan Laforge
 maintainer: Evan Laforge <qdunkan@gmail.com>
 stability: experimental

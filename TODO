@@ -3,8 +3,9 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
-  - Lilypond emmentaler symbols seem to change unpredictably across versions.
+  / Lilypond emmentaler symbols seem to change unpredictably across versions.
     Maybe it's too much bother to maintain, and I can just not use symbols.
+    . But `ped` and `mordent` look nice!  `rmordent` is hard to read though...
   * Perform.ConvertUtil.throw should take Text
   * upgrade to fclabels2
   - copy paste that also copies the ruler
@@ -362,6 +363,13 @@ documentation
         call definition (class=call) children, and unhiding otherwise.
     - I could go look through arg docs for controls and list all the controls
       that have someone listening to them in a certain scope.
+
+shakefile: build:
+  * get package versions from dist/setup-config instead of always using the
+    most recent ones
+  - If karya.cabal is phony, it always rebuilds even if the output file
+    didn't change.
+  - No-build time doubles from .2s to .45s.  Caching doesn't help.
 
 incremental save / git:
   + try saving individual events for incremental save

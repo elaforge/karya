@@ -11,8 +11,8 @@ description:
     package dependencies.
 
 category: Music
-license: GPL-2
-license-file: LICENSE
+license: GPL-3
+license-file: COPYING
 author: Evan Laforge
 maintainer: Evan Laforge <qdunkan@gmail.com>
 stability: experimental
@@ -50,6 +50,7 @@ library
         utf8-string,
         semigroups,
         attoparsec,
+        Cabal,
         mersenne-random-pure64,
         digest,
         random-shuffle,
@@ -65,7 +66,7 @@ library
         regex-pcre,
         Diff >=0.2,
         QuickCheck,
-        shake >=0.10.8,
+        shake >=0.13,
         binary,
         syb,
         ekg,
